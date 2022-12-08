@@ -15,5 +15,6 @@ using std::ifstream;
 using std::ofstream;
 using std::ostringstream;
 using std::istringstream;
+using std::pair;
 
 #endif

@@ -220,6 +220,22 @@ cl_mem OpenCLHelpers::createReadWriteBufferHalf(cl_context clContext, size_t num
   CHECK_ERR(err);
   return buf;
 }
+cl_mem OpenCLHelpers::createReadWriteBufferBytes(cl_context clContext, size_t numBytes) {
+  //Minimum allocation size, just in case, to avoid allocations of size 0
+  if(numBytes < 64)
+    numBytes = 64;
+
+  cl_int err;
+  cl_mem buf = clCreateBuffer(
+    clContext,
+    CL_MEM_READ_WRITE,
+    numBytes,
+    NULL,
+    &err
+  );
+  CHECK_ERR(err);
+  return buf;
+}
 
 
 void OpenCLHelpers::blockingReadBuffer(cl_command_queue commandQueue, cl_mem srcBuf, size_t numElts, std::vector<float>& dstBuf) {
@@ -865,7 +881,7 @@ cl_int OpenCLHelpers::doWinogradTransform(
   return err;
 }
 
-cl_int OpenCLHelpers::doWinogradTransformWithBNRelu(
+cl_int OpenCLHelpers::doWinogradTransformWithBNAct(
   cl_kernel kernel,
   cl_command_queue commandQueue,
   const OpenCLTuneParams& tuneParams,
@@ -958,13 +974,12 @@ cl_int OpenCLHelpers::doWinogradUntransform(
 }
 
 
-
-cl_int OpenCLHelpers::performGPool(
+cl_int OpenCLHelpers::performGPoolMask(
   cl_kernel kernel,
   cl_command_queue commandQueue,
   const OpenCLTuneParams& tuneParams,
   int batchSize, int gpoolChannels, int nnXYLen,
-  cl_mem gpoolConvOut, cl_mem gpoolConcat, cl_mem maskSum,
+  cl_mem gpoolConvOut, cl_mem gpoolConcat, cl_mem mask, cl_mem maskSum,
   cl_event* eventBuf
 ) {
   static constexpr int nKernelDims = 3;
@@ -981,10 +996,11 @@ cl_int OpenCLHelpers::performGPool(
 
   clSetKernelArg(kernel, 0, sizeof(cl_mem), (void *)&gpoolConvOut);
   clSetKernelArg(kernel, 1, sizeof(cl_mem), (void *)&gpoolConcat);
-  clSetKernelArg(kernel, 2, sizeof(cl_mem), (void *)&maskSum);
-  clSetKernelArg(kernel, 3, sizeof(int), (void *)&batchSize);
-  clSetKernelArg(kernel, 4, sizeof(int), (void *)&gpoolChannels);
-  clSetKernelArg(kernel, 5, sizeof(int), (void *)&nnXYLen);
+  clSetKernelArg(kernel, 2, sizeof(cl_mem), (void *)&mask);
+  clSetKernelArg(kernel, 3, sizeof(cl_mem), (void *)&maskSum);
+  clSetKernelArg(kernel, 4, sizeof(int), (void *)&batchSize);
+  clSetKernelArg(kernel, 5, sizeof(int), (void *)&gpoolChannels);
+  clSetKernelArg(kernel, 6, sizeof(int), (void *)&nnXYLen);
 
   cl_int err;
   err = clEnqueueNDRangeKernel(

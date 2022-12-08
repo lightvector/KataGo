@@ -342,13 +342,12 @@ struct ModelParser {
     int numChannels = desc->trunkNumChannels;
 
     tuneDesc += Global::strprintf(
-      R"("%s"(%d,%d,%d,%d,%d,%d))",
+      R"("%s"(%d,%d,%d,%d,%d))",
       desc->name.c_str(),
       desc->numBlocks,
       desc->trunkNumChannels,
       desc->midNumChannels,
       desc->regularNumChannels,
-      desc->dilatedNumChannels,
       desc->gpoolNumChannels);
 
     auto initialConvLayer = parseConvLayer(&desc->initialConv, inputFeature);
@@ -373,9 +372,6 @@ struct ModelParser {
       if(desc->blocks[i].first == ORDINARY_BLOCK_KIND) {
         auto blockDesc = static_cast<ResidualBlockDesc*>(desc->blocks[i].second.get());
         trunkScratchLayer = parseResidualBlock(blockDesc, trunkScratchLayer->getOutput(0));
-      } else if(desc->blocks[i].first == DILATED_BLOCK_KIND) {
-        auto blockDesc = static_cast<DilatedResidualBlockDesc*>(desc->blocks[i].second.get());
-        trunkScratchLayer = parseDilatedResidualBlock(blockDesc, trunkScratchLayer->getOutput(0));
       } else if(desc->blocks[i].first == GLOBAL_POOLING_BLOCK_KIND) {
         auto blockDesc = static_cast<GlobalPoolingResidualBlockDesc*>(desc->blocks[i].second.get());
         trunkScratchLayer = parseGlobalPoolingResidualBlock(blockDesc, trunkScratchLayer->getOutput(0));
@@ -525,32 +521,6 @@ struct ModelParser {
 
     auto mergeLayer = model->network->addElementWise(*input, *finalConvLayer->getOutput(0), ElementWiseOperation::kSUM);
     mergeLayer->setName(desc->name.c_str());
-
-    return mergeLayer;
-  }
-
-  ILayer* parseDilatedResidualBlock(const DilatedResidualBlockDesc* desc, ITensor* input) {
-    auto& network = model->network;
-    string name = desc->name;
-
-    auto preBatchNormLayer = parseBatchNormLayer(&desc->preBN, input);
-    auto preActivationLayer = parseActivationLayer(&desc->preActivation, preBatchNormLayer->getOutput(0));
-    auto preMaskLayer = applyMaskLayer(preActivationLayer);
-    auto regularConvLayer = parseConvLayer(&desc->regularConv, preMaskLayer->getOutput(0));
-    auto dilatedConvLayer = parseConvLayer(&desc->dilatedConv, preMaskLayer->getOutput(0));
-
-    ITensor* concatInputs[] = {regularConvLayer->getOutput(0), dilatedConvLayer->getOutput(0)};
-    auto concatLayer = network->addConcatenation(concatInputs, 2);
-    auto concatLayerName = name + "/concat";
-    concatLayer->setName(concatLayerName.c_str());
-
-    auto midBatchNormLayer = parseBatchNormLayer(&desc->midBN, concatLayer->getOutput(0));
-    auto midActivationLayer = parseActivationLayer(&desc->midActivation, midBatchNormLayer->getOutput(0));
-    auto midMaskLayer = applyMaskLayer(midActivationLayer);
-    auto finalConvLayer = parseConvLayer(&desc->finalConv, midMaskLayer->getOutput(0));
-
-    auto mergeLayer = network->addElementWise(*input, *finalConvLayer->getOutput(0), ElementWiseOperation::kSUM);
-    mergeLayer->setName(name.c_str());
 
     return mergeLayer;
   }

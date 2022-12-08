@@ -7,6 +7,10 @@ using namespace std;
 string OpenCLKernels::fp16StorageDefine = " -DPRECISION_STORAGE=16";
 string OpenCLKernels::fp16ComputeDefine = " -DPRECISION=16";
 
+string OpenCLKernels::actIdenDefine = " -DACTIVATION=0";
+string OpenCLKernels::actReluDefine = " -DACTIVATION=1";
+string OpenCLKernels::actMishDefine = " -DACTIVATION=2";
+
 string OpenCLKernels::common = R"%%(
 #ifndef PRECISION
   #define PRECISION 32
@@ -33,6 +37,7 @@ string OpenCLKernels::common = R"%%(
   #define SQRT2 1.41421356237h
   #define SQRTHALF 0.70710678118h
   #define SQRTEIGHTH 0.35355339059h
+  #define LOG1PEXPTHRESHOLD 9.0h
   #define floatToReal(_r) (convert_half(_r))
 
 #elif PRECISION == 32
@@ -52,6 +57,7 @@ string OpenCLKernels::common = R"%%(
   #define SQRT2 1.41421356237f
   #define SQRTHALF 0.70710678118f
   #define SQRTEIGHTH 0.35355339059f
+  #define LOG1PEXPTHRESHOLD 20.0f
   #define floatToReal(_r) (_r)
 #endif
 
@@ -384,7 +390,7 @@ __kernel void transform(
 
 )%%";
 
-string OpenCLKernels::winogradBNReluTransformNCHW = OpenCLKernels::common + R"%%(
+string OpenCLKernels::winogradBNActTransformNCHW = OpenCLKernels::common + R"%%(
 
 //Expected defines---------------------------------
 
@@ -404,12 +410,10 @@ string OpenCLKernels::winogradBNReluTransformNCHW = OpenCLKernels::common + R"%%
 //INTILE_XOFFSET (-1) for F(2x2,3x3)
 //INTILE_YOFFSET (-1) for F(2x2,3x3)
 
-#define SQRT8 2.82842712475f
-#define SQRT2 1.41421356237f
-#define SQRTHALF 0.70710678118f
-#define SQRTEIGHTH 0.35355339059f
+//Activation function
+//ACTIVATION (see activations.h)
 
-__kernel void bnReluTransform(
+__kernel void bnActTransform(
   __global realstore* restrict input,  //N, ic, H, W
   __global realstore* restrict transformed, //(INTILE_YSIZE, INTILE_XSIZE), (ic), (batch, tileY, tileX) where the last two dimenions are padded
   __global realstore* restrict scale, //ic
@@ -448,7 +452,14 @@ __kernel void bnReluTransform(
       real value = ZERO;
       if(y >= 0 && y < ySize && x >= 0 && x < xSize && n < nSize && ic < icSize) {
         int xy = y * xSize + x;
+#if ACTIVATION == 0
+        value = (INPUT(nic,xy) * LOAD(scale,ic) + LOAD(bias,ic)) * LOAD(mask, n * xySize + xy);
+#elif ACTIVATION == 1
         value = fmax(INPUT(nic,xy) * LOAD(scale,ic) + LOAD(bias,ic), ZERO) * LOAD(mask, n * xySize + xy);
+#elif ACTIVATION == 2
+        real a = INPUT(nic,xy) * LOAD(scale,ic) + LOAD(bias,ic);
+        value = a * tanh(a < LOG1PEXPTHRESHOLD ? log1p(exp(a)) : a) * LOAD(mask, n * xySize + xy);
+#endif
       }
       WTILE(subY,subX) = value;
     }
@@ -594,11 +605,6 @@ string OpenCLKernels::winogradUntransformNCHW = OpenCLKernels::common + R"%%(
 //INTILE_XOFFSET (-1) for F(2x2,3x3)
 //INTILE_YOFFSET (-1) for F(2x2,3x3)
 
-#define SQRT8 2.82842712475f
-#define SQRT2 1.41421356237f
-#define SQRTHALF 0.70710678118f
-#define SQRTEIGHTH 0.35355339059f
-
 __kernel void untransform(
   __global realstore* restrict transformed, //(INTILE_YSIZE, INTILE_XSIZE), (oc), (batch, tileY, tileX) //where the last two dims are padded
   __global realstore* restrict output,  //N, oc, H, W
@@ -732,11 +738,10 @@ __kernel void untransform(
 
 )%%";
 
-
-string OpenCLKernels::scaleBiasMaskNCHW = OpenCLKernels::common + R"%%(
-__kernel void scaleBiasMaskNCHW(
+string OpenCLKernels::scaleBiasMaskActNCHW = OpenCLKernels::common + R"%%(
+__kernel void scaleBiasMaskActNCHW(
   __global realstore* input,  //N, c, H, W
-  __global realstore* output, //N, c, H, W
+  __global realstore* output, //N, c, H, W, might be the same as input
   __global realstore* scale,  //c
   __global realstore* bias,   //c
   __global realstore* mask,   //N, H, W
@@ -750,31 +755,14 @@ __kernel void scaleBiasMaskNCHW(
   if(c < cSize && xy < xySize) {
     for(int n = 0; n < nSize; n++) {
       int idx = (n * cSize + c) * xySize + xy;
+#if ACTIVATION == 0
       real result = (LOAD(input,idx) * LOAD(scale,c) + LOAD(bias,c)) * LOAD(mask,n * xySize + xy);
-      STORE(output,idx,result);
-    }
-  }
-}
-)%%";
-
-string OpenCLKernels::scaleBiasMaskReluNCHW = OpenCLKernels::common + R"%%(
-__kernel void scaleBiasMaskReluNCHW(
-  __global realstore* input,  //N, c, H, W
-  __global realstore* output, //N, c, H, W
-  __global realstore* scale,  //c
-  __global realstore* bias,   //c
-  __global realstore* mask,   //N, H, W
-  int nSize,
-  int cSize,
-  int xySize
-) {
-  const int xy = get_global_id(0);
-  const int c = get_global_id(1);
-
-  if(c < cSize && xy < xySize) {
-    for(int n = 0; n < nSize; n++) {
-      int idx = (n * cSize + c) * xySize + xy;
+#elif ACTIVATION == 1
       real result = fmax(LOAD(input,idx) * LOAD(scale,c) + LOAD(bias,c), ZERO) * LOAD(mask,n * xySize + xy);
+#elif ACTIVATION == 2
+      real a = LOAD(input,idx) * LOAD(scale,c) + LOAD(bias,c);
+      real result = a * tanh(a < LOG1PEXPTHRESHOLD ? log1p(exp(a)) : a) * LOAD(mask,n * xySize + xy);
+#endif
       STORE(output,idx,result);
     }
   }
@@ -851,8 +839,7 @@ __kernel void sumChannelsNCHW(
 }
 )%%";
 
-
-string OpenCLKernels::gPoolChannelsNCHW = OpenCLKernels::common + R"%%(
+string OpenCLKernels::gPoolChannelsNCHWMask = OpenCLKernels::common + R"%%(
 //Defines:
 //XYSTRIDE - power of two parallelism stride for reduction, should be get_local_size(0)
 //CHANNELSTRIDE - stride for channels, should be get_local_size(1)
@@ -860,9 +847,10 @@ string OpenCLKernels::gPoolChannelsNCHW = OpenCLKernels::common + R"%%(
 
 //PRECONDIION: Kernel is being run where get_num_groups(0) == 1, so that global id and local id are identical for dim 0
 
-__kernel void gPoolChannelsNCHW(
+__kernel void gPoolChannelsNCHWMask(
   __global realstore* input,  //N, c, HW
   __global float* output, //N, c
+  __global realstore* mask,   //N, H, W
   __global float* maskSums, //N
   int nSize,
   int cSize,
@@ -878,14 +866,20 @@ __kernel void gPoolChannelsNCHW(
   __local float partialMaxes[LOCALSIZE_TOTAL];
 
   float sum = 0.0f;
-  float max = 0.0f;
+  float max = -1.0f;
   if(n < nSize && c < cSize) {
     //Sum up the elements that this group member is responsible for
     for(int xy = xyBase; xy < xySize; xy += XYSTRIDE) {
       int idx = (n * cSize + c) * xySize + xy;
       float v = LOAD(input,idx);
       sum += v;
-      max = fmax(max,v);
+      // Init to -1.0 above and + mask - 1.0 is because it will effectively make all padded space into -1.0
+      // which is lower than the lowest value that any current activation function will produce.
+      // so the max over all valid spaces will the same as the mask over all spaces including padding.
+      // We're relying on all padded space being equal to 0 because this gpool only ever follows a BN+Activate with a mask.
+      int maskIdx = n * xySize + xy;
+      float maskVal = LOAD(mask,maskIdx);
+      max = fmax(max,v + (maskVal-1.0f));
     }
   }
 
@@ -1003,8 +997,8 @@ __kernel void addChannelBiasesNCHW(
 )%%";
 
 
-string OpenCLKernels::addCBiasesNC = OpenCLKernels::common + R"%%(
-__kernel void addCBiasesNC(
+string OpenCLKernels::addCBiasesNCAct = OpenCLKernels::common + R"%%(
+__kernel void addCBiasesNCAct(
   __global float* accum,  //N,C
   __global float* biases, //C
   int nSize,
@@ -1013,24 +1007,16 @@ __kernel void addCBiasesNC(
   const int c = get_global_id(0);
   const int n = get_global_id(1);
 
-  if(n < nSize && c < cSize)
+  if(n < nSize && c < cSize) {
+#if ACTIVATION == 0
     accum[n * cSize + c] += biases[c];
-}
-)%%";
-
-
-string OpenCLKernels::addCBiasesNCRelu = OpenCLKernels::common + R"%%(
-__kernel void addCBiasesNCRelu(
-  __global float* accum,  //N,C
-  __global float* biases, //C
-  int nSize,
-  int cSize
-) {
-  const int c = get_global_id(0);
-  const int n = get_global_id(1);
-
-  if(n < nSize && c < cSize)
+#elif ACTIVATION == 1
     accum[n * cSize + c] = fmax(accum[n * cSize + c] + biases[c], 0.0f);
+#elif ACTIVATION == 2
+    real a = accum[n * cSize + c] + biases[c];
+    accum[n * cSize + c] = a * tanh(a < LOG1PEXPTHRESHOLD ? log1p(exp(a)) : a);
+#endif
+  }
 }
 )%%";
 

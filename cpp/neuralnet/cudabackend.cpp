@@ -3,15 +3,20 @@
 #include "../neuralnet/cudaincludes.h"
 
 #include "../neuralnet/cudahelpers.h"
+#include "../neuralnet/cudautils.h"
 #include "../neuralnet/modelversion.h"
 #include "../neuralnet/nninterface.h"
 #include "../neuralnet/nninputs.h"
 #include "../neuralnet/nneval.h"
 #include "../neuralnet/desc.h"
 
+#include "../core/simpleallocator.h"
+
 #include "../external/half-2.1.0/include/half.hpp"
 
-using namespace std;
+//------------------------
+#include "../core/using.h"
+//------------------------
 
 using half_t = half_float::half;
 
@@ -29,15 +34,15 @@ void NeuralNet::globalCleanup() {
 struct CudaHandles {
   cublasHandle_t cublas;
   cudnnHandle_t cudnn;
-  int majorComputeCapability;
-  int minorComputeCapability;
+  const int majorComputeCapability;
+  const int minorComputeCapability;
 
-  CudaHandles(int major, int minor) {
+  CudaHandles(int major, int minor)
+    : majorComputeCapability(major),
+      minorComputeCapability(minor)
+  {
     CUBLAS_ERR("CudaHandles",cublasCreate(&cublas));
     CUDNN_ERR("CudaHandles",cudnnCreate(&cudnn));
-
-    majorComputeCapability = major;
-    minorComputeCapability = minor;
   }
 
   ~CudaHandles() {
@@ -58,135 +63,200 @@ struct CudaHandles {
 
 //---------------------------------------------------------------------------------
 
-static void mallocOnDevice(const string& name, int numWeights, void*& deviceBuf, bool useFP16) {
-  if(useFP16) {
-    size_t halfBytes = numWeights * sizeof(half);
-    CUDA_ERR(name.c_str(),cudaMalloc(&deviceBuf, halfBytes));
-  }
-  else {
-    size_t floatBytes = numWeights * sizeof(float);
-    CUDA_ERR(name.c_str(),cudaMalloc(&deviceBuf, floatBytes));
-  }
-}
+template<typename T>
+struct ByBatchSize {
+  const int maxBatchSize;
+  T* data;
+  cudnnStatus_t (*destroyFunc)(T);
 
-static void mallocAndCopyToDevice(const string& name, const vector<float>& weights, void*& deviceBuf, bool useFP16) {
-  size_t numWeights = weights.size();
-  if(useFP16) {
-    size_t halfBytes = numWeights * sizeof(half);
-    vector<half_t> weightsHalf(weights.size());
-    for(size_t i = 0; i<weights.size(); i++)
-      weightsHalf[i] = half_float::half_cast<half_t>(weights[i]);
-    CUDA_ERR(name.c_str(),cudaMalloc(&deviceBuf, halfBytes));
-    CUDA_ERR(name.c_str(),cudaMemcpy(deviceBuf, weightsHalf.data(), halfBytes, cudaMemcpyHostToDevice));
-  }
-  else {
-    size_t floatBytes = numWeights * sizeof(float);
-    CUDA_ERR(name.c_str(),cudaMalloc(&deviceBuf, floatBytes));
-    CUDA_ERR(name.c_str(),cudaMemcpy(deviceBuf, weights.data(), floatBytes, cudaMemcpyHostToDevice));
-  }
-}
+  ByBatchSize()
+    : maxBatchSize(0), data(nullptr), destroyFunc(nullptr)
+  {}
 
-static void mallocAndCopyToDevice(const string& name, const float* weights, int numWeights, void*& deviceBuf, bool useFP16) {
-  if(useFP16) {
-    size_t halfBytes = numWeights * sizeof(half);
-    vector<half_t> weightsHalf(numWeights);
-    for(int i = 0; i<numWeights; i++)
-      weightsHalf[i] = half_float::half_cast<half_t>(weights[i]);
-    CUDA_ERR(name.c_str(),cudaMalloc(&deviceBuf, halfBytes));
-    CUDA_ERR(name.c_str(),cudaMemcpy(deviceBuf, weightsHalf.data(), halfBytes, cudaMemcpyHostToDevice));
+  ByBatchSize(
+    int maxBatchSize_
+  ) : maxBatchSize(maxBatchSize_), data(nullptr), destroyFunc(nullptr) {
+    data = new T[maxBatchSize];
   }
-  else {
-    size_t floatBytes = numWeights * sizeof(float);
-    CUDA_ERR(name.c_str(),cudaMalloc(&deviceBuf, floatBytes));
-    CUDA_ERR(name.c_str(),cudaMemcpy(deviceBuf, weights, floatBytes, cudaMemcpyHostToDevice));
-  }
-}
 
-//Only use in testing, allocates an intermediate buffer in the case of FP16 which will be very slow.
-static void expensiveCopyFromDevice(const string& name, float* weights, int numWeights, const void* deviceBuf, bool useFP16) {
-  if(useFP16) {
-    vector<half_t> weightsHalf(numWeights);
-    size_t halfBytes = numWeights * sizeof(half);
-    CUDA_ERR(name.c_str(),cudaMemcpy(weightsHalf.data(), deviceBuf, halfBytes, cudaMemcpyDeviceToHost));
-    for(int i = 0; i<numWeights; i++)
-      weights[i] = weightsHalf[i];
-  }
-  else {
-    size_t floatBytes = numWeights * sizeof(float);
-    CUDA_ERR(name.c_str(),cudaMemcpy(weights, deviceBuf, floatBytes, cudaMemcpyDeviceToHost));
-  }
-}
+  ByBatchSize(const ByBatchSize&) = delete;
+  ByBatchSize& operator=(const ByBatchSize&) = delete;
 
-#ifdef DEBUG_INTERMEDIATE_VALUES
-static void debugPrint2D(const string& name, const void* deviceBuf, int batchSize, int cSize, bool useFP16) {
-  vector<float> values(batchSize * cSize);
-  expensiveCopyFromDevice(name, values.data(), values.size(), deviceBuf, useFP16);
-  cout << "=========================================================" << endl;
-  cout << name << endl;
-  int i = 0;
-  for(int n = 0; n<batchSize; n++) {
-    cout << "-(n=" << n << ")--------------------" << endl;
-    for(int c = 0; c<cSize; c++)
-      cout << values[i++] << " ";
-    cout << endl;
-  }
-  cout << endl;
-  cout << "=========================================================" << endl;
-}
-
-static void debugPrint4D(const string& name, const void* deviceBuf, int batchSize, int cSize, int xSize, int ySize, bool useNHWC, bool useFP16) {
-  vector<float> values(batchSize * cSize * xSize * ySize);
-  expensiveCopyFromDevice(name, values.data(), values.size(), deviceBuf, useFP16);
-  cout << "=========================================================" << endl;
-  cout << name << endl;
-  int i = 0;
-  for(int n = 0; n<batchSize; n++) {
-    cout << "-(n=" << n << ")--------------------" << endl;
-    if(useNHWC) {
-      for(int y = 0; y<ySize; y++) {
-        cout << "(y=" << y << ")" << endl;
-        for(int x = 0; x<xSize; x++) {
-          for(int c = 0; c<cSize; c++)
-            cout << values[i++] << " ";
-          cout << endl;
-        }
-        cout << endl;
+  ~ByBatchSize() {
+    if(destroyFunc != nullptr && data != nullptr) {
+      for(int batchSize = 1; batchSize <= maxBatchSize; batchSize++) {
+        (*destroyFunc)(data[batchSize-1]);
       }
     }
-    else {
-      for(int c = 0; c<cSize; c++) {
-        cout << "(c=" << c << ")" << endl;
-        for(int y = 0; y<ySize; y++) {
-          for(int x = 0; x<xSize; x++)
-            cout << values[i++] << " ";
-          cout << endl;
-        }
-        cout << endl;
-      }
+    if(data != nullptr) {
+      delete[] data;
+      data = nullptr;
     }
   }
-  cout << "=========================================================" << endl;
-}
-#endif
+  T& operator[](int batchSize) {
+    return data[batchSize-1];
+  }
+  const T& operator[](int batchSize) const {
+    return data[batchSize-1];
+  }
+};
 
-static void checkBufferSize(int batchSize, int xSize, int ySize, int channels) {
-  if((int64_t)batchSize * xSize * ySize * channels >= (int64_t)1 << 31)
-    throw StringError("Batch size too large, resulting GPU buffers might exceed 2^31 entries which is not currently supported");
-}
+template<typename T>
+struct ByBatchSizeView {
+  int maxBatchSize;
+  T* data;
+
+  ByBatchSizeView()
+    : maxBatchSize(0), data(nullptr)
+  {}
+
+  ByBatchSizeView(const ByBatchSize<T>& toView)
+    : maxBatchSize(toView.maxBatchSize), data(toView.data)
+  {}
+  ByBatchSizeView& operator=(const ByBatchSize<T>& toView) {
+    maxBatchSize = toView.maxBatchSize;
+    data = toView.data;
+  }
+
+  ~ByBatchSizeView() {
+  }
+  T& operator[](int batchSize) {
+    return data[batchSize-1];
+  }
+  const T& operator[](int batchSize) const {
+    return data[batchSize-1];
+  }
+};
+
+//---------------------------------------------------------------------------------
+
+
+//channels, useFP16, useNHWC
+typedef std::tuple<int, bool, bool> CudnnTensorDesc4DKey;
+
+struct CudnnManager {
+  const string name;
+  const int maxBatchSize;
+  const int nnXLen;
+  const int nnYLen;
+  std::map<CudnnTensorDesc4DKey, ByBatchSize<cudnnTensorDescriptor_t>*> tensorDesc4DByBatchSizeByKey;
+
+  CudnnManager(string name_, int maxBatchSize_, int nnXLen_, int nnYLen_)
+    :name(name_),
+     maxBatchSize(maxBatchSize_),
+     nnXLen(nnXLen_),
+     nnYLen(nnYLen_),
+     tensorDesc4DByBatchSizeByKey()
+  {
+  }
+
+  ~CudnnManager() {
+    for(auto& iter: tensorDesc4DByBatchSizeByKey) {
+      delete iter.second;
+    }
+  }
+
+  ByBatchSizeView<cudnnTensorDescriptor_t> getTensorDesc4DByBatchSize(
+    int channels, bool useFP16, bool useNHWC
+  ) {
+    auto iter = tensorDesc4DByBatchSizeByKey.find({channels, useFP16, useNHWC});
+    if(iter != tensorDesc4DByBatchSizeByKey.end()) {
+      return ByBatchSizeView<cudnnTensorDescriptor_t>(*(iter->second));
+    }
+    ByBatchSize<cudnnTensorDescriptor_t>* descs = new ByBatchSize<cudnnTensorDescriptor_t>(maxBatchSize);
+    for(int batchSize = 1; batchSize <= maxBatchSize; batchSize++) {
+      cudnnTensorDescriptor_t& desc = (*descs)[batchSize];
+      CUDNN_ERR(name.c_str(),cudnnCreateTensorDescriptor(&desc));
+      CUDNN_ERR(name.c_str(),cudnnSetTensor4dDescriptor(
+                  desc,
+                  (useNHWC ? CUDNN_TENSOR_NHWC : CUDNN_TENSOR_NCHW),
+                  (useFP16 ? CUDNN_DATA_HALF : CUDNN_DATA_FLOAT),
+                  batchSize,
+                  channels,
+                  nnYLen,
+                  nnXLen
+                ));
+    }
+    descs->destroyFunc = cudnnDestroyTensorDescriptor;
+    tensorDesc4DByBatchSizeByKey[{channels, useFP16, useNHWC}] = descs;
+    return ByBatchSizeView<cudnnTensorDescriptor_t>(*descs);
+  }
+};
+
+//---------------------------------------------------------------------------------
+
+struct ScratchBuffers {
+
+  const size_t batchXYFloatBytes;
+  const size_t batchFloatBytes;
+  const size_t batchXYBytes;
+  const size_t batchBytes;
+
+  SimpleAllocator<void*>* allocator;
+
+  // Not scratch, but convenient to have here
+  void* zeroBuf;
+  void* oneBuf;
+
+  ScratchBuffers() = delete;
+  ScratchBuffers(const ScratchBuffers&) = delete;
+  ScratchBuffers& operator=(const ScratchBuffers&) = delete;
+
+  ScratchBuffers(int maxBatchSize, int nnXLen, int nnYLen, bool useFP16)
+    : batchXYFloatBytes((size_t)maxBatchSize * nnXLen * nnYLen * sizeof(float)),
+      batchFloatBytes((size_t)maxBatchSize * sizeof(float)),
+      batchXYBytes((size_t)maxBatchSize * nnXLen * nnYLen * (useFP16 ? sizeof(half_t) : sizeof(float))),
+      batchBytes((size_t)maxBatchSize * (useFP16 ? sizeof(half_t) : sizeof(float)))
+  {
+    std::function<void*(size_t)> allocateFunc = [](size_t size) {
+      void* buf;
+      CUDA_ERR("ScratchBuffers",cudaMalloc(&buf, size));
+      return buf;
+    };
+    std::function<void(void*)> releaseFunc = [](void* buf) {
+      cudaFree(buf);
+    };
+
+    allocator = new SimpleAllocator<void*>(allocateFunc, releaseFunc);
+
+    CudaUtils::hostMallocZeroOneBufs(zeroBuf, oneBuf, useFP16);
+  }
+  ~ScratchBuffers() {
+    delete allocator;
+    free(zeroBuf);
+    free(oneBuf);
+  }
+
+  size_t getBufSizeXY(int channels) const {
+    return channels * batchXYBytes;
+  }
+  size_t getBufSizeXYFloat(int channels) const {
+    return channels * batchXYFloatBytes;
+  }
+  size_t getBufSizeFloat(int channels) const {
+    return channels * batchFloatBytes;
+  }
+  size_t getBufSize(int channels) const {
+    return channels * batchBytes;
+  }
+
+};
 
 
 //---------------------------------------------------------------------------------
 
 struct ConvLayer {
-  string name;
-  int inChannels;
-  int outChannels;
+  const string name;
+  const int inChannels;
+  const int outChannels;
+  ByBatchSizeView<cudnnTensorDescriptor_t> inputDescriptors;
+  ByBatchSizeView<cudnnTensorDescriptor_t> outputDescriptors;
   cudnnFilterDescriptor_t filterDescriptor;
   cudnnConvolutionDescriptor_t convolutionDescriptor;
 #if CUDNN_MAJOR >= 8
-  std::unique_ptr<cudnnConvolutionFwdAlgoPerf_t[]> convolutionAlgorithms; //array of one for each batch size
+  ByBatchSize<cudnnConvolutionFwdAlgoPerf_t>* convolutionAlgorithms; //array of one for each batch size
 #else
-  std::unique_ptr<cudnnConvolutionFwdAlgo_t[]> convolutionAlgorithms; //array of one for each batch size
+  ByBatchSize<cudnnConvolutionFwdAlgo_t>* convolutionAlgorithms; //array of one for each batch size
 #endif
   void* filterBuf;
 
@@ -196,18 +266,27 @@ struct ConvLayer {
 
   ConvLayer(
     CudaHandles* cudaHandles,
+    CudnnManager* manager,
     const ConvLayerDesc* desc,
-    int maxBatchSize,
-    const cudnnTensorDescriptor_t* inputDescriptors, //array of one for each batch size
-    const cudnnTensorDescriptor_t* outputDescriptors, //array of one for each batch size
     bool useFP16,
     bool useNHWC
-  ) {
-    name = desc->name;
+  ) : ConvLayer(cudaHandles, manager, desc, useFP16, useNHWC, useNHWC)
+  {}
+
+  ConvLayer(
+    CudaHandles* cudaHandles,
+    CudnnManager* manager,
+    const ConvLayerDesc* desc,
+    bool useFP16,
+    bool useNHWCIn,
+    bool useNHWCOut
+  ) :
+    name(desc->name),
+    inChannels(desc->inChannels),
+    outChannels(desc->outChannels)
+  {
     int convYSize = desc->convYSize;
     int convXSize = desc->convXSize;
-    inChannels = desc->inChannels;
-    outChannels = desc->outChannels;
     int dilationY = desc->dilationY;
     int dilationX = desc->dilationX;
     int paddingX = (convXSize / 2) * dilationX;
@@ -216,7 +295,11 @@ struct ConvLayer {
     assert(convXSize % 2 == 1);
     assert(convYSize % 2 == 1);
 
-    bool filterNHWC = useNHWC && dilationY == 1 && dilationX == 1;
+    inputDescriptors = manager->getTensorDesc4DByBatchSize(inChannels,useFP16,useNHWCIn);
+    outputDescriptors = manager->getTensorDesc4DByBatchSize(outChannels,useFP16,useNHWCOut);
+    int maxBatchSize = manager->maxBatchSize;
+
+    bool filterNHWC = useNHWCOut && dilationY == 1 && dilationX == 1;
 
     CUDNN_ERR(name.c_str(),cudnnCreateFilterDescriptor(&filterDescriptor));
     CUDNN_ERR(name.c_str(),cudnnSetFilter4dDescriptor(
@@ -252,22 +335,22 @@ struct ConvLayer {
       CUDNN_ERR(name.c_str(),cudnnSetConvolutionMathType(convolutionDescriptor, CUDNN_TENSOR_OP_MATH));
 
 #if CUDNN_MAJOR >= 8
-    convolutionAlgorithms = std::make_unique<cudnnConvolutionFwdAlgoPerf_t[]>(maxBatchSize);
+    convolutionAlgorithms = new ByBatchSize<cudnnConvolutionFwdAlgoPerf_t>(maxBatchSize);
 #else
-    convolutionAlgorithms = std::make_unique<cudnnConvolutionFwdAlgo_t[]>(maxBatchSize);
+    convolutionAlgorithms = new ByBatchSize<cudnnConvolutionFwdAlgo_t>(maxBatchSize);
 #endif
 
     for(int batchSize = 1; batchSize <= maxBatchSize; batchSize++) {
       if(useFP16 && dilationX <= 1 && dilationY <= 1) {
 #if CUDNN_MAJOR >= 8
-        convolutionAlgorithms[batchSize-1].algo = CUDNN_CONVOLUTION_FWD_ALGO_IMPLICIT_PRECOMP_GEMM;
+        (*convolutionAlgorithms)[batchSize].algo = CUDNN_CONVOLUTION_FWD_ALGO_IMPLICIT_PRECOMP_GEMM;
 #else
-        convolutionAlgorithms[batchSize-1] = CUDNN_CONVOLUTION_FWD_ALGO_IMPLICIT_PRECOMP_GEMM;
+        (*convolutionAlgorithms)[batchSize] = CUDNN_CONVOLUTION_FWD_ALGO_IMPLICIT_PRECOMP_GEMM;
 #endif
       }
       else {
-        const cudnnTensorDescriptor_t& inputDescriptor = inputDescriptors[batchSize-1];
-        const cudnnTensorDescriptor_t& outputDescriptor = outputDescriptors[batchSize-1];
+        const cudnnTensorDescriptor_t& inputDescriptor = inputDescriptors[batchSize];
+        const cudnnTensorDescriptor_t& outputDescriptor = outputDescriptors[batchSize];
 
 #if CUDNN_MAJOR >= 8
         int requestedAlgoCount = CUDNN_CONVOLUTION_FWD_ALGO_COUNT;
@@ -285,7 +368,7 @@ struct ConvLayer {
         ));
         if(returnedAlgoCount <= 0)
           throw StringError("cudnnGetConvolutionForwardAlgorithm_v7 returned no algorithms?");
-        convolutionAlgorithms[batchSize-1] = results[0];
+        (*convolutionAlgorithms)[batchSize] = results[0];
 #else
         size_t bytesMemoryLimit = 0;
         CUDNN_ERR(name.c_str(),cudnnGetConvolutionForwardAlgorithm(
@@ -296,7 +379,7 @@ struct ConvLayer {
            outputDescriptor,
            CUDNN_CONVOLUTION_FWD_PREFER_FASTEST,
            bytesMemoryLimit,
-           &(convolutionAlgorithms[batchSize-1])
+           &((*convolutionAlgorithms)[batchSize])
          ));
 #endif
       }
@@ -316,44 +399,43 @@ struct ConvLayer {
           }
         }
       }
-      mallocAndCopyToDevice(name,weightsTransposed,filterBuf,useFP16);
+      CudaUtils::mallocAndCopyToDevice(name,weightsTransposed,filterBuf,useFP16);
       cudaDeviceSynchronize();
     }
     else
-      mallocAndCopyToDevice(name,desc->weights,filterBuf,useFP16);
+      CudaUtils::mallocAndCopyToDevice(name,desc->weights,filterBuf,useFP16);
   }
 
   ~ConvLayer() {
     cudaFree(filterBuf);
     cudnnDestroyFilterDescriptor(filterDescriptor);
     cudnnDestroyConvolutionDescriptor(convolutionDescriptor);
+    delete convolutionAlgorithms;
   }
 
   size_t requiredWorkspaceBytes(
     CudaHandles* cudaHandles,
-    const cudnnTensorDescriptor_t& inputDescriptor,
-    const cudnnTensorDescriptor_t& outputDescriptor,
     int batchSize
   ) const {
     size_t workspaceBytes = 0;
 #if CUDNN_MAJOR >= 8
     CUDNN_ERR(name.c_str(),cudnnGetConvolutionForwardWorkspaceSize(
       cudaHandles->cudnn,
-      inputDescriptor,
+      inputDescriptors[batchSize],
       filterDescriptor,
       convolutionDescriptor,
-      outputDescriptor,
-      convolutionAlgorithms[batchSize-1].algo,
+      outputDescriptors[batchSize],
+      (*convolutionAlgorithms)[batchSize].algo,
       &workspaceBytes
     ));
 #else
     CUDNN_ERR(name.c_str(),cudnnGetConvolutionForwardWorkspaceSize(
       cudaHandles->cudnn,
-      inputDescriptor,
+      inputDescriptors[batchSize],
       filterDescriptor,
       convolutionDescriptor,
-      outputDescriptor,
-      convolutionAlgorithms[batchSize-1],
+      outputDescriptors[batchSize],
+      (*convolutionAlgorithms)[batchSize],
       &workspaceBytes
     ));
 #endif
@@ -362,8 +444,6 @@ struct ConvLayer {
 
   void apply(
     CudaHandles* cudaHandles,
-    const cudnnTensorDescriptor_t& inputDescriptor,
-    const cudnnTensorDescriptor_t& outputDescriptor,
     int batchSize,
     bool accumulate,
     void* inputBuf,
@@ -377,32 +457,32 @@ struct ConvLayer {
     CUDNN_ERR(name.c_str(),cudnnConvolutionForward(
       cudaHandles->cudnn,
       &alpha,
-      inputDescriptor,
+      inputDescriptors[batchSize],
       inputBuf,
       filterDescriptor,
       filterBuf,
       convolutionDescriptor,
-      convolutionAlgorithms[batchSize-1].algo,
+      (*convolutionAlgorithms)[batchSize].algo,
       workspaceBuf,
       workspaceBytes,
       &beta,
-      outputDescriptor,
+      outputDescriptors[batchSize],
       outputBuf
     ));
 #else
     CUDNN_ERR(name.c_str(),cudnnConvolutionForward(
       cudaHandles->cudnn,
       &alpha,
-      inputDescriptor,
+      inputDescriptors[batchSize],
       inputBuf,
       filterDescriptor,
       filterBuf,
       convolutionDescriptor,
-      convolutionAlgorithms[batchSize-1],
+      (*convolutionAlgorithms)[batchSize],
       workspaceBuf,
       workspaceBytes,
       &beta,
-      outputDescriptor,
+      outputDescriptors[batchSize],
       outputBuf
     ));
 #endif
@@ -414,13 +494,16 @@ struct ConvLayer {
 //---------------------------------------------------------------------------------
 
 struct BatchNormLayer {
-  string name;
-  int numChannels;
-  float epsilon;
-  int xSize;
-  int ySize;
+  const string name;
+  const int numChannels;
+  const float epsilon;
+  const int activation;
+  const int nnXLen;
+  const int nnYLen;
 
-  cudnnTensorDescriptor_t bufDescriptor;
+  const bool usingFP16;
+  const bool usingNHWC;
+
   void* meanBuf;
   void* varianceBuf;
   void* scaleBuf;
@@ -429,9 +512,6 @@ struct BatchNormLayer {
   void* mergedScaleBuf;
   void* mergedBiasBuf;
 
-  bool usingFP16;
-  bool usingNHWC;
-
   BatchNormLayer() = delete;
   BatchNormLayer(const BatchNormLayer&) = delete;
   BatchNormLayer& operator=(const BatchNormLayer&) = delete;
@@ -439,43 +519,34 @@ struct BatchNormLayer {
   BatchNormLayer(
     CudaHandles* cudaHandles,
     const BatchNormLayerDesc* desc,
-    int xS,
-    int yS,
+    const ActivationLayerDesc* actDesc,
+    int nnX,
+    int nnY,
     bool useFP16,
     bool useNHWC
-  ) {
+  ) :
+    name(desc->name),
+    numChannels(desc->numChannels),
+    epsilon(desc->epsilon),
+    activation(actDesc->activation),
+    nnXLen(nnX),
+    nnYLen(nnY),
+    usingFP16(useFP16),
+    usingNHWC(useNHWC)
+  {
     (void)cudaHandles;
 
-    name = desc->name;
-    numChannels = desc->numChannels;
-    epsilon = desc->epsilon;
-    xSize = xS;
-    ySize = yS;
-    usingFP16 = useFP16;
-    usingNHWC = useNHWC;
-
-    CUDNN_ERR(name.c_str(),cudnnCreateTensorDescriptor(&bufDescriptor));
-    CUDNN_ERR(name.c_str(),cudnnSetTensor4dDescriptor(
-      bufDescriptor,
-      CUDNN_TENSOR_NCHW, //Always NCHW since otherwise cudnn is sad
-      (useFP16 ? CUDNN_DATA_HALF : CUDNN_DATA_FLOAT),
-      1,
-      numChannels,
-      1,
-      1
-    ));
-
     assert(desc->mean.size() == numChannels);
-    mallocAndCopyToDevice(name,desc->mean,meanBuf,useFP16);
+    CudaUtils::mallocAndCopyToDevice(name,desc->mean,meanBuf,useFP16);
 
     assert(desc->variance.size() == numChannels);
-    mallocAndCopyToDevice(name,desc->variance,varianceBuf,useFP16);
+    CudaUtils::mallocAndCopyToDevice(name,desc->variance,varianceBuf,useFP16);
 
     assert(desc->scale.size() == numChannels);
-    mallocAndCopyToDevice(name,desc->scale,scaleBuf,useFP16);
+    CudaUtils::mallocAndCopyToDevice(name,desc->scale,scaleBuf,useFP16);
 
     assert(desc->bias.size() == numChannels);
-    mallocAndCopyToDevice(name,desc->bias,biasBuf,useFP16);
+    CudaUtils::mallocAndCopyToDevice(name,desc->bias,biasBuf,useFP16);
 
     vector<float> mergedScale(numChannels);
     vector<float> mergedBias(numChannels);
@@ -483,8 +554,8 @@ struct BatchNormLayer {
       mergedScale[i] = desc->scale[i] / sqrt(desc->variance[i] + epsilon);
       mergedBias[i] = desc->bias[i] - mergedScale[i] * desc->mean[i];
     }
-    mallocAndCopyToDevice(name,mergedScale,mergedScaleBuf,useFP16);
-    mallocAndCopyToDevice(name,mergedBias,mergedBiasBuf,useFP16);
+    CudaUtils::mallocAndCopyToDevice(name,mergedScale,mergedScaleBuf,useFP16);
+    CudaUtils::mallocAndCopyToDevice(name,mergedBias,mergedBiasBuf,useFP16);
   }
   ~BatchNormLayer() {
     cudaFree(meanBuf);
@@ -493,13 +564,11 @@ struct BatchNormLayer {
     cudaFree(biasBuf);
     cudaFree(mergedScaleBuf);
     cudaFree(mergedBiasBuf);
-    cudnnDestroyTensorDescriptor(bufDescriptor);
   }
 
   void apply(
     CudaHandles* cudaHandles,
     int batchSize,
-    bool applyRelu,
     void* inputBuf,
     const void* maskBuf, //ok to be null
     void* outputBuf
@@ -509,21 +578,21 @@ struct BatchNormLayer {
       if(!usingNHWC)
         customCudaApplyCScaleBiasNCHW((const float*)inputBuf,(float*)outputBuf,(const float*)mergedScaleBuf,(const float*)mergedBiasBuf,
                                       (const float*)maskBuf,
-                                      batchSize,numChannels,xSize*ySize,applyRelu);
+                                      batchSize,numChannels,nnXLen*nnYLen,activation);
       else
         customCudaApplyCScaleBiasNHWC((const float*)inputBuf,(float*)outputBuf,(const float*)mergedScaleBuf,(const float*)mergedBiasBuf,
                                       (const float*)maskBuf,
-                                      batchSize,xSize*ySize,numChannels,applyRelu);
+                                      batchSize,nnXLen*nnYLen,numChannels,activation);
     }
     else {
       if(!usingNHWC)
         customCudaApplyCScaleBiasNCHW((const half*)inputBuf,(half*)outputBuf,(const half*)mergedScaleBuf,(const half*)mergedBiasBuf,
                                       (const half*)maskBuf,
-                                      batchSize,numChannels,xSize*ySize,applyRelu);
+                                      batchSize,numChannels,nnXLen*nnYLen,activation);
       else
         customCudaApplyCScaleBiasNHWC((const half*)inputBuf,(half*)outputBuf,(const half*)mergedScaleBuf,(const half*)mergedBiasBuf,
                                       (const half*)maskBuf,
-                                      batchSize,xSize*ySize,numChannels,applyRelu);
+                                      batchSize,nnXLen*nnYLen,numChannels,activation);
       CUDA_ERR(name.c_str(),cudaPeekAtLastError());
     }
 
@@ -534,67 +603,12 @@ struct BatchNormLayer {
 
 //---------------------------------------------------------------------------------
 
-struct ActivationLayer {
-  string name;
-  cudnnActivationDescriptor_t activationDescriptor;
-
-  ActivationLayer() = delete;
-  ActivationLayer(const ActivationLayer&) = delete;
-  ActivationLayer& operator=(const ActivationLayer&) = delete;
-
-  ActivationLayer(
-    CudaHandles* cudaHandles,
-    const ActivationLayerDesc* desc
-  ) {
-    (void)cudaHandles;
-    name = desc->name;
-
-    CUDNN_ERR(name.c_str(),cudnnCreateActivationDescriptor(&activationDescriptor));
-    CUDNN_ERR(name.c_str(),cudnnSetActivationDescriptor(
-      activationDescriptor,
-      CUDNN_ACTIVATION_RELU,
-      CUDNN_PROPAGATE_NAN,
-      0.0
-    ));
-  }
-
-  ~ActivationLayer() {
-    cudnnDestroyActivationDescriptor(activationDescriptor);
-  }
-
-  void apply(
-    CudaHandles* cudaHandles,
-    const cudnnTensorDescriptor_t& inputDescriptor,
-    const cudnnTensorDescriptor_t& outputDescriptor,
-    void* inputBuf,
-    void* outputBuf
-  ) const {
-    const float alpha = 1.0f;
-    const float beta = 0.0f;
-
-    CUDNN_ERR(name.c_str(),cudnnActivationForward(
-      cudaHandles->cudnn,
-      activationDescriptor,
-      &alpha,
-      inputDescriptor,
-      inputBuf,
-      &beta,
-      outputDescriptor,
-      outputBuf
-    ));
-  }
-
-};
-
-
-//---------------------------------------------------------------------------------
-
 struct MatMulLayer {
-  string name;
-  int inChannels;
-  int outChannels;
+  const string name;
+  const int inChannels;
+  const int outChannels;
+  const bool usingFP16;
   void* matBuf;
-  bool usingFP16;
 
   MatMulLayer() = delete;
   MatMulLayer(const MatMulLayer&) = delete;
@@ -604,15 +618,16 @@ struct MatMulLayer {
     CudaHandles* cudaHandles,
     const MatMulLayerDesc* desc,
     bool useFP16
-  ) {
+  ) :
+    name(desc->name),
+    inChannels(desc->inChannels),
+    outChannels(desc->outChannels),
+    usingFP16(useFP16)
+  {
     (void)cudaHandles;
-    name = desc->name;
-    inChannels = desc->inChannels;
-    outChannels = desc->outChannels;
-    usingFP16 = useFP16;
 
     assert(desc->weights.size() == inChannels * outChannels);
-    mallocAndCopyToDevice(name,desc->weights,matBuf,useFP16);
+    CudaUtils::mallocAndCopyToDevice(name,desc->weights,matBuf,useFP16);
   }
 
   ~MatMulLayer() {
@@ -629,11 +644,10 @@ struct MatMulLayer {
 
   void apply(
     CudaHandles* cudaHandles,
+    ScratchBuffers* scratch,
     int batchSize,
     void* inputBuf,
     void* outputBuf,
-    const void* zeroBuf,
-    const void* oneBuf,
     void* workspaceBuf,
     size_t workspaceBytes
   ) const {
@@ -658,8 +672,8 @@ struct MatMulLayer {
       ));
     }
     else {
-      const half* alpha = (const half*)oneBuf;
-      const half* beta = (const half*)zeroBuf;
+      const half* alpha = (const half*)scratch->oneBuf;
+      const half* beta = (const half*)scratch->zeroBuf;
       CUBLAS_ERR(name.c_str(),cublasHgemm(
         cudaHandles->cublas,
         CUBLAS_OP_N,
@@ -682,10 +696,12 @@ struct MatMulLayer {
 //---------------------------------------------------------------------------------
 
 struct MatBiasLayer {
-  string name;
-  int numChannels;
+  const string name;
+  const int numChannels;
+  const bool usingFP16;
+  const int activation;
+
   void* biasBuf;
-  bool usingFP16;
 
   MatBiasLayer() = delete;
   MatBiasLayer(const MatBiasLayer&) = delete;
@@ -694,15 +710,17 @@ struct MatBiasLayer {
   MatBiasLayer(
     CudaHandles* cudaHandles,
     const MatBiasLayerDesc* desc,
-    bool useFP16
-  ) {
+    bool useFP16,
+    int activation_
+  ) :
+    name(desc->name),
+    numChannels(desc->numChannels),
+    usingFP16(useFP16),
+    activation(activation_)
+  {
     (void)cudaHandles;
-    name = desc->name;
-    numChannels = desc->numChannels;
-    usingFP16 = useFP16;
-
     assert(desc->weights.size() == numChannels);
-    mallocAndCopyToDevice(name,desc->weights,biasBuf,useFP16);
+    CudaUtils::mallocAndCopyToDevice(name,desc->weights,biasBuf,useFP16);
   }
 
   ~MatBiasLayer() {
@@ -716,11 +734,11 @@ struct MatBiasLayer {
   ) const {
     (void)cudaHandles;
     if(!usingFP16) {
-      customCudaAddCBiasInplaceNC((float*)matBuf,(const float*)biasBuf,batchSize,numChannels);
+      customCudaAddCBiasInplaceNC((float*)matBuf,(const float*)biasBuf,batchSize,numChannels,activation);
       CUDA_ERR(name.c_str(),cudaPeekAtLastError());
     }
     else {
-      customCudaAddCBiasInplaceNC((half*)matBuf,(const half*)biasBuf,batchSize,numChannels);
+      customCudaAddCBiasInplaceNC((half*)matBuf,(const half*)biasBuf,batchSize,numChannels,activation);
       CUDA_ERR(name.c_str(),cudaPeekAtLastError());
     }
   }
@@ -729,19 +747,84 @@ struct MatBiasLayer {
 
 //---------------------------------------------------------------------------------
 
-struct ResidualBlock {
-  string name;
-  BatchNormLayer preBN;
-  ActivationLayer preActivation;
-  ConvLayer regularConv;
-  BatchNormLayer midBN;
-  ActivationLayer midActivation;
-  ConvLayer finalConv;
+struct NormActConv {
+  const BatchNormLayer norm;
+  const ConvLayer conv;
 
-  int xSize;
-  int ySize;
-  int regularChannels;
-  bool usingFP16;
+  const int inChannels;
+  const int outChannels;
+  const int nnXLen;
+  const int nnYLen;
+  const bool usingFP16;
+  const bool usingNHWC;
+
+  NormActConv() = delete;
+  NormActConv(const NormActConv&) = delete;
+  NormActConv& operator=(const NormActConv&) = delete;
+
+  NormActConv(
+    CudaHandles* cudaHandles,
+    CudnnManager* manager,
+    const BatchNormLayerDesc* normDesc,
+    const ActivationLayerDesc* actDesc,
+    const ConvLayerDesc* convDesc,
+    int nnX,
+    int nnY,
+    bool useFP16,
+    bool useNHWC
+  ): norm(cudaHandles,normDesc,actDesc,nnX,nnY,useFP16,useNHWC),
+     conv(cudaHandles,manager,convDesc,useFP16,useNHWC),
+     inChannels(norm.numChannels),
+     outChannels(conv.outChannels),
+     nnXLen(nnX),
+     nnYLen(nnY),
+     usingFP16(useFP16),
+     usingNHWC(useNHWC)
+  {
+    assert(norm.numChannels == conv.inChannels);
+  }
+
+  ~NormActConv()
+  {}
+
+  size_t requiredWorkspaceBytes(
+    CudaHandles* cudaHandles,
+    int batchSize
+  ) const {
+    size_t bytes = 0;
+    size_t b;
+    b = conv.requiredWorkspaceBytes(cudaHandles,batchSize);
+    bytes = std::max(bytes,b);
+    return bytes;
+  }
+
+  void apply(
+    CudaHandles* cudaHandles,
+    int batchSize,
+    bool accumulate,
+    void* inBuf,
+    void* inScratchBuf,
+    void* outBuf,
+    void* maskBuf,
+    void* workspaceBuf,
+    size_t workspaceBytes
+  ) const {
+    norm.apply(cudaHandles,batchSize,inBuf,maskBuf,inScratchBuf);
+#ifdef DEBUG_INTERMEDIATE_VALUES
+    CudaUtils::debugPrint4D(string("AFTER NORM "), inScratchBuf, batchSize, inChannels, nnXLen, nnYLen, usingNHWC, usingFP16);
+#endif
+    conv.apply(cudaHandles,batchSize,accumulate,inScratchBuf,outBuf,workspaceBuf,workspaceBytes);
+  }
+
+};
+
+
+//---------------------------------------------------------------------------------
+
+struct ResidualBlock {
+  const string name;
+  const NormActConv normActConv1;
+  const NormActConv normActConv2;
 
   ResidualBlock() = delete;
   ResidualBlock(const ResidualBlock&) = delete;
@@ -749,25 +832,15 @@ struct ResidualBlock {
 
   ResidualBlock(
     CudaHandles* cudaHandles,
+    CudnnManager* manager,
     const ResidualBlockDesc* desc,
-    int maxBatchSize,
-    int xS,
-    int yS,
-    const cudnnTensorDescriptor_t* trunkDescriptors, //array of one for each batch size
-    const cudnnTensorDescriptor_t* midInDescriptors, //array of one for each batch size
+    int nnX,
+    int nnY,
     bool useFP16,
     bool useNHWC
   ): name(desc->name),
-     preBN(cudaHandles,&desc->preBN,xS,yS,useFP16,useNHWC),
-     preActivation(cudaHandles,&desc->preActivation),
-     regularConv(cudaHandles,&desc->regularConv,maxBatchSize,trunkDescriptors,midInDescriptors,useFP16,useNHWC),
-     midBN(cudaHandles,&desc->midBN,xS,yS,useFP16,useNHWC),
-     midActivation(cudaHandles,&desc->midActivation),
-     finalConv(cudaHandles,&desc->finalConv,maxBatchSize,midInDescriptors,trunkDescriptors,useFP16,useNHWC),
-     xSize(xS),
-     ySize(yS),
-     regularChannels(desc->regularConv.outChannels),
-     usingFP16(useFP16)
+     normActConv1(cudaHandles,manager,&desc->preBN,&desc->preActivation,&desc->regularConv,nnX,nnY,useFP16,useNHWC),
+     normActConv2(cudaHandles,manager,&desc->midBN,&desc->midActivation,&desc->finalConv,nnX,nnY,useFP16,useNHWC)
   {
   }
 
@@ -776,200 +849,54 @@ struct ResidualBlock {
 
   size_t requiredWorkspaceBytes(
     CudaHandles* cudaHandles,
-    const cudnnTensorDescriptor_t& trunkDescriptor,
-    const cudnnTensorDescriptor_t& midInDescriptor,
     int batchSize
   ) const {
     size_t bytes = 0;
     size_t b;
-    b = regularConv.requiredWorkspaceBytes(cudaHandles,trunkDescriptor,midInDescriptor,batchSize);
+    b = normActConv1.requiredWorkspaceBytes(cudaHandles,batchSize);
     bytes = std::max(bytes,b);
-    b = finalConv.requiredWorkspaceBytes(cudaHandles,midInDescriptor,trunkDescriptor,batchSize);
+    b = normActConv2.requiredWorkspaceBytes(cudaHandles,batchSize);
     bytes = std::max(bytes,b);
     return bytes;
   }
 
   void apply(
     CudaHandles* cudaHandles,
-    const cudnnTensorDescriptor_t& trunkDescriptor,
-    const cudnnTensorDescriptor_t& midInDescriptor,
+    ScratchBuffers* scratch,
     int batchSize,
     void* trunkBuf,
     void* trunkScratchBuf,
-    void* midInBuf,
-    void* midScratchBuf,
     void* maskBuf,
     void* workspaceBuf,
     size_t workspaceBytes
   ) const {
-    bool applyBNRelu = true;
-    preBN.apply(cudaHandles,batchSize,applyBNRelu,trunkBuf,maskBuf,trunkScratchBuf);
-    regularConv.apply(cudaHandles,trunkDescriptor,midInDescriptor,batchSize,false,trunkScratchBuf,midInBuf,workspaceBuf,workspaceBytes);
-    midBN.apply(cudaHandles,batchSize,applyBNRelu,midInBuf,maskBuf,midScratchBuf);
-    finalConv.apply(cudaHandles,midInDescriptor,trunkDescriptor,batchSize,true,midScratchBuf,trunkBuf,workspaceBuf,workspaceBytes);
+    SizedBuf<void*> midIn(scratch->allocator, scratch->getBufSizeXY(normActConv1.outChannels));
+    SizedBuf<void*> midScratch(scratch->allocator, scratch->getBufSizeXY(normActConv1.outChannels));
+    normActConv1.apply(cudaHandles,batchSize,false,trunkBuf,trunkScratchBuf,midIn.buf,maskBuf,workspaceBuf,workspaceBytes);
+    normActConv2.apply(cudaHandles,batchSize,true,midIn.buf,midScratch.buf,trunkBuf,maskBuf,workspaceBuf,workspaceBytes);
   }
 
 };
-
-
-//-----------------------------------------------------------------------------
-
-struct DilatedResidualBlock {
-  string name;
-  BatchNormLayer preBN;
-  ActivationLayer preActivation;
-  ConvLayer regularConv;
-  ConvLayer dilatedConv;
-  BatchNormLayer midBN;
-  ActivationLayer midActivation;
-  ConvLayer finalConv;
-
-  int xSize;
-  int ySize;
-  int regularChannels;
-  int dilatedChannels;
-  bool usingFP16;
-  bool usingNHWC;
-
-  DilatedResidualBlock() = delete;
-  DilatedResidualBlock(const DilatedResidualBlock&) = delete;
-  DilatedResidualBlock& operator=(const DilatedResidualBlock&) = delete;
-
-  DilatedResidualBlock(
-    CudaHandles* cudaHandles,
-    const DilatedResidualBlockDesc* desc,
-    int maxBatchSize,
-    int xS,
-    int yS,
-    const cudnnTensorDescriptor_t* trunkDescriptors, //array of one for each batch size
-    const cudnnTensorDescriptor_t* regularOutDescriptors, //array of one for each batch size
-    const cudnnTensorDescriptor_t* dilatedOutDescriptors, //array of one for each batch size
-    const cudnnTensorDescriptor_t* midInDescriptors, //array of one for each batch size
-    bool useFP16,
-    bool useNHWC
-  ): name(desc->name),
-     preBN(cudaHandles,&desc->preBN,xS,yS,useFP16,useNHWC),
-     preActivation(cudaHandles,&desc->preActivation),
-     regularConv(cudaHandles,&desc->regularConv,maxBatchSize,trunkDescriptors,regularOutDescriptors,useFP16,useNHWC),
-     dilatedConv(cudaHandles,&desc->dilatedConv,maxBatchSize,trunkDescriptors,dilatedOutDescriptors,useFP16,useNHWC),
-     midBN(cudaHandles,&desc->midBN,xS,yS,useFP16,useNHWC),
-     midActivation(cudaHandles,&desc->midActivation),
-     finalConv(cudaHandles,&desc->finalConv,maxBatchSize,midInDescriptors,trunkDescriptors,useFP16,useNHWC),
-     xSize(xS),
-     ySize(yS),
-     regularChannels(desc->regularConv.outChannels),
-     dilatedChannels(desc->dilatedConv.outChannels),
-     usingFP16(useFP16),
-     usingNHWC(useNHWC)
-  {
-  }
-
-  ~DilatedResidualBlock()
-  {}
-
-  size_t requiredWorkspaceBytes(
-    CudaHandles* cudaHandles,
-    const cudnnTensorDescriptor_t& trunkDescriptor,
-    const cudnnTensorDescriptor_t& regularOutDescriptor,
-    const cudnnTensorDescriptor_t& dilatedOutDescriptor,
-    const cudnnTensorDescriptor_t& midInDescriptor,
-    int batchSize
-  ) const {
-    size_t bytes = 0;
-    size_t b;
-    b = regularConv.requiredWorkspaceBytes(cudaHandles,trunkDescriptor,regularOutDescriptor,batchSize);
-    bytes = std::max(bytes,b);
-    b = dilatedConv.requiredWorkspaceBytes(cudaHandles,trunkDescriptor,dilatedOutDescriptor,batchSize);
-    bytes = std::max(bytes,b);
-    b = finalConv.requiredWorkspaceBytes(cudaHandles,midInDescriptor,trunkDescriptor,batchSize);
-    bytes = std::max(bytes,b);
-    return bytes;
-  }
-
-  void apply(
-    CudaHandles* cudaHandles,
-    const cudnnTensorDescriptor_t& trunkDescriptor,
-    const cudnnTensorDescriptor_t& regularOutDescriptor,
-    const cudnnTensorDescriptor_t& dilatedOutDescriptor,
-    const cudnnTensorDescriptor_t& midInDescriptor,
-    int batchSize,
-    void* trunkBuf,
-    void* trunkScratchBuf,
-    void* regularOutBuf,
-    void* dilatedOutBuf,
-    void* midInBuf,
-    void* midScratchBuf,
-    void* maskBuf,
-    void* workspaceBuf,
-    size_t workspaceBytes
-  ) const {
-    bool applyBNRelu = true;
-    preBN.apply(cudaHandles,batchSize,applyBNRelu,trunkBuf,maskBuf,trunkScratchBuf);
-    regularConv.apply(cudaHandles,trunkDescriptor,regularOutDescriptor,batchSize,false,trunkScratchBuf,regularOutBuf,workspaceBuf,workspaceBytes);
-    dilatedConv.apply(cudaHandles,trunkDescriptor,dilatedOutDescriptor,batchSize,false,trunkScratchBuf,dilatedOutBuf,workspaceBuf,workspaceBytes);
-    if(!usingFP16) {
-      if(!usingNHWC)
-        customCudaChannelConcat(
-          (const float*)regularOutBuf,(const float*)dilatedOutBuf,(float*)midInBuf,
-          xSize*ySize*regularChannels,
-          xSize*ySize*dilatedChannels,
-          batchSize
-        );
-      else
-        customCudaChannelConcat(
-          (const float*)regularOutBuf,(const float*)dilatedOutBuf,(float*)midInBuf,
-          regularChannels,
-          dilatedChannels,
-          batchSize*xSize*ySize
-        );
-    }
-    else {
-      if(!usingNHWC)
-        customCudaChannelConcat(
-          (const half*)regularOutBuf,(const half*)dilatedOutBuf,(half*)midInBuf,
-          xSize*ySize*regularChannels,
-          xSize*ySize*dilatedChannels,
-          batchSize
-        );
-      else
-        customCudaChannelConcat(
-          (const half*)regularOutBuf,(const half*)dilatedOutBuf,(half*)midInBuf,
-          regularChannels,
-          dilatedChannels,
-          batchSize*xSize*ySize
-        );
-    }
-    CUDA_ERR(name.c_str(),cudaPeekAtLastError());
-    midBN.apply(cudaHandles,batchSize,applyBNRelu,midInBuf,maskBuf,midScratchBuf);
-    finalConv.apply(cudaHandles,midInDescriptor,trunkDescriptor,batchSize,true,midScratchBuf,trunkBuf,workspaceBuf,workspaceBytes);
-  }
-
-};
-
 
 
 //----------------------------------------------------------------------------
 
 
 struct GlobalPoolingResidualBlock {
-  string name;
-  BatchNormLayer preBN;
-  ActivationLayer preActivation;
-  ConvLayer regularConv;
-  ConvLayer gpoolConv;
-  BatchNormLayer gpoolBN;
-  ActivationLayer gpoolActivation;
-  MatMulLayer gpoolToBiasMul;
-  BatchNormLayer midBN;
-  ActivationLayer midActivation;
-  ConvLayer finalConv;
+  const string name;
+  const BatchNormLayer preBN;
+  const ConvLayer regularConv;
+  const ConvLayer gpoolConv;
+  const BatchNormLayer gpoolBN;
+  const MatMulLayer gpoolToBiasMul;
+  const NormActConv normActConv2;
 
-  int xSize;
-  int ySize;
-  int regularChannels;
-  int gpoolChannels;
-  bool usingFP16;
-  bool usingNHWC;
+  const int nnXLen;
+  const int nnYLen;
+  const int regularChannels;
+  const int gpoolChannels;
+  const bool usingFP16;
+  const bool usingNHWC;
 
   GlobalPoolingResidualBlock() = delete;
   GlobalPoolingResidualBlock(const GlobalPoolingResidualBlock&) = delete;
@@ -977,28 +904,21 @@ struct GlobalPoolingResidualBlock {
 
   GlobalPoolingResidualBlock(
     CudaHandles* cudaHandles,
+    CudnnManager* manager,
     const GlobalPoolingResidualBlockDesc* desc,
-    int maxBatchSize,
-    int xS,
-    int yS,
-    const cudnnTensorDescriptor_t* trunkDescriptors, //array of one for each batch size
-    const cudnnTensorDescriptor_t* regularOutDescriptors, //array of one for each batch size
-    const cudnnTensorDescriptor_t* gpoolOutDescriptors, //array of one for each batch size
+    int nnX,
+    int nnY,
     bool useFP16,
     bool useNHWC
   ): name(desc->name),
-     preBN(cudaHandles,&desc->preBN,xS,yS,useFP16,useNHWC),
-     preActivation(cudaHandles,&desc->preActivation),
-     regularConv(cudaHandles,&desc->regularConv,maxBatchSize,trunkDescriptors,regularOutDescriptors,useFP16,useNHWC),
-     gpoolConv(cudaHandles,&desc->gpoolConv,maxBatchSize,trunkDescriptors,gpoolOutDescriptors,useFP16,useNHWC),
-     gpoolBN(cudaHandles,&desc->gpoolBN,xS,yS,useFP16,useNHWC),
-     gpoolActivation(cudaHandles,&desc->gpoolActivation),
+     preBN(cudaHandles,&desc->preBN,&desc->preActivation,nnX,nnY,useFP16,useNHWC),
+     regularConv(cudaHandles,manager,&desc->regularConv,useFP16,useNHWC),
+     gpoolConv(cudaHandles,manager,&desc->gpoolConv,useFP16,useNHWC),
+     gpoolBN(cudaHandles,&desc->gpoolBN,&desc->gpoolActivation,nnX,nnY,useFP16,useNHWC),
      gpoolToBiasMul(cudaHandles,&desc->gpoolToBiasMul,useFP16),
-     midBN(cudaHandles,&desc->midBN,xS,yS,useFP16,useNHWC),
-     midActivation(cudaHandles,&desc->midActivation),
-     finalConv(cudaHandles,&desc->finalConv,maxBatchSize,regularOutDescriptors,trunkDescriptors,useFP16,useNHWC),
-     xSize(xS),
-     ySize(yS),
+     normActConv2(cudaHandles,manager,&desc->midBN,&desc->midActivation,&desc->finalConv,nnX,nnY,useFP16,useNHWC),
+     nnXLen(nnX),
+     nnYLen(nnY),
      regularChannels(desc->regularConv.outChannels),
      gpoolChannels(desc->gpoolConv.outChannels),
      usingFP16(useFP16),
@@ -1011,118 +931,391 @@ struct GlobalPoolingResidualBlock {
 
   size_t requiredWorkspaceBytes(
     CudaHandles* cudaHandles,
-    const cudnnTensorDescriptor_t& trunkDescriptor,
-    const cudnnTensorDescriptor_t& regularOutDescriptor,
-    const cudnnTensorDescriptor_t& gpoolOutDescriptor,
     int batchSize
   ) const {
     size_t bytes = 0;
     size_t b;
-    b = regularConv.requiredWorkspaceBytes(cudaHandles,trunkDescriptor,regularOutDescriptor,batchSize);
+    b = regularConv.requiredWorkspaceBytes(cudaHandles,batchSize);
     bytes = std::max(bytes,b);
-    b = gpoolConv.requiredWorkspaceBytes(cudaHandles,trunkDescriptor,gpoolOutDescriptor,batchSize);
+    b = gpoolConv.requiredWorkspaceBytes(cudaHandles,batchSize);
     bytes = std::max(bytes,b);
     b = gpoolToBiasMul.requiredWorkspaceBytes(cudaHandles);
     bytes = std::max(bytes,b);
-    b = finalConv.requiredWorkspaceBytes(cudaHandles,regularOutDescriptor,trunkDescriptor,batchSize);
+    b = normActConv2.requiredWorkspaceBytes(cudaHandles,batchSize);
     bytes = std::max(bytes,b);
-    b = sizeof(float)*batchSize*gpoolChannels*xSize*ySize;
+    b = sizeof(float)*batchSize*gpoolChannels*nnXLen*nnYLen;
     bytes = std::max(bytes,b);
     return bytes;
   }
 
   void apply(
     CudaHandles* cudaHandles,
-    const cudnnTensorDescriptor_t& trunkDescriptor,
-    const cudnnTensorDescriptor_t& regularOutDescriptor,
-    const cudnnTensorDescriptor_t& gpoolOutDescriptor,
+    ScratchBuffers* scratch,
     int batchSize,
     void* trunkBuf,
     void* trunkScratchBuf,
-    void* regularOutBuf,
-    void* regularScratchBuf,
-    void* gpoolOutBuf,
-    void* gpoolOutBuf2,
-    void* gpoolConcatBuf,
-    void* gpoolBiasBuf,
     void* maskBuf,
     float* maskSumBuf,
-    const void* zeroBuf,
-    const void* oneBuf,
     void* workspaceBuf,
     size_t workspaceBytes
   ) const {
-    bool applyBNRelu = true;
-    preBN.apply(cudaHandles,batchSize,applyBNRelu,trunkBuf,maskBuf,trunkScratchBuf);
-    regularConv.apply(cudaHandles,trunkDescriptor,regularOutDescriptor,batchSize,false,trunkScratchBuf,regularOutBuf,workspaceBuf,workspaceBytes);
-    gpoolConv.apply(cudaHandles,trunkDescriptor,gpoolOutDescriptor,batchSize,false,trunkScratchBuf,gpoolOutBuf,workspaceBuf,workspaceBytes);
-    gpoolBN.apply(cudaHandles,batchSize,applyBNRelu,gpoolOutBuf,maskBuf,gpoolOutBuf2);
+    SizedBuf<void*> regularOut(scratch->allocator, scratch->getBufSizeXY(regularChannels));
+    SizedBuf<void*> regularScratch(scratch->allocator, scratch->getBufSizeXY(regularChannels));
+    SizedBuf<void*> gpoolOut(scratch->allocator, scratch->getBufSizeXY(gpoolChannels));
+    SizedBuf<void*> gpoolOut2(scratch->allocator, scratch->getBufSizeXY(gpoolChannels));
+    SizedBuf<void*> gpoolConcat(scratch->allocator, scratch->getBufSize(gpoolChannels*3));
+    SizedBuf<void*> gpoolBias(scratch->allocator, scratch->getBufSize(regularChannels));
+
+    preBN.apply(cudaHandles,batchSize,trunkBuf,maskBuf,trunkScratchBuf);
+    regularConv.apply(cudaHandles,batchSize,false,trunkScratchBuf,regularOut.buf,workspaceBuf,workspaceBytes);
+    gpoolConv.apply(cudaHandles,batchSize,false,trunkScratchBuf,gpoolOut.buf,workspaceBuf,workspaceBytes);
+    gpoolBN.apply(cudaHandles,batchSize,gpoolOut.buf,maskBuf,gpoolOut2.buf);
 
     if(!usingFP16) {
       if(!usingNHWC)
-        customCudaPoolRowsGPoolNCHW((const float*)gpoolOutBuf2,(float*)gpoolConcatBuf,batchSize,gpoolChannels,xSize*ySize,maskSumBuf);
+        customCudaPoolRowsGPoolNCHW((const float*)gpoolOut2.buf,(float*)gpoolConcat.buf,batchSize,gpoolChannels,nnXLen*nnYLen,(const float*)maskBuf,maskSumBuf);
       else
-        customCudaPoolRowsGPoolNHWC((const float*)gpoolOutBuf2,(float*)gpoolConcatBuf,batchSize,xSize*ySize,gpoolChannels,maskSumBuf);
+        customCudaPoolRowsGPoolNHWC((const float*)gpoolOut2.buf,(float*)gpoolConcat.buf,batchSize,nnXLen*nnYLen,gpoolChannels,(const float*)maskBuf,maskSumBuf);
     }
     else {
       if(!usingNHWC)
-        customCudaPoolRowsGPoolNCHW((const half*)gpoolOutBuf2,(half*)gpoolConcatBuf,batchSize,gpoolChannels,xSize*ySize,maskSumBuf);
+        customCudaPoolRowsGPoolNCHW((const half*)gpoolOut2.buf,(half*)gpoolConcat.buf,batchSize,gpoolChannels,nnXLen*nnYLen,(const half*)maskBuf,maskSumBuf);
       else
-        customCudaPoolRowsGPoolNHWC((const half*)gpoolOutBuf2,(half*)gpoolConcatBuf,batchSize,xSize*ySize,gpoolChannels,maskSumBuf);
+        customCudaPoolRowsGPoolNHWC((const half*)gpoolOut2.buf,(half*)gpoolConcat.buf,batchSize,nnXLen*nnYLen,gpoolChannels,(const half*)maskBuf,maskSumBuf);
     }
     CUDA_ERR(name.c_str(),cudaPeekAtLastError());
 
-    gpoolToBiasMul.apply(cudaHandles,batchSize,gpoolConcatBuf,gpoolBiasBuf,zeroBuf,oneBuf,workspaceBuf,workspaceBytes);
+    gpoolToBiasMul.apply(cudaHandles,scratch,batchSize,gpoolConcat.buf,gpoolBias.buf,workspaceBuf,workspaceBytes);
 
     if(!usingFP16) {
       if(!usingNHWC)
-        customCudaAddNCBiasInplaceNCHW((float*)regularOutBuf,(const float*)gpoolBiasBuf,batchSize,regularChannels,xSize*ySize);
+        customCudaAddNCBiasInplaceNCHW((float*)regularOut.buf,(const float*)gpoolBias.buf,batchSize,regularChannels,nnXLen*nnYLen);
       else
-        customCudaAddNCBiasInplaceNHWC((float*)regularOutBuf,(const float*)gpoolBiasBuf,batchSize,xSize*ySize,regularChannels);
+        customCudaAddNCBiasInplaceNHWC((float*)regularOut.buf,(const float*)gpoolBias.buf,batchSize,nnXLen*nnYLen,regularChannels);
     }
     else {
       if(!usingNHWC)
-        customCudaAddNCBiasInplaceNCHW((half*)regularOutBuf,(const half*)gpoolBiasBuf,batchSize,regularChannels,xSize*ySize);
+        customCudaAddNCBiasInplaceNCHW((half*)regularOut.buf,(const half*)gpoolBias.buf,batchSize,regularChannels,nnXLen*nnYLen);
       else
-        customCudaAddNCBiasInplaceNHWC((half*)regularOutBuf,(const half*)gpoolBiasBuf,batchSize,xSize*ySize,regularChannels);
+        customCudaAddNCBiasInplaceNHWC((half*)regularOut.buf,(const half*)gpoolBias.buf,batchSize,nnXLen*nnYLen,regularChannels);
     }
     CUDA_ERR(name.c_str(),cudaPeekAtLastError());
 
-    midBN.apply(cudaHandles,batchSize,applyBNRelu,regularOutBuf,maskBuf,regularScratchBuf);
-    finalConv.apply(cudaHandles,regularOutDescriptor,trunkDescriptor,batchSize,true,regularScratchBuf,trunkBuf,workspaceBuf,workspaceBytes);
+    normActConv2.apply(cudaHandles,batchSize,true,regularOut.buf,regularScratch.buf,trunkBuf,maskBuf,workspaceBuf,workspaceBytes);
   }
 
 };
 
 //------------------------------------------------------------------------------
 
+struct BlockStack {
+  const int numBlocks;
+  const int trunkNumChannels;
+  const int nnXLen;
+  const int nnYLen;
+  const bool usingFP16;
+  const bool usingNHWC;
+  vector<pair<int,unique_ptr_void>> blocks;
+
+  BlockStack() = delete;
+  BlockStack(const BlockStack&) = delete;
+  BlockStack& operator=(const BlockStack&) = delete;
+
+  BlockStack(
+    CudaHandles* cudaHandles,
+    CudnnManager* manager,
+    int nBlocks,
+    int trunkChannels,
+    const std::vector<std::pair<int, unique_ptr_void>>& descBlocks,
+    int nnX,
+    int nnY,
+    bool useFP16,
+    bool useNHWC
+  );
+  ~BlockStack();
+
+  size_t requiredWorkspaceBytes(
+    CudaHandles* cudaHandles,
+    int batchSize
+  ) const;
+
+  void apply(
+    CudaHandles* cudaHandles,
+    ScratchBuffers* scratch,
+    int batchSize,
+    void* maskBuf,
+    float* maskSumBuf,
+    void* trunkBuf,
+    void* trunkScratchBuf,
+    void* workspaceBuf,
+    size_t workspaceBytes
+  ) const;
+
+};
+
+//------------------------------------------------------------------------------
+
+struct NestedBottleneckResidualBlock {
+  const string name;
+  const NormActConv normActConv1;
+  const BlockStack blocks;
+  const NormActConv normActConv2;
+
+  NestedBottleneckResidualBlock() = delete;
+  NestedBottleneckResidualBlock(const NestedBottleneckResidualBlock&) = delete;
+  NestedBottleneckResidualBlock& operator=(const NestedBottleneckResidualBlock&) = delete;
+
+  NestedBottleneckResidualBlock(
+    CudaHandles* cudaHandles,
+    CudnnManager* manager,
+    const NestedBottleneckResidualBlockDesc* desc,
+    int nnX,
+    int nnY,
+    bool useFP16,
+    bool useNHWC
+  ): name(desc->name),
+     normActConv1(cudaHandles,manager,&desc->preBN,&desc->preActivation,&desc->preConv,nnX,nnY,useFP16,useNHWC),
+     blocks(cudaHandles,manager,desc->numBlocks,desc->preConv.outChannels,desc->blocks,nnX,nnY,useFP16,useNHWC),
+     normActConv2(cudaHandles,manager,&desc->postBN,&desc->postActivation,&desc->postConv,nnX,nnY,useFP16,useNHWC)
+  {
+  }
+
+  ~NestedBottleneckResidualBlock()
+  {}
+
+  size_t requiredWorkspaceBytes(
+    CudaHandles* cudaHandles,
+    int batchSize
+  ) const {
+    size_t bytes = 0;
+    size_t b;
+    b = normActConv1.requiredWorkspaceBytes(cudaHandles,batchSize);
+    bytes = std::max(bytes,b);
+    b = blocks.requiredWorkspaceBytes(cudaHandles,batchSize);
+    bytes = std::max(bytes,b);
+    b = normActConv2.requiredWorkspaceBytes(cudaHandles,batchSize);
+    bytes = std::max(bytes,b);
+    return bytes;
+  }
+
+  void apply(
+    CudaHandles* cudaHandles,
+    ScratchBuffers* scratch,
+    int batchSize,
+    void* trunkBuf,
+    void* trunkScratchBuf,
+    void* maskBuf,
+    float* maskSumBuf,
+    void* workspaceBuf,
+    size_t workspaceBytes
+  ) const {
+    SizedBuf<void*> mid(scratch->allocator, scratch->getBufSizeXY(normActConv1.outChannels));
+    SizedBuf<void*> midScratch(scratch->allocator, scratch->getBufSizeXY(normActConv1.outChannels));
+    assert(normActConv1.outChannels == normActConv2.inChannels);
+    normActConv1.apply(cudaHandles,batchSize,false,trunkBuf,trunkScratchBuf,mid.buf,maskBuf,workspaceBuf,workspaceBytes);
+    blocks.apply(
+      cudaHandles,
+      scratch,
+      batchSize,
+      maskBuf,
+      maskSumBuf,
+      mid.buf,
+      midScratch.buf,
+      workspaceBuf,
+      workspaceBytes
+    );
+    normActConv2.apply(cudaHandles,batchSize,true,mid.buf,midScratch.buf,trunkBuf,maskBuf,workspaceBuf,workspaceBytes);
+  }
+
+};
+
+//------------------------------------------------------------------------------
+
+BlockStack::BlockStack(
+  CudaHandles* cudaHandles,
+  CudnnManager* manager,
+  int nBlocks,
+  int trunkChannels,
+  const std::vector<std::pair<int, unique_ptr_void>>& descBlocks,
+  int nnX,
+  int nnY,
+  bool useFP16,
+  bool useNHWC
+) :
+  numBlocks(nBlocks),
+  trunkNumChannels(trunkChannels),
+  nnXLen(nnX),
+  nnYLen(nnY),
+  usingFP16(useFP16),
+  usingNHWC(useNHWC)
+{
+  assert(numBlocks == descBlocks.size());
+  for(int i = 0; i<numBlocks; i++) {
+    if(descBlocks[i].first == ORDINARY_BLOCK_KIND) {
+      ResidualBlockDesc* blockDesc = (ResidualBlockDesc*)descBlocks[i].second.get();
+      unique_ptr_void blockPtr = make_unique_void(
+        new ResidualBlock(
+          cudaHandles,
+          manager,
+          blockDesc,
+          nnXLen,
+          nnYLen,
+          useFP16,
+          useNHWC
+        )
+      );
+      blocks.push_back(make_pair(ORDINARY_BLOCK_KIND,std::move(blockPtr)));
+    }
+    else if(descBlocks[i].first == GLOBAL_POOLING_BLOCK_KIND) {
+      GlobalPoolingResidualBlockDesc* blockDesc = (GlobalPoolingResidualBlockDesc*)descBlocks[i].second.get();
+      unique_ptr_void blockPtr = make_unique_void(
+        new GlobalPoolingResidualBlock(
+          cudaHandles,
+          manager,
+          blockDesc,
+          nnXLen,
+          nnYLen,
+          useFP16,
+          useNHWC
+        )
+      );
+      blocks.push_back(make_pair(GLOBAL_POOLING_BLOCK_KIND,std::move(blockPtr)));
+    }
+    else if(descBlocks[i].first == NESTED_BOTTLENECK_BLOCK_KIND) {
+      NestedBottleneckResidualBlockDesc* blockDesc = (NestedBottleneckResidualBlockDesc*)descBlocks[i].second.get();
+      unique_ptr_void blockPtr = make_unique_void(
+        new NestedBottleneckResidualBlock(
+          cudaHandles,
+          manager,
+          blockDesc,
+          nnXLen,
+          nnYLen,
+          useFP16,
+          useNHWC
+        )
+      );
+      blocks.push_back(make_pair(NESTED_BOTTLENECK_BLOCK_KIND,std::move(blockPtr)));
+    }
+    else {
+      ASSERT_UNREACHABLE;
+    }
+  }
+}
+BlockStack::~BlockStack() {
+}
+
+size_t BlockStack::requiredWorkspaceBytes(
+  CudaHandles* cudaHandles,
+  int batchSize
+) const {
+  size_t bytes = 0;
+  size_t b;
+
+  for(int i = 0; i<blocks.size(); i++) {
+    if(blocks[i].first == ORDINARY_BLOCK_KIND) {
+      ResidualBlock* block = (ResidualBlock*)blocks[i].second.get();
+      b = block->requiredWorkspaceBytes(cudaHandles,batchSize);
+      bytes = std::max(bytes,b);
+    }
+    else if(blocks[i].first == GLOBAL_POOLING_BLOCK_KIND) {
+      GlobalPoolingResidualBlock* block = (GlobalPoolingResidualBlock*)blocks[i].second.get();
+      b = block->requiredWorkspaceBytes(cudaHandles,batchSize);
+      bytes = std::max(bytes,b);
+    }
+    else if(blocks[i].first == NESTED_BOTTLENECK_BLOCK_KIND) {
+      NestedBottleneckResidualBlock* block = (NestedBottleneckResidualBlock*)blocks[i].second.get();
+      b = block->requiredWorkspaceBytes(cudaHandles,batchSize);
+      bytes = std::max(bytes,b);
+    }
+    else {
+      ASSERT_UNREACHABLE;
+    }
+  }
+  return bytes;
+}
+
+void BlockStack::apply(
+  CudaHandles* cudaHandles,
+  ScratchBuffers* scratch,
+  int batchSize,
+  void* maskBuf,
+  float* maskSumBuf,
+  void* trunkBuf,
+  void* trunkScratchBuf,
+  void* workspaceBuf,
+  size_t workspaceBytes
+) const {
+
+  for(int i = 0; i<blocks.size(); i++) {
+#ifdef DEBUG_INTERMEDIATE_VALUES
+    CudaUtils::debugPrint4D(string("Blockstack before block " + Global::intToString(i)), trunkBuf, batchSize, trunkNumChannels, nnXLen, nnYLen, usingNHWC, usingFP16);
+#endif
+
+    if(blocks[i].first == ORDINARY_BLOCK_KIND) {
+      ResidualBlock* block = (ResidualBlock*)blocks[i].second.get();
+      block->apply(
+        cudaHandles,
+        scratch,
+        batchSize,
+        trunkBuf,
+        trunkScratchBuf,
+        maskBuf,
+        workspaceBuf,
+        workspaceBytes
+      );
+    }
+    else if(blocks[i].first == GLOBAL_POOLING_BLOCK_KIND) {
+      GlobalPoolingResidualBlock* block = (GlobalPoolingResidualBlock*)blocks[i].second.get();
+      block->apply(
+        cudaHandles,
+        scratch,
+        batchSize,
+        trunkBuf,
+        trunkScratchBuf,
+        maskBuf,
+        maskSumBuf,
+        workspaceBuf,
+        workspaceBytes
+      );
+    }
+    else if(blocks[i].first == NESTED_BOTTLENECK_BLOCK_KIND) {
+      NestedBottleneckResidualBlock* block = (NestedBottleneckResidualBlock*)blocks[i].second.get();
+      block->apply(
+        cudaHandles,
+        scratch,
+        batchSize,
+        trunkBuf,
+        trunkScratchBuf,
+        maskBuf,
+        maskSumBuf,
+        workspaceBuf,
+        workspaceBytes
+      );
+    }
+    else {
+      ASSERT_UNREACHABLE;
+    }
+  }
+}
+
+//----------------------------------------------------------------------------
+
+
 struct Trunk {
-  string name;
-  int version;
-  int numBlocks;
-  int trunkNumChannels;
-  int midNumChannels;
-  int regularNumChannels;
-  int dilatedNumChannels;
-  int gpoolNumChannels;
+  const string name;
+  const int version;
+  const int numBlocks;
+  const int trunkNumChannels;
 
-  int maxBatchSize;
-  int xSize;
-  int ySize;
-  bool usingFP16;
-  bool usingNHWC;
-
-  std::unique_ptr<cudnnTensorDescriptor_t[]> trunkDescriptors;
-  std::unique_ptr<cudnnTensorDescriptor_t[]> regularOutDescriptors;
-  std::unique_ptr<cudnnTensorDescriptor_t[]> gpoolOutDescriptors;
-  std::unique_ptr<cudnnTensorDescriptor_t[]> dilatedOutDescriptors;
-  std::unique_ptr<cudnnTensorDescriptor_t[]> midInDescriptors;
+  const int nnXLen;
+  const int nnYLen;
+  const bool usingFP16;
+  const bool usingNHWC;
 
   std::unique_ptr<ConvLayer> initialConv;
   std::unique_ptr<MatMulLayer> initialMatMul;
-  vector<pair<int,unique_ptr_void>> blocks;
+  const BlockStack blocks;
   std::unique_ptr<BatchNormLayer> trunkTipBN;
-  std::unique_ptr<ActivationLayer> trunkTipActivation;
 
   Trunk() = delete;
   Trunk(const Trunk&) = delete;
@@ -1130,360 +1323,119 @@ struct Trunk {
 
   Trunk(
     CudaHandles* cudaHandles,
+    CudnnManager* manager,
     const TrunkDesc* desc,
-    int maxBatchSz,
-    int xS,
-    int yS,
-    const cudnnTensorDescriptor_t* inputDescriptors,
+    int nnX,
+    int nnY,
+    bool inputsUseNHWC,
     bool useFP16,
     bool useNHWC
-  ) {
-    name = desc->name;
-    version = desc->version;
-    numBlocks = desc->numBlocks;
-    trunkNumChannels = desc->trunkNumChannels;
-    midNumChannels = desc->midNumChannels;
-    regularNumChannels = desc->regularNumChannels;
-    dilatedNumChannels = desc->dilatedNumChannels;
-    gpoolNumChannels = desc->gpoolNumChannels;
+  ) :
+    name(desc->name),
+    version(desc->version),
+    numBlocks(desc->numBlocks),
+    trunkNumChannels(desc->trunkNumChannels),
+    nnXLen(nnX),
+    nnYLen(nnY),
+    usingFP16(useFP16),
+    usingNHWC(useNHWC),
+    blocks(cudaHandles,manager,desc->numBlocks,desc->trunkNumChannels,desc->blocks,nnX,nnY,useFP16,useNHWC)
+  {
+    int midNumChannels = desc->midNumChannels;
+    int regularNumChannels = desc->regularNumChannels;
+    int gpoolNumChannels = desc->gpoolNumChannels;
 
-    maxBatchSize = maxBatchSz;
-    xSize = xS;
-    ySize = yS;
-    usingFP16 = useFP16;
-    usingNHWC = useNHWC;
+    int maxBatchSize = manager->maxBatchSize;
+    CudaUtils::checkBufferSize(maxBatchSize,nnXLen,nnYLen,trunkNumChannels);
+    CudaUtils::checkBufferSize(maxBatchSize,nnXLen,nnYLen,midNumChannels);
+    CudaUtils::checkBufferSize(maxBatchSize,nnXLen,nnYLen,regularNumChannels);
+    CudaUtils::checkBufferSize(maxBatchSize,nnXLen,nnYLen,gpoolNumChannels);
 
-    checkBufferSize(maxBatchSize,xSize,ySize,trunkNumChannels);
-    checkBufferSize(maxBatchSize,xSize,ySize,midNumChannels);
-    checkBufferSize(maxBatchSize,xSize,ySize,regularNumChannels);
-    checkBufferSize(maxBatchSize,xSize,ySize,dilatedNumChannels);
-    checkBufferSize(maxBatchSize,xSize,ySize,gpoolNumChannels);
-
-    trunkDescriptors = std::make_unique<cudnnTensorDescriptor_t[]>(maxBatchSize);
-    regularOutDescriptors = std::make_unique<cudnnTensorDescriptor_t[]>(maxBatchSize);
-    gpoolOutDescriptors = std::make_unique<cudnnTensorDescriptor_t[]>(maxBatchSize);
-    dilatedOutDescriptors = std::make_unique<cudnnTensorDescriptor_t[]>(maxBatchSize);
-    midInDescriptors = std::make_unique<cudnnTensorDescriptor_t[]>(maxBatchSize);
-
-    for(int batchSize = 1; batchSize <= maxBatchSize; batchSize++) {
-      cudnnTensorDescriptor_t& trunkDescriptor = trunkDescriptors[batchSize-1];
-      cudnnTensorDescriptor_t& regularOutDescriptor = regularOutDescriptors[batchSize-1];
-      cudnnTensorDescriptor_t& gpoolOutDescriptor = gpoolOutDescriptors[batchSize-1];
-      cudnnTensorDescriptor_t& dilatedOutDescriptor = dilatedOutDescriptors[batchSize-1];
-      cudnnTensorDescriptor_t& midInDescriptor = midInDescriptors[batchSize-1];
-
-      CUDNN_ERR(name.c_str(),cudnnCreateTensorDescriptor(&trunkDescriptor));
-      CUDNN_ERR(name.c_str(),cudnnSetTensor4dDescriptor(
-        trunkDescriptor,
-        (useNHWC ? CUDNN_TENSOR_NHWC : CUDNN_TENSOR_NCHW),
-        (useFP16 ? CUDNN_DATA_HALF : CUDNN_DATA_FLOAT),
-        batchSize,
-        trunkNumChannels,
-        ySize,
-        xSize
-      ));
-
-      CUDNN_ERR(name.c_str(),cudnnCreateTensorDescriptor(&regularOutDescriptor));
-      CUDNN_ERR(name.c_str(),cudnnSetTensor4dDescriptor(
-        regularOutDescriptor,
-        (useNHWC ? CUDNN_TENSOR_NHWC : CUDNN_TENSOR_NCHW),
-        (useFP16 ? CUDNN_DATA_HALF : CUDNN_DATA_FLOAT),
-        batchSize,
-        regularNumChannels,
-        ySize,
-        xSize
-      ));
-
-      CUDNN_ERR(name.c_str(),cudnnCreateTensorDescriptor(&dilatedOutDescriptor));
-      CUDNN_ERR(name.c_str(),cudnnSetTensor4dDescriptor(
-        dilatedOutDescriptor,
-        (useNHWC ? CUDNN_TENSOR_NHWC : CUDNN_TENSOR_NCHW),
-        (useFP16 ? CUDNN_DATA_HALF : CUDNN_DATA_FLOAT),
-        batchSize,
-        dilatedNumChannels,
-        ySize,
-        xSize
-      ));
-
-      CUDNN_ERR(name.c_str(),cudnnCreateTensorDescriptor(&gpoolOutDescriptor));
-      CUDNN_ERR(name.c_str(),cudnnSetTensor4dDescriptor(
-        gpoolOutDescriptor,
-        (useNHWC ? CUDNN_TENSOR_NHWC : CUDNN_TENSOR_NCHW),
-        (useFP16 ? CUDNN_DATA_HALF : CUDNN_DATA_FLOAT),
-        batchSize,
-        gpoolNumChannels,
-        ySize,
-        xSize
-      ));
-
-      CUDNN_ERR(name.c_str(),cudnnCreateTensorDescriptor(&midInDescriptor));
-      CUDNN_ERR(name.c_str(),cudnnSetTensor4dDescriptor(
-        midInDescriptor,
-        (useNHWC ? CUDNN_TENSOR_NHWC : CUDNN_TENSOR_NCHW),
-        (useFP16 ? CUDNN_DATA_HALF : CUDNN_DATA_FLOAT),
-        batchSize,
-        regularNumChannels+dilatedNumChannels,
-        ySize,
-        xSize
-      ));
-    }
-
-    initialConv = std::make_unique<ConvLayer>(cudaHandles,&desc->initialConv,maxBatchSize,inputDescriptors,trunkDescriptors.get(),useFP16,useNHWC);
+    initialConv = std::make_unique<ConvLayer>(cudaHandles,manager,&desc->initialConv,useFP16,inputsUseNHWC,useNHWC);
     initialMatMul = std::make_unique<MatMulLayer>(cudaHandles,&desc->initialMatMul,useFP16);
 
-    trunkTipBN = std::make_unique<BatchNormLayer>(cudaHandles,&desc->trunkTipBN,xSize,ySize,useFP16,useNHWC);
-    trunkTipActivation = std::make_unique<ActivationLayer>(cudaHandles,&desc->trunkTipActivation);
-
+    trunkTipBN = std::make_unique<BatchNormLayer>(cudaHandles,&desc->trunkTipBN,&desc->trunkTipActivation,nnXLen,nnYLen,useFP16,useNHWC);
     assert(desc->blocks.size() == numBlocks);
-    for(int i = 0; i<numBlocks; i++) {
-      if(desc->blocks[i].first == ORDINARY_BLOCK_KIND) {
-        ResidualBlockDesc* blockDesc = (ResidualBlockDesc*)desc->blocks[i].second.get();
-        unique_ptr_void blockPtr = make_unique_void(
-          new ResidualBlock(
-            cudaHandles,
-            blockDesc,
-            maxBatchSize,
-            xSize,
-            ySize,
-            trunkDescriptors.get(),
-            midInDescriptors.get(),
-            useFP16,
-            useNHWC
-          )
-        );
-        blocks.push_back(make_pair(ORDINARY_BLOCK_KIND,std::move(blockPtr)));
-      }
-      else if(desc->blocks[i].first == DILATED_BLOCK_KIND) {
-        DilatedResidualBlockDesc* blockDesc = (DilatedResidualBlockDesc*)desc->blocks[i].second.get();
-        unique_ptr_void blockPtr = make_unique_void(
-          new DilatedResidualBlock(
-            cudaHandles,
-            blockDesc,
-            maxBatchSize,
-            xSize,
-            ySize,
-            trunkDescriptors.get(),
-            regularOutDescriptors.get(),
-            dilatedOutDescriptors.get(),
-            midInDescriptors.get(),
-            useFP16,
-            useNHWC
-          )
-        );
-        blocks.push_back(make_pair(DILATED_BLOCK_KIND,std::move(blockPtr)));
-      }
-      else if(desc->blocks[i].first == GLOBAL_POOLING_BLOCK_KIND) {
-        GlobalPoolingResidualBlockDesc* blockDesc = (GlobalPoolingResidualBlockDesc*)desc->blocks[i].second.get();
-        unique_ptr_void blockPtr = make_unique_void(
-          new GlobalPoolingResidualBlock(
-            cudaHandles,
-            blockDesc,
-            maxBatchSize,
-            xSize,
-            ySize,
-            trunkDescriptors.get(),
-            regularOutDescriptors.get(),
-            gpoolOutDescriptors.get(),
-            useFP16,
-            useNHWC
-          )
-        );
-        blocks.push_back(make_pair(GLOBAL_POOLING_BLOCK_KIND,std::move(blockPtr)));
-      }
-      else {
-        ASSERT_UNREACHABLE;
-      }
-    }
   }
 
   ~Trunk()
   {
-    //Here and everywhere else we use descriptors - if constructor fails, these won't get freed, so there's technically a leak.
-    //cudnn interface makes this a total pain to clean up.
-    for(int batchSize = 1; batchSize <= maxBatchSize; batchSize++) {
-      cudnnDestroyTensorDescriptor(trunkDescriptors[batchSize-1]);
-      cudnnDestroyTensorDescriptor(regularOutDescriptors[batchSize-1]);
-      cudnnDestroyTensorDescriptor(dilatedOutDescriptors[batchSize-1]);
-      cudnnDestroyTensorDescriptor(gpoolOutDescriptors[batchSize-1]);
-      cudnnDestroyTensorDescriptor(midInDescriptors[batchSize-1]);
-    }
   }
 
   size_t requiredWorkspaceBytes(
     CudaHandles* cudaHandles,
-    const cudnnTensorDescriptor_t& inputDescriptor,
     int batchSize
   ) const {
     size_t bytes = 0;
     size_t b;
 
-    const cudnnTensorDescriptor_t& trunkDescriptor = trunkDescriptors[batchSize-1];
-    const cudnnTensorDescriptor_t& regularOutDescriptor = regularOutDescriptors[batchSize-1];
-    const cudnnTensorDescriptor_t& gpoolOutDescriptor = gpoolOutDescriptors[batchSize-1];
-    const cudnnTensorDescriptor_t& dilatedOutDescriptor = dilatedOutDescriptors[batchSize-1];
-    const cudnnTensorDescriptor_t& midInDescriptor = midInDescriptors[batchSize-1];
-
-    b = initialConv->requiredWorkspaceBytes(cudaHandles,inputDescriptor,trunkDescriptor,batchSize);
+    b = initialConv->requiredWorkspaceBytes(cudaHandles,batchSize);
     bytes = std::max(bytes,b);
 
     b = initialMatMul->requiredWorkspaceBytes(cudaHandles);
     bytes = std::max(bytes,b);
 
-    for(int i = 0; i<blocks.size(); i++) {
-      if(blocks[i].first == ORDINARY_BLOCK_KIND) {
-        ResidualBlock* block = (ResidualBlock*)blocks[i].second.get();
-        b = block->requiredWorkspaceBytes(cudaHandles,trunkDescriptor,midInDescriptor,batchSize);
-        bytes = std::max(bytes,b);
-      }
-      else if(blocks[i].first == DILATED_BLOCK_KIND) {
-        DilatedResidualBlock* block = (DilatedResidualBlock*)blocks[i].second.get();
-        b = block->requiredWorkspaceBytes(cudaHandles,trunkDescriptor,regularOutDescriptor,dilatedOutDescriptor,midInDescriptor,batchSize);
-        bytes = std::max(bytes,b);
-      }
-      else if(blocks[i].first == GLOBAL_POOLING_BLOCK_KIND) {
-        GlobalPoolingResidualBlock* block = (GlobalPoolingResidualBlock*)blocks[i].second.get();
-        b = block->requiredWorkspaceBytes(cudaHandles,trunkDescriptor,regularOutDescriptor,gpoolOutDescriptor,batchSize);
-        bytes = std::max(bytes,b);
-      }
-      else {
-        ASSERT_UNREACHABLE;
-      }
-    }
+    b = blocks.requiredWorkspaceBytes(cudaHandles,batchSize);
+    bytes = std::max(bytes,b);
     return bytes;
   }
 
   void apply(
     CudaHandles* cudaHandles,
-    const cudnnTensorDescriptor_t& inputDescriptor,
+    ScratchBuffers* scratch,
     int batchSize,
     void* inputBuf,
     void* inputGlobalBuf,
     void* maskBuf,
     float* maskSumBuf,
     void* trunkBuf,
-    void* trunkScratchBuf,
-    void* regularOutBuf,
-    void* regularScratchBuf,
-    void* dilatedOutBuf,
-    void* midInBuf,
-    void* midScratchBuf,
-    void* gpoolOutBuf,
-    void* gpoolOutBuf2,
-    void* gpoolConcatBuf,
-    void* gpoolBiasBuf,
-    const void* zeroBuf,
-    const void* oneBuf,
     void* workspaceBuf,
     size_t workspaceBytes
   ) const {
 
-    const cudnnTensorDescriptor_t& trunkDescriptor = trunkDescriptors[batchSize-1];
-    const cudnnTensorDescriptor_t& regularOutDescriptor = regularOutDescriptors[batchSize-1];
-    const cudnnTensorDescriptor_t& gpoolOutDescriptor = gpoolOutDescriptors[batchSize-1];
-    const cudnnTensorDescriptor_t& dilatedOutDescriptor = dilatedOutDescriptors[batchSize-1];
-    const cudnnTensorDescriptor_t& midInDescriptor = midInDescriptors[batchSize-1];
+    SizedBuf<void*> trunkScratch(scratch->allocator, scratch->getBufSizeXY(trunkNumChannels));
 
-    //Feed the conv into trunkScratchBuf, not trunkBuf
-    initialConv->apply(cudaHandles,inputDescriptor,trunkDescriptor,batchSize,false,inputBuf,trunkScratchBuf,workspaceBuf,workspaceBytes);
+    //Feed the conv into trunkScratch.buf, not trunkBuf
+    initialConv->apply(cudaHandles,batchSize,false,inputBuf,trunkScratch.buf,workspaceBuf,workspaceBytes);
 
     #ifdef DEBUG_INTERMEDIATE_VALUES
-    debugPrint4D(string("Initial bin features"), inputBuf, batchSize, initialConv->inChannels, xSize, ySize, usingNHWC, usingFP16);
-    debugPrint4D(string("After initial conv"), trunkScratchBuf, batchSize, trunkNumChannels, xSize, ySize, usingNHWC, usingFP16);
+    CudaUtils::debugPrint4D(string("After initial conv"), trunkScratch.buf, batchSize, trunkNumChannels, nnXLen, nnYLen, usingNHWC, usingFP16);
     #endif
 
     //Feed the matmul into trunkBuf
-    initialMatMul->apply(cudaHandles,batchSize,inputGlobalBuf,trunkBuf,zeroBuf,oneBuf,workspaceBuf,workspaceBytes);
-    //Then accumulate it into trunkScratchBuf, broadcasting during the process
+    initialMatMul->apply(cudaHandles,scratch,batchSize,inputGlobalBuf,trunkBuf,workspaceBuf,workspaceBytes);
+    //Then accumulate it into trunkScratch.buf, broadcasting during the process
     if(!usingFP16) {
       if(!usingNHWC)
-        customCudaAddNCBiasInplaceNCHW((float*)trunkScratchBuf,(const float*)trunkBuf,batchSize,trunkNumChannels,xSize*ySize);
+        customCudaAddNCBiasInplaceNCHW((float*)trunkScratch.buf,(const float*)trunkBuf,batchSize,trunkNumChannels,nnXLen*nnYLen);
       else
-        customCudaAddNCBiasInplaceNHWC((float*)trunkScratchBuf,(const float*)trunkBuf,batchSize,xSize*ySize,trunkNumChannels);
+        customCudaAddNCBiasInplaceNHWC((float*)trunkScratch.buf,(const float*)trunkBuf,batchSize,nnXLen*nnYLen,trunkNumChannels);
     }
     else {
       if(!usingNHWC)
-        customCudaAddNCBiasInplaceNCHW((half*)trunkScratchBuf,(const half*)trunkBuf,batchSize,trunkNumChannels,xSize*ySize);
+        customCudaAddNCBiasInplaceNCHW((half*)trunkScratch.buf,(const half*)trunkBuf,batchSize,trunkNumChannels,nnXLen*nnYLen);
       else
-        customCudaAddNCBiasInplaceNHWC((half*)trunkScratchBuf,(const half*)trunkBuf,batchSize,xSize*ySize,trunkNumChannels);
+        customCudaAddNCBiasInplaceNHWC((half*)trunkScratch.buf,(const half*)trunkBuf,batchSize,nnXLen*nnYLen,trunkNumChannels);
     }
     CUDA_ERR(name.c_str(),cudaPeekAtLastError());
 
-    for(int i = 0; i<blocks.size(); i++) {
-      #ifdef DEBUG_INTERMEDIATE_VALUES
-      debugPrint4D(string("Trunk before block " + Global::intToString(i)), trunkScratchBuf, batchSize, trunkNumChannels, xSize, ySize, usingNHWC, usingFP16);
-      #endif
+    //Flip trunkBuf and trunkScratch.buf so that the result gets accumulated in trunkScratch.buf
+    blocks.apply(
+      cudaHandles,
+      scratch,
+      batchSize,
+      maskBuf,
+      maskSumBuf,
+      trunkScratch.buf,
+      trunkBuf,
+      workspaceBuf,
+      workspaceBytes
+    );
 
-      if(blocks[i].first == ORDINARY_BLOCK_KIND) {
-        ResidualBlock* block = (ResidualBlock*)blocks[i].second.get();
-        block->apply(
-          cudaHandles,
-          trunkDescriptor,
-          midInDescriptor,
-          batchSize,
-          trunkScratchBuf, //Flip trunkBuf and trunkScratchBuf so that the result gets accumulated in trunkScratchBuf
-          trunkBuf,
-          midInBuf,
-          midScratchBuf,
-          maskBuf,
-          workspaceBuf,
-          workspaceBytes
-        );
-      }
-      else if(blocks[i].first == DILATED_BLOCK_KIND) {
-        DilatedResidualBlock* block = (DilatedResidualBlock*)blocks[i].second.get();
-        block->apply(
-          cudaHandles,
-          trunkDescriptor,
-          regularOutDescriptor,
-          dilatedOutDescriptor,
-          midInDescriptor,
-          batchSize,
-          trunkScratchBuf, //Flip trunkBuf and trunkScratchBuf so that the result gets accumulated in trunkScratchBuf
-          trunkBuf,
-          regularOutBuf,
-          dilatedOutBuf,
-          midInBuf,
-          midScratchBuf,
-          maskBuf,
-          workspaceBuf,
-          workspaceBytes
-        );
-      }
-      else if(blocks[i].first == GLOBAL_POOLING_BLOCK_KIND) {
-        GlobalPoolingResidualBlock* block = (GlobalPoolingResidualBlock*)blocks[i].second.get();
-        block->apply(
-          cudaHandles,
-          trunkDescriptor,
-          regularOutDescriptor,
-          gpoolOutDescriptor,
-          batchSize,
-          trunkScratchBuf, //Flip trunkBuf and trunkScratchBuf so that the result gets accumulated in trunkScratchBuf
-          trunkBuf,
-          regularOutBuf,
-          regularScratchBuf,
-          gpoolOutBuf,
-          gpoolOutBuf2,
-          gpoolConcatBuf,
-          gpoolBiasBuf,
-          maskBuf,
-          maskSumBuf,
-          zeroBuf,
-          oneBuf,
-          workspaceBuf,
-          workspaceBytes
-        );
-      }
-      else {
-        ASSERT_UNREACHABLE;
-      }
-
-    }
-
-    //And now with the final BN port it from trunkScratchBuf to trunkBuf.
-    bool applyBNRelu = true;
-    trunkTipBN->apply(cudaHandles,batchSize,applyBNRelu,trunkScratchBuf,maskBuf,trunkBuf);
+    //And now with the final BN port it from trunkScratch.buf to trunkBuf.
+    trunkTipBN->apply(cudaHandles,batchSize,trunkScratch.buf,maskBuf,trunkBuf);
     #ifdef DEBUG_INTERMEDIATE_VALUES
-    debugPrint4D(string("Trunk tip"), trunkBuf, batchSize, trunkNumChannels, xSize, ySize, usingNHWC, usingFP16);
+    CudaUtils::debugPrint4D(string("Trunk tip"), trunkBuf, batchSize, trunkNumChannels, nnXLen, nnYLen, usingNHWC, usingFP16);
     #endif
   }
 
@@ -1491,41 +1443,17 @@ struct Trunk {
 
 //------------------------------------------------------------------------------
 
-static void fillMaskFloatBufAndMaskSumBuf(void* maskBuf, float*& maskFloatBuf, float*& maskSumBuf, bool usingFP16, int batchSize, int xSize, int ySize) {
+static void fillMaskFloatBufAndMaskSumBuf(void* maskBuf, float*& maskFloatBuf, float*& maskSumBuf, bool usingFP16, int batchSize, int nnXLen, int nnYLen) {
   if(!usingFP16) {
     maskFloatBuf = (float*)maskBuf;
-    customCudaPoolRowsSumNCHW((const float*)maskFloatBuf,maskSumBuf,batchSize,1,xSize*ySize,1.0);
+    customCudaPoolRowsSumNCHW((const float*)maskFloatBuf,maskSumBuf,batchSize,1,nnXLen*nnYLen,1.0);
     CUDA_ERR("sumMask",cudaPeekAtLastError());
   }
   else {
-    customCudaCopyFromHalf((const half*)maskBuf,maskFloatBuf,batchSize*xSize*ySize);
+    customCudaCopyFromHalf((const half*)maskBuf,maskFloatBuf,batchSize*nnXLen*nnYLen);
     CUDA_ERR("copyMaskFromHalf",cudaPeekAtLastError());
-    customCudaPoolRowsSumNCHW((const float*)maskFloatBuf,maskSumBuf,batchSize,1,xSize*ySize,1.0);
+    customCudaPoolRowsSumNCHW((const float*)maskFloatBuf,maskSumBuf,batchSize,1,nnXLen*nnYLen,1.0);
     CUDA_ERR("sumMask",cudaPeekAtLastError());
-  }
-}
-
-static void hostMallocZeroOneBufs(void*& zeroBuf, void*& oneBuf, bool useFP16) {
-  if(!useFP16) {
-    zeroBuf = malloc(sizeof(float));
-    oneBuf = malloc(sizeof(float));
-    *((float*)zeroBuf) = 0.0f;
-    *((float*)oneBuf) = 1.0f;
-  }
-  else {
-    //Convert to FP16 on the device, then copy back so we have it in host memory
-    float zero = 0.0f;
-    float one = 1.0f;
-    void* zeroTmp;
-    void* oneTmp;
-    mallocAndCopyToDevice("Buffers",&zero,1,zeroTmp,useFP16);
-    mallocAndCopyToDevice("Buffers",&one,1,oneTmp,useFP16);
-    zeroBuf = malloc(sizeof(half));
-    oneBuf = malloc(sizeof(half));
-    CUDA_ERR("Buffers",cudaMemcpy(zeroBuf,zeroTmp,sizeof(half),cudaMemcpyDeviceToHost));
-    CUDA_ERR("Buffers",cudaMemcpy(oneBuf,oneTmp,sizeof(half),cudaMemcpyDeviceToHost));
-    cudaFree(zeroTmp);
-    cudaFree(oneTmp);
   }
 }
 
@@ -1533,31 +1461,23 @@ static void hostMallocZeroOneBufs(void*& zeroBuf, void*& oneBuf, bool useFP16) {
 //------------------------------------------------------------------------------
 
 struct PolicyHead {
-  string name;
-  int version;
-  int maxBatchSize;
-  int xSize;
-  int ySize;
-  int p1Channels;
-  int g1Channels;
-  int p2Channels;
-  bool usingFP16;
-  bool usingNHWC;
+  const string name;
+  const int version;
+  const int nnXLen;
+  const int nnYLen;
+  const int p1Channels;
+  const int g1Channels;
+  const int p2Channels;
+  const bool usingFP16;
+  const bool usingNHWC;
 
-  std::unique_ptr<cudnnTensorDescriptor_t[]> p1OutDescriptors;
-  std::unique_ptr<cudnnTensorDescriptor_t[]> g1OutDescriptors;
-  std::unique_ptr<cudnnTensorDescriptor_t[]> p2InDescriptors;
-  std::unique_ptr<cudnnTensorDescriptor_t[]> p2OutDescriptors;
-
-  std::unique_ptr<ConvLayer> p1Conv;
-  std::unique_ptr<ConvLayer> g1Conv;
-  std::unique_ptr<BatchNormLayer> g1BN;
-  std::unique_ptr<ActivationLayer> g1Activation;
-  std::unique_ptr<MatMulLayer> gpoolToBiasMul;
-  std::unique_ptr<BatchNormLayer> p1BN;
-  std::unique_ptr<ActivationLayer> p1Activation;
-  std::unique_ptr<ConvLayer> p2Conv;
-  std::unique_ptr<MatMulLayer> gpoolToPassMul;
+  const ConvLayer p1Conv;
+  const ConvLayer g1Conv;
+  const BatchNormLayer g1BN;
+  const MatMulLayer gpoolToBiasMul;
+  const BatchNormLayer p1BN;
+  const ConvLayer p2Conv;
+  const MatMulLayer gpoolToPassMul;
 
   PolicyHead() = delete;
   PolicyHead(const PolicyHead&) = delete;
@@ -1565,127 +1485,54 @@ struct PolicyHead {
 
   PolicyHead(
     CudaHandles* cudaHandles,
+    CudnnManager* manager,
     const PolicyHeadDesc* desc,
-    int maxBatchSz,
-    int xS,
-    int yS,
-    const cudnnTensorDescriptor_t* trunkDescriptors,
+    int nnX,
+    int nnY,
     bool useFP16,
     bool useNHWC
-  ) {
-    name = desc->name;
-    version = desc->version;
-    maxBatchSize = maxBatchSz;
-    xSize = xS;
-    ySize = yS;
-    p1Channels = desc->p1Conv.outChannels;
-    g1Channels = desc->g1Conv.outChannels;
-    p2Channels = desc->p2Conv.outChannels;
-    usingFP16 = useFP16;
-    usingNHWC = useNHWC;
-
-    p1OutDescriptors = std::make_unique<cudnnTensorDescriptor_t[]>(maxBatchSize);
-    g1OutDescriptors = std::make_unique<cudnnTensorDescriptor_t[]>(maxBatchSize);
-    p2InDescriptors = std::make_unique<cudnnTensorDescriptor_t[]>(maxBatchSize);
-    p2OutDescriptors = std::make_unique<cudnnTensorDescriptor_t[]>(maxBatchSize);
-
-    for(int batchSize = 1; batchSize <= maxBatchSize; batchSize++) {
-      cudnnTensorDescriptor_t& p1OutDescriptor = p1OutDescriptors[batchSize-1];
-      cudnnTensorDescriptor_t& g1OutDescriptor = g1OutDescriptors[batchSize-1];
-      cudnnTensorDescriptor_t& p2InDescriptor = p2InDescriptors[batchSize-1];
-      cudnnTensorDescriptor_t& p2OutDescriptor = p2OutDescriptors[batchSize-1];
-
-      CUDNN_ERR(name.c_str(),cudnnCreateTensorDescriptor(&p1OutDescriptor));
-      CUDNN_ERR(name.c_str(),cudnnSetTensor4dDescriptor(
-        p1OutDescriptor,
-        (useNHWC ? CUDNN_TENSOR_NHWC : CUDNN_TENSOR_NCHW),
-        (useFP16 ? CUDNN_DATA_HALF : CUDNN_DATA_FLOAT),
-        batchSize,
-        desc->p1Conv.outChannels,
-        ySize,
-        xSize
-      ));
-
-      CUDNN_ERR(name.c_str(),cudnnCreateTensorDescriptor(&g1OutDescriptor));
-      CUDNN_ERR(name.c_str(),cudnnSetTensor4dDescriptor(
-        g1OutDescriptor,
-        (useNHWC ? CUDNN_TENSOR_NHWC : CUDNN_TENSOR_NCHW),
-        (useFP16 ? CUDNN_DATA_HALF : CUDNN_DATA_FLOAT),
-        batchSize,
-        desc->g1Conv.outChannels,
-        ySize,
-        xSize
-      ));
-
-      CUDNN_ERR(name.c_str(),cudnnCreateTensorDescriptor(&p2InDescriptor));
-      CUDNN_ERR(name.c_str(),cudnnSetTensor4dDescriptor(
-        p2InDescriptor,
-        (useNHWC ? CUDNN_TENSOR_NHWC : CUDNN_TENSOR_NCHW),
-        CUDNN_DATA_FLOAT,
-        batchSize,
-        desc->p1Conv.outChannels,
-        ySize,
-        xSize
-      ));
-
-      CUDNN_ERR(name.c_str(),cudnnCreateTensorDescriptor(&p2OutDescriptor));
-      CUDNN_ERR(name.c_str(),cudnnSetTensor4dDescriptor(
-        p2OutDescriptor,
-        (useNHWC ? CUDNN_TENSOR_NHWC : CUDNN_TENSOR_NCHW),
-        CUDNN_DATA_FLOAT,
-        batchSize,
-        desc->p2Conv.outChannels,
-        ySize,
-        xSize
-      ));
-
-    }
-
-    p1Conv = std::make_unique<ConvLayer>(cudaHandles,&desc->p1Conv,maxBatchSize,trunkDescriptors,p1OutDescriptors.get(),useFP16,useNHWC);
-    g1Conv = std::make_unique<ConvLayer>(cudaHandles,&desc->g1Conv,maxBatchSize,trunkDescriptors,g1OutDescriptors.get(),useFP16,useNHWC);
-    g1BN = std::make_unique<BatchNormLayer>(cudaHandles,&desc->g1BN,xSize,ySize,useFP16,useNHWC);
-    g1Activation = std::make_unique<ActivationLayer>(cudaHandles,&desc->g1Activation);
-    gpoolToBiasMul = std::make_unique<MatMulLayer>(cudaHandles,&desc->gpoolToBiasMul,false);
-    p1BN = std::make_unique<BatchNormLayer>(cudaHandles,&desc->p1BN,xSize,ySize,false,useNHWC);
-    p1Activation = std::make_unique<ActivationLayer>(cudaHandles,&desc->p1Activation);
-    p2Conv = std::make_unique<ConvLayer>(cudaHandles,&desc->p2Conv,maxBatchSize,p2InDescriptors.get(),p2OutDescriptors.get(),false,useNHWC);
-    gpoolToPassMul = std::make_unique<MatMulLayer>(cudaHandles,&desc->gpoolToPassMul,false);
+  ) :
+    name(desc->name),
+    version(desc->version),
+    nnXLen(nnX),
+    nnYLen(nnY),
+    p1Channels(desc->p1Conv.outChannels),
+    g1Channels(desc->g1Conv.outChannels),
+    p2Channels(desc->p2Conv.outChannels),
+    usingFP16(useFP16),
+    usingNHWC(useNHWC),
+    p1Conv(cudaHandles,manager,&desc->p1Conv,useFP16,useNHWC),
+    g1Conv(cudaHandles,manager,&desc->g1Conv,useFP16,useNHWC),
+    g1BN(cudaHandles,&desc->g1BN,&desc->g1Activation,nnX,nnY,useFP16,useNHWC),
+    gpoolToBiasMul(cudaHandles,&desc->gpoolToBiasMul,false),
+    p1BN(cudaHandles,&desc->p1BN,&desc->p1Activation,nnX,nnY,false,useNHWC),
+    p2Conv(cudaHandles,manager,&desc->p2Conv,false,useNHWC),
+    gpoolToPassMul(cudaHandles,&desc->gpoolToPassMul,false)
+  {
   }
 
   ~PolicyHead()
   {
-    for(int batchSize = 1; batchSize <= maxBatchSize; batchSize++) {
-      cudnnDestroyTensorDescriptor(p1OutDescriptors[batchSize-1]);
-      cudnnDestroyTensorDescriptor(g1OutDescriptors[batchSize-1]);
-      cudnnDestroyTensorDescriptor(p2InDescriptors[batchSize-1]);
-      cudnnDestroyTensorDescriptor(p2OutDescriptors[batchSize-1]);
-    }
   }
 
   size_t requiredWorkspaceBytes(
     CudaHandles* cudaHandles,
-    const cudnnTensorDescriptor_t& trunkDescriptor,
     int batchSize
   ) const {
     size_t bytes = 0;
     size_t b;
 
-    const cudnnTensorDescriptor_t& p1OutDescriptor = p1OutDescriptors[batchSize-1];
-    const cudnnTensorDescriptor_t& g1OutDescriptor = g1OutDescriptors[batchSize-1];
-    const cudnnTensorDescriptor_t& p2InDescriptor = p2InDescriptors[batchSize-1];
-    const cudnnTensorDescriptor_t& p2OutDescriptor = p2OutDescriptors[batchSize-1];
-
-    b = p1Conv->requiredWorkspaceBytes(cudaHandles,trunkDescriptor,p1OutDescriptor,batchSize);
+    b = p1Conv.requiredWorkspaceBytes(cudaHandles,batchSize);
     bytes = std::max(bytes,b);
-    b = g1Conv->requiredWorkspaceBytes(cudaHandles,trunkDescriptor,g1OutDescriptor,batchSize);
+    b = g1Conv.requiredWorkspaceBytes(cudaHandles,batchSize);
     bytes = std::max(bytes,b);
-    b = gpoolToBiasMul->requiredWorkspaceBytes(cudaHandles);
+    b = gpoolToBiasMul.requiredWorkspaceBytes(cudaHandles);
     bytes = std::max(bytes,b);
-    b = p2Conv->requiredWorkspaceBytes(cudaHandles,p2InDescriptor,p2OutDescriptor,batchSize);
+    b = p2Conv.requiredWorkspaceBytes(cudaHandles,batchSize);
     bytes = std::max(bytes,b);
-    b = gpoolToPassMul->requiredWorkspaceBytes(cudaHandles);
+    b = gpoolToPassMul.requiredWorkspaceBytes(cudaHandles);
     bytes = std::max(bytes,b);
-    b = sizeof(float)*batchSize*g1Channels*xSize*ySize;
+    b = sizeof(float)*batchSize*g1Channels*nnXLen*nnYLen;
     bytes = std::max(bytes,b);
 
     return bytes;
@@ -1693,96 +1540,89 @@ struct PolicyHead {
 
   void apply(
     CudaHandles* cudaHandles,
-    const cudnnTensorDescriptor_t& trunkDescriptor,
+    ScratchBuffers* scratch,
     int batchSize,
     void* maskBuf,
     float* maskFloatBuf,
     float* maskSumBuf,
     void* trunkBuf,
-    void* p1OutBuf,
-    void* p1OutBuf2,
-    void* g1OutBuf,
-    void* g1OutBuf2,
-    float* g1ConcatBuf,
-    float* g1BiasBuf,
-    float* p2OutBuf,
-    float* g1PassBuf,
     float* policyBuf,
     void* workspaceBuf,
     size_t workspaceBytes
   ) const {
-    const cudnnTensorDescriptor_t& p1OutDescriptor = p1OutDescriptors[batchSize-1];
-    const cudnnTensorDescriptor_t& g1OutDescriptor = g1OutDescriptors[batchSize-1];
-    const cudnnTensorDescriptor_t& p2InDescriptor = p2InDescriptors[batchSize-1];
-    const cudnnTensorDescriptor_t& p2OutDescriptor = p2OutDescriptors[batchSize-1];
 
-    bool applyBNRelu = true;
+    SizedBuf<void*> p1Out(scratch->allocator, scratch->getBufSizeXYFloat(p1Channels)); //Need to hold floats, not just halfs
+    SizedBuf<void*> p1Out2(scratch->allocator, scratch->getBufSizeXYFloat(p1Channels)); //Need to hold floats, not just halfs
+    SizedBuf<void*> g1Out(scratch->allocator, scratch->getBufSizeXY(g1Channels));
+    SizedBuf<void*> g1Out2(scratch->allocator, scratch->getBufSizeXY(g1Channels));
+    SizedBuf<void*> g1Concat(scratch->allocator, scratch->getBufSizeFloat(g1Channels*3));
+    SizedBuf<void*> g1Bias(scratch->allocator, scratch->getBufSizeFloat(p1Channels));
+    SizedBuf<void*> p2Out(scratch->allocator, scratch->getBufSizeXYFloat(p2Channels));
+    SizedBuf<void*> g1Pass(scratch->allocator, scratch->getBufSizeFloat(p2Channels));
 
-    p1Conv->apply(cudaHandles,trunkDescriptor,p1OutDescriptor,batchSize,false,trunkBuf,p1OutBuf,workspaceBuf,workspaceBytes);
-    g1Conv->apply(cudaHandles,trunkDescriptor,g1OutDescriptor,batchSize,false,trunkBuf,g1OutBuf,workspaceBuf,workspaceBytes);
-    g1BN->apply(cudaHandles,batchSize,applyBNRelu,g1OutBuf,maskBuf,g1OutBuf2);
+    p1Conv.apply(cudaHandles,batchSize,false,trunkBuf,p1Out.buf,workspaceBuf,workspaceBytes);
+    g1Conv.apply(cudaHandles,batchSize,false,trunkBuf,g1Out.buf,workspaceBuf,workspaceBytes);
+    g1BN.apply(cudaHandles,batchSize,g1Out.buf,maskBuf,g1Out2.buf);
 
     if(!usingFP16) {
       if(!usingNHWC)
-        customCudaPoolRowsGPoolNCHW((const float*)g1OutBuf2,g1ConcatBuf,batchSize,g1Channels,xSize*ySize,maskSumBuf);
+        customCudaPoolRowsGPoolNCHW((const float*)g1Out2.buf,(float*)g1Concat.buf,batchSize,g1Channels,nnXLen*nnYLen,maskFloatBuf,maskSumBuf);
       else
-        customCudaPoolRowsGPoolNHWC((const float*)g1OutBuf2,g1ConcatBuf,batchSize,xSize*ySize,g1Channels,maskSumBuf);
+        customCudaPoolRowsGPoolNHWC((const float*)g1Out2.buf,(float*)g1Concat.buf,batchSize,nnXLen*nnYLen,g1Channels,maskFloatBuf,maskSumBuf);
       CUDA_ERR(name.c_str(),cudaPeekAtLastError());
     }
     else {
-      customCudaCopyFromHalf((const half*)g1OutBuf2,(float*)workspaceBuf,batchSize*g1Channels*xSize*ySize);
+      customCudaCopyFromHalf((const half*)g1Out2.buf,(float*)workspaceBuf,batchSize*g1Channels*nnXLen*nnYLen);
       CUDA_ERR(name.c_str(),cudaPeekAtLastError());
       if(!usingNHWC)
-        customCudaPoolRowsGPoolNCHW((const float*)workspaceBuf,g1ConcatBuf,batchSize,g1Channels,xSize*ySize,maskSumBuf);
+        customCudaPoolRowsGPoolNCHW((const float*)workspaceBuf,(float*)g1Concat.buf,batchSize,g1Channels,nnXLen*nnYLen,maskFloatBuf,maskSumBuf);
       else
-        customCudaPoolRowsGPoolNHWC((const float*)workspaceBuf,g1ConcatBuf,batchSize,xSize*ySize,g1Channels,maskSumBuf);
+        customCudaPoolRowsGPoolNHWC((const float*)workspaceBuf,(float*)g1Concat.buf,batchSize,nnXLen*nnYLen,g1Channels,maskFloatBuf,maskSumBuf);
       CUDA_ERR(name.c_str(),cudaPeekAtLastError());
     }
 
-    float zero = 0.0f;
-    float one = 1.0f;
-    gpoolToBiasMul->apply(cudaHandles,batchSize,g1ConcatBuf,g1BiasBuf,&zero,&one,workspaceBuf,workspaceBytes);
+    gpoolToBiasMul.apply(cudaHandles,scratch,batchSize,g1Concat.buf,g1Bias.buf,workspaceBuf,workspaceBytes);
 
     #ifdef DEBUG_INTERMEDIATE_VALUES
-    debugPrint4D(string("p1 pre-gpool-sum"), p1OutBuf, batchSize, p1Channels, xSize, ySize, usingNHWC, usingFP16);
-    debugPrint4D(string("g1 pre-gpool"), g1OutBuf, batchSize, g1Channels, xSize, ySize, usingNHWC, usingFP16);
-    debugPrint2D(string("g1 pooled"), g1ConcatBuf, batchSize, g1Channels*3, usingFP16);
-    debugPrint2D(string("g1 biases"), g1BiasBuf, batchSize, p1Channels, usingFP16);
+    CudaUtils::debugPrint4D(string("p1 pre-gpool-sum"), p1Out.buf, batchSize, p1Channels, nnXLen, nnYLen, usingNHWC, usingFP16);
+    CudaUtils::debugPrint4D(string("g1 pre-gpool"), g1Out.buf, batchSize, g1Channels, nnXLen, nnYLen, usingNHWC, usingFP16);
+    CudaUtils::debugPrint2D(string("g1 pooled"), g1Concat.buf, batchSize, g1Channels*3, usingFP16);
+    CudaUtils::debugPrint2D(string("g1 biases"), g1Bias.buf, batchSize, p1Channels, usingFP16);
     #endif
 
     float* p1OutBufA;
     float* p1OutBufB;
     if(!usingFP16) {
-      p1OutBufA = (float*)p1OutBuf;
-      p1OutBufB = (float*)p1OutBuf2;
+      p1OutBufA = (float*)p1Out.buf;
+      p1OutBufB = (float*)p1Out2.buf;
     }
     else {
-      customCudaCopyFromHalf((const half*)p1OutBuf,(float*)p1OutBuf2,batchSize*p1Channels*xSize*ySize);
+      customCudaCopyFromHalf((const half*)p1Out.buf,(float*)p1Out2.buf,batchSize*p1Channels*nnXLen*nnYLen);
       CUDA_ERR(name.c_str(),cudaPeekAtLastError());
-      p1OutBufA = (float*)p1OutBuf2;
-      p1OutBufB = (float*)p1OutBuf;
+      p1OutBufA = (float*)p1Out2.buf;
+      p1OutBufB = (float*)p1Out.buf;
     }
 
     if(!usingNHWC)
-      customCudaAddNCBiasInplaceNCHW(p1OutBufA,g1BiasBuf,batchSize,p1Channels,xSize*ySize);
+      customCudaAddNCBiasInplaceNCHW(p1OutBufA,(float*)g1Bias.buf,batchSize,p1Channels,nnXLen*nnYLen);
     else
-      customCudaAddNCBiasInplaceNHWC(p1OutBufA,g1BiasBuf,batchSize,xSize*ySize,p1Channels);
+      customCudaAddNCBiasInplaceNHWC(p1OutBufA,(float*)g1Bias.buf,batchSize,nnXLen*nnYLen,p1Channels);
     CUDA_ERR(name.c_str(),cudaPeekAtLastError());
 
-    p1BN->apply(cudaHandles,batchSize,true,p1OutBufA,maskFloatBuf,p1OutBufB);
-    p2Conv->apply(cudaHandles,p2InDescriptor,p2OutDescriptor,batchSize,false,p1OutBufB,p2OutBuf,workspaceBuf,workspaceBytes);
+    p1BN.apply(cudaHandles,batchSize,p1OutBufA,maskFloatBuf,p1OutBufB);
+    p2Conv.apply(cudaHandles,batchSize,false,p1OutBufB,(float*)p2Out.buf,workspaceBuf,workspaceBytes);
 
-    gpoolToPassMul->apply(cudaHandles,batchSize,g1ConcatBuf,g1PassBuf,&zero,&one,workspaceBuf,workspaceBytes);
+    gpoolToPassMul.apply(cudaHandles,scratch,batchSize,g1Concat.buf,g1Pass.buf,workspaceBuf,workspaceBytes);
 
     #ifdef DEBUG_INTERMEDIATE_VALUES
-    debugPrint4D(string("p1 after-gpool-sum"), p1OutBuf, batchSize, p1Channels, xSize, ySize, usingNHWC, usingFP16);
-    debugPrint4D(string("p2"), p2OutBuf, batchSize, p2Channels, xSize, ySize, usingNHWC, usingFP16);
-    debugPrint2D(string("p2pass"), g1PassBuf, batchSize, 1, usingFP16);
+    CudaUtils::debugPrint4D(string("p1 after-gpool-sum"), p1Out.buf, batchSize, p1Channels, nnXLen, nnYLen, usingNHWC, usingFP16);
+    CudaUtils::debugPrint4D(string("p2"), p2Out.buf, batchSize, p2Channels, nnXLen, nnYLen, usingNHWC, usingFP16);
+    CudaUtils::debugPrint2D(string("p2pass"), g1Pass.buf, batchSize, 1, usingFP16);
     #endif
 
     customCudaChannelConcat(
-      p2OutBuf,g1PassBuf,policyBuf,
-      xSize*ySize,
+      (float*)p2Out.buf,(float*)g1Pass.buf,policyBuf,
+      nnXLen*nnYLen,
       1,
       batchSize
     );
@@ -1795,34 +1635,27 @@ struct PolicyHead {
 //------------------------------------------------------------------------------
 
 struct ValueHead {
-  string name;
-  int version;
-  int maxBatchSize;
-  int xSize;
-  int ySize;
-  int v1Channels;
-  int v2Channels;
-  int valueChannels;
-  int scoreValueChannels;
-  int ownershipChannels;
-  bool usingFP16;
-  bool usingNHWC;
+  const string name;
+  const int version;
+  const int nnXLen;
+  const int nnYLen;
+  const int v1Channels;
+  const int v2Channels;
+  const int valueChannels;
+  const int scoreValueChannels;
+  const int ownershipChannels;
+  const bool usingFP16;
+  const bool usingNHWC;
 
-  std::unique_ptr<cudnnTensorDescriptor_t[]> v1OutDescriptors;
-  std::unique_ptr<cudnnTensorDescriptor_t[]> v3InDescriptors;
-  std::unique_ptr<cudnnTensorDescriptor_t[]> vOwnershipOutDescriptors;
-
-  std::unique_ptr<ConvLayer> v1Conv;
-  std::unique_ptr<BatchNormLayer> v1BN;
-  std::unique_ptr<ActivationLayer> v1Activation;
-  std::unique_ptr<MatMulLayer> v2Mul;
-  std::unique_ptr<MatBiasLayer> v2Bias;
-  std::unique_ptr<ActivationLayer> v2Activation;
-  std::unique_ptr<MatMulLayer> v3Mul;
-  std::unique_ptr<MatBiasLayer> v3Bias;
-  std::unique_ptr<MatMulLayer> sv3Mul;
-  std::unique_ptr<MatBiasLayer> sv3Bias;
-  std::unique_ptr<ConvLayer> vOwnershipConv;
+  const ConvLayer v1Conv;
+  const BatchNormLayer v1BN;
+  const MatMulLayer v2Mul;
+  const MatBiasLayer v2Bias;
+  const MatMulLayer v3Mul;
+  const MatBiasLayer v3Bias;
+  const MatMulLayer sv3Mul;
+  const MatBiasLayer sv3Bias;
+  const ConvLayer vOwnershipConv;
 
   ValueHead() = delete;
   ValueHead(const ValueHead&) = delete;
@@ -1830,119 +1663,61 @@ struct ValueHead {
 
   ValueHead(
     CudaHandles* cudaHandles,
+    CudnnManager* manager,
     const ValueHeadDesc* desc,
-    int maxBatchSz,
-    int xS,
-    int yS,
-    const cudnnTensorDescriptor_t* trunkDescriptors,
+    int nnX,
+    int nnY,
     bool useFP16,
     bool useNHWC
-  ) {
-    name = desc->name;
-    version = desc->version;
-    maxBatchSize = maxBatchSz;
-    xSize = xS;
-    ySize = yS;
-    v1Channels = desc->v1Conv.outChannels;
-    v2Channels = desc->v2Mul.outChannels;
-    valueChannels = desc->v3Mul.outChannels;
-    scoreValueChannels = desc->sv3Mul.outChannels;
-    ownershipChannels = desc->vOwnershipConv.outChannels;
-    usingFP16 = useFP16;
-    usingNHWC = useNHWC;
-
-    v1OutDescriptors = std::make_unique<cudnnTensorDescriptor_t[]>(maxBatchSize);
-    v3InDescriptors = std::make_unique<cudnnTensorDescriptor_t[]>(maxBatchSize);
-    vOwnershipOutDescriptors = std::make_unique<cudnnTensorDescriptor_t[]>(maxBatchSize);
-
-    for(int batchSize = 1; batchSize <= maxBatchSize; batchSize++) {
-      cudnnTensorDescriptor_t& v1OutDescriptor = v1OutDescriptors[batchSize-1];
-      cudnnTensorDescriptor_t& v3InDescriptor = v3InDescriptors[batchSize-1];
-
-      CUDNN_ERR(name.c_str(),cudnnCreateTensorDescriptor(&v1OutDescriptor));
-      CUDNN_ERR(name.c_str(),cudnnSetTensor4dDescriptor(
-        v1OutDescriptor,
-        (useNHWC ? CUDNN_TENSOR_NHWC : CUDNN_TENSOR_NCHW),
-        (useFP16 ? CUDNN_DATA_HALF : CUDNN_DATA_FLOAT),
-        batchSize,
-        desc->v1Conv.outChannels,
-        ySize,
-        xSize
-      ));
-
-      CUDNN_ERR(name.c_str(),cudnnCreateTensorDescriptor(&v3InDescriptor));
-      CUDNN_ERR(name.c_str(),cudnnSetTensor4dDescriptor(
-        v3InDescriptor,
-        (useNHWC ? CUDNN_TENSOR_NHWC : CUDNN_TENSOR_NCHW),
-        CUDNN_DATA_FLOAT,
-        batchSize,
-        desc->v2Mul.outChannels,
-        1,
-        1
-      ));
-
-      cudnnTensorDescriptor_t& vOwnershipOutDescriptor = vOwnershipOutDescriptors[batchSize-1];
-
-      CUDNN_ERR(name.c_str(),cudnnCreateTensorDescriptor(&vOwnershipOutDescriptor));
-      CUDNN_ERR(name.c_str(),cudnnSetTensor4dDescriptor(
-        vOwnershipOutDescriptor,
-        (useNHWC ? CUDNN_TENSOR_NHWC : CUDNN_TENSOR_NCHW),
-        (useFP16 ? CUDNN_DATA_HALF : CUDNN_DATA_FLOAT),
-        batchSize,
-        desc->vOwnershipConv.outChannels,
-        ySize,
-        xSize
-      ));
-    }
-
-    v1Conv = std::make_unique<ConvLayer>(cudaHandles,&desc->v1Conv,maxBatchSize,trunkDescriptors,v1OutDescriptors.get(),useFP16,useNHWC);
-    v1BN = std::make_unique<BatchNormLayer>(cudaHandles,&desc->v1BN,xSize,ySize,useFP16,useNHWC);
-    v1Activation = std::make_unique<ActivationLayer>(cudaHandles,&desc->v1Activation);
-    v2Mul = std::make_unique<MatMulLayer>(cudaHandles,&desc->v2Mul,false);
-    v2Bias = std::make_unique<MatBiasLayer>(cudaHandles,&desc->v2Bias,false);
-    v2Activation = std::make_unique<ActivationLayer>(cudaHandles,&desc->v2Activation);
-    v3Mul = std::make_unique<MatMulLayer>(cudaHandles,&desc->v3Mul,false);
-    v3Bias = std::make_unique<MatBiasLayer>(cudaHandles,&desc->v3Bias,false);
-    sv3Mul = std::make_unique<MatMulLayer>(cudaHandles,&desc->sv3Mul,false);
-    sv3Bias = std::make_unique<MatBiasLayer>(cudaHandles,&desc->sv3Bias,false);
-    vOwnershipConv = std::make_unique<ConvLayer>(cudaHandles,&desc->vOwnershipConv,maxBatchSize,v1OutDescriptors.get(),vOwnershipOutDescriptors.get(),useFP16,useNHWC);
+  ) :
+    name(desc->name),
+    version(desc->version),
+    nnXLen(nnX),
+    nnYLen(nnY),
+    v1Channels(desc->v1Conv.outChannels),
+    v2Channels(desc->v2Mul.outChannels),
+    valueChannels(desc->v3Mul.outChannels),
+    scoreValueChannels(desc->sv3Mul.outChannels),
+    ownershipChannels(desc->vOwnershipConv.outChannels),
+    usingFP16(useFP16),
+    usingNHWC(useNHWC),
+    v1Conv(cudaHandles,manager,&desc->v1Conv,useFP16,useNHWC),
+    v1BN(cudaHandles,&desc->v1BN,&desc->v1Activation,nnX,nnY,useFP16,useNHWC),
+    v2Mul(cudaHandles,&desc->v2Mul,false),
+    v2Bias(cudaHandles,&desc->v2Bias,false,desc->v2Activation.activation),
+    v3Mul(cudaHandles,&desc->v3Mul,false),
+    v3Bias(cudaHandles,&desc->v3Bias,false,ACTIVATION_IDENTITY),
+    sv3Mul(cudaHandles,&desc->sv3Mul,false),
+    sv3Bias(cudaHandles,&desc->sv3Bias,false,ACTIVATION_IDENTITY),
+    vOwnershipConv(cudaHandles,manager,&desc->vOwnershipConv,useFP16,useNHWC)
+  {
   }
 
   ~ValueHead()
   {
-    for(int batchSize = 1; batchSize <= maxBatchSize; batchSize++) {
-      cudnnDestroyTensorDescriptor(v1OutDescriptors[batchSize-1]);
-      cudnnDestroyTensorDescriptor(v3InDescriptors[batchSize-1]);
-      cudnnDestroyTensorDescriptor(vOwnershipOutDescriptors[batchSize-1]);
-    }
   }
 
   size_t requiredWorkspaceBytes(
     CudaHandles* cudaHandles,
-    const cudnnTensorDescriptor_t& trunkDescriptor,
     int batchSize
   ) const {
     size_t bytes = 0;
     size_t b;
 
-    const cudnnTensorDescriptor_t& v1OutDescriptor = v1OutDescriptors[batchSize-1];
-
-    b = v1Conv->requiredWorkspaceBytes(cudaHandles,trunkDescriptor,v1OutDescriptor,batchSize);
+    b = v1Conv.requiredWorkspaceBytes(cudaHandles,batchSize);
     bytes = std::max(bytes,b);
-    b = v2Mul->requiredWorkspaceBytes(cudaHandles);
+    b = v2Mul.requiredWorkspaceBytes(cudaHandles);
     bytes = std::max(bytes,b);
-    b = v3Mul->requiredWorkspaceBytes(cudaHandles);
+    b = v3Mul.requiredWorkspaceBytes(cudaHandles);
     bytes = std::max(bytes,b);
-    b = sizeof(float)*batchSize*v1Channels*xSize*ySize;
+    b = sizeof(float)*batchSize*v1Channels*nnXLen*nnYLen;
     bytes = std::max(bytes,b);
 
-    const cudnnTensorDescriptor_t& vOwnershipOutDescriptor = vOwnershipOutDescriptors[batchSize-1];
-
-    b = sv3Mul->requiredWorkspaceBytes(cudaHandles);
+    b = sv3Mul.requiredWorkspaceBytes(cudaHandles);
     bytes = std::max(bytes,b);
-    b = vOwnershipConv->requiredWorkspaceBytes(cudaHandles,v1OutDescriptor,vOwnershipOutDescriptor,batchSize);
+    b = vOwnershipConv.requiredWorkspaceBytes(cudaHandles,batchSize);
     bytes = std::max(bytes,b);
-    b = sizeof(float)*batchSize*ownershipChannels*xSize*ySize;
+    b = sizeof(float)*batchSize*ownershipChannels*nnXLen*nnYLen;
     bytes = std::max(bytes,b);
 
     return bytes;
@@ -1951,68 +1726,59 @@ struct ValueHead {
 
   void apply(
     CudaHandles* cudaHandles,
-    const cudnnTensorDescriptor_t& trunkDescriptor,
+    ScratchBuffers* scratch,
     int batchSize,
     void* maskBuf,
     float* maskSumBuf,
     void* trunkBuf,
-    void* v1OutBuf,
-    void* v1OutBuf2,
-    float* v1MeanBuf,
-    float* v2OutBuf,
     float* valueBuf,
     float* scoreValueBuf,
     void* ownershipBuf,
-    void* ownershipScratchBuf,
     void* workspaceBuf,
     size_t workspaceBytes
   ) const {
-    const cudnnTensorDescriptor_t& v1OutDescriptor = v1OutDescriptors[batchSize-1];
-    const cudnnTensorDescriptor_t& v3InDescriptor = v3InDescriptors[batchSize-1];
+    SizedBuf<void*> v1Out(scratch->allocator, scratch->getBufSizeXY(v1Channels));
+    SizedBuf<void*> v1Out2(scratch->allocator, scratch->getBufSizeXY(v1Channels));
+    SizedBuf<void*> v1Mean(scratch->allocator, scratch->getBufSizeFloat(v1Channels*3));
+    SizedBuf<void*> v2Out(scratch->allocator, scratch->getBufSizeFloat(v2Channels));
+    SizedBuf<void*> ownershipScratch(scratch->allocator, scratch->getBufSizeXYFloat(ownershipChannels));
 
-    bool applyBNRelu = true;
+    v1Conv.apply(cudaHandles,batchSize,false,trunkBuf,v1Out.buf,workspaceBuf,workspaceBytes);
+    v1BN.apply(cudaHandles,batchSize,v1Out.buf,maskBuf,v1Out2.buf);
 
-    v1Conv->apply(cudaHandles,trunkDescriptor,v1OutDescriptor,batchSize,false,trunkBuf,v1OutBuf,workspaceBuf,workspaceBytes);
-    v1BN->apply(cudaHandles,batchSize,applyBNRelu,v1OutBuf,maskBuf,v1OutBuf2);
-
-    void* bufToBePooled = v1OutBuf2;
+    void* bufToBePooled = v1Out2.buf;
     if(usingFP16) {
-      customCudaCopyFromHalf((const half*)v1OutBuf2,(float*)workspaceBuf,batchSize*v1Channels*xSize*ySize);
+      customCudaCopyFromHalf((const half*)v1Out2.buf,(float*)workspaceBuf,batchSize*v1Channels*nnXLen*nnYLen);
       CUDA_ERR(name.c_str(),cudaPeekAtLastError());
       bufToBePooled = workspaceBuf;
     }
 
     if(!usingNHWC)
-      customCudaValueHeadPoolNCHW((float*)bufToBePooled,v1MeanBuf,batchSize,v1Channels,xSize*ySize,maskSumBuf);
+      customCudaValueHeadPoolNCHW((float*)bufToBePooled,(float*)v1Mean.buf,batchSize,v1Channels,nnXLen*nnYLen,maskSumBuf);
     else
-      customCudaValueHeadPoolNHWC((const float*)bufToBePooled,v1MeanBuf,batchSize,xSize*ySize,v1Channels,maskSumBuf);
+      customCudaValueHeadPoolNHWC((const float*)bufToBePooled,(float*)v1Mean.buf,batchSize,nnXLen*nnYLen,v1Channels,maskSumBuf);
     CUDA_ERR(name.c_str(),cudaPeekAtLastError());
 
-    float zero = 0.0f;
-    float one = 1.0f;
-    v2Mul->apply(cudaHandles,batchSize,v1MeanBuf,v2OutBuf,&zero,&one,workspaceBuf,workspaceBytes);
-    v2Bias->apply(cudaHandles,batchSize,v2OutBuf);
-    v2Activation->apply(cudaHandles,v3InDescriptor,v3InDescriptor,v2OutBuf,v2OutBuf);
-    v3Mul->apply(cudaHandles,batchSize,v2OutBuf,valueBuf,&zero,&one,workspaceBuf,workspaceBytes);
-    v3Bias->apply(cudaHandles,batchSize,valueBuf);
+    v2Mul.apply(cudaHandles,scratch,batchSize,v1Mean.buf,v2Out.buf,workspaceBuf,workspaceBytes);
+    v2Bias.apply(cudaHandles,batchSize,v2Out.buf);
+    v3Mul.apply(cudaHandles,scratch,batchSize,v2Out.buf,valueBuf,workspaceBuf,workspaceBytes);
+    v3Bias.apply(cudaHandles,batchSize,valueBuf);
 
-    sv3Mul->apply(cudaHandles,batchSize,v2OutBuf,scoreValueBuf,&zero,&one,workspaceBuf,workspaceBytes);
-    sv3Bias->apply(cudaHandles,batchSize,scoreValueBuf);
+    sv3Mul.apply(cudaHandles,scratch,batchSize,v2Out.buf,scoreValueBuf,workspaceBuf,workspaceBytes);
+    sv3Bias.apply(cudaHandles,batchSize,scoreValueBuf);
 
     #ifdef DEBUG_INTERMEDIATE_VALUES
-    debugPrint4D(string("v1"), v1OutBuf, batchSize, v1Channels, xSize, ySize, usingNHWC, usingFP16);
-    debugPrint2D(string("v1 pooled"), v1MeanBuf, batchSize, v1Channels, usingFP16);
-    debugPrint2D(string("v2"), v2OutBuf, batchSize, v1Channels, usingFP16);
+    CudaUtils::debugPrint4D(string("v1"), v1Out.buf, batchSize, v1Channels, nnXLen, nnYLen, usingNHWC, usingFP16);
+    CudaUtils::debugPrint2D(string("v1 pooled"), v1Mean.buf, batchSize, v1Channels, usingFP16);
+    CudaUtils::debugPrint2D(string("v2"), v2Out.buf, batchSize, v1Channels, usingFP16);
     #endif
 
-    const cudnnTensorDescriptor_t& vOwnershipOutDescriptor = vOwnershipOutDescriptors[batchSize-1];
-
     if(!usingFP16) {
-      vOwnershipConv->apply(cudaHandles,v1OutDescriptor,vOwnershipOutDescriptor,batchSize,false,v1OutBuf2,ownershipBuf,workspaceBuf,workspaceBytes);
+      vOwnershipConv.apply(cudaHandles,batchSize,false,v1Out2.buf,ownershipBuf,workspaceBuf,workspaceBytes);
     }
     else {
-      vOwnershipConv->apply(cudaHandles,v1OutDescriptor,vOwnershipOutDescriptor,batchSize,false,v1OutBuf2,ownershipScratchBuf,workspaceBuf,workspaceBytes);
-      customCudaCopyFromHalf((const half*)ownershipScratchBuf,(float*)ownershipBuf,batchSize*ownershipChannels*xSize*ySize);
+      vOwnershipConv.apply(cudaHandles,batchSize,false,v1Out2.buf,ownershipScratch.buf,workspaceBuf,workspaceBytes);
+      customCudaCopyFromHalf((const half*)ownershipScratch.buf,(float*)ownershipBuf,batchSize*ownershipChannels*nnXLen*nnYLen);
       CUDA_ERR("vOwnership copy",cudaPeekAtLastError());
     }
 
@@ -2023,24 +1789,24 @@ struct ValueHead {
 //------------------------------------------------------------------------------
 
 struct Model {
-  string name;
-  int version;
-  int maxBatchSize;
-  int xSize;
-  int ySize;
-  int numInputChannels;
-  int numInputGlobalChannels;
-  int numValueChannels;
-  int numScoreValueChannels;
-  int numOwnershipChannels;
-  bool usingFP16;
-  bool inputsUsingNHWC;
-
-  std::unique_ptr<cudnnTensorDescriptor_t[]> inputDescriptors;
+  const string name;
+  const int version;
+  const int maxBatchSize;
+  const int nnXLen;
+  const int nnYLen;
+  const int numInputChannels;
+  const int numInputGlobalChannels;
+  const int numValueChannels;
+  const int numScoreValueChannels;
+  const int numOwnershipChannels;
+  const bool usingFP16;
+  const bool usingNHWC;
+  const bool inputsUsingNHWC;
 
   std::unique_ptr<Trunk> trunk;
   std::unique_ptr<PolicyHead> policyHead;
   std::unique_ptr<ValueHead> valueHead;
+  std::unique_ptr<CudnnManager> manager;
 
   Model() = delete;
   Model(const Model&) = delete;
@@ -2050,18 +1816,26 @@ struct Model {
     CudaHandles* cudaHandles,
     const ModelDesc* desc,
     int maxBatchSz,
-    int nnXLen,
-    int nnYLen,
+    int nnX,
+    int nnY,
     bool inputsUseNHWC,
     bool useFP16,
     bool useNHWC
-  ) {
-    name = desc->name;
-    version = desc->version;
-    maxBatchSize = maxBatchSz;
-
-    xSize = nnXLen;
-    ySize = nnYLen;
+  ) :
+    name(desc->name),
+    version(desc->version),
+    maxBatchSize(maxBatchSz),
+    nnXLen(nnX),
+    nnYLen(nnY),
+    numInputChannels(desc->numInputChannels),
+    numInputGlobalChannels(desc->numInputGlobalChannels),
+    numValueChannels(desc->numValueChannels),
+    numScoreValueChannels(desc->numScoreValueChannels),
+    numOwnershipChannels(desc->numOwnershipChannels),
+    usingFP16(useFP16),
+    usingNHWC(useNHWC),
+    inputsUsingNHWC(inputsUseNHWC)
+  {
     if(nnXLen > NNPos::MAX_BOARD_LEN)
       throw StringError(Global::strprintf("nnXLen (%d) is greater than NNPos::MAX_BOARD_LEN (%d)",
         nnXLen, NNPos::MAX_BOARD_LEN
@@ -2070,14 +1844,6 @@ struct Model {
       throw StringError(Global::strprintf("nnYLen (%d) is greater than NNPos::MAX_BOARD_LEN (%d)",
         nnYLen, NNPos::MAX_BOARD_LEN
       ));
-
-    numInputChannels = desc->numInputChannels;
-    numInputGlobalChannels = desc->numInputGlobalChannels;
-    numValueChannels = desc->numValueChannels;
-    numScoreValueChannels = desc->numScoreValueChannels;
-    numOwnershipChannels = desc->numOwnershipChannels;
-    usingFP16 = useFP16;
-    inputsUsingNHWC = inputsUseNHWC;
 
     int numFeatures = NNModelVersion::getNumSpatialFeatures(version);
     if(numInputChannels != numFeatures)
@@ -2090,39 +1856,20 @@ struct Model {
         numInputGlobalChannels, numGlobalFeatures
       ));
 
-    checkBufferSize(maxBatchSize,nnXLen,nnYLen,numInputChannels);
-    checkBufferSize(maxBatchSize,nnXLen,nnYLen,numInputGlobalChannels);
-    checkBufferSize(maxBatchSize,nnXLen,nnYLen,numValueChannels);
-    checkBufferSize(maxBatchSize,nnXLen,nnYLen,numScoreValueChannels);
-    checkBufferSize(maxBatchSize,nnXLen,nnYLen,numOwnershipChannels);
+    CudaUtils::checkBufferSize(maxBatchSize,nnXLen,nnYLen,numInputChannels);
+    CudaUtils::checkBufferSize(maxBatchSize,nnXLen,nnYLen,numInputGlobalChannels);
+    CudaUtils::checkBufferSize(maxBatchSize,nnXLen,nnYLen,numValueChannels);
+    CudaUtils::checkBufferSize(maxBatchSize,nnXLen,nnYLen,numScoreValueChannels);
+    CudaUtils::checkBufferSize(maxBatchSize,nnXLen,nnYLen,numOwnershipChannels);
 
-    inputDescriptors = std::make_unique<cudnnTensorDescriptor_t[]>(maxBatchSize);
-
-    for(int batchSize = 1; batchSize <= maxBatchSize; batchSize++) {
-      cudnnTensorDescriptor_t& inputDescriptor = inputDescriptors[batchSize-1];
-
-      CUDNN_ERR(name.c_str(),cudnnCreateTensorDescriptor(&inputDescriptor));
-      CUDNN_ERR(name.c_str(),cudnnSetTensor4dDescriptor(
-        inputDescriptor,
-        inputsUseNHWC ? CUDNN_TENSOR_NHWC : CUDNN_TENSOR_NCHW,
-        (useFP16 ? CUDNN_DATA_HALF : CUDNN_DATA_FLOAT),
-        batchSize,
-        numInputChannels,
-        ySize,
-        xSize
-      ));
-    }
-
-    trunk = std::make_unique<Trunk>(cudaHandles,&desc->trunk,maxBatchSize,xSize,ySize,inputDescriptors.get(),useFP16,useNHWC);
-    policyHead = std::make_unique<PolicyHead>(cudaHandles,&desc->policyHead,maxBatchSize,xSize,ySize,trunk->trunkDescriptors.get(),useFP16,useNHWC);
-    valueHead = std::make_unique<ValueHead>(cudaHandles,&desc->valueHead,maxBatchSize,xSize,ySize,trunk->trunkDescriptors.get(),useFP16,useNHWC);
+    manager = std::make_unique<CudnnManager>(name, maxBatchSize, nnXLen, nnYLen);
+    trunk = std::make_unique<Trunk>(cudaHandles,manager.get(),&desc->trunk,nnXLen,nnYLen,inputsUseNHWC,useFP16,useNHWC);
+    policyHead = std::make_unique<PolicyHead>(cudaHandles,manager.get(),&desc->policyHead,nnXLen,nnYLen,useFP16,useNHWC);
+    valueHead = std::make_unique<ValueHead>(cudaHandles,manager.get(),&desc->valueHead,nnXLen,nnYLen,useFP16,useNHWC);
   }
 
   ~Model()
   {
-    for(int batchSize = 1; batchSize <= maxBatchSize; batchSize++) {
-      cudnnDestroyTensorDescriptor(inputDescriptors[batchSize-1]);
-    }
   }
 
   size_t requiredWorkspaceBytes(
@@ -2132,14 +1879,11 @@ struct Model {
     size_t bytes = 0;
     size_t b;
 
-    const cudnnTensorDescriptor_t& inputDescriptor = inputDescriptors[batchSize-1];
-    const cudnnTensorDescriptor_t& trunkDescriptor = trunk->trunkDescriptors[batchSize-1];
-
-    b = trunk->requiredWorkspaceBytes(cudaHandles,inputDescriptor,batchSize);
+    b = trunk->requiredWorkspaceBytes(cudaHandles,batchSize);
     bytes = std::max(bytes,b);
-    b = policyHead->requiredWorkspaceBytes(cudaHandles,trunkDescriptor,batchSize);
+    b = policyHead->requiredWorkspaceBytes(cudaHandles,batchSize);
     bytes = std::max(bytes,b);
-    b = valueHead->requiredWorkspaceBytes(cudaHandles,trunkDescriptor,batchSize);
+    b = valueHead->requiredWorkspaceBytes(cudaHandles,batchSize);
     bytes = std::max(bytes,b);
 
     return bytes;
@@ -2147,70 +1891,46 @@ struct Model {
 
   void apply(
     CudaHandles* cudaHandles,
+    ScratchBuffers* scratch,
     int batchSize,
     bool requireExactNNLen,
 
     void* inputBuf,
     void* inputGlobalBuf,
-    void* maskBuf,
-    float* maskFloatBuf,
-    float* maskSumBuf,
-    void* trunkBuf,
-    void* trunkScratchBuf,
-    void* regularOutBuf,
-    void* regularScratchBuf,
-    void* dilatedOutBuf,
-    void* midInBuf,
-    void* midScratchBuf,
-    void* gpoolOutBuf,
-    void* gpoolOutBuf2,
-    void* gpoolConcatBuf,
-    void* gpoolBiasBuf,
 
-    void* p1OutBuf,
-    void* p1OutBuf2,
-    void* g1OutBuf,
-    void* g1OutBuf2,
-    float* g1ConcatBuf,
-    float* g1BiasBuf,
-    float* p2OutBuf,
-    float* g1PassBuf,
     float* policyBuf,
 
-    void* v1OutBuf,
-    void* v1OutBuf2,
-    float* v1MeanBuf,
-    float* v2OutBuf,
     float* valueBuf,
     float* scoreValueBuf,
     void* ownershipBuf,
-    void* ownershipScratchBuf,
-
-    const void* zeroBuf,
-    const void* oneBuf,
 
     void* workspaceBuf,
     size_t workspaceBytes
   ) const {
-    const cudnnTensorDescriptor_t& inputDescriptor = inputDescriptors[batchSize-1];
-    const cudnnTensorDescriptor_t& trunkDescriptor = trunk->trunkDescriptors[batchSize-1];
+    SizedBuf<void*> mask(scratch->allocator, scratch->getBufSizeXY(1));
+    SizedBuf<void*> maskFloat(scratch->allocator, scratch->getBufSizeXYFloat(1));
+    SizedBuf<void*> maskSum(scratch->allocator, scratch->getBufSizeFloat(1));
+
+    void* maskBuf = mask.buf;
+    float* maskFloatBuf = (float*)maskFloat.buf;
+    float* maskSumBuf = (float*)maskSum.buf;
 
     if(!usingFP16) {
       if(inputsUsingNHWC)
-        customCudaChannel0ExtractNHWC((const float*)inputBuf, (float*)maskBuf, batchSize, xSize*ySize, numInputChannels);
+        customCudaChannel0ExtractNHWC((const float*)inputBuf, (float*)maskBuf, batchSize, nnXLen*nnYLen, numInputChannels);
       else
-        customCudaChannel0ExtractNCHW((const float*)inputBuf, (float*)maskBuf, batchSize, numInputChannels, xSize*ySize);
+        customCudaChannel0ExtractNCHW((const float*)inputBuf, (float*)maskBuf, batchSize, numInputChannels, nnXLen*nnYLen);
       CUDA_ERR("modelExtractMask",cudaPeekAtLastError());
     }
     else {
       if(inputsUsingNHWC)
-        customCudaChannel0ExtractNHWC((const half*)inputBuf, (half*)maskBuf, batchSize, xSize*ySize, numInputChannels);
+        customCudaChannel0ExtractNHWC((const half*)inputBuf, (half*)maskBuf, batchSize, nnXLen*nnYLen, numInputChannels);
       else
-        customCudaChannel0ExtractNCHW((const half*)inputBuf, (half*)maskBuf, batchSize, numInputChannels, xSize*ySize);
+        customCudaChannel0ExtractNCHW((const half*)inputBuf, (half*)maskBuf, batchSize, numInputChannels, nnXLen*nnYLen);
       CUDA_ERR("modelExtractMask",cudaPeekAtLastError());
     }
 
-    fillMaskFloatBufAndMaskSumBuf(maskBuf,maskFloatBuf,maskSumBuf,usingFP16,batchSize,xSize,ySize);
+    fillMaskFloatBufAndMaskSumBuf(maskBuf,maskFloatBuf,maskSumBuf,usingFP16,batchSize,nnXLen,nnYLen);
 
     //Don't do any masking if we know the board is exactly the desired size
     if(requireExactNNLen) {
@@ -2221,65 +1941,47 @@ struct Model {
       //maskSumBuf = NULL;
     }
 
+    #ifdef DEBUG_INTERMEDIATE_VALUES
+    CudaUtils::debugPrint4D(string("Initial bin features"), inputBuf, batchSize, trunk->initialConv->inChannels, nnXLen, nnYLen, inputsUsingNHWC, usingFP16);
+    CudaUtils::debugPrint2D(string("Initial global features"), inputGlobalBuf, batchSize, trunk->initialMatMul->inChannels, usingFP16);
+    #endif
+
+    SizedBuf<void*> trunkBuf(scratch->allocator, scratch->getBufSizeXY(trunk->trunkNumChannels));
+
     trunk->apply(
       cudaHandles,
-      inputDescriptor,
+      scratch,
       batchSize,
       inputBuf,
       inputGlobalBuf,
       maskBuf,
       maskSumBuf,
-      trunkBuf,
-      trunkScratchBuf,
-      regularOutBuf,
-      regularScratchBuf,
-      dilatedOutBuf,
-      midInBuf,
-      midScratchBuf,
-      gpoolOutBuf,
-      gpoolOutBuf2,
-      gpoolConcatBuf,
-      gpoolBiasBuf,
-      zeroBuf,
-      oneBuf,
+      trunkBuf.buf,
       workspaceBuf,
       workspaceBytes
     );
     policyHead->apply(
       cudaHandles,
-      trunkDescriptor,
+      scratch,
       batchSize,
       maskBuf,
       maskFloatBuf,
       maskSumBuf,
-      trunkBuf,
-      p1OutBuf,
-      p1OutBuf2,
-      g1OutBuf,
-      g1OutBuf2,
-      g1ConcatBuf,
-      g1BiasBuf,
-      p2OutBuf,
-      g1PassBuf,
+      trunkBuf.buf,
       policyBuf,
       workspaceBuf,
       workspaceBytes
     );
     valueHead->apply(
       cudaHandles,
-      trunkDescriptor,
+      scratch,
       batchSize,
       maskBuf,
       maskSumBuf,
-      trunkBuf,
-      v1OutBuf,
-      v1OutBuf2,
-      v1MeanBuf,
-      v2OutBuf,
+      trunkBuf.buf,
       valueBuf,
       scoreValueBuf,
       ownershipBuf,
-      ownershipScratchBuf,
       workspaceBuf,
       workspaceBytes
     );
@@ -2337,47 +2039,15 @@ struct Buffers {
   size_t inputGlobalBufBytesFloat;
   size_t inputGlobalBufBytes;
 
-  void* maskBuf;
-  float* maskFloatBuf;
-  float* maskSumBuf;
-
-  void* trunkBuf;
-  void* trunkScratchBuf;
-  void* regularOutBuf;
-  void* regularScratchBuf;
-  void* dilatedOutBuf;
-  void* midInBuf;
-  void* midScratchBuf;
-  void* gpoolOutBuf;
-  void* gpoolOutBuf2;
-  void* gpoolConcatBuf;
-  void* gpoolBiasBuf;
-
-  void* p1OutBuf;
-  void* p1OutBuf2;
-  void* g1OutBuf;
-  void* g1OutBuf2;
-  float* g1ConcatBuf;
-  float* g1BiasBuf;
-  float* p2OutBuf;
-  float* g1PassBuf;
   float* policyBuf;
   size_t policyBufBytes;
 
-  void* v1OutBuf;
-  void* v1OutBuf2;
-  float* v1MeanBuf;
-  float* v2OutBuf;
   float* valueBuf;
   size_t valueBufBytes;
   float* scoreValueBuf;
   size_t scoreValueBufBytes;
   void* ownershipBuf;
-  void* ownershipScratchBuf;
   size_t ownershipBufBytes;
-
-  void* zeroBuf;
-  void* oneBuf;
 
   void* workspaceBuf;
   size_t workspaceBytes;
@@ -2386,12 +2056,11 @@ struct Buffers {
   Buffers(const Buffers&) = delete;
   Buffers& operator=(const Buffers&) = delete;
 
-  Buffers(CudaHandles* cudaHandles, const Model& m, bool useFP16) {
-    size_t batchXYFloatBytes = (size_t)m.maxBatchSize * m.xSize * m.ySize * sizeof(float);
-    size_t batchFloatBytes = (size_t)m.maxBatchSize * sizeof(float);
-
-    size_t batchXYBytes = (size_t)m.maxBatchSize * m.xSize * m.ySize * (useFP16 ? sizeof(half) : sizeof(float));
-    size_t batchBytes = (size_t)m.maxBatchSize * (useFP16 ? sizeof(half) : sizeof(float));
+  Buffers(CudaHandles* cudaHandles, const Model& m, const ScratchBuffers& scratch) {
+    size_t batchXYFloatBytes = (size_t)scratch.batchXYFloatBytes;
+    size_t batchFloatBytes = (size_t)scratch.batchFloatBytes;
+    size_t batchXYBytes = (size_t)scratch.batchXYBytes;
+    size_t batchBytes = (size_t)scratch.batchBytes;
 
     inputBufBytesFloat = m.numInputChannels * batchXYFloatBytes;
     inputBufBytes = m.numInputChannels * batchXYBytes;
@@ -2403,39 +2072,9 @@ struct Buffers {
     CUDA_ERR("Buffers",cudaMalloc(&inputGlobalBufFloat, inputGlobalBufBytesFloat));
     CUDA_ERR("Buffers",cudaMalloc(&inputGlobalBuf, inputGlobalBufBytes));
 
-    CUDA_ERR("Buffers",cudaMalloc(&maskBuf, batchXYBytes));
-    CUDA_ERR("Buffers",cudaMalloc(&maskFloatBuf, batchXYFloatBytes));
-    CUDA_ERR("Buffers",cudaMalloc(&maskSumBuf, batchFloatBytes));
-
-    CUDA_ERR("Buffers",cudaMalloc(&trunkBuf, m.trunk->trunkNumChannels * batchXYBytes));
-    CUDA_ERR("Buffers",cudaMalloc(&trunkScratchBuf, m.trunk->trunkNumChannels * batchXYBytes));
-    CUDA_ERR("Buffers",cudaMalloc(&regularOutBuf, m.trunk->regularNumChannels * batchXYBytes));
-    CUDA_ERR("Buffers",cudaMalloc(&regularScratchBuf, m.trunk->regularNumChannels * batchXYBytes));
-    CUDA_ERR("Buffers",cudaMalloc(&dilatedOutBuf, m.trunk->dilatedNumChannels * batchXYBytes));
-    CUDA_ERR("Buffers",cudaMalloc(&midInBuf, (m.trunk->regularNumChannels + m.trunk->dilatedNumChannels) * batchXYBytes));
-    CUDA_ERR("Buffers",cudaMalloc(&midScratchBuf, (m.trunk->regularNumChannels + m.trunk->dilatedNumChannels) * batchXYBytes));
-    CUDA_ERR("Buffers",cudaMalloc(&gpoolOutBuf, m.trunk->gpoolNumChannels * batchXYBytes));
-    CUDA_ERR("Buffers",cudaMalloc(&gpoolOutBuf2, m.trunk->gpoolNumChannels * batchXYBytes));
-    CUDA_ERR("Buffers",cudaMalloc(&gpoolConcatBuf, m.trunk->gpoolNumChannels * batchBytes * 3));
-    CUDA_ERR("Buffers",cudaMalloc(&gpoolBiasBuf, m.trunk->regularNumChannels * batchBytes));
-
-    CUDA_ERR("Buffers",cudaMalloc(&p1OutBuf, m.policyHead->p1Channels * batchXYFloatBytes)); //need to hold floats in addition to halfs
-    CUDA_ERR("Buffers",cudaMalloc(&p1OutBuf2, m.policyHead->p1Channels * batchXYFloatBytes)); //need to hold floats in addition to halfs
-    CUDA_ERR("Buffers",cudaMalloc(&g1OutBuf, m.policyHead->g1Channels * batchXYBytes));
-    CUDA_ERR("Buffers",cudaMalloc(&g1OutBuf2, m.policyHead->g1Channels * batchXYBytes));
-    CUDA_ERR("Buffers",cudaMalloc(&g1ConcatBuf, m.policyHead->g1Channels * batchFloatBytes * 3));
-    CUDA_ERR("Buffers",cudaMalloc(&g1BiasBuf, m.policyHead->p1Channels * batchFloatBytes));
-    CUDA_ERR("Buffers",cudaMalloc(&p2OutBuf, m.policyHead->p2Channels * batchXYFloatBytes));
-    CUDA_ERR("Buffers",cudaMalloc(&g1PassBuf, m.policyHead->p2Channels * batchFloatBytes));
-
     policyBufBytes = m.policyHead->p2Channels * (batchXYFloatBytes + batchFloatBytes);
     CUDA_ERR("Buffers",cudaMalloc(&policyBuf, policyBufBytes));
     assert(m.policyHead->p2Channels == 1);
-
-    CUDA_ERR("Buffers",cudaMalloc(&v1OutBuf, m.valueHead->v1Channels * batchXYBytes));
-    CUDA_ERR("Buffers",cudaMalloc(&v1OutBuf2, m.valueHead->v1Channels * batchXYBytes));
-    CUDA_ERR("Buffers",cudaMalloc(&v1MeanBuf, m.valueHead->v1Channels * 3 * batchFloatBytes));
-    CUDA_ERR("Buffers",cudaMalloc(&v2OutBuf, m.valueHead->v2Channels * batchFloatBytes));
 
     valueBufBytes = m.valueHead->valueChannels * batchFloatBytes;
     CUDA_ERR("Buffers",cudaMalloc(&valueBuf, valueBufBytes));
@@ -2446,9 +2085,6 @@ struct Buffers {
     //This buf is used for both an intermdiate fp16 result in fp16 mode, and ALSO the final fp32 output, so always must be fp32-sized
     ownershipBufBytes = m.valueHead->ownershipChannels * batchXYFloatBytes;
     CUDA_ERR("Buffers",cudaMalloc(&ownershipBuf, ownershipBufBytes));
-    CUDA_ERR("Buffers",cudaMalloc(&ownershipScratchBuf, ownershipBufBytes));
-
-    hostMallocZeroOneBufs(zeroBuf, oneBuf, useFP16);
 
     //In theory the requiredWorkspaceBytes calls could give us values non-monotone in batch size
     //such as if the convolution algorithm changes between batch size 1 and larger.
@@ -2470,43 +2106,11 @@ struct Buffers {
     cudaFree(inputGlobalBufFloat);
     cudaFree(inputGlobalBuf);
 
-    cudaFree(maskBuf);
-    cudaFree(maskFloatBuf);
-    cudaFree(maskSumBuf);
-
-    cudaFree(trunkBuf);
-    cudaFree(trunkScratchBuf);
-    cudaFree(regularOutBuf);
-    cudaFree(regularScratchBuf);
-    cudaFree(dilatedOutBuf);
-    cudaFree(midInBuf);
-    cudaFree(midScratchBuf);
-    cudaFree(gpoolOutBuf);
-    cudaFree(gpoolOutBuf2);
-    cudaFree(gpoolConcatBuf);
-    cudaFree(gpoolBiasBuf);
-
-    cudaFree(p1OutBuf);
-    cudaFree(p1OutBuf2);
-    cudaFree(g1OutBuf);
-    cudaFree(g1OutBuf2);
-    cudaFree(g1ConcatBuf);
-    cudaFree(g1BiasBuf);
-    cudaFree(p2OutBuf);
-    cudaFree(g1PassBuf);
     cudaFree(policyBuf);
 
-    cudaFree(v1OutBuf);
-    cudaFree(v1OutBuf2);
-    cudaFree(v1MeanBuf);
-    cudaFree(v2OutBuf);
     cudaFree(valueBuf);
     cudaFree(scoreValueBuf);
     cudaFree(ownershipBuf);
-    cudaFree(ownershipScratchBuf);
-
-    free(zeroBuf);
-    free(oneBuf);
 
     cudaFree(workspaceBuf);
   }
@@ -2558,38 +2162,40 @@ void NeuralNet::freeComputeContext(ComputeContext* computeContext) {
 struct ComputeHandle {
   std::unique_ptr<CudaHandles> cudaHandles;
   std::unique_ptr<Model> model;
+  std::unique_ptr<ScratchBuffers> scratch;
   std::unique_ptr<Buffers> buffers;
-  bool usingFP16;
-  int nnXLen;
-  int nnYLen;
-  bool requireExactNNLen;
-  bool inputsUseNHWC;
-  int policySize;
+  const bool usingFP16;
+  const int nnXLen;
+  const int nnYLen;
+  const bool requireExactNNLen;
+  const bool inputsUseNHWC;
+  const int policySize;
 
   ComputeHandle(
+    const ComputeContext* context,
     const LoadedModel* loadedModel,
     int majorComputeCapability,
     int minorComputeCapability,
     int maxBatchSize,
-    int xLen,
-    int yLen,
-    bool rExactNNLen,
-    bool inputsNHWC,
+    bool requireExactNNLen_,
+    bool inputsUseNHWC_,
     bool useFP16,
     bool useNHWC
-  ) {
+  ) :
+    usingFP16(useFP16),
+    nnXLen(context->nnXLen),
+    nnYLen(context->nnYLen),
+    requireExactNNLen(requireExactNNLen_),
+    inputsUseNHWC(inputsUseNHWC_),
+    policySize(NNPos::getPolicySize(context->nnXLen, context->nnYLen))
+  {
     cudaHandles = std::make_unique<CudaHandles>(majorComputeCapability,minorComputeCapability);
     model = std::make_unique<Model>(
       cudaHandles.get(), &(loadedModel->modelDesc), maxBatchSize,
-      xLen, yLen, inputsNHWC, useFP16, useNHWC
+      nnXLen, nnYLen, inputsUseNHWC, useFP16, useNHWC
     );
-    buffers = std::make_unique<Buffers>(cudaHandles.get(), *model, useFP16);
-    usingFP16 = useFP16;
-    nnXLen = xLen;
-    nnYLen = yLen;
-    requireExactNNLen = rExactNNLen;
-    inputsUseNHWC = inputsNHWC;
-    policySize = NNPos::getPolicySize(nnXLen, nnYLen);
+    scratch = std::make_unique<ScratchBuffers>(maxBatchSize, nnXLen, nnYLen, useFP16);
+    buffers = std::make_unique<Buffers>(cudaHandles.get(), *model, *scratch);
 
     //Synchronize after creating buffers and copying all the weights, just in case
     CUDA_ERR("ComputeHandle", cudaDeviceSynchronize());
@@ -2653,8 +2259,6 @@ ComputeHandle* NeuralNet::createComputeHandle(
     if(context->useNHWCMode == enabled_t::True || (context->useNHWCMode == enabled_t::Auto && useFP16))
       useNHWC = true;
   }
-  int nnXLen = context->nnXLen;
-  int nnYLen = context->nnYLen;
 
   if(logger != NULL) {
     logger->write(
@@ -2674,7 +2278,7 @@ ComputeHandle* NeuralNet::createComputeHandle(
   }
 
   ComputeHandle* gpuHandle = new ComputeHandle(
-    loadedModel,prop.major,prop.minor,maxBatchSize,nnXLen,nnYLen,requireExactNNLen,inputsUseNHWC,useFP16,useNHWC
+    context,loadedModel,prop.major,prop.minor,maxBatchSize,requireExactNNLen,inputsUseNHWC,useFP16,useNHWC
   );
   return gpuHandle;
 }
@@ -2732,41 +2336,38 @@ struct InputBuffers {
   InputBuffers(const LoadedModel* loadedModel, int maxBatchSz, int nnXLen, int nnYLen) {
     const ModelDesc& m = loadedModel->modelDesc;
 
-    int xSize = nnXLen;
-    int ySize = nnYLen;
-
     maxBatchSize = maxBatchSz;
-    singleInputElts = (size_t)m.numInputChannels * xSize * ySize;
-    singleInputBytes = (size_t)m.numInputChannels * xSize * ySize * sizeof(float);
+    singleInputElts = (size_t)m.numInputChannels * nnXLen * nnYLen;
+    singleInputBytes = (size_t)m.numInputChannels * nnXLen * nnYLen * sizeof(float);
     singleInputGlobalElts = (size_t)m.numInputGlobalChannels;
     singleInputGlobalBytes = (size_t)m.numInputGlobalChannels * sizeof(float);
-    singlePolicyResultElts = (size_t)(1 + xSize * ySize);
-    singlePolicyResultBytes = (size_t)(1 + xSize * ySize) * sizeof(float);
+    singlePolicyResultElts = (size_t)(1 + nnXLen * nnYLen);
+    singlePolicyResultBytes = (size_t)(1 + nnXLen * nnYLen) * sizeof(float);
     singleValueResultElts = (size_t)m.numValueChannels;
     singleValueResultBytes = (size_t)m.numValueChannels * sizeof(float);
     singleScoreValueResultElts = (size_t)m.numScoreValueChannels;
     singleScoreValueResultBytes = (size_t)m.numScoreValueChannels * sizeof(float);
-    singleOwnershipResultElts = (size_t)m.numOwnershipChannels * xSize * ySize;
-    singleOwnershipResultBytes = (size_t)m.numOwnershipChannels * xSize * ySize * sizeof(float);
+    singleOwnershipResultElts = (size_t)m.numOwnershipChannels * nnXLen * nnYLen;
+    singleOwnershipResultBytes = (size_t)m.numOwnershipChannels * nnXLen * nnYLen * sizeof(float);
 
     assert(NNModelVersion::getNumSpatialFeatures(m.version) == m.numInputChannels);
     assert(NNModelVersion::getNumGlobalFeatures(m.version) == m.numInputGlobalChannels);
 
-    userInputBufferBytes = (size_t)m.numInputChannels * maxBatchSize * xSize * ySize * sizeof(float);
+    userInputBufferBytes = (size_t)m.numInputChannels * maxBatchSize * nnXLen * nnYLen * sizeof(float);
     userInputGlobalBufferBytes = (size_t)m.numInputGlobalChannels * maxBatchSize * sizeof(float);
-    policyResultBufferBytes = (size_t)maxBatchSize * (1 + xSize * ySize) * sizeof(float);
+    policyResultBufferBytes = (size_t)maxBatchSize * (1 + nnXLen * nnYLen) * sizeof(float);
     valueResultBufferBytes = (size_t)maxBatchSize * m.numValueChannels * sizeof(float);
     scoreValueResultBufferBytes = (size_t)maxBatchSize * m.numScoreValueChannels * sizeof(float);
-    ownershipResultBufferBytes = (size_t)maxBatchSize * xSize * ySize * m.numOwnershipChannels * sizeof(float);
+    ownershipResultBufferBytes = (size_t)maxBatchSize * nnXLen * nnYLen * m.numOwnershipChannels * sizeof(float);
 
-    userInputBuffer = new float[(size_t)m.numInputChannels * maxBatchSize * xSize * ySize];
+    userInputBuffer = new float[(size_t)m.numInputChannels * maxBatchSize * nnXLen * nnYLen];
     userInputGlobalBuffer = new float[(size_t)m.numInputGlobalChannels * maxBatchSize];
 
-    policyResults = new float[(size_t)maxBatchSize * (1 + xSize * ySize)];
+    policyResults = new float[(size_t)maxBatchSize * (1 + nnXLen * nnYLen)];
     valueResults = new float[(size_t)maxBatchSize * m.numValueChannels];
 
     scoreValueResults = new float[(size_t)maxBatchSize * m.numScoreValueChannels];
-    ownershipResults = new float[(size_t)maxBatchSize * xSize * ySize * m.numOwnershipChannels];
+    ownershipResults = new float[(size_t)maxBatchSize * nnXLen * nnYLen * m.numOwnershipChannels];
   }
 
   ~InputBuffers() {
@@ -2825,6 +2426,7 @@ void NeuralNet::getOutput(
   }
 
   Buffers* buffers = gpuHandle->buffers.get();
+  ScratchBuffers* scratch = gpuHandle->scratch.get();
 
   if(!gpuHandle->usingFP16) {
     assert(inputBuffers->userInputBufferBytes == buffers->inputBufBytes);
@@ -2870,49 +2472,18 @@ void NeuralNet::getOutput(
 
   gpuHandle->model->apply(
     gpuHandle->cudaHandles.get(),
+    scratch,
     batchSize,
     gpuHandle->requireExactNNLen,
 
     buffers->inputBuf,
     buffers->inputGlobalBuf,
 
-    buffers->maskBuf,
-    buffers->maskFloatBuf,
-    buffers->maskSumBuf,
-
-    buffers->trunkBuf,
-    buffers->trunkScratchBuf,
-    buffers->regularOutBuf,
-    buffers->regularScratchBuf,
-    buffers->dilatedOutBuf,
-    buffers->midInBuf,
-    buffers->midScratchBuf,
-    buffers->gpoolOutBuf,
-    buffers->gpoolOutBuf2,
-    buffers->gpoolConcatBuf,
-    buffers->gpoolBiasBuf,
-
-    buffers->p1OutBuf,
-    buffers->p1OutBuf2,
-    buffers->g1OutBuf,
-    buffers->g1OutBuf2,
-    buffers->g1ConcatBuf,
-    buffers->g1BiasBuf,
-    buffers->p2OutBuf,
-    buffers->g1PassBuf,
     buffers->policyBuf,
 
-    buffers->v1OutBuf,
-    buffers->v1OutBuf2,
-    buffers->v1MeanBuf,
-    buffers->v2OutBuf,
     buffers->valueBuf,
     buffers->scoreValueBuf,
     buffers->ownershipBuf,
-    buffers->ownershipScratchBuf,
-
-    buffers->zeroBuf,
-    buffers->oneBuf,
 
     buffers->workspaceBuf,
     buffers->workspaceBytes
@@ -3017,53 +2588,23 @@ bool NeuralNet::testEvaluateConv(
   cudaDeviceSynchronize();
   CudaHandles* cudaHandles = CudaHandles::cudaHandlesTesting();
 
-  int xSize = nnXLen;
-  int ySize = nnYLen;
-
-  size_t numInputFloats = (size_t)desiredBatchSize * xSize * ySize * desc->inChannels;
-  size_t numOutputFloats = (size_t)desiredBatchSize * xSize * ySize * desc->outChannels;
+  size_t numInputFloats = (size_t)desiredBatchSize * nnXLen * nnYLen * desc->inChannels;
+  size_t numOutputFloats = (size_t)desiredBatchSize * nnXLen * nnYLen * desc->outChannels;
   if(numInputFloats != inputBuffer.size())
     throw StringError("testEvaluateConv: unexpected input buffer size");
 
   void* deviceInput;
   void* deviceOutput;
-  mallocAndCopyToDevice("deviceInput", inputBuffer.data(), numInputFloats, deviceInput, useFP16);
-  mallocOnDevice("deviceOutput", numOutputFloats, deviceOutput, useFP16);
+  CudaUtils::mallocAndCopyToDevice("deviceInput", inputBuffer.data(), numInputFloats, deviceInput, useFP16);
+  CudaUtils::mallocOnDevice("deviceOutput", numOutputFloats, deviceOutput, useFP16);
 
   int maxBatchSize = desiredBatchSize;
-  std::unique_ptr<cudnnTensorDescriptor_t[]> inputDescriptors = std::make_unique<cudnnTensorDescriptor_t[]>(maxBatchSize);
-  std::unique_ptr<cudnnTensorDescriptor_t[]> outputDescriptors = std::make_unique<cudnnTensorDescriptor_t[]>(maxBatchSize);
 
-  for(int batchSize = 1; batchSize <= maxBatchSize; batchSize++) {
-    cudnnTensorDescriptor_t& inputDescriptor = inputDescriptors[batchSize-1];
-    cudnnTensorDescriptor_t& outputDescriptor = outputDescriptors[batchSize-1];
-
-    CUDNN_ERR("inputDescriptor",cudnnCreateTensorDescriptor(&inputDescriptor));
-    CUDNN_ERR("inputDescriptor",cudnnSetTensor4dDescriptor(
-      inputDescriptor,
-      (useNHWC ? CUDNN_TENSOR_NHWC : CUDNN_TENSOR_NCHW),
-      (useFP16 ? CUDNN_DATA_HALF : CUDNN_DATA_FLOAT),
-      batchSize,
-      desc->inChannels,
-      ySize,
-      xSize
-    ));
-    CUDNN_ERR("outputDescriptor",cudnnCreateTensorDescriptor(&outputDescriptor));
-    CUDNN_ERR("outputDescriptor",cudnnSetTensor4dDescriptor(
-      outputDescriptor,
-      (useNHWC ? CUDNN_TENSOR_NHWC : CUDNN_TENSOR_NCHW),
-      (useFP16 ? CUDNN_DATA_HALF : CUDNN_DATA_FLOAT),
-      batchSize,
-      desc->outChannels,
-      ySize,
-      xSize
-    ));
-  }
-
-  ConvLayer* convLayer = new ConvLayer(cudaHandles,desc,maxBatchSize,inputDescriptors.get(),outputDescriptors.get(),useFP16,useNHWC);
+  CudnnManager* manager = new CudnnManager("manager",maxBatchSize,nnXLen,nnYLen);
+  ConvLayer* convLayer = new ConvLayer(cudaHandles,manager,desc,useFP16,useNHWC);
 
   size_t workspaceBytes =
-    convLayer->requiredWorkspaceBytes(cudaHandles,inputDescriptors[desiredBatchSize-1],outputDescriptors[desiredBatchSize-1],desiredBatchSize);
+    convLayer->requiredWorkspaceBytes(cudaHandles,desiredBatchSize);
   void* deviceWorkspace;
   CUDA_ERR("deviceWorkspace",cudaMalloc(&deviceWorkspace, workspaceBytes));
 
@@ -3071,8 +2612,6 @@ bool NeuralNet::testEvaluateConv(
   bool accumulate = false;
   convLayer->apply(
     cudaHandles,
-    inputDescriptors[desiredBatchSize-1],
-    outputDescriptors[desiredBatchSize-1],
     desiredBatchSize,
     accumulate,
     deviceInput,
@@ -3082,16 +2621,12 @@ bool NeuralNet::testEvaluateConv(
   );
 
   outputBuffer.resize(numOutputFloats);
-  expensiveCopyFromDevice("copyResultsToHost", outputBuffer.data(), numOutputFloats, deviceOutput, useFP16);
+  CudaUtils::expensiveCopyFromDevice("copyResultsToHost", outputBuffer.data(), numOutputFloats, deviceOutput, useFP16);
 
   cudaFree(deviceWorkspace);
 
   delete convLayer;
-
-  for(int batchSize = 1; batchSize <= maxBatchSize; batchSize++) {
-    cudnnDestroyTensorDescriptor(inputDescriptors[batchSize-1]);
-    cudnnDestroyTensorDescriptor(outputDescriptors[batchSize-1]);
-  }
+  delete manager;
   cudaFree(deviceInput);
   cudaFree(deviceOutput);
   delete cudaHandles;
@@ -3114,38 +2649,36 @@ bool NeuralNet::testEvaluateBatchNorm(
   cudaDeviceSynchronize();
   CudaHandles* cudaHandles = CudaHandles::cudaHandlesTesting();
 
-  int xSize = nnXLen;
-  int ySize = nnYLen;
-
-  size_t numInputFloats = (size_t)desiredBatchSize * xSize * ySize * desc->numChannels;
-  size_t numMaskFloats = (size_t)desiredBatchSize * xSize * ySize;
-  size_t numOutputFloats = (size_t)desiredBatchSize * xSize * ySize * desc->numChannels;
+  size_t numInputFloats = (size_t)desiredBatchSize * nnXLen * nnYLen * desc->numChannels;
+  size_t numMaskFloats = (size_t)desiredBatchSize * nnXLen * nnYLen;
+  size_t numOutputFloats = (size_t)desiredBatchSize * nnXLen * nnYLen * desc->numChannels;
   if(numInputFloats != inputBuffer.size())
     throw StringError("testEvaluateBatchNorm: unexpected input buffer size");
   if(numMaskFloats != maskBuffer.size())
     throw StringError("testEvaluateBatchNorm: unexpected mask buffer size");
 
+  ActivationLayerDesc actDesc;
+  actDesc.activation = ACTIVATION_IDENTITY;
+
   void* deviceInput;
   void* deviceMask;
   void* deviceOutput;
-  mallocAndCopyToDevice("deviceInput", inputBuffer.data(), numInputFloats, deviceInput, useFP16);
-  mallocAndCopyToDevice("deviceMask", maskBuffer.data(), numMaskFloats, deviceMask, useFP16);
-  mallocOnDevice("deviceOutput", numOutputFloats, deviceOutput, useFP16);
+  CudaUtils::mallocAndCopyToDevice("deviceInput", inputBuffer.data(), numInputFloats, deviceInput, useFP16);
+  CudaUtils::mallocAndCopyToDevice("deviceMask", maskBuffer.data(), numMaskFloats, deviceMask, useFP16);
+  CudaUtils::mallocOnDevice("deviceOutput", numOutputFloats, deviceOutput, useFP16);
 
-  BatchNormLayer* batchNormLayer = new BatchNormLayer(cudaHandles,desc,xSize,ySize,useFP16,useNHWC);
+  BatchNormLayer* batchNormLayer = new BatchNormLayer(cudaHandles,desc,&actDesc,nnXLen,nnYLen,useFP16,useNHWC);
 
-  bool applyRelu = false;
   batchNormLayer->apply(
     cudaHandles,
     desiredBatchSize,
-    applyRelu,
     deviceInput,
     deviceMask,
     deviceOutput
   );
 
   outputBuffer.resize(numOutputFloats);
-  expensiveCopyFromDevice("copyResultsToHost", outputBuffer.data(), numOutputFloats, deviceOutput, useFP16);
+  CudaUtils::expensiveCopyFromDevice("copyResultsToHost", outputBuffer.data(), numOutputFloats, deviceOutput, useFP16);
 
   delete batchNormLayer;
 
@@ -3172,96 +2705,55 @@ bool NeuralNet::testEvaluateResidualBlock(
   cudaDeviceSynchronize();
   CudaHandles* cudaHandles = CudaHandles::cudaHandlesTesting();
 
-  int xSize = nnXLen;
-  int ySize = nnYLen;
-
-  size_t numInputFloats = (size_t)desiredBatchSize * xSize * ySize * desc->preBN.numChannels;
-  size_t numMaskFloats = (size_t)desiredBatchSize * xSize * ySize;
-  size_t numMidFloats = (size_t)desiredBatchSize * xSize * ySize * desc->finalConv.inChannels;
-  size_t numOutputFloats = (size_t)desiredBatchSize * xSize * ySize * desc->finalConv.outChannels;
+  size_t numInputFloats = (size_t)desiredBatchSize * nnXLen * nnYLen * desc->preBN.numChannels;
+  size_t numMaskFloats = (size_t)desiredBatchSize * nnXLen * nnYLen;
+  size_t numOutputFloats = (size_t)desiredBatchSize * nnXLen * nnYLen * desc->finalConv.outChannels;
   if(numInputFloats != inputBuffer.size())
     throw StringError("testEvaluateResidualBlock: unexpected input buffer size");
   if(numMaskFloats != maskBuffer.size())
     throw StringError("testEvaluateResidualBlock: unexpected mask buffer size");
 
+  ScratchBuffers* scratch = new ScratchBuffers(desiredBatchSize, nnXLen, nnYLen, useFP16);
+
   void* deviceInput;
   void* deviceMask;
   void* deviceScratch;
-  void* deviceMidInput;
-  void* deviceMidScratch;
-  mallocAndCopyToDevice("deviceInput", inputBuffer.data(), numInputFloats, deviceInput, useFP16);
-  mallocAndCopyToDevice("deviceMask", maskBuffer.data(), numMaskFloats, deviceMask, useFP16);
-  mallocOnDevice("deviceScratch", numInputFloats, deviceScratch, useFP16);
-  mallocOnDevice("deviceMid", numMidFloats, deviceMidInput, useFP16);
-  mallocOnDevice("deviceMidScratch", numMidFloats, deviceMidScratch, useFP16);
+  CudaUtils::mallocAndCopyToDevice("deviceInput", inputBuffer.data(), numInputFloats, deviceInput, useFP16);
+  CudaUtils::mallocAndCopyToDevice("deviceMask", maskBuffer.data(), numMaskFloats, deviceMask, useFP16);
+  CudaUtils::mallocOnDevice("deviceScratch", numInputFloats, deviceScratch, useFP16);
 
   int maxBatchSize = desiredBatchSize;
-  std::unique_ptr<cudnnTensorDescriptor_t[]> trunkDescriptors = std::make_unique<cudnnTensorDescriptor_t[]>(maxBatchSize);
-  std::unique_ptr<cudnnTensorDescriptor_t[]> midInDescriptors = std::make_unique<cudnnTensorDescriptor_t[]>(maxBatchSize);
 
-  for(int batchSize = 1; batchSize <= maxBatchSize; batchSize++) {
-    cudnnTensorDescriptor_t& trunkDescriptor = trunkDescriptors[batchSize-1];
-    cudnnTensorDescriptor_t& midInDescriptor = midInDescriptors[batchSize-1];
-
-    CUDNN_ERR("trunkDescriptor",cudnnCreateTensorDescriptor(&trunkDescriptor));
-    CUDNN_ERR("trunkDescriptor",cudnnSetTensor4dDescriptor(
-      trunkDescriptor,
-      (useNHWC ? CUDNN_TENSOR_NHWC : CUDNN_TENSOR_NCHW),
-      (useFP16 ? CUDNN_DATA_HALF : CUDNN_DATA_FLOAT),
-      batchSize,
-      desc->preBN.numChannels,
-      ySize,
-      xSize
-    ));
-    CUDNN_ERR("midInDescriptor",cudnnCreateTensorDescriptor(&midInDescriptor));
-    CUDNN_ERR("midInDescriptor",cudnnSetTensor4dDescriptor(
-      midInDescriptor,
-      (useNHWC ? CUDNN_TENSOR_NHWC : CUDNN_TENSOR_NCHW),
-      (useFP16 ? CUDNN_DATA_HALF : CUDNN_DATA_FLOAT),
-      batchSize,
-      desc->midBN.numChannels,
-      ySize,
-      xSize
-    ));
-  }
-
-  ResidualBlock* residualBlock = new ResidualBlock(cudaHandles,desc,maxBatchSize,xSize,ySize,trunkDescriptors.get(),midInDescriptors.get(),useFP16,useNHWC);
+  CudnnManager* manager = new CudnnManager("manager",maxBatchSize,nnXLen,nnYLen);
+  ResidualBlock* residualBlock = new ResidualBlock(cudaHandles,manager,desc,nnXLen,nnYLen,useFP16,useNHWC);
 
   size_t workspaceBytes =
-    residualBlock->requiredWorkspaceBytes(cudaHandles,trunkDescriptors[desiredBatchSize-1],midInDescriptors[desiredBatchSize-1],desiredBatchSize);
+    residualBlock->requiredWorkspaceBytes(cudaHandles,desiredBatchSize);
   void* deviceWorkspace;
   CUDA_ERR("deviceWorkspace",cudaMalloc(&deviceWorkspace, workspaceBytes));
 
   residualBlock->apply(
     cudaHandles,
-    trunkDescriptors[desiredBatchSize-1],
-    midInDescriptors[desiredBatchSize-1],
+    scratch,
     desiredBatchSize,
     deviceInput,
     deviceScratch,
-    deviceMidInput,
-    deviceMidScratch,
     deviceMask,
     deviceWorkspace,
     workspaceBytes
   );
 
   outputBuffer.resize(numOutputFloats);
-  expensiveCopyFromDevice("copyResultsToHost", outputBuffer.data(), numOutputFloats, deviceInput, useFP16);
+  CudaUtils::expensiveCopyFromDevice("copyResultsToHost", outputBuffer.data(), numOutputFloats, deviceInput, useFP16);
 
   cudaFree(deviceWorkspace);
 
   delete residualBlock;
-
-  for(int batchSize = 1; batchSize <= maxBatchSize; batchSize++) {
-    cudnnDestroyTensorDescriptor(trunkDescriptors[batchSize-1]);
-    cudnnDestroyTensorDescriptor(midInDescriptors[batchSize-1]);
-  }
+  delete manager;
   cudaFree(deviceInput);
   cudaFree(deviceMask);
   cudaFree(deviceScratch);
-  cudaFree(deviceMidInput);
-  cudaFree(deviceMidScratch);
+  delete scratch;
   delete cudaHandles;
 
   return true;
@@ -3281,22 +2773,17 @@ bool NeuralNet::testEvaluateGlobalPoolingResidualBlock(
   cudaDeviceSynchronize();
   CudaHandles* cudaHandles = CudaHandles::cudaHandlesTesting();
 
-  int xSize = nnXLen;
-  int ySize = nnYLen;
-
-  size_t numInputFloats = (size_t)desiredBatchSize * xSize * ySize * desc->preBN.numChannels;
-  size_t numMaskFloats = (size_t)desiredBatchSize * xSize * ySize;
+  size_t numInputFloats = (size_t)desiredBatchSize * nnXLen * nnYLen * desc->preBN.numChannels;
+  size_t numMaskFloats = (size_t)desiredBatchSize * nnXLen * nnYLen;
   size_t numMaskSumFloats = (size_t)desiredBatchSize;
-  size_t numRegularOutFloats = (size_t)desiredBatchSize * xSize * ySize * desc->regularConv.outChannels;
-  size_t numGPoolOutFloats = (size_t)desiredBatchSize * xSize * ySize * desc->gpoolConv.outChannels;
-  size_t numGPoolConcatFloats = (size_t)desiredBatchSize * 3 * desc->gpoolConv.outChannels;
-  size_t numGPoolBiasFloats = (size_t)desiredBatchSize * desc->regularConv.outChannels;
-  size_t numOutputFloats = (size_t)desiredBatchSize * xSize * ySize * desc->finalConv.outChannels;
+  size_t numOutputFloats = (size_t)desiredBatchSize * nnXLen * nnYLen * desc->finalConv.outChannels;
 
   if(numInputFloats != inputBuffer.size())
     throw StringError("testEvaluateGlobalPoolingResidualBlock: unexpected input buffer size");
   if(numMaskFloats != maskBuffer.size())
     throw StringError("testEvaluateGlobalPoolingResidualBlock: unexpected mask buffer size");
+
+  ScratchBuffers* scratch = new ScratchBuffers(desiredBatchSize, nnXLen, nnYLen, useFP16);
 
   void* deviceInput;
   void* deviceMask;
@@ -3304,81 +2791,26 @@ bool NeuralNet::testEvaluateGlobalPoolingResidualBlock(
   float* deviceMaskFloat;
   float* deviceMaskSum;
   void* deviceScratch;
-  void* deviceRegularOut;
-  void* deviceRegularScratch;
-  void* deviceGPoolOut;
-  void* deviceGPoolOut2;
-  void* deviceGPoolConcat;
-  void* deviceGPoolBias;
 
-  mallocAndCopyToDevice("deviceInput", inputBuffer.data(), numInputFloats, deviceInput, useFP16);
-  mallocAndCopyToDevice("deviceMask", maskBuffer.data(), numMaskFloats, deviceMask, useFP16);
+  CudaUtils::mallocAndCopyToDevice("deviceInput", inputBuffer.data(), numInputFloats, deviceInput, useFP16);
+  CudaUtils::mallocAndCopyToDevice("deviceMask", maskBuffer.data(), numMaskFloats, deviceMask, useFP16);
   CUDA_ERR("deviceMaskFloat",cudaMalloc(&deviceMaskFloat, numMaskFloats * sizeof(float)));
   CUDA_ERR("deviceMaskSum",cudaMalloc(&deviceMaskSum, numMaskSumFloats * sizeof(float)));
   deviceMaskFloatOrig = deviceMaskFloat;
-  mallocOnDevice("deviceScratch", numInputFloats, deviceScratch, useFP16);
-  mallocOnDevice("deviceRegularOut", numRegularOutFloats, deviceRegularOut, useFP16);
-  mallocOnDevice("deviceRegularScratch", numRegularOutFloats, deviceRegularScratch, useFP16);
-  mallocOnDevice("deviceGPoolOut", numGPoolOutFloats, deviceGPoolOut, useFP16);
-  mallocOnDevice("deviceGPoolOut2", numGPoolOutFloats, deviceGPoolOut2, useFP16);
-  mallocOnDevice("deviceGPoolConcat", numGPoolConcatFloats, deviceGPoolConcat, useFP16);
-  mallocOnDevice("deviceGPoolBias", numGPoolBiasFloats, deviceGPoolBias, useFP16);
+  CudaUtils::mallocOnDevice("deviceScratch", numInputFloats, deviceScratch, useFP16);
 
-  fillMaskFloatBufAndMaskSumBuf(deviceMask, deviceMaskFloat, deviceMaskSum, useFP16, desiredBatchSize, xSize, ySize);
-
-  void* zeroBuf;
-  void* oneBuf;
-  hostMallocZeroOneBufs(zeroBuf, oneBuf, useFP16);
+  fillMaskFloatBufAndMaskSumBuf(deviceMask, deviceMaskFloat, deviceMaskSum, useFP16, desiredBatchSize, nnXLen, nnYLen);
 
   int maxBatchSize = desiredBatchSize;
-  std::unique_ptr<cudnnTensorDescriptor_t[]> trunkDescriptors = std::make_unique<cudnnTensorDescriptor_t[]>(maxBatchSize);
-  std::unique_ptr<cudnnTensorDescriptor_t[]> regularOutDescriptors = std::make_unique<cudnnTensorDescriptor_t[]>(maxBatchSize);
-  std::unique_ptr<cudnnTensorDescriptor_t[]> gpoolOutDescriptors = std::make_unique<cudnnTensorDescriptor_t[]>(maxBatchSize);
 
-  for(int batchSize = 1; batchSize <= maxBatchSize; batchSize++) {
-    cudnnTensorDescriptor_t& trunkDescriptor = trunkDescriptors[batchSize-1];
-    cudnnTensorDescriptor_t& regularOutDescriptor = regularOutDescriptors[batchSize-1];
-    cudnnTensorDescriptor_t& gpoolOutDescriptor = gpoolOutDescriptors[batchSize-1];
-
-    CUDNN_ERR("trunkDescriptor",cudnnCreateTensorDescriptor(&trunkDescriptor));
-    CUDNN_ERR("trunkDescriptor",cudnnSetTensor4dDescriptor(
-      trunkDescriptor,
-      (useNHWC ? CUDNN_TENSOR_NHWC : CUDNN_TENSOR_NCHW),
-      (useFP16 ? CUDNN_DATA_HALF : CUDNN_DATA_FLOAT),
-      batchSize,
-      desc->preBN.numChannels,
-      ySize,
-      xSize
-    ));
-    CUDNN_ERR("regularOutDescriptor",cudnnCreateTensorDescriptor(&regularOutDescriptor));
-    CUDNN_ERR("regularOutDescriptor",cudnnSetTensor4dDescriptor(
-      regularOutDescriptor,
-      (useNHWC ? CUDNN_TENSOR_NHWC : CUDNN_TENSOR_NCHW),
-      (useFP16 ? CUDNN_DATA_HALF : CUDNN_DATA_FLOAT),
-      batchSize,
-      desc->regularConv.outChannels,
-      ySize,
-      xSize
-    ));
-    CUDNN_ERR("gpoolOutDescriptor",cudnnCreateTensorDescriptor(&gpoolOutDescriptor));
-    CUDNN_ERR("gpoolOutDescriptor",cudnnSetTensor4dDescriptor(
-      gpoolOutDescriptor,
-      (useNHWC ? CUDNN_TENSOR_NHWC : CUDNN_TENSOR_NCHW),
-      (useFP16 ? CUDNN_DATA_HALF : CUDNN_DATA_FLOAT),
-      batchSize,
-      desc->gpoolConv.outChannels,
-      ySize,
-      xSize
-    ));
-  }
-
+  CudnnManager* manager = new CudnnManager("manager",maxBatchSize,nnXLen,nnYLen);
   GlobalPoolingResidualBlock* residualBlock = new GlobalPoolingResidualBlock(
-    cudaHandles,desc,maxBatchSize,xSize,ySize,trunkDescriptors.get(),regularOutDescriptors.get(),gpoolOutDescriptors.get(),useFP16,useNHWC
+    cudaHandles,manager,desc,nnXLen,nnYLen,useFP16,useNHWC
   );
 
   size_t workspaceBytes =
     residualBlock->requiredWorkspaceBytes(
-      cudaHandles,trunkDescriptors[desiredBatchSize-1],regularOutDescriptors[desiredBatchSize-1],gpoolOutDescriptors[desiredBatchSize-1],desiredBatchSize
+      cudaHandles,desiredBatchSize
     );
 
   void* deviceWorkspace;
@@ -3386,53 +2818,30 @@ bool NeuralNet::testEvaluateGlobalPoolingResidualBlock(
 
   residualBlock->apply(
     cudaHandles,
-    trunkDescriptors[desiredBatchSize-1],
-    regularOutDescriptors[desiredBatchSize-1],
-    gpoolOutDescriptors[desiredBatchSize-1],
+    scratch,
     desiredBatchSize,
     deviceInput,
     deviceScratch,
-    deviceRegularOut,
-    deviceRegularScratch,
-    deviceGPoolOut,
-    deviceGPoolOut2,
-    deviceGPoolConcat,
-    deviceGPoolBias,
     deviceMask,
     deviceMaskSum,
-    zeroBuf,
-    oneBuf,
     deviceWorkspace,
     workspaceBytes
   );
 
   outputBuffer.resize(numOutputFloats);
-  expensiveCopyFromDevice("copyResultsToHost", outputBuffer.data(), numOutputFloats, deviceInput, useFP16);
+  CudaUtils::expensiveCopyFromDevice("copyResultsToHost", outputBuffer.data(), numOutputFloats, deviceInput, useFP16);
 
   cudaFree(deviceWorkspace);
 
   delete residualBlock;
-
-  for(int batchSize = 1; batchSize <= maxBatchSize; batchSize++) {
-    cudnnDestroyTensorDescriptor(trunkDescriptors[batchSize-1]);
-    cudnnDestroyTensorDescriptor(regularOutDescriptors[batchSize-1]);
-    cudnnDestroyTensorDescriptor(gpoolOutDescriptors[batchSize-1]);
-  }
-
-  free(zeroBuf);
-  free(oneBuf);
+  delete manager;
 
   cudaFree(deviceInput);
   cudaFree(deviceMask);
   cudaFree(deviceMaskFloatOrig);
   cudaFree(deviceMaskSum);
   cudaFree(deviceScratch);
-  cudaFree(deviceRegularOut);
-  cudaFree(deviceRegularScratch);
-  cudaFree(deviceGPoolOut);
-  cudaFree(deviceGPoolOut2);
-  cudaFree(deviceGPoolConcat);
-  cudaFree(deviceGPoolBias);
+  delete scratch;
   delete cudaHandles;
 
   return true;
