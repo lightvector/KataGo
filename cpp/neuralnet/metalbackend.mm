@@ -120,7 +120,6 @@ static SWTrunkDesc * trunkDescToSwift(const TrunkDesc * trunk) {
                         trunkNumChannels:[NSNumber numberWithInt:trunk->trunkNumChannels]
                           midNumChannels:[NSNumber numberWithInt:trunk->midNumChannels]
                       regularNumChannels:[NSNumber numberWithInt:trunk->regularNumChannels]
-                      dilatedNumChannels:[NSNumber numberWithInt:trunk->dilatedNumChannels]
                         gpoolNumChannels:[NSNumber numberWithInt:trunk->gpoolNumChannels]
                              initialConv:initialConv
                            initialMatMul:initialMatMul

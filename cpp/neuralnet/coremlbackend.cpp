@@ -12,12 +12,14 @@ using namespace std;
 //------------------------------------------------------------------------------
 
 CoreMLLoadedModel::CoreMLLoadedModel() {
+  // Default to the first model
+  int defaultIndex = 100;
   modelXLen = COMPILE_MAX_BOARD_LEN;
   modelYLen = COMPILE_MAX_BOARD_LEN;
   modelDesc.name = "CoreML model";
-  modelDesc.version = createCoreMLBackend(100, COMPILE_MAX_BOARD_LEN, COMPILE_MAX_BOARD_LEN, -1);
-  modelDesc.numInputChannels = 22;
-  modelDesc.numInputGlobalChannels = 19;
+  modelDesc.version = createCoreMLBackend(defaultIndex, COMPILE_MAX_BOARD_LEN, COMPILE_MAX_BOARD_LEN, -1);
+  modelDesc.numInputChannels = getCoreMLBackendNumSpatialFeatures(defaultIndex);
+  modelDesc.numInputGlobalChannels = getCoreMLBackendNumGlobalFeatures(defaultIndex);
   modelDesc.numValueChannels = 3;
   modelDesc.numOwnershipChannels = 1;
   modelDesc.numScoreValueChannels = 18;
@@ -38,7 +40,7 @@ CoreMLComputeHandle::CoreMLComputeHandle(const CoreMLLoadedModel* loadedModel,
   modelYLen = loadedModel->modelYLen;
   inputsUseNHWC = inputsNHWC;
 
-  if((gpuIdx == 100) || (gpuIdx == 101)) {
+  if(gpuIdx >= 100) {
     version = createCoreMLBackend(gpuIdx, modelXLen, modelYLen, serverThreadIdx);
     isCoreML = true;
   } else {
@@ -56,7 +58,7 @@ CoreMLInputBuffers::CoreMLInputBuffers(const CoreMLLoadedModel* loadedModel, int
   modelXLen = COMPILE_MAX_BOARD_LEN;
   modelYLen = COMPILE_MAX_BOARD_LEN;
   maxBatchSize = maxBatchSz;
-  policyResultChannels = 2;
+  policyResultChannels = 1;
   singleSpatialElts = (size_t)m.numInputChannels * nnXLen * nnYLen;
   singleInputElts = (size_t)m.numInputChannels * modelXLen * modelYLen;
   singleInputGlobalElts = (size_t)m.numInputGlobalChannels;
@@ -74,6 +76,7 @@ CoreMLInputBuffers::CoreMLInputBuffers(const CoreMLLoadedModel* loadedModel, int
   assert(singleInputGlobalElts == 19);
   assert(singleValueResultElts == 3);
   assert(singleOwnershipResultElts == (modelXLen * modelYLen));
+  assert((singleMiscValuesResultElts + singleMoreMiscValuesResultElts) == m.numScoreValueChannels);
 
   rowSpatialBufferElts = (size_t)maxBatchSize * singleSpatialElts;
 
@@ -147,7 +150,7 @@ void getCoreMLHandleOutput(CoreMLComputeHandle* gpuHandle,
   size_t singleMiscValuesResultElts = inputBuffers->singleMiscValuesResultElts;
   size_t singleMoreMiscValuesResultElts = inputBuffers->singleMoreMiscValuesResultElts;
 
-  assert(policyResultChannels == 2);
+  assert(policyResultChannels == 1);
   assert(singleInputElts == (modelXLen * modelYLen * 22));
   assert(singleInputGlobalElts == 19);
   assert(singlePolicyResultElts == ((modelXLen * modelYLen) + 1));
@@ -213,11 +216,6 @@ void getCoreMLHandleOutput(CoreMLComputeHandle* gpuHandle,
 
     float* policyOutputBuf = &inputBuffers->policyResults[row * (singlePolicyResultElts * policyResultChannels)];
     float* policyProbsBuf = &inputBuffers->policyProbsBuffer[row * singlePolicyProbsElts];
-
-    // Extract policy0_output
-    for(size_t i = 0; i < singlePolicyResultElts; i++) {
-      policyOutputBuf[i] = policyOutputBuf[i * policyResultChannels];
-    }
 
     for(int y = 0; y < nnYLen; y++) {
       for(int x = 0; x < nnXLen; x++) {

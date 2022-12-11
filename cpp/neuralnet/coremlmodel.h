@@ -11,52 +11,46 @@ NS_ASSUME_NONNULL_BEGIN
 
 
 /// Model Prediction Input Type
-API_AVAILABLE(macos(12.0), ios(15.0), watchos(8.0), tvos(15.0)) __attribute__((visibility("hidden")))
+API_AVAILABLE(macos(10.15), ios(13.0), watchos(6.0), tvos(13.0)) __attribute__((visibility("hidden")))
 @interface KataGoModelInput : NSObject<MLFeatureProvider>
 
-/// swa_model_bin_inputs as 1 × 361 × 22 3-dimensional array of floats
-@property (readwrite, nonatomic, strong) MLMultiArray * swa_model_bin_inputs;
+/// input_spatial as 1 × 22 × 19 × 19 4-dimensional array of floats
+@property (readwrite, nonatomic, strong) MLMultiArray * input_spatial;
 
-/// swa_model_global_inputs as 1 by 19 matrix of floats
-@property (readwrite, nonatomic, strong) MLMultiArray * swa_model_global_inputs;
-
-/// swa_model_include_history as 1 by 5 matrix of floats
-@property (readwrite, nonatomic, strong) MLMultiArray * swa_model_include_history;
-
-/// swa_model_symmetries as 3 element vector of floats
-@property (readwrite, nonatomic, strong) MLMultiArray * swa_model_symmetries;
+/// input_global as 1 by 19 matrix of floats
+@property (readwrite, nonatomic, strong) MLMultiArray * input_global;
 - (instancetype)init NS_UNAVAILABLE;
-- (instancetype)initWithSwa_model_bin_inputs:(MLMultiArray *)swa_model_bin_inputs swa_model_global_inputs:(MLMultiArray *)swa_model_global_inputs swa_model_include_history:(MLMultiArray *)swa_model_include_history swa_model_symmetries:(MLMultiArray *)swa_model_symmetries NS_DESIGNATED_INITIALIZER;
+- (instancetype)initWithInput_spatial:(MLMultiArray *)input_spatial input_global:(MLMultiArray *)input_global NS_DESIGNATED_INITIALIZER;
 
 @end
 
 
 /// Model Prediction Output Type
-API_AVAILABLE(macos(12.0), ios(15.0), watchos(8.0), tvos(15.0)) __attribute__((visibility("hidden")))
+API_AVAILABLE(macos(10.15), ios(13.0), watchos(6.0), tvos(13.0)) __attribute__((visibility("hidden")))
 @interface KataGoModelOutput : NSObject<MLFeatureProvider>
 
-/// swa_model_miscvalues_output as multidimensional array of floats
-@property (readwrite, nonatomic, strong) MLMultiArray * swa_model_miscvalues_output;
+/// output_policy as multidimensional array of floats
+@property (readwrite, nonatomic, strong) MLMultiArray * output_policy;
 
-/// swa_model_moremiscvalues_output as multidimensional array of floats
-@property (readwrite, nonatomic, strong) MLMultiArray * swa_model_moremiscvalues_output;
+/// out_value as multidimensional array of floats
+@property (readwrite, nonatomic, strong) MLMultiArray * out_value;
 
-/// swa_model_ownership_output as multidimensional array of floats
-@property (readwrite, nonatomic, strong) MLMultiArray * swa_model_ownership_output;
+/// out_miscvalue as multidimensional array of floats
+@property (readwrite, nonatomic, strong) MLMultiArray * out_miscvalue;
 
-/// swa_model_policy_output as multidimensional array of floats
-@property (readwrite, nonatomic, strong) MLMultiArray * swa_model_policy_output;
+/// out_moremiscvalue as multidimensional array of floats
+@property (readwrite, nonatomic, strong) MLMultiArray * out_moremiscvalue;
 
-/// swa_model_value_output as multidimensional array of floats
-@property (readwrite, nonatomic, strong) MLMultiArray * swa_model_value_output;
+/// out_ownership as multidimensional array of floats
+@property (readwrite, nonatomic, strong) MLMultiArray * out_ownership;
 - (instancetype)init NS_UNAVAILABLE;
-- (instancetype)initWithSwa_model_miscvalues_output:(MLMultiArray *)swa_model_miscvalues_output swa_model_moremiscvalues_output:(MLMultiArray *)swa_model_moremiscvalues_output swa_model_ownership_output:(MLMultiArray *)swa_model_ownership_output swa_model_policy_output:(MLMultiArray *)swa_model_policy_output swa_model_value_output:(MLMultiArray *)swa_model_value_output NS_DESIGNATED_INITIALIZER;
+- (instancetype)initWithOutput_policy:(MLMultiArray *)output_policy out_value:(MLMultiArray *)out_value out_miscvalue:(MLMultiArray *)out_miscvalue out_moremiscvalue:(MLMultiArray *)out_moremiscvalue out_ownership:(MLMultiArray *)out_ownership NS_DESIGNATED_INITIALIZER;
 
 @end
 
 
 /// Class for model loading and prediction
-API_AVAILABLE(macos(12.0), ios(15.0), watchos(8.0), tvos(15.0)) __attribute__((visibility("hidden")))
+API_AVAILABLE(macos(10.15), ios(13.0), watchos(6.0), tvos(13.0)) __attribute__((visibility("hidden")))
 @interface KataGoModel : NSObject
 @property (readonly, nonatomic, nullable) MLModel * model;
 
@@ -82,14 +76,6 @@ API_AVAILABLE(macos(12.0), ios(15.0), watchos(8.0), tvos(15.0)) __attribute__((v
     Initialize KataGoModel instance with the model in this bundle.
 */
 - (nullable instancetype)init;
-
-/**
-    Initialize KataGoModel instance with the model in this bundle.
-
-    @param configuration The model configuration object
-    @param error If an error occurs, upon return contains an NSError object that describes the problem. If you are not interested in possible errors, pass in NULL.
-*/
-- (nullable instancetype)initWithConfiguration:(MLModelConfiguration *)configuration error:(NSError * _Nullable __autoreleasing * _Nullable)error;
 
 /**
     Initialize KataGoModel instance from the model URL.
@@ -133,11 +119,14 @@ NS_ASSUME_NONNULL_END
 /// Board y length
 @property (readonly) NSNumber * _Nonnull yLen;
 
-/// swa_model_include_history
-@property (readonly) MLMultiArray * _Nonnull includeHistory;
+/// Model version
+@property (readonly) NSNumber * _Nonnull version;
 
-/// swa_model_symmetries
-@property (readonly) MLMultiArray * _Nonnull symmetries;
+/// Number of spatial features
+@property (readonly) NSNumber * _Nonnull numSpatialFeatures;
+
+/// Number of global features
+@property (readonly) NSNumber * _Nonnull numGlobalFeatures;
 
 /**
     Get CoreML backend with model index

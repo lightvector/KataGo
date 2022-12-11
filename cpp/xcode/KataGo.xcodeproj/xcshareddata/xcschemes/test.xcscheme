@@ -78,7 +78,7 @@
             isEnabled = "NO">
          </CommandLineArgument>
          <CommandLineArgument
-            argument = "runownershiptests $HOME/.katago/default_gtp.cfg $HOME/.katago/default_model.bin.gz"
+            argument = "runownershiptests coreml_example.cfg $HOME/.katago/default_model.bin.gz"
             isEnabled = "YES">
          </CommandLineArgument>
       </CommandLineArguments>

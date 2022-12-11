@@ -97,6 +97,8 @@ struct CoreMLInputBuffers {
 void initCoreMLBackends();
 int createCoreMLBackend(int modelIndex, int modelXLen, int modelYLen, int serverThreadIdx);
 void freeCoreMLBackend(int modelIndex);
+int getCoreMLBackendNumSpatialFeatures(int modelIndex);
+int getCoreMLBackendNumGlobalFeatures(int modelIndex);
 
 void getCoreMLBackendOutput(float* userInputBuffer,
                             float* userInputGlobalBuffer,

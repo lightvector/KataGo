@@ -2,33 +2,25 @@
 
 @implementation KataGoModelInput
 
-- (instancetype)initWithSwa_model_bin_inputs:(MLMultiArray *)swa_model_bin_inputs swa_model_global_inputs:(MLMultiArray *)swa_model_global_inputs swa_model_include_history:(MLMultiArray *)swa_model_include_history swa_model_symmetries:(MLMultiArray *)swa_model_symmetries {
+- (instancetype)initWithInput_spatial:(MLMultiArray *)input_spatial input_global:(MLMultiArray *)input_global {
   self = [super init];
   if (self) {
-    _swa_model_bin_inputs = swa_model_bin_inputs;
-    _swa_model_global_inputs = swa_model_global_inputs;
-    _swa_model_include_history = swa_model_include_history;
-    _swa_model_symmetries = swa_model_symmetries;
+    _input_spatial = input_spatial;
+    _input_global = input_global;
   }
   return self;
 }
 
 - (NSSet<NSString *> *)featureNames {
-  return [NSSet setWithArray:@[@"swa_model_bin_inputs", @"swa_model_global_inputs", @"swa_model_include_history", @"swa_model_symmetries"]];
+  return [NSSet setWithArray:@[@"input_spatial", @"input_global"]];
 }
 
 - (nullable MLFeatureValue *)featureValueForName:(NSString *)featureName {
-  if ([featureName isEqualToString:@"swa_model_bin_inputs"]) {
-    return [MLFeatureValue featureValueWithMultiArray:_swa_model_bin_inputs];
+  if ([featureName isEqualToString:@"input_spatial"]) {
+    return [MLFeatureValue featureValueWithMultiArray:_input_spatial];
   }
-  if ([featureName isEqualToString:@"swa_model_global_inputs"]) {
-    return [MLFeatureValue featureValueWithMultiArray:_swa_model_global_inputs];
-  }
-  if ([featureName isEqualToString:@"swa_model_include_history"]) {
-    return [MLFeatureValue featureValueWithMultiArray:_swa_model_include_history];
-  }
-  if ([featureName isEqualToString:@"swa_model_symmetries"]) {
-    return [MLFeatureValue featureValueWithMultiArray:_swa_model_symmetries];
+  if ([featureName isEqualToString:@"input_global"]) {
+    return [MLFeatureValue featureValueWithMultiArray:_input_global];
   }
   return nil;
 }
@@ -37,37 +29,37 @@
 
 @implementation KataGoModelOutput
 
-- (instancetype)initWithSwa_model_miscvalues_output:(MLMultiArray *)swa_model_miscvalues_output swa_model_moremiscvalues_output:(MLMultiArray *)swa_model_moremiscvalues_output swa_model_ownership_output:(MLMultiArray *)swa_model_ownership_output swa_model_policy_output:(MLMultiArray *)swa_model_policy_output swa_model_value_output:(MLMultiArray *)swa_model_value_output {
+- (instancetype)initWithOutput_policy:(MLMultiArray *)output_policy out_value:(MLMultiArray *)out_value out_miscvalue:(MLMultiArray *)out_miscvalue out_moremiscvalue:(MLMultiArray *)out_moremiscvalue out_ownership:(MLMultiArray *)out_ownership {
   self = [super init];
   if (self) {
-    _swa_model_miscvalues_output = swa_model_miscvalues_output;
-    _swa_model_moremiscvalues_output = swa_model_moremiscvalues_output;
-    _swa_model_ownership_output = swa_model_ownership_output;
-    _swa_model_policy_output = swa_model_policy_output;
-    _swa_model_value_output = swa_model_value_output;
+    _output_policy = output_policy;
+    _out_value = out_value;
+    _out_miscvalue = out_miscvalue;
+    _out_moremiscvalue = out_moremiscvalue;
+    _out_ownership = out_ownership;
   }
   return self;
 }
 
 - (NSSet<NSString *> *)featureNames {
-  return [NSSet setWithArray:@[@"swa_model_miscvalues_output", @"swa_model_moremiscvalues_output", @"swa_model_ownership_output", @"swa_model_policy_output", @"swa_model_value_output"]];
+  return [NSSet setWithArray:@[@"output_policy", @"out_value", @"out_miscvalue", @"out_moremiscvalue", @"out_ownership"]];
 }
 
 - (nullable MLFeatureValue *)featureValueForName:(NSString *)featureName {
-  if ([featureName isEqualToString:@"swa_model_miscvalues_output"]) {
-    return [MLFeatureValue featureValueWithMultiArray:_swa_model_miscvalues_output];
+  if ([featureName isEqualToString:@"output_policy"]) {
+    return [MLFeatureValue featureValueWithMultiArray:_output_policy];
   }
-  if ([featureName isEqualToString:@"swa_model_moremiscvalues_output"]) {
-    return [MLFeatureValue featureValueWithMultiArray:_swa_model_moremiscvalues_output];
+  if ([featureName isEqualToString:@"out_value"]) {
+    return [MLFeatureValue featureValueWithMultiArray:_out_value];
   }
-  if ([featureName isEqualToString:@"swa_model_ownership_output"]) {
-    return [MLFeatureValue featureValueWithMultiArray:_swa_model_ownership_output];
+  if ([featureName isEqualToString:@"out_miscvalue"]) {
+    return [MLFeatureValue featureValueWithMultiArray:_out_miscvalue];
   }
-  if ([featureName isEqualToString:@"swa_model_policy_output"]) {
-    return [MLFeatureValue featureValueWithMultiArray:_swa_model_policy_output];
+  if ([featureName isEqualToString:@"out_moremiscvalue"]) {
+    return [MLFeatureValue featureValueWithMultiArray:_out_moremiscvalue];
   }
-  if ([featureName isEqualToString:@"swa_model_value_output"]) {
-    return [MLFeatureValue featureValueWithMultiArray:_swa_model_value_output];
+  if ([featureName isEqualToString:@"out_ownership"]) {
+    return [MLFeatureValue featureValueWithMultiArray:_out_ownership];
   }
   return nil;
 }
@@ -80,7 +72,7 @@
  Compile the MLModel
  */
 + (nullable MLModel *)compileMLModelWithXLen:(NSNumber * _Nonnull)xLen yLen:(NSNumber * _Nonnull)yLen {
-  NSString *modelName = [NSString stringWithFormat:@"KataGoModel%dx%d", xLen.intValue, yLen.intValue];
+  NSString *modelName = [NSString stringWithFormat:@"KataGoModel%dx%dv11", xLen.intValue, yLen.intValue];
 
   NSString *typeName = @"mlmodel";
 
@@ -142,17 +134,6 @@
 
 
 /**
- Initialize KataGoModel instance with the model in this bundle.
-
- @param configuration The model configuration object
- @param error If an error occurs, upon return contains an NSError object that describes the problem. If you are not interested in possible errors, pass in NULL.
- */
-- (nullable instancetype)initWithConfiguration:(MLModelConfiguration *)configuration error:(NSError * _Nullable __autoreleasing * _Nullable)error {
-  return [self initWithContentsOfURL:(NSURL * _Nonnull)self.class.URLOfModelInThisBundle configuration:configuration error:error];
-}
-
-
-/**
  Initialize KataGoModel instance from the model URL.
 
  @param modelURL URL to the .mlmodelc directory for KataGoModel.
@@ -181,7 +162,7 @@
 - (nullable KataGoModelOutput *)predictionFromFeatures:(KataGoModelInput *)input options:(MLPredictionOptions *)options error:(NSError * _Nullable __autoreleasing * _Nullable)error {
   id<MLFeatureProvider> outFeatures = [_model predictionFromFeatures:input options:options error:error];
   if (!outFeatures) { return nil; }
-  return [[KataGoModelOutput alloc] initWithSwa_model_miscvalues_output:(MLMultiArray *)[outFeatures featureValueForName:@"swa_model_miscvalues_output"].multiArrayValue swa_model_moremiscvalues_output:(MLMultiArray *)[outFeatures featureValueForName:@"swa_model_moremiscvalues_output"].multiArrayValue swa_model_ownership_output:(MLMultiArray *)[outFeatures featureValueForName:@"swa_model_ownership_output"].multiArrayValue swa_model_policy_output:(MLMultiArray *)[outFeatures featureValueForName:@"swa_model_policy_output"].multiArrayValue swa_model_value_output:(MLMultiArray *)[outFeatures featureValueForName:@"swa_model_value_output"].multiArrayValue];
+  return [[KataGoModelOutput alloc] initWithOutput_policy:(MLMultiArray *)[outFeatures featureValueForName:@"output_policy"].multiArrayValue out_value:(MLMultiArray *)[outFeatures featureValueForName:@"out_value"].multiArrayValue out_miscvalue:(MLMultiArray *)[outFeatures featureValueForName:@"out_miscvalue"].multiArrayValue out_moremiscvalue:(MLMultiArray *)[outFeatures featureValueForName:@"out_moremiscvalue"].multiArrayValue out_ownership:(MLMultiArray *)[outFeatures featureValueForName:@"out_ownership"].multiArrayValue];
 }
 
 @end

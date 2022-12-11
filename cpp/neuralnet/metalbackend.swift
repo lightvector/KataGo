@@ -1321,7 +1321,6 @@ class SWTrunkDesc: NSObject {
     let trunkNumChannels: NSNumber
     let midNumChannels: NSNumber
     let regularNumChannels: NSNumber
-    let dilatedNumChannels: NSNumber
     let gpoolNumChannels: NSNumber
     let initialConv: SWConvLayerDesc
     let initialMatMul: SWMatMulLayerDesc
@@ -1333,7 +1332,6 @@ class SWTrunkDesc: NSObject {
          trunkNumChannels: NSNumber,
          midNumChannels: NSNumber,
          regularNumChannels: NSNumber,
-         dilatedNumChannels: NSNumber,
          gpoolNumChannels: NSNumber,
          initialConv: SWConvLayerDesc,
          initialMatMul: SWMatMulLayerDesc,
@@ -1343,7 +1341,6 @@ class SWTrunkDesc: NSObject {
         self.trunkNumChannels = trunkNumChannels
         self.midNumChannels = midNumChannels
         self.regularNumChannels = regularNumChannels
-        self.dilatedNumChannels = dilatedNumChannels
         self.gpoolNumChannels = gpoolNumChannels
         self.initialConv = initialConv
         self.initialMatMul = initialMatMul
