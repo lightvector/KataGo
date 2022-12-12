@@ -685,6 +685,22 @@ bool Board::setStone(Loc loc, Color color)
   return true;
 }
 
+bool Board::setStonesFailIfNoLibs(std::vector<Move> placements) {
+  //First empty out all locations that we plan to set.
+  //This guarantees avoiding any intermediate liberty issues.
+  for(const Move& placement: placements) {
+    bool suc = setStone(placement.loc, C_EMPTY);
+    if(!suc)
+      return false;
+  }
+  //Now set all the stones we wanted.
+  for(const Move& placement: placements) {
+    bool suc = setStone(placement.loc, placement.pla);
+    if(!suc)
+      return false;
+  }
+  return true;
+}
 
 //Attempts to play the specified move. Returns true if successful, returns false if the move was illegal.
 bool Board::playMove(Loc loc, Player pla, bool isMultiStoneSuicideLegal)

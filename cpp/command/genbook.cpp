@@ -181,9 +181,9 @@ int MainCmds::genbook(const vector<string>& args) {
       throw StringError("Board size in config does not match the board size of the bonus file");
     vector<Move> placements;
     sgf->getPlacements(placements,boardSizeX,boardSizeY);
-    for(const Move& move: placements) {
-      bonusInitialBoard.setStone(move.loc,move.pla);
-    }
+    bool suc = bonusInitialBoard.setStonesFailIfNoLibs(placements);
+    if(!suc)
+      throw StringError("Invalid placements in sgf");
     bonusInitialPla = sgf->getFirstPlayerColor();
   }
 

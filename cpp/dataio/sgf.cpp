@@ -658,8 +658,21 @@ void Sgf::iterAllUniquePositionsHelper(
             netStonesAdded--;
           if(board.colors[buf[j].loc] == C_EMPTY && buf[j].pla != C_EMPTY)
             netStonesAdded++;
-          board.setStone(buf[j].loc, buf[j].pla);
         }
+        bool suc = board.setStonesFailIfNoLibs(buf);
+        if(!suc) {
+          ostringstream trace;
+          for(size_t s = 0; s < variationTraceNodesBranch.size(); s++) {
+            trace << "forward " << variationTraceNodesBranch[s].first << " ";
+            trace << "branch " << variationTraceNodesBranch[s].second << " ";
+          }
+          trace << "forward " << i;
+
+          throw StringError(
+            "Illegal placements in " + fileName + " SGF trace (branches 0-indexed): " + trace.str()
+          );
+        }
+        
         board.clearSimpleKoLoc();
         //Clear history any time placements happen, but make sure we track the initial turn number.
         initialTurnNumber += (int)hist.moveHistory.size();
@@ -688,6 +701,10 @@ void Sgf::iterAllUniquePositionsHelper(
           trace << "branch " << variationTraceNodesBranch[s].second << " ";
         }
         trace << "forward " << i;
+
+        // hist.printBasicInfo(trace, board);
+        // hist.printDebugInfo(trace, board);
+        // trace << Location::toString(buf[j].loc,board) << endl;
 
         throw StringError(
           "Illegal move in " + fileName + " effective turn " + Global::int64ToString(j+initialTurnNumber) + " move " +
