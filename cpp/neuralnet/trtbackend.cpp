@@ -845,6 +845,9 @@ struct TRTLogger : ILogger {
   void log(Severity severity, const char* msg) noexcept override {
     if(logger && severity <= level)
       logger->write("TensorRT backend: " + string(msg));
+    if(severity == Severity::kERROR && !logger->isLoggingToStderr() && !logger->isLoggingToStdout()) {
+      std::cerr << ("TensorRT backend: " + string(msg)) << std::endl;
+    }
   }
 
   void setLogger(Logger* externalLogger) { logger = externalLogger; }
