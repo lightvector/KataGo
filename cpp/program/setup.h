@@ -88,6 +88,9 @@ namespace Setup {
     ConfigParser& cfg
   );
 
+  //Return config prefixes for GPU backends.
+  std::vector<std::string> getBackendPrefixes();
+
   //Get sets of options that are mutually exclusive. Intended for use in configParser
   std::vector<std::pair<std::set<std::string>,std::set<std::string>>> getMutexKeySets();
 

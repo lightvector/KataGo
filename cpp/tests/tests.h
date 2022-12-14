@@ -93,6 +93,10 @@ namespace TestCommon {
   constexpr int DEFAULT_BENCHMARK_SGF_DATA_SIZE = std::min(Board::DEFAULT_LEN,MAX_BENCHMARK_SGF_DATA_SIZE);
   std::string getBenchmarkSGFData(int boardSize);
 
+  std::vector<std::string> getMultiGameSize9Data();
+  std::vector<std::string> getMultiGameSize13Data();
+  std::vector<std::string> getMultiGameSize19Data();
+
   void overrideForBackends(bool& inputsNHWC, bool& useNHWC);
 }
 
