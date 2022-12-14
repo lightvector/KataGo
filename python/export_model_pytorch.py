@@ -306,10 +306,10 @@ def main(args):
     write_biasmask(name+".bias1", valuehead.bias1)
     write_activation(name+".act1", valuehead.act1)
     write_matmul(name+".linear2", valuehead.linear2.weight)
-    write_matbias(name+".linear2", valuehead.linear2.bias)
+    write_matbias(name+".bias2", valuehead.linear2.bias)
     write_activation(name+".act2", valuehead.act2)
     write_matmul(name+".linear_valuehead", valuehead.linear_valuehead.weight)
-    write_matbias(name+".linear_valuehead", valuehead.linear_valuehead.bias)
+    write_matbias(name+".bias_valuehead", valuehead.linear_valuehead.bias)
 
     # For now, only output the scoremean and scorestdev and lead and vtime channels
     w = valuehead.linear_miscvaluehead.weight[0:4]
@@ -320,7 +320,7 @@ def main(args):
     w = torch.cat((w,w2),dim=0)
     b = torch.cat((b,b2),dim=0)
     write_matmul(name+".linear_miscvaluehead", w)
-    write_matbias(name+".linear_miscvaluehead", b)
+    write_matbias(name+".bias_miscvaluehead", b)
 
     write_conv(name+".conv_ownership",valuehead.conv_ownership)
 
