@@ -5,6 +5,7 @@ import torch.nn
 import torch.nn.functional
 import torch.nn.init
 import packaging
+import packaging.version
 from typing import List, Dict, Optional
 
 import modelconfigs
