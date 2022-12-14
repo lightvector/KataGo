@@ -366,19 +366,7 @@ struct ModelParser {
     initialBiasLayer->setName(initiaBiasLayerName.c_str());
     ILayer* trunkScratchLayer = initialBiasLayer;
 
-    assert(desc->blocks.size() == numBlocks);
-    for(int i = 0; i < numBlocks; i++) {
-      markDebugOutput(trunkScratchLayer->getOutput(0), "Trunk before block " + to_string(i));
-      if(desc->blocks[i].first == ORDINARY_BLOCK_KIND) {
-        auto blockDesc = static_cast<ResidualBlockDesc*>(desc->blocks[i].second.get());
-        trunkScratchLayer = parseResidualBlock(blockDesc, trunkScratchLayer->getOutput(0));
-      } else if(desc->blocks[i].first == GLOBAL_POOLING_BLOCK_KIND) {
-        auto blockDesc = static_cast<GlobalPoolingResidualBlockDesc*>(desc->blocks[i].second.get());
-        trunkScratchLayer = parseGlobalPoolingResidualBlock(blockDesc, trunkScratchLayer->getOutput(0));
-      } else {
-        ASSERT_UNREACHABLE;
-      }
-    }
+    trunkScratchLayer = parseResidualBlockStack(desc->blocks, numBlocks, trunkScratchLayer, "trunk");
 
     auto trunkTipBatchNormLayer = parseBatchNormLayer(&desc->trunkTipBN, trunkScratchLayer->getOutput(0));
     auto trunkTipActivationLayer =
@@ -388,6 +376,32 @@ struct ModelParser {
     markDebugOutput(trunkTipMaskLayer->getOutput(0), "Trunk tip");
 
     return trunkTipMaskLayer;
+  }
+
+  ILayer* parseResidualBlockStack(
+    const std::vector<std::pair<int, unique_ptr_void>>& blocks,
+    int numBlocks,
+    ITensor* input,
+    const string& name
+  ) {
+    ILayer* trunkScratchLayer = input;
+    assert(blocks.size() == numBlocks);
+    for(int i = 0; i < numBlocks; i++) {
+      markDebugOutput(trunkScratchLayer->getOutput(0), name + " before block " + to_string(i));
+      if(blocks[i].first == ORDINARY_BLOCK_KIND) {
+        auto blockDesc = static_cast<ResidualBlockDesc*>(blocks[i].second.get());
+        trunkScratchLayer = parseResidualBlock(blockDesc, trunkScratchLayer->getOutput(0));
+      } else if(blocks[i].first == GLOBAL_POOLING_BLOCK_KIND) {
+        auto blockDesc = static_cast<GlobalPoolingResidualBlockDesc*>(blocks[i].second.get());
+        trunkScratchLayer = parseGlobalPoolingResidualBlock(blockDesc, trunkScratchLayer->getOutput(0));
+      } else if(blocks[i].first == NESTED_BOTTLENECK_BLOCK_KIND) {
+        auto blockDesc = static_cast<NestedBottleneckResidualBlockDesc*>(blocks[i].second.get());
+        trunkScratchLayer = parseNestedBottleneckResidualBlock(blockDesc, trunkScratchLayer->getOutput(0));
+      } else {
+        ASSERT_UNREACHABLE;
+      }
+    }
+    return trunkScratchLayer;
   }
 
   void parsePolicyHead(const PolicyHeadDesc* desc, ITensor* input) {
@@ -557,6 +571,23 @@ struct ModelParser {
     return mergeLayer;
   }
 
+  ILayer* parseNestedBottleneckResidualBlock(const NestedBottleneckResidualBlockDesc* desc, ITensor* input) {
+    auto preBatchNormLayer = parseBatchNormLayer(&desc->preBN, input);
+    auto preActivationLayer = parseActivationLayer(&desc->preActivation, preBatchNormLayer->getOutput(0));
+    auto preMaskLayer = applyMaskLayer(preActivationLayer);
+    auto preConvLayer = parseConvLayer(&desc->preConv, preMaskLayer->getOutput(0));
+    auto stackLayer = parseResidualBlockStack(desc->blocks,desc->numBlocks,preConvLayer->getOutput(0),desc->name);
+    auto postBatchNormLayer = parseBatchNormLayer(&desc->postBN, stackLayer->getOutput(0));
+    auto postActivationLayer = parseActivationLayer(&desc->postActivation, postBatchNormLayer->getOutput(0));
+    auto postMaskLayer = applyMaskLayer(postActivationLayer);
+    auto postConvLayer = parseConvLayer(&desc->postConv, postMaskLayer->getOutput(0));
+
+    auto mergeLayer = model->network->addElementWise(*input, *postConvLayer->getOutput(0), ElementWiseOperation::kSUM);
+    mergeLayer->setName(desc->name.c_str());
+
+    return mergeLayer;
+  }
+
   ILayer* parseMatMulLayer(const MatMulLayerDesc* desc, ITensor* input, bool forceFP32 = false) {
     int numInChannels = desc->inChannels;
     int numOutChannels = desc->outChannels;
@@ -690,14 +721,31 @@ struct ModelParser {
   }
 
   ILayer* parseActivationLayer(const ActivationLayerDesc* desc, ITensor* input, bool forceFP32 = false) {
-    auto activationLayer = model->network->addActivation(*input, ActivationType::kRELU);
-    activationLayer->setName(desc->name.c_str());
+    if(desc->activation == ACTIVATION_IDENTITY)
+      return input;
+    else if(desc->activation == ACTIVATION_RELU) {
+      auto activationLayer = model->network->addActivation(*input, ActivationType::kRELU);
+      activationLayer->setName(desc->name.c_str());
 
-    if(forceFP32) {
-      activationLayer->setPrecision(DataType::kFLOAT);
+      if(forceFP32) {
+        activationLayer->setPrecision(DataType::kFLOAT);
+      }
+      return activationLayer;
     }
-
-    return activationLayer;
+    else if(desc->activation == ACTIVATION_MISH) {
+      auto activationLayer = model->network->addActivation(*input, ActivationType::kSOFTPLUS);
+      if(forceFP32) {
+        activationLayer->setPrecision(DataType::kFLOAT);
+      }
+      auto activationLayer = model->network->addActivation(*activationLayer->getOutput(0), ActivationType::kTANH);
+      if(forceFP32) {
+        activationLayer->setPrecision(DataType::kFLOAT);
+      }
+      auto mergeLayer = model->network->addElementWise(*input, *activationLayer->getOutput(0), ElementWiseOperation::kPROD);
+      activationLayer->setName(desc->name.c_str());
+      return activationLayer;
+    }
+    throw StringError("TensorRT backend: unknown activation function in net: " + Global::intToString(desc->activation));
   }
 
   ILayer* applyGPoolLayer(ILayer* inputLayer, bool forceFP32 = false, bool useQuadScale = false) {
