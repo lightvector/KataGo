@@ -14,43 +14,51 @@ from coremltools.converters.mil.frontend.torch.torch_op_registry import _TORCH_O
 from coremltools.converters.mil.frontend.torch.ops import _get_inputs
 from coremltools.converters.mil import Builder as mb
 
+# Remove the original mish function
 if "mish" in _TORCH_OPS_REGISTRY:
     del _TORCH_OPS_REGISTRY["mish"]
 
-__function__ = "mish_torch_ne_fast"
+# Set the function to use
+__function__ = "mish_torch_ne"
 
 # Torch Mish operator that can run on Neural Engine
-# This implementation sets the threshold to inf, so it is not used.
-def mish_torch_ne_fast(context, node):
-    inputs = _get_inputs(context, node, expected=1)
-    x = inputs[0]
-
-    # Softplus(x) = log(1 + exp(x))
-    exp = mb.exp(x=x)
-    add = mb.add(x=exp, y=1.0)
-    softplus = mb.log(x=add)
-    # Mish(x) = x * tanh(Softplus(x))
-    tanh = mb.tanh(x=softplus)
-    res = mb.mul(x=x, y=tanh, name=node.name)
-    context.add(res)
-
-# Torch Mish operator that can run on Neural Engine
+#
+# This function applies the Mish activation function on the input tensor `x`. The Mish function is defined as 
+# x * tanh(Softplus(x)), where Softplus(x) is defined as log(1 + exp(min(x, 11))) if x < 11 and x otherwise.
+#
+# The function uses the `mb` module to perform operations such as `minimum`, `exp`, `add`, `log`, `less`, `select`, 
+# and `tanh`.
+#
+# The threshold of softplus is modified to 11, which is different from the original 20. This is because 
+# exp(11) = 59874.14171519782 < 65504.0, so the result of exp(11) can be represented by float16. If the threshold 
+# of softplus is 20, the result of exp(20) is 485165195.40979004, which is out of range of float16.
+#
+# Arguments:
+# context: an object that contains information about the execution context of the function
+# node: an object that represents a node in a computation graph
 def mish_torch_ne(context, node):
     inputs = _get_inputs(context, node, expected=1)
     x = inputs[0]
 
-    # Softplus(x) = log(1 + exp(x)) if x < 20 else x
-    less = mb.less(x=x, y=20.0)
-    exp = mb.exp(x=x)
-    add = mb.add(x=exp, y=1.0)
-    log = mb.log(x=add)
-    softplus = mb.select(cond=less, a=log, b=x)
+    threshold = 11.0
+
+    # Softplus(x) = log(1 + exp(min(x, 11))) if x < 11 else x
+    min_x_threshold = mb.minimum(x=x, y=threshold)
+    exp_min_x_threshold = mb.exp(x=min_x_threshold)
+    add_exp_min_x_threshold_1 = mb.add(x=exp_min_x_threshold, y=1.0)
+    log_add_exp_min_x_threshold_1 = mb.log(x=add_exp_min_x_threshold_1)
+    # less(x, y) = x < y
+    x_less_than_threshold = mb.less(x=x, y=threshold)
+    # select(cond, a, b) = a if cond else b
+    softplus = mb.select(cond=x_less_than_threshold, a=log_add_exp_min_x_threshold_1, b=x)
+
     # Mish(x) = x * tanh(Softplus(x))
-    tanh = mb.tanh(x=softplus)
-    res = mb.mul(x=x, y=tanh, name=node.name)
+    tanh_softplus = mb.tanh(x=softplus)
+    res = mb.mul(x=x, y=tanh_softplus, name=node.name)
     context.add(res)
 
 # Torch Mish operator which is implemented by Softplus
+# Numerically stable, but cannot run on Neural Engine
 def mish_torch_softplus(context, node):
     inputs = _get_inputs(context, node, expected=1)
     x = inputs[0]
@@ -60,12 +68,11 @@ def mish_torch_softplus(context, node):
     res = mb.mul(x=x, y=tanh, name=node.name)
     context.add(res)
 
+# Register the function
 @register_torch_op
 def mish(context, node):
-    if __function__ == "mish_torch_ne_fast":
-        mish_torch_ne_fast(context, node)
-    elif __function__ == "mish_torch_softplus":
-        mish_torch_softplus(context, node)
-    else:
+    if __function__ == "mish_torch_ne":
         mish_torch_ne(context, node)
+    else:
+        mish_torch_softplus(context, node)
     
