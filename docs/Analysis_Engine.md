@@ -223,6 +223,7 @@ Current fields are:
       * `utility` - The utility of the move, combining both winrate and score, as a float in [-C,C] where C is the maximum possible utility.
       * `lcb` - The [LCB](https://github.com/leela-zero/leela-zero/issues/2282) of the move's winrate. Has the same units as winrate, but might lie outside of [0,1] since the current implementation doesn't strictly account for the 0-1 bounds.
       * `utilityLcb` - The LCB of the move's utility.
+      * `weight` - The total weight of the visits invested into the move. The average weight of visits may be lower when less certain, and larger when more certain.
       * `order` - KataGo's ranking of the move. 0 is the best, 1 is the next best, and so on.
       * `isSymmetryOf` - Another legal move. Possibly present if KataGo is configured to avoid searching some moves due to symmetry (`rootSymmetryPruning=true`). If present, this move was not actually searched, and all of its stats and PV are copied symmetrically from that other move.
       * `pv` - The principal variation ("PV") following this move. May be of variable length or even empty.
@@ -234,6 +235,9 @@ Current fields are:
       * `thisHash` - A string that will with extremely high probability be unique for each distinct (board position, player to move, simple ko ban) combination.
       * `symHash` - Like `thisHash` except the string will be the same between positions that are symmetrically equivalent. Does NOT necessarily take into account superko.
       * `currentPlayer` - The current player whose possible move choices are being analyzed, `"B"` or `"W"`.
+      * `rawStWrError` - The short-term uncertainty the raw neural net believed there would be in the winrate of the position, prior to searching it.
+      * `rawStScoreError` - The short-term uncertainty the raw neural net believed there would be in the score of the position, prior to searching it.
+      * `rawVarTimeLeft` - The raw neural net's guess of "how long of a meaningful game is left?", in no particular units. A large number when expected that it will be a long game before the winner becomes clear. A small number when the net believes the winner is already clear, or that the winner is unclear but will become clear soon.
    * `ownership` - If `includeOwnership` was true, then this field will be included. It is a JSON array of length `boardYSize * boardXSize` with values from -1 to 1 indicating the predicted ownership. Values are in row-major order, starting at the top-left of the board (e.g. A19) and going to the bottom right (e.g. T1).
    * `ownershipStdev` - If `includeOwnershipStdev` was true, then this field will be included. It is a JSON array of length `boardYSize * boardXSize` with values from 0 to 1 indicating the per-location standard deviation of predicted ownership in the search tree. Values are in row-major order, starting at the top-left of the board (e.g. A19) and going to the bottom right (e.g. T1).
    * `policy` - If `includePolicy` was true, then this field will be included. It is a JSON array of length `boardYSize * boardXSize + 1` with positive values summing to 1 indicating the neural network's prediction of the best move before any search, and `-1` indicating illegal moves. Values are in row-major order, starting at the top-left of the board (e.g. A19) and going to the bottom right (e.g. T1). The last value in the array is the policy value for passing.
