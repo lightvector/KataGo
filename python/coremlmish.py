@@ -24,13 +24,13 @@ __function__ = "mish_torch_ne"
 # Torch Mish operator that can run on Neural Engine
 #
 # This function applies the Mish activation function on the input tensor `x`. The Mish function is defined as 
-# x * tanh(Softplus(x)), where Softplus(x) is defined as log(1 + exp(min(x, 11))) if x < 11 and x otherwise.
+# x * tanh(Softplus(x)), where Softplus(x) is defined as log(1 + exp(min(x, 10.39))) if x < 10.39 and x otherwise.
 #
 # The function uses the `mb` module to perform operations such as `minimum`, `exp`, `add`, `log`, `less`, `select`, 
 # and `tanh`.
 #
-# The threshold of softplus is modified to 11, which is different from the original 20. This is because 
-# exp(11) = 59874.14171519782 < 65504.0, so the result of exp(11) can be represented by float16. If the threshold 
+# The threshold of softplus is modified to 10.39, which is different from the original 20. This is because 
+# exp(10.39) = 32532.666936 < 32767.0 < 65504.0, so the result of exp(10.39) can be represented by float16. If the threshold 
 # of softplus is 20, the result of exp(20) is 485165195.40979004, which is out of range of float16.
 #
 # Arguments:
@@ -40,9 +40,9 @@ def mish_torch_ne(context, node):
     inputs = _get_inputs(context, node, expected=1)
     x = inputs[0]
 
-    threshold = 11.0
+    threshold = 10.39
 
-    # Softplus(x) = log(1 + exp(min(x, 11))) if x < 11 else x
+    # Softplus(x) = log(1 + exp(min(x, 10.39))) if x < 10.39 else x
     min_x_threshold = mb.minimum(x=x, y=threshold)
     exp_min_x_threshold = mb.exp(x=min_x_threshold)
     add_exp_min_x_threshold_1 = mb.add(x=exp_min_x_threshold, y=1.0)
