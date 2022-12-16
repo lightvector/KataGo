@@ -58,6 +58,9 @@ struct GpuErrorStats {
   double get99Percentile(std::vector<double>& sortedVec) {
     return sortedVec[(sortedVec.size()-1) * 99 / 100];
   }
+  double getMaxPercentile(std::vector<double>& sortedVec) {
+    return sortedVec[sortedVec.size()-1];
+  }
 
   void reportStats(const string& name, Logger& logger) {
     std::sort(winrateError.begin(),winrateError.end());
@@ -67,19 +70,28 @@ struct GpuErrorStats {
 
     logger.write(
       name + " winrateError:  " +
-      Global::strprintf("%7.5f%% %7.5f%% %7.5f%%", 100*getAverage(winrateError), 100*get90Percentile(winrateError), 100*get99Percentile(winrateError))
+      Global::strprintf(
+        "%7.5f%% %7.5f%% %7.5f%% %7.5f%%",
+        100*getAverage(winrateError), 100*get90Percentile(winrateError), 100*get99Percentile(winrateError), 100*getMaxPercentile(winrateError)
+      )
     );
     logger.write(
       name + " scoreError:    " +
-      Global::strprintf(" %7.5f  %7.5f  %7.5f", getAverage(scoreError), get90Percentile(scoreError), get99Percentile(scoreError))
+      Global::strprintf(
+        " %7.5f  %7.5f  %7.5f  %7.5f",
+        getAverage(scoreError), get90Percentile(scoreError), get99Percentile(scoreError), getMaxPercentile(scoreError))
     );
     logger.write(
       name + " topPolicyDiff: " +
-      Global::strprintf("%7.5f%% %7.5f%% %7.5f%%", getAverage(topPolicyDiff), get90Percentile(topPolicyDiff), get99Percentile(topPolicyDiff))
+      Global::strprintf(
+        "%7.5f%% %7.5f%% %7.5f%% %7.5f%%",
+        getAverage(topPolicyDiff), get90Percentile(topPolicyDiff), get99Percentile(topPolicyDiff), getMaxPercentile(topPolicyDiff))
     );
     logger.write(
       name + " policyKLDiv:   " +
-      Global::strprintf("%8.6f %8.6f %8.6f", getAverage(policyKLDiv), get90Percentile(policyKLDiv), get99Percentile(policyKLDiv))
+      Global::strprintf(
+        "%8.6f %8.6f %8.6f %8.6f",
+        getAverage(policyKLDiv), get90Percentile(policyKLDiv), get99Percentile(policyKLDiv), getMaxPercentile(policyKLDiv))
     );
   }
 };
@@ -242,6 +254,7 @@ int MainCmds::testgpuerror(const vector<string>& args) {
     }
 
     logger.write("Computed stats on " + Global::uint64ToString((uint64_t)base.size()) + " positions");
+    logger.write("Reporting the average, 90%, 99%, and max abs error between the following configurations: ");
 
     {
       GpuErrorStats stats;
