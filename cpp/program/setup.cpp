@@ -19,6 +19,7 @@ std::vector<std::string> Setup::getBackendPrefixes() {
   prefixes.push_back("opencl");
   prefixes.push_back("eigen");
   prefixes.push_back("dummybackend");
+  prefixes.push_back("coreml");
   return prefixes;
 }
 
