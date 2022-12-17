@@ -44,6 +44,10 @@ def main():
     parser.add_argument('-batch-size', help='Batch size',
                         type=int, required=False)
 
+    # Add an argument of 32-bit floating-point
+    parser.add_argument('-fp32', help='32-bit floating-point',
+                        action="store_true", required=False)
+
     # Parse the arguments
     args = vars(parser.parse_args())
 
@@ -58,6 +62,9 @@ def main():
 
     # Get the argument of batch size
     batch_size = args['batch_size'] if args['batch_size'] else 1
+
+    # Get the argument of 32-bit floating-point
+    fp32 = args['fp32']
 
     # Load the model
     model, swa_model, _ = load_model(
@@ -92,18 +99,25 @@ def main():
         input_global = torch.rand(batch_size, model.global_input_shape[0])
 
         # Trace the model
+        print(f'Tracing model ...')
         traced_model = torch.jit.trace(
             func, (input_spatial, input_global))
 
+        # Set the compute precision
+        compute_precision = ct.precision.FLOAT16 if not fp32 else ct.precision.FLOAT32
+
         # Convert the model
+        print(f'Converting model ...')
         mlmodel = ct.convert(
             traced_model,
+            convert_to="mlprogram",
             inputs=[ct.TensorType(shape=input_spatial.shape),
                     ct.TensorType(shape=input_global.shape)],
+            compute_precision=compute_precision,
         )
 
         # Get the protobuf spec
-        spec = mlmodel.get_spec()
+        spec = mlmodel._spec
 
         # Rename the input
         ct.utils.rename_feature(spec, 'input_1', 'input_global')
@@ -127,20 +141,29 @@ def main():
         # Print the output names
         print(f'Output names: {output_names}')
 
-        # Reload the model with the updated spec
-        mlmodel = ct.models.MLModel(spec)
+        # Set the compute precision name
+        precision_name = 'fp16' if not fp32 else 'fp32'
 
         # Set file name
-        mlmodel_file = f'KataGoModel{pos_len}x{pos_len}v{version}.mlmodel'
+        mlmodel_file = f'KataGoModel{pos_len}x{pos_len}{precision_name}' \
+            f'v{version}.mlpackage'
 
         # Set model description
-        mlmodel.short_description = f'KataGo {pos_len}x{pos_len} model version {version} converted from {checkpoint_file}'
+        mlmodel.short_description = f'KataGo {pos_len}x{pos_len} compute ' \
+            f'precision {precision_name} model version {version} ' \
+            f'converted from {checkpoint_file}'
 
         # Set model version
         mlmodel.version = f'{version}'
 
+        # Rebuild the model with the updated spec
+        print(f'Rebuilding model with updated spec ...')
+        rebuilt_mlmodel = ct.models.MLModel(
+            mlmodel._spec, weights_dir=mlmodel._weights_dir)
+
         # Save the model
-        mlmodel.save(mlmodel_file)
+        print(f'Saving model ...')
+        rebuilt_mlmodel.save(mlmodel_file)
 
         # Print the file name
         print(f'Saved Core ML model at {mlmodel_file}')
