@@ -57,7 +57,10 @@ Rules NeuralNet::getSupportedRules(const LoadedModel* loadedModel, const Rules& 
 }
 
 struct ComputeContext {
+  enabled_t useFP16Mode;
+
   ComputeContext(int nnX, int nnY, enabled_t useFP16Mode, enabled_t useNHWCMode) {
+    this->useFP16Mode = useFP16Mode;
     createMetalContext(nnX, nnY, useFP16Mode, useNHWCMode);
   }
 
@@ -118,12 +121,17 @@ struct ComputeHandle {
     gpuIndex = gpuIdx;
     version = modelDesc->version;
 
+    /* Use FP16 mode if the model supports it and the user has not explicitly
+     * disabled it. */
+    bool useFP16 = context->useFP16Mode != enabled_t::False;
+
     coreMLComputeHandle = new CoreMLComputeHandle(&loadedModel->coreMLLoadedModel,
                                                   nnXLen,
                                                   nnYLen,
                                                   gpuIdx,
                                                   inputsUseNHWC,
-                                                  serverThreadIdx);
+                                                  serverThreadIdx,
+                                                  useFP16);
 
     if(!(coreMLComputeHandle->isCoreML)) {
       createMetalHandle(gpuIdx, modelDesc, maxBatchSize, serverThreadIdx);

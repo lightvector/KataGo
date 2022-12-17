@@ -57,7 +57,9 @@ API_AVAILABLE(macos(10.15), ios(13.0), watchos(6.0), tvos(13.0)) __attribute__((
 /**
     Compile the MLModel
  */
-+ (nullable MLModel *)compileMLModelWithXLen:(NSNumber * _Nonnull)xLen yLen:(NSNumber * _Nonnull)yLen;
++ (nullable MLModel *)compileMLModelWithXLen:(NSNumber * _Nonnull)xLen
+                                        yLen:(NSNumber * _Nonnull)yLen
+                                     useFP16:(NSNumber * _Nonnull)useFP16;
 
 /**
     URL of the underlying .mlmodelc directory.
@@ -139,11 +141,13 @@ NS_ASSUME_NONNULL_END
     @param index model index
     @param xLen x-direction length
     @param yLen y-direction length
+    @param useFP16 use FP16 or not
     @return Model version
 */
 + (NSNumber * _Nonnull)initWithIndex:(NSNumber * _Nonnull)index
                            modelXLen:(NSNumber * _Nonnull)xLen
-                           modelYLen:(NSNumber * _Nonnull)yLen;
+                           modelYLen:(NSNumber * _Nonnull)yLen
+                             useFP16:(NSNumber * _Nonnull)useFP16;
 
 /**
     Initialize CoreML backend

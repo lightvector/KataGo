@@ -36,18 +36,18 @@
 // The ML model version is returned.
 + (NSNumber * _Nonnull)initWithIndex:(NSNumber * _Nonnull)index
                            modelXLen:(NSNumber * _Nonnull)xLen
-                           modelYLen:(NSNumber * _Nonnull)yLen {
+                           modelYLen:(NSNumber * _Nonnull)yLen
+                             useFP16:(NSNumber * _Nonnull)useFP16 {
   NSMutableDictionary * backends = [CoreMLBackend getBackends];
 
   @synchronized (self) {
-    if (backends[index] == nil) {
-      MLModel * mlmodel = [KataGoModel compileMLModelWithXLen:xLen
-                                                         yLen:yLen];
+    MLModel * mlmodel = [KataGoModel compileMLModelWithXLen:xLen
+                                                       yLen:yLen
+                                                    useFP16:useFP16];
 
-      backends[index] = [[CoreMLBackend alloc] initWithMLModel:mlmodel
-                                                          xLen:xLen
-                                                          yLen:yLen];
-    }
+    backends[index] = [[CoreMLBackend alloc] initWithMLModel:mlmodel
+                                                        xLen:xLen
+                                                        yLen:yLen];
   }
 
   return ((CoreMLBackend *)backends[index])->_model.model.modelDescription.metadata[MLModelVersionStringKey];
@@ -163,12 +163,13 @@ void initCoreMLBackends() {
 
 // Create the CoreMLBackend instance.
 // The ML model version is returned.
-int createCoreMLBackend(int modelIndex, int modelXLen, int modelYLen, int serverThreadIdx) {
-  NSLog(@"Metal backend thread %d: CoreML-#%d-%dx%d", serverThreadIdx, modelIndex, modelXLen, modelYLen);
+int createCoreMLBackend(int modelIndex, int modelXLen, int modelYLen, int serverThreadIdx, bool useFP16) {
+  NSLog(@"CoreML backend thread %d: #%d-%dx%d useFP16 %d", serverThreadIdx, modelIndex, modelXLen, modelYLen, useFP16);
 
   NSNumber * version = [CoreMLBackend initWithIndex:[NSNumber numberWithInt:modelIndex]
                                           modelXLen:[NSNumber numberWithInt:modelXLen]
-                                          modelYLen:[NSNumber numberWithInt:modelYLen]];
+                                          modelYLen:[NSNumber numberWithInt:modelYLen]
+                                            useFP16:[NSNumber numberWithBool:useFP16]];
 
   return version.intValue;
 }

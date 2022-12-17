@@ -26,7 +26,8 @@ struct CoreMLComputeHandle {
                       int nnYLen,
                       int gpuIdx,
                       bool inputsNHWC,
-                      int serverThreadIdx);
+                      int serverThreadIdx,
+                      bool useFP16);
   
   CoreMLComputeHandle() = delete;
   CoreMLComputeHandle(const CoreMLComputeHandle&) = delete;
@@ -95,7 +96,13 @@ struct CoreMLInputBuffers {
 };
 
 void initCoreMLBackends();
-int createCoreMLBackend(int modelIndex, int modelXLen, int modelYLen, int serverThreadIdx);
+
+int createCoreMLBackend(int modelIndex,
+                        int modelXLen,
+                        int modelYLen,
+                        int serverThreadIdx,
+                        bool useFP16);
+
 void freeCoreMLBackend(int modelIndex);
 int getCoreMLBackendNumSpatialFeatures(int modelIndex);
 int getCoreMLBackendNumGlobalFeatures(int modelIndex);

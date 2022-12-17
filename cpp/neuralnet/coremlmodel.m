@@ -71,10 +71,14 @@
 /**
  Compile the MLModel
  */
-+ (nullable MLModel *)compileMLModelWithXLen:(NSNumber * _Nonnull)xLen yLen:(NSNumber * _Nonnull)yLen {
-  NSString *modelName = [NSString stringWithFormat:@"KataGoModel%dx%dv11", xLen.intValue, yLen.intValue];
++ (nullable MLModel *)compileMLModelWithXLen:(NSNumber * _Nonnull)xLen
+                                        yLen:(NSNumber * _Nonnull)yLen
+                                     useFP16:(NSNumber * _Nonnull)useFP16 {
 
-  NSString *typeName = @"mlmodel";
+  NSString *precisionName = useFP16.boolValue ? @"fp16" : @"fp32";
+  NSString *modelName = [NSString stringWithFormat:@"KataGoModel%dx%d%@v11", xLen.intValue, yLen.intValue, precisionName];
+
+  NSString *typeName = @"mlpackage";
 
   NSString *modelPath = [[NSBundle bundleForClass:[self class]] pathForResource:modelName
                                                                          ofType:typeName];
