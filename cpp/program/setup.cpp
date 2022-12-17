@@ -12,6 +12,16 @@ void Setup::initializeSession(ConfigParser& cfg) {
   NeuralNet::globalInitialize();
 }
 
+std::vector<std::string> Setup::getBackendPrefixes() {
+  std::vector<std::string> prefixes;
+  prefixes.push_back("cuda");
+  prefixes.push_back("trt");
+  prefixes.push_back("opencl");
+  prefixes.push_back("eigen");
+  prefixes.push_back("dummybackend");
+  return prefixes;
+}
+
 NNEvaluator* Setup::initializeNNEvaluator(
   const string& nnModelName,
   const string& nnModelFile,
@@ -71,18 +81,10 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
 
   //Automatically flag keys that are for other backends as used so that we don't warn about unused keys
   //for those options
-  if(backendPrefix != "cuda")
-    cfg.markAllKeysUsedWithPrefix("cuda");
-  if(backendPrefix != "trt")
-    cfg.markAllKeysUsedWithPrefix("trt");
-  if(backendPrefix != "opencl")
-    cfg.markAllKeysUsedWithPrefix("opencl");
-  if(backendPrefix != "eigen")
-    cfg.markAllKeysUsedWithPrefix("eigen");
-  if(backendPrefix != "coreml")
-    cfg.markAllKeysUsedWithPrefix("coreml");
-  if(backendPrefix != "dummybackend")
-    cfg.markAllKeysUsedWithPrefix("dummybackend");
+  for(const string& prefix: getBackendPrefixes()) {
+    if(prefix != backendPrefix)
+      cfg.markAllKeysUsedWithPrefix(prefix);
+  }
 
   for(size_t i = 0; i<nnModelFiles.size(); i++) {
     string idxStr = Global::uint64ToString(i);

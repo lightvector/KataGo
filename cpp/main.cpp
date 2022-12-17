@@ -46,6 +46,8 @@ gatekeeper : Poll directory for new nets and match them against the latest net s
 ---Testing/debugging subcommands-------------
 evalsgf : Utility/debug tool, analyze a single position of a game from an SGF file.
 
+testgpuerror : Print the average error of the neural net between current config and fp32 config.
+
 runtests : Test important board algorithms and datastructures
 runnnlayertests : Test a few subcomponents of the current neural net backend
 
@@ -88,6 +90,8 @@ static int handleSubcommand(const string& subcommand, const vector<string>& args
     return MainCmds::matchauto(subArgs);
   else if(subcommand == "selfplay")
     return MainCmds::selfplay(subArgs);
+  else if(subcommand == "testgpuerror")
+    return MainCmds::testgpuerror(subArgs);
   else if(subcommand == "runtests")
     return MainCmds::runtests(subArgs);
   else if(subcommand == "runnnlayertests")
