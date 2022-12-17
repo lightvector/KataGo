@@ -79,6 +79,10 @@
          </CommandLineArgument>
          <CommandLineArgument
             argument = "runownershiptests coreml_example.cfg $HOME/.katago/default_model.bin.gz"
+            isEnabled = "NO">
+         </CommandLineArgument>
+         <CommandLineArgument
+            argument = "testgpuerror -config coreml_example.cfg"
             isEnabled = "YES">
          </CommandLineArgument>
       </CommandLineArguments>
