@@ -65,9 +65,58 @@ static void runV9Positions(NNEvaluator* nnEval, Logger& logger)
       cout << endl << endl;
     }
 
-
-
     delete bot;
+  }
+
+  {
+    cout << "Pruned root values test ==========================================================================" << endl;
+    cout << endl;
+
+    Board board = Board::parseBoard(13,13,R"%%(
+.xoxo.o......
+ooox.oxox....
+ooxxxxxo.x...
+oxxoooxo.....
+ooxo.ooxx.x..
+ooox.........
+xoxx..o.x....
+xx...x.o..x..
+..x..........
+.......o.xx..
+..ox..o...oo.
+.ox.xxxoo....
+.............
+)%%");
+    Player nextPla = P_WHITE;
+    Rules rules = Rules::parseRules("Chinese");
+    BoardHistory hist(board,nextPla,rules,0);
+
+    {
+      SearchParams params = SearchParams::forTestsV2();
+      params.maxVisits = 600;
+      params.rootFpuReductionMax = 0;
+      AsyncBot* bot = new AsyncBot(params, nnEval, &logger, getSearchRandSeed());
+      TestSearchOptions opts;
+      opts.printPlaySelectionValues = true;
+      opts.printRootValues = true;
+      opts.printPrunedRootValues = true;
+      runBotOnPosition(bot, board, nextPla, hist, opts);
+      delete bot;
+    }
+    {
+      SearchParams params = SearchParams::forTestsV2();
+      params.maxVisits = 600;
+      params.rootNoiseEnabled = true;
+      params.rootFpuReductionMax = 0;
+      AsyncBot* bot = new AsyncBot(params, nnEval, &logger, getSearchRandSeed());
+      TestSearchOptions opts;
+      opts.printPlaySelectionValues = true;
+      opts.printRootValues = true;
+      opts.printPrunedRootValues = true;
+      runBotOnPosition(bot, board, nextPla, hist, opts);
+      delete bot;
+    }
+
   }
 }
 

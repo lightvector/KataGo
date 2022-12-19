@@ -378,6 +378,24 @@ int MainCmds::evalsgf(const vector<string>& args) {
     }
   }
 
+  // {
+  //   ReportedSearchValues values;
+  //   bool suc = search->getRootValues(values);
+  //   if(!suc)
+  //     cout << "Unsuccessful getting root values" << endl;
+  //   else
+  //     cout << values << endl;
+  // }
+  // {
+  //   ReportedSearchValues values;
+  //   bool suc = search->getPrunedRootValues(values);
+  //   if(!suc)
+  //     cout << "Unsuccessful getting pruned root values" << endl;
+  //   else
+  //     cout << values << endl;
+  // }
+
+
   if(printSharpScore) {
     double ret = 0.0;
     bool suc = search->getSharpScore(NULL,ret);

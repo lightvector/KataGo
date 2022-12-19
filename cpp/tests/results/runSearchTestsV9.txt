@@ -2307,5 +2307,157 @@ F4 1
 C5 0
 
 
-: GPU 0 finishing, processed 4794 rows 4794 batches
+Pruned root values test ==========================================================================
+
+MoveNum: 0 HASH: E400A9922A9BE3397C234DC08C11712E
+   A B C D E F G H J K L M N
+13 . X O X O . O . . . . . .
+12 O O O X . O X O X . . . .
+11 O O X X X X X O . X . . .
+10 O X X O O O X O . . . . .
+ 9 O O X O . O O X X . X . .
+ 8 O O O X . . . . . . . . .
+ 7 X O X X . . O . X . . . .
+ 6 X X . . . X . O . . X . .
+ 5 . . X . . . . . . . . . .
+ 4 . . . . . . . O . X X . .
+ 3 . . O X . . O . . . O O .
+ 2 . O X . X X X O O . . . .
+ 1 . . . . . . . . . . . . .
+
+Root visits: 600
+New playouts: 600
+NN rows: 511
+NN batches: 511
+NN avg batch size: 1
+PV: E12 M4 N4 N5 N3 M5 E4 D4 E6 E5 F5 D5 F7 F4 G5 E7 G6 F3
+Tree:
+: T  35.97c W  25.72c S   6.61c ( +0.7 L  +1.1) N     600  --  E12 M4 N4 N5 N3 M5 E4
+---White(^)---
+E12 : T  37.15c W  26.62c S   7.76c ( +1.1 L  +1.6) LCB   32.15c P 90.63% WF 595.0 PSV     593 N     593  --  E12 M4 N4 N5 N3 M5 E4 D4
+C1  : T -132.59c W -99.65c S -32.94c (-62.3 L -63.8) LCB -482.59c P  3.87% WF   0.6 PSV       0 N       1  --  C1
+A13 : T -134.55c W -99.92c S -34.63c (-75.3 L -76.2) LCB -484.55c P  1.12% WF   0.6 PSV       0 N       1  --  A13
+D4  : T -133.02c W -99.70c S -33.32c (-64.7 L -66.1) LCB -483.02c P  0.93% WF   0.6 PSV       0 N       1  --  D4
+C4  : T -133.27c W -99.72c S -33.55c (-66.6 L -68.2) LCB -483.27c P  0.61% WF   0.6 PSV       0 N       1  --  C4
+H13 : T -134.64c W -99.86c S -34.77c (-79.5 L -81.6) LCB -484.64c P  0.38% WF   0.6 PSV       0 N       1  --  H13
+E4  : T -133.05c W -99.65c S -33.40c (-65.8 L -68.0) LCB -483.05c P  0.33% WF   0.6 PSV       0 N       1  --  E4
+Play selection values
+E12 592.514
+C1 0
+A13 0
+D4 0
+C4 0
+H13 0
+E4 0
+winValue 0.62858
+lossValue 0.371375
+noResultValue 4.45372e-05
+staticScoreValue 0.0143116
+dynamicScoreValue 0.215492
+expectedScore 0.659883
+expectedScoreStdev 10.3844
+lead 1.12032
+winLossValue 0.257205
+utility 0.359651
+weight 599.514
+visits 600
+
+winValue 0.63232
+lossValue 0.367635
+noResultValue 4.48018e-05
+staticScoreValue 0.0240248
+dynamicScoreValue 0.249898
+expectedScore 1.07548
+expectedScoreStdev 8.70339
+lead 1.54841
+winLossValue 0.264685
+utility 0.369757
+weight 599.514
+visits 600
+
+MoveNum: 0 HASH: E400A9922A9BE3397C234DC08C11712E
+   A B C D E F G H J K L M N
+13 . X O X O . O . . . . . .
+12 O O O X . O X O X . . . .
+11 O O X X X X X O . X . . .
+10 O X X O O O X O . . . . .
+ 9 O O X O . O O X X . X . .
+ 8 O O O X . . . . . . . . .
+ 7 X O X X . . O . X . . . .
+ 6 X X . . . X . O . . X . .
+ 5 . . X . . . . . . . . . .
+ 4 . . . . . . . O . X X . .
+ 3 . . O X . . O . . . O O .
+ 2 . O X . X X X O O . . . .
+ 1 . . . . . . . . . . . . .
+
+Root visits: 600
+New playouts: 600
+NN rows: 512
+NN batches: 512
+NN avg batch size: 1
+PV: E12 M4 N4 N5 N3 M5 E4 D4 E6 E5 F5 D5 F7 F4 G5 E7 G6 F3
+Tree:
+: T  35.01c W  25.01c S   5.28c ( +0.1 L  +0.5) N     600  --  E12 M4 N4 N5 N3 M5 E4
+---White(^)---
+E12 : T  37.69c W  27.01c S   7.78c ( +1.1 L  +1.6) LCB   32.71c P 71.34% WF 589.8 PSV     584 N     584  --  E12 M4 N4 N5 N3 M5 E4 D4
+L12 : T -133.67c W -99.77c S -33.90c (-69.9 L -71.9) LCB -483.67c P  6.06% WF   0.6 PSV       0 N       1  --  L12
+L10 : T -133.29c W -99.71c S -33.58c (-67.1 L -68.9) LCB -483.29c P  3.55% WF   0.6 PSV       0 N       1  --  L10
+C1  : T -132.59c W -99.65c S -32.94c (-62.3 L -63.8) LCB -482.59c P  2.95% WF   0.6 PSV       0 N       1  --  C1
+E4  : T -133.05c W -99.65c S -33.40c (-65.8 L -68.0) LCB -483.05c P  2.64% WF   0.6 PSV       0 N       1  --  E4
+C4  : T -133.27c W -99.72c S -33.55c (-66.6 L -68.2) LCB -483.27c P  2.18% WF   0.6 PSV       0 N       1  --  C4
+H13 : T -134.64c W -99.86c S -34.77c (-79.5 L -81.6) LCB -484.64c P  1.40% WF   0.6 PSV       0 N       1  --  H13
+H8  : T -133.55c W -99.76c S -33.79c (-69.0 L -70.9) LCB -483.55c P  1.20% WF   0.6 PSV       0 N       1  --  H8
+N9  : T -134.44c W -99.91c S -34.53c (-75.8 L -77.4) LCB -484.44c P  1.20% WF   0.6 PSV       0 N       1  --  N9
+M5  : T -133.39c W -99.75c S -33.64c (-68.1 L -70.5) LCB -483.39c P  0.91% WF   0.6 PSV       0 N       1  --  M5
+A13 : T -134.55c W -99.92c S -34.63c (-75.3 L -76.2) LCB -484.55c P  0.84% WF   0.6 PSV       0 N       1  --  A13
+D2  : T -132.38c W -99.62c S -32.76c (-60.5 L -62.0) LCB -482.38c P  0.80% WF   0.6 PSV       0 N       1  --  D2
+D4  : T -133.02c W -99.70c S -33.32c (-64.7 L -66.1) LCB -483.02c P  0.72% WF   0.6 PSV       0 N       1  --  D4
+M12 : T -134.15c W -99.85c S -34.31c (-73.1 L -75.3) LCB -484.15c P  0.70% WF   0.6 PSV       0 N       1  --  M12
+L13 : T -134.23c W -99.89c S -34.33c (-73.1 L -74.7) LCB -484.23c P  0.45% WF   0.6 PSV       0 N       1  --  L13
+D1  : T -133.53c W -99.78c S -33.75c (-68.1 L -69.2) LCB -483.53c P  0.42% WF   0.6 PSV       0 N       1  --  D1
+Play selection values
+E12 583.549
+L12 0
+L10 0
+C1 0
+E4 0
+C4 0
+H13 0
+H8 0
+N9 0
+M5 0
+A13 0
+D2 0
+D4 0
+M12 0
+L13 0
+D1 0
+winValue 0.625011
+lossValue 0.374945
+noResultValue 4.43445e-05
+staticScoreValue 0.00135998
+dynamicScoreValue 0.175399
+expectedScore 0.065211
+expectedScoreStdev 12.4483
+lead 0.503444
+winLossValue 0.250066
+utility 0.350104
+weight 599.549
+visits 600
+
+winValue 0.634275
+lossValue 0.36568
+noResultValue 4.5001e-05
+staticScoreValue 0.024461
+dynamicScoreValue 0.250576
+expectedScore 1.09526
+expectedScoreStdev 8.71507
+lead 1.56569
+winLossValue 0.268595
+utility 0.375143
+weight 599.549
+visits 600
+
+: GPU 0 finishing, processed 5817 rows 5817 batches
 Done
