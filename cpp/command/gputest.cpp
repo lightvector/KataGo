@@ -185,6 +185,13 @@ int MainCmds::testgpuerror(const vector<string>& args) {
   const int expectedConcurrentEvals = maxBatchSize * 2 + 16;
   const bool defaultRequireExactNNLen = false;
 
+  logger.write("Initializing nneval using current config...");
+  NNEvaluator* nnEval = Setup::initializeNNEvaluator(
+    modelFile,modelFile,expectedSha256,cfg,logger,seedRand,maxConcurrentEvals,expectedConcurrentEvals,
+    boardSize,boardSize,maxBatchSize,defaultRequireExactNNLen,
+    Setup::SETUP_FOR_BENCHMARK
+  );
+
   logger.write("Initializing nneval in fp32...");
   ConfigParser cfgFp32(cfg);
   for(const string& prefix: Setup::getBackendPrefixes()) {
@@ -228,13 +235,6 @@ int MainCmds::testgpuerror(const vector<string>& args) {
         threads[i].join();
     }
 
-    logger.write("Initializing nneval using current config...");
-    NNEvaluator* nnEval = Setup::initializeNNEvaluator(
-      modelFile,modelFile,expectedSha256,cfg,logger,seedRand,maxConcurrentEvals,expectedConcurrentEvals,
-      boardSize,boardSize,maxBatchSize,defaultRequireExactNNLen,
-      Setup::SETUP_FOR_BENCHMARK
-    );
-
     logger.write("Running evaluations using current config");
     std::vector<std::shared_ptr<NNOutput>> current;
     for(const BoardHistory& hist: hists) current.push_back(evalBoard(nnEval,hist));
@@ -272,10 +272,10 @@ int MainCmds::testgpuerror(const vector<string>& args) {
       stats.reportStats("batched current - fp32", logger);
     }
 
-    delete nnEval;
   }
 
   delete nnEval32;
+  delete nnEval;
   NeuralNet::globalCleanup();
   ScoreValue::freeTables();
 
