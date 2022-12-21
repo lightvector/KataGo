@@ -21,6 +21,25 @@
   return backends;
 }
 
+/// Get the next model index
++ (NSNumber * _Nonnull)getNextModelIndex {
+  // This is the CoreMLBackend index.
+  static NSNumber * modelIndex = nil;
+
+  @synchronized (self) {
+    if (modelIndex == nil) {
+      // The first CoreMLBackend index is 0.
+      modelIndex = [NSNumber numberWithInt:0];
+    } else {
+      // The next CoreMLBackend index is the current index + 1.
+      modelIndex = [NSNumber numberWithInt:[modelIndex intValue] + 1];
+    }
+  }
+
+  // The CoreMLBackend index is returned.
+  return modelIndex;
+}
+
 // This is the CoreMLBackend getter method.
 // If the backend is not in the dictionary, it is initialized.
 + (CoreMLBackend * _Nonnull)getBackendAt:(NSNumber * _Nonnull)index {
@@ -29,28 +48,35 @@
   return backends[index];
 }
 
-// This is the CoreMLBackend factory method.
-// It is used to create a CoreMLBackend object.
-// The CoreMLBackend object is stored in the dictionary.
-// The CoreMLBackend object is initialized with the CoreML model.
-// The ML model version is returned.
-+ (NSNumber * _Nonnull)initWithIndex:(NSNumber * _Nonnull)index
-                           modelXLen:(NSNumber * _Nonnull)xLen
-                           modelYLen:(NSNumber * _Nonnull)yLen
-                             useFP16:(NSNumber * _Nonnull)useFP16 {
+/// This is the CoreMLBackend factory method, which is used to create a CoreMLBackend object. The CoreMLBackend object is stored in the dictionary.
+/// - Parameters:
+///   - xLen: x-direction length
+///   - yLen: y-direction length
+///   - useFP16: use FP16 or not
+/// - Returns: model index
++ (NSNumber * _Nonnull)initWithModelXLen:(NSNumber * _Nonnull)xLen
+                               modelYLen:(NSNumber * _Nonnull)yLen
+                                 useFP16:(NSNumber * _Nonnull)useFP16 {
+  // The CoreMLBackend dictionary is retrieved.
   NSMutableDictionary * backends = [CoreMLBackend getBackends];
 
+  // The next ML model index is retrieved.
+  NSNumber * modelIndex = [CoreMLBackend getNextModelIndex];
+
   @synchronized (self) {
+    // The CoreML model is compiled.
     MLModel * mlmodel = [KataGoModel compileMLModelWithXLen:xLen
                                                        yLen:yLen
                                                     useFP16:useFP16];
 
-    backends[index] = [[CoreMLBackend alloc] initWithMLModel:mlmodel
-                                                        xLen:xLen
-                                                        yLen:yLen];
+    // The CoreMLBackend object is created.
+    backends[modelIndex] = [[CoreMLBackend alloc] initWithMLModel:mlmodel
+                                                             xLen:xLen
+                                                             yLen:yLen];
   }
 
-  return ((CoreMLBackend *)backends[index])->_model.model.modelDescription.metadata[MLModelVersionStringKey];
+  // The ML model index is returned.
+  return modelIndex;
 }
 
 // This is the CoreMLBackend destruction method.
@@ -88,6 +114,7 @@
 
 @synthesize numSpatialFeatures = _numSpatialFeatures;
 @synthesize numGlobalFeatures = _numGlobalFeatures;
+@synthesize version = _version;
 
 // Get the model's output.
 - (void)getOutputWithBinInputs:(void * _Nonnull)binInputs
@@ -161,17 +188,23 @@ void initCoreMLBackends() {
   (void)[CoreMLBackend getBackends];
 }
 
-// Create the CoreMLBackend instance.
-// The ML model version is returned.
-int createCoreMLBackend(int modelIndex, int modelXLen, int modelYLen, int serverThreadIdx, bool useFP16) {
-  NSLog(@"CoreML backend thread %d: #%d-%dx%d useFP16 %d", serverThreadIdx, modelIndex, modelXLen, modelYLen, useFP16);
+/// Create the CoreMLBackend instance.
+/// - Parameters:
+///   - modelXLen: model x-direction length
+///   - modelYLen: model y-direction length
+///   - serverThreadIdx: server thread index
+///   - useFP16: use FP16 or not
+/// - Returns: model index
+int createCoreMLBackend(int modelXLen, int modelYLen, int serverThreadIdx, bool useFP16) {
+  // Load the model.
+  NSNumber * modelIndex = [CoreMLBackend initWithModelXLen:[NSNumber numberWithInt:modelXLen]
+                                                 modelYLen:[NSNumber numberWithInt:modelYLen]
+                                                   useFP16:[NSNumber numberWithBool:useFP16]];
 
-  NSNumber * version = [CoreMLBackend initWithIndex:[NSNumber numberWithInt:modelIndex]
-                                          modelXLen:[NSNumber numberWithInt:modelXLen]
-                                          modelYLen:[NSNumber numberWithInt:modelYLen]
-                                            useFP16:[NSNumber numberWithBool:useFP16]];
+  NSLog(@"CoreML backend thread %d: #%@-%dx%d useFP16 %d", serverThreadIdx, modelIndex, modelXLen, modelYLen, useFP16);
 
-  return version.intValue;
+  // Return the model index.
+  return modelIndex.intValue;
 }
 
 // Reset the CoreMLBackend instance.
@@ -187,6 +220,12 @@ int getCoreMLBackendNumSpatialFeatures(int modelIndex) {
 // Get the model's number of global features.
 int getCoreMLBackendNumGlobalFeatures(int modelIndex) {
   return [[[CoreMLBackend getBackendAt:[NSNumber numberWithInt:modelIndex]] numGlobalFeatures] intValue];
+}
+
+/// Get the model's version.
+/// - Parameter modelIndex: model index
+int getCoreMLBackendVersion(int modelIndex) {
+  return [[[CoreMLBackend getBackendAt:[NSNumber numberWithInt:modelIndex]] version] intValue];
 }
 
 // Get the model's output.

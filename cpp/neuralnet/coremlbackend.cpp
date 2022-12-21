@@ -12,17 +12,20 @@ using namespace std;
 //------------------------------------------------------------------------------
 
 CoreMLLoadedModel::CoreMLLoadedModel() {
-  // Default to the first model
-  int defaultIndex = 100;
+  // Create a dummy backend to get the model description
+  int modelIndex = createCoreMLBackend(COMPILE_MAX_BOARD_LEN, COMPILE_MAX_BOARD_LEN, -1, true);
   modelXLen = COMPILE_MAX_BOARD_LEN;
   modelYLen = COMPILE_MAX_BOARD_LEN;
   modelDesc.name = "CoreML model";
-  modelDesc.version = createCoreMLBackend(defaultIndex, COMPILE_MAX_BOARD_LEN, COMPILE_MAX_BOARD_LEN, -1, true);
-  modelDesc.numInputChannels = getCoreMLBackendNumSpatialFeatures(defaultIndex);
-  modelDesc.numInputGlobalChannels = getCoreMLBackendNumGlobalFeatures(defaultIndex);
+  // Get the model description from the Core ML backend
+  modelDesc.version = getCoreMLBackendVersion(modelIndex);
+  modelDesc.numInputChannels = getCoreMLBackendNumSpatialFeatures(modelIndex);
+  modelDesc.numInputGlobalChannels = getCoreMLBackendNumGlobalFeatures(modelIndex);
   modelDesc.numValueChannels = 3;
   modelDesc.numOwnershipChannels = 1;
   modelDesc.numScoreValueChannels = 18;
+  // Free the dummy backend
+  freeCoreMLBackend(modelIndex);
 }
 
 //--------------------------------------------------------------
@@ -42,12 +45,16 @@ CoreMLComputeHandle::CoreMLComputeHandle(const CoreMLLoadedModel* loadedModel,
   inputsUseNHWC = inputsNHWC;
 
   if(gpuIdx >= 100) {
-    version = createCoreMLBackend(gpuIdx, modelXLen, modelYLen, serverThreadIdx, useFP16);
+    // Create a Core ML backend
+    modelIndex = createCoreMLBackend(modelXLen, modelYLen, serverThreadIdx, useFP16);
+    // Get the model version
+    version = getCoreMLBackendVersion(modelIndex);
     isCoreML = true;
   } else {
+    // Reserved for GPU, don't use
+    modelIndex = -1;
     version = -1;
     isCoreML = false;
-
   }
 }
 
@@ -206,7 +213,7 @@ void getCoreMLHandleOutput(CoreMLComputeHandle* gpuHandle,
       ownershipOutputBuf,
       miscValuesOutputBuf,
       moreMiscValuesOutputBuf,
-      gpuHandle->gpuIndex);
+      gpuHandle->modelIndex);
   }
 
   // Fill results by CoreML model output

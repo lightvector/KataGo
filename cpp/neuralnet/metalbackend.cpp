@@ -139,9 +139,9 @@ struct ComputeHandle {
   }
 
   ~ComputeHandle() {
-    freeCoreMLBackend(gpuIndex);
-
     if(coreMLComputeHandle != NULL) {
+      // Free the CoreML backend
+      freeCoreMLBackend(coreMLComputeHandle->modelIndex);
       delete coreMLComputeHandle;
     }
   }

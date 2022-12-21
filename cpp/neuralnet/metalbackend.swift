@@ -2,7 +2,11 @@ import Foundation
 import MetalPerformanceShaders
 import MetalPerformanceShadersGraph
 
+/// Extension to convert float32 to float16
 extension UnsafeMutablePointer<Float32> {
+    /// Convert to Float16
+    /// - Parameter length: The length of the array
+    /// - Returns: An array of Float16
     func toFP16(length: Int) -> UnsafeMutablePointer<Float16> {
         let fp16Pointer = UnsafeMutablePointer<Float16>.allocate(capacity: length)
 
@@ -13,6 +17,10 @@ extension UnsafeMutablePointer<Float32> {
         return fp16Pointer
     }
 
+    /// Convert to Float16
+    /// - Parameters:
+    ///   - fp16Pointer: Pointer to the destination buffer
+    ///   - length: Number of elements to convert
     func toFP16(_ fp16Pointer: UnsafeMutablePointer<Float16>, length: Int) {
         for i in 0..<length {
             fp16Pointer[i] = Float16(self[i])
@@ -20,7 +28,12 @@ extension UnsafeMutablePointer<Float32> {
     }
 }
 
+/// Extension to UnsafeMutablePointer to convert Float16 to Float32
 extension UnsafeMutablePointer<Float16> {
+    /// Convert to Float32
+    /// - Parameters:
+    ///   - fp32Pointer: Pointer to Float32
+    ///   - length: Length of the array
     func toFP32(_ fp32Pointer: UnsafeMutablePointer<Float32>, length: Int) {
         for i in 0..<length {
             fp32Pointer[i] = Float32(self[i])
@@ -29,6 +42,10 @@ extension UnsafeMutablePointer<Float16> {
 }
 
 extension MPSNDArray {
+    /// Initialize a MPSNDArray object with the data type and the shape of the tensor
+    /// - Parameters:
+    ///   - device: the metal deivce that the tensor is intended for
+    ///   - tensor: the tensor to use shape and data type from
     convenience init(device: MTLDevice, tensor: MPSGraphTensor) {
         // Metal backend uses a fixed batch size,
         // so every shape is determined at compile time.
@@ -38,16 +55,22 @@ extension MPSNDArray {
         self.init(device: device, descriptor: descriptor)
     }
 
+    /// Write bytes to the buffer
+    /// - Parameter buffer: The buffer to write
     func writeBytes(_ buffer: UnsafeMutableRawPointer) {
         self.writeBytes(buffer, strideBytes: nil)
     }
 
+    /// Read bytes from the buffer
+    /// - Parameter buffer: The buffer to read
     func readBytes(_ buffer: UnsafeMutableRawPointer) {
         self.readBytes(buffer, strideBytes: nil)
     }
 }
 
 extension MPSGraphTensor {
+    /// Count number of elements
+    /// - Returns: Number of elements
     func countElements() -> Int {
         var result = shape![0].intValue
         for i in 1..<shape!.count {
@@ -58,6 +81,8 @@ extension MPSGraphTensor {
 }
 
 extension MPSDataType {
+    /// Initialize a MPSDataType object
+    /// - Parameter useFP16: If true, use MPSDataType.float16, otherwise use MPSDataType.float32
     init(useFP16: Bool) {
         if useFP16 {
             self.init(rawValue: MPSDataType.float16.rawValue)!
@@ -66,6 +91,8 @@ extension MPSDataType {
         }
     }
 
+    /// Convert to MemoryLayout size
+    /// - Returns: MemoryLayout size
     func toMemoryLayoutSize() -> Int {
         let memoryLayoutSize: Int
         switch self {

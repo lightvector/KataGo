@@ -136,22 +136,24 @@ NS_ASSUME_NONNULL_END
 */
 + (CoreMLBackend * _Nonnull)getBackendAt:(NSNumber * _Nonnull)index;
 
-/**
-    Initialize CoreML backend with model index
-    @param index model index
-    @param xLen x-direction length
-    @param yLen y-direction length
-    @param useFP16 use FP16 or not
-    @return Model version
-*/
-+ (NSNumber * _Nonnull)initWithIndex:(NSNumber * _Nonnull)index
-                           modelXLen:(NSNumber * _Nonnull)xLen
-                           modelYLen:(NSNumber * _Nonnull)yLen
-                             useFP16:(NSNumber * _Nonnull)useFP16;
+/// Get the next model index
++ (NSNumber * _Nonnull)getNextModelIndex;
 
 /**
     Initialize CoreML backend
+    @param xLen x-direction length
+    @param yLen y-direction length
+    @param useFP16 use FP16 or not
+    @return Model index
 */
++ (NSNumber * _Nonnull)initWithModelXLen:(NSNumber * _Nonnull)xLen
+                               modelYLen:(NSNumber * _Nonnull)yLen
+                                 useFP16:(NSNumber * _Nonnull)useFP16;
+
+/// Initialize with ML model
+/// @param model ML model
+/// @param xLen x-direction length
+/// @param yLen y-direction length
 - (nullable instancetype)initWithMLModel:(MLModel * _Nonnull)model
                                     xLen:(NSNumber * _Nonnull)xLen
                                     yLen:(NSNumber * _Nonnull)yLen;

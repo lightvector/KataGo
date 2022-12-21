@@ -20,6 +20,7 @@ struct CoreMLComputeHandle {
   int version;
   int gpuIndex;
   bool isCoreML;
+  int modelIndex;
 
   CoreMLComputeHandle(const CoreMLLoadedModel* loadedModel,
                       int nnXLen,
@@ -97,8 +98,7 @@ struct CoreMLInputBuffers {
 
 void initCoreMLBackends();
 
-int createCoreMLBackend(int modelIndex,
-                        int modelXLen,
+int createCoreMLBackend(int modelXLen,
                         int modelYLen,
                         int serverThreadIdx,
                         bool useFP16);
@@ -106,6 +106,7 @@ int createCoreMLBackend(int modelIndex,
 void freeCoreMLBackend(int modelIndex);
 int getCoreMLBackendNumSpatialFeatures(int modelIndex);
 int getCoreMLBackendNumGlobalFeatures(int modelIndex);
+int getCoreMLBackendVersion(int modelIndex);
 
 void getCoreMLBackendOutput(float* userInputBuffer,
                             float* userInputGlobalBuffer,
