@@ -682,6 +682,9 @@ void Sgf::iterAllUniquePositionsHelper(
         //to not doing it.
         if(netStonesAdded > 0)
           initialTurnNumber += (netStonesAdded+1)/2;
+        //Also make sure the turn number is at least as large as the number of stones in the board
+        if(board.numStonesOnBoard() > initialTurnNumber)
+          initialTurnNumber = board.numStonesOnBoard();
 
         hist.clear(board,nextPla,rules,0);
       }
