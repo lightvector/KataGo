@@ -1896,6 +1896,7 @@ bool Search::getPrunedNodeValues(const SearchNode* nodePtr, ReportedSearchValues
     if(stats.visits <= 0 || stats.weightSum <= 0.0 || edgeVisits <= 0)
       continue;
     double weight = playSelectionValues[i];
+    double weightScaling = weight / stats.weightSum;
     winLossValueSum += weight * stats.winLossValueAvg;
     noResultValueSum += weight * stats.noResultValueAvg;
     scoreMeanSum += weight * stats.scoreMeanAvg;
@@ -1903,7 +1904,7 @@ bool Search::getPrunedNodeValues(const SearchNode* nodePtr, ReportedSearchValues
     leadSum += weight * stats.leadAvg;
     utilitySum += weight * stats.utilityAvg;
     utilitySqSum += weight * stats.utilitySqAvg;
-    weightSqSum += weight * weight; // TODO not quite right
+    weightSqSum += weightScaling * weightScaling * stats.weightSqSum;
     weightSum += weight;
   }
 
@@ -1923,7 +1924,7 @@ bool Search::getPrunedNodeValues(const SearchNode* nodePtr, ReportedSearchValues
       getResultUtility(winProb-lossProb, noResultProb)
       + getScoreUtility(scoreMean, scoreMeanSq);
 
-    double weight = 1.0; // TODO also not quite right
+    double weight = computeWeightFromNNOutput(nnOutput);
     winLossValueSum += (winProb - lossProb) * weight;
     noResultValueSum += noResultProb * weight;
     scoreMeanSum += scoreMean * weight;

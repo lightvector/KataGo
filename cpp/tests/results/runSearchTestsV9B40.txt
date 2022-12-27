@@ -2048,16 +2048,16 @@ utility 0.588223
 weight 410.007
 visits 600
 
-winValue 0.80396
-lossValue 0.195239
-noResultValue 0.00080093
-staticScoreValue 0.0297507
-dynamicScoreValue 0.0679506
-expectedScore 1.25202
-expectedScoreStdev 4.52914
-lead 1.26596
-winLossValue 0.608721
-utility 0.587883
+winValue 0.804142
+lossValue 0.195056
+noResultValue 0.000801806
+staticScoreValue 0.0297839
+dynamicScoreValue 0.0680254
+expectedScore 1.25343
+expectedScoreStdev 4.53024
+lead 1.26778
+winLossValue 0.609086
+utility 0.588223
 weight 410.007
 visits 600
 
@@ -2120,16 +2120,16 @@ utility 0.474442
 weight 471.64
 visits 600
 
-winValue 0.805472
-lossValue 0.193724
-noResultValue 0.000804534
-staticScoreValue 0.0299548
-dynamicScoreValue 0.0683975
-expectedScore 1.2608
-expectedScoreStdev 4.54126
-lead 1.27436
-winLossValue 0.611748
-utility 0.592559
+winValue 0.805657
+lossValue 0.193537
+noResultValue 0.000805425
+staticScoreValue 0.0299885
+dynamicScoreValue 0.0684737
+expectedScore 1.26224
+expectedScoreStdev 4.54239
+lead 1.27622
+winLossValue 0.61212
+utility 0.592908
 weight 471.64
 visits 600
 
