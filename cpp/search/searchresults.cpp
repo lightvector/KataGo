@@ -1044,11 +1044,11 @@ void Search::printTree(ostream& out, const SearchNode* node, PrintTreeOptions op
     data.weightFactor = NAN;
   }
   perspective = (perspective != P_BLACK && perspective != P_WHITE) ? node->nextPla : perspective;
-  printTreeHelper(out, node, options, prefix, 0, 0, data, perspective);
+  printTreeHelper(out, NULL, node, options, prefix, 0, 0, data, perspective);
 }
 
 void Search::printTreeHelper(
-  ostream& out, const SearchNode* n, const PrintTreeOptions& options,
+  ostream& out, const SearchNode* parent, const SearchNode* n, const PrintTreeOptions& options,
   string& prefix, int64_t origVisits, int depth, const AnalysisData& data, Player perspective
 ) const {
   if(n == NULL)
@@ -1111,6 +1111,17 @@ void Search::printTreeHelper(
       sprintf(buf,"P %5.2f%% ", data.policyPrior * 100.0);
       out << buf;
     }
+    // if(!isnan(data.policyPrior)) {
+    //   float nnPolicyProb = (float)data.policyPrior;
+    //   if(searchParams.policyBiasFactor > 0) {
+    //     int movePos = getPos(data.move);
+    //     if(parent != NULL) {
+    //       nnPolicyProb = parent->policyBiasHandle.getUpdatedPolicyProb(nnPolicyProb, movePos, searchParams.policyBiasFactor, searchParams.policyBiasDiscountSelf);
+    //     }
+    //   }
+    //   sprintf(buf,"Q %5.2f%% ", nnPolicyProb * 100.0);
+    //   out << buf;
+    // }
     if(!isnan(data.weightFactor)) {
       sprintf(buf,"WF %5.1f ", data.weightFactor);
       out << buf;
@@ -1196,7 +1207,7 @@ void Search::printTreeHelper(
       while(prefix.length() < oldLen+4)
         prefix += " ";
       printTreeHelper(
-        out,child,options,prefix,origVisits,depth+1,analysisData[i], perspective);
+        out,&node,child,options,prefix,origVisits,depth+1,analysisData[i], perspective);
       prefix.erase(oldLen);
     }
   }

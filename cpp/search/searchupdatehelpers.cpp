@@ -442,7 +442,7 @@ void Search::updatePolicyBias(SearchNode& node, int childrenCapacity, SearchChil
   int childPoses[NNPos::MAX_NN_POLICY_SIZE];
   float childProbs[NNPos::MAX_NN_POLICY_SIZE];
   double childWeights[NNPos::MAX_NN_POLICY_SIZE];
-  double childUtilities[NNPos::MAX_NN_POLICY_SIZE];
+  double childSelfUtilities[NNPos::MAX_NN_POLICY_SIZE];
 
   NNOutput* nnOutput = node.getNNOutput();
   assert(nnOutput != NULL);
@@ -464,11 +464,12 @@ void Search::updatePolicyBias(SearchNode& node, int childrenCapacity, SearchChil
       continue;
 
     double childUtility = child->stats.utilityAvg.load(std::memory_order_acquire);
+    double childSelfUtility = node.nextPla == P_BLACK ? -childUtility : childUtility;
 
     childPoses[numChildren] = movePos;
     childProbs[numChildren] = nnPolicyProb;
     childWeights[numChildren] = childWeight;
-    childUtilities[numChildren] = childUtility;
+    childSelfUtilities[numChildren] = childSelfUtility;
     numChildren += 1;
   }
 
@@ -500,7 +501,7 @@ void Search::updatePolicyBias(SearchNode& node, int childrenCapacity, SearchChil
   }
 
   for(int i = 0; i<numChildren; i++) {
-    if(i != highestWeightChildIdx && childUtilities[i] > childUtilities[highestWeightChildIdx] && childWeights[i] > weightPenalty) {
+    if(i != highestWeightChildIdx && childSelfUtilities[i] > childSelfUtilities[highestWeightChildIdx] && childWeights[i] > weightPenalty) {
       double posterior = (childWeights[i] - weightPenalty) / totalChildWeight;
       double surprise = posterior / (childProbs[i] + 0.01);
       if(surprise > bestChildSurprise) {
@@ -511,8 +512,26 @@ void Search::updatePolicyBias(SearchNode& node, int childrenCapacity, SearchChil
   }
 
   int bestChildPos = childPoses[bestChildIdx];
+  // if(histLen == rootHistory.moveHistory.size() + 2) {
+  //   cout << "TEST " << Location::toString(NNPos::posToLoc(bestChildPos,rootBoard.x_size,rootBoard.y_size,nnXLen,nnYLen),rootBoard) << " " << bestChildSurprise << endl;
+  // }
+
   if(node.policyBiasHandle.entries[bestChildPos] != nullptr) {
     assert(node.policyBiasHandle.entries.size() > bestChildPos);
+    // if(histLen == rootHistory.moveHistory.size() + 2 && Location::toString(prevMoveLoc,rootBoard) == "S19") {
+    //   cout << "--------------" << endl;
+    //   cout
+    //     << Location::toString(prevMoveLoc,rootBoard)
+    //     << " " << Location::toString(NNPos::posToLoc(bestChildPos,rootBoard.x_size,rootBoard.y_size,nnXLen,nnYLen),rootBoard)
+    //     << " " << bestChildSurprise << endl;
+    //   for(int i = 0; i<numChildren; i++) {
+    //     double posterior = (childWeights[i] - weightPenalty) / totalChildWeight;
+    //     double surprise = posterior / (childProbs[i] + 0.01);
+    //     cout
+    //       << " " << Location::toString(NNPos::posToLoc(childPoses[i],rootBoard.x_size,rootBoard.y_size,nnXLen,nnYLen),rootBoard)
+    //       << " " << surprise << " " << childWeights[i] << " " << weightPenalty << " " << totalChildWeight << " " << childProbs[i] << " " << childSelfUtilities[i] << endl;
+    //   }
+    // }
 
     double logSurprise = bestChildSurprise <= 1.0 ? 0.0 : std::max(0.0, log(bestChildSurprise));
     node.policyBiasHandle.updateValue(logSurprise * totalChildWeight, totalChildWeight, bestChildPos);

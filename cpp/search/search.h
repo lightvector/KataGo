@@ -638,7 +638,7 @@ private:
   void printPV(std::ostream& out, const std::vector<Loc>& buf) const;
 
   void printTreeHelper(
-    std::ostream& out, const SearchNode* node, const PrintTreeOptions& options,
+    std::ostream& out, const SearchNode* parent, const SearchNode* node, const PrintTreeOptions& options,
     std::string& prefix, int64_t origVisits, int depth, const AnalysisData& data, Player perspective
   ) const;
 
