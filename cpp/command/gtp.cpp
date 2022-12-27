@@ -576,6 +576,11 @@ struct GTPEngine {
     bot->setParams(params);
     bot->clearSearch();
   }
+  void setPolicyBiasReplyFactor(double x) {
+    params.policyBiasReplyFactor = x;
+    bot->setParams(params);
+    bot->clearSearch();
+  }
   void setNumSearchThreads(int numThreads) {
     params.numThreads = numThreads;
     bot->setParams(params);
@@ -2209,6 +2214,14 @@ int MainCmds::gtp(const vector<string>& args) {
         else if(pieces[0] == "policyBiasFactor") {
           if(Global::tryStringToDouble(pieces[1],d) && d >= 0.0 && d <= 1.0)
             engine->setPolicyBiasFactor(d);
+          else {
+            responseIsError = true;
+            response = "Invalid value for " + pieces[0] + ", must be float from 0.0 to 1.0";
+          }
+        }
+        else if(pieces[0] == "policyBiasReplyFactor") {
+          if(Global::tryStringToDouble(pieces[1],d) && d >= 0.0 && d <= 1.0)
+            engine->setPolicyBiasReplyFactor(d);
           else {
             responseIsError = true;
             response = "Invalid value for " + pieces[0] + ", must be float from 0.0 to 1.0";
