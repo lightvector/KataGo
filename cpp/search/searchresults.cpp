@@ -1055,6 +1055,7 @@ void Search::printTreeHelper(
     return;
 
   const SearchNode& node = *n;
+  (void)parent;
 
   Player perspectiveToUse = (perspective != P_BLACK && perspective != P_WHITE) ? n->nextPla : perspective;
   double perspectiveFactor = perspectiveToUse == P_BLACK ? -1.0 : 1.0;

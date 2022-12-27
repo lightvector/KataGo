@@ -649,6 +649,9 @@ vector<SearchParams> Setup::loadParams(
     if(cfg.contains("policyBiasFactor"+idxStr)) params.policyBiasFactor = cfg.getDouble("policyBiasFactor"+idxStr, 0.0, 1.0);
     else if(cfg.contains("policyBiasFactor")) params.policyBiasFactor = cfg.getDouble("policyBiasFactor", 0.0, 1.0);
     else params.policyBiasFactor = 0.0;
+    if(cfg.contains("policyBiasReplyFactor"+idxStr)) params.policyBiasReplyFactor = cfg.getDouble("policyBiasReplyFactor"+idxStr, 0.0, 1.0);
+    else if(cfg.contains("policyBiasReplyFactor")) params.policyBiasReplyFactor = cfg.getDouble("policyBiasReplyFactor", 0.0, 1.0);
+    else params.policyBiasReplyFactor = 0.0;
     if(cfg.contains("policyBiasDiscountSelf"+idxStr)) params.policyBiasDiscountSelf = cfg.getBool("policyBiasDiscountSelf"+idxStr);
     else if(cfg.contains("policyBiasDiscountSelf"))   params.policyBiasDiscountSelf = cfg.getBool("policyBiasDiscountSelf");
     else                                              params.policyBiasDiscountSelf = true;

@@ -6,6 +6,7 @@
 #include "../core/multithread.h"
 #include "../game/boardhistory.h"
 #include "../search/mutexpool.h"
+#include "../search/searchparams.h"
 
 struct Search;
 struct PolicyBiasTable;
@@ -25,6 +26,7 @@ struct PolicyBiasHandle {
   int lastPos;
 
   std::vector<std::shared_ptr<PolicyBiasEntry>> entries;
+  std::vector<std::shared_ptr<PolicyBiasEntry>> replyEntries;
 
   //Used for retrieving search parameters
   const PolicyBiasTable* table;
@@ -33,7 +35,9 @@ struct PolicyBiasHandle {
   ~PolicyBiasHandle();
   void clear();
 
-  float getUpdatedPolicyProb(float nnPolicyProb, int movePos, double policyBiasFactor, bool policyBiasDiscountSelf) const;
+  inline bool isNull() const { return entries.size() == 0 && replyEntries.size() == 0; };
+
+  float getUpdatedPolicyProb(float nnPolicyProb, int movePos, const SearchParams& params) const;
 
   // Update this node's contribution to the sum among all nodes with this entry,
   void updateValue(double newSumThisNode, double newWeightThisNode, int pos);
@@ -42,7 +46,9 @@ struct PolicyBiasHandle {
   PolicyBiasHandle(const PolicyBiasHandle&) = delete;
 
 private:
-  void revertUpdates(double freeProp);
+  void maybeRevertUpdates(double freeProp, std::vector<std::shared_ptr<PolicyBiasEntry>>& whichEntries);
+  void maybeUpdateValue(double newSumThisNode, double newWeightThisNode, int pos, std::vector<std::shared_ptr<PolicyBiasEntry>>& whichEntries);
+
 };
 
 
@@ -72,7 +78,6 @@ struct PolicyBiasTable {
   // Mostly for safety and error checking.
   void setNNLenAndAssertEmptySynchronous(int nnXLen, int nnYLen);
 
-
   void get(
     PolicyBiasHandle& buf,
     Player pla,
@@ -80,7 +85,8 @@ struct PolicyBiasTable {
     int nnXLen,
     int nnYLen,
     const Board& board,
-    const BoardHistory& hist
+    const BoardHistory& hist,
+    const SearchParams& params
   );
 };
 

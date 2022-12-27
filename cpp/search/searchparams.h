@@ -96,6 +96,7 @@ struct SearchParams {
   double subtreeValueBiasWeightExponent; //When computing empiricial bias, weight subtree results by childvisits to this power.
 
   double policyBiasFactor;
+  double policyBiasReplyFactor;
   bool policyBiasDiscountSelf;
 
   //Threading-related

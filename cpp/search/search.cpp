@@ -269,8 +269,10 @@ void Search::setNNEval(NNEvaluator* nnEval) {
   assert(nnXLen > 0 && nnXLen <= NNPos::MAX_BOARD_LEN);
   assert(nnYLen > 0 && nnYLen <= NNPos::MAX_BOARD_LEN);
   policySize = NNPos::getPolicySize(nnXLen,nnYLen);
-  policyBiasTable->clearUnusedSynchronous();
-  policyBiasTable->setNNLenAndAssertEmptySynchronous(nnXLen,nnYLen);
+  if(policyBiasTable != NULL) {
+    policyBiasTable->clearUnusedSynchronous();
+    policyBiasTable->setNNLenAndAssertEmptySynchronous(nnXLen,nnYLen);
+  }
 }
 
 void Search::clearSearch() {
@@ -618,12 +620,26 @@ void Search::beginSearch(bool pondering) {
   clearOldNNOutputs();
   computeRootValues();
 
-  //Prepare value bias table if we need it
-  if(searchParams.subtreeValueBiasFactor != 0 && subtreeValueBiasTable == NULL && !(searchParams.antiMirror && mirroringPla != C_EMPTY))
-    subtreeValueBiasTable = new SubtreeValueBiasTable(searchParams.subtreeValueBiasTableNumShards, this);
-  if(searchParams.policyBiasFactor != 0 && policyBiasTable == NULL && !(searchParams.antiMirror && mirroringPla != C_EMPTY)) {
-    policyBiasTable = new PolicyBiasTable(this);
-    policyBiasTable->setNNLenAndAssertEmptySynchronous(nnXLen,nnYLen);
+  //Prepare bias tables if we need it
+  {
+    bool needSubtreeValueBias = searchParams.subtreeValueBiasFactor != 0 && !(searchParams.antiMirror && mirroringPla != C_EMPTY);
+    if(needSubtreeValueBias && subtreeValueBiasTable == NULL)
+      subtreeValueBiasTable = new SubtreeValueBiasTable(searchParams.subtreeValueBiasTableNumShards, this);
+    else if(!needSubtreeValueBias && subtreeValueBiasTable != NULL) {
+      delete subtreeValueBiasTable;
+      subtreeValueBiasTable = NULL;
+    }
+  }
+  {
+    bool needPolicyBias = (searchParams.policyBiasFactor != 0 || searchParams.policyBiasReplyFactor != 0) && !(searchParams.antiMirror && mirroringPla != C_EMPTY);
+    if(needPolicyBias && policyBiasTable == NULL) {
+      policyBiasTable = new PolicyBiasTable(this);
+      policyBiasTable->setNNLenAndAssertEmptySynchronous(nnXLen,nnYLen);
+    }
+    else if(!needPolicyBias && policyBiasTable != NULL) {
+      delete policyBiasTable;
+      policyBiasTable = NULL;
+    }
   }
 
   //Refresh pattern bonuses if needed
@@ -757,7 +773,13 @@ void Search::beginSearch(bool pondering) {
 
     //Recursively update all stats in the tree if we have dynamic score values
     //And also to clear out lastResponseBiasDeltaSum and lastResponseBiasWeight
-    if(searchParams.dynamicScoreUtilityFactor != 0 || searchParams.subtreeValueBiasFactor != 0 || searchParams.policyBiasFactor != 0 || patternBonusTable != NULL) {
+    if(
+      searchParams.dynamicScoreUtilityFactor != 0 ||
+      searchParams.subtreeValueBiasFactor != 0 ||
+      searchParams.policyBiasFactor != 0 ||
+      searchParams.policyBiasReplyFactor != 0 ||
+      patternBonusTable != NULL
+    ) {
       recursivelyRecomputeStats(node);
       if(anyFiltered) {
         //Recursive stats recomputation resulted in us marking all nodes we have. Anything filtered is old now, delete it.
@@ -776,9 +798,10 @@ void Search::beginSearch(bool pondering) {
   }
 
   //Clear unused stuff in value bias table since we may have pruned rootNode stuff
-  if(searchParams.subtreeValueBiasFactor != 0 && subtreeValueBiasTable != NULL)
+  if(subtreeValueBiasTable != NULL)
     subtreeValueBiasTable->clearUnusedSynchronous();
-  if(searchParams.policyBiasFactor != 0 && policyBiasTable != NULL)
+  //Clear unused stuff in policy bias table since we may have pruned rootNode stuff
+  if(policyBiasTable != NULL)
     policyBiasTable->clearUnusedSynchronous();
 
   //Mark all nodes old for the purposes of updating old nnoutputs
@@ -830,7 +853,7 @@ SearchNode* Search::allocateOrFindNode(SearchThread& thread, Player nextPla, Loc
       //Also perform subtree value bias and pattern bonus handling under the mutex. These parameters are not atomic, so
       //if the node is accessed concurrently by other nodes through the table, we need to make sure these parameters are fully
       //fully-formed before we make the node accessible to anyone.
-      if(searchParams.subtreeValueBiasFactor != 0 && subtreeValueBiasTable != NULL) {
+      if(subtreeValueBiasTable != NULL) {
         //TODO can we make subtree value bias not depend on prev move loc?
         if(thread.history.moveHistory.size() >= 2) {
           Loc prevMoveLoc = thread.history.moveHistory[thread.history.moveHistory.size()-2].loc;
@@ -839,9 +862,9 @@ SearchNode* Search::allocateOrFindNode(SearchThread& thread, Player nextPla, Loc
           }
         }
       }
-      if(searchParams.policyBiasFactor != 0 && policyBiasTable != NULL) {
+      if(policyBiasTable != NULL) {
         assert(bestChildMoveLoc != Board::NULL_LOC);
-        policyBiasTable->get(child->policyBiasHandle, thread.pla, bestChildMoveLoc, nnXLen, nnYLen, thread.history.getRecentBoard(1), thread.history);
+        policyBiasTable->get(child->policyBiasHandle, thread.pla, bestChildMoveLoc, nnXLen, nnYLen, thread.history.getRecentBoard(1), thread.history, searchParams);
       }
 
       if(patternBonusTable != NULL)
@@ -1342,7 +1365,7 @@ bool Search::playoutDescend(
     children[bestChildIdx].addEdgeVisits(1);
     updateStatsAfterPlayout(node,thread,isRoot);
 
-    if(searchParams.policyBiasFactor > 0 && node.policyBiasHandle.entries.size() > 0) {
+    if(searchParams.policyBiasFactor > 0 && !node.policyBiasHandle.isNull()) {
       updatePolicyBias(node, childrenCapacity, children);
     }
   }

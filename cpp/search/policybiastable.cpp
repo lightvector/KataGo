@@ -8,6 +8,7 @@
 static std::mutex initMutex;
 static std::atomic<bool> isInited(false);
 static LocalPatternHasher patternHasher;
+static Hash128 ZOBRIST_PLAYER[4];
 static Hash128 ZOBRIST_PREV_MOVE_LOCS[Board::MAX_ARR_SIZE];
 static Hash128 ZOBRIST_MOVE_LOCS[Board::MAX_ARR_SIZE];
 static Hash128 ZOBRIST_KO_BAN[Board::MAX_ARR_SIZE];
@@ -20,6 +21,12 @@ static void initIfNeeded() {
     return;
   Rand rand("PolicyBiasTable ZOBRIST STUFF");
   patternHasher.init(5,5,2,rand);
+
+  for(int i = 0; i<4; i++) {
+    uint64_t h0 = rand.nextUInt64();
+    uint64_t h1 = rand.nextUInt64();
+    ZOBRIST_PLAYER[i] = Hash128(h0,h1);
+  }
 
   for(int i = 0; i<Board::MAX_ARR_SIZE; i++) {
     uint64_t h0 = rand.nextUInt64();
@@ -49,6 +56,7 @@ PolicyBiasHandle::PolicyBiasHandle()
     lastWeight(0.0),
     lastPos(-1),
     entries(),
+    replyEntries(),
     table(nullptr)
 {
 }
@@ -59,44 +67,72 @@ PolicyBiasHandle::~PolicyBiasHandle() {
 void PolicyBiasHandle::clear() {
   if(table != nullptr) {
     if(table->freePropEnabled) {
-      revertUpdates(table->search->searchParams.subtreeValueBiasFreeProp);
+      maybeRevertUpdates(table->search->searchParams.subtreeValueBiasFreeProp, entries);
+      maybeRevertUpdates(table->search->searchParams.subtreeValueBiasFreeProp, replyEntries);
       entries.clear();
+      replyEntries.clear();
       table = nullptr;
     }
   }
 }
 
-float PolicyBiasHandle::getUpdatedPolicyProb(float nnPolicyProb, int movePos, double policyBiasFactor, bool policyBiasDiscountSelf) const {
+float PolicyBiasHandle::getUpdatedPolicyProb(float nnPolicyProb, int movePos, const SearchParams& params) const {
+  if(isNull())
+    return nnPolicyProb;
+  double nnPolicyProbComplement = 1.0 - nnPolicyProb;
+  if(nnPolicyProbComplement <= 1e-10)
+    return nnPolicyProb;
+
+  double desiredLogDelta = 0.0;
+
   if(entries.size() > 0 && entries[movePos] != nullptr) {
     assert(entries.size() > movePos);
     double policyProbLogSurprise = entries[movePos]->average.load(std::memory_order_acquire);
-    double nnPolicyProbComplement = 1.0 - nnPolicyProb;
-    if(policyProbLogSurprise > 0 && nnPolicyProbComplement > 1e-10) {
-      double desiredLogDelta = policyBiasFactor * policyProbLogSurprise;
-      if(policyBiasDiscountSelf && movePos == lastPos) {
+    if(policyProbLogSurprise > 0) {
+      double logDelta = params.policyBiasFactor * policyProbLogSurprise;
+      if(params.policyBiasDiscountSelf && movePos == lastPos) {
         double entryWeightSum = entries[movePos]->weightSum.load(std::memory_order_acquire);
         if(entryWeightSum <= 0.0)
-          desiredLogDelta = 0.0;
+          logDelta = 0.0;
         else
-          desiredLogDelta *= std::max(0.0, entryWeightSum - lastWeight) / entryWeightSum;
+          logDelta *= std::max(0.0, entryWeightSum - lastWeight) / entryWeightSum;
       }
-
-      double odds = nnPolicyProb / nnPolicyProbComplement;
-      odds *= exp(desiredLogDelta);
-      return (float)(odds / (1.0 + odds));
+      desiredLogDelta = std::max(desiredLogDelta, logDelta);
     }
+  }
+
+  if(replyEntries.size() > 0 && replyEntries[movePos] != nullptr) {
+    assert(replyEntries.size() > movePos);
+    double policyProbLogSurprise = replyEntries[movePos]->average.load(std::memory_order_acquire);
+    if(policyProbLogSurprise > 0) {
+      double logDelta = params.policyBiasReplyFactor * policyProbLogSurprise;
+      if(params.policyBiasDiscountSelf && movePos == lastPos) {
+        double entryWeightSum = replyEntries[movePos]->weightSum.load(std::memory_order_acquire);
+        if(entryWeightSum <= 0.0)
+          logDelta = 0.0;
+        else
+          logDelta *= std::max(0.0, entryWeightSum - lastWeight) / entryWeightSum;
+      }
+      desiredLogDelta = std::max(desiredLogDelta, logDelta);
+    }
+  }
+
+  if(desiredLogDelta > 0.0) {
+    double odds = nnPolicyProb / nnPolicyProbComplement;
+    odds *= exp(desiredLogDelta);
+    return (float)(odds / (1.0 + odds));
   }
   return nnPolicyProb;
 }
 
 
-void PolicyBiasHandle::revertUpdates(double freeProp) {
-  if(table != nullptr) {
+void PolicyBiasHandle::maybeRevertUpdates(double freeProp, std::vector<std::shared_ptr<PolicyBiasEntry>>& whichEntries) {
+  if(table != nullptr && whichEntries.size() > 0) {
     if(lastPos != -1) {
       double sumToSubtract = lastSum * freeProp;
       double weightToSubtract = lastWeight * freeProp;
 
-      PolicyBiasEntry& entry_ = *(entries[lastPos]);
+      PolicyBiasEntry& entry_ = *(whichEntries[lastPos]);
       while(entry_.entryLock.test_and_set(std::memory_order_acquire));
       double average = entry_.average.load(std::memory_order_acquire);
       double oldWeight = entry_.weightSum.load(std::memory_order_acquire);
@@ -121,8 +157,19 @@ void PolicyBiasHandle::revertUpdates(double freeProp) {
 }
 
 void PolicyBiasHandle::updateValue(double newSumThisNode, double newWeightThisNode, int pos) {
+  maybeUpdateValue(newSumThisNode, newWeightThisNode, pos, entries);
+  maybeUpdateValue(newSumThisNode, newWeightThisNode, pos, replyEntries);
+}
+
+void PolicyBiasHandle::maybeUpdateValue(double newSumThisNode, double newWeightThisNode, int pos, std::vector<std::shared_ptr<PolicyBiasEntry>>& whichEntries) {
+  if(whichEntries.size() == 0)
+    return;
+  assert(whichEntries.size() > pos);
+  if(whichEntries[pos] == nullptr)
+    return;
+
   if(lastPos == pos) {
-    PolicyBiasEntry& entry_ = *(entries[pos]);
+    PolicyBiasEntry& entry_ = *(whichEntries[pos]);
     while(entry_.entryLock.test_and_set(std::memory_order_acquire));
     double average = entry_.average.load(std::memory_order_acquire);
     double oldWeight = entry_.weightSum.load(std::memory_order_acquire);
@@ -153,9 +200,9 @@ void PolicyBiasHandle::updateValue(double newSumThisNode, double newWeightThisNo
     return;
   }
 
-  revertUpdates(1.0);
+  maybeRevertUpdates(1.0, whichEntries);
 
-  PolicyBiasEntry& entry_ = *(entries[pos]);
+  PolicyBiasEntry& entry_ = *(whichEntries[pos]);
   while(entry_.entryLock.test_and_set(std::memory_order_acquire));
   double average = entry_.average.load(std::memory_order_acquire);
   double oldWeight = entry_.weightSum.load(std::memory_order_acquire);
@@ -180,7 +227,7 @@ PolicyBiasTable::PolicyBiasTable(const Search* search_)
   : search(search_), freePropEnabled(true)
 {
   initIfNeeded();
-  uint32_t numShards = Board::MAX_ARR_SIZE;
+  uint32_t numShards = 4;
   mutexPool = new MutexPool(numShards);
   expectedNNXLen = -1;
   expectedNNYLen = -1;
@@ -234,7 +281,8 @@ void PolicyBiasTable::get(
   int nnXLen,
   int nnYLen,
   const Board& board,
-  const BoardHistory& hist
+  const BoardHistory& hist,
+  const SearchParams& params
 ) {
   if(nnXLen != expectedNNXLen || nnYLen != expectedNNYLen) {
     throw StringError(
@@ -250,17 +298,25 @@ void PolicyBiasTable::get(
   buf.lastWeight = 0.0;
   buf.lastPos = -1;
   buf.table = this;
-  buf.entries = std::vector<std::shared_ptr<PolicyBiasEntry>>(nnXLen * nnYLen + 1, nullptr);
+
+  if(params.policyBiasFactor > 0)
+    buf.entries = std::vector<std::shared_ptr<PolicyBiasEntry>>(nnXLen * nnYLen + 1, nullptr);
+  if(params.policyBiasReplyFactor > 0)
+    buf.replyEntries = std::vector<std::shared_ptr<PolicyBiasEntry>>(nnXLen * nnYLen + 1, nullptr);
+
+  // Only needed for params.policyBiasReplyFactor and not params.policyBiasFactor but testing it here
+  // and having it apply to both is simpler
   if(prevMoveLoc == Board::NULL_LOC) {
     return;
   }
 
-  Hash128 commonHash = ZOBRIST_PREV_MOVE_LOCS[prevMoveLoc];
+  Hash128 commonHash = ZOBRIST_PLAYER[pla];
   if(board.ko_loc != Board::NULL_LOC) {
     commonHash ^= ZOBRIST_KO_BAN[board.ko_loc];
   }
+  Hash128 commonReplyHash = ZOBRIST_PREV_MOVE_LOCS[prevMoveLoc];
 
-  uint32_t subMapIdx = (uint32_t)prevMoveLoc;
+  uint32_t subMapIdx = (uint32_t)pla;
   std::mutex& mutex = mutexPool->getMutex(subMapIdx);
   std::lock_guard<std::mutex> lock(mutex);
 
@@ -269,10 +325,19 @@ void PolicyBiasTable::get(
       Loc loc = Location::getLoc(x,y,board.x_size);
       if(hist.isLegal(board,loc,pla)) {
         Hash128 hash = commonHash ^ ZOBRIST_MOVE_LOCS[loc] ^ patternHasher.getHash(board,loc,pla);
-        std::shared_ptr<PolicyBiasEntry>& slot = entries[subMapIdx][hash];
-        if(slot == nullptr)
-          slot = std::make_shared<PolicyBiasEntry>();
-        buf.entries[NNPos::xyToPos(x,y,nnXLen)] = slot;
+        int pos = NNPos::xyToPos(x,y,nnXLen);
+        if(params.policyBiasFactor > 0) {
+          std::shared_ptr<PolicyBiasEntry>& slot = entries[subMapIdx][hash];
+          if(slot == nullptr)
+            slot = std::make_shared<PolicyBiasEntry>();
+          buf.entries[pos] = slot;
+        }
+        if(params.policyBiasReplyFactor > 0) {
+          std::shared_ptr<PolicyBiasEntry>& slot = entries[subMapIdx][hash ^ commonReplyHash];
+          if(slot == nullptr)
+            slot = std::make_shared<PolicyBiasEntry>();
+          buf.replyEntries[pos] = slot;
+        }
       }
     }
   }

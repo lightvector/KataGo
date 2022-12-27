@@ -32,6 +32,8 @@ struct SubtreeValueBiasHandle {
   ~SubtreeValueBiasHandle();
   void clear();
 
+  inline bool isNull() const { return entry == nullptr; };
+
   // Get the average bias value averaged across all nodes with this entry
   double getValue() const;
   // Update this node's contribution to the bias among all nodes with this entry,
