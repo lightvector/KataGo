@@ -21,6 +21,11 @@ shift
 USEGATING="$1"
 shift
 
+PYTHON_BIN=python3
+if [ ${OS} == "Windows_NT" ] && [ ! -z "${CONDA_PYTHON_EXE}" ]; then
+  PYTHON_BIN=python
+fi
+
 #------------------------------------------------------------------------------
 
 mkdir -p "$BASEDIR"/tfsavedmodels_toexport
@@ -64,7 +69,7 @@ function exportStuff() {
                 mkdir "$TMPDST"
 
                 set -x
-                python3 ./export_model.py \
+                ${PYTHON_BIN} ./export_model.py \
                         -saved-model-dir "$SRC"/saved_model \
                         -export-dir "$TMPDST" \
                         -model-name "$NAMEPREFIX""-""$NAME" \

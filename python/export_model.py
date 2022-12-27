@@ -89,7 +89,7 @@ with tf.compat.v1.Session(config=tfconfig) as session:
   sys.stderr.flush()
 
   if not for_cuda:
-    tf.train.write_graph(session.graph_def,export_dir,filename_prefix + ".graph.pb")
+    tf.io.write_graph(session.graph_def,export_dir,filename_prefix + ".graph.pb")
     savepath = export_dir + "/" + filename_prefix
     saver.save(session, savepath + ".weights")
     with open(savepath + ".config.json","w") as f:

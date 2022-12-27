@@ -28,6 +28,11 @@ shift
 EXPORTMODE="$1"
 shift
 
+PYTHON_BIN=python3
+if [ ${OS} == "Windows_NT" ] && [ ! -z "${CONDA_PYTHON_EXE}" ]; then
+  PYTHON_BIN=python
+fi
+
 GITROOTDIR="$(git rev-parse --show-toplevel)"
 
 #------------------------------------------------------------------------------
@@ -65,7 +70,7 @@ else
     exit 1
 fi
 
-time python3 "$GITROOTDIR"/python/train.py \
+time ${PYTHON_BIN} "$GITROOTDIR"/python/train.py \
      -traindir "$BASEDIR"/train/"$TRAININGNAME" \
      -datadir "$BASEDIR"/shuffleddata/current/ \
      -exportdir "$BASEDIR"/"$EXPORT_SUBDIR" \

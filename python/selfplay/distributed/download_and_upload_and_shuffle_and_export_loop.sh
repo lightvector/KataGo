@@ -32,6 +32,11 @@ shift
 RATING_ONLY="$1"
 shift
 
+PYTHON_BIN=python3
+if [ ${OS} == "Windows_NT" ] && [ ! -z "${CONDA_PYTHON_EXE}" ]; then
+  PYTHON_BIN=python
+fi
+
 #We're not really using gating, but the upload script expects them to be where gating would put them
 #and using gating disables the export script from making extraneous selfplay data dirs.
 USEGATING=1
@@ -69,7 +74,7 @@ cp -r "$GITROOTDIR"/python/selfplay "$DATED_ARCHIVE"
         cd "$basedir"/scripts
         while true
         do
-            time python3 ./summarize_old_selfplay_files.py "$basedir"/selfplay/ \
+            time ${PYTHON_BIN} ./summarize_old_selfplay_files.py "$basedir"/selfplay/ \
                  -old-summary-file-to-assume-correct "$basedir"/selfplay.summary.json \
                  -new-summary-file "$basedir"/selfplay.summary.json.tmp
             mv "$basedir"/selfplay.summary.json.tmp "$basedir"/selfplay.summary.json

@@ -23,6 +23,11 @@ shift
 BATCHSIZE="$1"
 shift
 
+PYTHON_BIN=python3
+if [ ${OS} == "Windows_NT" ] && [ ! -z "${CONDA_PYTHON_EXE}" ]; then
+  PYTHON_BIN=python
+fi
+
 #------------------------------------------------------------------------------
 
 OUTDIR=$(date "+%Y%m%d-%H%M%S")
@@ -37,7 +42,7 @@ echo "Beginning shuffle at" $(date "+%Y-%m-%d %H:%M:%S")
 
 #set -x
 (
-    time python3 ./shuffle.py \
+    time ${PYTHON_BIN} ./shuffle.py \
          "$BASEDIR"/selfplay/ \
          -expand-window-per-row 0.4 \
          -taper-window-exponent 0.65 \

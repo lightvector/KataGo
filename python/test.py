@@ -65,7 +65,7 @@ if using_tfrecords:
   dataset = dataset.flat_map(lambda fname: tf.data.TFRecordDataset(fname,compression_type="ZLIB"))
   parse_input = tfrecordio.make_tf_record_parser(model_config,pos_len,batch_size)
   dataset = dataset.map(parse_input)
-  iterator = dataset.make_one_shot_iterator()
+  iterator = tf.compat.v1.data.make_one_shot_iterator(dataset)
   features = iterator.get_next()
 elif using_npz:
   features = tfrecordio.make_raw_input_feature_placeholders(model_config,pos_len,batch_size)
