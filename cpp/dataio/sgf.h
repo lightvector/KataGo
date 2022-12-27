@@ -97,9 +97,9 @@ struct Sgf {
     //Return a copy of this sample with all player stones and moves flipped to the opposite color
     Sgf::PositionSample getColorFlipped() const;
 
-    //Return a copy of this sample except one move earlier 
+    //Return a copy of this sample except one move earlier
     Sgf::PositionSample previousPosition(double newWeight) const;
-    
+
     //For the moment, only used in testing since it does extra consistency checks.
     //If we need a version to be used in "prod", we could make an efficient version maybe as operator==.
     bool isEqualForTesting(const PositionSample& other, bool checkNumCaptures, bool checkSimpleKo) const;

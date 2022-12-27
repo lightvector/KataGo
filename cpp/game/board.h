@@ -216,12 +216,20 @@ struct Board
   //when also using a BoardHistory, since the BoardHistory may not know about this change, or the game could be in cleanup phase, etc.
   void setSimpleKoLoc(Loc loc);
 
-  //Sets the specified stone if possible. Returns true usually, returns false location or color were out of range.
+  //Sets the specified stone if possible, including overwriting existing stones.
+  //Resolves any captures and/or suicides that result from setting that stone, including deletions of the stone itself.
+  //Returns false if location or color were out of range.
   bool setStone(Loc loc, Color color);
-  //Sets multiple stones, in a way that is safer compared to setting them one by one.
-  //Fails and returns false if anything would result in a zero liberty group, leaving the board in an arbitrarily changed but valid state.
-  //Does *not* fail if zero liberties is encountered partway through setting the stones but only temporarily.
-  bool setStonesFailIfNoLibs(std::vector<Move> placements);  
+
+  //Sets the specified stone, including overwriting existing stones, but only if doing so will
+  //not result in any captures or zero liberty groups.
+  //Returns false if location or color were out of range, or if would cause a zero liberty group.
+  //In case of failure, will restore the position, but may result in chain ids or ordering in the board changing.
+  bool setStoneFailIfNoLibs(Loc loc, Color color);
+  //Same, but sets multiple stones, and only requires that the final configuration contain no zero-liberty groups.
+  //If it does contain a zero liberty group, fails and returns false and leaves the board in an arbitrarily changed but valid state.
+  //Also returns false if any location is specified more than once.
+  bool setStonesFailIfNoLibs(std::vector<Move> placements);
 
   //Attempts to play the specified move. Returns true if successful, returns false if the move was illegal.
   bool playMove(Loc loc, Player pla, bool isMultiStoneSuicideLegal);

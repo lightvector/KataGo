@@ -525,19 +525,14 @@ struct GTPEngine {
     int newXSize = bot->getRootBoard().x_size;
     int newYSize = bot->getRootBoard().y_size;
     Board board(newXSize,newYSize);
-    for(int i = 0; i<initialStones.size(); i++) {
-      if(!board.isOnBoard(initialStones[i].loc) || board.colors[initialStones[i].loc] != C_EMPTY) {
-        return false;
-      }
-      bool suc = board.setStone(initialStones[i].loc, initialStones[i].pla);
-      if(!suc) {
-        return false;
-      }
-    }
+    bool suc = board.setStonesFailIfNoLibs(initialStones);
+    if(!suc)
+      return false;
 
-    //Make sure nothing died along the way
+    //Sanity check
     for(int i = 0; i<initialStones.size(); i++) {
       if(board.colors[initialStones[i].loc] != initialStones[i].pla) {
+        assert(false);
         return false;
       }
     }
@@ -2664,7 +2659,7 @@ int MainCmds::gtp(const vector<string>& args) {
         response = "Board is not empty";
       }
       else {
-        vector<Loc> locs;
+        vector<Move> locs;
         int xSize = engine->bot->getRootBoard().x_size;
         int ySize = engine->bot->getRootBoard().y_size;
         Board board(xSize,ySize);
@@ -2675,16 +2670,20 @@ int MainCmds::gtp(const vector<string>& args) {
             responseIsError = true;
             response = "Invalid handicap location: " + pieces[i];
           }
-          locs.push_back(loc);
+          locs.push_back(Move(loc,P_BLACK));
         }
-        for(int i = 0; i<locs.size(); i++)
-          board.setStone(locs[i],P_BLACK);
-
-        Player pla = P_WHITE;
-        BoardHistory hist(board,pla,engine->getCurrentRules(),0);
-        hist.setInitialTurnNumber(board.numStonesOnBoard()); //Should give more accurate temperaure and time control behavior
-        vector<Move> newMoveHistory;
-        engine->setPositionAndRules(pla,board,hist,board,pla,newMoveHistory);
+        bool suc = board.setStonesFailIfNoLibs(locs);
+        if(!suc) {
+          responseIsError = true;
+          response = "Handicap placement is invalid";
+        }
+        else {
+          Player pla = P_WHITE;
+          BoardHistory hist(board,pla,engine->getCurrentRules(),0);
+          hist.setInitialTurnNumber(board.numStonesOnBoard()); //Should give more accurate temperaure and time control behavior
+          vector<Move> newMoveHistory;
+          engine->setPositionAndRules(pla,board,hist,board,pla,newMoveHistory);
+        }
       }
     }
 
@@ -3059,21 +3058,31 @@ int MainCmds::gtp(const vector<string>& args) {
             else
               cout << "=" << endl;
 
-            PlayUtils::BenchmarkResults results = PlayUtils::benchmarkSearchOnPositionsAndPrint(
-              params,
-              sgf,
-              10,
-              engine->nnEval,
-              baseline,
-              secondsPerGameMove,
-              printElo
-            );
-            (void)results;
-            delete sgf;
-            //Act of benchmarking will write to stdout with a newline at the end, so we just need one more newline ourselves
-            //to complete GTP protocol.
-            suppressResponse = true;
-            cout << endl;
+            try {
+              PlayUtils::BenchmarkResults results = PlayUtils::benchmarkSearchOnPositionsAndPrint(
+                params,
+                sgf,
+                10,
+                engine->nnEval,
+                baseline,
+                secondsPerGameMove,
+                printElo
+              );
+              (void)results;
+            }
+            catch(const StringError& e) {
+              responseIsError = true;
+              response = e.what();
+              delete sgf;
+              sgf = NULL;
+            }
+            if(sgf != NULL) {
+              delete sgf;
+              //Act of benchmarking will write to stdout with a newline at the end, so we just need one more newline ourselves
+              //to complete GTP protocol.
+              suppressResponse = true;
+              cout << endl;
+            }
           }
         }
       }

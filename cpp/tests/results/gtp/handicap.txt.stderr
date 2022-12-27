@@ -353,3 +353,4 @@ L5  : T  60.14c W  59.92c S   2.81c ( +8.9 L  +9.1) LCB  -14.12c P  2.93% WF   2
 G10 : T  56.90c W  54.65c S   2.25c ( +8.4 L  +8.7) LCB -293.10c P  2.77% WF   1.0 PSV       0 N       1  --  G10
 E11 : T  59.42c W  57.26c S   2.16c ( +8.3 L  +8.8) LCB -290.58c P  2.39% WF   1.0 PSV       0 N       1  --  E11
 C11 : T  58.44c W  56.56c S   1.88c ( +8.0 L  +8.4) LCB -291.56c P  2.36% WF   1.0 PSV       0 N       1  --  C11
+Initializing board with boardXSize 2 boardYSize 2

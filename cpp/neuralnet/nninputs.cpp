@@ -668,12 +668,14 @@ Board SymmetryHelpers::getSymBoard(const Board& board, int symmetry) {
       if(transpose)
         std::swap(symX,symY);
       Loc symLoc = Location::getLoc(symX,symY,symBoard.x_size);
-      symBoard.setStone(symLoc,board.colors[loc]);
+      bool suc = symBoard.setStoneFailIfNoLibs(symLoc,board.colors[loc]);
+      assert(suc);
+      (void)suc;
       if(loc == board.ko_loc)
         symKoLoc = symLoc;
     }
   }
-  //Set only at the end because otherwise setStone clears it.
+  //Set only at the end because otherwise setStoneFailIfNoLibs clears it.
   if(symKoLoc != Board::NULL_LOC)
     symBoard.setSimpleKoLoc(symKoLoc);
   return symBoard;

@@ -672,7 +672,7 @@ void Sgf::iterAllUniquePositionsHelper(
             "Illegal placements in " + fileName + " SGF trace (branches 0-indexed): " + trace.str()
           );
         }
-        
+
         board.clearSimpleKoLoc();
         //Clear history any time placements happen, but make sure we track the initial turn number.
         initialTurnNumber += (int)hist.moveHistory.size();
@@ -931,8 +931,11 @@ Sgf::PositionSample Sgf::PositionSample::getColorFlipped() const {
   for(int y = 0; y < other.board.y_size; y++) {
     for(int x = 0; x < other.board.x_size; x++) {
       Loc loc = Location::getLoc(x,y,other.board.x_size);
-      if(other.board.colors[loc] == C_BLACK || other.board.colors[loc] == C_WHITE)
-        newBoard.setStone(loc, getOpp(other.board.colors[loc]));
+      if(other.board.colors[loc] == C_BLACK || other.board.colors[loc] == C_WHITE) {
+        bool suc = newBoard.setStoneFailIfNoLibs(loc, getOpp(other.board.colors[loc]));
+        assert(suc);
+        (void)suc;
+      }
     }
   }
   other.board = newBoard;
@@ -1418,10 +1421,9 @@ void CompactSgf::setupInitialBoardAndHist(const Rules& initialRules, Board& boar
   }
 
   board = Board(xSize,ySize);
-  for(int i = 0; i<placements.size(); i++) {
-    board.setStone(placements[i].loc,placements[i].pla);
-  }
-
+  bool suc = board.setStonesFailIfNoLibs(placements);
+  if(!suc)
+    throw StringError("setupInitialBoardAndHist: initial board position contains invalid stones or zero-liberty stones");
   hist = BoardHistory(board,nextPla,initialRules,0);
 }
 

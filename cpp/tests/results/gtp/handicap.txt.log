@@ -565,5 +565,43 @@ E11 : T  59.42c W  57.26c S   2.16c ( +8.3 L  +8.8) LCB -290.58c P  2.39% WF   1
 C11 : T  58.44c W  56.56c S   1.88c ( +8.0 L  +8.4) LCB -291.56c P  2.36% WF   1.0 PSV       0 N       1  --  C11
 
 : = J4
+: Controller: clear_board
+: = 
+: Controller: boardsize 2
 : GPU -1 finishing, processed 218 rows 218 batches
+: Cleaned up old neural net and bot
+: nnRandSeed0 = forTesting
+: After dedups: nnModelFile0 = tests/models/g170-b6c96-s175395328-d26788732.bin.gz useFP16 false useNHWC false
+: Initializing neural net buffer to be size 2 * 2 exactly
+: Cuda backend thread 0: Found GPU NVIDIA RTX A5000 memory 25434652672 compute capability major 8 minor 6
+: Cuda backend thread 0: Model version 8 useFP16 = false useNHWC = false
+: Cuda backend thread 0: Model name: g170-b6c96-s175395328-d26788732
+: Loaded neural net with nnXLen 2 nnYLen 2
+: Initializing board with boardXSize 2 boardYSize 2
+: = 
+: Controller: set_free_handicap a1 b1 a2
+: = 
+: Controller: showboard
+: = MoveNum: 0 HASH: 5D1FC6E3275F269C5B6E7FD1730E9E7B
+   A B
+ 2 X .
+ 1 X X
+Next player: White
+Rules: {"friendlyPassOk":false,"hasButton":false,"ko":"POSITIONAL","komi":7.5,"scoring":"AREA","suicide":true,"tax":"NONE","whiteHandicapBonus":"0"}
+B stones captured: 0
+W stones captured: 0
+: Controller: clear_board
+: = 
+: Controller: set_free_handicap a1 b1 a2 b2
+: ? Handicap placement is invalid
+: Controller: showboard
+: = MoveNum: 0 HASH: CEA26448910A5BF5F35A3098A28FEA31
+   A B
+ 2 . .
+ 1 . .
+Next player: Black
+Rules: {"friendlyPassOk":false,"hasButton":false,"ko":"POSITIONAL","komi":7.5,"scoring":"AREA","suicide":true,"tax":"NONE","whiteHandicapBonus":"0"}
+B stones captured: 0
+W stones captured: 0
+: GPU -1 finishing, processed 0 rows 0 batches
 : All cleaned up, quitting
