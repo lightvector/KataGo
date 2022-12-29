@@ -267,6 +267,7 @@ bool OpenCLParams::HGemmWmmaParams::isValid() const {
   if(!isMultipleOf(NWG,NWAVE)) return false;
   if(!isMultipleOf(MWAVE,MWARP)) return false;
   if(!isMultipleOf(NWAVE,NWARP)) return false;
+  if(!isMultipleOf(KWG,16)) return false;
   if(!((MWARP == 8 && NWARP == 32) || (MWARP == 16 && NWARP == 16) || (MWARP == 32 && NWARP == 8))) return false;
 
   const int WARP_SIZE = 32;

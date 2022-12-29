@@ -1,6 +1,8 @@
 #ifdef USE_OPENCL_BACKEND
 
 #include "../neuralnet/openclhelpers.h"
+
+#include "../core/test.h"
 #include "../neuralnet/opencltuner.h"
 
 using namespace std;
@@ -629,7 +631,8 @@ size_t OpenCLHelpers::roundUpToMultiple(size_t size, size_t ofThis) {
 
 int OpenCLHelpers::roundUpToMultipleInt(size_t size, size_t ofThis) {
   size_t result = (size + ofThis - 1) / ofThis * ofThis;
-  assert(result <= (size_t)0x7FFFffffULL);
+  // Always check this regardless of ndebug
+  testAssert(result <= (size_t)0x7FFFffffULL);
   return (int)result;
 }
 
@@ -655,9 +658,10 @@ cl_int OpenCLHelpers::doBatchedXGemm_KM_KN_NM(
   clSetKernelArg(kernel,10, sizeof(int), (void *)&M);
   clSetKernelArg(kernel,11, sizeof(int), (void *)&N);
 
-  assert(M % tuneParams.MWG == 0);
-  assert(N % tuneParams.NWG == 0);
-  assert(K % tuneParams.KWG == 0);
+  // Always check these
+  testAssert(M % tuneParams.MWG == 0);
+  testAssert(N % tuneParams.NWG == 0);
+  testAssert(K % tuneParams.KWG == 0);
 
   static constexpr int nKernelDims = 3;
   const size_t MDIMC = tuneParams.MDIMC;
@@ -691,9 +695,15 @@ cl_int OpenCLHelpers::doBatchedHGemmWmma_KM_KN_NM(
   clSetKernelArg(kernel, 4, sizeof(cl_mem), (void *)&B);
   clSetKernelArg(kernel, 5, sizeof(cl_mem), (void *)&C);
 
-  assert(M % tuneParams.hGemmWmma.MWG == 0);
-  assert(N % tuneParams.hGemmWmma.NWG == 0);
-  assert(K % tuneParams.hGemmWmma.KWG == 0);
+  // Always check these
+  testAssert(M % tuneParams.hGemmWmma.MWG == 0);
+  testAssert(N % tuneParams.hGemmWmma.NWG == 0);
+  testAssert(K % tuneParams.hGemmWmma.KWG == 0);
+
+  // FP16 requires this. Should be checked in tuner, so these should be true at this point.
+  assert(tuneParams.hGemmWmma.KWG % 16 == 0);
+  assert(tuneParams.hGemmWmma.MWG % 8 == 0);
+  assert(tuneParams.hGemmWmma.NWG % 8 == 0);
 
   static constexpr int nKernelDims = 3;
   const size_t MWAVE = tuneParams.hGemmWmma.MWAVE;
