@@ -1,9 +1,9 @@
 /*
- * This is an FP16 tensor-core implementation of matrix multiplication, designed to work with
- * in conjunction with the same "common.opencl" of the CLBlast library's xgemm, and heavily
- * based around similar structures as their implementation and shares the vast majority of their
- * naming convention for things. It is also very similar to an implementation by Leela Zero.
- * See also https://github.com/CNugteren/CLBlast and https://github.com/leela-zero/leela-zero
+ * This is similar to hgemm_wmma.opencl, but designed to assume matrix A is in NCHW format
+ * and automatically adds appropriate padding when loading matrix A.
+ * Requires and assumes that C is a multiple of KWG, and that matrix B's dimensions are a
+ * multiple of NWG and KWG.
+ * Assumes matrix B has C as the outer dimension and OC as the inner dimension.
  *
  * Author: David J Wu ("lightvector")
  */
@@ -41,18 +41,21 @@ R"%%(
   //Total amount of N that we process per wmma call, by a single warp
   #define NWARP 16
 #endif
-#ifndef VWM
-  //Vector width for loading data
-  #define VWM 1
-#endif
+
+//VWM is always 1 for this implementation because we need to not overshoot on loads from odd-sized boards.
+//This define is not actually used, we specialized the implementation to assume it is 1.
+//Vector width for loading data
+#define VWM 1
+
 #ifndef VWN
   //Vector width for loading data
   #define VWN 1
 #endif
-#ifndef SA
-  //Use local memory?
-  #define SA 0
-#endif
+
+//SA is always 1 for this implementation because it also performs padding to handle the NCHW
+//This define is not actually used, we specialized the implementation to assume it is 1.
+#define SA 1
+
 #ifndef SB
   //Use local memory?
   #define SB 0
@@ -65,22 +68,12 @@ R"%%(
 #define MWI (MWG/MWAVE)
 #define NWI (NWG/NWAVE)
 
-#if SA == 1
-  #if MWARP == 16 && NWARP == 16
-  #define WMMA_LOAD_A "wmma.load.a.sync.aligned.col.m16n16k16.shared.f16"
-  #elif MWARP == 8 && NWARP == 32
-  #define WMMA_LOAD_A "wmma.load.a.sync.aligned.col.m8n32k16.shared.f16"
-  #elif MWARP == 32 && NWARP == 8
-  #define WMMA_LOAD_A "wmma.load.a.sync.aligned.col.m32n8k16.shared.f16"
-  #endif
-#else
-  #if MWARP == 16 && NWARP == 16
-  #define WMMA_LOAD_A "wmma.load.a.sync.aligned.col.m16n16k16.global.f16"
-  #elif MWARP == 8 && NWARP == 32
-  #define WMMA_LOAD_A "wmma.load.a.sync.aligned.col.m8n32k16.global.f16"
-  #elif MWARP == 32 && NWARP == 8
-  #define WMMA_LOAD_A "wmma.load.a.sync.aligned.col.m32n8k16.global.f16"
-  #endif
+#if MWARP == 16 && NWARP == 16
+#define WMMA_LOAD_A "wmma.load.a.sync.aligned.col.m16n16k16.shared.f16"
+#elif MWARP == 8 && NWARP == 32
+#define WMMA_LOAD_A "wmma.load.a.sync.aligned.col.m8n32k16.shared.f16"
+#elif MWARP == 32 && NWARP == 8
+#define WMMA_LOAD_A "wmma.load.a.sync.aligned.col.m32n8k16.shared.f16"
 #endif
 
 #if SB == 1
@@ -113,22 +106,8 @@ R"%%(
 #endif
 
 
-#if VWM == 1
-  #define LOADM(__buf,__x) vload((__x),(__buf))
-  #define STOREM(__buf,__x,__val) vstore((__val),(__x),(__buf))
-#elif VWM == 2
-  #define LOADM(__buf,__x) vload2((__x),(__buf))
-  #define STOREM(__buf,__x,__val) vstore2((__val),(__x),(__buf))
-#elif VWM == 4
-  #define LOADM(__buf,__x) vload4((__x),(__buf))
-  #define STOREM(__buf,__x,__val) vstore4((__val),(__x),(__buf))
-#elif VWM == 8
-  #define LOADM(__buf,__x) vload8((__x),(__buf))
-  #define STOREM(__buf,__x,__val) vstore8((__val),(__x),(__buf))
-#elif VWM == 16
-  #define LOADM(__buf,__x) vload16((__x),(__buf))
-  #define STOREM(__buf,__x,__val) vstore16((__val),(__x),(__buf))
-#endif
+#define LOADM(__buf,__x) vload((__x),(__buf))
+#define STOREM(__buf,__x,__val) vstore((__val),(__x),(__buf))
 
 #if VWN == 1
   #define LOADN(__buf,__x) vload((__x),(__buf))
@@ -148,35 +127,41 @@ R"%%(
 #endif
 
 
-#if SA == 1
-//Loads a KWG * MWG sized chunk from agm to alm
+//Loads a KWG * MWG sized chunk from agm to alm, padding with zeros if hw goes out of bounds.
 //K is the outer dimension
+//Unlike GlobalToLocalB, expects agm to point to the start of the hw dimension, rather than be pre-offset for the chunk
+//to be loaded, and makes up for it by passing the offset, hwStart, here.
 INLINE_FUNC void GlobalToLocalA(
   const __global short* restrict agm, LOCAL_PTR short* alm,
-  const int tid, const int kSizeM, const int numThreads
+  const int tid, const int hwStart, const int hwSize, const int numThreads
 ) {
-  const int tileSizeInVecs = MWG * KWG / VWM;
-  const int srcStrideInVecs = kSizeM / VWM;
+  const int tileSize = MWG * KWG;
+  const int srcStride = hwSize;
   #pragma unroll
-  for(int i = tid; i < tileSizeInVecs; i += numThreads) {
-    int m = i % (MWG / VWM);
-    int k = i / (MWG / VWM);
-    int srcIdx = m + k*srcStrideInVecs;
-    int dstIdx = i;
-    STOREM(alm, dstIdx, LOADM(agm, srcIdx));
+  for(int i = tid; i < tileSize; i += numThreads) {
+    int m = i % MWG;
+    int k = i / MWG;
+    int hw = m+hwStart;
+
+    short val = 0;
+    if(hw < hwSize) {
+      int srcIdx = hw + k*srcStride;
+      int dstIdx = i;
+      val = LOADM(agm, srcIdx);
+    }
+    STOREM(alm, dstIdx, val);
   }
 }
-#endif
 
 #if SB == 1
 //Loads a KWG * NWG sized chunk from bgm to blm
 //K is the outer dimension
 INLINE_FUNC void GlobalToLocalB(
   const __global short* restrict bgm, LOCAL_PTR short* blm,
-  const int tid, const int kSizeN, const int numThreads
+  const int tid, const int ocSize, const int numThreads
 ) {
   const int tileSizeInVecs = NWG * KWG / VWN;
-  const int srcStrideInVecs = kSizeN / VWN;
+  const int srcStrideInVecs = ocSize / VWN;
   #pragma unroll
   for(int i = tid; i < tileSizeInVecs; i += numThreads) {
     int n = i % (NWG / VWN);
@@ -188,19 +173,46 @@ INLINE_FUNC void GlobalToLocalB(
 }
 #endif
 
-INLINE_FUNC void hGemmWmmaBody(
-  const int kSizeM, const int kSizeN, const int kSizeK,
+
+//Stores a NWG * MWG sized chunk from clm to cgm, skipping where hw goes out of bounds.
+//N is the outer dimension.
+//NWG goes across oc, MWG goes across hw.
+//Unlike GlobalToLocalB, expects cgm to point to the start of the hw dimension, rather than be pre-offset for the chunk
+//to be loaded, and makes up for it by passing the offset, hwStart, here.
+INLINE_FUNC void LocalToGlobalC(
+  const __global short* restrict cgm, LOCAL_PTR short* clm,
+  const int tid, const int hwStart, const int hwSize, const int numThreads
+) {
+  const int tileSize = MWG * NWG;
+  const int dstStride = hwSize;
+  #pragma unroll
+  for(int i = tid; i < tileSize; i += numThreads) {
+    int m = i % MWG;
+    int n = i / MWG;
+    int hw = m+hwStart;
+
+    if(hw < hwSize) {
+      int dstIdx = hw + n*dstStride;
+      int srcIdx = i;
+      STOREM(cgm, dstIdx, LOADM(clm, srcIdx));
+    }
+  }
+}
+
+
+# A is shape [C,H,W], row major
+# B is shape [C,OC], row major
+# Relative to hgemm_wmma.opencl, "hwSize" is "kSizeM" and "cSize" is kSizeK" and "ocSize" is "kSizeN".
+INLINE_FUNC void hGemmWmmaCHWBody(
+  const int cSize, const int hwSize, const int ocSize,
   const __global half* restrict agm, const __global half* restrict bgm,
   __global half* cgm
-  #if SA == 1 && SB == 1
-  , LOCAL_PTR short* alm, LOCAL_PTR short* blm
-  #elif SA == 1
-  , LOCAL_PTR short* alm
-  #elif SB == 1
-  , LOCAL_PTR short* blm
+  #if SB == 1
+  , LOCAL_PTR short* alm, LOCAL_PTR short* blm, LOCAL_PTR short* clm
+  #else
+  , LOCAL_PTR short* alm, LOCAL_PTR short* clm
   #endif
 ) {
-  //printf("OVERALL %d %d %d %p %p %p %p %p %p\n", kSizeM, kSizeN, kSizeK, agm, agm+kSizeM*kSizeK, bgm, bgm+kSizeN*kSizeK, cgm, cgm+kSizeM*kSizeN);
   const int groupId0 = get_group_id(0);
   const int groupId1 = get_group_id(1);
   const int wmmaBlockId0 = get_local_id(0) / WARP_SIZE;
@@ -227,17 +239,14 @@ INLINE_FUNC void hGemmWmmaBody(
     }
   }
 
-  //Process KWG-size chunks of K at a time.
-  for(int kwg = 0; kwg < kSizeK; kwg += KWG) {
-    #if SA == 1
-      GlobalToLocalA((const __global short*)(agm + (kwg*kSizeM + groupId0 * MWG)), alm, tid, kSizeM, numThreads);
-    #endif
+  //Process KWG-size chunks of cSize at a time.
+  for(int kwg = 0; kwg < cSize; kwg += KWG) {
+    GlobalToLocalA((const __global short*)(agm + (kwg*hwSize)), alm, tid, groupId0 * MWG, hwSize, numThreads);
     #if SB == 1
-      GlobalToLocalB((const __global short*)(bgm + (kwg*kSizeN + groupId1 * NWG)), blm, tid, kSizeN, numThreads);
+      GlobalToLocalB((const __global short*)(bgm + (kwg*ocSize + groupId1 * NWG)), blm, tid, ocSize, numThreads);
     #endif
-    #if SA == 1 || SB == 1
-      barrier(CLK_LOCAL_MEM_FENCE);
-    #endif
+
+    barrier(CLK_LOCAL_MEM_FENCE);
 
     //Process KDIM_WMMA-size chunks of the KWG-sized chunk of K.
     //KDIM_WMMA is the size of
@@ -249,13 +258,9 @@ INLINE_FUNC void hGemmWmmaBody(
       int a[MWI][8];
       for(int aWaveId = 0; aWaveId<MWI; aWaveId++) {
         const int aOffset = aWaveId * MWAVE + wmmaBlockId0 * MWARP;
-        #if SA == 1
-          const int aStride = MWG;
-          const LOCAL_PTR half* aSrc = (const LOCAL_PTR half*)(alm + (aOffset + kWaveOffset*aStride));
-        #else
-          const int aStride = kSizeM;
-          const __global half* aSrc = agm + (aOffset + groupId0*MWG + (kWaveOffset+kwg)*aStride);
-        #endif
+
+        const int aStride = MWG;
+        const LOCAL_PTR half* aSrc = (const LOCAL_PTR half*)(alm + (aOffset + kWaveOffset*aStride));
 
         /*
         printf("ReadingA tid %d (%d,%d) awid %d wmmab %d / kwg %d kwoff %d %p %d %d\n", tid, groupId0, groupId1, aWaveId, wmmaBlockId0, kwg, kWaveOffset, aSrc,
@@ -283,7 +288,7 @@ INLINE_FUNC void hGemmWmmaBody(
           const int bStride = NWG;
           const LOCAL_PTR half* bSrc = (const LOCAL_PTR half*)(blm + (bOffset + kWaveOffset*bStride));
         #else
-          const int bStride = kSizeN;
+          const int bStride = ocSize;
           const __global half* bSrc = bgm + (bOffset + groupId1*NWG + (kWaveOffset+kwg)*bStride);
         #endif
 
@@ -329,54 +334,53 @@ INLINE_FUNC void hGemmWmmaBody(
 
   #pragma unroll
   for(int bWaveId = 0; bWaveId<NWI; bWaveId++) {
-    const int bOffset = bWaveId * NWAVE + wmmaBlockId1 * NWARP + groupId1 * NWG;
+    const int bOffset = bWaveId * NWAVE + wmmaBlockId1 * NWARP; // + groupId1 * NWG; this part we don't need because we're storing to clm instead of cgm
     #pragma unroll
     for(int aWaveId = 0; aWaveId<MWI; aWaveId++) {
-      const int aOffset = aWaveId * MWAVE + wmmaBlockId0 * MWARP + groupId0 * MWG;
+      const int aOffset = aWaveId * MWAVE + wmmaBlockId0 * MWARP; // + groupId0 * MWG; this part we don't need because we're storing to clm instead of cgm
       const int c0 = c0Acc[bWaveId][aWaveId];
       const int c1 = c1Acc[bWaveId][aWaveId];
       const int c2 = c2Acc[bWaveId][aWaveId];
       const int c3 = c3Acc[bWaveId][aWaveId];
-      __global half* dst = cgm + (kSizeM * bOffset + aOffset);
+      //__global half* dst = cgm + (kSizeM * bOffset + aOffset);
+      const int mStride = MWG;
+      LOCAL_PTR half* dst = (LOCAL_PTR half*)(clm + (mStride * bOffset + aOffset));
       asm("{" WMMA_STORE " [%0], {%1,%2,%3,%4}, %5;}" :
         :
-        "l"(dst), "r"(c0), "r"(c1), "r"(c2), "r"(c3), "r"(kSizeM)
+        "l"(dst), "r"(c0), "r"(c1), "r"(c2), "r"(c3), "r"(mStride)
       );
     }
   }
+
+  barrier(CLK_LOCAL_MEM_FENCE);
+  LocalToGlobalC((const __global short*)(cgm + ((groupId1 * NWG)*hwSize)), clm, tid, groupId0 * MWG, hwSize, numThreads);
 }
 
 __kernel __attribute__((reqd_work_group_size(MWAVE/MWARP*WARP_SIZE, NWAVE/NWARP, 1)))
-void hgemmWmmaBatched(
-  const int kSizeM, const int kSizeN, const int kSizeK,
+void hgemmWmmaNCHW(
+  const int nSize, const int cSize, const int hwSize, const int ocSize,
   const __global half* restrict agm,
   const __global half* restrict bgm,
   __global half* restrict cgm
   ) {
   const int batch = get_group_id(2);
-  const int a_offset = batch * kSizeM * kSizeK;
-  const int b_offset = batch * kSizeN * kSizeK;
-  const int c_offset = batch * kSizeM * kSizeN;
+  const int a_offset = batch * cSize * hwSize;
+  const int c_offset = batch * ocSize * hwSize;
   const __global half* restrict agm_ = &agm[a_offset];
-  const __global half* restrict bgm_ = &bgm[b_offset];
+  const __global half* restrict bgm_ = bgm;
   __global half* restrict cgm_ = &cgm[c_offset];
 
-  #if SA == 1
-    __local short alm[KWG * MWG] __attribute__ ((aligned (32)));
-  #endif
+  __local short alm[KWG * MWG] __attribute__ ((aligned (32)));
   #if SB == 1
     __local short blm[KWG * NWG] __attribute__ ((aligned (32)));
   #endif
+  __local short clm[NWG * MWG] __attribute__ ((aligned (32)));
 
   // Computes the matrix-multiplication and stores the result in global memory
-  #if SA == 1 && SB == 1
-    hGemmWmmaBody(kSizeM, kSizeN, kSizeK, agm_, bgm_, cgm_, alm, blm);
-  #elif SA == 1
-    hGemmWmmaBody(kSizeM, kSizeN, kSizeK, agm_, bgm_, cgm_, alm);
-  #elif SB == 1
-    hGemmWmmaBody(kSizeM, kSizeN, kSizeK, agm_, bgm_, cgm_, blm);
+  #if SB == 1
+    hGemmWmmaCHWBody(cSize, hwSize, ocSize, agm_, bgm_, cgm_, alm, blm, clm);
   #else
-    hGemmWmmaBody(kSizeM, kSizeN, kSizeK, agm_, bgm_, cgm_);
+    hGemmWmmaCHWBody(cSize, hwSize, ocSize, agm_, bgm_, cgm_, alm, clm);
   #endif
 }
 
