@@ -96,13 +96,13 @@ R"%%(
 
 #if MWARP == 16 && NWARP == 16
 #define WMMA_MMA "wmma.mma.sync.aligned.col.row.m16n16k16.f16.f16"
-#define WMMA_STORE "wmma.store.d.sync.aligned.col.m16n16k16.global.f16"
+#define WMMA_STORE "wmma.store.d.sync.aligned.col.m16n16k16.shared.f16"
 #elif MWARP == 8 && NWARP == 32
 #define WMMA_MMA "wmma.mma.sync.aligned.col.row.m8n32k16.f16.f16"
-#define WMMA_STORE "wmma.store.d.sync.aligned.col.m8n32k16.global.f16"
+#define WMMA_STORE "wmma.store.d.sync.aligned.col.m8n32k16.shared.f16"
 #elif MWARP == 32 && NWARP == 8
 #define WMMA_MMA "wmma.mma.sync.aligned.col.row.m32n8k16.f16.f16"
-#define WMMA_STORE "wmma.store.d.sync.aligned.col.m32n8k16.global.f16"
+#define WMMA_STORE "wmma.store.d.sync.aligned.col.m32n8k16.shared.f16"
 #endif
 
 
@@ -144,9 +144,9 @@ INLINE_FUNC void GlobalToLocalA(
     int hw = m+hwStart;
 
     short val = 0;
+    int dstIdx = i;
     if(hw < hwSize) {
       int srcIdx = hw + k*srcStride;
-      int dstIdx = i;
       val = LOADM(agm, srcIdx);
     }
     STOREM(alm, dstIdx, val);
@@ -180,7 +180,7 @@ INLINE_FUNC void GlobalToLocalB(
 //Unlike GlobalToLocalB, expects cgm to point to the start of the hw dimension, rather than be pre-offset for the chunk
 //to be loaded, and makes up for it by passing the offset, hwStart, here.
 INLINE_FUNC void LocalToGlobalC(
-  const __global short* restrict cgm, LOCAL_PTR short* clm,
+  __global short* restrict cgm, const LOCAL_PTR short* clm,
   const int tid, const int hwStart, const int hwSize, const int numThreads
 ) {
   const int tileSize = MWG * NWG;
@@ -200,9 +200,9 @@ INLINE_FUNC void LocalToGlobalC(
 }
 
 
-# A is shape [C,H,W], row major
-# B is shape [C,OC], row major
-# Relative to hgemm_wmma.opencl, "hwSize" is "kSizeM" and "cSize" is kSizeK" and "ocSize" is "kSizeN".
+// A is shape [C,H,W], row major
+// B is shape [C,OC], row major
+// Relative to hgemm_wmma.opencl, "hwSize" is "kSizeM" and "cSize" is kSizeK" and "ocSize" is "kSizeN".
 INLINE_FUNC void hGemmWmmaCHWBody(
   const int cSize, const int hwSize, const int ocSize,
   const __global half* restrict agm, const __global half* restrict bgm,
@@ -253,7 +253,7 @@ INLINE_FUNC void hGemmWmmaCHWBody(
     for(int kWaveOffset = 0; kWaveOffset<KWG; kWaveOffset += KDIM_WMMA) {
 
       //Process MWAVE-sized chunks of MWG at a time, with each local_id within our group handling an MWARP chunk.
-      //Preload nto registers to cut in half the number of loads.
+      //Preload into registers to cut in half the number of loads.
       #pragma promote_to_registers
       int a[MWI][8];
       for(int aWaveId = 0; aWaveId<MWI; aWaveId++) {
@@ -358,7 +358,7 @@ INLINE_FUNC void hGemmWmmaCHWBody(
 
 __kernel __attribute__((reqd_work_group_size(MWAVE/MWARP*WARP_SIZE, NWAVE/NWARP, 1)))
 void hgemmWmmaNCHW(
-  const int nSize, const int cSize, const int hwSize, const int ocSize,
+  const int cSize, const int hwSize, const int ocSize,
   const __global half* restrict agm,
   const __global half* restrict bgm,
   __global half* restrict cgm

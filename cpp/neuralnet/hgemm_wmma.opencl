@@ -244,7 +244,7 @@ INLINE_FUNC void hGemmWmmaBody(
     for(int kWaveOffset = 0; kWaveOffset<KWG; kWaveOffset += KDIM_WMMA) {
 
       //Process MWAVE-sized chunks of MWG at a time, with each local_id within our group handling an MWARP chunk.
-      //Preload nto registers to cut in half the number of loads.
+      //Preload into registers to cut in half the number of loads.
       #pragma promote_to_registers
       int a[MWI][8];
       for(int aWaveId = 0; aWaveId<MWI; aWaveId++) {

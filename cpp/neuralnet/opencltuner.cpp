@@ -284,6 +284,83 @@ bool OpenCLParams::HGemmWmmaParams::isSimple() const {
   return true;
 }
 
+int OpenCLParams::HGemmWmmaNCHWParams::getRequiredCDivisor() const {
+  // Optimized hgemmWmmaNCHW only supports channel counts that are multiples of 32.
+  return 32;
+}
+
+string OpenCLParams::HGemmWmmaNCHWParams::desc() const {
+  string s;
+  s += "MWG=" + Global::intToString(MWG);
+  s += " NWG=" + Global::intToString(NWG);
+  s += " KWG=" + Global::intToString(KWG);
+  s += " MWAVE=" + Global::intToString(MWAVE);
+  s += " NWAVE=" + Global::intToString(NWAVE);
+  s += " MWARP=" + Global::intToString(MWARP);
+  s += " NWARP=" + Global::intToString(NWARP);
+  s += " VWN=" + Global::intToString(VWN);
+  s += " SB=" + Global::intToString(SB);
+  return s;
+}
+string OpenCLParams::HGemmWmmaNCHWParams::compileOptions() const {
+  string s;
+  s += "-DMWG=" + Global::intToString(MWG);
+  s += " -DNWG=" + Global::intToString(NWG);
+  s += " -DKWG=" + Global::intToString(KWG);
+  s += " -DMWAVE=" + Global::intToString(MWAVE);
+  s += " -DNWAVE=" + Global::intToString(NWAVE);
+  s += " -DMWARP=" + Global::intToString(MWARP);
+  s += " -DNWARP=" + Global::intToString(NWARP);
+  s += " -DVWN=" + Global::intToString(VWN);
+  s += " -DSB=" + Global::intToString(SB);
+  return s;
+}
+void OpenCLParams::HGemmWmmaNCHWParams::fillFromDesc(const string& fileName, const string& desc) {
+  map<string,int> kvs = readDescKeyValues(fileName, desc);
+  MWG = getInt(kvs,"MWG",MWG);
+  NWG = getInt(kvs,"NWG",NWG);
+  KWG = getInt(kvs,"KWG",KWG);
+  MWAVE = getInt(kvs,"MWAVE",MWAVE);
+  NWAVE = getInt(kvs,"NWAVE",NWAVE);
+  MWARP = getInt(kvs,"MWARP",MWARP);
+  NWARP = getInt(kvs,"NWARP",NWARP);
+  VWN = getInt(kvs,"VWN",VWN);
+  SB = getInt(kvs,"SB",SB);
+}
+bool OpenCLParams::HGemmWmmaNCHWParams::isValid() const {
+  if(MWG <= 0) return false;
+  if(NWG <= 0) return false;
+  if(KWG <= 0) return false;
+  if(MWAVE <= 0) return false;
+  if(NWAVE <= 0) return false;
+  if(MWARP <= 0) return false;
+  if(NWARP <= 0) return false;
+  if(VWN <= 0) return false;
+  if(SB < 0 || SB > 1) return false;
+  if(SB == 0 && VWN != 2) return false;
+
+  if(!isMultipleOf(NWG,VWN)) return false;
+  if(!isMultipleOf(MWG,MWAVE)) return false;
+  if(!isMultipleOf(NWG,NWAVE)) return false;
+  if(!isMultipleOf(MWAVE,MWARP)) return false;
+  if(!isMultipleOf(NWAVE,NWARP)) return false;
+  if(!isMultipleOf(KWG,16)) return false;
+  if(!isMultipleOf(getRequiredCDivisor(),NWG)) return false;
+  if(!isMultipleOf(getRequiredCDivisor(),KWG)) return false;
+  if(!((MWARP == 8 && NWARP == 32) || (MWARP == 16 && NWARP == 16) || (MWARP == 32 && NWARP == 8))) return false;
+
+  const int WARP_SIZE = 32;
+  if(MWAVE/MWARP * WARP_SIZE * NWAVE/NWARP > 1024) return false;
+  return true;
+}
+
+bool OpenCLParams::HGemmWmmaNCHWParams::isSimple() const {
+  if(MWAVE != MWARP && MWAVE == MWG) return false;
+  if(NWAVE != NWARP && NWAVE == NWG) return false;
+  if(MWG != NWG) return false;
+  return true;
+}
+
 string OpenCLParams::Conv3x3Params::desc() const {
   string s;
   s += "INTILE_XSIZE=" + Global::intToString(INTILE_XSIZE);
@@ -454,6 +531,7 @@ bool OpenCLTuneParams::isValid() const {
     xGemm.isValid() &&
     xGemm16.isValid() &&
     hGemmWmma.isValid() &&
+    hGemmWmmaNCHW.isValid() &&
     conv3x3.isValid() &&
     conv5x5.isValid() &&
     gPool.isValid();
@@ -494,8 +572,8 @@ int OpenCLTuneParams::getXGemmKPaddingMult(bool usingFP16Compute, bool usingFP16
 }
 
 
-static const int TUNER_VERSION = 8;
-static const char* TUNEPARAMS_VERSION_LINE = "VERSION=8";
+static const int TUNER_VERSION = 9;
+static const char* TUNEPARAMS_VERSION_LINE = "VERSION=9";
 void OpenCLTuneParams::save(const string& filename, const OpenCLTuneParams& config) {
   ofstream out;
   FileUtils::open(out,filename);
@@ -506,6 +584,8 @@ void OpenCLTuneParams::save(const string& filename, const OpenCLTuneParams& conf
   out << config.shouldUseFP16Compute << "\n";
   out << "#shouldUseFP16TensorCores" << "\n";
   out << config.shouldUseFP16TensorCores << "\n";
+  out << "#shouldUseFP16TensorCoresFor1x1" << "\n";
+  out << config.shouldUseFP16TensorCoresFor1x1 << "\n";
   out << "#xGemmDirect" << "\n";
   out << config.xGemmDirect.desc() << "\n";
   out << "#xGemm" << "\n";
@@ -514,6 +594,8 @@ void OpenCLTuneParams::save(const string& filename, const OpenCLTuneParams& conf
   out << config.xGemm16.desc() << "\n";
   out << "#hGemmWmma" << "\n";
   out << config.hGemmWmma.desc() << "\n";
+  out << "#hGemmWmmaNCHW" << "\n";
+  out << config.hGemmWmmaNCHW.desc() << "\n";
   out << "#conv3x3" << "\n";
   out << config.conv3x3.desc() << "\n";
   out << "#conv5x5" << "\n";
@@ -539,20 +621,22 @@ OpenCLTuneParams OpenCLTuneParams::load(const string& filename) {
   if(filteredLines[0] != TUNEPARAMS_VERSION_LINE)
     throw IOError("OpenCLTuneParams::load: expected first line to be " + string(TUNEPARAMS_VERSION_LINE) + " in " + filename);
 
-  if(filteredLines.size() != 11)
+  if(filteredLines.size() != 13)
     throw IOError("OpenCLTuneParams::load: unexpected number of parameter lines in file " + filename);
 
   OpenCLTuneParams config;
   config.shouldUseFP16Storage = (bool)Global::stringToInt(filteredLines[1]);
   config.shouldUseFP16Compute = (bool)Global::stringToInt(filteredLines[2]);
   config.shouldUseFP16TensorCores = (bool)Global::stringToInt(filteredLines[3]);
-  config.xGemmDirect.fillFromDesc(filename,filteredLines[4]);
-  config.xGemm.fillFromDesc(filename,filteredLines[5]);
-  config.xGemm16.fillFromDesc(filename,filteredLines[6]);
-  config.hGemmWmma.fillFromDesc(filename,filteredLines[7]);
-  config.conv3x3.fillFromDesc(filename,filteredLines[8]);
-  config.conv5x5.fillFromDesc(filename,filteredLines[9]);
-  config.gPool.fillFromDesc(filename,filteredLines[10]);
+  config.shouldUseFP16TensorCoresFor1x1 = (bool)Global::stringToInt(filteredLines[4]);
+  config.xGemmDirect.fillFromDesc(filename,filteredLines[5]);
+  config.xGemm.fillFromDesc(filename,filteredLines[6]);
+  config.xGemm16.fillFromDesc(filename,filteredLines[7]);
+  config.hGemmWmma.fillFromDesc(filename,filteredLines[8]);
+  config.hGemmWmmaNCHW.fillFromDesc(filename,filteredLines[9]);
+  config.conv3x3.fillFromDesc(filename,filteredLines[10]);
+  config.conv5x5.fillFromDesc(filename,filteredLines[11]);
+  config.gPool.fillFromDesc(filename,filteredLines[12]);
   return config;
 }
 
@@ -1636,6 +1720,186 @@ static bool tuneHGemmWmma(
   return suc;
 }
 
+static bool tuneHGemmWmmaNCHW(
+  OpenCLTuneParams currentConfig,
+  const OpenCLTuneParams& untunedConfig,
+  const cl_context& context,
+  cl_command_queue& commandQueue,
+  const vector<cl_device_id>& deviceIdsToUse,
+  int batchSize,
+  int nnXLen,
+  int nnYLen,
+  OpenCLTuner::ModelInfoForTuning modelInfo,
+  bool full,
+  ostream& out,
+  bool verboseErrors,
+  bool verboseTuner,
+  OpenCLTuneParams& tunedConfig,
+  double& bestKernelsPerSecond
+) {
+  out << "------------------------------------------------------" << endl;
+  out << "Tuning hGemmWmmaNCHW for 1x1 convolutions" << endl;
+
+  vector<OpenCLTuneParams> configs;
+  configs.push_back(currentConfig);
+  if(full) {
+    addConfigs(configs,SETTER(hGemmWmmaNCHW.MWG),{16,32,64,128});
+    addConfigs(configs,SETTER(hGemmWmmaNCHW.NWG),{16,32});
+    addConfigs(configs,SETTER(hGemmWmmaNCHW.KWG),{16,32,64});
+    addConfigs(configs,SETTER(hGemmWmmaNCHW.MWAVE),{8,16,32,64});
+    addConfigs(configs,SETTER(hGemmWmmaNCHW.NWAVE),{8,16,32});
+    addConfigs(configs,SETTER(hGemmWmmaNCHW.MWARP),{8,16,32});
+    addConfigs(configs,SETTER(hGemmWmmaNCHW.NWARP),{8,16,32});
+    addConfigs(configs,SETTER(hGemmWmmaNCHW.VWN),{2,4,8});
+    addConfigs(configs,SETTER(hGemmWmmaNCHW.SB),{0,1});
+    filterConfigs(configs,ISVALID(hGemmWmmaNCHW));
+  }
+  else {
+    addConfigs(configs,SETTER(hGemmWmmaNCHW.MWG),{16,32,64});
+    addConfigs(configs,SETTER(hGemmWmmaNCHW.NWG),{16,32});
+    addConfigs(configs,SETTER(hGemmWmmaNCHW.KWG),{16,32,64});
+    addConfigs(configs,SETTER(hGemmWmmaNCHW.MWAVE),{8,16,32,64});
+    addConfigs(configs,SETTER(hGemmWmmaNCHW.NWAVE),{8,16,32});
+    addConfigs(configs,SETTER(hGemmWmmaNCHW.MWARP),{8,16,32});
+    addConfigs(configs,SETTER(hGemmWmmaNCHW.NWARP),{8,16,32});
+    addConfigs(configs,SETTER(hGemmWmmaNCHW.VWN),{2,4});
+    addConfigs(configs,SETTER(hGemmWmmaNCHW.SB),{0,1});
+    filterConfigs(configs,ISVALID(hGemmWmmaNCHW));
+    filterConfigs(configs,ISSIMPLE(hGemmWmmaNCHW));
+  }
+
+  shuffleConfigs(configs);
+
+  OpenCLTuneParams referenceConfig = currentConfig;
+  referenceConfig.hGemmWmmaNCHW.MWG = untunedConfig.hGemmWmmaNCHW.MWG;
+  referenceConfig.hGemmWmmaNCHW.NWG = untunedConfig.hGemmWmmaNCHW.NWG;
+  referenceConfig.hGemmWmmaNCHW.KWG = untunedConfig.hGemmWmmaNCHW.KWG;
+  referenceConfig.hGemmWmmaNCHW.MWAVE = untunedConfig.hGemmWmmaNCHW.MWAVE;
+  referenceConfig.hGemmWmmaNCHW.NWAVE = untunedConfig.hGemmWmmaNCHW.NWAVE;
+  referenceConfig.hGemmWmmaNCHW.MWARP = untunedConfig.hGemmWmmaNCHW.MWARP;
+  referenceConfig.hGemmWmmaNCHW.NWARP = untunedConfig.hGemmWmmaNCHW.NWARP;
+  referenceConfig.hGemmWmmaNCHW.VWN = untunedConfig.hGemmWmmaNCHW.VWN;
+  referenceConfig.hGemmWmmaNCHW.SB = untunedConfig.hGemmWmmaNCHW.SB;
+
+  configs.insert(configs.begin(),currentConfig);
+
+  auto getDesc = [](const OpenCLTuneParams& cfg) { return cfg.hGemmWmmaNCHW.desc(); };
+
+  auto test = [&](const OpenCLTuneParams& cfg, vector<float>& ret) {
+    OpenCLTuneAccums accums;
+
+    cl_int err;
+    cl_program program;
+    string compileError;
+    bool compileSuc = tryCompileProgram(
+      "hgemmWmmaNCHWProgram", context, deviceIdsToUse, OpenCLKernels::hgemmWmmaNCHW,
+      cfg.hGemmWmmaNCHW.compileOptions() + OpenCLKernels::fp16StorageDefine,
+      program, compileError
+    );
+    if(!compileSuc) { accums.bad = true; accums.detailedErrorMessage = compileError; accums.badErr = CL_BUILD_PROGRAM_FAILURE; return accums; }
+    cl_kernel kernel = clCreateKernel(program, "hgemmWmmaNCHW", &err);
+    if(err != 0) { accums.bad = true; accums.badErr = err; return accums; }
+
+    int maxChannels = modelInfo.maxConvChannels1x1;
+    maxChannels = std::max(modelInfo.trunkNumChannels,maxChannels);
+    maxChannels = std::max(modelInfo.midNumChannels,maxChannels);
+    maxChannels = std::max(modelInfo.regularNumChannels,maxChannels);
+    maxChannels = std::max(modelInfo.gpoolNumChannels,maxChannels);
+
+    maxChannels = roundUpToMultipleInt(maxChannels,cfg.hGemmWmmaNCHW.getRequiredCDivisor());
+
+    int outNumFloats = batchSize * maxChannels * nnXLen * nnYLen;
+    cl_mem input = randomReadOnly3dPaddedBufferHalf(
+      "tuneHGemmWmma3x3Input", context, batchSize, maxChannels, maxChannels, nnXLen*nnYLen, nnXLen*nnYLen, 1.0);
+    cl_mem filter = randomReadOnly3dPaddedBufferHalf(
+      "tuneHGemmWmma3x3Filter", context, batchSize, maxChannels, maxChannels, maxChannels, maxChannels, 1.0 / sqrt(maxChannels));
+    cl_mem output = createReadWriteBufferHalf(context, outNumFloats);
+
+    const int reps = 6;
+    for(int i = 0; i<reps; i++) {
+      int inChannels;
+      int outChannels;
+      double weight;
+      switch(i) {
+        //Weight 0 on first kernel call to warm up
+      case 0: inChannels = modelInfo.trunkNumChannels; outChannels = modelInfo.midNumChannels; weight = 0; break;
+      case 1: inChannels = modelInfo.trunkNumChannels; outChannels = modelInfo.midNumChannels; weight = 1; break;
+      case 2: inChannels = modelInfo.midNumChannels; outChannels = modelInfo.trunkNumChannels; weight = 1; break;
+      case 3: inChannels = modelInfo.trunkNumChannels; outChannels = modelInfo.regularNumChannels; weight = 0.2; break;
+      case 4: inChannels = modelInfo.trunkNumChannels; outChannels = modelInfo.gpoolNumChannels; weight = 0.2; break;
+      case 5: inChannels = maxChannels; outChannels = maxChannels; weight = 1; break;
+      default: ASSERT_UNREACHABLE; break;
+      }
+
+      int outChannelsPadded = roundUpToMultipleInt(outChannels, cfg.hGemmWmmaNCHW.getRequiredCDivisor());
+      int inChannelsPadded = roundUpToMultipleInt(inChannels, cfg.hGemmWmmaNCHW.getRequiredCDivisor());
+
+      cl_event event;
+      err = doHGemmWmma_NCHW_ICOC(
+        kernel,
+        commandQueue,
+        cfg,
+        batchSize, inChannelsPadded, nnXLen*nnYLen, outChannelsPadded,
+        input, filter, output,
+        &event
+      );
+
+      accums.countResultAndFreeEvent(err,event,weight);
+      if(accums.bad)
+        break;
+    }
+
+    if(accums.bad)
+      ret.assign(outNumFloats,0.0);
+    else
+      blockingReadBufferHalfToFloat(commandQueue, output, outNumFloats, ret);
+
+    //Compact ret down to only what we were supposed to get, without padding
+    {
+      int i = 0;
+      for(int n = 0; n<batchSize; n++) {
+        for(int y = 0; y<maxChannels; y++) {
+          for(int x = 0; x<nnXLen*nnYLen; x++) {
+            ret[i++] = ret[x + nnXLen*nnYLen * (y + maxChannels * n)];
+          }
+        }
+      }
+      ret.resize(batchSize * maxChannels * nnXLen*nnYLen);
+    }
+
+    clReleaseMemObject(input);
+    clReleaseMemObject(filter);
+    clReleaseMemObject(output);
+
+    clReleaseKernel(kernel);
+    clReleaseProgram(program);
+
+    return accums;
+  };
+
+  bool stopOnReferenceImplFail = true;
+  bestKernelsPerSecond = 0.0;
+  double errorToleranceScale = 0.02;
+  bool suc = testAllConfigs(
+    stopOnReferenceImplFail,
+    configs,
+    currentConfig,
+    referenceConfig,
+    out,
+    verboseErrors,
+    verboseTuner,
+    errorToleranceScale,
+    std::function<string(const OpenCLTuneParams& cfg)>(getDesc),
+    std::function<OpenCLTuneAccums(const OpenCLTuneParams& cfg, vector<float>& ret)>(test),
+    bestKernelsPerSecond
+  );
+  if(suc) {
+    tunedConfig = currentConfig;
+  }
+  return suc;
+}
+
+
 static void tuneTransform(
   OpenCLTuneParams currentConfig,
   const OpenCLTuneParams& untunedConfig,
@@ -2225,39 +2489,72 @@ void OpenCLTuner::tune(
 
       bool shouldTestFP16TensorCores = testFP16TensorCoresMode == enabled_t::True || (testFP16TensorCoresMode == enabled_t::Auto && !foundGoodFP16);
       if(shouldTestFP16TensorCores) {
-        OpenCLTuneParams result16;
-        double bestKernelsPerSecond16 = 0.0;
-        bool suc = tuneHGemmWmma(
-          currentConfig,
-          untunedConfig,
-          context,
-          commandQueue,
-          deviceIdsToUse,
-          batchSize,
-          nnXLen,
-          nnYLen,
-          modelInfo,
-          full,
-          out,
-          verboseErrors,
-          verboseTuner,
-          result16,
-          bestKernelsPerSecond16
-        );
-        if(!suc) {
-          out << "FP16 tensor core tuning failed, assuming no FP16 tensor core support" << endl;
+        {
+          OpenCLTuneParams result16;
+          double bestKernelsPerSecond16 = 0.0;
+          bool suc = tuneHGemmWmma(
+            currentConfig,
+            untunedConfig,
+            context,
+            commandQueue,
+            deviceIdsToUse,
+            batchSize,
+            nnXLen,
+            nnYLen,
+            modelInfo,
+            full,
+            out,
+            verboseErrors,
+            verboseTuner,
+            result16,
+            bestKernelsPerSecond16
+          );
+          if(!suc) {
+            out << "FP16 tensor core tuning failed, assuming no FP16 tensor core support" << endl;
+          }
+          else if(bestKernelsPerSecond16 / FP16_REQUIRED_SPEEDUP < bestKernelsPerSecond) {
+            currentConfig = result16;
+            out << "FP16 tensor cores not significantly faster, not enabling" << endl;
+          }
+          else {
+            currentConfig = result16;
+            currentConfig.shouldUseFP16Storage = true;
+            currentConfig.shouldUseFP16TensorCores = true;
+            bestKernelsPerSecond = bestKernelsPerSecond16 / FP16_REQUIRED_SPEEDUP;
+            foundGoodFP16 = true;
+            out << "Enabling FP16 tensor cores due to better performance" << endl;
+          }
         }
-        else if(bestKernelsPerSecond16 / FP16_REQUIRED_SPEEDUP < bestKernelsPerSecond) {
-          currentConfig = result16;
-          out << "FP16 tensor cores not significantly faster, not enabling" << endl;
-        }
-        else {
-          currentConfig = result16;
-          currentConfig.shouldUseFP16Storage = true;
-          currentConfig.shouldUseFP16TensorCores = true;
-          bestKernelsPerSecond = bestKernelsPerSecond16 / FP16_REQUIRED_SPEEDUP;
-          foundGoodFP16 = true;
-          out << "Enabling FP16 tensor cores due to better performance" << endl;
+
+        // If FP16 tensor cores are enabled, also tune them for 1x1 convs
+        if(currentConfig.shouldUseFP16TensorCores) {
+          OpenCLTuneParams result16;
+          double bestKernelsPerSecond16 = 0.0;
+          bool suc = tuneHGemmWmmaNCHW(
+            currentConfig,
+            untunedConfig,
+            context,
+            commandQueue,
+            deviceIdsToUse,
+            batchSize,
+            nnXLen,
+            nnYLen,
+            modelInfo,
+            full,
+            out,
+            verboseErrors,
+            verboseTuner,
+            result16,
+            bestKernelsPerSecond16
+          );
+          if(!suc) {
+            out << "ERROR: FP16 tensor core tuning failed for 1x1 convs" << endl;
+            currentConfig.shouldUseFP16TensorCoresFor1x1 = false;
+          }
+          else {
+            out << "FP16 tensor cores enabled for 1x1 convs" << endl;
+            currentConfig.shouldUseFP16TensorCoresFor1x1 = true;
+          }
         }
       }
 

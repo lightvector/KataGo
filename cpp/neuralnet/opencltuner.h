@@ -71,6 +71,25 @@ namespace OpenCLParams {
     bool isSimple() const;
   };
 
+  struct HGemmWmmaNCHWParams {
+    int MWG = 16;
+    int NWG = 16;
+    int KWG = 16;
+    int MWAVE = 16;
+    int NWAVE = 16;
+    int MWARP = 16;
+    int NWARP = 16;
+    int VWN = 2;
+    int SB = 0;
+
+    std::string desc() const;
+    std::string compileOptions() const;
+    int getRequiredCDivisor() const; // Use of HGemmWmmaNCHW on a matrix mult requires that input and output C is divisble by this
+    void fillFromDesc(const std::string& fileName, const std::string& desc);
+    bool isValid() const;
+    bool isSimple() const;
+  };
+
   struct Conv3x3Params {
     //Winograd input and output tile sizes
     int INTILE_XSIZE = 4;
@@ -135,7 +154,9 @@ struct OpenCLTuneParams {
   bool shouldUseFP16Compute = false;
   OpenCLParams::XGemmParams xGemm16 = OpenCLParams::XGemmParams();
   bool shouldUseFP16TensorCores = false;
+  bool shouldUseFP16TensorCoresFor1x1 = false;
   OpenCLParams::HGemmWmmaParams hGemmWmma = OpenCLParams::HGemmWmmaParams();
+  OpenCLParams::HGemmWmmaNCHWParams hGemmWmmaNCHW = OpenCLParams::HGemmWmmaNCHWParams();
 
   OpenCLParams::Conv3x3Params conv3x3 = OpenCLParams::Conv3x3Params();
   OpenCLParams::Conv5x5Params conv5x5 = OpenCLParams::Conv5x5Params();

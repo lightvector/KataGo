@@ -136,6 +136,15 @@ namespace OpenCLHelpers {
     cl_event* eventBuf
   );
 
+  cl_int doHGemmWmma_NCHW_ICOC(
+    cl_kernel kernel,
+    cl_command_queue commandQueue,
+    const OpenCLTuneParams& tuneParams,
+    int batchSize, int cSize, int hwSize, int ocSize,
+    cl_mem A, cl_mem B, cl_mem C,
+    cl_event* eventBuf
+  );
+
   cl_int doBatchedXGemmDirect_KM_KN_NM(
     cl_kernel kernel,
     cl_command_queue commandQueue,

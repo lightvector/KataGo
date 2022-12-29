@@ -1058,4 +1058,10 @@ string OpenCLKernels::hgemmWmma =
 #include "../neuralnet/hgemm_wmma.opencl"
 ;
 
+string OpenCLKernels::hgemmWmmaNCHW =
+""
+#include "../external/clblast/common.opencl"
+#include "../neuralnet/hgemm_wmma_nchw.opencl"
+;
+
 #endif

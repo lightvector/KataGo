@@ -29,6 +29,7 @@ namespace OpenCLKernels {
   extern std::string xgemmDirect;
   extern std::string xgemm;
   extern std::string hgemmWmma;
+  extern std::string hgemmWmmaNCHW;
 }
 
 
