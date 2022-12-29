@@ -167,7 +167,7 @@ INLINE_FUNC void GlobalToLocalA(
 }
 #endif
 
-#if SA == 1
+#if SB == 1
 //Loads a NWG * KWG sized chunk from bgm to blm
 INLINE_FUNC void GlobalToLocalB(
   const __global short* restrict bgm, LOCAL_PTR short* blm,
