@@ -298,6 +298,7 @@ string OpenCLParams::HGemmWmmaNCHWParams::desc() const {
   s += " NWAVE=" + Global::intToString(NWAVE);
   s += " MWARP=" + Global::intToString(MWARP);
   s += " NWARP=" + Global::intToString(NWARP);
+  s += " VWM=" + Global::intToString(VWM);
   s += " VWN=" + Global::intToString(VWN);
   s += " SB=" + Global::intToString(SB);
   return s;
@@ -311,6 +312,7 @@ string OpenCLParams::HGemmWmmaNCHWParams::compileOptions() const {
   s += " -DNWAVE=" + Global::intToString(NWAVE);
   s += " -DMWARP=" + Global::intToString(MWARP);
   s += " -DNWARP=" + Global::intToString(NWARP);
+  s += " -DVWM=" + Global::intToString(VWM);
   s += " -DVWN=" + Global::intToString(VWN);
   s += " -DSB=" + Global::intToString(SB);
   return s;
@@ -324,6 +326,7 @@ void OpenCLParams::HGemmWmmaNCHWParams::fillFromDesc(const string& fileName, con
   NWAVE = getInt(kvs,"NWAVE",NWAVE);
   MWARP = getInt(kvs,"MWARP",MWARP);
   NWARP = getInt(kvs,"NWARP",NWARP);
+  VWM = getInt(kvs,"VWM",VWM);
   VWN = getInt(kvs,"VWN",VWN);
   SB = getInt(kvs,"SB",SB);
 }
@@ -335,10 +338,12 @@ bool OpenCLParams::HGemmWmmaNCHWParams::isValid() const {
   if(NWAVE <= 0) return false;
   if(MWARP <= 0) return false;
   if(NWARP <= 0) return false;
+  if(VWM <= 0) return false;
   if(VWN <= 0) return false;
   if(SB < 0 || SB > 1) return false;
   if(SB == 0 && VWN != 2) return false;
 
+  if(!isMultipleOf(MWG,VWM)) return false;
   if(!isMultipleOf(NWG,VWN)) return false;
   if(!isMultipleOf(MWG,MWAVE)) return false;
   if(!isMultipleOf(NWG,NWAVE)) return false;
@@ -1750,6 +1755,7 @@ static bool tuneHGemmWmmaNCHW(
     addConfigs(configs,SETTER(hGemmWmmaNCHW.NWAVE),{8,16,32});
     addConfigs(configs,SETTER(hGemmWmmaNCHW.MWARP),{8,16,32});
     addConfigs(configs,SETTER(hGemmWmmaNCHW.NWARP),{8,16,32});
+    addConfigs(configs,SETTER(hGemmWmmaNCHW.VWM),{1,2,4,8});
     addConfigs(configs,SETTER(hGemmWmmaNCHW.VWN),{2,4,8});
     addConfigs(configs,SETTER(hGemmWmmaNCHW.SB),{0,1});
     filterConfigs(configs,ISVALID(hGemmWmmaNCHW));
@@ -1762,6 +1768,7 @@ static bool tuneHGemmWmmaNCHW(
     addConfigs(configs,SETTER(hGemmWmmaNCHW.NWAVE),{8,16,32});
     addConfigs(configs,SETTER(hGemmWmmaNCHW.MWARP),{8,16,32});
     addConfigs(configs,SETTER(hGemmWmmaNCHW.NWARP),{8,16,32});
+    addConfigs(configs,SETTER(hGemmWmmaNCHW.VWM),{1,2,4});
     addConfigs(configs,SETTER(hGemmWmmaNCHW.VWN),{2,4});
     addConfigs(configs,SETTER(hGemmWmmaNCHW.SB),{0,1});
     filterConfigs(configs,ISVALID(hGemmWmmaNCHW));
@@ -1778,6 +1785,7 @@ static bool tuneHGemmWmmaNCHW(
   referenceConfig.hGemmWmmaNCHW.NWAVE = untunedConfig.hGemmWmmaNCHW.NWAVE;
   referenceConfig.hGemmWmmaNCHW.MWARP = untunedConfig.hGemmWmmaNCHW.MWARP;
   referenceConfig.hGemmWmmaNCHW.NWARP = untunedConfig.hGemmWmmaNCHW.NWARP;
+  referenceConfig.hGemmWmmaNCHW.VWM = untunedConfig.hGemmWmmaNCHW.VWM;
   referenceConfig.hGemmWmmaNCHW.VWN = untunedConfig.hGemmWmmaNCHW.VWN;
   referenceConfig.hGemmWmmaNCHW.SB = untunedConfig.hGemmWmmaNCHW.SB;
 
@@ -2498,7 +2506,7 @@ void OpenCLTuner::tune(
             context,
             commandQueue,
             deviceIdsToUse,
-            batchSize,
+            batchSize*2, // Double batch size for hgemm tests
             nnXLen,
             nnYLen,
             modelInfo,
@@ -2536,7 +2544,7 @@ void OpenCLTuner::tune(
             context,
             commandQueue,
             deviceIdsToUse,
-            batchSize,
+            batchSize*2, // Double batch size for hgemm tests
             nnXLen,
             nnYLen,
             modelInfo,
