@@ -881,8 +881,11 @@ static bool testAllConfigs(
       double errorProp = sqrt(squerr / (sqmag + 1e-30));
       if(!isfinite(errorProp) || errorProp > 1.0)
         errorProp = 1.0;
+      double errorPenaltyFactor = 1.0 - sqrt(errorProp / (errorProp + errorToleranceScale));
+      if(errorProp > 0)
+        errorPenaltyFactor *= 0.90;
 
-      double score = kernelsPerSecond * (1.0 - sqrt(errorProp / (errorProp + errorToleranceScale)));
+      double score = kernelsPerSecond * errorPenaltyFactor;
       if(verboseTuner || score > bestScore) {
         out << "Tuning "
             << (!verboseTuner ? "" : score > bestScore ? "* " : "  ")

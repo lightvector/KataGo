@@ -406,7 +406,7 @@ INLINE_FUNC void hGemmWmmaCHWBody(
     }
 
     barrier(CLK_LOCAL_MEM_FENCE);
-    LocalToGlobalCComplete((const __global short*)(cgm + ((groupId1 * NWG)*hwSize)), clm, tid, groupId0 * MWG, hwSize, numThreads);
+    LocalToGlobalCComplete((__global short*)(cgm + ((groupId1 * NWG)*hwSize)), clm, tid, groupId0 * MWG, hwSize, numThreads);
   }
   else {
     //Process KWG-size chunks of cSize at a time.
@@ -523,7 +523,7 @@ INLINE_FUNC void hGemmWmmaCHWBody(
     }
 
     barrier(CLK_LOCAL_MEM_FENCE);
-    LocalToGlobalCEdge((const __global short*)(cgm + ((groupId1 * NWG)*hwSize)), clm, tid, groupId0 * MWG, hwSize, numThreads);
+    LocalToGlobalCEdge((__global short*)(cgm + ((groupId1 * NWG)*hwSize)), clm, tid, groupId0 * MWG, hwSize, numThreads);
   }
 }
 
