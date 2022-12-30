@@ -865,10 +865,12 @@ static bool testAllConfigs(
 
       double score = kernelsPerSecond * (1.0 - sqrt(errorProp / (errorProp + errorToleranceScale)));
       if(verboseTuner || score > bestScore) {
-        out << "Tuning " << i << "/"  << configs.size()
+        out << "Tuning "
+            << (!verboseTuner ? "" : score > bestScore ? "* " : "  ")
+            << i << "/"  << configs.size()
             << (i == 0 ? " (reference)" : "")
             << " Calls/sec " << kernelsPerSecond
-            << " L2Error " << squerr
+            << " ErrorProp " << errorProp
             << " " << getDesc(configs[i]) << endl;
       }
       if(score > bestScore) {
@@ -1061,7 +1063,7 @@ static void tuneXGemmDirect(
 
   bool stopOnReferenceImplFail = false;
   double bestKernelsPerSecond = 0.0;
-  double errorToleranceScale = 0.05;
+  double errorToleranceScale = 0.01;
   testAllConfigs(
     stopOnReferenceImplFail,
     configs,
@@ -1293,7 +1295,7 @@ static bool tuneXGemm(
 
   bool stopOnReferenceImplFail = useFP16Storage;
   bestKernelsPerSecond = 0.0;
-  double errorToleranceScale = 0.05;
+  double errorToleranceScale = 0.005;
   bool suc = testAllConfigs(
     stopOnReferenceImplFail,
     configs,
@@ -1508,7 +1510,7 @@ static bool tuneXGemm16(
 
   bool stopOnReferenceImplFail = true;
   bestKernelsPerSecond = 0.0;
-  double errorToleranceScale = 0.05;
+  double errorToleranceScale = 0.005;
   bool suc = testAllConfigs(
     stopOnReferenceImplFail,
     configs,
@@ -1705,7 +1707,7 @@ static bool tuneHGemmWmma(
 
   bool stopOnReferenceImplFail = true;
   bestKernelsPerSecond = 0.0;
-  double errorToleranceScale = 0.02;
+  double errorToleranceScale = 0.002;
   bool suc = testAllConfigs(
     stopOnReferenceImplFail,
     configs,
@@ -1887,7 +1889,7 @@ static bool tuneHGemmWmmaNCHW(
 
   bool stopOnReferenceImplFail = true;
   bestKernelsPerSecond = 0.0;
-  double errorToleranceScale = 0.02;
+  double errorToleranceScale = 0.002;
   bool suc = testAllConfigs(
     stopOnReferenceImplFail,
     configs,
@@ -2051,7 +2053,7 @@ static void tuneTransform(
 
   bool stopOnReferenceImplFail = false;
   double bestKernelsPerSecond = 0.0;
-  double errorToleranceScale = 0.05;
+  double errorToleranceScale = 0.005;
   testAllConfigs(
     stopOnReferenceImplFail,
     configs,
@@ -2215,7 +2217,7 @@ static void tuneUntransform(
 
   bool stopOnReferenceImplFail = false;
   double bestKernelsPerSecond = 0.0;
-  double errorToleranceScale = 0.05;
+  double errorToleranceScale = 0.005;
   testAllConfigs(
     stopOnReferenceImplFail,
     configs,
@@ -2356,7 +2358,7 @@ static void tuneGPool(
 
   bool stopOnReferenceImplFail = false;
   double bestKernelsPerSecond = 0.0;
-  double errorToleranceScale = 0.05;
+  double errorToleranceScale = 0.005;
   testAllConfigs(
     stopOnReferenceImplFail,
     configs,
