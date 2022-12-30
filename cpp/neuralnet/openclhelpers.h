@@ -108,9 +108,12 @@ namespace OpenCLHelpers {
   cl_mem createReadWriteBufferBytes(cl_context clContext, size_t numBytes);
 
   void blockingReadBuffer(cl_command_queue commandQueue, cl_mem srcBuf, size_t numElts, std::vector<float>& dstBuf);
+  void blockingReadBuffer(cl_command_queue commandQueue, cl_mem srcBuf, size_t numElts, float* dstBuf);
   void blockingReadBuffer(cl_command_queue commandQueue, cl_mem srcBuf, size_t numElts, std::vector<half_float::half>& dstBuf);
   void blockingReadBufferHalfToFloat(cl_command_queue commandQueue, cl_mem srcBuf, size_t numElts, std::vector<float>& dstBuf);
+  void blockingReadBufferHalfToFloat(cl_command_queue commandQueue, cl_mem srcBuf, size_t numElts, float* dstBuf);
   void blockingReadBuffer(cl_command_queue commandQueue, cl_mem srcBuf, size_t numElts, std::vector<float>& dstBuf, bool useFP16);
+  void blockingReadBuffer(cl_command_queue commandQueue, cl_mem srcBuf, size_t numElts, float* dstBuf, bool useFP16);
 
   size_t powerOf2ify(size_t size);
   size_t roundUpToMultiple(size_t size, size_t ofThis);

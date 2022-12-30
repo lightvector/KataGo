@@ -749,6 +749,24 @@ static void shuffleConfigs(
   }
 }
 
+static void dedupConfigsStable(
+  vector<OpenCLTuneParams>& configs
+) {
+  vector<OpenCLTuneParams> deduped;
+  for(size_t i = 0; i < configs.size(); i++) {
+    bool foundDup = false;
+    for(size_t j = 0; j < deduped.size(); j++) {
+      if(configs[i] == deduped[j]) {
+        foundDup = true;
+        break;
+      }
+    }
+    if(!foundDup)
+      deduped.push_back(configs[i]);
+  }
+  configs = deduped;
+}
+
 struct OpenCLTuneAccums {
   bool bad = false;
   cl_int badErr = 0;
@@ -804,6 +822,7 @@ static bool testAllConfigs(
 
   //Insert the reference configuration first
   configs.insert(configs.begin(),referenceConfig);
+  dedupConfigsStable(configs);
 
   double bestScore = 0.0;
   double bestKernelsPerSecond = 0.0;
@@ -1003,18 +1022,21 @@ static void tuneXGemmDirect(
     maxChannels = std::max(modelInfo.regularNumChannels,maxChannels);
     maxChannels = std::max(modelInfo.gpoolNumChannels,maxChannels);
 
-    int ioNumFloats = batchSize*nnXLen*nnYLen*maxChannels;
+    int inputNumFloats = batchSize*nnXLen*nnYLen*maxChannels;
+    int outputNumFloats = batchSize*nnXLen*nnYLen*maxChannels;
     int filterNumFloats = maxChannels * maxChannels;
-    cl_mem input = randomReadOnlyBufferFloat("tuneXGemmDirectInput", context, ioNumFloats, 1.0);
+    cl_mem input = randomReadOnlyBufferFloat("tuneXGemmDirectInput", context, inputNumFloats, 1.0);
     cl_mem filter = randomReadOnlyBufferFloat("tuneXGemmDirectFilter", context, filterNumFloats, 1.0 / sqrt(maxChannels));
-    cl_mem output = createReadWriteBufferFloat(context, ioNumFloats);
+    cl_mem output = createReadWriteBufferFloat(context, outputNumFloats);
 
-    const int reps = 6;
+    const int reps = 18;
+    const int numToRecord = 6;
+    ret.resize(outputNumFloats*numToRecord, 0.0f);
     for(int i = 0; i<reps; i++) {
       int inChannels;
       int outChannels;
       double weight;
-      switch(i) {
+      switch(i % numToRecord) {
         //Weight 0 on first kernel call to warm up
       case 0: inChannels = modelInfo.trunkNumChannels; outChannels = modelInfo.midNumChannels; weight = 0; break;
       case 1: inChannels = modelInfo.trunkNumChannels; outChannels = modelInfo.midNumChannels; weight = 1; break;
@@ -1041,15 +1063,16 @@ static void tuneXGemmDirect(
         &event
       );
 
+
       accums.countResultAndFreeEvent(err,event,weight);
       if(accums.bad)
         break;
+      if(i < numToRecord)
+        blockingReadBuffer(commandQueue, output, outputNumFloats, ret.data()+(outputNumFloats * i));
     }
 
     if(accums.bad)
-      ret.assign(ioNumFloats,0.0);
-    else
-      blockingReadBuffer(commandQueue, output, ioNumFloats, ret);
+      ret.assign(outputNumFloats*numToRecord,0.0);
 
     clReleaseMemObject(input);
     clReleaseMemObject(filter);
@@ -1209,7 +1232,7 @@ static bool tuneXGemm(
     int maxOutChannelsPadded = roundUpToMultipleInt(maxChannels,cfg.xGemm.NWG);
     int maxInChannelsPadded = roundUpToMultipleInt(maxChannels,cfg.xGemm.KWG);
 
-    int outNumFloats = numTilesTotalPadded * maxOutChannelsPadded * inTileXYSize;
+    int outputNumFloats = numTilesTotalPadded * maxOutChannelsPadded * inTileXYSize;
     cl_mem input;
     cl_mem filter;
     cl_mem output;
@@ -1218,22 +1241,24 @@ static bool tuneXGemm(
         "tuneXGemm3x3Input", context, inTileXYSize, maxChannels, maxInChannelsPadded, numTilesTotal, numTilesTotalPadded, 1.0);
       filter = randomReadOnly3dPaddedBufferHalf(
         "tuneXGemm3x3Filter", context, inTileXYSize, maxChannels, maxInChannelsPadded, maxChannels, maxOutChannelsPadded, 1.0 / sqrt(maxChannels * 3 * 3));
-      output = createReadWriteBufferHalf(context, outNumFloats);
+      output = createReadWriteBufferHalf(context, outputNumFloats);
     }
     else {
       input = randomReadOnly3dPaddedBufferFloat(
         "tuneXGemm3x3Input", context, inTileXYSize, maxChannels, maxInChannelsPadded, numTilesTotal, numTilesTotalPadded, 1.0);
       filter = randomReadOnly3dPaddedBufferFloat(
         "tuneXGemm3x3Filter", context, inTileXYSize, maxChannels, maxInChannelsPadded, maxChannels, maxOutChannelsPadded, 1.0 / sqrt(maxChannels * 3 * 3));
-      output = createReadWriteBufferFloat(context, outNumFloats);
+      output = createReadWriteBufferFloat(context, outputNumFloats);
     }
 
-    const int reps = 6;
+    const int reps = 18;
+    const int numToRecord = 6;
+    ret.resize(outputNumFloats*numToRecord, 0.0f);
     for(int i = 0; i<reps; i++) {
       int inChannels;
       int outChannels;
       double weight;
-      switch(i) {
+      switch(i % numToRecord) {
         //Weight 0 on first kernel call to warm up
       case 0: inChannels = modelInfo.trunkNumChannels; outChannels = modelInfo.midNumChannels; weight = 0; break;
       case 1: inChannels = modelInfo.trunkNumChannels; outChannels = modelInfo.midNumChannels; weight = 1; break;
@@ -1261,14 +1286,12 @@ static bool tuneXGemm(
       accums.countResultAndFreeEvent(err,event,weight);
       if(accums.bad)
         break;
+      if(i < numToRecord)
+        blockingReadBuffer(commandQueue, output, outputNumFloats, ret.data()+(outputNumFloats * i), useFP16Storage);
     }
 
     if(accums.bad)
-      ret.assign(outNumFloats,0.0);
-    else if(useFP16Storage)
-      blockingReadBufferHalfToFloat(commandQueue, output, outNumFloats, ret);
-    else
-      blockingReadBuffer(commandQueue, output, outNumFloats, ret);
+      ret.assign(outputNumFloats*numToRecord,0.0);
 
     //Compact ret down to only what we were supposed to get, without padding
     {
@@ -1438,19 +1461,21 @@ static bool tuneXGemm16(
     int maxOutChannelsPadded = roundUpToMultipleInt(maxChannels,cfg.xGemm16.NWG);
     int maxInChannelsPadded = roundUpToMultipleInt(maxChannels,cfg.xGemm16.KWG);
 
-    int outNumFloats = numTilesTotalPadded * maxOutChannelsPadded * inTileXYSize;
+    int outputNumFloats = numTilesTotalPadded * maxOutChannelsPadded * inTileXYSize;
     cl_mem input = randomReadOnly3dPaddedBufferHalf(
       "tuneXGemm3x3Input", context, inTileXYSize, maxChannels, maxInChannelsPadded, numTilesTotal, numTilesTotalPadded, 1.0);
     cl_mem filter = randomReadOnly3dPaddedBufferHalf(
       "tuneXGemm3x3Filter", context, inTileXYSize, maxChannels, maxInChannelsPadded, maxChannels, maxOutChannelsPadded, 1.0 / sqrt(maxChannels * 3 * 3));
-    cl_mem output = createReadWriteBufferHalf(context, outNumFloats);
+    cl_mem output = createReadWriteBufferHalf(context, outputNumFloats);
 
-    const int reps = 6;
+    const int reps = 18;
+    const int numToRecord = 6;
+    ret.resize(outputNumFloats*numToRecord, 0.0f);
     for(int i = 0; i<reps; i++) {
       int inChannels;
       int outChannels;
       double weight;
-      switch(i) {
+      switch(i % numToRecord) {
         //Weight 0 on first kernel call to warm up
       case 0: inChannels = modelInfo.trunkNumChannels; outChannels = modelInfo.midNumChannels; weight = 0; break;
       case 1: inChannels = modelInfo.trunkNumChannels; outChannels = modelInfo.midNumChannels; weight = 1; break;
@@ -1478,12 +1503,12 @@ static bool tuneXGemm16(
       accums.countResultAndFreeEvent(err,event,weight);
       if(accums.bad)
         break;
+      if(i < numToRecord)
+        blockingReadBufferHalfToFloat(commandQueue, output, outputNumFloats, ret.data()+(outputNumFloats * i));
     }
 
     if(accums.bad)
-      ret.assign(outNumFloats,0.0);
-    else
-      blockingReadBufferHalfToFloat(commandQueue, output, outNumFloats, ret);
+      ret.assign(outputNumFloats*numToRecord,0.0);
 
     //Compact ret down to only what we were supposed to get, without padding
     {
@@ -1635,19 +1660,21 @@ static bool tuneHGemmWmma(
     int maxOutChannelsPadded = roundUpToMultipleInt(maxChannels,cfg.hGemmWmma.NWG);
     int maxInChannelsPadded = roundUpToMultipleInt(maxChannels,cfg.hGemmWmma.KWG);
 
-    int outNumFloats = numTilesTotalPadded * maxOutChannelsPadded * inTileXYSize;
+    int outputNumFloats = numTilesTotalPadded * maxOutChannelsPadded * inTileXYSize;
     cl_mem input = randomReadOnly3dPaddedBufferHalf(
       "tuneHGemmWmma3x3Input", context, inTileXYSize, maxChannels, maxInChannelsPadded, numTilesTotal, numTilesTotalPadded, 1.0);
     cl_mem filter = randomReadOnly3dPaddedBufferHalf(
       "tuneHGemmWmma3x3Filter", context, inTileXYSize, maxChannels, maxInChannelsPadded, maxChannels, maxOutChannelsPadded, 1.0 / sqrt(maxChannels * 3 * 3));
-    cl_mem output = createReadWriteBufferHalf(context, outNumFloats);
+    cl_mem output = createReadWriteBufferHalf(context, outputNumFloats);
 
-    const int reps = 6;
+    const int reps = 18;
+    const int numToRecord = 6;
+    ret.resize(outputNumFloats*numToRecord, 0.0f);
     for(int i = 0; i<reps; i++) {
       int inChannels;
       int outChannels;
       double weight;
-      switch(i) {
+      switch(i % numToRecord) {
         //Weight 0 on first kernel call to warm up
       case 0: inChannels = modelInfo.trunkNumChannels; outChannels = modelInfo.midNumChannels; weight = 0; break;
       case 1: inChannels = modelInfo.trunkNumChannels; outChannels = modelInfo.midNumChannels; weight = 1; break;
@@ -1675,12 +1702,12 @@ static bool tuneHGemmWmma(
       accums.countResultAndFreeEvent(err,event,weight);
       if(accums.bad)
         break;
+      if(i < numToRecord)
+        blockingReadBufferHalfToFloat(commandQueue, output, outputNumFloats, ret.data()+(outputNumFloats * i));
     }
 
     if(accums.bad)
-      ret.assign(outNumFloats,0.0);
-    else
-      blockingReadBufferHalfToFloat(commandQueue, output, outNumFloats, ret);
+      ret.assign(outputNumFloats*numToRecord,0.0);
 
     //Compact ret down to only what we were supposed to get, without padding
     {
@@ -1818,19 +1845,21 @@ static bool tuneHGemmWmmaNCHW(
 
     maxChannels = roundUpToMultipleInt(maxChannels,cfg.hGemmWmmaNCHW.getRequiredCDivisor());
 
-    int outNumFloats = batchSize * maxChannels * nnXLen * nnYLen;
+    int outputNumFloats = batchSize * maxChannels * nnXLen * nnYLen;
     cl_mem input = randomReadOnly3dPaddedBufferHalf(
       "tuneHGemmWmma3x3Input", context, batchSize, maxChannels, maxChannels, nnXLen*nnYLen, nnXLen*nnYLen, 1.0);
     cl_mem filter = randomReadOnly3dPaddedBufferHalf(
       "tuneHGemmWmma3x3Filter", context, batchSize, maxChannels, maxChannels, maxChannels, maxChannels, 1.0 / sqrt(maxChannels));
-    cl_mem output = createReadWriteBufferHalf(context, outNumFloats);
+    cl_mem output = createReadWriteBufferHalf(context, outputNumFloats);
 
-    const int reps = 6;
+    const int reps = 18;
+    const int numToRecord = 6;
+    ret.resize(outputNumFloats*numToRecord, 0.0f);
     for(int i = 0; i<reps; i++) {
       int inChannels;
       int outChannels;
       double weight;
-      switch(i) {
+      switch(i % numToRecord) {
         //Weight 0 on first kernel call to warm up
       case 0: inChannels = modelInfo.trunkNumChannels; outChannels = modelInfo.midNumChannels; weight = 0; break;
       case 1: inChannels = modelInfo.trunkNumChannels; outChannels = modelInfo.midNumChannels; weight = 1; break;
@@ -1857,12 +1886,12 @@ static bool tuneHGemmWmmaNCHW(
       accums.countResultAndFreeEvent(err,event,weight);
       if(accums.bad)
         break;
+      if(i < numToRecord)
+        blockingReadBufferHalfToFloat(commandQueue, output, outputNumFloats, ret.data()+(outputNumFloats * i));
     }
 
     if(accums.bad)
-      ret.assign(outNumFloats,0.0);
-    else
-      blockingReadBufferHalfToFloat(commandQueue, output, outNumFloats, ret);
+      ret.assign(outputNumFloats*numToRecord,0.0);
 
     //Compact ret down to only what we were supposed to get, without padding
     {
@@ -1998,11 +2027,13 @@ static void tuneTransform(
       output = createReadWriteBufferFloat(context, outputNumFloats);
     }
 
-    const int reps = 10;
+    const int reps = 20;
+    const int numToRecord = 10;
+    ret.resize(outputNumFloats*numToRecord, 0.0f);
     for(int i = 0; i<reps; i++) {
       int inChannels;
       double weight;
-      switch(i) {
+      switch(i % numToRecord) {
         //Weight 0 on first kernel call to warm up
       case 0: inChannels = modelInfo.trunkNumChannels; weight = 0; break;
       case 1: inChannels = modelInfo.trunkNumChannels; weight = 1; break;
@@ -2033,14 +2064,12 @@ static void tuneTransform(
       accums.countResultAndFreeEvent(err,event,weight);
       if(accums.bad)
         break;
+      if(i < numToRecord)
+        blockingReadBuffer(commandQueue, output, outputNumFloats, ret.data()+(outputNumFloats * i), cfg.shouldUseFP16Storage);
     }
 
     if(accums.bad)
-      ret.assign(outputNumFloats,0.0);
-    else if(cfg.shouldUseFP16Storage)
-      blockingReadBufferHalfToFloat(commandQueue, output, outputNumFloats, ret);
-    else
-      blockingReadBuffer(commandQueue, output, outputNumFloats, ret);
+      ret.assign(outputNumFloats*numToRecord,0.0);
 
     clReleaseMemObject(input);
     clReleaseMemObject(output);
@@ -2162,11 +2191,13 @@ static void tuneUntransform(
       output = createReadWriteBufferFloat(context, outputNumFloats);
     }
 
-    const int reps = 10;
+    const int reps = 20;
+    const int numToRecord = 10;
+    ret.resize(outputNumFloats*numToRecord, 0.0f);
     for(int i = 0; i<reps; i++) {
       int outChannels;
       double weight;
-      switch(i) {
+      switch(i % numToRecord) {
         //Weight 0 on first kernel call to warm up
       case 0: outChannels = modelInfo.trunkNumChannels; weight = 0; break;
       case 1: outChannels = modelInfo.trunkNumChannels; weight = 1; break;
@@ -2197,14 +2228,12 @@ static void tuneUntransform(
       accums.countResultAndFreeEvent(err,event,weight);
       if(accums.bad)
         break;
+      if(i < numToRecord)
+        blockingReadBuffer(commandQueue, output, outputNumFloats, ret.data()+(outputNumFloats * i), cfg.shouldUseFP16Storage);
     }
 
     if(accums.bad)
-      ret.assign(outputNumFloats,0.0);
-    else if(cfg.shouldUseFP16Storage)
-      blockingReadBufferHalfToFloat(commandQueue, output, outputNumFloats, ret);
-    else
-      blockingReadBuffer(commandQueue, output, outputNumFloats, ret);
+      ret.assign(outputNumFloats*numToRecord,0.0);
 
     clReleaseMemObject(input);
     clReleaseMemObject(output);
@@ -2317,9 +2346,11 @@ static void tuneGPool(
     cl_mem output = createReadWriteBufferFloat(context, outputNumFloats);
 
     const int reps = 20;
+    const int numToRecord = 10;
+    ret.resize(outputNumFloats*numToRecord, 0.0f);
     for(int i = 0; i<reps; i++) {
       double weight;
-      switch(i) {
+      switch(i % numToRecord) {
         //Weight 0 on first kernel call to warm up
       case 0: weight = 0; break;
       default: weight = 1; break;
@@ -2338,12 +2369,12 @@ static void tuneGPool(
       accums.countResultAndFreeEvent(err,event,weight);
       if(accums.bad)
         break;
+      if(i < numToRecord)
+        blockingReadBuffer(commandQueue, output, outputNumFloats, ret.data()+(outputNumFloats * i));
     }
 
     if(accums.bad)
-      ret.assign(outputNumFloats,0.0);
-    else
-      blockingReadBuffer(commandQueue, output, outputNumFloats, ret);
+      ret.assign(outputNumFloats*numToRecord,0.0);
 
     clReleaseMemObject(input);
     clReleaseMemObject(mask);

@@ -247,6 +247,12 @@ void OpenCLHelpers::blockingReadBuffer(cl_command_queue commandQueue, cl_mem src
   err = clEnqueueReadBuffer(commandQueue, srcBuf, blocking, 0, byteSizeofVectorContents(dstBuf), dstBuf.data(), 0, NULL, NULL);
   CHECK_ERR(err);
 }
+void OpenCLHelpers::blockingReadBuffer(cl_command_queue commandQueue, cl_mem srcBuf, size_t numElts, float* dstBuf) {
+  cl_bool blocking = CL_TRUE;
+  cl_int err;
+  err = clEnqueueReadBuffer(commandQueue, srcBuf, blocking, 0, numElts * sizeof(float), dstBuf, 0, NULL, NULL);
+  CHECK_ERR(err);
+}
 void OpenCLHelpers::blockingReadBuffer(cl_command_queue commandQueue, cl_mem srcBuf, size_t numElts, std::vector<half_t>& dstBuf) {
   dstBuf.resize(numElts);
   cl_bool blocking = CL_TRUE;
@@ -257,11 +263,23 @@ void OpenCLHelpers::blockingReadBuffer(cl_command_queue commandQueue, cl_mem src
 void OpenCLHelpers::blockingReadBufferHalfToFloat(cl_command_queue commandQueue, cl_mem srcBuf, size_t numElts, std::vector<float>& dstBuf) {
   vector<half_t> tmpHalf;
   blockingReadBuffer(commandQueue, srcBuf, numElts, tmpHalf);
-   dstBuf.resize(numElts);
+  dstBuf.resize(numElts);
+  for(size_t i = 0; i<numElts; i++)
+    dstBuf[i] = tmpHalf[i];
+}
+void OpenCLHelpers::blockingReadBufferHalfToFloat(cl_command_queue commandQueue, cl_mem srcBuf, size_t numElts, float* dstBuf) {
+  vector<half_t> tmpHalf;
+  blockingReadBuffer(commandQueue, srcBuf, numElts, tmpHalf);
   for(size_t i = 0; i<numElts; i++)
     dstBuf[i] = tmpHalf[i];
 }
 void OpenCLHelpers::blockingReadBuffer(cl_command_queue commandQueue, cl_mem srcBuf, size_t numElts, std::vector<float>& dstBuf, bool useFP16) {
+  if(useFP16)
+    blockingReadBufferHalfToFloat(commandQueue, srcBuf, numElts, dstBuf);
+  else
+    blockingReadBuffer(commandQueue, srcBuf, numElts, dstBuf);
+}
+void OpenCLHelpers::blockingReadBuffer(cl_command_queue commandQueue, cl_mem srcBuf, size_t numElts, float* dstBuf, bool useFP16) {
   if(useFP16)
     blockingReadBufferHalfToFloat(commandQueue, srcBuf, numElts, dstBuf);
   else
