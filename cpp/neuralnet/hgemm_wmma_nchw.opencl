@@ -106,12 +106,12 @@ R"%%(
 #define WMMA_STORE "wmma.store.d.sync.aligned.col.m32n8k16.shared.f16"
 #endif
 
-#define LOAD1M(__buf,__x) vload((__x),(__buf))
-#define STORE1M(__buf,__x,__val) vstore((__val),(__x),(__buf))
+#define LOAD1M(__buf,__x) ((__buf)[(__x)])
+#define STORE1M(__buf,__x,__val) ((__buf)[(__x)] = (__val))
 
 #if VWM == 1
-  #define LOADM(__buf,__x) vload((__x),(__buf))
-  #define STOREM(__buf,__x,__val) vstore((__val),(__x),(__buf))
+  #define LOADM(__buf,__x) ((__buf)[(__x)])
+  #define STOREM(__buf,__x,__val) ((__buf)[(__x)] = (__val))
 #elif VWM == 2
   #define LOADM(__buf,__x) vload2((__x),(__buf))
   #define STOREM(__buf,__x,__val) vstore2((__val),(__x),(__buf))
@@ -127,8 +127,8 @@ R"%%(
 #endif
 
 #if VWN == 1
-  #define LOADN(__buf,__x) vload((__x),(__buf))
-  #define STOREN(__buf,__x,__val) vstore((__val),(__x),(__buf))
+  #define LOADN(__buf,__x) ((__buf)[(__x)])
+  #define STOREN(__buf,__x,__val) ((__buf)[(__x)] = (__val))
 #elif VWN == 2
   #define LOADN(__buf,__x) vload2((__x),(__buf))
   #define STOREN(__buf,__x,__val) vstore2((__val),(__x),(__buf))
