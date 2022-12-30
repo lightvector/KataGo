@@ -291,7 +291,7 @@ INLINE_FUNC void hGemmWmmaCHWBody(
   }
 
   // Complete tiles
-  if((groupId0+1) * MWG < hwSize) {
+  if((groupId0+1) * MWG <= hwSize) {
     //Process KWG-size chunks of cSize at a time.
     for(int kwg = 0; kwg < cSize; kwg += KWG) {
       GlobalToLocalAComplete((const __global short*)(agm + (kwg*hwSize)), alm, tid, groupId0 * MWG, hwSize, numThreads);

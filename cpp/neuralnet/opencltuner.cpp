@@ -2594,6 +2594,7 @@ void OpenCLTuner::tune(
           }
           else {
             out << "FP16 tensor cores enabled for 1x1 convs" << endl;
+            currentConfig = result16;
             currentConfig.shouldUseFP16TensorCoresFor1x1 = true;
           }
         }
