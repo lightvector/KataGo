@@ -976,7 +976,7 @@ struct ConvLayer {
         }
       }
       filter = createReadOnlyBuffer(handle,transWeights,useFP16);
-      if(handle->tuneParams.shouldUseFP16TensorCoresFor1x1) {
+      if(handle->usingFP16TensorCoresFor1x1) {
         if(inChannels % handle->getHGemmWmmaNCHWRequiredCDivisor() == 0 && outChannels % handle->getHGemmWmmaNCHWRequiredCDivisor() == 0) {
           usingHGemmWmmaNHCW = true;
         }
