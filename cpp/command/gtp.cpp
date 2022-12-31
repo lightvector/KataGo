@@ -450,10 +450,11 @@ struct GTPEngine {
     const int expectedConcurrentEvals = params.numThreads;
     const int defaultMaxBatchSize = std::max(8,((params.numThreads+3)/4)*4);
     const bool defaultRequireExactNNLen = true;
+    const bool disableFP16 = false;
     const string expectedSha256 = "";
     nnEval = Setup::initializeNNEvaluator(
       nnModelFile,nnModelFile,expectedSha256,cfg,logger,seedRand,maxConcurrentEvals,expectedConcurrentEvals,
-      boardXSize,boardYSize,defaultMaxBatchSize,defaultRequireExactNNLen,
+      boardXSize,boardYSize,defaultMaxBatchSize,defaultRequireExactNNLen,disableFP16,
       Setup::SETUP_FOR_GTP
     );
     logger.write("Loaded neural net with nnXLen " + Global::intToString(nnEval->getNNXLen()) + " nnYLen " + Global::intToString(nnEval->getNNYLen()));

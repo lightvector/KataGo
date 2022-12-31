@@ -395,18 +395,19 @@ int MainCmds::gatekeeper(const vector<string>& args) {
     const int expectedConcurrentEvals = cfg.getInt("numSearchThreads") * numGameThreads;
     const int defaultMaxBatchSize = -1;
     const bool defaultRequireExactNNLen = minBoardXSizeUsed == maxBoardXSizeUsed && minBoardYSizeUsed == maxBoardYSizeUsed;
+    const bool disableFP16 = false;
     const string expectedSha256 = "";
 
     NNEvaluator* testNNEval = Setup::initializeNNEvaluator(
       testModelName,testModelFile,expectedSha256,cfg,logger,rand,maxConcurrentEvals,expectedConcurrentEvals,
-      maxBoardXSizeUsed,maxBoardYSizeUsed,defaultMaxBatchSize,defaultRequireExactNNLen,
+      maxBoardXSizeUsed,maxBoardYSizeUsed,defaultMaxBatchSize,defaultRequireExactNNLen,disableFP16,
       Setup::SETUP_FOR_OTHER
     );
     logger.write("Loaded candidate neural net " + testModelName + " from: " + testModelFile);
 
     NNEvaluator* acceptedNNEval = Setup::initializeNNEvaluator(
       acceptedModelName,acceptedModelFile,expectedSha256,cfg,logger,rand,maxConcurrentEvals,expectedConcurrentEvals,
-      maxBoardXSizeUsed,maxBoardYSizeUsed,defaultMaxBatchSize,defaultRequireExactNNLen,
+      maxBoardXSizeUsed,maxBoardYSizeUsed,defaultMaxBatchSize,defaultRequireExactNNLen,disableFP16,
       Setup::SETUP_FOR_OTHER
     );
     logger.write("Loaded accepted neural net " + acceptedModelName + " from: " + acceptedModelFile);

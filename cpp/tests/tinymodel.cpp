@@ -79,10 +79,11 @@ NNEvaluator* TinyModelTest::runTinyModelTest(const string& baseDir, Logger& logg
   const int expectedConcurrentEvals = 1;
   const int maxBatchSize = 8;
   const bool requireExactNNLen = false;
+  const bool disableFP16 = false;
   const string expectedSha256 = "";
   NNEvaluator* nnEval = Setup::initializeNNEvaluator(
     "tinyModel",tmpModelFile,expectedSha256,cfg,logger,rand,maxConcurrentEvals,expectedConcurrentEvals,
-    NNPos::MAX_BOARD_LEN,NNPos::MAX_BOARD_LEN,maxBatchSize,requireExactNNLen,
+    NNPos::MAX_BOARD_LEN,NNPos::MAX_BOARD_LEN,maxBatchSize,requireExactNNLen,disableFP16,
     Setup::SETUP_FOR_DISTRIBUTED
   );
   nnEval->setDoRandomize(false);

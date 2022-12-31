@@ -2640,6 +2640,15 @@ void NeuralNet::freeComputeHandle(ComputeHandle* handle) {
   delete handle;
 }
 
+bool NeuralNet::isUsingFP16(const ComputeHandle* handle) {
+  return (
+    handle->handle->usingFP16Storage ||
+    handle->handle->usingFP16Compute ||
+    handle->handle->usingFP16TensorCores ||
+    handle->handle->usingFP16TensorCoresFor1x1
+  );
+}
+
 //------------------------------------------------------------------------------
 
 void NeuralNet::printDevices() {

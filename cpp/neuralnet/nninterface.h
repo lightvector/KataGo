@@ -89,6 +89,8 @@ namespace NeuralNet {
   );
   void freeComputeHandle(ComputeHandle* computeHandle);
 
+  bool isUsingFP16(const ComputeHandle* computeHandle);
+
   //Input Buffers ---------------------------------------------------------------
 
   InputBuffers* createInputBuffers(const LoadedModel* loadedModel, int maxBatchSize, int nnXLen, int nnYLen);

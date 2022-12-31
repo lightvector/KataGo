@@ -4,6 +4,7 @@
 #include <sstream>
 
 #include "../core/global.h"
+#include "../core/logger.h"
 #include "../core/rand.h"
 #include "../core/test.h"
 #include "../game/board.h"
@@ -76,6 +77,7 @@ namespace Tests {
 
   //testnnevalcanary.cpp
   void runCanaryTests(NNEvaluator* nnEval, int symmetry, bool print);
+  bool runFP16Test(NNEvaluator* nnEval, NNEvaluator* nnEval32, Logger& logger, int boardSize, bool verbose, bool quickTest, bool& fp32BatchSuccessBuf);
 
   //testconfig.cpp
   void runConfigTests(const std::vector<std::string>& args);

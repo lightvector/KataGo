@@ -309,6 +309,16 @@ void NNEvaluator::clearCache() {
     nnCacheTable->clear();
 }
 
+
+bool NNEvaluator::isAnyThreadUsingFP16() const {
+  lock_guard<std::mutex> lock(bufferMutex);
+  for(const int& isUsingFP16: serverThreadsIsUsingFP16) {
+    if(isUsingFP16)
+      return true;
+  }
+  return false;
+}
+
 static void serveEvals(
   string randSeedThisThread,
   NNEvaluator* nnEval, const LoadedModel* loadedModel,
@@ -335,6 +345,11 @@ void NNEvaluator::setNumThreads(const vector<int>& gpuIdxByServerThr) {
 void NNEvaluator::spawnServerThreads() {
   if(serverThreads.size() != 0)
     throw StringError("NNEvaluator::spawnServerThreads called when threads were already running!");
+
+  {
+    lock_guard<std::mutex> lock(bufferMutex);
+    serverThreadsIsUsingFP16.resize(numThreads,0);
+  }
 
   numServerThreadsStartingUp = numThreads;
   for(int i = 0; i<numThreads; i++) {
@@ -364,6 +379,7 @@ void NNEvaluator::killServerThreads() {
   for(size_t i = 0; i<serverThreads.size(); i++)
     delete serverThreads[i];
   serverThreads.clear();
+  serverThreadsIsUsingFP16.clear();
 
   //Can unset now that threads are dead
   isKilled = false;
@@ -396,6 +412,8 @@ void NNEvaluator::serve(
 
   {
     lock_guard<std::mutex> lock(bufferMutex);
+    assert(serverThreadIdx < serverThreadsIsUsingFP16.size());
+    serverThreadsIsUsingFP16[serverThreadIdx] = NeuralNet::isUsingFP16(gpuHandle) ? 1 : 0;
     numServerThreadsStartingUp--;
     if(numServerThreadsStartingUp <= 0)
       mainThreadWaitingForSpawn.notify_all();

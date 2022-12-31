@@ -195,10 +195,11 @@ int MainCmds::genbook(const vector<string>& args) {
     const int expectedConcurrentEvals = numGameThreads * params.numThreads;
     const int defaultMaxBatchSize = std::max(8,((numGameThreads * params.numThreads+3)/4)*4);
     const bool defaultRequireExactNNLen = true;
+    const bool disableFP16 = false;
     const string expectedSha256 = "";
     nnEval = Setup::initializeNNEvaluator(
       modelFile,modelFile,expectedSha256,cfg,logger,rand,maxConcurrentEvals,expectedConcurrentEvals,
-      boardSizeX,boardSizeY,defaultMaxBatchSize,defaultRequireExactNNLen,
+      boardSizeX,boardSizeY,defaultMaxBatchSize,defaultRequireExactNNLen,disableFP16,
       Setup::SETUP_FOR_ANALYSIS
     );
   }

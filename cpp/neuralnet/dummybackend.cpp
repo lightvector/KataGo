@@ -96,6 +96,11 @@ void NeuralNet::freeComputeHandle(ComputeHandle* gpuHandle) {
     throw StringError("Dummy neural net backend: NeuralNet::freeLocalGpuHandle unimplemented");
 }
 
+bool NeuralNet::isUsingFP16(const ComputeHandle* handle) {
+  (void)handle;
+  return false;
+}
+
 void NeuralNet::printDevices() {
 }
 

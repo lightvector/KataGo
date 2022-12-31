@@ -406,10 +406,11 @@ int MainCmds::demoplay(const vector<string>& args) {
     const int expectedConcurrentEvals = params.numThreads;
     const int defaultMaxBatchSize = -1;
     const bool defaultRequireExactNNLen = false;
+    const bool disableFP16 = false;
     const string expectedSha256 = "";
     nnEval = Setup::initializeNNEvaluator(
       modelFile,modelFile,expectedSha256,cfg,logger,seedRand,maxConcurrentEvals,expectedConcurrentEvals,
-      NNPos::MAX_BOARD_LEN,NNPos::MAX_BOARD_LEN,defaultMaxBatchSize,defaultRequireExactNNLen,
+      NNPos::MAX_BOARD_LEN,NNPos::MAX_BOARD_LEN,defaultMaxBatchSize,defaultRequireExactNNLen,disableFP16,
       Setup::SETUP_FOR_OTHER
     );
   }
@@ -1018,10 +1019,11 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
     const int expectedConcurrentEvals = params.numThreads;
     const int defaultMaxBatchSize = std::max(8,((params.numThreads+3)/4)*4);
     const bool defaultRequireExactNNLen = false;
+    const bool disableFP16 = false;
     const string expectedSha256 = "";
     nnEval = Setup::initializeNNEvaluator(
       nnModelFile,nnModelFile,expectedSha256,cfg,logger,seedRand,maxConcurrentEvals,expectedConcurrentEvals,
-      NNPos::MAX_BOARD_LEN,NNPos::MAX_BOARD_LEN,defaultMaxBatchSize,defaultRequireExactNNLen,
+      NNPos::MAX_BOARD_LEN,NNPos::MAX_BOARD_LEN,defaultMaxBatchSize,defaultRequireExactNNLen,disableFP16,
       Setup::SETUP_FOR_ANALYSIS
     );
   }
@@ -1835,10 +1837,11 @@ int MainCmds::trystartposes(const vector<string>& args) {
     const int expectedConcurrentEvals = params.numThreads;
     const int defaultMaxBatchSize = std::max(8,((params.numThreads+3)/4)*4);
     const bool defaultRequireExactNNLen = false;
+    const bool disableFP16 = false;
     const string expectedSha256 = "";
     nnEval = Setup::initializeNNEvaluator(
       nnModelFile,nnModelFile,expectedSha256,cfg,logger,seedRand,maxConcurrentEvals,expectedConcurrentEvals,
-      NNPos::MAX_BOARD_LEN,NNPos::MAX_BOARD_LEN,defaultMaxBatchSize,defaultRequireExactNNLen,
+      NNPos::MAX_BOARD_LEN,NNPos::MAX_BOARD_LEN,defaultMaxBatchSize,defaultRequireExactNNLen,disableFP16,
       Setup::SETUP_FOR_ANALYSIS
     );
   }
@@ -1986,10 +1989,11 @@ int MainCmds::viewstartposes(const vector<string>& args) {
       const int expectedConcurrentEvals = params.numThreads;
       const int defaultMaxBatchSize = std::max(8,((params.numThreads+3)/4)*4);
       const bool defaultRequireExactNNLen = false;
+      const bool disableFP16 = false;
       const string expectedSha256 = "";
       nnEval = Setup::initializeNNEvaluator(
         modelFile,modelFile,expectedSha256,cfg,logger,rand,maxConcurrentEvals,expectedConcurrentEvals,
-        Board::MAX_LEN,Board::MAX_LEN,defaultMaxBatchSize,defaultRequireExactNNLen,
+        Board::MAX_LEN,Board::MAX_LEN,defaultMaxBatchSize,defaultRequireExactNNLen,disableFP16,
         Setup::SETUP_FOR_GTP
       );
     }
@@ -2130,10 +2134,11 @@ int MainCmds::sampleinitializations(const vector<string>& args) {
       const int expectedConcurrentEvals = params.numThreads;
       const int defaultMaxBatchSize = std::max(8,((params.numThreads+3)/4)*4);
       const bool defaultRequireExactNNLen = false;
+      const bool disableFP16 = false;
       const string expectedSha256 = "";
       nnEval = Setup::initializeNNEvaluator(
         modelFile,modelFile,expectedSha256,cfg,logger,rand,maxConcurrentEvals,expectedConcurrentEvals,
-        Board::MAX_LEN,Board::MAX_LEN,defaultMaxBatchSize,defaultRequireExactNNLen,
+        Board::MAX_LEN,Board::MAX_LEN,defaultMaxBatchSize,defaultRequireExactNNLen,disableFP16,
         Setup::SETUP_FOR_GTP
       );
     }
