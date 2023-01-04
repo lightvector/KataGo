@@ -671,8 +671,10 @@ bool Board::setStone(Loc loc, Color color)
 
   if(colors[loc] == color)
   {}
-  else if(colors[loc] == C_EMPTY)
-    playMoveAssumeLegal(loc,color);
+  else if(colors[loc] == C_EMPTY) {
+    if(!isIllegalSuicide(loc,color,true))
+      playMoveAssumeLegal(loc,color);
+  }
   else if(color == C_EMPTY)
     removeSingleStone(loc);
   else {
@@ -685,6 +687,59 @@ bool Board::setStone(Loc loc, Color color)
   return true;
 }
 
+bool Board::setStoneFailIfNoLibs(Loc loc, Color color) {
+  if(loc < 0 || loc >= MAX_ARR_SIZE || colors[loc] == C_WALL)
+    return false;
+  if(color != C_BLACK && color != C_WHITE && color != C_EMPTY)
+    return false;
+
+  Loc oldKoLoc = ko_loc;
+  if(colors[loc] == color)
+  {}
+  else if(colors[loc] == C_EMPTY) {
+    if(isSuicide(loc,color) || wouldBeCapture(loc,color))
+      return false;
+    playMoveAssumeLegal(loc,color);
+  }
+  else if(color == C_EMPTY)
+    removeSingleStone(loc);
+  else {
+    assert(colors[loc] == getOpp(color));
+    removeSingleStone(loc);
+    if(isSuicide(loc,color) || wouldBeCapture(loc,color)) {
+      playMoveAssumeLegal(loc,getOpp(color));
+      ko_loc = oldKoLoc;
+      return false;
+    }
+    playMoveAssumeLegal(loc,color);
+  }
+
+  ko_loc = NULL_LOC;
+  return true;
+}
+
+bool Board::setStonesFailIfNoLibs(std::vector<Move> placements) {
+  std::set<Loc> locs;
+  for(const Move& placement: placements) {
+    if(locs.find(placement.loc) != locs.end())
+      return false;
+    locs.insert(placement.loc);
+  }
+  //First empty out all locations that we plan to set.
+  //This guarantees avoiding any intermediate liberty issues.
+  for(const Move& placement: placements) {
+    bool suc = setStoneFailIfNoLibs(placement.loc, C_EMPTY);
+    if(!suc)
+      return false;
+  }
+  //Now set all the stones we wanted.
+  for(const Move& placement: placements) {
+    bool suc = setStoneFailIfNoLibs(placement.loc, placement.pla);
+    if(!suc)
+      return false;
+  }
+  return true;
+}
 
 //Attempts to play the specified move. Returns true if successful, returns false if the move was illegal.
 bool Board::playMove(Loc loc, Player pla, bool isMultiStoneSuicideLegal)
@@ -2661,10 +2716,16 @@ Board Board::parseBoard(int xSize, int ySize, const string& s, char lineDelimite
       Loc loc = Location::getLoc(x,y,board.x_size);
       if(c == '.' || c == ' ' || c == '*' || c == ',' || c == '`')
         continue;
-      else if(c == 'o' || c == 'O')
-        board.setStone(loc,P_WHITE);
-      else if(c == 'x' || c == 'X')
-        board.setStone(loc,P_BLACK);
+      else if(c == 'o' || c == 'O') {
+        bool suc = board.setStoneFailIfNoLibs(loc,P_WHITE);
+        if(!suc)
+          throw StringError(string("Board::parseBoard - zero-liberty group near ") + Location::toString(loc,board));
+      }
+      else if(c == 'x' || c == 'X') {
+        bool suc = board.setStoneFailIfNoLibs(loc,P_BLACK);
+        if(!suc)
+          throw StringError(string("Board::parseBoard - zero-liberty group near ") + Location::toString(loc,board));
+      }
       else
         throw StringError(string("Board::parseBoard - could not parse board character: ") + c);
     }

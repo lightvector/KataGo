@@ -23,3 +23,10 @@ play w K4
 genmove_debug b
 genmove_debug w
 genmove_debug b
+clear_board
+boardsize 2
+set_free_handicap a1 b1 a2
+showboard
+clear_board
+set_free_handicap a1 b1 a2 b2
+showboard

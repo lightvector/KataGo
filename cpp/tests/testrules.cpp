@@ -538,7 +538,8 @@ Illegal: (0,0) X
     {
       const char* name = "Spight ko rules";
       Board board(baseBoard);
-      board.setStone(Location::getLoc(2,3,board.x_size),C_BLACK);
+      bool suc = board.setStone(Location::getLoc(2,3,board.x_size),C_BLACK);
+      testAssert(suc);
       Rules rules(baseRules);
       rules.koRule = Rules::KO_SPIGHT;
       BoardHistory hist(board,P_BLACK,rules,0);

@@ -128,6 +128,7 @@ In addition to a basic set of [GTP commands](https://www.lysator.liu.se/~gunnar/
             * `utility` - The utility of the move, combining both winrate and score, as a float in [-C,C] where C is the maximum possible utility.
             * `lcb` - The [LCB](https://github.com/leela-zero/leela-zero/issues/2282) of the move's winrate, as a float in [0,1].
             * `utilityLcb` - The LCB of the move's utility.
+            * `weight` - The total weight of the visits invested into the move. The average weight of visits may be lower when less certain, and larger when more certain.
             * `isSymmetryOf` - Another legal move. Possibly present if KataGo is configured to avoid searching some moves due to symmetry (`rootSymmetryPruning=true`). If present, this move was not actually searched, and all of its stats and PV are copied symmetrically from that other move.
             * `order` - KataGo's ranking of the move. 0 is the best, 1 is the next best, and so on.
             * `pv` - The principal variation ("PV") following this move. May be of variable length or even empty.
@@ -185,3 +186,18 @@ In addition to a basic set of [GTP commands](https://www.lysator.liu.se/~gunnar/
      * Run a benchmark using exactly the current search settings and board size except for any visit or playout or time limits ignored, instead using NVISITS visits.
      * Prints the result, in some user-readable format.
      * Will halt any ongoing search, may have the side effect of clearing the nn cache.
+  * `printsgf [FILENAME]`
+     * Dumps the current position as a static sgf file to FILENAME, or as output if FILENAME missing or "-".
+
+----
+
+Debugging commands can change without warning, and their existence or data formatting should not be relied upon for scripting or automation purposes.
+
+  * `kata-debug-print-tc`
+     * Prints debugging information about time controls for white and black.
+  * `debug_moves ["rawstats"] [MOVE]...`
+     * Prints debugging statistics about move selections.  If "rawstats" is provided the engine will print out extended information about the move.  If a list of MOVE is provided the engine will print out information about that particular variation from the current play position.
+  * `genmove_debug` COLOR
+     * Functions exactly the same as `genmove`, but will print out addition debugging information to stderr.
+  * `search_debug` COLOR
+     * Functions exactly the same as `genmove_debug`, but will not actually perform a move.

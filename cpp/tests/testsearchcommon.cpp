@@ -20,6 +20,8 @@ TestSearchCommon::TestSearchOptions::TestSearchOptions()
    printOwnership(false),
    printEndingScoreValueBonus(false),
    printPlaySelectionValues(false),
+   printRootValues(false),
+   printPrunedRootValues(false),
    noClearBot(false),
    noClearCache(false),
    printMore(false),
@@ -119,6 +121,22 @@ void TestSearchCommon::runBotOnPosition(AsyncBot* bot, Board board, Player nextP
       for(int j = 0; j<locsBuf.size(); j++) {
         cout << Location::toString(locsBuf[j],board) << " " << playSelectionValuesBuf[j] << endl;
       }
+    }
+    if(opts.printRootValues) {
+      ReportedSearchValues values;
+      bool suc = search->getRootValues(values);
+      if(!suc)
+        cout << "Unsuccessful getting root values" << endl;
+      else
+        cout << values << endl;
+    }
+    if(opts.printPrunedRootValues) {
+      ReportedSearchValues values;
+      bool suc = search->getPrunedRootValues(values);
+      if(!suc)
+        cout << "Unsuccessful getting pruned root values" << endl;
+      else
+        cout << values << endl;
     }
 
     if(opts.printPostOrderNodeCount)

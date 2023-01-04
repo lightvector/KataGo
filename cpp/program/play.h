@@ -228,6 +228,7 @@ class MatchPairer {
   std::vector<bool> excludeBot;
   std::vector<int> secondaryBots;
   std::vector<int> blackPriority;
+  std::vector<std::pair<int,int>> extraPairs;
   std::vector<std::pair<int,int>> nextMatchups;
   std::vector<std::pair<int,int>> nextMatchupsBuf;
   Rand rand;

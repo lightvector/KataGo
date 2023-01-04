@@ -651,6 +651,33 @@ MatchPairer::MatchPairer(
   if(cfg.contains("matchRepFactor"))
     matchRepFactor = cfg.getInt("matchRepFactor",1,100000);
 
+  if(cfg.contains("extraPairs")) {
+    string pairsStr = cfg.getString("extraPairs");
+    std::vector<string> pairStrs = Global::split(pairsStr,',');
+    for(const string& pairStr: pairStrs) {
+      if(Global::trim(pairStr).size() <= 0)
+        continue;
+      std::vector<string> pieces = Global::split(Global::trim(pairStr),'-');
+      if(pieces.size() != 2) {
+        throw IOError("Could not parse pair: " + pairStr);
+      }
+      bool suc;
+      int p0;
+      int p1;
+      suc = Global::tryStringToInt(pieces[0],p0);
+      if(!suc)
+        throw IOError("Could not parse pair: " + pairStr);
+      suc = Global::tryStringToInt(pieces[1],p1);
+      if(!suc)
+        throw IOError("Could not parse pair: " + pairStr);
+      if(p0 < 0 || p0 >= nBots)
+        throw IOError("Invalid player index in pair: " + pairStr);
+      if(p1 < 0 || p1 >= nBots)
+        throw IOError("Invalid player index in pair: " + pairStr);
+      extraPairs.push_back(std::make_pair(p0,p1));
+    }
+  }
+
   logGamesEvery = cfg.getInt64("logGamesEvery",1,1000000);
 }
 
@@ -723,6 +750,9 @@ pair<int,int> MatchPairer::getMatchupPairUnsynchronized() {
           nextMatchupsBuf.push_back(make_pair(i,j));
         }
       }
+    }
+    for(const std::pair<int,int>& extraPair: extraPairs) {
+      nextMatchupsBuf.push_back(extraPair);
     }
 
     if(nextMatchupsBuf.size() <= 0)

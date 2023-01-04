@@ -658,8 +658,21 @@ void Sgf::iterAllUniquePositionsHelper(
             netStonesAdded--;
           if(board.colors[buf[j].loc] == C_EMPTY && buf[j].pla != C_EMPTY)
             netStonesAdded++;
-          board.setStone(buf[j].loc, buf[j].pla);
         }
+        bool suc = board.setStonesFailIfNoLibs(buf);
+        if(!suc) {
+          ostringstream trace;
+          for(size_t s = 0; s < variationTraceNodesBranch.size(); s++) {
+            trace << "forward " << variationTraceNodesBranch[s].first << " ";
+            trace << "branch " << variationTraceNodesBranch[s].second << " ";
+          }
+          trace << "forward " << i;
+
+          throw StringError(
+            "Illegal placements in " + fileName + " SGF trace (branches 0-indexed): " + trace.str()
+          );
+        }
+
         board.clearSimpleKoLoc();
         //Clear history any time placements happen, but make sure we track the initial turn number.
         initialTurnNumber += (int)hist.moveHistory.size();
@@ -669,6 +682,9 @@ void Sgf::iterAllUniquePositionsHelper(
         //to not doing it.
         if(netStonesAdded > 0)
           initialTurnNumber += (netStonesAdded+1)/2;
+        //Also make sure the turn number is at least as large as the number of stones in the board
+        if(board.numStonesOnBoard() > initialTurnNumber)
+          initialTurnNumber = board.numStonesOnBoard();
 
         hist.clear(board,nextPla,rules,0);
       }
@@ -688,6 +704,10 @@ void Sgf::iterAllUniquePositionsHelper(
           trace << "branch " << variationTraceNodesBranch[s].second << " ";
         }
         trace << "forward " << i;
+
+        // hist.printBasicInfo(trace, board);
+        // hist.printDebugInfo(trace, board);
+        // trace << Location::toString(buf[j].loc,board) << endl;
 
         throw StringError(
           "Illegal move in " + fileName + " effective turn " + Global::int64ToString(j+initialTurnNumber) + " move " +
@@ -911,8 +931,11 @@ Sgf::PositionSample Sgf::PositionSample::getColorFlipped() const {
   for(int y = 0; y < other.board.y_size; y++) {
     for(int x = 0; x < other.board.x_size; x++) {
       Loc loc = Location::getLoc(x,y,other.board.x_size);
-      if(other.board.colors[loc] == C_BLACK || other.board.colors[loc] == C_WHITE)
-        newBoard.setStone(loc, getOpp(other.board.colors[loc]));
+      if(other.board.colors[loc] == C_BLACK || other.board.colors[loc] == C_WHITE) {
+        bool suc = newBoard.setStoneFailIfNoLibs(loc, getOpp(other.board.colors[loc]));
+        assert(suc);
+        (void)suc;
+      }
     }
   }
   other.board = newBoard;
@@ -920,6 +943,17 @@ Sgf::PositionSample Sgf::PositionSample::getColorFlipped() const {
   for(int i = 0; i<other.moves.size(); i++)
     other.moves[i].pla = getOpp(other.moves[i].pla);
 
+  return other;
+}
+
+Sgf::PositionSample Sgf::PositionSample::previousPosition(double newWeight) const {
+  Sgf::PositionSample other = *this;
+  if(other.moves.size() > 0) {
+    other.nextPla = other.moves[other.moves.size()-1].pla;
+    other.moves.pop_back();
+    other.hintLoc = Board::NULL_LOC;
+    other.weight = newWeight;
+  }
   return other;
 }
 
@@ -1387,10 +1421,9 @@ void CompactSgf::setupInitialBoardAndHist(const Rules& initialRules, Board& boar
   }
 
   board = Board(xSize,ySize);
-  for(int i = 0; i<placements.size(); i++) {
-    board.setStone(placements[i].loc,placements[i].pla);
-  }
-
+  bool suc = board.setStonesFailIfNoLibs(placements);
+  if(!suc)
+    throw StringError("setupInitialBoardAndHist: initial board position contains invalid stones or zero-liberty stones");
   hist = BoardHistory(board,nextPla,initialRules,0);
 }
 

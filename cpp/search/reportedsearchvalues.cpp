@@ -48,3 +48,19 @@ ReportedSearchValues::ReportedSearchValues(
   weight = totalWeight;
   visits = totalVisits;
 }
+
+std::ostream& operator<<(std::ostream& out, const ReportedSearchValues& values) {
+  out << "winValue " << values.winValue << "\n";
+  out << "lossValue " << values.lossValue << "\n";
+  out << "noResultValue " << values.noResultValue << "\n";
+  out << "staticScoreValue " << values.staticScoreValue << "\n";
+  out << "dynamicScoreValue " << values.dynamicScoreValue << "\n";
+  out << "expectedScore " << values.expectedScore << "\n";
+  out << "expectedScoreStdev " << values.expectedScoreStdev << "\n";
+  out << "lead " << values.lead << "\n";
+  out << "winLossValue " << values.winLossValue << "\n";
+  out << "utility " << values.utility << "\n";
+  out << "weight " << values.weight << "\n";
+  out << "visits " << values.visits << "\n";
+  return out;
+}
