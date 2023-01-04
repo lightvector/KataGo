@@ -296,8 +296,9 @@ Requests that KataGo terminate zero or more analysis queries without waiting for
    * `terminateId (string)`: Required. Terminate queries that were submitted with this `id` field without analyzing or finishing analyzing them.
    * `turnNumbers (array of ints)`: Optional. If provided, restrict only to terminating the queries with that id that were for these turn numbers.
 
-Example:
+Examples:
 ```
+{"id":"bar","action":"terminate","terminateId":"foo"}
 {"id":"bar","action":"terminate","terminateId":"foo","turnNumbers":[1,2]}
 ```
 
@@ -310,5 +311,19 @@ The terminate query itself will result in a response as well, to acknowledge rec
 
 The response will NOT generally wait for all of the effects of the action to take place - it may take a small amount of additional time for ongoing searches to actually terminate and report their partial results. A client of this API that wants to wait for all terminated queries to finish should on its own track the set of queries that it has sent for analysis, and wait for all of them to have finished. This can be done by relying on the property that every analysis query, whether terminated or not, and regardless of `reportDuringSearchEvery`, will conclude with exactly one reply where `isDuringSearch` is `false` - such a reply can therefore be used as a marker that an analysis query has finished. (Except during shutdown of the engine if `-quit-without-waiting` was specified).
 
+##### terminate_all
 
+The same as terminate but does not require providing a `terminateId` field and applies to all queries, regardless of their `id`. Required fields:
 
+   * `id (string)`: Required. An arbitrary string identifier for this query.
+   * `action (string)`: Required. Should be the string `terminate_all`.
+   * `turnNumbers (array of ints)`: Optional. If provided, restrict only to terminating the queries for these turn numbers.
+
+Examples:
+```
+{"id":"bar","action":"terminate_all"}
+{"id":"bar","action":"terminate_all","turnNumbers":[1,2]}
+```
+The terminate_all query itself will result in a response as well, to acknowledge receipt and processing of the action. The response consists of echoing a json object back with exactly the same fields and data of the query.
+
+See the documentation for terminate above regarding the output from terminated queries. As with terminate, the response to terminate_all will NOT wait for all of the effects of the action to take place, and the results of all the old queries as they are terminated will be reported back asynchronously.
