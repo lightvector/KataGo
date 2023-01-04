@@ -591,6 +591,7 @@ if __name__ == '__main__':
   for tmp_dir in out_tmp_dirs:
     os.mkdir(tmp_dir)
 
+  num_rows_in_desired_files = 0
   if only_include_md5_path_prop_lbound is not None or only_include_md5_path_prop_ubound is not None:
     new_desired_input_files = []
     for (input_file,num_rows_in_file) in desired_input_files:
@@ -603,9 +604,17 @@ if __name__ == '__main__':
         ok = False
       if ok:
         new_desired_input_files.append((input_file,num_rows_in_file))
+        num_rows_in_desired_files += num_rows_in_file
     print("Due to only_include_md5, filtering down to %d/%d files" % (len(new_desired_input_files),len(desired_input_files)))
     desired_input_files = new_desired_input_files
     del desired_input_row_range # this array is not consistent with new_desired_input_files
+
+  if len(desired_input_files) <= 0:
+    print("No files after filtering for desired range")
+    sys.exit(0)
+  if num_rows_in_desired_files <= 0:
+    print("No rows in desired files")
+    sys.exit(0)
 
   # Clump files into sharding groups. More efficient if shuffling a ton of small npz files
   # since we aren't doing separate tasks for every individual file but rather handling a bunch

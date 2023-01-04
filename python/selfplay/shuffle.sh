@@ -48,6 +48,7 @@ echo "Beginning shuffle at" $(date "+%Y-%m-%d %H:%M:%S")
          -batch-size "$BATCHSIZE" \
          -only-include-md5-path-prop-lbound 0.95 \
          -only-include-md5-path-prop-ubound 1.00 \
+         -output-npz \
          "$@" \
          2>&1 | tee "$BASEDIR"/shuffleddata/$OUTDIR/outval.txt &
 
@@ -65,6 +66,7 @@ echo "Beginning shuffle at" $(date "+%Y-%m-%d %H:%M:%S")
          -batch-size "$BATCHSIZE" \
          -only-include-md5-path-prop-lbound 0.00 \
          -only-include-md5-path-prop-ubound 0.95 \
+         -output-npz \
          "$@" \
          2>&1 | tee "$BASEDIR"/shuffleddata/$OUTDIR/outtrain.txt &
 

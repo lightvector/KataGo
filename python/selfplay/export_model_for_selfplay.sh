@@ -73,7 +73,6 @@ function exportStuff() {
                 set +x
 
                 mv "$SRC"/model.ckpt "$TMPDST"/
-                mv "$SRC"/metadata.json "$TMPDST"/
 
                 rm -r "$SRC"
                 gzip "$TMPDST"/model.bin

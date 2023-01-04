@@ -48,6 +48,7 @@ mkdir -p "$BASEDIR"/gatekeepersgf
 NUM_GAMES_PER_CYCLE=1000
 NUM_THREADS_FOR_SHUFFLING=8
 NUM_TRAIN_SAMPLES_PER_CYCLE=500000
+NUM_TRAIN_SAMPLES_PER_SWA=200000
 BATCHSIZE=128 # KataGo normally uses batch size 256, and you can do that too, but for lower-end GPUs 64 or 128 may be needed to avoid running out of memory.
 SHUFFLE_MINROWS=80000
 SHUFFLE_KEEPROWS=600000 # A little larger than NUM_TRAIN_SAMPLES_PER_CYCLE
@@ -62,7 +63,7 @@ set -x
 while true
 do
     echo "Selfplay"
-    time "$GITROOTDIR"/cpp/katago selfplay -max-games-total "$NUM_GAMES_PER_CYCLE" -output-dir "$BASEDIR"/selfplay -models-dir "$BASEDIR"/models -config "$GITROOTDIR"/cpp/configs/selfplay1.cfg | tee -a "$BASEDIR"/selfplay/stdout.txt
+    time "$GITROOTDIR"/cpp/katago selfplay -max-games-total "$NUM_GAMES_PER_CYCLE" -output-dir "$BASEDIR"/selfplay -models-dir "$BASEDIR"/models -config "$GITROOTDIR"/cpp/configs/training/selfplay1.cfg | tee -a "$BASEDIR"/selfplay/stdout.txt
 
     echo "Shuffle"
     (
@@ -71,7 +72,7 @@ do
     )
 
     echo "Train"
-    time "$GITROOTDIR"/python/selfplay/train.sh "$BASEDIR" "$TRAININGNAME" "$MODELKIND" "$BATCHSIZE" main -max-epochs-this-instance 1 -samples-per-epoch "$NUM_TRAIN_SAMPLES_PER_CYCLE"
+    time "$GITROOTDIR"/python/selfplay/train.sh "$BASEDIR" "$TRAININGNAME" "$MODELKIND" "$BATCHSIZE" main -max-epochs-this-instance 1 -samples-per-epoch "$NUM_TRAIN_SAMPLES_PER_CYCLE" -swa-period-samples "$NUM_TRAIN_SAMPLES_PER_SWA"
 
     echo "Export"
     (
@@ -80,7 +81,7 @@ do
     )
 
     echo "Gatekeeper"
-    time "$GITROOTDIR"/cpp/katago gatekeeper -rejected-models-dir "$BASEDIR"/rejectedmodels -accepted-models-dir "$BASEDIR"/models/ -sgf-output-dir "$BASEDIR"/gatekeepersgf/ -test-models-dir "$BASEDIR"/modelstobetested/ -config "$GITROOTDIR"/cpp/configs/gatekeeper1.cfg -quit-if-no-nets-to-test | tee -a "$BASEDIR"/gatekeepersgf/stdout.txt
+    time "$GITROOTDIR"/cpp/katago gatekeeper -rejected-models-dir "$BASEDIR"/rejectedmodels -accepted-models-dir "$BASEDIR"/models/ -sgf-output-dir "$BASEDIR"/gatekeepersgf/ -test-models-dir "$BASEDIR"/modelstobetested/ -config "$GITROOTDIR"/cpp/configs/training/gatekeeper1.cfg -quit-if-no-nets-to-test | tee -a "$BASEDIR"/gatekeepersgf/stdout.txt
 done
 
 exit 0

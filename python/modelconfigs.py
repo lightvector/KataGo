@@ -139,6 +139,32 @@ b10c128 = {
   "v2_size":80,
 }
 
+b5c192nbt = {
+  "version":11,
+  "norm_kind":"fixup",
+  "bnorm_epsilon": 1e-4,
+  "bnorm_running_avg_momentum": 0.001,
+  "initial_conv_1x1": False,
+  "trunk_num_channels":192,
+  "mid_num_channels":96,
+  "gpool_num_channels":32,
+  "use_attention_pool":False,
+  "num_attention_pool_heads":4,
+  "block_kind": [
+    ["rconv1","bottlenest2"],
+    ["rconv2","bottlenest2gpool"],
+    ["rconv3","bottlenest2"],
+    ["rconv4","bottlenest2gpool"],
+    ["rconv5","bottlenest2"],
+  ],
+  "p1_num_channels":32,
+  "g1_num_channels":32,
+  "v1_num_channels":32,
+  "sbv2_num_channels":64,
+  "num_scorebeliefs":6,
+  "v2_size":80,
+}
+
 b15c192 = {
   "version":11,
   "norm_kind":"fixup",
@@ -1286,6 +1312,9 @@ base_config_of_name = {
   "b6c96": b6c96,
   "b10c128": b10c128,
   "b15c192": b15c192,
+
+  # Cheap new arch config, probably maybe around b10c128
+  "b5c192nbt": b5c192nbt,
 
   # Configs not too different in inference cost from b20c256
   "b20c256": b20c256,

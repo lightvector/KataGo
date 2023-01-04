@@ -181,6 +181,10 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
     max_train_bucket_size = 1.0e30
   if epochs_per_export is None:
     epochs_per_export = 1
+  if swa_period_samples is None:
+    swa_period_samples = max(1, samples_per_epoch // 2)
+  if swa_scale is None:
+    swa_scale = 8
 
   longterm_checkpoints_dir = get_longterm_checkpoints_dir(traindir)
 
