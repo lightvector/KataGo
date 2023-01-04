@@ -1,8 +1,8 @@
 #!/bin/bash -eu
 set -o pipefail
 {
-#Takes any models in modelstobetested/ and uploads them, then moves them to modelsuploaded/
-#Should be run periodically.
+# Takes any models in modelstobetested/ and uploads them, then moves them to modelsuploaded/
+# Should be run periodically.
 
 if [[ $# -ne 4 ]]
 then
@@ -57,23 +57,15 @@ function uploadStuff() {
                 TOBEZIPPED="$TMPDST"/"$RUNNAME"-"$NAME"
                 mkdir "$TOBEZIPPED"
 
-                # Build zip containing the saved_model
-                cp -r "$SRC"/saved_model "$TOBEZIPPED"/saved_model
-                cp "$SRC"/model.config.json "$TOBEZIPPED"/model.config.json
+                # Build zip containing the ckpt
+                cp "$SRC"/model.ckpt "$TOBEZIPPED"/model.ckpt
                 (cd "$TMPDST"; zip -r "$RUNNAME"-"$NAME".zip "$RUNNAME"-"$NAME"/)
-                rm -r "$TOBEZIPPED"/*
-
-                # Build zip containing the non_swa_saved_model
-                cp -r "$SRC"/non_swa_saved_model "$TOBEZIPPED"/non_swa_saved_model
-                cp "$SRC"/model.config.json "$TOBEZIPPED"/model.config.json
-                (cd "$TMPDST"; zip -r "$RUNNAME"-"$NAME"_non_swa.zip "$RUNNAME"-"$NAME"/)
-                rm -r "$TOBEZIPPED"/*
+                rm "$TOBEZIPPED"/*
                 rmdir "$TOBEZIPPED"
 
-                cp "$SRC"/model.config.json "$TMPDST"/model.config.json
                 cp "$SRC"/model.bin.gz "$TMPDST"/"$RUNNAME"-"$NAME".bin.gz
-                cp -r "$SRC"/trainhistory.json "$TMPDST"/trainhistory.json
-                cp -r "$SRC"/log.txt "$TMPDST"/log.txt
+                cp "$SRC"/metadata.json "$TMPDST"/metadata.json
+                cp "$SRC"/log.txt "$TMPDST"/log.txt
 
                 #Sleep a little to allow some tolerance on the filesystem
                 sleep 3
@@ -90,7 +82,7 @@ function uploadStuff() {
                             -model-file "$TMPDST"/"$RUNNAME"-"$NAME".bin.gz \
                             -model-zip "$TMPDST"/"$RUNNAME"-"$NAME".zip \
                             -upload-log-file "$TMPDST"/upload_log.txt \
-                            -trainhistory-file "$TMPDST"/trainhistory.json \
+                            -metadata-file "$TMPDST"/metadata.json \
                             -parents-dir "$TARGETDIR" \
                             -connection-config "$CONNECTION_CONFIG" \
                             -rating-only "$RATING_ONLY"

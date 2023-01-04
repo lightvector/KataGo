@@ -1,8 +1,8 @@
 #!/bin/bash -eu
 set -o pipefail
 {
-#Takes any models in tfsavedmodels_toexport/ and outputs a cuda-runnable model file to modelstobetested/
-#Takes any models in tfsavedmodels_toexport_extra/ and outputs a cuda-runnable model file to models_extra/
+#Takes any models in torchmodels_toexport/ and outputs a cuda-runnable model file to modelstobetested/
+#Takes any models in torchmodels_toexport_extra/ and outputs a cuda-runnable model file to models_extra/
 #Should be run periodically.
 
 if [[ $# -ne 3 ]]
@@ -23,8 +23,8 @@ shift
 
 #------------------------------------------------------------------------------
 
-mkdir -p "$BASEDIR"/tfsavedmodels_toexport
-mkdir -p "$BASEDIR"/tfsavedmodels_toexport_extra
+mkdir -p "$BASEDIR"/torchmodels_toexport
+mkdir -p "$BASEDIR"/torchmodels_toexport_extra
 mkdir -p "$BASEDIR"/modelstobetested
 mkdir -p "$BASEDIR"/models_extra
 mkdir -p "$BASEDIR"/models
@@ -36,7 +36,7 @@ function exportStuff() {
     #Sort by timestamp so that we process in order of oldest to newest if there are multiple
     for FILEPATH in $(find "$BASEDIR"/"$FROMDIR"/ -mindepth 1 -maxdepth 1 -printf "%T@ %p\n" | sort -n | cut -d ' ' -f 2)
     do
-        #Make sure to skip tmp directories that are transiently there by the tensorflow training,
+        #Make sure to skip tmp directories that are transiently there by the training,
         #they are probably in the process of being written
         if [ ${FILEPATH: -4} == ".tmp" ]
         then
@@ -64,18 +64,16 @@ function exportStuff() {
                 mkdir "$TMPDST"
 
                 set -x
-                python3 ./export_model.py \
-                        -saved-model-dir "$SRC"/saved_model \
+                python3 ./export_model_pytorch.py \
+                        -checkpoint "$SRC"/model.ckpt \
                         -export-dir "$TMPDST" \
                         -model-name "$NAMEPREFIX""-""$NAME" \
-                        -name-scope "swa_model" \
                         -filename-prefix model \
-                        -for-cuda
+                        -use-swa
                 set +x
 
-                cp "$SRC"/model.config.json "$TMPDST"/
-                cp "$SRC"/trainhistory.json "$TMPDST"/
-                mv "$SRC"/*saved_model* "$TMPDST"/
+                mv "$SRC"/model.ckpt "$TMPDST"/
+                mv "$SRC"/metadata.json "$TMPDST"/
 
                 rm -r "$SRC"
                 gzip "$TMPDST"/model.bin
@@ -107,11 +105,11 @@ function exportStuff() {
 
 if [ "$USEGATING" -eq 0 ]
 then
-    exportStuff "tfsavedmodels_toexport" "models"
+    exportStuff "torchmodels_toexport" "models"
 else
-    exportStuff "tfsavedmodels_toexport" "modelstobetested"
+    exportStuff "torchmodels_toexport" "modelstobetested"
 fi
-exportStuff "tfsavedmodels_toexport_extra" "models_extra"
+exportStuff "torchmodels_toexport_extra" "models_extra"
 
 exit 0
 }

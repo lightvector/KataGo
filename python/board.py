@@ -1,9 +1,12 @@
-import sys
 import random
 import numpy as np
 
 class IllegalMoveError(ValueError):
   pass
+
+Pos = int
+Loc = int
+Player = int
 
 #Implements legal moves without superko
 class Board:

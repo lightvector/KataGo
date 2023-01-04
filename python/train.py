@@ -10,727 +10,728 @@ import logging
 import contextlib
 import json
 import datetime
+from datetime import timezone
 import gc
 import shutil
 import glob
-import tensorflow as tf
 import numpy as np
 import itertools
 import copy
+import atexit
+from collections import defaultdict
+from typing import Dict, List
 
-import data
-from board import Board
-from model import Model, Target_vars, Metrics, ModelUtils
+import torch
+import torch.nn
+import torch.optim
+import torch.distributed
+import torch.multiprocessing
+from torch.nn.parallel import DistributedDataParallel
+from torch.optim.swa_utils import AveragedModel
+from torch.cuda.amp import GradScaler, autocast
+
 import modelconfigs
-import tfrecordio
+from model_pytorch import Model
+from metrics_pytorch import Metrics
+import data_processing_pytorch
 
-#Command and args-------------------------------------------------------------------
+# HANDLE COMMAND AND ARGS -------------------------------------------------------------------
 
-description = """
-Train neural net on Go positions from tf record files of batches from selfplay.
-"""
+if __name__ == "__main__":
 
-parser = argparse.ArgumentParser(description=description)
-parser.add_argument('-traindir', help='Dir to write to for recording training results', required=True)
-parser.add_argument('-datadir', help='Directory with a train and val subdir of tf records data', required=True)
-parser.add_argument('-exportdir', help='Directory to export models periodically', required=True)
-parser.add_argument('-exportprefix', help='Prefix to append to names of models', required=True)
-parser.add_argument('-pos-len', help='Spatial length of expected training data', type=int, required=True)
-parser.add_argument('-batch-size', help='Expected batch size of the input data, must match tfrecords', type=int, required=True)
-parser.add_argument('-samples-per-epoch', help='Number of data samples to consider as one epoch', type=int, required=False)
-parser.add_argument('-multi-gpus', help='Use multiple gpus, comma-separated device ids', required=False)
-parser.add_argument('-gpu-memory-frac', help='Fraction of gpu memory to use', type=float, required=True)
-parser.add_argument('-model-kind', help='String name for what model to use', required=True)
-parser.add_argument('-lr-scale', help='LR multiplier on the hardcoded schedule', type=float, required=False)
-parser.add_argument('-lr-scale-before-export', help='LR multiplier on the hardcoded schedule just before export', type=float, required=False)
-parser.add_argument('-lr-scale-before-export-epochs', help='Number of epochs for -lr-scale-before-export', type=int, required=False)
-parser.add_argument('-gnorm-clip-scale', help='Multiplier on gradient clipping threshold', type=float, required=False)
-parser.add_argument('-sub-epochs', help='Reload training data up to this many times per epoch', type=int, required=True)
-parser.add_argument('-epochs-per-export', help='Export model once every this many epochs', type=int, required=False)
-parser.add_argument('-export-prob', help='Export model with this probablity', type=float, required=False)
-parser.add_argument('-max-epochs-this-instance', help='Terminate training after this many more epochs', type=int, required=False)
-parser.add_argument('-sleep-seconds-per-epoch', help='Sleep this long between epochs', type=int, required=False)
-parser.add_argument('-swa-sub-epoch-scale', help='Number of sub-epochs to average in expectation together for SWA', type=float, required=False)
-parser.add_argument('-max-train-bucket-per-new-data', help='When data added, add this many train rows per data row to bucket', type=float, required=False)
-parser.add_argument('-max-train-bucket-size', help='Approx total number of train rows allowed if data stops', type=float, required=False)
-parser.add_argument('-max-train-steps-since-last-reload', help='Approx total of training allowed if shuffling stops', type=float, required=False)
-parser.add_argument('-verbose', help='verbose', required=False, action='store_true')
-parser.add_argument('-no-export', help='Do not export models', required=False, action='store_true')
-args = vars(parser.parse_args())
+  description = """
+  Train neural net on Go positions from npz files of batches from selfplay.
+  """
 
-traindir = args["traindir"]
-datadir = args["datadir"]
-exportdir = args["exportdir"]
-exportprefix = args["exportprefix"]
-pos_len = args["pos_len"]
-batch_size = args["batch_size"]
-samples_per_epoch = args["samples_per_epoch"]
-multi_gpus = args["multi_gpus"]
-gpu_memory_frac = args["gpu_memory_frac"]
-model_kind = args["model_kind"]
-lr_scale = args["lr_scale"]
-lr_scale_before_export = args["lr_scale_before_export"]
-lr_scale_before_export_epochs = args["lr_scale_before_export_epochs"]
-gnorm_clip_scale = args["gnorm_clip_scale"]
-sub_epochs = args["sub_epochs"]
-epochs_per_export = args["epochs_per_export"]
-export_prob = args["export_prob"]
-max_epochs_this_instance = args["max_epochs_this_instance"]
-sleep_seconds_per_epoch = args["sleep_seconds_per_epoch"]
-swa_sub_epoch_scale = args["swa_sub_epoch_scale"]
-max_train_bucket_per_new_data = args["max_train_bucket_per_new_data"]
-max_train_bucket_size = args["max_train_bucket_size"]
-max_train_steps_since_last_reload = args["max_train_steps_since_last_reload"]
-verbose = args["verbose"]
-no_export = args["no_export"]
-logfilemode = "a"
+  parser = argparse.ArgumentParser(description=description)
+  parser.add_argument('-traindir', help='Dir to write to for recording training results', required=True)
+  parser.add_argument('-datadir', help='Directory with a train and val subdir of npz data', required=True)
+  parser.add_argument('-exportdir', help='Directory to export models periodically', required=False)
+  parser.add_argument('-exportprefix', help='Prefix to append to names of models', required=False)
+  parser.add_argument('-initial-checkpoint', help='If no training checkpoint exists, initialize from this checkpoint', required=False)
 
-if samples_per_epoch is None:
-  samples_per_epoch = 1000000
+  parser.add_argument('-pos-len', help='Spatial length of expected training data', type=int, required=True)
+  parser.add_argument('-batch-size', help='Per-GPU batch size to use for training', type=int, required=True)
+  parser.add_argument('-samples-per-epoch', help='Number of data samples to consider as one epoch', type=int, required=False)
+  parser.add_argument('-model-kind', help='String name for what model config to use', required=False)
+  parser.add_argument('-lr-scale', help='LR multiplier on the hardcoded schedule', type=float, required=False)
+  parser.add_argument('-gnorm-clip-scale', help='Multiplier on gradient clipping threshold', type=float, required=False)
+  parser.add_argument('-sub-epochs', help='Reload training data up to this many times per epoch', type=int, default=1, required=False)
+  parser.add_argument('-swa-period-samples', help='How frequently to average an SWA sample, in samples', type=float, required=False)
+  parser.add_argument('-swa-scale', help='Number of samples to average in expectation together for SWA', type=float, required=False)
+  parser.add_argument('-lookahead-k', help='Use lookahead optimizer', type=int, required=False)
+  parser.add_argument('-lookahead-alpha', help='Use lookahead optimizer', type=float, required=False)
+  parser.add_argument('-lookahead-print', help='Only print on lookahead syncs', required=False, action='store_true')
 
-if max_train_bucket_size is None:
-  max_train_bucket_size = 1.0e30
+  parser.add_argument('-multi-gpus', help='Use multiple gpus, comma-separated device ids', required=False)
+  parser.add_argument('-use-fp16', help='Use fp16 training', required=False, action='store_true')
 
-if lr_scale_before_export is None:
-  lr_scale_before_export = lr_scale
+  parser.add_argument('-epochs-per-export', help='Export model once every this many epochs', type=int, required=False)
+  parser.add_argument('-export-prob', help='Export model with this probablity', type=float, required=False)
+  parser.add_argument('-max-epochs-this-instance', help='Terminate training after this many more epochs', type=int, required=False)
+  parser.add_argument('-sleep-seconds-per-epoch', help='Sleep this long between epochs', type=int, required=False)
+  parser.add_argument('-max-train-bucket-per-new-data', help='When data added, add this many train rows per data row to bucket', type=float, required=False)
+  parser.add_argument('-max-train-bucket-size', help='Approx total number of train rows allowed if data stops', type=float, required=False)
+  parser.add_argument('-max-train-steps-since-last-reload', help='Approx total of training allowed if shuffling stops', type=float, required=False)
+  parser.add_argument('-max-val-samples', help='Approx max of validation samples per epoch', type=int, required=False)
+  parser.add_argument('-randomize-val', help='Randomize order of validation files', required=False, action='store_true')
+  parser.add_argument('-no-export', help='Do not export models', required=False, action='store_true')
+  parser.add_argument('-no-repeat-files', help='Track what shuffled data was used and do not repeat, even when killed and resumed', required=False, action='store_true')
 
-if lr_scale_before_export_epochs is None:
-  lr_scale_before_export_epochs = 1
+  parser.add_argument('-gnorm-stats-debug', required=False, action='store_true')
 
-if not os.path.exists(traindir):
-  os.makedirs(traindir)
-if not os.path.exists(exportdir):
-  os.makedirs(exportdir)
+  parser.add_argument('-brenorm-avg-momentum', type=float, help='Set brenorm running avg rate to this value', required=False)
+  parser.add_argument('-brenorm-target-rmax', type=float, help='Gradually adjust brenorm rmax to this value', required=False)
+  parser.add_argument('-brenorm-target-dmax', type=float, help='Gradually adjust brenorm dmax to this value', required=False)
+  parser.add_argument('-brenorm-adjustment-scale', type=float, help='How many samples to adjust brenorm params all but 1/e of the way to target', required=False)
 
-longterm_checkpoints_dir = os.path.join(traindir,"longterm_checkpoints")
-if not os.path.exists(longterm_checkpoints_dir):
-  os.makedirs(longterm_checkpoints_dir)
+  parser.add_argument('-soft-policy-weight-scale', type=float, default=1.0, help='Soft policy loss coeff', required=False)
+  parser.add_argument('-value-loss-scale', type=float, default=1.0, help='Additional value loss coeff', required=False)
+  parser.add_argument('-td-value-loss-scales', type=str, default="0.4583,0.4583,0.1250", help='Additional td value loss coeffs, 3 comma separated values', required=False)
 
-bareformatter = logging.Formatter("%(message)s")
-fh = logging.FileHandler(os.path.join(traindir,"train.log"), mode=logfilemode)
-fh.setFormatter(bareformatter)
+  parser.add_argument('-main-loss-scale', type=float, help='Loss factor scale for main head', required=False)
+  parser.add_argument('-intermediate-loss-scale', type=float, help='Loss factor scale for intermediate head', required=False)
+  parser.add_argument('-intermediate-distill-scale', type=float, help='Distill factor scale for intermediate head', required=False)
 
-trainlogger = logging.getLogger("trainlogger")
-trainlogger.setLevel(logging.INFO)
-trainlogger.addHandler(fh)
-trainlogger.propagate=False
-
-np.set_printoptions(linewidth=150)
-
-def trainlog(s):
-  print(s,flush=True)
-  trainlogger.info(s)
-
-tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.INFO)
-
-num_batches_per_epoch = int(round(samples_per_epoch / batch_size))
-
-if epochs_per_export is None:
-  epochs_per_export = 1
-
-trainlog(str(sys.argv))
-
-if os.path.exists(os.path.join(traindir,"model.config.json")):
-  trainlog("Loading existing model config at %s" % os.path.join(traindir,"model.config.json"))
-  with open(os.path.join(traindir,"model.config.json"),"r") as f:
-    model_config = json.load(f)
-else:
-  model_config = modelconfigs.config_of_name[model_kind]
-  trainlog("Initializing with new model config")
-  with open(os.path.join(traindir,"model.config.json"),"w") as f:
-    json.dump(model_config,f)
-
-trainlog(str(model_config))
-
-# FIGURE OUT MULTIGPU ------------------------------------------------------------
-num_gpus_used = 1
-multi_gpu_device_ids = []
-if multi_gpus is not None:
-  for piece in multi_gpus.split(","):
-    piece = piece.strip()
-    multi_gpu_device_ids.append("/GPU:" + str(int(piece)))
-  num_gpus_used = len(multi_gpu_device_ids)
+  args = vars(parser.parse_args())
 
 
-# MODEL ----------------------------------------------------------------
-printed_model_yet = False
-# Avoid loading initial weights, just ignore them, if we've already started training and we have weights.
-# We detect this by detecting the TF estimator "checkpoint" index file.
-initial_weights_already_loaded = os.path.exists(os.path.join(traindir,"checkpoint"))
+def get_longterm_checkpoints_dir(traindir):
+  return os.path.join(traindir,"longterm_checkpoints")
 
-if swa_sub_epoch_scale is not None:
-  with tf.device("/cpu:0"):
-    with tf.compat.v1.variable_scope("swa_model"):
-      swa_model = Model(model_config,pos_len,placeholders={})
-      swa_saver = tf.compat.v1.train.Saver(
-        max_to_keep = 10000000,
-        save_relative_paths = True,
-      )
-    swa_assign_placeholders = {}
-    swa_wvalues = {}
-    swa_weight = 0.0
-    assign_ops = []
-    for variable in itertools.chain(tf.compat.v1.model_variables(), tf.compat.v1.trainable_variables()):
-      if variable.name.startswith("swa_model/"):
-        placeholder = tf.compat.v1.placeholder(variable.dtype,variable.shape)
-        assign_ops.append(tf.compat.v1.assign(variable,placeholder))
-        swa_assign_placeholders[variable.name] = placeholder
-        swa_wvalues[variable.name] = np.zeros([elt.value for elt in variable.shape])
-    swa_assign_op = tf.group(*assign_ops)
-  trainlog("Build SWA graph for SWA update and saving, %d variables" % len(swa_assign_placeholders))
+def make_dirs(args):
+  traindir = args["traindir"]
+  exportdir = args["exportdir"]
 
-def accumulate_swa(estimator):
-  global swa_weight
-  assert(swa_sub_epoch_scale is not None)
+  if not os.path.exists(traindir):
+    os.makedirs(traindir)
+  if exportdir is not None and not os.path.exists(exportdir):
+    os.makedirs(exportdir)
 
-  old_factor = 1.0 - 1.0 / swa_sub_epoch_scale
-  new_factor = 1.0 / swa_sub_epoch_scale
+  longterm_checkpoints_dir = get_longterm_checkpoints_dir(traindir)
+  if not os.path.exists(longterm_checkpoints_dir):
+    os.makedirs(longterm_checkpoints_dir)
 
-  new_swa_weight = swa_weight * old_factor + new_factor
+def multiprocessing_setup(rank: int, world_size: int):
+  os.environ['MASTER_ADDR'] = 'localhost'
+  os.environ['MASTER_PORT'] = '23456'
+  logging.info("Running torch.distributed.init_process_group")
+  torch.distributed.init_process_group("nccl", rank=rank, world_size=world_size)
+  logging.info(f"Returned from torch.distributed.init_process_group, my rank = {rank}, world_size={world_size}")
 
-  for swa_variable_name in swa_assign_placeholders:
-    assert(swa_variable_name.startswith("swa_model/"))
-    variable_name = swa_variable_name[len("swa_model/"):]
-    swa_wvalues[swa_variable_name] *= old_factor
-    swa_wvalues[swa_variable_name] += new_factor * estimator.get_variable_value(variable_name)
-
-  swa_weight = new_swa_weight
-
-def save_swa(savedir):
-  global swa_weight
-  assert(swa_sub_epoch_scale is not None)
-  assignments = {}
-
-  for swa_variable_name in swa_assign_placeholders:
-    assert(swa_variable_name.startswith("swa_model/"))
-    assignments[swa_assign_placeholders[swa_variable_name]] = swa_wvalues[swa_variable_name] / swa_weight
-
-  with tf.compat.v1.Session(config=tf.compat.v1.ConfigProto(device_count={'GPU':0})) as sess:
-    sess.run(tf.compat.v1.global_variables_initializer())
-    sess.run(swa_assign_op, assignments)
-    if not os.path.exists(savedir):
-      os.mkdir(savedir)
-    os.mkdir(os.path.join(savedir,"saved_model"))
-    os.mkdir(os.path.join(savedir,"saved_model","variables"))
-    swa_saver.save(sess,os.path.join(savedir,"saved_model","variables","variables"), write_meta_graph=True, write_state=False)
+def multiprocessing_cleanup():
+  torch.distributed.destroy_process_group()
 
 
-class CustomLoggingHook(tf.estimator.LoggingTensorHook):
+def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writepipes, barrier):
+  traindir = args["traindir"]
+  datadir = args["datadir"]
+  exportdir = args["exportdir"]
+  exportprefix = args["exportprefix"]
+  initial_checkpoint = args["initial_checkpoint"]
 
-  def __init__(self, *args, **kwargs):
-    self.handle_logging_values = kwargs.pop('handle_logging_values')
-    super().__init__(*args, **kwargs)
+  pos_len = args["pos_len"]
+  batch_size = args["batch_size"]
+  samples_per_epoch = args["samples_per_epoch"]
+  model_kind = args["model_kind"]
+  lr_scale = args["lr_scale"]
+  gnorm_clip_scale = args["gnorm_clip_scale"]
+  sub_epochs = args["sub_epochs"]
+  swa_period_samples = args["swa_period_samples"]
+  swa_scale = args["swa_scale"]
+  lookahead_k = args["lookahead_k"]
+  lookahead_alpha = args["lookahead_alpha"]
+  lookahead_print = args["lookahead_print"]
 
-  def after_run(self, run_context, run_values):
-    if run_values.results is not None:
-      self.handle_logging_values(run_values.results)
-    super().after_run(run_context, run_values)
+  use_fp16 = args["use_fp16"]
 
-num_epochs_this_instance = 0
-global_latest_extra_stats = {}
-def update_global_latest_extra_stats(results):
-  global global_latest_extra_stats
-  for key in results:
-    global_latest_extra_stats[key] = results[key].item()
+  epochs_per_export = args["epochs_per_export"]
+  export_prob = args["export_prob"]
+  max_epochs_this_instance = args["max_epochs_this_instance"]
+  sleep_seconds_per_epoch = args["sleep_seconds_per_epoch"]
+  max_train_bucket_per_new_data = args["max_train_bucket_per_new_data"]
+  max_train_bucket_size = args["max_train_bucket_size"]
+  max_train_steps_since_last_reload = args["max_train_steps_since_last_reload"]
+  max_val_samples = args["max_val_samples"]
+  randomize_val = args["randomize_val"]
+  no_export = args["no_export"]
+  no_repeat_files = args["no_repeat_files"]
 
-def model_fn(features,labels,mode,params):
-  global num_epochs_this_instance
-  global printed_model_yet
-  global initial_weights_already_loaded
+  gnorm_stats_debug = args["gnorm_stats_debug"]
 
-  print_model = not printed_model_yet
+  brenorm_target_rmax = args["brenorm_target_rmax"]
+  brenorm_target_dmax = args["brenorm_target_dmax"]
+  brenorm_avg_momentum = args["brenorm_avg_momentum"]
+  brenorm_adjustment_scale = args["brenorm_adjustment_scale"]
 
-  lr_scale_to_use = lr_scale
-  if (num_epochs_this_instance + lr_scale_before_export_epochs) % epochs_per_export <= num_epochs_this_instance % epochs_per_export:
-    lr_scale_to_use = lr_scale_before_export
+  soft_policy_weight_scale = args["soft_policy_weight_scale"]
+  value_loss_scale = args["value_loss_scale"]
+  td_value_loss_scales = [float(x) for x in args["td_value_loss_scales"].split(",")]
 
-  built = ModelUtils.build_model_from_tfrecords_features(features,mode,print_model,trainlog,model_config,pos_len,batch_size,lr_scale_to_use,gnorm_clip_scale,num_gpus_used)
+  main_loss_scale = args["main_loss_scale"]
+  intermediate_loss_scale = args["intermediate_loss_scale"]
+  intermediate_distill_scale = args["intermediate_distill_scale"]
 
-  if mode == tf.estimator.ModeKeys.PREDICT:
-    model = built
-    predictions = {}
-    predictions["policy_output"] = model.policy_output
-    predictions["value_output"] = model.value_output
-    return tf.estimator.EstimatorSpec(mode, predictions=predictions)
+  if lr_scale is None:
+    lr_scale = 1.0
 
-  if mode == tf.estimator.ModeKeys.EVAL:
-    (model,target_vars,metrics) = built
-    wsum = tf.Variable(
-      0.0,dtype=tf.float32,name="wsum",trainable=False,
-      collections=[tf.compat.v1.GraphKeys.LOCAL_VARIABLES, tf.compat.v1.GraphKeys.METRIC_VARIABLES],
-      synchronization=tf.VariableSynchronization.ON_READ,
-      aggregation=tf.VariableAggregation.SUM
+  if samples_per_epoch is None:
+    samples_per_epoch = 1000000
+  if max_train_bucket_size is None:
+    max_train_bucket_size = 1.0e30
+  if epochs_per_export is None:
+    epochs_per_export = 1
+
+  longterm_checkpoints_dir = get_longterm_checkpoints_dir(traindir)
+
+  assert (swa_period_samples is None) == (swa_scale is None)
+  assert (lookahead_k is None) == (lookahead_alpha is None)
+
+  # SET UP LOGGING -------------------------------------------------------------
+
+  logging.root.handlers = []
+  if rank == 0:
+    logging.basicConfig(
+      level=logging.INFO,
+      format="%(message)s",
+      handlers=[
+        logging.FileHandler(os.path.join(traindir,f"train{rank}.log"), mode="a"),
+        logging.StreamHandler()
+      ],
     )
-    wsum_op = tf.assign_add(wsum,target_vars.weight_sum)
-    eval_metric_ops={
-      #"wsum": (wsum.read_value(),wsum_op),
-      "p0loss": tf.compat.v1.metrics.mean(target_vars.policy_loss_unreduced, weights=target_vars.target_weight_used),
-      "p1loss": tf.compat.v1.metrics.mean(target_vars.policy1_loss_unreduced, weights=target_vars.target_weight_used),
-      "vloss": tf.compat.v1.metrics.mean(target_vars.value_loss_unreduced, weights=target_vars.target_weight_used),
-      "tdvloss": tf.compat.v1.metrics.mean(target_vars.td_value_loss_unreduced, weights=target_vars.target_weight_used),
-      "smloss": tf.compat.v1.metrics.mean(target_vars.scoremean_loss_unreduced, weights=target_vars.target_weight_used),
-      "leadloss": tf.compat.v1.metrics.mean(target_vars.lead_loss_unreduced, weights=target_vars.target_weight_used),
-      "vtimeloss": tf.compat.v1.metrics.mean(target_vars.variance_time_loss_unreduced, weights=target_vars.target_weight_used),
-      "sbpdfloss": tf.compat.v1.metrics.mean(target_vars.scorebelief_pdf_loss_unreduced, weights=target_vars.target_weight_used),
-      "sbcdfloss": tf.compat.v1.metrics.mean(target_vars.scorebelief_cdf_loss_unreduced, weights=target_vars.target_weight_used),
-      "oloss": tf.compat.v1.metrics.mean(target_vars.ownership_loss_unreduced, weights=target_vars.target_weight_used),
-      "sloss": tf.compat.v1.metrics.mean(target_vars.scoring_loss_unreduced, weights=target_vars.target_weight_used),
-      "fploss": tf.compat.v1.metrics.mean(target_vars.futurepos_loss_unreduced, weights=target_vars.target_weight_used),
-      "rsdloss": tf.compat.v1.metrics.mean(target_vars.scorestdev_reg_loss_unreduced, weights=target_vars.target_weight_used),
-      "rloss": tf.compat.v1.metrics.mean(target_vars.reg_loss_per_weight, weights=target_vars.weight_sum),
-      "rscloss": tf.compat.v1.metrics.mean(target_vars.scale_reg_loss_unreduced, weights=target_vars.target_weight_used),
-      "pacc1": tf.compat.v1.metrics.mean(metrics.accuracy1_unreduced, weights=target_vars.target_weight_used),
-      "ventr": tf.compat.v1.metrics.mean(metrics.value_entropy_unreduced, weights=target_vars.target_weight_used),
-      "ptentr": tf.compat.v1.metrics.mean(metrics.policy_target_entropy_unreduced, weights=target_vars.target_weight_used)
-    }
-    if model.version >= 9:
-      eval_metric_ops["evstloss"] = tf.compat.v1.metrics.mean(target_vars.shortterm_value_error_loss_unreduced, weights=target_vars.target_weight_used)
-      eval_metric_ops["esstloss"] = tf.compat.v1.metrics.mean(target_vars.shortterm_score_error_loss_unreduced, weights=target_vars.target_weight_used)
-    if model.version >= 10:
-      eval_metric_ops["tdsloss"] = tf.compat.v1.metrics.mean(target_vars.td_score_loss_unreduced, weights=target_vars.target_weight_used)
-
-    return tf.estimator.EstimatorSpec(
-      mode,
-      loss=target_vars.opt_loss / tf.constant(batch_size,dtype=tf.float32),
-      eval_metric_ops=eval_metric_ops
+  else:
+    logging.basicConfig(
+      level=logging.INFO,
+      format="%(message)s",
+      handlers=[
+        logging.FileHandler(os.path.join(traindir,f"train{rank}.log"), mode="a"),
+      ],
     )
+  np.set_printoptions(linewidth=150)
 
-  if mode == tf.estimator.ModeKeys.TRAIN:
-    (model,target_vars,metrics,global_step,global_step_float,per_sample_learning_rate,train_step) = built
-    printed_model_yet = True
+  logging.info(str(sys.argv))
 
-    def moving_mean(name,x,weights):
-      sumwx = tf.reduce_sum(x*weights,name="printstats/wx/"+name)
-      sumw = tf.reduce_sum(weights,name="printstats/w/"+name)
-      moving_wx = tf.compat.v1.get_variable(initializer=tf.zeros([]),name=(name+"/moving_wx"),trainable=False)
-      moving_w = tf.compat.v1.get_variable(initializer=tf.zeros([]),name=(name+"/moving_w"),trainable=False)
+  # FIGURE OUT MULTIGPU ------------------------------------------------------------
+  if world_size > 1:
+    multiprocessing_setup(rank, world_size)
+    atexit.register(multiprocessing_cleanup)
+    assert torch.cuda.is_available()
 
-      decay = 0.999
-      with tf.compat.v1.variable_scope(name):
-        wx_op = tf.keras.backend.moving_average_update(moving_wx,sumwx,decay)
-        w_op = tf.keras.backend.moving_average_update(moving_w,sumw,decay)
-        op = tf.group(wx_op,w_op)
+  if True or torch.cuda.is_available():
+    my_gpu_id = multi_gpu_device_ids[rank]
+    torch.cuda.set_device(my_gpu_id)
+    logging.info("Using GPU device: " + torch.cuda.get_device_name())
+    device = torch.device("cuda", my_gpu_id)
+  else:
+    logging.warning("WARNING: No GPU, using CPU")
+    device = torch.device("cpu")
 
-      avg = (moving_wx + sumwx * (1.0-decay)) / (moving_w + sumw * (1.0-decay))
-      return (avg,op)
+  # LOAD MODEL ---------------------------------------------------------------------
 
-    (p0loss,p0loss_op) = moving_mean("p0loss",target_vars.policy_loss_unreduced, weights=target_vars.target_weight_used)
-    (p1loss,p1loss_op) = moving_mean("p1loss",target_vars.policy1_loss_unreduced, weights=target_vars.target_weight_used)
-    (vloss,vloss_op) = moving_mean("vloss",target_vars.value_loss_unreduced, weights=target_vars.target_weight_used)
-    (tdvloss,tdvloss_op) = moving_mean("tdvloss",target_vars.td_value_loss_unreduced, weights=target_vars.target_weight_used)
-    (smloss,smloss_op) = moving_mean("smloss",target_vars.scoremean_loss_unreduced, weights=target_vars.target_weight_used)
-    (leadloss,leadloss_op) = moving_mean("leadloss",target_vars.lead_loss_unreduced, weights=target_vars.target_weight_used)
-    (vtimeloss,vtimeloss_op) = moving_mean("vtimeloss",target_vars.variance_time_loss_unreduced, weights=target_vars.target_weight_used)
-    (sbpdfloss,sbpdfloss_op) = moving_mean("sbpdfloss",target_vars.scorebelief_pdf_loss_unreduced, weights=target_vars.target_weight_used)
-    (sbcdfloss,sbcdfloss_op) = moving_mean("sbcdfloss",target_vars.scorebelief_cdf_loss_unreduced, weights=target_vars.target_weight_used)
-    (oloss,oloss_op) = moving_mean("oloss",target_vars.ownership_loss_unreduced, weights=target_vars.target_weight_used)
-    (sloss,sloss_op) = moving_mean("sloss",target_vars.scoring_loss_unreduced, weights=target_vars.target_weight_used)
-    (fploss,fploss_op) = moving_mean("fploss",target_vars.futurepos_loss_unreduced, weights=target_vars.target_weight_used)
-    (skloss,skloss_op) = moving_mean("skloss",target_vars.seki_loss_unreduced, weights=target_vars.target_weight_used)
-    (rsdloss,rsdloss_op) = moving_mean("rsdloss",target_vars.scorestdev_reg_loss_unreduced, weights=target_vars.target_weight_used)
-    (rloss,rloss_op) = moving_mean("rloss",target_vars.reg_loss_per_weight, weights=target_vars.weight_sum)
-    (rscloss,rscloss_op) = moving_mean("rscloss",target_vars.scale_reg_loss_unreduced, weights=target_vars.target_weight_used)
-    if model.version >= 9:
-      (evstloss,evstloss_op) = moving_mean("evstloss",target_vars.shortterm_value_error_loss_unreduced, weights=target_vars.target_weight_used)
-      (esstloss,esstloss_op) = moving_mean("esstloss",target_vars.shortterm_score_error_loss_unreduced, weights=target_vars.target_weight_used)
-      # (evstm,evstm_op) = moving_mean("evstm",metrics.shortterm_value_error_mean_unreduced, weights=target_vars.target_weight_used)
-      # (evstv,evstv_op) = moving_mean("evstv",metrics.shortterm_value_error_var_unreduced, weights=target_vars.target_weight_used)
-      # (esstm,esstm_op) = moving_mean("esstm",metrics.shortterm_score_error_mean_unreduced, weights=target_vars.target_weight_used)
-      # (esstv,esstv_op) = moving_mean("esstv",metrics.shortterm_score_error_var_unreduced, weights=target_vars.target_weight_used)
-    if model.version >= 10:
-      (tdsloss,tdsloss_op) = moving_mean("tdsloss",target_vars.td_score_loss_unreduced, weights=target_vars.target_weight_used)
-    (pacc1,pacc1_op) = moving_mean("pacc1",metrics.accuracy1_unreduced, weights=target_vars.target_weight_used)
-    (ptentr,ptentr_op) = moving_mean("ptentr",metrics.policy_target_entropy_unreduced, weights=target_vars.target_weight_used)
-    #NOTE: These two are going to be smaller if using more GPUs since it's the gradient norm as measured on the instance batch
-    #rather than the global batch.
-    #Also, somewhat awkwardly, we say the weight is 1.0 rather than 1.0/num_gpus_used because tensorflow seems to have "meany"
-    #behavior where it updates sumw via the mean of the two separate updates of the gpus rather than the sum.
-    (gnorm,gnorm_op) = moving_mean("gnorm",metrics.gnorm, weights=1.0)
-    (exgnorm,exgnorm_op) = moving_mean("excessgnorm",metrics.excess_gnorm, weights=1.0)
-    (wmean,wmean_op) = tf.compat.v1.metrics.mean(target_vars.weight_sum)
+  def get_checkpoint_path():
+    return os.path.join(traindir,"checkpoint.ckpt")
+  def get_checkpoint_prev_path(i):
+    return os.path.join(traindir,f"checkpoint_prev{i}.ckpt")
 
-    # print_op = tf.print(
-    #   metrics.gnorm,
-    #   target_vars.weight_sum,
-    #   target_vars.opt_loss,
-    #   metrics.tmp,
-    #   foo[0],
-    #   output_stream=sys.stdout
-    # )
+  NUM_SHORTTERM_CHECKPOINTS_TO_KEEP = 4
+  def save(ddp_model, swa_model, optimizer, metrics_obj, running_metrics, train_state, path=None):
+    if gnorm_stats_debug:
+      logging.warning("Skipping save since debugging gnorm stats")
+      return
+    if rank == 0:
+      state_dict = {}
+      state_dict["model"] = ddp_model.state_dict()
+      state_dict["optimizer"] = optimizer.state_dict()
+      state_dict["metrics"] = metrics_obj.state_dict()
+      state_dict["running_metrics"] = running_metrics
+      state_dict["train_state"] = train_state
+      state_dict["config"] = model_config
 
-    print_train_loss_every_batches = 100
+      if swa_model is not None:
+        state_dict["swa_model"] = swa_model.state_dict()
 
-    logvars = {
-      "nsamp": global_step * tf.constant(batch_size,dtype=tf.int64),
-      "wsum": global_step_float * wmean * tf.constant(float(num_gpus_used)),
-      "p0loss": p0loss,
-      "p1loss": p1loss,
-      "vloss": vloss,
-      "tdvloss": tdvloss,
-      "smloss": smloss,
-      "leadloss": leadloss,
-      "vtimeloss": vtimeloss,
-      "sbpdfloss": sbpdfloss,
-      "sbcdfloss": sbcdfloss,
-      "oloss": oloss,
-      "sloss": sloss,
-      "fploss": fploss,
-      "skloss": skloss,
-      "skw": target_vars.seki_weight_scale,
-      "rsdloss": rsdloss,
-      "rloss": rloss,
-      "rscloss": rscloss,
-      "pacc1": pacc1,
-      "ptentr": ptentr,
-      "pslr": per_sample_learning_rate,
-      "gnorm": gnorm,
-      "exgnorm": exgnorm
-    }
-    if model.version >= 9:
-      logvars["evstloss"] = evstloss
-      logvars["esstloss"] = esstloss
-      # logvars["evstm"] = evstm
-      # logvars["evstv"] = evstv
-      # logvars["esstm"] = esstm
-      # logvars["esstv"] = esstv
-    if model.version >= 10:
-      logvars["tdsloss"] = tdsloss
+      if path is not None:
+        logging.info("Saving checkpoint: " + path)
+        torch.save(state_dict, path + ".tmp")
+        time.sleep(1)
+        os.replace(path + ".tmp", path)
+      else:
+        logging.info("Saving checkpoint: " + get_checkpoint_path())
+        for i in reversed(range(NUM_SHORTTERM_CHECKPOINTS_TO_KEEP-1)):
+          if os.path.exists(get_checkpoint_prev_path(i)):
+            os.replace(get_checkpoint_prev_path(i), get_checkpoint_prev_path(i+1))
+        if os.path.exists(get_checkpoint_path()):
+          shutil.copy(get_checkpoint_path(), get_checkpoint_prev_path(0))
+        torch.save(state_dict, get_checkpoint_path() + ".tmp")
+        os.replace(get_checkpoint_path() + ".tmp", get_checkpoint_path())
 
-    logging_hook = CustomLoggingHook(logvars, every_n_iter=print_train_loss_every_batches, handle_logging_values=update_global_latest_extra_stats)
+  def get_weight_decay(raw_model, lr_scale, warmup_scale, train_state, running_metrics, group_name):
+    if raw_model.get_norm_kind() == "fixup" or raw_model.get_norm_kind() == "fixscale":
+      if group_name == "normal" or group_name == "normal_gamma" or group_name == "output":
+        return 0.000001 * world_size * batch_size / 256.0
+      elif group_name == "noreg":
+        return 0.0
+      elif group_name == "output_noreg":
+        return 0.0
+      else:
+        assert False
+    elif (
+      raw_model.get_norm_kind() == "bnorm" or
+      raw_model.get_norm_kind() == "brenorm" or
+      raw_model.get_norm_kind() == "fixbrenorm" or
+      raw_model.get_norm_kind() == "fixscaleonenorm"
+    ):
+      if group_name == "normal" or group_name == "normal_gamma":
+        adaptive_scale = 1.0
+        if "sums" in running_metrics and "norm_normal_batch" in running_metrics["sums"]:
+          norm_normal_batch = running_metrics["sums"]["norm_normal_batch"] / running_metrics["weights"]["norm_normal_batch"]
+          baseline = train_state["modelnorm_normal_baseline"]
+          ratio = norm_normal_batch / (baseline + 1e-30)
+          # Adaptive weight decay keeping model norm around the baseline level so that batchnorm effective lr is held constant
+          # throughout training, covering a range of 16x from bottom to top.
+          adaptive_scale = math.pow(2.0, 2.0 * math.tanh(math.log(ratio+1e-30) * 1.5))
 
-    printed_model_yet = True
+        # Batch norm gammas can be regularized a bit less, doing them just as much empirically seemed to be a bit more unstable
+        gamma_scale = 0.125 if group_name == "normal_gamma" else 1.0
 
-    sys.stdout.flush()
-    sys.stderr.flush()
-
-    initial_weights_dir = os.path.join(traindir,"initial_weights")
-    if os.path.exists(initial_weights_dir) and not initial_weights_already_loaded:
-      print("Initial weights dir found at: " + initial_weights_dir)
-      checkpoint_path = None
-      for initial_weights_file in os.listdir(initial_weights_dir):
-        if initial_weights_file.startswith("model") and initial_weights_file.endswith(".index"):
-          checkpoint_path = os.path.join(initial_weights_dir, initial_weights_file[0:len(initial_weights_file)-len(".index")])
-          break
-      if checkpoint_path is not None:
-        print("Initial weights checkpoint to use found at: " + checkpoint_path)
-        vars_in_checkpoint = tf.contrib.framework.list_variables(checkpoint_path)
-        varname_in_checkpoint = {}
-        print("Checkpoint contains:")
-        for varandshape in vars_in_checkpoint:
-          print(varandshape)
-          varname_in_checkpoint[varandshape[0]] = True
-
-        print("Modifying graph to load weights from checkpoint upon init...")
-        sys.stdout.flush()
-        sys.stderr.flush()
-
-        variables_to_restore = tf.compat.v1.global_variables()
-        assignment_mapping = {}
-        for v in variables_to_restore:
-          name = v.name.split(":")[0] # drop the ":0" at the end of each var
-          if name in varname_in_checkpoint:
-            assignment_mapping[name] = v
-          elif ("swa_model/"+name) in varname_in_checkpoint:
-            assignment_mapping[("swa_model/"+name)] = v
-
-        tf.compat.v1.train.init_from_checkpoint(checkpoint_path, assignment_mapping)
-        initial_weights_already_loaded = True
-
-    ops = [
-      train_step,
-      p0loss_op,p1loss_op,vloss_op,tdvloss_op,smloss_op,leadloss_op,vtimeloss_op,sbpdfloss_op,sbcdfloss_op,
-      oloss_op,sloss_op,fploss_op,skloss_op,rsdloss_op,rloss_op,rscloss_op,pacc1_op,ptentr_op,wmean_op,
-      gnorm_op,exgnorm_op
-    ]
-    if model.version >= 9:
-      ops.append(evstloss_op)
-      ops.append(esstloss_op)
-      # ops.append(evstm_op)
-      # ops.append(evstv_op)
-      # ops.append(esstm_op)
-      # ops.append(esstv_op)
-    if model.version >= 10:
-      ops.append(tdsloss_op)
-
-    return tf.estimator.EstimatorSpec(
-      mode,
-      loss=(target_vars.opt_loss / tf.constant(batch_size,dtype=tf.float32)),
-      train_op=tf.group(*ops),
-      training_hooks = [logging_hook]
-    )
-
-# INPUTS ------------------------------------------------------------------------
-
-raw_input_feature_placeholders = tfrecordio.make_raw_input_feature_placeholders(model_config,pos_len,batch_size)
-if num_gpus_used > 1:
-  parse_input = tfrecordio.make_tf_record_parser(model_config,pos_len,batch_size,multi_num_gpus = num_gpus_used)
-else:
-  parse_input = tfrecordio.make_tf_record_parser(model_config,pos_len,batch_size,multi_num_gpus = None)
-
-def train_input_fn(train_files_to_use,total_num_train_files,batches_to_use,mode,input_context):
-  assert(mode == tf.estimator.ModeKeys.TRAIN)
-  if input_context:
-    assert(input_context.num_input_pipelines == 1)
-  trainlog("Constructing train input pipe, %d/%d files used (%d batches)" % (len(train_files_to_use),total_num_train_files,batches_to_use))
-  dataset = tf.data.Dataset.from_tensor_slices(train_files_to_use)
-  dataset = dataset.shuffle(1024)
-  dataset = dataset.flat_map(lambda fname: tf.data.TFRecordDataset(fname,compression_type="ZLIB"))
-  dataset = dataset.shuffle(100)
-  dataset = dataset.map(parse_input)
-  dataset = dataset.prefetch(2)
-  if num_gpus_used > 1:
-    dataset = dataset.unbatch()
-  return dataset
-
-def val_input_fn(vdatadir):
-  val_files = [os.path.join(vdatadir,fname) for fname in os.listdir(vdatadir) if fname.endswith(".tfrecord")]
-  trainlog("Constructing validation input pipe, %d files" % len(val_files))
-  dataset = tf.data.Dataset.from_tensor_slices(val_files)
-  dataset = dataset.flat_map(lambda fname: tf.data.TFRecordDataset(fname,compression_type="ZLIB"))
-  dataset = dataset.map(parse_input)
-  dataset = dataset.prefetch(2)
-  if num_gpus_used > 1:
-    dataset = dataset.unbatch()
-  return dataset
-
-# TRAINING PARAMETERS ------------------------------------------------------------
-
-trainlog("Beginning training")
-
-if multi_gpus is None:
-  session_config = tf.compat.v1.ConfigProto()
-  session_config.gpu_options.per_process_gpu_memory_fraction = gpu_memory_frac
-  estimator = tf.estimator.Estimator(
-    model_fn=model_fn,
-    model_dir=traindir,
-    params={},
-    config=tf.estimator.RunConfig(
-      save_checkpoints_steps=1000000000, #We get checkpoints every time we complete an epoch anyways
-      keep_checkpoint_every_n_hours = 1000000,
-      keep_checkpoint_max = 10,
-      session_config = session_config
-    )
-  )
-else:
-  session_config = tf.compat.v1.ConfigProto(allow_soft_placement=True)
-  session_config.gpu_options.per_process_gpu_memory_fraction = gpu_memory_frac
-  multigpu_strategy = tf.distribute.MirroredStrategy(
-    devices=multi_gpu_device_ids,
-    cross_device_ops=tf.distribute.ReductionToOneDevice(
-      reduce_to_device="/device:CPU:0"
-    )
-  )
-  estimator = tf.estimator.Estimator(
-    model_fn=model_fn,
-    model_dir=traindir,
-    params={},
-    config=tf.estimator.RunConfig(
-      save_checkpoints_steps=1000000000, #We get checkpoints every time we complete an epoch anyways
-      keep_checkpoint_every_n_hours = 1000000,
-      keep_checkpoint_max = 10,
-      session_config = session_config,
-      train_distribute = multigpu_strategy,
-      eval_distribute = multigpu_strategy,
-    )
-  )
-
-
-class CheckpointSaverListenerFunction(tf.estimator.CheckpointSaverListener):
-  def __init__(self,f):
-    self.func_to_call = f
-
-  def begin(self):
-    pass
-  def before_save(self, session, global_step_value):
-    pass
-  def after_save(self, session, global_step_value):
-    self.func_to_call(global_step_value)
-  def end(self, session, global_step_value):
-    pass
-
-def dump_and_flush_json(data,filename):
-  with open(filename,"w") as f:
-    json.dump(data,f)
-    f.flush()
-    os.fsync(f.fileno())
-
-
-# DATA RELOADING GENERATOR AND TRAINHISTORY ------------------------------------------------------------
-
-# Some globals
-last_curdatadir = None
-last_datainfo_row = 0
-trainfilegenerator = None
-num_train_files = 0
-vdatadir = None
-
-trainhistory = {
-  "history":[]
-}
-if os.path.isfile(os.path.join(traindir,"trainhistory.json")):
-  trainlog("Loading existing training history: " + str(os.path.join(traindir,"trainhistory.json")))
-  with open(os.path.join(traindir,"trainhistory.json")) as f:
-    trainhistory = json.load(f)
-elif os.path.isfile(os.path.join(traindir,"initial_weights","trainhistory.json")):
-  trainlog("Loading previous model's training history: " + str(os.path.join(traindir,"initial_weights","trainhistory.json")))
-  with open(os.path.join(traindir,"initial_weights","trainhistory.json")) as f:
-    trainhistory = json.load(f)
-else:
-  trainhistory["history"].append(("initialized",model_config))
-
-if max_train_bucket_per_new_data is not None and "train_bucket_level" not in trainhistory:
-  trainhistory["train_bucket_level"] = samples_per_epoch
-if "train_steps_since_last_reload" not in trainhistory:
-  trainhistory["train_steps_since_last_reload"] = 0
-if "export_cycle_counter" not in trainhistory:
-  trainhistory["export_cycle_counter"] = 0
-
-def save_history(global_step_value):
-  global trainhistory
-  if global_step_value is not None:
-    trainhistory["history"].append(("nsamp",int(global_step_value * batch_size)))
-    trainhistory["train_step"] = int(global_step_value * batch_size)
-  trainhistory["total_num_data_rows"] = last_datainfo_row
-  trainhistory["extra_stats"] = copy.deepcopy(global_latest_extra_stats)
-  savepath = os.path.join(traindir,"trainhistory.json")
-  savepathtmp = os.path.join(traindir,"trainhistory.json.tmp")
-  dump_and_flush_json(trainhistory,savepathtmp)
-  os.replace(savepathtmp,savepath)
-  trainlog("Wrote " + savepath)
-
-def maybe_reload_training_data():
-  global last_curdatadir
-  global last_datainfo_row
-  global trainfilegenerator
-  global trainhistory
-  global num_train_files
-  global vdatadir
-
-  while True:
-    curdatadir = os.path.realpath(datadir)
-
-    # Different directory - new shuffle
-    if curdatadir != last_curdatadir:
-      if not os.path.exists(curdatadir):
-        trainlog("Shuffled data path does not exist, there seems to be no shuffled data yet, waiting and trying again later: %s" % curdatadir)
-        time.sleep(30)
-        continue
-
-      trainjsonpath = os.path.join(curdatadir,"train.json")
-      if not os.path.exists(trainjsonpath):
-        trainlog("Shuffled data train.json file does not exist, there seems to be no shuffled data yet, waiting and trying again later: %s" % trainjsonpath)
-        time.sleep(30)
-        continue
-
-      trainlog("Updated training data: " + curdatadir)
-      last_curdatadir = curdatadir
-
-      with open(trainjsonpath) as f:
-        datainfo = json.load(f)
-        last_datainfo_row = datainfo["range"][1]
-
-      if max_train_bucket_per_new_data is not None:
-        if "train_bucket_level_at_row" not in trainhistory:
-          trainhistory["train_bucket_level_at_row"] = last_datainfo_row
-        if last_datainfo_row > trainhistory["train_bucket_level_at_row"]:
-          new_row_count = last_datainfo_row - trainhistory["train_bucket_level_at_row"]
-          trainlog("Advancing trainbucket row %.0f to %.0f, %.0f new rows" % (
-            trainhistory["train_bucket_level_at_row"], last_datainfo_row, new_row_count
-          ))
-          trainhistory["train_bucket_level_at_row"] = last_datainfo_row
-          trainlog("Fill per data %.3f, Max bucket size %.0f" % (max_train_bucket_per_new_data, max_train_bucket_size))
-          trainlog("Old rows in bucket: %.0f" % trainhistory["train_bucket_level"])
-          trainhistory["train_bucket_level"] += new_row_count * max_train_bucket_per_new_data
-          cap = max(max_train_bucket_size, samples_per_epoch)
-          if trainhistory["train_bucket_level"] > cap:
-            trainhistory["train_bucket_level"] = cap
-          trainlog("New rows in bucket: %.0f" % trainhistory["train_bucket_level"])
-
-      trainlog("Train steps since last reload: %.0f -> 0" % trainhistory["train_steps_since_last_reload"])
-      trainhistory["train_steps_since_last_reload"] = 0
-
-      # Remove legacy value from this dictionary
-      if "files" in trainhistory:
-        del trainhistory["files"]
-      trainhistory["history"].append(("newdata",datainfo["range"]))
-
-      #Load training data files
-      tdatadir = os.path.join(curdatadir,"train")
-      train_files = [os.path.join(tdatadir,fname) for fname in os.listdir(tdatadir) if fname.endswith(".tfrecord")]
-      num_train_files = len(train_files)
-
-      #Filter down to a random subset that will comprise this epoch
-      def train_files_gen():
-        train_files_shuffled = train_files.copy()
-        while True:
-          random.shuffle(train_files_shuffled)
-          for filename in train_files_shuffled:
-            trainlog("Yielding training file for dataset: " + filename)
-            yield filename
-      trainfilegenerator = train_files_gen()
-
-      vdatadir = os.path.join(curdatadir,"val")
-
-    # Same directory as before, no new shuffle
+        # The theoretical scaling for keeping us confined to a surface of equal model norm should go proportionally with lr_scale.
+        # because the strength of drift away from that surface goes as lr^2 and weight decay itself is scaled by lr, so we need
+        # one more factor of lr to make weight decay strength equal drift strength.
+        # However, at low lr it tends to be the case that gradient norm increases slightly
+        # while at high lr it tends to be the case that gradient norm decreases, which means drift strength scales a bit slower
+        # than expected.
+        # So we scale sublinearly with lr_scale so as to slightly preadjust to this effect.
+        # Adaptive scale should then help keep us there thereafter.
+        return 0.00125 * world_size * batch_size / 256.0 * math.pow(lr_scale * warmup_scale,0.75) * adaptive_scale * gamma_scale
+      elif group_name == "output":
+        return 0.000001 * world_size * batch_size / 256.0
+      elif group_name == "noreg":
+        return 0.0
+      elif group_name == "output_noreg":
+        return 0.0
+      else:
+        assert False
     else:
-      if max_train_steps_since_last_reload is not None:
-        if trainhistory["train_steps_since_last_reload"] + 0.99 * samples_per_epoch/sub_epochs > max_train_steps_since_last_reload:
-          trainlog(
-            "Too many train steps since last reload, waiting 5m and retrying (current %f)" %
-            trainhistory["train_steps_since_last_reload"]
-          )
-          time.sleep(300)
+      assert False
+
+  def get_param_groups(raw_model,train_state,running_metrics):
+    reg_dict : Dict[str,List] = {}
+    raw_model.add_reg_dict(reg_dict)
+    param_groups = []
+    param_groups.append({
+      "params": reg_dict["normal"],
+      "weight_decay": get_weight_decay(raw_model, lr_scale, warmup_scale=1.0, train_state=train_state, running_metrics=running_metrics, group_name="normal"),
+      "group_name": "normal",
+    })
+    if len(reg_dict["normal_gamma"]) > 0:
+      param_groups.append({
+        "params": reg_dict["normal_gamma"],
+        "weight_decay": get_weight_decay(raw_model, lr_scale, warmup_scale=1.0, train_state=train_state, running_metrics=running_metrics, group_name="normal_gamma"),
+        "group_name": "normal_gamma",
+      })
+    param_groups.append({
+      "params": reg_dict["output"],
+      "weight_decay": get_weight_decay(raw_model, lr_scale, warmup_scale=1.0, train_state=train_state, running_metrics=running_metrics, group_name="output"),
+      "group_name": "output",
+    })
+    param_groups.append({
+      "params": reg_dict["noreg"],
+      "weight_decay": get_weight_decay(raw_model, lr_scale, warmup_scale=1.0, train_state=train_state, running_metrics=running_metrics, group_name="noreg"),
+      "group_name": "noreg",
+    })
+    param_groups.append({
+      "params": reg_dict["output_noreg"],
+      "weight_decay": get_weight_decay(raw_model, lr_scale, warmup_scale=1.0, train_state=train_state, running_metrics=running_metrics, group_name="output_noreg"),
+      "group_name": "output_noreg",
+    })
+    num_params = len(list(raw_model.parameters()))
+    num_reg_dict_params = len(reg_dict["normal"]) + len(reg_dict["normal_gamma"]) + len(reg_dict["output"]) + len(reg_dict["noreg"]) + len(reg_dict["output_noreg"])
+    assert num_params == num_reg_dict_params, "Reg dict does not have entries for all params in model"
+    return param_groups
+
+  def load():
+    if not os.path.exists(get_checkpoint_path()):
+      logging.info("No preexisting checkpoint found at: " + get_checkpoint_path())
+      for i in range(NUM_SHORTTERM_CHECKPOINTS_TO_KEEP):
+        if os.path.exists(get_checkpoint_prev_path(i)):
+          raise Exception(f"No preexisting checkpoint found, but {get_checkpoint_prev_path(i)} exists, something is wrong with the training dir")
+
+      if initial_checkpoint is not None:
+        if os.path.exists(initial_checkpoint):
+          logging.info("Using initial checkpoint: {initial_checkpoint}")
+          path_to_load_from = initial_checkpoint
+        else:
+          raise Exception("No preexisting checkpoint found, initial checkpoint provided is invalid: {initial_checkpoint}")
+      else:
+        path_to_load_from = None
+    else:
+      path_to_load_from = get_checkpoint_path()
+
+    if path_to_load_from is None:
+      logging.info("Initializing new model!")
+      assert model_kind is not None, "Model kind is none or unspecified but the model is being created fresh"
+      model_config = modelconfigs.config_of_name[model_kind]
+      logging.info(str(model_config))
+      raw_model = Model(model_config,pos_len)
+      raw_model.initialize()
+
+      raw_model.to(device)
+      if world_size > 1:
+        ddp_model = torch.nn.parallel.DistributedDataParallel(raw_model, device_ids=[device])
+      else:
+        ddp_model = raw_model
+
+      swa_model = None
+      if rank == 0 and swa_scale is not None:
+        new_factor = 1.0 / swa_scale
+        ema_avg = lambda avg_param, cur_param, num_averaged: avg_param + new_factor * (cur_param - avg_param)
+        swa_model = AveragedModel(raw_model, avg_fn=ema_avg)
+
+      metrics_obj = Metrics(batch_size,world_size,raw_model)
+      running_metrics = {}
+      train_state = {}
+
+      with torch.no_grad():
+        (modelnorm_normal, modelnorm_normal_gamma, modelnorm_output, modelnorm_noreg, modelnorm_output_noreg) = Metrics.get_model_norms(raw_model)
+        modelnorm_normal_baseline = modelnorm_normal.detach().cpu().item()
+        train_state["modelnorm_normal_baseline"] = modelnorm_normal_baseline
+        logging.info(f"Model norm normal baseline computed: {modelnorm_normal_baseline}")
+
+      optimizer = torch.optim.SGD(get_param_groups(raw_model,train_state,running_metrics), lr=1.0, momentum=0.9)
+
+      return (model_config, ddp_model, raw_model, swa_model, optimizer, metrics_obj, running_metrics, train_state)
+    else:
+      state_dict = torch.load(path_to_load_from, map_location=device)
+      model_config = state_dict["config"] if "config" in state_dict else modelconfigs.config_of_name[model_kind]
+      logging.info(str(model_config))
+      raw_model = Model(model_config,pos_len)
+      raw_model.initialize()
+
+      train_state = {}
+      if "train_state" in state_dict:
+        train_state = state_dict["train_state"]
+      else:
+        logging.info("WARNING: Train state not found in state dict, using fresh train state")
+
+      # Do this before loading the state dict, while the model is initialized to fresh values, to get a good baseline
+      if "modelnorm_normal_baseline" not in train_state:
+        logging.info("Computing modelnorm_normal_baseline since not in train state")
+        with torch.no_grad():
+          (modelnorm_normal, modelnorm_normal_gamma, modelnorm_output, modelnorm_noreg, modelnorm_output_noreg) = Metrics.get_model_norms(raw_model)
+          modelnorm_normal_baseline = modelnorm_normal.detach().cpu().item()
+          train_state["modelnorm_normal_baseline"] = modelnorm_normal_baseline
+          logging.info(f"Model norm normal baseline computed: {modelnorm_normal_baseline}")
+
+      # Strip off any "module." from when the model was saved with DDP or other things
+      model_state_dict = {}
+      for key in state_dict["model"]:
+        old_key = key
+        while key.startswith("module."):
+          key = key[7:]
+        model_state_dict[key] = state_dict["model"][old_key]
+      raw_model.load_state_dict(model_state_dict)
+
+      raw_model.to(device)
+      if world_size > 1:
+        ddp_model = torch.nn.parallel.DistributedDataParallel(raw_model, device_ids=[device])
+      else:
+        ddp_model = raw_model
+
+      swa_model = None
+      if rank == 0 and swa_scale is not None:
+        new_factor = 1.0 / swa_scale
+        ema_avg = lambda avg_param, cur_param, num_averaged: avg_param + new_factor * (cur_param - avg_param)
+        swa_model = AveragedModel(raw_model, avg_fn=ema_avg)
+        if "swa_model" in state_dict:
+          swa_model.load_state_dict(state_dict["swa_model"])
+
+      metrics_obj = Metrics(batch_size,world_size,raw_model)
+      if "metrics" in state_dict:
+        metrics_obj.load_state_dict(state_dict["metrics"])
+      else:
+        logging.info("WARNING: Metrics not found in state dict, using fresh metrics")
+
+      running_metrics = {}
+      if "running_metrics" in state_dict:
+        running_metrics = state_dict["running_metrics"]
+      else:
+        logging.info("WARNING: Running metrics not found in state dict, using fresh running metrics")
+
+      optimizer = torch.optim.SGD(get_param_groups(raw_model,train_state,running_metrics), lr=1.0, momentum=0.9)
+      if "optimizer" in state_dict:
+        optimizer.load_state_dict(state_dict["optimizer"])
+      else:
+        logging.info("WARNING: Optimizer not found in state dict, using fresh optimizer")
+
+      return (model_config, ddp_model, raw_model, swa_model, optimizer, metrics_obj, running_metrics, train_state)
+
+  (model_config, ddp_model, raw_model, swa_model, optimizer, metrics_obj, running_metrics, train_state) = load()
+
+
+  if "global_step_samples" not in train_state:
+    train_state["global_step_samples"] = 0
+  if max_train_bucket_per_new_data is not None and "train_bucket_level" not in train_state:
+    train_state["train_bucket_level"] = samples_per_epoch
+  if "train_steps_since_last_reload" not in train_state:
+    train_state["train_steps_since_last_reload"] = 0
+  if "export_cycle_counter" not in train_state:
+    train_state["export_cycle_counter"] = 0
+  if "total_num_data_rows" not in train_state:
+    train_state["total_num_data_rows"] = 0
+  if "old_train_data_dirs" not in train_state:
+    train_state["old_train_data_dirs"] = []
+  if "data_files_used" not in train_state:
+    train_state["data_files_used"] = set()
+  if "swa_sample_accum" not in train_state:
+    train_state["swa_sample_accum"] = 0.0
+
+
+  if intermediate_distill_scale is not None or intermediate_loss_scale is not None:
+    assert raw_model.get_has_intermediate_head(), "Model must have intermediate head to use intermediate distill or loss"
+
+
+  # Print all model parameters just to get a summary
+  total_num_params = 0
+  total_trainable_params = 0
+  logging.info("Parameters in model:")
+  for name, param in raw_model.named_parameters():
+    product = 1
+    for dim in param.shape:
+      product *= int(dim)
+    if param.requires_grad:
+      total_trainable_params += product
+    total_num_params += product
+    logging.info(f"{name}, {list(param.shape)}, {product} params")
+  logging.info(f"Total num params: {total_num_params}")
+  logging.info(f"Total trainable params: {total_trainable_params}")
+
+  lookahead_cache = {}
+  if lookahead_k is not None:
+    for param_group in optimizer.param_groups:
+      for param in param_group["params"]:
+        lookahead_cache[param] = torch.zeros_like(param.data)
+        lookahead_cache[param] = lookahead_cache[param].copy_(param.data)
+    logging.info(f"Using lookahead optimizer {lookahead_alpha} {lookahead_k}")
+
+  # EPOCHS AND LR ---------------------------------------------------------------------
+
+  def update_and_return_lr_and_wd():
+    per_sample_lr = 0.00003 * lr_scale
+
+    # Warmup for initial training
+    warmup_scale = 1.0
+    if model_config["norm_kind"] == "fixup" or model_config["norm_kind"] == "fixscale" or model_config["norm_kind"] == "fixscaleonenorm":
+      if train_state["global_step_samples"] < 1000000:
+        warmup_scale = 1.0 / 5.0
+      elif train_state["global_step_samples"] < 2000000:
+        warmup_scale = 1.0 / 3.0
+      elif train_state["global_step_samples"] < 4000000:
+        warmup_scale = 1.0 / 2.0
+      elif train_state["global_step_samples"] < 6000000:
+        warmup_scale = 1.0 / 1.4
+    elif model_config["norm_kind"] == "bnorm" or model_config["norm_kind"] == "brenorm" or model_config["norm_kind"] == "fixbrenorm":
+      if train_state["global_step_samples"] < 250000:
+        warmup_scale = 1.0 / 20.0
+      elif train_state["global_step_samples"] < 500000:
+        warmup_scale = 1.0 / 14.0
+      elif train_state["global_step_samples"] < 750000:
+        warmup_scale = 1.0 / 10.0
+      elif train_state["global_step_samples"] < 1000000:
+        warmup_scale = 1.0 / 7.0
+      elif train_state["global_step_samples"] < 1250000:
+        warmup_scale = 1.0 / 5.0
+      elif train_state["global_step_samples"] < 1500000:
+        warmup_scale = 1.0 / 3.0
+      elif train_state["global_step_samples"] < 1750000:
+        warmup_scale = 1.0 / 2.0
+      elif train_state["global_step_samples"] < 2000000:
+        warmup_scale = 1.0 / 1.4
+      else:
+        warmup_scale = 1.0 / 1.0
+    else:
+      assert False
+
+    normal_weight_decay = 0.0
+
+    for param_group in optimizer.param_groups:
+      group_name = param_group["group_name"]
+      if group_name == "normal":
+        group_scale = 1.0
+      elif group_name == "normal_gamma":
+        group_scale = 1.0
+      elif group_name == "output":
+        group_scale = 0.5
+      elif group_name == "noreg":
+        group_scale = 1.0
+      elif group_name == "output_noreg":
+        group_scale = 0.5
+      else:
+        assert False
+
+      # For lookahead optimizer, use weight decay appropriate for lr scale,
+      # but tell optimizer to take larger steps so as to maintain the same
+      # effective learning rate after lookahead averaging.
+      if lookahead_alpha is not None:
+        param_group["lr"] = per_sample_lr * warmup_scale * group_scale / lookahead_alpha
+      else:
+        param_group["lr"] = per_sample_lr * warmup_scale * group_scale
+
+      param_group["weight_decay"] = get_weight_decay(
+        raw_model,
+        lr_scale,
+        warmup_scale=warmup_scale,
+        train_state=train_state,
+        running_metrics=running_metrics,
+        group_name=group_name,
+      )
+      if group_name == "normal":
+        normal_weight_decay = param_group["weight_decay"]
+
+    return per_sample_lr * warmup_scale, normal_weight_decay
+
+  last_brenorm_update_samples_this_instance = train_state["global_step_samples"]
+  def maybe_update_brenorm_params():
+    nonlocal last_brenorm_update_samples_this_instance
+
+    if model_config["norm_kind"] == "brenorm" or model_config["norm_kind"] == "fixbrenorm":
+      if "brenorm_rmax" not in train_state:
+        train_state["brenorm_rmax"] = 1.0
+      if "brenorm_dmax" not in train_state:
+        train_state["brenorm_dmax"] = 0.0
+
+      num_samples_elapsed = train_state["global_step_samples"] - last_brenorm_update_samples_this_instance
+      factor = math.exp(-num_samples_elapsed / brenorm_adjustment_scale)
+      train_state["brenorm_rmax"] = train_state["brenorm_rmax"] + (1.0 - factor) * (brenorm_target_rmax - train_state["brenorm_rmax"])
+      train_state["brenorm_dmax"] = train_state["brenorm_dmax"] + (1.0 - factor) * (brenorm_target_dmax - train_state["brenorm_dmax"])
+
+      raw_model.set_brenorm_params(brenorm_avg_momentum, train_state["brenorm_rmax"], train_state["brenorm_dmax"])
+      last_brenorm_update_samples_this_instance = train_state["global_step_samples"]
+
+  # DATA RELOADING GENERATOR ------------------------------------------------------------
+
+  # Some globals
+  last_curdatadir = None
+  trainfilegenerator = None
+  num_train_files = 0
+  vdatadir = None
+
+  def maybe_reload_training_data():
+    nonlocal last_curdatadir
+    nonlocal trainfilegenerator
+    nonlocal num_train_files
+    nonlocal vdatadir
+
+    assert rank == 0, "Helper ddp training processes should not call maybe_reload_training_data"
+
+    while True:
+      curdatadir = os.path.realpath(datadir)
+
+      # Different directory - new shuffle
+      if curdatadir != last_curdatadir:
+        if not os.path.exists(curdatadir):
+          logging.info("Shuffled data path does not exist, there seems to be no shuffled data yet, waiting and trying again later: %s" % curdatadir)
+          time.sleep(30)
           continue
 
-    break
+        trainjsonpath = os.path.join(curdatadir,"train.json")
+        if not os.path.exists(trainjsonpath):
+          logging.info("Shuffled data train.json file does not exist, there seems to be no shuffled data yet, waiting and trying again later: %s" % trainjsonpath)
+          time.sleep(30)
+          continue
 
-# TRAIN! -----------------------------------------------------------------------------------
+        logging.info("Updated training data: " + curdatadir)
+        last_curdatadir = curdatadir
 
-#Tensorflow doesn't offer a good way to save checkpoints more sparsely, so we have to manually do it.
-last_longterm_checkpoint_save_time = datetime.datetime.now()
+        with open(trainjsonpath) as f:
+          datainfo = json.load(f)
+          train_state["total_num_data_rows"] = datainfo["range"][1]
 
-globalstep = None
-try:
-  globalstep = int(estimator.get_variable_value("global_step:0"))
-except ValueError:
-  pass # Will happen on the start of a new model, first iteration
+        # Fill the buckets
+        if max_train_bucket_per_new_data is not None:
+          if "train_bucket_level_at_row" not in train_state:
+            train_state["train_bucket_level_at_row"] = train_state["total_num_data_rows"]
+          if train_state["total_num_data_rows"] > train_state["train_bucket_level_at_row"]:
+            new_row_count = train_state["total_num_data_rows"] - train_state["train_bucket_level_at_row"]
+            logging.info("Advancing trainbucket row %.0f to %.0f, %.0f new rows" % (
+              train_state["train_bucket_level_at_row"], train_state["total_num_data_rows"], new_row_count
+            ))
+            train_state["train_bucket_level_at_row"] = train_state["total_num_data_rows"]
+            logging.info("Fill per data %.3f, Max bucket size %.0f" % (max_train_bucket_per_new_data, max_train_bucket_size))
+            logging.info("Old rows in bucket: %.0f" % train_state["train_bucket_level"])
+            train_state["train_bucket_level"] += new_row_count * max_train_bucket_per_new_data
+            cap = max(max_train_bucket_size, samples_per_epoch)
+            if train_state["train_bucket_level"] > cap:
+              train_state["train_bucket_level"] = cap
+            logging.info("New rows in bucket: %.0f" % train_state["train_bucket_level"])
 
-while True:
-  maybe_reload_training_data()
-  save_history(globalstep)
-  trainlog("GC collect")
-  gc.collect()
+        logging.info("Train steps since last reload: %.0f -> 0" % train_state["train_steps_since_last_reload"])
+        train_state["train_steps_since_last_reload"] = 0
 
-  trainlog("=========================================================================")
-  trainlog("BEGINNING NEXT EPOCH " + str(num_epochs_this_instance))
-  trainlog("=========================================================================")
-  trainlog("Current time: " + str(datetime.datetime.now()))
-  if globalstep is not None:
-    trainlog("Global step: %d (%d samples)" % (globalstep, globalstep*batch_size))
-    trainlog("Currently up to data row " + str(last_datainfo_row))
+        # Load training data files
+        tdatadir = os.path.join(curdatadir,"train")
+        train_files = [os.path.join(tdatadir,fname) for fname in os.listdir(tdatadir) if fname.endswith(".npz")]
 
-    if max_train_bucket_per_new_data is not None:
-      if trainhistory["train_bucket_level"] > 0.99 * samples_per_epoch:
-        trainlog("Consuming %.0f rows from train bucket (%.0f -> %.0f)" % (
-          samples_per_epoch, trainhistory["train_bucket_level"], trainhistory["train_bucket_level"]-samples_per_epoch
-        ))
-        trainhistory["train_bucket_level"] -= samples_per_epoch
+        # Make sure we're not repeating stuff if we're not supposed to repeat stuff
+        if no_repeat_files:
+          old_len = len(train_files)
+          train_files = [path for path in train_files if path not in train_state["data_files_used"]]
+          new_len = len(train_files)
+          logging.info(f"Dropping {old_len-new_len}/{old_len} files in: {tdatadir} as already used")
+        num_train_files = len(train_files)
+
+        if len(train_files) <= 0:
+          logging.info(f"No new training files found in: {tdatadir}, waiting 30s and trying again")
+          time.sleep(30)
+          continue
+
+        # Update history of what training data we used
+        if tdatadir not in train_state["old_train_data_dirs"]:
+          train_state["old_train_data_dirs"].append(tdatadir)
+        # Clear out tracking of sufficiently old files
+        while len(train_state["old_train_data_dirs"]) > 20:
+          old_dir = train_state["old_train_data_dirs"][0]
+          train_state["old_train_data_dirs"] = train_state["old_train_data_dirs"][1:]
+          for filename in list(train_state["data_files_used"]):
+            if filename.startswith(old_dir):
+              train_state["data_files_used"].remove(filename)
+
+
+        # Filter down to a random subset that will comprise this epoch
+        def train_files_gen():
+          train_files_shuffled = train_files.copy()
+          while True:
+            random.shuffle(train_files_shuffled)
+            for filename in train_files_shuffled:
+              logging.info("Yielding training file for dataset: " + filename)
+              train_state["data_files_used"].add(filename)
+              yield filename
+        trainfilegenerator = train_files_gen()
+
+        vdatadir = os.path.join(curdatadir,"val")
+
+      # Same directory as before, no new shuffle
       else:
-        trainlog(
-          "Exceeding train bucket, not enough new data rows, waiting 5m and retrying (current level %f)" %
-          trainhistory["train_bucket_level"]
-        )
-        time.sleep(300)
-        continue
+        if max_train_steps_since_last_reload is not None:
+          if train_state["train_steps_since_last_reload"] + 0.99 * samples_per_epoch/sub_epochs > max_train_steps_since_last_reload:
+            logging.info(
+              "Too many train steps since last reload, waiting 5m and retrying (current %f)" %
+              train_state["train_steps_since_last_reload"]
+            )
+            time.sleep(300)
+            continue
 
-  #SUB EPOCH LOOP -----------
-  num_batches_per_subepoch = num_batches_per_epoch / sub_epochs
-  for i in range(sub_epochs):
-    if i != 0:
-      maybe_reload_training_data()
-      save_history(globalstep)
+      break
 
-    #Pick enough files to get the number of batches we want
+  # Load all the files we should train on during a subepoch
+  def get_files_for_subepoch():
+    nonlocal trainfilegenerator
+
+    assert rank == 0, "Helper ddp training processes should not call get_files_for_subepoch"
+
+    num_batches_per_epoch = int(round(samples_per_epoch / batch_size))
+    num_batches_per_subepoch = num_batches_per_epoch / sub_epochs
+
+    # Pick enough files to get the number of batches we want
     train_files_to_use = []
     batches_to_use_so_far = 0
     for filename in trainfilegenerator:
@@ -738,13 +739,13 @@ while True:
       with open(jsonfilename) as f:
         trainfileinfo = json.load(f)
 
-      num_batches_this_file = trainfileinfo["num_batches"]
+      num_batches_this_file = trainfileinfo["num_rows"] // batch_size
       if num_batches_this_file <= 0:
         continue
 
       if batches_to_use_so_far + num_batches_this_file > num_batches_per_subepoch:
-        #If we're going over the desired amount, randomly skip the file with probability equal to the
-        #proportion of batches over - this makes it so that in expectation, we have the desired number of batches
+        # If we're going over the desired amount, randomly skip the file with probability equal to the
+        # proportion of batches over - this makes it so that in expectation, we have the desired number of batches
         if batches_to_use_so_far > 0 and random.random() >= (batches_to_use_so_far + num_batches_this_file - num_batches_per_subepoch) / num_batches_this_file:
           break
 
@@ -754,111 +755,468 @@ while True:
       #Sanity check - load a max of 100000 files.
       if batches_to_use_so_far >= num_batches_per_subepoch or len(train_files_to_use) > 100000:
         break
+    return train_files_to_use
 
-    #Train
-    trainlog("Beginning training subepoch!")
-    trainlog("Currently up to data row " + str(last_datainfo_row))
-    estimator.train(
-      (lambda mode, input_context=None: train_input_fn(train_files_to_use,num_train_files,batches_to_use_so_far,mode,input_context)),
-      saving_listeners=[
-        CheckpointSaverListenerFunction(save_history)
-      ]
-    )
-    trainlog("Finished training subepoch!")
-    trainhistory["train_steps_since_last_reload"] += num_batches_per_subepoch * batch_size
 
-    if swa_sub_epoch_scale is not None:
-      accumulate_swa(estimator)
-
-  #END SUB EPOCH LOOP ------------
-  num_epochs_this_instance += 1
-  trainhistory["export_cycle_counter"] += 1
-  trainlog("Export cycle counter = " + str(trainhistory["export_cycle_counter"]))
-
-  is_time_to_export = False
-  if trainhistory["export_cycle_counter"] >= epochs_per_export:
-    if no_export:
-      trainhistory["export_cycle_counter"] = epochs_per_export
-    else:
-      trainhistory["export_cycle_counter"] = 0
-      is_time_to_export = True
-
-  globalstep = int(estimator.get_variable_value("global_step:0"))
-
-  skip_export_this_time = False
-  if export_prob is not None:
-    if random.random() > export_prob:
-      skip_export_this_time = True
-      trainlog("Skipping export model this time")
-
-  if not no_export and is_time_to_export and not skip_export_this_time:
-    #Export a model for testing, unless somehow it already exists
-    modelname = "%s-s%d-d%d" % (
-      exportprefix,
-      globalstep*batch_size,
-      last_datainfo_row,
-    )
-    savepath = os.path.join(exportdir,modelname)
-    savepathtmp = os.path.join(exportdir,modelname+".tmp")
-    if os.path.exists(savepath):
-      trainlog("NOT saving model, already exists at: " + savepath)
-    else:
-      os.mkdir(savepathtmp)
-      trainlog("SAVING MODEL TO: " + savepath)
-      if swa_sub_epoch_scale is not None:
-        #Also save non-swa model
-        saved_to = estimator.export_saved_model(
-          savepathtmp,
-          tf.estimator.export.build_raw_serving_input_receiver_fn(raw_input_feature_placeholders)
-        )
-        if saved_to != os.path.join(savepathtmp,"non_swa_saved_model"):
-          os.rename(saved_to, os.path.join(savepathtmp,"non_swa_saved_model"))
-        save_swa(savepathtmp)
+  # METRICS -----------------------------------------------------------------------------------
+  def detensorify_metrics(metrics):
+    ret = {}
+    for key in metrics:
+      if isinstance(metrics[key], torch.Tensor):
+        ret[key] = metrics[key].detach().cpu().item()
       else:
-        saved_to = estimator.export_saved_model(
-          savepathtmp,
-          tf.estimator.export.build_raw_serving_input_receiver_fn(raw_input_feature_placeholders)
+        ret[key] = metrics[key]
+    return ret
+
+  # _sum metrics dict entries will get reported as a moving average of their values
+  # _batch metrics dict entries will reported as the average per-batch value over the time since the last log
+  # All other values will get reported as a total sum across the entire run so far.
+
+  def accumulate_metrics(metric_sums, metric_weights, metrics, batch_size, decay, new_weight):
+    if decay != 1.0:
+      for metric in metric_sums:
+        if metric.endswith("_sum"):
+          metric_sums[metric] *= decay
+          metric_weights[metric] *= decay
+
+    for metric in metrics:
+      if metric.endswith("_sum"):
+        metric_sums[metric] += metrics[metric] * new_weight
+        metric_weights[metric] += batch_size * new_weight
+      elif metric.endswith("_batch"):
+        metric_sums[metric] += metrics[metric] * new_weight
+        metric_weights[metric] += 1 * new_weight
+      else:
+        metric_sums[metric] += metrics[metric]
+        metric_weights[metric] += batch_size
+
+  def log_metrics(metric_sums, metric_weights, metrics, metrics_out):
+    metrics_to_print = {}
+    for metric in metric_sums:
+      if metric.endswith("_sum"):
+        metrics_to_print[metric[:-4]] = metric_sums[metric] / metric_weights[metric]
+      elif metric.endswith("_batch"):
+        metrics_to_print[metric] = metric_sums[metric] / metric_weights[metric]
+        metric_sums[metric] *= 0.001
+        metric_weights[metric] *= 0.001
+      else:
+        metrics_to_print[metric] = metric_sums[metric]
+    for metric in metrics:
+      if metric not in metric_sums:
+        metrics_to_print[metric] = metrics[metric]
+
+    logging.info(", ".join(["%s = %f" % (metric, metrics_to_print[metric]) for metric in metrics_to_print]))
+    if metrics_out:
+      metrics_out.write(json.dumps(metrics_to_print) + "\n")
+      metrics_out.flush()
+
+  if rank == 0:
+    train_metrics_out = open(os.path.join(traindir,"metrics_train.json"),"a")
+    val_metrics_out = open(os.path.join(traindir,"metrics_val.json"),"a")
+  else:
+    train_metrics_out = open(os.path.join(traindir,f"metrics_train_rank{rank}.json"),"a")
+    val_metrics_out = open(os.path.join(traindir,f"metrics_val_rank{rank}.json"),"a")
+
+  # TRAIN! -----------------------------------------------------------------------------------
+
+  last_longterm_checkpoint_save_time = datetime.datetime.now()
+  num_epochs_this_instance = 0
+  print_train_loss_every_batches = 100 if not gnorm_stats_debug else 1000
+
+  if "sums" not in running_metrics:
+    running_metrics["sums"] = defaultdict(float)
+  else:
+    running_metrics["sums"] = defaultdict(float,running_metrics["sums"])
+  if "weights" not in running_metrics:
+    running_metrics["weights"] = defaultdict(float)
+  else:
+    running_metrics["weights"] = defaultdict(float,running_metrics["weights"])
+
+  torch.backends.cudnn.benchmark = True
+
+  if use_fp16:
+    logging.info("Training in FP16! Creating scaler")
+    scaler = GradScaler()
+  else:
+    logging.info("Training in FP32.")
+
+  # All ddp threads should be lined up at this point before continuing
+  if barrier is not None:
+    barrier.wait()
+
+  while True:
+    if rank == 0:
+      maybe_reload_training_data()
+
+      if max_train_bucket_per_new_data is not None:
+        if train_state["train_bucket_level"] > 0.99 * samples_per_epoch:
+          logging.info("Consuming %.0f rows from train bucket (%.0f -> %.0f)" % (
+            samples_per_epoch, train_state["train_bucket_level"], train_state["train_bucket_level"]-samples_per_epoch
+          ))
+          train_state["train_bucket_level"] -= samples_per_epoch
+        else:
+          logging.info(
+            "Exceeding train bucket, not enough new data rows, waiting 5m and retrying (current level %f)" %
+            train_state["train_bucket_level"]
+          )
+          time.sleep(300)
+          continue
+
+    # DDP need to wait on the main process after reloading data and/or training bucket waiting
+    if barrier is not None:
+      barrier.wait()
+
+    logging.info("GC collect")
+    gc.collect()
+
+    logging.info("=========================================================================")
+    logging.info("BEGINNING NEXT EPOCH " + str(num_epochs_this_instance))
+    logging.info("=========================================================================")
+    logging.info("Current time: " + str(datetime.datetime.now()))
+    logging.info("Global step: %d samples" % (train_state["global_step_samples"]))
+    logging.info("Currently up to data row " + str(train_state["total_num_data_rows"]))
+    logging.info(f"Training dir: {traindir}")
+    logging.info(f"Export dir: {exportdir}")
+    if use_fp16:
+      logging.info(f"Current grad scale: {scaler.get_scale()}")
+
+    lr_right_now, normal_weight_decay_right_now = update_and_return_lr_and_wd()
+    maybe_update_brenorm_params()
+
+    # SUB EPOCH LOOP -----------
+    batch_count_this_epoch = 0
+    last_train_stats_time = time.perf_counter()
+    for i in range(sub_epochs):
+
+      if rank == 0:
+        if i != 0:
+          maybe_reload_training_data()
+        if barrier is not None:
+          barrier.wait()
+        train_files_to_use = get_files_for_subepoch()
+        for wpipe in writepipes:
+          wpipe.send(train_files_to_use)
+        # Wait briefly just in case to reduce chance of races with filesystem or anything else
+        time.sleep(5)
+      else:
+        if barrier is not None:
+          barrier.wait()
+        train_files_to_use = readpipes[rank-1].recv()
+
+      # DDP need to wait on the main process after reloading data and sending files to train with
+      if barrier is not None:
+        barrier.wait()
+
+      logging.info("Beginning training subepoch!")
+      logging.info("This subepoch, using files: " + str(train_files_to_use))
+      logging.info("Currently up to data row " + str(train_state["total_num_data_rows"]))
+      lookahead_counter = 0
+      for batch in data_processing_pytorch.read_npz_training_data(
+        train_files_to_use,
+        batch_size,
+        world_size,
+        rank,
+        pos_len=pos_len,
+        device=device,
+        randomize_symmetries=True,
+        model_config=model_config
+      ):
+        optimizer.zero_grad(set_to_none=True)
+        if use_fp16:
+          with autocast():
+            model_outputs = ddp_model(batch["binaryInputNCHW"],batch["globalInputNC"])
+          model_outputs = raw_model.float32ify_output(model_outputs)
+        else:
+          model_outputs = ddp_model(batch["binaryInputNCHW"],batch["globalInputNC"])
+
+        postprocessed = raw_model.postprocess_output(model_outputs)
+        metrics = metrics_obj.metrics_dict_batchwise(
+          raw_model,
+          postprocessed,
+          batch,
+          is_training=True,
+          soft_policy_weight_scale=soft_policy_weight_scale,
+          value_loss_scale=value_loss_scale,
+          td_value_loss_scales=td_value_loss_scales,
+          main_loss_scale=main_loss_scale,
+          intermediate_loss_scale=intermediate_loss_scale,
+          intermediate_distill_scale=intermediate_distill_scale,
         )
-        if saved_to != os.path.join(savepathtmp,"saved_model"):
-          os.rename(saved_to, os.path.join(savepathtmp,"saved_model"))
 
-      dump_and_flush_json(trainhistory,os.path.join(savepathtmp,"trainhistory.json"))
-      with open(os.path.join(savepathtmp,"model.config.json"),"w") as f:
-        json.dump(model_config,f)
-      with open(os.path.join(savepathtmp,"saved_model","model.config.json"),"w") as f:
-        json.dump(model_config,f)
-      with open(os.path.join(savepathtmp,"non_swa_saved_model","model.config.json"),"w") as f:
-        json.dump(model_config,f)
+        # DDP averages loss across instances, so to preserve LR as per-sample lr, we scale by world size.
+        loss = metrics["loss_sum"] * world_size
 
+        # Reduce gradients across DDP
+        if use_fp16:
+          scaler.scale(loss).backward()
+          scaler.unscale_(optimizer)
+        else:
+          loss.backward()
+
+        if model_config["norm_kind"] == "fixup" or model_config["norm_kind"] == "fixscale" or model_config["norm_kind"] == "fixscaleonenorm":
+          gnorm_cap = 2500.0 * (1.0 if gnorm_clip_scale is None else gnorm_clip_scale)
+        elif model_config["norm_kind"] == "bnorm" or model_config["norm_kind"] == "brenorm" or model_config["norm_kind"] == "fixbrenorm":
+          gnorm_cap = 5500.0 * (1.0 if gnorm_clip_scale is None else gnorm_clip_scale)
+        else:
+          assert False
+
+        if gnorm_stats_debug:
+          stats = metrics_obj.get_specific_norms_and_gradient_stats(raw_model)
+          for stat, value in stats.items():
+            metrics[stat] = value
+
+        # Loosen gradient clipping as we shift to smaller learning rates
+        gnorm_cap = gnorm_cap / math.sqrt(max(0.0000001,lr_scale))
+
+        gnorm = torch.nn.utils.clip_grad_norm_(ddp_model.parameters(), gnorm_cap).detach().cpu().item()
+
+        if math.isfinite(gnorm) and abs(gnorm < 1e30):
+          metrics["gnorm_batch"] = gnorm
+          exgnorm = max(0.0, gnorm - gnorm_cap)
+          metrics["exgnorm_sum"] = exgnorm * batch_size
+
+        metrics["pslr_batch"] = lr_right_now
+        metrics["wdnormal_batch"] = normal_weight_decay_right_now
+
+        if use_fp16:
+          scaler.step(optimizer)
+          scaler.update()
+        else:
+          optimizer.step()
+
+        batch_count_this_epoch += 1
+        train_state["train_steps_since_last_reload"] += batch_size * world_size
+        train_state["global_step_samples"] += batch_size * world_size
+
+        metrics = detensorify_metrics(metrics)
+
+        if lookahead_k is not None and lookahead_print:
+          # Only accumulate metrics when lookahead is synced if lookahead_print is True
+          if lookahead_counter == 0:
+            accumulate_metrics(running_metrics["sums"], running_metrics["weights"], metrics, batch_size, decay=math.exp(-0.001 * lookahead_k), new_weight=1.0)
+          else:
+            accumulate_metrics(running_metrics["sums"], running_metrics["weights"], metrics, batch_size, decay=1.0, new_weight=0.0)
+        else:
+          accumulate_metrics(running_metrics["sums"], running_metrics["weights"], metrics, batch_size, decay=0.999, new_weight=1.0)
+
+
+        if batch_count_this_epoch % print_train_loss_every_batches == 0:
+
+          if model_config["norm_kind"] == "brenorm" or model_config["norm_kind"] == "fixbrenorm":
+            metrics["brn_rmax"] = train_state["brenorm_rmax"]
+            metrics["brn_dmax"] = train_state["brenorm_dmax"]
+            metrics["brn_mmnt"] = brenorm_avg_momentum
+            upper_rclippage = []
+            lower_rclippage = []
+            dclippage = []
+            raw_model.add_brenorm_clippage(upper_rclippage, lower_rclippage, dclippage)
+            metrics["brn_ruclip"] = sum(upper_rclippage) / max(len(upper_rclippage),1.0)
+            metrics["brn_rlclip"] = sum(lower_rclippage) / max(len(lower_rclippage),1.0)
+            metrics["brn_dclip"] = sum(dclippage) / max(len(dclippage),1.0)
+
+          t1 = time.perf_counter()
+          timediff = t1 - last_train_stats_time
+          last_train_stats_time = t1
+          metrics["time_since_last_print"] = timediff
+          log_metrics(running_metrics["sums"], running_metrics["weights"], metrics, train_metrics_out)
+
+        # Update LR more frequently at the start for smoother warmup ramp and wd adjustment
+        if train_state["global_step_samples"] <= 50000000 and batch_count_this_epoch % 10 == 0:
+          lr_right_now, normal_weight_decay_right_now = update_and_return_lr_and_wd()
+
+        # Update batch renorm parameters
+        if batch_count_this_epoch % 500 == 0:
+          maybe_update_brenorm_params()
+
+        # Perform lookahead
+        in_between_lookaheads = False
+        if lookahead_k is not None:
+          lookahead_counter += 1
+          if lookahead_counter >= lookahead_k:
+            for param_group in optimizer.param_groups:
+              for param in param_group["params"]:
+                slow_param_data = lookahead_cache[param]
+                slow_param_data.add_(param.data.detach() - slow_param_data, alpha=lookahead_alpha)
+                param.data.copy_(slow_param_data)
+            lookahead_counter = 0
+            in_between_lookaheads = False
+          else:
+            in_between_lookaheads = True
+
+        # Perform SWA
+        if swa_model is not None and swa_scale is not None:
+          train_state["swa_sample_accum"] += batch_size * world_size
+          # Only snap SWA when lookahead slow params are in sync.
+          if train_state["swa_sample_accum"] >= swa_period_samples and not in_between_lookaheads:
+            train_state["swa_sample_accum"] = 0
+            logging.info("Accumulating SWA")
+            swa_model.update_parameters(raw_model)
+
+      logging.info("Finished training subepoch!")
+
+    # END SUB EPOCH LOOP ------------
+
+    # Discard the gradient updates from the leftover batches in the sub epoch from lookahead.
+    # This wastes a very tiny bit, but makes it so that we can be in sync and deterministic on ends of subepochs/epochs.
+    if lookahead_k is not None:
+      for param_group in optimizer.param_groups:
+        for param in param_group["params"]:
+          slow_param_data = lookahead_cache[param]
+          param.data.copy_(slow_param_data)
+
+    save(ddp_model, swa_model, optimizer, metrics_obj, running_metrics, train_state)
+
+    num_epochs_this_instance += 1
+
+    if rank == 0:
+      train_state["export_cycle_counter"] += 1
+      logging.info("Export cycle counter = " + str(train_state["export_cycle_counter"]))
+
+      is_time_to_export = False
+      if train_state["export_cycle_counter"] >= epochs_per_export:
+        if no_export:
+          train_state["export_cycle_counter"] = epochs_per_export
+        else:
+          train_state["export_cycle_counter"] = 0
+          is_time_to_export = True
+
+      skip_export_this_time = False
+      if export_prob is not None:
+        if random.random() > export_prob:
+          skip_export_this_time = True
+          logging.info("Skipping export model this time")
+
+      if not no_export and is_time_to_export and not skip_export_this_time and exportdir is not None and not gnorm_stats_debug:
+        # Export a model for testing, unless somehow it already exists
+        modelname = "%s-s%d-d%d" % (
+          exportprefix,
+          train_state["global_step_samples"],
+          train_state["total_num_data_rows"],
+        )
+        savepath = os.path.join(exportdir,modelname)
+        savepathtmp = os.path.join(exportdir,modelname+".tmp")
+        if os.path.exists(savepath):
+          logging.info("NOT saving model, already exists at: " + savepath)
+        else:
+          os.mkdir(savepathtmp)
+          logging.info("SAVING MODEL FOR EXPORT TO: " + savepath)
+          save(ddp_model, swa_model, optimizer, metrics_obj, running_metrics, train_state, path=os.path.join(savepathtmp,"model.ckpt"))
+          time.sleep(2)
+          os.rename(savepathtmp,savepath)
+
+    # Validate
+    if rank == 0:
+      logging.info("Beginning validation after epoch!")
+      val_files = []
+      if os.path.exists(vdatadir):
+        val_files = [os.path.join(vdatadir,fname) for fname in os.listdir(vdatadir) if fname.endswith(".npz")]
+      if randomize_val:
+        random.shuffle(val_files)
+      else:
+        # Sort to ensure deterministic order to validation files in case we use only a subset
+        val_files = sorted(val_files)
+      if len(val_files) == 0:
+        logging.info("No validation files, skipping validation step")
+      else:
+        with torch.no_grad():
+          ddp_model.eval()
+          val_metric_sums = defaultdict(float)
+          val_metric_weights = defaultdict(float)
+          val_samples = 0
+          t0 = time.perf_counter()
+          for batch in data_processing_pytorch.read_npz_training_data(
+            val_files,
+            batch_size,
+            world_size=1,  # Only the main process validates
+            rank=0,        # Only the main process validates
+            pos_len=pos_len,
+            device=device,
+            randomize_symmetries=True,
+            model_config=model_config
+          ):
+            model_outputs = ddp_model(batch["binaryInputNCHW"],batch["globalInputNC"])
+            postprocessed = raw_model.postprocess_output(model_outputs)
+            metrics = metrics_obj.metrics_dict_batchwise(
+              raw_model,
+              postprocessed,
+              batch,
+              is_training=False,
+              soft_policy_weight_scale=soft_policy_weight_scale,
+              value_loss_scale=value_loss_scale,
+              td_value_loss_scales=td_value_loss_scales,
+              main_loss_scale=main_loss_scale,
+              intermediate_loss_scale=intermediate_loss_scale,
+              intermediate_distill_scale=intermediate_distill_scale,
+            )
+            metrics = detensorify_metrics(metrics)
+            accumulate_metrics(val_metric_sums, val_metric_weights, metrics, batch_size, decay=1.0, new_weight=1.0)
+            val_samples += batch_size
+            if max_val_samples is not None and val_samples > max_val_samples:
+              break
+            val_metric_sums["nsamp_train"] = running_metrics["sums"]["nsamp"]
+            val_metric_weights["nsamp_train"] = running_metrics["weights"]["nsamp"]
+            val_metric_sums["wsum_train"] = running_metrics["sums"]["wsum"]
+            val_metric_weights["wsum_train"] = running_metrics["weights"]["wsum"]
+          log_metrics(val_metric_sums, val_metric_weights, metrics, val_metrics_out)
+          t1 = time.perf_counter()
+          logging.info(f"Validation took {t1-t0} seconds")
+          ddp_model.train()
+
+    if max_epochs_this_instance is not None and max_epochs_this_instance >= 0 and num_epochs_this_instance >= max_epochs_this_instance:
+      logging.info("Hit max epochs this instance, done")
+      break
+
+    if sleep_seconds_per_epoch is None:
       time.sleep(1)
-      os.rename(savepathtmp,savepath)
+    else:
+      time.sleep(sleep_seconds_per_epoch)
 
-  #Validate
-  trainlog("Beginning validation after epoch!")
-  val_files = []
-  if os.path.exists(vdatadir):
-    val_files = [os.path.join(vdatadir,fname) for fname in os.listdir(vdatadir) if fname.endswith(".tfrecord")]
-  if len(val_files) == 0:
-    trainlog("No validation files, skipping validation step")
+    if rank == 0:
+      now = datetime.datetime.now()
+      if now - last_longterm_checkpoint_save_time >= datetime.timedelta(hours=12):
+        last_longterm_checkpoint_save_time = now
+        dated_name = datetime.datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
+        save(ddp_model, swa_model, optimizer, metrics_obj, running_metrics, train_state, path=os.path.join(longterm_checkpoints_dir,f"{dated_name}.ckpt"))
+
+  train_metrics_out.close()
+  val_metrics_out.close()
+
+
+if __name__ == "__main__":
+  multi_gpus = args["multi_gpus"]
+  num_gpus_used = 1
+  multi_gpu_device_ids = []
+  if multi_gpus is not None:
+    for piece in multi_gpus.split(","):
+      piece = piece.strip()
+      multi_gpu_device_ids.append(int(piece))
+    num_gpus_used = len(multi_gpu_device_ids)
   else:
-    estimator.evaluate(
-      (lambda: val_input_fn(vdatadir))
+    multi_gpu_device_ids = [0]
+
+  make_dirs(args)
+
+  readpipes = []
+  writepipes = []
+
+  if num_gpus_used > 1:
+    torch.multiprocessing.set_start_method("spawn")
+
+    world_size = num_gpus_used
+    barrier = torch.multiprocessing.Barrier(num_gpus_used)
+
+    for i in range(world_size - 1):
+      rpipe, wpipe = torch.multiprocessing.Pipe()
+      readpipes.append(rpipe)
+      writepipes.append(wpipe)
+
+    torch.multiprocessing.spawn(
+      main,
+      nprocs=num_gpus_used,
+      args=(world_size, args, multi_gpu_device_ids, readpipes, writepipes, barrier)
     )
-
-  if max_epochs_this_instance is not None and max_epochs_this_instance >= 0 and num_epochs_this_instance >= max_epochs_this_instance:
-    print("Done")
-    break
-
-  if sleep_seconds_per_epoch is None:
-    time.sleep(1)
   else:
-    time.sleep(sleep_seconds_per_epoch)
-
-  now = datetime.datetime.now()
-  if now - last_longterm_checkpoint_save_time >= datetime.timedelta(hours=12):
-    last_longterm_checkpoint_save_time = now
-    ckpt_path = estimator.latest_checkpoint()
-    #Tensorflow checkpoints have multiple pieces
-    for ckpt_part in glob.glob(ckpt_path + "*"):
-      print("Copying checkpoint longterm: " + ckpt_part)
-      shutil.copy(ckpt_part, longterm_checkpoints_dir)
+    rank = 0
+    world_size = 1
+    barrier = None
+    main(rank, world_size, args, multi_gpu_device_ids, readpipes, writepipes, barrier)

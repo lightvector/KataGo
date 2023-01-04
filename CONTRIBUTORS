@@ -21,7 +21,7 @@ Michael Reilly ("OmnipotentEntity") - workaround for CUDA on some cmake versions
 Hiraoka ("kaorahi") - for help optimizing Eigen backend and other work
 Akita Noek ("anoek") - for some minor performance and api suggestions, minor cuda work
 Harald Han - for some work on CUDNN8 support
-"inbae" - for removing boost filesystem dependencies
+"inbae" - for removing boost filesystem dependencies, major contributions to pytorch training
 "rimathia" - for a minor bugfix
 "Jonathan_Go" - for help with client proxy support
 Jonathan Roy ("roy7") - for various search refactors

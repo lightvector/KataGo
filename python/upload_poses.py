@@ -121,6 +121,7 @@ def handle_file(poses_by_key, poses_file):
       log("Found %d unique positions" % len(poses_by_key_this_file.values()))
       log("Found %f total weight" % sumweight)
       log("Found %f ess" % (sumweight * sumweight / sumweightsq))
+      log("%d %f %f" % (len(poses_by_key_this_file.values()), sumweight, (sumweight * sumweight / sumweightsq)))
 
 poses_files_or_dirs = sorted(poses_files_or_dirs)
 for poses_file_or_dir in poses_files_or_dirs:
@@ -139,6 +140,7 @@ sumweight,sumweightsq = compute_sum_sumsq(poses)
 log("Found %d unique positions" % len(poses))
 log("Found %f total weight" % sumweight)
 log("Found %f ess" % (sumweight * sumweight / sumweightsq))
+log("%d %f %f" % (len(poses), sumweight, (sumweight * sumweight / sumweightsq)))
 
 if set_total_weight is not None:
   log("Setting total weight of data to " + str(set_total_weight))
