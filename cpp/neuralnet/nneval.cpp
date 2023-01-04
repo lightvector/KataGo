@@ -413,7 +413,7 @@ void NNEvaluator::serve(
   {
     lock_guard<std::mutex> lock(bufferMutex);
     assert(serverThreadIdx < serverThreadsIsUsingFP16.size());
-    serverThreadsIsUsingFP16[serverThreadIdx] = NeuralNet::isUsingFP16(gpuHandle) ? 1 : 0;
+    serverThreadsIsUsingFP16[serverThreadIdx] = gpuHandle == NULL ? 0 : NeuralNet::isUsingFP16(gpuHandle) ? 1 : 0;
     numServerThreadsStartingUp--;
     if(numServerThreadsStartingUp <= 0)
       mainThreadWaitingForSpawn.notify_all();
