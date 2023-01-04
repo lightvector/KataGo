@@ -30,7 +30,7 @@ As also mentioned in the instructions below but repeated here for visibility, if
          * Specify `-DUSE_AVX2=1` to also compile Eigen with AVX2 and FMA support, which will make it incompatible with old CPUs but much faster. (If you want to go further, you can also add `-DCMAKE_CXX_FLAGS='-march=native'` which will specialize to precisely your machine's CPU, but the exe might not run on other machines at all).
          * Specify `-DBUILD_DISTRIBUTED=1` to compile with support for contributing data to public distributed training runs.
             * If building distributed, you will also need to build with Git revision support, including building within a clone of the repo, as opposed to merely an unzipped copy of its source.
-            * Only builds from specific tagged versions or branches can contribute, in particular, instead of the `master` branch, use either the latest release tag (e.g. v1.8.0) or the tip of the `stable` branch. To minimize the chance of any data incompatibilities or bugs, please do NOT attempt to contribute with custom changes or circumvent these limitations.
+            * Only builds from specific tagged versions or branches can contribute, in particular, instead of the `master` branch, use either the latest [release](https://github.com/lightvector/KataGo/releases) tag or the tip of the `stable` branch. To minimize the chance of any data incompatibilities or bugs, please do NOT attempt to contribute with custom changes or circumvent these limitations.
       * `make`
    * Done! You should now have a compiled `katago` executable in your working directory.
    * Pre-trained neural nets are available on the [releases page](https://github.com/lightvector/KataGo/releases) or more from [here](https://d3dndmfyhecmj0.cloudfront.net/g170/index.html).
@@ -63,7 +63,7 @@ As also mentioned in the instructions below but repeated here for visibility, if
          * `USE_AVX2` if you want to compile with AVX2 and FMA instructions, which will fail on some CPUs but speed up Eigen greatly on CPUs that support them.
          * `BUILD_DISTRIBUTED` to compile with support for contributing data to public distributed training runs.
             * If building distributed, you will also need to build with Git revision support, including building within a clone of the repo, as opposed to merely an unzipped copy of its source.
-            * Only builds from specific tagged versions or branches can contribute, in particular, instead of the `master` branch, use either the latest release tag (e.g. v1.8.0) or the tip of the `stable` branch. To minimize the chance of any data incompatibilities or bugs, please do NOT attempt to contribute with custom changes or circumvent these limitations.
+            * Only builds from specific tagged versions or branches can contribute, in particular, instead of the `master` branch, use either the latest [release](https://github.com/lightvector/KataGo/releases) tag or the tip of the `stable` branch. To minimize the chance of any data incompatibilities or bugs, please do NOT attempt to contribute with custom changes or circumvent these limitations.
       * Once running "Configure" looks good, run "Generate" and then open MSVC and build as normal in MSVC.
    * Done! You should now have a compiled `katago.exe` executable in your working directory.
    * Note: You may need to copy the ".dll" files corresponding to the various ".lib" files you compiled with into the directory containing katago.exe.
