@@ -25,7 +25,9 @@ namespace PlayUtils {
   ExtraBlackAndKomi chooseExtraBlackAndKomi(
     float base, float stdev, double allowIntegerProb,
     double handicapProb, int numExtraBlackFixed,
-    double bigStdevProb, float bigStdev, double sqrtBoardArea, Rand& rand
+    double bigStdevProb, float bigStdev,
+    double biggerStdevProb, float biggerStdev,
+    double sqrtBoardArea, Rand& rand
   );
   void setKomiWithoutNoise(const ExtraBlackAndKomi& extraBlackAndKomi, BoardHistory& hist); //Also ignores allowInteger
   void setKomiWithNoise(const ExtraBlackAndKomi& extraBlackAndKomi, BoardHistory& hist, Rand& rand);

@@ -154,6 +154,8 @@ class GameInitializer {
   double sgfCompensateKomiProb;
   double komiBigStdevProb;
   float komiBigStdev;
+  double komiBiggerStdevProb;
+  float komiBiggerStdev;
   bool komiAuto;
 
   int numExtraBlackFixed;

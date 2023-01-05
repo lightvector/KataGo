@@ -147,6 +147,8 @@ void GameInitializer::initShared(ConfigParser& cfg, Logger& logger) {
   handicapCompensateKomiProb = cfg.contains("handicapCompensateKomiProb") ? cfg.getDouble("handicapCompensateKomiProb",0.0,1.0) : 0.0;
   komiBigStdevProb = cfg.contains("komiBigStdevProb") ? cfg.getDouble("komiBigStdevProb",0.0,1.0) : 0.0;
   komiBigStdev = cfg.contains("komiBigStdev") ? cfg.getFloat("komiBigStdev",0.0f,60.0f) : 10.0f;
+  komiBiggerStdevProb = cfg.contains("komiBiggerStdevProb") ? cfg.getDouble("komiBiggerStdevProb",0.0,1.0) : 0.0;
+  komiBiggerStdev = cfg.contains("komiBiggerStdev") ? cfg.getFloat("komiBiggerStdev",0.0f,120.0f) : 30.0f;
   komiAuto = cfg.contains("komiAuto") ? cfg.getBool("komiAuto") : false;
 
   forkCompensateKomiProb = cfg.contains("forkCompensateKomiProb") ? cfg.getDouble("forkCompensateKomiProb",0.0,1.0) : handicapCompensateKomiProb;
@@ -445,7 +447,9 @@ void GameInitializer::createGameSharedUnsynchronized(
     extraBlackAndKomi = PlayUtils::chooseExtraBlackAndKomi(
       hist.rules.komi, komiStdev, komiAllowIntegerProb,
       thisHandicapProb, numExtraBlackFixed,
-      komiBigStdevProb, komiBigStdev, sqrt(board.x_size*board.y_size), rand
+      komiBigStdevProb, komiBigStdev,
+      komiBiggerStdevProb, komiBiggerStdev,
+      sqrt(board.x_size*board.y_size), rand
     );
     assert(extraBlackAndKomi.extraBlack == 0);
     PlayUtils::setKomiWithNoise(extraBlackAndKomi, hist, rand);
@@ -513,7 +517,9 @@ void GameInitializer::createGameSharedUnsynchronized(
     extraBlackAndKomi = PlayUtils::chooseExtraBlackAndKomi(
       komiMean, komiStdev, komiAllowIntegerProb,
       thisHandicapProb, numExtraBlackFixed,
-      komiBigStdevProb, komiBigStdev, sqrt(board.x_size*board.y_size), rand
+      komiBigStdevProb, komiBigStdev,
+      komiBiggerStdevProb, komiBiggerStdev,
+      sqrt(board.x_size*board.y_size), rand
     );
     PlayUtils::setKomiWithNoise(extraBlackAndKomi, hist, rand);
 
@@ -537,7 +543,9 @@ void GameInitializer::createGameSharedUnsynchronized(
     extraBlackAndKomi = PlayUtils::chooseExtraBlackAndKomi(
       komiMean, komiStdev, komiAllowIntegerProb,
       handicapProb, numExtraBlackFixed,
-      komiBigStdevProb, komiBigStdev, sqrt(board.x_size*board.y_size), rand
+      komiBigStdevProb, komiBigStdev,
+      komiBiggerStdevProb, komiBiggerStdev,
+      sqrt(board.x_size*board.y_size), rand
     );
     PlayUtils::setKomiWithNoise(extraBlackAndKomi, hist, rand);
 

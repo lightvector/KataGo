@@ -24,7 +24,9 @@ static int getDefaultMaxExtraBlack(double sqrtBoardArea) {
 ExtraBlackAndKomi PlayUtils::chooseExtraBlackAndKomi(
   float base, float stdev, double allowIntegerProb,
   double handicapProb, int numExtraBlackFixed,
-  double bigStdevProb, float bigStdev, double sqrtBoardArea, Rand& rand
+  double bigStdevProb, float bigStdev,
+  double biggerStdevProb, float biggerStdev,
+  double sqrtBoardArea, Rand& rand
 ) {
   int extraBlack = 0;
   float komi = base;
@@ -34,6 +36,8 @@ ExtraBlackAndKomi PlayUtils::chooseExtraBlackAndKomi(
     stdevToUse = stdev;
   if(bigStdev > 0.0f && rand.nextBool(bigStdevProb))
     stdevToUse = bigStdev;
+  if(biggerStdev > 0.0f && biggerStdevProb > 0 && rand.nextBool(biggerStdevProb))
+    stdevToUse = biggerStdev;
   //Adjust for board size, so that we don't give the same massive komis on smaller boards
   stdevToUse = stdevToUse * (float)(sqrtBoardArea / 19.0);
 
