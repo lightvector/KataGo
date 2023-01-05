@@ -337,6 +337,8 @@ struct GTPEngine {
 
   double genmoveWideRootNoise;
   double analysisWideRootNoise;
+  bool genmoveIgnorePreRootHistory;
+  bool analysisIgnorePreRootHistory;
   bool genmoveAntiMirror;
   bool analysisAntiMirror;
 
@@ -375,6 +377,7 @@ struct GTPEngine {
     double normAvoidRepeatedPatternUtility, double hcapAvoidRepeatedPatternUtility,
     bool avoidDagger,
     double genmoveWRN, double analysisWRN,
+    bool genmoveIPRH, bool analysisIPRH,
     bool genmoveAntiMir, bool analysisAntiMir,
     Player persp, int pvLen,
     std::unique_ptr<PatternBonusTable>&& pbTable
@@ -391,6 +394,8 @@ struct GTPEngine {
      handicapAvoidRepeatedPatternUtility(hcapAvoidRepeatedPatternUtility),
      genmoveWideRootNoise(genmoveWRN),
      analysisWideRootNoise(analysisWRN),
+     genmoveIgnorePreRootHistory(genmoveIPRH),
+     analysisIgnorePreRootHistory(analysisIPRH),
      genmoveAntiMirror(genmoveAntiMir),
      analysisAntiMirror(analysisAntiMir),
      nnEval(NULL),
@@ -590,6 +595,9 @@ struct GTPEngine {
   }
   void setAnalysisWideRootNoise(double x) {
     analysisWideRootNoise = x;
+  }
+  void setAnalysisIgnorePreRootHistory(bool b) {
+    analysisIgnorePreRootHistory = b;
   }
   void setRootPolicyTemperature(double x) {
     params.rootPolicyTemperature = x;
@@ -997,6 +1005,10 @@ struct GTPEngine {
       params.wideRootNoise = genmoveWideRootNoise;
       bot->setParams(params);
     }
+    if(params.ignorePreRootHistory != genmoveIgnorePreRootHistory) {
+      params.ignorePreRootHistory = genmoveIgnorePreRootHistory;
+      bot->setParams(params);
+    }
     if(params.antiMirror != genmoveAntiMirror) {
       params.antiMirror = genmoveAntiMirror;
       bot->setParams(params);
@@ -1259,6 +1271,10 @@ struct GTPEngine {
     //Also wide root, if desired
     if(params.wideRootNoise != analysisWideRootNoise) {
       params.wideRootNoise = analysisWideRootNoise;
+      bot->setParams(params);
+    }
+    if(params.ignorePreRootHistory != analysisIgnorePreRootHistory) {
+      params.ignorePreRootHistory = analysisIgnorePreRootHistory;
       bot->setParams(params);
     }
     if(params.antiMirror != analysisAntiMirror) {
@@ -1808,6 +1824,9 @@ int MainCmds::gtp(const vector<string>& args) {
   const double genmoveWideRootNoise = initialParams.wideRootNoise;
   const double analysisWideRootNoise =
     cfg.contains("analysisWideRootNoise") ? cfg.getDouble("analysisWideRootNoise",0.0,5.0) : Setup::DEFAULT_ANALYSIS_WIDE_ROOT_NOISE;
+  const double genmoveIgnorePreRootHistory = initialParams.ignorePreRootHistory;
+  const double analysisIgnorePreRootHistory =
+    cfg.contains("analysisIgnorePreRootHistory") ? cfg.getBool("analysisIgnorePreRootHistory") : Setup::DEFAULT_ANALYSIS_IGNORE_PRE_ROOT_HISTORY;
   const bool analysisAntiMirror = initialParams.antiMirror;
   const bool genmoveAntiMirror =
     cfg.contains("genmoveAntiMirror") ? cfg.getBool("genmoveAntiMirror") : cfg.contains("antiMirror") ? cfg.getBool("antiMirror") : true;
@@ -1842,6 +1861,7 @@ int MainCmds::gtp(const vector<string>& args) {
     normalAvoidRepeatedPatternUtility, handicapAvoidRepeatedPatternUtility,
     avoidMYTDaggerHack,
     genmoveWideRootNoise,analysisWideRootNoise,
+    genmoveIgnorePreRootHistory,analysisIgnorePreRootHistory,
     genmoveAntiMirror,analysisAntiMirror,
     perspective,analysisPVLen,
     std::move(patternBonusTable)
@@ -2201,6 +2221,9 @@ int MainCmds::gtp(const vector<string>& args) {
         else if(pieces[0] == "analysisWideRootNoise") {
           response = Global::doubleToString(engine->analysisWideRootNoise);
         }
+        else if(pieces[0] == "analysisIgnorePreRootHistory") {
+          response = Global::boolToString(engine->analysisIgnorePreRootHistory);
+        }
         else if(pieces[0] == "maxVisits") {
           response = Global::int64ToString(params.maxVisits);
         }
@@ -2224,6 +2247,7 @@ int MainCmds::gtp(const vector<string>& args) {
         response = "Expected two arguments for kata-set-param but got '" + Global::concat(pieces," ") + "'";
       }
       else {
+        bool b;
         int i;
         int64_t i64;
         double d;
@@ -2249,6 +2273,14 @@ int MainCmds::gtp(const vector<string>& args) {
           else {
             responseIsError = true;
             response = "Invalid value for " + pieces[0] + ", must be float from 0.0 to 2.0";
+          }
+        }
+        else if(pieces[0] == "analysisIgnorePreRootHistory") {
+          if(Global::tryStringToBool(pieces[1],b))
+            engine->setAnalysisIgnorePreRootHistory(b);
+          else {
+            responseIsError = true;
+            response = "Invalid value for " + pieces[0] + ", must be bool";
           }
         }
         else if(pieces[0] == "numSearchThreads") {

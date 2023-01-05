@@ -20218,6 +20218,8 @@ playoutDoublingAdvantagePla: 0
 avoidRepeatedPatternUtility: 0
 nnPolicyTemperature: 1
 antiMirror: 0
+ignorePreRootHistory: 0
+ignoreAllHistory: 0
 subtreeValueBiasFactor: 0
 subtreeValueBiasTableNumShards: 65536
 subtreeValueBiasFreeProp: 0.8
@@ -20310,6 +20312,8 @@ playoutDoublingAdvantagePla: 0
 avoidRepeatedPatternUtility: 0
 nnPolicyTemperature: 1
 antiMirror: 0
+ignorePreRootHistory: 0
+ignoreAllHistory: 0
 subtreeValueBiasFactor: 0
 subtreeValueBiasTableNumShards: 65536
 subtreeValueBiasFreeProp: 0.8
@@ -20402,6 +20406,8 @@ playoutDoublingAdvantagePla: 0
 avoidRepeatedPatternUtility: 0
 nnPolicyTemperature: 1
 antiMirror: 0
+ignorePreRootHistory: 0
+ignoreAllHistory: 0
 subtreeValueBiasFactor: 0.45
 subtreeValueBiasTableNumShards: 65536
 subtreeValueBiasFreeProp: 0.8
@@ -20494,6 +20500,8 @@ playoutDoublingAdvantagePla: 0
 avoidRepeatedPatternUtility: 0
 nnPolicyTemperature: 1
 antiMirror: 0
+ignorePreRootHistory: 1
+ignoreAllHistory: 0
 subtreeValueBiasFactor: 0.45
 subtreeValueBiasTableNumShards: 65536
 subtreeValueBiasFreeProp: 0.8
@@ -20586,6 +20594,8 @@ playoutDoublingAdvantagePla: 0
 avoidRepeatedPatternUtility: 0
 nnPolicyTemperature: 1
 antiMirror: 0
+ignorePreRootHistory: 0
+ignoreAllHistory: 0
 subtreeValueBiasFactor: 0.45
 subtreeValueBiasTableNumShards: 65536
 subtreeValueBiasFreeProp: 0.8
@@ -20678,6 +20688,8 @@ playoutDoublingAdvantagePla: 0
 avoidRepeatedPatternUtility: 0
 nnPolicyTemperature: 1
 antiMirror: 0
+ignorePreRootHistory: 0
+ignoreAllHistory: 0
 subtreeValueBiasFactor: 0.45
 subtreeValueBiasTableNumShards: 65536
 subtreeValueBiasFreeProp: 0.8
@@ -20770,6 +20782,8 @@ playoutDoublingAdvantagePla: 0
 avoidRepeatedPatternUtility: 0
 nnPolicyTemperature: 1
 antiMirror: 0
+ignorePreRootHistory: 0
+ignoreAllHistory: 0
 subtreeValueBiasFactor: 0.45
 subtreeValueBiasTableNumShards: 65536
 subtreeValueBiasFreeProp: 0.8
@@ -20862,6 +20876,8 @@ playoutDoublingAdvantagePla: 0
 avoidRepeatedPatternUtility: 0
 nnPolicyTemperature: 1
 antiMirror: 0
+ignorePreRootHistory: 0
+ignoreAllHistory: 0
 subtreeValueBiasFactor: 0.45
 subtreeValueBiasTableNumShards: 65536
 subtreeValueBiasFreeProp: 0.8

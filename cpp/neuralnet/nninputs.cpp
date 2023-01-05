@@ -51,6 +51,8 @@ const Hash128 MiscNNInputParams::ZOBRIST_AVOID_MYTDAGGER_HACK =
   Hash128(0x612d22ec402ce054ULL, 0x0db915c49de527aeULL);
 const Hash128 MiscNNInputParams::ZOBRIST_POLICY_OPTIMISM =
   Hash128(0x88415c85c2801955ULL, 0x39bdf76b2aaa5eb1ULL);
+const Hash128 MiscNNInputParams::ZOBRIST_ZERO_HISTORY =
+  Hash128(0x78f02afdd1aa4910ULL, 0xda78d550486fe978ULL);
 
 //-----------------------------------------------------------------------------------------------------------
 //-----------------------------------------------------------------------------------------------------------
@@ -917,6 +919,15 @@ Hash128 NNInputs::getHash(
   //If the history is in a weird prolonged state, also treat it similarly.
   if(hist.isGameFinished || hist.isPastNormalPhaseEnd)
     hash ^= Board::ZOBRIST_GAME_IS_OVER;
+
+  //Distinguish between forcing the history to always be empty and allow any nonempty amount
+  //We already tolerate caching and reusing evals across distinct transpositions with different
+  //history, for performance reasons, but the case of no history at all is probably distinct
+  //enough that we should distinguish it.
+  if(nnInputParams.maxHistory <= 0) {
+    hash.hash0 += MiscNNInputParams::ZOBRIST_ZERO_HISTORY.hash0;
+    hash.hash1 += MiscNNInputParams::ZOBRIST_ZERO_HISTORY.hash1;
+  }
 
   //Fold in asymmetric playout indicator
   if(nnInputParams.playoutDoublingAdvantage != 0) {
@@ -2038,6 +2049,7 @@ void NNInputs::fillRowV6(
     // Include one of the passes, at the end of that sequence
     maxTurnsOfHistoryToInclude = 1;
   }
+  maxTurnsOfHistoryToInclude = std::min(maxTurnsOfHistoryToInclude, nnInputParams.maxHistory);
 
   int numTurnsOfHistoryIncluded = 0;
 
@@ -2475,6 +2487,7 @@ void NNInputs::fillRowV7(
     // Include one of the passes, at the end of that sequence
     maxTurnsOfHistoryToInclude = 1;
   }
+  maxTurnsOfHistoryToInclude = std::min(maxTurnsOfHistoryToInclude, nnInputParams.maxHistory);
 
   int numTurnsOfHistoryIncluded = 0;
 

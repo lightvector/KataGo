@@ -98,8 +98,8 @@ trtUseFP16 = false
 : Begun 2 / 2 sgfs, done 2 sgfs, skipped 0 sgfs, filtered 0 sgfs, filtered 0 individual poses
 : Waiting for final writing and cleanup
 : tests/models/g170-b6c96-s175395328-d26788732.bin.gz
-: NN rows: 7286
-: NN batches: 7286
+: NN rows: 7254
+: NN batches: 7254
 : NN avg batch size: 1
 : All done
-: GPU -1 finishing, processed 7286 rows 7286 batches
+: GPU -1 finishing, processed 7254 rows 7254 batches

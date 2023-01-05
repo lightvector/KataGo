@@ -69,6 +69,8 @@ SearchParams::SearchParams()
    avoidRepeatedPatternUtility(0.0),
    nnPolicyTemperature(1.0f),
    antiMirror(false),
+   ignorePreRootHistory(false),
+   ignoreAllHistory(false),
    subtreeValueBiasFactor(0.0),
    subtreeValueBiasTableNumShards(65536),
    subtreeValueBiasFreeProp(0.8),
@@ -256,6 +258,9 @@ void SearchParams::printParams(std::ostream& out) {
 
   PRINTPARAM(nnPolicyTemperature);
   PRINTPARAM(antiMirror);
+
+  PRINTPARAM(ignorePreRootHistory);
+  PRINTPARAM(ignoreAllHistory);
 
   PRINTPARAM(subtreeValueBiasFactor);
   PRINTPARAM(subtreeValueBiasTableNumShards);
