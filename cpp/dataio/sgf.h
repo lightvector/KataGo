@@ -90,6 +90,8 @@ struct Sgf {
     Loc hintLoc;
     //The weight of this sample, for random selection
     double weight;
+    //Arbitrary label or metadata
+    std::string metadata;
 
     static std::string toJsonLine(const PositionSample& sample);
     static PositionSample ofJsonLine(const std::string& s);

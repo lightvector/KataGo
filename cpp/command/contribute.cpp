@@ -304,7 +304,9 @@ static void runAndUploadSingleGame(
         Tests::runCanaryTests(nnEvalBlack, NNInputs::SYMMETRY_NOTSPECIFIED, false);
         gameTask.blackManager->withDataWriters(
           nnEvalBlack,
-          [gameData,&gameTask,gameIdx,&sgfFile,&connection,&logger,&shouldStopFunc](TrainingDataWriter* tdataWriter, TrainingDataWriter* vdataWriter, std::ofstream* sgfOut) {
+          [gameData,&gameTask,gameIdx,&sgfFile,&connection,&logger,&shouldStopFunc,&posSample](
+            TrainingDataWriter* tdataWriter, TrainingDataWriter* vdataWriter, std::ofstream* sgfOut
+          ) {
             (void)vdataWriter;
             (void)sgfOut;
             assert(tdataWriter->isEmpty());
@@ -317,7 +319,7 @@ static void runAndUploadSingleGame(
             if(producedFile) {
               bool suc = false;
               try {
-                suc = connection->uploadTrainingGameAndData(gameTask.task,gameData,sgfFile,resultingFilename,numDataRows,retryOnFailure,shouldStopFunc);
+                suc = connection->uploadTrainingGameAndData(gameTask.task,gameData,posSample,sgfFile,resultingFilename,numDataRows,retryOnFailure,shouldStopFunc);
               }
               catch(StringError& e) {
                 logger.write(string("Giving up uploading training game and data due to error:\n") + e.what());
