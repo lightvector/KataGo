@@ -2416,10 +2416,10 @@ void NNInputs::fillRowV7(
   float selfKomi = hist.currentSelfKomi(nextPlayer,nnInputParams.drawEquivalentWinsForWhite);
   float bArea = (float)(xSize * ySize);
   //Bound komi just in case
-  if(selfKomi > bArea+1.0f)
-    selfKomi = bArea+1.0f;
-  if(selfKomi < -bArea-1.0f)
-    selfKomi = -bArea-1.0f;
+  if(selfKomi > bArea+20.0f)
+    selfKomi = bArea+20.0f;
+  if(selfKomi < -bArea-20.0f)
+    selfKomi = -bArea-20.0f;
   rowGlobal[5] = selfKomi/20.0f;
 
   //Ko rule
