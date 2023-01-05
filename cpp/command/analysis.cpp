@@ -117,6 +117,7 @@ int MainCmds::analysis(const vector<string>& args) {
 
   const bool logAllRequests = cfg.contains("logAllRequests") ? cfg.getBool("logAllRequests") : false;
   const bool logAllResponses = cfg.contains("logAllResponses") ? cfg.getBool("logAllResponses") : false;
+  const bool logErrorsAndWarnings = cfg.contains("logErrorsAndWarnings") ? cfg.getBool("logErrorsAndWarnings") : true;
   const bool logSearchInfo = cfg.contains("logSearchInfo") ? cfg.getBool("logSearchInfo") : false;
 
   auto loadParams = [](ConfigParser& config, SearchParams& params, Player& perspective, Player defaultPerspective) {
@@ -211,24 +212,30 @@ int MainCmds::analysis(const vector<string>& args) {
   std::mutex openRequestsMutex;
   std::map<int64_t, AnalyzeRequest*> openRequests;
 
-  auto reportError = [&pushToWrite](const string& s) {
+  auto reportError = [&pushToWrite,&logger,&logErrorsAndWarnings](const string& s) {
     json ret;
     ret["error"] = s;
     pushToWrite(new string(ret.dump()));
+    if(logErrorsAndWarnings)
+      logger.write("Error: " + ret.dump());
   };
-  auto reportErrorForId = [&pushToWrite](const string& id, const string& field, const string& s) {
+  auto reportErrorForId = [&pushToWrite,&logger,&logErrorsAndWarnings](const string& id, const string& field, const string& s) {
     json ret;
     ret["id"] = id;
     ret["field"] = field;
     ret["error"] = s;
     pushToWrite(new string(ret.dump()));
+    if(logErrorsAndWarnings)
+      logger.write("Error: " + ret.dump());
   };
-  auto reportWarningForId = [&pushToWrite](const string& id, const string& field, const string& s) {
+  auto reportWarningForId = [&pushToWrite,&logger,&logErrorsAndWarnings](const string& id, const string& field, const string& s) {
     json ret;
     ret["id"] = id;
     ret["field"] = field;
     ret["warning"] = s;
     pushToWrite(new string(ret.dump()));
+    if(logErrorsAndWarnings)
+      logger.write("Warning: " + ret.dump());
   };
 
   //Report analysis for which we don't actually have results. This is used when something is user-terminated before being actually
@@ -368,6 +375,30 @@ int MainCmds::analysis(const vector<string>& args) {
     cerr << "Started, ready to begin handling requests" << endl;
   }
 
+  auto terminateRequest = [&bots,&reportNoAnalysis](AnalyzeRequest* request) {
+    //Firstly, flag the request as terminated
+    int prevStatus = request->status.exchange(AnalyzeRequest::STATUS_TERMINATED,std::memory_order_acq_rel);
+    //Already terminated? Nothing to do.
+    if(prevStatus == AnalyzeRequest::STATUS_TERMINATED)
+    {}
+    //No thread claimed it, so it's up to us to write the result
+    else if(prevStatus == AnalyzeRequest::STATUS_IN_QUEUE) {
+      reportNoAnalysis(request);
+    }
+    //A thread popped it. That thread will notice that it's terminated once it tries to put its thread idx in, so we need not do anything.
+    else if(prevStatus == AnalyzeRequest::STATUS_POPPED)
+    {}
+    //A thread started searching it and put its thread idx in
+    else {
+      assert(prevStatus >= 0);
+      //We've already set the above status to terminated so when the thread terminates due to our killing it below, it will see this.
+      //Or else the thread has already done so, in which case it's already properly written a result, also fine.
+      int threadIdx = prevStatus;
+      //Terminate it by thread index
+      bots[threadIdx]->stopWithoutWait();
+    }
+  };
+
   auto requestLoop = [&]() {
     string line;
     json input;
@@ -439,30 +470,6 @@ int MainCmds::analysis(const vector<string>& args) {
             }
           }
 
-          auto terminateRequest = [&bots,&reportNoAnalysis](AnalyzeRequest* request) {
-            //Firstly, flag the request as terminated
-            int prevStatus = request->status.exchange(AnalyzeRequest::STATUS_TERMINATED,std::memory_order_acq_rel);
-            //Already terminated? Nothing to do.
-            if(prevStatus == AnalyzeRequest::STATUS_TERMINATED)
-            {}
-            //No thread claimed it, so it's up to us to write the result
-            else if(prevStatus == AnalyzeRequest::STATUS_IN_QUEUE) {
-              reportNoAnalysis(request);
-            }
-            //A thread popped it. That thread will notice that it's terminated once it tries to put its thread idx in, so we need not do anything.
-            else if(prevStatus == AnalyzeRequest::STATUS_POPPED)
-            {}
-            //A thread started searching it and put its thread idx in
-            else {
-              assert(prevStatus >= 0);
-              //We've already set the above status to terminated so when the thread terminates due to our killing it below, it will see this.
-              //Or else the thread has already done so, in which case it's already properly written a result, also fine.
-              int threadIdx = prevStatus;
-              //Terminate it by thread index
-              bots[threadIdx]->stopWithoutWait();
-            }
-          };
-
           {
             std::lock_guard<std::mutex> lock(openRequestsMutex);
             std::set<int> turnNumbersSet(turnNumbers.begin(),turnNumbers.end());
@@ -474,8 +481,33 @@ int MainCmds::analysis(const vector<string>& args) {
           }
           pushToWrite(new string(input.dump()));
         }
+        else if(action == "terminate_all") {
+          bool hasTurnNumbers = false;
+          vector<int> turnNumbers;
+          if(input.find("turnNumbers") != input.end()) {
+            try {
+              turnNumbers = input["turnNumbers"].get<vector<int> >();
+              hasTurnNumbers = true;
+            }
+            catch(nlohmann::detail::exception&) {
+              reportErrorForId(rbase.id, "turnNumbers", "If provided, must be an array of integers indicating turns to terminate");
+              continue;
+            }
+          }
+
+          {
+            std::lock_guard<std::mutex> lock(openRequestsMutex);
+            std::set<int> turnNumbersSet(turnNumbers.begin(),turnNumbers.end());
+            for(auto it = openRequests.begin(); it != openRequests.end(); ++it) {
+              AnalyzeRequest* request = it->second;
+              if(!hasTurnNumbers || (turnNumbersSet.find(request->turnNumber) != turnNumbersSet.end()))
+                terminateRequest(request);
+            }
+          }
+          pushToWrite(new string(input.dump()));
+        }
         else {
-          reportError("'action' field must be 'query_version' or 'terminate'");
+          reportError("'action' field must be 'query_version' or 'terminate' or 'terminate_all'");
         }
 
         continue;
