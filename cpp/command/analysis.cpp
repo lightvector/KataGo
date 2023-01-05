@@ -117,6 +117,7 @@ int MainCmds::analysis(const vector<string>& args) {
 
   const bool logAllRequests = cfg.contains("logAllRequests") ? cfg.getBool("logAllRequests") : false;
   const bool logAllResponses = cfg.contains("logAllResponses") ? cfg.getBool("logAllResponses") : false;
+  const bool logErrorsAndWarnings = cfg.contains("logErrorsAndWarnings") ? cfg.getBool("logErrorsAndWarnings") : true;
   const bool logSearchInfo = cfg.contains("logSearchInfo") ? cfg.getBool("logSearchInfo") : false;
 
   auto loadParams = [](ConfigParser& config, SearchParams& params, Player& perspective, Player defaultPerspective) {
@@ -211,24 +212,30 @@ int MainCmds::analysis(const vector<string>& args) {
   std::mutex openRequestsMutex;
   std::map<int64_t, AnalyzeRequest*> openRequests;
 
-  auto reportError = [&pushToWrite](const string& s) {
+  auto reportError = [&pushToWrite,&logger,&logErrorsAndWarnings](const string& s) {
     json ret;
     ret["error"] = s;
     pushToWrite(new string(ret.dump()));
+    if(logErrorsAndWarnings)
+      logger.write("Error: " + ret.dump());
   };
-  auto reportErrorForId = [&pushToWrite](const string& id, const string& field, const string& s) {
+  auto reportErrorForId = [&pushToWrite,&logger,&logErrorsAndWarnings](const string& id, const string& field, const string& s) {
     json ret;
     ret["id"] = id;
     ret["field"] = field;
     ret["error"] = s;
     pushToWrite(new string(ret.dump()));
+    if(logErrorsAndWarnings)
+      logger.write("Error: " + ret.dump());
   };
-  auto reportWarningForId = [&pushToWrite](const string& id, const string& field, const string& s) {
+  auto reportWarningForId = [&pushToWrite,&logger,&logErrorsAndWarnings](const string& id, const string& field, const string& s) {
     json ret;
     ret["id"] = id;
     ret["field"] = field;
     ret["warning"] = s;
     pushToWrite(new string(ret.dump()));
+    if(logErrorsAndWarnings)
+      logger.write("Warning: " + ret.dump());
   };
 
   //Report analysis for which we don't actually have results. This is used when something is user-terminated before being actually
