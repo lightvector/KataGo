@@ -43,6 +43,7 @@ struct MiscNNInputParams {
   // If no symmetry is specified, it will use default or random based on config, unless node is already cached.
   int symmetry = NNInputs::SYMMETRY_NOTSPECIFIED;
   double policyOptimism = 0.0;
+  int maxHistory = 1000;
 
   static const Hash128 ZOBRIST_CONSERVATIVE_PASS;
   static const Hash128 ZOBRIST_FRIENDLY_PASS;

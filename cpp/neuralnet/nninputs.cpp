@@ -2467,9 +2467,9 @@ void NNInputs::fillRowV7(
     size_t moveHistoryLen = moveHistory.size();
     //Also effectively wipe history as we change phase
     assert(moveHistoryLen >= hist.numTurnsThisPhase);
-    int numTurnsThisPhase = hist.numTurnsThisPhase;
+    int amountOfHistoryToUse = std::min(nnInputParams.maxHistory, hist.numTurnsThisPhase);
 
-    if(numTurnsThisPhase >= 1 && moveHistory[moveHistoryLen-1].pla == opp) {
+    if(amountOfHistoryToUse >= 1 && moveHistory[moveHistoryLen-1].pla == opp) {
       Loc prev1Loc = moveHistory[moveHistoryLen-1].loc;
       numTurnsOfHistoryIncluded = 1;
       if(prev1Loc == Board::PASS_LOC)
@@ -2478,7 +2478,7 @@ void NNInputs::fillRowV7(
         int pos = NNPos::locToPos(prev1Loc,xSize,nnXLen,nnYLen);
         setRowBin(rowBin,pos,9, 1.0f, posStride, featureStride);
       }
-      if(numTurnsThisPhase >= 2 && moveHistory[moveHistoryLen-2].pla == pla) {
+      if(amountOfHistoryToUse >= 2 && moveHistory[moveHistoryLen-2].pla == pla) {
         Loc prev2Loc = moveHistory[moveHistoryLen-2].loc;
         numTurnsOfHistoryIncluded = 2;
         if(prev2Loc == Board::PASS_LOC)
@@ -2487,7 +2487,7 @@ void NNInputs::fillRowV7(
           int pos = NNPos::locToPos(prev2Loc,xSize,nnXLen,nnYLen);
           setRowBin(rowBin,pos,10, 1.0f, posStride, featureStride);
         }
-        if(numTurnsThisPhase >= 3 && moveHistory[moveHistoryLen-3].pla == opp) {
+        if(amountOfHistoryToUse >= 3 && moveHistory[moveHistoryLen-3].pla == opp) {
           Loc prev3Loc = moveHistory[moveHistoryLen-3].loc;
           numTurnsOfHistoryIncluded = 3;
           if(prev3Loc == Board::PASS_LOC)
@@ -2496,7 +2496,7 @@ void NNInputs::fillRowV7(
             int pos = NNPos::locToPos(prev3Loc,xSize,nnXLen,nnYLen);
             setRowBin(rowBin,pos,11, 1.0f, posStride, featureStride);
           }
-          if(numTurnsThisPhase >= 4 && moveHistory[moveHistoryLen-4].pla == pla) {
+          if(amountOfHistoryToUse >= 4 && moveHistory[moveHistoryLen-4].pla == pla) {
             Loc prev4Loc = moveHistory[moveHistoryLen-4].loc;
             numTurnsOfHistoryIncluded = 4;
             if(prev4Loc == Board::PASS_LOC)
@@ -2505,7 +2505,7 @@ void NNInputs::fillRowV7(
               int pos = NNPos::locToPos(prev4Loc,xSize,nnXLen,nnYLen);
               setRowBin(rowBin,pos,12, 1.0f, posStride, featureStride);
             }
-            if(numTurnsThisPhase >= 5 && moveHistory[moveHistoryLen-5].pla == opp) {
+            if(amountOfHistoryToUse >= 5 && moveHistory[moveHistoryLen-5].pla == opp) {
               Loc prev5Loc = moveHistory[moveHistoryLen-5].loc;
               numTurnsOfHistoryIncluded = 5;
               if(prev5Loc == Board::PASS_LOC)

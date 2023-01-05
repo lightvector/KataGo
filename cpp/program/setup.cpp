@@ -653,6 +653,13 @@ vector<SearchParams> Setup::loadParams(
     else if(cfg.contains("antiMirror"))   params.antiMirror = cfg.getBool("antiMirror");
     else                                  params.antiMirror = false;
 
+    if(cfg.contains("ignorePreRootHistory"+idxStr)) params.ignorePreRootHistory = cfg.getBool("ignorePreRootHistory"+idxStr);
+    else if(cfg.contains("ignorePreRootHistory"))   params.ignorePreRootHistory = cfg.getBool("ignorePreRootHistory");
+    else                                            params.ignorePreRootHistory = false;
+    if(cfg.contains("ignoreAllHistory"+idxStr)) params.ignoreAllHistory = cfg.getBool("ignoreAllHistory"+idxStr);
+    else if(cfg.contains("ignoreAllHistory"))   params.ignoreAllHistory = cfg.getBool("ignoreAllHistory");
+    else                                        params.ignoreAllHistory = false;
+
     if(cfg.contains("subtreeValueBiasFactor"+idxStr)) params.subtreeValueBiasFactor = cfg.getDouble("subtreeValueBiasFactor"+idxStr, 0.0, 1.0);
     else if(cfg.contains("subtreeValueBiasFactor")) params.subtreeValueBiasFactor = cfg.getDouble("subtreeValueBiasFactor", 0.0, 1.0);
     else params.subtreeValueBiasFactor = 0.45;
