@@ -49,6 +49,7 @@ struct ExtraBlackAndKomi {
   bool makeGameFair = false;
   bool makeGameFairForEmptyBoard = false;
   bool allowInteger = true;
+  bool interpZero = false;
 };
 
 struct OtherGameProperties {
@@ -156,6 +157,8 @@ class GameInitializer {
   float komiBigStdev;
   double komiBiggerStdevProb;
   float komiBiggerStdev;
+  double handicapKomiInterpZeroProb;
+  double sgfKomiInterpZeroProb;
   bool komiAuto;
 
   int numExtraBlackFixed;

@@ -789,6 +789,78 @@ wStoneDistribution
 bSizeDistribution
 14x14 400
 --------------------------------------------------------------------------------------
+Game handcap consistent
+komiDistribution
+ +5.5 2
+ +6.0 53
+ +6.5 120
+ +7.0 24
++17.5 2
++18.0 4
++18.5 8
++19.0 34
++19.5 68
++20.0 64
++20.5 19
++21.0 2
+bStoneDistribution
+  0 199
+  1 201
+wStoneDistribution
+  0 400
+bSizeDistribution
+14x14 400
+--------------------------------------------------------------------------------------
+Game handcap consistent interpZero
+komiDistribution
+ +0.0 2
+ +0.5 2
+ +1.0 2
+ +1.5 4
+ +2.0 4
+ +2.5 2
+ +3.0 5
+ +3.5 1
+ +4.0 2
+ +4.5 2
+ +5.0 3
+ +5.5 8
+ +6.0 56
+ +6.5 134
+ +7.0 28
+ +7.5 5
+ +8.5 2
+ +9.0 5
++10.0 3
++10.5 2
++11.5 2
++12.0 3
++12.5 2
++13.0 1
++13.5 1
++14.0 4
++14.5 2
++15.0 6
++15.5 2
++16.0 4
++16.5 4
++17.0 1
++17.5 3
++18.0 3
++18.5 5
++19.0 16
++19.5 36
++20.0 29
++20.5 3
++21.0 1
+bStoneDistribution
+  0 216
+  1 184
+wStoneDistribution
+  0 400
+bSizeDistribution
+14x14 400
+--------------------------------------------------------------------------------------
 Game init test 19x19 policy init and not make fair, low komi stdev
 komiDistribution
  +6.0 12
@@ -1676,4 +1748,4 @@ bSizeDistribution
 9x13 4
 9x19 8
 9x9 121
-: GPU 0 finishing, processed 144064 rows 144064 batches
+: GPU 0 finishing, processed 152534 rows 152534 batches

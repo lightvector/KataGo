@@ -56,9 +56,10 @@ ExtraBlackAndKomi PlayUtils::chooseExtraBlackAndKomi(
   ret.extraBlack = extraBlack;
   ret.komiMean = komi;
   ret.komiStdev = stdevToUse;
-  //These two are set later
+  //These are set later
   ret.makeGameFair = false;
   ret.makeGameFairForEmptyBoard = false;
+  ret.interpZero = false;
   //This is recorded for application later, since other things may adjust the komi in between.
   ret.allowInteger = allowInteger;
   return ret;
@@ -94,6 +95,8 @@ void PlayUtils::setKomiWithNoise(const ExtraBlackAndKomi& extraBlackAndKomi, Boa
   float komi = extraBlackAndKomi.komiMean;
   if(extraBlackAndKomi.komiStdev > 0)
     komi += extraBlackAndKomi.komiStdev * (float)rand.nextGaussianTruncated(3.0);
+  if(extraBlackAndKomi.interpZero)
+    komi = komi * (float)rand.nextDouble();
   komi = roundKomiWithLinearProb(komi,rand);
   komi = roundAndClipKomi(komi, hist.getRecentBoard(0), false);
   assert(Rules::komiIsIntOrHalfInt(komi));
