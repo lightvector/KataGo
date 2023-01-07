@@ -35,6 +35,9 @@ Yule Hou ("hyln9") - For implementing TensorRT backend and various testing and w
 Viktor Pogrebniak ("avtomaton") - for improvements on the config system
 Adam Gleave - for improvements on the config system
 Emanuel-de-Jong - For minor improvement to GTP command.
+"simon300000" - For minor update to .gitignore.
+Dave Jarvis - For improved inline documentation for GTP example config.
+Yuji Ichikiwa - For a minor fix to include paths.
 
 Separately from the authors of the content in this repo, additional special thanks to:
 Junyan Xu ("alreadydone") - for much testing and troubleshooting for Windows support
