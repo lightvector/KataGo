@@ -110,6 +110,7 @@ Rules NeuralNet::getSupportedRules(const LoadedModel* loadedModel, const Rules& 
 struct TRTModel {
   int nnXLen;
   int nnYLen;
+  int maxBatchSize;
   bool requireExactNNLen;
 
   // TensorRT keeps only reference to weights before engine is built
@@ -118,8 +119,9 @@ struct TRTModel {
 
   int version;
   uint8_t tuneHash[32];
+  IOptimizationProfile* profile;
   unique_ptr<INetworkDefinition> network;
-  vector<pair<string, Dims>> debugOutputs;
+  vector<pair<string, string>> debugOutputs;
 
   TRTModel() = default;
   TRTModel(TRTModel&&) = default;
@@ -128,7 +130,7 @@ struct TRTModel {
   TRTModel& operator=(const TRTModel&) = delete;
 };
 
-struct ModelBuilder {
+struct ModelParser {
   unique_ptr<TRTModel> model;
 
   ITensor* inputMask;
@@ -141,22 +143,26 @@ struct ModelBuilder {
 
   string tuneDesc;  // Serves as a hash of the network architecture specific to tuning
 
-  ModelBuilder() = default;
-  ModelBuilder(const ModelBuilder&) = delete;
-  ModelBuilder& operator=(const ModelBuilder&) = delete;
+  ModelParser() = default;
+  ModelParser(const ModelParser&) = delete;
+  ModelParser& operator=(const ModelParser&) = delete;
 
   unique_ptr<TRTModel> build(
     unique_ptr<INetworkDefinition> net,
+    IOptimizationProfile* profile,
     const LoadedModel* rawModel,
     int nnXLen,
     int nnYLen,
+    int maxBatchSize,
     bool requireExactNNLen) {
     model = make_unique<TRTModel>();
 
     model->nnXLen = nnXLen;
     model->nnYLen = nnYLen;
-    model->rawModel = rawModel;
+    model->profile = profile;
     model->network = move(net);
+    model->rawModel = rawModel;
+    model->maxBatchSize = maxBatchSize;
     model->requireExactNNLen = requireExactNNLen;
 
     auto& network = model->network;
@@ -194,7 +200,7 @@ struct ModelBuilder {
     ILayer* debugOutputLayer = nullptr;
     if(force2D) {
       auto layer = network->addShuffle(*tensor);
-      layer->setReshapeDimensions({1, {-1}});
+      layer->setReshapeDimensions({2, {0, -1}});
       debugOutputLayer = layer;
     } else {
       debugOutputLayer = network->addIdentity(*tensor);
@@ -206,7 +212,7 @@ struct ModelBuilder {
     debugOutput->setName(debugOutputName.c_str());
     debugOutput->setType(DataType::kFLOAT);
     debugOutput->setAllowedFormats(1U << static_cast<int>(TensorFormat::kLINEAR));
-    model->debugOutputs.push_back(pair<string, Dims>(description, debugOutput->getDimensions()));
+    model->debugOutputs.push_back(pair<string, string>(debugOutputName, description));
 #else
     (void)tensor;
     (void)description;
@@ -215,6 +221,7 @@ struct ModelBuilder {
   }
 
   void initInputs() {
+    auto profile = model->profile;
     auto& network = model->network;
     auto modelDesc = &model->rawModel->modelDesc;
 
@@ -243,14 +250,28 @@ struct ModelBuilder {
       throw StringError(
         Global::strprintf("nnYLen (%d) is greater than NNPos::MAX_BOARD_LEN (%d)", nnYLen, NNPos::MAX_BOARD_LEN));
 
-    inputMask = network->addInput("InputMask", DataType::kFLOAT, {3, {1, nnYLen, nnXLen}});
+    inputMask = network->addInput("InputMask", DataType::kFLOAT, {4, {-1, 1, nnYLen, nnXLen}});
     inputMask->setAllowedFormats(1U << static_cast<int>(TensorFormat::kLINEAR));
+    profile->setDimensions("InputMask", OptProfileSelector::kMIN, Dims4(1, 1, nnYLen, nnXLen));
+    profile->setDimensions("InputMask", OptProfileSelector::kOPT, Dims4(model->maxBatchSize, 1, nnYLen, nnXLen));
+    profile->setDimensions("InputMask", OptProfileSelector::kMAX, Dims4(model->maxBatchSize, 1, nnYLen, nnXLen));
 
-    inputFeature = network->addInput("InputFeature", DataType::kFLOAT, {3, {numInputChannels, nnYLen, nnXLen}});
+    inputFeature = network->addInput("InputFeature", DataType::kFLOAT, {4, {-1, numInputChannels, nnYLen, nnXLen}});
     inputFeature->setAllowedFormats(1U << static_cast<int>(TensorFormat::kLINEAR));
+    profile->setDimensions("InputFeature", OptProfileSelector::kMIN, Dims4(1, numInputChannels, nnYLen, nnXLen));
+    profile->setDimensions(
+      "InputFeature", OptProfileSelector::kOPT, Dims4(model->maxBatchSize, numInputChannels, nnYLen, nnXLen));
+    profile->setDimensions(
+      "InputFeature", OptProfileSelector::kMAX, Dims4(model->maxBatchSize, numInputChannels, nnYLen, nnXLen));
 
-    inputGlobalFeature = network->addInput("InputGlobalFeature", DataType::kFLOAT, {3, {numInputGlobalChannels, 1, 1}});
+    inputGlobalFeature =
+      network->addInput("InputGlobalFeature", DataType::kFLOAT, {4, {-1, numInputGlobalChannels, 1, 1}});
     inputFeature->setAllowedFormats(1U << static_cast<int>(TensorFormat::kLINEAR));
+    profile->setDimensions("InputGlobalFeature", OptProfileSelector::kMIN, Dims4(1, numInputGlobalChannels, 1, 1));
+    profile->setDimensions(
+      "InputGlobalFeature", OptProfileSelector::kOPT, Dims4(model->maxBatchSize, numInputGlobalChannels, 1, 1));
+    profile->setDimensions(
+      "InputGlobalFeature", OptProfileSelector::kMAX, Dims4(model->maxBatchSize, numInputGlobalChannels, 1, 1));
 
     markDebugOutput(inputFeature, "Initial bin features");
   }
@@ -261,7 +282,7 @@ struct ModelBuilder {
     auto& network = model->network;
 
     if(!model->requireExactNNLen) {
-      maskSumLayer = network->addReduce(*inputMask, ReduceOperation::kSUM, 1U << 1 | 1U << 2, true);
+      maskSumLayer = network->addReduce(*inputMask, ReduceOperation::kSUM, 1U << 2 | 1U << 3, true);
       maskSumLayer->setName("InputMask/sum");
       maskSumLayer->setPrecision(DataType::kFLOAT);
 
@@ -318,13 +339,13 @@ struct ModelBuilder {
 
       auto maskScaleLayerWeights = make_unique<float[]>(1);
       maskScaleLayerWeights[0] = maskWidth * 0.1f - 1.4f;
-      maskScaleLayer = network->addConstant({3, {1, 1, 1}}, {DataType::kFLOAT, maskScaleLayerWeights.get(), 1});
+      maskScaleLayer = network->addConstant({4, {1, 1, 1, 1}}, {DataType::kFLOAT, maskScaleLayerWeights.get(), 1});
       maskScaleLayer->setName("InputMask/scale");
       model->extraWeights.push_back(move(maskScaleLayerWeights));
 
       auto maskQuadLayerWeights = make_unique<float[]>(1);
       maskQuadLayerWeights[0] = (maskWidth - 14.0f) * (maskWidth - 14.0f) * 0.01f - 0.1f;
-      maskQuadLayer = network->addConstant({3, {1, 1, 1}}, {DataType::kFLOAT, maskQuadLayerWeights.get(), 1});
+      maskQuadLayer = network->addConstant({4, {1, 1, 1, 1}}, {DataType::kFLOAT, maskQuadLayerWeights.get(), 1});
       maskQuadLayer->setName("InputMask/quad");
       model->extraWeights.push_back(move(maskQuadLayerWeights));
     }
@@ -351,8 +372,8 @@ struct ModelBuilder {
     auto initialConv = initialConvLayer->getOutput(0);
     auto initialMatMul = initialMatMulLayer->getOutput(0);
 
-    assert(initialConv->getDimensions().d[0] == numChannels);
-    assert(initialMatMul->getDimensions().d[0] == numChannels);
+    assert(initialConv->getDimensions().d[1] == numChannels);
+    assert(initialMatMul->getDimensions().d[1] == numChannels);
 
     markDebugOutput(initialConvLayer->getOutput(0), "After initial conv");
 
@@ -436,7 +457,7 @@ struct ModelBuilder {
     auto p2ConvReshapeLayer = network->addShuffle(*p2ConvLayer->getOutput(0));
     auto p2ConvReshapeLayerName = string(p2ConvLayer->getName()) + "/reshape";
     p2ConvReshapeLayer->setName(p2ConvReshapeLayerName.c_str());
-    p2ConvReshapeLayer->setReshapeDimensions({1, {-1}});
+    p2ConvReshapeLayer->setReshapeDimensions({2, {0, -1}});
     p2ConvReshapeLayer->setPrecision(DataType::kFLOAT);
 
     markDebugOutput(p2ConvReshapeLayer->getOutput(0), "p2");
@@ -445,7 +466,7 @@ struct ModelBuilder {
     auto gpoolToPassMulReshapeLayer = network->addShuffle(*gpoolToPassMulLayer->getOutput(0));
     auto gpoolToPassMulReshapeLayerName = string(gpoolToPassMulLayer->getName()) + "/reshape";
     gpoolToPassMulReshapeLayer->setName(gpoolToPassMulReshapeLayerName.c_str());
-    gpoolToPassMulReshapeLayer->setReshapeDimensions({1, {-1}});
+    gpoolToPassMulReshapeLayer->setReshapeDimensions({2, {0, -1}});
     gpoolToPassMulReshapeLayer->setPrecision(DataType::kFLOAT);
 
     markDebugOutput(gpoolToPassMulReshapeLayer->getOutput(0), "p2pass");
@@ -453,6 +474,7 @@ struct ModelBuilder {
     ITensor* concatInputs[] = {p2ConvReshapeLayer->getOutput(0), gpoolToPassMulReshapeLayer->getOutput(0)};
     auto concatLayer = network->addConcatenation(concatInputs, 2);
     auto concatLayerName = name + "/concat";
+    concatLayer->setAxis(1);
     concatLayer->setName(concatLayerName.c_str());
     concatLayer->setPrecision(DataType::kFLOAT);
 
@@ -514,9 +536,9 @@ struct ModelBuilder {
     outputOwnership->setAllowedFormats(1U << static_cast<int>(TensorFormat::kLINEAR));
 
     auto modelDesc = &model->rawModel->modelDesc;
-    assert(outputValue->getDimensions().d[0] == modelDesc->numValueChannels);
-    assert(outputScoreValue->getDimensions().d[0] == modelDesc->numScoreValueChannels);
-    assert(outputOwnership->getDimensions().d[0] == modelDesc->numOwnershipChannels);
+    assert(outputValue->getDimensions().d[1] == modelDesc->numValueChannels);
+    assert(outputScoreValue->getDimensions().d[1] == modelDesc->numScoreValueChannels);
+    assert(outputOwnership->getDimensions().d[1] == modelDesc->numOwnershipChannels);
   }
 
   ILayer* buildResidualBlock(ITensor* input, const ResidualBlockDesc* desc) {
@@ -593,7 +615,7 @@ struct ModelBuilder {
     tuneDesc += Global::strprintf(R"("%s"(%d,%d))", desc->name.c_str(), desc->inChannels, desc->outChannels);
 
     assert(desc->weights.size() == numInChannels * numOutChannels);
-    assert(input->getDimensions().d[0] == numInChannels);
+    assert(input->getDimensions().d[1] == numInChannels);
 
     // Transpose from model's CK to TensorRT's KC
     auto transposedWeights = make_unique<float[]>(desc->weights.size());
@@ -628,7 +650,7 @@ struct ModelBuilder {
     tuneDesc += Global::strprintf(R"("%s"(%d))", desc->name.c_str(), desc->numChannels);
 
     assert(desc->weights.size() == numChannels);
-    assert(input->getDimensions().d[0] == numChannels);
+    assert(input->getDimensions().d[1] == numChannels);
 
     auto matBiasLayer = model->network->addScale(
       *input,
@@ -664,7 +686,7 @@ struct ModelBuilder {
       desc->dilationY);
 
     assert(desc->weights.size() == convYSize * convXSize * numInChannels * numOutChannels);
-    assert(input->getDimensions().d[0] == numInChannels);
+    assert(input->getDimensions().d[1] == numInChannels);
 
     auto convLayer = model->network->addConvolutionNd(
       *input,
@@ -693,7 +715,7 @@ struct ModelBuilder {
     assert(desc->variance.size() == numChannels);
     assert(desc->scale.size() == numChannels);
     assert(desc->bias.size() == numChannels);
-    assert(input->getDimensions().d[0] == numChannels);
+    assert(input->getDimensions().d[1] == numChannels);
 
     auto mergedScale = make_unique<float[]>(numChannels);
     auto mergedBias = make_unique<float[]>(numChannels);
@@ -763,13 +785,13 @@ struct ModelBuilder {
     ILayer* gpoolSumLayer = nullptr;
     ILayer* gpoolMeanLayer = nullptr;
     if(!model->requireExactNNLen) {
-      gpoolSumLayer = network->addReduce(*inputLayer->getOutput(0), ReduceOperation::kSUM, 1U << 1 | 1U << 2, true);
+      gpoolSumLayer = network->addReduce(*inputLayer->getOutput(0), ReduceOperation::kSUM, 1U << 2 | 1U << 3, true);
       auto gpoolSumLayerName = name + "/gpsum";
       gpoolSumLayer->setName(gpoolSumLayerName.c_str());
       gpoolMeanLayer =
         network->addElementWise(*gpoolSumLayer->getOutput(0), *maskSumLayer->getOutput(0), ElementWiseOperation::kDIV);
     } else {
-      gpoolMeanLayer = network->addReduce(*inputLayer->getOutput(0), ReduceOperation::kAVG, 1U << 1 | 1U << 2, true);
+      gpoolMeanLayer = network->addReduce(*inputLayer->getOutput(0), ReduceOperation::kAVG, 1U << 2 | 1U << 3, true);
     }
     auto gpoolMeanLayerName = name + "/gpmean";
     gpoolMeanLayer->setName(gpoolMeanLayerName.c_str());
@@ -807,13 +829,13 @@ struct ModelBuilder {
       auto gpoolMaskAddLayerName = name + "/gpmaskadd";
       gpoolMaskAddLayer->setName(gpoolMaskAddLayerName.c_str());
       auto gpoolMaxLayer =
-        network->addReduce(*gpoolMaskAddLayer->getOutput(0), ReduceOperation::kMAX, 1U << 1 | 1U << 2, true);
+        network->addReduce(*gpoolMaskAddLayer->getOutput(0), ReduceOperation::kMAX, 1U << 2 | 1U << 3, true);
       auto gpoolMaxLayerName = name + "/gpmax";
       gpoolMaxLayer->setName(gpoolMaxLayerName.c_str());
       gpoolConcatInputLayer3 = gpoolMaxLayer;
     } else {
       auto gpoolMaxLayer =
-        network->addReduce(*inputLayer->getOutput(0), ReduceOperation::kMAX, 1U << 1 | 1U << 2, true);
+        network->addReduce(*inputLayer->getOutput(0), ReduceOperation::kMAX, 1U << 2 | 1U << 3, true);
       auto gpoolMaxLayerName = name + "/gpmax";
       gpoolMaxLayer->setName(gpoolMaxLayerName.c_str());
       gpoolConcatInputLayer3 = gpoolMaxLayer;
@@ -823,6 +845,7 @@ struct ModelBuilder {
       gpoolMeanLayer->getOutput(0), gpoolMeanScaleLayer->getOutput(0), gpoolConcatInputLayer3->getOutput(0)};
     auto gpoolConcatLayer = network->addConcatenation(gpoolConcatInputs, 3);
     auto gpoolConcatLayerName = name + "/gpconcat";
+    gpoolConcatLayer->setAxis(1);
     gpoolConcatLayer->setName(gpoolConcatLayerName.c_str());
 
     if(forceFP32) {
@@ -895,25 +918,25 @@ struct ComputeHandle {
   ComputeContext* ctx;
 
   bool usingFP16;
+  int maxBatchSize;
   int modelVersion;
-  vector<pair<string, Dims>> debugOutputs;
+  vector<pair<string, string>> debugOutputs;
 
   TRTLogger trtLogger;
+  map<string, void*> buffers;
   unique_ptr<ICudaEngine> engine;
   unique_ptr<IExecutionContext> exec;
-  vector<void*> buffers;
-  vector<size_t> bufferBytes;
-  vector<size_t> bufferRowElts;
 
   ComputeHandle(
     Logger* logger,
     const cudaDeviceProp* prop,
     ComputeContext* context,
     const LoadedModel* loadedModel,
-    int maxBatchSize,
+    int maxBatchSz,
     bool requireExactNNLen) {
     ctx = context;
 
+    maxBatchSize = maxBatchSz;
     modelVersion = loadedModel->modelDesc.version;
 
     trtLogger.setLogger(logger);
@@ -938,14 +961,22 @@ struct ComputeHandle {
     }
     config->setFlag(BuilderFlag::kPREFER_PRECISION_CONSTRAINTS);
 
-    auto network = unique_ptr<INetworkDefinition>(builder->createNetworkV2(0U));
+    auto network = unique_ptr<INetworkDefinition>(
+      builder->createNetworkV2(1U << static_cast<int>(NetworkDefinitionCreationFlag::kEXPLICIT_BATCH)));
     if(!network) {
       throw StringError("TensorRT backend: failed to create network definition");
     }
-    auto modelBuilder = make_unique<ModelBuilder>();
-    auto model = modelBuilder->build(move(network), loadedModel, ctx->nnXLen, ctx->nnYLen, requireExactNNLen);
-
+    auto profile = builder->createOptimizationProfile();
+    if(!profile) {
+      throw StringError("TensorRT backend: failed to create optimization profile");
+    }
+    auto modelParser = make_unique<ModelParser>();
+    auto model = modelParser->build(
+      move(network), profile, loadedModel, ctx->nnXLen, ctx->nnYLen, maxBatchSize, requireExactNNLen);
     debugOutputs = model->debugOutputs;
+    config->addOptimizationProfile(profile);
+
+    config->setTacticSources(1U << static_cast<uint32_t>(TacticSource::kJIT_CONVOLUTIONS));
 
     bool saveTimingCache;
     string timingCacheFile;
@@ -1007,8 +1038,6 @@ struct ComputeHandle {
     // Typical runtime allocation is much less than the 1 GiB specified below
     config->setMemoryPoolLimit(MemoryPoolType::kWORKSPACE, 1U << 30);
 
-    builder->setMaxBatchSize(maxBatchSize);
-
     auto plan = unique_ptr<IHostMemory>(builder->buildSerializedNetwork(*model->network, *config));
     if(!plan) {
       throw StringError("TensorRT backend: failed to create plan");
@@ -1044,23 +1073,23 @@ struct ComputeHandle {
       throw StringError("TensorRT backend: failed to create execution context");
     }
 
-    int numBindings = engine->getNbBindings();
-    buffers.resize(numBindings, nullptr);
-    bufferBytes.resize(numBindings, 0);
-    bufferRowElts.resize(numBindings, 0);
-    for(int i = 0; i < numBindings; i++) {
-      auto dims = engine->getBindingDimensions(i);
-      size_t elts = accumulate(dims.d, dims.d + dims.nbDims, 1, multiplies<int>());
-      size_t bytes = maxBatchSize * elts * sizeof(float);
-      bufferRowElts[i] = elts;
-      bufferBytes[i] = bytes;
-      CUDA_ERR("ComputeHandle", cudaMalloc(&buffers[i], bytes));
+    for(int i = 0; i < engine->getNbIOTensors(); i++) {
+      void* buffer = nullptr;
+      auto name = engine->getIOTensorName(i);
+      auto dims = engine->getTensorShape(name);
+      size_t bytes = accumulate(dims.d + 1, dims.d + dims.nbDims, maxBatchSize * sizeof(float), multiplies<size_t>());
+      CUDA_ERR("ComputeHandle", cudaMalloc(&buffer, bytes));
+      buffers.emplace(make_pair(name, buffer));
+      exec->setTensorAddress(name, buffer);
     }
+
+    exec->setOptimizationProfileAsync(0, cudaStreamPerThread);
+    cudaStreamSynchronize(cudaStreamPerThread);
   }
 
   ~ComputeHandle() {
     for(auto ptr: buffers) {
-      CUDA_ERR("~ComputeHandle", cudaFree(ptr));
+      CUDA_ERR("~ComputeHandle", cudaFree(ptr.second));
     }
   }
 
@@ -1069,36 +1098,49 @@ struct ComputeHandle {
   ComputeHandle& operator=(const ComputeHandle&) = delete;
 
   void* getBuffer(const char* name) {
-    int index = engine->getBindingIndex(name);
-    if(index == -1) {
-      throw StringError(Global::strprintf("ComputeHandle: unknown binding name %s", name));
+    auto search = buffers.find(name);
+    if(search != buffers.end()) {
+      return search->second;
+    } else {
+      throw StringError(Global::strprintf("ComputeHandle: unknown tensor name %s", name));
     }
-    return buffers[index];
   }
 
   size_t getBufferBytes(const char* name) {
-    int index = engine->getBindingIndex(name);
-    if(index == -1) {
-      throw StringError(Global::strprintf("ComputeHandle: unknown binding name %s", name));
+    auto dims = engine->getTensorShape(name);
+    if(dims.nbDims != -1) {
+      return accumulate(dims.d + 1, dims.d + dims.nbDims, maxBatchSize * sizeof(float), multiplies<size_t>());
+    } else {
+      throw StringError(Global::strprintf("ComputeHandle: unknown tensor name %s", name));
     }
-    return bufferBytes[index];
   }
 
   size_t getBufferRowElts(const char* name) {
-    int index = engine->getBindingIndex(name);
-    if(index == -1) {
-      throw StringError(Global::strprintf("ComputeHandle: unknown binding name %s", name));
+    auto dims = engine->getTensorShape(name);
+    if(dims.nbDims != -1) {
+      return accumulate(dims.d + 1, dims.d + dims.nbDims, 1, multiplies<size_t>());
+    } else {
+      throw StringError(Global::strprintf("ComputeHandle: unknown tensor name %s", name));
     }
-    return bufferRowElts[index];
+  }
+
+  Dims getBufferDynamicShape(const char* name, int batchSize) {
+    auto dims = engine->getTensorShape(name);
+    if(dims.nbDims != -1) {
+      dims.d[0] = batchSize;
+      return dims;
+    } else {
+      throw StringError(Global::strprintf("ComputeHandle: unknown tensor name %s", name));
+    }
   }
 
   void printDebugOutput(int batchSize) {
     for(auto& debugOutput: debugOutputs) {
-      Dims dims = debugOutput.second;
-      string desc = debugOutput.first;
-      string name = "DBG" + to_string(hash<string>{}(debugOutput.first));
+      auto name = debugOutput.first;
+      auto desc = debugOutput.second;
+      auto dims = getBufferDynamicShape(name.c_str(), batchSize);
 
-      vector<float> values(batchSize * getBufferRowElts(name.c_str()));
+      vector<float> values(accumulate(dims.d, dims.d + dims.nbDims, 1, multiplies<size_t>()));
       CUDA_ERR(
         "printDebugOutput",
         cudaMemcpy(values.data(), getBuffer(name.c_str()), values.size() * sizeof(float), cudaMemcpyDeviceToHost));
@@ -1106,22 +1148,22 @@ struct ComputeHandle {
       cout << "=========================================================" << endl;
       cout << desc << endl;
       int i = 0;
-      if(dims.nbDims == 1) {
-        for(int n = 0; n < batchSize; n++) {
+      if(dims.nbDims == 2) {
+        for(int n = 0; n < dims.d[0]; n++) {
           cout << "-(n=" << n << ")--------------------" << endl;
-          for(int c = 0; c < dims.d[0]; c++) {
+          for(int c = 0; c < dims.d[1]; c++) {
             cout << values[i++] << " ";
           }
           cout << endl;
         }
         cout << endl;
-      } else if(dims.nbDims == 3) {
-        for(int n = 0; n < batchSize; n++) {
+      } else if(dims.nbDims == 4) {
+        for(int n = 0; n < dims.d[0]; n++) {
           cout << "-(n=" << n << ")--------------------" << endl;
-          for(int c = 0; c < dims.d[0]; c++) {
+          for(int c = 0; c < dims.d[1]; c++) {
             cout << "(c=" << c << ")" << endl;
-            for(int y = 0; y < dims.d[1]; y++) {
-              for(int x = 0; x < dims.d[2]; x++)
+            for(int y = 0; y < dims.d[2]; y++) {
+              for(int x = 0; x < dims.d[3]; x++)
                 cout << values[i++] << " ";
               cout << endl;
             }
@@ -1182,8 +1224,8 @@ void NeuralNet::freeComputeHandle(ComputeHandle* gpuHandle) {
   delete gpuHandle;
 }
 
-bool NeuralNet::isUsingFP16(const ComputeHandle* handle) {
-  return handle->usingFP16;
+bool NeuralNet::isUsingFP16(const ComputeHandle* gpuHandle) {
+  return gpuHandle->usingFP16;
 }
 
 void NeuralNet::printDevices() {
@@ -1233,9 +1275,6 @@ struct InputBuffers {
   InputBuffers(const LoadedModel* loadedModel, int maxBatchSz, int nnXLen, int nnYLen) {
     const ModelDesc& m = loadedModel->modelDesc;
 
-    int xSize = nnXLen;
-    int ySize = nnYLen;
-
     if(nnXLen > NNPos::MAX_BOARD_LEN)
       throw StringError(
         Global::strprintf("nnXLen (%d) is greater than NNPos::MAX_BOARD_LEN (%d)", nnXLen, NNPos::MAX_BOARD_LEN));
@@ -1244,19 +1283,19 @@ struct InputBuffers {
         Global::strprintf("nnYLen (%d) is greater than NNPos::MAX_BOARD_LEN (%d)", nnYLen, NNPos::MAX_BOARD_LEN));
 
     maxBatchSize = maxBatchSz;
-    singleMaskElts = xSize * ySize;
+    singleMaskElts = nnXLen * nnYLen;
     singleMaskBytes = singleMaskElts * sizeof(float);
-    singleFeatureElts = m.numInputChannels * xSize * ySize;
+    singleFeatureElts = m.numInputChannels * nnXLen * nnYLen;
     singleFeatureBytes = singleFeatureElts * sizeof(float);
     singleGlobalFeatureElts = m.numInputGlobalChannels;
     singleGlobalFeatureBytes = singleGlobalFeatureElts * sizeof(float);
-    singlePolicyResultElts = NNPos::getPolicySize(xSize, ySize);
+    singlePolicyResultElts = NNPos::getPolicySize(nnXLen, nnYLen);
     singlePolicyResultBytes = singlePolicyResultElts * sizeof(float);
     singleValueResultElts = m.numValueChannels;
     singleValueResultBytes = singleValueResultElts * sizeof(float);
     singleScoreValueResultElts = m.numScoreValueChannels;
     singleScoreValueResultBytes = singleScoreValueResultElts * sizeof(float);
-    singleOwnershipResultElts = m.numOwnershipChannels * xSize * ySize;
+    singleOwnershipResultElts = m.numOwnershipChannels * nnXLen * nnYLen;
     singleOwnershipResultBytes = singleOwnershipResultElts * sizeof(float);
 
     assert(NNModelVersion::getNumSpatialFeatures(m.version) == m.numInputChannels);
@@ -1361,7 +1400,15 @@ void NeuralNet::getOutput(
       inputBuffers->singleGlobalFeatureBytes * batchSize,
       cudaMemcpyHostToDevice));
 
-  gpuHandle->exec->enqueue(batchSize, gpuHandle->buffers.data(), cudaStreamPerThread, nullptr);
+  auto maskInputDims = gpuHandle->getBufferDynamicShape("InputMask", batchSize);
+  auto featureInputDims = gpuHandle->getBufferDynamicShape("InputFeature", batchSize);
+  auto globalFeatureInputDims = gpuHandle->getBufferDynamicShape("InputGlobalFeature", batchSize);
+
+  gpuHandle->exec->setInputShape("InputMask", maskInputDims);
+  gpuHandle->exec->setInputShape("InputFeature", featureInputDims);
+  gpuHandle->exec->setInputShape("InputGlobalFeature", globalFeatureInputDims);
+
+  gpuHandle->exec->enqueueV3(cudaStreamPerThread);
 
   CUDA_ERR(
     "getOutput",
