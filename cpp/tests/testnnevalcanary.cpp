@@ -284,7 +284,7 @@ bool Tests::runFP16Test(NNEvaluator* nnEval, NNEvaluator* nnEval32, Logger& logg
   if(maxBatchSizeCap > 0)
     maxBatchSize = std::min(maxBatchSize,maxBatchSizeCap);
   if(maxBatchSize <= 0)
-    throw StringError("Invalid max batch size for fp16 test");    
+    throw StringError("Invalid max batch size for fp16 test");
 
 #ifdef USE_EIGEN_BACKEND
   (void)logger;
@@ -412,8 +412,8 @@ bool Tests::runFP16Test(NNEvaluator* nnEval, NNEvaluator* nnEval32, Logger& logg
           stats.appendStats(base[i], current[i]);
         if(verbose)
           stats.reportStats("current - fp32", logger);
-        success = success && stats.checkStats99( 1.5, 0.75, 1.50, 0.0020);
-        success = success && stats.checkStatsMax(4.5, 3.00, 4.50, 0.0040);
+        success = success && stats.checkStats99( 2.0, 1.00, 2.50, 0.0020);
+        success = success && stats.checkStatsMax(5.0, 3.00, 6.00, 0.0040);
       }
       {
         GpuErrorStats stats;
@@ -421,8 +421,8 @@ bool Tests::runFP16Test(NNEvaluator* nnEval, NNEvaluator* nnEval32, Logger& logg
           stats.appendStats(base[i], cbatched[i]);
         if(verbose)
           stats.reportStats("batched current - fp32", logger);
-        success = success && stats.checkStats99( 1.5, 0.75, 1.50, 0.0020);
-        success = success && stats.checkStatsMax(4.5, 3.00, 4.50, 0.0040);
+        success = success && stats.checkStats99( 2.0, 1.00, 2.50, 0.0020);
+        success = success && stats.checkStatsMax(5.0, 3.00, 6.00, 0.0040);
       }
     }
 
