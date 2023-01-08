@@ -6,6 +6,7 @@
 #include "../core/elo.h"
 #include "../core/fancymath.h"
 #include "../core/config_parser.h"
+#include "../core/fileutils.h"
 #include "../core/base64.h"
 #include "../core/timer.h"
 #include "../core/threadtest.h"
@@ -53,7 +54,12 @@ int MainCmds::runtests(const vector<string>& args) {
 
   ScoreValue::freeTables();
 
-  Tests::runConfigTests({});
+  // Pick an arbitrary file that the test uses
+  if(FileUtils::exists("tests/data/configs/folded/test-parent.cfg"))
+    Tests::runConfigTests({});
+  else {
+    cout << "Not being run out of git repo, skipping config parsing tests" << endl;
+  }
 
   cout << "All tests passed" << endl;
   return 0;
