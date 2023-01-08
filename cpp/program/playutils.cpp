@@ -358,7 +358,7 @@ static SearchParams getNoiselessParams(SearchParams oldParams, int64_t numVisits
   newParams.searchFactorAfterOnePass = 1.0;
   newParams.searchFactorAfterTwoPass = 1.0;
   if(newParams.numThreads > (numVisits+7)/8)
-    newParams.numThreads = (numVisits+7)/8;
+    newParams.numThreads = (int)((numVisits+7)/8);
   return newParams;
 }
 

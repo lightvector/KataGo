@@ -30,7 +30,7 @@ public:
   SimpleAllocator(const SimpleAllocator&) = delete;
   SimpleAllocator& operator=(const SimpleAllocator&) = delete;
 
-  friend class SizedBuf<T>;
+  friend struct SizedBuf<T>;
 };
 
 
