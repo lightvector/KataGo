@@ -607,10 +607,12 @@ struct ModelBuilder {
       }
     }
 
-    // Note that FullyConnected expects I/O tensors with 3 dimentions (in addition to batch)
-    auto matMulLayer = model->network->addFullyConnected(
+    // For convenience, both I/O tensors have 3 dimentions (in addition to batch), so that
+    // matmul is mathmatically equivalent to a 2D convolution of 1x1 features and 1x1 kernels.
+    auto matMulLayer = model->network->addConvolutionNd(
       *input,
       desc->outChannels,
+      {2, {1, 1}},
       {DataType::kFLOAT, transposedWeights.get(), static_cast<int64_t>(desc->weights.size())},
       {DataType::kFLOAT, nullptr, 0});
     matMulLayer->setName(desc->name.c_str());
@@ -938,7 +940,7 @@ struct ComputeHandle {
     } else if(ctx->useFP16Mode == enabled_t::True) {
       throw StringError("CUDA device does not support useFP16=true");
     }
-    config->setFlag(BuilderFlag::kSTRICT_TYPES);
+    config->setFlag(BuilderFlag::kPREFER_PRECISION_CONSTRAINTS);
 
     auto network = unique_ptr<INetworkDefinition>(builder->createNetworkV2(0U));
     if(!network) {
@@ -1007,7 +1009,7 @@ struct ComputeHandle {
     config->setProfileStream(cudaStreamLegacy);
 
     // Typical runtime allocation is much less than the 1 GiB specified below
-    config->setMaxWorkspaceSize(1U << 30);
+    config->setMemoryPoolLimit(MemoryPoolType::kWORKSPACE, 1U << 30);
 
     builder->setMaxBatchSize(maxBatchSize);
 
