@@ -1,3 +1,6 @@
+
+**Some of the information in this doc is out of date, as KataGo has switched to using pytorch. This doc will be updated before too long. Until then, much of the old doc is still applicable, as the new scripts were deliberately kept to be highly analogous with almost identical parameters to the old scripts.**
+
 ## Selfplay Training:
 If you'd also like to run the full self-play loop and train your own neural nets, in addition to probably wanting to [compile KataGo yourself](https://github.com/lightvector/KataGo#compiling-katago), you must have [Python3](https://www.python.org/) and [Tensorflow](https://www.tensorflow.org/install/) installed. The version of Tensorflow known to work with the current code and with which KataGo's main run was trained is 1.15. Earlier versions than 1.15 will probably not work, and KataGo has NOT been tested with TF2.0. You'll also probably need a decent amount of GPU power.
 
