@@ -338,7 +338,6 @@ struct ModelParser {
     auto& network = model->network;
 
     string name = desc->name;
-    int numBlocks = desc->numBlocks;
     int numChannels = desc->trunkNumChannels;
 
     tuneDesc += Global::strprintf(
@@ -364,9 +363,9 @@ struct ModelParser {
     auto initialBiasLayer = network->addElementWise(*initialConv, *initialMatMul, ElementWiseOperation::kSUM);
     auto initiaBiasLayerName = name + "/initbias";
     initialBiasLayer->setName(initiaBiasLayerName.c_str());
-    ILayer* trunkScratchLayer = initialBiasLayer;
 
-    trunkScratchLayer = parseResidualBlockStack(desc->blocks, numBlocks, trunkScratchLayer, "trunk");
+    assert(desc->blocks.size() == desc->numBlocks);
+    auto trunkScratchLayer = parseResidualBlockStack(desc->blocks, "trunk", initialBiasLayer->getOutput(0));
 
     auto trunkTipBatchNormLayer = parseBatchNormLayer(&desc->trunkTipBN, trunkScratchLayer->getOutput(0));
     auto trunkTipActivationLayer =
@@ -380,13 +379,14 @@ struct ModelParser {
 
   ILayer* parseResidualBlockStack(
     const std::vector<std::pair<int, unique_ptr_void>>& blocks,
-    int numBlocks,
-    ITensor* input,
-    const string& name
+    const string& name,
+    ITensor* input
   ) {
-    ILayer* trunkScratchLayer = input;
-    assert(blocks.size() == numBlocks);
-    for(int i = 0; i < numBlocks; i++) {
+    ILayer* trunkScratchLayer = model->network->addIdentity(*input);
+    auto trunkScratchLayerName = name + "/scratch";
+    trunkScratchLayer->setName(trunkScratchLayerName.c_str());
+
+    for(int i = 0; i < blocks.size(); i++) {
       markDebugOutput(trunkScratchLayer->getOutput(0), name + " before block " + to_string(i));
       if(blocks[i].first == ORDINARY_BLOCK_KIND) {
         auto blockDesc = static_cast<ResidualBlockDesc*>(blocks[i].second.get());
@@ -401,6 +401,7 @@ struct ModelParser {
         ASSERT_UNREACHABLE;
       }
     }
+
     return trunkScratchLayer;
   }
 
@@ -572,11 +573,13 @@ struct ModelParser {
   }
 
   ILayer* parseNestedBottleneckResidualBlock(const NestedBottleneckResidualBlockDesc* desc, ITensor* input) {
+    assert(desc->blocks.size() == desc->numBlocks);
+
     auto preBatchNormLayer = parseBatchNormLayer(&desc->preBN, input);
     auto preActivationLayer = parseActivationLayer(&desc->preActivation, preBatchNormLayer->getOutput(0));
     auto preMaskLayer = applyMaskLayer(preActivationLayer);
     auto preConvLayer = parseConvLayer(&desc->preConv, preMaskLayer->getOutput(0));
-    auto stackLayer = parseResidualBlockStack(desc->blocks,desc->numBlocks,preConvLayer->getOutput(0),desc->name);
+    auto stackLayer = parseResidualBlockStack(desc->blocks, desc->name, preConvLayer->getOutput(0));
     auto postBatchNormLayer = parseBatchNormLayer(&desc->postBN, stackLayer->getOutput(0));
     auto postActivationLayer = parseActivationLayer(&desc->postActivation, postBatchNormLayer->getOutput(0));
     auto postMaskLayer = applyMaskLayer(postActivationLayer);
@@ -721,31 +724,37 @@ struct ModelParser {
   }
 
   ILayer* parseActivationLayer(const ActivationLayerDesc* desc, ITensor* input, bool forceFP32 = false) {
-    if(desc->activation == ACTIVATION_IDENTITY)
-      return input;
-    else if(desc->activation == ACTIVATION_RELU) {
+    tuneDesc += Global::strprintf(R"("%s"(%d))", desc->name.c_str(), desc->activation);
+    if(desc->activation == ACTIVATION_IDENTITY) {
+      auto activationLayer = model->network->addIdentity(*input);
+      activationLayer->setName(desc->name.c_str());
+      return activationLayer;
+    } else if(desc->activation == ACTIVATION_RELU) {
       auto activationLayer = model->network->addActivation(*input, ActivationType::kRELU);
       activationLayer->setName(desc->name.c_str());
-
       if(forceFP32) {
         activationLayer->setPrecision(DataType::kFLOAT);
       }
       return activationLayer;
     }
     else if(desc->activation == ACTIVATION_MISH) {
-      auto activationLayer = model->network->addActivation(*input, ActivationType::kSOFTPLUS);
+      auto softplusLayer = model->network->addActivation(*input, ActivationType::kSOFTPLUS);
+      auto softplusLayerName = desc->name + "/softplus";
+      softplusLayer->setName(softplusLayerName.c_str());
+      auto tanhLayer = model->network->addActivation(*softplusLayer->getOutput(0), ActivationType::kTANH);
+      auto tanhLayerName = desc->name + "/tanh";
+      tanhLayer->setName(tanhLayerName.c_str());
+      auto mergeLayer = model->network->addElementWise(*input, *tanhLayer->getOutput(0), ElementWiseOperation::kPROD);
+      mergeLayer->setName(desc->name.c_str());
       if(forceFP32) {
-        activationLayer->setPrecision(DataType::kFLOAT);
+        softplusLayer->setPrecision(DataType::kFLOAT);
+        tanhLayer->setPrecision(DataType::kFLOAT);
+        mergeLayer->setPrecision(DataType::kFLOAT);
       }
-      auto activationLayer = model->network->addActivation(*activationLayer->getOutput(0), ActivationType::kTANH);
-      if(forceFP32) {
-        activationLayer->setPrecision(DataType::kFLOAT);
-      }
-      auto mergeLayer = model->network->addElementWise(*input, *activationLayer->getOutput(0), ElementWiseOperation::kPROD);
-      activationLayer->setName(desc->name.c_str());
-      return activationLayer;
+      return mergeLayer;
+    } else {
+      ASSERT_UNREACHABLE;
     }
-    throw StringError("TensorRT backend: unknown activation function in net: " + Global::intToString(desc->activation));
   }
 
   ILayer* applyGPoolLayer(ILayer* inputLayer, bool forceFP32 = false, bool useQuadScale = false) {
@@ -844,7 +853,7 @@ struct TRTLogger : ILogger {
   void log(Severity severity, const char* msg) noexcept override {
     if(logger && severity <= level)
       logger->write("TensorRT backend: " + string(msg));
-    if(severity == Severity::kERROR && !logger->isLoggingToStderr() && !logger->isLoggingToStdout()) {
+    if(severity == Severity::kERROR && logger && !logger->isLoggingToStderr() && !logger->isLoggingToStdout()) {
       std::cerr << ("TensorRT backend: " + string(msg)) << std::endl;
     }
   }
