@@ -364,10 +364,29 @@ struct ComputeContext {
 
       OpenCLTuneParams tuneParams = getParamsForDeviceName(name, device->info.gpuIdx);
 
-      bool useFP16Storage = useFP16Mode == enabled_t::True || (useFP16Mode == enabled_t::Auto && tuneParams.shouldUseFP16Storage);
-      bool useFP16Compute = (useFP16Mode == enabled_t::True || useFP16Mode == enabled_t::Auto) && tuneParams.shouldUseFP16Compute;
-      bool useFP16TensorCores = (useFP16Mode == enabled_t::True || useFP16Mode == enabled_t::Auto) && tuneParams.shouldUseFP16TensorCores;
-      bool useFP16TensorCoresFor1x1 = (useFP16Mode == enabled_t::True || useFP16Mode == enabled_t::Auto) && tuneParams.shouldUseFP16TensorCoresFor1x1;
+      bool useFP16Storage = false;
+      bool useFP16Compute = false;
+      bool useFP16TensorCores = false;
+      bool useFP16TensorCoresFor1x1 = false;
+
+      if(useFP16Mode == enabled_t::True) {
+        if(!tuneParams.canUseFP16Storage && !tuneParams.canUseFP16Compute && !tuneParams.canUseFP16TensorCores && !tuneParams.canUseFP16TensorCoresFor1x1) {
+          if(logger)
+            logger->write("Warning: No FP16 support found at all on this device during tuning, but useFP16 is true, trying fp16 storage");
+          useFP16Storage = true;
+        }
+        useFP16Storage = tuneParams.canUseFP16Storage;
+        // Only use FP16 compute if not using tensor cores
+        useFP16Compute = tuneParams.canUseFP16Storage && !tuneParams.canUseFP16TensorCores;
+        useFP16TensorCores = tuneParams.canUseFP16TensorCores;
+        useFP16TensorCoresFor1x1 = tuneParams.canUseFP16TensorCoresFor1x1;
+      }
+      else if(useFP16Mode == enabled_t::Auto) {
+        useFP16Storage = tuneParams.shouldUseFP16Storage;
+        useFP16Compute = tuneParams.shouldUseFP16Compute;
+        useFP16TensorCores = tuneParams.shouldUseFP16TensorCores;
+        useFP16TensorCoresFor1x1 = tuneParams.shouldUseFP16TensorCoresFor1x1;
+      }
 
       CompiledPrograms* compiledPrograms = new CompiledPrograms(
         device->context, deviceIds, tuneParams,

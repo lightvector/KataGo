@@ -577,12 +577,20 @@ int OpenCLTuneParams::getXGemmKPaddingMult(bool usingFP16Compute, bool usingFP16
 }
 
 
-static const int TUNER_VERSION = 9;
-static const char* TUNEPARAMS_VERSION_LINE = "VERSION=9";
+static const int TUNER_VERSION = 10;
+static const char* TUNEPARAMS_VERSION_LINE = "VERSION=10";
 void OpenCLTuneParams::save(const string& filename, const OpenCLTuneParams& config) {
   ofstream out;
   FileUtils::open(out,filename);
   out << TUNEPARAMS_VERSION_LINE << "\n";
+  out << "#canUseFP16Storage" << "\n";
+  out << config.canUseFP16Storage << "\n";
+  out << "#canUseFP16Compute" << "\n";
+  out << config.canUseFP16Compute << "\n";
+  out << "#canUseFP16TensorCores" << "\n";
+  out << config.canUseFP16TensorCores << "\n";
+  out << "#canUseFP16TensorCoresFor1x1" << "\n";
+  out << config.canUseFP16TensorCoresFor1x1 << "\n";
   out << "#shouldUseFP16Storage" << "\n";
   out << config.shouldUseFP16Storage << "\n";
   out << "#shouldUseFP16Compute" << "\n";
@@ -626,22 +634,26 @@ OpenCLTuneParams OpenCLTuneParams::load(const string& filename) {
   if(filteredLines[0] != TUNEPARAMS_VERSION_LINE)
     throw IOError("OpenCLTuneParams::load: expected first line to be " + string(TUNEPARAMS_VERSION_LINE) + " in " + filename);
 
-  if(filteredLines.size() != 13)
+  if(filteredLines.size() != 17)
     throw IOError("OpenCLTuneParams::load: unexpected number of parameter lines in file " + filename);
 
   OpenCLTuneParams config;
-  config.shouldUseFP16Storage = (bool)Global::stringToInt(filteredLines[1]);
-  config.shouldUseFP16Compute = (bool)Global::stringToInt(filteredLines[2]);
-  config.shouldUseFP16TensorCores = (bool)Global::stringToInt(filteredLines[3]);
-  config.shouldUseFP16TensorCoresFor1x1 = (bool)Global::stringToInt(filteredLines[4]);
-  config.xGemmDirect.fillFromDesc(filename,filteredLines[5]);
-  config.xGemm.fillFromDesc(filename,filteredLines[6]);
-  config.xGemm16.fillFromDesc(filename,filteredLines[7]);
-  config.hGemmWmma.fillFromDesc(filename,filteredLines[8]);
-  config.hGemmWmmaNCHW.fillFromDesc(filename,filteredLines[9]);
-  config.conv3x3.fillFromDesc(filename,filteredLines[10]);
-  config.conv5x5.fillFromDesc(filename,filteredLines[11]);
-  config.gPool.fillFromDesc(filename,filteredLines[12]);
+  config.canUseFP16Storage = (bool)Global::stringToInt(filteredLines[1]);
+  config.canUseFP16Compute = (bool)Global::stringToInt(filteredLines[2]);
+  config.canUseFP16TensorCores = (bool)Global::stringToInt(filteredLines[3]);
+  config.canUseFP16TensorCoresFor1x1 = (bool)Global::stringToInt(filteredLines[4]);
+  config.shouldUseFP16Storage = (bool)Global::stringToInt(filteredLines[5]);
+  config.shouldUseFP16Compute = (bool)Global::stringToInt(filteredLines[6]);
+  config.shouldUseFP16TensorCores = (bool)Global::stringToInt(filteredLines[7]);
+  config.shouldUseFP16TensorCoresFor1x1 = (bool)Global::stringToInt(filteredLines[8]);
+  config.xGemmDirect.fillFromDesc(filename,filteredLines[9]);
+  config.xGemm.fillFromDesc(filename,filteredLines[10]);
+  config.xGemm16.fillFromDesc(filename,filteredLines[11]);
+  config.hGemmWmma.fillFromDesc(filename,filteredLines[12]);
+  config.hGemmWmmaNCHW.fillFromDesc(filename,filteredLines[13]);
+  config.conv3x3.fillFromDesc(filename,filteredLines[14]);
+  config.conv5x5.fillFromDesc(filename,filteredLines[15]);
+  config.gPool.fillFromDesc(filename,filteredLines[16]);
   return config;
 }
 
@@ -2513,9 +2525,14 @@ void OpenCLTuner::tune(
     currentConfig = result;
 
     //Start with having nothing enabled by default
+    currentConfig.canUseFP16Storage = false;
+    currentConfig.canUseFP16Compute = false;
+    currentConfig.canUseFP16TensorCores = false;
+    currentConfig.canUseFP16TensorCoresFor1x1 = false;
     currentConfig.shouldUseFP16Storage = false;
     currentConfig.shouldUseFP16Compute = false;
     currentConfig.shouldUseFP16TensorCores = false;
+    currentConfig.shouldUseFP16TensorCoresFor1x1 = false;
     //Initialize xGemm16 config to the best non-fp16 config, by default
     currentConfig.xGemm16 = currentConfig.xGemm;
 
@@ -2560,10 +2577,14 @@ void OpenCLTuner::tune(
           }
           else if(bestKernelsPerSecond16 / FP16_TENSORCORE_REQUIRED_SPEEDUP < bestKernelsPerSecond) {
             currentConfig = result16;
+            currentConfig.canUseFP16Storage = true;
+            currentConfig.canUseFP16TensorCores = true;
             out << "FP16 tensor cores not significantly faster, not enabling" << endl;
           }
           else {
             currentConfig = result16;
+            currentConfig.canUseFP16Storage = true;
+            currentConfig.canUseFP16TensorCores = true;
             currentConfig.shouldUseFP16Storage = true;
             currentConfig.shouldUseFP16TensorCores = true;
             bestKernelsPerSecond = bestKernelsPerSecond16 / FP16_TENSORCORE_REQUIRED_SPEEDUP;
@@ -2594,16 +2615,20 @@ void OpenCLTuner::tune(
           );
           if(!suc) {
             out << "FP16 tensor core tuning failed for 1x1 convs" << endl;
+            currentConfig.canUseFP16TensorCoresFor1x1 = false;
             currentConfig.shouldUseFP16TensorCoresFor1x1 = false;
           }
+          // If we're using tensor cores normally, then just use them for 1x1 convs.
           else if(currentConfig.shouldUseFP16TensorCores) {
             out << "FP16 tensor cores enabled for 1x1 convs" << endl;
             currentConfig = result16;
+            currentConfig.canUseFP16TensorCoresFor1x1 = true;
             currentConfig.shouldUseFP16TensorCoresFor1x1 = true;
           }
           else {
             out << "FP16 tensor cores not enabled for 1x1 convs" << endl;
             currentConfig = result16;
+            currentConfig.canUseFP16TensorCoresFor1x1 = true;
             currentConfig.shouldUseFP16TensorCoresFor1x1 = false;
           }
         }
@@ -2637,15 +2662,19 @@ void OpenCLTuner::tune(
         }
         else if(bestKernelsPerSecond16 / FP16_REQUIRED_SPEEDUP < bestKernelsPerSecondFP32Only) {
           currentConfig = result16;
+          currentConfig.canUseFP16Compute = true;
           out << "FP16 compute not significantly faster, not enabling" << endl;
         }
         else if(bestKernelsPerSecond16 / FP16_REQUIRED_SPEEDUP < bestKernelsPerSecond) {
           currentConfig = result16;
+          currentConfig.canUseFP16Compute = true;
           currentConfig.shouldUseFP16Compute = true;
           out << "FP16 compute not significantly faster than tensor cores, using it generally but using tensor cores for convs" << endl;
         }
         else {
           currentConfig = result16;
+          currentConfig.canUseFP16Compute = true;
+          currentConfig.canUseFP16Storage = true;
           currentConfig.shouldUseFP16Storage = true;
           currentConfig.shouldUseFP16Compute = true;
           currentConfig.shouldUseFP16TensorCores = false;
@@ -2683,10 +2712,12 @@ void OpenCLTuner::tune(
           out << "FP16 storage tuning failed, assuming no FP16 storage support" << endl;
         }
         else if(bestKernelsPerSecond16 / FP16_REQUIRED_SPEEDUP < bestKernelsPerSecond) {
+          currentConfig.canUseFP16Storage = true;
           out << "FP16 storage not significantly faster, not enabling on its own" << endl;
         }
         else {
           currentConfig = result16;
+          currentConfig.canUseFP16Storage = true;
           currentConfig.shouldUseFP16Storage = true;
           currentConfig.shouldUseFP16Compute = false;
           currentConfig.shouldUseFP16TensorCores = false;
