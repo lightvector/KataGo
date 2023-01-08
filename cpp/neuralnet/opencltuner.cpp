@@ -891,11 +891,13 @@ static bool testAllConfigs(
 
       double kernelsPerSecond = accums.weightCounted / accums.weightedTimeTaken;
       double errorProp = sqrt(squerr / (sqmag + 1e-30));
-      if(!isfinite(errorProp) || errorProp > 1.0)
+      if(!isfinite(errorProp) || errorProp > 0.5)
         errorProp = 1.0;
       double errorPenaltyFactor = 1.0 - sqrt(errorProp / (errorProp + errorToleranceScale));
       if(errorProp > 0)
         errorPenaltyFactor *= 0.90;
+      if(errorProp > 0.5)
+        errorPenaltyFactor = 0.0;
 
       double score = kernelsPerSecond * errorPenaltyFactor;
       if(verboseTuner || score > bestScore) {
