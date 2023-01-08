@@ -128,7 +128,7 @@ struct TRTModel {
   TRTModel& operator=(const TRTModel&) = delete;
 };
 
-struct ModelParser {
+struct ModelBuilder {
   unique_ptr<TRTModel> model;
 
   ITensor* inputFeature;
@@ -141,11 +141,11 @@ struct ModelParser {
 
   string tuneDesc;  // Serves as a hash of the network architecture specific to tuning
 
-  ModelParser() = default;
-  ModelParser(const ModelParser&) = delete;
-  ModelParser& operator=(const ModelParser&) = delete;
+  ModelBuilder() = default;
+  ModelBuilder(const ModelBuilder&) = delete;
+  ModelBuilder& operator=(const ModelBuilder&) = delete;
 
-  unique_ptr<TRTModel> parse(
+  unique_ptr<TRTModel> build(
     unique_ptr<INetworkDefinition> net,
     const LoadedModel* rawModel,
     int nnXLen,
@@ -179,9 +179,9 @@ struct ModelParser {
     initInputs();
     initMaskLayers();
 
-    auto trunk = parseTrunk(&modelDesc->trunk);
-    parsePolicyHead(&modelDesc->policyHead, trunk->getOutput(0));
-    parseValueHead(&modelDesc->valueHead, trunk->getOutput(0));
+    auto trunk = buildTrunk(&modelDesc->trunk);
+    buildPolicyHead(trunk->getOutput(0), &modelDesc->policyHead);
+    buildValueHead(trunk->getOutput(0), &modelDesc->valueHead);
 
     SHA2::get256(tuneDesc.c_str(), model->tuneHash);
 
@@ -334,7 +334,7 @@ struct ModelParser {
     }
   }
 
-  ILayer* parseTrunk(const TrunkDesc* desc) {
+  ILayer* buildTrunk(const TrunkDesc* desc) {
     auto& network = model->network;
 
     string name = desc->name;
@@ -349,8 +349,8 @@ struct ModelParser {
       desc->regularNumChannels,
       desc->gpoolNumChannels);
 
-    auto initialConvLayer = parseConvLayer(&desc->initialConv, inputFeature);
-    auto initialMatMulLayer = parseMatMulLayer(&desc->initialMatMul, inputGlobalFeature);
+    auto initialConvLayer = buildConvLayer(inputFeature, &desc->initialConv);
+    auto initialMatMulLayer = buildMatMulLayer(inputGlobalFeature, &desc->initialMatMul);
 
     auto initialConv = initialConvLayer->getOutput(0);
     auto initialMatMul = initialMatMulLayer->getOutput(0);
@@ -365,11 +365,11 @@ struct ModelParser {
     initialBiasLayer->setName(initiaBiasLayerName.c_str());
 
     assert(desc->blocks.size() == desc->numBlocks);
-    auto trunkScratchLayer = parseResidualBlockStack(desc->blocks, "trunk", initialBiasLayer->getOutput(0));
+    auto trunkScratchLayer = buildResidualBlockStack(initialBiasLayer->getOutput(0), desc->blocks, "trunk");
 
-    auto trunkTipBatchNormLayer = parseBatchNormLayer(&desc->trunkTipBN, trunkScratchLayer->getOutput(0));
+    auto trunkTipBatchNormLayer = buildBatchNormLayer(trunkScratchLayer->getOutput(0), &desc->trunkTipBN);
     auto trunkTipActivationLayer =
-      parseActivationLayer(&desc->trunkTipActivation, trunkTipBatchNormLayer->getOutput(0));
+      buildActivationLayer(trunkTipBatchNormLayer->getOutput(0), &desc->trunkTipActivation);
     auto trunkTipMaskLayer = applyMaskLayer(trunkTipActivationLayer);
 
     markDebugOutput(trunkTipMaskLayer->getOutput(0), "Trunk tip");
@@ -377,10 +377,10 @@ struct ModelParser {
     return trunkTipMaskLayer;
   }
 
-  ILayer* parseResidualBlockStack(
+  ILayer* buildResidualBlockStack(
+    ITensor* input,
     const std::vector<std::pair<int, unique_ptr_void>>& blocks,
-    const string& name,
-    ITensor* input) {
+    const string& name) {
     ILayer* trunkScratchLayer = model->network->addIdentity(*input);
     auto trunkScratchLayerName = name + "/scratch";
     trunkScratchLayer->setName(trunkScratchLayerName.c_str());
@@ -389,13 +389,13 @@ struct ModelParser {
       markDebugOutput(trunkScratchLayer->getOutput(0), name + " before block " + to_string(i));
       if(blocks[i].first == ORDINARY_BLOCK_KIND) {
         auto blockDesc = static_cast<ResidualBlockDesc*>(blocks[i].second.get());
-        trunkScratchLayer = parseResidualBlock(blockDesc, trunkScratchLayer->getOutput(0));
+        trunkScratchLayer = buildResidualBlock(trunkScratchLayer->getOutput(0), blockDesc);
       } else if(blocks[i].first == GLOBAL_POOLING_BLOCK_KIND) {
         auto blockDesc = static_cast<GlobalPoolingResidualBlockDesc*>(blocks[i].second.get());
-        trunkScratchLayer = parseGlobalPoolingResidualBlock(blockDesc, trunkScratchLayer->getOutput(0));
+        trunkScratchLayer = buildGlobalPoolingResidualBlock(trunkScratchLayer->getOutput(0), blockDesc);
       } else if(blocks[i].first == NESTED_BOTTLENECK_BLOCK_KIND) {
         auto blockDesc = static_cast<NestedBottleneckResidualBlockDesc*>(blocks[i].second.get());
-        trunkScratchLayer = parseNestedBottleneckResidualBlock(blockDesc, trunkScratchLayer->getOutput(0));
+        trunkScratchLayer = buildNestedBottleneckResidualBlock(trunkScratchLayer->getOutput(0), blockDesc);
       } else {
         ASSERT_UNREACHABLE;
       }
@@ -404,26 +404,26 @@ struct ModelParser {
     return trunkScratchLayer;
   }
 
-  void parsePolicyHead(const PolicyHeadDesc* desc, ITensor* input) {
+  void buildPolicyHead(ITensor* input, const PolicyHeadDesc* desc) {
     auto& network = model->network;
     string name = desc->name;
 
-    auto p1ConvLayer = parseConvLayer(&desc->p1Conv, input);
-    auto g1ConvLayer = parseConvLayer(&desc->g1Conv, input);
-    auto g1BatchNormLayer = parseBatchNormLayer(&desc->g1BN, g1ConvLayer->getOutput(0));
-    auto g1ActivationLayer = parseActivationLayer(&desc->g1Activation, g1BatchNormLayer->getOutput(0));
+    auto p1ConvLayer = buildConvLayer(input, &desc->p1Conv);
+    auto g1ConvLayer = buildConvLayer(input, &desc->g1Conv);
+    auto g1BatchNormLayer = buildBatchNormLayer(g1ConvLayer->getOutput(0), &desc->g1BN);
+    auto g1ActivationLayer = buildActivationLayer(g1BatchNormLayer->getOutput(0), &desc->g1Activation);
     auto g1MaskLayer = applyMaskLayer(g1ActivationLayer);
     auto g1CastLayer = applyCastLayer(g1MaskLayer, DataType::kFLOAT);
     auto gpoolLayer = applyGPoolLayer(g1CastLayer, true);
-    auto gpoolToBiasMulLayer = parseMatMulLayer(&desc->gpoolToBiasMul, gpoolLayer->getOutput(0), true);
+    auto gpoolToBiasMulLayer = buildMatMulLayer(gpoolLayer->getOutput(0), &desc->gpoolToBiasMul, true);
     auto p1CastLayer = applyCastLayer(p1ConvLayer, DataType::kFLOAT);
     auto gpoolBiasLayer = network->addElementWise(
       *p1CastLayer->getOutput(0), *gpoolToBiasMulLayer->getOutput(0), ElementWiseOperation::kSUM);
     auto gpoolBiasLayerName = name + "/gpbias";
     gpoolBiasLayer->setName(gpoolBiasLayerName.c_str());
     gpoolBiasLayer->setPrecision(DataType::kFLOAT);
-    auto p1BatchNormLayer = parseBatchNormLayer(&desc->p1BN, gpoolBiasLayer->getOutput(0), true);
-    auto p1ActivationLayer = parseActivationLayer(&desc->p1Activation, p1BatchNormLayer->getOutput(0), true);
+    auto p1BatchNormLayer = buildBatchNormLayer(gpoolBiasLayer->getOutput(0), &desc->p1BN, true);
+    auto p1ActivationLayer = buildActivationLayer(p1BatchNormLayer->getOutput(0), &desc->p1Activation, true);
     auto p1MaskLayer = applyMaskLayer(p1ActivationLayer, true);
 
     markDebugOutput(p1ConvLayer->getOutput(0), "p1 pre-gpool-sum");
@@ -436,7 +436,7 @@ struct ModelParser {
     assert(desc->p2Conv.convXSize == 1);
     assert(desc->p2Conv.convYSize == 1);
 
-    auto p2ConvLayer = parseConvLayer(&desc->p2Conv, p1MaskLayer->getOutput(0), true);
+    auto p2ConvLayer = buildConvLayer(p1MaskLayer->getOutput(0), &desc->p2Conv, true);
     auto p2ConvReshapeLayer = network->addShuffle(*p2ConvLayer->getOutput(0));
     auto p2ConvReshapeLayerName = string(p2ConvLayer->getName()) + "/reshape";
     p2ConvReshapeLayer->setName(p2ConvReshapeLayerName.c_str());
@@ -445,7 +445,7 @@ struct ModelParser {
 
     markDebugOutput(p2ConvReshapeLayer->getOutput(0), "p2");
 
-    auto gpoolToPassMulLayer = parseMatMulLayer(&desc->gpoolToPassMul, gpoolLayer->getOutput(0), true);
+    auto gpoolToPassMulLayer = buildMatMulLayer(gpoolLayer->getOutput(0), &desc->gpoolToPassMul, true);
     auto gpoolToPassMulReshapeLayer = network->addShuffle(*gpoolToPassMulLayer->getOutput(0));
     auto gpoolToPassMulReshapeLayerName = string(gpoolToPassMulLayer->getName()) + "/reshape";
     gpoolToPassMulReshapeLayer->setName(gpoolToPassMulReshapeLayerName.c_str());
@@ -467,36 +467,36 @@ struct ModelParser {
     outputPolicy->setAllowedFormats(1U << static_cast<int>(TensorFormat::kLINEAR));
   }
 
-  void parseValueHead(const ValueHeadDesc* desc, ITensor* input) {
+  void buildValueHead(ITensor* input, const ValueHeadDesc* desc) {
     auto& network = model->network;
 
-    auto v1ConvLayer = parseConvLayer(&desc->v1Conv, input);
-    auto v1BatchNormLayer = parseBatchNormLayer(&desc->v1BN, v1ConvLayer->getOutput(0));
-    auto v1ActivationLayer = parseActivationLayer(&desc->v1Activation, v1BatchNormLayer->getOutput(0));
+    auto v1ConvLayer = buildConvLayer(input, &desc->v1Conv);
+    auto v1BatchNormLayer = buildBatchNormLayer(v1ConvLayer->getOutput(0), &desc->v1BN);
+    auto v1ActivationLayer = buildActivationLayer(v1BatchNormLayer->getOutput(0), &desc->v1Activation);
     auto v1MaskLayer = applyMaskLayer(v1ActivationLayer);
     auto v1CastLayer = applyCastLayer(v1MaskLayer, DataType::kFLOAT);
 
     markDebugOutput(v1ConvLayer->getOutput(0), "v1");
 
     auto gpoolLayer = applyGPoolLayer(v1CastLayer, true, true);
-    auto v2MulLayer = parseMatMulLayer(&desc->v2Mul, gpoolLayer->getOutput(0), true);
-    auto v2BiasLayer = parseMatBiasLayer(&desc->v2Bias, v2MulLayer->getOutput(0), true);
-    auto v2ActivationLayer = parseActivationLayer(&desc->v2Activation, v2BiasLayer->getOutput(0), true);
+    auto v2MulLayer = buildMatMulLayer(gpoolLayer->getOutput(0), &desc->v2Mul, true);
+    auto v2BiasLayer = buildMatBiasLayer(v2MulLayer->getOutput(0), &desc->v2Bias, true);
+    auto v2ActivationLayer = buildActivationLayer(v2BiasLayer->getOutput(0), &desc->v2Activation, true);
 
     markDebugOutput(gpoolLayer->getOutput(0), "v1 pooled", true);
     markDebugOutput(v2ActivationLayer->getOutput(0), "v2", true);
 
-    auto v3MulLayer = parseMatMulLayer(&desc->v3Mul, v2ActivationLayer->getOutput(0), true);
-    auto v3BiasLayer = parseMatBiasLayer(&desc->v3Bias, v3MulLayer->getOutput(0), true);
+    auto v3MulLayer = buildMatMulLayer(v2ActivationLayer->getOutput(0), &desc->v3Mul, true);
+    auto v3BiasLayer = buildMatBiasLayer(v3MulLayer->getOutput(0), &desc->v3Bias, true);
 
-    auto sv3MulLayer = parseMatMulLayer(&desc->sv3Mul, v2ActivationLayer->getOutput(0), true);
-    auto sv3BiasLayer = parseMatBiasLayer(&desc->sv3Bias, sv3MulLayer->getOutput(0), true);
+    auto sv3MulLayer = buildMatMulLayer(v2ActivationLayer->getOutput(0), &desc->sv3Mul, true);
+    auto sv3BiasLayer = buildMatBiasLayer(sv3MulLayer->getOutput(0), &desc->sv3Bias, true);
 
     // So that mask layer can be omitted
     assert(desc->vOwnershipConv.convXSize == 1);
     assert(desc->vOwnershipConv.convYSize == 1);
 
-    auto vOwnershipConvLayer = parseConvLayer(&desc->vOwnershipConv, v1MaskLayer->getOutput(0));
+    auto vOwnershipConvLayer = buildConvLayer(v1MaskLayer->getOutput(0), &desc->vOwnershipConv);
     auto vOwnershipCastLayer = applyCastLayer(vOwnershipConvLayer, DataType::kFLOAT);
 
     auto outputValue = v3BiasLayer->getOutput(0);
@@ -523,15 +523,15 @@ struct ModelParser {
     assert(outputOwnership->getDimensions().d[0] == modelDesc->numOwnershipChannels);
   }
 
-  ILayer* parseResidualBlock(const ResidualBlockDesc* desc, ITensor* input) {
-    auto preBatchNormLayer = parseBatchNormLayer(&desc->preBN, input);
-    auto preActivationLayer = parseActivationLayer(&desc->preActivation, preBatchNormLayer->getOutput(0));
+  ILayer* buildResidualBlock(ITensor* input, const ResidualBlockDesc* desc) {
+    auto preBatchNormLayer = buildBatchNormLayer(input, &desc->preBN);
+    auto preActivationLayer = buildActivationLayer(preBatchNormLayer->getOutput(0), &desc->preActivation);
     auto preMaskLayer = applyMaskLayer(preActivationLayer);
-    auto regularConvLayer = parseConvLayer(&desc->regularConv, preMaskLayer->getOutput(0));
-    auto midBatchNormLayer = parseBatchNormLayer(&desc->midBN, regularConvLayer->getOutput(0));
-    auto midActivationLayer = parseActivationLayer(&desc->midActivation, midBatchNormLayer->getOutput(0));
+    auto regularConvLayer = buildConvLayer(preMaskLayer->getOutput(0), &desc->regularConv);
+    auto midBatchNormLayer = buildBatchNormLayer(regularConvLayer->getOutput(0), &desc->midBN);
+    auto midActivationLayer = buildActivationLayer(midBatchNormLayer->getOutput(0), &desc->midActivation);
     auto midMaskLayer = applyMaskLayer(midActivationLayer);
-    auto finalConvLayer = parseConvLayer(&desc->finalConv, midMaskLayer->getOutput(0));
+    auto finalConvLayer = buildConvLayer(midMaskLayer->getOutput(0), &desc->finalConv);
 
     auto mergeLayer = model->network->addElementWise(*input, *finalConvLayer->getOutput(0), ElementWiseOperation::kSUM);
     mergeLayer->setName(desc->name.c_str());
@@ -539,31 +539,31 @@ struct ModelParser {
     return mergeLayer;
   }
 
-  ILayer* parseGlobalPoolingResidualBlock(const GlobalPoolingResidualBlockDesc* desc, ITensor* input) {
+  ILayer* buildGlobalPoolingResidualBlock(ITensor* input, const GlobalPoolingResidualBlockDesc* desc) {
     auto& network = model->network;
     string name = desc->name;
 
-    auto preBatchNormLayer = parseBatchNormLayer(&desc->preBN, input);
-    auto preActivationLayer = parseActivationLayer(&desc->preActivation, preBatchNormLayer->getOutput(0));
+    auto preBatchNormLayer = buildBatchNormLayer(input, &desc->preBN);
+    auto preActivationLayer = buildActivationLayer(preBatchNormLayer->getOutput(0), &desc->preActivation);
     auto preMaskLayer = applyMaskLayer(preActivationLayer);
 
-    auto regularConvLayer = parseConvLayer(&desc->regularConv, preMaskLayer->getOutput(0));
-    auto gpoolConvLayer = parseConvLayer(&desc->gpoolConv, preMaskLayer->getOutput(0));
-    auto gpoolBatchNormLayer = parseBatchNormLayer(&desc->gpoolBN, gpoolConvLayer->getOutput(0));
-    auto gpoolActivationLayer = parseActivationLayer(&desc->gpoolActivation, gpoolBatchNormLayer->getOutput(0));
+    auto regularConvLayer = buildConvLayer(preMaskLayer->getOutput(0), &desc->regularConv);
+    auto gpoolConvLayer = buildConvLayer(preMaskLayer->getOutput(0), &desc->gpoolConv);
+    auto gpoolBatchNormLayer = buildBatchNormLayer(gpoolConvLayer->getOutput(0), &desc->gpoolBN);
+    auto gpoolActivationLayer = buildActivationLayer(gpoolBatchNormLayer->getOutput(0), &desc->gpoolActivation);
     auto gpoolMaskLayer = applyMaskLayer(gpoolActivationLayer);
     auto gpoolLayer = applyGPoolLayer(gpoolMaskLayer);
-    auto gpoolToBiasMulLayer = parseMatMulLayer(&desc->gpoolToBiasMul, gpoolLayer->getOutput(0));
+    auto gpoolToBiasMulLayer = buildMatMulLayer(gpoolLayer->getOutput(0), &desc->gpoolToBiasMul);
     auto gpoolBiasLayer = network->addElementWise(
       *regularConvLayer->getOutput(0), *gpoolToBiasMulLayer->getOutput(0), ElementWiseOperation::kSUM);
     auto gpoolBiasLayerName = name + "/gpbias";
     gpoolBiasLayer->setName(gpoolBiasLayerName.c_str());
 
-    auto midBatchNormLayer = parseBatchNormLayer(&desc->midBN, gpoolBiasLayer->getOutput(0));
-    auto midActivationLayer = parseActivationLayer(&desc->midActivation, midBatchNormLayer->getOutput(0));
+    auto midBatchNormLayer = buildBatchNormLayer(gpoolBiasLayer->getOutput(0), &desc->midBN);
+    auto midActivationLayer = buildActivationLayer(midBatchNormLayer->getOutput(0), &desc->midActivation);
     auto midMaskLayer = applyMaskLayer(midActivationLayer);
 
-    auto finalConvLayer = parseConvLayer(&desc->finalConv, midMaskLayer->getOutput(0));
+    auto finalConvLayer = buildConvLayer(midMaskLayer->getOutput(0), &desc->finalConv);
 
     auto mergeLayer = network->addElementWise(*input, *finalConvLayer->getOutput(0), ElementWiseOperation::kSUM);
     mergeLayer->setName(name.c_str());
@@ -571,18 +571,18 @@ struct ModelParser {
     return mergeLayer;
   }
 
-  ILayer* parseNestedBottleneckResidualBlock(const NestedBottleneckResidualBlockDesc* desc, ITensor* input) {
+  ILayer* buildNestedBottleneckResidualBlock(ITensor* input, const NestedBottleneckResidualBlockDesc* desc) {
     assert(desc->blocks.size() == desc->numBlocks);
 
-    auto preBatchNormLayer = parseBatchNormLayer(&desc->preBN, input);
-    auto preActivationLayer = parseActivationLayer(&desc->preActivation, preBatchNormLayer->getOutput(0));
+    auto preBatchNormLayer = buildBatchNormLayer(input, &desc->preBN);
+    auto preActivationLayer = buildActivationLayer(preBatchNormLayer->getOutput(0), &desc->preActivation);
     auto preMaskLayer = applyMaskLayer(preActivationLayer);
-    auto preConvLayer = parseConvLayer(&desc->preConv, preMaskLayer->getOutput(0));
-    auto stackLayer = parseResidualBlockStack(desc->blocks, desc->name, preConvLayer->getOutput(0));
-    auto postBatchNormLayer = parseBatchNormLayer(&desc->postBN, stackLayer->getOutput(0));
-    auto postActivationLayer = parseActivationLayer(&desc->postActivation, postBatchNormLayer->getOutput(0));
+    auto preConvLayer = buildConvLayer(preMaskLayer->getOutput(0), &desc->preConv);
+    auto stackLayer = buildResidualBlockStack(preConvLayer->getOutput(0), desc->blocks, desc->name);
+    auto postBatchNormLayer = buildBatchNormLayer(stackLayer->getOutput(0), &desc->postBN);
+    auto postActivationLayer = buildActivationLayer(postBatchNormLayer->getOutput(0), &desc->postActivation);
     auto postMaskLayer = applyMaskLayer(postActivationLayer);
-    auto postConvLayer = parseConvLayer(&desc->postConv, postMaskLayer->getOutput(0));
+    auto postConvLayer = buildConvLayer(postMaskLayer->getOutput(0), &desc->postConv);
 
     auto mergeLayer = model->network->addElementWise(*input, *postConvLayer->getOutput(0), ElementWiseOperation::kSUM);
     mergeLayer->setName(desc->name.c_str());
@@ -590,7 +590,7 @@ struct ModelParser {
     return mergeLayer;
   }
 
-  ILayer* parseMatMulLayer(const MatMulLayerDesc* desc, ITensor* input, bool forceFP32 = false) {
+  ILayer* buildMatMulLayer(ITensor* input, const MatMulLayerDesc* desc, bool forceFP32 = false) {
     int numInChannels = desc->inChannels;
     int numOutChannels = desc->outChannels;
 
@@ -624,7 +624,7 @@ struct ModelParser {
     return matMulLayer;
   }
 
-  ILayer* parseMatBiasLayer(const MatBiasLayerDesc* desc, ITensor* input, bool forceFP32 = false) {
+  ILayer* buildMatBiasLayer(ITensor* input, const MatBiasLayerDesc* desc, bool forceFP32 = false) {
     int numChannels = desc->numChannels;
 
     tuneDesc += Global::strprintf(R"("%s"(%d))", desc->name.c_str(), desc->numChannels);
@@ -647,7 +647,7 @@ struct ModelParser {
     return matBiasLayer;
   }
 
-  ILayer* parseConvLayer(const ConvLayerDesc* desc, ITensor* input, bool forceFP32 = false) {
+  ILayer* buildConvLayer(ITensor* input, const ConvLayerDesc* desc, bool forceFP32 = false) {
     int convXSize = desc->convXSize;
     int convYSize = desc->convYSize;
     int dilationX = desc->dilationX;
@@ -685,7 +685,7 @@ struct ModelParser {
     return convLayer;
   }
 
-  ILayer* parseBatchNormLayer(const BatchNormLayerDesc* desc, ITensor* input, bool forceFP32 = false) {
+  ILayer* buildBatchNormLayer(ITensor* input, const BatchNormLayerDesc* desc, bool forceFP32 = false) {
     int numChannels = desc->numChannels;
     float epsilon = desc->epsilon;
 
@@ -722,7 +722,7 @@ struct ModelParser {
     return bnLayer;
   }
 
-  ILayer* parseActivationLayer(const ActivationLayerDesc* desc, ITensor* input, bool forceFP32 = false) {
+  ILayer* buildActivationLayer(ITensor* input, const ActivationLayerDesc* desc, bool forceFP32 = false) {
     tuneDesc += Global::strprintf(R"("%s"(%d))", desc->name.c_str(), desc->activation);
     if(desc->activation == ACTIVATION_IDENTITY) {
       auto activationLayer = model->network->addIdentity(*input);
@@ -944,8 +944,8 @@ struct ComputeHandle {
     if(!network) {
       throw StringError("TensorRT backend: failed to create network definition");
     }
-    auto modelParser = make_unique<ModelParser>();
-    auto model = modelParser->parse(move(network), loadedModel, ctx->nnXLen, ctx->nnYLen, requireExactNNLen);
+    auto modelBuilder = make_unique<ModelBuilder>();
+    auto model = modelBuilder->build(move(network), loadedModel, ctx->nnXLen, ctx->nnYLen, requireExactNNLen);
 
     debugOutputs = model->debugOutputs;
 
