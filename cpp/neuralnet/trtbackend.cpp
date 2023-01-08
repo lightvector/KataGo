@@ -918,6 +918,13 @@ struct ComputeHandle {
 
     modelVersion = loadedModel->modelDesc.version;
 
+    // Certain minor versions of TensorRT uses a global logger, which is bad.
+    // Since TensorRT maintains ABI compatibility between minor versions, a dynamic library mismatch
+    // does not necessarily generate a dynamic link error, therefore, an extra check is required.
+    if(getInferLibVersion() != NV_TENSORRT_VERSION) {
+      throw StringError("TensorRT backend: detected incompatible version of TensorRT library");
+    }
+
     trtLogger.setLogger(logger);
 
     auto builder = unique_ptr<IBuilder>(createInferBuilder(trtLogger));
@@ -1028,14 +1035,6 @@ struct ComputeHandle {
     auto runtime = unique_ptr<IRuntime>(createInferRuntime(trtLogger));
     if(!runtime) {
       throw StringError("TensorRT backend: failed to create runtime");
-    }
-
-    // Certain minor versions of TensorRT uses a global logger, which is bad.
-    // Since TensorRT maintains ABI compatibility between minor versions, a dynamic library mismatch
-    // does not necessarily generate a dynamic link error, therefore, an extra check is required.
-    // Affected version of TensorRT doesn't support the getLogger method and will fail the check below.
-    if(runtime->getLogger() != &trtLogger) {
-      throw StringError("TensorRT backend: detected incompatible version of TensorRT library");
     }
 
     engine.reset(runtime->deserializeCudaEngine(plan->data(), plan->size()));
