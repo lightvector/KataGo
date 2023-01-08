@@ -190,6 +190,15 @@ cl_mem OpenCLHelpers::createReadWriteBuffer(cl_context clContext, vector<half_t>
   return buf;
 }
 
+cl_mem OpenCLHelpers::createReadWriteBufferFloatZeros(cl_context clContext, size_t numElts) {
+  std::vector<float> vec(numElts,0.0f);
+  return createReadWriteBuffer(clContext,vec);
+}
+cl_mem OpenCLHelpers::createReadWriteBufferHalfZeros(cl_context clContext, size_t numElts) {
+  std::vector<half_t> vec(numElts,half_float::half_cast<half_t>(0.0f));
+  return createReadWriteBuffer(clContext,vec);
+}
+
 cl_mem OpenCLHelpers::createReadWriteBufferFloat(cl_context clContext, size_t numElts) {
   //Minimum allocation size, just in case, to avoid allocations of size 0
   if(numElts < 32)
