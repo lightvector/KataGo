@@ -162,7 +162,7 @@ struct ModelParser {
     auto& network = model->network;
     auto modelDesc = &model->rawModel->modelDesc;
 
-    int modelSalt = 1; // Bump this when between katago versions we want to forcibly drop old timing caches.
+    int modelSalt = 1;  // Bump this when between katago versions we want to forcibly drop old timing caches.
     tuneDesc = Global::strprintf(
       R"("model"(%d,%d,%d,%d,%d,%d,%d))",
       modelSalt,
@@ -380,8 +380,7 @@ struct ModelParser {
   ILayer* parseResidualBlockStack(
     const std::vector<std::pair<int, unique_ptr_void>>& blocks,
     const string& name,
-    ITensor* input
-  ) {
+    ITensor* input) {
     ILayer* trunkScratchLayer = model->network->addIdentity(*input);
     auto trunkScratchLayerName = name + "/scratch";
     trunkScratchLayer->setName(trunkScratchLayerName.c_str());
@@ -728,6 +727,9 @@ struct ModelParser {
     if(desc->activation == ACTIVATION_IDENTITY) {
       auto activationLayer = model->network->addIdentity(*input);
       activationLayer->setName(desc->name.c_str());
+      if(forceFP32) {
+        activationLayer->setPrecision(DataType::kFLOAT);
+      }
       return activationLayer;
     } else if(desc->activation == ACTIVATION_RELU) {
       auto activationLayer = model->network->addActivation(*input, ActivationType::kRELU);
@@ -736,8 +738,7 @@ struct ModelParser {
         activationLayer->setPrecision(DataType::kFLOAT);
       }
       return activationLayer;
-    }
-    else if(desc->activation == ACTIVATION_MISH) {
+    } else if(desc->activation == ACTIVATION_MISH) {
       auto softplusLayer = model->network->addActivation(*input, ActivationType::kSOFTPLUS);
       auto softplusLayerName = desc->name + "/softplus";
       softplusLayer->setName(softplusLayerName.c_str());
@@ -757,7 +758,7 @@ struct ModelParser {
     }
   }
 
-  ILayer* applyGPoolLayer(ILayer* inputLayer, bool forceFP32 = false, bool useQuadScale = false) {
+  ILayer* applyGPoolLayer(ILayer* inputLayer, bool forceFP32 = false, bool isValueHead = false) {
     auto& network = model->network;
     string name = inputLayer->getName();
 
@@ -777,16 +778,41 @@ struct ModelParser {
 
     auto gpoolLinMeanLayer = network->addElementWise(
       *gpoolMeanLayer->getOutput(0), *maskExtractLinLayer->getOutput(0), ElementWiseOperation::kPROD);
-    auto ggpoolLinMeanLayerName = name + "/gplinmean";
-    gpoolLinMeanLayer->setName(ggpoolLinMeanLayerName.c_str());
+    auto gpoolLinMeanLayerName = name + "/gplinmean";
+    gpoolLinMeanLayer->setName(gpoolLinMeanLayerName.c_str());
 
+    ILayer* gpoolMaskAddLayer = nullptr;
+    ILayer* gpoolMaskShiftLayer = nullptr;
     ILayer* gpoolConcatInputLayer3 = nullptr;
-    if(useQuadScale) {
+    if(isValueHead) {
       auto gpoolQuadMeanLayer = network->addElementWise(
         *gpoolMeanLayer->getOutput(0), *maskExtractQuadLayer->getOutput(0), ElementWiseOperation::kPROD);
       auto gpoolQuadMeanLayerName = name + "/gpquadmean";
       gpoolQuadMeanLayer->setName(gpoolQuadMeanLayerName.c_str());
       gpoolConcatInputLayer3 = gpoolQuadMeanLayer;
+    } else if(!model->requireExactNNLen) {
+      // All activation functions we use right now are always greater than -1.0, and map 0 -> 0.
+      // So off-board areas will equal 0, and then this max is mask-safe if we assign -1.0 to off-board areas.
+      auto gpoolMaskShiftWeights = make_unique<float[]>(1);
+      gpoolMaskShiftWeights[0] = -1.0f;
+      gpoolMaskShiftLayer = network->addScale(
+        *maskExtractLayer->getOutput(0),
+        ScaleMode::kUNIFORM,
+        {DataType::kFLOAT, gpoolMaskShiftWeights.get(), 1},
+        {DataType::kFLOAT, nullptr, 0},
+        {DataType::kFLOAT, nullptr, 0});
+      auto gpoolMaskShiftLayerName = name + "/gpmaskshift";
+      gpoolMaskShiftLayer->setName(gpoolMaskShiftLayerName.c_str());
+      model->extraWeights.push_back(move(gpoolMaskShiftWeights));
+      gpoolMaskAddLayer = network->addElementWise(
+        *inputLayer->getOutput(0), *gpoolMaskShiftLayer->getOutput(0), ElementWiseOperation::kSUM);
+      auto gpoolMaskAddLayerName = name + "/gpmaskadd";
+      gpoolMaskAddLayer->setName(gpoolMaskAddLayerName.c_str());
+      auto gpoolMaxLayer =
+        network->addReduce(*gpoolMaskAddLayer->getOutput(0), ReduceOperation::kMAX, 1U << 1 | 1U << 2, true);
+      auto gpoolMaxLayerName = name + "/gpmax";
+      gpoolMaxLayer->setName(gpoolMaxLayerName.c_str());
+      gpoolConcatInputLayer3 = gpoolMaxLayer;
     } else {
       auto gpoolMaxLayer =
         network->addReduce(*inputLayer->getOutput(0), ReduceOperation::kMAX, 1U << 1 | 1U << 2, true);
@@ -804,6 +830,12 @@ struct ModelParser {
     if(forceFP32) {
       if(gpoolSumLayer) {
         gpoolSumLayer->setPrecision(DataType::kFLOAT);
+      }
+      if(gpoolMaskAddLayer) {
+        gpoolMaskAddLayer->setPrecision(DataType::kFLOAT);
+      }
+      if(gpoolMaskShiftLayer) {
+        gpoolMaskShiftLayer->setPrecision(DataType::kFLOAT);
       }
       gpoolMeanLayer->setPrecision(DataType::kFLOAT);
       gpoolLinMeanLayer->setPrecision(DataType::kFLOAT);
