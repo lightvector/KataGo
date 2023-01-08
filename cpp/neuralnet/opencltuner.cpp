@@ -958,7 +958,8 @@ static void tuneXGemmDirect(
   ostream& out,
   bool verboseErrors,
   bool verboseTuner,
-  OpenCLTuneParams& tunedConfig
+  OpenCLTuneParams& tunedConfig,
+  double& bestKernelsPerSecond
 ) {
   out << "------------------------------------------------------" << endl;
   out << "Tuning xGemmDirect for 1x1 convolutions and matrix mult" << endl;
@@ -1102,7 +1103,7 @@ static void tuneXGemmDirect(
   };
 
   bool stopOnReferenceImplFail = false;
-  double bestKernelsPerSecond = 0.0;
+  bestKernelsPerSecond = 0.0;
   double errorToleranceScale = 0.01;
   testAllConfigs(
     stopOnReferenceImplFail,
@@ -2481,6 +2482,7 @@ void OpenCLTuner::tune(
     currentConfig = untunedConfig;
   }
 
+  double bestXGemmDirectKernelsPerSecond = 0.0;
   {
     OpenCLTuneParams result;
     tuneXGemmDirect(
@@ -2497,7 +2499,8 @@ void OpenCLTuner::tune(
       out,
       verboseErrors,
       verboseTuner,
-      result
+      result,
+      bestXGemmDirectKernelsPerSecond
     );
     currentConfig = result;
   }
@@ -2620,8 +2623,8 @@ void OpenCLTuner::tune(
             currentConfig.canUseFP16TensorCoresFor1x1 = false;
             currentConfig.shouldUseFP16TensorCoresFor1x1 = false;
           }
-          // If we're using tensor cores normally, then just use them for 1x1 convs.
-          else if(currentConfig.shouldUseFP16TensorCores) {
+          // If we're using tensor cores normally, AND they're fast enough, then use them for 1x1 convs.
+          else if(currentConfig.shouldUseFP16TensorCores && bestKernelsPerSecond16 / FP16_TENSORCORE_REQUIRED_SPEEDUP >= bestXGemmDirectKernelsPerSecond) {
             out << "FP16 tensor cores enabled for 1x1 convs" << endl;
             currentConfig = result16;
             currentConfig.canUseFP16TensorCoresFor1x1 = true;
