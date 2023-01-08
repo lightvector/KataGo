@@ -47,23 +47,30 @@ using half_t = half_float::half;
 #define MAYBE_FREE_EVENT (void)0
 
 #define MAYBE_PROFILE(_name) {                                          \
-    static int counter = 0;                                             \
-    static double timeTaken = 0;                                        \
-    static bool profilePrintAdded = false;                              \
     const char* _profileName = (_name);                                 \
+    bool isNew = false;                                                 \
+    if(!contains(handle->profileAddeds,_profileName)) {                         \
+      handle->profileAddeds.push_back(_profileName);                            \
+      handle->counters[_profileName] = new int[1];                              \
+      handle->timeTakens[_profileName] = new double[1];                         \
+      handle->counters[_profileName][0] = 0;                            \
+      handle->timeTakens[_profileName][0] = 0.0;                        \
+      isNew = true;                                                     \
+    }                                                                   \
+    int* counter = handle->counters[_profileName];                              \
+    double* timeTaken = handle->timeTakens[_profileName];                       \
     handle->profileEvents.push_back(event);                             \
-    handle->profileCallbacks.push_back(std::function<void()>([event,_profileName]() { \
+    handle->profileCallbacks.push_back(std::function<void()>([event,counter,timeTaken,_profileName]() { \
           cl_int profileErr;                                            \
           cl_ulong time_start, time_end;                                \
           profileErr = clGetEventProfilingInfo(event, CL_PROFILING_COMMAND_START, sizeof(time_start), &time_start, NULL); CHECK_ERR(profileErr); \
           profileErr = clGetEventProfilingInfo(event, CL_PROFILING_COMMAND_END, sizeof(time_end), &time_end, NULL); CHECK_ERR(profileErr) ; \
-          timeTaken += (time_end - time_start) * 1e-9;                  \
-          counter++;                                                    \
+          *timeTaken += (time_end - time_start) * 1e-9;                 \
+          (*counter)++;                                                 \
         }));                                                            \
-    if(!profilePrintAdded) {                                            \
-      profilePrintAdded = true;                                         \
-      handle->profileResultPrinters.push_back(std::function<void()>([_profileName]() { \
-            cout << _profileName << " " << counter << " " << timeTaken/counter << " " << timeTaken << "\n"; \
+    if(isNew) {                                                         \
+      handle->profileResultPrinters.push_back(std::function<void()>([_profileName,counter,timeTaken]() { \
+            cout << _profileName << " " << *counter << " " << *timeTaken/ *counter << " " << *timeTaken << "\n"; \
           }));                                                          \
     }                                                                   \
   }
@@ -488,6 +495,9 @@ struct ComputeHandleInternal {
   CLKernel xgemmBatchedNNKernel;
   CLKernel hgemmWmmaNCHWKernel;
 
+  std::vector<const char*> profileAddeds;
+  std::map<const char*, int*> counters;
+  std::map<const char*, double*> timeTakens;
   vector<cl_event> profileEvents;
   vector<std::function<void()>> profileCallbacks;
   vector<std::function<void()>> profileResultPrinters;
@@ -1308,8 +1318,8 @@ struct ConvLayer {
           MAYBE_EVENTREF
         );
         CHECK_ERR(err);
-        if(convXSize == 3 && convYSize == 3) { MAYBE_PROFILE("3x3TRANSFORM"); }
-        else { MAYBE_PROFILE("5x5TRANSFORM"); }
+        if(convXSize == 3 && convYSize == 3) { MAYBE_PROFILE("3x3TRANSFORMBNACT"); }
+        else { MAYBE_PROFILE("5x5TRANSFORMBNACT"); }
         MAYBE_FREE_EVENT;
       }
 
@@ -1343,8 +1353,8 @@ struct ConvLayer {
           );
         }
         CHECK_ERR(err);
-        if(convXSize == 3 && convYSize == 3) { MAYBE_PROFILE("MATMULCONV3x3"); }
-        else { MAYBE_PROFILE("MATMULCONV5x5"); }
+        if(convXSize == 3 && convYSize == 3) { MAYBE_PROFILE("MATMULCONV3x3BNACT"); }
+        else { MAYBE_PROFILE("MATMULCONV5x5BNACT"); }
         MAYBE_FREE_EVENT;
       }
 
@@ -1365,8 +1375,8 @@ struct ConvLayer {
           MAYBE_EVENTREF
         );
         CHECK_ERR(err);
-        if(convXSize == 3 && convYSize == 3) { MAYBE_PROFILE("3x3UNTRANSFORM"); }
-        else { MAYBE_PROFILE("5x5UNTRANSFORM"); }
+        if(convXSize == 3 && convYSize == 3) { MAYBE_PROFILE("3x3UNTRANSFORMBNACT"); }
+        else { MAYBE_PROFILE("5x5UNTRANSFORMBNACT"); }
         MAYBE_FREE_EVENT;
       }
 
