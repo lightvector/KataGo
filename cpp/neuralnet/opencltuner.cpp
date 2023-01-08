@@ -2529,6 +2529,8 @@ void OpenCLTuner::tune(
 
       //Since FP16 loses precision, require that it be faster by at least this much to use it
       static constexpr double FP16_REQUIRED_SPEEDUP = 1.2;
+      //Tensor cores actually sometimes seem to perform better in practice than the tuning indicates
+      static constexpr double FP16_TENSORCORE_REQUIRED_SPEEDUP = 0.9;
       bool foundGoodFP16 = false;
 
       bool shouldTestFP16TensorCores = testFP16TensorCoresMode == enabled_t::True || (testFP16TensorCoresMode == enabled_t::Auto && !foundGoodFP16);
@@ -2542,7 +2544,7 @@ void OpenCLTuner::tune(
             context,
             commandQueue,
             deviceIdsToUse,
-            batchSize*2, // Double batch size for hgemm tests
+            batchSize,
             nnXLen,
             nnYLen,
             modelInfo,
@@ -2556,7 +2558,7 @@ void OpenCLTuner::tune(
           if(!suc) {
             out << "FP16 tensor core tuning failed, assuming no FP16 tensor core support" << endl;
           }
-          else if(bestKernelsPerSecond16 / FP16_REQUIRED_SPEEDUP < bestKernelsPerSecond) {
+          else if(bestKernelsPerSecond16 / FP16_TENSORCORE_REQUIRED_SPEEDUP < bestKernelsPerSecond) {
             currentConfig = result16;
             out << "FP16 tensor cores not significantly faster, not enabling" << endl;
           }
@@ -2564,14 +2566,13 @@ void OpenCLTuner::tune(
             currentConfig = result16;
             currentConfig.shouldUseFP16Storage = true;
             currentConfig.shouldUseFP16TensorCores = true;
-            bestKernelsPerSecond = bestKernelsPerSecond16 / FP16_REQUIRED_SPEEDUP;
+            bestKernelsPerSecond = bestKernelsPerSecond16 / FP16_TENSORCORE_REQUIRED_SPEEDUP;
             foundGoodFP16 = true;
             out << "Enabling FP16 tensor cores due to better performance" << endl;
           }
         }
-
-        // If FP16 tensor cores are enabled, also tune them for 1x1 convs
-        if(currentConfig.shouldUseFP16TensorCores) {
+        {
+          // Also try tuning FP16 tensor cores for 1x1 convs
           OpenCLTuneParams result16;
           double bestKernelsPerSecond16 = 0.0;
           bool suc = tuneHGemmWmmaNCHW(
@@ -2580,7 +2581,7 @@ void OpenCLTuner::tune(
             context,
             commandQueue,
             deviceIdsToUse,
-            batchSize*2, // Double batch size for hgemm tests
+            batchSize,
             nnXLen,
             nnYLen,
             modelInfo,
@@ -2592,13 +2593,18 @@ void OpenCLTuner::tune(
             bestKernelsPerSecond16
           );
           if(!suc) {
-            out << "ERROR: FP16 tensor core tuning failed for 1x1 convs" << endl;
+            out << "FP16 tensor core tuning failed for 1x1 convs" << endl;
             currentConfig.shouldUseFP16TensorCoresFor1x1 = false;
           }
-          else {
+          else if(currentConfig.shouldUseFP16TensorCores) {
             out << "FP16 tensor cores enabled for 1x1 convs" << endl;
             currentConfig = result16;
             currentConfig.shouldUseFP16TensorCoresFor1x1 = true;
+          }
+          else {
+            out << "FP16 tensor cores not enabled for 1x1 convs" << endl;
+            currentConfig = result16;
+            currentConfig.shouldUseFP16TensorCoresFor1x1 = false;
           }
         }
       }
