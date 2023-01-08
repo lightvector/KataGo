@@ -131,13 +131,13 @@ struct TRTModel {
 struct ModelBuilder {
   unique_ptr<TRTModel> model;
 
+  ITensor* inputMask;
   ITensor* inputFeature;
   ITensor* inputGlobalFeature;
 
-  ILayer* maskExtractLayer;
-  ILayer* maskExtractSumLayer;
-  ILayer* maskExtractLinLayer;
-  ILayer* maskExtractQuadLayer;
+  ILayer* maskSumLayer;
+  ILayer* maskScaleLayer;
+  ILayer* maskQuadLayer;
 
   string tuneDesc;  // Serves as a hash of the network architecture specific to tuning
 
@@ -177,7 +177,7 @@ struct ModelBuilder {
     network->setName(modelDesc->name.c_str());
 
     initInputs();
-    initMaskLayers();
+    initMaskProcLayers();
 
     auto trunk = buildTrunk(&modelDesc->trunk);
     buildPolicyHead(trunk->getOutput(0), &modelDesc->policyHead);
@@ -243,7 +243,8 @@ struct ModelBuilder {
       throw StringError(
         Global::strprintf("nnYLen (%d) is greater than NNPos::MAX_BOARD_LEN (%d)", nnYLen, NNPos::MAX_BOARD_LEN));
 
-    assert(network->hasImplicitBatchDimension());
+    inputMask = network->addInput("InputMask", DataType::kFLOAT, {3, {1, nnYLen, nnXLen}});
+    inputMask->setAllowedFormats(1U << static_cast<int>(TensorFormat::kLINEAR));
 
     inputFeature = network->addInput("InputFeature", DataType::kFLOAT, {3, {numInputChannels, nnYLen, nnXLen}});
     inputFeature->setAllowedFormats(1U << static_cast<int>(TensorFormat::kLINEAR));
@@ -254,83 +255,78 @@ struct ModelBuilder {
     markDebugOutput(inputFeature, "Initial bin features");
   }
 
-  void initMaskLayers() {
+  void initMaskProcLayers() {
     int nnXLen = model->nnXLen;
     int nnYLen = model->nnYLen;
     auto& network = model->network;
 
     if(!model->requireExactNNLen) {
-      maskExtractLayer = network->addSlice(*inputFeature, {3, {0, 0, 0}}, {3, {1, nnYLen, nnXLen}}, {3, {1, 1, 1}});
-      maskExtractLayer->setName("MaskExtract");
-      maskExtractLayer->setPrecision(DataType::kFLOAT);
+      maskSumLayer = network->addReduce(*inputMask, ReduceOperation::kSUM, 1U << 1 | 1U << 2, true);
+      maskSumLayer->setName("InputMask/sum");
+      maskSumLayer->setPrecision(DataType::kFLOAT);
 
-      maskExtractSumLayer =
-        network->addReduce(*maskExtractLayer->getOutput(0), ReduceOperation::kSUM, 1U << 1 | 1U << 2, true);
-      maskExtractSumLayer->setName("MaskExtract/Sum");
-      maskExtractSumLayer->setPrecision(DataType::kFLOAT);
+      auto maskWidthLayer = network->addUnary(*maskSumLayer->getOutput(0), UnaryOperation::kSQRT);
+      maskWidthLayer->setName("InputMask/width");
+      maskWidthLayer->setPrecision(DataType::kFLOAT);
 
-      auto maskExtractWidthLayer = network->addUnary(*maskExtractSumLayer->getOutput(0), UnaryOperation::kSQRT);
-      maskExtractWidthLayer->setName("MaskExtract/Width");
-      maskExtractWidthLayer->setPrecision(DataType::kFLOAT);
-
-      auto maskExtractLinWeightsShift = make_unique<float[]>(1);
-      auto maskExtractLinWeightsScale = make_unique<float[]>(1);
-      maskExtractLinWeightsShift[0] = -1.4f;
-      maskExtractLinWeightsScale[0] = 0.1f;
-      maskExtractLinLayer = network->addScale(
-        *maskExtractWidthLayer->getOutput(0),
+      auto maskScaleWeightsShift = make_unique<float[]>(1);
+      auto maskScaleWeightsScale = make_unique<float[]>(1);
+      maskScaleWeightsShift[0] = -1.4f;
+      maskScaleWeightsScale[0] = 0.1f;
+      maskScaleLayer = network->addScale(
+        *maskWidthLayer->getOutput(0),
         ScaleMode::kUNIFORM,
-        {DataType::kFLOAT, maskExtractLinWeightsShift.get(), 1},
-        {DataType::kFLOAT, maskExtractLinWeightsScale.get(), 1},
+        {DataType::kFLOAT, maskScaleWeightsShift.get(), 1},
+        {DataType::kFLOAT, maskScaleWeightsScale.get(), 1},
         {DataType::kFLOAT, nullptr, 0});
-      maskExtractLinLayer->setName("MaskExtract/Lin");
-      maskExtractLinLayer->setPrecision(DataType::kFLOAT);
-      model->extraWeights.push_back(move(maskExtractLinWeightsShift));
-      model->extraWeights.push_back(move(maskExtractLinWeightsScale));
+      maskScaleLayer->setName("InputMask/scale");
+      maskScaleLayer->setPrecision(DataType::kFLOAT);
+      model->extraWeights.push_back(move(maskScaleWeightsShift));
+      model->extraWeights.push_back(move(maskScaleWeightsScale));
 
-      auto maskExtractCenterSquareWeightsShift = make_unique<float[]>(1);
-      auto maskExtractCenterSquareWeightsPower = make_unique<float[]>(1);
-      maskExtractCenterSquareWeightsShift[0] = -14.0f;
-      maskExtractCenterSquareWeightsPower[0] = 2.0f;
-      auto maskExtractCenterSquareLayer = network->addScale(
-        *maskExtractWidthLayer->getOutput(0),
+      auto maskCenterSquareWeightsShift = make_unique<float[]>(1);
+      auto maskCenterSquareWeightsPower = make_unique<float[]>(1);
+      maskCenterSquareWeightsShift[0] = -14.0f;
+      maskCenterSquareWeightsPower[0] = 2.0f;
+      auto maskCenterSquareLayer = network->addScale(
+        *maskWidthLayer->getOutput(0),
         ScaleMode::kUNIFORM,
-        {DataType::kFLOAT, maskExtractCenterSquareWeightsShift.get(), 1},
+        {DataType::kFLOAT, maskCenterSquareWeightsShift.get(), 1},
         {DataType::kFLOAT, nullptr, 0},
-        {DataType::kFLOAT, maskExtractCenterSquareWeightsPower.get(), 1});
-      maskExtractCenterSquareLayer->setName("MaskExtract/CenterSquare");
-      maskExtractCenterSquareLayer->setPrecision(DataType::kFLOAT);
-      model->extraWeights.push_back(move(maskExtractCenterSquareWeightsShift));
-      model->extraWeights.push_back(move(maskExtractCenterSquareWeightsPower));
+        {DataType::kFLOAT, maskCenterSquareWeightsPower.get(), 1});
+      maskCenterSquareLayer->setName("InputMask/centersquare");
+      maskCenterSquareLayer->setPrecision(DataType::kFLOAT);
+      model->extraWeights.push_back(move(maskCenterSquareWeightsShift));
+      model->extraWeights.push_back(move(maskCenterSquareWeightsPower));
 
-      auto maskExtractQuadWeightsShift = make_unique<float[]>(1);
-      auto maskExtractQuadWeightsScale = make_unique<float[]>(1);
-      maskExtractQuadWeightsShift[0] = -0.1f;
-      maskExtractQuadWeightsScale[0] = 0.01f;
-      maskExtractQuadLayer = network->addScale(
-        *maskExtractCenterSquareLayer->getOutput(0),
+      auto maskQuadWeightsShift = make_unique<float[]>(1);
+      auto maskQuadWeightsScale = make_unique<float[]>(1);
+      maskQuadWeightsShift[0] = -0.1f;
+      maskQuadWeightsScale[0] = 0.01f;
+      maskQuadLayer = network->addScale(
+        *maskCenterSquareLayer->getOutput(0),
         ScaleMode::kUNIFORM,
-        {DataType::kFLOAT, maskExtractQuadWeightsShift.get(), 1},
-        {DataType::kFLOAT, maskExtractQuadWeightsScale.get(), 1},
+        {DataType::kFLOAT, maskQuadWeightsShift.get(), 1},
+        {DataType::kFLOAT, maskQuadWeightsScale.get(), 1},
         {DataType::kFLOAT, nullptr, 0});
-      maskExtractQuadLayer->setName("MaskExtract/Quad");
-      maskExtractQuadLayer->setPrecision(DataType::kFLOAT);
-      model->extraWeights.push_back(move(maskExtractQuadWeightsShift));
-      model->extraWeights.push_back(move(maskExtractQuadWeightsScale));
+      maskQuadLayer->setName("InputMask/quad");
+      maskQuadLayer->setPrecision(DataType::kFLOAT);
+      model->extraWeights.push_back(move(maskQuadWeightsShift));
+      model->extraWeights.push_back(move(maskQuadWeightsScale));
     } else {
-      float maskExtractWidth = sqrtf(nnXLen * nnYLen);
+      float maskWidth = sqrtf(nnXLen * nnYLen);
 
-      auto linLayerWeights = make_unique<float[]>(1);
-      linLayerWeights[0] = maskExtractWidth * 0.1f - 1.4f;
-      maskExtractLinLayer = network->addConstant({3, {1, 1, 1}}, {DataType::kFLOAT, linLayerWeights.get(), 1});
-      maskExtractLinLayer->setName("MaskExtract/Lin");
-      model->extraWeights.push_back(move(linLayerWeights));
+      auto maskScaleLayerWeights = make_unique<float[]>(1);
+      maskScaleLayerWeights[0] = maskWidth * 0.1f - 1.4f;
+      maskScaleLayer = network->addConstant({3, {1, 1, 1}}, {DataType::kFLOAT, maskScaleLayerWeights.get(), 1});
+      maskScaleLayer->setName("InputMask/scale");
+      model->extraWeights.push_back(move(maskScaleLayerWeights));
 
-      auto quadLayerWeights = make_unique<float[]>(1);
-      quadLayerWeights[0] = (maskExtractWidth - 14.0f) * (maskExtractWidth - 14.0f) * 0.01f - 0.1f;
-      maskExtractQuadLayer = network->addConstant({3, {1, 1, 1}}, {DataType::kFLOAT, quadLayerWeights.get(), 1});
-      maskExtractQuadLayer->setName("MaskExtract/Quad");
-      model->extraWeights.push_back(move(quadLayerWeights));
+      auto maskQuadLayerWeights = make_unique<float[]>(1);
+      maskQuadLayerWeights[0] = (maskWidth - 14.0f) * (maskWidth - 14.0f) * 0.01f - 0.1f;
+      maskQuadLayer = network->addConstant({3, {1, 1, 1}}, {DataType::kFLOAT, maskQuadLayerWeights.get(), 1});
+      maskQuadLayer->setName("InputMask/quad");
+      model->extraWeights.push_back(move(maskQuadLayerWeights));
     }
   }
 
@@ -770,35 +766,35 @@ struct ModelBuilder {
       gpoolSumLayer = network->addReduce(*inputLayer->getOutput(0), ReduceOperation::kSUM, 1U << 1 | 1U << 2, true);
       auto gpoolSumLayerName = name + "/gpsum";
       gpoolSumLayer->setName(gpoolSumLayerName.c_str());
-      gpoolMeanLayer = network->addElementWise(
-        *gpoolSumLayer->getOutput(0), *maskExtractSumLayer->getOutput(0), ElementWiseOperation::kDIV);
+      gpoolMeanLayer =
+        network->addElementWise(*gpoolSumLayer->getOutput(0), *maskSumLayer->getOutput(0), ElementWiseOperation::kDIV);
     } else {
       gpoolMeanLayer = network->addReduce(*inputLayer->getOutput(0), ReduceOperation::kAVG, 1U << 1 | 1U << 2, true);
     }
     auto gpoolMeanLayerName = name + "/gpmean";
     gpoolMeanLayer->setName(gpoolMeanLayerName.c_str());
 
-    auto gpoolLinMeanLayer = network->addElementWise(
-      *gpoolMeanLayer->getOutput(0), *maskExtractLinLayer->getOutput(0), ElementWiseOperation::kPROD);
-    auto gpoolLinMeanLayerName = name + "/gplinmean";
-    gpoolLinMeanLayer->setName(gpoolLinMeanLayerName.c_str());
+    auto gpoolMeanScaleLayer = network->addElementWise(
+      *gpoolMeanLayer->getOutput(0), *maskScaleLayer->getOutput(0), ElementWiseOperation::kPROD);
+    auto gpoolMeanScaleLayerName = name + "/gpmeanscale";
+    gpoolMeanScaleLayer->setName(gpoolMeanScaleLayerName.c_str());
 
     ILayer* gpoolMaskAddLayer = nullptr;
     ILayer* gpoolMaskShiftLayer = nullptr;
     ILayer* gpoolConcatInputLayer3 = nullptr;
     if(isValueHead) {
-      auto gpoolQuadMeanLayer = network->addElementWise(
-        *gpoolMeanLayer->getOutput(0), *maskExtractQuadLayer->getOutput(0), ElementWiseOperation::kPROD);
-      auto gpoolQuadMeanLayerName = name + "/gpquadmean";
-      gpoolQuadMeanLayer->setName(gpoolQuadMeanLayerName.c_str());
-      gpoolConcatInputLayer3 = gpoolQuadMeanLayer;
+      auto gpoolMeanQuadLayer = network->addElementWise(
+        *gpoolMeanLayer->getOutput(0), *maskQuadLayer->getOutput(0), ElementWiseOperation::kPROD);
+      auto gpoolMeanQuadLayerName = name + "/gpmeanquad";
+      gpoolMeanQuadLayer->setName(gpoolMeanQuadLayerName.c_str());
+      gpoolConcatInputLayer3 = gpoolMeanQuadLayer;
     } else if(!model->requireExactNNLen) {
       // All activation functions we use right now are always greater than -1.0, and map 0 -> 0.
       // So off-board areas will equal 0, and then this max is mask-safe if we assign -1.0 to off-board areas.
       auto gpoolMaskShiftWeights = make_unique<float[]>(1);
       gpoolMaskShiftWeights[0] = -1.0f;
       gpoolMaskShiftLayer = network->addScale(
-        *maskExtractLayer->getOutput(0),
+        *inputMask,
         ScaleMode::kUNIFORM,
         {DataType::kFLOAT, gpoolMaskShiftWeights.get(), 1},
         {DataType::kFLOAT, nullptr, 0},
@@ -824,7 +820,7 @@ struct ModelBuilder {
     }
 
     ITensor* gpoolConcatInputs[] = {
-      gpoolMeanLayer->getOutput(0), gpoolLinMeanLayer->getOutput(0), gpoolConcatInputLayer3->getOutput(0)};
+      gpoolMeanLayer->getOutput(0), gpoolMeanScaleLayer->getOutput(0), gpoolConcatInputLayer3->getOutput(0)};
     auto gpoolConcatLayer = network->addConcatenation(gpoolConcatInputs, 3);
     auto gpoolConcatLayerName = name + "/gpconcat";
     gpoolConcatLayer->setName(gpoolConcatLayerName.c_str());
@@ -840,7 +836,7 @@ struct ModelBuilder {
         gpoolMaskShiftLayer->setPrecision(DataType::kFLOAT);
       }
       gpoolMeanLayer->setPrecision(DataType::kFLOAT);
-      gpoolLinMeanLayer->setPrecision(DataType::kFLOAT);
+      gpoolMeanScaleLayer->setPrecision(DataType::kFLOAT);
       gpoolConcatInputLayer3->setPrecision(DataType::kFLOAT);
       gpoolConcatLayer->setPrecision(DataType::kFLOAT);
     }
@@ -850,8 +846,8 @@ struct ModelBuilder {
 
   ILayer* applyMaskLayer(ILayer* inputLayer, bool forceFP32 = false) {
     if(!model->requireExactNNLen) {
-      auto maskLayer = model->network->addElementWise(
-        *inputLayer->getOutput(0), *maskExtractLayer->getOutput(0), ElementWiseOperation::kPROD);
+      auto maskLayer =
+        model->network->addElementWise(*inputLayer->getOutput(0), *inputMask, ElementWiseOperation::kPROD);
       auto maskLayerName = string(inputLayer->getName()) + "/mask";
       maskLayer->setName(maskLayerName.c_str());
       if(forceFP32) {
@@ -1203,10 +1199,12 @@ void NeuralNet::printDevices() {
 struct InputBuffers {
   int maxBatchSize;
 
-  size_t singleInputElts;
-  size_t singleInputBytes;
-  size_t singleInputGlobalElts;
-  size_t singleInputGlobalBytes;
+  size_t singleMaskElts;
+  size_t singleMaskBytes;
+  size_t singleFeatureElts;
+  size_t singleFeatureBytes;
+  size_t singleGlobalFeatureElts;
+  size_t singleGlobalFeatureBytes;
   size_t singlePolicyResultElts;
   size_t singlePolicyResultBytes;
   size_t singleValueResultElts;
@@ -1216,19 +1214,21 @@ struct InputBuffers {
   size_t singleOwnershipResultElts;
   size_t singleOwnershipResultBytes;
 
-  size_t inputBufferBytes;
-  size_t inputGlobalBufferBytes;
+  size_t maskInputBufferBytes;
+  size_t featureInputBufferBytes;
+  size_t globalFeatureInputBufferBytes;
   size_t policyResultBufferBytes;
   size_t valueResultBufferBytes;
   size_t scoreValueResultBufferBytes;
   size_t ownershipResultBufferBytes;
 
-  unique_ptr<float[]> inputBuffer;        // Host pointer
-  unique_ptr<float[]> inputGlobalBuffer;  // Host pointer
-  unique_ptr<float[]> policyResults;      // Host pointer
-  unique_ptr<float[]> valueResults;       // Host pointer
-  unique_ptr<float[]> scoreValueResults;  // Host pointer
-  unique_ptr<float[]> ownershipResults;   // Host pointer
+  unique_ptr<float[]> maskInputs;           // Host pointer
+  unique_ptr<float[]> featureInputs;        // Host pointer
+  unique_ptr<float[]> globalFeatureInputs;  // Host pointer
+  unique_ptr<float[]> policyResults;        // Host pointer
+  unique_ptr<float[]> valueResults;         // Host pointer
+  unique_ptr<float[]> scoreValueResults;    // Host pointer
+  unique_ptr<float[]> ownershipResults;     // Host pointer
 
   InputBuffers(const LoadedModel* loadedModel, int maxBatchSz, int nnXLen, int nnYLen) {
     const ModelDesc& m = loadedModel->modelDesc;
@@ -1244,10 +1244,12 @@ struct InputBuffers {
         Global::strprintf("nnYLen (%d) is greater than NNPos::MAX_BOARD_LEN (%d)", nnYLen, NNPos::MAX_BOARD_LEN));
 
     maxBatchSize = maxBatchSz;
-    singleInputElts = m.numInputChannels * xSize * ySize;
-    singleInputBytes = singleInputElts * sizeof(float);
-    singleInputGlobalElts = m.numInputGlobalChannels;
-    singleInputGlobalBytes = singleInputGlobalElts * sizeof(float);
+    singleMaskElts = xSize * ySize;
+    singleMaskBytes = singleMaskElts * sizeof(float);
+    singleFeatureElts = m.numInputChannels * xSize * ySize;
+    singleFeatureBytes = singleFeatureElts * sizeof(float);
+    singleGlobalFeatureElts = m.numInputGlobalChannels;
+    singleGlobalFeatureBytes = singleGlobalFeatureElts * sizeof(float);
     singlePolicyResultElts = NNPos::getPolicySize(xSize, ySize);
     singlePolicyResultBytes = singlePolicyResultElts * sizeof(float);
     singleValueResultElts = m.numValueChannels;
@@ -1260,15 +1262,17 @@ struct InputBuffers {
     assert(NNModelVersion::getNumSpatialFeatures(m.version) == m.numInputChannels);
     assert(NNModelVersion::getNumGlobalFeatures(m.version) == m.numInputGlobalChannels);
 
-    inputBufferBytes = maxBatchSize * singleInputBytes;
-    inputGlobalBufferBytes = maxBatchSize * singleInputGlobalBytes;
+    maskInputBufferBytes = maxBatchSize * singleMaskBytes;
+    featureInputBufferBytes = maxBatchSize * singleFeatureBytes;
+    globalFeatureInputBufferBytes = maxBatchSize * singleGlobalFeatureBytes;
     policyResultBufferBytes = maxBatchSize * singlePolicyResultBytes;
     valueResultBufferBytes = maxBatchSize * singleValueResultBytes;
     scoreValueResultBufferBytes = maxBatchSize * singleScoreValueResultBytes;
     ownershipResultBufferBytes = maxBatchSize * singleOwnershipResultBytes;
 
-    inputBuffer = make_unique<float[]>(maxBatchSize * singleInputElts);
-    inputGlobalBuffer = make_unique<float[]>(maxBatchSize * singleInputGlobalElts);
+    maskInputs = make_unique<float[]>(maxBatchSize * singleMaskElts);
+    featureInputs = make_unique<float[]>(maxBatchSize * singleFeatureElts);
+    globalFeatureInputs = make_unique<float[]>(maxBatchSize * singleGlobalFeatureElts);
     policyResults = make_unique<float[]>(maxBatchSize * singlePolicyResultElts);
     valueResults = make_unique<float[]>(maxBatchSize * singleValueResultElts);
     scoreValueResults = make_unique<float[]>(maxBatchSize * singleScoreValueResultElts);
@@ -1306,25 +1310,29 @@ void NeuralNet::getOutput(
   int numGlobalFeatures = NNModelVersion::getNumGlobalFeatures(version);
 
   for(int nIdx = 0; nIdx < batchSize; nIdx++) {
-    float* rowSpatialInput = &inputBuffers->inputBuffer[inputBuffers->singleInputElts * nIdx];
-    float* rowGlobalInput = &inputBuffers->inputGlobalBuffer[inputBuffers->singleInputGlobalElts * nIdx];
+    float* rowMaskInput = &inputBuffers->maskInputs[inputBuffers->singleMaskElts * nIdx];
+    float* rowFeatureInput = &inputBuffers->featureInputs[inputBuffers->singleFeatureElts * nIdx];
+    float* rowGlobalFeatureInput = &inputBuffers->globalFeatureInputs[inputBuffers->singleGlobalFeatureElts * nIdx];
 
-    const float* rowGlobal = inputBufs[nIdx]->rowGlobal;
-    const float* rowSpatial = inputBufs[nIdx]->rowSpatial;
-    copy(rowGlobal, rowGlobal + numGlobalFeatures, rowGlobalInput);
+    const float* rowFeature = inputBufs[nIdx]->rowSpatial;
+    const float* rowGlobalFeature = inputBufs[nIdx]->rowGlobal;
+    copy(rowFeature, rowFeature + inputBuffers->singleMaskElts, rowMaskInput);
     SymmetryHelpers::copyInputsWithSymmetry(
-      rowSpatial, rowSpatialInput, 1, nnYLen, nnXLen, numSpatialFeatures, false, inputBufs[nIdx]->symmetry);
+      rowFeature, rowFeatureInput, 1, nnYLen, nnXLen, numSpatialFeatures, false, inputBufs[nIdx]->symmetry);
+    copy(rowGlobalFeature, rowGlobalFeature + numGlobalFeatures, rowGlobalFeatureInput);
   }
 
-  assert(inputBuffers->singleInputElts == gpuHandle->getBufferRowElts("InputFeature"));
-  assert(inputBuffers->singleInputGlobalElts == gpuHandle->getBufferRowElts("InputGlobalFeature"));
+  assert(inputBuffers->singleMaskElts == gpuHandle->getBufferRowElts("InputMask"));
+  assert(inputBuffers->singleFeatureElts == gpuHandle->getBufferRowElts("InputFeature"));
+  assert(inputBuffers->singleGlobalFeatureElts == gpuHandle->getBufferRowElts("InputGlobalFeature"));
   assert(inputBuffers->singlePolicyResultElts == gpuHandle->getBufferRowElts("OutputPolicy"));
   assert(inputBuffers->singleValueResultElts == gpuHandle->getBufferRowElts("OutputValue"));
   assert(inputBuffers->singleScoreValueResultElts == gpuHandle->getBufferRowElts("OutputScoreValue"));
   assert(inputBuffers->singleOwnershipResultElts == gpuHandle->getBufferRowElts("OutputOwnership"));
 
-  assert(inputBuffers->inputBufferBytes == gpuHandle->getBufferBytes("InputFeature"));
-  assert(inputBuffers->inputGlobalBufferBytes == gpuHandle->getBufferBytes("InputGlobalFeature"));
+  assert(inputBuffers->maskInputBufferBytes == gpuHandle->getBufferBytes("InputMask"));
+  assert(inputBuffers->featureInputBufferBytes == gpuHandle->getBufferBytes("InputFeature"));
+  assert(inputBuffers->globalFeatureInputBufferBytes == gpuHandle->getBufferBytes("InputGlobalFeature"));
   assert(inputBuffers->policyResultBufferBytes == gpuHandle->getBufferBytes("OutputPolicy"));
   assert(inputBuffers->valueResultBufferBytes == gpuHandle->getBufferBytes("OutputValue"));
   assert(inputBuffers->scoreValueResultBufferBytes == gpuHandle->getBufferBytes("OutputScoreValue"));
@@ -1334,16 +1342,23 @@ void NeuralNet::getOutput(
   CUDA_ERR(
     "getOutput",
     cudaMemcpyAsync(
+      gpuHandle->getBuffer("InputMask"),
+      inputBuffers->maskInputs.get(),
+      inputBuffers->singleMaskBytes * batchSize,
+      cudaMemcpyHostToDevice));
+  CUDA_ERR(
+    "getOutput",
+    cudaMemcpyAsync(
       gpuHandle->getBuffer("InputFeature"),
-      inputBuffers->inputBuffer.get(),
-      inputBuffers->singleInputBytes * batchSize,
+      inputBuffers->featureInputs.get(),
+      inputBuffers->singleFeatureBytes * batchSize,
       cudaMemcpyHostToDevice));
   CUDA_ERR(
     "getOutput",
     cudaMemcpyAsync(
       gpuHandle->getBuffer("InputGlobalFeature"),
-      inputBuffers->inputGlobalBuffer.get(),
-      inputBuffers->singleInputGlobalBytes * batchSize,
+      inputBuffers->globalFeatureInputs.get(),
+      inputBuffers->singleGlobalFeatureBytes * batchSize,
       cudaMemcpyHostToDevice));
 
   gpuHandle->exec->enqueue(batchSize, gpuHandle->buffers.data(), cudaStreamPerThread, nullptr);
