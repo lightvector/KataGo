@@ -103,9 +103,10 @@ int MainCmds::testgpuerror(const vector<string>& args) {
     }
   }
 
+  const int maxBatchSizeCap = -1;
   const bool verbose = true;
   bool fp32BatchSuccessBuf = true;
-  bool success = Tests::runFP16Test(nnEval,nnEval32,logger,boardSize,verbose,quickTest,fp32BatchSuccessBuf);
+  bool success = Tests::runFP16Test(nnEval,nnEval32,logger,boardSize,maxBatchSizeCap,verbose,quickTest,fp32BatchSuccessBuf);
   (void)success;
   // cout << success << endl;
 

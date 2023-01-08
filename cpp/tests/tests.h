@@ -77,7 +77,7 @@ namespace Tests {
 
   //testnnevalcanary.cpp
   void runCanaryTests(NNEvaluator* nnEval, int symmetry, bool print);
-  bool runFP16Test(NNEvaluator* nnEval, NNEvaluator* nnEval32, Logger& logger, int boardSize, bool verbose, bool quickTest, bool& fp32BatchSuccessBuf);
+  bool runFP16Test(NNEvaluator* nnEval, NNEvaluator* nnEval32, Logger& logger, int boardSize, int maxBatchSizeCap, bool verbose, bool quickTest, bool& fp32BatchSuccessBuf);
 
   //testconfig.cpp
   void runConfigTests(const std::vector<std::string>& args);

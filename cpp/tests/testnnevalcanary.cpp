@@ -276,11 +276,15 @@ struct GpuErrorStats {
   }
 };
 
-bool Tests::runFP16Test(NNEvaluator* nnEval, NNEvaluator* nnEval32, Logger& logger, int boardSize, bool verbose, bool quickTest, bool& fp32BatchSuccessBuf) {
+bool Tests::runFP16Test(NNEvaluator* nnEval, NNEvaluator* nnEval32, Logger& logger, int boardSize, int maxBatchSizeCap, bool verbose, bool quickTest, bool& fp32BatchSuccessBuf) {
 
   int maxBatchSize = nnEval->getMaxBatchSize();
   if(maxBatchSize != nnEval32->getMaxBatchSize())
     throw StringError("Inconsistent max batch size for fp16 test");
+  if(maxBatchSizeCap > 0)
+    maxBatchSize = std::min(maxBatchSize,maxBatchSizeCap);
+  if(maxBatchSize <= 0)
+    throw StringError("Invalid max batch size for fp16 test");    
 
 #ifdef USE_EIGEN_BACKEND
   (void)logger;
@@ -308,7 +312,7 @@ bool Tests::runFP16Test(NNEvaluator* nnEval, NNEvaluator* nnEval32, Logger& logg
         [&](Sgf::PositionSample& sample, const BoardHistory& hist, const string& comments) {
           (void)sample;
           (void)comments;
-          if(!quickTest || filterRand.nextBool(0.5))
+          if(!quickTest || filterRand.nextBool(0.3))
             hists.push_back(hist);
         }
       );
@@ -347,9 +351,11 @@ bool Tests::runFP16Test(NNEvaluator* nnEval, NNEvaluator* nnEval32, Logger& logg
     std::vector<std::shared_ptr<NNOutput>> current;
     std::vector<std::shared_ptr<NNOutput>> cbatched(hists.size());
 
-    if(verbose)
-      logger.write("Running batched evaluations in fp32");
-    {
+    if(maxBatchSize <= 1)
+      batched = base;
+    else {
+      if(verbose)
+        logger.write("Running batched evaluations in fp32");
       auto runThread = [&](int threadIdx) {
         for(size_t i = threadIdx; i<hists.size(); i += maxBatchSize)
           batched[i] = evalBoard(nnEval32,hists[i]);
@@ -366,9 +372,11 @@ bool Tests::runFP16Test(NNEvaluator* nnEval, NNEvaluator* nnEval32, Logger& logg
         logger.write("Running evaluations using current config");
       for(const BoardHistory& hist: hists) current.push_back(evalBoard(nnEval,hist));
 
-      if(verbose)
-        logger.write("Running batched evaluations using current config");
-      {
+      if(maxBatchSize <= 1)
+        cbatched = current;
+      else {
+        if(verbose)
+          logger.write("Running batched evaluations using current config");
         auto runThread = [&](int threadIdx) {
           for(size_t i = threadIdx; i<hists.size(); i += maxBatchSize)
             cbatched[i] = evalBoard(nnEval,hists[i]);
