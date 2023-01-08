@@ -168,10 +168,10 @@ struct ModelParser {
     auto& network = model->network;
     auto modelDesc = &model->rawModel->modelDesc;
 
-    int modelSalt = 1;  // Bump this when between katago versions we want to forcibly drop old timing caches.
+    int tuneSalt = 1;  // Bump this when between katago versions we want to forcibly drop old timing caches.
     tuneDesc = Global::strprintf(
-      R"("model"(%d,%d,%d,%d,%d,%d,%d))",
-      modelSalt,
+      R"|("salt"(%d)"model"(%d,%d,%d,%d,%d,%d))|",
+      tuneSalt,
       modelDesc->version,
       modelDesc->numInputChannels,
       modelDesc->numInputGlobalChannels,
@@ -358,7 +358,7 @@ struct ModelParser {
     int numChannels = desc->trunkNumChannels;
 
     tuneDesc += Global::strprintf(
-      R"("%s"(%d,%d,%d,%d,%d))",
+      R"|("%s"(%d,%d,%d,%d,%d))|",
       desc->name.c_str(),
       desc->numBlocks,
       desc->trunkNumChannels,
@@ -612,7 +612,7 @@ struct ModelParser {
     int numInChannels = desc->inChannels;
     int numOutChannels = desc->outChannels;
 
-    tuneDesc += Global::strprintf(R"("%s"(%d,%d))", desc->name.c_str(), desc->inChannels, desc->outChannels);
+    tuneDesc += Global::strprintf(R"|("%s"(%d,%d))|", desc->name.c_str(), desc->inChannels, desc->outChannels);
 
     assert(desc->weights.size() == numInChannels * numOutChannels);
     assert(input->getDimensions().d[1] == numInChannels);
@@ -647,7 +647,7 @@ struct ModelParser {
   ILayer* buildMatBiasLayer(ITensor* input, const MatBiasLayerDesc* desc, bool forceFP32 = false) {
     int numChannels = desc->numChannels;
 
-    tuneDesc += Global::strprintf(R"("%s"(%d))", desc->name.c_str(), desc->numChannels);
+    tuneDesc += Global::strprintf(R"|("%s"(%d))|", desc->name.c_str(), desc->numChannels);
 
     assert(desc->weights.size() == numChannels);
     assert(input->getDimensions().d[1] == numChannels);
@@ -676,7 +676,7 @@ struct ModelParser {
     int numOutChannels = desc->outChannels;
 
     tuneDesc += Global::strprintf(
-      R"("%s"(%d,%d,%d,%d,%d,%d))",
+      R"|("%s"(%d,%d,%d,%d,%d,%d))|",
       desc->name.c_str(),
       desc->convXSize,
       desc->convYSize,
@@ -709,7 +709,7 @@ struct ModelParser {
     int numChannels = desc->numChannels;
     float epsilon = desc->epsilon;
 
-    tuneDesc += Global::strprintf(R"("%s"(%d))", desc->name.c_str(), desc->numChannels);
+    tuneDesc += Global::strprintf(R"|("%s"(%d))|", desc->name.c_str(), desc->numChannels);
 
     assert(desc->mean.size() == numChannels);
     assert(desc->variance.size() == numChannels);
@@ -743,7 +743,7 @@ struct ModelParser {
   }
 
   ILayer* buildActivationLayer(ITensor* input, const ActivationLayerDesc* desc, bool forceFP32 = false) {
-    tuneDesc += Global::strprintf(R"("%s"(%d))", desc->name.c_str(), desc->activation);
+    tuneDesc += Global::strprintf(R"|("%s"(%d))|", desc->name.c_str(), desc->activation);
     if(desc->activation == ACTIVATION_IDENTITY) {
       auto activationLayer = model->network->addIdentity(*input);
       activationLayer->setName(desc->name.c_str());
@@ -976,37 +976,51 @@ struct ComputeHandle {
     debugOutputs = model->debugOutputs;
     config->addOptimizationProfile(profile);
 
+    // This is to avoid external tactic sources and tactics that have shape switching overhead
     config->setTacticSources(1U << static_cast<uint32_t>(TacticSource::kJIT_CONVOLUTIONS));
 
-    bool saveTimingCache;
-    string timingCacheFile;
-    unique_ptr<ITimingCache> timingCache;
+    // So that there are no concurrent kernel executions probably from other parts of code while profiling
+    // See CUDA Runtime API document for more details related to NULL stream and synchronization behaviors
+    config->setProfileStream(cudaStreamLegacy);
+
+    // Typical runtime allocation is much less than the 1 GiB specified below
+    config->setMemoryPoolLimit(MemoryPoolType::kWORKSPACE, 1U << 30);
+
+    unique_ptr<IHostMemory> plan;
     {
-      string cacheDir = HomeData::getHomeDataDir(true, ctx->homeDataDirOverride);
+      static mutex tuneMutex;
+      tuneMutex.lock();
+
+      auto cacheDir = HomeData::getHomeDataDir(true, ctx->homeDataDirOverride);
       cacheDir += "/trtcache";
       MakeDir::make(cacheDir);
 
-      char uuid[sizeof(prop->uuid.bytes) * 2 + 1];
-      for(int i = 0; i < sizeof(prop->uuid.bytes); i++) {
-        sprintf(uuid + i * 2, "%02x", static_cast<unsigned char>(prop->uuid.bytes[i]));
-      }
-      uuid[sizeof(uuid) - 1] = 0;
+      uint8_t deviceHash[32];
+      SHA2::get256(prop->name, deviceHash);
 
       // Truncated to 4 bytes
-      char tuneHash[4 * 2 + 1];
+      char deviceIdent[4 * 2 + 1];
       for(int i = 0; i < 4; i++) {
-        sprintf(tuneHash + i * 2, "%02x", static_cast<unsigned char>(model->tuneHash[i]));
+        sprintf(deviceIdent + i * 2, "%02x", static_cast<unsigned char>(deviceHash[i]));
       }
-      tuneHash[sizeof(tuneHash) - 1] = 0;
+      deviceIdent[sizeof(deviceIdent) - 1] = 0;
 
-      timingCacheFile = Global::strprintf(
-        "%s/gpu-%s_tune-%s_%dx%d%s_batch%d_fp%d",
+      // Truncated to 4 bytes
+      char tuneIdent[4 * 2 + 1];
+      for(int i = 0; i < 4; i++) {
+        sprintf(tuneIdent + i * 2, "%02x", static_cast<unsigned char>(model->tuneHash[i]));
+      }
+      tuneIdent[sizeof(tuneIdent) - 1] = 0;
+
+      auto timingCacheFile = Global::strprintf(
+        "%s/trt-%d_gpu-%s_tune-%s_%s%dx%d_batch%d_fp%d",
         cacheDir.c_str(),
-        uuid,
-        tuneHash,
+        getInferLibVersion(),
+        deviceIdent,
+        tuneIdent,
+        requireExactNNLen ? "exact" : "max",
         ctx->nnYLen,
         ctx->nnXLen,
-        requireExactNNLen ? "-exact" : "",
         maxBatchSize,
         usingFP16 ? 16 : 32);
 
@@ -1021,35 +1035,34 @@ struct ComputeHandle {
       else
         logger->write("Creating new timing cache");
 
-      timingCache.reset(config->createTimingCache(timingCacheBlob.data(), timingCacheBlob.size()));
-      bool invalidTimingCache = !config->setTimingCache(*timingCache, false);
+      auto timingCache =
+        unique_ptr<ITimingCache>(config->createTimingCache(timingCacheBlob.data(), timingCacheBlob.size()));
+      auto invalidTimingCache = !config->setTimingCache(*timingCache, false);
       if(invalidTimingCache) {
         logger->write("Invalid timing cache, using new one instead");
         timingCache.reset(config->createTimingCache(nullptr, 0));
         config->setTimingCache(*timingCache, false);
       }
-      saveTimingCache = invalidTimingCache || !timingCacheBlob.size();
-    }
 
-    // So that there are no concurrent kernel executions probably from other parts of code while profiling
-    // See CUDA Runtime API document for more details related to NULL stream and synchronization behaviors
-    config->setProfileStream(cudaStreamLegacy);
-
-    // Typical runtime allocation is much less than the 1 GiB specified below
-    config->setMemoryPoolLimit(MemoryPoolType::kWORKSPACE, 1U << 30);
-
-    auto plan = unique_ptr<IHostMemory>(builder->buildSerializedNetwork(*model->network, *config));
-    if(!plan) {
-      throw StringError("TensorRT backend: failed to create plan");
-    }
-
-    if(saveTimingCache) {
-      auto serializedTimingCache = unique_ptr<IHostMemory>(config->getTimingCache()->serialize());
-      ofstream ofs;
-      FileUtils::open(ofs, timingCacheFile, ios::out | ios::binary);
-      ofs.write(static_cast<char*>(serializedTimingCache->data()), serializedTimingCache->size());
-      ofs.close();
-      logger->write("Saved new timing cache to " + timingCacheFile);
+      if(invalidTimingCache || !timingCacheBlob.size()) {
+        plan.reset(builder->buildSerializedNetwork(*model->network, *config));
+        if(!plan) {
+          throw StringError("TensorRT backend: failed to create plan");
+        }
+        auto serializedTimingCache = unique_ptr<IHostMemory>(config->getTimingCache()->serialize());
+        ofstream ofs;
+        FileUtils::open(ofs, timingCacheFile, ios::out | ios::binary);
+        ofs.write(static_cast<char*>(serializedTimingCache->data()), serializedTimingCache->size());
+        ofs.close();
+        logger->write("Saved new timing cache to " + timingCacheFile);
+        tuneMutex.unlock();
+      } else {
+        tuneMutex.unlock();
+        plan.reset(builder->buildSerializedNetwork(*model->network, *config));
+        if(!plan) {
+          throw StringError("TensorRT backend: failed to create plan");
+        }
+      }
     }
 
     auto runtime = unique_ptr<IRuntime>(createInferRuntime(trtLogger));
