@@ -1421,10 +1421,10 @@ void NeuralNet::getOutput(
 
     const float* rowFeature = inputBufs[nIdx]->rowSpatial;
     const float* rowGlobalFeature = inputBufs[nIdx]->rowGlobal;
-    copy(rowFeature, rowFeature + inputBuffers->singleMaskElts, rowMaskInput);
     SymmetryHelpers::copyInputsWithSymmetry(
       rowFeature, rowFeatureInput, 1, nnYLen, nnXLen, numSpatialFeatures, false, inputBufs[nIdx]->symmetry);
     copy(rowGlobalFeature, rowGlobalFeature + numGlobalFeatures, rowGlobalFeatureInput);
+    copy(rowFeatureInput, rowFeatureInput + inputBuffers->singleMaskElts, rowMaskInput);
   }
 
   assert(inputBuffers->singleMaskElts == gpuHandle->getBufferRowElts("InputMask"));
