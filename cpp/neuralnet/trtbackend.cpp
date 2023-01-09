@@ -17,6 +17,13 @@
 using namespace std;
 using namespace nvinfer1;
 
+// Define this to print out some of the intermediate values of the neural net
+//#define DEBUG_INTERMEDIATE_VALUES
+
+// Define this to use plan cache instead of timing cache, which enables instant
+// initialization at the cost of excessive disk space usage
+//#define CACHE_TENSORRT_PLAN
+
 static void checkCudaError(const cudaError_t status, const char* opName, const char* file, const char* func, int line) {
   if(status != cudaSuccess)
     throw StringError(
@@ -993,7 +1000,7 @@ struct ComputeHandle {
     // Typical runtime allocation is much less than the 1 GiB specified below
     config->setMemoryPoolLimit(MemoryPoolType::kWORKSPACE, 1U << 30);
 
-    unique_ptr<IHostMemory> plan;
+    string plan;
     {
       static mutex tuneMutex;
       tuneMutex.lock();
@@ -1012,6 +1019,46 @@ struct ComputeHandle {
       }
       deviceIdent[sizeof(deviceIdent) - 1] = 0;
 
+#ifdef CACHE_TENSORRT_PLAN
+      auto planCacheFile = Global::strprintf(
+        "%s/trt-%d_gpu-%s_net-%s_%s%dx%d_batch%d_fp%d",
+        cacheDir.c_str(),
+        getInferLibVersion(),
+        deviceIdent,
+        loadedModel->modelDesc.name.c_str(),
+        requireExactNNLen ? "exact" : "max",
+        ctx->nnYLen,
+        ctx->nnXLen,
+        maxBatchSize,
+        usingFP16 ? 16 : 32);
+
+      try {
+        plan = FileUtils::readFileBinary(planCacheFile);
+      } catch(const StringError& e) {
+        (void)e;
+      };
+
+      if(!plan.size()) {
+        logger->write("Creating new plan cache");
+        auto planBuffer = unique_ptr<IHostMemory>(builder->buildSerializedNetwork(*model->network, *config));
+        if(!planBuffer) {
+          throw StringError("TensorRT backend: failed to create plan");
+        }
+        plan.insert(
+          plan.end(),
+          static_cast<char*>(planBuffer->data()),
+          static_cast<char*>(planBuffer->data()) + planBuffer->size());
+        ofstream ofs;
+        FileUtils::open(ofs, planCacheFile, ios::out | ios::binary);
+        ofs.write(plan.data(), plan.size());
+        ofs.close();
+        logger->write("Saved new plan cache to " + planCacheFile);
+        tuneMutex.unlock();
+      } else {
+        tuneMutex.unlock();
+        logger->write("Using existing plan cache at " + planCacheFile);
+      }
+#else
       // Truncated to 4 bytes
       char tuneIdent[4 * 2 + 1];
       for(int i = 0; i < 4; i++) {
@@ -1051,9 +1098,10 @@ struct ComputeHandle {
         config->setTimingCache(*timingCache, false);
       }
 
+      unique_ptr<IHostMemory> planBuffer;
       if(invalidTimingCache || !timingCacheBlob.size()) {
-        plan.reset(builder->buildSerializedNetwork(*model->network, *config));
-        if(!plan) {
+        planBuffer.reset(builder->buildSerializedNetwork(*model->network, *config));
+        if(!planBuffer) {
           throw StringError("TensorRT backend: failed to create plan");
         }
         auto serializedTimingCache = unique_ptr<IHostMemory>(config->getTimingCache()->serialize());
@@ -1065,11 +1113,16 @@ struct ComputeHandle {
         tuneMutex.unlock();
       } else {
         tuneMutex.unlock();
-        plan.reset(builder->buildSerializedNetwork(*model->network, *config));
-        if(!plan) {
+        planBuffer.reset(builder->buildSerializedNetwork(*model->network, *config));
+        if(!planBuffer) {
           throw StringError("TensorRT backend: failed to create plan");
         }
       }
+      plan.insert(
+        plan.end(),
+        static_cast<char*>(planBuffer->data()),
+        static_cast<char*>(planBuffer->data()) + planBuffer->size());
+#endif
     }
 
     auto runtime = unique_ptr<IRuntime>(createInferRuntime(trtLogger));
@@ -1077,7 +1130,7 @@ struct ComputeHandle {
       throw StringError("TensorRT backend: failed to create runtime");
     }
 
-    engine.reset(runtime->deserializeCudaEngine(plan->data(), plan->size()));
+    engine.reset(runtime->deserializeCudaEngine(plan.data(), plan.size()));
     if(!engine) {
       throw StringError("TensorRT backend: failed to create cuda engine");
     }
