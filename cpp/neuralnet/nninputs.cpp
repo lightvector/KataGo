@@ -503,7 +503,7 @@ void NNOutput::debugPrint(ostream& out, const Board& board) {
   out << "ScoreMeanSq " << Global::strprintf("%.1f",whiteScoreMeanSq) << endl;
   out << "Lead " << Global::strprintf("%.1f",whiteLead) << endl;
   out << "VarTimeLeft " << Global::strprintf("%.1f",varTimeLeft) << endl;
-  out << "STWinlossError " << Global::strprintf("%.1f",shorttermWinlossError) << endl;
+  out << "STWinlossError " << Global::strprintf("%.3f",shorttermWinlossError) << endl;
   out << "STScoreError " << Global::strprintf("%.1f",shorttermScoreError) << endl;
 
   out << "Policy" << endl;
