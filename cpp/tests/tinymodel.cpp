@@ -44,10 +44,13 @@ static void decodeBase64(const string& input, string& output) {
     throw StringError("decodeBase64 got leftover bits");
 }
 
-static void requireApproxEqual(double x, double expected, double scale, const NNResultBuf& buf, const Board& board) {
+static void requireApproxEqual(double x, double expected, double scale, const NNResultBuf& buf, const Board& board, const char *file, int line) {
   if(!std::isfinite(x) || !std::isfinite(expected) || std::fabs(x-expected) > scale) {
     buf.result->debugPrint(cout,board);
-    throw StringError("Tiny neural net test got invalid values - is the GPU working?");
+    throw StringError(
+      "Tiny neural net test got invalid values - is the GPU working? " +
+      string(file) + " line " + Global::intToString(line) + " " + Global::doubleToString(x) + " " + Global::doubleToString(expected)
+    );
   }
 }
 
@@ -126,7 +129,7 @@ NNEvaluator* TinyModelTest::runTinyModelTest(const string& baseDir, Logger& logg
     //buf.result->debugPrint(out,board);
     //cout << out.str() << endl;
 
-#define EQ(x,expected,scale) requireApproxEqual((x), (expected), (scale), buf, board)
+#define EQ(x,expected,scale) requireApproxEqual((x), (expected), (scale), buf, board, __FILE__, __LINE__)
     NNOutput& nnOutput = *(buf.result);
     EQ(nnOutput.whiteWinProb, .43298, 0.01);
     EQ(nnOutput.whiteLossProb, .56702, 0.01);
