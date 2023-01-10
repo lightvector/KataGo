@@ -18,7 +18,7 @@ namespace TinyModelTest {
 
   extern const char* tinyMishModelBase64;
 
-  NNEvaluator* runTinyModelTest(const std::string& baseDir, Logger& logger, ConfigParser& cfg, bool randFileName);
+  NNEvaluator* runTinyModelTest(const std::string& baseDir, Logger& logger, ConfigParser& cfg, bool randFileName, double errorTolFactor);
 }
 
 

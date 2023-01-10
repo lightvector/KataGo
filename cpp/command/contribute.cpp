@@ -609,7 +609,8 @@ int MainCmds::contribute(const vector<string>& args) {
 
   {
     const bool randFileName = true;
-    NNEvaluator* tinyNNEval = TinyModelTest::runTinyModelTest(baseDir, logger, *userCfg, randFileName);
+    const double errorTolFactor = 1.0;
+    NNEvaluator* tinyNNEval = TinyModelTest::runTinyModelTest(baseDir, logger, *userCfg, randFileName, errorTolFactor);
     //Before we delete the tinyNNEval, it conveniently has all the info about what gpuidxs the user wants from the config, so
     //use it to tune everything.
 #ifdef USE_OPENCL_BACKEND

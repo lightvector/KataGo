@@ -10,7 +10,7 @@ set -o pipefail
 ./katago runsearchtestsv9 tests/models/g170-b6c96-s175395328-d26788732.txt.gz false false false | tee tests/results/runSearchTestsV9.txt
 
 mkdir -p tests/scratch
-./katago runtinynntests tests/scratch | grep -v ': nnRandSeed0 = ' | tee tests/results/runTinyNNTests.txt
+./katago runtinynntests tests/scratch 1.0 | grep -v ': nnRandSeed0 = ' | tee tests/results/runTinyNNTests.txt
 
 exit 0
 }

@@ -345,13 +345,14 @@ int MainCmds::runownershiptests(const vector<string>& args) {
 
 
 int MainCmds::runtinynntests(const vector<string>& args) {
-  if(args.size() != 2) {
-    cerr << "Must supply exactly one arguments: TMPDIR" << endl;
+  if(args.size() != 3) {
+    cerr << "Must supply exactly two arguments: TMPDIR ERRORTOLFACTOR" << endl;
     return 1;
   }
   Board::initHash();
   ScoreValue::initTables();
 
+  double errorTolFactor = Global::stringToDouble(args[2]);
   ConfigParser cfg;
   {
     //Dummy parameters
@@ -387,7 +388,8 @@ int MainCmds::runtinynntests(const vector<string>& args) {
     args[1],
     logger,
     cfg,
-    randFileName
+    randFileName,
+    errorTolFactor
   );
 
   ScoreValue::freeTables();

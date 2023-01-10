@@ -499,9 +499,9 @@ void NNOutput::debugPrint(ostream& out, const Board& board) {
   out << "Win " << Global::strprintf("%.2fc",whiteWinProb*100) << endl;
   out << "Loss " << Global::strprintf("%.2fc",whiteLossProb*100) << endl;
   out << "NoResult " << Global::strprintf("%.2fc",whiteNoResultProb*100) << endl;
-  out << "ScoreMean " << Global::strprintf("%.1f",whiteScoreMean) << endl;
+  out << "ScoreMean " << Global::strprintf("%.2f",whiteScoreMean) << endl;
   out << "ScoreMeanSq " << Global::strprintf("%.1f",whiteScoreMeanSq) << endl;
-  out << "Lead " << Global::strprintf("%.1f",whiteLead) << endl;
+  out << "Lead " << Global::strprintf("%.2f",whiteLead) << endl;
   out << "VarTimeLeft " << Global::strprintf("%.1f",varTimeLeft) << endl;
   out << "STWinlossError " << Global::strprintf("%.3f",shorttermWinlossError) << endl;
   out << "STScoreError " << Global::strprintf("%.1f",shorttermScoreError) << endl;
