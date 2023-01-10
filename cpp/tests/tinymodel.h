@@ -16,6 +16,8 @@ namespace TinyModelTest {
   extern const char* tinyModelBase64Part5;
   extern const char* tinyModelBase64Part6;
 
+  extern const char* tinyMishModelBase64;
+
   NNEvaluator* runTinyModelTest(const std::string& baseDir, Logger& logger, ConfigParser& cfg, bool randFileName);
 }
 

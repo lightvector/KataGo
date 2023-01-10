@@ -105,6 +105,8 @@ namespace OpenCLHelpers {
   cl_mem createReadWriteBuffer(cl_context context, std::vector<half_float::half>& data);
   cl_mem createReadWriteBufferFloat(cl_context context, size_t numElts);
   cl_mem createReadWriteBufferHalf(cl_context context, size_t numElts);
+  cl_mem createReadWriteBufferFloatZeros(cl_context context, size_t numElts);
+  cl_mem createReadWriteBufferHalfZeros(cl_context context, size_t numElts);
   cl_mem createReadWriteBufferBytes(cl_context clContext, size_t numBytes);
 
   void blockingReadBuffer(cl_command_queue commandQueue, cl_mem srcBuf, size_t numElts, std::vector<float>& dstBuf);

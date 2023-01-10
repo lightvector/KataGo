@@ -151,6 +151,11 @@ struct OpenCLTuneParams {
   OpenCLParams::XGemmDirectParams xGemmDirect = OpenCLParams::XGemmDirectParams();
   OpenCLParams::XGemmParams xGemm = OpenCLParams::XGemmParams();
 
+  bool canUseFP16Storage = false;
+  bool canUseFP16Compute = false;
+  bool canUseFP16TensorCores = false;
+  bool canUseFP16TensorCoresFor1x1 = false;
+
   bool shouldUseFP16Storage = false;
   bool shouldUseFP16Compute = false;
   OpenCLParams::XGemmParams xGemm16 = OpenCLParams::XGemmParams();

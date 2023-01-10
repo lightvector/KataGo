@@ -19,7 +19,7 @@ ScoreMean 9.4
 ScoreMeanSq 242.9
 Lead 7.9
 VarTimeLeft -1.0
-STWinlossError -1.0
+STWinlossError -1.000
 STScoreError -1.0
 Policy
    0    0    0    0    0 

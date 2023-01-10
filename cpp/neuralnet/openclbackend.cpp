@@ -47,23 +47,30 @@ using half_t = half_float::half;
 #define MAYBE_FREE_EVENT (void)0
 
 #define MAYBE_PROFILE(_name) {                                          \
-    static int counter = 0;                                             \
-    static double timeTaken = 0;                                        \
-    static bool profilePrintAdded = false;                              \
     const char* _profileName = (_name);                                 \
+    bool isNew = false;                                                 \
+    if(!contains(handle->profileAddeds,_profileName)) {                         \
+      handle->profileAddeds.push_back(_profileName);                            \
+      handle->counters[_profileName] = new int[1];                              \
+      handle->timeTakens[_profileName] = new double[1];                         \
+      handle->counters[_profileName][0] = 0;                            \
+      handle->timeTakens[_profileName][0] = 0.0;                        \
+      isNew = true;                                                     \
+    }                                                                   \
+    int* counter = handle->counters[_profileName];                              \
+    double* timeTaken = handle->timeTakens[_profileName];                       \
     handle->profileEvents.push_back(event);                             \
-    handle->profileCallbacks.push_back(std::function<void()>([event,_profileName]() { \
+    handle->profileCallbacks.push_back(std::function<void()>([event,counter,timeTaken,_profileName]() { \
           cl_int profileErr;                                            \
           cl_ulong time_start, time_end;                                \
           profileErr = clGetEventProfilingInfo(event, CL_PROFILING_COMMAND_START, sizeof(time_start), &time_start, NULL); CHECK_ERR(profileErr); \
           profileErr = clGetEventProfilingInfo(event, CL_PROFILING_COMMAND_END, sizeof(time_end), &time_end, NULL); CHECK_ERR(profileErr) ; \
-          timeTaken += (time_end - time_start) * 1e-9;                  \
-          counter++;                                                    \
+          *timeTaken += (time_end - time_start) * 1e-9;                 \
+          (*counter)++;                                                 \
         }));                                                            \
-    if(!profilePrintAdded) {                                            \
-      profilePrintAdded = true;                                         \
-      handle->profileResultPrinters.push_back(std::function<void()>([_profileName]() { \
-            cout << _profileName << " " << counter << " " << timeTaken/counter << " " << timeTaken << "\n"; \
+    if(isNew) {                                                         \
+      handle->profileResultPrinters.push_back(std::function<void()>([_profileName,counter,timeTaken]() { \
+            cout << _profileName << " " << *counter << " " << *timeTaken/ *counter << " " << *timeTaken << "\n"; \
           }));                                                          \
     }                                                                   \
   }
@@ -357,10 +364,29 @@ struct ComputeContext {
 
       OpenCLTuneParams tuneParams = getParamsForDeviceName(name, device->info.gpuIdx);
 
-      bool useFP16Storage = useFP16Mode == enabled_t::True || (useFP16Mode == enabled_t::Auto && tuneParams.shouldUseFP16Storage);
-      bool useFP16Compute = (useFP16Mode == enabled_t::True || useFP16Mode == enabled_t::Auto) && tuneParams.shouldUseFP16Compute;
-      bool useFP16TensorCores = (useFP16Mode == enabled_t::True || useFP16Mode == enabled_t::Auto) && tuneParams.shouldUseFP16TensorCores;
-      bool useFP16TensorCoresFor1x1 = (useFP16Mode == enabled_t::True || useFP16Mode == enabled_t::Auto) && tuneParams.shouldUseFP16TensorCoresFor1x1;
+      bool useFP16Storage = false;
+      bool useFP16Compute = false;
+      bool useFP16TensorCores = false;
+      bool useFP16TensorCoresFor1x1 = false;
+
+      if(useFP16Mode == enabled_t::True) {
+        if(!tuneParams.canUseFP16Storage && !tuneParams.canUseFP16Compute && !tuneParams.canUseFP16TensorCores && !tuneParams.canUseFP16TensorCoresFor1x1) {
+          if(logger)
+            logger->write("Warning: No FP16 support found at all on this device during tuning, but useFP16 is true, trying fp16 storage");
+          useFP16Storage = true;
+        }
+        useFP16Storage = tuneParams.canUseFP16Storage;
+        // Only use FP16 compute if not using tensor cores
+        useFP16Compute = tuneParams.canUseFP16Storage && !tuneParams.canUseFP16TensorCores;
+        useFP16TensorCores = tuneParams.canUseFP16TensorCores;
+        useFP16TensorCoresFor1x1 = tuneParams.canUseFP16TensorCoresFor1x1;
+      }
+      else if(useFP16Mode == enabled_t::Auto) {
+        useFP16Storage = tuneParams.shouldUseFP16Storage;
+        useFP16Compute = tuneParams.shouldUseFP16Compute;
+        useFP16TensorCores = tuneParams.shouldUseFP16TensorCores;
+        useFP16TensorCoresFor1x1 = tuneParams.shouldUseFP16TensorCoresFor1x1;
+      }
 
       CompiledPrograms* compiledPrograms = new CompiledPrograms(
         device->context, deviceIds, tuneParams,
@@ -488,6 +514,9 @@ struct ComputeHandleInternal {
   CLKernel xgemmBatchedNNKernel;
   CLKernel hgemmWmmaNCHWKernel;
 
+  std::vector<const char*> profileAddeds;
+  std::map<const char*, int*> counters;
+  std::map<const char*, double*> timeTakens;
   vector<cl_event> profileEvents;
   vector<std::function<void()>> profileCallbacks;
   vector<std::function<void()>> profileResultPrinters;
@@ -1308,8 +1337,8 @@ struct ConvLayer {
           MAYBE_EVENTREF
         );
         CHECK_ERR(err);
-        if(convXSize == 3 && convYSize == 3) { MAYBE_PROFILE("3x3TRANSFORM"); }
-        else { MAYBE_PROFILE("5x5TRANSFORM"); }
+        if(convXSize == 3 && convYSize == 3) { MAYBE_PROFILE("3x3TRANSFORMBNACT"); }
+        else { MAYBE_PROFILE("5x5TRANSFORMBNACT"); }
         MAYBE_FREE_EVENT;
       }
 
@@ -1343,8 +1372,8 @@ struct ConvLayer {
           );
         }
         CHECK_ERR(err);
-        if(convXSize == 3 && convYSize == 3) { MAYBE_PROFILE("MATMULCONV3x3"); }
-        else { MAYBE_PROFILE("MATMULCONV5x5"); }
+        if(convXSize == 3 && convYSize == 3) { MAYBE_PROFILE("MATMULCONV3x3BNACT"); }
+        else { MAYBE_PROFILE("MATMULCONV5x5BNACT"); }
         MAYBE_FREE_EVENT;
       }
 
@@ -1365,8 +1394,8 @@ struct ConvLayer {
           MAYBE_EVENTREF
         );
         CHECK_ERR(err);
-        if(convXSize == 3 && convYSize == 3) { MAYBE_PROFILE("3x3UNTRANSFORM"); }
-        else { MAYBE_PROFILE("5x5UNTRANSFORM"); }
+        if(convXSize == 3 && convYSize == 3) { MAYBE_PROFILE("3x3UNTRANSFORMBNACT"); }
+        else { MAYBE_PROFILE("5x5UNTRANSFORMBNACT"); }
         MAYBE_FREE_EVENT;
       }
 
