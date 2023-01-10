@@ -1059,9 +1059,9 @@ struct ComputeHandle {
         logger->write("Using existing plan cache at " + planCacheFile);
       }
 #else
-      // Truncated to 4 bytes
-      char tuneIdent[4 * 2 + 1];
-      for(int i = 0; i < 4; i++) {
+      // Truncated to 6 bytes
+      char tuneIdent[6 * 2 + 1];
+      for(int i = 0; i < 6; i++) {
         sprintf(tuneIdent + i * 2, "%02x", static_cast<unsigned char>(model->tuneHash[i]));
       }
       tuneIdent[sizeof(tuneIdent) - 1] = 0;

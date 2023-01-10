@@ -38,11 +38,11 @@ whiteHandicapBonus = 0
 : Cuda backend thread 0: Found GPU NVIDIA RTX A5000 memory 25434652672 compute capability major 8 minor 6
 : Cuda backend thread 0: Model version 11 useFP16 = true useNHWC = true
 : Cuda backend thread 0: Model name: b1c6nbt
-: GPU -1 finishing, processed 41 rows 22 batches
+: GPU -1 finishing, processed 41 rows 25 batches
 : After dedups: nnModelFile0 = tests/scratch/tmpTinyMishModel.bin.gz useFP16 auto useNHWC auto
 : Initializing neural net buffer to be size 19 * 19 allowing smaller boards
 : Cuda backend thread 0: Found GPU NVIDIA RTX A5000 memory 25434652672 compute capability major 8 minor 6
 : Cuda backend thread 0: Model version 11 useFP16 = true useNHWC = true
 : Cuda backend thread 0: Model name: b1c6nbt
-: GPU -1 finishing, processed 41 rows 24 batches
+: GPU -1 finishing, processed 41 rows 21 batches
 : Tiny net sanity check complete
