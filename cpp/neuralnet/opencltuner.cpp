@@ -3212,6 +3212,17 @@ void OpenCLTuner::autoTuneEverything(
     modelInfo.version = 10;
     modelInfos.push_back(modelInfo);
   }
+  {
+    ModelInfoForTuning modelInfo;
+    modelInfo.maxConvChannels1x1 = 384;
+    modelInfo.maxConvChannels3x3 = 384;
+    modelInfo.trunkNumChannels = 384;
+    modelInfo.midNumChannels = 192;
+    modelInfo.regularNumChannels = 128;
+    modelInfo.gpoolNumChannels = 64;
+    modelInfo.version = 11;
+    modelInfos.push_back(modelInfo);
+  }
 
   for(ModelInfoForTuning modelInfo : modelInfos) {
     int nnXLen = NNPos::MAX_BOARD_LEN;
