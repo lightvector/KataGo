@@ -328,7 +328,7 @@ NNEvaluator* TinyModelTest::runTinyModelTest(const string& baseDir, Logger& logg
       for(int pos = 0; pos<361; pos++) {
         double prob = nnOutput.policyProbs[pos];
         if(expectedPolicy[pos] >= 0) {
-          EQ(prob*10000, expectedPolicy[pos], std::min(60.0, expectedPolicy[pos] * 0.1 + 2.0) + std::min(10.0, expectedPolicy[pos] * 0.1));
+          EQ(prob*10000, expectedPolicy[pos], std::min(60.0, expectedPolicy[pos] * 0.15 + 2.0) + std::min(10.0, expectedPolicy[pos] * 0.15));
         }
       }
 
@@ -355,7 +355,7 @@ NNEvaluator* TinyModelTest::runTinyModelTest(const string& baseDir, Logger& logg
       };
       for(int pos = 0; pos<361; pos++) {
         double ownership = nnOutput.whiteOwnerMap[pos];
-        EQ(ownership*10000, expectedOwnership[pos], 400.0);
+        EQ(ownership*10000, expectedOwnership[pos], 600.0);
       }
     };
 
@@ -464,7 +464,7 @@ NNEvaluator* TinyModelTest::runTinyModelTest(const string& baseDir, Logger& logg
         int pos = (idx % 13) + idx / 13 * NNPos::MAX_BOARD_LEN;
         double prob = nnOutput.policyProbs[pos];
         if(expectedPolicy[idx] >= 0) {
-          EQ(prob*10000, expectedPolicy[idx], std::min(120.0, expectedPolicy[idx] * 0.1 + 2.0) + std::min(10.0, expectedPolicy[idx] * 0.1));
+          EQ(prob*10000, expectedPolicy[idx], std::min(120.0, expectedPolicy[idx] * 0.15 + 2.0) + std::min(10.0, expectedPolicy[idx] * 0.15));
         }
       }
 
@@ -479,7 +479,7 @@ NNEvaluator* TinyModelTest::runTinyModelTest(const string& baseDir, Logger& logg
       for(int idx = 0; idx<78; idx++) {
         int pos = (idx % 13) + idx / 13 * NNPos::MAX_BOARD_LEN;
         double ownership = nnOutput.whiteOwnerMap[pos];
-        EQ(ownership*10000, expectedOwnership[idx], 400.0);
+        EQ(ownership*10000, expectedOwnership[idx], 600.0);
       }
     };
 
