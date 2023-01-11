@@ -48,7 +48,7 @@ set -o pipefail
 ./katago runnnevalcanarytests configs/gtp_example.cfg tests/models/g170e-b10c128-s1141046784-d204142634.bin.gz 6 | grep -v ': nnRandSeed0 = ' | tee -a tests/results/runNNCanaryTests.txt
 
 mkdir -p tests/scratch
-./katago runtinynntests tests/scratch 1.0 | grep -v ': nnRandSeed0 = ' | tee tests/results/runTinyNNTests.txt
+./katago runtinynntests tests/scratch 1.0 | grep -v ': nnRandSeed0 = ' | grep -v 'finishing, processed' | tee tests/results/runTinyNNTests.txt
 
 exit 0
 }
