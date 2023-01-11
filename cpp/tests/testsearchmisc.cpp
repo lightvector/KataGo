@@ -248,7 +248,7 @@ void Tests::runNNBatchingTest(const string& modelFile, bool inputsNHWC, bool use
       const NNBatchingTestItem& item = items[i];
       MiscNNInputParams nnInputParams;
       nnInputParams.drawEquivalentWinsForWhite = rand.nextDouble();
-      nnInputParams.conservativePass = rand.nextBool(0.5);
+      nnInputParams.conservativePassAndIsRoot = rand.nextBool(0.5);
       nnInputParams.playoutDoublingAdvantage = rand.nextDouble(-1.0,1.0);
       nnInputParams.symmetry = rand.nextInt(0,7);
 

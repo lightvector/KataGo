@@ -839,8 +839,8 @@ Hash128 NNInputs::getHash(
   bool passEndsPhase = hist.passWouldEndPhase(board,nextPlayer);
   if(passEndsPhase) {
     hash ^= Board::ZOBRIST_PASS_ENDS_PHASE;
-    //And in the case that a pass ends the phase, conservativePass also affects the result
-    if(nnInputParams.conservativePass)
+    //And in the case that a pass ends the phase, conservativePass also affects the result for the root node
+    if(nnInputParams.conservativePassAndIsRoot)
       hash ^= MiscNNInputParams::ZOBRIST_CONSERVATIVE_PASS;
   }
   //Fold in whether the game is over or not, since this affects how we compute input features
@@ -965,7 +965,7 @@ void NNInputs::fillRowV3(
   bool hideHistory =
     hist.isGameFinished ||
     hist.isPastNormalPhaseEnd ||
-    (nnInputParams.conservativePass && hist.passWouldEndGame(board,nextPlayer));
+    (nnInputParams.conservativePassAndIsRoot && hist.passWouldEndGame(board,nextPlayer));
 
   //Features 9,10,11,12,13
   if(!hideHistory) {
@@ -1306,7 +1306,7 @@ void NNInputs::fillRowV4(
   bool hideHistory =
     hist.isGameFinished ||
     hist.isPastNormalPhaseEnd ||
-    (nnInputParams.conservativePass && hist.passWouldEndGame(board,nextPlayer));
+    (nnInputParams.conservativePassAndIsRoot && hist.passWouldEndGame(board,nextPlayer));
 
   //Features 9,10,11,12,13
   if(!hideHistory) {
@@ -1629,7 +1629,7 @@ void NNInputs::fillRowV5(
   bool hideHistory =
     hist.isGameFinished ||
     hist.isPastNormalPhaseEnd ||
-    (nnInputParams.conservativePass && hist.passWouldEndGame(board,nextPlayer));
+    (nnInputParams.conservativePassAndIsRoot && hist.passWouldEndGame(board,nextPlayer));
 
   //Features 6,7,8,9,10
   if(!hideHistory) {
@@ -1836,7 +1836,7 @@ void NNInputs::fillRowV6(
   bool hideHistory =
     hist.isGameFinished ||
     hist.isPastNormalPhaseEnd ||
-    (nnInputParams.conservativePass && hist.passWouldEndGame(board,nextPlayer));
+    (nnInputParams.conservativePassAndIsRoot && hist.passWouldEndGame(board,nextPlayer));
 
   //Features 9,10,11,12,13
   if(!hideHistory) {
@@ -2231,7 +2231,7 @@ void NNInputs::fillRowV7(
   bool hideHistory =
     hist.isGameFinished ||
     hist.isPastNormalPhaseEnd ||
-    (nnInputParams.conservativePass && hist.passWouldEndGame(board,nextPlayer));
+    (nnInputParams.conservativePassAndIsRoot && hist.passWouldEndGame(board,nextPlayer));
 
   //Features 9,10,11,12,13
   if(!hideHistory) {

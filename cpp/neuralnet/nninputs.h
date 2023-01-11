@@ -32,7 +32,7 @@ namespace NNInputs {
 
 struct MiscNNInputParams {
   double drawEquivalentWinsForWhite = 0.5;
-  bool conservativePass = false;
+  bool conservativePassAndIsRoot = false;
   double playoutDoublingAdvantage = 0.0;
   float nnPolicyTemperature = 1.0f;
   bool avoidMYTDaggerHack = false;
