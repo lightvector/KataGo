@@ -175,7 +175,7 @@ struct ModelParser {
     auto& network = model->network;
     auto modelDesc = &model->rawModel->modelDesc;
 
-    int tuneSalt = 1;  // Bump this when between katago versions we want to forcibly drop old timing caches.
+    int tuneSalt = 2;  // Bump this when between katago versions we want to forcibly drop old timing caches.
     tuneDesc = Global::strprintf(
       R"|("salt"(%d)"model"(%d,%d,%d,%d,%d,%d))|",
       tuneSalt,
