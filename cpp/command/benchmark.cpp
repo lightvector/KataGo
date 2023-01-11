@@ -133,7 +133,7 @@ int MainCmds::benchmark(const vector<string>& args) {
           continue;
         int desiredThreads;
         bool suc = Global::tryStringToInt(s,desiredThreads);
-        if(!suc || desiredThreads <= 0 || desiredThreads > 1024)
+        if(!suc || desiredThreads <= 0 || desiredThreads > 4096)
           throw StringError("Number of threads to use: invalid value: " + s);
         numThreadsToTest.push_back(desiredThreads);
       }
