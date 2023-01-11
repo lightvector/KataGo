@@ -113,6 +113,138 @@ void ConfigParser::processIncludedFile(const std::string &fname) {
     baseDirs.pop_back();
 }
 
+
+
+bool ConfigParser::parseKeyValue(const std::string& trimmedLine, std::string& key, std::string& value) {
+  // Parse trimmed line, taking into account comments and quoting.
+  key.clear();
+  value.clear();
+
+  // Parse key
+  bool foundAnyKey = false;
+  size_t i = 0;
+  for(; i<trimmedLine.size(); i++) {
+    char c = trimmedLine[i];
+    if(Global::isAlpha(c) || Global::isDigit(c) || c == '_' || c == '-') {
+      key += c;
+      foundAnyKey = true;
+      continue;
+    }
+    else if(c == '#') {
+      if(foundAnyKey)
+        throw ConfigParsingError("Could not parse key value pair" + lineAndFileInfo());
+      return false;
+    }
+    else if(Global::isWhitespace(c) || c == '=')
+      break;
+    else
+      throw ConfigParsingError("Could not parse key value pair" + lineAndFileInfo());
+  }
+  // Skip whitespace after key
+  for(; i<trimmedLine.size(); i++) {
+    char c = trimmedLine[i];
+    if(Global::isWhitespace(c))
+      continue;
+    else if(c == '#') {
+      if(foundAnyKey)
+        throw ConfigParsingError("Could not parse key value pair" + lineAndFileInfo());
+      return false;
+    }
+    else if(c == '=') {
+      break;
+    }
+    else
+      throw ConfigParsingError("Could not parse key value pair" + lineAndFileInfo());
+  }
+  // Skip equals sign
+  bool foundEquals = false;
+  if(i < trimmedLine.size()) {
+    assert(trimmedLine[i] == '=');
+    foundEquals = true;
+    i++;
+  }
+  // Skip whitespace after equals sign
+  for(; i<trimmedLine.size(); i++) {
+    char c = trimmedLine[i];
+    if(Global::isWhitespace(c))
+      continue;
+    else if(c == '#') {
+      if(foundAnyKey || foundEquals)
+        throw ConfigParsingError("Could not parse key value pair" + lineAndFileInfo());
+      return false;
+    }
+    else
+      break;
+  }
+
+  // Maybe parse double quotes
+  bool isDoubleQuotes = false;
+  if(i < trimmedLine.size() && trimmedLine[i] == '"') {
+    isDoubleQuotes = true;
+    i++;
+  }
+
+  // Parse value
+  bool foundAnyValue = false;
+  for(; i<trimmedLine.size(); i++) {
+    char c = trimmedLine[i];
+    if(isDoubleQuotes) {
+      if(c == '\\') {
+        if(i+1 >= trimmedLine.size())
+          throw ConfigParsingError("Could not parse key value pair" + lineAndFileInfo());
+        i++;
+        value += trimmedLine[i];
+        foundAnyValue = true;
+        continue;
+      }
+      else if(c == '"') {
+        break;
+      }
+      else {
+        value += c;
+        foundAnyValue = true;
+        continue;
+      }
+    }
+    else {
+      if(c == '#')
+        break;
+      else {
+        value += c;
+        foundAnyValue = true;
+        continue;
+      }
+    }
+  }
+
+  if(isDoubleQuotes) {
+    // Consume the trailing double quote
+    if(i < trimmedLine.size() && trimmedLine[i] == '"')
+      i++;
+    else
+      throw ConfigParsingError("Could not parse key value pair" + lineAndFileInfo());
+    // The rest of the line can only be whitespace followed by a comment
+    string remainder = Global::trim(trimmedLine.substr(i));
+    if(remainder.size() > 0 && remainder[0] != '#')
+      throw ConfigParsingError("Could not parse key value pair" + lineAndFileInfo());
+  }
+  else {
+    // We stopped at a pound sign, the remainder is just comment or nothing
+    // Trim whitespace off of unquoted values
+    value = Global::trim(value);
+  }
+
+  if(isDoubleQuotes && !(foundAnyKey && foundAnyValue))
+    throw ConfigParsingError("Could not parse key value pair" + lineAndFileInfo());
+  if(foundEquals && !(foundAnyKey && foundAnyValue))
+    throw ConfigParsingError("Could not parse key value pair" + lineAndFileInfo());
+  if(foundAnyKey != foundAnyValue)
+    throw ConfigParsingError("Could not parse key value pair" + lineAndFileInfo());
+
+  return foundAnyKey;
+}
+
+
 void ConfigParser::readStreamContent(istream& in) {
   curLineNum = 0;
   string line;
@@ -125,11 +257,11 @@ void ConfigParser::readStreamContent(istream& in) {
     if(line.length() <= 0 || line[0] == '#')
       continue;
 
-    size_t commentPos = line.find("#");
-    if(commentPos != string::npos)
-      line = line.substr(0, commentPos);
-
     if(line[0] == '@') {
+      size_t commentPos = line.find("#");
+      if(commentPos != string::npos)
+        line = line.substr(0, commentPos);
+
       if(line.size() < 9) {
         throw ConfigParsingError("Unsupported @ directive" + lineAndFileInfo());
       }
@@ -156,12 +288,12 @@ void ConfigParser::readStreamContent(istream& in) {
       continue;
     }
 
-    size_t pos = line.find("=");
-    if(pos == string::npos)
-      throw ConfigParsingError("Could not parse kv pair, line does not have a non-commented '='" + lineAndFileInfo());
+    string key;
+    string value;
+    bool foundKeyValue = parseKeyValue(line, key, value);
+    if(!foundKeyValue)
+      continue;
 
-    string key = Global::trim(line.substr(0,pos));
-    string value = Global::trim(line.substr(pos+1));
     if(curFileKeys.find(key) != curFileKeys.end()) {
       if(!keysOverrideEnabled)
         throw ConfigParsingError("Key '" + key + "' + was specified multiple times in " +

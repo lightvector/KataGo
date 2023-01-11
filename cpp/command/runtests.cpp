@@ -54,6 +54,8 @@ int MainCmds::runtests(const vector<string>& args) {
 
   ScoreValue::freeTables();
 
+  Tests::runInlineConfigTests();
+
   // Pick an arbitrary file that the test uses
   if(FileUtils::exists("tests/data/configs/folded/test-parent.cfg"))
     Tests::runConfigTests({});
@@ -742,5 +744,7 @@ int MainCmds::runsleeptest(const vector<string>& args) {
 
 int MainCmds::runconfigtests(const vector<string>& args) {
   Tests::runConfigTests(args);
+  Tests::runParseAllConfigsTest();
   return 0;
 }
+

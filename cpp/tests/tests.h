@@ -80,7 +80,9 @@ namespace Tests {
   bool runFP16Test(NNEvaluator* nnEval, NNEvaluator* nnEval32, Logger& logger, int boardSize, int maxBatchSizeCap, bool verbose, bool quickTest, bool& fp32BatchSuccessBuf);
 
   //testconfig.cpp
+  void runInlineConfigTests();
   void runConfigTests(const std::vector<std::string>& args);
+  void runParseAllConfigsTest();
 
   //testmisc.cpp
   void runCollectFilesTests();

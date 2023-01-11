@@ -119,6 +119,8 @@ class ConfigParser {
   void readStreamContent(std::istream& in);
   std::string lineAndFileInfo() const;
   std::string extractBaseDir(const std::string &fname);
+
+  bool parseKeyValue(const std::string& trimmedLine, std::string& key, std::string& value);
 };
 
 
