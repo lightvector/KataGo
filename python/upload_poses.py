@@ -160,6 +160,8 @@ def postStuff(to_post):
     log("Post success")
   else:
     log("Post failed")
+    if result.text:
+      log(result.text)
     write_log()
     sys.exit(1)
 
