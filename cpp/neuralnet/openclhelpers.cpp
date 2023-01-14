@@ -1166,4 +1166,27 @@ cl_int OpenCLHelpers::computeMaskSums(
 }
 
 
+cl_int OpenCLHelpers::doAddPointWise(
+  cl_kernel kernel,
+  cl_command_queue commandQueue,
+  cl_mem acc,
+  cl_mem value,
+  int totalSize,
+  cl_event* eventBuf
+) {
+  clSetKernelArg(kernel, 0, sizeof(cl_mem), (const void *)&acc);
+  clSetKernelArg(kernel, 1, sizeof(cl_mem), (const void *)&value);
+  clSetKernelArg(kernel, 2, sizeof(int), (const void *)&totalSize);
+
+  static constexpr int nKernelDims = 1;
+  size_t globalSizes[nKernelDims] = {powerOf2ify((size_t)totalSize)};
+  size_t* localSizes = NULL;
+
+  cl_int err;
+  err = clEnqueueNDRangeKernel(
+    commandQueue, kernel, nKernelDims, NULL, globalSizes, localSizes, 0, NULL, eventBuf
+  );
+  return err;
+}
+
 #endif

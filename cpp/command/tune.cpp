@@ -201,6 +201,7 @@ int MainCmds::tuner(const vector<string>& args) {
     OpenCLTuneParams results;
     OpenCLTuner::tune(
       initialParams,
+      allDeviceInfos,
       devicesContext,
       gpuIdx,
       batchSize,
@@ -213,6 +214,7 @@ int MainCmds::tuner(const vector<string>& args) {
       modelInfo,
       full,
       winograd3x3TileSize,
+      &logger,
       cout,
       verboseErrors,
       verboseTuner,

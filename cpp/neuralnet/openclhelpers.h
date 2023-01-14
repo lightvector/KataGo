@@ -248,6 +248,14 @@ namespace OpenCLHelpers {
     cl_event* eventBuf
   );
 
+  cl_int doAddPointWise(
+    cl_kernel kernel,
+    cl_command_queue commandQueue,
+    cl_mem acc,
+    cl_mem value,
+    int totalSize,
+    cl_event* eventBuf
+  );
 }
 
 
