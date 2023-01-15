@@ -33,6 +33,7 @@ from torch.cuda.amp import GradScaler, autocast
 import modelconfigs
 from model_pytorch import Model
 from metrics_pytorch import Metrics
+import load_model
 import data_processing_pytorch
 
 # HANDLE COMMAND AND ARGS -------------------------------------------------------------------
@@ -427,12 +428,7 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
           logging.info(f"Model norm normal baseline computed: {modelnorm_normal_baseline}")
 
       # Strip off any "module." from when the model was saved with DDP or other things
-      model_state_dict = {}
-      for key in state_dict["model"]:
-        old_key = key
-        while key.startswith("module."):
-          key = key[7:]
-        model_state_dict[key] = state_dict["model"][old_key]
+      model_state_dict = load_model.load_model_state_dict(state_dict)
       raw_model.load_state_dict(model_state_dict)
 
       raw_model.to(device)
@@ -446,8 +442,9 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
         new_factor = 1.0 / swa_scale
         ema_avg = lambda avg_param, cur_param, num_averaged: avg_param + new_factor * (cur_param - avg_param)
         swa_model = AveragedModel(raw_model, avg_fn=ema_avg)
-        if "swa_model" in state_dict:
-          swa_model.load_state_dict(state_dict["swa_model"])
+        swa_model_state_dict = load_model.load_swa_model_state_dict(state_dict)
+        if swa_model_state_dict is not None:
+          swa_model.load_state_dict(swa_model_state_dict)
 
       metrics_obj = Metrics(batch_size,world_size,raw_model)
       if "metrics" in state_dict:

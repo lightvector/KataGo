@@ -8,6 +8,31 @@ from torch.optim.swa_utils import AveragedModel
 import modelconfigs
 from model_pytorch import Model, ResBlock, NestedBottleneckResBlock
 
+def load_model_state_dict(state_dict):
+  # Strip off any "module." from when the model was saved with DDP or other things
+  model_state_dict = {}
+  for key in state_dict["model"]:
+    old_key = key
+    while key.startswith("module."):
+      key = key[7:]
+    # Filter out some extra keys that were present in older checkpoints
+    if "score_belief_offset_vector" in key or "score_belief_offset_bias_vector" in key or "score_belief_parity_vector" in key:
+      continue
+    model_state_dict[key] = state_dict["model"][old_key]
+  return model_state_dict
+
+def load_swa_model_state_dict(state_dict):
+  if "swa_model" not in state_dict:
+    return None
+  swa_model_state_dict = {}
+  for key in state_dict["swa_model"]:
+    # Filter out some extra keys that were present in older checkpoints
+    if "score_belief_offset_vector" in key or "score_belief_offset_bias_vector" in key or "score_belief_parity_vector" in key:
+      continue
+    swa_model_state_dict[key] = state_dict["swa_model"][key]
+  return swa_model_state_dict
+
+
 def load_model(checkpoint_file, use_swa, device, pos_len=19, verbose=False):
   state_dict = torch.load(checkpoint_file,map_location="cpu")
 
@@ -24,12 +49,7 @@ def load_model(checkpoint_file, use_swa, device, pos_len=19, verbose=False):
   model.initialize()
 
   # Strip off any "module." from when the model was saved with DDP or other things
-  model_state_dict = {}
-  for key in state_dict["model"]:
-    old_key = key
-    while key.startswith("module."):
-      key = key[7:]
-    model_state_dict[key] = state_dict["model"][old_key]
+  model_state_dict = load_model_state_dict(state_dict)
   model.load_state_dict(model_state_dict)
 
   model.to(device)
@@ -38,10 +58,11 @@ def load_model(checkpoint_file, use_swa, device, pos_len=19, verbose=False):
   if use_swa:
     if state_dict is None:
       raise Exception("Cannot use swa without a trained model")
-    if "swa_model" not in state_dict:
+    swa_model_state_dict = load_swa_model_state_dict(state_dict)
+    if swa_model_state_dict is None:
       raise Exception("Checkpoint doesn't contain swa_model")
     swa_model = AveragedModel(model, device=device)
-    swa_model.load_state_dict(state_dict["swa_model"])
+    swa_model.load_state_dict(swa_model_state_dict)
 
   if verbose:
     total_num_params = 0
@@ -60,8 +81,11 @@ def load_model(checkpoint_file, use_swa, device, pos_len=19, verbose=False):
 
   # Return other useful stuff in state dict too
   other_state_dict = {}
-  other_state_dict["metrics"] = state_dict["metrics"]
-  other_state_dict["running_metrics"] = state_dict["running_metrics"]
-  other_state_dict["train_state"] = state_dict["train_state"]
+  if "metrics" in state_dict:
+    other_state_dict["metrics"] = state_dict["metrics"]
+  if "running_metrics" in state_dict:
+    other_state_dict["running_metrics"] = state_dict["running_metrics"]
+  if "train_state" in state_dict:
+    other_state_dict["train_state"] = state_dict["train_state"]
 
   return (model, swa_model, other_state_dict)

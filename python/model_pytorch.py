@@ -1157,17 +1157,17 @@ class ValueHead(torch.nn.Module):
             data=[(float(i-self.scorebelief_mid)+0.5) for i in range(self.scorebelief_len)],
             dtype=torch.float32,
             requires_grad=False,
-        ))
+        ), persistent=False)
         self.register_buffer("score_belief_offset_bias_vector", torch.tensor(
             data=[0.05 * (float(i-self.scorebelief_mid)+0.5) for i in range(self.scorebelief_len)],
             dtype=torch.float32,
             requires_grad=False,
-        ))
+        ), persistent=False)
         self.register_buffer("score_belief_parity_vector", torch.tensor(
             [0.5-float((i-self.scorebelief_mid) % 2) for i in range(self.scorebelief_len)],
             dtype=torch.float32,
             requires_grad=False,
-        ))
+        ), persistent=False)
 
 
     def initialize(self):
