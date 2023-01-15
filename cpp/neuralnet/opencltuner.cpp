@@ -578,8 +578,8 @@ int OpenCLTuneParams::getXGemmKPaddingMult(bool usingFP16Compute, bool usingFP16
 }
 
 
-static const int TUNER_VERSION = 10;
-static const char* TUNEPARAMS_VERSION_LINE = "VERSION=10";
+static const int TUNER_VERSION = 11;
+static const char* TUNEPARAMS_VERSION_LINE = "VERSION=11";
 void OpenCLTuneParams::save(const string& filename, const OpenCLTuneParams& config) {
   ofstream out;
   FileUtils::open(out,filename);
