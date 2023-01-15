@@ -2645,8 +2645,8 @@ static void dummyThreadLoop(
   vector<float> matrixBVec;
   vector<float> matrixCVec;
   vector<float> matrixDVec;
-  cl_mem matrixA = randomReadOnlyBufferFloat("dummyThreadA", context, kSize*kSize, 0.7 / kSize, matrixAVec);
-  cl_mem matrixB = randomReadOnlyBufferFloat("dummyThreadB", context, kSize*kSize, 0.7 / kSize, matrixBVec);
+  cl_mem matrixA = randomReadOnlyBufferFloat("dummyThreadA", context, kSize*kSize, 1.2 / kSize, matrixAVec);
+  cl_mem matrixB = randomReadOnlyBufferFloat("dummyThreadB", context, kSize*kSize, 1.2 / kSize, matrixBVec);
   cl_mem matrixC = randomReadOnlyBufferFloat("dummyThreadC", context, mSize*kSize, 1.0, matrixCVec);
   cl_mem matrixD = randomReadOnlyBufferFloat("dummyThreadD", context, mSize*kSize, 1.0, matrixDVec);
   cl_mem buffer = createReadWriteBufferFloatZeros(context, mSize*kSize);
