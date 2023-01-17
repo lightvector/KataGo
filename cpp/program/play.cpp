@@ -227,7 +227,8 @@ void GameInitializer::initShared(ConfigParser& cfg, Logger& logger) {
           bool hashComments = false;
           bool hashParent = false;
           bool flipIfPassOrWFirst = true;
-          sgf->iterAllUniquePositions(uniqueHashes, hashComments, hashParent, flipIfPassOrWFirst, NULL, posHandler);
+          bool allowGameOver = false;
+          sgf->iterAllUniquePositions(uniqueHashes, hashComments, hashParent, flipIfPassOrWFirst, allowGameOver, NULL, posHandler);
         }
       }
       catch(const StringError& e) {

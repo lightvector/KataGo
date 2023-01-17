@@ -592,6 +592,7 @@ int MainCmds::samplesgfs(const vector<string>& args) {
   double minTurnNumberBoardAreaProp;
   double maxTurnNumberBoardAreaProp;
   bool flipIfPassOrWFirst;
+  bool allowGameOver;
   bool hashComments;
 
   int minMinRank;
@@ -608,7 +609,7 @@ int MainCmds::samplesgfs(const vector<string>& args) {
     TCLAP::MultiArg<string> excludeHashesArg("","exclude-hashes","Specify a list of hashes to filter out, one per line in a txt file",false,"FILEOF(HASH,HASH)");
     TCLAP::ValueArg<double> sampleProbArg("","sample-prob","Probability to sample each position",true,0.0,"PROB");
     TCLAP::ValueArg<double> sampleWeightArg("","sample-weight","",false,1.0,"Weight");
-    TCLAP::ValueArg<double> forceSampleWeightArg("","force-sample-weight","",false,1.0,"Weight");
+    TCLAP::ValueArg<double> forceSampleWeightArg("","force-sample-weight","",false,5.0,"Weight");
     TCLAP::ValueArg<double> turnWeightLambdaArg("","turn-weight-lambda","Adjust weight for writing down each position",true,0.0,"LAMBDA");
     TCLAP::ValueArg<string> maxDepthArg("","max-depth","Max depth allowed for sgf",false,"100000000","INT");
     TCLAP::ValueArg<string> maxNodeCountArg("","max-node-count","Max node count allowed for sgf",false,"100000000","INT");
@@ -616,6 +617,7 @@ int MainCmds::samplesgfs(const vector<string>& args) {
     TCLAP::ValueArg<double> minTurnNumberBoardAreaPropArg("","min-turn-number-board-area-prop","Only use turn number >= this board area",false,-1.0,"PROP");
     TCLAP::ValueArg<double> maxTurnNumberBoardAreaPropArg("","max-turn-number-board-area-prop","Only use turn number <= this board area",false,10000.0,"PROP");
     TCLAP::SwitchArg flipIfPassOrWFirstArg("","flip-if-pass","Try to heuristically find cases where an sgf passes to simulate white<->black");
+    TCLAP::SwitchArg allowGameOverArg("","allow-game-over","Allow sampling game over positions in sgf");
     TCLAP::SwitchArg hashCommentsArg("","hash-comments","Hash comments in sgf");
     TCLAP::ValueArg<int> minMinRankArg("","min-min-rank","Require both players in a game to have rank at least this",false,Sgf::RANK_UNKNOWN,"INT");
     TCLAP::ValueArg<string> requiredPlayerNameArg("","required-player-name","Require player making the move to have this name",false,string(),"NAME");
@@ -635,6 +637,7 @@ int MainCmds::samplesgfs(const vector<string>& args) {
     cmd.add(minTurnNumberBoardAreaPropArg);
     cmd.add(maxTurnNumberBoardAreaPropArg);
     cmd.add(flipIfPassOrWFirstArg);
+    cmd.add(allowGameOverArg);
     cmd.add(hashCommentsArg);
     cmd.add(minMinRankArg);
     cmd.add(requiredPlayerNameArg);
@@ -655,6 +658,7 @@ int MainCmds::samplesgfs(const vector<string>& args) {
     minTurnNumberBoardAreaProp = minTurnNumberBoardAreaPropArg.getValue();
     maxTurnNumberBoardAreaProp = maxTurnNumberBoardAreaPropArg.getValue();
     flipIfPassOrWFirst = flipIfPassOrWFirstArg.getValue();
+    allowGameOver = allowGameOverArg.getValue();
     hashComments = hashCommentsArg.getValue();
     minMinRank = minMinRankArg.getValue();
     requiredPlayerName = requiredPlayerNameArg.getValue();
@@ -821,7 +825,7 @@ int MainCmds::samplesgfs(const vector<string>& args) {
 
     bool hashParent = false;
     Rand iterRand;
-    sgf->iterAllUniquePositions(uniqueHashes, hashComments, hashParent, flipIfPassOrWFirst, &iterRand, posHandler);
+    sgf->iterAllUniquePositions(uniqueHashes, hashComments, hashParent, flipIfPassOrWFirst, allowGameOver, &iterRand, posHandler);
   };
 
   for(size_t i = 0; i<sgfFiles.size(); i++) {
@@ -960,6 +964,7 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
   int maxPosesPerOutFile;
   double gameModeFastThreshold;
   bool flipIfPassOrWFirst;
+  bool allowGameOver;
 
   int minRank;
   int minMinRank;
@@ -968,6 +973,7 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
   double maxKomi;
   double maxAutoKomi;
   double maxPolicy;
+  double minHintWeight;
 
   try {
     KataGoCommandLine cmd("Search for suprising good moves in sgfs");
@@ -992,13 +998,15 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
     TCLAP::ValueArg<int> maxPosesPerOutFileArg("","max-poses-per-out-file","Number of hintposes per output file",false,100000,"INT");
     TCLAP::ValueArg<double> gameModeFastThresholdArg("","game-mode-fast-threshold","Utility threshold for game mode fast pass",false,0.005,"UTILS");
     TCLAP::SwitchArg flipIfPassOrWFirstArg("","flip-if-pass","Try to heuristically find cases where an sgf passes to simulate white<->black");
+    TCLAP::SwitchArg allowGameOverArg("","allow-game-over","Allow sampling game over positions in sgf");
     TCLAP::ValueArg<int> minRankArg("","min-rank","Require player making the move to have rank at least this",false,Sgf::RANK_UNKNOWN,"INT");
     TCLAP::ValueArg<int> minMinRankArg("","min-min-rank","Require both players in a game to have rank at least this",false,Sgf::RANK_UNKNOWN,"INT");
     TCLAP::ValueArg<string> requiredPlayerNameArg("","required-player-name","Require player making the move to have this name",false,string(),"NAME");
     TCLAP::ValueArg<int> maxHandicapArg("","max-handicap","Require no more than this big handicap in stones",false,100,"INT");
     TCLAP::ValueArg<double> maxKomiArg("","max-komi","Require absolute value of game komi to be at most this",false,1000,"KOMI");
     TCLAP::ValueArg<double> maxAutoKomiArg("","max-auto-komi","If absolute value of auto komi would exceed this, skip position",false,1000,"KOMI");
-    TCLAP::ValueArg<double> maxPolicyArg("","max-policy","Chop off moves with raw policy more than this",false,1,"POLICY");
+    TCLAP::ValueArg<double> maxPolicyArg("","max-policy","Chop off moves with raw policy more than this",false,1000,"POLICY");
+    TCLAP::ValueArg<double> minHintWeightArg("","min-hint-weight","Hinted moves get at least this weight",false,0.0,"WEIGHT");
     cmd.add(sgfDirArg);
     cmd.add(sgfsDirArg);
     cmd.add(outDirArg);
@@ -1016,6 +1024,7 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
     cmd.add(maxPosesPerOutFileArg);
     cmd.add(gameModeFastThresholdArg);
     cmd.add(flipIfPassOrWFirstArg);
+    cmd.add(allowGameOverArg);
     cmd.add(minRankArg);
     cmd.add(minMinRankArg);
     cmd.add(requiredPlayerNameArg);
@@ -1023,6 +1032,7 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
     cmd.add(maxKomiArg);
     cmd.add(maxAutoKomiArg);
     cmd.add(maxPolicyArg);
+    cmd.add(minHintWeightArg);
     cmd.parseArgs(args);
 
     nnModelFile = cmd.getModelFile();
@@ -1043,6 +1053,7 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
     maxPosesPerOutFile = maxPosesPerOutFileArg.getValue();
     gameModeFastThreshold = gameModeFastThresholdArg.getValue();
     flipIfPassOrWFirst = flipIfPassOrWFirstArg.getValue();
+    allowGameOver = allowGameOverArg.getValue();
     minRank = minRankArg.getValue();
     minMinRank = minMinRankArg.getValue();
     requiredPlayerName = requiredPlayerNameArg.getValue();
@@ -1050,6 +1061,7 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
     maxKomi = maxKomiArg.getValue();
     maxAutoKomi = maxAutoKomiArg.getValue();
     maxPolicy = maxPolicyArg.getValue();
+    minHintWeight = minHintWeightArg.getValue();
 
     if((int)gameMode + (int)treeMode + (int)surpriseMode != 1)
       throw StringError("Must specify either -game-mode or -tree-mode or -surprise-mode");
@@ -1207,7 +1219,7 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
     return true;
   };
 
-  auto expensiveEvaluateMove = [&toWriteQueue,&turnWeightLambda,&maxAutoKomi,&maxHandicap,&numFilteredIndivdualPoses,&surpriseMode,&logger](
+  auto expensiveEvaluateMove = [&toWriteQueue,&turnWeightLambda,&maxAutoKomi,&maxHandicap,&numFilteredIndivdualPoses,&surpriseMode,&minHintWeight,&logger](
     Search* search, Loc missedLoc,
     Player nextPla, const Board& board, const BoardHistory& hist,
     const Sgf::PositionSample& sample, bool markedAsHintPos
@@ -1359,6 +1371,9 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
         sampleToWrite.weight = sampleToWrite.weight * 0.75 - 0.1;
 
       sampleToWrite.weight *= exp(-sampleToWrite.initialTurnNumber * turnWeightLambda);
+
+      if(sampleToWrite.weight < minHintWeight && markedAsHintPos)
+        sampleToWrite.weight = minHintWeight;
       if(sampleToWrite.weight > 0.1) {
         //Still good to learn from given that policy was really low
         toWriteQueue.waitPush(new string(Sgf::PositionSample::toJsonLine(sampleToWrite)));
@@ -1402,6 +1417,8 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
         //Moves that the bot didn't see get written out more
         sampleToWrite.weight = sampleToWrite.weight * 1.5 + 1.0;
         sampleToWrite.weight *= exp(-sampleToWrite.initialTurnNumber * turnWeightLambda);
+        if(sampleToWrite.weight < minHintWeight && markedAsHintPos)
+          sampleToWrite.weight = minHintWeight;
         if(sampleToWrite.weight > 0.1) {
           toWriteQueue.waitPush(new string(Sgf::PositionSample::toJsonLine(sampleToWrite)));
         }
@@ -1412,7 +1429,7 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
   // ---------------------------------------------------------------------------------------------------
   //SGF MODE
 
-  auto processSgfGame = [&logger,&gameInit,&nnEval,&expensiveEvaluateMove,autoKomi,&gameModeFastThreshold,&maxDepth,&numFilteredSgfs,&maxHandicap,&maxPolicy](
+  auto processSgfGame = [&logger,&gameInit,&nnEval,&expensiveEvaluateMove,autoKomi,&gameModeFastThreshold,&maxDepth,&numFilteredSgfs,&maxHandicap,&maxPolicy,allowGameOver](
     Search* search, Rand& rand, const string& fileName, CompactSgf* sgf, bool blackOkay, bool whiteOkay
   ) {
     //Don't use the SGF rules - randomize them for a bit more entropy
@@ -1487,7 +1504,7 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
         break;
 
       //Quit out if according to our rules, we already finished the game, or we're somehow in a cleanup phase
-      if(hist.isGameFinished || hist.encorePhase > 0)
+      if(!allowGameOver && (hist.isGameFinished || hist.encorePhase > 0))
         break;
 
       //Quit out if consecutive moves by the same player, to keep the history clean and "normal"
@@ -1907,7 +1924,8 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
         try {
           bool hashParent = true; //Hash parent so that we distinguish hint moves that reach the same position but were different moves from different starting states.
           sgf->iterAllUniquePositions(
-            uniqueHashes, hashComments, hashParent, flipIfPassOrWFirst, &seedRand, [&](Sgf::PositionSample& unusedSample, const BoardHistory& hist, const string& comments) {
+            uniqueHashes, hashComments, hashParent, flipIfPassOrWFirst, allowGameOver, &seedRand,
+            [&](Sgf::PositionSample& unusedSample, const BoardHistory& hist, const string& comments) {
               if(comments.size() > 0 && comments.find("%NOHINT%") != string::npos)
                 return;
               if(hist.moveHistory.size() <= 0)

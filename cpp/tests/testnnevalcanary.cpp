@@ -303,11 +303,13 @@ bool Tests::runFP16Test(NNEvaluator* nnEval, NNEvaluator* nnEval32, Logger& logg
       const bool hashComments = false;
       const bool hashParent = false;
       const bool flipIfPassOrWFirst = false;
+      const bool allowGameOver = false;
       sgf->iterAllUniquePositions(
         uniqueHashes,
         hashComments,
         hashParent,
         flipIfPassOrWFirst,
+        allowGameOver,
         NULL,
         [&](Sgf::PositionSample& sample, const BoardHistory& hist, const string& comments) {
           (void)sample;

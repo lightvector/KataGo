@@ -118,6 +118,7 @@ struct Sgf {
     bool hashComments,
     bool hashParent,
     bool flipIfPassOrWFirst,
+    bool allowGameOver,
     Rand* rand,
     std::vector<PositionSample>& samples
   ) const;
@@ -127,6 +128,7 @@ struct Sgf {
     bool hashComments,
     bool hashParent,
     bool flipIfPassOrWFirst,
+    bool allowGameOver,
     Rand* rand,
     std::function<void(PositionSample&,const BoardHistory&,const std::string&)> f
   ) const;
@@ -146,6 +148,7 @@ struct Sgf {
     bool hashComments,
     bool hashParent,
     bool flipIfPassOrWFirst,
+    bool allowGameOver,
     Rand* rand,
     std::vector<std::pair<int64_t,int64_t>>& variationTraceNodesBranch,
     std::function<void(PositionSample&,const BoardHistory&,const std::string&)> f
@@ -158,6 +161,7 @@ struct Sgf {
     bool hashComments,
     bool hashParent,
     bool flipIfPassOrWFirst,
+    bool allowGameOver,
     const std::string& comments,
     std::function<void(PositionSample&,const BoardHistory&,const std::string&)> f
   ) const;
