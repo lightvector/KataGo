@@ -1296,14 +1296,14 @@ MoveNum: 1 HASH: 2E520EDF63AB8417F68D3089FA83838C
 
 Root visits: 80
 New playouts: 80
-NN rows: 65
-NN batches: 65
+NN rows: 67
+NN batches: 67
 NN avg batch size: 1
 PV: A1 J6 C3 pass B4 pass A4 pass A2 pass
 Tree:
-: T 103.41c W  94.26c S   9.12c ( +9.5 L  +9.5) N      80  --  A1 J6 C3 pass B4 pass A4
+: T 103.46c W  94.25c S   9.18c ( +9.5 L  +9.5) N      80  --  A1 J6 C3 pass B4 pass A4
 ---White(^)---
-A1  : T 109.20c W  99.62c S   9.57c ( +9.9 L  +9.9) LCB  108.62c P 51.16% WF  75.4 PSV      71 N      71  --  A1 J6 C3 pass B4 pass A4 pass
+A1  : T 109.25c W  99.61c S   9.64c (+10.0 L +10.0) LCB  108.70c P 51.16% WF  75.4 PSV      71 N      71  --  A1 J6 C3 pass B4 pass A4 pass
 J6  : T  19.41c W  17.16c S   2.25c ( +2.1 L  +2.1) LCB -240.59c P 11.43% WF   0.6 PSV       1 N       1  --  J6
 J7  : T  -4.07c W  -5.23c S   1.16c ( +1.1 L  +1.1) LCB -264.07c P  4.59% WF   0.5 PSV       0 N       1  --  J7
 C3  : T -86.01c W -81.88c S  -4.13c ( -4.0 L  -4.0) LCB -346.01c P  4.51% WF   0.3 PSV       0 N       1  --  C3
@@ -1538,7 +1538,7 @@ G3  H6  : T  34.94c W  34.19c S   0.75c ( +0.6 L  +0.6) LCB   77.74c P  4.77% WF
 G3  E3  : T  29.46c W  28.54c S   0.92c ( +0.8 L  +0.8) LCB  140.11c P  2.31% WF   1.9 PSV       2 N       2  --  E3 D4
 G3  D4  : T  32.39c W  32.10c S   0.29c ( +0.2 L  +0.2) LCB  292.39c P  2.35% WF   0.9 PSV       1 N       1  --  D4
 G3  pss : T  55.75c W  54.69c S   1.06c ( +0.9 L  +0.9) LCB  315.75c P  1.87% WF   0.8 PSV       1 N       1  --  pass
-: GPU 0 finishing, processed 3873 rows 3873 batches
+: GPU 0 finishing, processed 3875 rows 3875 batches
 : GPU 0 finishing, processed 389 rows 389 batches
 : GPU 0 finishing, processed 1 rows 1 batches
 Done

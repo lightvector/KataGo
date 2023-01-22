@@ -1305,11 +1305,11 @@ New playouts: 80
 NN rows: 67
 NN batches: 67
 NN avg batch size: 1
-PV: A1 J6 C3 pass B4 pass A4 pass B1
+PV: A1 J6 C3 pass B4 pass A4 pass
 Tree:
-: T  99.90c W  91.54c S   8.32c ( +8.6 L  +8.6) N      80  --  A1 J6 C3 pass B4 pass A4
+: T 100.13c W  91.56c S   8.54c ( +8.8 L  +8.8) N      80  --  A1 J6 C3 pass B4 pass A4
 ---White(^)---
-A1  : T 108.47c W  99.54c S   8.93c ( +9.1 L  +9.1) LCB  107.92c P 34.52% WF  75.0 PSV      68 N      68  --  A1 J6 C3 pass B4 pass A4 pass
+A1  : T 108.71c W  99.54c S   9.16c ( +9.4 L  +9.4) LCB  108.18c P 34.52% WF  75.0 PSV      68 N      68  --  A1 J6 C3 pass B4 pass A4 pass
 J6  : T -29.93c W -29.54c S  -0.39c ( -0.4 L  -0.4) LCB -289.93c P 13.45% WF   0.4 PSV       0 N       1  --  J6
 C3  : T -73.61c W -70.04c S  -3.57c ( -3.4 L  -3.4) LCB -333.61c P  7.03% WF   0.3 PSV       0 N       1  --  C3
 J7  : T -63.36c W -60.85c S  -2.51c ( -2.4 L  -2.4) LCB -323.36c P  5.54% WF   0.4 PSV       0 N       1  --  J7

@@ -12030,7 +12030,7 @@ searchEntropyByTurn 4 0.351888
 whiteValueTargetsByTurn 0 0.527386 0.472546 6.79382e-05 1.29093 -0.77554 
 whiteValueTargetsByTurn 1 0.51289 0.487042 6.77316e-05 0.595872 -1.38784 
 whiteValueTargetsByTurn 2 0.52891 0.471022 6.75588e-05 1.19463 - 
-whiteValueTargetsByTurn 3 0.511423 0.48851 6.74367e-05 0.461504 0.645844 
+whiteValueTargetsByTurn 3 0.51143 0.488503 6.74311e-05 0.457124 0.645844 
 whiteValueTargetsByTurn 4 0.527573 0.47236 6.75651e-05 1.18436 - 
 whiteValueTargetsByTurn 5 1 0 0 6.5 6.5 
 Raw Stats -0.00582087 -0.165651 1.80074
@@ -13444,19 +13444,19 @@ usedInitialPosition 0
 hasFullData 1
 targetWeightByTurn 0 0 unrounded 0
 targetWeightByTurn 1 0 unrounded 0
-targetWeightByTurn 2 1.07577 unrounded 1.07577
-targetWeightByTurn 3 0.924227 unrounded 0.924227
+targetWeightByTurn 2 1.0783 unrounded 1.0783
+targetWeightByTurn 3 0.921702 unrounded 0.921702
 targetWeightByTurn 4 0 unrounded 0
 policyTargetsByTurn 0 unreducedNumVisits 200 D7 170 A8 16 B1 10 
 policyTargetsByTurn 1 unreducedNumVisits 200 A3 26 B1 109 C5 41 A8 5 H1 4 H9 1 F1 2 
-policyTargetsByTurn 2 unreducedNumVisits 800 C1 616 A8 69 F1 7 M8 7 E1 5 H1 2 N5 7 E2 2 F12 1 M6 5 L13 0 K1 0 A10 0 N6 1 N9 0 A11 0 E13 0 E9 0 F13 0 A12 0 A3 0 J13 0 
-policyTargetsByTurn 3 unreducedNumVisits 800 A3 551 E1 55 C5 58 H1 22 K1 19 A8 8 F1 7 E2 9 F9 4 A13 4 H9 6 E12 2 A11 4 G10 2 A12 3 F12 1 J4 1 F13 1 pass 0 D1 1 H13 0 
-policyTargetsByTurn 4 unreducedNumVisits 551 A1 445 A8 100 E1 0 F1 0 M8 0 M6 1 N5 0 
+policyTargetsByTurn 2 unreducedNumVisits 800 C1 615 A8 65 F1 7 M8 7 E1 5 H1 2 N5 7 E2 2 F12 1 M6 5 L13 0 K1 0 A10 0 N6 1 N9 0 A11 0 E13 0 E9 0 F13 0 A12 0 A3 0 J13 0 
+policyTargetsByTurn 3 unreducedNumVisits 800 A3 551 E1 55 C5 56 H1 22 K1 19 A8 8 F1 7 E2 9 F9 4 A13 4 H9 6 E12 2 A11 4 G10 2 A12 3 F12 1 J4 1 F13 1 pass 0 D1 1 H13 0 
+policyTargetsByTurn 4 unreducedNumVisits 551 A1 470 A8 71 E1 0 F1 0 M8 0 M6 1 N5 0 N6 0 
 policySurpriseByTurn 0 0.449831
 policySurpriseByTurn 1 0.468849
-policySurpriseByTurn 2 0.573326
-policySurpriseByTurn 3 0.357859
-policySurpriseByTurn 4 0.153239
+policySurpriseByTurn 2 0.580073
+policySurpriseByTurn 3 0.358297
+policySurpriseByTurn 4 0.178561
 policyEntropyByTurn 0 1.45905
 policyEntropyByTurn 1 2.1875
 policyEntropyByTurn 2 2.41223
@@ -13464,14 +13464,14 @@ policyEntropyByTurn 3 2.52675
 policyEntropyByTurn 4 1.3125
 searchEntropyByTurn 0 0.479783
 searchEntropyByTurn 1 1.17632
-searchEntropyByTurn 2 0.614429
-searchEntropyByTurn 3 1.16748
-searchEntropyByTurn 4 0.489139
-whiteValueTargetsByTurn 0 0.131837 0.868119 4.45622e-05 -2.89114 - 
-whiteValueTargetsByTurn 1 0.1228 0.877157 4.32969e-05 -2.99455 - 
-whiteValueTargetsByTurn 2 0.145459 0.854495 4.52043e-05 -2.68874 -2.88641 
-whiteValueTargetsByTurn 3 0.118925 0.881033 4.22186e-05 -3.08755 -2.94068 
-whiteValueTargetsByTurn 4 0.127895 0.872062 4.29814e-05 -2.68042 - 
+searchEntropyByTurn 2 0.605252
+searchEntropyByTurn 3 1.16373
+searchEntropyByTurn 4 0.401475
+whiteValueTargetsByTurn 0 0.131931 0.868024 4.45838e-05 -2.89366 - 
+whiteValueTargetsByTurn 1 0.122967 0.876989 4.33666e-05 -2.99885 - 
+whiteValueTargetsByTurn 2 0.145984 0.853971 4.51188e-05 -2.69828 -2.88641 
+whiteValueTargetsByTurn 3 0.119147 0.880811 4.23267e-05 -3.11566 -2.94068 
+whiteValueTargetsByTurn 4 0.128204 0.871753 4.31343e-05 -2.71082 - 
 whiteValueTargetsByTurn 5 1 0 0 25.5 25.5 
 Raw Stats -0.861989 -3.37601 1.45905
 Raw Stats -0.70771 -2.6304 2.1875
@@ -13602,36 +13602,36 @@ mode 0
 beganInEncorePhase 0
 usedInitialPosition 0
 hasFullData 1
-targetWeightByTurn 0 0.852845 unrounded 0.852845
-targetWeightByTurn 1 1.3773 unrounded 1.3773
-targetWeightByTurn 2 0.915674 unrounded 0.915674
-targetWeightByTurn 3 0.854181 unrounded 0.854181
+targetWeightByTurn 0 0.849558 unrounded 0.849558
+targetWeightByTurn 1 1.37355 unrounded 1.37355
+targetWeightByTurn 2 0.911847 unrounded 0.911847
+targetWeightByTurn 3 0.865044 unrounded 0.865044
 targetWeightByTurn 4 0 unrounded 0
 policyTargetsByTurn 0 unreducedNumVisits 800 A1 642 F12 10 F1 18 N7 2 H1 6 E13 2 J1 2 M8 7 E1 4 B9 1 J4 2 E2 1 J3 1 M6 5 N5 5 N6 4 H9 1 A12 1 F9 0 G9 1 C8 0 G10 0 A9 0 E8 0 L2 0 N8 0 
-policyTargetsByTurn 1 unreducedNumVisits 800 A3 189 H1 182 N1 9 H9 23 E1 585 F1 25 L13 4 J4 4 G10 64 D1 4 M6 2 J3 2 D9 1 E2 9 A12 6 K12 1 N8 1 A13 6 K1 2 
+policyTargetsByTurn 1 unreducedNumVisits 800 A3 190 H1 177 N1 9 H9 23 E1 589 F1 25 L13 4 J4 4 G10 63 D1 4 M6 2 J3 2 D9 1 E2 9 A12 6 K12 1 N8 1 A13 6 K1 2 
 policyTargetsByTurn 2 unreducedNumVisits 800 F1 716 E2 9 A3 5 N5 1 A9 0 H1 3 N1 0 D1 0 M8 0 B1 0 M6 0 
-policyTargetsByTurn 3 unreducedNumVisits 800 B1 539 A3 54 G8 12 H1 53 K1 8 H9 14 G10 13 E13 2 K12 2 E2 22 J3 2 pass 2 C8 1 A12 6 A13 8 M8 1 B9 1 N8 0 E8 0 H13 0 N10 0 J4 0 J1 0 
-policyTargetsByTurn 4 unreducedNumVisits 539 E2 26 H1 16 M8 219 F12 46 J4 7 M6 41 N5 52 N6 32 E13 4 J1 8 J3 2 N7 2 A12 2 H9 2 N8 3 G10 1 G9 1 
+policyTargetsByTurn 3 unreducedNumVisits 800 B1 550 A3 49 G8 12 H1 48 K1 8 H9 13 G10 11 E13 2 K12 2 E2 17 J3 2 pass 2 C8 1 A12 6 A13 6 M8 1 B9 1 N8 0 E8 0 H13 0 N10 0 J4 0 J1 0 
+policyTargetsByTurn 4 unreducedNumVisits 550 E2 24 H1 17 M8 233 F12 50 J4 7 M6 53 N5 72 N6 47 E13 5 J1 4 J3 2 N7 2 A12 3 H9 3 N8 3 G10 2 G9 2 E12 1 
 policySurpriseByTurn 0 0.435507
-policySurpriseByTurn 1 1.33822
+policySurpriseByTurn 1 1.34464
 policySurpriseByTurn 2 0.65042
-policySurpriseByTurn 3 0.368171
-policySurpriseByTurn 4 0.952848
+policySurpriseByTurn 3 0.386621
+policySurpriseByTurn 4 0.950722
 policyEntropyByTurn 0 2.45374
 policyEntropyByTurn 1 2.15686
 policyEntropyByTurn 2 1.80207
 policyEntropyByTurn 3 2.43989
 policyEntropyByTurn 4 3.05103
 searchEntropyByTurn 0 0.582884
-searchEntropyByTurn 1 1.51015
+searchEntropyByTurn 1 1.50452
 searchEntropyByTurn 2 0.143641
-searchEntropyByTurn 3 1.15575
-searchEntropyByTurn 4 1.83242
-whiteValueTargetsByTurn 0 0.0880968 0.911867 3.58607e-05 -3.33566 -3.50981 
-whiteValueTargetsByTurn 1 0.0709952 0.928972 3.3148e-05 -4.17795 -3.63586 
-whiteValueTargetsByTurn 2 0.0896481 0.910316 3.59743e-05 -3.3444 -3.39047 
-whiteValueTargetsByTurn 3 0.0695098 0.930456 3.44632e-05 -4.49374 -3.19064 
-whiteValueTargetsByTurn 4 0.077242 0.922722 3.58938e-05 -3.36883 - 
+searchEntropyByTurn 3 1.08366
+searchEntropyByTurn 4 1.87273
+whiteValueTargetsByTurn 0 0.0878248 0.912139 3.57239e-05 -3.32985 -3.49639 
+whiteValueTargetsByTurn 1 0.0709734 0.928994 3.29752e-05 -4.2016 -3.62972 
+whiteValueTargetsByTurn 2 0.0902447 0.909719 3.60716e-05 -3.32483 -3.37993 
+whiteValueTargetsByTurn 3 0.0725399 0.927425 3.48241e-05 -4.43633 -3.16575 
+whiteValueTargetsByTurn 4 0.0809462 0.919017 3.6349e-05 -3.29928 - 
 whiteValueTargetsByTurn 5 1 0 0 16.5 16.5 
 Raw Stats -0.905916 -4.48171 1.89116
 Raw Stats -0.686941 -1.6757 1.17834
@@ -13764,34 +13764,34 @@ usedInitialPosition 0
 hasFullData 1
 targetWeightByTurn 0 0 unrounded 0
 targetWeightByTurn 1 0 unrounded 0
-targetWeightByTurn 2 1.33346 unrounded 1.33346
-targetWeightByTurn 3 0.666539 unrounded 0.666539
+targetWeightByTurn 2 1.33947 unrounded 1.33947
+targetWeightByTurn 3 0.660532 unrounded 0.660532
 targetWeightByTurn 4 0 unrounded 0
 policyTargetsByTurn 0 unreducedNumVisits 200 A13 196 A3 2 M6 0 
-policyTargetsByTurn 1 unreducedNumVisits 200 B1 167 A3 12 H1 12 H9 3 B11 1 A12 1 G10 1 
-policyTargetsByTurn 2 unreducedNumVisits 800 E2 13 H1 11 J4 10 N6 60 M8 73 E13 10 H9 4 A9 3 F12 273 J1 7 M6 51 N5 10 G9 4 C8 3 D1 0 J3 3 B4 1 G10 3 D9 2 L2 2 N7 2 N13 1 K1 2 A11 2 N8 2 E9 1 M11 1 B11 1 H8 2 B9 1 F13 3 E12 2 F8 1 pass 1 F9 1 C9 1 E8 1 G8 1 M13 0 N9 0 M1 1 
-policyTargetsByTurn 3 unreducedNumVisits 800 F13 363 E12 238 E13 114 B4 8 K12 3 H1 10 F9 1 H9 5 B11 2 E2 10 A3 0 K1 0 M1 0 H8 0 D1 0 G10 1 
-policyTargetsByTurn 4 unreducedNumVisits 363 A1 341 E13 5 E2 3 H9 3 H1 3 J4 1 M8 2 
+policyTargetsByTurn 1 unreducedNumVisits 200 B1 166 A3 13 H1 13 H9 3 B11 1 A12 1 G10 1 E2 1 
+policyTargetsByTurn 2 unreducedNumVisits 800 E2 13 H1 11 J4 10 N6 51 M8 53 E13 10 H9 4 A9 3 F12 272 J1 7 M6 58 N5 10 G9 4 C8 3 D1 0 J3 3 B4 1 G10 3 D9 2 L2 2 N7 2 N13 1 K1 2 A11 2 N8 2 E9 1 M11 1 B11 1 H8 2 B9 1 F13 3 E12 2 F8 1 pass 1 F9 1 C9 1 E8 1 G8 1 M13 0 N9 0 
+policyTargetsByTurn 3 unreducedNumVisits 800 F13 359 E12 235 E13 121 B4 8 K12 3 H1 10 F9 1 H9 5 B11 2 E2 9 A3 0 K1 0 M1 0 H8 0 D1 0 G10 1 
+policyTargetsByTurn 4 unreducedNumVisits 359 A1 337 E13 5 E2 3 H9 3 H1 3 J4 1 M8 2 
 policySurpriseByTurn 0 0.566793
-policySurpriseByTurn 1 0.146339
-policySurpriseByTurn 2 1.34456
-policySurpriseByTurn 3 0.230679
-policySurpriseByTurn 4 0.211403
+policySurpriseByTurn 1 0.130206
+policySurpriseByTurn 2 1.38919
+policySurpriseByTurn 3 0.227189
+policySurpriseByTurn 4 0.210635
 policyEntropyByTurn 0 1.03448
 policyEntropyByTurn 1 1.46027
 policyEntropyByTurn 2 3.30173
 policyEntropyByTurn 3 2.05653
 policyEntropyByTurn 4 1.48222
 searchEntropyByTurn 0 0.0564652
-searchEntropyByTurn 1 0.62514
-searchEntropyByTurn 2 2.00905
-searchEntropyByTurn 3 1.25266
-searchEntropyByTurn 4 0.271614
-whiteValueTargetsByTurn 0 0.08467 0.915294 3.6004e-05 -3.02402 - 
-whiteValueTargetsByTurn 1 0.0802478 0.919716 3.5872e-05 -3.06335 - 
-whiteValueTargetsByTurn 2 0.0944392 0.905523 3.79599e-05 -2.87641 -2.8463 
-whiteValueTargetsByTurn 3 0.0731448 0.926822 3.35134e-05 -3.79016 -3.19208 
-whiteValueTargetsByTurn 4 0.0760725 0.923893 3.43915e-05 -3.02536 - 
+searchEntropyByTurn 1 0.677353
+searchEntropyByTurn 2 1.99435
+searchEntropyByTurn 3 1.25726
+searchEntropyByTurn 4 0.27413
+whiteValueTargetsByTurn 0 0.0833438 0.91662 3.60649e-05 -3.03629 - 
+whiteValueTargetsByTurn 1 0.0789021 0.921062 3.5885e-05 -3.08342 - 
+whiteValueTargetsByTurn 2 0.0958442 0.904118 3.82766e-05 -2.86845 -2.82227 
+whiteValueTargetsByTurn 3 0.0734585 0.926508 3.36809e-05 -3.80085 -3.18705 
+whiteValueTargetsByTurn 4 0.0766035 0.923362 3.46043e-05 -3.03996 - 
 whiteValueTargetsByTurn 5 1 0 0 24.5 24.5 
 Raw Stats -0.908224 -4.91307 1.03448
 Raw Stats -0.718319 -1.75051 1.46027
@@ -13886,14 +13886,14 @@ Past normal phase end 0
 Game result 0 Empty 0 0 0 0
 Last moves D10 K4 L3 K10 L4 D4 K11 D11 C11 E11 E10 F11 F10 J11 H11 L11 G11 C6 K12 J12 J10 J9 H10 L12 K9 K13 L10 K11 K8 K3 K5 J5 F3 L2 M2 J2 L1 D3 H3 K7 L7 K6 L5 G4 H4 G3 H2 L6 J8 M7 G5 M5 K2 M9 B7 B6 C7 D7 D8 G12 D6 D5 E7 C12 B12 D12 B4 B5 A4 A5 C2 B3 D2 F4 F2 F5 C4 C3 B2 G6 H5 E6 J7 A2 E3 E4 F7 F6 J6 L8 B13 G2 G1 H12 L9 M10 G7 A7 B8 B11 C10 C13 B10 M4 M3 H6 H7 N3 N2 N4 D7 B1 C1 C5 A1 A11 A10 B1 A8 A6 A1 E1 A3 A2 F1 B1 A3 A4 A1 A12 A13 B1 F12 F13 A1 E2 D1 B1 H1 A3 
 end
-HASH: D7300FADFE0E61031F033507895E3E5B
+HASH: 3746C987A1E633C4954CB3C0680BAF97
    A B C D E F G H J K L M N
-13 X X O . . O . . . O . . .
+13 X X O . X O . . . O . . .
 12 . X O O . X O O O . O . .
 11 . . X O O O X X O O O . .
 10 X X X X X X . X X O X O .
  9 . . . . . . . . O X X O .
- 8 X X . X . . . . X X O X .
+ 8 X X . X . . . . X X O . .
  7 O X X X X X X X X O . O .
  6 O O O X O O O O X O O . .
  5 O O O O . O X X O X X O .
@@ -13914,7 +13914,7 @@ Has button 0
 Presumed next pla White
 Past normal phase end 0
 Game result 0 Empty 0 0 0 0
-Last moves D10 K4 L3 K10 L4 D4 K11 D11 C11 E11 E10 F11 F10 J11 H11 L11 G11 C6 K12 J12 J10 J9 H10 L12 K9 K13 L10 K11 K8 K3 K5 J5 F3 L2 M2 J2 L1 D3 H3 K7 L7 K6 L5 G4 H4 G3 H2 L6 J8 M7 G5 M5 K2 M9 B7 B6 C7 D7 D8 G12 D6 D5 E7 C12 B12 D12 B4 B5 A4 A5 C2 B3 D2 F4 F2 F5 C4 C3 B2 G6 H5 E6 J7 A2 E3 E4 F7 F6 J6 L8 B13 G2 G1 H12 L9 M10 G7 A7 B8 B11 C10 C13 B10 M4 M3 H6 H7 N3 N2 N4 D7 B1 C1 C5 A1 A11 A10 B1 A8 A6 A1 E1 A3 A2 F1 B1 A3 A4 A1 A12 A13 B1 F12 F13 A1 E2 D1 B1 H1 A3 A1 E2 E1 B1 M8 
+Last moves D10 K4 L3 K10 L4 D4 K11 D11 C11 E11 E10 F11 F10 J11 H11 L11 G11 C6 K12 J12 J10 J9 H10 L12 K9 K13 L10 K11 K8 K3 K5 J5 F3 L2 M2 J2 L1 D3 H3 K7 L7 K6 L5 G4 H4 G3 H2 L6 J8 M7 G5 M5 K2 M9 B7 B6 C7 D7 D8 G12 D6 D5 E7 C12 B12 D12 B4 B5 A4 A5 C2 B3 D2 F4 F2 F5 C4 C3 B2 G6 H5 E6 J7 A2 E3 E4 F7 F6 J6 L8 B13 G2 G1 H12 L9 M10 G7 A7 B8 B11 C10 C13 B10 M4 M3 H6 H7 N3 N2 N4 D7 B1 C1 C5 A1 A11 A10 B1 A8 A6 A1 E1 A3 A2 F1 B1 A3 A4 A1 A12 A13 B1 F12 F13 A1 E2 D1 B1 H1 A3 A1 E2 E1 B1 E13 
 gameHash 19C02BF96B4A1A35341B392DA3221B3B
 hitTurnLimit 1
 numExtraBlack 0
@@ -13922,92 +13922,92 @@ mode 0
 beganInEncorePhase 0
 usedInitialPosition 0
 hasFullData 1
-targetWeightByTurn 0 0.722144 unrounded 0.722144
-targetWeightByTurn 1 1.25784 unrounded 1.25784
-targetWeightByTurn 2 1.14795 unrounded 1.14795
-targetWeightByTurn 3 0.666743 unrounded 0.666743
-targetWeightByTurn 4 0.205323 unrounded 0.205323
-policyTargetsByTurn 0 unreducedNumVisits 800 A1 701 J4 3 E2 0 E13 8 N7 0 M8 6 F8 0 M6 6 J3 0 H13 0 G9 0 H9 0 N5 1 D13 1 N6 1 L2 0 A12 0 G10 0 
-policyTargetsByTurn 1 unreducedNumVisits 800 E2 433 pass 9 H9 19 M6 6 E12 5 G10 22 B11 26 E13 4 N9 3 B4 4 A12 22 C8 3 N6 2 E1 21 K1 4 E8 2 M8 2 K12 2 J3 2 N7 2 G8 2 A11 1 J1 1 M11 1 M12 1 A9 1 G9 5 L7 1 G13 1 L13 1 N10 1 H8 1 J13 1 H13 1 N11 1 J4 1 N8 1 M13 1 N12 1 F9 0 D13 0 N13 0 N1 0 F8 0 N5 0 M1 0 C9 0 B9 0 
-policyTargetsByTurn 2 unreducedNumVisits 800 E1 636 H9 3 F8 2 J4 1 J1 1 D13 3 G10 1 M8 2 J13 0 E13 1 N5 2 B1 0 M6 2 J3 0 B11 0 G13 4 B4 0 N6 1 C4 0 G9 0 L2 0 E12 0 E8 0 M1 0 N7 0 A11 0 K1 0 C8 0 
-policyTargetsByTurn 3 unreducedNumVisits 800 B1 657 G8 6 G10 17 A11 2 B11 20 H9 8 M12 2 E12 2 J13 2 N10 1 pass 1 M6 1 A12 6 E13 0 G9 1 N12 0 H13 0 H8 0 
-policyTargetsByTurn 4 unreducedNumVisits 657 J4 4 H9 2 M8 365 E13 57 N5 70 G10 2 M6 36 N6 10 D13 1 J1 1 J3 0 N7 0 E12 3 G9 1 G13 1 N8 0 B11 0 K1 0 E2 0 H8 0 L2 0 C8 0 A11 0 B4 0 M11 0 C4 0 F8 0 B9 0 C9 0 A9 0 
-policySurpriseByTurn 0 0.371136
-policySurpriseByTurn 1 1.31045
-policySurpriseByTurn 2 0.930131
-policySurpriseByTurn 3 0.252911
-policySurpriseByTurn 4 1.40197
+targetWeightByTurn 0 0.733964 unrounded 0.733964
+targetWeightByTurn 1 1.32542 unrounded 1.32542
+targetWeightByTurn 2 1.18295 unrounded 1.18295
+targetWeightByTurn 3 0.68136 unrounded 0.68136
+targetWeightByTurn 4 0.0763021 unrounded 0.0763021
+policyTargetsByTurn 0 unreducedNumVisits 800 A1 635 J4 3 E2 0 E13 8 N7 0 M8 28 F8 0 M6 6 J3 0 H13 0 G9 0 H9 0 N5 1 D13 1 N6 1 L2 0 A12 0 G10 0 
+policyTargetsByTurn 1 unreducedNumVisits 800 E2 432 pass 9 H9 19 M6 6 E12 5 G10 19 B11 25 E13 4 N9 3 B4 4 A12 21 C8 3 N6 2 E1 21 K1 4 E8 2 M8 2 K12 2 J3 2 N7 2 G8 2 A11 2 J1 1 M11 1 M12 1 A9 1 G9 5 L7 1 G13 1 L13 1 N10 1 H8 1 J13 1 H13 1 N11 1 J4 1 N8 1 M13 1 N12 1 F9 0 D13 0 N13 0 N1 0 F8 0 N5 0 M1 0 C9 0 B9 0 
+policyTargetsByTurn 2 unreducedNumVisits 800 E1 636 H9 3 F8 2 J4 1 J1 1 D13 3 G10 1 M8 3 J13 0 E13 2 N5 3 B1 0 M6 2 J3 0 B11 0 G13 5 B4 0 N6 1 C4 0 G9 0 L2 0 E12 0 E8 0 M1 0 N7 0 A11 0 K1 0 C8 0 
+policyTargetsByTurn 3 unreducedNumVisits 800 B1 671 G8 6 G10 16 A11 2 B11 17 H9 8 M12 2 E12 2 J13 2 N10 1 pass 1 M6 1 A12 6 E13 0 G9 1 N12 0 H13 0 H8 0 
+policyTargetsByTurn 4 unreducedNumVisits 671 J4 4 H9 3 M8 116 E13 228 N5 66 G10 2 M6 45 N6 11 D13 1 J1 1 J3 0 N7 0 E12 6 G9 1 G13 1 N8 0 B11 0 K1 0 E2 0 H8 0 L2 0 C8 0 A11 0 B4 0 M11 0 C4 0 F8 0 B9 0 C9 0 A9 0 
+policySurpriseByTurn 0 0.362441
+policySurpriseByTurn 1 1.31461
+policySurpriseByTurn 2 0.913823
+policySurpriseByTurn 3 0.257148
+policySurpriseByTurn 4 1.18097
 policyEntropyByTurn 0 1.75092
 policyEntropyByTurn 1 3.61923
 policyEntropyByTurn 2 2.8593
 policyEntropyByTurn 3 1.80975
 policyEntropyByTurn 4 3.28702
-searchEntropyByTurn 0 0.213768
-searchEntropyByTurn 1 1.48358
-searchEntropyByTurn 2 0.233989
-searchEntropyByTurn 3 0.507427
-searchEntropyByTurn 4 1.17077
-whiteValueTargetsByTurn 0 0.154853 0.845105 4.22229e-05 -2.3532 -3.44044 
-whiteValueTargetsByTurn 1 0.114581 0.885381 3.75668e-05 -2.7783 -3.21176 
-whiteValueTargetsByTurn 2 0.166081 0.833877 4.22075e-05 -2.30038 -2.5 
-whiteValueTargetsByTurn 3 0.129968 0.869993 3.93086e-05 -2.61874 -2.5 
-whiteValueTargetsByTurn 4 0.138851 0.861109 4.04865e-05 -2.51501 -2.5 
-whiteValueTargetsByTurn 5 1 0 0 7.5 7.5 
+searchEntropyByTurn 0 0.344891
+searchEntropyByTurn 1 1.47763
+searchEntropyByTurn 2 0.266163
+searchEntropyByTurn 3 0.482219
+searchEntropyByTurn 4 1.47388
+whiteValueTargetsByTurn 0 0.153951 0.846007 4.25951e-05 -2.33902 -3.55802 
+whiteValueTargetsByTurn 1 0.115315 0.884647 3.77136e-05 -2.77511 -3.65811 
+whiteValueTargetsByTurn 2 0.175982 0.823974 4.35487e-05 -2.20905 -2.5 
+whiteValueTargetsByTurn 3 0.136992 0.862967 4.03732e-05 -2.57118 -2.5 
+whiteValueTargetsByTurn 4 0.146277 0.853681 4.16661e-05 -2.45865 -2.5 
+whiteValueTargetsByTurn 5 1 0 0 22.5 22.5 
 Raw Stats -0.901415 -3.343 0.738021
 Raw Stats -0.766455 -1.9649 3.49587
 Raw Stats -0.843283 -2.91102 2.27898
 Raw Stats -0.635458 -1.24367 0.755455
 Raw Stats -0.83792 -2.73952 3.28702
-XXO..OOOOO...
-XXOO.XOOOOO..
-XXXOOOXXOOO..
-XXXXXX.XXOXO.
-........OXXO.
-XX.X....XXOX.
-OXXXXXXXXOOO.
-OOOXOOOOXOO..
-OOOOOOXXOXXO.
+XXO.XOOOOOOOO
+XXOO.XOOOOOOO
+XXXOOOXXOOOOO
+XXXXXX.XXOXOO
+........OXXOO
+XX.X....XXOOO
+OXXXXXXXXOOOO
+OOOXOOOOXOOOO
+OOOOOOXXOXXOO
 OOOOOOOX.OXOO
 OOOOXXOX.OXXO
 OXXXXXOXOXXXX
 OOXXXXXX..XXX
-XXO..OOOOO...
-XXOO.XOOOOO..
-XXXOOOXXOOO..
-XXXXXX.XXOXO.
-........OXXO.
-XX.X....XXOX.
-OXXXXXXXXOOO.
-OOOXOOOOXOO..
-OOOOOOXXOXXO.
+XXO.XOOOOOOOO
+XXOO.XOOOOOOO
+XXXOOOXXOOOOO
+XXXXXX.XXOXOO
+........OXXOO
+XX.X....XXOOO
+OXXXXXXXXOOOO
+OOOXOOOOXOOOO
+OOOOOOXXOXXOO
 OOOOOOOX.OXOO
 OOOOXXOX.OXXO
 OXXXXXOXOXXXX
 OOXXXXXX..XXX
-1110011111000
-1111011111100
-1111111111100
-1111110111110
-0000000011110
-1101000011110
-1111111111110
-1111111111100
-1111111111110
+1110111111111
+1111011111111
+1111111111111
+1111110111111
+0000000011111
+1101000011111
+1111111111111
+1111111111111
+1111111111111
 1111111101111
 1111111101111
 1111111111111
 1111111100111
- -1.000 -1.000 1.000 0.000 0.000 1.000 1.000 1.000 1.000 1.000 0.000 0.000 0.000
- -1.000 -1.000 1.000 1.000 0.000 -1.000 1.000 1.000 1.000 1.000 1.000 0.000 0.000
- -1.000 -1.000 -1.000 1.000 1.000 1.000 -1.000 -1.000 1.000 1.000 1.000 0.000 0.000
- -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 0.000 -1.000 -1.000 1.000 -1.000 1.000 0.000
- 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 1.000 -1.000 -1.000 1.000 0.000
- -1.000 -1.000 0.000 -1.000 0.000 0.000 0.000 0.000 -1.000 -1.000 1.000 -1.000 0.000
- 1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 1.000 1.000 1.000 0.000
- 1.000 1.000 1.000 -1.000 1.000 1.000 1.000 1.000 -1.000 1.000 1.000 0.000 0.000
- 1.000 1.000 1.000 1.000 1.000 1.000 -1.000 -1.000 1.000 -1.000 -1.000 1.000 0.000
+ -1.000 -1.000 1.000 0.000 -1.000 1.000 1.000 1.000 1.000 1.000 1.000 1.000 1.000
+ -1.000 -1.000 1.000 1.000 0.000 -1.000 1.000 1.000 1.000 1.000 1.000 1.000 1.000
+ -1.000 -1.000 -1.000 1.000 1.000 1.000 -1.000 -1.000 1.000 1.000 1.000 1.000 1.000
+ -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 0.000 -1.000 -1.000 1.000 -1.000 1.000 1.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 1.000 -1.000 -1.000 1.000 1.000
+ -1.000 -1.000 0.000 -1.000 0.000 0.000 0.000 0.000 -1.000 -1.000 1.000 1.000 1.000
+ 1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 1.000 1.000 1.000 1.000
+ 1.000 1.000 1.000 -1.000 1.000 1.000 1.000 1.000 -1.000 1.000 1.000 1.000 1.000
+ 1.000 1.000 1.000 1.000 1.000 1.000 -1.000 -1.000 1.000 -1.000 -1.000 1.000 1.000
  1.000 1.000 1.000 1.000 1.000 1.000 1.000 -1.000 0.000 1.000 -1.000 1.000 1.000
  1.000 1.000 1.000 1.000 -1.000 -1.000 1.000 -1.000 0.000 1.000 -1.000 -1.000 1.000
  1.000 -1.000 -1.000 -1.000 -1.000 -1.000 1.000 -1.000 1.000 -1.000 -1.000 -1.000 -1.000
  1.000 1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 0.000 0.000 -1.000 -1.000 -1.000
-: GPU 0 finishing, processed 47720 rows 47720 batches
+: GPU 0 finishing, processed 47657 rows 47657 batches
