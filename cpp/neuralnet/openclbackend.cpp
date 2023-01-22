@@ -675,19 +675,9 @@ static void addChannelBiases(ComputeHandleInternal* handle, cl_mem src, cl_mem b
 }
 
 static void addPointWise(ComputeHandleInternal* handle, cl_mem acc, cl_mem value, int totalSize) {
-  cl_kernel kernel = handle->addPointWiseKernel;
-  clSetKernelArg(kernel, 0, sizeof(cl_mem), (const void *)&acc);
-  clSetKernelArg(kernel, 1, sizeof(cl_mem), (const void *)&value);
-  clSetKernelArg(kernel, 2, sizeof(int), (const void *)&totalSize);
-
   cl_int err;
-  static constexpr int nKernelDims = 1;
-  size_t globalSizes[nKernelDims] = {powerOf2ify((size_t)totalSize)};
-  size_t* localSizes = NULL;
   MAYBE_EVENT;
-  err = clEnqueueNDRangeKernel(
-    handle->commandQueue, kernel, nKernelDims, NULL, globalSizes, localSizes, 0, NULL, MAYBE_EVENTREF
-  );
+  err = OpenCLHelpers::doAddPointWise(handle->addPointWiseKernel, handle->commandQueue, acc, value, totalSize, MAYBE_EVENTREF);
   CHECK_ERR(err);
   MAYBE_PROFILE("AddPointWise");
   MAYBE_FREE_EVENT;

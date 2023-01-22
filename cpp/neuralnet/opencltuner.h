@@ -199,6 +199,7 @@ namespace OpenCLTuner {
 
   void tune(
     const OpenCLTuneParams& initialConfig,
+    const std::vector<DeviceInfo>& allDeviceInfos,
     DevicesContext& devicesContext,
     int gpuIdx,
     int batchSize,
@@ -211,6 +212,7 @@ namespace OpenCLTuner {
     ModelInfoForTuning modelInfo,
     bool full,
     int winograd3x3TileSize,
+    Logger* logger,
     std::ostream& out,
     bool verboseErrors,
     bool verboseTuner,

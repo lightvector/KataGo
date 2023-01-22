@@ -7,6 +7,7 @@
 #include "../core/fileutils.h"
 #include "../core/rand.h"
 #include "../core/makedir.h"
+#include "../core/threadsafecounter.h"
 #include "../dataio/homedata.h"
 
 #include <cstring>
@@ -577,8 +578,8 @@ int OpenCLTuneParams::getXGemmKPaddingMult(bool usingFP16Compute, bool usingFP16
 }
 
 
-static const int TUNER_VERSION = 10;
-static const char* TUNEPARAMS_VERSION_LINE = "VERSION=10";
+static const int TUNER_VERSION = 11;
+static const char* TUNEPARAMS_VERSION_LINE = "VERSION=11";
 void OpenCLTuneParams::save(const string& filename, const OpenCLTuneParams& config) {
   ofstream out;
   FileUtils::open(out,filename);
@@ -2560,8 +2561,193 @@ static void tuneGPool(
   tunedConfig = currentConfig;
 }
 
+static void dummyThreadLoop(
+  const vector<DeviceInfo>& allDeviceInfos,
+  Logger* logger,
+  int gpuIdxForTuning,
+  WaitableFlag& dummyInitializedOrDeadFlag,
+  WaitableFlag& dummyShouldStopFlag
+) {
+  auto reportFailure = [&](const string& message) {
+    // If we can't compile the kernel for the dummy thread, then just quit.
+    if(logger) {
+      logger->write("WARNING: Dummy thread to load the GPU while tuning failed");
+      logger->write(message);
+    }
+    if(logger == NULL || (!logger->isLoggingToStdout() && !logger->isLoggingToStderr())) {
+      cerr << "WARNING: Dummy thread to load the GPU while tuning failed" << endl;
+      cerr << message << endl;
+    }
+  };
+  if(logger) {
+    logger->write("Dummy tuning thread starting");
+  }
+
+  const bool enableProfiling = false;
+  DevicesContext devicesContext(allDeviceInfos, {gpuIdxForTuning}, logger, enableProfiling);
+
+  const InitializedDevice* device = devicesContext.findGpuExn(gpuIdxForTuning);
+  const cl_context& context = device->context;
+  cl_command_queue commandQueue = device->commandQueue;
+  const vector<cl_device_id>& deviceIdsToUse = { device->info.deviceId };
+
+  OpenCLTuneParams cfg;
+  cfg.xGemmDirect.MDIMCD = 8;
+  cfg.xGemmDirect.NDIMCD = 8;
+  cfg.xGemmDirect.MDIMAD = 8;
+  cfg.xGemmDirect.NDIMBD = 8;
+
+  cl_int err;
+  string compileError;
+  bool compileSuc;
+
+  cl_program xGemmProgram;
+  compileSuc = tryCompileProgram(
+    "xgemmDirectProgram", context, deviceIdsToUse, OpenCLKernels::xgemmDirect,
+    cfg.xGemmDirect.compileOptions() + " -DROUTINE_GEMMSTRIDEDBATCHED",
+    xGemmProgram, compileError
+  );
+  if(!compileSuc) {
+    reportFailure("Compile error: " + compileError);
+    dummyInitializedOrDeadFlag.setPermanently(true);
+    return;
+  }
+
+  cl_program addPointWiseProgram;
+  compileSuc = tryCompileProgram(
+    "addPointWiseProgram", context, deviceIdsToUse, OpenCLKernels::addPointWise,
+    string(), addPointWiseProgram, compileError
+  );
+  if(!compileSuc) {
+    reportFailure("Compile error: " + compileError);
+    dummyInitializedOrDeadFlag.setPermanently(true);
+    return;
+  }
+
+  cl_kernel xGemmKernel = clCreateKernel(xGemmProgram, "XgemmDirectStridedBatchedNN", &err);
+  if(err != 0) {
+    reportFailure("createKernel error code " + Global::intToString(err));
+    dummyInitializedOrDeadFlag.setPermanently(true);
+    return;
+  }
+  cl_kernel addPointWiseKernel = clCreateKernel(addPointWiseProgram, "addPointWise", &err);
+  if(err != 0) {
+    reportFailure("createKernel error code " + Global::intToString(err));
+    dummyInitializedOrDeadFlag.setPermanently(true);
+    return;
+  }
+
+  const int batchSize = 1;
+  const int mSize = 97;
+  const int kSize = 151;
+
+  vector<float> matrixAVec;
+  vector<float> matrixBVec;
+  vector<float> matrixCVec;
+  vector<float> matrixDVec;
+  cl_mem matrixA = randomReadOnlyBufferFloat("dummyThreadA", context, kSize*kSize, 1.2 / kSize, matrixAVec);
+  cl_mem matrixB = randomReadOnlyBufferFloat("dummyThreadB", context, kSize*kSize, 1.2 / kSize, matrixBVec);
+  cl_mem matrixC = randomReadOnlyBufferFloat("dummyThreadC", context, mSize*kSize, 1.0, matrixCVec);
+  cl_mem matrixD = randomReadOnlyBufferFloat("dummyThreadD", context, mSize*kSize, 1.0, matrixDVec);
+  cl_mem buffer = createReadWriteBufferFloatZeros(context, mSize*kSize);
+  cl_mem buffer2 = createReadWriteBufferFloatZeros(context, mSize*kSize);
+
+  vector<float> output(mSize*kSize, 0.0f);
+
+  // Batch size 1, so no strides
+  int aStride = 0;
+  int bStride = 0;
+  int cStride = 0;
+
+  Rand rand("dummyThreadLoop");
+  dummyInitializedOrDeadFlag.setPermanently(true);
+
+  double total = 0.0;
+  bool first = true;
+  while(!dummyShouldStopFlag.get()) {
+    int which = rand.nextInt(0,6);
+    if(first) {
+      which = 4;
+      first = false;
+    }
+    if(which == 0 || which == 1 || which == 2 || which == 3) {
+      cl_event event;
+      err = doStridedBatchedXGemmDirect_KM_KN_NM(
+        xGemmKernel,
+        commandQueue,
+        cfg,
+        mSize, kSize, kSize,
+        aStride, bStride, cStride,
+        buffer, ((which == 0 || which == 1) ? matrixA : matrixB), buffer2,
+        batchSize,
+        &event
+      );
+
+      if(err != 0) {
+        reportFailure("doStridedBatchedXGemmDirect_KM_KN_NM error code " + Global::intToString(err));
+        return;
+      }
+      err = clWaitForEvents(1, &event);
+      //If the kernel does bad things the error might also pop up here
+      if(err != 0) {
+        reportFailure("doStridedBatchedXGemmDirect_KM_KN_NM error code " + Global::intToString(err));
+        return;
+      }
+
+      clReleaseEvent(event);
+      std::swap(buffer,buffer2);
+    }
+    else if(which == 4 || which == 5) {
+      cl_event event;
+      err = OpenCLHelpers::doAddPointWise(
+        addPointWiseKernel, commandQueue, buffer, (which == 4 ? matrixC : matrixD), mSize*kSize, &event
+      );
+
+      if(err != 0) {
+        reportFailure("doStridedBatchedXGemmDirect_KM_KN_NM error code " + Global::intToString(err));
+        return;
+      }
+      err = clWaitForEvents(1, &event);
+      //If the kernel does bad things the error might also pop up here
+      if(err != 0) {
+        reportFailure("doStridedBatchedXGemmDirect_KM_KN_NM error code " + Global::intToString(err));
+        return;
+      }
+      clReleaseEvent(event);
+    }
+    else {
+      blockingReadBuffer(commandQueue, buffer, mSize*kSize, output.data());
+      float subTotal = 0.0f;
+      for(int i = 0; i<mSize*kSize; i++)
+        subTotal += output[i];
+      total += (double)subTotal;
+    }
+  }
+  (void)total;
+  if(logger != NULL)
+    logger->write("Tuning dummy thread numeric total: " + Global::doubleToString(total));
+
+
+  clReleaseMemObject(matrixA);
+  clReleaseMemObject(matrixB);
+  clReleaseMemObject(matrixC);
+  clReleaseMemObject(matrixD);
+  clReleaseMemObject(buffer);
+  clReleaseMemObject(buffer2);
+
+  clReleaseKernel(addPointWiseKernel);
+  clReleaseKernel(xGemmKernel);
+  clReleaseProgram(addPointWiseProgram);
+  clReleaseProgram(xGemmProgram);
+
+  return;
+}
+
+
+
 void OpenCLTuner::tune(
   const OpenCLTuneParams& initialConfig,
+  const vector<DeviceInfo>& allDeviceInfos,
   DevicesContext& devicesContext,
   int gpuIdx,
   int batchSize,
@@ -2574,6 +2760,7 @@ void OpenCLTuner::tune(
   OpenCLTuner::ModelInfoForTuning modelInfo,
   bool full,
   int winograd3x3TileSize,
+  Logger* logger,
   ostream& out,
   bool verboseErrors,
   bool verboseTuner,
@@ -2585,6 +2772,20 @@ void OpenCLTuner::tune(
   const vector<cl_device_id>& deviceIdsToUse = { device->info.deviceId };
 
   out << "Beginning GPU tuning for " << device->info.name << " modelVersion " << modelInfo.version << " channels " << modelInfo.trunkNumChannels << endl;
+
+  // Start a dummy thread to put a bunch of load on the GPU, so that we can encourage dynamic-clock-speed GPUs
+  // to stay at a high setting during the tuning.
+  WaitableFlag dummyInitializedOrDeadFlag;
+  WaitableFlag dummyShouldStopFlag;
+  std::thread dummyThread(
+    dummyThreadLoop,
+    std::ref(allDeviceInfos),
+    logger,
+    gpuIdx,
+    std::ref(dummyInitializedOrDeadFlag),
+    std::ref(dummyShouldStopFlag)
+  );
+  dummyInitializedOrDeadFlag.waitUntilTrue();
 
   OpenCLTuneParams untunedConfig = OpenCLTuneParams();
   OpenCLTuneParams currentConfig = initialConfig;
@@ -2965,6 +3166,9 @@ void OpenCLTuner::tune(
   currentConfig.conv5x5.untransLocalSize1 = currentConfig.conv3x3.untransLocalSize1;
   currentConfig.conv5x5.untransLocalSize2 = currentConfig.conv3x3.untransLocalSize2;
 
+  dummyShouldStopFlag.setPermanently(true);
+  dummyThread.join();
+
   out << "Done tuning" << endl;
   out << "------------------------------------------------------" << endl;
   tunedConfig = currentConfig;
@@ -3083,6 +3287,7 @@ OpenCLTuneParams OpenCLTuner::loadOrAutoTune(
   OpenCLTuneParams results;
   OpenCLTuner::tune(
     initialParams,
+    allDeviceInfos,
     devicesContext,
     gpuIdxForTuning,
     batchSize,
@@ -3095,6 +3300,7 @@ OpenCLTuneParams OpenCLTuner::loadOrAutoTune(
     modelInfo,
     full,
     DEFAULT_WINOGRAD_3X3_TILE_SIZE,
+    logger,
     cerr,
     verboseErrors,
     verboseTuner,
@@ -3245,6 +3451,7 @@ void OpenCLTuner::autoTuneEverything(
     OpenCLTuneParams results;
     OpenCLTuner::tune(
       initialParams,
+      allDeviceInfos,
       devicesContext,
       gpuIdxForTuning,
       batchSize,
@@ -3257,6 +3464,7 @@ void OpenCLTuner::autoTuneEverything(
       modelInfo,
       full,
       DEFAULT_WINOGRAD_3X3_TILE_SIZE,
+      logger,
       cerr,
       verboseErrors,
       verboseTuner,
