@@ -175,7 +175,7 @@ struct ModelParser {
     auto& network = model->network;
     auto modelDesc = &model->rawModel->modelDesc;
 
-    int tuneSalt = 1;  // Bump this when between katago versions we want to forcibly drop old timing caches.
+    int tuneSalt = 2;  // Bump this when between katago versions we want to forcibly drop old timing caches.
     tuneDesc = Global::strprintf(
       R"|("salt"(%d)"model"(%d,%d,%d,%d,%d,%d))|",
       tuneSalt,
@@ -991,7 +991,13 @@ struct ComputeHandle {
     config->addOptimizationProfile(profile);
 
     // This is to avoid external tactic sources and tactics that have shape switching overhead
-    config->setTacticSources(1U << static_cast<uint32_t>(TacticSource::kJIT_CONVOLUTIONS));
+    if(prop->major < 8) {
+      config->setTacticSources(
+        1U << static_cast<uint32_t>(TacticSource::kJIT_CONVOLUTIONS) |
+        1U << static_cast<uint32_t>(TacticSource::kEDGE_MASK_CONVOLUTIONS));
+    } else {
+      config->setTacticSources(1U << static_cast<uint32_t>(TacticSource::kJIT_CONVOLUTIONS));
+    }
 
     // So that there are no concurrent kernel executions probably from other parts of code while profiling
     // See CUDA Runtime API document for more details related to NULL stream and synchronization behaviors
