@@ -617,11 +617,9 @@ int MainCmds::analysis(const vector<string>& args) {
           continue;
         }
         if(!parseInteger(input, "boardXSize", xBuf, 2, Board::MAX_LEN, boardSizeError.c_str())) {
-          reportErrorForId(rbase.id, "boardXSize", boardSizeError.c_str());
           continue;
         }
         if(!parseInteger(input, "boardYSize", yBuf, 2, Board::MAX_LEN, boardSizeError.c_str())) {
-          reportErrorForId(rbase.id, "boardYSize", boardSizeError.c_str());
           continue;
         }
         boardXSize = (int)xBuf;
