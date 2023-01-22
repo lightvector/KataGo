@@ -36,7 +36,7 @@ searchRandSeed = forTesting
 trtUseFP16 = false
 
 : GTP Engine starting...
-: KataGo v1.12.2
+: KataGo v1.12.3
 : Using TrompTaylor rules initially, unless GTP/GUI overrides this
 : Using 1 CPU thread(s) for search
 : Added 48 shapes to penalize repeats for bot 0 from tests/data/cornermoves.sgf
