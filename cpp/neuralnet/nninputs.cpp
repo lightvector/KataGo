@@ -966,6 +966,7 @@ void NNInputs::fillRowV3(
     hist.isGameFinished ||
     hist.isPastNormalPhaseEnd ||
     (nnInputParams.conservativePassAndIsRoot && hist.passWouldEndGame(board,nextPlayer));
+  int numTurnsOfHistoryIncluded = 0;
 
   //Features 9,10,11,12,13
   if(!hideHistory) {
@@ -973,6 +974,7 @@ void NNInputs::fillRowV3(
     size_t moveHistoryLen = moveHistory.size();
     if(moveHistoryLen >= 1 && moveHistory[moveHistoryLen-1].pla == opp) {
       Loc prev1Loc = moveHistory[moveHistoryLen-1].loc;
+      numTurnsOfHistoryIncluded = 1;
       if(prev1Loc == Board::PASS_LOC)
         rowGlobal[0] = 1.0;
       else if(prev1Loc != Board::NULL_LOC) {
@@ -981,6 +983,7 @@ void NNInputs::fillRowV3(
       }
       if(moveHistoryLen >= 2 && moveHistory[moveHistoryLen-2].pla == pla) {
         Loc prev2Loc = moveHistory[moveHistoryLen-2].loc;
+        numTurnsOfHistoryIncluded = 2;
         if(prev2Loc == Board::PASS_LOC)
           rowGlobal[1] = 1.0;
         else if(prev2Loc != Board::NULL_LOC) {
@@ -989,6 +992,7 @@ void NNInputs::fillRowV3(
         }
         if(moveHistoryLen >= 3 && moveHistory[moveHistoryLen-3].pla == opp) {
           Loc prev3Loc = moveHistory[moveHistoryLen-3].loc;
+          numTurnsOfHistoryIncluded = 3;
           if(prev3Loc == Board::PASS_LOC)
             rowGlobal[2] = 1.0;
           else if(prev3Loc != Board::NULL_LOC) {
@@ -997,6 +1001,7 @@ void NNInputs::fillRowV3(
           }
           if(moveHistoryLen >= 4 && moveHistory[moveHistoryLen-4].pla == pla) {
             Loc prev4Loc = moveHistory[moveHistoryLen-4].loc;
+            numTurnsOfHistoryIncluded = 4;
             if(prev4Loc == Board::PASS_LOC)
               rowGlobal[3] = 1.0;
             else if(prev4Loc != Board::NULL_LOC) {
@@ -1005,6 +1010,7 @@ void NNInputs::fillRowV3(
             }
             if(moveHistoryLen >= 5 && moveHistory[moveHistoryLen-5].pla == opp) {
               Loc prev5Loc = moveHistory[moveHistoryLen-5].loc;
+              numTurnsOfHistoryIncluded = 5;
               if(prev5Loc == Board::PASS_LOC)
                 rowGlobal[4] = 1.0;
               else if(prev5Loc != Board::NULL_LOC) {
@@ -1033,7 +1039,7 @@ void NNInputs::fillRowV3(
 
   iterLadders(board, nnXLen, addLadderFeature);
 
-  const Board& prevBoard = hideHistory ? board : hist.getRecentBoard(1);
+  const Board& prevBoard = (hideHistory || numTurnsOfHistoryIncluded < 1) ? board : hist.getRecentBoard(1);
   auto addPrevLadderFeature = [&prevBoard,posStride,featureStride,rowBin](Loc loc, int pos, const vector<Loc>& workingMoves){
     (void)workingMoves;
     (void)loc;
@@ -1043,7 +1049,7 @@ void NNInputs::fillRowV3(
   };
   iterLadders(prevBoard, nnXLen, addPrevLadderFeature);
 
-  const Board& prevPrevBoard = hideHistory ? board : hist.getRecentBoard(2);
+  const Board& prevPrevBoard = (hideHistory || numTurnsOfHistoryIncluded < 2) ? prevBoard : hist.getRecentBoard(2);
   auto addPrevPrevLadderFeature = [&prevPrevBoard,posStride,featureStride,rowBin](Loc loc, int pos, const vector<Loc>& workingMoves){
     (void)workingMoves;
     (void)loc;
@@ -1307,6 +1313,7 @@ void NNInputs::fillRowV4(
     hist.isGameFinished ||
     hist.isPastNormalPhaseEnd ||
     (nnInputParams.conservativePassAndIsRoot && hist.passWouldEndGame(board,nextPlayer));
+  int numTurnsOfHistoryIncluded = 0;
 
   //Features 9,10,11,12,13
   if(!hideHistory) {
@@ -1314,6 +1321,7 @@ void NNInputs::fillRowV4(
     size_t moveHistoryLen = moveHistory.size();
     if(moveHistoryLen >= 1 && moveHistory[moveHistoryLen-1].pla == opp) {
       Loc prev1Loc = moveHistory[moveHistoryLen-1].loc;
+      numTurnsOfHistoryIncluded = 1;
       if(prev1Loc == Board::PASS_LOC)
         rowGlobal[0] = 1.0;
       else if(prev1Loc != Board::NULL_LOC) {
@@ -1322,6 +1330,7 @@ void NNInputs::fillRowV4(
       }
       if(moveHistoryLen >= 2 && moveHistory[moveHistoryLen-2].pla == pla) {
         Loc prev2Loc = moveHistory[moveHistoryLen-2].loc;
+        numTurnsOfHistoryIncluded = 2;
         if(prev2Loc == Board::PASS_LOC)
           rowGlobal[1] = 1.0;
         else if(prev2Loc != Board::NULL_LOC) {
@@ -1330,6 +1339,7 @@ void NNInputs::fillRowV4(
         }
         if(moveHistoryLen >= 3 && moveHistory[moveHistoryLen-3].pla == opp) {
           Loc prev3Loc = moveHistory[moveHistoryLen-3].loc;
+          numTurnsOfHistoryIncluded = 3;
           if(prev3Loc == Board::PASS_LOC)
             rowGlobal[2] = 1.0;
           else if(prev3Loc != Board::NULL_LOC) {
@@ -1338,6 +1348,7 @@ void NNInputs::fillRowV4(
           }
           if(moveHistoryLen >= 4 && moveHistory[moveHistoryLen-4].pla == pla) {
             Loc prev4Loc = moveHistory[moveHistoryLen-4].loc;
+            numTurnsOfHistoryIncluded = 4;
             if(prev4Loc == Board::PASS_LOC)
               rowGlobal[3] = 1.0;
             else if(prev4Loc != Board::NULL_LOC) {
@@ -1346,6 +1357,7 @@ void NNInputs::fillRowV4(
             }
             if(moveHistoryLen >= 5 && moveHistory[moveHistoryLen-5].pla == opp) {
               Loc prev5Loc = moveHistory[moveHistoryLen-5].loc;
+              numTurnsOfHistoryIncluded = 5;
               if(prev5Loc == Board::PASS_LOC)
                 rowGlobal[4] = 1.0;
               else if(prev5Loc != Board::NULL_LOC) {
@@ -1374,7 +1386,7 @@ void NNInputs::fillRowV4(
 
   iterLadders(board, nnXLen, addLadderFeature);
 
-  const Board& prevBoard = hideHistory ? board : hist.getRecentBoard(1);
+  const Board& prevBoard = (hideHistory || numTurnsOfHistoryIncluded < 1) ? board : hist.getRecentBoard(1);
   auto addPrevLadderFeature = [&prevBoard,posStride,featureStride,rowBin](Loc loc, int pos, const vector<Loc>& workingMoves){
     (void)workingMoves;
     (void)loc;
@@ -1384,7 +1396,7 @@ void NNInputs::fillRowV4(
   };
   iterLadders(prevBoard, nnXLen, addPrevLadderFeature);
 
-  const Board& prevPrevBoard = hideHistory ? board : hist.getRecentBoard(2);
+  const Board& prevPrevBoard = (hideHistory || numTurnsOfHistoryIncluded < 2) ? prevBoard : hist.getRecentBoard(2);
   auto addPrevPrevLadderFeature = [&prevPrevBoard,posStride,featureStride,rowBin](Loc loc, int pos, const vector<Loc>& workingMoves){
     (void)workingMoves;
     (void)loc;
@@ -1837,6 +1849,7 @@ void NNInputs::fillRowV6(
     hist.isGameFinished ||
     hist.isPastNormalPhaseEnd ||
     (nnInputParams.conservativePassAndIsRoot && hist.passWouldEndGame(board,nextPlayer));
+  int numTurnsOfHistoryIncluded = 0;
 
   //Features 9,10,11,12,13
   if(!hideHistory) {
@@ -1848,6 +1861,7 @@ void NNInputs::fillRowV6(
 
     if(numTurnsThisPhase >= 1 && moveHistory[moveHistoryLen-1].pla == opp) {
       Loc prev1Loc = moveHistory[moveHistoryLen-1].loc;
+      numTurnsOfHistoryIncluded = 1;
       if(prev1Loc == Board::PASS_LOC)
         rowGlobal[0] = 1.0;
       else if(prev1Loc != Board::NULL_LOC) {
@@ -1856,6 +1870,7 @@ void NNInputs::fillRowV6(
       }
       if(numTurnsThisPhase >= 2 && moveHistory[moveHistoryLen-2].pla == pla) {
         Loc prev2Loc = moveHistory[moveHistoryLen-2].loc;
+        numTurnsOfHistoryIncluded = 2;
         if(prev2Loc == Board::PASS_LOC)
           rowGlobal[1] = 1.0;
         else if(prev2Loc != Board::NULL_LOC) {
@@ -1864,6 +1879,7 @@ void NNInputs::fillRowV6(
         }
         if(numTurnsThisPhase >= 3 && moveHistory[moveHistoryLen-3].pla == opp) {
           Loc prev3Loc = moveHistory[moveHistoryLen-3].loc;
+          numTurnsOfHistoryIncluded = 3;
           if(prev3Loc == Board::PASS_LOC)
             rowGlobal[2] = 1.0;
           else if(prev3Loc != Board::NULL_LOC) {
@@ -1872,6 +1888,7 @@ void NNInputs::fillRowV6(
           }
           if(numTurnsThisPhase >= 4 && moveHistory[moveHistoryLen-4].pla == pla) {
             Loc prev4Loc = moveHistory[moveHistoryLen-4].loc;
+            numTurnsOfHistoryIncluded = 4;
             if(prev4Loc == Board::PASS_LOC)
               rowGlobal[3] = 1.0;
             else if(prev4Loc != Board::NULL_LOC) {
@@ -1880,6 +1897,7 @@ void NNInputs::fillRowV6(
             }
             if(numTurnsThisPhase >= 5 && moveHistory[moveHistoryLen-5].pla == opp) {
               Loc prev5Loc = moveHistory[moveHistoryLen-5].loc;
+              numTurnsOfHistoryIncluded = 5;
               if(prev5Loc == Board::PASS_LOC)
                 rowGlobal[4] = 1.0;
               else if(prev5Loc != Board::NULL_LOC) {
@@ -1908,7 +1926,7 @@ void NNInputs::fillRowV6(
 
   iterLadders(board, nnXLen, addLadderFeature);
 
-  const Board& prevBoard = hideHistory ? board : hist.getRecentBoard(1);
+  const Board& prevBoard = (hideHistory || numTurnsOfHistoryIncluded < 1) ? board : hist.getRecentBoard(1);
   auto addPrevLadderFeature = [&prevBoard,posStride,featureStride,rowBin](Loc loc, int pos, const vector<Loc>& workingMoves){
     (void)workingMoves;
     (void)loc;
@@ -1918,7 +1936,7 @@ void NNInputs::fillRowV6(
   };
   iterLadders(prevBoard, nnXLen, addPrevLadderFeature);
 
-  const Board& prevPrevBoard = hideHistory ? board : hist.getRecentBoard(2);
+  const Board& prevPrevBoard = (hideHistory || numTurnsOfHistoryIncluded < 2) ? prevBoard : hist.getRecentBoard(2);
   auto addPrevPrevLadderFeature = [&prevPrevBoard,posStride,featureStride,rowBin](Loc loc, int pos, const vector<Loc>& workingMoves){
     (void)workingMoves;
     (void)loc;
@@ -2232,6 +2250,7 @@ void NNInputs::fillRowV7(
     hist.isGameFinished ||
     hist.isPastNormalPhaseEnd ||
     (nnInputParams.conservativePassAndIsRoot && hist.passWouldEndGame(board,nextPlayer));
+  int numTurnsOfHistoryIncluded = 0;
 
   //Features 9,10,11,12,13
   if(!hideHistory) {
@@ -2243,6 +2262,7 @@ void NNInputs::fillRowV7(
 
     if(numTurnsThisPhase >= 1 && moveHistory[moveHistoryLen-1].pla == opp) {
       Loc prev1Loc = moveHistory[moveHistoryLen-1].loc;
+      numTurnsOfHistoryIncluded = 1;
       if(prev1Loc == Board::PASS_LOC)
         rowGlobal[0] = 1.0;
       else if(prev1Loc != Board::NULL_LOC) {
@@ -2251,6 +2271,7 @@ void NNInputs::fillRowV7(
       }
       if(numTurnsThisPhase >= 2 && moveHistory[moveHistoryLen-2].pla == pla) {
         Loc prev2Loc = moveHistory[moveHistoryLen-2].loc;
+        numTurnsOfHistoryIncluded = 2;
         if(prev2Loc == Board::PASS_LOC)
           rowGlobal[1] = 1.0;
         else if(prev2Loc != Board::NULL_LOC) {
@@ -2259,6 +2280,7 @@ void NNInputs::fillRowV7(
         }
         if(numTurnsThisPhase >= 3 && moveHistory[moveHistoryLen-3].pla == opp) {
           Loc prev3Loc = moveHistory[moveHistoryLen-3].loc;
+          numTurnsOfHistoryIncluded = 3;
           if(prev3Loc == Board::PASS_LOC)
             rowGlobal[2] = 1.0;
           else if(prev3Loc != Board::NULL_LOC) {
@@ -2267,6 +2289,7 @@ void NNInputs::fillRowV7(
           }
           if(numTurnsThisPhase >= 4 && moveHistory[moveHistoryLen-4].pla == pla) {
             Loc prev4Loc = moveHistory[moveHistoryLen-4].loc;
+            numTurnsOfHistoryIncluded = 4;
             if(prev4Loc == Board::PASS_LOC)
               rowGlobal[3] = 1.0;
             else if(prev4Loc != Board::NULL_LOC) {
@@ -2275,6 +2298,7 @@ void NNInputs::fillRowV7(
             }
             if(numTurnsThisPhase >= 5 && moveHistory[moveHistoryLen-5].pla == opp) {
               Loc prev5Loc = moveHistory[moveHistoryLen-5].loc;
+              numTurnsOfHistoryIncluded = 5;
               if(prev5Loc == Board::PASS_LOC)
                 rowGlobal[4] = 1.0;
               else if(prev5Loc != Board::NULL_LOC) {
@@ -2303,7 +2327,7 @@ void NNInputs::fillRowV7(
 
   iterLadders(board, nnXLen, addLadderFeature);
 
-  const Board& prevBoard = hideHistory ? board : hist.getRecentBoard(1);
+  const Board& prevBoard = (hideHistory || numTurnsOfHistoryIncluded < 1) ? board : hist.getRecentBoard(1);
   auto addPrevLadderFeature = [&prevBoard,posStride,featureStride,rowBin](Loc loc, int pos, const vector<Loc>& workingMoves){
     (void)workingMoves;
     (void)loc;
@@ -2313,7 +2337,7 @@ void NNInputs::fillRowV7(
   };
   iterLadders(prevBoard, nnXLen, addPrevLadderFeature);
 
-  const Board& prevPrevBoard = hideHistory ? board : hist.getRecentBoard(2);
+  const Board& prevPrevBoard = (hideHistory || numTurnsOfHistoryIncluded < 2) ? prevBoard : hist.getRecentBoard(2);
   auto addPrevPrevLadderFeature = [&prevPrevBoard,posStride,featureStride,rowBin](Loc loc, int pos, const vector<Loc>& workingMoves){
     (void)workingMoves;
     (void)loc;

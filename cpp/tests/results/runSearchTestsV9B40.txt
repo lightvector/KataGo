@@ -6903,34 +6903,34 @@ NN batches: 74
 NN avg batch size: 1
 PV: pass pass C4 D1 pass G1 pass F1
 Tree:
-: T 101.94c W  99.62c S   2.24c ( +1.2 L  +1.5) N     100  --  pass pass C4 D1 pass G1 pass
+: T 101.96c W  99.62c S   2.26c ( +1.2 L  +1.5) N     100  --  pass pass C4 D1 pass G1 pass
 ---Black(v)---
-pss : T 100.23c W  99.75c S   0.28c ( +0.7 L  +1.2) LCB  103.72c P 67.84% WF 366.0 PSV     363 N      74  --  pass pass C4 D1 pass G1 pass F1
-G1  : T 109.43c W  99.00c S  10.44c ( +3.6 L  +2.5) LCB  460.95c P  3.21% WF   3.2 PSV       2 N       1  --  G1
-G6  : T 110.00c W  99.25c S  10.75c ( +3.6 L  +2.8) LCB  461.52c P  2.40% WF   3.5 PSV       1 N       1  --  G6
-C4  : T 109.42c W  99.02c S  10.40c ( +3.5 L  +2.5) LCB  460.93c P  1.73% WF   3.2 PSV       1 N       1  --  C4
-D4  : T 108.76c W  99.00c S   9.77c ( +3.3 L  +2.3) LCB  460.31c P  1.73% WF   3.2 PSV       1 N       1  --  D4
-B4  : T 109.53c W  99.00c S  10.54c ( +3.6 L  +2.5) LCB  461.03c P  1.52% WF   3.2 PSV       1 N       1  --  B4
-D5  : T 109.37c W  99.04c S  10.33c ( +3.5 L  +2.5) LCB  460.90c P  1.39% WF   3.2 PSV       0 N       1  --  D5
-D6  : T 109.39c W  98.97c S  10.42c ( +3.5 L  +2.5) LCB  460.92c P  1.37% WF   3.1 PSV       0 N       1  --  D6
-B6  : T 109.82c W  99.14c S  10.68c ( +3.6 L  +2.6) LCB  461.30c P  1.35% WF   3.3 PSV       0 N       1  --  B6
-A2  : T 109.01c W  99.16c S   9.85c ( +3.3 L  +2.4) LCB  460.57c P  1.32% WF   3.3 PSV       0 N       1  --  A2
-C5  : T 109.82c W  98.98c S  10.84c ( +3.7 L  +2.5) LCB  461.30c P  1.28% WF   3.2 PSV       0 N       1  --  C5
-C6  : T 109.57c W  99.07c S  10.49c ( +3.6 L  +2.5) LCB  461.06c P  1.27% WF   3.3 PSV       0 N       1  --  C6
-B5  : T 109.80c W  98.97c S  10.83c ( +3.7 L  +2.5) LCB  461.28c P  1.23% WF   3.2 PSV       0 N       1  --  B5
-A3  : T 109.54c W  99.06c S  10.47c ( +3.6 L  +2.5) LCB  461.05c P  1.19% WF   3.2 PSV       0 N       1  --  A3
-A1  : T 108.20c W  99.00c S   9.20c ( +3.2 L  +2.4) LCB  459.79c P  1.19% WF   3.1 PSV       0 N       1  --  A1
-D7  : T 109.51c W  99.03c S  10.48c ( +3.6 L  +2.6) LCB  461.03c P  1.12% WF   3.2 PSV       0 N       1  --  D7
-G7  : T 110.08c W  99.12c S  10.97c ( +3.7 L  +2.7) LCB  461.56c P  1.05% WF   3.4 PSV       0 N       1  --  G7
-A4  : T 109.82c W  98.98c S  10.85c ( +3.7 L  +2.6) LCB  461.32c P  0.99% WF   3.2 PSV       0 N       1  --  A4
-B7  : T 110.44c W  99.04c S  11.40c ( +3.8 L  +2.8) LCB  461.87c P  0.96% WF   3.3 PSV       0 N       1  --  B7
-G5  : T 110.08c W  99.03c S  11.05c ( +3.7 L  +2.8) LCB  461.58c P  0.94% WF   3.3 PSV       0 N       1  --  G5
-C7  : T 110.44c W  99.06c S  11.38c ( +3.8 L  +2.8) LCB  461.88c P  0.94% WF   3.3 PSV       0 N       1  --  C7
-A6  : T 110.91c W  99.09c S  11.82c ( +4.0 L  +2.9) LCB  462.33c P  0.85% WF   3.4 PSV       0 N       1  --  A6
-A7  : T 110.21c W  99.05c S  11.16c ( +3.8 L  +2.6) LCB  461.66c P  0.83% WF   3.2 PSV       0 N       1  --  A7
-A5  : T 110.51c W  99.03c S  11.48c ( +3.9 L  +2.8) LCB  461.95c P  0.81% WF   3.3 PSV       0 N       1  --  A5
-G3  : T 108.99c W  98.92c S  10.07c ( +3.4 L  +2.5) LCB  460.57c P  0.80% WF   3.1 PSV       0 N       1  --  G3
-D1  : T 109.64c W  98.89c S  10.75c ( +3.6 L  +2.5) LCB  461.17c P  0.70% WF   3.1 PSV       0 N       1  --  D1
+pss : T 100.25c W  99.75c S   0.30c ( +0.7 L  +1.2) LCB  103.74c P 67.81% WF 366.0 PSV     363 N      74  --  pass pass C4 D1 pass G1 pass F1
+G1  : T 109.45c W  99.00c S  10.45c ( +3.6 L  +2.5) LCB  460.97c P  3.20% WF   3.2 PSV       2 N       1  --  G1
+G6  : T 110.02c W  99.25c S  10.77c ( +3.6 L  +2.8) LCB  461.54c P  2.38% WF   3.5 PSV       1 N       1  --  G6
+D4  : T 108.78c W  99.00c S   9.79c ( +3.3 L  +2.3) LCB  460.33c P  1.73% WF   3.2 PSV       1 N       1  --  D4
+C4  : T 109.43c W  99.02c S  10.42c ( +3.5 L  +2.5) LCB  460.94c P  1.73% WF   3.2 PSV       1 N       1  --  C4
+B4  : T 109.55c W  99.00c S  10.56c ( +3.6 L  +2.5) LCB  461.04c P  1.53% WF   3.2 PSV       1 N       1  --  B4
+D5  : T 109.39c W  99.04c S  10.35c ( +3.5 L  +2.5) LCB  460.91c P  1.40% WF   3.2 PSV       0 N       1  --  D5
+D6  : T 109.41c W  98.97c S  10.44c ( +3.5 L  +2.5) LCB  460.93c P  1.37% WF   3.1 PSV       0 N       1  --  D6
+B6  : T 109.84c W  99.14c S  10.70c ( +3.6 L  +2.6) LCB  461.32c P  1.35% WF   3.3 PSV       0 N       1  --  B6
+A2  : T 109.03c W  99.16c S   9.86c ( +3.3 L  +2.4) LCB  460.59c P  1.33% WF   3.3 PSV       0 N       1  --  A2
+C5  : T 109.84c W  98.98c S  10.86c ( +3.7 L  +2.5) LCB  461.32c P  1.28% WF   3.2 PSV       0 N       1  --  C5
+C6  : T 109.58c W  99.07c S  10.51c ( +3.6 L  +2.5) LCB  461.08c P  1.27% WF   3.3 PSV       0 N       1  --  C6
+B5  : T 109.82c W  98.97c S  10.84c ( +3.7 L  +2.5) LCB  461.29c P  1.23% WF   3.2 PSV       0 N       1  --  B5
+A3  : T 109.55c W  99.06c S  10.49c ( +3.6 L  +2.5) LCB  461.07c P  1.19% WF   3.2 PSV       0 N       1  --  A3
+A1  : T 108.22c W  99.00c S   9.22c ( +3.2 L  +2.4) LCB  459.81c P  1.19% WF   3.1 PSV       0 N       1  --  A1
+D7  : T 109.53c W  99.03c S  10.50c ( +3.6 L  +2.6) LCB  461.04c P  1.12% WF   3.2 PSV       0 N       1  --  D7
+G7  : T 110.10c W  99.12c S  10.98c ( +3.7 L  +2.7) LCB  461.58c P  1.05% WF   3.4 PSV       0 N       1  --  G7
+A4  : T 109.84c W  98.98c S  10.86c ( +3.7 L  +2.6) LCB  461.33c P  1.00% WF   3.2 PSV       0 N       1  --  A4
+B7  : T 110.46c W  99.04c S  11.41c ( +3.8 L  +2.8) LCB  461.89c P  0.96% WF   3.3 PSV       0 N       1  --  B7
+G5  : T 110.10c W  99.03c S  11.07c ( +3.7 L  +2.8) LCB  461.59c P  0.95% WF   3.3 PSV       0 N       1  --  G5
+C7  : T 110.46c W  99.06c S  11.40c ( +3.8 L  +2.8) LCB  461.90c P  0.94% WF   3.3 PSV       0 N       1  --  C7
+A6  : T 110.93c W  99.09c S  11.84c ( +4.0 L  +2.9) LCB  462.35c P  0.86% WF   3.4 PSV       0 N       1  --  A6
+A7  : T 110.23c W  99.05c S  11.18c ( +3.8 L  +2.6) LCB  461.68c P  0.83% WF   3.2 PSV       0 N       1  --  A7
+G3  : T 109.01c W  98.92c S  10.09c ( +3.4 L  +2.5) LCB  460.59c P  0.81% WF   3.1 PSV       0 N       1  --  G3
+A5  : T 110.52c W  99.03c S  11.50c ( +3.9 L  +2.8) LCB  461.96c P  0.81% WF   3.3 PSV       0 N       1  --  A5
+D1  : T 109.66c W  98.89c S  10.77c ( +3.6 L  +2.5) LCB  461.19c P  0.71% WF   3.1 PSV       0 N       1  --  D1
 Ladder feature 14
 0 0 0 0 0 0 0 
 0 0 0 0 0 0 0 
@@ -6953,7 +6953,7 @@ Ladder feature 16
 0 0 0 0 0 0 0 
 0 0 0 0 0 0 0 
 0 0 0 0 0 0 0 
-0 0 0 0 0 0 0 
+0 0 0 0 0 0 1 
 0 0 0 0 1 1 0 
 Conservative pass false
 MoveNum: 8 HASH: FFA57A462E91615596B6A1C08E958BD7
@@ -6973,34 +6973,34 @@ NN batches: 97
 NN avg batch size: 1
 PV: pass C6 C5 pass pass D1 D6
 Tree:
-: T 103.87c W  99.31c S   4.96c ( +3.4 L  +3.4) N     100  --  pass C6 C5 pass pass D1 D6
+: T 103.92c W  99.31c S   5.01c ( +3.4 L  +3.4) N     100  --  pass C6 C5 pass pass D1 D6
 ---Black(v)---
-pss : T 100.94c W  99.37c S   2.22c ( +2.6 L  +2.7) LCB  104.98c P 65.58% WF 241.8 PSV     238 N      74  --  pass C6 C5 pass pass D1 D6
-G6  : T 111.91c W  99.36c S  12.55c ( +5.6 L  +5.4) LCB  463.31c P  3.29% WF   4.1 PSV       1 N       1  --  G6
-G1  : T 111.56c W  99.20c S  12.36c ( +5.6 L  +5.1) LCB  462.96c P  2.92% WF   3.9 PSV       1 N       1  --  G1
-C4  : T 111.15c W  99.11c S  12.03c ( +5.4 L  +5.0) LCB  462.50c P  1.66% WF   3.8 PSV       0 N       1  --  C4
-D6  : T 110.84c W  99.06c S  11.78c ( +5.3 L  +5.0) LCB  462.26c P  1.61% WF   3.7 PSV       0 N       1  --  D6
-B4  : T 111.34c W  99.11c S  12.23c ( +5.5 L  +5.1) LCB  462.68c P  1.59% WF   3.8 PSV       0 N       1  --  B4
-D4  : T 110.46c W  99.16c S  11.30c ( +5.2 L  +4.8) LCB  461.86c P  1.57% WF   3.8 PSV       0 N       1  --  D4
-B6  : T 111.47c W  99.15c S  12.31c ( +5.5 L  +5.1) LCB  462.81c P  1.54% WF   3.8 PSV       0 N       1  --  B6
-C6  : T 111.24c W  99.08c S  12.16c ( +5.4 L  +5.1) LCB  462.60c P  1.53% WF   3.8 PSV       0 N       1  --  C6
-C5  : T 111.45c W  99.00c S  12.45c ( +5.5 L  +5.1) LCB  462.79c P  1.51% WF   3.7 PSV       0 N       1  --  C5
-D5  : T 111.18c W  99.11c S  12.07c ( +5.4 L  +5.1) LCB  462.56c P  1.51% WF   3.8 PSV       0 N       1  --  D5
-B5  : T 111.33c W  99.01c S  12.32c ( +5.5 L  +5.1) LCB  462.67c P  1.42% WF   3.7 PSV       0 N       1  --  B5
-A2  : T 110.80c W  99.26c S  11.54c ( +5.3 L  +5.0) LCB  462.25c P  1.28% WF   3.9 PSV       0 N       1  --  A2
-A3  : T 111.29c W  99.16c S  12.13c ( +5.5 L  +5.1) LCB  462.69c P  1.26% WF   3.8 PSV       0 N       1  --  A3
-D7  : T 111.13c W  99.12c S  12.02c ( +5.4 L  +5.1) LCB  462.54c P  1.22% WF   3.8 PSV       0 N       1  --  D7
-A1  : T 110.16c W  99.15c S  11.01c ( +5.1 L  +4.8) LCB  461.64c P  1.15% WF   3.8 PSV       0 N       1  --  A1
-A4  : T 111.29c W  99.07c S  12.22c ( +5.5 L  +5.1) LCB  462.68c P  1.12% WF   3.8 PSV       0 N       1  --  A4
-B7  : T 111.59c W  99.07c S  12.51c ( +5.6 L  +5.2) LCB  462.94c P  1.06% WF   3.8 PSV       0 N       1  --  B7
-C7  : T 111.87c W  99.07c S  12.80c ( +5.7 L  +5.3) LCB  463.21c P  1.06% WF   3.8 PSV       0 N       1  --  C7
-G7  : T 111.43c W  99.19c S  12.24c ( +5.5 L  +5.2) LCB  462.82c P  1.04% WF   3.9 PSV       0 N       1  --  G7
-A6  : T 112.07c W  99.11c S  12.97c ( +5.7 L  +5.4) LCB  463.42c P  1.01% WF   3.9 PSV       0 N       1  --  A6
-G5  : T 111.71c W  99.11c S  12.60c ( +5.6 L  +5.3) LCB  463.11c P  0.98% WF   3.8 PSV       0 N       1  --  G5
-A5  : T 111.87c W  99.06c S  12.81c ( +5.7 L  +5.3) LCB  463.22c P  0.93% WF   3.8 PSV       0 N       1  --  A5
-A7  : T 111.65c W  99.14c S  12.51c ( +5.6 L  +5.1) LCB  462.99c P  0.79% WF   3.8 PSV       0 N       1  --  A7
-G3  : T 110.80c W  99.04c S  11.76c ( +5.3 L  +5.1) LCB  462.27c P  0.72% WF   3.7 PSV       0 N       1  --  G3
-D1  : T 111.29c W  99.06c S  12.22c ( +5.5 L  +5.0) LCB  462.73c P  0.68% WF   3.8 PSV       0 N       1  --  D1
+pss : T 101.00c W  99.37c S   2.28c ( +2.6 L  +2.7) LCB  105.03c P 65.72% WF 241.9 PSV     238 N      74  --  pass C6 C5 pass pass D1 D6
+G6  : T 111.95c W  99.36c S  12.59c ( +5.6 L  +5.4) LCB  463.35c P  3.23% WF   4.1 PSV       1 N       1  --  G6
+G1  : T 111.60c W  99.20c S  12.40c ( +5.6 L  +5.1) LCB  463.00c P  2.92% WF   3.9 PSV       1 N       1  --  G1
+C4  : T 111.19c W  99.11c S  12.08c ( +5.4 L  +5.0) LCB  462.54c P  1.65% WF   3.8 PSV       0 N       1  --  C4
+D6  : T 110.88c W  99.06c S  11.83c ( +5.3 L  +5.0) LCB  462.30c P  1.60% WF   3.7 PSV       0 N       1  --  D6
+B4  : T 111.38c W  99.11c S  12.27c ( +5.5 L  +5.1) LCB  462.72c P  1.59% WF   3.8 PSV       0 N       1  --  B4
+D4  : T 110.50c W  99.16c S  11.35c ( +5.2 L  +4.8) LCB  461.90c P  1.56% WF   3.8 PSV       0 N       1  --  D4
+B6  : T 111.51c W  99.15c S  12.35c ( +5.5 L  +5.1) LCB  462.85c P  1.54% WF   3.8 PSV       0 N       1  --  B6
+C6  : T 111.29c W  99.08c S  12.21c ( +5.4 L  +5.1) LCB  462.65c P  1.52% WF   3.8 PSV       0 N       1  --  C6
+D5  : T 111.22c W  99.11c S  12.11c ( +5.4 L  +5.1) LCB  462.60c P  1.50% WF   3.8 PSV       0 N       1  --  D5
+C5  : T 111.49c W  99.00c S  12.50c ( +5.5 L  +5.1) LCB  462.83c P  1.50% WF   3.7 PSV       0 N       1  --  C5
+B5  : T 111.37c W  99.01c S  12.36c ( +5.5 L  +5.1) LCB  462.71c P  1.41% WF   3.7 PSV       0 N       1  --  B5
+A2  : T 110.84c W  99.26c S  11.59c ( +5.3 L  +5.0) LCB  462.29c P  1.27% WF   3.9 PSV       0 N       1  --  A2
+A3  : T 111.33c W  99.16c S  12.17c ( +5.5 L  +5.1) LCB  462.73c P  1.25% WF   3.8 PSV       0 N       1  --  A3
+D7  : T 111.18c W  99.12c S  12.06c ( +5.4 L  +5.1) LCB  462.59c P  1.21% WF   3.8 PSV       0 N       1  --  D7
+A1  : T 110.20c W  99.15c S  11.06c ( +5.1 L  +4.8) LCB  461.68c P  1.14% WF   3.8 PSV       0 N       1  --  A1
+A4  : T 111.33c W  99.07c S  12.26c ( +5.5 L  +5.1) LCB  462.72c P  1.12% WF   3.8 PSV       0 N       1  --  A4
+B7  : T 111.63c W  99.07c S  12.56c ( +5.6 L  +5.2) LCB  462.98c P  1.06% WF   3.8 PSV       0 N       1  --  B7
+C7  : T 111.92c W  99.07c S  12.84c ( +5.7 L  +5.3) LCB  463.25c P  1.06% WF   3.8 PSV       0 N       1  --  C7
+G7  : T 111.47c W  99.19c S  12.29c ( +5.5 L  +5.2) LCB  462.86c P  1.02% WF   3.9 PSV       0 N       1  --  G7
+A6  : T 112.11c W  99.11c S  13.01c ( +5.7 L  +5.4) LCB  463.45c P  1.01% WF   3.9 PSV       0 N       1  --  A6
+G5  : T 111.75c W  99.11c S  12.64c ( +5.6 L  +5.3) LCB  463.15c P  0.98% WF   3.8 PSV       0 N       1  --  G5
+A5  : T 111.92c W  99.06c S  12.85c ( +5.7 L  +5.3) LCB  463.26c P  0.94% WF   3.8 PSV       0 N       1  --  A5
+A7  : T 111.69c W  99.14c S  12.55c ( +5.6 L  +5.1) LCB  463.03c P  0.79% WF   3.8 PSV       0 N       1  --  A7
+G3  : T 110.84c W  99.04c S  11.80c ( +5.3 L  +5.1) LCB  462.31c P  0.72% WF   3.7 PSV       0 N       1  --  G3
+D1  : T 111.33c W  99.06c S  12.27c ( +5.5 L  +5.0) LCB  462.77c P  0.68% WF   3.8 PSV       0 N       1  --  D1
 Ladder feature 14
 0 0 0 0 0 0 0 
 0 0 0 0 0 0 0 
@@ -7023,7 +7023,7 @@ Ladder feature 16
 0 0 0 0 0 0 0 
 0 0 0 0 0 0 0 
 0 0 0 0 0 0 0 
-0 0 0 0 0 0 0 
+0 0 0 0 0 0 1 
 0 0 0 0 1 1 0 
 : GPU 0 finishing, processed 9494 rows 9494 batches
 Done
