@@ -631,6 +631,16 @@ void Sgf::iterAllUniquePositions(
   );
 }
 
+static string makeTrace(const std::vector<std::pair<int64_t,int64_t>>& variationTraceNodesBranch, size_t i) {
+  ostringstream trace;
+  for(size_t s = 0; s < variationTraceNodesBranch.size(); s++) {
+    trace << "forward " << variationTraceNodesBranch[s].first << " ";
+    trace << "branch " << variationTraceNodesBranch[s].second << " ";
+  }
+  trace << "forward " << i;
+  return trace.str();
+}
+
 void Sgf::iterAllUniquePositionsHelper(
   Board& board, BoardHistory& hist, Player nextPla,
   const Rules& rules, int xSize, int ySize,
@@ -666,15 +676,8 @@ void Sgf::iterAllUniquePositionsHelper(
         }
         bool suc = board.setStonesFailIfNoLibs(buf);
         if(!suc) {
-          ostringstream trace;
-          for(size_t s = 0; s < variationTraceNodesBranch.size(); s++) {
-            trace << "forward " << variationTraceNodesBranch[s].first << " ";
-            trace << "branch " << variationTraceNodesBranch[s].second << " ";
-          }
-          trace << "forward " << i;
-
           throw StringError(
-            "Illegal placements in " + fileName + " SGF trace (branches 0-indexed): " + trace.str()
+            "Illegal placements in " + fileName + " SGF trace (branches 0-indexed): " + makeTrace(variationTraceNodesBranch, i)
           );
         }
 
@@ -701,22 +704,20 @@ void Sgf::iterAllUniquePositionsHelper(
     nodes[i]->accumMoves(buf,xSize,ySize);
 
     for(size_t j = 0; j<buf.size(); j++) {
+      // Check for same player moving twice in a row
+      if(hist.moveHistory.size() > 0) {
+        assert(hist.presumedNextMovePla == getOpp(hist.moveHistory[hist.moveHistory.size()-1].pla));
+        if(buf[j].pla != hist.presumedNextMovePla) {
+          hist.clear(board,buf[j].pla,rules,0);
+          cout << ("Clearing hist due to same pla consec move in " + fileName + " effective turn " + Global::int64ToString(j+initialTurnNumber) + " move " +
+                   Location::toString(buf[j].loc, board.x_size, board.y_size) + " SGF trace (branches 0-indexed): " + makeTrace(variationTraceNodesBranch, i)) << endl;
+        }
+      }
       bool suc = hist.makeBoardMoveTolerant(board,buf[j].loc,buf[j].pla);
       if(!suc) {
-        ostringstream trace;
-        for(size_t s = 0; s < variationTraceNodesBranch.size(); s++) {
-          trace << "forward " << variationTraceNodesBranch[s].first << " ";
-          trace << "branch " << variationTraceNodesBranch[s].second << " ";
-        }
-        trace << "forward " << i;
-
-        // hist.printBasicInfo(trace, board);
-        // hist.printDebugInfo(trace, board);
-        // trace << Location::toString(buf[j].loc,board) << endl;
-
         throw StringError(
           "Illegal move in " + fileName + " effective turn " + Global::int64ToString(j+initialTurnNumber) + " move " +
-          Location::toString(buf[j].loc, board.x_size, board.y_size) + " SGF trace (branches 0-indexed): " + trace.str()
+          Location::toString(buf[j].loc, board.x_size, board.y_size) + " SGF trace (branches 0-indexed): " + makeTrace(variationTraceNodesBranch, i)
         );
       }
       if(hist.moveHistory.size() > 0x3FFFFFFF)
