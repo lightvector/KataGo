@@ -110,11 +110,11 @@ def handle_file(poses_by_key, poses_file):
       if key in poses_by_key:
         poses_by_key[key]["weight"] += weight
       else:
-        poses_by_key[key] = pos
+        poses_by_key[key] = pos.copy()
       if key in poses_by_key_this_file:
         poses_by_key_this_file[key]["weight"] += weight
       else:
-        poses_by_key_this_file[key] = pos
+        poses_by_key_this_file[key] = pos.copy()
   if separate_summaries:
     sumweight,sumweightsq = compute_sum_sumsq(poses_by_key_this_file.values())
     if sumweight > 0 and sumweightsq > 0:
