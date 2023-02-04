@@ -1,8 +1,13 @@
-NOTE: This version locally modified for KataGo to fix some g++ compiler warnings
-about default switch cases.
-
-Release Notes
+Release Notes											{#changelog}
 =============
+
+2.2.0 release (2021-06-12):
+---------------------------
+
+- Added `rsqrt` function for inverse square root.
+- Improved performance of `pow` function.
+- Fixed bug that forgot to include `<immintrin.h>` for F16C intrinsics.
+
 
 2.1.0 release (2019-08-05):
 ---------------------------
