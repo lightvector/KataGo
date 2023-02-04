@@ -5,7 +5,7 @@
 #include "../neuralnet/cudaincludes.h"
 #include "../neuralnet/cudahelpers.h"
 
-#include "../external/half-2.1.0/include/half.hpp"
+#include "../external/half-2.2.0/include/half.hpp"
 
 //------------------------
 #include "../core/using.h"

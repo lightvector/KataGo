@@ -5,7 +5,7 @@
 #include "../core/logger.h"
 #include "../neuralnet/openclincludes.h"
 
-#include "../external/half-2.1.0/include/half.hpp"
+#include "../external/half-2.2.0/include/half.hpp"
 
 #define CHECK_ERR(x) { OpenCLHelpers::checkErrors((x),__FILE__,#x,__LINE__); }
 
