@@ -777,6 +777,8 @@ int MainCmds::samplesgfs(const vector<string>& args) {
          hist.initialBoard.numStonesOnBoard() + hist.moveHistory.size() > maxTurnNumber) {
         return;
       }
+      if(comments.size() > 0 && comments.find("%NOSAMPLE%") != string::npos)
+        return;
 
       if(seedRand.nextBool(sampleProb)) {
         Sgf::PositionSample posSampleToWrite = posSample;
