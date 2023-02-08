@@ -768,10 +768,11 @@ bool Connection::getNextTask(
       ConfigParser taskCfg(taskCfgIn);
       SearchParams baseParams = Setup::loadSingleParams(taskCfg,Setup::SETUP_FOR_DISTRIBUTED);
       PlaySettings playSettings;
+      const bool isDistributed = true;
       if(task.isRatingGame)
         playSettings = PlaySettings::loadForGatekeeper(taskCfg);
       else
-        playSettings = PlaySettings::loadForSelfplay(taskCfg);
+        playSettings = PlaySettings::loadForSelfplay(taskCfg, isDistributed);
       (void)baseParams;
       (void)playSettings;
     }

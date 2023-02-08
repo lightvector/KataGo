@@ -18,6 +18,10 @@ struct PlaySettings {
 
   //Use this many visits in a short search to estimate the score, for adjusting komi
   int compensateKomiVisits;
+  //When NOT compensating komi, set the fair komi for white playing first rather than black playing first.
+  double flipKomiProbWhenNoCompensate;
+  
+  //Use this many visits in a short search to estimate the score, for computing lead
   int estimateLeadVisits;
   //On each train position, estimate the lead in points with this probability
   double estimateLeadProb;
@@ -84,7 +88,7 @@ struct PlaySettings {
 
   static PlaySettings loadForMatch(ConfigParser& cfg);
   static PlaySettings loadForGatekeeper(ConfigParser& cfg);
-  static PlaySettings loadForSelfplay(ConfigParser& cfg);
+  static PlaySettings loadForSelfplay(ConfigParser& cfg, bool isDistributed);
 };
 
 #endif // PROGRAM_PLAYSETTINGS_H_

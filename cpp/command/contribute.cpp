@@ -136,12 +136,13 @@ static void runAndUploadSingleGame(
 
   SearchParams baseParams;
   PlaySettings playSettings;
+  const bool isDistributed = true;
   try {
     baseParams = Setup::loadSingleParams(taskCfg,Setup::SETUP_FOR_DISTRIBUTED);
     if(gameTask.task.isRatingGame)
       playSettings = PlaySettings::loadForGatekeeper(taskCfg);
     else
-      playSettings = PlaySettings::loadForSelfplay(taskCfg);
+      playSettings = PlaySettings::loadForSelfplay(taskCfg, isDistributed);
   }
   catch(StringError& e) {
     cerr << "Error parsing task config" << endl;
