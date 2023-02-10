@@ -462,7 +462,7 @@ static Rules parseRulesHelper(const string& sOrig, bool allowKomi) {
         if(!allowKomi)
           throw IOError("Could not parse rules: " + sOrig);
         int endIdx = 0;
-        while(endIdx < s.length() && !Global::isAlpha(s[endIdx] && !Global::isWhitespace(s[endIdx])))
+        while(endIdx < s.length() && !Global::isAlpha(s[endIdx]) && !Global::isWhitespace(s[endIdx]))
           endIdx++;
         float komi;
         bool suc = Global::tryStringToFloat(s.substr(0,endIdx),komi);
