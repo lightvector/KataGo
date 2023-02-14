@@ -206,6 +206,108 @@ o.ox..oox
 
   }
 
+  {
+    cout << "Phase change truncating ladder history in spight rules ==========================================================================" << endl;
+    cout << endl;
+
+    auto printLadderFeaturesV7 = [](const Board& board, const BoardHistory& hist, bool conservativePass) {
+      int nnXLen = 7;
+      int nnYLen = 7;
+      bool inputsUseNHWC = false;
+      float* rowBin = new float[NNInputs::NUM_FEATURES_SPATIAL_V7 * nnXLen * nnYLen];
+      float* rowGlobal = new float[NNInputs::NUM_FEATURES_GLOBAL_V7];
+
+      MiscNNInputParams nnInputParams;
+      nnInputParams.drawEquivalentWinsForWhite = 0.5;
+      nnInputParams.conservativePassAndIsRoot = conservativePass;
+      NNInputs::fillRowV7(board,hist,hist.presumedNextMovePla,nnInputParams,nnXLen,nnYLen,inputsUseNHWC,rowBin,rowGlobal);
+
+      cout << "Ladder feature 14" << endl;
+      for(int y = 0; y<nnYLen; y++) {
+        for(int x = 0; x<nnXLen; x++) {
+          cout << rowBin[14 * nnXLen * nnYLen + y * nnXLen + x] << " ";
+        }
+        cout << endl;
+      }
+      cout << "Ladder feature 15" << endl;
+      for(int y = 0; y<nnYLen; y++) {
+        for(int x = 0; x<nnXLen; x++) {
+          cout << rowBin[15 * nnXLen * nnYLen + y * nnXLen + x] << " ";
+        }
+        cout << endl;
+      }
+      cout << "Ladder feature 16" << endl;
+      for(int y = 0; y<nnYLen; y++) {
+        for(int x = 0; x<nnXLen; x++) {
+          cout << rowBin[16 * nnXLen * nnYLen + y * nnXLen + x] << " ";
+        }
+        cout << endl;
+      }
+      delete[] rowBin;
+      delete[] rowGlobal;
+    };
+    
+    Board board = Board::parseBoard(7,7,R"%%(
+....xo.
+....xo.
+....xo.
+....xoo
+.xxxxo.
+.xoooox
+.xo.xx.
+)%%");
+    Player nextPla = P_BLACK;
+    
+    {
+      Rules rules = Rules::parseRules("Japanese");
+      rules.koRule = Rules::KO_SPIGHT;
+      BoardHistory hist(board,nextPla,rules,0);
+      hist.makeBoardMoveAssumeLegal(board,Location::ofString("G3",board),P_BLACK,NULL);
+      hist.makeBoardMoveAssumeLegal(board,Location::ofString("G1",board),P_WHITE,NULL);
+      hist.makeBoardMoveAssumeLegal(board,Location::ofString("G2",board),P_BLACK,NULL);
+      hist.makeBoardMoveAssumeLegal(board,Location::ofString("pass",board),P_WHITE,NULL);
+      hist.makeBoardMoveAssumeLegal(board,Location::ofString("G3",board),P_BLACK,NULL);
+      hist.makeBoardMoveAssumeLegal(board,Location::ofString("G1",board),P_WHITE,NULL);
+      hist.makeBoardMoveAssumeLegal(board,Location::ofString("G2",board),P_BLACK,NULL);
+      hist.makeBoardMoveAssumeLegal(board,Location::ofString("pass",board),P_WHITE,NULL);
+      
+      SearchParams params = SearchParams::forTestsV2();
+      params.maxVisits = 100;
+      params.rootFpuReductionMax = 0;
+      params.conservativePass = false;
+      AsyncBot* bot = new AsyncBot(params, nnEval, &logger, getSearchRandSeed());
+      TestSearchOptions opts;
+      cout << "Conservative pass false" << endl;
+      runBotOnPosition(bot, board, nextPla, hist, opts);
+      printLadderFeaturesV7(board, hist, false);
+      delete bot;
+    }
+    {
+      Rules rules = Rules::parseRules("Japanese");
+      rules.koRule = Rules::KO_SPIGHT;
+      BoardHistory hist(board,nextPla,rules,0);
+      hist.makeBoardMoveAssumeLegal(board,Location::ofString("G3",board),P_BLACK,NULL);
+      hist.makeBoardMoveAssumeLegal(board,Location::ofString("G1",board),P_WHITE,NULL);
+      hist.makeBoardMoveAssumeLegal(board,Location::ofString("G2",board),P_BLACK,NULL);
+      hist.makeBoardMoveAssumeLegal(board,Location::ofString("pass",board),P_WHITE,NULL);
+      hist.makeBoardMoveAssumeLegal(board,Location::ofString("G3",board),P_BLACK,NULL);
+      hist.makeBoardMoveAssumeLegal(board,Location::ofString("G1",board),P_WHITE,NULL);
+      hist.makeBoardMoveAssumeLegal(board,Location::ofString("G2",board),P_BLACK,NULL);
+      hist.makeBoardMoveAssumeLegal(board,Location::ofString("pass",board),P_WHITE,NULL);
+      
+      SearchParams params = SearchParams::forTestsV2();
+      params.maxVisits = 100;
+      params.rootFpuReductionMax = 0;
+      params.conservativePass = true;
+      AsyncBot* bot = new AsyncBot(params, nnEval, &logger, getSearchRandSeed());
+      TestSearchOptions opts;
+      cout << "Conservative pass false" << endl;
+      runBotOnPosition(bot, board, nextPla, hist, opts);
+      printLadderFeaturesV7(board, hist, true);
+      delete bot;
+    }
+  }
+  
 }
 
 void Tests::runSearchTestsV9(const string& modelFile, bool inputsNHWC, bool useNHWC, bool useFP16) {
