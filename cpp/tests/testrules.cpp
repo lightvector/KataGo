@@ -5328,4 +5328,14 @@ Last moves pass pass pass pass H7 G9 F9 H7
     }
   }
 
+  {
+    const char* name = "Rules parsing bug";
+    Rules parsed = Rules::parseRules("komi23taxALL");
+    out << parsed << endl;
+    string expected = R"%%(
+koPOSITIONALscoreAREAtaxALLsui1komi23
+)%%";
+    expect(name,out,expected);
+  }
+
 }
