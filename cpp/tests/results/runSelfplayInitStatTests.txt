@@ -1748,4 +1748,65 @@ bSizeDistribution
 9x13 4
 9x19 8
 9x9 121
-: GPU 0 finishing, processed 152534 rows 152534 batches
+--------------------------------------------------------------------------------------
+Game init test sgfpos black first with big black handicap, flipKomiProbWhenNoCompensate 0
+komiDistribution
+ +5.0 3
+ +5.5 1
+ +6.0 3
+ +6.5 2
+ +7.0 9
+ +7.5 8
+ +8.0 6
+ +8.5 6
+ +9.0 3
+ +9.5 3
++35.5 1
++36.5 3
++37.0 3
++37.5 5
++38.0 13
++38.5 9
++39.0 7
++39.5 9
++40.0 3
++40.5 1
++41.5 2
+bStoneDistribution
+  3 100
+wStoneDistribution
+  1 100
+bSizeDistribution
+19x19 100
+--------------------------------------------------------------------------------------
+Game init test sgfpos white first with big black handicap, flipKomiProbWhenNoCompensate 0
+komiDistribution
+-10.0 1
+ -9.5 1
+ -9.0 1
+ -8.5 5
+ -8.0 10
+ -7.5 5
+ -7.0 11
+ -6.5 5
+ -6.0 3
+ -5.5 2
++37.0 1
++37.5 3
++38.0 3
++38.5 6
++39.0 10
++39.5 10
++40.0 8
++40.5 9
++41.0 3
++41.5 1
++42.0 1
++43.0 1
+bStoneDistribution
+  3 100
+wStoneDistribution
+  0 100
+bSizeDistribution
+19x19 100
+: GPU 0 finishing, processed 155097 rows 155097 batches
