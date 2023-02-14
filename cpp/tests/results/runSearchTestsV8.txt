@@ -2189,7 +2189,7 @@ C5  E5  : T -32.33c W -31.37c S  -0.97c ( -2.4 L  -1.6) LCB -109.87c P 47.57% WF
 C5  E5  C6  : T -27.81c W -27.17c S  -0.63c ( -2.2 L  -1.5) LCB  122.75c P 73.31% WF   2.0 PSV       2 N       2  --  C6 F7
 C5  E5  C6  F7  : T -20.90c W -20.89c S  -0.01c ( -1.9 L  -1.1) LCB -370.90c P 53.20% WF   1.0 PSV       1 N       1  --  F7
 C2  : T   5.84c W   2.48c S   3.37c ( +0.5 L  +0.3) LCB  355.84c P  7.64% WF   0.8 PSV       0 N       1  --  C2
-Just after move
+Just after moveE5
 : T -42.81c W -39.46c S  -3.26c ( -4.3 L  -3.7) N      10  --  C5 D2 E6 F5
 ---White(^)---
 C5  : T -31.01c W -29.02c S  -2.05c ( -3.4 L  -3.2) LCB  -80.68c P 35.51% WF   5.4 PSV       5 N       5  --  C5 D2 E6 F5
@@ -2253,7 +2253,7 @@ E6  F5  D2  F3  : T -15.63c W -16.56c S   0.94c ( -2.0 L  -2.0) LCB  334.37c P 1
 E6  F5  D2  C5  : T  -8.01c W -10.31c S   2.31c ( -1.0 L  -0.1) LCB  341.99c P 16.30% WF   0.9 PSV       1 N       1  --  C5
 D2  : T -97.02c W -87.71c S  -9.31c ( -9.0 L  -7.2) LCB -447.02c P 19.11% WF   0.8 PSV       1 N       1  --  D2
 D6  : T -56.39c W -53.66c S  -2.74c ( -4.8 L  -3.7) LCB -406.39c P  9.05% WF   0.9 PSV       1 N       1  --  D6
-Just after move
+Just after moveC5
 : T -44.95c W -41.73c S  -3.34c ( -5.5 L  -4.6) N       9  --  D2 E6 F5 G4 G5 H4
 ---Black(v)---
 D2  : T -48.88c W -44.85c S  -4.06c ( -6.2 L  -5.2) LCB   -4.92c P 50.69% WF   7.2 PSV       7 N       7  --  D2 E6 F5 G4 G5 H4
@@ -2358,7 +2358,7 @@ C5  : T -26.17c W -28.43c S  -0.55c ( -2.2 L  -1.6) LCB   18.07c P 20.57% WF   3
 C5  E5  : T -27.19c W -31.37c S  -0.97c ( -2.4 L  -1.6) LCB -102.25c P 47.57% WF   3.0 PSV       3 N       3  --  E5 C6 F7
 C5  E5  C6  : T -24.35c W -27.17c S  -0.63c ( -2.2 L  -1.5) LCB  124.99c P 73.31% WF   2.0 PSV       2 N       2  --  C6 F7
 C5  E5  C6  F7  : T -20.90c W -20.89c S  -0.01c ( -1.9 L  -1.1) LCB -370.90c P 53.20% WF   1.0 PSV       1 N       1  --  F7
-Just after move
+Just after moveE5
 : T -50.57c W -39.55c S  -3.28c ( -4.3 L  -3.8) N      10  --  C5 D2 E6 F5
 ---White(^)---
 C5  : T -36.73c W -29.17c S  -2.08c ( -3.5 L  -3.2) LCB  -80.12c P 35.51% WF   5.5 PSV       5 N       5  --  C5 D2 E6 F5
@@ -2422,7 +2422,7 @@ C5  D2  G4  : T -56.19c W -52.50c S  -3.70c ( -5.6 L  -4.2) LCB -406.19c P 14.21
 C5  F5  : T  -7.97c W -10.76c S   2.78c ( -0.9 L  -1.0) LCB  342.03c P 21.45% WF   0.8 PSV       1 N       1  --  F5
 D2  : T -97.00c W -87.71c S  -9.29c ( -9.0 L  -7.2) LCB -447.00c P 19.11% WF   0.8 PSV       1 N       1  --  D2
 D6  : T -56.37c W -53.66c S  -2.72c ( -4.8 L  -3.7) LCB -406.37c P  9.05% WF   1.0 PSV       1 N       1  --  D6
-Just after move
+Just after moveE6
 : T -29.79c W -37.06c S  -1.03c ( -3.6 L  -2.8) N       8  --  F5 D2 D6 C5 F3
 ---Black(v)---
 F5  : T -30.26c W -38.89c S  -1.36c ( -3.9 L  -3.0) LCB    3.21c P 94.00% WF   7.0 PSV       7 N       7  --  F5 D2 D6 C5 F3
@@ -2509,7 +2509,7 @@ E5  : T -50.44c W -49.01c S  -3.49c ( -4.2 L  -3.8) LCB  -42.73c P 35.66% WF 277
 D2  : T -12.19c W -13.69c S   0.57c ( -1.4 L  -0.9) LCB    4.86c P 33.83% WF  11.1 PSV      15 N      17  --  D2 E5 F7 C4 C3
 C5  : T -16.04c W -20.00c S   0.33c ( -1.6 L  -1.2) LCB   19.14c P 20.57% WF   8.5 PSV      10 N      12  --  C5 C6 D6 E5 C4 F7 E8
 C2  : T   1.27c W   0.26c S   2.53c ( -0.1 L  +0.3) LCB  150.28c P  7.64% WF   1.4 PSV       2 N       2  --  C2 E6
-Just after move
+Just after moveE5
 : T -50.44c W -49.01c S  -3.49c ( -4.2 L  -3.8) N     268  --  E6 F5 D2 F3 E1 F4 E2
 ---White(^)---
 E6  : T -47.67c W -47.93c S  -2.96c ( -3.8 L  -3.6) LCB  -57.01c P 31.85% WF 184.6 PSV     178 N     178  --  E6 F5 D2 F3 E1 F4 E2 D6
@@ -2551,7 +2551,7 @@ C5  : T -54.80c W -47.40c S  -4.38c ( -6.4 L  -5.6) LCB  -70.67c P 33.26% WF  50
 D2  : T -51.98c W -50.96c S  -1.37c ( -3.6 L  -3.1) LCB  -73.05c P 19.11% WF  42.6 PSV      44 N      44  --  D2 C5 F5 D6 F6 C2 E1 F8
 D6  : T -50.06c W -49.09c S  -3.72c ( -5.6 L  -4.7) LCB  -84.09c P  9.05% WF  19.8 PSV      20 N      20  --  D6 E6 C7 E7 D2 C2 E1 B5
 F5  : T -83.18c W -68.79c S  -4.83c ( -5.9 L  -5.2) LCB -160.95c P  5.65% WF   2.4 PSV       2 N       3  --  F5 E6 D2
-Just after move
+Just after moveE6
 : T -47.23c W -47.90c S  -1.53c ( -3.8 L  -3.6) N     178  --  F5 D2 F3 E1 F4 E2 D6
 ---Black(v)---
 F5  : T -47.60c W -48.32c S  -1.58c ( -3.8 L  -3.6) LCB  -38.53c P 94.00% WF 176.4 PSV     176 N     176  --  F5 D2 F3 E1 F4 E2 D6 C5
@@ -5229,7 +5229,7 @@ B1  : T -67.87c W -56.59c S -11.28c ( -4.6 L  -4.2) LCB -417.87c P  0.68% WF   0
 E3  : T -109.72c W -88.66c S -21.06c ( -9.0 L  -7.5) LCB -459.72c P  0.40% WF   0.6 PSV       0 N       1  --  E3
 D7  : T -64.72c W -52.13c S -12.59c ( -3.6 L  -3.0) LCB -414.72c P  0.33% WF   0.8 PSV       0 N       1  --  D7
 Post order okay: 665
-Just after move
+Just after moveB5
 : T -27.05c W -18.00c S  -7.72c ( -1.2 L  -1.3) N     471  --  D1 F1 A5 A6 A4 G3 G4
 ---Black(v)---
 D1  : T -29.49c W -20.09c S  -8.09c ( -1.4 L  -1.5) LCB  -14.57c P 36.74% WF 454.3 PSV     439 N     439  --  D1 F1 A5 A6 A4 G3 G4 B7
@@ -5274,7 +5274,7 @@ B6  : T 104.65c W  86.86c S  17.78c (+12.7 L +11.6) LCB  454.65c P  1.40% WF   0
 B1  : T  90.92c W  77.07c S  13.85c ( +7.9 L  +7.0) LCB  440.92c P  1.05% WF   0.5 PSV       0 N       1  --  B1
 E1  : T 105.03c W  89.96c S  15.07c ( +7.5 L  +6.6) LCB  455.03c P  0.34% WF   0.4 PSV       0 N       1  --  E1
 Post order okay: 778
-Just after move
+Just after moveD1
 : T -36.52c W -33.69c S  -3.10c ( -2.8 L  -2.8) N     963  --  F1 A5 A4 A3 A6 B6 A4
 ---White(^)---
 F1  : T -33.58c W -30.69c S  -3.13c ( -2.9 L  -3.0) LCB  -46.71c P 14.10% WF 584.7 PSV     555 N     555  --  F1 A5 A4 A3 A6 B6 A4 E6

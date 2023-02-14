@@ -25,6 +25,7 @@ namespace TestSearchCommon {
     bool printAfterBegun;
     bool ignorePosition;
     bool printPostOrderNodeCount;
+    Loc rootHintLoc;
     TestSearchOptions();
   };
 

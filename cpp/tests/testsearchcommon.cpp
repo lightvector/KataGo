@@ -28,7 +28,8 @@ TestSearchCommon::TestSearchOptions::TestSearchOptions()
    printMoreMoreMore(false),
    printAfterBegun(false),
    ignorePosition(false),
-   printPostOrderNodeCount(false)
+   printPostOrderNodeCount(false),
+   rootHintLoc(Board::NULL_LOC)
 {}
 
 void TestSearchCommon::printPolicyValueOwnership(const Board& board, const NNResultBuf& buf) {
@@ -65,8 +66,10 @@ void TestSearchCommon::runBotOnPosition(AsyncBot* bot, Board board, Player nextP
   if(opts.printOwnership)
     bot->setAlwaysIncludeOwnerMap(true);
 
-  for(int i = 0; i<opts.numMovesInARow; i++) {
-
+  if(opts.rootHintLoc != Board::NULL_LOC)
+    bot->setRootHintLoc(opts.rootHintLoc);
+  
+  for(int i = 0; i<opts.numMovesInARow; i++) {    
     Loc move;
     if(opts.printAfterBegun) {
       cout << "Just after begun" << endl;
@@ -145,7 +148,7 @@ void TestSearchCommon::runBotOnPosition(AsyncBot* bot, Board board, Player nextP
     if(i < opts.numMovesInARow-1) {
       bot->makeMove(move, nextPla);
       hist.makeBoardMoveAssumeLegal(board,move,nextPla,NULL);
-      cout << "Just after move" << endl;
+      cout << "Just after move" << Location::toString(move,board) << endl;
       search->printTree(cout, search->rootNode, options, P_WHITE);
       nextPla = getOpp(nextPla);
 
