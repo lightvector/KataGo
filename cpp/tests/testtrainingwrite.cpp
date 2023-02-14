@@ -2025,7 +2025,7 @@ void Tests::runSelfplayStatTestsWithNN(const string& modelFile) {
     playSettings.initGamesWithPolicy = false;
     playSettings.sidePositionProb = 0;
     playSettings.compensateKomiVisits = 4;
-    // playSettings.flipKomiProbWhenNoCompensate = 0.0;
+    playSettings.flipKomiProbWhenNoCompensate = 0.0;
     playSettings.estimateLeadProb = 0.0;
     playSettings.fancyKomiVarying = true;
     playSettings.sekiForkHackProb = 0.0;
@@ -2080,7 +2080,116 @@ void Tests::runSelfplayStatTestsWithNN(const string& modelFile) {
     playSettings.initGamesWithPolicy = false;
     playSettings.sidePositionProb = 0;
     playSettings.compensateKomiVisits = 4;
-    // playSettings.flipKomiProbWhenNoCompensate = 0.0;
+    playSettings.flipKomiProbWhenNoCompensate = 0.0;
+    playSettings.estimateLeadProb = 0.0;
+    playSettings.fancyKomiVarying = true;
+    playSettings.sekiForkHackProb = 0.0;
+    playSettings.earlyForkGameProb = 0.0;
+    playSettings.forSelfPlay = true;
+
+    Sgf::PositionSample startPosSample;
+    startPosSample.board = Board(19,19);
+    startPosSample.nextPla = P_BLACK;
+    startPosSample.moves = std::vector<Move>({
+        Move(Location::getLoc(3,3,19),P_BLACK),
+        Move(Board::PASS_LOC,P_WHITE),
+        Move(Location::getLoc(16,16,19),P_BLACK),
+        Move(Board::PASS_LOC,P_WHITE),
+        Move(Location::getLoc(3,16,19),P_BLACK),
+      });
+    startPosSample.initialTurnNumber = 0;
+    startPosSample.hintLoc = Board::NULL_LOC;
+    startPosSample.weight = 1.0;
+    
+    std::map<string,string> cfgParams({
+        std::make_pair("maxMovesPerGame","0"),
+        std::make_pair("logSearchInfo","false"),
+        std::make_pair("logMoves","false"),
+        std::make_pair("komiAuto","true"),
+        std::make_pair("komiStdev","1.0"),
+        std::make_pair("handicapProb","0.0"),
+        std::make_pair("handicapCompensateKomiProb","1.0"),
+        std::make_pair("forkCompensateKomiProb","1.0"),
+        std::make_pair("sgfCompensateKomiProb","0.5"),
+        std::make_pair("komiBigStdevProb","0.0"),
+        std::make_pair("komiBigStdev","20.0"),
+        std::make_pair("drawRandRadius","0.5"),
+        std::make_pair("noResultStdev","0.16"),
+
+        std::make_pair("bSizes","19"),
+        std::make_pair("bSizeRelProbs","1"),
+        std::make_pair("koRules","SIMPLE,POSITIONAL,SITUATIONAL"),
+        std::make_pair("scoringRules","AREA"),
+        std::make_pair("taxRules","NONE,NONE,SEKI,SEKI,ALL"),
+        std::make_pair("multiStoneSuicideLegals","false,true"),
+        std::make_pair("hasButtons","false,false,true"),
+        std::make_pair("allowRectangleProb","0.0"),
+    });
+    runStatTest(cfgParams,playSettings,&startPosSample,name,100);
+  }
+  {
+    string name = "Game init test sgfpos black first with big black handicap, flipKomiProbWhenNoCompensate 0.25";
+    //Statistical test of game initialization
+    PlaySettings playSettings;
+    playSettings.initGamesWithPolicy = false;
+    playSettings.sidePositionProb = 0;
+    playSettings.compensateKomiVisits = 4;
+    playSettings.flipKomiProbWhenNoCompensate = 0.25;
+    playSettings.estimateLeadProb = 0.0;
+    playSettings.fancyKomiVarying = true;
+    playSettings.sekiForkHackProb = 0.0;
+    playSettings.earlyForkGameProb = 0.0;
+    playSettings.forSelfPlay = true;
+
+    Sgf::PositionSample startPosSample;
+    startPosSample.board = Board(19,19);
+    startPosSample.nextPla = P_BLACK;
+    startPosSample.moves = std::vector<Move>({
+        Move(Location::getLoc(3,3,19),P_BLACK),
+        Move(Board::PASS_LOC,P_WHITE),
+        Move(Location::getLoc(16,16,19),P_BLACK),
+        Move(Board::PASS_LOC,P_WHITE),
+        Move(Location::getLoc(3,16,19),P_BLACK),
+        Move(Location::getLoc(16,3,19),P_WHITE),
+      });
+    startPosSample.initialTurnNumber = 0;
+    startPosSample.hintLoc = Board::NULL_LOC;
+    startPosSample.weight = 1.0;
+    
+    std::map<string,string> cfgParams({
+        std::make_pair("maxMovesPerGame","0"),
+        std::make_pair("logSearchInfo","false"),
+        std::make_pair("logMoves","false"),
+        std::make_pair("komiAuto","true"),
+        std::make_pair("komiStdev","1.0"),
+        std::make_pair("handicapProb","0.0"),
+        std::make_pair("handicapCompensateKomiProb","1.0"),
+        std::make_pair("forkCompensateKomiProb","1.0"),
+        std::make_pair("sgfCompensateKomiProb","0.5"),
+        std::make_pair("komiBigStdevProb","0.0"),
+        std::make_pair("komiBigStdev","20.0"),
+        std::make_pair("drawRandRadius","0.5"),
+        std::make_pair("noResultStdev","0.16"),
+
+        std::make_pair("bSizes","19"),
+        std::make_pair("bSizeRelProbs","1"),
+        std::make_pair("koRules","SIMPLE,POSITIONAL,SITUATIONAL"),
+        std::make_pair("scoringRules","AREA"),
+        std::make_pair("taxRules","NONE,NONE,SEKI,SEKI,ALL"),
+        std::make_pair("multiStoneSuicideLegals","false,true"),
+        std::make_pair("hasButtons","false,false,true"),
+        std::make_pair("allowRectangleProb","0.0"),
+    });
+    runStatTest(cfgParams,playSettings,&startPosSample,name,100);
+  }
+  {
+    string name = "Game init test sgfpos white first with big black handicap, flipKomiProbWhenNoCompensate 0.25";
+    //Statistical test of game initialization
+    PlaySettings playSettings;
+    playSettings.initGamesWithPolicy = false;
+    playSettings.sidePositionProb = 0;
+    playSettings.compensateKomiVisits = 4;
+    playSettings.flipKomiProbWhenNoCompensate = 0.25;
     playSettings.estimateLeadProb = 0.0;
     playSettings.fancyKomiVarying = true;
     playSettings.sekiForkHackProb = 0.0;
