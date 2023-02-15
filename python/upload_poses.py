@@ -101,6 +101,14 @@ def handle_file(poses_by_key, poses_file):
         pos["hintLoc"]
       )
 
+      if len(pos["movePlas"]) > 0:
+        assert pos["nextPla"] == "B" or pos["nextPla"] == "W"
+        assert pos["movePlas"][0] == pos["nextPla"]
+      for i in range(len(pos["movePlas"])):
+        assert pos["movePlas"][i] == "B" or pos["movePlas"][i] == "W"
+      for i in range(1,len(pos["movePlas"])):
+        assert pos["movePlas"][i] != pos["movePlas"][i-1]
+
       if "weight" in pos:
         weight = pos["weight"]
       else:
