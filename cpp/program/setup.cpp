@@ -614,6 +614,10 @@ vector<SearchParams> Setup::loadParams(
     else if(cfg.contains("wideRootNoise"))   params.wideRootNoise = cfg.getDouble("wideRootNoise", 0.0, 5.0);
     else                                     params.wideRootNoise = (setupFor == SETUP_FOR_ANALYSIS ? Setup::DEFAULT_ANALYSIS_WIDE_ROOT_NOISE : 0.00);
 
+    if(cfg.contains("enablePassingHacks"+idxStr)) params.enablePassingHacks = cfg.getBool("enablePassingHacks"+idxStr);
+    else if(cfg.contains("enablePassingHacks")) params.enablePassingHacks = cfg.getBool("enablePassingHacks");
+    else params.enablePassingHacks = (setupFor == SETUP_FOR_GTP || setupFor == SETUP_FOR_ANALYSIS) ? true : false;
+
     if(cfg.contains("playoutDoublingAdvantage"+idxStr)) params.playoutDoublingAdvantage = cfg.getDouble("playoutDoublingAdvantage"+idxStr,-3.0,3.0);
     else if(cfg.contains("playoutDoublingAdvantage"))   params.playoutDoublingAdvantage = cfg.getDouble("playoutDoublingAdvantage",-3.0,3.0);
     else                                                params.playoutDoublingAdvantage = 0.0;
