@@ -7072,5 +7072,40 @@ D2  : T -98.86c W -99.90c S   1.04c ( -6.9 L  -7.8) LCB  252.66c P  1.41% WF   3
 pss : T 131.76c W  99.99c S  31.78c (+20.4 L +20.5) LCB  135.31c P  2.04% WF   2.7 PSV       0 N      15  --  pass pass
 pss pss : T 131.83c W 100.00c S  31.83c (+20.5 L +20.5) LCB  128.26c P 99.90% WF 112.0 PSV     112 N      14  --  pass
 H3  : T -99.40c W -99.85c S   0.45c ( -7.0 L  -8.0) LCB  252.09c P  1.20% WF   3.4 PSV       0 N       1  --  H3
-: GPU 0 finishing, processed 9952 rows 9952 batches
+Area scoring no friendly pass ok but pass hacks
+MoveNum: 0 HASH: 99593F6F3245EDEC729820FE59E098B2
+   A B C D E F G H
+ 8 . . O O O . . .
+ 7 X . O X . X X .
+ 6 O O O X . X . .
+ 5 . X X . . X X O
+ 4 . . X X X O O .
+ 3 X X X O O O . .
+ 2 X O O . . . . .
+ 1 . O . O . . . .
+
+Root visits: 50
+New playouts: 50
+NN rows: 36
+NN batches: 36
+NN avg batch size: 1
+PV: H6 H4 A1 pass B7 pass A5
+Tree:
+: T -103.65c W -97.03c S  -5.45c ( -9.0 L  -9.0) N      50  --  H6 H4 A1 pass B7 pass A5
+---Black(v)---
+H6  : T -108.43c W -99.96c S  -8.69c ( -9.9 L  -9.7) LCB -105.12c P 75.83% WF 154.0 PSV     148 N      27  --  H6 H4 A1 pass B7 pass A5
+H6  H4  : T -107.98c W -99.97c S  -8.41c ( -9.8 L  -9.7) LCB -111.99c P 66.30% WF 118.5 PSV     118 N      21  --  H4 A1 pass B7 pass A5
+H6  B7  : T -110.52c W -99.89c S  -9.73c (-10.2 L  -9.6) LCB -186.79c P  6.86% WF  15.3 PSV      15 N       3  --  B7 A8 H4
+H6  H3  : T -111.83c W -99.88c S -11.96c (-10.9 L  -9.7) LCB -461.83c P  7.86% WF   4.8 PSV       5 N       1  --  H3
+H6  A8  : T -111.97c W -99.84c S -12.13c (-11.0 L -10.4) LCB -461.97c P  5.70% WF   4.3 PSV       4 N       1  --  A8
+H4  : T -98.65c W -99.89c S   1.24c ( -6.8 L  -7.9) LCB  252.78c P  4.30% WF   3.7 PSV       3 N       1  --  H4
+G6  : T -98.49c W -99.92c S   1.43c ( -6.8 L  -7.8) LCB  252.96c P  2.79% WF   4.4 PSV       2 N       1  --  G6
+H7  : T -99.26c W -99.97c S   0.70c ( -7.0 L  -7.9) LCB  252.16c P  2.35% WF   4.6 PSV       1 N       1  --  H7
+A1  : T -98.27c W -99.79c S   1.52c ( -6.7 L  -7.8) LCB  251.73c P  2.29% WF   2.8 PSV       1 N       1  --  A1
+E2  : T -97.93c W -99.80c S   1.87c ( -6.6 L  -7.7) LCB  253.51c P  1.53% WF   3.0 PSV       1 N       1  --  E2
+D2  : T -98.86c W -99.90c S   1.04c ( -6.9 L  -7.8) LCB  252.66c P  1.41% WF   3.4 PSV       1 N       1  --  D2
+pss : T 131.76c W  99.99c S  31.78c (+20.4 L +20.5) LCB  135.31c P  2.04% WF   2.7 PSV       0 N      15  --  pass pass
+pss pss : T 131.83c W 100.00c S  31.83c (+20.5 L +20.5) LCB  128.26c P 95.00% WF 112.0 PSV     112 N      14  --  pass
+H3  : T -99.40c W -99.85c S   0.45c ( -7.0 L  -8.0) LCB  252.09c P  1.20% WF   3.4 PSV       0 N       1  --  H3
+: GPU 0 finishing, processed 9988 rows 9988 batches
 Done

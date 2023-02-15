@@ -828,6 +828,13 @@ bool BoardHistory::passWouldEndGame(const Board& board, Player movePla) const {
   );
 }
 
+bool BoardHistory::shouldSuppressEndGameFromFriendlyPass(const Board& board, Player movePla) const {
+  return false && rules.friendlyPassOk &&
+    rules.scoringRule == Rules::SCORING_AREA &&
+    newConsecutiveEndingPassesAfterPass() == 2 &&
+    !wouldBeSpightlikeEndingPass(movePla, getKoHash(rules, board, movePla, encorePhase, koRecapBlockHash));
+}
+
 bool BoardHistory::isFinalPhase() const {
   return
     rules.scoringRule == Rules::SCORING_AREA

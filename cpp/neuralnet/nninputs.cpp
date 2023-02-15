@@ -844,14 +844,14 @@ Hash128 NNInputs::getHash(
     hash ^= Board::ZOBRIST_PASS_ENDS_PHASE;
     //Technically some of the below only apply when passing ends the game, but it's pretty harmless to use the more
     //conservative hashing including them when the phase would end too.
-    
+
     //And in the case that a pass ends the phase, conservativePass also affects the result for the root node
     if(nnInputParams.conservativePassAndIsRoot)
       hash ^= MiscNNInputParams::ZOBRIST_CONSERVATIVE_PASS;
 
-    //If we're in a ruleset where passing without capturing all the stones is okay, then we might behave differently
-    //when passes would normally end the game or phase, so hash this in.
-    if(hist.rules.scoringRule == Rules::SCORING_AREA && hist.rules.friendlyPassOk)
+    //If we're in a ruleset where passing without capturing all the stones is okay, and as a result are suppressing
+    //the game end effect of a pass during search, hash this in.
+    if(hist.shouldSuppressEndGameFromFriendlyPass(board,nextPlayer))
       hash ^= MiscNNInputParams::ZOBRIST_FRIENDLY_PASS;
 
     //Passing hacks can also affect things at game or phase end.
@@ -982,7 +982,7 @@ void NNInputs::fillRowV3(
     hist.isPastNormalPhaseEnd ||
     (hist.passWouldEndGame(board,nextPlayer) && (
       nnInputParams.conservativePassAndIsRoot ||
-      (hist.rules.scoringRule == Rules::SCORING_AREA && hist.rules.friendlyPassOk)
+      hist.shouldSuppressEndGameFromFriendlyPass(board,nextPlayer)
     ));
   int numTurnsOfHistoryIncluded = 0;
 
@@ -1332,7 +1332,7 @@ void NNInputs::fillRowV4(
     hist.isPastNormalPhaseEnd ||
     (hist.passWouldEndGame(board,nextPlayer) && (
       nnInputParams.conservativePassAndIsRoot ||
-      (hist.rules.scoringRule == Rules::SCORING_AREA && hist.rules.friendlyPassOk)
+      hist.shouldSuppressEndGameFromFriendlyPass(board,nextPlayer)
     ));
   int numTurnsOfHistoryIncluded = 0;
 
@@ -1664,7 +1664,7 @@ void NNInputs::fillRowV5(
     hist.isPastNormalPhaseEnd ||
     (hist.passWouldEndGame(board,nextPlayer) && (
       nnInputParams.conservativePassAndIsRoot ||
-      (hist.rules.scoringRule == Rules::SCORING_AREA && hist.rules.friendlyPassOk)
+      hist.shouldSuppressEndGameFromFriendlyPass(board,nextPlayer)
     ));
 
   //Features 6,7,8,9,10
@@ -1950,7 +1950,7 @@ void NNInputs::fillRowV6(
     float selfKomi = hist.currentSelfKomi(pla, nnInputParams.drawEquivalentWinsForWhite);
     float finalScorePla = (float)boardScoreForPla + selfKomi;
     // If the game ended here, and was scored instantly, it would be a loss or a draw?
-    if(finalScorePla <= 0.5)
+    if(finalScorePla <= 0.0)
       finalPhaseAndGameEndWouldNotBeWin = true;
   }
 
@@ -1962,8 +1962,8 @@ void NNInputs::fillRowV6(
     (hist.passWouldEndGame(board,nextPlayer) && (
       //At the root, if assuming passing doesn't end the game, and it would, then need to mask that out.
       nnInputParams.conservativePassAndIsRoot ||
-      //Deeper in the tree, we never assume passes end the game in a friendly pass setting.
-      (hist.rules.scoringRule == Rules::SCORING_AREA && hist.rules.friendlyPassOk) ||
+      //Deeper in the tree, we might not assume passes end the game in a friendly pass setting.
+      hist.shouldSuppressEndGameFromFriendlyPass(board,nextPlayer) ||
       //Passing hacks suppress the net to end the game when losing if it thinks a premature pass will lose by less.
       (nnInputParams.enablePassingHacks && finalPhaseAndGameEndWouldNotBeWin)
     ));
@@ -2377,7 +2377,7 @@ void NNInputs::fillRowV7(
     float selfKomi = hist.currentSelfKomi(pla, nnInputParams.drawEquivalentWinsForWhite);
     float finalScorePla = (float)boardScoreForPla + selfKomi;
     // If the game ended here, and was scored instantly, it would be a loss or a draw?
-    if(finalScorePla <= 0.5)
+    if(finalScorePla <= 0.0)
       finalPhaseAndGameEndWouldNotBeWin = true;
   }
 
@@ -2389,8 +2389,8 @@ void NNInputs::fillRowV7(
     (hist.passWouldEndGame(board,nextPlayer) && (
       //At the root, if assuming passing doesn't end the game, and it would, then need to mask that out.
       nnInputParams.conservativePassAndIsRoot ||
-      //Deeper in the tree, we never assume passes end the game in a friendly pass setting.
-      (hist.rules.scoringRule == Rules::SCORING_AREA && hist.rules.friendlyPassOk) ||
+      //Deeper in the tree, we might not assume passes end the game in a friendly pass setting.
+      hist.shouldSuppressEndGameFromFriendlyPass(board,nextPlayer) ||
       //Passing hacks suppress the net to end the game when losing if it thinks a premature pass will lose by less.
       (nnInputParams.enablePassingHacks && finalPhaseAndGameEndWouldNotBeWin)
     ));

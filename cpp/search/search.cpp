@@ -1089,7 +1089,7 @@ bool Search::playoutDescend(
   //Hit terminal node, finish
   //forceNonTerminal marks special nodes where we cannot end the game. This includes the root, since if we are searching a position
   //we presumably want to actually explore deeper and get a result. Also it includes the node following a pass from the root in
-  //the case where we are conservativePass.
+  //the case where we are conservativePass. For friendlyPassOk rules, it may include deeper nodes.
   //Note that we also carefully clear the search when a pass from the root would be terminal, so nodes should never need to switch
   //status after tree reuse in the latter case.
   if(thread.history.isGameFinished && !node.forceNonTerminal) {
@@ -1233,6 +1233,10 @@ bool Search::playoutDescend(
       SearchChildPointer* children = node.getChildren(nodeState,childrenCapacity);
       assert(childrenCapacity > bestChildIdx);
 
+      //We can only test this before we make the move, so do it now.
+      const bool forceNonTerminalDueToFriendlyPass =
+        bestChildMoveLoc == Board::PASS_LOC && thread.history.shouldSuppressEndGameFromFriendlyPass(thread.board, thread.pla);
+
       //Make the move! We need to make the move before we create the node so we can see the new state and get the right graphHash.
       thread.history.makeBoardMoveAssumeLegal(thread.board,bestChildMoveLoc,thread.pla,rootKoHashTable);
       thread.pla = getOpp(thread.pla);
@@ -1242,7 +1246,11 @@ bool Search::playoutDescend(
         );
 
       //If conservative pass, passing from the root is always non-terminal
-      const bool forceNonTerminal = searchParams.conservativePass && (&node == rootNode) && bestChildMoveLoc == Board::PASS_LOC;
+      //If friendly passing rules, we might also be non-terminal
+      const bool forceNonTerminal = bestChildMoveLoc == Board::PASS_LOC && (
+        (searchParams.conservativePass && (&node == rootNode)) ||
+        forceNonTerminalDueToFriendlyPass
+      );
       child = allocateOrFindNode(thread, thread.pla, bestChildMoveLoc, forceNonTerminal, thread.graphHash);
       child->virtualLosses.fetch_add(1,std::memory_order_release);
 
