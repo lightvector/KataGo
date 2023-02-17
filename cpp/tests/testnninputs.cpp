@@ -1048,5 +1048,310 @@ o.xoo.x
     }
   }
 
+
+  {
+    cout << "Passing hack condition based on as-is scoring ==========================================================================" << endl;
+    cout << endl;
+
+    auto testScoring = [](const Board& board, const BoardHistory& hist, bool expectedFriendlyPassSuppress) {
+      hist.printDebugInfo(cout,board);
+      cout << "Pass would end phase: " << hist.passWouldEndPhase(board,hist.presumedNextMovePla) << endl;
+      cout << "Pass would end game: " << hist.passWouldEndGame(board,hist.presumedNextMovePla) << endl;
+      cout << "Pass should suppress: " << hist.shouldSuppressEndGameFromFriendlyPass(board,hist.presumedNextMovePla) << endl;
+
+      int nnXLen = 7;
+      int nnYLen = 7;
+      bool inputsUseNHWC = false;
+      float* rowBin = new float[NNInputs::NUM_FEATURES_SPATIAL_V7 * nnXLen * nnYLen];
+      float* rowGlobal = new float[NNInputs::NUM_FEATURES_GLOBAL_V7];
+
+      MiscNNInputParams nnInputParams;
+      nnInputParams.drawEquivalentWinsForWhite = 0.5;
+
+      {
+        BoardHistory histCopy(hist);
+        nnInputParams.enablePassingHacks = false;
+        histCopy.rules.friendlyPassOk = false;
+        NNInputs::fillRowV7(board,histCopy,histCopy.presumedNextMovePla,nnInputParams,nnXLen,nnYLen,inputsUseNHWC,rowBin,rowGlobal);
+        Color area[Board::MAX_ARR_SIZE];
+        histCopy.endAndScoreGameNow(board,area);
+        cout << "SCORE NOW " << histCopy.finalWhiteMinusBlackScore << endl;
+
+        float historyInput = 0.0f;
+        for(int y = 0; y<nnYLen; y++) {
+          for(int x = 0; x<nnXLen; x++) {
+            Loc loc = Location::getLoc(x,y,board.x_size);
+            if(hist.rules.scoringRule == Rules::SCORING_TERRITORY && hist.encorePhase < 2) {
+              testAssert(rowBin[18 * nnXLen * nnYLen + y * nnXLen + x] == 0.0f);
+              testAssert(rowBin[19 * nnXLen * nnYLen + y * nnXLen + x] == 0.0f);
+            }
+            else {
+              testAssert((rowBin[18 * nnXLen * nnYLen + y * nnXLen + x] == 1.0f) == (area[loc] == histCopy.presumedNextMovePla));
+              testAssert((rowBin[19 * nnXLen * nnYLen + y * nnXLen + x] == 1.0f) == (area[loc] == getOpp(histCopy.presumedNextMovePla)));
+            }
+            historyInput += rowBin[9 * nnXLen * nnYLen + y * nnXLen + x];
+          }
+        }
+        historyInput += rowGlobal[0];
+        testAssert((hist.moveHistory.size() > 0 && !hist.isGameFinished && hist.numTurnsThisPhase > 0) == (historyInput > 0.0f));
+      }
+
+      {
+        BoardHistory histCopy(hist);
+        nnInputParams.enablePassingHacks = false;
+        histCopy.rules.friendlyPassOk = true;
+        NNInputs::fillRowV7(board,histCopy,histCopy.presumedNextMovePla,nnInputParams,nnXLen,nnYLen,inputsUseNHWC,rowBin,rowGlobal);
+        Color area[Board::MAX_ARR_SIZE];
+        histCopy.endAndScoreGameNow(board,area);
+
+        float historyInput = 0.0f;
+        for(int y = 0; y<nnYLen; y++) {
+          for(int x = 0; x<nnXLen; x++) {
+            Loc loc = Location::getLoc(x,y,board.x_size);
+            if(hist.rules.scoringRule == Rules::SCORING_TERRITORY && hist.encorePhase < 2) {
+              testAssert(rowBin[18 * nnXLen * nnYLen + y * nnXLen + x] == 0.0f);
+              testAssert(rowBin[19 * nnXLen * nnYLen + y * nnXLen + x] == 0.0f);
+            }
+            else {
+              testAssert((rowBin[18 * nnXLen * nnYLen + y * nnXLen + x] == 1.0f) == (area[loc] == histCopy.presumedNextMovePla));
+              testAssert((rowBin[19 * nnXLen * nnYLen + y * nnXLen + x] == 1.0f) == (area[loc] == getOpp(histCopy.presumedNextMovePla)));
+            }
+            historyInput += rowBin[9 * nnXLen * nnYLen + y * nnXLen + x];
+          }
+        }
+        historyInput += rowGlobal[0];
+        testAssert((hist.moveHistory.size() > 0 && !hist.isGameFinished && hist.numTurnsThisPhase > 0 && !expectedFriendlyPassSuppress) == (historyInput > 0.0f));
+      }
+
+      Color area[Board::MAX_ARR_SIZE];
+      for(float komi = -100.0f; komi <= 100.0f; komi += 0.5f) {
+        BoardHistory histCopy(hist);
+        nnInputParams.enablePassingHacks = true;
+        histCopy.rules.friendlyPassOk = false;
+        histCopy.rules.komi = komi;
+        NNInputs::fillRowV7(board,histCopy,histCopy.presumedNextMovePla,nnInputParams,nnXLen,nnYLen,inputsUseNHWC,rowBin,rowGlobal);
+        histCopy.endAndScoreGameNow(board,area);
+
+        float historyInput = 0.0f;
+        for(int y = 0; y<nnYLen; y++) {
+          for(int x = 0; x<nnXLen; x++) {
+            Loc loc = Location::getLoc(x,y,board.x_size);
+            if(hist.rules.scoringRule == Rules::SCORING_TERRITORY && hist.encorePhase < 2) {
+              testAssert(rowBin[18 * nnXLen * nnYLen + y * nnXLen + x] == 0.0f);
+              testAssert(rowBin[19 * nnXLen * nnYLen + y * nnXLen + x] == 0.0f);
+            }
+            else {
+              testAssert((rowBin[18 * nnXLen * nnYLen + y * nnXLen + x] == 1.0f) == (area[loc] == histCopy.presumedNextMovePla));
+              testAssert((rowBin[19 * nnXLen * nnYLen + y * nnXLen + x] == 1.0f) == (area[loc] == getOpp(histCopy.presumedNextMovePla)));
+            }
+            historyInput += rowBin[9 * nnXLen * nnYLen + y * nnXLen + x];
+          }
+        }
+        historyInput += rowGlobal[0];
+        if(std::abs(histCopy.finalWhiteMinusBlackScore) <= 1.0f) {
+          cout << "Komi " << komi << " hasHistory " << (historyInput > 0.0f) << endl;
+        }
+        // if(hist.rules.scoringRule == Rules::SCORING_TERRITORY && hist.encorePhase < 2)
+        //   testAssert((hist.moveHistory.size() > 0 && !hist.isGameFinished && hist.numTurnsThisPhase > 0) == (historyInput > 0.0f));
+        // else
+        //   testAssert((hist.moveHistory.size() > 0 && !hist.isGameFinished && hist.numTurnsThisPhase > 0 &&
+        //               (!hist.passWouldEndGame(board,hist.presumedNextMovePla) || histCopy.winner == hist.presumedNextMovePla)) == (historyInput > 0.0f));
+      }
+
+      delete[] rowBin;
+      delete[] rowGlobal;
+    };
+
+    Board origBoard = Board::parseBoard(7,7,R"%%(
+.x.o.o.
+x.xoooo
+xxxxxxx
+ooxxooo
+.oxo.o.
+ooxooxo
+.oxo.x.
+)%%");
+
+    {
+      Rules rules = Rules::parseRules("tromp-taylor");
+      cout << "---------------------------------------------------" << endl;
+      cout << rules.toString() << endl;
+      Board board(origBoard);
+      BoardHistory hist(board,P_WHITE,rules,0);
+
+      testScoring(board,hist,false);
+      hist.makeBoardMoveAssumeLegal(board,Location::ofString("C7",board),P_WHITE,NULL);
+      testScoring(board,hist,false);
+      hist.makeBoardMoveAssumeLegal(board,Location::ofString("pass",board),P_BLACK,NULL);
+      testScoring(board,hist,true);
+      hist.makeBoardMoveAssumeLegal(board,Location::ofString("pass",board),P_WHITE,NULL);
+      testScoring(board,hist,false);
+      hist.makeBoardMoveAssumeLegal(board,Location::ofString("pass",board),P_BLACK,NULL);
+      testScoring(board,hist,false);
+    }
+
+    {
+      Rules rules = Rules::parseRules("chinese");
+      cout << "---------------------------------------------------" << endl;
+      cout << rules.toString() << endl;
+      Board board(origBoard);
+      BoardHistory hist(board,P_WHITE,rules,0);
+
+      testScoring(board,hist,false);
+      hist.makeBoardMoveAssumeLegal(board,Location::ofString("C7",board),P_WHITE,NULL);
+      testScoring(board,hist,false);
+      hist.makeBoardMoveAssumeLegal(board,Location::ofString("pass",board),P_BLACK,NULL);
+      testScoring(board,hist,true);
+      hist.makeBoardMoveAssumeLegal(board,Location::ofString("pass",board),P_WHITE,NULL);
+      testScoring(board,hist,false);
+      hist.makeBoardMoveAssumeLegal(board,Location::ofString("pass",board),P_BLACK,NULL);
+      testScoring(board,hist,false);
+    }
+
+    {
+      Rules rules = Rules::parseRules("chinese");
+      rules.taxRule = Rules::TAX_SEKI;
+      cout << "---------------------------------------------------" << endl;
+      cout << rules.toString() << endl;
+      Board board(origBoard);
+      BoardHistory hist(board,P_WHITE,rules,0);
+
+      testScoring(board,hist,false);
+      hist.makeBoardMoveAssumeLegal(board,Location::ofString("C7",board),P_WHITE,NULL);
+      testScoring(board,hist,false);
+      hist.makeBoardMoveAssumeLegal(board,Location::ofString("pass",board),P_BLACK,NULL);
+      testScoring(board,hist,true);
+      hist.makeBoardMoveAssumeLegal(board,Location::ofString("pass",board),P_WHITE,NULL);
+      testScoring(board,hist,false);
+      hist.makeBoardMoveAssumeLegal(board,Location::ofString("pass",board),P_BLACK,NULL);
+      testScoring(board,hist,false);
+    }
+
+    {
+      Rules rules = Rules::parseRules("stonescoring");
+      cout << "---------------------------------------------------" << endl;
+      cout << rules.toString() << endl;
+      Board board(origBoard);
+      BoardHistory hist(board,P_WHITE,rules,0);
+
+      testScoring(board,hist,false);
+      hist.makeBoardMoveAssumeLegal(board,Location::ofString("C7",board),P_WHITE,NULL);
+      testScoring(board,hist,false);
+      hist.makeBoardMoveAssumeLegal(board,Location::ofString("pass",board),P_BLACK,NULL);
+      testScoring(board,hist,true);
+      hist.makeBoardMoveAssumeLegal(board,Location::ofString("pass",board),P_WHITE,NULL);
+      testScoring(board,hist,false);
+      hist.makeBoardMoveAssumeLegal(board,Location::ofString("pass",board),P_BLACK,NULL);
+      testScoring(board,hist,false);
+    }
+
+    {
+      Rules rules = Rules::parseRules("japanese");
+      rules.taxRule = Rules::TAX_NONE;
+      cout << "---------------------------------------------------" << endl;
+      cout << rules.toString() << endl;
+      Board board(origBoard);
+      BoardHistory hist(board,P_WHITE,rules,0);
+
+      testScoring(board,hist,false);
+      hist.makeBoardMoveAssumeLegal(board,Location::ofString("C7",board),P_WHITE,NULL);
+      testScoring(board,hist,false);
+      hist.makeBoardMoveAssumeLegal(board,Location::ofString("pass",board),P_BLACK,NULL);
+      testScoring(board,hist,false);
+      hist.makeBoardMoveAssumeLegal(board,Location::ofString("pass",board),P_WHITE,NULL);
+      testScoring(board,hist,false);
+      hist.makeBoardMoveAssumeLegal(board,Location::ofString("pass",board),P_BLACK,NULL);
+      testScoring(board,hist,false);
+      hist.makeBoardMoveAssumeLegal(board,Location::ofString("pass",board),P_WHITE,NULL);
+      testScoring(board,hist,false);
+      hist.makeBoardMoveAssumeLegal(board,Location::ofString("pass",board),P_BLACK,NULL);
+      testScoring(board,hist,false);
+      hist.makeBoardMoveAssumeLegal(board,Location::ofString("E3",board),P_WHITE,NULL);
+      testScoring(board,hist,false);
+      hist.makeBoardMoveAssumeLegal(board,Location::ofString("pass",board),P_BLACK,NULL);
+      testScoring(board,hist,false);
+      hist.makeBoardMoveAssumeLegal(board,Location::ofString("G1",board),P_WHITE,NULL);
+      testScoring(board,hist,false);
+      hist.makeBoardMoveAssumeLegal(board,Location::ofString("G3",board),P_BLACK,NULL);
+      testScoring(board,hist,false);
+      hist.makeBoardMoveAssumeLegal(board,Location::ofString("G2",board),P_WHITE,NULL);
+      testScoring(board,hist,false);
+      hist.makeBoardMoveAssumeLegal(board,Location::ofString("pass",board),P_BLACK,NULL);
+      testScoring(board,hist,false);
+    }
+
+    {
+      Rules rules = Rules::parseRules("japanese");
+      cout << "---------------------------------------------------" << endl;
+      cout << rules.toString() << endl;
+      Board board(origBoard);
+      BoardHistory hist(board,P_WHITE,rules,0);
+
+      testScoring(board,hist,false);
+      hist.makeBoardMoveAssumeLegal(board,Location::ofString("C7",board),P_WHITE,NULL);
+      testScoring(board,hist,false);
+      hist.makeBoardMoveAssumeLegal(board,Location::ofString("pass",board),P_BLACK,NULL);
+      testScoring(board,hist,false);
+      hist.makeBoardMoveAssumeLegal(board,Location::ofString("pass",board),P_WHITE,NULL);
+      testScoring(board,hist,false);
+      hist.makeBoardMoveAssumeLegal(board,Location::ofString("pass",board),P_BLACK,NULL);
+      testScoring(board,hist,false);
+      hist.makeBoardMoveAssumeLegal(board,Location::ofString("pass",board),P_WHITE,NULL);
+      testScoring(board,hist,false);
+      hist.makeBoardMoveAssumeLegal(board,Location::ofString("pass",board),P_BLACK,NULL);
+      testScoring(board,hist,false);
+      hist.makeBoardMoveAssumeLegal(board,Location::ofString("E3",board),P_WHITE,NULL);
+      testScoring(board,hist,false);
+      hist.makeBoardMoveAssumeLegal(board,Location::ofString("pass",board),P_BLACK,NULL);
+      testScoring(board,hist,false);
+      hist.makeBoardMoveAssumeLegal(board,Location::ofString("G1",board),P_WHITE,NULL);
+      testScoring(board,hist,false);
+      hist.makeBoardMoveAssumeLegal(board,Location::ofString("G3",board),P_BLACK,NULL);
+      testScoring(board,hist,false);
+      hist.makeBoardMoveAssumeLegal(board,Location::ofString("G2",board),P_WHITE,NULL);
+      testScoring(board,hist,false);
+      hist.makeBoardMoveAssumeLegal(board,Location::ofString("pass",board),P_BLACK,NULL);
+      testScoring(board,hist,false);
+    }
+
+
+    {
+      Rules rules = Rules::parseRules("japanese");
+      rules.taxRule = Rules::TAX_ALL;
+      cout << "---------------------------------------------------" << endl;
+      cout << rules.toString() << endl;
+      Board board(origBoard);
+      BoardHistory hist(board,P_WHITE,rules,0);
+
+      testScoring(board,hist,false);
+      hist.makeBoardMoveAssumeLegal(board,Location::ofString("C7",board),P_WHITE,NULL);
+      testScoring(board,hist,false);
+      hist.makeBoardMoveAssumeLegal(board,Location::ofString("pass",board),P_BLACK,NULL);
+      testScoring(board,hist,false);
+      hist.makeBoardMoveAssumeLegal(board,Location::ofString("pass",board),P_WHITE,NULL);
+      testScoring(board,hist,false);
+      hist.makeBoardMoveAssumeLegal(board,Location::ofString("pass",board),P_BLACK,NULL);
+      testScoring(board,hist,false);
+      hist.makeBoardMoveAssumeLegal(board,Location::ofString("pass",board),P_WHITE,NULL);
+      testScoring(board,hist,false);
+      hist.makeBoardMoveAssumeLegal(board,Location::ofString("pass",board),P_BLACK,NULL);
+      testScoring(board,hist,false);
+      hist.makeBoardMoveAssumeLegal(board,Location::ofString("E3",board),P_WHITE,NULL);
+      testScoring(board,hist,false);
+      hist.makeBoardMoveAssumeLegal(board,Location::ofString("pass",board),P_BLACK,NULL);
+      testScoring(board,hist,false);
+      hist.makeBoardMoveAssumeLegal(board,Location::ofString("G1",board),P_WHITE,NULL);
+      testScoring(board,hist,false);
+      hist.makeBoardMoveAssumeLegal(board,Location::ofString("G3",board),P_BLACK,NULL);
+      testScoring(board,hist,false);
+      hist.makeBoardMoveAssumeLegal(board,Location::ofString("G2",board),P_WHITE,NULL);
+      testScoring(board,hist,false);
+      hist.makeBoardMoveAssumeLegal(board,Location::ofString("pass",board),P_BLACK,NULL);
+      testScoring(board,hist,false);
+    }
+
+    cout << "Ok" << endl;
+  }
+
 }
 
