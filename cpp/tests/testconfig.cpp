@@ -364,6 +364,7 @@ void Tests::runConfigTests(const vector<string>& args) {
 void Tests::runParseAllConfigsTest() {
   std::vector<std::string> collected;
   FileUtils::collectFiles("./configs/", [](const std::string& s) {return Global::isSuffix(s,".cfg");}, collected);
+  std::sort(collected.begin(),collected.end());
   for(const string& cfgPath: collected) {
     if(cfgPath.find(string("ringmaster")) != string::npos)
       continue;
