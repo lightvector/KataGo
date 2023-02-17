@@ -1914,6 +1914,8 @@ void NNInputs::fillRowV6(
         keepStones,
         hist.rules.multiStoneSuicideLegal
       );
+      if(hist.rules.taxRule == Rules::TAX_ALL)
+        groupTaxAdjustmentForPla = pla == P_WHITE ? -2 * whiteMinusBlackIndependentLifeRegionCount : 2 * whiteMinusBlackIndependentLifeRegionCount;
     }
   }
 
@@ -2340,7 +2342,8 @@ void NNInputs::fillRowV7(
         keepStones,
         hist.rules.multiStoneSuicideLegal
       );
-      groupTaxAdjustmentForPla = pla == P_WHITE ? -2 * whiteMinusBlackIndependentLifeRegionCount : 2 * whiteMinusBlackIndependentLifeRegionCount;
+      if(hist.rules.taxRule == Rules::TAX_ALL)
+        groupTaxAdjustmentForPla = pla == P_WHITE ? -2 * whiteMinusBlackIndependentLifeRegionCount : 2 * whiteMinusBlackIndependentLifeRegionCount;
     }
   }
 

@@ -13801,8 +13801,8 @@ SCORE NOW 14.5
 Komi -8 hasHistory 0
 Komi -7.5 hasHistory 0
 Komi -7 hasHistory 0
-Komi -6.5 hasHistory 0
-Komi -6 hasHistory 0
+Komi -6.5 hasHistory 1
+Komi -6 hasHistory 1
 HASH: 1AF7FB4CA3A2E61BD52A757137710FD4
    A B C D E F G
  7 . X O O . O .
@@ -14253,8 +14253,8 @@ SCORE NOW 10.5
 Komi -5 hasHistory 0
 Komi -4.5 hasHistory 0
 Komi -4 hasHistory 0
-Komi -3.5 hasHistory 0
-Komi -3 hasHistory 0
+Komi -3.5 hasHistory 1
+Komi -3 hasHistory 1
 HASH: AFB64D5F890A007A5DA209640F5E92B5
    A B C D E F G
  7 . X O O . O .
@@ -14317,8 +14317,8 @@ SCORE NOW 9.5
 Komi -4 hasHistory 0
 Komi -3.5 hasHistory 0
 Komi -3 hasHistory 0
-Komi -2.5 hasHistory 0
-Komi -2 hasHistory 0
+Komi -2.5 hasHistory 1
+Komi -2 hasHistory 1
 HASH: 6057CF0DCB583914FB87294A838D5155
    A B C D E F G
  7 . X O O . O .
@@ -14412,9 +14412,9 @@ Pass should suppress: 0
 SCORE NOW 9.5
 Komi -4 hasHistory 1
 Komi -3.5 hasHistory 1
-Komi -3 hasHistory 1
-Komi -2.5 hasHistory 1
-Komi -2 hasHistory 1
+Komi -3 hasHistory 0
+Komi -2.5 hasHistory 0
+Komi -2 hasHistory 0
 HASH: AFB64D5F890A007A5DA209640F5E92B5
    A B C D E F G
  7 . X O O . O .
@@ -14671,8 +14671,8 @@ SCORE NOW 8.5
 Komi -3 hasHistory 0
 Komi -2.5 hasHistory 0
 Komi -2 hasHistory 0
-Komi -1.5 hasHistory 0
-Komi -1 hasHistory 0
+Komi -1.5 hasHistory 1
+Komi -1 hasHistory 1
 HASH: AFB64D5F890A007A5DA209640F5E92B5
    A B C D E F G
  7 . X O O . O .
@@ -14735,8 +14735,8 @@ SCORE NOW 8.5
 Komi -3 hasHistory 0
 Komi -2.5 hasHistory 0
 Komi -2 hasHistory 0
-Komi -1.5 hasHistory 0
-Komi -1 hasHistory 0
+Komi -1.5 hasHistory 1
+Komi -1 hasHistory 1
 HASH: 6057CF0DCB583914FB87294A838D5155
    A B C D E F G
  7 . X O O . O .
@@ -14830,9 +14830,9 @@ Pass should suppress: 0
 SCORE NOW 8.5
 Komi -3 hasHistory 1
 Komi -2.5 hasHistory 1
-Komi -2 hasHistory 1
-Komi -1.5 hasHistory 1
-Komi -1 hasHistory 1
+Komi -2 hasHistory 0
+Komi -1.5 hasHistory 0
+Komi -1 hasHistory 0
 HASH: AFB64D5F890A007A5DA209640F5E92B5
    A B C D E F G
  7 . X O O . O .

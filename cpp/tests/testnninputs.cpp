@@ -1151,11 +1151,11 @@ o.xoo.x
         if(std::abs(histCopy.finalWhiteMinusBlackScore) <= 1.0f) {
           cout << "Komi " << komi << " hasHistory " << (historyInput > 0.0f) << endl;
         }
-        // if(hist.rules.scoringRule == Rules::SCORING_TERRITORY && hist.encorePhase < 2)
-        //   testAssert((hist.moveHistory.size() > 0 && !hist.isGameFinished && hist.numTurnsThisPhase > 0) == (historyInput > 0.0f));
-        // else
-        //   testAssert((hist.moveHistory.size() > 0 && !hist.isGameFinished && hist.numTurnsThisPhase > 0 &&
-        //               (!hist.passWouldEndGame(board,hist.presumedNextMovePla) || histCopy.winner == hist.presumedNextMovePla)) == (historyInput > 0.0f));
+        if(hist.rules.scoringRule == Rules::SCORING_TERRITORY && hist.encorePhase < 2)
+          testAssert((hist.moveHistory.size() > 0 && !hist.isGameFinished && hist.numTurnsThisPhase > 0) == (historyInput > 0.0f));
+        else
+          testAssert((hist.moveHistory.size() > 0 && !hist.isGameFinished && hist.numTurnsThisPhase > 0 &&
+                      (!hist.passWouldEndGame(board,hist.presumedNextMovePla) || histCopy.winner == hist.presumedNextMovePla)) == (historyInput > 0.0f));
       }
 
       delete[] rowBin;
