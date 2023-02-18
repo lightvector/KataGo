@@ -109,7 +109,9 @@ static void runAndUploadSingleGame(
   std::unique_ptr<ostream>& outputEachMove, std::function<void()> flushOutputEachMove,
   const std::function<bool()>& shouldStopFunc,
   const WaitableFlag* shouldPause,
-  bool logGamesAsJson, bool alwaysIncludeOwnership
+  bool logGamesAsJson,
+  bool alwaysIncludeOwnership,
+  bool warnTaskUnusedKeys
 ) {
   if(gameTask.task.isRatingGame) {
     logger.write(
@@ -170,7 +172,8 @@ static void runAndUploadSingleGame(
   GameRunner* gameRunner = new GameRunner(taskCfg, playSettings, logger);
 
   //Check for unused config keys
-  taskCfg.warnUnusedKeys(cerr,&logger);
+  if(warnTaskUnusedKeys)
+    taskCfg.warnUnusedKeys(cerr,&logger);
 
   //Make sure not to fork games in the middle for rating games!
   if(gameTask.task.isRatingGame)
@@ -574,6 +577,8 @@ int MainCmds::contribute(const vector<string>& args) {
   string watchOngoingGameInFileName = userCfg->contains("watchOngoingGameInFileName") ? userCfg->getString("watchOngoingGameInFileName") : "";
   const bool logGamesAsJson = userCfg->contains("logGamesAsJson") ? userCfg->getBool("logGamesAsJson") : false;
   const bool alwaysIncludeOwnership = userCfg->contains("includeOwnership") ? userCfg->getBool("includeOwnership") : false;
+  const bool warnTaskUnusedKeys = userCfg->contains("warnTaskUnusedKeys") ? userCfg->getBool("warnTaskUnusedKeys") : false;
+
   if(watchOngoingGameInFileName == "")
     watchOngoingGameInFileName = "watchgame.txt";
 
@@ -755,7 +760,7 @@ int MainCmds::contribute(const vector<string>& args) {
     &numRatingGamesActive,&numMovesPlayed,&watchOngoingGameInFile,&watchOngoingGameInFileName,
     &shouldStopFunc,&shouldStopGracefullyFunc,
     &shouldPause,
-    &logGamesAsJson, &alwaysIncludeOwnership,
+    &logGamesAsJson, &alwaysIncludeOwnership, &warnTaskUnusedKeys,
     &freeGameTask
   ] (
     int gameLoopThreadIdx
@@ -790,7 +795,7 @@ int MainCmds::contribute(const vector<string>& args) {
         int64_t gameIdx = numGamesStarted.fetch_add(1,std::memory_order_acq_rel);
         runAndUploadSingleGame(
           connection,gameTask,gameIdx,logger,seed,forkData,sgfsDir,thisLoopSeedRand,numMovesPlayed,outputEachMove,flushOutputEachMove,
-          shouldStopFunc,shouldPause,logGamesAsJson,alwaysIncludeOwnership
+          shouldStopFunc,shouldPause,logGamesAsJson,alwaysIncludeOwnership,warnTaskUnusedKeys
         );
       }
       freeGameTask(gameTask);
