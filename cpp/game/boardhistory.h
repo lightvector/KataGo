@@ -129,6 +129,12 @@ struct BoardHistory {
   //Check if passing right now would end the current phase of play, or the entire game
   bool passWouldEndPhase(const Board& board, Player movePla) const;
   bool passWouldEndGame(const Board& board, Player movePla) const;
+
+  //If friendly pass is okay in area scoring rules, we require a "third" pass to end the game during search, unless it ends
+  //via spightlike rule. This function returns true when passing would end the game, but we shouldn't accept it because it's
+  //a second pass and not a third pass.
+  bool shouldSuppressEndGameFromFriendlyPass(const Board& board, Player movePla) const;
+
   //Check if this is the final phase of the game, such that ending it moves to scoring.
   bool isFinalPhase() const;
   //Check if the specified move is a pass-for-ko encore move.

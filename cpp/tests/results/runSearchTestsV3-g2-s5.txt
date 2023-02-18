@@ -1517,28 +1517,28 @@ MoveNum: 0 HASH: 5AF63E0AF830CE859332D16214395C9B
 
 Root visits: 200
 New playouts: 200
-NN rows: 148
-NN batches: 148
+NN rows: 141
+NN batches: 141
 NN avg batch size: 1
-PV: G3 G5 E3 F7 D1 F6 B1 H6 B3
+PV: G3 G5 E3 F6 D1 pass B1 pass B3 pass
 Tree:
-: T -20.18c W -19.75c S  -0.43c ( -0.4 L  -0.4) N     200  --  G3 G5 E3 F7 D1 F6 B1
+: T -20.37c W -19.97c S  -0.40c ( -0.3 L  -0.3) N     200  --  G3 G5 E3 F6 D1 pass B1
 ---Black(v)---
-G3  : T -21.23c W -20.79c S  -0.44c ( -0.4 L  -0.4) LCB  -14.16c P 82.15% WF 196.8 PSV     196 N     196  --  G3 G5 E3 F7 D1 F6 B1 H6
+G3  : T -21.43c W -21.02c S  -0.42c ( -0.3 L  -0.3) LCB  -15.05c P 82.15% WF 196.8 PSV     196 N     196  --  G3 G5 E3 F6 D1 pass B1 pass
 E3  : T  36.60c W  36.37c S   0.22c ( +0.2 L  +0.2) LCB  296.60c P  2.69% WF   0.7 PSV       0 N       1  --  E3
 D4  : T  39.87c W  39.57c S   0.30c ( +0.2 L  +0.2) LCB  299.87c P  2.05% WF   0.7 PSV       0 N       1  --  D4
 D1  : T  36.47c W  36.19c S   0.28c ( +0.2 L  +0.2) LCB  296.47c P  2.02% WF   0.7 PSV       0 N       1  --  D1
-: T  20.18c W  19.75c S   0.43c ( +0.4 L  +0.4) N     200  --  G3 G5 E3 F7 D1 F6 B1
-G3  : T  21.23c W  20.79c S   0.44c ( +0.4 L  +0.4) LCB   14.16c P 82.15% WF 196.8 PSV     196 N     196  --  G3 G5 E3 F7 D1 F6 B1 H6
+: T  20.37c W  19.97c S   0.40c ( +0.3 L  +0.3) N     200  --  G3 G5 E3 F6 D1 pass B1
+G3  : T  21.43c W  21.02c S   0.42c ( +0.3 L  +0.3) LCB   15.05c P 82.15% WF 196.8 PSV     196 N     196  --  G3 G5 E3 F6 D1 pass B1 pass
 ---White(v)---
-G3  G5  : T  19.66c W  19.23c S   0.42c ( +0.4 L  +0.4) LCB   28.57c P 41.18% WF 141.4 PSV     139 N     139  --  G5 E3 F7 D1 F6 B1 H6 B3
-G3  F6  : T  24.96c W  24.48c S   0.48c ( +0.4 L  +0.4) LCB   42.15c P 22.88% WF  30.5 PSV      32 N      32  --  F6 E3 G5 D1 H6 B1 pass
-G3  H5  : T  21.29c W  20.91c S   0.37c ( +0.3 L  +0.3) LCB   30.49c P  5.94% WF  15.9 PSV      16 N      16  --  H5 E3 F6 D1 G5
+G3  G5  : T  20.61c W  20.21c S   0.40c ( +0.3 L  +0.3) LCB   29.61c P 41.18% WF 119.1 PSV     118 N     118  --  G5 E3 F6 D1 pass B1 pass B3
+G3  F6  : T  22.72c W  22.30c S   0.42c ( +0.3 L  +0.3) LCB   35.89c P 22.88% WF  44.2 PSV      45 N      45  --  F6 E3 G5 D1 pass B1 pass B3
+G3  H5  : T  20.10c W  19.77c S   0.32c ( +0.3 L  +0.3) LCB   29.92c P  5.94% WF  17.2 PSV      17 N      17  --  H5 E3 F6 D1 G5
+G3  pss : T  19.63c W  19.16c S   0.47c ( +0.4 L  +0.4) LCB   40.17c P  1.87% WF   8.1 PSV       8 N       8  --  pass E3 G5 D1
 G3  H6  : T  34.94c W  34.19c S   0.75c ( +0.6 L  +0.6) LCB   77.74c P  4.77% WF   3.6 PSV       4 N       4  --  H6 E3 F6
 G3  E3  : T  29.46c W  28.54c S   0.92c ( +0.8 L  +0.8) LCB  140.11c P  2.31% WF   1.9 PSV       2 N       2  --  E3 D4
 G3  D4  : T  32.39c W  32.10c S   0.29c ( +0.2 L  +0.2) LCB  292.39c P  2.35% WF   0.9 PSV       1 N       1  --  D4
-G3  pss : T  55.75c W  54.69c S   1.06c ( +0.9 L  +0.9) LCB  315.75c P  1.87% WF   0.8 PSV       1 N       1  --  pass
-: GPU 0 finishing, processed 3875 rows 3875 batches
+: GPU 0 finishing, processed 3868 rows 3868 batches
 : GPU 0 finishing, processed 389 rows 389 batches
 : GPU 0 finishing, processed 1 rows 1 batches
 Done

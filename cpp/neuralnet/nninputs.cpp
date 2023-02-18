@@ -35,6 +35,10 @@ int NNPos::getPolicySize(int nnXLen, int nnYLen) {
 
 const Hash128 MiscNNInputParams::ZOBRIST_CONSERVATIVE_PASS =
   Hash128(0x0c2b96f4b8ae2da9ULL, 0x5a14dee208fec0edULL);
+const Hash128 MiscNNInputParams::ZOBRIST_FRIENDLY_PASS =
+  Hash128(0xe750505a66f7c5c2ULL, 0x7a83139bf632d6c4ULL);
+const Hash128 MiscNNInputParams::ZOBRIST_PASSING_HACKS =
+  Hash128(0x9c89f4fd3ce5a92cULL, 0x268c9aff79c64d00ULL);
 const Hash128 MiscNNInputParams::ZOBRIST_PLAYOUT_DOUBLINGS =
   Hash128(0xa5e6114d380bfc1dULL, 0x4160557f1222f4adULL);
 const Hash128 MiscNNInputParams::ZOBRIST_NN_POLICY_TEMP =
@@ -835,13 +839,24 @@ Hash128 NNInputs::getHash(
 ) {
   Hash128 hash = BoardHistory::getSituationRulesAndKoHash(board, hist, nextPlayer, nnInputParams.drawEquivalentWinsForWhite);
 
-  //Fold in whether a pass ends this phase
-  bool passEndsPhase = hist.passWouldEndPhase(board,nextPlayer);
-  if(passEndsPhase) {
+  //Fold in whether a pass ends this phase.
+  if(hist.passWouldEndPhase(board,nextPlayer)) {
     hash ^= Board::ZOBRIST_PASS_ENDS_PHASE;
+    //Technically some of the below only apply when passing ends the game, but it's pretty harmless to use the more
+    //conservative hashing including them when the phase would end too.
+
     //And in the case that a pass ends the phase, conservativePass also affects the result for the root node
     if(nnInputParams.conservativePassAndIsRoot)
       hash ^= MiscNNInputParams::ZOBRIST_CONSERVATIVE_PASS;
+
+    //If we're in a ruleset where passing without capturing all the stones is okay, and as a result are suppressing
+    //the game end effect of a pass during search, hash this in.
+    if(hist.shouldSuppressEndGameFromFriendlyPass(board,nextPlayer))
+      hash ^= MiscNNInputParams::ZOBRIST_FRIENDLY_PASS;
+
+    //Passing hacks can also affect things at game or phase end.
+    if(nnInputParams.enablePassingHacks)
+      hash ^= MiscNNInputParams::ZOBRIST_PASSING_HACKS;
   }
   //Fold in whether the game is over or not, since this affects how we compute input features
   //but is not a function necessarily of previous hashed values.
@@ -965,7 +980,10 @@ void NNInputs::fillRowV3(
   bool hideHistory =
     hist.isGameFinished ||
     hist.isPastNormalPhaseEnd ||
-    (nnInputParams.conservativePassAndIsRoot && hist.passWouldEndGame(board,nextPlayer));
+    (hist.passWouldEndGame(board,nextPlayer) && (
+      nnInputParams.conservativePassAndIsRoot ||
+      hist.shouldSuppressEndGameFromFriendlyPass(board,nextPlayer)
+    ));
   int numTurnsOfHistoryIncluded = 0;
 
   //Features 9,10,11,12,13
@@ -1312,7 +1330,10 @@ void NNInputs::fillRowV4(
   bool hideHistory =
     hist.isGameFinished ||
     hist.isPastNormalPhaseEnd ||
-    (nnInputParams.conservativePassAndIsRoot && hist.passWouldEndGame(board,nextPlayer));
+    (hist.passWouldEndGame(board,nextPlayer) && (
+      nnInputParams.conservativePassAndIsRoot ||
+      hist.shouldSuppressEndGameFromFriendlyPass(board,nextPlayer)
+    ));
   int numTurnsOfHistoryIncluded = 0;
 
   //Features 9,10,11,12,13
@@ -1641,7 +1662,10 @@ void NNInputs::fillRowV5(
   bool hideHistory =
     hist.isGameFinished ||
     hist.isPastNormalPhaseEnd ||
-    (nnInputParams.conservativePassAndIsRoot && hist.passWouldEndGame(board,nextPlayer));
+    (hist.passWouldEndGame(board,nextPlayer) && (
+      nnInputParams.conservativePassAndIsRoot ||
+      hist.shouldSuppressEndGameFromFriendlyPass(board,nextPlayer)
+    ));
 
   //Features 6,7,8,9,10
   if(!hideHistory) {
@@ -1843,12 +1867,108 @@ void NNInputs::fillRowV6(
     }
   }
 
+  //Features 18,19 - current territory, not counting group tax
+  Color area[Board::MAX_ARR_SIZE];
+  bool hasAreaFeature = false;
+  int groupTaxAdjustmentForPla = 0;
+  if(hist.rules.scoringRule == Rules::SCORING_AREA && hist.rules.taxRule == Rules::TAX_NONE) {
+    hasAreaFeature = true;
+    bool nonPassAliveStones = true;
+    bool safeBigTerritories = true;
+    bool unsafeBigTerritories = true;
+    board.calculateArea(area,nonPassAliveStones,safeBigTerritories,unsafeBigTerritories,hist.rules.multiStoneSuicideLegal);
+  }
+  else {
+    bool keepTerritories = false;
+    bool keepStones = false;
+    int whiteMinusBlackIndependentLifeRegionCount = 0;
+    if(hist.rules.scoringRule == Rules::SCORING_AREA && (hist.rules.taxRule == Rules::TAX_SEKI || hist.rules.taxRule == Rules::TAX_ALL)) {
+      hasAreaFeature = true;
+      keepTerritories = false;
+      keepStones = true;
+    }
+    else if(hist.rules.scoringRule == Rules::SCORING_TERRITORY && hist.rules.taxRule == Rules::TAX_NONE) {
+      //Territory scoring omits feature until we reach the stage where scoring matters
+      if(hist.encorePhase >= 2) {
+        hasAreaFeature = true;
+        keepTerritories = true;
+        keepStones = false;
+      }
+    }
+    else if(hist.rules.scoringRule == Rules::SCORING_TERRITORY && (hist.rules.taxRule == Rules::TAX_SEKI || hist.rules.taxRule == Rules::TAX_ALL)) {
+      //Territory scoring omits feature until we reach the stage where scoring matters
+      if(hist.encorePhase >= 2) {
+        hasAreaFeature = true;
+        keepTerritories = false;
+        keepStones = false;
+      }
+    }
+    else {
+      ASSERT_UNREACHABLE;
+    }
+
+    if(hasAreaFeature) {
+      board.calculateIndependentLifeArea(
+        area,whiteMinusBlackIndependentLifeRegionCount,
+        keepTerritories,
+        keepStones,
+        hist.rules.multiStoneSuicideLegal
+      );
+      if(hist.rules.taxRule == Rules::TAX_ALL)
+        groupTaxAdjustmentForPla = pla == P_WHITE ? -2 * whiteMinusBlackIndependentLifeRegionCount : 2 * whiteMinusBlackIndependentLifeRegionCount;
+    }
+  }
+
+  bool finalPhaseAndGameEndWouldNotBeWin = false;
+  if(hasAreaFeature) {
+    int boardScoreForPla = groupTaxAdjustmentForPla;
+    for(int y = 0; y<ySize; y++) {
+      for(int x = 0; x<xSize; x++) {
+        Loc loc = Location::getLoc(x,y,xSize);
+        int pos = NNPos::locToPos(loc,xSize,nnXLen,nnYLen);
+        if(area[loc] == pla) {
+          setRowBin(rowBin,pos,18, 1.0f, posStride, featureStride);
+          boardScoreForPla += 1;
+        }
+        else if(area[loc] == opp) {
+          setRowBin(rowBin,pos,19, 1.0f, posStride, featureStride);
+          boardScoreForPla -= 1;
+        }
+        else {
+          if(hist.rules.scoringRule == Rules::SCORING_TERRITORY) {
+            //Also we must be in the second encore phase, based on the logic above.
+            if(board.colors[loc] == pla && hist.secondEncoreStartColors[loc] == pla) {
+              setRowBin(rowBin,pos,18, 1.0f, posStride, featureStride);
+              boardScoreForPla += 1;
+            }
+            else if(board.colors[loc] == opp && hist.secondEncoreStartColors[loc] == opp) {
+              setRowBin(rowBin,pos,19, 1.0f, posStride, featureStride);
+              boardScoreForPla -= 1;
+            }
+          }
+        }
+      }
+    }
+    float selfKomi = hist.currentSelfKomi(pla, nnInputParams.drawEquivalentWinsForWhite);
+    float finalScorePla = (float)boardScoreForPla + selfKomi;
+    // If the game ended here, and was scored instantly, it would be a loss or a draw?
+    if(finalScorePla <= 0.0)
+      finalPhaseAndGameEndWouldNotBeWin = true;
+  }
+
   //Hide history from the net if a pass would end things and we're behaving as if a pass won't.
   //Or if the game is in fact over right now!
   bool hideHistory =
     hist.isGameFinished ||
     hist.isPastNormalPhaseEnd ||
-    (nnInputParams.conservativePassAndIsRoot && hist.passWouldEndGame(board,nextPlayer));
+    (hist.passWouldEndGame(board,nextPlayer) && (
+      //At the root, if assuming passing doesn't end the game, and it would, then need to mask that out.
+      nnInputParams.conservativePassAndIsRoot ||
+      //Deeper in the tree, we might not assume passes end the game in a friendly pass setting.
+      hist.shouldSuppressEndGameFromFriendlyPass(board,nextPlayer) ||
+      //Passing hacks suppress the net to end the game when losing if it thinks a premature pass will lose by less.
+      (nnInputParams.enablePassingHacks && finalPhaseAndGameEndWouldNotBeWin)
+    ));
   int numTurnsOfHistoryIncluded = 0;
 
   //Features 9,10,11,12,13
@@ -1945,77 +2065,6 @@ void NNInputs::fillRowV6(
     setRowBin(rowBin,pos,16, 1.0f, posStride, featureStride);
   };
   iterLadders(prevPrevBoard, nnXLen, addPrevPrevLadderFeature);
-
-  //Features 18,19 - current territory, not counting group tax
-  Color area[Board::MAX_ARR_SIZE];
-  bool hasAreaFeature = false;
-  if(hist.rules.scoringRule == Rules::SCORING_AREA && hist.rules.taxRule == Rules::TAX_NONE) {
-    hasAreaFeature = true;
-    bool nonPassAliveStones = true;
-    bool safeBigTerritories = true;
-    bool unsafeBigTerritories = true;
-    board.calculateArea(area,nonPassAliveStones,safeBigTerritories,unsafeBigTerritories,hist.rules.multiStoneSuicideLegal);
-  }
-  else {
-    bool keepTerritories = false;
-    bool keepStones = false;
-    int whiteMinusBlackIndependentLifeRegionCount = 0;
-    if(hist.rules.scoringRule == Rules::SCORING_AREA && (hist.rules.taxRule == Rules::TAX_SEKI || hist.rules.taxRule == Rules::TAX_ALL)) {
-      hasAreaFeature = true;
-      keepTerritories = false;
-      keepStones = true;
-    }
-    else if(hist.rules.scoringRule == Rules::SCORING_TERRITORY && hist.rules.taxRule == Rules::TAX_NONE) {
-      //Territory scoring omits feature until we reach the stage where scoring matters
-      if(hist.encorePhase >= 2) {
-        hasAreaFeature = true;
-        keepTerritories = true;
-        keepStones = false;
-      }
-    }
-    else if(hist.rules.scoringRule == Rules::SCORING_TERRITORY && (hist.rules.taxRule == Rules::TAX_SEKI || hist.rules.taxRule == Rules::TAX_ALL)) {
-      //Territory scoring omits feature until we reach the stage where scoring matters
-      if(hist.encorePhase >= 2) {
-        hasAreaFeature = true;
-        keepTerritories = false;
-        keepStones = false;
-      }
-    }
-    else {
-      ASSERT_UNREACHABLE;
-    }
-
-    if(hasAreaFeature) {
-      board.calculateIndependentLifeArea(
-        area,whiteMinusBlackIndependentLifeRegionCount,
-        keepTerritories,
-        keepStones,
-        hist.rules.multiStoneSuicideLegal
-      );
-    }
-  }
-
-  if(hasAreaFeature) {
-    for(int y = 0; y<ySize; y++) {
-      for(int x = 0; x<xSize; x++) {
-        Loc loc = Location::getLoc(x,y,xSize);
-        int pos = NNPos::locToPos(loc,xSize,nnXLen,nnYLen);
-        if(area[loc] == pla)
-          setRowBin(rowBin,pos,18, 1.0f, posStride, featureStride);
-        else if(area[loc] == opp)
-          setRowBin(rowBin,pos,19, 1.0f, posStride, featureStride);
-        else {
-          if(hist.rules.scoringRule == Rules::SCORING_TERRITORY) {
-            //Also we must be in the second encore phase, based on the logic above.
-            if(board.colors[loc] == pla && hist.secondEncoreStartColors[loc] == pla)
-              setRowBin(rowBin,pos,18, 1.0f, posStride, featureStride);
-            else if(board.colors[loc] == opp && hist.secondEncoreStartColors[loc] == opp)
-              setRowBin(rowBin,pos,19, 1.0f, posStride, featureStride);
-          }
-        }
-      }
-    }
-  }
 
   //Features 20, 21 - second encore starting stones
   if(hist.encorePhase >= 2) {
@@ -2244,12 +2293,110 @@ void NNInputs::fillRowV7(
     }
   }
 
+
+  //Features 18,19 - current territory, not counting group tax
+  Color area[Board::MAX_ARR_SIZE];
+  bool hasAreaFeature = false;
+  int groupTaxAdjustmentForPla = 0;
+  if(hist.rules.scoringRule == Rules::SCORING_AREA && hist.rules.taxRule == Rules::TAX_NONE) {
+    hasAreaFeature = true;
+    bool nonPassAliveStones = true;
+    bool safeBigTerritories = true;
+    bool unsafeBigTerritories = true;
+    board.calculateArea(area,nonPassAliveStones,safeBigTerritories,unsafeBigTerritories,hist.rules.multiStoneSuicideLegal);
+  }
+  else {
+    bool keepTerritories = false;
+    bool keepStones = false;
+    int whiteMinusBlackIndependentLifeRegionCount = 0;
+    if(hist.rules.scoringRule == Rules::SCORING_AREA && (hist.rules.taxRule == Rules::TAX_SEKI || hist.rules.taxRule == Rules::TAX_ALL)) {
+      hasAreaFeature = true;
+      keepTerritories = false;
+      keepStones = true;
+    }
+    else if(hist.rules.scoringRule == Rules::SCORING_TERRITORY && hist.rules.taxRule == Rules::TAX_NONE) {
+      //Territory scoring omits feature until we reach the stage where scoring matters
+      if(hist.encorePhase >= 2) {
+        hasAreaFeature = true;
+        keepTerritories = true;
+        keepStones = false;
+      }
+    }
+    else if(hist.rules.scoringRule == Rules::SCORING_TERRITORY && (hist.rules.taxRule == Rules::TAX_SEKI || hist.rules.taxRule == Rules::TAX_ALL)) {
+      //Territory scoring omits feature until we reach the stage where scoring matters
+      if(hist.encorePhase >= 2) {
+        hasAreaFeature = true;
+        keepTerritories = false;
+        keepStones = false;
+      }
+    }
+    else {
+      ASSERT_UNREACHABLE;
+    }
+
+    if(hasAreaFeature) {
+      board.calculateIndependentLifeArea(
+        area,
+        whiteMinusBlackIndependentLifeRegionCount,
+        keepTerritories,
+        keepStones,
+        hist.rules.multiStoneSuicideLegal
+      );
+      if(hist.rules.taxRule == Rules::TAX_ALL)
+        groupTaxAdjustmentForPla = pla == P_WHITE ? -2 * whiteMinusBlackIndependentLifeRegionCount : 2 * whiteMinusBlackIndependentLifeRegionCount;
+    }
+  }
+
+  bool finalPhaseAndGameEndWouldNotBeWin = false;
+  if(hasAreaFeature) {
+    int boardScoreForPla = groupTaxAdjustmentForPla;
+    for(int y = 0; y<ySize; y++) {
+      for(int x = 0; x<xSize; x++) {
+        Loc loc = Location::getLoc(x,y,xSize);
+        int pos = NNPos::locToPos(loc,xSize,nnXLen,nnYLen);
+        if(area[loc] == pla) {
+          setRowBin(rowBin,pos,18, 1.0f, posStride, featureStride);
+          boardScoreForPla += 1;
+        }
+        else if(area[loc] == opp) {
+          setRowBin(rowBin,pos,19, 1.0f, posStride, featureStride);
+          boardScoreForPla -= 1;
+        }
+        else {
+          if(hist.rules.scoringRule == Rules::SCORING_TERRITORY) {
+            //Also we must be in the second encore phase, based on the logic above.
+            if(board.colors[loc] == pla && hist.secondEncoreStartColors[loc] == pla) {
+              setRowBin(rowBin,pos,18, 1.0f, posStride, featureStride);
+              boardScoreForPla += 1;
+            }
+            else if(board.colors[loc] == opp && hist.secondEncoreStartColors[loc] == opp) {
+              setRowBin(rowBin,pos,19, 1.0f, posStride, featureStride);
+              boardScoreForPla -= 1;
+            }
+          }
+        }
+      }
+    }
+    float selfKomi = hist.currentSelfKomi(pla, nnInputParams.drawEquivalentWinsForWhite);
+    float finalScorePla = (float)boardScoreForPla + selfKomi;
+    // If the game ended here, and was scored instantly, it would be a loss or a draw?
+    if(finalScorePla <= 0.0)
+      finalPhaseAndGameEndWouldNotBeWin = true;
+  }
+
   //Hide history from the net if a pass would end things and we're behaving as if a pass won't.
   //Or if the game is in fact over right now!
   bool hideHistory =
     hist.isGameFinished ||
     hist.isPastNormalPhaseEnd ||
-    (nnInputParams.conservativePassAndIsRoot && hist.passWouldEndGame(board,nextPlayer));
+    (hist.passWouldEndGame(board,nextPlayer) && (
+      //At the root, if assuming passing doesn't end the game, and it would, then need to mask that out.
+      nnInputParams.conservativePassAndIsRoot ||
+      //Deeper in the tree, we might not assume passes end the game in a friendly pass setting.
+      hist.shouldSuppressEndGameFromFriendlyPass(board,nextPlayer) ||
+      //Passing hacks suppress the net to end the game when losing if it thinks a premature pass will lose by less.
+      (nnInputParams.enablePassingHacks && finalPhaseAndGameEndWouldNotBeWin)
+    ));
   int numTurnsOfHistoryIncluded = 0;
 
   //Features 9,10,11,12,13
@@ -2346,77 +2493,6 @@ void NNInputs::fillRowV7(
     setRowBin(rowBin,pos,16, 1.0f, posStride, featureStride);
   };
   iterLadders(prevPrevBoard, nnXLen, addPrevPrevLadderFeature);
-
-  //Features 18,19 - current territory, not counting group tax
-  Color area[Board::MAX_ARR_SIZE];
-  bool hasAreaFeature = false;
-  if(hist.rules.scoringRule == Rules::SCORING_AREA && hist.rules.taxRule == Rules::TAX_NONE) {
-    hasAreaFeature = true;
-    bool nonPassAliveStones = true;
-    bool safeBigTerritories = true;
-    bool unsafeBigTerritories = true;
-    board.calculateArea(area,nonPassAliveStones,safeBigTerritories,unsafeBigTerritories,hist.rules.multiStoneSuicideLegal);
-  }
-  else {
-    bool keepTerritories = false;
-    bool keepStones = false;
-    int whiteMinusBlackIndependentLifeRegionCount = 0;
-    if(hist.rules.scoringRule == Rules::SCORING_AREA && (hist.rules.taxRule == Rules::TAX_SEKI || hist.rules.taxRule == Rules::TAX_ALL)) {
-      hasAreaFeature = true;
-      keepTerritories = false;
-      keepStones = true;
-    }
-    else if(hist.rules.scoringRule == Rules::SCORING_TERRITORY && hist.rules.taxRule == Rules::TAX_NONE) {
-      //Territory scoring omits feature until we reach the stage where scoring matters
-      if(hist.encorePhase >= 2) {
-        hasAreaFeature = true;
-        keepTerritories = true;
-        keepStones = false;
-      }
-    }
-    else if(hist.rules.scoringRule == Rules::SCORING_TERRITORY && (hist.rules.taxRule == Rules::TAX_SEKI || hist.rules.taxRule == Rules::TAX_ALL)) {
-      //Territory scoring omits feature until we reach the stage where scoring matters
-      if(hist.encorePhase >= 2) {
-        hasAreaFeature = true;
-        keepTerritories = false;
-        keepStones = false;
-      }
-    }
-    else {
-      ASSERT_UNREACHABLE;
-    }
-
-    if(hasAreaFeature) {
-      board.calculateIndependentLifeArea(
-        area,whiteMinusBlackIndependentLifeRegionCount,
-        keepTerritories,
-        keepStones,
-        hist.rules.multiStoneSuicideLegal
-      );
-    }
-  }
-
-  if(hasAreaFeature) {
-    for(int y = 0; y<ySize; y++) {
-      for(int x = 0; x<xSize; x++) {
-        Loc loc = Location::getLoc(x,y,xSize);
-        int pos = NNPos::locToPos(loc,xSize,nnXLen,nnYLen);
-        if(area[loc] == pla)
-          setRowBin(rowBin,pos,18, 1.0f, posStride, featureStride);
-        else if(area[loc] == opp)
-          setRowBin(rowBin,pos,19, 1.0f, posStride, featureStride);
-        else {
-          if(hist.rules.scoringRule == Rules::SCORING_TERRITORY) {
-            //Also we must be in the second encore phase, based on the logic above.
-            if(board.colors[loc] == pla && hist.secondEncoreStartColors[loc] == pla)
-              setRowBin(rowBin,pos,18, 1.0f, posStride, featureStride);
-            else if(board.colors[loc] == opp && hist.secondEncoreStartColors[loc] == opp)
-              setRowBin(rowBin,pos,19, 1.0f, posStride, featureStride);
-          }
-        }
-      }
-    }
-  }
 
   //Features 20, 21 - second encore starting stones
   if(hist.encorePhase >= 2) {

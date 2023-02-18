@@ -13379,6 +13379,1911 @@ Game result 0 Empty 0 0 0 0
 Last moves 
 0 0 0 0 0 -0.35 1 0.5 0 1 0 0 0 0 0 0 0 1 0 
 Final score: 2.5
+Passing hack condition based on as-is scoring ==========================================================================
+
+---------------------------------------------------
+koPOSITIONALscoreAREAtaxNONEsui1komi7.5
+HASH: FAF2EABFB3495910142EC7830B274058
+   A B C D E F G
+ 7 . X . O . O .
+ 6 X . X O O O O
+ 5 X X X X X X X
+ 4 O O X X O O O
+ 3 . O X O . O .
+ 2 O O X O O X O
+ 1 . O X O . X .
+
+
+Initial pla White
+Encore phase 0
+Turns this phase 0
+Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
+Ko recap block hash 00000000000000000000000000000000
+White bonus score 0
+White handicap bonus score 0
+Has button 0
+Presumed next pla White
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
+Last moves 
+Pass would end phase: 0
+Pass would end game: 0
+Pass should suppress: 0
+SCORE NOW 15.5
+Komi -9 hasHistory 0
+Komi -8.5 hasHistory 0
+Komi -8 hasHistory 0
+Komi -7.5 hasHistory 0
+Komi -7 hasHistory 0
+HASH: 1AF7FB4CA3A2E61BD52A757137710FD4
+   A B C D E F G
+ 7 . X O O . O .
+ 6 X . X O O O O
+ 5 X X X X X X X
+ 4 O O X X O O O
+ 3 . O X O . O .
+ 2 O O X O O X O
+ 1 . O X O . X .
+
+
+Initial pla White
+Encore phase 0
+Turns this phase 1
+Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
+Ko recap block hash 00000000000000000000000000000000
+White bonus score 0
+White handicap bonus score 0
+Has button 0
+Presumed next pla Black
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
+Last moves C7 
+Pass would end phase: 0
+Pass would end game: 0
+Pass should suppress: 0
+SCORE NOW 16.5
+Komi -10 hasHistory 1
+Komi -9.5 hasHistory 1
+Komi -9 hasHistory 1
+Komi -8.5 hasHistory 1
+Komi -8 hasHistory 1
+HASH: 1AF7FB4CA3A2E61BD52A757137710FD4
+   A B C D E F G
+ 7 . X O O . O .
+ 6 X . X O O O O
+ 5 X X X X X X X
+ 4 O O X X O O O
+ 3 . O X O . O .
+ 2 O O X O O X O
+ 1 . O X O . X .
+
+
+Initial pla White
+Encore phase 0
+Turns this phase 2
+Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
+Ko recap block hash 00000000000000000000000000000000
+White bonus score 0
+White handicap bonus score 0
+Has button 0
+Presumed next pla White
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
+Last moves C7 pass 
+Pass would end phase: 1
+Pass would end game: 1
+Pass should suppress: 0
+SCORE NOW 16.5
+Komi -10 hasHistory 0
+Komi -9.5 hasHistory 0
+Komi -9 hasHistory 0
+Komi -8.5 hasHistory 1
+Komi -8 hasHistory 1
+HASH: 1AF7FB4CA3A2E61BD52A757137710FD4
+   A B C D E F G
+ 7 . X O O . O .
+ 6 X . X O O O O
+ 5 X X X X X X X
+ 4 O O X X O O O
+ 3 . O X O . O .
+ 2 O O X O O X O
+ 1 . O X O . X .
+
+
+Initial pla White
+Encore phase 0
+Turns this phase 3
+Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
+Ko recap block hash 00000000000000000000000000000000
+White bonus score 0
+White handicap bonus score 0
+Has button 0
+Presumed next pla Black
+Past normal phase end 0
+Game result 1 White 16.5 1 0 0
+Last moves C7 pass pass 
+Pass would end phase: 1
+Pass would end game: 1
+Pass should suppress: 0
+SCORE NOW 16.5
+Komi -10 hasHistory 0
+Komi -9.5 hasHistory 0
+Komi -9 hasHistory 0
+Komi -8.5 hasHistory 0
+Komi -8 hasHistory 0
+HASH: 1AF7FB4CA3A2E61BD52A757137710FD4
+   A B C D E F G
+ 7 . X O O . O .
+ 6 X . X O O O O
+ 5 X X X X X X X
+ 4 O O X X O O O
+ 3 . O X O . O .
+ 2 O O X O O X O
+ 1 . O X O . X .
+
+
+Initial pla White
+Encore phase 0
+Turns this phase 4
+Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
+Ko recap block hash 00000000000000000000000000000000
+White bonus score 0
+White handicap bonus score 0
+Has button 0
+Presumed next pla White
+Past normal phase end 0
+Game result 1 White 16.5 1 0 0
+Last moves C7 pass pass pass 
+Pass would end phase: 1
+Pass would end game: 1
+Pass should suppress: 0
+SCORE NOW 16.5
+Komi -10 hasHistory 0
+Komi -9.5 hasHistory 0
+Komi -9 hasHistory 0
+Komi -8.5 hasHistory 0
+Komi -8 hasHistory 0
+---------------------------------------------------
+koSIMPLEscoreAREAtaxNONEsui0whbNfpok1komi7.5
+HASH: FAF2EABFB3495910142EC7830B274058
+   A B C D E F G
+ 7 . X . O . O .
+ 6 X . X O O O O
+ 5 X X X X X X X
+ 4 O O X X O O O
+ 3 . O X O . O .
+ 2 O O X O O X O
+ 1 . O X O . X .
+
+
+Initial pla White
+Encore phase 0
+Turns this phase 0
+Rules koSIMPLEscoreAREAtaxNONEsui0whbNfpok1komi7.5
+Ko recap block hash 00000000000000000000000000000000
+White bonus score 0
+White handicap bonus score 0
+Has button 0
+Presumed next pla White
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
+Last moves 
+Pass would end phase: 0
+Pass would end game: 0
+Pass should suppress: 0
+SCORE NOW 15.5
+Komi -9 hasHistory 0
+Komi -8.5 hasHistory 0
+Komi -8 hasHistory 0
+Komi -7.5 hasHistory 0
+Komi -7 hasHistory 0
+HASH: 1AF7FB4CA3A2E61BD52A757137710FD4
+   A B C D E F G
+ 7 . X O O . O .
+ 6 X . X O O O O
+ 5 X X X X X X X
+ 4 O O X X O O O
+ 3 . O X O . O .
+ 2 O O X O O X O
+ 1 . O X O . X .
+
+
+Initial pla White
+Encore phase 0
+Turns this phase 1
+Rules koSIMPLEscoreAREAtaxNONEsui0whbNfpok1komi7.5
+Ko recap block hash 00000000000000000000000000000000
+White bonus score 0
+White handicap bonus score 0
+Has button 0
+Presumed next pla Black
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
+Last moves C7 
+Pass would end phase: 0
+Pass would end game: 0
+Pass should suppress: 0
+SCORE NOW 16.5
+Komi -10 hasHistory 1
+Komi -9.5 hasHistory 1
+Komi -9 hasHistory 1
+Komi -8.5 hasHistory 1
+Komi -8 hasHistory 1
+HASH: 1AF7FB4CA3A2E61BD52A757137710FD4
+   A B C D E F G
+ 7 . X O O . O .
+ 6 X . X O O O O
+ 5 X X X X X X X
+ 4 O O X X O O O
+ 3 . O X O . O .
+ 2 O O X O O X O
+ 1 . O X O . X .
+
+
+Initial pla White
+Encore phase 0
+Turns this phase 2
+Rules koSIMPLEscoreAREAtaxNONEsui0whbNfpok1komi7.5
+Ko recap block hash 00000000000000000000000000000000
+White bonus score 0
+White handicap bonus score 0
+Has button 0
+Presumed next pla White
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
+Last moves C7 pass 
+Pass would end phase: 1
+Pass would end game: 1
+Pass should suppress: 1
+SCORE NOW 16.5
+Komi -10 hasHistory 0
+Komi -9.5 hasHistory 0
+Komi -9 hasHistory 0
+Komi -8.5 hasHistory 1
+Komi -8 hasHistory 1
+HASH: 1AF7FB4CA3A2E61BD52A757137710FD4
+   A B C D E F G
+ 7 . X O O . O .
+ 6 X . X O O O O
+ 5 X X X X X X X
+ 4 O O X X O O O
+ 3 . O X O . O .
+ 2 O O X O O X O
+ 1 . O X O . X .
+
+
+Initial pla White
+Encore phase 0
+Turns this phase 3
+Rules koSIMPLEscoreAREAtaxNONEsui0whbNfpok1komi7.5
+Ko recap block hash 00000000000000000000000000000000
+White bonus score 0
+White handicap bonus score 0
+Has button 0
+Presumed next pla Black
+Past normal phase end 0
+Game result 1 White 16.5 1 0 0
+Last moves C7 pass pass 
+Pass would end phase: 1
+Pass would end game: 1
+Pass should suppress: 0
+SCORE NOW 16.5
+Komi -10 hasHistory 0
+Komi -9.5 hasHistory 0
+Komi -9 hasHistory 0
+Komi -8.5 hasHistory 0
+Komi -8 hasHistory 0
+HASH: 1AF7FB4CA3A2E61BD52A757137710FD4
+   A B C D E F G
+ 7 . X O O . O .
+ 6 X . X O O O O
+ 5 X X X X X X X
+ 4 O O X X O O O
+ 3 . O X O . O .
+ 2 O O X O O X O
+ 1 . O X O . X .
+
+
+Initial pla White
+Encore phase 0
+Turns this phase 4
+Rules koSIMPLEscoreAREAtaxNONEsui0whbNfpok1komi7.5
+Ko recap block hash 00000000000000000000000000000000
+White bonus score 0
+White handicap bonus score 0
+Has button 0
+Presumed next pla White
+Past normal phase end 0
+Game result 1 White 16.5 1 0 0
+Last moves C7 pass pass pass 
+Pass would end phase: 1
+Pass would end game: 1
+Pass should suppress: 0
+SCORE NOW 16.5
+Komi -10 hasHistory 0
+Komi -9.5 hasHistory 0
+Komi -9 hasHistory 0
+Komi -8.5 hasHistory 0
+Komi -8 hasHistory 0
+---------------------------------------------------
+koSIMPLEscoreAREAtaxSEKIsui0whbNfpok1komi7.5
+HASH: FAF2EABFB3495910142EC7830B274058
+   A B C D E F G
+ 7 . X . O . O .
+ 6 X . X O O O O
+ 5 X X X X X X X
+ 4 O O X X O O O
+ 3 . O X O . O .
+ 2 O O X O O X O
+ 1 . O X O . X .
+
+
+Initial pla White
+Encore phase 0
+Turns this phase 0
+Rules koSIMPLEscoreAREAtaxSEKIsui0whbNfpok1komi7.5
+Ko recap block hash 00000000000000000000000000000000
+White bonus score 0
+White handicap bonus score 0
+Has button 0
+Presumed next pla White
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
+Last moves 
+Pass would end phase: 0
+Pass would end game: 0
+Pass should suppress: 0
+SCORE NOW 13.5
+Komi -7 hasHistory 0
+Komi -6.5 hasHistory 0
+Komi -6 hasHistory 0
+Komi -5.5 hasHistory 0
+Komi -5 hasHistory 0
+HASH: 1AF7FB4CA3A2E61BD52A757137710FD4
+   A B C D E F G
+ 7 . X O O . O .
+ 6 X . X O O O O
+ 5 X X X X X X X
+ 4 O O X X O O O
+ 3 . O X O . O .
+ 2 O O X O O X O
+ 1 . O X O . X .
+
+
+Initial pla White
+Encore phase 0
+Turns this phase 1
+Rules koSIMPLEscoreAREAtaxSEKIsui0whbNfpok1komi7.5
+Ko recap block hash 00000000000000000000000000000000
+White bonus score 0
+White handicap bonus score 0
+Has button 0
+Presumed next pla Black
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
+Last moves C7 
+Pass would end phase: 0
+Pass would end game: 0
+Pass should suppress: 0
+SCORE NOW 14.5
+Komi -8 hasHistory 1
+Komi -7.5 hasHistory 1
+Komi -7 hasHistory 1
+Komi -6.5 hasHistory 1
+Komi -6 hasHistory 1
+HASH: 1AF7FB4CA3A2E61BD52A757137710FD4
+   A B C D E F G
+ 7 . X O O . O .
+ 6 X . X O O O O
+ 5 X X X X X X X
+ 4 O O X X O O O
+ 3 . O X O . O .
+ 2 O O X O O X O
+ 1 . O X O . X .
+
+
+Initial pla White
+Encore phase 0
+Turns this phase 2
+Rules koSIMPLEscoreAREAtaxSEKIsui0whbNfpok1komi7.5
+Ko recap block hash 00000000000000000000000000000000
+White bonus score 0
+White handicap bonus score 0
+Has button 0
+Presumed next pla White
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
+Last moves C7 pass 
+Pass would end phase: 1
+Pass would end game: 1
+Pass should suppress: 1
+SCORE NOW 14.5
+Komi -8 hasHistory 0
+Komi -7.5 hasHistory 0
+Komi -7 hasHistory 0
+Komi -6.5 hasHistory 1
+Komi -6 hasHistory 1
+HASH: 1AF7FB4CA3A2E61BD52A757137710FD4
+   A B C D E F G
+ 7 . X O O . O .
+ 6 X . X O O O O
+ 5 X X X X X X X
+ 4 O O X X O O O
+ 3 . O X O . O .
+ 2 O O X O O X O
+ 1 . O X O . X .
+
+
+Initial pla White
+Encore phase 0
+Turns this phase 3
+Rules koSIMPLEscoreAREAtaxSEKIsui0whbNfpok1komi7.5
+Ko recap block hash 00000000000000000000000000000000
+White bonus score 0
+White handicap bonus score 0
+Has button 0
+Presumed next pla Black
+Past normal phase end 0
+Game result 1 White 14.5 1 0 0
+Last moves C7 pass pass 
+Pass would end phase: 1
+Pass would end game: 1
+Pass should suppress: 0
+SCORE NOW 14.5
+Komi -8 hasHistory 0
+Komi -7.5 hasHistory 0
+Komi -7 hasHistory 0
+Komi -6.5 hasHistory 0
+Komi -6 hasHistory 0
+HASH: 1AF7FB4CA3A2E61BD52A757137710FD4
+   A B C D E F G
+ 7 . X O O . O .
+ 6 X . X O O O O
+ 5 X X X X X X X
+ 4 O O X X O O O
+ 3 . O X O . O .
+ 2 O O X O O X O
+ 1 . O X O . X .
+
+
+Initial pla White
+Encore phase 0
+Turns this phase 4
+Rules koSIMPLEscoreAREAtaxSEKIsui0whbNfpok1komi7.5
+Ko recap block hash 00000000000000000000000000000000
+White bonus score 0
+White handicap bonus score 0
+Has button 0
+Presumed next pla White
+Past normal phase end 0
+Game result 1 White 14.5 1 0 0
+Last moves C7 pass pass pass 
+Pass would end phase: 1
+Pass would end game: 1
+Pass should suppress: 0
+SCORE NOW 14.5
+Komi -8 hasHistory 0
+Komi -7.5 hasHistory 0
+Komi -7 hasHistory 0
+Komi -6.5 hasHistory 0
+Komi -6 hasHistory 0
+---------------------------------------------------
+koSIMPLEscoreAREAtaxALLsui0fpok1komi7.5
+HASH: FAF2EABFB3495910142EC7830B274058
+   A B C D E F G
+ 7 . X . O . O .
+ 6 X . X O O O O
+ 5 X X X X X X X
+ 4 O O X X O O O
+ 3 . O X O . O .
+ 2 O O X O O X O
+ 1 . O X O . X .
+
+
+Initial pla White
+Encore phase 0
+Turns this phase 0
+Rules koSIMPLEscoreAREAtaxALLsui0fpok1komi7.5
+Ko recap block hash 00000000000000000000000000000000
+White bonus score 0
+White handicap bonus score 0
+Has button 0
+Presumed next pla White
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
+Last moves 
+Pass would end phase: 0
+Pass would end game: 0
+Pass should suppress: 0
+SCORE NOW 11.5
+Komi -5 hasHistory 0
+Komi -4.5 hasHistory 0
+Komi -4 hasHistory 0
+Komi -3.5 hasHistory 0
+Komi -3 hasHistory 0
+HASH: 1AF7FB4CA3A2E61BD52A757137710FD4
+   A B C D E F G
+ 7 . X O O . O .
+ 6 X . X O O O O
+ 5 X X X X X X X
+ 4 O O X X O O O
+ 3 . O X O . O .
+ 2 O O X O O X O
+ 1 . O X O . X .
+
+
+Initial pla White
+Encore phase 0
+Turns this phase 1
+Rules koSIMPLEscoreAREAtaxALLsui0fpok1komi7.5
+Ko recap block hash 00000000000000000000000000000000
+White bonus score 0
+White handicap bonus score 0
+Has button 0
+Presumed next pla Black
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
+Last moves C7 
+Pass would end phase: 0
+Pass would end game: 0
+Pass should suppress: 0
+SCORE NOW 12.5
+Komi -6 hasHistory 1
+Komi -5.5 hasHistory 1
+Komi -5 hasHistory 1
+Komi -4.5 hasHistory 1
+Komi -4 hasHistory 1
+HASH: 1AF7FB4CA3A2E61BD52A757137710FD4
+   A B C D E F G
+ 7 . X O O . O .
+ 6 X . X O O O O
+ 5 X X X X X X X
+ 4 O O X X O O O
+ 3 . O X O . O .
+ 2 O O X O O X O
+ 1 . O X O . X .
+
+
+Initial pla White
+Encore phase 0
+Turns this phase 2
+Rules koSIMPLEscoreAREAtaxALLsui0fpok1komi7.5
+Ko recap block hash 00000000000000000000000000000000
+White bonus score 0
+White handicap bonus score 0
+Has button 0
+Presumed next pla White
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
+Last moves C7 pass 
+Pass would end phase: 1
+Pass would end game: 1
+Pass should suppress: 1
+SCORE NOW 12.5
+Komi -6 hasHistory 0
+Komi -5.5 hasHistory 0
+Komi -5 hasHistory 0
+Komi -4.5 hasHistory 1
+Komi -4 hasHistory 1
+HASH: 1AF7FB4CA3A2E61BD52A757137710FD4
+   A B C D E F G
+ 7 . X O O . O .
+ 6 X . X O O O O
+ 5 X X X X X X X
+ 4 O O X X O O O
+ 3 . O X O . O .
+ 2 O O X O O X O
+ 1 . O X O . X .
+
+
+Initial pla White
+Encore phase 0
+Turns this phase 3
+Rules koSIMPLEscoreAREAtaxALLsui0fpok1komi7.5
+Ko recap block hash 00000000000000000000000000000000
+White bonus score 0
+White handicap bonus score 0
+Has button 0
+Presumed next pla Black
+Past normal phase end 0
+Game result 1 White 12.5 1 0 0
+Last moves C7 pass pass 
+Pass would end phase: 1
+Pass would end game: 1
+Pass should suppress: 0
+SCORE NOW 12.5
+Komi -6 hasHistory 0
+Komi -5.5 hasHistory 0
+Komi -5 hasHistory 0
+Komi -4.5 hasHistory 0
+Komi -4 hasHistory 0
+HASH: 1AF7FB4CA3A2E61BD52A757137710FD4
+   A B C D E F G
+ 7 . X O O . O .
+ 6 X . X O O O O
+ 5 X X X X X X X
+ 4 O O X X O O O
+ 3 . O X O . O .
+ 2 O O X O O X O
+ 1 . O X O . X .
+
+
+Initial pla White
+Encore phase 0
+Turns this phase 4
+Rules koSIMPLEscoreAREAtaxALLsui0fpok1komi7.5
+Ko recap block hash 00000000000000000000000000000000
+White bonus score 0
+White handicap bonus score 0
+Has button 0
+Presumed next pla White
+Past normal phase end 0
+Game result 1 White 12.5 1 0 0
+Last moves C7 pass pass pass 
+Pass would end phase: 1
+Pass would end game: 1
+Pass should suppress: 0
+SCORE NOW 12.5
+Komi -6 hasHistory 0
+Komi -5.5 hasHistory 0
+Komi -5 hasHistory 0
+Komi -4.5 hasHistory 0
+Komi -4 hasHistory 0
+---------------------------------------------------
+koSIMPLEscoreTERRITORYtaxNONEsui0komi6.5
+HASH: FAF2EABFB3495910142EC7830B274058
+   A B C D E F G
+ 7 . X . O . O .
+ 6 X . X O O O O
+ 5 X X X X X X X
+ 4 O O X X O O O
+ 3 . O X O . O .
+ 2 O O X O O X O
+ 1 . O X O . X .
+
+
+Initial pla White
+Encore phase 0
+Turns this phase 0
+Rules koSIMPLEscoreTERRITORYtaxNONEsui0komi6.5
+Ko recap block hash 00000000000000000000000000000000
+White bonus score -4
+White handicap bonus score 0
+Has button 0
+Presumed next pla White
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
+Last moves 
+Pass would end phase: 0
+Pass would end game: 0
+Pass should suppress: 0
+SCORE NOW 10.5
+Komi -5 hasHistory 0
+Komi -4.5 hasHistory 0
+Komi -4 hasHistory 0
+Komi -3.5 hasHistory 0
+Komi -3 hasHistory 0
+HASH: 1AF7FB4CA3A2E61BD52A757137710FD4
+   A B C D E F G
+ 7 . X O O . O .
+ 6 X . X O O O O
+ 5 X X X X X X X
+ 4 O O X X O O O
+ 3 . O X O . O .
+ 2 O O X O O X O
+ 1 . O X O . X .
+
+
+Initial pla White
+Encore phase 0
+Turns this phase 1
+Rules koSIMPLEscoreTERRITORYtaxNONEsui0komi6.5
+Ko recap block hash 00000000000000000000000000000000
+White bonus score -5
+White handicap bonus score 0
+Has button 0
+Presumed next pla Black
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
+Last moves C7 
+Pass would end phase: 0
+Pass would end game: 0
+Pass should suppress: 0
+SCORE NOW 10.5
+Komi -5 hasHistory 1
+Komi -4.5 hasHistory 1
+Komi -4 hasHistory 1
+Komi -3.5 hasHistory 1
+Komi -3 hasHistory 1
+HASH: 1AF7FB4CA3A2E61BD52A757137710FD4
+   A B C D E F G
+ 7 . X O O . O .
+ 6 X . X O O O O
+ 5 X X X X X X X
+ 4 O O X X O O O
+ 3 . O X O . O .
+ 2 O O X O O X O
+ 1 . O X O . X .
+
+
+Initial pla White
+Encore phase 0
+Turns this phase 2
+Rules koSIMPLEscoreTERRITORYtaxNONEsui0komi6.5
+Ko recap block hash 00000000000000000000000000000000
+White bonus score -5
+White handicap bonus score 0
+Has button 0
+Presumed next pla White
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
+Last moves C7 pass 
+Pass would end phase: 1
+Pass would end game: 0
+Pass should suppress: 0
+SCORE NOW 10.5
+Komi -5 hasHistory 1
+Komi -4.5 hasHistory 1
+Komi -4 hasHistory 1
+Komi -3.5 hasHistory 1
+Komi -3 hasHistory 1
+HASH: 1AF7FB4CA3A2E61BD52A757137710FD4
+   A B C D E F G
+ 7 . X O O . O .
+ 6 X . X O O O O
+ 5 X X X X X X X
+ 4 O O X X O O O
+ 3 . O X O . O .
+ 2 O O X O O X O
+ 1 . O X O . X .
+
+
+Initial pla White
+Encore phase 1
+Turns this phase 0
+Rules koSIMPLEscoreTERRITORYtaxNONEsui0komi6.5
+Ko recap block hash 00000000000000000000000000000000
+White bonus score -5
+White handicap bonus score 0
+Has button 0
+Presumed next pla Black
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
+Last moves C7 pass pass 
+Pass would end phase: 0
+Pass would end game: 0
+Pass should suppress: 0
+SCORE NOW 10.5
+Komi -5 hasHistory 0
+Komi -4.5 hasHistory 0
+Komi -4 hasHistory 0
+Komi -3.5 hasHistory 0
+Komi -3 hasHistory 0
+HASH: 1AF7FB4CA3A2E61BD52A757137710FD4
+   A B C D E F G
+ 7 . X O O . O .
+ 6 X . X O O O O
+ 5 X X X X X X X
+ 4 O O X X O O O
+ 3 . O X O . O .
+ 2 O O X O O X O
+ 1 . O X O . X .
+
+
+Initial pla White
+Encore phase 1
+Turns this phase 1
+Rules koSIMPLEscoreTERRITORYtaxNONEsui0komi6.5
+Ko recap block hash 00000000000000000000000000000000
+White bonus score -5
+White handicap bonus score 0
+Has button 0
+Presumed next pla White
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
+Last moves C7 pass pass pass 
+Pass would end phase: 1
+Pass would end game: 0
+Pass should suppress: 0
+SCORE NOW 10.5
+Komi -5 hasHistory 1
+Komi -4.5 hasHistory 1
+Komi -4 hasHistory 1
+Komi -3.5 hasHistory 1
+Komi -3 hasHistory 1
+HASH: 1AF7FB4CA3A2E61BD52A757137710FD4
+   A B C D E F G
+ 7 . X O O . O .
+ 6 X . X O O O O
+ 5 X X X X X X X
+ 4 O O X X O O O
+ 3 . O X O . O .
+ 2 O O X O O X O
+ 1 . O X O . X .
+
+
+Initial pla White
+Encore phase 2
+Turns this phase 0
+Rules koSIMPLEscoreTERRITORYtaxNONEsui0komi6.5
+Ko recap block hash 00000000000000000000000000000000
+White bonus score -5
+White handicap bonus score 0
+Has button 0
+Presumed next pla Black
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
+Last moves C7 pass pass pass pass 
+Pass would end phase: 0
+Pass would end game: 0
+Pass should suppress: 0
+SCORE NOW 10.5
+Komi -5 hasHistory 0
+Komi -4.5 hasHistory 0
+Komi -4 hasHistory 0
+Komi -3.5 hasHistory 0
+Komi -3 hasHistory 0
+HASH: 1AF7FB4CA3A2E61BD52A757137710FD4
+   A B C D E F G
+ 7 . X O O . O .
+ 6 X . X O O O O
+ 5 X X X X X X X
+ 4 O O X X O O O
+ 3 . O X O . O .
+ 2 O O X O O X O
+ 1 . O X O . X .
+
+
+Initial pla White
+Encore phase 2
+Turns this phase 1
+Rules koSIMPLEscoreTERRITORYtaxNONEsui0komi6.5
+Ko recap block hash 00000000000000000000000000000000
+White bonus score -5
+White handicap bonus score 0
+Has button 0
+Presumed next pla White
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
+Last moves C7 pass pass pass pass pass 
+Pass would end phase: 1
+Pass would end game: 1
+Pass should suppress: 0
+SCORE NOW 10.5
+Komi -5 hasHistory 0
+Komi -4.5 hasHistory 0
+Komi -4 hasHistory 0
+Komi -3.5 hasHistory 1
+Komi -3 hasHistory 1
+HASH: AFB64D5F890A007A5DA209640F5E92B5
+   A B C D E F G
+ 7 . X O O . O .
+ 6 X . X O O O O
+ 5 X X X X X X X
+ 4 O O X X O O O
+ 3 . O X O O O .
+ 2 O O X O O X O
+ 1 . O X O . X .
+
+
+Initial pla White
+Encore phase 2
+Turns this phase 2
+Rules koSIMPLEscoreTERRITORYtaxNONEsui0komi6.5
+Ko recap block hash 00000000000000000000000000000000
+White bonus score -5
+White handicap bonus score 0
+Has button 0
+Presumed next pla Black
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
+Last moves C7 pass pass pass pass pass E3 
+Pass would end phase: 0
+Pass would end game: 0
+Pass should suppress: 0
+SCORE NOW 9.5
+Komi -4 hasHistory 1
+Komi -3.5 hasHistory 1
+Komi -3 hasHistory 1
+Komi -2.5 hasHistory 1
+Komi -2 hasHistory 1
+HASH: AFB64D5F890A007A5DA209640F5E92B5
+   A B C D E F G
+ 7 . X O O . O .
+ 6 X . X O O O O
+ 5 X X X X X X X
+ 4 O O X X O O O
+ 3 . O X O O O .
+ 2 O O X O O X O
+ 1 . O X O . X .
+
+
+Initial pla White
+Encore phase 2
+Turns this phase 3
+Rules koSIMPLEscoreTERRITORYtaxNONEsui0komi6.5
+Ko recap block hash 00000000000000000000000000000000
+White bonus score -5
+White handicap bonus score 0
+Has button 0
+Presumed next pla White
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
+Last moves C7 pass pass pass pass pass E3 pass 
+Pass would end phase: 1
+Pass would end game: 1
+Pass should suppress: 0
+SCORE NOW 9.5
+Komi -4 hasHistory 0
+Komi -3.5 hasHistory 0
+Komi -3 hasHistory 0
+Komi -2.5 hasHistory 1
+Komi -2 hasHistory 1
+HASH: 6057CF0DCB583914FB87294A838D5155
+   A B C D E F G
+ 7 . X O O . O .
+ 6 X . X O O O O
+ 5 X X X X X X X
+ 4 O O X X O O O
+ 3 . O X O O O .
+ 2 O O X O O X O
+ 1 . O X O . X O
+
+
+Initial pla White
+Encore phase 2
+Turns this phase 4
+Rules koSIMPLEscoreTERRITORYtaxNONEsui0komi6.5
+Ko recap block hash 00000000000000000000000000000000
+White bonus score -5
+White handicap bonus score 0
+Has button 0
+Presumed next pla Black
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
+Last moves C7 pass pass pass pass pass E3 pass G1 
+Pass would end phase: 0
+Pass would end game: 0
+Pass should suppress: 0
+SCORE NOW 9.5
+Komi -4 hasHistory 1
+Komi -3.5 hasHistory 1
+Komi -3 hasHistory 1
+Komi -2.5 hasHistory 1
+Komi -2 hasHistory 1
+HASH: 0E4CF45BCFCB456601E0BC6701CED4B5
+   A B C D E F G
+ 7 . X O O . O .
+ 6 X . X O O O O
+ 5 X X X X X X X
+ 4 O O X X O O O
+ 3 . O X O O O X
+ 2 O O X O O X .
+ 1 . O X O . X .
+
+
+Initial pla White
+Encore phase 2
+Turns this phase 5
+Rules koSIMPLEscoreTERRITORYtaxNONEsui0komi6.5
+Ko recap block hash 00000000000000000000000000000000
+White bonus score -5
+White handicap bonus score 0
+Has button 0
+Presumed next pla White
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
+Last moves C7 pass pass pass pass pass E3 pass G1 G3 
+Pass would end phase: 0
+Pass would end game: 0
+Pass should suppress: 0
+SCORE NOW 5.5
+Komi 0 hasHistory 1
+Komi 0.5 hasHistory 1
+Komi 1 hasHistory 1
+Komi 1.5 hasHistory 1
+Komi 2 hasHistory 1
+HASH: AFB64D5F890A007A5DA209640F5E92B5
+   A B C D E F G
+ 7 . X O O . O .
+ 6 X . X O O O O
+ 5 X X X X X X X
+ 4 O O X X O O O
+ 3 . O X O O O .
+ 2 O O X O O X O
+ 1 . O X O . X .
+
+
+Initial pla White
+Encore phase 2
+Turns this phase 6
+Rules koSIMPLEscoreTERRITORYtaxNONEsui0komi6.5
+Ko recap block hash 00000000000000000000000000000000
+White bonus score -5
+White handicap bonus score 0
+Has button 0
+Presumed next pla Black
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
+Last moves C7 pass pass pass pass pass E3 pass G1 G3 G2 
+Pass would end phase: 1
+Pass would end game: 1
+Pass should suppress: 0
+SCORE NOW 9.5
+Komi -4 hasHistory 1
+Komi -3.5 hasHistory 1
+Komi -3 hasHistory 0
+Komi -2.5 hasHistory 0
+Komi -2 hasHistory 0
+HASH: AFB64D5F890A007A5DA209640F5E92B5
+   A B C D E F G
+ 7 . X O O . O .
+ 6 X . X O O O O
+ 5 X X X X X X X
+ 4 O O X X O O O
+ 3 . O X O O O .
+ 2 O O X O O X O
+ 1 . O X O . X .
+
+
+Initial pla White
+Encore phase 2
+Turns this phase 7
+Rules koSIMPLEscoreTERRITORYtaxNONEsui0komi6.5
+Ko recap block hash 00000000000000000000000000000000
+White bonus score -5
+White handicap bonus score 0
+Has button 0
+Presumed next pla White
+Past normal phase end 0
+Game result 1 White 9.5 1 0 0
+Last moves C7 pass pass pass pass pass E3 pass G1 G3 G2 pass 
+Pass would end phase: 1
+Pass would end game: 1
+Pass should suppress: 0
+SCORE NOW 9.5
+Komi -4 hasHistory 0
+Komi -3.5 hasHistory 0
+Komi -3 hasHistory 0
+Komi -2.5 hasHistory 0
+Komi -2 hasHistory 0
+---------------------------------------------------
+koSIMPLEscoreTERRITORYtaxSEKIsui0komi6.5
+HASH: FAF2EABFB3495910142EC7830B274058
+   A B C D E F G
+ 7 . X . O . O .
+ 6 X . X O O O O
+ 5 X X X X X X X
+ 4 O O X X O O O
+ 3 . O X O . O .
+ 2 O O X O O X O
+ 1 . O X O . X .
+
+
+Initial pla White
+Encore phase 0
+Turns this phase 0
+Rules koSIMPLEscoreTERRITORYtaxSEKIsui0komi6.5
+Ko recap block hash 00000000000000000000000000000000
+White bonus score -4
+White handicap bonus score 0
+Has button 0
+Presumed next pla White
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
+Last moves 
+Pass would end phase: 0
+Pass would end game: 0
+Pass should suppress: 0
+SCORE NOW 8.5
+Komi -3 hasHistory 0
+Komi -2.5 hasHistory 0
+Komi -2 hasHistory 0
+Komi -1.5 hasHistory 0
+Komi -1 hasHistory 0
+HASH: 1AF7FB4CA3A2E61BD52A757137710FD4
+   A B C D E F G
+ 7 . X O O . O .
+ 6 X . X O O O O
+ 5 X X X X X X X
+ 4 O O X X O O O
+ 3 . O X O . O .
+ 2 O O X O O X O
+ 1 . O X O . X .
+
+
+Initial pla White
+Encore phase 0
+Turns this phase 1
+Rules koSIMPLEscoreTERRITORYtaxSEKIsui0komi6.5
+Ko recap block hash 00000000000000000000000000000000
+White bonus score -5
+White handicap bonus score 0
+Has button 0
+Presumed next pla Black
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
+Last moves C7 
+Pass would end phase: 0
+Pass would end game: 0
+Pass should suppress: 0
+SCORE NOW 8.5
+Komi -3 hasHistory 1
+Komi -2.5 hasHistory 1
+Komi -2 hasHistory 1
+Komi -1.5 hasHistory 1
+Komi -1 hasHistory 1
+HASH: 1AF7FB4CA3A2E61BD52A757137710FD4
+   A B C D E F G
+ 7 . X O O . O .
+ 6 X . X O O O O
+ 5 X X X X X X X
+ 4 O O X X O O O
+ 3 . O X O . O .
+ 2 O O X O O X O
+ 1 . O X O . X .
+
+
+Initial pla White
+Encore phase 0
+Turns this phase 2
+Rules koSIMPLEscoreTERRITORYtaxSEKIsui0komi6.5
+Ko recap block hash 00000000000000000000000000000000
+White bonus score -5
+White handicap bonus score 0
+Has button 0
+Presumed next pla White
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
+Last moves C7 pass 
+Pass would end phase: 1
+Pass would end game: 0
+Pass should suppress: 0
+SCORE NOW 8.5
+Komi -3 hasHistory 1
+Komi -2.5 hasHistory 1
+Komi -2 hasHistory 1
+Komi -1.5 hasHistory 1
+Komi -1 hasHistory 1
+HASH: 1AF7FB4CA3A2E61BD52A757137710FD4
+   A B C D E F G
+ 7 . X O O . O .
+ 6 X . X O O O O
+ 5 X X X X X X X
+ 4 O O X X O O O
+ 3 . O X O . O .
+ 2 O O X O O X O
+ 1 . O X O . X .
+
+
+Initial pla White
+Encore phase 1
+Turns this phase 0
+Rules koSIMPLEscoreTERRITORYtaxSEKIsui0komi6.5
+Ko recap block hash 00000000000000000000000000000000
+White bonus score -5
+White handicap bonus score 0
+Has button 0
+Presumed next pla Black
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
+Last moves C7 pass pass 
+Pass would end phase: 0
+Pass would end game: 0
+Pass should suppress: 0
+SCORE NOW 8.5
+Komi -3 hasHistory 0
+Komi -2.5 hasHistory 0
+Komi -2 hasHistory 0
+Komi -1.5 hasHistory 0
+Komi -1 hasHistory 0
+HASH: 1AF7FB4CA3A2E61BD52A757137710FD4
+   A B C D E F G
+ 7 . X O O . O .
+ 6 X . X O O O O
+ 5 X X X X X X X
+ 4 O O X X O O O
+ 3 . O X O . O .
+ 2 O O X O O X O
+ 1 . O X O . X .
+
+
+Initial pla White
+Encore phase 1
+Turns this phase 1
+Rules koSIMPLEscoreTERRITORYtaxSEKIsui0komi6.5
+Ko recap block hash 00000000000000000000000000000000
+White bonus score -5
+White handicap bonus score 0
+Has button 0
+Presumed next pla White
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
+Last moves C7 pass pass pass 
+Pass would end phase: 1
+Pass would end game: 0
+Pass should suppress: 0
+SCORE NOW 8.5
+Komi -3 hasHistory 1
+Komi -2.5 hasHistory 1
+Komi -2 hasHistory 1
+Komi -1.5 hasHistory 1
+Komi -1 hasHistory 1
+HASH: 1AF7FB4CA3A2E61BD52A757137710FD4
+   A B C D E F G
+ 7 . X O O . O .
+ 6 X . X O O O O
+ 5 X X X X X X X
+ 4 O O X X O O O
+ 3 . O X O . O .
+ 2 O O X O O X O
+ 1 . O X O . X .
+
+
+Initial pla White
+Encore phase 2
+Turns this phase 0
+Rules koSIMPLEscoreTERRITORYtaxSEKIsui0komi6.5
+Ko recap block hash 00000000000000000000000000000000
+White bonus score -5
+White handicap bonus score 0
+Has button 0
+Presumed next pla Black
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
+Last moves C7 pass pass pass pass 
+Pass would end phase: 0
+Pass would end game: 0
+Pass should suppress: 0
+SCORE NOW 8.5
+Komi -3 hasHistory 0
+Komi -2.5 hasHistory 0
+Komi -2 hasHistory 0
+Komi -1.5 hasHistory 0
+Komi -1 hasHistory 0
+HASH: 1AF7FB4CA3A2E61BD52A757137710FD4
+   A B C D E F G
+ 7 . X O O . O .
+ 6 X . X O O O O
+ 5 X X X X X X X
+ 4 O O X X O O O
+ 3 . O X O . O .
+ 2 O O X O O X O
+ 1 . O X O . X .
+
+
+Initial pla White
+Encore phase 2
+Turns this phase 1
+Rules koSIMPLEscoreTERRITORYtaxSEKIsui0komi6.5
+Ko recap block hash 00000000000000000000000000000000
+White bonus score -5
+White handicap bonus score 0
+Has button 0
+Presumed next pla White
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
+Last moves C7 pass pass pass pass pass 
+Pass would end phase: 1
+Pass would end game: 1
+Pass should suppress: 0
+SCORE NOW 8.5
+Komi -3 hasHistory 0
+Komi -2.5 hasHistory 0
+Komi -2 hasHistory 0
+Komi -1.5 hasHistory 1
+Komi -1 hasHistory 1
+HASH: AFB64D5F890A007A5DA209640F5E92B5
+   A B C D E F G
+ 7 . X O O . O .
+ 6 X . X O O O O
+ 5 X X X X X X X
+ 4 O O X X O O O
+ 3 . O X O O O .
+ 2 O O X O O X O
+ 1 . O X O . X .
+
+
+Initial pla White
+Encore phase 2
+Turns this phase 2
+Rules koSIMPLEscoreTERRITORYtaxSEKIsui0komi6.5
+Ko recap block hash 00000000000000000000000000000000
+White bonus score -5
+White handicap bonus score 0
+Has button 0
+Presumed next pla Black
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
+Last moves C7 pass pass pass pass pass E3 
+Pass would end phase: 0
+Pass would end game: 0
+Pass should suppress: 0
+SCORE NOW 8.5
+Komi -3 hasHistory 1
+Komi -2.5 hasHistory 1
+Komi -2 hasHistory 1
+Komi -1.5 hasHistory 1
+Komi -1 hasHistory 1
+HASH: AFB64D5F890A007A5DA209640F5E92B5
+   A B C D E F G
+ 7 . X O O . O .
+ 6 X . X O O O O
+ 5 X X X X X X X
+ 4 O O X X O O O
+ 3 . O X O O O .
+ 2 O O X O O X O
+ 1 . O X O . X .
+
+
+Initial pla White
+Encore phase 2
+Turns this phase 3
+Rules koSIMPLEscoreTERRITORYtaxSEKIsui0komi6.5
+Ko recap block hash 00000000000000000000000000000000
+White bonus score -5
+White handicap bonus score 0
+Has button 0
+Presumed next pla White
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
+Last moves C7 pass pass pass pass pass E3 pass 
+Pass would end phase: 1
+Pass would end game: 1
+Pass should suppress: 0
+SCORE NOW 8.5
+Komi -3 hasHistory 0
+Komi -2.5 hasHistory 0
+Komi -2 hasHistory 0
+Komi -1.5 hasHistory 1
+Komi -1 hasHistory 1
+HASH: 6057CF0DCB583914FB87294A838D5155
+   A B C D E F G
+ 7 . X O O . O .
+ 6 X . X O O O O
+ 5 X X X X X X X
+ 4 O O X X O O O
+ 3 . O X O O O .
+ 2 O O X O O X O
+ 1 . O X O . X O
+
+
+Initial pla White
+Encore phase 2
+Turns this phase 4
+Rules koSIMPLEscoreTERRITORYtaxSEKIsui0komi6.5
+Ko recap block hash 00000000000000000000000000000000
+White bonus score -5
+White handicap bonus score 0
+Has button 0
+Presumed next pla Black
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
+Last moves C7 pass pass pass pass pass E3 pass G1 
+Pass would end phase: 0
+Pass would end game: 0
+Pass should suppress: 0
+SCORE NOW 8.5
+Komi -3 hasHistory 1
+Komi -2.5 hasHistory 1
+Komi -2 hasHistory 1
+Komi -1.5 hasHistory 1
+Komi -1 hasHistory 1
+HASH: 0E4CF45BCFCB456601E0BC6701CED4B5
+   A B C D E F G
+ 7 . X O O . O .
+ 6 X . X O O O O
+ 5 X X X X X X X
+ 4 O O X X O O O
+ 3 . O X O O O X
+ 2 O O X O O X .
+ 1 . O X O . X .
+
+
+Initial pla White
+Encore phase 2
+Turns this phase 5
+Rules koSIMPLEscoreTERRITORYtaxSEKIsui0komi6.5
+Ko recap block hash 00000000000000000000000000000000
+White bonus score -5
+White handicap bonus score 0
+Has button 0
+Presumed next pla White
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
+Last moves C7 pass pass pass pass pass E3 pass G1 G3 
+Pass would end phase: 0
+Pass would end game: 0
+Pass should suppress: 0
+SCORE NOW 7.5
+Komi -2 hasHistory 1
+Komi -1.5 hasHistory 1
+Komi -1 hasHistory 1
+Komi -0.5 hasHistory 1
+Komi 0 hasHistory 1
+HASH: AFB64D5F890A007A5DA209640F5E92B5
+   A B C D E F G
+ 7 . X O O . O .
+ 6 X . X O O O O
+ 5 X X X X X X X
+ 4 O O X X O O O
+ 3 . O X O O O .
+ 2 O O X O O X O
+ 1 . O X O . X .
+
+
+Initial pla White
+Encore phase 2
+Turns this phase 6
+Rules koSIMPLEscoreTERRITORYtaxSEKIsui0komi6.5
+Ko recap block hash 00000000000000000000000000000000
+White bonus score -5
+White handicap bonus score 0
+Has button 0
+Presumed next pla Black
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
+Last moves C7 pass pass pass pass pass E3 pass G1 G3 G2 
+Pass would end phase: 1
+Pass would end game: 1
+Pass should suppress: 0
+SCORE NOW 8.5
+Komi -3 hasHistory 1
+Komi -2.5 hasHistory 1
+Komi -2 hasHistory 0
+Komi -1.5 hasHistory 0
+Komi -1 hasHistory 0
+HASH: AFB64D5F890A007A5DA209640F5E92B5
+   A B C D E F G
+ 7 . X O O . O .
+ 6 X . X O O O O
+ 5 X X X X X X X
+ 4 O O X X O O O
+ 3 . O X O O O .
+ 2 O O X O O X O
+ 1 . O X O . X .
+
+
+Initial pla White
+Encore phase 2
+Turns this phase 7
+Rules koSIMPLEscoreTERRITORYtaxSEKIsui0komi6.5
+Ko recap block hash 00000000000000000000000000000000
+White bonus score -5
+White handicap bonus score 0
+Has button 0
+Presumed next pla White
+Past normal phase end 0
+Game result 1 White 8.5 1 0 0
+Last moves C7 pass pass pass pass pass E3 pass G1 G3 G2 pass 
+Pass would end phase: 1
+Pass would end game: 1
+Pass should suppress: 0
+SCORE NOW 8.5
+Komi -3 hasHistory 0
+Komi -2.5 hasHistory 0
+Komi -2 hasHistory 0
+Komi -1.5 hasHistory 0
+Komi -1 hasHistory 0
+---------------------------------------------------
+koSIMPLEscoreTERRITORYtaxALLsui0komi6.5
+HASH: FAF2EABFB3495910142EC7830B274058
+   A B C D E F G
+ 7 . X . O . O .
+ 6 X . X O O O O
+ 5 X X X X X X X
+ 4 O O X X O O O
+ 3 . O X O . O .
+ 2 O O X O O X O
+ 1 . O X O . X .
+
+
+Initial pla White
+Encore phase 0
+Turns this phase 0
+Rules koSIMPLEscoreTERRITORYtaxALLsui0komi6.5
+Ko recap block hash 00000000000000000000000000000000
+White bonus score -4
+White handicap bonus score 0
+Has button 0
+Presumed next pla White
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
+Last moves 
+Pass would end phase: 0
+Pass would end game: 0
+Pass should suppress: 0
+SCORE NOW 6.5
+Komi -1 hasHistory 0
+Komi -0.5 hasHistory 0
+Komi 0 hasHistory 0
+Komi 0.5 hasHistory 0
+Komi 1 hasHistory 0
+HASH: 1AF7FB4CA3A2E61BD52A757137710FD4
+   A B C D E F G
+ 7 . X O O . O .
+ 6 X . X O O O O
+ 5 X X X X X X X
+ 4 O O X X O O O
+ 3 . O X O . O .
+ 2 O O X O O X O
+ 1 . O X O . X .
+
+
+Initial pla White
+Encore phase 0
+Turns this phase 1
+Rules koSIMPLEscoreTERRITORYtaxALLsui0komi6.5
+Ko recap block hash 00000000000000000000000000000000
+White bonus score -5
+White handicap bonus score 0
+Has button 0
+Presumed next pla Black
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
+Last moves C7 
+Pass would end phase: 0
+Pass would end game: 0
+Pass should suppress: 0
+SCORE NOW 6.5
+Komi -1 hasHistory 1
+Komi -0.5 hasHistory 1
+Komi 0 hasHistory 1
+Komi 0.5 hasHistory 1
+Komi 1 hasHistory 1
+HASH: 1AF7FB4CA3A2E61BD52A757137710FD4
+   A B C D E F G
+ 7 . X O O . O .
+ 6 X . X O O O O
+ 5 X X X X X X X
+ 4 O O X X O O O
+ 3 . O X O . O .
+ 2 O O X O O X O
+ 1 . O X O . X .
+
+
+Initial pla White
+Encore phase 0
+Turns this phase 2
+Rules koSIMPLEscoreTERRITORYtaxALLsui0komi6.5
+Ko recap block hash 00000000000000000000000000000000
+White bonus score -5
+White handicap bonus score 0
+Has button 0
+Presumed next pla White
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
+Last moves C7 pass 
+Pass would end phase: 1
+Pass would end game: 0
+Pass should suppress: 0
+SCORE NOW 6.5
+Komi -1 hasHistory 1
+Komi -0.5 hasHistory 1
+Komi 0 hasHistory 1
+Komi 0.5 hasHistory 1
+Komi 1 hasHistory 1
+HASH: 1AF7FB4CA3A2E61BD52A757137710FD4
+   A B C D E F G
+ 7 . X O O . O .
+ 6 X . X O O O O
+ 5 X X X X X X X
+ 4 O O X X O O O
+ 3 . O X O . O .
+ 2 O O X O O X O
+ 1 . O X O . X .
+
+
+Initial pla White
+Encore phase 1
+Turns this phase 0
+Rules koSIMPLEscoreTERRITORYtaxALLsui0komi6.5
+Ko recap block hash 00000000000000000000000000000000
+White bonus score -5
+White handicap bonus score 0
+Has button 0
+Presumed next pla Black
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
+Last moves C7 pass pass 
+Pass would end phase: 0
+Pass would end game: 0
+Pass should suppress: 0
+SCORE NOW 6.5
+Komi -1 hasHistory 0
+Komi -0.5 hasHistory 0
+Komi 0 hasHistory 0
+Komi 0.5 hasHistory 0
+Komi 1 hasHistory 0
+HASH: 1AF7FB4CA3A2E61BD52A757137710FD4
+   A B C D E F G
+ 7 . X O O . O .
+ 6 X . X O O O O
+ 5 X X X X X X X
+ 4 O O X X O O O
+ 3 . O X O . O .
+ 2 O O X O O X O
+ 1 . O X O . X .
+
+
+Initial pla White
+Encore phase 1
+Turns this phase 1
+Rules koSIMPLEscoreTERRITORYtaxALLsui0komi6.5
+Ko recap block hash 00000000000000000000000000000000
+White bonus score -5
+White handicap bonus score 0
+Has button 0
+Presumed next pla White
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
+Last moves C7 pass pass pass 
+Pass would end phase: 1
+Pass would end game: 0
+Pass should suppress: 0
+SCORE NOW 6.5
+Komi -1 hasHistory 1
+Komi -0.5 hasHistory 1
+Komi 0 hasHistory 1
+Komi 0.5 hasHistory 1
+Komi 1 hasHistory 1
+HASH: 1AF7FB4CA3A2E61BD52A757137710FD4
+   A B C D E F G
+ 7 . X O O . O .
+ 6 X . X O O O O
+ 5 X X X X X X X
+ 4 O O X X O O O
+ 3 . O X O . O .
+ 2 O O X O O X O
+ 1 . O X O . X .
+
+
+Initial pla White
+Encore phase 2
+Turns this phase 0
+Rules koSIMPLEscoreTERRITORYtaxALLsui0komi6.5
+Ko recap block hash 00000000000000000000000000000000
+White bonus score -5
+White handicap bonus score 0
+Has button 0
+Presumed next pla Black
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
+Last moves C7 pass pass pass pass 
+Pass would end phase: 0
+Pass would end game: 0
+Pass should suppress: 0
+SCORE NOW 6.5
+Komi -1 hasHistory 0
+Komi -0.5 hasHistory 0
+Komi 0 hasHistory 0
+Komi 0.5 hasHistory 0
+Komi 1 hasHistory 0
+HASH: 1AF7FB4CA3A2E61BD52A757137710FD4
+   A B C D E F G
+ 7 . X O O . O .
+ 6 X . X O O O O
+ 5 X X X X X X X
+ 4 O O X X O O O
+ 3 . O X O . O .
+ 2 O O X O O X O
+ 1 . O X O . X .
+
+
+Initial pla White
+Encore phase 2
+Turns this phase 1
+Rules koSIMPLEscoreTERRITORYtaxALLsui0komi6.5
+Ko recap block hash 00000000000000000000000000000000
+White bonus score -5
+White handicap bonus score 0
+Has button 0
+Presumed next pla White
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
+Last moves C7 pass pass pass pass pass 
+Pass would end phase: 1
+Pass would end game: 1
+Pass should suppress: 0
+SCORE NOW 6.5
+Komi -1 hasHistory 0
+Komi -0.5 hasHistory 0
+Komi 0 hasHistory 0
+Komi 0.5 hasHistory 1
+Komi 1 hasHistory 1
+HASH: AFB64D5F890A007A5DA209640F5E92B5
+   A B C D E F G
+ 7 . X O O . O .
+ 6 X . X O O O O
+ 5 X X X X X X X
+ 4 O O X X O O O
+ 3 . O X O O O .
+ 2 O O X O O X O
+ 1 . O X O . X .
+
+
+Initial pla White
+Encore phase 2
+Turns this phase 2
+Rules koSIMPLEscoreTERRITORYtaxALLsui0komi6.5
+Ko recap block hash 00000000000000000000000000000000
+White bonus score -5
+White handicap bonus score 0
+Has button 0
+Presumed next pla Black
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
+Last moves C7 pass pass pass pass pass E3 
+Pass would end phase: 0
+Pass would end game: 0
+Pass should suppress: 0
+SCORE NOW 6.5
+Komi -1 hasHistory 1
+Komi -0.5 hasHistory 1
+Komi 0 hasHistory 1
+Komi 0.5 hasHistory 1
+Komi 1 hasHistory 1
+HASH: AFB64D5F890A007A5DA209640F5E92B5
+   A B C D E F G
+ 7 . X O O . O .
+ 6 X . X O O O O
+ 5 X X X X X X X
+ 4 O O X X O O O
+ 3 . O X O O O .
+ 2 O O X O O X O
+ 1 . O X O . X .
+
+
+Initial pla White
+Encore phase 2
+Turns this phase 3
+Rules koSIMPLEscoreTERRITORYtaxALLsui0komi6.5
+Ko recap block hash 00000000000000000000000000000000
+White bonus score -5
+White handicap bonus score 0
+Has button 0
+Presumed next pla White
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
+Last moves C7 pass pass pass pass pass E3 pass 
+Pass would end phase: 1
+Pass would end game: 1
+Pass should suppress: 0
+SCORE NOW 6.5
+Komi -1 hasHistory 0
+Komi -0.5 hasHistory 0
+Komi 0 hasHistory 0
+Komi 0.5 hasHistory 1
+Komi 1 hasHistory 1
+HASH: 6057CF0DCB583914FB87294A838D5155
+   A B C D E F G
+ 7 . X O O . O .
+ 6 X . X O O O O
+ 5 X X X X X X X
+ 4 O O X X O O O
+ 3 . O X O O O .
+ 2 O O X O O X O
+ 1 . O X O . X O
+
+
+Initial pla White
+Encore phase 2
+Turns this phase 4
+Rules koSIMPLEscoreTERRITORYtaxALLsui0komi6.5
+Ko recap block hash 00000000000000000000000000000000
+White bonus score -5
+White handicap bonus score 0
+Has button 0
+Presumed next pla Black
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
+Last moves C7 pass pass pass pass pass E3 pass G1 
+Pass would end phase: 0
+Pass would end game: 0
+Pass should suppress: 0
+SCORE NOW 6.5
+Komi -1 hasHistory 1
+Komi -0.5 hasHistory 1
+Komi 0 hasHistory 1
+Komi 0.5 hasHistory 1
+Komi 1 hasHistory 1
+HASH: 0E4CF45BCFCB456601E0BC6701CED4B5
+   A B C D E F G
+ 7 . X O O . O .
+ 6 X . X O O O O
+ 5 X X X X X X X
+ 4 O O X X O O O
+ 3 . O X O O O X
+ 2 O O X O O X .
+ 1 . O X O . X .
+
+
+Initial pla White
+Encore phase 2
+Turns this phase 5
+Rules koSIMPLEscoreTERRITORYtaxALLsui0komi6.5
+Ko recap block hash 00000000000000000000000000000000
+White bonus score -5
+White handicap bonus score 0
+Has button 0
+Presumed next pla White
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
+Last moves C7 pass pass pass pass pass E3 pass G1 G3 
+Pass would end phase: 0
+Pass would end game: 0
+Pass should suppress: 0
+SCORE NOW 5.5
+Komi 0 hasHistory 1
+Komi 0.5 hasHistory 1
+Komi 1 hasHistory 1
+Komi 1.5 hasHistory 1
+Komi 2 hasHistory 1
+HASH: AFB64D5F890A007A5DA209640F5E92B5
+   A B C D E F G
+ 7 . X O O . O .
+ 6 X . X O O O O
+ 5 X X X X X X X
+ 4 O O X X O O O
+ 3 . O X O O O .
+ 2 O O X O O X O
+ 1 . O X O . X .
+
+
+Initial pla White
+Encore phase 2
+Turns this phase 6
+Rules koSIMPLEscoreTERRITORYtaxALLsui0komi6.5
+Ko recap block hash 00000000000000000000000000000000
+White bonus score -5
+White handicap bonus score 0
+Has button 0
+Presumed next pla Black
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
+Last moves C7 pass pass pass pass pass E3 pass G1 G3 G2 
+Pass would end phase: 1
+Pass would end game: 1
+Pass should suppress: 0
+SCORE NOW 6.5
+Komi -1 hasHistory 1
+Komi -0.5 hasHistory 1
+Komi 0 hasHistory 0
+Komi 0.5 hasHistory 0
+Komi 1 hasHistory 0
+HASH: AFB64D5F890A007A5DA209640F5E92B5
+   A B C D E F G
+ 7 . X O O . O .
+ 6 X . X O O O O
+ 5 X X X X X X X
+ 4 O O X X O O O
+ 3 . O X O O O .
+ 2 O O X O O X O
+ 1 . O X O . X .
+
+
+Initial pla White
+Encore phase 2
+Turns this phase 7
+Rules koSIMPLEscoreTERRITORYtaxALLsui0komi6.5
+Ko recap block hash 00000000000000000000000000000000
+White bonus score -5
+White handicap bonus score 0
+Has button 0
+Presumed next pla White
+Past normal phase end 0
+Game result 1 White 6.5 1 0 0
+Last moves C7 pass pass pass pass pass E3 pass G1 G3 G2 pass 
+Pass would end phase: 1
+Pass would end game: 1
+Pass should suppress: 0
+SCORE NOW 6.5
+Komi -1 hasHistory 0
+Komi -0.5 hasHistory 0
+Komi 0 hasHistory 0
+Komi 0.5 hasHistory 0
+Komi 1 hasHistory 0
+Ok
 Running neuralnetless search tests
 ===================================================================
 Basic search with debugSkipNeuralNet and chosen move randomization
@@ -15863,6 +17768,7 @@ conservativePass: 0
 fillDameBeforePass: 0
 avoidMYTDaggerHackPla: 0
 wideRootNoise: 0
+enablePassingHacks: 0
 playoutDoublingAdvantage: 0
 playoutDoublingAdvantagePla: 0
 avoidRepeatedPatternUtility: 0
@@ -15951,6 +17857,7 @@ conservativePass: 1
 fillDameBeforePass: 0
 avoidMYTDaggerHackPla: 0
 wideRootNoise: 0
+enablePassingHacks: 0
 playoutDoublingAdvantage: 0
 playoutDoublingAdvantagePla: 0
 avoidRepeatedPatternUtility: 0
@@ -16039,6 +17946,7 @@ conservativePass: 0
 fillDameBeforePass: 0
 avoidMYTDaggerHackPla: 0
 wideRootNoise: 0
+enablePassingHacks: 1
 playoutDoublingAdvantage: 0
 playoutDoublingAdvantagePla: 0
 avoidRepeatedPatternUtility: 0
@@ -16127,6 +18035,7 @@ conservativePass: 0
 fillDameBeforePass: 0
 avoidMYTDaggerHackPla: 0
 wideRootNoise: 0.04
+enablePassingHacks: 1
 playoutDoublingAdvantage: 0
 playoutDoublingAdvantagePla: 0
 avoidRepeatedPatternUtility: 0
@@ -16215,6 +18124,7 @@ conservativePass: 0
 fillDameBeforePass: 0
 avoidMYTDaggerHackPla: 0
 wideRootNoise: 0
+enablePassingHacks: 0
 playoutDoublingAdvantage: 0
 playoutDoublingAdvantagePla: 0
 avoidRepeatedPatternUtility: 0
@@ -16303,6 +18213,7 @@ conservativePass: 0
 fillDameBeforePass: 0
 avoidMYTDaggerHackPla: 0
 wideRootNoise: 0
+enablePassingHacks: 0
 playoutDoublingAdvantage: 0
 playoutDoublingAdvantagePla: 0
 avoidRepeatedPatternUtility: 0
@@ -16391,6 +18302,7 @@ conservativePass: 0
 fillDameBeforePass: 0
 avoidMYTDaggerHackPla: 0
 wideRootNoise: 0
+enablePassingHacks: 0
 playoutDoublingAdvantage: 0
 playoutDoublingAdvantagePla: 0
 avoidRepeatedPatternUtility: 0
@@ -16479,6 +18391,7 @@ conservativePass: 0
 fillDameBeforePass: 0
 avoidMYTDaggerHackPla: 0
 wideRootNoise: 0
+enablePassingHacks: 0
 playoutDoublingAdvantage: 0
 playoutDoublingAdvantagePla: 0
 avoidRepeatedPatternUtility: 0

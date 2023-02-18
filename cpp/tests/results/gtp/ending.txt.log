@@ -93,16 +93,16 @@ koSIMPLEscoreAREAtaxNONEsui0whbNfpok1komi5
 Time taken: ###
 Root visits: 100
 New playouts: 100
-NN rows: 49
-NN batches: 49
+NN rows: 54
+NN batches: 54
 NN avg batch size: 1
-PV: D4 A3 F4 A1 C1 A5 pass pass
+PV: D4 A3 F4 A1 C1 A5 pass pass pass
 Tree:
-: T   2.34c W  14.46c S  -2.77c ( +0.1 L  +0.1) N     100  --  D4 A3 F4 A1 C1 A5 pass
+: T  10.11c W  19.50c S  -2.69c ( +0.1 L  +0.1) N     100  --  D4 A3 F4 A1 C1 A5 pass
 ---Black(^)---
-D4  : T   3.93c W  15.76c S  -2.99c ( +0.0 L  +0.0) LCB  -15.66c P 28.51% WF  42.3 PSV      70 N      42  --  D4 A3 F4 A1 C1 A5 pass pass
-C1  : T  -2.24c W  10.99c S  -2.85c ( +0.1 L  +0.1) LCB  -24.19c P 59.53% WF  41.0 PSV      42 N      42  --  C1 A3 D4 A1 F4 A5 pass pass
-F4  : T   5.27c W  16.12c S  -2.21c ( +0.2 L  +0.2) LCB  -30.90c P  7.30% WF  15.3 PSV      13 N      15  --  F4 D4 C1 A3 A1 A5 pass pass
+D4  : T  13.88c W  21.89c S  -2.87c ( +0.1 L  +0.1) LCB   -4.29c P 28.51% WF  53.1 PSV      70 N      52  --  D4 A3 F4 A1 C1 A5 pass pass
+C1  : T   4.23c W  14.68c S  -2.69c ( +0.1 L  +0.1) LCB  -15.87c P 59.53% WF  40.7 PSV      35 N      42  --  C1 A3 D4 A1 F4 A5 pass pass
+F4  : T   4.25c W  22.05c S  -1.65c ( +0.4 L  +0.2) LCB  -80.59c P  7.30% WF   4.9 PSV       4 N       5  --  F4 D4 C1 A3
 
 : = D4
 : Controller: genmove_debug w
@@ -119,16 +119,16 @@ F4  : T   5.27c W  16.12c S  -2.21c ( +0.2 L  +0.2) LCB  -30.90c P  7.30% WF  15
 koSIMPLEscoreAREAtaxNONEsui0whbNfpok1komi5
 Time taken: ###
 Root visits: 100
-New playouts: 58
-NN rows: 12
-NN batches: 12
+New playouts: 48
+NN rows: 27
+NN batches: 27
 NN avg batch size: 1
-PV: A3 F4 A1 C1 A5 pass pass
+PV: A3 C1 A1 F4 A5 pass pass pass
 Tree:
-: T   0.11c W  -5.62c S   0.11c ( -0.0 L  +0.0) N     100  --  A3 F4 A1 C1 A5 pass pass
+: T -17.99c W -22.58c S   0.09c ( -0.0 L  -0.0) N     100  --  A3 C1 A1 F4 A5 pass pass
 ---White(^)---
-A3  : T   1.58c W  -4.31c S   0.18c ( +0.0 L  +0.0) LCB   -8.61c P 58.03% WF  98.2 PSV      98 N      98  --  A3 F4 A1 C1 A5 pass pass
-C1  : T -90.44c W -86.01c S  -4.43c ( -1.3 L  -1.0) LCB -440.44c P 16.62% WF   0.8 PSV       1 N       1  --  C1
+A3  : T -16.82c W -21.55c S   0.16c ( -0.0 L  -0.0) LCB  -29.25c P 58.03% WF  98.2 PSV      98 N      98  --  A3 C1 A1 F4 A5 pass pass pass
+C1  : T -90.37c W -86.01c S  -4.36c ( -1.3 L  -1.0) LCB -440.37c P 16.62% WF   0.8 PSV       1 N       1  --  C1
 
 : = A3
 : Controller: genmove_debug b
@@ -146,17 +146,15 @@ koSIMPLEscoreAREAtaxNONEsui0whbNfpok1komi5
 Time taken: ###
 Root visits: 100
 New playouts: 2
-NN rows: 3
-NN batches: 3
+NN rows: 1
+NN batches: 1
 NN avg batch size: 1
-PV: F4 A1 C1 A5 pass pass
+PV: F4 A1 C1 A5 G6 C6 pass pass pass
 Tree:
-: T  -1.16c W   4.07c S  -0.05c ( -0.0 L  -0.0) N     100  --  F4 A1 C1 A5 pass pass
+: T  18.60c W  22.95c S   0.02c ( +0.0 L  +0.0) N     100  --  F4 A1 C1 A5 G6 C6 pass
 ---Black(^)---
-F4  : T   2.48c W   7.10c S   0.11c ( +0.0 L  +0.0) LCB  -13.25c P 11.04% WF  41.0 PSV      88 N      40  --  F4 A1 C1 A5 pass pass
-C1  : T  -4.84c W   1.10c S  -0.16c ( -0.1 L  -0.1) LCB  -17.31c P 82.16% WF  56.0 PSV      57 N      57  --  C1 A1 F4 A5 pass pass
-F5  : T -25.74c W -23.28c S  -2.46c ( -0.7 L  -0.7) LCB -375.74c P  1.19% WF   0.9 PSV       0 N       1  --  F5
-D1  : T  -4.40c W  -3.00c S  -1.40c ( -0.4 L  -0.5) LCB -356.08c P  1.09% WF   1.0 PSV       0 N       1  --  D1
+F4  : T  23.64c W  28.00c S   0.24c ( +0.1 L  +0.1) LCB    5.46c P 11.04% WF  24.7 PSV     110 N      24  --  F4 A1 C1 A5 G6 C6 pass pass
+C1  : T  16.08c W  20.53c S  -0.09c ( -0.0 L  -0.0) LCB    1.30c P 82.16% WF  74.3 PSV      75 N      75  --  C1 A1 F4 A5 G6 C6 pass pass
 
 : = F4
 : Controller: genmove_debug w
@@ -173,17 +171,17 @@ D1  : T  -4.40c W  -3.00c S  -1.40c ( -0.4 L  -0.5) LCB -356.08c P  1.09% WF   1
 koSIMPLEscoreAREAtaxNONEsui0whbNfpok1komi5
 Time taken: ###
 Root visits: 100
-New playouts: 60
-NN rows: 5
-NN batches: 5
+New playouts: 76
+NN rows: 24
+NN batches: 24
 NN avg batch size: 1
-PV: A1 C1 A5 pass pass
+PV: A1 C1 A5 G6 C6 pass pass pass
 Tree:
-: T   0.12c W  -2.77c S   0.04c ( -0.0 L  +0.0) N     100  --  A1 C1 A5 pass pass
+: T -19.21c W -23.47c S   0.20c ( +0.0 L  -0.0) N     100  --  A1 C1 A5 G6 C6 pass pass
 ---White(^)---
-A1  : T   1.71c W  -1.05c S   0.12c ( +0.0 L  +0.0) LCB   -5.73c P 66.25% WF  97.4 PSV      97 N      97  --  A1 C1 A5 pass pass
-C1  : T -94.99c W -90.50c S  -4.49c ( -1.2 L  -1.3) LCB -444.99c P 17.02% WF   0.8 PSV       0 N       1  --  C1
-A5  : T -66.43c W -94.00c S  -4.54c ( -1.2 L  -1.2) LCB -416.43c P  5.39% WF   0.8 PSV       0 N       1  --  A5
+A1  : T -17.98c W -22.23c S   0.28c ( +0.0 L  -0.0) LCB  -31.71c P 66.25% WF  96.5 PSV      96 N      97  --  A1 C1 A5 G6 C6 pass pass pass
+C1  : T -94.87c W -90.50c S  -4.36c ( -1.2 L  -1.3) LCB -444.87c P 17.02% WF   0.8 PSV       1 N       1  --  C1
+A5  : T -75.94c W -94.00c S  -4.41c ( -1.2 L  -1.2) LCB -425.94c P  5.39% WF   0.9 PSV       0 N       1  --  A5
 
 : = A1
 : Controller: play b pass
@@ -203,14 +201,14 @@ koSIMPLEscoreAREAtaxNONEsui0whbNfpok1komi5
 Time taken: ###
 Root visits: 50
 New playouts: 50
-NN rows: 40
-NN batches: 40
+NN rows: 48
+NN batches: 48
 NN avg batch size: 1
-PV: C1 D1 B1 pass A5 pass pass
+PV: C1 D1 B1 pass A5 F5 pass pass
 Tree:
-: T 104.48c W  99.89c S   4.03c ( +3.6 L  +3.3) N      50  --  C1 D1 B1 pass A5 pass pass
+: T 104.08c W  99.90c S   3.81c ( +3.5 L  +3.3) N      50  --  C1 D1 B1 pass A5 F5 pass
 ---White(^)---
-C1  : T 104.51c W  99.90c S   4.04c ( +3.6 L  +3.3) LCB  103.77c P 96.89% WF  49.0 PSV      49 N      49  --  C1 D1 B1 pass A5 pass pass
+C1  : T 104.10c W  99.91c S   3.81c ( +3.5 L  +3.3) LCB  103.38c P 96.89% WF  49.0 PSV      49 N      49  --  C1 D1 B1 pass A5 F5 pass pass
 
 : = C1
 : Controller: showboard
@@ -251,11 +249,11 @@ New playouts: 100
 NN rows: 0
 NN batches: 0
 NN avg batch size: -nan
-PV: D1 B1 pass A5 pass pass
+PV: D1 B1 pass A5 pass pass pass
 Tree:
-: T -108.23c W -99.93c S  -7.93c ( -3.6 L  -3.4) N     100  --  D1 B1 pass A5 pass pass
+: T -107.82c W -99.93c S  -7.49c ( -3.5 L  -3.4) N     100  --  D1 B1 pass A5 pass pass pass
 ---Black(^)---
-D1  : T -108.30c W -99.94c S  -8.00c ( -3.6 L  -3.5) LCB -108.75c P 90.77% WF  99.0 PSV      99 N      99  --  D1 B1 pass A5 pass pass
+D1  : T -107.89c W -99.94c S  -7.54c ( -3.5 L  -3.4) LCB -108.37c P 90.77% WF  99.0 PSV      99 N      99  --  D1 B1 pass A5 pass pass pass
 
 : = D1
 : Controller: undo
@@ -304,16 +302,16 @@ koPOSITIONALscoreAREAtaxNONEsui1komi5
 Time taken: ###
 Root visits: 100
 New playouts: 100
-NN rows: 50
-NN batches: 50
+NN rows: 54
+NN batches: 54
 NN avg batch size: 1
 PV: D4 A3 C1 A1 F4 A5 pass pass
 Tree:
-: T   2.12c W  14.06c S  -2.81c ( +0.1 L  +0.0) N     100  --  D4 A3 C1 A1 F4 A5 pass
+: T   7.57c W  17.06c S  -2.65c ( +0.1 L  +0.1) N     100  --  D4 A3 C1 A1 F4 A5 pass
 ---Black(^)---
-D4  : T   3.39c W  14.75c S  -3.06c ( +0.0 L  -0.0) LCB  -14.77c P 28.23% WF  45.6 PSV      74 N      45  --  D4 A3 C1 A1 F4 A5 pass pass
-C1  : T  -2.51c W  10.52c S  -2.88c ( +0.1 L  +0.1) LCB  -23.60c P 60.06% WF  42.1 PSV      43 N      43  --  C1 A3 D4 A1 F4 A5 pass pass
-F4  : T   7.55c W  18.96c S  -1.98c ( +0.3 L  +0.2) LCB  -36.08c P  7.07% WF  11.3 PSV      11 N      11  --  F4 D4 C1 A3 A1 A5 pass pass
+D4  : T  11.43c W  19.18c S  -2.80c ( +0.1 L  +0.1) LCB   -6.62c P 28.23% WF  54.4 PSV      71 N      53  --  D4 A3 C1 A1 F4 A5 pass pass
+C1  : T   1.08c W  12.09c S  -2.67c ( +0.1 L  +0.1) LCB  -19.38c P 60.06% WF  39.5 PSV      34 N      41  --  C1 A3 D4 A1 F4 A5 pass pass
+F4  : T   2.83c W  21.43c S  -1.64c ( +0.4 L  +0.2) LCB  -83.58c P  7.07% WF   4.9 PSV       4 N       5  --  F4 D4 C1 A3
 
 : = D4
 : Controller: genmove_debug w
@@ -330,16 +328,16 @@ F4  : T   7.55c W  18.96c S  -1.98c ( +0.3 L  +0.2) LCB  -36.08c P  7.07% WF  11
 koPOSITIONALscoreAREAtaxNONEsui1komi5
 Time taken: ###
 Root visits: 100
-New playouts: 55
-NN rows: 10
-NN batches: 10
+New playouts: 47
+NN rows: 15
+NN batches: 15
 NN avg batch size: 1
 PV: A3 F4 A1 C1 A5 pass pass
 Tree:
-: T   0.14c W  -5.45c S   0.06c ( +0.0 L  +0.0) N     100  --  A3 F4 A1 C1 A5 pass pass
+: T  -9.03c W -13.30c S   0.12c ( -0.0 L  -0.0) N     100  --  A3 F4 A1 C1 A5 pass pass
 ---White(^)---
-A3  : T   1.59c W  -4.15c S   0.12c ( +0.0 L  +0.0) LCB   -8.38c P 59.40% WF  98.2 PSV      98 N      98  --  A3 F4 A1 C1 A5 pass pass
-C1  : T -90.22c W -85.79c S  -4.43c ( -1.2 L  -1.0) LCB -440.22c P 16.19% WF   0.8 PSV       1 N       1  --  C1
+A3  : T  -7.72c W -12.12c S   0.19c ( -0.0 L  -0.0) LCB  -18.26c P 59.40% WF  98.2 PSV      98 N      98  --  A3 F4 A1 C1 A5 pass pass
+C1  : T -90.05c W -85.79c S  -4.26c ( -1.2 L  -1.0) LCB -440.05c P 16.19% WF   0.8 PSV       1 N       1  --  C1
 
 : = A3
 : Controller: genmove_debug b
@@ -357,17 +355,16 @@ koPOSITIONALscoreAREAtaxNONEsui1komi5
 Time taken: ###
 Root visits: 100
 New playouts: 2
-NN rows: 3
-NN batches: 3
+NN rows: 2
+NN batches: 2
 NN avg batch size: 1
 PV: F4 A1 C1 A5 pass pass
 Tree:
-: T  -1.40c W   3.80c S  -0.06c ( -0.0 L  -0.0) N     100  --  F4 A1 C1 A5 pass pass
+: T   8.00c W  11.79c S  -0.01c ( +0.0 L  +0.0) N     100  --  F4 A1 C1 A5 pass pass
 ---Black(^)---
-F4  : T   2.28c W   6.97c S   0.11c ( +0.0 L  +0.0) LCB  -13.33c P 11.03% WF  40.0 PSV      88 N      39  --  F4 A1 C1 A5 pass pass
-C1  : T  -4.93c W   0.86c S  -0.16c ( -0.1 L  -0.1) LCB  -17.11c P 82.37% WF  57.1 PSV      58 N      58  --  C1 A1 F4 A5 pass pass
-F5  : T -26.24c W -23.82c S  -2.42c ( -0.7 L  -0.7) LCB -376.24c P  1.15% WF   0.9 PSV       0 N       1  --  F5
-D1  : T  -6.31c W  -4.88c S  -1.42c ( -0.4 L  -0.5) LCB -357.99c P  1.08% WF   1.0 PSV       0 N       1  --  D1
+F4  : T  12.26c W  15.61c S   0.17c ( +0.1 L  +0.1) LCB   -3.76c P 11.03% WF  34.9 PSV     100 N      34  --  F4 A1 C1 A5 pass pass
+C1  : T   4.98c W   9.12c S  -0.11c ( -0.0 L  -0.0) LCB   -8.17c P 82.37% WF  63.2 PSV      64 N      64  --  C1 A1 F4 A5 pass pass
+F5  : T -26.32c W -23.82c S  -2.50c ( -0.7 L  -0.7) LCB -376.32c P  1.15% WF   0.9 PSV       0 N       1  --  F5
 
 : = F4
 : Controller: genmove_debug w
@@ -384,17 +381,17 @@ D1  : T  -6.31c W  -4.88c S  -1.42c ( -0.4 L  -0.5) LCB -357.99c P  1.08% WF   1
 koPOSITIONALscoreAREAtaxNONEsui1komi5
 Time taken: ###
 Root visits: 100
-New playouts: 61
-NN rows: 7
-NN batches: 7
+New playouts: 66
+NN rows: 14
+NN batches: 14
 NN avg batch size: 1
 PV: A1 C1 A5 pass pass
 Tree:
-: T   0.96c W  -2.25c S   0.07c ( +0.0 L  +0.0) N     100  --  A1 C1 A5 pass pass
+: T  -7.46c W  -9.37c S   0.21c ( +0.0 L  -0.0) N     100  --  A1 C1 A5 pass pass
 ---White(^)---
-A1  : T   2.57c W  -0.54c S   0.15c ( +0.0 L  +0.0) LCB   -5.81c P 66.27% WF  97.4 PSV      97 N      97  --  A1 C1 A5 pass pass
-C1  : T -94.57c W -90.14c S  -4.42c ( -1.2 L  -1.3) LCB -444.57c P 17.18% WF   0.8 PSV       1 N       1  --  C1
-A5  : T -66.91c W -93.77c S  -4.51c ( -1.2 L  -1.1) LCB -416.91c P  5.37% WF   0.8 PSV       0 N       1  --  A5
+A1  : T  -6.01c W  -7.82c S   0.29c ( +0.0 L  +0.0) LCB  -15.41c P 66.27% WF  97.4 PSV      97 N      97  --  A1 C1 A5 pass pass
+C1  : T -94.47c W -90.14c S  -4.32c ( -1.2 L  -1.3) LCB -444.47c P 17.18% WF   0.8 PSV       1 N       1  --  C1
+A5  : T -71.97c W -93.77c S  -4.41c ( -1.2 L  -1.1) LCB -421.97c P  5.37% WF   0.8 PSV       0 N       1  --  A5
 
 : = A1
 : Controller: play b pass
@@ -417,11 +414,11 @@ New playouts: 50
 NN rows: 39
 NN batches: 39
 NN avg batch size: 1
-PV: C1 D1 B1 pass A5 pass pass
+PV: C1 D1 B1 pass A5 F5 pass pass
 Tree:
-: T 104.50c W  99.89c S   4.02c ( +3.6 L  +3.3) N      50  --  C1 D1 B1 pass A5 pass pass
+: T 104.46c W  99.89c S   4.01c ( +3.6 L  +3.3) N      50  --  C1 D1 B1 pass A5 F5 pass
 ---White(^)---
-C1  : T 104.53c W  99.90c S   4.03c ( +3.6 L  +3.3) LCB  103.75c P 96.95% WF  49.0 PSV      49 N      49  --  C1 D1 B1 pass A5 pass pass
+C1  : T 104.48c W  99.91c S   4.01c ( +3.6 L  +3.3) LCB  103.66c P 96.95% WF  49.0 PSV      49 N      49  --  C1 D1 B1 pass A5 F5 pass pass
 
 : = C1
 : Controller: undo
@@ -468,9 +465,9 @@ NN batches: 1
 NN avg batch size: 1
 PV: C1 A5 pass pass
 Tree:
-: T  -3.30c W   2.07c S  -1.33c ( -0.0 L  -0.0) N      50  --  C1 A5 pass pass
+: T   8.51c W  12.40c S  -1.12c ( +0.0 L  +0.0) N      50  --  C1 A5 pass pass
 ---Black(^)---
-C1  : T  -4.27c W   1.22c S  -1.36c ( -0.0 L  -0.0) LCB  -17.38c P 97.04% WF  49.0 PSV      49 N      49  --  C1 A5 pass pass
+C1  : T   7.78c W  11.77c S  -1.15c ( +0.0 L  +0.0) LCB   -5.96c P 97.04% WF  49.0 PSV      49 N      49  --  C1 A5 pass pass
 
 : = C1
 : Controller: undo
@@ -497,5 +494,5 @@ W stones captured: 1
 : = 
 : Controller: final_score
 : = B+9.0
-: GPU -1 finishing, processed 593 rows 593 batches
+: GPU -1 finishing, processed 736 rows 736 batches
 : All cleaned up, quitting

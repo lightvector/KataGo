@@ -1183,17 +1183,17 @@ MoveNum: 44 HASH: 03700DBBB7589CC1BAB46A4537747B7F
 
 Root visits: 400
 New playouts: 400
-NN rows: 376
-NN batches: 376
+NN rows: 377
+NN batches: 377
 NN avg batch size: 1
 PV: S2 R8 P14 O14 O13 N14 N13 M14 P6 M13 M12 L12
 Tree:
-: T  14.76c W  13.15c S   1.62c ( +3.2 L  +3.2) N     400  --  S2 R8 P14 O14 O13 N14 N13
+: T  14.67c W  13.06c S   1.61c ( +3.2 L  +3.2) N     400  --  S2 R8 P14 O14 O13 N14 N13
 ---Black(v)---
-S2  : T  13.67c W  12.17c S   1.50c ( +3.0 L  +3.0) LCB   19.33c P 22.21% WF 106.4 PSV     105 N     105  --  S2 R8 P14 O14 O13 N14 N13 M14
-P6  : T  14.81c W  13.17c S   1.64c ( +3.3 L  +3.3) LCB   23.79c P 11.01% WF  44.9 PSV      41 N      45  --  P6 R8 S2 P8 R6 S6
-P14 : T  15.46c W  13.82c S   1.64c ( +3.3 L  +3.3) LCB   27.18c P 11.32% WF  37.6 PSV      37 N      38  --  P14 O14 O13 N14 S2 N13 O12 N12
-Q7  : T  11.15c W   9.92c S   1.23c ( +2.5 L  +2.5) LCB   19.70c P  3.09% WF  41.5 PSV      36 N      40  --  Q7 P5 Q5 Q4 P3 Q6 O5
+S2  : T  13.67c W  12.17c S   1.50c ( +3.0 L  +3.0) LCB   19.33c P 22.21% WF 106.2 PSV     105 N     105  --  S2 R8 P14 O14 O13 N14 N13 M14
+P6  : T  14.81c W  13.17c S   1.64c ( +3.3 L  +3.3) LCB   23.79c P 11.01% WF  44.8 PSV      41 N      45  --  P6 R8 S2 P8 R6 S6
+P14 : T  15.46c W  13.82c S   1.64c ( +3.3 L  +3.3) LCB   27.18c P 11.32% WF  37.5 PSV      37 N      38  --  P14 O14 O13 N14 S2 N13 O12 N12
+Q7  : T  11.15c W   9.92c S   1.23c ( +2.5 L  +2.5) LCB   19.70c P  3.09% WF  41.4 PSV      36 N      40  --  Q7 P5 Q5 Q4 P3 Q6 O5
 Q6  : T  15.85c W  14.09c S   1.76c ( +3.5 L  +3.5) LCB   30.29c P  6.19% WF  19.7 PSV      19 N      20  --  Q6 R7 Q7 R8 Q8 R9 Q9 S10
 D12 : T  15.20c W  13.50c S   1.70c ( +3.4 L  +3.4) LCB   32.78c P  3.43% WF  14.9 PSV      11 N      15  --  D12 P14 Q13 P13 Q12 P12 S2 R8
 G10 : T  16.37c W  14.64c S   1.73c ( +3.5 L  +3.5) LCB   35.87c P  3.36% WF  10.8 PSV       9 N      11  --  G10 P14 Q13 P13 Q12 P12 S2 R8
@@ -1224,7 +1224,7 @@ H8  : T  18.31c W  16.40c S   1.91c ( +3.8 L  +3.8) LCB  130.69c P  0.38% WF   2
 O13 : T  17.81c W  15.84c S   1.97c ( +4.0 L  +4.0) LCB  132.86c P  0.37% WF   2.0 PSV       0 N       2  --  O13 P14
 N14 : T  26.65c W  23.85c S   2.80c ( +5.6 L  +5.6) LCB  138.94c P  0.29% WF   1.9 PSV       0 N       2  --  N14 P14
 B10 : T  21.09c W  18.78c S   2.31c ( +4.6 L  +4.6) LCB  133.29c P  0.28% WF   1.9 PSV       0 N       2  --  B10 P14
-pss : T 107.68c W  98.23c S   9.56c (+23.1 L +23.1) LCB  218.78c P  0.27% WF   1.0 PSV       0 N       2  --  pass pass
+pss : T  54.77c W  48.82c S   5.96c (+12.5 L +12.5) LCB  176.69c P  0.27% WF   1.5 PSV       0 N       2  --  pass P14
 Play selection values
 S2 105
 P14 37
@@ -1360,5 +1360,5 @@ F15 2
 E15 1
 
 
-: GPU 0 finishing, processed 4975 rows 4975 batches
+: GPU 0 finishing, processed 4976 rows 4976 batches
 Done

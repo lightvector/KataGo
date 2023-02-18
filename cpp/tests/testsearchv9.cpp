@@ -139,7 +139,7 @@ o.ox..oox
     {
       Rules rules = Rules::parseRules("Chinese");
       BoardHistory hist(board,nextPla,rules,0);
-      
+
       SearchParams params = SearchParams::forTestsV2();
       params.maxVisits = 75;
       params.rootFpuReductionMax = 0;
@@ -173,7 +173,7 @@ o.ox..oox
     {
       Rules rules = Rules::parseRules("Japanese");
       BoardHistory hist(board,nextPla,rules,0);
-      
+
       SearchParams params = SearchParams::forTestsV2();
       params.maxVisits = 75;
       params.rootFpuReductionMax = 0;
@@ -246,7 +246,7 @@ o.ox..oox
       delete[] rowBin;
       delete[] rowGlobal;
     };
-    
+
     Board board = Board::parseBoard(7,7,R"%%(
 ....xo.
 ....xo.
@@ -257,7 +257,7 @@ o.ox..oox
 .xo.xx.
 )%%");
     Player nextPla = P_BLACK;
-    
+
     {
       Rules rules = Rules::parseRules("Japanese");
       rules.koRule = Rules::KO_SPIGHT;
@@ -270,7 +270,7 @@ o.ox..oox
       hist.makeBoardMoveAssumeLegal(board,Location::ofString("G1",board),P_WHITE,NULL);
       hist.makeBoardMoveAssumeLegal(board,Location::ofString("G2",board),P_BLACK,NULL);
       hist.makeBoardMoveAssumeLegal(board,Location::ofString("pass",board),P_WHITE,NULL);
-      
+
       SearchParams params = SearchParams::forTestsV2();
       params.maxVisits = 100;
       params.rootFpuReductionMax = 0;
@@ -294,7 +294,7 @@ o.ox..oox
       hist.makeBoardMoveAssumeLegal(board,Location::ofString("G1",board),P_WHITE,NULL);
       hist.makeBoardMoveAssumeLegal(board,Location::ofString("G2",board),P_BLACK,NULL);
       hist.makeBoardMoveAssumeLegal(board,Location::ofString("pass",board),P_WHITE,NULL);
-      
+
       SearchParams params = SearchParams::forTestsV2();
       params.maxVisits = 100;
       params.rootFpuReductionMax = 0;
@@ -307,7 +307,77 @@ o.ox..oox
       delete bot;
     }
   }
-  
+
+  {
+    cout << "Passing details ==========================================================================" << endl;
+    cout << endl;
+
+    Board board = Board::parseBoard(8,8,R"%%(
+..ooo...
+x.ox.xx.
+ooox.x..
+.xx..xxo
+..xxxoo.
+xxxooo..
+xoo.....
+.o.o....
+)%%");
+    Player nextPla = P_BLACK;
+
+    {
+      cout << "Area scoring no friendly pass ok" << endl;
+      Rules rules = Rules::parseRules("Chinese");
+      rules.friendlyPassOk = false;
+      BoardHistory hist(board,nextPla,rules,0);
+
+      SearchParams params = SearchParams::forTestsV2();
+      params.maxVisits = 50;
+      params.rootFpuReductionMax = 0;
+      AsyncBot* bot = new AsyncBot(params, nnEval, &logger, getSearchRandSeed());
+      TestSearchOptions opts;
+      opts.rootHintLoc = Board::PASS_LOC;
+      opts.printMore = true;
+      runBotOnPosition(bot, board, nextPla, hist, opts);
+      delete bot;
+    }
+
+    {
+      cout << "Area scoring yes friendly pass ok" << endl;
+      Rules rules = Rules::parseRules("Chinese");
+      rules.friendlyPassOk = true;
+      BoardHistory hist(board,nextPla,rules,0);
+
+      SearchParams params = SearchParams::forTestsV2();
+      params.maxVisits = 50;
+      params.rootFpuReductionMax = 0;
+      AsyncBot* bot = new AsyncBot(params, nnEval, &logger, getSearchRandSeed());
+      TestSearchOptions opts;
+      opts.rootHintLoc = Board::PASS_LOC;
+      opts.printMore = true;
+      runBotOnPosition(bot, board, nextPla, hist, opts);
+      delete bot;
+    }
+
+    {
+      cout << "Area scoring no friendly pass ok but pass hacks" << endl;
+      Rules rules = Rules::parseRules("Chinese");
+      rules.friendlyPassOk = false;
+      BoardHistory hist(board,nextPla,rules,0);
+
+      SearchParams params = SearchParams::forTestsV2();
+      params.maxVisits = 50;
+      params.rootFpuReductionMax = 0;
+      params.enablePassingHacks = true;
+      AsyncBot* bot = new AsyncBot(params, nnEval, &logger, getSearchRandSeed());
+      TestSearchOptions opts;
+      opts.rootHintLoc = Board::PASS_LOC;
+      opts.printMore = true;
+      runBotOnPosition(bot, board, nextPla, hist, opts);
+      delete bot;
+    }
+
+  }
+
 }
 
 void Tests::runSearchTestsV9(const string& modelFile, bool inputsNHWC, bool useNHWC, bool useFP16) {
