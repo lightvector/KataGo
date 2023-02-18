@@ -2,7 +2,7 @@
 
 using namespace std;
 
-static const string gtpBase = R"%%(
+static const string gtpBasePart1 = R"%%(
 # Config for KataGo C++ GTP engine, i.e. "./katago.exe gtp"
 
 # In this config, when a parameter is given as a commented out value,
@@ -192,6 +192,8 @@ resignConsecTurns = 3
 # Uncomment to set to a specific value to use for both playing and analysis.
 # By default: true when playing via GTP, but false when analyzing.
 # antiMirror = true
+)%%";
+static const string gtpBasePart2 = R"%%(
 
 # ===========================================================================
 # Search limits
@@ -454,7 +456,7 @@ string GTPConfig::makeConfig(
   int nnMutexPoolSizePowerOfTwo,
   int numSearchThreads
 ) {
-  string config = gtpBase;
+  string config = gtpBasePart1 + gtpBasePart2;
   auto replace = [&](const string& key, const string& replacement) {
     size_t pos = config.find(key);
     assert(pos != string::npos);
