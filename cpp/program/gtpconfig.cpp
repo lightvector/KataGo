@@ -192,6 +192,9 @@ resignConsecTurns = 3
 # Uncomment to set to a specific value to use for both playing and analysis.
 # By default: true when playing via GTP, but false when analyzing.
 # antiMirror = true
+
+# Enable some hacks that mitigate rare instances when passing messes up deeper searches.
+# enablePassingHacks = true
 )%%";
 static const string gtpBasePart2 = R"%%(
 
