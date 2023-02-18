@@ -2067,7 +2067,7 @@ namespace half_float
 		/// \param rhs float to convert
 		/// \exception FE_OVERFLOW, ...UNDERFLOW, ...INEXACT according to rounding
 		explicit half(float rhs) : data_(static_cast<detail::uint16>(detail::float2half<round_style>(rhs))) {}
-	
+
 		/// Conversion to single-precision.
 		/// \return single precision value representing expression value
 		operator float() const { return detail::half2float<float>(data_); }
@@ -2158,7 +2158,7 @@ namespace half_float
 		/// \exception FE_... according to operator-(half,half)
 		half operator--(int) { half out(*this); --*this; return out; }
 		/// \}
-	
+
 	private:
 		/// Rounding mode to use
 		static const std::float_round_style round_style = (std::float_round_style)(HALF_ROUND_STYLE);
