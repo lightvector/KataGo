@@ -786,7 +786,7 @@ cl_int OpenCLHelpers::doHGemmWmma_NCHW_ICOC(
   const size_t NWG = tuneParams.hGemmWmmaNCHW.NWG;
   const size_t WARP_SIZE = 32;
 
-  int hwSizeRoundedUp = roundUpToMultiple(hwSize,MWG);
+  int hwSizeRoundedUp = (int)roundUpToMultiple(hwSize,MWG);
 
   size_t globalSizes[nKernelDims] = {hwSizeRoundedUp * MWAVE / MWG / MWARP * WARP_SIZE, ocSize * NWAVE / NWG / NWARP, (size_t)batchSize};
   size_t localSizes[nKernelDims] = {MWAVE/MWARP * WARP_SIZE, NWAVE/NWARP, 1};
