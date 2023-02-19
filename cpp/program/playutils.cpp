@@ -24,7 +24,9 @@ static int getDefaultMaxExtraBlack(double sqrtBoardArea) {
 ExtraBlackAndKomi PlayUtils::chooseExtraBlackAndKomi(
   float base, float stdev, double allowIntegerProb,
   double handicapProb, int numExtraBlackFixed,
-  double bigStdevProb, float bigStdev, double sqrtBoardArea, Rand& rand
+  double bigStdevProb, float bigStdev,
+  double biggerStdevProb, float biggerStdev,
+  double sqrtBoardArea, Rand& rand
 ) {
   int extraBlack = 0;
   float komi = base;
@@ -34,6 +36,8 @@ ExtraBlackAndKomi PlayUtils::chooseExtraBlackAndKomi(
     stdevToUse = stdev;
   if(bigStdev > 0.0f && rand.nextBool(bigStdevProb))
     stdevToUse = bigStdev;
+  if(biggerStdev > 0.0f && biggerStdevProb > 0 && rand.nextBool(biggerStdevProb))
+    stdevToUse = biggerStdev;
   //Adjust for board size, so that we don't give the same massive komis on smaller boards
   stdevToUse = stdevToUse * (float)(sqrtBoardArea / 19.0);
 
@@ -52,9 +56,10 @@ ExtraBlackAndKomi PlayUtils::chooseExtraBlackAndKomi(
   ret.extraBlack = extraBlack;
   ret.komiMean = komi;
   ret.komiStdev = stdevToUse;
-  //These two are set later
+  //These are set later
   ret.makeGameFair = false;
   ret.makeGameFairForEmptyBoard = false;
+  ret.interpZero = false;
   //This is recorded for application later, since other things may adjust the komi in between.
   ret.allowInteger = allowInteger;
   return ret;
@@ -90,6 +95,8 @@ void PlayUtils::setKomiWithNoise(const ExtraBlackAndKomi& extraBlackAndKomi, Boa
   float komi = extraBlackAndKomi.komiMean;
   if(extraBlackAndKomi.komiStdev > 0)
     komi += extraBlackAndKomi.komiStdev * (float)rand.nextGaussianTruncated(3.0);
+  if(extraBlackAndKomi.interpZero)
+    komi = komi * (float)rand.nextDouble();
   komi = roundKomiWithLinearProb(komi,rand);
   komi = roundAndClipKomi(komi, hist.getRecentBoard(0), false);
   assert(Rules::komiIsIntOrHalfInt(komi));
@@ -351,7 +358,7 @@ static SearchParams getNoiselessParams(SearchParams oldParams, int64_t numVisits
   newParams.searchFactorAfterOnePass = 1.0;
   newParams.searchFactorAfterTwoPass = 1.0;
   if(newParams.numThreads > (numVisits+7)/8)
-    newParams.numThreads = (numVisits+7)/8;
+    newParams.numThreads = (int)((numVisits+7)/8);
   return newParams;
 }
 

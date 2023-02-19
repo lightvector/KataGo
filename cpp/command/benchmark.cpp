@@ -133,7 +133,7 @@ int MainCmds::benchmark(const vector<string>& args) {
           continue;
         int desiredThreads;
         bool suc = Global::tryStringToInt(s,desiredThreads);
-        if(!suc || desiredThreads <= 0 || desiredThreads > 1024)
+        if(!suc || desiredThreads <= 0 || desiredThreads > 4096)
           throw StringError("Number of threads to use: invalid value: " + s);
         numThreadsToTest.push_back(desiredThreads);
       }
@@ -301,10 +301,11 @@ static NNEvaluator* createNNEval(int maxNumThreads, CompactSgf* sgf, const strin
 #endif
 
   const bool defaultRequireExactNNLen = true;
+  const bool disableFP16 = false;
   const string expectedSha256 = "";
   NNEvaluator* nnEval = Setup::initializeNNEvaluator(
     modelFile,modelFile,expectedSha256,cfg,logger,seedRand,maxConcurrentEvals,expectedConcurrentEvals,
-    sgf->xSize,sgf->ySize,defaultMaxBatchSize,defaultRequireExactNNLen,
+    sgf->xSize,sgf->ySize,defaultMaxBatchSize,defaultRequireExactNNLen,disableFP16,
     Setup::SETUP_FOR_BENCHMARK
   );
 

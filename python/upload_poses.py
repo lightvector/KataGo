@@ -101,6 +101,14 @@ def handle_file(poses_by_key, poses_file):
         pos["hintLoc"]
       )
 
+      if len(pos["movePlas"]) > 0:
+        assert pos["nextPla"] == "B" or pos["nextPla"] == "W"
+        assert pos["movePlas"][0] == pos["nextPla"]
+      for i in range(len(pos["movePlas"])):
+        assert pos["movePlas"][i] == "B" or pos["movePlas"][i] == "W"
+      for i in range(1,len(pos["movePlas"])):
+        assert pos["movePlas"][i] != pos["movePlas"][i-1]
+
       if "weight" in pos:
         weight = pos["weight"]
       else:
@@ -110,17 +118,18 @@ def handle_file(poses_by_key, poses_file):
       if key in poses_by_key:
         poses_by_key[key]["weight"] += weight
       else:
-        poses_by_key[key] = pos
+        poses_by_key[key] = pos.copy()
       if key in poses_by_key_this_file:
         poses_by_key_this_file[key]["weight"] += weight
       else:
-        poses_by_key_this_file[key] = pos
+        poses_by_key_this_file[key] = pos.copy()
   if separate_summaries:
     sumweight,sumweightsq = compute_sum_sumsq(poses_by_key_this_file.values())
     if sumweight > 0 and sumweightsq > 0:
       log("Found %d unique positions" % len(poses_by_key_this_file.values()))
       log("Found %f total weight" % sumweight)
       log("Found %f ess" % (sumweight * sumweight / sumweightsq))
+      log("%d %f %f" % (len(poses_by_key_this_file.values()), sumweight, (sumweight * sumweight / sumweightsq)))
 
 poses_files_or_dirs = sorted(poses_files_or_dirs)
 for poses_file_or_dir in poses_files_or_dirs:
@@ -139,6 +148,7 @@ sumweight,sumweightsq = compute_sum_sumsq(poses)
 log("Found %d unique positions" % len(poses))
 log("Found %f total weight" % sumweight)
 log("Found %f ess" % (sumweight * sumweight / sumweightsq))
+log("%d %f %f" % (len(poses), sumweight, (sumweight * sumweight / sumweightsq)))
 
 if set_total_weight is not None:
   log("Setting total weight of data to " + str(set_total_weight))
@@ -158,6 +168,8 @@ def postStuff(to_post):
     log("Post success")
   else:
     log("Post failed")
+    if result.text:
+      log(result.text)
     write_log()
     sys.exit(1)
 

@@ -21,7 +21,7 @@ Michael Reilly ("OmnipotentEntity") - workaround for CUDA on some cmake versions
 Hiraoka ("kaorahi") - for help optimizing Eigen backend and other work
 Akita Noek ("anoek") - for some minor performance and api suggestions, minor cuda work
 Harald Han - for some work on CUDNN8 support
-"inbae" - for removing boost filesystem dependencies
+"inbae" - for removing boost filesystem dependencies, major contributions to pytorch training
 "rimathia" - for a minor bugfix
 "Jonathan_Go" - for help with client proxy support
 Jonathan Roy ("roy7") - for various search refactors
@@ -35,10 +35,15 @@ Yule Hou ("hyln9") - For implementing TensorRT backend and various testing and w
 Viktor Pogrebniak ("avtomaton") - for improvements on the config system
 Adam Gleave - for improvements on the config system
 Emanuel-de-Jong - For minor improvement to GTP command.
+"simon300000" - For minor update to .gitignore.
+Dave Jarvis - For improved inline documentation for GTP example config.
+Yuji Ichikiwa - For a minor fix to include paths.
+"hzyhhzy" - For a minor fix for rules parsing.
+Thaddee Tyl ("espadrine") - Reporting and fixing of issue with half library intrinsics.
 
 Separately from the authors of the content in this repo, additional special thanks to:
 Junyan Xu ("alreadydone") - for much testing and troubleshooting for Windows support
 "petgo3" - for bugfinding and advice on supporting KGS api
 "sbbdms" - for much testing of cpuct and uncertainty parameters
 "Medwin", "shengke" and others - for many tests and ideas and parameters
-"lionfenfen", and Yi XiaoTian - For highly promising ideas to improve nets for next release.
+"lionfenfen", and Yi XiaoTian - For major ideas and techniques for improving neural net training in KataGo.

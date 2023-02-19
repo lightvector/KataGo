@@ -2090,130 +2090,131 @@ void Tests::runBoardHandicapTest() {
 
 void Tests::runBoardStressTest() {
   cout << "Running board stress test" << endl;
-  Rand rand("runBoardStressTests");
 
-  static const int numBoards = 4;
-  Board boards[numBoards];
-  boards[0] = Board();
-  boards[1] = Board(9,16);
-  boards[2] = Board(13,7);
-  boards[3] = Board(4,4);
-  bool multiStoneSuicideLegal[4] = {false,false,true,false};
-  Board copies[numBoards];
-  Player pla = C_BLACK;
-  int suicideCount = 0;
-  int koBanCount = 0;
-  int koCaptureCount = 0;
-  int passCount = 0;
-  int regularMoveCount = 0;
-  for(int n = 0; n < 20000; n++) {
-    Loc locs[numBoards];
-    Loc emptyBuf[Board::MAX_ARR_SIZE];
+  {
+    Rand rand("runBoardStressTests");
+    static const int numBoards = 4;
+    Board boards[numBoards];
+    boards[0] = Board();
+    boards[1] = Board(9,16);
+    boards[2] = Board(13,7);
+    boards[3] = Board(4,4);
+    bool multiStoneSuicideLegal[4] = {false,false,true,false};
+    Board copies[numBoards];
+    Player pla = C_BLACK;
+    int suicideCount = 0;
+    int koBanCount = 0;
+    int koCaptureCount = 0;
+    int passCount = 0;
+    int regularMoveCount = 0;
+    for(int n = 0; n < 20000; n++) {
+      Loc locs[numBoards];
+      Loc emptyBuf[Board::MAX_ARR_SIZE];
 
-    //Sometimes generate garbage input
-    if(n % 2 == 0) {
-      locs[0] = (Loc)rand.nextInt(-10,500);
-      locs[1] = (Loc)rand.nextInt(-10,250);
-      locs[2] = (Loc)rand.nextInt(-10,200);
-      locs[3] = (Loc)rand.nextInt(-10,50);
-    }
-    //Sometimes select only from empty points, to greatly increase the chance of real moves
-    else {
-      for(int i = 0; i<numBoards; i++) {
-        int emptyCount = 0;
-        Loc end = Location::getLoc(boards[i].x_size-1,boards[i].y_size-1,boards[i].x_size);
-        for(Loc j = 0; j<=end; j++) {
-          if(boards[i].colors[j] == C_EMPTY)
-            emptyBuf[emptyCount++] = j;
-        }
-        testAssert(emptyCount > 0);
-        locs[i] = emptyBuf[rand.nextUInt(emptyCount)];
+      //Sometimes generate garbage input
+      if(n % 2 == 0) {
+        locs[0] = (Loc)rand.nextInt(-10,500);
+        locs[1] = (Loc)rand.nextInt(-10,250);
+        locs[2] = (Loc)rand.nextInt(-10,200);
+        locs[3] = (Loc)rand.nextInt(-10,50);
       }
-    }
-
-    for(int i = 0; i<numBoards; i++)
-      copies[i] = boards[i];
-
-    bool isLegal[numBoards];
-    bool suc[numBoards];
-    for(int i = 0; i<numBoards; i++) {
-      isLegal[i] = boards[i].isLegal(locs[i],pla,multiStoneSuicideLegal[i]);
-      testAssert(boardsSeemEqual(copies[i],boards[i]));
-      suc[i] = boards[i].playMove(locs[i],pla,multiStoneSuicideLegal[i]);
-    }
-
-    for(int i = 0; i<numBoards; i++) {
-      testAssert(isLegal[i] == suc[i]);
-      boards[i].checkConsistency();
-
-      const Board& board = boards[i];
-      const Board& copy = copies[i];
-      Loc loc = locs[i];
-      if(!suc[i]) {
-        if(board.isOnBoard(loc)) {
-          testAssert(boardsSeemEqual(copy,board));
-          testAssert(loc < 0 || loc >= Board::MAX_ARR_SIZE || board.colors[loc] != C_EMPTY || board.isIllegalSuicide(loc,pla,multiStoneSuicideLegal[i]) || board.isKoBanned(loc));
-          if(board.isKoBanned(loc)) {
-            testAssert(board.colors[loc] == C_EMPTY);
-            testAssert(board.wouldBeKoCapture(loc,C_BLACK) || board.wouldBeKoCapture(loc,C_WHITE));
-            testAssert(board.wouldBeCapture(loc,C_BLACK) || board.wouldBeCapture(loc,C_WHITE));
-            if(board.isAdjacentToPla(loc,getOpp(pla))) {
-              testAssert(board.wouldBeKoCapture(loc,pla));
-              testAssert(board.wouldBeCapture(loc,pla));
-            }
-            koBanCount++;
-          }
-        }
-      }
+      //Sometimes select only from empty points, to greatly increase the chance of real moves
       else {
-        if(loc == Board::PASS_LOC) {
-          testAssert(boardsSeemEqual(copy,board));
-          testAssert(board.ko_loc == Board::NULL_LOC);
-          passCount++;
+        for(int i = 0; i<numBoards; i++) {
+          int emptyCount = 0;
+          Loc end = Location::getLoc(boards[i].x_size-1,boards[i].y_size-1,boards[i].x_size);
+          for(Loc j = 0; j<=end; j++) {
+            if(boards[i].colors[j] == C_EMPTY)
+              emptyBuf[emptyCount++] = j;
+          }
+          testAssert(emptyCount > 0);
+          locs[i] = emptyBuf[rand.nextUInt(emptyCount)];
         }
-        else if(copy.isSuicide(loc,pla)) {
-          testAssert(board.colors[loc] == C_EMPTY);
-          testAssert(board.isLegal(loc,pla,multiStoneSuicideLegal[i]));
-          testAssert(multiStoneSuicideLegal[i]);
-          testAssert(!copy.wouldBeCapture(loc,pla));
-          suicideCount++;
+      }
+
+      for(int i = 0; i<numBoards; i++)
+        copies[i] = boards[i];
+
+      bool isLegal[numBoards];
+      bool suc[numBoards];
+      for(int i = 0; i<numBoards; i++) {
+        isLegal[i] = boards[i].isLegal(locs[i],pla,multiStoneSuicideLegal[i]);
+        testAssert(boardsSeemEqual(copies[i],boards[i]));
+        suc[i] = boards[i].playMove(locs[i],pla,multiStoneSuicideLegal[i]);
+      }
+
+      for(int i = 0; i<numBoards; i++) {
+        testAssert(isLegal[i] == suc[i]);
+        boards[i].checkConsistency();
+
+        const Board& board = boards[i];
+        const Board& copy = copies[i];
+        Loc loc = locs[i];
+        if(!suc[i]) {
+          if(board.isOnBoard(loc)) {
+            testAssert(boardsSeemEqual(copy,board));
+            testAssert(loc < 0 || loc >= Board::MAX_ARR_SIZE || board.colors[loc] != C_EMPTY || board.isIllegalSuicide(loc,pla,multiStoneSuicideLegal[i]) || board.isKoBanned(loc));
+            if(board.isKoBanned(loc)) {
+              testAssert(board.colors[loc] == C_EMPTY);
+              testAssert(board.wouldBeKoCapture(loc,C_BLACK) || board.wouldBeKoCapture(loc,C_WHITE));
+              testAssert(board.wouldBeCapture(loc,C_BLACK) || board.wouldBeCapture(loc,C_WHITE));
+              if(board.isAdjacentToPla(loc,getOpp(pla))) {
+                testAssert(board.wouldBeKoCapture(loc,pla));
+                testAssert(board.wouldBeCapture(loc,pla));
+              }
+              koBanCount++;
+            }
+          }
         }
         else {
-          testAssert(board.colors[loc] == pla);
-          testAssert(board.getNumLiberties(loc) == copy.getNumLibertiesAfterPlay(loc,pla,1000));
-          testAssert(std::min(2,board.getNumLiberties(loc)) == copy.getNumLibertiesAfterPlay(loc,pla,2));
-          testAssert(std::min(4,board.getNumLiberties(loc)) == copy.getNumLibertiesAfterPlay(loc,pla,4));
-          if(board.ko_loc != Board::NULL_LOC) {
-            koCaptureCount++;
-            testAssert(copy.wouldBeKoCapture(loc,pla));
-            testAssert(copy.wouldBeCapture(loc,pla));
+          if(loc == Board::PASS_LOC) {
+            testAssert(boardsSeemEqual(copy,board));
+            testAssert(board.ko_loc == Board::NULL_LOC);
+            passCount++;
           }
-          else
-            testAssert(!copy.wouldBeKoCapture(loc,pla));
-          if(!board.isAdjacentToPla(loc,getOpp(pla)) && copy.isAdjacentToPla(loc,getOpp(pla)))
-            testAssert(copy.wouldBeCapture(loc,pla));
-          if(!copy.isAdjacentToPla(loc,getOpp(pla)))
+          else if(copy.isSuicide(loc,pla)) {
+            testAssert(board.colors[loc] == C_EMPTY);
+            testAssert(board.isLegal(loc,pla,multiStoneSuicideLegal[i]));
+            testAssert(multiStoneSuicideLegal[i]);
             testAssert(!copy.wouldBeCapture(loc,pla));
+            suicideCount++;
+          }
+          else {
+            testAssert(board.colors[loc] == pla);
+            testAssert(board.getNumLiberties(loc) == copy.getNumLibertiesAfterPlay(loc,pla,1000));
+            testAssert(std::min(2,board.getNumLiberties(loc)) == copy.getNumLibertiesAfterPlay(loc,pla,2));
+            testAssert(std::min(4,board.getNumLiberties(loc)) == copy.getNumLibertiesAfterPlay(loc,pla,4));
+            if(board.ko_loc != Board::NULL_LOC) {
+              koCaptureCount++;
+              testAssert(copy.wouldBeKoCapture(loc,pla));
+              testAssert(copy.wouldBeCapture(loc,pla));
+            }
+            else
+              testAssert(!copy.wouldBeKoCapture(loc,pla));
+            if(!board.isAdjacentToPla(loc,getOpp(pla)) && copy.isAdjacentToPla(loc,getOpp(pla)))
+              testAssert(copy.wouldBeCapture(loc,pla));
+            if(!copy.isAdjacentToPla(loc,getOpp(pla)))
+              testAssert(!copy.wouldBeCapture(loc,pla));
 
-          regularMoveCount++;
+            regularMoveCount++;
+          }
         }
       }
+
+      pla = rand.nextUInt(2) == 0 ? getOpp(pla) : pla;
     }
 
-    pla = rand.nextUInt(2) == 0 ? getOpp(pla) : pla;
-  }
+    ostringstream out;
+    out << endl;
+    out << "regularMoveCount " << regularMoveCount << endl;
+    out << "passCount " << passCount << endl;
+    out << "koCaptureCount " << koCaptureCount << endl;
+    out << "koBanCount " << koBanCount << endl;
+    out << "suicideCount " << suicideCount << endl;
 
-  ostringstream out;
-  out << endl;
-  out << "regularMoveCount " << regularMoveCount << endl;
-  out << "passCount " << passCount << endl;
-  out << "koCaptureCount " << koCaptureCount << endl;
-  out << "koBanCount " << koBanCount << endl;
-  out << "suicideCount " << suicideCount << endl;
-
-  for(int i = 0; i<4; i++)
-    out << "Caps " << boards[i].numBlackCaptures << " " << boards[i].numWhiteCaptures << endl;
-  string expected = R"%%(
+    for(int i = 0; i<4; i++)
+      out << "Caps " << boards[i].numBlackCaptures << " " << boards[i].numWhiteCaptures << endl;
+    string expected = R"%%(
 
 regularMoveCount 38017
 passCount 273
@@ -2226,7 +2227,201 @@ Caps 4995 5041
 Caps 4420 4335
 
 )%%";
-  expect("Board stress test move counts",out,expected);
+    expect("Board stress test move counts",out,expected);
+  }
+
+  {
+    Rand rand("runBoardSetStoneTests");
+
+    auto boardToPlacements = [&](const Board& b) {
+      std::vector<Move> placements;
+      for(int y = 0; y<b.y_size; y++) {
+        for(int x = 0; x<b.x_size; x++) {
+          Loc loc = Location::getLoc(x,y,b.x_size);
+          placements.push_back(Move(loc,b.colors[loc]));
+        }
+      }
+      for(int i = 1; i<placements.size(); i++)
+        std::swap(placements[i],placements[rand.nextUInt(i+1)]);
+      return placements;
+    };
+    auto boardToNonEmptyPlacements = [&](const Board& b) {
+      std::vector<Move> placements;
+      for(int y = 0; y<b.y_size; y++) {
+        for(int x = 0; x<b.x_size; x++) {
+          Loc loc = Location::getLoc(x,y,b.x_size);
+          if(b.colors[loc] != C_EMPTY)
+            placements.push_back(Move(loc,b.colors[loc]));
+        }
+      }
+      for(int i = 1; i<placements.size(); i++)
+        std::swap(placements[i],placements[rand.nextUInt(i+1)]);
+      return placements;
+    };
+
+    for(int rep = 0; rep<1000; rep++) {
+      Board board0(5 + rand.nextUInt(14), 5 + rand.nextUInt(14));
+      Board board1 = board0;
+      Board board2 = board0;
+      Board board3 = board0;
+      Board board4 = board0;
+      Board board5 = board0;
+      Board board6 = board0;
+      int numMoves1 = rand.nextUInt(1000);
+      int numMoves2 = rand.nextUInt(1000);
+      for(int i = 0; i<numMoves1; i++) {
+        Loc loc = Location::getLoc(rand.nextUInt(board1.x_size),rand.nextUInt(board1.y_size),board1.x_size);
+        Player pla = rand.nextBool(0.5) ? P_BLACK : P_WHITE;
+        if(board1.isLegal(loc,pla,true)) {
+          bool suc4 = board4.setStoneFailIfNoLibs(loc,pla);
+          testAssert(suc4 == !(board1.wouldBeCapture(loc,pla) || board1.isSuicide(loc,pla)));
+          if(!suc4) {
+            board4.playMoveAssumeLegal(loc,pla);
+          }
+          else {
+            testAssert(board4.colors[loc] == pla);
+          }
+
+          board1.playMoveAssumeLegal(loc,pla);
+          bool suc3 = board3.setStone(loc,pla);
+          testAssert(suc3);
+        }
+        else {
+          Color oldColor = board4.colors[loc];
+          bool suc4 = board4.setStoneFailIfNoLibs(loc,pla);
+          if(suc4) {
+            testAssert(board4.colors[loc] == pla);
+            bool suc4_2 = board4.setStoneFailIfNoLibs(loc,oldColor);
+            testAssert(suc4_2);
+          }
+        }
+      }
+      board1.checkConsistency();
+      board3.checkConsistency();
+      board4.checkConsistency();
+      testAssert(board1.pos_hash == board3.pos_hash);
+      testAssert(board1.pos_hash == board4.pos_hash);
+
+      double emptyProb = rand.nextDouble() * 0.5;
+      for(int i = 0; i<numMoves2; i++) {
+        Loc loc = Location::getLoc(rand.nextUInt(board2.x_size),rand.nextUInt(board2.y_size),board2.x_size);
+        Color color = rand.nextBool(emptyProb) ? C_EMPTY : rand.nextBool(0.5) ? P_BLACK : P_WHITE;
+        bool suc2 = board2.setStone(loc,color);
+        testAssert(suc2);
+        bool suc5 = board5.setStoneFailIfNoLibs(loc,color);
+        bool suc6 = board6.setStoneFailIfNoLibs(loc,color);
+        if(color == C_EMPTY) {
+          testAssert(suc5);
+          testAssert(suc6);
+        }
+        if(!suc5)
+          board5.setStone(loc,color);
+        else {
+          testAssert(board5.colors[loc] == color);
+        }
+        if(suc6) {
+          testAssert(board6.colors[loc] == color);
+        }
+        else {
+          testAssert(board6.colors[loc] != color);
+        }
+        board2.checkConsistency();
+        board5.checkConsistency();
+        board6.checkConsistency();
+        testAssert(board2.pos_hash == board5.pos_hash);
+      }
+
+      bool suc0 = board0.setStonesFailIfNoLibs(boardToNonEmptyPlacements(board1));
+      testAssert(suc0);
+      board0.checkConsistency();
+      testAssert(board0.pos_hash == board1.pos_hash);
+
+      bool suc3 = board3.setStonesFailIfNoLibs(boardToPlacements(board2));
+      testAssert(suc3);
+      board3.checkConsistency();
+      testAssert(board3.pos_hash == board2.pos_hash);
+    }
+  }
+  {
+    Rand rand("runBoardSetStoneTests2");
+    for(int rep = 0; rep<1000; rep++) {
+      Board board(1 + rand.nextUInt(18), 1 + rand.nextUInt(18));
+      std::vector<Move> placements;
+      for(int i = 0; i<1000; i++) {
+        Loc loc = Location::getLoc(rand.nextUInt(board.x_size),rand.nextUInt(board.y_size),board.x_size);
+        Player pla = rand.nextBool(0.5) ? P_BLACK : P_WHITE;
+        if(board.isLegal(loc,pla,true)) {
+          placements.push_back(Move(loc,pla));
+          bool anyCaps = board.wouldBeCapture(loc,pla) || board.isSuicide(loc,pla);
+          board.playMoveAssumeLegal(loc,pla);
+          Board copy(board.x_size,board.y_size);
+          bool suc = copy.setStonesFailIfNoLibs(placements);
+          testAssert(suc == !anyCaps);
+          copy.checkConsistency();
+          if(!suc)
+            break;
+          testAssert(board.pos_hash == copy.pos_hash);
+        }
+      }
+    }
+  }
+  {
+    Rand rand("runBoardSetStoneTests3");
+    for(int rep = 0; rep<1000; rep++) {
+      Board board(1 + rand.nextUInt(18), 1 + rand.nextUInt(18));
+      for(int i = 0; i<300; i++) {
+        Loc loc = Location::getLoc(rand.nextUInt(board.x_size),rand.nextUInt(board.y_size),board.x_size);
+        Color color = rand.nextBool(0.25) ? C_EMPTY : rand.nextBool(0.5) ? P_BLACK : P_WHITE;
+        board.setStone(loc,color);
+      }
+
+      Board orig = board;
+      std::set<Loc> prevPlacedLocs;
+      std::vector<Move> placements;
+      for(int i = 0; i<1000; i++) {
+        Loc loc = Location::getLoc(rand.nextUInt(board.x_size),rand.nextUInt(board.y_size),board.x_size);
+        Color color = rand.nextBool(0.25) ? C_EMPTY : rand.nextBool(0.5) ? P_BLACK : P_WHITE;
+
+        placements.push_back(Move(loc,color));
+        if(prevPlacedLocs.find(loc) != prevPlacedLocs.end()) {
+          Board copy(board.x_size,board.y_size);
+          bool suc = copy.setStonesFailIfNoLibs(placements);
+          testAssert(!suc);
+          placements.pop_back();
+        }
+        else {
+          prevPlacedLocs.insert(loc);
+          Board prev = board;
+          board.setStone(loc,color);
+
+          bool anyCaps = false;
+          for(int y = 0; y<board.y_size; y++) {
+            for(int x = 0; x<board.x_size; x++) {
+              Loc l = Location::getLoc(x,y,board.x_size);
+              if(l != loc && board.colors[l] == C_EMPTY && prev.colors[l] != C_EMPTY)
+                anyCaps = true;
+            }
+          }
+
+          Board copy = orig;
+          bool suc = copy.setStonesFailIfNoLibs(placements);
+          if(!(suc == (!anyCaps && board.colors[loc] == color))) {
+            cout << suc << " " << anyCaps << " " << (board.colors[loc] == color) << endl;
+            cout << orig << endl;
+            cout << prev << endl;
+            cout << board << endl;
+            cout << i << endl;
+            for(const auto& placement: placements) {
+              cout << Location::toString(placement.loc,board) << " " << (int)placement.pla << endl;
+            }
+          }
+          testAssert(suc == (!anyCaps && board.colors[loc] == color));
+          if(!suc)
+            break;
+        }
+      }
+    }
+  }
 }
 
 void Tests::runBoardReplayTest() {

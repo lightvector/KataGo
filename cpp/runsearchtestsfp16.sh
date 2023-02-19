@@ -1,6 +1,11 @@
 #!/bin/bash -eux
 set -o pipefail
 {
+(
+    mkdir -p models
+    cd models/
+    wget -nc https://github.com/lightvector/KataGo/releases/download/v1.12.1/b18c384nbt-uec.bin.gz
+)
 ./katago runsearchtests tests/models/g103-b6c96-s103408384-d26419149.txt.gz true false 0 true | tee tests/results/runSearchTestsFP16-iNHWC-cNCHW.txt
 ./katago runsearchtests tests/models/g103-b6c96-s103408384-d26419149.txt.gz true true 0 true | tee tests/results/runSearchTestsFP16-iNHWC-cNHWC.txt
 ./katago runsearchtests tests/models/g103-b6c96-s103408384-d26419149.txt.gz true false 1 true | tee tests/results/runSearchTestsFP16-s1.txt
@@ -18,5 +23,6 @@ set -o pipefail
 
 ./katago runsearchtestsv8 tests/models/g170-b6c96-s175395328-d26788732.txt.gz true true true | tee tests/results/runSearchTestsV8FP16.txt
 
+./katago runsearchtestsv9 models/b18c384nbt-uec.bin.gz false false true | tee tests/results/runSearchTestsV9B18NBTFP16.txt
 exit 0
 }

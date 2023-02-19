@@ -10,7 +10,7 @@ logSearchInfo = true
 logTimeStamp = false
 logToStderr = false
 maxPlayouts = 10000
-maxTimePondering = 60
+maxTimePondering = 60.0
 maxVisits = 100
 nnRandSeed = forTesting
 nnRandomize = false
@@ -29,7 +29,7 @@ searchRandSeed = forTesting
 trtUseFP16 = false
 
 : GTP Engine starting...
-: KataGo v1.11.0
+: KataGo v1.12.4
 : Using TrompTaylor rules initially, unless GTP/GUI overrides this
 : Using 1 CPU thread(s) for search
 : nnRandSeed0 = forTesting

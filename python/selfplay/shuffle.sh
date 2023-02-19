@@ -41,11 +41,32 @@ echo "Beginning shuffle at" $(date "+%Y-%m-%d %H:%M:%S")
          "$BASEDIR"/selfplay/ \
          -expand-window-per-row 0.4 \
          -taper-window-exponent 0.65 \
+         -out-dir "$BASEDIR"/shuffleddata/$OUTDIRVAL \
+         -out-tmp-dir "$TMPDIR"/val \
+         -approx-rows-per-out-file 70000 \
+         -num-processes "$NTHREADS" \
+         -batch-size "$BATCHSIZE" \
+         -only-include-md5-path-prop-lbound 0.95 \
+         -only-include-md5-path-prop-ubound 1.00 \
+         -output-npz \
+         "$@" \
+         2>&1 | tee "$BASEDIR"/shuffleddata/$OUTDIR/outval.txt &
+
+    wait
+)
+(
+    time python3 ./shuffle.py \
+         "$BASEDIR"/selfplay/ \
+         -expand-window-per-row 0.4 \
+         -taper-window-exponent 0.65 \
          -out-dir "$BASEDIR"/shuffleddata/$OUTDIRTRAIN \
          -out-tmp-dir "$TMPDIR"/train \
          -approx-rows-per-out-file 70000 \
          -num-processes "$NTHREADS" \
          -batch-size "$BATCHSIZE" \
+         -only-include-md5-path-prop-lbound 0.00 \
+         -only-include-md5-path-prop-ubound 0.95 \
+         -output-npz \
          "$@" \
          2>&1 | tee "$BASEDIR"/shuffleddata/$OUTDIR/outtrain.txt &
 

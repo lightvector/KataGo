@@ -204,11 +204,11 @@ int main(int argc, const char* const* argv) {
 
 
 string Version::getKataGoVersion() {
-  return string("1.11.0-coreml4");
+  return string("1.12.4-coreml1");
 }
 
 string Version::getKataGoVersionForHelp() {
-  return string("KataGo v1.11.0-coreml4");
+  return string("KataGo v1.12.4-coreml1");
 }
 
 string Version::getKataGoVersionFullInfo() {

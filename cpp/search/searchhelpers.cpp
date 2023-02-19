@@ -479,25 +479,6 @@ double Search::interpolateEarly(double halflife, double earlyValue, double value
   return value + (earlyValue - value) * pow(0.5, halflives);
 }
 
-
-void Search::maybeRecomputeNormToTApproxTable() {
-  if(normToTApproxZ <= 0.0 || normToTApproxZ != searchParams.lcbStdevs || normToTApproxTable.size() <= 0) {
-    normToTApproxZ = searchParams.lcbStdevs;
-    normToTApproxTable.clear();
-    for(int i = 0; i < 512; i++)
-      normToTApproxTable.push_back(FancyMath::normToTApprox(normToTApproxZ,(double)(i+MIN_VISITS_FOR_LCB)));
-  }
-}
-
-double Search::getNormToTApproxForLCB(int64_t numVisits) const {
-  assert(numVisits >= MIN_VISITS_FOR_LCB);
-  uint64_t idx = (uint64_t)(numVisits - MIN_VISITS_FOR_LCB);
-  assert(normToTApproxTable.size() > 0);
-  if(idx >= normToTApproxTable.size())
-    idx = normToTApproxTable.size()-1;
-  return normToTApproxTable[idx];
-}
-
 void Search::getSelfUtilityLCBAndRadius(const SearchNode& parent, const SearchNode* child, int64_t edgeVisits, Loc moveLoc, double& lcbBuf, double& radiusBuf) const {
   int64_t childVisits = child->stats.visits.load(std::memory_order_acquire);
   double scoreMeanAvg = child->stats.scoreMeanAvg.load(std::memory_order_acquire);
@@ -507,25 +488,37 @@ void Search::getSelfUtilityLCBAndRadius(const SearchNode& parent, const SearchNo
   double weightSum = child->stats.getChildWeight(edgeVisits,childVisits);
   double weightSqSum = child->stats.getChildWeightSq(edgeVisits,childVisits);
 
-  radiusBuf = 2.0 * (searchParams.winLossUtilityFactor + searchParams.staticScoreUtilityFactor + searchParams.dynamicScoreUtilityFactor);
+  // Max radius of the entire utility range
+  double utilityRangeRadius = searchParams.winLossUtilityFactor + searchParams.staticScoreUtilityFactor + searchParams.dynamicScoreUtilityFactor;
+  radiusBuf = 2.0 * utilityRangeRadius * searchParams.lcbStdevs;
   lcbBuf = -radiusBuf;
   if(childVisits <= 0 || weightSum <= 0.0 || weightSqSum <= 0.0)
     return;
 
+  // Effective sample size for weighted data
   double ess = weightSum * weightSum / weightSqSum;
-  int64_t essInt = (int64_t)round(ess);
-  if(essInt < MIN_VISITS_FOR_LCB)
-    return;
 
-  double utilityNoBonus = utilityAvg;
+  // To behave well at low playouts, we'd like a variance approximation that makes sense even with very small sample sizes.
+  // We'd like to avoid using a T distribution approximation because we actually know a bound on the scale of the utilities
+  // involved, namely utilityRangeRadius. So instead add a prior with a small weight that the variance is the largest it can be.
+  // This should give a relatively smooth scaling that works for small discrete samples but diminishes for larger playouts.
+  double priorWeight = weightSum / (ess * ess * ess);
+  utilitySqAvg = std::max(utilitySqAvg, utilityAvg * utilityAvg + 1e-8);
+  utilitySqAvg = (utilitySqAvg * weightSum + (utilitySqAvg + utilityRangeRadius * utilityRangeRadius) * priorWeight) / (weightSum + priorWeight);
+  weightSum += priorWeight;
+  weightSqSum += priorWeight*priorWeight;
+
+  // Recompute effective sample size now that we have the prior
+  ess = weightSum * weightSum / weightSqSum;
+
   double endingScoreBonus = getEndingWhiteScoreBonus(parent,moveLoc);
   double utilityDiff = getScoreUtilityDiff(scoreMeanAvg, scoreMeanSqAvg, endingScoreBonus);
-  double utilityWithBonus = utilityNoBonus + utilityDiff;
+  double utilityWithBonus = utilityAvg + utilityDiff;
   double selfUtility = parent.nextPla == P_WHITE ? utilityWithBonus : -utilityWithBonus;
 
-  double utilityVariance = std::max(1e-8, utilitySqAvg - utilityNoBonus * utilityNoBonus);
+  double utilityVariance = utilitySqAvg - utilityAvg * utilityAvg;
   double estimateStdev = sqrt(utilityVariance / ess);
-  double radius = estimateStdev * getNormToTApproxForLCB(essInt);
+  double radius = estimateStdev * searchParams.lcbStdevs;
 
   lcbBuf = selfUtility - radius;
   radiusBuf = radius;

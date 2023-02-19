@@ -241,10 +241,11 @@ int MainCmds::evalsgf(const vector<string>& args) {
     int expectedConcurrentEvals = params.numThreads;
     int defaultMaxBatchSize = std::max(8,((params.numThreads+3)/4)*4);
     bool defaultRequireExactNNLen = true;
+    bool disableFP16 = false;
     string expectedSha256 = "";
     nnEval = Setup::initializeNNEvaluator(
       modelFile,modelFile,expectedSha256,cfg,logger,seedRand,maxConcurrentEvals,expectedConcurrentEvals,
-      board.x_size,board.y_size,defaultMaxBatchSize,defaultRequireExactNNLen,
+      board.x_size,board.y_size,defaultMaxBatchSize,defaultRequireExactNNLen,disableFP16,
       Setup::SETUP_FOR_GTP
     );
   }
@@ -377,6 +378,24 @@ int MainCmds::evalsgf(const vector<string>& args) {
       cout << "White score stdev " << sqrt(max(0.0,(double)nnOutput->whiteScoreMeanSq - nnOutput->whiteScoreMean*nnOutput->whiteScoreMean)) << endl;
     }
   }
+
+  // {
+  //   ReportedSearchValues values;
+  //   bool suc = search->getRootValues(values);
+  //   if(!suc)
+  //     cout << "Unsuccessful getting root values" << endl;
+  //   else
+  //     cout << values << endl;
+  // }
+  // {
+  //   ReportedSearchValues values;
+  //   bool suc = search->getPrunedRootValues(values);
+  //   if(!suc)
+  //     cout << "Unsuccessful getting pruned root values" << endl;
+  //   else
+  //     cout << values << endl;
+  // }
+
 
   if(printSharpScore) {
     double ret = 0.0;

@@ -37,7 +37,7 @@ string OpenCLKernels::common = R"%%(
   #define SQRT2 1.41421356237h
   #define SQRTHALF 0.70710678118h
   #define SQRTEIGHTH 0.35355339059h
-  #define LOG1PEXPTHRESHOLD 9.0h
+  #define LOG1PEXPTHRESHOLD 20.0f
   #define floatToReal(_r) (convert_half(_r))
 
 #elif PRECISION == 32
@@ -457,8 +457,8 @@ __kernel void bnActTransform(
 #elif ACTIVATION == 1
         value = fmax(INPUT(nic,xy) * LOAD(scale,ic) + LOAD(bias,ic), ZERO) * LOAD(mask, n * xySize + xy);
 #elif ACTIVATION == 2
-        real a = INPUT(nic,xy) * LOAD(scale,ic) + LOAD(bias,ic);
-        value = a * tanh(a < LOG1PEXPTHRESHOLD ? log1p(exp(a)) : a) * LOAD(mask, n * xySize + xy);
+        float a = INPUT(nic,xy) * LOAD(scale,ic) + LOAD(bias,ic);
+        value = floatToReal(a * tanh(a < LOG1PEXPTHRESHOLD ? log1p(exp(a)) : a)) * LOAD(mask, n * xySize + xy);
 #endif
       }
       WTILE(subY,subX) = value;
@@ -760,8 +760,8 @@ __kernel void scaleBiasMaskActNCHW(
 #elif ACTIVATION == 1
       real result = fmax(LOAD(input,idx) * LOAD(scale,c) + LOAD(bias,c), ZERO) * LOAD(mask,n * xySize + xy);
 #elif ACTIVATION == 2
-      real a = LOAD(input,idx) * LOAD(scale,c) + LOAD(bias,c);
-      real result = a * tanh(a < LOG1PEXPTHRESHOLD ? log1p(exp(a)) : a) * LOAD(mask,n * xySize + xy);
+      float a = LOAD(input,idx) * LOAD(scale,c) + LOAD(bias,c);
+      real result = floatToReal(a * tanh(a < LOG1PEXPTHRESHOLD ? log1p(exp(a)) : a)) * LOAD(mask,n * xySize + xy);
 #endif
       STORE(output,idx,result);
     }
@@ -1013,8 +1013,8 @@ __kernel void addCBiasesNCAct(
 #elif ACTIVATION == 1
     accum[n * cSize + c] = fmax(accum[n * cSize + c] + biases[c], 0.0f);
 #elif ACTIVATION == 2
-    real a = accum[n * cSize + c] + biases[c];
-    accum[n * cSize + c] = a * tanh(a < LOG1PEXPTHRESHOLD ? log1p(exp(a)) : a);
+    float a = accum[n * cSize + c] + biases[c];
+    accum[n * cSize + c] = floatToReal(a * tanh(a < LOG1PEXPTHRESHOLD ? log1p(exp(a)) : a));
 #endif
   }
 }
@@ -1056,6 +1056,13 @@ string OpenCLKernels::hgemmWmma =
 ""
 #include "../external/clblast/common.opencl"
 #include "../neuralnet/hgemm_wmma.opencl"
+;
+
+string OpenCLKernels::hgemmWmmaNCHW =
+""
+#include "../external/clblast/common.opencl"
+#include "../neuralnet/hgemm_wmma_nchw.opencl"
+#include "../neuralnet/hgemm_wmma_nchw_part2.opencl"
 ;
 
 #endif

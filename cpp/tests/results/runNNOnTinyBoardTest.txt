@@ -15,11 +15,11 @@ HASH: 53602E4395E2B2B556BA45566880843F
 Win 90.25c
 Loss 9.75c
 NoResult 0.00c
-ScoreMean 9.4
+ScoreMean 9.37
 ScoreMeanSq 242.9
-Lead 7.9
+Lead 7.87
 VarTimeLeft -1.0
-STWinlossError -1.0
+STWinlossError -1.000
 STScoreError -1.0
 Policy
    0    0    0    0    0 

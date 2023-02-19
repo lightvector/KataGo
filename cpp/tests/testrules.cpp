@@ -538,7 +538,8 @@ Illegal: (0,0) X
     {
       const char* name = "Spight ko rules";
       Board board(baseBoard);
-      board.setStone(Location::getLoc(2,3,board.x_size),C_BLACK);
+      bool suc = board.setStone(Location::getLoc(2,3,board.x_size),C_BLACK);
+      testAssert(suc);
       Rules rules(baseRules);
       rules.koRule = Rules::KO_SPIGHT;
       BoardHistory hist(board,P_BLACK,rules,0);
@@ -5325,6 +5326,16 @@ Last moves pass pass pass pass H7 G9 F9 H7
       testAssert(suc);
       testAssert(rules[i] == parsed5);
     }
+  }
+
+  {
+    const char* name = "Rules parsing bug";
+    Rules parsed = Rules::parseRules("komi23taxALL");
+    out << parsed << endl;
+    string expected = R"%%(
+koPOSITIONALscoreAREAtaxALLsui1komi23
+)%%";
+    expect(name,out,expected);
   }
 
 }

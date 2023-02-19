@@ -20,13 +20,16 @@ TestSearchCommon::TestSearchOptions::TestSearchOptions()
    printOwnership(false),
    printEndingScoreValueBonus(false),
    printPlaySelectionValues(false),
+   printRootValues(false),
+   printPrunedRootValues(false),
    noClearBot(false),
    noClearCache(false),
    printMore(false),
    printMoreMoreMore(false),
    printAfterBegun(false),
    ignorePosition(false),
-   printPostOrderNodeCount(false)
+   printPostOrderNodeCount(false),
+   rootHintLoc(Board::NULL_LOC)
 {}
 
 void TestSearchCommon::printPolicyValueOwnership(const Board& board, const NNResultBuf& buf) {
@@ -63,8 +66,10 @@ void TestSearchCommon::runBotOnPosition(AsyncBot* bot, Board board, Player nextP
   if(opts.printOwnership)
     bot->setAlwaysIncludeOwnerMap(true);
 
-  for(int i = 0; i<opts.numMovesInARow; i++) {
-
+  if(opts.rootHintLoc != Board::NULL_LOC)
+    bot->setRootHintLoc(opts.rootHintLoc);
+  
+  for(int i = 0; i<opts.numMovesInARow; i++) {    
     Loc move;
     if(opts.printAfterBegun) {
       cout << "Just after begun" << endl;
@@ -120,6 +125,22 @@ void TestSearchCommon::runBotOnPosition(AsyncBot* bot, Board board, Player nextP
         cout << Location::toString(locsBuf[j],board) << " " << playSelectionValuesBuf[j] << endl;
       }
     }
+    if(opts.printRootValues) {
+      ReportedSearchValues values;
+      bool suc = search->getRootValues(values);
+      if(!suc)
+        cout << "Unsuccessful getting root values" << endl;
+      else
+        cout << values << endl;
+    }
+    if(opts.printPrunedRootValues) {
+      ReportedSearchValues values;
+      bool suc = search->getPrunedRootValues(values);
+      if(!suc)
+        cout << "Unsuccessful getting pruned root values" << endl;
+      else
+        cout << values << endl;
+    }
 
     if(opts.printPostOrderNodeCount)
       verifyTreePostOrder(bot->getSearchStopAndWait(),-1);
@@ -127,7 +148,7 @@ void TestSearchCommon::runBotOnPosition(AsyncBot* bot, Board board, Player nextP
     if(i < opts.numMovesInARow-1) {
       bot->makeMove(move, nextPla);
       hist.makeBoardMoveAssumeLegal(board,move,nextPla,NULL);
-      cout << "Just after move" << endl;
+      cout << "Just after move" << Location::toString(move,board) << endl;
       search->printTree(cout, search->rootNode, options, P_WHITE);
       nextPla = getOpp(nextPla);
 

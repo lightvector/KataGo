@@ -36,12 +36,25 @@ NNEvaluator* Setup::initializeNNEvaluator(
   int defaultNNYLen,
   int defaultMaxBatchSize,
   bool defaultRequireExactNNLen,
+  bool disableFP16,
   setup_for_t setupFor
 ) {
   vector<NNEvaluator*> nnEvals =
     initializeNNEvaluators(
-      {nnModelName},{nnModelFile},{expectedSha256},
-      cfg,logger,seedRand,maxConcurrentEvals,expectedConcurrentEvals,defaultNNXLen,defaultNNYLen,defaultMaxBatchSize,defaultRequireExactNNLen,setupFor
+      {nnModelName},
+      {nnModelFile},
+      {expectedSha256},
+      cfg,
+      logger,
+      seedRand,
+      maxConcurrentEvals,
+      expectedConcurrentEvals,
+      defaultNNXLen,
+      defaultNNYLen,
+      defaultMaxBatchSize,
+      defaultRequireExactNNLen,
+      disableFP16,
+      setupFor
     );
   assert(nnEvals.size() == 1);
   return nnEvals[0];
@@ -60,6 +73,7 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
   int defaultNNYLen,
   int defaultMaxBatchSize,
   bool defaultRequireExactNNLen,
+  bool disableFP16,
   setup_for_t setupFor
 ) {
   vector<NNEvaluator*> nnEvals;
@@ -305,6 +319,8 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
 #endif
 
     int defaultSymmetry = forcedSymmetry >= 0 ? forcedSymmetry : 0;
+    if(disableFP16)
+      useFP16Mode = enabled_t::False;
 
     NNEvaluator* nnEval = new NNEvaluator(
       nnModelName,
@@ -605,6 +621,10 @@ vector<SearchParams> Setup::loadParams(
     if(cfg.contains("wideRootNoise"+idxStr)) params.wideRootNoise = cfg.getDouble("wideRootNoise"+idxStr, 0.0, 5.0);
     else if(cfg.contains("wideRootNoise"))   params.wideRootNoise = cfg.getDouble("wideRootNoise", 0.0, 5.0);
     else                                     params.wideRootNoise = (setupFor == SETUP_FOR_ANALYSIS ? Setup::DEFAULT_ANALYSIS_WIDE_ROOT_NOISE : 0.00);
+
+    if(cfg.contains("enablePassingHacks"+idxStr)) params.enablePassingHacks = cfg.getBool("enablePassingHacks"+idxStr);
+    else if(cfg.contains("enablePassingHacks")) params.enablePassingHacks = cfg.getBool("enablePassingHacks");
+    else params.enablePassingHacks = (setupFor == SETUP_FOR_GTP || setupFor == SETUP_FOR_ANALYSIS) ? true : false;
 
     if(cfg.contains("playoutDoublingAdvantage"+idxStr)) params.playoutDoublingAdvantage = cfg.getDouble("playoutDoublingAdvantage"+idxStr,-3.0,3.0);
     else if(cfg.contains("playoutDoublingAdvantage"))   params.playoutDoublingAdvantage = cfg.getDouble("playoutDoublingAdvantage",-3.0,3.0);

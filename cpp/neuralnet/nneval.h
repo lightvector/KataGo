@@ -161,6 +161,9 @@ class NNEvaluator {
   //Set the number of threads and what gpus they use. Only call this if threads are not spawned yet, or have been killed.
   void setNumThreads(const std::vector<int>& gpuIdxByServerThr);
 
+  //After spawnServerThreads has returned, check if is was using FP16.
+  bool isAnyThreadUsingFP16() const;
+
   //These are thread-safe. Setting them in the middle of operation might only affect future
   //neural net evals, rather than any in-flight.
   bool getDoRandomize() const;
@@ -218,6 +221,8 @@ class NNEvaluator {
   bool isKilled; //Flag used for killing server threads
   int numServerThreadsStartingUp; //Counter for waiting until server threads are spawned
   std::condition_variable mainThreadWaitingForSpawn; //Condvar for waiting until server threads are spawned
+
+  std::vector<int> serverThreadsIsUsingFP16;
 
   int numOngoingEvals; //Current number of ongoing evals.
   int numWaitingEvals; //Current number of things waiting for finish.

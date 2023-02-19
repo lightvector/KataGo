@@ -116,10 +116,11 @@ namespace {
       if(iter == loadedNets.end()) {
         const int defaultMaxBatchSize = -1;
         const bool defaultRequireExactNNLen = minBoardXSizeUsed == maxBoardXSizeUsed && minBoardYSizeUsed == maxBoardYSizeUsed;
+        const bool disableFP16 = false;
         const string expectedSha256 = "";
         NNEvaluator* nnEval = Setup::initializeNNEvaluator(
           nnModelFile,nnModelFile,expectedSha256,*cfg,logger,seedRand,maxConcurrentEvals,expectedConcurrentEvals,
-          maxBoardXSizeUsed,maxBoardYSizeUsed,defaultMaxBatchSize,defaultRequireExactNNLen,
+          maxBoardXSizeUsed,maxBoardYSizeUsed,defaultMaxBatchSize,defaultRequireExactNNLen,disableFP16,
           Setup::SETUP_FOR_MATCH
         );
         netAndStuff = new NetAndStuff(nnEval);

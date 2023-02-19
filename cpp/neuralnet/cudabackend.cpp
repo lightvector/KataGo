@@ -12,7 +12,7 @@
 
 #include "../core/simpleallocator.h"
 
-#include "../external/half-2.1.0/include/half.hpp"
+#include "../external/half-2.2.0/include/half.hpp"
 
 //------------------------
 #include "../core/using.h"
@@ -2285,6 +2285,10 @@ ComputeHandle* NeuralNet::createComputeHandle(
 
 void NeuralNet::freeComputeHandle(ComputeHandle* gpuHandle) {
   delete gpuHandle;
+}
+
+bool NeuralNet::isUsingFP16(const ComputeHandle* handle) {
+  return handle->usingFP16;
 }
 
 //------------------------------------------------------------------------------

@@ -26,7 +26,7 @@ Rules: {"friendlyPassOk":false,"hasButton":false,"ko":"POSITIONAL","komi":7.5,"s
 B stones captured: 0
 W stones captured: 0
 
-= F17
+= F16
 
 = 
 
@@ -137,4 +137,32 @@ W stones captured: 0
 = L4
 
 = J4
+
+= 
+
+= 
+
+= 
+
+= MoveNum: 0 HASH: 5D1FC6E3275F269C5B6E7FD1730E9E7B
+   A B
+ 2 X .
+ 1 X X
+Next player: White
+Rules: {"friendlyPassOk":false,"hasButton":false,"ko":"POSITIONAL","komi":7.5,"scoring":"AREA","suicide":true,"tax":"NONE","whiteHandicapBonus":"0"}
+B stones captured: 0
+W stones captured: 0
+
+= 
+
+? Handicap placement is invalid
+
+= MoveNum: 0 HASH: CEA26448910A5BF5F35A3098A28FEA31
+   A B
+ 2 . .
+ 1 . .
+Next player: Black
+Rules: {"friendlyPassOk":false,"hasButton":false,"ko":"POSITIONAL","komi":7.5,"scoring":"AREA","suicide":true,"tax":"NONE","whiteHandicapBonus":"0"}
+B stones captured: 0
+W stones captured: 0
 

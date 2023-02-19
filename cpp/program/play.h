@@ -49,6 +49,7 @@ struct ExtraBlackAndKomi {
   bool makeGameFair = false;
   bool makeGameFairForEmptyBoard = false;
   bool allowInteger = true;
+  bool interpZero = false;
 };
 
 struct OtherGameProperties {
@@ -154,6 +155,10 @@ class GameInitializer {
   double sgfCompensateKomiProb;
   double komiBigStdevProb;
   float komiBigStdev;
+  double komiBiggerStdevProb;
+  float komiBiggerStdev;
+  double handicapKomiInterpZeroProb;
+  double sgfKomiInterpZeroProb;
   bool komiAuto;
 
   int numExtraBlackFixed;
@@ -228,6 +233,7 @@ class MatchPairer {
   std::vector<bool> excludeBot;
   std::vector<int> secondaryBots;
   std::vector<int> blackPriority;
+  std::vector<std::pair<int,int>> extraPairs;
   std::vector<std::pair<int,int>> nextMatchups;
   std::vector<std::pair<int,int>> nextMatchupsBuf;
   Rand rand;

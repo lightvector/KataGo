@@ -3,10 +3,222 @@
 #include "../core/config_parser.h"
 #include "../core/fileutils.h"
 #include "../core/mainargs.h"
+#include "../core/test.h"
 #include "../command/commandline.h"
 
 using namespace std;
 using namespace TestCommon;
+
+void Tests::runInlineConfigTests() {
+  {
+    string s = R"%%(
+)%%";
+    istringstream in(s);
+    ConfigParser cfg(in);
+    string expected = "";
+    testAssert(expected == cfg.getAllKeyVals());
+  }
+  {
+    string s = R"%%(
+a1 = k2
+#comment
+ #comment
+  #= == == ayay
+  #a = b
+  b1 = c5
+_c_ = 43
+d_= 5
+e=6
+f =7
+abc =    def
+bcd    =  g#foo
+c-de =  g  #"test's"=== =
+_a = "quoted"
+_b= "quoted "  #hmm##
+ _c =" quoted "
+_d =" some # symbols \" yay " # later comment
+ _e  = "\"\"\\"  # comment
+# _f  = "\"\"\\"  # comment
+key =  with spaces
+quotes =  i'm a value " with " quotes! # hmmm"!
+ test=back\slashes don't \escape \\here\
+ test2=back\slashes don't \escape \\here\#comment
+)%%";
+    istringstream in(s);
+    ConfigParser cfg(in);
+    string expected =
+      "_a = quoted" "\n"
+      "_b = quoted " "\n"
+      "_c =  quoted " "\n"
+      "_c_ = 43" "\n"
+      "_d =  some # symbols \" yay " "\n"
+      "_e = \"\"\\" "\n"
+      "a1 = k2" "\n"
+      "abc = def" "\n"
+      "b1 = c5" "\n"
+      "bcd = g" "\n"
+      "c-de = g" "\n"
+      "d_ = 5" "\n"
+      "e = 6" "\n"
+      "f = 7" "\n"
+      "key = with spaces" "\n"
+      "quotes = i'm a value \" with \" quotes!" "\n"
+      "test = back\\slashes don't \\escape \\\\here\\" "\n"
+      "test2 = back\\slashes don't \\escape \\\\here\\" "\n"
+      ;
+    testAssert(expected == cfg.getAllKeyVals());
+  }
+
+  auto isCfgFail = [](const string& s) {
+    istringstream in(s);
+    bool failed = false;
+    try {
+      ConfigParser cfg(in);
+    }
+    catch(const StringError&) {
+      failed = true;
+    }
+    return failed;
+  };
+
+  {
+    string s = R"%%(
+abc
+)%%";
+    testAssert(isCfgFail(s));
+  }
+  {
+    string s = R"%%(
+abc =
+)%%";
+    testAssert(isCfgFail(s));
+  }
+  {
+    string s = R"%%(
+abc = # comment
+)%%";
+    testAssert(isCfgFail(s));
+  }
+  {
+    string s = R"%%(
+abc = ""
+)%%";
+    testAssert(isCfgFail(s));
+  }
+  {
+    string s = R"%%(
+abc = ""def
+)%%";
+    testAssert(isCfgFail(s));
+  }
+  {
+    string s = R"%%(
+abc = "data"def
+)%%";
+    testAssert(isCfgFail(s));
+  }
+  {
+    string s = R"%%(
+abc = "data" def
+)%%";
+    testAssert(isCfgFail(s));
+  }
+  {
+    string s = R"%%(
+abc = "data"# def
+)%%";
+    testAssert(!isCfgFail(s));
+  }
+  {
+    string s = R"%%(
+abc = "data" #def
+)%%";
+    testAssert(!isCfgFail(s));
+  }
+  {
+    string s = R"%%(
+ =
+)%%";
+    testAssert(isCfgFail(s));
+  }
+  {
+    string s = R"%%(
+=
+)%%";
+    testAssert(isCfgFail(s));
+  }
+  {
+    string s = R"%%(
+= # foo
+)%%";
+    testAssert(isCfgFail(s));
+  }
+  {
+    string s = R"%%(
+"abc" = def
+)%%";
+    testAssert(isCfgFail(s));
+  }
+  {
+    string s = R"%%(
+a!b = def
+)%%";
+    testAssert(isCfgFail(s));
+  }
+  {
+    string s = R"%%(
+a#b = def
+)%%";
+    testAssert(isCfgFail(s));
+  }
+  {
+    string s = R"%%(
+a$b = def
+)%%";
+    testAssert(isCfgFail(s));
+  }
+  {
+    string s = R"%%(
+a%b = def
+)%%";
+    testAssert(isCfgFail(s));
+  }
+  {
+    string s = R"%%(
+a@b = def
+)%%";
+    testAssert(isCfgFail(s));
+  }
+  {
+    string s = R"%%(
+#ab = def
+)%%";
+    testAssert(!isCfgFail(s));
+  }
+  {
+    string s = R"%%(
+0ab = def
+)%%";
+    testAssert(!isCfgFail(s));
+  }
+  {
+    string s = R"%%(
+!ab = def
+)%%";
+    testAssert(isCfgFail(s));
+  }
+  {
+    string s = R"%%(
+a-x = c-y
+)%%";
+    testAssert(!isCfgFail(s));
+  }
+  {
+    string s = R"%%(
+notrailing = newline is okay)%%";
+    testAssert(!isCfgFail(s));
+  }
+}
 
 void Tests::runConfigTests(const vector<string>& args) {
 
@@ -146,5 +358,21 @@ void Tests::runConfigTests(const vector<string>& args) {
                          "(data/analysis_example.cfg and data/test2.cfg)");
 
     cout << "Config overriding from command line OK\n";
+  }
+}
+
+void Tests::runParseAllConfigsTest() {
+  std::vector<std::string> collected;
+  FileUtils::collectFiles("./configs/", [](const std::string& s) {return Global::isSuffix(s,".cfg");}, collected);
+  std::sort(collected.begin(),collected.end());
+  for(const string& cfgPath: collected) {
+    if(cfgPath.find(string("ringmaster")) != string::npos)
+      continue;
+    ConfigParser cfg(cfgPath);
+    if(!cfg.contains("password")) {
+      cout << "======================================================" << endl;
+      cout << cfgPath << endl;
+      cout << cfg.getAllKeyVals() << endl;
+    }
   }
 }

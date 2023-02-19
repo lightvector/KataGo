@@ -11,10 +11,11 @@ void Search::computeRootNNEvaluation(NNResultBuf& nnResultBuf, bool includeOwner
   const BoardHistory& hist = rootHistory;
   Player pla = rootPla;
   bool skipCache = false;
-  // bool isRoot = true;
+  bool isRoot = true;
   MiscNNInputParams nnInputParams;
   nnInputParams.drawEquivalentWinsForWhite = searchParams.drawEquivalentWinsForWhite;
-  nnInputParams.conservativePass = searchParams.conservativePass;
+  nnInputParams.conservativePassAndIsRoot = searchParams.conservativePass && isRoot;
+  nnInputParams.enablePassingHacks = searchParams.enablePassingHacks;
   nnInputParams.nnPolicyTemperature = searchParams.nnPolicyTemperature;
   nnInputParams.avoidMYTDaggerHack = searchParams.avoidMYTDaggerHackPla == pla;
   if(searchParams.playoutDoublingAdvantage != 0) {
@@ -49,7 +50,8 @@ bool Search::initNodeNNOutput(
   }
   MiscNNInputParams nnInputParams;
   nnInputParams.drawEquivalentWinsForWhite = searchParams.drawEquivalentWinsForWhite;
-  nnInputParams.conservativePass = searchParams.conservativePass;
+  nnInputParams.conservativePassAndIsRoot = searchParams.conservativePass && isRoot;
+  nnInputParams.enablePassingHacks = searchParams.enablePassingHacks;
   nnInputParams.nnPolicyTemperature = searchParams.nnPolicyTemperature;
   nnInputParams.avoidMYTDaggerHack = searchParams.avoidMYTDaggerHackPla == thread.pla;
   if(searchParams.playoutDoublingAdvantage != 0) {

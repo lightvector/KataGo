@@ -12,6 +12,7 @@ then
     echo "TMPDIR scratch space, ideally on fast local disk, unique to this loop"
     echo "NTHREADS number of parallel threads/processes to use in shuffle"
     echo "BATCHSIZE number of samples to concat together per batch for training, must match training"
+    echo "SHUFFLEPERIOD how many seconds between shuffling"
     echo "RATING_ONLY if 1, upload for rating only, else upload for selfplay too"
     exit 0
 fi
@@ -28,6 +29,8 @@ shift
 NTHREADS="$1"
 shift
 BATCHSIZE="$1"
+shift
+SHUFFLEPERIOD="$1"
 shift
 RATING_ONLY="$1"
 shift
@@ -59,7 +62,7 @@ cp -r "$GITROOTDIR"/python/selfplay "$DATED_ARCHIVE"
     while true
     do
         ./upload_model_for_selfplay.sh "$RUNNAME" "$basedir" connection.cfg "$RATING_ONLY"
-        sleep 20
+        sleep 300
     done
 ) >> "$basedir"/logs/outupload.txt 2>&1 & disown
 
@@ -75,11 +78,8 @@ cp -r "$GITROOTDIR"/python/selfplay "$DATED_ARCHIVE"
             mv "$basedir"/selfplay.summary.json.tmp "$basedir"/selfplay.summary.json
             sleep 10
 
-            for i in {1..10}
-            do
-                ./shuffle.sh "$basedir" "$tmpdir" "$NTHREADS" "$BATCHSIZE" -summary-file "$basedir"/selfplay.summary.json "$@"
-                sleep 180
-            done
+            ./shuffle.sh "$basedir" "$tmpdir" "$NTHREADS" "$BATCHSIZE" -summary-file "$basedir"/selfplay.summary.json "$@"
+            sleep "$SHUFFLEPERIOD"
         done
     fi
 ) >> "$basedir"/logs/outshuffle.txt 2>&1 & disown
@@ -89,7 +89,7 @@ cp -r "$GITROOTDIR"/python/selfplay "$DATED_ARCHIVE"
     while true
     do
         ./export_model_for_selfplay.sh "$RUNNAME" "$basedir" "$USEGATING"
-        sleep 10
+        sleep 300
     done
 ) >> "$basedir"/logs/outexport.txt 2>&1 & disown
 
@@ -98,7 +98,7 @@ cp -r "$GITROOTDIR"/python/selfplay "$DATED_ARCHIVE"
     while true
     do
         ./download.sh "$RUNNAME" "$basedir"
-        sleep 180
+        sleep 1800
     done
 ) >> "$basedir"/logs/outdownload.txt 2>&1 & disown
 

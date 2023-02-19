@@ -309,6 +309,16 @@ void NNEvaluator::clearCache() {
     nnCacheTable->clear();
 }
 
+
+bool NNEvaluator::isAnyThreadUsingFP16() const {
+  lock_guard<std::mutex> lock(bufferMutex);
+  for(const int& isUsingFP16: serverThreadsIsUsingFP16) {
+    if(isUsingFP16)
+      return true;
+  }
+  return false;
+}
+
 static void serveEvals(
   string randSeedThisThread,
   NNEvaluator* nnEval, const LoadedModel* loadedModel,
@@ -335,6 +345,11 @@ void NNEvaluator::setNumThreads(const vector<int>& gpuIdxByServerThr) {
 void NNEvaluator::spawnServerThreads() {
   if(serverThreads.size() != 0)
     throw StringError("NNEvaluator::spawnServerThreads called when threads were already running!");
+
+  {
+    lock_guard<std::mutex> lock(bufferMutex);
+    serverThreadsIsUsingFP16.resize(numThreads,0);
+  }
 
   numServerThreadsStartingUp = numThreads;
   for(int i = 0; i<numThreads; i++) {
@@ -364,6 +379,7 @@ void NNEvaluator::killServerThreads() {
   for(size_t i = 0; i<serverThreads.size(); i++)
     delete serverThreads[i];
   serverThreads.clear();
+  serverThreadsIsUsingFP16.clear();
 
   //Can unset now that threads are dead
   isKilled = false;
@@ -396,6 +412,8 @@ void NNEvaluator::serve(
 
   {
     lock_guard<std::mutex> lock(bufferMutex);
+    assert(serverThreadIdx < serverThreadsIsUsingFP16.size());
+    serverThreadsIsUsingFP16[serverThreadIdx] = gpuHandle == NULL ? 0 : NeuralNet::isUsingFP16(gpuHandle) ? 1 : 0;
     numServerThreadsStartingUp--;
     if(numServerThreadsStartingUp <= 0)
       mainThreadWaitingForSpawn.notify_all();
@@ -796,9 +814,26 @@ void NNEvaluator::evaluate(
     assert(legalCount > 0);
 
     float policySum = 0.0f;
-    for(int i = 0; i<policySize; i++) {
-      policy[i] = exp(policy[i] - maxPolicy);
+
+    if(nnInputParams.enablePassingHacks) {
+      //Cap passing prior policy at 95% (19x other moves)
+      float maxPassPolicySumFactor = 19.0f;
+
+      for(int i = 0; i<policySize-1; i++) {
+        policy[i] = exp(policy[i] - maxPolicy);
+        policySum += policy[i];
+      }
+      int passPos = NNPos::locToPos(Board::PASS_LOC, xSize, nnXLen, nnYLen);
+      assert(passPos == policySize-1);
+      int i = passPos;
+      policy[i] = std::max(1e-20f, std::min(exp(policy[i] - maxPolicy), policySum * maxPassPolicySumFactor));
       policySum += policy[i];
+    }
+    else {
+      for(int i = 0; i<policySize; i++) {
+        policy[i] = exp(policy[i] - maxPolicy);
+        policySum += policy[i];
+      }
     }
 
     if(!isfinite(policySum)) {
@@ -1045,6 +1080,8 @@ NNCacheTable::NNCacheTable(int sizePowerOfTwo, int mutexPoolSizePowerOfTwo) {
 #if defined(SIMULATE_TRUE_HASH_COLLISIONS)
   sizePowerOfTwo = sizePowerOfTwo > 12 ? 12 : sizePowerOfTwo;
 #endif
+  if(mutexPoolSizePowerOfTwo > sizePowerOfTwo)
+    mutexPoolSizePowerOfTwo = sizePowerOfTwo;
 
   tableSize = ((uint64_t)1) << sizePowerOfTwo;
   tableMask = tableSize-1;

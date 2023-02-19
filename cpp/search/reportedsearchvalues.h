@@ -32,6 +32,8 @@ struct ReportedSearchValues {
     int64_t totalVisits
   );
   ~ReportedSearchValues();
+
+  friend std::ostream& operator<<(std::ostream& out, const ReportedSearchValues& values);
 };
 
 #endif

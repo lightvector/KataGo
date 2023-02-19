@@ -150,9 +150,11 @@ int MainCmds::genbook(const vector<string>& args) {
     bool hashComments = true;
     bool hashParent = true;
     bool flipIfPassOrWFirst = false;
+    bool allowGameOver = false;
     Rand seedRand("bonusByHash");
     sgf->iterAllUniquePositions(
-      uniqueHashes, hashComments, hashParent, flipIfPassOrWFirst, &seedRand, [&](Sgf::PositionSample& unusedSample, const BoardHistory& sgfHist, const string& comments) {
+      uniqueHashes, hashComments, hashParent, flipIfPassOrWFirst, allowGameOver, &seedRand,
+      [&](Sgf::PositionSample& unusedSample, const BoardHistory& sgfHist, const string& comments) {
         (void)unusedSample;
         if(comments.size() > 0 && comments.find("BONUS") != string::npos) {
           BoardHistory hist(sgfHist.initialBoard, sgfHist.initialPla, rules, sgfHist.initialEncorePhase);
@@ -181,9 +183,9 @@ int MainCmds::genbook(const vector<string>& args) {
       throw StringError("Board size in config does not match the board size of the bonus file");
     vector<Move> placements;
     sgf->getPlacements(placements,boardSizeX,boardSizeY);
-    for(const Move& move: placements) {
-      bonusInitialBoard.setStone(move.loc,move.pla);
-    }
+    bool suc = bonusInitialBoard.setStonesFailIfNoLibs(placements);
+    if(!suc)
+      throw StringError("Invalid placements in sgf");
     bonusInitialPla = sgf->getFirstPlayerColor();
   }
 
@@ -195,10 +197,11 @@ int MainCmds::genbook(const vector<string>& args) {
     const int expectedConcurrentEvals = numGameThreads * params.numThreads;
     const int defaultMaxBatchSize = std::max(8,((numGameThreads * params.numThreads+3)/4)*4);
     const bool defaultRequireExactNNLen = true;
+    const bool disableFP16 = false;
     const string expectedSha256 = "";
     nnEval = Setup::initializeNNEvaluator(
       modelFile,modelFile,expectedSha256,cfg,logger,rand,maxConcurrentEvals,expectedConcurrentEvals,
-      boardSizeX,boardSizeY,defaultMaxBatchSize,defaultRequireExactNNLen,
+      boardSizeX,boardSizeY,defaultMaxBatchSize,defaultRequireExactNNLen,disableFP16,
       Setup::SETUP_FOR_ANALYSIS
     );
   }

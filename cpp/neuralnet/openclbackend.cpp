@@ -47,23 +47,30 @@ using half_t = half_float::half;
 #define MAYBE_FREE_EVENT (void)0
 
 #define MAYBE_PROFILE(_name) {                                          \
-    static int counter = 0;                                             \
-    static double timeTaken = 0;                                        \
-    static bool profilePrintAdded = false;                              \
     const char* _profileName = (_name);                                 \
+    bool isNew = false;                                                 \
+    if(!contains(handle->profileAddeds,_profileName)) {                         \
+      handle->profileAddeds.push_back(_profileName);                            \
+      handle->counters[_profileName] = new int[1];                              \
+      handle->timeTakens[_profileName] = new double[1];                         \
+      handle->counters[_profileName][0] = 0;                            \
+      handle->timeTakens[_profileName][0] = 0.0;                        \
+      isNew = true;                                                     \
+    }                                                                   \
+    int* counter = handle->counters[_profileName];                              \
+    double* timeTaken = handle->timeTakens[_profileName];                       \
     handle->profileEvents.push_back(event);                             \
-    handle->profileCallbacks.push_back(std::function<void()>([event,_profileName]() { \
+    handle->profileCallbacks.push_back(std::function<void()>([event,counter,timeTaken,_profileName]() { \
           cl_int profileErr;                                            \
           cl_ulong time_start, time_end;                                \
           profileErr = clGetEventProfilingInfo(event, CL_PROFILING_COMMAND_START, sizeof(time_start), &time_start, NULL); CHECK_ERR(profileErr); \
           profileErr = clGetEventProfilingInfo(event, CL_PROFILING_COMMAND_END, sizeof(time_end), &time_end, NULL); CHECK_ERR(profileErr) ; \
-          timeTaken += (time_end - time_start) * 1e-9;                  \
-          counter++;                                                    \
+          *timeTaken += (time_end - time_start) * 1e-9;                 \
+          (*counter)++;                                                 \
         }));                                                            \
-    if(!profilePrintAdded) {                                            \
-      profilePrintAdded = true;                                         \
-      handle->profileResultPrinters.push_back(std::function<void()>([_profileName]() { \
-            cout << _profileName << " " << counter << " " << timeTaken/counter << " " << timeTaken << "\n"; \
+    if(isNew) {                                                         \
+      handle->profileResultPrinters.push_back(std::function<void()>([_profileName,counter,timeTaken]() { \
+            cout << _profileName << " " << *counter << " " << *timeTaken/ *counter << " " << *timeTaken << "\n"; \
           }));                                                          \
     }                                                                   \
   }
@@ -140,6 +147,7 @@ struct CompiledPrograms {
   const bool usingFP16Storage;
   const bool usingFP16Compute;
   const bool usingFP16TensorCores;
+  const bool usingFP16TensorCoresFor1x1;
 
   CLProgram conv2dNCHWProgram;
   CLProgram winogradConv3x3NCHWTransformProgram;
@@ -165,6 +173,7 @@ struct CompiledPrograms {
   CLProgram xgemmDirectProgram;
   CLProgram xgemmDirectProgramAlwaysFP32;
   CLProgram xgemmProgram;
+  CLProgram hgemmWmmaNCHWProgram;
 
   CompiledPrograms(
     const cl_context& context,
@@ -172,12 +181,14 @@ struct CompiledPrograms {
     const OpenCLTuneParams& tParams,
     bool useFP16Storage,
     bool useFP16Compute,
-    bool useFP16TensorCores
+    bool useFP16TensorCores,
+    bool useFP16TensorCoresFor1x1
   ) :
     tuneParams(tParams),
     usingFP16Storage(useFP16Storage),
     usingFP16Compute(useFP16Compute),
-    usingFP16TensorCores(useFP16TensorCores)
+    usingFP16TensorCores(useFP16TensorCores),
+    usingFP16TensorCoresFor1x1(useFP16TensorCoresFor1x1)
   {
     string maybeFP16CompileOptions = "";
     if(useFP16Storage)
@@ -283,6 +294,12 @@ struct CompiledPrograms {
         "hgemmWmmaProgram", context, deviceIdsToUse, OpenCLKernels::hgemmWmma,
         tuneParams.hGemmWmma.compileOptions() + maybeFP16CompileOptions
       );
+      if(usingFP16TensorCoresFor1x1) {
+        hgemmWmmaNCHWProgram = compileProgram(
+          "hgemmWmmaNCHWProgram", context, deviceIdsToUse, OpenCLKernels::hgemmWmmaNCHW,
+          tuneParams.hGemmWmmaNCHW.compileOptions() + maybeFP16CompileOptions
+        );
+      }
     }
     else if(usingFP16Compute) {
       xgemmProgram = compileProgram(
@@ -347,13 +364,33 @@ struct ComputeContext {
 
       OpenCLTuneParams tuneParams = getParamsForDeviceName(name, device->info.gpuIdx);
 
-      bool useFP16Storage = useFP16Mode == enabled_t::True || (useFP16Mode == enabled_t::Auto && tuneParams.shouldUseFP16Storage);
-      bool useFP16Compute = (useFP16Mode == enabled_t::True || useFP16Mode == enabled_t::Auto) && tuneParams.shouldUseFP16Compute;
-      bool useFP16TensorCores = (useFP16Mode == enabled_t::True || useFP16Mode == enabled_t::Auto) && tuneParams.shouldUseFP16TensorCores;
+      bool useFP16Storage = false;
+      bool useFP16Compute = false;
+      bool useFP16TensorCores = false;
+      bool useFP16TensorCoresFor1x1 = false;
+
+      if(useFP16Mode == enabled_t::True) {
+        if(!tuneParams.canUseFP16Storage && !tuneParams.canUseFP16Compute && !tuneParams.canUseFP16TensorCores && !tuneParams.canUseFP16TensorCoresFor1x1) {
+          if(logger)
+            logger->write("Warning: No FP16 support found at all on this device during tuning, but useFP16 is true, trying fp16 storage");
+          useFP16Storage = true;
+        }
+        useFP16Storage = tuneParams.canUseFP16Storage;
+        // Only use FP16 compute if not using tensor cores
+        useFP16Compute = tuneParams.canUseFP16Storage && !tuneParams.canUseFP16TensorCores;
+        useFP16TensorCores = tuneParams.canUseFP16TensorCores;
+        useFP16TensorCoresFor1x1 = tuneParams.canUseFP16TensorCoresFor1x1;
+      }
+      else if(useFP16Mode == enabled_t::Auto) {
+        useFP16Storage = tuneParams.shouldUseFP16Storage;
+        useFP16Compute = tuneParams.shouldUseFP16Compute;
+        useFP16TensorCores = tuneParams.shouldUseFP16TensorCores;
+        useFP16TensorCoresFor1x1 = tuneParams.shouldUseFP16TensorCoresFor1x1;
+      }
 
       CompiledPrograms* compiledPrograms = new CompiledPrograms(
         device->context, deviceIds, tuneParams,
-        useFP16Storage, useFP16Compute, useFP16TensorCores
+        useFP16Storage, useFP16Compute, useFP16TensorCores, useFP16TensorCoresFor1x1
       );
       compiledProgramsByDeviceId[device->info.deviceId] = compiledPrograms;
     }
@@ -449,6 +486,7 @@ struct ComputeHandleInternal {
   bool usingFP16Storage;
   bool usingFP16Compute;
   bool usingFP16TensorCores;
+  bool usingFP16TensorCoresFor1x1;
 
   CLKernel conv2dNCHWKernel;
   CLKernel winogradConv3x3NCHWTransformKernel;
@@ -474,7 +512,11 @@ struct ComputeHandleInternal {
   CLKernel xgemmDirectBatchedTTKernelAlwaysFP32;
   CLKernel xgemmDirectStridedBatchedNNKernel;
   CLKernel xgemmBatchedNNKernel;
+  CLKernel hgemmWmmaNCHWKernel;
 
+  std::vector<const char*> profileAddeds;
+  std::map<const char*, int*> counters;
+  std::map<const char*, double*> timeTakens;
   vector<cl_event> profileEvents;
   vector<std::function<void()>> profileCallbacks;
   vector<std::function<void()>> profileResultPrinters;
@@ -497,6 +539,7 @@ struct ComputeHandleInternal {
     usingFP16Storage = progs->usingFP16Storage;
     usingFP16Compute = progs->usingFP16Compute;
     usingFP16TensorCores = progs->usingFP16TensorCores;
+    usingFP16TensorCoresFor1x1 = progs->usingFP16TensorCoresFor1x1;
 
     cl_int err;
     conv2dNCHWKernel = clCreateKernel(progs->conv2dNCHWProgram, "conv2dNCHW", &err);
@@ -552,6 +595,8 @@ struct ComputeHandleInternal {
       xgemmBatchedNNKernel = clCreateKernel(progs->xgemmProgram, "hgemmWmmaBatched", &err);
     else
       xgemmBatchedNNKernel = clCreateKernel(progs->xgemmProgram, "XgemmBatched", &err);
+    if(usingFP16TensorCoresFor1x1)
+      hgemmWmmaNCHWKernel = clCreateKernel(progs->hgemmWmmaNCHWProgram, "hgemmWmmaNCHW", &err);
     CHECK_ERR(err);
   }
 
@@ -574,6 +619,9 @@ struct ComputeHandleInternal {
   }
   int getXGemmKPaddingMult() const {
     return tuneParams.getXGemmKPaddingMult(usingFP16Compute,usingFP16TensorCores);
+  }
+  int getHGemmWmmaNCHWRequiredCDivisor() const {
+    return tuneParams.hGemmWmmaNCHW.getRequiredCDivisor();
   }
 
 };
@@ -627,19 +675,9 @@ static void addChannelBiases(ComputeHandleInternal* handle, cl_mem src, cl_mem b
 }
 
 static void addPointWise(ComputeHandleInternal* handle, cl_mem acc, cl_mem value, int totalSize) {
-  cl_kernel kernel = handle->addPointWiseKernel;
-  clSetKernelArg(kernel, 0, sizeof(cl_mem), (const void *)&acc);
-  clSetKernelArg(kernel, 1, sizeof(cl_mem), (const void *)&value);
-  clSetKernelArg(kernel, 2, sizeof(int), (const void *)&totalSize);
-
   cl_int err;
-  static constexpr int nKernelDims = 1;
-  size_t globalSizes[nKernelDims] = {powerOf2ify((size_t)totalSize)};
-  size_t* localSizes = NULL;
   MAYBE_EVENT;
-  err = clEnqueueNDRangeKernel(
-    handle->commandQueue, kernel, nKernelDims, NULL, globalSizes, localSizes, 0, NULL, MAYBE_EVENTREF
-  );
+  err = OpenCLHelpers::doAddPointWise(handle->addPointWiseKernel, handle->commandQueue, acc, value, totalSize, MAYBE_EVENTREF);
   CHECK_ERR(err);
   MAYBE_PROFILE("AddPointWise");
   MAYBE_FREE_EVENT;
@@ -906,6 +944,8 @@ struct ConvLayer {
   const int nnXLen;
   const int nnYLen;
 
+  bool usingHGemmWmmaNHCW; // For 1x1 convs
+
   int numTilesX;
   int numTilesY;
   int inTileXYSize;
@@ -940,6 +980,7 @@ struct ConvLayer {
       throw StringError("OpenCL backend: Encountered convolution dilation factors other than 1, not supported");
 
     //Initial values unless overrided below
+    usingHGemmWmmaNHCW = false;
     numTilesX = 0;
     numTilesY = 0;
     inTileXYSize = 0;
@@ -954,6 +995,11 @@ struct ConvLayer {
         }
       }
       filter = createReadOnlyBuffer(handle,transWeights,useFP16);
+      if(handle->usingFP16TensorCoresFor1x1) {
+        if(inChannels % handle->getHGemmWmmaNCHWRequiredCDivisor() == 0 && outChannels % handle->getHGemmWmmaNCHWRequiredCDivisor() == 0) {
+          usingHGemmWmmaNHCW = true;
+        }
+      }
     }
     else if((convXSize == 3 && convYSize == 3) || (convXSize == 5 && convYSize == 5)) {
       int inTileXSize = convXSize == 3 ? handle->tuneParams.conv3x3.INTILE_XSIZE : handle->tuneParams.conv5x5.INTILE_XSIZE;
@@ -1082,24 +1128,41 @@ struct ConvLayer {
 
   void apply(ComputeHandleInternal* handle, int batchSize, cl_mem input, cl_mem output, cl_mem convWorkspace, cl_mem convWorkspace2) const {
     if(convXSize == 1 && convYSize == 1) {
-      int filterStride = 0; //Reuse same filter for all matrices in batch
-      int inputStride = nnXLen*nnYLen * inChannels;
-      int outputStride = nnXLen*nnYLen * outChannels;
-      cl_int err;
-      MAYBE_EVENT;
-      err = doStridedBatchedXGemmDirect_KM_KN_NM(
-        handle->xgemmDirectStridedBatchedNNKernel,
-        handle->commandQueue,
-        handle->tuneParams,
-        nnXLen*nnYLen, outChannels, inChannels,
-        inputStride, filterStride, outputStride,
-        input, filter, output,
-        batchSize,
-        MAYBE_EVENTREF
-      );
-      CHECK_ERR(err);
-      MAYBE_PROFILE("MATMULCONV1x1");
-      MAYBE_FREE_EVENT;
+      if(!usingHGemmWmmaNHCW) {
+        int filterStride = 0; //Reuse same filter for all matrices in batch
+        int inputStride = nnXLen*nnYLen * inChannels;
+        int outputStride = nnXLen*nnYLen * outChannels;
+        cl_int err;
+        MAYBE_EVENT;
+        err = doStridedBatchedXGemmDirect_KM_KN_NM(
+          handle->xgemmDirectStridedBatchedNNKernel,
+          handle->commandQueue,
+          handle->tuneParams,
+          nnXLen*nnYLen, outChannels, inChannels,
+          inputStride, filterStride, outputStride,
+          input, filter, output,
+          batchSize,
+          MAYBE_EVENTREF
+        );
+        CHECK_ERR(err);
+        MAYBE_PROFILE("MATMULCONV1x1");
+        MAYBE_FREE_EVENT;
+      }
+      else {
+        cl_int err;
+        MAYBE_EVENT;
+        err = doHGemmWmma_NCHW_ICOC(
+          handle->hgemmWmmaNCHWKernel,
+          handle->commandQueue,
+          handle->tuneParams,
+          batchSize, inChannels, nnXLen*nnYLen, outChannels,
+          input, filter, output,
+          MAYBE_EVENTREF
+        );
+        CHECK_ERR(err);
+        MAYBE_PROFILE("HGEMM1x1");
+        MAYBE_FREE_EVENT;
+      }
     }
     else if((convXSize == 3 && convYSize == 3) || (convXSize == 5 && convYSize == 5)) {
 
@@ -1264,8 +1327,8 @@ struct ConvLayer {
           MAYBE_EVENTREF
         );
         CHECK_ERR(err);
-        if(convXSize == 3 && convYSize == 3) { MAYBE_PROFILE("3x3TRANSFORM"); }
-        else { MAYBE_PROFILE("5x5TRANSFORM"); }
+        if(convXSize == 3 && convYSize == 3) { MAYBE_PROFILE("3x3TRANSFORMBNACT"); }
+        else { MAYBE_PROFILE("5x5TRANSFORMBNACT"); }
         MAYBE_FREE_EVENT;
       }
 
@@ -1299,8 +1362,8 @@ struct ConvLayer {
           );
         }
         CHECK_ERR(err);
-        if(convXSize == 3 && convYSize == 3) { MAYBE_PROFILE("MATMULCONV3x3"); }
-        else { MAYBE_PROFILE("MATMULCONV5x5"); }
+        if(convXSize == 3 && convYSize == 3) { MAYBE_PROFILE("MATMULCONV3x3BNACT"); }
+        else { MAYBE_PROFILE("MATMULCONV5x5BNACT"); }
         MAYBE_FREE_EVENT;
       }
 
@@ -1321,8 +1384,8 @@ struct ConvLayer {
           MAYBE_EVENTREF
         );
         CHECK_ERR(err);
-        if(convXSize == 3 && convYSize == 3) { MAYBE_PROFILE("3x3UNTRANSFORM"); }
-        else { MAYBE_PROFILE("5x5UNTRANSFORM"); }
+        if(convXSize == 3 && convYSize == 3) { MAYBE_PROFILE("3x3UNTRANSFORMBNACT"); }
+        else { MAYBE_PROFILE("5x5UNTRANSFORMBNACT"); }
         MAYBE_FREE_EVENT;
       }
 
@@ -2585,7 +2648,8 @@ ComputeHandle* NeuralNet::createComputeHandle(
       "OpenCL backend thread " + Global::intToString(serverThreadIdx) + ":" + deviceStr() +
       " FP16Storage " + Global::boolToString(handle->handle->usingFP16Storage) +
       " FP16Compute " + Global::boolToString(handle->handle->usingFP16Compute) +
-      " FP16TensorCores " + Global::boolToString(handle->handle->usingFP16TensorCores)
+      " FP16TensorCores " + Global::boolToString(handle->handle->usingFP16TensorCores) +
+      " FP16TensorCoresFor1x1 " + Global::boolToString(handle->handle->usingFP16TensorCoresFor1x1)
     );
   }
   return handle;
@@ -2593,6 +2657,15 @@ ComputeHandle* NeuralNet::createComputeHandle(
 
 void NeuralNet::freeComputeHandle(ComputeHandle* handle) {
   delete handle;
+}
+
+bool NeuralNet::isUsingFP16(const ComputeHandle* handle) {
+  return (
+    handle->handle->usingFP16Storage ||
+    handle->handle->usingFP16Compute ||
+    handle->handle->usingFP16TensorCores ||
+    handle->handle->usingFP16TensorCoresFor1x1
+  );
 }
 
 //------------------------------------------------------------------------------

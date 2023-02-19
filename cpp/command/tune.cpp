@@ -22,7 +22,7 @@ int MainCmds::tuner(const vector<string>& args) {
 
   ConfigParser cfg;
   string modelFile;
-  string outputFile;
+  string outputFileFromArg;
   string gpuIdxsStr;
   vector<int> gpuIdxs;
   int nnXLen;
@@ -77,7 +77,7 @@ int MainCmds::tuner(const vector<string>& args) {
     cmd.parseArgs(args);
 
     modelFile = cmd.getModelFile();
-    outputFile = outputFileArg.getValue();
+    outputFileFromArg = outputFileArg.getValue();
     gpuIdxsStr = gpuIdxsArg.getValue();
     nnXLen = nnXLenArg.getValue();
     nnYLen = nnYLenArg.getValue();
@@ -177,9 +177,13 @@ int MainCmds::tuner(const vector<string>& args) {
     alreadyTunedNames.insert(device->info.name);
     cout << "Tuning device " << gpuIdx << ": " << device->info.name << endl;
 
-    if(outputFile == "") {
+    string outputFile;
+    if(outputFileFromArg == "") {
       string dir = OpenCLTuner::defaultDirectory(true,homeDataDirOverride);
       outputFile = dir + "/" + OpenCLTuner::defaultFileName(device->info.name, nnXLen, nnYLen, modelInfo);
+    }
+    else {
+      outputFile = outputFileFromArg;
     }
 
     OpenCLTuneParams initialParams;
@@ -190,13 +194,14 @@ int MainCmds::tuner(const vector<string>& args) {
     }
     catch(const StringError& e) {
       (void)e;
-      cout << "File does not alrady exist or unable to parse parameters in: " + outputFile << endl;
+      cout << "File does not already exist or unable to parse parameters in: " + outputFile << endl;
       cout << "Starting fresh tuning, saving results to " << outputFile << endl;
     }
 
     OpenCLTuneParams results;
     OpenCLTuner::tune(
       initialParams,
+      allDeviceInfos,
       devicesContext,
       gpuIdx,
       batchSize,
@@ -209,6 +214,7 @@ int MainCmds::tuner(const vector<string>& args) {
       modelInfo,
       full,
       winograd3x3TileSize,
+      &logger,
       cout,
       verboseErrors,
       verboseTuner,

@@ -65,10 +65,319 @@ static void runV9Positions(NNEvaluator* nnEval, Logger& logger)
       cout << endl << endl;
     }
 
-
-
     delete bot;
   }
+
+  {
+    cout << "Pruned root values test ==========================================================================" << endl;
+    cout << endl;
+
+    Board board = Board::parseBoard(13,13,R"%%(
+.xoxo.o......
+ooox.oxox....
+ooxxxxxo.x...
+oxxoooxo.....
+ooxo.ooxx.x..
+ooox.........
+xoxx..o.x....
+xx...x.o..x..
+..x..........
+.......o.xx..
+..ox..o...oo.
+.ox.xxxoo....
+.............
+)%%");
+    Player nextPla = P_WHITE;
+    Rules rules = Rules::parseRules("Chinese");
+    BoardHistory hist(board,nextPla,rules,0);
+
+    {
+      SearchParams params = SearchParams::forTestsV2();
+      params.maxVisits = 600;
+      params.rootFpuReductionMax = 0;
+      AsyncBot* bot = new AsyncBot(params, nnEval, &logger, getSearchRandSeed());
+      TestSearchOptions opts;
+      opts.printPlaySelectionValues = true;
+      opts.printRootValues = true;
+      opts.printPrunedRootValues = true;
+      runBotOnPosition(bot, board, nextPla, hist, opts);
+      delete bot;
+    }
+    {
+      SearchParams params = SearchParams::forTestsV2();
+      params.maxVisits = 600;
+      params.rootNoiseEnabled = true;
+      params.rootFpuReductionMax = 0;
+      AsyncBot* bot = new AsyncBot(params, nnEval, &logger, getSearchRandSeed());
+      TestSearchOptions opts;
+      opts.printPlaySelectionValues = true;
+      opts.printRootValues = true;
+      opts.printPrunedRootValues = true;
+      runBotOnPosition(bot, board, nextPla, hist, opts);
+      delete bot;
+    }
+
+  }
+
+  {
+    cout << "Conservative passing with pass as hint loc ==========================================================================" << endl;
+    cout << endl;
+
+    Board board = Board::parseBoard(9,9,R"%%(
+.ox.xo.xx
+oxx.xooo.
+.xo.x.xoo
+xxo...xxx
+xxxx.....
+ooox..xx.
+.xox.xxoo
+o.ox..oox
+.oxx..ox.
+)%%");
+    Player nextPla = P_WHITE;
+
+    {
+      Rules rules = Rules::parseRules("Chinese");
+      BoardHistory hist(board,nextPla,rules,0);
+
+      SearchParams params = SearchParams::forTestsV2();
+      params.maxVisits = 75;
+      params.rootFpuReductionMax = 0;
+      params.conservativePass = false;
+      AsyncBot* bot = new AsyncBot(params, nnEval, &logger, getSearchRandSeed());
+      TestSearchOptions opts;
+      opts.numMovesInARow = 25;
+      opts.rootHintLoc = Board::PASS_LOC;
+      cout << "Conservative pass false" << endl;
+      runBotOnPosition(bot, board, nextPla, hist, opts);
+      delete bot;
+    }
+
+    {
+      Rules rules = Rules::parseRules("Chinese");
+      BoardHistory hist(board,nextPla,rules,0);
+
+      SearchParams params = SearchParams::forTestsV2();
+      params.maxVisits = 75;
+      params.rootFpuReductionMax = 0;
+      params.conservativePass = true;
+      AsyncBot* bot = new AsyncBot(params, nnEval, &logger, getSearchRandSeed());
+      TestSearchOptions opts;
+      opts.numMovesInARow = 25;
+      opts.rootHintLoc = Board::PASS_LOC;
+      cout << "Conservative pass true" << endl;
+      runBotOnPosition(bot, board, nextPla, hist, opts);
+      delete bot;
+    }
+
+    {
+      Rules rules = Rules::parseRules("Japanese");
+      BoardHistory hist(board,nextPla,rules,0);
+
+      SearchParams params = SearchParams::forTestsV2();
+      params.maxVisits = 75;
+      params.rootFpuReductionMax = 0;
+      params.conservativePass = false;
+      AsyncBot* bot = new AsyncBot(params, nnEval, &logger, getSearchRandSeed());
+      TestSearchOptions opts;
+      opts.numMovesInARow = 25;
+      opts.rootHintLoc = Board::PASS_LOC;
+      cout << "Conservative pass false jp rules" << endl;
+      runBotOnPosition(bot, board, nextPla, hist, opts);
+      delete bot;
+    }
+
+    {
+      Rules rules = Rules::parseRules("Japanese");
+      BoardHistory hist(board,nextPla,rules,0);
+
+      SearchParams params = SearchParams::forTestsV2();
+      params.maxVisits = 75;
+      params.rootFpuReductionMax = 0;
+      params.conservativePass = true;
+      AsyncBot* bot = new AsyncBot(params, nnEval, &logger, getSearchRandSeed());
+      TestSearchOptions opts;
+      opts.numMovesInARow = 25;
+      opts.rootHintLoc = Board::PASS_LOC;
+      cout << "Conservative pass true jp rules" << endl;
+      runBotOnPosition(bot, board, nextPla, hist, opts);
+      delete bot;
+    }
+
+  }
+
+  {
+    cout << "Phase change truncating ladder history in spight rules ==========================================================================" << endl;
+    cout << endl;
+
+    auto printLadderFeaturesV7 = [](const Board& board, const BoardHistory& hist, bool conservativePass) {
+      int nnXLen = 7;
+      int nnYLen = 7;
+      bool inputsUseNHWC = false;
+      float* rowBin = new float[NNInputs::NUM_FEATURES_SPATIAL_V7 * nnXLen * nnYLen];
+      float* rowGlobal = new float[NNInputs::NUM_FEATURES_GLOBAL_V7];
+
+      MiscNNInputParams nnInputParams;
+      nnInputParams.drawEquivalentWinsForWhite = 0.5;
+      nnInputParams.conservativePassAndIsRoot = conservativePass;
+      NNInputs::fillRowV7(board,hist,hist.presumedNextMovePla,nnInputParams,nnXLen,nnYLen,inputsUseNHWC,rowBin,rowGlobal);
+
+      cout << "Ladder feature 14" << endl;
+      for(int y = 0; y<nnYLen; y++) {
+        for(int x = 0; x<nnXLen; x++) {
+          cout << rowBin[14 * nnXLen * nnYLen + y * nnXLen + x] << " ";
+        }
+        cout << endl;
+      }
+      cout << "Ladder feature 15" << endl;
+      for(int y = 0; y<nnYLen; y++) {
+        for(int x = 0; x<nnXLen; x++) {
+          cout << rowBin[15 * nnXLen * nnYLen + y * nnXLen + x] << " ";
+        }
+        cout << endl;
+      }
+      cout << "Ladder feature 16" << endl;
+      for(int y = 0; y<nnYLen; y++) {
+        for(int x = 0; x<nnXLen; x++) {
+          cout << rowBin[16 * nnXLen * nnYLen + y * nnXLen + x] << " ";
+        }
+        cout << endl;
+      }
+      delete[] rowBin;
+      delete[] rowGlobal;
+    };
+
+    Board board = Board::parseBoard(7,7,R"%%(
+....xo.
+....xo.
+....xo.
+....xoo
+.xxxxo.
+.xoooox
+.xo.xx.
+)%%");
+    Player nextPla = P_BLACK;
+
+    {
+      Rules rules = Rules::parseRules("Japanese");
+      rules.koRule = Rules::KO_SPIGHT;
+      BoardHistory hist(board,nextPla,rules,0);
+      hist.makeBoardMoveAssumeLegal(board,Location::ofString("G3",board),P_BLACK,NULL);
+      hist.makeBoardMoveAssumeLegal(board,Location::ofString("G1",board),P_WHITE,NULL);
+      hist.makeBoardMoveAssumeLegal(board,Location::ofString("G2",board),P_BLACK,NULL);
+      hist.makeBoardMoveAssumeLegal(board,Location::ofString("pass",board),P_WHITE,NULL);
+      hist.makeBoardMoveAssumeLegal(board,Location::ofString("G3",board),P_BLACK,NULL);
+      hist.makeBoardMoveAssumeLegal(board,Location::ofString("G1",board),P_WHITE,NULL);
+      hist.makeBoardMoveAssumeLegal(board,Location::ofString("G2",board),P_BLACK,NULL);
+      hist.makeBoardMoveAssumeLegal(board,Location::ofString("pass",board),P_WHITE,NULL);
+
+      SearchParams params = SearchParams::forTestsV2();
+      params.maxVisits = 100;
+      params.rootFpuReductionMax = 0;
+      params.conservativePass = false;
+      AsyncBot* bot = new AsyncBot(params, nnEval, &logger, getSearchRandSeed());
+      TestSearchOptions opts;
+      cout << "Conservative pass false" << endl;
+      runBotOnPosition(bot, board, nextPla, hist, opts);
+      printLadderFeaturesV7(board, hist, false);
+      delete bot;
+    }
+    {
+      Rules rules = Rules::parseRules("Japanese");
+      rules.koRule = Rules::KO_SPIGHT;
+      BoardHistory hist(board,nextPla,rules,0);
+      hist.makeBoardMoveAssumeLegal(board,Location::ofString("G3",board),P_BLACK,NULL);
+      hist.makeBoardMoveAssumeLegal(board,Location::ofString("G1",board),P_WHITE,NULL);
+      hist.makeBoardMoveAssumeLegal(board,Location::ofString("G2",board),P_BLACK,NULL);
+      hist.makeBoardMoveAssumeLegal(board,Location::ofString("pass",board),P_WHITE,NULL);
+      hist.makeBoardMoveAssumeLegal(board,Location::ofString("G3",board),P_BLACK,NULL);
+      hist.makeBoardMoveAssumeLegal(board,Location::ofString("G1",board),P_WHITE,NULL);
+      hist.makeBoardMoveAssumeLegal(board,Location::ofString("G2",board),P_BLACK,NULL);
+      hist.makeBoardMoveAssumeLegal(board,Location::ofString("pass",board),P_WHITE,NULL);
+
+      SearchParams params = SearchParams::forTestsV2();
+      params.maxVisits = 100;
+      params.rootFpuReductionMax = 0;
+      params.conservativePass = true;
+      AsyncBot* bot = new AsyncBot(params, nnEval, &logger, getSearchRandSeed());
+      TestSearchOptions opts;
+      cout << "Conservative pass false" << endl;
+      runBotOnPosition(bot, board, nextPla, hist, opts);
+      printLadderFeaturesV7(board, hist, true);
+      delete bot;
+    }
+  }
+
+  {
+    cout << "Passing details ==========================================================================" << endl;
+    cout << endl;
+
+    Board board = Board::parseBoard(8,8,R"%%(
+..ooo...
+x.ox.xx.
+ooox.x..
+.xx..xxo
+..xxxoo.
+xxxooo..
+xoo.....
+.o.o....
+)%%");
+    Player nextPla = P_BLACK;
+
+    {
+      cout << "Area scoring no friendly pass ok" << endl;
+      Rules rules = Rules::parseRules("Chinese");
+      rules.friendlyPassOk = false;
+      BoardHistory hist(board,nextPla,rules,0);
+
+      SearchParams params = SearchParams::forTestsV2();
+      params.maxVisits = 50;
+      params.rootFpuReductionMax = 0;
+      AsyncBot* bot = new AsyncBot(params, nnEval, &logger, getSearchRandSeed());
+      TestSearchOptions opts;
+      opts.rootHintLoc = Board::PASS_LOC;
+      opts.printMore = true;
+      runBotOnPosition(bot, board, nextPla, hist, opts);
+      delete bot;
+    }
+
+    {
+      cout << "Area scoring yes friendly pass ok" << endl;
+      Rules rules = Rules::parseRules("Chinese");
+      rules.friendlyPassOk = true;
+      BoardHistory hist(board,nextPla,rules,0);
+
+      SearchParams params = SearchParams::forTestsV2();
+      params.maxVisits = 50;
+      params.rootFpuReductionMax = 0;
+      AsyncBot* bot = new AsyncBot(params, nnEval, &logger, getSearchRandSeed());
+      TestSearchOptions opts;
+      opts.rootHintLoc = Board::PASS_LOC;
+      opts.printMore = true;
+      runBotOnPosition(bot, board, nextPla, hist, opts);
+      delete bot;
+    }
+
+    {
+      cout << "Area scoring no friendly pass ok but pass hacks" << endl;
+      Rules rules = Rules::parseRules("Chinese");
+      rules.friendlyPassOk = false;
+      BoardHistory hist(board,nextPla,rules,0);
+
+      SearchParams params = SearchParams::forTestsV2();
+      params.maxVisits = 50;
+      params.rootFpuReductionMax = 0;
+      params.enablePassingHacks = true;
+      AsyncBot* bot = new AsyncBot(params, nnEval, &logger, getSearchRandSeed());
+      TestSearchOptions opts;
+      opts.rootHintLoc = Board::PASS_LOC;
+      opts.printMore = true;
+      runBotOnPosition(bot, board, nextPla, hist, opts);
+      delete bot;
+    }
+
+  }
+
 }
 
 void Tests::runSearchTestsV9(const string& modelFile, bool inputsNHWC, bool useNHWC, bool useFP16) {

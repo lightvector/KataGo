@@ -632,7 +632,7 @@ Last moves
       Sgf* sgf = Sgf::parse(sgfStr);
       std::set<Hash128> uniqueHashes;
       vector<Sgf::PositionSample> samples;
-      sgf->loadAllUniquePositions(uniqueHashes, false, false, false, NULL, samples);
+      sgf->loadAllUniquePositions(uniqueHashes, false, false, false, false, NULL, samples);
       for(int i = 0; i<samples.size(); i++) {
         out << Sgf::PositionSample::toJsonLine(samples[i]) << endl;
         Sgf::PositionSample reloaded = Sgf::PositionSample::ofJsonLine(Sgf::PositionSample::toJsonLine(samples[i]));
@@ -723,7 +723,7 @@ Last moves C3 C4 B4 D3 D4 C2 B3
       Sgf* sgf = Sgf::parse(sgfStr);
       std::set<Hash128> uniqueHashes;
       vector<Sgf::PositionSample> samples;
-      sgf->loadAllUniquePositions(uniqueHashes, false, false, false, NULL, samples);
+      sgf->loadAllUniquePositions(uniqueHashes, false, false, false, false, NULL, samples);
       for(int i = 0; i<samples.size(); i++) {
         out << Sgf::PositionSample::toJsonLine(samples[i]) << endl;
         Sgf::PositionSample reloaded = Sgf::PositionSample::ofJsonLine(Sgf::PositionSample::toJsonLine(samples[i]));
@@ -955,7 +955,7 @@ Last moves D34 AJ34 AJ4 D4 D5 E5 E6 AH34 AH33 AJ33 E33 AH5 T19
       Sgf* sgf = Sgf::parse(sgfStr);
       std::set<Hash128> uniqueHashes;
       vector<Sgf::PositionSample> samples;
-      sgf->loadAllUniquePositions(uniqueHashes, false, false, false, NULL, samples);
+      sgf->loadAllUniquePositions(uniqueHashes, false, false, false, false, NULL, samples);
       for(int i = 0; i<samples.size(); i++) {
         samples[i].weight = i * 0.5;
         Sgf::PositionSample reloaded = Sgf::PositionSample::ofJsonLine(Sgf::PositionSample::toJsonLine(samples[i]));
@@ -976,7 +976,7 @@ Last moves D34 AJ34 AJ4 D4 D5 E5 E6 AH34 AH33 AJ33 E33 AH5 T19
       Sgf* sgf = Sgf::parse(sgfStr);
       std::set<Hash128> uniqueHashes;
       vector<Sgf::PositionSample> samples;
-      sgf->loadAllUniquePositions(uniqueHashes, false, false, true, NULL, samples);
+      sgf->loadAllUniquePositions(uniqueHashes, false, false, true, false, NULL, samples);
       for(int i = 0; i<samples.size(); i++) {
         out << Sgf::PositionSample::toJsonLine(samples[i]) << endl;
         Sgf::PositionSample reloaded = Sgf::PositionSample::ofJsonLine(Sgf::PositionSample::toJsonLine(samples[i]));
@@ -1009,7 +1009,7 @@ Last moves D34 AJ34 AJ4 D4 D5 E5 E6 AH34 AH33 AJ33 E33 AH5 T19
       Sgf* sgf = Sgf::parse(sgfStr);
       std::set<Hash128> uniqueHashes;
       vector<Sgf::PositionSample> samples;
-      sgf->loadAllUniquePositions(uniqueHashes, false, false, true, NULL, samples);
+      sgf->loadAllUniquePositions(uniqueHashes, false, false, true, false, NULL, samples);
       for(int i = 0; i<samples.size(); i++) {
         out << Sgf::PositionSample::toJsonLine(samples[i]) << endl;
         Sgf::PositionSample reloaded = Sgf::PositionSample::ofJsonLine(Sgf::PositionSample::toJsonLine(samples[i]));
@@ -1044,7 +1044,7 @@ Last moves D34 AJ34 AJ4 D4 D5 E5 E6 AH34 AH33 AJ33 E33 AH5 T19
       Sgf* sgf = Sgf::parse(sgfStr);
       std::set<Hash128> uniqueHashes;
       vector<Sgf::PositionSample> samples;
-      sgf->loadAllUniquePositions(uniqueHashes, false, false, true, NULL, samples);
+      sgf->loadAllUniquePositions(uniqueHashes, false, false, true, false, NULL, samples);
       for(int i = 0; i<samples.size(); i++) {
         out << Sgf::PositionSample::toJsonLine(samples[i]) << endl;
         Sgf::PositionSample reloaded = Sgf::PositionSample::ofJsonLine(Sgf::PositionSample::toJsonLine(samples[i]));

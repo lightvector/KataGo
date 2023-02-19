@@ -147,6 +147,10 @@ void GameInitializer::initShared(ConfigParser& cfg, Logger& logger) {
   handicapCompensateKomiProb = cfg.contains("handicapCompensateKomiProb") ? cfg.getDouble("handicapCompensateKomiProb",0.0,1.0) : 0.0;
   komiBigStdevProb = cfg.contains("komiBigStdevProb") ? cfg.getDouble("komiBigStdevProb",0.0,1.0) : 0.0;
   komiBigStdev = cfg.contains("komiBigStdev") ? cfg.getFloat("komiBigStdev",0.0f,60.0f) : 10.0f;
+  komiBiggerStdevProb = cfg.contains("komiBiggerStdevProb") ? cfg.getDouble("komiBiggerStdevProb",0.0,1.0) : 0.0;
+  komiBiggerStdev = cfg.contains("komiBiggerStdev") ? cfg.getFloat("komiBiggerStdev",0.0f,120.0f) : 30.0f;
+  handicapKomiInterpZeroProb = cfg.contains("handicapKomiInterpZeroProb") ? cfg.getDouble("handicapKomiInterpZeroProb",0.0,1.0) : 0.0;
+  sgfKomiInterpZeroProb = cfg.contains("sgfKomiInterpZeroProb") ? cfg.getDouble("sgfKomiInterpZeroProb",0.0,1.0) : 0.0;
   komiAuto = cfg.contains("komiAuto") ? cfg.getBool("komiAuto") : false;
 
   forkCompensateKomiProb = cfg.contains("forkCompensateKomiProb") ? cfg.getDouble("forkCompensateKomiProb",0.0,1.0) : handicapCompensateKomiProb;
@@ -223,7 +227,8 @@ void GameInitializer::initShared(ConfigParser& cfg, Logger& logger) {
           bool hashComments = false;
           bool hashParent = false;
           bool flipIfPassOrWFirst = true;
-          sgf->iterAllUniquePositions(uniqueHashes, hashComments, hashParent, flipIfPassOrWFirst, NULL, posHandler);
+          bool allowGameOver = false;
+          sgf->iterAllUniquePositions(uniqueHashes, hashComments, hashParent, flipIfPassOrWFirst, allowGameOver, NULL, posHandler);
         }
       }
       catch(const StringError& e) {
@@ -445,19 +450,22 @@ void GameInitializer::createGameSharedUnsynchronized(
     extraBlackAndKomi = PlayUtils::chooseExtraBlackAndKomi(
       hist.rules.komi, komiStdev, komiAllowIntegerProb,
       thisHandicapProb, numExtraBlackFixed,
-      komiBigStdevProb, komiBigStdev, sqrt(board.x_size*board.y_size), rand
+      komiBigStdevProb, komiBigStdev,
+      komiBiggerStdevProb, komiBiggerStdev,
+      sqrt(board.x_size*board.y_size), rand
     );
     assert(extraBlackAndKomi.extraBlack == 0);
     PlayUtils::setKomiWithNoise(extraBlackAndKomi, hist, rand);
     otherGameProps.isSgfPos = false;
     otherGameProps.isHintPos = false;
-    otherGameProps.allowPolicyInit = false; //On initial positions, don't play extra moves at start
+    otherGameProps.allowPolicyInit = false; //On fork positions, don't play extra moves at start
     otherGameProps.isFork = true;
     otherGameProps.isHintFork = initialPosition->isHintFork;
     otherGameProps.hintLoc = Board::NULL_LOC;
     otherGameProps.hintTurn = initialPosition->isHintFork ? (int)hist.moveHistory.size() : -1;
     extraBlackAndKomi.makeGameFair = rand.nextBool(forkCompensateKomiProb);
     extraBlackAndKomi.makeGameFairForEmptyBoard = false;
+    extraBlackAndKomi.interpZero = false;
     return;
   }
 
@@ -513,7 +521,9 @@ void GameInitializer::createGameSharedUnsynchronized(
     extraBlackAndKomi = PlayUtils::chooseExtraBlackAndKomi(
       komiMean, komiStdev, komiAllowIntegerProb,
       thisHandicapProb, numExtraBlackFixed,
-      komiBigStdevProb, komiBigStdev, sqrt(board.x_size*board.y_size), rand
+      komiBigStdevProb, komiBigStdev,
+      komiBiggerStdevProb, komiBiggerStdev,
+      sqrt(board.x_size*board.y_size), rand
     );
     PlayUtils::setKomiWithNoise(extraBlackAndKomi, hist, rand);
 
@@ -526,6 +536,7 @@ void GameInitializer::createGameSharedUnsynchronized(
     otherGameProps.hintTurn = (int)hist.moveHistory.size();
     otherGameProps.hintPosHash = board.pos_hash;
     makeGameFairProb = sgfCompensateKomiProb;
+    extraBlackAndKomi.interpZero = sgfKomiInterpZeroProb > 0 ? rand.nextBool(sgfKomiInterpZeroProb) : false;
   }
   else {
     int xSize = allowedBSizes[xSizeIdx];
@@ -537,7 +548,9 @@ void GameInitializer::createGameSharedUnsynchronized(
     extraBlackAndKomi = PlayUtils::chooseExtraBlackAndKomi(
       komiMean, komiStdev, komiAllowIntegerProb,
       handicapProb, numExtraBlackFixed,
-      komiBigStdevProb, komiBigStdev, sqrt(board.x_size*board.y_size), rand
+      komiBigStdevProb, komiBigStdev,
+      komiBiggerStdevProb, komiBiggerStdev,
+      sqrt(board.x_size*board.y_size), rand
     );
     PlayUtils::setKomiWithNoise(extraBlackAndKomi, hist, rand);
 
@@ -549,6 +562,7 @@ void GameInitializer::createGameSharedUnsynchronized(
     otherGameProps.hintLoc = Board::NULL_LOC;
     otherGameProps.hintTurn = -1;
     makeGameFairProb = extraBlackAndKomi.extraBlack > 0 ? handicapCompensateKomiProb : 0.0;
+    extraBlackAndKomi.interpZero = (handicapKomiInterpZeroProb > 0 && extraBlackAndKomi.extraBlack > 0) ? rand.nextBool(handicapKomiInterpZeroProb) : false;
   }
 
   double asymmetricProb = (extraBlackAndKomi.extraBlack > 0) ? playSettings.handicapAsymmetricPlayoutProb : playSettings.normalAsymmetricPlayoutProb;
@@ -651,6 +665,33 @@ MatchPairer::MatchPairer(
   if(cfg.contains("matchRepFactor"))
     matchRepFactor = cfg.getInt("matchRepFactor",1,100000);
 
+  if(cfg.contains("extraPairs")) {
+    string pairsStr = cfg.getString("extraPairs");
+    std::vector<string> pairStrs = Global::split(pairsStr,',');
+    for(const string& pairStr: pairStrs) {
+      if(Global::trim(pairStr).size() <= 0)
+        continue;
+      std::vector<string> pieces = Global::split(Global::trim(pairStr),'-');
+      if(pieces.size() != 2) {
+        throw IOError("Could not parse pair: " + pairStr);
+      }
+      bool suc;
+      int p0;
+      int p1;
+      suc = Global::tryStringToInt(pieces[0],p0);
+      if(!suc)
+        throw IOError("Could not parse pair: " + pairStr);
+      suc = Global::tryStringToInt(pieces[1],p1);
+      if(!suc)
+        throw IOError("Could not parse pair: " + pairStr);
+      if(p0 < 0 || p0 >= nBots)
+        throw IOError("Invalid player index in pair: " + pairStr);
+      if(p1 < 0 || p1 >= nBots)
+        throw IOError("Invalid player index in pair: " + pairStr);
+      extraPairs.push_back(std::make_pair(p0,p1));
+    }
+  }
+
   logGamesEvery = cfg.getInt64("logGamesEvery",1,1000000);
 }
 
@@ -723,6 +764,9 @@ pair<int,int> MatchPairer::getMatchupPairUnsynchronized() {
           nextMatchupsBuf.push_back(make_pair(i,j));
         }
       }
+    }
+    for(const std::pair<int,int>& extraPair: extraPairs) {
+      nextMatchupsBuf.push_back(extraPair);
     }
 
     if(nextMatchupsBuf.size() <= 0)
@@ -1309,10 +1353,13 @@ FinishedGameData* Play::runGame(
 
   if(extraBlackAndKomi.makeGameFairForEmptyBoard) {
     Board b(startBoard.x_size,startBoard.y_size);
-    BoardHistory h(b,pla,startHist.rules,startHist.encorePhase);
+    Player makeFairPla = P_BLACK;
+    if(playSettings.flipKomiProbWhenNoCompensate != 0.0 && gameRand.nextBool(playSettings.flipKomiProbWhenNoCompensate))
+      makeFairPla = P_WHITE;
+    BoardHistory h(b,makeFairPla,startHist.rules,startHist.encorePhase);
     //Restore baseline on empty hist, adjust empty hist to fair, then apply to real history.
     PlayUtils::setKomiWithoutNoise(extraBlackAndKomi,h);
-    PlayUtils::adjustKomiToEven(botB,botW,b,h,pla,playSettings.compensateKomiVisits,otherGameProps,gameRand);
+    PlayUtils::adjustKomiToEven(botB,botW,b,h,makeFairPla,playSettings.compensateKomiVisits,otherGameProps,gameRand);
     extraBlackAndKomi.komiMean = h.rules.komi;
     PlayUtils::setKomiWithNoise(extraBlackAndKomi,hist,gameRand);
   }

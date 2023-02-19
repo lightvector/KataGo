@@ -4,7 +4,8 @@ PlaySettings::PlaySettings()
   :initGamesWithPolicy(false),policyInitAreaProp(0.0),startPosesPolicyInitAreaProp(0.0),
    compensateAfterPolicyInitProb(0.0),sidePositionProb(0.0),
    policyInitAreaTemperature(1.0),handicapTemperature(1.0),
-   compensateKomiVisits(20),estimateLeadVisits(10),estimateLeadProb(0.0),
+   compensateKomiVisits(20),flipKomiProbWhenNoCompensate(0.0),
+   estimateLeadVisits(10),estimateLeadProb(0.0),
    earlyForkGameProb(0.0),earlyForkGameExpectedMoveProp(0.0),forkGameProb(0.0),forkGameMinChoices(1),earlyForkGameMaxChoices(1),forkGameMaxChoices(1),
    sekiForkHackProb(0.0),fancyKomiVarying(false),
    cheapSearchProb(0),cheapSearchVisits(0),cheapSearchTargetWeight(0.0f),
@@ -46,7 +47,7 @@ PlaySettings PlaySettings::loadForGatekeeper(ConfigParser& cfg) {
   return playSettings;
 }
 
-PlaySettings PlaySettings::loadForSelfplay(ConfigParser& cfg) {
+PlaySettings PlaySettings::loadForSelfplay(ConfigParser& cfg, bool isDistributed) {
   PlaySettings playSettings;
   playSettings.initGamesWithPolicy = cfg.getBool("initGamesWithPolicy");
   playSettings.policyInitAreaProp = cfg.contains("policyInitAreaProp") ? cfg.getDouble("policyInitAreaProp",0.0,1.0) : 0.04;
@@ -61,6 +62,11 @@ PlaySettings PlaySettings::loadForSelfplay(ConfigParser& cfg) {
   playSettings.handicapTemperature = cfg.contains("handicapTemperature") ? cfg.getDouble("handicapTemperature",0.1,5.0) : 1.0;
 
   playSettings.compensateKomiVisits = cfg.contains("compensateKomiVisits") ? cfg.getInt("compensateKomiVisits",1,10000) : 20;
+  // Go ahead and use a different default for distributed, so we don't have to wait for all users to switch to set a config line for it
+  if(isDistributed)
+    playSettings.flipKomiProbWhenNoCompensate = cfg.contains("flipKomiProbWhenNoCompensate") ? cfg.getDouble("flipKomiProbWhenNoCompensate",0.0,1.0) : 0.25;
+  else
+    playSettings.flipKomiProbWhenNoCompensate = cfg.contains("flipKomiProbWhenNoCompensate") ? cfg.getDouble("flipKomiProbWhenNoCompensate",0.0,1.0) : 0.0;
   playSettings.estimateLeadVisits = cfg.contains("estimateLeadVisits") ? cfg.getInt("estimateLeadVisits",1,10000) : 6;
   playSettings.estimateLeadProb = cfg.contains("estimateLeadProb") ? cfg.getDouble("estimateLeadProb",0.0,1.0) : 0.0;
   playSettings.fancyKomiVarying = cfg.contains("fancyKomiVarying") ? cfg.getBool("fancyKomiVarying") : false;

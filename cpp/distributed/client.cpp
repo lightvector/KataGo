@@ -768,10 +768,11 @@ bool Connection::getNextTask(
       ConfigParser taskCfg(taskCfgIn);
       SearchParams baseParams = Setup::loadSingleParams(taskCfg,Setup::SETUP_FOR_DISTRIBUTED);
       PlaySettings playSettings;
+      const bool isDistributed = true;
       if(task.isRatingGame)
         playSettings = PlaySettings::loadForGatekeeper(taskCfg);
       else
-        playSettings = PlaySettings::loadForSelfplay(taskCfg);
+        playSettings = PlaySettings::loadForSelfplay(taskCfg, isDistributed);
       (void)baseParams;
       (void)playSettings;
     }
@@ -1043,7 +1044,8 @@ static string getGameTypeStr(const FinishedGameData* gameData) {
 }
 
 bool Connection::uploadTrainingGameAndData(
-  const Task& task, const FinishedGameData* gameData, const string& sgfFilePath, const string& npzFilePath, const int64_t numDataRows,
+  const Task& task, const FinishedGameData* gameData, const Sgf::PositionSample* posSample,
+  const string& sgfFilePath, const string& npzFilePath, const int64_t numDataRows,
   bool retryOnFailure, std::function<bool()> shouldStop
 ) {
   ifstream sgfIn;
@@ -1070,6 +1072,8 @@ bool Connection::uploadTrainingGameAndData(
     extraMetadata["playout_doubling_advantage"] = gameData->playoutDoublingAdvantage;
     extraMetadata["playout_doubling_advantage_pla"] = PlayerIO::playerToString(gameData->playoutDoublingAdvantagePla);
     extraMetadata["draw_equivalent_wins_for_white"] = gameData->drawEquivalentWinsForWhite;
+    if(posSample != NULL && posSample->metadata.size() > 0)
+      extraMetadata["pos_metadata"] = posSample->metadata;
     string gametype = getGameTypeStr(gameData);
     string winner = gameData->endHist.winner == P_WHITE ? "W" : gameData->endHist.winner == P_BLACK ? "B" : gameData->endHist.isNoResult ? "-" : "0";
     double score = gameData->endHist.finalWhiteMinusBlackScore;

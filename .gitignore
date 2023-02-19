@@ -28,12 +28,13 @@ cpp/runmatchauto.sh
 cpp/runstuff.sh
 cpp/runwrite.sh
 cpp/tests/scratch
-
 cpp/program/gitinfo.h
+
 
 cpp/data/
 versions/
 cpp/build
+cpp/out
 
 export_model_cuda.sh
 mixmodels.sh
@@ -55,6 +56,10 @@ out.txt
 
 # For vscode
 .vscode
+
+# For VS
+.vs
+cpp/CMakeSettings.json
 
 # For cmake
 CMakeCache.txt

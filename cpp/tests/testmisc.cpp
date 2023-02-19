@@ -17,6 +17,7 @@ void Tests::runCollectFilesTests() {
     vector<string> collected;
     cout << "Collecting sgfs from tests" << endl;
     FileHelpers::collectSgfsFromDir("tests", collected);
+    std::sort(collected.begin(),collected.end());
     for(const string& s: collected) {
       cout << s << endl;
     }
@@ -25,6 +26,7 @@ void Tests::runCollectFilesTests() {
     vector<string> collected;
     cout << "Collecting cfgs from tests" << endl;
     FileUtils::collectFiles("tests", [](const std::string& s) {return Global::isSuffix(s,".cfg");}, collected);
+    std::sort(collected.begin(),collected.end());
     for(const string& s: collected) {
       cout << s << endl;
     }

@@ -24,7 +24,7 @@ parser.add_argument('-model-name', help='model name', required=True)
 parser.add_argument('-model-file', help='model file for kg engine alone', required=True)
 parser.add_argument('-model-zip', help='zipped model file with tf weights', required=True)
 parser.add_argument('-upload-log-file', help='log upload data to this file', required=True)
-parser.add_argument('-trainhistory-file', help='trainhistory.json file for recording some stats', required=False)
+parser.add_argument('-metadata-file', help='metadata.json file for recording some stats', required=False)
 parser.add_argument('-parents-dir', help='dir with uploaded models dirs for finding parent', required=False)
 parser.add_argument('-connection-config', help='config with serverUrl and username and password', required=True)
 parser.add_argument('-not-enabled', help='upload model where it is not enabled for train/rating to begin with', required=False, action='store_true')
@@ -37,7 +37,7 @@ model_name = args["model_name"]
 model_file = args["model_file"]
 model_zip = args["model_zip"]
 upload_log_file = args["upload_log_file"]
-trainhistory_file = args["trainhistory_file"]
+metadata_file = args["metadata_file"]
 parents_dir = args["parents_dir"]
 connection_config_file = args["connection_config"]
 not_enabled = args["not_enabled"]
@@ -78,7 +78,7 @@ log("model_name" + ": " + model_name)
 log("model_file" + ": " + model_file)
 log("model_zip" + ": " + model_zip)
 log("parents_dir" + ": " + str(parents_dir))
-log("trainhistory_file" + ": " + str(trainhistory_file))
+log("metadata_file" + ": " + str(metadata_file))
 log("username" + ": " + username)
 log("base_server_url" + ": " + base_server_url)
 
@@ -105,10 +105,10 @@ parent_network_name_without_run = None
 if len(possible_parents) > 0:
   parent_network_name_without_run = possible_parents[-1][0]
 
-trainhistory = None
-if trainhistory_file is not None:
-  with open(trainhistory_file) as f:
-    trainhistory = json.load(f)
+metadata = None
+if metadata_file is not None:
+  with open(metadata_file) as f:
+    metadata = json.load(f)
 
 with open(model_file,"rb") as f:
   model_file_contents = f.read()
@@ -141,13 +141,13 @@ with open(model_file,"rb") as model_file_handle:
     if notes is not None:
       data["notes"] = (None, notes)
 
-    if trainhistory is not None:
-      if "train_step" in trainhistory:
-        data["train_step"] = (None, trainhistory["train_step"])
-      if "total_num_data_rows" in trainhistory:
-        data["total_num_data_rows"] = (None, trainhistory["total_num_data_rows"])
-      if "extra_stats" in trainhistory:
-        data["extra_stats"] = (None, json.dumps(trainhistory["extra_stats"]))
+    if metadata is not None:
+      if "global_step_samples" in metadata:
+        data["global_step_samples"] = (None, metadata["global_step_samples"])
+      if "total_num_data_rows" in metadata:
+        data["total_num_data_rows"] = (None, metadata["total_num_data_rows"])
+      if "extra_stats" in metadata:
+        data["extra_stats"] = (None, json.dumps(metadata["extra_stats"]))
 
     # print(requests.Request('POST', base_server_url, files=data).prepare().body)
 

@@ -23,11 +23,11 @@ HASH: CB68B3094EEB7B7B88E4579363578B4B
 Win 55.98c
 Loss 44.02c
 NoResult 0.00c
-ScoreMean 1.7
+ScoreMean 1.72
 ScoreMeanSq 230.3
-Lead 1.7
+Lead 1.72
 VarTimeLeft -1.0
-STWinlossError -1.0
+STWinlossError -1.000
 STScoreError -1.0
 Policy
    0    0    0    0    0    0    0    0    0 
@@ -80,11 +80,11 @@ HASH: CB68B3094EEB7B7B88E4579363578B4B
 Win 53.17c
 Loss 46.83c
 NoResult 0.00c
-ScoreMean 1.0
+ScoreMean 1.00
 ScoreMeanSq 212.8
-Lead 1.0
+Lead 1.00
 VarTimeLeft -1.0
-STWinlossError -1.0
+STWinlossError -1.000
 STScoreError -1.0
 Policy
    0    0    0    0    0    0    0    0    0 
@@ -137,11 +137,11 @@ HASH: CB68B3094EEB7B7B88E4579363578B4B
 Win 53.15c
 Loss 46.85c
 NoResult 0.00c
-ScoreMean 1.3
+ScoreMean 1.34
 ScoreMeanSq 212.1
-Lead 1.3
+Lead 1.34
 VarTimeLeft -1.0
-STWinlossError -1.0
+STWinlossError -1.000
 STScoreError -1.0
 Policy
    0    0    0    0    0    0    0    0    0 
@@ -194,11 +194,11 @@ HASH: CB68B3094EEB7B7B88E4579363578B4B
 Win 54.23c
 Loss 45.77c
 NoResult 0.00c
-ScoreMean 1.4
+ScoreMean 1.43
 ScoreMeanSq 200.5
-Lead 1.4
+Lead 1.43
 VarTimeLeft -1.0
-STWinlossError -1.0
+STWinlossError -1.000
 STScoreError -1.0
 Policy
    0    0    0    0    0    0    0    0    0 
@@ -251,11 +251,11 @@ HASH: CB68B3094EEB7B7B88E4579363578B4B
 Win 57.30c
 Loss 42.70c
 NoResult 0.00c
-ScoreMean 2.0
+ScoreMean 1.99
 ScoreMeanSq 216.5
-Lead 2.0
+Lead 1.99
 VarTimeLeft -1.0
-STWinlossError -1.0
+STWinlossError -1.000
 STScoreError -1.0
 Policy
    0    0    0    0    0    0    0    0    0 
@@ -308,11 +308,11 @@ HASH: CB68B3094EEB7B7B88E4579363578B4B
 Win 55.17c
 Loss 44.83c
 NoResult 0.00c
-ScoreMean 1.4
+ScoreMean 1.39
 ScoreMeanSq 190.9
-Lead 1.4
+Lead 1.39
 VarTimeLeft -1.0
-STWinlossError -1.0
+STWinlossError -1.000
 STScoreError -1.0
 Policy
    0    0    0    0    0    0    0    0    0 
@@ -365,11 +365,11 @@ HASH: CB68B3094EEB7B7B88E4579363578B4B
 Win 56.34c
 Loss 43.66c
 NoResult 0.00c
-ScoreMean 1.8
+ScoreMean 1.75
 ScoreMeanSq 209.0
-Lead 1.8
+Lead 1.75
 VarTimeLeft -1.0
-STWinlossError -1.0
+STWinlossError -1.000
 STScoreError -1.0
 Policy
    0    0    0    0    0    0    0    0    0 
@@ -422,11 +422,11 @@ HASH: CB68B3094EEB7B7B88E4579363578B4B
 Win 58.87c
 Loss 41.13c
 NoResult 0.00c
-ScoreMean 2.4
+ScoreMean 2.37
 ScoreMeanSq 206.6
-Lead 2.4
+Lead 2.37
 VarTimeLeft -1.0
-STWinlossError -1.0
+STWinlossError -1.000
 STScoreError -1.0
 Policy
    0    0    0    0    0    0    0    0    0 

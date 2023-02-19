@@ -61,6 +61,7 @@ SearchParams::SearchParams()
    fillDameBeforePass(false),
    avoidMYTDaggerHackPla(C_EMPTY),
    wideRootNoise(0.0),
+   enablePassingHacks(false),
    playoutDoublingAdvantage(0.0),
    playoutDoublingAdvantagePla(C_EMPTY),
    avoidRepeatedPatternUtility(0.0),
@@ -241,6 +242,7 @@ void SearchParams::printParams(std::ostream& out) {
   PRINTPARAM(fillDameBeforePass);
   std::cout << "avoidMYTDaggerHackPla" << ": " << (int)avoidMYTDaggerHackPla << std::endl;
   PRINTPARAM(wideRootNoise);
+  PRINTPARAM(enablePassingHacks);
 
   PRINTPARAM(playoutDoublingAdvantage);
   std::cout << "playoutDoublingAdvantagePla" << ": " << (int)playoutDoublingAdvantagePla << std::endl;

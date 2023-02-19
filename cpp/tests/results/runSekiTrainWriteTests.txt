@@ -690,13 +690,13 @@ da.......
 dda.a....
 .d.......
 
-    W    W    W    W    W    W    W    W    W
     W    W    W    W    W    W    W    W  +98
     W    W    W    W    W    W    W    W  +98
+    W    W  +98    W    W    W    W    W  +98
     W    W    W    W    W    W    W    W  -98
     B    B    B    B    B    B    B    B    B
   -97    B    B    B    B    B    B    B    B
-    B  -97    B    B    B    B    B    B    B
+  -98  -97    B    B    B    B    B    B    B
   -97  -97    B    B    B    B    B    B    B
   -98  -96    B    B    B    B    B    B    B
 

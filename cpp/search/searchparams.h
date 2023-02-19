@@ -81,6 +81,7 @@ struct SearchParams {
   bool fillDameBeforePass; //When territory scoring, heuristically discourage passing before filling the dame.
   Player avoidMYTDaggerHackPla; //Hacky hack to avoid a particular pattern that gives some KG nets some trouble. Should become unnecessary in the future.
   double wideRootNoise; //Explore at the root more widely
+  bool enablePassingHacks; //Enable some hacks that mitigate rare instances when passing messes up deeper searches.
 
   double playoutDoublingAdvantage; //Play as if we have this many doublings of playouts vs the opponent
   Player playoutDoublingAdvantagePla; //Negate playoutDoublingAdvantage when making a move for the opponent of this player. If empty, opponent of the root player.

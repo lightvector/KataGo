@@ -1661,6 +1661,11 @@ void NeuralNet::freeComputeHandle(ComputeHandle* gpuHandle) {
   delete gpuHandle;
 }
 
+bool NeuralNet::isUsingFP16(const ComputeHandle* handle) {
+  (void)handle;
+  return false;
+}
+
 void NeuralNet::getOutput(
   ComputeHandle* computeHandle,
   InputBuffers* inputBuffers,

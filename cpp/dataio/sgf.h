@@ -90,12 +90,17 @@ struct Sgf {
     Loc hintLoc;
     //The weight of this sample, for random selection
     double weight;
+    //Arbitrary label or metadata
+    std::string metadata;
 
     static std::string toJsonLine(const PositionSample& sample);
     static PositionSample ofJsonLine(const std::string& s);
 
-    //Return a copy of tihs sample with all player stones and moves flipped to the opposite color
+    //Return a copy of this sample with all player stones and moves flipped to the opposite color
     Sgf::PositionSample getColorFlipped() const;
+
+    //Return a copy of this sample except one move earlier
+    Sgf::PositionSample previousPosition(double newWeight) const;
 
     //For the moment, only used in testing since it does extra consistency checks.
     //If we need a version to be used in "prod", we could make an efficient version maybe as operator==.
@@ -113,6 +118,7 @@ struct Sgf {
     bool hashComments,
     bool hashParent,
     bool flipIfPassOrWFirst,
+    bool allowGameOver,
     Rand* rand,
     std::vector<PositionSample>& samples
   ) const;
@@ -122,6 +128,7 @@ struct Sgf {
     bool hashComments,
     bool hashParent,
     bool flipIfPassOrWFirst,
+    bool allowGameOver,
     Rand* rand,
     std::function<void(PositionSample&,const BoardHistory&,const std::string&)> f
   ) const;
@@ -141,6 +148,7 @@ struct Sgf {
     bool hashComments,
     bool hashParent,
     bool flipIfPassOrWFirst,
+    bool allowGameOver,
     Rand* rand,
     std::vector<std::pair<int64_t,int64_t>>& variationTraceNodesBranch,
     std::function<void(PositionSample&,const BoardHistory&,const std::string&)> f
@@ -153,6 +161,7 @@ struct Sgf {
     bool hashComments,
     bool hashParent,
     bool flipIfPassOrWFirst,
+    bool allowGameOver,
     const std::string& comments,
     std::function<void(PositionSample&,const BoardHistory&,const std::string&)> f
   ) const;

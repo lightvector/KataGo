@@ -1,6 +1,8 @@
 #ifdef USE_OPENCL_BACKEND
 
 #include "../neuralnet/openclhelpers.h"
+
+#include "../core/test.h"
 #include "../neuralnet/opencltuner.h"
 
 using namespace std;
@@ -188,6 +190,15 @@ cl_mem OpenCLHelpers::createReadWriteBuffer(cl_context clContext, vector<half_t>
   return buf;
 }
 
+cl_mem OpenCLHelpers::createReadWriteBufferFloatZeros(cl_context clContext, size_t numElts) {
+  std::vector<float> vec(numElts,0.0f);
+  return createReadWriteBuffer(clContext,vec);
+}
+cl_mem OpenCLHelpers::createReadWriteBufferHalfZeros(cl_context clContext, size_t numElts) {
+  std::vector<half_t> vec(numElts,half_float::half_cast<half_t>(0.0f));
+  return createReadWriteBuffer(clContext,vec);
+}
+
 cl_mem OpenCLHelpers::createReadWriteBufferFloat(cl_context clContext, size_t numElts) {
   //Minimum allocation size, just in case, to avoid allocations of size 0
   if(numElts < 32)
@@ -245,6 +256,12 @@ void OpenCLHelpers::blockingReadBuffer(cl_command_queue commandQueue, cl_mem src
   err = clEnqueueReadBuffer(commandQueue, srcBuf, blocking, 0, byteSizeofVectorContents(dstBuf), dstBuf.data(), 0, NULL, NULL);
   CHECK_ERR(err);
 }
+void OpenCLHelpers::blockingReadBuffer(cl_command_queue commandQueue, cl_mem srcBuf, size_t numElts, float* dstBuf) {
+  cl_bool blocking = CL_TRUE;
+  cl_int err;
+  err = clEnqueueReadBuffer(commandQueue, srcBuf, blocking, 0, numElts * sizeof(float), dstBuf, 0, NULL, NULL);
+  CHECK_ERR(err);
+}
 void OpenCLHelpers::blockingReadBuffer(cl_command_queue commandQueue, cl_mem srcBuf, size_t numElts, std::vector<half_t>& dstBuf) {
   dstBuf.resize(numElts);
   cl_bool blocking = CL_TRUE;
@@ -255,11 +272,23 @@ void OpenCLHelpers::blockingReadBuffer(cl_command_queue commandQueue, cl_mem src
 void OpenCLHelpers::blockingReadBufferHalfToFloat(cl_command_queue commandQueue, cl_mem srcBuf, size_t numElts, std::vector<float>& dstBuf) {
   vector<half_t> tmpHalf;
   blockingReadBuffer(commandQueue, srcBuf, numElts, tmpHalf);
-   dstBuf.resize(numElts);
+  dstBuf.resize(numElts);
+  for(size_t i = 0; i<numElts; i++)
+    dstBuf[i] = tmpHalf[i];
+}
+void OpenCLHelpers::blockingReadBufferHalfToFloat(cl_command_queue commandQueue, cl_mem srcBuf, size_t numElts, float* dstBuf) {
+  vector<half_t> tmpHalf;
+  blockingReadBuffer(commandQueue, srcBuf, numElts, tmpHalf);
   for(size_t i = 0; i<numElts; i++)
     dstBuf[i] = tmpHalf[i];
 }
 void OpenCLHelpers::blockingReadBuffer(cl_command_queue commandQueue, cl_mem srcBuf, size_t numElts, std::vector<float>& dstBuf, bool useFP16) {
+  if(useFP16)
+    blockingReadBufferHalfToFloat(commandQueue, srcBuf, numElts, dstBuf);
+  else
+    blockingReadBuffer(commandQueue, srcBuf, numElts, dstBuf);
+}
+void OpenCLHelpers::blockingReadBuffer(cl_command_queue commandQueue, cl_mem srcBuf, size_t numElts, float* dstBuf, bool useFP16) {
   if(useFP16)
     blockingReadBufferHalfToFloat(commandQueue, srcBuf, numElts, dstBuf);
   else
@@ -629,7 +658,8 @@ size_t OpenCLHelpers::roundUpToMultiple(size_t size, size_t ofThis) {
 
 int OpenCLHelpers::roundUpToMultipleInt(size_t size, size_t ofThis) {
   size_t result = (size + ofThis - 1) / ofThis * ofThis;
-  assert(result <= (size_t)0x7FFFffffULL);
+  // Always check this regardless of ndebug
+  testAssert(result <= (size_t)0x7FFFffffULL);
   return (int)result;
 }
 
@@ -655,9 +685,10 @@ cl_int OpenCLHelpers::doBatchedXGemm_KM_KN_NM(
   clSetKernelArg(kernel,10, sizeof(int), (void *)&M);
   clSetKernelArg(kernel,11, sizeof(int), (void *)&N);
 
-  assert(M % tuneParams.MWG == 0);
-  assert(N % tuneParams.NWG == 0);
-  assert(K % tuneParams.KWG == 0);
+  // Always check these
+  testAssert(M % tuneParams.MWG == 0);
+  testAssert(N % tuneParams.NWG == 0);
+  testAssert(K % tuneParams.KWG == 0);
 
   static constexpr int nKernelDims = 3;
   const size_t MDIMC = tuneParams.MDIMC;
@@ -691,9 +722,15 @@ cl_int OpenCLHelpers::doBatchedHGemmWmma_KM_KN_NM(
   clSetKernelArg(kernel, 4, sizeof(cl_mem), (void *)&B);
   clSetKernelArg(kernel, 5, sizeof(cl_mem), (void *)&C);
 
-  assert(M % tuneParams.hGemmWmma.MWG == 0);
-  assert(N % tuneParams.hGemmWmma.NWG == 0);
-  assert(K % tuneParams.hGemmWmma.KWG == 0);
+  // Always check these
+  testAssert(M % tuneParams.hGemmWmma.MWG == 0);
+  testAssert(N % tuneParams.hGemmWmma.NWG == 0);
+  testAssert(K % tuneParams.hGemmWmma.KWG == 0);
+
+  // FP16 requires this. Should be checked in tuner, so these should be true at this point.
+  assert(tuneParams.hGemmWmma.KWG % 16 == 0);
+  assert(tuneParams.hGemmWmma.MWG % 8 == 0);
+  assert(tuneParams.hGemmWmma.NWG % 8 == 0);
 
   static constexpr int nKernelDims = 3;
   const size_t MWAVE = tuneParams.hGemmWmma.MWAVE;
@@ -705,6 +742,53 @@ cl_int OpenCLHelpers::doBatchedHGemmWmma_KM_KN_NM(
   const size_t WARP_SIZE = 32;
 
   size_t globalSizes[nKernelDims] = {M * MWAVE / MWG / MWARP * WARP_SIZE, N * NWAVE / NWG / NWARP, (size_t)numBatchElts};
+  size_t localSizes[nKernelDims] = {MWAVE/MWARP * WARP_SIZE, NWAVE/NWARP, 1};
+
+  cl_int err;
+  err = clEnqueueNDRangeKernel(
+    commandQueue, kernel, nKernelDims, NULL, globalSizes, localSizes, 0, NULL, eventBuf
+  );
+  return err;
+}
+
+cl_int OpenCLHelpers::doHGemmWmma_NCHW_ICOC(
+  cl_kernel kernel,
+  cl_command_queue commandQueue,
+  const OpenCLTuneParams& tuneParams,
+  int batchSize, int cSize, int hwSize, int ocSize,
+  cl_mem A, cl_mem B, cl_mem C,
+  cl_event* eventBuf
+) {
+  clSetKernelArg(kernel, 0, sizeof(int), (void *)&cSize);
+  clSetKernelArg(kernel, 1, sizeof(int), (void *)&hwSize);
+  clSetKernelArg(kernel, 2, sizeof(int), (void *)&ocSize);
+  clSetKernelArg(kernel, 3, sizeof(cl_mem), (void *)&A);
+  clSetKernelArg(kernel, 4, sizeof(cl_mem), (void *)&B);
+  clSetKernelArg(kernel, 5, sizeof(cl_mem), (void *)&C);
+
+  // Always check these
+  testAssert(ocSize % tuneParams.hGemmWmmaNCHW.NWG == 0);
+  testAssert(cSize % tuneParams.hGemmWmmaNCHW.KWG == 0);
+  testAssert(ocSize % tuneParams.hGemmWmmaNCHW.getRequiredCDivisor() == 0);
+  testAssert(cSize % tuneParams.hGemmWmmaNCHW.getRequiredCDivisor() == 0);
+
+  // FP16 requires this. Should be checked in tuner, so these should be true at this point.
+  assert(tuneParams.hGemmWmmaNCHW.KWG % 16 == 0);
+  assert(tuneParams.hGemmWmmaNCHW.MWG % 8 == 0);
+  assert(tuneParams.hGemmWmmaNCHW.NWG % 8 == 0);
+
+  static constexpr int nKernelDims = 3;
+  const size_t MWAVE = tuneParams.hGemmWmmaNCHW.MWAVE;
+  const size_t NWAVE = tuneParams.hGemmWmmaNCHW.NWAVE;
+  const size_t MWARP = tuneParams.hGemmWmmaNCHW.MWARP;
+  const size_t NWARP = tuneParams.hGemmWmmaNCHW.NWARP;
+  const size_t MWG = tuneParams.hGemmWmmaNCHW.MWG;
+  const size_t NWG = tuneParams.hGemmWmmaNCHW.NWG;
+  const size_t WARP_SIZE = 32;
+
+  int hwSizeRoundedUp = (int)roundUpToMultiple(hwSize,MWG);
+
+  size_t globalSizes[nKernelDims] = {hwSizeRoundedUp * MWAVE / MWG / MWARP * WARP_SIZE, ocSize * NWAVE / NWG / NWARP, (size_t)batchSize};
   size_t localSizes[nKernelDims] = {MWAVE/MWARP * WARP_SIZE, NWAVE/NWARP, 1};
 
   cl_int err;
@@ -1081,5 +1165,28 @@ cl_int OpenCLHelpers::computeMaskSums(
   return err;
 }
 
+
+cl_int OpenCLHelpers::doAddPointWise(
+  cl_kernel kernel,
+  cl_command_queue commandQueue,
+  cl_mem acc,
+  cl_mem value,
+  int totalSize,
+  cl_event* eventBuf
+) {
+  clSetKernelArg(kernel, 0, sizeof(cl_mem), (const void *)&acc);
+  clSetKernelArg(kernel, 1, sizeof(cl_mem), (const void *)&value);
+  clSetKernelArg(kernel, 2, sizeof(int), (const void *)&totalSize);
+
+  static constexpr int nKernelDims = 1;
+  size_t globalSizes[nKernelDims] = {powerOf2ify((size_t)totalSize)};
+  size_t* localSizes = NULL;
+
+  cl_int err;
+  err = clEnqueueNDRangeKernel(
+    commandQueue, kernel, nKernelDims, NULL, globalSizes, localSizes, 0, NULL, eventBuf
+  );
+  return err;
+}
 
 #endif

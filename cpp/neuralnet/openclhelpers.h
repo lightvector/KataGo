@@ -5,7 +5,7 @@
 #include "../core/logger.h"
 #include "../neuralnet/openclincludes.h"
 
-#include "../external/half-2.1.0/include/half.hpp"
+#include "../external/half-2.2.0/include/half.hpp"
 
 #define CHECK_ERR(x) { OpenCLHelpers::checkErrors((x),__FILE__,#x,__LINE__); }
 
@@ -105,12 +105,17 @@ namespace OpenCLHelpers {
   cl_mem createReadWriteBuffer(cl_context context, std::vector<half_float::half>& data);
   cl_mem createReadWriteBufferFloat(cl_context context, size_t numElts);
   cl_mem createReadWriteBufferHalf(cl_context context, size_t numElts);
+  cl_mem createReadWriteBufferFloatZeros(cl_context context, size_t numElts);
+  cl_mem createReadWriteBufferHalfZeros(cl_context context, size_t numElts);
   cl_mem createReadWriteBufferBytes(cl_context clContext, size_t numBytes);
 
   void blockingReadBuffer(cl_command_queue commandQueue, cl_mem srcBuf, size_t numElts, std::vector<float>& dstBuf);
+  void blockingReadBuffer(cl_command_queue commandQueue, cl_mem srcBuf, size_t numElts, float* dstBuf);
   void blockingReadBuffer(cl_command_queue commandQueue, cl_mem srcBuf, size_t numElts, std::vector<half_float::half>& dstBuf);
   void blockingReadBufferHalfToFloat(cl_command_queue commandQueue, cl_mem srcBuf, size_t numElts, std::vector<float>& dstBuf);
+  void blockingReadBufferHalfToFloat(cl_command_queue commandQueue, cl_mem srcBuf, size_t numElts, float* dstBuf);
   void blockingReadBuffer(cl_command_queue commandQueue, cl_mem srcBuf, size_t numElts, std::vector<float>& dstBuf, bool useFP16);
+  void blockingReadBuffer(cl_command_queue commandQueue, cl_mem srcBuf, size_t numElts, float* dstBuf, bool useFP16);
 
   size_t powerOf2ify(size_t size);
   size_t roundUpToMultiple(size_t size, size_t ofThis);
@@ -133,6 +138,15 @@ namespace OpenCLHelpers {
     int M, int N, int K,
     cl_mem A, cl_mem B, cl_mem C,
     int numBatchElts,
+    cl_event* eventBuf
+  );
+
+  cl_int doHGemmWmma_NCHW_ICOC(
+    cl_kernel kernel,
+    cl_command_queue commandQueue,
+    const OpenCLTuneParams& tuneParams,
+    int batchSize, int cSize, int hwSize, int ocSize,
+    cl_mem A, cl_mem B, cl_mem C,
     cl_event* eventBuf
   );
 
@@ -234,6 +248,14 @@ namespace OpenCLHelpers {
     cl_event* eventBuf
   );
 
+  cl_int doAddPointWise(
+    cl_kernel kernel,
+    cl_command_queue commandQueue,
+    cl_mem acc,
+    cl_mem value,
+    int totalSize,
+    cl_event* eventBuf
+  );
 }
 
 
