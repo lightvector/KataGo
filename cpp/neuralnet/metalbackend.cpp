@@ -102,6 +102,7 @@ void NeuralNet::freeComputeContext(ComputeContext* computeContext) {
 struct ComputeHandle {
   int nnXLen;
   int nnYLen;
+  bool useFP16;
   bool inputsUseNHWC;
   int gpuIndex;
   int version;
@@ -123,7 +124,7 @@ struct ComputeHandle {
 
     /* Use FP16 mode if the model supports it and the user has not explicitly
      * disabled it. */
-    bool useFP16 = context->useFP16Mode != enabled_t::False;
+    useFP16 = context->useFP16Mode != enabled_t::False;
 
     coreMLComputeHandle = new CoreMLComputeHandle(&loadedModel->coreMLLoadedModel,
                                                   nnXLen,
@@ -188,6 +189,10 @@ ComputeHandle* NeuralNet::createComputeHandle(
 
 void NeuralNet::freeComputeHandle(ComputeHandle* handle) {
   delete handle;
+}
+
+bool NeuralNet::isUsingFP16(const ComputeHandle* handle) {
+  return handle->useFP16;
 }
 
 //------------------------------------------------------------------------------
