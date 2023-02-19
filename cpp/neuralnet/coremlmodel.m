@@ -68,38 +68,65 @@
 
 @implementation KataGoModel
 
-/**
- Compile the MLModel
- */
+/// Compile MLModel from the bundle resource
+/// - Parameters:
+///   - xLen: x-direction of the board
+///   - yLen: y-direction of the board
+///   - useFP16: use FP16 or FP32
+/// - Returns: compiled MLModel
 + (nullable MLModel *)compileMLModelWithXLen:(NSNumber * _Nonnull)xLen
                                         yLen:(NSNumber * _Nonnull)yLen
                                      useFP16:(NSNumber * _Nonnull)useFP16 {
 
+  // Set compute precision name based on useFP16
   NSString *precisionName = useFP16.boolValue ? @"fp16" : @"fp32";
+
+  // Set model name based on xLen, yLen, and precisionName
   NSString *modelName = [NSString stringWithFormat:@"KataGoModel%dx%d%@v11", xLen.intValue, yLen.intValue, precisionName];
 
+  // Set model type name
   NSString *typeName = @"mlpackage";
 
+  // Get model path from bundle resource
   NSString *modelPath = [[NSBundle bundleForClass:[self class]] pathForResource:modelName
                                                                          ofType:typeName];
 
-  if (nil == modelPath) {
-    NSLog(@"ERROR: Could not load %@.%@ in the bundle resource", modelName, typeName);
+  // Initialize model
+  MLModel *model = nil;
 
-    return nil;
+  if (nil == modelPath) {
+    // If model is not found in bundle resource, return nil
+    NSLog(@"ERROR: Could not load %@.%@ in the bundle resource", modelName, typeName);
+  } else {
+    // If model is found in bundle resource, compile it and return the compiled model
+    NSURL *modelUrl = [NSURL fileURLWithPath:modelPath];
+
+    NSLog(@"INFO: Compiling model at %@", modelUrl);
+
+    // Compile the model
+    NSURL *compiledUrl = [MLModel compileModelAtURL:modelUrl
+                                              error:nil];
+
+    // Initialize the model configuration
+    MLModelConfiguration *configuration = [[MLModelConfiguration alloc] init];
+
+    // Set the compute units to CPU and Neural Engine
+    configuration.computeUnits = MLComputeUnitsCPUAndNeuralEngine;
+
+    // Set the model display name
+    configuration.modelDisplayName = modelName;
+
+    NSLog(@"INFO: Creating model with contents %@", compiledUrl);
+
+    // Create the model
+    model = [MLModel modelWithContentsOfURL:compiledUrl
+                              configuration:configuration
+                                      error:nil];
+
+    NSLog(@"INFO: Created model: %@", model.modelDescription.metadata[MLModelDescriptionKey]);
   }
 
-  NSURL *modelUrl = [NSURL fileURLWithPath:modelPath];
-
-  NSLog(@"INFO: Loading KataGo Model from %@", modelUrl);
-
-  NSURL *compiledUrl = [MLModel compileModelAtURL:modelUrl
-                                            error:nil];
-
-  MLModel *model = [MLModel modelWithContentsOfURL:compiledUrl error:nil];
-
-  NSLog(@"Loaded KataGo Model: %@", model.modelDescription.metadata[MLModelDescriptionKey]);
-
+  // Return the model
   return model;
 }
 
