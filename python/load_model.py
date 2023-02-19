@@ -33,7 +33,7 @@ def load_swa_model_state_dict(state_dict):
   return swa_model_state_dict
 
 
-def load_model(checkpoint_file, use_swa, device, pos_len=19, verbose=False):
+def load_model(checkpoint_file, use_swa, device, pos_len=19, for_coreml=False, verbose=False):
   state_dict = torch.load(checkpoint_file,map_location="cpu")
 
   if "config" in state_dict:
@@ -45,7 +45,7 @@ def load_model(checkpoint_file, use_swa, device, pos_len=19, verbose=False):
       model_config = json.load(f)
 
   logging.info(str(model_config))
-  model = Model(model_config,pos_len)
+  model = Model(model_config,pos_len,for_coreml=for_coreml)
   model.initialize()
 
   # Strip off any "module." from when the model was saved with DDP or other things
