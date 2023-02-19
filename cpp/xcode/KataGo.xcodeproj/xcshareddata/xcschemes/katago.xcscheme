@@ -53,7 +53,7 @@
       </BuildableProductRunnable>
       <CommandLineArguments>
          <CommandLineArgument
-            argument = "benchmark -config coreml_example.cfg -t 3"
+            argument = "benchmark -config coreml_example.cfg -t 2"
             isEnabled = "YES">
          </CommandLineArgument>
       </CommandLineArguments>
