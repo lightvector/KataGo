@@ -1292,8 +1292,10 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
           sampleToWrite.weight += std::fabs(baseValues.utility - veryQuickValues.utility);
           sampleToWrite.hintLoc = moveLoc;
           toWriteQueue.waitPush(new string(Sgf::PositionSample::toJsonLine(sampleToWrite)));
-          toWriteQueue.waitPush(new string(Sgf::PositionSample::toJsonLine(sampleToWrite.previousPosition(sampleToWrite.weight * 0.5))));
-          toWriteQueue.waitPush(new string(Sgf::PositionSample::toJsonLine(sampleToWrite.previousPosition(sampleToWrite.weight * 0.25).previousPosition(sampleToWrite.weight * 0.25))));
+          if(sampleToWrite.hasPreviousPositions(1))
+            toWriteQueue.waitPush(new string(Sgf::PositionSample::toJsonLine(sampleToWrite.previousPosition(sampleToWrite.weight * 0.5))));
+          if(sampleToWrite.hasPreviousPositions(2))
+            toWriteQueue.waitPush(new string(Sgf::PositionSample::toJsonLine(sampleToWrite.previousPosition(sampleToWrite.weight * 0.25).previousPosition(sampleToWrite.weight * 0.25))));
           logger.write("Surprising good " + Global::doubleToString(sampleToWrite.weight));
           return;
         }
@@ -1307,8 +1309,10 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
         sampleToWrite.weight = 1.0 + std::fabs(baseValues.utility - veryQuickValues.utility);
         sampleToWrite.hintLoc = Board::NULL_LOC;
         toWriteQueue.waitPush(new string(Sgf::PositionSample::toJsonLine(sampleToWrite)));
-        toWriteQueue.waitPush(new string(Sgf::PositionSample::toJsonLine(sampleToWrite.previousPosition(sampleToWrite.weight * 0.5))));
-        toWriteQueue.waitPush(new string(Sgf::PositionSample::toJsonLine(sampleToWrite.previousPosition(sampleToWrite.weight * 0.25).previousPosition(sampleToWrite.weight * 0.25))));
+        if(sampleToWrite.hasPreviousPositions(1))
+          toWriteQueue.waitPush(new string(Sgf::PositionSample::toJsonLine(sampleToWrite.previousPosition(sampleToWrite.weight * 0.5))));
+        if(sampleToWrite.hasPreviousPositions(2))
+          toWriteQueue.waitPush(new string(Sgf::PositionSample::toJsonLine(sampleToWrite.previousPosition(sampleToWrite.weight * 0.25).previousPosition(sampleToWrite.weight * 0.25))));
         logger.write("Inevitable bad " + Global::doubleToString(sampleToWrite.weight));
         return;
       }
@@ -1320,8 +1324,10 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
         sampleToWrite.weight = 1.0 + std::fabs(baseValues.utility - veryQuickValues.utility);
         sampleToWrite.hintLoc = Board::NULL_LOC;
         toWriteQueue.waitPush(new string(Sgf::PositionSample::toJsonLine(sampleToWrite)));
-        toWriteQueue.waitPush(new string(Sgf::PositionSample::toJsonLine(sampleToWrite.previousPosition(sampleToWrite.weight * 0.5))));
-        toWriteQueue.waitPush(new string(Sgf::PositionSample::toJsonLine(sampleToWrite.previousPosition(sampleToWrite.weight * 0.25).previousPosition(sampleToWrite.weight * 0.25))));
+        if(sampleToWrite.hasPreviousPositions(1))
+          toWriteQueue.waitPush(new string(Sgf::PositionSample::toJsonLine(sampleToWrite.previousPosition(sampleToWrite.weight * 0.5))));
+        if(sampleToWrite.hasPreviousPositions(2))
+          toWriteQueue.waitPush(new string(Sgf::PositionSample::toJsonLine(sampleToWrite.previousPosition(sampleToWrite.weight * 0.25).previousPosition(sampleToWrite.weight * 0.25))));
         logger.write("Inevitable good " + Global::doubleToString(sampleToWrite.weight));
         return;
       }
@@ -2368,7 +2374,7 @@ int MainCmds::sampleinitializations(const vector<string>& args) {
   //Play no moves in game, since we're sampling initializations
   cfg.overrideKey("maxMovesPerGame","0");
 
-  const bool isDistributed = false; 
+  const bool isDistributed = false;
   PlaySettings playSettings = PlaySettings::loadForSelfplay(cfg, isDistributed);
   GameRunner* gameRunner = new GameRunner(cfg, playSettings, logger);
 

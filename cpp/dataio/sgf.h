@@ -101,6 +101,7 @@ struct Sgf {
 
     //Return a copy of this sample except one move earlier
     Sgf::PositionSample previousPosition(double newWeight) const;
+    bool hasPreviousPositions(int numPrevious) const;
 
     //For the moment, only used in testing since it does extra consistency checks.
     //If we need a version to be used in "prod", we could make an efficient version maybe as operator==.
