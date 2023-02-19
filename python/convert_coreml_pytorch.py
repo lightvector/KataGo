@@ -128,15 +128,15 @@ def main():
         # Print the input names
         print(f'Input names: {input_names}')
 
-        # Rename the output
-        ct.utils.rename_feature(spec, 'var_2462', 'output_policy')
-        ct.utils.rename_feature(spec, 'var_2503', 'out_value')
-        ct.utils.rename_feature(spec, 'var_2506', 'out_miscvalue')
-        ct.utils.rename_feature(spec, 'var_2509', 'out_moremiscvalue')
-        ct.utils.rename_feature(spec, 'var_2514', 'out_ownership')
+        # Set output names
+        output_names = ['output_policy', 'out_value',
+                        'out_miscvalue', 'out_moremiscvalue', 'out_ownership']
 
-        # Get output names
-        output_names = [output.name for output in spec.description.output]
+        # Rename output names
+        for i, name in enumerate(output_names):
+            # Rename the output
+            ct.utils.rename_feature(
+                spec, spec.description.output[i].name, name)
 
         # Print the output names
         print(f'Output names: {output_names}')
