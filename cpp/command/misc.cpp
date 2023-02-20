@@ -2165,6 +2165,7 @@ int MainCmds::viewstartposes(const vector<string>& args) {
   string modelFile;
   vector<string> startPosesFiles;
   double minWeight;
+  int idxToView;
   try {
     KataGoCommandLine cmd("View startposes");
     cmd.addConfigFileArg("","",false);
@@ -2173,11 +2174,14 @@ int MainCmds::viewstartposes(const vector<string>& args) {
 
     TCLAP::MultiArg<string> startPosesFileArg("","start-poses-file","Startposes file",true,"DIR");
     TCLAP::ValueArg<double> minWeightArg("","min-weight","Min weight of startpos to view",false,0.0,"WEIGHT");
+    TCLAP::ValueArg<int> idxArg("","idx","Index of startpos to view in file",false,-1,"IDX");
     cmd.add(startPosesFileArg);
     cmd.add(minWeightArg);
+    cmd.add(idxArg);
     cmd.parseArgs(args);
     startPosesFiles = startPosesFileArg.getValue();
     minWeight = minWeightArg.getValue();
+    idxToView = idxArg.getValue();
 
     cmd.getConfigAllowEmpty(cfg);
     if(cfg.getFileName() != "")
@@ -2246,6 +2250,8 @@ int MainCmds::viewstartposes(const vector<string>& args) {
   for(size_t s = 0; s<startPoses.size(); s++) {
     const Sgf::PositionSample& startPos = startPoses[s];
     if(startPos.weight < minWeight)
+      continue;
+    if(idxToView >= 0 && s != idxToView)
       continue;
 
     Board board = startPos.board;
