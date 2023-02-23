@@ -783,7 +783,7 @@ void NNEvaluator::evaluate(
     int legalCount = 0;
     for(int i = 0; i<policySize; i++) {
       Loc loc = NNPos::posToLoc(i,xSize,ySize,nnXLen,nnYLen);
-      isLegal[i] = history.isLegal(board,loc,nextPlayer);
+      isLegal[i] = history.isLegal(board,loc,nextPlayer) && isfinite(policy[i]);
     }
 
     if(nnInputParams.avoidMYTDaggerHack && xSize >= 13 && ySize >= 13) {
@@ -810,8 +810,6 @@ void NNEvaluator::evaluate(
       if(policyValue > maxPolicy)
         maxPolicy = policyValue;
     }
-
-    assert(legalCount > 0);
 
     float policySum = 0.0f;
 
@@ -848,7 +846,7 @@ void NNEvaluator::evaluate(
         buf.errorLogLockout = true;
         logger->write("Warning: all legal moves rounded to 0 probability for " + string(modelFileName));
       }
-      float uniform = 1.0f / legalCount;
+      float uniform = 1.0f / (legalCount > 0 ? legalCount : 1);
       for(int i = 0; i<policySize; i++) {
         policy[i] = isLegal[i] ? uniform : -1.0f;
       }
@@ -866,7 +864,24 @@ void NNEvaluator::evaluate(
     //Fix up the value as well. Note that the neural net gives us back the value from the perspective
     //of the player so we need to negate that to make it the white value.
     static_assert(NNModelVersion::latestModelVersionImplemented == 11, "");
-    if(modelVersion == 3) {
+
+    if (legalCount == 0) {
+      if(!buf.errorLogLockout && logger != NULL) {
+        buf.errorLogLockout = true;
+        logger->write("Warning: no legal moves found");
+      }
+
+      buf.result->whiteNoResultProb = 0.0;
+      buf.result->whiteScoreMean = -(float)ScoreValue::approxWhiteScoreOfScoreValueSmooth(-0.001,0.0,2.0,board);
+      buf.result->whiteScoreMeanSq = buf.result->whiteScoreMean * buf.result->whiteScoreMean;
+      buf.result->whiteLead = buf.result->whiteScoreMean;
+      buf.result->whiteWinProb = buf.result->whiteLead > 0 ? 1.0 : 0.0;
+      buf.result->whiteLossProb = 1.0f - buf.result->whiteWinProb;
+      buf.result->varTimeLeft = -1;
+      buf.result->shorttermWinlossError = -1;
+      buf.result->shorttermScoreError = -1;
+    }
+    else if(modelVersion == 3) {
       const double twoOverPi = 0.63661977236758134308;
 
       double winProb;
