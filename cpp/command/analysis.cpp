@@ -267,6 +267,11 @@ int MainCmds::analysis(const vector<string>& args) {
 
     if(success)
       pushToWrite(new string(ret.dump()));
+    else {
+      ret["error"] = "No search results or root node";
+      pushToWrite(new string(ret.dump()));
+    }
+
     return success;
   };
 
