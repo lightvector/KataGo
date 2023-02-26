@@ -595,6 +595,10 @@ int MainCmds::samplesgfs(const vector<string>& args) {
   bool allowGameOver;
   bool hashComments;
 
+  string valueFluctuationModelFile;
+  double valueFluctuationTurnScale;
+  double valueFluctuationMaxWeight;
+
   int minMinRank;
   string requiredPlayerName;
   int maxHandicap;
@@ -619,10 +623,14 @@ int MainCmds::samplesgfs(const vector<string>& args) {
     TCLAP::SwitchArg flipIfPassOrWFirstArg("","flip-if-pass","Try to heuristically find cases where an sgf passes to simulate white<->black");
     TCLAP::SwitchArg allowGameOverArg("","allow-game-over","Allow sampling game over positions in sgf");
     TCLAP::SwitchArg hashCommentsArg("","hash-comments","Hash comments in sgf");
+    TCLAP::ValueArg<string> valueFluctuationModelFileArg("","value-fluctuation-model","Upweight positions prior to value fluctuations",false,string(),"MODELFILE");
+    TCLAP::ValueArg<double> valueFluctuationTurnScaleArg("","value-fluctuation-turn-scale","How much prior on average",false,1.0,"AVGTURNS");
+    TCLAP::ValueArg<double> valueFluctuationMaxWeightArg("","value-fluctuation-max-weight","",false,10.0,"MAXWEIGHT");
     TCLAP::ValueArg<int> minMinRankArg("","min-min-rank","Require both players in a game to have rank at least this",false,Sgf::RANK_UNKNOWN,"INT");
     TCLAP::ValueArg<string> requiredPlayerNameArg("","required-player-name","Require player making the move to have this name",false,string(),"NAME");
     TCLAP::ValueArg<int> maxHandicapArg("","max-handicap","Require no more than this big handicap in stones",false,100,"INT");
     TCLAP::ValueArg<double> maxKomiArg("","max-komi","Require absolute value of game komi to be at most this",false,1000,"KOMI");
+
     cmd.add(sgfDirArg);
     cmd.add(sgfsDirArg);
     cmd.add(outDirArg);
@@ -639,6 +647,9 @@ int MainCmds::samplesgfs(const vector<string>& args) {
     cmd.add(flipIfPassOrWFirstArg);
     cmd.add(allowGameOverArg);
     cmd.add(hashCommentsArg);
+    cmd.add(valueFluctuationModelFileArg);
+    cmd.add(valueFluctuationTurnScaleArg);
+    cmd.add(valueFluctuationMaxWeightArg);
     cmd.add(minMinRankArg);
     cmd.add(requiredPlayerNameArg);
     cmd.add(maxHandicapArg);
@@ -660,6 +671,9 @@ int MainCmds::samplesgfs(const vector<string>& args) {
     flipIfPassOrWFirst = flipIfPassOrWFirstArg.getValue();
     allowGameOver = allowGameOverArg.getValue();
     hashComments = hashCommentsArg.getValue();
+    valueFluctuationModelFile = valueFluctuationModelFileArg.getValue();
+    valueFluctuationTurnScale = valueFluctuationTurnScaleArg.getValue();
+    valueFluctuationMaxWeight = valueFluctuationMaxWeightArg.getValue();
     minMinRank = minMinRankArg.getValue();
     requiredPlayerName = requiredPlayerNameArg.getValue();
     maxHandicap = maxHandicapArg.getValue();
@@ -695,6 +709,29 @@ int MainCmds::samplesgfs(const vector<string>& args) {
 
   set<Hash128> excludeHashes = Sgf::readExcludes(excludeHashesFiles);
   logger.write("Loaded " + Global::uint64ToString(excludeHashes.size()) + " excludes");
+
+  NNEvaluator* valueFluctuationNNEval = NULL;
+  if(valueFluctuationModelFile != "") {
+    if(valueFluctuationTurnScale <= 0.0 || valueFluctuationTurnScale > 100000000.0)
+      throw StringError("Invalid valueFluctuationTurnScale");
+    if(valueFluctuationMaxWeight <= 0.0 || valueFluctuationMaxWeight > 100000000.0)
+      throw StringError("Invalid valueFluctuationMaxWeight");
+    ConfigParser cfg;
+    Setup::initializeSession(cfg);
+    int numThreads = 1;
+    const int maxConcurrentEvals = numThreads * 2 + 16; // * 2 + 16 just to give plenty of headroom
+    const int expectedConcurrentEvals = numThreads;
+    const int defaultMaxBatchSize = std::max(8,((numThreads+3)/4)*4);
+    const bool defaultRequireExactNNLen = false;
+    const bool disableFP16 = false;
+    const string expectedSha256 = "";
+    valueFluctuationNNEval = Setup::initializeNNEvaluator(
+      valueFluctuationModelFile,valueFluctuationModelFile,expectedSha256,cfg,logger,seedRand,maxConcurrentEvals,expectedConcurrentEvals,
+      NNPos::MAX_BOARD_LEN,NNPos::MAX_BOARD_LEN,defaultMaxBatchSize,defaultRequireExactNNLen,disableFP16,
+      Setup::SETUP_FOR_ANALYSIS
+    );
+    logger.write("Loaded neural net");
+  }
 
   // ---------------------------------------------------------------------------------------------------
 
@@ -825,9 +862,131 @@ int MainCmds::samplesgfs(const vector<string>& args) {
       return;
     }
 
-    bool hashParent = false;
-    Rand iterRand;
-    sgf->iterAllUniquePositions(uniqueHashes, hashComments, hashParent, flipIfPassOrWFirst, allowGameOver, &iterRand, posHandler);
+    if(valueFluctuationNNEval == NULL) {
+      bool hashParent = false;
+      Rand iterRand;
+      sgf->iterAllUniquePositions(uniqueHashes, hashComments, hashParent, flipIfPassOrWFirst, allowGameOver, &iterRand, posHandler);
+    }
+    else {
+      string fileName = sgf->fileName;
+      CompactSgf compactSgf(sgf);
+      Board board;
+      Player nextPla;
+      BoardHistory hist;
+      Rules rules = compactSgf.getRulesOrFailAllowUnspecified(Rules::getSimpleTerritory());
+      compactSgf.setupInitialBoardAndHist(rules, board, nextPla, hist);
+
+      const bool preventEncore = true;
+      const vector<Move>& sgfMoves = compactSgf.moves;
+
+      vector<Board> boards;
+      vector<BoardHistory> hists;
+      vector<Player> nextPlas;
+      vector<shared_ptr<NNOutput>> nnOutputs;
+      vector<double> winLossValues;
+      vector<Move> moves;
+
+      for(int m = 0; m<sgfMoves.size()+1; m++) {
+        MiscNNInputParams nnInputParams;
+        nnInputParams.conservativePassAndIsRoot = true;
+        NNResultBuf buf;
+        bool skipCache = true;
+        bool includeOwnerMap = false;
+        valueFluctuationNNEval->evaluate(board,hist,nextPla,nnInputParams,buf,skipCache,includeOwnerMap);
+
+        boards.push_back(board);
+        hists.push_back(hist);
+        nextPlas.push_back(nextPla);
+        nnOutputs.push_back(std::move(buf.result));
+        shared_ptr<NNOutput>& nnOutput = nnOutputs[nnOutputs.size()-1];
+        winLossValues.push_back(nnOutput->whiteWinProb - nnOutput->whiteLossProb);
+
+        if(m >= sgfMoves.size())
+          break;
+
+        moves.push_back(sgfMoves[m]);
+
+        //Quit out if according to our rules, we already finished the game, or we're somehow in a cleanup phase
+        if(hist.isGameFinished || hist.encorePhase > 0)
+          break;
+        //Quit out if consecutive moves by the same player, to keep the history clean and "normal"
+        if(sgfMoves[m].pla != nextPla && m > 0) {
+          logger.write("Ending SGF " + fileName + " early due to non-alternating players on turn " + Global::intToString(m));
+          break;
+        }
+
+        bool suc = hist.isLegal(board,sgfMoves[m].loc,sgfMoves[m].pla);
+        if(!suc) {
+          //Only log on errors that aren't simply due to ko rules, but quit out regardless
+          suc = hist.makeBoardMoveTolerant(board,sgfMoves[m].loc,sgfMoves[m].pla,preventEncore);
+          if(!suc)
+            logger.write("Illegal move in " + fileName + " turn " + Global::intToString(m) + " move " + Location::toString(sgfMoves[m].loc, board.x_size, board.y_size));
+          break;
+        }
+        hist.makeBoardMoveAssumeLegal(board,sgfMoves[m].loc,sgfMoves[m].pla,NULL,preventEncore);
+        nextPla = getOpp(sgfMoves[m].pla);
+      }
+      boards.push_back(board);
+      hists.push_back(hist);
+      nextPlas.push_back(nextPla);
+
+      if(winLossValues.size() <= 1)
+        return;
+
+      double minTurnNumber = minTurnNumberBoardAreaProp * (hist.initialBoard.x_size * hist.initialBoard.y_size);
+      double maxTurnNumber = maxTurnNumberBoardAreaProp * (hist.initialBoard.x_size * hist.initialBoard.y_size);
+      vector<double> winrateVariance(winLossValues.size()-1);
+      for(int i = 0; i<(int)winrateVariance.size()-1; i++) {
+        if(i >= minTurnNumber && i <= maxTurnNumber)
+          winrateVariance[i] = (winLossValues[i+1]-winLossValues[i]) * (winLossValues[i+1]-winLossValues[i]);
+        else
+          winrateVariance[i] = 0.0;
+      }
+      //Apply exponential blur
+      vector<double> winrateVarianceBlurred(winLossValues.size()-1);
+      double blurSum = 0.0;
+      double totalWeight = 0.0;
+      int totalCount = 0;
+      for(int i = (int)winrateVarianceBlurred.size()-1; i >= 0; i--) {
+        blurSum *= 1.0 - 1.0 / valueFluctuationTurnScale;
+        blurSum += winrateVariance[i];
+        if(i >= minTurnNumber && i <= maxTurnNumber) {
+          winrateVarianceBlurred[i] = blurSum;
+          totalWeight += winrateVarianceBlurred[i];
+          totalCount += 1;
+        }
+      }
+      if(totalCount <= 0 || totalWeight <= 0)
+        return;
+
+      //Normalize
+      vector<double> desiredWeight(winLossValues.size()-1);
+      for(int i = 0; i<(int)desiredWeight.size(); i++) {
+        desiredWeight[i] = winrateVarianceBlurred[i] / totalWeight * totalCount;
+      }
+
+      for(int m = 0; m<(int)desiredWeight.size(); m++) {
+        assert(m < moves.size());
+
+        Sgf::PositionSample sample;
+        const int numMovesToRecord = 8;
+        int startIdx = std::max(0,m-numMovesToRecord);
+        sample.board = boards[startIdx];
+        sample.nextPla = nextPlas[startIdx];
+        for(int j = startIdx; j<m; j++)
+          sample.moves.push_back(moves[j]);
+        sample.initialTurnNumber = startIdx;
+        sample.hintLoc = Board::NULL_LOC;
+        sample.weight = std::min(valueFluctuationMaxWeight, desiredWeight[m]);
+
+        if(sample.weight < 0.1)
+          continue;
+
+        posHandler(sample, hists[m], "");
+        // cout << fileName << " " << m << " " << desiredWeight[m] << endl;
+      }
+      cout << "Handled " << fileName << endl;
+    }
   };
 
   for(size_t i = 0; i<sgfFiles.size(); i++) {
@@ -870,6 +1029,9 @@ int MainCmds::samplesgfs(const vector<string>& args) {
 
   toWriteQueue.setReadOnly();
   writeLoopThread.join();
+
+  if(valueFluctuationNNEval != NULL)
+    delete valueFluctuationNNEval;
 
   logger.write("All done");
 
