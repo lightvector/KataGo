@@ -33,6 +33,28 @@ def get_num_global_input_features(config: ModelConfig):
   else:
     assert(False)
 
+b1c6nbt = {
+  "version":11,
+  "norm_kind":"fixup",
+  "bnorm_epsilon": 1e-4,
+  "bnorm_running_avg_momentum": 0.001,
+  "initial_conv_1x1": False,
+  "trunk_num_channels":6,
+  "mid_num_channels":4,
+  "gpool_num_channels":4,
+  "use_attention_pool":False,
+  "num_attention_pool_heads":2,
+  "block_kind": [
+    ["rconv1","bottlenest2"],
+  ],
+  "p1_num_channels":4,
+  "g1_num_channels":4,
+  "v1_num_channels":4,
+  "sbv2_num_channels":4,
+  "num_scorebeliefs":2,
+  "v2_size":6,
+}
+
 b2c16 = {
   "version":11,
   "norm_kind":"fixup",
@@ -1307,6 +1329,7 @@ sandbox = {
 
 base_config_of_name = {
   # Small nets
+  "b1c6nbt": b1c6nbt,
   "b2c16": b2c16,
   "b4c32": b4c32,
   "b6c96": b6c96,
