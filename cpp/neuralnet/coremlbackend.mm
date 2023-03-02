@@ -5,9 +5,9 @@
 // This is the CoreMLBackend class.
 @implementation CoreMLBackend
 
-// This is the CoreMLBackend dictionary getter method.
-// It is a singleton object that is used to store the CoreML models.
-+ (NSMutableDictionary * _Nonnull)getBackends {
+/// Handle CoreMLBackend dictionary with a command, and return the CoreMLBackend dictionary.
+/// - Parameter command: "clear" to remove all objects from the dictionary"; otherwise, do nothing.
++ (NSMutableDictionary * _Nonnull)handleBackendsWithCommand:(NSString * _Nonnull) command {
   // This is the CoreMLBackend dictionary.
   static NSMutableDictionary * backends = nil;
 
@@ -18,7 +18,25 @@
     }
   }
 
+  if ([command isEqualToString:@"clear"]) {
+    @synchronized (self) {
+      [backends removeAllObjects];
+    }
+  }
+
   return backends;
+}
+
+// This is the CoreMLBackend dictionary getter method.
+// It is a singleton object that is used to store the CoreML models.
++ (NSMutableDictionary * _Nonnull)getBackends {
+  return [CoreMLBackend handleBackendsWithCommand:@"get"];
+}
+
+// This is the CoreMLBackend dictionary clear method.
+// It is used to clear the CoreMLBackend dictionary.
++ (void)clearBackends {
+  [CoreMLBackend handleBackendsWithCommand:@"clear"];
 }
 
 /// Get the next model index
@@ -41,7 +59,6 @@
 }
 
 // This is the CoreMLBackend getter method.
-// If the backend is not in the dictionary, it is initialized.
 + (CoreMLBackend * _Nonnull)getBackendAt:(NSNumber * _Nonnull)index {
   NSMutableDictionary * backends = [CoreMLBackend getBackends];
 
@@ -183,9 +200,14 @@
 
 @end
 
-// Initialize the CoreMLBackend dictionary.
-void initCoreMLBackends() {
+/// Create the CoreMLBackend context.
+void createCoreMLContext() {
   (void)[CoreMLBackend getBackends];
+}
+
+/// Destroy the CoreMLBackend context.
+void destroyCoreMLContext() {
+  (void)[CoreMLBackend clearBackends];
 }
 
 /// Create the CoreMLBackend instance.
@@ -229,7 +251,7 @@ int getCoreMLBackendVersion(int modelIndex) {
 }
 
 // Get the model's output.
-void getCoreMLBackendOutput(float* userInputBuffer,
+void getCoreMLHandleOutput(float* userInputBuffer,
                             float* userInputGlobalBuffer,
                             float* policyOutput,
                             float* valueOutput,

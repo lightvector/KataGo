@@ -3444,12 +3444,12 @@ final class ComputeContextTest: XCTestCase {
         let useFP16Mode: SWEnable = .False
         let useNHWCMode: SWEnable = .False
 
-        ComputeContext.createInstance(nnXLen: nnXLen,
-                                      nnYLen: nnYLen,
-                                      useFP16Mode: useFP16Mode,
-                                      useNHWCMode: useNHWCMode)
+        MetalComputeContext.createInstance(nnXLen: nnXLen,
+                                           nnYLen: nnYLen,
+                                           useFP16Mode: useFP16Mode,
+                                           useNHWCMode: useNHWCMode)
 
-        let context = ComputeContext.getInstance()
+        let context = MetalComputeContext.getInstance()
 
         XCTAssert(context.nnXLen == nnXLen)
         XCTAssert(context.nnYLen == nnYLen)
@@ -3462,21 +3462,21 @@ final class ComputeHandleTest: XCTestCase {
     let swModelDescTest = SWModelDescTest()
 
     func testCreateInstance() {
-        ComputeContext.createInstance(nnXLen: 9 as NSNumber,
-                                      nnYLen: 11 as NSNumber,
-                                      useFP16Mode: .False,
-                                      useNHWCMode: .False)
+        MetalComputeContext.createInstance(nnXLen: 9 as NSNumber,
+                                           nnYLen: 11 as NSNumber,
+                                           useFP16Mode: .False,
+                                           useNHWCMode: .False)
 
         let gpuIdxForThisThread = 0
         let swModelDesc = swModelDescTest.createMiniDesc()
 
-        ComputeHandle.createInstance(at: gpuIdxForThisThread,
-                                     descriptor: swModelDesc,
-                                     batchSize: 8 as NSNumber,
-                                     serverThreadIdx: 0)
+        MetalComputeHandle.createInstance(at: gpuIdxForThisThread,
+                                          descriptor: swModelDesc,
+                                          batchSize: 8 as NSNumber,
+                                          serverThreadIdx: 0)
 
-        let handle = ComputeHandle.getInstance(at: gpuIdxForThisThread)
-        let context = ComputeContext.getInstance()
+        let handle = MetalComputeHandle.getInstance(at: gpuIdxForThisThread)
+        let context = MetalComputeContext.getInstance()
 
         XCTAssert(handle.model.nnXLen == context.nnXLen)
         XCTAssert(handle.model.nnYLen == context.nnYLen)
@@ -3490,21 +3490,21 @@ final class ComputeHandleTest: XCTestCase {
     }
 
     func testCreateInstanceDefaultDevice() {
-        ComputeContext.createInstance(nnXLen: 9 as NSNumber,
-                                      nnYLen: 11 as NSNumber,
-                                      useFP16Mode: .True,
-                                      useNHWCMode: .True)
+        MetalComputeContext.createInstance(nnXLen: 9 as NSNumber,
+                                           nnYLen: 11 as NSNumber,
+                                           useFP16Mode: .True,
+                                           useNHWCMode: .True)
 
         let gpuIdxForThisThread = -1
         let swModelDesc = swModelDescTest.createMiniDesc()
 
-        ComputeHandle.createInstance(at: gpuIdxForThisThread,
-                                     descriptor: swModelDesc,
-                                     batchSize: 8 as NSNumber,
-                                     serverThreadIdx: 0)
+        MetalComputeHandle.createInstance(at: gpuIdxForThisThread,
+                                          descriptor: swModelDesc,
+                                          batchSize: 8 as NSNumber,
+                                          serverThreadIdx: 0)
 
-        let handle = ComputeHandle.getInstance(at: gpuIdxForThisThread)
-        let context = ComputeContext.getInstance()
+        let handle = MetalComputeHandle.getInstance(at: gpuIdxForThisThread)
+        let context = MetalComputeContext.getInstance()
 
         XCTAssert(handle.model.nnXLen == context.nnXLen)
         XCTAssert(handle.model.nnYLen == context.nnYLen)
@@ -3529,10 +3529,10 @@ final class MetalBackendTest: XCTestCase {
         let nnXLen: Int = 9
         let nnYLen: Int = 11
 
-        ComputeContext.createInstance(nnXLen: nnXLen as NSNumber,
-                                      nnYLen: nnYLen as NSNumber,
-                                      useFP16Mode: .False,
-                                      useNHWCMode: .False)
+        MetalComputeContext.createInstance(nnXLen: nnXLen as NSNumber,
+                                           nnYLen: nnYLen as NSNumber,
+                                           useFP16Mode: .False,
+                                           useNHWCMode: .False)
 
         XCTAssert(MetalBackend.getContextXLen() == nnXLen)
     }
@@ -3541,10 +3541,10 @@ final class MetalBackendTest: XCTestCase {
         let nnXLen: Int = 9
         let nnYLen: Int = 11
 
-        ComputeContext.createInstance(nnXLen: nnXLen as NSNumber,
-                                      nnYLen: nnYLen as NSNumber,
-                                      useFP16Mode: .False,
-                                      useNHWCMode: .False)
+        MetalComputeContext.createInstance(nnXLen: nnXLen as NSNumber,
+                                           nnYLen: nnYLen as NSNumber,
+                                           useFP16Mode: .False,
+                                           useNHWCMode: .False)
 
         XCTAssert(MetalBackend.getContextYLen() == nnYLen)
     }
@@ -3552,18 +3552,18 @@ final class MetalBackendTest: XCTestCase {
     func testGetOutput() {
         let gpuIdx: Int = -1
 
-        ComputeContext.createInstance(nnXLen: 1 as NSNumber,
-                                      nnYLen: 1 as NSNumber,
-                                      useFP16Mode: .False,
-                                      useNHWCMode: .False)
+        MetalComputeContext.createInstance(nnXLen: 1 as NSNumber,
+                                           nnYLen: 1 as NSNumber,
+                                           useFP16Mode: .False,
+                                           useNHWCMode: .False)
 
         let swModelDesc = swModelDescTest.createMiniDesc()
 
-        ComputeHandle.createInstance(at: gpuIdx,
-                                     descriptor: swModelDesc,
-                                     batchSize: 1 as NSNumber,
-                                     serverThreadIdx: 0)
-
+        MetalComputeHandle.createInstance(at: gpuIdx,
+                                          descriptor: swModelDesc,
+                                          batchSize: 1 as NSNumber,
+                                          serverThreadIdx: 0)
+        
         var input = [Float32](repeating: 1, count: 1)
         var inputGlobal = [Float32](repeating: 1, count: 1)
         var policyOutput = [Float32](repeating: 1, count: 1)

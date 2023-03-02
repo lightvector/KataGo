@@ -4,140 +4,26 @@
 #include "../neuralnet/nneval.h"
 #include "../neuralnet/nninputs.h"
 #include "../neuralnet/nninterface.h"
+#include "../neuralnet/metalbackend.h"
 #include "../neuralnet/coremlbackend.h"
 
 
 using namespace std;
 
-//------------------------------------------------------------------------------
-
-CoreMLLoadedModel::CoreMLLoadedModel() {
-  // Create a dummy backend to get the model description
-  int modelIndex = createCoreMLBackend(COMPILE_MAX_BOARD_LEN, COMPILE_MAX_BOARD_LEN, -1, true);
-  modelXLen = COMPILE_MAX_BOARD_LEN;
-  modelYLen = COMPILE_MAX_BOARD_LEN;
-  modelDesc.name = "CoreML model";
-  // Get the model description from the Core ML backend
-  modelDesc.version = getCoreMLBackendVersion(modelIndex);
-  modelDesc.numInputChannels = getCoreMLBackendNumSpatialFeatures(modelIndex);
-  modelDesc.numInputGlobalChannels = getCoreMLBackendNumGlobalFeatures(modelIndex);
-  modelDesc.numValueChannels = 3;
-  modelDesc.numOwnershipChannels = 1;
-  modelDesc.numScoreValueChannels = 18;
-  // Free the dummy backend
-  freeCoreMLBackend(modelIndex);
-}
-
 //--------------------------------------------------------------
 
-CoreMLComputeHandle::CoreMLComputeHandle(const CoreMLLoadedModel* loadedModel,
-                                         int nnXLen,
-                                         int nnYLen,
-                                         int gpuIdx,
-                                         bool inputsNHWC,
-                                         int serverThreadIdx,
-                                         bool useFP16) {
-  this->nnXLen = nnXLen;
-  this->nnYLen = nnYLen;
-  gpuIndex = gpuIdx;
-  modelXLen = loadedModel->modelXLen;
-  modelYLen = loadedModel->modelYLen;
-  inputsUseNHWC = inputsNHWC;
-
-  if(gpuIdx >= 100) {
-    // Create a Core ML backend
-    modelIndex = createCoreMLBackend(modelXLen, modelYLen, serverThreadIdx, useFP16);
-    // Get the model version
-    version = getCoreMLBackendVersion(modelIndex);
-    isCoreML = true;
-  } else {
-    // Reserved for GPU, don't use
-    modelIndex = -1;
-    version = -1;
-    isCoreML = false;
-  }
-}
-
-//--------------------------------------------------------------
-
-CoreMLInputBuffers::CoreMLInputBuffers(const CoreMLLoadedModel* loadedModel, int maxBatchSz, int nnXLen, int nnYLen) {
-  const ModelDesc& m = loadedModel->modelDesc;
-
-  modelXLen = COMPILE_MAX_BOARD_LEN;
-  modelYLen = COMPILE_MAX_BOARD_LEN;
-  maxBatchSize = maxBatchSz;
-  policyResultChannels = 1;
-  singleSpatialElts = (size_t)m.numInputChannels * nnXLen * nnYLen;
-  singleInputElts = (size_t)m.numInputChannels * modelXLen * modelYLen;
-  singleInputGlobalElts = (size_t)m.numInputGlobalChannels;
-  singlePolicyResultElts = (size_t)((modelXLen * modelYLen) + 1);
-  singlePolicyProbsElts = (size_t)((nnXLen * nnYLen) + 1);
-  singleValueResultElts = (size_t)m.numValueChannels;
-  singleOwnershipResultElts = (size_t)m.numOwnershipChannels * modelXLen * modelYLen;
-  singleOwnerMapElts = (size_t)m.numOwnershipChannels * nnXLen * nnYLen;
-  singleMiscValuesResultElts = 10;
-  singleMoreMiscValuesResultElts = 8;
-
-  assert(NNModelVersion::getNumSpatialFeatures(m.version) == m.numInputChannels);
-  assert(NNModelVersion::getNumGlobalFeatures(m.version) == m.numInputGlobalChannels);
-  assert(singleInputElts == (modelXLen * modelYLen * 22));
-  assert(singleInputGlobalElts == 19);
-  assert(singleValueResultElts == 3);
-  assert(singleOwnershipResultElts == (modelXLen * modelYLen));
-  assert((singleMiscValuesResultElts + singleMoreMiscValuesResultElts) == m.numScoreValueChannels);
-
-  rowSpatialBufferElts = (size_t)maxBatchSize * singleSpatialElts;
-
-  // swa_model_bin_inputs shape: [1, 361, 22]
-  userInputBufferElts = (size_t)maxBatchSize * singleInputElts;
-
-  // swa_model_global_inputs shape: [1, 19]
-  userInputGlobalBufferElts = (size_t)maxBatchSize * singleInputGlobalElts;
-
-  // swa_model_policy_output shape: [1, 362, 2]
-  policyResultBufferElts = (size_t)maxBatchSize * singlePolicyResultElts * policyResultChannels;
-
-  policyProbsBufferElts = (size_t)maxBatchSize * singlePolicyProbsElts;
-
-  // swa_model_value_output shape: [1, 3]
-  valueResultBufferElts = (size_t)maxBatchSize * singleValueResultElts;
-
-  // swa_model_ownership_output shape: [1, 19, 19]
-  ownershipResultBufferElts = (size_t)maxBatchSize * singleOwnershipResultElts;
-
-  ownerMapBufferElts = (size_t)maxBatchSize * singleOwnerMapElts;
-
-  // swa_model_miscvalues_output shape: [1, 10]
-  miscValuesResultBufferElts = (size_t)maxBatchSize * singleMiscValuesResultElts;
-
-  // swa_model_moremiscvalues_output shape: [1, 8]
-  moreMiscValuesResultsBufferElts = (size_t)maxBatchSize * singleMoreMiscValuesResultElts;
-
-  rowSpatialBuffer = new float[rowSpatialBufferElts];
-  userInputBuffer = new float[userInputBufferElts];
-  userInputGlobalBuffer = new float[userInputGlobalBufferElts];
-  policyResults = new float[policyResultBufferElts];
-  policyProbsBuffer = new float[policyProbsBufferElts];
-  valueResults = new float[valueResultBufferElts];
-  ownershipResults = new float[ownershipResultBufferElts];
-  ownerMapBuffer = new float[ownerMapBufferElts];
-  miscValuesResults = new float[miscValuesResultBufferElts];
-  moreMiscValuesResults = new float[moreMiscValuesResultsBufferElts];
-
-  memset(&userInputBuffer[0], 0, userInputBufferElts * sizeof(userInputBuffer[0]));
-}
-
-void getCoreMLHandleOutput(CoreMLComputeHandle* gpuHandle,
-                           CoreMLInputBuffers* inputBuffers,
-                           int numBatchEltsFilled,
-                           NNResultBuf** inputBufs,
-                           vector<NNOutput*>& outputs) {
+void getCoreMLOutput(
+  ComputeHandle* gpuHandle,
+  InputBuffers* inputBuffers,
+  int numBatchEltsFilled,
+  NNResultBuf** inputBufs,
+  vector<NNOutput*>& outputs) {
   int batchSize = numBatchEltsFilled;
   int nnXLen = gpuHandle->nnXLen;
   int nnYLen = gpuHandle->nnYLen;
   int modelXLen = gpuHandle->modelXLen;
   int modelYLen = gpuHandle->modelYLen;
-  int version = gpuHandle->version;
+  int version = gpuHandle->modelVersion;
   int numSpatialFeatures = NNModelVersion::getNumSpatialFeatures(version);
   int numGlobalFeatures = NNModelVersion::getNumGlobalFeatures(version);
 
@@ -145,6 +31,7 @@ void getCoreMLHandleOutput(CoreMLComputeHandle* gpuHandle,
   assert(batchSize > 0);
   assert((numSpatialFeatures * modelXLen * modelYLen) == inputBuffers->singleInputElts);
   assert(numGlobalFeatures == inputBuffers->singleInputGlobalElts);
+  assert(version == getCoreMLBackendVersion(gpuHandle->modelIndex));
 
   size_t policyResultChannels = inputBuffers->policyResultChannels;
   size_t singleSpatialElts = inputBuffers->singleSpatialElts;
@@ -155,7 +42,7 @@ void getCoreMLHandleOutput(CoreMLComputeHandle* gpuHandle,
   size_t singleValueResultElts = inputBuffers->singleValueResultElts;
   size_t singleOwnershipResultElts = inputBuffers->singleOwnershipResultElts;
   size_t singleOwnerMapElts = inputBuffers->singleOwnerMapElts;
-  size_t singleMiscValuesResultElts = inputBuffers->singleMiscValuesResultElts;
+  size_t singleScoreValuesResultElts = inputBuffers->singleScoreValuesResultElts;
   size_t singleMoreMiscValuesResultElts = inputBuffers->singleMoreMiscValuesResultElts;
 
   assert(policyResultChannels == 1);
@@ -164,7 +51,7 @@ void getCoreMLHandleOutput(CoreMLComputeHandle* gpuHandle,
   assert(singlePolicyResultElts == ((modelXLen * modelYLen) + 1));
   assert(singleValueResultElts == 3);
   assert(singleOwnershipResultElts == (modelXLen * modelYLen));
-  assert(singleMiscValuesResultElts == 10);
+  assert(singleScoreValuesResultElts == 10);
   assert(singleMoreMiscValuesResultElts == 8);
 
   // Get CoreML backend output
@@ -175,7 +62,7 @@ void getCoreMLHandleOutput(CoreMLComputeHandle* gpuHandle,
     float* policyOutputBuf = &inputBuffers->policyResults[row * (singlePolicyResultElts * policyResultChannels)];
     float* valueOutputBuf = &inputBuffers->valueResults[row * singleValueResultElts];
     float* ownershipOutputBuf = &inputBuffers->ownershipResults[row * singleOwnershipResultElts];
-    float* miscValuesOutputBuf = &inputBuffers->miscValuesResults[row * singleMiscValuesResultElts];
+    float* miscValuesOutputBuf = &inputBuffers->scoreValuesResults[row * singleScoreValuesResultElts];
     float* moreMiscValuesOutputBuf = &inputBuffers->moreMiscValuesResults[row * singleMoreMiscValuesResultElts];
 
     const float* rowGlobal = inputBufs[row]->rowGlobal;
@@ -205,7 +92,7 @@ void getCoreMLHandleOutput(CoreMLComputeHandle* gpuHandle,
       }
     }
 
-    getCoreMLBackendOutput(
+    getCoreMLHandleOutput(
       rowSpatialInput,
       rowGlobalInput,
       policyOutputBuf,
@@ -263,8 +150,7 @@ void getCoreMLHandleOutput(CoreMLComputeHandle* gpuHandle,
         ownerMapBuf, output->whiteOwnerMap, 1, nnYLen, nnXLen, inputBufs[row]->symmetry);
     }
 
-    const float* miscValuesOutputBuf = &inputBuffers->miscValuesResults[row * singleMiscValuesResultElts];
-
+    const float* miscValuesOutputBuf = &inputBuffers->scoreValuesResults[row * singleScoreValuesResultElts];
     const float* moreMiscValuesOutputBuf = &inputBuffers->moreMiscValuesResults[row * singleMoreMiscValuesResultElts];
 
     if(version >= 9) {

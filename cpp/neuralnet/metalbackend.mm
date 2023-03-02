@@ -1,6 +1,9 @@
 #import "metalbackend.h"
 #import "metalswift.h"
 
+/// Converts a ConvLayerDesc instance from C++ to Swift by creating a new SWConvLayerDesc instance with the same properties.
+/// - Parameter desc: The ConvLayerDesc instance to convert.
+/// - Returns: A SWConvLayerDesc instance with the same properties as the input ConvLayerDesc.
 static SWConvLayerDesc * convLayerDescToSwift(const ConvLayerDesc * desc) {
 
     SWConvLayerDesc * swDesc =
@@ -15,6 +18,9 @@ static SWConvLayerDesc * convLayerDescToSwift(const ConvLayerDesc * desc) {
     return swDesc;
 }
 
+/// Converts a BatchNormLayerDesc instance from C++ to Swift by creating a new SWBatchNormLayerDesc instance with the same properties.
+/// - Parameter desc: The BatchNormLayerDesc instance to convert.
+/// - Returns: A SWBatchNormLayerDesc instance with the same properties as the input BatchNormLayerDesc.
 static SWBatchNormLayerDesc * batchNormLayerDescToSwift(const BatchNormLayerDesc * desc) {
 
     SWBatchNormLayerDesc * swDesc =
@@ -30,6 +36,9 @@ static SWBatchNormLayerDesc * batchNormLayerDescToSwift(const BatchNormLayerDesc
     return swDesc;
 }
 
+/// Convert a residual block description from C++ to Swift
+/// - Parameter desc: A residual block description
+/// - Returns: The residual block description converted to SWResidualBlockDesc
 static SWResidualBlockDesc * residualBlockDescToSwift(const ResidualBlockDesc * desc) {
 
     SWBatchNormLayerDesc * preBN = batchNormLayerDescToSwift(&desc->preBN);
@@ -47,6 +56,9 @@ static SWResidualBlockDesc * residualBlockDescToSwift(const ResidualBlockDesc * 
     return swDesc;
 }
 
+/// Convert a matrix multiplication layer description from C++ to Swift
+/// - Parameter desc: A matrix multiplication layer description
+/// - Returns: The matrix multiplication layer description converted to SWMatMulLayerDesc
 static SWMatMulLayerDesc * matMulLayerDescToSwift(const MatMulLayerDesc * desc) {
 
     SWMatMulLayerDesc * swDesc =
@@ -57,6 +69,9 @@ static SWMatMulLayerDesc * matMulLayerDescToSwift(const MatMulLayerDesc * desc) 
     return swDesc;
 }
 
+/// Convert a global pooling residual block description from C++ to Swift
+/// - Parameter desc: A global pooling residual block description
+/// - Returns: The global pooling residual block description converted to SWGlobalPoolingResidualBlockDesc
 static SWGlobalPoolingResidualBlockDesc* globalPoolingResidualBlockDescToSwift(const GlobalPoolingResidualBlockDesc* desc) {
 
     SWBatchNormLayerDesc * preBN = batchNormLayerDescToSwift(&desc->preBN);
@@ -82,6 +97,9 @@ static SWGlobalPoolingResidualBlockDesc* globalPoolingResidualBlockDescToSwift(c
     return swDesc;
 }
 
+/// Convert a trunk description from C++ to Swift
+/// - Parameter trunk: A trunk description
+/// - Returns: The trunk description converted to SWTrunkDesc
 static SWTrunkDesc * trunkDescToSwift(const TrunkDesc * trunk) {
 
     SWConvLayerDesc * initialConv = convLayerDescToSwift(&trunk->initialConv);
@@ -129,6 +147,9 @@ static SWTrunkDesc * trunkDescToSwift(const TrunkDesc * trunk) {
     return swTrunkDesc;
 }
 
+/// Convert a policy head description from C++ to Swift
+/// - Parameter policyHead: A policy head description
+/// - Returns: The policy head description converted to SWPolicyHeadDesc
 static SWPolicyHeadDesc * policyHeadDescToSwift(const PolicyHeadDesc * policyHead) {
 
     SWConvLayerDesc * p1Conv = convLayerDescToSwift(&policyHead->p1Conv);
@@ -152,6 +173,9 @@ static SWPolicyHeadDesc * policyHeadDescToSwift(const PolicyHeadDesc * policyHea
     return swPolicyHead;
 }
 
+/// Convert a matrix bias layer description from C++ to Swift
+/// - Parameter desc: A matrix bias layer description
+/// - Returns: The matrix bias layer description converted to SWMatBiasLayerDesc
 static SWMatBiasLayerDesc * matBiasLayerDescToSwift(const MatBiasLayerDesc * desc) {
     SWMatBiasLayerDesc * swDesc =
     [[SWMatBiasLayerDesc alloc] initWithNumChannels:[NSNumber numberWithInt:desc->numChannels]
@@ -160,6 +184,9 @@ static SWMatBiasLayerDesc * matBiasLayerDescToSwift(const MatBiasLayerDesc * des
     return swDesc;
 }
 
+/// Convert a value head description from C++ to Swift
+/// - Parameter valueHead: A value head description
+/// - Returns: The value head description converted to SWValueHeadDesc
 static SWValueHeadDesc * valueHeadDescToSwift(const ValueHeadDesc * valueHead) {
 
     SWConvLayerDesc * v1Conv = convLayerDescToSwift(&valueHead->v1Conv);
@@ -187,10 +214,17 @@ static SWValueHeadDesc * valueHeadDescToSwift(const ValueHeadDesc * valueHead) {
     return swDesc;
 }
 
+/// Print the list of available Metal devices
 void printMetalDevices(void) {
     [MetalBackend printDevices];
 }
 
+/// Create a Metal context
+/// - Parameters:
+///   - nnXLen: The width of the neural network input
+///   - nnYLen: The height of the neural network input
+///   - inputUseFP16Mode: Whether to use FP16 mode
+///   - inputUseNHWCMode: Whether to use NHWC mode
 void createMetalContext(int nnXLen,
                         int nnYLen,
                         enabled_t inputUseFP16Mode,
@@ -214,20 +248,33 @@ void createMetalContext(int nnXLen,
         useNHWCMode = SWEnableAuto;
     }
 
-    [ComputeContext createInstanceWithNnXLen:[NSNumber numberWithInt:nnXLen]
-                                      nnYLen:[NSNumber numberWithInt:nnYLen]
-                                 useFP16Mode:useFP16Mode
-                                 useNHWCMode:useNHWCMode];
+    [MetalComputeContext createInstanceWithNnXLen:[NSNumber numberWithInt:nnXLen]
+                                           nnYLen:[NSNumber numberWithInt:nnYLen]
+                                      useFP16Mode:useFP16Mode
+                                      useNHWCMode:useNHWCMode];
 }
 
+/// Destroy the Metal context
+void destroyMetalContext(void) {
+    [MetalComputeContext destroyInstance];
+}
+
+/// Get x length of the Metal context
 int getMetalContextXLen(void) {
     return (int)[MetalBackend getContextXLen];
 }
 
+/// Get y length of the Metal context
 int getMetalContextYLen(void) {
     return (int)[MetalBackend getContextYLen];
 }
 
+/// Create a Metal handle
+/// - Parameters:
+///   - gpuIdxForThisThread: The GPU index for this thread
+///   - desc: The model description
+///   - batchSize: The batch size
+///   - serverThreadIdx: The server thread index
 void createMetalHandle(int gpuIdxForThisThread,
                        const ModelDesc* desc,
                        int batchSize,
@@ -246,12 +293,22 @@ void createMetalHandle(int gpuIdxForThisThread,
                               policyHead:policyHeadDescToSwift(&desc->policyHead)
                                valueHead:valueHeadDescToSwift(&desc->valueHead)];
 
-    [ComputeHandle createInstanceAt:gpuIdxForThisThread
-                         descriptor:swModelDesc
-                          batchSize:[NSNumber numberWithInt:batchSize]
-                    serverThreadIdx:serverThreadIdx];
+    [MetalComputeHandle createInstanceAt:gpuIdxForThisThread
+                              descriptor:swModelDesc
+                               batchSize:[NSNumber numberWithInt:batchSize]
+                         serverThreadIdx:serverThreadIdx];
 }
 
+/// Get output from a Metal handle
+/// - Parameters:
+///   - userInputBuffer: The user input buffer
+///   - userInputGlobalBuffer: The user input global buffer
+///   - policyOutput: The policy output
+///   - policyPassOutput: The policy pass output
+///   - valueOutput: The value output
+///   - ownershipOutput: The ownership output
+///   - scoreValueOutput: The score value output
+///   - gpuIdx: The GPU index
 void getMetalHandleOutput(float* userInputBuffer,
                           float* userInputGlobalBuffer,
                           float* policyOutput,
@@ -270,6 +327,16 @@ void getMetalHandleOutput(float* userInputBuffer,
                                         gpuIdx:gpuIdx];
 }
 
+/// Evaluate a convolutional layer using Metal API for testing purposes
+/// - Parameters:
+///   - desc: The convolutional layer description
+///   - nnXLen: The width of the neural network input
+///   - nnYLen: The height of the neural network input
+///   - batchSize: The batch size
+///   - useFP16: Whether to use FP16 mode
+///   - useNHWC: Whether to use NHWC mode
+///   - input: The pointer to the input
+///   - output: The pointer to the output
 void testMetalEvaluateConv(const ConvLayerDesc* desc,
                            int nnXLen,
                            int nnYLen,
@@ -288,6 +355,17 @@ void testMetalEvaluateConv(const ConvLayerDesc* desc,
                            output:output];
 }
 
+/// Evaluate a batch normalization layer using Metal API for testing purposes
+/// - Parameters:
+///   - desc: The batch normalization layer description
+///   - nnXLen: The width of the neural network input
+///   - nnYLen: The height of the neural network input
+///   - batchSize: The batch size
+///   - useFP16: Whether to use FP16 mode
+///   - useNHWC: Whether to use NHWC mode
+///   - input: The pointer to the input
+///   - mask: The pointer to the mask
+///   - output: The pointer to the output
 void testMetalEvaluateBatchNorm(const BatchNormLayerDesc* desc,
                                 int nnXLen,
                                 int nnYLen,
@@ -308,6 +386,17 @@ void testMetalEvaluateBatchNorm(const BatchNormLayerDesc* desc,
                                 output:output];
 }
 
+/// Evaluate a residual block using Metal API for testing purposes
+/// - Parameters:
+///   - desc: The residual block description
+///   - batchSize: The batch size
+///   - nnXLen: The width of the neural network input
+///   - nnYLen: The height of the neural network input
+///   - useFP16: Whether to use FP16 mode
+///   - useNHWC: Whether to use NHWC mode
+///   - input: The pointer to the input
+///   - mask: The pointer to the mask
+///   - output: The pointer to the output
 void testMetalEvaluateResidualBlock(const ResidualBlockDesc* desc,
                                     int batchSize,
                                     int nnXLen,
@@ -328,6 +417,17 @@ void testMetalEvaluateResidualBlock(const ResidualBlockDesc* desc,
                                output:output];
 }
 
+/// Evaluate a global pooling residual block using Metal API for testing purposes
+/// - Parameters:
+///   - desc: The global pooling residual block description
+///   - batchSize: The batch size
+///   - nnXLen: The width of the neural network input
+///   - nnYLen: The height of the neural network input
+///   - useFP16: Whether to use FP16 mode
+///   - useNHWC: Whether to use NHWC mode
+///   - input: The pointer to the input
+///   - mask: The pointer to the mask
+///   - output: The pointer to the output
 void testMetalEvaluateGlobalPoolingResidualBlock(const GlobalPoolingResidualBlockDesc* desc,
                                                  int batchSize,
                                                  int nnXLen,
