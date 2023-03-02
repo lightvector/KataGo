@@ -47,10 +47,10 @@ static SWResidualBlockDesc * residualBlockDescToSwift(const ResidualBlockDesc * 
     SWConvLayerDesc * finalConv = convLayerDescToSwift(&desc->finalConv);
 
     SWResidualBlockDesc * swDesc = [[SWResidualBlockDesc alloc] initWithPreBN:preBN
-                                                                preActivation:nil
+                                                                preActivation:ActivationKindRelu
                                                                   regularConv:regularConv
                                                                         midBN:midBN
-                                                                midActivation:nil
+                                                                midActivation:ActivationKindRelu
                                                                     finalConv:finalConv];
 
     return swDesc;

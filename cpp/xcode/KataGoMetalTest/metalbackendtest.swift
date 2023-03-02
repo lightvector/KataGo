@@ -858,10 +858,10 @@ final class ResidualBlockTest: XCTestCase {
         finalConv.weights[0] = 1; finalConv.weights[1] = 1
 
         let descriptor = SWResidualBlockDesc(preBN: preBN,
-                                             preActivation: nil,
+                                             preActivation: ActivationKind.relu,
                                              regularConv: regularConv,
                                              midBN: midBN,
-                                             midActivation: nil,
+                                             midActivation: ActivationKind.relu,
                                              finalConv: finalConv)
 
         let outputLength = batchSize.intValue * trunkChannels.intValue * nnYLen.intValue * nnXLen.intValue
@@ -984,10 +984,10 @@ final class ResidualBlockTest: XCTestCase {
         finalConv.weights[0] = 1; finalConv.weights[1] = 1
 
         let descriptor = SWResidualBlockDesc(preBN: preBN,
-                                             preActivation: nil,
+                                             preActivation: ActivationKind.relu,
                                              regularConv: regularConv,
                                              midBN: midBN,
-                                             midActivation: nil,
+                                             midActivation: ActivationKind.relu,
                                              finalConv: finalConv)
 
         let outputLength = batchSize.intValue * trunkChannels.intValue * nnYLen.intValue * nnXLen.intValue
@@ -1066,10 +1066,10 @@ final class ResidualBlockTest: XCTestCase {
                                            bias: bias)
 
         let residualBlock = SWResidualBlockDesc(preBN: unityBN,
-                                                preActivation: nil,
+                                                preActivation: ActivationKind.relu,
                                                 regularConv: unityConv,
                                                 midBN: unityBN,
-                                                midActivation: nil,
+                                                midActivation: ActivationKind.relu,
                                                 finalConv: unityConv)
 
         let graph = MPSGraph()
@@ -2097,10 +2097,10 @@ final class TrunkTest: XCTestCase {
                                            bias: bias)
 
         let residualBlock = SWResidualBlockDesc(preBN: unityBN,
-                                                preActivation: nil,
+                                                preActivation: ActivationKind.relu,
                                                 regularConv: unityConv,
                                                 midBN: unityBN,
-                                                midActivation: nil,
+                                                midActivation: ActivationKind.relu,
                                                 finalConv: unityConv)
 
         let gpoolToBiasCount = 3 * numChannels * numChannels
@@ -2751,10 +2751,10 @@ final class SWModelDescTest {
                                                   bias: &biasWeights)
 
         let unityResidual = SWResidualBlockDesc(preBN: unityBatchNorm,
-                                                preActivation: nil,
+                                                preActivation: ActivationKind.relu,
                                                 regularConv: unityConv,
                                                 midBN: unityBatchNorm,
-                                                midActivation: nil,
+                                                midActivation: ActivationKind.relu,
                                                 finalConv: unityConv)
 
         let ordinaryDescriptor = BlockDescriptor(kind: .ordinary,
@@ -3025,10 +3025,10 @@ final class ModelTest: XCTestCase {
                                         weights: randomWeights)
 
         let ordinary = SWResidualBlockDesc(preBN: preBN,
-                                           preActivation: nil,
+                                           preActivation: ActivationKind.relu,
                                            regularConv: regularConv,
                                            midBN: midBN,
-                                           midActivation: nil,
+                                           midActivation: ActivationKind.relu,
                                            finalConv: finalConv)
 
         let ordinaryDescriptor = BlockDescriptor(kind: .ordinary,

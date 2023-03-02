@@ -815,13 +815,20 @@ class BatchNormLayer: NSObject {
     }
 }
 
+/// An enumeration of the different kinds of activation function.
+@objc enum ActivationKind: Int {
+    case identity
+    case relu
+    case mish
+}
+
 /// A class that represents a residual block in a convolutional neural network.
 @objc class SWResidualBlockDesc: NSObject {
     /// A description of the batch normalization layer that is applied before the first convolutional layer.
     let preBN: SWBatchNormLayerDesc
 
-    /// The type of activation function that is applied before the first convolutional layer, if any.
-    let preActivation: NSString?
+    /// The type of activation function that is applied before the first convolutional layer.
+    let preActivation: ActivationKind
 
     /// A description of the convolutional layer that is applied in the middle of the residual block.
     let regularConv: SWConvLayerDesc
@@ -829,8 +836,8 @@ class BatchNormLayer: NSObject {
     /// A description of the batch normalization layer that is applied after the middle convolutional layer.
     let midBN: SWBatchNormLayerDesc
 
-    /// The type of activation function that is applied after the middle convolutional layer, if any.
-    let midActivation: NSString?
+    /// The type of activation function that is applied after the middle convolutional layer.
+    let midActivation: ActivationKind
 
     /// A description of the convolutional layer that is applied at the end of the residual block.
     let finalConv: SWConvLayerDesc
@@ -838,17 +845,17 @@ class BatchNormLayer: NSObject {
     /// Initializes a `SWResidualBlockDesc` object.
     /// - Parameters:
     ///   - preBN: A description of the batch normalization layer that is applied before the first convolutional layer.
-    ///   - preActivation: The type of activation function that is applied before the first convolutional layer, if any.
+    ///   - preActivation: The type of activation function that is applied before the first convolutional layer.
     ///   - regularConv: A description of the convolutional layer that is applied in the middle of the residual block.
     ///   - midBN: A description of the batch normalization layer that is applied after the middle convolutional layer.
-    ///   - midActivation: The type of activation function that is applied after the middle convolutional layer, if any.
+    ///   - midActivation: The type of activation function that is applied after the middle convolutional layer.
     ///   - finalConv: A description of the convolutional layer that is applied at the end of the residual block.
     @objc
     init(preBN: SWBatchNormLayerDesc,
-         preActivation: NSString?,
+         preActivation: ActivationKind,
          regularConv: SWConvLayerDesc,
          midBN: SWBatchNormLayerDesc,
-         midActivation: NSString?,
+         midActivation: ActivationKind,
          finalConv: SWConvLayerDesc) {
         self.preBN = preBN
         self.preActivation = preActivation
