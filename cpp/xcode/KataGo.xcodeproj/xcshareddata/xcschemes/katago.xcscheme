@@ -54,6 +54,10 @@
       <CommandLineArguments>
          <CommandLineArgument
             argument = "benchmark -config coreml_example.cfg -t 2"
+            isEnabled = "NO">
+         </CommandLineArgument>
+         <CommandLineArgument
+            argument = "gtp -config coreml_example.cfg"
             isEnabled = "YES">
          </CommandLineArgument>
       </CommandLineArguments>
