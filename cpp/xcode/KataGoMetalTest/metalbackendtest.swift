@@ -3535,6 +3535,27 @@ final class ComputeContextTest: XCTestCase {
         XCTAssert(context.useFP16Mode == .False)
         XCTAssert(context.useNHWCMode == .False)
     }
+
+    func testDestroyInstance() {
+        let nnXLen: NSNumber = 9
+        let nnYLen: NSNumber = 11
+        let useFP16Mode: SWEnable = .False
+        let useNHWCMode: SWEnable = .False
+
+        MetalComputeContext.createInstance(nnXLen: nnXLen,
+                                           nnYLen: nnYLen,
+                                           useFP16Mode: useFP16Mode,
+                                           useNHWCMode: useNHWCMode)
+
+        MetalComputeContext.destroyInstance()
+
+        let context = MetalComputeContext.getInstance()
+
+        XCTAssert(context.nnXLen == MetalComputeContext.defaultNnXLen)
+        XCTAssert(context.nnYLen == MetalComputeContext.defaultNnYLen)
+        XCTAssert(context.useFP16Mode == MetalComputeContext.defaultUseFP16Mode)
+        XCTAssert(context.useNHWCMode == MetalComputeContext.defaultUseNHWCMode)
+    }
 }
 
 final class ComputeHandleTest: XCTestCase {
