@@ -129,6 +129,32 @@ extension Array where Element == NSNumber {
     }
 }
 
+/// Extension to MPSGraph to the mish activation function
+extension MPSGraph {
+    /// This function applies the Mish activation function on the input tensor `x`. The Mish function is defined as
+    /// x * tanh(Softplus(x)), where Softplus(x) is defined as log(1 + exp(min(x, 10.39))) if x < 10.39 and x otherwise.
+    /// The threshold of softplus is modified to 10.39, which is different from the original 20. This is because
+    /// exp(10.39) = 32532.666936 < 32767.0 < 65504.0, so the result of exp(10.39) can be represented by float16. If the threshold
+    /// of softplus is 20, the result of exp(20) is 485165195.40979004, which is out of range of float16.
+    /// - Parameter tensor: The input tensor of mish activation function
+    /// - Returns: The output tensor of mish activation function
+    func mish(tensor: MPSGraphTensor) -> MPSGraphTensor {
+        let threshold = 10.39
+        let thresholdTensor = constant(threshold, dataType: tensor.dataType)
+        let minimumTensor = minimum(tensor, thresholdTensor, name: nil)
+        let expTensor = exponent(with: minimumTensor, name: nil)
+        let one = 1.0
+        let oneTensor = constant(one, dataType: tensor.dataType)
+        let addTensor = addition(expTensor, oneTensor, name: nil)
+        let logTensor = logarithm(with: addTensor, name: nil)
+        let lessTensor = lessThan(tensor, thresholdTensor, name: nil)
+        let selectTensor = select(predicate: lessTensor, trueTensor: logTensor, falseTensor: tensor, name: nil)
+        let tanhTensor = tanh(with: selectTensor, name: nil)
+        let mulTensor = multiplication(tensor, tanhTensor, name: nil)
+        return mulTensor
+    }
+}
+
 /// A class that represents the input shape
 class InputShape {
     /// Create a shape for the input tensor
