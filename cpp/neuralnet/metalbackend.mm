@@ -36,21 +36,44 @@ static SWBatchNormLayerDesc * batchNormLayerDescToSwift(const BatchNormLayerDesc
     return swDesc;
 }
 
+/// Convert an activation layer description from C++ to Swift
+/// - Parameter desc: An activation layer description
+static ActivationKind activationLayerDescToSwift(const ActivationLayerDesc * desc) {
+
+    ActivationKind activationKind;
+
+    switch (desc->activation) {
+        case ACTIVATION_RELU:
+            activationKind = ActivationKindRelu;
+            break;
+        case ACTIVATION_MISH:
+            activationKind = ActivationKindMish;
+            break;
+        default:
+            activationKind = ActivationKindIdentity;
+            break;
+    }
+
+    return activationKind;
+}
+
 /// Convert a residual block description from C++ to Swift
 /// - Parameter desc: A residual block description
 /// - Returns: The residual block description converted to SWResidualBlockDesc
 static SWResidualBlockDesc * residualBlockDescToSwift(const ResidualBlockDesc * desc) {
 
     SWBatchNormLayerDesc * preBN = batchNormLayerDescToSwift(&desc->preBN);
+    ActivationKind preActivationKind = activationLayerDescToSwift(&desc->preActivation);
     SWConvLayerDesc * regularConv = convLayerDescToSwift(&desc->regularConv);
     SWBatchNormLayerDesc * midBN = batchNormLayerDescToSwift(&desc->midBN);
+    ActivationKind midActivationKind = activationLayerDescToSwift(&desc->midActivation);
     SWConvLayerDesc * finalConv = convLayerDescToSwift(&desc->finalConv);
 
     SWResidualBlockDesc * swDesc = [[SWResidualBlockDesc alloc] initWithPreBN:preBN
-                                                                preActivation:ActivationKindRelu
+                                                                preActivation:preActivationKind
                                                                   regularConv:regularConv
                                                                         midBN:midBN
-                                                                midActivation:ActivationKindRelu
+                                                                midActivation:midActivationKind
                                                                     finalConv:finalConv];
 
     return swDesc;
@@ -75,23 +98,26 @@ static SWMatMulLayerDesc * matMulLayerDescToSwift(const MatMulLayerDesc * desc) 
 static SWGlobalPoolingResidualBlockDesc* globalPoolingResidualBlockDescToSwift(const GlobalPoolingResidualBlockDesc* desc) {
 
     SWBatchNormLayerDesc * preBN = batchNormLayerDescToSwift(&desc->preBN);
+    ActivationKind preActivationKind = activationLayerDescToSwift(&desc->preActivation);
     SWConvLayerDesc * regularConv = convLayerDescToSwift(&desc->regularConv);
     SWConvLayerDesc * gpoolConv = convLayerDescToSwift(&desc->gpoolConv);
     SWBatchNormLayerDesc * gpoolBN = batchNormLayerDescToSwift(&desc->gpoolBN);
+    ActivationKind gpoolActivationKind = activationLayerDescToSwift(&desc->gpoolActivation);
     SWMatMulLayerDesc * gpoolToBiasMul = matMulLayerDescToSwift(&desc->gpoolToBiasMul);
     SWBatchNormLayerDesc * midBN = batchNormLayerDescToSwift(&desc->midBN);
+    ActivationKind midActivationKind = activationLayerDescToSwift(&desc->midActivation);
     SWConvLayerDesc * finalConv = convLayerDescToSwift(&desc->finalConv);
 
     SWGlobalPoolingResidualBlockDesc * swDesc =
     [[SWGlobalPoolingResidualBlockDesc alloc] initWithPreBN:preBN
-                                              preActivation:nil
+                                              preActivation:preActivationKind
                                                 regularConv:regularConv
                                                   gpoolConv:gpoolConv
                                                     gpoolBN:gpoolBN
-                                            gpoolActivation:nil
+                                            gpoolActivation:gpoolActivationKind
                                              gpoolToBiasMul:gpoolToBiasMul
                                                       midBN:midBN
-                                              midActivation:nil
+                                              midActivation:midActivationKind
                                                   finalConv:finalConv];
 
     return swDesc;

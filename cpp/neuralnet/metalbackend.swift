@@ -848,6 +848,32 @@ class BatchNormLayer: NSObject {
     case mish
 }
 
+/// A class that represents an activation layer
+class ActivationLayer {
+    let resultTensor: MPSGraphTensor
+
+    /// Initialize an ActivationLayer object
+    /// - Parameters:
+    ///   - graph: The MPSGraph
+    ///   - sourceTensor: The input tensor
+    ///   - activationKind: The activation kind
+    init(graph: MPSGraph,
+         sourceTensor: MPSGraphTensor,
+         activationKind: ActivationKind) {
+
+        switch activationKind {
+        case .relu:
+            resultTensor = graph.reLU(with: sourceTensor, name: nil)
+        case .mish:
+            resultTensor = graph.mish(tensor: sourceTensor)
+        default:
+            resultTensor = sourceTensor
+        }
+
+        assert(resultTensor.shape == sourceTensor.shape)
+    }
+}
+
 /// A class that represents a residual block in a convolutional neural network.
 @objc class SWResidualBlockDesc: NSObject {
     /// A description of the batch normalization layer that is applied before the first convolutional layer.
@@ -1018,11 +1044,12 @@ class BatchNormLayer: NSObject {
                                    useFP16: useFP16,
                                    useNHWC: useNHWC)
 
-        let preReLU = graph.reLU(with: preBN.resultTensor, name: nil)
-        assert(sourceTensor.shape == preReLU.shape)
+        let preActivation = ActivationLayer(graph: graph,
+                                            sourceTensor: preBN.resultTensor,
+                                            activationKind: descriptor.preActivation)
 
         let regularConv = ConvLayer(graph: graph,
-                                    sourceTensor: preReLU,
+                                    sourceTensor: preActivation.resultTensor,
                                     descriptor: descriptor.regularConv,
                                     batchSize: batchSize,
                                     nnXLen: nnXLen,
@@ -1040,11 +1067,12 @@ class BatchNormLayer: NSObject {
                                    useFP16: useFP16,
                                    useNHWC: useNHWC)
 
-        let midReLU = graph.reLU(with: midBN.resultTensor, name: nil)
-        assert(regularConv.resultTensor.shape == midReLU.shape)
+        let midActivation = ActivationLayer(graph: graph,
+                                            sourceTensor: midBN.resultTensor,
+                                            activationKind: descriptor.midActivation)
 
         let finalConv = ConvLayer(graph: graph,
-                                  sourceTensor: midReLU,
+                                  sourceTensor: midActivation.resultTensor,
                                   descriptor: descriptor.finalConv,
                                   batchSize: batchSize,
                                   nnXLen: nnXLen,
@@ -1369,7 +1397,7 @@ class SWGlobalPoolingResidualBlockDesc: NSObject {
     let preBN: SWBatchNormLayerDesc
 
     /// The pre-activation function of the residual block.
-    let preActivation: NSString?
+    let preActivation: ActivationKind
 
     /// The regular convolutional layer in the residual block.
     let regularConv: SWConvLayerDesc
@@ -1381,7 +1409,7 @@ class SWGlobalPoolingResidualBlockDesc: NSObject {
     let gpoolBN: SWBatchNormLayerDesc
 
     /// The activation function after the global pooling batch normalization layer.
-    let gpoolActivation: NSString?
+    let gpoolActivation: ActivationKind
 
     /// The matrix multiplication layer that multiplies the global pooled output with a bias.
     let gpoolToBiasMul: SWMatMulLayerDesc
@@ -1390,7 +1418,7 @@ class SWGlobalPoolingResidualBlockDesc: NSObject {
     let midBN: SWBatchNormLayerDesc
 
     /// The activation function after the mid batch normalization layer.
-    let midActivation: NSString?
+    let midActivation: ActivationKind
 
     /// The final convolutional layer in the residual block.
     let finalConv: SWConvLayerDesc
@@ -1409,14 +1437,14 @@ class SWGlobalPoolingResidualBlockDesc: NSObject {
     ///   - finalConv: The final convolutional layer in the residual block.
     @objc
     init(preBN: SWBatchNormLayerDesc,
-         preActivation: NSString?,
+         preActivation: ActivationKind,
          regularConv: SWConvLayerDesc,
          gpoolConv: SWConvLayerDesc,
          gpoolBN: SWBatchNormLayerDesc,
-         gpoolActivation: NSString?,
+         gpoolActivation: ActivationKind,
          gpoolToBiasMul: SWMatMulLayerDesc,
          midBN: SWBatchNormLayerDesc,
-         midActivation: NSString?,
+         midActivation: ActivationKind,
          finalConv: SWConvLayerDesc) {
         self.preBN = preBN
         self.preActivation = preActivation

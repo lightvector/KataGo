@@ -12,11 +12,11 @@ final class MPSGraphTest: XCTestCase {
 
         let inputPointer = UnsafeMutablePointer<Float32>.allocate(capacity: 5)
 
-        inputPointer[0] = -10.38
-        inputPointer[1] = -1
-        inputPointer[2] = 0
-        inputPointer[3] = 1
-        inputPointer[4] = 10.38
+        inputPointer[0] = -1
+        inputPointer[1] = 0
+        inputPointer[2] = 1
+        inputPointer[3] = 10.38
+        inputPointer[4] = 10.4
 
         let inputArray = MPSNDArray(device: device.metalDevice!,
                                     tensor: inputTensor)
@@ -34,11 +34,11 @@ final class MPSGraphTest: XCTestCase {
         fetch[mishTensor]?.mpsndarray().readBytes(buffer)
 
         XCTAssert(mishTensor.shape == shape)
-        XCTAssertEqual(buffer[0], -0.00032226555049419403, accuracy: 1e-6)
-        XCTAssertEqual(buffer[1], -0.30340147018432617, accuracy: 1e-6)
-        XCTAssertEqual(buffer[2], 0.0, accuracy: 1e-7)
-        XCTAssertEqual(buffer[3], 0.8650983572006226, accuracy: 1e-6)
-        XCTAssertEqual(buffer[4], 10.380000114440918, accuracy: 1e-6)
+        XCTAssertEqual(buffer[0], -0.30340147018432617, accuracy: 1e-6)
+        XCTAssertEqual(buffer[1], 0.0, accuracy: 1e-6)
+        XCTAssertEqual(buffer[2], 0.8650983572006226, accuracy: 1e-6)
+        XCTAssertEqual(buffer[3], 10.380000114440918, accuracy: 1e-6)
+        XCTAssertEqual(buffer[4], 10.4, accuracy: 1e-6)
     }
 
     func testMishFloat16() {
@@ -838,6 +838,91 @@ final class BatchNormLayerTest: XCTestCase {
     }
 }
 
+final class ActivationLayerTest: XCTestCase {
+
+    func testMish() {
+        let device = MPSGraphDevice(mtlDevice: MTLCreateSystemDefaultDevice()!)
+        let graph = MPSGraph()
+        let shape: [NSNumber] = [5]
+        let inputTensor = graph.placeholder(shape: shape, name: nil)
+
+        let activationLayer = ActivationLayer(graph: graph,
+                                              sourceTensor: inputTensor,
+                                              activationKind: ActivationKind.mish)
+
+        let inputPointer = UnsafeMutablePointer<Float32>.allocate(capacity: 5)
+
+        inputPointer[0] = -10.38
+        inputPointer[1] = -1
+        inputPointer[2] = 0
+        inputPointer[3] = 1
+        inputPointer[4] = 10.38
+
+        let inputArray = MPSNDArray(device: device.metalDevice!,
+                                    tensor: inputTensor)
+
+        inputArray.writeBytes(inputPointer)
+        let inputTensorData = MPSGraphTensorData(inputArray)
+
+        let fetch = graph.run(feeds: [inputTensor: inputTensorData],
+                              targetTensors: [activationLayer.resultTensor],
+                              targetOperations: nil)
+
+        let length = shape.countElements()
+        let buffer = UnsafeMutablePointer<Float32>.allocate(capacity: length)
+
+        fetch[activationLayer.resultTensor]?.mpsndarray().readBytes(buffer)
+
+        XCTAssert(activationLayer.resultTensor.shape == shape)
+        XCTAssertEqual(buffer[0], -0.00032226555049419403, accuracy: 1e-6)
+        XCTAssertEqual(buffer[1], -0.30340147018432617, accuracy: 1e-6)
+        XCTAssertEqual(buffer[2], 0.0, accuracy: 1e-7)
+        XCTAssertEqual(buffer[3], 0.8650983572006226, accuracy: 1e-6)
+        XCTAssertEqual(buffer[4], 10.380000114440918, accuracy: 1e-6)
+    }
+
+    func testIdentity() {
+        let device = MPSGraphDevice(mtlDevice: MTLCreateSystemDefaultDevice()!)
+        let graph = MPSGraph()
+        let shape: [NSNumber] = [5]
+        let inputTensor = graph.placeholder(shape: shape, name: nil)
+
+        let activationLayer = ActivationLayer(graph: graph,
+                                              sourceTensor: inputTensor,
+                                              activationKind: ActivationKind.identity)
+
+        let inputPointer = UnsafeMutablePointer<Float32>.allocate(capacity: 5)
+
+        inputPointer[0] = -10.38
+        inputPointer[1] = -1
+        inputPointer[2] = 0
+        inputPointer[3] = 1
+        inputPointer[4] = 10.38
+
+        let inputArray = MPSNDArray(device: device.metalDevice!,
+                                    tensor: inputTensor)
+
+        inputArray.writeBytes(inputPointer)
+        let inputTensorData = MPSGraphTensorData(inputArray)
+
+        let fetch = graph.run(feeds: [inputTensor: inputTensorData],
+                              targetTensors: [activationLayer.resultTensor],
+                              targetOperations: nil)
+
+        let length = shape.countElements()
+        let buffer = UnsafeMutablePointer<Float32>.allocate(capacity: length)
+
+        fetch[activationLayer.resultTensor]?.mpsndarray().readBytes(buffer)
+
+        XCTAssert(activationLayer.resultTensor.shape == shape)
+        XCTAssertEqual(buffer[0], inputPointer[0], accuracy: 1e-6)
+        XCTAssertEqual(buffer[1], inputPointer[1], accuracy: 1e-6)
+        XCTAssertEqual(buffer[2], inputPointer[2], accuracy: 1e-6)
+        XCTAssertEqual(buffer[3], inputPointer[3], accuracy: 1e-6)
+        XCTAssertEqual(buffer[4], inputPointer[4], accuracy: 1e-6)
+    }
+}
+
 final class ResidualBlockTest: XCTestCase {
 
     func testFP16() {
@@ -1362,14 +1447,14 @@ final class GlobalPoolingResidualBlockTest: XCTestCase {
         finalConv.weights[0] = 1
 
         let descriptor = SWGlobalPoolingResidualBlockDesc(preBN: preBN,
-                                                          preActivation: nil,
+                                                          preActivation: ActivationKind.relu,
                                                           regularConv: regularConv,
                                                           gpoolConv: gpoolConv,
                                                           gpoolBN: gpoolBN,
-                                                          gpoolActivation: nil,
+                                                          gpoolActivation: ActivationKind.relu,
                                                           gpoolToBiasMul: gpoolToBiasMul,
                                                           midBN: midBN,
-                                                          midActivation: nil,
+                                                          midActivation: ActivationKind.relu,
                                                           finalConv: finalConv)
 
         let outputPointer = UnsafeMutablePointer<Float32>.allocate(capacity: 24)
@@ -1552,14 +1637,14 @@ final class GlobalPoolingResidualBlockTest: XCTestCase {
         finalConv.weights[0] = 1
 
         let descriptor = SWGlobalPoolingResidualBlockDesc(preBN: preBN,
-                                                          preActivation: nil,
+                                                          preActivation: ActivationKind.relu,
                                                           regularConv: regularConv,
                                                           gpoolConv: gpoolConv,
                                                           gpoolBN: gpoolBN,
-                                                          gpoolActivation: nil,
+                                                          gpoolActivation: ActivationKind.relu,
                                                           gpoolToBiasMul: gpoolToBiasMul,
                                                           midBN: midBN,
-                                                          midActivation: nil,
+                                                          midActivation: ActivationKind.relu,
                                                           finalConv: finalConv)
 
         let outputPointer = UnsafeMutablePointer<Float32>.allocate(capacity: 24)
@@ -2196,14 +2281,14 @@ final class TrunkTest: XCTestCase {
 
         let globalPoolingResidualBlock =
         SWGlobalPoolingResidualBlockDesc(preBN: unityBN,
-                                         preActivation: nil,
+                                         preActivation: ActivationKind.relu,
                                          regularConv: unityConv,
                                          gpoolConv: unityConv,
                                          gpoolBN: unityBN,
-                                         gpoolActivation: nil,
+                                         gpoolActivation: ActivationKind.relu,
                                          gpoolToBiasMul: gpoolToBiasMul,
                                          midBN: unityBN,
-                                         midActivation: nil,
+                                         midActivation: ActivationKind.relu,
                                          finalConv: unityConv)
 
         let blocks = [
@@ -2846,14 +2931,14 @@ final class SWModelDescTest {
 
         let globalPooling =
         SWGlobalPoolingResidualBlockDesc(preBN: unityBatchNorm,
-                                         preActivation: nil,
+                                         preActivation: ActivationKind.relu,
                                          regularConv: unityConv,
                                          gpoolConv: unityConv,
                                          gpoolBN: unityBatchNorm,
-                                         gpoolActivation: nil,
+                                         gpoolActivation: ActivationKind.relu,
                                          gpoolToBiasMul: gpoolMatMul,
                                          midBN: unityBatchNorm,
-                                         midActivation: nil,
+                                         midActivation: ActivationKind.relu,
                                          finalConv: unityConv)
 
         let globalPoolingDescriptor = BlockDescriptor(kind: .globalPooling,
@@ -3162,14 +3247,14 @@ final class ModelTest: XCTestCase {
 
         let globalPooling =
         SWGlobalPoolingResidualBlockDesc(preBN: preBN,
-                                         preActivation: nil,
+                                         preActivation: ActivationKind.relu,
                                          regularConv: gRegularConv,
                                          gpoolConv: gpoolConv,
                                          gpoolBN: gpoolBN,
-                                         gpoolActivation: nil,
+                                         gpoolActivation: ActivationKind.relu,
                                          gpoolToBiasMul: gpoolToBiasMul,
                                          midBN: gMidBN,
-                                         midActivation: nil,
+                                         midActivation: ActivationKind.relu,
                                          finalConv: gFinalConv)
 
         let globalPoolingDescriptor = BlockDescriptor(kind: .globalPooling,
