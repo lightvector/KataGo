@@ -843,20 +843,22 @@ final class ActivationLayerTest: XCTestCase {
     func testMish() {
         let device = MPSGraphDevice(mtlDevice: MTLCreateSystemDefaultDevice()!)
         let graph = MPSGraph()
-        let shape: [NSNumber] = [5]
+        let inputNumber = 6
+        let shape: [NSNumber] = [NSNumber(value: inputNumber)]
         let inputTensor = graph.placeholder(shape: shape, name: nil)
 
         let activationLayer = ActivationLayer(graph: graph,
                                               sourceTensor: inputTensor,
                                               activationKind: ActivationKind.mish)
 
-        let inputPointer = UnsafeMutablePointer<Float32>.allocate(capacity: 5)
+        let inputPointer = UnsafeMutablePointer<Float32>.allocate(capacity: inputNumber)
 
-        inputPointer[0] = -10.38
+        inputPointer[0] = -1e10
         inputPointer[1] = -1
         inputPointer[2] = 0
         inputPointer[3] = 1
         inputPointer[4] = 10.38
+        inputPointer[5] = 1e10
 
         let inputArray = MPSNDArray(device: device.metalDevice!,
                                     tensor: inputTensor)
@@ -874,11 +876,12 @@ final class ActivationLayerTest: XCTestCase {
         fetch[activationLayer.resultTensor]?.mpsndarray().readBytes(buffer)
 
         XCTAssert(activationLayer.resultTensor.shape == shape)
-        XCTAssertEqual(buffer[0], -0.00032226555049419403, accuracy: 1e-6)
+        XCTAssertEqual(buffer[0], 0.0, accuracy: 1e-6)
         XCTAssertEqual(buffer[1], -0.30340147018432617, accuracy: 1e-6)
-        XCTAssertEqual(buffer[2], 0.0, accuracy: 1e-7)
+        XCTAssertEqual(buffer[2], 0.0, accuracy: 1e-6)
         XCTAssertEqual(buffer[3], 0.8650983572006226, accuracy: 1e-6)
         XCTAssertEqual(buffer[4], 10.380000114440918, accuracy: 1e-6)
+        XCTAssertEqual(buffer[5], 1e10, accuracy: 1e4)
     }
 
     func testIdentity() {
@@ -2292,12 +2295,8 @@ final class TrunkTest: XCTestCase {
                                          finalConv: unityConv)
 
         let blocks = [
-            BlockDescriptor(kind: BlockKind.ordinary,
-                            ordinary: residualBlock,
-                            globalPooling: nil),
-            BlockDescriptor(kind: BlockKind.globalPooling,
-                            ordinary: nil,
-                            globalPooling: globalPoolingResidualBlock)]
+            BlockDescriptor(ordinary: residualBlock),
+            BlockDescriptor(globalPooling: globalPoolingResidualBlock)]
 
         let descriptor = SWTrunkDesc(version: 0,
                                      trunkNumChannels: numChannels as NSNumber,
@@ -2306,8 +2305,9 @@ final class TrunkTest: XCTestCase {
                                      gpoolNumChannels: numChannels as NSNumber,
                                      initialConv: unityConv,
                                      initialMatMul: initialMatMul,
-                                     blocks: blocks,
-                                     trunkTipBN: unityBN)
+                                     blockDescriptors: blocks,
+                                     trunkTipBN: unityBN,
+                                     trunkTipActivation: ActivationKind.relu)
 
         let graph = MPSGraph()
 
@@ -2509,8 +2509,10 @@ final class PolicyHeadTest: XCTestCase {
                                           p1Conv: unityConv,
                                           g1Conv: unityConv,
                                           g1BN: unityBN,
+                                          g1Activation: ActivationKind.relu,
                                           gpoolToBiasMul: gpoolToBiasMul,
                                           p1BN: unityBN,
+                                          p1Activation: ActivationKind.relu,
                                           p2Conv: p2Conv,
                                           gpoolToPassMul: gpoolToPassMul)
 
@@ -2767,8 +2769,10 @@ final class ValueHeadTest: XCTestCase {
         let descriptor = SWValueHeadDesc(version: 0,
                                          v1Conv: v1Conv,
                                          v1BN: v1BN,
+                                         v1Activation: ActivationKind.relu,
                                          v2Mul: v2Mul,
                                          v2Bias: v2Bias,
+                                         v2Activation: ActivationKind.relu,
                                          v3Mul: v3Mul,
                                          v3Bias: v3Bias,
                                          sv3Mul: sv3Mul,
@@ -2921,9 +2925,7 @@ final class SWModelDescTest {
                                                 midActivation: ActivationKind.relu,
                                                 finalConv: unityConv)
 
-        let ordinaryDescriptor = BlockDescriptor(kind: .ordinary,
-                                                 ordinary: unityResidual,
-                                                 globalPooling: nil)
+        let ordinaryDescriptor = BlockDescriptor(ordinary: unityResidual)
 
         let gpoolMatMul = SWMatMulLayerDesc(inChannels: 3,
                                             outChannels: 1,
@@ -2941,9 +2943,7 @@ final class SWModelDescTest {
                                          midActivation: ActivationKind.relu,
                                          finalConv: unityConv)
 
-        let globalPoolingDescriptor = BlockDescriptor(kind: .globalPooling,
-                                                      ordinary: nil,
-                                                      globalPooling: globalPooling)
+        let globalPoolingDescriptor = BlockDescriptor(globalPooling: globalPooling)
 
         let blocks: [BlockDescriptor] = [ordinaryDescriptor,
                                          globalPoolingDescriptor,
@@ -2956,15 +2956,18 @@ final class SWModelDescTest {
                                     gpoolNumChannels: 1,
                                     initialConv: unityConv,
                                     initialMatMul: unityMatMul,
-                                    blocks: blocks,
-                                    trunkTipBN: unityBatchNorm)
+                                    blockDescriptors: blocks,
+                                    trunkTipBN: unityBatchNorm,
+                                    trunkTipActivation: ActivationKind.relu)
 
         let policyHead = SWPolicyHeadDesc(version: 0,
                                           p1Conv: unityConv,
                                           g1Conv: unityConv,
                                           g1BN: unityBatchNorm,
+                                          g1Activation: ActivationKind.relu,
                                           gpoolToBiasMul: gpoolMatMul,
                                           p1BN: unityBatchNorm,
+                                          p1Activation: ActivationKind.relu,
                                           p2Conv: unityConv,
                                           gpoolToPassMul: gpoolMatMul)
 
@@ -2974,8 +2977,10 @@ final class SWModelDescTest {
         let valueHead = SWValueHeadDesc(version: 0,
                                         v1Conv: unityConv,
                                         v1BN: unityBatchNorm,
+                                        v1Activation: ActivationKind.relu,
                                         v2Mul: gpoolMatMul,
                                         v2Bias: zeroMatBias,
+                                        v2Activation: ActivationKind.relu,
                                         v3Mul: unityMatMul,
                                         v3Bias: zeroMatBias,
                                         sv3Mul: unityMatMul,
@@ -3195,9 +3200,7 @@ final class ModelTest: XCTestCase {
                                            midActivation: ActivationKind.relu,
                                            finalConv: finalConv)
 
-        let ordinaryDescriptor = BlockDescriptor(kind: .ordinary,
-                                                 ordinary: ordinary,
-                                                 globalPooling: nil)
+        let ordinaryDescriptor = BlockDescriptor(ordinary: ordinary)
 
         let gRegularConv = SWConvLayerDesc(convYSize: 3,
                                            convXSize: 3,
@@ -3257,9 +3260,7 @@ final class ModelTest: XCTestCase {
                                          midActivation: ActivationKind.relu,
                                          finalConv: gFinalConv)
 
-        let globalPoolingDescriptor = BlockDescriptor(kind: .globalPooling,
-                                                      ordinary: nil,
-                                                      globalPooling: globalPooling)
+        let globalPoolingDescriptor = BlockDescriptor(globalPooling: globalPooling)
 
         let blocks: [BlockDescriptor] = [ordinaryDescriptor,
                                          ordinaryDescriptor,
@@ -3320,8 +3321,9 @@ final class ModelTest: XCTestCase {
                                     gpoolNumChannels: 64,
                                     initialConv: initialConv,
                                     initialMatMul: initialMatMul,
-                                    blocks: blocks,
-                                    trunkTipBN: trunkTipBN)
+                                    blockDescriptors: blocks,
+                                    trunkTipBN: trunkTipBN,
+                                    trunkTipActivation: ActivationKind.relu)
 
         let p1Conv = SWConvLayerDesc(convYSize: 1,
                                      convXSize: 1,
@@ -3377,8 +3379,10 @@ final class ModelTest: XCTestCase {
                                           p1Conv: p1Conv,
                                           g1Conv: g1Conv,
                                           g1BN: g1BN,
+                                          g1Activation: ActivationKind.relu,
                                           gpoolToBiasMul: g1PoolToBiasMul,
                                           p1BN: p1BN,
+                                          p1Activation: ActivationKind.relu,
                                           p2Conv: p2Conv,
                                           gpoolToPassMul: gpoolToPassMul)
 
@@ -3420,8 +3424,10 @@ final class ModelTest: XCTestCase {
         let valueHead = SWValueHeadDesc(version: version,
                                         v1Conv: v1Conv,
                                         v1BN: v1BN,
+                                        v1Activation: ActivationKind.relu,
                                         v2Mul: v2Mul,
                                         v2Bias: v2Bias,
+                                        v2Activation: ActivationKind.relu,
                                         v3Mul: v3Mul,
                                         v3Bias: v3Bias,
                                         sv3Mul: sv3Mul,

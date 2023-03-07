@@ -1603,10 +1603,12 @@ class GlobalPoolingResidualBlock: NSObject {
                                    useFP16: useFP16,
                                    useNHWC: useNHWC)
 
-        let preReLU = graph.reLU(with: preBN.resultTensor, name: nil)
+        let preActivation = ActivationLayer(graph: graph,
+                                            sourceTensor: preBN.resultTensor,
+                                            activationKind: descriptor.preActivation)
 
         let regularConv = ConvLayer(graph: graph,
-                                    sourceTensor: preReLU,
+                                    sourceTensor: preActivation.resultTensor,
                                     descriptor: descriptor.regularConv,
                                     batchSize: batchSize,
                                     nnXLen: nnXLen,
@@ -1615,7 +1617,7 @@ class GlobalPoolingResidualBlock: NSObject {
                                     useNHWC: useNHWC)
 
         let gpoolConv = ConvLayer(graph: graph,
-                                  sourceTensor: preReLU,
+                                  sourceTensor: preActivation.resultTensor,
                                   descriptor: descriptor.gpoolConv,
                                   batchSize: batchSize,
                                   nnXLen: nnXLen,
@@ -1633,10 +1635,12 @@ class GlobalPoolingResidualBlock: NSObject {
                                      useFP16: useFP16,
                                      useNHWC: useNHWC)
 
-        let gpoolReLU = graph.reLU(with: gpoolBN.resultTensor, name: nil)
+        let gpoolActivation = ActivationLayer(graph: graph,
+                                              sourceTensor: gpoolBN.resultTensor,
+                                              activationKind: descriptor.gpoolActivation)
 
         let gpoolConcat = GlobalPoolingLayer(graph: graph,
-                                             sourceTensor: gpoolReLU,
+                                             sourceTensor: gpoolActivation.resultTensor,
                                              maskSumTensor: maskSum.tensor,
                                              maskSumSqrtS14M01Tensor: maskSumSqrtS14M01.tensor,
                                              useFP16: useFP16,
@@ -1671,10 +1675,12 @@ class GlobalPoolingResidualBlock: NSObject {
                                    useFP16: useFP16,
                                    useNHWC: useNHWC)
 
-        let midReLU = graph.reLU(with: midBN.resultTensor, name: nil)
+        let midActivation = ActivationLayer(graph: graph,
+                                            sourceTensor: midBN.resultTensor,
+                                            activationKind: descriptor.midActivation)
 
         let finalConv = ConvLayer(graph: graph,
-                                  sourceTensor: midReLU,
+                                  sourceTensor: midActivation.resultTensor,
                                   descriptor: descriptor.finalConv,
                                   batchSize: batchSize,
                                   nnXLen: nnXLen,
@@ -1690,11 +1696,61 @@ class GlobalPoolingResidualBlock: NSObject {
     }
 }
 
+/// A class that represents a nested bottleneck residual block
+@objc
+class SWNestedBottleneckResidualBlockDesc: NSObject {
+    /// The batch normalization layer before the residual block.
+    let preBN: SWBatchNormLayerDesc
+
+    /// The pre-activation function of the residual block.
+    let preActivation: ActivationKind
+
+    /// The convolutional layer before the residual block.
+    let preConv: SWConvLayerDesc
+
+    /// The list of blocks that make up the trunk
+    let blockDescriptors: [BlockDescriptor]
+
+    /// The batch normalization layer after the residual block.
+    let postBN: SWBatchNormLayerDesc
+
+    /// The activation function after the post batch normalization layer.
+    let postActivation: ActivationKind
+
+    /// The convolutional layer after the post activation layer.
+    let postConv: SWConvLayerDesc
+
+    /// Initialize a SWNestedBottleneckResidualBlockDesc object.
+    /// - Parameters:
+    ///   - preBN: The batch normalization layer before the residual block.
+    ///   - preActivation: The pre-activation function of the residual block.
+    ///   - preConv: The convolutional layer before the residual block.
+    ///   - postBN: The batch normalization layer after the residual block.
+    ///   - postActivation: The activation function after the post batch normalization layer.
+    ///   - postConv: The convolutional layer after the post activation layer.
+    @objc
+    init(preBN: SWBatchNormLayerDesc,
+         preActivation: ActivationKind,
+         preConv: SWConvLayerDesc,
+         blockDescriptors: [BlockDescriptor],
+         postBN: SWBatchNormLayerDesc,
+         postActivation: ActivationKind,
+         postConv: SWConvLayerDesc) {
+        self.preBN = preBN
+        self.preActivation = preActivation
+        self.preConv = preConv
+        self.blockDescriptors = blockDescriptors
+        self.postBN = postBN
+        self.postActivation = postActivation
+        self.postConv = postConv
+    }
+}
+
 /// An enumeration of the different kinds of blocks that can be used in a residual network.
 @objc enum BlockKind: Int {
     case ordinary
-    case dilated
     case globalPooling
+    case nestedBottleneck
 }
 
 /// A class that represents a block descriptor that is used to define the characteristics of a residual block.
@@ -1709,19 +1765,220 @@ class BlockDescriptor: NSObject {
     /// The descriptor for the global pooling residual block, if the kind is globalPooling.
     let globalPooling: SWGlobalPoolingResidualBlockDesc?
 
+    /// The descriptor for the nested bottleneck residual block, if the kind is nestedBottleneck.
+    let nestedBottleneck: SWNestedBottleneckResidualBlockDesc?
+
     /// Initializes a block descriptor object with the given parameters.
-    ///
     /// - Parameters:
-    ///   - kind: The kind of the block.
     ///   - ordinary: The descriptor for the ordinary residual block, if the kind is ordinary.
+    @objc
+    init(ordinary: SWResidualBlockDesc) {
+        self.kind = BlockKind.ordinary
+        self.ordinary = ordinary
+        self.globalPooling = nil
+        self.nestedBottleneck = nil
+    }
+
+    /// Initializes a block descriptor object with the given parameters.
+    /// - Parameters:
     ///   - globalPooling: The descriptor for the global pooling residual block, if the kind is globalPooling.
     @objc
-    init(kind: BlockKind,
-         ordinary: SWResidualBlockDesc?,
-         globalPooling: SWGlobalPoolingResidualBlockDesc?) {
-        self.kind = kind
-        self.ordinary = ordinary
+    init(globalPooling: SWGlobalPoolingResidualBlockDesc) {
+        self.kind = BlockKind.globalPooling
+        self.ordinary = nil
         self.globalPooling = globalPooling
+        self.nestedBottleneck = nil
+    }
+
+    /// Initializes a block descriptor object with the given parameters.
+    /// - Parameters:
+    ///   - nestedBottleneck: The descriptor for the nested bottleneck residual block, if the kind is nestedBottleneck.
+    @objc
+    init(nestedBottleneck: SWNestedBottleneckResidualBlockDesc) {
+        self.kind = BlockKind.nestedBottleneck
+        self.ordinary = nil
+        self.globalPooling = nil
+        self.nestedBottleneck = nestedBottleneck
+    }
+}
+
+/// A class that represents a block stack
+class BlockStack {
+    /// The resulting tensor after processing the block stack
+    let resultTensor: MPSGraphTensor
+
+    /// Initialize a BlockStack object
+    /// - Parameters:
+    ///   - graph: The MPSGraph
+    ///   - sourceTensor: The input tensor
+    ///   - maskTensor: The mask tensor
+    ///   - maskSumTensor: The sum of the mask tensor
+    ///   - maskSumSqrtS14M01Tensor: The square root of the sum of the mask tensor
+    ///   - blockDescriptors: The block descriptors
+    ///   - nnXLen: X length
+    ///   - nnYLen: Y length
+    ///   - batchSize: Batch size
+    ///   - useFP16: If true, use FP16, otherwise use FP32
+    ///   - useNHWC: If true, use NHWC, otherwise use NCHW
+    init(graph: MPSGraph,
+         sourceTensor: MPSGraphTensor,
+         maskTensor: MPSGraphTensor,
+         maskSumTensor: MPSGraphTensor,
+         maskSumSqrtS14M01Tensor: MPSGraphTensor,
+         blockDescriptors: [BlockDescriptor],
+         nnXLen: NSNumber,
+         nnYLen: NSNumber,
+         batchSize: NSNumber,
+         useFP16: Bool,
+         useNHWC: Bool) {
+
+        var blockInput = sourceTensor
+
+        for blockDescriptor in blockDescriptors {
+            switch blockDescriptor.kind {
+            case .globalPooling:
+                let globalPooling =
+                GlobalPoolingResidualBlock(graph: graph,
+                                           sourceTensor: blockInput,
+                                           maskTensor: maskTensor,
+                                           maskSumTensor: maskSumTensor,
+                                           maskSumSqrtS14M01Tensor: maskSumSqrtS14M01Tensor,
+                                           descriptor: blockDescriptor.globalPooling!,
+                                           nnXLen: nnXLen,
+                                           nnYLen: nnYLen,
+                                           batchSize: batchSize,
+                                           useFP16: useFP16,
+                                           useNHWC: useNHWC)
+
+                blockInput = globalPooling.resultTensor
+            case .nestedBottleneck:
+                let nestedBottleneck =
+                NestedBottleneckResidualBlock(graph: graph,
+                                              sourceTensor: blockInput,
+                                              maskTensor: maskTensor,
+                                              maskSumTensor: maskSumTensor,
+                                              maskSumSqrtS14M01Tensor: maskSumSqrtS14M01Tensor,
+                                              descriptor: blockDescriptor.nestedBottleneck!,
+                                              nnXLen: nnXLen,
+                                              nnYLen: nnYLen,
+                                              batchSize: batchSize,
+                                              useFP16: useFP16,
+                                              useNHWC: useNHWC)
+
+                blockInput = nestedBottleneck.resultTensor
+            default:
+                let ordinary = ResidualBlock(graph: graph,
+                                             sourceTensor: blockInput,
+                                             maskTensor: maskTensor,
+                                             descriptor: blockDescriptor.ordinary!,
+                                             nnXLen: nnXLen,
+                                             nnYLen: nnYLen,
+                                             batchSize: batchSize,
+                                             useFP16: useFP16,
+                                             useNHWC: useNHWC)
+
+                blockInput = ordinary.resultTensor
+            }
+        }
+
+        resultTensor = blockInput
+    }
+}
+
+/// A class that represents a nested bottleneck residual block
+class NestedBottleneckResidualBlock {
+    /// The resulting tensor after processing the nested bottleneck residual block
+    let resultTensor: MPSGraphTensor
+
+    /// Initialize a ResidualBlock object
+    ///
+    /// - Parameters:
+    ///   - graph: The MPSGraph
+    ///   - sourceTensor: The input tensor
+    ///   - maskTensor: The mask tensor
+    ///   - maskSumTensor: The sum of the mask tensor
+    ///   - maskSumSqrtS14M01Tensor: The square root of the sum of the mask tensor
+    ///   - descriptor: The nested bottleneck residual block descriptor
+    ///   - nnXLen: X length
+    ///   - nnYLen: Y length
+    ///   - batchSize: Batch size
+    ///   - useFP16: If true, use FP16, otherwise use FP32
+    ///   - useNHWC: If true, use NHWC, otherwise use NCHW
+    init(graph: MPSGraph,
+         sourceTensor: MPSGraphTensor,
+         maskTensor: MPSGraphTensor,
+         maskSumTensor: MPSGraphTensor,
+         maskSumSqrtS14M01Tensor: MPSGraphTensor,
+         descriptor: SWNestedBottleneckResidualBlockDesc,
+         nnXLen: NSNumber,
+         nnYLen: NSNumber,
+         batchSize: NSNumber,
+         useFP16: Bool,
+         useNHWC: Bool) {
+
+        let preBN = BatchNormLayer(graph: graph,
+                                   sourceTensor: sourceTensor,
+                                   maskTensor: maskTensor,
+                                   descriptor: descriptor.preBN,
+                                   nnXLen: nnXLen,
+                                   nnYLen: nnYLen,
+                                   batchSize: batchSize,
+                                   useFP16: useFP16,
+                                   useNHWC: useNHWC)
+
+        let preActivation = ActivationLayer(graph: graph,
+                                            sourceTensor: preBN.resultTensor,
+                                            activationKind: descriptor.preActivation)
+
+        let preConv = ConvLayer(graph: graph,
+                                sourceTensor: preActivation.resultTensor,
+                                descriptor: descriptor.preConv,
+                                batchSize: batchSize,
+                                nnXLen: nnXLen,
+                                nnYLen: nnYLen,
+                                useFP16: useFP16,
+                                useNHWC: useNHWC)
+
+        let blocks = BlockStack(graph: graph,
+                                sourceTensor: preConv.resultTensor,
+                                maskTensor: maskTensor,
+                                maskSumTensor: maskSumTensor,
+                                maskSumSqrtS14M01Tensor: maskSumSqrtS14M01Tensor,
+                                blockDescriptors: descriptor.blockDescriptors,
+                                nnXLen: nnXLen,
+                                nnYLen: nnYLen,
+                                batchSize: batchSize,
+                                useFP16: useFP16,
+                                useNHWC: useNHWC)
+
+        let postBN = BatchNormLayer(graph: graph,
+                                    sourceTensor: blocks.resultTensor,
+                                    maskTensor: maskTensor,
+                                    descriptor: descriptor.postBN,
+                                    nnXLen: nnXLen,
+                                    nnYLen: nnYLen,
+                                    batchSize: batchSize,
+                                    useFP16: useFP16,
+                                    useNHWC: useNHWC)
+
+        let postActivation = ActivationLayer(graph: graph,
+                                             sourceTensor: postBN.resultTensor,
+                                             activationKind: descriptor.postActivation)
+
+        let postConv = ConvLayer(graph: graph,
+                                 sourceTensor: postActivation.resultTensor,
+                                 descriptor: descriptor.postConv,
+                                 batchSize: batchSize,
+                                 nnXLen: nnXLen,
+                                 nnYLen: nnYLen,
+                                 useFP16: useFP16,
+                                 useNHWC: useNHWC)
+
+        resultTensor = graph.addition(sourceTensor,
+                                      postConv.resultTensor,
+                                      name: nil)
+
+        assert(resultTensor.shape?.count == 4)
     }
 }
 
@@ -1743,9 +2000,11 @@ class SWTrunkDesc: NSObject {
     /// The description of the initial matrix multiplication layer
     let initialMatMul: SWMatMulLayerDesc
     /// The list of blocks that make up the trunk
-    let blocks: [BlockDescriptor]
+    let blockDescriptors: [BlockDescriptor]
     /// The description of the batch normalization layer that is applied at the end of the trunk
     let trunkTipBN: SWBatchNormLayerDesc
+    /// The activation function that is applied at the end of the trunk
+    let trunkTipActivation: ActivationKind
 
     /// Initializes a SWTrunkDesc object
     /// - Parameters:
@@ -1756,18 +2015,19 @@ class SWTrunkDesc: NSObject {
     ///   - gpoolNumChannels: Number of channels for the global pooling section
     ///   - initialConv: The description of the initial convolutional layer
     ///   - initialMatMul: The description of the initial matrix multiplication layer
-    ///   - blocks: The list of blocks that make up the trunk
+    ///   - blockDescriptors: The list of blocks that make up the trunk
     ///   - trunkTipBN: The description of the batch normalization layer that is applied at the end of the trunk
-    @objc
-    init(version: Int,
-         trunkNumChannels: NSNumber,
-         midNumChannels: NSNumber,
-         regularNumChannels: NSNumber,
-         gpoolNumChannels: NSNumber,
-         initialConv: SWConvLayerDesc,
-         initialMatMul: SWMatMulLayerDesc,
-         blocks: [BlockDescriptor],
-         trunkTipBN: SWBatchNormLayerDesc) {
+    ///   - trunkTipActivation: The activation function that is applied at the end of the trunk
+    @objc init(version: Int,
+               trunkNumChannels: NSNumber,
+               midNumChannels: NSNumber,
+               regularNumChannels: NSNumber,
+               gpoolNumChannels: NSNumber,
+               initialConv: SWConvLayerDesc,
+               initialMatMul: SWMatMulLayerDesc,
+               blockDescriptors: [BlockDescriptor],
+               trunkTipBN: SWBatchNormLayerDesc,
+               trunkTipActivation: ActivationKind) {
         self.version = version
         self.trunkNumChannels = trunkNumChannels
         self.midNumChannels = midNumChannels
@@ -1775,8 +2035,9 @@ class SWTrunkDesc: NSObject {
         self.gpoolNumChannels = gpoolNumChannels
         self.initialConv = initialConv
         self.initialMatMul = initialMatMul
-        self.blocks = blocks
+        self.blockDescriptors = blockDescriptors
         self.trunkTipBN = trunkTipBN
+        self.trunkTipActivation = trunkTipActivation
     }
 }
 
@@ -1841,44 +2102,20 @@ class Trunk {
                                    useFP16: useFP16,
                                    useNHWC: useNHWC)
 
-        var blockInput = added.resultTensor
-
-        for block in descriptor.blocks {
-            assert((block.kind == .ordinary) || (block.kind == .globalPooling))
-
-            switch block.kind {
-            case .ordinary:
-                let ordinary = ResidualBlock(graph: graph,
-                                             sourceTensor: blockInput,
-                                             maskTensor: maskTensor,
-                                             descriptor: block.ordinary!,
-                                             nnXLen: nnXLen,
-                                             nnYLen: nnYLen,
-                                             batchSize: batchSize,
-                                             useFP16: useFP16,
-                                             useNHWC: useNHWC)
-
-                blockInput = ordinary.resultTensor
-            default:
-                let globalPooling =
-                GlobalPoolingResidualBlock(graph: graph,
-                                           sourceTensor: blockInput,
-                                           maskTensor: maskTensor,
-                                           maskSumTensor: maskSumTensor,
-                                           maskSumSqrtS14M01Tensor: maskSumSqrtS14M01Tensor,
-                                           descriptor: block.globalPooling!,
-                                           nnXLen: nnXLen,
-                                           nnYLen: nnYLen,
-                                           batchSize: batchSize,
-                                           useFP16: useFP16,
-                                           useNHWC: useNHWC)
-
-                blockInput = globalPooling.resultTensor
-            }
-        }
+        let blocks = BlockStack(graph: graph,
+                                sourceTensor: added.resultTensor,
+                                maskTensor: maskTensor,
+                                maskSumTensor: maskSumTensor,
+                                maskSumSqrtS14M01Tensor: maskSumSqrtS14M01Tensor,
+                                blockDescriptors: descriptor.blockDescriptors,
+                                nnXLen: nnXLen,
+                                nnYLen: nnYLen,
+                                batchSize: batchSize,
+                                useFP16: useFP16,
+                                useNHWC: useNHWC)
 
         let trunkTipBN = BatchNormLayer(graph: graph,
-                                        sourceTensor: blockInput,
+                                        sourceTensor: blocks.resultTensor,
                                         maskTensor: maskTensor,
                                         descriptor: descriptor.trunkTipBN,
                                         nnXLen: nnXLen,
@@ -1887,9 +2124,11 @@ class Trunk {
                                         useFP16: useFP16,
                                         useNHWC: useNHWC)
 
-        let trunkTipReLU = graph.reLU(with: trunkTipBN.resultTensor, name: nil)
+        let trunkTipActivation = ActivationLayer(graph: graph,
+                                                 sourceTensor: trunkTipBN.resultTensor,
+                                                 activationKind: descriptor.trunkTipActivation)
 
-        resultTensor = trunkTipReLU
+        resultTensor = trunkTipActivation.resultTensor
 
         assert(resultTensor.shape?.count == 4)
     }
@@ -1898,48 +2137,36 @@ class Trunk {
 /// A class that describes a policy head for a neural network
 @objc
 class SWPolicyHeadDesc: NSObject {
-    /// The version of the policy head
     let version: Int
-    /// The description of the first convolutional layer of the policy head
     let p1Conv: SWConvLayerDesc
-    /// The description of the first global pooling convolutional layer of the policy head
     let g1Conv: SWConvLayerDesc
-    /// The description of the batch normalization layer that is applied after the first global pooling convolutional layer
     let g1BN: SWBatchNormLayerDesc
-    /// The description of the matrix multiplication layer that converts the global pooling convolutional output to bias
+    let g1Activation: ActivationKind
     let gpoolToBiasMul: SWMatMulLayerDesc
-    /// The description of the batch normalization layer that is applied after the first convolutional layer
     let p1BN: SWBatchNormLayerDesc
-    /// The description of the second convolutional layer of the policy head
+    let p1Activation: ActivationKind
     let p2Conv: SWConvLayerDesc
-    /// The description of the matrix multiplication layer that converts the global pooling convolutional output to pass
     let gpoolToPassMul: SWMatMulLayerDesc
 
-    /// Initializes a SWPolicyHeadDesc object
-    /// - Parameters:
-    ///   - version: The version of the policy head
-    ///   - p1Conv: The description of the first convolutional layer of the policy head
-    ///   - g1Conv: The description of the first global pooling convolutional layer of the policy head
-    ///   - g1BN: The description of the batch normalization layer that is applied after the first global pooling convolutional layer
-    ///   - gpoolToBiasMul: The description of the matrix multiplication layer that converts the global pooling convolutional output to bias
-    ///   - p1BN: The description of the batch normalization layer that is applied after the first convolutional layer
-    ///   - p2Conv: The description of the second convolutional layer of the policy head
-    ///   - gpoolToPassMul: The description of the matrix multiplication layer that converts the global pooling convolutional output to pass
     @objc
     init(version: Int,
          p1Conv: SWConvLayerDesc,
          g1Conv: SWConvLayerDesc,
          g1BN: SWBatchNormLayerDesc,
+         g1Activation: ActivationKind,
          gpoolToBiasMul: SWMatMulLayerDesc,
          p1BN: SWBatchNormLayerDesc,
+         p1Activation: ActivationKind,
          p2Conv: SWConvLayerDesc,
          gpoolToPassMul: SWMatMulLayerDesc) {
         self.version = version
         self.p1Conv = p1Conv
         self.g1Conv = g1Conv
         self.g1BN = g1BN
+        self.g1Activation = g1Activation
         self.gpoolToBiasMul = gpoolToBiasMul
         self.p1BN = p1BN
+        self.p1Activation = p1Activation
         self.p2Conv = p2Conv
         self.gpoolToPassMul = gpoolToPassMul
     }
@@ -2005,10 +2232,12 @@ class PolicyHead {
                                   useFP16: useFP16,
                                   useNHWC: useNHWC)
 
-        let g1ReLU = graph.reLU(with: g1BN.resultTensor, name: nil)
+        let g1Activation = ActivationLayer(graph: graph,
+                                           sourceTensor: g1BN.resultTensor,
+                                           activationKind: descriptor.g1Activation)
 
         let g1Concat = GlobalPoolingLayer(graph: graph,
-                                          sourceTensor: g1ReLU,
+                                          sourceTensor: g1Activation.resultTensor,
                                           maskSumTensor: maskSumTensor,
                                           maskSumSqrtS14M01Tensor: maskSumSqrtS14M01Tensor,
                                           useFP16: useFP16,
@@ -2043,10 +2272,12 @@ class PolicyHead {
                                   useFP16: useFP16,
                                   useNHWC: useNHWC)
 
-        let p1ReLU = graph.reLU(with: p1BN.resultTensor, name: nil)
+        let p1Activation = ActivationLayer(graph: graph,
+                                           sourceTensor: p1BN.resultTensor,
+                                           activationKind: descriptor.p1Activation)
 
         let p2Conv = ConvLayer(graph: graph,
-                               sourceTensor: p1ReLU,
+                               sourceTensor: p1Activation.resultTensor,
                                descriptor: descriptor.p2Conv,
                                batchSize: batchSize,
                                nnXLen: nnXLen,
@@ -2080,10 +2311,14 @@ class SWValueHeadDesc: NSObject {
     let v1Conv: SWConvLayerDesc
     /// The description of the batch normalization layer after the first convolutional layer in the value head
     let v1BN: SWBatchNormLayerDesc
+    /// The activation function that is applied after the first batch normalization layer in the value head
+    let v1Activation: ActivationKind
     /// The description of the matrix multiplication layer that is applied to the output of the first convolutional layer in the value head
     let v2Mul: SWMatMulLayerDesc
     /// The description of the bias layer that is applied to the output of the matrix multiplication layer in the value head
     let v2Bias: SWMatBiasLayerDesc
+    /// The activation function that is applied after the bias layer in the value head
+    let v2Activation: ActivationKind
     /// The description of the matrix multiplication layer that is applied to the output of the bias layer in the value head
     let v3Mul: SWMatMulLayerDesc
     /// The description of the bias layer that is applied to the output of the matrix multiplication layer in the value head
@@ -2100,20 +2335,34 @@ class SWValueHeadDesc: NSObject {
     ///   - version: The version of the value head
     ///   - v1Conv: The description of the first convolutional layer in the value head
     ///   - v1BN: The description of the batch normalization layer after the first convolutional layer in the value head
+    ///   - v1Activation: The activation function that is applied after the first batch normalization layer in the value head
     ///   - v2Mul: The description of the matrix multiplication layer that is applied to the output of the first convolutional layer in the value head
     ///   - v2Bias: The description of the bias layer that is applied to the output of the matrix multiplication layer in the value head
+    ///   - v2Activation: The activation function that is applied after the bias layer in the value head
     ///   - v3Mul: The description of the matrix multiplication layer that is applied to the output of the bias layer in the value head
     ///   - v3Bias: The description of the bias layer that is applied to the output of the matrix multiplication layer in the value head
     ///   - sv3Mul: The description of the matrix multiplication layer that is applied to the output of the third bias layer in the value head
     ///   - sv3Bias: The description of the bias layer that is applied to the output of the matrix multiplication layer in the value head
     ///   - vOwnershipConv: The description of the convolutional layer that is applied to the board ownership map in the value head
-    @objc
-    init(version: Int, v1Conv: SWConvLayerDesc, v1BN: SWBatchNormLayerDesc, v2Mul: SWMatMulLayerDesc, v2Bias: SWMatBiasLayerDesc, v3Mul: SWMatMulLayerDesc, v3Bias: SWMatBiasLayerDesc, sv3Mul: SWMatMulLayerDesc, sv3Bias: SWMatBiasLayerDesc, vOwnershipConv: SWConvLayerDesc) {
+    @objc init(version: Int,
+               v1Conv: SWConvLayerDesc,
+               v1BN: SWBatchNormLayerDesc,
+               v1Activation: ActivationKind,
+               v2Mul: SWMatMulLayerDesc,
+               v2Bias: SWMatBiasLayerDesc,
+               v2Activation: ActivationKind,
+               v3Mul: SWMatMulLayerDesc,
+               v3Bias: SWMatBiasLayerDesc,
+               sv3Mul: SWMatMulLayerDesc,
+               sv3Bias: SWMatBiasLayerDesc,
+               vOwnershipConv: SWConvLayerDesc) {
         self.version = version
         self.v1Conv = v1Conv
         self.v1BN = v1BN
+        self.v1Activation = v1Activation
         self.v2Mul = v2Mul
         self.v2Bias = v2Bias
+        self.v2Activation = v2Activation
         self.v3Mul = v3Mul
         self.v3Bias = v3Bias
         self.sv3Mul = sv3Mul
@@ -2177,11 +2426,13 @@ class ValueHead {
                                   useFP16: useFP16,
                                   useNHWC: useNHWC)
 
-        let v1ReLU = graph.reLU(with: v1BN.resultTensor, name: nil)
+        let v1Activation = ActivationLayer(graph: graph,
+                                           sourceTensor: v1BN.resultTensor,
+                                           activationKind: descriptor.v1Activation)
 
         let v1Mean =
         GlobalPoolingValueLayer(graph: graph,
-                                sourceTensor: v1ReLU,
+                                sourceTensor: v1Activation.resultTensor,
                                 maskSumTensor: maskSumTensor,
                                 maskSumSqrtS14M01Tensor: maskSumSqrtS14M01Tensor,
                                 maskSumSqrtS14M01SquareS01Tensor: maskSumSqrtS14M01SquareS01Tensor,
@@ -2203,11 +2454,13 @@ class ValueHead {
                                   useFP16: useFP16,
                                   useNHWC: useNHWC)
 
-        let v2ReLU = graph.reLU(with: v2Bias.resultTensor, name: nil)
+        let v2Activation = ActivationLayer(graph: graph,
+                                           sourceTensor: v2Bias.resultTensor,
+                                           activationKind: descriptor.v2Activation)
 
         let v3Mul = MatMulLayer(graph: graph,
                                 descriptor: descriptor.v3Mul,
-                                sourceTensor: v2ReLU,
+                                sourceTensor: v2Activation.resultTensor,
                                 useFP16: useFP16,
                                 useNHWC: useNHWC)
 
@@ -2219,7 +2472,7 @@ class ValueHead {
 
         let sv3Mul = MatMulLayer(graph: graph,
                                  descriptor: descriptor.sv3Mul,
-                                 sourceTensor: v2ReLU,
+                                 sourceTensor: v2Activation.resultTensor,
                                  useFP16: useFP16,
                                  useNHWC: useNHWC)
 
@@ -2230,7 +2483,7 @@ class ValueHead {
                                    useNHWC: useNHWC)
 
         let vOwnershipConv = ConvLayer(graph: graph,
-                                       sourceTensor: v1ReLU,
+                                       sourceTensor: v1Activation.resultTensor,
                                        descriptor: descriptor.vOwnershipConv,
                                        batchSize: batchSize,
                                        nnXLen: nnXLen,
