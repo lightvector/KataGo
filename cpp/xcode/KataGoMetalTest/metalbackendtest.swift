@@ -1696,6 +1696,145 @@ final class GlobalPoolingResidualBlockTest: XCTestCase {
     }
 }
 
+final class NestedBottleneckResidualBlockTest: XCTestCase {
+
+    func testFP16() {
+        let batchSize = 1
+        let nnXLen = 1
+        let nnYLen = 1
+        let numChannels = 1
+        let useFP16 = true
+        let useNHWC = false
+        let hasScale = true
+        let hasBias = true
+
+        let graph = MPSGraph()
+
+        let source = InputLayer(graph: graph,
+                                batchSize: batchSize as NSNumber,
+                                nnXLen: nnXLen as NSNumber,
+                                nnYLen: nnYLen as NSNumber,
+                                numChannels: numChannels as NSNumber,
+                                useFP16: useFP16,
+                                useNHWC: useNHWC)
+
+        let mask = MaskLayer(graph: graph,
+                             batchSize: batchSize as NSNumber,
+                             nnXLen: nnXLen as NSNumber,
+                             nnYLen: nnYLen as NSNumber,
+                             useFP16: useFP16,
+                             useNHWC: useNHWC)
+
+        let maskSum = MaskSumLayer(graph: graph,
+                                   mask: mask,
+                                   useNHWC: useNHWC)
+
+        let maskSumSqrtS14M01 = MaskSumSqrtS14M01Layer(graph: graph,
+                                                       maskSum: maskSum,
+                                                       useFP16: useFP16)
+
+        let preBN = SWBatchNormLayerDesc(numChannels: numChannels as NSNumber,
+                                         epsilon: 0.1,
+                                         hasScale: hasScale as NSNumber,
+                                         hasBias: hasBias as NSNumber,
+                                         mean: UnsafeMutablePointer<Float32>.allocate(capacity: 1),
+                                         variance: UnsafeMutablePointer<Float32>.allocate(capacity: 1),
+                                         scale: UnsafeMutablePointer<Float32>.allocate(capacity: 1),
+                                         bias: UnsafeMutablePointer<Float32>.allocate(capacity: 1))
+
+        preBN.mean[0] = 0
+        preBN.variance[0] = 0.9
+        preBN.scale[0] = 1
+        preBN.bias[0] = 0
+
+        let preActivation = ActivationKind.mish
+
+        let preConv = SWConvLayerDesc(convYSize: 1,
+                                      convXSize: 1,
+                                      inChannels: numChannels as NSNumber,
+                                      outChannels: numChannels as NSNumber,
+                                      dilationY: 1,
+                                      dilationX: 1,
+                                      weights: UnsafeMutablePointer<Float32>.allocate(capacity: 1))
+
+        preConv.weights[0] = 1
+
+        let ordinary = SWResidualBlockDesc(preBN: preBN,
+                                           preActivation: preActivation,
+                                           regularConv: preConv,
+                                           midBN: preBN,
+                                           midActivation: preActivation,
+                                           finalConv: preConv)
+
+        let nestedBlockDescriptor = BlockDescriptor(ordinary: ordinary)
+
+        let nestedBottleneck = SWNestedBottleneckResidualBlockDesc(preBN: preBN,
+                                                                   preActivation: preActivation,
+                                                                   preConv: preConv,
+                                                                   blockDescriptors: [nestedBlockDescriptor],
+                                                                   postBN: preBN,
+                                                                   postActivation: preActivation,
+                                                                   postConv: preConv)
+
+        let blockDescriptor = BlockDescriptor(nestedBottleneck: nestedBottleneck)
+
+        let descriptor = SWNestedBottleneckResidualBlockDesc(preBN: preBN,
+                                                             preActivation: preActivation,
+                                                             preConv: preConv,
+                                                             blockDescriptors: [blockDescriptor],
+                                                             postBN: preBN,
+                                                             postActivation: preActivation,
+                                                             postConv: preConv)
+
+        let block = NestedBottleneckResidualBlock(graph: graph,
+                                                  sourceTensor: source.tensor,
+                                                  maskTensor: mask.tensor,
+                                                  maskSumTensor: maskSum.tensor,
+                                                  maskSumSqrtS14M01Tensor: maskSumSqrtS14M01.tensor,
+                                                  descriptor: descriptor,
+                                                  nnXLen: nnXLen as NSNumber,
+                                                  nnYLen: nnYLen as NSNumber,
+                                                  batchSize: batchSize as NSNumber,
+                                                  useFP16: useFP16,
+                                                  useNHWC: useNHWC)
+
+        let device = MPSGraphDevice(mtlDevice: MTLCreateSystemDefaultDevice()!)
+
+        let inLength = source.tensor.countElements()
+        let inputPointer = UnsafeMutablePointer<Float32>.allocate(capacity: inLength)
+        inputPointer[0] = 1
+
+        let sourceArray = MPSNDArray(device: device.metalDevice!,
+                                     tensor: source.tensor)
+
+        sourceArray.writeBytes(inputPointer.toFP16(length: inLength))
+        let sourceTensorData = MPSGraphTensorData(sourceArray)
+
+        let maskLength = mask.tensor.countElements()
+        let maskPointer = UnsafeMutablePointer<Float32>.allocate(capacity: maskLength)
+        maskPointer[0] = 1
+
+        let maskArray = MPSNDArray(device: device.metalDevice!,
+                                   tensor: mask.tensor)
+
+        maskArray.writeBytes(maskPointer.toFP16(length: maskLength))
+        let maskTensorData = MPSGraphTensorData(maskArray)
+
+        let fetch = graph.run(feeds: [source.tensor: sourceTensorData,
+                                      mask.tensor: maskTensorData],
+                              targetTensors: [block.resultTensor],
+                              targetOperations: nil)
+
+        let outLength = block.resultTensor.countElements()
+        let outputFP16 = UnsafeMutablePointer<Float16>.allocate(capacity: outLength)
+        fetch[block.resultTensor]?.mpsndarray().readBytes(outputFP16)
+        let outputFP32 = UnsafeMutablePointer<Float32>.allocate(capacity: outLength)
+        outputFP16.toFP32(outputFP32, length: outLength)
+
+        XCTAssertEqual(outputFP32[0], 2.859375)
+    }
+}
+
 final class MatMulLayerTest: XCTestCase {
 
     func testFP16() {
