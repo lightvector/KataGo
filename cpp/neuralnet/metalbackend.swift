@@ -155,8 +155,8 @@ extension MPSGraph {
     }
 }
 
-/// A class that represents the input shape
-class InputShape {
+/// A structure that represents the input shape
+struct InputShape {
     /// Create a shape for the input tensor
     /// - Parameters:
     ///   - batchSize: Batch size
@@ -165,11 +165,11 @@ class InputShape {
     ///   - nnXLen: X length
     ///   - useNHWC: If true, use NHWC, otherwise use NCHW
     /// - Returns: The shape
-    class func create(batchSize: NSNumber,
-                      numChannels: NSNumber,
-                      nnYLen: NSNumber,
-                      nnXLen: NSNumber,
-                      useNHWC: Bool) -> [NSNumber] {
+    static func create(batchSize: NSNumber,
+                       numChannels: NSNumber,
+                       nnYLen: NSNumber,
+                       nnXLen: NSNumber,
+                       useNHWC: Bool) -> [NSNumber] {
         let shape: [NSNumber]
         if useNHWC {
             shape = [batchSize,
@@ -188,14 +188,14 @@ class InputShape {
     /// Get the channel axis
     /// - Parameter useNHWC: If true, use NHWC, otherwise use NCHW
     /// - Returns: The channel axis
-    class func getChannelAxis(useNHWC: Bool) -> Int {
+    static func getChannelAxis(useNHWC: Bool) -> Int {
         return useNHWC ? 3 : 1
     }
 
     /// Get the HW axes
     /// - Parameter useNHWC: If true, use NHWC, otherwise use NCHW
     /// - Returns: The HW axes
-    class func getHWAxes(useNHWC: Bool) -> [NSNumber] {
+    static func getHWAxes(useNHWC: Bool) -> [NSNumber] {
         let hwAxes: [NSNumber]
         if useNHWC {
             hwAxes = [1, 2]
@@ -206,8 +206,8 @@ class InputShape {
     }
 }
 
-/// A class that represents the input layer
-class InputLayer {
+/// A structure that represents the input layer
+struct InputLayer {
     let tensor: MPSGraphTensor
 
     /// Initialize a InputLayer object
@@ -242,8 +242,8 @@ class InputLayer {
     }
 }
 
-/// A class that represents an input global layer for a neural network model.
-class InputGlobalLayer {
+/// A structure that represents an input global layer for a neural network model.
+struct InputGlobalLayer {
     let tensor: MPSGraphTensor
 
     /// Initializes an InputGlobalLayer object with a given tensor.
@@ -281,8 +281,8 @@ class InputGlobalLayer {
     }
 }
 
-/// A class that represents a mask layer for a neural network model.
-class MaskLayer {
+/// A structure that represents a mask layer for a neural network model.
+struct MaskLayer {
     let tensor: MPSGraphTensor
 
     /// Initializes a MaskLayer object with a given tensor.
@@ -323,8 +323,8 @@ class MaskLayer {
     }
 }
 
-/// A class that represents a layer which performs the summation operation on a mask layer.
-class MaskSumLayer {
+/// A structure that represents a layer which performs the summation operation on a mask layer.
+struct MaskSumLayer {
     let tensor: MPSGraphTensor
 
     /// Initializes a MaskSumLayer object with a given tensor.
@@ -352,8 +352,8 @@ class MaskSumLayer {
     }
 }
 
-/// A class that represents a layer which performs square root, subtraction, and multiplication operations on a MaskSumLayer object.
-class MaskSumSqrtS14M01Layer {
+/// A structure that represents a layer which performs square root, subtraction, and multiplication operations on a MaskSumLayer object.
+struct MaskSumSqrtS14M01Layer {
     let tensor: MPSGraphTensor
 
     /// Initializes a MaskSumSqrtS14M01Layer object with a given tensor.
@@ -392,8 +392,8 @@ class MaskSumSqrtS14M01Layer {
     }
 }
 
-/// A class that represents a layer which performs squaring and subtraction operations on a MaskSumSqrtS14M01Layer object.
-class MaskSumSqrtS14M01SquareS01Layer {
+/// A structure that represents a layer which performs squaring and subtraction operations on a MaskSumSqrtS14M01Layer object.
+struct MaskSumSqrtS14M01SquareS01Layer {
     let tensor: MPSGraphTensor
 
     /// Initializes a MaskSumSqrtS14M01SquareS01Layer object with a given tensor.
@@ -445,14 +445,13 @@ class MaskSumSqrtS14M01SquareS01Layer {
     ///   - dilationY: The dilation in the Y direction.
     ///   - dilationX: The dilation in the X direction.
     ///   - weights: A pointer to the weights.
-    @objc
-    init(convYSize: NSNumber,
-         convXSize: NSNumber,
-         inChannels: NSNumber,
-         outChannels: NSNumber,
-         dilationY: Int,
-         dilationX: Int,
-         weights: UnsafeMutablePointer<Float32>) {
+    @objc init(convYSize: NSNumber,
+               convXSize: NSNumber,
+               inChannels: NSNumber,
+               outChannels: NSNumber,
+               dilationY: Int,
+               dilationX: Int,
+               weights: UnsafeMutablePointer<Float32>) {
         self.convYSize = convYSize
         self.convXSize = convXSize
         self.inChannels = inChannels
@@ -478,15 +477,14 @@ class MaskSumSqrtS14M01SquareS01Layer {
     ///   - useNHWC: If true, use NHWC mode. If false, use NCHW mode
     ///   - input: A pointer to the input tensor data
     ///   - output: A pointer to the output tensor data
-    @objc
-    class func test(descriptor: SWConvLayerDesc,
-                    nnXLen: NSNumber,
-                    nnYLen: NSNumber,
-                    batchSize: NSNumber,
-                    useFP16: Bool,
-                    useNHWC: Bool,
-                    input: UnsafeMutablePointer<Float32>,
-                    output: UnsafeMutablePointer<Float32>) {
+    @objc class func test(descriptor: SWConvLayerDesc,
+                          nnXLen: NSNumber,
+                          nnYLen: NSNumber,
+                          batchSize: NSNumber,
+                          useFP16: Bool,
+                          useNHWC: Bool,
+                          input: UnsafeMutablePointer<Float32>,
+                          output: UnsafeMutablePointer<Float32>) {
         let device = MPSGraphDevice(mtlDevice: MTLCreateSystemDefaultDevice()!)
         let graph = MPSGraph()
 
@@ -604,8 +602,7 @@ class MaskSumSqrtS14M01SquareS01Layer {
 }
 
 /// A class that represents a description of a batch normalization layer.
-@objc
-class SWBatchNormLayerDesc: NSObject {
+@objc class SWBatchNormLayerDesc: NSObject {
     let numChannels: NSNumber
     let epsilon: Float32
     let hasScale: NSNumber
@@ -625,15 +622,14 @@ class SWBatchNormLayerDesc: NSObject {
     ///   - variance: A pointer to the variance.
     ///   - scale: A pointer to the scale.
     ///   - bias: A pointer to the bias.
-    @objc
-    init(numChannels: NSNumber,
-         epsilon: Float32,
-         hasScale: NSNumber,
-         hasBias: NSNumber,
-         mean: UnsafeMutablePointer<Float32>,
-         variance: UnsafeMutablePointer<Float32>,
-         scale: UnsafeMutablePointer<Float32>,
-         bias: UnsafeMutablePointer<Float32>) {
+    @objc init(numChannels: NSNumber,
+               epsilon: Float32,
+               hasScale: NSNumber,
+               hasBias: NSNumber,
+               mean: UnsafeMutablePointer<Float32>,
+               variance: UnsafeMutablePointer<Float32>,
+               scale: UnsafeMutablePointer<Float32>,
+               bias: UnsafeMutablePointer<Float32>) {
         self.numChannels = numChannels
         self.epsilon = epsilon
         self.hasScale = hasScale
@@ -646,8 +642,7 @@ class SWBatchNormLayerDesc: NSObject {
 }
 
 /// A class that represents a batch normalization layer.
-@objc
-class BatchNormLayer: NSObject {
+@objc class BatchNormLayer: NSObject {
     let resultTensor: MPSGraphTensor
 
     /// Executes a test for the batch normalization layer.
@@ -661,16 +656,15 @@ class BatchNormLayer: NSObject {
     ///   - input: A pointer to the input data.
     ///   - maskPointer: A pointer to the mask data.
     ///   - output: A pointer to the output data.
-    @objc
-    class func test(descriptor: SWBatchNormLayerDesc,
-                    nnXLen: NSNumber,
-                    nnYLen: NSNumber,
-                    batchSize: NSNumber,
-                    useFP16: Bool,
-                    useNHWC: Bool,
-                    input: UnsafeMutablePointer<Float32>,
-                    mask maskPointer: UnsafeMutablePointer<Float32>,
-                    output: UnsafeMutablePointer<Float32>) {
+    @objc class func test(descriptor: SWBatchNormLayerDesc,
+                          nnXLen: NSNumber,
+                          nnYLen: NSNumber,
+                          batchSize: NSNumber,
+                          useFP16: Bool,
+                          useNHWC: Bool,
+                          input: UnsafeMutablePointer<Float32>,
+                          mask maskPointer: UnsafeMutablePointer<Float32>,
+                          output: UnsafeMutablePointer<Float32>) {
 
         let device = MPSGraphDevice(mtlDevice: MTLCreateSystemDefaultDevice()!)
         let graph = MPSGraph()
@@ -848,8 +842,8 @@ class BatchNormLayer: NSObject {
     case mish
 }
 
-/// A class that represents an activation layer
-class ActivationLayer {
+/// A structure that represents an activation layer
+struct ActivationLayer {
     let resultTensor: MPSGraphTensor
 
     /// Initialize an ActivationLayer object
@@ -902,13 +896,12 @@ class ActivationLayer {
     ///   - midBN: A description of the batch normalization layer that is applied after the middle convolutional layer.
     ///   - midActivation: The type of activation function that is applied after the middle convolutional layer.
     ///   - finalConv: A description of the convolutional layer that is applied at the end of the residual block.
-    @objc
-    init(preBN: SWBatchNormLayerDesc,
-         preActivation: ActivationKind,
-         regularConv: SWConvLayerDesc,
-         midBN: SWBatchNormLayerDesc,
-         midActivation: ActivationKind,
-         finalConv: SWConvLayerDesc) {
+    @objc init(preBN: SWBatchNormLayerDesc,
+               preActivation: ActivationKind,
+               regularConv: SWConvLayerDesc,
+               midBN: SWBatchNormLayerDesc,
+               midActivation: ActivationKind,
+               finalConv: SWConvLayerDesc) {
         self.preBN = preBN
         self.preActivation = preActivation
         self.regularConv = regularConv
@@ -934,16 +927,15 @@ class ActivationLayer {
     ///   - input: The input float32 pointer
     ///   - maskPointer: The mask float32 pointer
     ///   - output: The output float32 pointer
-    @objc
-    class func test(descriptor: SWResidualBlockDesc,
-                    batchSize: NSNumber,
-                    nnXLen: NSNumber,
-                    nnYLen: NSNumber,
-                    useFP16: Bool,
-                    useNHWC: Bool,
-                    input: UnsafeMutablePointer<Float32>,
-                    mask maskPointer: UnsafeMutablePointer<Float32>,
-                    output: UnsafeMutablePointer<Float32>) {
+    @objc class func test(descriptor: SWResidualBlockDesc,
+                          batchSize: NSNumber,
+                          nnXLen: NSNumber,
+                          nnYLen: NSNumber,
+                          useFP16: Bool,
+                          useNHWC: Bool,
+                          input: UnsafeMutablePointer<Float32>,
+                          mask maskPointer: UnsafeMutablePointer<Float32>,
+                          output: UnsafeMutablePointer<Float32>) {
 
         let device = MPSGraphDevice(mtlDevice: MTLCreateSystemDefaultDevice()!)
         let graph = MPSGraph()
@@ -1088,8 +1080,8 @@ class ActivationLayer {
     }
 }
 
-/// A class that represents a global pooling layer
-class GlobalPoolingLayer {
+/// A structure that represents a global pooling layer
+struct GlobalPoolingLayer {
     /// The resulting tensor after applying the global pooling operation
     let resultTensor: MPSGraphTensor
 
@@ -1138,8 +1130,8 @@ class GlobalPoolingLayer {
     }
 }
 
-/// A class that represents a layer that performs global pooling on the input tensor
-class GlobalPoolingValueLayer {
+/// A structure that represents a layer that performs global pooling on the input tensor
+struct GlobalPoolingValueLayer {
     let resultTensor: MPSGraphTensor
 
     /// Initialize a GlobalPoolingValueLayer object
@@ -1203,8 +1195,7 @@ class GlobalPoolingValueLayer {
     ///   - inChannels: The number of input channels
     ///   - outChannels: The number of output channels
     ///   - weights: The weights used for the matrix multiplication
-    @objc
-    init(inChannels: NSNumber,
+    @objc init(inChannels: NSNumber,
          outChannels: NSNumber,
          weights: UnsafeMutablePointer<Float32>) {
         self.inChannels = inChannels
@@ -1213,8 +1204,8 @@ class GlobalPoolingValueLayer {
     }
 }
 
-/// A class representing a matrix multiplication layer.
-class MatMulLayer {
+/// A structure representing a matrix multiplication layer.
+struct MatMulLayer {
     /// The resulting tensor from the layer.
     let resultTensor: MPSGraphTensor
 
@@ -1292,16 +1283,15 @@ class MatMulLayer {
     /// - Parameters:
     ///   - numChannels: The number of channels.
     ///   - weights: The pointer to the weights.
-    @objc
-    init(numChannels: NSNumber,
-         weights: UnsafeMutablePointer<Float32>) {
+    @objc init(numChannels: NSNumber,
+               weights: UnsafeMutablePointer<Float32>) {
         self.numChannels = numChannels
         self.weights = weights
     }
 }
 
-/// A class that performs matrix bias operations
-class MatBiasLayer {
+/// A structure that performs matrix bias operations
+struct MatBiasLayer {
     /// The resulting tensor from the layer.
     let resultTensor: MPSGraphTensor
 
@@ -1347,8 +1337,8 @@ class MatBiasLayer {
     }
 }
 
-/// A class that performs bias operations in NC coordinates.
-class AddNCBiasLayer {
+/// A structure that performs bias operations in NC coordinates.
+struct AddNCBiasLayer {
     /// The resulting tensor from the layer.
     let resultTensor: MPSGraphTensor
 
@@ -1391,8 +1381,7 @@ class AddNCBiasLayer {
 }
 
 /// A class that represents a residual block with global pooling.
-@objc
-class SWGlobalPoolingResidualBlockDesc: NSObject {
+@objc class SWGlobalPoolingResidualBlockDesc: NSObject {
     /// The batch normalization layer before the residual block.
     let preBN: SWBatchNormLayerDesc
 
@@ -1435,17 +1424,16 @@ class SWGlobalPoolingResidualBlockDesc: NSObject {
     ///   - midBN: The batch normalization layer after the matrix multiplication layer.
     ///   - midActivation: The activation function after the mid batch normalization layer.
     ///   - finalConv: The final convolutional layer in the residual block.
-    @objc
-    init(preBN: SWBatchNormLayerDesc,
-         preActivation: ActivationKind,
-         regularConv: SWConvLayerDesc,
-         gpoolConv: SWConvLayerDesc,
-         gpoolBN: SWBatchNormLayerDesc,
-         gpoolActivation: ActivationKind,
-         gpoolToBiasMul: SWMatMulLayerDesc,
-         midBN: SWBatchNormLayerDesc,
-         midActivation: ActivationKind,
-         finalConv: SWConvLayerDesc) {
+    @objc init(preBN: SWBatchNormLayerDesc,
+               preActivation: ActivationKind,
+               regularConv: SWConvLayerDesc,
+               gpoolConv: SWConvLayerDesc,
+               gpoolBN: SWBatchNormLayerDesc,
+               gpoolActivation: ActivationKind,
+               gpoolToBiasMul: SWMatMulLayerDesc,
+               midBN: SWBatchNormLayerDesc,
+               midActivation: ActivationKind,
+               finalConv: SWConvLayerDesc) {
         self.preBN = preBN
         self.preActivation = preActivation
         self.regularConv = regularConv
@@ -1460,8 +1448,7 @@ class SWGlobalPoolingResidualBlockDesc: NSObject {
 }
 
 /// A class representing a residual block with global pooling
-@objc
-class GlobalPoolingResidualBlock: NSObject {
+@objc class GlobalPoolingResidualBlock: NSObject {
     let resultTensor: MPSGraphTensor
 
     /// A method to test the global pooling residual block
@@ -1476,16 +1463,15 @@ class GlobalPoolingResidualBlock: NSObject {
     ///   - input: The input pointer
     ///   - maskPointer: The mask pointer
     ///   - output: The output pointer
-    @objc
-    class func test(descriptor: SWGlobalPoolingResidualBlockDesc,
-                    batchSize: NSNumber,
-                    nnXLen: NSNumber,
-                    nnYLen: NSNumber,
-                    useFP16: Bool,
-                    useNHWC: Bool,
-                    input: UnsafeMutablePointer<Float32>,
-                    mask maskPointer: UnsafeMutablePointer<Float32>,
-                    output: UnsafeMutablePointer<Float32>) {
+    @objc class func test(descriptor: SWGlobalPoolingResidualBlockDesc,
+                          batchSize: NSNumber,
+                          nnXLen: NSNumber,
+                          nnYLen: NSNumber,
+                          useFP16: Bool,
+                          useNHWC: Bool,
+                          input: UnsafeMutablePointer<Float32>,
+                          mask maskPointer: UnsafeMutablePointer<Float32>,
+                          output: UnsafeMutablePointer<Float32>) {
 
         let device = MPSGraphDevice(mtlDevice: MTLCreateSystemDefaultDevice()!)
         let graph = MPSGraph()
@@ -1697,8 +1683,7 @@ class GlobalPoolingResidualBlock: NSObject {
 }
 
 /// A class that represents a nested bottleneck residual block
-@objc
-class SWNestedBottleneckResidualBlockDesc: NSObject {
+@objc class SWNestedBottleneckResidualBlockDesc: NSObject {
     /// The batch normalization layer before the residual block.
     let preBN: SWBatchNormLayerDesc
 
@@ -1728,14 +1713,13 @@ class SWNestedBottleneckResidualBlockDesc: NSObject {
     ///   - postBN: The batch normalization layer after the residual block.
     ///   - postActivation: The activation function after the post batch normalization layer.
     ///   - postConv: The convolutional layer after the post activation layer.
-    @objc
-    init(preBN: SWBatchNormLayerDesc,
-         preActivation: ActivationKind,
-         preConv: SWConvLayerDesc,
-         blockDescriptors: [BlockDescriptor],
-         postBN: SWBatchNormLayerDesc,
-         postActivation: ActivationKind,
-         postConv: SWConvLayerDesc) {
+    @objc init(preBN: SWBatchNormLayerDesc,
+               preActivation: ActivationKind,
+               preConv: SWConvLayerDesc,
+               blockDescriptors: [BlockDescriptor],
+               postBN: SWBatchNormLayerDesc,
+               postActivation: ActivationKind,
+               postConv: SWConvLayerDesc) {
         self.preBN = preBN
         self.preActivation = preActivation
         self.preConv = preConv
@@ -1754,8 +1738,7 @@ class SWNestedBottleneckResidualBlockDesc: NSObject {
 }
 
 /// A class that represents a block descriptor that is used to define the characteristics of a residual block.
-@objc
-class BlockDescriptor: NSObject {
+@objc class BlockDescriptor: NSObject {
     /// The kind of the block, it can be ordinary, dilated or globalPooling.
     let kind: BlockKind
 
@@ -1771,8 +1754,7 @@ class BlockDescriptor: NSObject {
     /// Initializes a block descriptor object with the given parameters.
     /// - Parameters:
     ///   - ordinary: The descriptor for the ordinary residual block, if the kind is ordinary.
-    @objc
-    init(ordinary: SWResidualBlockDesc) {
+    @objc init(ordinary: SWResidualBlockDesc) {
         self.kind = BlockKind.ordinary
         self.ordinary = ordinary
         self.globalPooling = nil
@@ -1782,8 +1764,7 @@ class BlockDescriptor: NSObject {
     /// Initializes a block descriptor object with the given parameters.
     /// - Parameters:
     ///   - globalPooling: The descriptor for the global pooling residual block, if the kind is globalPooling.
-    @objc
-    init(globalPooling: SWGlobalPoolingResidualBlockDesc) {
+    @objc init(globalPooling: SWGlobalPoolingResidualBlockDesc) {
         self.kind = BlockKind.globalPooling
         self.ordinary = nil
         self.globalPooling = globalPooling
@@ -1793,8 +1774,7 @@ class BlockDescriptor: NSObject {
     /// Initializes a block descriptor object with the given parameters.
     /// - Parameters:
     ///   - nestedBottleneck: The descriptor for the nested bottleneck residual block, if the kind is nestedBottleneck.
-    @objc
-    init(nestedBottleneck: SWNestedBottleneckResidualBlockDesc) {
+    @objc init(nestedBottleneck: SWNestedBottleneckResidualBlockDesc) {
         self.kind = BlockKind.nestedBottleneck
         self.ordinary = nil
         self.globalPooling = nil
@@ -1802,8 +1782,8 @@ class BlockDescriptor: NSObject {
     }
 }
 
-/// A class that represents a block stack
-class BlockStack {
+/// A structure that represents a block stack
+struct BlockStack {
     /// The resulting tensor after processing the block stack
     let resultTensor: MPSGraphTensor
 
@@ -1885,8 +1865,8 @@ class BlockStack {
     }
 }
 
-/// A class that represents a nested bottleneck residual block
-class NestedBottleneckResidualBlock {
+/// A structure that represents a nested bottleneck residual block
+struct NestedBottleneckResidualBlock {
     /// The resulting tensor after processing the nested bottleneck residual block
     let resultTensor: MPSGraphTensor
 
@@ -1983,8 +1963,7 @@ class NestedBottleneckResidualBlock {
 }
 
 /// A class that describes a trunk for a neural network
-@objc
-class SWTrunkDesc: NSObject {
+@objc class SWTrunkDesc: NSObject {
     /// The version of the ResNet trunk
     let version: Int
     /// Number of channels for the trunk
@@ -2041,8 +2020,8 @@ class SWTrunkDesc: NSObject {
     }
 }
 
-/// A class representing a ResNet trunk for a neural network
-class Trunk {
+/// A structure representing a ResNet trunk for a neural network
+struct Trunk {
     /// The resulting tensor after processing the trunk
     let resultTensor: MPSGraphTensor
 
@@ -2135,8 +2114,7 @@ class Trunk {
 }
 
 /// A class that describes a policy head for a neural network
-@objc
-class SWPolicyHeadDesc: NSObject {
+@objc class SWPolicyHeadDesc: NSObject {
     let version: Int
     let p1Conv: SWConvLayerDesc
     let g1Conv: SWConvLayerDesc
@@ -2148,17 +2126,16 @@ class SWPolicyHeadDesc: NSObject {
     let p2Conv: SWConvLayerDesc
     let gpoolToPassMul: SWMatMulLayerDesc
 
-    @objc
-    init(version: Int,
-         p1Conv: SWConvLayerDesc,
-         g1Conv: SWConvLayerDesc,
-         g1BN: SWBatchNormLayerDesc,
-         g1Activation: ActivationKind,
-         gpoolToBiasMul: SWMatMulLayerDesc,
-         p1BN: SWBatchNormLayerDesc,
-         p1Activation: ActivationKind,
-         p2Conv: SWConvLayerDesc,
-         gpoolToPassMul: SWMatMulLayerDesc) {
+    @objc init(version: Int,
+               p1Conv: SWConvLayerDesc,
+               g1Conv: SWConvLayerDesc,
+               g1BN: SWBatchNormLayerDesc,
+               g1Activation: ActivationKind,
+               gpoolToBiasMul: SWMatMulLayerDesc,
+               p1BN: SWBatchNormLayerDesc,
+               p1Activation: ActivationKind,
+               p2Conv: SWConvLayerDesc,
+               gpoolToPassMul: SWMatMulLayerDesc) {
         self.version = version
         self.p1Conv = p1Conv
         self.g1Conv = g1Conv
@@ -2172,8 +2149,8 @@ class SWPolicyHeadDesc: NSObject {
     }
 }
 
-/// A class that represents a policy head of a neural network.
-class PolicyHead {
+/// A structure that represents a policy head of a neural network.
+struct PolicyHead {
     /// The tensor that holds the policy prediction of the neural network
     let policyTensor: MPSGraphTensor
     /// The tensor that holds the policy pass of the neural network
@@ -2303,8 +2280,7 @@ class PolicyHead {
 }
 
 /// A class that describes the value head of a neural network
-@objc
-class SWValueHeadDesc: NSObject {
+@objc class SWValueHeadDesc: NSObject {
     /// The version of the value head
     let version: Int
     /// The description of the first convolutional layer in the value head
@@ -2371,8 +2347,8 @@ class SWValueHeadDesc: NSObject {
     }
 }
 
-/// A class that creates a value head for the neural network, which produces the value, score value, and ownership tensors.
-class ValueHead {
+/// A structure that creates a value head for the neural network, which produces the value, score value, and ownership tensors.
+struct ValueHead {
     /// The tensor that represents the value of the board
     let valueTensor: MPSGraphTensor
     /// The tensor that represents the score value of the board
@@ -2537,17 +2513,16 @@ class ValueHead {
     ///   - trunk: The description of the trunk that makes up the backbone of the model.
     ///   - policyHead: The description of the policy head that predicts the probability of playing at a particular position.
     ///   - valueHead: The description of the value head that predicts the expected outcome of a game state.
-    @objc
-    init(version: Int,
-         name: String,
-         numInputChannels: NSNumber,
-         numInputGlobalChannels: NSNumber,
-         numValueChannels: NSNumber,
-         numScoreValueChannels: NSNumber,
-         numOwnershipChannels: NSNumber,
-         trunk: SWTrunkDesc,
-         policyHead: SWPolicyHeadDesc,
-         valueHead: SWValueHeadDesc) {
+    @objc init(version: Int,
+               name: String,
+               numInputChannels: NSNumber,
+               numInputGlobalChannels: NSNumber,
+               numValueChannels: NSNumber,
+               numScoreValueChannels: NSNumber,
+               numOwnershipChannels: NSNumber,
+               trunk: SWTrunkDesc,
+               policyHead: SWPolicyHeadDesc,
+               valueHead: SWValueHeadDesc) {
         self.version = version
         self.name = name
         self.numInputChannels = numInputChannels
@@ -2561,8 +2536,8 @@ class ValueHead {
     }
 }
 
-/// A class representing a neural network model for processing Go game states.
-class Model {
+/// A structure representing a neural network model for processing Go game states.
+struct Model {
     /// The Metal Performance Shaders graph object used for building and executing the graph
     let graph: MPSGraph
     /// The length of the neural network input in the x dimension
