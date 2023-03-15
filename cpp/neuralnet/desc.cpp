@@ -209,7 +209,7 @@ BatchNormLayerDesc::BatchNormLayerDesc(istream& in, bool binaryFloats) {
   else {
     bias.resize(numChannels);
     for(int c = 0; c < numChannels; c++)
-      bias[c] = 1.0;
+      bias[c] = 0.0;
   }
 
   if(in.fail())
