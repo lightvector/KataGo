@@ -2138,19 +2138,42 @@ struct Trunk {
     }
 }
 
-/// A class that describes a policy head for a neural network
+/// A class that describes a policy head for a neural network, responsible for predicting
+/// the best moves for the current player and the opposing player on the subsequent turn.
 @objc class SWPolicyHeadDesc: NSObject {
+    /// The version of the policy head
     let version: Int
+    /// The 1x1 convolution layer for P
     let p1Conv: SWConvLayerDesc
+    /// The 1x1 convolution layer for G
     let g1Conv: SWConvLayerDesc
+    /// The batch normalization layer for G
     let g1BN: SWBatchNormLayerDesc
+    /// The activation function for G
     let g1Activation: ActivationKind
+    /// The global pooling bias structure that pools the output of G to bias the output of P
     let gpoolToBiasMul: SWMatMulLayerDesc
+    /// The batch normalization layer for P
     let p1BN: SWBatchNormLayerDesc
+    /// The activation function for P
     let p1Activation: ActivationKind
+    /// The 1x1 convolution layer with 2 channels for outputting two policy distributions
     let p2Conv: SWConvLayerDesc
+    /// The fully connected linear layer for outputting logits for the pass move
     let gpoolToPassMul: SWMatMulLayerDesc
 
+    /// Initializes a SWPolicyHeadDesc object with the given parameters
+    /// - Parameters:
+    ///   - version: The version of the policy head
+    ///   - p1Conv: The 1x1 convolution layer for P
+    ///   - g1Conv: The 1x1 convolution layer for G
+    ///   - g1BN: The batch normalization layer for G
+    ///   - g1Activation: The activation function for G
+    ///   - gpoolToBiasMul: The global pooling bias structure that pools the output of G to bias the output of P
+    ///   - p1BN: The batch normalization layer for P
+    ///   - p1Activation: The activation function for P
+    ///   - p2Conv: The 1x1 convolution layer with 2 channels for outputting two policy distributions
+    ///   - gpoolToPassMul: The fully connected linear layer for outputting logits for the pass move
     @objc init(version: Int,
                p1Conv: SWConvLayerDesc,
                g1Conv: SWConvLayerDesc,
