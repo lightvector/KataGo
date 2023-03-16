@@ -3,17 +3,13 @@ import MetalPerformanceShaders
 import MetalPerformanceShadersGraph
 
 /// Extension to convert float32 to float16
-extension UnsafeMutablePointer<Float32> {
+extension UnsafeMutablePointer where Pointee == Float32 {
     /// Convert to Float16
     /// - Parameter length: The length of the array
     /// - Returns: An array of Float16
     func toFP16(length: Int) -> UnsafeMutablePointer<Float16> {
         let fp16Pointer = UnsafeMutablePointer<Float16>.allocate(capacity: length)
-
-        for i in 0..<length {
-            fp16Pointer[i] = Float16(self[i])
-        }
-
+        (0..<length).forEach { fp16Pointer[$0] = Float16(self[$0]) }
         return fp16Pointer
     }
 
@@ -22,9 +18,7 @@ extension UnsafeMutablePointer<Float32> {
     ///   - fp16Pointer: Pointer to the destination buffer
     ///   - length: Number of elements to convert
     func toFP16(_ fp16Pointer: UnsafeMutablePointer<Float16>, length: Int) {
-        for i in 0..<length {
-            fp16Pointer[i] = Float16(self[i])
-        }
+        (0..<length).forEach { fp16Pointer[$0] = Float16(self[$0]) }
     }
 }
 
@@ -35,9 +29,7 @@ extension UnsafeMutablePointer<Float16> {
     ///   - fp32Pointer: Pointer to Float32
     ///   - length: Length of the array
     func toFP32(_ fp32Pointer: UnsafeMutablePointer<Float32>, length: Int) {
-        for i in 0..<length {
-            fp32Pointer[i] = Float32(self[i])
-        }
+        (0..<length).forEach { fp32Pointer[$0] = Float32(self[$0]) }
     }
 }
 
@@ -74,11 +66,8 @@ extension MPSGraphTensor {
     /// Count number of elements
     /// - Returns: Number of elements
     func countElements() -> Int {
-        var result = shape![0].intValue
-        for i in 1..<shape!.count {
-            result *= shape![i].intValue
-        }
-        return result
+        guard let shapeArray = shape else { return 0 }
+        return shapeArray.reduce(1, { $0 * $1.intValue })
     }
 }
 
@@ -114,11 +103,7 @@ extension Array where Element == NSNumber {
     /// Count number of elements
     /// - Returns: Number of elements
     func countElements() -> Int {
-        var result = 1.0
-        for x in self {
-            result *= x.doubleValue
-        }
-        return Int(result)
+        return reduce(1, { $0 * $1.intValue })
     }
 
     /// Count number of bytes
@@ -527,10 +512,7 @@ struct MaskSumSqrtS14M01SquareS01Layer {
             let outputFP16 = UnsafeMutablePointer<Float16>.allocate(capacity: outLength)
 
             fetch[conv.resultTensor]?.mpsndarray().readBytes(outputFP16)
-
-            for i in 0..<outLength {
-                output[i] = Float32(outputFP16[i])
-            }
+            outputFP16.toFP32(output, length: outLength)
         } else {
             fetch[conv.resultTensor]?.mpsndarray().readBytes(output)
         }
@@ -725,10 +707,7 @@ struct MaskSumSqrtS14M01SquareS01Layer {
             let outputFP16 = UnsafeMutablePointer<Float16>.allocate(capacity: outLength)
 
             fetch[batchNorm.resultTensor]?.mpsndarray().readBytes(outputFP16)
-
-            for i in 0..<outLength {
-                output[i] = Float32(outputFP16[i])
-            }
+            outputFP16.toFP32(output, length: outLength)
         } else {
             fetch[batchNorm.resultTensor]?.mpsndarray().readBytes(output)
         }
@@ -996,10 +975,7 @@ struct ActivationLayer {
             let outputFP16 = UnsafeMutablePointer<Float16>.allocate(capacity: outLength)
 
             fetch[block.resultTensor]?.mpsndarray().readBytes(outputFP16)
-
-            for i in 0..<outLength {
-                output[i] = Float32(outputFP16[i])
-            }
+            outputFP16.toFP32(output, length: outLength)
         } else {
             fetch[block.resultTensor]?.mpsndarray().readBytes(output)
         }
@@ -1541,10 +1517,7 @@ struct AddNCBiasLayer {
             let outputFP16 = UnsafeMutablePointer<Float16>.allocate(capacity: outLength)
 
             fetch[block.resultTensor]?.mpsndarray().readBytes(outputFP16)
-
-            for i in 0..<outLength {
-                output[i] = Float32(outputFP16[i])
-            }
+            outputFP16.toFP32(output, length: outLength)
         } else {
             fetch[block.resultTensor]?.mpsndarray().readBytes(output)
         }
@@ -1739,7 +1712,7 @@ struct AddNCBiasLayer {
 
 /// A class that represents a block descriptor that is used to define the characteristics of a residual block.
 @objc class BlockDescriptor: NSObject {
-    /// The kind of the block, it can be ordinary, dilated or globalPooling.
+    /// The kind of the block, it can be ordinary, globalPooling, or nestedBottleneck.
     let kind: BlockKind
 
     /// The descriptor for the ordinary residual block, if the kind is ordinary.
@@ -1787,6 +1760,97 @@ struct BlockStack {
     /// The resulting tensor after processing the block stack
     let resultTensor: MPSGraphTensor
 
+    /// Process block descriptors
+    /// - Parameters:
+    ///   - graph: The MPSGraph
+    ///   - sourceTensor: The input tensor
+    ///   - maskTensor: The mask tensor
+    ///   - maskSumTensor: The sum of the mask tensor
+    ///   - maskSumSqrtS14M01Tensor: The square root of the sum of the mask tensor
+    ///   - blockDescriptors: The block descriptors
+    ///   - index: The index of the block descriptor
+    ///   - nnXLen: X length
+    ///   - nnYLen: Y length
+    ///   - batchSize: Batch size
+    ///   - useFP16: If true, use FP16, otherwise use FP32
+    ///   - useNHWC: If true, use NHWC, otherwise use NCHW
+    /// - Returns: The result tensor
+    static func processBlockDescriptors(_ graph: MPSGraph,
+                                        _ sourceTensor: MPSGraphTensor,
+                                        _ maskTensor: MPSGraphTensor,
+                                        _ maskSumTensor: MPSGraphTensor,
+                                        _ maskSumSqrtS14M01Tensor: MPSGraphTensor,
+                                        _ blockDescriptors: [BlockDescriptor],
+                                        _ index: Int,
+                                        _ nnXLen: NSNumber,
+                                        _ nnYLen: NSNumber,
+                                        _ batchSize: NSNumber,
+                                        _ useFP16: Bool,
+                                        _ useNHWC: Bool) -> MPSGraphTensor {
+        guard index < blockDescriptors.count else {
+            return sourceTensor
+        }
+
+        let blockDescriptor = blockDescriptors[index]
+        let blockInput: MPSGraphTensor
+
+        switch blockDescriptor.kind {
+        case .globalPooling:
+            let globalPooling = GlobalPoolingResidualBlock(graph: graph,
+                                                           sourceTensor: sourceTensor,
+                                                           maskTensor: maskTensor,
+                                                           maskSumTensor: maskSumTensor,
+                                                           maskSumSqrtS14M01Tensor: maskSumSqrtS14M01Tensor,
+                                                           descriptor: blockDescriptor.globalPooling!,
+                                                           nnXLen: nnXLen,
+                                                           nnYLen: nnYLen,
+                                                           batchSize: batchSize,
+                                                           useFP16: useFP16,
+                                                           useNHWC: useNHWC)
+
+            blockInput = globalPooling.resultTensor
+        case .nestedBottleneck:
+            let nestedBottleneck = NestedBottleneckResidualBlock(graph: graph,
+                                                                 sourceTensor: sourceTensor,
+                                                                 maskTensor: maskTensor,
+                                                                 maskSumTensor: maskSumTensor,
+                                                                 maskSumSqrtS14M01Tensor: maskSumSqrtS14M01Tensor,
+                                                                 descriptor: blockDescriptor.nestedBottleneck!,
+                                                                 nnXLen: nnXLen,
+                                                                 nnYLen: nnYLen,
+                                                                 batchSize: batchSize,
+                                                                 useFP16: useFP16,
+                                                                 useNHWC: useNHWC)
+
+            blockInput = nestedBottleneck.resultTensor
+        case .ordinary:
+            let ordinary = ResidualBlock(graph: graph,
+                                         sourceTensor: sourceTensor,
+                                         maskTensor: maskTensor,
+                                         descriptor: blockDescriptor.ordinary!,
+                                         nnXLen: nnXLen,
+                                         nnYLen: nnYLen,
+                                         batchSize: batchSize,
+                                         useFP16: useFP16,
+                                         useNHWC: useNHWC)
+
+            blockInput = ordinary.resultTensor
+        }
+
+        return processBlockDescriptors(graph,
+                                       blockInput,
+                                       maskTensor,
+                                       maskSumTensor,
+                                       maskSumSqrtS14M01Tensor,
+                                       blockDescriptors,
+                                       index + 1,
+                                       nnXLen,
+                                       nnYLen,
+                                       batchSize,
+                                       useFP16,
+                                       useNHWC)
+    }
+
     /// Initialize a BlockStack object
     /// - Parameters:
     ///   - graph: The MPSGraph
@@ -1811,57 +1875,18 @@ struct BlockStack {
          batchSize: NSNumber,
          useFP16: Bool,
          useNHWC: Bool) {
-
-        var blockInput = sourceTensor
-
-        for blockDescriptor in blockDescriptors {
-            switch blockDescriptor.kind {
-            case .globalPooling:
-                let globalPooling =
-                GlobalPoolingResidualBlock(graph: graph,
-                                           sourceTensor: blockInput,
-                                           maskTensor: maskTensor,
-                                           maskSumTensor: maskSumTensor,
-                                           maskSumSqrtS14M01Tensor: maskSumSqrtS14M01Tensor,
-                                           descriptor: blockDescriptor.globalPooling!,
-                                           nnXLen: nnXLen,
-                                           nnYLen: nnYLen,
-                                           batchSize: batchSize,
-                                           useFP16: useFP16,
-                                           useNHWC: useNHWC)
-
-                blockInput = globalPooling.resultTensor
-            case .nestedBottleneck:
-                let nestedBottleneck =
-                NestedBottleneckResidualBlock(graph: graph,
-                                              sourceTensor: blockInput,
-                                              maskTensor: maskTensor,
-                                              maskSumTensor: maskSumTensor,
-                                              maskSumSqrtS14M01Tensor: maskSumSqrtS14M01Tensor,
-                                              descriptor: blockDescriptor.nestedBottleneck!,
-                                              nnXLen: nnXLen,
-                                              nnYLen: nnYLen,
-                                              batchSize: batchSize,
-                                              useFP16: useFP16,
-                                              useNHWC: useNHWC)
-
-                blockInput = nestedBottleneck.resultTensor
-            default:
-                let ordinary = ResidualBlock(graph: graph,
-                                             sourceTensor: blockInput,
-                                             maskTensor: maskTensor,
-                                             descriptor: blockDescriptor.ordinary!,
-                                             nnXLen: nnXLen,
-                                             nnYLen: nnYLen,
-                                             batchSize: batchSize,
-                                             useFP16: useFP16,
-                                             useNHWC: useNHWC)
-
-                blockInput = ordinary.resultTensor
-            }
-        }
-
-        resultTensor = blockInput
+        resultTensor = BlockStack.processBlockDescriptors(graph,
+                                                          sourceTensor,
+                                                          maskTensor,
+                                                          maskSumTensor,
+                                                          maskSumSqrtS14M01Tensor,
+                                                          blockDescriptors,
+                                                          0,
+                                                          nnXLen,
+                                                          nnYLen,
+                                                          batchSize,
+                                                          useFP16,
+                                                          useNHWC)
     }
 }
 
@@ -2813,7 +2838,6 @@ struct Model {
             policyFP16.toFP32(policy, length: policyCount)
         } else {
             fetch[policyHead.policyTensor]?.mpsndarray().readBytes(policy)
-
         }
 
         if let policyPassFP16 {
@@ -2864,14 +2888,17 @@ struct Model {
     static let defaultUseFP16Mode: SWEnable = .Auto
     static let defaultUseNHWCMode: SWEnable = .Auto
 
-    static var instance = MetalComputeContext(nnXLen: defaultNnXLen,
-                                              nnYLen: defaultNnYLen,
-                                              useFP16Mode: defaultUseFP16Mode,
-                                              useNHWCMode: defaultUseNHWCMode)
+    static let defaultInstance = MetalComputeContext(nnXLen: defaultNnXLen,
+                                                     nnYLen: defaultNnYLen,
+                                                     useFP16Mode: defaultUseFP16Mode,
+                                                     useNHWCMode: defaultUseNHWCMode)
+
+    static var instance = defaultInstance
+
     let nnXLen: NSNumber
     let nnYLen: NSNumber
-    let useFP16Mode: SWEnable
-    let useNHWCMode: SWEnable
+    let useFP16: Bool
+    let useNHWC: Bool
 
     /// Create a context.
     /// - Parameters:
@@ -2897,10 +2924,7 @@ struct Model {
         objc_sync_enter(self)
         defer { objc_sync_exit(self) }
 
-        instance = MetalComputeContext(nnXLen: defaultNnXLen,
-                                       nnYLen: defaultNnYLen,
-                                       useFP16Mode: defaultUseFP16Mode,
-                                       useNHWCMode: defaultUseNHWCMode)
+        instance = defaultInstance
     }
 
     /// Get the context.
@@ -2924,8 +2948,8 @@ struct Model {
                  useNHWCMode: SWEnable) {
         self.nnXLen = nnXLen
         self.nnYLen = nnYLen
-        self.useFP16Mode = useFP16Mode
-        self.useNHWCMode = useNHWCMode
+        self.useFP16 = (useFP16Mode == .True)
+        self.useNHWC = (useNHWCMode == .True)
     }
 }
 
@@ -2974,8 +2998,6 @@ struct Model {
                  serverThreadIdx threadIdx: Int) {
 
         let context = MetalComputeContext.getInstance()
-        let useFP16: Bool
-        let useNHWC: Bool
         let devices = MTLCopyAllDevices()
         let mtlDevice: MTLDevice
 
@@ -2989,20 +3011,7 @@ struct Model {
         let device = MPSGraphDevice(mtlDevice: mtlDevice)
 
         NSLog("Metal backend thread \(threadIdx): \(mtlDevice.name) Model version \(descriptor.version)")
-
         NSLog("Metal backend thread \(threadIdx): \(mtlDevice.name) Model name \(descriptor.name)")
-
-        // Select useFP16 mode.
-        switch context.useFP16Mode {
-        case .True: useFP16 = true
-        default: useFP16 = false
-        }
-
-        // Select useNHWC mode.
-        switch context.useNHWCMode {
-        case .True: useNHWC = true
-        default: useNHWC = false
-        }
 
         // Create a model.
         model = Model(device: device,
@@ -3011,10 +3020,10 @@ struct Model {
                       nnXLen: context.nnXLen,
                       nnYLen: context.nnYLen,
                       batchSize: batchSize,
-                      useFP16: useFP16,
-                      useNHWC: useNHWC)
+                      useFP16: context.useFP16,
+                      useNHWC: context.useNHWC)
 
-        NSLog("Metal backend thread \(threadIdx): \(mtlDevice.name) useFP16=\(useFP16) useNHWC=\(useNHWC) batchSize=\(batchSize)")
+        NSLog("Metal backend thread \(threadIdx): \(mtlDevice.name) useFP16=\(context.useFP16) useNHWC=\(context.useNHWC) batchSize=\(batchSize)")
     }
 }
 
@@ -3025,8 +3034,8 @@ struct Model {
     @objc class func printDevices() {
         let devices = MTLCopyAllDevices()
 
-        for i in 0..<devices.count {
-            print("Found Metal Device \(i): \(devices[i].name) (isLowPower:\(devices[i].isLowPower), isRemovable:\(devices[i].isRemovable))")
+        (0..<devices.count).forEach {
+            print("Found Metal Device \($0): \(devices[$0].name) (isLowPower:\(devices[$0].isLowPower), isRemovable:\(devices[$0].isRemovable))")
         }
     }
 

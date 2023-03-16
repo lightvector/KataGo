@@ -3762,8 +3762,8 @@ final class ComputeContextTest: XCTestCase {
 
         XCTAssert(context.nnXLen == nnXLen)
         XCTAssert(context.nnYLen == nnYLen)
-        XCTAssert(context.useFP16Mode == .False)
-        XCTAssert(context.useNHWCMode == .False)
+        XCTAssert(context.useFP16 == false)
+        XCTAssert(context.useNHWC == false)
     }
 
     func testDestroyInstance() {
@@ -3783,8 +3783,8 @@ final class ComputeContextTest: XCTestCase {
 
         XCTAssert(context.nnXLen == MetalComputeContext.defaultNnXLen)
         XCTAssert(context.nnYLen == MetalComputeContext.defaultNnYLen)
-        XCTAssert(context.useFP16Mode == MetalComputeContext.defaultUseFP16Mode)
-        XCTAssert(context.useNHWCMode == MetalComputeContext.defaultUseNHWCMode)
+        XCTAssert(context.useFP16 == false)
+        XCTAssert(context.useNHWC == false)
     }
 }
 
