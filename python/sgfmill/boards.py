@@ -4,6 +4,7 @@ from itertools import chain
 
 from .common import opponent_of
 
+
 class _Group:
     """Represent a solidly-connected group.
 
@@ -16,6 +17,7 @@ class _Group:
 
     """
 
+
 class _Region:
     """Represent an empty region.
 
@@ -26,9 +28,11 @@ class _Region:
     Points are coordinate pairs (row, col).
 
     """
+
     def __init__(self):
         self.points = set()
         self.neighbouring_colours = set()
+
 
 class Board:
     """A legal Go position.
@@ -40,15 +44,14 @@ class Board:
       board_points -- list of coordinates of all points on the board
 
     """
+
     def __init__(self, side):
         self.side = side
         if side < 2:
             raise ValueError
-        self.board_points = [(_row, _col) for _row in range(side)
-                             for _col in range(side)]
+        self.board_points = [(_row, _col) for _row in range(side) for _col in range(side)]
         self.board = []
-        for row in range(side):
-            self.board.append([None] * side)
+        self.board.extend([None] * side for _ in range(side))
         self._is_empty = True
 
     def copy(self):
@@ -61,13 +64,12 @@ class Board:
     def _make_group(self, row, col, colour):
         points = set()
         is_surrounded = True
-        to_handle = set()
-        to_handle.add((row, col))
+        to_handle = {(row, col)}
         while to_handle:
             point = to_handle.pop()
             points.add(point)
             r, c = point
-            for neighbour in [(r-1, c), (r+1, c), (r, c-1), (r, c+1)]:
+            for neighbour in [(r - 1, c), (r + 1, c), (r, c - 1), (r, c + 1)]:
                 (r1, c1) = neighbour
                 if not ((0 <= r1 < self.side) and (0 <= c1 < self.side)):
                     continue
@@ -86,13 +88,12 @@ class Board:
     def _make_empty_region(self, row, col):
         points = set()
         neighbouring_colours = set()
-        to_handle = set()
-        to_handle.add((row, col))
+        to_handle = {(row, col)}
         while to_handle:
             point = to_handle.pop()
             points.add(point)
             r, c = point
-            for neighbour in [(r-1, c), (r+1, c), (r, c-1), (r, c+1)]:
+            for neighbour in [(r - 1, c), (r + 1, c), (r, c - 1), (r, c + 1)]:
                 (r1, c1) = neighbour
                 if not ((0 <= r1 < self.side) and (0 <= c1 < self.side)):
                     continue
@@ -115,7 +116,7 @@ class Board:
         """
         surrounded = []
         handled = set()
-        for (row, col) in self.board_points:
+        for row, col in self.board_points:
             colour = self.board[row][col]
             if colour is None:
                 continue
@@ -169,14 +170,12 @@ class Board:
         if surrounded:
             if len(surrounded) == 1:
                 to_capture = surrounded
-                if len(to_capture[0].points) == self.side*self.side:
+                if len(to_capture[0].points) == self.side * self.side:
                     self._is_empty = True
             else:
-                to_capture = [group for group in surrounded
-                              if group.colour == opponent]
+                to_capture = [group for group in surrounded if group.colour == opponent]
                 if len(to_capture) == 1 and len(to_capture[0].points) == 1:
-                    self_capture = [group for group in surrounded
-                                    if group.colour == colour]
+                    self_capture = [group for group in surrounded if group.colour == colour]
                     if len(self_capture[0].points) == 1:
                         (simple_ko_point,) = to_capture[0].points
             for group in to_capture:
@@ -202,25 +201,21 @@ class Board:
         Raises IndexError if any coordinates are out of range.
 
         """
-        for (row, col) in chain(black_points, white_points, empty_points):
+        for row, col in chain(black_points, white_points, empty_points):
             if row < 0 or col < 0 or row >= self.side or col >= self.side:
                 raise IndexError
-        for (row, col) in black_points:
-            self.board[row][col] = 'b'
-        for (row, col) in white_points:
-            self.board[row][col] = 'w'
-        for (row, col) in empty_points:
+        for row, col in black_points:
+            self.board[row][col] = "b"
+        for row, col in white_points:
+            self.board[row][col] = "w"
+        for row, col in empty_points:
             self.board[row][col] = None
         captured = self._find_surrounded_groups()
         for group in captured:
             for row, col in group.points:
                 self.board[row][col] = None
-        self._is_empty = True
-        for (row, col) in self.board_points:
-            if self.board[row][col] is not None:
-                self._is_empty = False
-                break
-        return not(captured)
+        self._is_empty = all(self.board[row][col] is None for row, col in self.board_points)
+        return not (captured)
 
     def list_occupied_points(self):
         """List all nonempty points.
@@ -229,7 +224,7 @@ class Board:
 
         """
         result = []
-        for (row, col) in self.board_points:
+        for row, col in self.board_points:
             colour = self.board[row][col]
             if colour is not None:
                 result.append((colour, (row, col)))
@@ -245,9 +240,9 @@ class Board:
         Doesn't take komi into account.
 
         """
-        scores = {'b' : 0, 'w' : 0}
+        scores = {"b": 0, "w": 0}
         handled = set()
-        for (row, col) in self.board_points:
+        for row, col in self.board_points:
             colour = self.board[row][col]
             if colour is not None:
                 scores[colour] += 1
@@ -257,9 +252,8 @@ class Board:
                 continue
             region = self._make_empty_region(row, col)
             region_size = len(region.points)
-            for colour in ('b', 'w'):
+            for colour in ("b", "w"):
                 if colour in region.neighbouring_colours:
                     scores[colour] += region_size
             handled.update(region.points)
-        return scores['b'] - scores['w']
-
+        return scores["b"] - scores["w"]

@@ -6,10 +6,11 @@ This is for Go-specific utilities.
 
 """
 
-__all__ = ["opponent_of", "colour_name", "format_vertex", "format_vertex_list",
-           "move_from_vertex"]
+__all__ = ["opponent_of", "colour_name", "format_vertex", "format_vertex_list", "move_from_vertex"]
 
-_opponents = {"b":"w", "w":"b"}
+_opponents = {"b": "w", "w": "b"}
+
+
 def opponent_of(colour):
     """Return the opponent colour.
 
@@ -20,8 +21,9 @@ def opponent_of(colour):
     """
     try:
         return _opponents[colour]
-    except KeyError:
-        raise ValueError
+    except KeyError as e:
+        raise ValueError from e
+
 
 def colour_name(colour):
     """Return the (lower-case) full name of a colour.
@@ -30,12 +32,13 @@ def colour_name(colour):
 
     """
     try:
-        return {'b': 'black', 'w': 'white'}[colour]
-    except KeyError:
-        raise ValueError
+        return {"b": "black", "w": "white"}[colour]
+    except KeyError as e:
+        raise ValueError from e
 
 
 column_letters = "ABCDEFGHJKLMNOPQRSTUVWXYZ"
+
 
 def format_vertex(move):
     """Return coordinates as a string like 'A1', or 'pass'.
@@ -50,11 +53,13 @@ def format_vertex(move):
     row, col = move
     if not 0 <= row < 25 or not 0 <= col < 25:
         raise ValueError
-    return column_letters[col] + str(row+1)
+    return column_letters[col] + str(row + 1)
+
 
 def format_vertex_list(moves):
     """Return a list of coordinates as a string like 'A1,B2'."""
     return ",".join(map(format_vertex, moves))
+
 
 def move_from_vertex(vertex, board_size):
     """Interpret a string representing a vertex, as specified by GTP.
@@ -69,8 +74,8 @@ def move_from_vertex(vertex, board_size):
         raise ValueError("board_size out of range")
     try:
         s = vertex.lower()
-    except Exception:
-        raise ValueError("invalid vertex")
+    except Exception as e:
+        raise ValueError("invalid vertex") from e
     if s == "pass":
         return None
     try:
@@ -84,9 +89,8 @@ def move_from_vertex(vertex, board_size):
         row = int(s[1:]) - 1
         if row < 0:
             raise ValueError
-    except (IndexError, ValueError):
-        raise ValueError("invalid vertex: '%s'" % s)
-    if not (col < board_size and row < board_size):
-        raise ValueError("vertex is off board: '%s'" % s)
+    except (IndexError, ValueError) as exc:
+        raise ValueError(f"invalid vertex: '{s}'") from exc
+    if col >= board_size or row >= board_size:
+        raise ValueError(f"vertex is off board: '{s}'")
     return row, col
-

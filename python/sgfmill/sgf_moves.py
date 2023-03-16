@@ -2,6 +2,7 @@
 
 from . import sgf_properties
 
+
 def get_setup_and_moves(sgf_game, board=None):
     """Return the initial setup and the following moves from an Sgf_game.
 
@@ -32,6 +33,7 @@ def get_setup_and_moves(sgf_game, board=None):
     size = sgf_game.get_size()
     if board is None:
         from . import boards
+
         board = boards.Board(size)
     else:
         if board.side != size:
@@ -58,6 +60,7 @@ def get_setup_and_moves(sgf_game, board=None):
             moves.append((colour, sgf_properties.interpret_go_point(raw, size)))
     return board, moves
 
+
 def set_initial_position(sgf_game, board):
     """Add setup stones to an Sgf_game reflecting a board position.
 
@@ -70,10 +73,11 @@ def set_initial_position(sgf_game, board):
     described by sgf_board_interface.Interface_for_set_initial_position().
 
     """
-    stones = {'b' : set(), 'w' : set()}
-    for (colour, point) in board.list_occupied_points():
+    stones = {"b": set(), "w": set()}
+    for colour, point in board.list_occupied_points():
         stones[colour].add(point)
-    sgf_game.get_root().set_setup_stones(stones['b'], stones['w'])
+    sgf_game.get_root().set_setup_stones(stones["b"], stones["w"])
+
 
 def indicate_first_player(sgf_game):
     """Add a PL property to the root node if appropriate.
@@ -92,12 +96,11 @@ def indicate_first_player(sgf_game):
         specify_pl = True
     elif root.has_property("AB") and not has_handicap:
         specify_pl = True
-    elif not has_handicap and first_player == 'w':
+    elif not has_handicap and first_player == "w":
         specify_pl = True
-    elif has_handicap and first_player == 'b':
+    elif has_handicap and first_player == "b":
         specify_pl = True
     else:
         specify_pl = False
     if specify_pl:
-        root.set('PL', first_player)
-
+        root.set("PL", first_player)

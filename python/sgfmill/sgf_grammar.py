@@ -21,12 +21,11 @@ values should pass is_valid_property_value().
 
 import re
 
-
 _propident_re = re.compile(r"\A[A-Z]{1,64}\Z")
-_propvalue_re = re.compile(br"\A [^\\\]]* (?: \\. [^\\\]]* )* \Z",
-                           re.VERBOSE | re.DOTALL)
-_find_start_re = re.compile(br"\(\s*;")
-_tokenise_re = re.compile(br"""
+_propvalue_re = re.compile(rb"\A [^\\\]]* (?: \\. [^\\\]]* )* \Z", re.VERBOSE | re.DOTALL)
+_find_start_re = re.compile(rb"\(\s*;")
+_tokenise_re = re.compile(
+    rb"""
 \s*
 (?:
     \[ (?P<V> [^\\\]]* (?: \\. [^\\\]]* )* ) \]   # PropValue
@@ -35,7 +34,9 @@ _tokenise_re = re.compile(br"""
     |
     (?P<D> [;()] )                                # delimiter
 )
-""", re.VERBOSE | re.DOTALL)
+""",
+    re.VERBOSE | re.DOTALL,
+)
 
 
 def is_valid_property_identifier(s):
@@ -55,6 +56,7 @@ def is_valid_property_identifier(s):
     """
     return bool(_propident_re.search(s))
 
+
 def is_valid_property_value(bb):
     """Check whether 'bb' is a well-formed PropValue.
 
@@ -65,6 +67,7 @@ def is_valid_property_value(bb):
 
     """
     return bool(_propvalue_re.search(bb))
+
 
 def tokenise(bb, start_position=0):
     """Tokenise a string containing SGF data.
@@ -103,14 +106,15 @@ def tokenise(bb, start_position=0):
         token = m.group(m.lastindex)
         result.append((group, token))
         i = m.end()
-        if group == 'D':
-            if token == b'(':
+        if group == "D":
+            if token == b"(":
                 depth += 1
-            elif token == b')':
+            elif token == b")":
                 depth -= 1
                 if depth == 0:
                     break
     return result, i
+
 
 class Coarse_game_tree:
     """An SGF GameTree.
@@ -126,9 +130,11 @@ class Coarse_game_tree:
     The sequence represents the nodes before the variations.
 
     """
+
     def __init__(self):
-        self.sequence = [] # must be at least one node
-        self.children = [] # may be empty
+        self.sequence = []  # must be at least one node
+        self.children = []  # may be empty
+
 
 def _parse_sgf_game(bb, start_position):
     """Common implementation for parse_sgf_game and parse_sgf_games."""
@@ -144,10 +150,10 @@ def _parse_sgf_game(bb, start_position):
         while True:
             token_type, token = tokens[index]
             index += 1
-            if token_type == 'V':
+            if token_type == "V":
                 raise ValueError("unexpected value")
-            if token_type == 'D':
-                if token == b';':
+            if token_type == "D":
+                if token == b";":
                     if sequence is None:
                         raise ValueError("unexpected node")
                     properties = {}
@@ -158,7 +164,7 @@ def _parse_sgf_game(bb, start_position):
                             raise ValueError("empty sequence")
                         game_tree.sequence = sequence
                         sequence = None
-                    if token == b'(':
+                    if token == b"(":
                         stack.append(game_tree)
                         game_tree = Coarse_game_tree()
                         sequence = []
@@ -176,7 +182,7 @@ def _parse_sgf_game(bb, start_position):
                 prop_values = []
                 while True:
                     token_type, token = tokens[index]
-                    if token_type != 'V':
+                    if token_type != "V":
                         break
                     index += 1
                     prop_values.append(token)
@@ -187,12 +193,13 @@ def _parse_sgf_game(bb, start_position):
                         properties[prop_ident] += prop_values
                     else:
                         properties[prop_ident] = prop_values
-                except TypeError:
-                    raise ValueError("property value outside a node")
-    except IndexError:
-        raise ValueError("unexpected end of SGF data")
+                except TypeError as e:
+                    raise ValueError("property value outside a node") from e
+    except IndexError as exc:
+        raise ValueError("unexpected end of SGF data") from exc
     assert index == len(tokens)
     return variation, end_position
+
 
 def parse_sgf_game(bb):
     """Read a single SGF game from bytes data, returning the parse tree.
@@ -219,6 +226,7 @@ def parse_sgf_game(bb):
         raise ValueError("no SGF data found")
     return game_tree
 
+
 def parse_sgf_collection(bb):
     """Read an SGF game collection, returning the parse trees.
 
@@ -243,7 +251,7 @@ def parse_sgf_collection(bb):
         try:
             game_tree, position = _parse_sgf_game(bb, position)
         except ValueError as e:
-            raise ValueError("error parsing game %d: %s" % (len(result), e))
+            raise ValueError("error parsing game %d: %s" % (len(result), e)) from e
         if game_tree is None:
             break
         result.append(game_tree)
@@ -278,6 +286,7 @@ def block_format(pieces, width=79):
         lines.append(line)
     return b"\n".join(lines)
 
+
 def serialise_game_tree(game_tree, wrap=79):
     """Serialise an SGF game as a string.
 
@@ -302,14 +311,11 @@ def serialise_game_tree(game_tree, wrap=79):
             l.append(b";")
             # Force FF to the front, largely to work around a Quarry bug which
             # makes it ignore the first few bytes of the file.
-            for prop_ident, prop_values in sorted(
-                    properties.items(),
-                    key=lambda kv: (-(kv[0]=="FF"), kv[0])):
+            for prop_ident, prop_values in sorted(properties.items(), key=lambda kv: (-(kv[0] == "FF"), kv[0])):
                 # Make a single string for each property, to get prettier
                 # block_format output.
                 m = [prop_ident.encode("ascii")]
-                for value in prop_values:
-                    m.append(b"[" + value + b"]")
+                m.extend(b"[" + value + b"]" for value in prop_values)
                 l.append(b"".join(m))
         to_serialise.append(None)
         to_serialise.extend(reversed(game_tree.children))
@@ -340,15 +346,16 @@ def make_tree(game_tree, root, node_builder, node_adder):
     while to_build:
         node, game_tree, index = to_build.pop()
         if index < len(game_tree.sequence) - 1:
-            child = node_builder(node, game_tree.sequence[index+1])
+            child = node_builder(node, game_tree.sequence[index + 1])
             node_adder(node, child)
-            to_build.append((child, game_tree, index+1))
+            to_build.append((child, game_tree, index + 1))
         else:
             node._children = []
             for child_tree in game_tree.children:
                 child = node_builder(node, child_tree.sequence[0])
                 node_adder(node, child)
                 to_build.append((child, child_tree, 0))
+
 
 def make_coarse_game_tree(root, get_children, get_properties):
     """Construct a Coarse_game_tree from a node tree.
@@ -396,16 +403,14 @@ def main_sequence_iter(game_tree):
 
     """
     while True:
-        for properties in game_tree.sequence:
-            yield properties
+        yield from game_tree.sequence
         if not game_tree.children:
             break
         game_tree = game_tree.children[0]
 
 
-_split_compose_re = re.compile(
-    br"( (?: [^\\:] | \\. )* ) :",
-    re.VERBOSE | re.DOTALL)
+_split_compose_re = re.compile(rb"( (?: [^\\:] | \\. )* ) :", re.VERBOSE | re.DOTALL)
+
 
 def parse_compose(bb):
     """Split the parts of an SGF Compose value.
@@ -419,10 +424,11 @@ def parse_compose(bb):
     backslash escapes unchanged in the returned strings.
 
     """
-    m = _split_compose_re.match(bb)
-    if not m:
+    if m := _split_compose_re.match(bb):
+        return m.group(1), bb[m.end() :]
+    else:
         return bb, None
-    return m.group(1), bb[m.end():]
+
 
 def compose(bb1, bb2):
     """Construct a value of Compose value type.
@@ -435,9 +441,10 @@ def compose(bb1, bb2):
     return bb1.replace(b":", b"\\:") + b":" + bb2
 
 
-_newline_re = re.compile(br"\n\r|\r\n|\n|\r")
+_newline_re = re.compile(rb"\n\r|\r\n|\n|\r")
 _whitespace_table = bytes.maketrans(b"\t\f\v", b"   ")
-_chunk_re = re.compile(br" [^\n\\]+ | [\n\\] ", re.VERBOSE)
+_chunk_re = re.compile(rb" [^\n\\]+ | [\n\\] ", re.VERBOSE)
+
 
 def simpletext_value(bb):
     """Convert a raw SimpleText property value to the bytestring it represents.
@@ -471,6 +478,7 @@ def simpletext_value(bb):
             result.append(chunk)
     return b"".join(result)
 
+
 def text_value(bb):
     """Convert a raw Text property value to the bytestring it represents.
 
@@ -501,6 +509,7 @@ def text_value(bb):
             result.append(chunk)
     return b"".join(result)
 
+
 def escape_text(bb):
     """Convert a bytestring to a raw Text property value that represents it.
 
@@ -515,4 +524,3 @@ def escape_text(bb):
 
     """
     return bb.replace(b"\\", b"\\\\").replace(b"]", b"\\]")
-
