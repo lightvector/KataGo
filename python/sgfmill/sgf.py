@@ -6,8 +6,7 @@ This is intended for use with SGF FF[4]; see http://www.red-bean.com/sgf/
 
 import datetime
 
-from . import sgf_grammar
-from . import sgf_properties
+from . import sgf_grammar, sgf_properties
 
 
 class Node:
@@ -23,6 +22,7 @@ class Node:
     Changing the SZ property isn't allowed.
 
     """
+
     def __init__(self, property_map, presenter):
         # Map identifier (PropIdent) -> nonempty list of raw values
         self._property_map = property_map
@@ -101,10 +101,10 @@ class Node:
         """
         return self._property_map
 
-
     def _set_raw_list(self, identifier, values):
-        if (identifier == "SZ" and
-            values != [sgf_properties.serialise_number(self._presenter.size)]):
+        if identifier == "SZ" and values != [
+            sgf_properties.serialise_number(self._presenter.size)
+        ]:
             raise ValueError("changing size is not permitted")
         self._property_map[identifier] = values
 
@@ -117,7 +117,6 @@ class Node:
         if identifier == "SZ" and self._presenter.size != 19:
             raise ValueError("changing size is not permitted")
         del self._property_map[identifier]
-
 
     def set_raw_list(self, identifier, values):
         """Set the raw values of the specified property.
@@ -161,7 +160,6 @@ class Node:
             raise ValueError("ill-formed raw property value")
         self._set_raw_list(identifier, [value])
 
-
     def get(self, identifier):
         """Return the interpreted value of the specified property.
 
@@ -175,8 +173,7 @@ class Node:
         See sgf_properties.Presenter.interpret() for details.
 
         """
-        return self._presenter.interpret(
-            identifier, self._property_map[identifier])
+        return self._presenter.interpret(identifier, self._property_map[identifier])
 
     def set(self, identifier, value):
         """Set the value of the specified property.
@@ -191,8 +188,7 @@ class Node:
         See sgf_properties.Presenter.serialise() for details.
 
         """
-        self._set_raw_list(
-            identifier, self._presenter.serialise(identifier, value))
+        self._set_raw_list(identifier, self._presenter.serialise(identifier, value))
 
     def get_raw_move(self):
         """Return the raw value of the move from a node.
@@ -230,8 +226,7 @@ class Node:
         colour, raw = self.get_raw_move()
         if colour is None:
             return None, None
-        return (colour,
-                sgf_properties.interpret_go_point(raw, self._presenter.size))
+        return (colour, sgf_properties.interpret_go_point(raw, self._presenter.size))
 
     def get_setup_stones(self):
         """Retrieve Add Black / Add White / Add Empty properties from a node.
@@ -258,7 +253,7 @@ class Node:
     def has_setup_stones(self):
         """Check whether the node has any AB/AW/AE properties."""
         d = self._property_map
-        return ("AB" in d or "AW" in d or "AE" in d)
+        return "AB" in d or "AW" in d or "AE" in d
 
     def set_move(self, colour, move):
         """Set the B or W property.
@@ -269,12 +264,12 @@ class Node:
         Replaces any existing B or W property in the node.
 
         """
-        if colour not in ('b', 'w'):
+        if colour not in ("b", "w"):
             raise ValueError
-        if 'B' in self._property_map:
-            del self._property_map['B']
-        if 'W' in self._property_map:
-            del self._property_map['W']
+        if "B" in self._property_map:
+            del self._property_map["B"]
+        if "W" in self._property_map:
+            del self._property_map["W"]
         self.set(colour.upper(), move)
 
     def set_setup_stones(self, black, white, empty=None):
@@ -285,18 +280,18 @@ class Node:
         Removes any existing AB/AW/AE properties from the node.
 
         """
-        if 'AB' in self._property_map:
-            del self._property_map['AB']
-        if 'AW' in self._property_map:
-            del self._property_map['AW']
-        if 'AE' in self._property_map:
-            del self._property_map['AE']
+        if "AB" in self._property_map:
+            del self._property_map["AB"]
+        if "AW" in self._property_map:
+            del self._property_map["AW"]
+        if "AE" in self._property_map:
+            del self._property_map["AE"]
         if black:
-            self.set('AB', black)
+            self.set("AB", black)
         if white:
-            self.set('AW', white)
+            self.set("AW", white)
         if empty:
-            self.set('AE', empty)
+            self.set("AE", empty)
 
     def add_comment_text(self, text):
         """Add or extend the node's comment.
@@ -310,21 +305,27 @@ class Node:
         (with two newlines in front).
 
         """
-        if self.has_property('C'):
-            self.set('C', self.get('C') + "\n\n" + text)
+        if self.has_property("C"):
+            self.set("C", self.get("C") + "\n\n" + text)
         else:
-            self.set('C', text)
+            self.set("C", text)
 
     def __str__(self):
         """String description of the node, for debugging."""
+
         def fmt(bb):
             return bb.decode(self.get_encoding(), "replace")
+
         def format_property(ident, values):
             return ident + "".join("[%s]" % fmt(bb) for bb in values)
-        return "\n".join(
-            format_property(ident, values)
-            for (ident, values) in sorted(self._property_map.items())) \
+
+        return (
+            "\n".join(
+                format_property(ident, values)
+                for (ident, values) in sorted(self._property_map.items())
+            )
             + "\n"
+        )
 
 
 class Tree_node(Node):
@@ -344,6 +345,7 @@ class Tree_node(Node):
       parent -- the nodes's parent Tree_node (None for the root node)
 
     """
+
     def __init__(self, parent, properties):
         self.owner = parent.owner
         self.parent = parent
@@ -445,24 +447,27 @@ class Tree_node(Node):
             raise KeyError
         return node.get(identifier)
 
+
 class _Root_tree_node(Tree_node):
     """Variant of Tree_node used for a game root."""
+
     def __init__(self, property_map, owner):
         self.owner = owner
         self.parent = None
         self._children = []
         Node.__init__(self, property_map, owner.presenter)
 
+
 class _Unexpanded_root_tree_node(_Root_tree_node):
     """Variant of _Root_tree_node used with 'loaded' Sgf_games."""
+
     def __init__(self, owner, coarse_tree):
         _Root_tree_node.__init__(self, coarse_tree.sequence[0], owner)
         self._coarse_tree = coarse_tree
 
     def _expand(self):
-        sgf_grammar.make_tree(
-            self._coarse_tree, self, Tree_node, Tree_node._add_child)
-        delattr(self, '_coarse_tree')
+        sgf_grammar.make_tree(self._coarse_tree, self, Tree_node, Tree_node._add_child)
+        delattr(self, "_coarse_tree")
         self.__class__ = _Root_tree_node
 
     def __len__(self):
@@ -512,6 +517,7 @@ class Sgf_game:
     controls the encoding used by serialise().
 
     """
+
     def __new__(cls, size, encoding="UTF-8", *args, **kwargs):
         # To complete initialisation after this, you need to set 'root'.
         if not 1 <= size <= 26:
@@ -523,11 +529,11 @@ class Sgf_game:
 
     def __init__(self, *args, **kwargs):
         self.root = _Root_tree_node({}, self)
-        self.root.set_raw('FF', b"4")
-        self.root.set_raw('GM', b"1")
-        self.root.set_raw('SZ', sgf_properties.serialise_number(self.size))
+        self.root.set_raw("FF", b"4")
+        self.root.set_raw("GM", b"1")
+        self.root.set_raw("SZ", sgf_properties.serialise_number(self.size))
         # Read the encoding back so we get the normalised form
-        self.root.set_raw('CA', self.presenter.encoding.encode())
+        self.root.set_raw("CA", self.presenter.encoding.encode())
 
     @classmethod
     def from_coarse_game_tree(cls, coarse_game, override_encoding=None):
@@ -548,10 +554,12 @@ class Sgf_game:
         CA property is set to match.
 
         """
+
         def _get_raw(identifier):
             return coarse_game.sequence[0][identifier][0]
+
         try:
-            size_bb = _get_raw('SZ')
+            size_bb = _get_raw("SZ")
         except KeyError:
             size = 19
         else:
@@ -561,7 +569,7 @@ class Sgf_game:
                 raise ValueError("bad SZ property: %s" % size_bb)
         if override_encoding is None:
             try:
-                encoding = _get_raw('CA').decode("ascii", "replace")
+                encoding = _get_raw("CA").decode("ascii", "replace")
             except KeyError:
                 encoding = "ISO-8859-1"
         else:
@@ -613,7 +621,7 @@ class Sgf_game:
         (defaulting to 19).
 
         """
-        if not hasattr(s, 'encode'):
+        if not hasattr(s, "encode"):
             raise TypeError("expected string, given %s" % type(s).__name__)
         return cls.from_bytes(s.encode("utf-8"), override_encoding="utf-8")
 
@@ -644,16 +652,15 @@ class Sgf_game:
         try:
             encoding = self.get_charset()
         except ValueError:
-            raise ValueError("unsupported charset: %s" %
-                             self.root.get_raw("CA"))
+            raise ValueError("unsupported charset: %s" % self.root.get_raw("CA"))
         coarse_tree = sgf_grammar.make_coarse_game_tree(
-            self.root, lambda node:node, Node.get_raw_property_map)
+            self.root, lambda node: node, Node.get_raw_property_map
+        )
         serialised = sgf_grammar.serialise_game_tree(coarse_tree, wrap)
         if encoding == self.root.get_encoding():
             return serialised
         else:
             return serialised.decode(self.root.get_encoding()).encode(encoding)
-
 
     def get_property_presenter(self):
         """Return the property presenter.
@@ -811,7 +818,7 @@ class Sgf_game:
 
         """
         try:
-            return self.root.get({'b' : 'PB', 'w' : 'PW'}[colour])
+            return self.root.get({"b": "PB", "w": "PW"}[colour])
         except KeyError:
             return None
 
@@ -840,5 +847,4 @@ class Sgf_game:
         """
         if date is None:
             date = datetime.date.today()
-        self.root.set('DT', date.strftime("%Y-%m-%d"))
-
+        self.root.set("DT", date.strftime("%Y-%m-%d"))

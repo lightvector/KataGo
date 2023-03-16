@@ -1,5 +1,6 @@
 """Description of the board interfaces required by sgf_moves."""
 
+
 class Interface_for_get_setup_and_moves:
     """Interface required by sgf_moves.get_setup_and_moves().
 
@@ -19,6 +20,7 @@ class Interface_for_get_setup_and_moves:
 
         """
         raise NotImplementedError
+
 
 class Interface_for_set_initial_position:
     """Interface required by sgf_moves.set_initial_position()."""

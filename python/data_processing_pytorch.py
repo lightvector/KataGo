@@ -2,11 +2,11 @@ import logging
 import os
 
 import numpy as np
-
 import torch
 import torch.nn.functional
 
 import modelconfigs
+
 
 def read_npz_training_data(
     npz_files,
@@ -21,7 +21,7 @@ def read_npz_training_data(
     rand = np.random.default_rng(seed=list(os.urandom(12)))
     num_bin_features = modelconfigs.get_num_bin_input_features(model_config)
     num_global_features = modelconfigs.get_num_global_input_features(model_config)
-    (h_base,h_builder) = build_history_matrices(model_config, device)
+    (h_base, h_builder) = build_history_matrices(model_config, device)
 
     for npz_file in npz_files:
         with np.load(npz_file) as npz:
@@ -33,13 +33,14 @@ def read_npz_training_data(
             valueTargetsNCHW = npz["valueTargetsNCHW"].astype(np.float32)
         del npz
 
-        binaryInputNCHW = np.unpackbits(binaryInputNCHWPacked,axis=2)
+        binaryInputNCHW = np.unpackbits(binaryInputNCHWPacked, axis=2)
         assert len(binaryInputNCHW.shape) == 3
         assert binaryInputNCHW.shape[2] == ((pos_len * pos_len + 7) // 8) * 8
-        binaryInputNCHW = binaryInputNCHW[:,:,:pos_len*pos_len]
-        binaryInputNCHW = np.reshape(binaryInputNCHW, (
-            binaryInputNCHW.shape[0], binaryInputNCHW.shape[1], pos_len, pos_len
-        )).astype(np.float32)
+        binaryInputNCHW = binaryInputNCHW[:, :, : pos_len * pos_len]
+        binaryInputNCHW = np.reshape(
+            binaryInputNCHW,
+            (binaryInputNCHW.shape[0], binaryInputNCHW.shape[1], pos_len, pos_len),
+        ).astype(np.float32)
 
         assert binaryInputNCHW.shape[1] == num_bin_features
         assert globalInputNC.shape[1] == num_global_features
@@ -48,38 +49,56 @@ def read_npz_training_data(
         # Just discard stuff that doesn't divide evenly
         num_whole_steps = num_samples // (batch_size * world_size)
 
-        logging.info(f"Beginning {npz_file} with {num_whole_steps * world_size} usable batches, my rank is {rank}")
+        logging.info(
+            f"Beginning {npz_file} with {num_whole_steps * world_size} usable batches,"
+            f" my rank is {rank}"
+        )
         for n in range(num_whole_steps):
             start = (n * world_size + rank) * batch_size
             end = start + batch_size
 
-            batch_binaryInputNCHW = torch.from_numpy(binaryInputNCHW[start:end]).to(device)
+            batch_binaryInputNCHW = torch.from_numpy(binaryInputNCHW[start:end]).to(
+                device
+            )
             batch_globalInputNC = torch.from_numpy(globalInputNC[start:end]).to(device)
-            batch_policyTargetsNCMove = torch.from_numpy(policyTargetsNCMove[start:end]).to(device)
-            batch_globalTargetsNC = torch.from_numpy(globalTargetsNC[start:end]).to(device)
+            batch_policyTargetsNCMove = torch.from_numpy(
+                policyTargetsNCMove[start:end]
+            ).to(device)
+            batch_globalTargetsNC = torch.from_numpy(globalTargetsNC[start:end]).to(
+                device
+            )
             batch_scoreDistrN = torch.from_numpy(scoreDistrN[start:end]).to(device)
-            batch_valueTargetsNCHW = torch.from_numpy(valueTargetsNCHW[start:end]).to(device)
+            batch_valueTargetsNCHW = torch.from_numpy(valueTargetsNCHW[start:end]).to(
+                device
+            )
 
             (batch_binaryInputNCHW, batch_globalInputNC) = apply_history_matrices(
-                model_config, batch_binaryInputNCHW, batch_globalInputNC, batch_globalTargetsNC, h_base, h_builder
+                model_config,
+                batch_binaryInputNCHW,
+                batch_globalInputNC,
+                batch_globalTargetsNC,
+                h_base,
+                h_builder,
             )
 
             if randomize_symmetries:
-                symm = int(rand.integers(0,8))
+                symm = int(rand.integers(0, 8))
                 batch_binaryInputNCHW = apply_symmetry(batch_binaryInputNCHW, symm)
-                batch_policyTargetsNCMove = apply_symmetry_policy(batch_policyTargetsNCMove, symm, pos_len)
+                batch_policyTargetsNCMove = apply_symmetry_policy(
+                    batch_policyTargetsNCMove, symm, pos_len
+                )
                 batch_valueTargetsNCHW = apply_symmetry(batch_valueTargetsNCHW, symm)
             batch_binaryInputNCHW = batch_binaryInputNCHW.contiguous()
             batch_policyTargetsNCMove = batch_policyTargetsNCMove.contiguous()
             batch_valueTargetsNCHW = batch_valueTargetsNCHW.contiguous()
 
             batch = dict(
-                binaryInputNCHW = batch_binaryInputNCHW,
-                globalInputNC = batch_globalInputNC,
-                policyTargetsNCMove = batch_policyTargetsNCMove,
-                globalTargetsNC = batch_globalTargetsNC,
-                scoreDistrN = batch_scoreDistrN,
-                valueTargetsNCHW = batch_valueTargetsNCHW,
+                binaryInputNCHW=batch_binaryInputNCHW,
+                globalInputNC=batch_globalInputNC,
+                policyTargetsNCMove=batch_policyTargetsNCMove,
+                globalTargetsNC=batch_globalTargetsNC,
+                scoreDistrN=batch_scoreDistrN,
+                valueTargetsNCHW=batch_valueTargetsNCHW,
             )
             yield batch
 
@@ -88,12 +107,18 @@ def apply_symmetry_policy(tensor, symm, pos_len):
     """Same as apply_symmetry but also handles the pass index"""
     batch_size = tensor.shape[0]
     channels = tensor.shape[1]
-    tensor_without_pass = tensor[:,:,:-1].view((batch_size, channels, pos_len, pos_len))
+    tensor_without_pass = tensor[:, :, :-1].view(
+        (batch_size, channels, pos_len, pos_len)
+    )
     tensor_transformed = apply_symmetry(tensor_without_pass, symm)
-    return torch.cat((
-        tensor_transformed.reshape(batch_size, channels, pos_len*pos_len),
-        tensor[:,:,-1:]
-    ), dim=2)
+    return torch.cat(
+        (
+            tensor_transformed.reshape(batch_size, channels, pos_len * pos_len),
+            tensor[:, :, -1:],
+        ),
+        dim=2,
+    )
+
 
 def apply_symmetry(tensor, symm):
     """
@@ -127,7 +152,9 @@ def apply_symmetry(tensor, symm):
 
 def build_history_matrices(model_config: modelconfigs.ModelConfig, device):
     num_bin_features = modelconfigs.get_num_bin_input_features(model_config)
-    assert num_bin_features == 22, "Currently this code is hardcoded for this many features"
+    assert (
+        num_bin_features == 22
+    ), "Currently this code is hardcoded for this many features"
 
     h_base = torch.diag(
         torch.tensor(
@@ -167,7 +194,9 @@ def build_history_matrices(model_config: modelconfigs.ModelConfig, device):
     h_base[14, 15] = 1.0
     h_base[14, 16] = 1.0
 
-    h0 = torch.zeros(num_bin_features, num_bin_features, device=device, requires_grad=False)
+    h0 = torch.zeros(
+        num_bin_features, num_bin_features, device=device, requires_grad=False
+    )
     # When have the prev move, we enable feature 9 and 15
     h0[9, 9] = 1.0  # Enable 9 -> 9
     h0[14, 15] = -1.0  # Stop copying 14 -> 15
@@ -175,19 +204,27 @@ def build_history_matrices(model_config: modelconfigs.ModelConfig, device):
     h0[15, 15] = 1.0  # Enable 15 -> 15
     h0[15, 16] = 1.0  # Start copying 15 -> 16
 
-    h1 = torch.zeros(num_bin_features, num_bin_features, device=device, requires_grad=False)
+    h1 = torch.zeros(
+        num_bin_features, num_bin_features, device=device, requires_grad=False
+    )
     # When have the prevprev move, we enable feature 10 and 16
     h1[10, 10] = 1.0  # Enable 10 -> 10
     h1[15, 16] = -1.0  # Stop copying 15 -> 16
     h1[16, 16] = 1.0  # Enable 16 -> 16
 
-    h2 = torch.zeros(num_bin_features, num_bin_features, device=device, requires_grad=False)
+    h2 = torch.zeros(
+        num_bin_features, num_bin_features, device=device, requires_grad=False
+    )
     h2[11, 11] = 1.0
 
-    h3 = torch.zeros(num_bin_features, num_bin_features, device=device, requires_grad=False)
+    h3 = torch.zeros(
+        num_bin_features, num_bin_features, device=device, requires_grad=False
+    )
     h3[12, 12] = 1.0
 
-    h4 = torch.zeros(num_bin_features, num_bin_features, device=device, requires_grad=False)
+    h4 = torch.zeros(
+        num_bin_features, num_bin_features, device=device, requires_grad=False
+    )
     h4[13, 13] = 1.0
 
     # (1, n_bin, n_bin)
@@ -198,22 +235,32 @@ def build_history_matrices(model_config: modelconfigs.ModelConfig, device):
     return (h_base, h_builder)
 
 
-def apply_history_matrices(model_config, batch_binaryInputNCHW, batch_globalInputNC, batch_globalTargetsNC, h_base, h_builder):
+def apply_history_matrices(
+    model_config,
+    batch_binaryInputNCHW,
+    batch_globalInputNC,
+    batch_globalTargetsNC,
+    h_base,
+    h_builder,
+):
     num_global_features = modelconfigs.get_num_global_input_features(model_config)
-    include_history = batch_globalTargetsNC[:,36:41]
+    include_history = batch_globalTargetsNC[:, 36:41]
     # include_history: (N, 5)
     # bi * ijk -> bjk, (N, 5) * (5, n_bin, n_bin) -> (N, n_bin, n_bin)
     h_matrix = h_base + torch.einsum("bi,ijk->bjk", include_history, h_builder)
 
-
     # batch_binaryInputNCHW: (N, n_bin_in, 19, 19)
     # h_matrix: (N, n_bin_in, n_bin_out)
     # Result: (N, n_bin_out, 19, 19)
-    batch_binaryInputNCHW = torch.einsum("bijk,bil->bljk", batch_binaryInputNCHW, h_matrix)
+    batch_binaryInputNCHW = torch.einsum(
+        "bijk,bil->bljk", batch_binaryInputNCHW, h_matrix
+    )
 
     # First 5 global input features exactly correspond to include_history, pointwise multiply to
     # enable/disable them
     batch_globalInputNC = batch_globalInputNC * torch.nn.functional.pad(
-        include_history, ((0, num_global_features - include_history.shape[1])), value=1.0
+        include_history,
+        ((0, num_global_features - include_history.shape[1])),
+        value=1.0,
     )
     return batch_binaryInputNCHW, batch_globalInputNC
