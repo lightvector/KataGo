@@ -1,9 +1,8 @@
 import argparse
 import itertools
-import math
 import os
 from dataclasses import dataclass
-from typing import Dict, List, Sequence, Set, Tuple
+from typing import Dict
 
 import elo
 from sgfmill import sgf

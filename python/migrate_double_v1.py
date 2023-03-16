@@ -1,8 +1,6 @@
 #!/usr/bin/python3
 import argparse
 import math
-import os
-import sys
 
 import torch
 

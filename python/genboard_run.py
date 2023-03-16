@@ -1,23 +1,14 @@
 #!/usr/bin/python3
 import argparse
 import hashlib
-import json
-import logging
-import math
 import os
 import random
 import sys
-import traceback
 from copy import deepcopy
 
-import numpy as np
 import torch
-import torch.nn as nn
 import torch.nn.functional as F
-import torch.optim as optim
 
-import data
-from board import Board, IllegalMoveError
 from genboard_common import Model
 
 if __name__ == "__main__":

@@ -1,16 +1,12 @@
 #!/usr/bin/python3
 import argparse
-import datetime
 import hashlib
 import json
-import logging
-import math
 import multiprocessing
 import os
 import shutil
 import sys
 import time
-import traceback
 import zipfile
 
 import numpy as np

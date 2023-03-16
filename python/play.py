@@ -1,26 +1,19 @@
 #!/usr/bin/python3
 import argparse
 import colorsys
-import json
 import logging
 import math
-import os
-import random
 import re
 import sys
-import time
-import traceback
 
 import numpy as np
 import torch
 import torch.nn
 
-import modelconfigs
 from board import Board
-from data_processing_pytorch import apply_symmetry
 from features import Features
 from load_model import load_model
-from model_pytorch import EXTRA_SCORE_DISTR_RADIUS, Model
+from model_pytorch import EXTRA_SCORE_DISTR_RADIUS
 
 description = """
 Play go with a trained neural net!

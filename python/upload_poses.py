@@ -1,9 +1,7 @@
 #!/usr/bin/python3
 import argparse
 import configparser
-import hashlib
 import json
-import logging
 import os
 import sys
 

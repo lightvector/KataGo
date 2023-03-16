@@ -5,8 +5,7 @@ import os
 import torch
 from torch.optim.swa_utils import AveragedModel
 
-import modelconfigs
-from model_pytorch import Model, NestedBottleneckResBlock, ResBlock
+from model_pytorch import Model
 
 
 def load_model_state_dict(state_dict):

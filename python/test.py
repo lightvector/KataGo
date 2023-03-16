@@ -2,19 +2,13 @@
 import argparse
 import json
 import logging
-import math
 import os
-import random
 import sys
-import time
-import traceback
 from collections import defaultdict
-from typing import Dict, List
 
 import numpy as np
 import torch
 import torch.nn
-from torch.optim.swa_utils import AveragedModel
 
 import data_processing_pytorch
 import modelconfigs

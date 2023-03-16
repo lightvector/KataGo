@@ -2,13 +2,11 @@
 import argparse
 import datetime
 import json
-import logging
 import multiprocessing
 import os
 import shutil
 import sys
 import time
-import traceback
 import zipfile
 
 import dateutil.parser

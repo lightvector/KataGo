@@ -1,10 +1,7 @@
 import math
-from typing import Callable, List
-
-import numpy as np
 
 import modelconfigs
-from board import Board, Loc, Player, Pos
+from board import Board
 
 
 class Features:

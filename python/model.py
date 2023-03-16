@@ -1,6 +1,4 @@
-import logging
 import math
-import traceback
 
 import numpy as np
 import tensorflow as tf

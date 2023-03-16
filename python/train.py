@@ -1,12 +1,8 @@
 #!/usr/bin/python3
 import argparse
 import atexit
-import contextlib
-import copy
 import datetime
 import gc
-import glob
-import itertools
 import json
 import logging
 import math
@@ -15,7 +11,6 @@ import random
 import shutil
 import sys
 import time
-import traceback
 from collections import defaultdict
 from datetime import timezone
 from typing import Dict, List
@@ -27,7 +22,6 @@ import torch.multiprocessing
 import torch.nn
 import torch.optim
 from torch.cuda.amp import GradScaler, autocast
-from torch.nn.parallel import DistributedDataParallel
 from torch.optim.swa_utils import AveragedModel
 
 import data_processing_pytorch

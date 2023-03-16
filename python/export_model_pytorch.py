@@ -3,24 +3,17 @@ import argparse
 import datetime
 import json
 import logging
-import math
 import os
-import random
 import struct
 import sys
-import time
-import traceback
-from collections import defaultdict
-from typing import Dict, List
 
 import numpy as np
 import torch
 import torch.nn
-from torch.optim.swa_utils import AveragedModel
 
 import modelconfigs
 from load_model import load_model
-from model_pytorch import Model, NestedBottleneckResBlock, ResBlock
+from model_pytorch import NestedBottleneckResBlock, ResBlock
 
 # Command and args-------------------------------------------------------------------
 
