@@ -369,7 +369,7 @@ int MainCmds::analysis(const vector<string>& args) {
     bots.push_back(bot);
   }
 
-  logger.write("Analyzing up to " + Global::intToString(numAnalysisThreads) + " positions at at time in parallel");
+  logger.write("Analyzing up to " + Global::intToString(numAnalysisThreads) + " positions at a time in parallel");
   logger.write("Started, ready to begin handling requests");
   if(!logToStderr) {
     cerr << "Started, ready to begin handling requests" << endl;
