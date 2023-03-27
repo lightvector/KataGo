@@ -22,6 +22,7 @@ final class MPSGraphTest: XCTestCase {
                                     tensor: inputTensor)
 
         inputArray.writeBytes(inputPointer)
+
         let inputTensorData = MPSGraphTensorData(inputArray)
 
         let fetch = graph.run(feeds: [inputTensor: inputTensorData],
@@ -1800,24 +1801,26 @@ final class NestedBottleneckResidualBlockTest: XCTestCase {
 
         let device = MPSGraphDevice(mtlDevice: MTLCreateSystemDefaultDevice()!)
 
-        let inLength = source.tensor.countElements()
+        let inLength = source.tensor.countElements()!
         let inputPointer = UnsafeMutablePointer<Float32>.allocate(capacity: inLength)
         inputPointer[0] = 1
 
         let sourceArray = MPSNDArray(device: device.metalDevice!,
                                      tensor: source.tensor)
 
-        sourceArray.writeBytes(inputPointer.toFP16(length: inLength))
+        let sourceArrayWriter = MPSNDArrayDataWriter(mpsNDArray: sourceArray)
+        sourceArrayWriter.writeData(pointerFP32: inputPointer)
         let sourceTensorData = MPSGraphTensorData(sourceArray)
 
-        let maskLength = mask.tensor.countElements()
+        let maskLength = mask.tensor.countElements()!
         let maskPointer = UnsafeMutablePointer<Float32>.allocate(capacity: maskLength)
         maskPointer[0] = 1
 
         let maskArray = MPSNDArray(device: device.metalDevice!,
                                    tensor: mask.tensor)
 
-        maskArray.writeBytes(maskPointer.toFP16(length: maskLength))
+        let maskArrayWriter = MPSNDArrayDataWriter(mpsNDArray: maskArray)
+        maskArrayWriter.writeData(pointerFP32: maskPointer)
         let maskTensorData = MPSGraphTensorData(maskArray)
 
         let fetch = graph.run(feeds: [source.tensor: sourceTensorData,
@@ -1825,7 +1828,7 @@ final class NestedBottleneckResidualBlockTest: XCTestCase {
                               targetTensors: [block.resultTensor],
                               targetOperations: nil)
 
-        let outLength = block.resultTensor.countElements()
+        let outLength = block.resultTensor.countElements()!
         let outputFP16 = UnsafeMutablePointer<Float16>.allocate(capacity: outLength)
         fetch[block.resultTensor]?.mpsndarray().readBytes(outputFP16)
         let outputFP32 = UnsafeMutablePointer<Float32>.allocate(capacity: outLength)

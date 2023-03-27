@@ -33,8 +33,42 @@ extension UnsafeMutablePointer<Float16> {
     }
 }
 
+/// An extension to the Data struct for handling float data with optional FP16 conversion.
+extension Data {
+    /// Initializes a new Data instance using an UnsafeMutablePointer<Float32>, with optional conversion to FP16 format.
+    /// - Parameters:
+    ///   - floatsNoCopy: An UnsafeMutablePointer<Float32> containing the float data.
+    ///   - useFP16: A flag indicating whether the data should be converted to FP16 format.
+    ///   - shape: An array of NSNumber objects representing the shape of the data.
+    init(floatsNoCopy: UnsafeMutablePointer<Float32>,
+         useFP16: Bool,
+         shape: [NSNumber]) {
+        if useFP16 {
+            let length = shape.countElements()
+
+            self.init(bytesNoCopy: floatsNoCopy.toFP16(length: length),
+                      count: shape.countBytes(of: MPSDataType.float16),
+                      deallocator: .free)
+        } else {
+            self.init(bytesNoCopy: floatsNoCopy,
+                      count: shape.countBytes(of: MPSDataType.float32),
+                      deallocator: .none)
+        }
+    }
+}
+
 /// Extension to MPSNDArray to convert from MPSGraphTensor, and to read/write bytes from/to UnsafeMutableRawPointer
 extension MPSNDArray {
+    /// Computed property to calculate the total number of elements in an MPSNDArray.
+    var numberOfElements: Int {
+        // Use the `reduce` function to accumulate the product of the lengths of all dimensions.
+        // The initial value is set to 1.
+        return (0..<numberOfDimensions).reduce(1) { elementCount, dim in
+            // For each dimension, multiply the current element count by the length of the dimension.
+            elementCount * length(ofDimension: dim)
+        }
+    }
+
     /// Initialize a MPSNDArray object with the data type and the shape of the tensor
     /// - Parameters:
     ///   - device: the metal deivce that the tensor is intended for
@@ -48,16 +82,81 @@ extension MPSNDArray {
         self.init(device: device, descriptor: descriptor)
     }
 
+    /// Read bytes from the buffer
+    /// - Parameter buffer: The buffer to read
+    func readBytes(_ buffer: UnsafeMutableRawPointer) {
+        self.readBytes(buffer, strideBytes: nil)
+    }
+
     /// Write bytes to the buffer
     /// - Parameter buffer: The buffer to write
     func writeBytes(_ buffer: UnsafeMutableRawPointer) {
         self.writeBytes(buffer, strideBytes: nil)
     }
+}
 
-    /// Read bytes from the buffer
-    /// - Parameter buffer: The buffer to read
-    func readBytes(_ buffer: UnsafeMutableRawPointer) {
-        self.readBytes(buffer, strideBytes: nil)
+/// A struct to handle writing data to an MPSNDArray.
+struct MPSNDArrayDataWriter {
+    /// The target MPSNDArray instance.
+    private let mpsNDArray: MPSNDArray
+    /// A closure that writes data to the MPSNDArray instance.
+    private let dataWriter: (UnsafeMutablePointer<Float32>) -> Void
+
+    /// Initializes an MPSNDArrayDataWriter with the given MPSNDArray.
+    /// - Parameters:
+    ///   - mpsNDArray: The target MPSNDArray instance.
+    init(mpsNDArray: MPSNDArray) {
+        self.mpsNDArray = mpsNDArray
+
+        if mpsNDArray.dataType == .float16 {
+            let pointerFP16 = UnsafeMutablePointer<Float16>.allocate(capacity: mpsNDArray.numberOfElements)
+
+            dataWriter = { pointerFP32 in
+                pointerFP32.toFP16(pointerFP16, length: mpsNDArray.numberOfElements)
+                mpsNDArray.writeBytes(pointerFP16)
+            }
+        } else {
+            dataWriter = { pointerFP32 in
+                mpsNDArray.writeBytes(pointerFP32)
+            }
+        }
+    }
+
+    /// Writes data to the associated MPSNDArray instance using the dataWriter closure.
+    /// - Parameter pointerFP32: A pointer to the memory buffer containing the data in FP32 format.
+    func writeData(pointerFP32: UnsafeMutablePointer<Float32>) {
+        dataWriter(pointerFP32)
+    }
+}
+
+/// A struct to handle reading data from an MPSNDArray.
+struct MPSNDArrayDataReader {
+    /// A closure that reads data from the MPSNDArray instance.
+    private let dataReader: (UnsafeMutablePointer<Float32>, MPSNDArray?) -> Void
+
+    /// Initializes an MPSNDArrayDataReader with the given MPSGraphTensor.
+    /// - Parameters:
+    ///   - mpsGraphTensor: The target MPSGraphTensor instance.
+    init(mpsGraphTensor: MPSGraphTensor) {
+        if mpsGraphTensor.dataType == .float16 {
+            let length = mpsGraphTensor.countElements()!
+            let pointerFP16 = UnsafeMutablePointer<Float16>.allocate(capacity: length)
+
+            dataReader = { pointerFP32, mpsNDArray in
+                mpsNDArray?.readBytes(pointerFP16, strideBytes: nil)
+                pointerFP16.toFP32(pointerFP32, length: length)
+            }
+        } else {
+            dataReader = { pointerFP32, mpsNDArray in
+                mpsNDArray?.readBytes(pointerFP32, strideBytes: nil)
+            }
+        }
+    }
+
+    /// Reads data from the given MPSNDArray instance using the dataReader closure.
+    /// - Parameter pointerFP32: A pointer to the memory buffer containing the data in FP32 format.
+    func readData(pointerFP32: UnsafeMutablePointer<Float32>, mpsNDArray: MPSNDArray?) {
+        dataReader(pointerFP32, mpsNDArray)
     }
 }
 
@@ -65,9 +164,8 @@ extension MPSNDArray {
 extension MPSGraphTensor {
     /// Count number of elements
     /// - Returns: Number of elements
-    func countElements() -> Int {
-        guard let shapeArray = shape else { return 0 }
-        return shapeArray.reduce(1, { $0 * $1.intValue })
+    func countElements() -> Int? {
+        return shape?.reduce(1, { $0 * $1.intValue })
     }
 }
 
@@ -411,6 +509,86 @@ struct MaskSumSqrtS14M01SquareS01Layer {
     }
 }
 
+/// A Swift structure that represents a network tester, which tests various neural network configurations.
+struct NetworkTester {
+
+    /// A static function that tests a custom neural network configuration with the given parameters.
+    /// - Parameters:
+    ///   - batchSize: The number of input batches.
+    ///   - nnXLen: The width of the input tensor.
+    ///   - nnYLen: The height of the input tensor.
+    ///   - numChannels: The number of channels in the input tensor.
+    ///   - useFP16: Indicates whether the network should use 16-bit floating point numbers.
+    ///   - useNHWC: Indicates whether the network should use NHWC data layout.
+    ///   - input: A pointer to the input data.
+    ///   - mask: A pointer to the mask data.
+    ///   - output: A pointer to the output data.
+    ///   - networkBuilder: A closure that takes an MPSGraph, InputLayer, and MaskLayer, and returns an MPSGraphTensor representing the custom network configuration.
+    static func test(batchSize: NSNumber,
+                     nnXLen: NSNumber,
+                     nnYLen: NSNumber,
+                     numChannels: NSNumber,
+                     useFP16: Bool,
+                     useNHWC: Bool,
+                     input: UnsafeMutablePointer<Float32>,
+                     mask: UnsafeMutablePointer<Float32>,
+                     output: UnsafeMutablePointer<Float32>,
+                     networkBuilder: (MPSGraph, InputLayer, MaskLayer) -> MPSGraphTensor) {
+
+        // Create a Metal device and an MPS graph.
+        let device = MPSGraphDevice(mtlDevice: MTLCreateSystemDefaultDevice()!)
+        let graph = MPSGraph()
+
+        // Create the input and mask layers.
+        let inputLayer = InputLayer(graph: graph,
+                                    batchSize: batchSize,
+                                    nnXLen: nnXLen,
+                                    nnYLen: nnYLen,
+                                    numChannels: numChannels,
+                                    useFP16: useFP16,
+                                    useNHWC: useNHWC)
+
+        let maskLayer = MaskLayer(graph: graph,
+                                  batchSize: batchSize,
+                                  nnXLen: nnXLen,
+                                  nnYLen: nnYLen,
+                                  useFP16: useFP16,
+                                  useNHWC: useNHWC)
+
+        // Build the custom network configuration using the provided networkBuilder closure.
+        let resultTensor = networkBuilder(graph, inputLayer, maskLayer)
+
+        // Create MPSNDArrays from the input and mask tensors.
+        let sourceArray = MPSNDArray(device: device.metalDevice!,
+                                     tensor: inputLayer.tensor)
+
+        let maskArray = MPSNDArray(device: device.metalDevice!,
+                                   tensor: maskLayer.tensor)
+
+        // Write input and mask data to their respective MPSNDArrays, converting to FP16 if necessary.
+        let sourceArrayWriter = MPSNDArrayDataWriter(mpsNDArray: sourceArray)
+        sourceArrayWriter.writeData(pointerFP32: input)
+        let maskArrayWriter = MPSNDArrayDataWriter(mpsNDArray: maskArray)
+        maskArrayWriter.writeData(pointerFP32: mask)
+        
+        // Create MPSGraphTensorData objects from the source and mask arrays.
+        let sourceTensorData = MPSGraphTensorData(sourceArray)
+        let maskTensorData = MPSGraphTensorData(maskArray)
+
+        // Execute the graph and fetch the result.
+        let fetch = graph.run(feeds: [inputLayer.tensor: sourceTensorData,
+                                      maskLayer.tensor: maskTensorData],
+                              targetTensors: [resultTensor],
+                              targetOperations: nil)
+
+        // Read the output data from the result tensor, converting from FP16 to FP32 if necessary.
+        let outputArrayReader = MPSNDArrayDataReader(mpsGraphTensor: resultTensor)
+
+        outputArrayReader.readData(pointerFP32: output,
+                                   mpsNDArray: fetch[resultTensor]?.mpsndarray())
+    }
+}
+
 /// A class that represents a description of convolutional layer.
 @objc class SWConvLayerDesc: NSObject {
     let convYSize: NSNumber
@@ -493,13 +671,8 @@ struct MaskSumSqrtS14M01SquareS01Layer {
         let sourceArray = MPSNDArray(device: device.metalDevice!,
                                      tensor: source.tensor)
 
-        if useFP16 {
-            let inLength = source.tensor.countElements()
-
-            sourceArray.writeBytes(input.toFP16(length: inLength))
-        } else {
-            sourceArray.writeBytes(input)
-        }
+        let sourceArrayDataWriter = MPSNDArrayDataWriter(mpsNDArray: sourceArray)
+        sourceArrayDataWriter.writeData(pointerFP32: input)
 
         let sourceTensorData = MPSGraphTensorData(sourceArray)
 
@@ -507,15 +680,10 @@ struct MaskSumSqrtS14M01SquareS01Layer {
                               targetTensors: [conv.resultTensor],
                               targetOperations: nil)
 
-        if useFP16 {
-            let outLength = conv.resultTensor.countElements()
-            let outputFP16 = UnsafeMutablePointer<Float16>.allocate(capacity: outLength)
+        let outputArrayReader = MPSNDArrayDataReader(mpsGraphTensor: conv.resultTensor)
 
-            fetch[conv.resultTensor]?.mpsndarray().readBytes(outputFP16)
-            outputFP16.toFP32(output, length: outLength)
-        } else {
-            fetch[conv.resultTensor]?.mpsndarray().readBytes(output)
-        }
+        outputArrayReader.readData(pointerFP32: output,
+                                   mpsNDArray: fetch[conv.resultTensor]?.mpsndarray())
     }
 
     /// Initializes a ConvLayer object
@@ -555,20 +723,9 @@ struct MaskSumSqrtS14M01SquareS01Layer {
                                           dataLayout: dataLayout,
                                           weightsLayout: .OIHW)!
 
-        let byteCount = weightsShape.countBytes(of: dataType)
-        let weightsData: Data
-
-        if useFP16 {
-            let length = weightsShape.countElements()
-
-            weightsData = Data(bytesNoCopy: descriptor.weights.toFP16(length: length),
-                               count: byteCount,
-                               deallocator: .free)
-        } else {
-            weightsData = Data(bytesNoCopy: descriptor.weights,
-                               count: byteCount,
-                               deallocator: .none)
-        }
+        let weightsData = Data(floatsNoCopy: descriptor.weights,
+                               useFP16: useFP16,
+                               shape: weightsShape)
 
         let weightsTensor = graph.constant(weightsData,
                                            shape: weightsShape,
@@ -636,7 +793,7 @@ struct MaskSumSqrtS14M01SquareS01Layer {
     ///   - useFP16: Indicates whether the layer should use 16-bit floating point numbers.
     ///   - useNHWC: Indicates whether the layer should use NHWC data layout.
     ///   - input: A pointer to the input data.
-    ///   - maskPointer: A pointer to the mask data.
+    ///   - mask: A pointer to the mask data.
     ///   - output: A pointer to the output data.
     @objc class func test(descriptor: SWBatchNormLayerDesc,
                           nnXLen: NSNumber,
@@ -645,71 +802,30 @@ struct MaskSumSqrtS14M01SquareS01Layer {
                           useFP16: Bool,
                           useNHWC: Bool,
                           input: UnsafeMutablePointer<Float32>,
-                          mask maskPointer: UnsafeMutablePointer<Float32>,
+                          mask: UnsafeMutablePointer<Float32>,
                           output: UnsafeMutablePointer<Float32>) {
 
-        let device = MPSGraphDevice(mtlDevice: MTLCreateSystemDefaultDevice()!)
-        let graph = MPSGraph()
+        NetworkTester.test(batchSize: batchSize,
+                           nnXLen: nnXLen,
+                           nnYLen: nnYLen,
+                           numChannels: descriptor.numChannels,
+                           useFP16: useFP16,
+                           useNHWC: useNHWC,
+                           input: input,
+                           mask: mask,
+                           output: output) { graph, inputLayer, maskLayer in
 
-        let source = InputLayer(graph: graph,
-                                batchSize: batchSize,
-                                nnXLen: nnXLen,
-                                nnYLen: nnYLen,
-                                numChannels: descriptor.numChannels,
-                                useFP16: useFP16,
-                                useNHWC: useNHWC)
+            let batchNorm = BatchNormLayer(graph: graph,
+                                           sourceTensor: inputLayer.tensor,
+                                           maskTensor: maskLayer.tensor,
+                                           descriptor: descriptor,
+                                           nnXLen: nnXLen,
+                                           nnYLen: nnYLen,
+                                           batchSize: batchSize,
+                                           useFP16: useFP16,
+                                           useNHWC: useNHWC)
 
-        let mask = MaskLayer(graph: graph,
-                             batchSize: batchSize,
-                             nnXLen: nnXLen,
-                             nnYLen: nnYLen,
-                             useFP16: useFP16,
-                             useNHWC: useNHWC)
-
-        let batchNorm = BatchNormLayer(graph: graph,
-                                       sourceTensor: source.tensor,
-                                       maskTensor: mask.tensor,
-                                       descriptor: descriptor,
-                                       nnXLen: nnXLen,
-                                       nnYLen: nnYLen,
-                                       batchSize: batchSize,
-                                       useFP16: useFP16,
-                                       useNHWC: useNHWC)
-
-        let sourceArray = MPSNDArray(device: device.metalDevice!,
-                                     tensor: source.tensor)
-
-        let maskArray = MPSNDArray(device: device.metalDevice!,
-                                   tensor: mask.tensor)
-
-        if useFP16 {
-            let inLength = source.tensor.countElements()
-            let maskLength = mask.tensor.countElements()
-
-            sourceArray.writeBytes(input.toFP16(length: inLength))
-
-            maskArray.writeBytes(maskPointer.toFP16(length: maskLength))
-        } else {
-            sourceArray.writeBytes(input)
-            maskArray.writeBytes(maskPointer)
-        }
-
-        let sourceTensorData = MPSGraphTensorData(sourceArray)
-        let maskTensorData = MPSGraphTensorData(maskArray)
-
-        let fetch = graph.run(feeds: [source.tensor: sourceTensorData,
-                                      mask.tensor: maskTensorData],
-                              targetTensors: [batchNorm.resultTensor],
-                              targetOperations: nil)
-
-        if useFP16 {
-            let outLength = batchNorm.resultTensor.countElements()
-            let outputFP16 = UnsafeMutablePointer<Float16>.allocate(capacity: outLength)
-
-            fetch[batchNorm.resultTensor]?.mpsndarray().readBytes(outputFP16)
-            outputFP16.toFP32(output, length: outLength)
-        } else {
-            fetch[batchNorm.resultTensor]?.mpsndarray().readBytes(output)
+            return batchNorm.resultTensor
         }
     }
 
@@ -740,47 +856,22 @@ struct MaskSumSqrtS14M01SquareS01Layer {
                                           useNHWC: useNHWC)
 
         let dataType = MPSDataType.init(useFP16: useFP16)
-        let byteCount = meanShape.countBytes(of: dataType)
-        let meanData: Data
-        let varianceData: Data
-        let scaleData: Data
-        let biasData: Data
 
-        if useFP16 {
-            let length = meanShape.countElements()
+        let meanData = Data(floatsNoCopy: descriptor.mean,
+                            useFP16: useFP16,
+                            shape: meanShape)
 
-            meanData = Data(bytesNoCopy: descriptor.mean.toFP16(length: length),
-                            count: byteCount,
-                            deallocator: .free)
+        let varianceData = Data(floatsNoCopy: descriptor.variance,
+                                useFP16: useFP16,
+                                shape: meanShape)
 
-            varianceData = Data(bytesNoCopy: descriptor.variance.toFP16(length: length),
-                                count: byteCount,
-                                deallocator: .free)
+        let scaleData = Data(floatsNoCopy: descriptor.scale,
+                             useFP16: useFP16,
+                             shape: meanShape)
 
-            scaleData = Data(bytesNoCopy: descriptor.scale.toFP16(length: length),
-                             count: byteCount,
-                             deallocator: .free)
-
-            biasData = Data(bytesNoCopy: descriptor.bias.toFP16(length: length),
-                            count: byteCount,
-                            deallocator: .free)
-        } else {
-            meanData = Data(bytesNoCopy: descriptor.mean,
-                            count: byteCount,
-                            deallocator: .none)
-
-            varianceData = Data(bytesNoCopy: descriptor.variance,
-                                count: byteCount,
-                                deallocator: .none)
-
-            scaleData = Data(bytesNoCopy: descriptor.scale,
-                             count: byteCount,
-                             deallocator: .none)
-
-            biasData = Data(bytesNoCopy: descriptor.bias,
-                            count: byteCount,
-                            deallocator: .none)
-        }
+        let biasData = Data(floatsNoCopy: descriptor.bias,
+                            useFP16: useFP16,
+                            shape: meanShape)
 
         let meanTensor = graph.constant(meanData,
                                         shape: meanShape,
@@ -904,7 +995,7 @@ struct ActivationLayer {
     ///   - useFP16: If true, use FP16, otherwise use FP32
     ///   - useNHWC: If true, use NHWC, otherwise use NCHW
     ///   - input: The input float32 pointer
-    ///   - maskPointer: The mask float32 pointer
+    ///   - mask: The mask float32 pointer
     ///   - output: The output float32 pointer
     @objc class func test(descriptor: SWResidualBlockDesc,
                           batchSize: NSNumber,
@@ -913,71 +1004,30 @@ struct ActivationLayer {
                           useFP16: Bool,
                           useNHWC: Bool,
                           input: UnsafeMutablePointer<Float32>,
-                          mask maskPointer: UnsafeMutablePointer<Float32>,
+                          mask: UnsafeMutablePointer<Float32>,
                           output: UnsafeMutablePointer<Float32>) {
 
-        let device = MPSGraphDevice(mtlDevice: MTLCreateSystemDefaultDevice()!)
-        let graph = MPSGraph()
+        NetworkTester.test(batchSize: batchSize,
+                           nnXLen: nnXLen,
+                           nnYLen: nnYLen,
+                           numChannels: descriptor.preBN.numChannels,
+                           useFP16: useFP16,
+                           useNHWC: useNHWC,
+                           input: input,
+                           mask: mask,
+                           output: output) { graph, inputLayer, maskLayer in
 
-        let source = InputLayer(graph: graph,
-                                batchSize: batchSize,
-                                nnXLen: nnXLen,
-                                nnYLen: nnYLen,
-                                numChannels: descriptor.preBN.numChannels,
-                                useFP16: useFP16,
-                                useNHWC: useNHWC)
+            let block = ResidualBlock(graph: graph,
+                                      sourceTensor: inputLayer.tensor,
+                                      maskTensor: maskLayer.tensor,
+                                      descriptor: descriptor,
+                                      nnXLen: nnXLen,
+                                      nnYLen: nnYLen,
+                                      batchSize: batchSize,
+                                      useFP16: useFP16,
+                                      useNHWC: useNHWC)
 
-        let mask = MaskLayer(graph: graph,
-                             batchSize: batchSize,
-                             nnXLen: nnXLen,
-                             nnYLen: nnYLen,
-                             useFP16: useFP16,
-                             useNHWC: useNHWC)
-
-        let block = ResidualBlock(graph: graph,
-                                  sourceTensor: source.tensor,
-                                  maskTensor: mask.tensor,
-                                  descriptor: descriptor,
-                                  nnXLen: nnXLen,
-                                  nnYLen: nnYLen,
-                                  batchSize: batchSize,
-                                  useFP16: useFP16,
-                                  useNHWC: useNHWC)
-
-        let sourceArray = MPSNDArray(device: device.metalDevice!,
-                                     tensor: source.tensor)
-
-        let maskArray = MPSNDArray(device: device.metalDevice!,
-                                   tensor: mask.tensor)
-
-        if useFP16 {
-            let inLength = source.tensor.countElements()
-            let maskLength = mask.tensor.countElements()
-
-            sourceArray.writeBytes(input.toFP16(length: inLength))
-
-            maskArray.writeBytes(maskPointer.toFP16(length: maskLength))
-        } else {
-            sourceArray.writeBytes(input)
-            maskArray.writeBytes(maskPointer)
-        }
-
-        let sourceTensorData = MPSGraphTensorData(sourceArray)
-        let maskTensorData = MPSGraphTensorData(maskArray)
-
-        let fetch = graph.run(feeds: [source.tensor: sourceTensorData,
-                                      mask.tensor: maskTensorData],
-                              targetTensors: [block.resultTensor],
-                              targetOperations: nil)
-
-        if useFP16 {
-            let outLength = block.resultTensor.countElements()
-            let outputFP16 = UnsafeMutablePointer<Float16>.allocate(capacity: outLength)
-
-            fetch[block.resultTensor]?.mpsndarray().readBytes(outputFP16)
-            outputFP16.toFP32(output, length: outLength)
-        } else {
-            fetch[block.resultTensor]?.mpsndarray().readBytes(output)
+            return block.resultTensor
         }
     }
 
@@ -1172,8 +1222,8 @@ struct GlobalPoolingValueLayer {
     ///   - outChannels: The number of output channels
     ///   - weights: The weights used for the matrix multiplication
     @objc init(inChannels: NSNumber,
-         outChannels: NSNumber,
-         weights: UnsafeMutablePointer<Float32>) {
+               outChannels: NSNumber,
+               weights: UnsafeMutablePointer<Float32>) {
         self.inChannels = inChannels
         self.outChannels = outChannels
         self.weights = weights
@@ -1215,20 +1265,9 @@ struct MatMulLayer {
         let weightsShape = [descriptor.inChannels,
                             descriptor.outChannels]
 
-        let byteCount = weightsShape.countBytes(of: dataType)
-        let weightsData: Data
-
-        if useFP16 {
-            let length = weightsShape.countElements()
-
-            weightsData = Data(bytesNoCopy: descriptor.weights.toFP16(length: length),
-                               count: byteCount,
-                               deallocator: .free)
-        } else {
-            weightsData = Data(bytesNoCopy: descriptor.weights,
-                               count: byteCount,
-                               deallocator: .none)
-        }
+        let weightsData = Data(floatsNoCopy: descriptor.weights,
+                               useFP16: useFP16,
+                               shape: weightsShape)
 
         let weightsTensor = graph.constant(weightsData,
                                            shape: weightsShape,
@@ -1288,20 +1327,10 @@ struct MatBiasLayer {
 
         let dataType = MPSDataType.init(useFP16: useFP16)
         let weightsShape = [1, descriptor.numChannels]
-        let byteCount = weightsShape.countBytes(of: dataType)
-        let weightsData: Data
 
-        if useFP16 {
-            let length = weightsShape.countElements()
-
-            weightsData = Data(bytesNoCopy: descriptor.weights.toFP16(length: length),
-                               count: byteCount,
-                               deallocator: .free)
-        } else {
-            weightsData = Data(bytesNoCopy: descriptor.weights,
-                               count: byteCount,
-                               deallocator: .none)
-        }
+        let weightsData = Data(floatsNoCopy: descriptor.weights,
+                               useFP16: useFP16,
+                               shape: weightsShape)
 
         let weightsTensor = graph.constant(weightsData,
                                            shape: weightsShape,
@@ -1437,7 +1466,7 @@ struct AddNCBiasLayer {
     ///   - useFP16: If true, use 16-bit floating point format, otherwise use 32-bit
     ///   - useNHWC: If true, use NHWC format, otherwise use NCHW format
     ///   - input: The input pointer
-    ///   - maskPointer: The mask pointer
+    ///   - mask: The mask pointer
     ///   - output: The output pointer
     @objc class func test(descriptor: SWGlobalPoolingResidualBlockDesc,
                           batchSize: NSNumber,
@@ -1446,80 +1475,39 @@ struct AddNCBiasLayer {
                           useFP16: Bool,
                           useNHWC: Bool,
                           input: UnsafeMutablePointer<Float32>,
-                          mask maskPointer: UnsafeMutablePointer<Float32>,
+                          mask: UnsafeMutablePointer<Float32>,
                           output: UnsafeMutablePointer<Float32>) {
 
-        let device = MPSGraphDevice(mtlDevice: MTLCreateSystemDefaultDevice()!)
-        let graph = MPSGraph()
+        NetworkTester.test(batchSize: batchSize,
+                           nnXLen: nnXLen,
+                           nnYLen: nnYLen,
+                           numChannels: descriptor.preBN.numChannels,
+                           useFP16: useFP16,
+                           useNHWC: useNHWC,
+                           input: input,
+                           mask: mask,
+                           output: output) { graph, inputLayer, maskLayer in
 
-        let source = InputLayer(graph: graph,
-                                batchSize: batchSize,
-                                nnXLen: nnXLen,
-                                nnYLen: nnYLen,
-                                numChannels: descriptor.preBN.numChannels,
-                                useFP16: useFP16,
-                                useNHWC: useNHWC)
+            let maskSum = MaskSumLayer(graph: graph, mask: maskLayer, useNHWC: useNHWC)
 
-        let mask = MaskLayer(graph: graph,
-                             batchSize: batchSize,
-                             nnXLen: nnXLen,
-                             nnYLen: nnYLen,
-                             useFP16: useFP16,
-                             useNHWC: useNHWC)
+            let maskSumSqrtS14M01 = MaskSumSqrtS14M01Layer(graph: graph,
+                                                           maskSum: maskSum,
+                                                           useFP16: useFP16)
 
-        let maskSum = MaskSumLayer(graph: graph, mask: mask, useNHWC: useNHWC)
+            let block =
+            GlobalPoolingResidualBlock(graph: graph,
+                                       sourceTensor: inputLayer.tensor,
+                                       maskTensor: maskLayer.tensor,
+                                       maskSumTensor: maskSum.tensor,
+                                       maskSumSqrtS14M01Tensor: maskSumSqrtS14M01.tensor,
+                                       descriptor: descriptor,
+                                       nnXLen: nnXLen,
+                                       nnYLen: nnYLen,
+                                       batchSize: batchSize,
+                                       useFP16: useFP16,
+                                       useNHWC: useNHWC)
 
-        let maskSumSqrtS14M01 = MaskSumSqrtS14M01Layer(graph: graph,
-                                                       maskSum: maskSum,
-                                                       useFP16: useFP16)
-
-        let block =
-        GlobalPoolingResidualBlock(graph: graph,
-                                   sourceTensor: source.tensor,
-                                   maskTensor: mask.tensor,
-                                   maskSumTensor: maskSum.tensor,
-                                   maskSumSqrtS14M01Tensor: maskSumSqrtS14M01.tensor,
-                                   descriptor: descriptor,
-                                   nnXLen: nnXLen,
-                                   nnYLen: nnYLen,
-                                   batchSize: batchSize,
-                                   useFP16: useFP16,
-                                   useNHWC: useNHWC)
-
-        let sourceArray = MPSNDArray(device: device.metalDevice!,
-                                     tensor: source.tensor)
-
-        let maskArray = MPSNDArray(device: device.metalDevice!,
-                                   tensor: mask.tensor)
-
-        if useFP16 {
-            let inLength = source.tensor.countElements()
-            let maskLength = mask.tensor.countElements()
-
-            sourceArray.writeBytes(input.toFP16(length: inLength))
-
-            maskArray.writeBytes(maskPointer.toFP16(length: maskLength))
-        } else {
-            sourceArray.writeBytes(input)
-            maskArray.writeBytes(maskPointer)
-        }
-
-        let sourceTensorData = MPSGraphTensorData(sourceArray)
-        let maskTensorData = MPSGraphTensorData(maskArray)
-
-        let fetch = graph.run(feeds: [source.tensor: sourceTensorData,
-                                      mask.tensor: maskTensorData],
-                              targetTensors: [block.resultTensor],
-                              targetOperations: nil)
-
-        if useFP16 {
-            let outLength = block.resultTensor.countElements()
-            let outputFP16 = UnsafeMutablePointer<Float16>.allocate(capacity: outLength)
-
-            fetch[block.resultTensor]?.mpsndarray().readBytes(outputFP16)
-            outputFP16.toFP32(output, length: outLength)
-        } else {
-            fetch[block.resultTensor]?.mpsndarray().readBytes(output)
+            return block.resultTensor
         }
     }
 
@@ -2620,38 +2608,24 @@ struct Model {
     let policyHead: PolicyHead
     /// The value head of the neural network
     let valueHead: ValueHead
-    /// The number of elements in the input layer
-    let inputCount: Int
-    /// A pointer to the half-precision floating point input data
-    let inputFP16: UnsafeMutablePointer<Float16>?
-    /// The number of elements in the global input layer
-    let inputGlobalCount: Int
-    /// A pointer to the half-precision floating point global input data
-    let inputGlobalFP16: UnsafeMutablePointer<Float16>?
-    /// The number of elements in the policy output layer
-    let policyCount: Int
-    /// A pointer to the half-precision floating point policy output data
-    let policyFP16: UnsafeMutablePointer<Float16>?
-    /// The number of elements in the policy pass output layer
-    let policyPassCount: Int
-    /// A pointer to the half-precision floating point policy pass output data
-    let policyPassFP16: UnsafeMutablePointer<Float16>?
-    /// The number of elements in the value output layer
-    let valueCount: Int
-    /// A pointer to the half-precision floating point value output data
-    let valueFP16: UnsafeMutablePointer<Float16>?
-    /// The number of elements in the score value output layer
-    let scoreValueCount: Int
-    /// A pointer to the half-precision floating point score value output data
-    let scoreValueFP16: UnsafeMutablePointer<Float16>?
-    /// The number of elements in the ownership output layer
-    let ownershipCount: Int
-    /// A pointer to the half-precision floating point ownership output data
-    let ownershipFP16: UnsafeMutablePointer<Float16>?
     /// The input layer as a Metal Performance Shaders n-dimensional array
     let inputArray: MPSNDArray
+    /// The data writer for the input array
+    let inputArrayWriter: MPSNDArrayDataWriter
     /// The global input layer as a Metal Performance Shaders n-dimensional array
     let inputGlobalArray: MPSNDArray
+    /// The data writer for the global input array
+    let inputGlobalArrayWriter: MPSNDArrayDataWriter
+    /// The data reader for the policy array
+    let policyArrayReader: MPSNDArrayDataReader
+    /// The data reader for the policy pass array
+    let policyPassArrayReader: MPSNDArrayDataReader
+    /// The data reader for the value array
+    let valueArrayReader: MPSNDArrayDataReader
+    /// The data reader for the score value array
+    let scoreValueArrayReader: MPSNDArrayDataReader
+    /// The data reader for the ownership array
+    let ownershipArrayReader: MPSNDArrayDataReader
     /// The dictionary that maps the input tensors to the tensor data
     let feeds: [MPSGraphTensor: MPSGraphTensorData]
     /// The dictionary that maps the output tensors to the tensor data
@@ -2770,37 +2744,21 @@ struct Model {
                               useFP16: useFP16,
                               useNHWC: useNHWC)
 
-        inputCount = input.tensor.countElements()
-        inputGlobalCount = inputGlobal.tensor.countElements()
-        policyCount = policyHead.policyTensor.countElements()
-        policyPassCount = policyHead.policyPassTensor.countElements()
-        valueCount = valueHead.valueTensor.countElements()
-        scoreValueCount = valueHead.scoreValueTensor.countElements()
-        ownershipCount = valueHead.ownershipTensor.countElements()
-
-        if useFP16 {
-            inputFP16 = UnsafeMutablePointer<Float16>.allocate(capacity: inputCount)
-            inputGlobalFP16 = UnsafeMutablePointer<Float16>.allocate(capacity: inputGlobalCount)
-            policyFP16 = UnsafeMutablePointer<Float16>.allocate(capacity: policyCount)
-            policyPassFP16 = UnsafeMutablePointer<Float16>.allocate(capacity: policyPassCount)
-            valueFP16 = UnsafeMutablePointer<Float16>.allocate(capacity: valueCount)
-            scoreValueFP16 = UnsafeMutablePointer<Float16>.allocate(capacity: scoreValueCount)
-            ownershipFP16 = UnsafeMutablePointer<Float16>.allocate(capacity: ownershipCount)
-        } else {
-            inputFP16 = nil
-            inputGlobalFP16 = nil
-            policyFP16 = nil
-            policyPassFP16 = nil
-            valueFP16 = nil
-            scoreValueFP16 = nil
-            ownershipFP16 = nil
-        }
-
         inputArray = MPSNDArray(device: device.metalDevice!,
                                 tensor: input.tensor)
 
+        inputArrayWriter = MPSNDArrayDataWriter(mpsNDArray: inputArray)
+
         inputGlobalArray = MPSNDArray(device: device.metalDevice!,
                                       tensor: inputGlobal.tensor)
+
+        inputGlobalArrayWriter = MPSNDArrayDataWriter(mpsNDArray: inputGlobalArray)
+
+        policyArrayReader = MPSNDArrayDataReader(mpsGraphTensor: policyHead.policyTensor)
+        policyPassArrayReader = MPSNDArrayDataReader(mpsGraphTensor: policyHead.policyPassTensor)
+        valueArrayReader = MPSNDArrayDataReader(mpsGraphTensor: valueHead.valueTensor)
+        scoreValueArrayReader = MPSNDArrayDataReader(mpsGraphTensor: valueHead.scoreValueTensor)
+        ownershipArrayReader = MPSNDArrayDataReader(mpsGraphTensor: valueHead.ownershipTensor)
 
         feeds = [input.tensor: MPSGraphTensorData(inputArray),
                  inputGlobal.tensor: MPSGraphTensorData(inputGlobalArray)]
@@ -2828,21 +2786,9 @@ struct Model {
                value: UnsafeMutablePointer<Float32>,
                scoreValue: UnsafeMutablePointer<Float32>,
                ownership: UnsafeMutablePointer<Float32>) {
-        if let inputFP16 {
-            assert(useFP16)
-            inputPointer.toFP16(inputFP16, length: inputCount)
-            inputArray.writeBytes(inputFP16)
-        } else {
-            assert(!useFP16)
-            inputArray.writeBytes(inputPointer)
-        }
 
-        if let inputGlobalFP16 {
-            inputGlobalPointer.toFP16(inputGlobalFP16, length: inputGlobalCount)
-            inputGlobalArray.writeBytes(inputGlobalFP16)
-        } else {
-            inputGlobalArray.writeBytes(inputGlobalPointer)
-        }
+        inputArrayWriter.writeData(pointerFP32: inputPointer)
+        inputGlobalArrayWriter.writeData(pointerFP32: inputGlobalPointer)
 
         let commandBuffer = MPSCommandBuffer(commandBuffer: commandQueue.makeCommandBuffer()!)
 
@@ -2855,45 +2801,20 @@ struct Model {
         commandBuffer.commit()
         commandBuffer.waitUntilCompleted()
 
-        if let policyFP16 {
-            fetch[policyHead.policyTensor]?.mpsndarray().readBytes(policyFP16)
+        policyArrayReader.readData(pointerFP32: policy,
+                                   mpsNDArray: fetch[policyHead.policyTensor]?.mpsndarray())
 
-            policyFP16.toFP32(policy, length: policyCount)
-        } else {
-            fetch[policyHead.policyTensor]?.mpsndarray().readBytes(policy)
-        }
+        policyPassArrayReader.readData(pointerFP32: policyPass,
+                                       mpsNDArray: fetch[policyHead.policyPassTensor]?.mpsndarray())
 
-        if let policyPassFP16 {
-            fetch[policyHead.policyPassTensor]?.mpsndarray().readBytes(policyPassFP16)
+        valueArrayReader.readData(pointerFP32: value,
+                                  mpsNDArray: fetch[valueHead.valueTensor]?.mpsndarray())
 
-            policyPassFP16.toFP32(policyPass, length: policyPassCount)
-        } else {
-            fetch[policyHead.policyPassTensor]?.mpsndarray().readBytes(policyPass)
-        }
+        scoreValueArrayReader.readData(pointerFP32: scoreValue,
+                                       mpsNDArray: fetch[valueHead.scoreValueTensor]?.mpsndarray())
 
-        if let valueFP16 {
-            fetch[valueHead.valueTensor]?.mpsndarray().readBytes(valueFP16)
-
-            valueFP16.toFP32(value, length: valueCount)
-        } else {
-            fetch[valueHead.valueTensor]?.mpsndarray().readBytes(value)
-        }
-
-        if let scoreValueFP16 {
-            fetch[valueHead.scoreValueTensor]?.mpsndarray().readBytes(scoreValueFP16)
-
-            scoreValueFP16.toFP32(scoreValue, length: scoreValueCount)
-        } else {
-            fetch[valueHead.scoreValueTensor]?.mpsndarray().readBytes(scoreValue)
-        }
-
-        if let ownershipFP16 {
-            fetch[valueHead.ownershipTensor]?.mpsndarray().readBytes(ownershipFP16)
-
-            ownershipFP16.toFP32(ownership, length: ownershipCount)
-        } else {
-            fetch[valueHead.ownershipTensor]?.mpsndarray().readBytes(ownership)
-        }
+        ownershipArrayReader.readData(pointerFP32: ownership,
+                                      mpsNDArray: fetch[valueHead.ownershipTensor]?.mpsndarray())
     }
 }
 
