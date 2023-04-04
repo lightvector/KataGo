@@ -26,6 +26,9 @@ del data["metrics"]
 del data["train_state"]["old_train_data_dirs"]
 del data["train_state"]["data_files_used"]
 
+if "last_val_metrics" in data:
+  del data["last_val_metrics"]
+
 assert data["config"]["version"] == 11
 
 torch.save(data, output_path)

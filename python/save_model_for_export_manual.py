@@ -82,7 +82,7 @@ def main(args):
   def get_checkpoint_path():
     return os.path.join(traindir,"checkpoint.ckpt")
 
-  def save(model_state_dict, swa_model_state_dict, optimizer_state_dict, metrics_obj_state_dict, running_metrics, train_state, path):
+  def save(model_state_dict, swa_model_state_dict, optimizer_state_dict, metrics_obj_state_dict, running_metrics, train_state, last_val_metrics, path):
     assert path is not None
 
     state_dict = {}
@@ -91,6 +91,7 @@ def main(args):
     state_dict["metrics"] = metrics_obj_state_dict
     state_dict["running_metrics"] = running_metrics
     state_dict["train_state"] = train_state
+    state_dict["last_val_metrics"] = last_val_metrics
     state_dict["config"] = model_config
 
     if swa_model_state_dict is not None:
@@ -119,10 +120,11 @@ def main(args):
     running_metrics = state_dict["running_metrics"]
 
     optimizer_state_dict = state_dict["optimizer"]
+    last_val_metrics = state_dict["last_val_metrics"]
 
-    return (model_config, model_state_dict, swa_model_state_dict, optimizer_state_dict, metrics_obj_state_dict, running_metrics, train_state)
+    return (model_config, model_state_dict, swa_model_state_dict, optimizer_state_dict, metrics_obj_state_dict, running_metrics, train_state, last_val_metrics)
 
-  (model_config, model_state_dict, swa_model_state_dict, optimizer_state_dict, metrics_obj_state_dict, running_metrics, train_state) = load()
+  (model_config, model_state_dict, swa_model_state_dict, optimizer_state_dict, metrics_obj_state_dict, running_metrics, train_state, last_val_metrics) = load()
 
   assert "global_step_samples" in train_state
   assert "total_num_data_rows" in train_state
@@ -149,7 +151,7 @@ def main(args):
   else:
     os.mkdir(savepathtmp)
     logging.info("SAVING MODEL FOR EXPORT TO: " + savepath)
-    save(model_state_dict, swa_model_state_dict, optimizer_state_dict, metrics_obj_state_dict, running_metrics, train_state, path=os.path.join(savepathtmp,"model.ckpt"))
+    save(model_state_dict, swa_model_state_dict, optimizer_state_dict, metrics_obj_state_dict, running_metrics, train_state, last_val_metrics, path=os.path.join(savepathtmp,"model.ckpt"))
     time.sleep(2)
     os.rename(savepathtmp,savepath)
 

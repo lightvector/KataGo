@@ -239,7 +239,7 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
     return os.path.join(traindir,f"checkpoint_prev{i}.ckpt")
 
   NUM_SHORTTERM_CHECKPOINTS_TO_KEEP = 4
-  def save(ddp_model, swa_model, optimizer, metrics_obj, running_metrics, train_state, path=None):
+  def save(ddp_model, swa_model, optimizer, metrics_obj, running_metrics, train_state, last_val_metrics, path=None):
     if gnorm_stats_debug:
       logging.warning("Skipping save since debugging gnorm stats")
       return
@@ -250,6 +250,7 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
       state_dict["metrics"] = metrics_obj.state_dict()
       state_dict["running_metrics"] = running_metrics
       state_dict["train_state"] = train_state
+      state_dict["last_val_metrics"] = last_val_metrics
       state_dict["config"] = model_config
 
       if swa_model is not None:
@@ -395,6 +396,7 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
       metrics_obj = Metrics(batch_size,world_size,raw_model)
       running_metrics = {}
       train_state = {}
+      last_val_metrics = {}
 
       with torch.no_grad():
         (modelnorm_normal, modelnorm_normal_gamma, modelnorm_output, modelnorm_noreg, modelnorm_output_noreg) = Metrics.get_model_norms(raw_model)
@@ -404,7 +406,7 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
 
       optimizer = torch.optim.SGD(get_param_groups(raw_model,train_state,running_metrics), lr=1.0, momentum=0.9)
 
-      return (model_config, ddp_model, raw_model, swa_model, optimizer, metrics_obj, running_metrics, train_state)
+      return (model_config, ddp_model, raw_model, swa_model, optimizer, metrics_obj, running_metrics, train_state, last_val_metrics)
     else:
       state_dict = torch.load(path_to_load_from, map_location=device)
       model_config = state_dict["config"] if "config" in state_dict else modelconfigs.config_of_name[model_kind]
@@ -458,15 +460,21 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
       else:
         logging.info("WARNING: Running metrics not found in state dict, using fresh running metrics")
 
+      last_val_metrics = {}
+      if "last_val_metrics" in state_dict:
+        last_val_metrics = state_dict["last_val_metrics"]
+      else:
+        logging.info("WARNING: Running metrics not found in state dict, using fresh last val metrics")
+
       optimizer = torch.optim.SGD(get_param_groups(raw_model,train_state,running_metrics), lr=1.0, momentum=0.9)
       if "optimizer" in state_dict:
         optimizer.load_state_dict(state_dict["optimizer"])
       else:
         logging.info("WARNING: Optimizer not found in state dict, using fresh optimizer")
 
-      return (model_config, ddp_model, raw_model, swa_model, optimizer, metrics_obj, running_metrics, train_state)
+      return (model_config, ddp_model, raw_model, swa_model, optimizer, metrics_obj, running_metrics, train_state, last_val_metrics)
 
-  (model_config, ddp_model, raw_model, swa_model, optimizer, metrics_obj, running_metrics, train_state) = load()
+  (model_config, ddp_model, raw_model, swa_model, optimizer, metrics_obj, running_metrics, train_state, last_val_metrics) = load()
 
 
   if "global_step_samples" not in train_state:
@@ -1065,45 +1073,9 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
           slow_param_data = lookahead_cache[param]
           param.data.copy_(slow_param_data)
 
-    save(ddp_model, swa_model, optimizer, metrics_obj, running_metrics, train_state)
+    save(ddp_model, swa_model, optimizer, metrics_obj, running_metrics, train_state, last_val_metrics)
 
     num_epochs_this_instance += 1
-
-    if rank == 0:
-      train_state["export_cycle_counter"] += 1
-      logging.info("Export cycle counter = " + str(train_state["export_cycle_counter"]))
-
-      is_time_to_export = False
-      if train_state["export_cycle_counter"] >= epochs_per_export:
-        if no_export:
-          train_state["export_cycle_counter"] = epochs_per_export
-        else:
-          train_state["export_cycle_counter"] = 0
-          is_time_to_export = True
-
-      skip_export_this_time = False
-      if export_prob is not None:
-        if random.random() > export_prob:
-          skip_export_this_time = True
-          logging.info("Skipping export model this time")
-
-      if not no_export and is_time_to_export and not skip_export_this_time and exportdir is not None and not gnorm_stats_debug:
-        # Export a model for testing, unless somehow it already exists
-        modelname = "%s-s%d-d%d" % (
-          exportprefix,
-          train_state["global_step_samples"],
-          train_state["total_num_data_rows"],
-        )
-        savepath = os.path.join(exportdir,modelname)
-        savepathtmp = os.path.join(exportdir,modelname+".tmp")
-        if os.path.exists(savepath):
-          logging.info("NOT saving model, already exists at: " + savepath)
-        else:
-          os.mkdir(savepathtmp)
-          logging.info("SAVING MODEL FOR EXPORT TO: " + savepath)
-          save(ddp_model, swa_model, optimizer, metrics_obj, running_metrics, train_state, path=os.path.join(savepathtmp,"model.ckpt"))
-          time.sleep(2)
-          os.rename(savepathtmp,savepath)
 
     # Validate
     if rank == 0:
@@ -1158,10 +1130,48 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
             val_metric_weights["nsamp_train"] = running_metrics["weights"]["nsamp"]
             val_metric_sums["wsum_train"] = running_metrics["sums"]["wsum"]
             val_metric_weights["wsum_train"] = running_metrics["weights"]["wsum"]
+          last_val_metrics["sums"] = val_metric_sums
+          last_val_metrics["weights"] = val_metric_weights
           log_metrics(val_metric_sums, val_metric_weights, metrics, val_metrics_out)
           t1 = time.perf_counter()
           logging.info(f"Validation took {t1-t0} seconds")
           ddp_model.train()
+
+    if rank == 0:
+      train_state["export_cycle_counter"] += 1
+      logging.info("Export cycle counter = " + str(train_state["export_cycle_counter"]))
+
+      is_time_to_export = False
+      if train_state["export_cycle_counter"] >= epochs_per_export:
+        if no_export:
+          train_state["export_cycle_counter"] = epochs_per_export
+        else:
+          train_state["export_cycle_counter"] = 0
+          is_time_to_export = True
+
+      skip_export_this_time = False
+      if export_prob is not None:
+        if random.random() > export_prob:
+          skip_export_this_time = True
+          logging.info("Skipping export model this time")
+
+      if not no_export and is_time_to_export and not skip_export_this_time and exportdir is not None and not gnorm_stats_debug:
+        # Export a model for testing, unless somehow it already exists
+        modelname = "%s-s%d-d%d" % (
+          exportprefix,
+          train_state["global_step_samples"],
+          train_state["total_num_data_rows"],
+        )
+        savepath = os.path.join(exportdir,modelname)
+        savepathtmp = os.path.join(exportdir,modelname+".tmp")
+        if os.path.exists(savepath):
+          logging.info("NOT saving model, already exists at: " + savepath)
+        else:
+          os.mkdir(savepathtmp)
+          logging.info("SAVING MODEL FOR EXPORT TO: " + savepath)
+          save(ddp_model, swa_model, optimizer, metrics_obj, running_metrics, train_state, last_val_metrics, path=os.path.join(savepathtmp,"model.ckpt"))
+          time.sleep(2)
+          os.rename(savepathtmp,savepath)
 
     if max_epochs_this_instance is not None and max_epochs_this_instance >= 0 and num_epochs_this_instance >= max_epochs_this_instance:
       logging.info("Hit max epochs this instance, done")
@@ -1177,7 +1187,7 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
       if now - last_longterm_checkpoint_save_time >= datetime.timedelta(hours=12):
         last_longterm_checkpoint_save_time = now
         dated_name = datetime.datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
-        save(ddp_model, swa_model, optimizer, metrics_obj, running_metrics, train_state, path=os.path.join(longterm_checkpoints_dir,f"{dated_name}.ckpt"))
+        save(ddp_model, swa_model, optimizer, metrics_obj, running_metrics, train_state, last_val_metrics, path=os.path.join(longterm_checkpoints_dir,f"{dated_name}.ckpt"))
 
   train_metrics_out.close()
   val_metrics_out.close()

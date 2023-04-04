@@ -87,5 +87,7 @@ def load_model(checkpoint_file, use_swa, device, pos_len=19, verbose=False):
     other_state_dict["running_metrics"] = state_dict["running_metrics"]
   if "train_state" in state_dict:
     other_state_dict["train_state"] = state_dict["train_state"]
+  if "last_val_metrics" in state_dict:
+    other_state_dict["last_val_metrics"] = state_dict["last_val_metrics"]
 
   return (model, swa_model, other_state_dict)
