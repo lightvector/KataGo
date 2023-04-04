@@ -12,6 +12,7 @@ import psutil
 import json
 import hashlib
 import datetime
+import gc
 
 import multiprocessing
 
@@ -46,19 +47,25 @@ def shardify(input_idx, input_file_group, num_out_files, out_tmp_dirs, keep_prob
   np.random.seed([int.from_bytes(os.urandom(4), byteorder='little') for i in range(4)])
 
   assert(len(input_file_group) > 0)
+  num_files_not_found = 0
 
   if len(input_file_group) == 1:
-    with np.load(input_file_group[0]) as npz:
-      assert(set(npz.keys()) == set(keys))
-      ###
-      #WARNING - if adding anything here, also add it to joint_shuffle below!
-      ###
-      binaryInputNCHWPacked = npz["binaryInputNCHWPacked"]
-      globalInputNC = npz["globalInputNC"]
-      policyTargetsNCMove = npz["policyTargetsNCMove"]
-      globalTargetsNC = npz["globalTargetsNC"]
-      scoreDistrN = npz["scoreDistrN"]
-      valueTargetsNCHW = npz["valueTargetsNCHW"]
+    try:
+      with np.load(input_file_group[0]) as npz:
+        assert(set(npz.keys()) == set(keys))
+        ###
+        #WARNING - if adding anything here, also add it to joint_shuffle below!
+        ###
+        binaryInputNCHWPacked = npz["binaryInputNCHWPacked"]
+        globalInputNC = npz["globalInputNC"]
+        policyTargetsNCMove = npz["policyTargetsNCMove"]
+        globalTargetsNC = npz["globalTargetsNC"]
+        scoreDistrN = npz["scoreDistrN"]
+        valueTargetsNCHW = npz["valueTargetsNCHW"]
+    except FileNotFoundError:
+      num_files_not_found += 1
+      print("WARNING: file not found by shardify: ", input_file_group[0])
+      return num_files_not_found # Early quit since we don't know shapes
   else:
     binaryInputNCHWPackedList = []
     globalInputNCList = []
@@ -68,14 +75,21 @@ def shardify(input_idx, input_file_group, num_out_files, out_tmp_dirs, keep_prob
     valueTargetsNCHWList = []
 
     for input_file in input_file_group:
-      with np.load(input_file) as npz:
-        assert(set(npz.keys()) == set(keys))
-        binaryInputNCHWPackedList.append(npz["binaryInputNCHWPacked"])
-        globalInputNCList.append(npz["globalInputNC"])
-        policyTargetsNCMoveList.append(npz["policyTargetsNCMove"])
-        globalTargetsNCList.append(npz["globalTargetsNC"])
-        scoreDistrNList.append(npz["scoreDistrN"])
-        valueTargetsNCHWList.append(npz["valueTargetsNCHW"])
+      try:
+        with np.load(input_file) as npz:
+          assert(set(npz.keys()) == set(keys))
+          binaryInputNCHWPackedList.append(npz["binaryInputNCHWPacked"])
+          globalInputNCList.append(npz["globalInputNC"])
+          policyTargetsNCMoveList.append(npz["policyTargetsNCMove"])
+          globalTargetsNCList.append(npz["globalTargetsNC"])
+          scoreDistrNList.append(npz["scoreDistrN"])
+          valueTargetsNCHWList.append(npz["valueTargetsNCHW"])
+      except FileNotFoundError:
+        num_files_not_found += 1
+        print("WARNING: file not found by shardify: ", input_file)
+        pass
+    if len(binaryInputNCHWPackedList) <= 0:
+      return num_files_not_found # Early quit since we don't know shapes
 
     binaryInputNCHWPacked = np.concatenate(binaryInputNCHWPackedList,axis=0)
     globalInputNC = np.concatenate(globalInputNCList,axis=0)
@@ -125,7 +139,7 @@ def shardify(input_idx, input_file_group, num_out_files, out_tmp_dirs, keep_prob
       scoreDistrN = scoreDistrN[start:stop],
       valueTargetsNCHW = valueTargetsNCHW[start:stop]
     )
-  return num_out_files
+  return num_files_not_found
 
 def merge_shards(filename, num_shards_to_merge, out_tmp_dir, batch_size, ensure_batch_multiple, output_npz):
   np.random.seed([int.from_bytes(os.urandom(4), byteorder='little') for i in range(5)])
@@ -144,22 +158,29 @@ def merge_shards(filename, num_shards_to_merge, out_tmp_dir, batch_size, ensure_
 
   for input_idx in range(num_shards_to_merge):
     shard_filename = os.path.join(out_tmp_dir, str(input_idx) + ".npz")
-    with np.load(shard_filename) as npz:
-      assert(set(npz.keys()) == set(keys))
+    try:
+      with np.load(shard_filename) as npz:
+        assert(set(npz.keys()) == set(keys))
 
-      binaryInputNCHWPacked = npz["binaryInputNCHWPacked"]
-      globalInputNC = npz["globalInputNC"]
-      policyTargetsNCMove = npz["policyTargetsNCMove"]
-      globalTargetsNC = npz["globalTargetsNC"]
-      scoreDistrN = npz["scoreDistrN"]
-      valueTargetsNCHW = npz["valueTargetsNCHW"]
+        binaryInputNCHWPacked = npz["binaryInputNCHWPacked"]
+        globalInputNC = npz["globalInputNC"]
+        policyTargetsNCMove = npz["policyTargetsNCMove"]
+        globalTargetsNC = npz["globalTargetsNC"]
+        scoreDistrN = npz["scoreDistrN"]
+        valueTargetsNCHW = npz["valueTargetsNCHW"]
 
-      binaryInputNCHWPackeds.append(binaryInputNCHWPacked)
-      globalInputNCs.append(globalInputNC)
-      policyTargetsNCMoves.append(policyTargetsNCMove)
-      globalTargetsNCs.append(globalTargetsNC)
-      scoreDistrNs.append(scoreDistrN)
-      valueTargetsNCHWs.append(valueTargetsNCHW)
+        binaryInputNCHWPackeds.append(binaryInputNCHWPacked)
+        globalInputNCs.append(globalInputNC)
+        policyTargetsNCMoves.append(policyTargetsNCMove)
+        globalTargetsNCs.append(globalTargetsNC)
+        scoreDistrNs.append(scoreDistrN)
+        valueTargetsNCHWs.append(valueTargetsNCHW)
+    except FileNotFoundError:
+      print("WARNING: Empty shard in merge_shards for shard :", input_idx, filename)
+
+  if len(binaryInputNCHWPackeds) <= 0:
+    print("WARNING: empty merge file: ", filename)
+    return 0
 
   ###
   #WARNING - if adding anything here, also add it to joint_shuffle below!
@@ -409,7 +430,7 @@ if __name__ == '__main__':
                 excluded_due_to_excludes_count += 1
                 continue
               filename = os.path.join(path,dirname,filename)
-              if filename in exclude_set:
+              if not exclude_basename and filename in exclude_set:
                 excluded_count += 1
                 excluded_due_to_excludes_count += 1
                 continue
@@ -434,7 +455,7 @@ if __name__ == '__main__':
             excluded_due_to_excludes_count += 1
             continue
           filename = os.path.join(path,filename)
-          if filename in exclude_set:
+          if not exclude_basename and filename in exclude_set:
             excluded_count += 1
             excluded_due_to_excludes_count += 1
             continue
@@ -449,6 +470,10 @@ if __name__ == '__main__':
   print("Excluded count: %d" % excluded_count, flush=True)
   print("Excluded count due to looking like temp file: %d" % tempfilelike_count, flush=True)
   print("Excluded count due to cmdline excludes file: %d" % excluded_due_to_excludes_count, flush=True)
+
+  print("GC collect", flush=True)
+  del summary_data_by_dirpath
+  gc.collect()
 
   with TimeStuff("Sorting"):
     all_files.sort(key=(lambda x: x[1]), reverse=False)
@@ -467,7 +492,6 @@ if __name__ == '__main__':
           num_rows = results[info[0]]
           all_files[i] = (info[0], info[1], num_rows)
 
-  files_with_row_range = []
   num_rows_total = 0 #Number of data rows
   num_random_rows_capped = 0 #Number of random data rows, capped at min_rows - we never keep more than min_rows many data rows if they're from random.
   num_postrandom_rows = 0 #Number of NON-random rows
@@ -493,24 +517,18 @@ if __name__ == '__main__':
     #Scale so that we have the desired initial slope, and add back the minimum random rows
     return int(scaled_power_law * expand_window_per_row + min_rows)
 
-  for (filename,mtime,num_rows) in all_files:
-    if num_rows is None:
-      print("WARNING: Skipping bad file: ", filename)
-      continue
-    if num_rows <= 0:
-      continue
-    row_range = (num_rows_total, num_rows_total + num_rows)
-    num_rows_total += num_rows
-    if "random" not in filename:
-      num_postrandom_rows += num_rows
-    else:
-      num_random_rows_capped = min(num_random_rows_capped + num_rows, min_rows)
-
-    files_with_row_range.append((filename,row_range))
-
-    #If we already have a window size bigger than max, then just stop
-    if max_rows is not None and num_desired_rows() >= max_rows:
-      break
+  with TimeStuff("Processing found files"):
+    for (filename,mtime,num_rows) in all_files:
+      if num_rows is None:
+        print("WARNING: Skipping bad file: ", filename)
+        continue
+      if num_rows <= 0:
+        continue
+      num_rows_total += num_rows
+      if "random" not in filename:
+        num_postrandom_rows += num_rows
+      else:
+        num_random_rows_capped = min(num_random_rows_capped + num_rows, min_rows)
 
   if os.path.exists(out_dir):
     raise Exception(out_dir + " already exists")
@@ -525,42 +543,51 @@ if __name__ == '__main__':
     print("Not enough rows, only %d (fewer than %d)" % (num_rows_total,min_rows))
     sys.exit(0)
 
-  print("Total rows found: %d (%d usable)" % (num_rows_total,num_usable_rows()))
+  print("Total rows found: %d (%d usable)" % (num_rows_total,num_usable_rows()), flush=True)
 
   #Reverse so that recent files are first
-  files_with_row_range.reverse()
+  all_files.reverse()
 
   #Now assemble only the files we need to hit our desired window size
   desired_num_rows = num_desired_rows()
   desired_num_rows = max(desired_num_rows,min_rows)
   desired_num_rows = min(desired_num_rows,max_rows) if max_rows is not None else desired_num_rows
-  print("Desired num rows: %d / %d" % (desired_num_rows,num_rows_total))
+  print("Desired num rows: %d / %d" % (desired_num_rows,num_rows_total), flush=True)
 
   desired_input_files = []
-  desired_input_row_range = []
+  min_start_row = num_rows_total
+  max_end_row = num_rows_total
   num_rows_used = 0
-  len_files_with_row_range = len(files_with_row_range)
-  print_stride = 1 + len(files_with_row_range) // 40
+  print_stride = 1 + len(all_files) // 40
+  end_row = num_rows_total
   with TimeStuff("Computing desired rows"):
-    for i in range(len(files_with_row_range)):
-      (filename,(start_row,end_row)) = files_with_row_range[i]
+    for i in range(len(all_files)):
+      (filename,mtime,num_rows) = all_files[i]
 
       # This could happen if the .summary.json file is inaccurate after file deletions
-      if not os.path.exists(filename):
-        continue
+      # Actually we just handle that in shardify - and accept that it might make our window slightly not far back enough
+      # if not os.path.exists(filename):
+      #   continue
 
-      desired_input_files.append((filename,end_row-start_row))
-      desired_input_row_range.append((start_row,end_row))
+      if num_rows is not None and num_rows > 0:
+        desired_input_files.append((filename,num_rows))
+        start_row = end_row - num_rows
+        min_start_row = min(start_row, min_start_row)
+        num_rows_used += num_rows
+        end_row -= num_rows
+      else:
+        start_row = end_row
 
-      num_rows_used += (end_row - start_row)
       if i % print_stride == 0 or num_rows_used >= desired_num_rows:
-        print("Using: %s (%d-%d) (%d/%d desired rows)" % (filename,start_row,end_row,num_rows_used,desired_num_rows))
+        print("Using: %s (%d-%d) (%d/%d desired rows)" % (filename,start_row,end_row,num_rows_used,desired_num_rows), flush=True)
       if num_rows_used >= desired_num_rows:
         break
 
-  min_start_row = min(start_row for (start_row,end_row) in desired_input_row_range)
-  max_end_row = max(end_row for (start_row,end_row) in desired_input_row_range)
-  print("Finally, using: (%d-%d) (%d/%d desired rows)" % (min_start_row,max_end_row,num_rows_used,desired_num_rows))
+  print("Finally, using: (%d-%d) (%d/%d desired rows)" % (min_start_row,max_end_row,num_rows_used,desired_num_rows), flush=True)
+
+  print("GC collect", flush=True)
+  del all_files
+  gc.collect()
 
   np.random.seed()
   np.random.shuffle(desired_input_files)
@@ -579,7 +606,7 @@ if __name__ == '__main__':
     assert False, "No longer supports outputting tensorflow data"
 
   out_tmp_dirs = [os.path.join(out_tmp_dir, "tmp.shuf%d" % i) for i in range(num_out_files)]
-  print("Writing %d output files with %d kept / %d desired rows" % (num_out_files, approx_rows_to_keep, desired_num_rows))
+  print("Writing %d output files with %d kept / %d desired rows" % (num_out_files, approx_rows_to_keep, desired_num_rows), flush=True)
 
   def clean_tmp_dirs():
     for tmp_dir in out_tmp_dirs:
@@ -607,7 +634,6 @@ if __name__ == '__main__':
         num_rows_in_desired_files += num_rows_in_file
     print("Due to only_include_md5, filtering down to %d/%d files" % (len(new_desired_input_files),len(desired_input_files)))
     desired_input_files = new_desired_input_files
-    del desired_input_row_range # this array is not consistent with new_desired_input_files
 
   if len(desired_input_files) <= 0:
     print("No files after filtering for desired range")
