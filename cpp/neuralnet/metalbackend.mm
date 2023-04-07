@@ -398,24 +398,18 @@ void getMetalHandleOutput(float* userInputBuffer,
 ///   - nnXLen: The width of the neural network input
 ///   - nnYLen: The height of the neural network input
 ///   - batchSize: The batch size
-///   - useFP16: Whether to use FP16 mode
-///   - useNHWC: Whether to use NHWC mode
 ///   - input: The pointer to the input
 ///   - output: The pointer to the output
 void testMetalEvaluateConv(const ConvLayerDesc* desc,
                            int nnXLen,
                            int nnYLen,
                            int batchSize,
-                           bool useFP16,
-                           bool useNHWC,
                            float* input,
                            float* output) {
     [ConvLayer testWithDescriptor:convLayerDescToSwift(desc)
                            nnXLen:[NSNumber numberWithInt:nnXLen]
                            nnYLen:[NSNumber numberWithInt:nnYLen]
                         batchSize:[NSNumber numberWithInt:batchSize]
-                          useFP16:useFP16
-                          useNHWC:useNHWC
                             input:input
                            output:output];
 }
@@ -426,8 +420,6 @@ void testMetalEvaluateConv(const ConvLayerDesc* desc,
 ///   - nnXLen: The width of the neural network input
 ///   - nnYLen: The height of the neural network input
 ///   - batchSize: The batch size
-///   - useFP16: Whether to use FP16 mode
-///   - useNHWC: Whether to use NHWC mode
 ///   - input: The pointer to the input
 ///   - mask: The pointer to the mask
 ///   - output: The pointer to the output
@@ -435,8 +427,6 @@ void testMetalEvaluateBatchNorm(const BatchNormLayerDesc* desc,
                                 int nnXLen,
                                 int nnYLen,
                                 int batchSize,
-                                bool useFP16,
-                                bool useNHWC,
                                 float* input,
                                 float* mask,
                                 float* output) {
@@ -444,8 +434,6 @@ void testMetalEvaluateBatchNorm(const BatchNormLayerDesc* desc,
                                 nnXLen:[NSNumber numberWithInt:nnXLen]
                                 nnYLen:[NSNumber numberWithInt:nnYLen]
                              batchSize:[NSNumber numberWithInt:batchSize]
-                               useFP16:useFP16
-                               useNHWC:useNHWC
                                  input:input
                                   mask:mask
                                 output:output];
@@ -457,8 +445,6 @@ void testMetalEvaluateBatchNorm(const BatchNormLayerDesc* desc,
 ///   - batchSize: The batch size
 ///   - nnXLen: The width of the neural network input
 ///   - nnYLen: The height of the neural network input
-///   - useFP16: Whether to use FP16 mode
-///   - useNHWC: Whether to use NHWC mode
 ///   - input: The pointer to the input
 ///   - mask: The pointer to the mask
 ///   - output: The pointer to the output
@@ -466,8 +452,6 @@ void testMetalEvaluateResidualBlock(const ResidualBlockDesc* desc,
                                     int batchSize,
                                     int nnXLen,
                                     int nnYLen,
-                                    bool useFP16,
-                                    bool useNHWC,
                                     float* input,
                                     float* mask,
                                     float* output) {
@@ -475,8 +459,6 @@ void testMetalEvaluateResidualBlock(const ResidualBlockDesc* desc,
                             batchSize:[NSNumber numberWithInt:batchSize]
                                nnXLen:[NSNumber numberWithInt:nnXLen]
                                nnYLen:[NSNumber numberWithInt:nnYLen]
-                              useFP16:useFP16
-                              useNHWC:useNHWC
                                 input:input
                                  mask:mask
                                output:output];
@@ -488,8 +470,6 @@ void testMetalEvaluateResidualBlock(const ResidualBlockDesc* desc,
 ///   - batchSize: The batch size
 ///   - nnXLen: The width of the neural network input
 ///   - nnYLen: The height of the neural network input
-///   - useFP16: Whether to use FP16 mode
-///   - useNHWC: Whether to use NHWC mode
 ///   - input: The pointer to the input
 ///   - mask: The pointer to the mask
 ///   - output: The pointer to the output
@@ -497,8 +477,6 @@ void testMetalEvaluateGlobalPoolingResidualBlock(const GlobalPoolingResidualBloc
                                                  int batchSize,
                                                  int nnXLen,
                                                  int nnYLen,
-                                                 bool useFP16,
-                                                 bool useNHWC,
                                                  float* input,
                                                  float* mask,
                                                  float* output) {
@@ -506,8 +484,6 @@ void testMetalEvaluateGlobalPoolingResidualBlock(const GlobalPoolingResidualBloc
                                          batchSize:[NSNumber numberWithInt:batchSize]
                                             nnXLen:[NSNumber numberWithInt:nnXLen]
                                             nnYLen:[NSNumber numberWithInt:nnYLen]
-                                           useFP16:useFP16
-                                           useNHWC:useNHWC
                                              input:input
                                               mask:mask
                                             output:output];

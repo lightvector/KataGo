@@ -425,22 +425,25 @@ static void getMetalOutput(
       numSpatialFeatures,
       gpuHandle->inputsUseNHWC,
       inputBufs[row]->symmetry);
+  }
 
+  for(size_t row = 0; row < batchSize; row++) {
+    float* rowSpatialInput = &inputBuffers->userInputBuffer[singleInputElts * row];
+    float* rowGlobalInput = &inputBuffers->userInputGlobalBuffer[singleInputGlobalElts * row];
     float* policyOutputBuf = &inputBuffers->policyResults[row * (singlePolicyResultElts * policyResultChannels)];
     float* policyPassOutputBuf = &inputBuffers->policyPassResults[row * singlePolicyPassResultElts];
     float* valueOutputBuf = &inputBuffers->valueResults[row * singleValueResultElts];
     float* ownershipOutputBuf = &inputBuffers->ownershipResults[row * singleOwnershipResultElts];
     float* scoreValuesOutputBuf = &inputBuffers->scoreValuesResults[row * singleScoreValuesResultElts];
 
-    getMetalHandleOutput(
-      rowSpatialInput,
-      rowGlobalInput,
-      policyOutputBuf,
-      policyPassOutputBuf,
-      valueOutputBuf,
-      ownershipOutputBuf,
-      scoreValuesOutputBuf,
-      gpuHandle->gpuIndex);
+    getMetalHandleOutput(rowSpatialInput,
+                         rowGlobalInput,
+                         policyOutputBuf,
+                         policyPassOutputBuf,
+                         valueOutputBuf,
+                         ownershipOutputBuf,
+                         scoreValuesOutputBuf,
+                         gpuHandle->gpuIndex);
   }
 
   for(size_t row = 0; row < batchSize; row++) {
@@ -557,19 +560,7 @@ bool NeuralNet::testEvaluateConv(
   bool useNHWC,
   const vector<float>& inputBuffer,
   vector<float>& outputBuffer) {
-
-  size_t numOutputFloats = (size_t)batchSize * nnXLen * nnYLen * desc->outChannels;
-  outputBuffer.resize(numOutputFloats);
-
-  testMetalEvaluateConv(desc,
-                        nnXLen,
-                        nnYLen,
-                        batchSize,
-                        useFP16,
-                        useNHWC,
-                        (float*)inputBuffer.data(),
-                        (float*)outputBuffer.data());
-  return true;
+  return false;
 }
 
 // Mask should be in 'NHW' format (no "C" channel).
@@ -600,20 +591,7 @@ bool NeuralNet::testEvaluateBatchNorm(
   const vector<float>& inputBuffer,
   const vector<float>& maskBuffer,
   vector<float>& outputBuffer) {
-
-  size_t numOutputFloats = (size_t)batchSize * nnXLen * nnYLen * desc->numChannels;
-  outputBuffer.resize(numOutputFloats);
-
-  testMetalEvaluateBatchNorm(desc,
-                             nnXLen,
-                             nnYLen,
-                             batchSize,
-                             useFP16,
-                             useNHWC,
-                             (float*)inputBuffer.data(),
-                             (float*)maskBuffer.data(),
-                             (float*)outputBuffer.data());
-  return true;
+  return false;
 }
 
 /**
@@ -642,20 +620,7 @@ bool NeuralNet::testEvaluateResidualBlock(
   const vector<float>& inputBuffer,
   const vector<float>& maskBuffer,
   vector<float>& outputBuffer) {
-
-  size_t numOutputFloats = (size_t)batchSize * nnXLen * nnYLen * desc->finalConv.outChannels;
-  outputBuffer.resize(numOutputFloats);
-
-  testMetalEvaluateResidualBlock(desc,
-                                 batchSize,
-                                 nnXLen,
-                                 nnYLen,
-                                 useFP16,
-                                 useNHWC,
-                                 (float*)inputBuffer.data(),
-                                 (float*)maskBuffer.data(),
-                                 (float*)outputBuffer.data());
-  return true;
+  return false;
 }
 
 /**
@@ -685,20 +650,7 @@ bool NeuralNet::testEvaluateGlobalPoolingResidualBlock(
   const vector<float>& inputBuffer,
   const vector<float>& maskBuffer,
   vector<float>& outputBuffer) {
-
-  size_t numOutputFloats = (size_t)batchSize * nnXLen * nnYLen * desc->finalConv.outChannels;
-  outputBuffer.resize(numOutputFloats);
-
-  testMetalEvaluateGlobalPoolingResidualBlock(desc,
-                                              batchSize,
-                                              nnXLen,
-                                              nnYLen,
-                                              useFP16,
-                                              useNHWC,
-                                              (float*)inputBuffer.data(),
-                                              (float*)maskBuffer.data(),
-                                              (float*)outputBuffer.data());
-  return true;
+  return false;
 }
 
 #endif  // USE_COREML_BACKEND

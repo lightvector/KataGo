@@ -308,16 +308,12 @@ void getMetalHandleOutput(float* userInputBuffer,
 ///   - nnXLen: A neural network input length in the x dimension.
 ///   - nnYLen: A neural network input length in the y dimension.
 ///   - batchSize: A batch size.
-///   - useFP16: Whether to use 16-bit floating-point precision or not.
-///   - useNHWC: Whether to use NHWC mode or not.
 ///   - input: An input buffer.
 ///   - output: An output buffer.
 void testMetalEvaluateConv(const ConvLayerDesc* desc,
                            int nnXLen,
                            int nnYLen,
                            int batchSize,
-                           bool useFP16,
-                           bool useNHWC,
                            float* input,
                            float* output);
 
@@ -327,8 +323,6 @@ void testMetalEvaluateConv(const ConvLayerDesc* desc,
 ///   - nnXLen: A neural network input length in the x dimension.
 ///   - nnYLen: A neural network input length in the y dimension.
 ///   - batchSize: A batch size.
-///   - useFP16: Whether to use 16-bit floating-point precision or not.
-///   - useNHWC: use NHWC mode or not.
 ///   - input: an input buffer.
 ///   - mask: a mask buffer.
 ///   - output: an output buffer.
@@ -336,8 +330,6 @@ void testMetalEvaluateBatchNorm(const BatchNormLayerDesc* desc,
                                 int nnXLen,
                                 int nnYLen,
                                 int batchSize,
-                                bool useFP16,
-                                bool useNHWC,
                                 float* input,
                                 float* mask,
                                 float* output);
@@ -348,8 +340,6 @@ void testMetalEvaluateBatchNorm(const BatchNormLayerDesc* desc,
 ///   - batchSize: a batch size.
 ///   - nnXLen: a neural network input length in the x dimension.
 ///   - nnYLen: a neural network input length in the y dimension.
-///   - useFP16: Whether to use 16-bit floating-point precision or not.
-///   - useNHWC: Whether to use NHWC mode or not.
 ///   - input: An input buffer.
 ///   - mask: A mask buffer.
 ///   - output: An output buffer.
@@ -357,8 +347,6 @@ void testMetalEvaluateResidualBlock(const ResidualBlockDesc* desc,
                                     int batchSize,
                                     int nnXLen,
                                     int nnYLen,
-                                    bool useFP16,
-                                    bool useNHWC,
                                     float* input,
                                     float* mask,
                                     float* output);
@@ -369,8 +357,6 @@ void testMetalEvaluateResidualBlock(const ResidualBlockDesc* desc,
 ///   - batchSize: A batch size.
 ///   - nnXLen: A neural network input length in the x dimension.
 ///   - nnYLen: A neural network input length in the y dimension.
-///   - useFP16: Whether to use 16-bit floating-point precision or not.
-///   - useNHWC: Whether to use NHWC mode or not.
 ///   - input: An input buffer.
 ///   - mask: A mask buffer.
 ///   - output: An output buffer.
@@ -378,8 +364,6 @@ void testMetalEvaluateGlobalPoolingResidualBlock(const GlobalPoolingResidualBloc
                                                  int batchSize,
                                                  int nnXLen,
                                                  int nnYLen,
-                                                 bool useFP16,
-                                                 bool useNHWC,
                                                  float* input,
                                                  float* mask,
                                                  float* output);

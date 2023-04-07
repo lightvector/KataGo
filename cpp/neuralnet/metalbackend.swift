@@ -2,86 +2,22 @@ import Foundation
 import MetalPerformanceShaders
 import MetalPerformanceShadersGraph
 
-/// Extension to convert float32 to float16
-extension UnsafeMutablePointer where Pointee == Float32 {
-    /// Convert to Float16
-    /// - Parameter length: The length of the array
-    /// - Returns: An array of Float16
-    func toFP16(length: Int) -> UnsafeMutablePointer<Float16> {
-        let fp16Pointer = UnsafeMutablePointer<Float16>.allocate(capacity: length)
-        (0..<length).forEach { fp16Pointer[$0] = Float16(self[$0]) }
-        return fp16Pointer
-    }
-
-    /// Convert to Float16
-    /// - Parameters:
-    ///   - fp16Pointer: Pointer to the destination buffer
-    ///   - length: Number of elements to convert
-    func toFP16(_ fp16Pointer: UnsafeMutablePointer<Float16>, length: Int) {
-        (0..<length).forEach { fp16Pointer[$0] = Float16(self[$0]) }
-    }
-}
-
-/// Extension to UnsafeMutablePointer to convert Float16 to Float32
-extension UnsafeMutablePointer<Float16> {
-    /// Convert to Float32
-    /// - Parameters:
-    ///   - fp32Pointer: Pointer to Float32
-    ///   - length: Length of the array
-    func toFP32(_ fp32Pointer: UnsafeMutablePointer<Float32>, length: Int) {
-        (0..<length).forEach { fp32Pointer[$0] = Float32(self[$0]) }
-    }
-}
-
 /// An extension to the Data struct for handling float data with optional FP16 conversion.
 extension Data {
     /// Initializes a new Data instance using an UnsafeMutablePointer<Float32>, with optional conversion to FP16 format.
     /// - Parameters:
     ///   - floatsNoCopy: An UnsafeMutablePointer<Float32> containing the float data.
-    ///   - useFP16: A flag indicating whether the data should be converted to FP16 format.
     ///   - shape: An array of NSNumber objects representing the shape of the data.
     init(floatsNoCopy: UnsafeMutablePointer<Float32>,
-         useFP16: Bool,
          shape: [NSNumber]) {
-        if useFP16 {
-            let length = shape.countElements()
-
-            self.init(bytesNoCopy: floatsNoCopy.toFP16(length: length),
-                      count: shape.countBytes(of: MPSDataType.float16),
-                      deallocator: .free)
-        } else {
-            self.init(bytesNoCopy: floatsNoCopy,
-                      count: shape.countBytes(of: MPSDataType.float32),
-                      deallocator: .none)
-        }
+        self.init(bytesNoCopy: floatsNoCopy,
+                  count: shape.countBytesOfFloat32(),
+                  deallocator: .none)
     }
 }
 
 /// Extension to MPSNDArray to convert from MPSGraphTensor, and to read/write bytes from/to UnsafeMutableRawPointer
 extension MPSNDArray {
-    /// Computed property to calculate the total number of elements in an MPSNDArray.
-    var numberOfElements: Int {
-        // Use the `reduce` function to accumulate the product of the lengths of all dimensions.
-        // The initial value is set to 1.
-        return (0..<numberOfDimensions).reduce(1) { elementCount, dim in
-            // For each dimension, multiply the current element count by the length of the dimension.
-            elementCount * length(ofDimension: dim)
-        }
-    }
-
-    /// Initialize a MPSNDArray object with the data type and the shape of the tensor
-    /// - Parameters:
-    ///   - device: the metal deivce that the tensor is intended for
-    ///   - tensor: the tensor to use shape and data type from
-    convenience init(device: MTLDevice, tensor: MPSGraphTensor) {
-        // Metal backend uses a fixed batch size,
-        // so every shape is determined at compile time.
-        let descriptor = MPSNDArrayDescriptor(dataType: tensor.dataType,
-                                              shape: tensor.shape!)
-
-        self.init(device: device, descriptor: descriptor)
-    }
-
     /// Read bytes from the buffer
     /// - Parameter buffer: The buffer to read
     func readBytes(_ buffer: UnsafeMutableRawPointer) {
@@ -108,17 +44,8 @@ struct MPSNDArrayDataWriter {
     init(mpsNDArray: MPSNDArray) {
         self.mpsNDArray = mpsNDArray
 
-        if mpsNDArray.dataType == .float16 {
-            let pointerFP16 = UnsafeMutablePointer<Float16>.allocate(capacity: mpsNDArray.numberOfElements)
-
-            dataWriter = { pointerFP32 in
-                pointerFP32.toFP16(pointerFP16, length: mpsNDArray.numberOfElements)
-                mpsNDArray.writeBytes(pointerFP16)
-            }
-        } else {
-            dataWriter = { pointerFP32 in
-                mpsNDArray.writeBytes(pointerFP32)
-            }
+        dataWriter = { pointerFP32 in
+            mpsNDArray.writeBytes(pointerFP32)
         }
     }
 
@@ -134,27 +61,17 @@ struct MPSNDArrayDataReader {
     /// A closure that reads data from the MPSNDArray instance.
     private let dataReader: (UnsafeMutablePointer<Float32>, MPSNDArray?) -> Void
 
-    /// Initializes an MPSNDArrayDataReader with the given MPSGraphTensor.
-    /// - Parameters:
-    ///   - mpsGraphTensor: The target MPSGraphTensor instance.
-    init(mpsGraphTensor: MPSGraphTensor) {
-        if mpsGraphTensor.dataType == .float16 {
-            let length = mpsGraphTensor.countElements()!
-            let pointerFP16 = UnsafeMutablePointer<Float16>.allocate(capacity: length)
-
-            dataReader = { pointerFP32, mpsNDArray in
-                mpsNDArray?.readBytes(pointerFP16, strideBytes: nil)
-                pointerFP16.toFP32(pointerFP32, length: length)
-            }
-        } else {
-            dataReader = { pointerFP32, mpsNDArray in
-                mpsNDArray?.readBytes(pointerFP32, strideBytes: nil)
-            }
+    /// Initializes an MPSNDArrayDataReader
+    init() {
+        dataReader = { pointerFP32, mpsNDArray in
+            // Reads bytes from a MPSNDArray to the Float32 buffer
+            mpsNDArray?.readBytes(pointerFP32, strideBytes: nil)
         }
     }
 
     /// Reads data from the given MPSNDArray instance using the dataReader closure.
     /// - Parameter pointerFP32: A pointer to the memory buffer containing the data in FP32 format.
+    /// - Parameter mpsNDArray: The given MPSNDArray instance
     func readData(pointerFP32: UnsafeMutablePointer<Float32>, mpsNDArray: MPSNDArray?) {
         dataReader(pointerFP32, mpsNDArray)
     }
@@ -169,33 +86,6 @@ extension MPSGraphTensor {
     }
 }
 
-/// Extension to MPSDataType to initialize by using a boolean value of using FP16 or not, and to convert to MemoryLayout size
-extension MPSDataType {
-    /// Initialize a MPSDataType object
-    /// - Parameter useFP16: If true, use MPSDataType.float16, otherwise use MPSDataType.float32
-    init(useFP16: Bool) {
-        if useFP16 {
-            self.init(rawValue: MPSDataType.float16.rawValue)!
-        } else {
-            self.init(rawValue: MPSDataType.float32.rawValue)!
-        }
-    }
-
-    /// Convert to MemoryLayout size
-    /// - Returns: MemoryLayout size
-    func toMemoryLayoutSize() -> Int {
-        let memoryLayoutSize: Int
-        switch self {
-        case .float16:
-            memoryLayoutSize = MemoryLayout<Float16>.size
-        default:
-            precondition(self == .float32)
-            memoryLayoutSize = MemoryLayout<Float32>.size
-        }
-        return memoryLayoutSize
-    }
-}
-
 /// Extension to Array to count number of elements and bytes
 extension Array where Element == NSNumber {
     /// Count number of elements
@@ -207,8 +97,8 @@ extension Array where Element == NSNumber {
     /// Count number of bytes
     /// - Parameter dataType: The data type
     /// - Returns: Number of bytes
-    func countBytes(of dataType: MPSDataType) -> Int {
-        return countElements() * dataType.toMemoryLayoutSize()
+    func countBytesOfFloat32() -> Int {
+        return countElements() * MemoryLayout<Float32>.size
     }
 }
 
@@ -246,45 +136,28 @@ struct InputShape {
     ///   - numChannels: Number of channels
     ///   - nnYLen: Y length
     ///   - nnXLen: X length
-    ///   - useNHWC: If true, use NHWC, otherwise use NCHW
     /// - Returns: The shape
     static func create(batchSize: NSNumber,
                        numChannels: NSNumber,
                        nnYLen: NSNumber,
-                       nnXLen: NSNumber,
-                       useNHWC: Bool) -> [NSNumber] {
-        let shape: [NSNumber]
-        if useNHWC {
-            shape = [batchSize,
-                     nnYLen,
-                     nnXLen,
-                     numChannels]
-        } else {
-            shape = [batchSize,
+                       nnXLen: NSNumber) -> [NSNumber] {
+        let shape = [batchSize,
                      numChannels,
                      nnYLen,
                      nnXLen]
-        }
         return shape
     }
 
     /// Get the channel axis
-    /// - Parameter useNHWC: If true, use NHWC, otherwise use NCHW
     /// - Returns: The channel axis
-    static func getChannelAxis(useNHWC: Bool) -> Int {
-        return useNHWC ? 3 : 1
+    static func getChannelAxis() -> Int {
+        return 1
     }
 
     /// Get the HW axes
-    /// - Parameter useNHWC: If true, use NHWC, otherwise use NCHW
     /// - Returns: The HW axes
-    static func getHWAxes(useNHWC: Bool) -> [NSNumber] {
-        let hwAxes: [NSNumber]
-        if useNHWC {
-            hwAxes = [1, 2]
-        } else {
-            hwAxes = [2, 3]
-        }
+    static func getHWAxes() -> [NSNumber] {
+        let hwAxes = [2, 3] as [NSNumber]
         return hwAxes
     }
 }
@@ -292,6 +165,7 @@ struct InputShape {
 /// A structure that represents the input layer
 struct InputLayer {
     let tensor: MPSGraphTensor
+    let shape: [NSNumber]
 
     /// Initialize a InputLayer object
     /// - Parameters:
@@ -300,25 +174,18 @@ struct InputLayer {
     ///   - nnXLen: X length
     ///   - nnYLen: Y length
     ///   - numChannels: Number of channels
-    ///   - useFP16: If true, use FP16, otherwise use FP32
-    ///   - useNHWC: If true, use NHWC, otherwise use NCHW
     init(graph: MPSGraph,
          batchSize: NSNumber,
          nnXLen: NSNumber,
          nnYLen: NSNumber,
-         numChannels: NSNumber,
-         useFP16: Bool,
-         useNHWC: Bool) {
-        let shape = InputShape.create(batchSize: batchSize,
-                                      numChannels: numChannels,
-                                      nnYLen: nnYLen,
-                                      nnXLen: nnXLen,
-                                      useNHWC: useNHWC)
-
-        let dataType = MPSDataType.init(useFP16: useFP16)
+         numChannels: NSNumber) {
+        shape = InputShape.create(batchSize: batchSize,
+                                  numChannels: numChannels,
+                                  nnYLen: nnYLen,
+                                  nnXLen: nnXLen)
 
         self.tensor = graph.placeholder(shape: shape,
-                                        dataType: dataType,
+                                        dataType: MPSDataType.float32,
                                         name: nil)
 
         assert(self.tensor.shape?.count == 4)
@@ -328,36 +195,23 @@ struct InputLayer {
 /// A structure that represents an input global layer for a neural network model.
 struct InputGlobalLayer {
     let tensor: MPSGraphTensor
-
-    /// Initializes an InputGlobalLayer object with a given tensor.
-    /// - Parameter tensor: The tensor to use for the layer.
-    init(tensor: MPSGraphTensor) {
-        self.tensor = tensor
-        assert(self.tensor.shape?.count == 4)
-    }
+    let shape: [NSNumber]
 
     /// Initializes an InputGlobalLayer object with a graph, batch size, number of global features, data type, and input shape.
     /// - Parameters:
     ///   - graph: The graph.
     ///   - batchSize: The batch size.
     ///   - numGlobalFeatures: The number of global features.
-    ///   - useFP16: If true, use 16-bit floating-point data type. Otherwise, use 32-bit.
-    ///   - useNHWC: If true, use NHWC, otherwise use NCHW.
     init(graph: MPSGraph,
          batchSize: NSNumber,
-         numGlobalFeatures: NSNumber,
-         useFP16: Bool,
-         useNHWC: Bool) {
-        let shape = InputShape.create(batchSize: batchSize,
-                                      numChannels: numGlobalFeatures,
-                                      nnYLen: 1,
-                                      nnXLen: 1,
-                                      useNHWC: useNHWC)
-
-        let dataType = MPSDataType.init(useFP16: useFP16)
+         numGlobalFeatures: NSNumber) {
+        shape = InputShape.create(batchSize: batchSize,
+                                  numChannels: numGlobalFeatures,
+                                  nnYLen: 1,
+                                  nnXLen: 1)
 
         self.tensor = graph.placeholder(shape: shape,
-                                        dataType: dataType,
+                                        dataType: MPSDataType.float32,
                                         name: nil)
 
         assert(self.tensor.shape?.count == 4)
@@ -367,13 +221,7 @@ struct InputGlobalLayer {
 /// A structure that represents a mask layer for a neural network model.
 struct MaskLayer {
     let tensor: MPSGraphTensor
-
-    /// Initializes a MaskLayer object with a given tensor.
-    /// - Parameter tensor: The tensor to use for the layer.
-    init(tensor: MPSGraphTensor) {
-        self.tensor = tensor
-        assert(self.tensor.shape?.count == 4)
-    }
+    let shape: [NSNumber]
 
     /// Initializes a MaskLayer object with a graph, batch size, x and y lengths, data type, and input shape.
     /// - Parameters:
@@ -381,28 +229,20 @@ struct MaskLayer {
     ///   - batchSize: The batch size.
     ///   - nnXLen: The length of the x-axis.
     ///   - nnYLen: The length of the y-axis.
-    ///   - useFP16: If true, use 16-bit floating-point data type. Otherwise, use 32-bit.
-    ///   - useNHWC: If true, use NHWC, otherwise use NCHW.
     init(graph: MPSGraph,
          batchSize: NSNumber,
          nnXLen: NSNumber,
-         nnYLen: NSNumber,
-         useFP16: Bool,
-         useNHWC: Bool) {
-        let shape = InputShape.create(batchSize: batchSize,
-                                      numChannels: 1,
-                                      nnYLen: nnYLen,
-                                      nnXLen: nnXLen,
-                                      useNHWC: useNHWC)
-
-        let dataType = MPSDataType.init(useFP16: useFP16)
+         nnYLen: NSNumber) {
+        shape = InputShape.create(batchSize: batchSize,
+                                  numChannels: 1,
+                                  nnYLen: nnYLen,
+                                  nnXLen: nnXLen)
 
         self.tensor = graph.placeholder(shape: shape,
-                                        dataType: dataType,
+                                        dataType: MPSDataType.float32,
                                         name: nil)
 
         assert(self.tensor.shape?.count == 4)
-        assert(self.tensor.shape == shape)
     }
 }
 
@@ -420,14 +260,12 @@ struct MaskSumLayer {
     /// Initializes a MaskSumLayer object with a graph, a mask layer, and a boolean flag indicating whether to use NHWC or NCHW format.
     /// - Parameters:
     ///   - graph: The graph.
-    ///   - mask: The mask layer.
-    ///   - useNHWC: If true, use NHWC, otherwise use NCHW.
+    ///   - maskTensor: The mask tensor.
     init(graph: MPSGraph,
-         mask: MaskLayer,
-         useNHWC: Bool) {
-        let hwAxes = InputShape.getHWAxes(useNHWC: useNHWC)
+         maskTensor: MPSGraphTensor) {
+        let hwAxes = InputShape.getHWAxes()
 
-        self.tensor = graph.reductionSum(with: mask.tensor,
+        self.tensor = graph.reductionSum(with: maskTensor,
                                          axes: hwAxes,
                                          name: nil)
 
@@ -450,22 +288,19 @@ struct MaskSumSqrtS14M01Layer {
     /// - Parameters:
     ///   - graph: The graph.
     ///   - maskSum: The MaskSumLayer object.
-    ///   - useFP16: If true, use 16-bit floating-point data type. Otherwise, use 32-bit.
     init(graph: MPSGraph,
-         maskSum: MaskSumLayer,
-         useFP16: Bool) {
-        let dataType = MPSDataType.init(useFP16: useFP16)
+         maskSum: MaskSumLayer) {
         let sqrtMaskSum = graph.squareRoot(with: maskSum.tensor, name: nil)
 
         let fourTeen = graph.constant(14.0,
-                                      shape: sqrtMaskSum.shape!,
-                                      dataType: dataType)
+                                      shape: [1],
+                                      dataType: MPSDataType.float32)
 
         let subtracted = graph.subtraction(sqrtMaskSum, fourTeen, name: nil)
 
         let zeroPointone = graph.constant(0.1,
-                                          shape: sqrtMaskSum.shape!,
-                                          dataType: dataType)
+                                          shape: [1],
+                                          dataType: MPSDataType.float32)
 
         self.tensor = graph.multiplication(subtracted,
                                            zeroPointone,
@@ -490,16 +325,13 @@ struct MaskSumSqrtS14M01SquareS01Layer {
     /// - Parameters:
     ///   - graph: The graph.
     ///   - maskSumSqrtS14M01: The MaskSumSqrtS14M01Layer object.
-    ///   - useFP16: If true, use 16-bit floating-point data type. Otherwise, use 32-bit.
     init(graph: MPSGraph,
-         maskSumSqrtS14M01: MaskSumSqrtS14M01Layer,
-         useFP16: Bool) {
-        let dataType = MPSDataType.init(useFP16: useFP16)
+         maskSumSqrtS14M01: MaskSumSqrtS14M01Layer) {
         let squared = graph.square(with: maskSumSqrtS14M01.tensor, name: nil)
 
         let zeroPointone = graph.constant(0.1,
-                                          shape: squared.shape!,
-                                          dataType: dataType)
+                                          shape: [1],
+                                          dataType: MPSDataType.float32)
 
         self.tensor = graph.subtraction(squared,
                                         zeroPointone,
@@ -518,8 +350,6 @@ struct NetworkTester {
     ///   - nnXLen: The width of the input tensor.
     ///   - nnYLen: The height of the input tensor.
     ///   - numChannels: The number of channels in the input tensor.
-    ///   - useFP16: Indicates whether the network should use 16-bit floating point numbers.
-    ///   - useNHWC: Indicates whether the network should use NHWC data layout.
     ///   - input: A pointer to the input data.
     ///   - mask: A pointer to the mask data.
     ///   - output: A pointer to the output data.
@@ -528,15 +358,13 @@ struct NetworkTester {
                      nnXLen: NSNumber,
                      nnYLen: NSNumber,
                      numChannels: NSNumber,
-                     useFP16: Bool,
-                     useNHWC: Bool,
                      input: UnsafeMutablePointer<Float32>,
                      mask: UnsafeMutablePointer<Float32>,
                      output: UnsafeMutablePointer<Float32>,
                      networkBuilder: (MPSGraph, InputLayer, MaskLayer) -> MPSGraphTensor) {
 
         // Create a Metal device and an MPS graph.
-        let device = MPSGraphDevice(mtlDevice: MTLCreateSystemDefaultDevice()!)
+        let device = MetalBackend.defaultDevice
         let graph = MPSGraph()
 
         // Create the input and mask layers.
@@ -544,33 +372,50 @@ struct NetworkTester {
                                     batchSize: batchSize,
                                     nnXLen: nnXLen,
                                     nnYLen: nnYLen,
-                                    numChannels: numChannels,
-                                    useFP16: useFP16,
-                                    useNHWC: useNHWC)
+                                    numChannels: numChannels)
 
         let maskLayer = MaskLayer(graph: graph,
                                   batchSize: batchSize,
                                   nnXLen: nnXLen,
-                                  nnYLen: nnYLen,
-                                  useFP16: useFP16,
-                                  useNHWC: useNHWC)
+                                  nnYLen: nnYLen)
 
         // Build the custom network configuration using the provided networkBuilder closure.
         let resultTensor = networkBuilder(graph, inputLayer, maskLayer)
 
-        // Create MPSNDArrays from the input and mask tensors.
-        let sourceArray = MPSNDArray(device: device.metalDevice!,
-                                     tensor: inputLayer.tensor)
+        // Create input shape
+        let inputShape = InputShape.create(batchSize: batchSize,
+                                           numChannels: numChannels,
+                                           nnYLen: nnYLen,
+                                           nnXLen: nnXLen)
 
-        let maskArray = MPSNDArray(device: device.metalDevice!,
-                                   tensor: maskLayer.tensor)
+        // Create MPSNDArrayDescriptors from the input shape.
+        let sourceDescriptor = MPSNDArrayDescriptor(dataType: inputLayer.tensor.dataType,
+                                                    shape: inputShape)
+
+        // Create MPSNDArray from the source descriptor.
+        let sourceArray = MPSNDArray(device: device,
+                                     descriptor: sourceDescriptor)
+
+        // Create a mask shape
+        let maskShape = InputShape.create(batchSize: batchSize,
+                                          numChannels: 1,
+                                          nnYLen: nnYLen,
+                                          nnXLen: nnXLen)
+
+        // Create MPSNDArrayDescriptors from the mask shape.
+        let maskDescriptor = MPSNDArrayDescriptor(dataType: maskLayer.tensor.dataType,
+                                                  shape: maskShape)
+
+        // Create MPSNDArray from the mask descriptor.
+        let maskArray = MPSNDArray(device: device,
+                                   descriptor: maskDescriptor)
 
         // Write input and mask data to their respective MPSNDArrays, converting to FP16 if necessary.
         let sourceArrayWriter = MPSNDArrayDataWriter(mpsNDArray: sourceArray)
         sourceArrayWriter.writeData(pointerFP32: input)
         let maskArrayWriter = MPSNDArrayDataWriter(mpsNDArray: maskArray)
         maskArrayWriter.writeData(pointerFP32: mask)
-        
+
         // Create MPSGraphTensorData objects from the source and mask arrays.
         let sourceTensorData = MPSGraphTensorData(sourceArray)
         let maskTensorData = MPSGraphTensorData(maskArray)
@@ -582,7 +427,7 @@ struct NetworkTester {
                               targetOperations: nil)
 
         // Read the output data from the result tensor, converting from FP16 to FP32 if necessary.
-        let outputArrayReader = MPSNDArrayDataReader(mpsGraphTensor: resultTensor)
+        let outputArrayReader = MPSNDArrayDataReader()
 
         outputArrayReader.readData(pointerFP32: output,
                                    mpsNDArray: fetch[resultTensor]?.mpsndarray())
@@ -636,40 +481,40 @@ struct NetworkTester {
     ///   - nnXLen: The width of the input tensor
     ///   - nnYLen: The height of the input tensor
     ///   - batchSize: The batch size of the input tensor
-    ///   - useFP16: If true, use FP16 mode. If false, use FP32 mode
-    ///   - useNHWC: If true, use NHWC mode. If false, use NCHW mode
     ///   - input: A pointer to the input tensor data
     ///   - output: A pointer to the output tensor data
     @objc class func test(descriptor: SWConvLayerDesc,
                           nnXLen: NSNumber,
                           nnYLen: NSNumber,
                           batchSize: NSNumber,
-                          useFP16: Bool,
-                          useNHWC: Bool,
                           input: UnsafeMutablePointer<Float32>,
                           output: UnsafeMutablePointer<Float32>) {
-        let device = MPSGraphDevice(mtlDevice: MTLCreateSystemDefaultDevice()!)
+        let device = MetalBackend.defaultDevice
         let graph = MPSGraph()
 
         let source = InputLayer(graph: graph,
                                 batchSize: batchSize,
                                 nnXLen: nnXLen,
                                 nnYLen: nnYLen,
-                                numChannels: descriptor.inChannels,
-                                useFP16: useFP16,
-                                useNHWC: useNHWC)
+                                numChannels: descriptor.inChannels)
 
         let conv = ConvLayer(graph: graph,
                              sourceTensor: source.tensor,
                              descriptor: descriptor,
                              batchSize: batchSize,
                              nnXLen: nnXLen,
-                             nnYLen: nnYLen,
-                             useFP16: useFP16,
-                             useNHWC: useNHWC)
+                             nnYLen: nnYLen)
 
-        let sourceArray = MPSNDArray(device: device.metalDevice!,
-                                     tensor: source.tensor)
+        let inputShape = InputShape.create(batchSize: batchSize,
+                                           numChannels: descriptor.inChannels,
+                                           nnYLen: nnYLen,
+                                           nnXLen: nnXLen)
+
+        let sourceDescriptor = MPSNDArrayDescriptor(dataType: source.tensor.dataType,
+                                                    shape: inputShape)
+
+        let sourceArray = MPSNDArray(device: device,
+                                     descriptor: sourceDescriptor)
 
         let sourceArrayDataWriter = MPSNDArrayDataWriter(mpsNDArray: sourceArray)
         sourceArrayDataWriter.writeData(pointerFP32: input)
@@ -680,7 +525,7 @@ struct NetworkTester {
                               targetTensors: [conv.resultTensor],
                               targetOperations: nil)
 
-        let outputArrayReader = MPSNDArrayDataReader(mpsGraphTensor: conv.resultTensor)
+        let outputArrayReader = MPSNDArrayDataReader()
 
         outputArrayReader.readData(pointerFP32: output,
                                    mpsNDArray: fetch[conv.resultTensor]?.mpsndarray())
@@ -694,19 +539,13 @@ struct NetworkTester {
     ///   - batchSize: The batch size of the input tensor
     ///   - nnXLen: The width of the input tensor
     ///   - nnYLen: The height of the input tensor
-    ///   - useFP16: If true, use FP16 mode. If false, use FP32 mode
-    ///   - useNHWC: If true, use NHWC mode. If false, use NCHW mode
     init(graph: MPSGraph,
          sourceTensor: MPSGraphTensor,
          descriptor: SWConvLayerDesc,
          batchSize: NSNumber,
          nnXLen: NSNumber,
-         nnYLen: NSNumber,
-         useFP16: Bool,
-         useNHWC: Bool) {
-        let dataType = MPSDataType.init(useFP16: useFP16)
-
-        let dataLayout: MPSGraphTensorNamedDataLayout = useNHWC ? .NHWC : .NCHW
+         nnYLen: NSNumber) {
+        let dataLayout: MPSGraphTensorNamedDataLayout = .NCHW
 
         let weightsShape = [descriptor.outChannels,
                             descriptor.inChannels,
@@ -716,20 +555,19 @@ struct NetworkTester {
         let convDescriptor =
         MPSGraphConvolution2DOpDescriptor(strideInX: 1,
                                           strideInY: 1,
-                                          dilationRateInX: descriptor.dilationX,
-                                          dilationRateInY: descriptor.dilationY,
+                                          dilationRateInX: 1,
+                                          dilationRateInY: 1,
                                           groups: 1,
                                           paddingStyle: .TF_SAME,
                                           dataLayout: dataLayout,
                                           weightsLayout: .OIHW)!
 
         let weightsData = Data(floatsNoCopy: descriptor.weights,
-                               useFP16: useFP16,
                                shape: weightsShape)
 
         let weightsTensor = graph.constant(weightsData,
                                            shape: weightsShape,
-                                           dataType: dataType)
+                                           dataType: MPSDataType.float32)
 
         resultTensor = graph.convolution2D(sourceTensor,
                                            weights: weightsTensor,
@@ -790,8 +628,6 @@ struct NetworkTester {
     ///   - nnXLen: The width of the input tensor.
     ///   - nnYLen: The height of the input tensor.
     ///   - batchSize: The number of input batches.
-    ///   - useFP16: Indicates whether the layer should use 16-bit floating point numbers.
-    ///   - useNHWC: Indicates whether the layer should use NHWC data layout.
     ///   - input: A pointer to the input data.
     ///   - mask: A pointer to the mask data.
     ///   - output: A pointer to the output data.
@@ -799,8 +635,6 @@ struct NetworkTester {
                           nnXLen: NSNumber,
                           nnYLen: NSNumber,
                           batchSize: NSNumber,
-                          useFP16: Bool,
-                          useNHWC: Bool,
                           input: UnsafeMutablePointer<Float32>,
                           mask: UnsafeMutablePointer<Float32>,
                           output: UnsafeMutablePointer<Float32>) {
@@ -809,8 +643,6 @@ struct NetworkTester {
                            nnXLen: nnXLen,
                            nnYLen: nnYLen,
                            numChannels: descriptor.numChannels,
-                           useFP16: useFP16,
-                           useNHWC: useNHWC,
                            input: input,
                            mask: mask,
                            output: output) { graph, inputLayer, maskLayer in
@@ -821,9 +653,7 @@ struct NetworkTester {
                                            descriptor: descriptor,
                                            nnXLen: nnXLen,
                                            nnYLen: nnYLen,
-                                           batchSize: batchSize,
-                                           useFP16: useFP16,
-                                           useNHWC: useNHWC)
+                                           batchSize: batchSize)
 
             return batchNorm.resultTensor
         }
@@ -838,56 +668,45 @@ struct NetworkTester {
     ///   - nnXLen: The length of the input tensor in the X direction.
     ///   - nnYLen: The length of the input tensor in the Y direction.
     ///   - batchSize: The number of inputs in the batch.
-    ///   - useFP16: A boolean value indicating whether or not to use 16-bit floating point numbers.
-    ///   - useNHWC: A boolean value indicating whether or not to use NHWC data format.
     init(graph: MPSGraph,
          sourceTensor: MPSGraphTensor,
          maskTensor: MPSGraphTensor,
          descriptor: SWBatchNormLayerDesc,
          nnXLen: NSNumber,
          nnYLen: NSNumber,
-         batchSize: NSNumber,
-         useFP16: Bool,
-         useNHWC: Bool) {
+         batchSize: NSNumber) {
         let meanShape = InputShape.create(batchSize: 1,
                                           numChannels: descriptor.numChannels,
                                           nnYLen: 1,
-                                          nnXLen: 1,
-                                          useNHWC: useNHWC)
-
-        let dataType = MPSDataType.init(useFP16: useFP16)
+                                          nnXLen: 1)
 
         let meanData = Data(floatsNoCopy: descriptor.mean,
-                            useFP16: useFP16,
                             shape: meanShape)
 
         let varianceData = Data(floatsNoCopy: descriptor.variance,
-                                useFP16: useFP16,
                                 shape: meanShape)
 
         let scaleData = Data(floatsNoCopy: descriptor.scale,
-                             useFP16: useFP16,
                              shape: meanShape)
 
         let biasData = Data(floatsNoCopy: descriptor.bias,
-                            useFP16: useFP16,
                             shape: meanShape)
 
         let meanTensor = graph.constant(meanData,
                                         shape: meanShape,
-                                        dataType: dataType)
+                                        dataType: MPSDataType.float32)
 
         let varianceTensor = graph.constant(varianceData,
                                             shape: meanShape,
-                                            dataType: dataType)
+                                            dataType: MPSDataType.float32)
 
         let scaleTensor = graph.constant(scaleData,
                                          shape: meanShape,
-                                         dataType: dataType)
+                                         dataType: MPSDataType.float32)
 
         let biasTensor = graph.constant(biasData,
                                         shape: meanShape,
-                                        dataType: dataType)
+                                        dataType: MPSDataType.float32)
 
         let normalized = graph.normalize(sourceTensor,
                                          mean: meanTensor,
@@ -992,8 +811,6 @@ struct ActivationLayer {
     ///   - batchSize: Batch size
     ///   - nnXLen: X length
     ///   - nnYLen: Y length
-    ///   - useFP16: If true, use FP16, otherwise use FP32
-    ///   - useNHWC: If true, use NHWC, otherwise use NCHW
     ///   - input: The input float32 pointer
     ///   - mask: The mask float32 pointer
     ///   - output: The output float32 pointer
@@ -1001,8 +818,6 @@ struct ActivationLayer {
                           batchSize: NSNumber,
                           nnXLen: NSNumber,
                           nnYLen: NSNumber,
-                          useFP16: Bool,
-                          useNHWC: Bool,
                           input: UnsafeMutablePointer<Float32>,
                           mask: UnsafeMutablePointer<Float32>,
                           output: UnsafeMutablePointer<Float32>) {
@@ -1011,8 +826,6 @@ struct ActivationLayer {
                            nnXLen: nnXLen,
                            nnYLen: nnYLen,
                            numChannels: descriptor.preBN.numChannels,
-                           useFP16: useFP16,
-                           useNHWC: useNHWC,
                            input: input,
                            mask: mask,
                            output: output) { graph, inputLayer, maskLayer in
@@ -1023,9 +836,7 @@ struct ActivationLayer {
                                       descriptor: descriptor,
                                       nnXLen: nnXLen,
                                       nnYLen: nnYLen,
-                                      batchSize: batchSize,
-                                      useFP16: useFP16,
-                                      useNHWC: useNHWC)
+                                      batchSize: batchSize)
 
             return block.resultTensor
         }
@@ -1041,26 +852,20 @@ struct ActivationLayer {
     ///   - nnXLen: X length
     ///   - nnYLen: Y length
     ///   - batchSize: Batch size
-    ///   - useFP16: If true, use FP16, otherwise use FP32
-    ///   - useNHWC: If true, use NHWC, otherwise use NCHW
     init(graph: MPSGraph,
          sourceTensor: MPSGraphTensor,
          maskTensor: MPSGraphTensor,
          descriptor: SWResidualBlockDesc,
          nnXLen: NSNumber,
          nnYLen: NSNumber,
-         batchSize: NSNumber,
-         useFP16: Bool,
-         useNHWC: Bool) {
+         batchSize: NSNumber) {
         let preBN = BatchNormLayer(graph: graph,
                                    sourceTensor: sourceTensor,
                                    maskTensor: maskTensor,
                                    descriptor: descriptor.preBN,
                                    nnXLen: nnXLen,
                                    nnYLen: nnYLen,
-                                   batchSize: batchSize,
-                                   useFP16: useFP16,
-                                   useNHWC: useNHWC)
+                                   batchSize: batchSize)
 
         let preActivation = ActivationLayer(graph: graph,
                                             sourceTensor: preBN.resultTensor,
@@ -1071,9 +876,7 @@ struct ActivationLayer {
                                     descriptor: descriptor.regularConv,
                                     batchSize: batchSize,
                                     nnXLen: nnXLen,
-                                    nnYLen: nnYLen,
-                                    useFP16: useFP16,
-                                    useNHWC: useNHWC)
+                                    nnYLen: nnYLen)
 
         let midBN = BatchNormLayer(graph: graph,
                                    sourceTensor: regularConv.resultTensor,
@@ -1081,9 +884,7 @@ struct ActivationLayer {
                                    descriptor: descriptor.midBN,
                                    nnXLen: nnXLen,
                                    nnYLen: nnYLen,
-                                   batchSize: batchSize,
-                                   useFP16: useFP16,
-                                   useNHWC: useNHWC)
+                                   batchSize: batchSize)
 
         let midActivation = ActivationLayer(graph: graph,
                                             sourceTensor: midBN.resultTensor,
@@ -1094,9 +895,7 @@ struct ActivationLayer {
                                   descriptor: descriptor.finalConv,
                                   batchSize: batchSize,
                                   nnXLen: nnXLen,
-                                  nnYLen: nnYLen,
-                                  useFP16: useFP16,
-                                  useNHWC: useNHWC)
+                                  nnYLen: nnYLen)
 
         resultTensor = graph.addition(sourceTensor,
                                       finalConv.resultTensor,
@@ -1117,16 +916,12 @@ struct GlobalPoolingLayer {
     ///   - sourceTensor: The source tensor to be pooled
     ///   - maskSumTensor: The sum of the mask
     ///   - maskSumSqrtS14M01Tensor: The multiplication of subtraction of square root of the sum of the mask
-    ///   - useFP16: If true, use FP16, otherwise use FP32
-    ///   - useNHWC: If true, use NHWC, otherwise use NCHW
     init(graph: MPSGraph,
          sourceTensor: MPSGraphTensor,
          maskSumTensor: MPSGraphTensor,
-         maskSumSqrtS14M01Tensor: MPSGraphTensor,
-         useFP16: Bool,
-         useNHWC: Bool) {
-        let hwAxes = InputShape.getHWAxes(useNHWC: useNHWC)
-        let channelAxis = InputShape.getChannelAxis(useNHWC: useNHWC)
+         maskSumSqrtS14M01Tensor: MPSGraphTensor) {
+        let hwAxes = InputShape.getHWAxes()
+        let channelAxis = InputShape.getChannelAxis()
 
         let sumTensor = graph.reductionSum(with: sourceTensor,
                                            axes: hwAxes,
@@ -1149,10 +944,8 @@ struct GlobalPoolingLayer {
                                            name: nil)
 
         assert(resultTensor.shape?.count == 4)
-        assert(useNHWC || (resultTensor.shape?[2] == 1))
-        assert(useNHWC || (resultTensor.shape?[3] == 1))
-        assert(!useNHWC || (resultTensor.shape?[1] == 1))
-        assert(!useNHWC || (resultTensor.shape?[2] == 1))
+        assert(resultTensor.shape?[2] == 1)
+        assert(resultTensor.shape?[3] == 1)
     }
 }
 
@@ -1167,17 +960,13 @@ struct GlobalPoolingValueLayer {
     ///   - maskSumTensor: The sum of the mask
     ///   - maskSumSqrtS14M01Tensor: The multiplication of subtraction of square root of the sum of the mask
     ///   - maskSumSqrtS14M01SquareS01Tensor: The subtraction of square of multiplication of subtraction of square root of the sum of the mask
-    ///   - useFP16: If true, use FP16, otherwise use FP32
-    ///   - useNHWC: If true, use NHWC, otherwise use NCHW
     init(graph: MPSGraph,
          sourceTensor: MPSGraphTensor,
          maskSumTensor: MPSGraphTensor,
          maskSumSqrtS14M01Tensor: MPSGraphTensor,
-         maskSumSqrtS14M01SquareS01Tensor: MPSGraphTensor,
-         useFP16: Bool,
-         useNHWC: Bool) {
-        let hwAxes = InputShape.getHWAxes(useNHWC: useNHWC)
-        let channelAxis = InputShape.getChannelAxis(useNHWC: useNHWC)
+         maskSumSqrtS14M01SquareS01Tensor: MPSGraphTensor) {
+        let hwAxes = InputShape.getHWAxes()
+        let channelAxis = InputShape.getChannelAxis()
 
         let sumTensor = graph.reductionSum(with: sourceTensor,
                                            axes: hwAxes,
@@ -1200,10 +989,8 @@ struct GlobalPoolingValueLayer {
                                            name: nil)
 
         assert(resultTensor.shape?.count == 4)
-        assert(useNHWC || (resultTensor.shape?[2] == 1))
-        assert(useNHWC || (resultTensor.shape?[3] == 1))
-        assert(!useNHWC || (resultTensor.shape?[1] == 1))
-        assert(!useNHWC || (resultTensor.shape?[2] == 1))
+        assert(resultTensor.shape?[2] == 1)
+        assert(resultTensor.shape?[3] == 1)
     }
 }
 
@@ -1240,38 +1027,22 @@ struct MatMulLayer {
     ///   - graph: The graph.
     ///   - descriptor: The matrix multiplication layer descriptor.
     ///   - sourceTensor: The input tensor to the layer.
-    ///   - useFP16: If true, use FP16, otherwise use FP32.
-    ///   - useNHWC: If true, use NHWC, otherwise use NCHW.
     init(graph: MPSGraph,
          descriptor: SWMatMulLayerDesc,
-         sourceTensor: MPSGraphTensor,
-         useFP16: Bool,
-         useNHWC: Bool) {
-
-        assert(useNHWC ||
-               (descriptor.outChannels == 1) ||
-               (sourceTensor.shape?.count == 2) ||
-               ((sourceTensor.shape?.count == 4) &&
-                (sourceTensor.shape?[2] == 1) && (sourceTensor.shape?[3] == 1)))
+         sourceTensor: MPSGraphTensor) {
 
         assert((sourceTensor.shape?.count == 4) || (sourceTensor.shape?[1] == descriptor.inChannels))
-
-        assert((sourceTensor.shape?.count == 2) || useNHWC || (sourceTensor.shape?[1] == descriptor.inChannels))
-
-        assert((sourceTensor.shape?.count == 2) || (!useNHWC) || (sourceTensor.shape?[3] == descriptor.inChannels))
-
-        let dataType = MPSDataType.init(useFP16: useFP16)
+        assert((sourceTensor.shape?.count == 2) || (sourceTensor.shape?[1] == descriptor.inChannels))
 
         let weightsShape = [descriptor.inChannels,
                             descriptor.outChannels]
 
         let weightsData = Data(floatsNoCopy: descriptor.weights,
-                               useFP16: useFP16,
                                shape: weightsShape)
 
         let weightsTensor = graph.constant(weightsData,
                                            shape: weightsShape,
-                                           dataType: dataType)
+                                           dataType: MPSDataType.float32)
 
         let shape = [-1, descriptor.inChannels]
 
@@ -1315,26 +1086,20 @@ struct MatBiasLayer {
     ///   - graph: The graph.
     ///   - descriptor: The descriptor that contains information about the layer
     ///   - sourceTensor: The input tensor to the layer.
-    ///   - useFP16: If true, use FP16, otherwise use FP32.
-    ///   - useNHWC: If true, use NHWC, otherwise use NCHW.
     init(graph: MPSGraph,
          descriptor: SWMatBiasLayerDesc,
-         sourceTensor: MPSGraphTensor,
-         useFP16: Bool,
-         useNHWC: Bool) {
+         sourceTensor: MPSGraphTensor) {
 
         assert((sourceTensor.shape?.count == 2) && (sourceTensor.shape?[1] == descriptor.numChannels))
 
-        let dataType = MPSDataType.init(useFP16: useFP16)
         let weightsShape = [1, descriptor.numChannels]
 
         let weightsData = Data(floatsNoCopy: descriptor.weights,
-                               useFP16: useFP16,
                                shape: weightsShape)
 
         let weightsTensor = graph.constant(weightsData,
                                            shape: weightsShape,
-                                           dataType: dataType)
+                                           dataType: MPSDataType.float32)
 
         resultTensor = graph.addition(sourceTensor,
                                       weightsTensor,
@@ -1356,32 +1121,25 @@ struct AddNCBiasLayer {
     ///   - nnXLen: The x length.
     ///   - nnYLen: The y length.
     ///   - numChannels: The number of channels.
-    ///   - useFP16: If true, use FP16, otherwise use FP32.
-    ///   - useNHWC: If true, use NHWC, otherwise use NCHW.
     init(graph: MPSGraph,
          sourceTensor: MPSGraphTensor,
          biasTensor: MPSGraphTensor,
          batchSize: NSNumber,
          nnXLen: NSNumber,
          nnYLen: NSNumber,
-         numChannels: NSNumber,
-         useFP16: Bool,
-         useNHWC: Bool) {
+         numChannels: NSNumber) {
         let shape = InputShape.create(batchSize: batchSize,
                                       numChannels: numChannels,
                                       nnYLen: 1,
-                                      nnXLen: 1,
-                                      useNHWC: useNHWC)
+                                      nnXLen: 1)
 
         assert(biasTensor.countElements() == shape.countElements())
         let reshaped = graph.reshape(biasTensor, shape: shape, name: nil)
         resultTensor = graph.addition(sourceTensor, reshaped, name: nil)
 
         assert(resultTensor.shape?.count == 4)
-        assert(useNHWC || resultTensor.shape?[2] == nnYLen)
-        assert(useNHWC || resultTensor.shape?[3] == nnXLen)
-        assert(!useNHWC || resultTensor.shape?[1] == nnYLen)
-        assert(!useNHWC || resultTensor.shape?[2] == nnXLen)
+        assert(resultTensor.shape?[2] == nnYLen)
+        assert(resultTensor.shape?[3] == nnXLen)
     }
 }
 
@@ -1463,8 +1221,6 @@ struct AddNCBiasLayer {
     ///   - batchSize: The batch size
     ///   - nnXLen: The X length
     ///   - nnYLen: The Y length
-    ///   - useFP16: If true, use 16-bit floating point format, otherwise use 32-bit
-    ///   - useNHWC: If true, use NHWC format, otherwise use NCHW format
     ///   - input: The input pointer
     ///   - mask: The mask pointer
     ///   - output: The output pointer
@@ -1472,8 +1228,6 @@ struct AddNCBiasLayer {
                           batchSize: NSNumber,
                           nnXLen: NSNumber,
                           nnYLen: NSNumber,
-                          useFP16: Bool,
-                          useNHWC: Bool,
                           input: UnsafeMutablePointer<Float32>,
                           mask: UnsafeMutablePointer<Float32>,
                           output: UnsafeMutablePointer<Float32>) {
@@ -1482,17 +1236,15 @@ struct AddNCBiasLayer {
                            nnXLen: nnXLen,
                            nnYLen: nnYLen,
                            numChannels: descriptor.preBN.numChannels,
-                           useFP16: useFP16,
-                           useNHWC: useNHWC,
                            input: input,
                            mask: mask,
                            output: output) { graph, inputLayer, maskLayer in
 
-            let maskSum = MaskSumLayer(graph: graph, mask: maskLayer, useNHWC: useNHWC)
+            let maskSum = MaskSumLayer(graph: graph,
+                                       maskTensor: maskLayer.tensor)
 
             let maskSumSqrtS14M01 = MaskSumSqrtS14M01Layer(graph: graph,
-                                                           maskSum: maskSum,
-                                                           useFP16: useFP16)
+                                                           maskSum: maskSum)
 
             let block =
             GlobalPoolingResidualBlock(graph: graph,
@@ -1503,9 +1255,7 @@ struct AddNCBiasLayer {
                                        descriptor: descriptor,
                                        nnXLen: nnXLen,
                                        nnYLen: nnYLen,
-                                       batchSize: batchSize,
-                                       useFP16: useFP16,
-                                       useNHWC: useNHWC)
+                                       batchSize: batchSize)
 
             return block.resultTensor
         }
@@ -1523,8 +1273,6 @@ struct AddNCBiasLayer {
     ///   - nnXLen: The X length
     ///   - nnYLen: The Y length
     ///   - batchSize: The batch size
-    ///   - useFP16: If true, use 16-bit floating point format, otherwise use 32-bit
-    ///   - useNHWC: If true, use NHWC format, otherwise use NCHW format
     init(graph: MPSGraph,
          sourceTensor: MPSGraphTensor,
          maskTensor: MPSGraphTensor,
@@ -1533,22 +1281,17 @@ struct AddNCBiasLayer {
          descriptor: SWGlobalPoolingResidualBlockDesc,
          nnXLen: NSNumber,
          nnYLen: NSNumber,
-         batchSize: NSNumber,
-         useFP16: Bool,
-         useNHWC: Bool) {
-        let mask = MaskLayer(tensor: maskTensor)
+         batchSize: NSNumber) {
         let maskSum = MaskSumLayer(tensor: maskSumTensor)
         let maskSumSqrtS14M01 = MaskSumSqrtS14M01Layer(tensor: maskSumSqrtS14M01Tensor)
 
         let preBN = BatchNormLayer(graph: graph,
                                    sourceTensor: sourceTensor,
-                                   maskTensor: mask.tensor,
+                                   maskTensor: maskTensor,
                                    descriptor: descriptor.preBN,
                                    nnXLen: nnXLen,
                                    nnYLen: nnYLen,
-                                   batchSize: batchSize,
-                                   useFP16: useFP16,
-                                   useNHWC: useNHWC)
+                                   batchSize: batchSize)
 
         let preActivation = ActivationLayer(graph: graph,
                                             sourceTensor: preBN.resultTensor,
@@ -1559,28 +1302,22 @@ struct AddNCBiasLayer {
                                     descriptor: descriptor.regularConv,
                                     batchSize: batchSize,
                                     nnXLen: nnXLen,
-                                    nnYLen: nnYLen,
-                                    useFP16: useFP16,
-                                    useNHWC: useNHWC)
+                                    nnYLen: nnYLen)
 
         let gpoolConv = ConvLayer(graph: graph,
                                   sourceTensor: preActivation.resultTensor,
                                   descriptor: descriptor.gpoolConv,
                                   batchSize: batchSize,
                                   nnXLen: nnXLen,
-                                  nnYLen: nnYLen,
-                                  useFP16: useFP16,
-                                  useNHWC: useNHWC)
+                                  nnYLen: nnYLen)
 
         let gpoolBN = BatchNormLayer(graph: graph,
                                      sourceTensor: gpoolConv.resultTensor,
-                                     maskTensor: mask.tensor,
+                                     maskTensor: maskTensor,
                                      descriptor: descriptor.gpoolBN,
                                      nnXLen: nnXLen,
                                      nnYLen: nnYLen,
-                                     batchSize: batchSize,
-                                     useFP16: useFP16,
-                                     useNHWC: useNHWC)
+                                     batchSize: batchSize)
 
         let gpoolActivation = ActivationLayer(graph: graph,
                                               sourceTensor: gpoolBN.resultTensor,
@@ -1589,18 +1326,13 @@ struct AddNCBiasLayer {
         let gpoolConcat = GlobalPoolingLayer(graph: graph,
                                              sourceTensor: gpoolActivation.resultTensor,
                                              maskSumTensor: maskSum.tensor,
-                                             maskSumSqrtS14M01Tensor: maskSumSqrtS14M01.tensor,
-                                             useFP16: useFP16,
-                                             useNHWC: useNHWC)
+                                             maskSumSqrtS14M01Tensor: maskSumSqrtS14M01.tensor)
 
-        assert(useNHWC || (gpoolConcat.resultTensor.shape?[1] == descriptor.gpoolToBiasMul.inChannels))
-        assert(!useNHWC || (gpoolConcat.resultTensor.shape?[3] == descriptor.gpoolToBiasMul.inChannels))
+        assert(gpoolConcat.resultTensor.shape?[1] == descriptor.gpoolToBiasMul.inChannels)
 
         let gpoolToBiasMul = MatMulLayer(graph: graph,
                                          descriptor: descriptor.gpoolToBiasMul,
-                                         sourceTensor: gpoolConcat.resultTensor,
-                                         useFP16: useFP16,
-                                         useNHWC: useNHWC)
+                                         sourceTensor: gpoolConcat.resultTensor)
 
         let added = AddNCBiasLayer(graph: graph,
                                    sourceTensor: regularConv.resultTensor,
@@ -1608,19 +1340,15 @@ struct AddNCBiasLayer {
                                    batchSize: batchSize,
                                    nnXLen: nnXLen,
                                    nnYLen: nnYLen,
-                                   numChannels: descriptor.gpoolToBiasMul.outChannels,
-                                   useFP16: useFP16,
-                                   useNHWC: useNHWC)
+                                   numChannels: descriptor.gpoolToBiasMul.outChannels)
 
         let midBN = BatchNormLayer(graph: graph,
                                    sourceTensor: added.resultTensor,
-                                   maskTensor: mask.tensor,
+                                   maskTensor: maskTensor,
                                    descriptor: descriptor.midBN,
                                    nnXLen: nnXLen,
                                    nnYLen: nnYLen,
-                                   batchSize: batchSize,
-                                   useFP16: useFP16,
-                                   useNHWC: useNHWC)
+                                   batchSize: batchSize)
 
         let midActivation = ActivationLayer(graph: graph,
                                             sourceTensor: midBN.resultTensor,
@@ -1631,9 +1359,7 @@ struct AddNCBiasLayer {
                                   descriptor: descriptor.finalConv,
                                   batchSize: batchSize,
                                   nnXLen: nnXLen,
-                                  nnYLen: nnYLen,
-                                  useFP16: useFP16,
-                                  useNHWC: useNHWC)
+                                  nnYLen: nnYLen)
 
         resultTensor = graph.addition(sourceTensor,
                                       finalConv.resultTensor,
@@ -1760,8 +1486,6 @@ struct BlockStack {
     ///   - nnXLen: X length
     ///   - nnYLen: Y length
     ///   - batchSize: Batch size
-    ///   - useFP16: If true, use FP16, otherwise use FP32
-    ///   - useNHWC: If true, use NHWC, otherwise use NCHW
     /// - Returns: The result tensor
     static func processBlockDescriptors(_ graph: MPSGraph,
                                         _ sourceTensor: MPSGraphTensor,
@@ -1772,9 +1496,7 @@ struct BlockStack {
                                         _ index: Int,
                                         _ nnXLen: NSNumber,
                                         _ nnYLen: NSNumber,
-                                        _ batchSize: NSNumber,
-                                        _ useFP16: Bool,
-                                        _ useNHWC: Bool) -> MPSGraphTensor {
+                                        _ batchSize: NSNumber) -> MPSGraphTensor {
         guard index < blockDescriptors.count else {
             return sourceTensor
         }
@@ -1792,9 +1514,7 @@ struct BlockStack {
                                                            descriptor: blockDescriptor.globalPooling!,
                                                            nnXLen: nnXLen,
                                                            nnYLen: nnYLen,
-                                                           batchSize: batchSize,
-                                                           useFP16: useFP16,
-                                                           useNHWC: useNHWC)
+                                                           batchSize: batchSize)
 
             blockInput = globalPooling.resultTensor
         case .nestedBottleneck:
@@ -1806,9 +1526,7 @@ struct BlockStack {
                                                                  descriptor: blockDescriptor.nestedBottleneck!,
                                                                  nnXLen: nnXLen,
                                                                  nnYLen: nnYLen,
-                                                                 batchSize: batchSize,
-                                                                 useFP16: useFP16,
-                                                                 useNHWC: useNHWC)
+                                                                 batchSize: batchSize)
 
             blockInput = nestedBottleneck.resultTensor
         case .ordinary:
@@ -1818,9 +1536,7 @@ struct BlockStack {
                                          descriptor: blockDescriptor.ordinary!,
                                          nnXLen: nnXLen,
                                          nnYLen: nnYLen,
-                                         batchSize: batchSize,
-                                         useFP16: useFP16,
-                                         useNHWC: useNHWC)
+                                         batchSize: batchSize)
 
             blockInput = ordinary.resultTensor
         }
@@ -1834,9 +1550,7 @@ struct BlockStack {
                                        index + 1,
                                        nnXLen,
                                        nnYLen,
-                                       batchSize,
-                                       useFP16,
-                                       useNHWC)
+                                       batchSize)
     }
 
     /// Initialize a BlockStack object
@@ -1850,8 +1564,6 @@ struct BlockStack {
     ///   - nnXLen: X length
     ///   - nnYLen: Y length
     ///   - batchSize: Batch size
-    ///   - useFP16: If true, use FP16, otherwise use FP32
-    ///   - useNHWC: If true, use NHWC, otherwise use NCHW
     init(graph: MPSGraph,
          sourceTensor: MPSGraphTensor,
          maskTensor: MPSGraphTensor,
@@ -1860,9 +1572,7 @@ struct BlockStack {
          blockDescriptors: [BlockDescriptor],
          nnXLen: NSNumber,
          nnYLen: NSNumber,
-         batchSize: NSNumber,
-         useFP16: Bool,
-         useNHWC: Bool) {
+         batchSize: NSNumber) {
         resultTensor = BlockStack.processBlockDescriptors(graph,
                                                           sourceTensor,
                                                           maskTensor,
@@ -1872,9 +1582,7 @@ struct BlockStack {
                                                           0,
                                                           nnXLen,
                                                           nnYLen,
-                                                          batchSize,
-                                                          useFP16,
-                                                          useNHWC)
+                                                          batchSize)
     }
 }
 
@@ -1895,8 +1603,6 @@ struct NestedBottleneckResidualBlock {
     ///   - nnXLen: X length
     ///   - nnYLen: Y length
     ///   - batchSize: Batch size
-    ///   - useFP16: If true, use FP16, otherwise use FP32
-    ///   - useNHWC: If true, use NHWC, otherwise use NCHW
     init(graph: MPSGraph,
          sourceTensor: MPSGraphTensor,
          maskTensor: MPSGraphTensor,
@@ -1905,9 +1611,7 @@ struct NestedBottleneckResidualBlock {
          descriptor: SWNestedBottleneckResidualBlockDesc,
          nnXLen: NSNumber,
          nnYLen: NSNumber,
-         batchSize: NSNumber,
-         useFP16: Bool,
-         useNHWC: Bool) {
+         batchSize: NSNumber) {
 
         let preBN = BatchNormLayer(graph: graph,
                                    sourceTensor: sourceTensor,
@@ -1915,9 +1619,7 @@ struct NestedBottleneckResidualBlock {
                                    descriptor: descriptor.preBN,
                                    nnXLen: nnXLen,
                                    nnYLen: nnYLen,
-                                   batchSize: batchSize,
-                                   useFP16: useFP16,
-                                   useNHWC: useNHWC)
+                                   batchSize: batchSize)
 
         let preActivation = ActivationLayer(graph: graph,
                                             sourceTensor: preBN.resultTensor,
@@ -1928,9 +1630,7 @@ struct NestedBottleneckResidualBlock {
                                 descriptor: descriptor.preConv,
                                 batchSize: batchSize,
                                 nnXLen: nnXLen,
-                                nnYLen: nnYLen,
-                                useFP16: useFP16,
-                                useNHWC: useNHWC)
+                                nnYLen: nnYLen)
 
         let blocks = BlockStack(graph: graph,
                                 sourceTensor: preConv.resultTensor,
@@ -1940,9 +1640,7 @@ struct NestedBottleneckResidualBlock {
                                 blockDescriptors: descriptor.blockDescriptors,
                                 nnXLen: nnXLen,
                                 nnYLen: nnYLen,
-                                batchSize: batchSize,
-                                useFP16: useFP16,
-                                useNHWC: useNHWC)
+                                batchSize: batchSize)
 
         let postBN = BatchNormLayer(graph: graph,
                                     sourceTensor: blocks.resultTensor,
@@ -1950,9 +1648,7 @@ struct NestedBottleneckResidualBlock {
                                     descriptor: descriptor.postBN,
                                     nnXLen: nnXLen,
                                     nnYLen: nnYLen,
-                                    batchSize: batchSize,
-                                    useFP16: useFP16,
-                                    useNHWC: useNHWC)
+                                    batchSize: batchSize)
 
         let postActivation = ActivationLayer(graph: graph,
                                              sourceTensor: postBN.resultTensor,
@@ -1963,9 +1659,7 @@ struct NestedBottleneckResidualBlock {
                                  descriptor: descriptor.postConv,
                                  batchSize: batchSize,
                                  nnXLen: nnXLen,
-                                 nnYLen: nnYLen,
-                                 useFP16: useFP16,
-                                 useNHWC: useNHWC)
+                                 nnYLen: nnYLen)
 
         resultTensor = graph.addition(sourceTensor,
                                       postConv.resultTensor,
@@ -2052,8 +1746,6 @@ struct Trunk {
     ///   - batchSize: The batch size of the input tensor
     ///   - numSpatialFeatures: The number of spatial features in the input tensor
     ///   - numGlobalFeatures: The number of global features in the input tensor
-    ///   - useFP16: Whether to use FP16 precision
-    ///   - useNHWC: Whether to use NHWC format
     init(graph: MPSGraph,
          descriptor: SWTrunkDesc,
          inputTensor: MPSGraphTensor,
@@ -2065,24 +1757,18 @@ struct Trunk {
          nnYLen: NSNumber,
          batchSize: NSNumber,
          numSpatialFeatures: NSNumber,
-         numGlobalFeatures: NSNumber,
-         useFP16: Bool,
-         useNHWC: Bool) {
+         numGlobalFeatures: NSNumber) {
 
         let initialConv = ConvLayer(graph: graph,
                                     sourceTensor: inputTensor,
                                     descriptor: descriptor.initialConv,
                                     batchSize: batchSize,
                                     nnXLen: nnXLen,
-                                    nnYLen: nnYLen,
-                                    useFP16: useFP16,
-                                    useNHWC: useNHWC)
+                                    nnYLen: nnYLen)
 
         let initialMatMul = MatMulLayer(graph: graph,
                                         descriptor: descriptor.initialMatMul,
-                                        sourceTensor: inputGlobalTensor,
-                                        useFP16: useFP16,
-                                        useNHWC: useNHWC)
+                                        sourceTensor: inputGlobalTensor)
 
         let added = AddNCBiasLayer(graph: graph,
                                    sourceTensor: initialConv.resultTensor,
@@ -2090,9 +1776,7 @@ struct Trunk {
                                    batchSize: batchSize,
                                    nnXLen: nnXLen,
                                    nnYLen: nnYLen,
-                                   numChannels: descriptor.initialMatMul.outChannels,
-                                   useFP16: useFP16,
-                                   useNHWC: useNHWC)
+                                   numChannels: descriptor.initialMatMul.outChannels)
 
         let blocks = BlockStack(graph: graph,
                                 sourceTensor: added.resultTensor,
@@ -2102,9 +1786,7 @@ struct Trunk {
                                 blockDescriptors: descriptor.blockDescriptors,
                                 nnXLen: nnXLen,
                                 nnYLen: nnYLen,
-                                batchSize: batchSize,
-                                useFP16: useFP16,
-                                useNHWC: useNHWC)
+                                batchSize: batchSize)
 
         let trunkTipBN = BatchNormLayer(graph: graph,
                                         sourceTensor: blocks.resultTensor,
@@ -2112,9 +1794,7 @@ struct Trunk {
                                         descriptor: descriptor.trunkTipBN,
                                         nnXLen: nnXLen,
                                         nnYLen: nnYLen,
-                                        batchSize: batchSize,
-                                        useFP16: useFP16,
-                                        useNHWC: useNHWC)
+                                        batchSize: batchSize)
 
         let trunkTipActivation = ActivationLayer(graph: graph,
                                                  sourceTensor: trunkTipBN.resultTensor,
@@ -2203,8 +1883,6 @@ struct PolicyHead {
     ///   - nnXLen: The number of X pixels in the input tensor
     ///   - nnYLen: The number of Y pixels in the input tensor
     ///   - batchSize: The batch size of the input tensor
-    ///   - useFP16: A boolean flag that determines whether the policy head uses FP16
-    ///   - useNHWC: A boolean flag that determines whether the policy head uses NHWC
     init(graph: MPSGraph,
          descriptor: SWPolicyHeadDesc,
          sourceTensor: MPSGraphTensor,
@@ -2213,27 +1891,21 @@ struct PolicyHead {
          maskSumSqrtS14M01Tensor: MPSGraphTensor,
          nnXLen: NSNumber,
          nnYLen: NSNumber,
-         batchSize: NSNumber,
-         useFP16: Bool,
-         useNHWC: Bool) {
+         batchSize: NSNumber) {
 
         let p1Conv = ConvLayer(graph: graph,
                                sourceTensor: sourceTensor,
                                descriptor: descriptor.p1Conv,
                                batchSize: batchSize,
                                nnXLen: nnXLen,
-                               nnYLen: nnYLen,
-                               useFP16: useFP16,
-                               useNHWC: useNHWC)
+                               nnYLen: nnYLen)
 
         let g1Conv = ConvLayer(graph: graph,
                                sourceTensor: sourceTensor,
                                descriptor: descriptor.g1Conv,
                                batchSize: batchSize,
                                nnXLen: nnXLen,
-                               nnYLen: nnYLen,
-                               useFP16: useFP16,
-                               useNHWC: useNHWC)
+                               nnYLen: nnYLen)
 
         let g1BN = BatchNormLayer(graph: graph,
                                   sourceTensor: g1Conv.resultTensor,
@@ -2241,9 +1913,7 @@ struct PolicyHead {
                                   descriptor: descriptor.g1BN,
                                   nnXLen: nnXLen,
                                   nnYLen: nnYLen,
-                                  batchSize: batchSize,
-                                  useFP16: useFP16,
-                                  useNHWC: useNHWC)
+                                  batchSize: batchSize)
 
         let g1Activation = ActivationLayer(graph: graph,
                                            sourceTensor: g1BN.resultTensor,
@@ -2252,18 +1922,13 @@ struct PolicyHead {
         let g1Concat = GlobalPoolingLayer(graph: graph,
                                           sourceTensor: g1Activation.resultTensor,
                                           maskSumTensor: maskSumTensor,
-                                          maskSumSqrtS14M01Tensor: maskSumSqrtS14M01Tensor,
-                                          useFP16: useFP16,
-                                          useNHWC: useNHWC)
+                                          maskSumSqrtS14M01Tensor: maskSumSqrtS14M01Tensor)
 
-        assert(useNHWC || (g1Concat.resultTensor.shape?[1] == descriptor.gpoolToBiasMul.inChannels))
-        assert(!useNHWC || (g1Concat.resultTensor.shape?[3] == descriptor.gpoolToBiasMul.inChannels))
+        assert(g1Concat.resultTensor.shape?[1] == descriptor.gpoolToBiasMul.inChannels)
 
         let gpoolToBiasMul = MatMulLayer(graph: graph,
                                          descriptor: descriptor.gpoolToBiasMul,
-                                         sourceTensor: g1Concat.resultTensor,
-                                         useFP16: useFP16,
-                                         useNHWC: useNHWC)
+                                         sourceTensor: g1Concat.resultTensor)
 
         let added = AddNCBiasLayer(graph: graph,
                                    sourceTensor: p1Conv.resultTensor,
@@ -2271,9 +1936,7 @@ struct PolicyHead {
                                    batchSize: batchSize,
                                    nnXLen: nnXLen,
                                    nnYLen: nnYLen,
-                                   numChannels: descriptor.gpoolToBiasMul.outChannels,
-                                   useFP16: useFP16,
-                                   useNHWC: useNHWC)
+                                   numChannels: descriptor.gpoolToBiasMul.outChannels)
 
         let p1BN = BatchNormLayer(graph: graph,
                                   sourceTensor: added.resultTensor,
@@ -2281,9 +1944,7 @@ struct PolicyHead {
                                   descriptor: descriptor.p1BN,
                                   nnXLen: nnXLen,
                                   nnYLen: nnYLen,
-                                  batchSize: batchSize,
-                                  useFP16: useFP16,
-                                  useNHWC: useNHWC)
+                                  batchSize: batchSize)
 
         let p1Activation = ActivationLayer(graph: graph,
                                            sourceTensor: p1BN.resultTensor,
@@ -2294,18 +1955,13 @@ struct PolicyHead {
                                descriptor: descriptor.p2Conv,
                                batchSize: batchSize,
                                nnXLen: nnXLen,
-                               nnYLen: nnYLen,
-                               useFP16: useFP16,
-                               useNHWC: useNHWC)
+                               nnYLen: nnYLen)
 
-        assert(useNHWC || (g1Concat.resultTensor.shape?[1] == descriptor.gpoolToPassMul.inChannels))
-        assert(!useNHWC || (g1Concat.resultTensor.shape?[3] == descriptor.gpoolToPassMul.inChannels))
+        assert(g1Concat.resultTensor.shape?[1] == descriptor.gpoolToPassMul.inChannels)
 
         let gpoolToPassMul = MatMulLayer(graph: graph,
                                          descriptor: descriptor.gpoolToPassMul,
-                                         sourceTensor: g1Concat.resultTensor,
-                                         useFP16: useFP16,
-                                         useNHWC: useNHWC)
+                                         sourceTensor: g1Concat.resultTensor)
 
         policyTensor = p2Conv.resultTensor
         policyPassTensor = gpoolToPassMul.resultTensor
@@ -2404,8 +2060,6 @@ struct ValueHead {
     ///   - nnXLen: The x-axis length of the neural network
     ///   - nnYLen: The y-axis length of the neural network
     ///   - batchSize: The size of the batch
-    ///   - useFP16: A boolean value indicating whether to use half-precision floating-point numbers
-    ///   - useNHWC: A boolean value indicating whether to use NHWC (channel last) format for the tensor shape
     init(graph: MPSGraph,
          descriptor: SWValueHeadDesc,
          sourceTensor: MPSGraphTensor,
@@ -2415,18 +2069,14 @@ struct ValueHead {
          maskSumSqrtS14M01SquareS01Tensor: MPSGraphTensor,
          nnXLen: NSNumber,
          nnYLen: NSNumber,
-         batchSize: NSNumber,
-         useFP16: Bool,
-         useNHWC: Bool) {
+         batchSize: NSNumber) {
 
         let v1Conv = ConvLayer(graph: graph,
                                sourceTensor: sourceTensor,
                                descriptor: descriptor.v1Conv,
                                batchSize: batchSize,
                                nnXLen: nnXLen,
-                               nnYLen: nnYLen,
-                               useFP16: useFP16,
-                               useNHWC: useNHWC)
+                               nnYLen: nnYLen)
 
         let v1BN = BatchNormLayer(graph: graph,
                                   sourceTensor: v1Conv.resultTensor,
@@ -2434,9 +2084,7 @@ struct ValueHead {
                                   descriptor: descriptor.v1BN,
                                   nnXLen: nnXLen,
                                   nnYLen: nnYLen,
-                                  batchSize: batchSize,
-                                  useFP16: useFP16,
-                                  useNHWC: useNHWC)
+                                  batchSize: batchSize)
 
         let v1Activation = ActivationLayer(graph: graph,
                                            sourceTensor: v1BN.resultTensor,
@@ -2447,24 +2095,17 @@ struct ValueHead {
                                 sourceTensor: v1Activation.resultTensor,
                                 maskSumTensor: maskSumTensor,
                                 maskSumSqrtS14M01Tensor: maskSumSqrtS14M01Tensor,
-                                maskSumSqrtS14M01SquareS01Tensor: maskSumSqrtS14M01SquareS01Tensor,
-                                useFP16: useFP16,
-                                useNHWC: useNHWC)
+                                maskSumSqrtS14M01SquareS01Tensor: maskSumSqrtS14M01SquareS01Tensor)
 
-        assert(useNHWC || (v1Mean.resultTensor.shape?[1] == descriptor.v2Mul.inChannels))
-        assert(!useNHWC || (v1Mean.resultTensor.shape?[3] == descriptor.v2Mul.inChannels))
+        assert(v1Mean.resultTensor.shape?[1] == descriptor.v2Mul.inChannels)
 
         let v2Mul = MatMulLayer(graph: graph,
                                 descriptor: descriptor.v2Mul,
-                                sourceTensor: v1Mean.resultTensor,
-                                useFP16: useFP16,
-                                useNHWC: useNHWC)
+                                sourceTensor: v1Mean.resultTensor)
 
         let v2Bias = MatBiasLayer(graph: graph,
                                   descriptor: descriptor.v2Bias,
-                                  sourceTensor: v2Mul.resultTensor,
-                                  useFP16: useFP16,
-                                  useNHWC: useNHWC)
+                                  sourceTensor: v2Mul.resultTensor)
 
         let v2Activation = ActivationLayer(graph: graph,
                                            sourceTensor: v2Bias.resultTensor,
@@ -2472,36 +2113,26 @@ struct ValueHead {
 
         let v3Mul = MatMulLayer(graph: graph,
                                 descriptor: descriptor.v3Mul,
-                                sourceTensor: v2Activation.resultTensor,
-                                useFP16: useFP16,
-                                useNHWC: useNHWC)
+                                sourceTensor: v2Activation.resultTensor)
 
         let v3Bias = MatBiasLayer(graph: graph,
                                   descriptor: descriptor.v3Bias,
-                                  sourceTensor: v3Mul.resultTensor,
-                                  useFP16: useFP16,
-                                  useNHWC: useNHWC)
+                                  sourceTensor: v3Mul.resultTensor)
 
         let sv3Mul = MatMulLayer(graph: graph,
                                  descriptor: descriptor.sv3Mul,
-                                 sourceTensor: v2Activation.resultTensor,
-                                 useFP16: useFP16,
-                                 useNHWC: useNHWC)
+                                 sourceTensor: v2Activation.resultTensor)
 
         let sv3Bias = MatBiasLayer(graph: graph,
                                    descriptor: descriptor.sv3Bias,
-                                   sourceTensor: sv3Mul.resultTensor,
-                                   useFP16: useFP16,
-                                   useNHWC: useNHWC)
+                                   sourceTensor: sv3Mul.resultTensor)
 
         let vOwnershipConv = ConvLayer(graph: graph,
                                        sourceTensor: v1Activation.resultTensor,
                                        descriptor: descriptor.vOwnershipConv,
                                        batchSize: batchSize,
                                        nnXLen: nnXLen,
-                                       nnYLen: nnYLen,
-                                       useFP16: useFP16,
-                                       useNHWC: useNHWC)
+                                       nnYLen: nnYLen)
 
         valueTensor = v3Bias.resultTensor
         scoreValueTensor = sv3Bias.resultTensor
@@ -2582,8 +2213,6 @@ struct Model {
     let nnYLen: NSNumber
     /// The batch size of the neural network input
     let batchSize: NSNumber
-    /// A flag that indicates whether or not to use the half-precision floating point format for computations
-    let useFP16: Bool
     /// The version of the model
     let version: Int
     /// The number of channels in the input layer
@@ -2639,21 +2268,16 @@ struct Model {
     ///   - nnXLen: The length of the neural network input in the x dimension.
     ///   - nnYLen: The length of the neural network input in the y dimension.
     ///   - batchSize: The batch size of the neural network input.
-    ///   - useFP16: A flag that indicates whether or not to use the half-precision floating point format for computations.
-    ///   - useNHWC: A flag that indicates whether or not to use the NHWC format for computations.
     init(device: MPSGraphDevice,
          graph: MPSGraph,
          descriptor: SWModelDesc,
          nnXLen: NSNumber,
          nnYLen: NSNumber,
-         batchSize: NSNumber,
-         useFP16: Bool,
-         useNHWC: Bool) {
+         batchSize: NSNumber) {
         self.graph = graph
         self.nnXLen = nnXLen
         self.nnYLen = nnYLen
         self.batchSize = batchSize
-        self.useFP16 = useFP16
         self.version = descriptor.version
         self.numInputChannels = descriptor.numInputChannels
         self.numInputGlobalChannels = descriptor.numInputGlobalChannels
@@ -2666,23 +2290,18 @@ struct Model {
                            batchSize: batchSize,
                            nnXLen: nnXLen,
                            nnYLen: nnYLen,
-                           numChannels: descriptor.numInputChannels,
-                           useFP16: useFP16,
-                           useNHWC: useNHWC)
+                           numChannels: descriptor.numInputChannels)
 
         inputGlobal = InputGlobalLayer(graph: graph,
                                        batchSize: batchSize,
-                                       numGlobalFeatures: descriptor.numInputGlobalChannels,
-                                       useFP16: useFP16,
-                                       useNHWC: useNHWC)
+                                       numGlobalFeatures: descriptor.numInputGlobalChannels)
 
         let startOfMask: [NSNumber] = [0, 0, 0, 0]
 
         let endOfMask = InputShape.create(batchSize: batchSize,
                                           numChannels: 1,
                                           nnYLen: nnYLen,
-                                          nnXLen: nnXLen,
-                                          useNHWC: useNHWC)
+                                          nnXLen: nnXLen)
 
         let maskTensor = graph.sliceTensor(input.tensor,
                                            starts: startOfMask,
@@ -2690,75 +2309,82 @@ struct Model {
                                            strides: [1, 1, 1, 1],
                                            name: nil)
 
-        let mask = MaskLayer(tensor: maskTensor)
-
         let maskSum = MaskSumLayer(graph: graph,
-                                   mask: mask,
-                                   useNHWC: useNHWC)
+                                   maskTensor: maskTensor)
 
         let maskSumSqrtS14M01 = MaskSumSqrtS14M01Layer(graph: graph,
-                                                       maskSum: maskSum,
-                                                       useFP16: useFP16)
+                                                       maskSum: maskSum)
 
         let maskSumSqrtS14M01SquareS01 = MaskSumSqrtS14M01SquareS01Layer(graph: graph,
-                                                                         maskSumSqrtS14M01: maskSumSqrtS14M01,
-                                                                         useFP16: useFP16)
+                                                                         maskSumSqrtS14M01: maskSumSqrtS14M01)
 
         trunk = Trunk(graph: graph,
                       descriptor: descriptor.trunk,
                       inputTensor: input.tensor,
                       inputGlobalTensor: inputGlobal.tensor,
-                      maskTensor: mask.tensor,
+                      maskTensor: maskTensor,
                       maskSumTensor: maskSum.tensor,
                       maskSumSqrtS14M01Tensor: maskSumSqrtS14M01.tensor,
                       nnXLen: nnXLen,
                       nnYLen: nnYLen,
                       batchSize: batchSize,
                       numSpatialFeatures: descriptor.numInputChannels,
-                      numGlobalFeatures: descriptor.numInputGlobalChannels,
-                      useFP16: useFP16,
-                      useNHWC: useNHWC)
+                      numGlobalFeatures: descriptor.numInputGlobalChannels)
 
         policyHead = PolicyHead(graph: graph,
                                 descriptor: descriptor.policyHead,
                                 sourceTensor: trunk.resultTensor,
-                                maskTensor: mask.tensor,
+                                maskTensor: maskTensor,
                                 maskSumTensor: maskSum.tensor,
                                 maskSumSqrtS14M01Tensor: maskSumSqrtS14M01.tensor,
                                 nnXLen: nnXLen,
                                 nnYLen: nnYLen,
-                                batchSize: batchSize,
-                                useFP16: useFP16,
-                                useNHWC: useNHWC)
+                                batchSize: batchSize)
 
         valueHead = ValueHead(graph: graph,
                               descriptor: descriptor.valueHead,
                               sourceTensor: trunk.resultTensor,
-                              maskTensor: mask.tensor,
+                              maskTensor: maskTensor,
                               maskSumTensor: maskSum.tensor,
                               maskSumSqrtS14M01Tensor: maskSumSqrtS14M01.tensor,
                               maskSumSqrtS14M01SquareS01Tensor: maskSumSqrtS14M01SquareS01.tensor,
                               nnXLen: nnXLen,
                               nnYLen: nnYLen,
-                              batchSize: batchSize,
-                              useFP16: useFP16,
-                              useNHWC: useNHWC)
+                              batchSize: batchSize)
 
-        inputArray = MPSNDArray(device: device.metalDevice!,
-                                tensor: input.tensor)
+        let metalDevice = device.metalDevice!
+
+        let inputShape = InputShape.create(batchSize: batchSize,
+                                           numChannels: descriptor.numInputChannels,
+                                           nnYLen: nnYLen,
+                                           nnXLen: nnXLen)
+
+        let inputDescriptor = MPSNDArrayDescriptor(dataType: input.tensor.dataType,
+                                                   shape: inputShape)
+
+        inputArray = MPSNDArray(device: metalDevice,
+                                descriptor: inputDescriptor)
 
         inputArrayWriter = MPSNDArrayDataWriter(mpsNDArray: inputArray)
 
-        inputGlobalArray = MPSNDArray(device: device.metalDevice!,
-                                      tensor: inputGlobal.tensor)
+        let inputGlobalShape = InputShape.create(batchSize: batchSize,
+                                                 numChannels: descriptor.numInputGlobalChannels,
+                                                 nnYLen: 1,
+                                                 nnXLen: 1)
+
+        let inputGlobalDescriptor = MPSNDArrayDescriptor(dataType: inputGlobal.tensor.dataType,
+                                                         shape: inputGlobalShape)
+
+        inputGlobalArray = MPSNDArray(device: metalDevice,
+                                      descriptor: inputGlobalDescriptor)
 
         inputGlobalArrayWriter = MPSNDArrayDataWriter(mpsNDArray: inputGlobalArray)
 
-        policyArrayReader = MPSNDArrayDataReader(mpsGraphTensor: policyHead.policyTensor)
-        policyPassArrayReader = MPSNDArrayDataReader(mpsGraphTensor: policyHead.policyPassTensor)
-        valueArrayReader = MPSNDArrayDataReader(mpsGraphTensor: valueHead.valueTensor)
-        scoreValueArrayReader = MPSNDArrayDataReader(mpsGraphTensor: valueHead.scoreValueTensor)
-        ownershipArrayReader = MPSNDArrayDataReader(mpsGraphTensor: valueHead.ownershipTensor)
+        policyArrayReader = MPSNDArrayDataReader()
+        policyPassArrayReader = MPSNDArrayDataReader()
+        valueArrayReader = MPSNDArrayDataReader()
+        scoreValueArrayReader = MPSNDArrayDataReader()
+        ownershipArrayReader = MPSNDArrayDataReader()
 
         feeds = [input.tensor: MPSGraphTensorData(inputArray),
                  inputGlobal.tensor: MPSGraphTensorData(inputGlobalArray)]
@@ -2785,7 +2411,8 @@ struct Model {
                policyPass: UnsafeMutablePointer<Float32>,
                value: UnsafeMutablePointer<Float32>,
                scoreValue: UnsafeMutablePointer<Float32>,
-               ownership: UnsafeMutablePointer<Float32>) {
+               ownership: UnsafeMutablePointer<Float32>,
+               batchSize: Int) {
 
         inputArrayWriter.writeData(pointerFP32: inputPointer)
         inputGlobalArrayWriter.writeData(pointerFP32: inputGlobalPointer)
@@ -2829,20 +2456,14 @@ struct Model {
 @objc class MetalComputeContext: NSObject {
     static let defaultNnXLen: NSNumber = 19
     static let defaultNnYLen: NSNumber = 19
-    static let defaultUseFP16Mode: SWEnable = .Auto
-    static let defaultUseNHWCMode: SWEnable = .Auto
 
     static let defaultInstance = MetalComputeContext(nnXLen: defaultNnXLen,
-                                                     nnYLen: defaultNnYLen,
-                                                     useFP16Mode: defaultUseFP16Mode,
-                                                     useNHWCMode: defaultUseNHWCMode)
+                                                     nnYLen: defaultNnYLen)
 
     static var instance = defaultInstance
 
     let nnXLen: NSNumber
     let nnYLen: NSNumber
-    let useFP16: Bool
-    let useNHWC: Bool
 
     /// Create a context.
     /// - Parameters:
@@ -2858,9 +2479,7 @@ struct Model {
         defer { objc_sync_exit(self) }
 
         instance = MetalComputeContext(nnXLen: nnXLen,
-                                       nnYLen: nnYLen,
-                                       useFP16Mode: useFP16Mode,
-                                       useNHWCMode: useNHWCMode)
+                                       nnYLen: nnYLen)
     }
 
     /// Destroy the context.
@@ -2884,16 +2503,10 @@ struct Model {
     /// - Parameters:
     ///   - nnXLen: The width of the input tensor.
     ///   - nnYLen: The height of the input tensor.
-    ///   - useFP16Mode: use FP16 mode or not.
-    ///   - useNHWCMode: use NHWC mode or not.
     private init(nnXLen: NSNumber,
-                 nnYLen: NSNumber,
-                 useFP16Mode: SWEnable,
-                 useNHWCMode: SWEnable) {
+                 nnYLen: NSNumber) {
         self.nnXLen = nnXLen
         self.nnYLen = nnYLen
-        self.useFP16 = (useFP16Mode == .True)
-        self.useNHWC = (useNHWCMode == .True)
     }
 }
 
@@ -2949,7 +2562,7 @@ struct Model {
         if ((gpuIdx >= 0) && (gpuIdx < devices.count)) {
             mtlDevice = devices[gpuIdx]
         } else {
-            mtlDevice = MTLCreateSystemDefaultDevice()!
+            mtlDevice = MetalBackend.defaultDevice
         }
 
         let device = MPSGraphDevice(mtlDevice: mtlDevice)
@@ -2963,16 +2576,15 @@ struct Model {
                       descriptor: descriptor,
                       nnXLen: context.nnXLen,
                       nnYLen: context.nnYLen,
-                      batchSize: batchSize,
-                      useFP16: context.useFP16,
-                      useNHWC: context.useNHWC)
+                      batchSize: batchSize)
 
-        NSLog("Metal backend thread \(threadIdx): \(mtlDevice.name) useFP16=\(context.useFP16) useNHWC=\(context.useNHWC) batchSize=\(batchSize)")
+        NSLog("Metal backend thread \(threadIdx): \(mtlDevice.name) batchSize=\(batchSize)")
     }
 }
 
 /// A class that represents Metal backend.
 @objc class MetalBackend : NSObject {
+    static let defaultDevice = MTLCreateSystemDefaultDevice()!
 
     /// Print all available devices.
     @objc class func printDevices() {
@@ -3022,7 +2634,8 @@ struct Model {
                                policyPass: policyPassOutput,
                                value: valueOutput,
                                scoreValue: scoreValueOutput,
-                               ownership: ownershipOutput)
+                               ownership: ownershipOutput,
+                               batchSize: 1)
         }
     }
 }
