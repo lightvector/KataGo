@@ -758,7 +758,7 @@ struct ActivationLayer {
 }
 
 /// A class that represents a residual block in a convolutional neural network.
-@objc class SWResidualBlockDesc: NSObject {
+@objc class SWResidualBlockDesc: BlockDescriptor {
     /// A description of the batch normalization layer that is applied before the first convolutional layer.
     let preBN: SWBatchNormLayerDesc
 
@@ -1144,7 +1144,7 @@ struct AddNCBiasLayer {
 }
 
 /// A class that represents a residual block with global pooling.
-@objc class SWGlobalPoolingResidualBlockDesc: NSObject {
+@objc class SWGlobalPoolingResidualBlockDesc: BlockDescriptor {
     /// The batch normalization layer before the residual block.
     let preBN: SWBatchNormLayerDesc
 
@@ -1370,7 +1370,7 @@ struct AddNCBiasLayer {
 }
 
 /// A class that represents a nested bottleneck residual block
-@objc class SWNestedBottleneckResidualBlockDesc: NSObject {
+@objc class SWNestedBottleneckResidualBlockDesc: BlockDescriptor {
     /// The batch normalization layer before the residual block.
     let preBN: SWBatchNormLayerDesc
 
@@ -1417,56 +1417,7 @@ struct AddNCBiasLayer {
     }
 }
 
-/// An enumeration of the different kinds of blocks that can be used in a residual network.
-@objc enum BlockKind: Int {
-    case ordinary
-    case globalPooling
-    case nestedBottleneck
-}
-
-/// A class that represents a block descriptor that is used to define the characteristics of a residual block.
 @objc class BlockDescriptor: NSObject {
-    /// The kind of the block, it can be ordinary, globalPooling, or nestedBottleneck.
-    let kind: BlockKind
-
-    /// The descriptor for the ordinary residual block, if the kind is ordinary.
-    let ordinary: SWResidualBlockDesc?
-
-    /// The descriptor for the global pooling residual block, if the kind is globalPooling.
-    let globalPooling: SWGlobalPoolingResidualBlockDesc?
-
-    /// The descriptor for the nested bottleneck residual block, if the kind is nestedBottleneck.
-    let nestedBottleneck: SWNestedBottleneckResidualBlockDesc?
-
-    /// Initializes a block descriptor object with the given parameters.
-    /// - Parameters:
-    ///   - ordinary: The descriptor for the ordinary residual block, if the kind is ordinary.
-    @objc init(ordinary: SWResidualBlockDesc) {
-        self.kind = BlockKind.ordinary
-        self.ordinary = ordinary
-        self.globalPooling = nil
-        self.nestedBottleneck = nil
-    }
-
-    /// Initializes a block descriptor object with the given parameters.
-    /// - Parameters:
-    ///   - globalPooling: The descriptor for the global pooling residual block, if the kind is globalPooling.
-    @objc init(globalPooling: SWGlobalPoolingResidualBlockDesc) {
-        self.kind = BlockKind.globalPooling
-        self.ordinary = nil
-        self.globalPooling = globalPooling
-        self.nestedBottleneck = nil
-    }
-
-    /// Initializes a block descriptor object with the given parameters.
-    /// - Parameters:
-    ///   - nestedBottleneck: The descriptor for the nested bottleneck residual block, if the kind is nestedBottleneck.
-    @objc init(nestedBottleneck: SWNestedBottleneckResidualBlockDesc) {
-        self.kind = BlockKind.nestedBottleneck
-        self.ordinary = nil
-        self.globalPooling = nil
-        self.nestedBottleneck = nestedBottleneck
-    }
 }
 
 /// A structure that represents a block stack
@@ -1504,41 +1455,43 @@ struct BlockStack {
         let blockDescriptor = blockDescriptors[index]
         let blockInput: MPSGraphTensor
 
-        switch blockDescriptor.kind {
-        case .globalPooling:
+        switch blockDescriptor {
+        case let globalPoolingDescriptor as SWGlobalPoolingResidualBlockDesc:
             let globalPooling = GlobalPoolingResidualBlock(graph: graph,
                                                            sourceTensor: sourceTensor,
                                                            maskTensor: maskTensor,
                                                            maskSumTensor: maskSumTensor,
                                                            maskSumSqrtS14M01Tensor: maskSumSqrtS14M01Tensor,
-                                                           descriptor: blockDescriptor.globalPooling!,
+                                                           descriptor: globalPoolingDescriptor,
                                                            nnXLen: nnXLen,
                                                            nnYLen: nnYLen,
                                                            batchSize: batchSize)
 
             blockInput = globalPooling.resultTensor
-        case .nestedBottleneck:
+        case let nestedBottleneckDescriptor as SWNestedBottleneckResidualBlockDesc:
             let nestedBottleneck = NestedBottleneckResidualBlock(graph: graph,
                                                                  sourceTensor: sourceTensor,
                                                                  maskTensor: maskTensor,
                                                                  maskSumTensor: maskSumTensor,
                                                                  maskSumSqrtS14M01Tensor: maskSumSqrtS14M01Tensor,
-                                                                 descriptor: blockDescriptor.nestedBottleneck!,
+                                                                 descriptor: nestedBottleneckDescriptor,
                                                                  nnXLen: nnXLen,
                                                                  nnYLen: nnYLen,
                                                                  batchSize: batchSize)
 
             blockInput = nestedBottleneck.resultTensor
-        case .ordinary:
+        case let residualBlockDescriptor as SWResidualBlockDesc:
             let ordinary = ResidualBlock(graph: graph,
                                          sourceTensor: sourceTensor,
                                          maskTensor: maskTensor,
-                                         descriptor: blockDescriptor.ordinary!,
+                                         descriptor: residualBlockDescriptor,
                                          nnXLen: nnXLen,
                                          nnYLen: nnYLen,
                                          batchSize: batchSize)
 
             blockInput = ordinary.resultTensor
+        default:
+            blockInput = sourceTensor
         }
 
         return processBlockDescriptors(graph,
@@ -2226,7 +2179,7 @@ struct Model {
     /// The number of channels in the ownership output layer
     let numOwnershipChannels: NSNumber
     /// The command queue used to execute the graph on the GPU
-    let commandQueue: MTLCommandQueue
+    let commandQueue: MTLCommandQueue?
     /// The input layer of the neural network
     let input: InputLayer
     /// The global input layer of the neural network
@@ -2268,7 +2221,7 @@ struct Model {
     ///   - nnXLen: The length of the neural network input in the x dimension.
     ///   - nnYLen: The length of the neural network input in the y dimension.
     ///   - batchSize: The batch size of the neural network input.
-    init(device: MPSGraphDevice,
+    init(device: MTLDevice,
          graph: MPSGraph,
          descriptor: SWModelDesc,
          nnXLen: NSNumber,
@@ -2284,7 +2237,7 @@ struct Model {
         self.numValueChannels = descriptor.numValueChannels
         self.numScoreValueChannels = descriptor.numScoreValueChannels
         self.numOwnershipChannels = descriptor.numOwnershipChannels
-        commandQueue = (device.metalDevice?.makeCommandQueue())!
+        commandQueue = device.makeCommandQueue()
 
         input = InputLayer(graph: graph,
                            batchSize: batchSize,
@@ -2352,8 +2305,6 @@ struct Model {
                               nnYLen: nnYLen,
                               batchSize: batchSize)
 
-        let metalDevice = device.metalDevice!
-
         let inputShape = InputShape.create(batchSize: batchSize,
                                            numChannels: descriptor.numInputChannels,
                                            nnYLen: nnYLen,
@@ -2362,7 +2313,7 @@ struct Model {
         let inputDescriptor = MPSNDArrayDescriptor(dataType: input.tensor.dataType,
                                                    shape: inputShape)
 
-        inputArray = MPSNDArray(device: metalDevice,
+        inputArray = MPSNDArray(device: device,
                                 descriptor: inputDescriptor)
 
         inputArrayWriter = MPSNDArrayDataWriter(mpsNDArray: inputArray)
@@ -2375,7 +2326,7 @@ struct Model {
         let inputGlobalDescriptor = MPSNDArrayDescriptor(dataType: inputGlobal.tensor.dataType,
                                                          shape: inputGlobalShape)
 
-        inputGlobalArray = MPSNDArray(device: metalDevice,
+        inputGlobalArray = MPSNDArray(device: device,
                                       descriptor: inputGlobalDescriptor)
 
         inputGlobalArrayWriter = MPSNDArrayDataWriter(mpsNDArray: inputGlobalArray)
@@ -2417,31 +2368,33 @@ struct Model {
         inputArrayWriter.writeData(pointerFP32: inputPointer)
         inputGlobalArrayWriter.writeData(pointerFP32: inputGlobalPointer)
 
-        let commandBuffer = MPSCommandBuffer(commandBuffer: commandQueue.makeCommandBuffer()!)
+        if let commandBuffer = commandQueue?.makeCommandBuffer() {
+            let mpsCommandBuffer = MPSCommandBuffer(commandBuffer: commandBuffer)
 
-        let fetch = graph.encode(to: commandBuffer,
-                                 feeds: feeds,
-                                 targetTensors: targetTensors,
-                                 targetOperations: nil,
-                                 executionDescriptor: nil)
+            let fetch = graph.encode(to: mpsCommandBuffer,
+                                     feeds: feeds,
+                                     targetTensors: targetTensors,
+                                     targetOperations: nil,
+                                     executionDescriptor: nil)
 
-        commandBuffer.commit()
-        commandBuffer.waitUntilCompleted()
+            mpsCommandBuffer.commit()
+            mpsCommandBuffer.waitUntilCompleted()
 
-        policyArrayReader.readData(pointerFP32: policy,
-                                   mpsNDArray: fetch[policyHead.policyTensor]?.mpsndarray())
+            policyArrayReader.readData(pointerFP32: policy,
+                                       mpsNDArray: fetch[policyHead.policyTensor]?.mpsndarray())
 
-        policyPassArrayReader.readData(pointerFP32: policyPass,
-                                       mpsNDArray: fetch[policyHead.policyPassTensor]?.mpsndarray())
+            policyPassArrayReader.readData(pointerFP32: policyPass,
+                                           mpsNDArray: fetch[policyHead.policyPassTensor]?.mpsndarray())
 
-        valueArrayReader.readData(pointerFP32: value,
-                                  mpsNDArray: fetch[valueHead.valueTensor]?.mpsndarray())
+            valueArrayReader.readData(pointerFP32: value,
+                                      mpsNDArray: fetch[valueHead.valueTensor]?.mpsndarray())
 
-        scoreValueArrayReader.readData(pointerFP32: scoreValue,
-                                       mpsNDArray: fetch[valueHead.scoreValueTensor]?.mpsndarray())
+            scoreValueArrayReader.readData(pointerFP32: scoreValue,
+                                           mpsNDArray: fetch[valueHead.scoreValueTensor]?.mpsndarray())
 
-        ownershipArrayReader.readData(pointerFP32: ownership,
-                                      mpsNDArray: fetch[valueHead.ownershipTensor]?.mpsndarray())
+            ownershipArrayReader.readData(pointerFP32: ownership,
+                                          mpsNDArray: fetch[valueHead.ownershipTensor]?.mpsndarray())
+        }
     }
 }
 
@@ -2556,19 +2509,17 @@ struct Model {
 
         let context = MetalComputeContext.getInstance()
         let devices = MTLCopyAllDevices()
-        let mtlDevice: MTLDevice
+        let device: MTLDevice
 
         // Select a GPU device.
         if ((gpuIdx >= 0) && (gpuIdx < devices.count)) {
-            mtlDevice = devices[gpuIdx]
+            device = devices[gpuIdx]
         } else {
-            mtlDevice = MetalBackend.defaultDevice
+            device = MetalBackend.defaultDevice
         }
 
-        let device = MPSGraphDevice(mtlDevice: mtlDevice)
-
-        NSLog("Metal backend thread \(threadIdx): \(mtlDevice.name) Model version \(descriptor.version)")
-        NSLog("Metal backend thread \(threadIdx): \(mtlDevice.name) Model name \(descriptor.name)")
+        NSLog("Metal backend thread \(threadIdx): \(device.name) Model version \(descriptor.version)")
+        NSLog("Metal backend thread \(threadIdx): \(device.name) Model name \(descriptor.name)")
 
         // Create a model.
         model = Model(device: device,
@@ -2578,7 +2529,7 @@ struct Model {
                       nnYLen: context.nnYLen,
                       batchSize: batchSize)
 
-        NSLog("Metal backend thread \(threadIdx): \(mtlDevice.name) batchSize=\(batchSize)")
+        NSLog("Metal backend thread \(threadIdx): \(device.name) batchSize=\(batchSize)")
     }
 }
 

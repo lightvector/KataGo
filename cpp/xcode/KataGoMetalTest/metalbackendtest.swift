@@ -1060,22 +1060,18 @@ final class NestedBottleneckResidualBlockTest: XCTestCase {
                                            midActivation: preActivation,
                                            finalConv: preConv)
 
-        let nestedBlockDescriptor = BlockDescriptor(ordinary: ordinary)
-
         let nestedBottleneck = SWNestedBottleneckResidualBlockDesc(preBN: preBN,
                                                                    preActivation: preActivation,
                                                                    preConv: preConv,
-                                                                   blockDescriptors: [nestedBlockDescriptor],
+                                                                   blockDescriptors: [ordinary],
                                                                    postBN: preBN,
                                                                    postActivation: preActivation,
                                                                    postConv: preConv)
 
-        let blockDescriptor = BlockDescriptor(nestedBottleneck: nestedBottleneck)
-
         let descriptor = SWNestedBottleneckResidualBlockDesc(preBN: preBN,
                                                              preActivation: preActivation,
                                                              preConv: preConv,
-                                                             blockDescriptors: [blockDescriptor],
+                                                             blockDescriptors: [nestedBottleneck],
                                                              postBN: preBN,
                                                              postActivation: preActivation,
                                                              postConv: preConv)
@@ -1589,9 +1585,7 @@ final class TrunkTest: XCTestCase {
                                          midActivation: ActivationKind.relu,
                                          finalConv: unityConv)
 
-        let blocks = [
-            BlockDescriptor(ordinary: residualBlock),
-            BlockDescriptor(globalPooling: globalPoolingResidualBlock)]
+        let blocks = [residualBlock, globalPoolingResidualBlock]
 
         let descriptor = SWTrunkDesc(version: 0,
                                      trunkNumChannels: numChannels as NSNumber,
@@ -2227,8 +2221,6 @@ final class SWModelDescTest {
                                                 midActivation: ActivationKind.relu,
                                                 finalConv: unityConv)
 
-        let ordinaryDescriptor = BlockDescriptor(ordinary: unityResidual)
-
         let gpoolMatMul = SWMatMulLayerDesc(inChannels: 3,
                                             outChannels: 1,
                                             weights: &gpoolMatMulWeights)
@@ -2245,11 +2237,10 @@ final class SWModelDescTest {
                                          midActivation: ActivationKind.relu,
                                          finalConv: unityConv)
 
-        let globalPoolingDescriptor = BlockDescriptor(globalPooling: globalPooling)
-
-        let blocks: [BlockDescriptor] = [ordinaryDescriptor,
-                                         globalPoolingDescriptor,
-                                         ordinaryDescriptor]
+        let blocks: [BlockDescriptor] = [unityResidual,
+                                         BlockDescriptor(),
+                                         globalPooling,
+                                         unityResidual]
 
         let trunkDesc = SWTrunkDesc(version: 0,
                                     trunkNumChannels: 1,
@@ -2311,7 +2302,7 @@ final class ModelTest: XCTestCase {
                          useNHWC: Bool) -> Model {
         let modelDesc = swModelDescTest.createMiniDesc()
 
-        let device = MPSGraphDevice(mtlDevice: MTLCreateSystemDefaultDevice()!)
+        let device = MetalBackend.defaultDevice
 
         let model = Model(device: device,
                           graph: MPSGraph(),
@@ -2473,8 +2464,6 @@ final class ModelTest: XCTestCase {
                                            midActivation: ActivationKind.relu,
                                            finalConv: finalConv)
 
-        let ordinaryDescriptor = BlockDescriptor(ordinary: ordinary)
-
         let gRegularConv = SWConvLayerDesc(convYSize: 3,
                                            convXSize: 3,
                                            inChannels: 256,
@@ -2533,48 +2522,46 @@ final class ModelTest: XCTestCase {
                                          midActivation: ActivationKind.relu,
                                          finalConv: gFinalConv)
 
-        let globalPoolingDescriptor = BlockDescriptor(globalPooling: globalPooling)
-
-        let blocks: [BlockDescriptor] = [ordinaryDescriptor,
-                                         ordinaryDescriptor,
-                                         ordinaryDescriptor,
-                                         ordinaryDescriptor,
-                                         ordinaryDescriptor,
-                                         globalPoolingDescriptor,
-                                         ordinaryDescriptor,
-                                         ordinaryDescriptor,
-                                         ordinaryDescriptor,
-                                         ordinaryDescriptor,
-                                         globalPoolingDescriptor,
-                                         ordinaryDescriptor,
-                                         ordinaryDescriptor,
-                                         ordinaryDescriptor,
-                                         ordinaryDescriptor,
-                                         globalPoolingDescriptor,
-                                         ordinaryDescriptor,
-                                         ordinaryDescriptor,
-                                         ordinaryDescriptor,
-                                         ordinaryDescriptor,
-                                         globalPoolingDescriptor,
-                                         ordinaryDescriptor,
-                                         ordinaryDescriptor,
-                                         ordinaryDescriptor,
-                                         ordinaryDescriptor,
-                                         globalPoolingDescriptor,
-                                         ordinaryDescriptor,
-                                         ordinaryDescriptor,
-                                         ordinaryDescriptor,
-                                         ordinaryDescriptor,
-                                         globalPoolingDescriptor,
-                                         ordinaryDescriptor,
-                                         ordinaryDescriptor,
-                                         ordinaryDescriptor,
-                                         ordinaryDescriptor,
-                                         globalPoolingDescriptor,
-                                         ordinaryDescriptor,
-                                         ordinaryDescriptor,
-                                         ordinaryDescriptor,
-                                         ordinaryDescriptor]
+        let blocks: [BlockDescriptor] = [ordinary,
+                                         ordinary,
+                                         ordinary,
+                                         ordinary,
+                                         ordinary,
+                                         globalPooling,
+                                         ordinary,
+                                         ordinary,
+                                         ordinary,
+                                         ordinary,
+                                         globalPooling,
+                                         ordinary,
+                                         ordinary,
+                                         ordinary,
+                                         ordinary,
+                                         globalPooling,
+                                         ordinary,
+                                         ordinary,
+                                         ordinary,
+                                         ordinary,
+                                         globalPooling,
+                                         ordinary,
+                                         ordinary,
+                                         ordinary,
+                                         ordinary,
+                                         globalPooling,
+                                         ordinary,
+                                         ordinary,
+                                         ordinary,
+                                         ordinary,
+                                         globalPooling,
+                                         ordinary,
+                                         ordinary,
+                                         ordinary,
+                                         ordinary,
+                                         globalPooling,
+                                         ordinary,
+                                         ordinary,
+                                         ordinary,
+                                         ordinary]
 
         assert(blocks.count == 40)
 
@@ -2718,7 +2705,7 @@ final class ModelTest: XCTestCase {
                                     policyHead: policyHead,
                                     valueHead: valueHead)
 
-        let device = MPSGraphDevice(mtlDevice: MTLCreateSystemDefaultDevice()!)
+        let device = MetalBackend.defaultDevice
 
         let model = Model(device: device,
                           graph: MPSGraph(),

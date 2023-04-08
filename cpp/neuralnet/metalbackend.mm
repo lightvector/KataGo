@@ -138,14 +138,11 @@ static void residualBlocksToSwift(const std::vector<std::pair<int, unique_ptr_vo
         void * blockDesc = blocks[i].second.get();
 
         if (blocks[i].first == GLOBAL_POOLING_BLOCK_KIND) {
-            SWGlobalPoolingResidualBlockDesc * swResidualBlockDesc = globalPoolingResidualBlockDescToSwift((GlobalPoolingResidualBlockDesc*)blockDesc);
-            swBlockDesc = [[BlockDescriptor alloc] initWithGlobalPooling:swResidualBlockDesc];
+            swBlockDesc = globalPoolingResidualBlockDescToSwift((GlobalPoolingResidualBlockDesc*)blockDesc);
         } else if (blocks[i].first == NESTED_BOTTLENECK_BLOCK_KIND) {
-            SWNestedBottleneckResidualBlockDesc * swResidualBlockDesc = nestedBottleneckResidualBlockDescToSwift((NestedBottleneckResidualBlockDesc*)blockDesc);
-            swBlockDesc = [[BlockDescriptor alloc] initWithNestedBottleneck:swResidualBlockDesc];
+            swBlockDesc = nestedBottleneckResidualBlockDescToSwift((NestedBottleneckResidualBlockDesc*)blockDesc);
         } else {
-            SWResidualBlockDesc * swResidualBlockDesc = residualBlockDescToSwift((ResidualBlockDesc*)blockDesc);
-            swBlockDesc = [[BlockDescriptor alloc] initWithOrdinary:swResidualBlockDesc];
+            swBlockDesc = residualBlockDescToSwift((ResidualBlockDesc*)blockDesc);
         }
 
         [swBlocks addObject:swBlockDesc];
