@@ -554,7 +554,6 @@ final class ActivationLayerTest: XCTestCase {
 final class ResidualBlockTest: XCTestCase {
 
     func testNHWC() {
-        let useNHWC = false
         let batchSize: NSNumber = 2
         let trunkChannels: NSNumber = 1
         let midChannels: NSNumber = 2
@@ -677,7 +676,6 @@ final class ResidualBlockTest: XCTestCase {
     }
 
     func testUnity() {
-        let useNHWC = false
         let batchSize = 2
         let nnXLen = 2
         let nnYLen = 2
@@ -810,7 +808,6 @@ final class ResidualBlockTest: XCTestCase {
 final class GlobalPoolingResidualBlockTest: XCTestCase {
 
     func testNHWC() {
-        let useNHWC = true
         let batchSize: NSNumber = 2
         let trunkChannels: NSNumber = 1
         let regularChannels: NSNumber = 1
@@ -1004,7 +1001,6 @@ final class NestedBottleneckResidualBlockTest: XCTestCase {
         let nnXLen = 1
         let nnYLen = 1
         let numChannels = 1
-        let useNHWC = false
         let hasScale = true
         let hasBias = true
 
@@ -1218,7 +1214,6 @@ final class MatMulLayerTest: XCTestCase {
     }
 
     func test2D() {
-        let useNHWC = false
         let batchSize = 2
         let inChannels = 3
         let outChannels = 4
@@ -1297,7 +1292,6 @@ final class MatMulLayerTest: XCTestCase {
     }
 
     func testUnity() {
-        let useNHWC = false
         let batchSize = 2
         let inChannels = 1
         let outChannels = 1
@@ -1369,7 +1363,6 @@ final class MatMulLayerTest: XCTestCase {
 final class MatBiasLayerTest: XCTestCase {
 
     func testFP32() {
-        let useNHWC = true
         let numChannels = 2
         let weights = UnsafeMutablePointer<Float32>.allocate(capacity: numChannels)
         let shape = [8, 2] as [NSNumber]
@@ -1423,7 +1416,6 @@ final class MatBiasLayerTest: XCTestCase {
     }
 
     func testUnity() {
-        let useNHWC = false
         let batchSize = 2
         let numChannels = 1
         let weightsCount = numChannels
@@ -1493,7 +1485,6 @@ final class MatBiasLayerTest: XCTestCase {
 final class TrunkTest: XCTestCase {
 
     func testUnity() {
-        let useNHWC = false
         let batchSize = 2
         let nnXLen = 2
         let nnYLen = 2
@@ -1707,7 +1698,6 @@ final class TrunkTest: XCTestCase {
 final class PolicyHeadTest: XCTestCase {
 
     func testUnity() {
-        let useNHWC = false
         let batchSize = 2
         let nnXLen = 2
         let nnYLen = 2
@@ -1947,7 +1937,6 @@ final class ComboLayerTest: XCTestCase {
 final class ValueHeadTest: XCTestCase {
 
     func testZero() {
-        let useNHWC = false
         let batchSize = 2
         let nnXLen = 2
         let nnYLen = 2
@@ -2298,8 +2287,7 @@ final class SWModelDescTest {
 final class ModelTest: XCTestCase {
     let swModelDescTest = SWModelDescTest()
 
-    func createMiniModel(useFP16: Bool,
-                         useNHWC: Bool) -> Model {
+    func createMiniModel() -> Model {
         let modelDesc = swModelDescTest.createMiniDesc()
 
         let device = MetalBackend.defaultDevice
@@ -2332,12 +2320,7 @@ final class ModelTest: XCTestCase {
     }
 
     func testMiniModel() {
-        let useFP16 = false
-        let useNHWC = false
-
-        let model = createMiniModel(useFP16: useFP16,
-                                    useNHWC: useNHWC)
-
+        let model = createMiniModel()
         var input = [Float32](repeating: 1, count: 1)
         var inputGlobal = [Float32](repeating: 1, count: 1)
         var policyOutput = [Float32](repeating: 1, count: 1)
@@ -2363,12 +2346,7 @@ final class ModelTest: XCTestCase {
     }
 
     func testMiniModelNHWC() {
-        let useFP16 = false
-        let useNHWC = true
-
-        let model = createMiniModel(useFP16: useFP16,
-                                    useNHWC: useNHWC)
-
+        let model = createMiniModel()
         var input = [Float32](repeating: 1, count: 1)
         var inputGlobal = [Float32](repeating: 1, count: 1)
         var policyOutput = [Float32](repeating: 1, count: 1)
