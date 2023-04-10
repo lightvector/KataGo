@@ -2287,36 +2287,38 @@ final class SWModelDescTest {
 final class ModelTest: XCTestCase {
     let swModelDescTest = SWModelDescTest()
 
-    func createMiniModel() -> Model {
+    func createMiniModel() -> Model? {
         let modelDesc = swModelDescTest.createMiniDesc()
 
-        let device = MetalBackend.defaultDevice
+        if let device = MTLCreateSystemDefaultDevice() {
+            let model = Model(device: device,
+                              graph: MPSGraph(),
+                              descriptor: modelDesc,
+                              nnXLen: 1,
+                              nnYLen: 1,
+                              batchSize: 1)
 
-        let model = Model(device: device,
-                          graph: MPSGraph(),
-                          descriptor: modelDesc,
-                          nnXLen: 1,
-                          nnYLen: 1,
-                          batchSize: 1)
+            var input = [Float32](repeating: 1, count: 1)
+            var inputGlobal = [Float32](repeating: 1, count: 1)
+            var policyOutput = [Float32](repeating: 1, count: 1)
+            var policyPassOutput = [Float32](repeating: 1, count: 1)
+            var valueOutput = [Float32](repeating: 1, count: 1)
+            var scoreValueOutput = [Float32](repeating: 1, count: 1)
+            var ownershipOutput = [Float32](repeating: 1, count: 1)
 
-        var input = [Float32](repeating: 1, count: 1)
-        var inputGlobal = [Float32](repeating: 1, count: 1)
-        var policyOutput = [Float32](repeating: 1, count: 1)
-        var policyPassOutput = [Float32](repeating: 1, count: 1)
-        var valueOutput = [Float32](repeating: 1, count: 1)
-        var scoreValueOutput = [Float32](repeating: 1, count: 1)
-        var ownershipOutput = [Float32](repeating: 1, count: 1)
+            model.apply(input: &input,
+                        inputGlobal: &inputGlobal,
+                        policy: &policyOutput,
+                        policyPass: &policyPassOutput,
+                        value: &valueOutput,
+                        scoreValue: &scoreValueOutput,
+                        ownership: &ownershipOutput,
+                        batchSize: 1)
 
-        model.apply(input: &input,
-                    inputGlobal: &inputGlobal,
-                    policy: &policyOutput,
-                    policyPass: &policyPassOutput,
-                    value: &valueOutput,
-                    scoreValue: &scoreValueOutput,
-                    ownership: &ownershipOutput,
-                    batchSize: 1)
-
-        return model
+            return model
+        } else {
+            return nil
+        }
     }
 
     func testMiniModel() {
@@ -2329,14 +2331,14 @@ final class ModelTest: XCTestCase {
         var scoreValueOutput = [Float32](repeating: 1, count: 1)
         var ownershipOutput = [Float32](repeating: 1, count: 1)
 
-        model.apply(input: &input,
-                    inputGlobal: &inputGlobal,
-                    policy: &policyOutput,
-                    policyPass: &policyPassOutput,
-                    value: &valueOutput,
-                    scoreValue: &scoreValueOutput,
-                    ownership: &ownershipOutput,
-                    batchSize: 1)
+        model?.apply(input: &input,
+                     inputGlobal: &inputGlobal,
+                     policy: &policyOutput,
+                     policyPass: &policyPassOutput,
+                     value: &valueOutput,
+                     scoreValue: &scoreValueOutput,
+                     ownership: &ownershipOutput,
+                     batchSize: 1)
 
         XCTAssertEqual(policyOutput[0], 101.68, accuracy: 1e-4)
         XCTAssertEqual(policyPassOutput[0], 68.88, accuracy: 1e-4)
@@ -2355,14 +2357,14 @@ final class ModelTest: XCTestCase {
         var scoreValueOutput = [Float32](repeating: 1, count: 1)
         var ownershipOutput = [Float32](repeating: 1, count: 1)
 
-        model.apply(input: &input,
-                    inputGlobal: &inputGlobal,
-                    policy: &policyOutput,
-                    policyPass: &policyPassOutput,
-                    value: &valueOutput,
-                    scoreValue: &scoreValueOutput,
-                    ownership: &ownershipOutput,
-                    batchSize: 1)
+        model?.apply(input: &input,
+                     inputGlobal: &inputGlobal,
+                     policy: &policyOutput,
+                     policyPass: &policyPassOutput,
+                     value: &valueOutput,
+                     scoreValue: &scoreValueOutput,
+                     ownership: &ownershipOutput,
+                     batchSize: 1)
 
         XCTAssertEqual(policyOutput[0], 101.68, accuracy: 1e-4)
         XCTAssertEqual(policyPassOutput[0], 68.88, accuracy: 1e-4)
@@ -2378,7 +2380,7 @@ final class ModelTest: XCTestCase {
                             numInputGlobalChannels: Int,
                             numValueChannels: Int,
                             numScoreValueChannels: Int,
-                            numOwnershipChannels: Int) -> Model {
+                            numOwnershipChannels: Int) -> Model? {
         let version = 10
         let convCount = 3 * 3 * 256 * 256
         let normCount = 256
@@ -2683,41 +2685,44 @@ final class ModelTest: XCTestCase {
                                     policyHead: policyHead,
                                     valueHead: valueHead)
 
-        let device = MetalBackend.defaultDevice
+        if let device = MTLCreateSystemDefaultDevice() {
 
-        let model = Model(device: device,
-                          graph: MPSGraph(),
-                          descriptor: modelDesc,
-                          nnXLen: nnXLen as NSNumber,
-                          nnYLen: nnYLen as NSNumber,
-                          batchSize: batchSize as NSNumber)
+            let model = Model(device: device,
+                              graph: MPSGraph(),
+                              descriptor: modelDesc,
+                              nnXLen: nnXLen as NSNumber,
+                              nnYLen: nnYLen as NSNumber,
+                              batchSize: batchSize as NSNumber)
 
-        // warm up to speed up later runs
-        let inputCount = batchSize * nnYLen * nnXLen * numInputChannels
-        let input = UnsafeMutablePointer<Float32>.allocate(capacity: inputCount)
-        let inputGlobalCount = batchSize * numInputGlobalChannels
-        let inputGlobal = UnsafeMutablePointer<Float32>.allocate(capacity: inputGlobalCount)
-        let policyCount = batchSize * nnYLen * nnXLen
-        let policyOutput = UnsafeMutablePointer<Float32>.allocate(capacity: policyCount)
-        let policyPassCount = batchSize
-        let policyPassOutput = UnsafeMutablePointer<Float32>.allocate(capacity: policyPassCount)
-        let valueCount = batchSize * numValueChannels
-        let valueOutput = UnsafeMutablePointer<Float32>.allocate(capacity: valueCount)
-        let scoreValueCount = batchSize * numScoreValueChannels
-        let scoreValueOutput = UnsafeMutablePointer<Float32>.allocate(capacity: scoreValueCount)
-        let ownershipCount = batchSize * nnYLen * nnXLen * numOwnershipChannels
-        let ownershipOutput = UnsafeMutablePointer<Float32>.allocate(capacity: ownershipCount)
+            // warm up to speed up later runs
+            let inputCount = batchSize * nnYLen * nnXLen * numInputChannels
+            let input = UnsafeMutablePointer<Float32>.allocate(capacity: inputCount)
+            let inputGlobalCount = batchSize * numInputGlobalChannels
+            let inputGlobal = UnsafeMutablePointer<Float32>.allocate(capacity: inputGlobalCount)
+            let policyCount = batchSize * nnYLen * nnXLen
+            let policyOutput = UnsafeMutablePointer<Float32>.allocate(capacity: policyCount)
+            let policyPassCount = batchSize
+            let policyPassOutput = UnsafeMutablePointer<Float32>.allocate(capacity: policyPassCount)
+            let valueCount = batchSize * numValueChannels
+            let valueOutput = UnsafeMutablePointer<Float32>.allocate(capacity: valueCount)
+            let scoreValueCount = batchSize * numScoreValueChannels
+            let scoreValueOutput = UnsafeMutablePointer<Float32>.allocate(capacity: scoreValueCount)
+            let ownershipCount = batchSize * nnYLen * nnXLen * numOwnershipChannels
+            let ownershipOutput = UnsafeMutablePointer<Float32>.allocate(capacity: ownershipCount)
 
-        model.apply(input: input,
-                    inputGlobal: inputGlobal,
-                    policy: policyOutput,
-                    policyPass: policyPassOutput,
-                    value: valueOutput,
-                    scoreValue: scoreValueOutput,
-                    ownership: ownershipOutput,
-                    batchSize: batchSize)
+            model.apply(input: input,
+                        inputGlobal: inputGlobal,
+                        policy: policyOutput,
+                        policyPass: policyPassOutput,
+                        value: valueOutput,
+                        scoreValue: scoreValueOutput,
+                        ownership: ownershipOutput,
+                        batchSize: batchSize)
 
-        return model
+            return model
+        } else {
+            return nil
+        }
     }
 
     func createBuffers(batchSize: Int,
@@ -2786,14 +2791,14 @@ final class ModelTest: XCTestCase {
 
         measure {
             for _ in 0..<iteration {
-                model.apply(input: input,
-                            inputGlobal: inputGlobal,
-                            policy: policy,
-                            policyPass: policyPass,
-                            value: value,
-                            scoreValue: scoreValue,
-                            ownership: ownership,
-                            batchSize: batchSize)
+                model?.apply(input: input,
+                             inputGlobal: inputGlobal,
+                             policy: policy,
+                             policyPass: policyPass,
+                             value: value,
+                             scoreValue: scoreValue,
+                             ownership: ownership,
+                             batchSize: batchSize)
             }
         }
     }
@@ -2832,14 +2837,14 @@ final class ModelTest: XCTestCase {
 
         measure {
             for _ in 0..<iteration {
-                model.apply(input: input,
-                            inputGlobal: inputGlobal,
-                            policy: policy,
-                            policyPass: policyPass,
-                            value: value,
-                            scoreValue: scoreValue,
-                            ownership: ownership,
-                            batchSize: batchSize)
+                model?.apply(input: input,
+                             inputGlobal: inputGlobal,
+                             policy: policy,
+                             policyPass: policyPass,
+                             value: value,
+                             scoreValue: scoreValue,
+                             ownership: ownership,
+                             batchSize: batchSize)
             }
         }
     }
@@ -2904,17 +2909,17 @@ final class ComputeHandleTest: XCTestCase {
         let handle = MetalComputeHandle.getInstance(at: gpuIdxForThisThread)
         let context = MetalComputeContext.getInstance()
 
-        XCTAssert(handle.model.nnXLen == context.nnXLen)
-        XCTAssert(handle.model.nnYLen == context.nnYLen)
-        XCTAssert(handle.model.version == swModelDesc.version)
-        XCTAssert(handle.model.numInputChannels == swModelDesc.numInputChannels)
-        XCTAssert(handle.model.numInputGlobalChannels == swModelDesc.numInputGlobalChannels)
-        XCTAssert(handle.model.numValueChannels == swModelDesc.numValueChannels)
-        XCTAssert(handle.model.numScoreValueChannels == swModelDesc.numScoreValueChannels)
-        XCTAssert(handle.model.numOwnershipChannels == swModelDesc.numOwnershipChannels)
+        XCTAssert(handle?.model.nnXLen == context.nnXLen)
+        XCTAssert(handle?.model.nnYLen == context.nnYLen)
+        XCTAssert(handle?.model.version == swModelDesc.version)
+        XCTAssert(handle?.model.numInputChannels == swModelDesc.numInputChannels)
+        XCTAssert(handle?.model.numInputGlobalChannels == swModelDesc.numInputGlobalChannels)
+        XCTAssert(handle?.model.numValueChannels == swModelDesc.numValueChannels)
+        XCTAssert(handle?.model.numScoreValueChannels == swModelDesc.numScoreValueChannels)
+        XCTAssert(handle?.model.numOwnershipChannels == swModelDesc.numOwnershipChannels)
     }
 
-    func testCreateInstanceDefaultDevice() {
+    func testCreateInstanceInvalid() {
         MetalComputeContext.createInstance(nnXLen: 9 as NSNumber,
                                            nnYLen: 11 as NSNumber,
                                            useFP16Mode: .False,
@@ -2929,16 +2934,8 @@ final class ComputeHandleTest: XCTestCase {
                                           serverThreadIdx: 0)
 
         let handle = MetalComputeHandle.getInstance(at: gpuIdxForThisThread)
-        let context = MetalComputeContext.getInstance()
 
-        XCTAssert(handle.model.nnXLen == context.nnXLen)
-        XCTAssert(handle.model.nnYLen == context.nnYLen)
-        XCTAssert(handle.model.version == swModelDesc.version)
-        XCTAssert(handle.model.numInputChannels == swModelDesc.numInputChannels)
-        XCTAssert(handle.model.numInputGlobalChannels == swModelDesc.numInputGlobalChannels)
-        XCTAssert(handle.model.numValueChannels == swModelDesc.numValueChannels)
-        XCTAssert(handle.model.numScoreValueChannels == swModelDesc.numScoreValueChannels)
-        XCTAssert(handle.model.numOwnershipChannels == swModelDesc.numOwnershipChannels)
+        XCTAssert(handle == nil)
     }
 }
 
@@ -2974,7 +2971,7 @@ final class MetalBackendTest: XCTestCase {
     }
 
     func testGetOutput() {
-        let gpuIdx: Int = -1
+        let gpuIdx: Int = 0
 
         MetalComputeContext.createInstance(nnXLen: 1 as NSNumber,
                                            nnYLen: 1 as NSNumber,
