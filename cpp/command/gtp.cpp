@@ -430,15 +430,6 @@ struct GTPEngine {
   void setOrResetBoardSize(ConfigParser& cfg, Logger& logger, Rand& seedRand, int boardXSize, int boardYSize, bool loggingToStderr) {
     if(nnEval != NULL && boardXSize == nnEval->getNNXLen() && boardYSize == nnEval->getNNYLen())
       return;
-    if(nnEval != NULL) {
-      assert(bot != NULL);
-      bot->stopAndWait();
-      delete bot;
-      delete nnEval;
-      bot = NULL;
-      nnEval = NULL;
-      logger.write("Cleaned up old neural net and bot");
-    }
 
     bool wasDefault = false;
     if(boardXSize == -1 || boardYSize == -1) {
@@ -451,19 +442,33 @@ struct GTPEngine {
     const int expectedConcurrentEvals = params.numThreads;
     const int defaultMaxBatchSize = std::max(8,((params.numThreads+3)/4)*4);
     bool defaultRequireExactNNLen = true;
-    int nnLenX = boardXSize;
-    int nnLenY = boardYSize;
+    int nnXLen = boardXSize;
+    int nnYLen = boardYSize;
     
     if(cfg.contains("gtpDebugForceMaxNNSize") && cfg.getBool("gtpDebugForceMaxNNSize")) {
       defaultRequireExactNNLen = false;
-      nnLenX = Board::MAX_LEN;
-      nnLenY = Board::MAX_LEN;
+      nnXLen = Board::MAX_LEN;
+      nnYLen = Board::MAX_LEN;
     }
+
+    if(nnEval != NULL && nnXLen == nnEval->getNNXLen() && nnYLen == nnEval->getNNYLen())
+      return;
+
+    if(nnEval != NULL) {
+      assert(bot != NULL);
+      bot->stopAndWait();
+      delete bot;
+      delete nnEval;
+      bot = NULL;
+      nnEval = NULL;
+      logger.write("Cleaned up old neural net and bot");
+    }
+    
     const bool disableFP16 = false;
     const string expectedSha256 = "";
     nnEval = Setup::initializeNNEvaluator(
       nnModelFile,nnModelFile,expectedSha256,cfg,logger,seedRand,maxConcurrentEvals,expectedConcurrentEvals,
-      nnLenX,nnLenY,defaultMaxBatchSize,defaultRequireExactNNLen,disableFP16,
+      nnXLen,nnYLen,defaultMaxBatchSize,defaultRequireExactNNLen,disableFP16,
       Setup::SETUP_FOR_GTP
     );
     logger.write("Loaded neural net with nnXLen " + Global::intToString(nnEval->getNNXLen()) + " nnYLen " + Global::intToString(nnEval->getNNYLen()));
