@@ -3202,6 +3202,7 @@ int MainCmds::gtp(const vector<string>& args) {
 
   } //Close read loop
 
+  maybeSaveAvoidPatterns();
   delete engine;
   engine = NULL;
   NeuralNet::globalCleanup();
