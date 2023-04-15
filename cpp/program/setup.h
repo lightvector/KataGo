@@ -98,6 +98,8 @@ namespace Setup {
 
   //Load pattern bonus tables that avoid repeating moves that the user supplied in external sgfs
   std::vector<std::unique_ptr<PatternBonusTable>> loadAvoidSgfPatternBonusTables(ConfigParser& cfg, Logger& logger);
+
+  std::unique_ptr<PatternBonusTable> loadAndPruneAutoPatternBonusTables(ConfigParser& cfg, Logger& logger);
 }
 
 #endif  // PROGRAM_SETUP_H_

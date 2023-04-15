@@ -364,6 +364,8 @@ struct GTPEngine {
   Player perspective;
 
   double genmoveTimeSum;
+  //Positions during this game when genmove was called
+  std::vector<Sgf::PositionSample> genmoveSamples;
 
   GTPEngine(
     const string& modelFile, SearchParams initialParams, Rules initialRules,
@@ -404,7 +406,8 @@ struct GTPEngine {
      avoidMYTDaggerHack(avoidDagger),
      patternBonusTable(std::move(pbTable)),
      perspective(persp),
-     genmoveTimeSum(0.0)
+     genmoveTimeSum(0.0),
+     genmoveSamples()
   {
   }
 
@@ -423,7 +426,7 @@ struct GTPEngine {
   }
 
   void clearStatsForNewGame() {
-    //Currently nothing
+    genmoveSamples.clear();
   }
 
   //Specify -1 for the sizes for a default
@@ -508,6 +511,12 @@ struct GTPEngine {
     clearStatsForNewGame();
   }
 
+  void setPatternBonusTable(std::unique_ptr<PatternBonusTable>&& pbTable) {
+    patternBonusTable = std::move(pbTable);
+    if(bot != nullptr)
+      bot->setCopyOfExternalPatternBonusTable(patternBonusTable);
+  }
+  
   void setPositionAndRules(Player pla, const Board& board, const BoardHistory& h, const Board& newInitialBoard, Player newInitialPla, const vector<Move> newMoveHistory) {
     BoardHistory hist(h);
     //Ensure we always have this value correct
@@ -1101,7 +1110,18 @@ struct GTPEngine {
       response = "resign";
     else
       response = Location::toString(moveLoc,bot->getRootBoard());
-
+    
+    {
+      Sgf::PositionSample posSample;
+      const BoardHistory& hist = bot->getRootHist();
+      posSample.board = bot->getRootBoard();
+      posSample.nextPla = pla;
+      posSample.initialTurnNumber = hist.initialTurnNumber + (int)hist.moveHistory.size();
+      posSample.hintLoc = moveLoc;
+      posSample.weight = 1.0;
+      genmoveSamples.push_back(posSample);
+    }
+    
     if(!resigned && moveLoc != Board::NULL_LOC && isLegal && playChosenMove) {
       bool suc = bot->makeMove(moveLoc,pla,preventEncore);
       if(suc)
@@ -1779,6 +1799,19 @@ int MainCmds::gtp(const vector<string>& args) {
     patternBonusTable = std::move(tables[0]);
   }
 
+  bool autoAvoidPatterns = false;
+  string autoAvoidPatternsDir;
+  {
+    std::unique_ptr<PatternBonusTable> autoTable = Setup::loadAndPruneAutoPatternBonusTables(cfg,logger);
+    if(autoTable != nullptr && patternBonusTable != nullptr)
+      throw StringError("Providing both sgf avoid patterns and auto avoid patterns is not implemented right now");
+    if(autoTable != nullptr) {
+      autoAvoidPatterns = true;
+      autoAvoidPatternsDir = cfg.getString("autoAvoidRepeatDir");
+      patternBonusTable = std::move(autoTable);
+    }
+  }
+  
   Player perspective = Setup::parseReportAnalysisWinrates(cfg,C_EMPTY);
 
   GTPEngine* engine = new GTPEngine(
@@ -1795,6 +1828,23 @@ int MainCmds::gtp(const vector<string>& args) {
   );
   engine->setOrResetBoardSize(cfg,logger,seedRand,defaultBoardXSize,defaultBoardYSize,logger.isLoggingToStderr());
 
+  auto maybeSaveAvoidPatterns = [&]() {
+    if(engine != NULL && autoAvoidPatterns && engine->genmoveSamples.size() > 0) {
+      string fileName = autoAvoidPatternsDir + "/" + Global::uint64ToHexString(seedRand.nextUInt64()) + "_poses.txt";
+      ofstream out;
+      bool suc = FileUtils::tryOpen(out, fileName);
+      if(!suc)
+        logger.write("ERROR: could not open " + fileName);
+      else {
+        for(const Sgf::PositionSample& sampleToWrite : engine->genmoveSamples) {
+          out << Sgf::PositionSample::toJsonLine(sampleToWrite) << "\n";
+        }
+        engine->genmoveSamples.clear();
+        out.close();
+      }
+    }
+  };
+  
   //If nobody specified any time limit in any way, then assume a relatively fast time control
   if(!cfg.contains("maxPlayouts") && !cfg.contains("maxVisits") && !cfg.contains("maxTime")) {
     double mainTime = 1.0;
@@ -1919,11 +1969,13 @@ int MainCmds::gtp(const vector<string>& args) {
     }
 
     else if(command == "quit") {
+      maybeSaveAvoidPatterns();
       shouldQuitAfterResponse = true;
       logger.write("Quit requested by controller");
     }
 
     else if(command == "boardsize" || command == "rectangular_boardsize") {
+      maybeSaveAvoidPatterns();
       int newXSize = 0;
       int newYSize = 0;
       bool suc = false;
@@ -1964,6 +2016,11 @@ int MainCmds::gtp(const vector<string>& args) {
     }
 
     else if(command == "clear_board") {
+      maybeSaveAvoidPatterns();
+      if(autoAvoidPatterns) {
+        std::unique_ptr<PatternBonusTable> autoTable = Setup::loadAndPruneAutoPatternBonusTables(cfg,logger);
+        engine->setPatternBonusTable(std::move(autoTable));
+      }
       engine->clearBoard();
     }
 
@@ -2527,6 +2584,7 @@ int MainCmds::gtp(const vector<string>& args) {
           initialStones.push_back(Move(loc,pla));
         }
         if(!responseIsError) {
+          maybeSaveAvoidPatterns();
           bool suc = engine->setPosition(initialStones);
           if(!suc) {
             responseIsError = true;
@@ -2640,6 +2698,7 @@ int MainCmds::gtp(const vector<string>& args) {
         response = "Board is not empty";
       }
       else {
+        maybeSaveAvoidPatterns();
         engine->placeFixedHandicap(n,response,responseIsError);
       }
     }
@@ -2663,6 +2722,7 @@ int MainCmds::gtp(const vector<string>& args) {
         response = "Board is not empty";
       }
       else {
+        maybeSaveAvoidPatterns();
         engine->placeFreeHandicap(n,response,responseIsError,seedRand);
       }
     }
@@ -2692,6 +2752,7 @@ int MainCmds::gtp(const vector<string>& args) {
           response = "Handicap placement is invalid";
         }
         else {
+          maybeSaveAvoidPatterns();
           Player pla = P_WHITE;
           BoardHistory hist(board,pla,engine->getCurrentRules(),0);
           hist.setInitialTurnNumber(board.numStonesOnBoard()); //Should give more accurate temperaure and time control behavior
@@ -2880,6 +2941,7 @@ int MainCmds::gtp(const vector<string>& args) {
               if(!logger.isLoggingToStderr())
                 cerr << out.str() << endl;
             }
+            maybeSaveAvoidPatterns();
             engine->setOrResetBoardSize(cfg,logger,seedRand,sgfBoard.x_size,sgfBoard.y_size,logger.isLoggingToStderr());
             engine->setPositionAndRules(sgfNextPla, sgfBoard, sgfHist, sgfInitialBoard, sgfInitialNextPla, sgfHist.moveHistory);
           }

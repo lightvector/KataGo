@@ -827,7 +827,6 @@ vector<pair<set<string>,set<string>>> Setup::getMutexKeySets() {
 }
 
 std::vector<std::unique_ptr<PatternBonusTable>> Setup::loadAvoidSgfPatternBonusTables(ConfigParser& cfg, Logger& logger) {
-  vector<SearchParams> paramss;
   int numBots = 1;
   if(cfg.contains("numBots"))
     numBots = cfg.getInt("numBots",1,MAX_BOT_PARAMS_FROM_CFG);
@@ -868,4 +867,21 @@ std::vector<std::unique_ptr<PatternBonusTable>> Setup::loadAvoidSgfPatternBonusT
     tables.push_back(std::move(patternBonusTable));
   }
   return tables;
+}
+
+
+std::unique_ptr<PatternBonusTable> Setup::loadAndPruneAutoPatternBonusTables(ConfigParser& cfg, Logger& logger) {
+  std::unique_ptr<PatternBonusTable> patternBonusTable = nullptr;
+  if(cfg.contains("autoAvoidRepeatDir")) {
+    double penalty = cfg.getDouble("autoAvoidRepeatUtility",-3.0,3.0);
+    double lambda = cfg.contains("autoAvoidRepeatLambda") ? cfg.getDouble("autoAvoidRepeatLambda",0.0,1.0) : 1.0;
+    int minTurnNumber = cfg.contains("autoAvoidRepeatMinTurnNumber") ? cfg.getInt("autoAvoidRepeatMinTurnNumber",0,1000000) : 0;
+    int maxTurnNumber = cfg.contains("autoAvoidRepeatMaxTurnNumber") ? cfg.getInt("autoAvoidRepeatMaxTurnNumber",0,1000000) : 1000000;
+    size_t maxPoses = cfg.contains("autoAvoidRepeatMaxPoses") ? (size_t)cfg.getInt("autoAvoidRepeatMaxPoses",1,10000000) : 10000000;
+    string dir = cfg.getString("autoAvoidRepeatDir");
+    string logSource = "bot";
+    patternBonusTable = std::make_unique<PatternBonusTable>();
+    patternBonusTable->avoidRepeatedPosMovesAndDeleteExcessFiles({dir},penalty,lambda,minTurnNumber,maxTurnNumber,maxPoses,logger,logSource);
+  }
+  return patternBonusTable;
 }

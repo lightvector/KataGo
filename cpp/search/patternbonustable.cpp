@@ -2,6 +2,7 @@
 
 #include "../core/rand.h"
 #include "../core/multithread.h"
+#include "../core/fileutils.h"
 #include "../neuralnet/nninputs.h"
 #include "../search/localpattern.h"
 #include "../dataio/sgf.h"
@@ -210,4 +211,81 @@ void PatternBonusTable::avoidRepeatedSgfMoves(
     delete sgf;
     factor *= decayOlderFilesLambda;
   }
+}
+
+
+void PatternBonusTable::avoidRepeatedPosMovesAndDeleteExcessFiles(
+  const vector<string>& posesDirsToLoadAndPrune,
+  double penalty,
+  double decayOlderPosesLambda,
+  int minTurnNumber,
+  int maxTurnNumber,
+  size_t maxPoses,
+  Logger& logger,
+  const string& logSource
+) {
+  vector<string> posFiles;
+  FileHelpers::collectPosesFromDirs(posesDirsToLoadAndPrune,posFiles);
+  FileHelpers::sortNewestToOldest(posFiles);
+
+  size_t numPosesUsed = 0;
+  size_t numPosesInvalid = 0;
+  size_t numPosLoadErrors = 0; //May be due to concurrent access and pruning of the dir, that's fine, but we count it.
+  double factor = 1.0;
+
+  Sgf::PositionSample posSample;
+  size_t i = 0;
+  for(; i<posFiles.size(); i++) {
+    if(numPosesUsed >= maxPoses)
+      break;
+    std::set<Hash128> hashesThisGame;
+    const string& fileName = posFiles[i];
+    vector<string> lines = FileUtils::readFileLines(fileName,'\n');
+    for(size_t j = 0; j<lines.size(); j++) {
+      string line = Global::trim(lines[j]);
+      if(line.size() > 0) {
+        try {
+          posSample = Sgf::PositionSample::ofJsonLine(line);
+        }
+        catch(const StringError& err) {
+          (void)err;
+          numPosLoadErrors += 1;
+          continue;
+        }
+        
+        const bool isMultiStoneSuicideLegal = true;
+        if(
+          posSample.initialTurnNumber < minTurnNumber ||
+          posSample.initialTurnNumber > maxTurnNumber ||          
+          !posSample.board.isLegal(posSample.hintLoc, posSample.nextPla,isMultiStoneSuicideLegal)
+        ) {
+          numPosesInvalid += 1;
+          continue;
+        }
+        
+        for(int flipColorsInt = 0; flipColorsInt < 2; flipColorsInt++) {
+          for(int symmetry = 0; symmetry < 8; symmetry++) {
+            //getRecentBoard(1) - the convention is to pattern match on the board BEFORE the move is played.
+            //This is also more pricipled than convening on the board after since with different captures, moves
+            //may have different effects even while leading to the same position.
+            bool flipColors = (bool)flipColorsInt;
+            Player symPla = flipColors ? getOpp(posSample.nextPla) : posSample.nextPla;
+            double bonus = symPla == P_WHITE ? -penalty*factor : penalty*factor;
+            addBonus(posSample.nextPla, posSample.hintLoc, posSample.board, bonus, symmetry, flipColors, hashesThisGame);
+          }
+        }
+        numPosesUsed += 1;
+        factor *= decayOlderPosesLambda;
+      }
+    }
+  }
+  for(; i<posFiles.size(); i++) {
+    logger.write("Removing old pos file: " + posFiles[i]);
+    FileUtils::tryRemoveFile(posFiles[i]);
+  }
+
+  logger.write("Loaded avoid poses from " + logSource);
+  logger.write("numPosesUsed = " + Global::uint64ToString(numPosesUsed));
+  logger.write("numPosesInvalid = " + Global::uint64ToString(numPosesInvalid));
+  logger.write("numPosLoadErrors = " + Global::uint64ToString(numPosLoadErrors));
 }
