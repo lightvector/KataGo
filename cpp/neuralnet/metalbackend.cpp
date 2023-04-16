@@ -159,7 +159,6 @@ void NeuralNet::freeComputeContext(ComputeContext* computeContext) {
 ComputeHandle::ComputeHandle(
   ComputeContext* context,
   const LoadedModel* loadedModel,
-  int maxBatchSize,
   bool inputsUseNHWC,
   int gpuIdx,
   int serverThreadIdx) {
@@ -178,7 +177,7 @@ ComputeHandle::ComputeHandle(
   useMetal = (gpuIdx < coreMLStartIndex);
 
   if(useMetal) {
-    createMetalHandle(gpuIdx, modelDesc, maxBatchSize, serverThreadIdx);
+    createMetalHandle(gpuIdx, modelDesc, serverThreadIdx);
   } else {
     // Create a Core ML backend
     modelIndex = createCoreMLBackend(modelXLen, modelYLen, serverThreadIdx, useFP16);
@@ -219,9 +218,10 @@ ComputeHandle* NeuralNet::createComputeHandle(
   int gpuIdxForThisThread,
   int serverThreadIdx) {
 
+  (void)maxBatchSize;
   // Current implementation always tolerates excess nn len
   (void)requireExactNNLen;
-  ComputeHandle* handle = new ComputeHandle(context, loadedModel, 1, inputsUseNHWC, gpuIdxForThisThread, serverThreadIdx);
+  ComputeHandle* handle = new ComputeHandle(context, loadedModel, inputsUseNHWC, gpuIdxForThisThread, serverThreadIdx);
 
   return handle;
 }
@@ -443,7 +443,8 @@ static void getMetalOutput(
                          valueOutputBuf,
                          ownershipOutputBuf,
                          scoreValuesOutputBuf,
-                         gpuHandle->gpuIndex);
+                         gpuHandle->gpuIndex,
+                         1);
   }
 
   for(size_t row = 0; row < batchSize; row++) {

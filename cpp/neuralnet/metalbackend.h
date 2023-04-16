@@ -167,7 +167,6 @@ struct ComputeHandle {
    * This constructor initializes a new ComputeHandle object with the specified parameters and settings.
    * @param context The ComputeContext object to use for computation.
    * @param loadedModel A pointer to the LoadedModel object containing the neural network model to use.
-   * @param maxBatchSize The maximum batch size to use for computation.
    * @param inputsUseNHWC Whether the input data uses NHWC format.
    * @param gpuIdx The index of the GPU to use for computation.
    * @param serverThreadIdx The index of the server thread to use for computation.
@@ -175,7 +174,6 @@ struct ComputeHandle {
   ComputeHandle(
     ComputeContext* context,
     const LoadedModel* loadedModel,
-    int maxBatchSize,
     bool inputsUseNHWC,
     int gpuIdx,
     int serverThreadIdx);
@@ -276,11 +274,9 @@ int getMetalContextYLen(void);
 /// - Parameters:
 ///   - gpuIdxForThisThread: A GPU index for this thread.
 ///   - desc: A model description.
-///   - batchSize: A batch size.
 ///   - serverThreadIdx: A server thread index.
 void createMetalHandle(int gpuIdxForThisThread,
                        const ModelDesc* desc,
-                       int batchSize,
                        int serverThreadIdx);
 
 /// Get output from a Metal computing handle.
@@ -293,6 +289,7 @@ void createMetalHandle(int gpuIdxForThisThread,
 ///   - ownershipOutput: An ownership output buffer.
 ///   - scoreValueOutput: A score value output buffer.
 ///   - gpuIdx: A GPU index.
+///   - batchSize: A batch size.
 void getMetalHandleOutput(float* userInputBuffer,
                           float* userInputGlobalBuffer,
                           float* policyOutput,
@@ -300,7 +297,8 @@ void getMetalHandleOutput(float* userInputBuffer,
                           float* valueOutput,
                           float* ownershipOutput,
                           float* scoreValueOutput,
-                          int gpuIdx);
+                          int gpuIdx,
+                          int batchSize);
 
 /// Test Metal evaluating convolution layer with a given input
 /// - Parameters:

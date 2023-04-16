@@ -77,15 +77,6 @@ struct MPSNDArrayDataReader {
     }
 }
 
-/// Extension to MPSGraphTensor to count number of elements
-extension MPSGraphTensor {
-    /// Count number of elements
-    /// - Returns: Number of elements
-    func countElements() -> Int? {
-        return shape?.reduce(1, { $0 * $1.intValue })
-    }
-}
-
 /// Extension to Array to count number of elements and bytes
 extension Array where Element == NSNumber {
     /// Count number of elements
@@ -170,16 +161,14 @@ struct InputLayer {
     /// Initialize a InputLayer object
     /// - Parameters:
     ///   - graph: The graph
-    ///   - batchSize: Batch size
     ///   - nnXLen: X length
     ///   - nnYLen: Y length
     ///   - numChannels: Number of channels
     init(graph: MPSGraph,
-         batchSize: NSNumber,
          nnXLen: NSNumber,
          nnYLen: NSNumber,
          numChannels: NSNumber) {
-        shape = InputShape.create(batchSize: batchSize,
+        shape = InputShape.create(batchSize: -1,
                                   numChannels: numChannels,
                                   nnYLen: nnYLen,
                                   nnXLen: nnXLen)
@@ -200,12 +189,10 @@ struct InputGlobalLayer {
     /// Initializes an InputGlobalLayer object with a graph, batch size, number of global features, data type, and input shape.
     /// - Parameters:
     ///   - graph: The graph.
-    ///   - batchSize: The batch size.
     ///   - numGlobalFeatures: The number of global features.
     init(graph: MPSGraph,
-         batchSize: NSNumber,
          numGlobalFeatures: NSNumber) {
-        shape = InputShape.create(batchSize: batchSize,
+        shape = InputShape.create(batchSize: -1,
                                   numChannels: numGlobalFeatures,
                                   nnYLen: 1,
                                   nnXLen: 1)
@@ -226,14 +213,12 @@ struct MaskLayer {
     /// Initializes a MaskLayer object with a graph, batch size, x and y lengths, data type, and input shape.
     /// - Parameters:
     ///   - graph: The graph.
-    ///   - batchSize: The batch size.
     ///   - nnXLen: The length of the x-axis.
     ///   - nnYLen: The length of the y-axis.
     init(graph: MPSGraph,
-         batchSize: NSNumber,
          nnXLen: NSNumber,
          nnYLen: NSNumber) {
-        shape = InputShape.create(batchSize: batchSize,
+        shape = InputShape.create(batchSize: -1,
                                   numChannels: 1,
                                   nnYLen: nnYLen,
                                   nnXLen: nnXLen)
@@ -370,13 +355,11 @@ struct NetworkTester {
 
             // Create the input and mask layers.
             let inputLayer = InputLayer(graph: graph,
-                                        batchSize: batchSize,
                                         nnXLen: nnXLen,
                                         nnYLen: nnYLen,
                                         numChannels: numChannels)
 
             let maskLayer = MaskLayer(graph: graph,
-                                      batchSize: batchSize,
                                       nnXLen: nnXLen,
                                       nnYLen: nnYLen)
 
@@ -504,7 +487,6 @@ struct NetworkTester {
             let graph = MPSGraph()
 
             let source = InputLayer(graph: graph,
-                                    batchSize: batchSize,
                                     nnXLen: nnXLen,
                                     nnYLen: nnYLen,
                                     numChannels: descriptor.inChannels)
@@ -512,7 +494,6 @@ struct NetworkTester {
             let conv = ConvLayer(graph: graph,
                                  sourceTensor: source.tensor,
                                  descriptor: descriptor,
-                                 batchSize: batchSize,
                                  nnXLen: nnXLen,
                                  nnYLen: nnYLen)
 
@@ -548,13 +529,11 @@ struct NetworkTester {
     ///   - graph: An MPSGraph object
     ///   - sourceTensor: The input tensor for the convolutional layer
     ///   - descriptor: A descriptor for the convolutional layer
-    ///   - batchSize: The batch size of the input tensor
     ///   - nnXLen: The width of the input tensor
     ///   - nnYLen: The height of the input tensor
     init(graph: MPSGraph,
          sourceTensor: MPSGraphTensor,
          descriptor: SWConvLayerDesc,
-         batchSize: NSNumber,
          nnXLen: NSNumber,
          nnYLen: NSNumber) {
         let weightsShape = [descriptor.outChannels,
@@ -652,8 +631,7 @@ struct NetworkTester {
                                            maskTensor: maskLayer.tensor,
                                            descriptor: descriptor,
                                            nnXLen: nnXLen,
-                                           nnYLen: nnYLen,
-                                           batchSize: batchSize)
+                                           nnYLen: nnYLen)
 
             return batchNorm.resultTensor
         }
@@ -667,14 +645,12 @@ struct NetworkTester {
     ///   - descriptor: The BatchNormLayer descriptor containing parameters such as the number of channels, mean, variance, scale, and bias.
     ///   - nnXLen: The length of the input tensor in the X direction.
     ///   - nnYLen: The length of the input tensor in the Y direction.
-    ///   - batchSize: The number of inputs in the batch.
     init(graph: MPSGraph,
          sourceTensor: MPSGraphTensor,
          maskTensor: MPSGraphTensor,
          descriptor: SWBatchNormLayerDesc,
          nnXLen: NSNumber,
-         nnYLen: NSNumber,
-         batchSize: NSNumber) {
+         nnYLen: NSNumber) {
         let meanShape = InputShape.create(batchSize: 1,
                                           numChannels: descriptor.numChannels,
                                           nnYLen: 1,
@@ -835,8 +811,7 @@ struct ActivationLayer {
                                       maskTensor: maskLayer.tensor,
                                       descriptor: descriptor,
                                       nnXLen: nnXLen,
-                                      nnYLen: nnYLen,
-                                      batchSize: batchSize)
+                                      nnYLen: nnYLen)
 
             return block.resultTensor
         }
@@ -851,21 +826,18 @@ struct ActivationLayer {
     ///   - descriptor: The Residual Block descriptor
     ///   - nnXLen: X length
     ///   - nnYLen: Y length
-    ///   - batchSize: Batch size
     init(graph: MPSGraph,
          sourceTensor: MPSGraphTensor,
          maskTensor: MPSGraphTensor,
          descriptor: SWResidualBlockDesc,
          nnXLen: NSNumber,
-         nnYLen: NSNumber,
-         batchSize: NSNumber) {
+         nnYLen: NSNumber) {
         let preBN = BatchNormLayer(graph: graph,
                                    sourceTensor: sourceTensor,
                                    maskTensor: maskTensor,
                                    descriptor: descriptor.preBN,
                                    nnXLen: nnXLen,
-                                   nnYLen: nnYLen,
-                                   batchSize: batchSize)
+                                   nnYLen: nnYLen)
 
         let preActivation = ActivationLayer(graph: graph,
                                             sourceTensor: preBN.resultTensor,
@@ -874,7 +846,6 @@ struct ActivationLayer {
         let regularConv = ConvLayer(graph: graph,
                                     sourceTensor: preActivation.resultTensor,
                                     descriptor: descriptor.regularConv,
-                                    batchSize: batchSize,
                                     nnXLen: nnXLen,
                                     nnYLen: nnYLen)
 
@@ -883,8 +854,7 @@ struct ActivationLayer {
                                    maskTensor: maskTensor,
                                    descriptor: descriptor.midBN,
                                    nnXLen: nnXLen,
-                                   nnYLen: nnYLen,
-                                   batchSize: batchSize)
+                                   nnYLen: nnYLen)
 
         let midActivation = ActivationLayer(graph: graph,
                                             sourceTensor: midBN.resultTensor,
@@ -893,7 +863,6 @@ struct ActivationLayer {
         let finalConv = ConvLayer(graph: graph,
                                   sourceTensor: midActivation.resultTensor,
                                   descriptor: descriptor.finalConv,
-                                  batchSize: batchSize,
                                   nnXLen: nnXLen,
                                   nnYLen: nnYLen)
 
@@ -1117,23 +1086,22 @@ struct AddNCBiasLayer {
     ///   - graph: The graph.
     ///   - sourceTensor: The input tensor to the layer.
     ///   - biasTensor: The bias tensor.
-    ///   - batchSize: The batch size.
     ///   - nnXLen: The x length.
     ///   - nnYLen: The y length.
     ///   - numChannels: The number of channels.
     init(graph: MPSGraph,
          sourceTensor: MPSGraphTensor,
          biasTensor: MPSGraphTensor,
-         batchSize: NSNumber,
          nnXLen: NSNumber,
          nnYLen: NSNumber,
          numChannels: NSNumber) {
-        let shape = InputShape.create(batchSize: batchSize,
+        let shape = InputShape.create(batchSize: -1,
                                       numChannels: numChannels,
                                       nnYLen: 1,
                                       nnXLen: 1)
 
-        assert(biasTensor.countElements() == shape.countElements())
+        assert(biasTensor.shape?[1] == shape[1])
+
         let reshaped = graph.reshape(biasTensor, shape: shape, name: nil)
         resultTensor = graph.addition(sourceTensor, reshaped, name: nil)
 
@@ -1254,8 +1222,7 @@ struct AddNCBiasLayer {
                                        maskSumSqrtS14M01Tensor: maskSumSqrtS14M01.tensor,
                                        descriptor: descriptor,
                                        nnXLen: nnXLen,
-                                       nnYLen: nnYLen,
-                                       batchSize: batchSize)
+                                       nnYLen: nnYLen)
 
             return block.resultTensor
         }
@@ -1272,7 +1239,6 @@ struct AddNCBiasLayer {
     ///   - descriptor: The descriptor of the global pooling residual block
     ///   - nnXLen: The X length
     ///   - nnYLen: The Y length
-    ///   - batchSize: The batch size
     init(graph: MPSGraph,
          sourceTensor: MPSGraphTensor,
          maskTensor: MPSGraphTensor,
@@ -1280,8 +1246,7 @@ struct AddNCBiasLayer {
          maskSumSqrtS14M01Tensor: MPSGraphTensor,
          descriptor: SWGlobalPoolingResidualBlockDesc,
          nnXLen: NSNumber,
-         nnYLen: NSNumber,
-         batchSize: NSNumber) {
+         nnYLen: NSNumber) {
         let maskSum = MaskSumLayer(tensor: maskSumTensor)
         let maskSumSqrtS14M01 = MaskSumSqrtS14M01Layer(tensor: maskSumSqrtS14M01Tensor)
 
@@ -1290,8 +1255,7 @@ struct AddNCBiasLayer {
                                    maskTensor: maskTensor,
                                    descriptor: descriptor.preBN,
                                    nnXLen: nnXLen,
-                                   nnYLen: nnYLen,
-                                   batchSize: batchSize)
+                                   nnYLen: nnYLen)
 
         let preActivation = ActivationLayer(graph: graph,
                                             sourceTensor: preBN.resultTensor,
@@ -1300,14 +1264,12 @@ struct AddNCBiasLayer {
         let regularConv = ConvLayer(graph: graph,
                                     sourceTensor: preActivation.resultTensor,
                                     descriptor: descriptor.regularConv,
-                                    batchSize: batchSize,
                                     nnXLen: nnXLen,
                                     nnYLen: nnYLen)
 
         let gpoolConv = ConvLayer(graph: graph,
                                   sourceTensor: preActivation.resultTensor,
                                   descriptor: descriptor.gpoolConv,
-                                  batchSize: batchSize,
                                   nnXLen: nnXLen,
                                   nnYLen: nnYLen)
 
@@ -1316,8 +1278,7 @@ struct AddNCBiasLayer {
                                      maskTensor: maskTensor,
                                      descriptor: descriptor.gpoolBN,
                                      nnXLen: nnXLen,
-                                     nnYLen: nnYLen,
-                                     batchSize: batchSize)
+                                     nnYLen: nnYLen)
 
         let gpoolActivation = ActivationLayer(graph: graph,
                                               sourceTensor: gpoolBN.resultTensor,
@@ -1337,7 +1298,6 @@ struct AddNCBiasLayer {
         let added = AddNCBiasLayer(graph: graph,
                                    sourceTensor: regularConv.resultTensor,
                                    biasTensor: gpoolToBiasMul.resultTensor,
-                                   batchSize: batchSize,
                                    nnXLen: nnXLen,
                                    nnYLen: nnYLen,
                                    numChannels: descriptor.gpoolToBiasMul.outChannels)
@@ -1347,8 +1307,7 @@ struct AddNCBiasLayer {
                                    maskTensor: maskTensor,
                                    descriptor: descriptor.midBN,
                                    nnXLen: nnXLen,
-                                   nnYLen: nnYLen,
-                                   batchSize: batchSize)
+                                   nnYLen: nnYLen)
 
         let midActivation = ActivationLayer(graph: graph,
                                             sourceTensor: midBN.resultTensor,
@@ -1357,7 +1316,6 @@ struct AddNCBiasLayer {
         let finalConv = ConvLayer(graph: graph,
                                   sourceTensor: midActivation.resultTensor,
                                   descriptor: descriptor.finalConv,
-                                  batchSize: batchSize,
                                   nnXLen: nnXLen,
                                   nnYLen: nnYLen)
 
@@ -1436,7 +1394,6 @@ struct BlockStack {
     ///   - index: The index of the block descriptor
     ///   - nnXLen: X length
     ///   - nnYLen: Y length
-    ///   - batchSize: Batch size
     /// - Returns: The result tensor
     static func processBlockDescriptors(_ graph: MPSGraph,
                                         _ sourceTensor: MPSGraphTensor,
@@ -1446,8 +1403,7 @@ struct BlockStack {
                                         _ blockDescriptors: [BlockDescriptor],
                                         _ index: Int,
                                         _ nnXLen: NSNumber,
-                                        _ nnYLen: NSNumber,
-                                        _ batchSize: NSNumber) -> MPSGraphTensor {
+                                        _ nnYLen: NSNumber) -> MPSGraphTensor {
         guard index < blockDescriptors.count else {
             return sourceTensor
         }
@@ -1464,8 +1420,7 @@ struct BlockStack {
                                                            maskSumSqrtS14M01Tensor: maskSumSqrtS14M01Tensor,
                                                            descriptor: globalPoolingDescriptor,
                                                            nnXLen: nnXLen,
-                                                           nnYLen: nnYLen,
-                                                           batchSize: batchSize)
+                                                           nnYLen: nnYLen)
 
             blockInput = globalPooling.resultTensor
         case let nestedBottleneckDescriptor as SWNestedBottleneckResidualBlockDesc:
@@ -1476,8 +1431,7 @@ struct BlockStack {
                                                                  maskSumSqrtS14M01Tensor: maskSumSqrtS14M01Tensor,
                                                                  descriptor: nestedBottleneckDescriptor,
                                                                  nnXLen: nnXLen,
-                                                                 nnYLen: nnYLen,
-                                                                 batchSize: batchSize)
+                                                                 nnYLen: nnYLen)
 
             blockInput = nestedBottleneck.resultTensor
         case let residualBlockDescriptor as SWResidualBlockDesc:
@@ -1486,8 +1440,7 @@ struct BlockStack {
                                          maskTensor: maskTensor,
                                          descriptor: residualBlockDescriptor,
                                          nnXLen: nnXLen,
-                                         nnYLen: nnYLen,
-                                         batchSize: batchSize)
+                                         nnYLen: nnYLen)
 
             blockInput = ordinary.resultTensor
         default:
@@ -1502,8 +1455,7 @@ struct BlockStack {
                                        blockDescriptors,
                                        index + 1,
                                        nnXLen,
-                                       nnYLen,
-                                       batchSize)
+                                       nnYLen)
     }
 
     /// Initialize a BlockStack object
@@ -1516,7 +1468,6 @@ struct BlockStack {
     ///   - blockDescriptors: The block descriptors
     ///   - nnXLen: X length
     ///   - nnYLen: Y length
-    ///   - batchSize: Batch size
     init(graph: MPSGraph,
          sourceTensor: MPSGraphTensor,
          maskTensor: MPSGraphTensor,
@@ -1524,8 +1475,7 @@ struct BlockStack {
          maskSumSqrtS14M01Tensor: MPSGraphTensor,
          blockDescriptors: [BlockDescriptor],
          nnXLen: NSNumber,
-         nnYLen: NSNumber,
-         batchSize: NSNumber) {
+         nnYLen: NSNumber) {
         resultTensor = BlockStack.processBlockDescriptors(graph,
                                                           sourceTensor,
                                                           maskTensor,
@@ -1534,8 +1484,7 @@ struct BlockStack {
                                                           blockDescriptors,
                                                           0,
                                                           nnXLen,
-                                                          nnYLen,
-                                                          batchSize)
+                                                          nnYLen)
     }
 }
 
@@ -1555,7 +1504,6 @@ struct NestedBottleneckResidualBlock {
     ///   - descriptor: The nested bottleneck residual block descriptor
     ///   - nnXLen: X length
     ///   - nnYLen: Y length
-    ///   - batchSize: Batch size
     init(graph: MPSGraph,
          sourceTensor: MPSGraphTensor,
          maskTensor: MPSGraphTensor,
@@ -1563,16 +1511,14 @@ struct NestedBottleneckResidualBlock {
          maskSumSqrtS14M01Tensor: MPSGraphTensor,
          descriptor: SWNestedBottleneckResidualBlockDesc,
          nnXLen: NSNumber,
-         nnYLen: NSNumber,
-         batchSize: NSNumber) {
+         nnYLen: NSNumber) {
 
         let preBN = BatchNormLayer(graph: graph,
                                    sourceTensor: sourceTensor,
                                    maskTensor: maskTensor,
                                    descriptor: descriptor.preBN,
                                    nnXLen: nnXLen,
-                                   nnYLen: nnYLen,
-                                   batchSize: batchSize)
+                                   nnYLen: nnYLen)
 
         let preActivation = ActivationLayer(graph: graph,
                                             sourceTensor: preBN.resultTensor,
@@ -1581,7 +1527,6 @@ struct NestedBottleneckResidualBlock {
         let preConv = ConvLayer(graph: graph,
                                 sourceTensor: preActivation.resultTensor,
                                 descriptor: descriptor.preConv,
-                                batchSize: batchSize,
                                 nnXLen: nnXLen,
                                 nnYLen: nnYLen)
 
@@ -1592,16 +1537,14 @@ struct NestedBottleneckResidualBlock {
                                 maskSumSqrtS14M01Tensor: maskSumSqrtS14M01Tensor,
                                 blockDescriptors: descriptor.blockDescriptors,
                                 nnXLen: nnXLen,
-                                nnYLen: nnYLen,
-                                batchSize: batchSize)
+                                nnYLen: nnYLen)
 
         let postBN = BatchNormLayer(graph: graph,
                                     sourceTensor: blocks.resultTensor,
                                     maskTensor: maskTensor,
                                     descriptor: descriptor.postBN,
                                     nnXLen: nnXLen,
-                                    nnYLen: nnYLen,
-                                    batchSize: batchSize)
+                                    nnYLen: nnYLen)
 
         let postActivation = ActivationLayer(graph: graph,
                                              sourceTensor: postBN.resultTensor,
@@ -1610,7 +1553,6 @@ struct NestedBottleneckResidualBlock {
         let postConv = ConvLayer(graph: graph,
                                  sourceTensor: postActivation.resultTensor,
                                  descriptor: descriptor.postConv,
-                                 batchSize: batchSize,
                                  nnXLen: nnXLen,
                                  nnYLen: nnYLen)
 
@@ -1696,7 +1638,6 @@ struct Trunk {
     ///   - maskSumSqrtS14M01Tensor: The square root of the sum of the mask tensor
     ///   - nnXLen: The length of the X dimension of the input tensor
     ///   - nnYLen: The length of the Y dimension of the input tensor
-    ///   - batchSize: The batch size of the input tensor
     ///   - numSpatialFeatures: The number of spatial features in the input tensor
     ///   - numGlobalFeatures: The number of global features in the input tensor
     init(graph: MPSGraph,
@@ -1708,14 +1649,12 @@ struct Trunk {
          maskSumSqrtS14M01Tensor: MPSGraphTensor,
          nnXLen: NSNumber,
          nnYLen: NSNumber,
-         batchSize: NSNumber,
          numSpatialFeatures: NSNumber,
          numGlobalFeatures: NSNumber) {
 
         let initialConv = ConvLayer(graph: graph,
                                     sourceTensor: inputTensor,
                                     descriptor: descriptor.initialConv,
-                                    batchSize: batchSize,
                                     nnXLen: nnXLen,
                                     nnYLen: nnYLen)
 
@@ -1726,7 +1665,6 @@ struct Trunk {
         let added = AddNCBiasLayer(graph: graph,
                                    sourceTensor: initialConv.resultTensor,
                                    biasTensor: initialMatMul.resultTensor,
-                                   batchSize: batchSize,
                                    nnXLen: nnXLen,
                                    nnYLen: nnYLen,
                                    numChannels: descriptor.initialMatMul.outChannels)
@@ -1738,16 +1676,14 @@ struct Trunk {
                                 maskSumSqrtS14M01Tensor: maskSumSqrtS14M01Tensor,
                                 blockDescriptors: descriptor.blockDescriptors,
                                 nnXLen: nnXLen,
-                                nnYLen: nnYLen,
-                                batchSize: batchSize)
+                                nnYLen: nnYLen)
 
         let trunkTipBN = BatchNormLayer(graph: graph,
                                         sourceTensor: blocks.resultTensor,
                                         maskTensor: maskTensor,
                                         descriptor: descriptor.trunkTipBN,
                                         nnXLen: nnXLen,
-                                        nnYLen: nnYLen,
-                                        batchSize: batchSize)
+                                        nnYLen: nnYLen)
 
         let trunkTipActivation = ActivationLayer(graph: graph,
                                                  sourceTensor: trunkTipBN.resultTensor,
@@ -1835,7 +1771,6 @@ struct PolicyHead {
     ///   - maskSumSqrtS14M01Tensor: The square root of the sum of the mask tensor and a small epsilon
     ///   - nnXLen: The number of X pixels in the input tensor
     ///   - nnYLen: The number of Y pixels in the input tensor
-    ///   - batchSize: The batch size of the input tensor
     init(graph: MPSGraph,
          descriptor: SWPolicyHeadDesc,
          sourceTensor: MPSGraphTensor,
@@ -1843,20 +1778,17 @@ struct PolicyHead {
          maskSumTensor: MPSGraphTensor,
          maskSumSqrtS14M01Tensor: MPSGraphTensor,
          nnXLen: NSNumber,
-         nnYLen: NSNumber,
-         batchSize: NSNumber) {
+         nnYLen: NSNumber) {
 
         let p1Conv = ConvLayer(graph: graph,
                                sourceTensor: sourceTensor,
                                descriptor: descriptor.p1Conv,
-                               batchSize: batchSize,
                                nnXLen: nnXLen,
                                nnYLen: nnYLen)
 
         let g1Conv = ConvLayer(graph: graph,
                                sourceTensor: sourceTensor,
                                descriptor: descriptor.g1Conv,
-                               batchSize: batchSize,
                                nnXLen: nnXLen,
                                nnYLen: nnYLen)
 
@@ -1865,8 +1797,7 @@ struct PolicyHead {
                                   maskTensor: maskTensor,
                                   descriptor: descriptor.g1BN,
                                   nnXLen: nnXLen,
-                                  nnYLen: nnYLen,
-                                  batchSize: batchSize)
+                                  nnYLen: nnYLen)
 
         let g1Activation = ActivationLayer(graph: graph,
                                            sourceTensor: g1BN.resultTensor,
@@ -1886,7 +1817,6 @@ struct PolicyHead {
         let added = AddNCBiasLayer(graph: graph,
                                    sourceTensor: p1Conv.resultTensor,
                                    biasTensor: gpoolToBiasMul.resultTensor,
-                                   batchSize: batchSize,
                                    nnXLen: nnXLen,
                                    nnYLen: nnYLen,
                                    numChannels: descriptor.gpoolToBiasMul.outChannels)
@@ -1896,8 +1826,7 @@ struct PolicyHead {
                                   maskTensor: maskTensor,
                                   descriptor: descriptor.p1BN,
                                   nnXLen: nnXLen,
-                                  nnYLen: nnYLen,
-                                  batchSize: batchSize)
+                                  nnYLen: nnYLen)
 
         let p1Activation = ActivationLayer(graph: graph,
                                            sourceTensor: p1BN.resultTensor,
@@ -1906,7 +1835,6 @@ struct PolicyHead {
         let p2Conv = ConvLayer(graph: graph,
                                sourceTensor: p1Activation.resultTensor,
                                descriptor: descriptor.p2Conv,
-                               batchSize: batchSize,
                                nnXLen: nnXLen,
                                nnYLen: nnYLen)
 
@@ -2012,7 +1940,6 @@ struct ValueHead {
     ///   - maskSumSqrtS14M01SquareS01Tensor: The tensor used to calculate a square value
     ///   - nnXLen: The x-axis length of the neural network
     ///   - nnYLen: The y-axis length of the neural network
-    ///   - batchSize: The size of the batch
     init(graph: MPSGraph,
          descriptor: SWValueHeadDesc,
          sourceTensor: MPSGraphTensor,
@@ -2021,13 +1948,11 @@ struct ValueHead {
          maskSumSqrtS14M01Tensor: MPSGraphTensor,
          maskSumSqrtS14M01SquareS01Tensor: MPSGraphTensor,
          nnXLen: NSNumber,
-         nnYLen: NSNumber,
-         batchSize: NSNumber) {
+         nnYLen: NSNumber) {
 
         let v1Conv = ConvLayer(graph: graph,
                                sourceTensor: sourceTensor,
                                descriptor: descriptor.v1Conv,
-                               batchSize: batchSize,
                                nnXLen: nnXLen,
                                nnYLen: nnYLen)
 
@@ -2036,8 +1961,7 @@ struct ValueHead {
                                   maskTensor: maskTensor,
                                   descriptor: descriptor.v1BN,
                                   nnXLen: nnXLen,
-                                  nnYLen: nnYLen,
-                                  batchSize: batchSize)
+                                  nnYLen: nnYLen)
 
         let v1Activation = ActivationLayer(graph: graph,
                                            sourceTensor: v1BN.resultTensor,
@@ -2083,7 +2007,6 @@ struct ValueHead {
         let vOwnershipConv = ConvLayer(graph: graph,
                                        sourceTensor: v1Activation.resultTensor,
                                        descriptor: descriptor.vOwnershipConv,
-                                       batchSize: batchSize,
                                        nnXLen: nnXLen,
                                        nnYLen: nnYLen)
 
@@ -2158,14 +2081,14 @@ struct ValueHead {
 
 /// A structure representing a neural network model for processing Go game states.
 struct Model {
+    /// The Metal device
+    let device: MTLDevice
     /// The Metal Performance Shaders graph object used for building and executing the graph
     let graph: MPSGraph
     /// The length of the neural network input in the x dimension
     let nnXLen: NSNumber
     /// The length of the neural network input in the y dimension
     let nnYLen: NSNumber
-    /// The batch size of the neural network input
-    let batchSize: NSNumber
     /// The version of the model
     let version: Int
     /// The number of channels in the input layer
@@ -2184,20 +2107,14 @@ struct Model {
     let input: InputLayer
     /// The global input layer of the neural network
     let inputGlobal: InputGlobalLayer
+    /// The mask layer of the neural network
+    let mask: MaskLayer
     /// The trunk of the neural network
     let trunk: Trunk
     /// The policy head of the neural network
     let policyHead: PolicyHead
     /// The value head of the neural network
     let valueHead: ValueHead
-    /// The input layer as a Metal Performance Shaders n-dimensional array
-    let inputArray: MPSNDArray
-    /// The data writer for the input array
-    let inputArrayWriter: MPSNDArrayDataWriter
-    /// The global input layer as a Metal Performance Shaders n-dimensional array
-    let inputGlobalArray: MPSNDArray
-    /// The data writer for the global input array
-    let inputGlobalArrayWriter: MPSNDArrayDataWriter
     /// The data reader for the policy array
     let policyArrayReader: MPSNDArrayDataReader
     /// The data reader for the policy pass array
@@ -2208,8 +2125,6 @@ struct Model {
     let scoreValueArrayReader: MPSNDArrayDataReader
     /// The data reader for the ownership array
     let ownershipArrayReader: MPSNDArrayDataReader
-    /// The dictionary that maps the input tensors to the tensor data
-    let feeds: [MPSGraphTensor: MPSGraphTensorData]
     /// The dictionary that maps the output tensors to the tensor data
     let targetTensors: [MPSGraphTensor]
 
@@ -2220,17 +2135,15 @@ struct Model {
     ///   - descriptor: The description of the model.
     ///   - nnXLen: The length of the neural network input in the x dimension.
     ///   - nnYLen: The length of the neural network input in the y dimension.
-    ///   - batchSize: The batch size of the neural network input.
     init(device: MTLDevice,
          graph: MPSGraph,
          descriptor: SWModelDesc,
          nnXLen: NSNumber,
-         nnYLen: NSNumber,
-         batchSize: NSNumber) {
+         nnYLen: NSNumber) {
+        self.device = device
         self.graph = graph
         self.nnXLen = nnXLen
         self.nnYLen = nnYLen
-        self.batchSize = batchSize
         self.version = descriptor.version
         self.numInputChannels = descriptor.numInputChannels
         self.numInputGlobalChannels = descriptor.numInputGlobalChannels
@@ -2240,30 +2153,19 @@ struct Model {
         commandQueue = device.makeCommandQueue()
 
         input = InputLayer(graph: graph,
-                           batchSize: batchSize,
                            nnXLen: nnXLen,
                            nnYLen: nnYLen,
                            numChannels: descriptor.numInputChannels)
 
         inputGlobal = InputGlobalLayer(graph: graph,
-                                       batchSize: batchSize,
                                        numGlobalFeatures: descriptor.numInputGlobalChannels)
 
-        let startOfMask: [NSNumber] = [0, 0, 0, 0]
-
-        let endOfMask = InputShape.create(batchSize: batchSize,
-                                          numChannels: 1,
-                                          nnYLen: nnYLen,
-                                          nnXLen: nnXLen)
-
-        let maskTensor = graph.sliceTensor(input.tensor,
-                                           starts: startOfMask,
-                                           ends: endOfMask,
-                                           strides: [1, 1, 1, 1],
-                                           name: nil)
+        mask = MaskLayer(graph: graph,
+                         nnXLen: nnXLen,
+                         nnYLen: nnYLen)
 
         let maskSum = MaskSumLayer(graph: graph,
-                                   maskTensor: maskTensor)
+                                   maskTensor: mask.tensor)
 
         let maskSumSqrtS14M01 = MaskSumSqrtS14M01Layer(graph: graph,
                                                        maskSum: maskSum)
@@ -2275,61 +2177,32 @@ struct Model {
                       descriptor: descriptor.trunk,
                       inputTensor: input.tensor,
                       inputGlobalTensor: inputGlobal.tensor,
-                      maskTensor: maskTensor,
+                      maskTensor: mask.tensor,
                       maskSumTensor: maskSum.tensor,
                       maskSumSqrtS14M01Tensor: maskSumSqrtS14M01.tensor,
                       nnXLen: nnXLen,
                       nnYLen: nnYLen,
-                      batchSize: batchSize,
                       numSpatialFeatures: descriptor.numInputChannels,
                       numGlobalFeatures: descriptor.numInputGlobalChannels)
 
         policyHead = PolicyHead(graph: graph,
                                 descriptor: descriptor.policyHead,
                                 sourceTensor: trunk.resultTensor,
-                                maskTensor: maskTensor,
+                                maskTensor: mask.tensor,
                                 maskSumTensor: maskSum.tensor,
                                 maskSumSqrtS14M01Tensor: maskSumSqrtS14M01.tensor,
                                 nnXLen: nnXLen,
-                                nnYLen: nnYLen,
-                                batchSize: batchSize)
+                                nnYLen: nnYLen)
 
         valueHead = ValueHead(graph: graph,
                               descriptor: descriptor.valueHead,
                               sourceTensor: trunk.resultTensor,
-                              maskTensor: maskTensor,
+                              maskTensor: mask.tensor,
                               maskSumTensor: maskSum.tensor,
                               maskSumSqrtS14M01Tensor: maskSumSqrtS14M01.tensor,
                               maskSumSqrtS14M01SquareS01Tensor: maskSumSqrtS14M01SquareS01.tensor,
                               nnXLen: nnXLen,
-                              nnYLen: nnYLen,
-                              batchSize: batchSize)
-
-        let inputShape = InputShape.create(batchSize: batchSize,
-                                           numChannels: descriptor.numInputChannels,
-                                           nnYLen: nnYLen,
-                                           nnXLen: nnXLen)
-
-        let inputDescriptor = MPSNDArrayDescriptor(dataType: input.tensor.dataType,
-                                                   shape: inputShape)
-
-        inputArray = MPSNDArray(device: device,
-                                descriptor: inputDescriptor)
-
-        inputArrayWriter = MPSNDArrayDataWriter(mpsNDArray: inputArray)
-
-        let inputGlobalShape = InputShape.create(batchSize: batchSize,
-                                                 numChannels: descriptor.numInputGlobalChannels,
-                                                 nnYLen: 1,
-                                                 nnXLen: 1)
-
-        let inputGlobalDescriptor = MPSNDArrayDescriptor(dataType: inputGlobal.tensor.dataType,
-                                                         shape: inputGlobalShape)
-
-        inputGlobalArray = MPSNDArray(device: device,
-                                      descriptor: inputGlobalDescriptor)
-
-        inputGlobalArrayWriter = MPSNDArrayDataWriter(mpsNDArray: inputGlobalArray)
+                              nnYLen: nnYLen)
 
         policyArrayReader = MPSNDArrayDataReader()
         policyPassArrayReader = MPSNDArrayDataReader()
@@ -2337,14 +2210,12 @@ struct Model {
         scoreValueArrayReader = MPSNDArrayDataReader()
         ownershipArrayReader = MPSNDArrayDataReader()
 
-        feeds = [input.tensor: MPSGraphTensorData(inputArray),
-                 inputGlobal.tensor: MPSGraphTensorData(inputGlobalArray)]
-
         targetTensors = [policyHead.policyTensor,
                          policyHead.policyPassTensor,
                          valueHead.valueTensor,
                          valueHead.scoreValueTensor,
                          valueHead.ownershipTensor]
+
     }
 
     /// Applies the model to the given input data, and generates predictions for policy, value and ownership
@@ -2356,6 +2227,7 @@ struct Model {
     ///   - value: UnsafeMutablePointer to a flattened array of floats representing predicted value
     ///   - scoreValue: UnsafeMutablePointer to a flattened array of floats representing predicted score value
     ///   - ownership: UnsafeMutablePointer to a flattened 2D array of floats representing predicted ownership
+    ///   - batchSize: The batch size
     func apply(input inputPointer: UnsafeMutablePointer<Float32>,
                inputGlobal inputGlobalPointer: UnsafeMutablePointer<Float32>,
                policy: UnsafeMutablePointer<Float32>,
@@ -2365,8 +2237,62 @@ struct Model {
                ownership: UnsafeMutablePointer<Float32>,
                batchSize: Int) {
 
-        inputArrayWriter.writeData(pointerFP32: inputPointer)
-        inputGlobalArrayWriter.writeData(pointerFP32: inputGlobalPointer)
+        let channelAxis = InputShape.getChannelAxis()
+        let numInputChannels = input.shape[channelAxis]
+
+        let inputShape = InputShape.create(batchSize: batchSize as NSNumber,
+                                           numChannels: numInputChannels,
+                                           nnYLen: nnYLen,
+                                           nnXLen: nnXLen)
+
+        let inputDescriptor = MPSNDArrayDescriptor(dataType: input.tensor.dataType,
+                                                   shape: inputShape)
+
+        let inputArray = MPSNDArray(device: device,
+                                    descriptor: inputDescriptor)
+
+        inputArray.writeBytes(inputPointer)
+
+        let numInputGlobalChannels = inputGlobal.shape[channelAxis]
+
+        let inputGlobalShape = InputShape.create(batchSize: batchSize as NSNumber,
+                                                 numChannels: numInputGlobalChannels,
+                                                 nnYLen: 1,
+                                                 nnXLen: 1)
+
+        let inputGlobalDescriptor = MPSNDArrayDescriptor(dataType: inputGlobal.tensor.dataType,
+                                                         shape: inputGlobalShape)
+
+        let inputGlobalArray = MPSNDArray(device: device,
+                                          descriptor: inputGlobalDescriptor)
+
+        inputGlobalArray.writeBytes(inputGlobalPointer)
+
+        let maskShape = InputShape.create(batchSize: batchSize as NSNumber,
+                                          numChannels: 1,
+                                          nnYLen: nnYLen,
+                                          nnXLen: nnXLen)
+
+        let maskDescriptor = MPSNDArrayDescriptor(dataType: mask.tensor.dataType,
+                                                  shape: maskShape)
+
+        let maskArray = MPSNDArray(device: device,
+                                   descriptor: maskDescriptor)
+
+        var maskStrideArray = [MemoryLayout<Float32>.size,
+                               nnXLen.intValue * MemoryLayout<Float32>.size,
+                               nnYLen.intValue * nnXLen.intValue * MemoryLayout<Float32>.size,
+                               numInputChannels.intValue * nnYLen.intValue * nnXLen.intValue * MemoryLayout<Float32>.size]
+
+        let maskStrideBytes = maskStrideArray.withUnsafeMutableBytes {
+            $0.baseAddress!.assumingMemoryBound(to: Int.self)
+        }
+
+        maskArray.writeBytes(inputPointer, strideBytes: maskStrideBytes)
+
+        let feeds = [input.tensor: MPSGraphTensorData(inputArray),
+                     inputGlobal.tensor: MPSGraphTensorData(inputGlobalArray),
+                     mask.tensor: MPSGraphTensorData(maskArray)]
 
         if let commandBuffer = commandQueue?.makeCommandBuffer() {
             let mpsCommandBuffer = MPSCommandBuffer(commandBuffer: commandBuffer)
@@ -2472,17 +2398,14 @@ struct Model {
     /// - Parameters:
     ///   - gpuIdxForThisThread: The index of GPU device.
     ///   - descriptor: The descriptor of the model.
-    ///   - batchSize: The batch size.
     ///   - serverThreadIdx: The index of the server thread.
     @objc class func createInstance(at gpuIdxForThisThread: Int,
                                     descriptor: SWModelDesc,
-                                    batchSize: NSNumber,
                                     serverThreadIdx: Int) {
         objc_sync_enter(self)
         defer { objc_sync_exit(self) }
 
         handles[gpuIdxForThisThread] = MetalComputeHandle(descriptor: descriptor,
-                                                          batchSize: batchSize,
                                                           gpuIdxForThisThread: gpuIdxForThisThread,
                                                           serverThreadIdx: serverThreadIdx)
     }
@@ -2499,12 +2422,10 @@ struct Model {
     /// Initializes a new instance of the `MetalComputeHandle` class.
     /// - Parameters:
     ///   - descriptor: The descriptor of the model.
-    ///   - batchSize: The batch size.
     ///   - gpuIdx: The index of GPU device.
     ///   - threadIdx: The index of the server thread.
     /// - Returns: An optional `MetalComputeHandle` instance. Returns `nil` if the provided GPU index is invalid.
     private init?(descriptor: SWModelDesc,
-                  batchSize: NSNumber,
                   gpuIdxForThisThread gpuIdx: Int,
                   serverThreadIdx threadIdx: Int) {
 
@@ -2527,11 +2448,10 @@ struct Model {
                       graph: MPSGraph(),
                       descriptor: descriptor,
                       nnXLen: context.nnXLen,
-                      nnYLen: context.nnYLen,
-                      batchSize: batchSize)
+                      nnYLen: context.nnYLen)
 
         // Log the selected device's name and batch size.
-        NSLog("Metal backend thread \(threadIdx): \(device.name) batchSize=\(batchSize)")
+        NSLog("Metal backend thread \(threadIdx): \(device.name)")
     }
 }
 
@@ -2568,6 +2488,7 @@ struct Model {
     ///   - ownershipOutput: The ownership output data.
     ///   - scoreValueOutput: The score value output data.
     ///   - gpuIdx: The index of the GPU to use.
+    ///   - batchSize: The batch size.
     @objc class func getOutput(userInputBuffer: UnsafeMutablePointer<Float32>,
                                userInputGlobalBuffer: UnsafeMutablePointer<Float32>,
                                policyOutput: UnsafeMutablePointer<Float32>,
@@ -2575,7 +2496,8 @@ struct Model {
                                valueOutput: UnsafeMutablePointer<Float32>,
                                ownershipOutput: UnsafeMutablePointer<Float32>,
                                scoreValueOutput: UnsafeMutablePointer<Float32>,
-                               gpuIdx: Int) {
+                               gpuIdx: Int,
+                               batchSize: Int) {
         autoreleasepool {
             let handle = MetalComputeHandle.getInstance(at: gpuIdx)
 
@@ -2586,7 +2508,7 @@ struct Model {
                                 value: valueOutput,
                                 scoreValue: scoreValueOutput,
                                 ownership: ownershipOutput,
-                                batchSize: 1)
+                                batchSize: batchSize)
         }
     }
 }

@@ -1,10 +1,26 @@
 import XCTest
 import MetalPerformanceShadersGraph
 
+extension MPSNDArray {
+    /// Returns the total number of elements in the MPSNDArray.
+    func countElements() -> Int {
+        // Initialize the range of dimensions from 0 to numberOfDimensions - 1
+        let dimensionsRange = 0..<numberOfDimensions
+
+        // Use the reduce function to calculate the total number of elements
+        let totalElements = dimensionsRange.reduce(1) { count, dimensionIndex in
+            // Multiply the current count by the length of the current dimension
+            count * length(ofDimension: dimensionIndex)
+        }
+
+        return totalElements
+    }
+}
+
 final class MPSGraphTest: XCTestCase {
 
     func testMish() {
-        let device = MPSGraphDevice(mtlDevice: MTLCreateSystemDefaultDevice()!)
+        let device = MTLCreateSystemDefaultDevice()!
         let graph = MPSGraph()
         let shape: [NSNumber] = [5]
         let inputTensor = graph.placeholder(shape: shape, name: nil)
@@ -21,7 +37,7 @@ final class MPSGraphTest: XCTestCase {
         let inputDescriptor = MPSNDArrayDescriptor(dataType: inputTensor.dataType,
                                                    shape: shape)
 
-        let inputArray = MPSNDArray(device: device.metalDevice!,
+        let inputArray = MPSNDArray(device: device,
                                     descriptor: inputDescriptor)
 
         inputArray.writeBytes(inputPointer)
@@ -46,7 +62,7 @@ final class MPSGraphTest: XCTestCase {
     }
 
     func testMishFloat16() {
-        let device = MPSGraphDevice(mtlDevice: MTLCreateSystemDefaultDevice()!)
+        let device = MTLCreateSystemDefaultDevice()!
         let graph = MPSGraph()
         let shape: [NSNumber] = [5]
         let inputTensor = graph.placeholder(shape: shape, dataType: MPSDataType.float16, name: nil)
@@ -63,7 +79,7 @@ final class MPSGraphTest: XCTestCase {
         let inputDescriptor = MPSNDArrayDescriptor(dataType: inputTensor.dataType,
                                                    shape: shape)
 
-        let inputArray = MPSNDArray(device: device.metalDevice!,
+        let inputArray = MPSNDArray(device: device,
                                     descriptor: inputDescriptor)
 
         inputArray.writeBytes(inputPointer)
@@ -91,12 +107,11 @@ final class InputLayerTest: XCTestCase {
 
     func testNCHW() {
         let sourceLayer = InputLayer(graph: MPSGraph(),
-                                     batchSize: 2,
                                      nnXLen: 5,
                                      nnYLen: 4,
                                      numChannels: 3)
 
-        XCTAssert(sourceLayer.tensor.shape == [2, 3, 4, 5])
+        XCTAssert(sourceLayer.tensor.shape == [-1, 3, 4, 5])
         XCTAssert(sourceLayer.tensor.dataType == .float32)
     }
 }
@@ -105,10 +120,9 @@ final class InputGlobalLayerTest: XCTestCase {
 
     func testNilTensor() {
         let inputGlobalLayer = InputGlobalLayer(graph: MPSGraph(),
-                                                batchSize: 2,
                                                 numGlobalFeatures: 3)
 
-        XCTAssert(inputGlobalLayer.tensor.shape == [2, 3, 1, 1])
+        XCTAssert(inputGlobalLayer.tensor.shape == [-1, 3, 1, 1])
         XCTAssert(inputGlobalLayer.tensor.dataType == .float32)
     }
 }
@@ -119,11 +133,10 @@ final class MaskLayerTest: XCTestCase {
         let graph = MPSGraph()
 
         let maskLayer = MaskLayer(graph: graph,
-                                  batchSize: 2,
                                   nnXLen: 4,
                                   nnYLen: 3)
 
-        XCTAssert(maskLayer.tensor.shape == [2, 1, 3, 4])
+        XCTAssert(maskLayer.tensor.shape == [-1, 1, 3, 4])
         XCTAssert(maskLayer.tensor.dataType == .float32)
     }
 }
@@ -460,7 +473,7 @@ final class BatchNormLayerTest: XCTestCase {
 final class ActivationLayerTest: XCTestCase {
 
     func testMish() {
-        let device = MPSGraphDevice(mtlDevice: MTLCreateSystemDefaultDevice()!)
+        let device = MTLCreateSystemDefaultDevice()!
         let graph = MPSGraph()
         let inputNumber = 6
         let shape: [NSNumber] = [NSNumber(value: inputNumber)]
@@ -482,7 +495,7 @@ final class ActivationLayerTest: XCTestCase {
         let inputDescriptor = MPSNDArrayDescriptor(dataType: inputTensor.dataType,
                                                    shape: shape)
 
-        let inputArray = MPSNDArray(device: device.metalDevice!,
+        let inputArray = MPSNDArray(device: device,
                                     descriptor: inputDescriptor)
 
         inputArray.writeBytes(inputPointer)
@@ -507,7 +520,7 @@ final class ActivationLayerTest: XCTestCase {
     }
 
     func testIdentity() {
-        let device = MPSGraphDevice(mtlDevice: MTLCreateSystemDefaultDevice()!)
+        let device = MTLCreateSystemDefaultDevice()!
         let graph = MPSGraph()
         let shape: [NSNumber] = [5]
         let inputTensor = graph.placeholder(shape: shape, name: nil)
@@ -527,7 +540,7 @@ final class ActivationLayerTest: XCTestCase {
         let inputDescriptor = MPSNDArrayDescriptor(dataType: inputTensor.dataType,
                                                    shape: shape)
 
-        let inputArray = MPSNDArray(device: device.metalDevice!,
+        let inputArray = MPSNDArray(device: device,
                                     descriptor: inputDescriptor)
 
         inputArray.writeBytes(inputPointer)
@@ -735,13 +748,11 @@ final class ResidualBlockTest: XCTestCase {
         let graph = MPSGraph()
 
         let input = InputLayer(graph: graph,
-                               batchSize: batchSize as NSNumber,
                                nnXLen: nnXLen as NSNumber,
                                nnYLen: nnYLen as NSNumber,
                                numChannels: numChannels as NSNumber)
 
         let mask = MaskLayer(graph: graph,
-                             batchSize: batchSize as NSNumber,
                              nnXLen: nnXLen as NSNumber,
                              nnYLen: nnYLen as NSNumber)
 
@@ -750,8 +761,7 @@ final class ResidualBlockTest: XCTestCase {
                                   maskTensor: mask.tensor,
                                   descriptor: residualBlock,
                                   nnXLen: nnXLen as NSNumber,
-                                  nnYLen: nnYLen as NSNumber,
-                                  batchSize: batchSize as NSNumber)
+                                  nnYLen: nnYLen as NSNumber)
 
         let inputCount = batchSize * numChannels * nnXLen * nnYLen
         let inputPointer = UnsafeMutablePointer<Float32>.allocate(capacity: inputCount)
@@ -767,20 +777,22 @@ final class ResidualBlockTest: XCTestCase {
             maskPointer[i] = 1
         }
 
-        let mtlDevice = MTLCreateSystemDefaultDevice()!
+        let device = MTLCreateSystemDefaultDevice()!
 
+        let inputArrayShape = [batchSize, numChannels, nnYLen, nnXLen] as [NSNumber]
         let inputDescriptor = MPSNDArrayDescriptor(dataType: input.tensor.dataType,
-                                                   shape: input.shape)
+                                                   shape: inputArrayShape)
 
-        let inputArray = MPSNDArray(device: mtlDevice,
+        let inputArray = MPSNDArray(device: device,
                                     descriptor: inputDescriptor)
 
         inputArray.writeBytes(inputPointer)
 
+        let maskArrayShape = [batchSize, 1, nnYLen, nnXLen] as [NSNumber]
         let maskDescriptor = MPSNDArrayDescriptor(dataType: mask.tensor.dataType,
-                                                  shape: mask.shape)
+                                                  shape: maskArrayShape)
 
-        let maskArray = MPSNDArray(device: mtlDevice,
+        let maskArray = MPSNDArray(device: device,
                                    descriptor: maskDescriptor)
 
         maskArray.writeBytes(maskPointer)
@@ -1007,13 +1019,11 @@ final class NestedBottleneckResidualBlockTest: XCTestCase {
         let graph = MPSGraph()
 
         let source = InputLayer(graph: graph,
-                                batchSize: batchSize as NSNumber,
                                 nnXLen: nnXLen as NSNumber,
                                 nnYLen: nnYLen as NSNumber,
                                 numChannels: numChannels as NSNumber)
 
         let mask = MaskLayer(graph: graph,
-                             batchSize: batchSize as NSNumber,
                              nnXLen: nnXLen as NSNumber,
                              nnYLen: nnYLen as NSNumber)
 
@@ -1079,33 +1089,42 @@ final class NestedBottleneckResidualBlockTest: XCTestCase {
                                                   maskSumSqrtS14M01Tensor: maskSumSqrtS14M01.tensor,
                                                   descriptor: descriptor,
                                                   nnXLen: nnXLen as NSNumber,
-                                                  nnYLen: nnYLen as NSNumber,
-                                                  batchSize: batchSize as NSNumber)
+                                                  nnYLen: nnYLen as NSNumber)
 
-        let device = MPSGraphDevice(mtlDevice: MTLCreateSystemDefaultDevice()!)
+        let device = MTLCreateSystemDefaultDevice()!
 
-        let inLength = source.tensor.countElements()!
+        let inputArrayShape = InputShape.create(batchSize: batchSize as NSNumber,
+                                                numChannels: numChannels as NSNumber,
+                                                nnYLen: nnYLen as NSNumber,
+                                                nnXLen: nnXLen as NSNumber)
+
+        let inLength = inputArrayShape.countElements()
         let inputPointer = UnsafeMutablePointer<Float32>.allocate(capacity: inLength)
         inputPointer[0] = 1
 
         let sourceDescriptor = MPSNDArrayDescriptor(dataType: source.tensor.dataType,
-                                                    shape: source.shape)
+                                                    shape: inputArrayShape)
 
-        let sourceArray = MPSNDArray(device: device.metalDevice!,
+        let sourceArray = MPSNDArray(device: device,
                                      descriptor: sourceDescriptor)
 
         let sourceArrayWriter = MPSNDArrayDataWriter(mpsNDArray: sourceArray)
         sourceArrayWriter.writeData(pointerFP32: inputPointer)
         let sourceTensorData = MPSGraphTensorData(sourceArray)
 
-        let maskLength = mask.tensor.countElements()!
+        let maskArrayShape = InputShape.create(batchSize: batchSize as NSNumber,
+                                               numChannels: 1,
+                                               nnYLen: nnYLen as NSNumber,
+                                               nnXLen: nnXLen as NSNumber)
+
+        let maskLength = maskArrayShape.countElements()
         let maskPointer = UnsafeMutablePointer<Float32>.allocate(capacity: maskLength)
         maskPointer[0] = 1
 
         let maskDescriptor = MPSNDArrayDescriptor(dataType: mask.tensor.dataType,
-                                                  shape: mask.shape)
+                                                  shape: maskArrayShape)
 
-        let maskArray = MPSNDArray(device: device.metalDevice!,
+        let maskArray = MPSNDArray(device: device,
                                    descriptor: maskDescriptor)
 
         let maskArrayWriter = MPSNDArrayDataWriter(mpsNDArray: maskArray)
@@ -1117,9 +1136,10 @@ final class NestedBottleneckResidualBlockTest: XCTestCase {
                               targetTensors: [block.resultTensor],
                               targetOperations: nil)
 
-        let outLength = block.resultTensor.countElements()!
+        let outputArray = fetch[block.resultTensor]?.mpsndarray()
+        let outLength = outputArray!.countElements()
         let outputFP32 = UnsafeMutablePointer<Float32>.allocate(capacity: outLength)
-        fetch[block.resultTensor]?.mpsndarray().readBytes(outputFP32)
+        outputArray?.readBytes(outputFP32)
 
         XCTAssertEqual(outputFP32[0], 2.8582418, accuracy: 1e-8)
     }
@@ -1151,7 +1171,6 @@ final class MatMulLayerTest: XCTestCase {
         let graph = MPSGraph()
 
         let input = InputLayer(graph: graph,
-                               batchSize: batchSize as NSNumber,
                                nnXLen: nnXLen as NSNumber,
                                nnYLen: nnYLen as NSNumber,
                                numChannels: inChannels as NSNumber)
@@ -1179,12 +1198,13 @@ final class MatMulLayerTest: XCTestCase {
          *                  5, 19, 33, 47}
          */
 
-        let mtlDevice = MTLCreateSystemDefaultDevice()!
+        let device = MTLCreateSystemDefaultDevice()!
 
+        let inputArrayShape = [batchSize, inChannels, nnYLen, nnXLen] as [NSNumber]
         let inputDescriptor = MPSNDArrayDescriptor(dataType: input.tensor.dataType,
-                                                   shape: input.shape)
+                                                   shape: inputArrayShape)
 
-        let inputArray = MPSNDArray(device: mtlDevice,
+        let inputArray = MPSNDArray(device: device,
                                     descriptor: inputDescriptor)
 
         inputArray.writeBytes(inputPointer)
@@ -1261,12 +1281,12 @@ final class MatMulLayerTest: XCTestCase {
          *                  56, 68, 80, 92}
          */
 
-        let mtlDevice = MTLCreateSystemDefaultDevice()!
+        let device = MTLCreateSystemDefaultDevice()!
 
         let inputDescriptor = MPSNDArrayDescriptor(dataType: inputTensor.dataType,
                                                    shape: inputShape)
 
-        let inputArray = MPSNDArray(device: mtlDevice,
+        let inputArray = MPSNDArray(device: device,
                                     descriptor: inputDescriptor)
 
         inputArray.writeBytes(inputPointer)
@@ -1335,12 +1355,12 @@ final class MatMulLayerTest: XCTestCase {
         /* outputPointer = {0, 1}
          */
 
-        let mtlDevice = MTLCreateSystemDefaultDevice()!
+        let device = MTLCreateSystemDefaultDevice()!
 
         let inputDescriptor = MPSNDArrayDescriptor(dataType: inputTensor.dataType,
                                                    shape: inputShape)
 
-        let inputArray = MPSNDArray(device: mtlDevice,
+        let inputArray = MPSNDArray(device: device,
                                     descriptor: inputDescriptor)
 
         inputArray.writeBytes(inputPointer)
@@ -1389,12 +1409,12 @@ final class MatBiasLayerTest: XCTestCase {
             inputPointer[i] = Float32(i)
         }
 
-        let mtlDevice = MTLCreateSystemDefaultDevice()!
+        let device = MTLCreateSystemDefaultDevice()!
 
         let inputDescriptor = MPSNDArrayDescriptor(dataType: inputTensor.dataType,
                                                    shape: shape)
 
-        let inputArray = MPSNDArray(device: mtlDevice,
+        let inputArray = MPSNDArray(device: device,
                                     descriptor: inputDescriptor)
 
         inputArray.writeBytes(inputPointer)
@@ -1457,12 +1477,12 @@ final class MatBiasLayerTest: XCTestCase {
         /* outputPointer = {1, 2}
          */
 
-        let mtlDevice = MTLCreateSystemDefaultDevice()!
+        let device = MTLCreateSystemDefaultDevice()!
 
         let inputDescriptor = MPSNDArrayDescriptor(dataType: inputTensor.dataType,
                                                    shape: inputShape)
 
-        let inputArray = MPSNDArray(device: mtlDevice,
+        let inputArray = MPSNDArray(device: device,
                                     descriptor: inputDescriptor)
 
         inputArray.writeBytes(inputPointer)
@@ -1592,17 +1612,14 @@ final class TrunkTest: XCTestCase {
         let graph = MPSGraph()
 
         let input = InputLayer(graph: graph,
-                               batchSize: batchSize as NSNumber,
                                nnXLen: nnXLen as NSNumber,
                                nnYLen: nnYLen as NSNumber,
                                numChannels: numChannels as NSNumber)
 
         let inputGlobal = InputGlobalLayer(graph: graph,
-                                           batchSize: batchSize as NSNumber,
                                            numGlobalFeatures: numChannels as NSNumber)
 
         let mask = MaskLayer(graph: graph,
-                             batchSize: batchSize as NSNumber,
                              nnXLen: nnXLen as NSNumber,
                              nnYLen: nnYLen as NSNumber)
 
@@ -1621,7 +1638,6 @@ final class TrunkTest: XCTestCase {
                           maskSumSqrtS14M01Tensor: maskSumSqrtS14M01.tensor,
                           nnXLen: nnXLen as NSNumber,
                           nnYLen: nnYLen as NSNumber,
-                          batchSize: batchSize as NSNumber,
                           numSpatialFeatures: numChannels as NSNumber,
                           numGlobalFeatures: numChannels as NSNumber)
 
@@ -1648,30 +1664,45 @@ final class TrunkTest: XCTestCase {
             maskPointer[i] = 1
         }
 
-        let mtlDevice = MTLCreateSystemDefaultDevice()!
+        let device = MTLCreateSystemDefaultDevice()!
+
+        let inputArrayShape = InputShape.create(batchSize: batchSize as NSNumber,
+                                                numChannels: numChannels as NSNumber,
+                                                nnYLen: nnYLen as NSNumber,
+                                                nnXLen: nnXLen as NSNumber)
 
         let inputDescriptor = MPSNDArrayDescriptor(dataType: input.tensor.dataType,
-                                                   shape: input.shape)
+                                                   shape: inputArrayShape)
 
-        let inputArray = MPSNDArray(device: mtlDevice,
+        let inputArray = MPSNDArray(device: device,
                                     descriptor: inputDescriptor)
 
         inputArray.writeBytes(inputPointer)
         let inputTensorData = MPSGraphTensorData(inputArray)
 
-        let inputGlobalDescriptor = MPSNDArrayDescriptor(dataType: inputGlobal.tensor.dataType,
-                                                         shape: inputGlobal.shape)
+        let inputGlobalArrayShape = InputShape.create(batchSize: batchSize as NSNumber,
+                                                      numChannels: numChannels as NSNumber,
+                                                      nnYLen: 1,
+                                                      nnXLen: 1)
 
-        let inputGlobalArray = MPSNDArray(device: mtlDevice,
+        let inputGlobalDescriptor = MPSNDArrayDescriptor(dataType: inputGlobal.tensor.dataType,
+                                                         shape: inputGlobalArrayShape)
+
+        let inputGlobalArray = MPSNDArray(device: device,
                                           descriptor: inputGlobalDescriptor)
 
         inputGlobalArray.writeBytes(inputGlobalPointer)
         let inputGlobalTensorData = MPSGraphTensorData(inputGlobalArray)
 
-        let maskDescriptor = MPSNDArrayDescriptor(dataType: mask.tensor.dataType,
-                                                  shape: mask.shape)
+        let maskArrayShape = InputShape.create(batchSize: batchSize as NSNumber,
+                                               numChannels: 1,
+                                               nnYLen: nnYLen as NSNumber,
+                                               nnXLen: nnXLen as NSNumber)
 
-        let maskArray = MPSNDArray(device: mtlDevice,
+        let maskDescriptor = MPSNDArrayDescriptor(dataType: mask.tensor.dataType,
+                                                  shape: maskArrayShape)
+
+        let maskArray = MPSNDArray(device: device,
                                    descriptor: maskDescriptor)
 
         maskArray.writeBytes(maskPointer)
@@ -1799,13 +1830,11 @@ final class PolicyHeadTest: XCTestCase {
         let graph = MPSGraph()
 
         let input = InputLayer(graph: graph,
-                               batchSize: batchSize as NSNumber,
                                nnXLen: nnXLen as NSNumber,
                                nnYLen: nnYLen as NSNumber,
                                numChannels: inChannels as NSNumber)
 
         let mask = MaskLayer(graph: graph,
-                             batchSize: batchSize as NSNumber,
                              nnXLen: nnXLen as NSNumber,
                              nnYLen: nnYLen as NSNumber)
 
@@ -1822,8 +1851,7 @@ final class PolicyHeadTest: XCTestCase {
                                     maskSumTensor: maskSum.tensor,
                                     maskSumSqrtS14M01Tensor: maskSumSqrtS14M01.tensor,
                                     nnXLen: nnXLen as NSNumber,
-                                    nnYLen: nnYLen as NSNumber,
-                                    batchSize: batchSize as NSNumber)
+                                    nnYLen: nnYLen as NSNumber)
 
         let inputCount = batchSize * inChannels * nnXLen * nnYLen
         let inputPointer = UnsafeMutablePointer<Float32>.allocate(capacity: inputCount)
@@ -1839,21 +1867,23 @@ final class PolicyHeadTest: XCTestCase {
             maskPointer[i] = 1
         }
 
-        let mtlDevice = MTLCreateSystemDefaultDevice()!
+        let device = MTLCreateSystemDefaultDevice()!
 
+        let inputArrayShape = [batchSize, inChannels, nnYLen, nnXLen] as [NSNumber]
         let inputDescriptor = MPSNDArrayDescriptor(dataType: input.tensor.dataType,
-                                                   shape: input.shape)
+                                                   shape: inputArrayShape)
 
-        let inputArray = MPSNDArray(device: mtlDevice,
+        let inputArray = MPSNDArray(device: device,
                                     descriptor: inputDescriptor)
 
         inputArray.writeBytes(inputPointer)
         let inputTensorData = MPSGraphTensorData(inputArray)
 
+        let maskArrayShape = [batchSize, 1, nnYLen, nnXLen] as [NSNumber]
         let maskDescriptor = MPSNDArrayDescriptor(dataType: mask.tensor.dataType,
-                                                  shape: mask.shape)
+                                                  shape: maskArrayShape)
 
-        let maskArray = MPSNDArray(device: mtlDevice,
+        let maskArray = MPSNDArray(device: device,
                                    descriptor: maskDescriptor)
 
         maskArray.writeBytes(maskPointer)
@@ -1915,12 +1945,12 @@ final class ComboLayerTest: XCTestCase {
                                            biasTensor,
                                            name: nil)
 
-        let mtlDevice = MTLCreateSystemDefaultDevice()!
+        let device = MTLCreateSystemDefaultDevice()!
 
         let inputDescriptor = MPSNDArrayDescriptor(dataType: inputTensor.dataType,
                                                    shape: inputShape)
 
-        let inputArray = MPSNDArray(device: mtlDevice,
+        let inputArray = MPSNDArray(device: device,
                                     descriptor: inputDescriptor)
 
         let inputTensorData = MPSGraphTensorData(inputArray)
@@ -2067,13 +2097,11 @@ final class ValueHeadTest: XCTestCase {
         let graph = MPSGraph()
 
         let input = InputLayer(graph: graph,
-                               batchSize: batchSize as NSNumber,
                                nnXLen: nnXLen as NSNumber,
                                nnYLen: nnYLen as NSNumber,
                                numChannels: inChannels as NSNumber)
 
         let mask = MaskLayer(graph: graph,
-                             batchSize: batchSize as NSNumber,
                              nnXLen: nnXLen as NSNumber,
                              nnYLen: nnYLen as NSNumber)
 
@@ -2095,8 +2123,7 @@ final class ValueHeadTest: XCTestCase {
                                   maskSumSqrtS14M01Tensor: maskSumSqrtS14M01.tensor,
                                   maskSumSqrtS14M01SquareS01Tensor: maskSumSqrtS14M01SquareS01.tensor,
                                   nnXLen: nnXLen as NSNumber,
-                                  nnYLen: nnYLen as NSNumber,
-                                  batchSize: batchSize as NSNumber)
+                                  nnYLen: nnYLen as NSNumber)
 
         let inputCount = batchSize * inChannels * nnXLen * nnYLen
         let inputPointer = UnsafeMutablePointer<Float32>.allocate(capacity: inputCount)
@@ -2112,21 +2139,23 @@ final class ValueHeadTest: XCTestCase {
             maskPointer[i] = 1
         }
 
-        let mtlDevice = MTLCreateSystemDefaultDevice()!
+        let device = MTLCreateSystemDefaultDevice()!
 
+        let inputArrayShape = [batchSize, inChannels, nnYLen, nnXLen] as [NSNumber]
         let inputDescriptor = MPSNDArrayDescriptor(dataType: input.tensor.dataType,
-                                                   shape: input.shape)
+                                                   shape: inputArrayShape)
 
-        let inputArray = MPSNDArray(device: mtlDevice,
+        let inputArray = MPSNDArray(device: device,
                                     descriptor: inputDescriptor)
 
         inputArray.writeBytes(inputPointer)
         let inputTensorData = MPSGraphTensorData(inputArray)
 
+        let maskArrayShape = [batchSize, 1, nnYLen, nnXLen] as [NSNumber]
         let maskDescriptor = MPSNDArrayDescriptor(dataType: mask.tensor.dataType,
-                                                  shape: mask.shape)
+                                                  shape: maskArrayShape)
         
-        let maskArray = MPSNDArray(device: mtlDevice,
+        let maskArray = MPSNDArray(device: device,
                                    descriptor: maskDescriptor)
 
         maskArray.writeBytes(maskPointer)
@@ -2290,35 +2319,32 @@ final class ModelTest: XCTestCase {
     func createMiniModel() -> Model? {
         let modelDesc = swModelDescTest.createMiniDesc()
 
-        if let device = MTLCreateSystemDefaultDevice() {
-            let model = Model(device: device,
-                              graph: MPSGraph(),
-                              descriptor: modelDesc,
-                              nnXLen: 1,
-                              nnYLen: 1,
-                              batchSize: 1)
+        let device = MTLCreateSystemDefaultDevice()!
 
-            var input = [Float32](repeating: 1, count: 1)
-            var inputGlobal = [Float32](repeating: 1, count: 1)
-            var policyOutput = [Float32](repeating: 1, count: 1)
-            var policyPassOutput = [Float32](repeating: 1, count: 1)
-            var valueOutput = [Float32](repeating: 1, count: 1)
-            var scoreValueOutput = [Float32](repeating: 1, count: 1)
-            var ownershipOutput = [Float32](repeating: 1, count: 1)
+        let model = Model(device: device,
+                          graph: MPSGraph(),
+                          descriptor: modelDesc,
+                          nnXLen: 1,
+                          nnYLen: 1)
 
-            model.apply(input: &input,
-                        inputGlobal: &inputGlobal,
-                        policy: &policyOutput,
-                        policyPass: &policyPassOutput,
-                        value: &valueOutput,
-                        scoreValue: &scoreValueOutput,
-                        ownership: &ownershipOutput,
-                        batchSize: 1)
+        var input = [Float32](repeating: 1, count: 1)
+        var inputGlobal = [Float32](repeating: 1, count: 1)
+        var policyOutput = [Float32](repeating: 1, count: 1)
+        var policyPassOutput = [Float32](repeating: 1, count: 1)
+        var valueOutput = [Float32](repeating: 1, count: 1)
+        var scoreValueOutput = [Float32](repeating: 1, count: 1)
+        var ownershipOutput = [Float32](repeating: 1, count: 1)
 
-            return model
-        } else {
-            return nil
-        }
+        model.apply(input: &input,
+                    inputGlobal: &inputGlobal,
+                    policy: &policyOutput,
+                    policyPass: &policyPassOutput,
+                    value: &valueOutput,
+                    scoreValue: &scoreValueOutput,
+                    ownership: &ownershipOutput,
+                    batchSize: 1)
+
+        return model
     }
 
     func testMiniModel() {
@@ -2685,44 +2711,40 @@ final class ModelTest: XCTestCase {
                                     policyHead: policyHead,
                                     valueHead: valueHead)
 
-        if let device = MTLCreateSystemDefaultDevice() {
+        let device = MTLCreateSystemDefaultDevice()!
 
-            let model = Model(device: device,
-                              graph: MPSGraph(),
-                              descriptor: modelDesc,
-                              nnXLen: nnXLen as NSNumber,
-                              nnYLen: nnYLen as NSNumber,
-                              batchSize: batchSize as NSNumber)
+        let model = Model(device: device,
+                          graph: MPSGraph(),
+                          descriptor: modelDesc,
+                          nnXLen: nnXLen as NSNumber,
+                          nnYLen: nnYLen as NSNumber)
 
-            // warm up to speed up later runs
-            let inputCount = batchSize * nnYLen * nnXLen * numInputChannels
-            let input = UnsafeMutablePointer<Float32>.allocate(capacity: inputCount)
-            let inputGlobalCount = batchSize * numInputGlobalChannels
-            let inputGlobal = UnsafeMutablePointer<Float32>.allocate(capacity: inputGlobalCount)
-            let policyCount = batchSize * nnYLen * nnXLen
-            let policyOutput = UnsafeMutablePointer<Float32>.allocate(capacity: policyCount)
-            let policyPassCount = batchSize
-            let policyPassOutput = UnsafeMutablePointer<Float32>.allocate(capacity: policyPassCount)
-            let valueCount = batchSize * numValueChannels
-            let valueOutput = UnsafeMutablePointer<Float32>.allocate(capacity: valueCount)
-            let scoreValueCount = batchSize * numScoreValueChannels
-            let scoreValueOutput = UnsafeMutablePointer<Float32>.allocate(capacity: scoreValueCount)
-            let ownershipCount = batchSize * nnYLen * nnXLen * numOwnershipChannels
-            let ownershipOutput = UnsafeMutablePointer<Float32>.allocate(capacity: ownershipCount)
+        // warm up to speed up later runs
+        let inputCount = batchSize * nnYLen * nnXLen * numInputChannels
+        let input = UnsafeMutablePointer<Float32>.allocate(capacity: inputCount)
+        let inputGlobalCount = batchSize * numInputGlobalChannels
+        let inputGlobal = UnsafeMutablePointer<Float32>.allocate(capacity: inputGlobalCount)
+        let policyCount = batchSize * nnYLen * nnXLen
+        let policyOutput = UnsafeMutablePointer<Float32>.allocate(capacity: policyCount)
+        let policyPassCount = batchSize
+        let policyPassOutput = UnsafeMutablePointer<Float32>.allocate(capacity: policyPassCount)
+        let valueCount = batchSize * numValueChannels
+        let valueOutput = UnsafeMutablePointer<Float32>.allocate(capacity: valueCount)
+        let scoreValueCount = batchSize * numScoreValueChannels
+        let scoreValueOutput = UnsafeMutablePointer<Float32>.allocate(capacity: scoreValueCount)
+        let ownershipCount = batchSize * nnYLen * nnXLen * numOwnershipChannels
+        let ownershipOutput = UnsafeMutablePointer<Float32>.allocate(capacity: ownershipCount)
 
-            model.apply(input: input,
-                        inputGlobal: inputGlobal,
-                        policy: policyOutput,
-                        policyPass: policyPassOutput,
-                        value: valueOutput,
-                        scoreValue: scoreValueOutput,
-                        ownership: ownershipOutput,
-                        batchSize: batchSize)
+        model.apply(input: input,
+                    inputGlobal: inputGlobal,
+                    policy: policyOutput,
+                    policyPass: policyPassOutput,
+                    value: valueOutput,
+                    scoreValue: scoreValueOutput,
+                    ownership: ownershipOutput,
+                    batchSize: batchSize)
 
-            return model
-        } else {
-            return nil
-        }
+        return model
     }
 
     func createBuffers(batchSize: Int,
@@ -2903,7 +2925,6 @@ final class ComputeHandleTest: XCTestCase {
 
         MetalComputeHandle.createInstance(at: gpuIdxForThisThread,
                                           descriptor: swModelDesc,
-                                          batchSize: 8 as NSNumber,
                                           serverThreadIdx: 0)
 
         let handle = MetalComputeHandle.getInstance(at: gpuIdxForThisThread)
@@ -2930,7 +2951,6 @@ final class ComputeHandleTest: XCTestCase {
 
         MetalComputeHandle.createInstance(at: gpuIdxForThisThread,
                                           descriptor: swModelDesc,
-                                          batchSize: 8 as NSNumber,
                                           serverThreadIdx: 0)
 
         let handle = MetalComputeHandle.getInstance(at: gpuIdxForThisThread)
@@ -2982,7 +3002,6 @@ final class MetalBackendTest: XCTestCase {
 
         MetalComputeHandle.createInstance(at: gpuIdx,
                                           descriptor: swModelDesc,
-                                          batchSize: 1 as NSNumber,
                                           serverThreadIdx: 0)
         
         var input = [Float32](repeating: 1, count: 1)
@@ -3000,7 +3019,8 @@ final class MetalBackendTest: XCTestCase {
                                valueOutput: &valueOutput,
                                ownershipOutput: &ownershipOutput,
                                scoreValueOutput: &scoreValueOutput,
-                               gpuIdx: gpuIdx)
+                               gpuIdx: gpuIdx,
+                               batchSize: 1)
 
         XCTAssertEqual(policyOutput[0], 101.68, accuracy: 1e-4)
         XCTAssertEqual(policyPassOutput[0], 68.88, accuracy: 1e-4)

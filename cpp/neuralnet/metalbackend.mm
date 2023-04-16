@@ -335,11 +335,9 @@ int getMetalContextYLen(void) {
 /// - Parameters:
 ///   - gpuIdxForThisThread: The GPU index for this thread
 ///   - desc: The model description
-///   - batchSize: The batch size
 ///   - serverThreadIdx: The server thread index
 void createMetalHandle(int gpuIdxForThisThread,
                        const ModelDesc* desc,
-                       int batchSize,
                        int serverThreadIdx) {
     NSString * name = [NSString stringWithUTF8String:desc->name.c_str()];
 
@@ -357,7 +355,6 @@ void createMetalHandle(int gpuIdxForThisThread,
 
     [MetalComputeHandle createInstanceAt:gpuIdxForThisThread
                               descriptor:swModelDesc
-                               batchSize:[NSNumber numberWithInt:batchSize]
                          serverThreadIdx:serverThreadIdx];
 }
 
@@ -371,6 +368,7 @@ void createMetalHandle(int gpuIdxForThisThread,
 ///   - ownershipOutput: The ownership output
 ///   - scoreValueOutput: The score value output
 ///   - gpuIdx: The GPU index
+///   - batchSize: The batch size
 void getMetalHandleOutput(float* userInputBuffer,
                           float* userInputGlobalBuffer,
                           float* policyOutput,
@@ -378,7 +376,8 @@ void getMetalHandleOutput(float* userInputBuffer,
                           float* valueOutput,
                           float* ownershipOutput,
                           float* scoreValueOutput,
-                          int gpuIdx) {
+                          int gpuIdx,
+                          int batchSize) {
     [MetalBackend getOutputWithUserInputBuffer:userInputBuffer
                          userInputGlobalBuffer:userInputGlobalBuffer
                                   policyOutput:policyOutput
@@ -386,7 +385,8 @@ void getMetalHandleOutput(float* userInputBuffer,
                                    valueOutput:valueOutput
                                ownershipOutput:ownershipOutput
                               scoreValueOutput:scoreValueOutput
-                                        gpuIdx:gpuIdx];
+                                        gpuIdx:gpuIdx
+                                     batchSize:batchSize];
 }
 
 /// Evaluate a convolutional layer using Metal API for testing purposes
