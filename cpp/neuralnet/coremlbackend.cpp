@@ -37,10 +37,10 @@ void getCoreMLOutput(
   size_t singleSpatialElts = inputBuffers->singleSpatialElts;
   size_t singleInputElts = inputBuffers->singleInputElts;
   size_t singleInputGlobalElts = inputBuffers->singleInputGlobalElts;
-  size_t singlePolicyResultElts = inputBuffers->singlePolicyResultElts;
+  size_t singlePolicyResultElts = inputBuffers->singleModelPolicyResultElts;
   size_t singlePolicyProbsElts = inputBuffers->singlePolicyProbsElts;
   size_t singleValueResultElts = inputBuffers->singleValueResultElts;
-  size_t singleOwnershipResultElts = inputBuffers->singleOwnershipResultElts;
+  size_t singleOwnershipResultElts = inputBuffers->singleModelOwnershipResultElts;
   size_t singleOwnerMapElts = inputBuffers->singleOwnerMapElts;
   size_t singleScoreValuesResultElts = inputBuffers->singleScoreValuesResultElts;
   size_t singleMoreMiscValuesResultElts = inputBuffers->singleMoreMiscValuesResultElts;

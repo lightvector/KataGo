@@ -278,11 +278,13 @@ InputBuffers::InputBuffers(const LoadedModel* loadedModel, int maxBatchSz, int n
   singleSpatialElts = (size_t)m.numInputChannels * nnXLen * nnYLen;
   singleInputElts = (size_t)m.numInputChannels * modelXLen * modelYLen;
   singleInputGlobalElts = (size_t)m.numInputGlobalChannels;
-  singlePolicyResultElts = (size_t)((modelXLen * modelYLen) + 1);
+  singleNnPolicyResultElts = (size_t)(nnXLen * nnYLen);
+  singleModelPolicyResultElts = (size_t)((modelXLen * modelYLen) + 1);
   singlePolicyPassResultElts = 1;
   singlePolicyProbsElts = (size_t)((nnXLen * nnYLen) + 1);
   singleValueResultElts = (size_t)m.numValueChannels;
-  singleOwnershipResultElts = (size_t)m.numOwnershipChannels * modelXLen * modelYLen;
+  singleNnOwnershipResultElts = (size_t)m.numOwnershipChannels * nnXLen * nnYLen;
+  singleModelOwnershipResultElts = (size_t)m.numOwnershipChannels * modelXLen * modelYLen;
   singleOwnerMapElts = (size_t)m.numOwnershipChannels * nnXLen * nnYLen;
   singleScoreValuesResultElts = 10;
   singleMoreMiscValuesResultElts = 8;
@@ -294,11 +296,11 @@ InputBuffers::InputBuffers(const LoadedModel* loadedModel, int maxBatchSz, int n
   rowSpatialBufferElts = (size_t)maxBatchSz * singleSpatialElts;
   userInputBufferElts = (size_t)maxBatchSize * singleInputElts;
   userInputGlobalBufferElts = (size_t)maxBatchSize * singleInputGlobalElts;
-  policyResultBufferElts = (size_t)maxBatchSize * singlePolicyResultElts * policyResultChannels;
+  policyResultBufferElts = (size_t)maxBatchSize * singleModelPolicyResultElts * policyResultChannels;
   policyPassResultBufferElts = (size_t)maxBatchSize * singlePolicyPassResultElts;
   policyProbsBufferElts = (size_t)maxBatchSize * singlePolicyProbsElts;
   valueResultBufferElts = (size_t)maxBatchSize * singleValueResultElts;
-  ownershipResultBufferElts = (size_t)maxBatchSize * singleOwnershipResultElts;
+  ownershipResultBufferElts = (size_t)maxBatchSize * singleModelOwnershipResultElts;
   ownerMapBufferElts = (size_t)maxBatchSz * singleOwnerMapElts;
   scoreValuesResultBufferElts = (size_t)maxBatchSize * singleScoreValuesResultElts;
   moreMiscValuesResultsBufferElts = (size_t)maxBatchSz * singleMoreMiscValuesResultElts;
@@ -395,12 +397,12 @@ static void getMetalOutput(
   assert(numGlobalFeatures == inputBuffers->singleInputGlobalElts);
 
   size_t policyResultChannels = inputBuffers->policyResultChannels;
-  size_t singleInputElts = inputBuffers->singleInputElts;
+  size_t singleSpatialElts = inputBuffers->singleSpatialElts;
   size_t singleInputGlobalElts = inputBuffers->singleInputGlobalElts;
-  size_t singlePolicyResultElts = inputBuffers->singlePolicyResultElts;
+  size_t singlePolicyResultElts = inputBuffers->singleNnPolicyResultElts;
   size_t singlePolicyPassResultElts = inputBuffers->singlePolicyPassResultElts;
   size_t singleValueResultElts = inputBuffers->singleValueResultElts;
-  size_t singleOwnershipResultElts = inputBuffers->singleOwnershipResultElts;
+  size_t singleOwnershipResultElts = inputBuffers->singleNnOwnershipResultElts;
   size_t singleScoreValuesResultElts = inputBuffers->singleScoreValuesResultElts;
   size_t singlePolicyProbsElts = inputBuffers->singlePolicyProbsElts;
 
@@ -409,7 +411,7 @@ static void getMetalOutput(
   assert(singleScoreValuesResultElts >= 6);
 
   for(size_t row = 0; row < batchSize; row++) {
-    float* rowSpatialInput = &inputBuffers->userInputBuffer[singleInputElts * row];
+    float* rowSpatialInput = &inputBuffers->userInputBuffer[singleSpatialElts * row];
     float* rowGlobalInput = &inputBuffers->userInputGlobalBuffer[singleInputGlobalElts * row];
     const float* rowGlobal = inputBufs[row]->rowGlobal;
     const float* rowSpatial = inputBufs[row]->rowSpatial;
@@ -427,25 +429,15 @@ static void getMetalOutput(
       inputBufs[row]->symmetry);
   }
 
-  for(size_t row = 0; row < batchSize; row++) {
-    float* rowSpatialInput = &inputBuffers->userInputBuffer[singleInputElts * row];
-    float* rowGlobalInput = &inputBuffers->userInputGlobalBuffer[singleInputGlobalElts * row];
-    float* policyOutputBuf = &inputBuffers->policyResults[row * (singlePolicyResultElts * policyResultChannels)];
-    float* policyPassOutputBuf = &inputBuffers->policyPassResults[row * singlePolicyPassResultElts];
-    float* valueOutputBuf = &inputBuffers->valueResults[row * singleValueResultElts];
-    float* ownershipOutputBuf = &inputBuffers->ownershipResults[row * singleOwnershipResultElts];
-    float* scoreValuesOutputBuf = &inputBuffers->scoreValuesResults[row * singleScoreValuesResultElts];
-
-    getMetalHandleOutput(rowSpatialInput,
-                         rowGlobalInput,
-                         policyOutputBuf,
-                         policyPassOutputBuf,
-                         valueOutputBuf,
-                         ownershipOutputBuf,
-                         scoreValuesOutputBuf,
-                         gpuHandle->gpuIndex,
-                         1);
-  }
+  getMetalHandleOutput(inputBuffers->userInputBuffer,
+                       inputBuffers->userInputGlobalBuffer,
+                       inputBuffers->policyResults,
+                       inputBuffers->policyPassResults,
+                       inputBuffers->valueResults,
+                       inputBuffers->ownershipResults,
+                       inputBuffers->scoreValuesResults,
+                       gpuHandle->gpuIndex,
+                       batchSize);
 
   for(size_t row = 0; row < batchSize; row++) {
     NNOutput* output = outputs[row];

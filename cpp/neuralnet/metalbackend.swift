@@ -2440,8 +2440,7 @@ struct Model {
         let device = devices[gpuIdx] // Select the GPU device based on the provided index.
 
         // Log the selected device's name, model version, and model name.
-        NSLog("Metal backend thread \(threadIdx): \(device.name) Model version \(descriptor.version)")
-        NSLog("Metal backend thread \(threadIdx): \(device.name) Model name \(descriptor.name)")
+        NSLog("Metal backend thread \(threadIdx): \(device.name) Model version \(descriptor.version) \(descriptor.name)")
 
         // Create a model with the specified device, graph, descriptor, and other parameters.
         model = Model(device: device,
@@ -2449,9 +2448,6 @@ struct Model {
                       descriptor: descriptor,
                       nnXLen: context.nnXLen,
                       nnYLen: context.nnYLen)
-
-        // Log the selected device's name and batch size.
-        NSLog("Metal backend thread \(threadIdx): \(device.name)")
     }
 }
 

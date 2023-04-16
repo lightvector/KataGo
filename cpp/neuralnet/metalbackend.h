@@ -207,11 +207,13 @@ struct InputBuffers {
   size_t singleSpatialElts;
   size_t singleInputElts;
   size_t singleInputGlobalElts;
-  size_t singlePolicyResultElts;
+  size_t singleNnPolicyResultElts;
+  size_t singleModelPolicyResultElts;
   size_t singlePolicyPassResultElts;
   size_t singlePolicyProbsElts;
   size_t singleValueResultElts;
-  size_t singleOwnershipResultElts;
+  size_t singleNnOwnershipResultElts;
+  size_t singleModelOwnershipResultElts;
   size_t singleOwnerMapElts;
   size_t singleScoreValuesResultElts;
   size_t singleMoreMiscValuesResultElts;
