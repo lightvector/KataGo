@@ -714,6 +714,8 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
               logging.info("Yielding training file for dataset: " + filename)
               train_state["data_files_used"].add(filename)
               yield filename
+            if no_repeat_files:
+              break
         trainfilegenerator = train_files_gen()
 
         vdatadir = os.path.join(curdatadir,"val")
@@ -743,6 +745,7 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
     # Pick enough files to get the number of batches we want
     train_files_to_use = []
     batches_to_use_so_far = 0
+    found_enough = False
     for filename in trainfilegenerator:
       jsonfilename = os.path.splitext(filename)[0] + ".json"
       with open(jsonfilename) as f:
@@ -756,6 +759,7 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
         # If we're going over the desired amount, randomly skip the file with probability equal to the
         # proportion of batches over - this makes it so that in expectation, we have the desired number of batches
         if batches_to_use_so_far > 0 and random.random() >= (batches_to_use_so_far + num_batches_this_file - num_batches_per_subepoch) / num_batches_this_file:
+          found_enough = True
           break
 
       train_files_to_use.append(filename)
@@ -763,9 +767,12 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
 
       #Sanity check - load a max of 100000 files.
       if batches_to_use_so_far >= num_batches_per_subepoch or len(train_files_to_use) > 100000:
+        found_enough = True
         break
-    return train_files_to_use
 
+    if found_enough:
+      return train_files_to_use
+    return None
 
   # METRICS -----------------------------------------------------------------------------------
   def detensorify_metrics(metrics):
@@ -900,9 +907,15 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
       if rank == 0:
         if i != 0:
           maybe_reload_training_data()
+        train_files_to_use = get_files_for_subepoch()
+        while train_files_to_use is None or len(train_files_to_use) <= 0:
+          logging.info("Not enough data files to fill a subepoch! Waiting 5m before retrying.")
+          time.sleep(300)
+          maybe_reload_training_data()
+          train_files_to_use = get_files_for_subepoch()
+
         if barrier is not None:
           barrier.wait()
-        train_files_to_use = get_files_for_subepoch()
         for wpipe in writepipes:
           wpipe.send(train_files_to_use)
         # Wait briefly just in case to reduce chance of races with filesystem or anything else
