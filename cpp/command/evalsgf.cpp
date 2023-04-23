@@ -376,6 +376,9 @@ int MainCmds::evalsgf(const vector<string>& args) {
       cout << "White noresult: " << nnOutput->whiteNoResultProb << endl;
       cout << "White score mean " << nnOutput->whiteScoreMean << endl;
       cout << "White score stdev " << sqrt(max(0.0,(double)nnOutput->whiteScoreMeanSq - nnOutput->whiteScoreMean*nnOutput->whiteScoreMean)) << endl;
+      cout << "Var time left " << nnOutput->varTimeLeft << endl;
+      cout << "Shortterm winloss error " << nnOutput->shorttermWinlossError << endl;
+      cout << "Shortterm score error " << nnOutput->shorttermScoreError << endl;
     }
   }
 
