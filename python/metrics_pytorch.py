@@ -228,7 +228,8 @@ class Metrics:
     def loss_variance_time_samplewise(self, pred, target, weight, global_weight):
         assert pred.shape == (self.n,)
         assert target.shape == (self.n,)
-        loss = huber_loss(pred, target, delta = 50.0)
+        # Even if the training target is 0, add a tiny bit of irreducible error for regularizing the prediction.
+        loss = huber_loss(pred, target + 1.0e-5, delta = 50.0)
         return 0.0003 * global_weight * weight * loss
 
 
@@ -236,14 +237,16 @@ class Metrics:
         td_value_pred_probs = torch.softmax(td_value_pred_logits[:,2,:],axis=1)
         predvalue = (td_value_pred_probs[:,0] - td_value_pred_probs[:,1]).detach()
         realvalue = td_value_target_probs[:,2,0] - td_value_target_probs[:,2,1]
-        sqerror = torch.square(predvalue-realvalue)
+        # Even if the training target is 0, add a tiny bit of irreducible error for regularizing the prediction, 0.01%.
+        sqerror = torch.square(predvalue-realvalue) + 1.0e-8
         loss = huber_loss(pred, sqerror, delta = 0.4)
         return 2.0 * global_weight * weight * loss
 
     def loss_shortterm_score_error_samplewise(self, pred, td_score_pred, td_score_target, weight, global_weight):
         predscore = td_score_pred[:,2].detach()
         realscore = td_score_target[:,2]
-        sqerror = torch.square(predscore-realscore)
+        # Even if the training target is 0, add a tiny bit of irreducible error for regularizing the prediction, one hundredth of a point.
+        sqerror = torch.square(predscore-realscore) + 1.0e-4
         loss = huber_loss(pred, sqerror, delta = 100.0)
         return 0.00002 * global_weight * weight * loss
 

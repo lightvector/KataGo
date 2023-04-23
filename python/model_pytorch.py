@@ -61,6 +61,27 @@ def init_weights(tensor, activation, scale, fan_tensor=None):
     else:
         torch.nn.init.trunc_normal_(tensor, mean=0.0, std=std, a=-2.0*std, b=2.0*std)
 
+class SoftPlusWithGradientFloorFunction(torch.autograd.Function):
+    """
+    Same as softplus, except on backward pass, we never let the gradient decrease below grad_floor.
+    Equivalent to having a dynamic learning rate depending on stop_grad(x) where x is the input.
+    """
+    @staticmethod
+    def forward(ctx, x: torch.Tensor, grad_floor: float):
+        ctx.save_for_backward(x)
+        ctx.grad_floor = grad_floor # grad_floor is not a tensor
+        return torch.nn.functional.softplus(x)
+
+    @staticmethod
+    def backward(ctx, grad_output: torch.Tensor):
+        (x,) = ctx.saved_tensors
+        grad_floor = ctx.grad_floor
+        grad_x = None
+        grad_grad_floor = None
+        if ctx.needs_input_grad[0]:
+          grad_x = grad_output * (grad_floor + (1.0 - grad_floor) / (1.0 + torch.exp(-x)))
+        return grad_x, grad_grad_floor
+
 class BiasMask(torch.nn.Module):
     def __init__(
         self,
@@ -1693,11 +1714,11 @@ class Model(torch.nn.Module):
         futurepos_pretanh = out_futurepos
         seki_logits = out_seki
         pred_scoremean = out_miscvalue[:, 0] * 20.0
-        pred_scorestdev = torch.nn.functional.softplus(out_miscvalue[:, 1]) * 20.0
+        pred_scorestdev = SoftPlusWithGradientFloorFunction.apply(out_miscvalue[:, 1], 0.05) * 20.0
         pred_lead = out_miscvalue[:, 2] * 20.0
-        pred_variance_time = torch.nn.functional.softplus(out_miscvalue[:, 3]) * 40.0
-        pred_shortterm_value_error = torch.nn.functional.softplus(out_moremiscvalue[:,0]) * 0.25
-        pred_shortterm_score_error = torch.nn.functional.softplus(out_moremiscvalue[:,1]) * 30.0
+        pred_variance_time = SoftPlusWithGradientFloorFunction.apply(out_miscvalue[:, 3], 0.05) * 40.0
+        pred_shortterm_value_error = SoftPlusWithGradientFloorFunction.apply(out_moremiscvalue[:,0], 0.05) * 0.25
+        pred_shortterm_score_error = SoftPlusWithGradientFloorFunction.apply(out_moremiscvalue[:,1], 0.05) * 150.0
         scorebelief_logits = out_scorebelief_logprobs
 
         return (
