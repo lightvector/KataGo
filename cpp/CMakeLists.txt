@@ -186,6 +186,7 @@ add_executable(katago
   game/graphhash.cpp
   dataio/sgf.cpp
   dataio/numpywrite.cpp
+  dataio/poswriter.cpp
   dataio/trainingwrite.cpp
   dataio/loadmodel.cpp
   dataio/homedata.cpp

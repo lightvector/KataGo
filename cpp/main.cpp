@@ -138,6 +138,8 @@ static int handleSubcommand(const string& subcommand, const vector<string>& args
     return MainCmds::writebook(subArgs);
   else if(subcommand == "checkbook")
     return MainCmds::checkbook(subArgs);
+  else if(subcommand == "booktoposes")
+    return MainCmds::booktoposes(subArgs);
   else if(subcommand == "trystartposes")
     return MainCmds::trystartposes(subArgs);
   else if(subcommand == "viewstartposes")

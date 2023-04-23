@@ -4,6 +4,7 @@
 #include "../core/fileutils.h"
 #include "../core/timer.h"
 #include "../core/threadsafequeue.h"
+#include "../dataio/poswriter.h"
 #include "../dataio/sgf.h"
 #include "../dataio/files.h"
 #include "../book/book.h"
@@ -1563,6 +1564,333 @@ int MainCmds::checkbook(const vector<string>& args) {
     if(numNodesChecked % 10000 == 0)
       logger.write("Checked " + Global::int64ToString(numNodesChecked) + "/" + Global::int64ToString((int64_t)allNodes.size()) + " nodes");
   }
+
+  delete book;
+  ScoreValue::freeTables();
+  logger.write("DONE");
+  return 0;
+}
+
+int MainCmds::booktoposes(const vector<string>& args) {
+  Board::initHash();
+  ScoreValue::initTables();
+  Rand seedRand;
+
+  ConfigParser cfg;
+  string modelFile;
+
+  string outDir;
+  string bookFile;
+  int numThreads;
+  int includeDepth;
+  double includeVisits;
+  int maxDepth;
+  double minVisits;
+  bool enableHints;
+  double constantWeight;
+  double depthWeight;
+  double depthWeightScale;
+  double policySurpriseWeight;
+  double valueSurpriseWeight;
+  double minWeight;
+  try {
+    KataGoCommandLine cmd("Dump startposes out of book");
+    cmd.addConfigFileArg("","");
+    cmd.addModelFileArg();
+
+    cmd.addOverrideConfigArg();
+
+    TCLAP::ValueArg<string> outDirArg("","out-dir","Directory to write poses",true,string(),"DIR");
+    TCLAP::ValueArg<string> bookFileArg("","book-file","Book file to write to or continue expanding",true,string(),"FILE");
+    TCLAP::ValueArg<int> numThreadsArg("","num-threads","Number of threads to use for processing",false,1,"N");
+    TCLAP::ValueArg<int> includeDepthArg("","include-depth","Include positions up to this depth",false,-1,"DEPTH");
+    TCLAP::ValueArg<double> includeVisitsArg("","include-visits","Include positions this many visits or more",false,1e300,"VISITS");
+    TCLAP::ValueArg<int> maxDepthArg("","max-depth","Only include positions up to this depth",false,100000000,"DEPTH");
+    TCLAP::ValueArg<double> minVisitsArg("","max-visits","Only include positions with this many visits or more",false,-1.0,"VISITS");
+    TCLAP::SwitchArg enableHintsArg("","enable-hints","Hint the top book move");
+    TCLAP::ValueArg<double> constantWeightArg("","constant-weight","How much weight to give each position as a fixed baseline",false,0.0,"FLOAT");
+    TCLAP::ValueArg<double> depthWeightArg("","depth-weight","How much extra weight to give based on depth",false,0.0,"FLOAT");
+    TCLAP::ValueArg<double> depthWeightScaleArg("","depth-weight-scale","Depth scale over which depth weight decays by a factor of e",false,1.0,"FLOAT");
+    TCLAP::ValueArg<double> policySurpriseWeightArg("","policy-surprise-weight","How much weight to give each position per logit of policy surprise",false,0.0,"FLOAT");
+    TCLAP::ValueArg<double> valueSurpriseWeightArg("","value-surprise-weight","How much weight to give each position per logit of value surprise",false,0.0,"FLOAT");
+    TCLAP::ValueArg<double> minWeightArg("","min-weight","Only finally include positions with this much weight",false,0.0,"FLOAT");
+
+    cmd.add(outDirArg);
+    cmd.add(bookFileArg);
+    cmd.add(numThreadsArg);
+    cmd.add(includeDepthArg);
+    cmd.add(includeVisitsArg);
+    cmd.add(maxDepthArg);
+    cmd.add(minVisitsArg);
+    cmd.add(enableHintsArg);
+    cmd.add(constantWeightArg);
+    cmd.add(depthWeightArg);
+    cmd.add(depthWeightScaleArg);
+    cmd.add(policySurpriseWeightArg);
+    cmd.add(valueSurpriseWeightArg);
+    cmd.add(minWeightArg);
+
+    cmd.parseArgs(args);
+
+    modelFile = cmd.getModelFile();
+    outDir = outDirArg.getValue();
+    bookFile = bookFileArg.getValue();
+    numThreads = numThreadsArg.getValue();
+    includeDepth = includeDepthArg.getValue();
+    includeVisits = includeVisitsArg.getValue();
+    maxDepth = maxDepthArg.getValue();
+    minVisits = minVisitsArg.getValue();
+    enableHints = enableHintsArg.getValue();
+    constantWeight = constantWeightArg.getValue();
+    depthWeight = depthWeightArg.getValue();
+    depthWeightScale = depthWeightScaleArg.getValue();
+    policySurpriseWeight = policySurpriseWeightArg.getValue();
+    valueSurpriseWeight = valueSurpriseWeightArg.getValue();
+    minWeight = minWeightArg.getValue();
+
+    cmd.getConfig(cfg);
+  }
+  catch (TCLAP::ArgException &e) {
+    cerr << "Error: " << e.error() << " for argument " << e.argId() << endl;
+    return 1;
+  }
+
+  const bool logToStdout = true;
+  const bool logToStderr = false;
+  const bool logTime = false;
+  Logger logger(nullptr, logToStdout, logToStderr, logTime);
+
+  Book* book;
+  {
+    double sharpScoreOutlierCap = 2.0;
+    book = Book::loadFromFile(bookFile,sharpScoreOutlierCap);
+    logger.write("Loaded preexisting book with " + Global::uint64ToString(book->size()) + " nodes from " + bookFile);
+    logger.write("Book version = " + Global::intToString(book->bookVersion));
+  }
+
+  NNEvaluator* nnEval;
+  {
+    Setup::initializeSession(cfg);
+    int maxConcurrentEvals = numThreads * 2 + 16; // * 2 + 16 just to give plenty of headroom
+    int expectedConcurrentEvals = numThreads;
+    int defaultMaxBatchSize = std::max(8,((numThreads+3)/4)*4);
+    bool defaultRequireExactNNLen = true;
+    bool disableFP16 = false;
+    string expectedSha256 = "";
+    nnEval = Setup::initializeNNEvaluator(
+      modelFile,modelFile,expectedSha256,cfg,logger,seedRand,maxConcurrentEvals,expectedConcurrentEvals,
+      book->initialBoard.x_size,book->initialBoard.y_size,defaultMaxBatchSize,defaultRequireExactNNLen,disableFP16,
+      Setup::SETUP_FOR_GTP
+    );
+  }
+  logger.write("Loaded neural net");
+
+  cfg.warnUnusedKeys(cerr,&logger);
+
+  std::map<BookHash,int> depthByHash;
+
+  std::vector<ConstSymBookNode> nodesToExplore;
+  std::vector<int> depthsToExplore;
+  nodesToExplore.push_back(book->getRoot());
+  depthsToExplore.push_back(0);
+
+  logger.write("Beginning book sweep");
+  int numNodesExplored = 0;
+  while(nodesToExplore.size() > 0) {
+    ConstSymBookNode node = nodesToExplore[nodesToExplore.size()-1];
+    int depth = depthsToExplore[depthsToExplore.size()-1];
+    nodesToExplore.pop_back();
+    depthsToExplore.pop_back();
+
+    if(depth > maxDepth)
+      continue;
+    if(node.recursiveValues().visits < minVisits)
+      continue;
+    if(depth > includeDepth && node.recursiveValues().visits < includeVisits)
+      continue;
+
+    BookHash hash = node.hash();
+    {
+      auto iter = depthByHash.find(hash);
+      if(iter != depthByHash.end())
+        if(depth >= iter->second)
+          continue;
+      depthByHash[hash] = depth;
+    }
+
+    std::vector<BookMove> moves = node.getUniqueMovesInBook();
+    for(int i = (int)moves.size()-1; i >= 0; i--) {
+      nodesToExplore.push_back(node.follow(moves[i].move));
+      depthsToExplore.push_back(depth+1);
+    }
+    numNodesExplored += 1;
+    if(numNodesExplored % 100000 == 0)
+      logger.write("Num nodes explored: " + Global::intToString(numNodesExplored));
+  }
+
+  logger.write("Collected " + Global::intToString(depthByHash.size()) + " many positions in book to potentially use");
+
+  PosWriter posWriter("bookposes.txt", outDir, 1, 0, 100000);
+  posWriter.start();
+
+  double utilityPerPolicyForSorting = book->getUtilityPerPolicyForSorting();
+
+  std::mutex statsLock;
+  int numPositionsProcessed = 0;
+  int numPositionsWritten = 0;
+  double totalWeightFromConstant = 0.0;
+  double totalWeightFromDepth = 0.0;
+  double totalWeightFromPolicySurprise = 0.0;
+  double totalWeightFromValueSurprise = 0.0;
+
+  auto processPoses = [&](int threadIdx) {
+    Rand rand;
+    int counter = 0;
+    for(auto iter = depthByHash.begin(); iter != depthByHash.end(); ++iter) {
+      if(counter % numThreads != threadIdx) {
+        counter += 1;
+        continue;
+      }
+      counter += 1;
+
+      BookHash hash = iter->first;
+      int depth = iter->second;
+      ConstSymBookNode node = book->getByHash(hash).applySymmetry(rand.nextInt(0,7));
+
+      Player pla = node.pla();
+      BoardHistory hist;
+      std::vector<Loc> moveHistory;
+      bool suc = node.getBoardHistoryReachingHere(hist,moveHistory);
+      if(!suc) {
+        logger.write("WARNING: Failed to get board history reaching node, probably there is some bug");
+        logger.write("or else some hash collision or something else is wrong.");
+        logger.write("BookHash of node unable to expand: " + node.hash().toString());
+
+        ostringstream out;
+        Board board = hist.getRecentBoard(0);
+        Board::printBoard(out, board, Board::NULL_LOC, NULL);
+        for(Loc move: moveHistory)
+          out << Location::toString(move,book->initialBoard) << " ";
+        logger.write("Moves:");
+        logger.write(out.str());
+        continue;
+      }
+
+      Sgf::PositionSample sample;
+      sample.board = hist.getRecentBoard(5);
+      for(int i = std::max(0,(int)hist.moveHistory.size()-5); i<hist.moveHistory.size(); i++)
+        sample.moves.push_back(hist.moveHistory[i]);
+      sample.nextPla = sample.moves.size() > 0 ? sample.moves[0].pla : pla;
+      sample.initialTurnNumber = depth;
+      sample.hintLoc = Board::NULL_LOC;
+
+      std::vector<double> sortingValue;
+      std::vector<BookMove> moves = node.getUniqueMovesInBook();
+      for(int i = 0; i<moves.size(); i++) {
+        ConstSymBookNode child = node.follow(moves[i].move);
+        RecursiveBookValues values = child.recursiveValues();
+        double plaFactor = pla == P_WHITE ? 1.0 : -1.0;
+        double value = plaFactor * (values.winLossValue + values.sharpScoreMean * book->getUtilityPerScore() * 0.5)
+          + plaFactor * (pla == P_WHITE ? values.scoreLCB : values.scoreUCB) * 0.5 * book->getUtilityPerScore()
+          + utilityPerPolicyForSorting * (0.75 * moves[i].rawPolicy + 0.5 * log10(moves[i].rawPolicy + 0.0001)/4.0);
+        sortingValue.push_back(value);
+      }
+
+      Loc bestMove = Board::NULL_LOC;
+      if(sortingValue.size() > 0) {
+        double bestSortingValue = -1e100;
+        for(int i = 0; i<sortingValue.size(); i++) {
+          if(sortingValue[i] > bestSortingValue) {
+            bestSortingValue = sortingValue[i];
+            bestMove = moves[i].move;
+          }
+        }
+      }
+
+      if(enableHints)
+        sample.hintLoc = bestMove;
+
+      double bookWLValue = node.recursiveValues().winLossValue;
+      double bookWinChance = std::max(0.0, std::min(1.0, 0.5 * (bookWLValue + 1.0)));
+      double bookLossChance = std::max(0.0, std::min(1.0, 0.5 * (-bookWLValue + 1.0)));
+
+      double policySurprise = 0.0;
+      double valueSurprise = 0.0;
+      Board board = hist.getRecentBoard(0);
+      for(int sym = 0; sym<SymmetryHelpers::NUM_SYMMETRIES; sym++) {
+        MiscNNInputParams nnInputParams;
+        nnInputParams.symmetry = sym;
+        NNResultBuf buf;
+        bool skipCache = true; //Always ignore cache so that we use the desired symmetry
+        bool includeOwnerMap = false;
+        if(policySurpriseWeight > 0 || valueSurpriseWeight > 0)
+          nnEval->evaluate(board,hist,pla,nnInputParams,buf,skipCache,includeOwnerMap);
+
+        if(policySurpriseWeight > 0) {
+          if(bestMove != Board::NULL_LOC) {
+            double policyProb = buf.result->policyProbs[NNPos::locToPos(bestMove,board.x_size,nnEval->getNNXLen(),nnEval->getNNYLen())];
+            assert(policyProb >= 0.0 && policyProb <= 1.0);
+            policySurprise += -1.0 / (double)SymmetryHelpers::NUM_SYMMETRIES * log(policyProb + 1e-30);
+          }
+        }
+
+        if(valueSurpriseWeight > 0) {
+          double wlValue = (double)buf.result->whiteWinProb - (double)buf.result->whiteLossProb;
+          double winChance = std::max(0.0, std::min(1.0, 0.5 * (wlValue + 1.0)));
+          double lossChance = std::max(0.0, std::min(1.0, 0.5 * (-wlValue + 1.0)));
+
+          valueSurprise += -1.0 / (double)SymmetryHelpers::NUM_SYMMETRIES * (
+            bookWinChance * log(winChance + 1e-30) + bookLossChance * log(lossChance + 1e-30)
+          );
+        }
+      }
+
+      double weightFromConstant = constantWeight;
+      double weightFromDepth = exp(-(double)depth / depthWeightScale) * depthWeight;
+      double weightFromPolicySurprise = policySurprise * policySurpriseWeight;
+      double weightFromValueSurprise = valueSurprise * valueSurpriseWeight;
+
+      double weight = weightFromConstant + weightFromDepth + weightFromPolicySurprise + weightFromValueSurprise;
+      sample.weight = weight;
+
+      std::lock_guard<std::mutex> lock(statsLock);
+
+      if(sample.weight >= minWeight) {
+        posWriter.writePos(sample);
+
+        totalWeightFromConstant += weightFromConstant;
+        totalWeightFromDepth += weightFromDepth;
+        totalWeightFromPolicySurprise += weightFromPolicySurprise;
+        totalWeightFromValueSurprise += weightFromValueSurprise;
+
+        numPositionsWritten += 1;
+      }
+
+      numPositionsProcessed += 1;
+      if(numPositionsProcessed % 20000 == 0)
+        logger.write(
+          "Num positions processed: " +
+          Global::intToString(numPositionsProcessed) + "/" + Global::intToString(depthByHash.size()) + ", written " + Global::intToString(numPositionsWritten)
+        );
+    }
+  };
+
+  vector<std::thread> threads;
+  for(int threadIdx = 0; threadIdx<numThreads; threadIdx++) {
+    threads.push_back(std::thread(processPoses, threadIdx));
+  }
+  for(int threadIdx = 0; threadIdx<numThreads; threadIdx++) {
+    threads[threadIdx].join();
+  }
+  threads.clear();
+
+  posWriter.flushAndStop();
+
+  logger.write("totalWeightFromConstant " + Global::doubleToString(totalWeightFromConstant));
+  logger.write("totalWeightFromDepth " + Global::doubleToString(totalWeightFromDepth));
+  logger.write("totalWeightFromPolicySurprise " + Global::doubleToString(totalWeightFromPolicySurprise));
+  logger.write("totalWeightFromValueSurprise " + Global::doubleToString(totalWeightFromValueSurprise));
+  logger.write("numPositionsWritten " + Global::intToString(numPositionsWritten));
 
   delete book;
   ScoreValue::freeTables();

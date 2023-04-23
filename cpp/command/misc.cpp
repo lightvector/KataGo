@@ -5,6 +5,7 @@
 #include "../core/timer.h"
 #include "../core/test.h"
 #include "../dataio/sgf.h"
+#include "../dataio/poswriter.h"
 #include "../dataio/files.h"
 #include "../search/asyncbot.h"
 #include "../program/setup.h"
@@ -764,49 +765,15 @@ int MainCmds::samplesgfs(const vector<string>& args) {
   };
 
   // ---------------------------------------------------------------------------------------------------
-  ThreadSafeQueue<string*> toWriteQueue;
-  auto writeLoop = [&toWriteQueue,&outDir]() {
-    int fileCounter = 0;
-    int numWrittenThisFile = 0;
-    ofstream* out = NULL;
-    while(true) {
-      string* message;
-      bool suc = toWriteQueue.waitPop(message);
-      if(!suc)
-        break;
-
-      if(out == NULL || numWrittenThisFile > 100000) {
-        if(out != NULL) {
-          out->close();
-          delete out;
-        }
-        out = new ofstream();
-        FileUtils::open(*out, outDir + "/" + Global::intToString(fileCounter) + ".startposes.txt");
-        fileCounter += 1;
-        numWrittenThisFile = 0;
-      }
-      (*out) << *message << endl;
-      numWrittenThisFile += 1;
-      delete message;
-    }
-
-    if(out != NULL) {
-      out->close();
-      delete out;
-    }
-  };
-
-  // ---------------------------------------------------------------------------------------------------
-
-  //Begin writing
-  std::thread writeLoopThread(writeLoop);
+  PosWriter posWriter("startposes.txt", outDir, 1, 0, 100000);
+  posWriter.start();
 
   // ---------------------------------------------------------------------------------------------------
 
   int64_t numKept = 0;
   std::set<Hash128> uniqueHashes;
   std::function<void(Sgf::PositionSample&, const BoardHistory&, const string&)> posHandler =
-    [sampleProb,sampleWeight,forceSampleWeight,&toWriteQueue,turnWeightLambda,&numKept,&seedRand,minTurnNumberBoardAreaProp,maxTurnNumberBoardAreaProp,afterPassFactor](
+    [sampleProb,sampleWeight,forceSampleWeight,&posWriter,turnWeightLambda,&numKept,&seedRand,minTurnNumberBoardAreaProp,maxTurnNumberBoardAreaProp,afterPassFactor](
       Sgf::PositionSample& posSample, const BoardHistory& hist, const string& comments
     ) {
       double minTurnNumber = minTurnNumberBoardAreaProp * (hist.initialBoard.x_size * hist.initialBoard.y_size);
@@ -826,7 +793,7 @@ int MainCmds::samplesgfs(const vector<string>& args) {
           posSampleToWrite.weight *= afterPassFactor;
         if(comments.size() > 0 && comments.find("%SAMPLE%") != string::npos)
           posSampleToWrite.weight = std::max(posSampleToWrite.weight,forceSampleWeight);
-        toWriteQueue.waitPush(new string(Sgf::PositionSample::toJsonLine(posSampleToWrite)));
+        posWriter.writePos(posSampleToWrite);
         numKept += 1;
       }
     };
@@ -1064,8 +1031,7 @@ int MainCmds::samplesgfs(const vector<string>& args) {
 
   // ---------------------------------------------------------------------------------------------------
 
-  toWriteQueue.setReadOnly();
-  writeLoopThread.join();
+  posWriter.flushAndStop();
 
   if(valueFluctuationNNEval != NULL)
     delete valueFluctuationNNEval;
@@ -1350,42 +1316,7 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
   std::signal(SIGTERM, signalHandler);
 
   // ---------------------------------------------------------------------------------------------------
-  ThreadSafeQueue<string*> toWriteQueue;
-  auto writeLoop = [&toWriteQueue,&outDir,&sgfSplitCount,&sgfSplitIdx,&maxPosesPerOutFile]() {
-    int fileCounter = 0;
-    int numWrittenThisFile = 0;
-    ofstream* out = NULL;
-    while(true) {
-      string* message;
-      bool suc = toWriteQueue.waitPop(message);
-      if(!suc)
-        break;
-
-      if(out == NULL || numWrittenThisFile > maxPosesPerOutFile) {
-        if(out != NULL) {
-          out->close();
-          delete out;
-        }
-        string fileNameToWrite;
-        if(sgfSplitCount > 1)
-          fileNameToWrite = outDir + "/" + Global::intToString(fileCounter) + "." + Global::intToString(sgfSplitIdx) + ".hintposes.txt";
-        else
-          fileNameToWrite = outDir + "/" + Global::intToString(fileCounter) + ".hintposes.txt";
-        out = new ofstream();
-        FileUtils::open(*out,fileNameToWrite);
-        fileCounter += 1;
-        numWrittenThisFile = 0;
-      }
-      (*out) << *message << endl;
-      numWrittenThisFile += 1;
-      delete message;
-    }
-
-    if(out != NULL) {
-      out->close();
-      delete out;
-    }
-  };
+  PosWriter posWriter("hintposes.txt", outDir, sgfSplitCount, sgfSplitIdx, maxPosesPerOutFile);
 
   //COMMON ---------------------------------------------------------------------------------------------------
   std::atomic<int64_t> numSgfsDone(0);
@@ -1420,7 +1351,7 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
     return true;
   };
 
-  auto expensiveEvaluateMove = [&toWriteQueue,&turnWeightLambda,&maxAutoKomi,&maxHandicap,&numFilteredIndivdualPoses,&surpriseMode,&minHintWeight,&logger](
+  auto expensiveEvaluateMove = [&posWriter,&turnWeightLambda,&maxAutoKomi,&maxHandicap,&numFilteredIndivdualPoses,&surpriseMode,&minHintWeight,&logger](
     Search* search, Loc missedLoc,
     Player nextPla, const Board& board, const BoardHistory& hist,
     const Sgf::PositionSample& sample, bool markedAsHintPos
@@ -1490,11 +1421,11 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
           Sgf::PositionSample sampleToWrite = sample;
           sampleToWrite.weight += std::fabs(baseValues.utility - veryQuickValues.utility);
           sampleToWrite.hintLoc = moveLoc;
-          toWriteQueue.waitPush(new string(Sgf::PositionSample::toJsonLine(sampleToWrite)));
+          posWriter.writePos(sampleToWrite);
           if(sampleToWrite.hasPreviousPositions(1))
-            toWriteQueue.waitPush(new string(Sgf::PositionSample::toJsonLine(sampleToWrite.previousPosition(sampleToWrite.weight * 0.5))));
+            posWriter.writePos(sampleToWrite.previousPosition(sampleToWrite.weight * 0.5));
           if(sampleToWrite.hasPreviousPositions(2))
-            toWriteQueue.waitPush(new string(Sgf::PositionSample::toJsonLine(sampleToWrite.previousPosition(sampleToWrite.weight * 0.25).previousPosition(sampleToWrite.weight * 0.25))));
+            posWriter.writePos(sampleToWrite.previousPosition(sampleToWrite.weight * 0.25).previousPosition(sampleToWrite.weight * 0.25));
           logger.write("Surprising good " + Global::doubleToString(sampleToWrite.weight));
           return;
         }
@@ -1507,11 +1438,11 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
         Sgf::PositionSample sampleToWrite = sample;
         sampleToWrite.weight = 1.0 + std::fabs(baseValues.utility - veryQuickValues.utility);
         sampleToWrite.hintLoc = Board::NULL_LOC;
-        toWriteQueue.waitPush(new string(Sgf::PositionSample::toJsonLine(sampleToWrite)));
+        posWriter.writePos(sampleToWrite);
         if(sampleToWrite.hasPreviousPositions(1))
-          toWriteQueue.waitPush(new string(Sgf::PositionSample::toJsonLine(sampleToWrite.previousPosition(sampleToWrite.weight * 0.5))));
+          posWriter.writePos(sampleToWrite.previousPosition(sampleToWrite.weight * 0.5));
         if(sampleToWrite.hasPreviousPositions(2))
-          toWriteQueue.waitPush(new string(Sgf::PositionSample::toJsonLine(sampleToWrite.previousPosition(sampleToWrite.weight * 0.25).previousPosition(sampleToWrite.weight * 0.25))));
+          posWriter.writePos(sampleToWrite.previousPosition(sampleToWrite.weight * 0.25).previousPosition(sampleToWrite.weight * 0.25));
         logger.write("Inevitable bad " + Global::doubleToString(sampleToWrite.weight));
         return;
       }
@@ -1522,11 +1453,11 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
         Sgf::PositionSample sampleToWrite = sample;
         sampleToWrite.weight = 1.0 + std::fabs(baseValues.utility - veryQuickValues.utility);
         sampleToWrite.hintLoc = Board::NULL_LOC;
-        toWriteQueue.waitPush(new string(Sgf::PositionSample::toJsonLine(sampleToWrite)));
+        posWriter.writePos(sampleToWrite);
         if(sampleToWrite.hasPreviousPositions(1))
-          toWriteQueue.waitPush(new string(Sgf::PositionSample::toJsonLine(sampleToWrite.previousPosition(sampleToWrite.weight * 0.5))));
+          posWriter.writePos(sampleToWrite.previousPosition(sampleToWrite.weight * 0.5));
         if(sampleToWrite.hasPreviousPositions(2))
-          toWriteQueue.waitPush(new string(Sgf::PositionSample::toJsonLine(sampleToWrite.previousPosition(sampleToWrite.weight * 0.25).previousPosition(sampleToWrite.weight * 0.25))));
+          posWriter.writePos(sampleToWrite.previousPosition(sampleToWrite.weight * 0.25).previousPosition(sampleToWrite.weight * 0.25));
         logger.write("Inevitable good " + Global::doubleToString(sampleToWrite.weight));
         return;
       }
@@ -1583,7 +1514,7 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
         sampleToWrite.weight = minHintWeight;
       if(sampleToWrite.weight > 0.1) {
         //Still good to learn from given that policy was really low
-        toWriteQueue.waitPush(new string(Sgf::PositionSample::toJsonLine(sampleToWrite)));
+        posWriter.writePos(sampleToWrite);
       }
     }
 
@@ -1627,7 +1558,7 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
         if(sampleToWrite.weight < minHintWeight && markedAsHintPos)
           sampleToWrite.weight = minHintWeight;
         if(sampleToWrite.weight > 0.1) {
-          toWriteQueue.waitPush(new string(Sgf::PositionSample::toJsonLine(sampleToWrite)));
+          posWriter.writePos(sampleToWrite);
         }
       }
     }
@@ -2023,7 +1954,7 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
   // ---------------------------------------------------------------------------------------------------
 
   //Begin writing
-  std::thread writeLoopThread(writeLoop);
+  posWriter.start();
 
   vector<std::thread> threads;
   for(int i = 0; i<numProcessThreads; i++) {
@@ -2177,8 +2108,7 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
   logSgfProgress();
   logger.write("Waiting for final writing and cleanup");
 
-  toWriteQueue.setReadOnly();
-  writeLoopThread.join();
+  posWriter.flushAndStop();
 
   logger.write(nnEval->getModelFileName());
   logger.write("NN rows: " + Global::int64ToString(nnEval->numRowsProcessed()));
