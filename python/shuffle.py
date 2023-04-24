@@ -415,8 +415,9 @@ if __name__ == '__main__':
         i = 0
         while i < len(dirnames):
           dirname = dirnames[i]
-          filename_mtime_num_rowss = summary_data_by_dirpath.get(os.path.abspath(os.path.join(path, dirname)))
-          if filename_mtime_num_rowss is not None:
+          summary_data = summary_data_by_dirpath.get(os.path.abspath(os.path.join(path, dirname)))
+          if summary_data is not None:
+            filename_mtime_num_rowss = summary_data["filename_mtime_num_rowss"]
             del dirnames[i]
             i -= 1
             for (filename,mtime,num_rows) in filename_mtime_num_rowss:

@@ -115,6 +115,16 @@ if __name__ == '__main__':
       with open(old_summary_file_to_assume_correct) as fp:
         summary_data_by_dirpath = json.load(fp)
 
+  # Update old summary data into new format
+  dirpaths = list(summary_data_by_dirpath.keys())
+  for dirpath in dirpaths:
+    if "dir_mtime" not in summary_data_by_dirpath[dirpath]:
+      filename_mtime_num_rowss = summary_data_by_dirpath[dirpath]
+      summary_data_by_dirpath[dirpath] = {
+        "dir_mtime": os.path.getmtime(dirpath)
+        "filename_mtime_num_rowss": filename_mtime_num_rowss,
+      }
+
   dirs_to_handle = []
   with TimeStuff("Finding files"):
     for d in dirs:
@@ -125,12 +135,17 @@ if __name__ == '__main__':
           dirname = dirnames[i]
           dirpath = os.path.normpath(os.path.join(path, dirname))
           if dirpath in summary_data_by_dirpath:
+            if os.path.getmtime(dirpath) == summary_data_by_dirpath[dirpath]["dir_mtime"]:
+              # Skip
+              del dirnames[i]
+              continue
+
+          if dirname == "tdata":
+            # Handle this dir and don't recurse further
             del dirnames[i]
-            i -= 1
-          elif dirname == "tdata":
-            del dirnames[i]
-            i -= 1
             dirs_to_handle.append(dirpath)
+            continue
+
           else:
             parseddate = None
             try:
@@ -138,9 +153,10 @@ if __name__ == '__main__':
             except ValueError:
               parseddate = None
             if parseddate is not None and parseddate < datetime.datetime.now() - datetime.timedelta(days=2.0):
+              # Handle this dir and don't recurse further
               del dirnames[i]
-              i -= 1
               dirs_to_handle.append(dirpath)
+              continue
 
           i += 1
 
@@ -155,7 +171,10 @@ if __name__ == '__main__':
         continue
       (dirpath, filename_mtime_num_rowss, num_rows_this_dir) = result
       num_total_rows += num_rows_this_dir
-      summary_data_by_dirpath[os.path.abspath(dirpath)] = filename_mtime_num_rowss
+      summary_data_by_dirpath[os.path.abspath(dirpath)] = {
+        "dir_mtime": os.path.getmtime(os.path.abspath(dirpath)),
+        "filename_mtime_num_rowss": filename_mtime_num_rowss,
+      }
 
   if len(dirs_to_handle) == 0 and old_summary_file_to_assume_correct is not None and os.path.exists(old_summary_file_to_assume_correct):
     shutil.copy(old_summary_file_to_assume_correct,new_summary_file)
