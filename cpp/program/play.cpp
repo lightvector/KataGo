@@ -263,7 +263,10 @@ void GameInitializer::initShared(ConfigParser& cfg, Logger& logger) {
 
     vector<string> files;
     std::function<bool(const string&)> fileFilter = [](const string& fileName) {
-      return Global::isSuffix(fileName,".hintposes.txt");
+      return
+        Global::isSuffix(fileName,".hintposes.txt") ||
+        Global::isSuffix(fileName,".startposes.txt") ||
+        Global::isSuffix(fileName,".bookposes.txt");
     };
     for(int i = 0; i<dirs.size(); i++) {
       string dir = Global::trim(dirs[i]);
