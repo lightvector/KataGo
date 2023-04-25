@@ -81,6 +81,22 @@ def main(args):
   writeln(modelconfigs.get_num_bin_input_features(model_config))
   writeln(modelconfigs.get_num_global_input_features(model_config))
 
+  if version <= 12:
+    assert model.td_score_multiplier == 20.0
+    assert model.scoremean_multiplier == 20.0
+    assert model.scorestdev_multiplier == 20.0
+    assert model.lead_multiplier == 20.0
+    assert model.variance_time_multiplier == 40.0
+    assert model.shortterm_value_error_multiplier == 0.25
+    assert model.shortterm_score_error_multiplier == 30.0
+  else:
+    writeln(model.td_score_multiplier)
+    writeln(model.scoremean_multiplier)
+    writeln(model.scorestdev_multiplier)
+    writeln(model.lead_multiplier)
+    writeln(model.variance_time_multiplier)
+    writeln(model.shortterm_value_error_multiplier)
+    writeln(model.shortterm_score_error_multiplier)
 
   def write_weights(weights):
     # Little endian

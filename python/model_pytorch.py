@@ -1328,6 +1328,14 @@ class Model(torch.nn.Module):
         self.num_total_blocks = len(self.block_kind)
         self.pos_len = pos_len
 
+        self.td_score_multiplier = 20.0
+        self.scoremean_multiplier = 20.0
+        self.scorestdev_multiplier = 20.0
+        self.lead_multiplier = 20.0
+        self.variance_time_multiplier = 40.0
+        self.shortterm_value_error_multiplier = 0.25
+        self.shortterm_score_error_multiplier = 150.0
+
         self.trunk_normless = "trunk_normless" in config and config["trunk_normless"]
 
         if "has_intermediate_head" in config and config["has_intermediate_head"]:
@@ -1708,17 +1716,17 @@ class Model(torch.nn.Module):
         policy_logits = out_policy
         value_logits = out_value
         td_value_logits = torch.stack((out_miscvalue[:,4:7], out_miscvalue[:,7:10], out_moremiscvalue[:,2:5]), dim=1)
-        pred_td_score = out_moremiscvalue[:,5:8] * 20.0
+        pred_td_score = out_moremiscvalue[:,5:8] * self.td_score_multiplier
         ownership_pretanh = out_ownership
         pred_scoring = out_scoring
         futurepos_pretanh = out_futurepos
         seki_logits = out_seki
-        pred_scoremean = out_miscvalue[:, 0] * 20.0
-        pred_scorestdev = SoftPlusWithGradientFloorFunction.apply(out_miscvalue[:, 1], 0.05) * 20.0
-        pred_lead = out_miscvalue[:, 2] * 20.0
-        pred_variance_time = SoftPlusWithGradientFloorFunction.apply(out_miscvalue[:, 3], 0.05) * 40.0
-        pred_shortterm_value_error = SoftPlusWithGradientFloorFunction.apply(out_moremiscvalue[:,0], 0.05) * 0.25
-        pred_shortterm_score_error = SoftPlusWithGradientFloorFunction.apply(out_moremiscvalue[:,1], 0.05) * 150.0
+        pred_scoremean = out_miscvalue[:, 0] * self.scoremean_multiplier
+        pred_scorestdev = SoftPlusWithGradientFloorFunction.apply(out_miscvalue[:, 1], 0.05) * self.scorestdev_multiplier
+        pred_lead = out_miscvalue[:, 2] * self.lead_multiplier
+        pred_variance_time = SoftPlusWithGradientFloorFunction.apply(out_miscvalue[:, 3], 0.05) * self.variance_time_multiplier
+        pred_shortterm_value_error = SoftPlusWithGradientFloorFunction.apply(out_moremiscvalue[:,0], 0.05) * self.shortterm_value_error_multiplier
+        pred_shortterm_score_error = SoftPlusWithGradientFloorFunction.apply(out_moremiscvalue[:,1], 0.05) * self.shortterm_score_error_multiplier
         scorebelief_logits = out_scorebelief_logprobs
 
         return (

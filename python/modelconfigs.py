@@ -16,26 +16,27 @@ ModelConfig = Dict[str,Any]
 # version = 10 # V7 features, shortterm value error prediction done properly
 # version = 11 # V7 features, New architectures!
 # version = 12 # V7 features, Optimistic policy head
+# version = 13 # V7 features, Adjusted scaling on shortterm score variance, and made C++ side read in scalings.
 
 def get_version(config: ModelConfig):
   return config["version"]
 
 def get_num_bin_input_features(config: ModelConfig):
   version = get_version(config)
-  if version == 10 or version == 11 or version == 12:
+  if version == 10 or version == 11 or version == 12 or version == 13:
     return 22
   else:
     assert(False)
 
 def get_num_global_input_features(config: ModelConfig):
   version = get_version(config)
-  if version == 10 or version == 11 or version == 12:
+  if version == 10 or version == 11 or version == 12 or version == 13:
     return 19
   else:
     assert(False)
 
 b1c6nbt = {
-  "version":11,
+  "version":13,
   "norm_kind":"fixup",
   "bnorm_epsilon": 1e-4,
   "bnorm_running_avg_momentum": 0.001,
@@ -57,7 +58,7 @@ b1c6nbt = {
 }
 
 b2c16 = {
-  "version":12,
+  "version":13,
   "norm_kind":"fixup",
   "bnorm_epsilon": 1e-4,
   "bnorm_running_avg_momentum": 0.001,
@@ -80,7 +81,7 @@ b2c16 = {
 }
 
 b4c32 = {
-  "version":12,
+  "version":13,
   "norm_kind":"fixup",
   "bnorm_epsilon": 1e-4,
   "bnorm_running_avg_momentum": 0.001,
@@ -105,7 +106,7 @@ b4c32 = {
 }
 
 b6c96 = {
-  "version":12,
+  "version":13,
   "norm_kind":"fixup",
   "bnorm_epsilon": 1e-4,
   "bnorm_running_avg_momentum": 0.001,
@@ -132,7 +133,7 @@ b6c96 = {
 }
 
 b10c128 = {
-  "version":12,
+  "version":13,
   "norm_kind":"fixup",
   "bnorm_epsilon": 1e-4,
   "bnorm_running_avg_momentum": 0.001,
@@ -163,7 +164,7 @@ b10c128 = {
 }
 
 b5c192nbt = {
-  "version":11,
+  "version":13,
   "norm_kind":"fixup",
   "bnorm_epsilon": 1e-4,
   "bnorm_running_avg_momentum": 0.001,
@@ -189,7 +190,7 @@ b5c192nbt = {
 }
 
 b15c192 = {
-  "version":12,
+  "version":13,
   "norm_kind":"fixup",
   "bnorm_epsilon": 1e-4,
   "bnorm_running_avg_momentum": 0.001,
@@ -225,7 +226,7 @@ b15c192 = {
 }
 
 b20c256 = {
-  "version":12,
+  "version":13,
   "norm_kind":"fixup",
   "bnorm_epsilon": 1e-4,
   "bnorm_running_avg_momentum": 0.001,
@@ -266,7 +267,7 @@ b20c256 = {
 }
 
 b30c256bt = {
-  "version":12,
+  "version":13,
   "norm_kind":"fixup",
   "bnorm_epsilon": 1e-4,
   "bnorm_running_avg_momentum": 0.001,
@@ -317,7 +318,7 @@ b30c256bt = {
 }
 
 b24c320bt = {
-  "version":12,
+  "version":13,
   "norm_kind":"fixup",
   "bnorm_epsilon": 1e-4,
   "bnorm_running_avg_momentum": 0.001,
@@ -362,7 +363,7 @@ b24c320bt = {
 }
 
 b20c384bt = {
-  "version":12,
+  "version":13,
   "norm_kind":"fixup",
   "bnorm_epsilon": 1e-4,
   "bnorm_running_avg_momentum": 0.001,
@@ -404,7 +405,7 @@ b20c384bt = {
 
 
 b10c512lbt = {
-  "version":12,
+  "version":13,
   "norm_kind":"fixup",
   "bnorm_epsilon": 1e-4,
   "bnorm_running_avg_momentum": 0.001,
@@ -436,7 +437,7 @@ b10c512lbt = {
 
 
 b15c384lbt = {
-  "version":12,
+  "version":13,
   "norm_kind":"fixup",
   "bnorm_epsilon": 1e-4,
   "bnorm_running_avg_momentum": 0.001,
@@ -472,7 +473,7 @@ b15c384lbt = {
 }
 
 b18c320lbt = {
-  "version":12,
+  "version":13,
   "norm_kind":"fixup",
   "bnorm_epsilon": 1e-4,
   "bnorm_running_avg_momentum": 0.001,
@@ -511,7 +512,7 @@ b18c320lbt = {
 }
 
 b23c256lbt = {
-  "version":12,
+  "version":13,
   "norm_kind":"fixup",
   "bnorm_epsilon": 1e-4,
   "bnorm_running_avg_momentum": 0.001,
@@ -555,7 +556,7 @@ b23c256lbt = {
 }
 
 b12c384llbt = {
-  "version":12,
+  "version":13,
   "norm_kind":"fixup",
   "bnorm_epsilon": 1e-4,
   "bnorm_running_avg_momentum": 0.001,
@@ -589,7 +590,7 @@ b12c384llbt = {
 
 
 b10c384nbt = {
-  "version":12,
+  "version":13,
   "norm_kind":"fixup",
   "bnorm_epsilon": 1e-4,
   "bnorm_running_avg_momentum": 0.001,
@@ -621,7 +622,7 @@ b10c384nbt = {
 
 
 b10c480nb3t = {
-  "version":12,
+  "version":13,
   "norm_kind":"fixup",
   "bnorm_epsilon": 1e-4,
   "bnorm_running_avg_momentum": 0.001,
@@ -653,7 +654,7 @@ b10c480nb3t = {
 
 
 b7c384lnbt = {
-  "version":12,
+  "version":13,
   "norm_kind":"fixup",
   "bnorm_epsilon": 1e-4,
   "bnorm_running_avg_momentum": 0.001,
@@ -681,7 +682,7 @@ b7c384lnbt = {
 }
 
 b5c512nnbt = {
-  "version":12,
+  "version":13,
   "norm_kind":"fixup",
   "bnorm_epsilon": 1e-4,
   "bnorm_running_avg_momentum": 0.001,
@@ -709,7 +710,7 @@ b5c512nnbt = {
 
 
 b20c384lbt = {
-  "version":12,
+  "version":13,
   "norm_kind":"fixup",
   "bnorm_epsilon": 1e-4,
   "bnorm_running_avg_momentum": 0.001,
@@ -751,7 +752,7 @@ b20c384lbt = {
 
 
 b30c320 = {
-  "version":12,
+  "version":13,
   "norm_kind":"fixup",
   "bnorm_epsilon": 1e-4,
   "bnorm_running_avg_momentum": 0.001,
@@ -802,7 +803,7 @@ b30c320 = {
 }
 
 b40c256 = {
-  "version":12,
+  "version":13,
   "norm_kind":"fixup",
   "bnorm_epsilon": 1e-4,
   "bnorm_running_avg_momentum": 0.001,
@@ -863,7 +864,7 @@ b40c256 = {
 }
 
 b18c384nbt = {
-  "version":12,
+  "version":13,
   "norm_kind":"fixup",
   "bnorm_epsilon": 1e-4,
   "bnorm_running_avg_momentum": 0.001,
@@ -902,7 +903,7 @@ b18c384nbt = {
 }
 
 b14c448nbt = {
-  "version":12,
+  "version":13,
   "norm_kind":"fixup",
   "bnorm_epsilon": 1e-4,
   "bnorm_running_avg_momentum": 0.001,
@@ -937,7 +938,7 @@ b14c448nbt = {
 }
 
 b40c384 = {
-  "version":12,
+  "version":13,
   "norm_kind":"fixup",
   "bnorm_epsilon": 1e-4,
   "bnorm_running_avg_momentum": 0.001,
@@ -999,7 +1000,7 @@ b40c384 = {
 
 
 b60c320 = {
-  "version":12,
+  "version":13,
   "norm_kind":"fixup",
   "bnorm_epsilon": 1e-4,
   "bnorm_running_avg_momentum": 0.001,
@@ -1081,7 +1082,7 @@ b60c320 = {
 
 
 b41c384nbt = {
-  "version":12,
+  "version":13,
   "norm_kind":"fixup",
   "bnorm_epsilon": 1e-4,
   "bnorm_running_avg_momentum": 0.001,
@@ -1143,7 +1144,7 @@ b41c384nbt = {
 }
 
 b32c448nbt = {
-  "version":12,
+  "version":13,
   "norm_kind":"fixup",
   "bnorm_epsilon": 1e-4,
   "bnorm_running_avg_momentum": 0.001,
@@ -1197,7 +1198,7 @@ b32c448nbt = {
 
 
 b28c512nbt = {
-  "version":12,
+  "version":13,
   "norm_kind":"fixup",
   "bnorm_epsilon": 1e-4,
   "bnorm_running_avg_momentum": 0.001,
@@ -1246,7 +1247,7 @@ b28c512nbt = {
 }
 
 b20c640nbt = {
-  "version":12,
+  "version":13,
   "norm_kind":"fixup",
   "bnorm_epsilon": 1e-4,
   "bnorm_running_avg_momentum": 0.001,
@@ -1287,7 +1288,7 @@ b20c640nbt = {
 }
 
 sandbox = {
-  "version":12,
+  "version":13,
   "norm_kind":"fixup",
   "bnorm_epsilon": 1e-4,
   "bnorm_running_avg_momentum": 0.001,
