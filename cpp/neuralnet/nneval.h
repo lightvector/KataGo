@@ -202,6 +202,8 @@ class NNEvaluator {
   int modelVersion;
   int inputsVersion;
 
+  ModelPostProcessParams postProcessParams;
+
   int numServerThreadsEverSpawned;
   std::vector<std::thread*> serverThreads;
 

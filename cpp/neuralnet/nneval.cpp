@@ -97,6 +97,9 @@ NNEvaluator::NNEvaluator(
    loadedModel(NULL),
    nnCacheTable(NULL),
    logger(lg),
+   modelVersion(-1),
+   inputsVersion(-1),
+   postProcessParams(),
    numServerThreadsEverSpawned(0),
    serverThreads(),
    maxNumRows(maxBatchSize),
@@ -159,6 +162,7 @@ NNEvaluator::NNEvaluator(
     loadedModel = NeuralNet::loadModelFile(modelFileName,expectedSha256);
     modelVersion = NeuralNet::getModelVersion(loadedModel);
     inputsVersion = NNModelVersion::getInputsVersion(modelVersion);
+    postProcessParams = NeuralNet::getPostProcessParams(loadedModel);
     computeContext = NeuralNet::createComputeContext(
       gpuIdxs,logger,nnXLen,nnYLen,
       openCLTunerFile,homeDataDirOverride,openCLReTunePerBoardSize,
@@ -867,7 +871,7 @@ void NNEvaluator::evaluate(
 
     //Fix up the value as well. Note that the neural net gives us back the value from the perspective
     //of the player so we need to negate that to make it the white value.
-    static_assert(NNModelVersion::latestModelVersionImplemented == 12, "");
+    static_assert(NNModelVersion::latestModelVersionImplemented == 13, "");
     if(modelVersion == 3) {
       const double twoOverPi = 0.63661977236758134308;
 
@@ -923,7 +927,7 @@ void NNEvaluator::evaluate(
       }
 
     }
-    else if(modelVersion >= 4 && modelVersion <= 12) {
+    else if(modelVersion >= 4 && modelVersion <= 13) {
       double winProb;
       double lossProb;
       double noResultProb;
@@ -961,11 +965,11 @@ void NNEvaluator::evaluate(
         lossProb /= probSum;
         noResultProb /= probSum;
 
-        scoreMean = scoreMeanPreScaled * 20.0;
-        double scoreStdev = softPlus(scoreStdevPreSoftplus) * 20.0;
+        scoreMean = scoreMeanPreScaled * postProcessParams.scoreMeanMultiplier;
+        double scoreStdev = softPlus(scoreStdevPreSoftplus) * postProcessParams.scoreStdevMultiplier;
         scoreMeanSq = scoreMean * scoreMean + scoreStdev * scoreStdev;
-        lead = leadPreScaled * 20.0;
-        varTimeLeft = softPlus(varTimeLeftPreSoftplus) * 40.0;
+        lead = leadPreScaled * postProcessParams.leadMultiplier;
+        varTimeLeft = softPlus(varTimeLeftPreSoftplus) * postProcessParams.varianceTimeMultiplier;
 
         //scoreMean and scoreMeanSq are still conditional on having a result, we need to make them unconditional now
         //noResult counts as 0 score for scorevalue purposes.
@@ -974,8 +978,8 @@ void NNEvaluator::evaluate(
         lead = lead * (1.0-noResultProb);
 
         if(modelVersion >= 10) {
-          shorttermWinlossError = sqrt(softPlus(shorttermWinlossErrorPreSoftplus) * 0.25);
-          shorttermScoreError = sqrt(softPlus(shorttermScoreErrorPreSoftplus) * 30.0);
+          shorttermWinlossError = sqrt(softPlus(shorttermWinlossErrorPreSoftplus) * postProcessParams.shorttermValueErrorMultiplier);
+          shorttermScoreError = sqrt(softPlus(shorttermScoreErrorPreSoftplus) * postProcessParams.shorttermScoreErrorMultiplier);
         }
         else {
           shorttermWinlossError = softPlus(shorttermWinlossErrorPreSoftplus);
@@ -1036,7 +1040,7 @@ void NNEvaluator::evaluate(
 
   //Postprocess ownermap
   if(buf.result->whiteOwnerMap != NULL) {
-    if(modelVersion >= 3 && modelVersion <= 12) {
+    if(modelVersion >= 3 && modelVersion <= 13) {
       for(int pos = 0; pos<nnXLen*nnYLen; pos++) {
         int y = pos / nnXLen;
         int x = pos % nnXLen;
