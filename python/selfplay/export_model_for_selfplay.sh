@@ -90,7 +90,6 @@ function exportStuff() {
                         mkdir -p "$BASEDIR"/selfplay/"$NAME"
                         mkdir -p "$BASEDIR"/selfplay/"$NAME"/sgfs
                         mkdir -p "$BASEDIR"/selfplay/"$NAME"/tdata
-                        mkdir -p "$BASEDIR"/selfplay/"$NAME"/vdata
                     fi
                 fi
 

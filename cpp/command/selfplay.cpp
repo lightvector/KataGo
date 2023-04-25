@@ -99,21 +99,19 @@ int MainCmds::selfplay(const vector<string>& args) {
   //Max number of games that we will allow to be queued up and not written out
   const int maxDataQueueSize = cfg.getInt("maxDataQueueSize",1,1000000);
   const int maxRowsPerTrainFile = cfg.getInt("maxRowsPerTrainFile",1,100000000);
-  const int maxRowsPerValFile = cfg.getInt("maxRowsPerValFile",1,100000000);
   const double firstFileRandMinProp = cfg.getDouble("firstFileRandMinProp",0.0,1.0);
 
-  const double validationProp = cfg.getDouble("validationProp",0.0,0.5);
   const int64_t logGamesEvery = cfg.getInt64("logGamesEvery",1,1000000);
 
   const bool switchNetsMidGame = cfg.getBool("switchNetsMidGame");
   const SearchParams baseParams = Setup::loadSingleParams(cfg,Setup::SETUP_FOR_OTHER);
 
   //Initialize object for randomizing game settings and running games
-  const bool isDistributed = false; 
+  const bool isDistributed = false;
   PlaySettings playSettings = PlaySettings::loadForSelfplay(cfg, isDistributed);
   GameRunner* gameRunner = new GameRunner(cfg, playSettings, logger);
   bool autoCleanupAllButLatestIfUnused = true;
-  SelfplayManager* manager = new SelfplayManager(validationProp, maxDataQueueSize, &logger, logGamesEvery, autoCleanupAllButLatestIfUnused);
+  SelfplayManager* manager = new SelfplayManager(maxDataQueueSize, &logger, logGamesEvery, autoCleanupAllButLatestIfUnused);
 
   const int minBoardXSizeUsed = gameRunner->getGameInitializer()->getMinBoardXSize();
   const int minBoardYSizeUsed = gameRunner->getGameInitializer()->getMinBoardYSize();
@@ -136,7 +134,7 @@ int MainCmds::selfplay(const vector<string>& args) {
 
   //Returns true if a new net was loaded.
   auto loadLatestNeuralNetIntoManager =
-    [inputsVersion,&manager,maxRowsPerTrainFile,maxRowsPerValFile,firstFileRandMinProp,dataBoardLen,
+    [inputsVersion,&manager,maxRowsPerTrainFile,firstFileRandMinProp,dataBoardLen,
      &modelsDir,&outputDir,&logger,&cfg,numGameThreads,
      minBoardXSizeUsed,maxBoardXSizeUsed,minBoardYSizeUsed,maxBoardYSizeUsed](const string* lastNetName) -> bool {
 
@@ -175,7 +173,6 @@ int MainCmds::selfplay(const vector<string>& args) {
     string modelOutputDir = outputDir + "/" + modelName;
     string sgfOutputDir = modelOutputDir + "/sgfs";
     string tdataOutputDir = modelOutputDir + "/tdata";
-    string vdataOutputDir = modelOutputDir + "/vdata";
 
     //Try repeatedly to make directories, in case the filesystem is unhappy with us as we try to make the same dirs as another process.
     //Wait a random amount of time in between each failure.
@@ -186,7 +183,6 @@ int MainCmds::selfplay(const vector<string>& args) {
         MakeDir::make(modelOutputDir);
         MakeDir::make(sgfOutputDir);
         MakeDir::make(tdataOutputDir);
-        MakeDir::make(vdataOutputDir);
         success = true;
       }
       catch(const StringError& e) {
@@ -219,8 +215,6 @@ int MainCmds::selfplay(const vector<string>& args) {
     //simply controls the input feature version for the written data
     TrainingDataWriter* tdataWriter = new TrainingDataWriter(
       tdataOutputDir, inputsVersion, maxRowsPerTrainFile, firstFileRandMinProp, dataBoardLen, dataBoardLen, Global::uint64ToHexString(rand.nextUInt64()));
-    TrainingDataWriter* vdataWriter = new TrainingDataWriter(
-      vdataOutputDir, inputsVersion, maxRowsPerValFile, firstFileRandMinProp, dataBoardLen, dataBoardLen, Global::uint64ToHexString(rand.nextUInt64()));
     ofstream* sgfOut = NULL;
     if(sgfOutputDir.length() > 0) {
       sgfOut = new ofstream();
@@ -228,7 +222,7 @@ int MainCmds::selfplay(const vector<string>& args) {
     }
 
     logger.write("Model loading loop thread loaded new neural net " + nnEval->getModelName());
-    manager->loadModelAndStartDataWriting(nnEval, tdataWriter, vdataWriter, sgfOut);
+    manager->loadModelAndStartDataWriting(nnEval, tdataWriter, sgfOut);
     return true;
   };
 
