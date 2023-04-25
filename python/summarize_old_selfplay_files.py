@@ -68,7 +68,10 @@ def summarize_dir(dirpath):
       filename_mtime_num_rowss.append((filename,mtime,None))
       continue
 
-    (shape, is_fortran, dtype) = npheaders["binaryInputNCHWPacked"]
+    if "binaryInputNCHWPacked" in npheaders:
+      (shape, is_fortran, dtype) = npheaders["binaryInputNCHWPacked"]
+    else:
+      (shape, is_fortran, dtype) = npheaders["binaryInputNCHWPacked.npy"]
     num_rows = shape[0]
     num_rows_this_dir += num_rows
 

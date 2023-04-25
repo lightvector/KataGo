@@ -269,7 +269,11 @@ def compute_num_rows(filename):
   if npheaders is None or len(npheaders) <= 0:
     print("WARNING: bad npz headers for file: ", filename)
     return (filename,None)
-  (shape, is_fortran, dtype) = npheaders["binaryInputNCHWPacked"]
+  
+  if "binaryInputNCHWPacked" in npheaders:
+    (shape, is_fortran, dtype) = npheaders["binaryInputNCHWPacked"]
+  else:
+    (shape, is_fortran, dtype) = npheaders["binaryInputNCHWPacked.npy"]
   num_rows = shape[0]
   return (filename,num_rows)
 
