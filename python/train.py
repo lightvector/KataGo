@@ -74,6 +74,7 @@ if __name__ == "__main__":
   parser.add_argument('-max-train-bucket-per-new-data', help='When data added, add this many train rows per data row to bucket', type=float, required=False)
   parser.add_argument('-max-train-bucket-size', help='Approx total number of train rows allowed if data stops', type=float, required=False)
   parser.add_argument('-max-train-steps-since-last-reload', help='Approx total of training allowed if shuffling stops', type=float, required=False)
+  parser.add_argument('-stop-when-train-bucket-limited', help='Terminate due to train bucket rather than waiting for more', required=False, action='store_true')
   parser.add_argument('-max-val-samples', help='Approx max of validation samples per epoch', type=int, required=False)
   parser.add_argument('-randomize-val', help='Randomize order of validation files', required=False, action='store_true')
   parser.add_argument('-no-export', help='Do not export models', required=False, action='store_true')
@@ -153,6 +154,7 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
   max_train_bucket_per_new_data = args["max_train_bucket_per_new_data"]
   max_train_bucket_size = args["max_train_bucket_size"]
   max_train_steps_since_last_reload = args["max_train_steps_since_last_reload"]
+  stop_when_train_bucket_limited = args["stop_when_train_bucket_limited"]
   max_val_samples = args["max_val_samples"]
   randomize_val = args["randomize_val"]
   no_export = args["no_export"]
@@ -871,12 +873,19 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
           ))
           train_state["train_bucket_level"] -= samples_per_epoch
         else:
-          logging.info(
-            "Exceeding train bucket, not enough new data rows, waiting 5m and retrying (current level %f)" %
-            train_state["train_bucket_level"]
-          )
-          time.sleep(300)
-          continue
+          if stop_when_train_bucket_limited:
+            logging.info(
+              "Exceeding train bucket, not enough new data rows, terminating (current level %f)" %
+              train_state["train_bucket_level"]
+            )
+            break
+          else:
+            logging.info(
+              "Exceeding train bucket, not enough new data rows, waiting 5m and retrying (current level %f)" %
+              train_state["train_bucket_level"]
+            )
+            time.sleep(300)
+            continue
 
     # DDP need to wait on the main process after reloading data and/or training bucket waiting
     if barrier is not None:
