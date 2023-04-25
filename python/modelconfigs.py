@@ -1,4 +1,25 @@
 #!/usr/bin/python3
+"""
+This file contains a bunch of configs for models of different sizes.
+See the bottom of this file "base_config_of_name" for a dictionary of all the different
+base model architectures, and which ones are recommended of each different model size.
+
+For each base model, additional configs are also pregenerated with different suffixes.
+
+For example, for b10c384nbt, we also have models like:
+b10c384nbt-mish  (use mish instead of relu)
+b10c384nbt-bn-mish-rvgl (use batchnorm, mish, and repvgg-linear-style convolutions).
+
+KataGo's main models for the distributed training run currently find the following to work
+well or best: "-fson-mish-rvgl-bnh"
+* Use fixed activation scale initialization + one batch norm for the whole net
+* Mish activation
+* Repvgg-linear-style convolutions
+* Batch norm output head + non-batch-norm output head, where the former drives optimization
+  but the latter is used for inference. This "-bnh" option also requires additional
+  arguments to train.py like -main-loss-scale 0.2 -intermediate-loss-scale 0.8
+"""
+
 from typing import Dict, Any
 
 ModelConfig = Dict[str,Any]
@@ -1335,11 +1356,13 @@ base_config_of_name = {
   "b2c16": b2c16,
   "b4c32": b4c32,
   "b6c96": b6c96,
-  "b10c128": b10c128,
-  "b15c192": b15c192,
 
-  # Cheap new arch config, probably maybe around b10c128
+  # Configs not too different in inference cost from b10c128
+  "b10c128": b10c128,
   "b5c192nbt": b5c192nbt,
+
+  # Configs not too different in inference cost from b15c192
+  "b15c192": b15c192,
 
   # Configs not too different in inference cost from b20c256
   "b20c256": b20c256,
@@ -1351,7 +1374,7 @@ base_config_of_name = {
   "b15c384lbt": b15c384lbt,
   "b10c512lbt": b10c512lbt,
   "b12c384llbt": b12c384llbt,
-  "b10c384nbt": b10c384nbt,
+  "b10c384nbt": b10c384nbt,  # Recommended
   "b10c480nb3t": b10c480nb3t,
   "b7c384lnbt": b7c384lnbt,
   "b5c512nnbt": b5c512nnbt,
@@ -1362,7 +1385,7 @@ base_config_of_name = {
   # Configs not too different in inference cost from b40c256
   "b30c320": b30c320,
   "b40c256": b40c256,
-  "b18c384nbt": b18c384nbt,
+  "b18c384nbt": b18c384nbt,  # Recommended
   "b14c448nbt": b14c448nbt,
 
   # Configs not too different in inference cost from b60c320
@@ -1370,7 +1393,7 @@ base_config_of_name = {
   "b60c320": b60c320,
   "b41c384nbt": b41c384nbt,
   "b32c448nbt": b32c448nbt,
-  "b28c512nbt": b28c512nbt,
+  "b28c512nbt": b28c512nbt,  # Recommended
   "b20c640nbt": b20c640nbt,
 
   "sandbox": sandbox,
