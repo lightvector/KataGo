@@ -60,8 +60,8 @@ if __name__ == "__main__":
   parser.add_argument('-sub-epochs', help='Reload training data up to this many times per epoch', type=int, default=1, required=False)
   parser.add_argument('-swa-period-samples', help='How frequently to average an SWA sample, in samples', type=float, required=False)
   parser.add_argument('-swa-scale', help='Number of samples to average in expectation together for SWA', type=float, required=False)
-  parser.add_argument('-lookahead-k', help='Use lookahead optimizer', type=int, required=False)
-  parser.add_argument('-lookahead-alpha', help='Use lookahead optimizer', type=float, required=False)
+  parser.add_argument('-lookahead-k', help='Use lookahead optimizer', type=int, default=6, required=False)
+  parser.add_argument('-lookahead-alpha', help='Use lookahead optimizer', type=float, default=0.5, required=False)
   parser.add_argument('-lookahead-print', help='Only print on lookahead syncs', required=False, action='store_true')
 
   parser.add_argument('-multi-gpus', help='Use multiple gpus, comma-separated device ids', required=False)
@@ -87,9 +87,9 @@ if __name__ == "__main__":
   parser.add_argument('-brenorm-target-dmax', type=float, help='Gradually adjust brenorm dmax to this value', required=False)
   parser.add_argument('-brenorm-adjustment-scale', type=float, help='How many samples to adjust brenorm params all but 1/e of the way to target', required=False)
 
-  parser.add_argument('-soft-policy-weight-scale', type=float, default=1.0, help='Soft policy loss coeff', required=False)
-  parser.add_argument('-value-loss-scale', type=float, default=1.0, help='Additional value loss coeff', required=False)
-  parser.add_argument('-td-value-loss-scales', type=str, default="0.4583,0.4583,0.1250", help='Additional td value loss coeffs, 3 comma separated values', required=False)
+  parser.add_argument('-soft-policy-weight-scale', type=float, default=8.0, help='Soft policy loss coeff', required=False)
+  parser.add_argument('-value-loss-scale', type=float, default=0.6, help='Additional value loss coeff', required=False)
+  parser.add_argument('-td-value-loss-scales', type=str, default="0.6,0.6,0.6", help='Additional td value loss coeffs, 3 comma separated values', required=False)
 
   parser.add_argument('-main-loss-scale', type=float, help='Loss factor scale for main head', required=False)
   parser.add_argument('-intermediate-loss-scale', type=float, help='Loss factor scale for intermediate head', required=False)
@@ -188,6 +188,11 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
     swa_period_samples = max(1, samples_per_epoch // 2)
   if swa_scale is None:
     swa_scale = 8
+
+  assert lookahead_alpha > 0.0 and lookahead_alpha <= 1.0
+  if lookahead_alpha >= 1.0:  # 1.0 means to disable lookahead optimizer
+    lookahead_alpha = None
+    lookahead_k = None
 
   longterm_checkpoints_dir = get_longterm_checkpoints_dir(traindir)
 
@@ -500,6 +505,32 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
   if intermediate_distill_scale is not None or intermediate_loss_scale is not None:
     assert raw_model.get_has_intermediate_head(), "Model must have intermediate head to use intermediate distill or loss"
 
+  # If the user specified an intermediate head but no loss or distill scale, pick something reasonable by default
+  if raw_model.get_has_intermediate_head():
+    if intermediate_distill_scale is None and intermediate_loss_scale is None and main_loss_scale is None:
+      if model_config["trunk_normless"]:
+        # fson-bnh default
+        assert model_config["intermediate_head_blocks"] == len(model_config["block_kind"]), "If these are unequal, don't know what you intend, please specify intermediate_loss_scale"
+        intermediate_loss_scale = 0.8
+        main_loss_scale = 0.2
+      else:
+        # Intermediate head in the middle of the trunk
+        intermediate_loss_scale = 0.5
+        main_loss_scale = 0.5
+    elif intermediate_distill_scale is None and intermediate_loss_scale is None:
+      assert False, "Please specify both of main_loss_scale and intermediate_loss_scale or neither when using an architecture with an intermediate head."
+
+
+  logging.info(f"swa_period_samples {swa_period_samples}")
+  logging.info(f"swa_scale {swa_scale}")
+  logging.info(f"lookahead_alpha {lookahead_alpha}")
+  logging.info(f"lookahead_k {lookahead_k}")
+  logging.info(f"soft_policy_weight_scale {soft_policy_weight_scale}")
+  logging.info(f"value_loss_scale {value_loss_scale}")
+  logging.info(f"td_value_loss_scales {td_value_loss_scales}")
+  logging.info(f"main_loss_scale {main_loss_scale}")
+  logging.info(f"intermediate_loss_scale {intermediate_loss_scale}")
+  logging.info(f"intermediate_distill_scale {intermediate_distill_scale}")
 
   # Print all model parameters just to get a summary
   total_num_params = 0

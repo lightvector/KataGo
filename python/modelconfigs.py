@@ -16,8 +16,7 @@ well or best: "-fson-mish-rvgl-bnh"
 * Mish activation
 * Repvgg-linear-style convolutions
 * Batch norm output head + non-batch-norm output head, where the former drives optimization
-  but the latter is used for inference. This "-bnh" option also requires additional
-  arguments to train.py like -main-loss-scale 0.2 -intermediate-loss-scale 0.8
+  but the latter is used for inference.
 """
 
 from typing import Dict, Any
@@ -1491,8 +1490,10 @@ for name, base_config in list(config_of_name.items()):
 
   # Add parallel heads that uses the final trunk batchnorm.
   # The original normal heads disables the final trunk batchnorm
-  config = base_config.copy()
-  config["has_intermediate_head"] = True
-  config["intermediate_head_blocks"] = len(config["block_kind"])
-  config["trunk_normless"] = True
-  config_of_name[name+"-bnh"] = config
+  # This only makes sense for configs that use some form of batchnorm.
+  if "norm" in config["norm_kind"]:
+    config = base_config.copy()
+    config["has_intermediate_head"] = True
+    config["intermediate_head_blocks"] = len(config["block_kind"])
+    config["trunk_normless"] = True
+    config_of_name[name+"-bnh"] = config
