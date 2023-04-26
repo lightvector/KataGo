@@ -52,6 +52,8 @@ NUM_TRAIN_SAMPLES_PER_SWA=200000
 BATCHSIZE=128 # KataGo normally uses batch size 256, and you can do that too, but for lower-end GPUs 64 or 128 may be needed to avoid running out of memory.
 SHUFFLE_MINROWS=80000
 SHUFFLE_KEEPROWS=600000 # A little larger than NUM_TRAIN_SAMPLES_PER_CYCLE
+SELFPLAY_CONFIG="$GITROOTDIR"/cpp/configs/training/selfplay1.cfg
+GATING_CONFIG="$GITROOTDIR"/cpp/configs/training/gatekeeper1.cfg
 
 # For archival and logging purposes - you can look back and see exactly the python code on a particular date
 DATE_FOR_FILENAME=$(date "+%Y%m%d-%H%M%S")
@@ -59,6 +61,11 @@ DATED_ARCHIVE="$BASEDIR"/scripts/dated/"$DATE_FOR_FILENAME"
 mkdir -p "$DATED_ARCHIVE"
 cp "$GITROOTDIR"/python/*.py "$GITROOTDIR"/python/selfplay/*.sh "$DATED_ARCHIVE"
 cp "$GITROOTDIR"/cpp/katago "$DATED_ARCHIVE"
+cp "$SELFPLAY_CONFIG" "$DATED_ARCHIVE"/selfplay.cfg
+cp "$GATING_CONFIG" "$DATED_ARCHIVE"/gatekeeper.cfg
+git show --no-patch --no-color > "$DATED_ARCHIVE"/version.txt
+git diff --no-color > "$DATED_ARCHIVE"/diff.txt
+git diff --staged --no-color > "$DATED_ARCHIVE"/diffstaged.txt
 
 # Also run the code out of the archive, so that we don't unexpectedly crash or have changes if the local repo changes.
 cd "$DATED_ARCHIVE"
@@ -67,7 +74,7 @@ set -x
 while true
 do
     echo "Selfplay"
-    time ./katago selfplay -max-games-total "$NUM_GAMES_PER_CYCLE" -output-dir "$BASEDIR"/selfplay -models-dir "$BASEDIR"/models -config "$GITROOTDIR"/cpp/configs/training/selfplay1.cfg | tee -a "$BASEDIR"/selfplay/stdout.txt
+    time ./katago selfplay -max-games-total "$NUM_GAMES_PER_CYCLE" -output-dir "$BASEDIR"/selfplay -models-dir "$BASEDIR"/models -config "$DATED_ARCHIVE"/selfplay.cfg | tee -a "$BASEDIR"/selfplay/stdout.txt
 
     echo "Shuffle"
     (
@@ -83,7 +90,7 @@ do
     )
 
     echo "Gatekeeper"
-    time ./katago gatekeeper -rejected-models-dir "$BASEDIR"/rejectedmodels -accepted-models-dir "$BASEDIR"/models/ -sgf-output-dir "$BASEDIR"/gatekeepersgf/ -test-models-dir "$BASEDIR"/modelstobetested/ -config "$GITROOTDIR"/cpp/configs/training/gatekeeper1.cfg -quit-if-no-nets-to-test | tee -a "$BASEDIR"/gatekeepersgf/stdout.txt
+    time ./katago gatekeeper -rejected-models-dir "$BASEDIR"/rejectedmodels -accepted-models-dir "$BASEDIR"/models/ -sgf-output-dir "$BASEDIR"/gatekeepersgf/ -test-models-dir "$BASEDIR"/modelstobetested/ -config "$DATED_ARCHIVE"/gatekeeper.cfg -quit-if-no-nets-to-test | tee -a "$BASEDIR"/gatekeepersgf/stdout.txt
 done
 
 exit 0
