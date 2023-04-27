@@ -592,6 +592,7 @@ int MainCmds::samplesgfs(const vector<string>& args) {
   double minTurnNumberBoardAreaProp;
   double maxTurnNumberBoardAreaProp;
   bool flipIfPassOrWFirst;
+  double afterPassFactor;
   bool allowGameOver;
   bool hashComments;
 
@@ -621,6 +622,7 @@ int MainCmds::samplesgfs(const vector<string>& args) {
     TCLAP::ValueArg<double> minTurnNumberBoardAreaPropArg("","min-turn-number-board-area-prop","Only use turn number >= this board area",false,-1.0,"PROP");
     TCLAP::ValueArg<double> maxTurnNumberBoardAreaPropArg("","max-turn-number-board-area-prop","Only use turn number <= this board area",false,10000.0,"PROP");
     TCLAP::SwitchArg flipIfPassOrWFirstArg("","flip-if-pass","Try to heuristically find cases where an sgf passes to simulate white<->black");
+    TCLAP::ValueArg<double> afterPassFactorArg("","after-pass-factor","Scale down weight of positions following a pass",false, 1.0, "FACTOR");
     TCLAP::SwitchArg allowGameOverArg("","allow-game-over","Allow sampling game over positions in sgf");
     TCLAP::SwitchArg hashCommentsArg("","hash-comments","Hash comments in sgf");
     TCLAP::ValueArg<string> valueFluctuationModelFileArg("","value-fluctuation-model","Upweight positions prior to value fluctuations",false,string(),"MODELFILE");
@@ -645,6 +647,7 @@ int MainCmds::samplesgfs(const vector<string>& args) {
     cmd.add(minTurnNumberBoardAreaPropArg);
     cmd.add(maxTurnNumberBoardAreaPropArg);
     cmd.add(flipIfPassOrWFirstArg);
+    cmd.add(afterPassFactorArg);
     cmd.add(allowGameOverArg);
     cmd.add(hashCommentsArg);
     cmd.add(valueFluctuationModelFileArg);
@@ -669,6 +672,7 @@ int MainCmds::samplesgfs(const vector<string>& args) {
     minTurnNumberBoardAreaProp = minTurnNumberBoardAreaPropArg.getValue();
     maxTurnNumberBoardAreaProp = maxTurnNumberBoardAreaPropArg.getValue();
     flipIfPassOrWFirst = flipIfPassOrWFirstArg.getValue();
+    afterPassFactor = afterPassFactorArg.getValue();
     allowGameOver = allowGameOverArg.getValue();
     hashComments = hashCommentsArg.getValue();
     valueFluctuationModelFile = valueFluctuationModelFileArg.getValue();
@@ -802,12 +806,9 @@ int MainCmds::samplesgfs(const vector<string>& args) {
   int64_t numKept = 0;
   std::set<Hash128> uniqueHashes;
   std::function<void(Sgf::PositionSample&, const BoardHistory&, const string&)> posHandler =
-    [sampleProb,sampleWeight,forceSampleWeight,&toWriteQueue,turnWeightLambda,&numKept,&seedRand,minTurnNumberBoardAreaProp,maxTurnNumberBoardAreaProp](
+    [sampleProb,sampleWeight,forceSampleWeight,&toWriteQueue,turnWeightLambda,&numKept,&seedRand,minTurnNumberBoardAreaProp,maxTurnNumberBoardAreaProp,afterPassFactor](
       Sgf::PositionSample& posSample, const BoardHistory& hist, const string& comments
     ) {
-      (void)hist;
-      (void)comments;
-
       double minTurnNumber = minTurnNumberBoardAreaProp * (hist.initialBoard.x_size * hist.initialBoard.y_size);
       double maxTurnNumber = maxTurnNumberBoardAreaProp * (hist.initialBoard.x_size * hist.initialBoard.y_size);
       if(hist.initialBoard.numStonesOnBoard() + hist.moveHistory.size() < minTurnNumber ||
@@ -821,6 +822,8 @@ int MainCmds::samplesgfs(const vector<string>& args) {
         Sgf::PositionSample posSampleToWrite = posSample;
         int64_t startTurn = posSampleToWrite.initialTurnNumber + (int64_t)posSampleToWrite.moves.size();
         posSampleToWrite.weight = sampleWeight * exp(-startTurn * turnWeightLambda) * posSampleToWrite.weight;
+        if(posSampleToWrite.moves.size() > 0 && posSampleToWrite.moves[posSampleToWrite.moves.size()-1].loc == Board::PASS_LOC)
+          posSampleToWrite.weight *= afterPassFactor;
         if(comments.size() > 0 && comments.find("%SAMPLE%") != string::npos)
           posSampleToWrite.weight = std::max(posSampleToWrite.weight,forceSampleWeight);
         toWriteQueue.waitPush(new string(Sgf::PositionSample::toJsonLine(posSampleToWrite)));
@@ -985,6 +988,39 @@ int MainCmds::samplesgfs(const vector<string>& args) {
         posHandler(sample, hists[m], "");
         // cout << fileName << " " << m << " " << desiredWeight[m] << endl;
       }
+
+      // Block all the main line hashes and then iterate through the whole SGF to catch side variations, weight them
+      // the same way as the same turn in the main line.
+      const double drawEquivalentWinsForWhite = 0.5;
+      std::set<Hash128> blockedSituationHashes;
+      for(int m = 0; m<hists.size(); m++) {
+        blockedSituationHashes.insert(
+          BoardHistory::getSituationRulesAndKoHash(hists[m].getRecentBoard(0),hists[m],hists[m].presumedNextMovePla,drawEquivalentWinsForWhite)
+        );
+      }
+
+      std::function<void(Sgf::PositionSample&, const BoardHistory&, const string&)> posHandler2 =
+        [&blockedSituationHashes, &desiredWeight, &posHandler, drawEquivalentWinsForWhite](
+          Sgf::PositionSample& posSample, const BoardHistory& posHist, const string& comments
+        ) {
+          if(contains(
+               blockedSituationHashes,
+               BoardHistory::getSituationRulesAndKoHash(posHist.getRecentBoard(0),posHist,posHist.presumedNextMovePla,drawEquivalentWinsForWhite)
+             ))
+            return;
+          Sgf::PositionSample posSampleWeighted = posSample;
+          if(desiredWeight.size() > 0) {
+            int turnIdx = std::min((int)(desiredWeight.size()-1), posHist.initialTurnNumber + (int)posHist.moveHistory.size());
+            turnIdx = std::max(turnIdx,0);
+            posSampleWeighted.weight = desiredWeight[turnIdx];
+          }
+          posHandler(posSampleWeighted, posHist, comments);
+        };
+
+      bool hashParent = false;
+      Rand iterRand;
+      sgf->iterAllUniquePositions(uniqueHashes, hashComments, hashParent, flipIfPassOrWFirst, allowGameOver, &iterRand, posHandler2);
+
       cout << "Handled " << fileName << endl;
     }
   };
