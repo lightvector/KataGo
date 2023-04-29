@@ -991,23 +991,24 @@ int MainCmds::samplesgfs(const vector<string>& args) {
 
       // Block all the main line hashes and then iterate through the whole SGF to catch side variations, weight them
       // the same way as the same turn in the main line.
-      const double drawEquivalentWinsForWhite = 0.5;
       std::set<Hash128> blockedSituationHashes;
       for(int m = 0; m<hists.size(); m++) {
         blockedSituationHashes.insert(
-          BoardHistory::getSituationRulesAndKoHash(hists[m].getRecentBoard(0),hists[m],hists[m].presumedNextMovePla,drawEquivalentWinsForWhite)
+          BoardHistory::getSituationAndSimpleKoAndPrevPosHash(hists[m].getRecentBoard(0),hists[m],hists[m].presumedNextMovePla)
         );
       }
 
       std::function<void(Sgf::PositionSample&, const BoardHistory&, const string&)> posHandler2 =
-        [&blockedSituationHashes, &desiredWeight, &posHandler, drawEquivalentWinsForWhite](
+        [&blockedSituationHashes, &desiredWeight, &posHandler](
           Sgf::PositionSample& posSample, const BoardHistory& posHist, const string& comments
         ) {
+          // cout << "AAAA " << (posHist.initialTurnNumber + (int)posHist.moveHistory.size()) << endl;
           if(contains(
                blockedSituationHashes,
-               BoardHistory::getSituationRulesAndKoHash(posHist.getRecentBoard(0),posHist,posHist.presumedNextMovePla,drawEquivalentWinsForWhite)
+               BoardHistory::getSituationAndSimpleKoAndPrevPosHash(posHist.getRecentBoard(0),posHist,posHist.presumedNextMovePla)
              ))
             return;
+          // cout << "BBBB" << endl;
           Sgf::PositionSample posSampleWeighted = posSample;
           if(desiredWeight.size() > 0) {
             int turnIdx = std::min((int)(desiredWeight.size()-1), posHist.initialTurnNumber + (int)posHist.moveHistory.size());
