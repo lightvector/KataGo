@@ -1108,8 +1108,7 @@ final class NestedBottleneckResidualBlockTest: XCTestCase {
         let sourceArray = MPSNDArray(device: device,
                                      descriptor: sourceDescriptor)
 
-        let sourceArrayWriter = MPSNDArrayDataWriter(mpsNDArray: sourceArray)
-        sourceArrayWriter.writeData(pointerFP32: inputPointer)
+        sourceArray.writeBytes(inputPointer)
         let sourceTensorData = MPSGraphTensorData(sourceArray)
 
         let maskArrayShape = InputShape.create(batchSize: batchSize as NSNumber,
@@ -1127,8 +1126,7 @@ final class NestedBottleneckResidualBlockTest: XCTestCase {
         let maskArray = MPSNDArray(device: device,
                                    descriptor: maskDescriptor)
 
-        let maskArrayWriter = MPSNDArrayDataWriter(mpsNDArray: maskArray)
-        maskArrayWriter.writeData(pointerFP32: maskPointer)
+        maskArray.writeBytes(maskPointer)
         let maskTensorData = MPSGraphTensorData(maskArray)
 
         let fetch = graph.run(feeds: [source.tensor: sourceTensorData,

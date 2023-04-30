@@ -31,52 +31,6 @@ extension MPSNDArray {
     }
 }
 
-/// A struct to handle writing data to an MPSNDArray.
-struct MPSNDArrayDataWriter {
-    /// The target MPSNDArray instance.
-    private let mpsNDArray: MPSNDArray
-    /// A closure that writes data to the MPSNDArray instance.
-    private let dataWriter: (UnsafeMutablePointer<Float32>) -> Void
-
-    /// Initializes an MPSNDArrayDataWriter with the given MPSNDArray.
-    /// - Parameters:
-    ///   - mpsNDArray: The target MPSNDArray instance.
-    init(mpsNDArray: MPSNDArray) {
-        self.mpsNDArray = mpsNDArray
-
-        dataWriter = { pointerFP32 in
-            mpsNDArray.writeBytes(pointerFP32)
-        }
-    }
-
-    /// Writes data to the associated MPSNDArray instance using the dataWriter closure.
-    /// - Parameter pointerFP32: A pointer to the memory buffer containing the data in FP32 format.
-    func writeData(pointerFP32: UnsafeMutablePointer<Float32>) {
-        dataWriter(pointerFP32)
-    }
-}
-
-/// A struct to handle reading data from an MPSNDArray.
-struct MPSNDArrayDataReader {
-    /// A closure that reads data from the MPSNDArray instance.
-    private let dataReader: (UnsafeMutablePointer<Float32>, MPSNDArray?) -> Void
-
-    /// Initializes an MPSNDArrayDataReader
-    init() {
-        dataReader = { pointerFP32, mpsNDArray in
-            // Reads bytes from a MPSNDArray to the Float32 buffer
-            mpsNDArray?.readBytes(pointerFP32, strideBytes: nil)
-        }
-    }
-
-    /// Reads data from the given MPSNDArray instance using the dataReader closure.
-    /// - Parameter pointerFP32: A pointer to the memory buffer containing the data in FP32 format.
-    /// - Parameter mpsNDArray: The given MPSNDArray instance
-    func readData(pointerFP32: UnsafeMutablePointer<Float32>, mpsNDArray: MPSNDArray?) {
-        dataReader(pointerFP32, mpsNDArray)
-    }
-}
-
 /// Extension to Array to count number of elements and bytes
 extension Array where Element == NSNumber {
     /// Count number of elements
@@ -395,10 +349,8 @@ struct NetworkTester {
                                        descriptor: maskDescriptor)
 
             // Write input and mask data to their respective MPSNDArrays, converting to FP16 if necessary.
-            let sourceArrayWriter = MPSNDArrayDataWriter(mpsNDArray: sourceArray)
-            sourceArrayWriter.writeData(pointerFP32: input)
-            let maskArrayWriter = MPSNDArrayDataWriter(mpsNDArray: maskArray)
-            maskArrayWriter.writeData(pointerFP32: mask)
+            sourceArray.writeBytes(input)
+            maskArray.writeBytes(mask)
 
             // Create MPSGraphTensorData objects from the source and mask arrays.
             let sourceTensorData = MPSGraphTensorData(sourceArray)
@@ -411,10 +363,7 @@ struct NetworkTester {
                                   targetOperations: nil)
 
             // Read the output data from the result tensor, converting from FP16 to FP32 if necessary.
-            let outputArrayReader = MPSNDArrayDataReader()
-
-            outputArrayReader.readData(pointerFP32: output,
-                                       mpsNDArray: fetch[resultTensor]?.mpsndarray())
+            fetch[resultTensor]?.mpsndarray().readBytes(output)
         }
     }
 }
@@ -508,19 +457,14 @@ struct NetworkTester {
             let sourceArray = MPSNDArray(device: device,
                                          descriptor: sourceDescriptor)
 
-            let sourceArrayDataWriter = MPSNDArrayDataWriter(mpsNDArray: sourceArray)
-            sourceArrayDataWriter.writeData(pointerFP32: input)
-
+            sourceArray.writeBytes(input)
             let sourceTensorData = MPSGraphTensorData(sourceArray)
 
             let fetch = graph.run(feeds: [source.tensor: sourceTensorData],
                                   targetTensors: [conv.resultTensor],
                                   targetOperations: nil)
 
-            let outputArrayReader = MPSNDArrayDataReader()
-
-            outputArrayReader.readData(pointerFP32: output,
-                                       mpsNDArray: fetch[conv.resultTensor]?.mpsndarray())
+            fetch[conv.resultTensor]?.mpsndarray().readBytes(output)
         }
     }
 
@@ -2115,16 +2059,6 @@ struct Model {
     let policyHead: PolicyHead
     /// The value head of the neural network
     let valueHead: ValueHead
-    /// The data reader for the policy array
-    let policyArrayReader: MPSNDArrayDataReader
-    /// The data reader for the policy pass array
-    let policyPassArrayReader: MPSNDArrayDataReader
-    /// The data reader for the value array
-    let valueArrayReader: MPSNDArrayDataReader
-    /// The data reader for the score value array
-    let scoreValueArrayReader: MPSNDArrayDataReader
-    /// The data reader for the ownership array
-    let ownershipArrayReader: MPSNDArrayDataReader
     /// The dictionary that maps the output tensors to the tensor data
     let targetTensors: [MPSGraphTensor]
 
@@ -2203,12 +2137,6 @@ struct Model {
                               maskSumSqrtS14M01SquareS01Tensor: maskSumSqrtS14M01SquareS01.tensor,
                               nnXLen: nnXLen,
                               nnYLen: nnYLen)
-
-        policyArrayReader = MPSNDArrayDataReader()
-        policyPassArrayReader = MPSNDArrayDataReader()
-        valueArrayReader = MPSNDArrayDataReader()
-        scoreValueArrayReader = MPSNDArrayDataReader()
-        ownershipArrayReader = MPSNDArrayDataReader()
 
         targetTensors = [policyHead.policyTensor,
                          policyHead.policyPassTensor,
@@ -2305,21 +2233,11 @@ struct Model {
 
             mpsCommandBuffer.commit()
             mpsCommandBuffer.waitUntilCompleted()
-
-            policyArrayReader.readData(pointerFP32: policy,
-                                       mpsNDArray: fetch[policyHead.policyTensor]?.mpsndarray())
-
-            policyPassArrayReader.readData(pointerFP32: policyPass,
-                                           mpsNDArray: fetch[policyHead.policyPassTensor]?.mpsndarray())
-
-            valueArrayReader.readData(pointerFP32: value,
-                                      mpsNDArray: fetch[valueHead.valueTensor]?.mpsndarray())
-
-            scoreValueArrayReader.readData(pointerFP32: scoreValue,
-                                           mpsNDArray: fetch[valueHead.scoreValueTensor]?.mpsndarray())
-
-            ownershipArrayReader.readData(pointerFP32: ownership,
-                                          mpsNDArray: fetch[valueHead.ownershipTensor]?.mpsndarray())
+            fetch[policyHead.policyTensor]?.mpsndarray().readBytes(policy)
+            fetch[policyHead.policyPassTensor]?.mpsndarray().readBytes(policyPass)
+            fetch[valueHead.valueTensor]?.mpsndarray().readBytes(value)
+            fetch[valueHead.scoreValueTensor]?.mpsndarray().readBytes(scoreValue)
+            fetch[valueHead.ownershipTensor]?.mpsndarray().readBytes(ownership)
         }
     }
 }
