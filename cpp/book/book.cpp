@@ -2448,7 +2448,8 @@ Book* Book::loadFromFile(const std::string& fileName, double sharpScoreOutlierCa
         getline(in,line);
         if(!in)
           throw IOError("Book hash list ended early");
-        hashDict.push_back(BookHash::ofString(line));
+        // Strip extra whitespace (e.g. carriage returns from windows)
+        hashDict.push_back(BookHash::ofString(Global::trim(line)));
       }
     }
 

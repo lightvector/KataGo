@@ -1412,6 +1412,68 @@ int MainCmds::genbook(const vector<string>& args) {
   return 0;
 }
 
+int MainCmds::writebook(const vector<string>& args) {
+  Board::initHash();
+  ScoreValue::initTables();
+
+  ConfigParser cfg;
+  string htmlDir;
+  string bookFile;
+  bool htmlDevMode;
+  double htmlMinVisits;
+  try {
+    KataGoCommandLine cmd("Generate opening book");
+    cmd.addConfigFileArg("","",false);
+    cmd.addOverrideConfigArg();
+
+    TCLAP::ValueArg<string> htmlDirArg("","html-dir","HTML directory to export to, at the end of -num-iters",true,string(),"DIR");
+    TCLAP::ValueArg<string> bookFileArg("","book-file","Book file to write to or continue expanding",true,string(),"FILE");
+    TCLAP::SwitchArg htmlDevModeArg("","html-dev-mode","Denser debug output for html");
+    TCLAP::ValueArg<double> htmlMinVisitsArg("","html-min-visits","Require >= this many visits to export a position to html",false,0.0,"N");
+    cmd.add(htmlDirArg);
+    cmd.add(bookFileArg);
+    cmd.add(htmlDevModeArg);
+    cmd.add(htmlMinVisitsArg);
+
+    cmd.parseArgs(args);
+
+    cmd.getConfigAllowEmpty(cfg);
+    htmlDir = htmlDirArg.getValue();
+    bookFile = bookFileArg.getValue();
+    htmlDevMode = htmlDevModeArg.getValue();
+    htmlMinVisits = htmlMinVisitsArg.getValue();
+  }
+  catch (TCLAP::ArgException &e) {
+    cerr << "Error: " << e.error() << " for argument " << e.argId() << endl;
+    return 1;
+  }
+
+
+  Rand rand;
+  const bool logToStdoutDefault = true;
+  Logger logger(&cfg, logToStdoutDefault);
+
+  const double sharpScoreOutlierCap = cfg.getDouble("sharpScoreOutlierCap",0.0,1000000.0);
+  const string rulesLabel = cfg.getString("rulesLabel");
+  const string rulesLink = cfg.getString("rulesLink");
+
+  // Check for unused config keys
+  cfg.warnUnusedKeys(cerr,&logger);
+
+  MakeDir::make(htmlDir);
+
+  Book* book = Book::loadFromFile(bookFile,sharpScoreOutlierCap);
+  book->recomputeEverything();
+
+  logger.write("EXPORTING HTML TO " + htmlDir);
+  book->exportToHtmlDir(htmlDir,rulesLabel,rulesLink,htmlDevMode,htmlMinVisits,logger);
+
+  delete book;
+  ScoreValue::freeTables();
+  logger.write("DONE");
+  return 0;
+}
+
 int MainCmds::checkbook(const vector<string>& args) {
   Board::initHash();
   ScoreValue::initTables();
