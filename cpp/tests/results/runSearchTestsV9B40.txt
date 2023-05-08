@@ -48,8 +48,8 @@ J15 0
 G11 0
 F5 0
 getSharpScore -0.219648
-avg WL error 0.115355
-avg score error 1.24708
+avg WL error 0.114549
+avg score error 1.23957
 MoveNum: 16 HASH: BE41BE50D58F23EED69CDA99217D31D6
    A B C D E F G H J K L M N O P Q R S T
 19 . . . . . . . . . . . . . . . . . . .
@@ -85,8 +85,8 @@ F4  : T  -5.74c W  -4.10c S   0.08c ( -0.3 L  -0.2) LCB   -3.23c P 97.61% WF 147
 Play selection values
 F4 147.519
 getSharpScore -0.298712
-avg WL error 0.117519
-avg score error 1.26022
+avg WL error 0.116727
+avg score error 1.25186
 MoveNum: 17 HASH: A5016A1F4ABFFDF0880F3F5E821EC77D
    A B C D E F G H J K L M N O P Q R S T
 19 . . . . . . . . . . . . . . . . . . .
@@ -124,8 +124,8 @@ Play selection values
 F5 144.852
 G5 3
 getSharpScore -0.296125
-avg WL error 0.117336
-avg score error 1.25672
+avg WL error 0.116816
+avg score error 1.25126
 MoveNum: 18 HASH: 9044DF94C6D6A8D276B2956BD8880837
    A B C D E F G H J K L M N O P Q R S T
 19 . . . . . . . . . . . . . . . . . . .
@@ -163,8 +163,8 @@ Play selection values
 G5 145.902
 C2 0
 getSharpScore -0.303911
-avg WL error 0.117536
-avg score error 1.26001
+avg WL error 0.116753
+avg score error 1.25175
 MoveNum: 19 HASH: A16A22AF061792AB7513404E2875D0D9
    A B C D E F G H J K L M N O P Q R S T
 19 . . . . . . . . . . . . . . . . . . .
@@ -208,8 +208,8 @@ B5 14
 C8 5
 E7 3
 getSharpScore -0.296266
-avg WL error 0.117665
-avg score error 1.25614
+avg WL error 0.117078
+avg score error 1.25063
 MoveNum: 20 HASH: 5658F593CE71DFE067B6152A30032239
    A B C D E F G H J K L M N O P Q R S T
 19 . . . . . . . . . . . . . . . . . . .
@@ -245,8 +245,8 @@ G3  : T  -7.39c W  -5.37c S   0.04c ( -0.4 L  -0.3) LCB   -4.13c P 74.87% WF 136
 Play selection values
 G3 136.045
 getSharpScore -0.459063
-avg WL error 0.130163
-avg score error 1.39931
+avg WL error 0.128203
+avg score error 1.37686
 MoveNum: 21 HASH: 41EC6A2DED7F215D5BFFA8E8522C2C38
    A B C D E F G H J K L M N O P Q R S T
 19 . . . . . . . . . . . . . . . . . . .
@@ -284,8 +284,8 @@ Play selection values
 H5 84.9215
 C2 51
 getSharpScore -0.457033
-avg WL error 0.130412
-avg score error 1.40329
+avg WL error 0.1288
+avg score error 1.38555
 MoveNum: 22 HASH: 8844030E1A73B6093D2E14AA80C95F40
    A B C D E F G H J K L M N O P Q R S T
 19 . . . . . . . . . . . . . . . . . . .
@@ -321,8 +321,8 @@ B5  : T -54.38c W -51.23c S  -2.54c ( -5.5 L  -3.8) LCB  -49.32c P 94.29% WF 120
 Play selection values
 B5 120.54
 getSharpScore -5.33059
-avg WL error 0.143642
-avg score error 2.03944
+avg WL error 0.14345
+avg score error 2.04619
 MoveNum: 23 HASH: 27C6B79BECA55D7B1697593C47FD5439
    A B C D E F G H J K L M N O P Q R S T
 19 . . . . . . . . . . . . . . . . . . .
@@ -360,8 +360,8 @@ Play selection values
 H5 68.2432
 C8 103.048
 getSharpScore -0.380136
-avg WL error 0.130896
-avg score error 1.41854
+avg WL error 0.129723
+avg score error 1.40607
 MoveNum: 24 HASH: 62B87898CF4883035B141308BD34AD4F
    A B C D E F G H J K L M N O P Q R S T
 19 . . . . . . . . . . . . . . . . . . .
@@ -397,8 +397,8 @@ B2  : T  -5.24c W  -4.33c S  -0.30c ( -0.4 L  -0.2) LCB   -2.03c P 97.94% WF 129
 Play selection values
 B2 129.569
 getSharpScore -0.271097
-avg WL error 0.137867
-avg score error 1.47954
+avg WL error 0.137366
+avg score error 1.48251
 MoveNum: 25 HASH: BB28EA51566BD53DFE024F8494946E8B
    A B C D E F G H J K L M N O P Q R S T
 19 . . . . . . . . . . . . . . . . . . .
@@ -446,8 +446,8 @@ K3 0
 H6 1
 K15 0
 getSharpScore -0.244627
-avg WL error 0.137189
-avg score error 1.49956
+avg WL error 0.136433
+avg score error 1.49083
 MoveNum: 26 HASH: 13220553CB8B1BB9132C9FA7193BD970
    A B C D E F G H J K L M N O P Q R S T
 19 . . . . . . . . . . . . . . . . . . .
@@ -489,8 +489,8 @@ E6 19
 C1 0
 H6 1
 getSharpScore -0.29439
-avg WL error 0.152135
-avg score error 1.65006
+avg WL error 0.151978
+avg score error 1.65206
 MoveNum: 27 HASH: 45DEF27EB6B79C9106C8567194902328
    A B C D E F G H J K L M N O P Q R S T
 19 . . . . . . . . . . . . . . . . . . .
@@ -530,8 +530,8 @@ B1 37
 H5 80.106
 F2 51.9684
 getSharpScore -0.750034
-avg WL error 0.150461
-avg score error 1.64137
+avg WL error 0.150981
+avg score error 1.65328
 MoveNum: 28 HASH: 18E60D1229177DA86EF2C63F23AED162
    A B C D E F G H J K L M N O P Q R S T
 19 . . . . . . . . . . . . . . . . . . .
@@ -571,8 +571,8 @@ B3 132.194
 E6 1
 A2 1
 getSharpScore -0.725501
-avg WL error 0.132166
-avg score error 1.42131
+avg WL error 0.131807
+avg score error 1.42137
 MoveNum: 29 HASH: 0C2DBD994E2E803E960C75402EDC510F
    A B C D E F G H J K L M N O P Q R S T
 19 . . . . . . . . . . . . . . . . . . .
@@ -610,8 +610,8 @@ Play selection values
 F2 79.464
 H5 56
 getSharpScore -0.739304
-avg WL error 0.129983
-avg score error 1.39792
+avg WL error 0.130635
+avg score error 1.40594
 MoveNum: 30 HASH: 5B46D4EE9E7F8CA083F541E752BA552C
    A B C D E F G H J K L M N O P Q R S T
 19 . . . . . . . . . . . . . . . . . . .
@@ -663,8 +663,8 @@ S16 0
 H3 0
 F8 0
 getSharpScore -0.760419
-avg WL error 0.133933
-avg score error 1.53395
+avg WL error 0.134024
+avg score error 1.50984
 MoveNum: 31 HASH: 809566A4E7D0074CDEE93F652E03A9BD
    A B C D E F G H J K L M N O P Q R S T
 19 . . . . . . . . . . . . . . . . . . .
@@ -708,8 +708,8 @@ H3 3
 J2 1
 G7 3
 getSharpScore -1.17544
-avg WL error 0.133379
-avg score error 1.461
+avg WL error 0.133253
+avg score error 1.4516
 MoveNum: 32 HASH: B4244DA357E1AE8479BB513F28F546D8
    A B C D E F G H J K L M N O P Q R S T
 19 . . . . . . . . . . . . . . . . . . .
@@ -747,8 +747,8 @@ Play selection values
 G4 144.459
 H4 0
 getSharpScore -0.84151
-avg WL error 0.119759
-avg score error 1.3017
+avg WL error 0.119203
+avg score error 1.29579
 MoveNum: 33 HASH: DE34F03FD823E9A6B1D0EEAEE702D7BA
    A B C D E F G H J K L M N O P Q R S T
 19 . . . . . . . . . . . . . . . . . . .
@@ -788,8 +788,8 @@ G7 7
 J2 132.733
 A4 6
 getSharpScore 4.20394
-avg WL error 0.115292
-avg score error 1.47286
+avg WL error 0.114658
+avg score error 1.47037
 MoveNum: 34 HASH: 10338CB4B0C1B33CD5076C57C566E96A
    A B C D E F G H J K L M N O P Q R S T
 19 . . . . . . . . . . . . . . . . . . .
@@ -829,8 +829,8 @@ H1 148.036
 F6 1
 G7 0
 getSharpScore -0.451752
-avg WL error 0.115408
-avg score error 1.25812
+avg WL error 0.115352
+avg score error 1.25603
 MoveNum: 35 HASH: C6B39CE152DEF14613E9F63C0E050533
    A B C D E F G H J K L M N O P Q R S T
 19 . . . . . . . . . . . . . . . . . . .
@@ -870,8 +870,8 @@ A4 146.79
 H7 1
 A2 0
 getSharpScore -0.455054
-avg WL error 0.115846
-avg score error 1.26707
+avg WL error 0.115128
+avg score error 1.25691
 MoveNum: 36 HASH: EF26E0FCA5E6C65E925CAAF80049147C
    A B C D E F G H J K L M N O P Q R S T
 19 . . . . . . . . . . . . . . . . . . .
@@ -909,8 +909,8 @@ Play selection values
 F6 140.267
 J3 9
 getSharpScore -0.461086
-avg WL error 0.113552
-avg score error 1.23868
+avg WL error 0.113579
+avg score error 1.23761
 MoveNum: 37 HASH: 2C2A7F855F453376B882E99D32937012
    A B C D E F G H J K L M N O P Q R S T
 19 . . . . . . . . . . . . . . . . . . .
@@ -946,8 +946,8 @@ E6  : T  -6.73c W  -6.60c S   0.33c ( -0.6 L  -0.3) LCB  -10.27c P 97.37% WF 152
 Play selection values
 E6 152.944
 getSharpScore -0.462628
-avg WL error 0.112696
-avg score error 1.23248
+avg WL error 0.112722
+avg score error 1.23096
 MoveNum: 38 HASH: 50C1BEE6F0D34C2AC523309B5A647884
    A B C D E F G H J K L M N O P Q R S T
 19 . . . . . . . . . . . . . . . . . . .
@@ -983,8 +983,8 @@ G7  : T  -7.55c W  -6.69c S  -0.42c ( -0.6 L  -0.3) LCB   -4.01c P 96.74% WF 153
 Play selection values
 G7 153.184
 getSharpScore -0.457263
-avg WL error 0.112196
-avg score error 1.22684
+avg WL error 0.112226
+avg score error 1.22535
 MoveNum: 39 HASH: BFA30896A296FDB6287B54F36CEB5525
    A B C D E F G H J K L M N O P Q R S T
 19 . . . . . . . . . . . . . . . . . . .
@@ -1026,8 +1026,8 @@ J4 7
 O3 10
 K3 0
 getSharpScore -0.458708
-avg WL error 0.112212
-avg score error 1.22678
+avg WL error 0.112229
+avg score error 1.22516
 MoveNum: 40 HASH: 0DE6026C7D8E1AAC2E2CB87EC698679D
    A B C D E F G H J K L M N O P Q R S T
 19 . . . . . . . . . . . . . . . . . . .
@@ -1087,8 +1087,8 @@ P3 1
 R13 2
 A7 1
 getSharpScore -1.26831
-avg WL error 0.160538
-avg score error 1.98115
+avg WL error 0.159739
+avg score error 1.96869
 MoveNum: 41 HASH: CFDA8F6686AE978657AF5F8579B168D7
    A B C D E F G H J K L M N O P Q R S T
 19 . . . . . . . . . . . . . . . . . . .
@@ -1132,8 +1132,8 @@ C10 1
 C9 0
 F8 0
 getSharpScore -0.678421
-avg WL error 0.211479
-avg score error 2.79532
+avg WL error 0.215082
+avg score error 2.79114
 MoveNum: 42 HASH: 7704D5020156FBCE571BD44BAF38345F
    A B C D E F G H J K L M N O P Q R S T
 19 . . . . . . . . . . . . . . . . . . .
@@ -1189,8 +1189,8 @@ D10 3
 C17 3
 O3 1
 getSharpScore -0.730669
-avg WL error 0.215146
-avg score error 2.74387
+avg WL error 0.216038
+avg score error 2.72331
 MoveNum: 43 HASH: 4387C3D494BD2F95B32F84EC18E4C71C
    A B C D E F G H J K L M N O P Q R S T
 19 . . . . . . . . . . . . . . . . . . .
@@ -1228,8 +1228,8 @@ Play selection values
 E8 62.0434
 C7 4
 getSharpScore -2.99695
-avg WL error 0.286461
-avg score error 4.12159
+avg WL error 0.285072
+avg score error 4.02034
 MoveNum: 44 HASH: 1FF939DB5C3FC914001EBAA362DF7084
    A B C D E F G H J K L M N O P Q R S T
 19 . . . . . . . . . . . . . . . . . . .
@@ -1275,8 +1275,8 @@ D7 1
 F8 0
 E9 0
 getSharpScore -8.42301
-avg WL error 0.31387
-avg score error 5.32094
+avg WL error 0.306254
+avg score error 5.2328
 MoveNum: 45 HASH: 3C8AE54AE2538A83022BBDB0D551292D
    A B C D E F G H J K L M N O P Q R S T
 19 . . . . . . . . . . . . . . . . . . .
@@ -1324,8 +1324,8 @@ D7 1
 P15 0
 K3 0
 getSharpScore -3.05318
-avg WL error 0.306062
-avg score error 4.43098
+avg WL error 0.304953
+avg score error 4.34182
 MoveNum: 46 HASH: CC0DA2D5A810F2149A3FCE629475E9B4
    A B C D E F G H J K L M N O P Q R S T
 19 . . . . . . . . . . . . . . . . . . .
@@ -1369,8 +1369,8 @@ F8 1
 J3 0
 D2 0
 getSharpScore -2.23267
-avg WL error 0.152715
-avg score error 1.88121
+avg WL error 0.151597
+avg score error 1.82745
 
 
 3-r pincer fight with V2 params and much variety ==========================================================================
@@ -1412,8 +1412,8 @@ Play selection values
 F5 97.9926
 E6 8
 getSharpScore 4.56891
-avg WL error 0.161143
-avg score error 2.06196
+avg WL error 0.161833
+avg score error 2.07082
 MoveNum: 12 HASH: 4DB69D3180C9B7ECFCD66BDBC08C3D37
    A B C D E F G H J K L M N O P Q R S T
 19 . . . . . . . . . . . . . . . . . . .
@@ -1451,8 +1451,8 @@ Play selection values
 B5 97.7737
 D7 14
 getSharpScore -7.40037
-avg WL error 0.147267
-avg score error 2.5457
+avg WL error 0.148035
+avg score error 2.55478
 MoveNum: 13 HASH: E23429A4761F5C9ED76F264D07B8364E
    A B C D E F G H J K L M N O P Q R S T
 19 . . . . . . . . . . . . . . . . . . .
@@ -1494,8 +1494,8 @@ D2 5
 D3 1
 C2 1
 getSharpScore 3.54713
-avg WL error 0.170744
-avg score error 2.11195
+avg WL error 0.170974
+avg score error 2.11329
 MoveNum: 14 HASH: 781CC2CF07ADA8CA18C986A1B72DA3CD
    A B C D E F G H J K L M N O P Q R S T
 19 . . . . . . . . . . . . . . . . . . .
@@ -1531,8 +1531,8 @@ D7  : T -11.98c W -11.64c S  -0.09c ( -1.0 L  -0.6) LCB   -9.68c P 93.72% WF 107
 Play selection values
 D7 107.087
 getSharpScore -0.933678
-avg WL error 0.171715
-avg score error 1.86622
+avg WL error 0.17173
+avg score error 1.86069
 MoveNum: 15 HASH: C9294D75F07DEDF0605F12F4853F91A7
    A B C D E F G H J K L M N O P Q R S T
 19 . . . . . . . . . . . . . . . . . . .
@@ -1572,8 +1572,8 @@ E7 102.97
 D3 3
 F5 0
 getSharpScore -0.927222
-avg WL error 0.171578
-avg score error 1.88148
+avg WL error 0.171781
+avg score error 1.87454
 MoveNum: 16 HASH: 1F0CC1EC329FCF6A154080E34B9B085C
    A B C D E F G H J K L M N O P Q R S T
 19 . . . . . . . . . . . . . . . . . . .
@@ -1611,8 +1611,8 @@ Play selection values
 D8 104.151
 D3 1
 getSharpScore -0.895408
-avg WL error 0.175489
-avg score error 1.90664
+avg WL error 0.175326
+avg score error 1.90045
 MoveNum: 17 HASH: DD304CE6C9BF42406CC36718F4B20716
    A B C D E F G H J K L M N O P Q R S T
 19 . . . . . . . . . . . . . . . . . . .
@@ -1654,8 +1654,8 @@ E8 5
 F4 5
 C5 3
 getSharpScore -0.89337
-avg WL error 0.177047
-avg score error 1.9256
+avg WL error 0.176573
+avg score error 1.91561
 MoveNum: 18 HASH: AE616CE824BA185F85B50B51AD3ECBCB
    A B C D E F G H J K L M N O P Q R S T
 19 . . . . . . . . . . . . . . . . . . .
@@ -1693,8 +1693,8 @@ Play selection values
 G4 100.297
 E2 1
 getSharpScore -1.09007
-avg WL error 0.183081
-avg score error 2.01468
+avg WL error 0.182387
+avg score error 1.99981
 MoveNum: 19 HASH: C471D174AB785F7D4DDEB4C062C95AA9
    A B C D E F G H J K L M N O P Q R S T
 19 . . . . . . . . . . . . . . . . . . .
@@ -1734,8 +1734,8 @@ H4 67.2843
 E8 25
 G3 11
 getSharpScore -1.14983
-avg WL error 0.181976
-avg score error 1.99297
+avg WL error 0.180435
+avg score error 1.96509
 MoveNum: 20 HASH: 27652ACC17BA1590A8A091E56F51454F
    A B C D E F G H J K L M N O P Q R S T
 19 . . . . . . . . . . . . . . . . . . .
@@ -1777,8 +1777,8 @@ E2 48.8263
 D2 5
 L3 0
 getSharpScore -0.807947
-avg WL error 0.178832
-avg score error 1.9176
+avg WL error 0.178298
+avg score error 1.90265
 MoveNum: 21 HASH: 2E81DAF9A56A748F392821FB7581DBF3
    A B C D E F G H J K L M N O P Q R S T
 19 . . . . . . . . . . . . . . . . . . .
@@ -1820,8 +1820,8 @@ D2 3
 E8 0
 F4 0
 getSharpScore -0.388994
-avg WL error 0.184435
-avg score error 1.88807
+avg WL error 0.1848
+avg score error 1.88893
 MoveNum: 22 HASH: 36E2A95E28CDE5AB0A75DF97A35F62A1
    A B C D E F G H J K L M N O P Q R S T
 19 . . . . . . . . . . . . . . . . . . .
@@ -1859,8 +1859,8 @@ Play selection values
 C2 102.825
 D2 0
 getSharpScore -5.23239
-avg WL error 0.169893
-avg score error 2.42192
+avg WL error 0.169308
+avg score error 2.40799
 MoveNum: 23 HASH: 28D4330A33EDEEE007DC219451457918
    A B C D E F G H J K L M N O P Q R S T
 19 . . . . . . . . . . . . . . . . . . .
@@ -1900,8 +1900,8 @@ D2 101.724
 E8 1
 C5 1
 getSharpScore 3.23675
-avg WL error 0.175358
-avg score error 2.0824
+avg WL error 0.175413
+avg score error 2.09236
 MoveNum: 24 HASH: C2692F8C0E349B241DE6521812CFC7CE
    A B C D E F G H J K L M N O P Q R S T
 19 . . . . . . . . . . . . . . . . . . .
@@ -1939,8 +1939,8 @@ Play selection values
 D1 105.543
 F5 0
 getSharpScore -5.10086
-avg WL error 0.167746
-avg score error 2.37126
+avg WL error 0.167799
+avg score error 2.36485
 MoveNum: 25 HASH: E874C7C5DDA187C204ED6172BB4CE636
    A B C D E F G H J K L M N O P Q R S T
 19 . . . . . . . . . . . . . . . . . . .
@@ -1980,8 +1980,8 @@ B2 97.5865
 C5 2
 A3 0
 getSharpScore -0.175347
-avg WL error 0.18401
-avg score error 1.89011
+avg WL error 0.184949
+avg score error 1.90038
 MoveNum: 26 HASH: B0531F27AC4742BAF1DFF308A114E64E
    A B C D E F G H J K L M N O P Q R S T
 19 . . . . . . . . . . . . . . . . . . .
@@ -2017,8 +2017,8 @@ B1  : T  -5.16c W  -5.94c S   0.07c ( -0.4 L  -0.3) LCB    1.21c P 96.30% WF 103
 Play selection values
 B1 103.183
 getSharpScore -0.170414
-avg WL error 0.180744
-avg score error 1.84271
+avg WL error 0.181701
+avg score error 1.85499
 MoveNum: 27 HASH: 33C947ABE6EBDF6553095571C72D5A04
    A B C D E F G H J K L M N O P Q R S T
 19 . . . . . . . . . . . . . . . . . . .
@@ -2058,8 +2058,8 @@ A3 98.315
 C5 1
 B3 1
 getSharpScore -0.164419
-avg WL error 0.184198
-avg score error 1.88551
+avg WL error 0.185811
+avg score error 1.90376
 MoveNum: 28 HASH: 8589144E4B8953F9D0694AFE53288E25
    A B C D E F G H J K L M N O P Q R S T
 19 . . . . . . . . . . . . . . . . . . .
@@ -2113,8 +2113,8 @@ C5 0
 G3 0
 C1 1
 getSharpScore -0.149348
-avg WL error 0.180968
-avg score error 1.84477
+avg WL error 0.182017
+avg score error 1.85807
 MoveNum: 29 HASH: FD7112624B5042F37437766703BCC747
    A B C D E F G H J K L M N O P Q R S T
 19 . . . . . . . . . . . . . . . . . . .
@@ -2154,8 +2154,8 @@ H2 99.4791
 G3 3
 E8 4
 getSharpScore 0.00787412
-avg WL error 0.174815
-avg score error 1.77819
+avg WL error 0.175314
+avg score error 1.78609
 
 
 Pruned root values test ==========================================================================
