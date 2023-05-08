@@ -55,6 +55,9 @@ E6 0
 J15 0
 E3 0
 F6 0
+getSharpScore 2.84717
+avg WL error -1
+avg score error -1
 MoveNum: 16 HASH: BE41BE50D58F23EED69CDA99217D31D6
    A B C D E F G H J K L M N O P Q R S T
 19 . . . . . . . . . . . . . . . . . . .
@@ -99,6 +102,9 @@ C2 8
 F4 6
 A5 3
 B5 4
+getSharpScore 2.47999
+avg WL error -1
+avg score error -1
 MoveNum: 17 HASH: A5016A1F4ABFFDF0880F3F5E821EC77D
    A B C D E F G H J K L M N O P Q R S T
 19 . . . . . . . . . . . . . . . . . . .
@@ -143,6 +149,9 @@ F5 65
 E6 4
 G3 1
 F6 1
+getSharpScore 3.39025
+avg WL error -1
+avg score error -1
 MoveNum: 18 HASH: 9044DF94C6D6A8D276B2956BD8880837
    A B C D E F G H J K L M N O P Q R S T
 19 . . . . . . . . . . . . . . . . . . .
@@ -191,6 +200,9 @@ B5 66.0337
 G3 16
 E3 1
 A5 2
+getSharpScore 3.19859
+avg WL error -1
+avg score error -1
 MoveNum: 19 HASH: A16A22AF061792AB7513404E2875D0D9
    A B C D E F G H J K L M N O P Q R S T
 19 . . . . . . . . . . . . . . . . . . .
@@ -231,6 +243,9 @@ G4 11
 C2 8
 B5 76
 G6 0
+getSharpScore 1.57539
+avg WL error -1
+avg score error -1
 MoveNum: 20 HASH: 5658F593CE71DFE067B6152A30032239
    A B C D E F G H J K L M N O P Q R S T
 19 . . . . . . . . . . . . . . . . . . .
@@ -289,6 +304,9 @@ H5 3
 C7 3
 B5 1
 E3 1
+getSharpScore 2.76101
+avg WL error -1
+avg score error -1
 MoveNum: 21 HASH: 41EC6A2DED7F215D5BFFA8E8522C2C38
    A B C D E F G H J K L M N O P Q R S T
 19 . . . . . . . . . . . . . . . . . . .
@@ -327,6 +345,9 @@ Play selection values
 C2 44
 H5 49
 B5 6
+getSharpScore 0.768247
+avg WL error -1
+avg score error -1
 MoveNum: 22 HASH: 8844030E1A73B6093D2E14AA80C95F40
    A B C D E F G H J K L M N O P Q R S T
 19 . . . . . . . . . . . . . . . . . . .
@@ -375,6 +396,9 @@ H6 1
 E3 0
 A5 0
 B4 0
+getSharpScore -8.42509
+avg WL error -1
+avg score error -1
 MoveNum: 23 HASH: 27C6B79BECA55D7B1697593C47FD5439
    A B C D E F G H J K L M N O P Q R S T
 19 . . . . . . . . . . . . . . . . . . .
@@ -421,6 +445,9 @@ B2 2
 E7 1
 C7 1
 G2 0
+getSharpScore -0.813661
+avg WL error -1
+avg score error -1
 MoveNum: 24 HASH: 62B87898CF4883035B141308BD34AD4F
    A B C D E F G H J K L M N O P Q R S T
 19 . . . . . . . . . . . . . . . . . . .
@@ -459,6 +486,9 @@ Play selection values
 B2 97
 E3 0
 E6 0
+getSharpScore -1.38964
+avg WL error -1
+avg score error -1
 MoveNum: 25 HASH: BB28EA51566BD53DFE024F8494946E8B
    A B C D E F G H J K L M N O P Q R S T
 19 . . . . . . . . . . . . . . . . . . .
@@ -507,6 +537,9 @@ D14 1
 K15 0
 K3 0
 F7 0
+getSharpScore -1.28299
+avg WL error -1
+avg score error -1
 MoveNum: 26 HASH: 13220553CB8B1BB9132C9FA7193BD970
    A B C D E F G H J K L M N O P Q R S T
 19 . . . . . . . . . . . . . . . . . . .
@@ -553,6 +586,9 @@ E3 1
 E6 0
 H6 0
 H3 0
+getSharpScore -1.59954
+avg WL error -1
+avg score error -1
 MoveNum: 27 HASH: 45DEF27EB6B79C9106C8567194902328
    A B C D E F G H J K L M N O P Q R S T
 19 . . . . . . . . . . . . . . . . . . .
@@ -599,6 +635,9 @@ H3 1
 B3 3
 F2 1
 F1 0
+getSharpScore -1.56765
+avg WL error -1
+avg score error -1
 MoveNum: 28 HASH: 18E60D1229177DA86EF2C63F23AED162
    A B C D E F G H J K L M N O P Q R S T
 19 . . . . . . . . . . . . . . . . . . .
@@ -641,6 +680,9 @@ B3 87
 A3 2
 F2 0
 E3 0
+getSharpScore -1.74906
+avg WL error -1
+avg score error -1
 MoveNum: 29 HASH: 0C2DBD994E2E803E960C75402EDC510F
    A B C D E F G H J K L M N O P Q R S T
 19 . . . . . . . . . . . . . . . . . . .
@@ -683,6 +725,9 @@ H5 30
 F3 2
 F1 6
 H3 1
+getSharpScore -1.97193
+avg WL error -1
+avg score error -1
 MoveNum: 30 HASH: 5B46D4EE9E7F8CA083F541E752BA552C
    A B C D E F G H J K L M N O P Q R S T
 19 . . . . . . . . . . . . . . . . . . .
@@ -729,6 +774,9 @@ E3 1
 A4 0
 H6 1
 D17 0
+getSharpScore -1.41883
+avg WL error -1
+avg score error -1
 MoveNum: 31 HASH: 809566A4E7D0074CDEE93F652E03A9BD
    A B C D E F G H J K L M N O P Q R S T
 19 . . . . . . . . . . . . . . . . . . .
@@ -773,6 +821,9 @@ H5 4
 F6 2
 F7 3
 E3 0
+getSharpScore -0.321671
+avg WL error -1
+avg score error -1
 MoveNum: 32 HASH: B4244DA357E1AE8479BB513F28F546D8
    A B C D E F G H J K L M N O P Q R S T
 19 . . . . . . . . . . . . . . . . . . .
@@ -809,6 +860,9 @@ H4  : T  30.94c W  25.85c S   5.08c ( +9.2 L +10.9) LCB  380.94c P 12.56% WF   0
 Play selection values
 G4 97.9718
 H4 1
+getSharpScore -5.31395
+avg WL error -1
+avg score error -1
 MoveNum: 33 HASH: DE34F03FD823E9A6B1D0EEAEE702D7BA
    A B C D E F G H J K L M N O P Q R S T
 19 . . . . . . . . . . . . . . . . . . .
@@ -855,6 +909,9 @@ F7 3
 H7 1
 J2 25
 J5 0
+getSharpScore 3.48942
+avg WL error -1
+avg score error -1
 MoveNum: 34 HASH: 10338CB4B0C1B33CD5076C57C566E96A
    A B C D E F G H J K L M N O P Q R S T
 19 . . . . . . . . . . . . . . . . . . .
@@ -899,6 +956,9 @@ E6 1
 H1 86
 F6 1
 G7 0
+getSharpScore -6.22628
+avg WL error -1
+avg score error -1
 MoveNum: 35 HASH: C6B39CE152DEF14613E9F63C0E050533
    A B C D E F G H J K L M N O P Q R S T
 19 . . . . . . . . . . . . . . . . . . .
@@ -955,6 +1015,9 @@ J4 4
 J5 1
 A4 0
 E3 0
+getSharpScore -6.30579
+avg WL error -1
+avg score error -1
 MoveNum: 36 HASH: EF26E0FCA5E6C65E925CAAF80049147C
    A B C D E F G H J K L M N O P Q R S T
 19 . . . . . . . . . . . . . . . . . . .
@@ -999,6 +1062,9 @@ E3 2
 F6 77
 G7 1
 H3 0
+getSharpScore -11.3935
+avg WL error -1
+avg score error -1
 MoveNum: 37 HASH: 2C2A7F855F453376B882E99D32937012
    A B C D E F G H J K L M N O P Q R S T
 19 . . . . . . . . . . . . . . . . . . .
@@ -1035,6 +1101,9 @@ H3  : T -60.39c W -62.71c S  -9.80c (-23.9 L -25.5) LCB -144.29c P 25.25% WF   2
 Play selection values
 E6 96
 H3 3
+getSharpScore -10.9878
+avg WL error -1
+avg score error -1
 MoveNum: 38 HASH: 50C1BEE6F0D34C2AC523309B5A647884
    A B C D E F G H J K L M N O P Q R S T
 19 . . . . . . . . . . . . . . . . . . .
@@ -1073,6 +1142,9 @@ Play selection values
 G7 97
 E3 1
 J3 0
+getSharpScore -11.0228
+avg WL error -1
+avg score error -1
 MoveNum: 39 HASH: BFA30896A296FDB6287B54F36CEB5525
    A B C D E F G H J K L M N O P Q R S T
 19 . . . . . . . . . . . . . . . . . . .
@@ -1129,6 +1201,9 @@ G1 1
 C1 1
 E8 1
 J3 0
+getSharpScore -10.9594
+avg WL error -1
+avg score error -1
 MoveNum: 40 HASH: 0DE6026C7D8E1AAC2E2CB87EC698679D
    A B C D E F G H J K L M N O P Q R S T
 19 . . . . . . . . . . . . . . . . . . .
@@ -1179,6 +1254,9 @@ G1 22
 M10 1
 H3 4
 A2 1
+getSharpScore -13.7919
+avg WL error -1
+avg score error -1
 MoveNum: 41 HASH: CFDA8F6686AE978657AF5F8579B168D7
    A B C D E F G H J K L M N O P Q R S T
 19 . . . . . . . . . . . . . . . . . . .
@@ -1229,6 +1307,9 @@ A6 2
 A2 0
 C10 3
 H3 1
+getSharpScore -13.1354
+avg WL error -1
+avg score error -1
 MoveNum: 42 HASH: 7704D5020156FBCE571BD44BAF38345F
    A B C D E F G H J K L M N O P Q R S T
 19 . . . . . . . . . . . . . . . . . . .
@@ -1275,6 +1356,9 @@ C9 1
 J3 2
 D1 1
 E9 1
+getSharpScore -15.7065
+avg WL error -1
+avg score error -1
 MoveNum: 43 HASH: 4387C3D494BD2F95B32F84EC18E4C71C
    A B C D E F G H J K L M N O P Q R S T
 19 . . . . . . . . . . . . . . . . . . .
@@ -1311,6 +1395,9 @@ C7  : T -44.90c W -41.94c S  -3.25c (-13.0 L -14.2) LCB  -57.52c P 61.28% WF  40
 Play selection values
 C7 24
 E8 57
+getSharpScore -9.56306
+avg WL error -1
+avg score error -1
 MoveNum: 44 HASH: 1FF939DB5C3FC914001EBAA362DF7084
    A B C D E F G H J K L M N O P Q R S T
 19 . . . . . . . . . . . . . . . . . . .
@@ -1353,6 +1440,9 @@ E3 6
 D1 3
 J3 1
 G1 0
+getSharpScore -19.5199
+avg WL error -1
+avg score error -1
 MoveNum: 45 HASH: 3C8AE54AE2538A83022BBDB0D551292D
    A B C D E F G H J K L M N O P Q R S T
 19 . . . . . . . . . . . . . . . . . . .
@@ -1405,6 +1495,9 @@ A2 1
 H3 0
 E10 0
 D1 0
+getSharpScore -3.36548
+avg WL error -1
+avg score error -1
 MoveNum: 46 HASH: CC0DA2D5A810F2149A3FCE629475E9B4
    A B C D E F G H J K L M N O P Q R S T
 19 . . . . . . . . . . . . . . . . . . .
@@ -1449,6 +1542,9 @@ D7 3
 A7 1
 D1 0
 G1 2
+getSharpScore -8.54534
+avg WL error -1
+avg score error -1
 
 
 3-r pincer fight with V2 params and much variety ==========================================================================
@@ -1495,6 +1591,9 @@ F5 87
 B6 1
 D2 0
 F4 1
+getSharpScore 8.15554
+avg WL error -1
+avg score error -1
 MoveNum: 12 HASH: 4DB69D3180C9B7ECFCD66BDBC08C3D37
    A B C D E F G H J K L M N O P Q R S T
 19 . . . . . . . . . . . . . . . . . . .
@@ -1535,6 +1634,9 @@ D7 93
 E7 3
 B5 2
 G4 1
+getSharpScore -14.104
+avg WL error -1
+avg score error -1
 MoveNum: 13 HASH: E23429A4761F5C9ED76F264D07B8364E
    A B C D E F G H J K L M N O P Q R S T
 19 . . . . . . . . . . . . . . . . . . .
@@ -1579,6 +1681,9 @@ D7 5
 F4 3
 C5 1
 E7 4
+getSharpScore 4.7679
+avg WL error -1
+avg score error -1
 MoveNum: 14 HASH: 781CC2CF07ADA8CA18C986A1B72DA3CD
    A B C D E F G H J K L M N O P Q R S T
 19 . . . . . . . . . . . . . . . . . . .
@@ -1621,6 +1726,9 @@ G4 2
 C5 6
 E7 3
 B7 4
+getSharpScore -2.40185
+avg WL error -1
+avg score error -1
 MoveNum: 15 HASH: C9294D75F07DEDF0605F12F4853F91A7
    A B C D E F G H J K L M N O P Q R S T
 19 . . . . . . . . . . . . . . . . . . .
@@ -1673,6 +1781,9 @@ G4 1
 F5 0
 B6 1
 C2 0
+getSharpScore -1.88262
+avg WL error -1
+avg score error -1
 MoveNum: 16 HASH: 1F0CC1EC329FCF6A154080E34B9B085C
    A B C D E F G H J K L M N O P Q R S T
 19 . . . . . . . . . . . . . . . . . . .
@@ -1715,6 +1826,9 @@ E8 7
 G4 2
 D3 2
 C5 1
+getSharpScore -1.87064
+avg WL error -1
+avg score error -1
 MoveNum: 17 HASH: DD304CE6C9BF42406CC36718F4B20716
    A B C D E F G H J K L M N O P Q R S T
 19 . . . . . . . . . . . . . . . . . . .
@@ -1761,6 +1875,9 @@ C5 2
 G4 1
 E8 50.7321
 G5 1
+getSharpScore -1.87166
+avg WL error -1
+avg score error -1
 MoveNum: 18 HASH: AE616CE824BA185F85B50B51AD3ECBCB
    A B C D E F G H J K L M N O P Q R S T
 19 . . . . . . . . . . . . . . . . . . .
@@ -1803,6 +1920,9 @@ E2 9
 E8 1
 F2 11
 D2 5
+getSharpScore -1.27187
+avg WL error -1
+avg score error -1
 MoveNum: 19 HASH: C471D174AB785F7D4DDEB4C062C95AA9
    A B C D E F G H J K L M N O P Q R S T
 19 . . . . . . . . . . . . . . . . . . .
@@ -1849,6 +1969,9 @@ H5 1
 C5 0
 F4 1
 G6 0
+getSharpScore -0.812439
+avg WL error -1
+avg score error -1
 MoveNum: 20 HASH: 27652ACC17BA1590A8A091E56F51454F
    A B C D E F G H J K L M N O P Q R S T
 19 . . . . . . . . . . . . . . . . . . .
@@ -1897,6 +2020,9 @@ L3 1
 E2 2
 F5 0
 F2 2
+getSharpScore -1.33028
+avg WL error -1
+avg score error -1
 MoveNum: 21 HASH: 2E81DAF9A56A748F392821FB7581DBF3
    A B C D E F G H J K L M N O P Q R S T
 19 . . . . . . . . . . . . . . . . . . .
@@ -1941,6 +2067,9 @@ C5 2
 G6 2
 H5 0
 E8 0
+getSharpScore -0.979103
+avg WL error -1
+avg score error -1
 MoveNum: 22 HASH: 36E2A95E28CDE5AB0A75DF97A35F62A1
    A B C D E F G H J K L M N O P Q R S T
 19 . . . . . . . . . . . . . . . . . . .
@@ -1989,6 +2118,9 @@ G3 2
 C2 60
 B2 0
 C5 0
+getSharpScore -8.07999
+avg WL error -1
+avg score error -1
 MoveNum: 23 HASH: 28D4330A33EDEEE007DC219451457918
    A B C D E F G H J K L M N O P Q R S T
 19 . . . . . . . . . . . . . . . . . . .
@@ -2035,6 +2167,9 @@ B6 1
 E8 0
 C10 0
 Q3 0
+getSharpScore 6.87515
+avg WL error -1
+avg score error -1
 MoveNum: 24 HASH: C2692F8C0E349B241DE6521812CFC7CE
    A B C D E F G H J K L M N O P Q R S T
 19 . . . . . . . . . . . . . . . . . . .
@@ -2079,6 +2214,9 @@ F5 1
 B3 0
 G3 0
 G6 0
+getSharpScore -6.78947
+avg WL error -1
+avg score error -1
 MoveNum: 25 HASH: E874C7C5DDA187C204ED6172BB4CE636
    A B C D E F G H J K L M N O P Q R S T
 19 . . . . . . . . . . . . . . . . . . .
@@ -2123,6 +2261,9 @@ C5 2
 G3 0
 B6 0
 F2 0
+getSharpScore 1.12645
+avg WL error -1
+avg score error -1
 MoveNum: 26 HASH: B0531F27AC4742BAF1DFF308A114E64E
    A B C D E F G H J K L M N O P Q R S T
 19 . . . . . . . . . . . . . . . . . . .
@@ -2173,6 +2314,9 @@ H5 1
 B3 0
 A4 1
 G3 0
+getSharpScore -0.223647
+avg WL error -1
+avg score error -1
 MoveNum: 27 HASH: 33C947ABE6EBDF6553095571C72D5A04
    A B C D E F G H J K L M N O P Q R S T
 19 . . . . . . . . . . . . . . . . . . .
@@ -2215,6 +2359,9 @@ B3 90
 A2 1
 F4 1
 A3 0
+getSharpScore -0.4517
+avg WL error -1
+avg score error -1
 MoveNum: 28 HASH: 8589144E4B8953F9D0694AFE53288E25
    A B C D E F G H J K L M N O P Q R S T
 19 . . . . . . . . . . . . . . . . . . .
@@ -2263,6 +2410,9 @@ E8 1
 A2 0
 F5 55
 E1 1
+getSharpScore -1.88873
+avg WL error -1
+avg score error -1
 MoveNum: 29 HASH: FD7112624B5042F37437766703BCC747
    A B C D E F G H J K L M N O P Q R S T
 19 . . . . . . . . . . . . . . . . . . .
@@ -2305,6 +2455,9 @@ G3 25
 H2 59
 F4 1
 C5 0
+getSharpScore -2.82134
+avg WL error -1
+avg score error -1
 
 
 Pruned root values test ==========================================================================
@@ -7038,5 +7191,363 @@ pss A8  : T -99.26c W -97.24c S  -2.38c ( -8.7 L  -9.4) LCB -248.19c P 14.02% WF
 pss E7  : T -105.37c W -98.63c S  -6.74c (-10.3 L -12.3) LCB -455.37c P 11.23% WF   1.0 PSV       1 N       1  --  E7
 E7  : T -99.72c W -97.61c S  -2.11c ( -8.6 L  -8.2) LCB  250.28c P  2.84% WF   1.0 PSV       0 N       1  --  E7
 F8  : T -98.17c W -97.82c S  -0.35c ( -7.9 L  -7.6) LCB  251.83c P  2.78% WF   1.0 PSV       0 N       1  --  F8
-: GPU 0 finishing, processed 10524 rows 10524 batches
+Single symmetry and full symmetry raw nets
+HASH: 2D134B8A191ECD408BDBC77EEBAAD89E
+   A B C D E F G H
+ 8 . . . . . . . .
+ 7 . . . . . . . .
+ 6 . X . X X . . .
+ 5 X X X O O X . .
+ 4 X O O . O X X X
+ 3 X O . . O O X O
+ 2 O . . . . . O O
+ 1 . O . . . . . .
+
+
+Symmetry 0
+Win 5.12c
+Loss 94.88c
+NoResult 0.00c
+ScoreMean -0.85
+ScoreMeanSq 4.8
+Lead -0.53
+VarTimeLeft -1.0
+STWinlossError -100.00c
+STScoreError -1.00
+Policy
+Pass  95 
+   0    0    0    0    1    0    0    0 
+   1    1    4    1    1   51    8    1 
+   1    -    5    -    -  535  257    4 
+   -    -    -    -    -    -    3    3 
+   -    -    -    2    -    -    -    - 
+   -    -    1    1    -    -    -    - 
+   -    4    8    0    0    8    -    - 
+   -    -    0    0    0    1    1    0 
+ -994  -996  -998  -997  -997  -996  -996  -992 
+ -995  -997  -993  -993  -995  -998  -998  -997 
+ -996  -999  -995  -996  -996  -996  -997  -995 
+ -998  -996  -994   999  1000  -997  -987  -989 
+ -998   998   999   999   998  -993  -999  -992 
+ -998   996   998   998   999   999  -996   998 
+  995   997   994   998   997   997   986   991 
+  996   998   997   998   998   997   993   996 
+
+Symmetry 1
+Win 4.02c
+Loss 95.98c
+NoResult 0.00c
+ScoreMean -1.88
+ScoreMeanSq 9.0
+Lead -1.53
+VarTimeLeft -1.0
+STWinlossError -100.00c
+STScoreError -1.00
+Policy
+Pass  64 
+   0    0    0    0    0    0    0    0 
+   1    2    3    1    0   51    8    1 
+   0    -    3    -    -  521  305    3 
+   -    -    -    -    -    -    4    1 
+   -    -    -    2    -    -    -    - 
+   -    -    1    0    -    -    -    - 
+   -    5   10    1    1    9    -    - 
+   -    -    0    0    0    1    1    0 
+ -993  -993  -996  -993  -991  -992  -993  -990 
+ -993  -995  -988  -986  -995  -998  -995  -995 
+ -995  -999  -991  -992  -995  -994  -995  -992 
+ -997  -997  -990   999   999  -998  -985  -980 
+ -998   999   999   998   998  -993  -995  -987 
+ -997   996   997   998   999   998  -995   998 
+  995   997   992   997   996   997   993   991 
+  996   998   997   997   997   997   992   993 
+
+Symmetry 2
+Win 3.93c
+Loss 96.07c
+NoResult 0.00c
+ScoreMean -1.09
+ScoreMeanSq 5.5
+Lead -0.78
+VarTimeLeft -1.0
+STWinlossError -100.00c
+STScoreError -1.00
+Policy
+Pass  71 
+   0    0    0    0    1    0    0    0 
+   1    1    3    1    1   35    5    0 
+   1    -    4    -    -  681  164    2 
+   -    -    -    -    -    -    6    1 
+   -    -    -    1    -    -    -    - 
+   -    -    1    1    -    -    -    - 
+   -    3    6    0    0    7    -    - 
+   -    -    0    0    0    0    1    0 
+ -994  -996  -997  -997  -996  -997  -996  -994 
+ -996  -997  -994  -994  -994  -997  -997  -996 
+ -994 -1000  -994  -997  -998  -997  -996  -993 
+ -999  -997  -996   999  1000  -997  -989  -988 
+ -998   998   999   999   998  -994  -998  -990 
+ -998   994   997   998   998   998  -992   997 
+  995   999   996   998   996   997   992   995 
+  997   999   998   998   998   996   988   995 
+
+Symmetry 4
+Win 4.94c
+Loss 95.06c
+NoResult 0.00c
+ScoreMean -1.49
+ScoreMeanSq 6.5
+Lead -1.19
+VarTimeLeft -1.0
+STWinlossError -100.00c
+STScoreError -1.00
+Policy
+Pass  61 
+   0    0    0    0    1    0    0    0 
+   2    2    3    1    2   61    8    0 
+   1    -    5    -    -  584  237    3 
+   -    -    -    -    -    -    4    3 
+   -    -    -    1    -    -    -    - 
+   -    -    1    1    -    -    -    - 
+   -    4    7    0    1    5    -    - 
+   -    -    0    0    0    1    1    0 
+ -994  -995  -997  -996  -996  -995  -994  -989 
+ -995  -996  -994  -993  -995  -998  -998  -995 
+ -993  -999  -995  -994  -997  -995  -998  -992 
+ -999  -996  -995   999  1000  -997  -987  -984 
+ -997   998   999   998   999  -995  -997  -992 
+ -997   997   998   998   999   999  -996   999 
+  995   999   995   998   997   998   995   993 
+  995   997   998   998   998   997   993   996 
+
+Symmetry all
+Win 4.13c
+Loss 95.87c
+NoResult 0.00c
+ScoreMean -1.52
+ScoreMeanSq 7.2
+Lead -1.20
+VarTimeLeft -1.0
+STWinlossError -100.00c
+STScoreError -1.00
+Policy
+Pass  68 
+   0    0    0    0    1    0    0    0 
+   2    2    3    1    1   51    8    0 
+   1    -    4    -    -  598  230    3 
+   -    -    -    -    -    -    4    2 
+   -    -    -    1    -    -    -    - 
+   -    -    1    1    -    -    -    - 
+   -    4    7    0    0    6    -    - 
+   -    -    0    0    0    1    1    0 
+ -993  -995  -997  -995  -995  -995  -995  -991 
+ -995  -996  -992  -991  -994  -998  -997  -995 
+ -993  -999  -994  -995  -997  -996  -997  -993 
+ -998  -996  -994   999  1000  -997  -988  -985 
+ -997   999   999   999   998  -994  -997  -990 
+ -997   996   997   998   999   998  -993   998 
+  995   998   994   997   996   997   992   993 
+  996   997   997   997   998   997   992   996 
+
+Single symmetry and full symmetry raw nets
+HASH: 2C5808F3F067B9221998C7B251705AB9
+   A B C D E F G H
+ 5 . X . X X . . .
+ 4 X X X O O X . .
+ 3 X O O . O X X X
+ 2 X O . . O O X O
+ 1 O O . . . O O O
+
+
+Symmetry 0
+Win 46.42c
+Loss 53.58c
+NoResult 0.00c
+ScoreMean 0.36
+ScoreMeanSq 96.6
+Lead 0.53
+VarTimeLeft -1.0
+STWinlossError -100.00c
+STScoreError -1.00
+Policy
+Pass  17 
+   0    -   22    -    -  183   67    7 
+   -    -    -    -    -    -    5   21 
+   -    -    -    1    -    -    -    - 
+   -    -    9  627    -    -    -    - 
+   -    -    2   37    1    -    -    - 
+ -958  -942  -955  -983  -987  -950  -935  -910 
+ -969  -951  -948   975   980  -975  -769  -770 
+ -968   970   848   735   892  -935  -983  -954 
+ -990   953   864   449   865   961  -971   967 
+  959   928   795   799   794   922   895   963 
+
+Symmetry 1
+Win 77.16c
+Loss 22.83c
+NoResult 0.00c
+ScoreMean 2.49
+ScoreMeanSq 54.1
+Lead 2.48
+VarTimeLeft -1.0
+STWinlossError -100.00c
+STScoreError -1.00
+Policy
+Pass  56 
+   0    -   40    -    -  310   42   10 
+   -    -    -    -    -    -   11   13 
+   -    -    -    2    -    -    -    - 
+   -    -    7  490    -    -    -    - 
+   -    -    2   15    2    -    -    - 
+ -934  -977  -974  -980  -984  -986  -970  -958 
+ -983  -985  -952   991   990  -993  -977  -934 
+ -987   984   945   843   959  -985  -991  -973 
+ -993   972   950   646   926   958  -989   977 
+  974   978   939   918   839   959   980   989 
+
+Symmetry 2
+Win 73.33c
+Loss 26.67c
+NoResult 0.00c
+ScoreMean 2.62
+ScoreMeanSq 62.8
+Lead 2.57
+VarTimeLeft -1.0
+STWinlossError -100.00c
+STScoreError -1.00
+Policy
+Pass  31 
+   0    -   36    -    -  229   59    8 
+   -    -    -    -    -    -    6   36 
+   -    -    -    2    -    -    -    - 
+   -    -   13  561    -    -    -    - 
+   -    -    2   17    1    -    -    - 
+ -802  -956  -921  -986  -995  -980  -955  -923 
+ -972  -972  -971   992   985  -984  -964  -917 
+ -985   970   956   844   941  -976  -992  -976 
+ -977   903   886   629   869   980  -979   982 
+  962   964   920   884   859   952   981   994 
+
+Symmetry 4
+Win 47.16c
+Loss 52.84c
+NoResult 0.00c
+ScoreMean 0.30
+ScoreMeanSq 51.0
+Lead 0.47
+VarTimeLeft -1.0
+STWinlossError -100.00c
+STScoreError -1.00
+Policy
+Pass  22 
+   0    -   22    -    -  299   42    5 
+   -    -    -    -    -    -    4   28 
+   -    -    -    1    -    -    -    - 
+   -    -    6  564    -    -    -    - 
+   -    -    1    5    1    -    -    - 
+ -923  -956  -932  -970  -992  -976  -970  -929 
+ -979  -977  -962   985   988  -991  -946  -900 
+ -979   971   915   829   954  -987  -992  -979 
+ -977   923   920   526   912   976  -979   987 
+  967   982   846   927   909   934   988   989 
+
+Symmetry all
+Win 65.74c
+Loss 34.25c
+NoResult 0.00c
+ScoreMean 1.87
+ScoreMeanSq 63.4
+Lead 1.92
+VarTimeLeft -1.0
+STWinlossError -100.00c
+STScoreError -1.00
+Policy
+Pass  31 
+   0    -   32    -    -  263   61    7 
+   -    -    -    -    -    -    7   20 
+   -    -    -    1    -    -    -    - 
+   -    -    9  545    -    -    -    - 
+   -    -    2   20    1    -    -    - 
+ -882  -967  -949  -979  -989  -977  -956  -936 
+ -979  -975  -956   978   986  -986  -934  -891 
+ -979   974   927   815   938  -976  -988  -970 
+ -985   941   907   572   907   969  -981   976 
+  966   969   889   890   861   950   972   982 
+
+Single symmetry and full symmetry raw nets
+HASH: 88DE424CCD58E213A0FA7C805C26E210
+   A B C D E F G H J K L M N O P Q R S T
+19 . . . . . . . . . . . . . . . . . . .
+18 . . . . . . . . . . . . . . . . . . .
+17 . . . . . . . . . . . . . . . . . . .
+16 . . . . . . . . . . . . . . . . . . .
+15 . . . . . . . . . . . . . . . . . . .
+14 . . . . . . . . . . . . . . . . . . .
+13 . . . . . . . . . . . . . . . . . . .
+12 . . . . . . . . . . . . . . . . . . .
+11 . . . . . . . . . . . . . . . . . . .
+10 . . . . . . . . . . . . . . . . . . .
+ 9 . . . . . . . . . . . . . . . . . . .
+ 8 . . . . . . . . . . . . . . . . . . .
+ 7 . . . . . . . . . . . . . . . . . . .
+ 6 . . . . . . . . . . . . . . . . . . .
+ 5 . . . . X . . . . . . . . . . . . . .
+ 4 . . . O . . . . . . . . . . . . . . .
+ 3 . . X . . . . . . . . . . . . . . . .
+ 2 . O . . . . . . . . . . . . . . . . .
+ 1 X . . . . . . . . . . . . . . . . . .
+
+
+Symmetry all
+Win 51.20c
+Loss 48.79c
+NoResult 0.01c
+ScoreMean 1.57
+ScoreMeanSq 984.2
+Lead 1.82
+VarTimeLeft -1.0
+STWinlossError -100.00c
+STScoreError -1.00
+Policy
+Pass   0 
+   0    0    0    0    0    0    0    0    0    0    0    0    0    0    0    0    0    0    0 
+   0    0    0    0    0    0    0    0    0    0    0    0    0    0    0    0    0    0    0 
+   0    0    3   25    0    0    0    0    0    0    0    0    0    0    0   24    3    0    0 
+   0    0   25   14    0    0    0    0    0    0    0    0    0    0    0   14   24    0    0 
+   0    0    0    0    0    0    0    0    0    0    0    0    0    0    0    0    0    0    0 
+   0    0    0    0    0    0    0    0    0    0    0    0    0    0    0    0    0    0    0 
+   0    0    0    0    0    0    0    0    0    0    0    0    0    0    0    0    0    0    0 
+   0    0    0    0    0    0    0    0    0    0    0    0    0    0    0    0    0    0    0 
+   0    0    0    0    0    0    0    0    0    0    0    0    0    0    0    0    0    0    0 
+   0    0    0    0    0    0    0    0    0    0    0    0    0    0    0    0    0    0    0 
+   0    0    0    0    0    0    0    0    0    0    0    0    0    0    0    0    0    0    0 
+   0    0    0    0    0    0    0    0    0    0    0    0    0    0    0    0    0    0    0 
+   0    0    0    0    0    0    0    0    0    0    0    0    0    0    0    0    0    0    0 
+   0    0    3    0    0    0    0    0    0    0    0    0    0    0    0    0    0    0    0 
+   0    0    7   82    -    0    0    0    0    0    0    0    0    0    0    0    0    0    0 
+   0    1  296    -   82    0    0    0    0    0    0    0    0    0    0   14   25    0    0 
+   0    0    -  296    7    3    0    0    0    0    0    0    0    0    0   25    3    0    0 
+   0    -    0    1    0    0    0    0    0    0    0    0    0    0    0    0    0    0    0 
+   -    0    0    0    0    0    0    0    0    0    0    0    0    0    0    0    0    0    0 
+   41    -4   -33   -10    12    14    12     8     7     7     7     9    12    14    13    -9   -34    -2    44 
+   -1    29     8    37    58    26    12     6     4     4     4     6    11    25    59    38     8    26    -2 
+  -33     8     4    15    68    12    -7    -8    -8    -9    -9    -8    -7    12    67    16     4     8   -34 
+   -8    39    14    19   110    40    32    32    32    32    32    32    32    39   110    14    16    38    -9 
+   13    59    66   110    90    34    33    35    35    34    35    35    33    33    90   110    67    59    13 
+   14    26    12    39    33    11    15    15    14    14    14    15    15    11    33    39    12    25    14 
+   12    11    -8    30    31    13    17    17    16    16    16    18    18    15    33    32    -7    11    12 
+    7     4    -9    29    32    12    15    14    13    13    14    15    18    15    35    32    -8     6     9 
+    2    -2   -15    21    22     4     9     8     9    11    12    14    16    14    35    32    -9     4     7 
+   -2    -5   -20    15    15    -3     1     0     4     8    11    13    16    14    34    32    -9     4     7 
+   -4    -8   -35     0    -3   -14    -7    -5    -2     4     9    13    16    14    35    32    -8     4     7 
+   11     0   -27   -13   -32   -38   -23   -18    -5     0     8    14    17    15    35    32    -8     6     8 
+   45     4     9    -6   -50   -55   -40   -23    -7     1     9    15    17    15    33    32    -7    12    12 
+   84    78    -6    90  -160  -119   -55   -38   -14    -3     4    12    13    11    34    40    12    26    14 
+  162   192   224   145  -618  -160   -50   -32    -3    15    22    32    31    33    90   110    68    58    12 
+  130   341   481   832   145    90    -6   -13     0    15    21    29    30    39   110    19    15    37   -10 
+  200   124    53   481   224    -6     9   -27   -35   -20   -15    -9    -8    12    66    14     4     8   -33 
+  196   450   124   341   192    78     4     0    -8    -5    -2     4    11    26    59    39     8    29    -4 
+   29   196   200   130   162    84    45    11    -4    -2     2     7    12    14    13    -8   -33    -1    41 
+
+: GPU 0 finishing, processed 10556 rows 10556 batches
 Done

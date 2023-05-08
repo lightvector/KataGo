@@ -26,6 +26,7 @@ static void runV9Positions(NNEvaluator* nnEval, Logger& logger)
     Rules rules = Rules::parseRules("Japanese");
     TestSearchOptions opts;
     opts.printPlaySelectionValues = true;
+    opts.printSharpScoreAndError = true;
 
     {
       cout << "Flying dagger fight with V2 params and much variety ==========================================================================" << endl;
@@ -376,6 +377,148 @@ xoo.....
       delete bot;
     }
 
+  }
+
+  {
+    cout << "Single symmetry and full symmetry raw nets" << endl;
+    Board board = Board::parseBoard(8,8,R"%%(
+........
+........
+.x.xx...
+xxxo.x..
+xoo.oxxx
+xo..ooxo
+o.....oo
+.o......
+)%%");
+    Player nextPla = P_WHITE;
+    Rules rules = Rules::parseRules("Chinese");
+    BoardHistory hist(board,nextPla,rules,0);
+    hist.makeBoardMoveAssumeLegal(board,Location::ofString("E5",board),P_WHITE,NULL);
+    nextPla = getOpp(nextPla);
+
+    bool includeOwnerMap = true;
+    cout << board << endl;
+    {
+      MiscNNInputParams nnInputParams;
+      nnInputParams.symmetry = 0;
+      NNResultBuf buf;
+      bool skipCache = true;
+      nnEval->evaluate(board,hist,nextPla,nnInputParams,buf,skipCache,includeOwnerMap);
+      cout << "Symmetry 0" << endl;
+      buf.result->debugPrint(cout, board);
+    }
+    {
+      MiscNNInputParams nnInputParams;
+      nnInputParams.symmetry = 1;
+      NNResultBuf buf;
+      bool skipCache = true;
+      nnEval->evaluate(board,hist,nextPla,nnInputParams,buf,skipCache,includeOwnerMap);
+      cout << "Symmetry 1" << endl;
+      buf.result->debugPrint(cout, board);
+    }
+    {
+      MiscNNInputParams nnInputParams;
+      nnInputParams.symmetry = 2;
+      NNResultBuf buf;
+      bool skipCache = true;
+      nnEval->evaluate(board,hist,nextPla,nnInputParams,buf,skipCache,includeOwnerMap);
+      cout << "Symmetry 2" << endl;
+      buf.result->debugPrint(cout, board);
+    }
+    {
+      MiscNNInputParams nnInputParams;
+      nnInputParams.symmetry = 4;
+      NNResultBuf buf;
+      bool skipCache = true;
+      nnEval->evaluate(board,hist,nextPla,nnInputParams,buf,skipCache,includeOwnerMap);
+      cout << "Symmetry 4" << endl;
+      buf.result->debugPrint(cout, board);
+    }
+
+    std::shared_ptr<NNOutput> nnOutput = PlayUtils::getFullSymmetryNNOutput(board, hist, nextPla, includeOwnerMap, nnEval);
+    cout << "Symmetry all" << endl;
+    nnOutput->debugPrint(cout, board);
+  }
+
+  {
+    cout << "Single symmetry and full symmetry raw nets" << endl;
+    Board board = Board::parseBoard(8,5,R"%%(
+.x.xx...
+xxxo.x..
+xoo.oxxx
+xo..ooxo
+oo...ooo
+)%%");
+    Player nextPla = P_WHITE;
+    Rules rules = Rules::parseRules("Japanese");
+    BoardHistory hist(board,nextPla,rules,0);
+    hist.makeBoardMoveAssumeLegal(board,Location::ofString("E4",board),P_WHITE,NULL);
+    nextPla = getOpp(nextPla);
+
+    bool includeOwnerMap = true;
+    cout << board << endl;
+    {
+      MiscNNInputParams nnInputParams;
+      nnInputParams.symmetry = 0;
+      NNResultBuf buf;
+      bool skipCache = true;
+      nnEval->evaluate(board,hist,nextPla,nnInputParams,buf,skipCache,includeOwnerMap);
+      cout << "Symmetry 0" << endl;
+      buf.result->debugPrint(cout, board);
+    }
+    {
+      MiscNNInputParams nnInputParams;
+      nnInputParams.symmetry = 1;
+      NNResultBuf buf;
+      bool skipCache = true;
+      nnEval->evaluate(board,hist,nextPla,nnInputParams,buf,skipCache,includeOwnerMap);
+      cout << "Symmetry 1" << endl;
+      buf.result->debugPrint(cout, board);
+    }
+    {
+      MiscNNInputParams nnInputParams;
+      nnInputParams.symmetry = 2;
+      NNResultBuf buf;
+      bool skipCache = true;
+      nnEval->evaluate(board,hist,nextPla,nnInputParams,buf,skipCache,includeOwnerMap);
+      cout << "Symmetry 2" << endl;
+      buf.result->debugPrint(cout, board);
+    }
+    {
+      MiscNNInputParams nnInputParams;
+      nnInputParams.symmetry = 4;
+      NNResultBuf buf;
+      bool skipCache = true;
+      nnEval->evaluate(board,hist,nextPla,nnInputParams,buf,skipCache,includeOwnerMap);
+      cout << "Symmetry 4" << endl;
+      buf.result->debugPrint(cout, board);
+    }
+
+    std::shared_ptr<NNOutput> nnOutput = PlayUtils::getFullSymmetryNNOutput(board, hist, nextPla, includeOwnerMap, nnEval);
+    cout << "Symmetry all" << endl;
+    nnOutput->debugPrint(cout, board);
+  }
+
+  {
+    cout << "Single symmetry and full symmetry raw nets" << endl;
+    Board board(19,19);
+    Player nextPla = P_BLACK;
+    Rules rules = Rules::parseRules("Japanese");
+    rules.komi = -4;
+    BoardHistory hist(board,nextPla,rules,0);
+    hist.makeBoardMoveAssumeLegal(board,Location::ofString("A1",board),P_BLACK,NULL);
+    hist.makeBoardMoveAssumeLegal(board,Location::ofString("B2",board),P_WHITE,NULL);
+    hist.makeBoardMoveAssumeLegal(board,Location::ofString("C3",board),P_BLACK,NULL);
+    hist.makeBoardMoveAssumeLegal(board,Location::ofString("D4",board),P_WHITE,NULL);
+    hist.makeBoardMoveAssumeLegal(board,Location::ofString("E5",board),P_BLACK,NULL);
+    nextPla = getOpp(nextPla);
+
+    bool includeOwnerMap = true;
+    cout << board << endl;
+    std::shared_ptr<NNOutput> nnOutput = PlayUtils::getFullSymmetryNNOutput(board, hist, nextPla, includeOwnerMap, nnEval);
+    cout << "Symmetry all" << endl;
+    nnOutput->debugPrint(cout, board);
   }
 
 }

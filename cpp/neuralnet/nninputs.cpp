@@ -22,6 +22,10 @@ Loc NNPos::posToLoc(int pos, int boardXSize, int boardYSize, int nnXLen, int nnY
   return Location::getLoc(x,y,boardXSize);
 }
 
+int NNPos::getPassPos(int nnXLen, int nnYLen) {
+  return nnXLen * nnYLen;
+}
+
 bool NNPos::isPassPos(int pos, int nnXLen, int nnYLen) {
   return pos == nnXLen * nnYLen;
 }
@@ -507,10 +511,11 @@ void NNOutput::debugPrint(ostream& out, const Board& board) {
   out << "ScoreMeanSq " << Global::strprintf("%.1f",whiteScoreMeanSq) << endl;
   out << "Lead " << Global::strprintf("%.2f",whiteLead) << endl;
   out << "VarTimeLeft " << Global::strprintf("%.1f",varTimeLeft) << endl;
-  out << "STWinlossError " << Global::strprintf("%.3f",shorttermWinlossError) << endl;
-  out << "STScoreError " << Global::strprintf("%.1f",shorttermScoreError) << endl;
+  out << "STWinlossError " << Global::strprintf("%.2fc",shorttermWinlossError*100) << endl;
+  out << "STScoreError " << Global::strprintf("%.2f",shorttermScoreError) << endl;
 
   out << "Policy" << endl;
+  out << "Pass" << Global::strprintf("%4d ", (int)round(policyProbs[NNPos::getPassPos(nnXLen,nnYLen)] * 1000)) << endl;
   for(int y = 0; y<board.y_size; y++) {
     for(int x = 0; x<board.x_size; x++) {
       int pos = NNPos::xyToPos(x,y,nnXLen);
