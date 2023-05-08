@@ -2420,17 +2420,17 @@ void NeuralNet::getOutput(
 ) {
   assert(numBatchEltsFilled <= inputBuffers->maxBatchSize);
   assert(numBatchEltsFilled > 0);
-  int batchSize = numBatchEltsFilled;
-  int nnXLen = gpuHandle->nnXLen;
-  int nnYLen = gpuHandle->nnYLen;
-  int version = gpuHandle->model->version;
+  const int batchSize = numBatchEltsFilled;
+  const int nnXLen = gpuHandle->nnXLen;
+  const int nnYLen = gpuHandle->nnYLen;
+  const int version = gpuHandle->model->version;
 
-  int numSpatialFeatures = NNModelVersion::getNumSpatialFeatures(version);
-  int numGlobalFeatures = NNModelVersion::getNumGlobalFeatures(version);
+  const int numSpatialFeatures = NNModelVersion::getNumSpatialFeatures(version);
+  const int numGlobalFeatures = NNModelVersion::getNumGlobalFeatures(version);
   assert(numSpatialFeatures == gpuHandle->model->numInputChannels);
   assert(numSpatialFeatures * nnXLen * nnYLen == inputBuffers->singleInputElts);
   assert(numGlobalFeatures == inputBuffers->singleInputGlobalElts);
-  int policyChannels = version >= 12 ? 2 : 1;
+  const int policyChannels = version >= 12 ? 2 : 1;
 
   for(int nIdx = 0; nIdx<batchSize; nIdx++) {
     float* rowSpatialInput = inputBuffers->userInputBuffer + (inputBuffers->singleInputElts * nIdx);
