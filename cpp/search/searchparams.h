@@ -30,6 +30,8 @@ struct SearchParams {
   double fpuParentWeightByVisitedPolicyPow; //If fpuParentWeightByVisitedPolicy, what power to raise the proportion of policy visited for blending.
   double fpuParentWeight; //For fpu, 0 = use parent average, 1 = use parent nn value, interpolates between.
 
+  double policyOptimism; //Interpolate geometrically between raw policy and optimistic policy
+
   //Tree value aggregation parameters
   double valueWeightExponent; //Amount to apply a downweighting of children with very bad values relative to good ones
   bool useNoisePruning; //For computation of value, prune out weight that greatly exceeds what is justified by policy prior
@@ -61,6 +63,8 @@ struct SearchParams {
   bool rootSymmetryPruning; //For the root node, search only one copy of each symmetrically equivalent move.
   //We use the min of these two together, and also excess visits get pruned if the value turns out bad.
   double rootDesiredPerChildVisitsCoeff; //Funnel sqrt(this * policy prob * total visits) down any given child that receives any visits at all at the root
+
+  double rootPolicyOptimism; //Interpolate geometrically between raw policy and optimistic policy
 
   //Parameters for choosing the move to play
   double chosenMoveTemperature; //Make move roughly proportional to visit count ** (1/chosenMoveTemperature)

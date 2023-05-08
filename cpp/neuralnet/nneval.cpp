@@ -19,7 +19,8 @@ NNResultBuf::NNResultBuf()
     result(nullptr),
     errorLogLockout(false),
     // If no symmetry is specified, it will use default or random based on config.
-    symmetry(NNInputs::SYMMETRY_NOTSPECIFIED)
+    symmetry(NNInputs::SYMMETRY_NOTSPECIFIED),
+    policyOptimism(0.0)
 {}
 
 NNResultBuf::~NNResultBuf() {
@@ -724,6 +725,7 @@ void NNEvaluator::evaluate(
   }
 
   buf.symmetry = nnInputParams.symmetry;
+  buf.policyOptimism = nnInputParams.policyOptimism;
 
   unique_lock<std::mutex> lock(bufferMutex);
 
@@ -865,7 +867,7 @@ void NNEvaluator::evaluate(
 
     //Fix up the value as well. Note that the neural net gives us back the value from the perspective
     //of the player so we need to negate that to make it the white value.
-    static_assert(NNModelVersion::latestModelVersionImplemented == 11, "");
+    static_assert(NNModelVersion::latestModelVersionImplemented == 12, "");
     if(modelVersion == 3) {
       const double twoOverPi = 0.63661977236758134308;
 
@@ -921,7 +923,7 @@ void NNEvaluator::evaluate(
       }
 
     }
-    else if(modelVersion >= 4 && modelVersion <= 11) {
+    else if(modelVersion >= 4 && modelVersion <= 12) {
       double winProb;
       double lossProb;
       double noResultProb;
@@ -1034,7 +1036,7 @@ void NNEvaluator::evaluate(
 
   //Postprocess ownermap
   if(buf.result->whiteOwnerMap != NULL) {
-    if(modelVersion >= 3 && modelVersion <= 11) {
+    if(modelVersion >= 3 && modelVersion <= 12) {
       for(int pos = 0; pos<nnXLen*nnYLen; pos++) {
         int y = pos / nnXLen;
         int x = pos % nnXLen;

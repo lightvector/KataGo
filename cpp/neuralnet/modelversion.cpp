@@ -16,6 +16,7 @@
 //9 = V7 features, shortterm value error
 //10 = V7 features, shortterm value error done more properly
 //11 = V7 features, supports mish activations by desc actually reading the activations
+//12 = V7 features, optimisic policy head
 
 static void fail(int modelVersion) {
   throw StringError("NNModelVersion: Model version not currently implemented or supported: " + Global::intToString(modelVersion));
@@ -23,11 +24,11 @@ static void fail(int modelVersion) {
 
 static_assert(NNModelVersion::oldestModelVersionImplemented == 3, "");
 static_assert(NNModelVersion::oldestInputsVersionImplemented == 3, "");
-static_assert(NNModelVersion::latestModelVersionImplemented == 11, "");
+static_assert(NNModelVersion::latestModelVersionImplemented == 12, "");
 static_assert(NNModelVersion::latestInputsVersionImplemented == 7, "");
 
 int NNModelVersion::getInputsVersion(int modelVersion) {
-  if(modelVersion >= 8 && modelVersion <= 11)
+  if(modelVersion >= 8 && modelVersion <= 12)
     return 7;
   else if(modelVersion == 7)
     return 6;
@@ -43,7 +44,7 @@ int NNModelVersion::getInputsVersion(int modelVersion) {
 }
 
 int NNModelVersion::getNumSpatialFeatures(int modelVersion) {
-  if(modelVersion >= 8 && modelVersion <= 11)
+  if(modelVersion >= 8 && modelVersion <= 12)
     return NNInputs::NUM_FEATURES_SPATIAL_V7;
   else if(modelVersion == 7)
     return NNInputs::NUM_FEATURES_SPATIAL_V6;
@@ -59,7 +60,7 @@ int NNModelVersion::getNumSpatialFeatures(int modelVersion) {
 }
 
 int NNModelVersion::getNumGlobalFeatures(int modelVersion) {
-  if(modelVersion >= 8 && modelVersion <= 11)
+  if(modelVersion >= 8 && modelVersion <= 12)
     return NNInputs::NUM_FEATURES_GLOBAL_V7;
   else if(modelVersion == 7)
     return NNInputs::NUM_FEATURES_GLOBAL_V6;

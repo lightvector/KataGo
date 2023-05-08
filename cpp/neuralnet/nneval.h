@@ -56,6 +56,7 @@ struct NNResultBuf {
   std::shared_ptr<NNOutput> result;
   bool errorLogLockout; //error flag to restrict log to 1 error to prevent spam
   int symmetry; //The symmetry to use for this eval
+  double policyOptimism; //The policy optimism to use for this eval
 
   NNResultBuf();
   ~NNResultBuf();

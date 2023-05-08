@@ -591,6 +591,12 @@ struct GTPEngine {
     bot->setParams(params);
     bot->clearSearch();
   }
+  void setPolicyOptimism(double x) {
+    params.policyOptimism = x;
+    params.rootPolicyOptimism = x;
+    bot->setParams(params);
+    bot->clearSearch();
+  }
 
   void updateDynamicPDA() {
     updateDynamicPDAHelper(
@@ -1387,7 +1393,7 @@ struct GTPEngine {
     return Global::trim(policyStr + "\n" + wlStr + "\n" + leadStr);
   }
 
-  string rawNN(int whichSymmetry) {
+  string rawNN(int whichSymmetry, double policyOptimism) {
     if(nnEval == NULL)
       return "";
     ostringstream out;
@@ -1403,6 +1409,7 @@ struct GTPEngine {
           (params.playoutDoublingAdvantagePla == C_EMPTY || params.playoutDoublingAdvantagePla == nextPla) ?
           staticPlayoutDoublingAdvantage : -staticPlayoutDoublingAdvantage;
         nnInputParams.symmetry = symmetry;
+        nnInputParams.policyOptimism = policyOptimism;
         NNResultBuf buf;
         bool skipCache = true;
         bool includeOwnerMap = true;
@@ -2201,6 +2208,14 @@ int MainCmds::gtp(const vector<string>& args) {
             response = "Invalid value for " + pieces[0] + ", must be integer from 1 to 2^50";
           }
         }
+        else if(pieces[0] == "policyOptimism") {
+          if(Global::tryStringToDouble(pieces[1],d) && d >= 0 && d <= 1)
+            engine->setPolicyOptimism(d);
+          else {
+            responseIsError = true;
+            response = "Invalid value for " + pieces[0] + ", must be integer from 1 to 1024";
+          }
+        }
         else {
           responseIsError = true;
           response = "Unknown or invalid parameter: " + pieces[0];
@@ -2946,20 +2961,32 @@ int MainCmds::gtp(const vector<string>& args) {
     else if(command == "kata-raw-nn") {
       int whichSymmetry = NNInputs::SYMMETRY_ALL;
       bool parsed = false;
-      if(pieces.size() == 1) {
+      if(pieces.size() == 1 || pieces.size() == 2) {
         string s = Global::trim(Global::toLower(pieces[0]));
         if(s == "all")
           parsed = true;
         else if(Global::tryStringToInt(s,whichSymmetry) && whichSymmetry >= 0 && whichSymmetry <= SymmetryHelpers::NUM_SYMMETRIES-1)
           parsed = true;
       }
-
       if(!parsed) {
         responseIsError = true;
         response = "Expected one argument 'all' or symmetry index [0-7] for kata-raw-nn but got '" + Global::concat(pieces," ") + "'";
       }
       else {
-        response = engine->rawNN(whichSymmetry);
+        double policyOptimism = 0.0;
+        if(pieces.size() == 2) {
+          parsed = false;
+          if(Global::tryStringToDouble(pieces[0],policyOptimism) && isnan(policyOptimism) && policyOptimism >= 0.0 && policyOptimism <= 1.0) {
+            parsed = true;
+          }
+        }
+        if(!parsed) {
+          responseIsError = true;
+          response = "Expected double from 0 to 1 for optimism but got '" + Global::concat(pieces," ") + "'";
+        }
+        else {
+          response = engine->rawNN(whichSymmetry, policyOptimism);
+        }
       }
     }
 

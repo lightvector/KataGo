@@ -810,16 +810,24 @@ PolicyHeadDesc::PolicyHeadDesc(istream& in, int vrsn, bool binaryFloats) {
     throw StringError(
       name +
       Global::strprintf(": p2Conv.inChannels (%d) != p1BN.numChannels (%d)", p2Conv.inChannels, p1BN.numChannels));
-  if(p2Conv.outChannels != 1)
-    throw StringError(name + Global::strprintf(": p2Conv.outChannels (%d) != 1", p2Conv.outChannels));
   if(gpoolToPassMul.inChannels != g1BN.numChannels * 3)
     throw StringError(
       name + Global::strprintf(
                ": gpoolToPassMul.inChannels (%d) != g1BN.numChannels*3 (%d)",
                gpoolToPassMul.inChannels,
                g1BN.numChannels * 3));
-  if(gpoolToPassMul.outChannels != 1)
-    throw StringError(name + Global::strprintf(": gpoolToPassMul.outChannels (%d) != 1", gpoolToPassMul.outChannels));
+  if(version >= 12) {
+    if(p2Conv.outChannels != 2)
+      throw StringError(name + Global::strprintf(": p2Conv.outChannels (%d) != 2", p2Conv.outChannels));
+    if(gpoolToPassMul.outChannels != 2)
+      throw StringError(name + Global::strprintf(": gpoolToPassMul.outChannels (%d) != 2", gpoolToPassMul.outChannels));
+  }
+  else {
+    if(p2Conv.outChannels != 1)
+      throw StringError(name + Global::strprintf(": p2Conv.outChannels (%d) != 1", p2Conv.outChannels));
+    if(gpoolToPassMul.outChannels != 1)
+      throw StringError(name + Global::strprintf(": gpoolToPassMul.outChannels (%d) != 1", gpoolToPassMul.outChannels));
+  }
 }
 
 PolicyHeadDesc::~PolicyHeadDesc() {}
@@ -1156,7 +1164,7 @@ void ModelDesc::loadFromFileMaybeGZipped(const string& fileName, ModelDesc& desc
 
 
 Rules ModelDesc::getSupportedRules(const Rules& desiredRules, bool& supported) const {
-  static_assert(NNModelVersion::latestModelVersionImplemented == 11, "");
+  static_assert(NNModelVersion::latestModelVersionImplemented == 12, "");
   Rules rules = desiredRules;
   supported = true;
   if(version <= 6) {
@@ -1177,7 +1185,7 @@ Rules ModelDesc::getSupportedRules(const Rules& desiredRules, bool& supported) c
       supported = false;
     }
   }
-  else if(version <= 11) {
+  else if(version <= 12) {
     if(rules.koRule == Rules::KO_SPIGHT) {
       rules.koRule = Rules::KO_SITUATIONAL;
       supported = false;
