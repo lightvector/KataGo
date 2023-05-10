@@ -4,6 +4,7 @@
 #include <fstream>
 #include <thread>
 #include "../core/makedir.h"
+#include "../core/fancymath.h"
 #include "../core/fileutils.h"
 #include "../game/graphhash.h"
 #include "../neuralnet/nninputs.h"
@@ -194,7 +195,18 @@ void BookHash::getHashAndSymmetry(const BoardHistory& hist, int repBound, BookHa
   }
 }
 
+double BookValues::getAdjustedWinLossError(const Rules& rules) const {
+  (void)rules;
+  // Handle the problem where old model versions don't support error estimates and just treat as no error.
+  if(winLossError < 0)
+    return 0;
+  return winLossError;
+}
+
 double BookValues::getAdjustedScoreError(const Rules& rules) const {
+  // Handle the problem where old model versions don't support error estimates and just treat as no error.
+  if(scoreError < 0)
+    return 0;
   if(rules.gameResultWillBeInteger()) {
     double scoreVariance = scoreStdev * scoreStdev;
     // KataGo's formalization of the score variance in draw-allowed games will be systematically too high by 0.25
@@ -1259,13 +1271,14 @@ void Book::recomputeNodeValues(BookNode* node) {
   {
     const BookValues& values = node->thisValuesNotInBook;
     double scoreError = values.getAdjustedScoreError(node->book->initialRules);
+    double winLossError = values.getAdjustedWinLossError(node->book->initialRules);
     winLossValue = values.winLossValue;
     scoreMean = values.scoreMean;
     sharpScoreMean = values.sharpScoreMean;
-    winLossLCB = values.winLossValue - errorFactor * values.winLossError;
+    winLossLCB = values.winLossValue - errorFactor * winLossError;
     scoreLCB = values.scoreMean - errorFactor * scoreError;
     scoreFinalLCB = values.scoreMean - errorFactor * values.scoreStdev;
-    winLossUCB = values.winLossValue + errorFactor * values.winLossError;
+    winLossUCB = values.winLossValue + errorFactor * winLossError;
     scoreUCB = values.scoreMean + errorFactor * scoreError;
     scoreFinalUCB = values.scoreMean + errorFactor * values.scoreStdev;
     weight += values.weight;
@@ -1540,18 +1553,19 @@ void Book::recomputeNodeCost(BookNode* node) {
   }
   else {
     double scoreError = node->thisValuesNotInBook.getAdjustedScoreError(node->book->initialRules);
+    double winLossError = node->thisValuesNotInBook.getAdjustedWinLossError(node->book->initialRules);
     double ucbWinLossLoss =
       (node->pla == P_WHITE) ?
-      (node->recursiveValues.winLossUCB - (node->thisValuesNotInBook.winLossValue + errorFactor * node->thisValuesNotInBook.winLossError)) :
-      ((node->thisValuesNotInBook.winLossValue - errorFactor * node->thisValuesNotInBook.winLossError) - node->recursiveValues.winLossLCB);
+      (node->recursiveValues.winLossUCB - (node->thisValuesNotInBook.winLossValue + errorFactor * winLossError)) :
+      ((node->thisValuesNotInBook.winLossValue - errorFactor * winLossError) - node->recursiveValues.winLossLCB);
     double ucbWinLossLossPow3 =
       (node->pla == P_WHITE) ?
-      (pow3(node->recursiveValues.winLossUCB) - pow3(node->thisValuesNotInBook.winLossValue + errorFactor * node->thisValuesNotInBook.winLossError)) :
-      (pow3(node->thisValuesNotInBook.winLossValue - errorFactor * node->thisValuesNotInBook.winLossError) - pow3(node->recursiveValues.winLossLCB));
+      (pow3(node->recursiveValues.winLossUCB) - pow3(node->thisValuesNotInBook.winLossValue + errorFactor * winLossError)) :
+      (pow3(node->thisValuesNotInBook.winLossValue - errorFactor * winLossError) - pow3(node->recursiveValues.winLossLCB));
     double ucbWinLossLossPow7 =
       (node->pla == P_WHITE) ?
-      (pow7(node->recursiveValues.winLossUCB) - pow7(node->thisValuesNotInBook.winLossValue + errorFactor * node->thisValuesNotInBook.winLossError)) :
-      (pow7(node->thisValuesNotInBook.winLossValue - errorFactor * node->thisValuesNotInBook.winLossError) - pow7(node->recursiveValues.winLossLCB));
+      (pow7(node->recursiveValues.winLossUCB) - pow7(node->thisValuesNotInBook.winLossValue + errorFactor * winLossError)) :
+      (pow7(node->thisValuesNotInBook.winLossValue - errorFactor * winLossError) - pow7(node->recursiveValues.winLossLCB));
     double ucbScoreLoss =
       (node->pla == P_WHITE) ?
       (node->recursiveValues.scoreUCB - (node->thisValuesNotInBook.scoreMean + errorFactor * scoreError)) :
@@ -1574,9 +1588,9 @@ void Book::recomputeNodeCost(BookNode* node) {
     }
 
     // cout << "Expansion thisValues " <<
-    //   node->thisValuesNotInBook.winLossValue - errorFactor * node->thisValuesNotInBook.winLossError << " " <<
+    //   node->thisValuesNotInBook.winLossValue - errorFactor * winLossError << " " <<
     //   node->thisValuesNotInBook.winLossValue << " " <<
-    //   node->thisValuesNotInBook.winLossValue + errorFactor * node->thisValuesNotInBook.winLossError << endl;
+    //   node->thisValuesNotInBook.winLossValue + errorFactor * winLossError << endl;
     // cout << "Expansion thisScores " <<
     //   node->thisValuesNotInBook.scoreMean - errorFactor * scoreError << " " <<
     //   node->thisValuesNotInBook.scoreMean << " " <<
@@ -1716,8 +1730,8 @@ void Book::recomputeNodeCost(BookNode* node) {
     }
   }
   {
-    double winLossError = node->thisValuesNotInBook.winLossError;
-    double scoreError = node->thisValuesNotInBook.scoreError;
+    double winLossError = node->thisValuesNotInBook.getAdjustedWinLossError(node->book->initialRules);
+    double scoreError = node->thisValuesNotInBook.getAdjustedScoreError(node->book->initialRules);
     double sharpScoreDiscrepancy = std::fabs(node->thisValuesNotInBook.sharpScoreMean - node->thisValuesNotInBook.scoreMean);
 
     // If there's an unusually large share of the policy not expanded, add a mild bonus for it.
@@ -2138,8 +2152,9 @@ int64_t Book::exportToHtmlDir(
       BookValues& values = node->thisValuesNotInBook;
       if(values.maxPolicy > 0.0) {
         double scoreError = values.getAdjustedScoreError(node->book->initialRules);
-        double winLossValueUCB = values.winLossValue + errorFactor * values.winLossError;
-        double winLossValueLCB = values.winLossValue - errorFactor * values.winLossError;
+        double winLossError = values.getAdjustedWinLossError(node->book->initialRules);
+        double winLossValueUCB = values.winLossValue + errorFactor * winLossError;
+        double winLossValueLCB = values.winLossValue - errorFactor * winLossError;
         double scoreUCB = values.scoreMean + errorFactor * scoreError;
         double scoreLCB = values.scoreMean - errorFactor * scoreError;
         // double scoreFinalUCB = values.scoreMean + errorFactor * values.scoreStdev;

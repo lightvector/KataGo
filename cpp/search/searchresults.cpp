@@ -1211,6 +1211,8 @@ std::pair<double,double> Search::getShallowAverageShorttermWLAndScoreError(const
     node = rootNode;
   if(node == NULL)
     return std::make_pair(0.0,0.0);
+  if(!nnEvaluator->supportsShorttermError())
+    return std::make_pair(-1.0,-1.0);
   std::unordered_set<const SearchNode*> graphPath;
   double policyProbsBuf[NNPos::MAX_NN_POLICY_SIZE];
   double wlError = 0.0;

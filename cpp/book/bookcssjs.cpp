@@ -672,8 +672,14 @@ function textCell(text) {
     }
     else {
       dataRow.appendChild(textCell((-moveData["ssM"]).toFixed(2)));
-      dataRow.appendChild(textCell((100.0 * 0.5 * moveData["wlRad"]).toFixed(1)+"%"));
-      dataRow.appendChild(textCell((moveData["sRad"]).toFixed(2)));
+      if(moveData["wlRad"] <= 0)
+        dataRow.appendChild(textCell("-"));
+      else
+        dataRow.appendChild(textCell((100.0 * 0.5 * moveData["wlRad"]).toFixed(1)+"%"));
+      if(moveData["sRad"] <= 0)
+        dataRow.appendChild(textCell("-"));
+      else
+        dataRow.appendChild(textCell((moveData["sRad"]).toFixed(2)));
       dataRow.appendChild(textCell((100.0 * moveData["p"]).toFixed(2)+"%"));
       dataRow.appendChild(textCell(Math.round(moveData["v"]).toLocaleString()));
     }

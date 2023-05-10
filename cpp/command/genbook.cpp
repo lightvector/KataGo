@@ -1467,7 +1467,8 @@ int MainCmds::writebook(const vector<string>& args) {
   book->recomputeEverything();
 
   logger.write("EXPORTING HTML TO " + htmlDir);
-  book->exportToHtmlDir(htmlDir,rulesLabel,rulesLink,htmlDevMode,htmlMinVisits,logger);
+  int64_t numFilesWritten = book->exportToHtmlDir(htmlDir,rulesLabel,rulesLink,htmlDevMode,htmlMinVisits,logger);
+  logger.write("Done exporting, exported " + Global::int64ToString(numFilesWritten) + " files");
 
   delete book;
   ScoreValue::freeTables();

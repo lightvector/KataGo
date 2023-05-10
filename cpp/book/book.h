@@ -76,6 +76,7 @@ struct BookValues {
   double weight = 0.0;
   double visits = 0.0;
 
+  double getAdjustedWinLossError(const Rules& rules) const;
   double getAdjustedScoreError(const Rules& rules) const;
 };
 struct RecursiveBookValues {
