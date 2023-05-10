@@ -1003,7 +1003,12 @@ int MainCmds::genbook(const vector<string>& args) {
                 node.canExpand() = false;
               }
               nodesHashesToUpdate.insert(child.hash());
-              logger.write("Adding " + node.hash().toString() + " -> " + child.hash().toString() + " move " + Location::toString(moveLoc,board));
+              string moveHistoryStr;
+              for(size_t j = search->rootHistory.moveHistory.size(); j<nextHist.moveHistory.size(); j++) {
+                moveHistoryStr += Location::toString(nextHist.moveHistory[j].loc,board);
+                moveHistoryStr += " ";
+              }
+              logger.write("Adding " + node.hash().toString() + " -> " + child.hash().toString() + " moves " + moveHistoryStr);
               // cout << "Adding " << timer.getSeconds() << endl;
               anythingAdded = true;
             }
