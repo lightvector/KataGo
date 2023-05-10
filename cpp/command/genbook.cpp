@@ -918,7 +918,6 @@ int MainCmds::genbook(const vector<string>& args) {
     const double scaleMaxToAtLeast = 0.0;
     const bool allowDirectPolicyMoves = false;
     bool suc = search->getPlaySelectionValues(*searchNode, locs, playSelectionValues, NULL, scaleMaxToAtLeast, allowDirectPolicyMoves);
-    assert(suc);
     // Possible if this was a terminal node
     if(!suc)
       return false;
