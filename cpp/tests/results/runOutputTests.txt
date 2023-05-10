@@ -17781,6 +17781,7 @@ subtreeValueBiasWeightExponent: 0.5
 nodeTableShardsPowerOfTwo: 16
 numVirtualLossesPerThread: 3
 numThreads: 1
+minPlayoutsPerThread: 0
 maxVisits: 1125899906842624
 maxPlayouts: 1125899906842624
 maxTime: 1e+20
@@ -17870,6 +17871,7 @@ subtreeValueBiasWeightExponent: 0.5
 nodeTableShardsPowerOfTwo: 16
 numVirtualLossesPerThread: 3
 numThreads: 1
+minPlayoutsPerThread: 0
 maxVisits: 1125899906842624
 maxPlayouts: 1125899906842624
 maxTime: 1e+20
@@ -17959,6 +17961,7 @@ subtreeValueBiasWeightExponent: 0.85
 nodeTableShardsPowerOfTwo: 16
 numVirtualLossesPerThread: 1
 numThreads: 1
+minPlayoutsPerThread: 8
 maxVisits: 1125899906842624
 maxPlayouts: 1125899906842624
 maxTime: 1e+20
@@ -18048,6 +18051,7 @@ subtreeValueBiasWeightExponent: 0.85
 nodeTableShardsPowerOfTwo: 16
 numVirtualLossesPerThread: 1
 numThreads: 1
+minPlayoutsPerThread: 8
 maxVisits: 1125899906842624
 maxPlayouts: 1125899906842624
 maxTime: 1e+20
@@ -18137,6 +18141,7 @@ subtreeValueBiasWeightExponent: 0.85
 nodeTableShardsPowerOfTwo: 16
 numVirtualLossesPerThread: 1
 numThreads: 1
+minPlayoutsPerThread: 0
 maxVisits: 1125899906842624
 maxPlayouts: 1125899906842624
 maxTime: 1e+20
@@ -18226,6 +18231,7 @@ subtreeValueBiasWeightExponent: 0.85
 nodeTableShardsPowerOfTwo: 16
 numVirtualLossesPerThread: 1
 numThreads: 1
+minPlayoutsPerThread: 0
 maxVisits: 1125899906842624
 maxPlayouts: 1125899906842624
 maxTime: 1e+20
@@ -18315,6 +18321,7 @@ subtreeValueBiasWeightExponent: 0.85
 nodeTableShardsPowerOfTwo: 16
 numVirtualLossesPerThread: 1
 numThreads: 1
+minPlayoutsPerThread: 0
 maxVisits: 1125899906842624
 maxPlayouts: 1125899906842624
 maxTime: 1e+20
@@ -18404,6 +18411,7 @@ subtreeValueBiasWeightExponent: 0.85
 nodeTableShardsPowerOfTwo: 16
 numVirtualLossesPerThread: 1
 numThreads: 1
+minPlayoutsPerThread: 0
 maxVisits: 1125899906842624
 maxPlayouts: 1125899906842624
 maxTime: 1e+20

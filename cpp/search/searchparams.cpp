@@ -74,6 +74,7 @@ SearchParams::SearchParams()
    nodeTableShardsPowerOfTwo(16),
    numVirtualLossesPerThread(3.0),
    numThreads(1),
+   minPlayoutsPerThread(0.0),
    maxVisits(((int64_t)1) << 50),
    maxPlayouts(((int64_t)1) << 50),
    maxTime(1.0e20),
@@ -263,6 +264,7 @@ void SearchParams::printParams(std::ostream& out) {
 
 
   PRINTPARAM(numThreads);
+  PRINTPARAM(minPlayoutsPerThread);
   PRINTPARAM(maxVisits);
   PRINTPARAM(maxPlayouts);
   PRINTPARAM(maxTime);

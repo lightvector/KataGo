@@ -74,9 +74,9 @@ void Search::respawnThreads() {
   spawnThreadsIfNeeded();
 }
 
-void Search::performTaskWithThreads(std::function<void(int)>* task) {
+void Search::performTaskWithThreads(std::function<void(int)>* task, int capThreads) {
   spawnThreadsIfNeeded();
-  int numAdditionalThreadsToUse = numAdditionalThreadsToUseForTasks();
+  int numAdditionalThreadsToUse = std::min(capThreads-1, numAdditionalThreadsToUseForTasks());
   if(numAdditionalThreadsToUse <= 0) {
     (*task)(0);
   }
@@ -135,7 +135,7 @@ void Search::applyRecursivelyPostOrderMulithreaded(const vector<SearchNode*>& no
     }
     randBuf.resize(randBufStart);
   };
-  performTaskWithThreads(&g);
+  performTaskWithThreads(&g, 0x3fffFFFF);
   for(int threadIdx = 1; threadIdx<numAdditionalThreads+1; threadIdx++)
     delete rands[threadIdx];
 }
@@ -208,7 +208,7 @@ void Search::applyRecursivelyAnyOrderMulithreaded(const vector<SearchNode*>& nod
     }
     randBuf.resize(randBufStart);
   };
-  performTaskWithThreads(&g);
+  performTaskWithThreads(&g, 0x3fffFFFF);
   for(int threadIdx = 1; threadIdx<numAdditionalThreads+1; threadIdx++)
     delete rands[threadIdx];
 }

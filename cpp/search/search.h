@@ -461,7 +461,7 @@ private:
   int numAdditionalThreadsToUseForTasks() const;
   void spawnThreadsIfNeeded();
   void killThreads();
-  void performTaskWithThreads(std::function<void(int)>* task);
+  void performTaskWithThreads(std::function<void(int)>* task, int capThreads);
 
   void applyRecursivelyPostOrderMulithreaded(const std::vector<SearchNode*>& nodes, std::function<void(SearchNode*,int)>* f);
   void applyRecursivelyPostOrderMulithreadedHelper(
