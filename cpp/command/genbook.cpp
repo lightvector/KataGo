@@ -188,6 +188,8 @@ int MainCmds::genbook(const vector<string>& args) {
   const bool loadKomiFromCfg = true;
   Rules rules = Setup::loadSingleRules(cfg,loadKomiFromCfg);
 
+  const SearchParams params = Setup::loadSingleParams(cfg,Setup::SETUP_FOR_GTP);
+
   const int boardSizeX = cfg.getInt("boardSizeX",2,Board::MAX_LEN);
   const int boardSizeY = cfg.getInt("boardSizeY",2,Board::MAX_LEN);
   const int repBound = cfg.getInt("repBound",3,1000);
@@ -211,21 +213,24 @@ int MainCmds::genbook(const vector<string>& args) {
   const double bonusForBiggestWLCost = cfg.contains("bonusForBiggestWLCost") ? cfg.getDouble("bonusForBiggestWLCost",0.0,1000000.0) : 0.0;
   const double bonusFileScale = cfg.contains("bonusFileScale") ? cfg.getDouble("bonusFileScale",0.0,1000000.0) : 1.0;
   const double scoreLossCap = cfg.getDouble("scoreLossCap",0.0,1000000.0);
-  const double earlyBookCostReductionFactor = cfg.getDouble("earlyBookCostReductionFactor",0.0,1.0);
-  const double earlyBookCostReductionLambda = cfg.getDouble("earlyBookCostReductionLambda",0.0,1.0);
+  const double earlyBookCostReductionFactor = cfg.contains("earlyBookCostReductionFactor") ? cfg.getDouble("earlyBookCostReductionFactor",0.0,1.0) : 0.0;
+  const double earlyBookCostReductionLambda = cfg.contains("earlyBookCostReductionLambda") ? cfg.getDouble("earlyBookCostReductionLambda",0.0,1.0) : 0.5;
   const double utilityPerScore = cfg.getDouble("utilityPerScore",0.0,1000000.0);
   const double policyBoostSoftUtilityScale = cfg.getDouble("policyBoostSoftUtilityScale",0.0,1000000.0);
   const double utilityPerPolicyForSorting = cfg.getDouble("utilityPerPolicyForSorting",0.0,1000000.0);
   const double maxVisitsForReExpansion = cfg.contains("maxVisitsForReExpansion") ? cfg.getDouble("maxVisitsForReExpansion",0.0,1e50) : 0.0;
-  const double visitsScale = cfg.contains("visitsScale") ? cfg.getDouble("visitsScale") : cfg.getDouble("maxVisitsForLeaves");
+  const double visitsScale = cfg.contains("visitsScale") ? cfg.getDouble("visitsScale") : (params.maxVisits + 1) / 2;
   const double sharpScoreOutlierCap = cfg.getDouble("sharpScoreOutlierCap",0.0,1000000.0);
   const bool logSearchInfo = cfg.getBool("logSearchInfo");
   const string rulesLabel = cfg.getString("rulesLabel");
   const string rulesLink = cfg.getString("rulesLink");
 
-  const int64_t minTreeVisitsToRecord = cfg.getInt64("minTreeVisitsToRecord", (int64_t)1, (int64_t)1 << 50);
-  const int maxDepthToRecord = cfg.getInt("maxDepthToRecord", 1, 100);
-  const int64_t maxVisitsForLeaves = cfg.getInt64("maxVisitsForLeaves", (int64_t)1, (int64_t)1 << 50);
+  const int64_t minTreeVisitsToRecord =
+    cfg.contains("minTreeVisitsToRecord") ? cfg.getInt64("minTreeVisitsToRecord", (int64_t)1, (int64_t)1 << 50) : params.maxVisits;
+  const int maxDepthToRecord =
+    cfg.contains("maxDepthToRecord") ? cfg.getInt("maxDepthToRecord", 1, 100) : 1;
+  const int64_t maxVisitsForLeaves =
+    cfg.contains("maxVisitsForLeaves") ? cfg.getInt64("maxVisitsForLeaves", (int64_t)1, (int64_t)1 << 50) : (params.maxVisits+1) / 2;
 
   const int numGameThreads = cfg.getInt("numGameThreads",1,1000);
   const int numToExpandPerIteration = cfg.getInt("numToExpandPerIteration",1,10000000);
@@ -342,7 +347,6 @@ int MainCmds::genbook(const vector<string>& args) {
     delete sgf;
   }
 
-  const SearchParams params = Setup::loadSingleParams(cfg,Setup::SETUP_FOR_GTP);
   const double wideRootNoiseBookExplore = cfg.contains("wideRootNoiseBookExplore") ? cfg.getDouble("wideRootNoiseBookExplore",0.0,5.0) : params.wideRootNoise;
   const double cpuctExplorationLogBookExplore = cfg.contains("cpuctExplorationLogBookExplore") ? cfg.getDouble("cpuctExplorationLogBookExplore",0.0,10.0) : params.cpuctExplorationLog;
   NNEvaluator* nnEval;
