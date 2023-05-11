@@ -936,6 +936,8 @@ string Sgf::PositionSample::toJsonLine(const Sgf::PositionSample& sample) {
   data["weight"] = sample.weight;
   if(sample.metadata.size() > 0)
     data["metadata"] = sample.metadata;
+  if(sample.trainingWeight != 1.0)
+    data["trainingWeight"] = sample.trainingWeight;
   return data.dump();
 }
 
@@ -973,6 +975,11 @@ Sgf::PositionSample Sgf::PositionSample::ofJsonLine(const string& s) {
       sample.metadata = data["metadata"].get<string>();
     else
       sample.metadata = string();
+
+    if(data.find("trainingWeight") != data.end())
+      sample.trainingWeight = data["trainingWeight"].get<double>();
+    else
+      sample.trainingWeight = 1.0;
   }
   catch(nlohmann::detail::exception& e) {
     throw StringError("Error parsing position sample json\n" + s + "\n" + e.what());

@@ -92,6 +92,8 @@ struct Sgf {
     double weight;
     //Arbitrary label or metadata
     std::string metadata;
+    //Scaling of training weight in the training data
+    double trainingWeight = 1.0;
 
     static std::string toJsonLine(const PositionSample& sample);
     static PositionSample ofJsonLine(const std::string& s);

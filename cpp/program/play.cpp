@@ -18,8 +18,8 @@ using namespace std;
 InitialPosition::InitialPosition()
   :board(),hist(),pla(C_EMPTY)
 {}
-InitialPosition::InitialPosition(const Board& b, const BoardHistory& h, Player p, bool plainFork, bool sekiFork, bool hintFork)
-  :board(b),hist(h),pla(p),isPlainFork(plainFork),isSekiFork(sekiFork),isHintFork(hintFork)
+InitialPosition::InitialPosition(const Board& b, const BoardHistory& h, Player p, bool plainFork, bool sekiFork, bool hintFork, double tw)
+  :board(b),hist(h),pla(p),isPlainFork(plainFork),isSekiFork(sekiFork),isHintFork(hintFork),trainingWeight(tw)
 {}
 InitialPosition::~InitialPosition()
 {}
@@ -2197,7 +2197,7 @@ void Play::maybeForkGame(
   //If the game is over now, don't actually do anything
   if(hist.isGameFinished)
     return;
-  forkData->add(new InitialPosition(board,hist,pla,true,false,false));
+  forkData->add(new InitialPosition(board,hist,pla,true,false,false,finishedGameData->trainingWeight));
 }
 
 
@@ -2237,7 +2237,7 @@ void Play::maybeSekiForkGame(
       //Just in case if somehow the game is over now, don't actually do anything
       if(hist.isGameFinished)
         continue;
-      forkData->addSeki(new InitialPosition(board,hist,pla,false,true,false),gameRand);
+      forkData->addSeki(new InitialPosition(board,hist,pla,false,true,false,finishedGameData->trainingWeight),gameRand);
     }
   }
 }
@@ -2281,7 +2281,7 @@ void Play::maybeHintForkGame(
   //If the game is over now, don't actually do anything
   if(hist.isGameFinished)
     return;
-  forkData->add(new InitialPosition(board,hist,pla,false,false,true));
+  forkData->add(new InitialPosition(board,hist,pla,false,false,true,finishedGameData->trainingWeight));
 }
 
 
@@ -2424,8 +2424,16 @@ FinishedGameData* GameRunner::runGame(
     onEachMove
   );
 
-  if(initialPosition != NULL)
+  if(initialPosition != NULL) {
     finishedGameData->usedInitialPosition = 1;
+    finishedGameData->trainingWeight = initialPosition->trainingWeight;
+  }
+  else if(startPosSample != NULL) {
+    finishedGameData->trainingWeight = startPosSample->trainingWeight;
+  }
+
+  assert(finishedGameData->trainingWeight > 0.0);
+  assert(finishedGameData->trainingWeight < 5.0);
 
   //Make sure not to write the game if we terminated in the middle of this game!
   if(shouldStop != nullptr && shouldStop()) {

@@ -596,6 +596,7 @@ int MainCmds::samplesgfs(const vector<string>& args) {
   double afterPassFactor;
   bool allowGameOver;
   bool hashComments;
+  double trainingWeight;
 
   string valueFluctuationModelFile;
   double valueFluctuationTurnScale;
@@ -626,6 +627,8 @@ int MainCmds::samplesgfs(const vector<string>& args) {
     TCLAP::ValueArg<double> afterPassFactorArg("","after-pass-factor","Scale down weight of positions following a pass",false, 1.0, "FACTOR");
     TCLAP::SwitchArg allowGameOverArg("","allow-game-over","Allow sampling game over positions in sgf");
     TCLAP::SwitchArg hashCommentsArg("","hash-comments","Hash comments in sgf");
+    TCLAP::ValueArg<double> trainingWeightArg("","training-weight","Scale the loss function weight from data from games that originate from this position",false,1.0,"WEIGHT");
+
     TCLAP::ValueArg<string> valueFluctuationModelFileArg("","value-fluctuation-model","Upweight positions prior to value fluctuations",false,string(),"MODELFILE");
     TCLAP::ValueArg<double> valueFluctuationTurnScaleArg("","value-fluctuation-turn-scale","How much prior on average",false,1.0,"AVGTURNS");
     TCLAP::ValueArg<double> valueFluctuationMaxWeightArg("","value-fluctuation-max-weight","",false,10.0,"MAXWEIGHT");
@@ -651,6 +654,7 @@ int MainCmds::samplesgfs(const vector<string>& args) {
     cmd.add(afterPassFactorArg);
     cmd.add(allowGameOverArg);
     cmd.add(hashCommentsArg);
+    cmd.add(trainingWeightArg);
     cmd.add(valueFluctuationModelFileArg);
     cmd.add(valueFluctuationTurnScaleArg);
     cmd.add(valueFluctuationMaxWeightArg);
@@ -676,6 +680,7 @@ int MainCmds::samplesgfs(const vector<string>& args) {
     afterPassFactor = afterPassFactorArg.getValue();
     allowGameOver = allowGameOverArg.getValue();
     hashComments = hashCommentsArg.getValue();
+    trainingWeight = trainingWeightArg.getValue();
     valueFluctuationModelFile = valueFluctuationModelFileArg.getValue();
     valueFluctuationTurnScale = valueFluctuationTurnScaleArg.getValue();
     valueFluctuationMaxWeight = valueFluctuationMaxWeightArg.getValue();
@@ -773,7 +778,7 @@ int MainCmds::samplesgfs(const vector<string>& args) {
   int64_t numKept = 0;
   std::set<Hash128> uniqueHashes;
   std::function<void(Sgf::PositionSample&, const BoardHistory&, const string&)> posHandler =
-    [sampleProb,sampleWeight,forceSampleWeight,&posWriter,turnWeightLambda,&numKept,&seedRand,minTurnNumberBoardAreaProp,maxTurnNumberBoardAreaProp,afterPassFactor](
+    [sampleProb,sampleWeight,forceSampleWeight,&posWriter,turnWeightLambda,&numKept,&seedRand,minTurnNumberBoardAreaProp,maxTurnNumberBoardAreaProp,afterPassFactor,trainingWeight](
       Sgf::PositionSample& posSample, const BoardHistory& hist, const string& comments
     ) {
       double minTurnNumber = minTurnNumberBoardAreaProp * (hist.initialBoard.x_size * hist.initialBoard.y_size);
@@ -793,6 +798,7 @@ int MainCmds::samplesgfs(const vector<string>& args) {
           posSampleToWrite.weight *= afterPassFactor;
         if(comments.size() > 0 && comments.find("%SAMPLE%") != string::npos)
           posSampleToWrite.weight = std::max(posSampleToWrite.weight,forceSampleWeight);
+        posSampleToWrite.trainingWeight = trainingWeight;
         posWriter.writePos(posSampleToWrite);
         numKept += 1;
       }
@@ -948,6 +954,7 @@ int MainCmds::samplesgfs(const vector<string>& args) {
         sample.initialTurnNumber = startIdx;
         sample.hintLoc = Board::NULL_LOC;
         sample.weight = std::min(valueFluctuationMaxWeight, desiredWeight[m]);
+        sample.trainingWeight = trainingWeight;
 
         if(sample.weight < 0.1)
           continue;
@@ -966,7 +973,7 @@ int MainCmds::samplesgfs(const vector<string>& args) {
       }
 
       std::function<void(Sgf::PositionSample&, const BoardHistory&, const string&)> posHandler2 =
-        [&blockedSituationHashes, &desiredWeight, &posHandler](
+        [&blockedSituationHashes, &desiredWeight, &posHandler, trainingWeight](
           Sgf::PositionSample& posSample, const BoardHistory& posHist, const string& comments
         ) {
           // cout << "AAAA " << (posHist.initialTurnNumber + (int)posHist.moveHistory.size()) << endl;
@@ -982,6 +989,7 @@ int MainCmds::samplesgfs(const vector<string>& args) {
             turnIdx = std::max(turnIdx,0);
             posSampleWeighted.weight = desiredWeight[turnIdx];
           }
+          posSampleWeighted.trainingWeight = trainingWeight;
           posHandler(posSampleWeighted, posHist, comments);
         };
 
@@ -1132,6 +1140,7 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
   double gameModeFastThreshold;
   bool flipIfPassOrWFirst;
   bool allowGameOver;
+  double trainingWeight;
 
   int minRank;
   int minMinRank;
@@ -1166,6 +1175,7 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
     TCLAP::ValueArg<double> gameModeFastThresholdArg("","game-mode-fast-threshold","Utility threshold for game mode fast pass",false,0.005,"UTILS");
     TCLAP::SwitchArg flipIfPassOrWFirstArg("","flip-if-pass","Try to heuristically find cases where an sgf passes to simulate white<->black");
     TCLAP::SwitchArg allowGameOverArg("","allow-game-over","Allow sampling game over positions in sgf");
+    TCLAP::ValueArg<double> trainingWeightArg("","training-weight","Scale the loss function weight from data from games that originate from this position",false,1.0,"WEIGHT");
     TCLAP::ValueArg<int> minRankArg("","min-rank","Require player making the move to have rank at least this",false,Sgf::RANK_UNKNOWN,"INT");
     TCLAP::ValueArg<int> minMinRankArg("","min-min-rank","Require both players in a game to have rank at least this",false,Sgf::RANK_UNKNOWN,"INT");
     TCLAP::ValueArg<string> requiredPlayerNameArg("","required-player-name","Require player making the move to have this name",false,string(),"NAME");
@@ -1192,6 +1202,7 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
     cmd.add(gameModeFastThresholdArg);
     cmd.add(flipIfPassOrWFirstArg);
     cmd.add(allowGameOverArg);
+    cmd.add(trainingWeightArg);
     cmd.add(minRankArg);
     cmd.add(minMinRankArg);
     cmd.add(requiredPlayerNameArg);
@@ -1221,6 +1232,7 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
     gameModeFastThreshold = gameModeFastThresholdArg.getValue();
     flipIfPassOrWFirst = flipIfPassOrWFirstArg.getValue();
     allowGameOver = allowGameOverArg.getValue();
+    trainingWeight = trainingWeightArg.getValue();
     minRank = minRankArg.getValue();
     minMinRank = minMinRankArg.getValue();
     requiredPlayerName = requiredPlayerNameArg.getValue();
@@ -1351,7 +1363,7 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
     return true;
   };
 
-  auto expensiveEvaluateMove = [&posWriter,&turnWeightLambda,&maxAutoKomi,&maxHandicap,&numFilteredIndivdualPoses,&surpriseMode,&minHintWeight,&logger](
+  auto expensiveEvaluateMove = [&posWriter,&turnWeightLambda,&maxAutoKomi,&maxHandicap,&numFilteredIndivdualPoses,&surpriseMode,&minHintWeight,&logger,trainingWeight](
     Search* search, Loc missedLoc,
     Player nextPla, const Board& board, const BoardHistory& hist,
     const Sgf::PositionSample& sample, bool markedAsHintPos
@@ -1421,6 +1433,7 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
           Sgf::PositionSample sampleToWrite = sample;
           sampleToWrite.weight += std::fabs(baseValues.utility - veryQuickValues.utility);
           sampleToWrite.hintLoc = moveLoc;
+          sampleToWrite.trainingWeight = trainingWeight;
           posWriter.writePos(sampleToWrite);
           if(sampleToWrite.hasPreviousPositions(1))
             posWriter.writePos(sampleToWrite.previousPosition(sampleToWrite.weight * 0.5));
@@ -1438,6 +1451,7 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
         Sgf::PositionSample sampleToWrite = sample;
         sampleToWrite.weight = 1.0 + std::fabs(baseValues.utility - veryQuickValues.utility);
         sampleToWrite.hintLoc = Board::NULL_LOC;
+        sampleToWrite.trainingWeight = trainingWeight;
         posWriter.writePos(sampleToWrite);
         if(sampleToWrite.hasPreviousPositions(1))
           posWriter.writePos(sampleToWrite.previousPosition(sampleToWrite.weight * 0.5));
@@ -1453,6 +1467,7 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
         Sgf::PositionSample sampleToWrite = sample;
         sampleToWrite.weight = 1.0 + std::fabs(baseValues.utility - veryQuickValues.utility);
         sampleToWrite.hintLoc = Board::NULL_LOC;
+        sampleToWrite.trainingWeight = trainingWeight;
         posWriter.writePos(sampleToWrite);
         if(sampleToWrite.hasPreviousPositions(1))
           posWriter.writePos(sampleToWrite.previousPosition(sampleToWrite.weight * 0.5));
@@ -1498,6 +1513,7 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
     // }
 
     Sgf::PositionSample sampleToWrite = sample;
+    sampleToWrite.trainingWeight = trainingWeight;
     sampleToWrite.weight += std::fabs(baseValues.utility - quickValues.utility);
     sampleToWrite.weight += std::fabs(baseValues.utility - veryQuickValues.utility);
 
@@ -1567,7 +1583,7 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
   // ---------------------------------------------------------------------------------------------------
   //SGF MODE
 
-  auto processSgfGame = [&logger,&gameInit,&nnEval,&expensiveEvaluateMove,autoKomi,&gameModeFastThreshold,&maxDepth,&numFilteredSgfs,&maxHandicap,&maxPolicy,allowGameOver](
+  auto processSgfGame = [&logger,&gameInit,&nnEval,&expensiveEvaluateMove,autoKomi,&gameModeFastThreshold,&maxDepth,&numFilteredSgfs,&maxHandicap,&maxPolicy,allowGameOver,trainingWeight](
     Search* search, Rand& rand, const string& fileName, CompactSgf* sgf, bool blackOkay, bool whiteOkay
   ) {
     //Don't use the SGF rules - randomize them for a bit more entropy
@@ -1728,6 +1744,7 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
       sample.initialTurnNumber = startIdx;
       sample.hintLoc = moves[m].loc;
       sample.weight = weight;
+      sample.trainingWeight = trainingWeight;
 
       if(autoKomi) {
         const int64_t numVisits = 10;
@@ -1787,7 +1804,7 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
   // ---------------------------------------------------------------------------------------------------
   //TREE MODE
 
-  auto treePosHandler = [&gameInit,&nnEval,&expensiveEvaluateMove,&autoKomi,&maxPolicy,&flipIfPassOrWFirst,&surpriseMode](
+  auto treePosHandler = [&gameInit,&nnEval,&expensiveEvaluateMove,&autoKomi,&maxPolicy,&flipIfPassOrWFirst,&surpriseMode,trainingWeight](
     Search* search, Rand& rand, const BoardHistory& treeHist, int initialTurnNumber, bool markedAsHintPos
   ) {
     if(shouldStop.load(std::memory_order_acquire))
@@ -1833,6 +1850,7 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
     sample.initialTurnNumber = initialTurnNumber;
     sample.hintLoc = treeHist.moveHistory[moveHistorySize-1].loc;
     sample.weight = 0.0; //dummy, filled in below
+    sample.trainingWeight = trainingWeight;
 
     //Don't use the SGF rules - randomize them for a bit more entropy
     Rules rules = gameInit->createRules();
@@ -2254,6 +2272,7 @@ int MainCmds::trystartposes(const vector<string>& args) {
       assert(suc);
       cout << "Searching startpos: " << "\n";
       cout << "Weight: " << startPos.weight << "\n";
+      cout << "Training Weight: " << startPos.trainingWeight << "\n";
       cout << search->getRootHist().rules.toString() << "\n";
       Board::printBoard(cout, search->getRootBoard(), search->getChosenMoveLoc(), &(search->getRootHist().moveHistory));
       search->printTree(cout, search->rootNode, PrintTreeOptions().maxDepth(1),P_WHITE);
@@ -2406,6 +2425,7 @@ int MainCmds::viewstartposes(const vector<string>& args) {
     cout << "StartPos: " << s << "/" << startPoses.size() << "\n";
     cout << "Next pla: " << PlayerIO::playerToString(pla) << "\n";
     cout << "Weight: " << startPos.weight << "\n";
+    cout << "TrainingWeight: " << startPos.trainingWeight << "\n";
     cout << "HintLoc: " << Location::toString(hintLoc,board) << "\n";
     Board::printBoard(cout, board, hintLoc, &(hist.moveHistory));
     cout << endl;

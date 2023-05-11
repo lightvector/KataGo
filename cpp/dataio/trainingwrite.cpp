@@ -87,6 +87,8 @@ FinishedGameData::FinishedGameData()
    finalSekiAreas(NULL),
    finalWhiteScoring(NULL),
 
+   trainingWeight(1.0),
+
    sidePositions(),
    changedNeuralNets(),
    bTimeUsed(0.0),
@@ -203,6 +205,7 @@ void FinishedGameData::printDebug(ostream& out) const {
       out << endl;
     }
   }
+  out << "trainingWeight " << trainingWeight << endl;
   for(int i = 0; i<sidePositions.size(); i++) {
     SidePosition* sp = sidePositions[i];
     out << "Side position " << i << endl;
@@ -979,7 +982,7 @@ void TrainingDataWriter::writeGame(const FinishedGameData& data) {
           writeBuffers->addRow(
             board,hist,nextPlayer,
             turnIdx,
-            1.0,
+            (float)data.trainingWeight,
             unreducedNumVisits,
             policyTarget0,
             policyTarget1,
@@ -1033,7 +1036,7 @@ void TrainingDataWriter::writeGame(const FinishedGameData& data) {
           writeBuffers->addRow(
             sp->board,sp->hist,sp->pla,
             turnIdx,
-            1.0,
+            (float)data.trainingWeight,
             sp->unreducedNumVisits,
             &(sp->policyTarget),
             NULL,

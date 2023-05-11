@@ -95,6 +95,8 @@ struct FinishedGameData {
   bool* finalSekiAreas;
   float* finalWhiteScoring;
 
+  double trainingWeight;
+
   std::vector<SidePosition*> sidePositions;
   std::vector<ChangedNeuralNet*> changedNeuralNets;
 

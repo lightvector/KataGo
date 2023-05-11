@@ -22,9 +22,10 @@ struct InitialPosition {
   bool isPlainFork;
   bool isSekiFork;
   bool isHintFork;
+  double trainingWeight;
 
   InitialPosition();
-  InitialPosition(const Board& board, const BoardHistory& hist, Player pla, bool isPlainFork, bool isSekiFork, bool isHintFork);
+  InitialPosition(const Board& board, const BoardHistory& hist, Player pla, bool isPlainFork, bool isSekiFork, bool isHintFork, double trainingWeight);
   ~InitialPosition();
 };
 
