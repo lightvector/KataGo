@@ -2163,9 +2163,9 @@ int64_t Book::exportToHtmlDir(
         // A quick hack to limit the issue of outliers from sharpScore, and adjust the LCB/UCB to reflect the uncertainty
         double scoreMean = values.scoreMean;
         double sharpScoreMean = values.sharpScoreMean;
-        if(sharpScoreMean > scoreUCB)
+        if(sharpScoreMean > scoreUCB && scoreError > 0)
           scoreUCB = sharpScoreMean;
-        if(sharpScoreMean < scoreLCB)
+        if(sharpScoreMean < scoreLCB && scoreError > 0)
           scoreLCB = sharpScoreMean;
         if(sharpScoreMean > scoreMean + sharpScoreOutlierCap)
           sharpScoreMean = scoreMean + sharpScoreOutlierCap;
