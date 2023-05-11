@@ -1285,10 +1285,13 @@ void Book::recomputeNodeValues(BookNode* node) {
     visits += values.visits;
 
     // A quick hack to limit the issue of outliers from sharpScore, and adjust the LCB/UCB to reflect the uncertainty
-    if(sharpScoreMean > scoreUCB)
-      scoreUCB = sharpScoreMean;
-    if(sharpScoreMean < scoreLCB)
-      scoreLCB = sharpScoreMean;
+    // Skip scoreUCB/scoreLCB adjustment if there isn't any error at all, where the net doesn't support it.
+    if(scoreError > 0) {
+      if(sharpScoreMean > scoreUCB)
+        scoreUCB = sharpScoreMean;
+      if(sharpScoreMean < scoreLCB)
+        scoreLCB = sharpScoreMean;
+    }
     if(sharpScoreMean > scoreMean + sharpScoreOutlierCap)
       sharpScoreMean = scoreMean + sharpScoreOutlierCap;
     if(sharpScoreMean < scoreMean - sharpScoreOutlierCap)
@@ -2161,12 +2164,15 @@ int64_t Book::exportToHtmlDir(
         // double scoreFinalLCB = values.scoreMean - errorFactor * values.scoreStdev;
 
         // A quick hack to limit the issue of outliers from sharpScore, and adjust the LCB/UCB to reflect the uncertainty
+        // Skip scoreUCB/scoreLCB adjustment if there isn't any error at all, where the net doesn't support it.
         double scoreMean = values.scoreMean;
         double sharpScoreMean = values.sharpScoreMean;
-        if(sharpScoreMean > scoreUCB && scoreError > 0)
-          scoreUCB = sharpScoreMean;
-        if(sharpScoreMean < scoreLCB && scoreError > 0)
-          scoreLCB = sharpScoreMean;
+        if(scoreError > 0) {
+          if(sharpScoreMean > scoreUCB)
+            scoreUCB = sharpScoreMean;
+          if(sharpScoreMean < scoreLCB)
+            scoreLCB = sharpScoreMean;
+        }
         if(sharpScoreMean > scoreMean + sharpScoreOutlierCap)
           sharpScoreMean = scoreMean + sharpScoreOutlierCap;
         if(sharpScoreMean < scoreMean - sharpScoreOutlierCap)
