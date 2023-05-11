@@ -72,8 +72,10 @@ bool Search::getPlaySelectionValues(
   if(retVisitCounts != NULL)
     retVisitCounts->clear();
 
+  const NNOutput* nnOutput = node.getNNOutput();
+  const float* policyProbs = nnOutput != NULL ? nnOutput->getPolicyProbsMaybeNoised() : NULL;
+
   double totalChildWeight = 0.0;
-  double maxChildWeight = 0.0;
   const bool suppressPass = shouldSuppressPass(&node);
 
   //Store up basic weights
@@ -90,8 +92,6 @@ bool Search::getPlaySelectionValues(
 
     locs.push_back(moveLoc);
     totalChildWeight += childWeight;
-    if(childWeight > maxChildWeight)
-      maxChildWeight = childWeight;
 
     // We always push a value on to playSelectionValues even if that value is 0,
     // because some callers rely on this to line up with the raw indices in the children array of the node.
@@ -109,23 +109,36 @@ bool Search::getPlaySelectionValues(
 
   int numChildren = (int)playSelectionValues.size();
 
-  //Find the best child by weight
-  int mostWeightedIdx = 0;
-  double mostWeightedChildWeight = -1e30;
-  for(int i = 0; i<numChildren; i++) {
-    double value = playSelectionValues[i];
-    if(value > mostWeightedChildWeight) {
-      mostWeightedChildWeight = value;
-      mostWeightedIdx = i;
+  //Find the best child before LCB for pruning. Intended to be the most stably explored child.
+  //This is the most weighted child, except with a tiny adjustment so that
+  //at very low playouts, variable child weights and discretization doesn't do crazy things.
+  int nonLCBBestIdx = 0;
+  double nonLCBBestChildWeight = -1e30;
+  {
+    double maxGoodness = -1e30;
+    for(int i = 0; i<numChildren; i++) {
+      double weight = playSelectionValues[i];
+      double edgeVisits = children[i].getEdgeVisits();
+      Loc moveLoc = children[i].getMoveLocRelaxed();
+      double policyProb = policyProbs[getPos(moveLoc)];
+
+      //Small weight on raw policy, and discount one visit's worth of weight since the most recent
+      //visit could be overweighted.
+      double g = weight * std::max(0.0,edgeVisits-1.0) / std::max(1.0, edgeVisits) + 2.0 * policyProb;
+      if(g > maxGoodness) {
+        maxGoodness = g;
+        nonLCBBestChildWeight = weight;
+        nonLCBBestIdx = i;
+      }
     }
   }
 
   //Possibly reduce weight on children that we spend too many visits on in retrospect
   if(&node == rootNode && numChildren > 0) {
 
-    const SearchNode* bestChild = children[mostWeightedIdx].getIfAllocated();
-    int64_t bestChildEdgeVisits = children[mostWeightedIdx].getEdgeVisits();
-    Loc bestMoveLoc = children[mostWeightedIdx].getMoveLocRelaxed();
+    const SearchNode* bestChild = children[nonLCBBestIdx].getIfAllocated();
+    int64_t bestChildEdgeVisits = children[nonLCBBestIdx].getEdgeVisits();
+    Loc bestMoveLoc = children[nonLCBBestIdx].getMoveLocRelaxed();
     assert(bestChild != NULL);
     const bool isRoot = true;
     const double policyProbMassVisited = 1.0; //doesn't matter, since fpu value computed from it isn't used here
@@ -141,16 +154,14 @@ bool Search::getPlaySelectionValues(
 
     double exploreScaling = getExploreScaling(totalChildWeight, parentUtilityStdevFactor);
 
-    const NNOutput* nnOutput = node.getNNOutput();
     assert(nnOutput != NULL);
-    const float* policyProbs = nnOutput->getPolicyProbsMaybeNoised();
     double bestChildExploreSelectionValue = getExploreSelectionValueOfChild(
       node,policyProbs,bestChild,
       bestMoveLoc,
       exploreScaling,
       totalChildWeight,bestChildEdgeVisits,fpuValue,
       parentUtility,parentWeightPerVisit,
-      isDuringSearch,false,maxChildWeight,NULL
+      isDuringSearch,false,nonLCBBestChildWeight,NULL
     );
 
     for(int i = 0; i<numChildren; i++) {
@@ -160,7 +171,7 @@ bool Search::getPlaySelectionValues(
         playSelectionValues[i] = 0;
         continue;
       }
-      if(i != mostWeightedIdx) {
+      if(i != nonLCBBestIdx) {
         int64_t edgeVisits = children[i].getEdgeVisits();
         double reduced = getReducedPlaySelectionWeight(
           node, policyProbs, child,
@@ -185,7 +196,7 @@ bool Search::getPlaySelectionValues(
       getSelfUtilityLCBAndRadius(node,child,edgeVisits,moveLoc,lcbBuf[i],radiusBuf[i]);
       //Check if this node is eligible to be considered for best LCB
       double weight = playSelectionValues[i];
-      if(weight > 0 && weight >= searchParams.minVisitPropForLCB * mostWeightedChildWeight) {
+      if(weight > 0 && weight >= searchParams.minVisitPropForLCB * nonLCBBestChildWeight) {
         if(lcbBuf[i] > bestLcb) {
           bestLcb = lcbBuf[i];
           bestLcbIndex = i;
@@ -221,8 +232,6 @@ bool Search::getPlaySelectionValues(
     }
   }
 
-  const NNOutput* nnOutput = node.getNNOutput();
-
   //If we have no children, then use the policy net directly. Only for the root, though, if calling this on any subtree
   //then just require that we have children, for implementation simplicity (since it requires that we have a board and a boardhistory too)
   //(and we also use isAllowedRootMove and avoidMoveUntilByLoc)
@@ -234,7 +243,6 @@ bool Search::getPlaySelectionValues(
     while(true) {
       for(int movePos = 0; movePos<policySize; movePos++) {
         Loc moveLoc = NNPos::posToLoc(movePos,rootBoard.x_size,rootBoard.y_size,nnXLen,nnYLen);
-        const float* policyProbs = nnOutput->getPolicyProbsMaybeNoised();
         double policyProb = policyProbs[movePos];
         if(!rootHistory.isLegal(rootBoard,moveLoc,rootPla) || policyProb < 0 || (obeyAllowedRootMove && !isAllowedRootMove(moveLoc)))
           continue;

@@ -1767,16 +1767,16 @@ PV: G5 E8 H5 D9 C9 C10 B10 C8 B9 B6 C7
 Tree:
 : T  -5.98c W  -7.60c S   0.47c ( -0.6 L  -0.3) N     100  --  G5 E8 H5 D9 C9 C10 B10
 ---Black(v)---
-G5  : T  -7.85c W  -8.33c S   0.33c ( -0.7 L  -0.4) LCB    0.73c P 51.47% WF  48.8 PSV      49 N      48  --  G5 E8 H5 D9 C9 C10 B10 C8
-E2  : T  -6.50c W  -8.77c S   0.42c ( -0.6 L  -0.4) LCB    1.47c P 19.65% WF  47.9 PSV      49 N      46  --  E2 G5 C2 D2 D1 B2 B1 A3
-D2  : T  -2.68c W  -8.06c S   0.28c ( -0.8 L  -0.4) LCB   41.29c P  6.58% WF   4.6 PSV       5 N       4  --  D2 C2 G5 E8
+G5  : T  -7.85c W  -8.33c S   0.33c ( -0.7 L  -0.4) LCB    0.73c P 51.47% WF  48.8 PSV      48 N      48  --  G5 E8 H5 D9 C9 C10 B10 C8
+E2  : T  -6.50c W  -8.77c S   0.42c ( -0.6 L  -0.4) LCB    1.47c P 19.65% WF  47.9 PSV      14 N      46  --  E2 G5 C2 D2 D1 B2 B1 A3
+D2  : T  -2.68c W  -8.06c S   0.28c ( -0.8 L  -0.4) LCB   41.29c P  6.58% WF   4.6 PSV       3 N       4  --  D2 C2 G5 E8
 L3  : T  88.58c W  79.02c S   9.56c ( +9.2 L  +7.4) LCB  438.58c P  4.60% WF   1.2 PSV       0 N       1  --  L3
 Play selection values
-G5 49
-E2 48.8263
-D2 5
+G5 48.3246
+E2 14
+D2 3
 L3 0
-getSharpScore -0.807947
+getSharpScore -1.13222
 avg WL error 0.178298
 avg score error 1.90265
 MoveNum: 21 HASH: 2E81DAF9A56A748F392821FB7581DBF3
@@ -5405,13 +5405,13 @@ Just after movepass
 ---Black(v)---
 G5  : T -115.27c W -99.97c S -15.64c (-22.5 L -24.1) LCB   33.69c P  8.59% WF  14.6 PSV      16 N       2  --  G5 B2
 G8  : T -113.68c W -99.90c S -15.04c (-22.3 L -23.4) LCB   35.56c P  9.24% WF  14.3 PSV      15 N       2  --  G8 pass
-D6  : T -113.83c W -99.95c S -15.13c (-22.4 L -23.2) LCB   35.33c P  9.07% WF  14.6 PSV      15 N       2  --  D6 pass
 F9  : T -114.12c W -99.94c S -15.34c (-22.4 L -23.3) LCB   35.02c P  7.95% WF  14.5 PSV      15 N       2  --  F9 pass
-J7  : T -113.59c W -99.93c S -14.69c (-22.1 L -23.1) LCB   35.52c P  7.55% WF  14.3 PSV      15 N       2  --  J7 pass
-D7  : T -113.93c W -99.95c S -15.29c (-22.4 L -23.3) LCB   35.25c P  7.52% WF  14.6 PSV      15 N       2  --  D7 pass
-A9  : T -113.67c W -99.95c S -14.84c (-22.2 L -23.3) LCB   35.60c P  6.94% WF  14.7 PSV      15 N       2  --  A9 pass
-H5  : T -113.78c W -99.94c S -15.33c (-22.5 L -23.5) LCB   35.49c P  6.18% WF  14.6 PSV      14 N       2  --  H5 pass
-D8  : T -113.13c W -99.93c S -14.40c (-22.0 L -23.0) LCB   35.98c P  6.35% WF  14.2 PSV      11 N       2  --  D8 pass
+D6  : T -113.83c W -99.95c S -15.13c (-22.4 L -23.2) LCB   35.33c P  9.07% WF  14.6 PSV      15 N       2  --  D6 pass
+D7  : T -113.93c W -99.95c S -15.29c (-22.4 L -23.3) LCB   35.25c P  7.52% WF  14.6 PSV      13 N       2  --  D7 pass
+J7  : T -113.59c W -99.93c S -14.69c (-22.1 L -23.1) LCB   35.52c P  7.55% WF  14.3 PSV      11 N       2  --  J7 pass
+A9  : T -113.67c W -99.95c S -14.84c (-22.2 L -23.3) LCB   35.60c P  6.94% WF  14.7 PSV      11 N       2  --  A9 pass
+H5  : T -113.78c W -99.94c S -15.33c (-22.5 L -23.5) LCB   35.49c P  6.18% WF  14.6 PSV      10 N       2  --  H5 pass
+D8  : T -113.13c W -99.93c S -14.40c (-22.0 L -23.0) LCB   35.98c P  6.35% WF  14.2 PSV       8 N       2  --  D8 pass
 A7  : T -116.89c W -99.99c S -16.89c (-23.0 L -23.6) LCB  233.11c P  5.55% WF   7.5 PSV       8 N       1  --  A7
 MoveNum: 17 HASH: F874ADE92126DFB48A421A6D9EB4E480
    A B C D E F G H J
