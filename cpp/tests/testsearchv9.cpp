@@ -573,6 +573,39 @@ oo...ooo
     nnOutput->debugPrint(cout, board);
   }
 
+  {
+    cout << "Very low visit search discretization ==========================================================================" << endl;
+    cout << endl;
+
+    Board board = Board::parseBoard(9,9,R"%%(
+.........
+.........
+.........
+.........
+.........
+.........
+.........
+.........
+.........
+)%%");
+    {
+      Rules rules = Rules::parseRules("Chinese");
+      rules.friendlyPassOk = false;
+      rules.komi = 5.5;
+      BoardHistory hist(board,P_BLACK,rules,0);
+      hist.makeBoardMoveAssumeLegal(board,Location::ofString("E5",board),P_BLACK,NULL);
+      Player nextPla = P_WHITE;
+
+      SearchParams params = SearchParams::forTestsV2();
+      params.maxVisits = 20;
+      params.rootSymmetryPruning = true;
+      params.rootFpuReductionMax = 0;
+      AsyncBot* bot = new AsyncBot(params, nnEval, &logger, getSearchRandSeed());
+      TestSearchOptions opts;
+      runBotOnPosition(bot, board, nextPla, hist, opts);
+      delete bot;
+    }
+  }
 }
 
 void Tests::runSearchTestsV9(const string& modelFile, bool inputsNHWC, bool useNHWC, bool useFP16) {
