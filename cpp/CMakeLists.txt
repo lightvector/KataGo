@@ -228,6 +228,7 @@ add_executable(katago
   ${GIT_HEADER_FILE_ALWAYS_UPDATED}
   tests/testboardarea.cpp
   tests/testboardbasic.cpp
+  tests/testbook.cpp
   tests/testcommon.cpp
   tests/testconfig.cpp
   tests/testmisc.cpp

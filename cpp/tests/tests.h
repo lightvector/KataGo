@@ -90,6 +90,9 @@ namespace Tests {
   //testmisc.cpp
   void runCollectFilesTests();
   void runLoadModelTests();
+
+  //testbook.cpp
+  void runBookTests();
 }
 
 namespace TestCommon {
