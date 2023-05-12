@@ -224,6 +224,11 @@ $$MAX_VISITS
 $$MAX_PLAYOUTS
 $$MAX_TIME
 
+# If provided, adapt maxVisits to averageOpponentTimePerMove * friendlyMaxVisitsFactor. (The static maxVisits setting will be ignored.)
+# Setting this to 150% of the visits/s you normally get on your hardware makes KataGo play approximately equally fast as the opponent.
+# Useful if you're running a ranked bot on a go server, and you want to be friendly if the opponent is also playing fast.
+# friendlyMaxVisitsFactor = 500
+
 # Ponder on the opponent's turn?
 $$PONDERING
 
