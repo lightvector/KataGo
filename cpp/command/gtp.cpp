@@ -447,7 +447,7 @@ struct GTPEngine {
     bool defaultRequireExactNNLen = true;
     int nnXLen = boardXSize;
     int nnYLen = boardYSize;
-    
+
     if(cfg.contains("gtpDebugForceMaxNNSize") && cfg.getBool("gtpDebugForceMaxNNSize")) {
       defaultRequireExactNNLen = false;
       nnXLen = Board::MAX_LEN;
@@ -466,7 +466,7 @@ struct GTPEngine {
       nnEval = NULL;
       logger.write("Cleaned up old neural net and bot");
     }
-    
+
     const bool disableFP16 = false;
     const string expectedSha256 = "";
     nnEval = Setup::initializeNNEvaluator(
@@ -516,7 +516,7 @@ struct GTPEngine {
     if(bot != nullptr)
       bot->setCopyOfExternalPatternBonusTable(patternBonusTable);
   }
-  
+
   void setPositionAndRules(Player pla, const Board& board, const BoardHistory& h, const Board& newInitialBoard, Player newInitialPla, const vector<Move> newMoveHistory) {
     BoardHistory hist(h);
     //Ensure we always have this value correct
@@ -1110,8 +1110,9 @@ struct GTPEngine {
       response = "resign";
     else
       response = Location::toString(moveLoc,bot->getRootBoard());
-    
+
     {
+      // Auto pattern expects moveless records using hintloc to contain the move.
       Sgf::PositionSample posSample;
       const BoardHistory& hist = bot->getRootHist();
       posSample.board = bot->getRootBoard();
@@ -1121,7 +1122,7 @@ struct GTPEngine {
       posSample.weight = 1.0;
       genmoveSamples.push_back(posSample);
     }
-    
+
     if(!resigned && moveLoc != Board::NULL_LOC && isLegal && playChosenMove) {
       bool suc = bot->makeMove(moveLoc,pla,preventEncore);
       if(suc)
@@ -1800,18 +1801,16 @@ int MainCmds::gtp(const vector<string>& args) {
   }
 
   bool autoAvoidPatterns = false;
-  string autoAvoidPatternsDir;
   {
     std::unique_ptr<PatternBonusTable> autoTable = Setup::loadAndPruneAutoPatternBonusTables(cfg,logger);
     if(autoTable != nullptr && patternBonusTable != nullptr)
       throw StringError("Providing both sgf avoid patterns and auto avoid patterns is not implemented right now");
     if(autoTable != nullptr) {
       autoAvoidPatterns = true;
-      autoAvoidPatternsDir = cfg.getString("autoAvoidRepeatDir");
       patternBonusTable = std::move(autoTable);
     }
   }
-  
+
   Player perspective = Setup::parseReportAnalysisWinrates(cfg,C_EMPTY);
 
   GTPEngine* engine = new GTPEngine(
@@ -1830,21 +1829,12 @@ int MainCmds::gtp(const vector<string>& args) {
 
   auto maybeSaveAvoidPatterns = [&]() {
     if(engine != NULL && autoAvoidPatterns && engine->genmoveSamples.size() > 0) {
-      string fileName = autoAvoidPatternsDir + "/" + Global::uint64ToHexString(seedRand.nextUInt64()) + "_poses.txt";
-      ofstream out;
-      bool suc = FileUtils::tryOpen(out, fileName);
-      if(!suc)
-        logger.write("ERROR: could not open " + fileName);
-      else {
-        for(const Sgf::PositionSample& sampleToWrite : engine->genmoveSamples) {
-          out << Sgf::PositionSample::toJsonLine(sampleToWrite) << "\n";
-        }
+      bool suc = Setup::saveAutoPatternBonusData(engine->genmoveSamples, cfg, logger, seedRand);
+      if(suc)
         engine->genmoveSamples.clear();
-        out.close();
-      }
     }
   };
-  
+
   //If nobody specified any time limit in any way, then assume a relatively fast time control
   if(!cfg.contains("maxPlayouts") && !cfg.contains("maxVisits") && !cfg.contains("maxTime")) {
     double mainTime = 1.0;

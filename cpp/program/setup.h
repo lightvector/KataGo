@@ -3,6 +3,9 @@
 
 #include "../core/config_parser.h"
 #include "../core/global.h"
+#include "../core/logger.h"
+#include "../core/rand.h"
+#include "../dataio/sgf.h"
 #include "../search/asyncbot.h"
 
 //Some bits of initialization and main function logic shared between various programs
@@ -98,6 +101,8 @@ namespace Setup {
 
   //Load pattern bonus tables that avoid repeating moves that the user supplied in external sgfs
   std::vector<std::unique_ptr<PatternBonusTable>> loadAvoidSgfPatternBonusTables(ConfigParser& cfg, Logger& logger);
+  //Save patterns to avoid repeating in the future. Returns whether saving was successful or not.
+  bool saveAutoPatternBonusData(const std::vector<Sgf::PositionSample>& genmoveSamples, ConfigParser& cfg, Logger& logger, Rand& rand);
 
   std::unique_ptr<PatternBonusTable> loadAndPruneAutoPatternBonusTables(ConfigParser& cfg, Logger& logger);
 }

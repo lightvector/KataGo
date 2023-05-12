@@ -2,6 +2,7 @@
 
 #include "../core/datetime.h"
 #include "../core/makedir.h"
+#include "../core/fileutils.h"
 #include "../neuralnet/nninterface.h"
 #include "../search/patternbonustable.h"
 
@@ -869,15 +870,43 @@ std::vector<std::unique_ptr<PatternBonusTable>> Setup::loadAvoidSgfPatternBonusT
   return tables;
 }
 
+bool Setup::saveAutoPatternBonusData(const std::vector<Sgf::PositionSample>& genmoveSamples, ConfigParser& cfg, Logger& logger, Rand& rand) {
+  if(genmoveSamples.size() <= 0)
+    return false;
+  if(!cfg.contains("autoAvoidRepeatDir"))
+    return false;
+
+  string autoAvoidPatternsDir = cfg.getString("autoAvoidRepeatDir");
+  int minTurnNumber = cfg.getInt("autoAvoidRepeatMinTurnNumber",0,1000000);
+  int maxTurnNumber = cfg.getInt("autoAvoidRepeatMaxTurnNumber",0,1000000);
+
+  string fileName = autoAvoidPatternsDir + "/" + Global::uint64ToHexString(rand.nextUInt64()) + "_poses.txt";
+  ofstream out;
+  bool suc = FileUtils::tryOpen(out, fileName);
+  if(!suc) {
+    logger.write("ERROR: could not open " + fileName);
+    return false;
+  }
+  else {
+    for(const Sgf::PositionSample& sampleToWrite : genmoveSamples) {
+      assert(sampleToWrite.moves.size() == 0);
+      if(sampleToWrite.initialTurnNumber < minTurnNumber || sampleToWrite.initialTurnNumber > maxTurnNumber)
+        continue;
+      out << Sgf::PositionSample::toJsonLine(sampleToWrite) << "\n";
+    }
+    out.close();
+    return true;
+  }
+}
 
 std::unique_ptr<PatternBonusTable> Setup::loadAndPruneAutoPatternBonusTables(ConfigParser& cfg, Logger& logger) {
   std::unique_ptr<PatternBonusTable> patternBonusTable = nullptr;
   if(cfg.contains("autoAvoidRepeatDir")) {
     double penalty = cfg.getDouble("autoAvoidRepeatUtility",-3.0,3.0);
-    double lambda = cfg.contains("autoAvoidRepeatLambda") ? cfg.getDouble("autoAvoidRepeatLambda",0.0,1.0) : 1.0;
-    int minTurnNumber = cfg.contains("autoAvoidRepeatMinTurnNumber") ? cfg.getInt("autoAvoidRepeatMinTurnNumber",0,1000000) : 0;
-    int maxTurnNumber = cfg.contains("autoAvoidRepeatMaxTurnNumber") ? cfg.getInt("autoAvoidRepeatMaxTurnNumber",0,1000000) : 1000000;
-    size_t maxPoses = cfg.contains("autoAvoidRepeatMaxPoses") ? (size_t)cfg.getInt("autoAvoidRepeatMaxPoses",1,10000000) : 10000000;
+    double lambda = cfg.getDouble("autoAvoidRepeatLambda",0.0,1.0);
+    int minTurnNumber = cfg.getInt("autoAvoidRepeatMinTurnNumber",0,1000000);
+    int maxTurnNumber = cfg.getInt("autoAvoidRepeatMaxTurnNumber",0,1000000);
+    size_t maxPoses = cfg.getInt64("autoAvoidRepeatMaxPoses",1,(int64_t)1000000000000LL);
     string dir = cfg.getString("autoAvoidRepeatDir");
     string logSource = "bot";
     patternBonusTable = std::make_unique<PatternBonusTable>();

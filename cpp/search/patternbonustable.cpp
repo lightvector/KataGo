@@ -252,17 +252,19 @@ void PatternBonusTable::avoidRepeatedPosMovesAndDeleteExcessFiles(
           numPosLoadErrors += 1;
           continue;
         }
-        
+
         const bool isMultiStoneSuicideLegal = true;
+        int turnNumber = posSample.initialTurnNumber + posSample.moves.size();
         if(
-          posSample.initialTurnNumber < minTurnNumber ||
-          posSample.initialTurnNumber > maxTurnNumber ||          
-          !posSample.board.isLegal(posSample.hintLoc, posSample.nextPla,isMultiStoneSuicideLegal)
+          turnNumber < minTurnNumber ||
+          turnNumber > maxTurnNumber ||
+          posSample.moves.size() != 0 || // Right now auto pattern avoid expects moveless records
+          !posSample.board.isLegal(posSample.hintLoc, posSample.nextPla, isMultiStoneSuicideLegal)
         ) {
           numPosesInvalid += 1;
           continue;
         }
-        
+
         for(int flipColorsInt = 0; flipColorsInt < 2; flipColorsInt++) {
           for(int symmetry = 0; symmetry < 8; symmetry++) {
             //getRecentBoard(1) - the convention is to pattern match on the board BEFORE the move is played.
