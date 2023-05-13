@@ -274,6 +274,7 @@ BookNode::BookNode(BookHash h, Book* b, Player p, const vector<int>& syms)
    canReExpand(true),
    moves(),
    parents(),
+   bestParentIdx(0),
    recursiveValues(),
    minDepthFromRoot(0),
    minCostFromRoot(0),
@@ -475,10 +476,13 @@ double ConstSymBookNode::totalExpansionCost() {
 SymBookNode SymBookNode::canonicalParent() {
   if(node->parents.size() <= 0)
     return SymBookNode(nullptr);
-  BookNode* parent = node->book->get(node->parents[0].first);
+  int64_t bestParentIdx = node->bestParentIdx;
+  if(bestParentIdx < 0 || bestParentIdx >= node->parents.size())
+    bestParentIdx = 0;
+  BookNode* parent = node->book->get(node->parents[bestParentIdx].first);
   if(parent == nullptr)
     return SymBookNode(nullptr);
-  auto iter = parent->moves.find(node->parents[0].second);
+  auto iter = parent->moves.find(node->parents[bestParentIdx].second);
   if(iter == parent->moves.end())
     return SymBookNode(nullptr);
   const BookMove& moveFromParent = iter->second;
@@ -490,10 +494,13 @@ SymBookNode SymBookNode::canonicalParent() {
 ConstSymBookNode ConstSymBookNode::canonicalParent() {
   if(node->parents.size() <= 0)
     return ConstSymBookNode(nullptr);
-  const BookNode* parent = node->book->get(node->parents[0].first);
+  int64_t bestParentIdx = node->bestParentIdx;
+  if(bestParentIdx < 0 || bestParentIdx >= node->parents.size())
+    bestParentIdx = 0;
+  const BookNode* parent = node->book->get(node->parents[bestParentIdx].first);
   if(parent == nullptr)
     return ConstSymBookNode(nullptr);
-  auto iter = parent->moves.find(node->parents[0].second);
+  auto iter = parent->moves.find(node->parents[bestParentIdx].second);
   if(iter == parent->moves.end())
     return ConstSymBookNode(nullptr);
   const BookMove& moveFromParent = iter->second;
@@ -643,6 +650,7 @@ bool ConstSymBookNode::getBoardHistoryReachingHere(BoardHistory& ret, vector<Loc
   vector<Loc> movesFromRoot;
   bool suc = node->book->reverseDepthFirstSearchWithMoves(
     node,
+    true, // Prefer low cost parents
     [&book,&pathFromRoot,&movesFromRoot](const vector<const BookNode*>& stack, const vector<Loc>& moveStack) {
       if(stack.back() == book->root) {
         pathFromRoot = vector<const BookNode*>(stack.rbegin(),stack.rend());
@@ -1051,18 +1059,23 @@ bool Book::add(BookHash hash, BookNode* node) {
 // Will never walk to any node more than once, if there are backward paths that reverse-transpose or have cycles.
 // Stop searching and immediately return true if f ever returns abort.
 // Returns false at the end of the whole search if f never aborts.
+// Also this particular function supports trying to follow low-cost parents first.
 bool Book::reverseDepthFirstSearchWithMoves(
   const BookNode* initialNode,
+  bool preferLowCostParents,
   const std::function<Book::DFSAction(const vector<const BookNode*>&, const vector<Loc>&)>& f
 ) const {
   vector<const BookNode*> stack;
   vector<Loc> moveStack;
-  vector<size_t> nextParentIdxToTry;
+  vector<int64_t> nextParentIdxToTry;
   std::set<BookHash> visitedHashes;
   stack.push_back(initialNode);
-  Loc nullLoc = Board::NULL_LOC; //Workaround for c++14 wonkiness fixed in c++17
+  Loc nullLoc = Board::NULL_LOC; // Workaround for c++14 wonkiness fixed in c++17
   moveStack.push_back(nullLoc);
-  nextParentIdxToTry.push_back(0);
+  if(preferLowCostParents)
+    nextParentIdxToTry.push_back(-1); // -1 encodes "try the best parent" first.
+  else
+    nextParentIdxToTry.push_back(0);
   visitedHashes.insert(initialNode->hash);
 
   while(true) {
@@ -1071,14 +1084,17 @@ bool Book::reverseDepthFirstSearchWithMoves(
     if(action == DFSAction::abort)
       return true;
     else if(action == DFSAction::skip) {
-      nextParentIdxToTry.back() = std::numeric_limits<size_t>::max();
+      nextParentIdxToTry.back() = std::numeric_limits<int64_t>::max();
     }
 
     // Attempt to find the next node
     while(true) {
       // Try walk to next parent
       const BookNode* node = stack.back();
-      size_t nextParentIdx = nextParentIdxToTry.back();
+      int64_t nextParentIdx = nextParentIdxToTry.back();
+      // -1 encodes "try the best parent" first.
+      if(nextParentIdx == -1)
+        nextParentIdx = node->bestParentIdx;
       if(nextParentIdx < node->parents.size()) {
         BookHash nextParentHash = node->parents[nextParentIdx].first;
         Loc nextParentLoc = node->parents[nextParentIdx].second;
@@ -1087,7 +1103,10 @@ bool Book::reverseDepthFirstSearchWithMoves(
           const BookNode* nextParent = get(nextParentHash);
           stack.push_back(nextParent);
           moveStack.push_back(nextParentLoc);
-          nextParentIdxToTry.push_back(0);
+          if(preferLowCostParents)
+            nextParentIdxToTry.push_back(-1); // -1 encodes "try the best parent" first.
+          else
+            nextParentIdxToTry.push_back(0);
           visitedHashes.insert(nextParentHash);
           // Found next node, break out of attempt to find the next node.
           break;
@@ -1377,7 +1396,9 @@ void Book::recomputeNodeCost(BookNode* node) {
     double minCost = 1e100;
     double minCostWLPV = 1e100;
     double bestBiggestWLCostFromRoot = 1e100;
-    for(std::pair<BookHash,Loc>& parentInfo: node->parents) {
+    size_t bestParentIdx = 0;
+    for(size_t parentIdx = 0; parentIdx<node->parents.size(); parentIdx++) {
+      std::pair<BookHash,Loc>& parentInfo = node->parents[parentIdx];
       const BookNode* parent = get(parentInfo.first);
       auto parentLocAndBookMove = parent->moves.find(parentInfo.second);
       assert(parentLocAndBookMove != parent->moves.end());
@@ -1387,6 +1408,7 @@ void Book::recomputeNodeCost(BookNode* node) {
       if(cost < minCost) {
         minCost = cost;
         bestBiggestWLCostFromRoot = biggestWLCostFromRoot;
+        bestParentIdx = parentIdx;
       }
       if(parentLocAndBookMove->second.isWLPV) {
         if(parent->minCostFromRootWLPV < minCostWLPV)
@@ -1399,6 +1421,7 @@ void Book::recomputeNodeCost(BookNode* node) {
     node->minCostFromRoot = minCost;
     node->minCostFromRootWLPV = minCostWLPV;
     node->biggestWLCostFromRoot = bestBiggestWLCostFromRoot;
+    node->bestParentIdx = (int64_t)bestParentIdx;
   }
 
   // cout << "-----------------------------------------------------------------------" << endl;

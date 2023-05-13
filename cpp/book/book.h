@@ -118,6 +118,7 @@ class BookNode {
   // -----------------------------------------------------------------------------------------------------------
   std::map<Loc,BookMove> moves;
   std::vector<std::pair<BookHash,Loc>> parents; // Locations are in the parent's alignment space
+  int64_t bestParentIdx; // Lowest cost parent, updated whenever costs are recomputed.
 
   RecursiveBookValues recursiveValues;  // Based on minimaxing over the book nodes
   int minDepthFromRoot;    // Minimum number of moves to reach this node from root
@@ -472,6 +473,7 @@ class Book {
 
   bool reverseDepthFirstSearchWithMoves(
     const BookNode* initialNode,
+    bool preferLowCostParents,
     const std::function<DFSAction(const std::vector<const BookNode*>&, const std::vector<Loc>&)>& f
   ) const;
 
