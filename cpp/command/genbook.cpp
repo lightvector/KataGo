@@ -953,10 +953,10 @@ int MainCmds::genbook(const vector<string>& args) {
       const SearchNode* childSearchNode = children[i].getIfAllocated();
       Loc moveLoc = children[i].getMoveLoc();
       double rawPolicy = policyProbs[search->getPos(moveLoc)];
-      int64_t childVisits = childSearchNode->stats.visits.load(std::memory_order_acquire);
+      int64_t childSearchVisits = childSearchNode->stats.visits.load(std::memory_order_acquire);
 
       // Add any child nodes that have enough visits or are the best move, if present.
-      if(moveLoc == bestLoc || childVisits >= minTreeVisitsToRecord) {
+      if(moveLoc == bestLoc || childSearchVisits >= maxVisitsForLeaves) {
         SymBookNode child;
         Board nextBoard = board;
         BoardHistory nextHist = hist;
@@ -977,13 +977,17 @@ int MainCmds::genbook(const vector<string>& args) {
             }
             nextHist.makeBoardMoveAssumeLegal(nextBoard,moveLoc,node.pla(),nullptr);
             // Overwrite the child if has no moves yet and we searched it deeper
-            if(child.numUniqueMovesInBook() == 0 && child.recursiveValues().visits < childSearchNode->stats.visits.load(std::memory_order_acquire)) {
+            if(child.numUniqueMovesInBook() == 0 && child.recursiveValues().visits < childSearchVisits) {
               // No longer need lock here, setNodeThisValuesFromFinishedSearch will lock on its own.
               lock.unlock();
               // Carefully use an empty vector for the avoidMoveUntilByLoc, since the child didn't avoid any moves.
               std::vector<int> childAvoidMoveUntilByLoc;
               setNodeThisValuesFromFinishedSearch(child, search, childSearchNode, nextBoard, nextHist, childAvoidMoveUntilByLoc);
             }
+
+            // Top off the child with a new search if as a leaf it doesn't have enough and our search also doesn't have enough.
+            if(child.numUniqueMovesInBook() == 0 && child.recursiveValues().visits < maxVisitsForLeaves)
+              nodesHashesToSearch.insert(child.hash());
           }
           else {
             // Lock book to add the best child to the book
@@ -1014,7 +1018,7 @@ int MainCmds::genbook(const vector<string>& args) {
 
             // Stick all the new values into the child node, UNLESS the child already had its own search (i.e. we're just transposing)
             // Unless the child is a leaf and we have more visits than it.
-            if(!childIsTransposing || (child.numUniqueMovesInBook() == 0 && child.recursiveValues().visits < childSearchNode->stats.visits.load(std::memory_order_acquire))) {
+            if(!childIsTransposing || (child.numUniqueMovesInBook() == 0 && child.recursiveValues().visits < childSearchVisits)) {
               // No longer need lock here, setNodeThisValuesFromFinishedSearch will lock on its own.
               lock.unlock();
               // Carefully use an empty vector for the avoidMoveUntilByLoc, since the child didn't avoid any moves.
@@ -1023,18 +1027,22 @@ int MainCmds::genbook(const vector<string>& args) {
               setNodeThisValuesFromFinishedSearch(child, search, childSearchNode, nextBoard, nextHist, childAvoidMoveUntilByLoc);
               // cout << "Returned from setNodeThisValuesFromFinishedSearch " << timer.getSeconds() << endl;
             }
+
+            // Top off the child with a new search if as a leaf it doesn't have enough and our search also doesn't have enough.
+            if(child.numUniqueMovesInBook() == 0 && child.recursiveValues().visits < maxVisitsForLeaves)
+              nodesHashesToSearch.insert(child.hash());
           }
         } // Release lock
 
         // Recursively record children with enough visits
-        if(maxDepth > 0 && childVisits >= minTreeVisitsToRecord) {
+        if(maxDepth > 0 && childSearchVisits >= minTreeVisitsToRecord) {
           anyRecursion = true;
-          // cout << "Calling expandFromSearchResultRecursively " << maxDepth << " " << childVisits << " " << timer.getSeconds() << endl;
+          // cout << "Calling expandFromSearchResultRecursively " << maxDepth << " " << childSearchVisits << " " << timer.getSeconds() << endl;
           expandFromSearchResultRecursively(
             search, childSearchNode, child, nextBoard, nextHist, maxDepth-1,
             nodesHashesToSearch, nodesHashesToUpdate, searchNodesRecursedOn
           );
-          // cout << "Returned from expandFromSearchResultRecursively " << maxDepth << " " << childVisits << " " << timer.getSeconds() << endl;
+          // cout << "Returned from expandFromSearchResultRecursively " << maxDepth << " " << childSearchVisits << " " << timer.getSeconds() << endl;
         }
       }
     }

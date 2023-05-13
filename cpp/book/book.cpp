@@ -2295,6 +2295,8 @@ void Book::saveToFile(const string& fileName) const {
       nodeData["w"] = roundDouble(node->thisValuesNotInBook.weight, 1000);
       nodeData["v"] = node->thisValuesNotInBook.visits;
       nodeData["cEx"] = node->canExpand;
+      // Don't record reexpansion prohibition, since this can change with the user's multi-ply search settings
+      // nodeData["cRx"] = node->canReExpand;
     }
     else {
       nodeData["hash"] = node->hash.toString();
@@ -2539,6 +2541,9 @@ Book* Book::loadFromFile(const std::string& fileName, double sharpScoreOutlierCa
         node->canExpand = nodeData["cEx"].get<bool>();
       else
         node->canExpand = true;
+
+      // Don't record reexpansion prohibition, since this can change with the user's multi-ply search settings
+      // node->canReExpand = nodeData.find("cRx") != nodeData.end() ? nodeData["cRx"].get<bool>() : true;
 
       if(book->bookVersion >= 2) {
         for(json& moveData: nodeData["mvs"]) {
