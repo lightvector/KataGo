@@ -186,6 +186,7 @@ add_executable(katago
   game/graphhash.cpp
   dataio/sgf.cpp
   dataio/numpywrite.cpp
+  dataio/poswriter.cpp
   dataio/trainingwrite.cpp
   dataio/loadmodel.cpp
   dataio/homedata.cpp
@@ -227,6 +228,7 @@ add_executable(katago
   ${GIT_HEADER_FILE_ALWAYS_UPDATED}
   tests/testboardarea.cpp
   tests/testboardbasic.cpp
+  tests/testbook.cpp
   tests/testcommon.cpp
   tests/testconfig.cpp
   tests/testmisc.cpp

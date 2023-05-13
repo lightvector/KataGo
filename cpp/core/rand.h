@@ -118,6 +118,10 @@ class Rand
   //Returns a gamma distributed double with shape a and scale 1
   double nextGamma(double a);
 
+  //OTHER------------------------------------------------
+  // Fills buf[0] through buf[n-1] with a random permutation of the integers from 0 to n-1 inclusive.
+  void fillShuffledUIntRange(size_t n, uint32_t* buf);
+
   //TESTING----------------------------------------------
   static void runTests();
 };

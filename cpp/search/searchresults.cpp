@@ -72,8 +72,10 @@ bool Search::getPlaySelectionValues(
   if(retVisitCounts != NULL)
     retVisitCounts->clear();
 
+  const NNOutput* nnOutput = node.getNNOutput();
+  const float* policyProbs = nnOutput != NULL ? nnOutput->getPolicyProbsMaybeNoised() : NULL;
+
   double totalChildWeight = 0.0;
-  double maxChildWeight = 0.0;
   const bool suppressPass = shouldSuppressPass(&node);
 
   //Store up basic weights
@@ -90,8 +92,9 @@ bool Search::getPlaySelectionValues(
 
     locs.push_back(moveLoc);
     totalChildWeight += childWeight;
-    if(childWeight > maxChildWeight)
-      maxChildWeight = childWeight;
+
+    // We always push a value on to playSelectionValues even if that value is 0,
+    // because some callers rely on this to line up with the raw indices in the children array of the node.
     if(suppressPass && moveLoc == Board::PASS_LOC) {
       playSelectionValues.push_back(0.0);
       if(retVisitCounts != NULL)
@@ -106,23 +109,36 @@ bool Search::getPlaySelectionValues(
 
   int numChildren = (int)playSelectionValues.size();
 
-  //Find the best child by weight
-  int mostWeightedIdx = 0;
-  double mostWeightedChildWeight = -1e30;
-  for(int i = 0; i<numChildren; i++) {
-    double value = playSelectionValues[i];
-    if(value > mostWeightedChildWeight) {
-      mostWeightedChildWeight = value;
-      mostWeightedIdx = i;
+  //Find the best child before LCB for pruning. Intended to be the most stably explored child.
+  //This is the most weighted child, except with a tiny adjustment so that
+  //at very low playouts, variable child weights and discretization doesn't do crazy things.
+  int nonLCBBestIdx = 0;
+  double nonLCBBestChildWeight = -1e30;
+  {
+    double maxGoodness = -1e30;
+    for(int i = 0; i<numChildren; i++) {
+      double weight = playSelectionValues[i];
+      double edgeVisits = children[i].getEdgeVisits();
+      Loc moveLoc = children[i].getMoveLocRelaxed();
+      double policyProb = policyProbs[getPos(moveLoc)];
+
+      //Small weight on raw policy, and discount one visit's worth of weight since the most recent
+      //visit could be overweighted.
+      double g = weight * std::max(0.0,edgeVisits-1.0) / std::max(1.0, edgeVisits) + 2.0 * policyProb;
+      if(g > maxGoodness) {
+        maxGoodness = g;
+        nonLCBBestChildWeight = weight;
+        nonLCBBestIdx = i;
+      }
     }
   }
 
   //Possibly reduce weight on children that we spend too many visits on in retrospect
   if(&node == rootNode && numChildren > 0) {
 
-    const SearchNode* bestChild = children[mostWeightedIdx].getIfAllocated();
-    int64_t bestChildEdgeVisits = children[mostWeightedIdx].getEdgeVisits();
-    Loc bestMoveLoc = children[mostWeightedIdx].getMoveLocRelaxed();
+    const SearchNode* bestChild = children[nonLCBBestIdx].getIfAllocated();
+    int64_t bestChildEdgeVisits = children[nonLCBBestIdx].getEdgeVisits();
+    Loc bestMoveLoc = children[nonLCBBestIdx].getMoveLocRelaxed();
     assert(bestChild != NULL);
     const bool isRoot = true;
     const double policyProbMassVisited = 1.0; //doesn't matter, since fpu value computed from it isn't used here
@@ -138,16 +154,14 @@ bool Search::getPlaySelectionValues(
 
     double exploreScaling = getExploreScaling(totalChildWeight, parentUtilityStdevFactor);
 
-    const NNOutput* nnOutput = node.getNNOutput();
     assert(nnOutput != NULL);
-    const float* policyProbs = nnOutput->getPolicyProbsMaybeNoised();
     double bestChildExploreSelectionValue = getExploreSelectionValueOfChild(
       node,policyProbs,bestChild,
       bestMoveLoc,
       exploreScaling,
       totalChildWeight,bestChildEdgeVisits,fpuValue,
       parentUtility,parentWeightPerVisit,
-      isDuringSearch,false,maxChildWeight,NULL
+      isDuringSearch,false,nonLCBBestChildWeight,NULL
     );
 
     for(int i = 0; i<numChildren; i++) {
@@ -157,7 +171,7 @@ bool Search::getPlaySelectionValues(
         playSelectionValues[i] = 0;
         continue;
       }
-      if(i != mostWeightedIdx) {
+      if(i != nonLCBBestIdx) {
         int64_t edgeVisits = children[i].getEdgeVisits();
         double reduced = getReducedPlaySelectionWeight(
           node, policyProbs, child,
@@ -182,7 +196,7 @@ bool Search::getPlaySelectionValues(
       getSelfUtilityLCBAndRadius(node,child,edgeVisits,moveLoc,lcbBuf[i],radiusBuf[i]);
       //Check if this node is eligible to be considered for best LCB
       double weight = playSelectionValues[i];
-      if(weight > 0 && weight >= searchParams.minVisitPropForLCB * mostWeightedChildWeight) {
+      if(weight > 0 && weight >= searchParams.minVisitPropForLCB * nonLCBBestChildWeight) {
         if(lcbBuf[i] > bestLcb) {
           bestLcb = lcbBuf[i];
           bestLcbIndex = i;
@@ -218,8 +232,6 @@ bool Search::getPlaySelectionValues(
     }
   }
 
-  const NNOutput* nnOutput = node.getNNOutput();
-
   //If we have no children, then use the policy net directly. Only for the root, though, if calling this on any subtree
   //then just require that we have children, for implementation simplicity (since it requires that we have a board and a boardhistory too)
   //(and we also use isAllowedRootMove and avoidMoveUntilByLoc)
@@ -231,7 +243,6 @@ bool Search::getPlaySelectionValues(
     while(true) {
       for(int movePos = 0; movePos<policySize; movePos++) {
         Loc moveLoc = NNPos::posToLoc(movePos,rootBoard.x_size,rootBoard.y_size,nnXLen,nnYLen);
-        const float* policyProbs = nnOutput->getPolicyProbsMaybeNoised();
         double policyProb = policyProbs[movePos];
         if(!rootHistory.isLegal(rootBoard,moveLoc,rootPla) || policyProb < 0 || (obeyAllowedRootMove && !isAllowedRootMove(moveLoc)))
           continue;
@@ -1126,8 +1137,8 @@ void Search::printTreeHelper(
     }
 
     if(options.printAvgShorttermError_) {
-      std::pair<double,double> wlAndScoreError = getAverageShorttermWLAndScoreError(&node);
-      sprintf(buf,"STWL %6.2fc STS %5.1f ", wlAndScoreError.first, wlAndScoreError.second);
+      std::pair<double,double> wlAndScoreError = getShallowAverageShorttermWLAndScoreError(&node);
+      sprintf(buf,"STWL %6.2fc STS %5.1f ", wlAndScoreError.first * 100.0, wlAndScoreError.second);
       out << buf;
     }
 
@@ -1203,55 +1214,142 @@ void Search::printTreeHelper(
 }
 
 
-std::pair<double,double> Search::getAverageShorttermWLAndScoreError(const SearchNode* node) const {
+std::pair<double,double> Search::getShallowAverageShorttermWLAndScoreError(const SearchNode* node) const {
   if(node == NULL)
     node = rootNode;
   if(node == NULL)
     return std::make_pair(0.0,0.0);
-  return getAverageShorttermWLAndScoreErrorHelper(node);
+  if(!nnEvaluator->supportsShorttermError())
+    return std::make_pair(-1.0,-1.0);
+  std::unordered_set<const SearchNode*> graphPath;
+  double policyProbsBuf[NNPos::MAX_NN_POLICY_SIZE];
+  double wlError = 0.0;
+  double scoreError = 0.0;
+  // Stop deepening when we hit a node whose proportion in the final average would be less than this.
+  // Sublinear in visits so that the cost of this grows more slowly than overall search depth.
+  int64_t visits = node->stats.visits.load(std::memory_order_acquire);
+  double minProp = 0.25 / pow(std::max(1.0,(double)visits),0.625);
+  double desiredProp = 1.0;
+  getShallowAverageShorttermWLAndScoreErrorHelper(
+    node,
+    graphPath,
+    policyProbsBuf,
+    minProp,
+    desiredProp,
+    wlError,
+    scoreError
+  );
+  return std::make_pair(wlError,scoreError);
 }
 
-std::pair<double,double> Search::getAverageShorttermWLAndScoreErrorHelper(const SearchNode* node) const {
+void Search::getShallowAverageShorttermWLAndScoreErrorHelper(
+  const SearchNode* node,
+  std::unordered_set<const SearchNode*>& graphPath,
+  double policyProbsBuf[NNPos::MAX_NN_POLICY_SIZE],
+  double minProp,
+  double desiredProp,
+  double& wlError,
+  double& scoreError
+) const {
   const NNOutput* nnOutput = node->getNNOutput();
   if(nnOutput == NULL) {
-    //This will also be correct for terminal nodes, which have no uncertainty.
-    //The caller will scale by weightSum, so this all works as intended.
-    return std::make_pair(0.0,0.0);
+    // Accumulate nothing. This will be correct for terminal nodes, which have no uncertainty.
+    // Not quite correct for multithreading, but no big deal, this value isn't used for anything critical
+    // and currently isn't called while multithreaded. Yay code debt.
+    return;
+  }
+
+  if(desiredProp < minProp) {
+    // We don't track the average errors on nodes, so just use the error of this node's raw nn output.
+    wlError += desiredProp * nnOutput->shorttermWinlossError;
+    scoreError += desiredProp * nnOutput->shorttermScoreError;
+    return;
+  }
+
+  std::pair<std::unordered_set<const SearchNode*>::iterator,bool> result = graphPath.insert(node);
+  // No insertion, node was already there, this means we hit a cycle in the graph
+  if(!result.second) {
+    //Just treat it as base case and immediately terminate.
+    wlError += desiredProp * nnOutput->shorttermWinlossError;
+    scoreError += desiredProp * nnOutput->shorttermScoreError;
+    return;
   }
 
   int childrenCapacity;
   const SearchChildPointer* children = node->getChildren(childrenCapacity);
 
-  int numChildren = 0;
+  vector<MoreNodeStats> statsBuf;
   for(int i = 0; i<childrenCapacity; i++) {
     const SearchNode* child = children[i].getIfAllocated();
     if(child == NULL)
       break;
-    numChildren += 1;
-  }
-
-  double wlErrorSum = 0.0;
-  double scoreErrorSum = 0.0;
-  double weightSum = 0.0;
-  {
-    double thisNodeWeight = computeWeightFromNNOutput(nnOutput);
-    wlErrorSum += nnOutput->shorttermWinlossError * thisNodeWeight;
-    scoreErrorSum += nnOutput->shorttermScoreError * thisNodeWeight;
-    weightSum += thisNodeWeight;
-  }
-
-  for(int i = numChildren-1; i>=0; i--) {
-    const SearchNode* child = children[i].getIfAllocated();
-    assert(child != NULL);
     int64_t edgeVisits = children[i].getEdgeVisits();
-    double childWeight = child->stats.getChildWeight(edgeVisits);
-    std::pair<double,double> result = getAverageShorttermWLAndScoreErrorHelper(child);
-    wlErrorSum += result.first * childWeight;
-    scoreErrorSum += result.second * childWeight;
-    weightSum += childWeight;
+    Loc moveLoc = children[i].getMoveLocRelaxed();
+    MoreNodeStats stats;
+    stats.stats = NodeStats(child->stats);
+    stats.selfUtility = node->nextPla == P_WHITE ? stats.stats.utilityAvg : -stats.stats.utilityAvg;
+    stats.weightAdjusted = stats.stats.getChildWeight(edgeVisits);
+    stats.prevMoveLoc = moveLoc;
+    statsBuf.push_back(stats);
+  }
+  int numChildren = (int)statsBuf.size();
+
+  // Find all children and compute weighting of the children based on their values
+  {
+    double totalChildWeight = 0.0;
+    for(int i = 0; i<numChildren; i++) {
+      totalChildWeight += statsBuf[i].weightAdjusted;
+    }
+    const float* policyProbs = nnOutput->getPolicyProbsMaybeNoised();
+    if(searchParams.useNoisePruning) {
+      for(int i = 0; i<numChildren; i++)
+        policyProbsBuf[i] = std::max(1e-30, (double)policyProbs[getPos(statsBuf[i].prevMoveLoc)]);
+      totalChildWeight = pruneNoiseWeight(statsBuf, numChildren, totalChildWeight, policyProbsBuf);
+    }
+    double amountToSubtract = 0.0;
+    double amountToPrune = 0.0;
+    downweightBadChildrenAndNormalizeWeight(
+      numChildren, totalChildWeight, totalChildWeight,
+      amountToSubtract, amountToPrune, statsBuf
+    );
   }
 
-  return std::make_pair(wlErrorSum/weightSum, scoreErrorSum/weightSum);
+  //What we actually weight the children by for averaging
+  double relativeChildrenWeightSum = 0.0;
+  //What the weights of the children sum to from the search.
+  double childrenWeightSum = 0;
+  for(int i = 0; i<numChildren; i++) {
+    double childWeight = statsBuf[i].weightAdjusted;
+    relativeChildrenWeightSum += childWeight;
+    childrenWeightSum += childWeight;
+  }
+  double parentNNWeight = computeWeightFromNNOutput(nnOutput);
+  parentNNWeight = std::max(parentNNWeight,1e-10);
+  double desiredPropFromChildren = desiredProp * childrenWeightSum / (childrenWeightSum + parentNNWeight);
+  double selfProp = desiredProp * parentNNWeight / (childrenWeightSum + parentNNWeight);
+
+  // In multithreading we may sometimes have children but with no weight at all yet, in that case just use parent alone.
+  if(desiredPropFromChildren <= 0.0 || relativeChildrenWeightSum <= 0.0) {
+    selfProp += desiredPropFromChildren;
+  }
+  else {
+
+    for(int i = 0; i<numChildren; i++) {
+      const SearchNode* child = children[i].getIfAllocated();
+      assert(child != NULL);
+      double childWeight = statsBuf[i].weightAdjusted;
+      double desiredPropFromChild = childWeight / relativeChildrenWeightSum * desiredPropFromChildren;
+      getShallowAverageShorttermWLAndScoreErrorHelper(child,graphPath,policyProbsBuf,minProp,desiredPropFromChild,wlError,scoreError);
+    }
+  }
+
+  graphPath.erase(node);
+
+  // Also add in the direct evaluation of this node.
+  {
+    wlError += selfProp * nnOutput->shorttermWinlossError;
+    scoreError += selfProp * nnOutput->shorttermScoreError;
+  }
 }
 
 bool Search::getSharpScore(const SearchNode* node, double& ret) const {
@@ -1260,13 +1358,25 @@ bool Search::getSharpScore(const SearchNode* node, double& ret) const {
   if(node == NULL)
     return false;
 
+  int64_t visits = node->stats.visits.load(std::memory_order_acquire);
+  // Stop deepening when we hit a node whose proportion in the final average would be less than this.
+  // Sublinear in visits so that the cost of this grows more slowly than overall search depth.
+  double minProp = 0.25 / pow(std::max(1.0,(double)visits),0.5);
+  double desiredProp = 1.0;
+
+  // Store initial value so we can start accumulating
+  ret = 0.0;
+
   std::unordered_set<const SearchNode*> graphPath;
 
   double policyProbsBuf[NNPos::MAX_NN_POLICY_SIZE];
   if(node != rootNode) {
-    ret = getSharpScoreHelper(node,graphPath,policyProbsBuf);
-    return true;
+    return getSharpScoreHelper(node,graphPath,policyProbsBuf,minProp,desiredProp,ret);
   }
+
+  const NNOutput* nnOutput = node->getNNOutput();
+  if(nnOutput == NULL)
+    return false;
 
   vector<double> playSelectionValues;
   vector<Loc> locs; // not used
@@ -1274,7 +1384,7 @@ bool Search::getSharpScore(const SearchNode* node, double& ret) const {
   bool alwaysComputeLcb = false;
   bool neverUseLcb = true;
   bool suc = getPlaySelectionValues(*node,locs,playSelectionValues,NULL,1.0,allowDirectPolicyMoves,alwaysComputeLcb,neverUseLcb,NULL,NULL);
-  //If there are no children, or otherwise values could not be computed, then fall back to the normal case
+  // If there are no children, or otherwise values could not be computed, then fall back to the normal case
   if(!suc) {
     ReportedSearchValues values;
     if(getNodeValues(node,values)) {
@@ -1284,58 +1394,73 @@ bool Search::getSharpScore(const SearchNode* node, double& ret) const {
     return false;
   }
 
+  int numChildren = (int)playSelectionValues.size();
+
   int childrenCapacity;
   const SearchChildPointer* children = node->getChildren(childrenCapacity);
 
-  graphPath.insert(node);
+  //What we actually weight the children by for averaging sharp score, sharper than the plain weight.
+  double relativeChildrenWeightSum = 0.0;
+  //What the weights of the children sum to from the search.
+  double childrenWeightSum = 0;
+  for(int i = 0; i<numChildren; i++) {
+    double childWeight = playSelectionValues[i];
+    relativeChildrenWeightSum += childWeight * childWeight * childWeight;
+    childrenWeightSum += childWeight;
+  }
+  double parentNNWeight = computeWeightFromNNOutput(nnOutput);
+  parentNNWeight = std::max(parentNNWeight,1e-10);
+  double desiredPropFromChildren = desiredProp * childrenWeightSum / (childrenWeightSum + parentNNWeight);
+  double selfProp = desiredProp * parentNNWeight / (childrenWeightSum + parentNNWeight);
 
-  double scoreMeanSum = 0.0;
-  double scoreWeightSum = 0.0;
-  double childWeightSum = 0.0;
-  for(int i = 0; i<childrenCapacity; i++) {
-    const SearchNode* child = children[i].getIfAllocated();
-    if(child == NULL)
-      break;
-    int64_t edgeVisits = children[i].getEdgeVisits();
-    NodeStats stats = NodeStats(child->stats);
-    if(stats.visits <= 0 || stats.weightSum <= 0.0 || edgeVisits <= 0)
-      continue;
-    double weight = playSelectionValues[i];
-    double sharpWeight = weight * weight * weight;
-    scoreMeanSum += sharpWeight * getSharpScoreHelper(child, graphPath, policyProbsBuf);
-    scoreWeightSum += sharpWeight;
-    childWeightSum += weight;
+  // In multithreading we may sometimes have children but with no weight at all yet, in that case just use parent alone.
+  if(desiredPropFromChildren <= 0.0 || relativeChildrenWeightSum <= 0.0) {
+    selfProp += desiredPropFromChildren;
+  }
+  else {
+
+    graphPath.insert(node);
+
+    for(int i = 0; i<numChildren; i++) {
+      const SearchNode* child = children[i].getIfAllocated();
+      assert(child != NULL);
+      double childWeight = playSelectionValues[i];
+      double desiredPropFromChild = childWeight * childWeight * childWeight / relativeChildrenWeightSum * desiredPropFromChildren;
+      bool accumulated = getSharpScoreHelper(child,graphPath,policyProbsBuf,minProp,desiredPropFromChild,ret);
+      if(!accumulated)
+        selfProp += desiredPropFromChild;
+    }
+
+    graphPath.erase(node);
+
   }
 
-  graphPath.erase(node);
-
-  //Also add in the direct evaluation of this node.
+  // Also add in the direct evaluation of this node.
   {
-    const NNOutput* nnOutput = node->getNNOutput();
-    //If somehow the nnOutput is still null here, skip
-    if(nnOutput == NULL)
-      return false;
     double scoreMean = (double)nnOutput->whiteScoreMean;
-    double thisNodeWeight = computeWeightFromNNOutput(nnOutput);
-    double desiredScoreWeight = (scoreWeightSum < 1e-50 || childWeightSum < 1e-50) ? thisNodeWeight : thisNodeWeight * (scoreWeightSum / childWeightSum);
-    scoreMeanSum += scoreMean * desiredScoreWeight;
-    scoreWeightSum += desiredScoreWeight;
+    // cout << "Accumulating " << scoreMean << " " << selfProp << endl;
+    ret += scoreMean * selfProp;
   }
-  ret = scoreMeanSum / scoreWeightSum;
   return true;
 }
 
-double Search::getSharpScoreHelper(
+
+bool Search::getSharpScoreHelper(
   const SearchNode* node,
   std::unordered_set<const SearchNode*>& graphPath,
-  double policyProbsBuf[NNPos::MAX_NN_POLICY_SIZE]
+  double policyProbsBuf[NNPos::MAX_NN_POLICY_SIZE],
+  double minProp,
+  double desiredProp,
+  double& ret
 ) const {
-  if(node == NULL)
-    return 0.0;
   const NNOutput* nnOutput = node->getNNOutput();
-  if(nnOutput == NULL) {
+  if(nnOutput == NULL || desiredProp < minProp) {
     NodeStats stats = NodeStats(node->stats);
-    return stats.scoreMeanAvg;
+    if(stats.visits <= 0)
+      return false;
+    // cout << "Accumulating " << stats.scoreMeanAvg << " " << desiredProp << endl;
+    ret += stats.scoreMeanAvg * desiredProp;
+    return true;
   }
 
   int childrenCapacity;
@@ -1343,15 +1468,19 @@ double Search::getSharpScoreHelper(
 
   if(childrenCapacity <= 0) {
     double scoreMean = (double)nnOutput->whiteScoreMean;
-    return scoreMean;
+    // cout << "Accumulating " << scoreMean << " " << desiredProp << endl;
+    ret += scoreMean * desiredProp;
+    return true;
   }
 
   std::pair<std::unordered_set<const SearchNode*>::iterator,bool> result = graphPath.insert(node);
-  //No insertion, node was already there, this means we hit a cycle in the graph
+  // No insertion, node was already there, this means we hit a cycle in the graph
   if(!result.second) {
-    //Just treat it as base case and immediately terminate.
+    // Just treat it as base case and immediately terminate.
     double scoreMean = (double)nnOutput->whiteScoreMean;
-    return scoreMean;
+    // cout << "Accumulating " << scoreMean << " " << desiredProp << endl;
+    ret += scoreMean * desiredProp;
+    return true;
   }
 
   vector<MoreNodeStats> statsBuf;
@@ -1390,30 +1519,48 @@ double Search::getSharpScoreHelper(
     );
   }
 
-  double scoreMeanSum = 0.0;
-  double scoreWeightSum = 0.0;
-  double childWeightSum = 0.0;
+  // What we actually weight the children by for averaging sharp score, sharper than the plain weight.
+  double relativeChildrenWeightSum = 0.0;
+  // What the weights of the children sum to from the search.
+  double childrenWeightSum = 0;
   for(int i = 0; i<numChildren; i++) {
-    if(statsBuf[i].stats.visits <= 0 || statsBuf[i].stats.weightSum <= 0.0 || statsBuf[i].weightAdjusted <= 0.0)
+    if(statsBuf[i].stats.visits <= 0)
       continue;
-    double weight = statsBuf[i].weightAdjusted;
-    double sharpWeight = weight * weight * weight;
-    scoreMeanSum += sharpWeight * getSharpScoreHelper(children[i].getIfAllocated(),graphPath,policyProbsBuf);
-    scoreWeightSum += sharpWeight;
-    childWeightSum += weight;
+    double childWeight = statsBuf[i].weightAdjusted;
+    relativeChildrenWeightSum += childWeight * childWeight * childWeight;
+    childrenWeightSum += childWeight;
+  }
+  double parentNNWeight = computeWeightFromNNOutput(nnOutput);
+  parentNNWeight = std::max(parentNNWeight,1e-10);
+  double desiredPropFromChildren = desiredProp * childrenWeightSum / (childrenWeightSum + parentNNWeight);
+  double selfProp = desiredProp * parentNNWeight / (childrenWeightSum + parentNNWeight);
+
+  // In multithreading we may sometimes have children but with no weight at all yet, in that case just use parent alone.
+  if(desiredPropFromChildren <= 0.0 || relativeChildrenWeightSum <= 0.0) {
+    selfProp += desiredPropFromChildren;
+  }
+  else {
+
+    for(int i = 0; i<numChildren; i++) {
+      const SearchNode* child = children[i].getIfAllocated();
+      assert(child != NULL);
+      double childWeight = statsBuf[i].weightAdjusted;
+      double desiredPropFromChild = childWeight * childWeight * childWeight / relativeChildrenWeightSum * desiredPropFromChildren;
+      bool accumulated = getSharpScoreHelper(child,graphPath,policyProbsBuf,minProp,desiredPropFromChild,ret);
+      if(!accumulated)
+        selfProp += desiredPropFromChild;
+    }
   }
 
   graphPath.erase(node);
 
-  //Also add in the direct evaluation of this node.
+  // Also add in the direct evaluation of this node.
   {
     double scoreMean = (double)nnOutput->whiteScoreMean;
-    double thisNodeWeight = computeWeightFromNNOutput(nnOutput);
-    double desiredScoreWeight = (scoreWeightSum < 1e-50 || childWeightSum < 1e-50) ? thisNodeWeight : thisNodeWeight * (scoreWeightSum / childWeightSum);
-    scoreMeanSum += scoreMean * desiredScoreWeight;
-    scoreWeightSum += desiredScoreWeight;
+    // cout << "Accumulating " << scoreMean << " " << selfProp << endl;
+    ret += scoreMean * selfProp;
   }
-  return scoreMeanSum / scoreWeightSum;
+  return true;
 }
 
 vector<double> Search::getAverageTreeOwnership(const SearchNode* node) const {
@@ -1450,10 +1597,10 @@ std::pair<vector<double>,vector<double>> Search::getAverageAndStandardDeviationT
     }
   };
   int64_t visits = node->stats.visits.load(std::memory_order_acquire);
-  //Stop deepening when we hit a node whose proportion in the final average would be less than this.
-  //Sublinear in visits so that the cost of this grows more slowly than overall search depth.
+  // Stop deepening when we hit a node whose proportion in the final average would be less than this.
+  // Sublinear in visits so that the cost of this grows more slowly than overall search depth.
   double minProp = 0.5 / pow(std::max(1.0,(double)visits),0.75);
-  //Entirely drop a node with weight less than this
+  // Entirely drop a node with weight less than this
   double pruneProp = minProp * 0.01;
   std::unordered_set<const SearchNode*> graphPath;
   traverseTreeForOwnership(minProp,pruneProp,1.0,node,graphPath,accumulate);
@@ -1481,7 +1628,7 @@ bool Search::traverseTreeForOwnership(
   if(nnOutput == NULL)
     return false;
 
-  //Base case
+  // Base case
   if(desiredProp < minProp) {
     float* ownerMap = nnOutput->whiteOwnerMap;
     assert(ownerMap != NULL);
@@ -1500,7 +1647,7 @@ bool Search::traverseTreeForOwnership(
   }
 
   std::pair<std::unordered_set<const SearchNode*>::iterator,bool> result = graphPath.insert(node);
-  //No insertion, node was already there, this means we hit a cycle in the graph
+  // No insertion, node was already there, this means we hit a cycle in the graph
   if(!result.second) {
     //Just treat it as base case and immediately terminate.
     float* ownerMap = nnOutput->whiteOwnerMap;
@@ -1557,9 +1704,9 @@ double Search::traverseTreeForOwnershipChildren(
     numChildren += 1;
   }
 
-  //What we actually weight the children by for averaging ownership, sharper than the plain weight.
+  // What we actually weight the children by for averaging ownership, sharper than the plain weight.
   double relativeChildrenWeightSum = 0.0;
-  //What the weights of the children sum to from the search.
+  // What the weights of the children sum to from the search.
   double childrenWeightSum = 0;
   for(int i = 0; i<numChildren; i++) {
     double childWeight = childWeightBuf[i];
@@ -1567,15 +1714,15 @@ double Search::traverseTreeForOwnershipChildren(
     childrenWeightSum += childWeight;
   }
 
-  //Just in case
+  // Just in case
   parentNNWeight = std::max(parentNNWeight,1e-10);
   double desiredPropFromChildren = desiredProp * childrenWeightSum / (childrenWeightSum + parentNNWeight);
+  double selfProp = desiredProp * parentNNWeight / (childrenWeightSum + parentNNWeight);
 
-  //Recurse
-  double extraParentProp = 0.0;
-  //In multithreading we may sometimes have children but with no weight at all yet, in that case just use parent alone.
+  // Recurse
+  // In multithreading we may sometimes have children but with no weight at all yet, in that case just use parent alone.
   if(desiredPropFromChildren <= 0.0 || relativeChildrenWeightSum <= 0.0) {
-    extraParentProp += desiredPropFromChildren;
+    selfProp += desiredPropFromChildren;
   }
   else {
     for(int i = 0; i<numChildren; i++) {
@@ -1584,16 +1731,14 @@ double Search::traverseTreeForOwnershipChildren(
       assert(child != NULL);
       double desiredPropFromChild = (double)childWeight * childWeight / relativeChildrenWeightSum * desiredPropFromChildren;
       if(desiredPropFromChild < pruneProp)
-        extraParentProp += desiredPropFromChild;
+        selfProp += desiredPropFromChild;
       else {
         bool accumulated = traverseTreeForOwnership(minProp,pruneProp,desiredPropFromChild,child,graphPath,accumulate);
         if(!accumulated)
-          extraParentProp += desiredPropFromChild;
+          selfProp += desiredPropFromChild;
       }
     }
   }
-
-  double selfProp = extraParentProp + desiredProp * parentNNWeight / (childrenWeightSum + parentNNWeight);
 
   return selfProp;
 }

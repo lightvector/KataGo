@@ -17783,6 +17783,7 @@ subtreeValueBiasWeightExponent: 0.5
 nodeTableShardsPowerOfTwo: 16
 numVirtualLossesPerThread: 3
 numThreads: 1
+minPlayoutsPerThread: 0
 maxVisits: 1125899906842624
 maxPlayouts: 1125899906842624
 maxTime: 1e+20
@@ -17874,6 +17875,7 @@ subtreeValueBiasWeightExponent: 0.5
 nodeTableShardsPowerOfTwo: 16
 numVirtualLossesPerThread: 3
 numThreads: 1
+minPlayoutsPerThread: 0
 maxVisits: 1125899906842624
 maxPlayouts: 1125899906842624
 maxTime: 1e+20
@@ -17965,6 +17967,7 @@ subtreeValueBiasWeightExponent: 0.85
 nodeTableShardsPowerOfTwo: 16
 numVirtualLossesPerThread: 1
 numThreads: 1
+minPlayoutsPerThread: 8
 maxVisits: 1125899906842624
 maxPlayouts: 1125899906842624
 maxTime: 1e+20
@@ -18056,6 +18059,7 @@ subtreeValueBiasWeightExponent: 0.85
 nodeTableShardsPowerOfTwo: 16
 numVirtualLossesPerThread: 1
 numThreads: 1
+minPlayoutsPerThread: 8
 maxVisits: 1125899906842624
 maxPlayouts: 1125899906842624
 maxTime: 1e+20
@@ -18147,6 +18151,7 @@ subtreeValueBiasWeightExponent: 0.85
 nodeTableShardsPowerOfTwo: 16
 numVirtualLossesPerThread: 1
 numThreads: 1
+minPlayoutsPerThread: 0
 maxVisits: 1125899906842624
 maxPlayouts: 1125899906842624
 maxTime: 1e+20
@@ -18238,6 +18243,7 @@ subtreeValueBiasWeightExponent: 0.85
 nodeTableShardsPowerOfTwo: 16
 numVirtualLossesPerThread: 1
 numThreads: 1
+minPlayoutsPerThread: 0
 maxVisits: 1125899906842624
 maxPlayouts: 1125899906842624
 maxTime: 1e+20
@@ -18329,6 +18335,7 @@ subtreeValueBiasWeightExponent: 0.85
 nodeTableShardsPowerOfTwo: 16
 numVirtualLossesPerThread: 1
 numThreads: 1
+minPlayoutsPerThread: 0
 maxVisits: 1125899906842624
 maxPlayouts: 1125899906842624
 maxTime: 1e+20
@@ -18420,6 +18427,7 @@ subtreeValueBiasWeightExponent: 0.85
 nodeTableShardsPowerOfTwo: 16
 numVirtualLossesPerThread: 1
 numThreads: 1
+minPlayoutsPerThread: 0
 maxVisits: 1125899906842624
 maxPlayouts: 1125899906842624
 maxTime: 1e+20
@@ -20409,3 +20417,40 @@ def tests/models/findLatestModelTest4/def/model.bin.gz tests/models/findLatestMo
 tests/models/findLatestModelTest4
 ghi.bin.gz tests/models/findLatestModelTest4/def/ghi.bin.gz tests/models/findLatestModelTest4/def
 testloadmodel okay
+Running book tests
+Book size 1
+Book size 34
+Book size 50
+Book size 78
+Book size 112
+Book size 143
+Book size 181
+Book size 210
+Book size 224
+Book size 241
+Book size 264
+Book size 286
+Book size 310
+Book size 331
+Book size 343
+Book size 368
+Book size 396
+Book size 417
+Book size 448
+Book size 465
+Book size 477
+Book size 498
+Book size 513
+Book size 519
+Book size 542
+Book size 560
+Book size 574
+Book size 593
+Book size 613
+Book size 640
+Book size 659
+Book size 675
+Book size 686
+Book size 700
+Book size 723
+Done

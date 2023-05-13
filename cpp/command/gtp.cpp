@@ -364,6 +364,8 @@ struct GTPEngine {
   Player perspective;
 
   double genmoveTimeSum;
+  //Positions during this game when genmove was called
+  std::vector<Sgf::PositionSample> genmoveSamples;
 
   GTPEngine(
     const string& modelFile, SearchParams initialParams, Rules initialRules,
@@ -404,7 +406,8 @@ struct GTPEngine {
      avoidMYTDaggerHack(avoidDagger),
      patternBonusTable(std::move(pbTable)),
      perspective(persp),
-     genmoveTimeSum(0.0)
+     genmoveTimeSum(0.0),
+     genmoveSamples()
   {
   }
 
@@ -423,22 +426,13 @@ struct GTPEngine {
   }
 
   void clearStatsForNewGame() {
-    //Currently nothing
+    genmoveSamples.clear();
   }
 
   //Specify -1 for the sizes for a default
   void setOrResetBoardSize(ConfigParser& cfg, Logger& logger, Rand& seedRand, int boardXSize, int boardYSize, bool loggingToStderr) {
     if(nnEval != NULL && boardXSize == nnEval->getNNXLen() && boardYSize == nnEval->getNNYLen())
       return;
-    if(nnEval != NULL) {
-      assert(bot != NULL);
-      bot->stopAndWait();
-      delete bot;
-      delete nnEval;
-      bot = NULL;
-      nnEval = NULL;
-      logger.write("Cleaned up old neural net and bot");
-    }
 
     bool wasDefault = false;
     if(boardXSize == -1 || boardYSize == -1) {
@@ -451,19 +445,33 @@ struct GTPEngine {
     const int expectedConcurrentEvals = params.numThreads;
     const int defaultMaxBatchSize = std::max(8,((params.numThreads+3)/4)*4);
     bool defaultRequireExactNNLen = true;
-    int nnLenX = boardXSize;
-    int nnLenY = boardYSize;
-    
+    int nnXLen = boardXSize;
+    int nnYLen = boardYSize;
+
     if(cfg.contains("gtpDebugForceMaxNNSize") && cfg.getBool("gtpDebugForceMaxNNSize")) {
       defaultRequireExactNNLen = false;
-      nnLenX = Board::MAX_LEN;
-      nnLenY = Board::MAX_LEN;
+      nnXLen = Board::MAX_LEN;
+      nnYLen = Board::MAX_LEN;
     }
+
+    if(nnEval != NULL && nnXLen == nnEval->getNNXLen() && nnYLen == nnEval->getNNYLen())
+      return;
+
+    if(nnEval != NULL) {
+      assert(bot != NULL);
+      bot->stopAndWait();
+      delete bot;
+      delete nnEval;
+      bot = NULL;
+      nnEval = NULL;
+      logger.write("Cleaned up old neural net and bot");
+    }
+
     const bool disableFP16 = false;
     const string expectedSha256 = "";
     nnEval = Setup::initializeNNEvaluator(
       nnModelFile,nnModelFile,expectedSha256,cfg,logger,seedRand,maxConcurrentEvals,expectedConcurrentEvals,
-      nnLenX,nnLenY,defaultMaxBatchSize,defaultRequireExactNNLen,disableFP16,
+      nnXLen,nnYLen,defaultMaxBatchSize,defaultRequireExactNNLen,disableFP16,
       Setup::SETUP_FOR_GTP
     );
     logger.write("Loaded neural net with nnXLen " + Global::intToString(nnEval->getNNXLen()) + " nnYLen " + Global::intToString(nnEval->getNNYLen()));
@@ -501,6 +509,12 @@ struct GTPEngine {
     vector<Move> newMoveHistory;
     setPositionAndRules(pla,board,hist,board,pla,newMoveHistory);
     clearStatsForNewGame();
+  }
+
+  void setPatternBonusTable(std::unique_ptr<PatternBonusTable>&& pbTable) {
+    patternBonusTable = std::move(pbTable);
+    if(bot != nullptr)
+      bot->setCopyOfExternalPatternBonusTable(patternBonusTable);
   }
 
   void setPositionAndRules(Player pla, const Board& board, const BoardHistory& h, const Board& newInitialBoard, Player newInitialPla, const vector<Move> newMoveHistory) {
@@ -1102,6 +1116,18 @@ struct GTPEngine {
       response = "resign";
     else
       response = Location::toString(moveLoc,bot->getRootBoard());
+
+    {
+      // Auto pattern expects moveless records using hintloc to contain the move.
+      Sgf::PositionSample posSample;
+      const BoardHistory& hist = bot->getRootHist();
+      posSample.board = bot->getRootBoard();
+      posSample.nextPla = pla;
+      posSample.initialTurnNumber = hist.initialTurnNumber + (int)hist.moveHistory.size();
+      posSample.hintLoc = moveLoc;
+      posSample.weight = 1.0;
+      genmoveSamples.push_back(posSample);
+    }
 
     if(!resigned && moveLoc != Board::NULL_LOC && isLegal && playChosenMove) {
       bool suc = bot->makeMove(moveLoc,pla,preventEncore);
@@ -1781,6 +1807,17 @@ int MainCmds::gtp(const vector<string>& args) {
     patternBonusTable = std::move(tables[0]);
   }
 
+  bool autoAvoidPatterns = false;
+  {
+    std::unique_ptr<PatternBonusTable> autoTable = Setup::loadAndPruneAutoPatternBonusTables(cfg,logger);
+    if(autoTable != nullptr && patternBonusTable != nullptr)
+      throw StringError("Providing both sgf avoid patterns and auto avoid patterns is not implemented right now");
+    if(autoTable != nullptr) {
+      autoAvoidPatterns = true;
+      patternBonusTable = std::move(autoTable);
+    }
+  }
+
   Player perspective = Setup::parseReportAnalysisWinrates(cfg,C_EMPTY);
 
   GTPEngine* engine = new GTPEngine(
@@ -1796,6 +1833,14 @@ int MainCmds::gtp(const vector<string>& args) {
     std::move(patternBonusTable)
   );
   engine->setOrResetBoardSize(cfg,logger,seedRand,defaultBoardXSize,defaultBoardYSize,logger.isLoggingToStderr());
+
+  auto maybeSaveAvoidPatterns = [&]() {
+    if(engine != NULL && autoAvoidPatterns && engine->genmoveSamples.size() > 0) {
+      bool suc = Setup::saveAutoPatternBonusData(engine->genmoveSamples, cfg, logger, seedRand);
+      if(suc)
+        engine->genmoveSamples.clear();
+    }
+  };
 
   //If nobody specified any time limit in any way, then assume a relatively fast time control
   if(!cfg.contains("maxPlayouts") && !cfg.contains("maxVisits") && !cfg.contains("maxTime")) {
@@ -1921,11 +1966,13 @@ int MainCmds::gtp(const vector<string>& args) {
     }
 
     else if(command == "quit") {
+      maybeSaveAvoidPatterns();
       shouldQuitAfterResponse = true;
       logger.write("Quit requested by controller");
     }
 
     else if(command == "boardsize" || command == "rectangular_boardsize") {
+      maybeSaveAvoidPatterns();
       int newXSize = 0;
       int newYSize = 0;
       bool suc = false;
@@ -1966,6 +2013,11 @@ int MainCmds::gtp(const vector<string>& args) {
     }
 
     else if(command == "clear_board") {
+      maybeSaveAvoidPatterns();
+      if(autoAvoidPatterns) {
+        std::unique_ptr<PatternBonusTable> autoTable = Setup::loadAndPruneAutoPatternBonusTables(cfg,logger);
+        engine->setPatternBonusTable(std::move(autoTable));
+      }
       engine->clearBoard();
     }
 
@@ -2537,6 +2589,7 @@ int MainCmds::gtp(const vector<string>& args) {
           initialStones.push_back(Move(loc,pla));
         }
         if(!responseIsError) {
+          maybeSaveAvoidPatterns();
           bool suc = engine->setPosition(initialStones);
           if(!suc) {
             responseIsError = true;
@@ -2650,6 +2703,7 @@ int MainCmds::gtp(const vector<string>& args) {
         response = "Board is not empty";
       }
       else {
+        maybeSaveAvoidPatterns();
         engine->placeFixedHandicap(n,response,responseIsError);
       }
     }
@@ -2673,6 +2727,7 @@ int MainCmds::gtp(const vector<string>& args) {
         response = "Board is not empty";
       }
       else {
+        maybeSaveAvoidPatterns();
         engine->placeFreeHandicap(n,response,responseIsError,seedRand);
       }
     }
@@ -2702,6 +2757,7 @@ int MainCmds::gtp(const vector<string>& args) {
           response = "Handicap placement is invalid";
         }
         else {
+          maybeSaveAvoidPatterns();
           Player pla = P_WHITE;
           BoardHistory hist(board,pla,engine->getCurrentRules(),0);
           hist.setInitialTurnNumber(board.numStonesOnBoard()); //Should give more accurate temperaure and time control behavior
@@ -2890,6 +2946,7 @@ int MainCmds::gtp(const vector<string>& args) {
               if(!logger.isLoggingToStderr())
                 cerr << out.str() << endl;
             }
+            maybeSaveAvoidPatterns();
             engine->setOrResetBoardSize(cfg,logger,seedRand,sgfBoard.x_size,sgfBoard.y_size,logger.isLoggingToStderr());
             engine->setPositionAndRules(sgfNextPla, sgfBoard, sgfHist, sgfInitialBoard, sgfInitialNextPla, sgfHist.moveHistory);
           }
@@ -3162,6 +3219,7 @@ int MainCmds::gtp(const vector<string>& args) {
 
   } //Close read loop
 
+  maybeSaveAvoidPatterns();
   delete engine;
   engine = NULL;
   NeuralNet::globalCleanup();

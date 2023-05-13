@@ -42,6 +42,17 @@ struct PatternBonusTable {
     Logger& logger,
     const std::string& logSource
   );
+
+  void avoidRepeatedPosMovesAndDeleteExcessFiles(
+    const std::vector<std::string>& posesDirsToLoadAndPrune,
+    double penalty,
+    double decayOlderPosesLambda,
+    int minTurnNumber,
+    int maxTurnNumber,
+    size_t maxPoses,
+    Logger& logger,
+    const std::string& logSource
+  );
 };
 
 #endif

@@ -50,6 +50,7 @@ int MainCmds::runtests(const vector<string>& args) {
   Tests::runSgfTests();
   Tests::runBasicSymmetryTests();
   Tests::runBoardSymmetryTests();
+  Tests::runSymmetryDifferenceTests();
   Tests::runBoardReplayTest();
 
   ScoreValue::freeTables();
@@ -81,7 +82,8 @@ int MainCmds::runoutputtests(const vector<string>& args) {
   Tests::runSgfFileTests();
   Tests::runCollectFilesTests();
   Tests::runLoadModelTests();
-
+  Tests::runBookTests();
+  
   ScoreValue::freeTables();
 
   return 0;

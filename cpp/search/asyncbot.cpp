@@ -90,6 +90,10 @@ void AsyncBot::setAvoidMoveUntilByLoc(const std::vector<int>& bVec, const std::v
   stopAndWait();
   search->setAvoidMoveUntilByLoc(bVec,wVec);
 }
+void AsyncBot::setAvoidMoveUntilRescaleRoot(bool b) {
+  stopAndWait();
+  search->setAvoidMoveUntilRescaleRoot(b);
+}
 void AsyncBot::setRootHintLoc(Loc loc) {
   stopAndWait();
   search->setRootHintLoc(loc);

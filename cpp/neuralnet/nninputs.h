@@ -21,6 +21,7 @@ namespace NNPos {
   int xyToPos(int x, int y, int nnXLen);
   int locToPos(Loc loc, int boardXSize, int nnXLen, int nnYLen);
   Loc posToLoc(int pos, int boardXSize, int boardYSize, int nnXLen, int nnYLen);
+  int getPassPos(int nnXLen, int nnYLen);
   bool isPassPos(int pos, int nnXLen, int nnYLen);
   int getPolicySize(int nnXLen, int nnYLen);
 }
@@ -195,6 +196,12 @@ namespace SymmetryHelpers {
     const std::vector<int>& avoidMoves,
     bool* isSymDupLoc,
     std::vector<int>& validSymmetries
+  );
+
+// For each symmetry, return a metric about the "amount" of difference that board would have with other
+// if symmetry were applied to board.
+  void getSymmetryDifferences(
+    const Board& board, const Board& other, double maxDifferenceToReport, double symmetryDifferences[NUM_SYMMETRIES]
   );
 }
 

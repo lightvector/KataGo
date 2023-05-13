@@ -26,6 +26,7 @@ static void runV9Positions(NNEvaluator* nnEval, Logger& logger)
     Rules rules = Rules::parseRules("Japanese");
     TestSearchOptions opts;
     opts.printPlaySelectionValues = true;
+    opts.printSharpScoreAndError = true;
 
     {
       cout << "Flying dagger fight with V2 params and much variety ==========================================================================" << endl;
@@ -67,11 +68,10 @@ static void runV9Positions(NNEvaluator* nnEval, Logger& logger)
 
     delete bot;
   }
-
+  
   {
     cout << "Pruned root values test ==========================================================================" << endl;
     cout << endl;
-
     Board board = Board::parseBoard(13,13,R"%%(
 .xoxo.o......
 ooox.oxox....
@@ -309,6 +309,59 @@ o.ox..oox
   }
 
   {
+    Player nextPla = P_WHITE;
+    Rules rules = Rules::getTrompTaylorish();
+    Board board = Board::parseBoard(9,9,R"%%(
+.........
+.........
+.........
+....x....
+....ox...
+....xo...
+.........
+.........
+.........
+)%%");
+    BoardHistory hist(board,nextPla,rules,0);
+
+    vector<int> avoidMoveUntilByLoc(Board::MAX_ARR_SIZE);
+    avoidMoveUntilByLoc[Location::ofString("D5",board)] = 1;
+    SearchParams params = SearchParams::forTestsV2();
+    params.maxVisits = 200;
+    AsyncBot* botA = new AsyncBot(params, nnEval, &logger, "avoidMoveUntilRescaleRoot test");
+    AsyncBot* botB = new AsyncBot(params, nnEval, &logger, "avoidMoveUntilRescaleRoot test");
+    AsyncBot* botC = new AsyncBot(params, nnEval, &logger, "avoidMoveUntilRescaleRoot test");
+    AsyncBot* botD = new AsyncBot(params, nnEval, &logger, "avoidMoveUntilRescaleRoot test");
+
+    botA->setPosition(nextPla,board,hist);
+    botB->setPosition(nextPla,board,hist);
+    botC->setPosition(nextPla,board,hist);
+    botD->setPosition(nextPla,board,hist);
+
+    botB->setAvoidMoveUntilRescaleRoot(true);
+    botC->setAvoidMoveUntilByLoc(avoidMoveUntilByLoc,avoidMoveUntilByLoc);
+    botD->setAvoidMoveUntilRescaleRoot(true);
+    botD->setAvoidMoveUntilByLoc(avoidMoveUntilByLoc,avoidMoveUntilByLoc);
+
+    TestSearchOptions opts;
+    opts.ignorePosition = true; // Avoid clearing the avoids we set.
+    cout << "Baseline" << endl;
+    runBotOnPosition(botA,board,nextPla,hist,opts);
+    cout << "setAvoidMoveUntilRescaleRoot (should be same)" << endl;
+    runBotOnPosition(botB,board,nextPla,hist,opts);
+    cout << "Banning extend" << endl;
+    runBotOnPosition(botC,board,nextPla,hist,opts);
+    cout << "Banning extend and setAvoidMoveUntilRescaleRoot" << endl;
+    runBotOnPosition(botD,board,nextPla,hist,opts);
+    cout << endl << endl;
+
+    delete botA;
+    delete botB;
+    delete botC;
+    delete botD;
+  }
+
+  {
     cout << "Passing details ==========================================================================" << endl;
     cout << endl;
 
@@ -378,6 +431,181 @@ xoo.....
 
   }
 
+  {
+    cout << "Single symmetry and full symmetry raw nets" << endl;
+    Board board = Board::parseBoard(8,8,R"%%(
+........
+........
+.x.xx...
+xxxo.x..
+xoo.oxxx
+xo..ooxo
+o.....oo
+.o......
+)%%");
+    Player nextPla = P_WHITE;
+    Rules rules = Rules::parseRules("Chinese");
+    BoardHistory hist(board,nextPla,rules,0);
+    hist.makeBoardMoveAssumeLegal(board,Location::ofString("E5",board),P_WHITE,NULL);
+    nextPla = getOpp(nextPla);
+
+    bool includeOwnerMap = true;
+    cout << board << endl;
+    {
+      MiscNNInputParams nnInputParams;
+      nnInputParams.symmetry = 0;
+      NNResultBuf buf;
+      bool skipCache = true;
+      nnEval->evaluate(board,hist,nextPla,nnInputParams,buf,skipCache,includeOwnerMap);
+      cout << "Symmetry 0" << endl;
+      buf.result->debugPrint(cout, board);
+    }
+    {
+      MiscNNInputParams nnInputParams;
+      nnInputParams.symmetry = 1;
+      NNResultBuf buf;
+      bool skipCache = true;
+      nnEval->evaluate(board,hist,nextPla,nnInputParams,buf,skipCache,includeOwnerMap);
+      cout << "Symmetry 1" << endl;
+      buf.result->debugPrint(cout, board);
+    }
+    {
+      MiscNNInputParams nnInputParams;
+      nnInputParams.symmetry = 2;
+      NNResultBuf buf;
+      bool skipCache = true;
+      nnEval->evaluate(board,hist,nextPla,nnInputParams,buf,skipCache,includeOwnerMap);
+      cout << "Symmetry 2" << endl;
+      buf.result->debugPrint(cout, board);
+    }
+    {
+      MiscNNInputParams nnInputParams;
+      nnInputParams.symmetry = 4;
+      NNResultBuf buf;
+      bool skipCache = true;
+      nnEval->evaluate(board,hist,nextPla,nnInputParams,buf,skipCache,includeOwnerMap);
+      cout << "Symmetry 4" << endl;
+      buf.result->debugPrint(cout, board);
+    }
+
+    std::shared_ptr<NNOutput> nnOutput = PlayUtils::getFullSymmetryNNOutput(board, hist, nextPla, includeOwnerMap, nnEval);
+    cout << "Symmetry all" << endl;
+    nnOutput->debugPrint(cout, board);
+  }
+
+  {
+    cout << "Single symmetry and full symmetry raw nets" << endl;
+    Board board = Board::parseBoard(8,5,R"%%(
+.x.xx...
+xxxo.x..
+xoo.oxxx
+xo..ooxo
+oo...ooo
+)%%");
+    Player nextPla = P_WHITE;
+    Rules rules = Rules::parseRules("Japanese");
+    BoardHistory hist(board,nextPla,rules,0);
+    hist.makeBoardMoveAssumeLegal(board,Location::ofString("E4",board),P_WHITE,NULL);
+    nextPla = getOpp(nextPla);
+
+    bool includeOwnerMap = true;
+    cout << board << endl;
+    {
+      MiscNNInputParams nnInputParams;
+      nnInputParams.symmetry = 0;
+      NNResultBuf buf;
+      bool skipCache = true;
+      nnEval->evaluate(board,hist,nextPla,nnInputParams,buf,skipCache,includeOwnerMap);
+      cout << "Symmetry 0" << endl;
+      buf.result->debugPrint(cout, board);
+    }
+    {
+      MiscNNInputParams nnInputParams;
+      nnInputParams.symmetry = 1;
+      NNResultBuf buf;
+      bool skipCache = true;
+      nnEval->evaluate(board,hist,nextPla,nnInputParams,buf,skipCache,includeOwnerMap);
+      cout << "Symmetry 1" << endl;
+      buf.result->debugPrint(cout, board);
+    }
+    {
+      MiscNNInputParams nnInputParams;
+      nnInputParams.symmetry = 2;
+      NNResultBuf buf;
+      bool skipCache = true;
+      nnEval->evaluate(board,hist,nextPla,nnInputParams,buf,skipCache,includeOwnerMap);
+      cout << "Symmetry 2" << endl;
+      buf.result->debugPrint(cout, board);
+    }
+    {
+      MiscNNInputParams nnInputParams;
+      nnInputParams.symmetry = 4;
+      NNResultBuf buf;
+      bool skipCache = true;
+      nnEval->evaluate(board,hist,nextPla,nnInputParams,buf,skipCache,includeOwnerMap);
+      cout << "Symmetry 4" << endl;
+      buf.result->debugPrint(cout, board);
+    }
+
+    std::shared_ptr<NNOutput> nnOutput = PlayUtils::getFullSymmetryNNOutput(board, hist, nextPla, includeOwnerMap, nnEval);
+    cout << "Symmetry all" << endl;
+    nnOutput->debugPrint(cout, board);
+  }
+
+  {
+    cout << "Single symmetry and full symmetry raw nets" << endl;
+    Board board(19,19);
+    Player nextPla = P_BLACK;
+    Rules rules = Rules::parseRules("Japanese");
+    rules.komi = -4;
+    BoardHistory hist(board,nextPla,rules,0);
+    hist.makeBoardMoveAssumeLegal(board,Location::ofString("A1",board),P_BLACK,NULL);
+    hist.makeBoardMoveAssumeLegal(board,Location::ofString("B2",board),P_WHITE,NULL);
+    hist.makeBoardMoveAssumeLegal(board,Location::ofString("C3",board),P_BLACK,NULL);
+    hist.makeBoardMoveAssumeLegal(board,Location::ofString("D4",board),P_WHITE,NULL);
+    hist.makeBoardMoveAssumeLegal(board,Location::ofString("E5",board),P_BLACK,NULL);
+    nextPla = getOpp(nextPla);
+
+    bool includeOwnerMap = true;
+    cout << board << endl;
+    std::shared_ptr<NNOutput> nnOutput = PlayUtils::getFullSymmetryNNOutput(board, hist, nextPla, includeOwnerMap, nnEval);
+    cout << "Symmetry all" << endl;
+    nnOutput->debugPrint(cout, board);
+  }
+
+  {
+    cout << "Very low visit search discretization ==========================================================================" << endl;
+    cout << endl;
+
+    Board board = Board::parseBoard(9,9,R"%%(
+.........
+.........
+.........
+.........
+.........
+.........
+.........
+.........
+.........
+)%%");
+    {
+      Rules rules = Rules::parseRules("Chinese");
+      rules.friendlyPassOk = false;
+      rules.komi = 5.5;
+      BoardHistory hist(board,P_BLACK,rules,0);
+      hist.makeBoardMoveAssumeLegal(board,Location::ofString("E5",board),P_BLACK,NULL);
+      Player nextPla = P_WHITE;
+
+      SearchParams params = SearchParams::forTestsV2();
+      params.maxVisits = 20;
+      params.rootSymmetryPruning = true;
+      params.rootFpuReductionMax = 0;
+      AsyncBot* bot = new AsyncBot(params, nnEval, &logger, getSearchRandSeed());
+      TestSearchOptions opts;
+      runBotOnPosition(bot, board, nextPla, hist, opts);
+      delete bot;
+    }
+  }
 }
 
 void Tests::runSearchTestsV9(const string& modelFile, bool inputsNHWC, bool useNHWC, bool useFP16) {

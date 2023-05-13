@@ -1111,6 +1111,30 @@ bool BoardHistory::hasBlackPassOrWhiteFirst() const {
   return false;
 }
 
+Hash128 BoardHistory::getSituationAndSimpleKoHash(const Board& board, Player nextPlayer) {
+  //Note that board.pos_hash also incorporates the size of the board.
+  Hash128 hash = board.pos_hash;
+  hash ^= Board::ZOBRIST_PLAYER_HASH[nextPlayer];
+  if(board.ko_loc != Board::NULL_LOC)
+    hash ^= Board::ZOBRIST_KO_LOC_HASH[board.ko_loc];
+  return hash;
+}
+
+Hash128 BoardHistory::getSituationAndSimpleKoAndPrevPosHash(const Board& board, const BoardHistory& hist, Player nextPlayer) {
+  //Note that board.pos_hash also incorporates the size of the board.
+  Hash128 hash = board.pos_hash;
+  hash ^= Board::ZOBRIST_PLAYER_HASH[nextPlayer];
+  if(board.ko_loc != Board::NULL_LOC)
+    hash ^= Board::ZOBRIST_KO_LOC_HASH[board.ko_loc];
+
+  Hash128 mixed;
+  mixed.hash1 = Hash::rrmxmx(hash.hash0);
+  mixed.hash0 = Hash::splitMix64(hash.hash1);
+  if(hist.moveHistory.size() > 0)
+    mixed ^= hist.getRecentBoard(1).pos_hash;
+  return mixed;
+}
+
 Hash128 BoardHistory::getSituationRulesAndKoHash(const Board& board, const BoardHistory& hist, Player nextPlayer, double drawEquivalentWinsForWhite) {
   int xSize = board.x_size;
   int ySize = board.y_size;

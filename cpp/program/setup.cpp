@@ -2,6 +2,7 @@
 
 #include "../core/datetime.h"
 #include "../core/makedir.h"
+#include "../core/fileutils.h"
 #include "../neuralnet/nninterface.h"
 #include "../search/patternbonustable.h"
 
@@ -419,6 +420,10 @@ vector<SearchParams> Setup::loadParams(
     if(cfg.contains("numSearchThreads"+idxStr)) params.numThreads = cfg.getInt("numSearchThreads"+idxStr, 1, 4096);
     else                                        params.numThreads = cfg.getInt("numSearchThreads",        1, 4096);
 
+    if(cfg.contains("minPlayoutsPerThread"+idxStr)) params.minPlayoutsPerThread = cfg.getDouble("minPlayoutsPerThread"+idxStr, 0.0, 1.0e20);
+    else if(cfg.contains("minPlayoutsPerThread"))   params.minPlayoutsPerThread = cfg.getDouble("minPlayoutsPerThread",        0.0, 1.0e20);
+    else                                            params.minPlayoutsPerThread = (setupFor == SETUP_FOR_ANALYSIS || setupFor == SETUP_FOR_GTP) ? 8.0 : 0.0;
+
     if(cfg.contains("winLossUtilityFactor"+idxStr)) params.winLossUtilityFactor = cfg.getDouble("winLossUtilityFactor"+idxStr, 0.0, 1.0);
     else if(cfg.contains("winLossUtilityFactor"))   params.winLossUtilityFactor = cfg.getDouble("winLossUtilityFactor",        0.0, 1.0);
     else                                            params.winLossUtilityFactor = 1.0;
@@ -832,7 +837,6 @@ vector<pair<set<string>,set<string>>> Setup::getMutexKeySets() {
 }
 
 std::vector<std::unique_ptr<PatternBonusTable>> Setup::loadAvoidSgfPatternBonusTables(ConfigParser& cfg, Logger& logger) {
-  vector<SearchParams> paramss;
   int numBots = 1;
   if(cfg.contains("numBots"))
     numBots = cfg.getInt("numBots",1,MAX_BOT_PARAMS_FROM_CFG);
@@ -873,4 +877,49 @@ std::vector<std::unique_ptr<PatternBonusTable>> Setup::loadAvoidSgfPatternBonusT
     tables.push_back(std::move(patternBonusTable));
   }
   return tables;
+}
+
+bool Setup::saveAutoPatternBonusData(const std::vector<Sgf::PositionSample>& genmoveSamples, ConfigParser& cfg, Logger& logger, Rand& rand) {
+  if(genmoveSamples.size() <= 0)
+    return false;
+  if(!cfg.contains("autoAvoidRepeatDir"))
+    return false;
+
+  string autoAvoidPatternsDir = cfg.getString("autoAvoidRepeatDir");
+  int minTurnNumber = cfg.getInt("autoAvoidRepeatMinTurnNumber",0,1000000);
+  int maxTurnNumber = cfg.getInt("autoAvoidRepeatMaxTurnNumber",0,1000000);
+
+  string fileName = autoAvoidPatternsDir + "/" + Global::uint64ToHexString(rand.nextUInt64()) + "_poses.txt";
+  ofstream out;
+  bool suc = FileUtils::tryOpen(out, fileName);
+  if(!suc) {
+    logger.write("ERROR: could not open " + fileName);
+    return false;
+  }
+  else {
+    for(const Sgf::PositionSample& sampleToWrite : genmoveSamples) {
+      assert(sampleToWrite.moves.size() == 0);
+      if(sampleToWrite.initialTurnNumber < minTurnNumber || sampleToWrite.initialTurnNumber > maxTurnNumber)
+        continue;
+      out << Sgf::PositionSample::toJsonLine(sampleToWrite) << "\n";
+    }
+    out.close();
+    return true;
+  }
+}
+
+std::unique_ptr<PatternBonusTable> Setup::loadAndPruneAutoPatternBonusTables(ConfigParser& cfg, Logger& logger) {
+  std::unique_ptr<PatternBonusTable> patternBonusTable = nullptr;
+  if(cfg.contains("autoAvoidRepeatDir")) {
+    double penalty = cfg.getDouble("autoAvoidRepeatUtility",-3.0,3.0);
+    double lambda = cfg.getDouble("autoAvoidRepeatLambda",0.0,1.0);
+    int minTurnNumber = cfg.getInt("autoAvoidRepeatMinTurnNumber",0,1000000);
+    int maxTurnNumber = cfg.getInt("autoAvoidRepeatMaxTurnNumber",0,1000000);
+    size_t maxPoses = cfg.getInt64("autoAvoidRepeatMaxPoses",1,(int64_t)1000000000000LL);
+    string dir = cfg.getString("autoAvoidRepeatDir");
+    string logSource = "bot";
+    patternBonusTable = std::make_unique<PatternBonusTable>();
+    patternBonusTable->avoidRepeatedPosMovesAndDeleteExcessFiles({dir},penalty,lambda,minTurnNumber,maxTurnNumber,maxPoses,logger,logSource);
+  }
+  return patternBonusTable;
 }

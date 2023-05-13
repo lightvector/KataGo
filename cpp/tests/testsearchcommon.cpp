@@ -22,6 +22,7 @@ TestSearchCommon::TestSearchOptions::TestSearchOptions()
    printPlaySelectionValues(false),
    printRootValues(false),
    printPrunedRootValues(false),
+   printSharpScoreAndError(false),
    noClearBot(false),
    noClearCache(false),
    printMore(false),
@@ -68,8 +69,8 @@ void TestSearchCommon::runBotOnPosition(AsyncBot* bot, Board board, Player nextP
 
   if(opts.rootHintLoc != Board::NULL_LOC)
     bot->setRootHintLoc(opts.rootHintLoc);
-  
-  for(int i = 0; i<opts.numMovesInARow; i++) {    
+
+  for(int i = 0; i<opts.numMovesInARow; i++) {
     Loc move;
     if(opts.printAfterBegun) {
       cout << "Just after begun" << endl;
@@ -140,6 +141,15 @@ void TestSearchCommon::runBotOnPosition(AsyncBot* bot, Board board, Player nextP
         cout << "Unsuccessful getting pruned root values" << endl;
       else
         cout << values << endl;
+    }
+    if(opts.printSharpScoreAndError) {
+      double sharpScore = 0.0;
+      bool suc = search->getSharpScore(search->rootNode,sharpScore);
+      testAssert(suc);
+      std::pair<double,double> errors = search->getShallowAverageShorttermWLAndScoreError(search->rootNode);
+      cout << "getSharpScore " << sharpScore << endl;
+      cout << "avg WL error " << errors.first << endl;
+      cout << "avg score error " << errors.second << endl;
     }
 
     if(opts.printPostOrderNodeCount)

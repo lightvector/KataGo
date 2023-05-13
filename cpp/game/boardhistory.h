@@ -177,6 +177,10 @@ struct BoardHistory {
   //turn into white, or similar.
   bool hasBlackPassOrWhiteFirst() const;
 
+  //Compute a hash that takes into account the full situation and simple ko prohibition. Does NOT include rules or history.
+  static Hash128 getSituationAndSimpleKoHash(const Board& board, Player nextPlayer);
+  //Compute a hash that takes into account the full situation, simple ko prohibition, and the previous turn's position. (Does NOT include rules).
+  static Hash128 getSituationAndSimpleKoAndPrevPosHash(const Board& board, const BoardHistory& hist, Player nextPlayer);
   //Compute a hash that takes into account the full situation, the rules, discretized komi, and any immediate ko prohibitions.
   static Hash128 getSituationRulesAndKoHash(const Board& board, const BoardHistory& hist, Player nextPlayer, double drawEquivalentWinsForWhite);
 
