@@ -138,7 +138,7 @@ for poses_file_or_dir in poses_files_or_dirs:
       dirnames.sort()
       filenames = sorted(filenames)
       for filename in filenames:
-        if filename.endswith(".startposes.txt") or filename.endswith(".hintposes.txt"):
+        if filename.endswith(".startposes.txt") or filename.endswith(".hintposes.txt") or filename.endswith(".bookposes.txt"):
           handle_file(poses_by_key, os.path.join(path,filename))
   else:
     handle_file(poses_by_key, poses_file_or_dir)
