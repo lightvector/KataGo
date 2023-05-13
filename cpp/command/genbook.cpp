@@ -1035,7 +1035,7 @@ int MainCmds::genbook(const vector<string>& args) {
         } // Release lock
 
         // Recursively record children with enough visits
-        if(maxDepth > 0 && childSearchVisits >= minTreeVisitsToRecord) {
+        if(maxDepth > 0 && childSearchVisits >= minTreeVisitsToRecord && !nextHist.isGameFinished) {
           anyRecursion = true;
           // cout << "Calling expandFromSearchResultRecursively " << maxDepth << " " << childSearchVisits << " " << timer.getSeconds() << endl;
           expandFromSearchResultRecursively(
@@ -1106,7 +1106,9 @@ int MainCmds::genbook(const vector<string>& args) {
     }
 
     // Terminal node!
-    if(hist.isGameFinished || hist.isPastNormalPhaseEnd) {
+    // We ALLOW walking past the main phase of the game under this ruleset, to give the book the ability to
+    // solve tactics in the cleanup phase of japanese rules if needed. So we only check isGameFinished instead of isPastNormalPhaseEnd.
+    if(hist.isGameFinished) {
       std::lock_guard<std::mutex> lock(bookMutex);
       node.canExpand() = false;
       return;
