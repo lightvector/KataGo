@@ -166,8 +166,8 @@ int MainCmds::evalsgf(const vector<string>& args) {
     vector<Move>& moves = sgf->moves;
 
     if(!isnan(overrideKomi)) {
-      if(overrideKomi > board.x_size * board.y_size || overrideKomi < -board.x_size * board.y_size)
-        throw StringError("Invalid komi, greater than the area of the board");
+      if(overrideKomi > board.x_size * board.y_size + NNPos::KOMI_CLIP_RADIUS || overrideKomi < -board.x_size * board.y_size - NNPos::KOMI_CLIP_RADIUS)
+        throw StringError("Invalid komi, too much greater than the area of the board");
       hist.setKomi(overrideKomi);
     }
 

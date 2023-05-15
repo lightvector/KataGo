@@ -65,7 +65,7 @@ namespace PlayUtils {
     double proportionOfBoardArea, double temperature
   );
 
-  float roundAndClipKomi(double unrounded, const Board& board, bool looseClipping);
+  float roundAndClipKomi(double unrounded, const Board& board);
 
   void adjustKomiToEven(
     Search* botB,

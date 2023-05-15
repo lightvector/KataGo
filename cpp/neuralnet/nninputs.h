@@ -17,6 +17,8 @@ namespace NNPos {
   constexpr int MAX_NN_POLICY_SIZE = MAX_BOARD_AREA + 1;
   //Extra score distribution radius, used for writing score in data rows and for the neural net score belief output
   constexpr int EXTRA_SCORE_DISTR_RADIUS = 60;
+  //Used various places we clip komi beyond board area.
+  constexpr float KOMI_CLIP_RADIUS = 20.0f;
 
   int xyToPos(int x, int y, int nnXLen);
   int locToPos(Loc loc, int boardXSize, int nnXLen, int nnYLen);
