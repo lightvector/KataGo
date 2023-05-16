@@ -552,7 +552,6 @@ private:
   void selectBestChildToDescend(
     SearchThread& thread, const SearchNode& node, int nodeState,
     int& numChildrenFound, int& bestChildIdx, Loc& bestChildMoveLoc,
-    bool posesWithChildBuf[NNPos::MAX_NN_POLICY_SIZE],
     bool isRoot
   ) const;
 
@@ -611,7 +610,6 @@ private:
 
   bool playoutDescend(
     SearchThread& thread, SearchNode& node,
-    bool posesWithChildBuf[NNPos::MAX_NN_POLICY_SIZE],
     bool isRoot
   );
 
