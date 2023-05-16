@@ -597,6 +597,7 @@ int MainCmds::samplesgfs(const vector<string>& args) {
   bool allowGameOver;
   bool hashComments;
   double trainingWeight;
+  bool verbose;
 
   string valueFluctuationModelFile;
   double valueFluctuationTurnScale;
@@ -628,6 +629,7 @@ int MainCmds::samplesgfs(const vector<string>& args) {
     TCLAP::SwitchArg allowGameOverArg("","allow-game-over","Allow sampling game over positions in sgf");
     TCLAP::SwitchArg hashCommentsArg("","hash-comments","Hash comments in sgf");
     TCLAP::ValueArg<double> trainingWeightArg("","training-weight","Scale the loss function weight from data from games that originate from this position",false,1.0,"WEIGHT");
+    TCLAP::SwitchArg verboseArg("","verbose","Print sgfs handled more");
 
     TCLAP::ValueArg<string> valueFluctuationModelFileArg("","value-fluctuation-model","Upweight positions prior to value fluctuations",false,string(),"MODELFILE");
     TCLAP::ValueArg<double> valueFluctuationTurnScaleArg("","value-fluctuation-turn-scale","How much prior on average",false,1.0,"AVGTURNS");
@@ -655,6 +657,7 @@ int MainCmds::samplesgfs(const vector<string>& args) {
     cmd.add(allowGameOverArg);
     cmd.add(hashCommentsArg);
     cmd.add(trainingWeightArg);
+    cmd.add(verboseArg);
     cmd.add(valueFluctuationModelFileArg);
     cmd.add(valueFluctuationTurnScaleArg);
     cmd.add(valueFluctuationMaxWeightArg);
@@ -681,6 +684,7 @@ int MainCmds::samplesgfs(const vector<string>& args) {
     allowGameOver = allowGameOverArg.getValue();
     hashComments = hashCommentsArg.getValue();
     trainingWeight = trainingWeightArg.getValue();
+    verbose = verboseArg.getValue();
     valueFluctuationModelFile = valueFluctuationModelFileArg.getValue();
     valueFluctuationTurnScale = valueFluctuationTurnScaleArg.getValue();
     valueFluctuationMaxWeight = valueFluctuationMaxWeightArg.getValue();
@@ -776,9 +780,10 @@ int MainCmds::samplesgfs(const vector<string>& args) {
   // ---------------------------------------------------------------------------------------------------
 
   int64_t numKept = 0;
+  double weightKept = 0;
   std::set<Hash128> uniqueHashes;
   std::function<void(Sgf::PositionSample&, const BoardHistory&, const string&)> posHandler =
-    [sampleProb,sampleWeight,forceSampleWeight,&posWriter,turnWeightLambda,&numKept,&seedRand,minTurnNumberBoardAreaProp,maxTurnNumberBoardAreaProp,afterPassFactor,trainingWeight](
+    [sampleProb,sampleWeight,forceSampleWeight,&posWriter,turnWeightLambda,&numKept,&weightKept,&seedRand,minTurnNumberBoardAreaProp,maxTurnNumberBoardAreaProp,afterPassFactor,trainingWeight](
       Sgf::PositionSample& posSample, const BoardHistory& hist, const string& comments
     ) {
       double minTurnNumber = minTurnNumberBoardAreaProp * (hist.initialBoard.x_size * hist.initialBoard.y_size);
@@ -801,6 +806,7 @@ int MainCmds::samplesgfs(const vector<string>& args) {
         posSampleToWrite.trainingWeight = trainingWeight;
         posWriter.writePos(posSampleToWrite);
         numKept += 1;
+        weightKept += posSampleToWrite.weight;
       }
     };
   int64_t numExcluded = 0;
@@ -842,6 +848,8 @@ int MainCmds::samplesgfs(const vector<string>& args) {
       bool hashParent = false;
       Rand iterRand;
       sgf->iterAllUniquePositions(uniqueHashes, hashComments, hashParent, flipIfPassOrWFirst, allowGameOver, &iterRand, posHandler);
+      if(verbose)
+        cout << "Handled " << sgf->fileName << " kept weight " << weightKept << endl;
     }
     else {
       string fileName = sgf->fileName;
@@ -997,7 +1005,8 @@ int MainCmds::samplesgfs(const vector<string>& args) {
       Rand iterRand;
       sgf->iterAllUniquePositions(uniqueHashes, hashComments, hashParent, flipIfPassOrWFirst, allowGameOver, &iterRand, posHandler2);
 
-      cout << "Handled " << fileName << endl;
+      if(verbose)
+        cout << "Handled " << fileName << " kept weight " << weightKept << endl;
     }
   };
 
