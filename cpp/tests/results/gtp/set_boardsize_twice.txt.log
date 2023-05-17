@@ -120,9 +120,10 @@ Rules: {"friendlyPassOk":false,"hasButton":false,"ko":"POSITIONAL","komi":7.5,"s
 B stones captured: 0
 W stones captured: 0
 : Controller: boardsize 15
+: Initializing board with boardXSize 15 boardYSize 15
 : = 
 : Controller: showboard
-: = MoveNum: 2 HASH: 463A3C94018F8A654BFCAA43C488FB6A
+: = MoveNum: 0 HASH: FD0308A2D48062AF44ECC687B1059157
    A B C D E F G H J K L M N O P
 15 . . . . . . . . . . . . . . .
 14 . . . . . . . . . . . . . . .
@@ -135,8 +136,8 @@ W stones captured: 0
  7 . . . . . . . . . . . . . . .
  6 . . . . . . . . . . . . . . .
  5 . . . . . . . . . . . . . . .
- 4 . . . O2. . . . . . . . . . .
- 3 . . X1. . . . . . . . . . . .
+ 4 . . . . . . . . . . . . . . .
+ 3 . . . . . . . . . . . . . . .
  2 . . . . . . . . . . . . . . .
  1 . . . . . . . . . . . . . . .
 Next player: Black
@@ -212,9 +213,10 @@ Rules: {"friendlyPassOk":false,"hasButton":false,"ko":"POSITIONAL","komi":7.5,"s
 B stones captured: 0
 W stones captured: 0
 : Controller: boardsize 19
+: Initializing board with boardXSize 19 boardYSize 19
 : = 
 : Controller: showboard
-: = MoveNum: 2 HASH: 077BF25165DD82BF35408E9C0A7902AE
+: = MoveNum: 0 HASH: CDCBC1F514D7E680FACD226074256633
    A B C D E F G H J K L M N O P Q R S T
 19 . . . . . . . . . . . . . . . . . . .
 18 . . . . . . . . . . . . . . . . . . .
@@ -233,8 +235,8 @@ W stones captured: 0
  5 . . . . . . . . . . . . . . . . . . .
  4 . . . . . . . . . . . . . . . . . . .
  3 . . . . . . . . . . . . . . . . . . .
- 2 O2. . . . . . . . . . . . . . . . . .
- 1 X1. . . . . . . . . . . . . . . . . .
+ 2 . . . . . . . . . . . . . . . . . . .
+ 1 . . . . . . . . . . . . . . . . . . .
 Next player: Black
 Rules: {"friendlyPassOk":false,"hasButton":false,"ko":"POSITIONAL","komi":7.5,"scoring":"AREA","suicide":true,"tax":"NONE","whiteHandicapBonus":"0"}
 B stones captured: 0
