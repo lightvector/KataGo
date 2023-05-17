@@ -279,15 +279,13 @@ vector<string> FileUtils::readFileLines(const string& filename, char delimiter)
   return readFileLines(filename.c_str(), delimiter);
 }
 
-vector<string> FileUtils::listFiles(const std::string& dirname, std::function<bool(const std::string&)> fileFilter) {
+vector<string> FileUtils::listFiles(const std::string& dirname) {
   vector<string> collected;
   try {
     for(const gfs::directory_entry& entry: gfs::directory_iterator(gfs::u8path(dirname))) {
       const gfs::path& path = entry.path();
       string fileName = path.filename().u8string();
-      if(fileFilter(fileName)) {
-        collected.push_back(fileName);
-      }
+      collected.push_back(fileName);
     }
   }
   catch(const gfs::filesystem_error& e) {

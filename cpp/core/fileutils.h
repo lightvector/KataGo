@@ -39,8 +39,8 @@ namespace FileUtils {
   std::vector<std::string> readFileLines(const char* filename, char delimiter);
   std::vector<std::string> readFileLines(const std::string& filename, char delimiter);
 
-  // Return list of filenames of files in a directory that match fileFilter
-  std::vector<std::string> listFiles(const std::string& dirname, std::function<bool(const std::string&)> fileFilter);
+  // Return list of filenames of files in a directory
+  std::vector<std::string> listFiles(const std::string& dirname);
 
   // Recursively walk a directory and find all the files that match fileFilter.
   // fileFilter receives just the file name and not the full path, but collected contains the paths.

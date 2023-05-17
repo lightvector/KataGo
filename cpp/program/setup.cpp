@@ -929,6 +929,10 @@ bool Setup::saveAutoPatternBonusData(const std::vector<Sgf::PositionSample>& gen
     }
     *(outByBoardSize[boardSize]) << Sgf::PositionSample::toJsonLine(sampleToWrite) << "\n";
   }
+  for(auto iter = outByBoardSize.begin(); iter != outByBoardSize.end(); ++iter) {
+    iter->second->close();
+  }
+  logger.write("Saved " + Global::uint64ToString(genmoveSamples.size()) + " avoid poses to " + autoAvoidPatternsDir);
   return true;
 }
 
@@ -937,7 +941,10 @@ std::unique_ptr<PatternBonusTable> Setup::loadAndPruneAutoPatternBonusTables(Con
 
   if(cfg.contains("autoAvoidRepeatDir")) {
     string baseDir = cfg.getString("autoAvoidRepeatDir");
-    std::vector<string> boardSizeDirs = FileUtils::listFiles(baseDir, FileUtils::isDirectory);
+    std::vector<string> boardSizeDirs = FileUtils::listFiles(baseDir);
+
+    patternBonusTable = std::make_unique<PatternBonusTable>();
+
     for(const string& dirName: boardSizeDirs) {
       std::vector<string> pieces = Global::split(dirName,'x');
       if(pieces.size() != 2)
@@ -949,15 +956,18 @@ std::unique_ptr<PatternBonusTable> Setup::loadAndPruneAutoPatternBonusTables(Con
         continue;
       if(boardXSize < 2 || boardXSize > Board::MAX_LEN || boardYSize < 2 || boardYSize > Board::MAX_LEN)
         continue;
+
+      string dirPath = baseDir + "/" + dirName;
+      if(!FileUtils::isDirectory(dirPath))
+        continue;
+
       double penalty = getAutoPatternDoubleParam(cfg,"autoAvoidRepeatUtility",boardXSize,boardYSize,-3.0,3.0);
       double lambda = getAutoPatternDoubleParam(cfg,"autoAvoidRepeatLambda",boardXSize,boardYSize,0.0,1.0);
       int minTurnNumber = getAutoPatternIntParam(cfg,"autoAvoidRepeatMinTurnNumber",boardXSize,boardYSize,0,1000000);
       int maxTurnNumber = getAutoPatternIntParam(cfg,"autoAvoidRepeatMaxTurnNumber",boardXSize,boardYSize,0,1000000);
       size_t maxPoses = getAutoPatternInt64Param(cfg,"autoAvoidRepeatMaxPoses",boardXSize,boardYSize,1,(int64_t)1000000000000LL);
 
-      string logSource = "bot";
-      if(patternBonusTable == nullptr)
-        patternBonusTable = std::make_unique<PatternBonusTable>();
+      string logSource = dirPath;
       patternBonusTable->avoidRepeatedPosMovesAndDeleteExcessFiles({baseDir + "/" + dirName},penalty,lambda,minTurnNumber,maxTurnNumber,maxPoses,logger,logSource);
     }
   }

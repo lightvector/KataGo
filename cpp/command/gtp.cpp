@@ -327,6 +327,7 @@ struct GTPEngine {
   const bool assumeMultipleStartingBlackMovesAreHandicap;
   const int analysisPVLen;
   const bool preventEncore;
+  const bool autoAvoidPatterns;
 
   const double dynamicPlayoutDoublingAdvantageCapPerOppLead;
   double staticPlayoutDoublingAdvantage;
@@ -369,7 +370,7 @@ struct GTPEngine {
 
   GTPEngine(
     const string& modelFile, SearchParams initialParams, Rules initialRules,
-    bool assumeMultiBlackHandicap, bool prevtEncore,
+    bool assumeMultiBlackHandicap, bool prevtEncore, bool autoPattern,
     double dynamicPDACapPerOppLead, double staticPDA, bool staticPDAPrecedence,
     double normAvoidRepeatedPatternUtility, double hcapAvoidRepeatedPatternUtility,
     bool avoidDagger,
@@ -382,6 +383,7 @@ struct GTPEngine {
      assumeMultipleStartingBlackMovesAreHandicap(assumeMultiBlackHandicap),
      analysisPVLen(pvLen),
      preventEncore(prevtEncore),
+     autoAvoidPatterns(autoPattern),
      dynamicPlayoutDoublingAdvantageCapPerOppLead(dynamicPDACapPerOppLead),
      staticPlayoutDoublingAdvantage(staticPDA),
      staticPDATakesPrecedence(staticPDAPrecedence),
@@ -426,7 +428,6 @@ struct GTPEngine {
   }
 
   void clearStatsForNewGame() {
-    genmoveSamples.clear();
   }
 
   //Specify -1 for the sizes for a default
@@ -1111,7 +1112,7 @@ struct GTPEngine {
     else
       response = Location::toString(moveLoc,bot->getRootBoard());
 
-    {
+    if(autoAvoidPatterns) {
       // Auto pattern expects moveless records using hintloc to contain the move.
       Sgf::PositionSample posSample;
       const BoardHistory& hist = bot->getRootHist();
@@ -1810,12 +1811,14 @@ int MainCmds::gtp(const vector<string>& args) {
       patternBonusTable = std::move(autoTable);
     }
   }
+  // Toggled to true every time we save, toggled back to false once we do load.
+  bool shouldReloadAutoAvoidPatterns = false;
 
   Player perspective = Setup::parseReportAnalysisWinrates(cfg,C_EMPTY);
 
   GTPEngine* engine = new GTPEngine(
     nnModelFile,initialParams,initialRules,
-    assumeMultipleStartingBlackMovesAreHandicap,preventEncore,
+    assumeMultipleStartingBlackMovesAreHandicap,preventEncore,autoAvoidPatterns,
     dynamicPlayoutDoublingAdvantageCapPerOppLead,
     staticPlayoutDoublingAdvantage,staticPDATakesPrecedence,
     normalAvoidRepeatedPatternUtility, handicapAvoidRepeatedPatternUtility,
@@ -1827,11 +1830,19 @@ int MainCmds::gtp(const vector<string>& args) {
   );
   engine->setOrResetBoardSize(cfg,logger,seedRand,defaultBoardXSize,defaultBoardYSize,logger.isLoggingToStderr());
 
-  auto maybeSaveAvoidPatterns = [&]() {
-    if(engine != NULL && autoAvoidPatterns && engine->genmoveSamples.size() > 0) {
-      bool suc = Setup::saveAutoPatternBonusData(engine->genmoveSamples, cfg, logger, seedRand);
-      if(suc)
-        engine->genmoveSamples.clear();
+  auto maybeSaveAvoidPatterns = [&](bool forceSave) {
+    if(engine != NULL && autoAvoidPatterns) {
+      int samplesPerSave = 200;
+      if(cfg.contains("autoAvoidRepeatSaveChunkSize"))
+        samplesPerSave = cfg.getInt("autoAvoidRepeatSaveChunkSize",1,10000);
+
+      if(forceSave || engine->genmoveSamples.size() >= samplesPerSave) {
+        bool suc = Setup::saveAutoPatternBonusData(engine->genmoveSamples, cfg, logger, seedRand);
+        if(suc) {
+          engine->genmoveSamples.clear();
+          shouldReloadAutoAvoidPatterns = true;
+        }
+      }
     }
   };
 
@@ -1959,13 +1970,13 @@ int MainCmds::gtp(const vector<string>& args) {
     }
 
     else if(command == "quit") {
-      maybeSaveAvoidPatterns();
+      maybeSaveAvoidPatterns(true);
       shouldQuitAfterResponse = true;
       logger.write("Quit requested by controller");
     }
 
     else if(command == "boardsize" || command == "rectangular_boardsize") {
-      maybeSaveAvoidPatterns();
+      maybeSaveAvoidPatterns(false);
       int newXSize = 0;
       int newYSize = 0;
       bool suc = false;
@@ -2006,7 +2017,7 @@ int MainCmds::gtp(const vector<string>& args) {
     }
 
     else if(command == "clear_board") {
-      maybeSaveAvoidPatterns();
+      maybeSaveAvoidPatterns(false);
       if(autoAvoidPatterns) {
         std::unique_ptr<PatternBonusTable> autoTable = Setup::loadAndPruneAutoPatternBonusTables(cfg,logger);
         engine->setPatternBonusTable(std::move(autoTable));
@@ -2574,7 +2585,7 @@ int MainCmds::gtp(const vector<string>& args) {
           initialStones.push_back(Move(loc,pla));
         }
         if(!responseIsError) {
-          maybeSaveAvoidPatterns();
+          maybeSaveAvoidPatterns(false);
           bool suc = engine->setPosition(initialStones);
           if(!suc) {
             responseIsError = true;
@@ -2688,7 +2699,7 @@ int MainCmds::gtp(const vector<string>& args) {
         response = "Board is not empty";
       }
       else {
-        maybeSaveAvoidPatterns();
+        maybeSaveAvoidPatterns(false);
         engine->placeFixedHandicap(n,response,responseIsError);
       }
     }
@@ -2712,7 +2723,7 @@ int MainCmds::gtp(const vector<string>& args) {
         response = "Board is not empty";
       }
       else {
-        maybeSaveAvoidPatterns();
+        maybeSaveAvoidPatterns(false);
         engine->placeFreeHandicap(n,response,responseIsError,seedRand);
       }
     }
@@ -2742,7 +2753,7 @@ int MainCmds::gtp(const vector<string>& args) {
           response = "Handicap placement is invalid";
         }
         else {
-          maybeSaveAvoidPatterns();
+          maybeSaveAvoidPatterns(false);
           Player pla = P_WHITE;
           BoardHistory hist(board,pla,engine->getCurrentRules(),0);
           hist.setInitialTurnNumber(board.numStonesOnBoard()); //Should give more accurate temperaure and time control behavior
@@ -2931,7 +2942,7 @@ int MainCmds::gtp(const vector<string>& args) {
               if(!logger.isLoggingToStderr())
                 cerr << out.str() << endl;
             }
-            maybeSaveAvoidPatterns();
+            maybeSaveAvoidPatterns(false);
             engine->setOrResetBoardSize(cfg,logger,seedRand,sgfBoard.x_size,sgfBoard.y_size,logger.isLoggingToStderr());
             engine->setPositionAndRules(sgfNextPla, sgfBoard, sgfHist, sgfInitialBoard, sgfInitialNextPla, sgfHist.moveHistory);
           }
@@ -3192,7 +3203,7 @@ int MainCmds::gtp(const vector<string>& args) {
 
   } //Close read loop
 
-  maybeSaveAvoidPatterns();
+  maybeSaveAvoidPatterns(true);
   delete engine;
   engine = NULL;
   NeuralNet::globalCleanup();
