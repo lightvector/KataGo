@@ -2018,9 +2018,10 @@ int MainCmds::gtp(const vector<string>& args) {
 
     else if(command == "clear_board") {
       maybeSaveAvoidPatterns(false);
-      if(autoAvoidPatterns) {
+      if(autoAvoidPatterns && shouldReloadAutoAvoidPatterns) {
         std::unique_ptr<PatternBonusTable> autoTable = Setup::loadAndPruneAutoPatternBonusTables(cfg,logger);
         engine->setPatternBonusTable(std::move(autoTable));
+        shouldReloadAutoAvoidPatterns = false;
       }
       engine->clearBoard();
     }
