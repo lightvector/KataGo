@@ -1,0 +1,14 @@
+boardsize 15
+showboard
+play b c3
+play w d4
+showboard
+boardsize 15
+showboard
+boardsize 19
+showboard
+play b a1
+play w a2
+showboard
+boardsize 19
+showboard
