@@ -1067,7 +1067,7 @@ struct GTPEngine {
         winrate = 1.0 - winrate;
         leadForPrinting = -leadForPrinting;
       }
-      cerr << "CHAT:"
+      cerr << "MALKOVICH:"
            << "Visits " << visits
            << " Winrate " << Global::strprintf("%.2f%%", winrate * 100.0)
            << " ScoreLead " << Global::strprintf("%.1f", leadForPrinting)
