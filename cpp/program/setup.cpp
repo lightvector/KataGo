@@ -870,6 +870,32 @@ std::vector<std::unique_ptr<PatternBonusTable>> Setup::loadAvoidSgfPatternBonusT
   return tables;
 }
 
+static string boardSizeToStr(int boardXSize, int boardYSize) {
+  return Global::intToString(boardXSize) + "x" + Global::intToString(boardYSize);
+}
+
+static int getAutoPatternIntParam(ConfigParser& cfg, const string& param, int boardXSize, int boardYSize, int min, int max) {
+  if(!cfg.contains(param))
+    throw ConfigParsingError(param + " was not specified in the config");
+  if(cfg.contains(param + boardSizeToStr(boardXSize,boardYSize)))
+    return cfg.getInt(param + boardSizeToStr(boardXSize,boardYSize), min, max);
+  return cfg.getInt(param, min, max);
+}
+static int64_t getAutoPatternInt64Param(ConfigParser& cfg, const string& param, int boardXSize, int boardYSize, int64_t min, int64_t max) {
+  if(!cfg.contains(param))
+    throw ConfigParsingError(param + " was not specified in the config");
+  if(cfg.contains(param + boardSizeToStr(boardXSize,boardYSize)))
+    return cfg.getInt64(param + boardSizeToStr(boardXSize,boardYSize), min, max);
+  return cfg.getInt64(param, min, max);
+}
+static double getAutoPatternDoubleParam(ConfigParser& cfg, const string& param, int boardXSize, int boardYSize, double min, double max) {
+  if(!cfg.contains(param))
+    throw ConfigParsingError(param + " was not specified in the config");
+  if(cfg.contains(param + boardSizeToStr(boardXSize,boardYSize)))
+    return cfg.getDouble(param + boardSizeToStr(boardXSize,boardYSize), min, max);
+  return cfg.getDouble(param, min, max);
+}
+
 bool Setup::saveAutoPatternBonusData(const std::vector<Sgf::PositionSample>& genmoveSamples, ConfigParser& cfg, Logger& logger, Rand& rand) {
   if(genmoveSamples.size() <= 0)
     return false;
@@ -877,40 +903,63 @@ bool Setup::saveAutoPatternBonusData(const std::vector<Sgf::PositionSample>& gen
     return false;
 
   string autoAvoidPatternsDir = cfg.getString("autoAvoidRepeatDir");
-  int minTurnNumber = cfg.getInt("autoAvoidRepeatMinTurnNumber",0,1000000);
-  int maxTurnNumber = cfg.getInt("autoAvoidRepeatMaxTurnNumber",0,1000000);
+  MakeDir::make(autoAvoidPatternsDir);
 
-  string fileName = autoAvoidPatternsDir + "/" + Global::uint64ToHexString(rand.nextUInt64()) + "_poses.txt";
-  ofstream out;
-  bool suc = FileUtils::tryOpen(out, fileName);
-  if(!suc) {
-    logger.write("ERROR: could not open " + fileName);
-    return false;
-  }
-  else {
-    for(const Sgf::PositionSample& sampleToWrite : genmoveSamples) {
-      assert(sampleToWrite.moves.size() == 0);
-      if(sampleToWrite.initialTurnNumber < minTurnNumber || sampleToWrite.initialTurnNumber > maxTurnNumber)
-        continue;
-      out << Sgf::PositionSample::toJsonLine(sampleToWrite) << "\n";
+  std::map<std::pair<int,int>, std::unique_ptr<ofstream>> outByBoardSize;
+  string fileName = Global::uint64ToHexString(rand.nextUInt64()) + "_poses.txt";
+  for(const Sgf::PositionSample& sampleToWrite : genmoveSamples) {
+    int boardXSize = sampleToWrite.board.x_size;
+    int boardYSize = sampleToWrite.board.y_size;
+    std::pair<int,int> boardSize = std::make_pair(boardXSize, boardYSize);
+
+    int minTurnNumber = getAutoPatternIntParam(cfg,"autoAvoidRepeatMinTurnNumber",boardXSize,boardYSize,0,1000000);
+    int maxTurnNumber = getAutoPatternIntParam(cfg,"autoAvoidRepeatMaxTurnNumber",boardXSize,boardYSize,0,1000000);
+    if(sampleToWrite.initialTurnNumber < minTurnNumber || sampleToWrite.initialTurnNumber > maxTurnNumber)
+      continue;
+    assert(sampleToWrite.moves.size() == 0);
+    if(!contains(outByBoardSize,boardSize)) {
+      MakeDir::make(autoAvoidPatternsDir + "/" + boardSizeToStr(boardXSize, boardYSize));
+      outByBoardSize[boardSize] = std::make_unique<ofstream>();
+      string filePath = autoAvoidPatternsDir + "/" + boardSizeToStr(boardXSize, boardYSize) + "/" + fileName;
+      bool suc = FileUtils::tryOpen(*(outByBoardSize[boardSize]), filePath);
+      if(!suc) {
+        logger.write("ERROR: could not open " + filePath);
+        return false;
+      }
     }
-    out.close();
-    return true;
+    *(outByBoardSize[boardSize]) << Sgf::PositionSample::toJsonLine(sampleToWrite) << "\n";
   }
+  return true;
 }
 
 std::unique_ptr<PatternBonusTable> Setup::loadAndPruneAutoPatternBonusTables(ConfigParser& cfg, Logger& logger) {
   std::unique_ptr<PatternBonusTable> patternBonusTable = nullptr;
+
   if(cfg.contains("autoAvoidRepeatDir")) {
-    double penalty = cfg.getDouble("autoAvoidRepeatUtility",-3.0,3.0);
-    double lambda = cfg.getDouble("autoAvoidRepeatLambda",0.0,1.0);
-    int minTurnNumber = cfg.getInt("autoAvoidRepeatMinTurnNumber",0,1000000);
-    int maxTurnNumber = cfg.getInt("autoAvoidRepeatMaxTurnNumber",0,1000000);
-    size_t maxPoses = cfg.getInt64("autoAvoidRepeatMaxPoses",1,(int64_t)1000000000000LL);
-    string dir = cfg.getString("autoAvoidRepeatDir");
-    string logSource = "bot";
-    patternBonusTable = std::make_unique<PatternBonusTable>();
-    patternBonusTable->avoidRepeatedPosMovesAndDeleteExcessFiles({dir},penalty,lambda,minTurnNumber,maxTurnNumber,maxPoses,logger,logSource);
+    string baseDir = cfg.getString("autoAvoidRepeatDir");
+    std::vector<string> boardSizeDirs = FileUtils::listFiles(baseDir, FileUtils::isDirectory);
+    for(const string& dirName: boardSizeDirs) {
+      std::vector<string> pieces = Global::split(dirName,'x');
+      if(pieces.size() != 2)
+        continue;
+      int boardXSize;
+      int boardYSize;
+      bool suc = Global::tryStringToInt(pieces[0],boardXSize) && Global::tryStringToInt(pieces[1],boardYSize);
+      if(!suc)
+        continue;
+      if(boardXSize < 2 || boardXSize > Board::MAX_LEN || boardYSize < 2 || boardYSize > Board::MAX_LEN)
+        continue;
+      double penalty = getAutoPatternDoubleParam(cfg,"autoAvoidRepeatUtility",boardXSize,boardYSize,-3.0,3.0);
+      double lambda = getAutoPatternDoubleParam(cfg,"autoAvoidRepeatLambda",boardXSize,boardYSize,0.0,1.0);
+      int minTurnNumber = getAutoPatternIntParam(cfg,"autoAvoidRepeatMinTurnNumber",boardXSize,boardYSize,0,1000000);
+      int maxTurnNumber = getAutoPatternIntParam(cfg,"autoAvoidRepeatMaxTurnNumber",boardXSize,boardYSize,0,1000000);
+      size_t maxPoses = getAutoPatternInt64Param(cfg,"autoAvoidRepeatMaxPoses",boardXSize,boardYSize,1,(int64_t)1000000000000LL);
+
+      string logSource = "bot";
+      if(patternBonusTable == nullptr)
+        patternBonusTable = std::make_unique<PatternBonusTable>();
+      patternBonusTable->avoidRepeatedPosMovesAndDeleteExcessFiles({baseDir + "/" + dirName},penalty,lambda,minTurnNumber,maxTurnNumber,maxPoses,logger,logSource);
+    }
   }
   return patternBonusTable;
 }
