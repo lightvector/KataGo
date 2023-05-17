@@ -448,39 +448,39 @@ struct GTPEngine {
     int nnXLen = boardXSize;
     int nnYLen = boardYSize;
 
-    if(cfg.contains("gtpDebugForceMaxNNSize") && cfg.getBool("gtpDebugForceMaxNNSize")) {
+    if(cfg.contains("gtpForceMaxNNSize") && cfg.getBool("gtpForceMaxNNSize")) {
       defaultRequireExactNNLen = false;
       nnXLen = Board::MAX_LEN;
       nnYLen = Board::MAX_LEN;
     }
 
-    if(nnEval != NULL && nnXLen == nnEval->getNNXLen() && nnYLen == nnEval->getNNYLen())
-      return;
+    if(nnEval == NULL || !(nnXLen == nnEval->getNNXLen() && nnYLen == nnEval->getNNYLen())) {
 
-    if(nnEval != NULL) {
-      assert(bot != NULL);
-      bot->stopAndWait();
-      delete bot;
-      delete nnEval;
-      bot = NULL;
-      nnEval = NULL;
-      logger.write("Cleaned up old neural net and bot");
-    }
+      if(nnEval != NULL) {
+        assert(bot != NULL);
+        bot->stopAndWait();
+        delete bot;
+        delete nnEval;
+        bot = NULL;
+        nnEval = NULL;
+        logger.write("Cleaned up old neural net and bot");
+      }
 
-    const bool disableFP16 = false;
-    const string expectedSha256 = "";
-    nnEval = Setup::initializeNNEvaluator(
-      nnModelFile,nnModelFile,expectedSha256,cfg,logger,seedRand,maxConcurrentEvals,expectedConcurrentEvals,
-      nnXLen,nnYLen,defaultMaxBatchSize,defaultRequireExactNNLen,disableFP16,
-      Setup::SETUP_FOR_GTP
-    );
-    logger.write("Loaded neural net with nnXLen " + Global::intToString(nnEval->getNNXLen()) + " nnYLen " + Global::intToString(nnEval->getNNYLen()));
+      const bool disableFP16 = false;
+      const string expectedSha256 = "";
+      nnEval = Setup::initializeNNEvaluator(
+        nnModelFile,nnModelFile,expectedSha256,cfg,logger,seedRand,maxConcurrentEvals,expectedConcurrentEvals,
+        nnXLen,nnYLen,defaultMaxBatchSize,defaultRequireExactNNLen,disableFP16,
+        Setup::SETUP_FOR_GTP
+      );
+      logger.write("Loaded neural net with nnXLen " + Global::intToString(nnEval->getNNXLen()) + " nnYLen " + Global::intToString(nnEval->getNNYLen()));
 
-    {
-      bool rulesWereSupported;
-      nnEval->getSupportedRules(currentRules,rulesWereSupported);
-      if(!rulesWereSupported) {
-        throw StringError("Rules " + currentRules.toJsonStringNoKomi() + " from config file " + cfg.getFileName() + " are NOT supported by neural net");
+      {
+        bool rulesWereSupported;
+        nnEval->getSupportedRules(currentRules,rulesWereSupported);
+        if(!rulesWereSupported) {
+          throw StringError("Rules " + currentRules.toJsonStringNoKomi() + " from config file " + cfg.getFileName() + " are NOT supported by neural net");
+        }
       }
     }
 
