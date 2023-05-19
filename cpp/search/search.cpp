@@ -1081,8 +1081,7 @@ bool Search::runSinglePlayout(SearchThread& thread, double upperBoundVisitsLeft)
   //Store this value, used for futile-visit pruning this thread's root children selections.
   thread.upperBoundVisitsLeft = upperBoundVisitsLeft;
 
-  bool posesWithChildBuf[NNPos::MAX_NN_POLICY_SIZE];
-  bool finishedPlayout = playoutDescend(thread,*rootNode,posesWithChildBuf,true);
+  bool finishedPlayout = playoutDescend(thread,*rootNode,true);
 
   //Restore thread state back to the root state
   thread.pla = rootPla;
@@ -1096,7 +1095,6 @@ bool Search::runSinglePlayout(SearchThread& thread, double upperBoundVisitsLeft)
 
 bool Search::playoutDescend(
   SearchThread& thread, SearchNode& node,
-  bool posesWithChildBuf[NNPos::MAX_NN_POLICY_SIZE],
   bool isRoot
 ) {
   //Hit terminal node, finish
@@ -1170,7 +1168,7 @@ bool Search::playoutDescend(
 
   SearchNode* child = NULL;
   while(true) {
-    selectBestChildToDescend(thread,node,nodeState,numChildrenFound,bestChildIdx,bestChildMoveLoc,posesWithChildBuf,isRoot);
+    selectBestChildToDescend(thread,node,nodeState,numChildrenFound,bestChildIdx,bestChildMoveLoc,isRoot);
 
     //The absurdly rare case that the move chosen is not legal
     //(this should only happen either on a bug or where the nnHash doesn't have full legality information or when there's an actual hash collision).
@@ -1199,7 +1197,7 @@ bool Search::playoutDescend(
 
       //As isReInit is true, we don't return, just keep going, since we didn't count this as a true visit in the node stats
       nodeState = node.state.load(std::memory_order_acquire);
-      selectBestChildToDescend(thread,node,nodeState,numChildrenFound,bestChildIdx,bestChildMoveLoc,posesWithChildBuf,isRoot);
+      selectBestChildToDescend(thread,node,nodeState,numChildrenFound,bestChildIdx,bestChildMoveLoc,isRoot);
 
       if(bestChildIdx >= 0) {
         //New child
@@ -1340,7 +1338,7 @@ bool Search::playoutDescend(
   }
 
   //Recurse!
-  bool finishedPlayout = playoutDescend(thread,*child,posesWithChildBuf,false);
+  bool finishedPlayout = playoutDescend(thread,*child,false);
   //Update this node stats
   if(finishedPlayout) {
     nodeState = node.state.load(std::memory_order_acquire);
