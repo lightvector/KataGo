@@ -449,6 +449,7 @@ struct GTPEngine {
       nnYLen = Board::MAX_LEN;
     }
 
+    //If the neural net is wrongly sized, we need to create or recreate it
     if(nnEval == NULL || !(nnXLen == nnEval->getNNXLen() && nnYLen == nnEval->getNNYLen())) {
 
       if(nnEval != NULL) {
@@ -488,25 +489,37 @@ struct GTPEngine {
       boardXSize = nnEval->getNNXLen();
       boardYSize = nnEval->getNNYLen();
     }
-    logger.write("Initializing board with boardXSize " + Global::intToString(boardXSize) + " boardYSize " + Global::intToString(boardYSize));
-    if(!loggingToStderr)
-      cerr << ("Initializing board with boardXSize " + Global::intToString(boardXSize) + " boardYSize " + Global::intToString(boardYSize)) << endl;
 
-    string searchRandSeed;
-    if(cfg.contains("searchRandSeed"))
-      searchRandSeed = cfg.getString("searchRandSeed");
-    else
-      searchRandSeed = Global::uint64ToString(seedRand.nextUInt64());
+    //If the bot is wrongly sized, we need to create or recreate the bot
+    if(bot == NULL || bot->getRootBoard().x_size != boardXSize || bot->getRootBoard().y_size != boardYSize) {
+      if(bot != NULL) {
+        assert(bot != NULL);
+        bot->stopAndWait();
+        delete bot;
+        bot = NULL;
+        logger.write("Cleaned up old bot");
+      }
 
-    bot = new AsyncBot(params, nnEval, &logger, searchRandSeed);
-    bot->setCopyOfExternalPatternBonusTable(patternBonusTable);
+      logger.write("Initializing board with boardXSize " + Global::intToString(boardXSize) + " boardYSize " + Global::intToString(boardYSize));
+      if(!loggingToStderr)
+        cerr << ("Initializing board with boardXSize " + Global::intToString(boardXSize) + " boardYSize " + Global::intToString(boardYSize)) << endl;
 
-    Board board(boardXSize,boardYSize);
-    Player pla = P_BLACK;
-    BoardHistory hist(board,pla,currentRules,0);
-    vector<Move> newMoveHistory;
-    setPositionAndRules(pla,board,hist,board,pla,newMoveHistory);
-    clearStatsForNewGame();
+      string searchRandSeed;
+      if(cfg.contains("searchRandSeed"))
+        searchRandSeed = cfg.getString("searchRandSeed");
+      else
+        searchRandSeed = Global::uint64ToString(seedRand.nextUInt64());
+
+      bot = new AsyncBot(params, nnEval, &logger, searchRandSeed);
+      bot->setCopyOfExternalPatternBonusTable(patternBonusTable);
+
+      Board board(boardXSize,boardYSize);
+      Player pla = P_BLACK;
+      BoardHistory hist(board,pla,currentRules,0);
+      vector<Move> newMoveHistory;
+      setPositionAndRules(pla,board,hist,board,pla,newMoveHistory);
+      clearStatsForNewGame();
+    }
   }
 
   void setPatternBonusTable(std::unique_ptr<PatternBonusTable>&& pbTable) {
