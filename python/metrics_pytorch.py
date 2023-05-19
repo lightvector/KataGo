@@ -501,6 +501,8 @@ class Metrics:
         target_futurepos = target_value_nchw[:, 2:4, :, :]
         target_scoring = target_value_nchw[:, 4, :, :] / 120.0
 
+
+        assert raw_model.policy_head.num_policy_outputs == 6
         loss_policy_player = self.loss_policy_player_samplewise(
             policy_logits[:, 0, :],
             target_policy_player,
@@ -526,6 +528,62 @@ class Metrics:
             target_weight_policy_opponent,
             global_weight,
         ).sum()
+
+        # Long-term optimistic policy. Weight policy by:
+        # Final game win squared (squaring discourages draws)
+        win_squared = torch.square(
+            target_global_nc[:, 0] # win (or draw, weighted by draw utility)
+            + 0.5 * target_global_nc[:, 2] # noresult
+        )
+        # Or the score outcome of the game being around 1.5 sigma more than expected
+        # Add a small amount to the variance to avoid division by zero or overly small numbers
+        longterm_score_stdevs_excess = (target_global_nc[:, 3] - pred_scoremean.detach()) / torch.sqrt(torch.square(pred_scorestdev.detach()) + 0.25)
+        target_weight_longoptimistic_policy = torch.clamp(
+            win_squared + torch.sigmoid((longterm_score_stdevs_excess - 1.5) * 3.0),
+            min=0.0,
+            max=1.0,
+        )
+        target_weight_longoptimistic_policy = (
+            target_weight_longoptimistic_policy
+            * target_weight_policy_player # game has normal target
+            * target_weight_ownership # and also actually ended in full ownership and score, not a sidepos
+        )
+        loss_longoptimistic_policy = self.loss_policy_player_samplewise(
+            policy_logits[:, 4, :],
+            target_policy_player,
+            target_weight_longoptimistic_policy,
+            global_weight,
+        ).sum()
+        target_weight_longoptimistic_policy_sum = (global_weight * target_weight_longoptimistic_policy).sum()
+
+        # Short-term optimistic policy. Weight policy by:
+        # The shortterm value outcome being around 1.5 sigma more than expected
+        # Add a small amount to the variance to avoid division by zero or overly small numbers
+        shortterm_value_actual = target_global_nc[:, 12] - target_global_nc[:, 13]
+        shortterm_value_pred = torch.nn.functional.softmax(td_value_logits[:, 2, :].detach(), dim=1)
+        shortterm_value_pred = shortterm_value_pred[:, 0] - shortterm_value_pred[:, 1]
+        shortterm_value_stdevs_excess = (shortterm_value_actual - shortterm_value_pred) / torch.sqrt(pred_shortterm_value_error.detach() + 0.0001)
+        # Or the shortterm score outcome being around 1.5 sigma more than expected
+        # Add a small amount to the variance to avoid division by zero or overly small numbers
+        shortterm_score_stdevs_excess = (target_global_nc[:, 15] - pred_td_score[:,2].detach()) / torch.sqrt(pred_shortterm_score_error.detach() + 0.25)
+        target_weight_shortoptimistic_policy = torch.clamp(
+            torch.sigmoid((shortterm_value_stdevs_excess - 1.5) * 3.0) + torch.sigmoid((shortterm_score_stdevs_excess - 1.5) * 3.0),
+            min=0.0,
+            max=1.0,
+        )
+        target_weight_shortoptimistic_policy = (
+            target_weight_shortoptimistic_policy
+            * target_weight_policy_player # game has normal target
+            * target_weight_ownership # and also actually ended in full ownership and score, not a sidepos
+        )
+        loss_shortoptimistic_policy = self.loss_policy_player_samplewise(
+            policy_logits[:, 5, :],
+            target_policy_player,
+            target_weight_shortoptimistic_policy,
+            global_weight,
+        ).sum()
+        target_weight_shortoptimistic_policy_sum = (global_weight * target_weight_shortoptimistic_policy).sum()
+
 
         loss_value = self.loss_value_samplewise(
             value_logits, target_value, global_weight
@@ -631,10 +689,12 @@ class Metrics:
         ).sum()
 
         loss_sum = (
-            loss_policy_player
+            loss_policy_player * 0.930
             + loss_policy_opponent
             + loss_policy_player_soft * soft_policy_weight_scale
             + loss_policy_opponent_soft * soft_policy_weight_scale
+            + loss_longoptimistic_policy * 0.100
+            + loss_shortoptimistic_policy * 0.200
             + loss_value * value_loss_scale
             + loss_td_value1 * td_value_loss_scales[0]
             + loss_td_value2 * td_value_loss_scales[1]
@@ -667,6 +727,10 @@ class Metrics:
             "p1loss_sum": loss_policy_opponent,
             "p0softloss_sum": loss_policy_player_soft,
             "p1softloss_sum": loss_policy_opponent_soft,
+            "p0lopt_sum": loss_longoptimistic_policy,
+            "p0loptw_sum": target_weight_longoptimistic_policy_sum,
+            "p0sopt_sum": loss_shortoptimistic_policy,
+            "p0soptw_sum": target_weight_shortoptimistic_policy_sum,
             "vloss_sum": loss_value,
             "tdvloss1_sum": loss_td_value1,
             "tdvloss2_sum": loss_td_value2,
@@ -778,6 +842,8 @@ class Metrics:
         target_policy_opponent = target_policy_probs[:, 1, :]
         target_policy_player_soft = target_policy_probs[:, 2, :]
         target_policy_opponent_soft = target_policy_probs[:, 3, :]
+        target_policy_longoptimistic = target_policy_probs[:, 4, :]
+        target_policy_shortoptimistic = target_policy_probs[:, 5, :]
 
         target_weight_policy_player = target_global_nc[:, 26]
         target_weight_policy_opponent = target_global_nc[:, 28]
@@ -827,6 +893,18 @@ class Metrics:
             policy_logits[:, 3, :],
             target_policy_opponent_soft,
             target_weight_policy_opponent,
+            global_weight,
+        ).sum()
+        loss_longoptimistic_policy = self.loss_policy_player_samplewise(
+            policy_logits[:, 4, :],
+            target_policy_longoptimistic,
+            target_weight_policy_player,
+            global_weight,
+        ).sum()
+        loss_shortoptimistic_policy = self.loss_policy_player_samplewise(
+            policy_logits[:, 5, :],
+            target_policy_shortoptimistic,
+            target_weight_policy_player,
             global_weight,
         ).sum()
 
@@ -907,10 +985,12 @@ class Metrics:
         ).sum()
 
         loss_sum = (
-            loss_policy_player
+            loss_policy_player * 0.90
             + loss_policy_opponent
             + loss_policy_player_soft * soft_policy_weight_scale
             + loss_policy_opponent_soft * soft_policy_weight_scale
+            + loss_longoptimistic_policy * 0.05
+            + loss_shortoptimistic_policy * 0.05
             + loss_value * value_loss_scale
             + loss_td_value1 * td_value_loss_scales[0]
             + loss_td_value2 * td_value_loss_scales[1]
@@ -932,6 +1012,7 @@ class Metrics:
             "p1loss_sum": loss_policy_opponent,
             "p0softloss_sum": loss_policy_player_soft,
             "p1softloss_sum": loss_policy_opponent_soft,
+            "p0lopt_sum": loss_longoptimistic_policy,
             "vloss_sum": loss_value,
             "tdvloss1_sum": loss_td_value1,
             "tdvloss2_sum": loss_td_value2,

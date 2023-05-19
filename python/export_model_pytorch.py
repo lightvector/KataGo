@@ -291,14 +291,20 @@ def main(args):
     write_biasmask(name+".bias2", policyhead.bias2)
     write_activation(name+".act2", policyhead.act2)
 
-    # Write only the this-move prediction, not the next-move prediction
-    assert policyhead.conv2p.weight.shape[0] == 4
-    write_conv_weight(name+".conv2p", policyhead.conv2p.weight[:1])
+    # Write the this-move prediction and the optimistic policy prediction
+    if version <= 11:
+      assert policyhead.conv2p.weight.shape[0] == 4
+      write_conv_weight(name+".conv2p", torch.stack((policyhead.conv2p.weight[0],), dim=0))
+      assert policyhead.linear_pass.weight.shape[0] == 4
+      write_matmul(name+".linear_pass", torch.stack((policyhead.linear_pass.weight[0],), dim=0))
+    else:
+      assert policyhead.conv2p.weight.shape[0] == 6
+      write_conv_weight(name+".conv2p", torch.stack((policyhead.conv2p.weight[0], policyhead.conv2p.weight[4]), dim=0))
+      assert policyhead.linear_pass.weight.shape[0] == 6
+      write_matmul(name+".linear_pass", torch.stack((policyhead.linear_pass.weight[0], policyhead.linear_pass.weight[4]), dim=0))
     assert policyhead.conv2p.bias is None
-
-    assert policyhead.linear_pass.weight.shape[0] == 4
-    write_matmul(name+".linear_pass", policyhead.linear_pass.weight[:1])
     assert policyhead.linear_pass.bias is None
+
 
   def write_value_head(name, valuehead):
     writeln(name)

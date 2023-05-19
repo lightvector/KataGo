@@ -1042,7 +1042,13 @@ class PolicyHead(torch.nn.Module):
         super(PolicyHead, self).__init__()
         self.activation = activation
 
-        self.num_policy_outputs = 4
+        self.num_policy_outputs = 6
+        # Output 0: policy prediction
+        # Output 1: opponent reply policy prediction
+        # Output 2: soft policy prediction
+        # Output 3: soft opponent reply policy prediction
+        # Output 4: long-term-optimistic policy prediction
+        # Output 5: short-term-optimistic policy prediction
 
         self.conv1p = torch.nn.Conv2d(c_in, c_p1, kernel_size=1, padding="same", bias=False)
         self.conv1g = torch.nn.Conv2d(c_in, c_g1, kernel_size=1, padding="same", bias=False)
