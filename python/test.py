@@ -208,7 +208,6 @@ def main(args):
         td_value_loss_scales=td_value_loss_scales,
         main_loss_scale=1.0,
         intermediate_loss_scale=None,
-        intermediate_distill_scale=None,
       )
       metrics = detensorify_metrics(metrics)
 

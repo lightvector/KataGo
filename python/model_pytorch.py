@@ -1558,7 +1558,7 @@ class Model(torch.nn.Module):
             self.intermediate_value_head.add_brenorm_clippage(upper_rclippage, lower_rclippage, dclippage)
 
     # Returns a tuple of tuples of outputs
-    # The outer tuple indexes different sets of heads, such as if the net also computes intermediate heads for self-distillation.
+    # The outer tuple indexes different sets of heads, such as if the net also computes intermediate heads.
     #   0 is the main output, 1 is intermediate.
     # The inner tuple ranges over the outputs of a set of heads (policy, value, etc).
     def forward(self, input_spatial, input_global):

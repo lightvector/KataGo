@@ -93,7 +93,6 @@ if __name__ == "__main__":
 
   parser.add_argument('-main-loss-scale', type=float, help='Loss factor scale for main head', required=False)
   parser.add_argument('-intermediate-loss-scale', type=float, help='Loss factor scale for intermediate head', required=False)
-  parser.add_argument('-intermediate-distill-scale', type=float, help='Distill factor scale for intermediate head', required=False)
 
   args = vars(parser.parse_args())
 
@@ -173,7 +172,6 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
 
   main_loss_scale = args["main_loss_scale"]
   intermediate_loss_scale = args["intermediate_loss_scale"]
-  intermediate_distill_scale = args["intermediate_distill_scale"]
 
   if lr_scale is None:
     lr_scale = 1.0
@@ -502,8 +500,8 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
     train_state["swa_sample_accum"] = 0.0
 
 
-  if intermediate_distill_scale is not None or intermediate_loss_scale is not None:
-    assert raw_model.get_has_intermediate_head(), "Model must have intermediate head to use intermediate distill or loss"
+  if intermediate_loss_scale is not None:
+    assert raw_model.get_has_intermediate_head(), "Model must have intermediate head to use intermediate loss"
 
   # If the user specified an intermediate head but no loss or distill scale, pick something reasonable by default
   if raw_model.get_has_intermediate_head():
@@ -1002,7 +1000,6 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
           td_value_loss_scales=td_value_loss_scales,
           main_loss_scale=main_loss_scale,
           intermediate_loss_scale=intermediate_loss_scale,
-          intermediate_distill_scale=intermediate_distill_scale,
         )
 
         # DDP averages loss across instances, so to preserve LR as per-sample lr, we scale by world size.
@@ -1172,7 +1169,6 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
               td_value_loss_scales=td_value_loss_scales,
               main_loss_scale=main_loss_scale,
               intermediate_loss_scale=intermediate_loss_scale,
-              intermediate_distill_scale=intermediate_distill_scale,
             )
             metrics = detensorify_metrics(metrics)
             accumulate_metrics(val_metric_sums, val_metric_weights, metrics, batch_size, decay=1.0, new_weight=1.0)
