@@ -352,7 +352,7 @@ void Search::selectBestChildToDescend(
     parentUtility, parentWeightPerVisit, parentUtilityStdevFactor
   );
 
-  bool posesWithChildBuf[NNPos::MAX_NN_POLICY_SIZE] = { false, };
+  bool posesWithChildBuf[NNPos::MAX_NN_POLICY_SIZE] = { }; // Initialize all to false
   bool antiMirror = searchParams.antiMirror && mirroringPla != C_EMPTY && isMirroringSinceSearchStart(thread.history,0);
 
   double exploreScaling = getExploreScaling(totalChildWeight, parentUtilityStdevFactor);
