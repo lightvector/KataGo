@@ -86,8 +86,6 @@ static int handleSubcommand(const string& subcommand, const vector<string>& args
     return MainCmds::tuner(subArgs);
   else if(subcommand == "match")
     return MainCmds::match(subArgs);
-  else if(subcommand == "matchauto")
-    return MainCmds::matchauto(subArgs);
   else if(subcommand == "selfplay")
     return MainCmds::selfplay(subArgs);
   else if(subcommand == "testgpuerror")
