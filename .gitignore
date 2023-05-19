@@ -79,3 +79,5 @@ models/
 python/startposesupload.txt
 for_release/
 
+tests/results/matchsgfs/
+tests/results/matchsgfs2/

@@ -55,6 +55,49 @@ cat tests/analysis/pvvisits.txt | ./katago analysis -config configs/analysis_exa
 
 echo "checkbook"
 ./katago checkbook -book-file tests/data/test.katabook > tests/results/checkbook.txt
+
+echo "match"
+rm -f tests/results/matchsgfs/*
+rm -f tests/results/matchsgfs2/*
+rm tests/results/match.txt
+
+./katago match -config tests/data/configs/matchtest.cfg -sgf-output-dir tests/results/matchsgfs/ >> tests/results/match.txt
+mv tests/results/matchsgfs/* tests/results/matchsgfs/games.sgfs
+./katago match -config tests/data/configs/matchtest2.cfg -sgf-output-dir tests/results/matchsgfs2/ >> tests/results/match.txt
+mv tests/results/matchsgfs2/* tests/results/matchsgfs2/games.sgfs
+
+function countSides() {
+    echo $1 >> tests/results/match.txt
+    (
+        echo "Black AAA "; grep 'PB\[AAA\]' $1 | wc -l
+        echo "Black BBB "; grep 'PB\[BBB\]' $1 | wc -l
+        echo "Black CCC "; grep 'PB\[CCC\]' $1 | wc -l
+        echo "Black DDD "; grep 'PB\[DDD\]' $1 | wc -l
+        echo "Black EEE "; grep 'PB\[EEE\]' $1 | wc -l
+        echo "Black FFF "; grep 'PB\[FFF\]' $1 | wc -l
+        echo "Black GGG "; grep 'PB\[GGG\]' $1 | wc -l
+        echo "Black HHH "; grep 'PB\[HHH\]' $1 | wc -l
+    ) >> tests/results/match.txt
+    (
+        echo "White AAA "; grep 'PW\[AAA\]' $1 | wc -l
+        echo "White BBB "; grep 'PW\[BBB\]' $1 | wc -l
+        echo "White CCC "; grep 'PW\[CCC\]' $1 | wc -l
+        echo "White DDD "; grep 'PW\[DDD\]' $1 | wc -l
+        echo "White EEE "; grep 'PW\[EEE\]' $1 | wc -l
+        echo "White FFF "; grep 'PW\[FFF\]' $1 | wc -l
+        echo "White GGG "; grep 'PW\[GGG\]' $1 | wc -l
+        echo "White HHH "; grep 'PW\[HHH\]' $1 | wc -l
+    ) >> tests/results/match.txt
+}
+grep -v 'Avg move time used' tests/results/match.txt > tests/results/match.txt.tmp
+mv tests/results/match.txt.tmp tests/results/match.txt
+sed -i 's/nnRandSeed. = .*$/nnRandSeed = ###/g' tests/results/match.txt
+sed -i 's/Git revision: .*$/Git revision: ###/g' tests/results/match.txt
+countSides tests/results/matchsgfs/games.sgfs
+countSides tests/results/matchsgfs2/games.sgfs
+
 echo "Done"
+
+
 
 

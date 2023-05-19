@@ -100,11 +100,16 @@ namespace {
       noResultUtilityForWhite = baseParams.noResultUtilityForWhite;
 
       //Initialize object for randomly pairing bots. Actually since this is only selfplay, this only
-      //ever gives is the trivial self-pairing, but we use it also for keeping the game count and some logging.
-      bool forSelfPlay = false;
-      bool forGateKeeper = true;
+      //ever gives is the trivial base-vs-candidate pairing, but we use it also for keeping the game count and some logging.
+      int64_t numGamesTotal = cfg.getInt64("numGamesPerGating",0,((int64_t)1) << 24);
       matchPairer = new MatchPairer(
-        cfg, 2, {modelNameBaseline,modelNameCandidate}, {nnEvalBaseline,nnEvalCandidate}, {baseParams, baseParams}, forSelfPlay, forGateKeeper
+        cfg,
+        2,
+        {modelNameBaseline,modelNameCandidate},
+        {nnEvalBaseline,nnEvalCandidate},
+        {baseParams, baseParams},
+        {{0,1},{1,0}},
+        numGamesTotal
       );
     }
 

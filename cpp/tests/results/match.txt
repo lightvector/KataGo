@@ -1,0 +1,248 @@
+: Running with following config:
+allowResignation = true
+bSizeRelProbs = 1
+bSizes = 9
+botName0 = AAA
+botName1 = BBB
+botName2 = CCC
+botName3 = DDD
+botName4 = EEE
+botName5 = FFF
+botName6 = GGG
+botName7 = HHH
+debugSkipNeuralNet = true
+extraPairs = 2-0,2-4,1-5,7-5
+handicapCompensateKomiProb = 1.0
+handicapProb = 0.0
+hasButtons = false
+includeBots = 0,1,2,3,4
+koRules = SIMPLE
+komiMean = 7
+logGamesEvery = 20
+logMoves = false
+logSearchInfo = false
+logTimeStamp = false
+logToStdout = true
+maxMovesPerGame = 2
+maxPlayouts = 10
+multiStoneSuicideLegals = false
+nnCacheSizePowerOfTwo = 15
+nnMaxBatchSize = 64
+nnModelFile0 = MODELB
+nnModelFile1 = MODELA
+nnModelFile2 = MODELA
+nnModelFile3 = MODELC
+nnModelFile4 = MODELA
+nnModelFile5 = MODELC
+nnModelFile6 = MODELD
+nnModelFile7 = MODELE
+nnMutexPoolSizePowerOfTwo = 10
+nnRandomize = true
+numBots = 8
+numGameThreads = 1
+numGamesTotal = 44
+numNNServerThreadsPerModel = 1
+numSearchThreads = 1
+resignConsecTurns = 3
+resignThreshold = -0.95
+scoringRules = AREA
+secondaryBots = 2,3,4
+taxRules = NONE
+
+: Match Engine starting...
+: Git revision: ###
+: nnRandSeed = ###
+: After dedups: nnModelFile0 = MODELB useFP16 auto useNHWC auto
+: Initializing neural net buffer to be size 9 * 9 exactly
+: nnRandSeed = ###
+: After dedups: nnModelFile1 = MODELA useFP16 auto useNHWC auto
+: Initializing neural net buffer to be size 9 * 9 exactly
+: nnRandSeed = ###
+: After dedups: nnModelFile2 = MODELC useFP16 auto useNHWC auto
+: Initializing neural net buffer to be size 9 * 9 exactly
+: nnRandSeed = ###
+: After dedups: nnModelFile3 = MODELE useFP16 auto useNHWC auto
+: Initializing neural net buffer to be size 9 * 9 exactly
+: Loaded neural net
+: Loaded all config stuff, starting matches
+: Started 20 games
+: Started 40 games
+: Match loop thread terminating
+: MODELB
+: NN rows: 0
+: NN batches: 0
+: NN avg batch size: -nan
+: GPU -1 finishing, processed 0 rows 0 batches
+: MODELA
+: NN rows: 0
+: NN batches: 0
+: NN avg batch size: -nan
+: GPU -1 finishing, processed 0 rows 0 batches
+: MODELC
+: NN rows: 0
+: NN batches: 0
+: NN avg batch size: -nan
+: GPU -1 finishing, processed 0 rows 0 batches
+: MODELE
+: NN rows: 0
+: NN batches: 0
+: NN avg batch size: -nan
+: GPU -1 finishing, processed 0 rows 0 batches
+: All cleaned up, quitting
+: Running with following config:
+allowResignation = true
+bSizeRelProbs = 1
+bSizes = 9
+botName0 = AAA
+botName1 = BBB
+botName2 = CCC
+botName3 = DDD
+botName4 = EEE
+botName5 = FFF
+botName6 = GGG
+botName7 = HHH
+debugSkipNeuralNet = true
+extraPairs = 2-0,2-4,1-5,7-5
+extraPairsAreOneSidedBW = true
+handicapCompensateKomiProb = 1.0
+handicapProb = 0.0
+hasButtons = false
+includeBots = 0,1,2,3,4
+koRules = SIMPLE
+komiMean = 7
+logGamesEvery = 20
+logMoves = false
+logSearchInfo = false
+logTimeStamp = false
+logToStdout = true
+maxMovesPerGame = 2
+maxPlayouts = 10
+multiStoneSuicideLegals = false
+nnCacheSizePowerOfTwo = 15
+nnMaxBatchSize = 64
+nnModelFile0 = MODELB
+nnModelFile1 = MODELA
+nnModelFile2 = MODELA
+nnModelFile3 = MODELC
+nnModelFile4 = MODELA
+nnModelFile5 = MODELC
+nnModelFile6 = MODELD
+nnModelFile7 = MODELE
+nnMutexPoolSizePowerOfTwo = 10
+nnRandomize = true
+numBots = 8
+numGameThreads = 1
+numGamesTotal = 36
+numNNServerThreadsPerModel = 1
+numSearchThreads = 1
+resignConsecTurns = 3
+resignThreshold = -0.95
+scoringRules = AREA
+secondaryBots = 2,3,4
+taxRules = NONE
+
+: Match Engine starting...
+: Git revision: ###
+: nnRandSeed = ###
+: After dedups: nnModelFile0 = MODELB useFP16 auto useNHWC auto
+: Initializing neural net buffer to be size 9 * 9 exactly
+: nnRandSeed = ###
+: After dedups: nnModelFile1 = MODELA useFP16 auto useNHWC auto
+: Initializing neural net buffer to be size 9 * 9 exactly
+: nnRandSeed = ###
+: After dedups: nnModelFile2 = MODELC useFP16 auto useNHWC auto
+: Initializing neural net buffer to be size 9 * 9 exactly
+: nnRandSeed = ###
+: After dedups: nnModelFile3 = MODELE useFP16 auto useNHWC auto
+: Initializing neural net buffer to be size 9 * 9 exactly
+: Loaded neural net
+: Loaded all config stuff, starting matches
+: Started 20 games
+: Match loop thread terminating
+: MODELB
+: NN rows: 0
+: NN batches: 0
+: NN avg batch size: -nan
+: GPU -1 finishing, processed 0 rows 0 batches
+: MODELA
+: NN rows: 0
+: NN batches: 0
+: NN avg batch size: -nan
+: GPU -1 finishing, processed 0 rows 0 batches
+: MODELC
+: NN rows: 0
+: NN batches: 0
+: NN avg batch size: -nan
+: GPU -1 finishing, processed 0 rows 0 batches
+: MODELE
+: NN rows: 0
+: NN batches: 0
+: NN avg batch size: -nan
+: GPU -1 finishing, processed 0 rows 0 batches
+: All cleaned up, quitting
+tests/results/matchsgfs/games.sgfs
+Black AAA 
+10
+Black BBB 
+10
+Black CCC 
+8
+Black DDD 
+4
+Black EEE 
+6
+Black FFF 
+4
+Black GGG 
+0
+Black HHH 
+2
+White AAA 
+10
+White BBB 
+10
+White CCC 
+8
+White DDD 
+4
+White EEE 
+6
+White FFF 
+4
+White GGG 
+0
+White HHH 
+2
+tests/results/matchsgfs2/games.sgfs
+Black AAA 
+8
+Black BBB 
+10
+Black CCC 
+8
+Black DDD 
+4
+Black EEE 
+4
+Black FFF 
+0
+Black GGG 
+0
+Black HHH 
+2
+White AAA 
+10
+White BBB 
+8
+White CCC 
+4
+White DDD 
+4
+White EEE 
+6
+White FFF 
+4
+White GGG 
+0
+White HHH 
+0

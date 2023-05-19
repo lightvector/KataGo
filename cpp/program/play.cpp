@@ -601,96 +601,29 @@ MatchPairer::MatchPairer(
   const vector<string>& bNames,
   const vector<NNEvaluator*>& nEvals,
   const vector<SearchParams>& bParamss,
-  bool forSelfPlay,
-  bool forGateKeeper
-): MatchPairer(cfg,nBots,bNames,nEvals,bParamss,forSelfPlay,forGateKeeper,vector<bool>(nBots))
-{}
-
-
-MatchPairer::MatchPairer(
-  ConfigParser& cfg,
-  int nBots,
-  const vector<string>& bNames,
-  const vector<NNEvaluator*>& nEvals,
-  const vector<SearchParams>& bParamss,
-  bool forSelfPlay,
-  bool forGateKeeper,
-  const vector<bool>& exclude
+  const std::vector<std::pair<int,int>>& matchups,
+  int64_t numGames
 )
   :numBots(nBots),
    botNames(bNames),
    nnEvals(nEvals),
    baseParamss(bParamss),
-   excludeBot(exclude),
-   secondaryBots(),
-   blackPriority(),
+   matchupsPerRound(matchups),
    nextMatchups(),
-   nextMatchupsBuf(),
    rand(),
-   matchRepFactor(1),
-   repsOfLastMatchup(0),
    numGamesStartedSoFar(0),
-   numGamesTotal(),
+   numGamesTotal(numGames),
    logGamesEvery(),
    getMatchupMutex()
 {
-  assert(!(forSelfPlay && forGateKeeper));
   assert(botNames.size() == numBots);
   assert(nnEvals.size() == numBots);
   assert(baseParamss.size() == numBots);
-  assert(exclude.size() == numBots);
-  if(forSelfPlay) {
-    assert(numBots == 1);
-    numGamesTotal = cfg.getInt64("numGamesTotal",1,((int64_t)1) << 62);
-  }
-  else if(forGateKeeper) {
-    assert(numBots == 2);
-    numGamesTotal = cfg.getInt64("numGamesPerGating",0,((int64_t)1) << 24);
-  }
-  else {
-    if(cfg.contains("secondaryBots"))
-      secondaryBots = cfg.getInts("secondaryBots",0,Setup::MAX_BOT_PARAMS_FROM_CFG);
-    for(int i = 0; i<secondaryBots.size(); i++)
-      assert(secondaryBots[i] >= 0 && secondaryBots[i] < numBots);
-    for(int i = 0; i<numBots; i++) {
-      string idxStr = Global::intToString(i);
-      if(cfg.contains("blackPriority" + idxStr))
-        blackPriority.push_back(cfg.getInt("blackPriority" + idxStr));
-      else
-        blackPriority.push_back(0);
-    }
-    numGamesTotal = cfg.getInt64("numGamesTotal",1,((int64_t)1) << 62);
-  }
 
-  if(cfg.contains("matchRepFactor"))
-    matchRepFactor = cfg.getInt("matchRepFactor",1,100000);
-
-  if(cfg.contains("extraPairs")) {
-    string pairsStr = cfg.getString("extraPairs");
-    std::vector<string> pairStrs = Global::split(pairsStr,',');
-    for(const string& pairStr: pairStrs) {
-      if(Global::trim(pairStr).size() <= 0)
-        continue;
-      std::vector<string> pieces = Global::split(Global::trim(pairStr),'-');
-      if(pieces.size() != 2) {
-        throw IOError("Could not parse pair: " + pairStr);
-      }
-      bool suc;
-      int p0;
-      int p1;
-      suc = Global::tryStringToInt(pieces[0],p0);
-      if(!suc)
-        throw IOError("Could not parse pair: " + pairStr);
-      suc = Global::tryStringToInt(pieces[1],p1);
-      if(!suc)
-        throw IOError("Could not parse pair: " + pairStr);
-      if(p0 < 0 || p0 >= nBots)
-        throw IOError("Invalid player index in pair: " + pairStr);
-      if(p1 < 0 || p1 >= nBots)
-        throw IOError("Invalid player index in pair: " + pairStr);
-      extraPairs.push_back(std::make_pair(p0,p1));
-    }
-  }
+  if(matchupsPerRound.size() <= 0)
+    throw StringError("MatchPairer: no matchups specified");
+  if(matchupsPerRound.size() > 0xFFFFFF)
+    throw StringError("MatchPairer: too many matchups");
 
   logGamesEvery = cfg.getInt64("logGamesEvery",1,1000000);
 }
@@ -728,9 +661,6 @@ bool MatchPairer::getMatchup(
   }
 
   pair<int,int> matchup = getMatchupPairUnsynchronized();
-  if(blackPriority.size() > 0 && blackPriority.size() == numBots && blackPriority[matchup.first] < blackPriority[matchup.second]) {
-    matchup = make_pair(matchup.second,matchup.first);
-  }
 
   botSpecB.botIdx = matchup.first;
   botSpecB.botName = botNames[matchup.first];
@@ -749,69 +679,22 @@ pair<int,int> MatchPairer::getMatchupPairUnsynchronized() {
   if(nextMatchups.size() <= 0) {
     if(numBots == 0)
       throw StringError("MatchPairer::getMatchupPairUnsynchronized: no bots to match up");
-    if(numBots == 1)
-      return make_pair(0,0);
 
-    nextMatchupsBuf.clear();
-    //First generate the pairs only in a one-sided manner
-    for(int i = 0; i<numBots; i++) {
-      if(excludeBot[i])
-        continue;
-      for(int j = 0; j<numBots; j++) {
-        if(excludeBot[j])
-          continue;
-        if(i < j && !(contains(secondaryBots,i) && contains(secondaryBots,j))) {
-          nextMatchupsBuf.push_back(make_pair(i,j));
-        }
-      }
-    }
-    for(const std::pair<int,int>& extraPair: extraPairs) {
-      nextMatchupsBuf.push_back(extraPair);
-    }
-
-    if(nextMatchupsBuf.size() <= 0)
-      throw StringError("MatchPairer::getMatchupPairUnsynchronized: no matchups generated");
-    if(nextMatchupsBuf.size() > 0xFFFFFF)
-      throw StringError("MatchPairer::getMatchupPairUnsynchronized: too many matchups");
+    //Append all matches for the next round
+    nextMatchups.clear();
+    nextMatchups.insert(nextMatchups.begin(), matchupsPerRound.begin(), matchupsPerRound.end());
 
     //Shuffle
-    for(int i = (int)nextMatchupsBuf.size()-1; i >= 1; i--) {
+    for(int i = (int)nextMatchups.size()-1; i >= 1; i--) {
       int j = (int)rand.nextUInt(i+1);
-      pair<int,int> tmp = nextMatchupsBuf[i];
-      nextMatchupsBuf[i] = nextMatchupsBuf[j];
-      nextMatchupsBuf[j] = tmp;
-    }
-
-    //Then expand each pair into each player starting first
-    for(int i = 0; i<nextMatchupsBuf.size(); i++) {
-      pair<int,int> p = nextMatchupsBuf[i];
-      pair<int,int> swapped = make_pair(p.second,p.first);
-      if(rand.nextBool(0.5)) {
-        nextMatchups.push_back(p);
-        nextMatchups.push_back(swapped);
-      }
-      else {
-        nextMatchups.push_back(swapped);
-        nextMatchups.push_back(p);
-      }
+      pair<int,int> tmp = nextMatchups[i];
+      nextMatchups[i] = nextMatchups[j];
+      nextMatchups[j] = tmp;
     }
   }
 
   pair<int,int> matchup = nextMatchups.back();
-
-  //Swap pair every other matchup if doing more than one rep
-  if(repsOfLastMatchup % 2 == 1) {
-    pair<int,int> tmp = make_pair(matchup.second,matchup.first);
-    matchup = tmp;
-  }
-
-  if(repsOfLastMatchup >= matchRepFactor-1) {
-    nextMatchups.pop_back();
-    repsOfLastMatchup = 0;
-  }
-  else {
-    repsOfLastMatchup++;
-  }
+  nextMatchups.pop_back();
 
   return matchup;
 }
