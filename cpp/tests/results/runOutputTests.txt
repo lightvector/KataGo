@@ -17916,7 +17916,7 @@ fpuLossProp: 0
 fpuParentWeightByVisitedPolicy: 1
 fpuParentWeightByVisitedPolicyPow: 2
 fpuParentWeight: 0
-policyOptimism: 0
+policyOptimism: 1
 valueWeightExponent: 0.25
 useNoisePruning: 1
 noisePruneUtilityScale: 0.15
@@ -17938,7 +17938,7 @@ rootFpuLossProp: 0
 rootNumSymmetriesToSample: 1
 rootSymmetryPruning: 1
 rootDesiredPerChildVisitsCoeff: 0
-rootPolicyOptimism: 0
+rootPolicyOptimism: 1
 chosenMoveTemperature: 0.1
 chosenMoveTemperatureEarly: 0.5
 chosenMoveTemperatureHalflife: 19
@@ -18008,7 +18008,7 @@ fpuLossProp: 0
 fpuParentWeightByVisitedPolicy: 1
 fpuParentWeightByVisitedPolicyPow: 2
 fpuParentWeight: 0
-policyOptimism: 0
+policyOptimism: 1
 valueWeightExponent: 0.25
 useNoisePruning: 1
 noisePruneUtilityScale: 0.15
@@ -18030,7 +18030,7 @@ rootFpuLossProp: 0
 rootNumSymmetriesToSample: 1
 rootSymmetryPruning: 1
 rootDesiredPerChildVisitsCoeff: 0
-rootPolicyOptimism: 0
+rootPolicyOptimism: 1
 chosenMoveTemperature: 0.1
 chosenMoveTemperatureEarly: 0.5
 chosenMoveTemperatureHalflife: 19
@@ -18100,7 +18100,7 @@ fpuLossProp: 0
 fpuParentWeightByVisitedPolicy: 1
 fpuParentWeightByVisitedPolicyPow: 2
 fpuParentWeight: 0
-policyOptimism: 0
+policyOptimism: 1
 valueWeightExponent: 0.25
 useNoisePruning: 1
 noisePruneUtilityScale: 0.15
@@ -18122,7 +18122,7 @@ rootFpuLossProp: 0
 rootNumSymmetriesToSample: 1
 rootSymmetryPruning: 0
 rootDesiredPerChildVisitsCoeff: 0
-rootPolicyOptimism: 0
+rootPolicyOptimism: 1
 chosenMoveTemperature: 0.1
 chosenMoveTemperatureEarly: 0.5
 chosenMoveTemperatureHalflife: 19
@@ -18192,7 +18192,7 @@ fpuLossProp: 0
 fpuParentWeightByVisitedPolicy: 1
 fpuParentWeightByVisitedPolicyPow: 2
 fpuParentWeight: 0
-policyOptimism: 0
+policyOptimism: 1
 valueWeightExponent: 0.25
 useNoisePruning: 1
 noisePruneUtilityScale: 0.15
@@ -18214,7 +18214,7 @@ rootFpuLossProp: 0
 rootNumSymmetriesToSample: 1
 rootSymmetryPruning: 0
 rootDesiredPerChildVisitsCoeff: 0
-rootPolicyOptimism: 0
+rootPolicyOptimism: 1
 chosenMoveTemperature: 0.1
 chosenMoveTemperatureEarly: 0.5
 chosenMoveTemperatureHalflife: 19
@@ -20398,6 +20398,8 @@ Collecting cfgs from tests
 tests/data/configs/analysis_example.cfg
 tests/data/configs/folded/analysis_example.cfg
 tests/data/configs/folded/test-parent.cfg
+tests/data/configs/matchtest.cfg
+tests/data/configs/matchtest2.cfg
 tests/data/configs/test-circular0.cfg
 tests/data/configs/test-circular1.cfg
 tests/data/configs/test-duplicate.cfg
