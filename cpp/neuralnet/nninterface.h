@@ -49,6 +49,8 @@ namespace NeuralNet {
   //Fills supported with true if desiredRules itself was exactly supported, false if some modifications had to be made.
   Rules getSupportedRules(const LoadedModel* loadedModel, const Rules& desiredRules, bool& supported);
 
+  ModelPostProcessParams getPostProcessParams(const LoadedModel* loadedModel);
+
   // Context -------------------------------------------------------------------
 
   ComputeContext* createComputeContext(

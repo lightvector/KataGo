@@ -49,6 +49,8 @@ const Hash128 MiscNNInputParams::ZOBRIST_NN_POLICY_TEMP =
   Hash128(0xebcbdfeec6f4334bULL, 0xb85e43ee243b5ad2ULL);
 const Hash128 MiscNNInputParams::ZOBRIST_AVOID_MYTDAGGER_HACK =
   Hash128(0x612d22ec402ce054ULL, 0x0db915c49de527aeULL);
+const Hash128 MiscNNInputParams::ZOBRIST_POLICY_OPTIMISM =
+  Hash128(0x88415c85c2801955ULL, 0x39bdf76b2aaa5eb1ULL);
 
 //-----------------------------------------------------------------------------------------------------------
 //-----------------------------------------------------------------------------------------------------------
@@ -935,6 +937,14 @@ Hash128 NNInputs::getHash(
 
   if(nnInputParams.avoidMYTDaggerHack)
     hash ^= MiscNNInputParams::ZOBRIST_AVOID_MYTDAGGER_HACK;
+
+  //Fold in policy optimism
+  if(nnInputParams.policyOptimism > 0) {
+    hash ^= MiscNNInputParams::ZOBRIST_POLICY_OPTIMISM;
+    int64_t policyOptimismDiscretized = (int64_t)(nnInputParams.policyOptimism*1024.0);
+    hash.hash0 = Hash::rrmxmx(Hash::splitMix64(hash.hash0) + (uint64_t)policyOptimismDiscretized);
+    hash.hash1 = Hash::rrmxmx(hash.hash1 + hash.hash0 + (uint64_t)policyOptimismDiscretized);
+  }
 
   return hash;
 }

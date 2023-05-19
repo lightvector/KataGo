@@ -17732,6 +17732,7 @@ fpuLossProp: 0
 fpuParentWeightByVisitedPolicy: 0
 fpuParentWeightByVisitedPolicyPow: 1
 fpuParentWeight: 0
+policyOptimism: 0
 valueWeightExponent: 0.5
 useNoisePruning: 0
 noisePruneUtilityScale: 0.15
@@ -17753,6 +17754,7 @@ rootFpuLossProp: 0
 rootNumSymmetriesToSample: 1
 rootSymmetryPruning: 0
 rootDesiredPerChildVisitsCoeff: 0
+rootPolicyOptimism: 0
 chosenMoveTemperature: 0
 chosenMoveTemperatureEarly: 0
 chosenMoveTemperatureHalflife: 19
@@ -17822,6 +17824,7 @@ fpuLossProp: 0
 fpuParentWeightByVisitedPolicy: 0
 fpuParentWeightByVisitedPolicyPow: 1
 fpuParentWeight: 0
+policyOptimism: 0
 valueWeightExponent: 0.5
 useNoisePruning: 0
 noisePruneUtilityScale: 0.15
@@ -17843,6 +17846,7 @@ rootFpuLossProp: 0
 rootNumSymmetriesToSample: 1
 rootSymmetryPruning: 0
 rootDesiredPerChildVisitsCoeff: 0
+rootPolicyOptimism: 0
 chosenMoveTemperature: 0
 chosenMoveTemperatureEarly: 0
 chosenMoveTemperatureHalflife: 19
@@ -17912,6 +17916,7 @@ fpuLossProp: 0
 fpuParentWeightByVisitedPolicy: 1
 fpuParentWeightByVisitedPolicyPow: 2
 fpuParentWeight: 0
+policyOptimism: 0
 valueWeightExponent: 0.25
 useNoisePruning: 1
 noisePruneUtilityScale: 0.15
@@ -17933,6 +17938,7 @@ rootFpuLossProp: 0
 rootNumSymmetriesToSample: 1
 rootSymmetryPruning: 1
 rootDesiredPerChildVisitsCoeff: 0
+rootPolicyOptimism: 0
 chosenMoveTemperature: 0.1
 chosenMoveTemperatureEarly: 0.5
 chosenMoveTemperatureHalflife: 19
@@ -18002,6 +18008,7 @@ fpuLossProp: 0
 fpuParentWeightByVisitedPolicy: 1
 fpuParentWeightByVisitedPolicyPow: 2
 fpuParentWeight: 0
+policyOptimism: 0
 valueWeightExponent: 0.25
 useNoisePruning: 1
 noisePruneUtilityScale: 0.15
@@ -18023,6 +18030,7 @@ rootFpuLossProp: 0
 rootNumSymmetriesToSample: 1
 rootSymmetryPruning: 1
 rootDesiredPerChildVisitsCoeff: 0
+rootPolicyOptimism: 0
 chosenMoveTemperature: 0.1
 chosenMoveTemperatureEarly: 0.5
 chosenMoveTemperatureHalflife: 19
@@ -18092,6 +18100,7 @@ fpuLossProp: 0
 fpuParentWeightByVisitedPolicy: 1
 fpuParentWeightByVisitedPolicyPow: 2
 fpuParentWeight: 0
+policyOptimism: 0
 valueWeightExponent: 0.25
 useNoisePruning: 1
 noisePruneUtilityScale: 0.15
@@ -18113,6 +18122,7 @@ rootFpuLossProp: 0
 rootNumSymmetriesToSample: 1
 rootSymmetryPruning: 0
 rootDesiredPerChildVisitsCoeff: 0
+rootPolicyOptimism: 0
 chosenMoveTemperature: 0.1
 chosenMoveTemperatureEarly: 0.5
 chosenMoveTemperatureHalflife: 19
@@ -18182,6 +18192,7 @@ fpuLossProp: 0
 fpuParentWeightByVisitedPolicy: 1
 fpuParentWeightByVisitedPolicyPow: 2
 fpuParentWeight: 0
+policyOptimism: 0
 valueWeightExponent: 0.25
 useNoisePruning: 1
 noisePruneUtilityScale: 0.15
@@ -18203,6 +18214,7 @@ rootFpuLossProp: 0
 rootNumSymmetriesToSample: 1
 rootSymmetryPruning: 0
 rootDesiredPerChildVisitsCoeff: 0
+rootPolicyOptimism: 0
 chosenMoveTemperature: 0.1
 chosenMoveTemperatureEarly: 0.5
 chosenMoveTemperatureHalflife: 19
@@ -18272,6 +18284,7 @@ fpuLossProp: 0
 fpuParentWeightByVisitedPolicy: 1
 fpuParentWeightByVisitedPolicyPow: 2
 fpuParentWeight: 0
+policyOptimism: 0
 valueWeightExponent: 0.25
 useNoisePruning: 0
 noisePruneUtilityScale: 0.15
@@ -18293,6 +18306,7 @@ rootFpuLossProp: 0
 rootNumSymmetriesToSample: 1
 rootSymmetryPruning: 0
 rootDesiredPerChildVisitsCoeff: 0
+rootPolicyOptimism: 0
 chosenMoveTemperature: 0.1
 chosenMoveTemperatureEarly: 0.5
 chosenMoveTemperatureHalflife: 19
@@ -18362,6 +18376,7 @@ fpuLossProp: 0
 fpuParentWeightByVisitedPolicy: 0
 fpuParentWeightByVisitedPolicyPow: 1
 fpuParentWeight: 0
+policyOptimism: 0
 valueWeightExponent: 0.25
 useNoisePruning: 0
 noisePruneUtilityScale: 0.15
@@ -18383,6 +18398,7 @@ rootFpuLossProp: 0
 rootNumSymmetriesToSample: 1
 rootSymmetryPruning: 0
 rootDesiredPerChildVisitsCoeff: 0
+rootPolicyOptimism: 0
 chosenMoveTemperature: 0.1
 chosenMoveTemperatureEarly: 0.5
 chosenMoveTemperatureHalflife: 19

@@ -256,6 +256,19 @@ struct ValueHeadDesc {
   void iterConvLayers(std::function<void(const ConvLayerDesc& dest)> f) const;
 };
 
+struct ModelPostProcessParams {
+  double tdScoreMultiplier;
+  double scoreMeanMultiplier;
+  double scoreStdevMultiplier;
+  double leadMultiplier;
+  double varianceTimeMultiplier;
+  double shorttermValueErrorMultiplier;
+  double shorttermScoreErrorMultiplier;
+
+  ModelPostProcessParams();
+  ~ModelPostProcessParams();
+};
+
 struct ModelDesc {
   std::string name;
   int version;
@@ -264,6 +277,8 @@ struct ModelDesc {
   int numValueChannels;
   int numScoreValueChannels;
   int numOwnershipChannels;
+
+  ModelPostProcessParams postProcessParams;
 
   TrunkDesc trunk;
   PolicyHeadDesc policyHead;

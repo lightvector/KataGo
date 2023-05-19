@@ -293,6 +293,30 @@ int MainCmds::evalsgf(const vector<string>& args) {
   //   return 0;
   // }
 
+  // {
+  //   sgf->setupInitialBoardAndHist(initialRules, board, nextPla, hist);
+  //   vector<Move>& moves = sgf->moves;
+
+  //   for(size_t i = 0; i<moves.size(); i++) {
+  //     bool preventEncore = false;
+  //     bool suc = hist.makeBoardMoveTolerant(board,moves[i].loc,moves[i].pla,preventEncore);
+  //     assert(suc);
+  //     nextPla = getOpp(moves[i].pla);
+
+  //     MiscNNInputParams nnInputParams;
+  //     nnInputParams.drawEquivalentWinsForWhite = params.drawEquivalentWinsForWhite;
+  //     NNResultBuf buf;
+  //     bool skipCache = true;
+  //     bool includeOwnerMap = false;
+  //     nnEval->evaluate(board,hist,nextPla,nnInputParams,buf,skipCache,includeOwnerMap);
+
+  //     NNOutput* nnOutput = buf.result.get();
+  //     cout << nnOutput->whiteWinProb << " " << nnOutput->shorttermWinlossError << " "
+  //          << nnOutput->whiteScoreMean << " " << nnOutput->shorttermScoreError  << endl;
+  //   }
+  //   return 0;
+  // }
+
   //Check for unused config keys
   cfg.warnUnusedKeys(cerr,&logger);
 
@@ -376,6 +400,9 @@ int MainCmds::evalsgf(const vector<string>& args) {
       cout << "White noresult: " << nnOutput->whiteNoResultProb << endl;
       cout << "White score mean " << nnOutput->whiteScoreMean << endl;
       cout << "White score stdev " << sqrt(max(0.0,(double)nnOutput->whiteScoreMeanSq - nnOutput->whiteScoreMean*nnOutput->whiteScoreMean)) << endl;
+      cout << "Var time left " << nnOutput->varTimeLeft << endl;
+      cout << "Shortterm winloss error " << nnOutput->shorttermWinlossError << endl;
+      cout << "Shortterm score error " << nnOutput->shorttermScoreError << endl;
     }
   }
 

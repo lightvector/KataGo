@@ -810,16 +810,24 @@ PolicyHeadDesc::PolicyHeadDesc(istream& in, int vrsn, bool binaryFloats) {
     throw StringError(
       name +
       Global::strprintf(": p2Conv.inChannels (%d) != p1BN.numChannels (%d)", p2Conv.inChannels, p1BN.numChannels));
-  if(p2Conv.outChannels != 1)
-    throw StringError(name + Global::strprintf(": p2Conv.outChannels (%d) != 1", p2Conv.outChannels));
   if(gpoolToPassMul.inChannels != g1BN.numChannels * 3)
     throw StringError(
       name + Global::strprintf(
                ": gpoolToPassMul.inChannels (%d) != g1BN.numChannels*3 (%d)",
                gpoolToPassMul.inChannels,
                g1BN.numChannels * 3));
-  if(gpoolToPassMul.outChannels != 1)
-    throw StringError(name + Global::strprintf(": gpoolToPassMul.outChannels (%d) != 1", gpoolToPassMul.outChannels));
+  if(version >= 12) {
+    if(p2Conv.outChannels != 2)
+      throw StringError(name + Global::strprintf(": p2Conv.outChannels (%d) != 2", p2Conv.outChannels));
+    if(gpoolToPassMul.outChannels != 2)
+      throw StringError(name + Global::strprintf(": gpoolToPassMul.outChannels (%d) != 2", gpoolToPassMul.outChannels));
+  }
+  else {
+    if(p2Conv.outChannels != 1)
+      throw StringError(name + Global::strprintf(": p2Conv.outChannels (%d) != 1", p2Conv.outChannels));
+    if(gpoolToPassMul.outChannels != 1)
+      throw StringError(name + Global::strprintf(": gpoolToPassMul.outChannels (%d) != 1", gpoolToPassMul.outChannels));
+  }
 }
 
 PolicyHeadDesc::~PolicyHeadDesc() {}
@@ -969,13 +977,29 @@ void ValueHeadDesc::iterConvLayers(std::function<void(const ConvLayerDesc& desc)
 
 //-----------------------------------------------------------------------------
 
+ModelPostProcessParams::ModelPostProcessParams()
+  : tdScoreMultiplier(20.0),
+    scoreMeanMultiplier(20.0),
+    scoreStdevMultiplier(20.0),
+    leadMultiplier(20.0),
+    varianceTimeMultiplier(40.0),
+    shorttermValueErrorMultiplier(0.25),
+    shorttermScoreErrorMultiplier(30.0)
+{}
+ModelPostProcessParams::~ModelPostProcessParams()
+{}
+
+//-----------------------------------------------------------------------------
+
 ModelDesc::ModelDesc()
   : version(-1),
     numInputChannels(0),
     numInputGlobalChannels(0),
     numValueChannels(0),
     numScoreValueChannels(0),
-    numOwnershipChannels(0) {}
+    numOwnershipChannels(0),
+    postProcessParams()
+{}
 
 ModelDesc::ModelDesc(istream& in, bool binaryFloats) {
   in >> name;
@@ -1001,6 +1025,47 @@ ModelDesc::ModelDesc(istream& in, bool binaryFloats) {
     throw StringError(name + ": model failed to parse numInputGlobalChannels");
   if(numInputGlobalChannels <= 0)
     throw StringError(name + ": model numInputGlobalChannels must be positive");
+
+  if(version >= 13) {
+    in >> postProcessParams.tdScoreMultiplier;
+    if(in.fail())
+      throw StringError(name + ": modelfailed to parse tdScoreMultiplier");
+    if(postProcessParams.tdScoreMultiplier <= 0)
+      throw StringError(name + ": model tdScoreMultiplier must be positive");
+    in >> postProcessParams.scoreMeanMultiplier;
+    if(in.fail())
+      throw StringError(name + ": modelfailed to parse scoreMeanMultiplier");
+    if(postProcessParams.scoreMeanMultiplier <= 0)
+      throw StringError(name + ": model scoreMeanMultiplier must be positive");
+    in >> postProcessParams.scoreStdevMultiplier;
+    if(in.fail())
+      throw StringError(name + ": modelfailed to parse scoreStdevMultiplier");
+    if(postProcessParams.scoreStdevMultiplier <= 0)
+      throw StringError(name + ": model scoreStdevMultiplier must be positive");
+    in >> postProcessParams.leadMultiplier;
+    if(in.fail())
+      throw StringError(name + ": modelfailed to parse leadMultiplier");
+    if(postProcessParams.leadMultiplier <= 0)
+      throw StringError(name + ": model leadMultiplier must be positive");
+    in >> postProcessParams.varianceTimeMultiplier;
+    if(in.fail())
+      throw StringError(name + ": modelfailed to parse varianceTimeMultiplier");
+    if(postProcessParams.varianceTimeMultiplier <= 0)
+      throw StringError(name + ": model varianceTimeMultiplier must be positive");
+    in >> postProcessParams.shorttermValueErrorMultiplier;
+    if(in.fail())
+      throw StringError(name + ": modelfailed to parse shorttermValueErrorMultiplier");
+    if(postProcessParams.shorttermValueErrorMultiplier <= 0)
+      throw StringError(name + ": model shorttermValueErrorMultiplier must be positive");
+    in >> postProcessParams.shorttermScoreErrorMultiplier;
+    if(in.fail())
+      throw StringError(name + ": modelfailed to parse shorttermScoreErrorMultiplier");
+    if(postProcessParams.shorttermScoreErrorMultiplier <= 0)
+      throw StringError(name + ": model shorttermScoreErrorMultiplier must be positive");
+  }
+  else {
+    postProcessParams = ModelPostProcessParams();
+  }
 
   trunk = TrunkDesc(in, version, binaryFloats);
   policyHead = PolicyHeadDesc(in, version, binaryFloats);
@@ -1060,6 +1125,7 @@ ModelDesc& ModelDesc::operator=(ModelDesc&& other) {
   numValueChannels = other.numValueChannels;
   numScoreValueChannels = other.numScoreValueChannels;
   numOwnershipChannels = other.numOwnershipChannels;
+  postProcessParams = other.postProcessParams;
   trunk = std::move(other.trunk);
   policyHead = std::move(other.policyHead);
   valueHead = std::move(other.valueHead);
@@ -1156,7 +1222,7 @@ void ModelDesc::loadFromFileMaybeGZipped(const string& fileName, ModelDesc& desc
 
 
 Rules ModelDesc::getSupportedRules(const Rules& desiredRules, bool& supported) const {
-  static_assert(NNModelVersion::latestModelVersionImplemented == 11, "");
+  static_assert(NNModelVersion::latestModelVersionImplemented == 13, "");
   Rules rules = desiredRules;
   supported = true;
   if(version <= 6) {
@@ -1177,7 +1243,7 @@ Rules ModelDesc::getSupportedRules(const Rules& desiredRules, bool& supported) c
       supported = false;
     }
   }
-  else if(version <= 11) {
+  else if(version <= 13) {
     if(rules.koRule == Rules::KO_SPIGHT) {
       rules.koRule = Rules::KO_SITUATIONAL;
       supported = false;

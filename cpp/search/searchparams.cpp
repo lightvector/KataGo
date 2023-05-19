@@ -24,6 +24,7 @@ SearchParams::SearchParams()
    fpuParentWeightByVisitedPolicy(false),
    fpuParentWeightByVisitedPolicyPow(1.0),
    fpuParentWeight(0.0),
+   policyOptimism(0.0),
    valueWeightExponent(0.5),
    useNoisePruning(false),
    noisePruneUtilityScale(0.15),
@@ -46,6 +47,7 @@ SearchParams::SearchParams()
    rootNumSymmetriesToSample(1),
    rootSymmetryPruning(false),
    rootDesiredPerChildVisitsCoeff(0.0),
+   rootPolicyOptimism(0.0),
    chosenMoveTemperature(0.0),
    chosenMoveTemperatureEarly(0.0),
    chosenMoveTemperatureHalflife(19),
@@ -192,6 +194,7 @@ void SearchParams::printParams(std::ostream& out) {
   PRINTPARAM(fpuParentWeightByVisitedPolicyPow);
   PRINTPARAM(fpuParentWeight);
 
+  PRINTPARAM(policyOptimism);
 
   PRINTPARAM(valueWeightExponent);
   PRINTPARAM(useNoisePruning);
@@ -224,6 +227,7 @@ void SearchParams::printParams(std::ostream& out) {
 
   PRINTPARAM(rootDesiredPerChildVisitsCoeff);
 
+  PRINTPARAM(rootPolicyOptimism);
 
   PRINTPARAM(chosenMoveTemperature);
   PRINTPARAM(chosenMoveTemperatureEarly);
