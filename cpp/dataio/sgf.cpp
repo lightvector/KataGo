@@ -731,6 +731,7 @@ void Sgf::iterAllPositionsHelper(
           initialTurnNumber = board.numStonesOnBoard();
 
         hist.clear(board,nextPla,rules,0);
+        hist.setInitialTurnNumber(initialTurnNumber);
       }
       samplePositionHelper(board,hist,nextPla,sampleBuf,initialTurnNumber,uniqueHashes,requireUnique,hashComments,hashParent,flipIfPassOrWFirst,allowGameOver,comments,f);
     }
@@ -865,6 +866,7 @@ void Sgf::samplePositionHelper(
   sampleBuf.moves.clear();
   for(int i = startTurnIdx; i<(int)hist.moveHistory.size(); i++)
     sampleBuf.moves.push_back(hist.moveHistory[i]);
+  assert(hist.initialTurnNumber == initialTurnNumber);
   sampleBuf.initialTurnNumber = initialTurnNumber + startTurnIdx;
   sampleBuf.hintLoc = Board::NULL_LOC;
   sampleBuf.weight = 1.0;
