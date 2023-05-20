@@ -19,6 +19,7 @@ checkpoint_path = args["checkpoint"]
 output_path = args["output"]
 
 data = torch.load(checkpoint_path,map_location="cpu")
+assert data["config"]["version"] == 12
 
 def shift_bias(name, channel_idx):
   if f"module.{name}" in data["model"]:

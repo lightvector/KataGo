@@ -20,6 +20,7 @@ checkpoint_path = args["checkpoint"]
 output_path = args["output"]
 
 data = torch.load(checkpoint_path,map_location="cpu")
+assert data["config"]["version"] == 11
 
 def noisify(tensor):
   scale = 0.01 * math.sqrt(torch.mean(torch.square(tensor)).item())

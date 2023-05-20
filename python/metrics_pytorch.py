@@ -490,8 +490,17 @@ class Metrics:
         target_futurepos = target_value_nchw[:, 2:4, :, :]
         target_scoring = target_value_nchw[:, 4, :, :] / 120.0
 
+        if raw_model.config["version"] <= 11:
+            assert raw_model.policy_head.num_policy_outputs == 4
+            policy_opt_loss_scale = 1.000
+            long_policy_opt_loss_scale = 0.0
+            short_policy_opt_loss_scale = 0.0
+        else:
+            assert raw_model.policy_head.num_policy_outputs == 6
+            policy_opt_loss_scale = 0.930
+            long_policy_opt_loss_scale = 0.100
+            short_policy_opt_loss_scale = 0.200
 
-        assert raw_model.policy_head.num_policy_outputs == 6
         loss_policy_player = self.loss_policy_player_samplewise(
             policy_logits[:, 0, :],
             target_policy_player,
@@ -518,59 +527,67 @@ class Metrics:
             global_weight,
         ).sum()
 
-        # Long-term optimistic policy. Weight policy by:
-        # Final game win squared (squaring discourages draws)
-        win_squared = torch.square(
-            target_global_nc[:, 0] # win (or draw, weighted by draw utility)
-            + 0.5 * target_global_nc[:, 2] # noresult
-        )
-        # Or the score outcome of the game being around 1.5 sigma more than expected
-        # Add a small amount to the variance to avoid division by zero or overly small numbers
-        longterm_score_stdevs_excess = (target_global_nc[:, 3] - pred_scoremean.detach()) / torch.sqrt(torch.square(pred_scorestdev.detach()) + 0.25)
-        target_weight_longoptimistic_policy = torch.clamp(
-            win_squared + torch.sigmoid((longterm_score_stdevs_excess - 1.5) * 3.0),
-            min=0.0,
-            max=1.0,
-        )
-        target_weight_longoptimistic_policy = (
-            target_weight_longoptimistic_policy
-            * target_weight_policy_player # game has normal target
-            * target_weight_ownership # and also actually ended in full ownership and score, not a sidepos
-        )
-        loss_longoptimistic_policy = self.loss_policy_player_samplewise(
-            policy_logits[:, 4, :],
-            target_policy_player,
-            target_weight_longoptimistic_policy,
-            global_weight,
-        ).sum()
+        if raw_model.config["version"] <= 11:
+            target_weight_longoptimistic_policy = torch.zeros_like(policy_logits[:, 0, :])
+            loss_longoptimistic_policy = torch.zeros_like(policy_logits[:, 0, :])
+        else:
+            # Long-term optimistic policy. Weight policy by:
+            # Final game win squared (squaring discourages draws)
+            win_squared = torch.square(
+                target_global_nc[:, 0] # win (or draw, weighted by draw utility)
+                + 0.5 * target_global_nc[:, 2] # noresult
+            )
+            # Or the score outcome of the game being around 1.5 sigma more than expected
+            # Add a small amount to the variance to avoid division by zero or overly small numbers
+            longterm_score_stdevs_excess = (target_global_nc[:, 3] - pred_scoremean.detach()) / torch.sqrt(torch.square(pred_scorestdev.detach()) + 0.25)
+            target_weight_longoptimistic_policy = torch.clamp(
+                win_squared + torch.sigmoid((longterm_score_stdevs_excess - 1.5) * 3.0),
+                min=0.0,
+                max=1.0,
+            )
+            target_weight_longoptimistic_policy = (
+                target_weight_longoptimistic_policy
+                * target_weight_policy_player # game has normal target
+                * target_weight_ownership # and also actually ended in full ownership and score, not a sidepos
+            )
+            loss_longoptimistic_policy = self.loss_policy_player_samplewise(
+                policy_logits[:, 4, :],
+                target_policy_player,
+                target_weight_longoptimistic_policy,
+                global_weight,
+            ).sum()
         target_weight_longoptimistic_policy_sum = (global_weight * target_weight_longoptimistic_policy).sum()
 
-        # Short-term optimistic policy. Weight policy by:
-        # The shortterm value outcome being around 1.5 sigma more than expected
-        # Add a small amount to the variance to avoid division by zero or overly small numbers
-        shortterm_value_actual = target_global_nc[:, 12] - target_global_nc[:, 13]
-        shortterm_value_pred = torch.nn.functional.softmax(td_value_logits[:, 2, :].detach(), dim=1)
-        shortterm_value_pred = shortterm_value_pred[:, 0] - shortterm_value_pred[:, 1]
-        shortterm_value_stdevs_excess = (shortterm_value_actual - shortterm_value_pred) / torch.sqrt(pred_shortterm_value_error.detach() + 0.0001)
-        # Or the shortterm score outcome being around 1.5 sigma more than expected
-        # Add a small amount to the variance to avoid division by zero or overly small numbers
-        shortterm_score_stdevs_excess = (target_global_nc[:, 15] - pred_td_score[:,2].detach()) / torch.sqrt(pred_shortterm_score_error.detach() + 0.25)
-        target_weight_shortoptimistic_policy = torch.clamp(
-            torch.sigmoid((shortterm_value_stdevs_excess - 1.5) * 3.0) + torch.sigmoid((shortterm_score_stdevs_excess - 1.5) * 3.0),
-            min=0.0,
-            max=1.0,
-        )
-        target_weight_shortoptimistic_policy = (
-            target_weight_shortoptimistic_policy
-            * target_weight_policy_player # game has normal target
-            * target_weight_ownership # and also actually ended in full ownership and score, not a sidepos
-        )
-        loss_shortoptimistic_policy = self.loss_policy_player_samplewise(
-            policy_logits[:, 5, :],
-            target_policy_player,
-            target_weight_shortoptimistic_policy,
-            global_weight,
-        ).sum()
+        if raw_model.config["version"] <= 11:
+            target_weight_shortoptimistic_policy = torch.zeros_like(policy_logits[:, 0, :])
+            loss_shortoptimistic_policy = torch.zeros_like(policy_logits[:, 0, :])
+        else:
+            # Short-term optimistic policy. Weight policy by:
+            # The shortterm value outcome being around 1.5 sigma more than expected
+            # Add a small amount to the variance to avoid division by zero or overly small numbers
+            shortterm_value_actual = target_global_nc[:, 12] - target_global_nc[:, 13]
+            shortterm_value_pred = torch.nn.functional.softmax(td_value_logits[:, 2, :].detach(), dim=1)
+            shortterm_value_pred = shortterm_value_pred[:, 0] - shortterm_value_pred[:, 1]
+            shortterm_value_stdevs_excess = (shortterm_value_actual - shortterm_value_pred) / torch.sqrt(pred_shortterm_value_error.detach() + 0.0001)
+            # Or the shortterm score outcome being around 1.5 sigma more than expected
+            # Add a small amount to the variance to avoid division by zero or overly small numbers
+            shortterm_score_stdevs_excess = (target_global_nc[:, 15] - pred_td_score[:,2].detach()) / torch.sqrt(pred_shortterm_score_error.detach() + 0.25)
+            target_weight_shortoptimistic_policy = torch.clamp(
+                torch.sigmoid((shortterm_value_stdevs_excess - 1.5) * 3.0) + torch.sigmoid((shortterm_score_stdevs_excess - 1.5) * 3.0),
+                min=0.0,
+                max=1.0,
+            )
+            target_weight_shortoptimistic_policy = (
+                target_weight_shortoptimistic_policy
+                * target_weight_policy_player # game has normal target
+                * target_weight_ownership # and also actually ended in full ownership and score, not a sidepos
+            )
+            loss_shortoptimistic_policy = self.loss_policy_player_samplewise(
+                policy_logits[:, 5, :],
+                target_policy_player,
+                target_weight_shortoptimistic_policy,
+                global_weight,
+            ).sum()
         target_weight_shortoptimistic_policy_sum = (global_weight * target_weight_shortoptimistic_policy).sum()
 
 
@@ -678,12 +695,12 @@ class Metrics:
         ).sum()
 
         loss_sum = (
-            loss_policy_player * 0.930
+            loss_policy_player * policy_opt_loss_scale
             + loss_policy_opponent
             + loss_policy_player_soft * soft_policy_weight_scale
             + loss_policy_opponent_soft * soft_policy_weight_scale
-            + loss_longoptimistic_policy * 0.100
-            + loss_shortoptimistic_policy * 0.200
+            + loss_longoptimistic_policy * long_policy_opt_loss_scale
+            + loss_shortoptimistic_policy * short_policy_opt_loss_scale
             + loss_value * value_loss_scale
             + loss_td_value1 * td_value_loss_scales[0]
             + loss_td_value2 * td_value_loss_scales[1]

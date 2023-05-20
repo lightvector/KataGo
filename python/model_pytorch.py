@@ -1063,7 +1063,10 @@ class PolicyHead(torch.nn.Module):
         super(PolicyHead, self).__init__()
         self.activation = activation
 
-        self.num_policy_outputs = 6
+        if config["version"] <= 11:
+            self.num_policy_outputs = 4
+        else:
+            self.num_policy_outputs = 6
         # Output 0: policy prediction
         # Output 1: opponent reply policy prediction
         # Output 2: soft policy prediction
@@ -1328,13 +1331,22 @@ class Model(torch.nn.Module):
         self.num_total_blocks = len(self.block_kind)
         self.pos_len = pos_len
 
-        self.td_score_multiplier = 20.0
-        self.scoremean_multiplier = 20.0
-        self.scorestdev_multiplier = 20.0
-        self.lead_multiplier = 20.0
-        self.variance_time_multiplier = 40.0
-        self.shortterm_value_error_multiplier = 0.25
-        self.shortterm_score_error_multiplier = 150.0
+        if config["version"] <= 12:
+            self.td_score_multiplier = 20.0
+            self.scoremean_multiplier = 20.0
+            self.scorestdev_multiplier = 20.0
+            self.lead_multiplier = 20.0
+            self.variance_time_multiplier = 40.0
+            self.shortterm_value_error_multiplier = 0.25
+            self.shortterm_score_error_multiplier = 30.0
+        else:
+            self.td_score_multiplier = 20.0
+            self.scoremean_multiplier = 20.0
+            self.scorestdev_multiplier = 20.0
+            self.lead_multiplier = 20.0
+            self.variance_time_multiplier = 40.0
+            self.shortterm_value_error_multiplier = 0.25
+            self.shortterm_score_error_multiplier = 150.0
 
         self.trunk_normless = "trunk_normless" in config and config["trunk_normless"]
 
