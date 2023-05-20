@@ -871,7 +871,7 @@ void NNEvaluator::evaluate(
 
     //Fix up the value as well. Note that the neural net gives us back the value from the perspective
     //of the player so we need to negate that to make it the white value.
-    static_assert(NNModelVersion::latestModelVersionImplemented == 13, "");
+    static_assert(NNModelVersion::latestModelVersionImplemented == 14, "");
     if(modelVersion == 3) {
       const double twoOverPi = 0.63661977236758134308;
 
@@ -927,7 +927,7 @@ void NNEvaluator::evaluate(
       }
 
     }
-    else if(modelVersion >= 4 && modelVersion <= 13) {
+    else if(modelVersion >= 4 && modelVersion <= 14) {
       double winProb;
       double lossProb;
       double noResultProb;
@@ -977,7 +977,17 @@ void NNEvaluator::evaluate(
         scoreMeanSq = scoreMeanSq * (1.0-noResultProb);
         lead = lead * (1.0-noResultProb);
 
-        if(modelVersion >= 10) {
+        if(modelVersion >= 14) {
+          {
+            double s = softPlus(shorttermWinlossErrorPreSoftplus * 0.5);
+            shorttermWinlossError = sqrt(s * s * postProcessParams.shorttermValueErrorMultiplier);
+          }
+          {
+            double s = softPlus(shorttermScoreErrorPreSoftplus * 0.5);
+            shorttermScoreError = sqrt(s * s * postProcessParams.shorttermScoreErrorMultiplier);
+          }
+        }
+        else if(modelVersion >= 10) {
           shorttermWinlossError = sqrt(softPlus(shorttermWinlossErrorPreSoftplus) * postProcessParams.shorttermValueErrorMultiplier);
           shorttermScoreError = sqrt(softPlus(shorttermScoreErrorPreSoftplus) * postProcessParams.shorttermScoreErrorMultiplier);
         }
@@ -1040,7 +1050,7 @@ void NNEvaluator::evaluate(
 
   //Postprocess ownermap
   if(buf.result->whiteOwnerMap != NULL) {
-    if(modelVersion >= 3 && modelVersion <= 13) {
+    if(modelVersion >= 3 && modelVersion <= 14) {
       for(int pos = 0; pos<nnXLen*nnYLen; pos++) {
         int y = pos / nnXLen;
         int x = pos % nnXLen;

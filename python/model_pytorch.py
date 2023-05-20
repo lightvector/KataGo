@@ -65,12 +65,16 @@ class SoftPlusWithGradientFloorFunction(torch.autograd.Function):
     """
     Same as softplus, except on backward pass, we never let the gradient decrease below grad_floor.
     Equivalent to having a dynamic learning rate depending on stop_grad(x) where x is the input.
+    If square, then also squares the result while halving the input, and still also keeping the same gradient.
     """
     @staticmethod
-    def forward(ctx, x: torch.Tensor, grad_floor: float):
+    def forward(ctx, x: torch.Tensor, grad_floor: float, square: bool):
         ctx.save_for_backward(x)
         ctx.grad_floor = grad_floor # grad_floor is not a tensor
-        return torch.nn.functional.softplus(x)
+        if square:
+            return torch.square(torch.nn.functional.softplus(0.5 * x))
+        else:
+            return torch.nn.functional.softplus(x)
 
     @staticmethod
     def backward(ctx, grad_output: torch.Tensor):
@@ -1734,11 +1738,15 @@ class Model(torch.nn.Module):
         futurepos_pretanh = out_futurepos
         seki_logits = out_seki
         pred_scoremean = out_miscvalue[:, 0] * self.scoremean_multiplier
-        pred_scorestdev = SoftPlusWithGradientFloorFunction.apply(out_miscvalue[:, 1], 0.05) * self.scorestdev_multiplier
+        pred_scorestdev = SoftPlusWithGradientFloorFunction.apply(out_miscvalue[:, 1], 0.05, False) * self.scorestdev_multiplier
         pred_lead = out_miscvalue[:, 2] * self.lead_multiplier
-        pred_variance_time = SoftPlusWithGradientFloorFunction.apply(out_miscvalue[:, 3], 0.05) * self.variance_time_multiplier
-        pred_shortterm_value_error = SoftPlusWithGradientFloorFunction.apply(out_moremiscvalue[:,0], 0.05) * self.shortterm_value_error_multiplier
-        pred_shortterm_score_error = SoftPlusWithGradientFloorFunction.apply(out_moremiscvalue[:,1], 0.05) * self.shortterm_score_error_multiplier
+        pred_variance_time = SoftPlusWithGradientFloorFunction.apply(out_miscvalue[:, 3], 0.05, False) * self.variance_time_multiplier
+        if self.config["version"] < 14:
+            pred_shortterm_value_error = SoftPlusWithGradientFloorFunction.apply(out_moremiscvalue[:,0], 0.05, False) * self.shortterm_value_error_multiplier
+            pred_shortterm_score_error = SoftPlusWithGradientFloorFunction.apply(out_moremiscvalue[:,1], 0.05, False) * self.shortterm_score_error_multiplier
+        else:
+            pred_shortterm_value_error = SoftPlusWithGradientFloorFunction.apply(out_moremiscvalue[:,0], 0.05, True) * self.shortterm_value_error_multiplier
+            pred_shortterm_score_error = SoftPlusWithGradientFloorFunction.apply(out_moremiscvalue[:,1], 0.05, True) * self.shortterm_score_error_multiplier
         scorebelief_logits = out_scorebelief_logprobs
 
         return (
