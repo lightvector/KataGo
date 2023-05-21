@@ -17938,7 +17938,7 @@ rootFpuLossProp: 0
 rootNumSymmetriesToSample: 1
 rootSymmetryPruning: 1
 rootDesiredPerChildVisitsCoeff: 0
-rootPolicyOptimism: 1
+rootPolicyOptimism: 0.2
 chosenMoveTemperature: 0.1
 chosenMoveTemperatureEarly: 0.5
 chosenMoveTemperatureHalflife: 19
@@ -18030,7 +18030,7 @@ rootFpuLossProp: 0
 rootNumSymmetriesToSample: 1
 rootSymmetryPruning: 1
 rootDesiredPerChildVisitsCoeff: 0
-rootPolicyOptimism: 1
+rootPolicyOptimism: 0.2
 chosenMoveTemperature: 0.1
 chosenMoveTemperatureEarly: 0.5
 chosenMoveTemperatureHalflife: 19
@@ -18122,7 +18122,7 @@ rootFpuLossProp: 0
 rootNumSymmetriesToSample: 1
 rootSymmetryPruning: 0
 rootDesiredPerChildVisitsCoeff: 0
-rootPolicyOptimism: 1
+rootPolicyOptimism: 0.2
 chosenMoveTemperature: 0.1
 chosenMoveTemperatureEarly: 0.5
 chosenMoveTemperatureHalflife: 19
@@ -18214,7 +18214,7 @@ rootFpuLossProp: 0
 rootNumSymmetriesToSample: 1
 rootSymmetryPruning: 0
 rootDesiredPerChildVisitsCoeff: 0
-rootPolicyOptimism: 1
+rootPolicyOptimism: 0.2
 chosenMoveTemperature: 0.1
 chosenMoveTemperatureEarly: 0.5
 chosenMoveTemperatureHalflife: 19
