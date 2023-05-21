@@ -48,7 +48,7 @@ useGraphSearch = false
 : Config override: rootSymmetryPruning = false
 : Config override: trtUseFP16 = false
 : Config override: useGraphSearch = false
-: Analyzing up to 1 positions at at time in parallel
+: Analyzing up to 1 positions at a time in parallel
 : Started, ready to begin handling requests
 : Request: {"id":"pvvisittest","initialStones":[],"moves":[["B","D4"],["W","D5"],["B","C5"],["W","E4"],["B","D3"],["W","C6"],["B","E5"],["W","D6"]],"rules":"tromp-taylor","komi":9,"boardXSize":7,"boardYSize":7,"overrideSettings":{"maxVisits":1000},"includePVVisits":true}
 : Request: {"id":"pvvisittest","initialStones":[],"moves":[["B","D4"],["W","D5"],["B","C5"],["W","E4"],["B","D3"],["W","E5"],["B","C6"],["W","E3"],["B","E2"],["W","F2"],["B","D2"],["W","C4"],["B","D6"],["W","B4"]],"rules":"chinese","komi":9,"boardXSize":7,"boardYSize":7,"overrideSettings":{"maxVisits":1000},"includePVVisits":true}

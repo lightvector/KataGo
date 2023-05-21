@@ -49,7 +49,7 @@ trtUseFP16 = false
 : Config override: openclUseFP16 = false
 : Config override: rootSymmetryPruning = false
 : Config override: trtUseFP16 = false
-: Analyzing up to 1 positions at at time in parallel
+: Analyzing up to 1 positions at a time in parallel
 : Started, ready to begin handling requests
 : Request: {"id":"badoverride","initialStones":[],"moves":[],"rules":"tromp-taylor","komi":7.5,"boardXSize":19,"boardYSize":19,"overrideSettings":{"sldjfslkjf":1234}}
 : Warning: {"field":"overrideSettings","id":"badoverride","warning":"Unknown config params: sldjfslkjf"}
