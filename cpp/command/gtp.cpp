@@ -3052,7 +3052,7 @@ int MainCmds::gtp(const vector<string>& args) {
         response = "Expected one argument 'all' or symmetry index [0-7] for kata-raw-nn but got '" + Global::concat(pieces," ") + "'";
       }
       else {
-        double policyOptimism = 0.0;
+        double policyOptimism = engine->params.rootPolicyOptimism;
         if(pieces.size() == 2) {
           parsed = false;
           if(Global::tryStringToDouble(pieces[0],policyOptimism) && isnan(policyOptimism) && policyOptimism >= 0.0 && policyOptimism <= 1.0) {
