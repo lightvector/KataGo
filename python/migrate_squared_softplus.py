@@ -6,7 +6,7 @@ import math
 import torch
 
 description = """
-Hacky script to partially migrate v12 optimistic policy to v13 changing score error.
+Hacky script to partially migrate v13 to v14 new squared softplus activation for error preds.
 Run on a torch checkpoint.ckpt file. Replace the old one with the new one after a backup.
 """
 
