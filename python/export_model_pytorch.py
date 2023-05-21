@@ -315,9 +315,9 @@ def main(args):
       write_matmul(name+".linear_pass", torch.stack((policyhead.linear_pass.weight[0],), dim=0))
     else:
       assert policyhead.conv2p.weight.shape[0] == 6
-      write_conv_weight(name+".conv2p", torch.stack((policyhead.conv2p.weight[0], policyhead.conv2p.weight[4]), dim=0))
+      write_conv_weight(name+".conv2p", torch.stack((policyhead.conv2p.weight[0], policyhead.conv2p.weight[5]), dim=0))
       assert policyhead.linear_pass.weight.shape[0] == 6
-      write_matmul(name+".linear_pass", torch.stack((policyhead.linear_pass.weight[0], policyhead.linear_pass.weight[4]), dim=0))
+      write_matmul(name+".linear_pass", torch.stack((policyhead.linear_pass.weight[0], policyhead.linear_pass.weight[5]), dim=0))
     assert policyhead.conv2p.bias is None
     assert policyhead.linear_pass.bias is None
 
