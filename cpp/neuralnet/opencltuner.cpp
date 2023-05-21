@@ -3431,13 +3431,24 @@ void OpenCLTuner::autoTuneEverything(
   }
   {
     ModelInfoForTuning modelInfo;
+    modelInfo.maxConvChannels1x1 = 384;
+    modelInfo.maxConvChannels3x3 = 384;
+    modelInfo.trunkNumChannels = 384;
+    modelInfo.midNumChannels = 192;
+    modelInfo.regularNumChannels = 128;
+    modelInfo.gpoolNumChannels = 64;
+    modelInfo.version = 14;
+    modelInfos.push_back(modelInfo);
+  }
+  {
+    ModelInfoForTuning modelInfo;
     modelInfo.maxConvChannels1x1 = 512;
     modelInfo.maxConvChannels3x3 = 512;
     modelInfo.trunkNumChannels = 512;
     modelInfo.midNumChannels = 256;
     modelInfo.regularNumChannels = 192;
     modelInfo.gpoolNumChannels = 64;
-    modelInfo.version = 13;
+    modelInfo.version = 14;
     modelInfos.push_back(modelInfo);
   }
 
