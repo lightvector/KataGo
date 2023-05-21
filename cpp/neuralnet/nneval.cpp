@@ -258,6 +258,9 @@ int NNEvaluator::getNNXLen() const {
 int NNEvaluator::getNNYLen() const {
   return nnYLen;
 }
+int NNEvaluator::getModelVersion() const {
+  return modelVersion;
+}
 enabled_t NNEvaluator::getUsingFP16Mode() const {
   return usingFP16Mode;
 }
