@@ -124,7 +124,7 @@ if __name__ == '__main__':
     if "dir_mtime" not in summary_data_by_dirpath[dirpath]:
       filename_mtime_num_rowss = summary_data_by_dirpath[dirpath]
       summary_data_by_dirpath[dirpath] = {
-        "dir_mtime": os.path.getmtime(dirpath)
+        "dir_mtime": os.path.getmtime(dirpath),
         "filename_mtime_num_rowss": filename_mtime_num_rowss,
       }
 
