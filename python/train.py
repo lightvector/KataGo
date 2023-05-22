@@ -505,9 +505,9 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
   if intermediate_loss_scale is not None:
     assert raw_model.get_has_intermediate_head(), "Model must have intermediate head to use intermediate loss"
 
-  # If the user specified an intermediate head but no loss or distill scale, pick something reasonable by default
+  # If the user specified an intermediate head but no loss scale, pick something reasonable by default
   if raw_model.get_has_intermediate_head():
-    if intermediate_distill_scale is None and intermediate_loss_scale is None and main_loss_scale is None:
+    if intermediate_loss_scale is None and main_loss_scale is None:
       if model_config["trunk_normless"]:
         # fson-bnh default
         assert model_config["intermediate_head_blocks"] == len(model_config["block_kind"]), "If these are unequal, don't know what you intend, please specify intermediate_loss_scale"
@@ -517,7 +517,7 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
         # Intermediate head in the middle of the trunk
         intermediate_loss_scale = 0.5
         main_loss_scale = 0.5
-    elif intermediate_distill_scale is None and intermediate_loss_scale is None:
+    elif intermediate_loss_scale is None:
       assert False, "Please specify both of main_loss_scale and intermediate_loss_scale or neither when using an architecture with an intermediate head."
 
 
@@ -530,7 +530,6 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
   logging.info(f"td_value_loss_scales {td_value_loss_scales}")
   logging.info(f"main_loss_scale {main_loss_scale}")
   logging.info(f"intermediate_loss_scale {intermediate_loss_scale}")
-  logging.info(f"intermediate_distill_scale {intermediate_distill_scale}")
 
   # Print all model parameters just to get a summary
   total_num_params = 0
