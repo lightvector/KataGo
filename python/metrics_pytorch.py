@@ -528,8 +528,8 @@ class Metrics:
         ).sum()
 
         if raw_model.config["version"] <= 11:
-            target_weight_longoptimistic_policy = torch.zeros_like(policy_logits[:, 0, :])
-            loss_longoptimistic_policy = torch.zeros_like(policy_logits[:, 0, :])
+            target_weight_longoptimistic_policy = torch.zeros_like(global_weight)
+            loss_longoptimistic_policy = torch.zeros_like(loss_policy_player)
         else:
             # Long-term optimistic policy. Weight policy by:
             # Final game win squared (squaring discourages draws)
@@ -556,11 +556,15 @@ class Metrics:
                 target_weight_longoptimistic_policy,
                 global_weight,
             ).sum()
+
+        assert len(loss_longoptimistic_policy.shape) == 0
+        assert len(target_weight_longoptimistic_policy.shape) == 1
+        assert target_weight_longoptimistic_policy.shape[0] == n
         target_weight_longoptimistic_policy_sum = (global_weight * target_weight_longoptimistic_policy).sum()
 
         if raw_model.config["version"] <= 11:
-            target_weight_shortoptimistic_policy = torch.zeros_like(policy_logits[:, 0, :])
-            loss_shortoptimistic_policy = torch.zeros_like(policy_logits[:, 0, :])
+            target_weight_shortoptimistic_policy = torch.zeros_like(global_weight)
+            loss_shortoptimistic_policy = torch.zeros_like(loss_policy_player)
         else:
             # Short-term optimistic policy. Weight policy by:
             # The shortterm value outcome being around 1.5 sigma more than expected
@@ -588,6 +592,10 @@ class Metrics:
                 target_weight_shortoptimistic_policy,
                 global_weight,
             ).sum()
+
+        assert len(loss_shortoptimistic_policy.shape) == 0
+        assert len(target_weight_shortoptimistic_policy.shape) == 1
+        assert target_weight_shortoptimistic_policy.shape[0] == n
         target_weight_shortoptimistic_policy_sum = (global_weight * target_weight_shortoptimistic_policy).sum()
 
 
