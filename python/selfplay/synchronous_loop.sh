@@ -47,13 +47,15 @@ mkdir -p "$BASEDIR"/gatekeepersgf
 # NOTE: You may want to adjust the below numbers.
 # NOTE: You probably want to edit settings in the cpp/configs/training/selfplay1.cfg
 # Such as what board sizes and rules, you want to learn, number of visits to use, etc.
-NUM_GAMES_PER_CYCLE=1000
+NUM_GAMES_PER_CYCLE=500
 NUM_THREADS_FOR_SHUFFLING=8
-NUM_TRAIN_SAMPLES_PER_CYCLE=500000
-NUM_TRAIN_SAMPLES_PER_SWA=200000
+NUM_TRAIN_SAMPLES_PER_EPOCH=100000  # Training will proceed in chunks of this many rows.
+MAX_TRAIN_PER_DATA=8 # On average, train only this many times on each data row. Larger numbers may cause overfitting.
+NUM_TRAIN_SAMPLES_PER_SWA=80000  # Stochastic weight averaging
 BATCHSIZE=128 # For lower-end GPUs 64 or smaller may be needed to avoid running out of GPU memory.
-SHUFFLE_MINROWS=80000
-SHUFFLE_KEEPROWS=600000 # A little larger than NUM_TRAIN_SAMPLES_PER_CYCLE
+SHUFFLE_MINROWS=50000 # Require this many rows at the very start before beginning training.
+MAX_TRAIN_SAMPLES_PER_CYCLE=500000  # Each cycle will do at most this many steps.
+SHUFFLE_KEEPROWS=600000 # A little larger than MAX_TRAIN_SAMPLES_PER_CYCLE
 SELFPLAY_CONFIG="$GITROOTDIR"/cpp/configs/training/selfplay1.cfg
 GATING_CONFIG="$GITROOTDIR"/cpp/configs/training/gatekeeper1.cfg
 
@@ -73,7 +75,7 @@ git diff --staged --no-color > "$DATED_ARCHIVE"/diffstaged.txt
 # Also run the code out of the archive, so that we don't unexpectedly crash or change behavior if the local repo changes.
 cd "$DATED_ARCHIVE"
 
-# Begin looping forever, running each step in order.
+# Begin cycling forever, running each step in order.
 set -x
 while true
 do
@@ -86,7 +88,7 @@ do
     )
 
     echo "Train"
-    time ./train.sh "$BASEDIR" "$TRAININGNAME" "$MODELKIND" "$BATCHSIZE" main -max-epochs-this-instance 1 -samples-per-epoch "$NUM_TRAIN_SAMPLES_PER_CYCLE" -swa-period-samples "$NUM_TRAIN_SAMPLES_PER_SWA" -quit-if-no-data -stop-when-train-bucket-limited
+    time ./train.sh "$BASEDIR" "$TRAININGNAME" "$MODELKIND" "$BATCHSIZE" main -samples-per-epoch "$NUM_TRAIN_SAMPLES_PER_EPOCH" -swa-period-samples "$NUM_TRAIN_SAMPLES_PER_SWA" -quit-if-no-data -stop-when-train-bucket-limited -max-train-bucket-per-new-data "$MAX_TRAIN_PER_DATA" -max-train-bucket-size "$MAX_TRAIN_SAMPLES_PER_CYCLE"
 
     echo "Export"
     (
