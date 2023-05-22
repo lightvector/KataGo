@@ -79,6 +79,7 @@ if __name__ == "__main__":
   parser.add_argument('-randomize-val', help='Randomize order of validation files', required=False, action='store_true')
   parser.add_argument('-no-export', help='Do not export models', required=False, action='store_true')
   parser.add_argument('-no-repeat-files', help='Track what shuffled data was used and do not repeat, even when killed and resumed', required=False, action='store_true')
+  parser.add_argument('-quit-if-no-data', help='If no data, quit instead of waiting for data', required=False, action='store_true')
 
   parser.add_argument('-gnorm-stats-debug', required=False, action='store_true')
 
@@ -158,6 +159,7 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
   randomize_val = args["randomize_val"]
   no_export = args["no_export"]
   no_repeat_files = args["no_repeat_files"]
+  quit_if_no_data = args["quit_if_no_data"]
 
   gnorm_stats_debug = args["gnorm_stats_debug"]
 
@@ -669,12 +671,18 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
       # Different directory - new shuffle
       if curdatadir != last_curdatadir:
         if not os.path.exists(curdatadir):
+          if quit_if_no_data:
+            logging.info("Shuffled data path does not exist, there seems to be no data or not enough data yet, qutting: %s" % curdatadir)
+            sys.exit(0)
           logging.info("Shuffled data path does not exist, there seems to be no shuffled data yet, waiting and trying again later: %s" % curdatadir)
           time.sleep(30)
           continue
 
         trainjsonpath = os.path.join(curdatadir,"train.json")
         if not os.path.exists(trainjsonpath):
+          if quit_if_no_data:
+            logging.info("Shuffled data train.json file does not exist, there seems to be no data or not enough data yet, qutting: %s" % trainjsonpath)
+            sys.exit(0)
           logging.info("Shuffled data train.json file does not exist, there seems to be no shuffled data yet, waiting and trying again later: %s" % trainjsonpath)
           time.sleep(30)
           continue
@@ -720,6 +728,9 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
         num_train_files = len(train_files)
 
         if len(train_files) <= 0:
+          if quit_if_no_data:
+            logging.info(f"No new training files found in: {tdatadir}, quitting")
+            sys.exit(0)
           logging.info(f"No new training files found in: {tdatadir}, waiting 30s and trying again")
           time.sleep(30)
           continue
@@ -947,6 +958,9 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
           maybe_reload_training_data()
         train_files_to_use = get_files_for_subepoch()
         while train_files_to_use is None or len(train_files_to_use) <= 0:
+          if quit_if_no_data:
+            logging.info("Not enough data files to fill a subepoch! Quitting.")
+            sys.exit(0)
           logging.info("Not enough data files to fill a subepoch! Waiting 5m before retrying.")
           time.sleep(300)
           maybe_reload_training_data()

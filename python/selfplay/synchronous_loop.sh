@@ -86,7 +86,7 @@ do
     )
 
     echo "Train"
-    time ./train.sh "$BASEDIR" "$TRAININGNAME" "$MODELKIND" "$BATCHSIZE" main -max-epochs-this-instance 1 -samples-per-epoch "$NUM_TRAIN_SAMPLES_PER_CYCLE" -swa-period-samples "$NUM_TRAIN_SAMPLES_PER_SWA"
+    time ./train.sh "$BASEDIR" "$TRAININGNAME" "$MODELKIND" "$BATCHSIZE" main -max-epochs-this-instance 1 -samples-per-epoch "$NUM_TRAIN_SAMPLES_PER_CYCLE" -swa-period-samples "$NUM_TRAIN_SAMPLES_PER_SWA" -quit-if-no-data -stop-when-train-bucket-limited
 
     echo "Export"
     (
