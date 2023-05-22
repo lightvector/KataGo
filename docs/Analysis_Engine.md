@@ -15,9 +15,9 @@ An example config file is provided in `cpp/configs/analysis_example.cfg`. Adjust
 
 See the [example analysis config](https://github.com/lightvector/KataGo/blob/master/cpp/configs/analysis_example.cfg#L60) for a fairly detailed discussion of how to tune these parameters.
 
-#### Example Code
+### Example Code
 
-KataGo also includes example code demonstrating how you can invoke the analysis engine from Python, see [here](python/query_analysis_engine_example.py)!
+For example code demonstrating how to invoke the analysis engine from Python, see [here](python/query_analysis_engine_example.py)!
 
 ### Protocol
 
