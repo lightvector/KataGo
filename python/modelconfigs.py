@@ -1351,20 +1351,20 @@ sandbox = {
 
 
 base_config_of_name = {
-  # Small nets
+  # Micro-sized model configs
   "b1c6nbt": b1c6nbt,
   "b2c16": b2c16,
   "b4c32": b4c32,
   "b6c96": b6c96,
 
-  # Configs not too different in inference cost from b10c128
+  # Small model configs, not too different in inference cost from b10c128
   "b10c128": b10c128,
   "b5c192nbt": b5c192nbt,
 
-  # Configs not too different in inference cost from b15c192
+  # Medium model configs, not too different in inference cost from b15c192
   "b15c192": b15c192,
 
-  # Configs not too different in inference cost from b20c256
+  # Roughly AlphaZero-sized, not too different in inference cost from b20c256
   "b20c256": b20c256,
   "b30c256bt": b30c256bt,
   "b24c320bt": b24c320bt,
@@ -1374,26 +1374,24 @@ base_config_of_name = {
   "b15c384lbt": b15c384lbt,
   "b10c512lbt": b10c512lbt,
   "b12c384llbt": b12c384llbt,
-  "b10c384nbt": b10c384nbt,  # Recommended
+  "b10c384nbt": b10c384nbt,  # Recommended best config for this cost
   "b10c480nb3t": b10c480nb3t,
   "b7c384lnbt": b7c384lnbt,
   "b5c512nnbt": b5c512nnbt,
-
-  # Oddball config
   "b20c384lbt": b20c384lbt,
 
-  # Configs not too different in inference cost from b40c256
+  # Roughly AlphaGoZero-sized, not too different in inference cost from b40c256
   "b30c320": b30c320,
   "b40c256": b40c256,
-  "b18c384nbt": b18c384nbt,  # Recommended
+  "b18c384nbt": b18c384nbt,  # Recommended best config for this cost
   "b14c448nbt": b14c448nbt,
 
-  # Configs not too different in inference cost from b60c320
+  # Large model configs, not too different in inference cost from b60c320
   "b40c384": b40c384,
   "b60c320": b60c320,
   "b41c384nbt": b41c384nbt,
   "b32c448nbt": b32c448nbt,
-  "b28c512nbt": b28c512nbt,  # Recommended
+  "b28c512nbt": b28c512nbt,  # Recommended best config for this cost
   "b20c640nbt": b20c640nbt,
 
   "sandbox": sandbox,

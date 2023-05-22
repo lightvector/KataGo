@@ -6,13 +6,13 @@ set -o pipefail
 # Assumes you have the cpp directory compiled and the katago executable is there.
 
 # If using multiple machines, or even possibly many GPUs on one machine in some cases, then this is NOT the
-# recommended method, instead it is better to run all steps simultaneously and asynchronously. See README.md in
+# recommended method, instead it is better to run all steps simultaneously and asynchronously. See SelfplayTraining.md in
 # the root of the KataGo repo for more details.
 
 if [[ $# -lt 5 ]]
 then
     echo "Usage: $0 NAMEPREFIX BASEDIR TRAININGNAME MODELKIND USEGATING"
-    echo "Assumes katago is built in the 'cpp' directory of the KataGo repo and the executable is present at cpp/katago."
+    echo "Assumes katago is already built in the 'cpp' directory of the KataGo repo and the executable is present at cpp/katago."
     echo "NAMEPREFIX string prefix for this training run, try to pick something globally unique. Will be displayed to users when KataGo loads the model."
     echo "BASEDIR containing selfplay data and models and related directories"
     echo "TRANINGNAME name to prefix models with, specific to this training daemon"
@@ -32,29 +32,32 @@ USEGATING="$1"
 shift
 
 BASEDIR="$(realpath "$BASEDIRRAW")"
-
 GITROOTDIR="$(git rev-parse --show-toplevel)"
-
 LOGSDIR="$BASEDIR"/logs
 SCRATCHDIR="$BASEDIR"/shufflescratch
+
+# Create all the directories we need
 mkdir -p "$BASEDIR"
 mkdir -p "$LOGSDIR"
 mkdir -p "$SCRATCHDIR"
 mkdir -p "$BASEDIR"/selfplay
 mkdir -p "$BASEDIR"/gatekeepersgf
 
-# NOTE: You probably want to edit settings in the cpp/configs/selfplay1.cfg - what board sizes and rules, you want to learn, number of visits to use, etc.
-# NOTE: You may want to adjust these numbers.
+# Parameters for the training run
+# NOTE: You may want to adjust the below numbers.
+# NOTE: You probably want to edit settings in the cpp/configs/training/selfplay1.cfg
+# Such as what board sizes and rules, you want to learn, number of visits to use, etc.
 NUM_GAMES_PER_CYCLE=1000
 NUM_THREADS_FOR_SHUFFLING=8
 NUM_TRAIN_SAMPLES_PER_CYCLE=500000
 NUM_TRAIN_SAMPLES_PER_SWA=200000
-BATCHSIZE=128 # KataGo normally uses batch size 256, and you can do that too, but for lower-end GPUs 64 or 128 may be needed to avoid running out of memory.
+BATCHSIZE=128 # For lower-end GPUs 64 or smaller may be needed to avoid running out of GPU memory.
 SHUFFLE_MINROWS=80000
 SHUFFLE_KEEPROWS=600000 # A little larger than NUM_TRAIN_SAMPLES_PER_CYCLE
 SELFPLAY_CONFIG="$GITROOTDIR"/cpp/configs/training/selfplay1.cfg
 GATING_CONFIG="$GITROOTDIR"/cpp/configs/training/gatekeeper1.cfg
 
+# Copy all the relevant scripts and configs and the katago executable to a dated directory.
 # For archival and logging purposes - you can look back and see exactly the python code on a particular date
 DATE_FOR_FILENAME=$(date "+%Y%m%d-%H%M%S")
 DATED_ARCHIVE="$BASEDIR"/scripts/dated/"$DATE_FOR_FILENAME"
@@ -67,9 +70,10 @@ git show --no-patch --no-color > "$DATED_ARCHIVE"/version.txt
 git diff --no-color > "$DATED_ARCHIVE"/diff.txt
 git diff --staged --no-color > "$DATED_ARCHIVE"/diffstaged.txt
 
-# Also run the code out of the archive, so that we don't unexpectedly crash or have changes if the local repo changes.
+# Also run the code out of the archive, so that we don't unexpectedly crash or change behavior if the local repo changes.
 cd "$DATED_ARCHIVE"
 
+# Begin looping forever, running each step in order.
 set -x
 while true
 do
