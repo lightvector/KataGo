@@ -22,35 +22,35 @@ data = torch.load(checkpoint_path,map_location="cpu")
 assert data["config"]["version"] == 12
 
 def shift_bias(name, channel_idx):
-  if f"module.{name}" in data["model"]:
-    data["model"][f"module.{name}"][channel_idx] -= math.log(150.0 / 30.0)
-  elif name in data["model"]:
-    data["model"][name][channel_idx] -= math.log(150.0 / 30.0)
-  else:
-    assert False, f"{name} not found in saved model"
-  if f"module.{name}" in data["swa_model"]:
-    data["swa_model"][f"module.{name}"][channel_idx] -= math.log(150.0 / 30.0)
-  elif name in data["swa_model"]:
-    data["swa_model"][name][channel_idx] -= math.log(150.0 / 30.0)
-  else:
-    assert False, f"{name} not found in swa model"
+    if f"module.{name}" in data["model"]:
+        data["model"][f"module.{name}"][channel_idx] -= math.log(150.0 / 30.0)
+    elif name in data["model"]:
+        data["model"][name][channel_idx] -= math.log(150.0 / 30.0)
+    else:
+        assert False, f"{name} not found in saved model"
+    if f"module.{name}" in data["swa_model"]:
+        data["swa_model"][f"module.{name}"][channel_idx] -= math.log(150.0 / 30.0)
+    elif name in data["swa_model"]:
+        data["swa_model"][name][channel_idx] -= math.log(150.0 / 30.0)
+    else:
+        assert False, f"{name} not found in swa model"
 
 shift_bias("value_head.linear_moremiscvaluehead.bias", channel_idx=1)
 if any("intermediate_value_head" in key for key in data["model"].keys()):
-  shift_bias("intermediate_value_head.linear_moremiscvaluehead.bias", channel_idx=1)
+    shift_bias("intermediate_value_head.linear_moremiscvaluehead.bias", channel_idx=1)
 
 if "optimizer" in data:
-  print("Deleting optimizer state")
-  del data["optimizer"]
+    print("Deleting optimizer state")
+    del data["optimizer"]
 # if "swa_model" in data:
 #   print("Deleting swa model state")
 #   del data["swa_model"]
 if "running_metrics" in data:
-  print("Resetting shortterm score error running metrics")
-  data["running_metrics"]["sums"]["esstloss_sum"] /= 100000.0
-  data["running_metrics"]["weights"]["esstloss_sum"] /= 100000.0
-  data["running_metrics"]["sums"]["Iesstloss_sum"] /= 100000.0
-  data["running_metrics"]["weights"]["Iesstloss_sum"] /= 100000.0
+    print("Resetting shortterm score error running metrics")
+    data["running_metrics"]["sums"]["esstloss_sum"] /= 100000.0
+    data["running_metrics"]["weights"]["esstloss_sum"] /= 100000.0
+    data["running_metrics"]["sums"]["Iesstloss_sum"] /= 100000.0
+    data["running_metrics"]["weights"]["Iesstloss_sum"] /= 100000.0
 print("Setting version to 13")
 data["config"]["version"] = 13
 

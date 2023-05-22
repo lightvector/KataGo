@@ -40,21 +40,21 @@ ModelConfig = Dict[str,Any]
 # version = 14 # V7 features, Squared softplus for error variance predictions
 
 def get_version(config: ModelConfig):
-  return config["version"]
+    return config["version"]
 
 def get_num_bin_input_features(config: ModelConfig):
-  version = get_version(config)
-  if version == 10 or version == 11 or version == 12 or version == 13 or version == 14:
-    return 22
-  else:
-    assert(False)
+    version = get_version(config)
+    if version == 10 or version == 11 or version == 12 or version == 13 or version == 14:
+        return 22
+    else:
+        assert(False)
 
 def get_num_global_input_features(config: ModelConfig):
-  version = get_version(config)
-  if version == 10 or version == 11 or version == 12 or version == 13 or version == 14:
-    return 19
-  else:
-    assert(False)
+    version = get_version(config)
+    if version == 10 or version == 11 or version == 12 or version == 13 or version == 14:
+        return 19
+    else:
+        assert(False)
 
 b1c6nbt = {
   "version":14,
@@ -1399,100 +1399,100 @@ base_config_of_name = {
 
 config_of_name = {}
 for name, base_config in base_config_of_name.items():
-  config = base_config.copy()
-  config_of_name[name] = config
+    config = base_config.copy()
+    config_of_name[name] = config
 
 
 for name, base_config in list(config_of_name.items()):
-  # Fixup initialization
-  config = base_config.copy()
-  config["norm_kind"] = "fixup"
-  config_of_name[name+""] = config
+    # Fixup initialization
+    config = base_config.copy()
+    config["norm_kind"] = "fixup"
+    config_of_name[name+""] = config
 
-  # Fixed scaling normalization
-  config = base_config.copy()
-  config["norm_kind"] = "fixscale"
-  config_of_name[name+"-fs"] = config
+    # Fixed scaling normalization
+    config = base_config.copy()
+    config["norm_kind"] = "fixscale"
+    config_of_name[name+"-fs"] = config
 
-  # Batchnorm without gamma terms
-  config = base_config.copy()
-  config["norm_kind"] = "bnorm"
-  config_of_name[name+"-bn"] = config
+    # Batchnorm without gamma terms
+    config = base_config.copy()
+    config["norm_kind"] = "bnorm"
+    config_of_name[name+"-bn"] = config
 
-  # Batchrenorm without gamma terms
-  config = base_config.copy()
-  config["norm_kind"] = "brenorm"
-  config_of_name[name+"-brn"] = config
+    # Batchrenorm without gamma terms
+    config = base_config.copy()
+    config["norm_kind"] = "brenorm"
+    config_of_name[name+"-brn"] = config
 
-  # Fixed scaling normalization + Batchrenorm without gamma terms
-  config = base_config.copy()
-  config["norm_kind"] = "fixbrenorm"
-  config_of_name[name+"-fbrn"] = config
+    # Fixed scaling normalization + Batchrenorm without gamma terms
+    config = base_config.copy()
+    config["norm_kind"] = "fixbrenorm"
+    config_of_name[name+"-fbrn"] = config
 
-  # Batchnorm with gamma terms
-  config = base_config.copy()
-  config["norm_kind"] = "bnorm"
-  config["bnorm_use_gamma"] = True
-  config_of_name[name+"-bng"] = config
+    # Batchnorm with gamma terms
+    config = base_config.copy()
+    config["norm_kind"] = "bnorm"
+    config["bnorm_use_gamma"] = True
+    config_of_name[name+"-bng"] = config
 
-  # Batchrenorm with gamma terms
-  config = base_config.copy()
-  config["norm_kind"] = "brenorm"
-  config["bnorm_use_gamma"] = True
-  config_of_name[name+"-brng"] = config
+    # Batchrenorm with gamma terms
+    config = base_config.copy()
+    config["norm_kind"] = "brenorm"
+    config["bnorm_use_gamma"] = True
+    config_of_name[name+"-brng"] = config
 
-  # Fixed scaling normalization + Batchrenorm with gamma terms
-  config = base_config.copy()
-  config["norm_kind"] = "fixbrenorm"
-  config["bnorm_use_gamma"] = True
-  config_of_name[name+"-fbrng"] = config
+    # Fixed scaling normalization + Batchrenorm with gamma terms
+    config = base_config.copy()
+    config["norm_kind"] = "fixbrenorm"
+    config["bnorm_use_gamma"] = True
+    config_of_name[name+"-fbrng"] = config
 
-  # Fixed scaling normalization + ONE batch norm layer in the entire net.
-  config = base_config.copy()
-  config["norm_kind"] = "fixscaleonenorm"
-  config["bnorm_use_gamma"] = True
-  config_of_name[name+"-fson"] = config
-
-for name, base_config in list(config_of_name.items()):
-  config = base_config.copy()
-  config["activation"] = "elu"
-  config_of_name[name+"-elu"] = config
-
-  config = base_config.copy()
-  config["activation"] = "gelu"
-  config_of_name[name+"-gelu"] = config
-
-  config = base_config.copy()
-  config["activation"] = "mish"
-  config_of_name[name+"-mish"] = config
+    # Fixed scaling normalization + ONE batch norm layer in the entire net.
+    config = base_config.copy()
+    config["norm_kind"] = "fixscaleonenorm"
+    config["bnorm_use_gamma"] = True
+    config_of_name[name+"-fson"] = config
 
 for name, base_config in list(config_of_name.items()):
-  config = base_config.copy()
-  config["use_attention_pool"] = True
-  config_of_name[name+"-ap"] = config
+    config = base_config.copy()
+    config["activation"] = "elu"
+    config_of_name[name+"-elu"] = config
+
+    config = base_config.copy()
+    config["activation"] = "gelu"
+    config_of_name[name+"-gelu"] = config
+
+    config = base_config.copy()
+    config["activation"] = "mish"
+    config_of_name[name+"-mish"] = config
 
 for name, base_config in list(config_of_name.items()):
-  config = base_config.copy()
-  config["use_repvgg_init"] = True
-  config_of_name[name+"-rvgi"] = config
-
-  config = base_config.copy()
-  config["use_repvgg_linear"] = True
-  config_of_name[name+"-rvgl"] = config
+    config = base_config.copy()
+    config["use_attention_pool"] = True
+    config_of_name[name+"-ap"] = config
 
 for name, base_config in list(config_of_name.items()):
-  # Add intermediate heads, for use with self-distillation or embedding small net in big one.
-  config = base_config.copy()
-  config["has_intermediate_head"] = True
-  config["intermediate_head_blocks"] = len(config["block_kind"]) // 2
-  config_of_name[name+"-ih"] = config
+    config = base_config.copy()
+    config["use_repvgg_init"] = True
+    config_of_name[name+"-rvgi"] = config
 
-  # Add parallel heads that uses the final trunk batchnorm.
-  # The original normal heads disables the final trunk batchnorm
-  # This only makes sense for configs that use some form of batchnorm.
-  if "norm" in config["norm_kind"]:
+    config = base_config.copy()
+    config["use_repvgg_linear"] = True
+    config_of_name[name+"-rvgl"] = config
+
+for name, base_config in list(config_of_name.items()):
+    # Add intermediate heads, for use with self-distillation or embedding small net in big one.
     config = base_config.copy()
     config["has_intermediate_head"] = True
-    config["intermediate_head_blocks"] = len(config["block_kind"])
-    config["trunk_normless"] = True
-    config_of_name[name+"-bnh"] = config
+    config["intermediate_head_blocks"] = len(config["block_kind"]) // 2
+    config_of_name[name+"-ih"] = config
+
+    # Add parallel heads that uses the final trunk batchnorm.
+    # The original normal heads disables the final trunk batchnorm
+    # This only makes sense for configs that use some form of batchnorm.
+    if "norm" in config["norm_kind"]:
+        config = base_config.copy()
+        config["has_intermediate_head"] = True
+        config["intermediate_head_blocks"] = len(config["block_kind"])
+        config["trunk_normless"] = True
+        config_of_name[name+"-bnh"] = config

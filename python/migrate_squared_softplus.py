@@ -26,21 +26,21 @@ assert data["config"]["version"] == 13
 # weights of the model already should be a good starting point for the new activation.
 
 if "optimizer" in data:
-  print("Deleting optimizer state")
-  del data["optimizer"]
+    print("Deleting optimizer state")
+    del data["optimizer"]
 # if "swa_model" in data:
 #   print("Deleting swa model state")
 #   del data["swa_model"]
 if "running_metrics" in data:
-  print("Resetting shortterm value and score error running metrics")
-  data["running_metrics"]["sums"]["evstloss_sum"] /= 100000.0
-  data["running_metrics"]["weights"]["evstloss_sum"] /= 100000.0
-  data["running_metrics"]["sums"]["Ievstloss_sum"] /= 100000.0
-  data["running_metrics"]["weights"]["Ievstloss_sum"] /= 100000.0
-  data["running_metrics"]["sums"]["esstloss_sum"] /= 100000.0
-  data["running_metrics"]["weights"]["esstloss_sum"] /= 100000.0
-  data["running_metrics"]["sums"]["Iesstloss_sum"] /= 100000.0
-  data["running_metrics"]["weights"]["Iesstloss_sum"] /= 100000.0
+    print("Resetting shortterm value and score error running metrics")
+    data["running_metrics"]["sums"]["evstloss_sum"] /= 100000.0
+    data["running_metrics"]["weights"]["evstloss_sum"] /= 100000.0
+    data["running_metrics"]["sums"]["Ievstloss_sum"] /= 100000.0
+    data["running_metrics"]["weights"]["Ievstloss_sum"] /= 100000.0
+    data["running_metrics"]["sums"]["esstloss_sum"] /= 100000.0
+    data["running_metrics"]["weights"]["esstloss_sum"] /= 100000.0
+    data["running_metrics"]["sums"]["Iesstloss_sum"] /= 100000.0
+    data["running_metrics"]["weights"]["Iesstloss_sum"] /= 100000.0
 print("Setting version to 14")
 data["config"]["version"] = 14
 

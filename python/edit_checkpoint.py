@@ -23,38 +23,36 @@ overwrite_checkpoint_from_json = args["overwrite_checkpoint_from_json"]
 data = torch.load(checkpoint_path,map_location="cpu")
 
 if output_json_to is not None:
-  assert output_json_to.endswith(".json")
-  data_to_write = dict(
-    running_metrics = data["running_metrics"],
-    train_state = data["train_state"],
-    config = data["config"] if "config" in data else None,
-  )
-  with open(output_json_to,"w") as f:
-    json.dump(data,f,indent=2)
-  print(f"Dumped to {output_json_to}")
+    assert output_json_to.endswith(".json")
+    data_to_write = dict(
+      running_metrics = data["running_metrics"],
+      train_state = data["train_state"],
+      config = data["config"] if "config" in data else None,
+    )
+    with open(output_json_to,"w") as f:
+        json.dump(data,f,indent=2)
+    print(f"Dumped to {output_json_to}")
 
 elif overwrite_checkpoint_from_json:
-  with open(overwrite_checkpoint_from_json) as f:
-    data_to_use = json.load(f)
-    if "running_metrics" in data_to_use:
-      print("Overwriting running_metrics")
-      data["running_metrics"] = data_to_use["running_metrics"]
-    if "train_state" in data_to_use:
-      print("Overwriting train_state")
-      data["train_state"] = data_to_use["train_state"]
-    if "config" in data_to_use:
-      print("Overwriting config")
-      data["config"] = data_to_use["config"]
+    with open(overwrite_checkpoint_from_json) as f:
+        data_to_use = json.load(f)
+        if "running_metrics" in data_to_use:
+            print("Overwriting running_metrics")
+            data["running_metrics"] = data_to_use["running_metrics"]
+        if "train_state" in data_to_use:
+            print("Overwriting train_state")
+            data["train_state"] = data_to_use["train_state"]
+        if "config" in data_to_use:
+            print("Overwriting config")
+            data["config"] = data_to_use["config"]
 
-  torch.save(data, checkpoint_path)
-  print(f"Updated {checkpoint_path} with new fields")
+    torch.save(data, checkpoint_path)
+    print(f"Updated {checkpoint_path} with new fields")
 
 else:
-  data_to_write = dict(
-    running_metrics = data["running_metrics"],
-    train_state = data["train_state"],
-    config = data["config"] if "config" in data else None,
-  )
-  print(json.dumps(data_to_write,indent=2))
-
-
+    data_to_write = dict(
+      running_metrics = data["running_metrics"],
+      train_state = data["train_state"],
+      config = data["config"] if "config" in data else None,
+    )
+    print(json.dumps(data_to_write,indent=2))

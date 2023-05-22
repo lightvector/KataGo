@@ -46,31 +46,31 @@ notes = args["notes"]
 
 loglines = []
 def log(s):
-  loglines.append(s)
-  print(s,flush=True)
+    loglines.append(s)
+    print(s,flush=True)
 
 def write_log():
-  with open(upload_log_file,"w+") as f:
-    for line in loglines:
-      f.write(line + "\n")
+    with open(upload_log_file,"w+") as f:
+        for line in loglines:
+            f.write(line + "\n")
 
 with open(connection_config_file,'r') as f:
-  connection_config_content = "[DEFAULT]\n" + f.read()
+    connection_config_content = "[DEFAULT]\n" + f.read()
 config_parser = configparser.ConfigParser()
 config_parser.read_string(connection_config_content)
 base_server_url = config_parser["DEFAULT"]["serverUrl"]
 
 if not base_server_url.endswith("/"):
-  base_server_url = base_server_url + "/"
+    base_server_url = base_server_url + "/"
 
 username = config_parser["DEFAULT"]["username"]
 password = config_parser["DEFAULT"]["password"]
 sslVerificationHost = None
 if "sslVerificationHost" in config_parser["DEFAULT"]:
-  sslVerificationHost = config_parser["DEFAULT"]["sslVerificationHost"]
+    sslVerificationHost = config_parser["DEFAULT"]["sslVerificationHost"]
 sslVerifyPemPath = None
 if "sslVerifyPemPath" in config_parser["DEFAULT"]:
-  sslVerifyPemPath = config_parser["DEFAULT"]["sslVerifyPemPath"]
+    sslVerifyPemPath = config_parser["DEFAULT"]["sslVerifyPemPath"]
 
 log("now" + ": " + str(datetime.datetime.now()))
 log("run_name" + ": " + run_name)
@@ -86,93 +86,93 @@ network_size = model_name.split("-")[1]
 
 model_file_extension = None
 if model_file.endswith(".bin.gz"):
-  model_file_extension = ".bin.gz"
+    model_file_extension = ".bin.gz"
 elif model_file.endswith(".txt.gz"):
-  model_file_extension = ".txt.gz"
+    model_file_extension = ".txt.gz"
 else:
-  raise Exception("Model file must end in .bin.gz or .txt.gz")
+    raise Exception("Model file must end in .bin.gz or .txt.gz")
 
 possible_parents = []
 if parents_dir is not None:
-  for fname in os.listdir(parents_dir):
-    if fname.startswith(network_size):
-      pieces = fname.split("-")
-      datasamples = int(pieces[2][1:])
-      possible_parents.append((fname, datasamples))
-  possible_parents.sort(key=(lambda x: x[1]))
+    for fname in os.listdir(parents_dir):
+        if fname.startswith(network_size):
+            pieces = fname.split("-")
+            datasamples = int(pieces[2][1:])
+            possible_parents.append((fname, datasamples))
+    possible_parents.sort(key=(lambda x: x[1]))
 
 parent_network_name_without_run = None
 if len(possible_parents) > 0:
-  parent_network_name_without_run = possible_parents[-1][0]
+    parent_network_name_without_run = possible_parents[-1][0]
 
 metadata = None
 if metadata_file is not None:
-  with open(metadata_file) as f:
-    metadata = json.load(f)
+    with open(metadata_file) as f:
+        metadata = json.load(f)
 
 with open(model_file,"rb") as f:
-  model_file_contents = f.read()
-  model_file_bytes = len(model_file_contents)
-  model_file_sha256 = hashlib.sha256(model_file_contents).hexdigest()
-  del model_file_contents
+    model_file_contents = f.read()
+    model_file_bytes = len(model_file_contents)
+    model_file_sha256 = hashlib.sha256(model_file_contents).hexdigest()
+    del model_file_contents
 
 url = base_server_url + "api/networks/"
 
 with open(model_file,"rb") as model_file_handle:
-  with open(model_zip,"rb") as model_zip_handle:
-    log_gamma_offset = -1.0 if network_size == "b60c320" else 0.0
-    data = {
-      "run": (None, base_server_url + "api/runs/" + run_name + "/"),
-      "name": (None, model_name),
-      "network_size": (None, network_size),
-      "is_random": (None, "false"),
-      "model_file": (model_name + model_file_extension, model_file_handle, "application/octet-stream"),
-      "model_file_bytes": (None, model_file_bytes),
-      "model_file_sha256": (None, model_file_sha256),
-      "training_games_enabled": (None, ("false" if (not_enabled or rating_only != 0) else "true")),
-      "rating_games_enabled": (None, ("false" if not_enabled else "true")),
-      "log_gamma_offset": (None, str(log_gamma_offset)),
-      "model_zip_file": (model_name + ".zip", model_zip_handle, "application/octet-stream"),
-    }
+    with open(model_zip,"rb") as model_zip_handle:
+        log_gamma_offset = -1.0 if network_size == "b60c320" else 0.0
+        data = {
+          "run": (None, base_server_url + "api/runs/" + run_name + "/"),
+          "name": (None, model_name),
+          "network_size": (None, network_size),
+          "is_random": (None, "false"),
+          "model_file": (model_name + model_file_extension, model_file_handle, "application/octet-stream"),
+          "model_file_bytes": (None, model_file_bytes),
+          "model_file_sha256": (None, model_file_sha256),
+          "training_games_enabled": (None, ("false" if (not_enabled or rating_only != 0) else "true")),
+          "rating_games_enabled": (None, ("false" if not_enabled else "true")),
+          "log_gamma_offset": (None, str(log_gamma_offset)),
+          "model_zip_file": (model_name + ".zip", model_zip_handle, "application/octet-stream"),
+        }
 
-    if parent_network_name_without_run is not None:
-      data["parent_network"] = (None, base_server_url + "api/networks/" + run_name + "-" + parent_network_name_without_run + "/")
+        if parent_network_name_without_run is not None:
+            data["parent_network"] = (None, base_server_url + "api/networks/" + run_name + "-" + parent_network_name_without_run + "/")
 
-    if notes is not None:
-      data["notes"] = (None, notes)
+        if notes is not None:
+            data["notes"] = (None, notes)
 
-    if metadata is not None:
-      if "global_step_samples" in metadata:
-        data["train_step"] = (None, metadata["global_step_samples"])
-      if "total_num_data_rows" in metadata:
-        data["total_num_data_rows"] = (None, metadata["total_num_data_rows"])
-      if "extra_stats" in metadata:
-        data["extra_stats"] = (None, json.dumps(metadata["extra_stats"]))
+        if metadata is not None:
+            if "global_step_samples" in metadata:
+                data["train_step"] = (None, metadata["global_step_samples"])
+            if "total_num_data_rows" in metadata:
+                data["total_num_data_rows"] = (None, metadata["total_num_data_rows"])
+            if "extra_stats" in metadata:
+                data["extra_stats"] = (None, json.dumps(metadata["extra_stats"]))
 
-    # print(requests.Request('POST', base_server_url, files=data).prepare().body)
+        # print(requests.Request('POST', base_server_url, files=data).prepare().body)
 
-    if sslVerificationHost is not None:
-      sess = requests.Session()
-      sess.mount('https://', host_header_ssl.HostHeaderSSLAdapter())
-      if sslVerifyPemPath is not None:
-        result = sess.post(url, files=data, auth=HTTPBasicAuth(username,password), headers={"Host": sslVerificationHost}, verify=sslVerifyPemPath)
-      else:
-        result = sess.post(url, files=data, auth=HTTPBasicAuth(username,password), headers={"Host": sslVerificationHost})
-    else:
-      if sslVerifyPemPath is not None:
-        result = requests.post(url, files=data, auth=HTTPBasicAuth(username,password), verify=sslVerifyPemPath)
-      else:
-        result = requests.post(url,files=data,auth=HTTPBasicAuth(username,password))
+        if sslVerificationHost is not None:
+            sess = requests.Session()
+            sess.mount('https://', host_header_ssl.HostHeaderSSLAdapter())
+            if sslVerifyPemPath is not None:
+                result = sess.post(url, files=data, auth=HTTPBasicAuth(username,password), headers={"Host": sslVerificationHost}, verify=sslVerifyPemPath)
+            else:
+                result = sess.post(url, files=data, auth=HTTPBasicAuth(username,password), headers={"Host": sslVerificationHost})
+        else:
+            if sslVerifyPemPath is not None:
+                result = requests.post(url, files=data, auth=HTTPBasicAuth(username,password), verify=sslVerifyPemPath)
+            else:
+                result = requests.post(url,files=data,auth=HTTPBasicAuth(username,password))
 
 log("Post status code: " + str(result.status_code))
 log("Post result: " + str(result.text))
 if result.status_code == 400 and str(result.text).find("already exist") != -1:
-  log("Got 400 error with substring 'already exist', network already uploaded? So assuming everything is good")
-  write_log()
+    log("Got 400 error with substring 'already exist', network already uploaded? So assuming everything is good")
+    write_log()
 elif result.status_code == 200 or result.status_code == 201 or result.status_code == 202:
-  log("Post success")
-  write_log()
+    log("Post success")
+    write_log()
 else:
-  log("Post failed")
-  write_log()
-  sys.exit(1)
+    log("Post failed")
+    write_log()
+    sys.exit(1)

@@ -21,14 +21,14 @@ output_path = args["output"]
 data = torch.load(checkpoint_path,map_location="cpu")
 
 if "optimizer" in data:
-  del data["optimizer"]
+    del data["optimizer"]
 del data["running_metrics"]
 del data["metrics"]
 del data["train_state"]["old_train_data_dirs"]
 del data["train_state"]["data_files_used"]
 
 if "last_val_metrics" in data:
-  del data["last_val_metrics"]
+    del data["last_val_metrics"]
 
 torch.save(data, output_path)
 print(f"Cleaned {checkpoint_path} -> {output_path} for release")
