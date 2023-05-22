@@ -146,8 +146,8 @@ class SgfDataset(torch.utils.data.IterableDataset):
                                     num_always_known_poses = 0
                                 else:
                                     num_always_known_poses = (
-                                      ( min(alwaysknownxmax, metadata.size-1) - max(alwaysknownxmin, 0) + 1) *
-                                      ( min(alwaysknownymax, metadata.size-1) - max(alwaysknownymin, 0) + 1)
+                                        ( min(alwaysknownxmax, metadata.size-1) - max(alwaysknownxmin, 0) + 1) *
+                                        ( min(alwaysknownymax, metadata.size-1) - max(alwaysknownymin, 0) + 1)
                                     )
                                 num_not_always_known_poses = metadata.size * metadata.size - num_always_known_poses
                                 inferenceidx = rand.randint(0,num_not_always_known_poses-1)
@@ -452,12 +452,12 @@ if __name__ == '__main__':
             running_ewms_exgnorm += max(0.0, gnorm - grad_clip_max)
             if running_batch_count >= print_every_batches:
                 trainlog("TRAIN samples: %d,  batches: %d,  main loss: %.5f,  aux loss: %.5f,  gnorm: %.2f,  ewms_exgnorm: %.3g" % (
-                  traindata["samples_so_far"],
-                  traindata["batches_so_far"],
-                  running_main_loss / (running_batch_count * batch_size),
-                  running_aux_loss / (running_batch_count * batch_size),
-                  running_gnorm / (running_batch_count),
-                  running_ewms_exgnorm / (running_batch_count),
+                    traindata["samples_so_far"],
+                    traindata["batches_so_far"],
+                    running_main_loss / (running_batch_count * batch_size),
+                    running_aux_loss / (running_batch_count * batch_size),
+                    running_gnorm / (running_batch_count),
+                    running_ewms_exgnorm / (running_batch_count),
                 ))
                 running_batch_count = 0
                 running_main_loss = 0.0

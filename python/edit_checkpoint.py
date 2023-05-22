@@ -25,9 +25,9 @@ data = torch.load(checkpoint_path,map_location="cpu")
 if output_json_to is not None:
     assert output_json_to.endswith(".json")
     data_to_write = dict(
-      running_metrics = data["running_metrics"],
-      train_state = data["train_state"],
-      config = data["config"] if "config" in data else None,
+        running_metrics = data["running_metrics"],
+        train_state = data["train_state"],
+        config = data["config"] if "config" in data else None,
     )
     with open(output_json_to,"w") as f:
         json.dump(data,f,indent=2)
@@ -51,8 +51,8 @@ elif overwrite_checkpoint_from_json:
 
 else:
     data_to_write = dict(
-      running_metrics = data["running_metrics"],
-      train_state = data["train_state"],
-      config = data["config"] if "config" in data else None,
+        running_metrics = data["running_metrics"],
+        train_state = data["train_state"],
+        config = data["config"] if "config" in data else None,
     )
     print(json.dumps(data_to_write,indent=2))

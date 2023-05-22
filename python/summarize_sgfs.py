@@ -216,11 +216,11 @@ class GameResultSummary:
                     win = record.win + 0.5 * record.draw
                     winrate = win / total
                     data.extend(elo.likelihood_of_games(
-                      pla_black,
-                      pla_white,
-                      total,
-                      winrate,
-                      include_first_player_advantage=self._estimate_first_player_advantage
+                        pla_black,
+                        pla_white,
+                        total,
+                        winrate,
+                        include_first_player_advantage=self._estimate_first_player_advantage
                     ))
 
         for pla in pla_names:
@@ -307,28 +307,28 @@ if __name__ == "__main__":
     """
     parser = argparse.ArgumentParser(description=description)
     parser.add_argument(
-      "input-files-or-dirs",
-      help="sgf/sgfs files or directories of them",
-      nargs="+",
+        "input-files-or-dirs",
+        help="sgf/sgfs files or directories of them",
+        nargs="+",
     )
     parser.add_argument(
-      "-recursive",
-      help="Recursively search subdirectories of input directories",
-      required=False,
-      action="store_true",
+        "-recursive",
+        help="Recursively search subdirectories of input directories",
+        required=False,
+        action="store_true",
     )
     parser.add_argument(
-      "-elo-prior-games",
-      help="Prior for Bayes Elo calculation, using input as the prior number of games to stabilize the results",
-      required=False,
-      type=float,
-      default=2,
+        "-elo-prior-games",
+        help="Prior for Bayes Elo calculation, using input as the prior number of games to stabilize the results",
+        required=False,
+        type=float,
+        default=2,
     )
     parser.add_argument(
-      "-estimate-first-player-advantage",
-      help="Attempt to estimate first player advantage instead of assuming fair game",
-      required=False,
-      action="store_true",
+        "-estimate-first-player-advantage",
+        help="Attempt to estimate first player advantage instead of assuming fair game",
+        required=False,
+        action="store_true",
     )
     args = vars(parser.parse_args())
     print(args)
@@ -339,8 +339,8 @@ if __name__ == "__main__":
     estimate_first_player_advantage = args["estimate_first_player_advantage"]
 
     game_result_summary = GameResultSummary(
-      elo_prior_games=elo_prior_games,
-      estimate_first_player_advantage=estimate_first_player_advantage,
+        elo_prior_games=elo_prior_games,
+        estimate_first_player_advantage=estimate_first_player_advantage,
     )
     for input_file_or_dir in input_files_or_dirs:
         game_result_summary.add_games(input_file_or_dir, recursive=recursive)

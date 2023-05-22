@@ -48,12 +48,12 @@ def main(args):
 
     logging.root.handlers = []
     logging.basicConfig(
-      level=logging.INFO,
-      format="%(message)s",
-      handlers=[
-        logging.StreamHandler(stream=sys.stdout),
-        logging.FileHandler(export_dir + "/log.txt"),
-      ],
+        level=logging.INFO,
+        format="%(message)s",
+        handlers=[
+            logging.StreamHandler(stream=sys.stdout),
+            logging.FileHandler(export_dir + "/log.txt"),
+        ],
     )
     np.set_printoptions(linewidth=150)
 
@@ -369,13 +369,13 @@ def main(args):
         if "running_metrics" in other_state_dict:
             assert sorted(list(other_state_dict["running_metrics"].keys())) == ["sums", "weights"]
             data["extra_stats"] = {
-              "sums": { key: value for (key,value) in other_state_dict["running_metrics"]["sums"].items() if "sopt" not in key and "lopt" not in key },
-              "weights": { key: value for (key,value) in other_state_dict["running_metrics"]["weights"].items() if "sopt" not in key and "lopt" not in key },
+                "sums": { key: value for (key,value) in other_state_dict["running_metrics"]["sums"].items() if "sopt" not in key and "lopt" not in key },
+                "weights": { key: value for (key,value) in other_state_dict["running_metrics"]["weights"].items() if "sopt" not in key and "lopt" not in key },
             }
             if "last_val_metrics" in other_state_dict and "sums" in other_state_dict["last_val_metrics"] and "weights" in other_state_dict["last_val_metrics"]:
                 data["extra_stats"]["last_val_metrics"] = {
-                  "sums": { key: value for (key,value) in other_state_dict["last_val_metrics"]["sums"].items() if "sopt" not in key and "lopt" not in key },
-                  "weights": { key: value for (key,value) in other_state_dict["last_val_metrics"]["weights"].items() if "sopt" not in key and "lopt" not in key },
+                    "sums": { key: value for (key,value) in other_state_dict["last_val_metrics"]["sums"].items() if "sopt" not in key and "lopt" not in key },
+                    "weights": { key: value for (key,value) in other_state_dict["last_val_metrics"]["weights"].items() if "sopt" not in key and "lopt" not in key },
                 }
         json.dump(data,f)
 

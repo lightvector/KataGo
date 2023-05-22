@@ -186,36 +186,36 @@ def likelihood_of_games(
         if not include_first_player_advantage:
             if p1_won_proportion > 0.0:
                 ret.append(Likelihood(
-                  playercombo={p1: 1.0, p2: -1.0},
-                  offset=0.0,
-                  weight=p1_won_proportion*num_games,
-                  gamecount=p1_won_proportion*num_games,
-                  kind=Likelihood.SIGMOID_KIND
+                    playercombo={p1: 1.0, p2: -1.0},
+                    offset=0.0,
+                    weight=p1_won_proportion*num_games,
+                    gamecount=p1_won_proportion*num_games,
+                    kind=Likelihood.SIGMOID_KIND
                 ))
             if p1_won_proportion < 1.0:
                 ret.append(Likelihood(
-                  playercombo={p2: 1.0, p1: -1.0},
-                  offset=0.0,
-                  weight=(1.0-p1_won_proportion)*num_games,
-                  gamecount=(1.0-p1_won_proportion)*num_games,
-                  kind=Likelihood.SIGMOID_KIND
+                    playercombo={p2: 1.0, p1: -1.0},
+                    offset=0.0,
+                    weight=(1.0-p1_won_proportion)*num_games,
+                    gamecount=(1.0-p1_won_proportion)*num_games,
+                    kind=Likelihood.SIGMOID_KIND
                 ))
         else:
             if p1_won_proportion > 0.0:
                 ret.append(Likelihood(
-                  playercombo={p1: 1.0, p2: -1.0, P1_ADVANTAGE_NAME: 1.0},
-                  offset=0.0,
-                  weight=p1_won_proportion*num_games,
-                  gamecount=p1_won_proportion*num_games,
-                  kind=Likelihood.SIGMOID_KIND
+                    playercombo={p1: 1.0, p2: -1.0, P1_ADVANTAGE_NAME: 1.0},
+                    offset=0.0,
+                    weight=p1_won_proportion*num_games,
+                    gamecount=p1_won_proportion*num_games,
+                    kind=Likelihood.SIGMOID_KIND
                 ))
             if p1_won_proportion < 1.0:
                 ret.append(Likelihood(
-                  playercombo={p2: 1.0, p1: -1.0, P1_ADVANTAGE_NAME: -1.0},
-                  offset=0.0,
-                  weight=(1.0-p1_won_proportion)*num_games,
-                  gamecount=(1.0-p1_won_proportion)*num_games,
-                  kind=Likelihood.SIGMOID_KIND
+                    playercombo={p2: 1.0, p1: -1.0, P1_ADVANTAGE_NAME: -1.0},
+                    offset=0.0,
+                    weight=(1.0-p1_won_proportion)*num_games,
+                    gamecount=(1.0-p1_won_proportion)*num_games,
+                    kind=Likelihood.SIGMOID_KIND
                 ))
 
     return ret
@@ -238,18 +238,18 @@ def make_single_player_prior(
     assert np.isfinite(elo)
     if num_games > 0.0:
         ret.append(Likelihood(
-          playercombo={p1: 1.0},
-          offset=(-elo / ELO_PER_STRENGTH),
-          weight=0.5*num_games,
-          gamecount=0.5*num_games,
-          kind=Likelihood.SIGMOID_KIND
+            playercombo={p1: 1.0},
+            offset=(-elo / ELO_PER_STRENGTH),
+            weight=0.5*num_games,
+            gamecount=0.5*num_games,
+            kind=Likelihood.SIGMOID_KIND
         ))
         ret.append(Likelihood(
-          playercombo={p1: -1.0},
-          offset=(elo / ELO_PER_STRENGTH),
-          weight=0.5*num_games,
-          gamecount=0.5*num_games,
-          kind=Likelihood.SIGMOID_KIND
+            playercombo={p1: -1.0},
+            offset=(elo / ELO_PER_STRENGTH),
+            weight=0.5*num_games,
+            gamecount=0.5*num_games,
+            kind=Likelihood.SIGMOID_KIND
         ))
     return ret
 
@@ -278,11 +278,11 @@ def make_sequential_prior(
 
     for i in range(len(players)-1):
         ret.extend(likelihood_of_games(
-          p1=players[i],
-          p2=players[i+1],
-          num_games=num_games,
-          p1_won_proportion=0.5,
-          include_first_player_advantage=False,
+            p1=players[i],
+            p2=players[i+1],
+            num_games=num_games,
+            p1_won_proportion=0.5,
+            include_first_player_advantage=False,
         ))
     return ret
 
@@ -304,11 +304,11 @@ def make_center_elos_prior(
     assert len(set(players)) == len(players), "players must not contain any duplicates"
     playercombo = { player: 1.0 for player in players }
     ret.append(Likelihood(
-      playercombo=playercombo,
-      offset=-len(players) * elo / ELO_PER_STRENGTH,
-      weight=0.001,
-      gamecount=0.0,
-      kind=Likelihood.GAUSSIAN_KIND
+        playercombo=playercombo,
+        offset=-len(players) * elo / ELO_PER_STRENGTH,
+        weight=0.001,
+        gamecount=0.0,
+        kind=Likelihood.GAUSSIAN_KIND
     ))
     return ret
 
@@ -446,9 +446,9 @@ def compute_elos(
       elo_stderr = { player: math.sqrt(1.0 / elo_precision[player_to_idx[player],player_to_idx[player]]) for player in players },
       elo_covariance = { (p1,p2): elo_covariance[player_to_idx[p1],player_to_idx[p2]] for p1 in players for p2 in players },
       effective_game_count = {
-        player: (np.square(sqrt_ess_numerator[player_to_idx[player],player_to_idx[player]]) /
-                 ess_denominator[player_to_idx[player],player_to_idx[player]])
-        for player in players
+          player: (np.square(sqrt_ess_numerator[player_to_idx[player],player_to_idx[player]]) /
+                   ess_denominator[player_to_idx[player],player_to_idx[player]])
+          for player in players
       },
     )
     return info

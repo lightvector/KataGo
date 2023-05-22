@@ -64,7 +64,6 @@ expand_in_dim_for("value_head.linear_smix.weight", scale=math.sqrt(0.5))
 
 
 if any("intermediate_value_head" in key for key in data["model"].keys()):
-
     expand_out_dim_for("intermediate_value_head.conv1.weight", scale=1.0)
     expand_in_dim_for("intermediate_value_head.bias1.beta", scale=1.0)
     expand_in_dim_for("intermediate_value_head.linear2.weight", scale=math.sqrt(0.5))

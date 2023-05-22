@@ -124,8 +124,8 @@ if __name__ == '__main__':
         if "dir_mtime" not in summary_data_by_dirpath[dirpath]:
             filename_mtime_num_rowss = summary_data_by_dirpath[dirpath]
             summary_data_by_dirpath[dirpath] = {
-              "dir_mtime": os.path.getmtime(dirpath),
-              "filename_mtime_num_rowss": filename_mtime_num_rowss,
+                "dir_mtime": os.path.getmtime(dirpath),
+                "filename_mtime_num_rowss": filename_mtime_num_rowss,
             }
 
     dirs_to_handle = []
@@ -175,8 +175,8 @@ if __name__ == '__main__':
             (dirpath, filename_mtime_num_rowss, num_rows_this_dir) = result
             num_total_rows += num_rows_this_dir
             summary_data_by_dirpath[os.path.abspath(dirpath)] = {
-              "dir_mtime": os.path.getmtime(os.path.abspath(dirpath)),
-              "filename_mtime_num_rowss": filename_mtime_num_rowss,
+                "dir_mtime": os.path.getmtime(os.path.abspath(dirpath)),
+                "filename_mtime_num_rowss": filename_mtime_num_rowss,
             }
 
     if len(dirs_to_handle) == 0 and old_summary_file_to_assume_correct is not None and os.path.exists(old_summary_file_to_assume_correct):

@@ -221,10 +221,10 @@ class Features:
 
             if hasAreaFeature:
                 board.calculateNonDameTouchingArea(
-                  area,
-                  keepTerritories,
-                  keepStones,
-                  rules["multiStoneSuicideLegal"]
+                    area,
+                    keepTerritories,
+                    keepStones,
+                    rules["multiStoneSuicideLegal"]
                 )
 
         for y in range(bsize):

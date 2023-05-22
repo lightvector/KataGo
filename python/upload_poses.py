@@ -91,14 +91,14 @@ def handle_file(poses_by_key, poses_file):
                 continue
             pos = json.loads(line)
             key = (
-              str(pos["initialTurnNumber"]) + "$" +
-              "@".join(pos["moveLocs"]) + "$" +
-              "@".join(pos["movePlas"]) + "$" +
-              str(pos["xSize"]) + "$" +
-              str(pos["ySize"]) + "$" +
-              pos["nextPla"] + "$" +
-              pos["board"] + "$" +
-              pos["hintLoc"]
+                str(pos["initialTurnNumber"]) + "$" +
+                "@".join(pos["moveLocs"]) + "$" +
+                "@".join(pos["movePlas"]) + "$" +
+                str(pos["xSize"]) + "$" +
+                str(pos["ySize"]) + "$" +
+                pos["nextPla"] + "$" +
+                pos["board"] + "$" +
+                pos["hintLoc"]
             )
 
             if len(pos["movePlas"]) > 0:
@@ -184,10 +184,10 @@ else:
     for pos in poses:
         weight = pos["weight"]
         data = {
-          "run": base_server_url + "api/runs/" + run_name + "/",
-          "weight": weight,
-          "data": pos,
-          "notes": notes,
+            "run": base_server_url + "api/runs/" + run_name + "/",
+            "weight": weight,
+            "data": pos,
+            "notes": notes,
         }
         to_post.append(data)
         if len(to_post) >= 5000:

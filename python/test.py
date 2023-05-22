@@ -65,11 +65,11 @@ def main(args):
 
     logging.root.handlers = []
     logging.basicConfig(
-      level=logging.INFO,
-      format="%(message)s",
-      handlers=[
-        logging.StreamHandler(stream=sys.stdout)
-      ],
+        level=logging.INFO,
+        format="%(message)s",
+        handlers=[
+            logging.StreamHandler(stream=sys.stdout)
+        ],
     )
     np.set_printoptions(linewidth=150)
 
@@ -173,14 +173,14 @@ def main(args):
         total_inference_time = 0.0
         is_first_batch = True
         for batch in data_processing_pytorch.read_npz_training_data(
-          val_files,
-          batch_size,
-          world_size,
-          rank,
-          pos_len,
-          device,
-          randomize_symmetries=True,
-          model_config=model_config,
+            val_files,
+            batch_size,
+            world_size,
+            rank,
+            pos_len,
+            device,
+            randomize_symmetries=True,
+            model_config=model_config,
         ):
             if max_batches is not None and num_batches_tested >= max_batches:
                 break
@@ -199,15 +199,15 @@ def main(args):
 
             postprocessed = model.postprocess_output(model_outputs)
             metrics = metrics_obj.metrics_dict_batchwise(
-              model,
-              postprocessed,
-              batch,
-              is_training=False,
-              soft_policy_weight_scale=soft_policy_weight_scale,
-              value_loss_scale=value_loss_scale,
-              td_value_loss_scales=td_value_loss_scales,
-              main_loss_scale=1.0,
-              intermediate_loss_scale=None,
+                model,
+                postprocessed,
+                batch,
+                is_training=False,
+                soft_policy_weight_scale=soft_policy_weight_scale,
+                value_loss_scale=value_loss_scale,
+                td_value_loss_scales=td_value_loss_scales,
+                main_loss_scale=1.0,
+                intermediate_loss_scale=None,
             )
             metrics = detensorify_metrics(metrics)
 

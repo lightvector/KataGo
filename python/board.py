@@ -133,10 +133,10 @@ class Board:
             return True
 
         against_wall = (
-          self.board[adj0] == Board.WALL or \
-          self.board[adj1] == Board.WALL or \
-          self.board[adj2] == Board.WALL or \
-          self.board[adj3] == Board.WALL
+            self.board[adj0] == Board.WALL or \
+            self.board[adj1] == Board.WALL or \
+            self.board[adj2] == Board.WALL or \
+            self.board[adj3] == Board.WALL
         )
 
         if against_wall:
@@ -612,10 +612,10 @@ class Board:
 
     def is_group_adjacent(self,head,loc):
         return (
-          self.group_head[loc+self.adj[0]] == head or \
-          self.group_head[loc+self.adj[1]] == head or \
-          self.group_head[loc+self.adj[2]] == head or \
-          self.group_head[loc+self.adj[3]] == head
+            self.group_head[loc+self.adj[0]] == head or \
+            self.group_head[loc+self.adj[1]] == head or \
+            self.group_head[loc+self.adj[2]] == head or \
+            self.group_head[loc+self.adj[3]] == head
         )
 
     #Helper, merge two groups assuming they're owned by the same player and adjacent

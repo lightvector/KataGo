@@ -96,21 +96,21 @@ def load_sgf_moves_exn(path):
     if rulesstr is not None:
         if rulesstr.lower() == "japanese" or rulesstr.lower() == "jp":
             rules = {
-              "koRule": "KO_SIMPLE",
-              "scoringRule": "SCORING_TERRITORY",
-              "multiStoneSuicideLegal": False,
-              "encorePhase": 0,
-              "passWouldEndPhase": False,
-              "whiteKomi": komi
+                "koRule": "KO_SIMPLE",
+                "scoringRule": "SCORING_TERRITORY",
+                "multiStoneSuicideLegal": False,
+                "encorePhase": 0,
+                "passWouldEndPhase": False,
+                "whiteKomi": komi
             }
         elif rulesstr.lower() == "chinese":
             rules = {
-              "koRule": "KO_SIMPLE",
-              "scoringRule": "SCORING_AREA",
-              "multiStoneSuicideLegal": False,
-              "encorePhase": 0,
-              "passWouldEndPhase": False,
-              "whiteKomi": komi
+                "koRule": "KO_SIMPLE",
+                "scoringRule": "SCORING_AREA",
+                "multiStoneSuicideLegal": False,
+                "encorePhase": 0,
+                "passWouldEndPhase": False,
+                "whiteKomi": komi
             }
         elif rulesstr.startswith("ko"):
             rules = {}

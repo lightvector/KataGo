@@ -53,11 +53,11 @@ def main(args):
 
     logging.root.handlers = []
     logging.basicConfig(
-      level=logging.INFO,
-      format="%(message)s",
-      handlers=[
-        logging.StreamHandler(stream=sys.stdout)
-      ],
+        level=logging.INFO,
+        format="%(message)s",
+        handlers=[
+            logging.StreamHandler(stream=sys.stdout)
+        ],
     )
     np.set_printoptions(linewidth=150)
 

@@ -204,20 +204,20 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
     logging.root.handlers = []
     if rank == 0:
         logging.basicConfig(
-          level=logging.INFO,
-          format="%(message)s",
-          handlers=[
-            logging.FileHandler(os.path.join(traindir,f"train{rank}.log"), mode="a"),
-            logging.StreamHandler()
-          ],
+            level=logging.INFO,
+            format="%(message)s",
+            handlers=[
+                logging.FileHandler(os.path.join(traindir,f"train{rank}.log"), mode="a"),
+                logging.StreamHandler()
+            ],
         )
     else:
         logging.basicConfig(
-          level=logging.INFO,
-          format="%(message)s",
-          handlers=[
-            logging.FileHandler(os.path.join(traindir,f"train{rank}.log"), mode="a"),
-          ],
+            level=logging.INFO,
+            format="%(message)s",
+            handlers=[
+                logging.FileHandler(os.path.join(traindir,f"train{rank}.log"), mode="a"),
+            ],
         )
     np.set_printoptions(linewidth=150)
 
@@ -289,10 +289,10 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
             else:
                 assert False
         elif (
-          raw_model.get_norm_kind() == "bnorm" or
-          raw_model.get_norm_kind() == "brenorm" or
-          raw_model.get_norm_kind() == "fixbrenorm" or
-          raw_model.get_norm_kind() == "fixscaleonenorm"
+            raw_model.get_norm_kind() == "bnorm" or
+            raw_model.get_norm_kind() == "brenorm" or
+            raw_model.get_norm_kind() == "fixbrenorm" or
+            raw_model.get_norm_kind() == "fixscaleonenorm"
         ):
             if group_name == "normal" or group_name == "normal_gamma":
                 adaptive_scale = 1.0
@@ -332,30 +332,30 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
         raw_model.add_reg_dict(reg_dict)
         param_groups = []
         param_groups.append({
-          "params": reg_dict["normal"],
-          "weight_decay": get_weight_decay(raw_model, lr_scale, warmup_scale=1.0, train_state=train_state, running_metrics=running_metrics, group_name="normal"),
-          "group_name": "normal",
+            "params": reg_dict["normal"],
+            "weight_decay": get_weight_decay(raw_model, lr_scale, warmup_scale=1.0, train_state=train_state, running_metrics=running_metrics, group_name="normal"),
+            "group_name": "normal",
         })
         if len(reg_dict["normal_gamma"]) > 0:
             param_groups.append({
-              "params": reg_dict["normal_gamma"],
-              "weight_decay": get_weight_decay(raw_model, lr_scale, warmup_scale=1.0, train_state=train_state, running_metrics=running_metrics, group_name="normal_gamma"),
-              "group_name": "normal_gamma",
+                "params": reg_dict["normal_gamma"],
+                "weight_decay": get_weight_decay(raw_model, lr_scale, warmup_scale=1.0, train_state=train_state, running_metrics=running_metrics, group_name="normal_gamma"),
+                "group_name": "normal_gamma",
             })
         param_groups.append({
-          "params": reg_dict["output"],
-          "weight_decay": get_weight_decay(raw_model, lr_scale, warmup_scale=1.0, train_state=train_state, running_metrics=running_metrics, group_name="output"),
-          "group_name": "output",
+            "params": reg_dict["output"],
+            "weight_decay": get_weight_decay(raw_model, lr_scale, warmup_scale=1.0, train_state=train_state, running_metrics=running_metrics, group_name="output"),
+            "group_name": "output",
         })
         param_groups.append({
-          "params": reg_dict["noreg"],
-          "weight_decay": get_weight_decay(raw_model, lr_scale, warmup_scale=1.0, train_state=train_state, running_metrics=running_metrics, group_name="noreg"),
-          "group_name": "noreg",
+            "params": reg_dict["noreg"],
+            "weight_decay": get_weight_decay(raw_model, lr_scale, warmup_scale=1.0, train_state=train_state, running_metrics=running_metrics, group_name="noreg"),
+            "group_name": "noreg",
         })
         param_groups.append({
-          "params": reg_dict["output_noreg"],
-          "weight_decay": get_weight_decay(raw_model, lr_scale, warmup_scale=1.0, train_state=train_state, running_metrics=running_metrics, group_name="output_noreg"),
-          "group_name": "output_noreg",
+            "params": reg_dict["output_noreg"],
+            "weight_decay": get_weight_decay(raw_model, lr_scale, warmup_scale=1.0, train_state=train_state, running_metrics=running_metrics, group_name="output_noreg"),
+            "group_name": "output_noreg",
         })
         num_params = len(list(raw_model.parameters()))
         num_reg_dict_params = len(reg_dict["normal"]) + len(reg_dict["normal_gamma"]) + len(reg_dict["output"]) + len(reg_dict["noreg"]) + len(reg_dict["output_noreg"])
@@ -618,12 +618,12 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
                 param_group["lr"] = per_sample_lr * warmup_scale * group_scale
 
             param_group["weight_decay"] = get_weight_decay(
-              raw_model,
-              lr_scale,
-              warmup_scale=warmup_scale,
-              train_state=train_state,
-              running_metrics=running_metrics,
-              group_name=group_name,
+                raw_model,
+                lr_scale,
+                warmup_scale=warmup_scale,
+                train_state=train_state,
+                running_metrics=running_metrics,
+                group_name=group_name,
             )
             if group_name == "normal":
                 normal_weight_decay = param_group["weight_decay"]
@@ -700,7 +700,7 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
                     if train_state["total_num_data_rows"] > train_state["train_bucket_level_at_row"]:
                         new_row_count = train_state["total_num_data_rows"] - train_state["train_bucket_level_at_row"]
                         logging.info("Advancing trainbucket row %.0f to %.0f, %.0f new rows" % (
-                          train_state["train_bucket_level_at_row"], train_state["total_num_data_rows"], new_row_count
+                            train_state["train_bucket_level_at_row"], train_state["total_num_data_rows"], new_row_count
                         ))
                         train_state["train_bucket_level_at_row"] = train_state["total_num_data_rows"]
                         logging.info("Fill per data %.3f, Max bucket size %.0f" % (max_train_bucket_per_new_data, max_train_bucket_size))
@@ -766,8 +766,8 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
                 if max_train_steps_since_last_reload is not None:
                     if train_state["train_steps_since_last_reload"] + 0.99 * samples_per_epoch/sub_epochs > max_train_steps_since_last_reload:
                         logging.info(
-                          "Too many train steps since last reload, waiting 5m and retrying (current %f)" %
-                          train_state["train_steps_since_last_reload"]
+                            "Too many train steps since last reload, waiting 5m and retrying (current %f)" %
+                            train_state["train_steps_since_last_reload"]
                         )
                         time.sleep(300)
                         continue
@@ -908,20 +908,20 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
             if max_train_bucket_per_new_data is not None:
                 if train_state["train_bucket_level"] > 0.99 * samples_per_epoch:
                     logging.info("Consuming %.0f rows from train bucket (%.0f -> %.0f)" % (
-                      samples_per_epoch, train_state["train_bucket_level"], train_state["train_bucket_level"]-samples_per_epoch
+                        samples_per_epoch, train_state["train_bucket_level"], train_state["train_bucket_level"]-samples_per_epoch
                     ))
                     train_state["train_bucket_level"] -= samples_per_epoch
                 else:
                     if stop_when_train_bucket_limited:
                         logging.info(
-                          "Exceeding train bucket, not enough new data rows, terminating (current level %f)" %
-                          train_state["train_bucket_level"]
+                            "Exceeding train bucket, not enough new data rows, terminating (current level %f)" %
+                            train_state["train_bucket_level"]
                         )
                         break
                     else:
                         logging.info(
-                          "Exceeding train bucket, not enough new data rows, waiting 5m and retrying (current level %f)" %
-                          train_state["train_bucket_level"]
+                            "Exceeding train bucket, not enough new data rows, waiting 5m and retrying (current level %f)" %
+                            train_state["train_bucket_level"]
                         )
                         time.sleep(300)
                         continue
@@ -985,14 +985,14 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
             logging.info("Currently up to data row " + str(train_state["total_num_data_rows"]))
             lookahead_counter = 0
             for batch in data_processing_pytorch.read_npz_training_data(
-              train_files_to_use,
-              batch_size,
-              world_size,
-              rank,
-              pos_len=pos_len,
-              device=device,
-              randomize_symmetries=True,
-              model_config=model_config
+                train_files_to_use,
+                batch_size,
+                world_size,
+                rank,
+                pos_len=pos_len,
+                device=device,
+                randomize_symmetries=True,
+                model_config=model_config
             ):
                 optimizer.zero_grad(set_to_none=True)
                 if use_fp16:
@@ -1004,15 +1004,15 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
 
                 postprocessed = raw_model.postprocess_output(model_outputs)
                 metrics = metrics_obj.metrics_dict_batchwise(
-                  raw_model,
-                  postprocessed,
-                  batch,
-                  is_training=True,
-                  soft_policy_weight_scale=soft_policy_weight_scale,
-                  value_loss_scale=value_loss_scale,
-                  td_value_loss_scales=td_value_loss_scales,
-                  main_loss_scale=main_loss_scale,
-                  intermediate_loss_scale=intermediate_loss_scale,
+                    raw_model,
+                    postprocessed,
+                    batch,
+                    is_training=True,
+                    soft_policy_weight_scale=soft_policy_weight_scale,
+                    value_loss_scale=value_loss_scale,
+                    td_value_loss_scales=td_value_loss_scales,
+                    main_loss_scale=main_loss_scale,
+                    intermediate_loss_scale=intermediate_loss_scale,
                 )
 
                 # DDP averages loss across instances, so to preserve LR as per-sample lr, we scale by world size.
@@ -1161,27 +1161,27 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
                     val_samples = 0
                     t0 = time.perf_counter()
                     for batch in data_processing_pytorch.read_npz_training_data(
-                      val_files,
-                      batch_size,
-                      world_size=1,  # Only the main process validates
-                      rank=0,        # Only the main process validates
-                      pos_len=pos_len,
-                      device=device,
-                      randomize_symmetries=True,
-                      model_config=model_config
+                        val_files,
+                        batch_size,
+                        world_size=1,  # Only the main process validates
+                        rank=0,        # Only the main process validates
+                        pos_len=pos_len,
+                        device=device,
+                        randomize_symmetries=True,
+                        model_config=model_config
                     ):
                         model_outputs = ddp_model(batch["binaryInputNCHW"],batch["globalInputNC"])
                         postprocessed = raw_model.postprocess_output(model_outputs)
                         metrics = metrics_obj.metrics_dict_batchwise(
-                          raw_model,
-                          postprocessed,
-                          batch,
-                          is_training=False,
-                          soft_policy_weight_scale=soft_policy_weight_scale,
-                          value_loss_scale=value_loss_scale,
-                          td_value_loss_scales=td_value_loss_scales,
-                          main_loss_scale=main_loss_scale,
-                          intermediate_loss_scale=intermediate_loss_scale,
+                            raw_model,
+                            postprocessed,
+                            batch,
+                            is_training=False,
+                            soft_policy_weight_scale=soft_policy_weight_scale,
+                            value_loss_scale=value_loss_scale,
+                            td_value_loss_scales=td_value_loss_scales,
+                            main_loss_scale=main_loss_scale,
+                            intermediate_loss_scale=intermediate_loss_scale,
                         )
                         metrics = detensorify_metrics(metrics)
                         accumulate_metrics(val_metric_sums, val_metric_weights, metrics, batch_size, decay=1.0, new_weight=1.0)
@@ -1220,9 +1220,9 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
             if not no_export and is_time_to_export and not skip_export_this_time and exportdir is not None and not gnorm_stats_debug:
                 # Export a model for testing, unless somehow it already exists
                 modelname = "%s-s%d-d%d" % (
-                  exportprefix,
-                  train_state["global_step_samples"],
-                  train_state["total_num_data_rows"],
+                    exportprefix,
+                    train_state["global_step_samples"],
+                    train_state["total_num_data_rows"],
                 )
                 savepath = os.path.join(exportdir,modelname)
                 savepathtmp = os.path.join(exportdir,modelname+".tmp")
@@ -1284,9 +1284,9 @@ if __name__ == "__main__":
             writepipes.append(wpipe)
 
         torch.multiprocessing.spawn(
-          main,
-          nprocs=num_gpus_used,
-          args=(world_size, args, multi_gpu_device_ids, readpipes, writepipes, barrier)
+            main,
+            nprocs=num_gpus_used,
+            args=(world_size, args, multi_gpu_device_ids, readpipes, writepipes, barrier)
         )
     else:
         rank = 0

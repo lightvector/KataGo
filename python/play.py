@@ -44,11 +44,11 @@ pos_len = 19
 
 logging.root.handlers = []
 logging.basicConfig(
-  level=logging.INFO,
-  format="%(message)s",
-  handlers=[
-    logging.StreamHandler(stream=sys.stderr),
-  ],
+    level=logging.INFO,
+    format="%(message)s",
+    handlers=[
+        logging.StreamHandler(stream=sys.stderr),
+    ],
 )
 np.set_printoptions(linewidth=150)
 torch.set_printoptions(precision=7,sci_mode=False,linewidth=100000,edgeitems=1000,threshold=1000000)
@@ -94,26 +94,26 @@ def get_outputs(gs, rules):
         # model_outputs = model(apply_symmetry(batch["binaryInputNCHW"],symmetry),batch["globalInputNC"])
 
         model_outputs = model(
-          torch.tensor(bin_input_data, dtype=torch.float32),
-          torch.tensor(global_input_data, dtype=torch.float32),
+            torch.tensor(bin_input_data, dtype=torch.float32),
+            torch.tensor(global_input_data, dtype=torch.float32),
         )
         outputs = model.postprocess_output(model_outputs)
         (
-          policy_logits,      # N, num_policy_outputs, move
-          value_logits,       # N, {win,loss,noresult}
-          td_value_logits,    # N, {long, mid, short} {win,loss,noresult}
-          pred_td_score,      # N, {long, mid, short}
-          ownership_pretanh,  # N, 1, y, x
-          pred_scoring,       # N, 1, y, x
-          futurepos_pretanh,  # N, 2, y, x
-          seki_logits,        # N, 4, y, x
-          pred_scoremean,     # N
-          pred_scorestdev,    # N
-          pred_lead,          # N
-          pred_variance_time, # N
-          pred_shortterm_value_error, # N
-          pred_shortterm_score_error, # N
-          scorebelief_logits, # N, 2 * (self.pos_len*self.pos_len + EXTRA_SCORE_DISTR_RADIUS)
+            policy_logits,      # N, num_policy_outputs, move
+            value_logits,       # N, {win,loss,noresult}
+            td_value_logits,    # N, {long, mid, short} {win,loss,noresult}
+            pred_td_score,      # N, {long, mid, short}
+            ownership_pretanh,  # N, 1, y, x
+            pred_scoring,       # N, 1, y, x
+            futurepos_pretanh,  # N, 2, y, x
+            seki_logits,        # N, 4, y, x
+            pred_scoremean,     # N
+            pred_scorestdev,    # N
+            pred_lead,          # N
+            pred_variance_time, # N
+            pred_shortterm_value_error, # N
+            pred_shortterm_score_error, # N
+            scorebelief_logits, # N, 2 * (self.pos_len*self.pos_len + EXTRA_SCORE_DISTR_RADIUS)
         ) = (x[0] for x in outputs[0]) # N = 0
 
         policy0 = torch.nn.functional.softmax(policy_logits[0,:],dim=0).cpu().numpy()
@@ -242,34 +242,34 @@ def get_outputs(gs, rules):
         i += 1
 
     return {
-      "policy0": policy0,
-      "policy1": policy1,
-      "moves_and_probs0": moves_and_probs0,
-      "moves_and_probs1": moves_and_probs1,
-      "value": value,
-      "td_value": td_value,
-      "td_value2": td_value2,
-      "td_value3": td_value3,
-      "scoremean": scoremean,
-      "td_score": td_score,
-      "scorestdev": scorestdev,
-      "lead": lead,
-      "vtime": vtime,
-      "estv": estv,
-      "ests": ests,
-      "ownership": ownership,
-      "ownership_by_loc": ownership_by_loc,
-      "scoring": scoring,
-      "scoring_by_loc": scoring_by_loc,
-      "futurepos": futurepos,
-      "futurepos0_by_loc": futurepos0_by_loc,
-      "futurepos1_by_loc": futurepos1_by_loc,
-      "seki": seki,
-      "seki_by_loc": seki_by_loc,
-      "seki2": seki2,
-      "seki_by_loc2": seki_by_loc2,
-      "scorebelief": scorebelief,
-      "genmove_result": genmove_result
+        "policy0": policy0,
+        "policy1": policy1,
+        "moves_and_probs0": moves_and_probs0,
+        "moves_and_probs1": moves_and_probs1,
+        "value": value,
+        "td_value": td_value,
+        "td_value2": td_value2,
+        "td_value3": td_value3,
+        "scoremean": scoremean,
+        "td_score": td_score,
+        "scorestdev": scorestdev,
+        "lead": lead,
+        "vtime": vtime,
+        "estv": estv,
+        "ests": ests,
+        "ownership": ownership,
+        "ownership_by_loc": ownership_by_loc,
+        "scoring": scoring,
+        "scoring_by_loc": scoring_by_loc,
+        "futurepos": futurepos,
+        "futurepos0_by_loc": futurepos0_by_loc,
+        "futurepos1_by_loc": futurepos1_by_loc,
+        "seki": seki,
+        "seki_by_loc": seki_by_loc,
+        "seki2": seki2,
+        "seki_by_loc2": seki_by_loc2,
+        "scorebelief": scorebelief,
+        "genmove_result": genmove_result
     }
 
 def get_input_feature(gs, rules, feature_idx):
@@ -341,17 +341,17 @@ def get_gfx_commands_for_heatmap(locs_and_values, board, normalization_div, is_p
                     value = loose_cap(value)
 
                 interpoints = [
-                  (-1.00,(0,0,0)),
-                  (-0.85,(15,0,50)),
-                  (-0.60,(60,0,160)),
-                  (-0.35,(0,0,255)),
-                  (-0.15,(0,100,255)),
-                  ( 0.00,(115,115,115)),
-                  ( 0.15,(250,45,40)),
-                  ( 0.25,(255,55,0)),
-                  ( 0.60,(255,255,20)),
-                  ( 0.85,(255,255,128)),
-                  ( 1.00,(255,255,255)),
+                    (-1.00,(0,0,0)),
+                    (-0.85,(15,0,50)),
+                    (-0.60,(60,0,160)),
+                    (-0.35,(0,0,255)),
+                    (-0.15,(0,100,255)),
+                    ( 0.00,(115,115,115)),
+                    ( 0.15,(250,45,40)),
+                    ( 0.25,(255,55,0)),
+                    ( 0.60,(255,255,20)),
+                    ( 0.85,(255,255,128)),
+                    ( 1.00,(255,255,255)),
                 ]
 
                 def lerp(p,y0,y1):
@@ -450,11 +450,11 @@ def get_gfx_commands_for_heatmap(locs_and_values, board, normalization_div, is_p
         lead = value_and_score_from["lead"]
         vtime = value_and_score_from["vtime"]
         texts_value.append("wv %.2fc nr %.2f%% ws %.1f wl %.1f vt %.1f" % (
-          100*(value[0]-value[1] if board.pla == Board.WHITE else value[1] - value[0]),
-          100*value[2],
-          (score if board.pla == Board.WHITE else -score),
-          (lead if board.pla == Board.WHITE else -lead),
-          vtime
+            100*(value[0]-value[1] if board.pla == Board.WHITE else value[1] - value[0]),
+            100*value[2],
+            (score if board.pla == Board.WHITE else -score),
+            (lead if board.pla == Board.WHITE else -lead),
+            vtime
         ))
 
     gfx_commands.append("TEXT " + ", ".join(texts_value + texts_rev + texts))
@@ -550,59 +550,59 @@ def str_coord(loc,board):
 # https://opensource.org/licenses/MIT
 
 known_commands = [
-  'boardsize',
-  'clear_board',
-  'showboard',
-  'komi',
-  'play',
-  'genmove',
-  'quit',
-  'name',
-  'version',
-  'known_command',
-  'list_commands',
-  'protocol_version',
-  'gogui-analyze_commands',
-  'setrule',
-  'policy',
-  'policy1',
-  'logpolicy',
-  'ownership',
-  'scoring',
-  'futurepos0',
-  'futurepos1',
-  'seki',
-  'seki2',
-  'scorebelief',
-  'passalive',
+    'boardsize',
+    'clear_board',
+    'showboard',
+    'komi',
+    'play',
+    'genmove',
+    'quit',
+    'name',
+    'version',
+    'known_command',
+    'list_commands',
+    'protocol_version',
+    'gogui-analyze_commands',
+    'setrule',
+    'policy',
+    'policy1',
+    'logpolicy',
+    'ownership',
+    'scoring',
+    'futurepos0',
+    'futurepos1',
+    'seki',
+    'seki2',
+    'scorebelief',
+    'passalive',
 ]
 known_analyze_commands = [
-  'gfx/Policy/policy',
-  'gfx/Policy1/policy1',
-  'gfx/LogPolicy/logpolicy',
-  'gfx/Ownership/ownership',
-  'gfx/Scoring/scoring',
-  'gfx/FuturePos0/futurepos0',
-  'gfx/FuturePos1/futurepos1',
-  'gfx/Seki/seki',
-  'gfx/Seki2/seki2',
-  'gfx/ScoreBelief/scorebelief',
-  'gfx/PassAlive/passalive',
+    'gfx/Policy/policy',
+    'gfx/Policy1/policy1',
+    'gfx/LogPolicy/logpolicy',
+    'gfx/Ownership/ownership',
+    'gfx/Scoring/scoring',
+    'gfx/FuturePos0/futurepos0',
+    'gfx/FuturePos1/futurepos1',
+    'gfx/Seki/seki',
+    'gfx/Seki2/seki2',
+    'gfx/ScoreBelief/scorebelief',
+    'gfx/PassAlive/passalive',
 ]
 
 board_size = 19
 gs = GameState(board_size)
 
 rules = {
-  "koRule": "KO_POSITIONAL",
-  "scoringRule": "SCORING_AREA",
-  "taxRule": "TAX_NONE",
-  "multiStoneSuicideLegal": True,
-  "hasButton": False,
-  "encorePhase": 0,
-  "passWouldEndPhase": False,
-  "whiteKomi": 7.5,
-  "asymPowersOfTwo": 0.0,
+    "koRule": "KO_POSITIONAL",
+    "scoringRule": "SCORING_AREA",
+    "taxRule": "TAX_NONE",
+    "multiStoneSuicideLegal": True,
+    "hasButton": False,
+    "encorePhase": 0,
+    "passWouldEndPhase": False,
+    "whiteKomi": 7.5,
+    "asymPowersOfTwo": 0.0,
 }
 
 

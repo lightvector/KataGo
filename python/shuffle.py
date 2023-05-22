@@ -19,12 +19,12 @@ import multiprocessing
 import numpy as np
 
 keys = [
-  "binaryInputNCHWPacked",
-  "globalInputNC",
-  "policyTargetsNCMove",
-  "globalTargetsNC",
-  "scoreDistrN",
-  "valueTargetsNCHW"
+    "binaryInputNCHWPacked",
+    "globalInputNC",
+    "policyTargetsNCMove",
+    "globalTargetsNC",
+    "scoreDistrN",
+    "valueTargetsNCHW"
 ]
 
 def is_temp_npz_like(filename):
@@ -109,7 +109,7 @@ def shardify(input_idx, input_file_group, num_out_files, out_tmp_dirs, keep_prob
         num_rows_to_keep = min(num_rows_to_keep,int(round(num_rows_to_keep * keep_prob)))
 
     [binaryInputNCHWPacked,globalInputNC,policyTargetsNCMove,globalTargetsNC,scoreDistrN,valueTargetsNCHW] = (
-      joint_shuffle_take_first_n(num_rows_to_keep,[binaryInputNCHWPacked,globalInputNC,policyTargetsNCMove,globalTargetsNC,scoreDistrN,valueTargetsNCHW])
+        joint_shuffle_take_first_n(num_rows_to_keep,[binaryInputNCHWPacked,globalInputNC,policyTargetsNCMove,globalTargetsNC,scoreDistrN,valueTargetsNCHW])
     )
 
     assert(binaryInputNCHWPacked.shape[0] == num_rows_to_keep)
@@ -131,13 +131,13 @@ def shardify(input_idx, input_file_group, num_out_files, out_tmp_dirs, keep_prob
         start = countsums[out_idx]-counts[out_idx]
         stop = countsums[out_idx]
         np.savez_compressed(
-          os.path.join(out_tmp_dirs[out_idx], str(input_idx) + ".npz"),
-          binaryInputNCHWPacked = binaryInputNCHWPacked[start:stop],
-          globalInputNC = globalInputNC[start:stop],
-          policyTargetsNCMove = policyTargetsNCMove[start:stop],
-          globalTargetsNC = globalTargetsNC[start:stop],
-          scoreDistrN = scoreDistrN[start:stop],
-          valueTargetsNCHW = valueTargetsNCHW[start:stop]
+            os.path.join(out_tmp_dirs[out_idx], str(input_idx) + ".npz"),
+            binaryInputNCHWPacked = binaryInputNCHWPacked[start:stop],
+            globalInputNC = globalInputNC[start:stop],
+            policyTargetsNCMove = policyTargetsNCMove[start:stop],
+            globalTargetsNC = globalTargetsNC[start:stop],
+            scoreDistrN = scoreDistrN[start:stop],
+            valueTargetsNCHW = valueTargetsNCHW[start:stop]
         )
     return num_files_not_found
 
@@ -200,7 +200,7 @@ def merge_shards(filename, num_shards_to_merge, out_tmp_dir, batch_size, ensure_
     assert(valueTargetsNCHW.shape[0] == num_rows)
 
     [binaryInputNCHWPacked,globalInputNC,policyTargetsNCMove,globalTargetsNC,scoreDistrN,valueTargetsNCHW] = (
-      joint_shuffle_take_first_n(num_rows,[binaryInputNCHWPacked,globalInputNC,policyTargetsNCMove,globalTargetsNC,scoreDistrN,valueTargetsNCHW])
+        joint_shuffle_take_first_n(num_rows,[binaryInputNCHWPacked,globalInputNC,policyTargetsNCMove,globalTargetsNC,scoreDistrN,valueTargetsNCHW])
     )
 
     assert(binaryInputNCHWPacked.shape[0] == num_rows)
@@ -218,13 +218,13 @@ def merge_shards(filename, num_shards_to_merge, out_tmp_dir, batch_size, ensure_
         start = 0
         stop = num_batches*batch_size
         np.savez_compressed(
-          filename,
-          binaryInputNCHWPacked = binaryInputNCHWPacked[start:stop],
-          globalInputNC = globalInputNC[start:stop],
-          policyTargetsNCMove = policyTargetsNCMove[start:stop],
-          globalTargetsNC = globalTargetsNC[start:stop],
-          scoreDistrN = scoreDistrN[start:stop],
-          valueTargetsNCHW = valueTargetsNCHW[start:stop]
+            filename,
+            binaryInputNCHWPacked = binaryInputNCHWPacked[start:stop],
+            globalInputNC = globalInputNC[start:stop],
+            policyTargetsNCMove = policyTargetsNCMove[start:stop],
+            globalTargetsNC = globalTargetsNC[start:stop],
+            scoreDistrN = scoreDistrN[start:stop],
+            valueTargetsNCHW = valueTargetsNCHW[start:stop]
         )
     else:
         assert False, "No longer supports outputting tensorflow data"
@@ -670,13 +670,13 @@ if __name__ == '__main__':
     with multiprocessing.Pool(num_processes) as pool:
         with TimeStuff("Sharding"):
             shard_results = pool.starmap(shardify, [
-              (input_idx, desired_input_file_groups[input_idx], num_out_files, out_tmp_dirs, keep_prob) for input_idx in range(len(desired_input_file_groups))
+                (input_idx, desired_input_file_groups[input_idx], num_out_files, out_tmp_dirs, keep_prob) for input_idx in range(len(desired_input_file_groups))
             ])
 
         with TimeStuff("Merging"):
             num_shards_to_merge = len(desired_input_file_groups)
             merge_results = pool.starmap(merge_shards, [
-              (out_files[idx],num_shards_to_merge,out_tmp_dirs[idx],batch_size,ensure_batch_multiple,output_npz) for idx in range(len(out_files))
+                (out_files[idx],num_shards_to_merge,out_tmp_dirs[idx],batch_size,ensure_batch_multiple,output_npz) for idx in range(len(out_files))
             ])
         print("Number of rows by output file:",flush=True)
         print(list(zip(out_files,merge_results)),flush=True)
@@ -685,7 +685,7 @@ if __name__ == '__main__':
     clean_tmp_dirs()
 
     dump_value = {
-      "range": (min_start_row, max_end_row)
+        "range": (min_start_row, max_end_row)
     }
 
     with open(out_dir + ".json", 'w') as f:

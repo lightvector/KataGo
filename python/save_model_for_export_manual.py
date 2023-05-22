@@ -66,12 +66,12 @@ def main(args):
 
     logging.root.handlers = []
     logging.basicConfig(
-      level=logging.INFO,
-      format="%(message)s",
-      handlers=[
-        logging.FileHandler(os.path.join(traindir,f"save_model_for_export_manual.log"), mode="a"),
-        logging.StreamHandler()
-      ],
+        level=logging.INFO,
+        format="%(message)s",
+        handlers=[
+            logging.FileHandler(os.path.join(traindir,f"save_model_for_export_manual.log"), mode="a"),
+            logging.StreamHandler()
+        ],
     )
     np.set_printoptions(linewidth=150)
 
@@ -140,9 +140,9 @@ def main(args):
 
     # Export a model for testing, unless somehow it already exists
     modelname = "%s-s%d-d%d" % (
-      exportprefix,
-      train_state["global_step_samples"],
-      train_state["total_num_data_rows"],
+        exportprefix,
+        train_state["global_step_samples"],
+        train_state["total_num_data_rows"],
     )
     savepath = os.path.join(exportdir,modelname)
     savepathtmp = os.path.join(exportdir,modelname+".tmp")
