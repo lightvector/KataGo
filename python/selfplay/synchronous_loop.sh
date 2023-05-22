@@ -45,17 +45,26 @@ mkdir -p "$BASEDIR"/gatekeepersgf
 
 # Parameters for the training run
 # NOTE: You may want to adjust the below numbers.
-# NOTE: You probably want to edit settings in the cpp/configs/training/selfplay1.cfg
+# NOTE: You probably want to edit settings in cpp/configs/training/selfplay1.cfg
+# NOTE: You probably want to edit settings in cpp/configs/training/gatekeeper1.cfg
 # Such as what board sizes and rules, you want to learn, number of visits to use, etc.
-NUM_GAMES_PER_CYCLE=500
+
+# Also, the parameters below are relatively small, and probably
+# good for less powerful hardware and tighter turnaround during very early training, but if
+# you have strong hardware or are later into a run you may want to reduce the overhead by scaling
+# these numbers up and doing more games and training per cycle, exporting models less frequently, etc.
+
+NUM_GAMES_PER_CYCLE=500 # Every cycle, play this many games
 NUM_THREADS_FOR_SHUFFLING=8
-NUM_TRAIN_SAMPLES_PER_EPOCH=100000  # Training will proceed in chunks of this many rows.
+NUM_TRAIN_SAMPLES_PER_EPOCH=100000  # Training will proceed in chunks of this many rows, subject to MAX_TRAIN_PER_DATA.
 MAX_TRAIN_PER_DATA=8 # On average, train only this many times on each data row. Larger numbers may cause overfitting.
-NUM_TRAIN_SAMPLES_PER_SWA=80000  # Stochastic weight averaging
+NUM_TRAIN_SAMPLES_PER_SWA=80000  # Stochastic weight averaging frequency.
 BATCHSIZE=128 # For lower-end GPUs 64 or smaller may be needed to avoid running out of GPU memory.
 SHUFFLE_MINROWS=50000 # Require this many rows at the very start before beginning training.
-MAX_TRAIN_SAMPLES_PER_CYCLE=500000  # Each cycle will do at most this many steps.
-SHUFFLE_KEEPROWS=600000 # A little larger than MAX_TRAIN_SAMPLES_PER_CYCLE
+MAX_TRAIN_SAMPLES_PER_CYCLE=500000  # Each cycle will do at most this many training steps.
+SHUFFLE_KEEPROWS=600000 # Needs to be larger than MAX_TRAIN_SAMPLES_PER_CYCLE, so the shuffler samples enough rows each cycle for the training to use.
+
+# Paths to the selfplay and gatekeeper configs that contain board sizes, rules, search parameters, etc.
 SELFPLAY_CONFIG="$GITROOTDIR"/cpp/configs/training/selfplay1.cfg
 GATING_CONFIG="$GITROOTDIR"/cpp/configs/training/gatekeeper1.cfg
 

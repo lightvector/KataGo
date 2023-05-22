@@ -269,7 +269,7 @@ def compute_num_rows(filename):
   if npheaders is None or len(npheaders) <= 0:
     print("WARNING: bad npz headers for file: ", filename)
     return (filename,None)
-  
+
   if "binaryInputNCHWPacked" in npheaders:
     (shape, is_fortran, dtype) = npheaders["binaryInputNCHWPacked"]
   else:
@@ -298,7 +298,7 @@ if __name__ == '__main__':
   parser.add_argument('dirs', metavar='DIR', nargs='+', help='Directories of training data files')
   parser.add_argument('-min-rows', type=int, required=False, help='Minimum training rows to use, default 250k')
   parser.add_argument('-max-rows', type=int, required=False, help='Maximum training rows to use, default unbounded')
-  parser.add_argument('-keep-target-rows', type=int, required=False, help='Target number of rows to actually keep in the final data set, default 1.2M')
+  parser.add_argument('-keep-target-rows', type=int, required=False, help='Target number of rows to actually keep in the final data set, default 20M')
   parser.add_argument('-expand-window-per-row', type=float, required=True, help='Beyond min rows, initially expand the window by this much every post-random data row')
   parser.add_argument('-taper-window-exponent', type=float, required=True, help='Make the window size asymtotically grow as this power of the data rows')
   parser.add_argument('-taper-window-scale', type=float, required=False, help='The scale at which the power law applies')
@@ -352,10 +352,9 @@ if __name__ == '__main__':
     print("NOTE: -min-rows was not specified, defaulting to requiring 250K rows before shuffling.")
     min_rows = 250000
   if keep_target_rows is None:
-    print("NOTE: -keep-target-rows was not specified, defaulting to keeping the first 1.5M rows.")
-    print("(slightly larger than default training epoch size of 1M, to give 1 epoch of data regardless of discreteness rows or batches per output file)")
+    print("NOTE: -keep-target-rows was not specified, defaulting to sampling a random 20M rows out of the computed window.")
     print("If you intended to shuffle the whole dataset instead, pass in -keep-target-rows <very large number>")
-    keep_target_rows = 1500000
+    keep_target_rows = 20000000
   if add_to_window is None:
     add_to_window = 0
 

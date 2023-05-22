@@ -82,9 +82,10 @@ class SoftPlusWithGradientFloorFunction(torch.autograd.Function):
         grad_floor = ctx.grad_floor
         grad_x = None
         grad_grad_floor = None
+        grad_square = None
         if ctx.needs_input_grad[0]:
           grad_x = grad_output * (grad_floor + (1.0 - grad_floor) / (1.0 + torch.exp(-x)))
-        return grad_x, grad_grad_floor
+        return grad_x, grad_grad_floor, grad_square
 
 class BiasMask(torch.nn.Module):
     def __init__(
