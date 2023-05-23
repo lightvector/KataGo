@@ -48,7 +48,6 @@ class Logger {
   bool logToStdout;
   bool logToStderr;
   bool logTime;
-  bool logConfigContents;
   std::string header;
 
   //------------

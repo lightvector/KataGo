@@ -15,6 +15,10 @@ An example config file is provided in `cpp/configs/analysis_example.cfg`. Adjust
 
 See the [example analysis config](https://github.com/lightvector/KataGo/blob/master/cpp/configs/analysis_example.cfg#L60) for a fairly detailed discussion of how to tune these parameters.
 
+### Example Code
+
+For example code demonstrating how to invoke the analysis engine from Python, see [here](python/query_analysis_engine_example.py)!
+
 ### Protocol
 
 The engine accepts queries on stdin, and output results on stdout. Every query and every result should be a single line.
@@ -220,7 +224,7 @@ Current fields are:
       * `scoreLead` - The predicted average number of points that the current side is leading by (with this many points fewer, it would be an even game).
       * `scoreSelfplay` - The predicted average value of the final score of the game after this move during selfplay, in points. (NOTE: users should usually prefer scoreLead, since scoreSelfplay may be biased by the fact that KataGo isn't perfectly score-maximizing).
       * `prior` - The policy prior of the move, as a float in [0,1].
-      * `utility` - The utility of the move, combining both winrate and score, as a float in [-C,C] where C is the maximum possible utility.
+      * `utility` - The utility of the move, combining both winrate and score, as a float in [-C,C] where C is the maximum possible utility. The maximum winrate utility can be set by `winLossUtilityFactor` in the config, while the maximum score utility is the sum of `staticScoreUtilityFactor` and `dynamicScoreUtilityFactor`.
       * `lcb` - The [LCB](https://github.com/leela-zero/leela-zero/issues/2282) of the move's winrate. Has the same units as winrate, but might lie outside of [0,1] since the current implementation doesn't strictly account for the 0-1 bounds.
       * `utilityLcb` - The LCB of the move's utility.
       * `weight` - The total weight of the visits invested into the move. The average weight of visits may be lower when less certain, and larger when more certain.

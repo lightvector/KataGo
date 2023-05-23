@@ -72,12 +72,14 @@ cp -r "$GITROOTDIR"/python/selfplay "$DATED_ARCHIVE"
         cd "$basedir"/scripts
         while true
         do
+            echo "BEGINNING SUMMARIZE------------------------------"
             time python3 ./summarize_old_selfplay_files.py "$basedir"/selfplay/ \
                  -old-summary-file-to-assume-correct "$basedir"/selfplay.summary.json \
                  -new-summary-file "$basedir"/selfplay.summary.json.tmp
             mv "$basedir"/selfplay.summary.json.tmp "$basedir"/selfplay.summary.json
             sleep 10
 
+            echo "BEGINNING SHUFFLE------------------------------"
             ./shuffle.sh "$basedir" "$tmpdir" "$NTHREADS" "$BATCHSIZE" -summary-file "$basedir"/selfplay.summary.json "$@"
             sleep "$SHUFFLEPERIOD"
         done

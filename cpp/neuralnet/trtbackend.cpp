@@ -114,6 +114,10 @@ Rules NeuralNet::getSupportedRules(const LoadedModel* loadedModel, const Rules& 
   return loadedModel->modelDesc.getSupportedRules(desiredRules, supported);
 }
 
+ModelPostProcessParams NeuralNet::getPostProcessParams(const LoadedModel* loadedModel) {
+  return loadedModel->modelDesc.postProcessParams;
+}
+
 struct TRTModel {
   int nnXLen;
   int nnYLen;
@@ -175,7 +179,7 @@ struct ModelParser {
     auto& network = model->network;
     auto modelDesc = &model->rawModel->modelDesc;
 
-    int tuneSalt = 2;  // Bump this when between katago versions we want to forcibly drop old timing caches.
+    int tuneSalt = 3;  // Bump this when between katago versions we want to forcibly drop old timing caches.
     tuneDesc = Global::strprintf(
       R"|("salt"(%d)"model"(%d,%d,%d,%d,%d,%d))|",
       tuneSalt,
@@ -461,31 +465,17 @@ struct ModelParser {
     assert(desc->p2Conv.convYSize == 1);
 
     auto p2ConvLayer = buildConvLayer(p1MaskLayer->getOutput(0), &desc->p2Conv, true);
-    auto p2ConvReshapeLayer = network->addShuffle(*p2ConvLayer->getOutput(0));
-    auto p2ConvReshapeLayerName = string(p2ConvLayer->getName()) + "/reshape";
-    p2ConvReshapeLayer->setName(p2ConvReshapeLayerName.c_str());
-    p2ConvReshapeLayer->setReshapeDimensions({2, {0, -1}});
-    p2ConvReshapeLayer->setPrecision(DataType::kFLOAT);
-
-    markDebugOutput(p2ConvReshapeLayer->getOutput(0), "p2");
-
+    p2ConvLayer->setPrecision(DataType::kFLOAT);
     auto gpoolToPassMulLayer = buildMatMulLayer(gpoolLayer->getOutput(0), &desc->gpoolToPassMul, true);
-    auto gpoolToPassMulReshapeLayer = network->addShuffle(*gpoolToPassMulLayer->getOutput(0));
-    auto gpoolToPassMulReshapeLayerName = string(gpoolToPassMulLayer->getName()) + "/reshape";
-    gpoolToPassMulReshapeLayer->setName(gpoolToPassMulReshapeLayerName.c_str());
-    gpoolToPassMulReshapeLayer->setReshapeDimensions({2, {0, -1}});
-    gpoolToPassMulReshapeLayer->setPrecision(DataType::kFLOAT);
+    gpoolToPassMulLayer->setPrecision(DataType::kFLOAT);
 
-    markDebugOutput(gpoolToPassMulReshapeLayer->getOutput(0), "p2pass");
+    auto outputPolicyPass = gpoolToPassMulLayer->getOutput(0);
+    network->markOutput(*outputPolicyPass);
+    outputPolicyPass->setName("OutputPolicyPass");
+    outputPolicyPass->setType(DataType::kFLOAT);
+    outputPolicyPass->setAllowedFormats(1U << static_cast<int>(TensorFormat::kLINEAR));
 
-    ITensor* concatInputs[] = {p2ConvReshapeLayer->getOutput(0), gpoolToPassMulReshapeLayer->getOutput(0)};
-    auto concatLayer = network->addConcatenation(concatInputs, 2);
-    auto concatLayerName = name + "/concat";
-    concatLayer->setAxis(1);
-    concatLayer->setName(concatLayerName.c_str());
-    concatLayer->setPrecision(DataType::kFLOAT);
-
-    auto outputPolicy = concatLayer->getOutput(0);
+    auto outputPolicy = p2ConvLayer->getOutput(0);
     network->markOutput(*outputPolicy);
     outputPolicy->setName("OutputPolicy");
     outputPolicy->setType(DataType::kFLOAT);
@@ -1319,6 +1309,8 @@ struct InputBuffers {
   size_t singleFeatureBytes;
   size_t singleGlobalFeatureElts;
   size_t singleGlobalFeatureBytes;
+  size_t singlePolicyPassResultElts;
+  size_t singlePolicyPassResultBytes;
   size_t singlePolicyResultElts;
   size_t singlePolicyResultBytes;
   size_t singleValueResultElts;
@@ -1331,6 +1323,7 @@ struct InputBuffers {
   size_t maskInputBufferBytes;
   size_t featureInputBufferBytes;
   size_t globalFeatureInputBufferBytes;
+  size_t policyPassResultBufferBytes;
   size_t policyResultBufferBytes;
   size_t valueResultBufferBytes;
   size_t scoreValueResultBufferBytes;
@@ -1339,6 +1332,7 @@ struct InputBuffers {
   unique_ptr<float[]> maskInputs;           // Host pointer
   unique_ptr<float[]> featureInputs;        // Host pointer
   unique_ptr<float[]> globalFeatureInputs;  // Host pointer
+  unique_ptr<float[]> policyPassResults;    // Host pointer
   unique_ptr<float[]> policyResults;        // Host pointer
   unique_ptr<float[]> valueResults;         // Host pointer
   unique_ptr<float[]> scoreValueResults;    // Host pointer
@@ -1354,6 +1348,9 @@ struct InputBuffers {
       throw StringError(
         Global::strprintf("nnYLen (%d) is greater than NNPos::MAX_BOARD_LEN (%d)", nnYLen, NNPos::MAX_BOARD_LEN));
 
+    const int policyChannels = m.version >= 12 ? 2 : 1;
+    assert(policyChannels == m.policyHead.p2Conv.outChannels);
+
     maxBatchSize = maxBatchSz;
     singleMaskElts = nnXLen * nnYLen;
     singleMaskBytes = singleMaskElts * sizeof(float);
@@ -1361,7 +1358,9 @@ struct InputBuffers {
     singleFeatureBytes = singleFeatureElts * sizeof(float);
     singleGlobalFeatureElts = m.numInputGlobalChannels;
     singleGlobalFeatureBytes = singleGlobalFeatureElts * sizeof(float);
-    singlePolicyResultElts = NNPos::getPolicySize(nnXLen, nnYLen);
+    singlePolicyPassResultElts = (size_t)policyChannels;
+    singlePolicyPassResultBytes = singlePolicyPassResultElts * sizeof(float);
+    singlePolicyResultElts = (size_t)policyChannels * nnXLen * nnYLen;
     singlePolicyResultBytes = singlePolicyResultElts * sizeof(float);
     singleValueResultElts = m.numValueChannels;
     singleValueResultBytes = singleValueResultElts * sizeof(float);
@@ -1376,6 +1375,7 @@ struct InputBuffers {
     maskInputBufferBytes = maxBatchSize * singleMaskBytes;
     featureInputBufferBytes = maxBatchSize * singleFeatureBytes;
     globalFeatureInputBufferBytes = maxBatchSize * singleGlobalFeatureBytes;
+    policyPassResultBufferBytes = maxBatchSize * singlePolicyPassResultBytes;
     policyResultBufferBytes = maxBatchSize * singlePolicyResultBytes;
     valueResultBufferBytes = maxBatchSize * singleValueResultBytes;
     scoreValueResultBufferBytes = maxBatchSize * singleScoreValueResultBytes;
@@ -1384,6 +1384,7 @@ struct InputBuffers {
     maskInputs = make_unique<float[]>(maxBatchSize * singleMaskElts);
     featureInputs = make_unique<float[]>(maxBatchSize * singleFeatureElts);
     globalFeatureInputs = make_unique<float[]>(maxBatchSize * singleGlobalFeatureElts);
+    policyPassResults = make_unique<float[]>(maxBatchSize * singlePolicyPassResultElts);
     policyResults = make_unique<float[]>(maxBatchSize * singlePolicyResultElts);
     valueResults = make_unique<float[]>(maxBatchSize * singleValueResultElts);
     scoreValueResults = make_unique<float[]>(maxBatchSize * singleScoreValueResultElts);
@@ -1436,6 +1437,7 @@ void NeuralNet::getOutput(
   assert(inputBuffers->singleMaskElts == gpuHandle->getBufferRowElts("InputMask"));
   assert(inputBuffers->singleFeatureElts == gpuHandle->getBufferRowElts("InputFeature"));
   assert(inputBuffers->singleGlobalFeatureElts == gpuHandle->getBufferRowElts("InputGlobalFeature"));
+  assert(inputBuffers->singlePolicyPassResultElts == gpuHandle->getBufferRowElts("OutputPolicyPass"));
   assert(inputBuffers->singlePolicyResultElts == gpuHandle->getBufferRowElts("OutputPolicy"));
   assert(inputBuffers->singleValueResultElts == gpuHandle->getBufferRowElts("OutputValue"));
   assert(inputBuffers->singleScoreValueResultElts == gpuHandle->getBufferRowElts("OutputScoreValue"));
@@ -1444,10 +1446,15 @@ void NeuralNet::getOutput(
   assert(inputBuffers->maskInputBufferBytes == gpuHandle->getBufferBytes("InputMask"));
   assert(inputBuffers->featureInputBufferBytes == gpuHandle->getBufferBytes("InputFeature"));
   assert(inputBuffers->globalFeatureInputBufferBytes == gpuHandle->getBufferBytes("InputGlobalFeature"));
+  assert(inputBuffers->policyPassResultBufferBytes == gpuHandle->getBufferBytes("OutputPolicyPass"));
   assert(inputBuffers->policyResultBufferBytes == gpuHandle->getBufferBytes("OutputPolicy"));
   assert(inputBuffers->valueResultBufferBytes == gpuHandle->getBufferBytes("OutputValue"));
   assert(inputBuffers->scoreValueResultBufferBytes == gpuHandle->getBufferBytes("OutputScoreValue"));
   assert(inputBuffers->ownershipResultBufferBytes == gpuHandle->getBufferBytes("OutputOwnership"));
+
+  const int policyChannels = version >= 12 ? 2 : 1;
+  assert(inputBuffers->singlePolicyPassResultElts == policyChannels);
+  assert(inputBuffers->singlePolicyResultElts == policyChannels * nnXLen * nnYLen);
 
   // Transfers from host memory to device memory are asynchronous with respect to the host
   CUDA_ERR(
@@ -1485,6 +1492,13 @@ void NeuralNet::getOutput(
   CUDA_ERR(
     "getOutput",
     cudaMemcpy(
+      inputBuffers->policyPassResults.get(),
+      gpuHandle->getBuffer("OutputPolicyPass"),
+      inputBuffers->singlePolicyPassResultBytes * batchSize,
+      cudaMemcpyDeviceToHost));
+  CUDA_ERR(
+    "getOutput",
+    cudaMemcpy(
       inputBuffers->policyResults.get(),
       gpuHandle->getBuffer("OutputPolicy"),
       inputBuffers->singlePolicyResultBytes * batchSize,
@@ -1515,20 +1529,38 @@ void NeuralNet::getOutput(
 
   assert(outputs.size() == batchSize);
 
+  float policyProbsTmp[NNPos::MAX_NN_POLICY_SIZE];
+
   for(int row = 0; row < batchSize; row++) {
     NNOutput* output = outputs[row];
 
     assert(output->nnXLen == nnXLen);
     assert(output->nnYLen == nnYLen);
+    float policyOptimism = (float)inputBufs[row]->policyOptimism;
 
+    const float* policyPassSrcBuf = &inputBuffers->policyPassResults[row * inputBuffers->singlePolicyPassResultElts];
     const float* policySrcBuf = &inputBuffers->policyResults[row * inputBuffers->singlePolicyResultElts];
     float* policyProbs = output->policyProbs;
 
-    // These are not actually correct, the client does the postprocessing to turn them into
+    // These are in logits, the client does the postprocessing to turn them into
     // policy probabilities and white game outcome probabilities
     // Also we don't fill in the nnHash here either
-    SymmetryHelpers::copyOutputsWithSymmetry(policySrcBuf, policyProbs, 1, nnYLen, nnXLen, inputBufs[row]->symmetry);
-    policyProbs[inputBuffers->singlePolicyResultElts - 1] = policySrcBuf[inputBuffers->singlePolicyResultElts - 1];
+    // Handle version >= 12 policy optimism
+    if(policyChannels == 2) {
+      // TRT is all NCHW
+      for(int i = 0; i<nnXLen*nnYLen; i++) {
+        float p = policySrcBuf[i];
+        float pOpt = policySrcBuf[i+nnXLen*nnYLen];
+        policyProbsTmp[i] = p + (pOpt-p) * policyOptimism;
+      }
+      SymmetryHelpers::copyOutputsWithSymmetry(policyProbsTmp, policyProbs, 1, nnYLen, nnXLen, inputBufs[row]->symmetry);
+      policyProbs[nnXLen*nnYLen] = policyPassSrcBuf[0] + (policyPassSrcBuf[1] - policyPassSrcBuf[0]) * policyOptimism;
+    }
+    else {
+      assert(policyChannels == 1);
+      SymmetryHelpers::copyOutputsWithSymmetry(policySrcBuf, policyProbs, 1, nnYLen, nnXLen, inputBufs[row]->symmetry);
+      policyProbs[nnXLen * nnYLen] = policyPassSrcBuf[0];
+    }
 
     int numValueChannels = inputBuffers->singleValueResultElts;
     assert(numValueChannels == 3);

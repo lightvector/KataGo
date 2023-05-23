@@ -13,7 +13,12 @@ namespace FileHelpers {
   void collectMultiSgfsFromDirOrFile(const std::string& dirOrFile, std::vector<std::string>& collected);
   void collectMultiSgfsFromDirs(const std::vector<std::string>& dirs, std::vector<std::string>& collected);
   void collectMultiSgfsFromDirsOrFiles(const std::vector<std::string>& dirsOrFiles, std::vector<std::string>& collected);
-  
+
+  void collectPosesFromDir(const std::string& dir, std::vector<std::string>& collected);
+  void collectPosesFromDirOrFile(const std::string& dirOrFile, std::vector<std::string>& collected);
+  void collectPosesFromDirs(const std::vector<std::string>& dirs, std::vector<std::string>& collected);
+  void collectPosesFromDirsOrFiles(const std::vector<std::string>& dirsOrFiles, std::vector<std::string>& collected);
+
   void sortNewestToOldest(std::vector<std::string>& files);
 }
 

@@ -22,7 +22,7 @@ rootSymmetryPruning = false
 trtUseFP16 = false
 
 : Analysis Engine starting...
-: KataGo v1.12.4
+: KataGo v1.13.0
 : nnRandSeed0 = analysisTest
 : After dedups: nnModelFile0 = tests/models/g170-b6c96-s175395328-d26788732.bin.gz useFP16 false useNHWC false
 : Initializing neural net buffer to be size 19 * 19 allowing smaller boards
@@ -49,7 +49,7 @@ trtUseFP16 = false
 : Config override: openclUseFP16 = false
 : Config override: rootSymmetryPruning = false
 : Config override: trtUseFP16 = false
-: Analyzing up to 1 positions at at time in parallel
+: Analyzing up to 1 positions at a time in parallel
 : Started, ready to begin handling requests
 : Request: {"id":"foo","initialStones":[["B","Q4"],["B","C4"]],"moves":[["W","P5"],["B","P6"]],"rules":"tromp-taylor","komi":7.5,"boardXSize":19,"boardYSize":19,"analyzeTurns":[2],"overrideSettings":{"maxVisits":10}}
 : Request: {"id":"foo","initialStones":[],"moves":[["W","C5"],["B","C6"]],"rules":"tromp-taylor","komi":4,"boardXSize":7,"boardYSize":7,"overrideSettings":{"maxVisits":10},"includeOwnership":true,"includePolicy":true}

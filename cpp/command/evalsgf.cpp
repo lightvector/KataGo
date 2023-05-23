@@ -2,6 +2,7 @@
 #include "../core/config_parser.h"
 #include "../core/timer.h"
 #include "../dataio/sgf.h"
+#include "../neuralnet/modelversion.h"
 #include "../search/asyncbot.h"
 #include "../search/searchnode.h"
 #include "../program/setup.h"
@@ -41,6 +42,7 @@ int MainCmds::evalsgf(const vector<string>& args) {
   bool printGraph;
   int printMaxDepth;
   bool rawNN;
+  string dumpNpzInputTo;
   try {
     KataGoCommandLine cmd("Run a search on a position from an sgf file, for debugging.");
     cmd.addConfigFileArg("","gtp_example.cfg");
@@ -71,6 +73,7 @@ int MainCmds::evalsgf(const vector<string>& args) {
     TCLAP::SwitchArg printGraphArg("","print-graph","Print graph structure of the search");
     TCLAP::ValueArg<int> printMaxDepthArg("","print-max-depth","How deep to print",false,1,"DEPTH");
     TCLAP::SwitchArg rawNNArg("","raw-nn","Perform single raw neural net eval");
+    TCLAP::ValueArg<string> dumpNpzInputToArg("","dump-npz-input-to","Dump the nn input tensor to npz file",false,string(),"NPZFILE");
     cmd.add(sgfFileArg);
     cmd.add(moveNumArg);
 
@@ -100,6 +103,7 @@ int MainCmds::evalsgf(const vector<string>& args) {
     cmd.add(printGraphArg);
     cmd.add(printMaxDepthArg);
     cmd.add(rawNNArg);
+    cmd.add(dumpNpzInputToArg);
     cmd.parseArgs(args);
 
     modelFile = cmd.getModelFile();
@@ -127,6 +131,7 @@ int MainCmds::evalsgf(const vector<string>& args) {
     printGraph = printGraphArg.getValue();
     printMaxDepth = printMaxDepthArg.getValue();
     rawNN = rawNNArg.getValue();
+    dumpNpzInputTo = dumpNpzInputToArg.getValue();
 
     if(printBranch.length() > 0 && print.length() > 0) {
       cerr << "Error: -print-branch and -print both specified" << endl;
@@ -166,8 +171,8 @@ int MainCmds::evalsgf(const vector<string>& args) {
     vector<Move>& moves = sgf->moves;
 
     if(!isnan(overrideKomi)) {
-      if(overrideKomi > board.x_size * board.y_size || overrideKomi < -board.x_size * board.y_size)
-        throw StringError("Invalid komi, greater than the area of the board");
+      if(overrideKomi > board.x_size * board.y_size + NNPos::KOMI_CLIP_RADIUS || overrideKomi < -board.x_size * board.y_size - NNPos::KOMI_CLIP_RADIUS)
+        throw StringError("Invalid komi, too much greater than the area of the board");
       hist.setKomi(overrideKomi);
     }
 
@@ -293,6 +298,30 @@ int MainCmds::evalsgf(const vector<string>& args) {
   //   return 0;
   // }
 
+  // {
+  //   sgf->setupInitialBoardAndHist(initialRules, board, nextPla, hist);
+  //   vector<Move>& moves = sgf->moves;
+
+  //   for(size_t i = 0; i<moves.size(); i++) {
+  //     bool preventEncore = false;
+  //     bool suc = hist.makeBoardMoveTolerant(board,moves[i].loc,moves[i].pla,preventEncore);
+  //     assert(suc);
+  //     nextPla = getOpp(moves[i].pla);
+
+  //     MiscNNInputParams nnInputParams;
+  //     nnInputParams.drawEquivalentWinsForWhite = params.drawEquivalentWinsForWhite;
+  //     NNResultBuf buf;
+  //     bool skipCache = true;
+  //     bool includeOwnerMap = false;
+  //     nnEval->evaluate(board,hist,nextPla,nnInputParams,buf,skipCache,includeOwnerMap);
+
+  //     NNOutput* nnOutput = buf.result.get();
+  //     cout << nnOutput->whiteWinProb << " " << nnOutput->shorttermWinlossError << " "
+  //          << nnOutput->whiteScoreMean << " " << nnOutput->shorttermScoreError  << endl;
+  //   }
+  //   return 0;
+  // }
+
   //Check for unused config keys
   cfg.warnUnusedKeys(cerr,&logger);
 
@@ -376,6 +405,9 @@ int MainCmds::evalsgf(const vector<string>& args) {
       cout << "White noresult: " << nnOutput->whiteNoResultProb << endl;
       cout << "White score mean " << nnOutput->whiteScoreMean << endl;
       cout << "White score stdev " << sqrt(max(0.0,(double)nnOutput->whiteScoreMeanSq - nnOutput->whiteScoreMean*nnOutput->whiteScoreMean)) << endl;
+      cout << "Var time left " << nnOutput->varTimeLeft << endl;
+      cout << "Shortterm winloss error " << nnOutput->shorttermWinlossError << endl;
+      cout << "Shortterm score error " << nnOutput->shorttermScoreError << endl;
     }
   }
 
@@ -537,6 +569,39 @@ int MainCmds::evalsgf(const vector<string>& args) {
       }
     }
     cout << endl;
+  }
+
+  if(dumpNpzInputTo != "") {
+    bool inputsUseNHWC = false;
+    int nnXLen = nnEval->getNNXLen();
+    int nnYLen = nnEval->getNNYLen();
+    int modelVersion = nnEval->getModelVersion();
+    int numSpatialFeatures = NNModelVersion::getNumSpatialFeatures(modelVersion);
+    int numGlobalFeatures = NNModelVersion::getNumGlobalFeatures(modelVersion);
+
+    NumpyBuffer<float> binaryInputNCHW(std::vector<int64_t>({1,numSpatialFeatures,nnXLen,nnYLen}));
+    NumpyBuffer<float> globalInputNC(std::vector<int64_t>({1,numGlobalFeatures}));
+
+    MiscNNInputParams nnInputParams;
+    nnInputParams.symmetry = 0;
+    nnInputParams.policyOptimism = params.rootPolicyOptimism;
+    NNInputs::fillRowV7(board, hist, nextPla, nnInputParams, nnXLen, nnYLen, inputsUseNHWC, binaryInputNCHW.data, globalInputNC.data);
+
+    ZipFile zipFile(dumpNpzInputTo);
+    uint64_t numBytes;
+
+    numBytes = binaryInputNCHW.prepareHeaderWithNumRows(1);
+    zipFile.writeBuffer("binaryInputNCHW", binaryInputNCHW.dataIncludingHeader, numBytes);
+    numBytes = globalInputNC.prepareHeaderWithNumRows(1);
+    zipFile.writeBuffer("globalInputNC", globalInputNC.dataIncludingHeader, numBytes);
+    zipFile.close();
+    cout << "Wrote to " << dumpNpzInputTo << endl;
+
+    NNResultBuf buf;
+    bool skipCache = true;
+    bool includeOwnerMap = true;
+    nnEval->evaluate(board,hist,nextPla,nnInputParams,buf,skipCache,includeOwnerMap);
+    buf.result->debugPrint(cout,board);
   }
 
   delete bot;

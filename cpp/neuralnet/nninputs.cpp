@@ -22,6 +22,10 @@ Loc NNPos::posToLoc(int pos, int boardXSize, int boardYSize, int nnXLen, int nnY
   return Location::getLoc(x,y,boardXSize);
 }
 
+int NNPos::getPassPos(int nnXLen, int nnYLen) {
+  return nnXLen * nnYLen;
+}
+
 bool NNPos::isPassPos(int pos, int nnXLen, int nnYLen) {
   return pos == nnXLen * nnYLen;
 }
@@ -45,6 +49,8 @@ const Hash128 MiscNNInputParams::ZOBRIST_NN_POLICY_TEMP =
   Hash128(0xebcbdfeec6f4334bULL, 0xb85e43ee243b5ad2ULL);
 const Hash128 MiscNNInputParams::ZOBRIST_AVOID_MYTDAGGER_HACK =
   Hash128(0x612d22ec402ce054ULL, 0x0db915c49de527aeULL);
+const Hash128 MiscNNInputParams::ZOBRIST_POLICY_OPTIMISM =
+  Hash128(0x88415c85c2801955ULL, 0x39bdf76b2aaa5eb1ULL);
 
 //-----------------------------------------------------------------------------------------------------------
 //-----------------------------------------------------------------------------------------------------------
@@ -507,10 +513,11 @@ void NNOutput::debugPrint(ostream& out, const Board& board) {
   out << "ScoreMeanSq " << Global::strprintf("%.1f",whiteScoreMeanSq) << endl;
   out << "Lead " << Global::strprintf("%.2f",whiteLead) << endl;
   out << "VarTimeLeft " << Global::strprintf("%.1f",varTimeLeft) << endl;
-  out << "STWinlossError " << Global::strprintf("%.3f",shorttermWinlossError) << endl;
-  out << "STScoreError " << Global::strprintf("%.1f",shorttermScoreError) << endl;
+  out << "STWinlossError " << Global::strprintf("%.2fc",shorttermWinlossError*100) << endl;
+  out << "STScoreError " << Global::strprintf("%.2f",shorttermScoreError) << endl;
 
   out << "Policy" << endl;
+  out << "Pass" << Global::strprintf("%4d ", (int)round(policyProbs[NNPos::getPassPos(nnXLen,nnYLen)] * 1000)) << endl;
   for(int y = 0; y<board.y_size; y++) {
     for(int x = 0; x<board.x_size; x++) {
       int pos = NNPos::xyToPos(x,y,nnXLen);
@@ -772,6 +779,53 @@ void SymmetryHelpers::markDuplicateMoveLocs(
   }
 }
 
+static double getSymmetryDifference(const Board& board, const Board& other, int symmetry, double maxDifferenceToReport) {
+  double thisDifference = 0.0;
+  for(int y = 0; y<board.y_size; y++) {
+    for(int x = 0; x<board.x_size; x++) {
+      Loc loc = Location::getLoc(x, y, board.x_size);
+      Loc symLoc = SymmetryHelpers::getSymLoc(x, y, board, symmetry);
+      // Difference!
+      if(board.colors[loc] != other.colors[symLoc]) {
+        // One of them was empty, the other was a stone
+        if(board.colors[loc] == C_EMPTY || other.colors[symLoc] == C_EMPTY)
+          thisDifference += 1.0;
+        // Differing stones - triple the penalty
+        else
+          thisDifference += 3.0;
+
+        if(thisDifference > maxDifferenceToReport)
+          return maxDifferenceToReport;
+      }
+    }
+  }
+  return thisDifference;
+}
+
+
+// For each symmetry, return a metric about the "amount" of difference that board would have with other
+// if symmetry were applied to board.
+void SymmetryHelpers::getSymmetryDifferences(
+  const Board& board, const Board& other, double maxDifferenceToReport, double symmetryDifferences[SymmetryHelpers::NUM_SYMMETRIES]
+) {
+  for(int symmetry = 0; symmetry<SymmetryHelpers::NUM_SYMMETRIES; symmetry++)
+    symmetryDifferences[symmetry] = maxDifferenceToReport;
+
+  // Don't bother handling ultra-fancy transpose logic
+  if(board.x_size != other.x_size || board.y_size != other.y_size)
+    return;
+
+  int numSymmetries = SymmetryHelpers::NUM_SYMMETRIES;
+  if(board.x_size != board.y_size)
+    numSymmetries = SymmetryHelpers::NUM_SYMMETRIES_WITHOUT_TRANSPOSE;
+
+  for(int symmetry = 0; symmetry<numSymmetries; symmetry++) {
+    symmetryDifferences[symmetry] = getSymmetryDifference(board, other, symmetry, maxDifferenceToReport);
+  }
+}
+
+
+
 //-------------------------------------------------------------------------------------------------------------
 
 static void setRowBin(float* rowBin, int pos, int feature, float value, int posStride, int featureStride) {
@@ -883,6 +937,14 @@ Hash128 NNInputs::getHash(
 
   if(nnInputParams.avoidMYTDaggerHack)
     hash ^= MiscNNInputParams::ZOBRIST_AVOID_MYTDAGGER_HACK;
+
+  //Fold in policy optimism
+  if(nnInputParams.policyOptimism > 0) {
+    hash ^= MiscNNInputParams::ZOBRIST_POLICY_OPTIMISM;
+    int64_t policyOptimismDiscretized = (int64_t)(nnInputParams.policyOptimism*1024.0);
+    hash.hash0 = Hash::rrmxmx(Hash::splitMix64(hash.hash0) + (uint64_t)policyOptimismDiscretized);
+    hash.hash1 = Hash::rrmxmx(hash.hash1 + hash.hash0 + (uint64_t)policyOptimismDiscretized);
+  }
 
   return hash;
 }
@@ -2516,10 +2578,10 @@ void NNInputs::fillRowV7(
   float selfKomi = hist.currentSelfKomi(nextPlayer,nnInputParams.drawEquivalentWinsForWhite);
   float bArea = (float)(xSize * ySize);
   //Bound komi just in case
-  if(selfKomi > bArea+20.0f)
-    selfKomi = bArea+20.0f;
-  if(selfKomi < -bArea-20.0f)
-    selfKomi = -bArea-20.0f;
+  if(selfKomi > bArea+NNPos::KOMI_CLIP_RADIUS)
+    selfKomi = bArea+NNPos::KOMI_CLIP_RADIUS;
+  if(selfKomi < -bArea-NNPos::KOMI_CLIP_RADIUS)
+    selfKomi = -bArea-NNPos::KOMI_CLIP_RADIUS;
   rowGlobal[5] = selfKomi/20.0f;
 
   //Ko rule

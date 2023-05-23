@@ -10,7 +10,6 @@
 class SelfplayManager {
  public:
   SelfplayManager(
-    double validationProp,
     int maxDataQueueSize,
     Logger* logger,
     int64_t logGamesEvery,
@@ -30,13 +29,11 @@ class SelfplayManager {
   void loadModelAndStartDataWriting(
     NNEvaluator* nnEval,
     TrainingDataWriter* tdataWriter,
-    TrainingDataWriter* vdataWriter,
     std::ofstream* sgfOut
   );
   void loadModelNoDataWritingLoop(
     NNEvaluator* nnEval,
     TrainingDataWriter* tdataWriter,
-    TrainingDataWriter* vdataWriter,
     std::ofstream* sgfOut
   );
 
@@ -78,7 +75,7 @@ class SelfplayManager {
   //Use these if loadModelNoDataWritingLoop was used to start the model.
   void withDataWriters(
     NNEvaluator* nnEval,
-    std::function<void(TrainingDataWriter* tdataWriter, TrainingDataWriter* vdataWriter, std::ofstream* sgfOut)> f
+    std::function<void(TrainingDataWriter* tdataWriter, std::ofstream* sgfOut)> f
   );
 
   //====================================================================================
@@ -95,12 +92,11 @@ class SelfplayManager {
     int acquireCount;
 
     TrainingDataWriter* tdataWriter;
-    TrainingDataWriter* vdataWriter;
     std::ofstream* sgfOut;
 
     ModelData(
       const std::string& name, NNEvaluator* neval, int maxDataQueueSize,
-      TrainingDataWriter* tdWriter, TrainingDataWriter* vdWriter, std::ofstream* sOut,
+      TrainingDataWriter* tdWriter, std::ofstream* sOut,
       double initialLastReleaseTime,
       bool hasDataWriteLoop
     );
@@ -108,7 +104,6 @@ class SelfplayManager {
   };
 
  private:
-  const double validationProp;
   const int maxDataQueueSize;
   Logger* logger;
   const int64_t logGamesEvery;

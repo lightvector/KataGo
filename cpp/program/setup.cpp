@@ -2,6 +2,7 @@
 
 #include "../core/datetime.h"
 #include "../core/makedir.h"
+#include "../core/fileutils.h"
 #include "../neuralnet/nninterface.h"
 #include "../search/patternbonustable.h"
 
@@ -427,6 +428,10 @@ vector<SearchParams> Setup::loadParams(
     if(cfg.contains("numSearchThreads"+idxStr)) params.numThreads = cfg.getInt("numSearchThreads"+idxStr, 1, 4096);
     else                                        params.numThreads = cfg.getInt("numSearchThreads",        1, 4096);
 
+    if(cfg.contains("minPlayoutsPerThread"+idxStr)) params.minPlayoutsPerThread = cfg.getDouble("minPlayoutsPerThread"+idxStr, 0.0, 1.0e20);
+    else if(cfg.contains("minPlayoutsPerThread"))   params.minPlayoutsPerThread = cfg.getDouble("minPlayoutsPerThread",        0.0, 1.0e20);
+    else                                            params.minPlayoutsPerThread = (setupFor == SETUP_FOR_ANALYSIS || setupFor == SETUP_FOR_GTP) ? 8.0 : 0.0;
+
     if(cfg.contains("winLossUtilityFactor"+idxStr)) params.winLossUtilityFactor = cfg.getDouble("winLossUtilityFactor"+idxStr, 0.0, 1.0);
     else if(cfg.contains("winLossUtilityFactor"))   params.winLossUtilityFactor = cfg.getDouble("winLossUtilityFactor",        0.0, 1.0);
     else                                            params.winLossUtilityFactor = 1.0;
@@ -490,6 +495,10 @@ vector<SearchParams> Setup::loadParams(
       else if(cfg.contains("fpuParentWeight"))   params.fpuParentWeight = cfg.getDouble("fpuParentWeight",        0.0, 1.0);
       else                                       params.fpuParentWeight = 0.0;
     }
+
+    if(cfg.contains("policyOptimism"+idxStr)) params.policyOptimism = cfg.getDouble("policyOptimism"+idxStr, 0.0, 1.0);
+    else if(cfg.contains("policyOptimism"))   params.policyOptimism = cfg.getDouble("policyOptimism",        0.0, 1.0);
+    else params.policyOptimism = (setupFor != SETUP_FOR_DISTRIBUTED && setupFor != SETUP_FOR_OTHER) ? 1.0 : 0.0;
 
     if(cfg.contains("valueWeightExponent"+idxStr)) params.valueWeightExponent = cfg.getDouble("valueWeightExponent"+idxStr, 0.0, 1.0);
     else if(cfg.contains("valueWeightExponent")) params.valueWeightExponent = cfg.getDouble("valueWeightExponent", 0.0, 1.0);
@@ -566,6 +575,10 @@ vector<SearchParams> Setup::loadParams(
     if(cfg.contains("rootDesiredPerChildVisitsCoeff"+idxStr)) params.rootDesiredPerChildVisitsCoeff = cfg.getDouble("rootDesiredPerChildVisitsCoeff"+idxStr, 0.0, 100.0);
     else if(cfg.contains("rootDesiredPerChildVisitsCoeff"))   params.rootDesiredPerChildVisitsCoeff = cfg.getDouble("rootDesiredPerChildVisitsCoeff",        0.0, 100.0);
     else                                                      params.rootDesiredPerChildVisitsCoeff = 0.0;
+
+    if(cfg.contains("rootPolicyOptimism"+idxStr)) params.rootPolicyOptimism = cfg.getDouble("rootPolicyOptimism"+idxStr, 0.0, 1.0);
+    else if(cfg.contains("rootPolicyOptimism"))   params.rootPolicyOptimism = cfg.getDouble("rootPolicyOptimism",        0.0, 1.0);
+    else params.rootPolicyOptimism = (setupFor != SETUP_FOR_DISTRIBUTED && setupFor != SETUP_FOR_OTHER) ? std::min(params.policyOptimism, 0.2) : 0.0;
 
     if(cfg.contains("chosenMoveTemperature"+idxStr)) params.chosenMoveTemperature = cfg.getDouble("chosenMoveTemperature"+idxStr, 0.0, 5.0);
     else if(cfg.contains("chosenMoveTemperature"))   params.chosenMoveTemperature = cfg.getDouble("chosenMoveTemperature",        0.0, 5.0);
@@ -831,7 +844,6 @@ vector<pair<set<string>,set<string>>> Setup::getMutexKeySets() {
 }
 
 std::vector<std::unique_ptr<PatternBonusTable>> Setup::loadAvoidSgfPatternBonusTables(ConfigParser& cfg, Logger& logger) {
-  vector<SearchParams> paramss;
   int numBots = 1;
   if(cfg.contains("numBots"))
     numBots = cfg.getInt("numBots",1,MAX_BOT_PARAMS_FROM_CFG);
@@ -872,4 +884,108 @@ std::vector<std::unique_ptr<PatternBonusTable>> Setup::loadAvoidSgfPatternBonusT
     tables.push_back(std::move(patternBonusTable));
   }
   return tables;
+}
+
+static string boardSizeToStr(int boardXSize, int boardYSize) {
+  return Global::intToString(boardXSize) + "x" + Global::intToString(boardYSize);
+}
+
+static int getAutoPatternIntParam(ConfigParser& cfg, const string& param, int boardXSize, int boardYSize, int min, int max) {
+  if(!cfg.contains(param))
+    throw ConfigParsingError(param + " was not specified in the config");
+  if(cfg.contains(param + boardSizeToStr(boardXSize,boardYSize)))
+    return cfg.getInt(param + boardSizeToStr(boardXSize,boardYSize), min, max);
+  return cfg.getInt(param, min, max);
+}
+static int64_t getAutoPatternInt64Param(ConfigParser& cfg, const string& param, int boardXSize, int boardYSize, int64_t min, int64_t max) {
+  if(!cfg.contains(param))
+    throw ConfigParsingError(param + " was not specified in the config");
+  if(cfg.contains(param + boardSizeToStr(boardXSize,boardYSize)))
+    return cfg.getInt64(param + boardSizeToStr(boardXSize,boardYSize), min, max);
+  return cfg.getInt64(param, min, max);
+}
+static double getAutoPatternDoubleParam(ConfigParser& cfg, const string& param, int boardXSize, int boardYSize, double min, double max) {
+  if(!cfg.contains(param))
+    throw ConfigParsingError(param + " was not specified in the config");
+  if(cfg.contains(param + boardSizeToStr(boardXSize,boardYSize)))
+    return cfg.getDouble(param + boardSizeToStr(boardXSize,boardYSize), min, max);
+  return cfg.getDouble(param, min, max);
+}
+
+bool Setup::saveAutoPatternBonusData(const std::vector<Sgf::PositionSample>& genmoveSamples, ConfigParser& cfg, Logger& logger, Rand& rand) {
+  if(genmoveSamples.size() <= 0)
+    return false;
+  if(!cfg.contains("autoAvoidRepeatDir"))
+    return false;
+
+  string autoAvoidPatternsDir = cfg.getString("autoAvoidRepeatDir");
+  MakeDir::make(autoAvoidPatternsDir);
+
+  std::map<std::pair<int,int>, std::unique_ptr<ofstream>> outByBoardSize;
+  string fileName = Global::uint64ToHexString(rand.nextUInt64()) + "_poses.txt";
+  for(const Sgf::PositionSample& sampleToWrite : genmoveSamples) {
+    int boardXSize = sampleToWrite.board.x_size;
+    int boardYSize = sampleToWrite.board.y_size;
+    std::pair<int,int> boardSize = std::make_pair(boardXSize, boardYSize);
+
+    int minTurnNumber = getAutoPatternIntParam(cfg,"autoAvoidRepeatMinTurnNumber",boardXSize,boardYSize,0,1000000);
+    int maxTurnNumber = getAutoPatternIntParam(cfg,"autoAvoidRepeatMaxTurnNumber",boardXSize,boardYSize,0,1000000);
+    if(sampleToWrite.initialTurnNumber < minTurnNumber || sampleToWrite.initialTurnNumber > maxTurnNumber)
+      continue;
+    assert(sampleToWrite.moves.size() == 0);
+    if(!contains(outByBoardSize,boardSize)) {
+      MakeDir::make(autoAvoidPatternsDir + "/" + boardSizeToStr(boardXSize, boardYSize));
+      outByBoardSize[boardSize] = std::make_unique<ofstream>();
+      string filePath = autoAvoidPatternsDir + "/" + boardSizeToStr(boardXSize, boardYSize) + "/" + fileName;
+      bool suc = FileUtils::tryOpen(*(outByBoardSize[boardSize]), filePath);
+      if(!suc) {
+        logger.write("ERROR: could not open " + filePath);
+        return false;
+      }
+    }
+    *(outByBoardSize[boardSize]) << Sgf::PositionSample::toJsonLine(sampleToWrite) << "\n";
+  }
+  for(auto iter = outByBoardSize.begin(); iter != outByBoardSize.end(); ++iter) {
+    iter->second->close();
+  }
+  logger.write("Saved " + Global::uint64ToString(genmoveSamples.size()) + " avoid poses to " + autoAvoidPatternsDir);
+  return true;
+}
+
+std::unique_ptr<PatternBonusTable> Setup::loadAndPruneAutoPatternBonusTables(ConfigParser& cfg, Logger& logger) {
+  std::unique_ptr<PatternBonusTable> patternBonusTable = nullptr;
+
+  if(cfg.contains("autoAvoidRepeatDir")) {
+    string baseDir = cfg.getString("autoAvoidRepeatDir");
+    std::vector<string> boardSizeDirs = FileUtils::listFiles(baseDir);
+
+    patternBonusTable = std::make_unique<PatternBonusTable>();
+
+    for(const string& dirName: boardSizeDirs) {
+      std::vector<string> pieces = Global::split(dirName,'x');
+      if(pieces.size() != 2)
+        continue;
+      int boardXSize;
+      int boardYSize;
+      bool suc = Global::tryStringToInt(pieces[0],boardXSize) && Global::tryStringToInt(pieces[1],boardYSize);
+      if(!suc)
+        continue;
+      if(boardXSize < 2 || boardXSize > Board::MAX_LEN || boardYSize < 2 || boardYSize > Board::MAX_LEN)
+        continue;
+
+      string dirPath = baseDir + "/" + dirName;
+      if(!FileUtils::isDirectory(dirPath))
+        continue;
+
+      double penalty = getAutoPatternDoubleParam(cfg,"autoAvoidRepeatUtility",boardXSize,boardYSize,-3.0,3.0);
+      double lambda = getAutoPatternDoubleParam(cfg,"autoAvoidRepeatLambda",boardXSize,boardYSize,0.0,1.0);
+      int minTurnNumber = getAutoPatternIntParam(cfg,"autoAvoidRepeatMinTurnNumber",boardXSize,boardYSize,0,1000000);
+      int maxTurnNumber = getAutoPatternIntParam(cfg,"autoAvoidRepeatMaxTurnNumber",boardXSize,boardYSize,0,1000000);
+      size_t maxPoses = getAutoPatternInt64Param(cfg,"autoAvoidRepeatMaxPoses",boardXSize,boardYSize,0,(int64_t)1000000000000LL);
+
+      string logSource = dirPath;
+      patternBonusTable->avoidRepeatedPosMovesAndDeleteExcessFiles({baseDir + "/" + dirName},penalty,lambda,minTurnNumber,maxTurnNumber,maxPoses,logger,logSource);
+    }
+  }
+  return patternBonusTable;
 }

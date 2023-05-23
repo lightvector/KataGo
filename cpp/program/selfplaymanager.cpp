@@ -4,7 +4,7 @@ using namespace std;
 
 SelfplayManager::ModelData::ModelData(
   const string& name, NNEvaluator* neval, int maxDQueueSize,
-  TrainingDataWriter* tdWriter, TrainingDataWriter* vdWriter, ofstream* sOut,
+  TrainingDataWriter* tdWriter, ofstream* sOut,
   double initialTime,
   bool hasDataLoop
 ):
@@ -16,7 +16,6 @@ SelfplayManager::ModelData::ModelData(
   finishedGameQueue(maxDQueueSize),
   acquireCount(0),
   tdataWriter(tdWriter),
-  vdataWriter(vdWriter),
   sgfOut(sOut)
 {
 }
@@ -24,8 +23,6 @@ SelfplayManager::ModelData::ModelData(
 SelfplayManager::ModelData::~ModelData() {
   delete nnEval;
   delete tdataWriter;
-  if(vdataWriter != NULL)
-    delete vdataWriter;
   if(sgfOut != NULL)
     delete sgfOut;
 }
@@ -33,13 +30,11 @@ SelfplayManager::ModelData::~ModelData() {
 //------------------------------------------------------------------------------------
 
 SelfplayManager::SelfplayManager(
-  double vProp,
   int maxDQueueSize,
   Logger* lg,
   int64_t logEvery,
   bool autoCleanup
 ):
-  validationProp(vProp),
   maxDataQueueSize(maxDQueueSize),
   logger(lg),
   logGamesEvery(logEvery),
@@ -139,7 +134,6 @@ void SelfplayManager::clearUnusedModelCaches() {
 void SelfplayManager::loadModelAndStartDataWriting(
   NNEvaluator* nnEval,
   TrainingDataWriter* tdataWriter,
-  TrainingDataWriter* vdataWriter,
   ofstream* sgfOut
 ) {
   string modelName = nnEval->getModelName();
@@ -152,7 +146,7 @@ void SelfplayManager::loadModelAndStartDataWriting(
 
   double initialTime = timer.getSeconds();
   bool hasDataWriteLoop = true;
-  ModelData* newModel = new ModelData(modelName,nnEval,maxDataQueueSize,tdataWriter,vdataWriter,sgfOut,initialTime,hasDataWriteLoop);
+  ModelData* newModel = new ModelData(modelName,nnEval,maxDataQueueSize,tdataWriter,sgfOut,initialTime,hasDataWriteLoop);
   modelDatas.push_back(newModel);
   numDataWriteLoopsActive++;
   std::thread newThread(dataWriteLoop,this,newModel);
@@ -164,7 +158,6 @@ void SelfplayManager::loadModelAndStartDataWriting(
 void SelfplayManager::loadModelNoDataWritingLoop(
   NNEvaluator* nnEval,
   TrainingDataWriter* tdataWriter,
-  TrainingDataWriter* vdataWriter,
   ofstream* sgfOut
 ) {
   string modelName = nnEval->getModelName();
@@ -177,7 +170,7 @@ void SelfplayManager::loadModelNoDataWritingLoop(
 
   double initialTime = timer.getSeconds();
   bool hasDataWriteLoop = false;
-  ModelData* newModel = new ModelData(modelName,nnEval,maxDataQueueSize,tdataWriter,vdataWriter,sgfOut,initialTime,hasDataWriteLoop);
+  ModelData* newModel = new ModelData(modelName,nnEval,maxDataQueueSize,tdataWriter,sgfOut,initialTime,hasDataWriteLoop);
   modelDatas.push_back(newModel);
   maybeAutoCleanupAlreadyLocked();
 }
@@ -359,10 +352,7 @@ void SelfplayManager::runDataWriteLoopImpl(ModelData* modelData) {
 
     assert(gameData != NULL);
 
-    if(rand.nextBool(validationProp))
-      modelData->vdataWriter->writeGame(*gameData);
-    else
-      modelData->tdataWriter->writeGame(*gameData);
+    modelData->tdataWriter->writeGame(*gameData);
 
     if(modelData->sgfOut != NULL) {
       assert(gameData->startHist.moveHistory.size() <= gameData->endHist.moveHistory.size());
@@ -373,8 +363,6 @@ void SelfplayManager::runDataWriteLoopImpl(ModelData* modelData) {
   }
 
   modelData->tdataWriter->flushIfNonempty();
-  if(modelData->vdataWriter != NULL)
-    modelData->vdataWriter->flushIfNonempty();
   if(modelData->sgfOut != NULL)
     modelData->sgfOut->close();
 
@@ -425,7 +413,7 @@ void SelfplayManager::runDataWriteLoopImpl(ModelData* modelData) {
 
 void SelfplayManager::withDataWriters(
   NNEvaluator* nnEval,
-  std::function<void(TrainingDataWriter* tdataWriter, TrainingDataWriter* vdataWriter, std::ofstream* sgfOut)> f
+  std::function<void(TrainingDataWriter* tdataWriter, std::ofstream* sgfOut)> f
 ) {
   std::lock_guard<std::mutex> lock(managerMutex);
   ModelData* foundData = NULL;
@@ -439,5 +427,5 @@ void SelfplayManager::withDataWriters(
     throw StringError("SelfplayManager::withDataWriters: could not find model. Possible bug - client did not acquire model?");
   assert(foundData->hasDataWriteLoop == false);
 
-  f(foundData->tdataWriter, foundData->vdataWriter, foundData->sgfOut);
+  f(foundData->tdataWriter, foundData->sgfOut);
 }

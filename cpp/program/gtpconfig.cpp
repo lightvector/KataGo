@@ -365,6 +365,10 @@ $$MULTIPLE_GPUS
 # uncertaintyExponent = 1.0
 # uncertaintyCoeff = 0.25
 
+# Explore using optimistic policy
+# rootPolicyOptimism = 0.2
+# policyOptimism = 1.0
+
 # Amount to apply a downweighting of children with very bad values relative
 # to good ones.
 # valueWeightExponent = 0.25

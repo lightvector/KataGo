@@ -70,13 +70,75 @@ int MainCmds::match(const vector<string>& args) {
   assert(paramss.size() > 0);
   int numBots = (int)paramss.size();
 
-  //Load a filter on what bots we actually want to run
-  vector<bool> excludeBot(numBots);
-  if(cfg.contains("includeBots")) {
-    vector<int> includeBots = cfg.getInts("includeBots",0,Setup::MAX_BOT_PARAMS_FROM_CFG);
+  //Figure out all pairs of bots that will be playing.
+  std::vector<std::pair<int,int>> matchupsPerRound;
+  {
+    //Load a filter on what bots we actually want to run. By default, include everything.
+    vector<bool> includeBot(numBots);
+    if(cfg.contains("includeBots")) {
+      vector<int> includeBotIdxs = cfg.getInts("includeBots",0,Setup::MAX_BOT_PARAMS_FROM_CFG);
+      for(int i = 0; i<numBots; i++) {
+        if(contains(includeBotIdxs,i))
+          includeBot[i] = true;
+      }
+    }
+    else {
+      for(int i = 0; i<numBots; i++) {
+        includeBot[i] = true;
+      }
+    }
+
+    std::vector<int> secondaryBotIdxs;
+    if(cfg.contains("secondaryBots"))
+      secondaryBotIdxs = cfg.getInts("secondaryBots",0,Setup::MAX_BOT_PARAMS_FROM_CFG);
+    for(int i = 0; i<secondaryBotIdxs.size(); i++)
+      assert(secondaryBotIdxs[i] >= 0 && secondaryBotIdxs[i] < numBots);
+
     for(int i = 0; i<numBots; i++) {
-      if(!contains(includeBots,i))
-        excludeBot[i] = true;
+      if(!includeBot[i])
+        continue;
+      for(int j = 0; j<numBots; j++) {
+        if(!includeBot[j])
+          continue;
+        if(i < j && !(contains(secondaryBotIdxs,i) && contains(secondaryBotIdxs,j))) {
+          matchupsPerRound.push_back(make_pair(i,j));
+          matchupsPerRound.push_back(make_pair(j,i));
+        }
+      }
+    }
+
+    if(cfg.contains("extraPairs")) {
+      string pairsStr = cfg.getString("extraPairs");
+      std::vector<string> pairStrs = Global::split(pairsStr,',');
+      for(const string& pairStr: pairStrs) {
+        if(Global::trim(pairStr).size() <= 0)
+          continue;
+        std::vector<string> pieces = Global::split(Global::trim(pairStr),'-');
+        if(pieces.size() != 2) {
+          throw IOError("Could not parse pair: " + pairStr);
+        }
+        bool suc;
+        int p0;
+        int p1;
+        suc = Global::tryStringToInt(pieces[0],p0);
+        if(!suc)
+          throw IOError("Could not parse pair: " + pairStr);
+        suc = Global::tryStringToInt(pieces[1],p1);
+        if(!suc)
+          throw IOError("Could not parse pair: " + pairStr);
+        if(p0 < 0 || p0 >= numBots)
+          throw IOError("Invalid player index in pair: " + pairStr);
+        if(p1 < 0 || p1 >= numBots)
+          throw IOError("Invalid player index in pair: " + pairStr);
+
+        if(cfg.contains("extraPairsAreOneSidedBW") && cfg.getBool("extraPairsAreOneSidedBW")) {
+          matchupsPerRound.push_back(std::make_pair(p0,p1));
+        }
+        else {
+          matchupsPerRound.push_back(std::make_pair(p0,p1));
+          matchupsPerRound.push_back(std::make_pair(p1,p0));
+        }
+      }
     }
   }
 
@@ -99,11 +161,17 @@ int MainCmds::match(const vector<string>& args) {
       nnModelFilesByBot[i] = cfg.getString("nnModelFile");
   }
 
+  vector<bool> botIsUsed(numBots);
+  for(const std::pair<int,int> pair: matchupsPerRound) {
+    botIsUsed[pair.first] = true;
+    botIsUsed[pair.second] = true;
+  }
+
   //Dedup and load each necessary model exactly once
   vector<string> nnModelFiles;
   vector<int> whichNNModel(numBots);
   for(int i = 0; i<numBots; i++) {
-    if(excludeBot[i])
+    if(!botIsUsed[i])
       continue;
 
     const string& desiredFile = nnModelFilesByBot[i];
@@ -165,7 +233,7 @@ int MainCmds::match(const vector<string>& args) {
 
   vector<NNEvaluator*> nnEvalsByBot(numBots);
   for(int i = 0; i<numBots; i++) {
-    if(excludeBot[i])
+    if(!botIsUsed[i])
       continue;
     nnEvalsByBot[i] = nnEvals[whichNNModel[i]];
   }
@@ -174,9 +242,8 @@ int MainCmds::match(const vector<string>& args) {
   assert(patternBonusTables.size() == numBots);
 
   //Initialize object for randomly pairing bots
-  bool forSelfPlay = false;
-  bool forGateKeeper = false;
-  MatchPairer* matchPairer = new MatchPairer(cfg,numBots,botNames,nnEvalsByBot,paramss,forSelfPlay,forGateKeeper,excludeBot);
+  int64_t numGamesTotal = cfg.getInt64("numGamesTotal",1,((int64_t)1) << 62);
+  MatchPairer* matchPairer = new MatchPairer(cfg,numBots,botNames,nnEvalsByBot,paramss,matchupsPerRound,numGamesTotal);
 
   //Check for unused config keys
   cfg.warnUnusedKeys(cerr,&logger);

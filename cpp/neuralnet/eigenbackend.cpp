@@ -103,6 +103,10 @@ Rules NeuralNet::getSupportedRules(const LoadedModel* loadedModel, const Rules& 
   return loadedModel->modelDesc.getSupportedRules(desiredRules, supported);
 }
 
+ModelPostProcessParams NeuralNet::getPostProcessParams(const LoadedModel* loadedModel) {
+  return loadedModel->modelDesc.postProcessParams;
+}
+
 
 // Helpers --------------------------------------------------------------------------------------------------------------
 
@@ -1526,12 +1530,14 @@ struct InputBuffers {
   InputBuffers(const LoadedModel* loadedModel, int maxBatchSz, int nnXLen, int nnYLen) {
     const ModelDesc& m = loadedModel->modelDesc;
 
+    const int policyChannels = m.version >= 12 ? 2 : 1;
+    assert(policyChannels == m.policyHead.p2Conv.outChannels);
     maxBatchSize = maxBatchSz;
     singleInputElts = m.numInputChannels * nnXLen * nnYLen;
     singleInputGlobalElts = m.numInputGlobalChannels;
 
-    singlePolicyPassResultElts = (size_t)(1);
-    singlePolicyResultElts = (size_t)(nnXLen * nnYLen);
+    singlePolicyPassResultElts = (size_t)(policyChannels);
+    singlePolicyResultElts = (size_t)(policyChannels * nnXLen * nnYLen);
     singleValueResultElts = (size_t)m.numValueChannels;
     singleScoreValueResultElts = (size_t)m.numScoreValueChannels;
     singleOwnershipResultElts = (size_t)m.numOwnershipChannels * nnXLen * nnYLen;
@@ -1675,16 +1681,17 @@ void NeuralNet::getOutput(
 ) {
   assert(numBatchEltsFilled <= inputBuffers->maxBatchSize);
   assert(numBatchEltsFilled > 0);
-  int batchSize = numBatchEltsFilled;
-  int nnXLen = computeHandle->context->nnXLen;
-  int nnYLen = computeHandle->context->nnYLen;
-  int version = computeHandle->model.version;
+  const int batchSize = numBatchEltsFilled;
+  const int nnXLen = computeHandle->context->nnXLen;
+  const int nnYLen = computeHandle->context->nnYLen;
+  const int version = computeHandle->model.version;
 
-  int numSpatialFeatures = NNModelVersion::getNumSpatialFeatures(version);
-  int numGlobalFeatures = NNModelVersion::getNumGlobalFeatures(version);
+  const int numSpatialFeatures = NNModelVersion::getNumSpatialFeatures(version);
+  const int numGlobalFeatures = NNModelVersion::getNumGlobalFeatures(version);
   assert(numSpatialFeatures == computeHandle->model.numInputChannels);
   assert(numSpatialFeatures * nnXLen * nnYLen == inputBuffers->singleInputElts);
   assert(numGlobalFeatures == inputBuffers->singleInputGlobalElts);
+  const int policyChannels = version >= 12 ? 2 : 1;
 
   for(int nIdx = 0; nIdx<batchSize; nIdx++) {
     float* rowSpatialInput = inputBuffers->spatialInput.data() + (inputBuffers->singleInputElts * nIdx);
@@ -1732,10 +1739,15 @@ void NeuralNet::getOutput(
     convWorkspace.data()
   );
 
+  assert(inputBuffers->singlePolicyPassResultElts == policyChannels);
+  assert(inputBuffers->singlePolicyResultElts == policyChannels * nnXLen * nnYLen);
+
   assert(outputs.size() == batchSize);
 
-  float* policyData = policy.data();
+  float policyProbsTmp[NNPos::MAX_NN_POLICY_SIZE];
+
   float* policyPassData = policyPass.data();
+  float* policyData = policy.data();
   float* valueData = value.data();
   float* scoreValueData = scoreValue.data();
   float* ownershipData = ownership.data();
@@ -1744,15 +1756,31 @@ void NeuralNet::getOutput(
     NNOutput* output = outputs[row];
     assert(output->nnXLen == nnXLen);
     assert(output->nnYLen == nnYLen);
+    float policyOptimism = (float)inputBufs[row]->policyOptimism;
 
-    const float* policySrcBuf = policyData + row * inputBuffers->singlePolicyResultElts;
+    const float* policyPassSrcBuf = policyPassData + row * policyChannels;
+    const float* policySrcBuf = policyData + row * policyChannels * nnXLen * nnYLen;
     float* policyProbs = output->policyProbs;
 
-    //These are not actually correct, the client does the postprocessing to turn them into
-    //policy probabilities and white game outcome probabilities
-    //Also we don't fill in the nnHash here either
-    SymmetryHelpers::copyOutputsWithSymmetry(policySrcBuf, policyProbs, 1, nnYLen, nnXLen, inputBufs[row]->symmetry);
-    policyProbs[inputBuffers->singlePolicyResultElts] = policyPassData[row];
+    // These are in logits, the client does the postprocessing to turn them into
+    // policy probabilities and white game outcome probabilities
+    // Also we don't fill in the nnHash here either
+    // Handle version >= 12 policy optimism
+    if(policyChannels == 2) {
+      // Eigen is all NHWC
+      for(int i = 0; i<nnXLen*nnYLen; i++) {
+        float p = policySrcBuf[i*2];
+        float pOpt = policySrcBuf[i*2+1];
+        policyProbsTmp[i] = p + (pOpt-p) * policyOptimism;
+      }
+      SymmetryHelpers::copyOutputsWithSymmetry(policyProbsTmp, policyProbs, 1, nnYLen, nnXLen, inputBufs[row]->symmetry);
+      policyProbs[nnXLen*nnYLen] = policyPassSrcBuf[0] + (policyPassSrcBuf[1] - policyPassSrcBuf[0]) * policyOptimism;
+    }
+    else {
+      assert(policyChannels == 1);
+      SymmetryHelpers::copyOutputsWithSymmetry(policySrcBuf, policyProbs, 1, nnYLen, nnXLen, inputBufs[row]->symmetry);
+      policyProbs[inputBuffers->singlePolicyResultElts] = policyPassSrcBuf[0];
+    }
 
     int numValueChannels = computeHandle->model.numValueChannels;
     assert(numValueChannels == 3);

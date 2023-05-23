@@ -18,6 +18,7 @@ namespace TestSearchCommon {
     bool printPlaySelectionValues;
     bool printRootValues;
     bool printPrunedRootValues;
+    bool printSharpScoreAndError;
     bool noClearBot;
     bool noClearCache;
     bool printMore;

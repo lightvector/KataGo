@@ -3350,7 +3350,7 @@ void OpenCLTuner::autoTuneEverything(
   string gpuName = allDeviceInfos[gpuIdxForTuning].name;
 
   //Just hardcodedly tune all the models that KataGo's main run uses.
-  static_assert(NNModelVersion::latestModelVersionImplemented == 11, "");
+  static_assert(NNModelVersion::latestModelVersionImplemented == 14, "");
   vector<ModelInfoForTuning> modelInfos;
   {
     ModelInfoForTuning modelInfo;
@@ -3427,6 +3427,28 @@ void OpenCLTuner::autoTuneEverything(
     modelInfo.regularNumChannels = 128;
     modelInfo.gpoolNumChannels = 64;
     modelInfo.version = 11;
+    modelInfos.push_back(modelInfo);
+  }
+  {
+    ModelInfoForTuning modelInfo;
+    modelInfo.maxConvChannels1x1 = 384;
+    modelInfo.maxConvChannels3x3 = 384;
+    modelInfo.trunkNumChannels = 384;
+    modelInfo.midNumChannels = 192;
+    modelInfo.regularNumChannels = 128;
+    modelInfo.gpoolNumChannels = 64;
+    modelInfo.version = 14;
+    modelInfos.push_back(modelInfo);
+  }
+  {
+    ModelInfoForTuning modelInfo;
+    modelInfo.maxConvChannels1x1 = 512;
+    modelInfo.maxConvChannels3x3 = 512;
+    modelInfo.trunkNumChannels = 512;
+    modelInfo.midNumChannels = 256;
+    modelInfo.regularNumChannels = 192;
+    modelInfo.gpoolNumChannels = 64;
+    modelInfo.version = 14;
     modelInfos.push_back(modelInfo);
   }
 

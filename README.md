@@ -25,9 +25,9 @@
 
 ## Overview
 
-KataGo has begun its first public distributed training run! See https://katagotraining.org/ for more details, to download the latest and strongest neural nets, or to learn how to contribute if you want to help KataGo improve further! Also check out the computer Go [discord channel](https://discord.gg/bqkZAz3)!
+KataGo's public distributed training run is ongoing! See https://katagotraining.org/ for more details, to download the latest and strongest neural nets, or to learn how to contribute if you want to help KataGo improve further! Also check out the computer Go [discord channel](https://discord.gg/bqkZAz3)!
 
-As of January 2021, KataGo is one of the strongest open source Go bots available online. KataGo was trained using an AlphaZero-like process with many enhancements and improvements, and is capable of reaching top levels rapidly and entirely from scratch with no outside data, improving only via self-play. Some of these improvements take advantage of game-specific features and training targets, but also many of the techniques are general and could be applied in other games. As a result, early training is immensely faster than in other self-play-trained bots - with only a few strong GPUs for a few days, any researcher/enthusiast should be able to train a neural net from nothing to high amateur dan strength on the full 19x19 board. If tuned well, a training run using only a *single* top-end consumer GPU could possibly train a bot from scratch to superhuman strength within a few months.
+As of 2023, KataGo remains one of the strongest open source Go bots available online. KataGo was trained using an AlphaZero-like process with many enhancements and improvements, and is capable of reaching top levels rapidly and entirely from scratch with no outside data, improving only via self-play. Some of these improvements take advantage of game-specific features and training targets, but also many of the techniques are general and could be applied in other games. As a result, early training is immensely faster than in other self-play-trained bots - with only a few strong GPUs for a few days, any researcher/enthusiast should be able to train a neural net from nothing to high amateur dan strength on the full 19x19 board. If tuned well, a training run using only a *single* top-end consumer GPU could possibly train a bot from scratch to superhuman strength within a few months.
 
 Experimentally, KataGo did also try some limited ways of using external data at the end of its June 2020 run, and has continued to do so into its most recent public distributed run, "kata1" at https://katagotraining.org/. External data is not necessary for reaching top levels of play, but still appears to provide some mild benefits against some opponents, and noticeable benefits in a useful analysis tool for a variety of kinds of situations that don't occur in self-play but that do occur in human games and  games that users wish to analyze.
 
@@ -72,7 +72,7 @@ Generally, for GUIs that don't offer an all-in-one package, you will need to dow
 
 ### Windows and Linux
 
-KataGo currently officially supports both Windows and Linux, with [precompiled executables provided each release](https://github.com/lightvector/KataGo/releases). Not all different OS versions and compilers have been tested, so if you encounter problems, feel free to open an issue. KataGo can also of course be compiled from source on Windows via MSVC on Windows or on Linux via usual compilers like g++, documented further down.
+KataGo currently officially supports both Windows and Linux, with [precompiled executables provided each release](https://github.com/lightvector/KataGo/releases). On Windows, the executables should generally work out of the box, on Linux if you encounter issues with system library versions, as an alternative [building from source](Compiling.md) is usually straightforward. Not all different OS versions and compilers have been tested, so if you encounter problems, feel free to open an issue. KataGo can also of course be compiled from source on Windows via MSVC on Windows or on Linux via usual compilers like g++, documented further down.
 
 ### MacOS
 The community also provides KataGo packages for [Homebrew](https://brew.sh) on MacOS - releases there may lag behind official releases slightly.
@@ -194,13 +194,9 @@ then you are using the Mesa drivers. You will need to change your drivers, see f
      * Use the `genconfig` command (`./katago genconfig -model <NEURALNET>.gz -output <PATH_TO_SAVE_GTP_CONFIG>.cfg`) to generate a config, and it will interactively help you, including asking you for what default rules you want.
      * If your GUI allows access directly to the GTP console (for example, press `E` in Lizzie), then you can run `kata-set-rules japanese` or similar for other rules directly in the GTP console, to change the rules dynamically in the middle of a game or an analysis session.
 
-* **How do I make KataGo show me a wider range of possible good moves and options during analysis?**
-   * Add `analysisWideRootNoise = X` to the config (`default_gtp.cfg` or `gtp_example.cfg` or `gtp.cfg`, or whatever you've named it). A value of 0.03 will mildly widen the range of moves that get searched and evaluated. A value of 0.10 will very noticeably widen the search. Much larger values will start pushing KataGo toward evaluating every move on the board, at the cost of evaluating the best moves less thoroughly. You can play with this parameter to see what you prefer. You can *also* change it at runtime by typing `kata-set-param analysisWideRootNoise X` into the GTP console, if your GUI program exposes the GTP console for you to provide direct commands.
-
 * **Which model/network should I use?**
-   * For weaker or mid-range GPUs, try the final 20-block network from [here](https://github.com/lightvector/KataGo/releases/tag/v1.4.5), which is the best of its size.
-   * For top-tier GPUs and/or for the highest-quality analysis if you're going to use many thousands and thousands of playouts and long thinking times, try the final 40-block network from [here](https://github.com/lightvector/KataGo/releases/tag/v1.4.5), which is more costly to run but should be the strongest and best overall.
-   * If you care a lot about theoretical purity - no outside data, bot learns strictly on its own - use the 20 or 40 block nets from [this release](https://github.com/lightvector/KataGo/releases/tag/v1.4.0), which are pure in this way and still much stronger than Leela Zero, but also not quite as strong as the final nets.
+   * Generally, use the strongest or most recent b18-sized net (b18c384nbt) from [the main training site](https://katagotraining.org/). This will be the best neural net even for weaker machines, since despite being a bit slower than old smaller nets, it is much stronger and more accurate per evaluation.
+   * If you care a lot about theoretical purity - no outside data, bot learns strictly on its own - use the 20 or 40 block nets from [this release](https://github.com/lightvector/KataGo/releases/tag/v1.4.0), which are pure in this way and still much stronger than Leela Zero, but also much weaker than more recent nets.
    * If you want some nets that are much faster to run, and each with their own interesting style of play due to their unique stages of learning, try any of the "b10c128" or "b15c192" Extended Training Nets [here](https://katagoarchive.org/g170/neuralnets/index.html) which are 10 block and 15 block networks from earlier in the run that are much weaker but still pro-level-and-beyond.
 
 
@@ -217,6 +213,8 @@ KataGo's GTP extensions are documented **[here](docs/GTP_Extensions.md)**.
 
 #### Analysis Engine:
 KataGo also implements a separate engine that can evaluate much faster due to batching if you want to analyze whole games at once and might be much less of a hassle than GTP if you are working in an environment where JSON parsing is easy. See [here](docs/Analysis_Engine.md) for details.
+
+KataGo also includes example code demonstrating how you can invoke the analysis engine from Python, see [here](python/query_analysis_engine_example.py)!
 
 ## Compiling KataGo
 KataGo is written in C++. It should compile on Linux or OSX via g++ that supports at least C++14, or on Windows via MSVC 15 (2017) and later. Instructions may be found at [Compiling KataGo](Compiling.md).

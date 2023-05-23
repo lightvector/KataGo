@@ -23,10 +23,7 @@ cpp/mainopencl
 cpp/katago
 cpp/configs
 cpp/evalsgf
-cpp/runmatch.sh
-cpp/runmatchauto.sh
-cpp/runstuff.sh
-cpp/runwrite.sh
+cpp/run*.sh
 cpp/tests/scratch
 cpp/program/gitinfo.h
 
@@ -72,6 +69,11 @@ GPATH
 GRTAGS
 GTAGS
 
+# For Xcode
+xcuserdata/
+DerivedData/
+
+# misc
 cpp/external/httplib/cpp-httplib/
 cpp/external/nlohmann_json/nlohmann_json
 gtp.cfg
@@ -80,7 +82,7 @@ tmpsgf/
 watchgame.txt
 models/
 python/startposesupload.txt
+for_release/
 
-# For Xcode
-xcuserdata/
-DerivedData/
+tests/results/matchsgfs/
+tests/results/matchsgfs2/

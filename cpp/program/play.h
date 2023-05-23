@@ -22,9 +22,10 @@ struct InitialPosition {
   bool isPlainFork;
   bool isSekiFork;
   bool isHintFork;
+  double trainingWeight;
 
   InitialPosition();
-  InitialPosition(const Board& board, const BoardHistory& hist, Player pla, bool isPlainFork, bool isSekiFork, bool isHintFork);
+  InitialPosition(const Board& board, const BoardHistory& hist, Player pla, bool isPlainFork, bool isSekiFork, bool isHintFork, double trainingWeight);
   ~InitialPosition();
 };
 
@@ -190,18 +191,8 @@ class MatchPairer {
     const std::vector<std::string>& botNames,
     const std::vector<NNEvaluator*>& nnEvals,
     const std::vector<SearchParams>& baseParamss,
-    bool forSelfPlay,
-    bool forGateKeeper
-  );
-  MatchPairer(
-    ConfigParser& cfg,
-    int numBots,
-    const std::vector<std::string>& botNames,
-    const std::vector<NNEvaluator*>& nnEvals,
-    const std::vector<SearchParams>& baseParamss,
-    bool forSelfPlay,
-    bool forGateKeeper,
-    const std::vector<bool>& excludeBot
+    const std::vector<std::pair<int,int>>& matchupsPerRound,
+    int64_t numGamesTotal
   );
 
   ~MatchPairer();
@@ -225,24 +216,17 @@ class MatchPairer {
   );
 
  private:
-  int numBots;
-  std::vector<std::string> botNames;
-  std::vector<NNEvaluator*> nnEvals;
-  std::vector<SearchParams> baseParamss;
+  const int numBots;
+  const std::vector<std::string> botNames;
+  const std::vector<NNEvaluator*> nnEvals;
+  const std::vector<SearchParams> baseParamss;
+  const std::vector<std::pair<int,int>> matchupsPerRound;
 
-  std::vector<bool> excludeBot;
-  std::vector<int> secondaryBots;
-  std::vector<int> blackPriority;
-  std::vector<std::pair<int,int>> extraPairs;
   std::vector<std::pair<int,int>> nextMatchups;
-  std::vector<std::pair<int,int>> nextMatchupsBuf;
   Rand rand;
 
-  int matchRepFactor;
-  int repsOfLastMatchup;
-
   int64_t numGamesStartedSoFar;
-  int64_t numGamesTotal;
+  const int64_t numGamesTotal;
   int64_t logGamesEvery;
 
   std::mutex getMatchupMutex;

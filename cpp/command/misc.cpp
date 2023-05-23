@@ -5,6 +5,7 @@
 #include "../core/timer.h"
 #include "../core/test.h"
 #include "../dataio/sgf.h"
+#include "../dataio/poswriter.h"
 #include "../dataio/files.h"
 #include "../search/asyncbot.h"
 #include "../program/setup.h"
@@ -592,8 +593,15 @@ int MainCmds::samplesgfs(const vector<string>& args) {
   double minTurnNumberBoardAreaProp;
   double maxTurnNumberBoardAreaProp;
   bool flipIfPassOrWFirst;
+  double afterPassFactor;
   bool allowGameOver;
   bool hashComments;
+  double trainingWeight;
+  bool verbose;
+
+  string valueFluctuationModelFile;
+  double valueFluctuationTurnScale;
+  double valueFluctuationMaxWeight;
 
   int minMinRank;
   string requiredPlayerName;
@@ -617,12 +625,20 @@ int MainCmds::samplesgfs(const vector<string>& args) {
     TCLAP::ValueArg<double> minTurnNumberBoardAreaPropArg("","min-turn-number-board-area-prop","Only use turn number >= this board area",false,-1.0,"PROP");
     TCLAP::ValueArg<double> maxTurnNumberBoardAreaPropArg("","max-turn-number-board-area-prop","Only use turn number <= this board area",false,10000.0,"PROP");
     TCLAP::SwitchArg flipIfPassOrWFirstArg("","flip-if-pass","Try to heuristically find cases where an sgf passes to simulate white<->black");
+    TCLAP::ValueArg<double> afterPassFactorArg("","after-pass-factor","Scale down weight of positions following a pass",false, 1.0, "FACTOR");
     TCLAP::SwitchArg allowGameOverArg("","allow-game-over","Allow sampling game over positions in sgf");
     TCLAP::SwitchArg hashCommentsArg("","hash-comments","Hash comments in sgf");
+    TCLAP::ValueArg<double> trainingWeightArg("","training-weight","Scale the loss function weight from data from games that originate from this position",false,1.0,"WEIGHT");
+    TCLAP::SwitchArg verboseArg("","verbose","Print sgfs handled more");
+
+    TCLAP::ValueArg<string> valueFluctuationModelFileArg("","value-fluctuation-model","Upweight positions prior to value fluctuations",false,string(),"MODELFILE");
+    TCLAP::ValueArg<double> valueFluctuationTurnScaleArg("","value-fluctuation-turn-scale","How much prior on average",false,1.0,"AVGTURNS");
+    TCLAP::ValueArg<double> valueFluctuationMaxWeightArg("","value-fluctuation-max-weight","",false,10.0,"MAXWEIGHT");
     TCLAP::ValueArg<int> minMinRankArg("","min-min-rank","Require both players in a game to have rank at least this",false,Sgf::RANK_UNKNOWN,"INT");
     TCLAP::ValueArg<string> requiredPlayerNameArg("","required-player-name","Require player making the move to have this name",false,string(),"NAME");
     TCLAP::ValueArg<int> maxHandicapArg("","max-handicap","Require no more than this big handicap in stones",false,100,"INT");
     TCLAP::ValueArg<double> maxKomiArg("","max-komi","Require absolute value of game komi to be at most this",false,1000,"KOMI");
+
     cmd.add(sgfDirArg);
     cmd.add(sgfsDirArg);
     cmd.add(outDirArg);
@@ -637,8 +653,14 @@ int MainCmds::samplesgfs(const vector<string>& args) {
     cmd.add(minTurnNumberBoardAreaPropArg);
     cmd.add(maxTurnNumberBoardAreaPropArg);
     cmd.add(flipIfPassOrWFirstArg);
+    cmd.add(afterPassFactorArg);
     cmd.add(allowGameOverArg);
     cmd.add(hashCommentsArg);
+    cmd.add(trainingWeightArg);
+    cmd.add(verboseArg);
+    cmd.add(valueFluctuationModelFileArg);
+    cmd.add(valueFluctuationTurnScaleArg);
+    cmd.add(valueFluctuationMaxWeightArg);
     cmd.add(minMinRankArg);
     cmd.add(requiredPlayerNameArg);
     cmd.add(maxHandicapArg);
@@ -658,8 +680,14 @@ int MainCmds::samplesgfs(const vector<string>& args) {
     minTurnNumberBoardAreaProp = minTurnNumberBoardAreaPropArg.getValue();
     maxTurnNumberBoardAreaProp = maxTurnNumberBoardAreaPropArg.getValue();
     flipIfPassOrWFirst = flipIfPassOrWFirstArg.getValue();
+    afterPassFactor = afterPassFactorArg.getValue();
     allowGameOver = allowGameOverArg.getValue();
     hashComments = hashCommentsArg.getValue();
+    trainingWeight = trainingWeightArg.getValue();
+    verbose = verboseArg.getValue();
+    valueFluctuationModelFile = valueFluctuationModelFileArg.getValue();
+    valueFluctuationTurnScale = valueFluctuationTurnScaleArg.getValue();
+    valueFluctuationMaxWeight = valueFluctuationMaxWeightArg.getValue();
     minMinRank = minMinRankArg.getValue();
     requiredPlayerName = requiredPlayerNameArg.getValue();
     maxHandicap = maxHandicapArg.getValue();
@@ -696,6 +724,29 @@ int MainCmds::samplesgfs(const vector<string>& args) {
   set<Hash128> excludeHashes = Sgf::readExcludes(excludeHashesFiles);
   logger.write("Loaded " + Global::uint64ToString(excludeHashes.size()) + " excludes");
 
+  NNEvaluator* valueFluctuationNNEval = NULL;
+  if(valueFluctuationModelFile != "") {
+    if(valueFluctuationTurnScale <= 0.0 || valueFluctuationTurnScale > 100000000.0)
+      throw StringError("Invalid valueFluctuationTurnScale");
+    if(valueFluctuationMaxWeight <= 0.0 || valueFluctuationMaxWeight > 100000000.0)
+      throw StringError("Invalid valueFluctuationMaxWeight");
+    ConfigParser cfg;
+    Setup::initializeSession(cfg);
+    int numThreads = 1;
+    const int maxConcurrentEvals = numThreads * 2 + 16; // * 2 + 16 just to give plenty of headroom
+    const int expectedConcurrentEvals = numThreads;
+    const int defaultMaxBatchSize = std::max(8,((numThreads+3)/4)*4);
+    const bool defaultRequireExactNNLen = false;
+    const bool disableFP16 = false;
+    const string expectedSha256 = "";
+    valueFluctuationNNEval = Setup::initializeNNEvaluator(
+      valueFluctuationModelFile,valueFluctuationModelFile,expectedSha256,cfg,logger,seedRand,maxConcurrentEvals,expectedConcurrentEvals,
+      NNPos::MAX_BOARD_LEN,NNPos::MAX_BOARD_LEN,defaultMaxBatchSize,defaultRequireExactNNLen,disableFP16,
+      Setup::SETUP_FOR_ANALYSIS
+    );
+    logger.write("Loaded neural net");
+  }
+
   // ---------------------------------------------------------------------------------------------------
 
   auto isPlayerOkay = [&](const Sgf* sgf, Player pla) {
@@ -723,54 +774,18 @@ int MainCmds::samplesgfs(const vector<string>& args) {
   };
 
   // ---------------------------------------------------------------------------------------------------
-  ThreadSafeQueue<string*> toWriteQueue;
-  auto writeLoop = [&toWriteQueue,&outDir]() {
-    int fileCounter = 0;
-    int numWrittenThisFile = 0;
-    ofstream* out = NULL;
-    while(true) {
-      string* message;
-      bool suc = toWriteQueue.waitPop(message);
-      if(!suc)
-        break;
-
-      if(out == NULL || numWrittenThisFile > 100000) {
-        if(out != NULL) {
-          out->close();
-          delete out;
-        }
-        out = new ofstream();
-        FileUtils::open(*out, outDir + "/" + Global::intToString(fileCounter) + ".startposes.txt");
-        fileCounter += 1;
-        numWrittenThisFile = 0;
-      }
-      (*out) << *message << endl;
-      numWrittenThisFile += 1;
-      delete message;
-    }
-
-    if(out != NULL) {
-      out->close();
-      delete out;
-    }
-  };
-
-  // ---------------------------------------------------------------------------------------------------
-
-  //Begin writing
-  std::thread writeLoopThread(writeLoop);
+  PosWriter posWriter("startposes.txt", outDir, 1, 0, 100000);
+  posWriter.start();
 
   // ---------------------------------------------------------------------------------------------------
 
   int64_t numKept = 0;
+  double weightKept = 0;
   std::set<Hash128> uniqueHashes;
   std::function<void(Sgf::PositionSample&, const BoardHistory&, const string&)> posHandler =
-    [sampleProb,sampleWeight,forceSampleWeight,&toWriteQueue,turnWeightLambda,&numKept,&seedRand,minTurnNumberBoardAreaProp,maxTurnNumberBoardAreaProp](
+    [sampleProb,sampleWeight,forceSampleWeight,&posWriter,turnWeightLambda,&numKept,&weightKept,&seedRand,minTurnNumberBoardAreaProp,maxTurnNumberBoardAreaProp,afterPassFactor,trainingWeight](
       Sgf::PositionSample& posSample, const BoardHistory& hist, const string& comments
     ) {
-      (void)hist;
-      (void)comments;
-
       double minTurnNumber = minTurnNumberBoardAreaProp * (hist.initialBoard.x_size * hist.initialBoard.y_size);
       double maxTurnNumber = maxTurnNumberBoardAreaProp * (hist.initialBoard.x_size * hist.initialBoard.y_size);
       if(hist.initialBoard.numStonesOnBoard() + hist.moveHistory.size() < minTurnNumber ||
@@ -784,10 +799,14 @@ int MainCmds::samplesgfs(const vector<string>& args) {
         Sgf::PositionSample posSampleToWrite = posSample;
         int64_t startTurn = posSampleToWrite.initialTurnNumber + (int64_t)posSampleToWrite.moves.size();
         posSampleToWrite.weight = sampleWeight * exp(-startTurn * turnWeightLambda) * posSampleToWrite.weight;
+        if(posSampleToWrite.moves.size() > 0 && posSampleToWrite.moves[posSampleToWrite.moves.size()-1].loc == Board::PASS_LOC)
+          posSampleToWrite.weight *= afterPassFactor;
         if(comments.size() > 0 && comments.find("%SAMPLE%") != string::npos)
           posSampleToWrite.weight = std::max(posSampleToWrite.weight,forceSampleWeight);
-        toWriteQueue.waitPush(new string(Sgf::PositionSample::toJsonLine(posSampleToWrite)));
+        posSampleToWrite.trainingWeight = trainingWeight;
+        posWriter.writePos(posSampleToWrite);
         numKept += 1;
+        weightKept += posSampleToWrite.weight;
       }
     };
   int64_t numExcluded = 0;
@@ -825,9 +844,170 @@ int MainCmds::samplesgfs(const vector<string>& args) {
       return;
     }
 
-    bool hashParent = false;
-    Rand iterRand;
-    sgf->iterAllUniquePositions(uniqueHashes, hashComments, hashParent, flipIfPassOrWFirst, allowGameOver, &iterRand, posHandler);
+    if(valueFluctuationNNEval == NULL) {
+      bool hashParent = false;
+      Rand iterRand;
+      sgf->iterAllUniquePositions(uniqueHashes, hashComments, hashParent, flipIfPassOrWFirst, allowGameOver, &iterRand, posHandler);
+      if(verbose)
+        cout << "Handled " << sgf->fileName << " kept weight " << weightKept << endl;
+    }
+    else {
+      string fileName = sgf->fileName;
+      CompactSgf compactSgf(sgf);
+      Board board;
+      Player nextPla;
+      BoardHistory hist;
+      Rules rules = compactSgf.getRulesOrFailAllowUnspecified(Rules::getSimpleTerritory());
+      compactSgf.setupInitialBoardAndHist(rules, board, nextPla, hist);
+
+      const bool preventEncore = true;
+      const vector<Move>& sgfMoves = compactSgf.moves;
+
+      vector<Board> boards;
+      vector<BoardHistory> hists;
+      vector<Player> nextPlas;
+      vector<shared_ptr<NNOutput>> nnOutputs;
+      vector<double> winLossValues;
+      vector<Move> moves;
+
+      for(int m = 0; m<sgfMoves.size()+1; m++) {
+        MiscNNInputParams nnInputParams;
+        nnInputParams.conservativePassAndIsRoot = true;
+        NNResultBuf buf;
+        bool skipCache = true;
+        bool includeOwnerMap = false;
+        valueFluctuationNNEval->evaluate(board,hist,nextPla,nnInputParams,buf,skipCache,includeOwnerMap);
+
+        boards.push_back(board);
+        hists.push_back(hist);
+        nextPlas.push_back(nextPla);
+        nnOutputs.push_back(std::move(buf.result));
+        shared_ptr<NNOutput>& nnOutput = nnOutputs[nnOutputs.size()-1];
+        winLossValues.push_back(nnOutput->whiteWinProb - nnOutput->whiteLossProb);
+
+        if(m >= sgfMoves.size())
+          break;
+
+        moves.push_back(sgfMoves[m]);
+
+        //Quit out if according to our rules, we already finished the game, or we're somehow in a cleanup phase
+        if(hist.isGameFinished || hist.encorePhase > 0)
+          break;
+        //Quit out if consecutive moves by the same player, to keep the history clean and "normal"
+        if(sgfMoves[m].pla != nextPla && m > 0) {
+          logger.write("Ending SGF " + fileName + " early due to non-alternating players on turn " + Global::intToString(m));
+          break;
+        }
+
+        bool suc = hist.isLegal(board,sgfMoves[m].loc,sgfMoves[m].pla);
+        if(!suc) {
+          //Only log on errors that aren't simply due to ko rules, but quit out regardless
+          suc = hist.makeBoardMoveTolerant(board,sgfMoves[m].loc,sgfMoves[m].pla,preventEncore);
+          if(!suc)
+            logger.write("Illegal move in " + fileName + " turn " + Global::intToString(m) + " move " + Location::toString(sgfMoves[m].loc, board.x_size, board.y_size));
+          break;
+        }
+        hist.makeBoardMoveAssumeLegal(board,sgfMoves[m].loc,sgfMoves[m].pla,NULL,preventEncore);
+        nextPla = getOpp(sgfMoves[m].pla);
+      }
+      boards.push_back(board);
+      hists.push_back(hist);
+      nextPlas.push_back(nextPla);
+
+      if(winLossValues.size() <= 1)
+        return;
+
+      double minTurnNumber = minTurnNumberBoardAreaProp * (hist.initialBoard.x_size * hist.initialBoard.y_size);
+      double maxTurnNumber = maxTurnNumberBoardAreaProp * (hist.initialBoard.x_size * hist.initialBoard.y_size);
+      vector<double> winrateVariance(winLossValues.size()-1);
+      for(int i = 0; i<(int)winrateVariance.size()-1; i++) {
+        if(i >= minTurnNumber && i <= maxTurnNumber)
+          winrateVariance[i] = (winLossValues[i+1]-winLossValues[i]) * (winLossValues[i+1]-winLossValues[i]);
+        else
+          winrateVariance[i] = 0.0;
+      }
+      //Apply exponential blur
+      vector<double> winrateVarianceBlurred(winLossValues.size()-1);
+      double blurSum = 0.0;
+      double totalWeight = 0.0;
+      int totalCount = 0;
+      for(int i = (int)winrateVarianceBlurred.size()-1; i >= 0; i--) {
+        blurSum *= 1.0 - 1.0 / valueFluctuationTurnScale;
+        blurSum += winrateVariance[i];
+        if(i >= minTurnNumber && i <= maxTurnNumber) {
+          winrateVarianceBlurred[i] = blurSum;
+          totalWeight += winrateVarianceBlurred[i];
+          totalCount += 1;
+        }
+      }
+      if(totalCount <= 0 || totalWeight <= 0)
+        return;
+
+      //Normalize
+      vector<double> desiredWeight(winLossValues.size()-1);
+      for(int i = 0; i<(int)desiredWeight.size(); i++) {
+        desiredWeight[i] = winrateVarianceBlurred[i] / totalWeight * totalCount;
+      }
+
+      for(int m = 0; m<(int)desiredWeight.size(); m++) {
+        assert(m < moves.size());
+
+        Sgf::PositionSample sample;
+        const int numMovesToRecord = 8;
+        int startIdx = std::max(0,m-numMovesToRecord);
+        sample.board = boards[startIdx];
+        sample.nextPla = nextPlas[startIdx];
+        for(int j = startIdx; j<m; j++)
+          sample.moves.push_back(moves[j]);
+        sample.initialTurnNumber = startIdx;
+        sample.hintLoc = Board::NULL_LOC;
+        sample.weight = std::min(valueFluctuationMaxWeight, desiredWeight[m]);
+        sample.trainingWeight = trainingWeight;
+
+        if(sample.weight < 0.1)
+          continue;
+
+        posHandler(sample, hists[m], "");
+        // cout << fileName << " " << m << " " << desiredWeight[m] << endl;
+      }
+
+      // Block all the main line hashes and then iterate through the whole SGF to catch side variations, weight them
+      // the same way as the same turn in the main line.
+      std::set<Hash128> blockedSituationHashes;
+      for(int m = 0; m<hists.size(); m++) {
+        blockedSituationHashes.insert(
+          BoardHistory::getSituationAndSimpleKoAndPrevPosHash(hists[m].getRecentBoard(0),hists[m],hists[m].presumedNextMovePla)
+        );
+      }
+
+      std::function<void(Sgf::PositionSample&, const BoardHistory&, const string&)> posHandler2 =
+        [&blockedSituationHashes, &desiredWeight, &posHandler, trainingWeight](
+          Sgf::PositionSample& posSample, const BoardHistory& posHist, const string& comments
+        ) {
+          // cout << "AAAA " << (posHist.initialTurnNumber + (int)posHist.moveHistory.size()) << endl;
+          if(contains(
+               blockedSituationHashes,
+               BoardHistory::getSituationAndSimpleKoAndPrevPosHash(posHist.getRecentBoard(0),posHist,posHist.presumedNextMovePla)
+             ))
+            return;
+          // cout << "BBBB" << endl;
+          Sgf::PositionSample posSampleWeighted = posSample;
+          if(desiredWeight.size() > 0) {
+            int turnIdx = std::min((int)(desiredWeight.size()-1), posHist.initialTurnNumber + (int)posHist.moveHistory.size());
+            turnIdx = std::max(turnIdx,0);
+            posSampleWeighted.weight = desiredWeight[turnIdx];
+          }
+          posSampleWeighted.trainingWeight = trainingWeight;
+          posHandler(posSampleWeighted, posHist, comments);
+        };
+
+      bool hashParent = false;
+      Rand iterRand;
+      sgf->iterAllUniquePositions(uniqueHashes, hashComments, hashParent, flipIfPassOrWFirst, allowGameOver, &iterRand, posHandler2);
+
+      if(verbose)
+        cout << "Handled " << fileName << " kept weight " << weightKept << endl;
+    }
   };
 
   for(size_t i = 0; i<sgfFiles.size(); i++) {
@@ -868,8 +1048,10 @@ int MainCmds::samplesgfs(const vector<string>& args) {
 
   // ---------------------------------------------------------------------------------------------------
 
-  toWriteQueue.setReadOnly();
-  writeLoopThread.join();
+  posWriter.flushAndStop();
+
+  if(valueFluctuationNNEval != NULL)
+    delete valueFluctuationNNEval;
 
   logger.write("All done");
 
@@ -967,6 +1149,7 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
   double gameModeFastThreshold;
   bool flipIfPassOrWFirst;
   bool allowGameOver;
+  double trainingWeight;
 
   int minRank;
   int minMinRank;
@@ -1001,6 +1184,7 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
     TCLAP::ValueArg<double> gameModeFastThresholdArg("","game-mode-fast-threshold","Utility threshold for game mode fast pass",false,0.005,"UTILS");
     TCLAP::SwitchArg flipIfPassOrWFirstArg("","flip-if-pass","Try to heuristically find cases where an sgf passes to simulate white<->black");
     TCLAP::SwitchArg allowGameOverArg("","allow-game-over","Allow sampling game over positions in sgf");
+    TCLAP::ValueArg<double> trainingWeightArg("","training-weight","Scale the loss function weight from data from games that originate from this position",false,1.0,"WEIGHT");
     TCLAP::ValueArg<int> minRankArg("","min-rank","Require player making the move to have rank at least this",false,Sgf::RANK_UNKNOWN,"INT");
     TCLAP::ValueArg<int> minMinRankArg("","min-min-rank","Require both players in a game to have rank at least this",false,Sgf::RANK_UNKNOWN,"INT");
     TCLAP::ValueArg<string> requiredPlayerNameArg("","required-player-name","Require player making the move to have this name",false,string(),"NAME");
@@ -1027,6 +1211,7 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
     cmd.add(gameModeFastThresholdArg);
     cmd.add(flipIfPassOrWFirstArg);
     cmd.add(allowGameOverArg);
+    cmd.add(trainingWeightArg);
     cmd.add(minRankArg);
     cmd.add(minMinRankArg);
     cmd.add(requiredPlayerNameArg);
@@ -1056,6 +1241,7 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
     gameModeFastThreshold = gameModeFastThresholdArg.getValue();
     flipIfPassOrWFirst = flipIfPassOrWFirstArg.getValue();
     allowGameOver = allowGameOverArg.getValue();
+    trainingWeight = trainingWeightArg.getValue();
     minRank = minRankArg.getValue();
     minMinRank = minMinRankArg.getValue();
     requiredPlayerName = requiredPlayerNameArg.getValue();
@@ -1151,42 +1337,7 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
   std::signal(SIGTERM, signalHandler);
 
   // ---------------------------------------------------------------------------------------------------
-  ThreadSafeQueue<string*> toWriteQueue;
-  auto writeLoop = [&toWriteQueue,&outDir,&sgfSplitCount,&sgfSplitIdx,&maxPosesPerOutFile]() {
-    int fileCounter = 0;
-    int numWrittenThisFile = 0;
-    ofstream* out = NULL;
-    while(true) {
-      string* message;
-      bool suc = toWriteQueue.waitPop(message);
-      if(!suc)
-        break;
-
-      if(out == NULL || numWrittenThisFile > maxPosesPerOutFile) {
-        if(out != NULL) {
-          out->close();
-          delete out;
-        }
-        string fileNameToWrite;
-        if(sgfSplitCount > 1)
-          fileNameToWrite = outDir + "/" + Global::intToString(fileCounter) + "." + Global::intToString(sgfSplitIdx) + ".hintposes.txt";
-        else
-          fileNameToWrite = outDir + "/" + Global::intToString(fileCounter) + ".hintposes.txt";
-        out = new ofstream();
-        FileUtils::open(*out,fileNameToWrite);
-        fileCounter += 1;
-        numWrittenThisFile = 0;
-      }
-      (*out) << *message << endl;
-      numWrittenThisFile += 1;
-      delete message;
-    }
-
-    if(out != NULL) {
-      out->close();
-      delete out;
-    }
-  };
+  PosWriter posWriter("hintposes.txt", outDir, sgfSplitCount, sgfSplitIdx, maxPosesPerOutFile);
 
   //COMMON ---------------------------------------------------------------------------------------------------
   std::atomic<int64_t> numSgfsDone(0);
@@ -1221,7 +1372,7 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
     return true;
   };
 
-  auto expensiveEvaluateMove = [&toWriteQueue,&turnWeightLambda,&maxAutoKomi,&maxHandicap,&numFilteredIndivdualPoses,&surpriseMode,&minHintWeight,&logger](
+  auto expensiveEvaluateMove = [&posWriter,&turnWeightLambda,&maxAutoKomi,&maxHandicap,&numFilteredIndivdualPoses,&surpriseMode,&minHintWeight,&logger,trainingWeight](
     Search* search, Loc missedLoc,
     Player nextPla, const Board& board, const BoardHistory& hist,
     const Sgf::PositionSample& sample, bool markedAsHintPos
@@ -1291,9 +1442,12 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
           Sgf::PositionSample sampleToWrite = sample;
           sampleToWrite.weight += std::fabs(baseValues.utility - veryQuickValues.utility);
           sampleToWrite.hintLoc = moveLoc;
-          toWriteQueue.waitPush(new string(Sgf::PositionSample::toJsonLine(sampleToWrite)));
-          toWriteQueue.waitPush(new string(Sgf::PositionSample::toJsonLine(sampleToWrite.previousPosition(sampleToWrite.weight * 0.5))));
-          toWriteQueue.waitPush(new string(Sgf::PositionSample::toJsonLine(sampleToWrite.previousPosition(sampleToWrite.weight * 0.25).previousPosition(sampleToWrite.weight * 0.25))));
+          sampleToWrite.trainingWeight = trainingWeight;
+          posWriter.writePos(sampleToWrite);
+          if(sampleToWrite.hasPreviousPositions(1))
+            posWriter.writePos(sampleToWrite.previousPosition(sampleToWrite.weight * 0.5));
+          if(sampleToWrite.hasPreviousPositions(2))
+            posWriter.writePos(sampleToWrite.previousPosition(sampleToWrite.weight * 0.25).previousPosition(sampleToWrite.weight * 0.25));
           logger.write("Surprising good " + Global::doubleToString(sampleToWrite.weight));
           return;
         }
@@ -1306,9 +1460,12 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
         Sgf::PositionSample sampleToWrite = sample;
         sampleToWrite.weight = 1.0 + std::fabs(baseValues.utility - veryQuickValues.utility);
         sampleToWrite.hintLoc = Board::NULL_LOC;
-        toWriteQueue.waitPush(new string(Sgf::PositionSample::toJsonLine(sampleToWrite)));
-        toWriteQueue.waitPush(new string(Sgf::PositionSample::toJsonLine(sampleToWrite.previousPosition(sampleToWrite.weight * 0.5))));
-        toWriteQueue.waitPush(new string(Sgf::PositionSample::toJsonLine(sampleToWrite.previousPosition(sampleToWrite.weight * 0.25).previousPosition(sampleToWrite.weight * 0.25))));
+        sampleToWrite.trainingWeight = trainingWeight;
+        posWriter.writePos(sampleToWrite);
+        if(sampleToWrite.hasPreviousPositions(1))
+          posWriter.writePos(sampleToWrite.previousPosition(sampleToWrite.weight * 0.5));
+        if(sampleToWrite.hasPreviousPositions(2))
+          posWriter.writePos(sampleToWrite.previousPosition(sampleToWrite.weight * 0.25).previousPosition(sampleToWrite.weight * 0.25));
         logger.write("Inevitable bad " + Global::doubleToString(sampleToWrite.weight));
         return;
       }
@@ -1319,9 +1476,12 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
         Sgf::PositionSample sampleToWrite = sample;
         sampleToWrite.weight = 1.0 + std::fabs(baseValues.utility - veryQuickValues.utility);
         sampleToWrite.hintLoc = Board::NULL_LOC;
-        toWriteQueue.waitPush(new string(Sgf::PositionSample::toJsonLine(sampleToWrite)));
-        toWriteQueue.waitPush(new string(Sgf::PositionSample::toJsonLine(sampleToWrite.previousPosition(sampleToWrite.weight * 0.5))));
-        toWriteQueue.waitPush(new string(Sgf::PositionSample::toJsonLine(sampleToWrite.previousPosition(sampleToWrite.weight * 0.25).previousPosition(sampleToWrite.weight * 0.25))));
+        sampleToWrite.trainingWeight = trainingWeight;
+        posWriter.writePos(sampleToWrite);
+        if(sampleToWrite.hasPreviousPositions(1))
+          posWriter.writePos(sampleToWrite.previousPosition(sampleToWrite.weight * 0.5));
+        if(sampleToWrite.hasPreviousPositions(2))
+          posWriter.writePos(sampleToWrite.previousPosition(sampleToWrite.weight * 0.25).previousPosition(sampleToWrite.weight * 0.25));
         logger.write("Inevitable good " + Global::doubleToString(sampleToWrite.weight));
         return;
       }
@@ -1362,6 +1522,7 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
     // }
 
     Sgf::PositionSample sampleToWrite = sample;
+    sampleToWrite.trainingWeight = trainingWeight;
     sampleToWrite.weight += std::fabs(baseValues.utility - quickValues.utility);
     sampleToWrite.weight += std::fabs(baseValues.utility - veryQuickValues.utility);
 
@@ -1378,7 +1539,7 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
         sampleToWrite.weight = minHintWeight;
       if(sampleToWrite.weight > 0.1) {
         //Still good to learn from given that policy was really low
-        toWriteQueue.waitPush(new string(Sgf::PositionSample::toJsonLine(sampleToWrite)));
+        posWriter.writePos(sampleToWrite);
       }
     }
 
@@ -1422,7 +1583,7 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
         if(sampleToWrite.weight < minHintWeight && markedAsHintPos)
           sampleToWrite.weight = minHintWeight;
         if(sampleToWrite.weight > 0.1) {
-          toWriteQueue.waitPush(new string(Sgf::PositionSample::toJsonLine(sampleToWrite)));
+          posWriter.writePos(sampleToWrite);
         }
       }
     }
@@ -1431,7 +1592,7 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
   // ---------------------------------------------------------------------------------------------------
   //SGF MODE
 
-  auto processSgfGame = [&logger,&gameInit,&nnEval,&expensiveEvaluateMove,autoKomi,&gameModeFastThreshold,&maxDepth,&numFilteredSgfs,&maxHandicap,&maxPolicy,allowGameOver](
+  auto processSgfGame = [&logger,&gameInit,&nnEval,&expensiveEvaluateMove,autoKomi,&gameModeFastThreshold,&maxDepth,&numFilteredSgfs,&maxHandicap,&maxPolicy,allowGameOver,trainingWeight](
     Search* search, Rand& rand, const string& fileName, CompactSgf* sgf, bool blackOkay, bool whiteOkay
   ) {
     //Don't use the SGF rules - randomize them for a bit more entropy
@@ -1592,6 +1753,7 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
       sample.initialTurnNumber = startIdx;
       sample.hintLoc = moves[m].loc;
       sample.weight = weight;
+      sample.trainingWeight = trainingWeight;
 
       if(autoKomi) {
         const int64_t numVisits = 10;
@@ -1651,7 +1813,7 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
   // ---------------------------------------------------------------------------------------------------
   //TREE MODE
 
-  auto treePosHandler = [&gameInit,&nnEval,&expensiveEvaluateMove,&autoKomi,&maxPolicy,&flipIfPassOrWFirst,&surpriseMode](
+  auto treePosHandler = [&gameInit,&nnEval,&expensiveEvaluateMove,&autoKomi,&maxPolicy,&flipIfPassOrWFirst,&surpriseMode,trainingWeight](
     Search* search, Rand& rand, const BoardHistory& treeHist, int initialTurnNumber, bool markedAsHintPos
   ) {
     if(shouldStop.load(std::memory_order_acquire))
@@ -1697,6 +1859,7 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
     sample.initialTurnNumber = initialTurnNumber;
     sample.hintLoc = treeHist.moveHistory[moveHistorySize-1].loc;
     sample.weight = 0.0; //dummy, filled in below
+    sample.trainingWeight = trainingWeight;
 
     //Don't use the SGF rules - randomize them for a bit more entropy
     Rules rules = gameInit->createRules();
@@ -1818,7 +1981,7 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
   // ---------------------------------------------------------------------------------------------------
 
   //Begin writing
-  std::thread writeLoopThread(writeLoop);
+  posWriter.start();
 
   vector<std::thread> threads;
   for(int i = 0; i<numProcessThreads; i++) {
@@ -1972,8 +2135,7 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
   logSgfProgress();
   logger.write("Waiting for final writing and cleanup");
 
-  toWriteQueue.setReadOnly();
-  writeLoopThread.join();
+  posWriter.flushAndStop();
 
   logger.write(nnEval->getModelFileName());
   logger.write("NN rows: " + Global::int64ToString(nnEval->numRowsProcessed()));
@@ -2119,6 +2281,7 @@ int MainCmds::trystartposes(const vector<string>& args) {
       assert(suc);
       cout << "Searching startpos: " << "\n";
       cout << "Weight: " << startPos.weight << "\n";
+      cout << "Training Weight: " << startPos.trainingWeight << "\n";
       cout << search->getRootHist().rules.toString() << "\n";
       Board::printBoard(cout, search->getRootBoard(), search->getChosenMoveLoc(), &(search->getRootHist().moveHistory));
       search->printTree(cout, search->rootNode, PrintTreeOptions().maxDepth(1),P_WHITE);
@@ -2159,6 +2322,7 @@ int MainCmds::viewstartposes(const vector<string>& args) {
   string modelFile;
   vector<string> startPosesFiles;
   double minWeight;
+  int idxToView;
   try {
     KataGoCommandLine cmd("View startposes");
     cmd.addConfigFileArg("","",false);
@@ -2167,11 +2331,14 @@ int MainCmds::viewstartposes(const vector<string>& args) {
 
     TCLAP::MultiArg<string> startPosesFileArg("","start-poses-file","Startposes file",true,"DIR");
     TCLAP::ValueArg<double> minWeightArg("","min-weight","Min weight of startpos to view",false,0.0,"WEIGHT");
+    TCLAP::ValueArg<int> idxArg("","idx","Index of startpos to view in file",false,-1,"IDX");
     cmd.add(startPosesFileArg);
     cmd.add(minWeightArg);
+    cmd.add(idxArg);
     cmd.parseArgs(args);
     startPosesFiles = startPosesFileArg.getValue();
     minWeight = minWeightArg.getValue();
+    idxToView = idxArg.getValue();
 
     cmd.getConfigAllowEmpty(cfg);
     if(cfg.getFileName() != "")
@@ -2241,6 +2408,8 @@ int MainCmds::viewstartposes(const vector<string>& args) {
     const Sgf::PositionSample& startPos = startPoses[s];
     if(startPos.weight < minWeight)
       continue;
+    if(idxToView >= 0 && s != idxToView)
+      continue;
 
     Board board = startPos.board;
     Player pla = startPos.nextPla;
@@ -2265,6 +2434,7 @@ int MainCmds::viewstartposes(const vector<string>& args) {
     cout << "StartPos: " << s << "/" << startPoses.size() << "\n";
     cout << "Next pla: " << PlayerIO::playerToString(pla) << "\n";
     cout << "Weight: " << startPos.weight << "\n";
+    cout << "TrainingWeight: " << startPos.trainingWeight << "\n";
     cout << "HintLoc: " << Location::toString(hintLoc,board) << "\n";
     Board::printBoard(cout, board, hintLoc, &(hist.moveHistory));
     cout << endl;
@@ -2368,7 +2538,7 @@ int MainCmds::sampleinitializations(const vector<string>& args) {
   //Play no moves in game, since we're sampling initializations
   cfg.overrideKey("maxMovesPerGame","0");
 
-  const bool isDistributed = false; 
+  const bool isDistributed = false;
   PlaySettings playSettings = PlaySettings::loadForSelfplay(cfg, isDistributed);
   GameRunner* gameRunner = new GameRunner(cfg, playSettings, logger);
 

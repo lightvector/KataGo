@@ -86,7 +86,7 @@ static float roundKomiWithLinearProb(float komi, Rand& rand) {
 //Also ignores allowInteger
 void PlayUtils::setKomiWithoutNoise(const ExtraBlackAndKomi& extraBlackAndKomi, BoardHistory& hist) {
   float komi = extraBlackAndKomi.komiMean;
-  komi = roundAndClipKomi(komi, hist.getRecentBoard(0), false);
+  komi = roundAndClipKomi(komi, hist.getRecentBoard(0));
   assert(Rules::komiIsIntOrHalfInt(komi));
   hist.setKomi(komi);
 }
@@ -98,7 +98,7 @@ void PlayUtils::setKomiWithNoise(const ExtraBlackAndKomi& extraBlackAndKomi, Boa
   if(extraBlackAndKomi.interpZero)
     komi = komi * (float)rand.nextDouble();
   komi = roundKomiWithLinearProb(komi,rand);
-  komi = roundAndClipKomi(komi, hist.getRecentBoard(0), false);
+  komi = roundAndClipKomi(komi, hist.getRecentBoard(0));
   assert(Rules::komiIsIntOrHalfInt(komi));
   if(!extraBlackAndKomi.allowInteger && komi == (int)komi)
     komi += rand.nextBool(0.5) ? (-0.5f) : (0.5f);
@@ -334,9 +334,9 @@ double PlayUtils::getHackedLCBForWinrate(const Search* search, const AnalysisDat
   return lcb;
 }
 
-float PlayUtils::roundAndClipKomi(double unrounded, const Board& board, bool looseClipping) {
+float PlayUtils::roundAndClipKomi(double unrounded, const Board& board) {
   //Just in case, make sure komi is reasonable
-  float range = looseClipping ? 40.0f + board.x_size * board.y_size : 40.0f + 0.5f * board.x_size * board.y_size;
+  float range = NNPos::KOMI_CLIP_RADIUS + board.x_size * board.y_size;
   if(unrounded < -range)
     unrounded = -range;
   if(unrounded > range)
@@ -433,8 +433,7 @@ static double getNaiveEvenKomiHelper(
   BoardHistory& hist,
   Player pla,
   int64_t numVisits,
-  const OtherGameProperties& otherGameProps,
-  bool looseClipping
+  const OtherGameProperties& otherGameProps
 ) {
   float oldKomi = hist.rules.komi;
 
@@ -454,7 +453,7 @@ static double getNaiveEvenKomiHelper(
          (lastWinLoss > 0 && winLoss > lastWinLoss + 0.1) ||
          (lastWinLoss < 0 && winLoss < lastWinLoss - 0.1)
       ) {
-        float fairKomi = PlayUtils::roundAndClipKomi(hist.rules.komi - lastShift * 0.5f, board, looseClipping);
+        float fairKomi = PlayUtils::roundAndClipKomi(hist.rules.komi - lastShift * 0.5f, board);
         hist.setKomi(fairKomi);
         // cout << "STOP" << endl;
         // cout << lastLead << " " << lead << " " << lastWinLoss << " " << winLoss << endl;
@@ -480,7 +479,7 @@ static double getNaiveEvenKomiHelper(
       break;
 
     // cout << "Shifting by " << shift << endl;
-    float fairKomi = PlayUtils::roundAndClipKomi(hist.rules.komi + shift, board, looseClipping);
+    float fairKomi = PlayUtils::roundAndClipKomi(hist.rules.komi + shift, board);
     hist.setKomi(fairKomi);
 
     //After a small shift, break out to the binary search.
@@ -491,7 +490,7 @@ static double getNaiveEvenKomiHelper(
   //Try a small window and do a binary search
   auto evalWinLoss = [&](double delta) {
     double newKomi = hist.rules.komi + delta;
-    double winLoss = evalKomi(scoreWLCache,botB,botW,board,hist,pla,numVisits,otherGameProps,PlayUtils::roundAndClipKomi(newKomi,board,looseClipping)).second;
+    double winLoss = evalKomi(scoreWLCache,botB,botW,board,hist,pla,numVisits,otherGameProps,PlayUtils::roundAndClipKomi(newKomi,board)).second;
     // cout << "Delta " << delta << " wr " << winLoss << endl;
     return winLoss;
   };
@@ -574,15 +573,14 @@ void PlayUtils::adjustKomiToEven(
   Rand& rand
 ) {
   map<float,std::pair<double,double>> scoreWLCache;
-  bool looseClipping = false;
-  double newKomi = getNaiveEvenKomiHelper(scoreWLCache,botB,botW,board,hist,pla,numVisits,otherGameProps,looseClipping);
+  double newKomi = getNaiveEvenKomiHelper(scoreWLCache,botB,botW,board,hist,pla,numVisits,otherGameProps);
   double lower = floor(newKomi * 2.0) * 0.5;
   double upper = lower + 0.5;
   if(rand.nextBool((newKomi - lower) / (upper - lower)))
     newKomi = upper;
   else
     newKomi = lower;
-  hist.setKomi(PlayUtils::roundAndClipKomi(newKomi,board,looseClipping));
+  hist.setKomi(PlayUtils::roundAndClipKomi(newKomi,board));
 }
 
 float PlayUtils::computeLead(
@@ -595,9 +593,8 @@ float PlayUtils::computeLead(
   const OtherGameProperties& otherGameProps
 ) {
   map<float,std::pair<double,double>> scoreWLCache;
-  bool looseClipping = true;
   float oldKomi = hist.rules.komi;
-  double naiveKomi = getNaiveEvenKomiHelper(scoreWLCache,botB,botW,board,hist,pla,numVisits,otherGameProps,looseClipping);
+  double naiveKomi = getNaiveEvenKomiHelper(scoreWLCache,botB,botW,board,hist,pla,numVisits,otherGameProps);
 
   bool granularityIsCoarse = hist.rules.scoringRule == Rules::SCORING_AREA && !hist.rules.hasButton;
   if(!granularityIsCoarse) {
@@ -606,7 +603,7 @@ float PlayUtils::computeLead(
   }
 
   auto evalWinLoss = [&](double newKomi) {
-    double winLoss = evalKomi(scoreWLCache,botB,botW,board,hist,pla,numVisits,otherGameProps,PlayUtils::roundAndClipKomi(newKomi,board,looseClipping)).second;
+    double winLoss = evalKomi(scoreWLCache,botB,botW,board,hist,pla,numVisits,otherGameProps,PlayUtils::roundAndClipKomi(newKomi,board)).second;
     // cout << "Delta " << delta << " wr " << winLoss << endl;
     return winLoss;
   };
@@ -1212,3 +1209,18 @@ Loc PlayUtils::maybeFriendlyPass(
   return moveLoc;
 }
 
+
+std::shared_ptr<NNOutput> PlayUtils::getFullSymmetryNNOutput(const Board& board, const BoardHistory& hist, Player pla, bool includeOwnerMap, NNEvaluator* nnEval) {
+  vector<std::shared_ptr<NNOutput>> ptrs;
+  Board b = board;
+  for(int sym = 0; sym<SymmetryHelpers::NUM_SYMMETRIES; sym++) {
+    MiscNNInputParams nnInputParams;
+    nnInputParams.symmetry = sym;
+    NNResultBuf buf;
+    bool skipCache = true; //Always ignore cache so that we use the desired symmetry
+    nnEval->evaluate(b,hist,pla,nnInputParams,buf,skipCache,includeOwnerMap);
+    ptrs.push_back(std::move(buf.result));
+  }
+  std::shared_ptr<NNOutput> result(new NNOutput(ptrs));
+  return result;
+}

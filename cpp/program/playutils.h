@@ -65,7 +65,7 @@ namespace PlayUtils {
     double proportionOfBoardArea, double temperature
   );
 
-  float roundAndClipKomi(double unrounded, const Board& board, bool looseClipping);
+  float roundAndClipKomi(double unrounded, const Board& board);
 
   void adjustKomiToEven(
     Search* botB,
@@ -178,6 +178,8 @@ namespace PlayUtils {
     Search* bot,
     int64_t numVisits
   );
+
+  std::shared_ptr<NNOutput> getFullSymmetryNNOutput(const Board& board, const BoardHistory& hist, Player pla, bool includeOwnerMap, NNEvaluator* nnEval);
 
 }
 

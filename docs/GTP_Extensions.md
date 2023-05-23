@@ -3,7 +3,8 @@
 In addition to a basic set of [GTP commands](https://www.lysator.liu.se/~gunnar/gtp/), KataGo supports a few additional commands:
 
    * `rectangular_boardsize X Y`
-      * Sets the board size to a potentially non-square size, width `X` and height `Y`. KataGo's official neural nets are currently not actually trained with non-square sizes, but they actually seem to generalize to them pretty well.
+      * Sets the board size to a potentially non-square size, width `X` and height `Y`. Some of KataGo's older nets were not trained with non-square sizes, but often seem to generalize to them pretty well. More recent nets are trained on a very low frequency of non-square sizes.
+      * KataGo will *also* accept the same two arguments X Y for the standard GTP `boardsize` command to set a rectangular size, in addition to the normal single-argument usage of `boardsize` to set a square size.
    * `set_position COLOR VERTEX COLOR VERTEX COLOR VERTEX ...`
       * Directly specify an initial board position as a sequence of color-vertex pairs, replacing the current board.
       * The newly-set position is assumed to have no move history. Therefore:

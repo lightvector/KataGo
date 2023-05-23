@@ -10,7 +10,6 @@ namespace MainCmds {
   int gtp(const std::vector<std::string>& args);
   int tuner(const std::vector<std::string>& args);
   int match(const std::vector<std::string>& args);
-  int matchauto(const std::vector<std::string>& args);
   int selfplay(const std::vector<std::string>& args);
 
   int testgpuerror(const std::vector<std::string>& args);
@@ -40,7 +39,9 @@ namespace MainCmds {
   int samplesgfs(const std::vector<std::string>& args);
   int dataminesgfs(const std::vector<std::string>& args);
   int genbook(const std::vector<std::string>& args);
+  int writebook(const std::vector<std::string>& args);
   int checkbook(const std::vector<std::string>& args);
+  int booktoposes(const std::vector<std::string>& args);
 
   int trystartposes(const std::vector<std::string>& args);
   int viewstartposes(const std::vector<std::string>& args);

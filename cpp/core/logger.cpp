@@ -13,12 +13,11 @@ Logger::Logger(
   bool logToStdoutDefault,
   bool logToStderrDefault,
   bool logTimeDefault,
-  bool logConfigContents_
+  bool logConfigContents
 ):
   logToStdout(logToStdoutDefault),
   logToStderr(logToStderrDefault),
   logTime(logTimeDefault),
-  logConfigContents(logConfigContents_),
   header(),
   ostreams(),
   files(),
@@ -27,7 +26,10 @@ Logger::Logger(
   isDisabled(false)
 {
   if(cfg) {
-    header = "Running with following config:\n" + cfg->getAllKeyVals();
+    // Also avoid logging if cfg specifies it
+    if(logConfigContents && !(cfg->contains("logConfigContents") && !cfg->getBool("logConfigContents"))) {
+      header = "Running with following config:\n" + cfg->getAllKeyVals();
+    }
     if(cfg->contains("logToStdout"))
       logToStdout = cfg->getBool("logToStdout");
 

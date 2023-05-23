@@ -70,9 +70,11 @@ function exportStuff() {
                         -model-name "$NAMEPREFIX""-""$NAME" \
                         -filename-prefix model \
                         -use-swa
-                set +x
 
-                mv "$SRC"/model.ckpt "$TMPDST"/
+                python3 ./clean_checkpoint.py \
+                        -checkpoint "$SRC"/model.ckpt \
+                        -output "$TMPDST"/model.ckpt
+                set +x
 
                 rm -r "$SRC"
                 gzip "$TMPDST"/model.bin
@@ -88,7 +90,6 @@ function exportStuff() {
                         mkdir -p "$BASEDIR"/selfplay/"$NAME"
                         mkdir -p "$BASEDIR"/selfplay/"$NAME"/sgfs
                         mkdir -p "$BASEDIR"/selfplay/"$NAME"/tdata
-                        mkdir -p "$BASEDIR"/selfplay/"$NAME"/vdata
                     fi
                 fi
 

@@ -17,10 +17,13 @@ namespace NNPos {
   constexpr int MAX_NN_POLICY_SIZE = MAX_BOARD_AREA + 1;
   //Extra score distribution radius, used for writing score in data rows and for the neural net score belief output
   constexpr int EXTRA_SCORE_DISTR_RADIUS = 60;
+  //Used various places we clip komi beyond board area.
+  constexpr float KOMI_CLIP_RADIUS = 20.0f;
 
   int xyToPos(int x, int y, int nnXLen);
   int locToPos(Loc loc, int boardXSize, int nnXLen, int nnYLen);
   Loc posToLoc(int pos, int boardXSize, int boardYSize, int nnXLen, int nnYLen);
+  int getPassPos(int nnXLen, int nnYLen);
   bool isPassPos(int pos, int nnXLen, int nnYLen);
   int getPolicySize(int nnXLen, int nnYLen);
 }
@@ -39,6 +42,7 @@ struct MiscNNInputParams {
   bool avoidMYTDaggerHack = false;
   // If no symmetry is specified, it will use default or random based on config, unless node is already cached.
   int symmetry = NNInputs::SYMMETRY_NOTSPECIFIED;
+  double policyOptimism = 0.0;
 
   static const Hash128 ZOBRIST_CONSERVATIVE_PASS;
   static const Hash128 ZOBRIST_FRIENDLY_PASS;
@@ -46,6 +50,7 @@ struct MiscNNInputParams {
   static const Hash128 ZOBRIST_PLAYOUT_DOUBLINGS;
   static const Hash128 ZOBRIST_NN_POLICY_TEMP;
   static const Hash128 ZOBRIST_AVOID_MYTDAGGER_HACK;
+  static const Hash128 ZOBRIST_POLICY_OPTIMISM;
 };
 
 namespace NNInputs {
@@ -193,6 +198,12 @@ namespace SymmetryHelpers {
     const std::vector<int>& avoidMoves,
     bool* isSymDupLoc,
     std::vector<int>& validSymmetries
+  );
+
+// For each symmetry, return a metric about the "amount" of difference that board would have with other
+// if symmetry were applied to board.
+  void getSymmetryDifferences(
+    const Board& board, const Board& other, double maxDifferenceToReport, double symmetryDifferences[NUM_SYMMETRIES]
   );
 }
 

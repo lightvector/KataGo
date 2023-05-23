@@ -70,7 +70,7 @@ Search::Search(SearchParams params, NNEvaluator* nnEval, Logger* lg, const strin
    rootHistory(),
    rootGraphHash(),
    rootHintLoc(Board::NULL_LOC),
-   avoidMoveUntilByLocBlack(),avoidMoveUntilByLocWhite(),
+   avoidMoveUntilByLocBlack(),avoidMoveUntilByLocWhite(),avoidMoveUntilRescaleRoot(false),
    rootSymmetries(),
    rootPruneOnlySymmetries(),
    rootSafeArea(NULL),
@@ -212,6 +212,10 @@ void Search::setAvoidMoveUntilByLoc(const std::vector<int>& bVec, const std::vec
   clearSearch();
   avoidMoveUntilByLocBlack = bVec;
   avoidMoveUntilByLocWhite = wVec;
+}
+
+void Search::setAvoidMoveUntilRescaleRoot(bool b) {
+  avoidMoveUntilRescaleRoot = b;
 }
 
 void Search::setRootHintLoc(Loc loc) {
@@ -475,6 +479,15 @@ void Search::runWholeSearch(
     }
   }
 
+  int capThreads = 0x3fffFFFF;
+  if(searchParams.minPlayoutsPerThread > 0.0) {
+    int64_t numNewPlayouts = std::min(maxVisits - numNonPlayoutVisits, maxPlayouts);
+    double cap = numNewPlayouts / searchParams.minPlayoutsPerThread;
+    if(!std::isnan(cap) && cap < (double)0x3fffFFFF) {
+      capThreads = std::max(1, (int)floor(cap));
+    }
+  }
+
   //Apply time controls. These two don't particularly need to be synchronized with each other so its fine to have two separate atomics.
   std::atomic<double> tcMaxTime(1e30);
   std::atomic<double> upperBoundVisitsLeftDueToTime(1e30);
@@ -567,7 +580,7 @@ void Search::runWholeSearch(
   };
 
   double actualSearchStartTime = timer.getSeconds();
-  performTaskWithThreads(&searchLoop);
+  performTaskWithThreads(&searchLoop, capThreads);
 
   //Relaxed load is fine since numPlayoutsShared should be synchronized already due to the joins
   lastSearchNumPlayouts = numPlayoutsShared.load(std::memory_order_relaxed);
@@ -889,7 +902,7 @@ void Search::deleteAllOldOrAllNewTableNodesAndSubtreeValueBiasMulithreaded(bool 
       }
     }
   };
-  performTaskWithThreads(&g);
+  performTaskWithThreads(&g, 0x3FFFffff);
 }
 
 //Delete ALL nodes. More efficient than deleteAllOldOrAllNewTableNodesAndSubtreeValueBiasMulithreaded if deleting everything.
@@ -908,7 +921,7 @@ void Search::deleteAllTableNodesMulithreaded() {
       nodeMap.clear();
     }
   };
-  performTaskWithThreads(&g);
+  performTaskWithThreads(&g, 0x3FFFffff);
 }
 
 //This function should NOT ever be called concurrently with any other threads modifying the search tree.
@@ -1068,8 +1081,7 @@ bool Search::runSinglePlayout(SearchThread& thread, double upperBoundVisitsLeft)
   //Store this value, used for futile-visit pruning this thread's root children selections.
   thread.upperBoundVisitsLeft = upperBoundVisitsLeft;
 
-  bool posesWithChildBuf[NNPos::MAX_NN_POLICY_SIZE];
-  bool finishedPlayout = playoutDescend(thread,*rootNode,posesWithChildBuf,true);
+  bool finishedPlayout = playoutDescend(thread,*rootNode,true);
 
   //Restore thread state back to the root state
   thread.pla = rootPla;
@@ -1083,7 +1095,6 @@ bool Search::runSinglePlayout(SearchThread& thread, double upperBoundVisitsLeft)
 
 bool Search::playoutDescend(
   SearchThread& thread, SearchNode& node,
-  bool posesWithChildBuf[NNPos::MAX_NN_POLICY_SIZE],
   bool isRoot
 ) {
   //Hit terminal node, finish
@@ -1157,7 +1168,7 @@ bool Search::playoutDescend(
 
   SearchNode* child = NULL;
   while(true) {
-    selectBestChildToDescend(thread,node,nodeState,numChildrenFound,bestChildIdx,bestChildMoveLoc,posesWithChildBuf,isRoot);
+    selectBestChildToDescend(thread,node,nodeState,numChildrenFound,bestChildIdx,bestChildMoveLoc,isRoot);
 
     //The absurdly rare case that the move chosen is not legal
     //(this should only happen either on a bug or where the nnHash doesn't have full legality information or when there's an actual hash collision).
@@ -1186,7 +1197,7 @@ bool Search::playoutDescend(
 
       //As isReInit is true, we don't return, just keep going, since we didn't count this as a true visit in the node stats
       nodeState = node.state.load(std::memory_order_acquire);
-      selectBestChildToDescend(thread,node,nodeState,numChildrenFound,bestChildIdx,bestChildMoveLoc,posesWithChildBuf,isRoot);
+      selectBestChildToDescend(thread,node,nodeState,numChildrenFound,bestChildIdx,bestChildMoveLoc,isRoot);
 
       if(bestChildIdx >= 0) {
         //New child
@@ -1327,7 +1338,7 @@ bool Search::playoutDescend(
   }
 
   //Recurse!
-  bool finishedPlayout = playoutDescend(thread,*child,posesWithChildBuf,false);
+  bool finishedPlayout = playoutDescend(thread,*child,false);
   //Update this node stats
   if(finishedPlayout) {
     nodeState = node.state.load(std::memory_order_acquire);

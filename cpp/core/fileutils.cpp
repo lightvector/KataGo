@@ -279,6 +279,22 @@ vector<string> FileUtils::readFileLines(const string& filename, char delimiter)
   return readFileLines(filename.c_str(), delimiter);
 }
 
+vector<string> FileUtils::listFiles(const std::string& dirname) {
+  vector<string> collected;
+  try {
+    for(const gfs::directory_entry& entry: gfs::directory_iterator(gfs::u8path(dirname))) {
+      const gfs::path& path = entry.path();
+      string fileName = path.filename().u8string();
+      collected.push_back(fileName);
+    }
+  }
+  catch(const gfs::filesystem_error& e) {
+    cerr << "Error listing files: " << e.what() << endl;
+    throw StringError(string("Error listing files: ") + e.what());
+  }
+  return collected;
+}
+
 void FileUtils::collectFiles(const string& dirname, std::function<bool(const string&)> fileFilter, vector<string>& collected)
 {
   namespace gfs = ghc::filesystem;

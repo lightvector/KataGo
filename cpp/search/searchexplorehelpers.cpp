@@ -304,7 +304,6 @@ double Search::getFpuValueForChildrenAssumeVisited(
 void Search::selectBestChildToDescend(
   SearchThread& thread, const SearchNode& node, int nodeState,
   int& numChildrenFound, int& bestChildIdx, Loc& bestChildMoveLoc,
-  bool posesWithChildBuf[NNPos::MAX_NN_POLICY_SIZE],
   bool isRoot) const
 {
   assert(thread.pla == node.nextPla);
@@ -353,7 +352,7 @@ void Search::selectBestChildToDescend(
     parentUtility, parentWeightPerVisit, parentUtilityStdevFactor
   );
 
-  std::fill(posesWithChildBuf,posesWithChildBuf+NNPos::MAX_NN_POLICY_SIZE,false);
+  bool posesWithChildBuf[NNPos::MAX_NN_POLICY_SIZE] = { }; // Initialize all to false
   bool antiMirror = searchParams.antiMirror && mirroringPla != C_EMPTY && isMirroringSinceSearchStart(thread.history,0);
 
   double exploreScaling = getExploreScaling(totalChildWeight, parentUtilityStdevFactor);

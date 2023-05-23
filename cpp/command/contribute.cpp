@@ -309,9 +309,8 @@ static void runAndUploadSingleGame(
         gameTask.blackManager->withDataWriters(
           nnEvalBlack,
           [gameData,&gameTask,gameIdx,&sgfFile,&connection,&logger,&shouldStopFunc,&posSample](
-            TrainingDataWriter* tdataWriter, TrainingDataWriter* vdataWriter, std::ofstream* sgfOut
+            TrainingDataWriter* tdataWriter, std::ofstream* sgfOut
           ) {
-            (void)vdataWriter;
             (void)sgfOut;
             assert(tdataWriter->isEmpty());
             tdataWriter->writeGame(*gameData);
@@ -685,9 +684,6 @@ int MainCmds::contribute(const vector<string>& args) {
 
   const int maxSimultaneousRatingGamesPossible = std::min(taskRepFactor * maxRatingMatches, maxSimultaneousGames);
 
-  //Don't write "validation" data for distributed self-play. If the server-side wants to split out some data as "validation" for training
-  //then that can be done server-side.
-  const double validationProp = 0.0;
   //If we ever get more than this many games behind on writing data, something is weird.
   const int maxSelfplayDataQueueSize = maxSimultaneousGames * 4;
   const int maxRatingDataQueueSize = maxSimultaneousRatingGamesPossible * 4;
@@ -949,11 +945,10 @@ int MainCmds::contribute(const vector<string>& args) {
     const int dataBoardLen = runParams.dataBoardLen;
     TrainingDataWriter* tdataWriter = new TrainingDataWriter(
       tdataOutputDir, inputsVersion, maxRowsPerTrainFile, firstFileRandMinProp, dataBoardLen, dataBoardLen, Global::uint64ToHexString(rand.nextUInt64()));
-    TrainingDataWriter* vdataWriter = NULL;
     ofstream* sgfOut = NULL;
 
     logger.write("Loaded new neural net " + nnEval->getModelName());
-    manager->loadModelNoDataWritingLoop(nnEval, tdataWriter, vdataWriter, sgfOut);
+    manager->loadModelNoDataWritingLoop(nnEval, tdataWriter, sgfOut);
     return true;
   };
 
@@ -962,8 +957,8 @@ int MainCmds::contribute(const vector<string>& args) {
   //For distributed selfplay, we have a single thread primarily in charge of the manager, so we turn this off
   //to ensure there is no asynchronous removal of models.
   bool autoCleanupAllButLatestIfUnused = false;
-  SelfplayManager* selfplayManager = new SelfplayManager(validationProp, maxSelfplayDataQueueSize, &logger, logGamesEvery, autoCleanupAllButLatestIfUnused);
-  SelfplayManager* ratingManager = new SelfplayManager(validationProp, maxRatingDataQueueSize, &logger, logGamesEvery, autoCleanupAllButLatestIfUnused);
+  SelfplayManager* selfplayManager = new SelfplayManager(maxSelfplayDataQueueSize, &logger, logGamesEvery, autoCleanupAllButLatestIfUnused);
+  SelfplayManager* ratingManager = new SelfplayManager(maxRatingDataQueueSize, &logger, logGamesEvery, autoCleanupAllButLatestIfUnused);
 
   //Start game loop threads! Yay!
   //Just start based on selfplay games, rating games will poke in as needed

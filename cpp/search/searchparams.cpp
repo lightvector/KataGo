@@ -24,6 +24,7 @@ SearchParams::SearchParams()
    fpuParentWeightByVisitedPolicy(false),
    fpuParentWeightByVisitedPolicyPow(1.0),
    fpuParentWeight(0.0),
+   policyOptimism(0.0),
    valueWeightExponent(0.5),
    useNoisePruning(false),
    noisePruneUtilityScale(0.15),
@@ -46,6 +47,7 @@ SearchParams::SearchParams()
    rootNumSymmetriesToSample(1),
    rootSymmetryPruning(false),
    rootDesiredPerChildVisitsCoeff(0.0),
+   rootPolicyOptimism(0.0),
    chosenMoveTemperature(0.0),
    chosenMoveTemperatureEarly(0.0),
    chosenMoveTemperatureHalflife(19),
@@ -74,6 +76,7 @@ SearchParams::SearchParams()
    nodeTableShardsPowerOfTwo(16),
    numVirtualLossesPerThread(3.0),
    numThreads(1),
+   minPlayoutsPerThread(0.0),
    maxVisits(((int64_t)1) << 50),
    maxPlayouts(((int64_t)1) << 50),
    maxTime(1.0e20),
@@ -191,6 +194,7 @@ void SearchParams::printParams(std::ostream& out) {
   PRINTPARAM(fpuParentWeightByVisitedPolicyPow);
   PRINTPARAM(fpuParentWeight);
 
+  PRINTPARAM(policyOptimism);
 
   PRINTPARAM(valueWeightExponent);
   PRINTPARAM(useNoisePruning);
@@ -223,6 +227,7 @@ void SearchParams::printParams(std::ostream& out) {
 
   PRINTPARAM(rootDesiredPerChildVisitsCoeff);
 
+  PRINTPARAM(rootPolicyOptimism);
 
   PRINTPARAM(chosenMoveTemperature);
   PRINTPARAM(chosenMoveTemperatureEarly);
@@ -263,6 +268,7 @@ void SearchParams::printParams(std::ostream& out) {
 
 
   PRINTPARAM(numThreads);
+  PRINTPARAM(minPlayoutsPerThread);
   PRINTPARAM(maxVisits);
   PRINTPARAM(maxPlayouts);
   PRINTPARAM(maxTime);

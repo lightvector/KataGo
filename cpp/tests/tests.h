@@ -38,8 +38,11 @@ namespace Tests {
 
   //testnninputs.cpp
   void runNNInputsV3V4Tests();
+
+  //testsymmetries.cpp
   void runBasicSymmetryTests();
   void runBoardSymmetryTests();
+  void runSymmetryDifferenceTests();
 
   //testsearchnonn.cpp
   void runNNLessSearchTests();
@@ -87,6 +90,9 @@ namespace Tests {
   //testmisc.cpp
   void runCollectFilesTests();
   void runLoadModelTests();
+
+  //testbook.cpp
+  void runBookTests();
 }
 
 namespace TestCommon {

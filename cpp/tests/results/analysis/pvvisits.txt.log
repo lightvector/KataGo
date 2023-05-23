@@ -22,7 +22,7 @@ rootSymmetryPruning = false
 trtUseFP16 = false
 
 : Analysis Engine starting...
-: KataGo v1.12.4
+: KataGo v1.13.0
 : nnRandSeed0 = analysisTest
 : After dedups: nnModelFile0 = tests/models/g170-b6c96-s175395328-d26788732.bin.gz useFP16 false useNHWC false
 : Initializing neural net buffer to be size 19 * 19 allowing smaller boards
@@ -49,7 +49,7 @@ trtUseFP16 = false
 : Config override: openclUseFP16 = false
 : Config override: rootSymmetryPruning = false
 : Config override: trtUseFP16 = false
-: Analyzing up to 1 positions at at time in parallel
+: Analyzing up to 1 positions at a time in parallel
 : Started, ready to begin handling requests
 : Request: {"id":"pvvisittest","initialStones":[],"moves":[["B","D4"],["W","D5"],["B","C5"],["W","E4"],["B","D3"],["W","C6"],["B","E5"],["W","D6"]],"rules":"tromp-taylor","komi":9,"boardXSize":7,"boardYSize":7,"overrideSettings":{"maxVisits":1000},"includePVVisits":true}
 : Request: {"id":"pvvisittest","initialStones":[],"moves":[["B","D4"],["W","D5"],["B","C5"],["W","E4"],["B","D3"],["W","E5"],["B","C6"],["W","E3"],["B","E2"],["W","F2"],["B","D2"],["W","C4"],["B","D6"],["W","B4"]],"rules":"chinese","komi":9,"boardXSize":7,"boardYSize":7,"overrideSettings":{"maxVisits":1000},"includePVVisits":true}

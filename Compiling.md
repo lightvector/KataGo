@@ -10,11 +10,28 @@ As also mentioned in the instructions below but repeated here for visibility, if
 * Please do NOT attempt to bypass any versioning or safety checks - if you feel you need to do so, please first reach out by opening an issue or messaging in [discord](https://discord.gg/bqkZAz3). There is an alternate site [test.katagodistributed.org](test.katagodistributed.org) you can use if you are working on KataGo development or want to test things more freely, ask in the KataGo channel of discord to set up a test account.
 
 ## Linux
+   * TLDR (if you have a working GPU):
+     ```
+     git clone https://github.com/lightvector/KataGo.git
+     cd KataGo/cpp
+     # If you get missing library errors, install the appropriate packages using your system package manager and try again.
+     # -DBUILD_DISTRIBUTED=1 is only needed if you want to contribute back to public training.
+     cmake . -DUSE_BACKEND=OPENCL -DBUILD_DISTRIBUTED=1
+     make -j 4
+     ```
+   * TLDR (building the slow pure-CPU version):
+     ```
+     git clone https://github.com/lightvector/KataGo.git
+     cd KataGo/cpp
+     # If you get missing library errors, install the appropriate packages using your system package manager and try again.
+     cmake . -DUSE_BACKEND=EIGEN -DUSE_AVX2=1
+     make -j 4
+     ```
    * Requirements
-      * CMake with a minimum version of 3.10.2 - for example `sudo apt install cmake` on Debian, or download from https://cmake.org/download/ if that doesn't give you a recent-enough version.
+      * CMake with a minimum version of 3.18.2 - for example `sudo apt install cmake` on Debian, or download from https://cmake.org/download/ if that doesn't give you a recent-enough version.
       * Some version of g++ that supports at least C++14.
       * If using the OpenCL backend, a modern GPU that supports OpenCL 1.2 or greater, or else something like [this](https://software.intel.com/en-us/opencl-sdk) for CPU. But if using CPU, Eigen should be better.
-      * If using the CUDA backend, CUDA 10.2 with CUDNN 7.6.5, or CUDA 11.1 with CUDNN 8.0.4 (https://developer.nvidia.com/cuda-toolkit) (https://developer.nvidia.com/cudnn) and a GPU capable of supporting them. I'm unsure how version compatibility works with CUDA, there's a good chance that later versions than these work just as well, but they have not been tested.
+      * If using the CUDA backend, CUDA 11 or later and a compatible version of CUDNN based on your CUDA version (https://developer.nvidia.com/cuda-toolkit) (https://developer.nvidia.com/cudnn) and a GPU capable of supporting them.
       * If using the TensorRT backend, in addition to a compatible (11.x) CUDA Toolkit (https://developer.nvidia.com/cuda-toolkit), you also need TensorRT (https://developer.nvidia.com/tensorrt) that is at least version 8.5.
       * If using the Eigen backend, Eigen3. With Debian packages, (i.e. apt or apt-get), this should be `libeigen3-dev`.
       * zlib, libzip. With Debian packages (i.e. apt or apt-get), these should be `zlib1g-dev`, `libzip-dev`.
@@ -33,16 +50,18 @@ As also mentioned in the instructions below but repeated here for visibility, if
             * Only builds from specific tagged versions or branches can contribute, in particular, instead of the `master` branch, use either the latest [release](https://github.com/lightvector/KataGo/releases) tag or the tip of the `stable` branch. To minimize the chance of any data incompatibilities or bugs, please do NOT attempt to contribute with custom changes or circumvent these limitations.
       * `make`
    * Done! You should now have a compiled `katago` executable in your working directory.
-   * Pre-trained neural nets are available on the [releases page](https://github.com/lightvector/KataGo/releases) or more from [here](https://d3dndmfyhecmj0.cloudfront.net/g170/index.html).
+   * Pre-trained neural nets are available at [the main training website](https://katagotraining.org/).
    * You will probably want to edit `configs/gtp_example.cfg` (see "Tuning for Performance" above).
    * If using OpenCL, you will want to verify that KataGo is picking up the correct device when you run it (e.g. some systems may have both an Intel CPU OpenCL and GPU OpenCL, if KataGo appears to pick the wrong one, you can correct this by specifying `openclGpuToUse` in `configs/gtp_example.cfg`).
 
 ## Windows
+   * TLDR:
+      * Building from source on Windows is actually a bit tricky, depending on what version you're building, there's not necessarily a super-fast way.
    * Requirements
-      * CMake with a minimum version of 3.10.2, GUI version strongly recommended (https://cmake.org/download/)
+      * CMake with a minimum version of 3.18.2, GUI version strongly recommended (https://cmake.org/download/)
       * Microsoft Visual Studio for C++. Version 15 (2017) has been tested and should work, other versions might work as well.
       * If using the OpenCL backend, a modern GPU that supports OpenCL 1.2 or greater, or else something like [this](https://software.intel.com/en-us/opencl-sdk) for CPU. But if using CPU, Eigen should be better.
-      * If using the CUDA backend, CUDA 10.2 with CUDNN 7.6.5, or CUDA 11.1 with CUDNN 8.0.4 (https://developer.nvidia.com/cuda-toolkit) (https://developer.nvidia.com/cudnn) and a GPU capable of supporting them. I'm unsure how version compatibility works with CUDA, there's a good chance that later versions than these work just as well, but they have not been tested.
+      * If using the CUDA backend, CUDA 11 or later and a compatible version of CUDNN based on your CUDA version (https://developer.nvidia.com/cuda-toolkit) (https://developer.nvidia.com/cudnn) and a GPU capable of supporting them. I'm unsure how version compatibility works with CUDA, there's a good chance that later versions than these work just as well, but they have not been tested.
       * If using the TensorRT backend, in addition to a compatible (11.x) CUDA Toolkit (https://developer.nvidia.com/cuda-toolkit), you also need TensorRT (https://developer.nvidia.com/tensorrt) that is at least version 8.5.
       * If using the Eigen backend, Eigen3, version 3.3.x. (http://eigen.tuxfamily.org/index.php?title=Main_Page#Download).
       * zlib. The following package might work, https://www.nuget.org/packages/zlib-vc140-static-64/, or alternatively you can build it yourself via something like: https://github.com/kiyolee/zlib-win-build
@@ -68,6 +87,6 @@ As also mentioned in the instructions below but repeated here for visibility, if
    * Done! You should now have a compiled `katago.exe` executable in your working directory.
    * Note: You may need to copy the ".dll" files corresponding to the various ".lib" files you compiled with into the directory containing katago.exe.
    * Note: If you had to update or install CUDA or GPU drivers, you will likely need to reboot before they will work.
-   * Pre-trained neural nets are available on the [releases page](https://github.com/lightvector/KataGo/releases) or more from [here](https://d3dndmfyhecmj0.cloudfront.net/g170/index.html).
+   * Pre-trained neural nets are available at [the main training website](https://katagotraining.org/).
    * You will probably want to edit `configs/gtp_example.cfg` (see "Tuning for Performance" above).
    * If using OpenCL, you will want to verify that KataGo is picking up the correct device (e.g. some systems may have both an Intel CPU OpenCL and GPU OpenCL, if KataGo appears to pick the wrong one, you can correct this by specifying `openclGpuToUse` in `configs/gtp_example.cfg`).

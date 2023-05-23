@@ -228,7 +228,8 @@ class Metrics:
     def loss_variance_time_samplewise(self, pred, target, weight, global_weight):
         assert pred.shape == (self.n,)
         assert target.shape == (self.n,)
-        loss = huber_loss(pred, target, delta = 50.0)
+        # Even if the training target is 0, add a tiny bit of irreducible error for regularizing the prediction.
+        loss = huber_loss(pred, target + 1.0e-5, delta = 50.0)
         return 0.0003 * global_weight * weight * loss
 
 
@@ -236,14 +237,16 @@ class Metrics:
         td_value_pred_probs = torch.softmax(td_value_pred_logits[:,2,:],axis=1)
         predvalue = (td_value_pred_probs[:,0] - td_value_pred_probs[:,1]).detach()
         realvalue = td_value_target_probs[:,2,0] - td_value_target_probs[:,2,1]
-        sqerror = torch.square(predvalue-realvalue)
+        # Even if the training target is 0, add a tiny bit of irreducible error for regularizing the prediction, 0.01%.
+        sqerror = torch.square(predvalue-realvalue) + 1.0e-8
         loss = huber_loss(pred, sqerror, delta = 0.4)
         return 2.0 * global_weight * weight * loss
 
     def loss_shortterm_score_error_samplewise(self, pred, td_score_pred, td_score_target, weight, global_weight):
         predscore = td_score_pred[:,2].detach()
         realscore = td_score_target[:,2]
-        sqerror = torch.square(predscore-realscore)
+        # Even if the training target is 0, add a tiny bit of irreducible error for regularizing the prediction, one hundredth of a point.
+        sqerror = torch.square(predscore-realscore) + 1.0e-4
         loss = huber_loss(pred, sqerror, delta = 100.0)
         return 0.00002 * global_weight * weight * loss
 
@@ -364,7 +367,6 @@ class Metrics:
         td_value_loss_scales,
         main_loss_scale,
         intermediate_loss_scale,
-        intermediate_distill_scale,
     ):
         results = self.metrics_dict_batchwise_single_heads_output(
             raw_model,
@@ -382,9 +384,9 @@ class Metrics:
         if raw_model.get_has_intermediate_head():
             assert len(model_output_postprocessed_byheads) > 1
             if raw_model.training:
-                assert intermediate_loss_scale is not None or intermediate_distill_scale is not None
+                assert intermediate_loss_scale is not None
             else:
-                if intermediate_loss_scale is None and intermediate_distill_scale is None:
+                if intermediate_loss_scale is None:
                     intermediate_loss_scale = 1.0
 
             if intermediate_loss_scale is not None:
@@ -402,19 +404,6 @@ class Metrics:
                     if key != "loss_sum":
                         results["I"+key] = value
                 results["loss_sum"] = results["loss_sum"] + intermediate_loss_scale * iresults["loss_sum"]
-            if intermediate_distill_scale is not None:
-                iresults = self.metrics_dict_self_distill(
-                    model_output_postprocessed_byheads[0],
-                    model_output_postprocessed_byheads[1],
-                    batch,
-                    soft_policy_weight_scale=soft_policy_weight_scale,
-                    value_loss_scale=value_loss_scale,
-                    td_value_loss_scales=td_value_loss_scales,
-                )
-                for key,value in iresults.items():
-                    if key != "loss_sum":
-                        results["SD"+key] = value
-                results["loss_sum"] = results["loss_sum"] + intermediate_distill_scale * iresults["loss_sum"]
 
         return results
 
@@ -501,6 +490,17 @@ class Metrics:
         target_futurepos = target_value_nchw[:, 2:4, :, :]
         target_scoring = target_value_nchw[:, 4, :, :] / 120.0
 
+        if raw_model.config["version"] <= 11:
+            assert raw_model.policy_head.num_policy_outputs == 4
+            policy_opt_loss_scale = 1.000
+            long_policy_opt_loss_scale = 0.0
+            short_policy_opt_loss_scale = 0.0
+        else:
+            assert raw_model.policy_head.num_policy_outputs == 6
+            policy_opt_loss_scale = 0.930
+            long_policy_opt_loss_scale = 0.100
+            short_policy_opt_loss_scale = 0.200
+
         loss_policy_player = self.loss_policy_player_samplewise(
             policy_logits[:, 0, :],
             target_policy_player,
@@ -526,6 +526,78 @@ class Metrics:
             target_weight_policy_opponent,
             global_weight,
         ).sum()
+
+        if raw_model.config["version"] <= 11:
+            target_weight_longoptimistic_policy = torch.zeros_like(global_weight)
+            loss_longoptimistic_policy = torch.zeros_like(loss_policy_player)
+        else:
+            # Long-term optimistic policy. Weight policy by:
+            # Final game win squared (squaring discourages draws)
+            win_squared = torch.square(
+                target_global_nc[:, 0] # win (or draw, weighted by draw utility)
+                + 0.5 * target_global_nc[:, 2] # noresult
+            )
+            # Or the score outcome of the game being around 1.5 sigma more than expected
+            # Add a small amount to the variance to avoid division by zero or overly small numbers
+            longterm_score_stdevs_excess = (target_global_nc[:, 3] - pred_scoremean.detach()) / torch.sqrt(torch.square(pred_scorestdev.detach()) + 0.25)
+            target_weight_longoptimistic_policy = torch.clamp(
+                win_squared + torch.sigmoid((longterm_score_stdevs_excess - 1.5) * 3.0),
+                min=0.0,
+                max=1.0,
+            )
+            target_weight_longoptimistic_policy = (
+                target_weight_longoptimistic_policy
+                * target_weight_policy_player # game has normal target
+                * target_weight_ownership # and also actually ended in full ownership and score, not a sidepos
+            )
+            loss_longoptimistic_policy = self.loss_policy_player_samplewise(
+                policy_logits[:, 4, :],
+                target_policy_player,
+                target_weight_longoptimistic_policy,
+                global_weight,
+            ).sum()
+
+        assert len(loss_longoptimistic_policy.shape) == 0
+        assert len(target_weight_longoptimistic_policy.shape) == 1
+        assert target_weight_longoptimistic_policy.shape[0] == n
+        target_weight_longoptimistic_policy_sum = (global_weight * target_weight_longoptimistic_policy).sum()
+
+        if raw_model.config["version"] <= 11:
+            target_weight_shortoptimistic_policy = torch.zeros_like(global_weight)
+            loss_shortoptimistic_policy = torch.zeros_like(loss_policy_player)
+        else:
+            # Short-term optimistic policy. Weight policy by:
+            # The shortterm value outcome being around 1.5 sigma more than expected
+            # Add a small amount to the variance to avoid division by zero or overly small numbers
+            shortterm_value_actual = target_global_nc[:, 12] - target_global_nc[:, 13]
+            shortterm_value_pred = torch.nn.functional.softmax(td_value_logits[:, 2, :].detach(), dim=1)
+            shortterm_value_pred = shortterm_value_pred[:, 0] - shortterm_value_pred[:, 1]
+            shortterm_value_stdevs_excess = (shortterm_value_actual - shortterm_value_pred) / torch.sqrt(pred_shortterm_value_error.detach() + 0.0001)
+            # Or the shortterm score outcome being around 1.5 sigma more than expected
+            # Add a small amount to the variance to avoid division by zero or overly small numbers
+            shortterm_score_stdevs_excess = (target_global_nc[:, 15] - pred_td_score[:,2].detach()) / torch.sqrt(pred_shortterm_score_error.detach() + 0.25)
+            target_weight_shortoptimistic_policy = torch.clamp(
+                torch.sigmoid((shortterm_value_stdevs_excess - 1.5) * 3.0) + torch.sigmoid((shortterm_score_stdevs_excess - 1.5) * 3.0),
+                min=0.0,
+                max=1.0,
+            )
+            target_weight_shortoptimistic_policy = (
+                target_weight_shortoptimistic_policy
+                * target_weight_policy_player # game has normal target
+                * target_weight_ownership # and also actually ended in full ownership and score, not a sidepos
+            )
+            loss_shortoptimistic_policy = self.loss_policy_player_samplewise(
+                policy_logits[:, 5, :],
+                target_policy_player,
+                target_weight_shortoptimistic_policy,
+                global_weight,
+            ).sum()
+
+        assert len(loss_shortoptimistic_policy.shape) == 0
+        assert len(target_weight_shortoptimistic_policy.shape) == 1
+        assert target_weight_shortoptimistic_policy.shape[0] == n
+        target_weight_shortoptimistic_policy_sum = (global_weight * target_weight_shortoptimistic_policy).sum()
+
 
         loss_value = self.loss_value_samplewise(
             value_logits, target_value, global_weight
@@ -631,10 +703,12 @@ class Metrics:
         ).sum()
 
         loss_sum = (
-            loss_policy_player
+            loss_policy_player * policy_opt_loss_scale
             + loss_policy_opponent
             + loss_policy_player_soft * soft_policy_weight_scale
             + loss_policy_opponent_soft * soft_policy_weight_scale
+            + loss_longoptimistic_policy * long_policy_opt_loss_scale
+            + loss_shortoptimistic_policy * short_policy_opt_loss_scale
             + loss_value * value_loss_scale
             + loss_td_value1 * td_value_loss_scales[0]
             + loss_td_value2 * td_value_loss_scales[1]
@@ -667,6 +741,10 @@ class Metrics:
             "p1loss_sum": loss_policy_opponent,
             "p0softloss_sum": loss_policy_player_soft,
             "p1softloss_sum": loss_policy_opponent_soft,
+            "p0lopt_sum": loss_longoptimistic_policy,
+            "p0loptw_sum": target_weight_longoptimistic_policy_sum,
+            "p0sopt_sum": loss_shortoptimistic_policy,
+            "p0soptw_sum": target_weight_shortoptimistic_policy_sum,
             "vloss_sum": loss_value,
             "tdvloss1_sum": loss_td_value1,
             "tdvloss2_sum": loss_td_value2,
@@ -722,231 +800,3 @@ class Metrics:
             for key,value in extra_results.items():
                 results[key] = value
             return results
-
-
-    def metrics_dict_self_distill(
-        self,
-        model_output_postprocessed_main,
-        model_output_postprocessed_inter,
-        batch,
-        soft_policy_weight_scale,
-        value_loss_scale,
-        td_value_loss_scales,
-    ):
-        (
-            policy_logits,
-            value_logits,
-            td_value_logits,
-            pred_td_score,
-            ownership_pretanh,
-            pred_scoring,
-            futurepos_pretanh,
-            _seki_logits,
-            pred_scoremean,
-            pred_scorestdev,
-            pred_lead,
-            pred_variance_time,
-            _pred_shortterm_value_error,
-            _pred_shortterm_score_error,
-            scorebelief_logits,
-        ) = model_output_postprocessed_inter
-
-        model_output_postprocessed_main = tuple(tensor.detach() for tensor in model_output_postprocessed_main)
-        (
-            target_policy_logits,
-            target_value_logits,
-            target_td_value_logits,
-            target_pred_td_score,
-            target_ownership_pretanh,
-            target_pred_scoring,
-            target_futurepos_pretanh,
-            _target_seki_logits,
-            target_pred_scoremean,
-            _target_pred_scorestdev,
-            target_pred_lead,
-            target_pred_variance_time,
-            _target_pred_shortterm_value_error,
-            _target_pred_shortterm_score_error,
-            target_scorebelief_logits,
-        ) = model_output_postprocessed_main
-
-        input_binary_nchw = batch["binaryInputNCHW"]
-        target_global_nc = batch["globalTargetsNC"]
-
-        target_policy_probs = torch.nn.functional.softmax(target_policy_logits, dim=2)
-        target_policy_player = target_policy_probs[:, 0, :]
-        target_policy_opponent = target_policy_probs[:, 1, :]
-        target_policy_player_soft = target_policy_probs[:, 2, :]
-        target_policy_opponent_soft = target_policy_probs[:, 3, :]
-
-        target_weight_policy_player = target_global_nc[:, 26]
-        target_weight_policy_opponent = target_global_nc[:, 28]
-
-        target_value = torch.nn.functional.softmax(target_value_logits, dim=1)
-        target_scoremean = target_pred_scoremean
-        target_td_value = torch.nn.functional.softmax(target_td_value_logits, dim=2)
-        target_td_score = target_pred_td_score
-
-        target_lead = target_pred_lead
-        target_variance_time = target_pred_variance_time
-        global_weight = target_global_nc[:, 25]
-        target_weight_ownership = target_global_nc[:, 27]
-        target_weight_lead = target_global_nc[:, 29]
-        target_weight_futurepos = target_global_nc[:, 33]
-        target_weight_scoring = target_global_nc[:, 34]
-
-        target_score_distribution = torch.nn.functional.softmax(target_scorebelief_logits, dim=1)
-
-        target_ownership = torch.tanh(target_ownership_pretanh).squeeze(1)
-        target_futurepos = torch.tanh(target_futurepos_pretanh).squeeze(1)
-        target_scoring = target_pred_scoring.squeeze(1)
-
-        mask = input_binary_nchw[:, 0, :, :].contiguous()
-        mask_sum_hw = torch.sum(mask,dim=(1,2))
-
-        loss_policy_player = self.loss_policy_player_samplewise(
-            policy_logits[:, 0, :],
-            target_policy_player,
-            target_weight_policy_player,
-            global_weight,
-        ).sum()
-        loss_policy_opponent = self.loss_policy_opponent_samplewise(
-            policy_logits[:, 1, :],
-            target_policy_opponent,
-            target_weight_policy_opponent,
-            global_weight,
-        ).sum()
-
-        loss_policy_player_soft = self.loss_policy_player_samplewise(
-            policy_logits[:, 2, :],
-            target_policy_player_soft,
-            target_weight_policy_player,
-            global_weight,
-        ).sum()
-        loss_policy_opponent_soft = self.loss_policy_opponent_samplewise(
-            policy_logits[:, 3, :],
-            target_policy_opponent_soft,
-            target_weight_policy_opponent,
-            global_weight,
-        ).sum()
-
-        loss_value = self.loss_value_samplewise(
-            value_logits, target_value, global_weight
-        ).sum()
-
-        loss_td_value_unsummed = self.loss_td_value_samplewise(
-            td_value_logits, target_td_value, global_weight
-        )
-        assert self.num_td_values == 3
-        loss_td_value1 = loss_td_value_unsummed[:,0].sum()
-        loss_td_value2 = loss_td_value_unsummed[:,1].sum()
-        loss_td_value3 = loss_td_value_unsummed[:,2].sum()
-
-        loss_td_score = self.loss_td_score_samplewise(
-            pred_td_score, target_td_score, target_weight_ownership, global_weight
-        ).sum()
-
-        loss_ownership = self.loss_ownership_samplewise(
-            ownership_pretanh,
-            target_ownership,
-            target_weight_ownership,
-            mask,
-            mask_sum_hw,
-            global_weight,
-        ).sum()
-        loss_scoring = self.loss_scoring_samplewise(
-            pred_scoring,
-            target_scoring,
-            target_weight_scoring,
-            mask,
-            mask_sum_hw,
-            global_weight,
-        ).sum()
-        loss_futurepos = self.loss_futurepos_samplewise(
-            futurepos_pretanh,
-            target_futurepos,
-            target_weight_futurepos,
-            mask,
-            mask_sum_hw,
-            global_weight,
-        ).sum()
-        loss_scoremean = self.loss_scoremean_samplewise(
-            pred_scoremean,
-            target_scoremean,
-            target_weight_ownership,
-            global_weight,
-        ).sum()
-        loss_scorebelief_cdf = self.loss_scorebelief_cdf_samplewise(
-            scorebelief_logits,
-            target_score_distribution,
-            target_weight_ownership,
-            global_weight,
-        ).sum()
-        loss_scorebelief_pdf = self.loss_scorebelief_pdf_samplewise(
-            scorebelief_logits,
-            target_score_distribution,
-            target_weight_ownership,
-            global_weight,
-        ).sum()
-        loss_scorestdev = self.loss_scorestdev_samplewise(
-            pred_scorestdev,
-            target_scorebelief_logits, # pred_scorestdev chases stdev of MAIN head's score belief
-            global_weight,
-        ).sum()
-        loss_lead = self.loss_lead_samplewise(
-            pred_lead,
-            target_lead,
-            target_weight_lead,
-            global_weight,
-        ).sum()
-        loss_variance_time = self.loss_variance_time_samplewise(
-            pred_variance_time,
-            target_variance_time,
-            target_weight_ownership,
-            global_weight,
-        ).sum()
-
-        loss_sum = (
-            loss_policy_player
-            + loss_policy_opponent
-            + loss_policy_player_soft * soft_policy_weight_scale
-            + loss_policy_opponent_soft * soft_policy_weight_scale
-            + loss_value * value_loss_scale
-            + loss_td_value1 * td_value_loss_scales[0]
-            + loss_td_value2 * td_value_loss_scales[1]
-            + loss_td_value3 * td_value_loss_scales[2]
-            + loss_td_score
-            + loss_ownership
-            + loss_scoring
-            + loss_futurepos
-            + loss_scoremean
-            + loss_scorebelief_cdf
-            + loss_scorebelief_pdf
-            + loss_scorestdev
-            + loss_lead
-            + loss_variance_time
-        )
-
-        results = {
-            "p0loss_sum": loss_policy_player,
-            "p1loss_sum": loss_policy_opponent,
-            "p0softloss_sum": loss_policy_player_soft,
-            "p1softloss_sum": loss_policy_opponent_soft,
-            "vloss_sum": loss_value,
-            "tdvloss1_sum": loss_td_value1,
-            "tdvloss2_sum": loss_td_value2,
-            "tdvloss3_sum": loss_td_value3,
-            "tdsloss_sum": loss_td_score,
-            "oloss_sum": loss_ownership,
-            "sloss_sum": loss_scoring,
-            "fploss_sum": loss_futurepos,
-            "smloss_sum": loss_scoremean,
-            "sbcdfloss_sum": loss_scorebelief_cdf,
-            "sbpdfloss_sum": loss_scorebelief_pdf,
-            "sdregloss_sum": loss_scorestdev,
-            "leadloss_sum": loss_lead,
-            "vtimeloss_sum": loss_variance_time,
-            "loss_sum": loss_sum,
-        }
-
-        return results

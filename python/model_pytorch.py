@@ -61,6 +61,32 @@ def init_weights(tensor, activation, scale, fan_tensor=None):
     else:
         torch.nn.init.trunc_normal_(tensor, mean=0.0, std=std, a=-2.0*std, b=2.0*std)
 
+class SoftPlusWithGradientFloorFunction(torch.autograd.Function):
+    """
+    Same as softplus, except on backward pass, we never let the gradient decrease below grad_floor.
+    Equivalent to having a dynamic learning rate depending on stop_grad(x) where x is the input.
+    If square, then also squares the result while halving the input, and still also keeping the same gradient.
+    """
+    @staticmethod
+    def forward(ctx, x: torch.Tensor, grad_floor: float, square: bool):
+        ctx.save_for_backward(x)
+        ctx.grad_floor = grad_floor # grad_floor is not a tensor
+        if square:
+            return torch.square(torch.nn.functional.softplus(0.5 * x))
+        else:
+            return torch.nn.functional.softplus(x)
+
+    @staticmethod
+    def backward(ctx, grad_output: torch.Tensor):
+        (x,) = ctx.saved_tensors
+        grad_floor = ctx.grad_floor
+        grad_x = None
+        grad_grad_floor = None
+        grad_square = None
+        if ctx.needs_input_grad[0]:
+            grad_x = grad_output * (grad_floor + (1.0 - grad_floor) / (1.0 + torch.exp(-x)))
+        return grad_x, grad_grad_floor, grad_square
+
 class BiasMask(torch.nn.Module):
     def __init__(
         self,
@@ -1042,7 +1068,16 @@ class PolicyHead(torch.nn.Module):
         super(PolicyHead, self).__init__()
         self.activation = activation
 
-        self.num_policy_outputs = 4
+        if config["version"] <= 11:
+            self.num_policy_outputs = 4
+        else:
+            self.num_policy_outputs = 6
+        # Output 0: policy prediction
+        # Output 1: opponent reply policy prediction
+        # Output 2: soft policy prediction
+        # Output 3: soft opponent reply policy prediction
+        # Output 4: long-term-optimistic policy prediction
+        # Output 5: short-term-optimistic policy prediction
 
         self.conv1p = torch.nn.Conv2d(c_in, c_p1, kernel_size=1, padding="same", bias=False)
         self.conv1g = torch.nn.Conv2d(c_in, c_g1, kernel_size=1, padding="same", bias=False)
@@ -1304,6 +1339,23 @@ class Model(torch.nn.Module):
         self.pos_len = pos_len
         self.for_coreml = for_coreml
 
+        if config["version"] <= 12:
+            self.td_score_multiplier = 20.0
+            self.scoremean_multiplier = 20.0
+            self.scorestdev_multiplier = 20.0
+            self.lead_multiplier = 20.0
+            self.variance_time_multiplier = 40.0
+            self.shortterm_value_error_multiplier = 0.25
+            self.shortterm_score_error_multiplier = 30.0
+        else:
+            self.td_score_multiplier = 20.0
+            self.scoremean_multiplier = 20.0
+            self.scorestdev_multiplier = 20.0
+            self.lead_multiplier = 20.0
+            self.variance_time_multiplier = 40.0
+            self.shortterm_value_error_multiplier = 0.25
+            self.shortterm_score_error_multiplier = 150.0
+
         self.trunk_normless = "trunk_normless" in config and config["trunk_normless"]
 
         if "has_intermediate_head" in config and config["has_intermediate_head"]:
@@ -1527,7 +1579,7 @@ class Model(torch.nn.Module):
             self.intermediate_value_head.add_brenorm_clippage(upper_rclippage, lower_rclippage, dclippage)
 
     # Returns a tuple of tuples of outputs
-    # The outer tuple indexes different sets of heads, such as if the net also computes intermediate heads for self-distillation.
+    # The outer tuple indexes different sets of heads, such as if the net also computes intermediate heads.
     #   0 is the main output, 1 is intermediate.
     # The inner tuple ranges over the outputs of a set of heads (policy, value, etc).
     def forward(self, input_spatial, input_global):
@@ -1695,17 +1747,21 @@ class Model(torch.nn.Module):
         policy_logits = out_policy
         value_logits = out_value
         td_value_logits = torch.stack((out_miscvalue[:,4:7], out_miscvalue[:,7:10], out_moremiscvalue[:,2:5]), dim=1)
-        pred_td_score = out_moremiscvalue[:,5:8] * 20.0
+        pred_td_score = out_moremiscvalue[:,5:8] * self.td_score_multiplier
         ownership_pretanh = out_ownership
         pred_scoring = out_scoring
         futurepos_pretanh = out_futurepos
         seki_logits = out_seki
-        pred_scoremean = out_miscvalue[:, 0] * 20.0
-        pred_scorestdev = torch.nn.functional.softplus(out_miscvalue[:, 1]) * 20.0
-        pred_lead = out_miscvalue[:, 2] * 20.0
-        pred_variance_time = torch.nn.functional.softplus(out_miscvalue[:, 3]) * 40.0
-        pred_shortterm_value_error = torch.nn.functional.softplus(out_moremiscvalue[:,0]) * 0.25
-        pred_shortterm_score_error = torch.nn.functional.softplus(out_moremiscvalue[:,1]) * 30.0
+        pred_scoremean = out_miscvalue[:, 0] * self.scoremean_multiplier
+        pred_scorestdev = SoftPlusWithGradientFloorFunction.apply(out_miscvalue[:, 1], 0.05, False) * self.scorestdev_multiplier
+        pred_lead = out_miscvalue[:, 2] * self.lead_multiplier
+        pred_variance_time = SoftPlusWithGradientFloorFunction.apply(out_miscvalue[:, 3], 0.05, False) * self.variance_time_multiplier
+        if self.config["version"] < 14:
+            pred_shortterm_value_error = SoftPlusWithGradientFloorFunction.apply(out_moremiscvalue[:,0], 0.05, False) * self.shortterm_value_error_multiplier
+            pred_shortterm_score_error = SoftPlusWithGradientFloorFunction.apply(out_moremiscvalue[:,1], 0.05, False) * self.shortterm_score_error_multiplier
+        else:
+            pred_shortterm_value_error = SoftPlusWithGradientFloorFunction.apply(out_moremiscvalue[:,0], 0.05, True) * self.shortterm_value_error_multiplier
+            pred_shortterm_score_error = SoftPlusWithGradientFloorFunction.apply(out_moremiscvalue[:,1], 0.05, True) * self.shortterm_score_error_multiplier
         scorebelief_logits = out_scorebelief_logprobs
 
         return (
@@ -1725,4 +1781,3 @@ class Model(torch.nn.Module):
             pred_shortterm_score_error, # N
             scorebelief_logits, # N, 2 * (self.pos_len*self.pos_len + EXTRA_SCORE_DISTR_RADIUS)
         )
-

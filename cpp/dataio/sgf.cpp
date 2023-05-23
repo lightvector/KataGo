@@ -626,21 +626,55 @@ void Sgf::iterAllUniquePositions(
 
   PositionSample sampleBuf;
   std::vector<std::pair<int64_t,int64_t>> variationTraceNodesBranch;
-  iterAllUniquePositionsHelper(
-    board,hist,nextPla,rules,xSize,ySize,sampleBuf,0,uniqueHashes,hashComments,hashParent,flipIfPassOrWFirst,allowGameOver,rand,variationTraceNodesBranch,f
+  bool isRoot = true;
+  bool requireUnique = true;
+  iterAllPositionsHelper(
+    board,hist,nextPla,rules,xSize,ySize,sampleBuf,0,uniqueHashes,requireUnique,hashComments,hashParent,flipIfPassOrWFirst,allowGameOver,isRoot,rand,variationTraceNodesBranch,f
+  );
+}
+void Sgf::iterAllPositions(
+  bool flipIfPassOrWFirst,
+  bool allowGameOver,
+  Rand* rand,
+  std::function<void(PositionSample&,const BoardHistory&,const std::string&)> f
+) const {
+  XYSize size = getXYSize();
+  int xSize = size.x;
+  int ySize = size.y;
+
+  Board board(xSize,ySize);
+  Player nextPla = nodes.size() > 0 ? nodes[0]->getPLSpecifiedColor() : C_EMPTY;
+  if(nextPla == C_EMPTY)
+    nextPla = C_BLACK;
+  Rules rules = Rules::getTrompTaylorish();
+  rules.koRule = Rules::KO_SITUATIONAL;
+  rules.multiStoneSuicideLegal = true;
+  BoardHistory hist(board,nextPla,rules,0);
+
+  PositionSample sampleBuf;
+  std::vector<std::pair<int64_t,int64_t>> variationTraceNodesBranch;
+  std::set<Hash128> uniqueHashes;
+  bool isRoot = true;
+  bool requireUnique = false;
+  bool hashComments = false;
+  bool hashParent = false;
+  iterAllPositionsHelper(
+    board,hist,nextPla,rules,xSize,ySize,sampleBuf,0,uniqueHashes,requireUnique,hashComments,hashParent,flipIfPassOrWFirst,allowGameOver,isRoot,rand,variationTraceNodesBranch,f
   );
 }
 
-void Sgf::iterAllUniquePositionsHelper(
+void Sgf::iterAllPositionsHelper(
   Board& board, BoardHistory& hist, Player nextPla,
   const Rules& rules, int xSize, int ySize,
   PositionSample& sampleBuf,
   int initialTurnNumber,
   std::set<Hash128>& uniqueHashes,
+  bool requireUnique,
   bool hashComments,
   bool hashParent,
   bool flipIfPassOrWFirst,
   bool allowGameOver,
+  bool isRoot,
   Rand* rand,
   std::vector<std::pair<int64_t,int64_t>>& variationTraceNodesBranch,
   std::function<void(PositionSample&,const BoardHistory&,const std::string&)> f
@@ -651,6 +685,11 @@ void Sgf::iterAllUniquePositionsHelper(
     string comments;
     if(nodes[i]->hasProperty("C"))
       comments = nodes[i]->getSingleProperty("C");
+
+    //Do the root node even if it has no placements since nothing else will do it.
+    if(isRoot && i == 0 && !nodes[i]->hasPlacements()) {
+      samplePositionHelper(board,hist,nextPla,sampleBuf,initialTurnNumber,uniqueHashes,requireUnique,hashComments,hashParent,flipIfPassOrWFirst,allowGameOver,comments,f);
+    }
 
     //Handle placements
     if(nodes[i]->hasPlacements()) {
@@ -692,8 +731,9 @@ void Sgf::iterAllUniquePositionsHelper(
           initialTurnNumber = board.numStonesOnBoard();
 
         hist.clear(board,nextPla,rules,0);
+        hist.setInitialTurnNumber(initialTurnNumber);
       }
-      samplePositionIfUniqueHelper(board,hist,nextPla,sampleBuf,initialTurnNumber,uniqueHashes,hashComments,hashParent,flipIfPassOrWFirst,allowGameOver,comments,f);
+      samplePositionHelper(board,hist,nextPla,sampleBuf,initialTurnNumber,uniqueHashes,requireUnique,hashComments,hashParent,flipIfPassOrWFirst,allowGameOver,comments,f);
     }
 
     //Handle actual moves
@@ -722,7 +762,7 @@ void Sgf::iterAllUniquePositionsHelper(
       if(hist.moveHistory.size() > 0x3FFFFFFF)
         throw StringError("too many moves in sgf");
       nextPla = getOpp(buf[j].pla);
-      samplePositionIfUniqueHelper(board,hist,nextPla,sampleBuf,initialTurnNumber,uniqueHashes,hashComments,hashParent,flipIfPassOrWFirst,allowGameOver,comments,f);
+      samplePositionHelper(board,hist,nextPla,sampleBuf,initialTurnNumber,uniqueHashes,requireUnique,hashComments,hashParent,flipIfPassOrWFirst,allowGameOver,comments,f);
     }
   }
 
@@ -742,19 +782,20 @@ void Sgf::iterAllUniquePositionsHelper(
     std::unique_ptr<Board> copy = std::make_unique<Board>(board);
     std::unique_ptr<BoardHistory> histCopy = std::make_unique<BoardHistory>(hist);
     variationTraceNodesBranch.push_back(std::make_pair((int64_t)nodes.size(),(int64_t)i));
-    children[i]->iterAllUniquePositionsHelper(
-      *copy,*histCopy,nextPla,rules,xSize,ySize,sampleBuf,initialTurnNumber,uniqueHashes,hashComments,hashParent,flipIfPassOrWFirst,allowGameOver,rand,variationTraceNodesBranch,f
+    children[i]->iterAllPositionsHelper(
+      *copy,*histCopy,nextPla,rules,xSize,ySize,sampleBuf,initialTurnNumber,uniqueHashes,requireUnique,hashComments,hashParent,flipIfPassOrWFirst,allowGameOver,false,rand,variationTraceNodesBranch,f
     );
     assert(variationTraceNodesBranch.size() > 0);
     variationTraceNodesBranch.erase(variationTraceNodesBranch.begin()+(variationTraceNodesBranch.size()-1));
   }
 }
 
-void Sgf::samplePositionIfUniqueHelper(
+void Sgf::samplePositionHelper(
   Board& board, BoardHistory& hist, Player nextPla,
   PositionSample& sampleBuf,
   int initialTurnNumber,
   std::set<Hash128>& uniqueHashes,
+  bool requireUnique,
   bool hashComments,
   bool hashParent,
   bool flipIfPassOrWFirst,
@@ -795,7 +836,7 @@ void Sgf::samplePositionIfUniqueHelper(
     situationHash ^= mixed;
   }
 
-  if(contains(uniqueHashes,situationHash))
+  if(requireUnique && contains(uniqueHashes,situationHash))
     return;
   uniqueHashes.insert(situationHash);
 
@@ -825,6 +866,7 @@ void Sgf::samplePositionIfUniqueHelper(
   sampleBuf.moves.clear();
   for(int i = startTurnIdx; i<(int)hist.moveHistory.size(); i++)
     sampleBuf.moves.push_back(hist.moveHistory[i]);
+  assert(hist.initialTurnNumber == initialTurnNumber);
   sampleBuf.initialTurnNumber = initialTurnNumber + startTurnIdx;
   sampleBuf.hintLoc = Board::NULL_LOC;
   sampleBuf.weight = 1.0;
@@ -896,6 +938,8 @@ string Sgf::PositionSample::toJsonLine(const Sgf::PositionSample& sample) {
   data["weight"] = sample.weight;
   if(sample.metadata.size() > 0)
     data["metadata"] = sample.metadata;
+  if(sample.trainingWeight != 1.0)
+    data["trainingWeight"] = sample.trainingWeight;
   return data.dump();
 }
 
@@ -933,6 +977,11 @@ Sgf::PositionSample Sgf::PositionSample::ofJsonLine(const string& s) {
       sample.metadata = data["metadata"].get<string>();
     else
       sample.metadata = string();
+
+    if(data.find("trainingWeight") != data.end())
+      sample.trainingWeight = data["trainingWeight"].get<double>();
+    else
+      sample.trainingWeight = 1.0;
   }
   catch(nlohmann::detail::exception& e) {
     throw StringError("Error parsing position sample json\n" + s + "\n" + e.what());
@@ -961,10 +1010,13 @@ Sgf::PositionSample Sgf::PositionSample::getColorFlipped() const {
   return other;
 }
 
+bool Sgf::PositionSample::hasPreviousPositions(int numPrevious) const {
+  return moves.size() >= numPrevious;
+}
+
 Sgf::PositionSample Sgf::PositionSample::previousPosition(double newWeight) const {
   Sgf::PositionSample other = *this;
   if(other.moves.size() > 0) {
-    other.nextPla = other.moves[other.moves.size()-1].pla;
     other.moves.pop_back();
     other.hintLoc = Board::NULL_LOC;
     other.weight = newWeight;

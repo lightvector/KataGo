@@ -327,6 +327,7 @@ struct GTPEngine {
   const bool assumeMultipleStartingBlackMovesAreHandicap;
   const int analysisPVLen;
   const bool preventEncore;
+  const bool autoAvoidPatterns;
 
   const double dynamicPlayoutDoublingAdvantageCapPerOppLead;
   double staticPlayoutDoublingAdvantage;
@@ -364,10 +365,12 @@ struct GTPEngine {
   Player perspective;
 
   double genmoveTimeSum;
+  //Positions during this game when genmove was called
+  std::vector<Sgf::PositionSample> genmoveSamples;
 
   GTPEngine(
     const string& modelFile, SearchParams initialParams, Rules initialRules,
-    bool assumeMultiBlackHandicap, bool prevtEncore,
+    bool assumeMultiBlackHandicap, bool prevtEncore, bool autoPattern,
     double dynamicPDACapPerOppLead, double staticPDA, bool staticPDAPrecedence,
     double normAvoidRepeatedPatternUtility, double hcapAvoidRepeatedPatternUtility,
     bool avoidDagger,
@@ -380,6 +383,7 @@ struct GTPEngine {
      assumeMultipleStartingBlackMovesAreHandicap(assumeMultiBlackHandicap),
      analysisPVLen(pvLen),
      preventEncore(prevtEncore),
+     autoAvoidPatterns(autoPattern),
      dynamicPlayoutDoublingAdvantageCapPerOppLead(dynamicPDACapPerOppLead),
      staticPlayoutDoublingAdvantage(staticPDA),
      staticPDATakesPrecedence(staticPDAPrecedence),
@@ -404,7 +408,8 @@ struct GTPEngine {
      avoidMYTDaggerHack(avoidDagger),
      patternBonusTable(std::move(pbTable)),
      perspective(persp),
-     genmoveTimeSum(0.0)
+     genmoveTimeSum(0.0),
+     genmoveSamples()
   {
   }
 
@@ -423,23 +428,10 @@ struct GTPEngine {
   }
 
   void clearStatsForNewGame() {
-    //Currently nothing
   }
 
   //Specify -1 for the sizes for a default
   void setOrResetBoardSize(ConfigParser& cfg, Logger& logger, Rand& seedRand, int boardXSize, int boardYSize, bool loggingToStderr) {
-    if(nnEval != NULL && boardXSize == nnEval->getNNXLen() && boardYSize == nnEval->getNNYLen())
-      return;
-    if(nnEval != NULL) {
-      assert(bot != NULL);
-      bot->stopAndWait();
-      delete bot;
-      delete nnEval;
-      bot = NULL;
-      nnEval = NULL;
-      logger.write("Cleaned up old neural net and bot");
-    }
-
     bool wasDefault = false;
     if(boardXSize == -1 || boardYSize == -1) {
       boardXSize = Board::DEFAULT_LEN;
@@ -447,32 +439,47 @@ struct GTPEngine {
       wasDefault = true;
     }
 
-    const int maxConcurrentEvals = params.numThreads * 2 + 16; // * 2 + 16 just to give plenty of headroom
-    const int expectedConcurrentEvals = params.numThreads;
-    const int defaultMaxBatchSize = std::max(8,((params.numThreads+3)/4)*4);
     bool defaultRequireExactNNLen = true;
-    int nnLenX = boardXSize;
-    int nnLenY = boardYSize;
-    
-    if(cfg.contains("gtpDebugForceMaxNNSize") && cfg.getBool("gtpDebugForceMaxNNSize")) {
-      defaultRequireExactNNLen = false;
-      nnLenX = Board::MAX_LEN;
-      nnLenY = Board::MAX_LEN;
-    }
-    const bool disableFP16 = false;
-    const string expectedSha256 = "";
-    nnEval = Setup::initializeNNEvaluator(
-      nnModelFile,nnModelFile,expectedSha256,cfg,logger,seedRand,maxConcurrentEvals,expectedConcurrentEvals,
-      nnLenX,nnLenY,defaultMaxBatchSize,defaultRequireExactNNLen,disableFP16,
-      Setup::SETUP_FOR_GTP
-    );
-    logger.write("Loaded neural net with nnXLen " + Global::intToString(nnEval->getNNXLen()) + " nnYLen " + Global::intToString(nnEval->getNNYLen()));
+    int nnXLen = boardXSize;
+    int nnYLen = boardYSize;
 
-    {
-      bool rulesWereSupported;
-      nnEval->getSupportedRules(currentRules,rulesWereSupported);
-      if(!rulesWereSupported) {
-        throw StringError("Rules " + currentRules.toJsonStringNoKomi() + " from config file " + cfg.getFileName() + " are NOT supported by neural net");
+    if(cfg.contains("gtpForceMaxNNSize") && cfg.getBool("gtpForceMaxNNSize")) {
+      defaultRequireExactNNLen = false;
+      nnXLen = Board::MAX_LEN;
+      nnYLen = Board::MAX_LEN;
+    }
+
+    //If the neural net is wrongly sized, we need to create or recreate it
+    if(nnEval == NULL || !(nnXLen == nnEval->getNNXLen() && nnYLen == nnEval->getNNYLen())) {
+
+      if(nnEval != NULL) {
+        assert(bot != NULL);
+        bot->stopAndWait();
+        delete bot;
+        delete nnEval;
+        bot = NULL;
+        nnEval = NULL;
+        logger.write("Cleaned up old neural net and bot");
+      }
+
+      const int maxConcurrentEvals = params.numThreads * 2 + 16; // * 2 + 16 just to give plenty of headroom
+      const int expectedConcurrentEvals = params.numThreads;
+      const int defaultMaxBatchSize = std::max(8,((params.numThreads+3)/4)*4);
+      const bool disableFP16 = false;
+      const string expectedSha256 = "";
+      nnEval = Setup::initializeNNEvaluator(
+        nnModelFile,nnModelFile,expectedSha256,cfg,logger,seedRand,maxConcurrentEvals,expectedConcurrentEvals,
+        nnXLen,nnYLen,defaultMaxBatchSize,defaultRequireExactNNLen,disableFP16,
+        Setup::SETUP_FOR_GTP
+      );
+      logger.write("Loaded neural net with nnXLen " + Global::intToString(nnEval->getNNXLen()) + " nnYLen " + Global::intToString(nnEval->getNNYLen()));
+
+      {
+        bool rulesWereSupported;
+        nnEval->getSupportedRules(currentRules,rulesWereSupported);
+        if(!rulesWereSupported) {
+          throw StringError("Rules " + currentRules.toJsonStringNoKomi() + " from config file " + cfg.getFileName() + " are NOT supported by neural net");
+        }
       }
     }
 
@@ -482,25 +489,43 @@ struct GTPEngine {
       boardXSize = nnEval->getNNXLen();
       boardYSize = nnEval->getNNYLen();
     }
-    logger.write("Initializing board with boardXSize " + Global::intToString(boardXSize) + " boardYSize " + Global::intToString(boardYSize));
-    if(!loggingToStderr)
-      cerr << ("Initializing board with boardXSize " + Global::intToString(boardXSize) + " boardYSize " + Global::intToString(boardYSize)) << endl;
 
-    string searchRandSeed;
-    if(cfg.contains("searchRandSeed"))
-      searchRandSeed = cfg.getString("searchRandSeed");
-    else
-      searchRandSeed = Global::uint64ToString(seedRand.nextUInt64());
+    //If the bot is wrongly sized, we need to create or recreate the bot
+    if(bot == NULL || bot->getRootBoard().x_size != boardXSize || bot->getRootBoard().y_size != boardYSize) {
+      if(bot != NULL) {
+        assert(bot != NULL);
+        bot->stopAndWait();
+        delete bot;
+        bot = NULL;
+        logger.write("Cleaned up old bot");
+      }
 
-    bot = new AsyncBot(params, nnEval, &logger, searchRandSeed);
-    bot->setCopyOfExternalPatternBonusTable(patternBonusTable);
+      logger.write("Initializing board with boardXSize " + Global::intToString(boardXSize) + " boardYSize " + Global::intToString(boardYSize));
+      if(!loggingToStderr)
+        cerr << ("Initializing board with boardXSize " + Global::intToString(boardXSize) + " boardYSize " + Global::intToString(boardYSize)) << endl;
 
-    Board board(boardXSize,boardYSize);
-    Player pla = P_BLACK;
-    BoardHistory hist(board,pla,currentRules,0);
-    vector<Move> newMoveHistory;
-    setPositionAndRules(pla,board,hist,board,pla,newMoveHistory);
-    clearStatsForNewGame();
+      string searchRandSeed;
+      if(cfg.contains("searchRandSeed"))
+        searchRandSeed = cfg.getString("searchRandSeed");
+      else
+        searchRandSeed = Global::uint64ToString(seedRand.nextUInt64());
+
+      bot = new AsyncBot(params, nnEval, &logger, searchRandSeed);
+      bot->setCopyOfExternalPatternBonusTable(patternBonusTable);
+
+      Board board(boardXSize,boardYSize);
+      Player pla = P_BLACK;
+      BoardHistory hist(board,pla,currentRules,0);
+      vector<Move> newMoveHistory;
+      setPositionAndRules(pla,board,hist,board,pla,newMoveHistory);
+      clearStatsForNewGame();
+    }
+  }
+
+  void setPatternBonusTable(std::unique_ptr<PatternBonusTable>&& pbTable) {
+    patternBonusTable = std::move(pbTable);
+    if(bot != nullptr)
+      bot->setCopyOfExternalPatternBonusTable(patternBonusTable);
   }
 
   void setPositionAndRules(Player pla, const Board& board, const BoardHistory& h, const Board& newInitialBoard, Player newInitialPla, const vector<Move> newMoveHistory) {
@@ -588,6 +613,12 @@ struct GTPEngine {
   }
   void setMaxTime(double maxTime) {
     params.maxTime = maxTime;
+    bot->setParams(params);
+    bot->clearSearch();
+  }
+  void setPolicyOptimism(double x) {
+    params.policyOptimism = x;
+    params.rootPolicyOptimism = x;
     bot->setParams(params);
     bot->clearSearch();
   }
@@ -1053,7 +1084,7 @@ struct GTPEngine {
         winrate = 1.0 - winrate;
         leadForPrinting = -leadForPrinting;
       }
-      cerr << "CHAT:"
+      cerr << "MALKOVICH:"
            << "Visits " << visits
            << " Winrate " << Global::strprintf("%.2f%%", winrate * 100.0)
            << " ScoreLead " << Global::strprintf("%.1f", leadForPrinting)
@@ -1096,6 +1127,18 @@ struct GTPEngine {
       response = "resign";
     else
       response = Location::toString(moveLoc,bot->getRootBoard());
+
+    if(autoAvoidPatterns) {
+      // Auto pattern expects moveless records using hintloc to contain the move.
+      Sgf::PositionSample posSample;
+      const BoardHistory& hist = bot->getRootHist();
+      posSample.board = bot->getRootBoard();
+      posSample.nextPla = pla;
+      posSample.initialTurnNumber = hist.initialTurnNumber + (int)hist.moveHistory.size();
+      posSample.hintLoc = moveLoc;
+      posSample.weight = 1.0;
+      genmoveSamples.push_back(posSample);
+    }
 
     if(!resigned && moveLoc != Board::NULL_LOC && isLegal && playChosenMove) {
       bool suc = bot->makeMove(moveLoc,pla,preventEncore);
@@ -1387,7 +1430,7 @@ struct GTPEngine {
     return Global::trim(policyStr + "\n" + wlStr + "\n" + leadStr);
   }
 
-  string rawNN(int whichSymmetry) {
+  string rawNN(int whichSymmetry, double policyOptimism) {
     if(nnEval == NULL)
       return "";
     ostringstream out;
@@ -1403,6 +1446,7 @@ struct GTPEngine {
           (params.playoutDoublingAdvantagePla == C_EMPTY || params.playoutDoublingAdvantagePla == nextPla) ?
           staticPlayoutDoublingAdvantage : -staticPlayoutDoublingAdvantage;
         nnInputParams.symmetry = symmetry;
+        nnInputParams.policyOptimism = policyOptimism;
         NNResultBuf buf;
         bool skipCache = true;
         bool includeOwnerMap = true;
@@ -1774,11 +1818,24 @@ int MainCmds::gtp(const vector<string>& args) {
     patternBonusTable = std::move(tables[0]);
   }
 
+  bool autoAvoidPatterns = false;
+  {
+    std::unique_ptr<PatternBonusTable> autoTable = Setup::loadAndPruneAutoPatternBonusTables(cfg,logger);
+    if(autoTable != nullptr && patternBonusTable != nullptr)
+      throw StringError("Providing both sgf avoid patterns and auto avoid patterns is not implemented right now");
+    if(autoTable != nullptr) {
+      autoAvoidPatterns = true;
+      patternBonusTable = std::move(autoTable);
+    }
+  }
+  // Toggled to true every time we save, toggled back to false once we do load.
+  bool shouldReloadAutoAvoidPatterns = false;
+
   Player perspective = Setup::parseReportAnalysisWinrates(cfg,C_EMPTY);
 
   GTPEngine* engine = new GTPEngine(
     nnModelFile,initialParams,initialRules,
-    assumeMultipleStartingBlackMovesAreHandicap,preventEncore,
+    assumeMultipleStartingBlackMovesAreHandicap,preventEncore,autoAvoidPatterns,
     dynamicPlayoutDoublingAdvantageCapPerOppLead,
     staticPlayoutDoublingAdvantage,staticPDATakesPrecedence,
     normalAvoidRepeatedPatternUtility, handicapAvoidRepeatedPatternUtility,
@@ -1789,6 +1846,22 @@ int MainCmds::gtp(const vector<string>& args) {
     std::move(patternBonusTable)
   );
   engine->setOrResetBoardSize(cfg,logger,seedRand,defaultBoardXSize,defaultBoardYSize,logger.isLoggingToStderr());
+
+  auto maybeSaveAvoidPatterns = [&](bool forceSave) {
+    if(engine != NULL && autoAvoidPatterns) {
+      int samplesPerSave = 200;
+      if(cfg.contains("autoAvoidRepeatSaveChunkSize"))
+        samplesPerSave = cfg.getInt("autoAvoidRepeatSaveChunkSize",1,10000);
+
+      if(forceSave || engine->genmoveSamples.size() >= samplesPerSave) {
+        bool suc = Setup::saveAutoPatternBonusData(engine->genmoveSamples, cfg, logger, seedRand);
+        if(suc) {
+          engine->genmoveSamples.clear();
+          shouldReloadAutoAvoidPatterns = true;
+        }
+      }
+    }
+  };
 
   //If nobody specified any time limit in any way, then assume a relatively fast time control
   if(!cfg.contains("maxPlayouts") && !cfg.contains("maxVisits") && !cfg.contains("maxTime")) {
@@ -1914,11 +1987,13 @@ int MainCmds::gtp(const vector<string>& args) {
     }
 
     else if(command == "quit") {
+      maybeSaveAvoidPatterns(true);
       shouldQuitAfterResponse = true;
       logger.write("Quit requested by controller");
     }
 
     else if(command == "boardsize" || command == "rectangular_boardsize") {
+      maybeSaveAvoidPatterns(false);
       int newXSize = 0;
       int newYSize = 0;
       bool suc = false;
@@ -1959,6 +2034,12 @@ int MainCmds::gtp(const vector<string>& args) {
     }
 
     else if(command == "clear_board") {
+      maybeSaveAvoidPatterns(false);
+      if(autoAvoidPatterns && shouldReloadAutoAvoidPatterns) {
+        std::unique_ptr<PatternBonusTable> autoTable = Setup::loadAndPruneAutoPatternBonusTables(cfg,logger);
+        engine->setPatternBonusTable(std::move(autoTable));
+        shouldReloadAutoAvoidPatterns = false;
+      }
       engine->clearBoard();
     }
 
@@ -2199,6 +2280,14 @@ int MainCmds::gtp(const vector<string>& args) {
           else {
             responseIsError = true;
             response = "Invalid value for " + pieces[0] + ", must be integer from 1 to 2^50";
+          }
+        }
+        else if(pieces[0] == "policyOptimism") {
+          if(Global::tryStringToDouble(pieces[1],d) && d >= 0 && d <= 1)
+            engine->setPolicyOptimism(d);
+          else {
+            responseIsError = true;
+            response = "Invalid value for " + pieces[0] + ", must be integer from 1 to 1024";
           }
         }
         else {
@@ -2522,6 +2611,7 @@ int MainCmds::gtp(const vector<string>& args) {
           initialStones.push_back(Move(loc,pla));
         }
         if(!responseIsError) {
+          maybeSaveAvoidPatterns(false);
           bool suc = engine->setPosition(initialStones);
           if(!suc) {
             responseIsError = true;
@@ -2635,6 +2725,7 @@ int MainCmds::gtp(const vector<string>& args) {
         response = "Board is not empty";
       }
       else {
+        maybeSaveAvoidPatterns(false);
         engine->placeFixedHandicap(n,response,responseIsError);
       }
     }
@@ -2658,6 +2749,7 @@ int MainCmds::gtp(const vector<string>& args) {
         response = "Board is not empty";
       }
       else {
+        maybeSaveAvoidPatterns(false);
         engine->placeFreeHandicap(n,response,responseIsError,seedRand);
       }
     }
@@ -2687,6 +2779,7 @@ int MainCmds::gtp(const vector<string>& args) {
           response = "Handicap placement is invalid";
         }
         else {
+          maybeSaveAvoidPatterns(false);
           Player pla = P_WHITE;
           BoardHistory hist(board,pla,engine->getCurrentRules(),0);
           hist.setInitialTurnNumber(board.numStonesOnBoard()); //Should give more accurate temperaure and time control behavior
@@ -2875,6 +2968,7 @@ int MainCmds::gtp(const vector<string>& args) {
               if(!logger.isLoggingToStderr())
                 cerr << out.str() << endl;
             }
+            maybeSaveAvoidPatterns(false);
             engine->setOrResetBoardSize(cfg,logger,seedRand,sgfBoard.x_size,sgfBoard.y_size,logger.isLoggingToStderr());
             engine->setPositionAndRules(sgfNextPla, sgfBoard, sgfHist, sgfInitialBoard, sgfInitialNextPla, sgfHist.moveHistory);
           }
@@ -2946,20 +3040,32 @@ int MainCmds::gtp(const vector<string>& args) {
     else if(command == "kata-raw-nn") {
       int whichSymmetry = NNInputs::SYMMETRY_ALL;
       bool parsed = false;
-      if(pieces.size() == 1) {
+      if(pieces.size() == 1 || pieces.size() == 2) {
         string s = Global::trim(Global::toLower(pieces[0]));
         if(s == "all")
           parsed = true;
         else if(Global::tryStringToInt(s,whichSymmetry) && whichSymmetry >= 0 && whichSymmetry <= SymmetryHelpers::NUM_SYMMETRIES-1)
           parsed = true;
       }
-
       if(!parsed) {
         responseIsError = true;
         response = "Expected one argument 'all' or symmetry index [0-7] for kata-raw-nn but got '" + Global::concat(pieces," ") + "'";
       }
       else {
-        response = engine->rawNN(whichSymmetry);
+        double policyOptimism = engine->params.rootPolicyOptimism;
+        if(pieces.size() == 2) {
+          parsed = false;
+          if(Global::tryStringToDouble(pieces[0],policyOptimism) && isnan(policyOptimism) && policyOptimism >= 0.0 && policyOptimism <= 1.0) {
+            parsed = true;
+          }
+        }
+        if(!parsed) {
+          responseIsError = true;
+          response = "Expected double from 0 to 1 for optimism but got '" + Global::concat(pieces," ") + "'";
+        }
+        else {
+          response = engine->rawNN(whichSymmetry, policyOptimism);
+        }
       }
     }
 
@@ -3135,6 +3241,7 @@ int MainCmds::gtp(const vector<string>& args) {
 
   } //Close read loop
 
+  maybeSaveAvoidPatterns(true);
   delete engine;
   engine = NULL;
   NeuralNet::globalCleanup();

@@ -9,11 +9,11 @@
 
 ## Current Status
 
-As of 2021, KataGo's is currently on its first public distributed run, "kata1"! The website, where you can download the latest networks and find instructions to contribute if you wish, is here:
+As of 2023, KataGo's is currently continuing its public distributed run, "kata1"! The website, where you can download the latest networks and find instructions to contribute if you wish, is here:
 
 https://katagotraining.org/
 
-This run, continuing from the peak of KataGo's g170 run, has already improved in strength a bit, with hopefully much further room to improve. As of mid-January, KataGo appears able to win variously more than 80% or 90% of games against various classic and benchmark opponents even with a large handicap in computation power allowed, as well as performing favorably against the peak of its older 170 run! See [here](https://lifein19x19.com/viewtopic.php?p=262982#p262982) for some results.
+This run, continuing from the peak of KataGo's g170 run, has already improved in strength a bit, with hopefully much further room to improve. KataGo is able to win variously more than 80% or 90% of games against various classic and benchmark opponents even with a large handicap in computation power allowed, as well as performing favorably against the peak of its older 170 run. See [here](https://lifein19x19.com/viewtopic.php?p=262982#p262982) for some results.
 
 ## History
 

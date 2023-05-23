@@ -49,6 +49,9 @@ J15 0
 G11 0
 F5 0
 F6 0
+getSharpScore -0.225306
+avg WL error 0.0862703
+avg score error 0.875354
 MoveNum: 16 HASH: BE41BE50D58F23EED69CDA99217D31D6
    A B C D E F G H J K L M N O P Q R S T
 19 . . . . . . . . . . . . . . . . . . .
@@ -83,6 +86,9 @@ Tree:
 F4  : T  -4.89c W  -3.02c S  -0.44c ( -0.2 L  -0.2) LCB   -1.68c P 96.56% WF 191.8 PSV     192 N      99  --  F4 F5 G5 E6 C2 G4 F3 G3
 Play selection values
 F4 191.825
+getSharpScore -0.285331
+avg WL error 0.0845673
+avg score error 0.853375
 MoveNum: 17 HASH: A5016A1F4ABFFDF0880F3F5E821EC77D
    A B C D E F G H J K L M N O P Q R S T
 19 . . . . . . . . . . . . . . . . . . .
@@ -119,6 +125,9 @@ G5  : T  -4.66c W  -3.59c S  -0.10c ( -0.3 L  -0.2) LCB  -11.81c P  7.17% WF  26
 Play selection values
 F5 164.012
 G5 17
+getSharpScore -0.321251
+avg WL error 0.0852217
+avg score error 0.862317
 MoveNum: 18 HASH: 9044DF94C6D6A8D276B2956BD8880837
    A B C D E F G H J K L M N O P Q R S T
 19 . . . . . . . . . . . . . . . . . . .
@@ -155,6 +164,9 @@ C2  : T  21.13c W  19.43c S   1.70c ( +1.7 L  +0.9) LCB  371.13c P  3.40% WF   1
 Play selection values
 G5 190.159
 C2 0
+getSharpScore -0.348083
+avg WL error 0.084404
+avg score error 0.85172
 MoveNum: 19 HASH: A16A22AF061792AB7513404E2875D0D9
    A B C D E F G H J K L M N O P Q R S T
 19 . . . . . . . . . . . . . . . . . . .
@@ -197,6 +209,9 @@ E6 116.352
 B5 10
 C8 2
 E7 6
+getSharpScore -0.310569
+avg WL error 0.0844676
+avg score error 0.853504
 MoveNum: 20 HASH: 5658F593CE71DFE067B6152A30032239
    A B C D E F G H J K L M N O P Q R S T
 19 . . . . . . . . . . . . . . . . . . .
@@ -231,6 +246,9 @@ Tree:
 G3  : T  -9.83c W  -6.47c S  -0.84c ( -0.6 L  -0.5) LCB   -5.70c P 73.30% WF 162.4 PSV     162 N      99  --  G3 C2 B5 C8 B2 H5 G4 B1
 Play selection values
 G3 162.44
+getSharpScore -0.701269
+avg WL error 0.103893
+avg score error 1.06192
 MoveNum: 21 HASH: 41EC6A2DED7F215D5BFFA8E8522C2C38
    A B C D E F G H J K L M N O P Q R S T
 19 . . . . . . . . . . . . . . . . . . .
@@ -267,6 +285,9 @@ H5  : T  -9.91c W  -6.64c S  -0.89c ( -0.6 L  -0.5) LCB  -13.16c P 53.64% WF  94
 Play selection values
 H5 94.1974
 C2 151.321
+getSharpScore -0.705401
+avg WL error 0.104064
+avg score error 1.06392
 MoveNum: 22 HASH: 8844030E1A73B6093D2E14AA80C95F40
    A B C D E F G H J K L M N O P Q R S T
 19 . . . . . . . . . . . . . . . . . . .
@@ -301,6 +322,9 @@ Tree:
 B5  : T -56.81c W -49.92c S  -3.42c ( -5.7 L  -4.3) LCB  -51.06c P 95.82% WF 127.9 PSV     128 N      99  --  B5 C8 B2 B1 B3 G2 H2 F2
 Play selection values
 B5 127.949
+getSharpScore -5.73975
+avg WL error 0.132505
+avg score error 2.13524
 MoveNum: 23 HASH: 27C6B79BECA55D7B1697593C47FD5439
    A B C D E F G H J K L M N O P Q R S T
 19 . . . . . . . . . . . . . . . . . . .
@@ -337,6 +361,9 @@ H5  : T  -8.50c W  -6.42c S  -0.50c ( -0.6 L  -0.4) LCB  -15.05c P 39.71% WF  84
 Play selection values
 C8 115.495
 H5 84.2774
+getSharpScore -0.738092
+avg WL error 0.104915
+avg score error 1.06793
 MoveNum: 24 HASH: 62B87898CF4883035B141308BD34AD4F
    A B C D E F G H J K L M N O P Q R S T
 19 . . . . . . . . . . . . . . . . . . .
@@ -371,6 +398,9 @@ Tree:
 B2  : T -10.29c W  -7.64c S  -0.71c ( -0.7 L  -0.5) LCB   -6.78c P 96.99% WF 158.4 PSV     158 N      99  --  B2 H5 G4 G2 H2 B1 B3 F2
 Play selection values
 B2 158.388
+getSharpScore -0.799465
+avg WL error 0.107352
+avg score error 1.08229
 MoveNum: 25 HASH: BB28EA51566BD53DFE024F8494946E8B
    A B C D E F G H J K L M N O P Q R S T
 19 . . . . . . . . . . . . . . . . . . .
@@ -417,6 +447,9 @@ D14 0
 K3 0
 K15 0
 H6 2
+getSharpScore -0.80278
+avg WL error 0.108431
+avg score error 1.11084
 MoveNum: 26 HASH: 13220553CB8B1BB9132C9FA7193BD970
    A B C D E F G H J K L M N O P Q R S T
 19 . . . . . . . . . . . . . . . . . . .
@@ -455,6 +488,9 @@ Play selection values
 H2 145.691
 E6 5
 C1 1
+getSharpScore -0.979673
+avg WL error 0.113021
+avg score error 1.14776
 MoveNum: 27 HASH: 45DEF27EB6B79C9106C8567194902328
    A B C D E F G H J K L M N O P Q R S T
 19 . . . . . . . . . . . . . . . . . . .
@@ -493,6 +529,9 @@ Play selection values
 B1 74.421
 H5 92.9421
 F2 15
+getSharpScore -0.983032
+avg WL error 0.113095
+avg score error 1.13767
 MoveNum: 28 HASH: 18E60D1229177DA86EF2C63F23AED162
    A B C D E F G H J K L M N O P Q R S T
 19 . . . . . . . . . . . . . . . . . . .
@@ -531,6 +570,9 @@ Play selection values
 B3 142.327
 A2 3
 E6 2
+getSharpScore -1.36995
+avg WL error 0.117823
+avg score error 1.17134
 MoveNum: 29 HASH: 0C2DBD994E2E803E960C75402EDC510F
    A B C D E F G H J K L M N O P Q R S T
 19 . . . . . . . . . . . . . . . . . . .
@@ -567,6 +609,9 @@ F2  : T -13.68c W -12.00c S  -0.48c ( -1.2 L  -0.8) LCB  -20.28c P 32.87% WF  46
 Play selection values
 H5 103.589
 F2 30
+getSharpScore -1.3962
+avg WL error 0.11699
+avg score error 1.16064
 MoveNum: 30 HASH: 5B46D4EE9E7F8CA083F541E752BA552C
    A B C D E F G H J K L M N O P Q R S T
 19 . . . . . . . . . . . . . . . . . . .
@@ -611,6 +656,9 @@ J3 3
 D17 0
 E6 1
 S16 0
+getSharpScore -1.38661
+avg WL error 0.129261
+avg score error 1.374
 MoveNum: 31 HASH: 809566A4E7D0074CDEE93F652E03A9BD
    A B C D E F G H J K L M N O P Q R S T
 19 . . . . . . . . . . . . . . . . . . .
@@ -653,6 +701,9 @@ G7 4
 H3 6
 A4 0
 J2 0
+getSharpScore -1.36343
+avg WL error 0.130012
+avg score error 1.3592
 MoveNum: 32 HASH: B4244DA357E1AE8479BB513F28F546D8
    A B C D E F G H J K L M N O P Q R S T
 19 . . . . . . . . . . . . . . . . . . .
@@ -687,6 +738,9 @@ Tree:
 G4  : T -11.58c W -11.23c S  -1.03c ( -1.1 L  -0.7) LCB   -6.42c P 98.88% WF 145.8 PSV     146 N      99  --  G4 J2 H1 A4 F6 E6 G7 A6
 Play selection values
 G4 145.837
+getSharpScore -1.13375
+avg WL error 0.119673
+avg score error 1.20651
 MoveNum: 33 HASH: DE34F03FD823E9A6B1D0EEAEE702D7BA
    A B C D E F G H J K L M N O P Q R S T
 19 . . . . . . . . . . . . . . . . . . .
@@ -725,6 +779,9 @@ Play selection values
 G7 92.5693
 J2 121.43
 A4 3
+getSharpScore 2.34573
+avg WL error 0.135574
+avg score error 1.49123
 MoveNum: 34 HASH: 10338CB4B0C1B33CD5076C57C566E96A
    A B C D E F G H J K L M N O P Q R S T
 19 . . . . . . . . . . . . . . . . . . .
@@ -763,6 +820,9 @@ Play selection values
 H1 141.394
 J3 3
 H3 0
+getSharpScore -0.900413
+avg WL error 0.12062
+avg score error 1.25696
 MoveNum: 35 HASH: C6B39CE152DEF14613E9F63C0E050533
    A B C D E F G H J K L M N O P Q R S T
 19 . . . . . . . . . . . . . . . . . . .
@@ -801,6 +861,9 @@ Play selection values
 A4 141.491
 H7 1
 A2 0
+getSharpScore -0.905486
+avg WL error 0.121686
+avg score error 1.27303
 MoveNum: 36 HASH: EF26E0FCA5E6C65E925CAAF80049147C
    A B C D E F G H J K L M N O P Q R S T
 19 . . . . . . . . . . . . . . . . . . .
@@ -837,6 +900,9 @@ J3  : T  -5.53c W  -7.76c S   0.39c ( -0.7 L  -0.5) LCB   12.92c P 12.51% WF  15
 Play selection values
 F6 130.235
 J3 12
+getSharpScore -0.888675
+avg WL error 0.120205
+avg score error 1.24943
 MoveNum: 37 HASH: 2C2A7F855F453376B882E99D32937012
    A B C D E F G H J K L M N O P Q R S T
 19 . . . . . . . . . . . . . . . . . . .
@@ -871,6 +937,9 @@ Tree:
 E6  : T  -6.36c W  -8.24c S   1.35c ( -0.8 L  -0.6) LCB  -10.19c P 98.44% WF 147.1 PSV     147 N      99  --  E6 G7 A6 N4 R6 S5 R10 R8
 Play selection values
 E6 147.141
+getSharpScore -0.975935
+avg WL error 0.119118
+avg score error 1.23919
 MoveNum: 38 HASH: 50C1BEE6F0D34C2AC523309B5A647884
    A B C D E F G H J K L M N O P Q R S T
 19 . . . . . . . . . . . . . . . . . . .
@@ -905,6 +974,9 @@ Tree:
 G7  : T  -7.57c W  -8.23c S   0.15c ( -0.8 L  -0.6) LCB   -3.74c P 96.48% WF 147.2 PSV     147 N      99  --  G7 A6 N4 R6 S5 R10 R8 R14
 Play selection values
 G7 147.172
+getSharpScore -0.973248
+avg WL error 0.118601
+avg score error 1.23206
 MoveNum: 39 HASH: BFA30896A296FDB6287B54F36CEB5525
    A B C D E F G H J K L M N O P Q R S T
 19 . . . . . . . . . . . . . . . . . . .
@@ -947,6 +1019,9 @@ A6 123.788
 J4 13
 K3 1
 O4 0
+getSharpScore -0.954894
+avg WL error 0.119368
+avg score error 1.24336
 MoveNum: 40 HASH: 0DE6026C7D8E1AAC2E2CB87EC698679D
    A B C D E F G H J K L M N O P Q R S T
 19 . . . . . . . . . . . . . . . . . . .
@@ -1005,6 +1080,9 @@ E7 5
 D2 5
 O16 4
 P3 1
+getSharpScore -2.19292
+avg WL error 0.168176
+avg score error 2.08258
 MoveNum: 41 HASH: CFDA8F6686AE978657AF5F8579B168D7
    A B C D E F G H J K L M N O P Q R S T
 19 . . . . . . . . . . . . . . . . . . .
@@ -1051,6 +1129,9 @@ E8 1
 F8 0
 C9 0
 C7 0
+getSharpScore -2.42288
+avg WL error 0.220171
+avg score error 2.9456
 MoveNum: 42 HASH: 7704D5020156FBCE571BD44BAF38345F
    A B C D E F G H J K L M N O P Q R S T
 19 . . . . . . . . . . . . . . . . . . .
@@ -1099,6 +1180,9 @@ A8 1
 B9 1
 A2 0
 E8 1
+getSharpScore -2.61679
+avg WL error 0.22691
+avg score error 3.0089
 MoveNum: 43 HASH: 4387C3D494BD2F95B32F84EC18E4C71C
    A B C D E F G H J K L M N O P Q R S T
 19 . . . . . . . . . . . . . . . . . . .
@@ -1135,6 +1219,9 @@ E8  : T -48.75c W -45.02c S  -1.35c ( -4.9 L  -3.7) LCB  -80.10c P 67.44% WF  21
 Play selection values
 E8 20
 C7 66.102
+getSharpScore -3.42597
+avg WL error 0.203254
+avg score error 2.82747
 MoveNum: 44 HASH: 1FF939DB5C3FC914001EBAA362DF7084
    A B C D E F G H J K L M N O P Q R S T
 19 . . . . . . . . . . . . . . . . . . .
@@ -1179,6 +1266,9 @@ A7 1
 D7 1
 O3 0
 J3 0
+getSharpScore -10.6438
+avg WL error 0.18606
+avg score error 4.3442
 MoveNum: 45 HASH: 3C8AE54AE2538A83022BBDB0D551292D
    A B C D E F G H J K L M N O P Q R S T
 19 . . . . . . . . . . . . . . . . . . .
@@ -1233,6 +1323,9 @@ J3 1
 E10 0
 D7 0
 Q6 0
+getSharpScore -6.04466
+avg WL error 0.261028
+avg score error 4.03737
 MoveNum: 46 HASH: CC0DA2D5A810F2149A3FCE629475E9B4
    A B C D E F G H J K L M N O P Q R S T
 19 . . . . . . . . . . . . . . . . . . .
@@ -1279,6 +1372,9 @@ D2 1
 J3 0
 C1 0
 G1 0
+getSharpScore -2.90268
+avg WL error 0.302887
+avg score error 4.77421
 
 
 3-r pincer fight with V2 params and much variety ==========================================================================
@@ -1319,6 +1415,9 @@ E6  : T  24.63c W  26.23c S   0.62c ( +2.9 L  +1.9) LCB   14.08c P 36.96% WF  12
 Play selection values
 F5 115.005
 E6 11
+getSharpScore 3.83254
+avg WL error 0.133641
+avg score error 1.86219
 MoveNum: 12 HASH: 4DB69D3180C9B7ECFCD66BDBC08C3D37
    A B C D E F G H J K L M N O P Q R S T
 19 . . . . . . . . . . . . . . . . . . .
@@ -1355,6 +1454,9 @@ D7  : T -61.89c W -61.28c S  -2.16c ( -7.0 L  -5.1) LCB  -48.97c P 26.60% WF  16
 Play selection values
 B5 111.258
 D7 12
+getSharpScore -8.12961
+avg WL error 0.12724
+avg score error 2.44971
 MoveNum: 13 HASH: E23429A4761F5C9ED76F264D07B8364E
    A B C D E F G H J K L M N O P Q R S T
 19 . . . . . . . . . . . . . . . . . . .
@@ -1395,6 +1497,9 @@ B4 32
 D2 82.8731
 D7 0
 D3 1
+getSharpScore 3.18162
+avg WL error 0.139903
+avg score error 1.85315
 MoveNum: 14 HASH: 781CC2CF07ADA8CA18C986A1B72DA3CD
    A B C D E F G H J K L M N O P Q R S T
 19 . . . . . . . . . . . . . . . . . . .
@@ -1429,6 +1534,9 @@ Tree:
 D7  : T -15.66c W -13.83c S  -0.58c ( -1.3 L  -0.8) LCB  -13.23c P 92.46% WF 126.8 PSV     127 N      99  --  D7 E7 D8 D3 G4 H4 E2 G5
 Play selection values
 D7 126.757
+getSharpScore -1.19394
+avg WL error 0.140229
+avg score error 1.55081
 MoveNum: 15 HASH: C9294D75F07DEDF0605F12F4853F91A7
    A B C D E F G H J K L M N O P Q R S T
 19 . . . . . . . . . . . . . . . . . . .
@@ -1467,6 +1575,9 @@ Play selection values
 E7 121.986
 D3 2
 F5 0
+getSharpScore -1.19634
+avg WL error 0.140869
+avg score error 1.56578
 MoveNum: 16 HASH: 1F0CC1EC329FCF6A154080E34B9B085C
    A B C D E F G H J K L M N O P Q R S T
 19 . . . . . . . . . . . . . . . . . . .
@@ -1503,6 +1614,9 @@ D3  : T  13.13c W  11.62c S   1.51c ( +1.0 L  +0.7) LCB  188.13c P 18.85% WF   1
 Play selection values
 D8 123.65
 D3 2
+getSharpScore -1.19086
+avg WL error 0.141926
+avg score error 1.56891
 MoveNum: 17 HASH: DD304CE6C9BF42406CC36718F4B20716
    A B C D E F G H J K L M N O P Q R S T
 19 . . . . . . . . . . . . . . . . . . .
@@ -1541,6 +1655,9 @@ Play selection values
 D3 99.7107
 F4 20
 C5 2
+getSharpScore -1.2006
+avg WL error 0.1438
+avg score error 1.59254
 MoveNum: 18 HASH: AE616CE824BA185F85B50B51AD3ECBCB
    A B C D E F G H J K L M N O P Q R S T
 19 . . . . . . . . . . . . . . . . . . .
@@ -1577,6 +1694,9 @@ E2  : T   0.43c W   0.01c S   0.42c ( +0.1 L  +0.0) LCB  350.43c P  6.67% WF   1
 Play selection values
 G4 121.553
 E2 1
+getSharpScore -1.17117
+avg WL error 0.14354
+avg score error 1.59311
 MoveNum: 19 HASH: C471D174AB785F7D4DDEB4C062C95AA9
    A B C D E F G H J K L M N O P Q R S T
 19 . . . . . . . . . . . . . . . . . . .
@@ -1615,6 +1735,9 @@ Play selection values
 H4 84.053
 G3 29
 E8 5
+getSharpScore -1.14729
+avg WL error 0.145398
+avg score error 1.61819
 MoveNum: 20 HASH: 27652ACC17BA1590A8A091E56F51454F
    A B C D E F G H J K L M N O P Q R S T
 19 . . . . . . . . . . . . . . . . . . .
@@ -1655,6 +1778,9 @@ G5 74.1966
 E2 10
 D2 2
 L3 0
+getSharpScore -1.08704
+avg WL error 0.154726
+avg score error 1.72961
 MoveNum: 21 HASH: 2E81DAF9A56A748F392821FB7581DBF3
    A B C D E F G H J K L M N O P Q R S T
 19 . . . . . . . . . . . . . . . . . . .
@@ -1695,6 +1821,9 @@ G5 96.6721
 D2 2
 E8 0
 F4 0
+getSharpScore -0.642676
+avg WL error 0.174116
+avg score error 1.84702
 MoveNum: 22 HASH: 36E2A95E28CDE5AB0A75DF97A35F62A1
    A B C D E F G H J K L M N O P Q R S T
 19 . . . . . . . . . . . . . . . . . . .
@@ -1733,6 +1862,9 @@ Play selection values
 C2 101.789
 D2 1
 F5 0
+getSharpScore -5.33441
+avg WL error 0.171432
+avg score error 2.49845
 MoveNum: 23 HASH: 28D4330A33EDEEE007DC219451457918
    A B C D E F G H J K L M N O P Q R S T
 19 . . . . . . . . . . . . . . . . . . .
@@ -1769,6 +1901,9 @@ C5  : T  -5.46c W  -3.24c S  -2.22c ( +0.2 L  +0.2) LCB -180.46c P  5.12% WF   0
 Play selection values
 D2 95.3125
 C5 0
+getSharpScore 3.91131
+avg WL error 0.189102
+avg score error 2.45893
 MoveNum: 24 HASH: C2692F8C0E349B241DE6521812CFC7CE
    A B C D E F G H J K L M N O P Q R S T
 19 . . . . . . . . . . . . . . . . . . .
@@ -1805,6 +1940,9 @@ F5  : T  -4.91c W  -7.20c S   2.29c ( -1.5 L  -1.1) LCB  170.09c P  3.35% WF   0
 Play selection values
 D1 103.955
 F5 0
+getSharpScore -5.30091
+avg WL error 0.169106
+avg score error 2.4464
 MoveNum: 25 HASH: E874C7C5DDA187C204ED6172BB4CE636
    A B C D E F G H J K L M N O P Q R S T
 19 . . . . . . . . . . . . . . . . . . .
@@ -1843,6 +1981,9 @@ Play selection values
 B2 100.96
 C5 3
 A3 0
+getSharpScore -0.734089
+avg WL error 0.176322
+avg score error 1.85559
 MoveNum: 26 HASH: B0531F27AC4742BAF1DFF308A114E64E
    A B C D E F G H J K L M N O P Q R S T
 19 . . . . . . . . . . . . . . . . . . .
@@ -1879,6 +2020,9 @@ F5  : T  23.76c W  21.36c S   2.40c ( +1.9 L  +1.7) LCB  373.76c P  3.19% WF   0
 Play selection values
 B1 105.739
 F5 0
+getSharpScore -0.724471
+avg WL error 0.174188
+avg score error 1.81861
 MoveNum: 27 HASH: 33C947ABE6EBDF6553095571C72D5A04
    A B C D E F G H J K L M N O P Q R S T
 19 . . . . . . . . . . . . . . . . . . .
@@ -1919,6 +2063,9 @@ A3 102.037
 B3 2
 C3 1
 C5 1
+getSharpScore -0.723566
+avg WL error 0.174501
+avg score error 1.82241
 MoveNum: 28 HASH: 8589144E4B8953F9D0694AFE53288E25
    A B C D E F G H J K L M N O P Q R S T
 19 . . . . . . . . . . . . . . . . . . .
@@ -1971,6 +2118,9 @@ H2 1
 E8 1
 F17 1
 G3 1
+getSharpScore -0.756393
+avg WL error 0.173671
+avg score error 1.80148
 MoveNum: 29 HASH: FD7112624B5042F37437766703BCC747
    A B C D E F G H J K L M N O P Q R S T
 19 . . . . . . . . . . . . . . . . . . .
@@ -2011,6 +2161,9 @@ H2 106.719
 G3 5
 E8 3
 F4 0
+getSharpScore -1.02727
+avg WL error 0.160305
+avg score error 1.61208
 
 
 Pruned root values test ==========================================================================
@@ -6998,6 +7151,250 @@ Ladder feature 16
 0 0 0 0 0 0 0 
 0 0 0 0 0 0 1 
 0 0 0 0 1 1 0 
+Baseline
+MoveNum: 0 HASH: A0460A41C804480578269218E4E82FB2
+   A B C D E F G H J
+ 9 . . . . . . . . .
+ 8 . . . . . . . . .
+ 7 . . . . . . . . .
+ 6 . . . . X . . . .
+ 5 . . . . O X . . .
+ 4 . . . . X O . . .
+ 3 . . . . . . . . .
+ 2 . . . . . . . . .
+ 1 . . . . . . . . .
+
+Root visits: 200
+New playouts: 200
+NN rows: 189
+NN batches: 189
+NN avg batch size: 1
+PV: D5 D6 C5 G5 F3 C6 B6 B7 B5 H3 F6 F7 G6 H6 G7 G8 H7
+Tree:
+: T  70.86c W  71.85c S   0.82c ( +2.1 L  +1.2) N     200  --  D5 D6 C5 G5 F3 C6 B6
+---White(^)---
+D5  : T  70.86c W  71.87c S   0.81c ( +2.1 L  +1.2) LCB   63.67c P 99.77% WF 208.7 PSV     209 N     199  --  D5 D6 C5 G5 F3 C6 B6 B7
+setAvoidMoveUntilRescaleRoot (should be same)
+MoveNum: 0 HASH: A0460A41C804480578269218E4E82FB2
+   A B C D E F G H J
+ 9 . . . . . . . . .
+ 8 . . . . . . . . .
+ 7 . . . . . . . . .
+ 6 . . . . X . . . .
+ 5 . . . . O X . . .
+ 4 . . . . X O . . .
+ 3 . . . . . . . . .
+ 2 . . . . . . . . .
+ 1 . . . . . . . . .
+
+Root visits: 200
+New playouts: 200
+NN rows: 189
+NN batches: 189
+NN avg batch size: 1
+PV: D5 D6 C5 G5 F3 C6 B6 B7 B5 H3 F6 F7 G6 H6 G7 G8 H7
+Tree:
+: T  70.86c W  71.85c S   0.82c ( +2.1 L  +1.2) N     200  --  D5 D6 C5 G5 F3 C6 B6
+---White(^)---
+D5  : T  70.86c W  71.87c S   0.81c ( +2.1 L  +1.2) LCB   63.67c P 99.77% WF 208.7 PSV     209 N     199  --  D5 D6 C5 G5 F3 C6 B6 B7
+Banning extend
+MoveNum: 0 HASH: A0460A41C804480578269218E4E82FB2
+   A B C D E F G H J
+ 9 . . . . . . . . .
+ 8 . . . . . . . . .
+ 7 . . . . . . . . .
+ 6 . . . . X . . . .
+ 5 . . . . O X . . .
+ 4 . . . . X O . . .
+ 3 . . . . . . . . .
+ 2 . . . . . . . . .
+ 1 . . . . . . . . .
+
+Root visits: 200
+New playouts: 200
+NN rows: 173
+NN batches: 173
+NN avg batch size: 1
+PV: G5 D5 F6 F7 E5 F3 F5 E3
+Tree:
+: T -121.87c W -98.68c S -22.99c (-12.2 L -12.5) N     200  --  G5 D5 F6 F7 E5 F3 F5
+---White(^)---
+G5  : T -119.75c W -98.76c S -20.92c ( -9.7 L -10.0) LCB -121.26c P  0.01% WF 234.3 PSV     230 N      51  --  G5 D5 F6 F7 E5 F3 F5 E3
+D4  : T -120.03c W -98.86c S -20.85c ( -9.7 L -10.0) LCB -121.93c P  0.01% WF 147.1 PSV       0 N      35  --  D4 D5 E3 C4 E5 G4 E4 G5
+E3  : T -120.05c W -98.57c S -20.97c ( -9.7 L -10.0) LCB -125.39c P  0.01% WF  45.6 PSV       0 N      10  --  E3 D5 D4 C4 E5 G4 E4 G5
+F3  : T -120.10c W -98.82c S -21.20c ( -9.9 L -10.2) LCB -130.47c P  0.01% WF  43.8 PSV       0 N       9  --  F3 D5 E3 C4
+F6  : T -120.02c W -98.91c S -20.74c ( -9.6 L  -9.7) LCB -131.12c P  0.01% WF  41.2 PSV       0 N       9  --  F6 D5 G5 F7 E5 F3 F5 E3
+G4  : T -120.22c W -98.70c S -21.32c ( -9.9 L -10.2) LCB -136.04c P  0.01% WF  38.2 PSV       0 N       7  --  G4 D5 H6 E2
+C4  : T -120.50c W -98.68c S -21.37c ( -9.9 L -10.2) LCB -160.15c P  0.00% WF  20.3 PSV       0 N       4  --  C4 D5 C5
+D3  : T -120.39c W -98.69c S -21.70c (-10.1 L -10.3) LCB -167.09c P  0.00% WF  22.8 PSV       0 N       4  --  D3 D5 F3
+G6  : T -120.46c W -98.96c S -21.49c (-10.3 L -10.7) LCB -280.57c P  0.00% WF   9.9 PSV       0 N       2  --  G6 D5
+C6  : T -120.20c W -98.75c S -21.44c (-10.3 L -10.8) LCB -278.57c P  0.00% WF  10.2 PSV       0 N       2  --  C6 D5
+pss : T -129.63c W -99.86c S -29.77c (-21.6 L -21.6) LCB -479.63c P  0.01% WF   7.4 PSV       0 N       1  --  pass
+C5  : T -120.96c W -98.48c S -22.48c (-11.1 L -11.5) LCB -470.96c P  0.00% WF   6.2 PSV       0 N       1  --  C5
+C7  : T -120.52c W -98.51c S -22.01c (-10.6 L -11.2) LCB -470.52c P  0.00% WF   6.2 PSV       0 N       1  --  C7
+G7  : T -121.13c W -98.42c S -22.70c (-11.3 L -12.0) LCB -471.13c P  0.00% WF   6.4 PSV       0 N       1  --  G7
+G3  : T -121.29c W -98.24c S -23.05c (-11.7 L -12.7) LCB -471.29c P  0.00% WF   6.3 PSV       0 N       1  --  G3
+C3  : T -120.55c W -98.54c S -22.01c (-10.6 L -11.2) LCB -470.55c P  0.00% WF   6.1 PSV       0 N       1  --  C3
+E8  : T -121.29c W -98.39c S -22.89c (-11.5 L -12.0) LCB -471.29c P  0.00% WF   6.5 PSV       0 N       1  --  E8
+E7  : T -121.80c W -98.51c S -23.29c (-11.7 L -11.9) LCB -471.80c P  0.00% WF   6.6 PSV       0 N       1  --  E7
+F7  : T -120.05c W -98.04c S -22.01c (-10.4 L -10.8) LCB -470.05c P  0.00% WF   6.4 PSV       0 N       1  --  F7
+D7  : T -120.89c W -98.47c S -22.42c (-10.9 L -11.2) LCB -470.89c P  0.00% WF   6.4 PSV       0 N       1  --  D7
+E2  : T -120.72c W -98.31c S -22.40c (-11.1 L -11.4) LCB -470.72c P  0.00% WF   6.4 PSV       0 N       1  --  E2
+D6  : T -124.31c W -98.61c S -25.70c (-15.3 L -16.9) LCB -474.31c P  0.00% WF   6.5 PSV       0 N       1  --  D6
+C2  : T -122.34c W -98.65c S -23.69c (-12.3 L -12.7) LCB -472.34c P  0.00% WF   6.6 PSV       0 N       1  --  C2
+H5  : T -120.90c W -98.44c S -22.46c (-11.4 L -11.7) LCB -470.90c P  0.00% WF   6.4 PSV       0 N       1  --  H5
+B7  : T -122.32c W -98.80c S -23.52c (-12.1 L -12.4) LCB -472.32c P  0.00% WF   6.5 PSV       0 N       1  --  B7
+B3  : T -122.83c W -98.79c S -24.04c (-12.7 L -13.0) LCB -472.83c P  0.00% WF   6.6 PSV       0 N       1  --  B3
+D8  : T -122.23c W -98.58c S -23.65c (-12.3 L -12.6) LCB -472.23c P  0.00% WF   6.6 PSV       0 N       1  --  D8
+D2  : T -121.09c W -98.54c S -22.54c (-11.2 L -11.6) LCB -471.09c P  0.00% WF   6.3 PSV       0 N       1  --  D2
+B6  : T -121.82c W -98.65c S -23.17c (-11.9 L -12.2) LCB -471.82c P  0.00% WF   6.4 PSV       0 N       1  --  B6
+C8  : T -122.33c W -98.74c S -23.59c (-12.2 L -12.5) LCB -472.33c P  0.00% WF   6.6 PSV       0 N       1  --  C8
+H7  : T -122.75c W -98.82c S -23.93c (-12.5 L -12.8) LCB -472.75c P  0.00% WF   6.6 PSV       0 N       1  --  H7
+G8  : T -123.26c W -98.80c S -24.46c (-13.1 L -13.3) LCB -473.26c P  0.00% WF   6.7 PSV       0 N       1  --  G8
+F8  : T -122.57c W -98.64c S -23.93c (-12.5 L -12.8) LCB -472.57c P  0.00% WF   6.6 PSV       0 N       1  --  F8
+D9  : T -127.03c W -99.52c S -27.51c (-17.3 L -17.6) LCB -477.03c P  0.00% WF   7.1 PSV       0 N       1  --  D9
+C9  : T -127.47c W -99.57c S -27.89c (-18.0 L -18.2) LCB -477.47c P  0.00% WF   7.2 PSV       0 N       1  --  C9
+G2  : T -123.87c W -98.83c S -25.04c (-13.9 L -14.2) LCB -473.87c P  0.00% WF   6.8 PSV       0 N       1  --  G2
+E9  : T -127.05c W -99.57c S -27.47c (-17.2 L -17.5) LCB -477.05c P  0.00% WF   7.1 PSV       0 N       1  --  E9
+J7  : T -127.59c W -99.64c S -27.95c (-18.1 L -18.4) LCB -477.59c P  0.00% WF   7.1 PSV       0 N       1  --  J7
+B4  : T -121.77c W -98.67c S -23.11c (-11.8 L -12.1) LCB -471.77c P  0.00% WF   6.4 PSV       0 N       1  --  B4
+B5  : T -120.28c W -98.39c S -21.89c (-10.7 L -11.1) LCB -470.28c P  0.00% WF   6.2 PSV       0 N       1  --  B5
+H6  : T -121.76c W -98.68c S -23.08c (-11.8 L -12.1) LCB -471.76c P  0.00% WF   6.5 PSV       0 N       1  --  H6
+G9  : T -128.03c W -99.71c S -28.32c (-18.8 L -19.0) LCB -478.03c P  0.00% WF   7.1 PSV       0 N       1  --  G9
+C1  : T -127.06c W -99.39c S -27.67c (-17.6 L -17.9) LCB -477.06c P  0.00% WF   7.2 PSV       0 N       1  --  C1
+A7  : T -127.20c W -99.48c S -27.72c (-17.7 L -18.0) LCB -477.20c P  0.00% WF   7.2 PSV       0 N       1  --  A7
+J6  : T -126.82c W -99.49c S -27.33c (-17.2 L -17.4) LCB -476.82c P  0.00% WF   7.1 PSV       0 N       1  --  J6
+F9  : T -127.32c W -99.58c S -27.73c (-17.7 L -18.0) LCB -477.32c P  0.00% WF   7.1 PSV       0 N       1  --  F9
+F2  : T -122.59c W -98.64c S -23.95c (-12.5 L -12.6) LCB -472.59c P  0.00% WF   6.6 PSV       0 N       1  --  F2
+H3  : T -123.96c W -98.88c S -25.08c (-14.0 L -14.3) LCB -473.96c P  0.00% WF   6.8 PSV       0 N       1  --  H3
+G1  : T -127.37c W -99.40c S -27.97c (-18.2 L -18.5) LCB -477.37c P  0.00% WF   7.2 PSV       0 N       1  --  G1
+E1  : T -126.31c W -99.23c S -27.08c (-16.7 L -17.0) LCB -476.31c P  0.00% WF   7.1 PSV       0 N       1  --  E1
+J5  : T -126.69c W -99.36c S -27.33c (-17.2 L -17.4) LCB -476.69c P  0.00% WF   7.1 PSV       0 N       1  --  J5
+J3  : T -127.47c W -99.45c S -28.03c (-18.3 L -18.6) LCB -477.47c P  0.00% WF   7.2 PSV       0 N       1  --  J3
+A3  : T -127.40c W -99.47c S -27.94c (-18.1 L -18.4) LCB -477.40c P  0.00% WF   7.2 PSV       0 N       1  --  A3
+D1  : T -126.41c W -99.30c S -27.11c (-16.7 L -17.0) LCB -476.41c P  0.00% WF   7.1 PSV       0 N       1  --  D1
+J4  : T -126.76c W -99.41c S -27.36c (-17.3 L -17.5) LCB -476.76c P  0.00% WF   7.1 PSV       0 N       1  --  J4
+A6  : T -126.64c W -99.42c S -27.22c (-16.9 L -17.1) LCB -476.64c P  0.00% WF   7.1 PSV       0 N       1  --  A6
+F1  : T -126.46c W -99.30c S -27.17c (-16.9 L -17.2) LCB -476.46c P  0.00% WF   7.1 PSV       0 N       1  --  F1
+A5  : T -126.39c W -99.31c S -27.08c (-16.7 L -17.0) LCB -476.39c P  0.00% WF   7.1 PSV       0 N       1  --  A5
+A4  : T -126.70c W -99.36c S -27.34c (-17.1 L -17.4) LCB -476.70c P  0.00% WF   7.1 PSV       0 N       1  --  A4
+J1  : T -129.70c W -99.68c S -30.01c (-22.5 L -22.9) LCB -479.70c P  0.00% WF   7.4 PSV       0 N       1  --  J1
+A1  : T -129.67c W -99.67c S -30.00c (-22.4 L -22.8) LCB -479.67c P  0.00% WF   7.4 PSV       0 N       1  --  A1
+B2  : T -124.81c W -99.01c S -25.80c (-14.8 L -15.0) LCB -474.81c P  0.00% WF   6.9 PSV       0 N       1  --  B2
+B8  : T -124.62c W -99.11c S -25.51c (-14.4 L -14.6) LCB -474.62c P  0.00% WF   6.8 PSV       0 N       1  --  B8
+J8  : T -127.71c W -99.61c S -28.10c (-18.3 L -18.5) LCB -477.71c P  0.00% WF   7.2 PSV       0 N       1  --  J8
+J9  : T -129.71c W -99.67c S -30.04c (-22.5 L -22.8) LCB -479.71c P  0.00% WF   7.4 PSV       0 N       1  --  J9
+H4  : T -122.74c W -98.67c S -24.07c (-12.8 L -13.0) LCB -472.74c P  0.00% WF   6.6 PSV       0 N       1  --  H4
+B9  : T -127.34c W -99.53c S -27.81c (-17.8 L -17.9) LCB -477.34c P  0.00% WF   7.2 PSV       0 N       1  --  B9
+A9  : T -129.68c W -99.67c S -30.00c (-22.4 L -22.7) LCB -479.68c P  0.00% WF   7.4 PSV       0 N       1  --  A9
+A2  : T -127.47c W -99.48c S -27.99c (-18.1 L -18.4) LCB -477.47c P  0.00% WF   7.2 PSV       0 N       1  --  A2
+H9  : T -127.82c W -99.62c S -28.20c (-18.4 L -18.6) LCB -477.82c P  0.00% WF   7.2 PSV       0 N       1  --  H9
+J2  : T -127.40c W -99.45c S -27.95c (-18.2 L -18.4) LCB -477.40c P  0.00% WF   7.2 PSV       0 N       1  --  J2
+B1  : T -127.37c W -99.46c S -27.91c (-18.0 L -18.2) LCB -477.37c P  0.00% WF   7.2 PSV       0 N       1  --  B1
+A8  : T -127.27c W -99.50c S -27.77c (-17.7 L -17.9) LCB -477.27c P  0.00% WF   7.2 PSV       0 N       1  --  A8
+H1  : T -127.42c W -99.42c S -27.99c (-18.2 L -18.5) LCB -477.42c P  0.00% WF   7.2 PSV       0 N       1  --  H1
+H2  : T -125.29c W -99.03c S -26.26c (-15.5 L -16.0) LCB -475.29c P  0.00% WF   7.0 PSV       0 N       1  --  H2
+H8  : T -125.30c W -99.18c S -26.12c (-15.1 L -15.4) LCB -475.30c P  0.00% WF   6.9 PSV       0 N       1  --  H8
+Banning extend and setAvoidMoveUntilRescaleRoot
+MoveNum: 0 HASH: A0460A41C804480578269218E4E82FB2
+   A B C D E F G H J
+ 9 . . . . . . . . .
+ 8 . . . . . . . . .
+ 7 . . . . . . . . .
+ 6 . . . . X . . . .
+ 5 . . . . O X . . .
+ 4 . . . . X O . . .
+ 3 . . . . . . . . .
+ 2 . . . . . . . . .
+ 1 . . . . . . . . .
+
+Root visits: 200
+New playouts: 200
+NN rows: 171
+NN batches: 171
+NN avg batch size: 1
+PV: G5 D5 F6 F7 E5 F3 F5
+Tree:
+: T -121.87c W -98.71c S -23.00c (-12.2 L -12.5) N     200  --  G5 D5 F6 F7 E5 F3 F5
+---White(^)---
+G5  : T -119.50c W -98.73c S -20.69c ( -9.6 L  -9.8) LCB -121.18c P  5.88% WF 162.5 PSV     160 N      35  --  G5 D5 F6 F7 E5 F3 F5
+D4  : T -119.40c W -98.75c S -20.50c ( -9.4 L  -9.6) LCB -121.98c P  2.60% WF 110.5 PSV      85 N      24  --  D4 D5 E3 C4 E5 G5 C3
+F6  : T -119.61c W -98.78c S -20.74c ( -9.6 L  -9.8) LCB -122.29c P  3.42% WF  80.3 PSV      77 N      18  --  F6 D5 G5 F7 E5 F3 F5
+E3  : T -120.03c W -98.66c S -20.81c ( -9.6 L  -9.8) LCB -125.57c P  3.45% WF  48.9 PSV      48 N      11  --  E3 D5 D4 C4 E5 G5 C3
+F3  : T -120.16c W -98.83c S -21.26c ( -9.8 L -10.1) LCB -128.56c P  3.49% WF  50.4 PSV      43 N      10  --  F3 D5 E3 D3 D2
+G4  : T -120.22c W -98.70c S -21.32c ( -9.9 L -10.2) LCB -136.04c P  2.77% WF  38.2 PSV      32 N       7  --  G4 D5 H6 E2
+C4  : T -120.50c W -98.68c S -21.37c ( -9.9 L -10.2) LCB -160.15c P  1.82% WF  20.3 PSV      17 N       4  --  C4 D5 C5
+D3  : T -120.30c W -98.67c S -21.64c (-10.0 L -10.3) LCB -166.95c P  1.39% WF  22.7 PSV      15 N       4  --  D3 D5 F3
+G6  : T -120.81c W -98.72c S -22.11c (-10.5 L -10.7) LCB -201.81c P  1.66% WF  16.8 PSV      13 N       3  --  G6 D5 G4
+C5  : T -121.60c W -98.91c S -22.69c (-11.3 L -11.8) LCB -277.31c P  2.05% WF  10.6 PSV      11 N       2  --  C5 D5
+F7  : T -120.92c W -98.65c S -22.28c (-10.5 L -10.7) LCB -207.38c P  1.38% WF  16.4 PSV      10 N       3  --  F7 D5 E7
+C3  : T -120.97c W -98.91c S -22.06c (-10.7 L -11.3) LCB -282.02c P  1.43% WF   9.9 PSV      10 N       2  --  C3 D5
+D7  : T -120.94c W -98.83c S -22.11c (-10.8 L -11.2) LCB -281.21c P  1.35% WF  10.5 PSV      10 N       2  --  D7 D5
+C7  : T -121.56c W -99.08c S -22.22c (-10.6 L -11.0) LCB -204.73c P  1.61% WF  16.8 PSV       9 N       3  --  C7 D5 F3
+D2  : T -120.68c W -98.93c S -21.76c (-10.7 L -11.1) LCB -283.43c P  1.13% WF  10.2 PSV       9 N       2  --  D2 D5
+C6  : T -121.73c W -99.10c S -22.37c (-10.7 L -11.1) LCB -202.02c P  1.56% WF  17.1 PSV       8 N       3  --  C6 D5 D7
+G7  : T -121.50c W -98.82c S -22.68c (-11.3 L -11.8) LCB -285.30c P  1.51% WF  10.2 PSV       8 N       2  --  G7 D5
+E8  : T -121.56c W -98.82c S -22.75c (-11.4 L -11.8) LCB -280.91c P  1.41% WF  10.7 PSV       8 N       2  --  E8 D5
+E2  : T -121.32c W -98.84c S -22.48c (-11.3 L -11.5) LCB -278.55c P  1.33% WF  10.7 PSV       8 N       2  --  E2 D5
+B5  : T -120.85c W -98.80c S -22.05c (-10.8 L -11.2) LCB -278.79c P  1.03% WF  10.3 PSV       8 N       2  --  B5 D5
+E7  : T -121.80c W -98.51c S -23.29c (-11.7 L -11.9) LCB -471.80c P  1.39% WF   6.6 PSV       7 N       1  --  E7
+H5  : T -121.47c W -98.91c S -22.56c (-11.5 L -11.7) LCB -278.85c P  1.16% WF  10.8 PSV       6 N       2  --  H5 D5
+G3  : T -122.58c W -98.88c S -23.71c (-12.3 L -12.9) LCB -277.52c P  1.44% WF  10.8 PSV       5 N       2  --  G3 D5
+C2  : T -122.34c W -98.65c S -23.69c (-12.3 L -12.7) LCB -472.34c P  1.17% WF   6.6 PSV       5 N       1  --  C2
+B7  : T -122.32c W -98.80c S -23.52c (-12.1 L -12.4) LCB -472.32c P  1.15% WF   6.5 PSV       5 N       1  --  B7
+D8  : T -122.23c W -98.58c S -23.65c (-12.3 L -12.6) LCB -472.23c P  1.13% WF   6.6 PSV       5 N       1  --  D8
+B6  : T -121.82c W -98.65c S -23.17c (-11.9 L -12.2) LCB -471.82c P  1.12% WF   6.4 PSV       5 N       1  --  B6
+B4  : T -121.77c W -98.67c S -23.11c (-11.8 L -12.1) LCB -471.77c P  1.04% WF   6.4 PSV       5 N       1  --  B4
+H6  : T -121.76c W -98.68c S -23.08c (-11.8 L -12.1) LCB -471.76c P  1.02% WF   6.5 PSV       5 N       1  --  H6
+B3  : T -122.83c W -98.79c S -24.04c (-12.7 L -13.0) LCB -472.83c P  1.13% WF   6.6 PSV       4 N       1  --  B3
+C8  : T -122.33c W -98.74c S -23.59c (-12.2 L -12.5) LCB -472.33c P  1.10% WF   6.6 PSV       4 N       1  --  C8
+H7  : T -122.75c W -98.82c S -23.93c (-12.5 L -12.8) LCB -472.75c P  1.09% WF   6.6 PSV       4 N       1  --  H7
+F8  : T -122.57c W -98.64c S -23.93c (-12.5 L -12.8) LCB -472.57c P  1.07% WF   6.6 PSV       4 N       1  --  F8
+F2  : T -122.59c W -98.64c S -23.95c (-12.5 L -12.6) LCB -472.59c P  1.00% WF   6.6 PSV       4 N       1  --  F2
+pss : T -129.63c W -99.86c S -29.77c (-21.6 L -21.6) LCB -479.63c P  2.40% WF   7.4 PSV       3 N       1  --  pass
+D6  : T -124.31c W -98.61c S -25.70c (-15.3 L -16.9) LCB -474.31c P  1.29% WF   6.5 PSV       3 N       1  --  D6
+G8  : T -123.26c W -98.80c S -24.46c (-13.1 L -13.3) LCB -473.26c P  1.09% WF   6.7 PSV       3 N       1  --  G8
+G2  : T -123.87c W -98.83c S -25.04c (-13.9 L -14.2) LCB -473.87c P  1.06% WF   6.8 PSV       3 N       1  --  G2
+H4  : T -122.74c W -98.67c S -24.07c (-12.8 L -13.0) LCB -472.74c P  0.90% WF   6.6 PSV       3 N       1  --  H4
+H3  : T -123.96c W -98.88c S -25.08c (-14.0 L -14.3) LCB -473.96c P  0.99% WF   6.8 PSV       2 N       1  --  H3
+E1  : T -126.31c W -99.23c S -27.08c (-16.7 L -17.0) LCB -476.31c P  0.98% WF   7.1 PSV       2 N       1  --  E1
+B2  : T -124.81c W -99.01c S -25.80c (-14.8 L -15.0) LCB -474.81c P  0.91% WF   6.9 PSV       2 N       1  --  B2
+B8  : T -124.62c W -99.11c S -25.51c (-14.4 L -14.6) LCB -474.62c P  0.91% WF   6.8 PSV       2 N       1  --  B8
+D9  : T -127.03c W -99.52c S -27.51c (-17.3 L -17.6) LCB -477.03c P  1.06% WF   7.1 PSV       1 N       1  --  D9
+C9  : T -127.47c W -99.57c S -27.89c (-18.0 L -18.2) LCB -477.47c P  1.06% WF   7.2 PSV       1 N       1  --  C9
+E9  : T -127.05c W -99.57c S -27.47c (-17.2 L -17.5) LCB -477.05c P  1.04% WF   7.1 PSV       1 N       1  --  E9
+J7  : T -127.59c W -99.64c S -27.95c (-18.1 L -18.4) LCB -477.59c P  1.04% WF   7.1 PSV       1 N       1  --  J7
+G9  : T -128.03c W -99.71c S -28.32c (-18.8 L -19.0) LCB -478.03c P  1.02% WF   7.1 PSV       1 N       1  --  G9
+C1  : T -127.06c W -99.39c S -27.67c (-17.6 L -17.9) LCB -477.06c P  1.01% WF   7.2 PSV       1 N       1  --  C1
+A7  : T -127.20c W -99.48c S -27.72c (-17.7 L -18.0) LCB -477.20c P  1.01% WF   7.2 PSV       1 N       1  --  A7
+J6  : T -126.82c W -99.49c S -27.33c (-17.2 L -17.4) LCB -476.82c P  1.01% WF   7.1 PSV       1 N       1  --  J6
+F9  : T -127.32c W -99.58c S -27.73c (-17.7 L -18.0) LCB -477.32c P  1.00% WF   7.1 PSV       1 N       1  --  F9
+G1  : T -127.37c W -99.40c S -27.97c (-18.2 L -18.5) LCB -477.37c P  0.99% WF   7.2 PSV       1 N       1  --  G1
+J5  : T -126.69c W -99.36c S -27.33c (-17.2 L -17.4) LCB -476.69c P  0.98% WF   7.1 PSV       1 N       1  --  J5
+J3  : T -127.47c W -99.45c S -28.03c (-18.3 L -18.6) LCB -477.47c P  0.98% WF   7.2 PSV       1 N       1  --  J3
+A3  : T -127.40c W -99.47c S -27.94c (-18.1 L -18.4) LCB -477.40c P  0.98% WF   7.2 PSV       1 N       1  --  A3
+D1  : T -126.41c W -99.30c S -27.11c (-16.7 L -17.0) LCB -476.41c P  0.98% WF   7.1 PSV       1 N       1  --  D1
+J4  : T -126.76c W -99.41c S -27.36c (-17.3 L -17.5) LCB -476.76c P  0.96% WF   7.1 PSV       1 N       1  --  J4
+A6  : T -126.64c W -99.42c S -27.22c (-16.9 L -17.1) LCB -476.64c P  0.95% WF   7.1 PSV       1 N       1  --  A6
+F1  : T -126.46c W -99.30c S -27.17c (-16.9 L -17.2) LCB -476.46c P  0.94% WF   7.1 PSV       1 N       1  --  F1
+A5  : T -126.39c W -99.31c S -27.08c (-16.7 L -17.0) LCB -476.39c P  0.93% WF   7.1 PSV       1 N       1  --  A5
+A4  : T -126.70c W -99.36c S -27.34c (-17.1 L -17.4) LCB -476.70c P  0.92% WF   7.1 PSV       1 N       1  --  A4
+J1  : T -129.70c W -99.68c S -30.01c (-22.5 L -22.9) LCB -479.70c P  0.92% WF   7.4 PSV       1 N       1  --  J1
+A1  : T -129.67c W -99.67c S -30.00c (-22.4 L -22.8) LCB -479.67c P  0.92% WF   7.4 PSV       1 N       1  --  A1
+J8  : T -127.71c W -99.61c S -28.10c (-18.3 L -18.5) LCB -477.71c P  0.90% WF   7.2 PSV       1 N       1  --  J8
+J9  : T -129.71c W -99.67c S -30.04c (-22.5 L -22.8) LCB -479.71c P  0.90% WF   7.4 PSV       1 N       1  --  J9
+B9  : T -127.34c W -99.53c S -27.81c (-17.8 L -17.9) LCB -477.34c P  0.89% WF   7.2 PSV       1 N       1  --  B9
+A9  : T -129.68c W -99.67c S -30.00c (-22.4 L -22.7) LCB -479.68c P  0.89% WF   7.4 PSV       1 N       1  --  A9
+A2  : T -127.47c W -99.48c S -27.99c (-18.1 L -18.4) LCB -477.47c P  0.89% WF   7.2 PSV       1 N       1  --  A2
+H9  : T -127.82c W -99.62c S -28.20c (-18.4 L -18.6) LCB -477.82c P  0.88% WF   7.2 PSV       1 N       1  --  H9
+J2  : T -127.40c W -99.45c S -27.95c (-18.2 L -18.4) LCB -477.40c P  0.88% WF   7.2 PSV       1 N       1  --  J2
+B1  : T -127.37c W -99.46c S -27.91c (-18.0 L -18.2) LCB -477.37c P  0.87% WF   7.2 PSV       1 N       1  --  B1
+A8  : T -127.27c W -99.50c S -27.77c (-17.7 L -17.9) LCB -477.27c P  0.87% WF   7.2 PSV       1 N       1  --  A8
+H1  : T -127.42c W -99.42c S -27.99c (-18.2 L -18.5) LCB -477.42c P  0.83% WF   7.3 PSV       1 N       1  --  H1
+H2  : T -125.29c W -99.03c S -26.26c (-15.5 L -16.0) LCB -475.29c P  0.83% WF   7.0 PSV       1 N       1  --  H2
+H8  : T -125.30c W -99.18c S -26.12c (-15.1 L -15.4) LCB -475.30c P  0.82% WF   6.9 PSV       1 N       1  --  H8
+
+
 Passing details ==========================================================================
 
 Area scoring no friendly pass ok
@@ -7105,5 +7502,401 @@ D2  : T -98.86c W -99.90c S   1.04c ( -6.9 L  -7.8) LCB  252.66c P  1.41% WF   3
 pss : T 131.76c W  99.99c S  31.78c (+20.4 L +20.5) LCB  135.31c P  2.04% WF   2.7 PSV       0 N      15  --  pass pass
 pss pss : T 131.83c W 100.00c S  31.83c (+20.5 L +20.5) LCB  128.26c P 95.00% WF 112.0 PSV     112 N      14  --  pass
 H3  : T -99.40c W -99.85c S   0.45c ( -7.0 L  -8.0) LCB  252.09c P  1.20% WF   3.4 PSV       0 N       1  --  H3
-: GPU 0 finishing, processed 10091 rows 10091 batches
+Single symmetry and full symmetry raw nets
+HASH: 2D134B8A191ECD408BDBC77EEBAAD89E
+   A B C D E F G H
+ 8 . . . . . . . .
+ 7 . . . . . . . .
+ 6 . X . X X . . .
+ 5 X X X O O X . .
+ 4 X O O . O X X X
+ 3 X O . . O O X O
+ 2 O . . . . . O O
+ 1 . O . . . . . .
+
+
+Symmetry 0
+Win 0.35c
+Loss 99.65c
+NoResult 0.00c
+ScoreMean -0.99
+ScoreMeanSq 1.2
+Lead 0.40
+VarTimeLeft 0.0
+STWinlossError 0.45c
+STScoreError 0.47
+Policy
+Pass  17 
+   5    9    8   11   13   14   12    4 
+  12   15   15   17   22   25   26   11 
+   6    -  255    -    -  341   26   12 
+   -    -    -    -    -    -   17   11 
+   -    -    -    4    -    -    -    - 
+   -    -    3    8    -    -    -    - 
+   -    5   21    6    9    9    -    - 
+   -    -    3    3    5    7    7    5 
+ -999  -999  -998  -998  -998  -998  -999  -999 
+ -999  -999  -999  -999  -998  -999  -999  -999 
+ -998 -1000 -1000 -1000 -1000 -1000  -999  -998 
+-1000 -1000 -1000  1000  1000 -1000  -999  -999 
+-1000  1000  1000   997  1000 -1000 -1000 -1000 
+-1000  1000   998   997  1000  1000 -1000   999 
+  999   999   997   997   999  1000   999   999 
+  999  1000   999   999   999   999   998   998 
+
+Symmetry 1
+Win 0.45c
+Loss 99.55c
+NoResult 0.00c
+ScoreMean -1.07
+ScoreMeanSq 1.5
+Lead 0.36
+VarTimeLeft 0.1
+STWinlossError 0.54c
+STScoreError 0.51
+Policy
+Pass  19 
+   5   10    8   11   12   13   12    4 
+  13   15   17   20   26   27   28   12 
+   6    -  249    -    -  335   28   16 
+   -    -    -    -    -    -   16   14 
+   -    -    -    4    -    -    -    - 
+   -    -    3    7    -    -    -    - 
+   -    5   17    5    8    8    -    - 
+   -    -    3    3    4    6    6    4 
+ -998  -999  -998  -998  -997  -998  -999  -999 
+ -999  -999  -999  -999  -999  -998  -999  -999 
+ -999 -1000 -1000 -1000 -1000 -1000  -999  -997 
+-1000 -1000 -1000  1000  1000 -1000 -1000  -998 
+-1000  1000  1000   998  1000 -1000 -1000 -1000 
+-1000  1000   999   998  1000  1000 -1000   999 
+  999  1000   998   999  1000   999   999   999 
+  999  1000   999   999   999  1000   999   998 
+
+Symmetry 2
+Win 0.24c
+Loss 99.76c
+NoResult 0.00c
+ScoreMean -1.13
+ScoreMeanSq 1.6
+Lead 0.34
+VarTimeLeft 0.1
+STWinlossError 0.46c
+STScoreError 0.53
+Policy
+Pass  10 
+   5    9    8   11   13   16   13    4 
+  11   16   15   20   23   29   28   12 
+   5    -  240    -    -  357   27   14 
+   -    -    -    -    -    -   15   12 
+   -    -    -    4    -    -    -    - 
+   -    -    3    7    -    -    -    - 
+   -    5   20    5    8    9    -    - 
+   -    -    3    3    4    6    7    4 
+ -999  -999  -998  -998  -997  -997  -999  -999 
+ -998  -999  -999  -999  -999  -998  -998  -999 
+ -998 -1000 -1000 -1000 -1000 -1000  -999  -998 
+-1000 -1000 -1000  1000  1000 -1000 -1000  -998 
+-1000  1000  1000   997  1000 -1000 -1000 -1000 
+-1000  1000   998   996  1000  1000 -1000   999 
+  999   999   997   997   999   999   999  1000 
+  999  1000   999   998   999  1000   999   998 
+
+Symmetry 4
+Win 0.46c
+Loss 99.54c
+NoResult 0.00c
+ScoreMean -0.92
+ScoreMeanSq 1.1
+Lead 0.44
+VarTimeLeft 0.1
+STWinlossError 0.45c
+STScoreError 0.48
+Policy
+Pass  21 
+   5   10    8   11   11   12   11    4 
+  13   16   15   16   21   24   23   10 
+   5    -  269    -    -  339   26   13 
+   -    -    -    -    -    -   15   12 
+   -    -    -    4    -    -    -    - 
+   -    -    4    8    -    -    -    - 
+   -    5   22    6    8    7    -    - 
+   -    -    3    3    5    6    6    4 
+ -999  -999  -998  -999  -998  -998  -999  -999 
+ -999  -999  -999  -999  -998  -999  -999  -999 
+ -998 -1000 -1000 -1000 -1000 -1000  -999  -998 
+-1000 -1000 -1000  1000  1000 -1000 -1000  -999 
+-1000  1000  1000   997  1000 -1000 -1000 -1000 
+-1000  1000   997   997  1000  1000 -1000   999 
+ 1000   999   996   997   999  1000   999   999 
+  999  1000   999   998   999   999   998   998 
+
+Symmetry all
+Win 0.36c
+Loss 99.64c
+NoResult 0.00c
+ScoreMean -1.07
+ScoreMeanSq 1.5
+Lead 0.40
+VarTimeLeft 0.1
+STWinlossError 0.46c
+STScoreError 0.50
+Policy
+Pass  18 
+   5   10    8   11   12   13   12    4 
+  12   15   15   19   23   26   26   11 
+   5    -  253    -    -  341   26   14 
+   -    -    -    -    -    -   16   12 
+   -    -    -    4    -    -    -    - 
+   -    -    3    8    -    -    -    - 
+   -    5   21    5    9    8    -    - 
+   -    -    3    3    4    6    6    5 
+ -999  -999  -998  -998  -998  -998  -999  -999 
+ -999  -999  -999  -999  -999  -999  -999  -999 
+ -998 -1000 -1000 -1000 -1000 -1000  -999  -998 
+-1000 -1000 -1000  1000  1000 -1000 -1000  -999 
+-1000  1000  1000   997  1000 -1000 -1000 -1000 
+-1000  1000   998   996  1000  1000 -1000   999 
+  999   999   997   998   999   999   999   999 
+  999  1000   999   999   999  1000   999   998 
+
+Single symmetry and full symmetry raw nets
+HASH: 2C5808F3F067B9221998C7B251705AB9
+   A B C D E F G H
+ 5 . X . X X . . .
+ 4 X X X O O X . .
+ 3 X O O . O X X X
+ 2 X O . . O O X O
+ 1 O O . . . O O O
+
+
+Symmetry 0
+Win 99.97c
+Loss 0.03c
+NoResult 0.00c
+ScoreMean 5.48
+ScoreMeanSq 33.5
+Lead 6.59
+VarTimeLeft 0.0
+STWinlossError 0.34c
+STScoreError 0.50
+Policy
+Pass  51 
+   2    -   28    -    -  417   94   34 
+   -    -    -    -    -    -   69   91 
+   -    -    -   21    -    -    -    - 
+   -    -   34   64    -    -    -    - 
+   -    -   38   43   15    -    -    - 
+ -981  -998  -996  -998  -999  -999  -999  -998 
+ -999  -997  -999  1000  1000 -1000  -999  -999 
+ -998   997   997   999   999  -999 -1000 -1000 
+ -997   996   998   997   999   999  -998   999 
+  998   999   999   995   999   999   999  1000 
+
+Symmetry 1
+Win 99.97c
+Loss 0.03c
+NoResult 0.00c
+ScoreMean 5.39
+ScoreMeanSq 33.7
+Lead 6.42
+VarTimeLeft 0.0
+STWinlossError 0.36c
+STScoreError 0.62
+Policy
+Pass  44 
+   3    -   23    -    -  387   98   34 
+   -    -    -    -    -    -   72  108 
+   -    -    -   26    -    -    -    - 
+   -    -   33   72    -    -    -    - 
+   -    -   41   43   16    -    -    - 
+ -975  -995  -994  -996  -999  -999  -999  -997 
+ -997  -991  -998  1000  1000 -1000  -999  -998 
+ -997   998   997   998   999  -999 -1000 -1000 
+ -996   997   998   996   999   999  -997  1000 
+  999   999   999   995   999   999   999  1000 
+
+Symmetry 2
+Win 99.97c
+Loss 0.03c
+NoResult 0.00c
+ScoreMean 5.36
+ScoreMeanSq 32.3
+Lead 6.57
+VarTimeLeft 0.0
+STWinlossError 0.36c
+STScoreError 0.52
+Policy
+Pass  61 
+   2    -   29    -    -  423   90   30 
+   -    -    -    -    -    -   65   89 
+   -    -    -   21    -    -    -    - 
+   -    -   31   60    -    -    -    - 
+   -    -   39   45   15    -    -    - 
+ -980  -997  -996  -998  -999  -999  -999  -999 
+ -998  -996  -999  1000  1000 -1000  -999  -999 
+ -998   998   998   999   999  -999 -1000 -1000 
+ -997   997   999   998   999   999  -999  1000 
+  999   999   999   995   999   999   999  1000 
+
+Symmetry 4
+Win 99.99c
+Loss 0.01c
+NoResult 0.00c
+ScoreMean 5.76
+ScoreMeanSq 35.9
+Lead 6.92
+VarTimeLeft 0.0
+STWinlossError 0.21c
+STScoreError 0.40
+Policy
+Pass  33 
+   2    -   22    -    -  437   91   32 
+   -    -    -    -    -    -   69   81 
+   -    -    -   23    -    -    -    - 
+   -    -   37   66    -    -    -    - 
+   -    -   45   46   16    -    -    - 
+ -983  -998  -999  -998  -999  -999 -1000  -998 
+ -999  -998  -999  1000  1000 -1000 -1000  -999 
+ -998   998   998   999   999 -1000 -1000 -1000 
+ -997   998   999   998   999   999  -999  1000 
+  999   999   999   997   999   999   999  1000 
+
+Symmetry all
+Win 99.97c
+Loss 0.03c
+NoResult 0.00c
+ScoreMean 5.39
+ScoreMeanSq 32.8
+Lead 6.53
+VarTimeLeft 0.0
+STWinlossError 0.34c
+STScoreError 0.54
+Policy
+Pass  52 
+   2    -   30    -    -  413   96   33 
+   -    -    -    -    -    -   66   87 
+   -    -    -   23    -    -    -    - 
+   -    -   34   64    -    -    -    - 
+   -    -   40   43   16    -    -    - 
+ -981  -997  -996  -997  -999  -999  -999  -998 
+ -998  -995  -999  1000  1000 -1000  -999  -999 
+ -997   998   997   999   999  -999 -1000 -1000 
+ -997   997   999   997   999   999  -998  1000 
+  999   999   999   995   999   999   999  1000 
+
+Single symmetry and full symmetry raw nets
+HASH: 88DE424CCD58E213A0FA7C805C26E210
+   A B C D E F G H J K L M N O P Q R S T
+19 . . . . . . . . . . . . . . . . . . .
+18 . . . . . . . . . . . . . . . . . . .
+17 . . . . . . . . . . . . . . . . . . .
+16 . . . . . . . . . . . . . . . . . . .
+15 . . . . . . . . . . . . . . . . . . .
+14 . . . . . . . . . . . . . . . . . . .
+13 . . . . . . . . . . . . . . . . . . .
+12 . . . . . . . . . . . . . . . . . . .
+11 . . . . . . . . . . . . . . . . . . .
+10 . . . . . . . . . . . . . . . . . . .
+ 9 . . . . . . . . . . . . . . . . . . .
+ 8 . . . . . . . . . . . . . . . . . . .
+ 7 . . . . . . . . . . . . . . . . . . .
+ 6 . . . . . . . . . . . . . . . . . . .
+ 5 . . . . X . . . . . . . . . . . . . .
+ 4 . . . O . . . . . . . . . . . . . . .
+ 3 . . X . . . . . . . . . . . . . . . .
+ 2 . O . . . . . . . . . . . . . . . . .
+ 1 X . . . . . . . . . . . . . . . . . .
+
+
+Symmetry all
+Win 69.33c
+Loss 30.56c
+NoResult 0.11c
+ScoreMean 3.14
+ScoreMeanSq 237.2
+Lead 2.03
+VarTimeLeft 49.1
+STWinlossError 14.43c
+STScoreError 1.66
+Policy
+Pass   0 
+   0    0    0    0    0    0    0    0    0    0    0    0    0    0    0    0    0    0    0 
+   0    0    0    0    0    0    0    0    0    0    0    0    0    0    0    0    0    0    0 
+   0    0    0    2    0    0    0    0    0    0    0    0    0    0    0    2    0    0    0 
+   0    0    2    5    0    0    0    0    0    0    0    0    0    0    0    5    2    0    0 
+   0    0    0    0    0    0    0    0    0    0    0    0    0    0    0    0    0    0    0 
+   0    0    0    0    0    0    0    0    0    0    0    0    0    0    0    0    0    0    0 
+   0    0    0    0    0    0    0    0    0    0    0    0    0    0    0    0    0    0    0 
+   0    0    0    0    0    0    0    0    0    0    0    0    0    0    0    0    0    0    0 
+   0    0    0    0    0    0    0    0    0    0    0    0    0    0    0    0    0    0    0 
+   0    0    0    0    0    0    0    0    0    0    0    0    0    0    0    0    0    0    0 
+   0    0    0    0    0    0    0    0    0    0    0    0    0    0    0    0    0    0    0 
+   0    0    0    0    0    0    0    0    0    0    0    0    0    0    0    0    0    0    0 
+   0    0    0    0    0    0    0    0    0    0    0    0    0    0    0    0    0    0    0 
+   0    0    2    0    0    0    0    0    0    0    0    0    0    0    0    0    0    0    0 
+   0    0    0    2    -    0    0    0    0    0    0    0    0    0    0    0    0    0    0 
+   0    0  479    -    2    0    0    0    0    0    0    0    0    0    0    5    2    0    0 
+   0    0    -  479    0    2    0    0    0    0    0    0    0    0    0    2    0    0    0 
+   0    -    0    0    0    0    0    0    0    0    0    0    0    0    0    0    0    0    0 
+   -    0    0    0    0    0    0    0    0    0    0    0    0    0    0    0    0    0    0 
+  -17    30    24    38    28    16     2    -1    -5    -5    -5     0     3    17    30    40    27    32   -14 
+   30    68    31    56    14    24     6     6    -6    -5    -5     7     7    25    15    58    35    72    32 
+   24    30    65    51    56    34    30    19    23    23    24    20    31    35    54    59    68    35    27 
+   38    58    59     6    11    34    33    35    38    40    39    35    34    30     7     6    59    58    40 
+   30    16    54     9    23    43    30    28    27    29    28    29    31    43    23     7    54    15    30 
+   19    31    36    40    43    39    28    26    26    25    26    27    29    38    43    30    35    25    17 
+    5    12    36    40    31    29    23    27    25    25    25    27    23    29    31    34    31     7     3 
+   -2    13    26    45    33    29    28    33    33    33    33    33    27    27    29    35    20     7     0 
+  -12     2    28    49    34    28    28    35    35    35    34    33    25    26    28    39    24    -5    -5 
+  -16     1    22    48    31    24    26    35    37    37    35    33    25    25    29    40    23    -5    -5 
+  -20     5    10    30    15    14    21    30    35    37    35    33    25    26    27    38    23    -6    -5 
+    5    25    23    16    13     7    18    22    30    35    35    33    27    26    28    35    19     6    -1 
+   39    46    41    47    16    27    10    18    21    26    28    28    23    28    30    33    30     6     2 
+  111    99    21   103    48    53    27     7    14    24    28    29    29    39    43    34    34    24    16 
+  241   229   236   192  -305    48    16    13    15    31    34    33    31    43    23    11    56    14    28 
+  376   451   681   878   192   103    47    16    30    48    49    45    40    40     9     6    51    56    38 
+  474   494   378   681   236    21    41    23    10    22    28    26    36    36    54    59    65    31    24 
+  591   722   494   451   229    99    46    25     5     1     2    13    12    31    16    58    30    68    30 
+  534   591   474   376   241   111    39     5   -20   -16   -12    -2     5    19    30    38    24    30   -17 
+
+Very low visit search discretization ==========================================================================
+
+MoveNum: 1 HASH: 38E71B648B5DE3A43B414F57C285AD76
+   A B C D E F G H J
+ 9 . . . . . . . . .
+ 8 . . . . . . . . .
+ 7 . . . . . . . . .
+ 6 . . . . . . . . .
+ 5 . . . . X1. . . .
+ 4 . . . . . . . . .
+ 3 . . . . . . . . .
+ 2 . . . . . . . . .
+ 1 . . . . . . . . .
+
+Root visits: 20
+New playouts: 20
+NN rows: 52
+NN batches: 52
+NN avg batch size: 1
+PV: C5 G4 F7
+Tree:
+: T -61.63c W -57.07c S  -4.34c ( -2.6 L  -1.6) N      20  --  C5 G4 F7
+---White(^)---
+C5  : T -53.86c W -50.65c S  -3.01c ( -1.9 L  -0.8) LCB  -81.67c P 17.95% WF   7.1 PSV       7 N       5  --  C5 G4 F7
+C4  : T -52.07c W -49.09c S  -2.98c ( -2.0 L  -1.0) LCB -402.07c P  2.94% WF   1.5 PSV       1 N       1  --  C4
+C3  : T -67.43c W -63.50c S  -3.93c ( -2.5 L  -1.3) LCB -417.43c P  1.44% WF   1.3 PSV       0 N       1  --  C3
+B5  : T -88.73c W -82.49c S  -6.24c ( -3.7 L  -2.0) LCB -438.73c P  0.06% WF   0.2 PSV       0 N       1  --  B5
+D4  : T -87.29c W -81.11c S  -6.18c ( -3.6 L  -2.3) LCB -437.29c P  0.05% WF   0.2 PSV       0 N       1  --  D4
+pss : T -121.01c W -99.93c S -21.08c (-11.0 L -11.3) LCB -471.01c P  0.02% WF   0.1 PSV       0 N       1  --  pass
+D5  : T -90.22c W -83.69c S  -6.53c ( -3.7 L  -2.0) LCB -440.22c P  0.02% WF   0.3 PSV       0 N       1  --  D5
+B4  : T -96.51c W -88.78c S  -7.73c ( -4.4 L  -2.7) LCB -446.51c P  0.02% WF   0.2 PSV       0 N       1  --  B4
+B3  : T -101.75c W -93.03c S  -8.72c ( -4.7 L  -3.5) LCB -451.75c P  0.01% WF   0.2 PSV       0 N       1  --  B3
+B2  : T -108.59c W -97.13c S -11.46c ( -5.7 L  -4.9) LCB -458.59c P  0.01% WF   0.2 PSV       0 N       1  --  B2
+A5  : T -111.67c W -97.43c S -14.24c ( -7.1 L  -6.5) LCB -461.67c P  0.01% WF   0.2 PSV       0 N       1  --  A5
+A3  : T -113.25c W -98.18c S -15.08c ( -7.4 L  -7.0) LCB -463.25c P  0.01% WF   0.2 PSV       0 N       1  --  A3
+A1  : T -119.78c W -99.65c S -20.13c (-10.4 L -10.3) LCB -469.78c P  0.01% WF   0.2 PSV       0 N       1  --  A1
+A4  : T -112.32c W -97.83c S -14.49c ( -7.2 L  -6.6) LCB -462.32c P  0.01% WF   0.2 PSV       0 N       1  --  A4
+A2  : T -115.16c W -98.83c S -16.33c ( -8.1 L  -7.6) LCB -465.16c P  0.01% WF   0.2 PSV       0 N       1  --  A2
+: GPU 0 finishing, processed 10865 rows 10865 batches
 Done

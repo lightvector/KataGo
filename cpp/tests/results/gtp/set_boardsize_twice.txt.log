@@ -1,0 +1,243 @@
+: Running with following config:
+allowResignation = true
+cudaUseFP16 = false
+cudaUseNHWC = false
+forDeterministicTesting = true
+lagBuffer = 1.0
+logAllGTPCommunication = true
+logFile = tests/results/gtp/set_boardsize_twice.txt.log
+logSearchInfo = true
+logTimeStamp = false
+logToStderr = false
+maxPlayouts = 10000
+maxTimePondering = 60.0
+maxVisits = 100
+nnRandSeed = forTesting
+nnRandomize = false
+numSearchThreads = 1
+openclUseFP16 = false
+ponderingEnabled = false
+resignConsecTurns = 3
+resignThreshold = -0.90
+rootSymmetryPruning = false
+rules = tromp-taylor
+searchFactorAfterOnePass = 0.50
+searchFactorAfterTwoPass = 0.25
+searchFactorWhenWinning = 0.40
+searchFactorWhenWinningThreshold = 0.95
+searchRandSeed = forTesting
+trtUseFP16 = false
+
+: GTP Engine starting...
+: KataGo v1.13.0
+: Using TrompTaylor rules initially, unless GTP/GUI overrides this
+: Using 1 CPU thread(s) for search
+: nnRandSeed0 = forTesting
+: After dedups: nnModelFile0 = tests/models/g170-b6c96-s175395328-d26788732.bin.gz useFP16 false useNHWC false
+: Initializing neural net buffer to be size 19 * 19 exactly
+: Cuda backend thread 0: Found GPU NVIDIA RTX A5000 memory 25434652672 compute capability major 8 minor 6
+: Cuda backend thread 0: Model version 8 useFP16 = false useNHWC = false
+: Cuda backend thread 0: Model name: g170-b6c96-s175395328-d26788732
+: Loaded neural net with nnXLen 19 nnYLen 19
+: Initializing board with boardXSize 19 boardYSize 19
+: Loaded config configs/gtp_example.cfg and/or command-line and query overrides
+: Loaded model tests/models/g170-b6c96-s175395328-d26788732.bin.gz
+: Config override: cudaUseFP16 = false
+: Config override: cudaUseNHWC = false
+: Config override: forDeterministicTesting = true
+: Config override: logDir = 
+: Config override: logFile = tests/results/gtp/set_boardsize_twice.txt.log
+: Config override: logTimeStamp = false
+: Config override: maxPlayouts = 10000
+: Config override: maxVisits = 100
+: Config override: nnRandSeed = forTesting
+: Config override: nnRandomize = false
+: Config override: numSearchThreads = 1
+: Config override: openclUseFP16 = false
+: Config override: rootSymmetryPruning = false
+: Config override: searchRandSeed = forTesting
+: Config override: trtUseFP16 = false
+: Model name: g170-b6c96-s175395328-d26788732
+: GTP ready, beginning main protocol loop
+: Controller: boardsize 15
+: GPU -1 finishing, processed 0 rows 0 batches
+: Cleaned up old neural net and bot
+: nnRandSeed0 = forTesting
+: After dedups: nnModelFile0 = tests/models/g170-b6c96-s175395328-d26788732.bin.gz useFP16 false useNHWC false
+: Initializing neural net buffer to be size 15 * 15 exactly
+: Cuda backend thread 0: Found GPU NVIDIA RTX A5000 memory 25434652672 compute capability major 8 minor 6
+: Cuda backend thread 0: Model version 8 useFP16 = false useNHWC = false
+: Cuda backend thread 0: Model name: g170-b6c96-s175395328-d26788732
+: Loaded neural net with nnXLen 15 nnYLen 15
+: Initializing board with boardXSize 15 boardYSize 15
+: = 
+: Controller: showboard
+: = MoveNum: 0 HASH: FD0308A2D48062AF44ECC687B1059157
+   A B C D E F G H J K L M N O P
+15 . . . . . . . . . . . . . . .
+14 . . . . . . . . . . . . . . .
+13 . . . . . . . . . . . . . . .
+12 . . . . . . . . . . . . . . .
+11 . . . . . . . . . . . . . . .
+10 . . . . . . . . . . . . . . .
+ 9 . . . . . . . . . . . . . . .
+ 8 . . . . . . . . . . . . . . .
+ 7 . . . . . . . . . . . . . . .
+ 6 . . . . . . . . . . . . . . .
+ 5 . . . . . . . . . . . . . . .
+ 4 . . . . . . . . . . . . . . .
+ 3 . . . . . . . . . . . . . . .
+ 2 . . . . . . . . . . . . . . .
+ 1 . . . . . . . . . . . . . . .
+Next player: Black
+Rules: {"friendlyPassOk":false,"hasButton":false,"ko":"POSITIONAL","komi":7.5,"scoring":"AREA","suicide":true,"tax":"NONE","whiteHandicapBonus":"0"}
+B stones captured: 0
+W stones captured: 0
+: Controller: play b c3
+: = 
+: Controller: play w d4
+: = 
+: Controller: showboard
+: = MoveNum: 2 HASH: 463A3C94018F8A654BFCAA43C488FB6A
+   A B C D E F G H J K L M N O P
+15 . . . . . . . . . . . . . . .
+14 . . . . . . . . . . . . . . .
+13 . . . . . . . . . . . . . . .
+12 . . . . . . . . . . . . . . .
+11 . . . . . . . . . . . . . . .
+10 . . . . . . . . . . . . . . .
+ 9 . . . . . . . . . . . . . . .
+ 8 . . . . . . . . . . . . . . .
+ 7 . . . . . . . . . . . . . . .
+ 6 . . . . . . . . . . . . . . .
+ 5 . . . . . . . . . . . . . . .
+ 4 . . . O2. . . . . . . . . . .
+ 3 . . X1. . . . . . . . . . . .
+ 2 . . . . . . . . . . . . . . .
+ 1 . . . . . . . . . . . . . . .
+Next player: Black
+Rules: {"friendlyPassOk":false,"hasButton":false,"ko":"POSITIONAL","komi":7.5,"scoring":"AREA","suicide":true,"tax":"NONE","whiteHandicapBonus":"0"}
+B stones captured: 0
+W stones captured: 0
+: Controller: boardsize 15
+: = 
+: Controller: showboard
+: = MoveNum: 2 HASH: 463A3C94018F8A654BFCAA43C488FB6A
+   A B C D E F G H J K L M N O P
+15 . . . . . . . . . . . . . . .
+14 . . . . . . . . . . . . . . .
+13 . . . . . . . . . . . . . . .
+12 . . . . . . . . . . . . . . .
+11 . . . . . . . . . . . . . . .
+10 . . . . . . . . . . . . . . .
+ 9 . . . . . . . . . . . . . . .
+ 8 . . . . . . . . . . . . . . .
+ 7 . . . . . . . . . . . . . . .
+ 6 . . . . . . . . . . . . . . .
+ 5 . . . . . . . . . . . . . . .
+ 4 . . . O2. . . . . . . . . . .
+ 3 . . X1. . . . . . . . . . . .
+ 2 . . . . . . . . . . . . . . .
+ 1 . . . . . . . . . . . . . . .
+Next player: Black
+Rules: {"friendlyPassOk":false,"hasButton":false,"ko":"POSITIONAL","komi":7.5,"scoring":"AREA","suicide":true,"tax":"NONE","whiteHandicapBonus":"0"}
+B stones captured: 0
+W stones captured: 0
+: Controller: boardsize 19
+: GPU -1 finishing, processed 0 rows 0 batches
+: Cleaned up old neural net and bot
+: nnRandSeed0 = forTesting
+: After dedups: nnModelFile0 = tests/models/g170-b6c96-s175395328-d26788732.bin.gz useFP16 false useNHWC false
+: Initializing neural net buffer to be size 19 * 19 exactly
+: Cuda backend thread 0: Found GPU NVIDIA RTX A5000 memory 25434652672 compute capability major 8 minor 6
+: Cuda backend thread 0: Model version 8 useFP16 = false useNHWC = false
+: Cuda backend thread 0: Model name: g170-b6c96-s175395328-d26788732
+: Loaded neural net with nnXLen 19 nnYLen 19
+: Initializing board with boardXSize 19 boardYSize 19
+: = 
+: Controller: showboard
+: = MoveNum: 0 HASH: CDCBC1F514D7E680FACD226074256633
+   A B C D E F G H J K L M N O P Q R S T
+19 . . . . . . . . . . . . . . . . . . .
+18 . . . . . . . . . . . . . . . . . . .
+17 . . . . . . . . . . . . . . . . . . .
+16 . . . . . . . . . . . . . . . . . . .
+15 . . . . . . . . . . . . . . . . . . .
+14 . . . . . . . . . . . . . . . . . . .
+13 . . . . . . . . . . . . . . . . . . .
+12 . . . . . . . . . . . . . . . . . . .
+11 . . . . . . . . . . . . . . . . . . .
+10 . . . . . . . . . . . . . . . . . . .
+ 9 . . . . . . . . . . . . . . . . . . .
+ 8 . . . . . . . . . . . . . . . . . . .
+ 7 . . . . . . . . . . . . . . . . . . .
+ 6 . . . . . . . . . . . . . . . . . . .
+ 5 . . . . . . . . . . . . . . . . . . .
+ 4 . . . . . . . . . . . . . . . . . . .
+ 3 . . . . . . . . . . . . . . . . . . .
+ 2 . . . . . . . . . . . . . . . . . . .
+ 1 . . . . . . . . . . . . . . . . . . .
+Next player: Black
+Rules: {"friendlyPassOk":false,"hasButton":false,"ko":"POSITIONAL","komi":7.5,"scoring":"AREA","suicide":true,"tax":"NONE","whiteHandicapBonus":"0"}
+B stones captured: 0
+W stones captured: 0
+: Controller: play b a1
+: = 
+: Controller: play w a2
+: = 
+: Controller: showboard
+: = MoveNum: 2 HASH: 077BF25165DD82BF35408E9C0A7902AE
+   A B C D E F G H J K L M N O P Q R S T
+19 . . . . . . . . . . . . . . . . . . .
+18 . . . . . . . . . . . . . . . . . . .
+17 . . . . . . . . . . . . . . . . . . .
+16 . . . . . . . . . . . . . . . . . . .
+15 . . . . . . . . . . . . . . . . . . .
+14 . . . . . . . . . . . . . . . . . . .
+13 . . . . . . . . . . . . . . . . . . .
+12 . . . . . . . . . . . . . . . . . . .
+11 . . . . . . . . . . . . . . . . . . .
+10 . . . . . . . . . . . . . . . . . . .
+ 9 . . . . . . . . . . . . . . . . . . .
+ 8 . . . . . . . . . . . . . . . . . . .
+ 7 . . . . . . . . . . . . . . . . . . .
+ 6 . . . . . . . . . . . . . . . . . . .
+ 5 . . . . . . . . . . . . . . . . . . .
+ 4 . . . . . . . . . . . . . . . . . . .
+ 3 . . . . . . . . . . . . . . . . . . .
+ 2 O2. . . . . . . . . . . . . . . . . .
+ 1 X1. . . . . . . . . . . . . . . . . .
+Next player: Black
+Rules: {"friendlyPassOk":false,"hasButton":false,"ko":"POSITIONAL","komi":7.5,"scoring":"AREA","suicide":true,"tax":"NONE","whiteHandicapBonus":"0"}
+B stones captured: 0
+W stones captured: 0
+: Controller: boardsize 19
+: = 
+: Controller: showboard
+: = MoveNum: 2 HASH: 077BF25165DD82BF35408E9C0A7902AE
+   A B C D E F G H J K L M N O P Q R S T
+19 . . . . . . . . . . . . . . . . . . .
+18 . . . . . . . . . . . . . . . . . . .
+17 . . . . . . . . . . . . . . . . . . .
+16 . . . . . . . . . . . . . . . . . . .
+15 . . . . . . . . . . . . . . . . . . .
+14 . . . . . . . . . . . . . . . . . . .
+13 . . . . . . . . . . . . . . . . . . .
+12 . . . . . . . . . . . . . . . . . . .
+11 . . . . . . . . . . . . . . . . . . .
+10 . . . . . . . . . . . . . . . . . . .
+ 9 . . . . . . . . . . . . . . . . . . .
+ 8 . . . . . . . . . . . . . . . . . . .
+ 7 . . . . . . . . . . . . . . . . . . .
+ 6 . . . . . . . . . . . . . . . . . . .
+ 5 . . . . . . . . . . . . . . . . . . .
+ 4 . . . . . . . . . . . . . . . . . . .
+ 3 . . . . . . . . . . . . . . . . . . .
+ 2 O2. . . . . . . . . . . . . . . . . .
+ 1 X1. . . . . . . . . . . . . . . . . .
+Next player: Black
+Rules: {"friendlyPassOk":false,"hasButton":false,"ko":"POSITIONAL","komi":7.5,"scoring":"AREA","suicide":true,"tax":"NONE","whiteHandicapBonus":"0"}
+B stones captured: 0
+W stones captured: 0
+: GPU -1 finishing, processed 0 rows 0 batches
+: All cleaned up, quitting
