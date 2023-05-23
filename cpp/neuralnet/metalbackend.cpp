@@ -93,6 +93,21 @@ Rules NeuralNet::getSupportedRules(const LoadedModel* loadedModel, const Rules& 
   return loadedModel->modelDesc.getSupportedRules(desiredRules, supported);
 }
 
+/**
+ * @brief Retrieves the post-processing parameters of a loaded model.
+ *
+ * This function returns the post-processing parameters of a loaded model, which define the parameters used
+ * for post-processing the model's output. The post-processing parameters include values such as
+ * `tdScoreMultiplier`, `scoreMeanMultiplier`, `scoreStdevMultiplier`, `leadMultiplier`,
+ * `varianceTimeMultiplier`, `shorttermValueErrorMultiplier`, and `shorttermScoreErrorMultiplier`.
+ *
+ * @param loadedModel A pointer to the LoadedModel object containing the loaded model.
+ * @return A ModelPostProcessParams object that contains the post-processing parameters of the loaded model.
+ */
+ModelPostProcessParams NeuralNet::getPostProcessParams(const LoadedModel* loadedModel) {
+  return loadedModel->modelDesc.postProcessParams;
+}
+
 //------------------------------------------------------------------------------
 
 ComputeContext::ComputeContext(int nnX, int nnY, enabled_t useFP16Mode, enabled_t useNHWCMode) {

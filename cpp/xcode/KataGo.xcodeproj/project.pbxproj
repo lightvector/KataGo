@@ -34,7 +34,6 @@
 		E10ACA862928A6D30004AB17 /* genbook.cpp in Sources */ = {isa = PBXBuildFile; fileRef = B2460699580B49F689D028D5 /* genbook.cpp */; };
 		E10ACA872928A6D30004AB17 /* gtp.cpp in Sources */ = {isa = PBXBuildFile; fileRef = AD94201E380643C3985E9D62 /* gtp.cpp */; };
 		E10ACA882928A6D30004AB17 /* match.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 948AF9E88374487D85E846C2 /* match.cpp */; };
-		E10ACA892928A6D30004AB17 /* matchauto.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4361E3FD2972413FBC0102FB /* matchauto.cpp */; };
 		E10ACA8A2928A6D30004AB17 /* misc.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 64D3C3432AB3409C942F7A0E /* misc.cpp */; };
 		E10ACA8B2928A6D30004AB17 /* runtests.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 5902EDD2F6A74BE7966E2001 /* runtests.cpp */; };
 		E10ACA8C2928A6D30004AB17 /* sandbox.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 11318DB744F340DCB41F7248 /* sandbox.cpp */; };
@@ -140,6 +139,8 @@
 		E10ACAFB2928A8D70004AB17 /* coremlbackend.mm in Sources */ = {isa = PBXBuildFile; fileRef = E13CF66128E1896C005CB016 /* coremlbackend.mm */; };
 		E10ACAFC2928A8DB0004AB17 /* coremlmodel.m in Sources */ = {isa = PBXBuildFile; fileRef = E13CF66328E1896C005CB016 /* coremlmodel.m */; };
 		E10ACAFD2928BBF00004AB17 /* CoreML.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = E1AD404F28E1D5A700E41968 /* CoreML.framework */; };
+		E12453D52A1CF0DE0062DF9C /* testbook.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E12453D42A1CF0DE0062DF9C /* testbook.cpp */; };
+		E12453D72A1D015E0062DF9C /* poswriter.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E12453D62A1D015E0062DF9C /* poswriter.cpp */; };
 		E17D098C294D45CF005968E9 /* gputest.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E17D098A294D45CF005968E9 /* gputest.cpp */; };
 		E1E29E1328F5B05300E73FF8 /* metalbackendtest.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1E29E1228F5B05300E73FF8 /* metalbackendtest.swift */; };
 		E1E29E1B28F5B42200E73FF8 /* metalbackend.swift in Sources */ = {isa = PBXBuildFile; fileRef = E199A6F428E1E6D400A2E051 /* metalbackend.swift */; };
@@ -193,7 +194,6 @@
 		3E097292E4F34AB6806F67E6 /* sgf.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = sgf.cpp; path = dataio/sgf.cpp; sourceTree = SOURCE_ROOT; };
 		3FBACE432776421CAEDF6786 /* play.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = play.cpp; path = program/play.cpp; sourceTree = SOURCE_ROOT; };
 		41CCB0DF860045E5A8697BDD /* testnn.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = testnn.cpp; path = tests/testnn.cpp; sourceTree = SOURCE_ROOT; };
-		4361E3FD2972413FBC0102FB /* matchauto.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = matchauto.cpp; path = command/matchauto.cpp; sourceTree = SOURCE_ROOT; };
 		43CF521030274453B04827E1 /* testsearchv3.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = testsearchv3.cpp; path = tests/testsearchv3.cpp; sourceTree = SOURCE_ROOT; };
 		4845ACCEFC204BA89C033482 /* metalbackend.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; indentWidth = 2; name = metalbackend.cpp; path = neuralnet/metalbackend.cpp; sourceTree = SOURCE_ROOT; };
 		48669007B9164F5FB011F549 /* testmisc.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = testmisc.cpp; path = tests/testmisc.cpp; sourceTree = SOURCE_ROOT; };
@@ -276,6 +276,8 @@
 		E10ACAF52928A6D30004AB17 /* katago */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = katago; sourceTree = BUILT_PRODUCTS_DIR; };
 		E10ACAF82928A7F50004AB17 /* coremlmodel.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = coremlmodel.h; path = neuralnet/coremlmodel.h; sourceTree = "<group>"; };
 		E10ACAF92928A8160004AB17 /* coremlbackend.h */ = {isa = PBXFileReference; indentWidth = 2; lastKnownFileType = sourcecode.c.h; name = coremlbackend.h; path = neuralnet/coremlbackend.h; sourceTree = "<group>"; tabWidth = 4; };
+		E12453D42A1CF0DE0062DF9C /* testbook.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = testbook.cpp; path = tests/testbook.cpp; sourceTree = "<group>"; };
+		E12453D62A1D015E0062DF9C /* poswriter.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = poswriter.cpp; path = dataio/poswriter.cpp; sourceTree = "<group>"; };
 		E13CF66128E1896C005CB016 /* coremlbackend.mm */ = {isa = PBXFileReference; fileEncoding = 4; indentWidth = 2; lastKnownFileType = sourcecode.cpp.objcpp; name = coremlbackend.mm; path = neuralnet/coremlbackend.mm; sourceTree = "<group>"; };
 		E13CF66228E1896C005CB016 /* coremlbackend.cpp */ = {isa = PBXFileReference; fileEncoding = 4; indentWidth = 2; lastKnownFileType = sourcecode.cpp.cpp; name = coremlbackend.cpp; path = neuralnet/coremlbackend.cpp; sourceTree = "<group>"; };
 		E13CF66328E1896C005CB016 /* coremlmodel.m */ = {isa = PBXFileReference; fileEncoding = 4; indentWidth = 2; lastKnownFileType = sourcecode.c.objc; name = coremlmodel.m; path = neuralnet/coremlmodel.m; sourceTree = "<group>"; };
@@ -384,7 +386,6 @@
 		E42DAD7F6DF94192AED73FF1 /* Source Files */ = {
 			isa = PBXGroup;
 			children = (
-				E17D098A294D45CF005968E9 /* gputest.cpp */,
 				E7B41A9FE4124FA1AB3FBEF1 /* analysis.cpp */,
 				BF423768A6B74FF18FDC44E7 /* analysisdata.cpp */,
 				F2D4BF5BF0CD446F80DFDACE /* asyncbot.cpp */,
@@ -414,6 +415,7 @@
 				D8710CF2CCA3478EB65063C6 /* gatekeeper.cpp */,
 				B2460699580B49F689D028D5 /* genbook.cpp */,
 				A8748F2EFAAF401DACE6B60A /* global.cpp */,
+				E17D098A294D45CF005968E9 /* gputest.cpp */,
 				10EB7D2538F94B26BE1B1740 /* graphhash.cpp */,
 				AD94201E380643C3985E9D62 /* gtp.cpp */,
 				5BCE97296A5249A0B49C766F /* gtpconfig.cpp */,
@@ -426,7 +428,6 @@
 				92F4695F66A84118BDCAA13F /* mainargs.cpp */,
 				63D5831B449B48D1AD132F9F /* makedir.cpp */,
 				948AF9E88374487D85E846C2 /* match.cpp */,
-				4361E3FD2972413FBC0102FB /* matchauto.cpp */,
 				BE7F7520CA15440EBDF0A21D /* md5.cpp */,
 				4845ACCEFC204BA89C033482 /* metalbackend.cpp */,
 				D555BE954F924C7886538563 /* metalbackend.mm */,
@@ -442,6 +443,7 @@
 				3FBACE432776421CAEDF6786 /* play.cpp */,
 				7A57BA046921422DB33C7614 /* playsettings.cpp */,
 				9FB3A34B1C8D4CBF9997DDA7 /* playutils.cpp */,
+				E12453D62A1D015E0062DF9C /* poswriter.cpp */,
 				59BC63FBF0804F63A27369AE /* rand_helpers.cpp */,
 				B8E283A3B8004F289DACCD8A /* rand.cpp */,
 				706365E669744784A6A6DE57 /* reportedsearchvalues.cpp */,
@@ -469,6 +471,7 @@
 				5639F08A96FD467CBD091947 /* test.cpp */,
 				3D4E9B8ABFBF4DAEB11058E1 /* testboardarea.cpp */,
 				F18310A722494DAEACBE09BC /* testboardbasic.cpp */,
+				E12453D42A1CF0DE0062DF9C /* testbook.cpp */,
 				8C9D17518AE04398A975E5AE /* testcommon.cpp */,
 				346C96C8324D4BE8A12D1A97 /* testconfig.cpp */,
 				48669007B9164F5FB011F549 /* testmisc.cpp */,
@@ -604,9 +607,9 @@
 				E10ACA842928A6D30004AB17 /* gatekeeper.cpp in Sources */,
 				E10ACA852928A6D30004AB17 /* metalbackend.swift in Sources */,
 				E10ACA862928A6D30004AB17 /* genbook.cpp in Sources */,
+				E12453D72A1D015E0062DF9C /* poswriter.cpp in Sources */,
 				E10ACA872928A6D30004AB17 /* gtp.cpp in Sources */,
 				E10ACA882928A6D30004AB17 /* match.cpp in Sources */,
-				E10ACA892928A6D30004AB17 /* matchauto.cpp in Sources */,
 				E10ACA8A2928A6D30004AB17 /* misc.cpp in Sources */,
 				E10ACA8B2928A6D30004AB17 /* runtests.cpp in Sources */,
 				E10ACA8C2928A6D30004AB17 /* sandbox.cpp in Sources */,
@@ -630,6 +633,7 @@
 				E10ACA9D2928A6D30004AB17 /* multithread.cpp in Sources */,
 				E10ACA9E2928A6D30004AB17 /* rand.cpp in Sources */,
 				E10ACA9F2928A6D30004AB17 /* rand_helpers.cpp in Sources */,
+				E12453D52A1CF0DE0062DF9C /* testbook.cpp in Sources */,
 				E10ACAA02928A6D30004AB17 /* sha2.cpp in Sources */,
 				E10ACAA12928A6D30004AB17 /* test.cpp in Sources */,
 				E10ACAA22928A6D30004AB17 /* threadsafecounter.cpp in Sources */,
