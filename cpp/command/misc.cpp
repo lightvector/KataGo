@@ -587,6 +587,7 @@ int MainCmds::samplesgfs(const vector<string>& args) {
   double sampleWeight;
   double forceSampleWeight;
   double turnWeightLambda;
+  double minWeight;
   int64_t maxDepth;
   int64_t maxNodeCount;
   int64_t maxBranchCount;
@@ -620,6 +621,7 @@ int MainCmds::samplesgfs(const vector<string>& args) {
     TCLAP::ValueArg<double> sampleWeightArg("","sample-weight","",false,1.0,"Weight");
     TCLAP::ValueArg<double> forceSampleWeightArg("","force-sample-weight","",false,5.0,"Weight");
     TCLAP::ValueArg<double> turnWeightLambdaArg("","turn-weight-lambda","Adjust weight for writing down each position",true,0.0,"LAMBDA");
+    TCLAP::ValueArg<double> minWeightArg("","min-weight","",false,0.0,"Weight");
     TCLAP::ValueArg<string> maxDepthArg("","max-depth","Max depth allowed for sgf",false,"100000000","INT");
     TCLAP::ValueArg<string> maxNodeCountArg("","max-node-count","Max node count allowed for sgf",false,"100000000","INT");
     TCLAP::ValueArg<string> maxBranchCountArg("","max-branch-count","Max branch count allowed for sgf",false,"100000000","INT");
@@ -649,6 +651,7 @@ int MainCmds::samplesgfs(const vector<string>& args) {
     cmd.add(sampleWeightArg);
     cmd.add(forceSampleWeightArg);
     cmd.add(turnWeightLambdaArg);
+    cmd.add(minWeightArg);
     cmd.add(maxDepthArg);
     cmd.add(maxNodeCountArg);
     cmd.add(maxBranchCountArg);
@@ -675,6 +678,7 @@ int MainCmds::samplesgfs(const vector<string>& args) {
     excludeHashesFiles = excludeHashesArg.getValue();
     sampleProb = sampleProbArg.getValue();
     sampleWeight = sampleWeightArg.getValue();
+    minWeight = minWeightArg.getValue();
     forceSampleWeight = forceSampleWeightArg.getValue();
     turnWeightLambda = turnWeightLambdaArg.getValue();
     maxDepth = Global::stringToInt64(maxDepthArg.getValue());
@@ -791,7 +795,7 @@ int MainCmds::samplesgfs(const vector<string>& args) {
   double weightKept = 0;
   std::set<Hash128> uniqueHashes;
   std::function<void(Sgf::PositionSample&, const BoardHistory&, const string&)> posHandler =
-    [sampleProb,sampleWeight,forceSampleWeight,&posWriter,turnWeightLambda,&numKept,&weightKept,&seedRand,minTurnNumberBoardAreaProp,maxTurnNumberBoardAreaProp,afterPassFactor,trainingWeight](
+    [sampleProb,sampleWeight,forceSampleWeight,&posWriter,turnWeightLambda,&numKept,&weightKept,&seedRand,minTurnNumberBoardAreaProp,maxTurnNumberBoardAreaProp,afterPassFactor,trainingWeight,minWeight](
       Sgf::PositionSample& posSample, const BoardHistory& hist, const string& comments
     ) {
       double minTurnNumber = minTurnNumberBoardAreaProp * (hist.initialBoard.x_size * hist.initialBoard.y_size);
@@ -811,6 +815,8 @@ int MainCmds::samplesgfs(const vector<string>& args) {
           posSampleToWrite.weight *= afterPassFactor;
         if(comments.size() > 0 && comments.find("%SAMPLE%") != string::npos)
           posSampleToWrite.weight = std::max(posSampleToWrite.weight,forceSampleWeight);
+        if(posSampleToWrite.weight < minWeight)
+          return;
         posSampleToWrite.trainingWeight = trainingWeight;
         posWriter.writePos(posSampleToWrite);
         numKept += 1;
