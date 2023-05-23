@@ -145,6 +145,9 @@ bool SgfNode::hasProperty(const char* key) const {
     return false;
   return contains(*props,key);
 }
+bool SgfNode::hasProperty(const string& key) const {
+  return hasProperty(key.c_str());
+}
 
 string SgfNode::getSingleProperty(const char* key) const {
   if(props == NULL)
@@ -156,6 +159,9 @@ string SgfNode::getSingleProperty(const char* key) const {
     propertyFail("SGF property is not a singleton: " + string(key));
   return prop[0];
 }
+string SgfNode::getSingleProperty(const string& key) const {
+  return getSingleProperty(key.c_str());
+}
 
 const vector<string> SgfNode::getProperties(const char* key) const {
   if(props == NULL)
@@ -163,6 +169,9 @@ const vector<string> SgfNode::getProperties(const char* key) const {
   if(!contains(*props,key))
     propertyFail("SGF does not contain property: " + string(key));
   return map_get(*props,key);
+}
+const vector<string> SgfNode::getProperties(const string& key) const {
+  return getProperties(key.c_str());
 }
 
 bool SgfNode::hasPlacements() const {
@@ -424,6 +433,7 @@ Player Sgf::getSgfWinner() const {
 }
 
 Color Sgf::getFirstPlayerColor() const {
+  checkNonEmpty(nodes);
   Color plColor = nodes[0]->getPLSpecifiedColor();
   if(plColor == C_BLACK || plColor == C_WHITE)
     return plColor;
@@ -438,6 +448,7 @@ Color Sgf::getFirstPlayerColor() const {
 }
 
 int Sgf::getRank(Player pla) const {
+  checkNonEmpty(nodes);
   string rankStr;
   if(pla == P_BLACK) {
     if(!nodes[0]->hasProperty("BR"))
@@ -534,6 +545,7 @@ int Sgf::getRank(Player pla) const {
 }
 
 int Sgf::getRating(Player pla) const {
+  checkNonEmpty(nodes);
   string ratingStr;
   if(pla == P_BLACK) {
     if(!nodes[0]->hasProperty("BR"))
@@ -571,6 +583,14 @@ string Sgf::getPlayerName(Player pla) const {
   }
   assert(false);
   return "";
+}
+
+std::string Sgf::getRootPropertyWithDefault(const std::string& property, const std::string& defaultRet) const {
+  if(nodes.size() <= 0)
+    return defaultRet;
+  if(!nodes[0]->hasProperty(property))
+    return defaultRet;
+  return nodes[0]->getSingleProperty(property);
 }
 
 void Sgf::getPlacements(vector<Move>& moves, int xSize, int ySize) const {

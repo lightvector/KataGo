@@ -25,8 +25,11 @@ struct SgfNode {
   SgfNode& operator=(SgfNode&&) noexcept;
 
   bool hasProperty(const char* key) const;
+  bool hasProperty(const std::string& key) const;
   std::string getSingleProperty(const char* key) const;
+  std::string getSingleProperty(const std::string& key) const;
   const std::vector<std::string> getProperties(const char* key) const;
+  const std::vector<std::string> getProperties(const std::string& key) const;
 
   bool hasPlacements() const;
   void accumPlacements(std::vector<Move>& moves, int xSize, int ySize) const;
@@ -68,6 +71,8 @@ struct Sgf {
   int getRank(Player pla) const; //dan ranks are 1d=0, 2d=1,... 9d=8. Kyu ranks are negative.
   int getRating(Player pla) const;
   std::string getPlayerName(Player pla) const;
+
+  std::string getRootPropertyWithDefault(const std::string& property, const std::string& defaultRet) const;
 
   void getPlacements(std::vector<Move>& moves, int xSize, int ySize) const;
   void getMoves(std::vector<Move>& moves, int xSize, int ySize) const;

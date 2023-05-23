@@ -597,7 +597,7 @@ int MainCmds::samplesgfs(const vector<string>& args) {
   bool allowGameOver;
   bool hashComments;
   double trainingWeight;
-  bool verbose;
+  int verbosity;
 
   string valueFluctuationModelFile;
   double valueFluctuationTurnScale;
@@ -630,7 +630,7 @@ int MainCmds::samplesgfs(const vector<string>& args) {
     TCLAP::SwitchArg allowGameOverArg("","allow-game-over","Allow sampling game over positions in sgf");
     TCLAP::SwitchArg hashCommentsArg("","hash-comments","Hash comments in sgf");
     TCLAP::ValueArg<double> trainingWeightArg("","training-weight","Scale the loss function weight from data from games that originate from this position",false,1.0,"WEIGHT");
-    TCLAP::SwitchArg verboseArg("","verbose","Print sgfs handled more");
+    TCLAP::ValueArg<int> verbosityArg("","verbosity","Print more stuff",false,0,"INT");
 
     TCLAP::ValueArg<string> valueFluctuationModelFileArg("","value-fluctuation-model","Upweight positions prior to value fluctuations",false,string(),"MODELFILE");
     TCLAP::ValueArg<double> valueFluctuationTurnScaleArg("","value-fluctuation-turn-scale","How much prior on average",false,1.0,"AVGTURNS");
@@ -659,7 +659,7 @@ int MainCmds::samplesgfs(const vector<string>& args) {
     cmd.add(allowGameOverArg);
     cmd.add(hashCommentsArg);
     cmd.add(trainingWeightArg);
-    cmd.add(verboseArg);
+    cmd.add(verbosityArg);
     cmd.add(valueFluctuationModelFileArg);
     cmd.add(valueFluctuationTurnScaleArg);
     cmd.add(valueFluctuationMaxWeightArg);
@@ -687,7 +687,7 @@ int MainCmds::samplesgfs(const vector<string>& args) {
     allowGameOver = allowGameOverArg.getValue();
     hashComments = hashCommentsArg.getValue();
     trainingWeight = trainingWeightArg.getValue();
-    verbose = verboseArg.getValue();
+    verbosity = verbosityArg.getValue();
     valueFluctuationModelFile = valueFluctuationModelFileArg.getValue();
     valueFluctuationTurnScale = valueFluctuationTurnScaleArg.getValue();
     valueFluctuationMaxWeight = valueFluctuationMaxWeightArg.getValue();
@@ -819,6 +819,8 @@ int MainCmds::samplesgfs(const vector<string>& args) {
     };
 
   std::map<string,int64_t> sgfCountUsedByPlayerName;
+  std::map<string,int64_t> sgfCountUsedByResult;
+
   int64_t numExcluded = 0;
   int64_t numSgfsFilteredTopLevel = 0;
   auto trySgf = [&](Sgf* sgf) {
@@ -843,7 +845,8 @@ int MainCmds::samplesgfs(const vector<string>& args) {
 
     try {
       if(!isSgfOkay(sgf)) {
-        logger.write("Filtering due to not okay: " + sgf->fileName);
+        if(verbosity >= 2)
+          logger.write("Filtering due to not okay: " + sgf->fileName);
         numSgfsFilteredTopLevel += 1;
         return;
       }
@@ -858,10 +861,11 @@ int MainCmds::samplesgfs(const vector<string>& args) {
       bool hashParent = false;
       Rand iterRand;
       sgf->iterAllUniquePositions(uniqueHashes, hashComments, hashParent, flipIfPassOrWFirst, allowGameOver, &iterRand, posHandler);
-      if(verbose)
-        cout << "Handled " << sgf->fileName << " kept weight " << weightKept << endl;
+      if(verbosity >= 2)
+        logger.write("Handled " + sgf->fileName + " kept weight " + Global::doubleToString(weightKept));
       sgfCountUsedByPlayerName[sgf->getPlayerName(P_BLACK)] += 1;
       sgfCountUsedByPlayerName[sgf->getPlayerName(P_WHITE)] += 1;
+      sgfCountUsedByResult[sgf->getRootPropertyWithDefault("RE","")] += 1;
     }
     else {
       string fileName = sgf->fileName;
@@ -1017,10 +1021,11 @@ int MainCmds::samplesgfs(const vector<string>& args) {
       Rand iterRand;
       sgf->iterAllUniquePositions(uniqueHashes, hashComments, hashParent, flipIfPassOrWFirst, allowGameOver, &iterRand, posHandler2);
 
-      if(verbose)
+      if(verbosity >= 2)
         cout << "Handled " << fileName << " kept weight " << weightKept << endl;
       sgfCountUsedByPlayerName[sgf->getPlayerName(P_BLACK)] += 1;
       sgfCountUsedByPlayerName[sgf->getPlayerName(P_WHITE)] += 1;
+      sgfCountUsedByResult[sgf->getRootPropertyWithDefault("RE","")] += 1;
     }
   };
 
@@ -1058,9 +1063,13 @@ int MainCmds::samplesgfs(const vector<string>& args) {
   logger.write("Kept " + Global::int64ToString(numKept) + " start positions");
   logger.write("Excluded " + Global::int64ToString(numExcluded) + "/" + Global::uint64ToString(sgfFiles.size()) + " sgf files");
   logger.write("Filtered " + Global::int64ToString(numSgfsFilteredTopLevel) + "/" + Global::uint64ToString(sgfFiles.size()) + " sgf files");
-  if(verbose) {
+  if(verbosity >= 1) {
     logger.write("SGF count used by player name:");
     for(const auto &elt: sgfCountUsedByPlayerName) {
+      logger.write(elt.first + " " + Global::int64ToString(elt.second));
+    }
+    logger.write("SGF count used by result:");
+    for(const auto &elt: sgfCountUsedByResult) {
       logger.write(elt.first + " " + Global::int64ToString(elt.second));
     }
   }
