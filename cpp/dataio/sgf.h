@@ -66,6 +66,7 @@ struct Sgf {
   Color getFirstPlayerColor() const;
 
   int getRank(Player pla) const; //dan ranks are 1d=0, 2d=1,... 9d=8. Kyu ranks are negative.
+  int getRating(Player pla) const;
   std::string getPlayerName(Player pla) const;
 
   void getPlacements(std::vector<Move>& moves, int xSize, int ySize) const;

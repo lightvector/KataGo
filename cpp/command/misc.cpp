@@ -604,6 +604,7 @@ int MainCmds::samplesgfs(const vector<string>& args) {
   double valueFluctuationMaxWeight;
 
   int minMinRank;
+  int minMinRating;
   string requiredPlayerName;
   int maxHandicap;
   double maxKomi;
@@ -635,6 +636,7 @@ int MainCmds::samplesgfs(const vector<string>& args) {
     TCLAP::ValueArg<double> valueFluctuationTurnScaleArg("","value-fluctuation-turn-scale","How much prior on average",false,1.0,"AVGTURNS");
     TCLAP::ValueArg<double> valueFluctuationMaxWeightArg("","value-fluctuation-max-weight","",false,10.0,"MAXWEIGHT");
     TCLAP::ValueArg<int> minMinRankArg("","min-min-rank","Require both players in a game to have rank at least this",false,Sgf::RANK_UNKNOWN,"INT");
+    TCLAP::ValueArg<int> minMinRatingArg("","min-min-rating","Require both players in a game to have rating at least this",false,-1000000000,"INT");
     TCLAP::ValueArg<string> requiredPlayerNameArg("","required-player-name","Require player making the move to have this name",false,string(),"NAME");
     TCLAP::ValueArg<int> maxHandicapArg("","max-handicap","Require no more than this big handicap in stones",false,100,"INT");
     TCLAP::ValueArg<double> maxKomiArg("","max-komi","Require absolute value of game komi to be at most this",false,1000,"KOMI");
@@ -662,6 +664,7 @@ int MainCmds::samplesgfs(const vector<string>& args) {
     cmd.add(valueFluctuationTurnScaleArg);
     cmd.add(valueFluctuationMaxWeightArg);
     cmd.add(minMinRankArg);
+    cmd.add(minMinRatingArg);
     cmd.add(requiredPlayerNameArg);
     cmd.add(maxHandicapArg);
     cmd.add(maxKomiArg);
@@ -689,6 +692,7 @@ int MainCmds::samplesgfs(const vector<string>& args) {
     valueFluctuationTurnScale = valueFluctuationTurnScaleArg.getValue();
     valueFluctuationMaxWeight = valueFluctuationMaxWeightArg.getValue();
     minMinRank = minMinRankArg.getValue();
+    minMinRating = minMinRatingArg.getValue();
     requiredPlayerName = requiredPlayerNameArg.getValue();
     maxHandicap = maxHandicapArg.getValue();
     maxKomi = maxKomiArg.getValue();
@@ -765,7 +769,11 @@ int MainCmds::samplesgfs(const vector<string>& args) {
     if(std::fabs(sgf->getKomi()) > maxKomi)
       return false;
     if(minMinRank != Sgf::RANK_UNKNOWN) {
-      if(sgf->getRank(P_BLACK) < minMinRank && sgf->getRank(P_WHITE) < minMinRank)
+      if(sgf->getRank(P_BLACK) < minMinRank || sgf->getRank(P_WHITE) < minMinRank)
+        return false;
+    }
+    if(minMinRating > -10000000) {
+      if(sgf->getRating(P_BLACK) < minMinRating || sgf->getRating(P_WHITE) < minMinRating)
         return false;
     }
     if(!isPlayerOkay(sgf,P_BLACK) && !isPlayerOkay(sgf,P_WHITE))
@@ -809,6 +817,8 @@ int MainCmds::samplesgfs(const vector<string>& args) {
         weightKept += posSampleToWrite.weight;
       }
     };
+
+  std::map<string,int64_t> sgfCountUsedByPlayerName;
   int64_t numExcluded = 0;
   int64_t numSgfsFilteredTopLevel = 0;
   auto trySgf = [&](Sgf* sgf) {
@@ -850,6 +860,8 @@ int MainCmds::samplesgfs(const vector<string>& args) {
       sgf->iterAllUniquePositions(uniqueHashes, hashComments, hashParent, flipIfPassOrWFirst, allowGameOver, &iterRand, posHandler);
       if(verbose)
         cout << "Handled " << sgf->fileName << " kept weight " << weightKept << endl;
+      sgfCountUsedByPlayerName[sgf->getPlayerName(P_BLACK)] += 1;
+      sgfCountUsedByPlayerName[sgf->getPlayerName(P_WHITE)] += 1;
     }
     else {
       string fileName = sgf->fileName;
@@ -1007,6 +1019,8 @@ int MainCmds::samplesgfs(const vector<string>& args) {
 
       if(verbose)
         cout << "Handled " << fileName << " kept weight " << weightKept << endl;
+      sgfCountUsedByPlayerName[sgf->getPlayerName(P_BLACK)] += 1;
+      sgfCountUsedByPlayerName[sgf->getPlayerName(P_WHITE)] += 1;
     }
   };
 
@@ -1044,7 +1058,12 @@ int MainCmds::samplesgfs(const vector<string>& args) {
   logger.write("Kept " + Global::int64ToString(numKept) + " start positions");
   logger.write("Excluded " + Global::int64ToString(numExcluded) + "/" + Global::uint64ToString(sgfFiles.size()) + " sgf files");
   logger.write("Filtered " + Global::int64ToString(numSgfsFilteredTopLevel) + "/" + Global::uint64ToString(sgfFiles.size()) + " sgf files");
-
+  if(verbose) {
+    logger.write("SGF count used by player name:");
+    for(const auto &elt: sgfCountUsedByPlayerName) {
+      logger.write(elt.first + " " + Global::int64ToString(elt.second));
+    }
+  }
 
   // ---------------------------------------------------------------------------------------------------
 

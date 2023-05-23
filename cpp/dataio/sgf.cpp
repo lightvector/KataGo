@@ -533,6 +533,31 @@ int Sgf::getRank(Player pla) const {
   return Sgf::RANK_UNKNOWN;
 }
 
+int Sgf::getRating(Player pla) const {
+  string ratingStr;
+  if(pla == P_BLACK) {
+    if(!nodes[0]->hasProperty("BR"))
+      propertyFail("Could not parse rating in sgf");
+    ratingStr = nodes[0]->getSingleProperty("BR");
+  }
+  else if(pla == P_WHITE) {
+    if(!nodes[0]->hasProperty("WR"))
+      propertyFail("Could not find rating in sgf");
+    ratingStr = nodes[0]->getSingleProperty("WR");
+  }
+  else {
+    assert(false);
+    propertyFail("Could not find rating in sgf");
+  }
+
+  int rating;
+  bool suc = Global::tryStringToInt(ratingStr,rating);
+  if(!suc)
+    propertyFail("Could not parse rating in sgf: " + ratingStr);
+  return rating;
+}
+
+
 string Sgf::getPlayerName(Player pla) const {
   if(pla == P_BLACK) {
     if(!nodes[0]->hasProperty("PB"))
