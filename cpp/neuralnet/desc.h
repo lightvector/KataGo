@@ -271,6 +271,7 @@ struct ModelPostProcessParams {
 
 struct ModelDesc {
   std::string name;
+  std::string sha256;
   int version;
   int numInputChannels;
   int numInputGlobalChannels;
@@ -286,7 +287,7 @@ struct ModelDesc {
 
   ModelDesc();
   ~ModelDesc();
-  ModelDesc(std::istream& in, bool binaryFloats);
+  ModelDesc(std::istream& in, const std::string& sha256, bool binaryFloats);
   ModelDesc(ModelDesc&& other);
 
   ModelDesc(const ModelDesc&) = delete;
