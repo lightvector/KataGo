@@ -289,7 +289,8 @@ InputBuffers::InputBuffers(const LoadedModel* loadedModel, int maxBatchSz, int n
   int modelYLen = COMPILE_MAX_BOARD_LEN;
 
   maxBatchSize = maxBatchSz;
-  policyResultChannels = 1;
+  policyResultChannels = m.policyHead.p2Conv.outChannels;
+  assert((m.version >= 12) ? (policyResultChannels == 2) : (policyResultChannels == 1));
   singleSpatialElts = (size_t)m.numInputChannels * nnXLen * nnYLen;
   singleInputElts = (size_t)m.numInputChannels * modelXLen * modelYLen;
   singleInputGlobalElts = (size_t)m.numInputGlobalChannels;
@@ -312,7 +313,7 @@ InputBuffers::InputBuffers(const LoadedModel* loadedModel, int maxBatchSz, int n
   userInputBufferElts = (size_t)maxBatchSize * singleInputElts;
   userInputGlobalBufferElts = (size_t)maxBatchSize * singleInputGlobalElts;
   policyResultBufferElts = (size_t)maxBatchSize * singleModelPolicyResultElts * policyResultChannels;
-  policyPassResultBufferElts = (size_t)maxBatchSize * singlePolicyPassResultElts;
+  policyPassResultBufferElts = (size_t)maxBatchSize * singlePolicyPassResultElts * policyResultChannels;
   policyProbsBufferElts = (size_t)maxBatchSize * singlePolicyProbsElts;
   valueResultBufferElts = (size_t)maxBatchSize * singleValueResultElts;
   ownershipResultBufferElts = (size_t)maxBatchSize * singleModelOwnershipResultElts;
@@ -382,6 +383,106 @@ void NeuralNet::freeInputBuffers(InputBuffers* inputBuffers) {
 
 //--------------------------------------------------------------
 
+static void copyRowData(float* dest, const float* src, size_t numElements) {
+  std::copy(src, src + numElements, dest);
+}
+
+static void processRowData(size_t row, ComputeHandle* gpuHandle, InputBuffers* inputBuffers, NNResultBuf** inputBufs) {
+  int nnXLen = gpuHandle->nnXLen;
+  int nnYLen = gpuHandle->nnYLen;
+  int numSpatialFeatures = NNModelVersion::getNumSpatialFeatures(gpuHandle->version);
+
+  float* rowSpatialInput = &inputBuffers->userInputBuffer[inputBuffers->singleSpatialElts * row];
+  float* rowGlobalInput = &inputBuffers->userInputGlobalBuffer[inputBuffers->singleInputGlobalElts * row];
+  const float* rowGlobal = inputBufs[row]->rowGlobal;
+  const float* rowSpatial = inputBufs[row]->rowSpatial;
+
+  copyRowData(rowGlobalInput, rowGlobal, inputBuffers->singleInputGlobalElts);
+
+  SymmetryHelpers::copyInputsWithSymmetry(
+    rowSpatial,
+    rowSpatialInput,
+    1,
+    nnYLen,
+    nnXLen,
+    numSpatialFeatures,
+    gpuHandle->inputsUseNHWC,
+    inputBufs[row]->symmetry);
+}
+
+static void processOutput(NNOutput* output, const float* scoreValuesOutputBuf, int version) {
+  output->whiteScoreMean = scoreValuesOutputBuf[0];
+  output->whiteScoreMeanSq = output->whiteScoreMean * output->whiteScoreMean;
+  output->whiteLead = output->whiteScoreMean;
+  output->varTimeLeft = 0.0f;
+  output->shorttermWinlossError = 0.0f;
+  output->shorttermScoreError = 0.0f;
+
+  if(version >= 4) {
+    output->whiteScoreMean = scoreValuesOutputBuf[0];
+    output->whiteScoreMeanSq = scoreValuesOutputBuf[1];
+    output->whiteLead = (version >= 8) ? scoreValuesOutputBuf[2] : output->whiteScoreMean;
+    output->varTimeLeft = (version >= 9) ? scoreValuesOutputBuf[3] : output->varTimeLeft;
+    output->shorttermWinlossError = (version >= 9) ? scoreValuesOutputBuf[4] : output->shorttermWinlossError;
+    output->shorttermScoreError = (version >= 9) ? scoreValuesOutputBuf[5] : output->shorttermScoreError;
+  }
+}
+
+static void processRow(
+  size_t row,
+  const ComputeHandle* gpuHandle,
+  InputBuffers* inputBuffers,
+  NNResultBuf** inputBufs,
+  vector<NNOutput*>& outputs) {
+  // Extract GPU handle parameters
+  const int nnXLen = gpuHandle->nnXLen;
+  const int nnYLen = gpuHandle->nnYLen;
+
+  // Retrieve the current output
+  NNOutput* currentOutput = outputs[row];
+
+  // Assert that the dimensions match
+  assert(currentOutput->nnXLen == nnXLen);
+  assert(currentOutput->nnYLen == nnYLen);
+
+  // Extract input buffer parameters
+  const size_t singlePolicyResultElts = inputBuffers->singleNnPolicyResultElts;
+  const size_t singlePolicyPassResultElts = inputBuffers->singlePolicyPassResultElts;
+  const size_t singleValueResultElts = inputBuffers->singleValueResultElts;
+  const size_t singleOwnershipResultElts = inputBuffers->singleNnOwnershipResultElts;
+  const size_t singleScoreValuesResultElts = inputBuffers->singleScoreValuesResultElts;
+  const size_t singlePolicyProbsElts = inputBuffers->singlePolicyProbsElts;
+
+  // Calculate offsets for buffer access
+  const size_t policyOutputBufOffset = row * singlePolicyResultElts * inputBuffers->policyResultChannels;
+  const size_t ownershipOutputBufOffset = row * singleOwnershipResultElts;
+  const size_t scoreValuesOutputBufOffset = row * singleScoreValuesResultElts;
+
+  // Copy policy results with symmetry
+  float* policyOutputBuf = &inputBuffers->policyResults[policyOutputBufOffset];
+  SymmetryHelpers::copyOutputsWithSymmetry(
+    policyOutputBuf, currentOutput->policyProbs, 1, nnYLen, nnXLen, inputBufs[row]->symmetry);
+  currentOutput->policyProbs[singlePolicyProbsElts - 1] =
+    inputBuffers->policyPassResults[row * singlePolicyPassResultElts];
+
+  // Assign value results to the current output
+  const float* valueOutputBuf = &inputBuffers->valueResults[row * singleValueResultElts];
+  currentOutput->whiteWinProb = valueOutputBuf[0];
+  currentOutput->whiteLossProb = valueOutputBuf[1];
+  currentOutput->whiteNoResultProb = valueOutputBuf[2];
+
+  // Copy ownership results with symmetry if available
+  if(currentOutput->whiteOwnerMap != nullptr) {
+    const float* ownershipOutputBuf = &inputBuffers->ownershipResults[ownershipOutputBufOffset];
+    SymmetryHelpers::copyOutputsWithSymmetry(
+      ownershipOutputBuf, currentOutput->whiteOwnerMap, 1, nnYLen, nnXLen, inputBufs[row]->symmetry);
+  }
+
+  // Process score values
+  const float* scoreValuesOutputBuf = &inputBuffers->scoreValuesResults[scoreValuesOutputBufOffset];
+  processOutput(currentOutput, scoreValuesOutputBuf, gpuHandle->version);
+}
+
 /**
  * @brief Compute the neural network output using Metal API and the specified input data and GPU handle.
  * This function computes the neural network output using the Metal API and the specified input data and ComputeHandle
@@ -398,6 +499,7 @@ static void getMetalOutput(
   int numBatchEltsFilled,
   NNResultBuf** inputBufs,
   vector<NNOutput*>& outputs) {
+  assert(numBatchEltsFilled > 0);
 
   int batchSize = numBatchEltsFilled;
   int nnXLen = gpuHandle->nnXLen;
@@ -407,116 +509,28 @@ static void getMetalOutput(
   int numGlobalFeatures = NNModelVersion::getNumGlobalFeatures(version);
 
   assert(batchSize <= inputBuffers->maxBatchSize);
-  assert(batchSize > 0);
   assert((numSpatialFeatures * nnXLen * nnYLen) <= inputBuffers->singleInputElts);
   assert(numGlobalFeatures == inputBuffers->singleInputGlobalElts);
-
-  size_t policyResultChannels = inputBuffers->policyResultChannels;
-  size_t singleSpatialElts = inputBuffers->singleSpatialElts;
-  size_t singleInputGlobalElts = inputBuffers->singleInputGlobalElts;
-  size_t singlePolicyResultElts = inputBuffers->singleNnPolicyResultElts;
-  size_t singlePolicyPassResultElts = inputBuffers->singlePolicyPassResultElts;
-  size_t singleValueResultElts = inputBuffers->singleValueResultElts;
-  size_t singleOwnershipResultElts = inputBuffers->singleNnOwnershipResultElts;
-  size_t singleScoreValuesResultElts = inputBuffers->singleScoreValuesResultElts;
-  size_t singlePolicyProbsElts = inputBuffers->singlePolicyProbsElts;
-
-  assert(policyResultChannels == 1);
-  assert(singleValueResultElts == 3);
-  assert(singleScoreValuesResultElts >= 6);
+  assert(inputBuffers->singleValueResultElts == 3);
+  assert(inputBuffers->singleScoreValuesResultElts >= 6);
 
   for(size_t row = 0; row < batchSize; row++) {
-    float* rowSpatialInput = &inputBuffers->userInputBuffer[singleSpatialElts * row];
-    float* rowGlobalInput = &inputBuffers->userInputGlobalBuffer[singleInputGlobalElts * row];
-    const float* rowGlobal = inputBufs[row]->rowGlobal;
-    const float* rowSpatial = inputBufs[row]->rowSpatial;
-
-    copy(&rowGlobal[0], &rowGlobal[numGlobalFeatures], rowGlobalInput);
-
-    SymmetryHelpers::copyInputsWithSymmetry(
-      rowSpatial,
-      rowSpatialInput,
-      1,
-      nnYLen,
-      nnXLen,
-      numSpatialFeatures,
-      gpuHandle->inputsUseNHWC,
-      inputBufs[row]->symmetry);
+    processRowData(row, gpuHandle, inputBuffers, inputBufs);
   }
 
-  getMetalHandleOutput(inputBuffers->userInputBuffer,
-                       inputBuffers->userInputGlobalBuffer,
-                       inputBuffers->policyResults,
-                       inputBuffers->policyPassResults,
-                       inputBuffers->valueResults,
-                       inputBuffers->ownershipResults,
-                       inputBuffers->scoreValuesResults,
-                       gpuHandle->gpuIndex,
-                       batchSize);
+  getMetalHandleOutput(
+    inputBuffers->userInputBuffer,
+    inputBuffers->userInputGlobalBuffer,
+    inputBuffers->policyResults,
+    inputBuffers->policyPassResults,
+    inputBuffers->valueResults,
+    inputBuffers->ownershipResults,
+    inputBuffers->scoreValuesResults,
+    gpuHandle->gpuIndex,
+    batchSize);
 
   for(size_t row = 0; row < batchSize; row++) {
-    NNOutput* output = outputs[row];
-
-    assert(output->nnXLen == nnXLen);
-    assert(output->nnYLen == nnYLen);
-
-    float* policyOutputBuf = &inputBuffers->policyResults[row * (singlePolicyResultElts * policyResultChannels)];
-
-    // These are not actually correct, the client does the postprocessing to turn them into
-    // policy probabilities and white game outcome probabilities
-    // Also we don't fill in the nnHash here either
-    SymmetryHelpers::copyOutputsWithSymmetry(
-      policyOutputBuf, output->policyProbs, 1, nnYLen, nnXLen, inputBufs[row]->symmetry);
-
-    output->policyProbs[singlePolicyProbsElts - 1] = inputBuffers->policyPassResults[row * singlePolicyPassResultElts];
-
-    const float* valueOutputBuf = &inputBuffers->valueResults[row * singleValueResultElts];
-
-    output->whiteWinProb = valueOutputBuf[0];
-    output->whiteLossProb = valueOutputBuf[1];
-    output->whiteNoResultProb = valueOutputBuf[2];
-
-    if(output->whiteOwnerMap != NULL) {
-      const float* ownershipOutputBuf = &inputBuffers->ownershipResults[row * singleOwnershipResultElts];
-
-      SymmetryHelpers::copyOutputsWithSymmetry(
-        ownershipOutputBuf, output->whiteOwnerMap, 1, nnYLen, nnXLen, inputBufs[row]->symmetry);
-    }
-
-    const float* scoreValuesOutputBuf = &inputBuffers->scoreValuesResults[row * singleScoreValuesResultElts];
-
-    if(version >= 9) {
-      output->whiteScoreMean = scoreValuesOutputBuf[0];
-      output->whiteScoreMeanSq = scoreValuesOutputBuf[1];
-      output->whiteLead = scoreValuesOutputBuf[2];
-      output->varTimeLeft = scoreValuesOutputBuf[3];
-      output->shorttermWinlossError = scoreValuesOutputBuf[4];
-      output->shorttermScoreError = scoreValuesOutputBuf[5];
-    } else if(version >= 8) {
-      output->whiteScoreMean = scoreValuesOutputBuf[0];
-      output->whiteScoreMeanSq = scoreValuesOutputBuf[1];
-      output->whiteLead = scoreValuesOutputBuf[2];
-      output->varTimeLeft = scoreValuesOutputBuf[3];
-      output->shorttermWinlossError = 0;
-      output->shorttermScoreError = 0;
-    } else if(version >= 4) {
-      output->whiteScoreMean = scoreValuesOutputBuf[0];
-      output->whiteScoreMeanSq = scoreValuesOutputBuf[1];
-      output->whiteLead = output->whiteScoreMean;
-      output->varTimeLeft = 0;
-      output->shorttermWinlossError = 0;
-      output->shorttermScoreError = 0;
-    } else {
-      assert(version >= 3);
-      output->whiteScoreMean = scoreValuesOutputBuf[0];
-      // Version 3 neural nets don't have any second moment output, implicitly already folding it in, so we just use the
-      // mean squared
-      output->whiteScoreMeanSq = output->whiteScoreMean * output->whiteScoreMean;
-      output->whiteLead = output->whiteScoreMean;
-      output->varTimeLeft = 0;
-      output->shorttermWinlossError = 0;
-      output->shorttermScoreError = 0;
-    }
+    processRow(row, gpuHandle, inputBuffers, inputBufs, outputs);
   }
 }
 
