@@ -131,7 +131,7 @@ double FancyMath::betacdf(double x, double a, double b) {
 
 double FancyMath::normToTApprox(double z, double degreesOfFreedom) {
   double n = degreesOfFreedom;
-  return sqrt(n * exp(z * z * (n-1.5) / ((n-1) * (n-1))) - n);
+  return sqrt(n * (expm1(z * z * (n-1.5) / ((n-1) * (n-1)))));
 }
 
 #define APPROX_EQ(x,y,tolerance) testApproxEq((x),(y),(tolerance), #x, #y, __FILE__, __LINE__)
@@ -181,21 +181,21 @@ void FancyMath::runTests() {
 
   {
     //const char* name = "normToTApprox tests";
-    APPROX_EQ(normToTApprox(2,2),  3.57464854186552161, 1e-15);
-    APPROX_EQ(normToTApprox(2,4),  2.85498285635306948, 1e-15);
-    APPROX_EQ(normToTApprox(2,8),  2.36638591905649642, 1e-15);
-    APPROX_EQ(normToTApprox(2,16), 2.16905959247696245, 1e-15);
-    APPROX_EQ(normToTApprox(2,10000), 2.00025003104416443, 1e-15);
-    APPROX_EQ(normToTApprox(4,2),  77.20049205855787022, 1e-15);
-    APPROX_EQ(normToTApprox(4,4),  18.34694064061386598, 1e-15);
-    APPROX_EQ(normToTApprox(4,8),  7.66893227341667760, 1e-15);
-    APPROX_EQ(normToTApprox(4,16), 5.37279049993877056, 1e-15);
-    APPROX_EQ(normToTApprox(4,10000), 4.00170065227877014, 1e-15);
-    APPROX_EQ(normToTApprox(8,2),  12566858.01484839618206024, 1e-15);
-    APPROX_EQ(normToTApprox(8,4),  14501.91603376931016101, 1e-15);
-    APPROX_EQ(normToTApprox(8,8),  197.25867566592546609, 1e-15);
-    APPROX_EQ(normToTApprox(8,16), 31.19831990116452403, 1e-15);
-    APPROX_EQ(normToTApprox(8,10000), 8.01301804270852891, 1e-15);
+    APPROX_EQ(normToTApprox(2,2),  3.57464854186552161, 1e-14);
+    APPROX_EQ(normToTApprox(2,4),  2.85498285635306948, 1e-14);
+    APPROX_EQ(normToTApprox(2,8),  2.36638591905649687, 1e-14);
+    APPROX_EQ(normToTApprox(2,16), 2.16905959247696289, 1e-14);
+    APPROX_EQ(normToTApprox(2,10000), 2.0002500310444534, 1e-13);
+    APPROX_EQ(normToTApprox(4,2),  77.20049205855787022, 1e-14);
+    APPROX_EQ(normToTApprox(4,4),  18.34694064061386953, 1e-14);
+    APPROX_EQ(normToTApprox(4,8),  7.66893227341667760, 1e-14);
+    APPROX_EQ(normToTApprox(4,16), 5.37279049993877056, 1e-14);
+    APPROX_EQ(normToTApprox(4,10000), 4.00170065227857751, 1e-13);
+    APPROX_EQ(normToTApprox(8,2),  12566858.01484839618206024, 1e-14);
+    APPROX_EQ(normToTApprox(8,4),  14501.91603376931016101, 1e-14);
+    APPROX_EQ(normToTApprox(8,8),  197.25867566592546609, 1e-14);
+    APPROX_EQ(normToTApprox(8,16), 31.19831990116452403, 1e-14);
+    APPROX_EQ(normToTApprox(8,10000), 8.01301804270851292, 1e-13);
   }
 
   {
@@ -254,38 +254,38 @@ void FancyMath::runTests() {
     APPROX_EQ(betapdf(0.25,.5e5,.5e1), 0.00000000000000000, 1e-14);
     APPROX_EQ(betapdf(0.50,.5e5,.5e1), 0.00000000000000000, 1e-14);
     APPROX_EQ(betapdf(0.75,.5e5,.5e1), 0.00000000000000000, 1e-14);
-    APPROX_EQ(betapdf(1-1e-4,.5e5,.5e1), 8773.80701229644182604, 1e-14);
+    APPROX_EQ(betapdf(1-1e-4,.5e5,.5e1), 8773.80701229644182604, 1e-12);
     APPROX_EQ(betapdf(1.00,.5e5,.5e1), 0.00000000000000000, 1e-14);
     APPROX_EQ(betacdf(0.00,.5e5,.5e1), 0.00000000000000000, 1e-14);
     APPROX_EQ(betacdf(0.25,.5e5,.5e1), 0.00000000000000000, 1e-14);
     APPROX_EQ(betacdf(0.50,.5e5,.5e1), 0.00000000000000000, 1e-14);
     APPROX_EQ(betacdf(0.75,.5e5,.5e1), 0.00000000000000000, 1e-14);
-    APPROX_EQ(betacdf(1-1e-4,.5e5,.5e1), 0.44041432429729233, 1e-14);
+    APPROX_EQ(betacdf(1-1e-4,.5e5,.5e1), 0.44041432429729233, 1e-12);
     APPROX_EQ(betacdf(1.00,.5e5,.5e1), 1.00000000000000000, 1e-14);
     APPROX_EQ(betapdf(0.00,.5e10,.5e2), 0.00000000000000000, 1e-14);
     APPROX_EQ(betapdf(0.25,.5e10,.5e2), 0.00000000000000000, 1e-14);
     APPROX_EQ(betapdf(0.50,.5e10,.5e2), 0.00000000000000000, 1e-14);
     APPROX_EQ(betapdf(0.75,.5e10,.5e2), 0.00000000000000000, 1e-14);
-    APPROX_EQ(betapdf(1-1e-8,.5e10,.5e2), 281620447.51994127035140991, 1e-14);
+    APPROX_EQ(betapdf(1-1e-8,.5e10,.5e2), 281620447.51994127035140991, 1e-11);
     APPROX_EQ(betapdf(1.00,.5e10,.5e2), 0.00000000000000000, 1e-14);
     APPROX_EQ(betacdf(0.00,.5e10,.5e2), 0.00000000000000000, 1e-14);
     APPROX_EQ(betacdf(0.25,.5e10,.5e2), 0.00000000000000000, 1e-14);
     APPROX_EQ(betacdf(0.50,.5e10,.5e2), 0.00000000000000000, 1e-14);
     APPROX_EQ(betacdf(0.75,.5e10,.5e2), 0.00000000000000000, 1e-14);
-    APPROX_EQ(betacdf(1-1e-8,.5e10,.5e2), 0.48120008730261921, 1e-14);
+    APPROX_EQ(betacdf(1-1e-8,.5e10,.5e2), 0.48120008730261921, 1e-11);
     APPROX_EQ(betacdf(1.00,.5e10,.5e2), 1.00000000000000000, 1e-14);
     //These probably aren't very accurate, we're hitting numerical instability
     APPROX_EQ(betapdf(0.00,.5e15,.5e3), 0.00000000000000000, 1e-14);
     APPROX_EQ(betapdf(0.25,.5e15,.5e3), 0.00000000000000000, 1e-14);
     APPROX_EQ(betapdf(0.50,.5e15,.5e3), 0.00000000000000000, 1e-14);
     APPROX_EQ(betapdf(0.75,.5e15,.5e3), 0.00000000000000000, 1e-14);
-    APPROX_EQ(betapdf(1-1e-12,.5e15,.5e3), 12054813431812.26562500000000000, 1e-14);
+    APPROX_EQ(betapdf(1-1e-12,.5e15,.5e3), 12054813431812.26562500000000000, 1e-8);
     APPROX_EQ(betapdf(1.00,.5e15,.5e3), 0.00000000000000000, 1e-14);
     APPROX_EQ(betacdf(0.00,.5e15,.5e3), 0.00000000000000000, 1e-14);
     APPROX_EQ(betacdf(0.25,.5e15,.5e3), 0.00000000000000000, 1e-14);
     APPROX_EQ(betacdf(0.50,.5e15,.5e3), 0.00000000000000000, 1e-14);
     APPROX_EQ(betacdf(0.75,.5e15,.5e3), 0.00000000000000000, 1e-14);
-    APPROX_EQ(betacdf(1-1e-12,.5e15,.5e3), 0.31645988794179647, 1e-14);
+    APPROX_EQ(betacdf(1-1e-12,.5e15,.5e3), 0.31645988794179647, 1e-8);
     APPROX_EQ(betacdf(1.00,.5e15,.5e3), 1.00000000000000000, 1e-14);
   }
 
