@@ -27,6 +27,8 @@ cpp/run*.sh
 cpp/tests/scratch
 cpp/program/gitinfo.h
 
+cpp/tests/results/matchsgfs/games.sgfs
+cpp/tests/results/matchsgfs2/games.sgfs
 
 cpp/data/
 versions/
