@@ -291,6 +291,7 @@ InputBuffers::InputBuffers(const LoadedModel* loadedModel, int maxBatchSz, int n
   maxBatchSize = maxBatchSz;
   policyResultChannels = m.policyHead.p2Conv.outChannels;
   assert((m.version >= 12) ? (policyResultChannels == 2) : (policyResultChannels == 1));
+  assert(m.policyHead.p2Conv.outChannels == m.policyHead.gpoolToPassMul.outChannels);
   singleSpatialElts = (size_t)m.numInputChannels * nnXLen * nnYLen;
   singleInputElts = (size_t)m.numInputChannels * modelXLen * modelYLen;
   singleInputGlobalElts = (size_t)m.numInputGlobalChannels;
@@ -410,21 +411,102 @@ static void processRowData(size_t row, ComputeHandle* gpuHandle, InputBuffers* i
     inputBufs[row]->symmetry);
 }
 
-static void processOutput(NNOutput* output, const float* scoreValuesOutputBuf, int version) {
-  output->whiteScoreMean = scoreValuesOutputBuf[0];
-  output->whiteScoreMeanSq = output->whiteScoreMean * output->whiteScoreMean;
-  output->whiteLead = output->whiteScoreMean;
-  output->varTimeLeft = 0.0f;
-  output->shorttermWinlossError = 0.0f;
-  output->shorttermScoreError = 0.0f;
+static float policyOptimismCalc(const double policyOptimism, const float& p, const float& pOpt) {
+  return p + ((pOpt - p) * policyOptimism);
+}
+
+static void
+processOptimism(InputBuffers* inputBuffers, NNOutput* currentOutput, const double policyOptimism, size_t row) {
+  auto& buffers = *inputBuffers;
+  const auto singlePolicyResultElts = buffers.singleNnPolicyResultElts;
+  float* targetBuffer = &buffers.policyProbsBuffer[row * singlePolicyResultElts];
+  float* policyOutputBuf = &buffers.policyResults[row * singlePolicyResultElts * buffers.policyResultChannels];
+
+  for(auto i = 0; i < singlePolicyResultElts; ++i) {
+    const float p = policyOutputBuf[i];
+    const float pOpt = policyOutputBuf[i + singlePolicyResultElts];
+    targetBuffer[i] = policyOptimismCalc(policyOptimism, p, pOpt);
+  }
+
+  const auto p = buffers.policyPassResults[row * buffers.policyResultChannels];
+  const auto pOpt = buffers.policyPassResults[row * buffers.policyResultChannels + 1];
+  currentOutput->policyProbs[buffers.singlePolicyProbsElts - 1] = policyOptimismCalc(policyOptimism, p, pOpt);
+}
+
+static void processPolicy(
+  InputBuffers* inputBuffers,
+  NNOutput* currentOutput,
+  const ComputeHandle* gpuHandle,
+  NNResultBuf* inputBuf,
+  size_t row) {
+  auto& buffers = *inputBuffers;
+  float* targetBuffer = &buffers.policyResults[row * buffers.singleNnPolicyResultElts * buffers.policyResultChannels];
+  const auto symmetry = inputBuf->symmetry;
+  const auto policyOptimism = inputBuf->policyOptimism;
+
+  if(buffers.policyResultChannels == 1) {
+    currentOutput->policyProbs[buffers.singlePolicyProbsElts - 1] =
+      buffers.policyPassResults[row * buffers.policyResultChannels];
+  } else {
+    processOptimism(inputBuffers, currentOutput, policyOptimism, row);
+    targetBuffer = &buffers.policyProbsBuffer[row * buffers.singleNnPolicyResultElts];
+  }
+
+  SymmetryHelpers::copyOutputsWithSymmetry(
+    targetBuffer, currentOutput->policyProbs, 1, gpuHandle->nnYLen, gpuHandle->nnXLen, symmetry);
+}
+
+static void processValue(
+  const InputBuffers* inputBuffers,
+  NNOutput* currentOutput,
+  const size_t row) {
+  const size_t singleValueResultElts = inputBuffers->singleValueResultElts;
+  const float* valueOutputBuf = &inputBuffers->valueResults[row * singleValueResultElts];
+  currentOutput->whiteWinProb = valueOutputBuf[0];
+  currentOutput->whiteLossProb = valueOutputBuf[1];
+  currentOutput->whiteNoResultProb = valueOutputBuf[2];
+}
+
+static void processOwnership(
+  const InputBuffers* inputBuffers,
+  NNOutput* currentOutput,
+  const ComputeHandle* gpuHandle,
+  const int symmetry,
+  const size_t row) {
+  const int nnXLen = gpuHandle->nnXLen;
+  const int nnYLen = gpuHandle->nnYLen;
+  const size_t singleOwnershipResultElts = inputBuffers->singleNnOwnershipResultElts;
+  const size_t ownershipOutputBufOffset = row * singleOwnershipResultElts;
+
+  // Copy ownership results with symmetry if available
+  if(currentOutput->whiteOwnerMap != nullptr) {
+    const float* ownershipOutputBuf = &inputBuffers->ownershipResults[ownershipOutputBufOffset];
+    SymmetryHelpers::copyOutputsWithSymmetry(
+      ownershipOutputBuf, currentOutput->whiteOwnerMap, 1, nnYLen, nnXLen, symmetry);
+  }
+}
+
+static void
+processScoreValues(const InputBuffers* inputBuffers, NNOutput* currentOutput, const int version, const size_t row) {
+  const size_t singleScoreValuesResultElts = inputBuffers->singleScoreValuesResultElts;
+  const size_t scoreValuesOutputBufOffset = row * singleScoreValuesResultElts;
+  const float* scoreValuesOutputBuf = &inputBuffers->scoreValuesResults[scoreValuesOutputBufOffset];
+
+  currentOutput->whiteScoreMean = scoreValuesOutputBuf[0];
+  currentOutput->whiteScoreMeanSq = currentOutput->whiteScoreMean * currentOutput->whiteScoreMean;
+  currentOutput->whiteLead = currentOutput->whiteScoreMean;
+  currentOutput->varTimeLeft = 0.0f;
+  currentOutput->shorttermWinlossError = 0.0f;
+  currentOutput->shorttermScoreError = 0.0f;
 
   if(version >= 4) {
-    output->whiteScoreMean = scoreValuesOutputBuf[0];
-    output->whiteScoreMeanSq = scoreValuesOutputBuf[1];
-    output->whiteLead = (version >= 8) ? scoreValuesOutputBuf[2] : output->whiteScoreMean;
-    output->varTimeLeft = (version >= 9) ? scoreValuesOutputBuf[3] : output->varTimeLeft;
-    output->shorttermWinlossError = (version >= 9) ? scoreValuesOutputBuf[4] : output->shorttermWinlossError;
-    output->shorttermScoreError = (version >= 9) ? scoreValuesOutputBuf[5] : output->shorttermScoreError;
+    currentOutput->whiteScoreMean = scoreValuesOutputBuf[0];
+    currentOutput->whiteScoreMeanSq = scoreValuesOutputBuf[1];
+    currentOutput->whiteLead = (version >= 8) ? scoreValuesOutputBuf[2] : currentOutput->whiteScoreMean;
+    currentOutput->varTimeLeft = (version >= 9) ? scoreValuesOutputBuf[3] : currentOutput->varTimeLeft;
+    currentOutput->shorttermWinlossError =
+      (version >= 9) ? scoreValuesOutputBuf[4] : currentOutput->shorttermWinlossError;
+    currentOutput->shorttermScoreError = (version >= 9) ? scoreValuesOutputBuf[5] : currentOutput->shorttermScoreError;
   }
 }
 
@@ -434,53 +516,13 @@ static void processRow(
   InputBuffers* inputBuffers,
   NNResultBuf** inputBufs,
   vector<NNOutput*>& outputs) {
-  // Extract GPU handle parameters
-  const int nnXLen = gpuHandle->nnXLen;
-  const int nnYLen = gpuHandle->nnYLen;
-
-  // Retrieve the current output
   NNOutput* currentOutput = outputs[row];
-
-  // Assert that the dimensions match
-  assert(currentOutput->nnXLen == nnXLen);
-  assert(currentOutput->nnYLen == nnYLen);
-
-  // Extract input buffer parameters
-  const size_t singlePolicyResultElts = inputBuffers->singleNnPolicyResultElts;
-  const size_t singlePolicyPassResultElts = inputBuffers->singlePolicyPassResultElts;
-  const size_t singleValueResultElts = inputBuffers->singleValueResultElts;
-  const size_t singleOwnershipResultElts = inputBuffers->singleNnOwnershipResultElts;
-  const size_t singleScoreValuesResultElts = inputBuffers->singleScoreValuesResultElts;
-  const size_t singlePolicyProbsElts = inputBuffers->singlePolicyProbsElts;
-
-  // Calculate offsets for buffer access
-  const size_t policyOutputBufOffset = row * singlePolicyResultElts * inputBuffers->policyResultChannels;
-  const size_t ownershipOutputBufOffset = row * singleOwnershipResultElts;
-  const size_t scoreValuesOutputBufOffset = row * singleScoreValuesResultElts;
-
-  // Copy policy results with symmetry
-  float* policyOutputBuf = &inputBuffers->policyResults[policyOutputBufOffset];
-  SymmetryHelpers::copyOutputsWithSymmetry(
-    policyOutputBuf, currentOutput->policyProbs, 1, nnYLen, nnXLen, inputBufs[row]->symmetry);
-  currentOutput->policyProbs[singlePolicyProbsElts - 1] =
-    inputBuffers->policyPassResults[row * singlePolicyPassResultElts];
-
-  // Assign value results to the current output
-  const float* valueOutputBuf = &inputBuffers->valueResults[row * singleValueResultElts];
-  currentOutput->whiteWinProb = valueOutputBuf[0];
-  currentOutput->whiteLossProb = valueOutputBuf[1];
-  currentOutput->whiteNoResultProb = valueOutputBuf[2];
-
-  // Copy ownership results with symmetry if available
-  if(currentOutput->whiteOwnerMap != nullptr) {
-    const float* ownershipOutputBuf = &inputBuffers->ownershipResults[ownershipOutputBufOffset];
-    SymmetryHelpers::copyOutputsWithSymmetry(
-      ownershipOutputBuf, currentOutput->whiteOwnerMap, 1, nnYLen, nnXLen, inputBufs[row]->symmetry);
-  }
-
-  // Process score values
-  const float* scoreValuesOutputBuf = &inputBuffers->scoreValuesResults[scoreValuesOutputBufOffset];
-  processOutput(currentOutput, scoreValuesOutputBuf, gpuHandle->version);
+  assert(currentOutput->nnXLen == gpuHandle->nnXLen);
+  assert(currentOutput->nnYLen == gpuHandle->nnYLen);
+  processPolicy(inputBuffers, currentOutput, gpuHandle, inputBufs[row], row);
+  processValue(inputBuffers, currentOutput, row);
+  processOwnership(inputBuffers, currentOutput, gpuHandle, inputBufs[row]->symmetry, row);
+  processScoreValues(inputBuffers, currentOutput, gpuHandle->version, row);
 }
 
 /**
