@@ -45,7 +45,6 @@ void getCoreMLOutput(
   size_t singleScoreValuesResultElts = inputBuffers->singleScoreValuesResultElts;
   size_t singleMoreMiscValuesResultElts = inputBuffers->singleMoreMiscValuesResultElts;
 
-  assert(policyResultChannels == 1);
   assert(singleInputElts == (modelXLen * modelYLen * 22));
   assert(singleInputGlobalElts == 19);
   assert(singlePolicyResultElts == ((modelXLen * modelYLen) + 1));
