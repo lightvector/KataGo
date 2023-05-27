@@ -12,6 +12,84 @@ using namespace std;
 
 //--------------------------------------------------------------
 
+// Helper function to calculate a buffer index
+int CoreMLProcess::calculateIndex(const int y, const int x, const int xLen) {
+  return (y * xLen) + x;
+}
+
+void CoreMLProcess::processValue(
+  const InputBuffers* inputBuffers,
+  NNOutput* currentOutput,
+  const size_t row) {
+  MetalProcess::processValue(inputBuffers, currentOutput, row);
+}
+
+void CoreMLProcess::processOwnership(
+  const InputBuffers* inputBuffers,
+  NNOutput* currentOutput,
+  const ComputeHandle* gpuHandle,
+  const int symmetry,
+  const size_t row) {
+  // If there's no ownership map, we have nothing to do
+  if(currentOutput->whiteOwnerMap == nullptr) {
+    return;
+  }
+
+  // Extract useful values from buffers and GPU handle
+  const int nnXLen = gpuHandle->nnXLen;
+  const int nnYLen = gpuHandle->nnYLen;
+  const int modelXLen = gpuHandle->modelXLen;
+
+  const size_t singleOwnershipResultElts = inputBuffers->singleNnOwnershipResultElts;
+  const size_t singleOwnerMapElts = inputBuffers->singleOwnerMapElts;
+
+  // Calculate starting points in the buffers
+  const float* ownershipOutputBuf = &inputBuffers->ownershipResults[row * singleOwnershipResultElts];
+  float* ownerMapBuf = &inputBuffers->ownerMapBuffer[row * singleOwnerMapElts];
+
+  // Copy data from ownership output buffer to owner map buffer
+  for(int y = 0; y < nnYLen; y++) {
+    for(int x = 0; x < nnXLen; x++) {
+      int outputIdx = calculateIndex(y, x, modelXLen);
+      int ownerMapIdx = calculateIndex(y, x, nnXLen);
+      ownerMapBuf[ownerMapIdx] = ownershipOutputBuf[outputIdx];
+    }
+  }
+
+  // Apply symmetry to the owner map buffer and copy it to the output's whiteOwnerMap
+  SymmetryHelpers::copyOutputsWithSymmetry(ownerMapBuf, currentOutput->whiteOwnerMap, 1, nnYLen, nnXLen, symmetry);
+}
+
+void CoreMLProcess::processScoreValues(
+  const InputBuffers* inputBuffers,
+  NNOutput* currentOutput,
+  const int version,
+  const size_t row) {
+  const size_t singleScoreValuesResultElts = inputBuffers->singleScoreValuesResultElts;
+  const size_t scoreValuesOutputBufOffset = row * singleScoreValuesResultElts;
+  const float* scoreValuesOutputBuf = &inputBuffers->scoreValuesResults[scoreValuesOutputBufOffset];
+  const size_t singleMoreMiscValuesResultElts = inputBuffers->singleMoreMiscValuesResultElts;
+  const size_t moreMiscValuesOutputBufOffset = row * singleMoreMiscValuesResultElts;
+  const float* moreMiscValuesOutputBuf = &inputBuffers->moreMiscValuesResults[moreMiscValuesOutputBufOffset];
+
+  currentOutput->whiteScoreMean = scoreValuesOutputBuf[0];
+  currentOutput->whiteScoreMeanSq = currentOutput->whiteScoreMean * currentOutput->whiteScoreMean;
+  currentOutput->whiteLead = currentOutput->whiteScoreMean;
+  currentOutput->varTimeLeft = 0.0f;
+  currentOutput->shorttermWinlossError = 0.0f;
+  currentOutput->shorttermScoreError = 0.0f;
+
+  if(version >= 4) {
+    currentOutput->whiteScoreMean = scoreValuesOutputBuf[0];
+    currentOutput->whiteScoreMeanSq = scoreValuesOutputBuf[1];
+    currentOutput->whiteLead = (version >= 8) ? scoreValuesOutputBuf[2] : currentOutput->whiteScoreMean;
+    currentOutput->varTimeLeft = (version >= 9) ? scoreValuesOutputBuf[3] : currentOutput->varTimeLeft;
+    currentOutput->shorttermWinlossError =
+      (version >= 9) ? moreMiscValuesOutputBuf[0] : currentOutput->shorttermWinlossError;
+    currentOutput->shorttermScoreError = (version >= 9) ? moreMiscValuesOutputBuf[1] : currentOutput->shorttermScoreError;
+  }
+}
+
 void CoreMLProcess::getCoreMLOutput(
   ComputeHandle* gpuHandle,
   InputBuffers* inputBuffers,
@@ -127,64 +205,9 @@ void CoreMLProcess::getCoreMLOutput(
 
     output->policyProbs[singlePolicyProbsElts - 1] = policyOutputBuf[singlePolicyResultElts - 1];
 
-    const float* valueOutputBuf = &inputBuffers->valueResults[row * singleValueResultElts];
-
-    output->whiteWinProb = valueOutputBuf[0];
-    output->whiteLossProb = valueOutputBuf[1];
-    output->whiteNoResultProb = valueOutputBuf[2];
-
-    if(output->whiteOwnerMap != NULL) {
-      const float* ownershipOutputBuf = &inputBuffers->ownershipResults[row * singleOwnershipResultElts];
-      float* ownerMapBuf = &inputBuffers->ownerMapBuffer[row * singleOwnerMapElts];
-
-      for(int y = 0; y < nnYLen; y++) {
-        for(int x = 0; x < nnXLen; x++) {
-          int outputIdx = (y * modelXLen) + x;
-          int ownerMapIdx = (y * nnXLen) + x;
-          ownerMapBuf[ownerMapIdx] = ownershipOutputBuf[outputIdx];
-        }
-      }
-
-      SymmetryHelpers::copyOutputsWithSymmetry(
-        ownerMapBuf, output->whiteOwnerMap, 1, nnYLen, nnXLen, inputBufs[row]->symmetry);
-    }
-
-    const float* miscValuesOutputBuf = &inputBuffers->scoreValuesResults[row * singleScoreValuesResultElts];
-    const float* moreMiscValuesOutputBuf = &inputBuffers->moreMiscValuesResults[row * singleMoreMiscValuesResultElts];
-
-    if(version >= 9) {
-      output->whiteScoreMean = miscValuesOutputBuf[0];
-      output->whiteScoreMeanSq = miscValuesOutputBuf[1];
-      output->whiteLead = miscValuesOutputBuf[2];
-      output->varTimeLeft = miscValuesOutputBuf[3];
-      output->shorttermWinlossError = moreMiscValuesOutputBuf[0];
-      output->shorttermScoreError = moreMiscValuesOutputBuf[1];
-    } else if(version >= 8) {
-      output->whiteScoreMean = miscValuesOutputBuf[0];
-      output->whiteScoreMeanSq = miscValuesOutputBuf[1];
-      output->whiteLead = miscValuesOutputBuf[2];
-      output->varTimeLeft = miscValuesOutputBuf[3];
-      output->shorttermWinlossError = 0;
-      output->shorttermScoreError = 0;
-    } else if(version >= 4) {
-      output->whiteScoreMean = miscValuesOutputBuf[0];
-      output->whiteScoreMeanSq = miscValuesOutputBuf[1];
-      output->whiteLead = output->whiteScoreMean;
-      output->varTimeLeft = 0;
-      output->shorttermWinlossError = 0;
-      output->shorttermScoreError = 0;
-    } else if(version >= 3) {
-      output->whiteScoreMean = miscValuesOutputBuf[0];
-      // Version 3 neural nets don't have any second moment output, implicitly already folding it in, so we just use the
-      // mean squared
-      output->whiteScoreMeanSq = output->whiteScoreMean * output->whiteScoreMean;
-      output->whiteLead = output->whiteScoreMean;
-      output->varTimeLeft = 0;
-      output->shorttermWinlossError = 0;
-      output->shorttermScoreError = 0;
-    } else {
-      ASSERT_UNREACHABLE;
-    }
+    CoreMLProcess::processValue(inputBuffers, output, row);
+    CoreMLProcess::processOwnership(inputBuffers, output, gpuHandle, inputBufs[row]->symmetry, row);
+    CoreMLProcess::processScoreValues(inputBuffers, output, version, row);
   }
 }
 

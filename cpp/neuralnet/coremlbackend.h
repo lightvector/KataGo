@@ -9,6 +9,19 @@
 using namespace std;
 
 namespace CoreMLProcess {
+  int calculateIndex(const int y, const int x, const int xLen);
+  void processValue(const InputBuffers* inputBuffers, NNOutput* currentOutput, const size_t row);
+
+  void processOwnership(
+    const InputBuffers* inputBuffers,
+    NNOutput* currentOutput,
+    const ComputeHandle* gpuHandle,
+    const int symmetry,
+    const size_t row);
+
+  void
+  processScoreValues(const InputBuffers* inputBuffers, NNOutput* currentOutput, const int version, const size_t row);
+
   void getCoreMLOutput(
     ComputeHandle* gpuHandle,
     InputBuffers* inputBuffers,
