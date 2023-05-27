@@ -158,7 +158,7 @@ void GameInitializer::initShared(ConfigParser& cfg, Logger& logger) {
   komiAllowIntegerProb = cfg.contains("komiAllowIntegerProb") ? cfg.getDouble("komiAllowIntegerProb",0.0,1.0) : 1.0;
 
   auto generateCumProbs = [](const vector<Sgf::PositionSample> poses, double lambda, double& effectiveSampleSize) {
-    int minInitialTurnNumber = 0;
+    int64_t minInitialTurnNumber = 0;
     for(size_t i = 0; i<poses.size(); i++)
       minInitialTurnNumber = std::min(minInitialTurnNumber, poses[i].initialTurnNumber);
 
@@ -166,7 +166,7 @@ void GameInitializer::initShared(ConfigParser& cfg, Logger& logger) {
     cumProbs.resize(poses.size());
     // Fill with uncumulative probs
     for(size_t i = 0; i<poses.size(); i++) {
-      int64_t startTurn = poses[i].initialTurnNumber + (int64_t)poses[i].moves.size() - minInitialTurnNumber;
+      int64_t startTurn = poses[i].getCurrentTurnNumber() - minInitialTurnNumber;
       cumProbs[i] = exp(-startTurn * lambda) * poses[i].weight;
     }
     for(size_t i = 0; i<poses.size(); i++) {

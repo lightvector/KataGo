@@ -91,7 +91,7 @@ struct Sgf {
     //This provides a little bit of history and context, which can also be relevant for setting up ko prohibitions.
     std::vector<Move> moves;
     //Turn number as of the start of board.
-    int initialTurnNumber;
+    int64_t initialTurnNumber;
     //Hinted move that may be good at the end of position sample, or Board::NULL_LOC
     Loc hintLoc;
     //The weight of this sample, for random selection
@@ -111,6 +111,8 @@ struct Sgf {
     Sgf::PositionSample previousPosition(double newWeight) const;
     bool hasPreviousPositions(int numPrevious) const;
 
+    int64_t getCurrentTurnNumber() const;
+    
     //For the moment, only used in testing since it does extra consistency checks.
     //If we need a version to be used in "prod", we could make an efficient version maybe as operator==.
     bool isEqualForTesting(const PositionSample& other, bool checkNumCaptures, bool checkSimpleKo) const;
@@ -162,7 +164,6 @@ struct Sgf {
     Board& board, BoardHistory& hist, Player nextPla,
     const Rules& rules, int xSize, int ySize,
     PositionSample& sampleBuf,
-    int initialTurnNumber,
     std::set<Hash128>& uniqueHashes,
     bool requireUnique,
     bool hashComments,
@@ -177,7 +178,6 @@ struct Sgf {
   void samplePositionHelper(
     Board& board, BoardHistory& hist, Player nextPla,
     PositionSample& sampleBuf,
-    int initialTurnNumber,
     std::set<Hash128>& uniqueHashes,
     bool requireUnique,
     bool hashComments,

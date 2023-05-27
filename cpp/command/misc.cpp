@@ -823,7 +823,7 @@ int MainCmds::samplesgfs(const vector<string>& args) {
 
       if(seedRand.nextBool(sampleProb)) {
         Sgf::PositionSample posSampleToWrite = posSample;
-        int64_t startTurn = posSampleToWrite.initialTurnNumber + (int64_t)posSampleToWrite.moves.size();
+        int64_t startTurn = posSampleToWrite.getCurrentTurnNumber();
         posSampleToWrite.weight = sampleWeight * exp(-startTurn * turnWeightLambda) * posSampleToWrite.weight;
         if(posSampleToWrite.moves.size() > 0 && posSampleToWrite.moves[posSampleToWrite.moves.size()-1].loc == Board::PASS_LOC)
           posSampleToWrite.weight *= afterPassFactor;
@@ -1031,7 +1031,7 @@ int MainCmds::samplesgfs(const vector<string>& args) {
           // cout << "BBBB" << endl;
           Sgf::PositionSample posSampleWeighted = posSample;
           if(desiredWeight.size() > 0) {
-            int turnIdx = std::min((int)(desiredWeight.size()-1), posHist.initialTurnNumber + (int)posHist.moveHistory.size());
+            int turnIdx = std::min((int)(desiredWeight.size()-1), (int)posHist.initialTurnNumber + (int)posHist.moveHistory.size());
             turnIdx = std::max(turnIdx,0);
             posSampleWeighted.weight = desiredWeight[turnIdx];
           }
@@ -1170,7 +1170,7 @@ static double surpriseWeight(double policyProb, Rand& rand, bool alwaysAddWeight
 
 struct PosQueueEntry {
   BoardHistory* hist;
-  int initialTurnNumber;
+  int64_t initialTurnNumber;
   bool markedAsHintPos;
 };
 
@@ -1877,7 +1877,7 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
   //TREE MODE
 
   auto treePosHandler = [&gameInit,&nnEval,&expensiveEvaluateMove,&autoKomi,&maxPolicy,&flipIfPassOrWFirst,&surpriseMode,trainingWeight](
-    Search* search, Rand& rand, const BoardHistory& treeHist, int initialTurnNumber, bool markedAsHintPos
+    Search* search, Rand& rand, const BoardHistory& treeHist, int64_t initialTurnNumber, bool markedAsHintPos
   ) {
     if(shouldStop.load(std::memory_order_acquire))
       return;
@@ -2020,7 +2020,7 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
       if(!success)
         break;
       BoardHistory* hist = p.hist;
-      int initialTurnNumber = p.initialTurnNumber;
+      int64_t initialTurnNumber = p.initialTurnNumber;
       bool markedAsHintPos = p.markedAsHintPos;
 
       int64_t numEnqueued = numPosesEnqueued.load();

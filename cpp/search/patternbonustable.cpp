@@ -143,7 +143,7 @@ void PatternBonusTable::avoidRepeatedSgfMoves(
   const vector<string>& sgfsDirsOrFiles,
   double penalty,
   double decayOlderFilesLambda,
-  int minTurnNumber,
+  int64_t minTurnNumber,
   size_t maxFiles,
   const vector<string>& allowedPlayerNames,
   Logger& logger,
@@ -218,8 +218,8 @@ void PatternBonusTable::avoidRepeatedPosMovesAndDeleteExcessFiles(
   const vector<string>& posesDirsToLoadAndPrune,
   double penalty,
   double decayOlderPosesLambda,
-  int minTurnNumber,
-  int maxTurnNumber,
+  int64_t minTurnNumber,
+  int64_t maxTurnNumber,
   size_t maxPoses,
   Logger& logger,
   const string& logSource
@@ -254,7 +254,7 @@ void PatternBonusTable::avoidRepeatedPosMovesAndDeleteExcessFiles(
         }
 
         const bool isMultiStoneSuicideLegal = true;
-        int turnNumber = posSample.initialTurnNumber + posSample.moves.size();
+        int64_t turnNumber = posSample.getCurrentTurnNumber();
         if(
           turnNumber < minTurnNumber ||
           turnNumber > maxTurnNumber ||

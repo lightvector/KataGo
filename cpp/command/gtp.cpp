@@ -1134,7 +1134,7 @@ struct GTPEngine {
       const BoardHistory& hist = bot->getRootHist();
       posSample.board = bot->getRootBoard();
       posSample.nextPla = pla;
-      posSample.initialTurnNumber = hist.initialTurnNumber + (int)hist.moveHistory.size();
+      posSample.initialTurnNumber = hist.getCurrentTurnNumber();
       posSample.hintLoc = moveLoc;
       posSample.weight = 1.0;
       genmoveSamples.push_back(posSample);

@@ -32,7 +32,7 @@ struct BoardHistory {
   int initialEncorePhase;
   //The "turn number" as of the initial board. Does not affect any rules, but possibly uses may
   //care about this number, for cases where we set up a position from midgame.
-  int initialTurnNumber;
+  int64_t initialTurnNumber;
   //How we count handicap at the start of the game. Set manually by some close-to-user-level apps or subcommands
   bool assumeMultipleStartingBlackMovesAreHandicap;
   bool whiteHasMoved;
@@ -109,7 +109,7 @@ struct BoardHistory {
   //Set only the komi field of the rules, does not clear history, does recompute game score if game is over.
   void setKomi(float newKomi);
   //Set the initial turn number. Affects nothing else.
-  void setInitialTurnNumber(int n);
+  void setInitialTurnNumber(int64_t n);
   //Set assumeMultipleStartingBlackMovesAreHandicap and update bonus points accordingly
   void setAssumeMultipleStartingBlackMovesAreHandicap(bool b);
 
@@ -139,6 +139,9 @@ struct BoardHistory {
   bool isFinalPhase() const;
   //Check if the specified move is a pass-for-ko encore move.
   bool isPassForKo(const Board& board, Loc moveLoc, Player movePla) const;
+
+  //Current turn number, based on initial turn number
+  int64_t getCurrentTurnNumber() const;
 
   //For all of the below, rootKoHashTable is optional and if provided will slightly speedup superko searches
   //This function should behave gracefully so long as it is pseudolegal (board.isLegal, but also still ok if the move is on board.ko_loc)
