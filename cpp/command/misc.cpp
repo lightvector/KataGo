@@ -812,12 +812,11 @@ int MainCmds::samplesgfs(const vector<string>& args) {
     [sampleProb,sampleWeight,forceSampleWeight,&posWriter,turnWeightLambda,&numKept,&weightKept,&seedRand,minTurnNumberBoardAreaProp,maxTurnNumberBoardAreaProp,afterPassFactor,trainingWeight,minWeight](
       Sgf::PositionSample& posSample, const BoardHistory& hist, const string& comments
     ) {
+      assert(posSample.getCurrentTurnNumber() == hist.getCurrentTurnNumber());
       double minTurnNumber = minTurnNumberBoardAreaProp * (hist.initialBoard.x_size * hist.initialBoard.y_size);
       double maxTurnNumber = maxTurnNumberBoardAreaProp * (hist.initialBoard.x_size * hist.initialBoard.y_size);
-      if(hist.initialBoard.numStonesOnBoard() + hist.moveHistory.size() < minTurnNumber ||
-         hist.initialBoard.numStonesOnBoard() + hist.moveHistory.size() > maxTurnNumber) {
+      if(posSample.getCurrentTurnNumber() < minTurnNumber || posSample.getCurrentTurnNumber() > maxTurnNumber)
         return;
-      }
       if(comments.size() > 0 && comments.find("%NOSAMPLE%") != string::npos)
         return;
 
@@ -906,7 +905,7 @@ int MainCmds::samplesgfs(const vector<string>& args) {
       vector<double> winLossValues;
       vector<Move> moves;
 
-      for(int m = 0; m<sgfMoves.size()+1; m++) {
+      for(size_t m = 0; m<sgfMoves.size()+1; m++) {
         MiscNNInputParams nnInputParams;
         nnInputParams.conservativePassAndIsRoot = true;
         if(forTesting)
@@ -954,22 +953,27 @@ int MainCmds::samplesgfs(const vector<string>& args) {
 
       if(winLossValues.size() <= 1)
         return;
-
+      
       double minTurnNumber = minTurnNumberBoardAreaProp * (hist.initialBoard.x_size * hist.initialBoard.y_size);
       double maxTurnNumber = maxTurnNumberBoardAreaProp * (hist.initialBoard.x_size * hist.initialBoard.y_size);
-      vector<double> winrateVariance(winLossValues.size()-1);
-      for(int i = 0; i<(int)winrateVariance.size()-1; i++) {
-        if(i >= minTurnNumber && i <= maxTurnNumber)
-          winrateVariance[i] = (winLossValues[i+1]-winLossValues[i]) * (winLossValues[i+1]-winLossValues[i]);
+      //At this point we transition from indexing by move index alone to indexing by turn number in case the board
+      //started in the middle of a nonempty position.
+      vector<double> winrateVariance;
+      for(size_t i = 0; i<winLossValues.size()-1; i++) {
+        int64_t turnNumber = hists[i].getCurrentTurnNumber();
+        if(winrateVariance.size() <= turnNumber)
+          winrateVariance.resize(turnNumber+1);
+        if(turnNumber >= minTurnNumber && turnNumber <= maxTurnNumber)
+          winrateVariance[turnNumber] = (winLossValues[i+1]-winLossValues[i]) * (winLossValues[i+1]-winLossValues[i]);
         else
-          winrateVariance[i] = 0.0;
+          winrateVariance[turnNumber] = 0.0;
       }
       //Apply exponential blur
-      vector<double> winrateVarianceBlurred(winLossValues.size()-1);
+      vector<double> winrateVarianceBlurred(winrateVariance.size());
       double blurSum = 0.0;
       double totalWeight = 0.0;
       int totalCount = 0;
-      for(int i = (int)winrateVarianceBlurred.size()-1; i >= 0; i--) {
+      for(size_t i = winrateVariance.size(); i--;) {
         blurSum *= 1.0 - 1.0 / valueFluctuationTurnScale;
         blurSum += winrateVariance[i];
         if(i >= minTurnNumber && i <= maxTurnNumber) {
@@ -982,24 +986,27 @@ int MainCmds::samplesgfs(const vector<string>& args) {
         return;
 
       //Normalize
-      vector<double> desiredWeight(winLossValues.size()-1);
-      for(int i = 0; i<(int)desiredWeight.size(); i++) {
-        desiredWeight[i] = winrateVarianceBlurred[i] / totalWeight * totalCount;
+      vector<double> desiredWeight(winrateVariance.size());
+      for(size_t i = 0; i<desiredWeight.size(); i++) {
+        desiredWeight[i] = std::min(valueFluctuationMaxWeight, winrateVarianceBlurred[i] / totalWeight * totalCount);
       }
 
-      for(int m = 0; m<(int)desiredWeight.size(); m++) {
-        assert(m < moves.size());
-
+      for(int64_t m = 0; m<(int64_t)moves.size(); m++) {
         Sgf::PositionSample sample;
         const int numMovesToRecord = 8;
-        int startIdx = std::max(0,m-numMovesToRecord);
+        int64_t startIdx = std::max((int64_t)0,m-numMovesToRecord);
         sample.board = boards[startIdx];
         sample.nextPla = nextPlas[startIdx];
-        for(int j = startIdx; j<m; j++)
+        for(int64_t j = startIdx; j<m; j++)
           sample.moves.push_back(moves[j]);
-        sample.initialTurnNumber = startIdx;
+        sample.initialTurnNumber = hist.initialTurnNumber + startIdx;
         sample.hintLoc = Board::NULL_LOC;
-        sample.weight = std::min(valueFluctuationMaxWeight, desiredWeight[m]);
+
+        assert(desiredWeight.size() > 0);
+        int64_t turnIdx = std::min((int64_t)(desiredWeight.size()-1), hists[m].getCurrentTurnNumber());
+        turnIdx = std::max(turnIdx,(int64_t)0);
+        sample.weight = desiredWeight[turnIdx];
+
         sample.trainingWeight = trainingWeight;
 
         if(sample.weight < 0.1)
@@ -1012,7 +1019,7 @@ int MainCmds::samplesgfs(const vector<string>& args) {
       // Block all the main line hashes and then iterate through the whole SGF to catch side variations, weight them
       // the same way as the same turn in the main line.
       std::set<Hash128> blockedSituationHashes;
-      for(int m = 0; m<hists.size(); m++) {
+      for(size_t m = 0; m<hists.size(); m++) {
         blockedSituationHashes.insert(
           BoardHistory::getSituationAndSimpleKoAndPrevPosHash(hists[m].getRecentBoard(0),hists[m],hists[m].presumedNextMovePla)
         );
@@ -1022,6 +1029,7 @@ int MainCmds::samplesgfs(const vector<string>& args) {
         [&blockedSituationHashes, &desiredWeight, &posHandler, trainingWeight](
           Sgf::PositionSample& posSample, const BoardHistory& posHist, const string& comments
         ) {
+          assert(posSample.getCurrentTurnNumber() == posHist.getCurrentTurnNumber());
           // cout << "AAAA " << (posHist.initialTurnNumber + (int)posHist.moveHistory.size()) << endl;
           if(contains(
                blockedSituationHashes,
@@ -1031,8 +1039,8 @@ int MainCmds::samplesgfs(const vector<string>& args) {
           // cout << "BBBB" << endl;
           Sgf::PositionSample posSampleWeighted = posSample;
           if(desiredWeight.size() > 0) {
-            int turnIdx = std::min((int)(desiredWeight.size()-1), (int)posHist.initialTurnNumber + (int)posHist.moveHistory.size());
-            turnIdx = std::max(turnIdx,0);
+            int64_t turnIdx = std::min((int64_t)(desiredWeight.size()-1), posHist.getCurrentTurnNumber());
+            turnIdx = std::max(turnIdx,(int64_t)0);
             posSampleWeighted.weight = desiredWeight[turnIdx];
           }
           posSampleWeighted.trainingWeight = trainingWeight;
@@ -1170,7 +1178,6 @@ static double surpriseWeight(double policyProb, Rand& rand, bool alwaysAddWeight
 
 struct PosQueueEntry {
   BoardHistory* hist;
-  int64_t initialTurnNumber;
   bool markedAsHintPos;
 };
 
@@ -1813,7 +1820,7 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
       sample.nextPla = nextPlas[startIdx];
       for(int j = startIdx; j<m; j++)
         sample.moves.push_back(moves[j]);
-      sample.initialTurnNumber = startIdx;
+      sample.initialTurnNumber = hists[m].initialTurnNumber + startIdx;
       sample.hintLoc = moves[m].loc;
       sample.weight = weight;
       sample.trainingWeight = trainingWeight;
@@ -1877,7 +1884,7 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
   //TREE MODE
 
   auto treePosHandler = [&gameInit,&nnEval,&expensiveEvaluateMove,&autoKomi,&maxPolicy,&flipIfPassOrWFirst,&surpriseMode,trainingWeight](
-    Search* search, Rand& rand, const BoardHistory& treeHist, int64_t initialTurnNumber, bool markedAsHintPos
+    Search* search, Rand& rand, const BoardHistory& treeHist, bool markedAsHintPos
   ) {
     if(shouldStop.load(std::memory_order_acquire))
       return;
@@ -1919,7 +1926,7 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
     sample.nextPla = treeHist.moveHistory[startTurn].pla;
     for(int j = startTurn; j<moveHistorySize-1; j++)
       sample.moves.push_back(treeHist.moveHistory[j]);
-    sample.initialTurnNumber = initialTurnNumber;
+    sample.initialTurnNumber = treeHist.initialTurnNumber + startTurn;
     sample.hintLoc = treeHist.moveHistory[moveHistorySize-1].loc;
     sample.weight = 0.0; //dummy, filled in below
     sample.trainingWeight = trainingWeight;
@@ -2020,7 +2027,6 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
       if(!success)
         break;
       BoardHistory* hist = p.hist;
-      int64_t initialTurnNumber = p.initialTurnNumber;
       bool markedAsHintPos = p.markedAsHintPos;
 
       int64_t numEnqueued = numPosesEnqueued.load();
@@ -2028,7 +2034,7 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
       if(numBegun % 20 == 0)
         logger.write("Begun " + Global::int64ToString(numBegun) + "/" + Global::int64ToString(numEnqueued) + " poses");
 
-      treePosHandler(search, rand, *hist, initialTurnNumber, markedAsHintPos);
+      treePosHandler(search, rand, *hist, markedAsHintPos);
 
       int64_t numDone = 1+numPosesDone.fetch_add(1);
       if(numDone % 20 == 0)
@@ -2170,7 +2176,7 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
                 logger.write("Enqueued " + Global::int64ToString(numEnqueued) + " poses");
               PosQueueEntry entry;
               entry.hist = new BoardHistory(hist);
-              entry.initialTurnNumber = unusedSample.initialTurnNumber; //this is the only thing we keep
+              assert(hist.getCurrentTurnNumber() == unusedSample.getCurrentTurnNumber());
               entry.markedAsHintPos = (comments.size() > 0 && comments.find("%HINT%") != string::npos);
               posQueue.waitPush(entry);
             }

@@ -1538,6 +1538,8 @@ void CompactSgf::setupInitialBoardAndHist(const Rules& initialRules, Board& boar
   if(!suc)
     throw StringError("setupInitialBoardAndHist: initial board position contains invalid stones or zero-liberty stones");
   hist = BoardHistory(board,nextPla,initialRules,0);
+  if(hist.initialTurnNumber < board.numStonesOnBoard())
+    hist.initialTurnNumber = board.numStonesOnBoard();
 }
 
 void CompactSgf::playMovesAssumeLegal(Board& board, Player& nextPla, BoardHistory& hist, int64_t turnIdx) const {

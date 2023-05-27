@@ -31,7 +31,7 @@
 : Cuda backend thread 0: Model version 8 useFP16 = true useNHWC = true
 : Cuda backend thread 0: Model name: g170-b6c96-s175395328-d26788732
 : Loaded neural net
-: Kept 64 start positions
+: Kept 82 start positions
 : Excluded 0/2 sgf files
 : Filtered 0/2 sgf files
 : GPU -1 finishing, processed 64 rows 64 batches
