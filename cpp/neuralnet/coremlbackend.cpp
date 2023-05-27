@@ -12,9 +12,81 @@ using namespace std;
 
 //--------------------------------------------------------------
 
-// Helper function to calculate a buffer index
+size_t CoreMLProcess::calculateBufferOffset(size_t row, size_t singleResultElts, size_t resultChannels) {
+  return row * singleResultElts * resultChannels;
+}
+
 int CoreMLProcess::calculateIndex(const int y, const int x, const int xLen) {
   return (y * xLen) + x;
+}
+
+float CoreMLProcess::policyOptimismCalc(const double policyOptimism, const float p, const float pOpt) {
+  return MetalProcess::policyOptimismCalc(policyOptimism, p, pOpt);
+}
+
+float CoreMLProcess::assignPolicyValue(
+  const size_t policyResultChannels,
+  const double policyOptimism,
+  const float* targetBuffer,
+  const size_t outputIdx,
+  const size_t singleModelPolicyResultElts) {
+  return (policyResultChannels == 1)
+           ? targetBuffer[outputIdx]
+           : policyOptimismCalc(
+               policyOptimism, targetBuffer[outputIdx], targetBuffer[outputIdx + singleModelPolicyResultElts]);
+}
+
+void CoreMLProcess::processPolicy(
+  InputBuffers* inputBuffers,
+  NNOutput* currentOutput,
+  const ComputeHandle* gpuHandle,
+  NNResultBuf* inputBuf,
+  size_t row) {
+  const int gpuHandleXLen = gpuHandle->nnXLen;
+  const int gpuHandleYLen = gpuHandle->nnYLen;
+  const int modelXLen = gpuHandle->modelXLen;
+  auto& inputBuffersRef = *inputBuffers;
+  const size_t targetBufferOffset =
+    calculateBufferOffset(row, inputBuffersRef.singleModelPolicyResultElts, inputBuffersRef.policyResultChannels);
+  const size_t currentBufferOffset =
+    calculateBufferOffset(row, inputBuffersRef.singlePolicyProbsElts, inputBuffersRef.policyResultChannels);
+  float* targetBuffer = &inputBuffersRef.policyResults[targetBufferOffset];
+  float* currentBuffer = &inputBuffersRef.policyProbsBuffer[currentBufferOffset];
+  const auto symmetry = inputBuf->symmetry;
+  const auto policyOptimism = inputBuf->policyOptimism;
+
+  auto processBuffer = [&](int y, int x) {
+    int outputIdx = calculateIndex(y, x, modelXLen);
+    int probsIdx = calculateIndex(y, x, gpuHandleXLen);
+
+    currentBuffer[probsIdx] = assignPolicyValue(
+      inputBuffersRef.policyResultChannels,
+      policyOptimism,
+      targetBuffer,
+      outputIdx,
+      inputBuffersRef.singleModelPolicyResultElts);
+  };
+
+  for(int y = 0; y < gpuHandleYLen; y++) {
+    for(int x = 0; x < gpuHandleXLen; x++) {
+      processBuffer(y, x);
+    }
+  }
+
+  assert(inputBuffersRef.singleModelPolicyResultElts > 0);
+  assert(inputBuffersRef.singlePolicyProbsElts > 0);
+  size_t endOfModelPolicyIdx = inputBuffersRef.singleModelPolicyResultElts - 1;
+  size_t endOfPolicyProbsIdx = inputBuffersRef.singlePolicyProbsElts - 1;
+
+  currentOutput->policyProbs[endOfPolicyProbsIdx] = assignPolicyValue(
+    inputBuffersRef.policyResultChannels,
+    policyOptimism,
+    targetBuffer,
+    endOfModelPolicyIdx,
+    inputBuffersRef.singleModelPolicyResultElts);
+
+  SymmetryHelpers::copyOutputsWithSymmetry(
+    currentBuffer, currentOutput->policyProbs, 1, gpuHandleYLen, gpuHandleXLen, symmetry);
 }
 
 void CoreMLProcess::processValue(
@@ -116,10 +188,8 @@ void CoreMLProcess::getCoreMLOutput(
   size_t singleInputElts = inputBuffers->singleInputElts;
   size_t singleInputGlobalElts = inputBuffers->singleInputGlobalElts;
   size_t singlePolicyResultElts = inputBuffers->singleModelPolicyResultElts;
-  size_t singlePolicyProbsElts = inputBuffers->singlePolicyProbsElts;
   size_t singleValueResultElts = inputBuffers->singleValueResultElts;
   size_t singleOwnershipResultElts = inputBuffers->singleModelOwnershipResultElts;
-  size_t singleOwnerMapElts = inputBuffers->singleOwnerMapElts;
   size_t singleScoreValuesResultElts = inputBuffers->singleScoreValuesResultElts;
   size_t singleMoreMiscValuesResultElts = inputBuffers->singleMoreMiscValuesResultElts;
 
@@ -183,28 +253,7 @@ void CoreMLProcess::getCoreMLOutput(
   // Fill results by CoreML model output
   for(size_t row = 0; row < batchSize; row++) {
     NNOutput* output = outputs[row];
-    assert(output->nnXLen == nnXLen);
-    assert(output->nnYLen == nnYLen);
-
-    float* policyOutputBuf = &inputBuffers->policyResults[row * (singlePolicyResultElts * policyResultChannels)];
-    float* policyProbsBuf = &inputBuffers->policyProbsBuffer[row * singlePolicyProbsElts];
-
-    for(int y = 0; y < nnYLen; y++) {
-      for(int x = 0; x < nnXLen; x++) {
-        int outputIdx = (y * modelXLen) + x;
-        int probsIdx = (y * nnXLen) + x;
-        policyProbsBuf[probsIdx] = policyOutputBuf[outputIdx];
-      }
-    }
-
-    // These are not actually correct, the client does the postprocessing to turn them into
-    // policy probabilities and white game outcome probabilities
-    // Also we don't fill in the nnHash here either
-    SymmetryHelpers::copyOutputsWithSymmetry(
-      policyProbsBuf, output->policyProbs, 1, nnYLen, nnXLen, inputBufs[row]->symmetry);
-
-    output->policyProbs[singlePolicyProbsElts - 1] = policyOutputBuf[singlePolicyResultElts - 1];
-
+    CoreMLProcess::processPolicy(inputBuffers, output, gpuHandle, inputBufs[row], row);
     CoreMLProcess::processValue(inputBuffers, output, row);
     CoreMLProcess::processOwnership(inputBuffers, output, gpuHandle, inputBufs[row]->symmetry, row);
     CoreMLProcess::processScoreValues(inputBuffers, output, version, row);

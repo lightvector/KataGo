@@ -315,7 +315,7 @@ InputBuffers::InputBuffers(const LoadedModel* loadedModel, int maxBatchSz, int n
   userInputGlobalBufferElts = (size_t)maxBatchSize * singleInputGlobalElts;
   policyResultBufferElts = (size_t)maxBatchSize * singleModelPolicyResultElts * policyResultChannels;
   policyPassResultBufferElts = (size_t)maxBatchSize * singlePolicyPassResultElts * policyResultChannels;
-  policyProbsBufferElts = (size_t)maxBatchSize * singlePolicyProbsElts;
+  policyProbsBufferElts = (size_t)maxBatchSize * singlePolicyProbsElts * policyResultChannels;
   valueResultBufferElts = (size_t)maxBatchSize * singleValueResultElts;
   ownershipResultBufferElts = (size_t)maxBatchSize * singleModelOwnershipResultElts;
   ownerMapBufferElts = (size_t)maxBatchSz * singleOwnerMapElts;
@@ -411,7 +411,7 @@ void MetalProcess::processRowData(size_t row, ComputeHandle* gpuHandle, InputBuf
     inputBufs[row]->symmetry);
 }
 
-float MetalProcess::policyOptimismCalc(const double policyOptimism, const float& p, const float& pOpt) {
+float MetalProcess::policyOptimismCalc(const double policyOptimism, const float p, const float pOpt) {
   return p + ((pOpt - p) * policyOptimism);
 }
 
