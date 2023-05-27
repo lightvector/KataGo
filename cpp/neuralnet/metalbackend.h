@@ -10,6 +10,84 @@
 
 using namespace std;
 
+namespace MetalProcess {
+  void copyRowData(float* dest, const float* src, size_t numElements);
+  void processRowData(size_t row, ComputeHandle* gpuHandle, InputBuffers* inputBuffers, NNResultBuf** inputBufs);
+  float policyOptimismCalc(const double policyOptimism, const float& p, const float& pOpt);
+  void processOptimism(InputBuffers* inputBuffers, NNOutput* currentOutput, const double policyOptimism, size_t row);
+
+  void processPolicy(
+    InputBuffers* inputBuffers,
+    NNOutput* currentOutput,
+    const ComputeHandle* gpuHandle,
+    NNResultBuf* inputBuf,
+    size_t row);
+
+  void processValue(const InputBuffers* inputBuffers, NNOutput* currentOutput, const size_t row);
+
+  void processOwnership(
+    const InputBuffers* inputBuffers,
+    NNOutput* currentOutput,
+    const ComputeHandle* gpuHandle,
+    const int symmetry,
+    const size_t row);
+
+  void
+  processScoreValues(const InputBuffers* inputBuffers, NNOutput* currentOutput, const int version, const size_t row);
+
+  void processRow(
+    size_t row,
+    const ComputeHandle* gpuHandle,
+    InputBuffers* inputBuffers,
+    NNResultBuf** inputBufs,
+    vector<NNOutput*>& outputs);
+
+  void getMetalHandleOutput(
+    float* userInputBuffer,
+    float* userInputGlobalBuffer,
+    float* policyOutput,
+    float* policyPassOutput,
+    float* valueOutput,
+    float* ownershipOutput,
+    float* scoreValueOutput,
+    int gpuIdx,
+    int batchSize);
+
+  void getMetalOutput(
+    ComputeHandle* gpuHandle,
+    InputBuffers* inputBuffers,
+    int numBatchEltsFilled,
+    NNResultBuf** inputBufs,
+    vector<NNOutput*>& outputs);
+
+  /// Print the available Metal devices.
+  void printMetalDevices(void);
+
+  /// Create a Metal computing context.
+  /// - Parameters:
+  ///   - nnXLen: The length of the neural network input in the x dimension.
+  ///   - nnYLen: The length of the neural network input in the y dimension.
+  ///   - inputUseFP16Mode: Whether to use 16-bit floating-point precision or not.
+  ///   - inputUseNHWCMode: Whether to use NHWC mode or not.
+  void createMetalContext(int nnXLen, int nnYLen, enabled_t inputUseFP16Mode, enabled_t inputUseNHWCMode);
+
+  /// Destroy a Metal computing context.
+  void destroyMetalContext(void);
+
+  /// Get the length of the neural network input in the x dimension from Metal computing context
+  int getMetalContextXLen(void);
+
+  /// Get the length of the neural network input in the y dimension from Metal computing context
+  int getMetalContextYLen(void);
+
+  /// Create a Metal computing handle.
+  /// - Parameters:
+  ///   - gpuIdxForThisThread: A GPU index for this thread.
+  ///   - desc: A model description.
+  ///   - serverThreadIdx: A server thread index.
+  void createMetalHandle(int gpuIdxForThisThread, const ModelDesc* desc, int serverThreadIdx);
+};
+
 /**
  * @brief Represents a loaded neural network model.
  * A LoadedModel object contains a ModelDesc object that describes the characteristics of the loaded model.
@@ -248,122 +326,3 @@ struct InputBuffers {
   InputBuffers(const InputBuffers&) = delete;
   InputBuffers& operator=(const InputBuffers&) = delete;
 };
-
-/// Print the available Metal devices.
-void printMetalDevices(void);
-
-/// Create a Metal computing context.
-/// - Parameters:
-///   - nnXLen: The length of the neural network input in the x dimension.
-///   - nnYLen: The length of the neural network input in the y dimension.
-///   - inputUseFP16Mode: Whether to use 16-bit floating-point precision or not.
-///   - inputUseNHWCMode: Whether to use NHWC mode or not.
-void createMetalContext(int nnXLen,
-                        int nnYLen,
-                        enabled_t inputUseFP16Mode,
-                        enabled_t inputUseNHWCMode);
-
-/// Destroy a Metal computing context.
-void destroyMetalContext(void);
-
-/// Get the length of the neural network input in the x dimension from Metal computing context
-int getMetalContextXLen(void);
-
-/// Get the length of the neural network input in the y dimension from Metal computing context
-int getMetalContextYLen(void);
-
-/// Create a Metal computing handle.
-/// - Parameters:
-///   - gpuIdxForThisThread: A GPU index for this thread.
-///   - desc: A model description.
-///   - serverThreadIdx: A server thread index.
-void createMetalHandle(int gpuIdxForThisThread,
-                       const ModelDesc* desc,
-                       int serverThreadIdx);
-
-/// Get output from a Metal computing handle.
-/// - Parameters:
-///   - userInputBuffer: A user input buffer.
-///   - userInputGlobalBuffer: A user input global buffer.
-///   - policyOutput: A policy output buffer.
-///   - policyPassOutput: A policy pass output buffer.
-///   - valueOutput: A value output buffer.
-///   - ownershipOutput: An ownership output buffer.
-///   - scoreValueOutput: A score value output buffer.
-///   - gpuIdx: A GPU index.
-///   - batchSize: A batch size.
-void getMetalHandleOutput(float* userInputBuffer,
-                          float* userInputGlobalBuffer,
-                          float* policyOutput,
-                          float* policyPassOutput,
-                          float* valueOutput,
-                          float* ownershipOutput,
-                          float* scoreValueOutput,
-                          int gpuIdx,
-                          int batchSize);
-
-/// Test Metal evaluating convolution layer with a given input
-/// - Parameters:
-///   - desc: A convolution layer description.
-///   - nnXLen: A neural network input length in the x dimension.
-///   - nnYLen: A neural network input length in the y dimension.
-///   - batchSize: A batch size.
-///   - input: An input buffer.
-///   - output: An output buffer.
-void testMetalEvaluateConv(const ConvLayerDesc* desc,
-                           int nnXLen,
-                           int nnYLen,
-                           int batchSize,
-                           float* input,
-                           float* output);
-
-/// Test Metal evaluating batch normalization layer with a given input
-/// - Parameters:
-///   - desc: A batch normalization layer description.
-///   - nnXLen: A neural network input length in the x dimension.
-///   - nnYLen: A neural network input length in the y dimension.
-///   - batchSize: A batch size.
-///   - input: an input buffer.
-///   - mask: a mask buffer.
-///   - output: an output buffer.
-void testMetalEvaluateBatchNorm(const BatchNormLayerDesc* desc,
-                                int nnXLen,
-                                int nnYLen,
-                                int batchSize,
-                                float* input,
-                                float* mask,
-                                float* output);
-
-/// Test Metal evaluating residual block with a given input
-/// - Parameters:
-///   - desc: a residual block description.
-///   - batchSize: a batch size.
-///   - nnXLen: a neural network input length in the x dimension.
-///   - nnYLen: a neural network input length in the y dimension.
-///   - input: An input buffer.
-///   - mask: A mask buffer.
-///   - output: An output buffer.
-void testMetalEvaluateResidualBlock(const ResidualBlockDesc* desc,
-                                    int batchSize,
-                                    int nnXLen,
-                                    int nnYLen,
-                                    float* input,
-                                    float* mask,
-                                    float* output);
-
-/// Test Metal evaluating global pooling residual block with a given input
-/// - Parameters:
-///   - desc: A global pooling residual block description.
-///   - batchSize: A batch size.
-///   - nnXLen: A neural network input length in the x dimension.
-///   - nnYLen: A neural network input length in the y dimension.
-///   - input: An input buffer.
-///   - mask: A mask buffer.
-///   - output: An output buffer.
-void testMetalEvaluateGlobalPoolingResidualBlock(const GlobalPoolingResidualBlockDesc* desc,
-                                                 int batchSize,
-                                                 int nnXLen,
-                                                 int nnYLen,
-                                                 float* input,
-                                                 float* mask,
-                                                 float* output);

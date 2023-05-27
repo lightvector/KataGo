@@ -8,34 +8,31 @@
 
 using namespace std;
 
-void createCoreMLContext();
-void destroyCoreMLContext();
+namespace CoreMLProcess {
+  void getCoreMLOutput(
+    ComputeHandle* gpuHandle,
+    InputBuffers* inputBuffers,
+    int numBatchEltsFilled,
+    NNResultBuf** inputBufs,
+    vector<NNOutput*>& outputs);
 
-int createCoreMLBackend(int modelXLen,
-                        int modelYLen,
-                        int serverThreadIdx,
-                        bool useFP16);
+  void createCoreMLContext();
+  void destroyCoreMLContext();
 
-void freeCoreMLBackend(int modelIndex);
-int getCoreMLBackendNumSpatialFeatures(int modelIndex);
-int getCoreMLBackendNumGlobalFeatures(int modelIndex);
-int getCoreMLBackendVersion(int modelIndex);
+  int createCoreMLBackend(int modelXLen, int modelYLen, int serverThreadIdx, bool useFP16);
 
-void getCoreMLHandleOutput(
-  float* userInputBuffer,
-  float* userInputGlobalBuffer,
-  float* policyOutput,
-  float* valueOutput,
-  float* ownershipOutput,
-  float* miscValuesOutput,
-  float* moreMiscValuesOutput,
-  int modelIndex);
+  void freeCoreMLBackend(int modelIndex);
+  int getCoreMLBackendVersion(int modelIndex);
 
-void getCoreMLOutput(
-  ComputeHandle* gpuHandle,
-  InputBuffers* inputBuffers,
-  int numBatchEltsFilled,
-  NNResultBuf** inputBufs,
-  std::vector<NNOutput*>& outputs);
+  void getCoreMLHandleOutput(
+    float* userInputBuffer,
+    float* userInputGlobalBuffer,
+    float* policyOutput,
+    float* valueOutput,
+    float* ownershipOutput,
+    float* miscValuesOutput,
+    float* moreMiscValuesOutput,
+    int modelIndex);
+};
 
 #endif /* coremlbackend_h */

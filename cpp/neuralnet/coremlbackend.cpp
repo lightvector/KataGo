@@ -12,7 +12,7 @@ using namespace std;
 
 //--------------------------------------------------------------
 
-void getCoreMLOutput(
+void CoreMLProcess::getCoreMLOutput(
   ComputeHandle* gpuHandle,
   InputBuffers* inputBuffers,
   int numBatchEltsFilled,
@@ -31,7 +31,7 @@ void getCoreMLOutput(
   assert(batchSize > 0);
   assert((numSpatialFeatures * modelXLen * modelYLen) == inputBuffers->singleInputElts);
   assert(numGlobalFeatures == inputBuffers->singleInputGlobalElts);
-  assert(version == getCoreMLBackendVersion(gpuHandle->modelIndex));
+  assert(version == CoreMLProcess::getCoreMLBackendVersion(gpuHandle->modelIndex));
 
   size_t policyResultChannels = inputBuffers->policyResultChannels;
   size_t singleSpatialElts = inputBuffers->singleSpatialElts;
@@ -91,7 +91,7 @@ void getCoreMLOutput(
       }
     }
 
-    getCoreMLHandleOutput(
+    CoreMLProcess::getCoreMLHandleOutput(
       rowSpatialInput,
       rowGlobalInput,
       policyOutputBuf,

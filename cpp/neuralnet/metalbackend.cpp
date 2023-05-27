@@ -112,13 +112,13 @@ ModelPostProcessParams NeuralNet::getPostProcessParams(const LoadedModel* loaded
 
 ComputeContext::ComputeContext(int nnX, int nnY, enabled_t useFP16Mode, enabled_t useNHWCMode) {
   this->useFP16Mode = useFP16Mode;
-  createMetalContext(nnX, nnY, useFP16Mode, useNHWCMode);
-  createCoreMLContext();
+  MetalProcess::createMetalContext(nnX, nnY, useFP16Mode, useNHWCMode);
+  CoreMLProcess::createCoreMLContext();
 }
 
 ComputeContext::~ComputeContext() {
-  destroyMetalContext();
-  destroyCoreMLContext();
+  MetalProcess::destroyMetalContext();
+  CoreMLProcess::destroyCoreMLContext();
 }
 
 /**
@@ -180,8 +180,8 @@ ComputeHandle::ComputeHandle(
   const ModelDesc* modelDesc = &loadedModel->modelDesc;
   int coreMLStartIndex = 100;
 
-  nnXLen = getMetalContextXLen();
-  nnYLen = getMetalContextYLen();
+  nnXLen = MetalProcess::getMetalContextXLen();
+  nnYLen = MetalProcess::getMetalContextYLen();
   gpuIndex = gpuIdx;
   version = modelDesc->version;
   this->inputsUseNHWC = inputsUseNHWC;
@@ -192,19 +192,19 @@ ComputeHandle::ComputeHandle(
   useMetal = (gpuIdx < coreMLStartIndex);
 
   if(useMetal) {
-    createMetalHandle(gpuIdx, modelDesc, serverThreadIdx);
+    MetalProcess::createMetalHandle(gpuIdx, modelDesc, serverThreadIdx);
   } else {
     // Create a Core ML backend
-    modelIndex = createCoreMLBackend(modelXLen, modelYLen, serverThreadIdx, useFP16);
+    modelIndex = CoreMLProcess::createCoreMLBackend(modelXLen, modelYLen, serverThreadIdx, useFP16);
     // Get the model version
-    modelVersion = getCoreMLBackendVersion(modelIndex);
+    modelVersion = CoreMLProcess::getCoreMLBackendVersion(modelIndex);
   }
 }
 
 ComputeHandle::~ComputeHandle() {
   if(!useMetal) {
     // Free the CoreML backend
-    freeCoreMLBackend(modelIndex);
+    CoreMLProcess::freeCoreMLBackend(modelIndex);
   }
 }
 
@@ -268,7 +268,7 @@ bool NeuralNet::isUsingFP16(const ComputeHandle* handle) {
  * @brief Print information about the available devices.
  */
 void NeuralNet::printDevices() {
-  printMetalDevices();
+  MetalProcess::printMetalDevices();
 }
 
 //--------------------------------------------------------------
@@ -384,11 +384,11 @@ void NeuralNet::freeInputBuffers(InputBuffers* inputBuffers) {
 
 //--------------------------------------------------------------
 
-static void copyRowData(float* dest, const float* src, size_t numElements) {
+void MetalProcess::copyRowData(float* dest, const float* src, size_t numElements) {
   std::copy(src, src + numElements, dest);
 }
 
-static void processRowData(size_t row, ComputeHandle* gpuHandle, InputBuffers* inputBuffers, NNResultBuf** inputBufs) {
+void MetalProcess::processRowData(size_t row, ComputeHandle* gpuHandle, InputBuffers* inputBuffers, NNResultBuf** inputBufs) {
   int nnXLen = gpuHandle->nnXLen;
   int nnYLen = gpuHandle->nnYLen;
   int numSpatialFeatures = NNModelVersion::getNumSpatialFeatures(gpuHandle->version);
@@ -398,7 +398,7 @@ static void processRowData(size_t row, ComputeHandle* gpuHandle, InputBuffers* i
   const float* rowGlobal = inputBufs[row]->rowGlobal;
   const float* rowSpatial = inputBufs[row]->rowSpatial;
 
-  copyRowData(rowGlobalInput, rowGlobal, inputBuffers->singleInputGlobalElts);
+  MetalProcess::copyRowData(rowGlobalInput, rowGlobal, inputBuffers->singleInputGlobalElts);
 
   SymmetryHelpers::copyInputsWithSymmetry(
     rowSpatial,
@@ -411,12 +411,15 @@ static void processRowData(size_t row, ComputeHandle* gpuHandle, InputBuffers* i
     inputBufs[row]->symmetry);
 }
 
-static float policyOptimismCalc(const double policyOptimism, const float& p, const float& pOpt) {
+float MetalProcess::policyOptimismCalc(const double policyOptimism, const float& p, const float& pOpt) {
   return p + ((pOpt - p) * policyOptimism);
 }
 
-static void
-processOptimism(InputBuffers* inputBuffers, NNOutput* currentOutput, const double policyOptimism, size_t row) {
+void MetalProcess::processOptimism(
+  InputBuffers* inputBuffers,
+  NNOutput* currentOutput,
+  const double policyOptimism,
+  size_t row) {
   auto& buffers = *inputBuffers;
   const auto singlePolicyResultElts = buffers.singleNnPolicyResultElts;
   float* targetBuffer = &buffers.policyProbsBuffer[row * singlePolicyResultElts];
@@ -425,15 +428,15 @@ processOptimism(InputBuffers* inputBuffers, NNOutput* currentOutput, const doubl
   for(auto i = 0; i < singlePolicyResultElts; ++i) {
     const float p = policyOutputBuf[i];
     const float pOpt = policyOutputBuf[i + singlePolicyResultElts];
-    targetBuffer[i] = policyOptimismCalc(policyOptimism, p, pOpt);
+    targetBuffer[i] = MetalProcess::policyOptimismCalc(policyOptimism, p, pOpt);
   }
 
   const auto p = buffers.policyPassResults[row * buffers.policyResultChannels];
   const auto pOpt = buffers.policyPassResults[row * buffers.policyResultChannels + 1];
-  currentOutput->policyProbs[buffers.singlePolicyProbsElts - 1] = policyOptimismCalc(policyOptimism, p, pOpt);
+  currentOutput->policyProbs[buffers.singlePolicyProbsElts - 1] = MetalProcess::policyOptimismCalc(policyOptimism, p, pOpt);
 }
 
-static void processPolicy(
+void MetalProcess::processPolicy(
   InputBuffers* inputBuffers,
   NNOutput* currentOutput,
   const ComputeHandle* gpuHandle,
@@ -448,7 +451,7 @@ static void processPolicy(
     currentOutput->policyProbs[buffers.singlePolicyProbsElts - 1] =
       buffers.policyPassResults[row * buffers.policyResultChannels];
   } else {
-    processOptimism(inputBuffers, currentOutput, policyOptimism, row);
+    MetalProcess::processOptimism(inputBuffers, currentOutput, policyOptimism, row);
     targetBuffer = &buffers.policyProbsBuffer[row * buffers.singleNnPolicyResultElts];
   }
 
@@ -456,7 +459,7 @@ static void processPolicy(
     targetBuffer, currentOutput->policyProbs, 1, gpuHandle->nnYLen, gpuHandle->nnXLen, symmetry);
 }
 
-static void processValue(
+void MetalProcess::processValue(
   const InputBuffers* inputBuffers,
   NNOutput* currentOutput,
   const size_t row) {
@@ -467,7 +470,7 @@ static void processValue(
   currentOutput->whiteNoResultProb = valueOutputBuf[2];
 }
 
-static void processOwnership(
+void MetalProcess::processOwnership(
   const InputBuffers* inputBuffers,
   NNOutput* currentOutput,
   const ComputeHandle* gpuHandle,
@@ -486,8 +489,11 @@ static void processOwnership(
   }
 }
 
-static void
-processScoreValues(const InputBuffers* inputBuffers, NNOutput* currentOutput, const int version, const size_t row) {
+void MetalProcess::processScoreValues(
+  const InputBuffers* inputBuffers,
+  NNOutput* currentOutput,
+  const int version,
+  const size_t row) {
   const size_t singleScoreValuesResultElts = inputBuffers->singleScoreValuesResultElts;
   const size_t scoreValuesOutputBufOffset = row * singleScoreValuesResultElts;
   const float* scoreValuesOutputBuf = &inputBuffers->scoreValuesResults[scoreValuesOutputBufOffset];
@@ -510,7 +516,7 @@ processScoreValues(const InputBuffers* inputBuffers, NNOutput* currentOutput, co
   }
 }
 
-static void processRow(
+void MetalProcess::processRow(
   size_t row,
   const ComputeHandle* gpuHandle,
   InputBuffers* inputBuffers,
@@ -519,10 +525,10 @@ static void processRow(
   NNOutput* currentOutput = outputs[row];
   assert(currentOutput->nnXLen == gpuHandle->nnXLen);
   assert(currentOutput->nnYLen == gpuHandle->nnYLen);
-  processPolicy(inputBuffers, currentOutput, gpuHandle, inputBufs[row], row);
-  processValue(inputBuffers, currentOutput, row);
-  processOwnership(inputBuffers, currentOutput, gpuHandle, inputBufs[row]->symmetry, row);
-  processScoreValues(inputBuffers, currentOutput, gpuHandle->version, row);
+  MetalProcess::processPolicy(inputBuffers, currentOutput, gpuHandle, inputBufs[row], row);
+  MetalProcess::processValue(inputBuffers, currentOutput, row);
+  MetalProcess::processOwnership(inputBuffers, currentOutput, gpuHandle, inputBufs[row]->symmetry, row);
+  MetalProcess::processScoreValues(inputBuffers, currentOutput, gpuHandle->version, row);
 }
 
 /**
@@ -535,7 +541,7 @@ static void processRow(
  * @param inputBufs An array of pointers to NNResultBuf objects containing the neural network input data.
  * @param outputs A vector of NNOutput pointers to store the computed output.
  */
-static void getMetalOutput(
+void MetalProcess::getMetalOutput(
   ComputeHandle* gpuHandle,
   InputBuffers* inputBuffers,
   int numBatchEltsFilled,
@@ -557,10 +563,10 @@ static void getMetalOutput(
   assert(inputBuffers->singleScoreValuesResultElts >= 6);
 
   for(size_t row = 0; row < batchSize; row++) {
-    processRowData(row, gpuHandle, inputBuffers, inputBufs);
+    MetalProcess::processRowData(row, gpuHandle, inputBuffers, inputBufs);
   }
 
-  getMetalHandleOutput(
+  MetalProcess::getMetalHandleOutput(
     inputBuffers->userInputBuffer,
     inputBuffers->userInputGlobalBuffer,
     inputBuffers->policyResults,
@@ -572,7 +578,7 @@ static void getMetalOutput(
     batchSize);
 
   for(size_t row = 0; row < batchSize; row++) {
-    processRow(row, gpuHandle, inputBuffers, inputBufs, outputs);
+    MetalProcess::processRow(row, gpuHandle, inputBuffers, inputBufs, outputs);
   }
 }
 
@@ -594,9 +600,9 @@ void NeuralNet::getOutput(
   vector<NNOutput*>& outputs) {
 
   if (gpuHandle->useMetal) {
-    getMetalOutput(gpuHandle, inputBuffers, numBatchEltsFilled, inputBufs, outputs);
+    MetalProcess::getMetalOutput(gpuHandle, inputBuffers, numBatchEltsFilled, inputBufs, outputs);
   } else {
-    getCoreMLOutput(gpuHandle, inputBuffers, numBatchEltsFilled, inputBufs, outputs);
+    CoreMLProcess::getCoreMLOutput(gpuHandle, inputBuffers, numBatchEltsFilled, inputBufs, outputs);
   }
 }
 

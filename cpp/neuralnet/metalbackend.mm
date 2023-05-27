@@ -277,7 +277,7 @@ static SWValueHeadDesc * valueHeadDescToSwift(const ValueHeadDesc * valueHead) {
 }
 
 /// Print the list of available Metal devices
-void printMetalDevices(void) {
+void MetalProcess::printMetalDevices(void) {
     [MetalBackend printDevices];
 }
 
@@ -287,10 +287,10 @@ void printMetalDevices(void) {
 ///   - nnYLen: The height of the neural network input
 ///   - inputUseFP16Mode: Whether to use FP16 mode
 ///   - inputUseNHWCMode: Whether to use NHWC mode
-void createMetalContext(int nnXLen,
-                        int nnYLen,
-                        enabled_t inputUseFP16Mode,
-                        enabled_t inputUseNHWCMode) {
+void MetalProcess::createMetalContext(int nnXLen,
+                                 int nnYLen,
+                                 enabled_t inputUseFP16Mode,
+                                 enabled_t inputUseNHWCMode) {
     SWEnable useFP16Mode;
     SWEnable useNHWCMode;
 
@@ -317,17 +317,17 @@ void createMetalContext(int nnXLen,
 }
 
 /// Destroy the Metal context
-void destroyMetalContext(void) {
+void MetalProcess::destroyMetalContext(void) {
     [MetalComputeContext destroyInstance];
 }
 
 /// Get x length of the Metal context
-int getMetalContextXLen(void) {
+int MetalProcess::getMetalContextXLen(void) {
     return (int)[MetalBackend getContextXLen];
 }
 
 /// Get y length of the Metal context
-int getMetalContextYLen(void) {
+int MetalProcess::getMetalContextYLen(void) {
     return (int)[MetalBackend getContextYLen];
 }
 
@@ -336,9 +336,9 @@ int getMetalContextYLen(void) {
 ///   - gpuIdxForThisThread: The GPU index for this thread
 ///   - desc: The model description
 ///   - serverThreadIdx: The server thread index
-void createMetalHandle(int gpuIdxForThisThread,
-                       const ModelDesc* desc,
-                       int serverThreadIdx) {
+void MetalProcess::createMetalHandle(int gpuIdxForThisThread,
+                                const ModelDesc* desc,
+                                int serverThreadIdx) {
     NSString * name = [NSString stringWithUTF8String:desc->name.c_str()];
 
     SWModelDesc * swModelDesc =
@@ -369,15 +369,15 @@ void createMetalHandle(int gpuIdxForThisThread,
 ///   - scoreValueOutput: The score value output
 ///   - gpuIdx: The GPU index
 ///   - batchSize: The batch size
-void getMetalHandleOutput(float* userInputBuffer,
-                          float* userInputGlobalBuffer,
-                          float* policyOutput,
-                          float* policyPassOutput,
-                          float* valueOutput,
-                          float* ownershipOutput,
-                          float* scoreValueOutput,
-                          int gpuIdx,
-                          int batchSize) {
+void MetalProcess::getMetalHandleOutput(float* userInputBuffer,
+                                   float* userInputGlobalBuffer,
+                                   float* policyOutput,
+                                   float* policyPassOutput,
+                                   float* valueOutput,
+                                   float* ownershipOutput,
+                                   float* scoreValueOutput,
+                                   int gpuIdx,
+                                   int batchSize) {
     [MetalBackend getOutputWithUserInputBuffer:userInputBuffer
                          userInputGlobalBuffer:userInputGlobalBuffer
                                   policyOutput:policyOutput

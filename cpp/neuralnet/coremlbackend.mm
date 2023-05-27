@@ -1,6 +1,7 @@
 #import <Foundation/Foundation.h>
 #import <CoreML/MLMultiArray.h>
 #import "coremlmodel.h"
+#import "coremlbackend.h"
 
 // This is the CoreMLBackend class.
 @implementation CoreMLBackend
@@ -201,12 +202,12 @@
 @end
 
 /// Create the CoreMLBackend context.
-void createCoreMLContext() {
+void CoreMLProcess::createCoreMLContext() {
   (void)[CoreMLBackend getBackends];
 }
 
 /// Destroy the CoreMLBackend context.
-void destroyCoreMLContext() {
+void CoreMLProcess::destroyCoreMLContext() {
   (void)[CoreMLBackend clearBackends];
 }
 
@@ -217,7 +218,7 @@ void destroyCoreMLContext() {
 ///   - serverThreadIdx: server thread index
 ///   - useFP16: use FP16 or not
 /// - Returns: model index
-int createCoreMLBackend(int modelXLen, int modelYLen, int serverThreadIdx, bool useFP16) {
+int CoreMLProcess::createCoreMLBackend(int modelXLen, int modelYLen, int serverThreadIdx, bool useFP16) {
   // Load the model.
   NSNumber * modelIndex = [CoreMLBackend initWithModelXLen:[NSNumber numberWithInt:modelXLen]
                                                  modelYLen:[NSNumber numberWithInt:modelYLen]
@@ -230,35 +231,25 @@ int createCoreMLBackend(int modelXLen, int modelYLen, int serverThreadIdx, bool 
 }
 
 // Reset the CoreMLBackend instance.
-void freeCoreMLBackend(int modelIndex) {
+void CoreMLProcess::freeCoreMLBackend(int modelIndex) {
   [CoreMLBackend releaseWithIndex:[NSNumber numberWithInt:modelIndex]];
-}
-
-// Get the model's number of spatial features.
-int getCoreMLBackendNumSpatialFeatures(int modelIndex) {
-  return [[[CoreMLBackend getBackendAt:[NSNumber numberWithInt:modelIndex]] numSpatialFeatures] intValue];
-}
-
-// Get the model's number of global features.
-int getCoreMLBackendNumGlobalFeatures(int modelIndex) {
-  return [[[CoreMLBackend getBackendAt:[NSNumber numberWithInt:modelIndex]] numGlobalFeatures] intValue];
 }
 
 /// Get the model's version.
 /// - Parameter modelIndex: model index
-int getCoreMLBackendVersion(int modelIndex) {
+int CoreMLProcess::getCoreMLBackendVersion(int modelIndex) {
   return [[[CoreMLBackend getBackendAt:[NSNumber numberWithInt:modelIndex]] version] intValue];
 }
 
 // Get the model's output.
-void getCoreMLHandleOutput(float* userInputBuffer,
-                            float* userInputGlobalBuffer,
-                            float* policyOutput,
-                            float* valueOutput,
-                            float* ownershipOutput,
-                            float* miscValuesOutput,
-                            float* moreMiscValuesOutput,
-                            int modelIndex) {
+void CoreMLProcess::getCoreMLHandleOutput(float* userInputBuffer,
+                                          float* userInputGlobalBuffer,
+                                          float* policyOutput,
+                                          float* valueOutput,
+                                          float* ownershipOutput,
+                                          float* miscValuesOutput,
+                                          float* moreMiscValuesOutput,
+                                          int modelIndex) {
   CoreMLBackend* model = [CoreMLBackend getBackendAt:[NSNumber numberWithInt:modelIndex]];
 
   [model getOutputWithBinInputs:userInputBuffer
