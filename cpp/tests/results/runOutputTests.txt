@@ -20394,6 +20394,8 @@ SgfFileTests ok
 Collecting sgfs from tests
 tests/data/cornermoves.sgf
 tests/data/foxlike.sgf
+tests/data/sampletest/sampletest7x7.sgf
+tests/data/sampletest/sampletest9x9.sgf
 Collecting cfgs from tests
 tests/data/configs/analysis_example.cfg
 tests/data/configs/folded/analysis_example.cfg

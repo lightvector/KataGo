@@ -610,6 +610,8 @@ int MainCmds::samplesgfs(const vector<string>& args) {
   int maxHandicap;
   double maxKomi;
 
+  bool forTesting;
+
   try {
     KataGoCommandLine cmd("Search for suprising good moves in sgfs");
 
@@ -643,6 +645,8 @@ int MainCmds::samplesgfs(const vector<string>& args) {
     TCLAP::ValueArg<int> maxHandicapArg("","max-handicap","Require no more than this big handicap in stones",false,100,"INT");
     TCLAP::ValueArg<double> maxKomiArg("","max-komi","Require absolute value of game komi to be at most this",false,1000,"KOMI");
 
+    TCLAP::SwitchArg forTestingArg("","for-testing","For testing");
+    
     cmd.add(sgfDirArg);
     cmd.add(sgfsDirArg);
     cmd.add(outDirArg);
@@ -671,6 +675,7 @@ int MainCmds::samplesgfs(const vector<string>& args) {
     cmd.add(requiredPlayerNameArg);
     cmd.add(maxHandicapArg);
     cmd.add(maxKomiArg);
+    cmd.add(forTestingArg);
     cmd.parseArgs(args);
     sgfDirs = sgfDirArg.getValue();
     sgfsDirs = sgfsDirArg.getValue();
@@ -700,6 +705,7 @@ int MainCmds::samplesgfs(const vector<string>& args) {
     requiredPlayerName = requiredPlayerNameArg.getValue();
     maxHandicap = maxHandicapArg.getValue();
     maxKomi = maxKomiArg.getValue();
+    forTesting = forTestingArg.getValue();
   }
   catch (TCLAP::ArgException &e) {
     cerr << "Error: " << e.error() << " for argument " << e.argId() << endl;
@@ -709,7 +715,9 @@ int MainCmds::samplesgfs(const vector<string>& args) {
   MakeDir::make(outDir);
 
   const bool logToStdout = true;
-  Logger logger(nullptr, logToStdout);
+  const bool logToStderr = false;
+  const bool logTimeStamp = !forTesting;
+  Logger logger(nullptr, logToStdout, logToStderr, logTimeStamp);
   logger.addFile(outDir + "/" + "log.log");
   for(const string& arg: args)
     logger.write(string("Command: ") + arg);
@@ -729,6 +737,9 @@ int MainCmds::samplesgfs(const vector<string>& args) {
     }
   }
 
+  if(forTesting)
+    std::sort(sgfFiles.begin(),sgfFiles.end());
+
   set<Hash128> excludeHashes = Sgf::readExcludes(excludeHashesFiles);
   logger.write("Loaded " + Global::uint64ToString(excludeHashes.size()) + " excludes");
 
@@ -739,6 +750,9 @@ int MainCmds::samplesgfs(const vector<string>& args) {
     if(valueFluctuationMaxWeight <= 0.0 || valueFluctuationMaxWeight > 100000000.0)
       throw StringError("Invalid valueFluctuationMaxWeight");
     ConfigParser cfg;
+    if(forTesting)
+      cfg.overrideKey("nnRandSeed","forTesting");
+    
     Setup::initializeSession(cfg);
     int numThreads = 1;
     const int maxConcurrentEvals = numThreads * 2 + 16; // * 2 + 16 just to give plenty of headroom
@@ -866,7 +880,7 @@ int MainCmds::samplesgfs(const vector<string>& args) {
     if(valueFluctuationNNEval == NULL) {
       bool hashParent = false;
       Rand iterRand;
-      sgf->iterAllUniquePositions(uniqueHashes, hashComments, hashParent, flipIfPassOrWFirst, allowGameOver, &iterRand, posHandler);
+      sgf->iterAllUniquePositions(uniqueHashes, hashComments, hashParent, flipIfPassOrWFirst, allowGameOver, forTesting ? NULL : &iterRand, posHandler);
       if(verbosity >= 2)
         logger.write("Handled " + sgf->fileName + " kept weight " + Global::doubleToString(weightKept));
       sgfCountUsedByPlayerName[sgf->getPlayerName(P_BLACK)] += 1;
@@ -895,6 +909,8 @@ int MainCmds::samplesgfs(const vector<string>& args) {
       for(int m = 0; m<sgfMoves.size()+1; m++) {
         MiscNNInputParams nnInputParams;
         nnInputParams.conservativePassAndIsRoot = true;
+        if(forTesting)
+          nnInputParams.symmetry = 0;
         NNResultBuf buf;
         bool skipCache = true;
         bool includeOwnerMap = false;
@@ -1025,7 +1041,7 @@ int MainCmds::samplesgfs(const vector<string>& args) {
 
       bool hashParent = false;
       Rand iterRand;
-      sgf->iterAllUniquePositions(uniqueHashes, hashComments, hashParent, flipIfPassOrWFirst, allowGameOver, &iterRand, posHandler2);
+      sgf->iterAllUniquePositions(uniqueHashes, hashComments, hashParent, flipIfPassOrWFirst, allowGameOver, forTesting ? NULL : &iterRand, posHandler2);
 
       if(verbosity >= 2)
         cout << "Handled " << fileName << " kept weight " << weightKept << endl;
@@ -1194,6 +1210,8 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
   double maxPolicy;
   double minHintWeight;
 
+  bool forTesting;
+  
   try {
     KataGoCommandLine cmd("Search for suprising good moves in sgfs");
     cmd.addConfigFileArg("","");
@@ -1227,6 +1245,9 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
     TCLAP::ValueArg<double> maxAutoKomiArg("","max-auto-komi","If absolute value of auto komi would exceed this, skip position",false,1000,"KOMI");
     TCLAP::ValueArg<double> maxPolicyArg("","max-policy","Chop off moves with raw policy more than this",false,1000,"POLICY");
     TCLAP::ValueArg<double> minHintWeightArg("","min-hint-weight","Hinted moves get at least this weight",false,0.0,"WEIGHT");
+
+    TCLAP::SwitchArg forTestingArg("","for-testing","For testing");
+
     cmd.add(sgfDirArg);
     cmd.add(sgfsDirArg);
     cmd.add(outDirArg);
@@ -1254,6 +1275,7 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
     cmd.add(maxAutoKomiArg);
     cmd.add(maxPolicyArg);
     cmd.add(minHintWeightArg);
+    cmd.add(forTestingArg);
     cmd.parseArgs(args);
 
     nnModelFile = cmd.getModelFile();
@@ -1284,6 +1306,7 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
     maxAutoKomi = maxAutoKomiArg.getValue();
     maxPolicy = maxPolicyArg.getValue();
     minHintWeight = minHintWeightArg.getValue();
+    forTesting = forTestingArg.getValue();
 
     if((int)gameMode + (int)treeMode + (int)surpriseMode != 1)
       throw StringError("Must specify either -game-mode or -tree-mode or -surprise-mode");
@@ -1302,7 +1325,8 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
   logger.addFile(outDir + "/" + "log.log");
   for(const string& arg: args)
     logger.write(string("Command: ") + arg);
-  logger.write("Git revision " + Version::getGitRevision());
+  if(!forTesting)
+    logger.write("Git revision " + Version::getGitRevision());
 
   SearchParams params = Setup::loadSingleParams(cfg,Setup::SETUP_FOR_ANALYSIS);
   //Ignore temperature, noise
@@ -1353,14 +1377,19 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
     }
   }
 
+  if(forTesting)
+    std::sort(sgfFiles.begin(),sgfFiles.end());
+
   vector<size_t> permutation(sgfFiles.size());
   for(size_t i = 0; i<sgfFiles.size(); i++)
     permutation[i] = i;
-  for(size_t i = 1; i<sgfFiles.size(); i++) {
-    size_t r = (size_t)seedRand.nextUInt64(i+1);
-    std::swap(permutation[i],permutation[r]);
+  if(!forTesting) {
+    for(size_t i = 1; i<sgfFiles.size(); i++) {
+      size_t r = (size_t)seedRand.nextUInt64(i+1);
+      std::swap(permutation[i],permutation[r]);
+    }
   }
-
+  
   set<Hash128> excludeHashes = Sgf::readExcludes(excludeHashesFiles);
   logger.write("Loaded " + Global::uint64ToString(excludeHashes.size()) + " excludes");
 
@@ -1977,8 +2006,8 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
   std::atomic<int64_t> numPosesDone(0);
   std::atomic<int64_t> numPosesEnqueued(0);
 
-  auto processPosLoop = [&logger,&posQueue,&params,&numPosesBegun,&numPosesDone,&numPosesEnqueued,&nnEval,&treePosHandler]() {
-    Rand rand;
+  auto processPosLoop = [&logger,&posQueue,&params,&numPosesBegun,&numPosesDone,&numPosesEnqueued,&nnEval,&treePosHandler,&seedRand,forTesting]() {
+    Rand rand(forTesting ? "testseed" : Global::uint64ToString(seedRand.nextUInt64()));
     string searchRandSeed = Global::uint64ToString(rand.nextUInt64());
     Search* search = new Search(params,nnEval,&logger,searchRandSeed);
 
@@ -2077,9 +2106,11 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
     vector<size_t> subPermutation(sgfs.size());
     for(size_t j = 0; j<sgfs.size(); j++)
       subPermutation[j] = j;
-    for(size_t j = 1; j<sgfs.size(); j++) {
-      size_t r = (size_t)seedRand.nextUInt64(j+1);
-      std::swap(subPermutation[j],subPermutation[r]);
+    if(!forTesting) {
+      for(size_t j = 1; j<sgfs.size(); j++) {
+        size_t r = (size_t)seedRand.nextUInt64(j+1);
+        std::swap(subPermutation[j],subPermutation[r]);
+      }
     }
 
     for(size_t j = 0; j<sgfs.size(); j++) {
@@ -2123,7 +2154,7 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
         try {
           bool hashParent = true; //Hash parent so that we distinguish hint moves that reach the same position but were different moves from different starting states.
           sgf->iterAllUniquePositions(
-            uniqueHashes, hashComments, hashParent, flipIfPassOrWFirst, allowGameOver, &seedRand,
+            uniqueHashes, hashComments, hashParent, flipIfPassOrWFirst, allowGameOver, forTesting ? NULL : &seedRand,
             [&](Sgf::PositionSample& unusedSample, const BoardHistory& hist, const string& comments) {
               if(comments.size() > 0 && comments.find("%NOHINT%") != string::npos)
                 return;
