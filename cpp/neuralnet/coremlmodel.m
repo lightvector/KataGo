@@ -82,7 +82,7 @@
   NSString *precisionName = useFP16.boolValue ? @"fp16" : @"fp32";
 
   // Set model name based on xLen, yLen, and precisionName
-  NSString *modelName = [NSString stringWithFormat:@"KataGoModel%dx%d%@v12", xLen.intValue, yLen.intValue, precisionName];
+  NSString *modelName = [NSString stringWithFormat:@"KataGoModel%dx%d%@", xLen.intValue, yLen.intValue, precisionName];
 
   // Set model type name
   NSString *typeName = @"mlpackage";

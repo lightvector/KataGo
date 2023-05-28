@@ -146,7 +146,7 @@ def main():
 
         # Set file name
         mlmodel_file = f'KataGoModel{pos_len}x{pos_len}{precision_name}' \
-            f'v{version}.mlpackage'
+            f'.mlpackage'
 
         # Set model description
         mlmodel.short_description = f'KataGo {pos_len}x{pos_len} compute ' \
