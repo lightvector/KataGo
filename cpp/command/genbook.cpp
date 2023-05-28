@@ -1125,7 +1125,7 @@ int MainCmds::genbook(const vector<string>& args) {
       for(Move m: hist.moveHistory)
         out << Location::toString(m.loc,board) << " ";
       out << endl;
-      Board::printBoard(out, board, Board::NULL_LOC, NULL);
+      Board::printBoard(out, board, Board::NULL_LOC, &(hist.moveHistory));
       std::lock_guard<std::mutex> lock(bookMutex);
       logger.write("Expanding " + node.hash().toString() + " cost " + Global::doubleToString(node.totalExpansionCost()));
       logger.write(out.str());

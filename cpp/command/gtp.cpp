@@ -2593,19 +2593,19 @@ int MainCmds::gtp(const vector<string>& args) {
           if(!PlayerIO::tryParsePlayer(pieces[i],pla)) {
             responseIsError = true;
             response = "Expected a space-separated sequence of <COLOR> <VERTEX> pairs but got '" + Global::concat(pieces," ") + "': ";
-            response += "could not parse color: '" + pieces[0] + "'";
+            response += "could not parse color: '" + pieces[i] + "'";
             break;
           }
           else if(!tryParseLoc(pieces[i+1],engine->bot->getRootBoard(),loc)) {
             responseIsError = true;
             response = "Expected a space-separated sequence of <COLOR> <VERTEX> pairs but got '" + Global::concat(pieces," ") + "': ";
-            response += "Could not parse vertex: '" + pieces[1] + "'";
+            response += "could not parse vertex: '" + pieces[i+1] + "'";
             break;
           }
           else if(loc == Board::PASS_LOC) {
             responseIsError = true;
             response = "Expected a space-separated sequence of <COLOR> <VERTEX> pairs but got '" + Global::concat(pieces," ") + "': ";
-            response += "Could not parse vertex: '" + pieces[1] + "'";
+            response += "could not parse vertex: '" + pieces[i+1] + "'";
             break;
           }
           initialStones.push_back(Move(loc,pla));

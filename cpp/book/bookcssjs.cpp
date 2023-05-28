@@ -244,8 +244,9 @@ const std::string Book::BOOK_JS2 = R"%%(
 
 let svgNS = "http://www.w3.org/2000/svg";
 {
-  const pixelsPerTile = 50.0 * Math.sqrt(Math.sqrt((bSizeX-1)*(bSizeY-1)) / 8);
-  const borderTiles = 0.9;
+  const edgeScaleSize = Math.sqrt((bSizeX+1)*(bSizeY+1));
+  const pixelsPerTile = 50.0 / Math.sqrt(edgeScaleSize / 8);
+  const borderTiles = 1.1;
   const strokeWidth = 0.05;
   const stoneRadius = 0.5;
   const stoneInnerRadius = 0.45;
@@ -253,7 +254,7 @@ let svgNS = "http://www.w3.org/2000/svg";
   const stoneWhiteFill = "#FFF";
   const markerFontSize = 0.7;
   const coordFontSize = 0.4;
-  const coordSpacing = 0.45;
+  const coordSpacing = 0.75;
   const backgroundColor = "#DCB35C";
 
   let boardSvg = document.createElementNS(svgNS, "svg");
