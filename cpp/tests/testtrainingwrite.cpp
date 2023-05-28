@@ -1251,7 +1251,7 @@ void Tests::runSelfplayStatTestsWithNN(const string& modelFile) {
       bStoneDistribution[data->startBoard.numPlaStonesOnBoard(P_BLACK)] += 1;
       wStoneDistribution[data->startBoard.numPlaStonesOnBoard(P_WHITE)] += 1;
       bSizeDistribution[Global::intToString(data->startBoard.x_size) + "x" + Global::intToString(data->startBoard.y_size)] += 1; 
-      turnDistribution[data->startHist.initialTurnNumber + (int)data->startHist.moveHistory.size()] += 1;
+      turnDistribution[data->startHist.getCurrentTurnNumber()] += 1;
       delete data;
     }
     cout << "komiDistribution" << endl;
