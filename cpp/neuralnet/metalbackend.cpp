@@ -550,15 +550,10 @@ void MetalProcess::getMetalOutput(
   assert(numBatchEltsFilled > 0);
 
   int batchSize = numBatchEltsFilled;
-  int nnXLen = gpuHandle->nnXLen;
-  int nnYLen = gpuHandle->nnYLen;
-  int version = gpuHandle->version;
-  int numSpatialFeatures = NNModelVersion::getNumSpatialFeatures(version);
-  int numGlobalFeatures = NNModelVersion::getNumGlobalFeatures(version);
 
   assert(batchSize <= inputBuffers->maxBatchSize);
-  assert((numSpatialFeatures * nnXLen * nnYLen) <= inputBuffers->singleInputElts);
-  assert(numGlobalFeatures == inputBuffers->singleInputGlobalElts);
+  assert((NNModelVersion::getNumSpatialFeatures(gpuHandle->version) * gpuHandle->nnXLen * gpuHandle->nnYLen) <= inputBuffers->singleInputElts);
+  assert(NNModelVersion::getNumGlobalFeatures(gpuHandle->version) == inputBuffers->singleInputGlobalElts);
   assert(inputBuffers->singleValueResultElts == 3);
   assert(inputBuffers->singleScoreValuesResultElts >= 6);
 
