@@ -83,6 +83,9 @@ def main():
     # Get the model version
     version = model.config['version']
 
+    # Print the model version
+    print(f'Model version: {version}')
+
     with torch.no_grad():
         # Set the model to eval mode
         func.eval()
