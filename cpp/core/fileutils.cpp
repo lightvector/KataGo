@@ -110,8 +110,11 @@ void FileUtils::rename(const std::string& src, const std::string& dst) {
   }
 }
 
-
 void FileUtils::loadFileIntoString(const string& filename, const string& expectedSha256, string& str) {
+  loadFileIntoString(filename, expectedSha256, str, NULL);
+}
+
+void FileUtils::loadFileIntoString(const string& filename, const string& expectedSha256, string& str, string* actualSha256Buf) {
   ifstream in;
   open(in, filename, std::ios::in | std::ios::binary | std::ios::ate);
 
@@ -124,19 +127,27 @@ void FileUtils::loadFileIntoString(const string& filename, const string& expecte
   in.read(&str[0], fileSize);
   in.close();
 
-  if(expectedSha256 != "") {
+  if(expectedSha256 != "" || actualSha256Buf != NULL) {
     char hashResultBuf[65];
     SHA2::get256((const uint8_t*)str.data(), str.size(), hashResultBuf);
     string hashResult(hashResultBuf);
-    bool matching = Global::toLower(expectedSha256) == Global::toLower(hashResult);
-    if(!matching)
-      throw StringError("File " + filename + " sha256 was " + hashResult + " which does not match the expected sha256 " + expectedSha256);
+    if(expectedSha256 != "") {
+      bool matching = Global::toLower(expectedSha256) == Global::toLower(hashResult);
+      if(!matching)
+        throw StringError("File " + filename + " sha256 was " + hashResult + " which does not match the expected sha256 " + expectedSha256);
+    }
+    if(actualSha256Buf != NULL)
+      *actualSha256Buf = hashResult;
   }
 }
 
 void FileUtils::uncompressAndLoadFileIntoString(const string& filename, const string& expectedSha256, string& uncompressed) {
+  uncompressAndLoadFileIntoString(filename, expectedSha256, uncompressed, NULL);
+}
+
+void FileUtils::uncompressAndLoadFileIntoString(const string& filename, const string& expectedSha256, string& uncompressed, string* actualSha256Buf) {
   std::unique_ptr<string> compressed = std::make_unique<string>();
-  loadFileIntoString(filename,expectedSha256,*compressed);
+  loadFileIntoString(filename,expectedSha256,*compressed,actualSha256Buf);
 
   static constexpr size_t CHUNK_SIZE = 262144;
 

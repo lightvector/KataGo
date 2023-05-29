@@ -18,7 +18,9 @@ namespace FileUtils {
   void open(std::ofstream& out, const std::string& filename, std::ios_base::openmode mode = std::ios_base::out);
 
   void loadFileIntoString(const std::string& filename, const std::string& expectedSha256, std::string& buf);
+  void loadFileIntoString(const std::string& filename, const std::string& expectedSha256, std::string& buf, std::string* actualSha256Buf);
   void uncompressAndLoadFileIntoString(const std::string& filename, const std::string& expectedSha256, std::string& buf);
+  void uncompressAndLoadFileIntoString(const std::string& filename, const std::string& expectedSha256, std::string& buf, std::string* actualSha256Buf);
 
   bool isDirectory(const std::string& filename);
   bool tryRemoveFile(const std::string& filename);

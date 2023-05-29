@@ -158,6 +158,8 @@ struct ModelParser {
   ModelParser(const ModelParser&) = delete;
   ModelParser& operator=(const ModelParser&) = delete;
 
+  static constexpr int tuneSalt = 3;  // Bump this when between katago versions we want to forcibly drop old timing caches and plan caches.
+
   unique_ptr<TRTModel> build(
     unique_ptr<INetworkDefinition> net,
     IOptimizationProfile* profile,
@@ -179,7 +181,6 @@ struct ModelParser {
     auto& network = model->network;
     auto modelDesc = &model->rawModel->modelDesc;
 
-    int tuneSalt = 3;  // Bump this when between katago versions we want to forcibly drop old timing caches.
     tuneDesc = Global::strprintf(
       R"|("salt"(%d)"model"(%d,%d,%d,%d,%d,%d))|",
       tuneSalt,
@@ -1017,24 +1018,58 @@ struct ComputeHandle {
 
 #ifdef CACHE_TENSORRT_PLAN
       auto planCacheFile = Global::strprintf(
-        "%s/trt-%d_gpu-%s_net-%s_%s%dx%d_batch%d_fp%d",
+        "%s/trt-%d_gpu-%s_net-%s_%d_%s%dx%d_batch%d_fp%d",
         cacheDir.c_str(),
         getInferLibVersion(),
         deviceIdent,
         loadedModel->modelDesc.name.c_str(),
+        ModelParser::tuneSalt,
         requireExactNNLen ? "exact" : "max",
         ctx->nnYLen,
         ctx->nnXLen,
         maxBatchSize,
-        usingFP16 ? 16 : 32);
-
+        usingFP16 ? 16 : 32
+      );
+      string paramStr = Global::strprintf(
+        "_%d_%s_%d_%s_%d_%d_%d_%d",
+        getInferLibVersion(),
+        deviceIdent,
+        ModelParser::tuneSalt,
+        requireExactNNLen ? "exact" : "max",
+        ctx->nnYLen,
+        ctx->nnXLen,
+        maxBatchSize,
+        usingFP16 ? 16 : 32
+      );
       try {
         plan = FileUtils::readFileBinary(planCacheFile);
       } catch(const StringError& e) {
         (void)e;
       };
 
-      if(!plan.size()) {
+      if(plan.size() > 0) {
+        if(plan.size() < 64 + paramStr.size()) {
+          logger->write("Could not parse plan, unexpected size in " + planCacheFile);
+          plan.clear();
+        }
+        else {
+          string cachedParamStr = plan.substr(plan.size()-paramStr.size());
+          string modelHash = plan.substr(plan.size()-64-paramStr.size(),64);
+          if(modelHash != loadedModel->modelDesc.sha256) {
+            logger->write("Plan cache is corrupted or is for the wrong model in " + planCacheFile);
+            plan.clear();
+          }
+          else if(cachedParamStr != paramStr) {
+            logger->write("Plan cache is corrupted or is for the wrong parameters in " + planCacheFile);
+            plan.clear();
+          }
+          else {
+            plan.erase(plan.size()-64-paramStr.size());
+          }
+        }
+      }
+
+      if(plan.size() <= 0) {
         logger->write("Creating new plan cache");
         auto planBuffer = unique_ptr<IHostMemory>(builder->buildSerializedNetwork(*model->network, *config));
         if(!planBuffer) {
@@ -1043,12 +1078,27 @@ struct ComputeHandle {
         plan.insert(
           plan.end(),
           static_cast<char*>(planBuffer->data()),
-          static_cast<char*>(planBuffer->data()) + planBuffer->size());
+          static_cast<char*>(planBuffer->data()) + planBuffer->size()
+        );
+        if(loadedModel->modelDesc.sha256.size() != 64) {
+          throw StringError("Unexpected model hash size");
+        }
+        plan.insert(
+          plan.end(),
+          loadedModel->modelDesc.sha256.begin(),
+          loadedModel->modelDesc.sha256.end()
+        );
+        plan.insert(
+          plan.end(),
+          paramStr.begin(),
+          paramStr.end()
+        );
         ofstream ofs;
         FileUtils::open(ofs, planCacheFile, ios::out | ios::binary);
         ofs.write(plan.data(), plan.size());
         ofs.close();
         logger->write("Saved new plan cache to " + planCacheFile);
+        plan.erase(plan.size()-64-paramStr.size());
         tuneMutex.unlock();
       } else {
         tuneMutex.unlock();

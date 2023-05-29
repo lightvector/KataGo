@@ -46,12 +46,12 @@ double Search::recomputeSearchTimeLimit(
 
   if(searchParams.midgameTimeFactor != 1.0) {
     double boardAreaScale = rootBoard.x_size * rootBoard.y_size / 361.0;
-    int64_t presumedTurnNumber = rootHistory.initialTurnNumber + rootHistory.moveHistory.size();
+    double presumedTurnNumber = (double)rootHistory.getCurrentTurnNumber();
     if(presumedTurnNumber < 0) presumedTurnNumber = 0;
 
     double midGameWeight;
     if(presumedTurnNumber < searchParams.midgameTurnPeakTime * boardAreaScale)
-      midGameWeight = (double)presumedTurnNumber / (searchParams.midgameTurnPeakTime * boardAreaScale);
+      midGameWeight = presumedTurnNumber / (searchParams.midgameTurnPeakTime * boardAreaScale);
     else
       midGameWeight = exp(
         -(presumedTurnNumber - searchParams.midgameTurnPeakTime * boardAreaScale) /

@@ -14075,4 +14075,1883 @@ OOXXXXXX..XXX
  1.000 -1.000 -1.000 -1.000 -1.000 -1.000 1.000 -1.000 1.000 -1.000 -1.000 -1.000 -1.000
  1.000 1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 0.000 0.000 -1.000 -1.000 -1.000
 trainingWeight 1
-: GPU 0 finishing, processed 47694 rows 47694 batches
+====================================================================================================
+====================================================================================================
+====================================================================================================
+Testing turnnumber and early temperatures
+Turn number initial 0 selfplay with high temperatures
+: MoveNum: 0 HASH: 9F0B2D702FC8448C75410E097F089AEB
+   A B C D E F G H J
+ 9 . . . . . . . . .
+ 8 . . . . . . . . .
+ 7 . . . . . . . . .
+ 6 . . . . @ . . . .
+ 5 . . . . . . . . .
+ 4 . . . . . . . . .
+ 3 . . . . . . . . .
+ 2 . . . . . . . . .
+ 1 . . . . . . . . .
+
+
+Rules: koSIMPLEscoreTERRITORYtaxNONEsui0komi7.5
+Root visits: 50
+Policy surprise 0.724319
+Raw WL -0.00780001
+PV: E6 D4 F4 C6
+Tree:
+: T   5.11c W   3.32c S   0.69c ( +1.4 L  +1.4) N      50  --  E6 D4 F4 C6
+---Black(v)---
+E6  : T  -3.77c W  -3.97c S  -0.52c ( +0.5 L  +0.5) LCB   13.43c P  5.75% WF  10.3 PSV      10 N      10  --  E6 D4 F4 C6
+F6  : T   1.39c W  -1.17c S   0.09c ( +1.0 L  +1.0) LCB   20.81c P  6.47% WF   8.1 PSV       8 N       8  --  F6 D4 C6
+D4  : T  -3.99c W  -4.56c S  -0.76c ( +0.4 L  +0.4) LCB   30.98c P  3.33% WF   5.1 PSV       5 N       5  --  D4 F4 F6
+D6  : T  -6.79c W  -6.38c S  -0.38c ( +0.6 L  +0.6) LCB   43.99c P  2.84% WF   4.1 PSV       4 N       4  --  D6 F4
+C5  : T   7.67c W   4.58c S   0.63c ( +1.4 L  +1.4) LCB   82.93c P  4.23% WF   3.0 PSV       3 N       3  --  C5 F4 F6
+G7  : T  16.78c W   9.82c S   1.84c ( +2.2 L  +2.2) LCB   94.25c P  4.11% WF   2.9 PSV       2 N       3  --  G7 D4 C6
+B5  : T  27.78c W  23.56c S   4.22c ( +4.3 L  +4.3) LCB  377.78c P  3.74% WF   0.9 PSV       1 N       1  --  B5
+F3  : T  19.43c W  16.71c S   2.72c ( +3.0 L  +3.0) LCB  369.43c P  2.48% WF   1.0 PSV       1 N       1  --  F3
+F4  : T  15.03c W  12.93c S   2.11c ( +2.5 L  +2.5) LCB  365.03c P  2.48% WF   1.0 PSV       1 N       1  --  F4
+C6  : T  12.45c W  10.93c S   1.51c ( +2.1 L  +2.1) LCB  362.45c P  2.45% WF   1.0 PSV       1 N       1  --  C6
+
+: MoveNum: 1 HASH: F6947E54F53D680912E6585605F8EFAC
+   A B C D E F G H J
+ 9 . . . . . . . . .
+ 8 . . . . . . . . .
+ 7 . . . @ . . . . .
+ 6 . . . . X1. . . .
+ 5 . . . . . . . . .
+ 4 . . . . . . . . .
+ 3 . . . . . . . . .
+ 2 . . . . . . . . .
+ 1 . . . . . . . . .
+
+
+Rules: koSIMPLEscoreTERRITORYtaxNONEsui0komi7.5
+Root visits: 50
+Policy surprise 0.730002
+Raw WL 0.148144
+PV: F3 D3 G6 C6 F7
+Tree:
+: T  -6.59c W  -4.98c S  -1.98c ( +0.3 L  +0.3) N      50  --  F3 D3 G6 C6 F7
+---White(^)---
+F3  : T   7.46c W   7.23c S  -0.43c ( +1.4 L  +1.4) LCB  -10.28c P  4.61% WF   7.3 PSV       7 N       7  --  F3 D3 G6 C6 F7
+F4  : T   1.88c W   1.54c S  -1.17c ( +0.8 L  +0.8) LCB  -21.01c P  5.55% WF   6.2 PSV       6 N       6  --  F4 D4 G6 G7
+D7  : T  -6.58c W  -4.37c S  -1.85c ( +0.4 L  +0.4) LCB  -38.12c P  6.55% WF   5.0 PSV       5 N       5  --  D7 D6 C7
+E5  : T  -1.20c W  -1.77c S  -2.13c ( +0.2 L  +0.2) LCB  -46.24c P  4.83% WF   4.1 PSV       4 N       4  --  E5 D5
+C4  : T  -3.25c W  -0.50c S  -1.34c ( +0.7 L  +0.7) LCB  -54.94c P  4.10% WF   4.0 PSV       3 N       4  --  C4 F3 C6
+D4  : T  -6.06c W  -3.13c S  -1.38c ( +0.7 L  +0.7) LCB  -81.29c P  3.62% WF   3.0 PSV       3 N       3  --  D4 F4 C6
+G6  : T   3.22c W   2.81c S  -1.40c ( +0.6 L  +0.6) LCB  -71.11c P  3.06% WF   3.1 PSV       3 N       3  --  G6 F4
+E8  : T -19.52c W -15.71c S  -3.80c ( -1.0 L  -1.0) LCB -369.52c P  3.15% WF   1.0 PSV       1 N       1  --  E8
+D3  : T -15.76c W -13.28c S  -2.48c ( -0.1 L  -0.1) LCB -365.76c P  3.08% WF   1.0 PSV       1 N       1  --  D3
+G4  : T -13.96c W -11.23c S  -2.74c ( -0.2 L  -0.2) LCB -363.96c P  2.90% WF   1.0 PSV       1 N       1  --  G4
+
+: MoveNum: 2 HASH: 44BA9CE98267DBD26B29BD166928E5B8
+   A B C D E F G H J
+ 9 . . . . . . . . .
+ 8 . . . . . . . . .
+ 7 . . . O2. . . . .
+ 6 . . . . X1. . . .
+ 5 . . @ . . . . . .
+ 4 . . . . . . . . .
+ 3 . . . . . . . . .
+ 2 . . . . . . . . .
+ 1 . . . . . . . . .
+
+
+Rules: koSIMPLEscoreTERRITORYtaxNONEsui0komi7.5
+Root visits: 20
+Policy surprise 0.0393944
+Raw WL -0.111271
+PV: D6 E7 F7 C6
+Tree:
+: T  -8.00c W  -5.92c S  -0.31c ( +0.1 L  +0.1) N      20  --  D6 E7 F7 C6
+---Black(v)---
+D6  : T -11.50c W  -8.20c S  -0.73c ( -0.2 L  -0.2) LCB    3.79c P 50.50% WF  11.2 PSV      11 N      11  --  D6 E7 F7 C6
+C5  : T   0.76c W  -0.44c S   0.33c ( +0.5 L  +0.5) LCB   29.82c P 29.86% WF   4.8 PSV       5 N       5  --  C5 E7 F6
+E7  : T  -7.98c W  -4.57c S   0.18c ( +0.4 L  +0.4) LCB   68.02c P 16.44% WF   3.0 PSV       3 N       3  --  E7 C5
+
+: MoveNum: 3 HASH: 6073CD6A71D604B63DE5EF9729CA8360
+   A B C D E F G H J
+ 9 . . . . . . . . .
+ 8 . . . . . . . . .
+ 7 . . . O2. @ . . .
+ 6 . . . . X1. . . .
+ 5 . . X3. . . . . .
+ 4 . . . . . . . . .
+ 3 . . . . . . . . .
+ 2 . . . . . . . . .
+ 1 . . . . . . . . .
+
+
+Rules: koSIMPLEscoreTERRITORYtaxNONEsui0komi7.5
+Root visits: 20
+Policy surprise 0.202874
+Raw WL 0.0664735
+PV: F7 E7 E8 F6 G7 G6 D3
+Tree:
+: T  -1.82c W  -1.29c S   0.08c ( +0.4 L  +0.4) N      20  --  F7 E7 E8 F6 G7 G6 D3
+---White(^)---
+F7  : T   1.46c W   2.73c S   0.41c ( +0.6 L  +0.6) LCB  -13.78c P 32.56% WF   9.1 PSV       9 N       9  --  F7 E7 E8 F6 G7 G6 D3
+E7  : T  -3.66c W  -3.87c S  -0.16c ( +0.2 L  +0.2) LCB  -19.93c P 36.90% WF   7.9 PSV       8 N       8  --  E7 F6 G7 G6 F7
+G6  : T -12.75c W -12.33c S  -0.43c ( +0.0 L  +0.0) LCB -362.75c P  7.24% WF   1.0 PSV       1 N       1  --  G6
+G7  : T -16.60c W -15.01c S  -1.58c ( -0.8 L  -0.8) LCB -366.60c P  6.80% WF   1.0 PSV       1 N       1  --  G7
+
+: MoveNum: 4 HASH: 3657CFE6731360959E1BE0B4A6932157
+   A B C D E F G H J
+ 9 . . . . . . . . .
+ 8 . . . . . . . . .
+ 7 . . . O1. O3. . .
+ 6 . . . . X @ . . .
+ 5 . . X2. . . . . .
+ 4 . . . . . . . . .
+ 3 . . . . . . . . .
+ 2 . . . . . . . . .
+ 1 . . . . . . . . .
+
+
+Rules: koSIMPLEscoreTERRITORYtaxNONEsui0komi7.5
+Root visits: 20
+Policy surprise 0.109385
+Raw WL -0.101439
+PV: E7 E8 F6 G7 G6 D3 F3 C4
+Tree:
+: T   4.57c W   4.11c S   0.56c ( +0.8 L  +0.8) N      20  --  E7 E8 F6 G7 G6 D3 F3
+---Black(v)---
+E7  : T   5.56c W   5.09c S   0.67c ( +0.9 L  +0.9) LCB   18.57c P 58.37% WF  12.0 PSV      12 N      12  --  E7 E8 F6 G7 G6 D3 F3 C4
+F6  : T   6.12c W   3.75c S   0.49c ( +0.8 L  +0.8) LCB   50.72c P 16.93% WF   4.0 PSV       3 N       4  --  F6 G7 G6
+G5  : T   3.82c W   5.40c S   0.72c ( +0.9 L  +0.9) LCB   79.05c P 14.48% WF   3.0 PSV       3 N       3  --  G5 D3 F3
+
+: MoveNum: 5 HASH: B4C81D963B5B2F7C3E7A2FE363D3B8FD
+   A B C D E F G H J
+ 9 . . . . . . . . .
+ 8 . . . . . . . . .
+ 7 . . . O . O2@ . .
+ 6 . . . . X X3. . .
+ 5 . . X1. . . . . .
+ 4 . . . . . . . . .
+ 3 . . . . . . . . .
+ 2 . . . . . . . . .
+ 1 . . . . . . . . .
+
+
+Rules: koSIMPLEscoreTERRITORYtaxNONEsui0komi7.5
+Root visits: 50
+Policy surprise 0.751648
+Raw WL 0.0270944
+PV: G7 G6 D3 E7
+Tree:
+: T -11.06c W  -8.98c S  -1.43c ( -0.6 L  -0.6) N      50  --  G7 G6 D3 E7
+---White(^)---
+G7  : T   0.19c W   1.21c S  -0.01c ( +0.4 L  +0.4) LCB  -11.04c P 11.73% WF  18.7 PSV      18 N      18  --  G7 G6 D3 E7
+E7  : T  -1.97c W  -0.59c S  -0.25c ( +0.2 L  +0.2) LCB  -14.64c P  8.44% WF  11.3 PSV      11 N      11  --  E7 G6 D3 F3 C4 B5
+G6  : T -18.53c W -16.69c S  -3.10c ( -1.7 L  -1.7) LCB  -93.45c P  5.17% WF   2.9 PSV       3 N       3  --  G6 G5
+G8  : T -23.35c W -22.18c S  -4.46c ( -2.8 L  -2.8) LCB -172.84c P  4.34% WF   1.9 PSV       2 N       2  --  G8 G6
+C4  : T -19.09c W -16.10c S  -2.62c ( -1.4 L  -1.4) LCB -168.03c P  3.76% WF   1.9 PSV       2 N       2  --  C4 E7
+G4  : T -35.20c W -25.10c S  -4.30c ( -2.6 L  -2.6) LCB -185.77c P  3.14% WF   1.8 PSV       1 N       2  --  G4 E7
+B4  : T -42.84c W -37.63c S  -5.20c ( -3.4 L  -3.4) LCB -392.84c P  3.65% WF   0.9 PSV       1 N       1  --  B4
+J3  : T -67.85c W -58.13c S  -9.72c ( -6.9 L  -6.9) LCB -417.85c P  3.60% WF   0.9 PSV       1 N       1  --  J3
+D3  : T -25.97c W -23.00c S  -2.97c ( -1.8 L  -1.8) LCB -375.97c P  3.39% WF   1.0 PSV       1 N       1  --  D3
+C7  : T -32.94c W -30.54c S  -2.40c ( -1.3 L  -1.3) LCB -382.94c P  2.60% WF   0.9 PSV       1 N       1  --  C7
+
+: MoveNum: 6 HASH: D97D8D8E337B9CDA518EBF956E518B05
+   A B C D E F G H J
+ 9 . . . . . . . . .
+ 8 . . . . . . . . .
+ 7 . . . O . O1O3. .
+ 6 . . . . X X2. . .
+ 5 . . X . . . . . .
+ 4 . . . . . . . . .
+ 3 . . . . . . @ . .
+ 2 . . . . . . . . .
+ 1 . . . . . . . . .
+
+
+Rules: koSIMPLEscoreTERRITORYtaxNONEsui0komi7.5
+Root visits: 50
+Policy surprise 0.796976
+Raw WL -0.0351846
+PV: G6 D3 E7 E8 F3 C4
+Tree:
+: T  11.23c W   9.03c S   2.16c ( +1.6 L  +1.6) N      50  --  G6 D3 E7 E8 F3 C4
+---Black(v)---
+G6  : T  -6.21c W  -5.13c S  -0.82c ( -0.6 L  -0.6) LCB    3.51c P  9.41% WF  15.9 PSV      15 N      15  --  G6 D3 E7 E8 F3 C4
+F3  : T   7.98c W   5.22c S   1.82c ( +1.3 L  +1.3) LCB   23.95c P  7.86% WF   7.1 PSV       6 N       7  --  F3 C6 B5 G4
+E7  : T   2.66c W   2.37c S   0.50c ( +0.4 L  +0.4) LCB   31.08c P  6.59% WF   6.1 PSV       6 N       6  --  E7 E8 G6 D3 F3 C4
+G3  : T   9.05c W   8.24c S   2.08c ( +1.6 L  +1.6) LCB   38.60c P  6.74% WF   5.0 PSV       5 N       5  --  G3 C3 E3
+G4  : T  19.67c W  17.35c S   3.85c ( +2.9 L  +2.9) LCB  168.72c P  4.75% WF   1.9 PSV       2 N       2  --  G4 C3
+C7  : T  42.87c W  30.01c S   6.56c ( +4.6 L  +4.6) LCB  193.71c P  4.86% WF   1.8 PSV       1 N       2  --  C7 D6
+F4  : T  27.97c W  23.01c S   4.96c ( +3.6 L  +3.6) LCB  377.97c P  3.57% WF   1.0 PSV       1 N       1  --  F4
+E3  : T  18.31c W  15.13c S   3.17c ( +2.2 L  +2.2) LCB  368.31c P  3.01% WF   1.0 PSV       1 N       1  --  E3
+H5  : T  30.72c W  25.29c S   5.43c ( +4.2 L  +4.2) LCB  380.72c P  2.63% WF   0.9 PSV       1 N       1  --  H5
+H4  : T  30.97c W  25.06c S   5.91c ( +4.6 L  +4.6) LCB  380.97c P  2.04% WF   0.9 PSV       1 N       1  --  H4
+
+: MoveNum: 7 HASH: 3C3D65ACBC70ACDDC3B49F5849927154
+   A B C D E F G H J
+ 9 . . . . . . . . .
+ 8 . . . . . . . . .
+ 7 . . . O . O O2. .
+ 6 . . . . X X1. . .
+ 5 . . X . . . . . .
+ 4 . . . . . . . . .
+ 3 . . . @ . . X3. .
+ 2 . . . . . . . . .
+ 1 . . . . . . . . .
+
+
+Rules: koSIMPLEscoreTERRITORYtaxNONEsui0komi7.5
+Root visits: 20
+Policy surprise 0.163313
+Raw WL 0.139689
+PV: C3 E3 C6 B5
+Tree:
+: T   7.18c W   7.28c S   0.39c ( +1.3 L  +1.3) N      20  --  C3 E3 C6 B5
+---White(^)---
+C3  : T   6.04c W   6.97c S   0.17c ( +1.1 L  +1.1) LCB  -15.94c P 43.72% WF  11.0 PSV      11 N      11  --  C3 E3 C6 B5
+C6  : T   1.50c W   2.49c S  -0.48c ( +0.7 L  +0.7) LCB  -73.34c P 17.47% WF   3.0 PSV       3 N       3  --  C6 D6
+D3  : T  15.71c W  12.10c S   1.15c ( +1.9 L  +1.9) LCB -133.53c P  9.10% WF   2.0 PSV       2 N       2  --  D3 G6
+C4  : T   8.17c W   7.99c S   0.69c ( +1.5 L  +1.5) LCB -140.79c P  9.05% WF   2.0 PSV       2 N       2  --  C4 B5
+G5  : T   8.57c W   6.76c S   1.80c ( +2.3 L  +2.3) LCB -341.43c P  6.92% WF   1.0 PSV       1 N       1  --  G5
+
+: MoveNum: 8 HASH: 8E786F5663684BC7C5E373D5E3E143EC
+   A B C D E F G H J
+ 9 . . . . . . . . .
+ 8 . . . . . . . . .
+ 7 . . . O @ O O1. .
+ 6 . . . . X X . . .
+ 5 . . X . . . . . .
+ 4 . . . . . . . . .
+ 3 . . . O3. . X2. .
+ 2 . . . . . . . . .
+ 1 . . . . . . . . .
+
+
+Rules: koSIMPLEscoreTERRITORYtaxNONEsui0komi7.5
+Root visits: 50
+Policy surprise 0.556608
+Raw WL 0.0683223
+PV: C3 C2 B3 F3 G4
+Tree:
+: T  17.64c W  15.21c S   1.81c ( +2.5 L  +2.5) N      50  --  C3 C2 B3 F3 G4
+---Black(v)---
+C3  : T   4.71c W   5.50c S   0.12c ( +1.2 L  +1.2) LCB   15.29c P  6.13% WF  11.5 PSV      11 N      11  --  C3 C2 B3 F3 G4
+B3  : T  12.34c W  10.78c S   1.54c ( +2.2 L  +2.2) LCB   32.48c P  7.52% WF   7.1 PSV       7 N       7  --  B3 C6 D6
+G6  : T  14.87c W  13.86c S   0.77c ( +1.7 L  +1.7) LCB   35.69c P  7.82% WF   6.0 PSV       6 N       6  --  G6 C4 B5
+E7  : T  16.44c W  12.84c S   0.88c ( +1.8 L  +1.8) LCB   45.99c P  7.41% WF   5.0 PSV       5 N       5  --  E7 E8 G6 C4
+C6  : T  36.33c W  29.17c S   3.87c ( +4.1 L  +4.1) LCB  185.79c P  5.36% WF   1.9 PSV       2 N       2  --  C6 F3
+C4  : T  25.65c W  19.47c S   2.71c ( +3.2 L  +3.2) LCB  175.19c P  4.15% WF   1.9 PSV       2 N       2  --  C4 C3
+E2  : T  21.39c W  15.34c S   2.26c ( +2.8 L  +2.8) LCB  171.04c P  3.40% WF   2.0 PSV       2 N       2  --  E2 E3
+B4  : T  16.56c W  11.72c S   1.28c ( +2.1 L  +2.1) LCB  166.13c P  2.23% WF   2.0 PSV       2 N       2  --  B4 G4
+F3  : T  25.79c W  23.24c S   2.55c ( +3.0 L  +3.0) LCB  375.79c P  3.38% WF   1.0 PSV       1 N       1  --  F3
+D4  : T  39.16c W  33.35c S   5.81c ( +5.6 L  +5.6) LCB  389.16c P  3.26% WF   0.9 PSV       1 N       1  --  D4
+
+: MoveNum: 9 HASH: 7CEE2EF7AEA4F9236A0B24B57733F87A
+   A B C D E F G H J
+ 9 . . . . . . . . .
+ 8 . . . . @ . . . .
+ 7 . . . O X3O O . .
+ 6 . . . . X X . . .
+ 5 . . X . . . . . .
+ 4 . . . . . . . . .
+ 3 . . . O2. . X1. .
+ 2 . . . . . . . . .
+ 1 . . . . . . . . .
+
+
+Rules: koSIMPLEscoreTERRITORYtaxNONEsui0komi7.5
+Root visits: 20
+Policy surprise 0.010804
+Raw WL 0.0298519
+PV: E8 G6 C4 B5 F3 F2
+Tree:
+: T  23.63c W  20.31c S   2.45c ( +3.0 L  +3.0) N      20  --  E8 G6 C4 B5 F3 F2
+---White(^)---
+E8  : T  24.81c W  21.22c S   2.67c ( +3.2 L  +3.2) LCB   17.40c P 98.93% WF  19.0 PSV      19 N      19  --  E8 G6 C4 B5 F3 F2
+
+: MoveNum: 10 HASH: 0DA7C405E23E841DC6EDEAF70D85294B
+   A B C D E F G H J
+ 9 . . . . . . . . .
+ 8 . . . . O3. . . .
+ 7 . . @ O X2O O . .
+ 6 . . . . X X . . .
+ 5 . . X . . . . . .
+ 4 . . . . . . . . .
+ 3 . . . O1. . X . .
+ 2 . . . . . . . . .
+ 1 . . . . . . . . .
+
+
+Rules: koSIMPLEscoreTERRITORYtaxNONEsui0komi7.5
+Root visits: 50
+Policy surprise 0.540358
+Raw WL 0.108778
+PV: F8 D8 G6 H7 B3 G4
+Tree:
+: T  24.98c W  19.57c S   3.04c ( +3.3 L  +3.3) N      50  --  F8 D8 G6 H7 B3 G4
+---Black(v)---
+F8  : T  22.13c W  18.05c S   2.92c ( +3.2 L  +3.2) LCB   43.22c P  9.36% WF   9.1 PSV       9 N       9  --  F8 D8 G6 H7 B3 G4
+C7  : T   7.77c W   5.80c S   0.19c ( +1.2 L  +1.2) LCB   29.09c P  4.58% WF   9.5 PSV       9 N       9  --  C7 C8 D6 D8 B3 G4
+G6  : T  29.89c W  22.85c S   2.70c ( +3.1 L  +3.1) LCB   56.97c P  9.96% WF   5.9 PSV       6 N       6  --  G6 C4 B5 F3
+B3  : T  23.35c W  19.12c S   3.32c ( +3.5 L  +3.5) LCB   60.55c P  6.44% WF   5.0 PSV       5 N       5  --  B3 G4 F3
+D8  : T  37.06c W  22.28c S   3.15c ( +3.3 L  +3.3) LCB   90.66c P  6.63% WF   3.8 PSV       4 N       4  --  D8 C8 F8 D9
+D4  : T  45.92c W  40.44c S   7.13c ( +6.5 L  +6.5) LCB  120.39c P  7.79% WF   2.8 PSV       3 N       3  --  D4 C3 E3
+C3  : T  19.94c W  15.71c S   2.15c ( +2.7 L  +2.7) LCB   94.68c P  3.96% WF   3.0 PSV       3 N       3  --  C3 C2 B3
+D6  : T  34.33c W  24.60c S   4.47c ( +4.6 L  +4.6) LCB  110.09c P  4.22% WF   2.9 PSV       2 N       3  --  D6 C7 G6
+B4  : T  21.61c W  17.80c S   2.74c ( +3.1 L  +3.1) LCB  170.60c P  2.48% WF   2.0 PSV       2 N       2  --  B4 G4
+A8  : T  83.37c W  68.83c S  14.54c (+14.1 L +14.1) LCB  433.37c P  5.11% WF   0.9 PSV       1 N       1  --  A8
+
+: MoveNum: 11 HASH: 1A3B9C7B848C22AEAF5ACFA802DFEE80
+   A B C D E F G H J
+ 9 . . . . . . . . .
+ 8 . . . . O2. . . .
+ 7 . . X3O X1O O . .
+ 6 . . . . X X . . .
+ 5 . . X . . . . . .
+ 4 . . . . @ . . . .
+ 3 . . . O . . X . .
+ 2 . . . . . . . . .
+ 1 . . . . . . . . .
+
+
+Rules: koSIMPLEscoreTERRITORYtaxNONEsui0komi7.5
+Root visits: 50
+Policy surprise 0.58233
+Raw WL 0.262835
+PV: D8 D6 B4 G6
+Tree:
+: T  -2.56c W   1.46c S  -3.06c ( +0.5 L  +0.5) N      50  --  D8 D6 B4 G6
+---White(^)---
+D8  : T  21.62c W  20.11c S  -0.11c ( +2.7 L  +2.7) LCB    1.06c P  5.55% WF  13.0 PSV      12 N      12  --  D8 D6 B4 G6
+C8  : T -10.15c W  -2.55c S  -3.97c ( -0.1 L  -0.1) LCB  -34.76c P 19.40% WF  10.7 PSV      11 N      11  --  C8 D6 D8 B3 G4 F3
+D6  : T   1.37c W   5.20c S  -2.20c ( +1.1 L  +1.1) LCB  -23.27c P 11.53% WF   9.2 PSV       9 N       9  --  D6 D5 C8 C6 D8 G6
+G4  : T   1.61c W   4.10c S  -2.03c ( +1.2 L  +1.2) LCB  -43.83c P  5.82% WF   4.1 PSV       4 N       4  --  G4 F3 C8
+G6  : T -20.18c W -14.19c S  -6.20c ( -1.7 L  -1.7) LCB -169.11c P  5.84% WF   1.9 PSV       2 N       2  --  G6 D8
+E4  : T -40.63c W -28.76c S  -8.79c ( -4.0 L  -4.0) LCB -190.05c P  5.34% WF   1.8 PSV       2 N       2  --  E4 D8
+F3  : T -13.30c W  -8.54c S  -5.62c ( -1.4 L  -1.4) LCB -162.27c P  4.61% WF   1.9 PSV       2 N       2  --  F3 D8
+C4  : T -14.90c W  -5.80c S  -4.99c ( -0.9 L  -0.9) LCB -164.74c P  4.32% WF   1.9 PSV       2 N       2  --  C4 D8
+B5  : T -42.92c W -34.54c S  -8.39c ( -3.4 L  -3.4) LCB -392.92c P  5.45% WF   0.9 PSV       1 N       1  --  B5
+G9  : T -79.79c W -64.51c S -15.28c ( -9.0 L  -9.0) LCB -429.79c P  2.57% WF   0.8 PSV       0 N       1  --  G9
+
+: MoveNum: 12 HASH: C607B71D3D3B0A1749E812CEEEA37ADB
+   A B C D E F G H J
+ 9 . . . . . . . . .
+ 8 . . . @ O1. . . .
+ 7 . . X2O X O O . .
+ 6 . . . . X X . . .
+ 5 . . X . . . . . .
+ 4 . . . . O3. . . .
+ 3 . . . O . . X . .
+ 2 . . . . . . . . .
+ 1 . . . . . . . . .
+
+
+Rules: koSIMPLEscoreTERRITORYtaxNONEsui0komi7.5
+Root visits: 20
+Policy surprise 0.121419
+Raw WL -0.238805
+PV: D8 G4 H4 G5 F3 H5
+Tree:
+: T -23.95c W -26.61c S  -1.28c ( -3.6 L  -3.6) N      20  --  D8 G4 H4 G5 F3 H5
+---Black(v)---
+D8  : T -30.72c W -33.44c S  -2.43c ( -4.4 L  -4.4) LCB  -17.41c P 58.24% WF  13.4 PSV      13 N      13  --  D8 G4 H4 G5 F3 H5
+G6  : T  -8.02c W -10.90c S   1.04c ( -1.8 L  -1.8) LCB   16.54c P 31.39% WF   5.6 PSV       5 N       6  --  G6 C8 D6 D8 B3 G4
+
+: MoveNum: 13 HASH: A32D3369DBD45C175EF43BF428DAF797
+   A B C D E F G H J
+ 9 . . . . . . . . .
+ 8 . . . X3O . . . .
+ 7 . . X1O X O O . .
+ 6 . . . . X X . . .
+ 5 . . X . . . @ . .
+ 4 . . . . O2. . . .
+ 3 . . . O . . X . .
+ 2 . . . . . . . . .
+ 1 . . . . . . . . .
+
+
+Rules: koSIMPLEscoreTERRITORYtaxNONEsui0komi7.5
+Root visits: 50
+Policy surprise 0.472328
+Raw WL -0.336347
+PV: G4 H4 G5 F3 H5 F4 F5 E5 E2
+Tree:
+: T -39.86c W -37.65c S  -2.25c ( -5.5 L  -5.5) N      50  --  G4 H4 G5 F3 H5 F4 F5
+---White(^)---
+G4  : T -30.05c W -30.39c S  -0.54c ( -4.2 L  -4.2) LCB  -45.49c P 19.47% WF  20.8 PSV      20 N      20  --  G4 H4 G5 F3 H5 F4 F5 E5
+G5  : T -32.91c W -31.69c S  -1.21c ( -4.7 L  -4.7) LCB  -49.56c P 11.95% WF  11.2 PSV      11 N      11  --  G5 G6 H6 H7 H8
+D9  : T -53.07c W -45.18c S  -4.32c ( -7.1 L  -7.1) LCB  -85.34c P  8.58% WF   4.7 PSV       4 N       5  --  D9 D6 C8 F8
+C8  : T -49.37c W -47.82c S  -3.72c ( -6.6 L  -6.6) LCB -124.22c P  7.06% WF   2.9 PSV       3 N       3  --  C8 D6 D9 F8
+G6  : T -49.87c W -45.66c S  -4.11c ( -6.9 L  -6.9) LCB -123.74c P  6.97% WF   2.9 PSV       3 N       3  --  G6 F5
+H5  : T -58.64c W -52.37c S  -5.59c ( -8.0 L  -8.0) LCB -134.31c P  5.81% WF   2.8 PSV       2 N       3  --  H5 F4
+E9  : T -72.71c W -63.21c S  -7.40c ( -9.4 L  -9.4) LCB -221.87c P  5.71% WF   1.8 PSV       2 N       2  --  E9 G6
+C4  : T -59.73c W -55.89c S  -3.84c ( -6.5 L  -6.5) LCB -409.73c P  3.45% WF   0.9 PSV       1 N       1  --  C4
+B7  : T -79.59c W -69.70c S  -9.89c (-11.4 L -11.4) LCB -429.59c P  2.45% WF   0.9 PSV       0 N       1  --  B7
+
+: MoveNum: 14 HASH: 6BA1E0748FC1102759ACF684D3C4C6F6
+   A B C D E F G H J
+ 9 . . . . . . . . .
+ 8 . . . X2O . . . .
+ 7 . . X O X O O . .
+ 6 . . . @ X X . . .
+ 5 . . X . . . O3. .
+ 4 . . . . O1. . . .
+ 3 . . . O . . X . .
+ 2 . . . . . . . . .
+ 1 . . . . . . . . .
+
+
+Rules: koSIMPLEscoreTERRITORYtaxNONEsui0komi7.5
+Root visits: 50
+Policy surprise 0.42856
+Raw WL -0.331199
+PV: G6 H6 H7 H8 H5
+Tree:
+: T -25.97c W -23.51c S  -1.86c ( -3.4 L  -3.4) N      50  --  G6 H6 H7 H8 H5
+---Black(v)---
+G6  : T -31.61c W -29.98c S  -3.35c ( -4.5 L  -4.5) LCB   -8.77c P 20.91% WF  15.3 PSV      15 N      15  --  G6 H6 H7 H8 H5
+E2  : T -43.28c W -36.84c S  -3.54c ( -4.6 L  -4.6) LCB  -26.68c P 10.02% WF  10.6 PSV      10 N      10  --  E2 G4 F3 F4
+F5  : T -33.63c W -29.04c S  -3.14c ( -4.3 L  -4.3) LCB   -9.75c P  9.50% WF   7.2 PSV       7 N       7  --  F5 G4 F4 F3 F2
+F4  : T -30.15c W -25.15c S  -2.03c ( -3.5 L  -3.5) LCB   -5.39c P  9.23% WF   6.1 PSV       6 N       6  --  F4 F5 E5 G6 E2 E3
+F3  : T  -6.13c W  -8.30c S   0.71c ( -1.4 L  -1.4) LCB   74.10c P  6.59% WF   2.8 PSV       3 N       3  --  F3 F5
+D6  : T  34.29c W  28.48c S   5.80c ( +2.1 L  +2.1) LCB  384.29c P  3.73% WF   0.8 PSV       1 N       1  --  D6
+J3  : T  26.53c W  20.51c S   6.01c ( +2.6 L  +2.6) LCB  376.53c P  3.26% WF   0.9 PSV       1 N       1  --  J3
+H5  : T -12.59c W -12.01c S  -0.59c ( -2.4 L  -2.4) LCB  337.41c P  2.91% WF   1.0 PSV       1 N       1  --  H5
+G4  : T -12.23c W -11.19c S  -1.04c ( -2.8 L  -2.8) LCB  337.77c P  2.71% WF   1.0 PSV       1 N       1  --  G4
+A8  : T  72.59c W  58.92c S  13.66c ( +8.7 L  +8.7) LCB  422.59c P  3.73% WF   0.7 PSV       0 N       1  --  A8
+
+: MoveNum: 15 HASH: 359661D8718B6598B6752E11A280855E
+   A B C D E F G H J
+ 9 . . . . . . . . .
+ 8 . . . X1O . . . .
+ 7 . . X . X O O . .
+ 6 . . . X3X X . . .
+ 5 . . X . . . O2. .
+ 4 . . . . O . @ . .
+ 3 . . . O . . X . .
+ 2 . . . . . . . . .
+ 1 . . . . . . . . .
+
+
+Rules: koSIMPLEscoreTERRITORYtaxNONEsui0komi7.5
+Root visits: 50
+Policy surprise 0.468494
+Raw WL 0.28484
+PV: G4 F3 F4 E2 D2 H4 H5
+Tree:
+: T  28.49c W  25.42c S   2.20c ( +2.9 L  +2.9) N      50  --  G4 F3 F4 E2 D2 H4 H5
+---White(^)---
+G4  : T  23.06c W  21.66c S   1.72c ( +2.5 L  +2.5) LCB    6.11c P 29.82% WF  17.8 PSV      18 N      18  --  G4 F3 F4 E2 D2 H4 H5
+H4  : T  61.03c W  48.54c S   6.53c ( +5.8 L  +5.8) LCB   37.19c P  6.31% WF  15.6 PSV      14 N      14  --  H4 F4 F5 E5 F3 G6
+G6  : T -14.51c W  -5.11c S  -3.91c ( -1.4 L  -1.4) LCB  -47.66c P 15.97% WF   4.2 PSV       5 N       5  --  G6 E2 D2 E3
+F3  : T  14.65c W  14.83c S  -0.26c ( +1.2 L  +1.2) LCB  -16.84c P 10.53% WF   4.8 PSV       5 N       5  --  F3 G4 F5 G6
+F5  : T   4.65c W  10.92c S  -0.36c ( +1.1 L  +1.1) LCB -146.05c P  5.95% WF   1.9 PSV       2 N       2  --  F5 E2
+F4  : T  19.05c W  23.21c S   1.99c ( +2.7 L  +2.7) LCB -131.84c P  3.52% WF   2.0 PSV       2 N       2  --  F4 E2
+G8  : T -36.97c W -30.25c S  -6.72c ( -3.4 L  -3.4) LCB -386.97c P  3.83% WF   0.8 PSV       1 N       1  --  G8
+H5  : T  20.72c W  19.49c S   1.24c ( +2.2 L  +2.2) LCB -329.28c P  1.89% WF   1.0 PSV       1 N       1  --  H5
+C3  : T -13.12c W -10.51c S  -2.61c ( -0.4 L  -0.4) LCB -363.12c P  2.25% WF   0.9 PSV       0 N       1  --  C3
+
+: MoveNum: 16 HASH: 5D9792BE380D7C9164FCCF11BB316F1A
+   A B C D E F G H J
+ 9 . . . . . . . . .
+ 8 . . . X O . . . .
+ 7 . . X . X O O . .
+ 6 . . . X2X X . . .
+ 5 . . X . . . O1. .
+ 4 . . . . O . O3. .
+ 3 . . . O . @ X . .
+ 2 . . . . . . . . .
+ 1 . . . . . . . . .
+
+
+Rules: koSIMPLEscoreTERRITORYtaxNONEsui0komi7.5
+Root visits: 50
+Policy surprise 0.571902
+Raw WL 0.432243
+PV: F3 F4 E2 D2 H4 H5 H2
+Tree:
+: T  34.04c W  31.79c S   0.78c ( +3.7 L  +3.7) N      50  --  F3 F4 E2 D2 H4 H5 H2
+---Black(v)---
+F3  : T  22.15c W  22.15c S  -0.97c ( +2.6 L  +2.6) LCB   43.85c P 38.35% WF  36.5 PSV      35 N      35  --  F3 F4 E2 D2 H4 H5 H2
+G6  : T  42.91c W  38.51c S   1.30c ( +4.0 L  +4.0) LCB   87.79c P  8.43% WF   3.8 PSV       4 N       4  --  G6 H6 F3 F4
+E2  : T  79.01c W  65.42c S   7.44c ( +8.1 L  +8.1) LCB  229.72c P  7.86% WF   1.7 PSV       2 N       2  --  E2 F3
+C2  : T  91.66c W  74.85c S   7.40c ( +7.7 L  +7.7) LCB  244.55c P  5.33% WF   1.6 PSV       1 N       2  --  C2 F3
+D2  : T  62.21c W  58.17c S   4.04c ( +5.8 L  +5.8) LCB  412.21c P  3.01% WF   0.9 PSV       1 N       1  --  D2
+G8  : T  75.27c W  67.66c S   7.62c ( +8.3 L  +8.3) LCB  425.27c P  2.58% WF   0.9 PSV       0 N       1  --  G8
+H5  : T  80.32c W  70.94c S   9.38c ( +9.3 L  +9.3) LCB  430.32c P  2.54% WF   0.9 PSV       0 N       1  --  H5
+B5  : T  90.72c W  77.72c S  13.00c (+12.0 L +12.0) LCB  440.72c P  1.89% WF   0.8 PSV       0 N       1  --  B5
+C3  : T  70.50c W  63.21c S   7.28c ( +8.0 L  +8.0) LCB  420.50c P  1.85% WF   0.9 PSV       0 N       1  --  C3
+H4  : T  73.68c W  66.29c S   7.39c ( +8.0 L  +8.0) LCB  423.68c P  1.79% WF   0.9 PSV       0 N       1  --  H4
+
+: MoveNum: 17 HASH: 297FC9766168398B143519AE643A9D2F
+   A B C D E F G H J
+ 9 . . . . . . . . .
+ 8 . . . X O . . . .
+ 7 . . X . X O O . .
+ 6 . . . X1X X . . .
+ 5 . . X . . . O . .
+ 4 . . . . O . O2. .
+ 3 . . . O . X3X @ .
+ 2 . . . . . . . . .
+ 1 . . . . . . . . .
+
+
+Rules: koSIMPLEscoreTERRITORYtaxNONEsui0komi7.5
+Root visits: 50
+Policy surprise 0.579131
+Raw WL 0.148449
+PV: F4 E2 D2 H4 H5 H2
+Tree:
+: T  11.99c W  11.41c S   0.64c ( +1.1 L  +1.1) N      50  --  F4 E2 D2 H4 H5 H2
+---White(^)---
+F4  : T  28.56c W  23.75c S   3.35c ( +2.8 L  +2.8) LCB    4.56c P 28.58% WF  29.8 PSV      28 N      28  --  F4 E2 D2 H4 H5 H2
+E2  : T  -0.14c W   1.48c S  -1.54c ( -0.5 L  -0.5) LCB  -29.80c P 10.08% WF   5.7 PSV       5 N       6  --  E2 F4 F5 E5 G6
+H3  : T   2.65c W   2.65c S  -1.32c ( -0.3 L  -0.3) LCB  -66.70c P  7.54% WF   3.8 PSV       4 N       4  --  H3 H2 H4
+E3  : T -26.93c W -10.10c S  -3.87c ( -2.1 L  -2.1) LCB -184.32c P  5.61% WF   1.8 PSV       2 N       2  --  E3 F4
+C4  : T  -9.16c W   0.81c S  -1.68c ( -0.5 L  -0.5) LCB -161.61c P  5.00% WF   1.9 PSV       2 N       2  --  C4 F4
+H4  : T -34.36c W -15.89c S  -5.12c ( -3.1 L  -3.1) LCB -192.29c P  4.96% WF   1.7 PSV       1 N       2  --  H4 F4
+B9  : T -80.44c W -66.26c S -14.18c (-10.7 L -10.7) LCB -430.44c P  3.36% WF   0.8 PSV       0 N       1  --  B9
+J5  : T -35.92c W -29.90c S  -6.02c ( -3.7 L  -3.7) LCB -385.92c P  2.68% WF   0.9 PSV       0 N       1  --  J5
+C2  : T -26.40c W -22.55c S  -3.84c ( -2.0 L  -2.0) LCB -376.40c P  2.47% WF   0.9 PSV       0 N       1  --  C2
+F5  : T -22.28c W -18.60c S  -3.69c ( -2.0 L  -2.0) LCB -372.28c P  2.20% WF   0.9 PSV       0 N       1  --  F5
+
+: MoveNum: 18 HASH: EEC54F6E9BD8FEBC5D6FA4C750443F19
+   A B C D E F G H J
+ 9 . . . . . . . . .
+ 8 . . . X O . . . .
+ 7 . . X . X O O . .
+ 6 . . . X X X . . .
+ 5 . . X . . . O . .
+ 4 . . . . O . O1. .
+ 3 . . . O . X2X O3.
+ 2 . . . . . . . @ .
+ 1 . . . . . . . . .
+
+
+Rules: koSIMPLEscoreTERRITORYtaxNONEsui0komi7.5
+Root visits: 20
+Policy surprise 0.0671908
+Raw WL 0.139154
+PV: H2 H4 F4 F5 E5
+Tree:
+: T  23.43c W  16.64c S   2.72c ( +1.8 L  +1.8) N      20  --  H2 H4 F4 F5 E5
+---Black(v)---
+H2  : T  22.35c W  17.33c S   3.08c ( +2.0 L  +2.0) LCB   38.65c P 60.92% WF  13.1 PSV      13 N      13  --  H2 H4 F4 F5 E5
+F4  : T  27.94c W  14.60c S   2.00c ( +1.3 L  +1.3) LCB   75.40c P 26.82% WF   4.9 PSV       5 N       5  --  F4 F5 H2 H4 E5
+G6  : T  22.48c W  20.33c S   2.15c ( +1.3 L  +1.3) LCB  372.48c P  6.04% WF   1.0 PSV       1 N       1  --  G6
+
+: MoveNum: 19 HASH: 85D0F4A2630DB1EBB6B2B6FADFC38731
+   A B C D E F G H J
+ 9 . . . . . . . . .
+ 8 . . . X O . . . .
+ 7 . . X . X O O . .
+ 6 . . . X X X . . .
+ 5 . . X . . . O . .
+ 4 . . . . O . O @ .
+ 3 . . . O . X1X O2.
+ 2 . . . . . . . X3.
+ 1 . . . . . . . . .
+
+
+Rules: koSIMPLEscoreTERRITORYtaxNONEsui0komi7.5
+Root visits: 20
+Policy surprise 0.0637609
+Raw WL 0.0116761
+PV: H4 F4 F5 E5 E2
+Tree:
+: T  18.50c W  17.84c S   1.29c ( +2.2 L  +2.2) N      20  --  H4 F4 F5 E5 E2
+---White(^)---
+H4  : T  19.52c W  18.72c S   1.45c ( +2.4 L  +2.4) LCB  -11.47c P 93.82% WF  19.0 PSV      19 N      19  --  H4 F4 F5 E5 E2
+
+bName testbot
+wName testbot
+bIdx 0
+wIdx 0
+startPla X
+start
+HASH: 9F0B2D702FC8448C75410E097F089AEB
+   A B C D E F G H J
+ 9 . . . . . . . . .
+ 8 . . . . . . . . .
+ 7 . . . . . . . . .
+ 6 . . . . . . . . .
+ 5 . . . . . . . . .
+ 4 . . . . . . . . .
+ 3 . . . . . . . . .
+ 2 . . . . . . . . .
+ 1 . . . . . . . . .
+
+
+Initial pla Black
+Encore phase 0
+Turns this phase 0
+Rules koSIMPLEscoreTERRITORYtaxNONEsui0komi7.5
+Ko recap block hash 00000000000000000000000000000000
+White bonus score 0
+White handicap bonus score 0
+Has button 0
+Presumed next pla Black
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
+Last moves 
+end
+HASH: BFBE836D87C15D9D3F8AFE8CAE85D33C
+   A B C D E F G H J
+ 9 . . . . . . . . .
+ 8 . . . X O . . . .
+ 7 . . X . X O O . .
+ 6 . . . X X X . . .
+ 5 . . X . . . O . .
+ 4 . . . . O . O O .
+ 3 . . . O . X X O .
+ 2 . . . . . . . X .
+ 1 . . . . . . . . .
+
+
+Initial pla Black
+Encore phase 0
+Turns this phase 20
+Rules koSIMPLEscoreTERRITORYtaxNONEsui0komi7.5
+Ko recap block hash 00000000000000000000000000000000
+White bonus score 0
+White handicap bonus score 0
+Has button 0
+Presumed next pla Black
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
+Last moves E6 D7 C5 F7 F6 G7 G3 D3 E7 E8 C7 E4 D8 G5 D6 G4 F3 H3 H2 H4 
+gameHash 5078BD431C0F1FB5578DF949C9D36C08
+hitTurnLimit 1
+numExtraBlack 0
+mode 4
+beganInEncorePhase 0
+usedInitialPosition 0
+hasFullData 1
+targetWeightByTurn 0 1 unrounded 1.5
+targetWeightByTurn 1 1 unrounded 1.5
+targetWeightByTurn 2 0 unrounded 0
+targetWeightByTurn 3 0 unrounded 0
+targetWeightByTurn 4 0 unrounded 0
+targetWeightByTurn 5 2 unrounded 1.5
+targetWeightByTurn 6 2 unrounded 1.5
+targetWeightByTurn 7 0 unrounded 0
+targetWeightByTurn 8 2 unrounded 1.5
+targetWeightByTurn 9 0 unrounded 0
+targetWeightByTurn 10 1 unrounded 1.5
+targetWeightByTurn 11 1 unrounded 1.5
+targetWeightByTurn 12 0 unrounded 0
+targetWeightByTurn 13 2 unrounded 1.5
+targetWeightByTurn 14 1 unrounded 1.5
+targetWeightByTurn 15 1 unrounded 1.5
+targetWeightByTurn 16 2 unrounded 1.5
+targetWeightByTurn 17 1 unrounded 1.5
+targetWeightByTurn 18 0 unrounded 0
+targetWeightByTurn 19 0 unrounded 0
+policyTargetsByTurn 0 unreducedNumVisits 50 F6 8 E6 10 C5 3 G7 2 B5 1 D4 5 D6 4 F3 1 F4 1 C6 1 D3 1 G6 1 D7 1 C4 1 F7 1 G4 1 E4 1 E3 0 E8 0 E7 1 D5 1 G5 1 
+policyTargetsByTurn 1 unreducedNumVisits 50 D7 7 F4 9 E5 6 F3 10 C4 4 D4 4 E8 1 D3 1 G6 4 G4 1 C6 1 E3 1 E4 1 A1 0 E7 1 G5 1 B4 0 C5 0 D6 0 F6 0 D1 0 G7 1 F5 0 D5 0 
+policyTargetsByTurn 2 unreducedNumVisits 20 D6 11 C5 5 E7 3 
+policyTargetsByTurn 3 unreducedNumVisits 20 E7 9 F7 10 G6 1 G7 1 
+policyTargetsByTurn 4 unreducedNumVisits 20 E7 12 F6 3 G5 3 
+policyTargetsByTurn 5 unreducedNumVisits 50 G7 18 E7 11 G6 3 G8 2 C4 2 B4 1 J3 1 D3 1 G4 1 C7 1 G2 1 G3 1 C6 1 C1 0 H3 0 F3 1 D6 0 
+policyTargetsByTurn 6 unreducedNumVisits 50 G6 15 F3 6 G3 5 E7 6 C7 1 G4 2 F4 1 H9 0 E3 1 H5 1 A6 0 H4 1 E2 1 D1 0 G2 0 G5 0 D6 0 D4 0 
+policyTargetsByTurn 7 unreducedNumVisits 20 C3 11 C6 3 D3 2 C4 2 G5 1 
+policyTargetsByTurn 8 unreducedNumVisits 50 G6 6 B3 7 E7 5 C3 11 C6 2 C4 2 H9 0 E2 2 F3 1 D4 1 E4 1 C7 1 B5 1 B4 2 E3 1 H6 0 F2 1 F4 1 H5 0 D2 1 
+policyTargetsByTurn 9 unreducedNumVisits 20 E8 19 
+policyTargetsByTurn 10 unreducedNumVisits 50 G6 7 F8 10 D4 3 D8 4 B3 6 A8 1 C7 10 D6 2 C3 3 F4 1 B4 2 B7 0 E2 1 E3 1 
+policyTargetsByTurn 11 unreducedNumVisits 50 C8 11 D6 9 G6 2 G4 4 D8 12 B5 1 E4 2 F3 2 C4 2 G9 0 G5 0 F4 0 H5 0 
+policyTargetsByTurn 12 unreducedNumVisits 20 D8 13 G6 5 
+policyTargetsByTurn 13 unreducedNumVisits 50 G4 20 G5 11 D9 4 C8 3 G6 3 H5 2 E9 2 C4 1 B7 0 
+policyTargetsByTurn 14 unreducedNumVisits 50 G6 15 E2 10 F5 7 F4 6 F3 3 A8 0 D6 1 J3 1 H5 1 B4 0 G4 1 C1 0 F2 0 
+policyTargetsByTurn 15 unreducedNumVisits 50 G4 18 G6 5 F3 5 H4 14 F5 2 G8 1 F4 2 C3 0 H5 1 
+policyTargetsByTurn 16 unreducedNumVisits 50 F3 35 G6 4 E2 2 C2 1 D2 1 G8 0 H5 0 B5 0 C3 0 H4 0 
+policyTargetsByTurn 17 unreducedNumVisits 50 F4 28 E2 5 H3 4 E3 2 C4 2 H4 1 B9 0 J5 0 C2 0 F5 0 G6 0 
+policyTargetsByTurn 18 unreducedNumVisits 20 H2 13 F4 5 G6 1 
+policyTargetsByTurn 19 unreducedNumVisits 20 H4 19 
+policySurpriseByTurn 0 0.724319
+policySurpriseByTurn 1 0.730002
+policySurpriseByTurn 2 0.0393944
+policySurpriseByTurn 3 0.202874
+policySurpriseByTurn 4 0.109385
+policySurpriseByTurn 5 0.751648
+policySurpriseByTurn 6 0.796976
+policySurpriseByTurn 7 0.163313
+policySurpriseByTurn 8 0.556608
+policySurpriseByTurn 9 0.010804
+policySurpriseByTurn 10 0.540358
+policySurpriseByTurn 11 0.58233
+policySurpriseByTurn 12 0.121419
+policySurpriseByTurn 13 0.472328
+policySurpriseByTurn 14 0.42856
+policySurpriseByTurn 15 0.468494
+policySurpriseByTurn 16 0.571902
+policySurpriseByTurn 17 0.579131
+policySurpriseByTurn 18 0.0671908
+policySurpriseByTurn 19 0.0637609
+policyEntropyByTurn 0 4.07274
+policyEntropyByTurn 1 4.02601
+policyEntropyByTurn 2 1.21251
+policyEntropyByTurn 3 1.77469
+policyEntropyByTurn 4 1.287
+policyEntropyByTurn 5 3.83508
+policyEntropyByTurn 6 3.75756
+policyEntropyByTurn 7 1.86292
+policyEntropyByTurn 8 3.70719
+policyEntropyByTurn 9 0.0910248
+policyEntropyByTurn 10 3.55473
+policyEntropyByTurn 11 3.26706
+policyEntropyByTurn 12 1.10523
+policyEntropyByTurn 13 3.17716
+policyEntropyByTurn 14 3.09929
+policyEntropyByTurn 15 2.72224
+policyEntropyByTurn 16 2.80585
+policyEntropyByTurn 17 3.00163
+policyEntropyByTurn 18 1.10732
+policyEntropyByTurn 19 0.332892
+searchEntropyByTurn 0 2.56917
+searchEntropyByTurn 1 2.49258
+searchEntropyByTurn 2 0.959182
+searchEntropyByTurn 3 1.02809
+searchEntropyByTurn 4 0.867563
+searchEntropyByTurn 5 1.92951
+searchEntropyByTurn 6 1.9
+searchEntropyByTurn 7 1.23679
+searchEntropyByTurn 8 2.42992
+searchEntropyByTurn 9 0
+searchEntropyByTurn 10 2.29148
+searchEntropyByTurn 11 1.87197
+searchEntropyByTurn 12 0.590842
+searchEntropyByTurn 13 1.62862
+searchEntropyByTurn 14 1.77745
+searchEntropyByTurn 15 1.62452
+searchEntropyByTurn 16 0.706115
+searchEntropyByTurn 17 1.12656
+searchEntropyByTurn 18 0.765937
+searchEntropyByTurn 19 0
+whiteValueTargetsByTurn 0 0.516576 0.483361 6.27997e-05 1.41194 0.384561 
+whiteValueTargetsByTurn 1 0.475083 0.524852 6.55078e-05 0.260457 -0.823874 
+whiteValueTargetsByTurn 2 0.470358 0.529576 6.64518e-05 0.0514029 - 
+whiteValueTargetsByTurn 3 0.493534 0.506399 6.73183e-05 0.389568 - 
+whiteValueTargetsByTurn 4 0.520506 0.479425 6.84543e-05 0.814365 - 
+whiteValueTargetsByTurn 5 0.455087 0.544847 6.66313e-05 -0.62107 0.122447 
+whiteValueTargetsByTurn 6 0.545119 0.454814 6.72024e-05 1.61822 0.230055 
+whiteValueTargetsByTurn 7 0.536345 0.463588 6.77823e-05 1.30421 - 
+whiteValueTargetsByTurn 8 0.576034 0.423897 6.84824e-05 2.49077 1.38367 
+whiteValueTargetsByTurn 9 0.601521 0.398409 6.90963e-05 3.02592 - 
+whiteValueTargetsByTurn 10 0.59779 0.402139 7.05509e-05 3.34813 3.09756 
+whiteValueTargetsByTurn 11 0.507263 0.492665 7.22331e-05 0.462929 0.652162 
+whiteValueTargetsByTurn 12 0.366925 0.633003 7.23496e-05 -3.59739 - 
+whiteValueTargetsByTurn 13 0.31173 0.688199 7.16545e-05 -5.48696 -5.75948 
+whiteValueTargetsByTurn 14 0.382411 0.617515 7.35503e-05 -3.38559 -4.90078 
+whiteValueTargetsByTurn 15 0.627066 0.372864 6.97464e-05 2.86241 2.08232 
+whiteValueTargetsByTurn 16 0.658907 0.341027 6.57435e-05 3.7002 1.39702 
+whiteValueTargetsByTurn 17 0.557018 0.44291 7.12863e-05 1.10517 1.37601 
+whiteValueTargetsByTurn 18 0.583168 0.416759 7.30368e-05 1.7605 - 
+whiteValueTargetsByTurn 19 0.589151 0.410775 7.46823e-05 2.24655 - 
+whiteValueTargetsByTurn 20 1 0 0 5.5 5.5 
+Raw Stats -0.00780001 1.38568 2.81806
+Raw Stats 0.148144 2.56764 2.42763
+Raw Stats -0.111271 0.0573511 1.21251
+Raw Stats 0.0664735 1.14169 1.77469
+Raw Stats -0.101439 -0.297874 1.287
+Raw Stats 0.0270944 0.614698 0.839541
+Raw Stats -0.0351846 0.0567579 1.63482
+Raw Stats 0.139689 2.25957 1.86292
+Raw Stats 0.0683223 1.70993 1.73795
+Raw Stats 0.0298519 -0.157575 0.0910248
+Raw Stats 0.108778 1.56556 1.79521
+Raw Stats 0.262835 4.23366 0.880342
+Raw Stats -0.238805 -2.26513 1.10523
+Raw Stats -0.336347 -5.78944 1.49491
+Raw Stats -0.331199 -3.01271 1.14827
+Raw Stats 0.28484 2.07133 0.751945
+Raw Stats 0.432243 4.81679 0.350393
+Raw Stats 0.148449 1.0102 0.85282
+Raw Stats 0.139154 1.38359 1.10732
+Raw Stats 0.0116761 -0.0708552 0.332892
+.........
+...XO....
+..XXXOO..
+...XXX...
+..X...O..
+....O.OO.
+...O.XXO.
+.......X.
+.........
+.........
+...XO....
+..XXXOO..
+...XXX...
+..X...O..
+....O.OO.
+...O.XXO.
+.......X.
+.........
+000000000
+000110000
+001111100
+000111000
+001000100
+000010110
+000101110
+000000010
+000000000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 -1.000 1.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 -1.000 -1.000 -1.000 1.000 1.000 0.000 0.000
+ 0.000 0.000 0.000 -1.000 -1.000 -1.000 0.000 0.000 0.000
+ 0.000 0.000 -1.000 0.000 0.000 0.000 1.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 1.000 0.000 1.000 1.000 0.000
+ 0.000 0.000 0.000 1.000 0.000 -1.000 -1.000 1.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 -1.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+trainingWeight 0.35
+binaryInputNCHWPacked
+-109 78 85 77 80 89 1 0 -10 0 {'descr':'|u1','fortran_order':False,'shape':(17,22,11)}                                                              
+FFFFFFFFFFFFFFFFFFFF80000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+FFFFFFFFFFFFFFFFFFFF80000000000000000000000000000001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+FFFFFFFFFFFFFFFFFFFF80000005000000000000000000000001820000000000000000000000000000000000000000000000000000000000000100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000080000000000000000001000000000000000000000000020000000000000000040000000000000000000000010000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+FFFFFFFFFFFFFFFFFFFF80000005000000000000000000000001820000000000000000000000000000000000000000000000000000000000000100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000080000000000000000001000000000000000000000000020000000000000000040000000000000000000000010000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+FFFFFFFFFFFFFFFFFFFF80000000018200000000000000000580000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000008000000000000000000000008000000000000000000100000000000000000000000002000000000000000004000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+FFFFFFFFFFFFFFFFFFFF80000000018200000000000000000580000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000008000000000000000000000008000000000000000000100000000000000000000000002000000000000000004000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+FFFFFFFFFFFFFFFFFFFF80000000018200000800000000000580000000400000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000040000000000000000000000800000000000080000000000000000000000080000000000000000001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+FFFFFFFFFFFFFFFFFFFF80000000018200000800000000000580000000400000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000040000000000000000000000800000000000080000000000000000000000080000000000000000001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+FFFFFFFFFFFFFFFFFFFF80000002018200000800000000040580000000400000000000000000000000000000000000000000000000000000040400000000000000000000000000000000000000000000000000000000000000000000000000000000000004000000000000000000000002000000000000000000000000000000400000000000000000000008000000000000800000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+FFFFFFFFFFFFFFFFFFFF80000405800000004000000000000A01820000080000000000000000000000000000000004000000000000000000040800000000000000000000000000000000000000000000000000000000000000000000000000000000000000080000000000000000000400000000000000000000000200000000000000000000000000000040000000000000000000000800000000000400000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+FFFFFFFFFFFFFFFFFFFF80000405800000404000000000080A01820000080000000000040000000000000000000C00000000000000000000000800000000000000000000000000000000000000000000000000000000000000000000000000000000000008000000000000000000000000000000400000000000000800000000000000000004000000000000000000000002000000000000000000040400000000000000000000040000000000000000000004000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+FFFFFFFFFFFFFFFFFFFF80000405800000404000000000080A01820000080000000000040000000000000000000C00000000000000000000000800000000000000000000000000000000000000000000000000000000000000000000000000000000000008000000000000000000000000000000400000000000000800000000000000000004000000000000000000000002000000000000000000040400000000000000000000040000000000000000000004000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+FFFFFFFFFFFFFFFFFFFF8000080A018200000800000000040580002040400000000000040000000000000000000C00000000000000000000000800000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000200000000000000800000000000000000000000000000040000000000000080000000000000000000400000000000000000000040400000000000000000004040000000000000000000004000000000000000000020000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+FFFFFFFFFFFFFFFFFFFF80000401800020404000000000080A03820000080000000000000000000000000000000400000000000000000000080000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000200000000000000000000000020000000000000080000000000000000000000000000004000000000000008000000000000000000040000000000000000000004040000000000000000000404000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+FFFFFFFFFFFFFFFFFFFF8000080A038200000800000000040180002050400000000000000000000000000000000400000000000000000000080000000000080000000000000000000000000000000000000000000000000000000000000000000000000000000000001000000000000000020000000000000000000000002000000000000008000000000000000000000000000000400000000000040000000000000000000004000000000000000000000404000000000000000000020000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+FFFFFFFFFFFFFFFFFFFF8000080A038200000800000000040180002050400000000000000000000000000000000400000000000000000000080000000000080000000000000000000000000000000000000000000000000000000000000000000000000000000000001000000000000000020000000000000000000000002000000000000008000000000000000000000000000000400000000000040000000000000000000004000000000000000000000404000000000000000000020000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+FFFFFFFFFFFFFFFFFFFF80000401800020504000000000080A03820000180000000000000000000000000000000400000000000000000000080000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000010000000000000000000100000000000000002000000000000000000000000200000000000000800000000000000000000040000000000000000000004000000000000000000000400000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+
+globalInputNC
+-109 78 85 77 80 89 1 0 -10 0 {'descr':'<f4','fortran_order':False,'shape':(17,19)}                                                                 
+0 0 0 0 0 -0.375 0 0 0 1 0 0 0 0 0 0 0 0 0 
+0 0 0 0 0 0.425 0 0 0 1 0 0 0 0 0 0 0 0 0 
+0 0 0 0 0 0.425 0 0 0 1 0 0 0 0 0 0 0 0 0 
+0 0 0 0 0 0.425 0 0 0 1 0 0 0 0 0 0 0 0 0 
+0 0 0 0 0 -0.375 0 0 0 1 0 0 0 0 0 0 0 0 0 
+0 0 0 0 0 -0.375 0 0 0 1 0 0 0 0 0 0 0 0 0 
+0 0 0 0 0 -0.375 0 0 0 1 0 0 0 0 0 0 0 0 0 
+0 0 0 0 0 -0.375 0 0 0 1 0 0 0 0 0 0 0 0 0 
+0 0 0 0 0 -0.375 0 0 0 1 0 0 0 0 0 0 0 0 0 
+0 0 0 0 0 0.425 0 0 0 1 0 0 0 0 0 0 0 0 0 
+0 0 0 0 0 0.425 0 0 0 1 0 0 0 0 0 0 0 0 0 
+0 0 0 0 0 0.425 0 0 0 1 0 0 0 0 0 0 0 0 0 
+0 0 0 0 0 -0.375 0 0 0 1 0 0 0 0 0 0 0 0 0 
+0 0 0 0 0 0.425 0 0 0 1 0 0 0 0 0 0 0 0 0 
+0 0 0 0 0 -0.375 0 0 0 1 0 0 0 0 0 0 0 0 0 
+0 0 0 0 0 -0.375 0 0 0 1 0 0 0 0 0 0 0 0 0 
+0 0 0 0 0 0.425 0 0 0 1 0 0 0 0 0 0 0 0 0 
+
+policyTargetsNCMove
+-109 78 85 77 80 89 1 0 -10 0 {'descr':'<i2','fortran_order':False,'shape':(17,2,82)}                                                               
+0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 1 1 2 0 0 0 0 1 4 10 8 1 0 0 0 1 3 1 0 0 1 0 0 0 0 1 5 1 1 1 0 0 0 0 0 1 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 7 1 0 1 0 0 0 0 1 0 0 0 4 0 0 0 0 0 0 6 0 1 0 0 0 0 4 4 1 9 1 0 0 0 0 0 1 1 10 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
+0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 7 1 0 1 0 0 0 0 1 0 0 0 4 0 0 0 0 0 0 6 0 1 0 0 0 0 4 4 1 9 1 0 0 0 0 0 1 1 10 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 3 0 0 0 0 0 0 0 11 0 0 0 0 0 0 0 5 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
+0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 2 0 0 0 0 1 0 11 0 18 0 0 0 0 1 0 0 0 3 0 0 0 0 0 0 0 0 0 0 0 0 1 2 0 0 0 1 0 0 0 0 0 1 0 1 1 0 1 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 6 0 0 0 0 0 0 0 0 0 0 15 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 1 2 1 0 0 0 0 0 1 6 5 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
+0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 2 0 0 0 0 1 0 11 0 18 0 0 0 0 1 0 0 0 3 0 0 0 0 0 0 0 0 0 0 0 0 1 2 0 0 0 1 0 0 0 0 0 1 0 1 1 0 1 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 6 0 0 0 0 0 0 0 0 0 0 15 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 1 2 1 0 0 0 0 0 1 6 5 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
+0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 6 0 0 0 0 0 0 0 0 0 0 15 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 1 2 1 0 0 0 0 0 1 6 5 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 3 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 2 0 0 0 0 0 0 0 0 11 2 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
+0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 6 0 0 0 0 0 0 0 0 0 0 15 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 1 2 1 0 0 0 0 0 1 6 5 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 3 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 2 0 0 0 0 0 0 0 0 11 2 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
+0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 5 0 0 0 0 0 0 2 0 0 0 6 0 0 0 1 0 0 0 0 0 0 0 0 2 2 1 1 1 0 0 0 0 7 11 0 1 1 0 0 0 0 0 0 1 2 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 19 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
+0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 5 0 0 0 0 0 0 2 0 0 0 6 0 0 0 1 0 0 0 0 0 0 0 0 2 2 1 1 1 0 0 0 0 7 11 0 1 1 0 0 0 0 0 0 1 2 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 19 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
+0 0 0 0 0 0 0 0 0 1 0 0 4 0 10 0 0 0 0 0 10 0 0 0 0 0 0 0 0 0 2 0 0 7 0 0 0 0 0 0 0 0 0 0 0 0 2 0 3 0 1 0 0 0 0 6 3 0 1 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 11 12 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 9 0 0 2 0 0 0 1 0 0 0 0 0 0 0 0 0 2 0 2 0 4 0 0 0 0 0 0 0 2 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
+0 0 0 0 0 0 0 0 0 0 0 11 12 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 9 0 0 2 0 0 0 1 0 0 0 0 0 0 0 0 0 2 0 2 0 4 0 0 0 0 0 0 0 2 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 13 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 5 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
+0 0 0 4 2 0 0 0 0 0 0 3 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 3 0 0 0 0 0 0 0 0 11 2 0 0 0 1 0 0 0 20 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 15 0 0 0 0 0 0 0 7 0 1 0 0 0 0 0 0 6 1 0 0 0 0 0 0 0 3 0 0 1 0 0 0 0 10 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
+0 0 0 4 2 0 0 0 0 0 0 3 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 3 0 0 0 0 0 0 0 0 11 2 0 0 0 1 0 0 0 20 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 15 0 0 0 0 0 0 0 7 0 1 0 0 0 0 0 0 6 1 0 0 0 0 0 0 0 3 0 0 1 0 0 0 0 10 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
+0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 15 0 0 0 0 0 0 0 7 0 1 0 0 0 0 0 0 6 1 0 0 0 0 0 0 0 3 0 0 1 0 0 0 0 10 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 5 0 0 0 0 0 0 0 2 0 1 0 0 0 0 0 0 2 18 14 0 0 0 0 0 0 5 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
+0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 5 0 0 0 0 0 0 0 2 0 1 0 0 0 0 0 0 2 18 14 0 0 0 0 0 0 5 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 4 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 35 0 0 0 0 0 1 1 2 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
+0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 4 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 35 0 0 0 0 0 1 1 2 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 2 0 0 28 0 1 0 0 0 0 0 2 0 0 4 0 0 0 0 0 5 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
+0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 4 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 35 0 0 0 0 0 1 1 2 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 2 0 0 28 0 1 0 0 0 0 0 2 0 0 4 0 0 0 0 0 5 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
+0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 2 0 0 28 0 1 0 0 0 0 0 2 0 0 4 0 0 0 0 0 5 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 5 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 13 0 0 0 0 0 0 0 0 0 0 0 
+
+globalTargetsNC
+-109 78 85 77 80 89 1 0 -10 0 {'descr':'<f4','fortran_order':False,'shape':(17,64)}                                                                 
+0 1 0 -5.5 0.362231 0.637719 5.06899e-05 -1.92168 0.486987 0.512948 6.55176e-05 -0.793741 0.502106 0.497829 6.48423e-05 -0.791316 0.483361 0.516576 6.27997e-05 -1.41194 -5.5 -0.384561 20.0413 0 0 0.35 1 1 1 1 0.724319 4.07274 2.56917 1 1 0 1 1 1 1 1 1.27284e+06 2.43486e+06 358623 991157 3.47659e+06 329611 -7.5 0 0 0 0 1 0 0 4 0 0.00780001 -1.38568 2.81806 50 0 0 1 
+1 0 0 5.5 0.646216 0.353734 4.98405e-05 1.95744 0.512148 0.487786 6.61167e-05 0.657452 0.483363 0.51657 6.64184e-05 0.312436 0.475083 0.524852 6.55078e-05 0.260457 5.5 -0.823874 18.8638 0 0 0.35 1 1 1 1 0.730002 4.02601 2.49258 1 1 0 1 1 1 1 1 1.27284e+06 2.43486e+06 358623 991157 3.47659e+06 329611 8.5 0 0 0 1 1 0 0 4 0 0.148144 2.56764 2.42763 50 -1 0 1 
+1 0 0 5.5 0.695335 0.304621 4.45415e-05 2.45431 0.543892 0.456043 6.54121e-05 1.05305 0.507825 0.492108 6.74438e-05 0.674873 0.455087 0.544847 6.66313e-05 -0.62107 5.5 0.122447 14.1887 0 0 0.35 1 1 1 1 0.751648 3.83508 1.92951 1 1 0 1 1 1 1 1 1.27284e+06 2.43486e+06 358623 991157 3.47659e+06 329611 8.5 0 0 0 5 1 0 0 4 0 0.0270944 0.614698 0.839541 50 -1 0 1 
+1 0 0 5.5 0.695335 0.304621 4.45415e-05 2.45431 0.543892 0.456043 6.54121e-05 1.05305 0.507825 0.492108 6.74438e-05 0.674873 0.455087 0.544847 6.66313e-05 -0.62107 5.5 0.122447 14.1887 0 0 0.35 1 1 1 1 0.751648 3.83508 1.92951 1 1 0 1 1 1 1 1 1.27284e+06 2.43486e+06 358623 991157 3.47659e+06 329611 8.5 0 0 0 5 1 0 0 4 0 0.0270944 0.614698 0.839541 50 -1 0 1 
+0 1 0 -5.5 0.28777 0.712187 4.2992e-05 -2.67004 0.436465 0.563469 6.51433e-05 -1.42213 0.451414 0.548518 6.80708e-05 -1.67483 0.454814 0.545119 6.72024e-05 -1.61822 -5.5 -0.230055 13.0404 0 0 0.35 1 1 1 1 0.796976 3.75756 1.9 1 1 0 1 1 1 1 1 1.27284e+06 2.43486e+06 358623 991157 3.47659e+06 329611 -7.5 0 0 0 6 1 0 0 4 0 0.0351846 -0.0567579 1.63482 50 0 0 1 
+0 1 0 -5.5 0.28777 0.712187 4.2992e-05 -2.67004 0.436465 0.563469 6.51433e-05 -1.42213 0.451414 0.548518 6.80708e-05 -1.67483 0.454814 0.545119 6.72024e-05 -1.61822 -5.5 -0.230055 13.0404 0 0 0.35 1 1 1 1 0.796976 3.75756 1.9 1 1 0 1 1 1 1 1 1.27284e+06 2.43486e+06 358623 991157 3.47659e+06 329611 -7.5 0 0 0 6 1 0 0 4 0 0.0351846 -0.0567579 1.63482 50 0 0 1 
+0 1 0 -5.5 0.262898 0.737063 3.94357e-05 -2.8448 0.425549 0.574387 6.40075e-05 -1.39536 0.437374 0.562557 6.94804e-05 -2.03818 0.423897 0.576034 6.84824e-05 -2.49077 -5.5 -1.38367 10.8088 0 0 0.35 1 1 1 1 0.556608 3.70719 2.42992 1 1 0 1 1 1 1 1 1.27284e+06 2.43486e+06 358623 991157 3.47659e+06 329611 -7.5 0 0 0 8 1 0 0 4 0 -0.0683223 -1.70993 1.73795 50 0 0 1 
+0 1 0 -5.5 0.262898 0.737063 3.94357e-05 -2.8448 0.425549 0.574387 6.40075e-05 -1.39536 0.437374 0.562557 6.94804e-05 -2.03818 0.423897 0.576034 6.84824e-05 -2.49077 -5.5 -1.38367 10.8088 0 0 0.35 1 1 1 1 0.556608 3.70719 2.42992 1 1 0 1 1 1 1 1 1.27284e+06 2.43486e+06 358623 991157 3.47659e+06 329611 -7.5 0 0 0 8 1 0 0 4 0 -0.0683223 -1.70993 1.73795 50 0 0 1 
+0 1 0 -5.5 0.241306 0.758658 3.51747e-05 -2.85867 0.431977 0.567961 6.16817e-05 -0.741163 0.485861 0.514068 7.11411e-05 -0.657363 0.402139 0.59779 7.05509e-05 -3.34813 -5.5 -3.09756 8.59276 0 0 0.35 1 1 1 1 0.540358 3.55473 2.29148 1 1 0 1 1 1 1 1 1.27284e+06 2.43486e+06 358623 991157 3.47659e+06 329611 -7.5 0 0 0 10 1 0 0 4 0 -0.108778 -1.56556 1.79521 50 0 0 1 
+1 0 0 5.5 0.769943 0.230025 3.26932e-05 2.82434 0.561385 0.438555 5.97264e-05 0.166436 0.449468 0.550461 7.15966e-05 -1.41884 0.507263 0.492665 7.22331e-05 0.462929 5.5 0.652162 7.48609 0 0 0.35 1 1 1 1 0.58233 3.26706 1.87197 1 1 0 1 1 1 0 0 1.27284e+06 2.43486e+06 358623 991157 3.47659e+06 329611 8.5 0 0 0 11 1 0 0 4 0 0.262835 4.23366 0.880342 50 -1 0 1 
+1 0 0 5.5 0.817931 0.182042 2.69433e-05 3.45206 0.618818 0.381128 5.35784e-05 0.916429 0.434153 0.565777 7.01455e-05 -2.31021 0.31173 0.688199 7.16545e-05 -5.48696 5.5 -5.75948 5.41708 0 0 0.35 1 1 1 1 0.472328 3.17716 1.62862 1 1 0 1 1 1 1 1 1.27284e+06 2.43486e+06 358623 991157 3.47659e+06 329611 8.5 0 0 0 13 1 0 0 4 0 -0.336347 -5.78944 1.49491 50 -1 0 1 
+1 0 0 5.5 0.817931 0.182042 2.69433e-05 3.45206 0.618818 0.381128 5.35784e-05 0.916429 0.434153 0.565777 7.01455e-05 -2.31021 0.31173 0.688199 7.16545e-05 -5.48696 5.5 -5.75948 5.41708 0 0 0.35 1 1 1 1 0.472328 3.17716 1.62862 1 1 0 1 1 1 1 1 1.27284e+06 2.43486e+06 358623 991157 3.47659e+06 329611 8.5 0 0 0 13 1 0 0 4 0 -0.336347 -5.78944 1.49491 50 -1 0 1 
+0 1 0 -5.5 0.146537 0.853439 2.3807e-05 -4.0791 0.313432 0.686518 4.95933e-05 -2.32811 0.471315 0.528616 6.8981e-05 -0.140992 0.617515 0.382411 7.35503e-05 3.38559 -5.5 4.90078 4.43415 0 0 0.35 1 1 1 1 0.42856 3.09929 1.77745 1 1 0 1 1 1 1 1 1.27284e+06 2.43486e+06 358623 991157 3.47659e+06 329611 -7.5 0 0 0 14 1 0 0 4 0 0.331199 3.01271 1.14827 50 0 0 1 
+1 0 0 5.5 0.88648 0.1135 2.03177e-05 4.60272 0.753561 0.246394 4.43118e-05 3.58775 0.641429 0.358506 6.54554e-05 2.86212 0.627066 0.372864 6.97464e-05 2.86241 5.5 2.08232 3.47121 0 0 0.35 1 1 1 1 0.468494 2.72224 1.62452 1 1 0 1 1 1 1 1 1.27284e+06 2.43486e+06 358623 991157 3.47659e+06 329611 8.5 0 0 0 15 1 0 0 4 0 0.28484 2.07133 0.751945 50 -1 0 1 
+0 1 0 -5.5 0.0953065 0.904677 1.68505e-05 -4.72479 0.218513 0.781448 3.87046e-05 -3.74765 0.347427 0.65251 6.21444e-05 -2.86189 0.341027 0.658907 6.57435e-05 -3.7002 -5.5 -1.39702 2.74769 0 0 0.35 1 1 1 1 0.571902 2.80585 0.706115 1 1 0 1 1 1 1 1 1.27284e+06 2.43486e+06 358623 991157 3.47659e+06 329611 -7.5 0 0 0 16 1 0 0 4 0 -0.432243 -4.81679 0.350393 50 0 0 1 
+0 1 0 -5.5 0.0953065 0.904677 1.68505e-05 -4.72479 0.218513 0.781448 3.87046e-05 -3.74765 0.347427 0.65251 6.21444e-05 -2.86189 0.341027 0.658907 6.57435e-05 -3.7002 -5.5 -1.39702 2.74769 0 0 0.35 1 1 1 1 0.571902 2.80585 0.706115 1 1 0 1 1 1 1 1 1.27284e+06 2.43486e+06 358623 991157 3.47659e+06 329611 -7.5 0 0 0 16 1 0 0 4 0 -0.432243 -4.81679 0.350393 50 0 0 1 
+1 0 0 5.5 0.921916 0.0780703 1.34208e-05 4.79666 0.808464 0.191504 3.27436e-05 3.75812 0.647574 0.352366 5.93674e-05 2.21506 0.557018 0.44291 7.12863e-05 1.10517 5.5 1.37601 2.02822 0 0 0.35 1 1 1 1 0.579131 3.00163 1.12656 1 1 0 1 1 1 1 1 1.27284e+06 2.43486e+06 358623 991157 3.47659e+06 329611 8.5 0 0 0 17 1 0 0 4 0 0.148449 1.0102 0.85282 50 -1 0 1 
+
+scoreDistrN
+-109 78 85 77 80 89 1 0 -10 0 {'descr':'|i1','fortran_order':False,'shape':(17,282)}                                                                
+0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 100 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
+0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 100 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
+0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 100 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
+0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 100 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
+0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 100 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
+0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 100 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
+0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 100 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
+0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 100 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
+0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 100 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
+0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 100 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
+0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 100 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
+0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 100 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
+0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 100 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
+0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 100 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
+0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 100 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
+0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 100 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
+0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 100 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
+
+valueTargetsNCHW
+-109 78 85 77 80 89 1 0 -10 0 {'descr':'|i1','fortran_order':False,'shape':(17,5,9,9)}                                                              
+0 0 0 0 0 0 0 0 0 0 0 0 1 -1 0 0 0 0 0 0 1 1 1 -1 -1 0 0 0 0 0 1 1 1 0 0 0 0 0 1 0 0 0 -1 0 0 0 0 0 0 -1 0 -1 -1 0 0 0 0 -1 0 1 1 -1 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -1 0 -1 -1 0 0 0 0 0 0 1 1 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -1 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 -1 0 0 0 0 0 0 1 0 1 -1 -1 0 0 0 0 0 1 1 1 0 0 0 0 0 1 0 0 0 -1 0 0 0 0 0 0 -1 0 -1 -1 0 0 0 0 -1 0 1 1 -1 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 120 -120 0 0 0 0 0 0 120 120 120 -120 -120 0 0 0 0 0 120 120 120 0 0 0 0 0 120 0 0 0 -120 0 0 0 0 0 0 -120 0 -120 -120 0 0 0 0 -120 0 120 120 -120 0 0 0 0 0 0 0 0 120 0 0 0 0 0 0 0 0 0 0 
+0 0 0 0 0 0 0 0 0 0 0 0 -1 1 0 0 0 0 0 0 -1 -1 -1 1 1 0 0 0 0 0 -1 -1 -1 0 0 0 0 0 -1 0 0 0 1 0 0 0 0 0 0 1 0 1 1 0 0 0 0 1 0 -1 -1 1 0 0 0 0 0 0 0 0 -1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 -1 1 1 0 0 0 0 0 0 -1 -1 0 0 0 0 0 -1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 -1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -1 1 0 0 0 0 0 0 -1 0 -1 1 1 0 0 0 0 0 -1 -1 -1 0 0 0 0 0 -1 0 0 0 1 0 0 0 0 0 0 1 0 1 1 0 0 0 0 1 0 -1 -1 1 0 0 0 0 0 0 0 0 -1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -120 120 0 0 0 0 0 0 -120 -120 -120 120 120 0 0 0 0 0 -120 -120 -120 0 0 0 0 0 -120 0 0 0 120 0 0 0 0 0 0 120 0 120 120 0 0 0 0 120 0 -120 -120 120 0 0 0 0 0 0 0 0 -120 0 0 0 0 0 0 0 0 0 0 
+0 0 0 0 0 0 0 0 0 0 0 0 -1 1 0 0 0 0 0 0 -1 -1 -1 1 1 0 0 0 0 0 -1 -1 -1 0 0 0 0 0 -1 0 0 0 1 0 0 0 0 0 0 1 0 1 1 0 0 0 0 1 0 -1 -1 1 0 0 0 0 0 0 0 0 -1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -1 1 0 0 0 0 0 0 -1 1 -1 1 1 0 0 0 0 0 0 -1 -1 0 0 0 0 0 -1 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 1 0 0 -1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -1 1 0 0 0 0 0 0 -1 0 -1 1 1 0 0 0 0 0 -1 -1 -1 0 0 0 0 0 -1 0 0 0 1 0 0 0 0 0 0 1 0 1 1 0 0 0 0 1 0 -1 -1 1 0 0 0 0 0 0 0 0 -1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -120 120 0 0 0 0 0 0 -120 -120 -120 120 120 0 0 0 0 0 -120 -120 -120 0 0 0 0 0 -120 0 0 0 120 0 0 0 0 0 0 120 0 120 120 0 0 0 0 120 0 -120 -120 120 0 0 0 0 0 0 0 0 -120 0 0 0 0 0 0 0 0 0 0 
+0 0 0 0 0 0 0 0 0 0 0 0 -1 1 0 0 0 0 0 0 -1 -1 -1 1 1 0 0 0 0 0 -1 -1 -1 0 0 0 0 0 -1 0 0 0 1 0 0 0 0 0 0 1 0 1 1 0 0 0 0 1 0 -1 -1 1 0 0 0 0 0 0 0 0 -1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -1 1 0 0 0 0 0 0 -1 1 -1 1 1 0 0 0 0 0 0 -1 -1 0 0 0 0 0 -1 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 1 0 0 -1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -1 1 0 0 0 0 0 0 -1 0 -1 1 1 0 0 0 0 0 -1 -1 -1 0 0 0 0 0 -1 0 0 0 1 0 0 0 0 0 0 1 0 1 1 0 0 0 0 1 0 -1 -1 1 0 0 0 0 0 0 0 0 -1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -120 120 0 0 0 0 0 0 -120 -120 -120 120 120 0 0 0 0 0 -120 -120 -120 0 0 0 0 0 -120 0 0 0 120 0 0 0 0 0 0 120 0 120 120 0 0 0 0 120 0 -120 -120 120 0 0 0 0 0 0 0 0 -120 0 0 0 0 0 0 0 0 0 0 
+0 0 0 0 0 0 0 0 0 0 0 0 1 -1 0 0 0 0 0 0 1 1 1 -1 -1 0 0 0 0 0 1 1 1 0 0 0 0 0 1 0 0 0 -1 0 0 0 0 0 0 -1 0 -1 -1 0 0 0 0 -1 0 1 1 -1 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 -1 0 0 0 0 0 0 1 -1 1 -1 -1 0 0 0 0 0 0 1 1 0 0 0 0 0 1 0 0 0 -1 0 0 0 0 0 0 -1 0 0 0 0 0 0 0 -1 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 -1 0 0 0 0 0 0 1 0 1 -1 -1 0 0 0 0 0 1 1 1 0 0 0 0 0 1 0 0 0 -1 0 0 0 0 0 0 -1 0 -1 -1 0 0 0 0 -1 0 1 1 -1 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 120 -120 0 0 0 0 0 0 120 120 120 -120 -120 0 0 0 0 0 120 120 120 0 0 0 0 0 120 0 0 0 -120 0 0 0 0 0 0 -120 0 -120 -120 0 0 0 0 -120 0 120 120 -120 0 0 0 0 0 0 0 0 120 0 0 0 0 0 0 0 0 0 0 
+0 0 0 0 0 0 0 0 0 0 0 0 1 -1 0 0 0 0 0 0 1 1 1 -1 -1 0 0 0 0 0 1 1 1 0 0 0 0 0 1 0 0 0 -1 0 0 0 0 0 0 -1 0 -1 -1 0 0 0 0 -1 0 1 1 -1 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 -1 0 0 0 0 0 0 1 -1 1 -1 -1 0 0 0 0 0 0 1 1 0 0 0 0 0 1 0 0 0 -1 0 0 0 0 0 0 -1 0 0 0 0 0 0 0 -1 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 -1 0 0 0 0 0 0 1 0 1 -1 -1 0 0 0 0 0 1 1 1 0 0 0 0 0 1 0 0 0 -1 0 0 0 0 0 0 -1 0 -1 -1 0 0 0 0 -1 0 1 1 -1 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 120 -120 0 0 0 0 0 0 120 120 120 -120 -120 0 0 0 0 0 120 120 120 0 0 0 0 0 120 0 0 0 -120 0 0 0 0 0 0 -120 0 -120 -120 0 0 0 0 -120 0 120 120 -120 0 0 0 0 0 0 0 0 120 0 0 0 0 0 0 0 0 0 0 
+0 0 0 0 0 0 0 0 0 0 0 0 1 -1 0 0 0 0 0 0 1 1 1 -1 -1 0 0 0 0 0 1 1 1 0 0 0 0 0 1 0 0 0 -1 0 0 0 0 0 0 -1 0 -1 -1 0 0 0 0 -1 0 1 1 -1 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 -1 0 0 0 0 0 0 1 0 1 -1 -1 0 0 0 0 0 1 1 1 0 0 0 0 0 1 0 0 0 -1 0 0 0 0 0 0 -1 0 -1 0 0 0 0 0 -1 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 -1 0 0 0 0 0 0 1 0 1 -1 -1 0 0 0 0 0 1 1 1 0 0 0 0 0 1 0 0 0 -1 0 0 0 0 0 0 -1 0 -1 -1 0 0 0 0 -1 0 1 1 -1 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 120 -120 0 0 0 0 0 0 120 120 120 -120 -120 0 0 0 0 0 120 120 120 0 0 0 0 0 120 0 0 0 -120 0 0 0 0 0 0 -120 0 -120 -120 0 0 0 0 -120 0 120 120 -120 0 0 0 0 0 0 0 0 120 0 0 0 0 0 0 0 0 0 0 
+0 0 0 0 0 0 0 0 0 0 0 0 1 -1 0 0 0 0 0 0 1 1 1 -1 -1 0 0 0 0 0 1 1 1 0 0 0 0 0 1 0 0 0 -1 0 0 0 0 0 0 -1 0 -1 -1 0 0 0 0 -1 0 1 1 -1 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 -1 0 0 0 0 0 0 1 0 1 -1 -1 0 0 0 0 0 1 1 1 0 0 0 0 0 1 0 0 0 -1 0 0 0 0 0 0 -1 0 -1 0 0 0 0 0 -1 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 -1 0 0 0 0 0 0 1 0 1 -1 -1 0 0 0 0 0 1 1 1 0 0 0 0 0 1 0 0 0 -1 0 0 0 0 0 0 -1 0 -1 -1 0 0 0 0 -1 0 1 1 -1 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 120 -120 0 0 0 0 0 0 120 120 120 -120 -120 0 0 0 0 0 120 120 120 0 0 0 0 0 120 0 0 0 -120 0 0 0 0 0 0 -120 0 -120 -120 0 0 0 0 -120 0 120 120 -120 0 0 0 0 0 0 0 0 120 0 0 0 0 0 0 0 0 0 0 
+0 0 0 0 0 0 0 0 0 0 0 0 1 -1 0 0 0 0 0 0 1 1 1 -1 -1 0 0 0 0 0 1 1 1 0 0 0 0 0 1 0 0 0 -1 0 0 0 0 0 0 -1 0 -1 -1 0 0 0 0 -1 0 1 1 -1 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 -1 0 0 0 0 0 0 1 0 1 -1 -1 0 0 0 0 0 1 1 1 0 0 0 0 0 1 0 0 0 -1 0 0 0 0 0 0 -1 0 -1 0 0 0 0 0 -1 0 1 1 -1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 -1 0 0 0 0 0 0 1 0 1 -1 -1 0 0 0 0 0 1 1 1 0 0 0 0 0 1 0 0 0 -1 0 0 0 0 0 0 -1 0 -1 -1 0 0 0 0 -1 0 1 1 -1 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 120 -120 0 0 0 0 0 0 120 120 120 -120 -120 0 0 0 0 0 120 120 120 0 0 0 0 0 120 0 0 0 -120 0 0 0 0 0 0 -120 0 -120 -120 0 0 0 0 -120 0 120 120 -120 0 0 0 0 0 0 0 0 120 0 0 0 0 0 0 0 0 0 0 
+0 0 0 0 0 0 0 0 0 0 0 0 -1 1 0 0 0 0 0 0 -1 -1 -1 1 1 0 0 0 0 0 -1 -1 -1 0 0 0 0 0 -1 0 0 0 1 0 0 0 0 0 0 1 0 1 1 0 0 0 0 1 0 -1 -1 1 0 0 0 0 0 0 0 0 -1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -1 1 0 0 0 0 0 0 -1 0 -1 1 1 0 0 0 0 0 -1 -1 -1 0 0 0 0 0 -1 0 0 0 1 0 0 0 0 0 0 1 0 1 0 0 0 0 0 1 0 -1 -1 1 0 0 0 0 0 0 0 0 -1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -1 1 0 0 0 0 0 0 -1 0 -1 1 1 0 0 0 0 0 -1 -1 -1 0 0 0 0 0 -1 0 0 0 1 0 0 0 0 0 0 1 0 1 1 0 0 0 0 1 0 -1 -1 1 0 0 0 0 0 0 0 0 -1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -120 120 0 0 0 0 0 0 -120 -120 -120 120 120 0 0 0 0 0 -120 -120 -120 0 0 0 0 0 -120 0 0 0 120 0 0 0 0 0 0 120 0 120 120 0 0 0 0 120 0 -120 -120 120 0 0 0 0 0 0 0 0 -120 0 0 0 0 0 0 0 0 0 0 
+0 0 0 0 0 0 0 0 0 0 0 0 -1 1 0 0 0 0 0 0 -1 -1 -1 1 1 0 0 0 0 0 -1 -1 -1 0 0 0 0 0 -1 0 0 0 1 0 0 0 0 0 0 1 0 1 1 0 0 0 0 1 0 -1 -1 1 0 0 0 0 0 0 0 0 -1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -1 1 0 0 0 0 0 0 -1 0 -1 1 1 0 0 0 0 0 -1 -1 -1 0 0 0 0 0 -1 0 0 0 1 0 0 0 0 0 0 1 0 1 1 0 0 0 0 1 0 -1 -1 1 0 0 0 0 0 0 0 0 -1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -1 1 0 0 0 0 0 0 -1 0 -1 1 1 0 0 0 0 0 -1 -1 -1 0 0 0 0 0 -1 0 0 0 1 0 0 0 0 0 0 1 0 1 1 0 0 0 0 1 0 -1 -1 1 0 0 0 0 0 0 0 0 -1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -120 120 0 0 0 0 0 0 -120 -120 -120 120 120 0 0 0 0 0 -120 -120 -120 0 0 0 0 0 -120 0 0 0 120 0 0 0 0 0 0 120 0 120 120 0 0 0 0 120 0 -120 -120 120 0 0 0 0 0 0 0 0 -120 0 0 0 0 0 0 0 0 0 0 
+0 0 0 0 0 0 0 0 0 0 0 0 -1 1 0 0 0 0 0 0 -1 -1 -1 1 1 0 0 0 0 0 -1 -1 -1 0 0 0 0 0 -1 0 0 0 1 0 0 0 0 0 0 1 0 1 1 0 0 0 0 1 0 -1 -1 1 0 0 0 0 0 0 0 0 -1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -1 1 0 0 0 0 0 0 -1 0 -1 1 1 0 0 0 0 0 -1 -1 -1 0 0 0 0 0 -1 0 0 0 1 0 0 0 0 0 0 1 0 1 1 0 0 0 0 1 0 -1 -1 1 0 0 0 0 0 0 0 0 -1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -1 1 0 0 0 0 0 0 -1 0 -1 1 1 0 0 0 0 0 -1 -1 -1 0 0 0 0 0 -1 0 0 0 1 0 0 0 0 0 0 1 0 1 1 0 0 0 0 1 0 -1 -1 1 0 0 0 0 0 0 0 0 -1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -120 120 0 0 0 0 0 0 -120 -120 -120 120 120 0 0 0 0 0 -120 -120 -120 0 0 0 0 0 -120 0 0 0 120 0 0 0 0 0 0 120 0 120 120 0 0 0 0 120 0 -120 -120 120 0 0 0 0 0 0 0 0 -120 0 0 0 0 0 0 0 0 0 0 
+0 0 0 0 0 0 0 0 0 0 0 0 1 -1 0 0 0 0 0 0 1 1 1 -1 -1 0 0 0 0 0 1 1 1 0 0 0 0 0 1 0 0 0 -1 0 0 0 0 0 0 -1 0 -1 -1 0 0 0 0 -1 0 1 1 -1 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 -1 0 0 0 0 0 0 1 0 1 -1 -1 0 0 0 0 0 1 1 1 0 0 0 0 0 1 0 0 0 -1 0 0 0 0 0 0 -1 0 -1 -1 0 0 0 0 -1 0 1 1 -1 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 -1 0 0 0 0 0 0 1 0 1 -1 -1 0 0 0 0 0 1 1 1 0 0 0 0 0 1 0 0 0 -1 0 0 0 0 0 0 -1 0 -1 -1 0 0 0 0 -1 0 1 1 -1 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 120 -120 0 0 0 0 0 0 120 120 120 -120 -120 0 0 0 0 0 120 120 120 0 0 0 0 0 120 0 0 0 -120 0 0 0 0 0 0 -120 0 -120 -120 0 0 0 0 -120 0 120 120 -120 0 0 0 0 0 0 0 0 120 0 0 0 0 0 0 0 0 0 0 
+0 0 0 0 0 0 0 0 0 0 0 0 -1 1 0 0 0 0 0 0 -1 -1 -1 1 1 0 0 0 0 0 -1 -1 -1 0 0 0 0 0 -1 0 0 0 1 0 0 0 0 0 0 1 0 1 1 0 0 0 0 1 0 -1 -1 1 0 0 0 0 0 0 0 0 -1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -1 1 0 0 0 0 0 0 -1 0 -1 1 1 0 0 0 0 0 -1 -1 -1 0 0 0 0 0 -1 0 0 0 1 0 0 0 0 0 0 1 0 1 1 0 0 0 0 1 0 -1 -1 1 0 0 0 0 0 0 0 0 -1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -1 1 0 0 0 0 0 0 -1 0 -1 1 1 0 0 0 0 0 -1 -1 -1 0 0 0 0 0 -1 0 0 0 1 0 0 0 0 0 0 1 0 1 1 0 0 0 0 1 0 -1 -1 1 0 0 0 0 0 0 0 0 -1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -120 120 0 0 0 0 0 0 -120 -120 -120 120 120 0 0 0 0 0 -120 -120 -120 0 0 0 0 0 -120 0 0 0 120 0 0 0 0 0 0 120 0 120 120 0 0 0 0 120 0 -120 -120 120 0 0 0 0 0 0 0 0 -120 0 0 0 0 0 0 0 0 0 0 
+0 0 0 0 0 0 0 0 0 0 0 0 1 -1 0 0 0 0 0 0 1 1 1 -1 -1 0 0 0 0 0 1 1 1 0 0 0 0 0 1 0 0 0 -1 0 0 0 0 0 0 -1 0 -1 -1 0 0 0 0 -1 0 1 1 -1 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 -1 0 0 0 0 0 0 1 0 1 -1 -1 0 0 0 0 0 1 1 1 0 0 0 0 0 1 0 0 0 -1 0 0 0 0 0 0 -1 0 -1 -1 0 0 0 0 -1 0 1 1 -1 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 -1 0 0 0 0 0 0 1 0 1 -1 -1 0 0 0 0 0 1 1 1 0 0 0 0 0 1 0 0 0 -1 0 0 0 0 0 0 -1 0 -1 -1 0 0 0 0 -1 0 1 1 -1 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 120 -120 0 0 0 0 0 0 120 120 120 -120 -120 0 0 0 0 0 120 120 120 0 0 0 0 0 120 0 0 0 -120 0 0 0 0 0 0 -120 0 -120 -120 0 0 0 0 -120 0 120 120 -120 0 0 0 0 0 0 0 0 120 0 0 0 0 0 0 0 0 0 0 
+0 0 0 0 0 0 0 0 0 0 0 0 1 -1 0 0 0 0 0 0 1 1 1 -1 -1 0 0 0 0 0 1 1 1 0 0 0 0 0 1 0 0 0 -1 0 0 0 0 0 0 -1 0 -1 -1 0 0 0 0 -1 0 1 1 -1 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 -1 0 0 0 0 0 0 1 0 1 -1 -1 0 0 0 0 0 1 1 1 0 0 0 0 0 1 0 0 0 -1 0 0 0 0 0 0 -1 0 -1 -1 0 0 0 0 -1 0 1 1 -1 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 -1 0 0 0 0 0 0 1 0 1 -1 -1 0 0 0 0 0 1 1 1 0 0 0 0 0 1 0 0 0 -1 0 0 0 0 0 0 -1 0 -1 -1 0 0 0 0 -1 0 1 1 -1 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 120 -120 0 0 0 0 0 0 120 120 120 -120 -120 0 0 0 0 0 120 120 120 0 0 0 0 0 120 0 0 0 -120 0 0 0 0 0 0 -120 0 -120 -120 0 0 0 0 -120 0 120 120 -120 0 0 0 0 0 0 0 0 120 0 0 0 0 0 0 0 0 0 0 
+0 0 0 0 0 0 0 0 0 0 0 0 -1 1 0 0 0 0 0 0 -1 -1 -1 1 1 0 0 0 0 0 -1 -1 -1 0 0 0 0 0 -1 0 0 0 1 0 0 0 0 0 0 1 0 1 1 0 0 0 0 1 0 -1 -1 1 0 0 0 0 0 0 0 0 -1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -1 1 0 0 0 0 0 0 -1 0 -1 1 1 0 0 0 0 0 -1 -1 -1 0 0 0 0 0 -1 0 0 0 1 0 0 0 0 0 0 1 0 1 1 0 0 0 0 1 0 -1 -1 1 0 0 0 0 0 0 0 0 -1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -1 1 0 0 0 0 0 0 -1 0 -1 1 1 0 0 0 0 0 -1 -1 -1 0 0 0 0 0 -1 0 0 0 1 0 0 0 0 0 0 1 0 1 1 0 0 0 0 1 0 -1 -1 1 0 0 0 0 0 0 0 0 -1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -120 120 0 0 0 0 0 0 -120 -120 -120 120 120 0 0 0 0 0 -120 -120 -120 0 0 0 0 0 -120 0 0 0 120 0 0 0 0 0 0 120 0 120 120 0 0 0 0 120 0 -120 -120 120 0 0 0 0 0 0 0 0 -120 0 0 0 0 0 0 0 0 0 0 
+
+Turn number initial 40 selfplay with high early temperatures
+: MoveNum: 0 HASH: 9F0B2D702FC8448C75410E097F089AEB
+   A B C D E F G H J
+ 9 . . . . . . . . .
+ 8 . . . . . . . . .
+ 7 . . . . . . . . .
+ 6 . . . . . @ . . .
+ 5 . . . . . . . . .
+ 4 . . . . . . . . .
+ 3 . . . . . . . . .
+ 2 . . . . . . . . .
+ 1 . . . . . . . . .
+
+
+Rules: koSIMPLEscoreTERRITORYtaxNONEsui0komi7.5
+Root visits: 50
+Policy surprise 0.243668
+Raw WL -0.00780001
+PV: F6 D4 C6
+Tree:
+: T   2.47c W   0.51c S   0.34c ( +1.2 L  +1.2) N      50  --  F6 D4 C6
+---Black(v)---
+F6  : T  -0.47c W  -3.00c S  -0.10c ( +0.8 L  +0.8) LCB   21.20c P 10.67% WF   7.1 PSV       7 N       7  --  F6 D4 C6
+D4  : T   2.20c W  -0.48c S  -0.27c ( +0.7 L  +0.7) LCB   23.34c P 10.38% WF   7.0 PSV       7 N       7  --  D4 F4 F6
+D6  : T  -1.87c W  -3.61c S  -0.31c ( +0.7 L  +0.7) LCB   33.58c P  6.84% WF   5.1 PSV       5 N       5  --  D6 F4 D3
+F4  : T  -4.17c W  -4.49c S   0.34c ( +1.2 L  +1.2) LCB   33.00c P  6.63% WF   5.1 PSV       5 N       5  --  F4 D4
+E6  : T  -0.75c W  -2.78c S  -0.19c ( +0.8 L  +0.8) LCB   39.98c P  5.85% WF   5.0 PSV       4 N       5  --  E6 D4 F4
+D3  : T   5.94c W   3.80c S   0.69c ( +1.4 L  +1.4) LCB   57.04c P  5.97% WF   4.0 PSV       3 N       4  --  D3 D6 F6
+C6  : T  -0.96c W  -1.18c S   0.26c ( +1.1 L  +1.1) LCB   78.38c P  4.79% WF   3.0 PSV       3 N       3  --  C6 F4
+C5  : T   7.67c W   4.58c S   0.63c ( +1.4 L  +1.4) LCB   82.93c P  4.59% WF   2.9 PSV       2 N       3  --  C5 F4 F6
+C4  : T   5.95c W   2.96c S   0.36c ( +1.2 L  +1.2) LCB   81.63c P  4.53% WF   3.0 PSV       2 N       3  --  C4 F4 F6
+F3  : T   9.03c W   7.18c S   1.89c ( +2.3 L  +2.3) LCB  161.61c P  5.26% WF   2.0 PSV       2 N       2  --  F3 F6
+
+: MoveNum: 1 HASH: 1D94FF0067800B65D520C15EBA480341
+   A B C D E F G H J
+ 9 . . . . . . . . .
+ 8 . . . . . . . . .
+ 7 . . . . . . . . .
+ 6 . . . . . X1. . .
+ 5 . . . . . . . . .
+ 4 . . . . . @ . . .
+ 3 . . . . . . . . .
+ 2 . . . . . . . . .
+ 1 . . . . . . . . .
+
+
+Rules: koSIMPLEscoreTERRITORYtaxNONEsui0komi7.5
+Root visits: 50
+Policy surprise 0.230996
+Raw WL 0.10838
+PV: F4 D3 D4 C4
+Tree:
+: T  -1.74c W  -1.59c S  -0.73c ( +0.9 L  +0.9) N      50  --  F4 D3 D4 C4
+---White(^)---
+F4  : T   1.03c W  -0.01c S  -0.24c ( +1.3 L  +1.3) LCB   -9.31c P 14.66% WF  10.1 PSV      10 N      10  --  F4 D3 D4 C4
+D4  : T   3.84c W   3.49c S  -0.05c ( +1.4 L  +1.4) LCB   -9.30c P 13.05% WF   9.2 PSV       9 N       9  --  D4 C6 G4 F4
+D6  : T   1.55c W   1.76c S  -0.20c ( +1.3 L  +1.3) LCB  -18.03c P 10.24% WF   7.1 PSV       7 N       7  --  D6 D4 F4
+G4  : T  -3.81c W  -2.67c S  -0.88c ( +0.8 L  +0.8) LCB  -32.90c P  8.21% WF   5.0 PSV       5 N       5  --  G4 E3 D7
+F3  : T   0.66c W   0.16c S  -0.48c ( +1.1 L  +1.1) LCB  -28.57c P  7.43% WF   5.0 PSV       5 N       5  --  F3 D3 D6
+C6  : T   3.07c W   2.08c S  -0.56c ( +1.0 L  +1.0) LCB  -42.24c P  6.04% WF   4.1 PSV       4 N       4  --  C6 C4 F3
+D3  : T  -6.52c W  -5.91c S  -1.51c ( +0.3 L  +0.3) LCB  -80.94c P  5.71% WF   3.0 PSV       3 N       3  --  D3 C6 G4
+C4  : T -17.11c W -14.24c S  -2.87c ( -0.6 L  -0.6) LCB -367.11c P  4.59% WF   1.0 PSV       1 N       1  --  C4
+D7  : T -13.11c W -11.52c S  -1.59c ( +0.3 L  +0.3) LCB -363.11c P  3.87% WF   1.0 PSV       1 N       1  --  D7
+E3  : T -21.53c W -18.65c S  -2.88c ( -0.6 L  -0.6) LCB -371.53c P  3.41% WF   1.0 PSV       1 N       1  --  E3
+
+: MoveNum: 2 HASH: C54EE48B03992810589C44A6FA0270DC
+   A B C D E F G H J
+ 9 . . . . . . . . .
+ 8 . . . . . . . . .
+ 7 . . . . . . . . .
+ 6 . . . . . X1. . .
+ 5 . . . . . . . . .
+ 4 . . . @ . O2. . .
+ 3 . . . . . . . . .
+ 2 . . . . . . . . .
+ 1 . . . . . . . . .
+
+
+Rules: koSIMPLEscoreTERRITORYtaxNONEsui0komi7.5
+Root visits: 20
+Policy surprise 0.131154
+Raw WL -0.108521
+PV: D3 D4 C4 D5 E3
+Tree:
+: T   3.68c W   1.94c S   0.72c ( +1.4 L  +1.4) N      20  --  D3 D4 C4 D5 E3
+---Black(v)---
+D3  : T   8.11c W   4.72c S   1.41c ( +1.9 L  +1.9) LCB   20.70c P 37.34% WF   7.9 PSV       8 N       8  --  D3 D4 C4 D5 E3
+D4  : T   1.31c W   0.01c S   0.29c ( +1.0 L  +1.0) LCB   20.49c P 31.21% WF   7.1 PSV       7 N       7  --  D4 D6 E5
+D6  : T   1.27c W   1.55c S   0.52c ( +1.2 L  +1.2) LCB   75.32c P 12.83% WF   3.0 PSV       3 N       3  --  D6 C4
+C4  : T   7.71c W   7.72c S  -0.01c ( +0.8 L  +0.8) LCB  357.71c P  6.79% WF   1.0 PSV       1 N       1  --  C4
+
+: MoveNum: 3 HASH: 00D7F5531DBDF8DFCF71889914D2E319
+   A B C D E F G H J
+ 9 . . . . . . . . .
+ 8 . . . . . . . . .
+ 7 . . . . . . . . .
+ 6 . . . @ . X1. . .
+ 5 . . . . . . . . .
+ 4 . . . X3. O2. . .
+ 3 . . . . . . . . .
+ 2 . . . . . . . . .
+ 1 . . . . . . . . .
+
+
+Rules: koSIMPLEscoreTERRITORYtaxNONEsui0komi7.5
+Root visits: 20
+Policy surprise 0.148618
+Raw WL 0.0184496
+PV: D6 E5 D3 C3
+Tree:
+: T  -3.54c W  -2.67c S  -0.22c ( +0.5 L  +0.5) N      20  --  D6 E5 D3 C3
+---White(^)---
+D6  : T  -3.55c W  -2.06c S  -0.11c ( +0.6 L  +0.6) LCB  -24.33c P 30.05% WF   6.0 PSV       6 N       6  --  D6 E5 D3 C3
+C6  : T  -1.94c W  -2.09c S  -0.20c ( +0.5 L  +0.5) LCB  -32.16c P 21.25% WF   5.0 PSV       5 N       5  --  C6 D6 D7
+D7  : T  -8.74c W  -5.00c S  -0.57c ( +0.3 L  +0.3) LCB  -39.85c P 22.67% WF   4.9 PSV       4 N       5  --  D7 E5 D3
+E5  : T   0.87c W  -2.56c S   0.46c ( +1.0 L  +1.0) LCB  -73.76c P 12.79% WF   3.0 PSV       3 N       3  --  E5 D7 C6
+
+: MoveNum: 4 HASH: 2BC17176360DF11408A0A4A509F445EB
+   A B C D E F G H J
+ 9 . . . . . . . . .
+ 8 . . . . . . . . .
+ 7 . . . . . . . . .
+ 6 . . . O3. X . . .
+ 5 . . . . @ . . . .
+ 4 . . . X2. O1. . .
+ 3 . . . . . . . . .
+ 2 . . . . . . . . .
+ 1 . . . . . . . . .
+
+
+Rules: koSIMPLEscoreTERRITORYtaxNONEsui0komi7.5
+Root visits: 20
+Policy surprise 0.0361765
+Raw WL 0.0343471
+PV: E5 D3 C3 E3 C4 G6
+Tree:
+: T  -3.68c W  -2.77c S  -0.23c ( +0.2 L  +0.2) N      20  --  E5 D3 C3 E3 C4 G6
+---Black(v)---
+E5  : T  -4.19c W  -3.09c S  -0.38c ( +0.1 L  +0.1) LCB    1.00c P 96.45% WF  19.0 PSV      19 N      19  --  E5 D3 C3 E3 C4 G6
+
+: MoveNum: 5 HASH: 8C2D47629298563C46A0E5FBB4797276
+   A B C D E F G H J
+ 9 . . . . . . . . .
+ 8 . . . . . . . . .
+ 7 . . . . . . . . .
+ 6 . . . O2. X . . .
+ 5 . . . . X3. . . .
+ 4 . . . X1. O . . .
+ 3 . . . @ . . . . .
+ 2 . . . . . . . . .
+ 1 . . . . . . . . .
+
+
+Rules: koSIMPLEscoreTERRITORYtaxNONEsui0komi7.5
+Root visits: 50
+Policy surprise 0.282603
+Raw WL 0.0615879
+PV: D3 C3 E3 C4 G6
+Tree:
+: T  -5.87c W  -4.93c S  -0.39c ( -0.2 L  -0.2) N      50  --  D3 C3 E3 C4 G6
+---White(^)---
+D3  : T  -6.85c W  -4.98c S   0.04c ( +0.1 L  +0.1) LCB  -17.86c P 15.43% WF  10.0 PSV      10 N      10  --  D3 C3 E3 C4 G6
+G6  : T  -6.01c W  -4.07c S  -0.52c ( -0.3 L  -0.3) LCB  -19.92c P 13.71% WF  10.0 PSV      10 N      10  --  G6 G7 G5 E7 H7 H8
+F7  : T   0.20c W  -0.72c S   0.02c ( +0.1 L  +0.1) LCB  -14.07c P  7.85% WF   8.2 PSV       8 N       8  --  F7 G7 E7 G5
+C4  : T  -1.83c W  -2.00c S  -0.69c ( -0.4 L  -0.4) LCB  -17.82c P  8.55% WF   7.1 PSV       7 N       7  --  C4 C3 C5 E3
+E3  : T -12.68c W  -8.97c S  -0.82c ( -0.5 L  -0.5) LCB  -87.04c P  4.81% WF   2.9 PSV       2 N       3  --  E3 D3 G6
+D2  : T -15.16c W -11.60c S  -1.87c ( -1.4 L  -1.4) LCB -164.21c P  5.89% WF   1.9 PSV       2 N       2  --  D2 E3
+E8  : T  -9.89c W -10.09c S  -1.50c ( -1.0 L  -1.0) LCB -158.98c P  4.88% WF   2.0 PSV       2 N       2  --  E8 F8
+F8  : T -12.50c W -12.14c S  -0.36c ( -0.2 L  -0.2) LCB -362.50c P  3.44% WF   1.0 PSV       1 N       1  --  F8
+B5  : T -16.66c W -15.82c S  -0.83c ( -0.6 L  -0.6) LCB -366.66c P  3.44% WF   1.0 PSV       1 N       1  --  B5
+C3  : T  -7.52c W  -6.93c S  -0.58c ( -0.4 L  -0.4) LCB -357.52c P  2.94% WF   1.0 PSV       1 N       1  --  C3
+
+: MoveNum: 6 HASH: 3E684D984D80B12640F709761E0A40CE
+   A B C D E F G H J
+ 9 . . . . . . . . .
+ 8 . . . . . . . . .
+ 7 . . . . . . . . .
+ 6 . . . O1. X . . .
+ 5 . . . . X2. . . .
+ 4 . . . X . O . . .
+ 3 . . @ O3. . . . .
+ 2 . . . . . . . . .
+ 1 . . . . . . . . .
+
+
+Rules: koSIMPLEscoreTERRITORYtaxNONEsui0komi7.5
+Root visits: 50
+Policy surprise 0.287127
+Raw WL -0.0613487
+PV: C3 E3 C4 G6 G7 G5
+Tree:
+: T  -0.30c W  -0.39c S   0.01c ( +0.5 L  +0.5) N      50  --  C3 E3 C4 G6 G7 G5
+---Black(v)---
+C3  : T  -6.18c W  -4.71c S  -0.71c ( -0.1 L  -0.1) LCB    2.77c P 49.44% WF  32.8 PSV      32 N      32  --  C3 E3 C4 G6 G7 G5
+C4  : T   5.41c W   2.83c S   0.64c ( +1.0 L  +1.0) LCB   24.74c P 19.88% WF   9.7 PSV       9 N      10  --  C4 C3 E3 E4 F3
+E3  : T   1.54c W  -1.37c S  -0.28c ( +0.3 L  +0.3) LCB   76.06c P  6.76% WF   3.0 PSV       3 N       3  --  E3 E4 D5
+C8  : T  39.31c W  34.11c S   5.20c ( +4.1 L  +4.1) LCB  389.31c P  3.41% WF   0.9 PSV       0 N       1  --  C8
+H6  : T  33.86c W  29.61c S   4.24c ( +3.3 L  +3.3) LCB  383.86c P  2.93% WF   0.9 PSV       0 N       1  --  H6
+A4  : T  64.57c W  55.36c S   9.21c ( +7.3 L  +7.3) LCB  414.57c P  2.69% WF   0.8 PSV       0 N       1  --  A4
+G3  : T  17.37c W  15.24c S   2.13c ( +2.0 L  +2.0) LCB  367.37c P  2.45% WF   1.0 PSV       0 N       1  --  G3
+
+: MoveNum: 7 HASH: E8669AE9D403A2EC9282D0A409B417CE
+   A B C D E F G H J
+ 9 . . . . . . . . .
+ 8 . . . . . . . . .
+ 7 . . . . . . . . .
+ 6 . . . O . X . . .
+ 5 . . . . X1. . . .
+ 4 . . . X . O . . .
+ 3 . . X3O2@ . . . .
+ 2 . . . . . . . . .
+ 1 . . . . . . . . .
+
+
+Rules: koSIMPLEscoreTERRITORYtaxNONEsui0komi7.5
+Root visits: 32
+Policy surprise 0.0447229
+Raw WL -0.0412043
+PV: E3 C4 G6 G7 G5
+Tree:
+: T  -4.93c W  -4.72c S  -0.03c ( -0.1 L  -0.1) N      32  --  E3 C4 G6 G7 G5
+---White(^)---
+E3  : T  -4.90c W  -4.74c S   0.02c ( -0.0 L  -0.0) LCB  -14.03c P 95.63% WF  31.0 PSV      31 N      31  --  E3 C4 G6 G7 G5
+
+: MoveNum: 8 HASH: D79DF5B085506CD7E53A17AE9A84807B
+   A B C D E F G H J
+ 9 . . . . . . . . .
+ 8 . . . . . . . . .
+ 7 . . . . . . . . .
+ 6 . . . O . X . . .
+ 5 . . . . X . . . .
+ 4 . . @ X . O . . .
+ 3 . . X2O1O3. . . .
+ 2 . . . . . . . . .
+ 1 . . . . . . . . .
+
+
+Rules: koSIMPLEscoreTERRITORYtaxNONEsui0komi7.5
+Root visits: 50
+Policy surprise 0.342113
+Raw WL 0.0156506
+PV: C4 F7 G7 E7 G5
+Tree:
+: T  -4.93c W  -2.80c S  -0.93c ( +0.2 L  +0.2) N      50  --  C4 F7 G7 E7 G5
+---Black(v)---
+C4  : T -10.45c W  -6.68c S  -2.12c ( -0.7 L  -0.7) LCB   -0.38c P 39.50% WF  25.5 PSV      25 N      25  --  C4 F7 G7 E7 G5
+C5  : T  -9.14c W  -7.15c S  -1.13c ( +0.0 L  +0.0) LCB    5.37c P 28.54% WF  18.2 PSV      18 N      18  --  C5 C2 G5 G4 E7 B3
+G4  : T  35.66c W  31.13c S   4.53c ( +4.3 L  +4.3) LCB  385.66c P  3.81% WF   0.9 PSV       1 N       1  --  G4
+J8  : T  76.65c W  64.47c S  12.18c (+10.8 L +10.8) LCB  426.65c P  4.69% WF   0.8 PSV       0 N       1  --  J8
+B5  : T  20.96c W  18.84c S   2.11c ( +2.4 L  +2.4) LCB  370.96c P  2.79% WF   0.9 PSV       0 N       1  --  B5
+G5  : T  15.71c W  13.90c S   1.81c ( +2.2 L  +2.2) LCB  365.71c P  2.57% WF   0.9 PSV       0 N       1  --  G5
+E1  : T  61.48c W  51.47c S  10.01c ( +9.4 L  +9.4) LCB  411.48c P  2.49% WF   0.8 PSV       0 N       1  --  E1
+B4  : T   7.24c W   7.78c S  -0.54c ( +0.5 L  +0.5) LCB  357.24c P  2.18% WF   1.0 PSV       0 N       1  --  B4
+
+: MoveNum: 9 HASH: F9BF47989254F456EF1B5C0C2E314642
+   A B C D E F G H J
+ 9 . . . . . . . . .
+ 8 . . . . . . . . .
+ 7 . . . . . . . . .
+ 6 . . . O . X . . .
+ 5 . . . . X . . @ .
+ 4 . . X3X . O . . .
+ 3 . . X1O O2. . . .
+ 2 . . . . . . . . .
+ 1 . . . . . . . . .
+
+
+Rules: koSIMPLEscoreTERRITORYtaxNONEsui0komi7.5
+Root visits: 25
+Policy surprise 0.209979
+Raw WL -0.00486442
+PV: F7 G7 E7 G5
+Tree:
+: T  -8.55c W  -6.68c S  -0.34c ( -0.7 L  -0.7) N      25  --  F7 G7 E7 G5
+---White(^)---
+F7  : T  -1.57c W  -1.25c S  -0.03c ( -0.5 L  -0.5) LCB  -24.04c P 14.55% WF   6.1 PSV       6 N       6  --  F7 G7 E7 G5
+G6  : T -17.05c W -11.66c S  -0.45c ( -0.8 L  -0.8) LCB  -60.42c P 21.29% WF   4.9 PSV       5 N       5  --  G6 G7 G5 E7
+H5  : T  -5.87c W  -4.73c S  -0.11c ( -0.6 L  -0.6) LCB  -36.99c P 15.71% WF   5.1 PSV       5 N       5  --  H5 G7 C7
+F8  : T -13.81c W -11.94c S  -1.29c ( -1.4 L  -1.4) LCB  -87.75c P 12.93% WF   3.0 PSV       3 N       3  --  F8 E7 E8
+G5  : T -12.96c W -10.79c S   0.18c ( -0.3 L  -0.3) LCB  -88.97c P 10.01% WF   3.0 PSV       3 N       3  --  G5 G6 C7
+E8  : T  -5.15c W  -5.42c S  -0.42c ( -0.8 L  -0.8) LCB -154.10c P  8.66% WF   2.0 PSV       2 N       2  --  E8 F8
+
+: MoveNum: 10 HASH: CBF97AA9494145E7AA1AEC6C39BFE157
+   A B C D E F G H J
+ 9 . . . . . . . . .
+ 8 . . . . . . . . .
+ 7 . . . . . . @ . .
+ 6 . . . O . X . . .
+ 5 . . . . X . . O3.
+ 4 . . X2X . O . . .
+ 3 . . X O O1. . . .
+ 2 . . . . . . . . .
+ 1 . . . . . . . . .
+
+
+Rules: koSIMPLEscoreTERRITORYtaxNONEsui0komi7.5
+Root visits: 50
+Policy surprise 0.149065
+Raw WL -0.158798
+PV: G7 C7 D8 C8
+Tree:
+: T  -5.62c W  -5.29c S  -0.93c ( -0.4 L  -0.4) N      50  --  G7 C7 D8 C8
+---Black(v)---
+G7  : T  -8.07c W  -7.76c S  -1.50c ( -1.0 L  -1.0) LCB   13.22c P 25.35% WF  15.2 PSV      15 N      15  --  G7 C7 D8 C8
+H6  : T  -6.22c W  -5.66c S  -0.75c ( -0.3 L  -0.3) LCB   12.63c P 16.24% WF  10.0 PSV       9 N      10  --  H6 G5 G6 C7 D8 E7
+F7  : T -16.41c W -11.72c S  -1.78c ( -1.1 L  -1.1) LCB    3.08c P  9.73% WF   8.3 PSV       8 N       8  --  F7 D8 C7
+E7  : T   4.37c W   0.41c S   0.08c ( +0.3 L  +0.3) LCB   22.62c P 15.96% WF   6.7 PSV       7 N       7  --  E7 G7 G6 H6
+G5  : T  -3.14c W  -3.74c S  -0.51c ( -0.1 L  -0.1) LCB  145.86c P  4.74% WF   2.0 PSV       2 N       2  --  G5 G4
+F8  : T  -8.16c W  -6.88c S  -1.06c ( -0.5 L  -0.5) LCB  140.77c P  4.18% WF   2.0 PSV       2 N       2  --  F8 G7
+G3  : T  16.28c W  11.71c S   1.94c ( +1.8 L  +1.8) LCB  165.56c P  5.22% WF   1.9 PSV       1 N       2  --  G3 G4
+C7  : T  12.04c W  11.58c S   0.46c ( +0.6 L  +0.6) LCB  362.04c P  2.98% WF   1.0 PSV       1 N       1  --  C7
+C6  : T  18.75c W  16.87c S   1.88c ( +1.6 L  +1.6) LCB  368.75c P  2.96% WF   0.9 PSV       1 N       1  --  C6
+E8  : T -10.60c W  -7.46c S  -3.14c ( -2.0 L  -2.0) LCB  339.40c P  2.55% WF   1.0 PSV       1 N       1  --  E8
+
+: MoveNum: 11 HASH: 358A899F54C6CF4A7528C0840161AB25
+   A B C D E F G H J
+ 9 . . . . . . . . .
+ 8 . . . . . . . . .
+ 7 . . . . @ . X3. .
+ 6 . . . O . X . . .
+ 5 . . . . X . . O2.
+ 4 . . X1X . O . . .
+ 3 . . X O O . . . .
+ 2 . . . . . . . . .
+ 1 . . . . . . . . .
+
+
+Rules: koSIMPLEscoreTERRITORYtaxNONEsui0komi7.5
+Root visits: 50
+Policy surprise 0.291895
+Raw WL 0.113524
+PV: E7 C7 C6 B7 B6 D8 E8 B8
+Tree:
+: T  -5.68c W  -5.86c S  -1.58c ( -0.8 L  -0.8) N      50  --  E7 C7 C6 B7 B6 D8 E8
+---White(^)---
+E7  : T  14.54c W   7.68c S   0.87c ( +1.3 L  +1.3) LCB   -2.78c P 20.80% WF  22.7 PSV      21 N      21  --  E7 C7 C6 B7 B6 D8 E8 B8
+C7  : T -20.98c W -14.60c S  -3.16c ( -2.1 L  -2.1) LCB  -40.13c P 20.41% WF   8.5 PSV       9 N       9  --  C7 D8 C8 E7
+B6  : T -28.11c W -23.10c S  -5.37c ( -4.0 L  -4.0) LCB  -66.87c P 15.07% WF   5.5 PSV       6 N       6  --  B6 D8 C8
+D8  : T -16.45c W -12.66c S  -2.95c ( -1.9 L  -1.9) LCB  -57.14c P 11.68% WF   4.8 PSV       5 N       5  --  D8 C7 D7
+C6  : T -22.88c W -14.86c S  -3.06c ( -2.0 L  -2.0) LCB -173.03c P  4.68% WF   1.9 PSV       2 N       2  --  C6 D8
+F5  : T -41.74c W -31.92c S  -6.98c ( -4.9 L  -4.9) LCB -191.09c P  5.17% WF   1.8 PSV       1 N       2  --  F5 E6
+B5  : T -10.82c W -10.52c S  -0.31c ( +0.2 L  +0.2) LCB -360.82c P  3.23% WF   1.0 PSV       1 N       1  --  B5
+B7  : T   0.76c W   0.18c S   0.58c ( +0.9 L  +0.9) LCB -349.24c P  2.32% WF   1.0 PSV       1 N       1  --  B7
+H6  : T -41.64c W -34.11c S  -7.53c ( -5.4 L  -5.4) LCB -391.64c P  2.36% WF   0.9 PSV       0 N       1  --  H6
+A5  : T -55.19c W -45.99c S  -9.21c ( -7.0 L  -7.0) LCB -405.19c P  2.04% WF   0.9 PSV       0 N       1  --  A5
+
+: MoveNum: 12 HASH: EC692683E75C26A03D9F9644577D0C86
+   A B C D E F G H J
+ 9 . . . . . . . . .
+ 8 . . . . . . . . .
+ 7 . . @ . O3. X2. .
+ 6 . . . O . X . . .
+ 5 . . . . X . . O1.
+ 4 . . X X . O . . .
+ 3 . . X O O . . . .
+ 2 . . . . . . . . .
+ 1 . . . . . . . . .
+
+
+Rules: koSIMPLEscoreTERRITORYtaxNONEsui0komi7.5
+Root visits: 21
+Policy surprise 0.137474
+Raw WL -0.0848351
+PV: C7 C6 B7 B6 D8 E8 B8
+Tree:
+: T  13.44c W   7.68c S   0.50c ( +1.3 L  +1.3) N      21  --  C7 C6 B7 B6 D8 E8 B8
+---Black(v)---
+C7  : T  14.54c W   8.49c S   0.53c ( +1.3 L  +1.3) LCB   32.43c P 87.16% WF  20.0 PSV      20 N      20  --  C7 C6 B7 B6 D8 E8 B8
+
+: MoveNum: 13 HASH: FBF57EFD81EE80135428B31B5827CB4D
+   A B C D E F G H J
+ 9 . . . . . . . . .
+ 8 . . . . . . . . .
+ 7 . . X3. O2. X1. .
+ 6 . . @ O . X . . .
+ 5 . . . . X . . O .
+ 4 . . X X . O . . .
+ 3 . . X O O . . . .
+ 2 . . . . . . . . .
+ 1 . . . . . . . . .
+
+
+Rules: koSIMPLEscoreTERRITORYtaxNONEsui0komi7.5
+Root visits: 50
+Policy surprise 0.324512
+Raw WL -0.167669
+PV: C6 B7 B6 D8 E8 B8 D7 D9 E9
+Tree:
+: T   4.52c W  -1.32c S   2.89c ( -0.1 L  -0.1) N      50  --  C6 B7 B6 D8 E8 B8 D7
+---White(^)---
+C6  : T   9.29c W   2.48c S   3.53c ( +0.5 L  +0.5) LCB  -18.84c P 58.90% WF  44.6 PSV      44 N      44  --  C6 B7 B6 D8 E8 B8 D7 D9
+H7  : T -41.92c W -39.88c S  -4.89c ( -6.4 L  -6.4) LCB -191.27c P  6.88% WF   1.7 PSV       2 N       2  --  H7 H8
+G8  : T -36.68c W -34.74c S  -1.94c ( -4.2 L  -4.2) LCB -386.68c P  4.51% WF   0.9 PSV       1 N       1  --  G8
+B6  : T -42.56c W -37.96c S  -4.60c ( -6.4 L  -6.4) LCB -392.56c P  3.11% WF   0.9 PSV       1 N       1  --  B6
+F7  : T -32.63c W -31.36c S  -1.28c ( -3.7 L  -3.7) LCB -382.63c P  3.02% WF   0.9 PSV       1 N       1  --  F7
+
+: MoveNum: 14 HASH: 70505A9B780C492E2904AB091AF36414
+   A B C D E F G H J
+ 9 . . . . . . . . .
+ 8 . . . . . . . . .
+ 7 . . X2. O1. X . .
+ 6 . @ O3O . X . . .
+ 5 . . . . X . . O .
+ 4 . . X X . O . . .
+ 3 . . X O O . . . .
+ 2 . . . . . . . . .
+ 1 . . . . . . . . .
+
+
+Rules: koSIMPLEscoreTERRITORYtaxNONEsui0komi7.5
+Root visits: 50
+Policy surprise 0.307371
+Raw WL 0.0381303
+PV: B7 B6 D8 E8 B8 D7 D9
+Tree:
+: T   3.80c W   0.75c S  -1.34c ( -0.0 L  -0.0) N      50  --  B7 B6 D8 E8 B8 D7 D9
+---Black(v)---
+B7  : T  39.82c W  23.20c S   3.17c ( +4.0 L  +4.0) LCB   75.35c P 36.18% WF  13.0 PSV      15 N      15  --  B7 B6 D8 E8 B8 D7 D9
+B6  : T -45.76c W -34.22c S  -8.86c ( -6.4 L  -6.4) LCB  -21.16c P  7.33% WF  16.5 PSV      14 N      14  --  B6 B5 B7 C5 E8 D8
+B8  : T  14.95c W   9.29c S   0.90c ( +2.0 L  +2.0) LCB   41.85c P 18.61% WF   9.0 PSV       9 N       9  --  B8 B6 D8 E8 B7 D7 D9
+D7  : T  53.58c W  36.27c S   5.35c ( +5.4 L  +5.4) LCB  101.93c P 10.33% WF   3.4 PSV       4 N       4  --  D7 E6 F5 B7
+C8  : T   1.12c W   0.12c S  -0.75c ( +0.5 L  +0.5) LCB   53.45c P  6.80% WF   4.2 PSV       4 N       4  --  C8 B6
+E8  : T  20.53c W  18.97c S   1.56c ( +2.4 L  +2.4) LCB  370.53c P  3.97% WF   1.0 PSV       1 N       1  --  E8
+C5  : T  62.29c W  53.70c S   8.59c ( +8.0 L  +8.0) LCB  412.29c P  3.08% WF   0.9 PSV       1 N       1  --  C5
+F8  : T  21.28c W  19.91c S   1.37c ( +2.3 L  +2.3) LCB  371.28c P  2.22% WF   1.0 PSV       1 N       1  --  F8
+
+: MoveNum: 15 HASH: 04D561B8F9C4FFD1159C425454E3D94E
+   A B C D E F G H J
+ 9 . . . . . . . . .
+ 8 . . . . . . . . .
+ 7 . . X1. O . X . .
+ 6 . X3O2O . X . . .
+ 5 . @ . . X . . O .
+ 4 . . X X . O . . .
+ 3 . . X O O . . . .
+ 2 . . . . . . . . .
+ 1 . . . . . . . . .
+
+
+Rules: koSIMPLEscoreTERRITORYtaxNONEsui0komi7.5
+Root visits: 50
+Policy surprise 0.155355
+Raw WL -0.00402236
+PV: B5 B7 C5 E8 D8 F8 D7
+Tree:
+: T -36.35c W -31.68c S  -6.08c ( -5.7 L  -5.7) N      50  --  B5 B7 C5 E8 D8 F8 D7
+---White(^)---
+B5  : T -34.85c W -31.53c S  -6.14c ( -5.8 L  -5.8) LCB  -58.49c P 54.40% WF  34.3 PSV      34 N      34  --  B5 B7 C5 E8 D8 F8 D7
+B7  : T -56.28c W -40.61c S  -7.81c ( -6.9 L  -6.9) LCB  -96.80c P 12.20% WF   4.6 PSV       5 N       5  --  B7 B8 B5 A7 D8
+H7  : T -33.42c W -30.29c S  -6.08c ( -5.3 L  -5.3) LCB -108.98c P  4.91% WF   3.0 PSV       3 N       3  --  H7 H8
+G8  : T -31.27c W -27.28c S  -4.89c ( -4.5 L  -4.5) LCB -180.24c P  4.44% WF   2.0 PSV       2 N       2  --  G8 H8
+F7  : T -29.07c W -25.00c S  -4.18c ( -4.1 L  -4.1) LCB -178.00c P  3.62% WF   2.0 PSV       2 N       2  --  F7 G6
+F9  : T -63.01c W -53.25c S  -9.77c ( -8.2 L  -8.2) LCB -413.01c P  2.71% WF   0.9 PSV       1 N       1  --  F9
+E4  : T -39.43c W -33.69c S  -5.73c ( -4.9 L  -4.9) LCB -389.43c P  2.35% WF   1.0 PSV       1 N       1  --  E4
+D7  : T -36.82c W -31.37c S  -5.45c ( -4.9 L  -4.9) LCB -386.82c P  2.21% WF   1.0 PSV       1 N       1  --  D7
+
+: MoveNum: 16 HASH: 5CFA70F50F1EF28EB13B57C1F243B8A6
+   A B C D E F G H J
+ 9 . . . . . . . . .
+ 8 . . . . . . . . .
+ 7 . @ X . O . X . .
+ 6 . X2O1O . X . . .
+ 5 . O3. . X . . O .
+ 4 . . X X . O . . .
+ 3 . . X O O . . . .
+ 2 . . . . . . . . .
+ 1 . . . . . . . . .
+
+
+Rules: koSIMPLEscoreTERRITORYtaxNONEsui0komi7.5
+Root visits: 50
+Policy surprise 0.305835
+Raw WL -0.259181
+PV: B7 C5 E8 D8 F8 D7 C8
+Tree:
+: T -31.77c W -27.79c S  -3.94c ( -5.3 L  -5.3) N      50  --  B7 C5 E8 D8 F8 D7 C8
+---Black(v)---
+B7  : T -40.53c W -35.03c S  -5.46c ( -6.6 L  -6.6) LCB  -20.63c P 70.80% WF  44.4 PSV      43 N      43  --  B7 C5 E8 D8 F8 D7 C8
+B8  : T -26.54c W -22.56c S  -3.98c ( -5.3 L  -5.3) LCB  323.46c P  3.40% WF   1.0 PSV       1 N       1  --  B8
+G9  : T  86.00c W  69.46c S  16.54c (+12.4 L +12.4) LCB  436.00c P  4.30% WF   0.7 PSV       0 N       1  --  G9
+J8  : T  90.24c W  72.46c S  17.78c (+13.7 L +13.7) LCB  440.24c P  3.63% WF   0.7 PSV       0 N       1  --  J8
+D7  : T  61.41c W  50.48c S  10.93c ( +6.6 L  +6.6) LCB  411.41c P  3.43% WF   0.7 PSV       0 N       1  --  D7
+J5  : T  69.77c W  56.79c S  12.98c ( +8.9 L  +8.9) LCB  419.77c P  3.22% WF   0.7 PSV       0 N       1  --  J5
+F3  : T  63.42c W  51.23c S  12.18c ( +8.5 L  +8.5) LCB  413.42c P  2.95% WF   0.7 PSV       0 N       1  --  F3
+
+: MoveNum: 17 HASH: C16CD53CDA6C4BF7308CBE456C44684E
+   A B C D E F G H J
+ 9 . . . . . . . . .
+ 8 . . . . . . . . .
+ 7 . X3X . O . X . .
+ 6 . X1O O . X . . .
+ 5 . O2@ . X . . O .
+ 4 . . X X . O . . .
+ 3 . . X O O . . . .
+ 2 . . . . . . . . .
+ 1 . . . . . . . . .
+
+
+Rules: koSIMPLEscoreTERRITORYtaxNONEsui0komi7.5
+Root visits: 50
+Policy surprise 0.278876
+Raw WL -0.467886
+PV: C5 E8 D8 F8 D7 C8
+Tree:
+: T -38.40c W -36.53c S  -0.92c ( -7.0 L  -7.0) N      50  --  C5 E8 D8 F8 D7 C8
+---White(^)---
+C5  : T -23.73c W -25.86c S   0.97c ( -5.3 L  -5.3) LCB  -42.07c P 30.80% WF  29.7 PSV      28 N      28  --  C5 E8 D8 F8 D7 C8
+G8  : T -46.91c W -42.78c S  -3.06c ( -8.8 L  -8.8) LCB  -72.73c P 10.02% WF   5.8 PSV       5 N       6  --  G8 H8 F8 H6
+D7  : T -73.61c W -64.04c S  -5.82c (-10.6 L -10.6) LCB -121.92c P 13.65% WF   3.5 PSV       4 N       4  --  D7 C5 G8
+F7  : T -59.58c W -46.72c S  -4.15c ( -9.8 L  -9.8) LCB -110.34c P 11.44% WF   3.7 PSV       4 N       4  --  F7 G6 C5 D8
+C2  : T -67.69c W -59.11c S  -4.58c ( -9.7 L  -9.7) LCB -217.44c P  6.57% WF   1.8 PSV       2 N       2  --  C2 B2
+H7  : T -59.34c W -56.58c S  -3.67c ( -9.0 L  -9.0) LCB -208.32c P  5.75% WF   1.9 PSV       2 N       2  --  H7 H8
+D8  : T -76.36c W -61.45c S  -4.54c ( -9.7 L  -9.7) LCB -230.37c P  5.20% WF   1.8 PSV       1 N       2  --  D8 C5
+G6  : T -52.51c W -51.86c S  -0.65c ( -6.7 L  -6.7) LCB -402.51c P  2.68% WF   1.0 PSV       1 N       1  --  G6
+
+: MoveNum: 18 HASH: D89CE1A066D584A94A20B8AEB9D27080
+   A B C D E F G H J
+ 9 . . . . . . . . .
+ 8 . . . . @ . . . .
+ 7 . X2X . O . X . .
+ 6 . X O O . X . . .
+ 5 . O1O3. X . . O .
+ 4 . . X X . O . . .
+ 3 . . X O O . . . .
+ 2 . . . . . . . . .
+ 1 . . . . . . . . .
+
+
+Rules: koSIMPLEscoreTERRITORYtaxNONEsui0komi7.5
+Root visits: 28
+Policy surprise 0.113934
+Raw WL -0.330702
+PV: E8 D8 F8 D7 C8
+Tree:
+: T -26.99c W -25.85c S  -2.11c ( -5.3 L  -5.3) N      28  --  E8 D8 F8 D7 C8
+---Black(v)---
+E8  : T -31.29c W -25.57c S  -1.68c ( -4.9 L  -4.9) LCB    1.47c P 32.69% WF  11.2 PSV      11 N      11  --  E8 D8 F8 D7 C8
+D8  : T -21.74c W -24.04c S  -2.21c ( -5.4 L  -5.4) LCB   13.90c P 21.69% WF   5.9 PSV       6 N       6  --  D8 E8 F8
+D7  : T -21.21c W -27.31c S  -1.87c ( -5.1 L  -5.1) LCB   28.71c P 13.17% WF   3.9 PSV       4 N       4  --  D7 E6 F5 D8
+E6  : T   6.55c W  -3.37c S   2.62c ( -1.0 L  -1.0) LCB  158.15c P 11.75% WF   1.8 PSV       2 N       2  --  E6 D7
+B4  : T -48.86c W -43.18c S  -6.41c ( -9.0 L  -9.0) LCB  100.10c P  4.09% WF   2.1 PSV       2 N       2  --  B4 A5
+G5  : T -24.13c W -22.53c S  -1.60c ( -4.8 L  -4.8) LCB  325.87c P  4.31% WF   1.0 PSV       1 N       1  --  G5
+F7  : T -39.80c W -33.84c S  -5.96c ( -9.0 L  -9.0) LCB  310.20c P  3.98% WF   1.0 PSV       1 N       1  --  F7
+
+: MoveNum: 19 HASH: 2B34C51B37E521CAC958B0F6A1BC390D
+   A B C D E F G H J
+ 9 . . . . . . . . .
+ 8 . . . @ X3. . . .
+ 7 . X1X . O . X . .
+ 6 . X O O . X . . .
+ 5 . O O2. X . . O .
+ 4 . . X X . O . . .
+ 3 . . X O O . . . .
+ 2 . . . . . . . . .
+ 1 . . . . . . . . .
+
+
+Rules: koSIMPLEscoreTERRITORYtaxNONEsui0komi7.5
+Root visits: 20
+Policy surprise 0.197608
+Raw WL -0.254571
+PV: D8 F8 D7 C8 D9 C9
+Tree:
+: T -32.97c W -26.68c S  -2.11c ( -5.0 L  -5.0) N      20  --  D8 F8 D7 C8 D9 C9
+---White(^)---
+D8  : T -19.82c W -16.52c S   0.09c ( -3.1 L  -3.1) LCB  -60.99c P 40.78% WF  12.6 PSV      12 N      12  --  D8 F8 D7 C8 D9 C9
+F8  : T -50.64c W -39.11c S  -5.47c ( -7.9 L  -7.9) LCB  -99.39c P 19.93% WF   3.8 PSV       4 N       4  --  F8 D8 F7 G6
+F7  : T -70.96c W -54.52c S  -8.48c ( -9.7 L  -9.7) LCB -222.86c P 17.09% WF   1.8 PSV       2 N       2  --  F7 F8
+C2  : T -72.20c W -63.43c S  -8.77c ( -9.3 L  -9.3) LCB -422.20c P 11.08% WF   0.9 PSV       1 N       1  --  C2
+
+bName testbot
+wName testbot
+bIdx 0
+wIdx 0
+startPla X
+start
+HASH: 9F0B2D702FC8448C75410E097F089AEB
+   A B C D E F G H J
+ 9 . . . . . . . . .
+ 8 . . . . . . . . .
+ 7 . . . . . . . . .
+ 6 . . . . . . . . .
+ 5 . . . . . . . . .
+ 4 . . . . . . . . .
+ 3 . . . . . . . . .
+ 2 . . . . . . . . .
+ 1 . . . . . . . . .
+
+
+Initial pla Black
+Encore phase 0
+Turns this phase 0
+Rules koSIMPLEscoreTERRITORYtaxNONEsui0komi7.5
+Ko recap block hash 00000000000000000000000000000000
+White bonus score 0
+White handicap bonus score 0
+Has button 0
+Presumed next pla Black
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
+Last moves 
+end
+HASH: 44CD7AD1BDB9D94040BE99751EEFFA0A
+   A B C D E F G H J
+ 9 . . . . . . . . .
+ 8 . . . O X . . . .
+ 7 . X X . O . X . .
+ 6 . X O O . X . . .
+ 5 . O O . X . . O .
+ 4 . . X X . O . . .
+ 3 . . X O O . . . .
+ 2 . . . . . . . . .
+ 1 . . . . . . . . .
+
+
+Initial pla Black
+Encore phase 0
+Turns this phase 20
+Rules koSIMPLEscoreTERRITORYtaxNONEsui0komi7.5
+Ko recap block hash 00000000000000000000000000000000
+White bonus score 0
+White handicap bonus score 0
+Has button 0
+Presumed next pla Black
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
+Last moves F6 F4 D4 D6 E5 D3 C3 E3 C4 H5 G7 E7 C7 C6 B6 B5 B7 C5 E8 D8 
+gameHash 5078BD431C0F1FB5578DF949C9D36C08
+hitTurnLimit 1
+numExtraBlack 0
+mode 4
+beganInEncorePhase 0
+usedInitialPosition 0
+hasFullData 1
+targetWeightByTurn 0 1 unrounded 1.5
+targetWeightByTurn 1 1 unrounded 1.5
+targetWeightByTurn 2 0 unrounded 0
+targetWeightByTurn 3 0 unrounded 0
+targetWeightByTurn 4 0 unrounded 0
+targetWeightByTurn 5 2 unrounded 1.5
+targetWeightByTurn 6 2 unrounded 1.5
+targetWeightByTurn 7 0 unrounded 0
+targetWeightByTurn 8 2 unrounded 1.5
+targetWeightByTurn 9 0 unrounded 0
+targetWeightByTurn 10 1 unrounded 1.5
+targetWeightByTurn 11 1 unrounded 1.5
+targetWeightByTurn 12 0 unrounded 0
+targetWeightByTurn 13 2 unrounded 1.5
+targetWeightByTurn 14 1 unrounded 1.5
+targetWeightByTurn 15 1 unrounded 1.5
+targetWeightByTurn 16 2 unrounded 1.5
+targetWeightByTurn 17 1 unrounded 1.5
+targetWeightByTurn 18 0 unrounded 0
+targetWeightByTurn 19 0 unrounded 0
+policyTargetsByTurn 0 unreducedNumVisits 50 F6 10 D4 10 D6 7 F4 7 D3 4 E6 6 F3 3 C6 4 C5 3 C4 3 D7 1 F7 1 G7 1 G6 1 G4 1 
+policyTargetsByTurn 1 unreducedNumVisits 50 F4 10 D4 9 D6 7 G4 5 F3 5 C6 4 D3 3 C4 1 D7 1 E3 1 F8 1 C5 1 C1 0 
+policyTargetsByTurn 2 unreducedNumVisits 20 D3 10 D4 9 D6 4 C4 1 
+policyTargetsByTurn 3 unreducedNumVisits 20 D6 10 D7 7 C6 8 E5 5 
+policyTargetsByTurn 4 unreducedNumVisits 20 E5 19 
+policyTargetsByTurn 5 unreducedNumVisits 50 D3 10 G6 10 C4 7 F7 8 D2 2 E8 2 E3 2 F8 1 B5 1 C3 1 H5 1 B4 1 G5 1 H6 1 
+policyTargetsByTurn 6 unreducedNumVisits 50 C3 32 C4 9 E3 3 C8 0 H6 0 A4 0 G3 0 
+policyTargetsByTurn 7 unreducedNumVisits 32 E3 31 
+policyTargetsByTurn 8 unreducedNumVisits 50 C4 25 C5 18 J8 0 G4 1 B5 0 G5 0 E1 0 B4 0 
+policyTargetsByTurn 9 unreducedNumVisits 25 G6 8 H5 8 F7 10 F8 5 G5 5 E8 3 
+policyTargetsByTurn 10 unreducedNumVisits 50 G7 15 H6 9 E7 7 F7 8 G3 1 G5 2 F8 2 C7 1 C6 1 E8 1 
+policyTargetsByTurn 11 unreducedNumVisits 50 E7 21 C7 9 B6 6 D8 5 F5 1 C6 2 B5 1 H6 0 B7 1 A5 0 
+policyTargetsByTurn 12 unreducedNumVisits 21 C7 20 
+policyTargetsByTurn 13 unreducedNumVisits 50 C6 44 H7 2 G8 1 B6 1 F7 1 
+policyTargetsByTurn 14 unreducedNumVisits 50 B7 15 B8 9 D7 4 B6 14 C8 4 E8 1 C5 1 F8 1 
+policyTargetsByTurn 15 unreducedNumVisits 50 B5 34 B7 5 H7 3 G8 2 F7 2 F9 1 E4 1 D7 1 
+policyTargetsByTurn 16 unreducedNumVisits 50 B7 43 G9 0 J8 0 D7 0 B8 1 J5 0 F3 0 
+policyTargetsByTurn 17 unreducedNumVisits 50 C5 28 D7 4 F7 4 G8 5 C2 2 H7 2 D8 1 G6 1 
+policyTargetsByTurn 18 unreducedNumVisits 28 E8 11 D8 6 D7 4 E6 2 G5 1 B4 2 F7 1 
+policyTargetsByTurn 19 unreducedNumVisits 20 D8 12 F8 4 F7 2 C2 1 
+policySurpriseByTurn 0 0.243668
+policySurpriseByTurn 1 0.230996
+policySurpriseByTurn 2 0.131154
+policySurpriseByTurn 3 0.148618
+policySurpriseByTurn 4 0.0361765
+policySurpriseByTurn 5 0.282603
+policySurpriseByTurn 6 0.287127
+policySurpriseByTurn 7 0.0447229
+policySurpriseByTurn 8 0.342113
+policySurpriseByTurn 9 0.209979
+policySurpriseByTurn 10 0.149065
+policySurpriseByTurn 11 0.291895
+policySurpriseByTurn 12 0.137474
+policySurpriseByTurn 13 0.324512
+policySurpriseByTurn 14 0.307371
+policySurpriseByTurn 15 0.155355
+policySurpriseByTurn 16 0.305835
+policySurpriseByTurn 17 0.278876
+policySurpriseByTurn 18 0.113934
+policySurpriseByTurn 19 0.197608
+policyEntropyByTurn 0 3.22143
+policyEntropyByTurn 1 2.95721
+policyEntropyByTurn 2 1.6468
+policyEntropyByTurn 3 1.83493
+policyEntropyByTurn 4 0.268883
+policyEntropyByTurn 5 3.07859
+policyEntropyByTurn 6 1.90833
+policyEntropyByTurn 7 0.289081
+policyEntropyByTurn 8 2.04295
+policyEntropyByTurn 9 2.29622
+policyEntropyByTurn 10 2.41452
+policyEntropyByTurn 11 2.48181
+policyEntropyByTurn 12 0.686985
+policyEntropyByTurn 13 1.96467
+policyEntropyByTurn 14 2.19149
+policyEntropyByTurn 15 1.95946
+policyEntropyByTurn 16 1.3917
+policyEntropyByTurn 17 2.42244
+policyEntropyByTurn 18 1.99638
+policyEntropyByTurn 19 1.76803
+searchEntropyByTurn 0 2.48149
+searchEntropyByTurn 1 2.17625
+searchEntropyByTurn 2 1.17851
+searchEntropyByTurn 3 1.35489
+searchEntropyByTurn 4 0
+searchEntropyByTurn 5 2.1948
+searchEntropyByTurn 6 0.739317
+searchEntropyByTurn 7 0
+searchEntropyByTurn 8 0.772858
+searchEntropyByTurn 9 1.7271
+searchEntropyByTurn 10 1.86238
+searchEntropyByTurn 11 1.57008
+searchEntropyByTurn 12 0
+searchEntropyByTurn 13 0.465481
+searchEntropyByTurn 14 1.6789
+searchEntropyByTurn 15 1.15688
+searchEntropyByTurn 16 0.108471
+searchEntropyByTurn 17 1.39883
+searchEntropyByTurn 18 1.61268
+searchEntropyByTurn 19 1.01021
+whiteValueTargetsByTurn 0 0.502521 0.497416 6.30395e-05 1.152 0.384561 
+whiteValueTargetsByTurn 1 0.492007 0.507927 6.53752e-05 0.897304 -0.612723 
+whiteValueTargetsByTurn 2 0.509679 0.490254 6.63981e-05 1.35842 - 
+whiteValueTargetsByTurn 3 0.486599 0.513333 6.78005e-05 0.521007 - 
+whiteValueTargetsByTurn 4 0.486136 0.513794 6.96194e-05 0.224694 - 
+whiteValueTargetsByTurn 5 0.475325 0.524605 6.98429e-05 -0.183688 -0.727768 
+whiteValueTargetsByTurn 6 0.49803 0.501899 7.07597e-05 0.463736 -0.890743 
+whiteValueTargetsByTurn 7 0.476346 0.523582 7.15529e-05 -0.0697283 - 
+whiteValueTargetsByTurn 8 0.485982 0.513947 7.1149e-05 0.161469 -0.913281 
+whiteValueTargetsByTurn 9 0.466575 0.533353 7.19791e-05 -0.729985 - 
+whiteValueTargetsByTurn 10 0.473493 0.526432 7.49003e-05 -0.444892 -0.831794 
+whiteValueTargetsByTurn 11 0.470673 0.529247 7.96759e-05 -0.846129 -2.44193 
+whiteValueTargetsByTurn 12 0.538348 0.461569 8.33697e-05 1.25625 - 
+whiteValueTargetsByTurn 13 0.493369 0.506549 8.2112e-05 -0.120046 0.183633 
+whiteValueTargetsByTurn 14 0.503725 0.496193 8.18084e-05 -0.0331989 1.16925 
+whiteValueTargetsByTurn 15 0.341554 0.658363 8.32252e-05 -5.66712 -7.98734 
+whiteValueTargetsByTurn 16 0.361014 0.638902 8.44596e-05 -5.34581 -10.5137 
+whiteValueTargetsByTurn 17 0.317294 0.68262 8.64718e-05 -6.97785 -10.8226 
+whiteValueTargetsByTurn 18 0.370691 0.629219 8.99537e-05 -5.30566 - 
+whiteValueTargetsByTurn 19 0.366548 0.633367 8.48848e-05 -5.03043 - 
+whiteValueTargetsByTurn 20 1 0 0 7.5 7.5 
+Raw Stats -0.00780001 1.38568 2.81806
+Raw Stats 0.10838 2.19074 2.34327
+Raw Stats -0.108521 0.615423 1.6468
+Raw Stats 0.0184496 -0.258791 1.83493
+Raw Stats 0.0343471 2.36774 0.268883
+Raw Stats 0.0615879 0.166883 2.61069
+Raw Stats -0.0613487 0.700051 0.810277
+Raw Stats -0.0412043 -1.38334 0.289081
+Raw Stats 0.0156506 1.30968 0.973594
+Raw Stats -0.00486442 -1.53894 2.29622
+Raw Stats -0.158798 0.435776 1.87827
+Raw Stats 0.113524 0.764452 1.78174
+Raw Stats -0.0848351 0.713959 0.686985
+Raw Stats -0.167669 -4.15357 0.689497
+Raw Stats 0.0381303 1.78188 1.48915
+Raw Stats -0.00402236 -0.745969 0.969791
+Raw Stats -0.259181 -2.94597 0.188158
+Raw Stats -0.467886 -9.5361 1.89305
+Raw Stats -0.330702 -6.59807 1.99638
+Raw Stats -0.254571 -6.53605 1.76803
+.........
+...OX....
+.XX.O.X..
+.XOO.X...
+.OO.X..O.
+..XX.O...
+..XOO....
+.........
+.........
+.........
+...OX....
+.XX.O.X..
+.XOO.X...
+.OO.X..O.
+..XX.O...
+..XOO....
+.........
+.........
+000000000
+000110000
+011010100
+011101000
+011010010
+001101000
+001110000
+000000000
+000000000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 1.000 -1.000 0.000 0.000 0.000 0.000
+ 0.000 -1.000 -1.000 0.000 1.000 0.000 -1.000 0.000 0.000
+ 0.000 -1.000 1.000 1.000 0.000 -1.000 0.000 0.000 0.000
+ 0.000 1.000 1.000 0.000 -1.000 0.000 0.000 1.000 0.000
+ 0.000 0.000 -1.000 -1.000 0.000 1.000 0.000 0.000 0.000
+ 0.000 0.000 -1.000 1.000 1.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+trainingWeight 0.35
+binaryInputNCHWPacked
+-109 78 85 77 80 89 1 0 -10 0 {'descr':'|u1','fortran_order':False,'shape':(17,22,11)}                                                              
+FFFFFFFFFFFFFFFFFFFF80000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+FFFFFFFFFFFFFFFFFFFF80000000000000000000000000000000800000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000080000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+FFFFFFFFFFFFFFFFFFFF80000000020000200000000000000000808080000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000800000000000000000020000000000000000000000000080000000000000000000002000000000000000008000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+FFFFFFFFFFFFFFFFFFFF80000000020000200000000000000000808080000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000800000000000000000020000000000000000000000000080000000000000000000002000000000000000008000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+FFFFFFFFFFFFFFFFFFFF80000000008080800000000000000002000020400000000000000000000000000000000000000000000000000000000000000080400000000000000000000000000000000000000000000000000000000000000000000000000000000000000040000000000000000080000000000000000002000000000000000000000000008000000000000000000000200000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+FFFFFFFFFFFFFFFFFFFF80000000008080800000000000000002000020400000000000000000000000000000000000000000000000000000000000000080400000000000000000000000000000000000000000000000000000000000000000000000000000000000000040000000000000000080000000000000000002000000000000000000000000008000000000000000000000200000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+FFFFFFFFFFFFFFFFFFFF80000000008080808000000000000002000020600000000000000000000000000000000000000000000000000000000000000080800000000000000000000000000000000000000000000000000000000000000000000000000000000000000020000000000000000000008000000000000000000000400000000000000000800000000000000000020000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+FFFFFFFFFFFFFFFFFFFF80000000008080808000000000000002000020600000000000000000000000000000000000000000000000000000000000000080800000000000000000000000000000000000000000000000000000000000000000000000000000000000000020000000000000000000008000000000000000000000400000000000000000800000000000000000020000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+FFFFFFFFFFFFFFFFFFFF80000000008081808000000000000002001020600000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000100000000000000000000001000000000000000000000000200000000000000000000080000000000000000000004000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+FFFFFFFFFFFFFFFFFFFF80000000020010206000000000000080808180800000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000008000000000000000000000000010000000000000000000000100000000000000000000000020000000000000000000008000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+FFFFFFFFFFFFFFFFFFFF80000002020010206000000000000880808180800000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000080000000000000000000002000000000000000000000080000000000000000000000000100000000000000000000001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+FFFFFFFFFFFFFFFFFFFF80000002020010206000000000000880808180800000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000080000000000000000000002000000000000000000000080000000000000000000000000100000000000000000000001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+FFFFFFFFFFFFFFFFFFFF80000008808081808000000000000206001020600000000000000000000000000000000000000000000000000000000800000000000000000000000000000000000000000000000000000000000000000000000000000000000000000400000000000000000008000000000000000000000200000000000000000000008000000000000000000000000010000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+FFFFFFFFFFFFFFFFFFFF80000002060010206000000000000888808180800000000000000000000000000000000000000000000000000000000808000000000000000000000000000000000000000000000000000000000000000000000000000000000000000800000000000000000000040000000000000000000800000000000000000000020000000000000000000000800000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+FFFFFFFFFFFFFFFFFFFF80000008888081808000000000000206041020600000000000000000000000000000000000080000000000000000000800040000000000000000000000000000000000000000000000000000000000000000000000000000000000000004000000000000000000080000000000000000000004000000000000000000080000000000000000000002000000000000000000000008000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+FFFFFFFFFFFFFFFFFFFF80000008888081808000000000000206041020600000000000000000000000000000000000080000000000000000000800040000000000000000000000000000000000000000000000000000000000000000000000000000000000000004000000000000000000080000000000000000000004000000000000000000080000000000000000000002000000000000000000000008000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+FFFFFFFFFFFFFFFFFFFF80000002060410206000000000001888808180800000000000000000000000000000000000000000000000000000000000040000000000000000000000000000000000000000000000000000000000000000000000000000000000100000000000000000000000000400000000000000000008000000000000000000000400000000000000000008000000000000000000000000000000000000000000000800000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+
+globalInputNC
+-109 78 85 77 80 89 1 0 -10 0 {'descr':'<f4','fortran_order':False,'shape':(17,19)}                                                                 
+0 0 0 0 0 -0.375 0 0 0 1 0 0 0 0 0 0 0 0 0 
+0 0 0 0 0 0.425 0 0 0 1 0 0 0 0 0 0 0 0 0 
+0 0 0 0 0 0.425 0 0 0 1 0 0 0 0 0 0 0 0 0 
+0 0 0 0 0 0.425 0 0 0 1 0 0 0 0 0 0 0 0 0 
+0 0 0 0 0 -0.375 0 0 0 1 0 0 0 0 0 0 0 0 0 
+0 0 0 0 0 -0.375 0 0 0 1 0 0 0 0 0 0 0 0 0 
+0 0 0 0 0 -0.375 0 0 0 1 0 0 0 0 0 0 0 0 0 
+0 0 0 0 0 -0.375 0 0 0 1 0 0 0 0 0 0 0 0 0 
+0 0 0 0 0 -0.375 0 0 0 1 0 0 0 0 0 0 0 0 0 
+0 0 0 0 0 0.425 0 0 0 1 0 0 0 0 0 0 0 0 0 
+0 0 0 0 0 0.425 0 0 0 1 0 0 0 0 0 0 0 0 0 
+0 0 0 0 0 0.425 0 0 0 1 0 0 0 0 0 0 0 0 0 
+0 0 0 0 0 -0.375 0 0 0 1 0 0 0 0 0 0 0 0 0 
+0 0 0 0 0 0.425 0 0 0 1 0 0 0 0 0 0 0 0 0 
+0 0 0 0 0 -0.375 0 0 0 1 0 0 0 0 0 0 0 0 0 
+0 0 0 0 0 -0.375 0 0 0 1 0 0 0 0 0 0 0 0 0 
+0 0 0 0 0 0.425 0 0 0 1 0 0 0 0 0 0 0 0 0 
+
+policyTargetsNCMove
+-109 78 85 77 80 89 1 0 -10 0 {'descr':'<i2','fortran_order':False,'shape':(17,2,82)}                                                               
+0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 1 1 0 0 0 0 4 7 6 10 1 0 0 0 0 3 0 0 0 0 0 0 0 0 3 10 0 7 1 0 0 0 0 0 4 0 3 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 1 0 0 0 0 0 0 0 4 7 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 1 9 0 10 5 0 0 0 0 0 3 1 5 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
+0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 1 0 0 0 0 0 0 0 4 7 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 1 9 0 10 5 0 0 0 0 0 3 1 5 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 4 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 9 0 0 0 0 0 0 0 0 10 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
+0 0 0 0 0 0 0 0 0 0 0 0 0 2 1 0 0 0 0 0 0 0 0 8 0 0 0 0 0 0 0 0 0 10 1 0 0 1 0 0 0 0 1 1 0 0 1 7 0 0 0 0 0 0 0 0 1 10 2 0 0 0 0 0 0 0 2 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 9 0 0 0 0 0 0 0 0 32 0 3 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
+0 0 0 0 0 0 0 0 0 0 0 0 0 2 1 0 0 0 0 0 0 0 0 8 0 0 0 0 0 0 0 0 0 10 1 0 0 1 0 0 0 0 1 1 0 0 1 7 0 0 0 0 0 0 0 0 1 10 2 0 0 0 0 0 0 0 2 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 9 0 0 0 0 0 0 0 0 32 0 3 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
+0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 9 0 0 0 0 0 0 0 0 32 0 3 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 31 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
+0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 9 0 0 0 0 0 0 0 0 32 0 3 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 31 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
+0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 18 0 0 0 0 0 0 0 0 25 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 3 5 0 0 0 0 0 0 0 0 10 0 0 0 0 0 0 0 0 0 8 0 0 0 0 0 0 0 0 5 8 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
+0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 18 0 0 0 0 0 0 0 0 25 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 3 5 0 0 0 0 0 0 0 0 10 0 0 0 0 0 0 0 0 0 8 0 0 0 0 0 0 0 0 5 8 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
+0 0 0 0 0 0 0 0 0 0 0 0 0 1 2 0 0 0 0 0 1 0 7 8 15 0 0 0 0 1 0 0 0 0 9 0 0 0 0 0 0 0 2 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 5 0 0 0 0 0 0 1 9 0 21 0 0 0 0 0 6 2 0 0 0 0 0 0 0 1 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
+0 0 0 0 0 0 0 0 0 0 0 0 5 0 0 0 0 0 0 1 9 0 21 0 0 0 0 0 6 2 0 0 0 0 0 0 0 1 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 20 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
+0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 1 0 2 0 0 1 44 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 9 4 0 1 1 0 0 0 0 15 0 4 0 0 0 0 0 0 14 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
+0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 1 0 2 0 0 1 44 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 9 4 0 1 1 0 0 0 0 15 0 4 0 0 0 0 0 0 14 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
+0 0 0 0 0 0 0 0 0 0 9 4 0 1 1 0 0 0 0 15 0 4 0 0 0 0 0 0 14 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 2 0 0 0 5 0 1 0 2 0 3 0 0 0 0 0 0 0 0 0 0 0 34 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
+0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 2 0 0 0 5 0 1 0 2 0 3 0 0 0 0 0 0 0 0 0 0 0 34 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 43 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
+0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 43 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 5 0 0 0 0 0 4 0 4 0 2 0 0 0 0 0 0 0 1 0 0 0 0 28 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 2 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
+0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 43 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 5 0 0 0 0 0 4 0 4 0 2 0 0 0 0 0 0 0 1 0 0 0 0 28 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 2 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
+0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 5 0 0 0 0 0 4 0 4 0 2 0 0 0 0 0 0 0 1 0 0 0 0 28 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 2 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 6 11 0 0 0 0 0 0 0 4 0 1 0 0 0 0 0 0 0 2 0 0 0 0 0 0 0 0 0 0 1 0 0 0 2 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
+
+globalTargetsNC
+-109 78 85 77 80 89 1 0 -10 0 {'descr':'<f4','fortran_order':False,'shape':(17,64)}                                                                 
+0 1 0 -7.5 0.392493 0.607453 5.41919e-05 -1.5696 0.502426 0.497507 6.75941e-05 -0.518681 0.502167 0.497767 6.51994e-05 -0.960147 0.497416 0.502521 6.30395e-05 -1.152 -7.5 -0.384561 34.4225 0 0 0.35 1 1 1 1 0.243668 3.22143 2.48149 1 1 0 1 1 1 1 1 1.27284e+06 2.43486e+06 358623 991157 3.47659e+06 329611 -7.5 0 0 0 0 1 0 0 4 40 0.00780001 -1.38568 2.81806 50 0 0 1 
+1 0 0 7.5 0.614813 0.385133 5.35713e-05 1.5989 0.496401 0.50353 6.85982e-05 0.37906 0.494099 0.505834 6.68659e-05 0.812111 0.492007 0.507927 6.53752e-05 0.897304 7.5 -0.612723 32.6546 0 0 0.35 1 1 1 1 0.230996 2.95721 2.17625 1 1 0 1 1 1 1 1 1.27284e+06 2.43486e+06 358623 991157 3.47659e+06 329611 8.5 0 0 0 1 1 0 0 4 40 0.10838 2.19074 2.34327 50 -1 0 1 
+1 0 0 7.5 0.652467 0.347484 4.93323e-05 1.85584 0.498702 0.501227 7.06018e-05 -0.154397 0.48174 0.518189 7.09928e-05 -0.0252395 0.475325 0.524605 6.98429e-05 -0.183688 7.5 -0.727768 25.5931 0 0 0.35 1 1 1 1 0.282603 3.07859 2.19479 1 1 0 1 1 1 1 1 1.27284e+06 2.43486e+06 358623 991157 3.47659e+06 329611 8.5 0 0 0 5 1 0 0 4 40 0.0615879 0.166883 2.61069 50 -1 0 1 
+1 0 0 7.5 0.652467 0.347484 4.93323e-05 1.85584 0.498702 0.501227 7.06018e-05 -0.154397 0.48174 0.518189 7.09928e-05 -0.0252395 0.475325 0.524605 6.98429e-05 -0.183688 7.5 -0.727768 25.5931 0 0 0.35 1 1 1 1 0.282603 3.07859 2.19479 1 1 0 1 1 1 1 1 1.27284e+06 2.43486e+06 358623 991157 3.47659e+06 329611 8.5 0 0 0 5 1 0 0 4 40 0.0615879 0.166883 2.61069 50 -1 0 1 
+0 1 0 -7.5 0.33506 0.664892 4.78935e-05 -1.9989 0.496074 0.503856 7.07692e-05 0.147939 0.513239 0.486689 7.188e-05 -0.0970202 0.501899 0.49803 7.07597e-05 -0.463736 -7.5 0.890743 23.8295 0 0 0.35 1 1 1 1 0.287127 1.90833 0.739317 1 1 0 1 1 1 1 1 1.27284e+06 2.43486e+06 358623 991157 3.47659e+06 329611 -7.5 0 0 0 6 1 0 0 4 40 0.0613487 -0.700051 0.810277 50 0 0 1 
+0 1 0 -7.5 0.33506 0.664892 4.78935e-05 -1.9989 0.496074 0.503856 7.07692e-05 0.147939 0.513239 0.486689 7.188e-05 -0.0970202 0.501899 0.49803 7.07597e-05 -0.463736 -7.5 0.890743 23.8295 0 0 0.35 1 1 1 1 0.287127 1.90833 0.739317 1 1 0 1 1 1 1 1 1.27284e+06 2.43486e+06 358623 991157 3.47659e+06 329611 -7.5 0 0 0 6 1 0 0 4 40 0.0613487 -0.700051 0.810277 50 0 0 1 
+0 1 0 -7.5 0.309312 0.690644 4.45175e-05 -2.25925 0.488441 0.511488 7.05989e-05 0.329759 0.520758 0.479168 7.36638e-05 0.275609 0.513947 0.485982 7.1149e-05 -0.161469 -7.5 0.913281 20.3084 0 0 0.35 1 1 1 1 0.342113 2.04295 0.772858 1 1 0 1 1 1 1 1 1.27284e+06 2.43486e+06 358623 991157 3.47659e+06 329611 -7.5 0 0 0 8 1 0 0 4 40 -0.0156506 -1.30968 0.973594 50 0 0 1 
+0 1 0 -7.5 0.309312 0.690644 4.45175e-05 -2.25925 0.488441 0.511488 7.05989e-05 0.329759 0.520758 0.479168 7.36638e-05 0.275609 0.513947 0.485982 7.1149e-05 -0.161469 -7.5 0.913281 20.3084 0 0 0.35 1 1 1 1 0.342113 2.04295 0.772858 1 1 0 1 1 1 1 1 1.27284e+06 2.43486e+06 358623 991157 3.47659e+06 329611 -7.5 0 0 0 8 1 0 0 4 40 -0.0156506 -1.30968 0.973594 50 0 0 1 
+0 1 0 -7.5 0.278235 0.721725 4.0592e-05 -2.6264 0.471678 0.528252 7.01466e-05 0.373696 0.520351 0.47957 7.84014e-05 0.522487 0.526432 0.473493 7.49003e-05 0.444892 -7.5 0.831794 16.7914 0 0 0.35 1 1 1 1 0.149065 2.41452 1.86238 1 1 0 1 1 1 1 1 1.27284e+06 2.43486e+06 358623 991157 3.47659e+06 329611 -7.5 0 0 0 10 1 0 0 4 40 0.158798 -0.435776 1.87827 50 0 0 1 
+1 0 0 7.5 0.739137 0.260825 3.81854e-05 2.84184 0.540324 0.459607 6.90986e-05 -0.358001 0.484259 0.515659 8.11028e-05 -0.582361 0.470673 0.529247 7.96759e-05 -0.846129 7.5 -2.44193 15.0339 0 0 0.35 1 1 1 1 0.291895 2.48181 1.57008 1 1 0 1 1 1 0 0 1.27284e+06 2.43486e+06 358623 991157 3.47659e+06 329611 8.5 0 0 0 11 1 0 0 4 40 0.113524 0.764452 1.78174 50 -1 0 1 
+1 0 0 7.5 0.773374 0.226594 3.19014e-05 3.22991 0.5595 0.440437 6.31065e-05 -0.582541 0.461097 0.538822 8.13041e-05 -1.64048 0.493369 0.506549 8.2112e-05 -0.120046 7.5 0.183633 11.5372 0 0 0.35 1 1 1 1 0.324512 1.96467 0.465481 1 1 0 1 1 1 1 1 1.27284e+06 2.43486e+06 358623 991157 3.47659e+06 329611 8.5 0 0 0 13 1 0 0 4 40 -0.167669 -4.15357 0.689497 50 -1 0 1 
+1 0 0 7.5 0.773374 0.226594 3.19014e-05 3.22991 0.5595 0.440437 6.31065e-05 -0.582541 0.461097 0.538822 8.13041e-05 -1.64048 0.493369 0.506549 8.2112e-05 -0.120046 7.5 0.183633 11.5372 0 0 0.35 1 1 1 1 0.324512 1.96467 0.465481 1 1 0 1 1 1 1 1 1.27284e+06 2.43486e+06 358623 991157 3.47659e+06 329611 8.5 0 0 0 13 1 0 0 4 40 -0.167669 -4.15357 0.689497 50 -1 0 1 
+0 1 0 -7.5 0.206956 0.793015 2.83793e-05 -3.46489 0.425862 0.574079 5.89166e-05 0.684502 0.563724 0.436195 8.06808e-05 2.81365 0.496193 0.503725 8.18084e-05 0.0331989 -7.5 -1.16925 9.80613 0 0 0.35 1 1 1 1 0.307371 2.19149 1.6789 1 1 0 1 1 1 1 1 1.27284e+06 2.43486e+06 358623 991157 3.47659e+06 329611 -7.5 0 0 0 14 1 0 0 4 40 -0.0381303 -1.78188 1.48915 50 0 0 1 
+1 0 0 7.5 0.813308 0.186668 2.46315e-05 3.71027 0.589589 0.410357 5.38699e-05 -0.828087 0.384089 0.615831 7.98107e-05 -4.95906 0.341554 0.658363 8.32252e-05 -5.66712 7.5 -7.98734 8.07546 0 0 0.35 1 1 1 1 0.155355 1.95946 1.15688 1 1 0 1 1 1 1 1 1.27284e+06 2.43486e+06 358623 991157 3.47659e+06 329611 8.5 0 0 0 15 1 0 0 4 40 -0.00402236 -0.745969 0.969791 50 -1 0 1 
+0 1 0 -7.5 0.15358 0.846399 2.05214e-05 -4.36805 0.355682 0.644271 4.73982e-05 -0.23872 0.583014 0.416909 7.7176e-05 4.41272 0.638902 0.361014 8.44596e-05 5.34581 -7.5 10.5137 6.44999 0 0 0.35 1 1 1 1 0.305835 1.3917 0.108471 1 1 0 1 1 1 1 1 1.27284e+06 2.43486e+06 358623 991157 3.47659e+06 329611 -7.5 0 0 0 16 1 0 0 4 40 0.259181 2.94597 0.188158 50 0 0 1 
+0 1 0 -7.5 0.15358 0.846399 2.05214e-05 -4.36805 0.355682 0.644271 4.73982e-05 -0.23872 0.583014 0.416909 7.7176e-05 4.41272 0.638902 0.361014 8.44596e-05 5.34581 -7.5 10.5137 6.44999 0 0 0.35 1 1 1 1 0.305835 1.3917 0.108471 1 1 0 1 1 1 1 1 1.27284e+06 2.43486e+06 358623 991157 3.47659e+06 329611 -7.5 0 0 0 16 1 0 0 4 40 0.259181 2.94597 0.188158 50 0 0 1 
+1 0 0 7.5 0.880447 0.119537 1.60364e-05 5.04944 0.706717 0.293243 3.92277e-05 1.46988 0.460038 0.539891 7.1556e-05 -3.69274 0.317294 0.68262 8.64718e-05 -6.97785 7.5 -10.8226 4.82604 0 0 0.35 1 1 1 1 0.278876 2.42244 1.39883 1 1 0 1 1 1 1 1 1.27284e+06 2.43486e+06 358623 991157 3.47659e+06 329611 8.5 0 0 0 17 1 0 0 4 40 -0.467886 -9.5361 1.89305 50 -1 0 1 
+
+scoreDistrN
+-109 78 85 77 80 89 1 0 -10 0 {'descr':'|i1','fortran_order':False,'shape':(17,282)}                                                                
+0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 100 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
+0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 100 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
+0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 100 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
+0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 100 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
+0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 100 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
+0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 100 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
+0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 100 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
+0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 100 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
+0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 100 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
+0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 100 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
+0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 100 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
+0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 100 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
+0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 100 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
+0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 100 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
+0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 100 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
+0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 100 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
+0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 100 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
+
+valueTargetsNCHW
+-109 78 85 77 80 89 1 0 -10 0 {'descr':'|i1','fortran_order':False,'shape':(17,5,9,9)}                                                              
+0 0 0 0 0 0 0 0 0 0 0 0 -1 1 0 0 0 0 0 1 1 0 -1 0 1 0 0 0 1 -1 -1 0 1 0 0 0 0 -1 -1 0 1 0 0 -1 0 0 0 1 1 0 -1 0 0 0 0 0 1 -1 -1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -1 0 1 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 1 0 -1 0 0 0 0 0 1 -1 -1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -1 1 0 0 0 0 0 1 1 0 -1 0 1 0 0 0 1 -1 -1 0 1 0 0 0 0 -1 -1 0 1 0 0 -1 0 0 0 1 1 0 -1 0 0 0 0 0 1 -1 -1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -120 120 0 0 0 0 0 120 120 0 -120 0 120 0 0 0 120 -120 -120 0 120 0 0 0 0 -120 -120 0 120 0 0 -120 0 0 0 120 120 0 -120 0 0 0 0 0 120 -120 -120 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
+0 0 0 0 0 0 0 0 0 0 0 0 1 -1 0 0 0 0 0 -1 -1 0 1 0 -1 0 0 0 -1 1 1 0 -1 0 0 0 0 1 1 0 -1 0 0 1 0 0 0 -1 -1 0 1 0 0 0 0 0 -1 1 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 -1 0 0 0 0 0 0 0 -1 0 0 0 0 0 0 -1 -1 0 1 0 0 0 0 0 -1 1 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 -1 0 0 0 0 0 -1 -1 0 1 0 -1 0 0 0 -1 1 1 0 -1 0 0 0 0 1 1 0 -1 0 0 1 0 0 0 -1 -1 0 1 0 0 0 0 0 -1 1 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 120 -120 0 0 0 0 0 -120 -120 0 120 0 -120 0 0 0 -120 120 120 0 -120 0 0 0 0 120 120 0 -120 0 0 120 0 0 0 -120 -120 0 120 0 0 0 0 0 -120 120 120 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
+0 0 0 0 0 0 0 0 0 0 0 0 1 -1 0 0 0 0 0 -1 -1 0 1 0 -1 0 0 0 -1 1 1 0 -1 0 0 0 0 1 1 0 -1 0 0 1 0 0 0 -1 -1 0 1 0 0 0 0 0 -1 1 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -1 0 1 0 -1 0 0 0 0 0 1 0 -1 0 0 0 0 0 0 0 -1 0 0 1 0 0 0 -1 -1 0 1 0 0 0 0 0 -1 1 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 -1 0 0 0 0 0 -1 -1 0 1 0 -1 0 0 0 -1 1 1 0 -1 0 0 0 0 1 1 0 -1 0 0 1 0 0 0 -1 -1 0 1 0 0 0 0 0 -1 1 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 120 -120 0 0 0 0 0 -120 -120 0 120 0 -120 0 0 0 -120 120 120 0 -120 0 0 0 0 120 120 0 -120 0 0 120 0 0 0 -120 -120 0 120 0 0 0 0 0 -120 120 120 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
+0 0 0 0 0 0 0 0 0 0 0 0 1 -1 0 0 0 0 0 -1 -1 0 1 0 -1 0 0 0 -1 1 1 0 -1 0 0 0 0 1 1 0 -1 0 0 1 0 0 0 -1 -1 0 1 0 0 0 0 0 -1 1 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -1 0 1 0 -1 0 0 0 0 0 1 0 -1 0 0 0 0 0 0 0 -1 0 0 1 0 0 0 -1 -1 0 1 0 0 0 0 0 -1 1 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 -1 0 0 0 0 0 -1 -1 0 1 0 -1 0 0 0 -1 1 1 0 -1 0 0 0 0 1 1 0 -1 0 0 1 0 0 0 -1 -1 0 1 0 0 0 0 0 -1 1 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 120 -120 0 0 0 0 0 -120 -120 0 120 0 -120 0 0 0 -120 120 120 0 -120 0 0 0 0 120 120 0 -120 0 0 120 0 0 0 -120 -120 0 120 0 0 0 0 0 -120 120 120 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
+0 0 0 0 0 0 0 0 0 0 0 0 -1 1 0 0 0 0 0 1 1 0 -1 0 1 0 0 0 1 -1 -1 0 1 0 0 0 0 -1 -1 0 1 0 0 -1 0 0 0 1 1 0 -1 0 0 0 0 0 1 -1 -1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 -1 0 1 0 0 0 0 -1 -1 0 1 0 0 0 0 0 0 0 1 0 0 -1 0 0 0 1 1 0 -1 0 0 0 0 0 1 -1 -1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -1 1 0 0 0 0 0 1 1 0 -1 0 1 0 0 0 1 -1 -1 0 1 0 0 0 0 -1 -1 0 1 0 0 -1 0 0 0 1 1 0 -1 0 0 0 0 0 1 -1 -1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -120 120 0 0 0 0 0 120 120 0 -120 0 120 0 0 0 120 -120 -120 0 120 0 0 0 0 -120 -120 0 120 0 0 -120 0 0 0 120 120 0 -120 0 0 0 0 0 120 -120 -120 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
+0 0 0 0 0 0 0 0 0 0 0 0 -1 1 0 0 0 0 0 1 1 0 -1 0 1 0 0 0 1 -1 -1 0 1 0 0 0 0 -1 -1 0 1 0 0 -1 0 0 0 1 1 0 -1 0 0 0 0 0 1 -1 -1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 -1 0 1 0 0 0 0 -1 -1 0 1 0 0 0 0 0 0 0 1 0 0 -1 0 0 0 1 1 0 -1 0 0 0 0 0 1 -1 -1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -1 1 0 0 0 0 0 1 1 0 -1 0 1 0 0 0 1 -1 -1 0 1 0 0 0 0 -1 -1 0 1 0 0 -1 0 0 0 1 1 0 -1 0 0 0 0 0 1 -1 -1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -120 120 0 0 0 0 0 120 120 0 -120 0 120 0 0 0 120 -120 -120 0 120 0 0 0 0 -120 -120 0 120 0 0 -120 0 0 0 120 120 0 -120 0 0 0 0 0 120 -120 -120 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
+0 0 0 0 0 0 0 0 0 0 0 0 -1 1 0 0 0 0 0 1 1 0 -1 0 1 0 0 0 1 -1 -1 0 1 0 0 0 0 -1 -1 0 1 0 0 -1 0 0 0 1 1 0 -1 0 0 0 0 0 1 -1 -1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 -1 0 1 0 0 0 1 -1 -1 0 1 0 0 0 0 -1 0 0 1 0 0 -1 0 0 0 1 1 0 -1 0 0 0 0 0 1 -1 -1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -1 1 0 0 0 0 0 1 1 0 -1 0 1 0 0 0 1 -1 -1 0 1 0 0 0 0 -1 -1 0 1 0 0 -1 0 0 0 1 1 0 -1 0 0 0 0 0 1 -1 -1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -120 120 0 0 0 0 0 120 120 0 -120 0 120 0 0 0 120 -120 -120 0 120 0 0 0 0 -120 -120 0 120 0 0 -120 0 0 0 120 120 0 -120 0 0 0 0 0 120 -120 -120 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
+0 0 0 0 0 0 0 0 0 0 0 0 -1 1 0 0 0 0 0 1 1 0 -1 0 1 0 0 0 1 -1 -1 0 1 0 0 0 0 -1 -1 0 1 0 0 -1 0 0 0 1 1 0 -1 0 0 0 0 0 1 -1 -1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 -1 0 1 0 0 0 1 -1 -1 0 1 0 0 0 0 -1 0 0 1 0 0 -1 0 0 0 1 1 0 -1 0 0 0 0 0 1 -1 -1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -1 1 0 0 0 0 0 1 1 0 -1 0 1 0 0 0 1 -1 -1 0 1 0 0 0 0 -1 -1 0 1 0 0 -1 0 0 0 1 1 0 -1 0 0 0 0 0 1 -1 -1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -120 120 0 0 0 0 0 120 120 0 -120 0 120 0 0 0 120 -120 -120 0 120 0 0 0 0 -120 -120 0 120 0 0 -120 0 0 0 120 120 0 -120 0 0 0 0 0 120 -120 -120 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
+0 0 0 0 0 0 0 0 0 0 0 0 -1 1 0 0 0 0 0 1 1 0 -1 0 1 0 0 0 1 -1 -1 0 1 0 0 0 0 -1 -1 0 1 0 0 -1 0 0 0 1 1 0 -1 0 0 0 0 0 1 -1 -1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 1 0 -1 0 1 0 0 0 1 -1 -1 0 1 0 0 0 0 -1 -1 0 1 0 0 -1 0 0 0 1 1 0 -1 0 0 0 0 0 1 -1 -1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -1 1 0 0 0 0 0 1 1 0 -1 0 1 0 0 0 1 -1 -1 0 1 0 0 0 0 -1 -1 0 1 0 0 -1 0 0 0 1 1 0 -1 0 0 0 0 0 1 -1 -1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -120 120 0 0 0 0 0 120 120 0 -120 0 120 0 0 0 120 -120 -120 0 120 0 0 0 0 -120 -120 0 120 0 0 -120 0 0 0 120 120 0 -120 0 0 0 0 0 120 -120 -120 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
+0 0 0 0 0 0 0 0 0 0 0 0 1 -1 0 0 0 0 0 -1 -1 0 1 0 -1 0 0 0 -1 1 1 0 -1 0 0 0 0 1 1 0 -1 0 0 1 0 0 0 -1 -1 0 1 0 0 0 0 0 -1 1 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -1 0 0 0 0 0 -1 -1 0 1 0 -1 0 0 0 -1 1 1 0 -1 0 0 0 0 1 1 0 -1 0 0 1 0 0 0 -1 -1 0 1 0 0 0 0 0 -1 1 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 -1 0 0 0 0 0 -1 -1 0 1 0 -1 0 0 0 -1 1 1 0 -1 0 0 0 0 1 1 0 -1 0 0 1 0 0 0 -1 -1 0 1 0 0 0 0 0 -1 1 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 120 -120 0 0 0 0 0 -120 -120 0 120 0 -120 0 0 0 -120 120 120 0 -120 0 0 0 0 120 120 0 -120 0 0 120 0 0 0 -120 -120 0 120 0 0 0 0 0 -120 120 120 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
+0 0 0 0 0 0 0 0 0 0 0 0 1 -1 0 0 0 0 0 -1 -1 0 1 0 -1 0 0 0 -1 1 1 0 -1 0 0 0 0 1 1 0 -1 0 0 1 0 0 0 -1 -1 0 1 0 0 0 0 0 -1 1 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 -1 0 0 0 0 0 -1 -1 0 1 0 -1 0 0 0 -1 1 1 0 -1 0 0 0 0 1 1 0 -1 0 0 1 0 0 0 -1 -1 0 1 0 0 0 0 0 -1 1 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 -1 0 0 0 0 0 -1 -1 0 1 0 -1 0 0 0 -1 1 1 0 -1 0 0 0 0 1 1 0 -1 0 0 1 0 0 0 -1 -1 0 1 0 0 0 0 0 -1 1 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 120 -120 0 0 0 0 0 -120 -120 0 120 0 -120 0 0 0 -120 120 120 0 -120 0 0 0 0 120 120 0 -120 0 0 120 0 0 0 -120 -120 0 120 0 0 0 0 0 -120 120 120 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
+0 0 0 0 0 0 0 0 0 0 0 0 1 -1 0 0 0 0 0 -1 -1 0 1 0 -1 0 0 0 -1 1 1 0 -1 0 0 0 0 1 1 0 -1 0 0 1 0 0 0 -1 -1 0 1 0 0 0 0 0 -1 1 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 -1 0 0 0 0 0 -1 -1 0 1 0 -1 0 0 0 -1 1 1 0 -1 0 0 0 0 1 1 0 -1 0 0 1 0 0 0 -1 -1 0 1 0 0 0 0 0 -1 1 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 -1 0 0 0 0 0 -1 -1 0 1 0 -1 0 0 0 -1 1 1 0 -1 0 0 0 0 1 1 0 -1 0 0 1 0 0 0 -1 -1 0 1 0 0 0 0 0 -1 1 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 120 -120 0 0 0 0 0 -120 -120 0 120 0 -120 0 0 0 -120 120 120 0 -120 0 0 0 0 120 120 0 -120 0 0 120 0 0 0 -120 -120 0 120 0 0 0 0 0 -120 120 120 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
+0 0 0 0 0 0 0 0 0 0 0 0 -1 1 0 0 0 0 0 1 1 0 -1 0 1 0 0 0 1 -1 -1 0 1 0 0 0 0 -1 -1 0 1 0 0 -1 0 0 0 1 1 0 -1 0 0 0 0 0 1 -1 -1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -1 1 0 0 0 0 0 1 1 0 -1 0 1 0 0 0 1 -1 -1 0 1 0 0 0 0 -1 -1 0 1 0 0 -1 0 0 0 1 1 0 -1 0 0 0 0 0 1 -1 -1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -1 1 0 0 0 0 0 1 1 0 -1 0 1 0 0 0 1 -1 -1 0 1 0 0 0 0 -1 -1 0 1 0 0 -1 0 0 0 1 1 0 -1 0 0 0 0 0 1 -1 -1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -120 120 0 0 0 0 0 120 120 0 -120 0 120 0 0 0 120 -120 -120 0 120 0 0 0 0 -120 -120 0 120 0 0 -120 0 0 0 120 120 0 -120 0 0 0 0 0 120 -120 -120 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
+0 0 0 0 0 0 0 0 0 0 0 0 1 -1 0 0 0 0 0 -1 -1 0 1 0 -1 0 0 0 -1 1 1 0 -1 0 0 0 0 1 1 0 -1 0 0 1 0 0 0 -1 -1 0 1 0 0 0 0 0 -1 1 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 -1 0 0 0 0 0 -1 -1 0 1 0 -1 0 0 0 -1 1 1 0 -1 0 0 0 0 1 1 0 -1 0 0 1 0 0 0 -1 -1 0 1 0 0 0 0 0 -1 1 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 -1 0 0 0 0 0 -1 -1 0 1 0 -1 0 0 0 -1 1 1 0 -1 0 0 0 0 1 1 0 -1 0 0 1 0 0 0 -1 -1 0 1 0 0 0 0 0 -1 1 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 120 -120 0 0 0 0 0 -120 -120 0 120 0 -120 0 0 0 -120 120 120 0 -120 0 0 0 0 120 120 0 -120 0 0 120 0 0 0 -120 -120 0 120 0 0 0 0 0 -120 120 120 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
+0 0 0 0 0 0 0 0 0 0 0 0 -1 1 0 0 0 0 0 1 1 0 -1 0 1 0 0 0 1 -1 -1 0 1 0 0 0 0 -1 -1 0 1 0 0 -1 0 0 0 1 1 0 -1 0 0 0 0 0 1 -1 -1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -1 1 0 0 0 0 0 1 1 0 -1 0 1 0 0 0 1 -1 -1 0 1 0 0 0 0 -1 -1 0 1 0 0 -1 0 0 0 1 1 0 -1 0 0 0 0 0 1 -1 -1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -1 1 0 0 0 0 0 1 1 0 -1 0 1 0 0 0 1 -1 -1 0 1 0 0 0 0 -1 -1 0 1 0 0 -1 0 0 0 1 1 0 -1 0 0 0 0 0 1 -1 -1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -120 120 0 0 0 0 0 120 120 0 -120 0 120 0 0 0 120 -120 -120 0 120 0 0 0 0 -120 -120 0 120 0 0 -120 0 0 0 120 120 0 -120 0 0 0 0 0 120 -120 -120 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
+0 0 0 0 0 0 0 0 0 0 0 0 -1 1 0 0 0 0 0 1 1 0 -1 0 1 0 0 0 1 -1 -1 0 1 0 0 0 0 -1 -1 0 1 0 0 -1 0 0 0 1 1 0 -1 0 0 0 0 0 1 -1 -1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -1 1 0 0 0 0 0 1 1 0 -1 0 1 0 0 0 1 -1 -1 0 1 0 0 0 0 -1 -1 0 1 0 0 -1 0 0 0 1 1 0 -1 0 0 0 0 0 1 -1 -1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -1 1 0 0 0 0 0 1 1 0 -1 0 1 0 0 0 1 -1 -1 0 1 0 0 0 0 -1 -1 0 1 0 0 -1 0 0 0 1 1 0 -1 0 0 0 0 0 1 -1 -1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -120 120 0 0 0 0 0 120 120 0 -120 0 120 0 0 0 120 -120 -120 0 120 0 0 0 0 -120 -120 0 120 0 0 -120 0 0 0 120 120 0 -120 0 0 0 0 0 120 -120 -120 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
+0 0 0 0 0 0 0 0 0 0 0 0 1 -1 0 0 0 0 0 -1 -1 0 1 0 -1 0 0 0 -1 1 1 0 -1 0 0 0 0 1 1 0 -1 0 0 1 0 0 0 -1 -1 0 1 0 0 0 0 0 -1 1 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 -1 0 0 0 0 0 -1 -1 0 1 0 -1 0 0 0 -1 1 1 0 -1 0 0 0 0 1 1 0 -1 0 0 1 0 0 0 -1 -1 0 1 0 0 0 0 0 -1 1 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 -1 0 0 0 0 0 -1 -1 0 1 0 -1 0 0 0 -1 1 1 0 -1 0 0 0 0 1 1 0 -1 0 0 1 0 0 0 -1 -1 0 1 0 0 0 0 0 -1 1 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 120 -120 0 0 0 0 0 -120 -120 0 120 0 -120 0 0 0 -120 120 120 0 -120 0 0 0 0 120 120 0 -120 0 0 120 0 0 0 -120 -120 0 120 0 0 0 0 0 -120 120 120 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
+
+: GPU 0 finishing, processed 49419 rows 49419 batches

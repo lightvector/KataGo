@@ -70,6 +70,11 @@ Rules NeuralNet::getSupportedRules(const LoadedModel* loadedModel, const Rules& 
   throw StringError("Dummy neural net backend: NeuralNet::getSupportedRules unimplemented");
 }
 
+ModelPostProcessParams NeuralNet::getPostProcessParams(const LoadedModel* loadedModel) {
+  (void)loadedModel;
+  return ModelPostProcessParams();
+}
+
 ComputeHandle* NeuralNet::createComputeHandle(
   ComputeContext* context,
   const LoadedModel* loadedModel,

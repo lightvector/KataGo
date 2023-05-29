@@ -183,7 +183,7 @@ void Tests::runTrainingWriteTests() {
   run("testtrainingwrite-taxall-v3-a",rules,0.5,inputsVersion,5,5,5,5,false);
   run("testtrainingwrite-taxall-v3-c",rules,0.5,inputsVersion,5,5,5,5,false);
 
-  //JP 3x3 game
+  //JP 9x1 game
   inputsVersion = 3;
   rules = Rules::getSimpleTerritory();
   run("testtrainingwrite-simpleterritory-sgf-c",rules,0.5,inputsVersion,9,1,9,1,true);
@@ -1054,6 +1054,152 @@ xxxxxxxx.
     delete sgf;
   }
 
+  {
+    cout << "====================================================================================================" << endl;
+    cout << "====================================================================================================" << endl;
+    cout << "====================================================================================================" << endl;
+    cout << "Testing turnnumber and early temperatures" << endl;
+
+    int maxRows = 256;
+    double firstFileMinRandProp = 1.0;
+    int debugOnlyWriteEvery = 1;
+    int inputsVersion = 7;
+    
+    SearchParams params = SearchParams::forTestsV2();
+    params.rootNoiseEnabled = true;
+    params.cpuctExploration = 6.0;
+    params.useLcbForSelection = false;
+    params.rootPolicyTemperatureEarly = 4.0;
+    params.chosenMoveTemperatureEarly = 8.0;
+    params.rootPolicyTemperature = 1.1;
+    params.chosenMoveTemperature = 0.1;
+    params.chosenMoveTemperatureHalflife = 20.0;
+    params.maxVisits = 50;
+    params.drawEquivalentWinsForWhite = 0.5;
+
+    PlaySettings playSettings;
+    playSettings.initGamesWithPolicy = false;
+    playSettings.sidePositionProb = 0.0;
+    playSettings.cheapSearchProb = 0.5;
+    playSettings.cheapSearchVisits = 20;
+    playSettings.cheapSearchTargetWeight = 0;
+    playSettings.minAsymmetricCompensateKomiProb = 0.0;
+    playSettings.compensateAfterPolicyInitProb = 0.0;
+    playSettings.estimateLeadProb = 1.0;
+    playSettings.earlyForkGameProb = 0.0;
+    playSettings.forkGameProb = 0.0;
+
+    playSettings.policySurpriseDataWeight = 0.0;
+    playSettings.valueSurpriseDataWeight = 0.0;
+    playSettings.noResolveTargetWeights = false;
+    playSettings.allowResignation = false;
+    playSettings.reduceVisits = false;
+    playSettings.handicapAsymmetricPlayoutProb = 0;
+    playSettings.normalAsymmetricPlayoutProb = 0;
+    playSettings.sekiForkHackProb = 0;
+    playSettings.fancyKomiVarying = false;
+
+    playSettings.scaleDataWeight = 1.5;
+      
+    playSettings.forSelfPlay = true;
+    
+    std::map<string,string> cfgParams({
+        std::make_pair("maxMovesPerGame","20"),
+        std::make_pair("logSearchInfo","true"),
+        std::make_pair("logMoves","false"),
+        std::make_pair("komiAuto","true"),
+        std::make_pair("komiStdev","2.0"),
+        std::make_pair("handicapProb","0.0"),
+        std::make_pair("handicapCompensateKomiProb","1.0"),
+        std::make_pair("sgfCompensateKomiProb","1.0"),
+        std::make_pair("forkCompensateKomiProb","1.0"),
+        std::make_pair("komiBigStdevProb","0.0"),
+        std::make_pair("komiBigStdev","20.0"),
+        std::make_pair("drawRandRadius","0.5"),
+        std::make_pair("noResultStdev","0.16"),
+
+        std::make_pair("bSizes","9"),
+        std::make_pair("bSizeRelProbs","1"),
+        std::make_pair("koRules","SIMPLE"),
+        std::make_pair("scoringRules","TERRITORY"),
+        std::make_pair("taxRules","NONE"),
+        std::make_pair("multiStoneSuicideLegals","false"),
+        std::make_pair("hasButtons","false"),
+        std::make_pair("allowRectangleProb","0.0"),
+    });
+
+    MatchPairer::BotSpec botSpec;
+    botSpec.botIdx = 0;
+    botSpec.botName = "testbot";
+    botSpec.nnEval = nnEval;
+    botSpec.baseParams = params;
+
+    string seed = "seed-testing-temperature";
+    
+    {
+      cout << "Turn number initial 0 selfplay with high temperatures" << endl;
+      nnEval->clearCache();
+      nnEval->clearStats();
+
+      ConfigParser cfg(cfgParams);
+      ForkData* forkData = new ForkData();
+      GameRunner* gameRunner = new GameRunner(cfg, seed, playSettings, logger);
+      auto shouldStop = []() { return false; };
+      WaitableFlag* shouldPause = nullptr;
+      TrainingDataWriter dataWriter(&cout,inputsVersion, maxRows, firstFileMinRandProp, 9, 9, debugOnlyWriteEvery, seed);
+
+      Sgf::PositionSample startPosSample;
+      startPosSample.board = Board(9,9);
+      startPosSample.nextPla = P_BLACK;
+      startPosSample.moves = std::vector<Move>();
+      startPosSample.initialTurnNumber = 0;
+      startPosSample.hintLoc = Board::NULL_LOC;
+      startPosSample.weight = 10.0;
+      startPosSample.trainingWeight = 0.35;
+    
+      FinishedGameData* data = gameRunner->runGame(seed, botSpec, botSpec, forkData, &startPosSample, logger, shouldStop, shouldPause, nullptr, nullptr, nullptr);
+      data->printDebug(cout);
+
+      dataWriter.writeGame(*data);
+      dataWriter.flushIfNonempty();
+
+      delete data;
+      delete gameRunner;
+      delete forkData;
+    }
+    {
+      cout << "Turn number initial 40 selfplay with high early temperatures" << endl;
+      nnEval->clearCache();
+      nnEval->clearStats();
+
+      ConfigParser cfg(cfgParams);
+      ForkData* forkData = new ForkData();
+      GameRunner* gameRunner = new GameRunner(cfg, seed, playSettings, logger);
+      auto shouldStop = []() { return false; };
+      WaitableFlag* shouldPause = nullptr;
+      TrainingDataWriter dataWriter(&cout,inputsVersion, maxRows, firstFileMinRandProp, 9, 9, debugOnlyWriteEvery, seed);
+
+      Sgf::PositionSample startPosSample;
+      startPosSample.board = Board(9,9);
+      startPosSample.nextPla = P_BLACK;
+      startPosSample.moves = std::vector<Move>();
+      startPosSample.initialTurnNumber = 40;
+      startPosSample.hintLoc = Board::NULL_LOC;
+      startPosSample.weight = 10.0;
+      startPosSample.trainingWeight = 0.35;
+    
+      FinishedGameData* data = gameRunner->runGame(seed, botSpec, botSpec, forkData, &startPosSample, logger, shouldStop, shouldPause, nullptr, nullptr, nullptr);
+      data->printDebug(cout);
+
+      dataWriter.writeGame(*data);
+      dataWriter.flushIfNonempty();
+
+      delete data;
+      delete gameRunner;
+      delete forkData;
+    }
+  }
+  
   delete nnEval;
   NeuralNet::globalCleanup();
 }
@@ -1097,13 +1243,15 @@ void Tests::runSelfplayStatTestsWithNN(const string& modelFile) {
     std::map<int,int> bStoneDistribution;
     std::map<int,int> wStoneDistribution;
     std::map<string,int> bSizeDistribution;
+    std::map<int,int> turnDistribution;
     for(int i = 0; i<numSamples; i++) {
       string seed = name + Global::int64ToString(i);
       FinishedGameData* data = gameRunner->runGame(seed, botSpec, botSpec, forkData, startPosSample, logger, shouldStop, shouldPause, nullptr, nullptr, nullptr);
       komiDistribution[data->startHist.rules.komi] += 1;
       bStoneDistribution[data->startBoard.numPlaStonesOnBoard(P_BLACK)] += 1;
       wStoneDistribution[data->startBoard.numPlaStonesOnBoard(P_WHITE)] += 1;
-      bSizeDistribution[Global::intToString(data->startBoard.x_size) + "x" + Global::intToString(data->startBoard.y_size)] += 1;
+      bSizeDistribution[Global::intToString(data->startBoard.x_size) + "x" + Global::intToString(data->startBoard.y_size)] += 1; 
+      turnDistribution[data->startHist.getCurrentTurnNumber()] += 1;
       delete data;
     }
     cout << "komiDistribution" << endl;
@@ -1120,6 +1268,10 @@ void Tests::runSelfplayStatTestsWithNN(const string& modelFile) {
     }
     cout << "bSizeDistribution" << endl;
     for(auto iter = bSizeDistribution.begin(); iter != bSizeDistribution.end(); ++iter) {
+      cout << iter->first << " " << iter->second << endl;
+    }
+    cout << "turnDistribution" << endl;
+    for(auto iter = turnDistribution.begin(); iter != turnDistribution.end(); ++iter) {
       cout << iter->first << " " << iter->second << endl;
     }
     delete gameRunner;
@@ -1166,7 +1318,7 @@ void Tests::runSelfplayStatTestsWithNN(const string& modelFile) {
         std::make_pair("hasButtons","false,false,true"),
         std::make_pair("allowRectangleProb","0.0"),
     });
-    runStatTest(cfgParams,playSettings,NULL,name,400);
+    runStatTest(cfgParams,playSettings,NULL,name,200);
   }
 
   {
@@ -1209,7 +1361,7 @@ void Tests::runSelfplayStatTestsWithNN(const string& modelFile) {
         std::make_pair("hasButtons","false,false,true"),
         std::make_pair("allowRectangleProb","0.0"),
     });
-    runStatTest(cfgParams,playSettings,NULL,name,400);
+    runStatTest(cfgParams,playSettings,NULL,name,200);
   }
 
   {
@@ -1252,7 +1404,7 @@ void Tests::runSelfplayStatTestsWithNN(const string& modelFile) {
         std::make_pair("hasButtons","false,false,true"),
         std::make_pair("allowRectangleProb","0.0"),
     });
-    runStatTest(cfgParams,playSettings,NULL,name,400);
+    runStatTest(cfgParams,playSettings,NULL,name,200);
   }
 
   {
@@ -1295,7 +1447,7 @@ void Tests::runSelfplayStatTestsWithNN(const string& modelFile) {
         std::make_pair("hasButtons","false,false,true"),
         std::make_pair("allowRectangleProb","0.0"),
     });
-    runStatTest(cfgParams,playSettings,NULL,name,400);
+    runStatTest(cfgParams,playSettings,NULL,name,200);
   }
 
   {
@@ -1339,7 +1491,7 @@ void Tests::runSelfplayStatTestsWithNN(const string& modelFile) {
         std::make_pair("hasButtons","false,false,true"),
         std::make_pair("allowRectangleProb","0.0"),
     });
-    runStatTest(cfgParams,playSettings,NULL,name,400);
+    runStatTest(cfgParams,playSettings,NULL,name,200);
   }
 
   {
@@ -1382,7 +1534,7 @@ void Tests::runSelfplayStatTestsWithNN(const string& modelFile) {
         std::make_pair("hasButtons","false,false,true"),
         std::make_pair("allowRectangleProb","0.0"),
     });
-    runStatTest(cfgParams,playSettings,NULL,name,400);
+    runStatTest(cfgParams,playSettings,NULL,name,200);
   }
 
   {
@@ -1425,7 +1577,7 @@ void Tests::runSelfplayStatTestsWithNN(const string& modelFile) {
         std::make_pair("hasButtons","false,false,true"),
         std::make_pair("allowRectangleProb","0.0"),
     });
-    runStatTest(cfgParams,playSettings,NULL,name,400);
+    runStatTest(cfgParams,playSettings,NULL,name,200);
   }
 
   {
@@ -1470,7 +1622,7 @@ void Tests::runSelfplayStatTestsWithNN(const string& modelFile) {
         std::make_pair("hasButtons","false,false,true"),
         std::make_pair("allowRectangleProb","0.0"),
     });
-    runStatTest(cfgParams,playSettings,NULL,name,400);
+    runStatTest(cfgParams,playSettings,NULL,name,200);
   }
 
   {
@@ -1517,7 +1669,7 @@ void Tests::runSelfplayStatTestsWithNN(const string& modelFile) {
         std::make_pair("hasButtons","false,false,true"),
         std::make_pair("allowRectangleProb","0.0"),
     });
-    runStatTest(cfgParams,playSettings,NULL,name,400);
+    runStatTest(cfgParams,playSettings,NULL,name,200);
   }
 
   {
@@ -1564,7 +1716,7 @@ void Tests::runSelfplayStatTestsWithNN(const string& modelFile) {
         std::make_pair("hasButtons","false,false,true"),
         std::make_pair("allowRectangleProb","0.0"),
     });
-    runStatTest(cfgParams,playSettings,NULL,name,400);
+    runStatTest(cfgParams,playSettings,NULL,name,200);
   }
 
   {
@@ -1607,7 +1759,7 @@ void Tests::runSelfplayStatTestsWithNN(const string& modelFile) {
         std::make_pair("hasButtons","false,false,true"),
         std::make_pair("allowRectangleProb","0.0"),
     });
-    runStatTest(cfgParams,playSettings,NULL,name,400);
+    runStatTest(cfgParams,playSettings,NULL,name,200);
   }
 
   {
@@ -1651,7 +1803,7 @@ void Tests::runSelfplayStatTestsWithNN(const string& modelFile) {
         std::make_pair("hasButtons","false,false,true"),
         std::make_pair("allowRectangleProb","0.0"),
     });
-    runStatTest(cfgParams,playSettings,NULL,name,400);
+    runStatTest(cfgParams,playSettings,NULL,name,200);
   }
 
   {
@@ -1695,7 +1847,7 @@ void Tests::runSelfplayStatTestsWithNN(const string& modelFile) {
         std::make_pair("hasButtons","false,false,true"),
         std::make_pair("allowRectangleProb","0.0"),
     });
-    runStatTest(cfgParams,playSettings,NULL,name,400);
+    runStatTest(cfgParams,playSettings,NULL,name,200);
   }
 
   {
@@ -1739,7 +1891,7 @@ void Tests::runSelfplayStatTestsWithNN(const string& modelFile) {
         std::make_pair("hasButtons","false,false,true"),
         std::make_pair("allowRectangleProb","0.0"),
     });
-    runStatTest(cfgParams,playSettings,NULL,name,400);
+    runStatTest(cfgParams,playSettings,NULL,name,200);
   }
 
   {
@@ -1782,7 +1934,7 @@ void Tests::runSelfplayStatTestsWithNN(const string& modelFile) {
         std::make_pair("hasButtons","false,false,true"),
         std::make_pair("allowRectangleProb","0.0"),
     });
-    runStatTest(cfgParams,playSettings,NULL,name,400);
+    runStatTest(cfgParams,playSettings,NULL,name,200);
   }
 
   {
@@ -1826,7 +1978,7 @@ void Tests::runSelfplayStatTestsWithNN(const string& modelFile) {
         std::make_pair("hasButtons","false,false,true"),
         std::make_pair("allowRectangleProb","0.0"),
     });
-    runStatTest(cfgParams,playSettings,NULL,name,400);
+    runStatTest(cfgParams,playSettings,NULL,name,200);
   }
 
   {
@@ -1870,7 +2022,7 @@ void Tests::runSelfplayStatTestsWithNN(const string& modelFile) {
         std::make_pair("hasButtons","false,false,true"),
         std::make_pair("allowRectangleProb","0.0"),
     });
-    runStatTest(cfgParams,playSettings,NULL,name,400);
+    runStatTest(cfgParams,playSettings,NULL,name,200);
   }
 
   {
@@ -1921,7 +2073,7 @@ void Tests::runSelfplayStatTestsWithNN(const string& modelFile) {
         std::make_pair("hasButtons","false,false,true"),
         std::make_pair("allowRectangleProb","0.0"),
     });
-    runStatTest(cfgParams,playSettings,&startPosSample,name,400);
+    runStatTest(cfgParams,playSettings,&startPosSample,name,200);
   }
 
   {
@@ -1973,9 +2125,73 @@ void Tests::runSelfplayStatTestsWithNN(const string& modelFile) {
         std::make_pair("hasButtons","false,false,true"),
         std::make_pair("allowRectangleProb","0.0"),
     });
-    runStatTest(cfgParams,playSettings,&startPosSample,name,400);
+    runStatTest(cfgParams,playSettings,&startPosSample,name,200);
   }
 
+  {
+    string name = "Game init test sgfpos nonempty board with init and different turn number";
+    //Statistical test of game initialization
+    PlaySettings playSettings;
+    playSettings.initGamesWithPolicy = true;
+    playSettings.policyInitAreaProp = 0.0;
+    playSettings.startPosesPolicyInitAreaProp = 0.20;
+    playSettings.compensateAfterPolicyInitProb = 0.0;
+    playSettings.sidePositionProb = 0;
+    playSettings.compensateKomiVisits = 4;
+    playSettings.estimateLeadProb = 0.0;
+    playSettings.fancyKomiVarying = true;
+    playSettings.sekiForkHackProb = 0.0;
+    playSettings.earlyForkGameProb = 0.0;
+    playSettings.forkGameMinChoices = 2;
+    playSettings.earlyForkGameMaxChoices = 3;
+    playSettings.forSelfPlay = true;
+
+    Sgf::PositionSample startPosSample;
+    startPosSample.board = Board::parseBoard(9,9,R"%%(
+.........
+.o...o...
+..x......
+oooooooo.
+xxxxxxxx.
+ox.......
+.ox.x..x.
+oox.x....
+.o.......
+)%%");
+    startPosSample.nextPla = P_BLACK;
+    startPosSample.moves = std::vector<Move>({
+        Move(Location::getLoc(8,3,9),P_BLACK),
+      });
+    startPosSample.initialTurnNumber = 50;
+    startPosSample.hintLoc = Board::NULL_LOC;
+    startPosSample.weight = 10.0;
+    
+    std::map<string,string> cfgParams({
+        std::make_pair("maxMovesPerGame","0"),
+        std::make_pair("logSearchInfo","false"),
+        std::make_pair("logMoves","false"),
+        std::make_pair("komiAuto","true"),
+        std::make_pair("komiStdev","2.0"),
+        std::make_pair("handicapProb","0.0"),
+        std::make_pair("handicapCompensateKomiProb","1.0"),
+        std::make_pair("forkCompensateKomiProb","1.0"),
+        std::make_pair("komiBigStdevProb","0.0"),
+        std::make_pair("komiBigStdev","20.0"),
+        std::make_pair("drawRandRadius","0.5"),
+        std::make_pair("noResultStdev","0.16"),
+
+        std::make_pair("bSizes","9"),
+        std::make_pair("bSizeRelProbs","1"),
+        std::make_pair("koRules","SIMPLE,POSITIONAL,SITUATIONAL"),
+        std::make_pair("scoringRules","AREA"),
+        std::make_pair("taxRules","NONE,NONE,SEKI,SEKI,ALL"),
+        std::make_pair("multiStoneSuicideLegals","false,true"),
+        std::make_pair("hasButtons","false,false,true"),
+        std::make_pair("allowRectangleProb","0.0"),
+    });
+    runStatTest(cfgParams,playSettings,&startPosSample,name,200);
+  }
+  
   {
     string name = "Game init test rectangles";
     //Statistical test of game initialization
@@ -2016,7 +2232,7 @@ void Tests::runSelfplayStatTestsWithNN(const string& modelFile) {
         std::make_pair("hasButtons","false,false,true"),
         std::make_pair("allowRectangleProb","0.1"),
     });
-    runStatTest(cfgParams,playSettings,NULL,name,400);
+    runStatTest(cfgParams,playSettings,NULL,name,200);
   }
   {
     string name = "Game init test sgfpos black first with big black handicap, flipKomiProbWhenNoCompensate 0";

@@ -1,0 +1,38 @@
+: Command: samplesgfs
+: Command: -sgfdir
+: Command: tests/data/sampletest/
+: Command: -outdir
+: Command: tests/results/sampletest-vf/
+: Command: -sample-prob
+: Command: 1
+: Command: -min-turn-number-board-area-prop
+: Command: 0.15
+: Command: -force-sample-weight
+: Command: 10.0
+: Command: -value-fluctuation-model
+: Command: tests/models/g170-b6c96-s175395328-d26788732.bin.gz
+: Command: -value-fluctuation-turn-scale
+: Command: 4.0
+: Command: -hash-comments
+: Command: -training-weight
+: Command: 0.46
+: Command: -min-weight
+: Command: 0.01
+: Command: -turn-weight-lambda
+: Command: 0
+: Command: -for-testing
+: Found 2 sgf files!
+: Found 0 sgfs files!
+: Loaded 0 excludes
+: nnRandSeed0 = forTesting
+: After dedups: nnModelFile0 = tests/models/g170-b6c96-s175395328-d26788732.bin.gz useFP16 auto useNHWC auto
+: Initializing neural net buffer to be size 19 * 19 allowing smaller boards
+: Cuda backend thread 0: Found GPU NVIDIA RTX A5000 memory 25434652672 compute capability major 8 minor 6
+: Cuda backend thread 0: Model version 8 useFP16 = true useNHWC = true
+: Cuda backend thread 0: Model name: g170-b6c96-s175395328-d26788732
+: Loaded neural net
+: Kept 82 start positions
+: Excluded 0/2 sgf files
+: Filtered 0/2 sgf files
+: GPU -1 finishing, processed 64 rows 64 batches
+: All done

@@ -336,7 +336,7 @@ BoardHistory BoardHistory::copyToInitial() const {
   return hist;
 }
 
-void BoardHistory::setInitialTurnNumber(int n) {
+void BoardHistory::setInitialTurnNumber(int64_t n) {
   initialTurnNumber = n;
 }
 
@@ -767,6 +767,10 @@ bool BoardHistory::isPassForKo(const Board& board, Loc moveLoc, Player movePla) 
       return true;
   }
   return false;
+}
+
+int64_t BoardHistory::getCurrentTurnNumber() const {
+  return std::max((int64_t)0,initialTurnNumber + (int64_t)moveHistory.size());
 }
 
 //Return the number of consecutive game-ending passes there would be if a pass was made

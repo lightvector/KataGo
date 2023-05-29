@@ -96,6 +96,47 @@ sed -i 's/Git revision: .*$/Git revision: ###/g' tests/results/match.txt
 countSides tests/results/matchsgfs/games.sgfs
 countSides tests/results/matchsgfs2/games.sgfs
 
+rm -f tests/results/sampletest-vf/*.log
+./katago samplesgfs \
+         -sgfdir tests/data/sampletest/ \
+         -outdir tests/results/sampletest-vf/ \
+         -sample-prob 1 \
+         -min-turn-number-board-area-prop 0.15 \
+         -force-sample-weight 10.0 \
+         -value-fluctuation-model tests/models/g170-b6c96-s175395328-d26788732.bin.gz \
+         -value-fluctuation-turn-scale 4.0 \
+         -hash-comments \
+         -training-weight 0.46 \
+         -min-weight 0.01 \
+         -turn-weight-lambda 0 \
+         -for-testing
+
+rm -f tests/results/sampletest-basic/*.log
+./katago samplesgfs \
+         -sgfdir tests/data/sampletest/ \
+         -outdir tests/results/sampletest-basic/ \
+         -sample-prob 1 \
+         -min-turn-number-board-area-prop 0.15 \
+         -force-sample-weight 10.0 \
+         -hash-comments \
+         -training-weight 0.36 \
+         -min-weight 0.01 \
+         -turn-weight-lambda 0.01 \
+         -for-testing
+
+rm -f tests/results/sampletest-hint/*.log
+./katago dataminesgfs \
+         -config configs/gtp_example.cfg \
+         -override-config "logTimeStamp=false, maxVisits=50, numSearchThreads=1, nnRandomize=false, rootSymmetryPruning=false, nnRandSeed=forTesting, searchRandSeed=forTesting, forDeterministicTesting=true, cudaUseFP16 = false, trtUseFP16 = false, openclUseFP16 = false, cudaUseNHWC = false, koRules=SIMPLE, scoringRules=AREA, taxRules=NONE, hasButtons=false, multiStoneSuicideLegals=false, bSizes=9, bSizeRelProbs=1, komiAuto=true" \
+         -sgfdir tests/data/sampletest/ \
+         -outdir tests/results/sampletest-hint/ \
+         -threads 1 \
+         -tree-mode \
+         -min-hint-weight 0.25 \
+         -model tests/models/g170-b6c96-s175395328-d26788732.bin.gz \
+         -auto-komi \
+         -for-testing
+
 echo "Done"
 
 

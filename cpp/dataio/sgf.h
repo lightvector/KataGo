@@ -25,8 +25,11 @@ struct SgfNode {
   SgfNode& operator=(SgfNode&&) noexcept;
 
   bool hasProperty(const char* key) const;
+  bool hasProperty(const std::string& key) const;
   std::string getSingleProperty(const char* key) const;
+  std::string getSingleProperty(const std::string& key) const;
   const std::vector<std::string> getProperties(const char* key) const;
+  const std::vector<std::string> getProperties(const std::string& key) const;
 
   bool hasPlacements() const;
   void accumPlacements(std::vector<Move>& moves, int xSize, int ySize) const;
@@ -66,7 +69,10 @@ struct Sgf {
   Color getFirstPlayerColor() const;
 
   int getRank(Player pla) const; //dan ranks are 1d=0, 2d=1,... 9d=8. Kyu ranks are negative.
+  int getRating(Player pla) const;
   std::string getPlayerName(Player pla) const;
+
+  std::string getRootPropertyWithDefault(const std::string& property, const std::string& defaultRet) const;
 
   void getPlacements(std::vector<Move>& moves, int xSize, int ySize) const;
   void getMoves(std::vector<Move>& moves, int xSize, int ySize) const;
@@ -85,7 +91,7 @@ struct Sgf {
     //This provides a little bit of history and context, which can also be relevant for setting up ko prohibitions.
     std::vector<Move> moves;
     //Turn number as of the start of board.
-    int initialTurnNumber;
+    int64_t initialTurnNumber;
     //Hinted move that may be good at the end of position sample, or Board::NULL_LOC
     Loc hintLoc;
     //The weight of this sample, for random selection
@@ -105,6 +111,8 @@ struct Sgf {
     Sgf::PositionSample previousPosition(double newWeight) const;
     bool hasPreviousPositions(int numPrevious) const;
 
+    int64_t getCurrentTurnNumber() const;
+    
     //For the moment, only used in testing since it does extra consistency checks.
     //If we need a version to be used in "prod", we could make an efficient version maybe as operator==.
     bool isEqualForTesting(const PositionSample& other, bool checkNumCaptures, bool checkSimpleKo) const;
@@ -156,7 +164,6 @@ struct Sgf {
     Board& board, BoardHistory& hist, Player nextPla,
     const Rules& rules, int xSize, int ySize,
     PositionSample& sampleBuf,
-    int initialTurnNumber,
     std::set<Hash128>& uniqueHashes,
     bool requireUnique,
     bool hashComments,
@@ -171,7 +178,6 @@ struct Sgf {
   void samplePositionHelper(
     Board& board, BoardHistory& hist, Player nextPla,
     PositionSample& sampleBuf,
-    int initialTurnNumber,
     std::set<Hash128>& uniqueHashes,
     bool requireUnique,
     bool hashComments,
