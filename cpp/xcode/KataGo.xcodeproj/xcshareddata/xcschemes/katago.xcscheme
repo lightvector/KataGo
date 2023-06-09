@@ -57,7 +57,7 @@
             isEnabled = "NO">
          </CommandLineArgument>
          <CommandLineArgument
-            argument = "gtp -config coreml_example.cfg"
+            argument = "gtp -config coreml_example.cfg -model model.bin.gz"
             isEnabled = "YES">
          </CommandLineArgument>
       </CommandLineArguments>
