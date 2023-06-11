@@ -148,11 +148,18 @@ void Search::maybeRecomputeExistingNNOutput(
       //Recompute if we have no ownership map, since we need it for getEndingWhiteScoreBonus
       //If conservative passing, then we may also need to recompute the root policy ignoring the history if a pass ends the game
       //If averaging a bunch of symmetries, then we need to recompute it too
+      //If root needs different optimism, we need to recompute it.
       if(nnOutput->whiteOwnerMap == NULL ||
          (searchParams.conservativePass && thread.history.passWouldEndGame(thread.board,thread.pla)) ||
-         searchParams.rootNumSymmetriesToSample > 1
+         searchParams.rootNumSymmetriesToSample > 1 ||
+         searchParams.rootPolicyOptimism != searchParams.policyOptimism
       ) {
-        initNodeNNOutput(thread,node,isRoot,false,true);
+        //We *can* use cached evaluations even though parameters are changing, because:
+        //conservativePass is part of the nn hash
+        //Symmetry averaging skips the cache on its own when it does symmetry sampling without replacement
+        //The optimism is part of the nn hash
+        const bool skipCache = false;
+        initNodeNNOutput(thread,node,isRoot,skipCache,true);
       }
       //We also need to recompute the root nn if we have root noise or temperature and that's missing.
       else {
