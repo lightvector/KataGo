@@ -923,6 +923,7 @@ struct ComputeHandle {
   TRTLogger trtLogger;
   map<string, void*> buffers;
   unique_ptr<ICudaEngine> engine;
+  unique_ptr<IRuntime> runtime;
   unique_ptr<IExecutionContext> exec;
 
   ComputeHandle(
@@ -1171,7 +1172,7 @@ struct ComputeHandle {
 #endif
     }
 
-    auto runtime = unique_ptr<IRuntime>(createInferRuntime(trtLogger));
+    runtime.reset(createInferRuntime(trtLogger));
     if(!runtime) {
       throw StringError("TensorRT backend: failed to create runtime");
     }
@@ -1203,6 +1204,10 @@ struct ComputeHandle {
     for(auto ptr: buffers) {
       CUDA_ERR("~ComputeHandle", cudaFree(ptr.second));
     }
+
+    exec.reset();
+    engine.reset();
+    runtime.reset();
   }
 
   ComputeHandle() = delete;
