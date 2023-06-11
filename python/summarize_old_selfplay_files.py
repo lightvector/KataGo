@@ -120,8 +120,10 @@ if __name__ == '__main__':
 
     # Update old summary data into new format
     dirpaths = list(summary_data_by_dirpath.keys())
+    format_was_updated = False
     for dirpath in dirpaths:
         if "dir_mtime" not in summary_data_by_dirpath[dirpath]:
+            format_was_updated = True
             filename_mtime_num_rowss = summary_data_by_dirpath[dirpath]
             summary_data_by_dirpath[dirpath] = {
                 "dir_mtime": os.path.getmtime(dirpath),
@@ -179,7 +181,7 @@ if __name__ == '__main__':
                 "filename_mtime_num_rowss": filename_mtime_num_rowss,
             }
 
-    if len(dirs_to_handle) == 0 and old_summary_file_to_assume_correct is not None and os.path.exists(old_summary_file_to_assume_correct):
+    if len(dirs_to_handle) == 0 and old_summary_file_to_assume_correct is not None and os.path.exists(old_summary_file_to_assume_correct) and not format_was_updated:
         shutil.copy(old_summary_file_to_assume_correct,new_summary_file)
         print("Not writing any new summary, no results, just copying old file")
     else:
