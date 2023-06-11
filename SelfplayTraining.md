@@ -10,13 +10,15 @@ There are 5 things that need to all run to form a closed self-play training loop
    * Gatekeeper (C++ - `cpp/katago gatekeeper`) - polls a directory of newly exported models, plays games against the latest model in an accepted models directory, and if the new model passes, moves it to the accepted models directory. OPTIONAL, it is also possible to train just accepting every new model.
 
 ### Simple One-Machine Synchronous Training
-Although for large-scale runs, KataGo is designed to run asynchronously across many machines for smaller runs it's also possible to run KataGo synchronously on a single machine. An example script is provided in `python/selfplay/synchronous_loop.sh` for how to do this. It loops around, running each of the 5 above steps sequentially. Notably, it passes some extra arguments to each different piece so that it quits rather than runs indefinitely as in asynchronous training:
+Although for large-scale runs, KataGo is designed to run asynchronously across many machines for smaller runs it's also possible to run KataGo synchronously on a single machine. An example script is provided in [python/selfplay/synchronous_loop.sh](python/selfplay/synchronous_loop.sh) for how to do this. It loops around, running each of the 5 above steps sequentially. Notably, it passes some extra arguments to each different piece so that it quits rather than runs indefinitely as in asynchronous training:
 
   * Selfplay engine - Sets `-max-games-total` to the selfplay so it terminates after a certain number of games.
   * Shuffler - Sets smaller values of `-keep-target-rows` for the shuffler to reduce the data per cycle.
   * Training - Sets `-stop-when-train-bucket-limited` for the training to terminate if it has taken too many steps given the amount of new data instead of waiting for more data.
   * Exporter - Only runs it one-shot each cycle of the loop rather than polling forever as in the asynchronous script `python/selfplay/shuffle_and_export_loop.sh`.
   * Gatekeeper - If being used at all, has `-quit-if-no-nets-to-test` so that it terminates after gatekeeping any nets produced by training.
+
+**You probably want to read the comments and edit the parameters in python/selfplay/synchronous_loop.sh and in the selfplay and gatekeeper .cfg files that it points to, to set the board size, the number of parallel threads or other computational parameters, etc.**
 
 Note that not using gating (passing in 0 for `USEGATING` on `python/selfplay/synchronous_loop.sh`) will be faster and will save compute power, and the whole loop works perfectly fine without it, but having it at first can be nice to help debugging and make sure that things are working and that the net is actually getting stronger.
 
