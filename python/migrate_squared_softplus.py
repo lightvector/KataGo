@@ -41,6 +41,11 @@ if "running_metrics" in data:
     data["running_metrics"]["weights"]["esstloss_sum"] /= 100000.0
     data["running_metrics"]["sums"]["Iesstloss_sum"] /= 100000.0
     data["running_metrics"]["weights"]["Iesstloss_sum"] /= 100000.0
+
+print("Clearing export cycle counter to give time to reconverge")
+assert "export_cycle_counter" in data["train_state"]
+data["train_state"]["export_cycle_counter"] = 0
+
 print("Setting version to 14")
 data["config"]["version"] = 14
 
