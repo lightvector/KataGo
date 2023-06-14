@@ -1129,7 +1129,7 @@ bool Search::playoutDescend(
     }
   }
 
-  int nodeState = node.state.load(std::memory_order_acquire);
+  SearchNode::NodeState nodeState = node.state.load(std::memory_order_acquire);
   if(nodeState == SearchNode::STATE_UNEVALUATED) {
     //Always attempt to set a new nnOutput. That way, if some GPU is slow and malfunctioning, we don't get blocked by it.
     {

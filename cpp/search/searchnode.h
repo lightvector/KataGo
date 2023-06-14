@@ -146,14 +146,15 @@ struct SearchNode {
 
   //Mutable---------------------------------------------------------------------------
   //During search, only ever transitions forward.
-  std::atomic<int> state;
-  static constexpr int STATE_UNEVALUATED = 0;
-  static constexpr int STATE_EVALUATING = 1;
-  static constexpr int STATE_EXPANDED0 = 2;
-  static constexpr int STATE_GROWING1 = 3;
-  static constexpr int STATE_EXPANDED1 = 4;
-  static constexpr int STATE_GROWING2 = 5;
-  static constexpr int STATE_EXPANDED2 = 6;
+  typedef int NodeState;
+  std::atomic<NodeState> state;
+  static constexpr NodeState STATE_UNEVALUATED = 0;
+  static constexpr NodeState STATE_EVALUATING = 1;
+  static constexpr NodeState STATE_EXPANDED0 = 2;
+  static constexpr NodeState STATE_GROWING1 = 3;
+  static constexpr NodeState STATE_EXPANDED1 = 4;
+  static constexpr NodeState STATE_GROWING2 = 5;
+  static constexpr NodeState STATE_EXPANDED2 = 6;
 
   //During search, will only ever transition from NULL -> non-NULL.
   //Guaranteed to be non-NULL once state >= STATE_EXPANDED0.
@@ -224,11 +225,11 @@ struct SearchNode {
 
   //Used within search to update state and allocate children arrays
   void initializeChildren();
-  bool maybeExpandChildrenCapacityForNewChild(int& stateValue, int numChildrenFullPlusOne);
+  bool maybeExpandChildrenCapacityForNewChild(NodeState& stateValue, int numChildrenFullPlusOne);
 
 private:
-  int getChildrenCapacity(int stateValue) const;
-  bool tryExpandingChildrenCapacityAssumeFull(int& stateValue);
+  int getChildrenCapacity(NodeState stateValue) const;
+  bool tryExpandingChildrenCapacityAssumeFull(NodeState& stateValue);
 };
 
 

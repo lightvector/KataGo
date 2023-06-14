@@ -244,7 +244,7 @@ int SearchNode::iterateAndCountChildren() const {
 //Returns true: node state, stateValue, children arrays are all updated if needed so that they are large enough.
 //Returns false: failure since another thread is handling it.
 //Thread-safe.
-bool SearchNode::maybeExpandChildrenCapacityForNewChild(int& stateValue, int numChildrenFullPlusOne) {
+bool SearchNode::maybeExpandChildrenCapacityForNewChild(SearchNode::NodeState& stateValue, int numChildrenFullPlusOne) {
   int capacity = getChildrenCapacity(stateValue);
   if(capacity < numChildrenFullPlusOne) {
     assert(capacity == numChildrenFullPlusOne-1);
@@ -253,7 +253,7 @@ bool SearchNode::maybeExpandChildrenCapacityForNewChild(int& stateValue, int num
   return true;
 }
 
-int SearchNode::getChildrenCapacity(int stateValue) const {
+int SearchNode::getChildrenCapacity(SearchNode::NodeState stateValue) const {
   if(stateValue >= SearchNode::STATE_EXPANDED2)
     return SearchNode::CHILDREN2SIZE;
   if(stateValue >= SearchNode::STATE_EXPANDED1)
@@ -270,7 +270,7 @@ void SearchNode::initializeChildren() {
 
 //Precondition: Assumes that we have actually checked the childen array that stateValue suggests that
 //we should use, and that every slot in it is full.
-bool SearchNode::tryExpandingChildrenCapacityAssumeFull(int& stateValue) {
+bool SearchNode::tryExpandingChildrenCapacityAssumeFull(SearchNode::NodeState& stateValue) {
   if(stateValue < SearchNode::STATE_EXPANDED1) {
     if(stateValue == SearchNode::STATE_GROWING1)
       return false;
@@ -339,7 +339,7 @@ bool SearchNode::tryExpandingChildrenCapacityAssumeFull(int& stateValue) {
   return true;
 }
 
-const SearchChildPointer* SearchNode::getChildren(int stateValue, int& childrenCapacity) const {
+const SearchChildPointer* SearchNode::getChildren(SearchNode::NodeState stateValue, int& childrenCapacity) const {
   if(stateValue >= SearchNode::STATE_EXPANDED2) {
     childrenCapacity = SearchNode::CHILDREN2SIZE;
     return children2;
@@ -355,7 +355,7 @@ const SearchChildPointer* SearchNode::getChildren(int stateValue, int& childrenC
   childrenCapacity = 0;
   return NULL;
 }
-SearchChildPointer* SearchNode::getChildren(int stateValue, int& childrenCapacity) {
+SearchChildPointer* SearchNode::getChildren(SearchNode::NodeState stateValue, int& childrenCapacity) {
   if(stateValue >= SearchNode::STATE_EXPANDED2) {
     childrenCapacity = SearchNode::CHILDREN2SIZE;
     return children2;
