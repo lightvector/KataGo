@@ -1216,6 +1216,7 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
   double maxAutoKomi;
   double maxPolicy;
   double minHintWeight;
+  double hintScale;
 
   bool forTesting;
   
@@ -1252,6 +1253,7 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
     TCLAP::ValueArg<double> maxAutoKomiArg("","max-auto-komi","If absolute value of auto komi would exceed this, skip position",false,1000,"KOMI");
     TCLAP::ValueArg<double> maxPolicyArg("","max-policy","Chop off moves with raw policy more than this",false,1000,"POLICY");
     TCLAP::ValueArg<double> minHintWeightArg("","min-hint-weight","Hinted moves get at least this weight",false,0.0,"WEIGHT");
+    TCLAP::ValueArg<double> hintScaleArg("","hint-scale","Manually hinted moves get weight scaled by this",false,1.0,"FACTOR");
 
     TCLAP::SwitchArg forTestingArg("","for-testing","For testing");
 
@@ -1282,6 +1284,7 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
     cmd.add(maxAutoKomiArg);
     cmd.add(maxPolicyArg);
     cmd.add(minHintWeightArg);
+    cmd.add(hintScaleArg);
     cmd.add(forTestingArg);
     cmd.parseArgs(args);
 
@@ -1313,6 +1316,7 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
     maxAutoKomi = maxAutoKomiArg.getValue();
     maxPolicy = maxPolicyArg.getValue();
     minHintWeight = minHintWeightArg.getValue();
+    hintScale = hintScaleArg.getValue();
     forTesting = forTestingArg.getValue();
 
     if((int)gameMode + (int)treeMode + (int)surpriseMode != 1)
@@ -1442,7 +1446,7 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
     return true;
   };
 
-  auto expensiveEvaluateMove = [&posWriter,&turnWeightLambda,&maxAutoKomi,&maxHandicap,&numFilteredIndivdualPoses,&surpriseMode,&minHintWeight,&logger,trainingWeight](
+  auto expensiveEvaluateMove = [&posWriter,&turnWeightLambda,&maxAutoKomi,&maxHandicap,&numFilteredIndivdualPoses,&surpriseMode,&minHintWeight,&hintScale,&logger,trainingWeight](
     Search* search, Loc missedLoc,
     Player nextPla, const Board& board, const BoardHistory& hist,
     const Sgf::PositionSample& sample, bool markedAsHintPos
@@ -1605,6 +1609,8 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
 
       sampleToWrite.weight *= exp(-sampleToWrite.initialTurnNumber * turnWeightLambda);
 
+      if(markedAsHintPos)
+        sampleToWrite.weight *= hintScale;
       if(sampleToWrite.weight < minHintWeight && markedAsHintPos)
         sampleToWrite.weight = minHintWeight;
       if(sampleToWrite.weight > 0.1) {
