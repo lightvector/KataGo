@@ -881,8 +881,7 @@ struct ModelParser {
   }
 
   ILayer* applyCastLayer(ILayer* inputLayer, DataType dataType) {
-    auto castLayer = model->network->addIdentity(*inputLayer->getOutput(0));
-    castLayer->setOutputType(0, dataType);
+    auto castLayer = model->network->addCast(*inputLayer->getOutput(0), dataType);
     auto castLayerName = string(inputLayer->getName()) + "/cast";
     castLayer->setName(castLayerName.c_str());
     return castLayer;
@@ -982,12 +981,8 @@ struct ComputeHandle {
     debugOutputs = model->debugOutputs;
     config->addOptimizationProfile(profile);
 
-    // This is to avoid external tactic sources and tactics that have shape switching overhead
-    if(prop->major < 8) {
-      config->setTacticSources(
-        1U << static_cast<uint32_t>(TacticSource::kJIT_CONVOLUTIONS) |
-        1U << static_cast<uint32_t>(TacticSource::kEDGE_MASK_CONVOLUTIONS));
-    } else {
+    if(prop->major >= 8) {
+      // This is to avoid tactics that have shape switching overhead
       config->setTacticSources(1U << static_cast<uint32_t>(TacticSource::kJIT_CONVOLUTIONS));
     }
 
