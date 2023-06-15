@@ -984,6 +984,7 @@ struct ComputeHandle {
     if(prop->major >= 8) {
       // This is to avoid tactics that have shape switching overhead
       config->setTacticSources(1U << static_cast<uint32_t>(TacticSource::kJIT_CONVOLUTIONS));
+      config->setBuilderOptimizationLevel(2);
     }
 
     // So that there are no concurrent kernel executions probably from other parts of code while profiling
