@@ -236,7 +236,10 @@ ComputeHandle* NeuralNet::createComputeHandle(
   (void)maxBatchSize;
   // Current implementation always tolerates excess nn len
   (void)requireExactNNLen;
-  ComputeHandle* handle = new ComputeHandle(context, loadedModel, inputsUseNHWC, gpuIdxForThisThread, serverThreadIdx);
+
+  // Transfer the default GPU index into physical GPU index 0
+  int gpuIdx = (gpuIdxForThisThread == -1) ? 0 : gpuIdxForThisThread;
+  ComputeHandle* handle = new ComputeHandle(context, loadedModel, inputsUseNHWC, gpuIdx, serverThreadIdx);
 
   return handle;
 }
