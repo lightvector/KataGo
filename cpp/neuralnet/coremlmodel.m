@@ -84,47 +84,77 @@
   // Set model name based on xLen, yLen, and precisionName
   NSString *modelName = [NSString stringWithFormat:@"KataGoModel%dx%d%@", xLen.intValue, yLen.intValue, precisionName];
 
-  // Set model type name
-  NSString *typeName = @"mlpackage";
+  // Get compiled model name
+  NSString *compiledModelName = [NSString stringWithFormat:@"%@.mlmodelc", modelName];
 
-  // Get model path from bundle resource
-  NSString *modelPath = [[NSBundle bundleForClass:[self class]] pathForResource:modelName
-                                                                         ofType:typeName];
+  // Get default file manager
+  NSFileManager *fileManager = [NSFileManager defaultManager];
+
+  // Get application support directory
+  NSURL *appSupportURL = [fileManager URLsForDirectory:NSApplicationSupportDirectory
+                                             inDomains:NSUserDomainMask].firstObject;
+
+  // Create the URL for the permanent compiled model file
+  NSURL *permanentURL = [appSupportURL URLByAppendingPathComponent:compiledModelName];
 
   // Initialize model
   MLModel *model = nil;
 
-  if (nil == modelPath) {
-    // If model is not found in bundle resource, return nil
-    NSLog(@"ERROR: Could not load %@.%@ in the bundle resource", modelName, typeName);
-  } else {
-    // If model is found in bundle resource, compile it and return the compiled model
-    NSURL *modelUrl = [NSURL fileURLWithPath:modelPath];
+  // Check permanent compiled model is reachable
+  BOOL reachableModel = [permanentURL checkResourceIsReachableAndReturnError:nil];
 
-    NSLog(@"INFO: Compiling model at %@", modelUrl);
+  // Try compiling the model from the ML package
+  if (!reachableModel) {
+    // Set model type name
+    NSString *typeName = @"mlpackage";
 
-    // Compile the model
-    NSURL *compiledUrl = [MLModel compileModelAtURL:modelUrl
-                                              error:nil];
+    // Get model path from bundle resource
+    NSString *modelPath = [[NSBundle bundleForClass:[self class]] pathForResource:modelName
+                                                                           ofType:typeName];
 
-    // Initialize the model configuration
-    MLModelConfiguration *configuration = [[MLModelConfiguration alloc] init];
+    if (nil == modelPath) {
+      // If model is not found in bundle resource, return nil
+      NSLog(@"ERROR: Could not load %@.%@ in the bundle resource", modelName, typeName);
+      return model;
+    } else {
+      // If model is found in bundle resource, compile it and return the compiled model
+      NSURL *modelURL = [NSURL fileURLWithPath:modelPath];
 
-    // Set the compute units to CPU and Neural Engine
-    configuration.computeUnits = MLComputeUnitsCPUAndNeuralEngine;
+      NSLog(@"INFO: Compiling model at %@", modelURL);
 
-    // Set the model display name
-    configuration.modelDisplayName = modelName;
+      // Compile the model
+      NSURL *compiledURL = [MLModel compileModelAtURL:modelURL
+                                                error:nil];
 
-    NSLog(@"INFO: Creating model with contents %@", compiledUrl);
+      NSLog(@"INFO: Copying model to the permanent location %@", permanentURL);
 
-    // Create the model
-    model = [MLModel modelWithContentsOfURL:compiledUrl
-                              configuration:configuration
-                                      error:nil];
-
-    NSLog(@"INFO: Created model: %@", model.modelDescription.metadata[MLModelDescriptionKey]);
+      // Copy the file to the to the permanent location, replacing it if necessary
+      [fileManager replaceItemAtURL:permanentURL
+                      withItemAtURL:compiledURL
+                     backupItemName:nil
+                            options:NSFileManagerItemReplacementUsingNewMetadataOnly
+                   resultingItemURL:nil
+                              error:nil];
+    }
   }
+
+  // Initialize the model configuration
+  MLModelConfiguration *configuration = [[MLModelConfiguration alloc] init];
+
+  // Set the compute units to CPU and Neural Engine
+  configuration.computeUnits = MLComputeUnitsCPUAndNeuralEngine;
+
+  // Set the model display name
+  configuration.modelDisplayName = modelName;
+
+  NSLog(@"INFO: Creating model with contents %@", permanentURL);
+
+  // Create the model
+  model = [MLModel modelWithContentsOfURL:permanentURL
+                            configuration:configuration
+                                    error:nil];
+
+  NSLog(@"INFO: Created model: %@", model.modelDescription.metadata[MLModelDescriptionKey]);
 
   // Return the model
   return model;
