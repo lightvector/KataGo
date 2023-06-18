@@ -87,7 +87,9 @@ namespace Client {
     Connection(Connection&&) = delete;
     Connection& operator=(Connection&&) = delete;
 
+    void testConnection();
     RunParameters getRunParameters();
+    
     //Returns true if a task was obtained. Returns false if no task was obtained, but not due to an error (e.g. shouldStop).
     //Raises an exception upon a repeated error that persists long enough.
     bool getNextTask(
