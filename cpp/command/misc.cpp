@@ -579,6 +579,7 @@ int MainCmds::samplesgfs(const vector<string>& args) {
   ScoreValue::initTables();
   Rand seedRand;
 
+  vector<string> sgfFilesFromCmdline;
   vector<string> sgfDirs;
   vector<string> sgfsDirs;
   string outDir;
@@ -615,6 +616,7 @@ int MainCmds::samplesgfs(const vector<string>& args) {
   try {
     KataGoCommandLine cmd("Search for suprising good moves in sgfs");
 
+    TCLAP::MultiArg<string> sgfArg("","sgf","Sgf file",false,"SGF");
     TCLAP::MultiArg<string> sgfDirArg("","sgfdir","Directory of sgf files",false,"DIR");
     TCLAP::MultiArg<string> sgfsDirArg("","sgfsdir","Directory of sgfs files",false,"DIR");
     TCLAP::ValueArg<string> outDirArg("","outdir","Directory to write results",true,string(),"DIR");
@@ -646,7 +648,8 @@ int MainCmds::samplesgfs(const vector<string>& args) {
     TCLAP::ValueArg<double> maxKomiArg("","max-komi","Require absolute value of game komi to be at most this",false,1000,"KOMI");
 
     TCLAP::SwitchArg forTestingArg("","for-testing","For testing");
-    
+
+    cmd.add(sgfArg);
     cmd.add(sgfDirArg);
     cmd.add(sgfsDirArg);
     cmd.add(outDirArg);
@@ -677,6 +680,7 @@ int MainCmds::samplesgfs(const vector<string>& args) {
     cmd.add(maxKomiArg);
     cmd.add(forTestingArg);
     cmd.parseArgs(args);
+    sgfFilesFromCmdline = sgfArg.getValue();
     sgfDirs = sgfDirArg.getValue();
     sgfsDirs = sgfsDirArg.getValue();
     outDir = outDirArg.getValue();
@@ -724,6 +728,9 @@ int MainCmds::samplesgfs(const vector<string>& args) {
 
   vector<string> sgfFiles;
   FileHelpers::collectSgfsFromDirsOrFiles(sgfDirs,sgfFiles);
+  for(const string& s: sgfFilesFromCmdline)
+    sgfFiles.push_back(s);
+  
   logger.write("Found " + Global::int64ToString((int64_t)sgfFiles.size()) + " sgf files!");
 
   std::set<string> sgfsSet;
