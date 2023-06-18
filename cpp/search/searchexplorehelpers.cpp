@@ -302,7 +302,7 @@ double Search::getFpuValueForChildrenAssumeVisited(
 
 
 void Search::selectBestChildToDescend(
-  SearchThread& thread, const SearchNode& node, int nodeState,
+  SearchThread& thread, const SearchNode& node, SearchNodeState nodeState,
   int& numChildrenFound, int& bestChildIdx, Loc& bestChildMoveLoc,
   bool isRoot) const
 {

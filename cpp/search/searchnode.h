@@ -8,6 +8,8 @@
 #include "../neuralnet/nneval.h"
 #include "../search/subtreevaluebiastable.h"
 
+typedef int SearchNodeState; // See SearchNode::STATE_*
+
 struct SearchNode;
 struct SearchThread;
 
@@ -146,15 +148,14 @@ struct SearchNode {
 
   //Mutable---------------------------------------------------------------------------
   //During search, only ever transitions forward.
-  typedef int NodeState;
-  std::atomic<NodeState> state;
-  static constexpr NodeState STATE_UNEVALUATED = 0;
-  static constexpr NodeState STATE_EVALUATING = 1;
-  static constexpr NodeState STATE_EXPANDED0 = 2;
-  static constexpr NodeState STATE_GROWING1 = 3;
-  static constexpr NodeState STATE_EXPANDED1 = 4;
-  static constexpr NodeState STATE_GROWING2 = 5;
-  static constexpr NodeState STATE_EXPANDED2 = 6;
+  std::atomic<SearchNodeState> state;
+  static constexpr SearchNodeState STATE_UNEVALUATED = 0;
+  static constexpr SearchNodeState STATE_EVALUATING = 1;
+  static constexpr SearchNodeState STATE_EXPANDED0 = 2;
+  static constexpr SearchNodeState STATE_GROWING1 = 3;
+  static constexpr SearchNodeState STATE_EXPANDED1 = 4;
+  static constexpr SearchNodeState STATE_GROWING2 = 5;
+  static constexpr SearchNodeState STATE_EXPANDED2 = 6;
 
   //During search, will only ever transition from NULL -> non-NULL.
   //Guaranteed to be non-NULL once state >= STATE_EXPANDED0.
@@ -206,8 +207,8 @@ struct SearchNode {
   //any time up until a new operation is peformed (such as starting a new search, or making a move, or setting params).
   SearchChildPointer* getChildren(int& childrenCapacity);
   const SearchChildPointer* getChildren(int& childrenCapacity) const;
-  SearchChildPointer* getChildren(int state, int& childrenCapacity);
-  const SearchChildPointer* getChildren(int state, int& childrenCapacity) const;
+  SearchChildPointer* getChildren(SearchNodeState state, int& childrenCapacity);
+  const SearchChildPointer* getChildren(SearchNodeState state, int& childrenCapacity) const;
 
   int iterateAndCountChildren() const;
   static int iterateAndCountChildrenInArray(const SearchChildPointer* children, int childrenCapacity);
@@ -225,11 +226,11 @@ struct SearchNode {
 
   //Used within search to update state and allocate children arrays
   void initializeChildren();
-  bool maybeExpandChildrenCapacityForNewChild(NodeState& stateValue, int numChildrenFullPlusOne);
+  bool maybeExpandChildrenCapacityForNewChild(SearchNodeState& stateValue, int numChildrenFullPlusOne);
 
 private:
-  int getChildrenCapacity(NodeState stateValue) const;
-  bool tryExpandingChildrenCapacityAssumeFull(NodeState& stateValue);
+  int getChildrenCapacity(SearchNodeState stateValue) const;
+  bool tryExpandingChildrenCapacityAssumeFull(SearchNodeState& stateValue);
 };
 
 
