@@ -305,8 +305,8 @@ if __name__ == '__main__':
       WINDOWSIZE(N) = (N^EXPONENT - MIN_ROWS^EXPONENT) / (EXPONENT * MIN_ROWS^(EXPONENT-1)) * INITIAL_WINDOW_PER_ROW + MIN_ROWS
 
     given arguments:
-      -taper-window-exponent EXPONENT \
-      -expand-window-per-row INITIAL_WINDOW_PER_ROW \
+      -taper-window-exponent EXPONENT \\
+      -expand-window-per-row INITIAL_WINDOW_PER_ROW \\
       -min-rows MIN_ROWS  (default 250k)
 
     This may look a bit complex, but basically it is simply the power law N^EXPONENT with shifting and scaling such that:
@@ -314,8 +314,8 @@ if __name__ == '__main__':
     (dWINDOWSIZE/dN)(MIN_ROWS) = INITIAL_WINDOW_PER_ROW
 
     Reasonable arguments similar to those used for KataGo's main runs would be
-      -taper-window-exponent 0.65 or 0.675 \
-      -expand-window-per-row 0.4 \
+      -taper-window-exponent 0.65 or 0.675 \\
+      -expand-window-per-row 0.4 \\
       -min-rows 250000 (default)
 
     If you want to control the "scale" of the power law differently than the min rows, you can specify -taper-window-scale as well.
@@ -324,9 +324,14 @@ if __name__ == '__main__':
     Additionally, NOT all of the shuffled window is output, only a random shuffled 20M rows will be kept. Adjust this using -keep-target-rows. The intention is that this script will be repeatedly run as new data comes in, such that well before train.py would need more than 20M rows, the data would have been shuffled again and a new random 20M rows chosen.
 
     If you are NOT doing ongoing self-play training, but simply want to shuffle an entire dataset (not just a window of it) and want to output all of it (not just 20M of it) then you can use arguments like:
-    -taper-window-exponent 1.0 \
-    -expand-window-per-row 1.0 \
-    -keep-target-rows SOME_VERY_LARGE_NUMBER
+      -taper-window-exponent 1.0 \\
+      -expand-window-per-row 1.0 \\
+      -keep-target-rows SOME_VERY_LARGE_NUMBER
+
+    If you ARE doing ongoing self-play training, but want a fixed window size, then you can use arguments like:
+      -min-rows YOUR_DESIRED_SIZE \\
+      -taper-window-exponent 1.0 \\
+      -expand-window-per-row 0.0
     """)
     parser.add_argument('dirs', metavar='DIR', nargs='+', help='Directories of training data files')
 
