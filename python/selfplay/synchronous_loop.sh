@@ -65,6 +65,7 @@ MAX_TRAIN_SAMPLES_PER_CYCLE=500000  # Each cycle will do at most this many train
 SHUFFLE_KEEPROWS=600000 # Needs to be larger than MAX_TRAIN_SAMPLES_PER_CYCLE, so the shuffler samples enough rows each cycle for the training to use.
 
 # Paths to the selfplay and gatekeeper configs that contain board sizes, rules, search parameters, etc.
+# See cpp/configs/training/README.md for some notes on other selfplay configs.
 SELFPLAY_CONFIG="$GITROOTDIR"/cpp/configs/training/selfplay1.cfg
 GATING_CONFIG="$GITROOTDIR"/cpp/configs/training/gatekeeper1.cfg
 
