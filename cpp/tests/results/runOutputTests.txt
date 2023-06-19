@@ -18447,6 +18447,25 @@ obviousMovesPolicyEntropyTolerance: 0.3
 obviousMovesPolicySurpriseTolerance: 0.15
 futileVisitsThreshold: 0
 
+===================================================================
+Board size distribution
+===================================================================
+2x2 7368
+2x4 610
+2x6 858
+2x8 1157
+4x2 612
+4x4 15166
+4x6 1794
+4x8 2366
+6x2 906
+6x4 1801
+6x6 23595
+6x8 3691
+8x2 1150
+8x4 2387
+8x6 3582
+8x8 32957
 Done
 Running training write tests
 : Initializing neural net buffer to be size 19 * 19 allowing smaller boards
