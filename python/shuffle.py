@@ -346,7 +346,7 @@ if __name__ == '__main__':
     required_args.add_argument('-taper-window-exponent', type=float, required=True, help='Make the window size asymtotically grow as this power of the data rows')
     optional_args.add_argument('-taper-window-scale', type=float, required=False, help='The scale at which the power law applies, defaults to -min-rows')
     optional_args.add_argument('-add-to-data-rows', type=float, required=False, help='Compute the window size as if the number of data rows were this much larger/smaller')
-    optional_args.add_argument('-add-to-window', type=float, required=False, help='DEPRECATED due to being misnamed name, use -add-to-data-rows')
+    optional_args.add_argument('-add-to-window-size', type=float, required=False, help='DEPRECATED due to being misnamed name, use -add-to-data-rows')
     optional_args.add_argument('-summary-file', required=False, help='Summary json file for directory contents')
     required_args.add_argument('-out-dir', required=True, help='Dir to output training files')
     required_args.add_argument('-out-tmp-dir', required=True, help='Dir to use as scratch space')
