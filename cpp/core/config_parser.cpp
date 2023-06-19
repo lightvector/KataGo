@@ -636,6 +636,34 @@ vector<int> ConfigParser::getInts(const string& key, int min, int max) {
   }
   return ret;
 }
+vector<std::pair<int,int>> ConfigParser::getNonNegativeIntDashedPairs(const string& key, int min, int max) {
+  std::vector<string> pairStrs = getStrings(key);
+  std::vector<std::pair<int,int>> ret;
+  for(const string& pairStr: pairStrs) {
+    if(Global::trim(pairStr).size() <= 0)
+      continue;
+    std::vector<string> pieces = Global::split(Global::trim(pairStr),'-');
+    if(pieces.size() != 2) {
+      throw IOError("Could not parse '" + pairStr + "' as a pair of integers separated by a dash for key '" + key + "' in config file " + fileName);
+    }
+
+    bool suc;
+    int p0;
+    int p1;
+    suc = Global::tryStringToInt(pieces[0],p0);
+    if(!suc)
+      throw IOError("Could not parse '" + pairStr + "' as a pair of integers separated by a dash for key '" + key + "' in config file " + fileName);
+    suc = Global::tryStringToInt(pieces[1],p1);
+    if(!suc)
+      throw IOError("Could not parse '" + pairStr + "' as a pair of integers separated by a dash for key '" + key + "' in config file " + fileName);
+
+    if(p0 < min || p0 > max || p1 < min || p1 > max)
+      throw IOError("Expected key '" + key + "' to have all values range " + Global::intToString(min) + " to " + Global::intToString(max) + " in config file " + fileName);
+
+    ret.push_back(std::make_pair(p0,p1));
+  }
+  return ret;
+}
 
 
 int64_t ConfigParser::getInt64(const string& key) {
