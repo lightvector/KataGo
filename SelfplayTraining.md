@@ -54,6 +54,7 @@ Example instructions to start up these things (assuming you have appropriate mac
      * Also, if you're low on disk space, take a look also at the `./selfplay/shuffle.sh` script (which is called by `shuffle_and_export_loop.sh`). Right now it's *very* conservative about cleaning up old shuffles so that it doesn't accidentally delete a shuffle that the training is still reading from, but you could tweak it to be a bit more aggressive.
      * You can also edit `./selfplay/shuffle.sh` if you want to change any details about the lookback window for training data, see `shuffle.py` for more possible arguments.
      * The loop script will output `$BASEDIR/logs/outshuffle.txt` and `$BASEDIR/logs/outexport.txt`, take a look at these to see the output of the shuffle program and/or any errors it encountered.
+     * Run `python ./shuffle.py -help` to for information about how the window size is computed, if you want to adjust window size parameters.
    * **Training:** `cd python; ./selfplay/train.sh $BASEDIR/ $TRAININGNAME b6c96 $BATCH_SIZE main -lr-scale 1.0 -max-train-bucket-per-new-data 4 -max-train-bucket-size 5000000 -no-repeat-files >> log.txt 2>&1 & disown`
      * This starts the training. You may want to look at or edit the train.sh script, it also snapshots the state of the repo for logging, as well as contains some training parameters that can be tweaked.
      * `$TRAININGNAME` is a name prefix for the neural net, whose name will follow the convention `$NAMEOFRUN-$TRAININGNAME-s(# of samples trained on)-d(# of data samples generated)`.
