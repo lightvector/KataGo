@@ -267,7 +267,7 @@ Once we're at four 3x3 convs though, it's pretty natural to pair them up into th
 
 <tr><td><img src="https://raw.githubusercontent.com/lightvector/KataGo/master/images/docs/bottlenecknestedresblock.png" width="580"/></td></tr>
 
-This is one of a few improvements to KataGo's neural net architecture and training in 2022-2023, which togther along with some other tuning resulted in a new "b18c384" net (18 blocks of this form, 384 trunk channels and 192 channels inside blocks), of comparable speed to the older "b40c256" nets (40 basic residual blocks with 256 channels), sometimes slightly faster, yet only barely weaker-per-evaluation than the old twice-as-heavy "b60c320" nets (60 basic residual blocks with 320 channels).
+This is one of a few improvements to KataGo's neural net architecture and training in 2022-2023, which togther along with some other tuning resulted in a new "b18c384" net, of comparable speed to the older "b40c256" nets, sometimes slightly faster, yet only barely weaker-per-evaluation than the old twice-as-heavy "b60c320" nets.
 
 ## Auxiliary Soft Policy Target
 <sub>(This method was first experimented with in KataGo at the end of 2022, and became part of main-run nets in March 2023 with v1.12.0).</sub>
@@ -306,7 +306,7 @@ Predicting this well requires recognizing that MCTS liked C and D more than othe
 
 KataGo currently uses T = 4 and also weights the soft policy target nominally 8 times more than the normal policy target. The 8x nominal weight compensates for the fact that after reasonably optimized, the soft policy provides much smaller gradients on average.
 
-This is one of a few improvements to KataGo's neural net architecture and training in 2022-2023, which togther along with some other tuning resulted in a new "b18c384" net (18 blocks of this form, 384 trunk channels and 192 channels inside blocks), of comparable speed to the older "b40c256" nets (40 basic residual blocks with 256 channels), sometimes slightly faster, yet only barely weaker-per-evaluation than the old twice-as-heavy "b60c320" nets (60 basic residual blocks with 320 channels).
+This is one of a few improvements to KataGo's neural net architecture and training in 2022-2023, which togther along with some other tuning resulted in a new "b18c384" net, of comparable speed to the older "b40c256" nets, sometimes slightly faster, yet only barely weaker-per-evaluation than the old twice-as-heavy "b60c320" nets.
 
 ## Fixed Variance Initialization and One Batch Norm
 <sub>(This method was first experimented with in KataGo at the end of 2022, and became part of main-run nets in March 2023 with v1.12.0).</sub>
