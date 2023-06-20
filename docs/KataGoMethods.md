@@ -285,7 +285,7 @@ As intuition, consider a policy target like:
 
 Under cross entropy loss, the policy will be heavily incentivized to learn correctly-weighted predictions for A and B. However, there will be little pressure to the policy to get the weight of C and D correct vs each other and vs other moves. If the policy assigns 1% for C, 2% for D, and puts a whole 3% on some other move entirely, the loss is only barely greater than if it predicts 3% and 1% accurately for C and D.
 
-By the softer policy^(1/T) might look like:
+The softer policy^(1/T) might look like:
 
 ```
 30% A
@@ -295,7 +295,7 @@ By the softer policy^(1/T) might look like:
 <6% on a few other moves
 ```
 
-Predicting this well requires recognizing that MCTS liked C and D more than other moves, and by how much. Thanks to policy target pruning as described in [KataGo's paper](https://arxiv.org/abs/1902.10565), a lot of the low-mass moves in KataGo's policy target are not purely noise from Dirichlet noise, but rather contain meaningful information about how much MCTS liked that move. Presumably, learning to discriminate this much richer target beyond just usually predicting the best 1-2 moves helps the neural net form better internal features, improving the learning.
+Predicting this well requires recognizing that MCTS liked C and D more than other moves, and also predicting roughly by how much. Thanks to policy target pruning as described in [KataGo's paper](https://arxiv.org/abs/1902.10565), a lot of the low-mass moves in KataGo's policy target are not purely noise from Dirichlet noise, but rather contain meaningful information about how much MCTS liked that move. Presumably, learning to discriminate this much richer target beyond just usually predicting the best 1-2 moves helps the neural net form better internal features, improving the learning.
 
 KataGo currently uses T = 4 and also weights the soft policy target nominally 8 times more than the normal policy target. The 8x nominal weight compensates for the fact that after reasonably optimized, the soft policy provides much smaller gradients on average.
 
@@ -312,7 +312,7 @@ This is one of a few improvements to KataGo's neural net architecture and traini
 
 Firstly, we initialize the neural net in a manner different than Fixup:
 
-In every place in the neural net where a batch normalization layer *would* normally be inserted, we add a simple scalar multiplication by fixed layer-specific constant K. The way we determine K is to idealize every convolution-activation layer pair in the net as outputting random values with the same variance as they receive as input, assume that the variance of a sum is the sum of its variances, and assume the input of the entire net is variance 1. Then, K is the unique value such that the output of the normalization layer is variance 1.
+In every place in the neural net where a batch normalization layer *would* normally be inserted, we add a simple scalar multiplication by a fixed layer-specific constant K. The way we determine K is to idealize every convolution-activation layer pair in the net as outputting random values with the same variance as they receive as input, to assume that the variance of a sum is the sum of its variances, and to assume the input of the entire net is variance 1. Then, K is the unique value such that the output of the normalization layer is variance 1.
 
 For example, here is how the nested bottleneck residual block from above would be normalized:
 
@@ -340,13 +340,13 @@ We train an additional policy head alongside the normal policy on the exact same
 
 Specifically we weight the policy target by:
 
-```clamp(0.0, 1.0, sigmoid((z_value-1.5)/3) + sigmoid((z_score-1.5)/3)```
+```clamp(0.0, 1.0, sigmoid((z_value-1.5)/3) + sigmoid((z_score-1.5)/3))```
 
 where:
 
-```z_value = (shortterm_value_outcome - stop_grad(shortterm_value_pred)) / stop_grad(sqrt(shortterm_value_squared_error_pred) + epsilon)```
+```z_value = (shortterm_value_outcome - stop_grad(shortterm_value_pred)) / stop_grad(sqrt(shortterm_value_squared_error_pred + epsilon))```
 
-and analogously for `z_score`. The `shortterm_value_outcome` is the same roughly-6-turn (on 19x19, shorter on smaller boards) exponentially weighted short-term future MCTS value described in earlier sections, and `shortterm_value_pred` is the output of the auxiliary value head that predicts it and `shortterm_value_squared_error_pred` is the output of the auxiliary head that predicts the expected squared error. `epsilon` is a small constant to avoid division by values too close to zero.
+and analogously for `z_score`. The `shortterm_value_outcome` is the same roughly-6-turn (on 19x19, shorter on smaller boards) exponentially weighted short-term future MCTS value described in earlier sections, and `shortterm_value_pred` is the output of the auxiliary value head that predicts it and `shortterm_value_squared_error_pred` is the output of the auxiliary head that predicts the expected squared error. `epsilon` is a small constant to avoid division by values too close to zero. The two `stop_grad`s ensure that error on the optimistic policy doesn't flow backwards and cause the net to reassess what it thought the value or expected value error was.
 
 The specific formulas above are somewhat arbitrary, and the 'best' formula is unknown. The intent is to train an optimistic policy head that predicts the policy conditioned on the current player's MCTS being able to find a variation that turns out to be much better than expected. This formula gives full weight or nearly full weight to training samples where such a surprise happens, and small but nonzero weight in all other cases, which regularizes the policy to reduce to just the normal policy in cases when no surprise is possible.
 
@@ -356,6 +356,6 @@ Then, during MCTS at test-time, we use the optimistic policy for *both* sides du
 
 * Ever since the dawn of computer Chess programs back in the mid-1900s, the horizon effect has plagued computer game AIs, where the losing player will interpose many useless or even self-harming "timesuji" or horizon-delaying moves as the game starts to swing against them. Sticking their head in the sand trying to delay the inevitable. Modern AlphaZero-based programs are no exception, and the policy will in fact learn such moves in self-play. The optimistic policy may weigh these moves less since pointless delaying moves will occur much more when the player is imminently about to lose, rather than when they are imminently about to unexpectedly get a good result.
 
-* Human players familiar with solving Chess puzzles, or tsumego in Go, will understand this concept intuitively - the "toughest resistance" that you need to consider for the opponent resisting you is often NOT the line the opponent should play in a real game. Rather, the opponent should often back down after the very first move and give you what you want, to cut their losses. But the concession line is *not* the line you need to evaluate to determine whether the tactic works or not; you need to evaluate the line where both players resist and escalate, heedless of the fact that if such a line were actually played in real life (rather than only being simulated within the search), the opponent's willingness to escalate right back would be Bayesian evidence that maybe they can refute you after all. The optimistic policy may be better at solving these critical lines since on each player's turn it optimistically conditions on that player being the imminent winner and suggests moves appropriate to that optimism, rather than being inclined to concede as working a tactic it isn't sure about before it has been proven in the search.
+* Human players familiar with solving Chess puzzles, or tsumego in Go, will understand this concept intuitively - the "toughest resistance" that you need to consider for the opponent resisting you is often NOT the line the opponent should play in a real game. Rather, the opponent should often back down after the very first move and give you what you want, to cut their losses. But the concession line is *not* the line you need to evaluate to determine whether the tactic works or not; you need to evaluate the line where both players resist and escalate, heedless of the fact that if such a line were actually played in real life (rather than only being simulated within the search), the opponent's willingness to escalate right back would be Bayesian evidence that maybe they can refute you after all. The optimistic policy may be better at solving these critical lines since on each player's turn it optimistically conditions on that player being the imminent winner and suggests moves appropriate to that optimism, rather than being inclined to already concede within the search to a tactic before proving that it works.
 
 Although it would not be hard to change later, as of June 2023, the optimistic policy is *not* used during self-play since it is not clear what happens if this pretty substantial way of biasing the policy is fed back on itself - whether it is sound or whether it may lead to some convergence issues down the line.
