@@ -2,6 +2,19 @@
 
 This is a page to document some additional methods and techniques implemented in KataGo, such as some things not in (the latest version of) the [arXiv paper](https://arxiv.org/abs/1902.10565), or that were invented or implemented or discovered by KataGo later, or that were drawn from other research or literature but not documented elsewhere in KataGo's paper or materials.
 
+* [Training on Multiple Board Sizes via Masking](#training-on-multiple-board-sizes-via-masking)
+* [Fixup Initialization](#fixup-initialization)
+* [Shaped Dirichlet Noise](#shaped-dirichlet-noise)
+* [Root Policy Softmax Temperature](#root-policy-softmax-temperature)
+* [Policy Surprise Weighting](#policy-surprise-weighting)
+* [Subtree Value Bias Correction](#subtree-value-bias-correction)
+* [Dynamic Variance-Scaled cPUCT](#dynamic-variance-scaled-cpuct)
+* [Short-term Value and Score Targets](#short-term-value-and-score-targets)
+* [Uncertainty-Weighted MCTS Playouts](#uncertainty-weighted-mcts-playouts)
+* [Nested Bottleneck Residual Nets](#nested-bottleneck-residual-nets)
+* [Auxiliary Soft Policy Target](#auxiliary-soft-policy-target)
+* [Fixed Variance Initialization and One Batch Norm](#fixed-variance-initialization-and-one-batch-norm)
+* [Optimistic Policy](#optimistic-policy)
 
 ## Training on Multiple Board Sizes via Masking
 <sub>(This method has been used in KataGo through all of its runs. It was presented in an early draft of its paper but was cut later for length limitations).</sub>
@@ -32,6 +45,8 @@ Outside of Go and board games, the suitability of this method may of course grea
 
 ## Fixup Initialization
 <sub>(This method was used starting in "g170", KataGo's January 2020 to June 2020 run).</sub>
+
+** This method is NOT used any more in KataGo, see the [Fixed Variance Initialization and One Batch Norm](#fixed-variance-initialization-and-one-batch-norm) section below.**
 
 KataGo has been successfully training *without* batch normalization or any other normalization layers by using Fixup Initialization, a simple new technique published in ICLR 2019: https://arxiv.org/abs/1901.09321 (Zhang, Dauphin, and Ma, ICLR 2019).
 
@@ -187,6 +202,19 @@ So KataGo now uses cPUCT that dynamically adjusts proportionally with the empiri
 
 Combined with the uncertainty weighting method below, KataGo as of 1.9.0 release seems to be about 75 Elo stronger than the preceding release, and about 50 Elo stronger than the preceding release if the cPUCT for the preceding release is optimally tuned (with the latest networks, apparently about 25 Elo could be gained by tuning a better constant cPUCT).
 
+## Short-term Value and Score Targets
+<sub>(This method has been used since since "g170", KataGo's January 2020 to June 2020 run).</sub>
+
+KataGo also trains the neural net to predict auxiliary value and score targets: `(1-lambda) sum_{t' >= t} MCTS_value(t') lambda^(t'-t)` for various lambda, such that this exponential tail sum averages over roughly the next 6 turns, 16 turns, and 50 turns into the future on 19x19, and correspondingly shorter for smaller boards proportional to the board area. The various loss weights used on these auxiliary value and score heads has varied over different training runs, but generally neural nets seem to train sligtly faster and achieve slightly better value and score loss on the main head that tries to predict the final game result (corresponding to lambda -> 1.0) by simply decreasing the loss weight a little on the main head and adding these additional heads. Presumably these additional heads provide lower-variance feedback on the value of a position, in a classic bias-variance tradeoff.
+
+This has not been fully re-tested with recent nets in a controlled way, but a partial test was done in late 2022, shown here. Below is an old plot of the value loss on a fixed self-play dataset extracted from KataGo's training data, testing from-scratch training of a net using a legacy value loss weighting that weighted long-term values heavily, compared to from-scratch training of a net equal-weighting them. This should be considered more illustrative of the magnitude of possible effect from such weightings, and not a particularly careful or rigorous test of the benefit of this method, especially since it doesn't show the effect of overall loss weight changes or have a control that exclusively uses only the final-game-outcome target.
+
+<table class="image">
+<tr><td><img src="https://raw.githubusercontent.com/lightvector/KataGo/master/images/docs/tdvalue.png" height="250"/></td></tr>
+<tr><td><sub>Value loss in predicting the final game outcome in early b18c384nbt neural net training, comparing orange, an older and legacy loss weight configuration [1.0,0.458,0.458.0.125] to green, equal-weighted [0.6, 0.6, 0.6, 0.6], respectively among the value heads predicting [final outcome, 50 turns, 16 turns, 6 turns]. Y axis is the unweighted loss of the value head predicting the final outcome, X axis is the number of training steps in samples.</sub></tr></td>
+</table>
+
+Arguably the more important benefit of these auxiliary targets is not on improving the value prediction (although it is nice and free to the degree that it exists!), but rather that having short-term predictions enables further methods below, see [Uncertainty-Weighted MCTS Playouts](#uncertainty-weighted-mcts-playouts) and [Optimistic Policy](#optimistic-policy).
 
 ## Uncertainty-Weighted MCTS Playouts
 <sub>(This method was first experimented with in KataGo in early 2021, and released in June 2021 with v1.9.0).</sub>
@@ -195,10 +223,10 @@ KataGo now weights different MCTS playouts according to the "confidence" of the 
 
 Specifically on any given turn t in the game, we train the neural net to predict the short-term error between its current output and the values from MCTS from the training data that are treated as the ground truth:
 
-* Predict the squared difference between `stop_gradient(neural net's current value prediction)` and `(1-lambda) sum_{t' >= t} MCTS_value(t') lambda^(t'-t)`
-* Predict the squared difference between `stop_gradient(neural net's current score prediction)` and `(1-lambda) sum_{t' >= t} MCTS_score(t') lambda^(t'-t)`
+* Predict the squared difference between `stop_gradient(neural net's current short-term value prediction)` and `(1-lambda) sum_{t' >= t} MCTS_value(t') lambda^(t'-t)`
+* Predict the squared difference between `stop_gradient(neural net's current short-term score prediction)` and `(1-lambda) sum_{t' >= t} MCTS_score(t') lambda^(t'-t)`
 
-Where `MCTS_value(t')` and `MCTS_score(t')` are the root value and score from MCTS recorded for turn t' in the training data, and lambda ~= 5/6 is an arbitrary coefficient for computing an exponential weighted average over the subsequent turns. The stop-gradient is so that the neural net attempts to adjust the error prediction heads to match this squared difference, but do not attempt to adjust the value and score prediction heads to make the squared difference closer to the error prediction head's output. For the loss function, we also just use squared error, i.e. the loss is fourth-degree in the underlying values. (Actually, we use Huber loss, which is basically just squared error but avoiding extreme outliers).
+Where `MCTS_value(t')` and `MCTS_score(t')` are the root value and score from MCTS recorded for turn t' in the training data, and lambda ~= 5/6 (on 19x19 boards) is an arbitrary coefficient for computing an exponential weighted average over the subsequent turns. Smaller boards adjust lambda so that the average amount into the future is smaller roughly proportional to the board area. The stop-gradient is so that the neural net attempts to adjust the error prediction heads to match this squared difference, but do not attempt to adjust the value and score prediction heads to make the squared difference closer to the error prediction head's output. For the loss function, we also just use squared error, i.e. the loss is fourth-degree in the underlying values. (Actually, we use Huber loss, which is basically just squared error but avoiding extreme outliers).
 
 Basically, the neural net not only produces a winrate and score, but also an estimate of how uncertain or inaccurate those winrates and scores are relative to what a search would conclude a few turns later. We then simply downweight playouts roughly proportionally to the neural net's reported uncertainty, so that uncertain playouts count as a "fraction of a playout" for the purposes of computing the MCTS average values and for driving the PUCT exploration formula, and highly certain playouts count as "more than one playout" for these. We add a small minimum baseline uncertainty so as to cap the maximum weight that one single playout can provide.
 
@@ -207,5 +235,105 @@ From manual observations by hand this uncertainty prediction behaves almost exac
 Combined with the dynamic cPUCT method above, KataGo as of 1.9.0 release seems to be about 75 Elo stronger than the preceding release, and about 50 Elo stronger than the preceding release if the cPUCT for the preceding release is optimally tuned (with the latest networks, apparently about 25 Elo could be gained by tuning a better constant cPUCT).
 
 
+## Nested Bottleneck Residual Nets
+<sub>(This method was first experimented with in KataGo at the end of 2022, and became part of main-run nets in March 2023 with v1.13.0).</sub>
+This method was inspired by the appendix of the [Gumbel Muzero paper](https://openreview.net/forum?id=bERaNdoegnO) (Danhelka et al, ICLR 2022). Many thanks to the authors of that work, particularly Julian Schrittwieser for raising it to attention.
 
+In that paper's appendix, the authors note an improved architecture for convolutional neural nets in Go, which is to use a bottleneck residual net.
+However, they use a slightly longer bottleneck than the normal one you see in the literature elsewhere.
 
+A basic (pre-activation) residual block looks like the following:
+
+<tr><td><img src="https://raw.githubusercontent.com/lightvector/KataGo/master/images/docs/residualblock.png" width="589"/></td></tr>
+
+A bottleneck residual block attempts to be computationally cheaper by reducing the dimension via 1x1 convolutions, before doing the 3x3 convolution which is where the expensive bulk of the computation happens. Hoping that the computation is more efficient as a composition of lower-rank operations, this can allow you to stack more total blocks or increase the number of channels C a little.
+
+<tr><td><img src="https://raw.githubusercontent.com/lightvector/KataGo/master/images/docs/bottleneckresidualblock.png" width="653"/></td></tr>
+
+However, in early development KataGo already tested this and found it was substantially worse than normal residual blocks, holding total compute cost constant. The interesting observation in the Gumbel Muzero paper appendix is that the following block (handwaving away differences of preactivation vs postactivation) is better than normal residual blocks:
+
+<tr><td><img src="https://raw.githubusercontent.com/lightvector/KataGo/master/images/docs/bottlenecklongresidualblock.png" width="657"/></td></tr>
+
+In retrospect, this makes sense. 1x1 convolutions are still fairly expensive, and only doing one 3x3 convolution at reduced dimension per pair of 1x1 convolutions doesn't pay back the cost. But doing two of them does pay back the cost! KataGo found that in its particular use case, in fact going to three or four was slightly better, further reducing the relative overhead of the 1x1 convs:
+
+<tr><td><img src="https://raw.githubusercontent.com/lightvector/KataGo/master/images/docs/bottlenecklonglongresidualblock.png" width="654"/></td></tr>
+
+Once we're at four 3x3 convs though, it's pretty natural to pair them up into their own residual blocks by adding skip connections, to improve optimization. This results in the final improved block architecture that KataGo uses, as of mid 2023:
+
+<tr><td><img src="https://raw.githubusercontent.com/lightvector/KataGo/master/images/docs/bottlenecknestedresidualblock.png" width="725"/></td></tr>
+
+This is one of a few improvements to KataGo's neural net architecture and training in 2022-2023, which togther along with some other tuning resulted in a new "b18c384" net (18 blocks of this form, 384 trunk channels and 192 channels inside blocks), of comparable speed to the older "b40c256" nets (40 basic residual blocks with 256 channels), sometimes slightly faster, yet only barely weaker-per-evaluation than the old twice-as-heavy "b60c320" nets (60 basic residual blocks with 320 channels).
+
+## Auxiliary Soft Policy Target
+<sub>(This method was first experimented with in KataGo at the end of 2022, and became part of main-run nets in March 2023 with v1.12.0).</sub>
+
+This method was suggested for KataGo by an excellent user "lionfenfen" based on their independent research. Many thanks to them! KataGo's exact parameters and weighting are different, but the method appears to greatly improves the speed of learning of the policy.
+
+The method is simple: add an auxiliary policy head with an appropriate loss weighting that attempts to predict the policy target raised to power of (1/T) for some moderately large temperature T (and re-normalized to sum to 1). Simply adding this auxiliary "soft" policy target improves the learning of the original policy head.
+
+At first this might seem a bit surprising. Why would predicting the the exact same data under just a simple transformation improve things? For some intuition, consider a policy target like {60% A, 35% B, 3% C, 1% D, <0.01% on all other moves}. Under cross entropy loss, the policy will be heavily incentivized to learn correctly-weighted predictions for A and B. However, there will be little pressure to the policy to get the weight of C and D correct vs each other and vs other moves. If the policy assigns 1% for C, 1% for D, and puts a whole 3% on some other move entirely, the loss is only barely greater.
+
+Whereas if we also predict the softer policy^(1/T) where the probabilities of all the moves much more similar, we help the neural net neural net to learn to discriminate that MCTS liked C and D still much more than other moves, and depending on how the masses and weights fall out, possibly that C is notably more liked than D. Thanks to policy target pruning as described in [KataGo's paper](https://arxiv.org/abs/1902.10565), a lot of the low-mass moves in KataGo's policy target are not purely noise (from Dirichlet noise), but rather contain meaningful information about how much MCTS liked that move. Presumably, learning to discriminate this much richer target beyond just usually predicting the best 1-2 moves helps the neural net form better internal features, improving the learning.
+
+KataGo currently uses T = 4 and also weights the soft policy target nominally 8 times more than the normal policy target. (Higher nominal weight compensates for the fact that after reasonably optimized, the soft policy provides much smaller gradients on average).
+
+This is one of a few improvements to KataGo's neural net architecture and training in 2022-2023, which togther along with some other tuning resulted in a new "b18c384" net (18 blocks of this form, 384 trunk channels and 192 channels inside blocks), of comparable speed to the older "b40c256" nets (40 basic residual blocks with 256 channels), sometimes slightly faster, yet only barely weaker-per-evaluation than the old twice-as-heavy "b60c320" nets (60 basic residual blocks with 320 channels).
+
+## Fixed Variance Initialization and One Batch Norm
+<sub>(This method was first experimented with in KataGo at the end of 2022, and became part of main-run nets in March 2023 with v1.12.0).</sub>
+
+This method replaces [Fixup Initialization](#fixup-initialization) above. This development is also partially thanks to users "Medwin" and "lionfenfen" for motvating KataGo to re-test batch-norm and related normalization methods. This method seems to be better than FixUp, and capture some more of the benefit of BatchNorm while still avoiding the headaches of tuning Batch Renorm appropriately or having a major train/inference discrepancy in the neural net.
+
+This is one of a few improvements to KataGo's neural net architecture and training in 2022-2023, which togther along with some other tuning resulted in a new much stronger-per-compute "b18c384" net, although this particular improvement is probably more of a fixing of a historical suboptimal choice rather than being fundamentally much better than the best alternative state-of-the-art methods.
+
+#### Fixed Variance Initialization
+
+Firstly, we initialize the neural net in a manner different than Fixup:
+
+In every place in the neural net where a batch normalization layer *would* normally be inserted, we add a simple scalar multiplication by fixed layer-specific constant K. The way we determine K is to idealize every convolution-activation layer pair in the net as outputting random values with the same variance as they receive as input, assume that the variance of a sum is the sum of its variances, and assume the input is variance 1. Then, K is the unique value such that the output of the normalization layer is variance 1.
+
+For example, here is how the nested bottleneck residual block from above would be normalized:
+
+<tr><td><img src="https://raw.githubusercontent.com/lightvector/KataGo/master/images/docs/bottlenecklonglongresidualblock.png" width="773"/></td></tr>
+
+The variance increase above 1 at the summations with skip connections, and every normalization layer chooses the scaling that resets the variance following it to back 1. By itself, this appears to work at least as well in KataGo as Fixup, but is a more general rule, so can be applied to more complex architectures that Fixup doesn't describe how to handle, such as this nested residual block.
+
+#### One Batch Norm
+
+Secondly:
+
+* We add *one* batch norm layer to the neural net, at the end of the trunk of blocks, just before the point where the policy head, value head, etc. all attach.
+* We attach a second independently-learning copy of all heads with exactly the same loss functions to the trunk *without* the batch norm layer.
+* The first set of heads that goes through the batch norm layer is given most of the loss weight (currently 80%).
+* The second set of heads that skips the batch norm layer is given less loss weight (currently 20%), and are the heads that are used at inference time.
+
+This seems to recover most (but not all) of the optimization benefit of batch norm. The idea is that the first set of heads is mostly the one driving optimization during training since it has most of the loss weight, and since it goes through a batch norm layer, this removes most of the incentive throughout the rest of the net for weights to adjust the overall magnitudes of activation vectors instead of adjusting their direction, similar to how batch norm layers throughout the net would. The second set of heads learns to make optimal predictions given the same features without normalization, so can be directly used at inference time without having to track moving averages of batch normalization layers and creating an annoying train/inference difference in the net.
+
+## Optimistic Policy
+<sub>(This method was developed through 2022 and the first half of 2023, and became part of main-run nets in June 2023 with v1.13.0).</sub>
+
+Thanks to Reid McIlroy-Young, Craig Falls, and a few unnamed others for some of the discussions and inspiration leading to this method. Many thanks also to various members of the [Computer Go discord channel](https://discord.gg/bqkZAz3) for helping test this.
+
+This method builds off of the short-term targets in [Short-term Value and Score Targets](#short-term-value-and-score-targets) the short-term error predictions of those targets in [Uncertainty-Weighted MCTS Playouts](#uncertainty-weighted-mcts-playouts). We train an additional policy head alongside the normal policy on the exact same policy target as the normal policy head, except that we softly restrict to data samples where the player to move got a surprisingly higher value or score in the shortterm outcome in the selfplay data.
+
+Specifically we weight the policy target by:
+
+```clamp(0.0, 1.0, sigmoid((z_value-1.5)/3) + sigmoid((z_score-1.5)/3)```
+
+where:
+
+```z_value = (shortterm_value_outcome - stop_grad(shortterm_value_pred)) / stop_grad(sqrt(shortterm_value_squared_error_pred) + epsilon)```
+
+and analogously for `z_score`. The `shortterm_value_outcome` is the same roughly-6-turn (on 19x19, shorter on smaller boards) exponentially weighted short-term future MCTS value described in earlier sections, and `shortterm_value_pred` is the output of the auxiliary value head that predicts it and `shortterm_value_squared_error_pred` is the output of the auxiliary head that predicts the expected squared error. `epsilon` is a small constant to avoid division by values too close to zero.
+
+The specific formulas above are somewhat arbitrary and the "best" formula is unknown. The intent is to train an optimistic policy head that predicts the policy conditioned on the current player's MCTS being able find a variation that turns out to be much better than expected. This formula gives full weight or nearly full weight to training samples where such a surprise happens, and small but nonzero weight in all other cases, which regularizes the policy to reduce to just the normal policy in cases when no surprise is possible.
+
+Then, during MCTS at test-time, we use the optimistic policy for *both* sides during the search. In KataGo, this appears to be worth something like 40 to 90 Elo depending on other settings. The exact mechanism for why this is good is unknown, but here are some possible hypotheses (which are the same intuitions that otivated trying this method to begin with, and probably are ways to phrase different aspects of a similar underlying idea):
+
+* Often, an unexpected good result is due to MCTS finding a surprising good tactic that the raw model didn't spot. The optimistic policy is more likely to suggest lines of play that may lead to such moves, so that MCTS can more thoroughly check whether there is such a tactic or not. Similar to multi-armed bandit methods that explore optimistically based on a confidence bound rather than only picking the highest average.
+
+* Ever since the dawn of computer Chess programs back in the mid 1900s, the horizon effect has plagued computer game AIs, where the losing player will interpose many useless or even self-harming "timesuji" or horizon-delaying moves as the game starts to swing against them. Sticking their head in the sand trying to delay the inevitable. Modern AlphaZero-based programs are no exception, and the policy will in fact learn such moves in self-play. The optimistic policy may weight these moves less, since pointless delaying moves will occur much more by imminently about to lose, rather than ones imminently about to unexpectedly get a good result.
+
+* Human players familiar with soving Chess puzzles, or tsumego in Go, will understand this concept intutively - the "toughest resistance" that you need to consider for the opponent resisting you is often NOT the line the opponent should play in a real game. Rather, the opponent should often back down after the very first move and give you what you want, to cut their losses. But the concession line is *not* the line you need to evaluate to whether the tactic works or not, you need to evaluate the line, where both players resist and escalate, heedless of the fact that if such a line were actually played in real life (rather than only being simulated within the search) that the opponent's willingness to escalate right back would be Bayesian evidence that maybe they can refute you after all. The optimistic policy may be better at solving these critical lines, since on each player's turn it optimistically conditions on that player being the imminent winner and suggests moves appropriate to that optimism, rather than being inclined to concede as working a tactic it isn't sure about before it has been proven in the search.
+
+Although it would not be hard to change later, as of June 2023 the optimistic policy is *not* used during self-play, since it is not clear what happens if this pretty substantial way of biasing the policy is fed back on itself - whether it is sound or whether it may lead to some convergence issues down the line.
