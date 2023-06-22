@@ -318,38 +318,29 @@ bool Search::makeMove(Loc moveLoc, Player movePla, bool preventEncore) {
     setPlayerAndClearHistory(movePla);
 
   if(rootNode != NULL) {
-    bool foundChild = false;
-    int foundChildIdx = -1;
-
     int childrenCapacity;
     SearchChildPointer* children = rootNode->getChildren(childrenCapacity);
-    int numChildren = 0;
+    SearchNode* child = NULL;
     for(int i = 0; i<childrenCapacity; i++) {
-      SearchNode* child = children[i].getIfAllocated();
-      if(child == NULL)
+      SearchNode* childCandidate = children[i].getIfAllocated();
+      if(childCandidate == NULL)
         break;
-      numChildren++;
-      if(!foundChild && children[i].getMoveLocRelaxed() == moveLoc) {
-        foundChild = true;
-        foundChildIdx = i;
+      if(children[i].getMoveLocRelaxed() == moveLoc) {
+        child = childCandidate;
+        break;
       }
     }
 
     //Just in case, make sure the child has an nnOutput, otherwise no point keeping it.
     //This is a safeguard against any oddity involving node preservation into states that
     //were considered terminal.
-    if(foundChild) {
-      SearchNode* child = children[foundChildIdx].getIfAllocated();
-      assert(child != NULL);
+    if(child != NULL) {
       NNOutput* nnOutput = child->getNNOutput();
       if(nnOutput == NULL)
-        foundChild = false;
+        child = NULL;
     }
 
-    if(foundChild) {
-      SearchNode* child = children[foundChildIdx].getIfAllocated();
-      assert(child != NULL);
-
+    if(child != NULL) {
       //Account for time carried over
       {
         int64_t rootVisits = rootNode->stats.visits.load(std::memory_order_acquire);
