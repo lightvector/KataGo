@@ -258,8 +258,8 @@ void TestSearchCommon::verifyTreePostOrder(Search* search, int onlyRequireAtLeas
     idxOfNode[node] = i;
   }
   for(size_t i = 0; i<nodes.size(); i++) {
-    int childrenCapacity;
-    const SearchChildPointer* children = nodes[i]->getChildren(childrenCapacity);
+    ConstSearchNodeChildrenReference children = nodes[i]->getChildren();
+    int childrenCapacity = children.getCapacity();
     for(int j = 0; j<childrenCapacity; j++) {
       const SearchNode* child = children[j].getIfAllocated();
       if(child == NULL)

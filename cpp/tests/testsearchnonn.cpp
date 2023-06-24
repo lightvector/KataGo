@@ -146,12 +146,14 @@ ooooooo
       search->setPosition(nextPla,board,hist);
       search->runWholeSearch(nextPla);
 
-      //In theory nothing requires this, but it would be kind of crazy if this were false
-      testAssert(search->rootNode->iterateAndCountChildren() > 1);
-      int childrenCapacity;
-      const SearchChildPointer* children = search->rootNode->getChildren(childrenCapacity);
+      ConstSearchNodeChildrenReference children = search->rootNode->getChildren();
+      int childrenCapacity = children.getCapacity();
       testAssert(childrenCapacity > 1);
+
+      //In theory nothing requires this, but it would be kind of crazy if this were false
+      testAssert(children.iterateAndCountChildren() > 1);
       testAssert(children[1].getIfAllocated() != NULL);
+
       Loc locToDescend = children[1].getMoveLoc();
 
       PrintTreeOptions options;
@@ -222,8 +224,8 @@ o..oo.x
     nextPla = getOpp(nextPla);
 
     auto hasSuicideRootMoves = [](const Search* search) {
-      int childrenCapacity;
-      const SearchChildPointer* children = search->rootNode->getChildren(childrenCapacity);
+      ConstSearchNodeChildrenReference children = search->rootNode->getChildren();
+      int childrenCapacity = children.getCapacity();
       for(int i = 0; i<childrenCapacity; i++) {
         const SearchNode* child = children[i].getIfAllocated();
         if(child == NULL)
@@ -234,8 +236,8 @@ o..oo.x
       return false;
     };
     auto hasPassAliveRootMoves = [](const Search* search) {
-      int childrenCapacity;
-      const SearchChildPointer* children = search->rootNode->getChildren(childrenCapacity);
+      ConstSearchNodeChildrenReference children = search->rootNode->getChildren();
+      int childrenCapacity = children.getCapacity();
       for(int i = 0; i<childrenCapacity; i++) {
         const SearchNode* child = children[i].getIfAllocated();
         if(child == NULL)
@@ -1626,12 +1628,14 @@ ooooooo
       search->setPosition(nextPla,board,hist);
       search->runWholeSearch(nextPla);
 
-      //In theory nothing requires this, but it would be kind of crazy if this were false
-      testAssert(search->rootNode->iterateAndCountChildren() > 1);
-      int childrenCapacity;
-      const SearchChildPointer* children = search->rootNode->getChildren(childrenCapacity);
+      ConstSearchNodeChildrenReference children = search->rootNode->getChildren();
+      int childrenCapacity = children.getCapacity();
       testAssert(childrenCapacity > 1);
+
+      //In theory nothing requires this, but it would be kind of crazy if this were false
+      testAssert(children.iterateAndCountChildren() > 1);
       testAssert(children[1].getIfAllocated() != NULL);
+
       Loc locToDescend = children[1].getMoveLoc();
 
       PrintTreeOptions options;

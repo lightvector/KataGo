@@ -154,13 +154,14 @@ double Search::getExploreSelectionValueOfChild(
     //Hack for hintloc - must search this move almost as often as the most searched move
     if(rootHintLoc != Board::NULL_LOC && moveLoc == rootHintLoc) {
       double averageWeightPerVisit = (childWeight + parentWeightPerVisit) / (childVisits + 1.0);
-      int childrenCapacity;
-      const SearchChildPointer* children = parent.getChildren(childrenCapacity);
+      ConstSearchNodeChildrenReference children = parent.getChildren();
+      int childrenCapacity = children.getCapacity();
       for(int i = 0; i<childrenCapacity; i++) {
-        const SearchNode* c = children[i].getIfAllocated();
+        const SearchChildPointer& childPointer = children[i];
+        const SearchNode* c = childPointer.getIfAllocated();
         if(c == NULL)
           break;
-        int64_t cEdgeVisits = children[i].getEdgeVisits();
+        int64_t cEdgeVisits = childPointer.getEdgeVisits();
         double cWeight = c->stats.getChildWeight(cEdgeVisits);
         if(childWeight + averageWeightPerVisit < cWeight * 0.8)
           return 1e20;
@@ -312,8 +313,8 @@ void Search::selectBestChildToDescend(
   bestChildIdx = -1;
   bestChildMoveLoc = Board::NULL_LOC;
 
-  int childrenCapacity;
-  const SearchChildPointer* children = node.getChildren(nodeState,childrenCapacity);
+  ConstSearchNodeChildrenReference children = node.getChildren(nodeState);
+  int childrenCapacity = children.getCapacity();
 
   double policyProbMassVisited = 0.0;
   double maxChildWeight = 0.0;
@@ -322,17 +323,18 @@ void Search::selectBestChildToDescend(
   assert(nnOutput != NULL);
   const float* policyProbs = nnOutput->getPolicyProbsMaybeNoised();
   for(int i = 0; i<childrenCapacity; i++) {
-    const SearchNode* child = children[i].getIfAllocated();
+    const SearchChildPointer& childPointer = children[i];
+    const SearchNode* child = childPointer.getIfAllocated();
     if(child == NULL)
       break;
-    Loc moveLoc = children[i].getMoveLocRelaxed();
+    Loc moveLoc = childPointer.getMoveLocRelaxed();
     int movePos = getPos(moveLoc);
     float nnPolicyProb = policyProbs[movePos];
     if(nnPolicyProb < 0)
       continue;
     policyProbMassVisited += nnPolicyProb;
 
-    int64_t edgeVisits = children[i].getEdgeVisits();
+    int64_t edgeVisits = childPointer.getEdgeVisits();
     double childWeight = child->stats.getChildWeight(edgeVisits);
 
     totalChildWeight += childWeight;
@@ -361,13 +363,14 @@ void Search::selectBestChildToDescend(
   //Also count how many children we actually find
   numChildrenFound = 0;
   for(int i = 0; i<childrenCapacity; i++) {
-    const SearchNode* child = children[i].getIfAllocated();
+    const SearchChildPointer& childPointer = children[i];
+    const SearchNode* child = childPointer.getIfAllocated();
     if(child == NULL)
       break;
     numChildrenFound++;
-    int64_t childEdgeVisits = children[i].getEdgeVisits();
+    int64_t childEdgeVisits = childPointer.getEdgeVisits();
 
-    Loc moveLoc = children[i].getMoveLocRelaxed();
+    Loc moveLoc = childPointer.getMoveLocRelaxed();
     bool isDuringSearch = true;
     double selectionValue = getExploreSelectionValueOfChild(
       node,policyProbs,child,

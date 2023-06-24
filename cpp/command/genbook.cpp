@@ -933,9 +933,8 @@ int MainCmds::genbook(const vector<string>& args) {
     }
     Loc bestLoc = locs[bestIdx];
 
-    int childrenCapacity;
-    const SearchChildPointer* children = searchNode->getChildren(childrenCapacity);
-    int numChildren = SearchNode::iterateAndCountChildrenInArray(children,childrenCapacity);
+    ConstSearchNodeChildrenReference children = searchNode->getChildren();
+    int numChildren = children.iterateAndCountChildren();
 
     const NNOutput* nnOutput = searchNode->getNNOutput();
     if(numChildren <= 0 || nnOutput == nullptr)

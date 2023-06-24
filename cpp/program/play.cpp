@@ -885,9 +885,8 @@ static void recordTreePositionsRec(
   vector<Loc>& locsBuf, vector<double>& playSelectionValuesBuf,
   Loc excludeLoc0, Loc excludeLoc1
 ) {
-  int childrenCapacity;
-  const SearchChildPointer* children = node->getChildren(childrenCapacity);
-  int numChildren = SearchNode::iterateAndCountChildrenInArray(children,childrenCapacity);
+  ConstSearchNodeChildrenReference children = node->getChildren();
+  int numChildren = children.iterateAndCountChildren();
 
   if(numChildren <= 0)
     return;

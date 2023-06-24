@@ -153,17 +153,18 @@ void Search::recomputeNodeStats(SearchNode& node, SearchThread& thread, int numV
   vector<MoreNodeStats>& statsBuf = thread.statsBuf;
   int numGoodChildren = 0;
 
-  int childrenCapacity;
-  const SearchChildPointer* children = node.getChildren(childrenCapacity);
+  ConstSearchNodeChildrenReference children = node.getChildren();
+  int childrenCapacity = children.getCapacity();
   double origTotalChildWeight = 0.0;
   for(int i = 0; i<childrenCapacity; i++) {
-    const SearchNode* child = children[i].getIfAllocated();
+    const SearchChildPointer& childPointer = children[i];
+    const SearchNode* child = childPointer.getIfAllocated();
     if(child == NULL)
       break;
     MoreNodeStats& stats = statsBuf[numGoodChildren];
 
-    Loc moveLoc = children[i].getMoveLocRelaxed();
-    int64_t edgeVisits = children[i].getEdgeVisits();
+    Loc moveLoc = childPointer.getMoveLocRelaxed();
+    int64_t edgeVisits = childPointer.getEdgeVisits();
     stats.stats = NodeStats(child->stats);
 
     if(stats.stats.visits <= 0 || stats.stats.weightSum <= 0.0 || edgeVisits <= 0)

@@ -79,15 +79,16 @@ bool Search::getPlaySelectionValues(
   const bool suppressPass = shouldSuppressPass(&node);
 
   //Store up basic weights
-  int childrenCapacity;
-  const SearchChildPointer* children = node.getChildren(childrenCapacity);
+  ConstSearchNodeChildrenReference children = node.getChildren();
+  int childrenCapacity = children.getCapacity();
   for(int i = 0; i<childrenCapacity; i++) {
-    const SearchNode* child = children[i].getIfAllocated();
+    const SearchChildPointer& childPointer = children[i];
+    const SearchNode* child = childPointer.getIfAllocated();
     if(child == NULL)
       break;
-    Loc moveLoc = children[i].getMoveLocRelaxed();
+    Loc moveLoc = childPointer.getMoveLocRelaxed();
 
-    int64_t edgeVisits = children[i].getEdgeVisits();
+    int64_t edgeVisits = childPointer.getEdgeVisits();
     double childWeight = child->stats.getChildWeight(edgeVisits);
 
     locs.push_back(moveLoc);
@@ -118,8 +119,9 @@ bool Search::getPlaySelectionValues(
     double maxGoodness = -1e30;
     for(int i = 0; i<numChildren; i++) {
       double weight = playSelectionValues[i];
-      double edgeVisits = children[i].getEdgeVisits();
-      Loc moveLoc = children[i].getMoveLocRelaxed();
+      const SearchChildPointer& childPointer = children[i];
+      double edgeVisits = childPointer.getEdgeVisits();
+      Loc moveLoc = childPointer.getMoveLocRelaxed();
       double policyProb = policyProbs[getPos(moveLoc)];
 
       //Small weight on raw policy, and discount one visit's worth of weight since the most recent
@@ -135,10 +137,10 @@ bool Search::getPlaySelectionValues(
 
   //Possibly reduce weight on children that we spend too many visits on in retrospect
   if(&node == rootNode && numChildren > 0) {
-
-    const SearchNode* bestChild = children[nonLCBBestIdx].getIfAllocated();
-    int64_t bestChildEdgeVisits = children[nonLCBBestIdx].getEdgeVisits();
-    Loc bestMoveLoc = children[nonLCBBestIdx].getMoveLocRelaxed();
+    const SearchChildPointer& bestChildPointer = children[nonLCBBestIdx];
+    const SearchNode* bestChild = bestChildPointer.getIfAllocated();
+    int64_t bestChildEdgeVisits = bestChildPointer.getEdgeVisits();
+    Loc bestMoveLoc = bestChildPointer.getMoveLocRelaxed();
     assert(bestChild != NULL);
     const bool isRoot = true;
     const double policyProbMassVisited = 1.0; //doesn't matter, since fpu value computed from it isn't used here
@@ -165,14 +167,15 @@ bool Search::getPlaySelectionValues(
     );
 
     for(int i = 0; i<numChildren; i++) {
-      const SearchNode* child = children[i].getIfAllocated();
-      Loc moveLoc = children[i].getMoveLocRelaxed();
+      const SearchChildPointer& childPointer = children[i];
+      const SearchNode* child = childPointer.getIfAllocated();
+      Loc moveLoc = childPointer.getMoveLocRelaxed();
       if(suppressPass && moveLoc == Board::PASS_LOC) {
         playSelectionValues[i] = 0;
         continue;
       }
       if(i != nonLCBBestIdx) {
-        int64_t edgeVisits = children[i].getEdgeVisits();
+        int64_t edgeVisits = childPointer.getEdgeVisits();
         double reduced = getReducedPlaySelectionWeight(
           node, policyProbs, child,
           moveLoc,
@@ -190,9 +193,10 @@ bool Search::getPlaySelectionValues(
     double bestLcb = -1e10;
     int bestLcbIndex = -1;
     for(int i = 0; i<numChildren; i++) {
-      const SearchNode* child = children[i].getIfAllocated();
-      int64_t edgeVisits = children[i].getEdgeVisits();
-      Loc moveLoc = children[i].getMoveLocRelaxed();
+      const SearchChildPointer& childPointer = children[i];
+      const SearchNode* child = childPointer.getIfAllocated();
+      int64_t edgeVisits = childPointer.getEdgeVisits();
+      Loc moveLoc = childPointer.getMoveLocRelaxed();
       getSelfUtilityLCBAndRadius(node,child,edgeVisits,moveLoc,lcbBuf[i],radiusBuf[i]);
       //Check if this node is eligible to be considered for best LCB
       double weight = playSelectionValues[i];
@@ -419,13 +423,14 @@ const SearchNode* Search::getRootNode() const {
 const SearchNode* Search::getChildForMove(const SearchNode* node, Loc moveLoc) const {
   if(node == NULL)
     return NULL;
-  int childrenCapacity;
-  const SearchChildPointer* children = node->getChildren(childrenCapacity);
+  ConstSearchNodeChildrenReference children = node->getChildren();
+  int childrenCapacity = children.getCapacity();
   for(int i = 0; i<childrenCapacity; i++) {
-    const SearchNode* child = children[i].getIfAllocated();
+    const SearchChildPointer& childPointer = children[i];
+    const SearchNode* child = childPointer.getIfAllocated();
     if(child == NULL)
       break;
-    Loc childMoveLoc = children[i].getMoveLocRelaxed();
+    Loc childMoveLoc = childPointer.getMoveLocRelaxed();
     if(moveLoc == childMoveLoc)
       return child;
   }
@@ -598,8 +603,8 @@ void Search::printRootEndingScoreValueBonus(ostream& out) const {
   if(nnOutput->whiteOwnerMap == NULL)
     return;
 
-  int childrenCapacity;
-  const SearchChildPointer* children = rootNode->getChildren(childrenCapacity);
+  ConstSearchNodeChildrenReference children = rootNode->getChildren();
+  int childrenCapacity = children.getCapacity();
   for(int i = 0; i<childrenCapacity; i++) {
     const SearchNode* child = children[i].getIfAllocated();
     if(child == NULL)
@@ -682,10 +687,11 @@ void Search::appendPVForMove(
     if(depth == 0 && move != Board::NULL_LOC && bestChildMoveLoc != move)
       return;
 
-    int childrenCapacity;
-    const SearchChildPointer* children = node->getChildren(childrenCapacity);
-    assert(bestChildIdx <= childrenCapacity);
+    ConstSearchNodeChildrenReference children = node->getChildren();
+    int childrenCapacity = children.getCapacity();
+    assert(bestChildIdx < childrenCapacity);
     assert(scratchValues.size() <= childrenCapacity);
+    (void)childrenCapacity;
 
     const SearchNode* child = children[bestChildIdx].getIfAllocated();
     assert(child != NULL);
@@ -833,15 +839,16 @@ void Search::getAnalysisData(
   double radiusBuf[NNPos::MAX_NN_POLICY_SIZE];
   float policyProbs[NNPos::MAX_NN_POLICY_SIZE];
   {
-    int childrenCapacity;
-    const SearchChildPointer* childrenArr = node.getChildren(childrenCapacity);
+    ConstSearchNodeChildrenReference childrenArr = node.getChildren();
+    int childrenCapacity = childrenArr.getCapacity();
     for(int i = 0; i<childrenCapacity; i++) {
-      const SearchNode* child = childrenArr[i].getIfAllocated();
+      const SearchChildPointer& childPointer = childrenArr[i];
+      const SearchNode* child = childPointer.getIfAllocated();
       if(child == NULL)
         break;
       children.push_back(child);
-      childrenEdgeVisits.push_back(childrenArr[i].getEdgeVisits());
-      childrenMoveLocs.push_back(childrenArr[i].getMoveLocRelaxed());
+      childrenEdgeVisits.push_back(childPointer.getEdgeVisits());
+      childrenMoveLocs.push_back(childPointer.getMoveLocRelaxed());
     }
     numChildren = (int)children.size();
 
@@ -1275,16 +1282,17 @@ void Search::getShallowAverageShorttermWLAndScoreErrorHelper(
     return;
   }
 
-  int childrenCapacity;
-  const SearchChildPointer* children = node->getChildren(childrenCapacity);
+  ConstSearchNodeChildrenReference children = node->getChildren();
+  int childrenCapacity = children.getCapacity();
 
   vector<MoreNodeStats> statsBuf;
   for(int i = 0; i<childrenCapacity; i++) {
-    const SearchNode* child = children[i].getIfAllocated();
+    const SearchChildPointer& childPointer = children[i];
+    const SearchNode* child = childPointer.getIfAllocated();
     if(child == NULL)
       break;
-    int64_t edgeVisits = children[i].getEdgeVisits();
-    Loc moveLoc = children[i].getMoveLocRelaxed();
+    int64_t edgeVisits = childPointer.getEdgeVisits();
+    Loc moveLoc = childPointer.getMoveLocRelaxed();
     MoreNodeStats stats;
     stats.stats = NodeStats(child->stats);
     stats.selfUtility = node->nextPla == P_WHITE ? stats.stats.utilityAvg : -stats.stats.utilityAvg;
@@ -1396,8 +1404,7 @@ bool Search::getSharpScore(const SearchNode* node, double& ret) const {
 
   int numChildren = (int)playSelectionValues.size();
 
-  int childrenCapacity;
-  const SearchChildPointer* children = node->getChildren(childrenCapacity);
+  ConstSearchNodeChildrenReference children = node->getChildren();
 
   //What we actually weight the children by for averaging sharp score, sharper than the plain weight.
   double relativeChildrenWeightSum = 0.0;
@@ -1463,8 +1470,8 @@ bool Search::getSharpScoreHelper(
     return true;
   }
 
-  int childrenCapacity;
-  const SearchChildPointer* children = node->getChildren(childrenCapacity);
+  ConstSearchNodeChildrenReference children = node->getChildren();
+  int childrenCapacity = children.getCapacity();
 
   if(childrenCapacity <= 0) {
     double scoreMean = (double)nnOutput->whiteScoreMean;
@@ -1485,11 +1492,12 @@ bool Search::getSharpScoreHelper(
 
   vector<MoreNodeStats> statsBuf;
   for(int i = 0; i<childrenCapacity; i++) {
-    const SearchNode* child = children[i].getIfAllocated();
+    const SearchChildPointer& childPointer = children[i];
+    const SearchNode* child = childPointer.getIfAllocated();
     if(child == NULL)
       break;
-    int64_t edgeVisits = children[i].getEdgeVisits();
-    Loc moveLoc = children[i].getMoveLocRelaxed();
+    int64_t edgeVisits = childPointer.getEdgeVisits();
+    Loc moveLoc = childPointer.getMoveLocRelaxed();
     MoreNodeStats stats;
     stats.stats = NodeStats(child->stats);
     stats.selfUtility = node->nextPla == P_WHITE ? stats.stats.utilityAvg : -stats.stats.utilityAvg;
@@ -1636,8 +1644,8 @@ bool Search::traverseTreeForOwnership(
     return true;
   }
 
-  int childrenCapacity;
-  const SearchChildPointer* children = node->getChildren(childrenCapacity);
+  ConstSearchNodeChildrenReference children = node->getChildren();
+  int childrenCapacity = children.getCapacity();
 
   if(childrenCapacity <= 0) {
     float* ownerMap = nnOutput->whiteOwnerMap;
@@ -1658,8 +1666,8 @@ bool Search::traverseTreeForOwnership(
 
   double selfProp;
   double parentNNWeight = computeWeightFromNNOutput(nnOutput);
-  if(childrenCapacity <= SearchNode::CHILDREN0SIZE) {
-    double childWeightBuf[SearchNode::CHILDREN0SIZE];
+  if(childrenCapacity <= SearchChildrenSizes::SIZE0TOTAL) {
+    double childWeightBuf[SearchChildrenSizes::SIZE0TOTAL];
     selfProp = traverseTreeForOwnershipChildren(
       minProp, pruneProp, desiredProp, parentNNWeight, children, childWeightBuf, childrenCapacity, graphPath, accumulate
     );
@@ -1687,7 +1695,7 @@ double Search::traverseTreeForOwnershipChildren(
   double pruneProp,
   double desiredProp,
   double parentNNWeight,
-  const SearchChildPointer* children,
+  ConstSearchNodeChildrenReference children,
   double* childWeightBuf,
   int childrenCapacity,
   std::unordered_set<const SearchNode*>& graphPath,
@@ -1695,10 +1703,11 @@ double Search::traverseTreeForOwnershipChildren(
 ) const {
   int numChildren = 0;
   for(int i = 0; i<childrenCapacity; i++) {
-    const SearchNode* child = children[i].getIfAllocated();
+    const SearchChildPointer& childPointer = children[i];
+    const SearchNode* child = childPointer.getIfAllocated();
     if(child == NULL)
       break;
-    int64_t edgeVisits = children[i].getEdgeVisits();
+    int64_t edgeVisits = childPointer.getEdgeVisits();
     double childWeight = child->stats.getChildWeight(edgeVisits);
     childWeightBuf[i] = childWeight;
     numChildren += 1;
@@ -2010,8 +2019,9 @@ bool Search::getPrunedNodeValues(const SearchNode* nodePtr, ReportedSearchValues
   if(nodePtr == NULL)
     return false;
   const SearchNode& node = *nodePtr;
-  int childrenCapacity;
-  const SearchChildPointer* children = node.getChildren(childrenCapacity);
+
+  ConstSearchNodeChildrenReference children = node.getChildren();
+  int childrenCapacity = children.getCapacity();
 
   vector<double> playSelectionValues;
   vector<Loc> locs; // not used
@@ -2036,10 +2046,11 @@ bool Search::getPrunedNodeValues(const SearchNode* nodePtr, ReportedSearchValues
   double weightSum = 0.0;
   double weightSqSum = 0.0;
   for(int i = 0; i<childrenCapacity; i++) {
-    const SearchNode* child = children[i].getIfAllocated();
+    const SearchChildPointer& childPointer = children[i];
+    const SearchNode* child = childPointer.getIfAllocated();
     if(child == NULL)
       break;
-    int64_t edgeVisits = children[i].getEdgeVisits();
+    int64_t edgeVisits = childPointer.getEdgeVisits();
     NodeStats stats = NodeStats(child->stats);
 
     if(stats.visits <= 0 || stats.weightSum <= 0.0 || edgeVisits <= 0)
