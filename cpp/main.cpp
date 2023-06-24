@@ -241,7 +241,9 @@ string Version::getKataGoVersionFullInfo() {
 #if defined(COMPILE_MAX_BOARD_LEN)
   out << "Compiled to allow boards of size up to " << COMPILE_MAX_BOARD_LEN << endl;
 #endif
-#if defined(BUILD_DISTRIBUTED)
+#if defined(CACHE_TENSORRT_PLAN) && defined(USE_TENSORRT_BACKEND)
+  out << "Compiled with TensorRT plan cache" << endl;
+#elif defined(BUILD_DISTRIBUTED)
   out << "Compiled to support contributing to online distributed selfplay" << endl;
 #endif
 

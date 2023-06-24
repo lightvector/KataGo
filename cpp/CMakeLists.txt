@@ -31,10 +31,12 @@ string(TOUPPER "${USE_BACKEND}" USE_BACKEND)
 set_property(CACHE USE_BACKEND PROPERTY STRINGS "" CUDA TENSORRT OPENCL EIGEN)
 
 set(USE_TCMALLOC 0 CACHE BOOL "Use TCMalloc")
-set(USE_CACHE_TENSORRT_PLAN 0 CACHE BOOL "Use TENSORRT plan cache")
 set(NO_GIT_REVISION 0 CACHE BOOL "Disable embedding the git revision into the compiled exe")
 set(USE_AVX2 0 CACHE BOOL "Compile with AVX2")
 set(USE_BIGGER_BOARDS_EXPENSIVE 0 CACHE BOOL "Allow boards up to size 29. Compiling with this will use more memory and slow down KataGo, even when playing on boards of size 19.")
+
+set(USE_CACHE_TENSORRT_PLAN 0 CACHE BOOL "Use TENSORRT plan cache. May use a lot of disk space. Only applies when USE_BACKEND is TENSORRT.")
+mark_as_advanced(USE_CACHE_TENSORRT_PLAN)
 
 #--------------------------- NEURAL NET BACKEND ------------------------------------------------------------------------
 
@@ -78,6 +80,12 @@ elseif(USE_BACKEND STREQUAL "TENSORRT")
   set(NEURALNET_BACKEND_SOURCES
     neuralnet/trtbackend.cpp
     )
+  if(USE_CACHE_TENSORRT_PLAN AND (NOT BUILD_DISTRIBUTED))
+    message(STATUS "-DUSE_CACHE_TENSORRT_PLAN is set, using TENSORRT plan cache.")
+    add_compile_definitions(CACHE_TENSORRT_PLAN)
+  elseif(USE_CACHE_TENSORRT_PLAN AND BUILD_DISTRIBUTED)
+    message(FATAL_ERROR "Combining USE_CACHE_TENSORRT_PLAN with BUILD_DISTRIBUTED is not supported - it would consume excessive disk space and might worsen performance every time models are updated. Use only one at a time in a given build of KataGo.")
+  endif()
 elseif(USE_BACKEND STREQUAL "OPENCL")
   message(STATUS "-DUSE_BACKEND=OPENCL, using OpenCL backend.")
   set(NEURALNET_BACKEND_SOURCES
@@ -99,12 +107,6 @@ elseif(USE_BACKEND STREQUAL "")
   set(NEURALNET_BACKEND_SOURCES neuralnet/dummybackend.cpp)
 else()
   message(FATAL_ERROR "Unrecognized backend: " ${USE_BACKEND})
-endif()
-
-
-if(USE_CACHE_TENSORRT_PLAN)
-    message(STATUS "-DUSE_CACHE_TENSORRT_PLAN is set, using TENSORRT plan cache.")
-    add_compile_definitions(CACHE_TENSORRT_PLAN)
 endif()
 
 
