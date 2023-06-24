@@ -1129,7 +1129,7 @@ bool Search::playoutDescend(
     }
   }
 
-  int nodeState = node.state.load(std::memory_order_acquire);
+  SearchNodeState nodeState = node.state.load(std::memory_order_acquire);
   if(nodeState == SearchNode::STATE_UNEVALUATED) {
     //Always attempt to set a new nnOutput. That way, if some GPU is slow and malfunctioning, we don't get blocked by it.
     {
@@ -1355,7 +1355,13 @@ bool Search::playoutDescend(
 
 //If edge visits is too much smaller than the child's visits, we can avoid descending.
 //Instead just add edge visits and return immediately.
-bool Search::maybeCatchUpEdgeVisits(SearchThread& thread, SearchNode& node, SearchNode* child, const int& nodeState, const int bestChildIdx) {
+bool Search::maybeCatchUpEdgeVisits(
+  SearchThread& thread,
+  SearchNode& node,
+  SearchNode* child,
+  const SearchNodeState& nodeState,
+  const int bestChildIdx
+) {
   //Don't need to do this since we already are pretty recent as of finding the best child.
   //nodeState = node.state.load(std::memory_order_acquire);
   int childrenCapacity;

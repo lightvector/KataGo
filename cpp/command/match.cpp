@@ -108,29 +108,10 @@ int MainCmds::match(const vector<string>& args) {
     }
 
     if(cfg.contains("extraPairs")) {
-      string pairsStr = cfg.getString("extraPairs");
-      std::vector<string> pairStrs = Global::split(pairsStr,',');
-      for(const string& pairStr: pairStrs) {
-        if(Global::trim(pairStr).size() <= 0)
-          continue;
-        std::vector<string> pieces = Global::split(Global::trim(pairStr),'-');
-        if(pieces.size() != 2) {
-          throw IOError("Could not parse pair: " + pairStr);
-        }
-        bool suc;
-        int p0;
-        int p1;
-        suc = Global::tryStringToInt(pieces[0],p0);
-        if(!suc)
-          throw IOError("Could not parse pair: " + pairStr);
-        suc = Global::tryStringToInt(pieces[1],p1);
-        if(!suc)
-          throw IOError("Could not parse pair: " + pairStr);
-        if(p0 < 0 || p0 >= numBots)
-          throw IOError("Invalid player index in pair: " + pairStr);
-        if(p1 < 0 || p1 >= numBots)
-          throw IOError("Invalid player index in pair: " + pairStr);
-
+      std::vector<std::pair<int,int>> pairs = cfg.getNonNegativeIntDashedPairs("extraPairs",0,numBots-1);
+      for(const std::pair<int,int>& pair: pairs) {
+        int p0 = pair.first;
+        int p1 = pair.second;
         if(cfg.contains("extraPairsAreOneSidedBW") && cfg.getBool("extraPairsAreOneSidedBW")) {
           matchupsPerRound.push_back(std::make_pair(p0,p1));
         }

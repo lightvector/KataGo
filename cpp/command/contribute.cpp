@@ -599,7 +599,10 @@ int MainCmds::contribute(const vector<string>& args) {
     mirrorUseProxy,
     &logger
   );
+  connection->testConnection();
+  logger.write("Connected to " + serverUrl);
   const Client::RunParameters runParams = connection->getRunParameters();
+  logger.write("Found active training run: " + runParams.runName);
 
   MakeDir::make(baseDir);
   baseDir = baseDir + "/" + runParams.runName;

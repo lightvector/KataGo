@@ -2270,6 +2270,39 @@ oxooox.
 
   }
 
+  {
+    cout << "===================================================================" << endl;
+    cout << "Board size distribution" << endl;
+    cout << "===================================================================" << endl;
+    ConfigParser cfg;
+    cfg.overrideKey("koRules","SIMPLE");
+    cfg.overrideKey("scoringRules","AREA");
+    cfg.overrideKey("taxRules","SEKI");
+    cfg.overrideKey("multiStoneSuicideLegals","false");
+    cfg.overrideKey("hasButtons","false");
+    cfg.overrideKey("bSizes","2,4,6,8");
+    cfg.overrideKey("bSizeRelProbs","1,2,3,4");
+    cfg.overrideKey("allowRectangleProb","0.3");
+    cfg.overrideKey("komiAuto","true");
+    GameInitializer gameInit(cfg, logger, "board size distribution random seed");
+
+    std::map<std::pair<int,int>,int> boardSizeDistribution;
+    for(int i = 0; i<100000; i++) {
+      Board board;
+      Player pla;
+      BoardHistory hist;
+      ExtraBlackAndKomi extraBlackAndKomi;
+      OtherGameProperties otherGameProps;
+      gameInit.createGame(board,pla,hist,extraBlackAndKomi,NULL,PlaySettings(),otherGameProps,NULL);
+      boardSizeDistribution[std::make_pair(board.x_size,board.y_size)] += 1;
+    }
+    for(int x = 2; x<=8; x += 2) {
+      for(int y = 2; y<=8; y += 2) {
+        cout << x << "x" << y << " " << boardSizeDistribution[std::make_pair(x,y)] << endl;
+      }
+    }
+  }
+
   NeuralNet::globalCleanup();
   cout << "Done" << endl;
 }

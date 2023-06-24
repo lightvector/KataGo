@@ -11456,206 +11456,206 @@ HASH: 54579E0A87F182BA544C02BE0164C001
 
 
 LEAD: -1.91509
-koSITUATIONALscoreAREAtaxNONEsui0button1komi22
-Start moves size 0 Start pla Black XY 13 13 Extra black 1 Draw equiv 0.843903 Mode 3 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
-koSIMPLEscoreAREAtaxSEKIsui1komi-30
-Start moves size 0 Start pla Black XY 12 12 Extra black 0 Draw equiv 0.161264 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
-koPOSITIONALscoreAREAtaxNONEsui0komi4.5
-Start moves size 0 Start pla Black XY 13 13 Extra black 0 Draw equiv 0.892325 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
-koSIMPLEscoreAREAtaxNONEsui1komi36
-Start moves size 0 Start pla Black XY 12 12 Extra black 1 Draw equiv 0.984887 Mode 3 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
-koPOSITIONALscoreTERRITORYtaxNONEsui0komi7.5
-Start moves size 0 Start pla Black XY 10 12 Extra black 0 Draw equiv 0.68828 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
-koSITUATIONALscoreAREAtaxSEKIsui1button1komi5
-Start moves size 0 Start pla Black XY 12 12 Extra black 0 Draw equiv 0.747207 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
-koSITUATIONALscoreAREAtaxNONEsui0komi14
-Start moves size 0 Start pla Black XY 11 11 Extra black 1 Draw equiv 0.347813 Mode 3 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
-koSITUATIONALscoreTERRITORYtaxNONEsui0komi11
-Start moves size 0 Start pla Black XY 11 11 Extra black 0 Draw equiv 0.740681 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
-koSITUATIONALscoreAREAtaxNONEsui0komi6.5
-Start moves size 0 Start pla Black XY 10 10 Extra black 0 Draw equiv 0.0818164 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
-koPOSITIONALscoreTERRITORYtaxNONEsui0komi21
-Start moves size 0 Start pla Black XY 12 12 Extra black 1 Draw equiv 0.952148 Mode 3 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
-koPOSITIONALscoreAREAtaxSEKIsui0komi10
-Start moves size 0 Start pla Black XY 11 11 Extra black 0 Draw equiv 0.466017 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
-koPOSITIONALscoreTERRITORYtaxNONEsui0komi2.5
-Start moves size 0 Start pla Black XY 13 13 Extra black 0 Draw equiv 0.85591 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
-koSIMPLEscoreTERRITORYtaxSEKIsui0komi20.5
-Start moves size 0 Start pla Black XY 13 13 Extra black 1 Draw equiv 0.340372 Mode 3 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
-koPOSITIONALscoreTERRITORYtaxNONEsui0komi7.5
-Start moves size 0 Start pla Black XY 11 11 Extra black 0 Draw equiv 0.444024 Mode 1 BeganInEncorePhase 2 UsedInitialPosition 0 Forkstuff 0 0
-koSITUATIONALscoreAREAtaxSEKIsui0komi4
-Start moves size 0 Start pla Black XY 10 10 Extra black 0 Draw equiv 0.122575 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
-koPOSITIONALscoreAREAtaxSEKIsui1button1komi9
-Start moves size 0 Start pla Black XY 11 11 Extra black 0 Draw equiv 0.191673 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
-koPOSITIONALscoreTERRITORYtaxNONEsui1komi8.5
-Start moves size 0 Start pla Black XY 12 12 Extra black 0 Draw equiv 0.195274 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
-koSIMPLEscoreAREAtaxSEKIsui1komi23.5
-Start moves size 0 Start pla Black XY 12 12 Extra black 1 Draw equiv 0.387 Mode 3 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
-koPOSITIONALscoreTERRITORYtaxSEKIsui0komi7.5
-Start moves size 0 Start pla Black XY 11 11 Extra black 0 Draw equiv 0.565224 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
-koSITUATIONALscoreAREAtaxNONEsui1button1komi35.5
-Start moves size 0 Start pla Black XY 10 11 Extra black 0 Draw equiv 0.379775 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
-koSITUATIONALscoreAREAtaxALLsui0komi5
-Start moves size 0 Start pla Black XY 13 13 Extra black 0 Draw equiv 0.897493 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
-koSIMPLEscoreAREAtaxNONEsui1komi9
-Start moves size 0 Start pla Black XY 11 11 Extra black 0 Draw equiv 0.361411 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
-koSIMPLEscoreTERRITORYtaxNONEsui0komi20.5
-Start moves size 0 Start pla Black XY 12 13 Extra black 1 Draw equiv 0.500891 Mode 3 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
-koPOSITIONALscoreTERRITORYtaxNONEsui0komi33.5
-Start moves size 0 Start pla Black XY 12 12 Extra black 0 Draw equiv 0.997469 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
-koSIMPLEscoreTERRITORYtaxSEKIsui0komi43
-Start moves size 0 Start pla Black XY 13 11 Extra black 1 Draw equiv 0.394667 Mode 3 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
-koSITUATIONALscoreAREAtaxSEKIsui1komi5
-Start moves size 0 Start pla Black XY 11 11 Extra black 0 Draw equiv 0.567436 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
-koSITUATIONALscoreAREAtaxSEKIsui0button1komi10
-Start moves size 0 Start pla Black XY 13 13 Extra black 0 Draw equiv 0.322085 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
-koSITUATIONALscoreAREAtaxSEKIsui1button1komi8
-Start moves size 0 Start pla Black XY 10 10 Extra black 0 Draw equiv 0.0642046 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
-koPOSITIONALscoreAREAtaxSEKIsui0komi41
-Start moves size 0 Start pla Black XY 11 10 Extra black 0 Draw equiv 0.546943 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
-koSIMPLEscoreTERRITORYtaxSEKIsui0komi9.5
-Start moves size 0 Start pla Black XY 11 11 Extra black 0 Draw equiv 0.181557 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
-koSIMPLEscoreAREAtaxSEKIsui0button1komi9
-Start moves size 0 Start pla Black XY 13 12 Extra black 0 Draw equiv 0.570289 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
-koPOSITIONALscoreAREAtaxNONEsui0komi5
-Start moves size 0 Start pla Black XY 13 13 Extra black 0 Draw equiv 0.901184 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
-koSITUATIONALscoreTERRITORYtaxALLsui0komi9
-Start moves size 0 Start pla Black XY 10 10 Extra black 0 Draw equiv 0.587444 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
-koPOSITIONALscoreAREAtaxNONEsui0button1komi22
-Start moves size 0 Start pla Black XY 12 12 Extra black 1 Draw equiv 0.241549 Mode 3 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
-koSIMPLEscoreTERRITORYtaxALLsui0komi9.5
-Start moves size 0 Start pla Black XY 12 12 Extra black 0 Draw equiv 0.0928733 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
-koSITUATIONALscoreAREAtaxNONEsui1komi6
-Start moves size 0 Start pla Black XY 11 11 Extra black 0 Draw equiv 0.709404 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
-koSITUATIONALscoreTERRITORYtaxNONEsui0komi-27
-Start moves size 0 Start pla Black XY 10 10 Extra black 0 Draw equiv 0.516409 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
-koSIMPLEscoreTERRITORYtaxSEKIsui0komi9
-Start moves size 0 Start pla Black XY 10 10 Extra black 0 Draw equiv 0.916551 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
-koSITUATIONALscoreAREAtaxALLsui1button1komi6.5
-Start moves size 0 Start pla Black XY 11 11 Extra black 0 Draw equiv 0.465733 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
-koSIMPLEscoreAREAtaxALLsui0komi21.5
-Start moves size 0 Start pla Black XY 12 12 Extra black 0 Draw equiv 0.471655 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
-koPOSITIONALscoreAREAtaxNONEsui0button1komi6
-Start moves size 0 Start pla Black XY 10 10 Extra black 0 Draw equiv 0.216052 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
-koSITUATIONALscoreAREAtaxALLsui1komi5.5
-Start moves size 0 Start pla Black XY 11 12 Extra black 0 Draw equiv 0.769865 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
-koSIMPLEscoreAREAtaxNONEsui0button1komi57.5
-Start moves size 0 Start pla Black XY 13 13 Extra black 0 Draw equiv 0.458373 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
-koPOSITIONALscoreAREAtaxSEKIsui1button1komi8.5
-Start moves size 0 Start pla Black XY 11 11 Extra black 0 Draw equiv 0.425624 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
-koPOSITIONALscoreAREAtaxSEKIsui0komi6
-Start moves size 0 Start pla Black XY 10 10 Extra black 0 Draw equiv 0.0381066 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
-koPOSITIONALscoreAREAtaxSEKIsui0komi22
-Start moves size 0 Start pla Black XY 11 11 Extra black 1 Draw equiv 0.00887522 Mode 3 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
-koSITUATIONALscoreAREAtaxNONEsui1komi-0
-Start moves size 0 Start pla Black XY 12 12 Extra black 0 Draw equiv 0.504095 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
-koSITUATIONALscoreAREAtaxSEKIsui1button1komi5
-Start moves size 0 Start pla Black XY 11 11 Extra black 0 Draw equiv 0.762023 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
-koSIMPLEscoreTERRITORYtaxNONEsui0komi10.5
-Start moves size 0 Start pla Black XY 13 13 Extra black 0 Draw equiv 0.208393 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
-koSITUATIONALscoreTERRITORYtaxALLsui1komi5
-Start moves size 0 Start pla Black XY 11 11 Extra black 0 Draw equiv 0.916463 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
-koPOSITIONALscoreTERRITORYtaxNONEsui0komi10
-Start moves size 0 Start pla Black XY 12 12 Extra black 0 Draw equiv 0.886063 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
-koPOSITIONALscoreTERRITORYtaxSEKIsui1komi8
-Start moves size 0 Start pla Black XY 10 10 Extra black 0 Draw equiv 0.939517 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
-koSIMPLEscoreTERRITORYtaxNONEsui1komi11
-Start moves size 0 Start pla Black XY 12 12 Extra black 1 Draw equiv 0.657298 Mode 3 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
-koSITUATIONALscoreAREAtaxALLsui0button1komi6.5
-Start moves size 0 Start pla Black XY 12 12 Extra black 0 Draw equiv 0.967325 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
-koSITUATIONALscoreAREAtaxALLsui0komi24.5
-Start moves size 0 Start pla Black XY 13 13 Extra black 1 Draw equiv 0.332162 Mode 3 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
-koPOSITIONALscoreAREAtaxNONEsui0button1komi4.5
-Start moves size 0 Start pla Black XY 10 10 Extra black 0 Draw equiv 0.849189 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
-koPOSITIONALscoreAREAtaxSEKIsui0komi-14
-Start moves size 0 Start pla Black XY 11 11 Extra black 1 Draw equiv 0.343442 Mode 3 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
-koPOSITIONALscoreTERRITORYtaxNONEsui1komi-4
-Start moves size 0 Start pla Black XY 10 10 Extra black 0 Draw equiv 0.554473 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
-koPOSITIONALscoreTERRITORYtaxNONEsui0komi-21.5
-Start moves size 0 Start pla Black XY 13 13 Extra black 0 Draw equiv 0.975534 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
-koSIMPLEscoreTERRITORYtaxNONEsui1komi7
-Start moves size 0 Start pla Black XY 11 12 Extra black 0 Draw equiv 0.219838 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
-koPOSITIONALscoreAREAtaxNONEsui1komi22.5
-Start moves size 0 Start pla Black XY 13 13 Extra black 1 Draw equiv 0.440676 Mode 3 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
-koPOSITIONALscoreTERRITORYtaxNONEsui1komi18.5
-Start moves size 0 Start pla Black XY 13 13 Extra black 1 Draw equiv 0.648856 Mode 3 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
-koSIMPLEscoreAREAtaxNONEsui1komi8.5
-Start moves size 0 Start pla Black XY 12 12 Extra black 0 Draw equiv 0.804123 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
-koSIMPLEscoreAREAtaxNONEsui1button1komi5.5
-Start moves size 0 Start pla Black XY 10 10 Extra black 0 Draw equiv 0.88198 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
-koSITUATIONALscoreAREAtaxALLsui0komi21
-Start moves size 0 Start pla Black XY 11 11 Extra black 1 Draw equiv 0.97668 Mode 3 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
-koSIMPLEscoreAREAtaxALLsui1button1komi9
-Start moves size 0 Start pla Black XY 12 13 Extra black 0 Draw equiv 0.916361 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
-koPOSITIONALscoreAREAtaxSEKIsui0komi7
-Start moves size 0 Start pla Black XY 12 12 Extra black 0 Draw equiv 0.44986 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
-koPOSITIONALscoreAREAtaxALLsui1komi24
-Start moves size 0 Start pla Black XY 13 10 Extra black 1 Draw equiv 0.956195 Mode 3 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
-koSITUATIONALscoreTERRITORYtaxNONEsui0komi8.5
-Start moves size 0 Start pla Black XY 13 13 Extra black 0 Draw equiv 0.718933 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
-koSITUATIONALscoreAREAtaxSEKIsui0button1komi7.5
-Start moves size 0 Start pla Black XY 12 11 Extra black 0 Draw equiv 0.640998 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
-koSIMPLEscoreAREAtaxNONEsui1komi2.5
-Start moves size 0 Start pla Black XY 10 10 Extra black 0 Draw equiv 0.5198 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
-koSITUATIONALscoreTERRITORYtaxALLsui0komi9
-Start moves size 0 Start pla Black XY 12 12 Extra black 0 Draw equiv 0.790313 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
-koSITUATIONALscoreAREAtaxNONEsui0komi5
-Start moves size 0 Start pla Black XY 13 13 Extra black 0 Draw equiv 0.857439 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
-koPOSITIONALscoreTERRITORYtaxSEKIsui0komi-13.5
-Start moves size 0 Start pla Black XY 11 11 Extra black 0 Draw equiv 0.231922 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
-koSITUATIONALscoreTERRITORYtaxSEKIsui0komi-13
-Start moves size 0 Start pla Black XY 13 12 Extra black 0 Draw equiv 0.73346 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
-koSIMPLEscoreAREAtaxSEKIsui1komi22
-Start moves size 0 Start pla Black XY 11 11 Extra black 1 Draw equiv 0.0426219 Mode 3 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
-koSITUATIONALscoreAREAtaxNONEsui1komi6.5
-Start moves size 0 Start pla Black XY 13 13 Extra black 0 Draw equiv 0.937319 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
-koSIMPLEscoreAREAtaxSEKIsui0komi20
-Start moves size 0 Start pla Black XY 11 11 Extra black 1 Draw equiv 0.545548 Mode 3 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
-koPOSITIONALscoreAREAtaxNONEsui0komi7.5
-Start moves size 0 Start pla Black XY 12 12 Extra black 0 Draw equiv 0.422072 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
-koSIMPLEscoreTERRITORYtaxALLsui0komi5
-Start moves size 0 Start pla Black XY 12 12 Extra black 0 Draw equiv 0.291426 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
-koPOSITIONALscoreTERRITORYtaxNONEsui1komi5.5
-Start moves size 0 Start pla Black XY 12 12 Extra black 0 Draw equiv 0.493993 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
-koSITUATIONALscoreAREAtaxNONEsui0button1komi7.5
-Start moves size 0 Start pla Black XY 11 12 Extra black 0 Draw equiv 0.989002 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
-koSIMPLEscoreAREAtaxNONEsui0komi6.5
-Start moves size 0 Start pla Black XY 11 11 Extra black 0 Draw equiv 0.624797 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
-koPOSITIONALscoreTERRITORYtaxALLsui0komi29.5
-Start moves size 0 Start pla Black XY 13 13 Extra black 0 Draw equiv 0.173513 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
-koSIMPLEscoreTERRITORYtaxALLsui0komi5
-Start moves size 0 Start pla Black XY 12 12 Extra black 0 Draw equiv 0.681552 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
-koSITUATIONALscoreAREAtaxALLsui0komi3.5
-Start moves size 0 Start pla Black XY 12 11 Extra black 0 Draw equiv 0.916352 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
-koSITUATIONALscoreAREAtaxNONEsui0komi8.5
-Start moves size 0 Start pla Black XY 10 10 Extra black 0 Draw equiv 0.1492 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
-koSIMPLEscoreAREAtaxSEKIsui1button1komi7.5
-Start moves size 0 Start pla Black XY 12 12 Extra black 0 Draw equiv 0.610402 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
-koSIMPLEscoreAREAtaxALLsui1komi7.5
-Start moves size 0 Start pla Black XY 10 11 Extra black 0 Draw equiv 0.694085 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
-koSIMPLEscoreAREAtaxSEKIsui0komi41.5
-Start moves size 0 Start pla Black XY 11 11 Extra black 0 Draw equiv 0.144765 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
-koSIMPLEscoreTERRITORYtaxALLsui0komi30
-Start moves size 0 Start pla Black XY 12 12 Extra black 1 Draw equiv 0.852912 Mode 3 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
-koSIMPLEscoreAREAtaxNONEsui1komi4.5
-Start moves size 0 Start pla Black XY 13 13 Extra black 0 Draw equiv 0.955829 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
-koPOSITIONALscoreAREAtaxSEKIsui1komi6
-Start moves size 0 Start pla Black XY 10 10 Extra black 0 Draw equiv 0.752465 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
-koSITUATIONALscoreTERRITORYtaxSEKIsui1komi10
-Start moves size 0 Start pla Black XY 10 10 Extra black 0 Draw equiv 0.309974 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
-koPOSITIONALscoreAREAtaxSEKIsui1komi-21
-Start moves size 0 Start pla Black XY 13 13 Extra black 1 Draw equiv 0.693706 Mode 3 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
-koPOSITIONALscoreTERRITORYtaxSEKIsui0komi14
-Start moves size 0 Start pla Black XY 13 13 Extra black 0 Draw equiv 0.900469 Mode 1 BeganInEncorePhase 1 UsedInitialPosition 0 Forkstuff 0 0
-koSIMPLEscoreAREAtaxSEKIsui0komi6.5
-Start moves size 0 Start pla Black XY 11 11 Extra black 0 Draw equiv 0.704495 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
-koSITUATIONALscoreTERRITORYtaxSEKIsui0komi5.5
-Start moves size 0 Start pla Black XY 13 13 Extra black 0 Draw equiv 0.533318 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
-koSITUATIONALscoreTERRITORYtaxSEKIsui1komi7.5
-Start moves size 0 Start pla Black XY 12 12 Extra black 0 Draw equiv 0.758239 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
+koSITUATIONALscoreAREAtaxSEKIsui0komi23
+Start moves size 0 Start pla Black XY 13 12 Extra black 1 Draw equiv 0.599298 Mode 3 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
+koPOSITIONALscoreTERRITORYtaxALLsui1komi4.5
+Start moves size 0 Start pla Black XY 13 11 Extra black 0 Draw equiv 0.541782 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
+koSITUATIONALscoreAREAtaxSEKIsui1komi23
+Start moves size 0 Start pla Black XY 13 12 Extra black 1 Draw equiv 0.892325 Mode 3 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
+koSITUATIONALscoreAREAtaxALLsui0komi36
+Start moves size 0 Start pla Black XY 12 12 Extra black 1 Draw equiv 0.68324 Mode 3 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
+koSITUATIONALscoreAREAtaxNONEsui0komi13.5
+Start moves size 0 Start pla Black XY 13 13 Extra black 0 Draw equiv 0.971989 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
+koSIMPLEscoreTERRITORYtaxALLsui0komi19.5
+Start moves size 0 Start pla Black XY 12 12 Extra black 1 Draw equiv 0.944795 Mode 3 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
 koSITUATIONALscoreTERRITORYtaxSEKIsui1komi9
-Start moves size 0 Start pla Black XY 10 10 Extra black 0 Draw equiv 0.211812 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
+Start moves size 0 Start pla Black XY 10 10 Extra black 0 Draw equiv 0.417337 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
+koSIMPLEscoreTERRITORYtaxSEKIsui0komi12.5
+Start moves size 0 Start pla Black XY 13 13 Extra black 0 Draw equiv 0.00828598 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
+koSIMPLEscoreTERRITORYtaxNONEsui1komi6
+Start moves size 0 Start pla Black XY 12 12 Extra black 0 Draw equiv 0.770258 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
+koPOSITIONALscoreAREAtaxSEKIsui1komi3.5
+Start moves size 0 Start pla Black XY 11 11 Extra black 0 Draw equiv 0.419554 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
+koSIMPLEscoreTERRITORYtaxSEKIsui0komi49.5
+Start moves size 0 Start pla Black XY 10 10 Extra black 0 Draw equiv 0.866775 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
+koPOSITIONALscoreAREAtaxNONEsui1komi3
+Start moves size 0 Start pla Black XY 11 13 Extra black 0 Draw equiv 0.665413 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
+koPOSITIONALscoreTERRITORYtaxNONEsui0komi8
+Start moves size 0 Start pla Black XY 12 12 Extra black 0 Draw equiv 0.217338 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
+koPOSITIONALscoreTERRITORYtaxNONEsui1komi21
+Start moves size 0 Start pla Black XY 13 13 Extra black 1 Draw equiv 0.0732536 Mode 3 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
+koSIMPLEscoreAREAtaxSEKIsui1button1komi3.5
+Start moves size 0 Start pla Black XY 10 10 Extra black 0 Draw equiv 0.651648 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
+koPOSITIONALscoreAREAtaxSEKIsui1komi9
+Start moves size 0 Start pla Black XY 11 11 Extra black 0 Draw equiv 0.675326 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
+koPOSITIONALscoreTERRITORYtaxSEKIsui0komi8.5
+Start moves size 0 Start pla Black XY 11 11 Extra black 0 Draw equiv 0.932177 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
+koSITUATIONALscoreAREAtaxNONEsui0komi8
+Start moves size 0 Start pla Black XY 11 11 Extra black 0 Draw equiv 0.499446 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
+koSITUATIONALscoreTERRITORYtaxSEKIsui0komi7.5
+Start moves size 0 Start pla Black XY 11 11 Extra black 0 Draw equiv 0.469492 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
+koPOSITIONALscoreTERRITORYtaxSEKIsui1komi40
+Start moves size 0 Start pla Black XY 12 12 Extra black 0 Draw equiv 0.0775247 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
+koSIMPLEscoreAREAtaxALLsui1button1komi20
+Start moves size 0 Start pla Black XY 11 11 Extra black 1 Draw equiv 0.484604 Mode 3 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
+koSIMPLEscoreTERRITORYtaxALLsui1komi10
+Start moves size 0 Start pla Black XY 12 12 Extra black 0 Draw equiv 0.150596 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
+koSITUATIONALscoreTERRITORYtaxNONEsui0komi5
+Start moves size 0 Start pla Black XY 12 12 Extra black 0 Draw equiv 0.709592 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
+koSITUATIONALscoreAREAtaxSEKIsui1komi8.5
+Start moves size 0 Start pla Black XY 12 12 Extra black 0 Draw equiv 0.331883 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
+koSIMPLEscoreAREAtaxNONEsui1komi9
+Start moves size 0 Start pla Black XY 13 13 Extra black 0 Draw equiv 0.361411 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
+koPOSITIONALscoreTERRITORYtaxALLsui1komi5.5
+Start moves size 0 Start pla Black XY 12 12 Extra black 0 Draw equiv 0.210731 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
+koSITUATIONALscoreTERRITORYtaxNONEsui1komi9.5
+Start moves size 0 Start pla Black XY 12 12 Extra black 0 Draw equiv 0.74098 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
+koSITUATIONALscoreTERRITORYtaxSEKIsui0komi21.5
+Start moves size 0 Start pla Black XY 11 11 Extra black 0 Draw equiv 0.175239 Mode 1 BeganInEncorePhase 1 UsedInitialPosition 0 Forkstuff 0 0
+koSIMPLEscoreTERRITORYtaxSEKIsui1komi10
+Start moves size 0 Start pla Black XY 12 12 Extra black 0 Draw equiv 0.444892 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
+koSIMPLEscoreAREAtaxSEKIsui0komi8.5
+Start moves size 0 Start pla Black XY 12 12 Extra black 0 Draw equiv 0.479239 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
+koSITUATIONALscoreTERRITORYtaxALLsui1komi9.5
+Start moves size 0 Start pla Black XY 13 13 Extra black 0 Draw equiv 0.382035 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
+koSIMPLEscoreTERRITORYtaxSEKIsui0komi6
+Start moves size 0 Start pla Black XY 12 10 Extra black 0 Draw equiv 0.0650604 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
+koPOSITIONALscoreAREAtaxSEKIsui0komi28.5
+Start moves size 0 Start pla Black XY 10 10 Extra black 0 Draw equiv 0.0168599 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
+koSITUATIONALscoreAREAtaxSEKIsui1komi74
+Start moves size 0 Start pla Black XY 12 12 Extra black 0 Draw equiv 0.471835 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
+koSITUATIONALscoreTERRITORYtaxALLsui0komi9.5
+Start moves size 0 Start pla Black XY 13 12 Extra black 0 Draw equiv 0.570289 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
+koPOSITIONALscoreAREAtaxNONEsui0komi-3
+Start moves size 0 Start pla Black XY 13 12 Extra black 0 Draw equiv 0.869866 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
+koPOSITIONALscoreAREAtaxSEKIsui1komi3.5
+Start moves size 0 Start pla Black XY 13 13 Extra black 0 Draw equiv 0.883438 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
+koPOSITIONALscoreTERRITORYtaxALLsui0komi9
+Start moves size 0 Start pla Black XY 12 12 Extra black 0 Draw equiv 0.884566 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
+koSIMPLEscoreAREAtaxSEKIsui1button1komi6
+Start moves size 0 Start pla Black XY 13 13 Extra black 0 Draw equiv 0.367846 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
+koSIMPLEscoreTERRITORYtaxALLsui1komi28
+Start moves size 0 Start pla Black XY 11 11 Extra black 1 Draw equiv 0.657114 Mode 3 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
+koSITUATIONALscoreAREAtaxSEKIsui0komi-6
+Start moves size 0 Start pla Black XY 10 10 Extra black 0 Draw equiv 0.83754 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
+koSITUATIONALscoreTERRITORYtaxNONEsui0komi6
+Start moves size 0 Start pla Black XY 11 11 Extra black 0 Draw equiv 0.71452 Mode 1 BeganInEncorePhase 1 UsedInitialPosition 0 Forkstuff 0 0
+koSITUATIONALscoreTERRITORYtaxALLsui0komi51.5
+Start moves size 0 Start pla Black XY 10 13 Extra black 0 Draw equiv 0.815678 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
+koSITUATIONALscoreAREAtaxALLsui0komi19
+Start moves size 0 Start pla Black XY 11 11 Extra black 1 Draw equiv 0.969468 Mode 3 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
+koPOSITIONALscoreAREAtaxNONEsui0komi26
+Start moves size 0 Start pla Black XY 12 12 Extra black 1 Draw equiv 0.203467 Mode 3 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
+koPOSITIONALscoreAREAtaxSEKIsui1komi36.5
+Start moves size 0 Start pla Black XY 13 13 Extra black 0 Draw equiv 0.293017 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
+koSIMPLEscoreAREAtaxSEKIsui0button1komi18.5
+Start moves size 0 Start pla Black XY 11 11 Extra black 1 Draw equiv 0.300929 Mode 3 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
+koPOSITIONALscoreAREAtaxNONEsui0komi6
+Start moves size 0 Start pla Black XY 13 13 Extra black 0 Draw equiv 0.219729 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
+koPOSITIONALscoreTERRITORYtaxSEKIsui0komi10
+Start moves size 0 Start pla Black XY 11 11 Extra black 0 Draw equiv 0.530759 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
+koSITUATIONALscoreAREAtaxNONEsui0komi-12.5
+Start moves size 0 Start pla Black XY 10 10 Extra black 0 Draw equiv 0.615133 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
+koSITUATIONALscoreAREAtaxALLsui1komi9.5
+Start moves size 0 Start pla Black XY 11 11 Extra black 0 Draw equiv 0.00887522 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
+koSITUATIONALscoreTERRITORYtaxSEKIsui0komi13.5
+Start moves size 0 Start pla Black XY 12 12 Extra black 1 Draw equiv 0.504095 Mode 3 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
+koSITUATIONALscoreAREAtaxNONEsui0komi3.5
+Start moves size 0 Start pla Black XY 11 11 Extra black 0 Draw equiv 0.820045 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
+koPOSITIONALscoreAREAtaxNONEsui0komi7
+Start moves size 0 Start pla Black XY 12 12 Extra black 0 Draw equiv 0.655163 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
+koSITUATIONALscoreTERRITORYtaxSEKIsui0komi5
+Start moves size 0 Start pla Black XY 10 10 Extra black 0 Draw equiv 0.618101 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
+koSIMPLEscoreAREAtaxSEKIsui0komi4.5
+Start moves size 0 Start pla Black XY 13 13 Extra black 0 Draw equiv 0.870133 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
+koPOSITIONALscoreAREAtaxNONEsui0komi8
+Start moves size 0 Start pla Black XY 11 11 Extra black 0 Draw equiv 0.0162095 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
+koSITUATIONALscoreTERRITORYtaxNONEsui1komi18.5
+Start moves size 0 Start pla Black XY 13 13 Extra black 1 Draw equiv 0.994361 Mode 3 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
+koSIMPLEscoreAREAtaxSEKIsui0komi4.5
+Start moves size 0 Start pla Black XY 11 11 Extra black 0 Draw equiv 0.868552 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
+koPOSITIONALscoreTERRITORYtaxALLsui1komi7.5
+Start moves size 0 Start pla Black XY 12 12 Extra black 0 Draw equiv 0.207275 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
+koSITUATIONALscoreTERRITORYtaxNONEsui0komi36
+Start moves size 0 Start pla Black XY 10 10 Extra black 0 Draw equiv 0.0625842 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
+koSITUATIONALscoreTERRITORYtaxNONEsui1komi6
+Start moves size 0 Start pla Black XY 11 12 Extra black 0 Draw equiv 0.239229 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
+koPOSITIONALscoreAREAtaxSEKIsui0komi22.5
+Start moves size 0 Start pla Black XY 12 12 Extra black 1 Draw equiv 0.848758 Mode 3 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
+koPOSITIONALscoreAREAtaxALLsui1button1komi6
+Start moves size 0 Start pla Black XY 10 10 Extra black 0 Draw equiv 0.717562 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
+koSIMPLEscoreTERRITORYtaxNONEsui0komi6.5
+Start moves size 0 Start pla Black XY 12 12 Extra black 0 Draw equiv 0.0612369 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
+koSITUATIONALscoreAREAtaxNONEsui0button1komi8.5
+Start moves size 0 Start pla Black XY 10 10 Extra black 0 Draw equiv 0.375226 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
+koPOSITIONALscoreTERRITORYtaxNONEsui1komi7.5
+Start moves size 0 Start pla Black XY 12 12 Extra black 0 Draw equiv 0.00155214 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
+koSIMPLEscoreAREAtaxNONEsui0button1komi24
+Start moves size 0 Start pla Black XY 12 12 Extra black 1 Draw equiv 0.0576495 Mode 3 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
+koSITUATIONALscoreAREAtaxNONEsui1komi8
+Start moves size 0 Start pla Black XY 12 12 Extra black 0 Draw equiv 0.309807 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
+koSIMPLEscoreTERRITORYtaxSEKIsui1komi3
+Start moves size 0 Start pla Black XY 12 12 Extra black 1 Draw equiv 0.382279 Mode 3 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
+koSIMPLEscoreTERRITORYtaxSEKIsui1komi2
+Start moves size 0 Start pla Black XY 12 11 Extra black 0 Draw equiv 0.793206 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
+koPOSITIONALscoreAREAtaxNONEsui0komi34.5
+Start moves size 0 Start pla Black XY 12 12 Extra black 0 Draw equiv 0.947522 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
+koSIMPLEscoreTERRITORYtaxALLsui1komi5.5
+Start moves size 0 Start pla Black XY 12 12 Extra black 0 Draw equiv 0.383423 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
+koSITUATIONALscoreTERRITORYtaxALLsui0komi5
+Start moves size 0 Start pla Black XY 11 11 Extra black 0 Draw equiv 0.943719 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
+koSIMPLEscoreAREAtaxNONEsui1button1komi5.5
+Start moves size 0 Start pla Black XY 11 11 Extra black 0 Draw equiv 0.829381 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
+koSITUATIONALscoreAREAtaxSEKIsui1komi6.5
+Start moves size 0 Start pla Black XY 11 11 Extra black 0 Draw equiv 0.468897 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
+koPOSITIONALscoreAREAtaxALLsui0komi6.5
+Start moves size 0 Start pla Black XY 12 12 Extra black 0 Draw equiv 0.294952 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
+koSITUATIONALscoreAREAtaxNONEsui1button1komi8
+Start moves size 0 Start pla Black XY 12 11 Extra black 0 Draw equiv 0.766858 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
+koSITUATIONALscoreAREAtaxNONEsui0button1komi7.5
+Start moves size 0 Start pla Black XY 12 11 Extra black 0 Draw equiv 0.0197188 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
+koPOSITIONALscoreTERRITORYtaxNONEsui1komi5
+Start moves size 0 Start pla Black XY 11 12 Extra black 0 Draw equiv 0.198974 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
+koPOSITIONALscoreTERRITORYtaxNONEsui1komi6
+Start moves size 0 Start pla Black XY 10 11 Extra black 0 Draw equiv 0.539648 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
+koSIMPLEscoreTERRITORYtaxSEKIsui0komi23.5
+Start moves size 0 Start pla Black XY 12 12 Extra black 0 Draw equiv 0.927901 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
+koSIMPLEscoreAREAtaxSEKIsui0komi6.5
+Start moves size 0 Start pla Black XY 12 12 Extra black 0 Draw equiv 0.393058 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
+koSIMPLEscoreAREAtaxNONEsui0komi23.5
+Start moves size 0 Start pla Black XY 10 10 Extra black 0 Draw equiv 0.961618 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
+koPOSITIONALscoreAREAtaxSEKIsui1button1komi25
+Start moves size 0 Start pla Black XY 12 12 Extra black 1 Draw equiv 0.427123 Mode 3 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
+koSITUATIONALscoreAREAtaxALLsui1button1komi4.5
+Start moves size 0 Start pla Black XY 12 12 Extra black 0 Draw equiv 0.358287 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
+koSITUATIONALscoreAREAtaxNONEsui0komi25
+Start moves size 0 Start pla Black XY 11 11 Extra black 0 Draw equiv 0.384596 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
+koSIMPLEscoreAREAtaxNONEsui0komi7.5
+Start moves size 0 Start pla Black XY 10 12 Extra black 0 Draw equiv 0.294576 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
+koPOSITIONALscoreAREAtaxNONEsui1komi8.5
+Start moves size 0 Start pla Black XY 12 12 Extra black 0 Draw equiv 0.151066 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
+koSITUATIONALscoreTERRITORYtaxNONEsui0komi10
+Start moves size 0 Start pla Black XY 13 13 Extra black 0 Draw equiv 0.635647 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
+koPOSITIONALscoreAREAtaxSEKIsui0komi31
+Start moves size 0 Start pla Black XY 11 11 Extra black 0 Draw equiv 0.71517 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
+koPOSITIONALscoreTERRITORYtaxNONEsui1komi5
+Start moves size 0 Start pla Black XY 13 13 Extra black 0 Draw equiv 0.0523484 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
+koSIMPLEscoreAREAtaxSEKIsui0komi6
+Start moves size 0 Start pla Black XY 11 11 Extra black 0 Draw equiv 0.00838014 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
+koSITUATIONALscoreAREAtaxALLsui0komi7
+Start moves size 0 Start pla Black XY 11 11 Extra black 0 Draw equiv 0.619527 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
+koSIMPLEscoreAREAtaxALLsui1komi7.5
+Start moves size 0 Start pla Black XY 10 10 Extra black 0 Draw equiv 0.492711 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
+koSIMPLEscoreAREAtaxSEKIsui0button1komi6.5
+Start moves size 0 Start pla Black XY 13 13 Extra black 0 Draw equiv 0.400572 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
+koSITUATIONALscoreTERRITORYtaxNONEsui1komi21
+Start moves size 0 Start pla Black XY 11 11 Extra black 1 Draw equiv 0.733678 Mode 3 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
+koPOSITIONALscoreAREAtaxSEKIsui1komi5.5
+Start moves size 0 Start pla Black XY 12 12 Extra black 0 Draw equiv 0.129902 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
+koSIMPLEscoreTERRITORYtaxNONEsui1komi15
+Start moves size 0 Start pla Black XY 13 13 Extra black 0 Draw equiv 0.093037 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
+koPOSITIONALscoreAREAtaxNONEsui0komi6.5
+Start moves size 0 Start pla Black XY 12 12 Extra black 0 Draw equiv 0.676115 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
 ====================================================================================================
 ====================================================================================================
 ====================================================================================================
@@ -15954,4 +15954,4 @@ valueTargetsNCHW
 0 0 0 0 0 0 0 0 0 0 0 0 -1 1 0 0 0 0 0 1 1 0 -1 0 1 0 0 0 1 -1 -1 0 1 0 0 0 0 -1 -1 0 1 0 0 -1 0 0 0 1 1 0 -1 0 0 0 0 0 1 -1 -1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -1 1 0 0 0 0 0 1 1 0 -1 0 1 0 0 0 1 -1 -1 0 1 0 0 0 0 -1 -1 0 1 0 0 -1 0 0 0 1 1 0 -1 0 0 0 0 0 1 -1 -1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -1 1 0 0 0 0 0 1 1 0 -1 0 1 0 0 0 1 -1 -1 0 1 0 0 0 0 -1 -1 0 1 0 0 -1 0 0 0 1 1 0 -1 0 0 0 0 0 1 -1 -1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -120 120 0 0 0 0 0 120 120 0 -120 0 120 0 0 0 120 -120 -120 0 120 0 0 0 0 -120 -120 0 120 0 0 -120 0 0 0 120 120 0 -120 0 0 0 0 0 120 -120 -120 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
 0 0 0 0 0 0 0 0 0 0 0 0 1 -1 0 0 0 0 0 -1 -1 0 1 0 -1 0 0 0 -1 1 1 0 -1 0 0 0 0 1 1 0 -1 0 0 1 0 0 0 -1 -1 0 1 0 0 0 0 0 -1 1 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 -1 0 0 0 0 0 -1 -1 0 1 0 -1 0 0 0 -1 1 1 0 -1 0 0 0 0 1 1 0 -1 0 0 1 0 0 0 -1 -1 0 1 0 0 0 0 0 -1 1 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 -1 0 0 0 0 0 -1 -1 0 1 0 -1 0 0 0 -1 1 1 0 -1 0 0 0 0 1 1 0 -1 0 0 1 0 0 0 -1 -1 0 1 0 0 0 0 0 -1 1 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 120 -120 0 0 0 0 0 -120 -120 0 120 0 -120 0 0 0 -120 120 120 0 -120 0 0 0 0 120 120 0 -120 0 0 120 0 0 0 -120 -120 0 120 0 0 0 0 0 -120 120 120 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
 
-: GPU 0 finishing, processed 49419 rows 49419 batches
+: GPU 0 finishing, processed 48883 rows 48883 batches
