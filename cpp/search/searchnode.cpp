@@ -1,6 +1,7 @@
 #include "../search/searchnode.h"
 
 #include "../search/search.h"
+#include "../core/test.h"
 
 NodeStatsAtomic::NodeStatsAtomic()
   :visits(0),
@@ -336,6 +337,35 @@ bool SearchNode::tryExpandingChildrenCapacityAssumeFull(SearchNodeState& stateVa
     ASSERT_UNREACHABLE;
   }
   return true;
+}
+
+//If we pruned some of the child nodes, collapse down the arrays and the node state to fit.
+//This preserves the invariant that the level of expansion is only the minimum needed to hold those child nodes.
+//Not thread-safe.
+void SearchNode::collapseChildrenCapacity(int numGoodChildren) {
+  int stateValue = state.load(std::memory_order_acquire);
+  if(numGoodChildren <= SearchChildrenSizes::SIZE1TOTAL && stateValue > SearchNode::STATE_EXPANDED1) {
+    assert(stateValue == SearchNode::STATE_EXPANDED2);
+    assert(children2 != NULL);
+    for(int i = 0; i<SearchChildrenSizes::SIZE2OVERFLOW; i++) {
+      testAssert(children2[i].getIfAllocatedRelaxed() == NULL);
+    }
+    delete[] children2;
+    children2 = NULL;
+    stateValue = SearchNode::STATE_EXPANDED1;
+    state.store(stateValue,std::memory_order_release);
+  }
+  if(numGoodChildren <= SearchChildrenSizes::SIZE0TOTAL && stateValue > SearchNode::STATE_EXPANDED0) {
+    assert(stateValue == SearchNode::STATE_EXPANDED1);
+    assert(children1 != NULL);
+    for(int i = 0; i<SearchChildrenSizes::SIZE1OVERFLOW; i++) {
+      testAssert(children1[i].getIfAllocatedRelaxed() == NULL);
+    }
+    delete[] children1;
+    children1 = NULL;
+    stateValue = SearchNode::STATE_EXPANDED0;
+    state.store(stateValue,std::memory_order_release);
+  }
 }
 
 NNOutput* SearchNode::getNNOutput() {

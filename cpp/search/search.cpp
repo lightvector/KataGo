@@ -714,6 +714,11 @@ void Search::beginSearch(bool pondering) {
       }
 
       if(anyFiltered) {
+        //Fix up the node state and child arrays.
+        node.collapseChildrenCapacity(numGoodChildren);
+        children = node.getChildren();
+        childrenCapacity = children.getCapacity();
+
         //Fix up the number of visits of the root node after doing this filtering
         int64_t newNumVisits = 0;
         for(int i = 0; i<childrenCapacity; i++) {

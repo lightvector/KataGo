@@ -256,6 +256,7 @@ struct SearchNode {
   //Used within search to update state and allocate children arrays
   void initializeChildren();
   bool maybeExpandChildrenCapacityForNewChild(SearchNodeState& stateValue, int numChildrenFullPlusOne);
+  void collapseChildrenCapacity(int numGoodChildren);
 
 private:
   bool tryExpandingChildrenCapacityAssumeFull(SearchNodeState& stateValue);
