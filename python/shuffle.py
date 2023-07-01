@@ -691,6 +691,9 @@ if __name__ == '__main__':
                 num_rows_in_desired_files += num_rows_in_file
         print("Due to only_include_md5, filtering down to %d/%d files" % (len(new_desired_input_files),len(desired_input_files)))
         desired_input_files = new_desired_input_files
+    else:
+        for (input_file,num_rows_in_file) in desired_input_files:
+            num_rows_in_desired_files += num_rows_in_file
 
     if len(desired_input_files) <= 0:
         print("No files after filtering for desired range")

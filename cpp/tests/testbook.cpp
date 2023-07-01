@@ -87,22 +87,22 @@ void Tests::runBookTests() {
 
   Rand rand("runBookTests");
   std::vector<Loc> legalMovesBuf;
-  
+
   for(int waveIdx = 0; waveIdx<35; waveIdx++) {
     cout << "Book size " << book->size() << endl;
     std::set<BookHash> nodesHashesToUpdate;
-    
+
     for(int branchIdx = 0; branchIdx<10; branchIdx++) {
       SymBookNode node = book->getRoot();
       Board board(initialBoard);
-      BoardHistory hist(board,initialPla,rules,0); 
+      BoardHistory hist(board,initialPla,rules,0);
       int branchLen = rand.nextUInt(10);
-      
+
       for(int turnIdx = 0; turnIdx<branchLen; turnIdx++) {
         assert(!node.isNull());
         if(hist.isGameFinished || hist.encorePhase != 0)
           break;
-        
+
         Player pla = hist.presumedNextMovePla;
         legalMovesBuf.clear();
         for(int y = 0; y<board.y_size; y++) {
@@ -117,7 +117,7 @@ void Tests::runBookTests() {
           if(hist.isLegal(board,loc,pla))
             legalMovesBuf.push_back(loc);
         }
-        
+
         Loc moveLoc = legalMovesBuf[rand.nextUInt((uint32_t)legalMovesBuf.size())];
         if(!node.isMoveInBook(moveLoc)) {
           bool childIsTransposing;
@@ -162,7 +162,7 @@ void Tests::runBookTests() {
       book->saveToFile(testFileName);
       loaded = Book::loadFromFile(testFileName, sharpScoreOutlierCap);
     }
-    
+
     book->recomputeEverything();
     for(SymBookNode node: book->getAllNodes()) {
       testAssert(abs(costByHash[node.hash()] - node.totalExpansionCost()) < 1e-3);
@@ -174,8 +174,9 @@ void Tests::runBookTests() {
       }
       delete loaded;
     }
-  }    
+  }
 
+  delete book;
   FileUtils::tryRemoveFile(testFileName);
   cout << "Done" << endl;
 }
