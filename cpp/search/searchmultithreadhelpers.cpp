@@ -144,7 +144,7 @@ void Search::applyRecursivelyPostOrderMulithreadedHelper(
   SearchNode* node, int threadIdx, PCG32* rand, std::unordered_set<SearchNode*>& nodeBuf, std::vector<int>& randBuf, std::function<void(SearchNode*,int)>* f
 ) {
   //nodeAge == searchNodeAge means that the node is done.
-  if(node->nodeAge.load(std::memory_order_acquire) == searchNodeAge)
+  if(!node || node->nodeAge.load(std::memory_order_acquire) == searchNodeAge)
     return;
   //Cycle! Just consider this node "done" and return.
   if(nodeBuf.find(node) != nodeBuf.end())
