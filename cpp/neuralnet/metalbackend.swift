@@ -2348,17 +2348,12 @@ struct Model {
                   serverThreadIdx threadIdx: Int) {
 
         let context = MetalComputeContext.getInstance()
-        let devices = MTLCopyAllDevices()
 
-        // Validate the GPU index and return nil if invalid.
-        guard (gpuIdx >= 0) && (gpuIdx < devices.count) else {
-            return nil // Return nil if the provided GPU index is out of the devices range.
-        }
-
-        let device = devices[gpuIdx] // Select the GPU device based on the provided index.
+        // In iOS, the MTLCopyAllDevices function is not available
+        let device = MTLCreateSystemDefaultDevice()!
 
         // Log the selected device's name, model version, and model name.
-        NSLog("Metal backend thread \(threadIdx): \(device.name) Model version \(descriptor.version) \(descriptor.name)")
+        NSLog("Metal backend thread \(threadIdx): \(device.name), Model version \(descriptor.version) \(descriptor.name)")
 
         // Create a model with the specified device, graph, descriptor, and other parameters.
         model = Model(device: device,
@@ -2373,11 +2368,8 @@ struct Model {
 @objc class MetalBackend : NSObject {
     /// Print all available devices.
     @objc class func printDevices() {
-        let devices = MTLCopyAllDevices()
-
-        (0..<devices.count).forEach {
-            print("Found Metal Device \($0): \(devices[$0].name) (isLowPower:\(devices[$0].isLowPower), isRemovable:\(devices[$0].isRemovable))")
-        }
+        let device = MTLCreateSystemDefaultDevice()!
+        print("Found Metal Device: \(device.name)")
     }
 
     /// Get width of the input tensor.
