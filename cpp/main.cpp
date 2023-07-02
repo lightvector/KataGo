@@ -169,6 +169,7 @@ static int handleSubcommand(const string& subcommand, const vector<string>& args
 }
 
 
+#ifndef OS_IS_IOS
 int main(int argc, const char* const* argv) {
   vector<string> args = MainArgs::getCommandLineArgsUTF8(argc,argv);
   MainArgs::makeCoutAndCerrAcceptUTF8();
@@ -203,6 +204,7 @@ int main(int argc, const char* const* argv) {
   return handleSubcommand(cmdArg, args);
 #endif
 }
+#endif
 
 
 string Version::getKataGoVersion() {
