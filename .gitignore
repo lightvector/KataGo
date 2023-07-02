@@ -76,6 +76,10 @@ xcuserdata/
 DerivedData/
 *.plist
 
+# For KataGo-iOS
+ios/KataGo\ iOS/Resources/*.bin.gz
+ios/KataGo\ iOS/Resources/*.mlpackage
+
 # misc
 cpp/external/httplib/cpp-httplib/
 cpp/external/nlohmann_json/nlohmann_json
