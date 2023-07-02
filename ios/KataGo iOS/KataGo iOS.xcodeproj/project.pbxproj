@@ -134,6 +134,7 @@
 		E18F3F772A514B9700D335E1 /* default_model.bin.gz in Resources */ = {isa = PBXBuildFile; fileRef = E18F3F742A514B9700D335E1 /* default_model.bin.gz */; };
 		E18F3F782A514B9700D335E1 /* default_gtp.cfg in Resources */ = {isa = PBXBuildFile; fileRef = E18F3F752A514B9700D335E1 /* default_gtp.cfg */; };
 		E18F3F7A2A514BC600D335E1 /* KataGoModel19x19fp16.mlpackage in Resources */ = {isa = PBXBuildFile; fileRef = E18F3F732A514B9500D335E1 /* KataGoModel19x19fp16.mlpackage */; };
+		E1B922752A5179A7006D3137 /* KataGoHelper.mm in Sources */ = {isa = PBXBuildFile; fileRef = E1B922742A5179A7006D3137 /* KataGoHelper.mm */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -245,7 +246,7 @@
 		E18F3EBB2A51487100D335E1 /* selfplaymanager.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = selfplaymanager.cpp; path = ../../cpp/program/selfplaymanager.cpp; sourceTree = "<group>"; };
 		E18F3EC22A5148B100D335E1 /* modelversion.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = modelversion.cpp; path = ../../cpp/neuralnet/modelversion.cpp; sourceTree = "<group>"; };
 		E18F3EC32A5148B100D335E1 /* coremlmodel.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = coremlmodel.h; path = ../../cpp/neuralnet/coremlmodel.h; sourceTree = "<group>"; };
-		E18F3EC42A5148B100D335E1 /* coremlmodel.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; name = coremlmodel.m; path = ../../cpp/neuralnet/coremlmodel.m; sourceTree = "<group>"; };
+		E18F3EC42A5148B100D335E1 /* coremlmodel.m */ = {isa = PBXFileReference; fileEncoding = 4; indentWidth = 2; lastKnownFileType = sourcecode.c.objc; name = coremlmodel.m; path = ../../cpp/neuralnet/coremlmodel.m; sourceTree = "<group>"; tabWidth = 2; };
 		E18F3EC52A5148B100D335E1 /* desc.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = desc.h; path = ../../cpp/neuralnet/desc.h; sourceTree = "<group>"; };
 		E18F3EC62A5148B100D335E1 /* coremlbackend.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; name = coremlbackend.mm; path = ../../cpp/neuralnet/coremlbackend.mm; sourceTree = "<group>"; };
 		E18F3EC72A5148B100D335E1 /* nninterface.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = nninterface.h; path = ../../cpp/neuralnet/nninterface.h; sourceTree = "<group>"; };
@@ -357,9 +358,11 @@
 		E18F3F6C2A51494000D335E1 /* book.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = book.h; path = ../../cpp/book/book.h; sourceTree = "<group>"; };
 		E18F3F6D2A51494000D335E1 /* book.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = book.cpp; path = ../../cpp/book/book.cpp; sourceTree = "<group>"; };
 		E18F3F712A5149AB00D335E1 /* libz.tbd */ = {isa = PBXFileReference; lastKnownFileType = "sourcecode.text-based-dylib-definition"; name = libz.tbd; path = usr/lib/libz.tbd; sourceTree = SDKROOT; };
-		E18F3F732A514B9500D335E1 /* KataGoModel19x19fp16.mlpackage */ = {isa = PBXFileReference; lastKnownFileType = folder.mlpackage; path = KataGoModel19x19fp16.mlpackage; sourceTree = "<group>"; };
+		E18F3F732A514B9500D335E1 /* KataGoModel19x19fp16.mlpackage */ = {isa = PBXFileReference; explicitFileType = wrapper.application; path = KataGoModel19x19fp16.mlpackage; sourceTree = "<group>"; };
 		E18F3F742A514B9700D335E1 /* default_model.bin.gz */ = {isa = PBXFileReference; lastKnownFileType = archive.gzip; path = default_model.bin.gz; sourceTree = "<group>"; };
 		E18F3F752A514B9700D335E1 /* default_gtp.cfg */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = default_gtp.cfg; sourceTree = "<group>"; };
+		E1B922742A5179A7006D3137 /* KataGoHelper.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = KataGoHelper.mm; sourceTree = "<group>"; };
+		E1B922762A5179C6006D3137 /* KataGoHelper.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = KataGoHelper.h; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -418,6 +421,8 @@
 				E18F3E122A51466A00D335E1 /* ContentView.swift */,
 				E18F3E142A51466C00D335E1 /* Assets.xcassets */,
 				E18F3E162A51466C00D335E1 /* Preview Content */,
+				E1B922742A5179A7006D3137 /* KataGoHelper.mm */,
+				E1B922762A5179C6006D3137 /* KataGoHelper.h */,
 			);
 			path = "KataGo iOS";
 			sourceTree = "<group>";
@@ -910,6 +915,7 @@
 				E18F3E3D2A5147C900D335E1 /* main.cpp in Sources */,
 				E18F3E9B2A51485E00D335E1 /* searchtimehelpers.cpp in Sources */,
 				E18F3EFF2A5148EF00D335E1 /* loadmodel.cpp in Sources */,
+				E1B922752A5179A7006D3137 /* KataGoHelper.mm in Sources */,
 				E18F3EA22A51485E00D335E1 /* searchnnhelpers.cpp in Sources */,
 				E18F3F672A51493100D335E1 /* evalsgf.cpp in Sources */,
 				E18F3E682A51483100D335E1 /* testsymmetries.cpp in Sources */,

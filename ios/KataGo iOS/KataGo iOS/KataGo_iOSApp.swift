@@ -9,6 +9,12 @@ import SwiftUI
 
 @main
 struct KataGo_iOSApp: App {
+    init() {
+        DispatchQueue.global(qos: .background).async {
+            KataGoHelper.runGtp()
+        }
+    }
+
     var body: some Scene {
         WindowGroup {
             ContentView()
