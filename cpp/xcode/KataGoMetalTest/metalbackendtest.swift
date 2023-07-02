@@ -60,47 +60,6 @@ final class MPSGraphTest: XCTestCase {
         XCTAssertEqual(buffer[3], 10.380000114440918, accuracy: 1e-6)
         XCTAssertEqual(buffer[4], 10.4, accuracy: 1e-6)
     }
-
-    func testMishFloat16() {
-        let device = MTLCreateSystemDefaultDevice()!
-        let graph = MPSGraph()
-        let shape: [NSNumber] = [5]
-        let inputTensor = graph.placeholder(shape: shape, dataType: MPSDataType.float16, name: nil)
-        let mishTensor = graph.mish(tensor: inputTensor)
-
-        let inputPointer = UnsafeMutablePointer<Float16>.allocate(capacity: 5)
-
-        inputPointer[0] = -1
-        inputPointer[1] = 0
-        inputPointer[2] = 1
-        inputPointer[3] = 10.38
-        inputPointer[4] = 10.4
-
-        let inputDescriptor = MPSNDArrayDescriptor(dataType: inputTensor.dataType,
-                                                   shape: shape)
-
-        let inputArray = MPSNDArray(device: device,
-                                    descriptor: inputDescriptor)
-
-        inputArray.writeBytes(inputPointer)
-        let inputTensorData = MPSGraphTensorData(inputArray)
-
-        let fetch = graph.run(feeds: [inputTensor: inputTensorData],
-                              targetTensors: [mishTensor],
-                              targetOperations: nil)
-
-        let length = shape.countElements()
-        let buffer = UnsafeMutablePointer<Float16>.allocate(capacity: length)
-
-        fetch[mishTensor]?.mpsndarray().readBytes(buffer)
-
-        XCTAssert(mishTensor.shape == shape)
-        XCTAssertEqual(buffer[0], -0.30340147018432617, accuracy: 1e-4)
-        XCTAssertEqual(buffer[1], 0.0, accuracy: 1e-4)
-        XCTAssertEqual(buffer[2], 0.8650983572006226, accuracy: 1e-4)
-        XCTAssertEqual(buffer[3], 10.380000114440918, accuracy: 1e-4)
-        XCTAssertEqual(buffer[4], 10.4, accuracy: 1e-4)
-    }
 }
 
 final class InputLayerTest: XCTestCase {

@@ -1,0 +1,17 @@
+name: Build
+on:
+  push:
+    paths:
+      - 'cpp/**'
+
+jobs:
+  build:
+    runs-on: macos-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Run Xcode build
+      run: |
+        cd cpp/xcode
+        xcodebuild -scheme ALL_BUILDS -configuration Release build
