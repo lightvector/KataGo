@@ -14,6 +14,8 @@
 
 + (void)runGtp;
 
++ (nonnull NSString*)getMessageLine;
+
 @end
 
 #endif /* KataGoHelper_h */

@@ -10,9 +10,10 @@ import SwiftUI
 @main
 struct KataGo_iOSApp: App {
     init() {
-        DispatchQueue.global(qos: .background).async {
+        // Start a thread to run GTP
+        Thread {
             KataGoHelper.runGtp()
-        }
+        }.start()
     }
 
     var body: some Scene {
