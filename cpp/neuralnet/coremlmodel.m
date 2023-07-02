@@ -91,8 +91,12 @@
   NSFileManager *fileManager = [NSFileManager defaultManager];
 
   // Get application support directory
-  NSURL *appSupportURL = [fileManager URLsForDirectory:NSApplicationSupportDirectory
-                                             inDomains:NSUserDomainMask].firstObject;
+  // Create the directory if it does not already exist
+  NSURL *appSupportURL = [fileManager URLForDirectory:NSApplicationSupportDirectory
+                                             inDomain:NSUserDomainMask
+                                    appropriateForURL:nil
+                                               create:true
+                                                error:nil];
 
   // Create the URL for the permanent compiled model file
   NSURL *permanentURL = [appSupportURL URLByAppendingPathComponent:compiledModelName];
