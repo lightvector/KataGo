@@ -7,38 +7,93 @@
 
 import SwiftUI
 
-/// Message with a text and an ID
-struct Message: Identifiable, Equatable, Hashable {
-    static var id = -1
+/// Message ID actor. Actor allows only one task to access the mutable state at a time.
+actor MessageId {
+    var value: Int;
 
-    static func getID() -> Int {
-        id += 1
-        return id
+    /// Initialize a message ID with a value
+    /// - Parameter value: a value
+    init(_ value: Int) {
+        self.value = value
     }
 
-    let id = getID()
+    /// Increment the message ID
+    /// - Returns: the incremented value
+    func increment() -> Int {
+        value = value + 1
+        return value
+    }
+}
+
+/// Message with a text and an ID
+struct Message: Identifiable, Equatable, Hashable {
+    private static var lastId = MessageId(-1)
+
+    /// Get the next ID, which is increased by 1
+    /// - Returns: the next ID
+    static func getNextId() async -> Int {
+        return await lastId.increment()
+    }
+
+    /// Get the last ID
+    /// - Returns: the last ID
+    static func getLastId() async -> Int {
+        return await lastId.value
+    }
+
+    /// Identification of this message
+    let id: Int
+
+    /// Text of this message
     let text: String
+
+    /// Initialize a message with a text
+    /// - Parameter text: a text
+    init(text: String) async {
+        self.id = await Message.getNextId()
+        self.text = text
+    }
 }
 
 /// KataGo controller
 class KataGoController: ObservableObject {
+    /// A list of messages
     @Published var messages: [Message] = []
 
     /// Get the ID of the last message
     /// - Returns: the ID of the last message
-    func getLastID() -> Int {
-        return messages[messages.endIndex - 1].id
+    func getLastID() async -> Int {
+        return await Message.getLastId()
     }
 
-    func waitMessageAndUpdate() {
-        // Wait until a message line is available
+    /// Process a message from KataGo
+    func processMessage() {
+        // Get a message line from KataGo
         let line = KataGoHelper.getMessageLine()
-        let message = Message(text: line)
 
-        // Update the messages
-        DispatchQueue.main.async {
-            self.messages.append(message)
+        Task.detached {
+            // Create a message with the line
+            let message = await Message(text: line)
+
+            // Append the message to the list of messages
+            DispatchQueue.main.async {
+                self.messages.append(message)
+            }
         }
+    }
+
+    /// Process messages from KataGo
+    func processMessages() {
+        while (true) {
+            processMessage()
+        }
+    }
+
+    /// Start a thread to process messages from KataGo
+    func startMessageThread() {
+        Thread {
+            self.processMessages()
+        }.start()
     }
 }
 
@@ -61,19 +116,14 @@ struct ContentView: View {
                     }
                     .onChange(of: kataGo.messages) { value in
                         // Scroll to the last message
-                        if value.count > 0 {
-                            scrollView.scrollTo(kataGo.getLastID())
+                        if let id = value.last?.id {
+                            scrollView.scrollTo(id)
                         }
                     }
                 }
             }
             .onAppear() {
-                // Start a thread to run an infinite loop that waits and updates KataGo messages
-                Thread {
-                    while (true) {
-                        kataGo.waitMessageAndUpdate()
-                    }
-                }.start()
+                kataGo.startMessageThread()
             }
         }
         .padding()
