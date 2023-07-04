@@ -14,7 +14,7 @@
 
 + (void)runGtp;
 
-+ (nonnull NSString*)getMessageLine;
++ (void)getOneMessageLineWithCompletion:(void (^ _Nullable)(NSString * _Nonnull messageLine))completion;
 
 @end
 

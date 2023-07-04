@@ -55,50 +55,15 @@ struct Message: Identifiable, Equatable, Hashable {
     }
 }
 
-/// KataGo controller
-class KataGoController: ObservableObject {
-    /// A list of messages
-    @Published var messages: [Message] = []
+struct ContentView: View {
+    @State private var messages: [Message] = []
 
-    /// Get the ID of the last message
-    /// - Returns: the ID of the last message
-    func getLastID() async -> Int {
-        return await Message.getLastId()
-    }
-
-    /// Process a message from KataGo
-    func processMessage() {
-        // Get a message line from KataGo
-        let line = KataGoHelper.getMessageLine()
-
-        Task.detached {
-            // Create a message with the line
-            let message = await Message(text: line)
-
-            // Append the message to the list of messages
-            DispatchQueue.main.async {
-                self.messages.append(message)
-            }
-        }
-    }
-
-    /// Process messages from KataGo
-    func processMessages() {
-        while (true) {
-            processMessage()
-        }
-    }
-
-    /// Start a thread to process messages from KataGo
-    func startMessageThread() {
+    init() {
+        // Start a thread to run KataGo GTP
         Thread {
-            self.processMessages()
+            KataGoHelper.runGtp()
         }.start()
     }
-}
-
-struct ContentView: View {
-    @ObservedObject private var kataGo = KataGoController()
 
     var body: some View {
         VStack {
@@ -106,7 +71,7 @@ struct ContentView: View {
                 ScrollView(.vertical) {
                     // Vertically show each KataGo message
                     LazyVStack {
-                        ForEach(kataGo.messages) { message in
+                        ForEach(messages) { message in
                             Text(message.text)
                                 .padding()
                                 .id(message.id)
@@ -114,19 +79,36 @@ struct ContentView: View {
                                 .frame(maxWidth: .infinity, alignment: .leading)
                         }
                     }
-                    .onChange(of: kataGo.messages) { value in
+                    .onChange(of: messages) { value in
                         // Scroll to the last message
                         if let id = value.last?.id {
                             scrollView.scrollTo(id)
                         }
                     }
                 }
-            }
-            .onAppear() {
-                kataGo.startMessageThread()
+                .onAppear() {
+                    createMessageTask()
+                }
             }
         }
         .padding()
+    }
+
+    /// Repeat message tasks creation
+    private func createMessageTask() {
+        Task {
+            // Get a message line from KataGo
+            let line = await KataGoHelper.oneMessageLine()
+
+            // Create a message with the line
+            let message = await Message(text: line)
+
+            // Append the message to the list of messages
+            messages.append(message)
+
+            // Create another message task
+            createMessageTask()
+        }
     }
 }
 

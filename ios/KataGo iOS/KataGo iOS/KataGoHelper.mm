@@ -99,7 +99,7 @@ istream inFromKataGo(&tsbFromKataGo);
 #endif
 }
 
-+ (nonnull NSString*)getMessageLine {
++ (void)getOneMessageLineWithCompletion:(void (^ _Nullable)(NSString * _Nonnull messageLine))completion {
     // Get a line from the input stream from KataGo
     string cppLine;
     getline(inFromKataGo, cppLine);
@@ -107,7 +107,7 @@ istream inFromKataGo(&tsbFromKataGo);
     // Convert the C++ std:string into an NSString
     NSString* messageLine = [NSString stringWithUTF8String:cppLine.c_str()];
 
-    return messageLine;
+    completion(messageLine);
 }
 
 @end
