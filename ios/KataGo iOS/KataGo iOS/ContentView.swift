@@ -81,12 +81,11 @@ struct ContentView: View {
                     }
                     .onChange(of: messages) { value in
                         // Scroll to the last message
-                        if let id = value.last?.id {
-                            scrollView.scrollTo(id)
-                        }
+                        scrollView.scrollTo(value.last?.id)
                     }
                 }
                 .onAppear() {
+                    // Get messages from KataGo and append to the list of messages
                     createMessageTask()
                 }
             }
@@ -94,20 +93,19 @@ struct ContentView: View {
         .padding()
     }
 
-    /// Repeat message tasks creation
+    /// Create message task
     private func createMessageTask() {
         Task {
-            // Get a message line from KataGo
-            let line = await KataGoHelper.oneMessageLine()
+            while true {
+                // Get a message line from KataGo
+                let line = await KataGoHelper.oneMessageLine()
 
-            // Create a message with the line
-            let message = await Message(text: line)
+                // Create a message with the line
+                let message = await Message(text: line)
 
-            // Append the message to the list of messages
-            messages.append(message)
-
-            // Create another message task
-            createMessageTask()
+                // Append the message to the list of messages
+                messages.append(message)
+            }
         }
     }
 }
