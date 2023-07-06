@@ -7,42 +7,10 @@
 
 import SwiftUI
 
-/// Message ID actor. Actor allows only one task to access the mutable state at a time.
-actor MessageId {
-    var value: Int;
-
-    /// Initialize a message ID with a value
-    /// - Parameter value: a value
-    init(_ value: Int) {
-        self.value = value
-    }
-
-    /// Increment the message ID
-    /// - Returns: the incremented value
-    func increment() -> Int {
-        value = value + 1
-        return value
-    }
-}
-
 /// Message with a text and an ID
 struct Message: Identifiable, Equatable, Hashable {
-    private static var lastId = MessageId(-1)
-
-    /// Get the next ID, which is increased by 1
-    /// - Returns: the next ID
-    static func getNextId() async -> Int {
-        return await lastId.increment()
-    }
-
-    /// Get the last ID
-    /// - Returns: the last ID
-    static func getLastId() async -> Int {
-        return await lastId.value
-    }
-
     /// Identification of this message
-    let id: Int
+    let id = UUID()
 
     /// Text of this message
     let text: String
@@ -50,7 +18,6 @@ struct Message: Identifiable, Equatable, Hashable {
     /// Initialize a message with a text
     /// - Parameter text: a text
     init(text: String) async {
-        self.id = await Message.getNextId()
         self.text = text
     }
 }
