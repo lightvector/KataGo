@@ -83,6 +83,30 @@ class GameResultSummary:
             los_matrix.append(los_row)
         self._print_matrix(real_players,los_matrix)
 
+        surprise_matrix = []
+        for pla1 in real_players:
+            row = []
+            for pla2 in real_players:
+                if (pla1 == pla2):
+                    row.append("-")
+                    continue
+                else:
+                    pla1_pla2 = self.results[(pla1, pla2)] if (pla1, pla2) in self.results else Record()
+                    pla2_pla1 = self.results[(pla2, pla1)] if (pla2, pla1) in self.results else Record()
+                    win = pla1_pla2.win + pla2_pla1.lost + 0.5 * (pla1_pla2.draw + pla2_pla1.draw)
+                    total = pla1_pla2.win + pla2_pla1.win + pla1_pla2.lost + pla2_pla1.lost + pla1_pla2.draw + pla2_pla1.draw
+                    surprise = elo_info.get_log10_odds_surprise_max_likelihood(pla1, pla2, win, total)
+                    if total <= 0:
+                        row.append("-")
+                    else:
+                        row.append(f"{surprise:.1f}")
+            surprise_matrix.append(row)
+        print("Log10odds surprise matrix given the posterior belief:")
+        print("E.g. +3.0 means a 1:1000 unexpected good performance by row vs column.")
+        print("E.g. -4.0 means a 1:10000 unexpected bad performance by row vs column.")
+        print("Extreme numbers may indicate rock/paper/scissors, or Elo is not a good model for the data.")
+        self._print_matrix(real_players,surprise_matrix)
+
         print(f"Used a prior of {self._elo_prior_games} games worth that each player is near Elo 0.")
         if self._should_warn_handicap_komi:
             print("WARNING: There are handicap games or games with komi < 5.5 or komi > 7.5, these games may not be fair?")
@@ -298,8 +322,8 @@ class GameResultSummary:
                     else:
                         row.append(f"{win/total*100.0:.1f}%")
             result_matrix.append(row)
-
         self._print_matrix(pla_names,result_matrix)
+
 
 if __name__ == "__main__":
     description = """

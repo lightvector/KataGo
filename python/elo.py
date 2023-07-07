@@ -2,6 +2,7 @@ import copy
 import math
 import numpy as np
 import scipy.stats
+import scipy.special
 from typing import List, Dict, Tuple, Set, Sequence
 
 Player = str
@@ -60,6 +61,95 @@ class EloInfo:
         mean = self.get_elo_difference(p1,p2)
         stderr = self.get_approx_elo_difference_stderr(p1,p2)
         return scipy.stats.t.cdf(mean/stderr,df=self.effective_game_count[p1]-1)
+
+    def get_log10_odds_surprise_max_likelihood(self, p1: Player, p2: Player, g1: float, total: int) -> float:
+        """Returns an indication of how surprised we would be for p1 to win g1 games out of total versus p2, given the maximum likeihood Elos.
+        Doesn't explicitly model draw prob, if g1 is fractional then assumes the fractional part randomly rounds to a full 1 or 0
+        and averages the probabilities.
+        A value of 3.0 means that g1 is larger than we would expect given the players' estimated Elos, such that a result
+        that extreme or more has less than 1 : 10^3.0 odds of happening under the posterior.
+        A value of -3.0 means that g1 is smaller larger than we would expect given the players' estimated Elos, such that a result
+        that extreme or more has less than 1 : 10^3.0 odds of happening under the posterior.
+        """
+        mean = self.get_elo_difference(p1,p2) / ELO_PER_STRENGTH
+
+        max_likelihood_winprob = 1.0 / (1.0 + math.exp(-mean))
+        max_likelihood_g1 = max_likelihood_winprob * total
+        if max_likelihood_g1 < g1:
+            signflip = -1
+            mean = -mean
+            g1 = total - g1
+        else:
+            signflip = 1
+
+        winprob = 1.0 / (1.0 + math.exp(-mean))
+
+        g1_floor = int(math.floor(g1))
+        g1_frac = g1 - g1_floor
+        if g1_frac != 0.0:
+            # Average endpoints for draws
+            logxf = scipy.stats.binom.logcdf(g1,total,winprob)
+            logxp1 = scipy.stats.binom.logcdf(g1+1,total,winprob)
+            log_prob = scipy.special.logsumexp([logxf+math.log(1.0-g1_frac),logxp1+math.log(g1_frac)])
+        else:
+            log_prob = scipy.stats.binom.logcdf(g1,total,winprob)
+
+        log_odds = log_prob - (math.log(-log_prob) if log_prob > -1e-10 else math.log(1.0 - math.exp(log_prob)))
+        return -signflip * max(0.0, -log_odds / math.log(10.0))
+
+    def get_approx_log10_odds_surprise_bayes(self, p1: Player, p2: Player, g1: float, total: int) -> float:
+        """Returns an indication of how surprised we would be for p1 to win g1 games out of total versus p2, given the posterior.
+        Computed via numeric integration over the pairwise posteriors.
+        Doesn't explicitly model draw prob, if g1 is fractional then assumes the fractional part randomly rounds to a full 1 or 0
+        and averages the probabilities.
+        A value of 3.0 means that g1 is larger than we would expect given the players' estimated Elos, such that a result
+        that extreme or more has less than 1 : 10^3.0 odds of happening under the posterior.
+        A value of -3.0 means that g1 is smaller larger than we would expect given the players' estimated Elos, such that a result
+        that extreme or more has less than 1 : 10^3.0 odds of happening under the posterior.
+        """
+        mean = self.get_elo_difference(p1,p2) / ELO_PER_STRENGTH
+        stderr = self.get_approx_elo_difference_stderr(p1,p2) / ELO_PER_STRENGTH
+
+        max_likelihood_winprob = 1.0 / (1.0 + math.exp(-mean))
+        max_likelihood_g1 = max_likelihood_winprob * total
+        if max_likelihood_g1 < g1:
+            signflip = -1
+            mean = -mean
+            g1 = total - g1
+        else:
+            signflip = 1
+
+        logw_list = []
+        logwx_list = []
+        for x in np.linspace(-15.0,15.0,num=1000,endpoint=False):
+            logw = scipy.stats.norm.logpdf(x)
+            winprob = 1.0 / (1.0 + math.exp(-(mean + x * stderr)))
+            # print("X", x)
+            # print("winprob", winprob)
+            # print("g1 total", g1, total, g1/total)
+
+            g1_floor = int(math.floor(g1))
+            g1_frac = g1 - g1_floor
+            if g1_frac != 0.0:
+                # Average endpoints for draws
+                logxf = scipy.stats.binom.logcdf(g1,total,winprob)
+                logxp1 = scipy.stats.binom.logcdf(g1+1,total,winprob)
+                log_prob = scipy.special.logsumexp([logxf+math.log(1.0-g1_frac),logxp1+math.log(g1_frac)])
+            else:
+                logx = scipy.stats.binom.logcdf(g1,total,winprob)
+
+            # print("logw logx", logw, logx)
+            logw_list.append(logw)
+            logwx_list.append(logw+logx)
+
+        log_wsum = scipy.special.logsumexp(logw_list)
+        log_wxsum = scipy.special.logsumexp(logwx_list)
+        # print("log_wsum",log_wsum)
+        # print("log_wxsum",log_wxsum)
+
+        log_prob = log_wxsum - log_wsum
+        log_odds = log_prob - (math.log(-log_prob) if log_prob > -1e-10 else math.log(1.0 - math.exp(log_prob)))
+        return -signflip * max(0.0, -log_odds / math.log(10.0))
 
     def __str__(self) -> str:
         lines = []
