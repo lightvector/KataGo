@@ -346,7 +346,7 @@ We train an additional policy head alongside the normal policy on the exact same
 
 Specifically we weight the policy target by:
 
-```clamp(0.0, 1.0, sigmoid((z_value-1.5)/3) + sigmoid((z_score-1.5)/3))```
+```clamp(0.0, 1.0, sigmoid((z_value-1.5)*3) + sigmoid((z_score-1.5)*3))```
 
 where:
 
