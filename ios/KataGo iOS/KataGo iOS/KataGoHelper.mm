@@ -60,6 +60,12 @@ ThreadSafeStreamBuf tsbFromKataGo;
 // Input stream from KataGo
 istream inFromKataGo(&tsbFromKataGo);
 
+// Thread-safe stream buffer to KataGo
+ThreadSafeStreamBuf tsbToKataGo;
+
+// Output stream to KataGo
+ostream outToKataGo(&tsbToKataGo);
+
 @implementation KataGoHelper
 
 /// Run KataGo main command GTP with default model and config
@@ -77,8 +83,11 @@ istream inFromKataGo(&tsbFromKataGo);
     // Replace the global cout object with the custom one
     cout.rdbuf(&tsbFromKataGo);
 
+    // Replace the global cin object with the custom one
+    cin.rdbuf(&tsbToKataGo);
+
     vector<string> subArgs;
-#if false
+#if true
     // Call the main command gtp
     subArgs.push_back(string("gtp"));
     subArgs.push_back(string("-model"));
@@ -99,7 +108,7 @@ istream inFromKataGo(&tsbFromKataGo);
 #endif
 }
 
-+ (void)getOneMessageLineWithCompletion:(void (^ _Nullable)(NSString * _Nonnull messageLine))completion {
++ (void)getMessageLineWithCompletion:(void (^ _Nullable)(NSString * _Nonnull messageLine))completion {
     // Get a line from the input stream from KataGo
     string cppLine;
     getline(inFromKataGo, cppLine);
@@ -108,6 +117,11 @@ istream inFromKataGo(&tsbFromKataGo);
     NSString* messageLine = [NSString stringWithUTF8String:cppLine.c_str()];
 
     completion(messageLine);
+}
+
++ (void)sendCommand:(NSString*)command {
+    // Write GTP commands to the outToKataGo
+    outToKataGo << string([command UTF8String]) << endl;
 }
 
 @end

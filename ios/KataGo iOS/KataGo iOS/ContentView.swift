@@ -24,6 +24,7 @@ struct Message: Identifiable, Equatable, Hashable {
 
 struct ContentView: View {
     @State private var messages: [Message] = []
+    @State private var command = ""
 
     init() {
         // Start a thread to run KataGo GTP
@@ -56,6 +57,21 @@ struct ContentView: View {
                     createMessageTask()
                 }
             }
+
+            HStack {
+                TextField("Enter your message", text: $command, axis: .vertical)
+                .onSubmit {
+                    KataGoHelper.sendCommand(command)
+                    command = ""
+                }
+                Button(action: {
+                    KataGoHelper.sendCommand(command)
+                    command = ""
+                }) {
+                    Image(systemName: "return")
+                }
+            }
+            .padding()
         }
         .padding()
     }
@@ -65,7 +81,7 @@ struct ContentView: View {
         Task {
             while true {
                 // Get a message line from KataGo
-                let line = await KataGoHelper.oneMessageLine()
+                let line = await KataGoHelper.messageLine()
 
                 // Create a message with the line
                 let message = await Message(text: line)
