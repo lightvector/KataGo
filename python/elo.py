@@ -88,8 +88,8 @@ class EloInfo:
         g1_frac = g1 - g1_floor
         if g1_frac != 0.0:
             # Average endpoints for draws
-            logxf = scipy.stats.binom.logcdf(g1,total,winprob)
-            logxp1 = scipy.stats.binom.logcdf(g1+1,total,winprob)
+            logxf = scipy.stats.binom.logcdf(g1_floor,total,winprob)
+            logxp1 = scipy.stats.binom.logcdf(g1_floor+1,total,winprob)
             log_prob = scipy.special.logsumexp([logxf+math.log(1.0-g1_frac),logxp1+math.log(g1_frac)])
         else:
             log_prob = scipy.stats.binom.logcdf(g1,total,winprob)
@@ -132,8 +132,8 @@ class EloInfo:
             g1_frac = g1 - g1_floor
             if g1_frac != 0.0:
                 # Average endpoints for draws
-                logxf = scipy.stats.binom.logcdf(g1,total,winprob)
-                logxp1 = scipy.stats.binom.logcdf(g1+1,total,winprob)
+                logxf = scipy.stats.binom.logcdf(g1_floor,total,winprob)
+                logxp1 = scipy.stats.binom.logcdf(g1_floor+1,total,winprob)
                 log_prob = scipy.special.logsumexp([logxf+math.log(1.0-g1_frac),logxp1+math.log(g1_frac)])
             else:
                 logx = scipy.stats.binom.logcdf(g1,total,winprob)
