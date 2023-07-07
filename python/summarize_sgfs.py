@@ -101,7 +101,7 @@ class GameResultSummary:
                     else:
                         row.append(f"{surprise:.1f}")
             surprise_matrix.append(row)
-        print("Log10odds surprise matrix given the posterior belief:")
+        print("Log10odds surprise matrix given the maximum-likelihood Elos:")
         print("E.g. +3.0 means a 1:1000 unexpected good performance by row vs column.")
         print("E.g. -4.0 means a 1:10000 unexpected bad performance by row vs column.")
         print("Extreme numbers may indicate rock/paper/scissors, or Elo is not a good model for the data.")
