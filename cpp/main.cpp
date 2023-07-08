@@ -15,6 +15,7 @@
 #include "core/using.h"
 //------------------------
 
+#ifndef OS_IS_IOS
 static void printHelp(const vector<string>& args) {
   cout << endl;
   if(args.size() >= 1)
@@ -169,7 +170,6 @@ static int handleSubcommand(const string& subcommand, const vector<string>& args
 }
 
 
-#ifndef OS_IS_IOS
 int main(int argc, const char* const* argv) {
   vector<string> args = MainArgs::getCommandLineArgsUTF8(argc,argv);
   MainArgs::makeCoutAndCerrAcceptUTF8();
