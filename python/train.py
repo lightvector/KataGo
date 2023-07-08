@@ -66,6 +66,7 @@ if __name__ == "__main__":
     optional_args.add_argument('-samples-per-epoch', help='Number of data samples to consider as one epoch', type=int, required=False)
     optional_args.add_argument('-model-kind', help='String name for what model config to use', required=False)
     optional_args.add_argument('-lr-scale', help='LR multiplier on the hardcoded schedule', type=float, required=False)
+    optional_args.add_argument('-lr-scale-auto', help='LR auto scaling', required=False, action='store_true')
     optional_args.add_argument('-gnorm-clip-scale', help='Multiplier on gradient clipping threshold', type=float, required=False)
     optional_args.add_argument('-sub-epochs', help='Reload training data up to this many times per epoch', type=int, default=1, required=False)
     optional_args.add_argument('-swa-period-samples', help='How frequently to average an SWA sample, in samples', type=float, required=False)
@@ -147,6 +148,7 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
     samples_per_epoch = args["samples_per_epoch"]
     model_kind = args["model_kind"]
     lr_scale = args["lr_scale"]
+    lr_scale_auto = args["lr_scale_auto"]
     gnorm_clip_scale = args["gnorm_clip_scale"]
     sub_epochs = args["sub_epochs"]
     swa_period_samples = args["swa_period_samples"]
@@ -187,6 +189,8 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
 
     if lr_scale is None:
         lr_scale = 1.0
+    if lr_scale_auto:
+        assert lr_scale == 1.0, "Cannot specify both lr_scale and lr_scale_auto"
 
     if samples_per_epoch is None:
         samples_per_epoch = 1000000
@@ -250,6 +254,20 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
 
     # LOAD MODEL ---------------------------------------------------------------------
 
+    def lr_scale_auto_factor(train_state):
+        if not lr_scale_auto:
+            return 1.0
+
+        if train_state["global_step_samples"] < 60000000:
+            return 8.0
+        if train_state["global_step_samples"] < 110000000:
+            return 4.0
+        if train_state["global_step_samples"] < 160000000:
+            return 2.0
+        if train_state["global_step_samples"] < 200000000:
+            return 1.0
+        return 0.25
+
     def get_checkpoint_path():
         return os.path.join(traindir,"checkpoint.ckpt")
     def get_checkpoint_prev_path(i):
@@ -289,6 +307,7 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
                 os.replace(get_checkpoint_path() + ".tmp", get_checkpoint_path())
 
     def get_weight_decay(raw_model, lr_scale, warmup_scale, train_state, running_metrics, group_name):
+        lr_scale *= lr_scale_auto_factor(train_state)
         if raw_model.get_norm_kind() == "fixup" or raw_model.get_norm_kind() == "fixscale":
             if group_name == "normal" or group_name == "normal_gamma" or group_name == "output":
                 return 0.000001 * world_size * batch_size / 256.0
@@ -414,6 +433,8 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
             running_metrics = {}
             train_state = {}
             last_val_metrics = {}
+
+            train_state["global_step_samples"] = 0
 
             with torch.no_grad():
                 (modelnorm_normal, modelnorm_normal_gamma, modelnorm_output, modelnorm_noreg, modelnorm_output_noreg) = Metrics.get_model_norms(raw_model)
@@ -567,7 +588,7 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
     # EPOCHS AND LR ---------------------------------------------------------------------
 
     def update_and_return_lr_and_wd():
-        per_sample_lr = 0.00003 * lr_scale
+        per_sample_lr = 0.00003 * lr_scale * lr_scale_auto_factor(train_state)
 
         # Warmup for initial training
         warmup_scale = 1.0
@@ -1048,7 +1069,7 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
                         metrics[stat] = value
 
                 # Loosen gradient clipping as we shift to smaller learning rates
-                gnorm_cap = gnorm_cap / math.sqrt(max(0.0000001,lr_scale))
+                gnorm_cap = gnorm_cap / math.sqrt(max(0.0000001,lr_scale * lr_scale_auto_factor(train_state)))
 
                 gnorm = torch.nn.utils.clip_grad_norm_(ddp_model.parameters(), gnorm_cap).detach().cpu().item()
 
