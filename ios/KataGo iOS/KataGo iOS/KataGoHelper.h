@@ -16,7 +16,7 @@
 
 + (void)getMessageLineWithCompletion:(void (^ _Nullable)(NSString * _Nonnull messageLine))completion;
 
-+ (void)sendCommand:(NSString*)command;
++ (void)sendCommand:(NSString * _Nonnull)command;
 
 @end
 

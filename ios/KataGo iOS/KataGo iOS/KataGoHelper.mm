@@ -119,7 +119,7 @@ ostream outToKataGo(&tsbToKataGo);
     completion(messageLine);
 }
 
-+ (void)sendCommand:(NSString*)command {
++ (void)sendCommand:(NSString * _Nonnull)command {
     // Write GTP commands to the outToKataGo
     outToKataGo << string([command UTF8String]) << endl;
 }
