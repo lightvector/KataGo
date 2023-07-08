@@ -288,9 +288,9 @@ void MetalProcess::printMetalDevices(void) {
 ///   - inputUseFP16Mode: Whether to use FP16 mode
 ///   - inputUseNHWCMode: Whether to use NHWC mode
 void MetalProcess::createMetalContext(int nnXLen,
-                                 int nnYLen,
-                                 enabled_t inputUseFP16Mode,
-                                 enabled_t inputUseNHWCMode) {
+                                      int nnYLen,
+                                      enabled_t inputUseFP16Mode,
+                                      enabled_t inputUseNHWCMode) {
     SWEnable useFP16Mode;
     SWEnable useNHWCMode;
 
@@ -337,8 +337,8 @@ int MetalProcess::getMetalContextYLen(void) {
 ///   - desc: The model description
 ///   - serverThreadIdx: The server thread index
 void MetalProcess::createMetalHandle(int gpuIdxForThisThread,
-                                const ModelDesc* desc,
-                                int serverThreadIdx) {
+                                     const ModelDesc* desc,
+                                     int serverThreadIdx) {
     NSString * name = [NSString stringWithUTF8String:desc->name.c_str()];
 
     SWModelDesc * swModelDesc =
@@ -370,14 +370,14 @@ void MetalProcess::createMetalHandle(int gpuIdxForThisThread,
 ///   - gpuIdx: The GPU index
 ///   - batchSize: The batch size
 void MetalProcess::getMetalHandleOutput(float* userInputBuffer,
-                                   float* userInputGlobalBuffer,
-                                   float* policyOutput,
-                                   float* policyPassOutput,
-                                   float* valueOutput,
-                                   float* ownershipOutput,
-                                   float* scoreValueOutput,
-                                   int gpuIdx,
-                                   int batchSize) {
+                                        float* userInputGlobalBuffer,
+                                        float* policyOutput,
+                                        float* policyPassOutput,
+                                        float* valueOutput,
+                                        float* ownershipOutput,
+                                        float* scoreValueOutput,
+                                        int gpuIdx,
+                                        int batchSize) {
     [MetalBackend getOutputWithUserInputBuffer:userInputBuffer
                          userInputGlobalBuffer:userInputGlobalBuffer
                                   policyOutput:policyOutput
