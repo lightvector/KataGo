@@ -41,7 +41,7 @@ struct ContentView: View {
                     LazyVStack {
                         ForEach(messages) { message in
                             Text(message.text)
-                                .padding()
+                                .font(.body.monospaced())
                                 .id(message.id)
                                 .textSelection(.enabled)
                                 .frame(maxWidth: .infinity, alignment: .leading)
