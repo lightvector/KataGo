@@ -137,11 +137,11 @@
 // Get the model's output.
 - (void)getOutputWithBinInputs:(void * _Nonnull)binInputs
                   globalInputs:(void * _Nonnull)globalInputs
-                  policyOutput:(void * _Nonnull)policyOutput
-                   valueOutput:(void * _Nonnull)valueOutput
-               ownershipOutput:(void * _Nonnull)ownershipOutput
-              miscValuesOutput:(void * _Nonnull)miscValuesOutput
-          moreMiscValuesOutput:(void * _Nonnull)moreMiscValuesOutput {
+                 policyOutputs:(void * _Nonnull)policyOutputs
+                  valueOutputs:(void * _Nonnull)valueOutputs
+              ownershipOutputs:(void * _Nonnull)ownershipOutputs
+              miscValueOutputs:(void * _Nonnull)miscValuesOutputs
+          moreMiscValueOutputs:(void * _Nonnull)moreMiscValuesOutputs {
   @autoreleasepool {
     // Strides are used to access the data in the MLMultiArray.
     NSArray * strides = @[[NSNumber numberWithInt:(_numSpatialFeatures.intValue) * (_yLen.intValue) * (_xLen.intValue)],
@@ -177,23 +177,23 @@
   
     // Copy the output to the output buffers.
     for (int i = 0; i < output.output_policy.count; i++) {
-      ((float *)policyOutput)[i] = output.output_policy[i].floatValue;
+      ((float *)policyOutputs)[i] = output.output_policy[i].floatValue;
     }
 
     for (int i = 0; i < output.out_value.count; i++) {
-      ((float *)valueOutput)[i] = output.out_value[i].floatValue;
+      ((float *)valueOutputs)[i] = output.out_value[i].floatValue;
     }
 
     for (int i = 0; i < output.out_ownership.count; i++) {
-      ((float *)ownershipOutput)[i] = output.out_ownership[i].floatValue;
+      ((float *)ownershipOutputs)[i] = output.out_ownership[i].floatValue;
     }
 
     for (int i = 0; i < output.out_miscvalue.count; i++) {
-      ((float *)miscValuesOutput)[i] = output.out_miscvalue[i].floatValue;
+      ((float *)miscValuesOutputs)[i] = output.out_miscvalue[i].floatValue;
     }
 
     for (int i = 0; i < output.out_moremiscvalue.count; i++) {
-      ((float *)moreMiscValuesOutput)[i] = output.out_moremiscvalue[i].floatValue;
+      ((float *)moreMiscValuesOutputs)[i] = output.out_moremiscvalue[i].floatValue;
     }
 
   }
@@ -254,9 +254,9 @@ void CoreMLProcess::getCoreMLHandleOutput(float* userInputBuffer,
 
   [model getOutputWithBinInputs:userInputBuffer
                    globalInputs:userInputGlobalBuffer
-                   policyOutput:policyOutput
-                    valueOutput:valueOutput
-                ownershipOutput:ownershipOutput
-               miscValuesOutput:miscValuesOutput
-           moreMiscValuesOutput:moreMiscValuesOutput];
+                  policyOutputs:policyOutput
+                   valueOutputs:valueOutput
+               ownershipOutputs:ownershipOutput
+               miscValueOutputs:miscValuesOutput
+           moreMiscValueOutputs:moreMiscValuesOutput];
 }

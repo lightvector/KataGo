@@ -164,14 +164,14 @@ API_AVAILABLE(macos(10.15), ios(13.0), watchos(6.0), tvos(13.0)) __attribute__((
 /// @param valueOutputs The value outputs.
 /// @param ownershipOutputs The ownership outputs.
 /// @param miscValueOutputs The miscellaneous value outputs.
-/// @param miscOwnershipOutputs The miscellaneous ownership outputs.
+/// @param moreMiscValueOutputs The more miscellaneous value outputs.
 - (void)getOutputWithBinInputs:(void *)binInputs
                   globalInputs:(void *)globalInputs
-                  policyOutput:(void *)policyOutput
-                   valueOutput:(void *)valueOutput
-               ownershipOutput:(void *)ownershipOutput
-              miscValuesOutput:(void *)miscValuesOutput
-          moreMiscValuesOutput:(void *)moreMiscValuesOutput;
+                 policyOutputs:(void *)policyOutputs
+                  valueOutputs:(void *)valueOutputs
+              ownershipOutputs:(void *)ownershipOutputs
+              miscValueOutputs:(void *)miscValueOutputs
+          moreMiscValueOutputs:(void *)moreMiscValueOutputs;
 @end
 
 NS_ASSUME_NONNULL_END
