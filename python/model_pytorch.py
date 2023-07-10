@@ -1176,6 +1176,10 @@ class ValueHead(torch.nn.Module):
         self.conv_futurepos = torch.nn.Conv2d(c_in, 2, kernel_size=1, padding="same", bias=False)
         self.conv_seki = torch.nn.Conv2d(c_in, 4, kernel_size=1, padding="same", bias=False)
 
+        self.corr_channels = config["corr_channels"]
+        self.conv_ownership_corr = torch.nn.Conv2d(c_in, self.corr_channels, kernel_size=1, padding="same", bias=False)
+        self.conv_futurepos_corr = torch.nn.Conv2d(c_in, self.corr_channels, kernel_size=1, padding="same", bias=False)
+
         self.pos_len = pos_len
         self.scorebelief_mid = self.pos_len*self.pos_len + EXTRA_SCORE_DISTR_RADIUS
         self.scorebelief_len = self.scorebelief_mid * 2
@@ -1226,6 +1230,10 @@ class ValueHead(torch.nn.Module):
         init_weights(self.conv_futurepos.weight, "identity", scale=aux_spatial_output_scale)
         init_weights(self.conv_seki.weight, "identity", scale=aux_spatial_output_scale)
 
+        corr_output_scale = 0.2
+        init_weights(self.conv_ownership_corr.weight, "identity", scale=corr_output_scale)
+        init_weights(self.conv_futurepos_corr.weight, "identity", scale=corr_output_scale)
+
         init_weights(self.linear_s2.weight, self.activation, scale=1.0)
         init_weights(self.linear_s2.bias, self.activation, scale=1.0, fan_tensor=self.linear_s2.weight)
         init_weights(self.linear_s2off.weight, self.activation, scale=1.0, fan_tensor=self.linear_s2.weight)
@@ -1251,6 +1259,8 @@ class ValueHead(torch.nn.Module):
         reg_dict["output"].append(self.conv_scoring.weight)
         reg_dict["output"].append(self.conv_futurepos.weight)
         reg_dict["output"].append(self.conv_seki.weight)
+        reg_dict["output"].append(self.conv_ownership_corr.weight)
+        reg_dict["output"].append(self.conv_futurepos_corr.weight)
         reg_dict["output"].append(self.linear_s2.weight)
         reg_dict["output_noreg"].append(self.linear_s2.bias)
         reg_dict["output"].append(self.linear_s2off.weight)
@@ -1287,6 +1297,9 @@ class ValueHead(torch.nn.Module):
         out_futurepos = self.conv_futurepos(x) * mask
         out_seki = self.conv_seki(x) * mask
 
+        out_ownership_corr = self.conv_ownership_corr(x) * mask
+        out_futurepos_corr = self.conv_futurepos_corr(x) * mask
+
         # Score belief head
         batch_size = x.shape[0]
         outsv2 = (
@@ -1314,6 +1327,8 @@ class ValueHead(torch.nn.Module):
             out_futurepos,
             out_seki,
             out_scorebelief_logprobs,
+            out_ownership_corr,
+            out_futurepos_corr,
         )
 
 class Model(torch.nn.Module):
@@ -1615,6 +1630,8 @@ class Model(torch.nn.Module):
                 iout_futurepos,
                 iout_seki,
                 iout_scorebelief_logprobs,
+                iout_ownership_corr,
+                iout_futurepos_corr,
             ) = self.intermediate_value_head(iout, mask=mask, mask_sum_hw=mask_sum_hw, mask_sum=mask_sum, input_global=input_global)
 
             for block in self.blocks[self.intermediate_head_blocks:]:
@@ -1647,6 +1664,8 @@ class Model(torch.nn.Module):
             out_futurepos,
             out_seki,
             out_scorebelief_logprobs,
+            out_ownership_corr,
+            out_futurepos_corr,
         ) = self.value_head(out, mask=mask, mask_sum_hw=mask_sum_hw, mask_sum=mask_sum, input_global=input_global)
 
         if self.has_intermediate_head:
@@ -1661,6 +1680,8 @@ class Model(torch.nn.Module):
                     out_futurepos,
                     out_seki,
                     out_scorebelief_logprobs,
+                    out_ownership_corr,
+                    out_futurepos_corr,
                 ),
                 (
                     iout_policy,
@@ -1672,6 +1693,8 @@ class Model(torch.nn.Module):
                     iout_futurepos,
                     iout_seki,
                     iout_scorebelief_logprobs,
+                    iout_ownership_corr,
+                    iout_futurepos_corr,
                 ),
             )
         else:
@@ -1685,6 +1708,8 @@ class Model(torch.nn.Module):
                 out_futurepos,
                 out_seki,
                 out_scorebelief_logprobs,
+                out_ownership_corr,
+                out_futurepos_corr,
             ),)
 
     def float32ify_output(self, outputs_byheads):
@@ -1701,6 +1726,8 @@ class Model(torch.nn.Module):
             out_futurepos,
             out_seki,
             out_scorebelief_logprobs,
+            out_ownership_corr,
+            out_futurepos_corr,
         ) = outputs
         return (
             out_policy.to(torch.float32),
@@ -1712,6 +1739,8 @@ class Model(torch.nn.Module):
             out_futurepos.to(torch.float32),
             out_seki.to(torch.float32),
             out_scorebelief_logprobs.to(torch.float32),
+            out_ownership_corr.to(torch.float32),
+            out_futurepos_corr.to(torch.float32),
         )
 
     def postprocess_output(self, outputs_byheads):
@@ -1728,6 +1757,8 @@ class Model(torch.nn.Module):
             out_futurepos,
             out_seki,
             out_scorebelief_logprobs,
+            out_ownership_corr,
+            out_futurepos_corr,
         ) = outputs
 
         policy_logits = out_policy
@@ -1766,4 +1797,6 @@ class Model(torch.nn.Module):
             pred_shortterm_value_error, # N
             pred_shortterm_score_error, # N
             scorebelief_logits, # N, 2 * (self.pos_len*self.pos_len + EXTRA_SCORE_DISTR_RADIUS)
+            out_ownership_corr, # N, config["corr_channels"], y, x
+            out_futurepos_corr, # N, config["corr_channels"], y, x
         )

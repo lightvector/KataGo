@@ -1050,6 +1050,7 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
                 loss = metrics["loss_sum"] * world_size
 
                 # Reduce gradients across DDP
+                # logging.info(loss)
                 if use_fp16:
                     scaler.scale(loss).backward()
                     scaler.unscale_(optimizer)
@@ -1077,6 +1078,9 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
                     metrics["gnorm_batch"] = gnorm
                     exgnorm = max(0.0, gnorm - gnorm_cap)
                     metrics["exgnorm_sum"] = exgnorm * batch_size
+                else:
+                    # logging.warning("NONFINITE BATCH!")
+                    pass
 
                 metrics["pslr_batch"] = lr_right_now
                 metrics["wdnormal_batch"] = normal_weight_decay_right_now

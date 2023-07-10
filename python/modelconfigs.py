@@ -65,6 +65,7 @@ b1c6nbt = {
     "trunk_num_channels":6,
     "mid_num_channels":4,
     "gpool_num_channels":4,
+    "corr_channels":32,
     "use_attention_pool":False,
     "num_attention_pool_heads":2,
     "block_kind": [
@@ -87,6 +88,7 @@ b2c16 = {
     "trunk_num_channels":16,
     "mid_num_channels":16,
     "gpool_num_channels":8,
+    "corr_channels":32,
     "use_attention_pool":False,
     "num_attention_pool_heads":2,
     "block_kind": [
@@ -110,6 +112,7 @@ b4c32 = {
     "trunk_num_channels":32,
     "mid_num_channels":32,
     "gpool_num_channels":16,
+    "corr_channels":32,
     "use_attention_pool":False,
     "num_attention_pool_heads":2,
     "block_kind": [
@@ -135,6 +138,7 @@ b6c96 = {
     "trunk_num_channels":96,
     "mid_num_channels":96,
     "gpool_num_channels":32,
+    "corr_channels":32,
     "use_attention_pool":False,
     "num_attention_pool_heads":4,
     "block_kind": [
@@ -162,6 +166,7 @@ b10c128 = {
     "trunk_num_channels":128,
     "mid_num_channels":128,
     "gpool_num_channels":32,
+    "corr_channels":32,
     "use_attention_pool":False,
     "num_attention_pool_heads":4,
     "block_kind": [
@@ -193,6 +198,7 @@ b5c192nbt = {
     "trunk_num_channels":192,
     "mid_num_channels":96,
     "gpool_num_channels":32,
+    "corr_channels":32,
     "use_attention_pool":False,
     "num_attention_pool_heads":4,
     "block_kind": [
@@ -219,6 +225,7 @@ b15c192 = {
     "trunk_num_channels":192,
     "mid_num_channels":192,
     "gpool_num_channels":64,
+    "corr_channels":32,
     "use_attention_pool":False,
     "num_attention_pool_heads":4,
     "block_kind": [
@@ -255,6 +262,7 @@ b20c256 = {
     "trunk_num_channels":256,
     "mid_num_channels":256,
     "gpool_num_channels":64,
+    "corr_channels":32,
     "use_attention_pool":False,
     "num_attention_pool_heads":4,
     "block_kind": [
@@ -296,6 +304,7 @@ b30c256bt = {
     "trunk_num_channels":256,
     "mid_num_channels":128,
     "gpool_num_channels":64,
+    "corr_channels":32,
     "use_attention_pool":False,
     "num_attention_pool_heads":4,
     "block_kind": [
@@ -347,6 +356,7 @@ b24c320bt = {
     "trunk_num_channels":320,
     "mid_num_channels":160,
     "gpool_num_channels":64,
+    "corr_channels":32,
     "use_attention_pool":False,
     "num_attention_pool_heads":4,
     "block_kind": [
@@ -392,6 +402,7 @@ b20c384bt = {
     "trunk_num_channels":384,
     "mid_num_channels":192,
     "gpool_num_channels":64,
+    "corr_channels":32,
     "use_attention_pool":False,
     "num_attention_pool_heads":4,
     "block_kind": [
@@ -434,6 +445,7 @@ b10c512lbt = {
     "trunk_num_channels":512,
     "mid_num_channels":256,
     "gpool_num_channels":128,
+    "corr_channels":32,
     "use_attention_pool":False,
     "num_attention_pool_heads":4,
     "block_kind": [
@@ -466,6 +478,7 @@ b15c384lbt = {
     "trunk_num_channels":384,
     "mid_num_channels":192,
     "gpool_num_channels":64,
+    "corr_channels":32,
     "use_attention_pool":False,
     "num_attention_pool_heads":4,
     "block_kind": [
@@ -502,6 +515,7 @@ b18c320lbt = {
     "trunk_num_channels":320,
     "mid_num_channels":160,
     "gpool_num_channels":64,
+    "corr_channels":32,
     "use_attention_pool":False,
     "num_attention_pool_heads":4,
     "block_kind": [
@@ -541,6 +555,7 @@ b23c256lbt = {
     "trunk_num_channels":256,
     "mid_num_channels":128,
     "gpool_num_channels":64,
+    "corr_channels":32,
     "use_attention_pool":False,
     "num_attention_pool_heads":4,
     "block_kind": [
@@ -585,6 +600,7 @@ b12c384llbt = {
     "trunk_num_channels":384,
     "mid_num_channels":192,
     "gpool_num_channels":64,
+    "corr_channels":32,
     "use_attention_pool":False,
     "num_attention_pool_heads":4,
     "block_kind": [
@@ -619,6 +635,7 @@ b10c384nbt = {
     "trunk_num_channels":384,
     "mid_num_channels":192,
     "gpool_num_channels":64,
+    "corr_channels":32,
     "use_attention_pool":False,
     "num_attention_pool_heads":4,
     "block_kind": [
@@ -651,6 +668,7 @@ b10c480nb3t = {
     "trunk_num_channels":480,
     "mid_num_channels":160,
     "gpool_num_channels":64,
+    "corr_channels":32,
     "use_attention_pool":False,
     "num_attention_pool_heads":4,
     "block_kind": [
@@ -683,6 +701,7 @@ b7c384lnbt = {
     "trunk_num_channels":384,
     "mid_num_channels":192,
     "gpool_num_channels":64,
+    "corr_channels":32,
     "use_attention_pool":False,
     "num_attention_pool_heads":4,
     "block_kind": [
@@ -712,6 +731,7 @@ b5c512nnbt = {
     "outermid_num_channels":256,
     "mid_num_channels":128,
     "gpool_num_channels":64,
+    "corr_channels":32,
     "use_attention_pool":False,
     "num_attention_pool_heads":4,
     "block_kind": [
@@ -739,6 +759,7 @@ b20c384lbt = {
     "trunk_num_channels":384,
     "mid_num_channels":192,
     "gpool_num_channels":64,
+    "corr_channels":32,
     "use_attention_pool":False,
     "num_attention_pool_heads":4,
     "block_kind": [
@@ -781,6 +802,7 @@ b30c320 = {
     "trunk_num_channels":320,
     "mid_num_channels":320,
     "gpool_num_channels":96,
+    "corr_channels":32,
     "use_attention_pool":False,
     "num_attention_pool_heads":4,
     "block_kind": [
@@ -832,6 +854,7 @@ b40c256 = {
     "trunk_num_channels":256,
     "mid_num_channels":256,
     "gpool_num_channels":64,
+    "corr_channels":32,
     "use_attention_pool":False,
     "num_attention_pool_heads":4,
     "block_kind": [
@@ -893,6 +916,7 @@ b18c384nbt = {
     "trunk_num_channels":384,
     "mid_num_channels":192,
     "gpool_num_channels":64,
+    "corr_channels":32,
     "use_attention_pool":False,
     "num_attention_pool_heads":4,
     "block_kind": [
@@ -932,6 +956,7 @@ b14c448nbt = {
     "trunk_num_channels":448,
     "mid_num_channels":224,
     "gpool_num_channels":64,
+    "corr_channels":32,
     "use_attention_pool":False,
     "num_attention_pool_heads":4,
     "block_kind": [
@@ -967,6 +992,7 @@ b40c384 = {
     "trunk_num_channels":384,
     "mid_num_channels":384,
     "gpool_num_channels":128,
+    "corr_channels":32,
     "use_attention_pool":False,
     "num_attention_pool_heads":4,
     "block_kind": [
@@ -1029,6 +1055,7 @@ b60c320 = {
     "trunk_num_channels":320,
     "mid_num_channels":320,
     "gpool_num_channels":96,
+    "corr_channels":32,
     "use_attention_pool":False,
     "num_attention_pool_heads":4,
     "block_kind": [
@@ -1111,6 +1138,7 @@ b41c384nbt = {
     "trunk_num_channels":384,
     "mid_num_channels":192,
     "gpool_num_channels":64,
+    "corr_channels":32,
     "use_attention_pool":False,
     "num_attention_pool_heads":4,
     "block_kind": [
@@ -1173,6 +1201,7 @@ b32c448nbt = {
     "trunk_num_channels":448,
     "mid_num_channels":224,
     "gpool_num_channels":64,
+    "corr_channels":32,
     "use_attention_pool":False,
     "num_attention_pool_heads":4,
     "block_kind": [
@@ -1227,6 +1256,7 @@ b28c512nbt = {
     "trunk_num_channels":512,
     "mid_num_channels":256,
     "gpool_num_channels":64,
+    "corr_channels":32,
     "use_attention_pool":False,
     "num_attention_pool_heads":4,
     "block_kind": [
@@ -1276,6 +1306,7 @@ b20c640nbt = {
     "trunk_num_channels":640,
     "mid_num_channels":320,
     "gpool_num_channels":96,
+    "corr_channels":32,
     "use_attention_pool":False,
     "num_attention_pool_heads":4,
     "block_kind": [
@@ -1317,6 +1348,7 @@ sandbox = {
     "trunk_num_channels":256,
     "mid_num_channels":256,
     "gpool_num_channels":64,
+    "corr_channels":32,
     "use_attention_pool":False,
     "num_attention_pool_heads":4,
     "block_kind": [

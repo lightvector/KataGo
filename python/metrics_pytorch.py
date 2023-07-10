@@ -1,5 +1,6 @@
 from typing import Any, Dict, List
 import math
+import logging
 
 from model_pytorch import EXTRA_SCORE_DISTR_RADIUS, Model, compute_gain
 
@@ -33,6 +34,7 @@ class Metrics:
         self.num_futurepos_values = 2
         self.num_seki_logits = 4
         self.scorebelief_len = 2 * (self.pos_len*self.pos_len + EXTRA_SCORE_DISTR_RADIUS)
+        self.corr_channels = raw_model.config["corr_channels"]
 
         self.score_belief_offset_vector = raw_model.value_head.score_belief_offset_vector
         self.moving_unowned_proportion_sum = 0.0
@@ -95,6 +97,88 @@ class Metrics:
         target_probs = torch.stack(((1.0 + target) / 2.0, (1.0 - target) / 2.0), dim=1).view(self.n,2,self.pos_area)
         loss = torch.sum(cross_entropy(pred_logits, target_probs, dim=1) * mask.view(self.n,self.pos_area), dim=1) / mask_sum_hw
         return 1.5 * global_weight * weight * loss
+
+
+    def loss_ownership_corr(
+        self,
+        ownership_corr,
+        target_ownership,
+        target_weight_ownership,
+        mask,
+        mask_sum_hw,
+        global_weight,
+    ):
+        assert ownership_corr.shape == (self.n, self.corr_channels, self.pos_len, self.pos_len)
+        assert target_ownership.shape == (self.n, self.pos_len, self.pos_len)
+        assert mask.shape == (self.n, self.pos_len, self.pos_len)
+        assert mask_sum_hw.shape == (self.n,)
+        magsq = torch.sum(torch.square(ownership_corr), dim=1, keepdim=True)
+        # Smoothly map the magnitude from [0,infinity) -> [0,1) via tanh
+        # So we need to multiply vectors x by a factor of tanh(|x|) / |x| = tanh(sqrt(|x|)) / sqrt(|x|)
+        # But there's a division by 0 when |x| = 0, and also sqrt(0) has infinite gradient..
+        # So to do this in a numerically stable way, we do this piecewise, using 3rd order taylor expansion
+        # around 0.
+        delta = 0.010
+        sqrtmagsqboundedbelow = torch.sqrt(torch.clamp(magsq,min=0.008))
+        magsqboundedabove = torch.clamp(magsq,max=0.012)
+        magsqboundedabove2 = torch.square(magsqboundedabove)
+        norm_factor = torch.where(
+            magsq > delta,
+            torch.tanh(sqrtmagsqboundedbelow) / sqrtmagsqboundedbelow,
+            1.0 - (1.0 / 3.0) * magsqboundedabove * (1.0 + (17.0 / 105.0) * magsqboundedabove2) + (2.0 / 15.0) * magsqboundedabove2
+        )
+        ownership_corr_normalized = ownership_corr * norm_factor
+        # logging.info(torch.sum(torch.square(ownership_corr_normalized), dim=1, keepdim=True)[:3,0,4,6])
+        ownership_corr_normalized = (mask.unsqueeze(1) * ownership_corr_normalized).view(self.n, self.corr_channels, self.pos_len * self.pos_len)
+        target_ownership = (mask * target_ownership).view(self.n, self.pos_len * self.pos_len)
+        corr_dots = torch.einsum('ncx,ncy->nxy', ownership_corr_normalized, ownership_corr_normalized)
+        target_dots = torch.einsum('nx,ny->nxy', target_ownership, target_ownership)
+        # Treat the corr_dots as a prediction of the target_dots.
+        # For now, let's use squared error, even though maybe it's not as appropriate for the exponential tails
+        # due to vanishing gradients.
+        loss = torch.sum(torch.sum(torch.square(corr_dots - target_dots), dim=2) / mask_sum_hw.unsqueeze(1), dim=1) / mask_sum_hw
+        return 0.50 * global_weight * target_weight_ownership * loss
+
+    def loss_futurepos_corr(
+        self,
+        futurepos_corr,
+        target_futurepos,
+        target_weight_futurepos,
+        empty,
+        mask,
+        mask_sum_hw,
+        global_weight,
+    ):
+        assert futurepos_corr.shape == (self.n, self.corr_channels, self.pos_len, self.pos_len)
+        assert target_futurepos.shape == (self.n, self.num_futurepos_values, self.pos_len, self.pos_len)
+        assert mask.shape == (self.n, self.pos_len, self.pos_len)
+        assert empty.shape == (self.n, self.pos_len, self.pos_len)
+        assert mask_sum_hw.shape == (self.n,)
+        magsq = torch.sum(torch.square(futurepos_corr), dim=1, keepdim=True)
+        # Smoothly map the magnitude from [0,infinity) -> [0,1) via tanh
+        # So we need to multiply vectors x by a factor of tanh(|x|) / |x| = tanh(sqrt(|x|)) / sqrt(|x|)
+        # But there's a division by 0 when |x| = 0, and also sqrt(0) has infinite gradient..
+        # So to do this in a numerically stable way, we do this piecewise, using 3rd order taylor expansion
+        # around 0.
+        delta = 0.010
+        sqrtmagsqboundedbelow = torch.sqrt(torch.clamp(magsq,min=0.008))
+        magsqboundedabove = torch.clamp(magsq,max=0.012)
+        magsqboundedabove2 = torch.square(magsqboundedabove)
+        norm_factor = torch.where(
+            magsq > delta,
+            torch.tanh(sqrtmagsqboundedbelow) / sqrtmagsqboundedbelow,
+            1.0 - (1.0 / 3.0) * magsqboundedabove * (1.0 + (17.0 / 105.0) * magsqboundedabove2) + (2.0 / 15.0) * magsqboundedabove2
+        )
+        futurepos_corr_normalized = futurepos_corr * norm_factor
+        futurepos_corr_normalized = (mask.unsqueeze(1) * futurepos_corr_normalized).view(self.n, self.corr_channels, self.pos_len * self.pos_len)
+        target_futurepos_empty = (mask * empty * target_futurepos[:,self.num_futurepos_values-1,:,:]).view(self.n, self.pos_len * self.pos_len)
+        corr_dots = torch.einsum('ncx,ncy->nxy', futurepos_corr_normalized, futurepos_corr_normalized)
+        target_dots = torch.einsum('nx,ny->nxy', target_futurepos_empty, target_futurepos_empty)
+        # Treat the corr_dots as a prediction of the target_dots.
+        # For now, let's use squared error, even though maybe it's not as appropriate for the exponential tails
+        # due to vanishing gradients.
+        loss = torch.sum(torch.sum(torch.square(corr_dots - target_dots), dim=2) / mask_sum_hw.unsqueeze(1), dim=1) / mask_sum_hw
+        return 10.0 * global_weight * target_weight_futurepos * loss
 
 
     def loss_scoring_samplewise(self, pred_scoring, target, weight, mask, mask_sum_hw, global_weight):
@@ -435,6 +519,8 @@ class Metrics:
             pred_shortterm_value_error,
             pred_shortterm_score_error,
             scorebelief_logits,
+            ownership_corr,
+            futurepos_corr,
         ) = model_output_postprocessed
 
         input_binary_nchw = batch["binaryInputNCHW"]
@@ -446,6 +532,7 @@ class Metrics:
 
         mask = input_binary_nchw[:, 0, :, :].contiguous()
         mask_sum_hw = torch.sum(mask,dim=(1,2))
+        empty = (input_binary_nchw[:, 0, :, :] - input_binary_nchw[:, 1, :, :] - input_binary_nchw[:, 2, :, :]).contiguous()
 
         n = input_binary_nchw.shape[0]
         h = input_binary_nchw.shape[2]
@@ -701,6 +788,23 @@ class Metrics:
             target_weight_ownership,
             global_weight,
         ).sum()
+        loss_ownership_corr = self.loss_ownership_corr(
+            ownership_corr,
+            target_ownership,
+            target_weight_ownership,
+            mask,
+            mask_sum_hw,
+            global_weight,
+        ).sum()
+        loss_futurepos_corr = self.loss_futurepos_corr(
+            futurepos_corr,
+            target_futurepos,
+            target_weight_futurepos,
+            empty,
+            mask,
+            mask_sum_hw,
+            global_weight,
+        ).sum()
 
         loss_sum = (
             loss_policy_player * policy_opt_loss_scale
@@ -726,6 +830,8 @@ class Metrics:
             + loss_variance_time
             + loss_shortterm_value_error
             + loss_shortterm_score_error
+            + loss_ownership_corr
+            + loss_futurepos_corr
         )
 
         policy_acc1 = self.accuracy1(
@@ -751,8 +857,10 @@ class Metrics:
             "tdvloss3_sum": loss_td_value3,
             "tdsloss_sum": loss_td_score,
             "oloss_sum": loss_ownership,
+            "ocorrloss_sum": loss_ownership_corr,
             "sloss_sum": loss_scoring,
             "fploss_sum": loss_futurepos,
+            "fpcorrloss_sum": loss_futurepos_corr,
             "skloss_sum": loss_seki,
             "smloss_sum": loss_scoremean,
             "sbcdfloss_sum": loss_scorebelief_cdf,
