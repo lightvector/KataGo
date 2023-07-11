@@ -58,6 +58,11 @@ struct BoardHistory {
   int encorePhase;
   //How many turns of history do we have in the current main or encore phase?
   int numTurnsThisPhase;
+  //What's the longest suffix of the history we can include that still probably obey the rules
+  //for this phase? Checks for if the game continued past passes that should have ended the game
+  //but does not check self-capture rules or ko/superko violations
+  //that were tolerated in a game record.
+  int numApproxValidTurnsThisPhase;
 
   //Ko-recapture-block locations for territory scoring in encore
   bool koRecapBlocked[Board::MAX_ARR_SIZE];

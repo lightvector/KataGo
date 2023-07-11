@@ -2020,28 +2020,37 @@ void NNInputs::fillRowV6(
 
   //Hide history from the net if a pass would end things and we're behaving as if a pass won't.
   //Or if the game is in fact over right now!
-  bool hideHistory =
-    hist.isGameFinished ||
-    hist.isPastNormalPhaseEnd ||
-    (hist.passWouldEndGame(board,nextPlayer) && (
-      //At the root, if assuming passing doesn't end the game, and it would, then need to mask that out.
-      nnInputParams.conservativePassAndIsRoot ||
-      //Deeper in the tree, we might not assume passes end the game in a friendly pass setting.
-      hist.shouldSuppressEndGameFromFriendlyPass(board,nextPlayer) ||
-      //Passing hacks suppress the net to end the game when losing if it thinks a premature pass will lose by less.
-      (nnInputParams.enablePassingHacks && finalPhaseAndGameEndWouldNotBeWin)
-    ));
+  int maxTurnsOfHistoryToInclude = 5;
+  bool suppressPassWouldEndPhase = false;
+  if(hist.passWouldEndGame(board,nextPlayer) && (
+       //At the root, if assuming passing doesn't end the game, and it would, then need to mask that out.
+       nnInputParams.conservativePassAndIsRoot ||
+       //Deeper in the tree, we might not assume passes end the game in a friendly pass setting.
+       hist.shouldSuppressEndGameFromFriendlyPass(board,nextPlayer) ||
+       //Passing hacks suppress the net to end the game when losing if it thinks a premature pass will lose by less.
+       (nnInputParams.enablePassingHacks && finalPhaseAndGameEndWouldNotBeWin)
+     )
+  ) {
+    maxTurnsOfHistoryToInclude = 0;
+    suppressPassWouldEndPhase = true;
+  }
+  else if(hist.isGameFinished || hist.isPastNormalPhaseEnd) {
+    // Include one of the passes, at the end of that sequence
+    maxTurnsOfHistoryToInclude = 1;
+  }
+
   int numTurnsOfHistoryIncluded = 0;
 
   //Features 9,10,11,12,13
-  if(!hideHistory) {
+  if(maxTurnsOfHistoryToInclude > 0) {
     const vector<Move>& moveHistory = hist.moveHistory;
     size_t moveHistoryLen = moveHistory.size();
-    //Also effectively wipe history as we change phase
-    assert(moveHistoryLen >= hist.numTurnsThisPhase);
-    int numTurnsThisPhase = hist.numTurnsThisPhase;
+    assert(moveHistoryLen >= hist.numApproxValidTurnsThisPhase);
 
-    if(numTurnsThisPhase >= 1 && moveHistory[moveHistoryLen-1].pla == opp) {
+    //Effectively wipe history as we change phase by also capping it
+    int amountOfHistoryToTryToUse = std::min(maxTurnsOfHistoryToInclude, hist.numApproxValidTurnsThisPhase);
+
+    if(amountOfHistoryToTryToUse >= 1 && moveHistory[moveHistoryLen-1].pla == opp) {
       Loc prev1Loc = moveHistory[moveHistoryLen-1].loc;
       numTurnsOfHistoryIncluded = 1;
       if(prev1Loc == Board::PASS_LOC)
@@ -2050,7 +2059,7 @@ void NNInputs::fillRowV6(
         int pos = NNPos::locToPos(prev1Loc,xSize,nnXLen,nnYLen);
         setRowBin(rowBin,pos,9, 1.0f, posStride, featureStride);
       }
-      if(numTurnsThisPhase >= 2 && moveHistory[moveHistoryLen-2].pla == pla) {
+      if(amountOfHistoryToTryToUse >= 2 && moveHistory[moveHistoryLen-2].pla == pla) {
         Loc prev2Loc = moveHistory[moveHistoryLen-2].loc;
         numTurnsOfHistoryIncluded = 2;
         if(prev2Loc == Board::PASS_LOC)
@@ -2059,7 +2068,7 @@ void NNInputs::fillRowV6(
           int pos = NNPos::locToPos(prev2Loc,xSize,nnXLen,nnYLen);
           setRowBin(rowBin,pos,10, 1.0f, posStride, featureStride);
         }
-        if(numTurnsThisPhase >= 3 && moveHistory[moveHistoryLen-3].pla == opp) {
+        if(amountOfHistoryToTryToUse >= 3 && moveHistory[moveHistoryLen-3].pla == opp) {
           Loc prev3Loc = moveHistory[moveHistoryLen-3].loc;
           numTurnsOfHistoryIncluded = 3;
           if(prev3Loc == Board::PASS_LOC)
@@ -2068,7 +2077,7 @@ void NNInputs::fillRowV6(
             int pos = NNPos::locToPos(prev3Loc,xSize,nnXLen,nnYLen);
             setRowBin(rowBin,pos,11, 1.0f, posStride, featureStride);
           }
-          if(numTurnsThisPhase >= 4 && moveHistory[moveHistoryLen-4].pla == pla) {
+          if(amountOfHistoryToTryToUse >= 4 && moveHistory[moveHistoryLen-4].pla == pla) {
             Loc prev4Loc = moveHistory[moveHistoryLen-4].loc;
             numTurnsOfHistoryIncluded = 4;
             if(prev4Loc == Board::PASS_LOC)
@@ -2077,7 +2086,7 @@ void NNInputs::fillRowV6(
               int pos = NNPos::locToPos(prev4Loc,xSize,nnXLen,nnYLen);
               setRowBin(rowBin,pos,12, 1.0f, posStride, featureStride);
             }
-            if(numTurnsThisPhase >= 5 && moveHistory[moveHistoryLen-5].pla == opp) {
+            if(amountOfHistoryToTryToUse >= 5 && moveHistory[moveHistoryLen-5].pla == opp) {
               Loc prev5Loc = moveHistory[moveHistoryLen-5].loc;
               numTurnsOfHistoryIncluded = 5;
               if(prev5Loc == Board::PASS_LOC)
@@ -2108,7 +2117,7 @@ void NNInputs::fillRowV6(
 
   iterLadders(board, nnXLen, addLadderFeature);
 
-  const Board& prevBoard = (hideHistory || numTurnsOfHistoryIncluded < 1) ? board : hist.getRecentBoard(1);
+  const Board& prevBoard = (numTurnsOfHistoryIncluded < 1) ? board : hist.getRecentBoard(1);
   auto addPrevLadderFeature = [&prevBoard,posStride,featureStride,rowBin](Loc loc, int pos, const vector<Loc>& workingMoves){
     (void)workingMoves;
     (void)loc;
@@ -2118,7 +2127,7 @@ void NNInputs::fillRowV6(
   };
   iterLadders(prevBoard, nnXLen, addPrevLadderFeature);
 
-  const Board& prevPrevBoard = (hideHistory || numTurnsOfHistoryIncluded < 2) ? prevBoard : hist.getRecentBoard(2);
+  const Board& prevPrevBoard = (numTurnsOfHistoryIncluded < 2) ? prevBoard : hist.getRecentBoard(2);
   auto addPrevPrevLadderFeature = [&prevPrevBoard,posStride,featureStride,rowBin](Loc loc, int pos, const vector<Loc>& workingMoves){
     (void)workingMoves;
     (void)loc;
@@ -2197,7 +2206,7 @@ void NNInputs::fillRowV6(
     rowGlobal[13] = 1.0f;
 
   //Does a pass end the current phase given the ruleset and history?
-  bool passWouldEndPhase = hideHistory ? false : hist.passWouldEndPhase(board,nextPlayer);
+  bool passWouldEndPhase = suppressPassWouldEndPhase ? false : hist.passWouldEndPhase(board,nextPlayer);
   rowGlobal[14] = passWouldEndPhase ? 1.0f : 0.0f;
 
   //Provide parity information about the board size and komi
@@ -2448,28 +2457,37 @@ void NNInputs::fillRowV7(
 
   //Hide history from the net if a pass would end things and we're behaving as if a pass won't.
   //Or if the game is in fact over right now!
-  bool hideHistory =
-    hist.isGameFinished ||
-    hist.isPastNormalPhaseEnd ||
-    (hist.passWouldEndGame(board,nextPlayer) && (
-      //At the root, if assuming passing doesn't end the game, and it would, then need to mask that out.
-      nnInputParams.conservativePassAndIsRoot ||
-      //Deeper in the tree, we might not assume passes end the game in a friendly pass setting.
-      hist.shouldSuppressEndGameFromFriendlyPass(board,nextPlayer) ||
-      //Passing hacks suppress the net to end the game when losing if it thinks a premature pass will lose by less.
-      (nnInputParams.enablePassingHacks && finalPhaseAndGameEndWouldNotBeWin)
-    ));
+  int maxTurnsOfHistoryToInclude = 5;
+  bool suppressPassWouldEndPhase = false;
+  if(hist.passWouldEndGame(board,nextPlayer) && (
+       //At the root, if assuming passing doesn't end the game, and it would, then need to mask that out.
+       nnInputParams.conservativePassAndIsRoot ||
+       //Deeper in the tree, we might not assume passes end the game in a friendly pass setting.
+       hist.shouldSuppressEndGameFromFriendlyPass(board,nextPlayer) ||
+       //Passing hacks suppress the net to end the game when losing if it thinks a premature pass will lose by less.
+       (nnInputParams.enablePassingHacks && finalPhaseAndGameEndWouldNotBeWin)
+     )
+  ) {
+    maxTurnsOfHistoryToInclude = 0;
+    suppressPassWouldEndPhase = true;
+  }
+  else if(hist.isGameFinished || hist.isPastNormalPhaseEnd) {
+    // Include one of the passes, at the end of that sequence
+    maxTurnsOfHistoryToInclude = 1;
+  }
+
   int numTurnsOfHistoryIncluded = 0;
 
   //Features 9,10,11,12,13
-  if(!hideHistory) {
+  if(maxTurnsOfHistoryToInclude > 0) {
     const vector<Move>& moveHistory = hist.moveHistory;
     size_t moveHistoryLen = moveHistory.size();
-    //Also effectively wipe history as we change phase
-    assert(moveHistoryLen >= hist.numTurnsThisPhase);
-    int numTurnsThisPhase = hist.numTurnsThisPhase;
+    assert(moveHistoryLen >= hist.numApproxValidTurnsThisPhase);
 
-    if(numTurnsThisPhase >= 1 && moveHistory[moveHistoryLen-1].pla == opp) {
+    //Effectively wipe history as we change phase by also capping it
+    int amountOfHistoryToTryToUse = std::min(maxTurnsOfHistoryToInclude, hist.numApproxValidTurnsThisPhase);
+
+    if(amountOfHistoryToTryToUse >= 1 && moveHistory[moveHistoryLen-1].pla == opp) {
       Loc prev1Loc = moveHistory[moveHistoryLen-1].loc;
       numTurnsOfHistoryIncluded = 1;
       if(prev1Loc == Board::PASS_LOC)
@@ -2478,7 +2496,7 @@ void NNInputs::fillRowV7(
         int pos = NNPos::locToPos(prev1Loc,xSize,nnXLen,nnYLen);
         setRowBin(rowBin,pos,9, 1.0f, posStride, featureStride);
       }
-      if(numTurnsThisPhase >= 2 && moveHistory[moveHistoryLen-2].pla == pla) {
+      if(amountOfHistoryToTryToUse >= 2 && moveHistory[moveHistoryLen-2].pla == pla) {
         Loc prev2Loc = moveHistory[moveHistoryLen-2].loc;
         numTurnsOfHistoryIncluded = 2;
         if(prev2Loc == Board::PASS_LOC)
@@ -2487,7 +2505,7 @@ void NNInputs::fillRowV7(
           int pos = NNPos::locToPos(prev2Loc,xSize,nnXLen,nnYLen);
           setRowBin(rowBin,pos,10, 1.0f, posStride, featureStride);
         }
-        if(numTurnsThisPhase >= 3 && moveHistory[moveHistoryLen-3].pla == opp) {
+        if(amountOfHistoryToTryToUse >= 3 && moveHistory[moveHistoryLen-3].pla == opp) {
           Loc prev3Loc = moveHistory[moveHistoryLen-3].loc;
           numTurnsOfHistoryIncluded = 3;
           if(prev3Loc == Board::PASS_LOC)
@@ -2496,7 +2514,7 @@ void NNInputs::fillRowV7(
             int pos = NNPos::locToPos(prev3Loc,xSize,nnXLen,nnYLen);
             setRowBin(rowBin,pos,11, 1.0f, posStride, featureStride);
           }
-          if(numTurnsThisPhase >= 4 && moveHistory[moveHistoryLen-4].pla == pla) {
+          if(amountOfHistoryToTryToUse >= 4 && moveHistory[moveHistoryLen-4].pla == pla) {
             Loc prev4Loc = moveHistory[moveHistoryLen-4].loc;
             numTurnsOfHistoryIncluded = 4;
             if(prev4Loc == Board::PASS_LOC)
@@ -2505,7 +2523,7 @@ void NNInputs::fillRowV7(
               int pos = NNPos::locToPos(prev4Loc,xSize,nnXLen,nnYLen);
               setRowBin(rowBin,pos,12, 1.0f, posStride, featureStride);
             }
-            if(numTurnsThisPhase >= 5 && moveHistory[moveHistoryLen-5].pla == opp) {
+            if(amountOfHistoryToTryToUse >= 5 && moveHistory[moveHistoryLen-5].pla == opp) {
               Loc prev5Loc = moveHistory[moveHistoryLen-5].loc;
               numTurnsOfHistoryIncluded = 5;
               if(prev5Loc == Board::PASS_LOC)
@@ -2536,7 +2554,7 @@ void NNInputs::fillRowV7(
 
   iterLadders(board, nnXLen, addLadderFeature);
 
-  const Board& prevBoard = (hideHistory || numTurnsOfHistoryIncluded < 1) ? board : hist.getRecentBoard(1);
+  const Board& prevBoard = (numTurnsOfHistoryIncluded < 1) ? board : hist.getRecentBoard(1);
   auto addPrevLadderFeature = [&prevBoard,posStride,featureStride,rowBin](Loc loc, int pos, const vector<Loc>& workingMoves){
     (void)workingMoves;
     (void)loc;
@@ -2546,7 +2564,7 @@ void NNInputs::fillRowV7(
   };
   iterLadders(prevBoard, nnXLen, addPrevLadderFeature);
 
-  const Board& prevPrevBoard = (hideHistory || numTurnsOfHistoryIncluded < 2) ? prevBoard : hist.getRecentBoard(2);
+  const Board& prevPrevBoard = (numTurnsOfHistoryIncluded < 2) ? prevBoard : hist.getRecentBoard(2);
   auto addPrevPrevLadderFeature = [&prevPrevBoard,posStride,featureStride,rowBin](Loc loc, int pos, const vector<Loc>& workingMoves){
     (void)workingMoves;
     (void)loc;
@@ -2625,7 +2643,7 @@ void NNInputs::fillRowV7(
     rowGlobal[13] = 1.0f;
 
   //Does a pass end the current phase given the ruleset and history?
-  bool passWouldEndPhase = hideHistory ? false : hist.passWouldEndPhase(board,nextPlayer);
+  bool passWouldEndPhase = suppressPassWouldEndPhase ? false : hist.passWouldEndPhase(board,nextPlayer);
   rowGlobal[14] = passWouldEndPhase ? 1.0f : 0.0f;
 
   //Used for handicap play
