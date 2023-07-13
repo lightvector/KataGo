@@ -136,6 +136,42 @@ public:
   void setMoveLocRelaxed(Loc loc);
 };
 
+namespace SearchChildrenSizes {
+  constexpr int SIZE0TOTAL = 8;
+  constexpr int SIZE1TOTAL = 64;
+  constexpr int SIZE2TOTAL = NNPos::MAX_NN_POLICY_SIZE;
+  constexpr int SIZE0OVERFLOW = SIZE0TOTAL;
+  constexpr int SIZE1OVERFLOW = SIZE1TOTAL - SIZE0TOTAL;
+  constexpr int SIZE2OVERFLOW = SIZE2TOTAL - SIZE1TOTAL;
+}
+
+// Abstracts children{0,1,2} in SearchNode as a single concatenated array
+struct SearchNodeChildrenReference {
+  SearchNodeState snapshottedState;
+  SearchNode* node;
+
+  inline SearchNodeChildrenReference() {}
+  inline SearchNodeChildrenReference(SearchNodeState snapshottedState_, SearchNode* node_)
+    : snapshottedState(snapshottedState_), node(node_) {}
+  SearchChildPointer& operator[](int i);
+  int getCapacity() const;
+  int iterateAndCountChildren() const;
+};
+struct ConstSearchNodeChildrenReference {
+  int capacity;
+  SearchNodeState snapshottedState;
+  const SearchNode* node;
+
+  inline ConstSearchNodeChildrenReference() {}
+  inline ConstSearchNodeChildrenReference(const SearchNodeChildrenReference& other)
+    : snapshottedState(other.snapshottedState), node(other.node) {}
+  inline ConstSearchNodeChildrenReference(SearchNodeState snapshottedState_, const SearchNode* node_)
+    : snapshottedState(snapshottedState_), node(node_) {}
+  const SearchChildPointer& operator[](int i);
+  int getCapacity() const;
+  int iterateAndCountChildren() const;
+};
+
 struct SearchNode {
   //Locks------------------------------------------------------------------------------
   mutable std::atomic_flag statsLock = ATOMIC_FLAG_INIT;
@@ -169,15 +205,11 @@ struct SearchNode {
   std::atomic<uint32_t> nodeAge;
 
   //During search, each will only ever transition from NULL -> non-NULL.
-  //We get progressive resizing of children array simply by moving on to a later array.
+  //We get progressive resizing of children array simply overflowing on to successive later arrays.
   //Mutex pool guards insertion of children at a node. Reading of children is always fine.
   SearchChildPointer* children0; //Guaranteed to be non-NULL once state >= STATE_EXPANDED0
   SearchChildPointer* children1; //Guaranteed to be non-NULL once state >= STATE_EXPANDED1
   SearchChildPointer* children2; //Guaranteed to be non-NULL once state >= STATE_EXPANDED2
-
-  static constexpr int CHILDREN0SIZE = 8;
-  static constexpr int CHILDREN1SIZE = 64;
-  static constexpr int CHILDREN2SIZE = NNPos::MAX_NN_POLICY_SIZE;
 
   //Lightweight mutable---------------------------------------------------------------
   //Protected under statsLock for writing
@@ -205,13 +237,10 @@ struct SearchNode {
 
   //The array returned by these is guaranteed not to be deallocated during the lifetime of a search or even
   //any time up until a new operation is peformed (such as starting a new search, or making a move, or setting params).
-  SearchChildPointer* getChildren(int& childrenCapacity);
-  const SearchChildPointer* getChildren(int& childrenCapacity) const;
-  SearchChildPointer* getChildren(SearchNodeState state, int& childrenCapacity);
-  const SearchChildPointer* getChildren(SearchNodeState state, int& childrenCapacity) const;
-
-  int iterateAndCountChildren() const;
-  static int iterateAndCountChildrenInArray(const SearchChildPointer* children, int childrenCapacity);
+  SearchNodeChildrenReference getChildren();
+  ConstSearchNodeChildrenReference getChildren() const;
+  SearchNodeChildrenReference getChildren(SearchNodeState state);
+  ConstSearchNodeChildrenReference getChildren(SearchNodeState state) const;
 
   //The NNOutput returned by these is guaranteed not to be deallocated during the lifetime of a search or even
   //any time up until a new operation is peformed (such as starting a new search, or making a move, or setting params).
@@ -227,11 +256,23 @@ struct SearchNode {
   //Used within search to update state and allocate children arrays
   void initializeChildren();
   bool maybeExpandChildrenCapacityForNewChild(SearchNodeState& stateValue, int numChildrenFullPlusOne);
+  void collapseChildrenCapacity(int numGoodChildren);
 
 private:
-  int getChildrenCapacity(SearchNodeState stateValue) const;
   bool tryExpandingChildrenCapacityAssumeFull(SearchNodeState& stateValue);
 };
+
+inline SearchChildPointer& SearchNodeChildrenReference::operator[](int i) {
+  if(i < SearchChildrenSizes::SIZE0TOTAL) return node->children0[i];
+  if(i < SearchChildrenSizes::SIZE1TOTAL) return node->children1[i-SearchChildrenSizes::SIZE0TOTAL];
+  return node->children2[i-SearchChildrenSizes::SIZE1TOTAL];
+}
+inline const SearchChildPointer& ConstSearchNodeChildrenReference::operator[](int i) {
+  if(i < SearchChildrenSizes::SIZE0TOTAL) return node->children0[i];
+  if(i < SearchChildrenSizes::SIZE1TOTAL) return node->children1[i-SearchChildrenSizes::SIZE0TOTAL];
+  return node->children2[i-SearchChildrenSizes::SIZE1TOTAL];
+}
+
 
 
 #endif

@@ -318,16 +318,18 @@ bool Search::makeMove(Loc moveLoc, Player movePla, bool preventEncore) {
     setPlayerAndClearHistory(movePla);
 
   if(rootNode != NULL) {
-    int childrenCapacity;
-    SearchChildPointer* children = rootNode->getChildren(childrenCapacity);
     SearchNode* child = NULL;
-    for(int i = 0; i<childrenCapacity; i++) {
-      SearchNode* childCandidate = children[i].getIfAllocated();
-      if(childCandidate == NULL)
-        break;
-      if(children[i].getMoveLocRelaxed() == moveLoc) {
-        child = childCandidate;
-        break;
+    {
+      SearchNodeChildrenReference children = rootNode->getChildren();
+      int childrenCapacity = children.getCapacity();
+      for(int i = 0; i<childrenCapacity; i++) {
+        SearchNode* childCandidate = children[i].getIfAllocated();
+        if(childCandidate == NULL)
+          break;
+        if(children[i].getMoveLocRelaxed() == moveLoc) {
+          child = childCandidate;
+          break;
+        }
       }
     }
 
@@ -669,10 +671,10 @@ void Search::beginSearch(bool pondering) {
   else {
     //If the root node has any existing children, then prune things down if there are moves that should not be allowed at the root.
     SearchNode& node = *rootNode;
-    int childrenCapacity;
-    SearchChildPointer* children = node.getChildren(childrenCapacity);
+    SearchNodeChildrenReference children = node.getChildren();
+    int childrenCapacity = children.getCapacity();
     bool anyFiltered = false;
-    if(childrenCapacity > 0 && children != NULL) {
+    if(childrenCapacity > 0) {
 
       //This filtering, by deleting children, doesn't conform to the normal invariants that hold during search.
       //However nothing else should be running at this time and the search hasn't actually started yet, so this is okay.
@@ -712,6 +714,11 @@ void Search::beginSearch(bool pondering) {
       }
 
       if(anyFiltered) {
+        //Fix up the node state and child arrays.
+        node.collapseChildrenCapacity(numGoodChildren);
+        children = node.getChildren();
+        childrenCapacity = children.getCapacity();
+
         //Fix up the number of visits of the root node after doing this filtering
         int64_t newNumVisits = 0;
         for(int i = 0; i<childrenCapacity; i++) {
@@ -720,25 +727,6 @@ void Search::beginSearch(bool pondering) {
             break;
           int64_t edgeVisits = children[i].getEdgeVisits();
           newNumVisits += edgeVisits;
-        }
-
-        //Just for cleanliness after filtering - delete the smaller children arrays.
-        //They should never be accessed in the upcoming search because all threads
-        //spawned will of course be synchronized with any writes we make here,
-        //including the current state of the node, so if we've moved on to a
-        //higher-capacity array the lower ones will never be accessed.
-        if(children == node.children2) {
-          delete[] node.children1;
-          node.children1 = NULL;
-          delete[] node.children0;
-          node.children0 = NULL;
-        }
-        else if(children == node.children1) {
-          delete[] node.children0;
-          node.children0 = NULL;
-        }
-        else {
-          assert(children == node.children0);
         }
 
         //For the node's own visit itself
@@ -933,8 +921,8 @@ void Search::recursivelyRecomputeStats(SearchNode& n) {
     SearchThread& thread = *(dummyThreads[threadIdx]);
 
     bool foundAnyChildren = false;
-    int childrenCapacity;
-    SearchChildPointer* children = node->getChildren(childrenCapacity);
+    SearchNodeChildrenReference children = node->getChildren();
+    int childrenCapacity = children.getCapacity();
     int i = 0;
     for(; i<childrenCapacity; i++) {
       SearchNode* child = children[i].getIfAllocated();
@@ -1207,9 +1195,10 @@ bool Search::playoutDescend(
         else {
           //An illegal move should make it into the tree only in case of cycle or bad transposition
           //We want the search to continue as best it can, so we increment visits so other search branches will still make progress.
-          int childrenCapacity;
-          SearchChildPointer* children = node.getChildren(nodeState,childrenCapacity);
+          SearchNodeChildrenReference children = node.getChildren(nodeState);
+          int childrenCapacity = children.getCapacity();
           assert(childrenCapacity > bestChildIdx);
+          (void)childrenCapacity;
           children[bestChildIdx].addEdgeVisits(1);
           return true;
         }
@@ -1235,9 +1224,10 @@ bool Search::playoutDescend(
         continue;
       }
 
-      int childrenCapacity;
-      SearchChildPointer* children = node.getChildren(nodeState,childrenCapacity);
+      SearchNodeChildrenReference children = node.getChildren(nodeState);
+      int childrenCapacity = children.getCapacity();
       assert(childrenCapacity > bestChildIdx);
+      (void)childrenCapacity;
 
       //We can only test this before we make the move, so do it now.
       const bool forceNonTerminalDueToFriendlyPass =
@@ -1267,8 +1257,9 @@ bool Search::playoutDescend(
         if(existingChild == NULL) {
           //Set relaxed *first*, then release this value via storing the child. Anyone who load-acquires the child
           //is guaranteed by release semantics to see the move as well.
-          children[bestChildIdx].setMoveLocRelaxed(bestChildMoveLoc);
-          children[bestChildIdx].store(child);
+          SearchChildPointer& childPointer = children[bestChildIdx];
+          childPointer.setMoveLocRelaxed(bestChildMoveLoc);
+          childPointer.store(child);
         }
         else {
           //Someone got there ahead of us. We already made a move so we can't just loop again. Instead just fail this playout and try again.
@@ -1289,8 +1280,7 @@ bool Search::playoutDescend(
     }
     //Searching an existing child
     else {
-      int childrenCapacity;
-      SearchChildPointer* children = node.getChildren(nodeState,childrenCapacity);
+      SearchNodeChildrenReference children = node.getChildren(nodeState);
       child = children[bestChildIdx].getIfAllocated();
       assert(child != NULL);
 
@@ -1323,8 +1313,7 @@ bool Search::playoutDescend(
     std::pair<std::unordered_set<SearchNode*>::iterator,bool> result = thread.graphPath.insert(child);
     //No insertion, child was already there
     if(!result.second) {
-      int childrenCapacity;
-      SearchChildPointer* children = node.getChildren(nodeState,childrenCapacity);
+      SearchNodeChildrenReference children = node.getChildren(nodeState);
       children[bestChildIdx].addEdgeVisits(1);
       updateStatsAfterPlayout(node,thread,isRoot);
       child->virtualLosses.fetch_add(-1,std::memory_order_release);
@@ -1337,8 +1326,7 @@ bool Search::playoutDescend(
   //Update this node stats
   if(finishedPlayout) {
     nodeState = node.state.load(std::memory_order_acquire);
-    int childrenCapacity;
-    SearchChildPointer* children = node.getChildren(nodeState,childrenCapacity);
+    SearchNodeChildrenReference children = node.getChildren(nodeState);
     children[bestChildIdx].addEdgeVisits(1);
     updateStatsAfterPlayout(node,thread,isRoot);
   }
@@ -1359,8 +1347,8 @@ bool Search::maybeCatchUpEdgeVisits(
 ) {
   //Don't need to do this since we already are pretty recent as of finding the best child.
   //nodeState = node.state.load(std::memory_order_acquire);
-  int childrenCapacity;
-  SearchChildPointer* children = node.getChildren(nodeState,childrenCapacity);
+  SearchNodeChildrenReference children = node.getChildren(nodeState);
+  SearchChildPointer& childPointer = children[bestChildIdx];
 
   // int64_t maxNumToAdd = 1;
   // if(searchParams.graphSearchCatchUpProp > 0.0) {
@@ -1369,7 +1357,7 @@ bool Search::maybeCatchUpEdgeVisits(
   //   maxNumToAdd = 1 + (int64_t)(searchParams.graphSearchCatchUpProp * parentVisits);
   // }
   int64_t childVisits = child->stats.visits.load(std::memory_order_acquire);
-  int64_t edgeVisits = children[bestChildIdx].getEdgeVisits();
+  int64_t edgeVisits = childPointer.getEdgeVisits();
 
   //If we want to leak through some of the time, then we keep searching the transposition node even if we'd be happy to stop here with
   //how many visits it has
@@ -1384,7 +1372,7 @@ bool Search::maybeCatchUpEdgeVisits(
     if(edgeVisits >= childVisits)
       return false;
     // numToAdd = std::min((childVisits - edgeVisits + 3) / 4, maxNumToAdd);
-  } while(!children[bestChildIdx].compexweakEdgeVisits(edgeVisits, edgeVisits + numToAdd));
+  } while(!childPointer.compexweakEdgeVisits(edgeVisits, edgeVisits + numToAdd));
 
   return true;
 }

@@ -1,6 +1,7 @@
 #include "../search/searchnode.h"
 
 #include "../search/search.h"
+#include "../core/test.h"
 
 NodeStatsAtomic::NodeStatsAtomic()
   :visits(0),
@@ -190,18 +191,18 @@ SearchNode::SearchNode(const SearchNode& other, bool fnt, bool copySubtreeValueB
    dirtyCounter(other.dirtyCounter.load(std::memory_order_acquire))
 {
   if(other.children0 != NULL) {
-    children0 = new SearchChildPointer[CHILDREN0SIZE];
-    for(int i = 0; i<CHILDREN0SIZE; i++)
+    children0 = new SearchChildPointer[SearchChildrenSizes::SIZE0OVERFLOW];
+    for(int i = 0; i<SearchChildrenSizes::SIZE0OVERFLOW; i++)
       children0[i].storeAll(other.children0[i]);
   }
   if(other.children1 != NULL) {
-    children1 = new SearchChildPointer[CHILDREN1SIZE];
-    for(int i = 0; i<CHILDREN1SIZE; i++)
+    children1 = new SearchChildPointer[SearchChildrenSizes::SIZE1OVERFLOW];
+    for(int i = 0; i<SearchChildrenSizes::SIZE1OVERFLOW; i++)
       children1[i].storeAll(other.children1[i]);
   }
   if(other.children2 != NULL) {
-    children2 = new SearchChildPointer[CHILDREN2SIZE];
-    for(int i = 0; i<CHILDREN2SIZE; i++)
+    children2 = new SearchChildPointer[SearchChildrenSizes::SIZE2OVERFLOW];
+    for(int i = 0; i<SearchChildrenSizes::SIZE2OVERFLOW; i++)
       children2[i].storeAll(other.children2[i]);
   }
   if(copySubtreeValueBias) {
@@ -214,27 +215,70 @@ SearchNode::SearchNode(const SearchNode& other, bool fnt, bool copySubtreeValueB
   }
 }
 
-SearchChildPointer* SearchNode::getChildren(int& childrenCapacity) {
-  return getChildren(state.load(std::memory_order_acquire),childrenCapacity);
+SearchNodeChildrenReference SearchNode::getChildren() {
+  return SearchNodeChildrenReference(state.load(std::memory_order_acquire),this);
 }
-const SearchChildPointer* SearchNode::getChildren(int& childrenCapacity) const {
-  return getChildren(state.load(std::memory_order_acquire),childrenCapacity);
+ConstSearchNodeChildrenReference SearchNode::getChildren() const {
+  return ConstSearchNodeChildrenReference(state.load(std::memory_order_acquire),this);
+}
+SearchNodeChildrenReference SearchNode::getChildren(SearchNodeState stateValue) {
+  return SearchNodeChildrenReference(stateValue,this);
+}
+ConstSearchNodeChildrenReference SearchNode::getChildren(SearchNodeState stateValue) const {
+  return ConstSearchNodeChildrenReference(stateValue,this);
 }
 
-int SearchNode::iterateAndCountChildrenInArray(const SearchChildPointer* children, int childrenCapacity) {
-  int numChildren = 0;
-  for(int i = 0; i<childrenCapacity; i++) {
-    if(children[i].getIfAllocated() == NULL)
-      break;
-    numChildren++;
+static int getChildrenCapacity(SearchNodeState stateValue) {
+  if(stateValue < SearchNode::STATE_EXPANDED0)
+    return 0;
+  else if(stateValue < SearchNode::STATE_EXPANDED1)
+    return SearchChildrenSizes::SIZE0TOTAL;
+  else if(stateValue < SearchNode::STATE_EXPANDED2)
+    return SearchChildrenSizes::SIZE1TOTAL;
+  else
+    return SearchChildrenSizes::SIZE2TOTAL;
+}
+
+int SearchNodeChildrenReference::getCapacity() const {
+  return getChildrenCapacity(snapshottedState);
+}
+int ConstSearchNodeChildrenReference::getCapacity() const {
+  return getChildrenCapacity(snapshottedState);
+}
+
+int SearchNodeChildrenReference::iterateAndCountChildren() const {
+  return ConstSearchNodeChildrenReference(*this).iterateAndCountChildren();
+}
+
+int ConstSearchNodeChildrenReference::iterateAndCountChildren() const {
+  SearchChildPointer* arr;
+  int arrCapacity;
+  int offset;
+
+  if(snapshottedState < SearchNode::STATE_EXPANDED0) {
+    return 0;
   }
-  return numChildren;
-}
+  else if(snapshottedState < SearchNode::STATE_EXPANDED1) {
+    arr = node->children0;
+    arrCapacity = SearchChildrenSizes::SIZE0OVERFLOW;
+    offset = 0;
+  }
+  else if(snapshottedState < SearchNode::STATE_EXPANDED2) {
+    arr = node->children1;
+    arrCapacity = SearchChildrenSizes::SIZE1OVERFLOW;
+    offset = SearchChildrenSizes::SIZE0TOTAL;
+  }
+  else {
+    arr = node->children2;
+    arrCapacity = SearchChildrenSizes::SIZE2OVERFLOW;
+    offset = SearchChildrenSizes::SIZE1TOTAL;
+  }
 
-int SearchNode::iterateAndCountChildren() const {
-  int childrenCapacity;
-  const SearchChildPointer* children = getChildren(childrenCapacity);
-  return iterateAndCountChildrenInArray(children,childrenCapacity);
+  for(int i = 0; i<arrCapacity; i++) {
+    if(arr[i].getIfAllocated() == NULL)
+      return offset + i;
+  }
+  return offset+arrCapacity;
 }
 
 //Precondition: Assumes that we have actually checked the children array that stateValue suggests that
@@ -253,19 +297,9 @@ bool SearchNode::maybeExpandChildrenCapacityForNewChild(SearchNodeState& stateVa
   return true;
 }
 
-int SearchNode::getChildrenCapacity(SearchNodeState stateValue) const {
-  if(stateValue >= SearchNode::STATE_EXPANDED2)
-    return SearchNode::CHILDREN2SIZE;
-  if(stateValue >= SearchNode::STATE_EXPANDED1)
-    return SearchNode::CHILDREN1SIZE;
-  if(stateValue >= SearchNode::STATE_EXPANDED0)
-    return SearchNode::CHILDREN0SIZE;
-  return 0;
-}
-
 void SearchNode::initializeChildren() {
   assert(children0 == NULL);
-  children0 = new SearchChildPointer[SearchNode::CHILDREN0SIZE];
+  children0 = new SearchChildPointer[SearchChildrenSizes::SIZE0OVERFLOW];
 }
 
 //Precondition: Assumes that we have actually checked the childen array that stateValue suggests that
@@ -279,24 +313,7 @@ bool SearchNode::tryExpandingChildrenCapacityAssumeFull(SearchNodeState& stateVa
     if(!suc) return false;
     stateValue = SearchNode::STATE_GROWING1;
 
-    SearchChildPointer* children = new SearchChildPointer[SearchNode::CHILDREN1SIZE];
-    SearchChildPointer* oldChildren = children0;
-    for(int i = 0; i<SearchNode::CHILDREN0SIZE; i++) {
-      //Loading relaxed is fine since by precondition, we've already observed that all of these
-      //are non-null, so loading again it must be still true and we don't need any other synchronization.
-      SearchNode* child = oldChildren[i].getIfAllocatedRelaxed();
-      //Assert the precondition for calling this function in the first place
-      assert(child != NULL);
-      //Storing relaxed is fine since the array is not visible to other threads yet. The entire array will
-      //be released shortly and that will ensure consumers see these childs, with an acquire on the whole array.
-      children[i].storeRelaxed(child);
-      //Getting edge visits relaxed on old children might get slightly out of date if other threads are searching
-      //children while we expand, but those should self-correct rapidly with more playouts
-      children[i].setEdgeVisitsRelaxed(oldChildren[i].getEdgeVisitsRelaxed());
-      //Setting and loading move relaxed is fine because our acquire observation of all the children nodes
-      //ensures all the move locs are released to us, and we're storing this new array with release semantics.
-      children[i].setMoveLocRelaxed(oldChildren[i].getMoveLocRelaxed());
-    }
+    SearchChildPointer* children = new SearchChildPointer[SearchChildrenSizes::SIZE1OVERFLOW];
     assert(children1 == NULL);
     children1 = children;
     state.store(SearchNode::STATE_EXPANDED1,std::memory_order_release);
@@ -310,24 +327,7 @@ bool SearchNode::tryExpandingChildrenCapacityAssumeFull(SearchNodeState& stateVa
     if(!suc) return false;
     stateValue = SearchNode::STATE_GROWING2;
 
-    SearchChildPointer* children = new SearchChildPointer[SearchNode::CHILDREN2SIZE];
-    SearchChildPointer* oldChildren = children1;
-    for(int i = 0; i<SearchNode::CHILDREN1SIZE; i++) {
-      //Loading relaxed is fine since by precondition, we've already observed that all of these
-      //are non-null, so loading again it must be still true and we don't need any other synchronization.
-      SearchNode* child = oldChildren[i].getIfAllocatedRelaxed();
-      //Assert the precondition for calling this function in the first place
-      assert(child != NULL);
-      //Storing relaxed is fine since the array is not visible to other threads yet. The entire array will
-      //be released shortly and that will ensure consumers see these childs, with an acquire on the whole array.
-      children[i].storeRelaxed(child);
-      //Getting weight relaxed on old children might get slightly out of date weights if other threads are searching
-      //children while we expand, but those should self-correct rapidly with more playouts
-      children[i].setEdgeVisitsRelaxed(oldChildren[i].getEdgeVisitsRelaxed());
-      //Setting and loading move relaxed is fine because our acquire observation of all the children nodes
-      //ensures all the move locs are released to us, and we're storing this new array with release semantics.
-      children[i].setMoveLocRelaxed(oldChildren[i].getMoveLocRelaxed());
-    }
+    SearchChildPointer* children = new SearchChildPointer[SearchChildrenSizes::SIZE2OVERFLOW];
     assert(children2 == NULL);
     children2 = children;
     state.store(SearchNode::STATE_EXPANDED2,std::memory_order_release);
@@ -339,37 +339,33 @@ bool SearchNode::tryExpandingChildrenCapacityAssumeFull(SearchNodeState& stateVa
   return true;
 }
 
-const SearchChildPointer* SearchNode::getChildren(SearchNodeState stateValue, int& childrenCapacity) const {
-  if(stateValue >= SearchNode::STATE_EXPANDED2) {
-    childrenCapacity = SearchNode::CHILDREN2SIZE;
-    return children2;
+//If we pruned some of the child nodes, collapse down the arrays and the node state to fit.
+//This preserves the invariant that the level of expansion is only the minimum needed to hold those child nodes.
+//Not thread-safe.
+void SearchNode::collapseChildrenCapacity(int numGoodChildren) {
+  int stateValue = state.load(std::memory_order_acquire);
+  if(numGoodChildren <= SearchChildrenSizes::SIZE1TOTAL && stateValue > SearchNode::STATE_EXPANDED1) {
+    assert(stateValue == SearchNode::STATE_EXPANDED2);
+    assert(children2 != NULL);
+    for(int i = 0; i<SearchChildrenSizes::SIZE2OVERFLOW; i++) {
+      testAssert(children2[i].getIfAllocatedRelaxed() == NULL);
+    }
+    delete[] children2;
+    children2 = NULL;
+    stateValue = SearchNode::STATE_EXPANDED1;
+    state.store(stateValue,std::memory_order_release);
   }
-  if(stateValue >= SearchNode::STATE_EXPANDED1) {
-    childrenCapacity = SearchNode::CHILDREN1SIZE;
-    return children1;
+  if(numGoodChildren <= SearchChildrenSizes::SIZE0TOTAL && stateValue > SearchNode::STATE_EXPANDED0) {
+    assert(stateValue == SearchNode::STATE_EXPANDED1);
+    assert(children1 != NULL);
+    for(int i = 0; i<SearchChildrenSizes::SIZE1OVERFLOW; i++) {
+      testAssert(children1[i].getIfAllocatedRelaxed() == NULL);
+    }
+    delete[] children1;
+    children1 = NULL;
+    stateValue = SearchNode::STATE_EXPANDED0;
+    state.store(stateValue,std::memory_order_release);
   }
-  if(stateValue >= SearchNode::STATE_EXPANDED0) {
-    childrenCapacity = SearchNode::CHILDREN0SIZE;
-    return children0;
-  }
-  childrenCapacity = 0;
-  return NULL;
-}
-SearchChildPointer* SearchNode::getChildren(SearchNodeState stateValue, int& childrenCapacity) {
-  if(stateValue >= SearchNode::STATE_EXPANDED2) {
-    childrenCapacity = SearchNode::CHILDREN2SIZE;
-    return children2;
-  }
-  if(stateValue >= SearchNode::STATE_EXPANDED1) {
-    childrenCapacity = SearchNode::CHILDREN1SIZE;
-    return children1;
-  }
-  if(stateValue >= SearchNode::STATE_EXPANDED0) {
-    childrenCapacity = SearchNode::CHILDREN0SIZE;
-    return children0;
-  }
-  childrenCapacity = 0;
-  return NULL;
 }
 
 NNOutput* SearchNode::getNNOutput() {
@@ -401,7 +397,8 @@ bool SearchNode::storeNNOutputIfNull(std::shared_ptr<NNOutput>* newNNOutput) {
 }
 
 SearchNode::~SearchNode() {
-  //Do NOT recursively delete children
+  // Do NOT recursively delete children
+  // The children may have other references (e.g. graph search).
   if(children2 != NULL)
     delete[] children2;
   if(children1 != NULL)

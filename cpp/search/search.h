@@ -36,6 +36,8 @@ struct ReportedSearchValues;
 struct SearchChildPointer;
 struct SubtreeValueBiasTable;
 struct SearchNodeTable;
+struct SearchNodeChildrenReference;
+struct ConstSearchNodeChildrenReference;
 
 //Per-thread state
 struct SearchThread {
@@ -680,7 +682,7 @@ private:
     double pruneProp,
     double desiredProp,
     double thisNodeWeight,
-    const SearchChildPointer* children,
+    ConstSearchNodeChildrenReference children,
     double* childWeightBuf,
     int childrenCapacity,
     std::unordered_set<const SearchNode*>& graphPath,
