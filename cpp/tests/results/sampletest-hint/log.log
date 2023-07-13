@@ -12,6 +12,7 @@ lagBuffer = 1.0
 logAllGTPCommunication = true
 logDir = gtp_logs
 logSearchInfo = true
+logSearchInfoForChosenMove = false
 logTimeStamp = false
 logToStderr = false
 maxTimePondering = 60.0
@@ -66,6 +67,7 @@ trtUseFP16 = false
 : WARNING: Unused key 'forDeterministicTesting' in configs/gtp_example.cfg and/or command-line and query overrides
 : WARNING: Unused key 'logAllGTPCommunication' in configs/gtp_example.cfg and/or command-line and query overrides
 : WARNING: Unused key 'logSearchInfo' in configs/gtp_example.cfg and/or command-line and query overrides
+: WARNING: Unused key 'logSearchInfoForChosenMove' in configs/gtp_example.cfg and/or command-line and query overrides
 : WARNING: Unused key 'ponderingEnabled' in configs/gtp_example.cfg and/or command-line and query overrides
 : WARNING: Unused key 'resignConsecTurns' in configs/gtp_example.cfg and/or command-line and query overrides
 : WARNING: Unused key 'resignThreshold' in configs/gtp_example.cfg and/or command-line and query overrides

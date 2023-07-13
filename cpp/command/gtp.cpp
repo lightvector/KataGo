@@ -953,7 +953,7 @@ struct GTPEngine {
     Logger& logger, double searchFactorWhenWinningThreshold, double searchFactorWhenWinning,
     enabled_t cleanupBeforePass, enabled_t friendlyPass, bool ogsChatToStderr,
     bool allowResignation, double resignThreshold, int resignConsecTurns, double resignMinScoreDifference,
-    bool logSearchInfo, bool debug, bool playChosenMove,
+    bool logSearchInfo, bool logSearchInfoForChosenMove, bool debug, bool playChosenMove,
     string& response, bool& responseIsError, bool& maybeStartPondering,
     AnalyzeArgs args
   ) {
@@ -1102,11 +1102,11 @@ struct GTPEngine {
 
     if(logSearchInfo) {
       ostringstream sout;
-      PlayUtils::printGenmoveLog(sout,bot,nnEval,moveLoc,timeTaken,perspective);
+      PlayUtils::printGenmoveLog(sout,bot,nnEval,moveLoc,timeTaken,perspective,logSearchInfoForChosenMove);
       logger.write(sout.str());
     }
     if(debug) {
-      PlayUtils::printGenmoveLog(cerr,bot,nnEval,moveLoc,timeTaken,perspective);
+      PlayUtils::printGenmoveLog(cerr,bot,nnEval,moveLoc,timeTaken,perspective,logSearchInfoForChosenMove);
     }
 
     //Hacks--------------------------------------------------
@@ -1729,6 +1729,7 @@ int MainCmds::gtp(const vector<string>& args) {
 
   const bool logAllGTPCommunication = cfg.getBool("logAllGTPCommunication");
   const bool logSearchInfo = cfg.getBool("logSearchInfo");
+  const bool logSearchInfoForChosenMove = cfg.contains("logSearchInfoForChosenMove") ? cfg.getBool("logSearchInfoForChosenMove") : false;
 
   bool startupPrintMessageToStderr = true;
   if(cfg.contains("startupPrintMessageToStderr"))
@@ -2649,7 +2650,7 @@ int MainCmds::gtp(const vector<string>& args) {
           logger,searchFactorWhenWinningThreshold,searchFactorWhenWinning,
           cleanupBeforePass,friendlyPass,ogsChatToStderr,
           allowResignation,resignThreshold,resignConsecTurns,resignMinScoreDifference,
-          logSearchInfo,debug,playChosenMove,
+          logSearchInfo,logSearchInfoForChosenMove,debug,playChosenMove,
           response,responseIsError,maybeStartPondering,
           GTPEngine::AnalyzeArgs()
         );
@@ -2679,7 +2680,7 @@ int MainCmds::gtp(const vector<string>& args) {
           logger,searchFactorWhenWinningThreshold,searchFactorWhenWinning,
           cleanupBeforePass,friendlyPass,ogsChatToStderr,
           allowResignation,resignThreshold,resignConsecTurns,resignMinScoreDifference,
-          logSearchInfo,debug,playChosenMove,
+          logSearchInfo,logSearchInfoForChosenMove,debug,playChosenMove,
           response,responseIsError,maybeStartPondering,
           analyzeArgs
         );

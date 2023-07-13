@@ -7,6 +7,7 @@ lagBuffer = 1.0
 logAllGTPCommunication = true
 logDir = gtp_logs
 logSearchInfo = true
+logSearchInfoForChosenMove = false
 logToStderr = false
 maxPlayouts = 500
 maxTime = 1

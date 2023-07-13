@@ -32,6 +32,7 @@ logDir = gtp_logs
 # Logging options
 logAllGTPCommunication = true
 logSearchInfo = true
+logSearchInfoForChosenMove = false
 logToStderr = false
 
 # KataGo will display some info to stderr on GTP startup

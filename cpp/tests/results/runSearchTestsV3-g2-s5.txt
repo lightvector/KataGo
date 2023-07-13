@@ -188,6 +188,7 @@ MoveNum: 40 HASH: CD7D34A65095D83669559B90EBE257EE
  2 . . . . . . . . . . . . . . . . . . .
  1 . . . . . . . . . . . . . . . . . . .
 
+koPOSITIONALscoreAREAtaxNONEsui1komi7.5 0
 Root visits: 200
 New playouts: 200
 NN rows: 191
@@ -373,6 +374,7 @@ MoveNum: 88 HASH: E5DACB812E1F32182FE3B2783337B6CD
  2 X O X X X O O X . X .
  1 . O X . O . O X X . .
 
+koPOSITIONALscoreAREAtaxNONEsui1komi7.5 0
 Root visits: 500
 New playouts: 500
 NN rows: 385
@@ -466,6 +468,7 @@ MoveNum: 89 HASH: 71B1ED3423278391F2FE2613AF81D7E4
  2 X . X X X O O X . X .
  1 X3. X . O . O X X . .
 
+koPOSITIONALscoreAREAtaxNONEsui1komi7.5 0
 Root visits: 500
 New playouts: 500
 NN rows: 371
@@ -557,6 +560,7 @@ MoveNum: 96 HASH: 434B1665B6BB8864F5AD865AA86C39C3
  2 X . X X X O O X . X .
  1 X . X X O O O X X . .
 
+koPOSITIONALscoreAREAtaxNONEsui1komi7.5 0
 Root visits: 500
 New playouts: 500
 NN rows: 352
@@ -644,6 +648,7 @@ MoveNum: 96 HASH: 434B1665B6BB8864F5AD865AA86C39C3
  2 X . X X X O O X . X .
  1 X . X X O O O X X . .
 
+koPOSITIONALscoreAREAtaxNONEsui1komi7.5 0
 Root visits: 500
 New playouts: 500
 NN rows: 351
@@ -733,6 +738,7 @@ MoveNum: 91 HASH: CDAEE17AEAD61B0F693D5C82B6B276FD
  2 X . X X X O O X . X .
  1 X1. X . O . O X X . .
 
+koSIMPLEscoreTERRITORYtaxSEKIsui0komi7.5 0
 Root visits: 500
 New playouts: 500
 NN rows: 327
@@ -822,6 +828,7 @@ MoveNum: 91 HASH: CDAEE17AEAD61B0F693D5C82B6B276FD
  2 X . X X X O O X . X .
  1 X1. X . O . O X X . .
 
+koSIMPLEscoreTERRITORYtaxSEKIsui0komi7.5 0
 Root visits: 500
 New playouts: 500
 NN rows: 321
@@ -918,6 +925,7 @@ MoveNum: 114 HASH: A79664B8B4D0FE3E9654291FC1DEB14A
  2 . . O3. . . . . . . . . . . .
  1 . . . . . . . . . . . . . . .
 
+koSIMPLEscoreTERRITORYtaxSEKIsui0komi6.5 0
 Root visits: 1
 New playouts: 1
 NN rows: 1
@@ -964,6 +972,7 @@ MoveNum: 114 HASH: A79664B8B4D0FE3E9654291FC1DEB14A
  2 . . O3. . . . . . . . . . . .
  1 . . . . . . . . . . . . . . .
 
+koSIMPLEscoreTERRITORYtaxSEKIsui0komi6.5 0
 Root visits: 1
 New playouts: 1
 NN rows: 1
@@ -1016,6 +1025,7 @@ MoveNum: 234 HASH: A363032D5B5D6FEA53ADD68434463D3B
  2 . . . . O X . . . X O . O O O O X X X3
  1 . . . . O O X . . X X O . . . O O O X1
 
+koPOSITIONALscoreAREAtaxNONEsui1komi0.5 0
 Root visits: 280
 New playouts: 280
 NN rows: 267
@@ -1075,6 +1085,7 @@ MoveNum: 0 HASH: EA6AC3E0FDCCB410CE7CC6B5C83BC0DF
  2 . . . . O . .
  1 . . . . . . .
 
+koPOSITIONALscoreAREAtaxNONEsui1komi7.5 0
 Root visits: 200
 New playouts: 200
 NN rows: 197
@@ -1102,6 +1113,7 @@ MoveNum: 0 HASH: 3D7444680E62DFF9BC252AF4DC21718D
  2 . . . . . . . . . . .
  1 . . . . . . . . . . .
 
+koPOSITIONALscoreAREAtaxNONEsui1komi7.5 0
 Root visits: 200
 New playouts: 200
 NN rows: 191
@@ -1136,6 +1148,7 @@ MoveNum: 0 HASH: EA6AC3E0FDCCB410CE7CC6B5C83BC0DF
  2 . . . . O . .
  1 . . . . . . .
 
+koPOSITIONALscoreAREAtaxNONEsui1komi7.5 0
 Root visits: 200
 New playouts: 200
 NN rows: 197
@@ -1163,6 +1176,7 @@ MoveNum: 0 HASH: 3D7444680E62DFF9BC252AF4DC21718D
  2 . . . . . . . . . . .
  1 . . . . . . . . . . .
 
+koPOSITIONALscoreAREAtaxNONEsui1komi7.5 0
 Root visits: 200
 New playouts: 200
 NN rows: 191
@@ -1196,6 +1210,7 @@ MoveNum: 1 HASH: 137A716817733B150F2764B02A934A3A
  2 . . . . X . O O X
  1 . . . . . . O X .
 
+koPOSITIONALscoreAREAtaxNONEsui1komi0.5 0
 Root visits: 200
 New playouts: 200
 NN rows: 186
@@ -1230,6 +1245,7 @@ MoveNum: 1 HASH: 137A716817733B150F2764B02A934A3A
  2 . . . . X . O O X
  1 . . . . . . O X .
 
+koPOSITIONALscoreAREAtaxNONEsui0komi0.5 0
 Root visits: 200
 New playouts: 200
 NN rows: 153
@@ -1266,6 +1282,7 @@ MoveNum: 1 HASH: 2E520EDF63AB8417F68D3089FA83838C
  2 . X X O . O . O .
  1 . . X O . O . O .
 
+koPOSITIONALscoreAREAtaxNONEsui1komi0 0
 Root visits: 80
 New playouts: 80
 NN rows: 26
@@ -1298,6 +1315,7 @@ MoveNum: 1 HASH: 2E520EDF63AB8417F68D3089FA83838C
  2 . X X O . O . O .
  1 . . X O . O . O .
 
+koPOSITIONALscoreAREAtaxNONEsui1komi0 0
 Root visits: 80
 New playouts: 80
 NN rows: 67
@@ -1331,6 +1349,7 @@ MoveNum: 0 HASH: 8054041CF7525FF54F3AC9CEC0991E19
  2 . . . . . . . . .
  1 . . . . . . . . .
 
+koPOSITIONALscoreAREAtaxNONEsui1komi5.5 0
 Root visits: 200
 New playouts: 200
 NN rows: 198
@@ -1371,6 +1390,7 @@ MoveNum: 1 HASH: BA79A89D6669BD2AB5B90AA86F991133
  2 . . . . . . . . .
  1 . . . . . . . . .
 
+koPOSITIONALscoreAREAtaxNONEsui1komi5.5 0
 Root visits: 200
 New playouts: 18
 NN rows: 18
@@ -1450,6 +1470,7 @@ MoveNum: 0 HASH: 5AF63E0AF830CE859332D16214395C9B
  2 . O O X . X X X X
  1 . . X . . . O X .
 
+koSIMPLEscoreTERRITORYtaxSEKIsui0komi6 0
 Root visits: 200
 New playouts: 200
 NN rows: 122
@@ -1521,6 +1542,7 @@ MoveNum: 0 HASH: 5AF63E0AF830CE859332D16214395C9B
  2 . O O X . X X X X
  1 . . X . . . O X .
 
+koSIMPLEscoreAREAtaxNONEsui0whbNfpok1komi6 0
 Root visits: 200
 New playouts: 200
 NN rows: 141

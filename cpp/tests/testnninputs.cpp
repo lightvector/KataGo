@@ -1387,7 +1387,7 @@ ooxooxo
       "(;GM[1]FF[4]SZ[9]KM[-7];B[ff];W[ee];B[dd];W[];B[];W[];B[cc];W[bb];B[];W[])",
     };
 
-    for(int whichRules = 0; whichRules <= 2; whichRules++) {
+    for(int whichRules = 0; whichRules <= 3; whichRules++) {
       Rules rulesToUse = Rules::parseRules("tromp-taylor");
       if(whichRules == 1) {
         rulesToUse = Rules::parseRules("japanese");
@@ -1396,6 +1396,10 @@ ooxooxo
       if(whichRules == 2) {
         rulesToUse = Rules::parseRules("tromp-taylor");
         rulesToUse.hasButton = true;
+      }
+      if(whichRules == 3) {
+        rulesToUse = Rules::parseRules("tromp-taylor");
+        rulesToUse.friendlyPassOk = true;
       }
 
       for(const string& sgfStr : sgfStrs) {

@@ -15,6 +15,7 @@ struct PrintTreeOptions {
   PrintTreeOptions printSqs(bool);
   PrintTreeOptions printAvgShorttermError(bool);
   PrintTreeOptions onlyBranch(const Board& board, const std::string& moves);
+  PrintTreeOptions alsoBranch(const Board& board, const std::string& moves);
 
   int maxDepth_;
   int maxChildrenToShow_;
@@ -27,6 +28,7 @@ struct PrintTreeOptions {
   bool printSqs_;
   bool printAvgShorttermError_;
   std::vector<Loc> branch_;
+  bool alsoBranch_;
 };
 
 inline PrintTreeOptions::PrintTreeOptions()
@@ -40,7 +42,8 @@ inline PrintTreeOptions::PrintTreeOptions()
    printRawNN_(false),
    printSqs_(false),
    printAvgShorttermError_(false),
-   branch_()
+   branch_(),
+   alsoBranch_(false)
 {}
 
 inline PrintTreeOptions PrintTreeOptions::maxDepth(int d) { PrintTreeOptions other = *this; other.maxDepth_ = d; return other;}
@@ -53,6 +56,11 @@ inline PrintTreeOptions PrintTreeOptions::printSqs(bool b) { PrintTreeOptions ot
 inline PrintTreeOptions PrintTreeOptions::printAvgShorttermError(bool b) { PrintTreeOptions other = *this; other.printAvgShorttermError_ = b; return other;}
 inline PrintTreeOptions PrintTreeOptions::onlyBranch(const Board& board, const std::string& moves) {
   PrintTreeOptions other = *this; other.branch_ = Location::parseSequence(moves,board);
+  return other;
+}
+inline PrintTreeOptions PrintTreeOptions::alsoBranch(const Board& board, const std::string& moves) {
+  PrintTreeOptions other = *this; other.branch_ = Location::parseSequence(moves,board);
+  other.alsoBranch_ = true;
   return other;
 }
 

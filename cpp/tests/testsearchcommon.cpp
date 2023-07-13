@@ -41,6 +41,7 @@ void TestSearchCommon::printPolicyValueOwnership(const Board& board, const NNRes
 
 void TestSearchCommon::printBasicStuffAfterSearch(const Board& board, const BoardHistory& hist, const Search* search, PrintTreeOptions options) {
   Board::printBoard(cout, board, Board::NULL_LOC, &(hist.moveHistory));
+  cout << hist.rules << " " << hist.encorePhase << "\n";
   cout << "Root visits: " << search->getRootVisits() << "\n";
   cout << "New playouts: " << search->lastSearchNumPlayouts << "\n";
   cout << "NN rows: " << search->nnEvaluator->numRowsProcessed() << endl;

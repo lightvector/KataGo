@@ -1157,7 +1157,7 @@ void Search::printTreeHelper(
     if((double)data.numVisits < origVisits * options.minVisitsPropToExpand_)
       return;
   }
-  if(depth == options.branch_.size()) {
+  if((options.alsoBranch_ && depth == 0) || (!options.alsoBranch_ && depth == options.branch_.size())) {
     out << "---" << PlayerIO::playerToString(node.nextPla) << "(" << (node.nextPla == perspectiveToUse ? "^" : "v") << ")---" << endl;
   }
 
@@ -1195,8 +1195,9 @@ void Search::printTreeHelper(
     Loc moveLoc = analysisData[i].move;
 
     if((depth >= options.branch_.size() && i < numChildrenToRecurseOn) ||
-       (depth < options.branch_.size() && moveLoc == options.branch_[depth]))
-    {
+       (depth < options.branch_.size() && moveLoc == options.branch_[depth]) ||
+       (depth < options.branch_.size() && options.alsoBranch_ && i < numChildrenToRecurseOn)
+    ) {
       size_t oldLen = prefix.length();
       string locStr = Location::toString(moveLoc,rootBoard);
       if(locStr == "pass")
@@ -1206,8 +1207,10 @@ void Search::printTreeHelper(
       prefix += " ";
       while(prefix.length() < oldLen+4)
         prefix += " ";
-      printTreeHelper(
-        out,child,options,prefix,origVisits,depth+1,analysisData[i], perspective);
+      int nextDepth = depth+1;
+      if(depth < options.branch_.size() && moveLoc != options.branch_[depth])
+        nextDepth = (int)options.branch_.size() + 1;
+      printTreeHelper(out,child,options,prefix,origVisits,nextDepth,analysisData[i], perspective);
       prefix.erase(oldLen);
     }
   }

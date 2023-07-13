@@ -158,7 +158,15 @@ namespace PlayUtils {
     bool printElo
   );
 
-  void printGenmoveLog(std::ostream& out, const AsyncBot* bot, const NNEvaluator* nnEval, Loc moveLoc, double timeTaken, Player perspective);
+  void printGenmoveLog(
+    std::ostream& out,
+    const AsyncBot* bot,
+    const NNEvaluator* nnEval,
+    Loc moveLoc,
+    double timeTaken,
+    Player perspective,
+    bool logSearchInfoForChosenMove
+  );
 
   Rules genRandomRules(Rand& rand);
 

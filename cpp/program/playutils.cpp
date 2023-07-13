@@ -986,9 +986,18 @@ PlayUtils::BenchmarkResults PlayUtils::benchmarkSearchOnPositionsAndPrint(
 }
 
 
-void PlayUtils::printGenmoveLog(ostream& out, const AsyncBot* bot, const NNEvaluator* nnEval, Loc moveLoc, double timeTaken, Player perspective) {
+void PlayUtils::printGenmoveLog(
+  ostream& out,
+  const AsyncBot* bot,
+  const NNEvaluator* nnEval,
+  Loc moveLoc,
+  double timeTaken,
+  Player perspective,
+  bool logSearchInfoForChosenMove
+) {
   const Search* search = bot->getSearch();
-  Board::printBoard(out, bot->getRootBoard(), moveLoc, &(bot->getRootHist().moveHistory));
+  const Board& board = bot->getRootBoard();
+  Board::printBoard(out, board, moveLoc, &(bot->getRootHist().moveHistory));
   out << bot->getRootHist().rules << "\n";
   if(!std::isnan(timeTaken))
     out << "Time taken: " << timeTaken << "\n";
@@ -1005,7 +1014,10 @@ void PlayUtils::printGenmoveLog(ostream& out, const AsyncBot* bot, const NNEvalu
   search->printPV(out, search->rootNode, 25);
   out << "\n";
   out << "Tree:\n";
-  search->printTree(out, search->rootNode, PrintTreeOptions().maxDepth(1).maxChildrenToShow(10),perspective);
+  if(logSearchInfoForChosenMove && moveLoc != Board::NULL_LOC)
+    search->printTree(out, search->rootNode, PrintTreeOptions().maxDepth(1).maxChildrenToShow(10).alsoBranch(board,{Location::toString(moveLoc,board)}),perspective);
+  else
+    search->printTree(out, search->rootNode, PrintTreeOptions().maxDepth(1).maxChildrenToShow(10),perspective);
 }
 
 Rules PlayUtils::genRandomRules(Rand& rand) {
