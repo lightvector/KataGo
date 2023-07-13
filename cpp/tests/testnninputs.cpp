@@ -1074,6 +1074,7 @@ o.xoo.x
 
     auto testScoring = [](const Board& board, const BoardHistory& hist, bool expectedFriendlyPassSuppress) {
       hist.printDebugInfo(cout,board);
+      cout << "Finished or past normal end: " << (hist.isGameFinished || hist.isPastNormalPhaseEnd) << endl;
       cout << "Pass would end phase: " << hist.passWouldEndPhase(board,hist.presumedNextMovePla) << endl;
       cout << "Pass would end game: " << hist.passWouldEndGame(board,hist.presumedNextMovePla) << endl;
       cout << "Pass should suppress: " << hist.shouldSuppressEndGameFromFriendlyPass(board,hist.presumedNextMovePla) << endl;
@@ -1086,6 +1087,9 @@ o.xoo.x
 
       MiscNNInputParams nnInputParams;
       nnInputParams.drawEquivalentWinsForWhite = 0.5;
+
+      // Currently should be true given that we only test game-end stuff, not illegal moves.
+      testAssert((hist.numApproxValidTurnsThisPhase > 0) == (hist.numTurnsThisPhase > 0));
 
       {
         BoardHistory histCopy(hist);
@@ -1112,7 +1116,7 @@ o.xoo.x
           }
         }
         historyInput += rowGlobal[0];
-        testAssert((hist.moveHistory.size() > 0 && !hist.isGameFinished && hist.numTurnsThisPhase > 0) == (historyInput > 0.0f));
+        testAssert((hist.moveHistory.size() > 0 && hist.numApproxValidTurnsThisPhase > 0) == (historyInput > 0.0f));
       }
 
       {
@@ -1139,7 +1143,7 @@ o.xoo.x
           }
         }
         historyInput += rowGlobal[0];
-        testAssert((hist.moveHistory.size() > 0 && !hist.isGameFinished && hist.numTurnsThisPhase > 0 && !expectedFriendlyPassSuppress) == (historyInput > 0.0f));
+        testAssert((hist.moveHistory.size() > 0 && hist.numApproxValidTurnsThisPhase > 0 && !expectedFriendlyPassSuppress) == (historyInput > 0.0f));
       }
 
       Color area[Board::MAX_ARR_SIZE];
@@ -1171,9 +1175,9 @@ o.xoo.x
           cout << "Komi " << komi << " hasHistory " << (historyInput > 0.0f) << endl;
         }
         if(hist.rules.scoringRule == Rules::SCORING_TERRITORY && hist.encorePhase < 2)
-          testAssert((hist.moveHistory.size() > 0 && !hist.isGameFinished && hist.numTurnsThisPhase > 0) == (historyInput > 0.0f));
+          testAssert((hist.moveHistory.size() > 0 && hist.numApproxValidTurnsThisPhase > 0) == (historyInput > 0.0f));
         else
-          testAssert((hist.moveHistory.size() > 0 && !hist.isGameFinished && hist.numTurnsThisPhase > 0 &&
+          testAssert((hist.moveHistory.size() > 0 && hist.numApproxValidTurnsThisPhase > 0 &&
                       (!hist.passWouldEndGame(board,hist.presumedNextMovePla) || histCopy.winner == hist.presumedNextMovePla)) == (historyInput > 0.0f));
       }
 
@@ -1383,11 +1387,15 @@ ooxooxo
       "(;GM[1]FF[4]SZ[9]KM[-7];B[ff];W[ee];B[dd];W[];B[];W[];B[cc];W[bb];B[];W[])",
     };
 
-    for(int whichRules = 0; whichRules <= 1; whichRules++) {
+    for(int whichRules = 0; whichRules <= 2; whichRules++) {
       Rules rulesToUse = Rules::parseRules("tromp-taylor");
       if(whichRules == 1) {
         rulesToUse = Rules::parseRules("japanese");
         rulesToUse.friendlyPassOk = false;
+      }
+      if(whichRules == 2) {
+        rulesToUse = Rules::parseRules("tromp-taylor");
+        rulesToUse.hasButton = true;
       }
 
       for(const string& sgfStr : sgfStrs) {
@@ -1456,7 +1464,8 @@ ooxooxo
 
               out << "encorephase " << hist.encorePhase
                   << " finished " << hist.isGameFinished
-                  << " numTurnsThisPhase " << hist.numTurnsThisPhase << endl;
+                  << " numTurnsThisPhase " << hist.numTurnsThisPhase
+                  << " numApproxValidTurnsThisPhase " << hist.numApproxValidTurnsThisPhase << endl;
               out << hash << endl;
               out << "History that net sees "
                   << histLocStr(1) << " " << histLocStr(2) << " " << histLocStr(3) << " " << histLocStr(4) << " " << histLocStr(5) << endl;
