@@ -71,6 +71,8 @@ class EloInfo:
         A value of -3.0 means that g1 is smaller larger than we would expect given the players' estimated Elos, such that a result
         that extreme or more has less than 1 : 10^3.0 odds of happening under the posterior.
         """
+        if total <= 0:
+            return 0
         mean = self.get_elo_difference(p1,p2) / ELO_PER_STRENGTH
 
         max_likelihood_winprob = 1.0 / (1.0 + math.exp(-mean))
