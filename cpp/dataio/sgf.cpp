@@ -1527,11 +1527,15 @@ void CompactSgf::setupInitialBoardAndHist(const Rules& initialRules, Board& boar
       else
         allBlack = false;
     }
-    if(hasBlack && !allBlack)
+    if(hasBlack && allBlack)
       nextPla = P_WHITE;
     else
       nextPla = P_BLACK;
   }
+
+  // Override with the actual color of the move, if it exists
+  if(moves.size() > 0)
+    nextPla = moves[0].pla;
 
   board = Board(xSize,ySize);
   bool suc = board.setStonesFailIfNoLibs(placements);

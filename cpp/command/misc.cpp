@@ -579,6 +579,7 @@ int MainCmds::samplesgfs(const vector<string>& args) {
   ScoreValue::initTables();
   Rand seedRand;
 
+  vector<string> sgfFilesFromCmdline;
   vector<string> sgfDirs;
   vector<string> sgfsDirs;
   string outDir;
@@ -615,6 +616,7 @@ int MainCmds::samplesgfs(const vector<string>& args) {
   try {
     KataGoCommandLine cmd("Search for suprising good moves in sgfs");
 
+    TCLAP::MultiArg<string> sgfArg("","sgf","Sgf file",false,"SGF");
     TCLAP::MultiArg<string> sgfDirArg("","sgfdir","Directory of sgf files",false,"DIR");
     TCLAP::MultiArg<string> sgfsDirArg("","sgfsdir","Directory of sgfs files",false,"DIR");
     TCLAP::ValueArg<string> outDirArg("","outdir","Directory to write results",true,string(),"DIR");
@@ -646,7 +648,8 @@ int MainCmds::samplesgfs(const vector<string>& args) {
     TCLAP::ValueArg<double> maxKomiArg("","max-komi","Require absolute value of game komi to be at most this",false,1000,"KOMI");
 
     TCLAP::SwitchArg forTestingArg("","for-testing","For testing");
-    
+
+    cmd.add(sgfArg);
     cmd.add(sgfDirArg);
     cmd.add(sgfsDirArg);
     cmd.add(outDirArg);
@@ -677,6 +680,7 @@ int MainCmds::samplesgfs(const vector<string>& args) {
     cmd.add(maxKomiArg);
     cmd.add(forTestingArg);
     cmd.parseArgs(args);
+    sgfFilesFromCmdline = sgfArg.getValue();
     sgfDirs = sgfDirArg.getValue();
     sgfsDirs = sgfsDirArg.getValue();
     outDir = outDirArg.getValue();
@@ -724,6 +728,9 @@ int MainCmds::samplesgfs(const vector<string>& args) {
 
   vector<string> sgfFiles;
   FileHelpers::collectSgfsFromDirsOrFiles(sgfDirs,sgfFiles);
+  for(const string& s: sgfFilesFromCmdline)
+    sgfFiles.push_back(s);
+  
   logger.write("Found " + Global::int64ToString((int64_t)sgfFiles.size()) + " sgf files!");
 
   std::set<string> sgfsSet;
@@ -1216,6 +1223,7 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
   double maxAutoKomi;
   double maxPolicy;
   double minHintWeight;
+  double hintScale;
 
   bool forTesting;
   
@@ -1252,6 +1260,7 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
     TCLAP::ValueArg<double> maxAutoKomiArg("","max-auto-komi","If absolute value of auto komi would exceed this, skip position",false,1000,"KOMI");
     TCLAP::ValueArg<double> maxPolicyArg("","max-policy","Chop off moves with raw policy more than this",false,1000,"POLICY");
     TCLAP::ValueArg<double> minHintWeightArg("","min-hint-weight","Hinted moves get at least this weight",false,0.0,"WEIGHT");
+    TCLAP::ValueArg<double> hintScaleArg("","hint-scale","Manually hinted moves get weight scaled by this",false,1.0,"FACTOR");
 
     TCLAP::SwitchArg forTestingArg("","for-testing","For testing");
 
@@ -1282,6 +1291,7 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
     cmd.add(maxAutoKomiArg);
     cmd.add(maxPolicyArg);
     cmd.add(minHintWeightArg);
+    cmd.add(hintScaleArg);
     cmd.add(forTestingArg);
     cmd.parseArgs(args);
 
@@ -1313,6 +1323,7 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
     maxAutoKomi = maxAutoKomiArg.getValue();
     maxPolicy = maxPolicyArg.getValue();
     minHintWeight = minHintWeightArg.getValue();
+    hintScale = hintScaleArg.getValue();
     forTesting = forTestingArg.getValue();
 
     if((int)gameMode + (int)treeMode + (int)surpriseMode != 1)
@@ -1442,7 +1453,7 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
     return true;
   };
 
-  auto expensiveEvaluateMove = [&posWriter,&turnWeightLambda,&maxAutoKomi,&maxHandicap,&numFilteredIndivdualPoses,&surpriseMode,&minHintWeight,&logger,trainingWeight](
+  auto expensiveEvaluateMove = [&posWriter,&turnWeightLambda,&maxAutoKomi,&maxHandicap,&numFilteredIndivdualPoses,&surpriseMode,&minHintWeight,&hintScale,&logger,trainingWeight](
     Search* search, Loc missedLoc,
     Player nextPla, const Board& board, const BoardHistory& hist,
     const Sgf::PositionSample& sample, bool markedAsHintPos
@@ -1605,6 +1616,8 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
 
       sampleToWrite.weight *= exp(-sampleToWrite.initialTurnNumber * turnWeightLambda);
 
+      if(markedAsHintPos)
+        sampleToWrite.weight *= hintScale;
       if(sampleToWrite.weight < minHintWeight && markedAsHintPos)
         sampleToWrite.weight = minHintWeight;
       if(sampleToWrite.weight > 0.1) {
