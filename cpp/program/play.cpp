@@ -512,6 +512,7 @@ void GameInitializer::createGameSharedUnsynchronized(
     otherGameProps.isHintFork = initialPosition->isHintFork;
     otherGameProps.hintLoc = Board::NULL_LOC;
     otherGameProps.hintTurn = initialPosition->isHintFork ? (int)hist.moveHistory.size() : -1;
+    otherGameProps.trainingWeight = initialPosition->trainingWeight;
     extraBlackAndKomi.makeGameFair = rand.nextBool(forkCompensateKomiProb);
     extraBlackAndKomi.makeGameFairForEmptyBoard = false;
     extraBlackAndKomi.interpZero = false;
@@ -580,6 +581,7 @@ void GameInitializer::createGameSharedUnsynchronized(
     otherGameProps.hintLoc = hintLoc;
     otherGameProps.hintTurn = (int)hist.moveHistory.size();
     otherGameProps.hintPosHash = board.pos_hash;
+    otherGameProps.trainingWeight = startPos.trainingWeight;
     makeGameFairProb = sgfCompensateKomiProb;
     extraBlackAndKomi.interpZero = sgfKomiInterpZeroProb > 0 ? rand.nextBool(sgfKomiInterpZeroProb) : false;
   }
@@ -606,6 +608,7 @@ void GameInitializer::createGameSharedUnsynchronized(
     otherGameProps.isHintFork = false;
     otherGameProps.hintLoc = Board::NULL_LOC;
     otherGameProps.hintTurn = -1;
+    otherGameProps.trainingWeight = 1.0;
     makeGameFairProb = extraBlackAndKomi.extraBlack > 0 ? handicapCompensateKomiProb : 0.0;
     extraBlackAndKomi.interpZero = (handicapKomiInterpZeroProb > 0 && extraBlackAndKomi.extraBlack > 0) ? rand.nextBool(handicapKomiInterpZeroProb) : false;
   }
@@ -1977,6 +1980,7 @@ FinishedGameData* Play::runGame(
     }
   }
 
+  gameData->trainingWeight = otherGameProps.trainingWeight;
   return gameData;
 }
 
@@ -2353,10 +2357,10 @@ FinishedGameData* GameRunner::runGame(
 
   if(initialPosition != NULL) {
     finishedGameData->usedInitialPosition = 1;
-    finishedGameData->trainingWeight = initialPosition->trainingWeight;
+    testAssert(finishedGameData->trainingWeight == initialPosition->trainingWeight);
   }
   else if(startPosSample != NULL) {
-    finishedGameData->trainingWeight = startPosSample->trainingWeight;
+    testAssert(finishedGameData->trainingWeight == startPosSample->trainingWeight);
   }
 
   assert(finishedGameData->trainingWeight > 0.0);
