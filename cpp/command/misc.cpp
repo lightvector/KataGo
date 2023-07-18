@@ -730,7 +730,7 @@ int MainCmds::samplesgfs(const vector<string>& args) {
   FileHelpers::collectSgfsFromDirsOrFiles(sgfDirs,sgfFiles);
   for(const string& s: sgfFilesFromCmdline)
     sgfFiles.push_back(s);
-  
+
   logger.write("Found " + Global::int64ToString((int64_t)sgfFiles.size()) + " sgf files!");
 
   std::set<string> sgfsSet;
@@ -759,7 +759,7 @@ int MainCmds::samplesgfs(const vector<string>& args) {
     ConfigParser cfg;
     if(forTesting)
       cfg.overrideKey("nnRandSeed","forTesting");
-    
+
     Setup::initializeSession(cfg);
     int numThreads = 1;
     const int maxConcurrentEvals = numThreads * 2 + 16; // * 2 + 16 just to give plenty of headroom
@@ -835,6 +835,8 @@ int MainCmds::samplesgfs(const vector<string>& args) {
           posSampleToWrite.weight *= afterPassFactor;
         if(comments.size() > 0 && comments.find("%SAMPLE%") != string::npos)
           posSampleToWrite.weight = std::max(posSampleToWrite.weight,forceSampleWeight);
+        if(comments.size() > 0 && comments.find("%SAMPLELIGHT%") != string::npos)
+          posSampleToWrite.weight = std::max(posSampleToWrite.weight,0.5*forceSampleWeight);
         if(posSampleToWrite.weight < minWeight)
           return;
         posSampleToWrite.trainingWeight = trainingWeight;
@@ -960,7 +962,7 @@ int MainCmds::samplesgfs(const vector<string>& args) {
 
       if(winLossValues.size() <= 1)
         return;
-      
+
       double minTurnNumber = minTurnNumberBoardAreaProp * (hist.initialBoard.x_size * hist.initialBoard.y_size);
       double maxTurnNumber = maxTurnNumberBoardAreaProp * (hist.initialBoard.x_size * hist.initialBoard.y_size);
       //At this point we transition from indexing by move index alone to indexing by turn number in case the board
@@ -1226,7 +1228,7 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
   double hintScale;
 
   bool forTesting;
-  
+
   try {
     KataGoCommandLine cmd("Search for suprising good moves in sgfs");
     cmd.addConfigFileArg("","");
@@ -1407,7 +1409,7 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
       std::swap(permutation[i],permutation[r]);
     }
   }
-  
+
   set<Hash128> excludeHashes = Sgf::readExcludes(excludeHashesFiles);
   logger.write("Loaded " + Global::uint64ToString(excludeHashes.size()) + " excludes");
 
