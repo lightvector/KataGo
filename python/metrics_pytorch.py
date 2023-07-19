@@ -178,7 +178,7 @@ class Metrics:
         # For now, let's use squared error, even though maybe it's not as appropriate for the exponential tails
         # due to vanishing gradients.
         loss = torch.sum(torch.sum(torch.square(corr_dots - target_dots), dim=2) / mask_sum_hw.unsqueeze(1), dim=1) / mask_sum_hw
-        return 10.0 * global_weight * target_weight_futurepos * loss
+        return 20.0 * global_weight * target_weight_futurepos * loss
 
 
     def loss_scoring_samplewise(self, pred_scoring, target, weight, mask, mask_sum_hw, global_weight):
