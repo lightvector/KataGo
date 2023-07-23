@@ -114,10 +114,10 @@ class Metrics:
         assert mask_sum_hw.shape == (self.n,)
         magsq = torch.sum(torch.square(ownership_corr), dim=1, keepdim=True)
         # Smoothly map the magnitude from [0,infinity) -> [0,1) via tanh
-        # So we need to multiply vectors x by a factor of tanh(|x|) / |x| = tanh(sqrt(|x|)) / sqrt(|x|)
+        # So we need to multiply vectors x by a factor of tanh(|x|) / |x| = tanh(sqrt(|x|^2)) / sqrt(|x|^2)
         # But there's a division by 0 when |x| = 0, and also sqrt(0) has infinite gradient..
         # So to do this in a numerically stable way, we do this piecewise, using 3rd order taylor expansion
-        # around 0.
+        # around 0. Taylor expansion of tanh(sqrt(x)) / sqrt(x) is 1 - 1/3 x + 2/15 x^2 - 17/105 x^3.
         delta = 0.010
         sqrtmagsqboundedbelow = torch.sqrt(torch.clamp(magsq,min=0.008))
         magsqboundedabove = torch.clamp(magsq,max=0.012)
@@ -156,10 +156,10 @@ class Metrics:
         assert mask_sum_hw.shape == (self.n,)
         magsq = torch.sum(torch.square(futurepos_corr), dim=1, keepdim=True)
         # Smoothly map the magnitude from [0,infinity) -> [0,1) via tanh
-        # So we need to multiply vectors x by a factor of tanh(|x|) / |x| = tanh(sqrt(|x|)) / sqrt(|x|)
+        # So we need to multiply vectors x by a factor of tanh(|x|) / |x| = tanh(sqrt(|x|^2)) / sqrt(|x|^2)
         # But there's a division by 0 when |x| = 0, and also sqrt(0) has infinite gradient..
         # So to do this in a numerically stable way, we do this piecewise, using 3rd order taylor expansion
-        # around 0.
+        # around 0. Taylor expansion of tanh(sqrt(x)) / sqrt(x) is 1 - 1/3 x + 2/15 x^2 - 17/105 x^3.
         delta = 0.010
         sqrtmagsqboundedbelow = torch.sqrt(torch.clamp(magsq,min=0.008))
         magsqboundedabove = torch.clamp(magsq,max=0.012)
