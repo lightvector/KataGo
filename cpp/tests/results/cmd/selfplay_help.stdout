@@ -5,14 +5,18 @@ DESCRIPTION:
 
 USAGE: 
 
-   selfplay  -config <FILE> ...  -models-dir <DIR> -output-dir <DIR>
-             [-max-games-total <NGAMES>]
+   selfplay  -config <FILE> ...  [-override-config <KEYVALUEPAIRS>] ... 
+             -models-dir <DIR> -output-dir <DIR> [-max-games-total
+             <NGAMES>]
 
 
 Where: 
 
    -config <FILE>  (accepted multiple times)
      (required)  Config file(s) to use, can be one or multiple files.
+
+   -override-config <KEYVALUEPAIRS>  (accepted multiple times)
+     Override config parameters. Format: "key=value, key=value,..."
 
    -models-dir <DIR>
      (required)  Dir to poll and load models from
