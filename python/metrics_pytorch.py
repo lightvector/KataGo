@@ -117,7 +117,7 @@ class Metrics:
         # So we need to multiply vectors x by a factor of tanh(|x|) / |x| = tanh(sqrt(|x|^2)) / sqrt(|x|^2)
         # But there's a division by 0 when |x| = 0, and also sqrt(0) has infinite gradient..
         # So to do this in a numerically stable way, we do this piecewise, using 3rd order taylor expansion
-        # around 0. Taylor expansion of tanh(sqrt(x)) / sqrt(x) is 1 - 1/3 x + 2/15 x^2 - 17/105 x^3.
+        # around 0. Taylor expansion of tanh(sqrt(x)) / sqrt(x) is 1 - 1/3 x + 2/15 x^2 - 17/315 x^3.
         delta = 0.010
         sqrtmagsqboundedbelow = torch.sqrt(torch.clamp(magsq,min=0.008))
         magsqboundedabove = torch.clamp(magsq,max=0.012)
@@ -159,7 +159,7 @@ class Metrics:
         # So we need to multiply vectors x by a factor of tanh(|x|) / |x| = tanh(sqrt(|x|^2)) / sqrt(|x|^2)
         # But there's a division by 0 when |x| = 0, and also sqrt(0) has infinite gradient..
         # So to do this in a numerically stable way, we do this piecewise, using 3rd order taylor expansion
-        # around 0. Taylor expansion of tanh(sqrt(x)) / sqrt(x) is 1 - 1/3 x + 2/15 x^2 - 17/105 x^3.
+        # around 0. Taylor expansion of tanh(sqrt(x)) / sqrt(x) is 1 - 1/3 x + 2/15 x^2 - 17/315 x^3.
         delta = 0.010
         sqrtmagsqboundedbelow = torch.sqrt(torch.clamp(magsq,min=0.008))
         magsqboundedabove = torch.clamp(magsq,max=0.012)
