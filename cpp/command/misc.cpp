@@ -1665,6 +1665,8 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
         //Moves that the bot didn't see get written out more
         sampleToWrite.weight = sampleToWrite.weight * 1.5 + 1.0;
         sampleToWrite.weight *= exp(-sampleToWrite.initialTurnNumber * turnWeightLambda);
+        if(markedAsHintPos)
+          sampleToWrite.weight *= hintScale;
         if(sampleToWrite.weight < minHintWeight && markedAsHintPos)
           sampleToWrite.weight = minHintWeight;
         if(sampleToWrite.weight > 0.1) {
