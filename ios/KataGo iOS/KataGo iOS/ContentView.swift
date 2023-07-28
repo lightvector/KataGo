@@ -17,7 +17,7 @@ struct Message: Identifiable, Equatable, Hashable {
 
     /// Initialize a message with a text
     /// - Parameter text: a text
-    init(text: String) async {
+    init(text: String) {
         self.text = text
     }
 }
@@ -59,12 +59,16 @@ struct ContentView: View {
             }
 
             HStack {
-                TextField("Enter your message", text: $command, axis: .vertical)
-                .onSubmit {
-                    KataGoHelper.sendCommand(command)
-                    command = ""
-                }
+                TextField("Enter your GTP command", text: $command)
+                    .disableAutocorrection(true)
+                    .textInputAutocapitalization(.never)
+                    .onSubmit {
+                        messages.append(Message(text: command))
+                        KataGoHelper.sendCommand(command)
+                        command = ""
+                    }
                 Button(action: {
+                    messages.append(Message(text: command))
                     KataGoHelper.sendCommand(command)
                     command = ""
                 }) {
@@ -84,7 +88,7 @@ struct ContentView: View {
                 let line = await KataGoHelper.messageLine()
 
                 // Create a message with the line
-                let message = await Message(text: line)
+                let message = Message(text: line)
 
                 // Append the message to the list of messages
                 messages.append(message)
