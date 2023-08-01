@@ -108,6 +108,130 @@ static void optimizeSymmetriesInplace(std::vector<SymBookNode>& nodes, Rand* ran
   }
 }
 
+static void maybeParseBonusFile(
+  const std::string& bonusFile,
+  int boardSizeX,
+  int boardSizeY,
+  Rules rules,
+  int repBound,
+  double bonusFileScale,
+  Logger& logger,
+  std::map<BookHash,double>& bonusByHash,
+  std::map<BookHash,double>& expandBonusByHash,
+  std::map<BookHash,double>& visitsRequiredByHash,
+  std::map<BookHash,int>& branchRequiredByHash,
+  Board& bonusInitialBoard,
+  Player& bonusInitialPla
+) {
+  bonusInitialBoard = Board(boardSizeX,boardSizeY);
+  bonusInitialPla = P_BLACK;
+  if(bonusFile != "") {
+    Sgf* sgf = Sgf::loadFile(bonusFile);
+    bool flipIfPassOrWFirst = false;
+    bool allowGameOver = false;
+    Rand seedRand("bonusByHash");
+    sgf->iterAllPositions(
+      flipIfPassOrWFirst, allowGameOver, &seedRand, [&](Sgf::PositionSample& unusedSample, const BoardHistory& sgfHist, const string& comments) {
+        (void)unusedSample;
+        if(comments.size() > 0 && (
+             comments.find("BONUS") != string::npos ||
+             comments.find("EXPAND") != string::npos ||
+             comments.find("VISITS") != string::npos ||
+             comments.find("BRANCH") != string::npos
+           )
+        ) {
+          BoardHistory hist(sgfHist.initialBoard, sgfHist.initialPla, rules, sgfHist.initialEncorePhase);
+          Board board = hist.initialBoard;
+          for(size_t i = 0; i<sgfHist.moveHistory.size(); i++) {
+            bool suc = hist.makeBoardMoveTolerant(board, sgfHist.moveHistory[i].loc, sgfHist.moveHistory[i].pla);
+            if(!suc)
+              return;
+          }
+
+          auto parseCommand = [&comments,&board](const char* commandName, double& ret) {
+            if(comments.find(commandName) != string::npos) {
+              double bonus;
+              try {
+                vector<string> nextWords = Global::split(Global::trim(comments.substr(comments.find(commandName)+std::strlen(commandName))));
+                if(nextWords.size() <= 0)
+                  throw StringError("Could not parse " + string(commandName) + " value");
+                bonus = Global::stringToDouble(nextWords[0]);
+              }
+              catch(const StringError& e) {
+                cerr << board << endl;
+                throw e;
+              }
+              ret = bonus;
+              return true;
+            }
+            return false;
+          };
+
+          double ret = 0.0;
+          BookHash hashRet;
+          int symmetryToAlignRet;
+          vector<int> symmetriesRet;
+          if(parseCommand("BONUS",ret)) {
+            for(int bookVersion = 1; bookVersion <= Book::LATEST_BOOK_VERSION; bookVersion++) {
+              BookHash::getHashAndSymmetry(hist, repBound, hashRet, symmetryToAlignRet, symmetriesRet, bookVersion);
+              if(bonusByHash.find(hashRet) != bonusByHash.end())
+                bonusByHash[hashRet] = std::max(bonusByHash[hashRet], ret * bonusFileScale);
+              else
+                bonusByHash[hashRet] = ret * bonusFileScale;
+              logger.write("Adding bonus " + Global::doubleToString(ret * bonusFileScale) + " to hash " + hashRet.toString());
+            }
+          }
+
+          if(parseCommand("EXPAND",ret)) {
+            for(int bookVersion = 1; bookVersion <= Book::LATEST_BOOK_VERSION; bookVersion++) {
+              BookHash::getHashAndSymmetry(hist, repBound, hashRet, symmetryToAlignRet, symmetriesRet, bookVersion);
+              if(expandBonusByHash.find(hashRet) != expandBonusByHash.end())
+                expandBonusByHash[hashRet] = std::max(expandBonusByHash[hashRet], ret * bonusFileScale);
+              else
+                expandBonusByHash[hashRet] = ret * bonusFileScale;
+              logger.write("Adding expand bonus " + Global::doubleToString(ret * bonusFileScale) + " to hash " + hashRet.toString());
+            }
+          }
+
+          if(parseCommand("VISITS",ret)) {
+            for(int bookVersion = 1; bookVersion <= Book::LATEST_BOOK_VERSION; bookVersion++) {
+              BookHash::getHashAndSymmetry(hist, repBound, hashRet, symmetryToAlignRet, symmetriesRet, bookVersion);
+              if(visitsRequiredByHash.find(hashRet) != visitsRequiredByHash.end())
+                visitsRequiredByHash[hashRet] = std::max(visitsRequiredByHash[hashRet], ret * bonusFileScale);
+              else
+                visitsRequiredByHash[hashRet] = ret * bonusFileScale;
+              logger.write("Adding required visits " + Global::doubleToString(ret * bonusFileScale) + " to hash " + hashRet.toString());
+            }
+          }
+
+          if(parseCommand("BRANCH",ret)) {
+            for(int bookVersion = 1; bookVersion <= Book::LATEST_BOOK_VERSION; bookVersion++) {
+              BookHash::getHashAndSymmetry(hist, repBound, hashRet, symmetryToAlignRet, symmetriesRet, bookVersion);
+              if(branchRequiredByHash.find(hashRet) != branchRequiredByHash.end())
+                branchRequiredByHash[hashRet] = std::max(branchRequiredByHash[hashRet], (int)ret);
+              else
+                branchRequiredByHash[hashRet] = (int)ret;
+              logger.write("Adding required branching factor " + Global::intToString((int)ret) + " to hash " + hashRet.toString());
+            }
+          }
+
+        }
+      }
+    );
+
+    XYSize xySize = sgf->getXYSize();
+    if(boardSizeX != xySize.x || boardSizeY != xySize.y)
+      throw StringError("Board size in config does not match the board size of the bonus file");
+    vector<Move> placements;
+    sgf->getPlacements(placements,boardSizeX,boardSizeY);
+    bool suc = bonusInitialBoard.setStonesFailIfNoLibs(placements);
+    if(!suc)
+      throw StringError("Invalid placements in sgf");
+    bonusInitialPla = sgf->getFirstPlayerColor();
+    delete sgf;
+  }
+}
+
 
 int MainCmds::genbook(const vector<string>& args) {
   Board::initHash();
@@ -239,113 +363,24 @@ int MainCmds::genbook(const vector<string>& args) {
   std::map<BookHash,double> expandBonusByHash;
   std::map<BookHash,double> visitsRequiredByHash;
   std::map<BookHash,int> branchRequiredByHash;
-  Board bonusInitialBoard(boardSizeX,boardSizeY);
-  Player bonusInitialPla = P_BLACK;
-  if(bonusFile != "") {
-    Sgf* sgf = Sgf::loadFile(bonusFile);
-    bool flipIfPassOrWFirst = false;
-    bool allowGameOver = false;
-    Rand seedRand("bonusByHash");
-    sgf->iterAllPositions(
-      flipIfPassOrWFirst, allowGameOver, &seedRand, [&](Sgf::PositionSample& unusedSample, const BoardHistory& sgfHist, const string& comments) {
-        (void)unusedSample;
-        if(comments.size() > 0 && (
-             comments.find("BONUS") != string::npos ||
-             comments.find("EXPAND") != string::npos ||
-             comments.find("VISITS") != string::npos ||
-             comments.find("BRANCH") != string::npos
-           )
-        ) {
-          BoardHistory hist(sgfHist.initialBoard, sgfHist.initialPla, rules, sgfHist.initialEncorePhase);
-          Board board = hist.initialBoard;
-          for(size_t i = 0; i<sgfHist.moveHistory.size(); i++) {
-            bool suc = hist.makeBoardMoveTolerant(board, sgfHist.moveHistory[i].loc, sgfHist.moveHistory[i].pla);
-            if(!suc)
-              return;
-          }
+  Board bonusInitialBoard;
+  Player bonusInitialPla;
 
-          auto parseCommand = [&comments,&board](const char* commandName, double& ret) {
-            if(comments.find(commandName) != string::npos) {
-              double bonus;
-              try {
-                vector<string> nextWords = Global::split(Global::trim(comments.substr(comments.find(commandName)+std::strlen(commandName))));
-                if(nextWords.size() <= 0)
-                  throw StringError("Could not parse " + string(commandName) + " value");
-                bonus = Global::stringToDouble(nextWords[0]);
-              }
-              catch(const StringError& e) {
-                cerr << board << endl;
-                throw e;
-              }
-              ret = bonus;
-              return true;
-            }
-            return false;
-          };
-
-          double ret = 0.0;
-          BookHash hashRet;
-          int symmetryToAlignRet;
-          vector<int> symmetriesRet;
-          if(parseCommand("BONUS",ret)) {
-            for(int bookVersion = 1; bookVersion <= Book::LATEST_BOOK_VERSION; bookVersion++) {
-              BookHash::getHashAndSymmetry(hist, repBound, hashRet, symmetryToAlignRet, symmetriesRet, bookVersion);
-              if(bonusByHash.find(hashRet) != bonusByHash.end())
-                bonusByHash[hashRet] = std::max(bonusByHash[hashRet], ret * bonusFileScale);
-              else
-                bonusByHash[hashRet] = ret * bonusFileScale;
-              logger.write("Adding bonus " + Global::doubleToString(ret * bonusFileScale) + " to hash " + hashRet.toString());
-            }
-          }
-
-          if(parseCommand("EXPAND",ret)) {
-            for(int bookVersion = 1; bookVersion <= Book::LATEST_BOOK_VERSION; bookVersion++) {
-              BookHash::getHashAndSymmetry(hist, repBound, hashRet, symmetryToAlignRet, symmetriesRet, bookVersion);
-              if(expandBonusByHash.find(hashRet) != expandBonusByHash.end())
-                expandBonusByHash[hashRet] = std::max(expandBonusByHash[hashRet], ret * bonusFileScale);
-              else
-                expandBonusByHash[hashRet] = ret * bonusFileScale;
-              logger.write("Adding expand bonus " + Global::doubleToString(ret * bonusFileScale) + " to hash " + hashRet.toString());
-            }
-          }
-
-          if(parseCommand("VISITS",ret)) {
-            for(int bookVersion = 1; bookVersion <= Book::LATEST_BOOK_VERSION; bookVersion++) {
-              BookHash::getHashAndSymmetry(hist, repBound, hashRet, symmetryToAlignRet, symmetriesRet, bookVersion);
-              if(visitsRequiredByHash.find(hashRet) != visitsRequiredByHash.end())
-                visitsRequiredByHash[hashRet] = std::max(visitsRequiredByHash[hashRet], ret * bonusFileScale);
-              else
-                visitsRequiredByHash[hashRet] = ret * bonusFileScale;
-              logger.write("Adding required visits " + Global::doubleToString(ret * bonusFileScale) + " to hash " + hashRet.toString());
-            }
-          }
-
-          if(parseCommand("BRANCH",ret)) {
-            for(int bookVersion = 1; bookVersion <= Book::LATEST_BOOK_VERSION; bookVersion++) {
-              BookHash::getHashAndSymmetry(hist, repBound, hashRet, symmetryToAlignRet, symmetriesRet, bookVersion);
-              if(branchRequiredByHash.find(hashRet) != branchRequiredByHash.end())
-                branchRequiredByHash[hashRet] = std::max(branchRequiredByHash[hashRet], (int)ret);
-              else
-                branchRequiredByHash[hashRet] = (int)ret;
-              logger.write("Adding required branching factor " + Global::intToString((int)ret) + " to hash " + hashRet.toString());
-            }
-          }
-
-        }
-      }
-    );
-
-    XYSize xySize = sgf->getXYSize();
-    if(boardSizeX != xySize.x || boardSizeY != xySize.y)
-      throw StringError("Board size in config does not match the board size of the bonus file");
-    vector<Move> placements;
-    sgf->getPlacements(placements,boardSizeX,boardSizeY);
-    bool suc = bonusInitialBoard.setStonesFailIfNoLibs(placements);
-    if(!suc)
-      throw StringError("Invalid placements in sgf");
-    bonusInitialPla = sgf->getFirstPlayerColor();
-    delete sgf;
-  }
+  maybeParseBonusFile(
+    bonusFile,
+    boardSizeX,
+    boardSizeY,
+    rules,
+    repBound,
+    bonusFileScale,
+    logger,
+    bonusByHash,
+    expandBonusByHash,
+    visitsRequiredByHash,
+    branchRequiredByHash,
+    bonusInitialBoard,
+    bonusInitialPla
+  );
 
   const double wideRootNoiseBookExplore = cfg.contains("wideRootNoiseBookExplore") ? cfg.getDouble("wideRootNoiseBookExplore",0.0,5.0) : params.wideRootNoise;
   const double cpuctExplorationLogBookExplore = cfg.contains("cpuctExplorationLogBookExplore") ? cfg.getDouble("cpuctExplorationLogBookExplore",0.0,10.0) : params.cpuctExplorationLog;
@@ -1440,6 +1475,7 @@ int MainCmds::writebook(const vector<string>& args) {
   ConfigParser cfg;
   string htmlDir;
   string bookFile;
+  string bonusFile;
   bool htmlDevMode;
   double htmlMinVisits;
   try {
@@ -1449,10 +1485,12 @@ int MainCmds::writebook(const vector<string>& args) {
 
     TCLAP::ValueArg<string> htmlDirArg("","html-dir","HTML directory to export to, at the end of -num-iters",true,string(),"DIR");
     TCLAP::ValueArg<string> bookFileArg("","book-file","Book file to write to or continue expanding",true,string(),"FILE");
+    TCLAP::ValueArg<string> bonusFileArg("","bonus-file","SGF of bonuses marked",false,string(),"DIR");
     TCLAP::SwitchArg htmlDevModeArg("","html-dev-mode","Denser debug output for html");
     TCLAP::ValueArg<double> htmlMinVisitsArg("","html-min-visits","Require >= this many visits to export a position to html",false,0.0,"N");
     cmd.add(htmlDirArg);
     cmd.add(bookFileArg);
+    cmd.add(bonusFileArg);
     cmd.add(htmlDevModeArg);
     cmd.add(htmlMinVisitsArg);
 
@@ -1461,6 +1499,7 @@ int MainCmds::writebook(const vector<string>& args) {
     cmd.getConfigAllowEmpty(cfg);
     htmlDir = htmlDirArg.getValue();
     bookFile = bookFileArg.getValue();
+    bonusFile = bonusFileArg.getValue();
     htmlDevMode = htmlDevModeArg.getValue();
     htmlMinVisits = htmlMinVisitsArg.getValue();
   }
@@ -1477,6 +1516,36 @@ int MainCmds::writebook(const vector<string>& args) {
   const double sharpScoreOutlierCap = cfg.getDouble("sharpScoreOutlierCap",0.0,1000000.0);
   const string rulesLabel = cfg.getString("rulesLabel");
   const string rulesLink = cfg.getString("rulesLink");
+  const double bonusFileScale = cfg.contains("bonusFileScale") ? cfg.getDouble("bonusFileScale",0.0,1000000.0) : 1.0;
+
+  const bool loadKomiFromCfg = true;
+  Rules rules = Setup::loadSingleRules(cfg,loadKomiFromCfg);
+  const int boardSizeX = cfg.getInt("boardSizeX",2,Board::MAX_LEN);
+  const int boardSizeY = cfg.getInt("boardSizeY",2,Board::MAX_LEN);
+  const int repBound = cfg.getInt("repBound",3,1000);
+
+  std::map<BookHash,double> bonusByHash;
+  std::map<BookHash,double> expandBonusByHash;
+  std::map<BookHash,double> visitsRequiredByHash;
+  std::map<BookHash,int> branchRequiredByHash;
+  Board bonusInitialBoard;
+  Player bonusInitialPla;
+
+  maybeParseBonusFile(
+    bonusFile,
+    boardSizeX,
+    boardSizeY,
+    rules,
+    repBound,
+    bonusFileScale,
+    logger,
+    bonusByHash,
+    expandBonusByHash,
+    visitsRequiredByHash,
+    branchRequiredByHash,
+    bonusInitialBoard,
+    bonusInitialPla
+  );
 
   // Check for unused config keys
   cfg.warnUnusedKeys(cerr,&logger);
@@ -1484,6 +1553,10 @@ int MainCmds::writebook(const vector<string>& args) {
   MakeDir::make(htmlDir);
 
   Book* book = Book::loadFromFile(bookFile,sharpScoreOutlierCap);
+  book->setBonusByHash(bonusByHash);
+  book->setExpandBonusByHash(expandBonusByHash);
+  book->setVisitsRequiredByHash(visitsRequiredByHash);
+  book->setBranchRequiredByHash(branchRequiredByHash);
   book->recomputeEverything();
 
   logger.write("EXPORTING HTML TO " + htmlDir);
