@@ -244,8 +244,9 @@ double Search::getScoreUtility(double scoreMeanAvg, double scoreMeanSqAvg) const
   double scoreMean = scoreMeanAvg;
   double scoreMeanSq = scoreMeanSqAvg;
   double scoreStdev = ScoreValue::getScoreStdev(scoreMean, scoreMeanSq);
-  double staticScoreValue = ScoreValue::expectedWhiteScoreValue(scoreMean,scoreStdev,0.0,2.0,rootBoard);
-  double dynamicScoreValue = ScoreValue::expectedWhiteScoreValue(scoreMean,scoreStdev,recentScoreCenter,searchParams.dynamicScoreCenterScale,rootBoard);
+  double avgSideLen = rootBoard.averageSideLength();
+  double staticScoreValue = ScoreValue::expectedWhiteScoreValue(scoreMean,scoreStdev,0.0,2.0,avgSideLen);
+  double dynamicScoreValue = ScoreValue::expectedWhiteScoreValue(scoreMean,scoreStdev,recentScoreCenter,searchParams.dynamicScoreCenterScale,avgSideLen);
   return staticScoreValue * searchParams.staticScoreUtilityFactor + dynamicScoreValue * searchParams.dynamicScoreUtilityFactor;
 }
 
@@ -253,19 +254,21 @@ double Search::getScoreUtilityDiff(double scoreMeanAvg, double scoreMeanSqAvg, d
   double scoreMean = scoreMeanAvg;
   double scoreMeanSq = scoreMeanSqAvg;
   double scoreStdev = ScoreValue::getScoreStdev(scoreMean, scoreMeanSq);
+  double avgSideLen = rootBoard.averageSideLength();
   double staticScoreValueDiff =
-    ScoreValue::expectedWhiteScoreValue(scoreMean + delta,scoreStdev,0.0,2.0,rootBoard)
-    -ScoreValue::expectedWhiteScoreValue(scoreMean,scoreStdev,0.0,2.0,rootBoard);
+    ScoreValue::expectedWhiteScoreValue(scoreMean + delta,scoreStdev,0.0,2.0, avgSideLen)
+    -ScoreValue::expectedWhiteScoreValue(scoreMean,scoreStdev,0.0,2.0, avgSideLen);
   double dynamicScoreValueDiff =
-    ScoreValue::expectedWhiteScoreValue(scoreMean + delta,scoreStdev,recentScoreCenter,searchParams.dynamicScoreCenterScale,rootBoard)
-    -ScoreValue::expectedWhiteScoreValue(scoreMean,scoreStdev,recentScoreCenter,searchParams.dynamicScoreCenterScale,rootBoard);
+    ScoreValue::expectedWhiteScoreValue(scoreMean + delta,scoreStdev,recentScoreCenter,searchParams.dynamicScoreCenterScale, avgSideLen)
+    -ScoreValue::expectedWhiteScoreValue(scoreMean,scoreStdev,recentScoreCenter,searchParams.dynamicScoreCenterScale, avgSideLen);
   return staticScoreValueDiff * searchParams.staticScoreUtilityFactor + dynamicScoreValueDiff * searchParams.dynamicScoreUtilityFactor;
 }
 
 //Ignores scoreMeanSq's effect on the utility, since that's complicated
 double Search::getApproxScoreUtilityDerivative(double scoreMean) const {
-  double staticScoreValueDerivative = ScoreValue::whiteDScoreValueDScoreSmoothNoDrawAdjust(scoreMean,0.0,2.0,rootBoard);
-  double dynamicScoreValueDerivative = ScoreValue::whiteDScoreValueDScoreSmoothNoDrawAdjust(scoreMean,recentScoreCenter,searchParams.dynamicScoreCenterScale,rootBoard);
+  double avgSideLen = rootBoard.averageSideLength();
+  double staticScoreValueDerivative = ScoreValue::whiteDScoreValueDScoreSmoothNoDrawAdjust(scoreMean,0.0,2.0, avgSideLen);
+  double dynamicScoreValueDerivative = ScoreValue::whiteDScoreValueDScoreSmoothNoDrawAdjust(scoreMean,recentScoreCenter,searchParams.dynamicScoreCenterScale, avgSideLen);
   return staticScoreValueDerivative * searchParams.staticScoreUtilityFactor + dynamicScoreValueDerivative * searchParams.dynamicScoreUtilityFactor;
 }
 

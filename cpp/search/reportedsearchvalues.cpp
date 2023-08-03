@@ -23,8 +23,9 @@ ReportedSearchValues::ReportedSearchValues(
   double scoreMean = scoreMeanAvg;
   double scoreMeanSq = scoreMeanSqAvg;
   double scoreStdev = ScoreValue::getScoreStdev(scoreMean,scoreMeanSq);
-  staticScoreValue = ScoreValue::expectedWhiteScoreValue(scoreMean,scoreStdev,0.0,2.0,search.rootBoard);
-  dynamicScoreValue = ScoreValue::expectedWhiteScoreValue(scoreMean,scoreStdev,search.recentScoreCenter,search.searchParams.dynamicScoreCenterScale,search.rootBoard);
+  double avgSideLen = search.rootBoard.averageSideLength();
+  staticScoreValue = ScoreValue::expectedWhiteScoreValue(scoreMean,scoreStdev,0.0,2.0,avgSideLen);
+  dynamicScoreValue = ScoreValue::expectedWhiteScoreValue(scoreMean,scoreStdev,search.recentScoreCenter,search.searchParams.dynamicScoreCenterScale,avgSideLen);
   expectedScore = scoreMean;
   expectedScoreStdev = scoreStdev;
   lead = leadAvg;

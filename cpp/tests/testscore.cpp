@@ -27,14 +27,15 @@ void Tests::runScoreTests() {
       string s = Global::strprintf("%.1f", drawEquiv);
       double scoreAdjusted = ScoreValue::whiteScoreDrawAdjust(score, drawEquiv, hist);
       double stdev = sqrt(std::max(0.0,ScoreValue::whiteScoreMeanSqOfScoreGridded(score,drawEquiv) - scoreAdjusted * scoreAdjusted));
-      double expectedScoreValue = ScoreValue::expectedWhiteScoreValue(scoreAdjusted, stdev, 0.0, 2.0, board);
+      double averageBoardSideLength = board.averageSideLength();
+      double expectedScoreValue = ScoreValue::expectedWhiteScoreValue(scoreAdjusted, stdev, 0.0, 2.0, averageBoardSideLength);
       out << "WL Wins wins/draw=" << s << ": " << ScoreValue::whiteWinsOfWinner(hist.winner, drawEquiv) << endl;
       out << "Score wins/draw=" << s << ": " << scoreAdjusted << endl;
       out << "Score Stdev wins/draw=" << s << ": " << stdev << endl;
-      out << "Score Util Smooth  wins/draw=" << s << ": " << ScoreValue::whiteScoreValueOfScoreSmooth(score, 0.0, 2.0, drawEquiv, board, hist) << endl;
-      out << "Score Util SmootND wins/draw=" << s << ": " << ScoreValue::whiteScoreValueOfScoreSmoothNoDrawAdjust(score, 0.0, 2.0, board) << endl;
+      out << "Score Util Smooth  wins/draw=" << s << ": " << ScoreValue::whiteScoreValueOfScoreSmooth(score, 0.0, 2.0, drawEquiv, averageBoardSideLength, hist) << endl;
+      out << "Score Util SmootND wins/draw=" << s << ": " << ScoreValue::whiteScoreValueOfScoreSmoothNoDrawAdjust(score, 0.0, 2.0, averageBoardSideLength) << endl;
       out << "Score Util Gridded wins/draw=" << s << ": " << expectedScoreValue << endl;
-      out << "Score Util GridInv wins/draw=" << s << ": " << ScoreValue::approxWhiteScoreOfScoreValueSmooth(expectedScoreValue,0.0,2.0,board) << endl;
+      out << "Score Util GridInv wins/draw=" << s << ": " << ScoreValue::approxWhiteScoreOfScoreValueSmooth(expectedScoreValue,0.0,2.0, averageBoardSideLength) << endl;
     }
   };
 
@@ -153,7 +154,7 @@ xxxxx
           cout << "center " << center << " scale " << scale << " x " << xSizes[b] << " y " << ySizes[b] << endl;
           for(int stdev = 0; stdev <= 5; stdev++) {
             for(double d = -8.0; d<=8.0; d += 0.5) {
-              double scoreValue = ScoreValue::expectedWhiteScoreValue(d, stdev, center, scale, board);
+              double scoreValue = ScoreValue::expectedWhiteScoreValue(d, stdev, center, scale, board.averageSideLength());
               cout << Global::strprintf("%.3f ", scoreValue);
             }
             cout << endl;
