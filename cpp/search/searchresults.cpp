@@ -355,9 +355,9 @@ bool Search::getNodeRawNNValues(const SearchNode& node, ReportedSearchValues& va
   double scoreMean = nnOutput->whiteScoreMean;
   double scoreMeanSq = nnOutput->whiteScoreMeanSq;
   double scoreStdev = ScoreValue::getScoreStdev(scoreMean,scoreMeanSq);
-  double averageBoardSideLength = rootBoard.averageSideLength();
-  values.staticScoreValue = ScoreValue::expectedWhiteScoreValue(scoreMean,scoreStdev,0.0,2.0, averageBoardSideLength);
-  values.dynamicScoreValue = ScoreValue::expectedWhiteScoreValue(scoreMean,scoreStdev,recentScoreCenter,searchParams.dynamicScoreCenterScale, averageBoardSideLength);
+  double sqrtBoardArea = rootBoard.sqrtBoardArea();
+  values.staticScoreValue = ScoreValue::expectedWhiteScoreValue(scoreMean,scoreStdev,0.0,2.0, sqrtBoardArea);
+  values.dynamicScoreValue = ScoreValue::expectedWhiteScoreValue(scoreMean,scoreStdev,recentScoreCenter,searchParams.dynamicScoreCenterScale, sqrtBoardArea);
   values.expectedScore = scoreMean;
   values.expectedScoreStdev = scoreStdev;
   values.lead = nnOutput->whiteLead;

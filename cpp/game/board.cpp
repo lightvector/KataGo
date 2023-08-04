@@ -242,7 +242,7 @@ void Board::setSimpleKoLoc(Loc loc) {
 }
 
 
-double Board::averageSideLength() const {
+double Board::sqrtBoardArea() const {
     if (x_size == y_size) {
         return x_size;
     }

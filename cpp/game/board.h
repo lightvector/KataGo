@@ -164,7 +164,7 @@ struct Board
 
   //Functions------------------------------------
 
-  double averageSideLength() const;
+  double sqrtBoardArea() const;
 
   //Gets the number of stones of the chain at loc. Precondition: location must be black or white.
   int getChainSize(Loc loc) const;
