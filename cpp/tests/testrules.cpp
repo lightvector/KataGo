@@ -2357,6 +2357,7 @@ HASH: 75819B78E08D44EFCA4C3CBC9D277E29
 Initial pla Black
 Encore phase 1
 Turns this phase 0
+Approx valid turns this phase 0
 Rules koPOSITIONALscoreTERRITORYtaxNONEsui0komi0.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 1
@@ -2376,6 +2377,7 @@ HASH: 75819B78E08D44EFCA4C3CBC9D277E29
 Initial pla Black
 Encore phase 1
 Turns this phase 1
+Approx valid turns this phase 1
 Rules koPOSITIONALscoreTERRITORYtaxNONEsui0komi0.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 1
@@ -2395,6 +2397,7 @@ HASH: 75819B78E08D44EFCA4C3CBC9D277E29
 Initial pla Black
 Encore phase 2
 Turns this phase 0
+Approx valid turns this phase 0
 Rules koPOSITIONALscoreTERRITORYtaxNONEsui0komi0.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 1
@@ -2414,6 +2417,7 @@ HASH: 75819B78E08D44EFCA4C3CBC9D277E29
 Initial pla Black
 Encore phase 2
 Turns this phase 1
+Approx valid turns this phase 1
 Rules koPOSITIONALscoreTERRITORYtaxNONEsui0komi0.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 1
@@ -2433,6 +2437,7 @@ HASH: 75819B78E08D44EFCA4C3CBC9D277E29
 Initial pla Black
 Encore phase 2
 Turns this phase 2
+Approx valid turns this phase 2
 Rules koPOSITIONALscoreTERRITORYtaxNONEsui0komi0.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 1
@@ -2455,6 +2460,7 @@ HASH: 75819B78E08D44EFCA4C3CBC9D277E29
 Initial pla Black
 Encore phase 0
 Turns this phase 2
+Approx valid turns this phase 1
 Rules koPOSITIONALscoreTERRITORYtaxNONEsui0komi0.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 1
@@ -2474,6 +2480,7 @@ HASH: 75819B78E08D44EFCA4C3CBC9D277E29
 Initial pla Black
 Encore phase 0
 Turns this phase 3
+Approx valid turns this phase 1
 Rules koPOSITIONALscoreTERRITORYtaxNONEsui0komi0.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 1
@@ -2493,6 +2500,7 @@ HASH: 75819B78E08D44EFCA4C3CBC9D277E29
 Initial pla Black
 Encore phase 0
 Turns this phase 4
+Approx valid turns this phase 1
 Rules koPOSITIONALscoreTERRITORYtaxNONEsui0komi0.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 1
@@ -3439,6 +3447,7 @@ HASH: EB867913318513FD9DE98EDE86AE8CE0
 Initial pla Black
 Encore phase 2
 Turns this phase 14
+Approx valid turns this phase 14
 Rules koSIMPLEscoreTERRITORYtaxSEKIsui1komi7.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 1
@@ -3771,6 +3780,7 @@ HASH: 6CC6F6B94B2F52DED5CA2B28C2D58357
 Initial pla White
 Encore phase 1
 Turns this phase 5
+Approx valid turns this phase 5
 Rules koSITUATIONALscoreTERRITORYtaxNONEsui0komi6.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score -1
@@ -3884,6 +3894,7 @@ HASH: FDD9D2ACBB4B3A6466BD37C59487F4F7
 Initial pla White
 Encore phase 1
 Turns this phase 5
+Approx valid turns this phase 5
 Rules koSITUATIONALscoreTERRITORYtaxNONEsui0komi6.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score -2
@@ -4214,6 +4225,7 @@ HASH: 5082A5AA1512BAD190D4C8951B76C472
 Initial pla Black
 Encore phase 1
 Turns this phase 6
+Approx valid turns this phase 6
 Rules koSIMPLEscoreTERRITORYtaxALLsui1komi6.5
 Ko recap block hash 6785AE217D0AAA7AD4FA074F6C3B370B
 White bonus score 3
@@ -4551,6 +4563,7 @@ HASH: F0D2D61BE0FABC60F06563748284EA95
 Initial pla Black
 Encore phase 1
 Turns this phase 14
+Approx valid turns this phase 14
 Rules koSIMPLEscoreTERRITORYtaxALLsui1komi6.5
 Ko recap block hash B442956CD0B349EA467256E307990942
 White bonus score 4
@@ -4687,6 +4700,7 @@ HASH: 7E612069F9D69EAEEEAADC4E30CF728B
 Initial pla Black
 Encore phase 2
 Turns this phase 5
+Approx valid turns this phase 5
 Rules koSIMPLEscoreTERRITORYtaxALLsui1komi6.5
 Ko recap block hash B8D94C36535B1329F3E635C5794FEEA9
 White bonus score 4
@@ -4912,6 +4926,7 @@ HASH: 677629FFD07EEF1B0E2EA53AD5DC28BC
 Initial pla Black
 Encore phase 1
 Turns this phase 9
+Approx valid turns this phase 9
 Rules koSIMPLEscoreTERRITORYtaxALLsui1komi6.5
 Ko recap block hash 6DF578E5C17193F2108E72E5D4BA22A5
 White bonus score 6
@@ -5042,6 +5057,7 @@ HASH: 5082A5AA1512BAD190D4C8951B76C472
 Initial pla Black
 Encore phase 2
 Turns this phase 4
+Approx valid turns this phase 4
 Rules koSIMPLEscoreTERRITORYtaxALLsui1komi6.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 4
@@ -5172,6 +5188,7 @@ HASH: C5436F2F449C44F2032BE90BF82BCFC6
 Initial pla Black
 Encore phase 2
 Turns this phase 4
+Approx valid turns this phase 4
 Rules koSIMPLEscoreTERRITORYtaxALLsui1komi6.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 4
