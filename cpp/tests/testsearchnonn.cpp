@@ -1683,10 +1683,8 @@ ooooooo
     cout << "Testing avoiding of all or almost all moves" << endl;
     cout << "===================================================================" << endl;
 
-    NNEvaluator* nnEval = startNNEval(modelFile,logger,"",9,5,0,true,false,false,true,false);
     SearchParams params;
     params.maxVisits = 100;
-    Search* search = new Search(params, nnEval, &logger, "autoSearchRandSeed1234");
     Rules rules = Rules::getTrompTaylorish();
     TestSearchOptions opts;
 
@@ -1699,6 +1697,8 @@ oo..o..oo
 )%%");
 
     {
+      NNEvaluator* nnEval = startNNEval(modelFile,logger,"",9,5,0,true,false,false,true,false);
+      Search* search = new Search(params, nnEval, &logger, "autoSearchRandSeed1234");
       cout << "Avoid all but 2 moves for both players, including passing" << endl;
       vector<int> avoidMoveUntilByLoc(Board::MAX_ARR_SIZE);
       for(int y = 0; y < board.y_size; y++) {
@@ -1763,9 +1763,13 @@ oo..o..oo
       options = options.maxDepth(1);
       search->printTree(cout, search->rootNode, options, P_WHITE);
       cout << endl;
+      delete search;
+      delete nnEval;
     }
 
     {
+      NNEvaluator* nnEval = startNNEval(modelFile,logger,"",9,5,0,true,false,false,true,false);
+      Search* search = new Search(params, nnEval, &logger, "autoSearchRandSeed1235");
       cout << "Avoid all moves for both players, including passing" << endl;
       vector<int> avoidMoveUntilByLoc(Board::MAX_ARR_SIZE);
       for(int y = 0; y < board.y_size; y++) {
@@ -1805,9 +1809,13 @@ oo..o..oo
       );
       testAssert(suc);
       cout << json << endl;
+      delete search;
+      delete nnEval;
     }
 
     {
+      NNEvaluator* nnEval = startNNEval(modelFile,logger,"",9,5,0,true,false,false,true,false);
+      Search* search = new Search(params, nnEval, &logger, "autoSearchRandSeed1236");
       cout << "Avoid all moves for black, including passing" << endl;
       vector<int> avoidMoveUntilByLoc(Board::MAX_ARR_SIZE);
       for(int y = 0; y < board.y_size; y++) {
@@ -1847,10 +1855,9 @@ oo..o..oo
       );
       testAssert(suc);
       cout << json << endl;
+      delete search;
+      delete nnEval;
     }
-
-    delete search;
-    delete nnEval;
     cout << endl;
   }
 
