@@ -1835,7 +1835,8 @@ int MainCmds::booktoposes(const vector<string>& args) {
   double totalWeightFromConstant = 0.0;
   double totalWeightFromDepth = 0.0;
   double totalWeightFromPolicySurprise = 0.0;
-  double totalWeightFromValueSurprise = 0.0;
+  double totalWeightFromValueSurpriseIrreducible = 0.0;
+  double totalWeightFromValueSurpriseDivergence = 0.0;
 
   auto processPoses = [&](int threadIdx) {
     Rand rand;
@@ -1909,7 +1910,8 @@ int MainCmds::booktoposes(const vector<string>& args) {
       double bookLossChance = std::max(0.0, std::min(1.0, 0.5 * (-bookWLValue + 1.0)));
 
       double policySurprise = 0.0;
-      double valueSurprise = 0.0;
+      double valueSurpriseIrreducible = 0.0;
+      double valueSurpriseTotal = 0.0;
       Board board = hist.getRecentBoard(0);
       for(int sym = 0; sym<SymmetryHelpers::NUM_SYMMETRIES; sym++) {
         MiscNNInputParams nnInputParams;
@@ -1933,7 +1935,10 @@ int MainCmds::booktoposes(const vector<string>& args) {
           double winChance = std::max(0.0, std::min(1.0, 0.5 * (wlValue + 1.0)));
           double lossChance = std::max(0.0, std::min(1.0, 0.5 * (-wlValue + 1.0)));
 
-          valueSurprise += -1.0 / (double)SymmetryHelpers::NUM_SYMMETRIES * (
+          valueSurpriseIrreducible += -1.0 / (double)SymmetryHelpers::NUM_SYMMETRIES * (
+            bookWinChance * log(bookWinChance + 1e-30) + bookLossChance * log(bookLossChance + 1e-30)
+          );
+          valueSurpriseTotal += -1.0 / (double)SymmetryHelpers::NUM_SYMMETRIES * (
             bookWinChance * log(winChance + 1e-30) + bookLossChance * log(lossChance + 1e-30)
           );
         }
@@ -1942,9 +1947,10 @@ int MainCmds::booktoposes(const vector<string>& args) {
       double weightFromConstant = constantWeight;
       double weightFromDepth = exp(-(double)depth / depthWeightScale) * depthWeight;
       double weightFromPolicySurprise = policySurprise * policySurpriseWeight;
-      double weightFromValueSurprise = valueSurprise * valueSurpriseWeight;
+      double weightFromValueSurpriseIrreducible = valueSurpriseIrreducible * valueSurpriseWeight;
+      double weightFromValueSurpriseDivergence = (valueSurpriseTotal - valueSurpriseIrreducible) * valueSurpriseWeight;
 
-      double weight = weightFromConstant + weightFromDepth + weightFromPolicySurprise + weightFromValueSurprise;
+      double weight = weightFromConstant + weightFromDepth + weightFromPolicySurprise + weightFromValueSurpriseIrreducible + weightFromValueSurpriseDivergence;
       sample.weight = weight;
 
       std::lock_guard<std::mutex> lock(statsLock);
@@ -1955,7 +1961,8 @@ int MainCmds::booktoposes(const vector<string>& args) {
         totalWeightFromConstant += weightFromConstant;
         totalWeightFromDepth += weightFromDepth;
         totalWeightFromPolicySurprise += weightFromPolicySurprise;
-        totalWeightFromValueSurprise += weightFromValueSurprise;
+        totalWeightFromValueSurpriseIrreducible += weightFromValueSurpriseIrreducible;
+        totalWeightFromValueSurpriseDivergence += weightFromValueSurpriseDivergence;
 
         numPositionsWritten += 1;
       }
@@ -1983,7 +1990,8 @@ int MainCmds::booktoposes(const vector<string>& args) {
   logger.write("totalWeightFromConstant " + Global::doubleToString(totalWeightFromConstant));
   logger.write("totalWeightFromDepth " + Global::doubleToString(totalWeightFromDepth));
   logger.write("totalWeightFromPolicySurprise " + Global::doubleToString(totalWeightFromPolicySurprise));
-  logger.write("totalWeightFromValueSurprise " + Global::doubleToString(totalWeightFromValueSurprise));
+  logger.write("totalWeightFromValueSurpriseIrreducible " + Global::doubleToString(totalWeightFromValueSurpriseIrreducible));
+  logger.write("totalWeightFromValueSurpriseDivergence " + Global::doubleToString(totalWeightFromValueSurpriseDivergence));
   logger.write("numPositionsWritten " + Global::intToString(numPositionsWritten));
 
   delete book;

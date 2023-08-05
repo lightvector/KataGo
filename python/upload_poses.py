@@ -24,6 +24,7 @@ parser.add_argument('-connection-config', help='config with serverUrl and userna
 parser.add_argument('-set-total-weight', help='set total weight of poses to this', type=float, required=False)
 parser.add_argument('-weight-factor', help='multiply weight of poses by this', type=float, required=False)
 parser.add_argument('-separate-summaries', help='summarize dirs separately', action="store_true", required=False)
+parser.add_argument('-extra-stats', help='show some extra stats', action="store_true", required=False)
 parser.add_argument('-notes', help='notes or description label for poses', required=False)
 args = vars(parser.parse_args())
 
@@ -34,6 +35,7 @@ connection_config_file = args["connection_config"]
 set_total_weight = args["set_total_weight"]
 weight_factor = args["weight_factor"]
 separate_summaries = args["separate_summaries"]
+extra_stats = args["extra_stats"]
 notes = args["notes"]
 
 loglines = []
@@ -77,6 +79,14 @@ def compute_sum_sumsq(poses):
         sumweight += pos["weight"]
         sumweightsq += pos["weight"] * pos["weight"]
     return (sumweight, sumweightsq)
+
+def print_extra_stats(poses):
+    sumweight = 0.0
+    sumturnnum = 0
+    for pos in poses:
+        sumturnnum += pos["weight"] * (pos["initialTurnNumber"] + len(pos["moveLocs"]))
+        sumweight += pos["weight"]
+    print("Avg turn number:", sumturnnum/sumweight)
 
 log("Loading positions")
 poses_by_key = {}
@@ -129,6 +139,8 @@ def handle_file(poses_by_key, poses_file):
             log("Found %d unique positions" % len(poses_by_key_this_file.values()))
             log("Found %f total weight" % sumweight)
             log("Found %f ess" % (sumweight * sumweight / sumweightsq))
+            if extra_stats:
+                print_extra_stats(poses_by_key_this_file.values())
             log("%d %f %f" % (len(poses_by_key_this_file.values()), sumweight, (sumweight * sumweight / sumweightsq)))
 
 poses_files_or_dirs = sorted(poses_files_or_dirs)
@@ -148,6 +160,8 @@ sumweight,sumweightsq = compute_sum_sumsq(poses)
 log("Found %d unique positions" % len(poses))
 log("Found %f total weight" % sumweight)
 log("Found %f ess" % (sumweight * sumweight / sumweightsq))
+if extra_stats:
+    print_extra_stats(poses)
 log("%d %f %f" % (len(poses), sumweight, (sumweight * sumweight / sumweightsq)))
 
 if set_total_weight is not None:
