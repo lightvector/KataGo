@@ -459,6 +459,7 @@ int MainCmds::genbook(const vector<string>& args) {
         cfgParams.utilityPerScore != existingBookParams.utilityPerScore ||
         cfgParams.policyBoostSoftUtilityScale != existingBookParams.policyBoostSoftUtilityScale ||
         cfgParams.utilityPerPolicyForSorting != existingBookParams.utilityPerPolicyForSorting ||
+        cfgParams.posteriorPolicyScale != existingBookParams.posteriorPolicyScale ||
         cfgParams.maxVisitsForReExpansion != existingBookParams.maxVisitsForReExpansion ||
         cfgParams.visitsScale != existingBookParams.visitsScale ||
         cfgParams.sharpScoreOutlierCap != existingBookParams.sharpScoreOutlierCap
