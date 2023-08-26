@@ -827,18 +827,18 @@ class GameResultSummary:
 # Testing code
 if __name__ == "__main__":
     # Example 1
-    data = []
-    data.extend(likelihood_of_games("Alice","Bob", 18, 12/18, False))
-    data.extend(likelihood_of_games("Bob","Carol", 18, 12/18, False))
-    data.extend(likelihood_of_games("Carol","Dan", 36, 12/18, False))
-    data.extend(likelihood_of_games("Dan","Eve", 48, 40/48, False))
-    data.extend(make_center_elos_prior(["Alice","Bob","Carol","Dan","Eve"],0))
-    info = compute_elos(data,verbose=True)
+    # data = []
+    # data.extend(likelihood_of_games("Alice","Bob", 18, 12/18, False))
+    # data.extend(likelihood_of_games("Bob","Carol", 18, 12/18, False))
+    # data.extend(likelihood_of_games("Carol","Dan", 36, 12/18, False))
+    # data.extend(likelihood_of_games("Dan","Eve", 48, 40/48, False))
+    # data.extend(make_center_elos_prior(["Alice","Bob","Carol","Dan","Eve"],0))
+    # info = compute_elos(data,verbose=True)
 
-    for player in info.players:
-        for player2 in info.players:
-            print(info.get_approx_likelihood_of_superiority(player,player2),end=" ")
-        print()
+    # for player in info.players:
+    #     for player2 in info.players:
+    #         print(info.get_approx_likelihood_of_superiority(player,player2),end=" ")
+    #     print()
 
     # Example 2
     summary = GameResultSummary(
