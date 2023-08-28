@@ -20,33 +20,34 @@ void Tests::runBookTests() {
   Player initialPla = P_BLACK;
 
   int repBound = 9;
-  double errorFactor = 1.05;
-  double costPerMove = 0.53;
-  double costPerUCBWinLossLoss = 2.04;
-  double costPerUCBWinLossLossPow3 = 0.71;
-  double costPerUCBWinLossLossPow7 = 0.67;
-  double costPerUCBScoreLoss = 0.43;
-  double costPerLogPolicy = 0.46;
-  double costPerMovesExpanded = 0.230;
-  double costPerSquaredMovesExpanded = 0.041;
-  double costWhenPassFavored = 1.2;
-  double bonusPerWinLossError = 0.32;
-  double bonusPerScoreError = 0.51;
-  double bonusPerSharpScoreDiscrepancy = 0.54;
-  double bonusPerExcessUnexpandedPolicy = 1.14;
-  double bonusPerUnexpandedBestWinLoss = 1.23;
-  double bonusForWLPV1 = 0.14;
-  double bonusForWLPV2 = 0.17;
-  double bonusForBiggestWLCost = 0.59;
-  double scoreLossCap = 0.95;
-  double earlyBookCostReductionFactor = 0.52;
-  double earlyBookCostReductionLambda = 0.33;
-  double utilityPerScore = 0.11;
-  double policyBoostSoftUtilityScale = 0.034;
-  double utilityPerPolicyForSorting = 0.021;
-  double maxVisitsForReExpansion = 25;
-  double visitsScale = 50;
-  double sharpScoreOutlierCap = 1.75;
+  BookParams params;
+  params.errorFactor = 1.05;
+  params.costPerMove = 0.53;
+  params.costPerUCBWinLossLoss = 2.04;
+  params.costPerUCBWinLossLossPow3 = 0.71;
+  params.costPerUCBWinLossLossPow7 = 0.67;
+  params.costPerUCBScoreLoss = 0.43;
+  params.costPerLogPolicy = 0.46;
+  params.costPerMovesExpanded = 0.230;
+  params.costPerSquaredMovesExpanded = 0.041;
+  params.costWhenPassFavored = 1.2;
+  params.bonusPerWinLossError = 0.32;
+  params.bonusPerScoreError = 0.51;
+  params.bonusPerSharpScoreDiscrepancy = 0.54;
+  params.bonusPerExcessUnexpandedPolicy = 1.14;
+  params.bonusPerUnexpandedBestWinLoss = 1.23;
+  params.bonusForWLPV1 = 0.14;
+  params.bonusForWLPV2 = 0.17;
+  params.bonusForBiggestWLCost = 0.59;
+  params.scoreLossCap = 0.95;
+  params.earlyBookCostReductionFactor = 0.52;
+  params.earlyBookCostReductionLambda = 0.33;
+  params.utilityPerScore = 0.11;
+  params.policyBoostSoftUtilityScale = 0.034;
+  params.utilityPerPolicyForSorting = 0.021;
+  params.maxVisitsForReExpansion = 25;
+  params.visitsScale = 50;
+  params.sharpScoreOutlierCap = 1.75;
 
   string testFileName = "./_test.katabook.tmp";
 
@@ -56,33 +57,7 @@ void Tests::runBookTests() {
     rules,
     initialPla,
     repBound,
-    errorFactor,
-    costPerMove,
-    costPerUCBWinLossLoss,
-    costPerUCBWinLossLossPow3,
-    costPerUCBWinLossLossPow7,
-    costPerUCBScoreLoss,
-    costPerLogPolicy,
-    costPerMovesExpanded,
-    costPerSquaredMovesExpanded,
-    costWhenPassFavored,
-    bonusPerWinLossError,
-    bonusPerScoreError,
-    bonusPerSharpScoreDiscrepancy,
-    bonusPerExcessUnexpandedPolicy,
-    bonusPerUnexpandedBestWinLoss,
-    bonusForWLPV1,
-    bonusForWLPV2,
-    bonusForBiggestWLCost,
-    scoreLossCap,
-    earlyBookCostReductionFactor,
-    earlyBookCostReductionLambda,
-    utilityPerScore,
-    policyBoostSoftUtilityScale,
-    utilityPerPolicyForSorting,
-    maxVisitsForReExpansion,
-    visitsScale,
-    sharpScoreOutlierCap
+    params
   );
 
   Rand rand("runBookTests");
@@ -160,7 +135,7 @@ void Tests::runBookTests() {
     Book* loaded = NULL;
     if(waveIdx % 20 == 0) {
       book->saveToFile(testFileName);
-      loaded = Book::loadFromFile(testFileName, sharpScoreOutlierCap);
+      loaded = Book::loadFromFile(testFileName);
     }
 
     book->recomputeEverything();

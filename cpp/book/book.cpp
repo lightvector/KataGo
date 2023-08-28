@@ -712,6 +712,44 @@ bool ConstSymBookNode::getBoardHistoryReachingHere(BoardHistory& ret, vector<Loc
   return true;
 }
 
+static double invSigmoid(double proportion) {
+  if(proportion <= 0.0)
+    return -std::numeric_limits<double>::infinity();
+  double d = 1.0/proportion - 1.0;
+  if(d <= 0.0)
+    return std::numeric_limits<double>::infinity();
+  return -log(d);
+}
+static double sigmoid(double x) {
+  if(x >= 50.0)
+    return 1.0;
+  if(x <= -50.0)
+    return 0.0;
+  return 1.0 / (1.0 + exp(-x));
+}
+
+void BookParams::randomizeParams(Rand& rand, double stdev) {
+  costPerMove *= exp(0.5 * stdev * rand.nextGaussianTruncated(3.0));
+  costPerUCBWinLossLoss *= exp(stdev * rand.nextGaussianTruncated(3.0));
+  costPerUCBWinLossLossPow3 *= exp(stdev * rand.nextGaussianTruncated(3.0));
+  costPerUCBWinLossLossPow7 *= exp(stdev * rand.nextGaussianTruncated(3.0));
+  costPerUCBScoreLoss *= exp(stdev * rand.nextGaussianTruncated(3.0));
+  costPerLogPolicy *= exp(stdev * rand.nextGaussianTruncated(3.0));
+  costPerMovesExpanded *= exp(stdev * rand.nextGaussianTruncated(3.0));
+  costPerSquaredMovesExpanded *= exp(stdev * rand.nextGaussianTruncated(3.0));
+  bonusPerWinLossError *= exp(0.5 * stdev * rand.nextGaussianTruncated(3.0));
+  bonusPerScoreError *= exp(0.5 * stdev * rand.nextGaussianTruncated(3.0));
+  bonusPerSharpScoreDiscrepancy *= exp(0.5 * stdev * rand.nextGaussianTruncated(3.0));
+  bonusPerExcessUnexpandedPolicy *= exp(stdev * rand.nextGaussianTruncated(3.0));
+  bonusPerUnexpandedBestWinLoss *= exp(stdev * rand.nextGaussianTruncated(3.0));
+
+  bonusForWLPV1 = sigmoid(invSigmoid(bonusForWLPV1) + 0.5*stdev*rand.nextGaussianTruncated(3.0));
+  bonusForWLPV2 *= sigmoid(invSigmoid(bonusForWLPV2) + 0.5*stdev*rand.nextGaussianTruncated(3.0));
+  bonusForBiggestWLCost *= sigmoid(invSigmoid(bonusForBiggestWLCost) + 0.5*stdev*rand.nextGaussianTruncated(3.0));
+  earlyBookCostReductionFactor *= sigmoid(invSigmoid(earlyBookCostReductionFactor) + 0.5*stdev*rand.nextGaussianTruncated(3.0));
+  earlyBookCostReductionLambda *= sigmoid(invSigmoid(earlyBookCostReductionLambda) + 0.5*stdev*rand.nextGaussianTruncated(3.0));
+}
+
 
 Book::Book(
   int bversion,
@@ -719,65 +757,13 @@ Book::Book(
   Rules r,
   Player p,
   int rb,
-  double sf,
-  double cpm,
-  double cpucbwl,
-  double cpucbwlp3,
-  double cpucbwlp7,
-  double cpucbsl,
-  double cplp,
-  double cpme,
-  double cpsme,
-  double cwpf,
-  double bpwle,
-  double bpse,
-  double bpssd,
-  double bpeup,
-  double bpubwl,
-  double bfwlpv1,
-  double bfwlpv2,
-  double bfbwlc,
-  double slc,
-  double ebcrf,
-  double ebcrd,
-  double ups,
-  double pbsus,
-  double uppfs,
-  double mvfre,
-  double vs,
-  double ssoc
+  BookParams bp
 ) : bookVersion(bversion),
     initialBoard(b),
     initialRules(r),
     initialPla(p),
     repBound(rb),
-    errorFactor(sf),
-    costPerMove(cpm),
-    costPerUCBWinLossLoss(cpucbwl),
-    costPerUCBWinLossLossPow3(cpucbwlp3),
-    costPerUCBWinLossLossPow7(cpucbwlp7),
-    costPerUCBScoreLoss(cpucbsl),
-    costPerLogPolicy(cplp),
-    costPerMovesExpanded(cpme),
-    costPerSquaredMovesExpanded(cpsme),
-    costWhenPassFavored(cwpf),
-    bonusPerWinLossError(bpwle),
-    bonusPerScoreError(bpse),
-    bonusPerSharpScoreDiscrepancy(bpssd),
-    bonusPerExcessUnexpandedPolicy(bpeup),
-    bonusPerUnexpandedBestWinLoss(bpubwl),
-    bonusForWLPV1(bfwlpv1),
-    bonusForWLPV2(bfwlpv2),
-    bonusForBiggestWLCost(bfbwlc),
-    scoreLossCap(slc),
-    earlyBookCostReductionFactor(ebcrf),
-    earlyBookCostReductionLambda(ebcrd),
-    utilityPerScore(ups),
-    policyBoostSoftUtilityScale(pbsus),
-    utilityPerPolicyForSorting(uppfs),
-    maxVisitsForReExpansion(mvfre),
-    visitsScale(vs),
-    sharpScoreOutlierCap(ssoc),
+    params(bp),
     initialSymmetry(0),
     root(nullptr),
     nodes(),
@@ -817,58 +803,8 @@ size_t Book::size() const {
   return nodes.size();
 }
 
-double Book::getErrorFactor() const { return errorFactor; }
-void Book::setErrorFactor(double d) { errorFactor = d; }
-double Book::getCostPerMove() const { return costPerMove; }
-void Book::setCostPerMove(double d) { costPerMove = d; }
-double Book::getCostPerUCBWinLossLoss() const { return costPerUCBWinLossLoss; }
-void Book::setCostPerUCBWinLossLoss(double d) { costPerUCBWinLossLoss = d; }
-double Book::getCostPerUCBWinLossLossPow3() const { return costPerUCBWinLossLossPow3; }
-void Book::setCostPerUCBWinLossLossPow3(double d) { costPerUCBWinLossLossPow3 = d; }
-double Book::getCostPerUCBWinLossLossPow7() const { return costPerUCBWinLossLossPow7; }
-void Book::setCostPerUCBWinLossLossPow7(double d) { costPerUCBWinLossLossPow7 = d; }
-double Book::getCostPerUCBScoreLoss() const { return costPerUCBScoreLoss; }
-void Book::setCostPerUCBScoreLoss(double d) { costPerUCBScoreLoss = d; }
-double Book::getCostPerLogPolicy() const { return costPerLogPolicy; }
-void Book::setCostPerLogPolicy(double d) { costPerLogPolicy = d; }
-double Book::getCostPerMovesExpanded() const { return costPerMovesExpanded; }
-void Book::setCostPerMovesExpanded(double d) { costPerMovesExpanded = d; }
-double Book::getCostPerSquaredMovesExpanded() const { return costPerSquaredMovesExpanded; }
-void Book::setCostPerSquaredMovesExpanded(double d) { costPerSquaredMovesExpanded = d; }
-double Book::getCostWhenPassFavored() const { return costWhenPassFavored; }
-void Book::setCostWhenPassFavored(double d) { costWhenPassFavored = d; }
-double Book::getBonusPerWinLossError() const { return bonusPerWinLossError; }
-void Book::setBonusPerWinLossError(double d) { bonusPerWinLossError = d; }
-double Book::getBonusPerScoreError() const { return bonusPerScoreError; }
-void Book::setBonusPerScoreError(double d) { bonusPerScoreError = d; }
-double Book::getBonusPerSharpScoreDiscrepancy() const { return bonusPerSharpScoreDiscrepancy; }
-void Book::setBonusPerSharpScoreDiscrepancy(double d) { bonusPerSharpScoreDiscrepancy = d; }
-double Book::getBonusPerExcessUnexpandedPolicy() const { return bonusPerExcessUnexpandedPolicy; }
-void Book::setBonusPerExcessUnexpandedPolicy(double d) { bonusPerExcessUnexpandedPolicy = d; }
-double Book::getBonusPerUnexpandedBestWinLoss() const { return bonusPerUnexpandedBestWinLoss; }
-void Book::setBonusPerUnexpandedBestWinLoss(double d) { bonusPerUnexpandedBestWinLoss = d; }
-double Book::getBonusForWLPV1() const { return bonusForWLPV1; }
-void Book::setBonusForWLPV1(double d) { bonusForWLPV1 = d; }
-double Book::getBonusForWLPV2() const { return bonusForWLPV2; }
-void Book::setBonusForWLPV2(double d) { bonusForWLPV2 = d; }
-double Book::getBonusForBiggestWLCost() const { return bonusForBiggestWLCost; }
-void Book::setBonusForBiggestWLCost(double d) { bonusForBiggestWLCost = d; }
-double Book::getScoreLossCap() const { return scoreLossCap; }
-void Book::setScoreLossCap(double d) { scoreLossCap = d; }
-double Book::getEarlyBookCostReductionFactor() const { return earlyBookCostReductionFactor; }
-void Book::setEarlyBookCostReductionFactor(double d) { earlyBookCostReductionFactor = d; }
-double Book::getEarlyBookCostReductionLambda() const { return earlyBookCostReductionLambda; }
-void Book::setEarlyBookCostReductionLambda(double d) { earlyBookCostReductionLambda = d; }
-double Book::getUtilityPerScore() const { return utilityPerScore; }
-void Book::setUtilityPerScore(double d) { utilityPerScore = d; }
-double Book::getPolicyBoostSoftUtilityScale() const { return policyBoostSoftUtilityScale; }
-void Book::setPolicyBoostSoftUtilityScale(double d) { policyBoostSoftUtilityScale = d; }
-double Book::getUtilityPerPolicyForSorting() const { return utilityPerPolicyForSorting; }
-void Book::setUtilityPerPolicyForSorting(double d) { utilityPerPolicyForSorting = d; }
-double Book::getMaxVisitsForReExpansion() const { return maxVisitsForReExpansion; }
-void Book::setMaxVisitsForReExpansion(double d) { maxVisitsForReExpansion = d; }
-double Book::getVisitsScale() const { return visitsScale; }
-void Book::setVisitsScale(double d) { visitsScale = d; }
+BookParams Book::getParams() const { return params; }
+void Book::setParams(const BookParams& p) { params = p; }
 std::map<BookHash,double> Book::getBonusByHash() const { return bonusByHash; }
 void Book::setBonusByHash(const std::map<BookHash,double>& d) { bonusByHash = d; }
 std::map<BookHash,double> Book::getExpandBonusByHash() const { return expandBonusByHash; }
@@ -1294,12 +1230,12 @@ void Book::recomputeNodeValues(BookNode* node) {
     winLossValue = values.winLossValue;
     scoreMean = values.scoreMean;
     sharpScoreMean = values.sharpScoreMean;
-    winLossLCB = values.winLossValue - errorFactor * winLossError;
-    scoreLCB = values.scoreMean - errorFactor * scoreError;
-    scoreFinalLCB = values.scoreMean - errorFactor * values.scoreStdev;
-    winLossUCB = values.winLossValue + errorFactor * winLossError;
-    scoreUCB = values.scoreMean + errorFactor * scoreError;
-    scoreFinalUCB = values.scoreMean + errorFactor * values.scoreStdev;
+    winLossLCB = values.winLossValue - params.errorFactor * winLossError;
+    scoreLCB = values.scoreMean - params.errorFactor * scoreError;
+    scoreFinalLCB = values.scoreMean - params.errorFactor * values.scoreStdev;
+    winLossUCB = values.winLossValue + params.errorFactor * winLossError;
+    scoreUCB = values.scoreMean + params.errorFactor * scoreError;
+    scoreFinalUCB = values.scoreMean + params.errorFactor * values.scoreStdev;
     weight += values.weight;
     visits += values.visits;
 
@@ -1311,10 +1247,10 @@ void Book::recomputeNodeValues(BookNode* node) {
       if(sharpScoreMean < scoreLCB)
         scoreLCB = sharpScoreMean;
     }
-    if(sharpScoreMean > scoreMean + sharpScoreOutlierCap)
-      sharpScoreMean = scoreMean + sharpScoreOutlierCap;
-    if(sharpScoreMean < scoreMean - sharpScoreOutlierCap)
-      sharpScoreMean = scoreMean - sharpScoreOutlierCap;
+    if(sharpScoreMean > scoreMean + params.sharpScoreOutlierCap)
+      sharpScoreMean = scoreMean + params.sharpScoreOutlierCap;
+    if(sharpScoreMean < scoreMean - params.sharpScoreOutlierCap)
+      sharpScoreMean = scoreMean - params.sharpScoreOutlierCap;
   }
 
   for(auto iter = node->moves.begin(); iter != node->moves.end(); ++iter) {
@@ -1379,7 +1315,7 @@ static double pow7(double x) {
 }
 
 double Book::getUtility(const RecursiveBookValues& values) const {
-  return values.winLossValue + values.scoreMean * utilityPerScore;
+  return values.winLossValue + values.scoreMean * params.utilityPerScore;
 }
 
 void Book::recomputeNodeCost(BookNode* node) {
@@ -1485,7 +1421,7 @@ void Book::recomputeNodeCost(BookNode* node) {
         (node->pla == P_WHITE) ?
         childUtility - otherChildUtility :
         otherChildUtility - childUtility;
-      double policyBoostFactor = 1.0/(1.0 + exp(-gainOverOtherChild / policyBoostSoftUtilityScale + 1.0));
+      double policyBoostFactor = 1.0/(1.0 + exp(-gainOverOtherChild / params.policyBoostSoftUtilityScale + 1.0));
       double otherLogRawPolicy = log(otherLocAndBookMove.second.rawPolicy + 1e-100);
       double p = logRawPolicy + policyBoostFactor * (otherLogRawPolicy - logRawPolicy);
       if(p > boostedLogRawPolicy)
@@ -1525,8 +1461,8 @@ void Book::recomputeNodeCost(BookNode* node) {
       (node->pla == P_WHITE) ?
       node->recursiveValues.scoreUCB - child->recursiveValues.scoreUCB :
       child->recursiveValues.scoreLCB - node->recursiveValues.scoreLCB;
-    if(ucbScoreLoss > scoreLossCap)
-      ucbScoreLoss = scoreLossCap;
+    if(ucbScoreLoss > params.scoreLossCap)
+      ucbScoreLoss = params.scoreLossCap;
     double rawPolicy = locAndBookMove.second.rawPolicy;
     double logRawPolicy = log(rawPolicy + 1e-100);
     double childUtility = getUtility(child->recursiveValues);
@@ -1537,21 +1473,21 @@ void Book::recomputeNodeCost(BookNode* node) {
     );
 
     double costFromWL =
-      ucbWinLossLoss * costPerUCBWinLossLoss
-      + ucbWinLossLossPow3 * costPerUCBWinLossLossPow3
-      + ucbWinLossLossPow7 * costPerUCBWinLossLossPow7;
+      ucbWinLossLoss * params.costPerUCBWinLossLoss
+      + ucbWinLossLossPow3 * params.costPerUCBWinLossLossPow3
+      + ucbWinLossLossPow7 * params.costPerUCBWinLossLossPow7;
     if(costFromWL > node->biggestWLCostFromRoot)
-      costFromWL -= bonusForBiggestWLCost * (costFromWL - node->biggestWLCostFromRoot);
+      costFromWL -= params.bonusForBiggestWLCost * (costFromWL - node->biggestWLCostFromRoot);
     double costFromUCB =
       costFromWL
-      + ucbScoreLoss * costPerUCBScoreLoss;
+      + ucbScoreLoss * params.costPerUCBScoreLoss;
 
     double cost =
       node->minCostFromRoot
-      + costPerMove
+      + params.costPerMove
       + costFromUCB
-      + (-boostedLogRawPolicy * costPerLogPolicy)
-      + (passFavored ? costWhenPassFavored : 0.0);
+      + (-boostedLogRawPolicy * params.costPerLogPolicy)
+      + (passFavored ? params.costWhenPassFavored : 0.0);
     locAndBookMove.second.costFromRoot = cost;
     locAndBookMove.second.biggestWLCostFromRoot = std::max(node->biggestWLCostFromRoot, costFromWL);
 
@@ -1571,9 +1507,9 @@ void Book::recomputeNodeCost(BookNode* node) {
     node->thisNodeExpansionCost = 1e100;
     // cout << "Can't expand this node" << endl;
   }
-  else if(node->canReExpand && node->recursiveValues.visits < maxVisitsForReExpansion) {
-    double m = node->recursiveValues.visits / std::max(1.0, maxVisitsForReExpansion);
-    node->thisNodeExpansionCost = m * costPerMovesExpanded + m * m * costPerSquaredMovesExpanded;
+  else if(node->canReExpand && node->recursiveValues.visits < params.maxVisitsForReExpansion) {
+    double m = node->recursiveValues.visits / std::max(1.0, params.maxVisitsForReExpansion);
+    node->thisNodeExpansionCost = m * params.costPerMovesExpanded + m * m * params.costPerSquaredMovesExpanded;
     smallestCostFromUCB = 0;
     // cout << "maxVisitsForReExpansion met, this node expansion cost is free" << endl;
   }
@@ -1582,25 +1518,25 @@ void Book::recomputeNodeCost(BookNode* node) {
     double winLossError = node->thisValuesNotInBook.getAdjustedWinLossError(node->book->initialRules);
     double ucbWinLossLoss =
       (node->pla == P_WHITE) ?
-      (node->recursiveValues.winLossUCB - (node->thisValuesNotInBook.winLossValue + errorFactor * winLossError)) :
-      ((node->thisValuesNotInBook.winLossValue - errorFactor * winLossError) - node->recursiveValues.winLossLCB);
+      (node->recursiveValues.winLossUCB - (node->thisValuesNotInBook.winLossValue + params.errorFactor * winLossError)) :
+      ((node->thisValuesNotInBook.winLossValue - params.errorFactor * winLossError) - node->recursiveValues.winLossLCB);
     double ucbWinLossLossPow3 =
       (node->pla == P_WHITE) ?
-      (pow3(node->recursiveValues.winLossUCB) - pow3(node->thisValuesNotInBook.winLossValue + errorFactor * winLossError)) :
-      (pow3(node->thisValuesNotInBook.winLossValue - errorFactor * winLossError) - pow3(node->recursiveValues.winLossLCB));
+      (pow3(node->recursiveValues.winLossUCB) - pow3(node->thisValuesNotInBook.winLossValue + params.errorFactor * winLossError)) :
+      (pow3(node->thisValuesNotInBook.winLossValue - params.errorFactor * winLossError) - pow3(node->recursiveValues.winLossLCB));
     double ucbWinLossLossPow7 =
       (node->pla == P_WHITE) ?
-      (pow7(node->recursiveValues.winLossUCB) - pow7(node->thisValuesNotInBook.winLossValue + errorFactor * winLossError)) :
-      (pow7(node->thisValuesNotInBook.winLossValue - errorFactor * winLossError) - pow7(node->recursiveValues.winLossLCB));
+      (pow7(node->recursiveValues.winLossUCB) - pow7(node->thisValuesNotInBook.winLossValue + params.errorFactor * winLossError)) :
+      (pow7(node->thisValuesNotInBook.winLossValue - params.errorFactor * winLossError) - pow7(node->recursiveValues.winLossLCB));
     double ucbScoreLoss =
       (node->pla == P_WHITE) ?
-      (node->recursiveValues.scoreUCB - (node->thisValuesNotInBook.scoreMean + errorFactor * scoreError)) :
-      ((node->thisValuesNotInBook.scoreMean - errorFactor * scoreError) - node->recursiveValues.scoreLCB);
-    if(ucbScoreLoss > scoreLossCap)
-      ucbScoreLoss = scoreLossCap;
+      (node->recursiveValues.scoreUCB - (node->thisValuesNotInBook.scoreMean + params.errorFactor * scoreError)) :
+      ((node->thisValuesNotInBook.scoreMean - params.errorFactor * scoreError) - node->recursiveValues.scoreLCB);
+    if(ucbScoreLoss > params.scoreLossCap)
+      ucbScoreLoss = params.scoreLossCap;
     double rawPolicy = node->thisValuesNotInBook.maxPolicy;
     double logRawPolicy = log(rawPolicy + 1e-100);
-    double notInBookUtility = node->thisValuesNotInBook.winLossValue + node->thisValuesNotInBook.scoreMean * utilityPerScore;
+    double notInBookUtility = node->thisValuesNotInBook.winLossValue + node->thisValuesNotInBook.scoreMean * params.utilityPerScore;
     double boostedLogRawPolicy = boostLogRawPolicy(logRawPolicy, notInBookUtility, node->thisValuesNotInBook.maxPolicy);
     bool passFavored = passPolicy > 0.15 && passPolicy > rawPolicy * 0.8 && (
       (node->pla == P_WHITE && passUtility > notInBookUtility - 0.02) ||
@@ -1632,22 +1568,22 @@ void Book::recomputeNodeCost(BookNode* node) {
     // cout << "Expansion stats " << ucbWinLossLoss << " " << ucbScoreLoss << " " << rawPolicy << endl;
 
     double costFromWL =
-      ucbWinLossLoss * costPerUCBWinLossLoss
-      + ucbWinLossLossPow3 * costPerUCBWinLossLossPow3
-      + ucbWinLossLossPow7 * costPerUCBWinLossLossPow7;
+      ucbWinLossLoss * params.costPerUCBWinLossLoss
+      + ucbWinLossLossPow3 * params.costPerUCBWinLossLossPow3
+      + ucbWinLossLossPow7 * params.costPerUCBWinLossLossPow7;
     if(costFromWL > node->biggestWLCostFromRoot)
-      costFromWL -= bonusForBiggestWLCost * (costFromWL - node->biggestWLCostFromRoot);
+      costFromWL -= params.bonusForBiggestWLCost * (costFromWL - node->biggestWLCostFromRoot);
     double costFromUCB =
       costFromWL
-      + ucbScoreLoss * costPerUCBScoreLoss;
+      + ucbScoreLoss * params.costPerUCBScoreLoss;
 
     node->thisNodeExpansionCost =
-      costPerMove
+      params.costPerMove
       + costFromUCB
-      + (-boostedLogRawPolicy * costPerLogPolicy)
-      + movesExpanded * costPerMovesExpanded
-      + movesExpanded * movesExpanded * costPerSquaredMovesExpanded
-      + (passFavored ? costWhenPassFavored : 0.0);
+      + (-boostedLogRawPolicy * params.costPerLogPolicy)
+      + movesExpanded * params.costPerMovesExpanded
+      + movesExpanded * movesExpanded * params.costPerSquaredMovesExpanded
+      + (passFavored ? params.costWhenPassFavored : 0.0);
 
     // cout << "Setting this node expansion cost "
     //      << " costPerMove " << costPerMove
@@ -1724,13 +1660,13 @@ void Book::recomputeNodeCost(BookNode* node) {
   // Apply bonuses to moves now. Apply fully up to 0.75 of the cost.
   for(auto& locAndBookMove: node->moves) {
     const BookNode* child = get(locAndBookMove.second.hash);
-    double winLossError = std::fabs(child->recursiveValues.winLossUCB - child->recursiveValues.winLossLCB) / errorFactor / 2.0;
-    double scoreError = std::fabs(child->recursiveValues.scoreUCB - child->recursiveValues.scoreLCB) / errorFactor / 2.0;
+    double winLossError = std::fabs(child->recursiveValues.winLossUCB - child->recursiveValues.winLossLCB) / params.errorFactor / 2.0;
+    double scoreError = std::fabs(child->recursiveValues.scoreUCB - child->recursiveValues.scoreLCB) / params.errorFactor / 2.0;
     double sharpScoreDiscrepancy = std::fabs(child->recursiveValues.sharpScoreMean - child->recursiveValues.scoreMean);
     double bonus =
-      bonusPerWinLossError * winLossError +
-      bonusPerScoreError * scoreError +
-      bonusPerSharpScoreDiscrepancy * sharpScoreDiscrepancy;
+      params.bonusPerWinLossError * winLossError +
+      params.bonusPerScoreError * scoreError +
+      params.bonusPerSharpScoreDiscrepancy * sharpScoreDiscrepancy;
     double bonusCap1 = (locAndBookMove.second.costFromRoot - node->minCostFromRoot) * 0.75;
     if(bonus > bonusCap1)
       bonus = bonusCap1;
@@ -1746,7 +1682,7 @@ void Book::recomputeNodeCost(BookNode* node) {
       if(wlPVBonusScale > 0.0) {
         double factor1 = std::max(0.0, 1.0 - square(child->recursiveValues.winLossValue));
         double factor2 = 4.0 * std::max(0.0, 0.25 - square(0.5 - std::fabs(child->recursiveValues.winLossValue)));
-        double wlPVBonus = wlPVBonusScale * tanh(factor1 * bonusForWLPV1 + factor2 * bonusForWLPV2);
+        double wlPVBonus = wlPVBonusScale * tanh(factor1 * params.bonusForWLPV1 + factor2 * params.bonusForWLPV2);
         // cout << "Child " << (int)locAndBookMove.first
         //      << " cost " << locAndBookMove.second.costFromRoot
         //      << " wlpv factors " << factor1 << " " << factor2
@@ -1768,16 +1704,16 @@ void Book::recomputeNodeCost(BookNode* node) {
     if(movesExpanded > 0 && node->thisValuesNotInBook.maxPolicy > 1.0 / movesExpanded)
       excessUnexpandedPolicy = node->thisValuesNotInBook.maxPolicy - 1.0 / movesExpanded;
     double bonus =
-      bonusPerWinLossError * winLossError +
-      bonusPerScoreError * scoreError +
-      bonusPerSharpScoreDiscrepancy * std::min(sharpScoreDiscrepancy, 1.0) +
-      bonusPerExcessUnexpandedPolicy * excessUnexpandedPolicy;
+      params.bonusPerWinLossError * winLossError +
+      params.bonusPerScoreError * scoreError +
+      params.bonusPerSharpScoreDiscrepancy * std::min(sharpScoreDiscrepancy, 1.0) +
+      params.bonusPerExcessUnexpandedPolicy * excessUnexpandedPolicy;
     double bonusCap1 = node->thisNodeExpansionCost * 0.75;
     if(bonus > bonusCap1)
       bonus = bonusCap1;
 
     // Sharp score discrepancy is an uncapped bonus
-    bonus += bonusPerSharpScoreDiscrepancy * std::max(0.0, sharpScoreDiscrepancy - 1.0);
+    bonus += params.bonusPerSharpScoreDiscrepancy * std::max(0.0, sharpScoreDiscrepancy - 1.0);
     // cout << "This node expansion cost " << node->thisNodeExpansionCost
     //      << " errors " << winLossError << " " << scoreError << " " << sharpScoreDiscrepancy
     //      << " bonus " << bonus
@@ -1803,10 +1739,10 @@ void Book::recomputeNodeCost(BookNode* node) {
       }
       if(anyOtherWinLossFound && winLoss > bestOtherWinLoss) {
         double visitsFactor = 0.5 * (
-          std::min(1.0, sqrt(bestOtherVisits / std::max(1.0, visitsScale))) +
-          std::min(1.0, sqrt(totalOtherVisits / std::max(1.0, visitsScale)))
+          std::min(1.0, sqrt(bestOtherVisits / std::max(1.0, params.visitsScale))) +
+          std::min(1.0, sqrt(totalOtherVisits / std::max(1.0, params.visitsScale)))
         );
-        node->thisNodeExpansionCost -= bonusPerUnexpandedBestWinLoss * (winLoss - bestOtherWinLoss) * visitsFactor;
+        node->thisNodeExpansionCost -= params.bonusPerUnexpandedBestWinLoss * (winLoss - bestOtherWinLoss) * visitsFactor;
       }
     }
     if(node->moves.size() >= 2) {
@@ -1823,7 +1759,7 @@ void Book::recomputeNodeCost(BookNode* node) {
         }
       }
 
-      if(bestChild != NULL && bestChild->recursiveValues.visits <= maxVisitsForReExpansion) {
+      if(bestChild != NULL && bestChild->recursiveValues.visits <= params.maxVisitsForReExpansion) {
         bool anyOtherWinLossFound = false;
         double bestOtherWinLoss = 0.0;
         double bestOtherVisits = 0.0;
@@ -1844,16 +1780,16 @@ void Book::recomputeNodeCost(BookNode* node) {
         // The best child has fewer visits than the second best
         if(anyOtherWinLossFound && bestWinLoss > bestOtherWinLoss && bestChild->recursiveValues.visits < bestOtherVisits) {
           double visitsFactor = 0.5 * (
-            std::min(1.0, sqrt(bestOtherVisits / std::max(1.0, visitsScale))) +
-            std::min(1.0, sqrt(totalOtherVisits / std::max(1.0, visitsScale)))
+            std::min(1.0, sqrt(bestOtherVisits / std::max(1.0, params.visitsScale))) +
+            std::min(1.0, sqrt(totalOtherVisits / std::max(1.0, params.visitsScale)))
           );
           // Subtract off for what was actually explored
-          visitsFactor -= std::min(1.0, sqrt(bestChild->recursiveValues.visits / std::max(1.0, visitsScale)));
+          visitsFactor -= std::min(1.0, sqrt(bestChild->recursiveValues.visits / std::max(1.0, params.visitsScale)));
 
           for(auto& locAndBookMove: node->moves) {
             const BookNode* child = get(locAndBookMove.second.hash);
             if(child == bestChild) {
-              locAndBookMove.second.costFromRoot -= 0.5 * bonusPerUnexpandedBestWinLoss * (bestWinLoss - bestOtherWinLoss) * visitsFactor;
+              locAndBookMove.second.costFromRoot -= 0.5 * params.bonusPerUnexpandedBestWinLoss * (bestWinLoss - bestOtherWinLoss) * visitsFactor;
               break;
             }
           }
@@ -1866,7 +1802,7 @@ void Book::recomputeNodeCost(BookNode* node) {
       if(wlPVBonusScale > 0.0) {
         double factor1 = std::max(0.0, 1.0 - square(node->thisValuesNotInBook.winLossValue));
         double factor2 = 4.0 * std::max(0.0, 0.25 - square(0.5 - std::fabs(node->thisValuesNotInBook.winLossValue)));
-        double wlPVBonus = wlPVBonusScale * tanh(factor1 * bonusForWLPV1 + factor2 * bonusForWLPV2);
+        double wlPVBonus = wlPVBonusScale * tanh(factor1 * params.bonusForWLPV1 + factor2 * params.bonusForWLPV2);
         // cout << "This node expansion cost " << node->thisNodeExpansionCost
         //      << " wlpv factors " << factor1 << " " << factor2
         //      << " becomes " <<  (node->thisNodeExpansionCost - wlPVBonus) << endl;
@@ -1875,7 +1811,7 @@ void Book::recomputeNodeCost(BookNode* node) {
     }
   }
 
-  double depthFromRootFactor = 1.0 - earlyBookCostReductionFactor * pow(earlyBookCostReductionLambda, node->minDepthFromRoot);
+  double depthFromRootFactor = 1.0 - params.earlyBookCostReductionFactor * pow(params.earlyBookCostReductionLambda, node->minDepthFromRoot);
   for(auto& locAndBookMove: node->moves) {
     locAndBookMove.second.costFromRoot = node->minCostFromRoot + (locAndBookMove.second.costFromRoot - node->minCostFromRoot) * depthFromRootFactor;
   }
@@ -2112,9 +2048,9 @@ int64_t Book::exportToHtmlDir(
 
       RecursiveBookValues& vals = child.node->recursiveValues;
       double plaFactor = node->pla == P_WHITE ? 1.0 : -1.0;
-      double sortingValue = plaFactor * (vals.winLossValue + clampScoreForSorting(vals.sharpScoreMean, vals.winLossValue) * utilityPerScore * 0.5)
-        + plaFactor * clampScoreForSorting(node->pla == P_WHITE ? vals.scoreLCB : vals.scoreUCB, vals.winLossValue) * 0.5 * utilityPerScore
-        + utilityPerPolicyForSorting * (0.75 * bookMove.rawPolicy + 0.5 * log10(bookMove.rawPolicy + 0.0001)/4.0);
+      double sortingValue = plaFactor * (vals.winLossValue + clampScoreForSorting(vals.sharpScoreMean, vals.winLossValue) * params.utilityPerScore * 0.5)
+        + plaFactor * clampScoreForSorting(node->pla == P_WHITE ? vals.scoreLCB : vals.scoreUCB, vals.winLossValue) * 0.5 * params.utilityPerScore
+        + params.utilityPerPolicyForSorting * (0.75 * bookMove.rawPolicy + 0.5 * log10(bookMove.rawPolicy + 0.0001)/4.0);
       sortingValues.push_back(sortingValue);
     }
 
@@ -2179,10 +2115,10 @@ int64_t Book::exportToHtmlDir(
       if(values.maxPolicy > 0.0) {
         double scoreError = values.getAdjustedScoreError(node->book->initialRules);
         double winLossError = values.getAdjustedWinLossError(node->book->initialRules);
-        double winLossValueUCB = values.winLossValue + errorFactor * winLossError;
-        double winLossValueLCB = values.winLossValue - errorFactor * winLossError;
-        double scoreUCB = values.scoreMean + errorFactor * scoreError;
-        double scoreLCB = values.scoreMean - errorFactor * scoreError;
+        double winLossValueUCB = values.winLossValue + params.errorFactor * winLossError;
+        double winLossValueLCB = values.winLossValue - params.errorFactor * winLossError;
+        double scoreUCB = values.scoreMean + params.errorFactor * scoreError;
+        double scoreLCB = values.scoreMean - params.errorFactor * scoreError;
         // double scoreFinalUCB = values.scoreMean + errorFactor * values.scoreStdev;
         // double scoreFinalLCB = values.scoreMean - errorFactor * values.scoreStdev;
 
@@ -2196,10 +2132,10 @@ int64_t Book::exportToHtmlDir(
           if(sharpScoreMean < scoreLCB)
             scoreLCB = sharpScoreMean;
         }
-        if(sharpScoreMean > scoreMean + sharpScoreOutlierCap)
-          sharpScoreMean = scoreMean + sharpScoreOutlierCap;
-        if(sharpScoreMean < scoreMean - sharpScoreOutlierCap)
-          sharpScoreMean = scoreMean - sharpScoreOutlierCap;
+        if(sharpScoreMean > scoreMean + params.sharpScoreOutlierCap)
+          sharpScoreMean = scoreMean + params.sharpScoreOutlierCap;
+        if(sharpScoreMean < scoreMean - params.sharpScoreOutlierCap)
+          sharpScoreMean = scoreMean - params.sharpScoreOutlierCap;
 
         dataVarsStr += "{";
         dataVarsStr += "'move':'other',";
@@ -2254,40 +2190,40 @@ void Book::saveToFile(const string& fileName) const {
   FileUtils::open(out, tmpFileName);
 
   {
-    json params;
-    params["version"] = bookVersion;
-    params["initialBoard"] = Board::toJson(initialBoard);
-    params["initialRules"] = initialRules.toJson();
-    params["initialPla"] = PlayerIO::playerToString(initialPla);
-    params["repBound"] = repBound;
-    params["errorFactor"] = errorFactor;
-    params["costPerMove"] = costPerMove;
-    params["costPerUCBWinLossLoss"] = costPerUCBWinLossLoss;
-    params["costPerUCBWinLossLossPow3"] = costPerUCBWinLossLossPow3;
-    params["costPerUCBWinLossLossPow7"] = costPerUCBWinLossLossPow7;
-    params["costPerUCBScoreLoss"] = costPerUCBScoreLoss;
-    params["costPerLogPolicy"] = costPerLogPolicy;
-    params["costPerMovesExpanded"] = costPerMovesExpanded;
-    params["costPerSquaredMovesExpanded"] = costPerSquaredMovesExpanded;
-    params["costWhenPassFavored"] = costWhenPassFavored;
-    params["bonusPerWinLossError"] = bonusPerWinLossError;
-    params["bonusPerScoreError"] = bonusPerScoreError;
-    params["bonusPerSharpScoreDiscrepancy"] = bonusPerSharpScoreDiscrepancy;
-    params["bonusPerExcessUnexpandedPolicy"] = bonusPerExcessUnexpandedPolicy;
-    params["bonusPerUnexpandedBestWinLoss"] = bonusPerUnexpandedBestWinLoss;
-    params["bonusForWLPV1"] = bonusForWLPV1;
-    params["bonusForWLPV2"] = bonusForWLPV2;
-    params["bonusForBiggestWLCost"] = bonusForBiggestWLCost;
-    params["scoreLossCap"] = scoreLossCap;
-    params["earlyBookCostReductionFactor"] = earlyBookCostReductionFactor;
-    params["earlyBookCostReductionLambda"] = earlyBookCostReductionLambda;
-    params["utilityPerScore"] = utilityPerScore;
-    params["policyBoostSoftUtilityScale"] = policyBoostSoftUtilityScale;
-    params["utilityPerPolicyForSorting"] = utilityPerPolicyForSorting;
-    params["maxVisitsForReExpansion"] = maxVisitsForReExpansion;
-    params["visitsScale"] = visitsScale;
-    params["initialSymmetry"] = initialSymmetry;
-    out << params.dump() << endl;
+    json paramsDump;
+    paramsDump["version"] = bookVersion;
+    paramsDump["initialBoard"] = Board::toJson(initialBoard);
+    paramsDump["initialRules"] = initialRules.toJson();
+    paramsDump["initialPla"] = PlayerIO::playerToString(initialPla);
+    paramsDump["repBound"] = repBound;
+    paramsDump["errorFactor"] = params.errorFactor;
+    paramsDump["costPerMove"] = params.costPerMove;
+    paramsDump["costPerUCBWinLossLoss"] = params.costPerUCBWinLossLoss;
+    paramsDump["costPerUCBWinLossLossPow3"] = params.costPerUCBWinLossLossPow3;
+    paramsDump["costPerUCBWinLossLossPow7"] = params.costPerUCBWinLossLossPow7;
+    paramsDump["costPerUCBScoreLoss"] = params.costPerUCBScoreLoss;
+    paramsDump["costPerLogPolicy"] = params.costPerLogPolicy;
+    paramsDump["costPerMovesExpanded"] = params.costPerMovesExpanded;
+    paramsDump["costPerSquaredMovesExpanded"] = params.costPerSquaredMovesExpanded;
+    paramsDump["costWhenPassFavored"] = params.costWhenPassFavored;
+    paramsDump["bonusPerWinLossError"] = params.bonusPerWinLossError;
+    paramsDump["bonusPerScoreError"] = params.bonusPerScoreError;
+    paramsDump["bonusPerSharpScoreDiscrepancy"] = params.bonusPerSharpScoreDiscrepancy;
+    paramsDump["bonusPerExcessUnexpandedPolicy"] = params.bonusPerExcessUnexpandedPolicy;
+    paramsDump["bonusPerUnexpandedBestWinLoss"] = params.bonusPerUnexpandedBestWinLoss;
+    paramsDump["bonusForWLPV1"] = params.bonusForWLPV1;
+    paramsDump["bonusForWLPV2"] = params.bonusForWLPV2;
+    paramsDump["bonusForBiggestWLCost"] = params.bonusForBiggestWLCost;
+    paramsDump["scoreLossCap"] = params.scoreLossCap;
+    paramsDump["earlyBookCostReductionFactor"] = params.earlyBookCostReductionFactor;
+    paramsDump["earlyBookCostReductionLambda"] = params.earlyBookCostReductionLambda;
+    paramsDump["utilityPerScore"] = params.utilityPerScore;
+    paramsDump["policyBoostSoftUtilityScale"] = params.policyBoostSoftUtilityScale;
+    paramsDump["utilityPerPolicyForSorting"] = params.utilityPerPolicyForSorting;
+    paramsDump["maxVisitsForReExpansion"] = params.maxVisitsForReExpansion;
+    paramsDump["visitsScale"] = params.visitsScale;
+    paramsDump["initialSymmetry"] = initialSymmetry;
+    out << paramsDump.dump() << endl;
   }
 
   // Interning of hash specific to this save file, to shorten file size and save/load times
@@ -2389,7 +2325,7 @@ void Book::saveToFile(const string& fileName) const {
   FileUtils::rename(tmpFileName,fileName);
 }
 
-Book* Book::loadFromFile(const std::string& fileName, double sharpScoreOutlierCap) {
+Book* Book::loadFromFile(const std::string& fileName) {
   std::ifstream in;
   FileUtils::open(in, fileName);
   std::string line;
@@ -2417,32 +2353,35 @@ Book* Book::loadFromFile(const std::string& fileName, double sharpScoreOutlierCa
       Rules initialRules = Rules::parseRules(params["initialRules"].dump());
       Player initialPla = PlayerIO::parsePlayer(params["initialPla"].get<string>());
       int repBound = params["repBound"].get<int>();
-      double errorFactor = params["errorFactor"].get<double>();
-      double costPerMove = params["costPerMove"].get<double>();
-      double costPerUCBWinLossLoss = params["costPerUCBWinLossLoss"].get<double>();
-      double costPerUCBWinLossLossPow3 = params.contains("costPerUCBWinLossLossPow3") ? params["costPerUCBWinLossLossPow3"].get<double>() : 0.0;
-      double costPerUCBWinLossLossPow7 = params.contains("costPerUCBWinLossLossPow7") ? params["costPerUCBWinLossLossPow7"].get<double>() : 0.0;
-      double costPerUCBScoreLoss = params["costPerUCBScoreLoss"].get<double>();
-      double costPerLogPolicy = params["costPerLogPolicy"].get<double>();
-      double costPerMovesExpanded = params["costPerMovesExpanded"].get<double>();
-      double costPerSquaredMovesExpanded = params["costPerSquaredMovesExpanded"].get<double>();
-      double costWhenPassFavored = params["costWhenPassFavored"].get<double>();
-      double bonusPerWinLossError = params["bonusPerWinLossError"].get<double>();
-      double bonusPerScoreError = params.contains("bonusPerScoreError") ? params["bonusPerScoreError"].get<double>() : 0.0;
-      double bonusPerSharpScoreDiscrepancy = params.contains("bonusPerSharpScoreDiscrepancy") ? params["bonusPerSharpScoreDiscrepancy"].get<double>() : 0.0;
-      double bonusPerExcessUnexpandedPolicy = params.contains("bonusPerExcessUnexpandedPolicy") ? params["bonusPerExcessUnexpandedPolicy"].get<double>() : 0.0;
-      double bonusPerUnexpandedBestWinLoss = params.contains("bonusPerUnexpandedBestWinLoss") ? params["bonusPerUnexpandedBestWinLoss"].get<double>() : 0.0;
-      double bonusForWLPV1 = params.contains("bonusForWLPV1") ? params["bonusForWLPV1"].get<double>() : 0.0;
-      double bonusForWLPV2 = params.contains("bonusForWLPV2") ? params["bonusForWLPV2"].get<double>() : 0.0;
-      double bonusForBiggestWLCost = params.contains("bonusForBiggestWLCost") ? params["bonusForBiggestWLCost"].get<double>() : 0.0;
-      double scoreLossCap = params["scoreLossCap"].get<double>();
-      double earlyBookCostReductionFactor = params.contains("earlyBookCostReductionFactor") ? params["earlyBookCostReductionFactor"].get<double>() : 0.0;
-      double earlyBookCostReductionLambda = params.contains("earlyBookCostReductionLambda") ? params["earlyBookCostReductionLambda"].get<double>() : 0.0;
-      double utilityPerScore = params["utilityPerScore"].get<double>();
-      double policyBoostSoftUtilityScale = params["policyBoostSoftUtilityScale"].get<double>();
-      double utilityPerPolicyForSorting = params["utilityPerPolicyForSorting"].get<double>();
-      double maxVisitsForReExpansion = params.contains("maxVisitsForReExpansion") ? params["maxVisitsForReExpansion"].get<double>() : 0.0;
-      double visitsScale = params.contains("visitsScale") ? params["visitsScale"].get<double>() : 0.0;
+
+      BookParams bookParams;
+      bookParams.errorFactor = params["errorFactor"].get<double>();
+      bookParams.costPerMove = params["costPerMove"].get<double>();
+      bookParams.costPerUCBWinLossLoss = params["costPerUCBWinLossLoss"].get<double>();
+      bookParams.costPerUCBWinLossLossPow3 = params.contains("costPerUCBWinLossLossPow3") ? params["costPerUCBWinLossLossPow3"].get<double>() : 0.0;
+      bookParams.costPerUCBWinLossLossPow7 = params.contains("costPerUCBWinLossLossPow7") ? params["costPerUCBWinLossLossPow7"].get<double>() : 0.0;
+      bookParams.costPerUCBScoreLoss = params["costPerUCBScoreLoss"].get<double>();
+      bookParams.costPerLogPolicy = params["costPerLogPolicy"].get<double>();
+      bookParams.costPerMovesExpanded = params["costPerMovesExpanded"].get<double>();
+      bookParams.costPerSquaredMovesExpanded = params["costPerSquaredMovesExpanded"].get<double>();
+      bookParams.costWhenPassFavored = params["costWhenPassFavored"].get<double>();
+      bookParams.bonusPerWinLossError = params["bonusPerWinLossError"].get<double>();
+      bookParams.bonusPerScoreError = params.contains("bonusPerScoreError") ? params["bonusPerScoreError"].get<double>() : 0.0;
+      bookParams.bonusPerSharpScoreDiscrepancy = params.contains("bonusPerSharpScoreDiscrepancy") ? params["bonusPerSharpScoreDiscrepancy"].get<double>() : 0.0;
+      bookParams.bonusPerExcessUnexpandedPolicy = params.contains("bonusPerExcessUnexpandedPolicy") ? params["bonusPerExcessUnexpandedPolicy"].get<double>() : 0.0;
+      bookParams.bonusPerUnexpandedBestWinLoss = params.contains("bonusPerUnexpandedBestWinLoss") ? params["bonusPerUnexpandedBestWinLoss"].get<double>() : 0.0;
+      bookParams.bonusForWLPV1 = params.contains("bonusForWLPV1") ? params["bonusForWLPV1"].get<double>() : 0.0;
+      bookParams.bonusForWLPV2 = params.contains("bonusForWLPV2") ? params["bonusForWLPV2"].get<double>() : 0.0;
+      bookParams.bonusForBiggestWLCost = params.contains("bonusForBiggestWLCost") ? params["bonusForBiggestWLCost"].get<double>() : 0.0;
+      bookParams.scoreLossCap = params["scoreLossCap"].get<double>();
+      bookParams.earlyBookCostReductionFactor = params.contains("earlyBookCostReductionFactor") ? params["earlyBookCostReductionFactor"].get<double>() : 0.0;
+      bookParams.earlyBookCostReductionLambda = params.contains("earlyBookCostReductionLambda") ? params["earlyBookCostReductionLambda"].get<double>() : 0.0;
+      bookParams.utilityPerScore = params["utilityPerScore"].get<double>();
+      bookParams.policyBoostSoftUtilityScale = params["policyBoostSoftUtilityScale"].get<double>();
+      bookParams.utilityPerPolicyForSorting = params["utilityPerPolicyForSorting"].get<double>();
+      bookParams.maxVisitsForReExpansion = params.contains("maxVisitsForReExpansion") ? params["maxVisitsForReExpansion"].get<double>() : 0.0;
+      bookParams.visitsScale = params.contains("visitsScale") ? params["visitsScale"].get<double>() : 0.0;
+      bookParams.sharpScoreOutlierCap = params.contains("sharpScoreOutlierCap") ? params["sharpScoreOutlierCap"].get<double>() : 10000.0;
 
       book = std::make_unique<Book>(
         bookVersion,
@@ -2450,33 +2389,7 @@ Book* Book::loadFromFile(const std::string& fileName, double sharpScoreOutlierCa
         initialRules,
         initialPla,
         repBound,
-        errorFactor,
-        costPerMove,
-        costPerUCBWinLossLoss,
-        costPerUCBWinLossLossPow3,
-        costPerUCBWinLossLossPow7,
-        costPerUCBScoreLoss,
-        costPerLogPolicy,
-        costPerMovesExpanded,
-        costPerSquaredMovesExpanded,
-        costWhenPassFavored,
-        bonusPerWinLossError,
-        bonusPerScoreError,
-        bonusPerSharpScoreDiscrepancy,
-        bonusPerExcessUnexpandedPolicy,
-        bonusPerUnexpandedBestWinLoss,
-        bonusForWLPV1,
-        bonusForWLPV2,
-        bonusForBiggestWLCost,
-        scoreLossCap,
-        earlyBookCostReductionFactor,
-        earlyBookCostReductionLambda,
-        utilityPerScore,
-        policyBoostSoftUtilityScale,
-        utilityPerPolicyForSorting,
-        maxVisitsForReExpansion,
-        visitsScale,
-        sharpScoreOutlierCap
+        bookParams
       );
 
       int initialSymmetry = params["initialSymmetry"].get<int>();

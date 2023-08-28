@@ -317,34 +317,40 @@ int MainCmds::genbook(const vector<string>& args) {
   const int boardSizeX = cfg.getInt("boardSizeX",2,Board::MAX_LEN);
   const int boardSizeY = cfg.getInt("boardSizeY",2,Board::MAX_LEN);
   const int repBound = cfg.getInt("repBound",3,1000);
-  const double errorFactor = cfg.getDouble("errorFactor",0.01,100.0);
-  const double costPerMove = cfg.getDouble("costPerMove",0.0,1000000.0);
-  const double costPerUCBWinLossLoss = cfg.getDouble("costPerUCBWinLossLoss",0.0,1000000.0);
-  const double costPerUCBWinLossLossPow3 = cfg.getDouble("costPerUCBWinLossLossPow3",0.0,1000000.0);
-  const double costPerUCBWinLossLossPow7 = cfg.getDouble("costPerUCBWinLossLossPow7",0.0,1000000.0);
-  const double costPerUCBScoreLoss = cfg.getDouble("costPerUCBScoreLoss",0.0,1000000.0);
-  const double costPerLogPolicy = cfg.getDouble("costPerLogPolicy",0.0,1000000.0);
-  const double costPerMovesExpanded = cfg.getDouble("costPerMovesExpanded",0.0,1000000.0);
-  const double costPerSquaredMovesExpanded = cfg.getDouble("costPerSquaredMovesExpanded",0.0,1000000.0);
-  const double costWhenPassFavored = cfg.getDouble("costWhenPassFavored",0.0,1000000.0);
-  const double bonusPerWinLossError = cfg.getDouble("bonusPerWinLossError",0.0,1000000.0);
-  const double bonusPerScoreError = cfg.getDouble("bonusPerScoreError",0.0,1000000.0);
-  const double bonusPerSharpScoreDiscrepancy = cfg.getDouble("bonusPerSharpScoreDiscrepancy",0.0,1000000.0);
-  const double bonusPerExcessUnexpandedPolicy = cfg.getDouble("bonusPerExcessUnexpandedPolicy",0.0,1000000.0);
-  const double bonusPerUnexpandedBestWinLoss = cfg.getDouble("bonusPerUnexpandedBestWinLoss",0.0,1000000.0);
-  const double bonusForWLPV1 = cfg.contains("bonusForWLPV1") ? cfg.getDouble("bonusForWLPV1",0.0,1000000.0) : 0.0;
-  const double bonusForWLPV2 = cfg.contains("bonusForWLPV2") ? cfg.getDouble("bonusForWLPV2",0.0,1000000.0) : 0.0;
-  const double bonusForBiggestWLCost = cfg.contains("bonusForBiggestWLCost") ? cfg.getDouble("bonusForBiggestWLCost",0.0,1000000.0) : 0.0;
+
+  BookParams cfgParams;
+  cfgParams.errorFactor = cfg.getDouble("errorFactor",0.01,100.0);
+  cfgParams.costPerMove = cfg.getDouble("costPerMove",0.0,1000000.0);
+  cfgParams.costPerUCBWinLossLoss = cfg.getDouble("costPerUCBWinLossLoss",0.0,1000000.0);
+  cfgParams.costPerUCBWinLossLossPow3 = cfg.getDouble("costPerUCBWinLossLossPow3",0.0,1000000.0);
+  cfgParams.costPerUCBWinLossLossPow7 = cfg.getDouble("costPerUCBWinLossLossPow7",0.0,1000000.0);
+  cfgParams.costPerUCBScoreLoss = cfg.getDouble("costPerUCBScoreLoss",0.0,1000000.0);
+  cfgParams.costPerLogPolicy = cfg.getDouble("costPerLogPolicy",0.0,1000000.0);
+  cfgParams.costPerMovesExpanded = cfg.getDouble("costPerMovesExpanded",0.0,1000000.0);
+  cfgParams.costPerSquaredMovesExpanded = cfg.getDouble("costPerSquaredMovesExpanded",0.0,1000000.0);
+  cfgParams.costWhenPassFavored = cfg.getDouble("costWhenPassFavored",0.0,1000000.0);
+  cfgParams.bonusPerWinLossError = cfg.getDouble("bonusPerWinLossError",0.0,1000000.0);
+  cfgParams.bonusPerScoreError = cfg.getDouble("bonusPerScoreError",0.0,1000000.0);
+  cfgParams.bonusPerSharpScoreDiscrepancy = cfg.getDouble("bonusPerSharpScoreDiscrepancy",0.0,1000000.0);
+  cfgParams.bonusPerExcessUnexpandedPolicy = cfg.getDouble("bonusPerExcessUnexpandedPolicy",0.0,1000000.0);
+  cfgParams.bonusPerUnexpandedBestWinLoss = cfg.getDouble("bonusPerUnexpandedBestWinLoss",0.0,1000000.0);
+  cfgParams.bonusForWLPV1 = cfg.contains("bonusForWLPV1") ? cfg.getDouble("bonusForWLPV1",0.0,1000000.0) : 0.0;
+  cfgParams.bonusForWLPV2 = cfg.contains("bonusForWLPV2") ? cfg.getDouble("bonusForWLPV2",0.0,1000000.0) : 0.0;
+  cfgParams.bonusForBiggestWLCost = cfg.contains("bonusForBiggestWLCost") ? cfg.getDouble("bonusForBiggestWLCost",0.0,1000000.0) : 0.0;
+  cfgParams.scoreLossCap = cfg.getDouble("scoreLossCap",0.0,1000000.0);
+  cfgParams.earlyBookCostReductionFactor = cfg.contains("earlyBookCostReductionFactor") ? cfg.getDouble("earlyBookCostReductionFactor",0.0,1.0) : 0.0;
+  cfgParams.earlyBookCostReductionLambda = cfg.contains("earlyBookCostReductionLambda") ? cfg.getDouble("earlyBookCostReductionLambda",0.0,1.0) : 0.5;
+  cfgParams.utilityPerScore = cfg.getDouble("utilityPerScore",0.0,1000000.0);
+  cfgParams.policyBoostSoftUtilityScale = cfg.getDouble("policyBoostSoftUtilityScale",0.0,1000000.0);
+  cfgParams.utilityPerPolicyForSorting = cfg.getDouble("utilityPerPolicyForSorting",0.0,1000000.0);
+  cfgParams.maxVisitsForReExpansion = cfg.contains("maxVisitsForReExpansion") ? cfg.getDouble("maxVisitsForReExpansion",0.0,1e50) : 0.0;
+  cfgParams.visitsScale = cfg.contains("visitsScale") ? cfg.getDouble("visitsScale") : (params.maxVisits + 1) / 2;
+  cfgParams.sharpScoreOutlierCap = cfg.getDouble("sharpScoreOutlierCap",0.0,1000000.0);
+
   const double bonusFileScale = cfg.contains("bonusFileScale") ? cfg.getDouble("bonusFileScale",0.0,1000000.0) : 1.0;
-  const double scoreLossCap = cfg.getDouble("scoreLossCap",0.0,1000000.0);
-  const double earlyBookCostReductionFactor = cfg.contains("earlyBookCostReductionFactor") ? cfg.getDouble("earlyBookCostReductionFactor",0.0,1.0) : 0.0;
-  const double earlyBookCostReductionLambda = cfg.contains("earlyBookCostReductionLambda") ? cfg.getDouble("earlyBookCostReductionLambda",0.0,1.0) : 0.5;
-  const double utilityPerScore = cfg.getDouble("utilityPerScore",0.0,1000000.0);
-  const double policyBoostSoftUtilityScale = cfg.getDouble("policyBoostSoftUtilityScale",0.0,1000000.0);
-  const double utilityPerPolicyForSorting = cfg.getDouble("utilityPerPolicyForSorting",0.0,1000000.0);
-  const double maxVisitsForReExpansion = cfg.contains("maxVisitsForReExpansion") ? cfg.getDouble("maxVisitsForReExpansion",0.0,1e50) : 0.0;
-  const double visitsScale = cfg.contains("visitsScale") ? cfg.getDouble("visitsScale") : (params.maxVisits + 1) / 2;
-  const double sharpScoreOutlierCap = cfg.getDouble("sharpScoreOutlierCap",0.0,1000000.0);
+
+  const double randomizeParamsStdev = cfg.contains("randomizeParamsStdev") ? cfg.getDouble("randomizeParamsStdev",0.0,2.0) : 0.0;
+
   const bool logSearchInfo = cfg.getBool("logSearchInfo");
   const string rulesLabel = cfg.getString("rulesLabel");
   const string rulesLink = cfg.getString("rulesLink");
@@ -420,7 +426,7 @@ int MainCmds::genbook(const vector<string>& args) {
     bookFileExists = FileUtils::tryOpen(infile,bookFile);
   }
   if(bookFileExists) {
-    book = Book::loadFromFile(bookFile,sharpScoreOutlierCap);
+    book = Book::loadFromFile(bookFile);
     if(
       boardSizeX != book->getInitialHist().getRecentBoard(0).x_size ||
       boardSizeY != book->getInitialHist().getRecentBoard(0).y_size ||
@@ -445,65 +451,41 @@ int MainCmds::genbook(const vector<string>& args) {
     }
 
     if(!allowChangingBookParams) {
+      BookParams existingBookParams = book->getParams();
       if(
-        errorFactor != book->getErrorFactor() ||
-        costPerMove != book->getCostPerMove() ||
-        costPerUCBWinLossLoss != book->getCostPerUCBWinLossLoss() ||
-        costPerUCBWinLossLossPow3 != book->getCostPerUCBWinLossLossPow3() ||
-        costPerUCBWinLossLossPow7 != book->getCostPerUCBWinLossLossPow7() ||
-        costPerUCBScoreLoss != book->getCostPerUCBScoreLoss() ||
-        costPerLogPolicy != book->getCostPerLogPolicy() ||
-        costPerMovesExpanded != book->getCostPerMovesExpanded() ||
-        costPerSquaredMovesExpanded != book->getCostPerSquaredMovesExpanded() ||
-        costWhenPassFavored != book->getCostWhenPassFavored() ||
-        bonusPerWinLossError != book->getBonusPerWinLossError() ||
-        bonusPerScoreError != book->getBonusPerScoreError() ||
-        bonusPerSharpScoreDiscrepancy != book->getBonusPerSharpScoreDiscrepancy() ||
-        bonusPerExcessUnexpandedPolicy != book->getBonusPerExcessUnexpandedPolicy() ||
-        bonusPerUnexpandedBestWinLoss != book->getBonusPerUnexpandedBestWinLoss() ||
-        bonusForWLPV1 != book->getBonusForWLPV1() ||
-        bonusForWLPV2 != book->getBonusForWLPV2() ||
-        bonusForBiggestWLCost != book->getBonusForBiggestWLCost() ||
-        scoreLossCap != book->getScoreLossCap() ||
-        earlyBookCostReductionFactor != book->getEarlyBookCostReductionFactor() ||
-        earlyBookCostReductionLambda != book->getEarlyBookCostReductionLambda() ||
-        utilityPerScore != book->getUtilityPerScore() ||
-        policyBoostSoftUtilityScale != book->getPolicyBoostSoftUtilityScale() ||
-        utilityPerPolicyForSorting != book->getUtilityPerPolicyForSorting() ||
-        maxVisitsForReExpansion != book->getMaxVisitsForReExpansion() ||
-        visitsScale != book->getVisitsScale()
+        cfgParams.errorFactor != existingBookParams.errorFactor ||
+        cfgParams.costPerMove != existingBookParams.costPerMove ||
+        cfgParams.costPerUCBWinLossLoss != existingBookParams.costPerUCBWinLossLoss ||
+        cfgParams.costPerUCBWinLossLossPow3 != existingBookParams.costPerUCBWinLossLossPow3 ||
+        cfgParams.costPerUCBWinLossLossPow7 != existingBookParams.costPerUCBWinLossLossPow7 ||
+        cfgParams.costPerUCBScoreLoss != existingBookParams.costPerUCBScoreLoss ||
+        cfgParams.costPerLogPolicy != existingBookParams.costPerLogPolicy ||
+        cfgParams.costPerMovesExpanded != existingBookParams.costPerMovesExpanded ||
+        cfgParams.costPerSquaredMovesExpanded != existingBookParams.costPerSquaredMovesExpanded ||
+        cfgParams.costWhenPassFavored != existingBookParams.costWhenPassFavored ||
+        cfgParams.bonusPerWinLossError != existingBookParams.bonusPerWinLossError ||
+        cfgParams.bonusPerScoreError != existingBookParams.bonusPerScoreError ||
+        cfgParams.bonusPerSharpScoreDiscrepancy != existingBookParams.bonusPerSharpScoreDiscrepancy ||
+        cfgParams.bonusPerExcessUnexpandedPolicy != existingBookParams.bonusPerExcessUnexpandedPolicy ||
+        cfgParams.bonusPerUnexpandedBestWinLoss != existingBookParams.bonusPerUnexpandedBestWinLoss ||
+        cfgParams.bonusForWLPV1 != existingBookParams.bonusForWLPV1 ||
+        cfgParams.bonusForWLPV2 != existingBookParams.bonusForWLPV2 ||
+        cfgParams.bonusForBiggestWLCost != existingBookParams.bonusForBiggestWLCost ||
+        cfgParams.scoreLossCap != existingBookParams.scoreLossCap ||
+        cfgParams.earlyBookCostReductionFactor != existingBookParams.earlyBookCostReductionFactor ||
+        cfgParams.earlyBookCostReductionLambda != existingBookParams.earlyBookCostReductionLambda ||
+        cfgParams.utilityPerScore != existingBookParams.utilityPerScore ||
+        cfgParams.policyBoostSoftUtilityScale != existingBookParams.policyBoostSoftUtilityScale ||
+        cfgParams.utilityPerPolicyForSorting != existingBookParams.utilityPerPolicyForSorting ||
+        cfgParams.maxVisitsForReExpansion != existingBookParams.maxVisitsForReExpansion ||
+        cfgParams.visitsScale != existingBookParams.visitsScale ||
+        cfgParams.sharpScoreOutlierCap != existingBookParams.sharpScoreOutlierCap
       ) {
         throw StringError("Book parameters do not match");
       }
     }
     else {
-      if(errorFactor != book->getErrorFactor()) { logger.write("Changing errorFactor from " + Global::doubleToString(book->getErrorFactor()) + " to " + Global::doubleToString(errorFactor)); book->setErrorFactor(errorFactor); }
-      if(costPerMove != book->getCostPerMove()) { logger.write("Changing costPerMove from " + Global::doubleToString(book->getCostPerMove()) + " to " + Global::doubleToString(costPerMove)); book->setCostPerMove(costPerMove); }
-      if(costPerUCBWinLossLoss != book->getCostPerUCBWinLossLoss()) { logger.write("Changing costPerUCBWinLossLoss from " + Global::doubleToString(book->getCostPerUCBWinLossLoss()) + " to " + Global::doubleToString(costPerUCBWinLossLoss)); book->setCostPerUCBWinLossLoss(costPerUCBWinLossLoss); }
-      if(costPerUCBWinLossLossPow3 != book->getCostPerUCBWinLossLossPow3()) { logger.write("Changing costPerUCBWinLossLossPow3 from " + Global::doubleToString(book->getCostPerUCBWinLossLossPow3()) + " to " + Global::doubleToString(costPerUCBWinLossLossPow3)); book->setCostPerUCBWinLossLossPow3(costPerUCBWinLossLossPow3); }
-      if(costPerUCBWinLossLossPow7 != book->getCostPerUCBWinLossLossPow7()) { logger.write("Changing costPerUCBWinLossLossPow7 from " + Global::doubleToString(book->getCostPerUCBWinLossLossPow7()) + " to " + Global::doubleToString(costPerUCBWinLossLossPow7)); book->setCostPerUCBWinLossLossPow7(costPerUCBWinLossLossPow7); }
-      if(costPerUCBScoreLoss != book->getCostPerUCBScoreLoss()) { logger.write("Changing costPerUCBScoreLoss from " + Global::doubleToString(book->getCostPerUCBScoreLoss()) + " to " + Global::doubleToString(costPerUCBScoreLoss)); book->setCostPerUCBScoreLoss(costPerUCBScoreLoss); }
-      if(costPerLogPolicy != book->getCostPerLogPolicy()) { logger.write("Changing costPerLogPolicy from " + Global::doubleToString(book->getCostPerLogPolicy()) + " to " + Global::doubleToString(costPerLogPolicy)); book->setCostPerLogPolicy(costPerLogPolicy); }
-      if(costPerMovesExpanded != book->getCostPerMovesExpanded()) { logger.write("Changing costPerMovesExpanded from " + Global::doubleToString(book->getCostPerMovesExpanded()) + " to " + Global::doubleToString(costPerMovesExpanded)); book->setCostPerMovesExpanded(costPerMovesExpanded); }
-      if(costPerSquaredMovesExpanded != book->getCostPerSquaredMovesExpanded()) { logger.write("Changing costPerSquaredMovesExpanded from " + Global::doubleToString(book->getCostPerSquaredMovesExpanded()) + " to " + Global::doubleToString(costPerSquaredMovesExpanded)); book->setCostPerSquaredMovesExpanded(costPerSquaredMovesExpanded); }
-      if(costWhenPassFavored != book->getCostWhenPassFavored()) { logger.write("Changing costWhenPassFavored from " + Global::doubleToString(book->getCostWhenPassFavored()) + " to " + Global::doubleToString(costWhenPassFavored)); book->setCostWhenPassFavored(costWhenPassFavored); }
-      if(bonusPerWinLossError != book->getBonusPerWinLossError()) { logger.write("Changing bonusPerWinLossError from " + Global::doubleToString(book->getBonusPerWinLossError()) + " to " + Global::doubleToString(bonusPerWinLossError)); book->setBonusPerWinLossError(bonusPerWinLossError); }
-      if(bonusPerScoreError != book->getBonusPerScoreError()) { logger.write("Changing bonusPerScoreError from " + Global::doubleToString(book->getBonusPerScoreError()) + " to " + Global::doubleToString(bonusPerScoreError)); book->setBonusPerScoreError(bonusPerScoreError); }
-      if(bonusPerSharpScoreDiscrepancy != book->getBonusPerSharpScoreDiscrepancy()) { logger.write("Changing bonusPerSharpScoreDiscrepancy from " + Global::doubleToString(book->getBonusPerSharpScoreDiscrepancy()) + " to " + Global::doubleToString(bonusPerSharpScoreDiscrepancy)); book->setBonusPerSharpScoreDiscrepancy(bonusPerSharpScoreDiscrepancy); }
-      if(bonusPerExcessUnexpandedPolicy != book->getBonusPerExcessUnexpandedPolicy()) { logger.write("Changing bonusPerExcessUnexpandedPolicy from " + Global::doubleToString(book->getBonusPerExcessUnexpandedPolicy()) + " to " + Global::doubleToString(bonusPerExcessUnexpandedPolicy)); book->setBonusPerExcessUnexpandedPolicy(bonusPerExcessUnexpandedPolicy); }
-      if(bonusPerUnexpandedBestWinLoss != book->getBonusPerUnexpandedBestWinLoss()) { logger.write("Changing bonusPerUnexpandedBestWinLoss from " + Global::doubleToString(book->getBonusPerUnexpandedBestWinLoss()) + " to " + Global::doubleToString(bonusPerUnexpandedBestWinLoss)); book->setBonusPerUnexpandedBestWinLoss(bonusPerUnexpandedBestWinLoss); }
-      if(bonusForWLPV1 != book->getBonusForWLPV1()) { logger.write("Changing bonusForWLPV1 from " + Global::doubleToString(book->getBonusForWLPV1()) + " to " + Global::doubleToString(bonusForWLPV1)); book->setBonusForWLPV1(bonusForWLPV1); }
-      if(bonusForWLPV2 != book->getBonusForWLPV2()) { logger.write("Changing bonusForWLPV2 from " + Global::doubleToString(book->getBonusForWLPV2()) + " to " + Global::doubleToString(bonusForWLPV2)); book->setBonusForWLPV2(bonusForWLPV2); }
-      if(bonusForBiggestWLCost != book->getBonusForBiggestWLCost()) { logger.write("Changing bonusForBiggestWLCost from " + Global::doubleToString(book->getBonusForBiggestWLCost()) + " to " + Global::doubleToString(bonusForBiggestWLCost)); book->setBonusForBiggestWLCost(bonusForBiggestWLCost); }
-      if(scoreLossCap != book->getScoreLossCap()) { logger.write("Changing scoreLossCap from " + Global::doubleToString(book->getScoreLossCap()) + " to " + Global::doubleToString(scoreLossCap)); book->setScoreLossCap(scoreLossCap); }
-      if(earlyBookCostReductionFactor != book->getEarlyBookCostReductionFactor()) { logger.write("Changing earlyBookCostReductionFactor from " + Global::doubleToString(book->getEarlyBookCostReductionFactor()) + " to " + Global::doubleToString(earlyBookCostReductionFactor)); book->setEarlyBookCostReductionFactor(earlyBookCostReductionFactor); }
-      if(earlyBookCostReductionLambda != book->getEarlyBookCostReductionLambda()) { logger.write("Changing earlyBookCostReductionLambda from " + Global::doubleToString(book->getEarlyBookCostReductionLambda()) + " to " + Global::doubleToString(earlyBookCostReductionLambda)); book->setEarlyBookCostReductionLambda(earlyBookCostReductionLambda); }
-      if(utilityPerScore != book->getUtilityPerScore()) { logger.write("Changing utilityPerScore from " + Global::doubleToString(book->getUtilityPerScore()) + " to " + Global::doubleToString(utilityPerScore)); book->setUtilityPerScore(utilityPerScore); }
-      if(policyBoostSoftUtilityScale != book->getPolicyBoostSoftUtilityScale()) { logger.write("Changing policyBoostSoftUtilityScale from " + Global::doubleToString(book->getPolicyBoostSoftUtilityScale()) + " to " + Global::doubleToString(policyBoostSoftUtilityScale)); book->setPolicyBoostSoftUtilityScale(policyBoostSoftUtilityScale); }
-      if(utilityPerPolicyForSorting != book->getUtilityPerPolicyForSorting()) { logger.write("Changing utilityPerPolicyForSorting from " + Global::doubleToString(book->getUtilityPerPolicyForSorting()) + " to " + Global::doubleToString(utilityPerPolicyForSorting)); book->setUtilityPerPolicyForSorting(utilityPerPolicyForSorting); }
-      if(maxVisitsForReExpansion != book->getMaxVisitsForReExpansion()) { logger.write("Changing maxVisitsForReExpansion from " + Global::doubleToString(book->getMaxVisitsForReExpansion()) + " to " + Global::doubleToString(maxVisitsForReExpansion)); book->setMaxVisitsForReExpansion(maxVisitsForReExpansion); }
-      if(visitsScale != book->getVisitsScale()) { logger.write("Changing visitsScale from " + Global::doubleToString(book->getVisitsScale()) + " to " + Global::doubleToString(visitsScale)); book->setVisitsScale(visitsScale); }
-
+      book->setParams(cfgParams);
     }
     logger.write("Loaded preexisting book with " + Global::uint64ToString(book->size()) + " nodes from " + bookFile);
     logger.write("Book version = " + Global::intToString(book->bookVersion));
@@ -520,33 +502,7 @@ int MainCmds::genbook(const vector<string>& args) {
       rules,
       bonusInitialPla,
       repBound,
-      errorFactor,
-      costPerMove,
-      costPerUCBWinLossLoss,
-      costPerUCBWinLossLossPow3,
-      costPerUCBWinLossLossPow7,
-      costPerUCBScoreLoss,
-      costPerLogPolicy,
-      costPerMovesExpanded,
-      costPerSquaredMovesExpanded,
-      costWhenPassFavored,
-      bonusPerWinLossError,
-      bonusPerScoreError,
-      bonusPerSharpScoreDiscrepancy,
-      bonusPerExcessUnexpandedPolicy,
-      bonusPerUnexpandedBestWinLoss,
-      bonusForWLPV1,
-      bonusForWLPV2,
-      bonusForBiggestWLCost,
-      scoreLossCap,
-      earlyBookCostReductionFactor,
-      earlyBookCostReductionLambda,
-      utilityPerScore,
-      policyBoostSoftUtilityScale,
-      utilityPerPolicyForSorting,
-      maxVisitsForReExpansion,
-      visitsScale,
-      sharpScoreOutlierCap
+      cfgParams
     );
     logger.write("Creating new book at " + bookFile);
     book->saveToFile(bookFile);
@@ -563,7 +519,7 @@ int MainCmds::genbook(const vector<string>& args) {
   if(traceBookFile.size() > 0) {
     if(numIterations > 0)
       throw StringError("Cannot specify iterations and trace book at the same time");
-    traceBook = Book::loadFromFile(traceBookFile,sharpScoreOutlierCap);
+    traceBook = Book::loadFromFile(traceBookFile);
     traceBook->recomputeEverything();
     logger.write("Loaded trace book with " + Global::uint64ToString(traceBook->size()) + " nodes from " + traceBookFile);
     logger.write("traceBookMinVisits = " + Global::doubleToString(traceBookMinVisits));
@@ -598,7 +554,7 @@ int MainCmds::genbook(const vector<string>& args) {
     bool& isReExpansion
   ) {
     avoidMoveUntilByLoc = std::vector<int>(Board::MAX_ARR_SIZE,0);
-    isReExpansion = allowReExpansion && constNode.canReExpand() && constNode.recursiveValues().visits < book->getMaxVisitsForReExpansion();
+    isReExpansion = allowReExpansion && constNode.canReExpand() && constNode.recursiveValues().visits < book->getParams().maxVisitsForReExpansion;
     Player pla = hist.presumedNextMovePla;
     Board board = hist.getRecentBoard(0);
     bool hasAtLeastOneLegalNewMove = false;
@@ -1395,6 +1351,7 @@ int MainCmds::genbook(const vector<string>& args) {
 
       if(iteration % saveEveryIterations == 0 && iteration != 0) {
         logger.write("SAVING TO FILE " + bookFile);
+        book->setParams(cfgParams);
         book->saveToFile(bookFile);
         ofstream out;
         FileUtils::open(out, bookFile + ".cfg");
@@ -1403,6 +1360,14 @@ int MainCmds::genbook(const vector<string>& args) {
       }
 
       logger.write("BEGINNING BOOK EXPANSION ITERATION " + Global::intToString(iteration));
+
+      if(randomizeParamsStdev > 0.0) {
+        BookParams paramsCopy = cfgParams;
+        paramsCopy.randomizeParams(rand, randomizeParamsStdev);
+        book->setParams(paramsCopy);
+        book->recomputeEverything();
+        logger.write("Randomized params and recomputed costs");
+      }
 
       std::vector<SymBookNode> nodesToExpand = book->getNextNToExpand(std::min(1+iteration/2,numToExpandPerIteration));
       // Try to make all of the expanded nodes be consistent in symmetry so that they can share cache, in case
@@ -1445,6 +1410,7 @@ int MainCmds::genbook(const vector<string>& args) {
 
   if(traceBook != NULL || traceSgfFile.size() > 0 || numIterations > 0) {
     logger.write("SAVING TO FILE " + bookFile);
+    book->setParams(cfgParams);
     book->saveToFile(bookFile);
     ofstream out;
     FileUtils::open(out, bookFile + ".cfg");
@@ -1513,7 +1479,6 @@ int MainCmds::writebook(const vector<string>& args) {
   const bool logToStdoutDefault = true;
   Logger logger(&cfg, logToStdoutDefault);
 
-  const double sharpScoreOutlierCap = cfg.getDouble("sharpScoreOutlierCap",0.0,1000000.0);
   const string rulesLabel = cfg.getString("rulesLabel");
   const string rulesLink = cfg.getString("rulesLink");
   const double bonusFileScale = cfg.contains("bonusFileScale") ? cfg.getDouble("bonusFileScale",0.0,1000000.0) : 1.0;
@@ -1552,7 +1517,7 @@ int MainCmds::writebook(const vector<string>& args) {
 
   MakeDir::make(htmlDir);
 
-  Book* book = Book::loadFromFile(bookFile,sharpScoreOutlierCap);
+  Book* book = Book::loadFromFile(bookFile);
   book->setBonusByHash(bonusByHash);
   book->setExpandBonusByHash(expandBonusByHash);
   book->setVisitsRequiredByHash(visitsRequiredByHash);
@@ -1597,8 +1562,7 @@ int MainCmds::checkbook(const vector<string>& args) {
 
   Book* book;
   {
-    double sharpScoreOutlierCap = 2.0;
-    book = Book::loadFromFile(bookFile,sharpScoreOutlierCap);
+    book = Book::loadFromFile(bookFile);
     logger.write("Loaded preexisting book with " + Global::uint64ToString(book->size()) + " nodes from " + bookFile);
     logger.write("Book version = " + Global::intToString(book->bookVersion));
   }
@@ -1756,8 +1720,7 @@ int MainCmds::booktoposes(const vector<string>& args) {
 
   Book* book;
   {
-    double sharpScoreOutlierCap = 2.0;
-    book = Book::loadFromFile(bookFile,sharpScoreOutlierCap);
+    book = Book::loadFromFile(bookFile);
     logger.write("Loaded preexisting book with " + Global::uint64ToString(book->size()) + " nodes from " + bookFile);
     logger.write("Book version = " + Global::intToString(book->bookVersion));
   }
@@ -1827,7 +1790,7 @@ int MainCmds::booktoposes(const vector<string>& args) {
   PosWriter posWriter("bookposes.txt", outDir, 1, 0, 100000);
   posWriter.start();
 
-  double utilityPerPolicyForSorting = book->getUtilityPerPolicyForSorting();
+  double utilityPerPolicyForSorting = book->getParams().utilityPerPolicyForSorting;
 
   std::mutex statsLock;
   int numPositionsProcessed = 0;
@@ -1885,8 +1848,8 @@ int MainCmds::booktoposes(const vector<string>& args) {
         ConstSymBookNode child = node.follow(moves[i].move);
         RecursiveBookValues values = child.recursiveValues();
         double plaFactor = pla == P_WHITE ? 1.0 : -1.0;
-        double value = plaFactor * (values.winLossValue + values.sharpScoreMean * book->getUtilityPerScore() * 0.5)
-          + plaFactor * (pla == P_WHITE ? values.scoreLCB : values.scoreUCB) * 0.5 * book->getUtilityPerScore()
+        double value = plaFactor * (values.winLossValue + values.sharpScoreMean * book->getParams().utilityPerScore * 0.5)
+          + plaFactor * (pla == P_WHITE ? values.scoreLCB : values.scoreUCB) * 0.5 * book->getParams().utilityPerScore
           + utilityPerPolicyForSorting * (0.75 * moves[i].rawPolicy + 0.5 * log10(moves[i].rawPolicy + 0.0001)/4.0);
         sortingValue.push_back(value);
       }
