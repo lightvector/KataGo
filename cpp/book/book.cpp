@@ -1193,8 +1193,8 @@ bool Book::reverseDepthFirstSearchWithPostF(
 
 // Precondition: dirtyNodes has the property that if a node n is in dirtyNodes, all parents of n are in dirtyNodes.
 // Calls f on every node in dirtyNodes in an order where all children of any node are called before a node.
-// Except if somehow the book has mangaged to be cyclic, in which case the cycle is broken arbitrarily.
-// If allDirty is true, ignores dirtyNodes and treats all nodes in the entiry book as dirty.
+// Except if somehow the book has managed to be cyclic, in which case the cycle is arbitrarily broken.
+// If allDirty is true, ignores dirtyNodes and treats all nodes in the entire book as dirty.
 void Book::iterateDirtyNodesPostOrder(
   const std::set<BookHash>& dirtyNodes,
   bool allDirty,
