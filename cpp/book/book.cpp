@@ -1133,7 +1133,7 @@ bool Book::reverseDepthFirstSearchWithMoves(
 // Will never walk to any node more than once, if there are backward paths that reverse-transpose or have cycles.
 // Stop searching and immediately return true if f ever returns abort.
 // Returns false at the end of the whole search if f never aborts.
-// If postF is povided, calls postF after returning from a node.
+// If postF is provided, calls postF after returning from a node.
 bool Book::reverseDepthFirstSearchWithPostF(
   BookNode* initialNode,
   const std::function<Book::DFSAction(BookNode*)>& f,
