@@ -22,6 +22,22 @@ struct Message: Identifiable, Equatable, Hashable {
     }
 }
 
+struct CommandButton: View {
+    var title: String
+    var action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Text(title)
+                .foregroundColor(.white)
+                .padding()
+                .background(Color.blue)
+                .clipShape(RoundedRectangle(cornerRadius: 50))
+                .font(.body.monospaced())
+        }
+    }
+}
+
 struct ContentView: View {
     @State private var messages: [Message] = []
     @State private var command = ""
@@ -59,7 +75,7 @@ struct ContentView: View {
             }
 
             HStack {
-                TextField("Enter your GTP command", text: $command)
+                TextField("Enter your GTP command (list_commands)", text: $command)
                     .disableAutocorrection(true)
                     .textInputAutocapitalization(.never)
                     .onSubmit {
@@ -76,6 +92,28 @@ struct ContentView: View {
                 }
             }
             .padding()
+
+            HStack {
+                CommandButton(title: "genmove b") {
+                    messages.append(Message(text: "genmove b"))
+                    KataGoHelper.sendCommand("genmove b")
+                }
+
+                CommandButton(title: "genmove w") {
+                    messages.append(Message(text: "genmove w"))
+                    KataGoHelper.sendCommand("genmove w")
+                }
+
+                CommandButton(title: "showboard") {
+                    messages.append(Message(text: "showboard"))
+                    KataGoHelper.sendCommand("showboard")
+                }
+
+                CommandButton(title: "clear_board") {
+                    messages.append(Message(text: "clear_board"))
+                    KataGoHelper.sendCommand("clear_board")
+                }
+            }
         }
         .padding()
     }
@@ -83,6 +121,8 @@ struct ContentView: View {
     /// Create message task
     private func createMessageTask() {
         Task {
+            messages.append(Message(text: "Initializing..."))
+            KataGoHelper.sendCommand("showboard")
             while true {
                 // Get a message line from KataGo
                 let line = await KataGoHelper.messageLine()
