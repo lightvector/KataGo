@@ -20,6 +20,7 @@ struct GobanView: View {
                 drawBoardBackground(texture: texture, dimensions: dimensions)
                 drawLines(dimensions: dimensions)
                 drawStarPoints(dimensions: dimensions)
+                drawStones(dimensions: dimensions)
             }
         }
     }
@@ -37,22 +38,20 @@ struct GobanView: View {
         return (squareLength, boardWidth, boardHeight, marginWidth, marginHeight)
     }
 
-    private func drawBoardBackground(texture: UIImage?, dimensions: (squareLength: CGFloat, boardWidth: CGFloat, boardHeight: CGFloat, marginWidth: CGFloat, marginHeight: CGFloat)) -> some View {
+    private func drawBoardBackground(texture: UIImage, dimensions: (squareLength: CGFloat, boardWidth: CGFloat, boardHeight: CGFloat, marginWidth: CGFloat, marginHeight: CGFloat)) -> some View {
         Group {
-            if let woodImage = texture {
-                Image(uiImage: woodImage)
-                    .resizable()
-                    .frame(width: dimensions.boardWidth, height: dimensions.boardHeight)
-            }
+            Image(uiImage: texture)
+                .resizable()
+                .frame(width: dimensions.boardWidth, height: dimensions.boardHeight)
         }
     }
 
     private func drawLines(dimensions: (squareLength: CGFloat, boardWidth: CGFloat, boardHeight: CGFloat, marginWidth: CGFloat, marginHeight: CGFloat)) -> some View {
         Group {
-            ForEach(0..<Int(boardYLengh)) { i in
+            ForEach(0..<Int(boardYLengh), id: \.self) { i in
                 horizontalLine(i: i, dimensions: dimensions)
             }
-            ForEach(0..<Int(boardXLengh)) { i in
+            ForEach(0..<Int(boardXLengh), id: \.self) { i in
                 verticalLine(i: i, dimensions: dimensions)
             }
         }
@@ -102,6 +101,84 @@ struct GobanView: View {
             } else if boardXLengh == 9 && boardYLengh == 9 {
                 drawStarPointsForSize(points: [StarPoint(x: 4, y: 4), StarPoint(x: 2, y: 2), StarPoint(x: 2, y: 6), StarPoint(x: 6, y: 2), StarPoint(x: 6, y: 6)], dimensions: dimensions)
             }
+        }
+    }
+
+    private func drawBlackStone(x: Int, y: Int, dimensions: (squareLength: CGFloat, boardWidth: CGFloat, boardHeight: CGFloat, marginWidth: CGFloat, marginHeight: CGFloat)) -> some View {
+
+        ZStack {
+            Circle()
+                .foregroundColor(.black)
+                .shadow(radius: dimensions.squareLength / 16, x: dimensions.squareLength / 16, y: dimensions.squareLength / 16)
+                .frame(width: dimensions.squareLength, height: dimensions.squareLength)
+                .position(x: dimensions.marginWidth + CGFloat(x) * dimensions.squareLength,
+                          y: dimensions.marginHeight + CGFloat(y) * dimensions.squareLength)
+
+            Circle()
+                .stroke(Color.gray.opacity(0.7), lineWidth: dimensions.squareLength / 16)
+                .blur(radius: dimensions.squareLength / 16)
+                .frame(width: dimensions.squareLength, height: dimensions.squareLength)
+                .position(x: dimensions.marginWidth + CGFloat(x) * dimensions.squareLength,
+                          y: dimensions.marginHeight + CGFloat(y) * dimensions.squareLength)
+
+            Circle()
+                .fill(RadialGradient(gradient: Gradient(colors: [Color.black, Color.white]), center: .center, startRadius: dimensions.squareLength / 4, endRadius: 0))
+                .offset(x: -dimensions.squareLength / 8, y: -dimensions.squareLength / 8)
+                .padding(dimensions.squareLength / 4)
+                .frame(width: dimensions.squareLength, height: dimensions.squareLength)
+                .position(x: dimensions.marginWidth + CGFloat(x) * dimensions.squareLength,
+                          y: dimensions.marginHeight + CGFloat(y) * dimensions.squareLength)
+
+            Circle()
+                .foregroundColor(.black)
+                .blur(radius: dimensions.squareLength / 8)
+                .frame(width: dimensions.squareLength / 2, height: dimensions.squareLength / 2)
+                .position(x: dimensions.marginWidth + CGFloat(x) * dimensions.squareLength,
+                          y: dimensions.marginHeight + CGFloat(y) * dimensions.squareLength)
+        }
+    }
+
+    private func drawWhiteStone(x: Int, y: Int, dimensions: (squareLength: CGFloat, boardWidth: CGFloat, boardHeight: CGFloat, marginWidth: CGFloat, marginHeight: CGFloat)) -> some View {
+
+        ZStack {
+            Circle()
+                .foregroundColor(Color(white: 0.9))
+                .shadow(radius: 1, x: dimensions.squareLength / 16, y: dimensions.squareLength / 16)
+                .frame(width: dimensions.squareLength, height: dimensions.squareLength)
+                .position(x: dimensions.marginWidth + CGFloat(x) * dimensions.squareLength,
+                          y: dimensions.marginHeight + CGFloat(y) * dimensions.squareLength)
+
+            Circle()
+                .stroke(Color.gray.opacity(0.7), lineWidth: dimensions.squareLength / 16)
+                .blur(radius: dimensions.squareLength / 16)
+                .frame(width: dimensions.squareLength, height: dimensions.squareLength)
+                .position(x: dimensions.marginWidth + CGFloat(x) * dimensions.squareLength,
+                          y: dimensions.marginHeight + CGFloat(y) * dimensions.squareLength)
+
+            Circle()
+                .fill(RadialGradient(gradient: Gradient(colors: [Color(white: 0.9), Color.white]), center: .center, startRadius: dimensions.squareLength / 4, endRadius: 0))
+                .offset(x: -dimensions.squareLength / 8, y: -dimensions.squareLength / 8)
+                .padding(dimensions.squareLength / 4)
+                .frame(width: dimensions.squareLength, height: dimensions.squareLength)
+                .position(x: dimensions.marginWidth + CGFloat(x) * dimensions.squareLength,
+                          y: dimensions.marginHeight + CGFloat(y) * dimensions.squareLength)
+
+            Circle()
+                .foregroundColor(Color(white: 0.9))
+                .blur(radius: dimensions.squareLength / 8)
+                .frame(width: dimensions.squareLength / 2, height: dimensions.squareLength / 2)
+                .position(x: dimensions.marginWidth + CGFloat(x) * dimensions.squareLength,
+                          y: dimensions.marginHeight + CGFloat(y) * dimensions.squareLength)
+        }
+    }
+
+    private func drawStones(dimensions: (squareLength: CGFloat, boardWidth: CGFloat, boardHeight: CGFloat, marginWidth: CGFloat, marginHeight: CGFloat)) -> some View {
+        Group {
+            drawBlackStone(x: 15, y: 3, dimensions: dimensions)
+            drawBlackStone(x: 13, y: 2, dimensions: dimensions)
+            drawBlackStone(x: 9, y: 3, dimensions: dimensions)
+            drawBlackStone(x: 3, y: 3, dimensions: dimensions)
+            drawWhiteStone(x: 3, y: 15, dimensions: dimensions)
         }
     }
 
