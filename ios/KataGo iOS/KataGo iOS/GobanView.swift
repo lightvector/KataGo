@@ -81,7 +81,7 @@ struct GobanView: View {
 
     private func drawStarPoint(x: Int, y: Int, dimensions: (squareLength: CGFloat, boardWidth: CGFloat, boardHeight: CGFloat, marginWidth: CGFloat, marginHeight: CGFloat)) -> some View {
         Circle()
-            .frame(width: 12, height: 12)
+            .frame(width: dimensions.squareLength / 4, height: dimensions.squareLength / 4)
             .foregroundColor(Color.black)
             .position(x: dimensions.marginWidth + CGFloat(x) * dimensions.squareLength,
                       y: dimensions.marginHeight + CGFloat(y) * dimensions.squareLength)
