@@ -133,8 +133,11 @@
 		E18F3F722A5149B300D335E1 /* libz.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = E18F3F712A5149AB00D335E1 /* libz.tbd */; };
 		E18F3F772A514B9700D335E1 /* default_model.bin.gz in Resources */ = {isa = PBXBuildFile; fileRef = E18F3F742A514B9700D335E1 /* default_model.bin.gz */; };
 		E18F3F782A514B9700D335E1 /* default_gtp.cfg in Resources */ = {isa = PBXBuildFile; fileRef = E18F3F752A514B9700D335E1 /* default_gtp.cfg */; };
-		E18F3F7A2A514BC600D335E1 /* KataGoModel19x19fp16.mlpackage in Resources */ = {isa = PBXBuildFile; fileRef = E18F3F732A514B9500D335E1 /* KataGoModel19x19fp16.mlpackage */; };
 		E1B922752A5179A7006D3137 /* KataGoHelper.mm in Sources */ = {isa = PBXBuildFile; fileRef = E1B922742A5179A7006D3137 /* KataGoHelper.mm */; };
+		E1C682712AA2A4E7001B4F44 /* GobanView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1C682702AA2A4E7001B4F44 /* GobanView.swift */; };
+		E1C682732AA2B122001B4F44 /* WoodView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1C682722AA2B122001B4F44 /* WoodView.swift */; };
+		E1C682752AA2CC31001B4F44 /* CommandView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1C682742AA2CC31001B4F44 /* CommandView.swift */; };
+		E1DEF2BC2AA2221F007A7ADB /* KataGoModel19x19fp16.mlpackage in Resources */ = {isa = PBXBuildFile; fileRef = E18F3F732A514B9500D335E1 /* KataGoModel19x19fp16.mlpackage */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -363,6 +366,9 @@
 		E18F3F752A514B9700D335E1 /* default_gtp.cfg */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = default_gtp.cfg; sourceTree = "<group>"; };
 		E1B922742A5179A7006D3137 /* KataGoHelper.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = KataGoHelper.mm; sourceTree = "<group>"; };
 		E1B922762A5179C6006D3137 /* KataGoHelper.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = KataGoHelper.h; sourceTree = "<group>"; };
+		E1C682702AA2A4E7001B4F44 /* GobanView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GobanView.swift; sourceTree = "<group>"; };
+		E1C682722AA2B122001B4F44 /* WoodView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WoodView.swift; sourceTree = "<group>"; };
+		E1C682742AA2CC31001B4F44 /* CommandView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommandView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -417,12 +423,15 @@
 		E18F3E0F2A51466A00D335E1 /* KataGo iOS */ = {
 			isa = PBXGroup;
 			children = (
-				E18F3E102A51466A00D335E1 /* KataGo_iOSApp.swift */,
-				E18F3E122A51466A00D335E1 /* ContentView.swift */,
 				E18F3E142A51466C00D335E1 /* Assets.xcassets */,
-				E18F3E162A51466C00D335E1 /* Preview Content */,
-				E1B922742A5179A7006D3137 /* KataGoHelper.mm */,
+				E18F3E122A51466A00D335E1 /* ContentView.swift */,
+				E1C682702AA2A4E7001B4F44 /* GobanView.swift */,
+				E18F3E102A51466A00D335E1 /* KataGo_iOSApp.swift */,
 				E1B922762A5179C6006D3137 /* KataGoHelper.h */,
+				E1B922742A5179A7006D3137 /* KataGoHelper.mm */,
+				E18F3E162A51466C00D335E1 /* Preview Content */,
+				E1C682722AA2B122001B4F44 /* WoodView.swift */,
+				E1C682742AA2CC31001B4F44 /* CommandView.swift */,
 			);
 			path = "KataGo iOS";
 			sourceTree = "<group>";
@@ -774,7 +783,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				E18F3F7A2A514BC600D335E1 /* KataGoModel19x19fp16.mlpackage in Resources */,
+				E1DEF2BC2AA2221F007A7ADB /* KataGoModel19x19fp16.mlpackage in Resources */,
 				E18F3F782A514B9700D335E1 /* default_gtp.cfg in Resources */,
 				E18F3E182A51466C00D335E1 /* Preview Assets.xcassets in Resources */,
 				E18F3E152A51466C00D335E1 /* Assets.xcassets in Resources */,
@@ -871,6 +880,7 @@
 				E18F3E5F2A51483100D335E1 /* testownership.cpp in Sources */,
 				E18F3EDB2A5148B100D335E1 /* nneval.cpp in Sources */,
 				E18F3EBF2A51487100D335E1 /* playsettings.cpp in Sources */,
+				E1C682712AA2A4E7001B4F44 /* GobanView.swift in Sources */,
 				E18F3F6E2A51494000D335E1 /* bookcssjs.cpp in Sources */,
 				E18F3F5E2A51493100D335E1 /* misc.cpp in Sources */,
 				E18F3E5E2A51483100D335E1 /* testtime.cpp in Sources */,
@@ -882,6 +892,7 @@
 				E18F3F492A51491900D335E1 /* md5.cpp in Sources */,
 				E18F3F472A51491900D335E1 /* hash.cpp in Sources */,
 				E18F3F3E2A51491900D335E1 /* multithread.cpp in Sources */,
+				E1C682752AA2CC31001B4F44 /* CommandView.swift in Sources */,
 				E18F3EA02A51485E00D335E1 /* searchmirror.cpp in Sources */,
 				E18F3EEB2A5148CF00D335E1 /* rules.cpp in Sources */,
 				E18F3E622A51483100D335E1 /* testsearchcommon.cpp in Sources */,
@@ -908,6 +919,7 @@
 				E18F3E9D2A51485E00D335E1 /* searchprint.cpp in Sources */,
 				E18F3F3B2A51491900D335E1 /* sha2.cpp in Sources */,
 				E18F3F5D2A51493100D335E1 /* analysis.cpp in Sources */,
+				E1C682732AA2B122001B4F44 /* WoodView.swift in Sources */,
 				E18F3F5C2A51493100D335E1 /* gatekeeper.cpp in Sources */,
 				E18F3E612A51483100D335E1 /* testbook.cpp in Sources */,
 				E18F3EA52A51485E00D335E1 /* searchnode.cpp in Sources */,
