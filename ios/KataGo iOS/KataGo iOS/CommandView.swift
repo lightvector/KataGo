@@ -39,16 +39,8 @@ struct CommandButton: View {
 }
 
 struct CommandView: View {
-    @State private var messages: [Message] = []
+    @EnvironmentObject var messagesObject: MessagesObject
     @State private var command = ""
-    @State private var running = false
-
-    init() {
-        // Start a thread to run KataGo GTP
-        Thread {
-            KataGoHelper.runGtp()
-        }.start()
-    }
 
     var body: some View {
         VStack {
@@ -56,7 +48,7 @@ struct CommandView: View {
                 ScrollView(.vertical) {
                     // Vertically show each KataGo message
                     LazyVStack {
-                        ForEach(messages) { message in
+                        ForEach(messagesObject.messages) { message in
                             Text(message.text)
                                 .font(.body.monospaced())
                                 .id(message.id)
@@ -64,15 +56,11 @@ struct CommandView: View {
                                 .frame(maxWidth: .infinity, alignment: .leading)
                         }
                     }
-                    .onChange(of: messages) { value in
+                    .onChange(of: messagesObject.messages) { value in
                         // Scroll to the last message
                         scrollView.scrollTo(value.last?.id)
                     }
                 }
-            }
-            .onAppear() {
-                // Get messages from KataGo and append to the list of messages
-                createMessageTask()
             }
 
             HStack {
@@ -80,12 +68,12 @@ struct CommandView: View {
                     .disableAutocorrection(true)
                     .textInputAutocapitalization(.never)
                     .onSubmit {
-                        messages.append(Message(text: command))
+                        messagesObject.messages.append(Message(text: command))
                         KataGoHelper.sendCommand(command)
                         command = ""
                     }
                 Button(action: {
-                    messages.append(Message(text: command))
+                    messagesObject.messages.append(Message(text: command))
                     KataGoHelper.sendCommand(command)
                     command = ""
                 }) {
@@ -96,53 +84,35 @@ struct CommandView: View {
 
             HStack {
                 CommandButton(title: "genmove b") {
-                    messages.append(Message(text: "genmove b"))
+                    messagesObject.messages.append(Message(text: "genmove b"))
                     KataGoHelper.sendCommand("genmove b")
                 }
 
                 CommandButton(title: "genmove w") {
-                    messages.append(Message(text: "genmove w"))
+                    messagesObject.messages.append(Message(text: "genmove w"))
                     KataGoHelper.sendCommand("genmove w")
                 }
 
                 CommandButton(title: "showboard") {
-                    messages.append(Message(text: "showboard"))
+                    messagesObject.messages.append(Message(text: "showboard"))
                     KataGoHelper.sendCommand("showboard")
                 }
 
                 CommandButton(title: "clear_board") {
-                    messages.append(Message(text: "clear_board"))
+                    messagesObject.messages.append(Message(text: "clear_board"))
                     KataGoHelper.sendCommand("clear_board")
                 }
             }
         }
         .padding()
     }
-
-    /// Create message task
-    private func createMessageTask() {
-        if !running {
-            Task {
-                running = true
-                messages.append(Message(text: "Initializing..."))
-                KataGoHelper.sendCommand("showboard")
-                while true {
-                    // Get a message line from KataGo
-                    let line = await KataGoHelper.messageLine()
-
-                    // Create a message with the line
-                    let message = Message(text: line)
-
-                    // Append the message to the list of messages
-                    messages.append(message)
-                }
-            }
-        }
-    }
 }
 
 struct CommandView_Previews: PreviewProvider {
+    static let messageObject = MessagesObject()
+
     static var previews: some View {
         CommandView()
+            .environmentObject(messageObject)
     }
 }
