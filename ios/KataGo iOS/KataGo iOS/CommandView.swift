@@ -40,6 +40,7 @@ struct CommandButton: View {
 
 struct CommandView: View {
     @EnvironmentObject var messagesObject: MessagesObject
+    @EnvironmentObject var stones: Stones
     @State private var command = ""
 
     var body: some View {

@@ -9,9 +9,7 @@ import SwiftUI
 
 struct GobanView: View {
     @EnvironmentObject var stones: Stones
-
-    let boardXLengh: CGFloat = 19
-    let boardYLengh: CGFloat = 19
+    @EnvironmentObject var board: Board
     let boardSpace: CGFloat = 20
     let texture = WoodImage.createTexture()
 
@@ -30,11 +28,11 @@ struct GobanView: View {
     private func calculateBoardDimensions(geometry: GeometryProxy) -> (squareLength: CGFloat, boardWidth: CGFloat, boardHeight: CGFloat, marginWidth: CGFloat, marginHeight: CGFloat) {
         let totalWidth = geometry.size.width
         let totalHeight = geometry.size.height
-        let squareWidth = (totalWidth - boardSpace) / boardXLengh
-        let squareHeight = (totalHeight - boardSpace) / boardYLengh
+        let squareWidth = (totalWidth - boardSpace) / board.width
+        let squareHeight = (totalHeight - boardSpace) / board.height
         let squareLength = min(squareWidth, squareHeight)
-        let boardWidth = boardXLengh * squareLength
-        let boardHeight = boardYLengh * squareLength
+        let boardWidth = board.width * squareLength
+        let boardHeight = board.height * squareLength
         let marginWidth = (totalWidth - boardWidth + squareLength) / 2
         let marginHeight = (totalHeight - boardHeight + squareLength) / 2
         return (squareLength, boardWidth, boardHeight, marginWidth, marginHeight)
@@ -50,10 +48,10 @@ struct GobanView: View {
 
     private func drawLines(dimensions: (squareLength: CGFloat, boardWidth: CGFloat, boardHeight: CGFloat, marginWidth: CGFloat, marginHeight: CGFloat)) -> some View {
         Group {
-            ForEach(0..<Int(boardYLengh), id: \.self) { i in
+            ForEach(0..<Int(board.height), id: \.self) { i in
                 horizontalLine(i: i, dimensions: dimensions)
             }
-            ForEach(0..<Int(boardXLengh), id: \.self) { i in
+            ForEach(0..<Int(board.width), id: \.self) { i in
                 verticalLine(i: i, dimensions: dimensions)
             }
         }
@@ -92,13 +90,13 @@ struct GobanView: View {
 
     private func drawStarPoints(dimensions: (squareLength: CGFloat, boardWidth: CGFloat, boardHeight: CGFloat, marginWidth: CGFloat, marginHeight: CGFloat)) -> some View {
         Group {
-            if boardXLengh == 19 && boardYLengh == 19 {
+            if board.width == 19 && board.height == 19 {
                 // Draw star points for 19x19 board
                 drawStarPointsForSize(points: [BoardPoint(x: 3, y: 3), BoardPoint(x: 3, y: 9), BoardPoint(x: 3, y: 15), BoardPoint(x: 9, y: 3), BoardPoint(x: 9, y: 9), BoardPoint(x: 9, y: 15), BoardPoint(x: 15, y: 3), BoardPoint(x: 15, y: 9), BoardPoint(x: 15, y: 15)], dimensions: dimensions)
-            } else if boardXLengh == 13 && boardYLengh == 13 {
+            } else if board.width == 13 && board.height == 13 {
                 // Draw star points for 13x13 board
                 drawStarPointsForSize(points: [BoardPoint(x: 6, y: 6), BoardPoint(x: 3, y: 3), BoardPoint(x: 3, y: 9), BoardPoint(x: 9, y: 3), BoardPoint(x: 9, y: 9)], dimensions: dimensions)
-            } else if boardXLengh == 9 && boardYLengh == 9 {
+            } else if board.width == 9 && board.height == 9 {
                 // Draw star points for 9x9 board
                 drawStarPointsForSize(points: [BoardPoint(x: 4, y: 4), BoardPoint(x: 2, y: 2), BoardPoint(x: 2, y: 6), BoardPoint(x: 6, y: 2), BoardPoint(x: 6, y: 6)], dimensions: dimensions)
             }
@@ -227,10 +225,12 @@ struct GobanView: View {
 
 struct GobanView_Previews: PreviewProvider {
     static let stones = Stones()
+    static let board = Board()
 
     static var previews: some View {
         GobanView()
             .environmentObject(stones)
+            .environmentObject(board)
             .onAppear() {
                 GobanView_Previews.stones.blackPoints = [BoardPoint(x: 15, y: 3), BoardPoint(x: 13, y: 2), BoardPoint(x: 9, y: 3), BoardPoint(x: 3, y: 3)]
                 GobanView_Previews.stones.whitePoints = [BoardPoint(x: 3, y: 15)]

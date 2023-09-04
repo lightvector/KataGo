@@ -14,7 +14,7 @@
 
 + (void)runGtp;
 
-+ (void)getMessageLineWithCompletion:(void (^ _Nullable)(NSString * _Nonnull messageLine))completion;
++ (NSString * _Nonnull)getMessageLine;
 
 + (void)sendCommand:(NSString * _Nonnull)command;
 

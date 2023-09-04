@@ -108,7 +108,7 @@ ostream outToKataGo(&tsbToKataGo);
 #endif
 }
 
-+ (void)getMessageLineWithCompletion:(void (^ _Nullable)(NSString * _Nonnull messageLine))completion {
++ (NSString * _Nonnull)getMessageLine {
     // Get a line from the input stream from KataGo
     string cppLine;
     getline(inFromKataGo, cppLine);
@@ -116,7 +116,7 @@ ostream outToKataGo(&tsbToKataGo);
     // Convert the C++ std:string into an NSString
     NSString* messageLine = [NSString stringWithUTF8String:cppLine.c_str()];
 
-    completion(messageLine);
+    return messageLine;
 }
 
 + (void)sendCommand:(NSString * _Nonnull)command {
