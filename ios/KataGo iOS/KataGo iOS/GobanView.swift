@@ -10,18 +10,33 @@ import SwiftUI
 struct GobanView: View {
     @EnvironmentObject var stones: Stones
     @EnvironmentObject var board: Board
+    @EnvironmentObject var nextPlayer: PlayerObject
     let boardSpace: CGFloat = 20
     let texture = WoodImage.createTexture()
 
     var body: some View {
-        GeometryReader { geometry in
-            let dimensions = calculateBoardDimensions(geometry: geometry)
-            ZStack {
-                drawBoardBackground(texture: texture, dimensions: dimensions)
-                drawLines(dimensions: dimensions)
-                drawStarPoints(dimensions: dimensions)
-                drawStones(dimensions: dimensions)
+        VStack {
+            GeometryReader { geometry in
+                let dimensions = calculateBoardDimensions(geometry: geometry)
+                ZStack {
+                    drawBoardBackground(texture: texture, dimensions: dimensions)
+                    drawLines(dimensions: dimensions)
+                    drawStarPoints(dimensions: dimensions)
+                    drawStones(dimensions: dimensions)
+                }
             }
+            .gesture(TapGesture().onEnded() { _ in
+                if nextPlayer.color == .black {
+                    KataGoHelper.sendCommand("genmove b")
+                } else {
+                    KataGoHelper.sendCommand("genmove w")
+                }
+
+                KataGoHelper.sendCommand("showboard")
+            })
+        }
+        .onAppear() {
+            KataGoHelper.sendCommand("showboard")
         }
     }
 

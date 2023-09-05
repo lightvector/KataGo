@@ -26,12 +26,22 @@ class MessagesObject: ObservableObject {
     @Published var messages: [Message] = []
 }
 
+enum PlayerColor {
+    case black
+    case white
+}
+
+class PlayerObject: ObservableObject {
+    @Published var color = PlayerColor.black
+}
+
 struct ContentView: View {
-    @StateObject var stones: Stones = Stones()
-    @StateObject var messagesObject: MessagesObject = MessagesObject()
-    @StateObject var board: Board = Board()
-    @State private var selection: Tab = .command
-    @State private var isShowingBoard: Bool = false
+    @StateObject var stones = Stones()
+    @StateObject var messagesObject = MessagesObject()
+    @StateObject var board = Board()
+    @StateObject var nextPlayer = PlayerObject()
+    @State private var selection = Tab.command
+    @State private var isShowingBoard = false
     @State private var boardText: [String] = []
 
     enum Tab {
@@ -63,6 +73,7 @@ struct ContentView: View {
         .environmentObject(stones)
         .environmentObject(messagesObject)
         .environmentObject(board)
+        .environmentObject(nextPlayer)
         .onAppear() {
             // Get messages from KataGo and append to the list of messages
             createMessageTask()
@@ -97,6 +108,11 @@ struct ContentView: View {
             if message.prefix(11) == "Next player" {
                 isShowingBoard = false
                 (stones.blackPoints, stones.whitePoints, board.width, board.height) = parseBoardPoints(board: boardText)
+                if message.prefix(18) == "Next player: Black" {
+                    nextPlayer.color = .black
+                } else {
+                    nextPlayer.color = .white
+                }
             } else {
                 boardText.append(message)
             }

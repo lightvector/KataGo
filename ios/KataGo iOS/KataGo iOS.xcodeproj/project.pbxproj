@@ -137,6 +137,7 @@
 		E1C682712AA2A4E7001B4F44 /* GobanView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1C682702AA2A4E7001B4F44 /* GobanView.swift */; };
 		E1C682732AA2B122001B4F44 /* WoodView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1C682722AA2B122001B4F44 /* WoodView.swift */; };
 		E1C682752AA2CC31001B4F44 /* CommandView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1C682742AA2CC31001B4F44 /* CommandView.swift */; };
+		E1D7D3AB2AA7547D00556DFB /* ButtonView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1D7D3AA2AA7547D00556DFB /* ButtonView.swift */; };
 		E1DEF2BC2AA2221F007A7ADB /* KataGoModel19x19fp16.mlpackage in Resources */ = {isa = PBXBuildFile; fileRef = E18F3F732A514B9500D335E1 /* KataGoModel19x19fp16.mlpackage */; };
 /* End PBXBuildFile section */
 
@@ -369,6 +370,7 @@
 		E1C682702AA2A4E7001B4F44 /* GobanView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GobanView.swift; sourceTree = "<group>"; };
 		E1C682722AA2B122001B4F44 /* WoodView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WoodView.swift; sourceTree = "<group>"; };
 		E1C682742AA2CC31001B4F44 /* CommandView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommandView.swift; sourceTree = "<group>"; };
+		E1D7D3AA2AA7547D00556DFB /* ButtonView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ButtonView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -432,6 +434,7 @@
 				E18F3E162A51466C00D335E1 /* Preview Content */,
 				E1C682722AA2B122001B4F44 /* WoodView.swift */,
 				E1C682742AA2CC31001B4F44 /* CommandView.swift */,
+				E1D7D3AA2AA7547D00556DFB /* ButtonView.swift */,
 			);
 			path = "KataGo iOS";
 			sourceTree = "<group>";
@@ -820,6 +823,7 @@
 				E18F3E9A2A51485E00D335E1 /* searchmultithreadhelpers.cpp in Sources */,
 				E18F3EA42A51485E00D335E1 /* localpattern.cpp in Sources */,
 				E18F3F612A51493100D335E1 /* contribute.cpp in Sources */,
+				E1D7D3AB2AA7547D00556DFB /* ButtonView.swift in Sources */,
 				E18F3F3C2A51491900D335E1 /* test.cpp in Sources */,
 				E18F3F662A51493100D335E1 /* benchmark.cpp in Sources */,
 				E18F3EA82A51485E00D335E1 /* asyncbot.cpp in Sources */,
