@@ -7,6 +7,14 @@
 
 import SwiftUI
 
+struct Dimensions {
+    let squareLength: CGFloat
+    let boardWidth: CGFloat
+    let boardHeight: CGFloat
+    let marginWidth: CGFloat
+    let marginHeight: CGFloat
+}
+
 struct GobanView: View {
     @EnvironmentObject var stones: Stones
     @EnvironmentObject var board: Board
@@ -22,14 +30,16 @@ struct GobanView: View {
                     drawBoardBackground(texture: texture, dimensions: dimensions)
                     drawLines(dimensions: dimensions)
                     drawStarPoints(dimensions: dimensions)
-                    drawStones(dimensions: dimensions)
+                    StoneView(dimensions: dimensions)
                 }
             }
             .gesture(TapGesture().onEnded() { _ in
                 if nextPlayer.color == .black {
                     KataGoHelper.sendCommand("genmove b")
+                    nextPlayer.color = .white
                 } else {
                     KataGoHelper.sendCommand("genmove w")
+                    nextPlayer.color = .black
                 }
 
                 KataGoHelper.sendCommand("showboard")
@@ -40,7 +50,7 @@ struct GobanView: View {
         }
     }
 
-    private func calculateBoardDimensions(geometry: GeometryProxy) -> (squareLength: CGFloat, boardWidth: CGFloat, boardHeight: CGFloat, marginWidth: CGFloat, marginHeight: CGFloat) {
+    private func calculateBoardDimensions(geometry: GeometryProxy) -> Dimensions {
         let totalWidth = geometry.size.width
         let totalHeight = geometry.size.height
         let squareWidth = (totalWidth - boardSpace) / (board.width + 1)
@@ -50,10 +60,10 @@ struct GobanView: View {
         let boardHeight = board.height * squareLength
         let marginWidth = (totalWidth - boardWidth + squareLength) / 2
         let marginHeight = (totalHeight - boardHeight + squareLength) / 2
-        return (squareLength, boardWidth, boardHeight, marginWidth, marginHeight)
+        return Dimensions(squareLength: squareLength, boardWidth: boardWidth, boardHeight: boardHeight, marginWidth: marginWidth, marginHeight: marginHeight)
     }
 
-    private func drawBoardBackground(texture: UIImage, dimensions: (squareLength: CGFloat, boardWidth: CGFloat, boardHeight: CGFloat, marginWidth: CGFloat, marginHeight: CGFloat)) -> some View {
+    private func drawBoardBackground(texture: UIImage, dimensions: Dimensions) -> some View {
         Group {
             Image(uiImage: texture)
                 .resizable()
@@ -61,7 +71,7 @@ struct GobanView: View {
         }
     }
 
-    private func drawLines(dimensions: (squareLength: CGFloat, boardWidth: CGFloat, boardHeight: CGFloat, marginWidth: CGFloat, marginHeight: CGFloat)) -> some View {
+    private func drawLines(dimensions: Dimensions) -> some View {
         Group {
             ForEach(0..<Int(board.height), id: \.self) { i in
                 horizontalLine(i: i, dimensions: dimensions)
@@ -72,7 +82,7 @@ struct GobanView: View {
         }
     }
 
-    private func horizontalLine(i: Int, dimensions: (squareLength: CGFloat, boardWidth: CGFloat, boardHeight: CGFloat, marginWidth: CGFloat, marginHeight: CGFloat)) -> some View {
+    private func horizontalLine(i: Int, dimensions: Dimensions) -> some View {
         Path { path in
             path.move(to: CGPoint(x: dimensions.marginWidth, y: dimensions.marginHeight + CGFloat(i) * dimensions.squareLength))
             path.addLine(to: CGPoint(x: dimensions.marginWidth + dimensions.boardWidth - dimensions.squareLength, y: dimensions.marginHeight + CGFloat(i) * dimensions.squareLength))
@@ -80,7 +90,7 @@ struct GobanView: View {
         .stroke(Color.black)
     }
 
-    private func verticalLine(i: Int, dimensions: (squareLength: CGFloat, boardWidth: CGFloat, boardHeight: CGFloat, marginWidth: CGFloat, marginHeight: CGFloat)) -> some View {
+    private func verticalLine(i: Int, dimensions: Dimensions) -> some View {
         Path { path in
             path.move(to: CGPoint(x: dimensions.marginWidth + CGFloat(i) * dimensions.squareLength, y: dimensions.marginHeight))
             path.addLine(to: CGPoint(x: dimensions.marginWidth + CGFloat(i) * dimensions.squareLength, y: dimensions.marginHeight + dimensions.boardHeight - dimensions.squareLength))
@@ -88,7 +98,7 @@ struct GobanView: View {
         .stroke(Color.black)
     }
 
-    private func drawStarPoint(x: Int, y: Int, dimensions: (squareLength: CGFloat, boardWidth: CGFloat, boardHeight: CGFloat, marginWidth: CGFloat, marginHeight: CGFloat)) -> some View {
+    private func drawStarPoint(x: Int, y: Int, dimensions: Dimensions) -> some View {
         // Big black dot
         Circle()
             .frame(width: dimensions.squareLength / 4, height: dimensions.squareLength / 4)
@@ -97,13 +107,13 @@ struct GobanView: View {
                       y: dimensions.marginHeight + CGFloat(y) * dimensions.squareLength)
     }
 
-    private func drawStarPointsForSize(points: [BoardPoint], dimensions: (squareLength: CGFloat, boardWidth: CGFloat, boardHeight: CGFloat, marginWidth: CGFloat, marginHeight: CGFloat)) -> some View {
+    private func drawStarPointsForSize(points: [BoardPoint], dimensions: Dimensions) -> some View {
         ForEach(points, id: \.self) { point in
             drawStarPoint(x: point.x, y: point.y, dimensions: dimensions)
         }
     }
 
-    private func drawStarPoints(dimensions: (squareLength: CGFloat, boardWidth: CGFloat, boardHeight: CGFloat, marginWidth: CGFloat, marginHeight: CGFloat)) -> some View {
+    private func drawStarPoints(dimensions: Dimensions) -> some View {
         Group {
             if board.width == 19 && board.height == 19 {
                 // Draw star points for 19x19 board
@@ -117,125 +127,6 @@ struct GobanView: View {
             }
         }
     }
-
-    private func drawBlackStone(x: Int, y: Int, dimensions: (squareLength: CGFloat, boardWidth: CGFloat, boardHeight: CGFloat, marginWidth: CGFloat, marginHeight: CGFloat)) -> some View {
-
-        ZStack {
-            // Black stone
-            Circle()
-                .foregroundColor(.black)
-                .frame(width: dimensions.squareLength, height: dimensions.squareLength)
-                .position(x: dimensions.marginWidth + CGFloat(x) * dimensions.squareLength,
-                          y: dimensions.marginHeight + CGFloat(y) * dimensions.squareLength)
-
-            // Light source effect
-            Circle()
-                .fill(RadialGradient(gradient: Gradient(colors: [Color.black, Color.white]), center: .center, startRadius: dimensions.squareLength / 4, endRadius: 0))
-                .offset(x: -dimensions.squareLength / 8, y: -dimensions.squareLength / 8)
-                .padding(dimensions.squareLength / 4)
-                .frame(width: dimensions.squareLength, height: dimensions.squareLength)
-                .position(x: dimensions.marginWidth + CGFloat(x) * dimensions.squareLength,
-                          y: dimensions.marginHeight + CGFloat(y) * dimensions.squareLength)
-
-            // Mask some light
-            Circle()
-                .foregroundColor(.black)
-                .blur(radius: dimensions.squareLength / 8)
-                .frame(width: dimensions.squareLength / 2, height: dimensions.squareLength / 2)
-                .position(x: dimensions.marginWidth + CGFloat(x) * dimensions.squareLength,
-                          y: dimensions.marginHeight + CGFloat(y) * dimensions.squareLength)
-        }
-    }
-
-    private func drawBlackStones(dimensions: (squareLength: CGFloat, boardWidth: CGFloat, boardHeight: CGFloat, marginWidth: CGFloat, marginHeight: CGFloat)) -> some View {
-        Group {
-            ForEach(stones.blackPoints, id: \.self) { point in
-                drawBlackStone(x: point.x, y: point.y, dimensions: dimensions)
-            }
-        }
-    }
-
-    private func drawWhiteStone(x: Int, y: Int, dimensions: (squareLength: CGFloat, boardWidth: CGFloat, boardHeight: CGFloat, marginWidth: CGFloat, marginHeight: CGFloat)) -> some View {
-
-        ZStack {
-            // Make a white stone darker than light
-            let stoneColor = Color(white: 0.85)
-
-            // White stone
-            Circle()
-                .foregroundColor(stoneColor)
-                .frame(width: dimensions.squareLength, height: dimensions.squareLength)
-                .position(x: dimensions.marginWidth + CGFloat(x) * dimensions.squareLength,
-                          y: dimensions.marginHeight + CGFloat(y) * dimensions.squareLength)
-
-            // Light source effect
-            Circle()
-                .fill(RadialGradient(gradient: Gradient(colors: [stoneColor, Color.white]), center: .center, startRadius: dimensions.squareLength / 4, endRadius: 0))
-                .offset(x: -dimensions.squareLength / 8, y: -dimensions.squareLength / 8)
-                .padding(dimensions.squareLength / 4)
-                .frame(width: dimensions.squareLength, height: dimensions.squareLength)
-                .position(x: dimensions.marginWidth + CGFloat(x) * dimensions.squareLength,
-                          y: dimensions.marginHeight + CGFloat(y) * dimensions.squareLength)
-
-            // Mask some light
-            Circle()
-                .foregroundColor(stoneColor)
-                .blur(radius: dimensions.squareLength / 8)
-                .frame(width: dimensions.squareLength / 2, height: dimensions.squareLength / 2)
-                .position(x: dimensions.marginWidth + CGFloat(x) * dimensions.squareLength,
-                          y: dimensions.marginHeight + CGFloat(y) * dimensions.squareLength)
-        }
-    }
-
-    private func drawWhiteStones(dimensions: (squareLength: CGFloat, boardWidth: CGFloat, boardHeight: CGFloat, marginWidth: CGFloat, marginHeight: CGFloat)) -> some View {
-        Group {
-            ForEach(stones.whitePoints, id: \.self) { point in
-                drawWhiteStone(x: point.x, y: point.y, dimensions: dimensions)
-            }
-        }
-    }
-
-    private func drawShadow(x: Int, y: Int, dimensions: (squareLength: CGFloat, boardWidth: CGFloat, boardHeight: CGFloat, marginWidth: CGFloat, marginHeight: CGFloat)) -> some View {
-        Group {
-            // Shifted shadow
-            Circle()
-                .shadow(radius: dimensions.squareLength / 16, x: dimensions.squareLength / 8, y: dimensions.squareLength / 8)
-                .frame(width: dimensions.squareLength, height: dimensions.squareLength)
-                .position(x: dimensions.marginWidth + CGFloat(x) * dimensions.squareLength,
-                          y: dimensions.marginHeight + CGFloat(y) * dimensions.squareLength)
-
-            // Centered shadow
-            Circle()
-                .shadow(radius: dimensions.squareLength / 8)
-                .frame(width: dimensions.squareLength, height: dimensions.squareLength)
-                .position(x: dimensions.marginWidth + CGFloat(x) * dimensions.squareLength,
-                          y: dimensions.marginHeight + CGFloat(y) * dimensions.squareLength)
-        }
-    }
-
-    private func drawShadows(dimensions: (squareLength: CGFloat, boardWidth: CGFloat, boardHeight: CGFloat, marginWidth: CGFloat, marginHeight: CGFloat)) -> some View {
-        Group {
-            ForEach(stones.blackPoints, id: \.self) { point in
-                drawShadow(x: point.x, y: point.y, dimensions: dimensions)
-            }
-
-            ForEach(stones.whitePoints, id: \.self) { point in
-                drawShadow(x: point.x, y: point.y, dimensions: dimensions)
-            }
-        }
-    }
-
-    private func drawStones(dimensions: (squareLength: CGFloat, boardWidth: CGFloat, boardHeight: CGFloat, marginWidth: CGFloat, marginHeight: CGFloat)) -> some View {
-        ZStack {
-            drawShadows(dimensions: dimensions)
-
-            Group {
-                drawBlackStones(dimensions: dimensions)
-                drawWhiteStones(dimensions: dimensions)
-            }
-        }
-    }
-
 }
 
 struct GobanView_Previews: PreviewProvider {
