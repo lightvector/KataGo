@@ -43,8 +43,8 @@ struct GobanView: View {
     private func calculateBoardDimensions(geometry: GeometryProxy) -> (squareLength: CGFloat, boardWidth: CGFloat, boardHeight: CGFloat, marginWidth: CGFloat, marginHeight: CGFloat) {
         let totalWidth = geometry.size.width
         let totalHeight = geometry.size.height
-        let squareWidth = (totalWidth - boardSpace) / board.width
-        let squareHeight = (totalHeight - boardSpace) / board.height
+        let squareWidth = (totalWidth - boardSpace) / (board.width + 1)
+        let squareHeight = (totalHeight - boardSpace) / (board.height + 1)
         let squareLength = min(squareWidth, squareHeight)
         let boardWidth = board.width * squareLength
         let boardHeight = board.height * squareLength
@@ -57,7 +57,7 @@ struct GobanView: View {
         Group {
             Image(uiImage: texture)
                 .resizable()
-                .frame(width: dimensions.boardWidth, height: dimensions.boardHeight)
+                .frame(width: (dimensions.boardWidth + dimensions.squareLength / 2), height: dimensions.boardHeight + (dimensions.squareLength / 2))
         }
     }
 
