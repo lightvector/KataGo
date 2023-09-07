@@ -1677,19 +1677,19 @@ void Book::recomputeNodeCost(BookNode* node) {
     //      << " becomes " <<  (locAndBookMove.second.costFromRoot - bonus) << endl;
     locAndBookMove.second.costFromRoot -= bonus;
 
-    if(locAndBookMove.second.isWLPV) {
-      double wlPVBonusScale = (locAndBookMove.second.costFromRoot - node->minCostFromRoot);
-      if(wlPVBonusScale > 0.0) {
-        double factor1 = std::max(0.0, 1.0 - square(child->recursiveValues.winLossValue));
-        double factor2 = 4.0 * std::max(0.0, 0.25 - square(0.5 - std::fabs(child->recursiveValues.winLossValue)));
-        double wlPVBonus = wlPVBonusScale * tanh(factor1 * params.bonusForWLPV1 + factor2 * params.bonusForWLPV2);
-        // cout << "Child " << (int)locAndBookMove.first
-        //      << " cost " << locAndBookMove.second.costFromRoot
-        //      << " wlpv factors " << factor1 << " " << factor2
-        //      << " becomes " <<  (locAndBookMove.second.costFromRoot - wlPVBonus) << endl;
-        locAndBookMove.second.costFromRoot -= wlPVBonus;
-      }
-    }
+    // if(locAndBookMove.second.isWLPV) {
+    //   double wlPVBonusScale = (locAndBookMove.second.costFromRoot - node->minCostFromRoot);
+    //   if(wlPVBonusScale > 0.0) {
+    //     double factor1 = std::max(0.0, 1.0 - square(child->recursiveValues.winLossValue));
+    //     double factor2 = 4.0 * std::max(0.0, 0.25 - square(0.5 - std::fabs(child->recursiveValues.winLossValue)));
+    //     double wlPVBonus = wlPVBonusScale * tanh(factor1 * params.bonusForWLPV1 + factor2 * params.bonusForWLPV2);
+    //     // cout << "Child " << (int)locAndBookMove.first
+    //     //      << " cost " << locAndBookMove.second.costFromRoot
+    //     //      << " wlpv factors " << factor1 << " " << factor2
+    //     //      << " becomes " <<  (locAndBookMove.second.costFromRoot - wlPVBonus) << endl;
+    //     locAndBookMove.second.costFromRoot -= wlPVBonus;
+    //   }
+    // }
   }
   {
     double winLossError = node->thisValuesNotInBook.getAdjustedWinLossError(node->book->initialRules);
@@ -1796,21 +1796,21 @@ void Book::recomputeNodeCost(BookNode* node) {
         }
       }
     }
-
-    if(node->expansionIsWLPV) {
-      double wlPVBonusScale = node->thisNodeExpansionCost;
-      if(wlPVBonusScale > 0.0) {
-        double factor1 = std::max(0.0, 1.0 - square(node->thisValuesNotInBook.winLossValue));
-        double factor2 = 4.0 * std::max(0.0, 0.25 - square(0.5 - std::fabs(node->thisValuesNotInBook.winLossValue)));
-        double wlPVBonus = wlPVBonusScale * tanh(factor1 * params.bonusForWLPV1 + factor2 * params.bonusForWLPV2);
-        // cout << "This node expansion cost " << node->thisNodeExpansionCost
-        //      << " wlpv factors " << factor1 << " " << factor2
-        //      << " becomes " <<  (node->thisNodeExpansionCost - wlPVBonus) << endl;
-        node->thisNodeExpansionCost -= wlPVBonus;
-      }
-    }
   }
 
+  if(node->expansionIsWLPV || (node->canReExpand && node->recursiveValues.visits <= params.maxVisitsForReExpansion)) {
+    double wlPVBonusScale = node->thisNodeExpansionCost + std::max(0.0, node->minCostFromRoot - node->minCostFromRootWLPV);
+    if(wlPVBonusScale > 0.0) {
+      double factor1 = std::max(0.0, 1.0 - square(node->thisValuesNotInBook.winLossValue));
+      double factor2 = 4.0 * std::max(0.0, 0.25 - square(0.5 - std::fabs(node->thisValuesNotInBook.winLossValue)));
+      double wlPVBonus = wlPVBonusScale * tanh(factor1 * params.bonusForWLPV1 + factor2 * params.bonusForWLPV2);
+      // cout << "This node expansion cost " << node->thisNodeExpansionCost
+      //      << " wlpv factors " << factor1 << " " << factor2
+      //      << " becomes " <<  (node->thisNodeExpansionCost - wlPVBonus) << endl;
+      node->thisNodeExpansionCost -= wlPVBonus;
+    }
+  }
+  
   double depthFromRootFactor = 1.0 - params.earlyBookCostReductionFactor * pow(params.earlyBookCostReductionLambda, node->minDepthFromRoot);
   for(auto& locAndBookMove: node->moves) {
     locAndBookMove.second.costFromRoot = node->minCostFromRoot + (locAndBookMove.second.costFromRoot - node->minCostFromRoot) * depthFromRootFactor;
