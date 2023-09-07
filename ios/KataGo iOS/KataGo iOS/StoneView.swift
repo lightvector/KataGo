@@ -25,7 +25,7 @@ struct StoneView: View {
 
     private func drawLightEffect(stoneColor: Color, x: Int, y: Int, dimensions: Dimensions) -> some View {
         Circle()
-            .fill(RadialGradient(gradient: Gradient(colors: [stoneColor, Color.white]), center: .center, startRadius: dimensions.squareLength / 4, endRadius: 0))
+            .fill(RadialGradient(gradient: Gradient(colors: [stoneColor, Color.white, Color.white]), center: .center, startRadius: dimensions.squareLength / 4, endRadius: 0))
             .offset(x: -dimensions.squareLength / 8, y: -dimensions.squareLength / 8)
             .padding(dimensions.squareLength / 4)
             .frame(width: dimensions.squareLength, height: dimensions.squareLength)
@@ -35,7 +35,7 @@ struct StoneView: View {
                 // Mask some light
                 Circle()
                     .foregroundColor(stoneColor)
-                    .blur(radius: dimensions.squareLength / 8)
+                    .blur(radius: dimensions.squareLength / 16)
                     .frame(width: dimensions.squareLength / 2, height: dimensions.squareLength / 2)
                     .position(x: dimensions.marginWidth + CGFloat(x) * dimensions.squareLength,
                               y: dimensions.marginHeight + CGFloat(y) * dimensions.squareLength)
@@ -146,7 +146,8 @@ struct StoneView_Previews: PreviewProvider {
                 let boardHeight = height * squareLength
                 let marginWidth = (totalWidth - boardWidth + squareLength) / 2
                 let marginHeight = (totalHeight - boardHeight + squareLength) / 2
-                StoneView(dimensions: Dimensions(squareLength: squareLength, boardWidth: boardWidth, boardHeight: boardHeight, marginWidth: marginWidth, marginHeight: marginHeight))
+                let dimensions = Dimensions(squareLength: squareLength, boardWidth: boardWidth, boardHeight: boardHeight, marginWidth: marginWidth, marginHeight: marginHeight)
+                StoneView(dimensions: dimensions)
             }
             .environmentObject(stones)
             .onAppear() {
