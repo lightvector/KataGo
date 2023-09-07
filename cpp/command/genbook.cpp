@@ -554,7 +554,7 @@ int MainCmds::genbook(const vector<string>& args) {
     bool& isReExpansion
   ) {
     avoidMoveUntilByLoc = std::vector<int>(Board::MAX_ARR_SIZE,0);
-    isReExpansion = allowReExpansion && constNode.canReExpand() && constNode.recursiveValues().visits < book->getParams().maxVisitsForReExpansion;
+    isReExpansion = allowReExpansion && constNode.canReExpand() && constNode.recursiveValues().visits <= book->getParams().maxVisitsForReExpansion;
     Player pla = hist.presumedNextMovePla;
     Board board = hist.getRecentBoard(0);
     bool hasAtLeastOneLegalNewMove = false;

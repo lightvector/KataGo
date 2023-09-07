@@ -1507,7 +1507,7 @@ void Book::recomputeNodeCost(BookNode* node) {
     node->thisNodeExpansionCost = 1e100;
     // cout << "Can't expand this node" << endl;
   }
-  else if(node->canReExpand && node->recursiveValues.visits < params.maxVisitsForReExpansion) {
+  else if(node->canReExpand && node->recursiveValues.visits <= params.maxVisitsForReExpansion) {
     double m = node->recursiveValues.visits / std::max(1.0, params.maxVisitsForReExpansion);
     node->thisNodeExpansionCost = m * params.costPerMovesExpanded + m * m * params.costPerSquaredMovesExpanded;
     smallestCostFromUCB = 0;
