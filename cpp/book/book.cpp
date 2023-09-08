@@ -639,11 +639,18 @@ SymBookNode SymBookNode::playAndAddMove(Board& board, BoardHistory& hist, Loc mo
   return SymBookNode(child,SymmetryHelpers::invert(symmetryToAlignToChild));
 }
 
-
 bool SymBookNode::getBoardHistoryReachingHere(BoardHistory& ret, vector<Loc>& moveHistoryRet) {
-  return ConstSymBookNode(*this).getBoardHistoryReachingHere(ret,moveHistoryRet);
+  vector<double> winLossRet;
+  return getBoardHistoryReachingHere(ret,moveHistoryRet,winLossRet);
 }
 bool ConstSymBookNode::getBoardHistoryReachingHere(BoardHistory& ret, vector<Loc>& moveHistoryRet) {
+  vector<double> winLossRet;
+  return getBoardHistoryReachingHere(ret,moveHistoryRet,winLossRet);
+}
+bool SymBookNode::getBoardHistoryReachingHere(BoardHistory& ret, vector<Loc>& moveHistoryRet, vector<double>& winlossRet) {
+  return ConstSymBookNode(*this).getBoardHistoryReachingHere(ret,moveHistoryRet,winlossRet);
+}
+bool ConstSymBookNode::getBoardHistoryReachingHere(BoardHistory& ret, vector<Loc>& moveHistoryRet, vector<double>& winlossRet) {
   assert(node != nullptr);
   const Book* book = node->book;
   vector<const BookNode*> pathFromRoot;
@@ -664,6 +671,11 @@ bool ConstSymBookNode::getBoardHistoryReachingHere(BoardHistory& ret, vector<Loc
   assert(suc);
   assert(pathFromRoot.size() >= 1);
   assert(movesFromRoot.size() == pathFromRoot.size());
+
+  winlossRet.clear();
+  for(const BookNode* pathNode: pathFromRoot)
+    winlossRet.push_back(pathNode->recursiveValues.winLossValue);
+  winlossRet.push_back(node->recursiveValues.winLossValue);
 
   // Find the total composed symmetry that we will have to apply as we walk down.
   int symmetryAcc = 0;

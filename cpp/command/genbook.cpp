@@ -1054,10 +1054,11 @@ int MainCmds::genbook(const vector<string>& args) {
     BoardHistory hist;
     std::vector<Loc> moveHistory;
     std::vector<int> symmetries;
+    std::vector<double> winlossHistory;
     bool suc;
     {
       std::lock_guard<std::mutex> lock(bookMutex);
-      suc = constNode.getBoardHistoryReachingHere(hist,moveHistory);
+      suc = constNode.getBoardHistoryReachingHere(hist,moveHistory,winlossHistory);
       symmetries = constNode.getSymmetries();
     }
 
@@ -1114,6 +1115,9 @@ int MainCmds::genbook(const vector<string>& args) {
       ostringstream out;
       for(Move m: hist.moveHistory)
         out << Location::toString(m.loc,board) << " ";
+      out << endl;
+      for(double winLoss: winlossHistory)
+        out << Global::strprintf("%2.0f", 100.0*(0.5 * (winLoss + 1.0))) << " ";
       out << endl;
       Board::printBoard(out, board, Board::NULL_LOC, &(hist.moveHistory));
       std::lock_guard<std::mutex> lock(bookMutex);
