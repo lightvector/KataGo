@@ -19,6 +19,7 @@ struct GobanView: View {
     @EnvironmentObject var stones: Stones
     @EnvironmentObject var board: Board
     @EnvironmentObject var nextPlayer: PlayerObject
+    @EnvironmentObject var analysis: Analysis
     let boardSpace: CGFloat = 20
     let texture = WoodImage.createTexture()
 
@@ -31,6 +32,7 @@ struct GobanView: View {
                     drawLines(dimensions: dimensions)
                     drawStarPoints(dimensions: dimensions)
                     StoneView(dimensions: dimensions)
+                    AnalysisView(dimensions: dimensions)
                 }
             }
             .gesture(TapGesture().onEnded() { _ in
@@ -43,10 +45,12 @@ struct GobanView: View {
                 }
 
                 KataGoHelper.sendCommand("showboard")
+                KataGoHelper.sendCommand("kata-analyze interval 10")
             })
         }
         .onAppear() {
             KataGoHelper.sendCommand("showboard")
+            KataGoHelper.sendCommand("kata-analyze interval 10")
         }
     }
 
@@ -132,14 +136,17 @@ struct GobanView: View {
 struct GobanView_Previews: PreviewProvider {
     static let stones = Stones()
     static let board = Board()
+    static let analysis = Analysis()
 
     static var previews: some View {
         GobanView()
             .environmentObject(stones)
             .environmentObject(board)
+            .environmentObject(analysis)
             .onAppear() {
                 GobanView_Previews.stones.blackPoints = [BoardPoint(x: 15, y: 3), BoardPoint(x: 13, y: 2), BoardPoint(x: 9, y: 3), BoardPoint(x: 3, y: 3)]
                 GobanView_Previews.stones.whitePoints = [BoardPoint(x: 3, y: 15)]
+                GobanView_Previews.analysis.data = [["move": "Q16", "winrate": "0.54321012345"]]
             }
     }
 }

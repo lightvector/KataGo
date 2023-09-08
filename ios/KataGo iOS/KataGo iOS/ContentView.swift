@@ -35,11 +35,16 @@ class PlayerObject: ObservableObject {
     @Published var color = PlayerColor.black
 }
 
+class Analysis: ObservableObject {
+    @Published var data: [[String: String]] = []
+}
+
 struct ContentView: View {
     @StateObject var stones = Stones()
     @StateObject var messagesObject = MessagesObject()
     @StateObject var board = Board()
     @StateObject var nextPlayer = PlayerObject()
+    @StateObject var analysis = Analysis()
     @State private var selection = Tab.command
     @State private var isShowingBoard = false
     @State private var boardText: [String] = []
@@ -74,6 +79,7 @@ struct ContentView: View {
         .environmentObject(messagesObject)
         .environmentObject(board)
         .environmentObject(nextPlayer)
+        .environmentObject(analysis)
         .onAppear() {
             // Get messages from KataGo and append to the list of messages
             createMessageTask()
@@ -99,16 +105,24 @@ struct ContentView: View {
 
                 // Collect board information
                 maybeCollectBoard(message: line)
+
+                // Collect analysis information
+                maybeCollectAnalysis(message: line)
+
+                // Remove when there are too many messages
+                while messagesObject.messages.count > 1000 {
+                    messagesObject.messages.removeFirst()
+                }
             }
         }
     }
 
     func maybeCollectBoard(message: String) {
         if isShowingBoard {
-            if message.prefix(11) == "Next player" {
+            if message.prefix("Next player".count) == "Next player" {
                 isShowingBoard = false
                 (stones.blackPoints, stones.whitePoints, board.width, board.height) = parseBoardPoints(board: boardText)
-                if message.prefix(18) == "Next player: Black" {
+                if message.prefix("Next player: Black".count) == "Next player: Black" {
                     nextPlayer.color = .black
                 } else {
                     nextPlayer.color = .white
@@ -117,7 +131,7 @@ struct ContentView: View {
                 boardText.append(message)
             }
         } else {
-            if message.prefix(9) == "= MoveNum" {
+            if message.prefix("= MoveNum".count) == "= MoveNum" {
                 boardText = []
                 isShowingBoard = true
             }
@@ -148,6 +162,38 @@ struct ContentView: View {
         }
 
         return (blackStones, whiteStones, width, height)
+    }
+
+    func maybeCollectAnalysis(message: String) {
+        if message.prefix("info".count) == "info" {
+            let splitData = message.split(separator: "info")
+            analysis.data = splitData.map { extractMoveData(dataLine: String($0))
+            }
+        }
+    }
+
+    func extractMoveData(dataLine: String) -> [String: String] {
+        // Define patterns for extracting relevant information
+        let patterns: [String: String] = [
+            "move": "move (\\w\\d+)",
+            "visits": "visits (\\d+)",
+            "winrate": "winrate ([\\d.]+)",
+            "scoreLead": "scoreLead ([-\\d.]+)",
+            "prior": "prior ([\\d.e-]+)",
+            "order": "order (\\d+)"
+        ]
+
+        var moveData: [String: String] = [:]
+        for (key, pattern) in patterns {
+            let regex = try? NSRegularExpression(pattern: pattern, options: [])
+            if let match = regex?.firstMatch(in: dataLine, options: [], range: NSRange(location: 0, length: dataLine.utf16.count)) {
+                if let range = Range(match.range(at: 1), in: dataLine) {
+                    moveData[key] = String(dataLine[range])
+                }
+            }
+        }
+
+        return moveData
     }
 }
 

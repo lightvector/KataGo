@@ -139,6 +139,7 @@
 		E1C682752AA2CC31001B4F44 /* CommandView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1C682742AA2CC31001B4F44 /* CommandView.swift */; };
 		E1D7D3AB2AA7547D00556DFB /* ButtonView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1D7D3AA2AA7547D00556DFB /* ButtonView.swift */; };
 		E1D7D3AD2AA897C000556DFB /* StoneView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1D7D3AC2AA897C000556DFB /* StoneView.swift */; };
+		E1D7D3B32AAA1F5600556DFB /* AnalysisView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1D7D3B22AAA1F5600556DFB /* AnalysisView.swift */; };
 		E1DEF2BC2AA2221F007A7ADB /* KataGoModel19x19fp16.mlpackage in Resources */ = {isa = PBXBuildFile; fileRef = E18F3F732A514B9500D335E1 /* KataGoModel19x19fp16.mlpackage */; };
 /* End PBXBuildFile section */
 
@@ -373,6 +374,7 @@
 		E1C682742AA2CC31001B4F44 /* CommandView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommandView.swift; sourceTree = "<group>"; };
 		E1D7D3AA2AA7547D00556DFB /* ButtonView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ButtonView.swift; sourceTree = "<group>"; };
 		E1D7D3AC2AA897C000556DFB /* StoneView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StoneView.swift; sourceTree = "<group>"; };
+		E1D7D3B22AAA1F5600556DFB /* AnalysisView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnalysisView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -438,6 +440,7 @@
 				E1C682742AA2CC31001B4F44 /* CommandView.swift */,
 				E1D7D3AA2AA7547D00556DFB /* ButtonView.swift */,
 				E1D7D3AC2AA897C000556DFB /* StoneView.swift */,
+				E1D7D3B22AAA1F5600556DFB /* AnalysisView.swift */,
 			);
 			path = "KataGo iOS";
 			sourceTree = "<group>";
@@ -855,6 +858,7 @@
 				E1D7D3AD2AA897C000556DFB /* StoneView.swift in Sources */,
 				E18F3EFA2A5148EF00D335E1 /* files.cpp in Sources */,
 				E18F3EC12A51487100D335E1 /* selfplaymanager.cpp in Sources */,
+				E1D7D3B32AAA1F5600556DFB /* AnalysisView.swift in Sources */,
 				E18F3F362A51491900D335E1 /* elo.cpp in Sources */,
 				E18F3EE82A5148CF00D335E1 /* board.cpp in Sources */,
 				E18F3E6D2A51483100D335E1 /* testboardarea.cpp in Sources */,
