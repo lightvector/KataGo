@@ -13,6 +13,7 @@ struct AnalysisView: View {
 
     var body: some View {
         let maxVisits = computeMaxVisits()
+
         ForEach(analysis.data, id: \.self) { data in
             if let move = data["move"] {
                 if let point = moveToPoint(move: move) {
@@ -26,6 +27,7 @@ struct AnalysisView: View {
                 }
             }
         }
+
         ForEach(analysis.data, id: \.self) { data in
             if let move = data["move"] {
                 if let point = moveToPoint(move: move) {
@@ -105,11 +107,9 @@ struct AnalysisView: View {
         }
     }
 
-    func computeColorByVisits(isHidden: Bool, visits: Int, maxVisits: Int) -> Color {
-        let opacity = isHidden ? 0.2 : 0.8
-
+    func computeBaseColorByVisits(visits: Int, maxVisits: Int) -> Color {
         if visits == maxVisits {
-            return .cyan.opacity(opacity)
+            return Color(red: 0, green: 1, blue: 1)
         } else {
             let ratio = min(1, max(0.01, Float(visits)) / max(0.01, Float(maxVisits)))
 
@@ -117,12 +117,18 @@ struct AnalysisView: View {
 
             if fraction < 1 {
                 let hue = cbrt(fraction * fraction) / 2
-                return Color(hue: Double(hue) / 2, saturation: 1, brightness: 1).opacity(opacity)
+                return Color(hue: Double(hue) / 2, saturation: 1, brightness: 1)
             } else {
                 let hue = 1 - (sqrt(2 - fraction) / 2)
-                return Color(hue: Double(hue) / 2, saturation: 1, brightness: 1).opacity(opacity)
+                return Color(hue: Double(hue) / 2, saturation: 1, brightness: 1)
             }
         }
+    }
+
+    func computeColorByVisits(isHidden: Bool, visits: Int, maxVisits: Int) -> Color {
+        let baseColor = computeBaseColorByVisits(visits: visits, maxVisits: maxVisits)
+        let opacity = isHidden ? 0.2 : 0.8
+        return baseColor.opacity(opacity)
     }
 
     func computeMinMaxWinrate() -> (Float, Float) {
