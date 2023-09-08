@@ -13,6 +13,20 @@ struct Dimensions {
     let boardHeight: CGFloat
     let marginWidth: CGFloat
     let marginHeight: CGFloat
+
+    init(geometry: GeometryProxy, width: CGFloat, height: CGFloat) {
+        let totalWidth = geometry.size.width
+        let totalHeight = geometry.size.height
+        let totalLength = min(totalWidth, totalHeight)
+        let boardSpace: CGFloat = totalLength * 0.05
+        let squareWidth = (totalWidth - boardSpace) / (width + 1)
+        let squareHeight = (totalHeight - boardSpace) / (height + 1)
+        squareLength = min(squareWidth, squareHeight)
+        boardWidth = width * squareLength
+        boardHeight = height * squareLength
+        marginWidth = (totalWidth - boardWidth + squareLength) / 2
+        marginHeight = (totalHeight - boardHeight + squareLength) / 2
+    }
 }
 
 struct GobanView: View {
@@ -20,13 +34,12 @@ struct GobanView: View {
     @EnvironmentObject var board: Board
     @EnvironmentObject var nextPlayer: PlayerObject
     @EnvironmentObject var analysis: Analysis
-    let boardSpace: CGFloat = 20
     let texture = WoodImage.createTexture()
 
     var body: some View {
         VStack {
             GeometryReader { geometry in
-                let dimensions = calculateBoardDimensions(geometry: geometry)
+                let dimensions = Dimensions(geometry: geometry, width: board.width, height: board.height)
                 ZStack {
                     drawBoardBackground(texture: texture, dimensions: dimensions)
                     drawLines(dimensions: dimensions)
@@ -52,19 +65,6 @@ struct GobanView: View {
             KataGoHelper.sendCommand("showboard")
             KataGoHelper.sendCommand("kata-analyze interval 10")
         }
-    }
-
-    private func calculateBoardDimensions(geometry: GeometryProxy) -> Dimensions {
-        let totalWidth = geometry.size.width
-        let totalHeight = geometry.size.height
-        let squareWidth = (totalWidth - boardSpace) / (board.width + 1)
-        let squareHeight = (totalHeight - boardSpace) / (board.height + 1)
-        let squareLength = min(squareWidth, squareHeight)
-        let boardWidth = board.width * squareLength
-        let boardHeight = board.height * squareLength
-        let marginWidth = (totalWidth - boardWidth + squareLength) / 2
-        let marginHeight = (totalHeight - boardHeight + squareLength) / 2
-        return Dimensions(squareLength: squareLength, boardWidth: boardWidth, boardHeight: boardHeight, marginWidth: marginWidth, marginHeight: marginHeight)
     }
 
     private func drawBoardBackground(texture: UIImage, dimensions: Dimensions) -> some View {

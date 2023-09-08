@@ -188,19 +188,7 @@ struct AnalysisView_Previews: PreviewProvider {
                 .foregroundColor(.brown)
 
             GeometryReader { geometry in
-                let boardSpace: CGFloat = 20
-                let width: CGFloat = 2
-                let height: CGFloat = 2
-                let totalWidth = geometry.size.width
-                let totalHeight = geometry.size.height
-                let squareWidth = (totalWidth - boardSpace) / (width + 1)
-                let squareHeight = (totalHeight - boardSpace) / (height + 1)
-                let squareLength = min(squareWidth, squareHeight)
-                let boardWidth = width * squareLength
-                let boardHeight = height * squareLength
-                let marginWidth = (totalWidth - boardWidth + squareLength) / 2
-                let marginHeight = (totalHeight - boardHeight + squareLength) / 2
-                let dimensions = Dimensions(squareLength: squareLength, boardWidth: boardWidth, boardHeight: boardHeight, marginWidth: marginWidth, marginHeight: marginHeight)
+                let dimensions = Dimensions(geometry: geometry, width: 2, height: 2)
 
                 AnalysisView(dimensions: dimensions)
             }
