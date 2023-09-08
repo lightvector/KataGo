@@ -42,50 +42,59 @@ struct CommandView: View {
     @EnvironmentObject var messagesObject: MessagesObject
     @EnvironmentObject var stones: Stones
     @State private var command = ""
+    @State var isHidden = false
 
     var body: some View {
         VStack {
-            ScrollViewReader { scrollView in
-                ScrollView(.vertical) {
-                    // Vertically show each KataGo message
-                    LazyVStack {
-                        ForEach(messagesObject.messages) { message in
-                            Text(message.text)
-                                .font(.body.monospaced())
-                                .id(message.id)
-                                .textSelection(.enabled)
-                                .frame(maxWidth: .infinity, alignment: .leading)
+            if !isHidden {
+                ScrollViewReader { scrollView in
+                    ScrollView(.vertical) {
+                        // Vertically show each KataGo message
+                        LazyVStack {
+                            ForEach(messagesObject.messages) { message in
+                                Text(message.text)
+                                    .font(.body.monospaced())
+                                    .id(message.id)
+                                    .textSelection(.enabled)
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                            }
+                        }
+                        .onChange(of: messagesObject.messages) { value in
+                            // Scroll to the last message
+                            scrollView.scrollTo(value.last?.id)
                         }
                     }
-                    .onChange(of: messagesObject.messages) { value in
-                        // Scroll to the last message
-                        scrollView.scrollTo(value.last?.id)
-                    }
                 }
-            }
 
-            HStack {
-                TextField("Enter your GTP command (list_commands)", text: $command)
-                    .disableAutocorrection(true)
-                    .textInputAutocapitalization(.never)
-                    .onSubmit {
+                HStack {
+                    TextField("Enter your GTP command (list_commands)", text: $command)
+                        .disableAutocorrection(true)
+                        .textInputAutocapitalization(.never)
+                        .onSubmit {
+                            messagesObject.messages.append(Message(text: command))
+                            KataGoHelper.sendCommand(command)
+                            command = ""
+                        }
+                    Button(action: {
                         messagesObject.messages.append(Message(text: command))
                         KataGoHelper.sendCommand(command)
                         command = ""
+                    }) {
+                        Image(systemName: "return")
                     }
-                Button(action: {
-                    messagesObject.messages.append(Message(text: command))
-                    KataGoHelper.sendCommand(command)
-                    command = ""
-                }) {
-                    Image(systemName: "return")
                 }
-            }
-            .padding()
+                .padding()
 
-            ButtonView()
+                ButtonView()
+            }
         }
         .padding()
+        .onAppear() {
+            isHidden = false
+        }
+        .onDisappear() {
+            isHidden = true
+        }
     }
 }
 
