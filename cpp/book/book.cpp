@@ -1387,7 +1387,7 @@ void Book::recomputeNodeCost(BookNode* node) {
   if(contains(visitsRequiredByHash, node->hash)) {
     double visitsRequired = visitsRequiredByHash[node->hash];
     if(node->recursiveValues.visits < visitsRequired) {
-      node->minCostFromRoot -= 600.0;
+      node->minCostFromRoot -= 500.0;
     }
   }
 
@@ -1839,7 +1839,7 @@ void Book::recomputeNodeCost(BookNode* node) {
   if(contains(branchRequiredByHash, node->hash)) {
     int requiredBranch = branchRequiredByHash[node->hash];
     if(node->moves.size() < requiredBranch) {
-      node->thisNodeExpansionCost -= 300.0;
+      node->thisNodeExpansionCost -= 600.0;
     }
   }
 
