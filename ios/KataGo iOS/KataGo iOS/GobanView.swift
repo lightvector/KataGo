@@ -44,22 +44,44 @@ struct GobanView: View {
                 StoneView(dimensions: dimensions)
                 AnalysisView(dimensions: dimensions)
             }
-        }
-        .gesture(TapGesture().onEnded() { _ in
-            if nextPlayer.color == .black {
-                KataGoHelper.sendCommand("genmove b")
-                nextPlayer.color = .white
-            } else {
-                KataGoHelper.sendCommand("genmove w")
-                nextPlayer.color = .black
-            }
+            .onTapGesture(coordinateSpace: .local) { location in
+                if let move = locationToMove(location: location, dimensions: dimensions) {
+                    if nextPlayer.color == .black {
+                        KataGoHelper.sendCommand("play b \(move)")
+                        nextPlayer.color = .white
+                    } else {
+                        KataGoHelper.sendCommand("play w \(move)")
+                        nextPlayer.color = .black
+                    }
+                }
 
-            KataGoHelper.sendCommand("showboard")
-            KataGoHelper.sendCommand("kata-analyze interval 10")
-        })
+                KataGoHelper.sendCommand("showboard")
+                KataGoHelper.sendCommand("kata-analyze interval 10")
+            }
+        }
         .onAppear() {
             KataGoHelper.sendCommand("showboard")
             KataGoHelper.sendCommand("kata-analyze interval 10")
+        }
+    }
+
+    func locationToMove(location: CGPoint, dimensions: Dimensions) -> String? {
+        let x = Int(round((location.x - dimensions.marginWidth) / dimensions.squareLength))
+        let y = Int(round((location.y - dimensions.marginHeight) / dimensions.squareLength)) + 1
+
+        // Mapping 0-18 to letters A-T (without I)
+        let letterMap: [Int: String] = [
+            0: "A", 1: "B", 2: "C", 3: "D", 4: "E",
+            5: "F", 6: "G", 7: "H", 8: "J", 9: "K",
+            10: "L", 11: "M", 12: "N", 13: "O", 14: "P",
+            15: "Q", 16: "R", 17: "S", 18: "T"
+        ]
+
+        if let letter = letterMap[x] {
+            let move = "\(letter)\(y)"
+            return move
+        } else {
+            return nil
         }
     }
 }
