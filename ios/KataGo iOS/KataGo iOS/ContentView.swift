@@ -74,6 +74,7 @@ struct ContentView: View {
                     Label("Goban", systemImage: "circle")
                 }
                 .tag(Tab.goban)
+                .padding()
         }
         .environmentObject(stones)
         .environmentObject(messagesObject)
@@ -167,7 +168,9 @@ struct ContentView: View {
     func maybeCollectAnalysis(message: String) {
         if message.prefix("info".count) == "info" {
             let splitData = message.split(separator: "info")
-            analysis.data = splitData.map { extractMoveData(dataLine: String($0))
+            let reducedEnd = min(32, splitData.endIndex)
+            let reducedData = splitData[0..<reducedEnd]
+            analysis.data = reducedData.map { extractMoveData(dataLine: String($0))
             }
         }
     }
