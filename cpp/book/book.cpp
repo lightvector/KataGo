@@ -757,6 +757,7 @@ void BookParams::randomizeParams(Rand& rand, double stdev) {
 
   bonusForWLPV1 = sigmoid(invSigmoid(bonusForWLPV1) + 0.5*stdev*rand.nextGaussianTruncated(3.0));
   bonusForWLPV2 *= sigmoid(invSigmoid(bonusForWLPV2) + 0.5*stdev*rand.nextGaussianTruncated(3.0));
+  bonusForWLPVFinalProp *= sigmoid(invSigmoid(bonusForWLPVFinalProp) + stdev*rand.nextGaussianTruncated(3.0));
   bonusForBiggestWLCost *= sigmoid(invSigmoid(bonusForBiggestWLCost) + 0.5*stdev*rand.nextGaussianTruncated(3.0));
   earlyBookCostReductionFactor *= sigmoid(invSigmoid(earlyBookCostReductionFactor) + 0.5*stdev*rand.nextGaussianTruncated(3.0));
   earlyBookCostReductionLambda *= sigmoid(invSigmoid(earlyBookCostReductionLambda) + 0.5*stdev*rand.nextGaussianTruncated(3.0));
@@ -1689,19 +1690,19 @@ void Book::recomputeNodeCost(BookNode* node) {
     //      << " becomes " <<  (locAndBookMove.second.costFromRoot - bonus) << endl;
     locAndBookMove.second.costFromRoot -= bonus;
 
-    // if(locAndBookMove.second.isWLPV) {
-    //   double wlPVBonusScale = (locAndBookMove.second.costFromRoot - node->minCostFromRoot);
-    //   if(wlPVBonusScale > 0.0) {
-    //     double factor1 = std::max(0.0, 1.0 - square(child->recursiveValues.winLossValue));
-    //     double factor2 = 4.0 * std::max(0.0, 0.25 - square(0.5 - std::fabs(child->recursiveValues.winLossValue)));
-    //     double wlPVBonus = wlPVBonusScale * tanh(factor1 * params.bonusForWLPV1 + factor2 * params.bonusForWLPV2);
-    //     // cout << "Child " << (int)locAndBookMove.first
-    //     //      << " cost " << locAndBookMove.second.costFromRoot
-    //     //      << " wlpv factors " << factor1 << " " << factor2
-    //     //      << " becomes " <<  (locAndBookMove.second.costFromRoot - wlPVBonus) << endl;
-    //     locAndBookMove.second.costFromRoot -= wlPVBonus;
-    //   }
-    // }
+    if(locAndBookMove.second.isWLPV) {
+      double wlPVBonusScale = (locAndBookMove.second.costFromRoot - node->minCostFromRoot) * (1.0-params.bonusForWLPVFinalProp);
+      if(wlPVBonusScale > 0.0) {
+        double factor1 = std::max(0.0, 1.0 - square(child->recursiveValues.winLossValue));
+        double factor2 = 4.0 * std::max(0.0, 0.25 - square(0.5 - std::fabs(child->recursiveValues.winLossValue)));
+        double wlPVBonus = wlPVBonusScale * tanh(factor1 * params.bonusForWLPV1 + factor2 * params.bonusForWLPV2);
+        // cout << "Child " << (int)locAndBookMove.first
+        //      << " cost " << locAndBookMove.second.costFromRoot
+        //      << " wlpv factors " << factor1 << " " << factor2
+        //      << " becomes " <<  (locAndBookMove.second.costFromRoot - wlPVBonus) << endl;
+        locAndBookMove.second.costFromRoot -= wlPVBonus;
+      }
+    }
   }
   {
     double winLossError = node->thisValuesNotInBook.getAdjustedWinLossError(node->book->initialRules);
@@ -1811,7 +1812,7 @@ void Book::recomputeNodeCost(BookNode* node) {
   }
 
   if(node->expansionIsWLPV || (node->canReExpand && node->recursiveValues.visits <= params.maxVisitsForReExpansion)) {
-    double wlPVBonusScale = node->thisNodeExpansionCost + std::max(0.0, node->minCostFromRoot - node->minCostFromRootWLPV);
+    double wlPVBonusScale = node->thisNodeExpansionCost + std::max(0.0, node->minCostFromRoot - node->minCostFromRootWLPV) * params.bonusForWLPVFinalProp;
     if(wlPVBonusScale > 0.0) {
       double factor1 = std::max(0.0, 1.0 - square(node->thisValuesNotInBook.winLossValue));
       double factor2 = 4.0 * std::max(0.0, 0.25 - square(0.5 - std::fabs(node->thisValuesNotInBook.winLossValue)));
@@ -2225,6 +2226,7 @@ void Book::saveToFile(const string& fileName) const {
     paramsDump["bonusPerUnexpandedBestWinLoss"] = params.bonusPerUnexpandedBestWinLoss;
     paramsDump["bonusForWLPV1"] = params.bonusForWLPV1;
     paramsDump["bonusForWLPV2"] = params.bonusForWLPV2;
+    paramsDump["bonusForWLPVFinalProp"] = params.bonusForWLPVFinalProp;
     paramsDump["bonusForBiggestWLCost"] = params.bonusForBiggestWLCost;
     paramsDump["scoreLossCap"] = params.scoreLossCap;
     paramsDump["earlyBookCostReductionFactor"] = params.earlyBookCostReductionFactor;
@@ -2384,6 +2386,7 @@ Book* Book::loadFromFile(const std::string& fileName) {
       bookParams.bonusPerUnexpandedBestWinLoss = params.contains("bonusPerUnexpandedBestWinLoss") ? params["bonusPerUnexpandedBestWinLoss"].get<double>() : 0.0;
       bookParams.bonusForWLPV1 = params.contains("bonusForWLPV1") ? params["bonusForWLPV1"].get<double>() : 0.0;
       bookParams.bonusForWLPV2 = params.contains("bonusForWLPV2") ? params["bonusForWLPV2"].get<double>() : 0.0;
+      bookParams.bonusForWLPVFinalProp = params.contains("bonusForWLPVFinalProp") ? params["bonusForWLPVFinalProp"].get<double>() : 0.5;
       bookParams.bonusForBiggestWLCost = params.contains("bonusForBiggestWLCost") ? params["bonusForBiggestWLCost"].get<double>() : 0.0;
       bookParams.scoreLossCap = params["scoreLossCap"].get<double>();
       bookParams.earlyBookCostReductionFactor = params.contains("earlyBookCostReductionFactor") ? params["earlyBookCostReductionFactor"].get<double>() : 0.0;

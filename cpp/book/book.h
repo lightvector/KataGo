@@ -273,6 +273,8 @@ struct BookParams {
   double bonusForWLPV1 = 0.0;
   // Bonus if a move is the PV in terms of winloss, if that winloss value is near -0.5 or +0.5, as a cost reduction factor.
   double bonusForWLPV2 = 0.0;
+  // Interpolate to applying the bonus for WLPV only to the leaf node at the end that is the final PV node, rather than all moves along the way.
+  double bonusForWLPVFinalProp = 0.5;
   // Bonus for the biggest single WL cost on a given path, per unit of cost. (helps favor lines with only 1 mistake but not lines with more than one)
   double bonusForBiggestWLCost = 0.0;
   // Cap on how bad UCBScoreLoss can be.

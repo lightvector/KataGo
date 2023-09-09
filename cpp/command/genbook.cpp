@@ -336,6 +336,7 @@ int MainCmds::genbook(const vector<string>& args) {
   cfgParams.bonusPerUnexpandedBestWinLoss = cfg.getDouble("bonusPerUnexpandedBestWinLoss",0.0,1000000.0);
   cfgParams.bonusForWLPV1 = cfg.contains("bonusForWLPV1") ? cfg.getDouble("bonusForWLPV1",0.0,1000000.0) : 0.0;
   cfgParams.bonusForWLPV2 = cfg.contains("bonusForWLPV2") ? cfg.getDouble("bonusForWLPV2",0.0,1000000.0) : 0.0;
+  cfgParams.bonusForWLPVFinalProp = cfg.contains("bonusForWLPVFinalProp") ? cfg.getDouble("bonusForWLPVFinalProp",0.0,1.0) : 0.5;
   cfgParams.bonusForBiggestWLCost = cfg.contains("bonusForBiggestWLCost") ? cfg.getDouble("bonusForBiggestWLCost",0.0,1000000.0) : 0.0;
   cfgParams.scoreLossCap = cfg.getDouble("scoreLossCap",0.0,1000000.0);
   cfgParams.earlyBookCostReductionFactor = cfg.contains("earlyBookCostReductionFactor") ? cfg.getDouble("earlyBookCostReductionFactor",0.0,1.0) : 0.0;
@@ -470,6 +471,7 @@ int MainCmds::genbook(const vector<string>& args) {
         cfgParams.bonusPerUnexpandedBestWinLoss != existingBookParams.bonusPerUnexpandedBestWinLoss ||
         cfgParams.bonusForWLPV1 != existingBookParams.bonusForWLPV1 ||
         cfgParams.bonusForWLPV2 != existingBookParams.bonusForWLPV2 ||
+        cfgParams.bonusForWLPVFinalProp != existingBookParams.bonusForWLPVFinalProp ||
         cfgParams.bonusForBiggestWLCost != existingBookParams.bonusForBiggestWLCost ||
         cfgParams.scoreLossCap != existingBookParams.scoreLossCap ||
         cfgParams.earlyBookCostReductionFactor != existingBookParams.earlyBookCostReductionFactor ||
