@@ -17,10 +17,8 @@ struct Dimensions {
     init(geometry: GeometryProxy, width: CGFloat, height: CGFloat) {
         let totalWidth = geometry.size.width
         let totalHeight = geometry.size.height
-        let totalLength = min(totalWidth, totalHeight)
-        let boardSpace: CGFloat = totalLength * 0.05
-        let squareWidth = (totalWidth - boardSpace) / (width + 1)
-        let squareHeight = (totalHeight - boardSpace) / (height + 1)
+        let squareWidth = totalWidth / (width + 1)
+        let squareHeight = totalHeight / (height + 1)
         squareLength = min(squareWidth, squareHeight)
         boardWidth = width * squareLength
         boardHeight = height * squareLength
@@ -37,31 +35,35 @@ struct GobanView: View {
     let texture = WoodImage.createTexture()
 
     var body: some View {
-        GeometryReader { geometry in
-            let dimensions = Dimensions(geometry: geometry, width: board.width, height: board.height)
-            ZStack {
-                BoardLineView(dimensions: dimensions, boardWidth: board.width, boardHeight: board.height)
-                StoneView(dimensions: dimensions)
-                AnalysisView(dimensions: dimensions)
-            }
-            .onTapGesture(coordinateSpace: .local) { location in
-                if let move = locationToMove(location: location, dimensions: dimensions) {
-                    if nextPlayer.color == .black {
-                        KataGoHelper.sendCommand("play b \(move)")
-                        nextPlayer.color = .white
-                    } else {
-                        KataGoHelper.sendCommand("play w \(move)")
-                        nextPlayer.color = .black
-                    }
+        VStack {
+            GeometryReader { geometry in
+                let dimensions = Dimensions(geometry: geometry, width: board.width, height: board.height)
+                ZStack {
+                    BoardLineView(dimensions: dimensions, boardWidth: board.width, boardHeight: board.height)
+                    StoneView(dimensions: dimensions)
+                    AnalysisView(dimensions: dimensions)
                 }
+                .onTapGesture(coordinateSpace: .local) { location in
+                    if let move = locationToMove(location: location, dimensions: dimensions) {
+                        if nextPlayer.color == .black {
+                            KataGoHelper.sendCommand("play b \(move)")
+                            nextPlayer.color = .white
+                        } else {
+                            KataGoHelper.sendCommand("play w \(move)")
+                            nextPlayer.color = .black
+                        }
+                    }
 
+                    KataGoHelper.sendCommand("showboard")
+                    KataGoHelper.sendCommand("kata-analyze interval 10")
+                }
+            }
+            .onAppear() {
                 KataGoHelper.sendCommand("showboard")
                 KataGoHelper.sendCommand("kata-analyze interval 10")
             }
-        }
-        .onAppear() {
-            KataGoHelper.sendCommand("showboard")
-            KataGoHelper.sendCommand("kata-analyze interval 10")
+
+            ButtonView(commands: ["undo", "showboard", "stop", "kata-analyze interval 10"])
         }
     }
 

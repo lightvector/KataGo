@@ -9,34 +9,27 @@ import SwiftUI
 
 struct ButtonView: View {
     @EnvironmentObject var messagesObject: MessagesObject
+    let commands: [String]
     
     var body: some View {
         HStack {
-            CommandButton(title: "genmove b") {
-                messagesObject.messages.append(Message(text: "genmove b"))
-                KataGoHelper.sendCommand("genmove b")
-            }
-
-            CommandButton(title: "genmove w") {
-                messagesObject.messages.append(Message(text: "genmove w"))
-                KataGoHelper.sendCommand("genmove w")
-            }
-
-            CommandButton(title: "showboard") {
-                messagesObject.messages.append(Message(text: "showboard"))
-                KataGoHelper.sendCommand("showboard")
-            }
-
-            CommandButton(title: "clear_board") {
-                messagesObject.messages.append(Message(text: "clear_board"))
-                KataGoHelper.sendCommand("clear_board")
+            ForEach(commands, id:\.self) { command in
+                CommandButton(title: command) {
+                    messagesObject.messages.append(Message(text: command))
+                    KataGoHelper.sendCommand(command)
+                }
+                .scaledToFit()
             }
         }
     }
 }
 
 struct ButtonView_Previews: PreviewProvider {
+    static let commands = ["kata-set-rules chinese", "komi 7", "undo", "clear_board"]
+    static var messagesObject = MessagesObject()
+
     static var previews: some View {
-        ButtonView()
+        ButtonView(commands: commands)
+            .environmentObject(messagesObject)
     }
 }

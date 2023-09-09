@@ -85,7 +85,7 @@ struct CommandView: View {
                 }
                 .padding()
 
-                ButtonView()
+                ButtonView(commands: ["kata-set-rules chinese", "komi 7", "undo", "clear_board"])
             }
         }
         .padding()
