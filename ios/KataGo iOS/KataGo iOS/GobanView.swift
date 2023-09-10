@@ -33,6 +33,7 @@ struct GobanView: View {
     @EnvironmentObject var nextPlayer: PlayerObject
     @EnvironmentObject var analysis: Analysis
     let texture = WoodImage.createTexture()
+    let kataAnalyze = "kata-analyze interval 10 ownership true ownershipStdev true"
 
     var body: some View {
         VStack {
@@ -55,15 +56,15 @@ struct GobanView: View {
                     }
 
                     KataGoHelper.sendCommand("showboard")
-                    KataGoHelper.sendCommand("kata-analyze interval 10")
+                    KataGoHelper.sendCommand(kataAnalyze)
                 }
             }
             .onAppear() {
                 KataGoHelper.sendCommand("showboard")
-                KataGoHelper.sendCommand("kata-analyze interval 10")
+                KataGoHelper.sendCommand(kataAnalyze)
             }
 
-            ButtonView(commands: ["undo", "showboard", "stop", "kata-analyze interval 10"])
+            ButtonView(commands: ["undo", "showboard", "stop", kataAnalyze])
         }
     }
 

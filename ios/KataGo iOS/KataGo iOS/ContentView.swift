@@ -12,7 +12,19 @@ class Board: ObservableObject {
     @Published var height: CGFloat = 19
 }
 
-struct BoardPoint: Hashable {
+struct BoardPoint: Hashable, Comparable {
+    static func < (lhs: BoardPoint, rhs: BoardPoint) -> Bool {
+        if lhs.y > rhs.y {
+            return false
+        } else if lhs.y < rhs.y {
+            return true
+        } else if lhs.x < rhs.x {
+            return true
+        } else {
+            return false
+        }
+    }
+
     let x: Int
     let y: Int
 }
@@ -35,8 +47,24 @@ class PlayerObject: ObservableObject {
     @Published var color = PlayerColor.black
 }
 
+struct Ownership {
+    let mean: Float
+    let stdev: Float?
+
+    init(mean: Float, stdev: Float?) {
+        self.mean = mean
+        self.stdev = stdev
+    }
+
+    init(mean: Float) {
+        self.init(mean: mean, stdev: nil)
+    }
+}
+
 class Analysis: ObservableObject {
+    @Published var nextPlayer = PlayerColor.white
     @Published var data: [[String: String]] = []
+    @Published var ownership: [BoardPoint: Ownership] = [:]
 }
 
 struct ContentView: View {
@@ -111,7 +139,7 @@ struct ContentView: View {
                 maybeCollectAnalysis(message: line)
 
                 // Remove when there are too many messages
-                while messagesObject.messages.count > 1000 {
+                while messagesObject.messages.count > 100 {
                     messagesObject.messages.removeFirst()
                 }
             }
@@ -172,6 +200,9 @@ struct ContentView: View {
             let reducedData = splitData[0..<reducedEnd]
             analysis.data = reducedData.map { extractMoveData(dataLine: String($0))
             }
+
+            analysis.ownership = extractOwnership(message: message)
+            analysis.nextPlayer = nextPlayer.color
         }
     }
 
@@ -180,10 +211,8 @@ struct ContentView: View {
         let patterns: [String: String] = [
             "move": "move (\\w\\d+)",
             "visits": "visits (\\d+)",
-            "winrate": "winrate ([\\d.]+)",
-            "scoreLead": "scoreLead ([-\\d.]+)",
-            "prior": "prior ([\\d.e-]+)",
-            "order": "order (\\d+)"
+            "winrate": "winrate ([\\d.eE]+)",
+            "scoreLead": "scoreLead ([-\\d.eE]+)"
         ]
 
         var moveData: [String: String] = [:]
@@ -197,6 +226,53 @@ struct ContentView: View {
         }
 
         return moveData
+    }
+
+    func extractOwnershipMean(message: String) -> [Float] {
+        let pattern = "ownership ([-\\d\\s.eE]+)"
+        let regex = try? NSRegularExpression(pattern: pattern, options: [])
+        if let match = regex?.firstMatch(in: message, options: [], range: NSRange(location: 0, length: message.utf16.count)) {
+            if let range = Range(match.range(at: 1), in: message) {
+                let mean = message[range].split(separator: " ").compactMap { Float($0) }
+                assert(mean.count == Int(board.width * board.height))
+                return mean
+            }
+        }
+
+        return []
+    }
+
+    func extractOwnershipStdev(message: String) -> [Float] {
+        let pattern = "ownershipStdev ([-\\d\\s.eE]+)"
+        let regex = try? NSRegularExpression(pattern: pattern, options: [])
+        if let match = regex?.firstMatch(in: message, options: [], range: NSRange(location: 0, length: message.utf16.count)) {
+            if let range = Range(match.range(at: 1), in: message) {
+                let stdev = message[range].split(separator: " ").compactMap { Float($0) }
+                assert(stdev.count == Int(board.width * board.height))
+                return stdev
+            }
+        }
+
+        return []
+    }
+
+    func extractOwnership(message: String) -> [BoardPoint: Ownership] {
+        let mean = extractOwnershipMean(message: message)
+        let stdev = extractOwnershipStdev(message: message)
+        if !mean.isEmpty && !stdev.isEmpty {
+            var dictionary: [BoardPoint: Ownership] = [:]
+            var i = 0
+            for y in stride(from:Int(board.height - 1), through: 0, by: -1) {
+                for x in 0..<Int(board.width) {
+                    let point = BoardPoint(x: x, y: y)
+                    dictionary[point] = Ownership(mean: mean[i], stdev: stdev[i])
+                    i = i + 1
+                }
+            }
+            return dictionary
+        }
+
+        return [:]
     }
 }
 
