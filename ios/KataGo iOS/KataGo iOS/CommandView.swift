@@ -18,7 +18,7 @@ struct Message: Identifiable, Equatable, Hashable {
     /// Initialize a message with a text
     /// - Parameter text: a text
     init(text: String) {
-        self.text = text
+        self.text = String(text.prefix(200))
     }
 }
 
@@ -42,58 +42,52 @@ struct CommandView: View {
     @EnvironmentObject var messagesObject: MessagesObject
     @EnvironmentObject var stones: Stones
     @State private var command = ""
-    @State var isHidden = false
 
     var body: some View {
         VStack {
-            if !isHidden {
-                ScrollViewReader { scrollView in
-                    ScrollView(.vertical) {
-                        // Vertically show each KataGo message
-                        LazyVStack {
-                            ForEach(messagesObject.messages) { message in
-                                Text(message.text)
-                                    .font(.body.monospaced())
-                                    .id(message.id)
-                                    .textSelection(.enabled)
-                                    .frame(maxWidth: .infinity, alignment: .leading)
-                            }
-                        }
-                        .onChange(of: messagesObject.messages) { value in
-                            // Scroll to the last message
-                            scrollView.scrollTo(value.last?.id)
+            ScrollViewReader { scrollView in
+                ScrollView(.vertical) {
+                    // Vertically show each KataGo message
+                    LazyVStack {
+                        ForEach(messagesObject.messages) { message in
+                            Text(message.text)
+                                .font(.body.monospaced())
+                                .id(message.id)
+                                .textSelection(.enabled)
+                                .frame(maxWidth: .infinity, alignment: .leading)
                         }
                     }
+                    .onChange(of: messagesObject.messages) { value in
+                        // Scroll to the last message
+                        scrollView.scrollTo(value.last?.id)
+                    }
                 }
+            }
 
-                HStack {
-                    TextField("Enter your GTP command (list_commands)", text: $command)
-                        .disableAutocorrection(true)
-                        .textInputAutocapitalization(.never)
-                        .onSubmit {
-                            messagesObject.messages.append(Message(text: command))
-                            KataGoHelper.sendCommand(command)
-                            command = ""
-                        }
-                    Button(action: {
+            HStack {
+                TextField("Enter your GTP command (list_commands)", text: $command)
+                    .disableAutocorrection(true)
+                    .textInputAutocapitalization(.never)
+                    .onSubmit {
                         messagesObject.messages.append(Message(text: command))
                         KataGoHelper.sendCommand(command)
                         command = ""
-                    }) {
-                        Image(systemName: "return")
                     }
+                Button(action: {
+                    messagesObject.messages.append(Message(text: command))
+                    KataGoHelper.sendCommand(command)
+                    command = ""
+                }) {
+                    Image(systemName: "return")
                 }
-                .padding()
-
-                ButtonView(commands: ["kata-set-rules chinese", "komi 7", "undo", "clear_board"])
             }
+            .padding()
+
+            ButtonView(commands: ["kata-set-rules chinese", "komi 7", "undo", "clear_board"])
         }
         .padding()
         .onAppear() {
-            isHidden = false
-        }
-        .onDisappear() {
-            isHidden = true
+            KataGoHelper.sendCommand("stop")
         }
     }
 }

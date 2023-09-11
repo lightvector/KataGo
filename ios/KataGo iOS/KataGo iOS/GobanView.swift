@@ -30,41 +30,107 @@ struct Dimensions {
 struct GobanView: View {
     @EnvironmentObject var stones: Stones
     @EnvironmentObject var board: Board
-    @EnvironmentObject var nextPlayer: PlayerObject
+    @EnvironmentObject var player: PlayerObject
     @EnvironmentObject var analysis: Analysis
+    @State var isAnalyzing = true
     let texture = WoodImage.createTexture()
-    let kataAnalyze = "kata-analyze interval 10 ownership true ownershipStdev true"
+    let kataAnalyze = "kata-analyze interval 20 maxmoves 32 ownership true ownershipStdev true"
 
     var body: some View {
         VStack {
+            HStack {
+                Toggle(isOn: $isAnalyzing) {
+                    Text("Analysis")
+                }
+                .onChange(of: isAnalyzing) { flag in
+                    if flag {
+                        KataGoHelper.sendCommand(kataAnalyze)
+                    } else {
+                        KataGoHelper.sendCommand("stop")
+                    }
+                }
+            }
+            .padding()
+
             GeometryReader { geometry in
                 let dimensions = Dimensions(geometry: geometry, width: board.width, height: board.height)
                 ZStack {
                     BoardLineView(dimensions: dimensions, boardWidth: board.width, boardHeight: board.height)
                     StoneView(dimensions: dimensions)
-                    AnalysisView(dimensions: dimensions)
+                    if isAnalyzing {
+                        AnalysisView(dimensions: dimensions)
+                    }
                 }
                 .onTapGesture(coordinateSpace: .local) { location in
                     if let move = locationToMove(location: location, dimensions: dimensions) {
-                        if nextPlayer.color == .black {
+                        if player.nextPlay == .black {
                             KataGoHelper.sendCommand("play b \(move)")
-                            nextPlayer.color = .white
+                            player.nextPlay = .white
                         } else {
                             KataGoHelper.sendCommand("play w \(move)")
-                            nextPlayer.color = .black
+                            player.nextPlay = .black
                         }
                     }
 
                     KataGoHelper.sendCommand("showboard")
-                    KataGoHelper.sendCommand(kataAnalyze)
+                    if isAnalyzing {
+                        KataGoHelper.sendCommand(kataAnalyze)
+                    }
                 }
             }
             .onAppear() {
                 KataGoHelper.sendCommand("showboard")
-                KataGoHelper.sendCommand(kataAnalyze)
+                if isAnalyzing {
+                    KataGoHelper.sendCommand(kataAnalyze)
+                }
             }
 
-            ButtonView(commands: ["undo", "showboard", "stop", kataAnalyze])
+            HStack {
+                Button(action: {
+                    KataGoHelper.sendCommand("undo")
+                    KataGoHelper.sendCommand("showboard")
+                    if isAnalyzing {
+                        KataGoHelper.sendCommand(kataAnalyze)
+                    }
+                }) {
+                    Image(systemName: "arrow.uturn.backward")
+                }
+                Button(action: {
+                    let nextColor = (player.nextPlay == .black) ? "b" : "w"
+                    let pass = "play \(nextColor) pass"
+                    KataGoHelper.sendCommand(pass)
+                    KataGoHelper.sendCommand("showboard")
+                    if isAnalyzing {
+                        KataGoHelper.sendCommand(kataAnalyze)
+                    }
+                }) {
+                    Image(systemName: "hand.raised")
+                }
+                Button(action: {
+                    if isAnalyzing {
+                        KataGoHelper.sendCommand(kataAnalyze)
+                    }
+                }) {
+                    Image(systemName: "play")
+                }
+                Button(action: {
+                    if isAnalyzing {
+                        KataGoHelper.sendCommand("stop")
+                    }
+                }) {
+                    Image(systemName: "stop")
+                }
+                Button(action: {
+                    KataGoHelper.sendCommand("clear_board")
+                    KataGoHelper.sendCommand("showboard")
+                    if isAnalyzing {
+                        KataGoHelper.sendCommand(kataAnalyze)
+                    }
+                }) {
+                    Image(systemName: "clear")
+                }
+            }
+            .padding()
         }
     }
 
@@ -93,16 +159,20 @@ struct GobanView_Previews: PreviewProvider {
     static let stones = Stones()
     static let board = Board()
     static let analysis = Analysis()
+    static let player = PlayerObject()
 
     static var previews: some View {
         GobanView()
             .environmentObject(stones)
             .environmentObject(board)
             .environmentObject(analysis)
+            .environmentObject(player)
             .onAppear() {
-                GobanView_Previews.stones.blackPoints = [BoardPoint(x: 15, y: 3), BoardPoint(x: 13, y: 2), BoardPoint(x: 9, y: 3), BoardPoint(x: 3, y: 3)]
-                GobanView_Previews.stones.whitePoints = [BoardPoint(x: 3, y: 15)]
-                GobanView_Previews.analysis.data = [["move": "Q16", "winrate": "0.54321012345"]]
+                GobanView_Previews.board.width = 3
+                GobanView_Previews.board.height = 3
+                GobanView_Previews.stones.blackPoints = [BoardPoint(x: 1, y: 1), BoardPoint(x: 0, y: 1)]
+                GobanView_Previews.stones.whitePoints = [BoardPoint(x: 0, y: 0), BoardPoint(x: 1, y: 0)]
+                GobanView_Previews.analysis.data = [["move": "C1", "winrate": "0.54321012345", "visits": "1234567890", "scoreLead": "8.987654321"]]
             }
     }
 }

@@ -31,10 +31,14 @@ struct AnalysisView: View {
 
         ForEach(analysis.ownership.keys.sorted(), id: \.self) { point in
             if let ownership = analysis.ownership[point] {
-                let brightness = (analysis.nextPlayer == .white) ? (Double(ownership.mean) + 1) / 2 : (Double(-ownership.mean) + 1) / 2
-                let scale = CGFloat(1 - (ownership.stdev ?? 0)) * 0.8
+                let whiteness = (analysis.nextShow == .white) ? (Double(ownership.mean) + 1) / 2 : (Double(-ownership.mean) + 1) / 2
+                let definiteness = abs(whiteness - 0.5) * 2
+                // Show a black or white square if definiteness is high and stdev is low
+                // Show nothing if definiteness is low and stdev is low
+                // Show a square with linear gradient of black and white if definiteness is low and stdev is high
+                let scale = max(CGFloat(definiteness), CGFloat(ownership.stdev ?? 0)) * 0.7
                 Rectangle()
-                    .foregroundColor(Color(hue: 0, saturation: 0, brightness: brightness).opacity(0.8))
+                    .foregroundColor(Color(hue: 0, saturation: 0, brightness: whiteness).opacity(0.8))
                     .frame(width: dimensions.squareLength * scale, height: dimensions.squareLength * scale)
                     .position(x: dimensions.marginWidth + CGFloat(point.x) * dimensions.squareLength,
                               y: dimensions.marginHeight + CGFloat(point.y) * dimensions.squareLength)

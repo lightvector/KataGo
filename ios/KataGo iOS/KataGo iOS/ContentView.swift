@@ -44,7 +44,8 @@ enum PlayerColor {
 }
 
 class PlayerObject: ObservableObject {
-    @Published var color = PlayerColor.black
+    @Published var nextPlay = PlayerColor.black
+    @Published var nextShow = PlayerColor.black
 }
 
 struct Ownership {
@@ -62,7 +63,7 @@ struct Ownership {
 }
 
 class Analysis: ObservableObject {
-    @Published var nextPlayer = PlayerColor.white
+    @Published var nextShow = PlayerColor.white
     @Published var data: [[String: String]] = []
     @Published var ownership: [BoardPoint: Ownership] = [:]
 }
@@ -71,7 +72,7 @@ struct ContentView: View {
     @StateObject var stones = Stones()
     @StateObject var messagesObject = MessagesObject()
     @StateObject var board = Board()
-    @StateObject var nextPlayer = PlayerObject()
+    @StateObject var player = PlayerObject()
     @StateObject var analysis = Analysis()
     @State private var selection = Tab.command
     @State private var isShowingBoard = false
@@ -107,7 +108,7 @@ struct ContentView: View {
         .environmentObject(stones)
         .environmentObject(messagesObject)
         .environmentObject(board)
-        .environmentObject(nextPlayer)
+        .environmentObject(player)
         .environmentObject(analysis)
         .onAppear() {
             // Get messages from KataGo and append to the list of messages
@@ -152,9 +153,11 @@ struct ContentView: View {
                 isShowingBoard = false
                 (stones.blackPoints, stones.whitePoints, board.width, board.height) = parseBoardPoints(board: boardText)
                 if message.prefix("Next player: Black".count) == "Next player: Black" {
-                    nextPlayer.color = .black
+                    player.nextPlay = .black
+                    player.nextShow = .black
                 } else {
-                    nextPlayer.color = .white
+                    player.nextPlay = .white
+                    player.nextShow = .white
                 }
             } else {
                 boardText.append(message)
@@ -194,34 +197,33 @@ struct ContentView: View {
     }
 
     func maybeCollectAnalysis(message: String) {
-        if message.prefix("info".count) == "info" {
+        if message.starts(with: /info/) {
             let splitData = message.split(separator: "info")
-            let reducedEnd = min(32, splitData.endIndex)
-            let reducedData = splitData[0..<reducedEnd]
-            analysis.data = reducedData.map { extractMoveData(dataLine: String($0))
+            analysis.data = splitData.map {
+                extractMoveData(dataLine: String($0))
             }
 
-            analysis.ownership = extractOwnership(message: message)
-            analysis.nextPlayer = nextPlayer.color
+            if let lastData = splitData.last {
+                analysis.ownership = extractOwnership(message: String(lastData))
+            }
+
+            analysis.nextShow = player.nextShow
         }
     }
 
     func extractMoveData(dataLine: String) -> [String: String] {
         // Define patterns for extracting relevant information
-        let patterns: [String: String] = [
-            "move": "move (\\w\\d+)",
-            "visits": "visits (\\d+)",
-            "winrate": "winrate ([\\d.eE]+)",
-            "scoreLead": "scoreLead ([-\\d.eE]+)"
+        let patterns: [String: Regex] = [
+            "move": /move (\w\d+)/,
+            "visits": /visits (\d+)/,
+            "winrate": /winrate ([\d.eE]+)/,
+            "scoreLead": /scoreLead ([-\d.eE]+)/
         ]
 
         var moveData: [String: String] = [:]
         for (key, pattern) in patterns {
-            let regex = try? NSRegularExpression(pattern: pattern, options: [])
-            if let match = regex?.firstMatch(in: dataLine, options: [], range: NSRange(location: 0, length: dataLine.utf16.count)) {
-                if let range = Range(match.range(at: 1), in: dataLine) {
-                    moveData[key] = String(dataLine[range])
-                }
+            if let match = dataLine.firstMatch(of: pattern) {
+                moveData[key] = String(match.1)
             }
         }
 
@@ -229,28 +231,24 @@ struct ContentView: View {
     }
 
     func extractOwnershipMean(message: String) -> [Float] {
-        let pattern = "ownership ([-\\d\\s.eE]+)"
-        let regex = try? NSRegularExpression(pattern: pattern, options: [])
-        if let match = regex?.firstMatch(in: message, options: [], range: NSRange(location: 0, length: message.utf16.count)) {
-            if let range = Range(match.range(at: 1), in: message) {
-                let mean = message[range].split(separator: " ").compactMap { Float($0) }
-                assert(mean.count == Int(board.width * board.height))
-                return mean
+        let pattern = /ownership ([-\d\s.eE]+)/
+        if let match = message.firstMatch(of: pattern) {
+            let mean = match.1.split(separator: " ").compactMap { Float($0)
             }
+            assert(mean.count == Int(board.width * board.height))
+            return mean
         }
 
         return []
     }
 
     func extractOwnershipStdev(message: String) -> [Float] {
-        let pattern = "ownershipStdev ([-\\d\\s.eE]+)"
-        let regex = try? NSRegularExpression(pattern: pattern, options: [])
-        if let match = regex?.firstMatch(in: message, options: [], range: NSRange(location: 0, length: message.utf16.count)) {
-            if let range = Range(match.range(at: 1), in: message) {
-                let stdev = message[range].split(separator: " ").compactMap { Float($0) }
-                assert(stdev.count == Int(board.width * board.height))
-                return stdev
+        let pattern = /ownershipStdev ([-\d\s.eE]+)/
+        if let match = message.firstMatch(of: pattern) {
+            let stdev = match.1.split(separator: " ").compactMap { Float($0)
             }
+            assert(stdev.count == Int(board.width * board.height))
+            return stdev
         }
 
         return []
