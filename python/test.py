@@ -17,7 +17,7 @@ import torch.nn
 from torch.optim.swa_utils import AveragedModel
 
 import modelconfigs
-from model_pytorch import Model
+from model_pytorch import Model, ExtraOutputs
 from metrics_pytorch import Metrics
 import data_processing_pytorch
 from load_model import load_model
@@ -40,6 +40,8 @@ if __name__ == "__main__":
     parser.add_argument('-use-swa', help='Use SWA model', action="store_true", required=False)
     parser.add_argument('-max-batches', help='Maximum number of batches for testing', type=int, required=False)
     parser.add_argument('-gpu-idx', help='GPU idx', type=int, required=False)
+    parser.add_argument('-print-norm', help='Names of outputs to print norms comma separated', type=str, required=False)
+    parser.add_argument('-list-available-outputs', help='Print names of outputs available', action="store_true", required=False)
 
     args = vars(parser.parse_args())
 
@@ -53,6 +55,13 @@ def main(args):
     use_swa = args["use_swa"]
     max_batches = args["max_batches"]
     gpu_idx = args["gpu_idx"]
+    list_available_outputs = args["list_available_outputs"]
+
+    norm_layer_names = []
+    if args["print_norm"]:
+        for layername in args["print_norm"].split(','):
+            if layername.strip():
+                norm_layer_names.append(layername.strip())
 
     soft_policy_weight_scale = 1.0
     value_loss_scale = 1.0
@@ -134,7 +143,7 @@ def main(args):
                 metric_sums[metric] += metrics[metric]
                 metric_weights[metric] += 1
 
-    def log_metrics(prefix, metric_sums, metric_weights, metrics, metrics_out):
+    def log_metrics(prefix, metric_sums, metric_weights, metrics, sum_norms, num_samples_tested, metrics_out):
         metrics_to_print = {}
         for metric in metric_sums:
             if metric.endswith("_sum"):
@@ -152,6 +161,12 @@ def main(args):
         logging.info(prefix + ", ".join(["%s = %f" % (metric, metrics_to_print[metric]) for metric in metrics_to_print]))
         if metrics_out:
             metrics_out.write(json.dumps(metrics_to_print) + "\n")
+
+        for name in sum_norms:
+            avg_norm = sum_norms[name] / num_samples_tested
+            logging.info(f"{name} {avg_norm:.6f}")
+
+        if metrics_out:
             metrics_out.flush()
 
     torch.backends.cudnn.benchmark = True
@@ -168,6 +183,7 @@ def main(args):
             swa_model.eval()
         val_metric_sums = defaultdict(float)
         val_metric_weights = defaultdict(float)
+        sum_norms = defaultdict(float)
         num_batches_tested = 0
         num_samples_tested = 0
         total_inference_time = 0.0
@@ -188,14 +204,21 @@ def main(args):
             start = torch.cuda.Event(enable_timing=True)
             end = torch.cuda.Event(enable_timing=True)
 
+            extra_outputs = ExtraOutputs(norm_layer_names)
+
             start.record()
             if swa_model is not None:
-                model_outputs = swa_model(batch["binaryInputNCHW"],batch["globalInputNC"])
+                model_outputs = swa_model(batch["binaryInputNCHW"],batch["globalInputNC"],extra_outputs=extra_outputs)
             else:
-                model_outputs = model(batch["binaryInputNCHW"],batch["globalInputNC"])
+                model_outputs = model(batch["binaryInputNCHW"],batch["globalInputNC"],extra_outputs=extra_outputs)
             end.record()
             torch.cuda.synchronize()
             time_elapsed = start.elapsed_time(end) / 1000.0
+
+            if list_available_outputs:
+                for available_output in extra_outputs.available:
+                    logging.info(f"Available output: {available_output}")
+                list_available_outputs = False
 
             postprocessed = model.postprocess_output(model_outputs)
             metrics = metrics_obj.metrics_dict_batchwise(
@@ -216,6 +239,11 @@ def main(args):
                 is_first_batch = False
                 continue
 
+            for norm_layer_name in norm_layer_names:
+                activations = extra_outputs.returned[norm_layer_name]
+                non_batch_dims = list(range(1,len(activations.shape)))
+                sum_norms[norm_layer_name] += torch.sum(torch.sqrt(torch.mean(torch.square(activations),dim=non_batch_dims)),dim=0).item()
+
             accumulate_metrics(val_metric_sums, val_metric_weights, metrics, batch_size, decay=1.0)
 
             num_batches_tested += 1
@@ -231,13 +259,13 @@ def main(args):
                     metrics["num_samples"] = num_samples_tested
                     metrics["inferencetime"] = total_inference_time
                     metrics["time/1ksamp"] = total_inference_time / num_samples_tested * 1000.0
-                    log_metrics("STATS SO FAR: ", val_metric_sums, val_metric_weights, metrics, None)
+                    log_metrics("STATS SO FAR: ", val_metric_sums, val_metric_weights, metrics, sum_norms, num_samples_tested, None)
 
         metrics["num_batches"] = num_batches_tested
         metrics["num_samples"] = num_samples_tested
         metrics["inferencetime"] = total_inference_time
         metrics["time/1ksamp"] = total_inference_time / num_samples_tested * 1000.0
-        log_metrics("FINAL: ", val_metric_sums, val_metric_weights, metrics, None)
+        log_metrics("FINAL: ", val_metric_sums, val_metric_weights, metrics, sum_norms, num_samples_tested, None)
 
 
 if __name__ == "__main__":

@@ -15,11 +15,13 @@ import numpy as np
 from board import Board
 from features import Features
 
+from typing import Dict, Any, List
+
 import torch
 import torch.nn
 
 import modelconfigs
-from model_pytorch import Model, EXTRA_SCORE_DISTR_RADIUS
+from model_pytorch import Model, EXTRA_SCORE_DISTR_RADIUS, ExtraOutputs
 from data_processing_pytorch import apply_symmetry
 from load_model import load_model
 
@@ -73,7 +75,7 @@ class GameState:
 # Moves ----------------------------------------------------------------
 
 
-def get_outputs(gs, rules):
+def get_outputs(gs: GameState, rules: Dict[str,Any], extra_output_names: List[str] = []):
     with torch.no_grad():
         model.eval()
 
@@ -93,10 +95,16 @@ def get_outputs(gs, rules):
         # symmetry = 0
         # model_outputs = model(apply_symmetry(batch["binaryInputNCHW"],symmetry),batch["globalInputNC"])
 
+        extra_outputs = ExtraOutputs(extra_output_names)
+
         model_outputs = model(
             torch.tensor(bin_input_data, dtype=torch.float32),
             torch.tensor(global_input_data, dtype=torch.float32),
+            extra_outputs=extra_outputs,
         )
+
+        available_extra_outputs = extra_outputs.available
+
         outputs = model.postprocess_output(model_outputs)
         (
             policy_logits,      # N, num_policy_outputs, move
@@ -241,6 +249,11 @@ def get_outputs(gs, rules):
             break
         i += 1
 
+    # Transpose attention so that both it and reverse attention are in n c (hw) format.
+    for name in list(extra_outputs.returned.keys()):
+        if name.endswith(".attention"):
+            extra_outputs.returned[name] = torch.transpose(extra_outputs.returned[name],1,2)
+
     return {
         "policy0": policy0,
         "policy1": policy1,
@@ -269,7 +282,9 @@ def get_outputs(gs, rules):
         "seki2": seki2,
         "seki_by_loc2": seki_by_loc2,
         "scorebelief": scorebelief,
-        "genmove_result": genmove_result
+        "genmove_result": genmove_result,
+        **{ name:activation[0].numpy() for name, activation in extra_outputs.returned.items() },
+        "available_extra_outputs": available_extra_outputs,
     }
 
 def get_input_feature(gs, rules, feature_idx):
@@ -613,9 +628,26 @@ def add_input_feature_visualizations(layer_name, feature_idx, normalization_div)
     known_commands.append(command_name)
     known_analyze_commands.append("gfx/" + command_name + "/" + command_name)
     input_feature_command_lookup[command_name] = (feature_idx,normalization_div)
-
 for i in range(model.bin_input_shape[1]):
     add_input_feature_visualizations("input-" + str(i),i, normalization_div=1)
+
+attention_feature_command_lookup = dict()
+def add_attention_visualizations(extra_output_name, extra_output):
+    for c in range(extra_output.shape[0]):
+        command_name = extra_output_name
+        command_name = command_name.replace("/",":")
+        command_name += ":" + str(c)
+        known_commands.append(command_name)
+        known_analyze_commands.append("gfx/" + command_name + "/" + command_name)
+        attention_feature_command_lookup[command_name] = (extra_output_name, c)
+with torch.no_grad():
+    dummy_outputs = get_outputs(gs, rules)
+    extra_attention_output_names = [name for name in dummy_outputs["available_extra_outputs"] if name.endswith(".attention") or name.endswith(".reverse_attention")]
+    dummy_outputs = get_outputs(gs, rules, extra_output_names=extra_attention_output_names)
+    for name in extra_attention_output_names:
+        add_attention_visualizations(name,dummy_outputs[name])
+    del dummy_outputs
+
 
 def get_board_matrix_str(matrix, scale, formatstr):
     ret = ""
@@ -813,6 +845,23 @@ while True:
         (feature_idx,normalization_div) = input_feature_command_lookup[command[0]]
         locs_and_values = get_input_feature(gs, rules, feature_idx)
         gfx_commands = get_gfx_commands_for_heatmap(locs_and_values, gs.board, normalization_div, is_percent=False)
+        ret = "\n".join(gfx_commands)
+
+    elif command[0] in attention_feature_command_lookup:
+        (extra_output_name,channel_idx) = attention_feature_command_lookup[command[0]]
+        outputs = get_outputs(gs, rules, extra_output_names=[extra_output_name])
+        output = outputs[extra_output_name] # shape c, hw
+        output = output[channel_idx]
+        locs_and_values = []
+        board = gs.board
+        for y in range(board.size):
+            for x in range(board.size):
+                loc = board.loc(x,y)
+                pos = features.loc_to_tensor_pos(loc,board)
+                locs_and_values.append((loc,output[pos]))
+
+        normalization_div = "max"
+        gfx_commands = get_gfx_commands_for_heatmap(locs_and_values, gs.board, normalization_div, is_percent=True)
         ret = "\n".join(gfx_commands)
 
     elif command[0] == "passalive":

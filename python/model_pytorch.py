@@ -6,11 +6,22 @@ import torch.nn.functional
 import torch.nn.init
 import packaging
 import packaging.version
-from typing import List, Dict, Optional
+from typing import List, Dict, Optional, Set
 
 import modelconfigs
 
 EXTRA_SCORE_DISTR_RADIUS = 60
+
+class ExtraOutputs:
+    def __init__(self, requested: List[str]):
+        self.requested: Set[str] = set(requested)
+        self.available: List[str] = []
+        self.returned: Dict[str,torch.Tensor] = {}
+
+    def report(self, name: str, value: torch.Tensor):
+        self.available.append(name)
+        if name in self.requested:
+            self.returned[name] = value.detach()
 
 def act(activation, inplace=False):
     if activation == "relu":
@@ -377,8 +388,9 @@ class KataValueHeadGPool(torch.nn.Module):
         return out
 
 class KataConvAndGPool(torch.nn.Module):
-    def __init__(self, c_in, c_out, c_gpool, config, activation):
+    def __init__(self, name, c_in, c_out, c_gpool, config, activation):
         super(KataConvAndGPool, self).__init__()
+        self.name = name
         self.norm_kind = config["norm_kind"]
         self.activation = activation
         self.conv1r = torch.nn.Conv2d(c_in, c_out, kernel_size=3, padding="same", bias=False)
@@ -418,7 +430,7 @@ class KataConvAndGPool(torch.nn.Module):
         self.normg.add_brenorm_clippage(upper_rclippage, lower_rclippage, dclippage)
 
 
-    def forward(self, x, mask, mask_sum_hw, mask_sum:float):
+    def forward(self, x, mask, mask_sum_hw, mask_sum:float, extra_outputs: Optional[ExtraOutputs]):
         """
         Parameters:
         x: NCHW
@@ -442,8 +454,9 @@ class KataConvAndGPool(torch.nn.Module):
 
 
 class KataConvAndAttentionPool(torch.nn.Module):
-    def __init__(self, c_in, c_out, c_gpool, config, activation):
+    def __init__(self, name, c_in, c_out, c_gpool, config, activation):
         super(KataConvAndAttentionPool, self).__init__()
+        self.name = name
         self.norm_kind = config["norm_kind"]
         self.c_gpool = c_gpool
         self.c_apheads = config["num_attention_pool_heads"]
@@ -494,7 +507,7 @@ class KataConvAndAttentionPool(torch.nn.Module):
     def add_brenorm_clippage(self, upper_rclippage, lower_rclippage, dclippage):
         self.normg.add_brenorm_clippage(upper_rclippage, lower_rclippage, dclippage)
 
-    def forward(self, x, mask, mask_sum_hw, mask_sum:float):
+    def forward(self, x, mask, mask_sum_hw, mask_sum:float, extra_outputs: Optional[ExtraOutputs]):
         """
         Parameters:
         x: NCHW
@@ -577,6 +590,7 @@ class KataConvAndAttentionPool(torch.nn.Module):
 class NormActConv(torch.nn.Module):
     def __init__(
         self,
+        name: str,
         c_in: int,
         c_out: int,
         c_gpool: Optional[int],
@@ -586,6 +600,7 @@ class NormActConv(torch.nn.Module):
         fixup_use_gamma: bool,
     ):
         super(NormActConv, self).__init__()
+        self.name = name
         self.c_in = c_in
         self.c_out = c_out
         self.c_gpool = c_gpool
@@ -600,10 +615,10 @@ class NormActConv(torch.nn.Module):
 
         if c_gpool is not None:
             if config["use_attention_pool"]:
-                self.convpool = KataConvAndAttentionPool(c_in=c_in, c_out=c_out, c_gpool=c_gpool, config=config, activation=activation)
+                self.convpool = KataConvAndAttentionPool(name=name+".convpool",c_in=c_in, c_out=c_out, c_gpool=c_gpool, config=config, activation=activation)
                 self.conv = None
             else:
-                self.convpool = KataConvAndGPool(c_in=c_in, c_out=c_out, c_gpool=c_gpool, config=config, activation=activation)
+                self.convpool = KataConvAndGPool(name=name+".convpool",c_in=c_in, c_out=c_out, c_gpool=c_gpool, config=config, activation=activation)
                 self.conv = None
         else:
             self.conv = torch.nn.Conv2d(c_in, c_out, kernel_size=kernel_size, padding="same", bias=False)
@@ -650,7 +665,7 @@ class NormActConv(torch.nn.Module):
         if self.convpool is not None:
             self.convpool.add_brenorm_clippage(upper_rclippage, lower_rclippage, dclippage)
 
-    def forward(self, x, mask, mask_sum_hw, mask_sum: float):
+    def forward(self, x, mask, mask_sum_hw, mask_sum: float, extra_outputs: Optional[ExtraOutputs]):
         """
         Parameters:
         x: NCHW
@@ -666,12 +681,14 @@ class NormActConv(torch.nn.Module):
         # print("TENSOR AFTER NORMACT")
         # print(out)
         if self.convpool is not None:
-            out = self.convpool(out, mask=mask, mask_sum_hw=mask_sum_hw, mask_sum=mask_sum)
+            out = self.convpool(out, mask=mask, mask_sum_hw=mask_sum_hw, mask_sum=mask_sum, extra_outputs=extra_outputs)
         else:
             if self.conv1x1 is not None:
                 out = self.conv(out) + self.conv1x1(out)
             else:
                 out = self.conv(out)
+        if extra_outputs is not None:
+            extra_outputs.report(self.name+".out", out)
         return out
 
 
@@ -689,6 +706,7 @@ class ResBlock(torch.nn.Module):
         self.name = name
         self.norm_kind = config["norm_kind"]
         self.normactconv1 = NormActConv(
+            name=name+".normactconv1",
             c_in=c_main,
             c_out=c_mid - (0 if c_gpool is None else c_gpool),
             c_gpool=c_gpool,
@@ -698,6 +716,7 @@ class ResBlock(torch.nn.Module):
             fixup_use_gamma=False,
         )
         self.normactconv2 = NormActConv(
+            name=name+".normactconv2",
             c_in=c_mid - (0 if c_gpool is None else c_gpool),
             c_out=c_main,
             c_gpool=None,
@@ -730,7 +749,7 @@ class ResBlock(torch.nn.Module):
         self.normactconv1.add_brenorm_clippage(upper_rclippage, lower_rclippage, dclippage)
         self.normactconv2.add_brenorm_clippage(upper_rclippage, lower_rclippage, dclippage)
 
-    def forward(self, x, mask, mask_sum_hw, mask_sum: float):
+    def forward(self, x, mask, mask_sum_hw, mask_sum: float, extra_outputs: Optional[ExtraOutputs]):
         """
         Parameters:
         x: NCHW
@@ -741,9 +760,12 @@ class ResBlock(torch.nn.Module):
         Returns: NCHW
         """
         out = x
-        out = self.normactconv1(out, mask=mask, mask_sum_hw=mask_sum_hw, mask_sum=mask_sum)
-        out = self.normactconv2(out, mask=mask, mask_sum_hw=mask_sum_hw, mask_sum=mask_sum)
-        return x + out
+        out = self.normactconv1(out, mask=mask, mask_sum_hw=mask_sum_hw, mask_sum=mask_sum, extra_outputs=extra_outputs)
+        out = self.normactconv2(out, mask=mask, mask_sum_hw=mask_sum_hw, mask_sum=mask_sum, extra_outputs=extra_outputs)
+        result = x + out
+        if extra_outputs is not None:
+            extra_outputs.report(self.name+".out", result)
+        return result
 
 
 class BottleneckResBlock(torch.nn.Module):
@@ -764,6 +786,7 @@ class BottleneckResBlock(torch.nn.Module):
         assert internal_length >= 1
 
         self.normactconvp = NormActConv(
+            name=name+".normactconvp",
             c_in=c_main,
             c_out=c_mid,
             c_gpool=None,
@@ -775,6 +798,7 @@ class BottleneckResBlock(torch.nn.Module):
 
         self.normactconvstack = torch.nn.ModuleList()
         self.normactconvstack.append(NormActConv(
+            name=name+".normactconvstack."+str(0),
             c_in=c_mid,
             c_out=c_mid - (0 if c_gpool is None else c_gpool),
             c_gpool=c_gpool,
@@ -785,6 +809,7 @@ class BottleneckResBlock(torch.nn.Module):
         ))
         for i in range(self.internal_length-1):
             self.normactconvstack.append(NormActConv(
+                name=name+".normactconvstack."+str(i+1),
                 c_in=self.normactconvstack[-1].c_out,
                 c_out=c_mid,
                 c_gpool=None,
@@ -795,6 +820,7 @@ class BottleneckResBlock(torch.nn.Module):
             ))
 
         self.normactconvq = NormActConv(
+            name=name+".normactconvq",
             c_in=self.normactconvstack[-1].c_out,
             c_out=c_main,
             c_gpool=None,
@@ -839,7 +865,7 @@ class BottleneckResBlock(torch.nn.Module):
             self.normactconvstack[i].add_brenorm_clippage(upper_rclippage, lower_rclippage, dclippage)
         self.normactconvq.add_brenorm_clippage(upper_rclippage, lower_rclippage, dclippage)
 
-    def forward(self, x, mask, mask_sum_hw, mask_sum: float):
+    def forward(self, x, mask, mask_sum_hw, mask_sum: float, extra_outputs: Optional[ExtraOutputs]):
         """
         Parameters:
         x: NCHW
@@ -850,11 +876,14 @@ class BottleneckResBlock(torch.nn.Module):
         Returns: NCHW
         """
         out = x
-        out = self.normactconvp(out, mask=mask, mask_sum_hw=mask_sum_hw, mask_sum=mask_sum)
+        out = self.normactconvp(out, mask=mask, mask_sum_hw=mask_sum_hw, mask_sum=mask_sum, extra_outputs=extra_outputs)
         for i in range(self.internal_length):
-            out = self.normactconvstack[i](out, mask=mask, mask_sum_hw=mask_sum_hw, mask_sum=mask_sum)
-        out = self.normactconvq(out, mask=mask, mask_sum_hw=mask_sum_hw, mask_sum=mask_sum)
-        return x + out
+            out = self.normactconvstack[i](out, mask=mask, mask_sum_hw=mask_sum_hw, mask_sum=mask_sum, extra_outputs=extra_outputs)
+        out = self.normactconvq(out, mask=mask, mask_sum_hw=mask_sum_hw, mask_sum=mask_sum, extra_outputs=extra_outputs)
+        result = x + out
+        if extra_outputs is not None:
+            extra_outputs.report(self.name+".out", result)
+        return result
 
 
 class NestedBottleneckResBlock(torch.nn.Module):
@@ -875,6 +904,7 @@ class NestedBottleneckResBlock(torch.nn.Module):
         assert internal_length >= 1
 
         self.normactconvp = NormActConv(
+            name=name+".normactconvp",
             c_in=c_main,
             c_out=c_mid,
             c_gpool=None,
@@ -887,7 +917,7 @@ class NestedBottleneckResBlock(torch.nn.Module):
         self.blockstack = torch.nn.ModuleList()
         for i in range(self.internal_length):
             self.blockstack.append(ResBlock(
-                name=name+"-sub"+str(i),
+                name=name+".blockstack."+str(i),
                 c_main=c_mid,
                 c_mid=c_mid,
                 c_gpool=(c_gpool if i == 0 else None),
@@ -896,6 +926,7 @@ class NestedBottleneckResBlock(torch.nn.Module):
             ))
 
         self.normactconvq = NormActConv(
+            name=name+".normactconvq",
             c_in=c_mid,
             c_out=c_main,
             c_gpool=None,
@@ -940,7 +971,7 @@ class NestedBottleneckResBlock(torch.nn.Module):
             self.blockstack[i].add_brenorm_clippage(upper_rclippage, lower_rclippage, dclippage)
         self.normactconvq.add_brenorm_clippage(upper_rclippage, lower_rclippage, dclippage)
 
-    def forward(self, x, mask, mask_sum_hw, mask_sum: float):
+    def forward(self, x, mask, mask_sum_hw, mask_sum: float, extra_outputs: Optional[ExtraOutputs]):
         """
         Parameters:
         x: NCHW
@@ -951,11 +982,14 @@ class NestedBottleneckResBlock(torch.nn.Module):
         Returns: NCHW
         """
         out = x
-        out = self.normactconvp(out, mask=mask, mask_sum_hw=mask_sum_hw, mask_sum=mask_sum)
+        out = self.normactconvp(out, mask=mask, mask_sum_hw=mask_sum_hw, mask_sum=mask_sum, extra_outputs=extra_outputs)
         for i in range(self.internal_length):
-            out = self.blockstack[i](out, mask=mask, mask_sum_hw=mask_sum_hw, mask_sum=mask_sum)
-        out = self.normactconvq(out, mask=mask, mask_sum_hw=mask_sum_hw, mask_sum=mask_sum)
-        return x + out
+            out = self.blockstack[i](out, mask=mask, mask_sum_hw=mask_sum_hw, mask_sum=mask_sum, extra_outputs=extra_outputs)
+        out = self.normactconvq(out, mask=mask, mask_sum_hw=mask_sum_hw, mask_sum=mask_sum, extra_outputs=extra_outputs)
+        result = x + out
+        if extra_outputs is not None:
+            extra_outputs.report(self.name+".out", result)
+        return result
 
 
 
@@ -979,6 +1013,7 @@ class NestedNestedBottleneckResBlock(torch.nn.Module):
         assert internal_length >= 1
 
         self.normactconvp = NormActConv(
+            name=name+".normactconvp",
             c_in=c_main,
             c_out=c_outermid,
             c_gpool=None,
@@ -991,7 +1026,7 @@ class NestedNestedBottleneckResBlock(torch.nn.Module):
         self.blockstack = torch.nn.ModuleList()
         for i in range(self.internal_length):
             self.blockstack.append(NestedBottleneckResBlock(
-                name=name+"-sub"+str(i),
+                name=name+".blockstack."+str(i),
                 internal_length=sub_internal_length,
                 c_main=c_outermid,
                 c_mid=c_mid,
@@ -1001,6 +1036,7 @@ class NestedNestedBottleneckResBlock(torch.nn.Module):
             ))
 
         self.normactconvq = NormActConv(
+            name=name+".normactconvq",
             c_in=c_outermid,
             c_out=c_main,
             c_gpool=None,
@@ -1045,7 +1081,7 @@ class NestedNestedBottleneckResBlock(torch.nn.Module):
             self.blockstack[i].add_brenorm_clippage(upper_rclippage, lower_rclippage, dclippage)
         self.normactconvq.add_brenorm_clippage(upper_rclippage, lower_rclippage, dclippage)
 
-    def forward(self, x, mask, mask_sum_hw, mask_sum: float):
+    def forward(self, x, mask, mask_sum_hw, mask_sum: float, extra_outputs: Optional[ExtraOutputs]):
         """
         Parameters:
         x: NCHW
@@ -1056,11 +1092,14 @@ class NestedNestedBottleneckResBlock(torch.nn.Module):
         Returns: NCHW
         """
         out = x
-        out = self.normactconvp(out, mask=mask, mask_sum_hw=mask_sum_hw, mask_sum=mask_sum)
+        out = self.normactconvp(out, mask=mask, mask_sum_hw=mask_sum_hw, mask_sum=mask_sum, extra_outputs=extra_outputs)
         for i in range(self.internal_length):
-            out = self.blockstack[i](out, mask=mask, mask_sum_hw=mask_sum_hw, mask_sum=mask_sum)
-        out = self.normactconvq(out, mask=mask, mask_sum_hw=mask_sum_hw, mask_sum=mask_sum)
-        return x + out
+            out = self.blockstack[i](out, mask=mask, mask_sum_hw=mask_sum_hw, mask_sum=mask_sum, extra_outputs=extra_outputs)
+        out = self.normactconvq(out, mask=mask, mask_sum_hw=mask_sum_hw, mask_sum=mask_sum, extra_outputs=extra_outputs)
+        result = x + out
+        if extra_outputs is not None:
+            extra_outputs.report(self.name+".out", result)
+        return result
 
 
 class PolicyHead(torch.nn.Module):
@@ -1147,7 +1186,7 @@ class PolicyHead(torch.nn.Module):
     def add_brenorm_clippage(self, upper_rclippage, lower_rclippage, dclippage):
         pass
 
-    def forward(self, x, mask, mask_sum_hw, mask_sum:float):
+    def forward(self, x, mask, mask_sum_hw, mask_sum:float, extra_outputs: Optional[ExtraOutputs]):
         outp = self.conv1p(x)
         outg = self.conv1g(x)
 
@@ -1291,7 +1330,7 @@ class ValueHead(torch.nn.Module):
     def add_brenorm_clippage(self, upper_rclippage, lower_rclippage, dclippage):
         pass
 
-    def forward(self, x, mask, mask_sum_hw, mask_sum:float, input_global):
+    def forward(self, x, mask, mask_sum_hw, mask_sum:float, input_global, extra_outputs: Optional[ExtraOutputs]):
         outv1 = x
         outv1 = self.conv1(outv1)
         outv1 = self.bias1(outv1, mask=mask, mask_sum=mask_sum)
@@ -1602,9 +1641,11 @@ class Model(torch.nn.Module):
     # The outer tuple indexes different sets of heads, such as if the net also computes intermediate heads.
     #   0 is the main output, 1 is intermediate.
     # The inner tuple ranges over the outputs of a set of heads (policy, value, etc).
-    def forward(self, input_spatial, input_global):
+    def forward(self, input_spatial, input_global, extra_outputs: Optional[ExtraOutputs] = None):
         # float_formatter = "{:.3f}".format
         # np.set_printoptions(formatter={'float_kind':float_formatter}, threshold=1000000, linewidth=10000)
+        if extra_outputs is None:
+            extra_outputs = ExtraOutputs([])
 
         mask = input_spatial[:, 0:1, :, :].contiguous()
         mask_sum_hw = torch.sum(mask,dim=(2,3),keepdim=True)
@@ -1622,14 +1663,14 @@ class Model(torch.nn.Module):
                 # print("TENSOR BEFORE BLOCK")
                 # print(count)
                 # print(out)
-                out = block(out, mask=mask, mask_sum_hw=mask_sum_hw, mask_sum=mask_sum)
+                out = block(out, mask=mask, mask_sum_hw=mask_sum_hw, mask_sum=mask_sum, extra_outputs=extra_outputs)
                 count += 1
 
             # print("INTERMEDIATE")
             iout = out
             iout = self.norm_intermediate_trunkfinal(iout, mask=mask, mask_sum=mask_sum)
             iout = self.act_intermediate_trunkfinal(iout)
-            iout_policy = self.intermediate_policy_head(iout, mask=mask, mask_sum_hw=mask_sum_hw, mask_sum=mask_sum)
+            iout_policy = self.intermediate_policy_head(iout, mask=mask, mask_sum_hw=mask_sum_hw, mask_sum=mask_sum, extra_outputs=extra_outputs)
             (
                 iout_value,
                 iout_miscvalue,
@@ -1639,13 +1680,13 @@ class Model(torch.nn.Module):
                 iout_futurepos,
                 iout_seki,
                 iout_scorebelief_logprobs,
-            ) = self.intermediate_value_head(iout, mask=mask, mask_sum_hw=mask_sum_hw, mask_sum=mask_sum, input_global=input_global)
+            ) = self.intermediate_value_head(iout, mask=mask, mask_sum_hw=mask_sum_hw, mask_sum=mask_sum, input_global=input_global, extra_outputs=extra_outputs)
 
             for block in self.blocks[self.intermediate_head_blocks:]:
                 # print("TENSOR BEFORE BLOCK")
                 # print(count)
                 # print(out)
-                out = block(out, mask=mask, mask_sum_hw=mask_sum_hw, mask_sum=mask_sum)
+                out = block(out, mask=mask, mask_sum_hw=mask_sum_hw, mask_sum=mask_sum, extra_outputs=extra_outputs)
                 count += 1
 
         else:
@@ -1654,14 +1695,17 @@ class Model(torch.nn.Module):
                 # print("TENSOR BEFORE BLOCK")
                 # print(count)
                 # print(out)
-                out = block(out, mask=mask, mask_sum_hw=mask_sum_hw, mask_sum=mask_sum)
+                out = block(out, mask=mask, mask_sum_hw=mask_sum_hw, mask_sum=mask_sum, extra_outputs=extra_outputs)
                 count += 1
 
         out = self.norm_trunkfinal(out, mask=mask, mask_sum=mask_sum)
         out = self.act_trunkfinal(out)
 
+        if extra_outputs is not None:
+            extra_outputs.report("trunkfinal", out)
+
         # print("MAIN")
-        out_policy = self.policy_head(out, mask=mask, mask_sum_hw=mask_sum_hw, mask_sum=mask_sum)
+        out_policy = self.policy_head(out, mask=mask, mask_sum_hw=mask_sum_hw, mask_sum=mask_sum, extra_outputs=extra_outputs)
         (
             out_value,
             out_miscvalue,
@@ -1671,7 +1715,7 @@ class Model(torch.nn.Module):
             out_futurepos,
             out_seki,
             out_scorebelief_logprobs,
-        ) = self.value_head(out, mask=mask, mask_sum_hw=mask_sum_hw, mask_sum=mask_sum, input_global=input_global)
+        ) = self.value_head(out, mask=mask, mask_sum_hw=mask_sum_hw, mask_sum=mask_sum, input_global=input_global, extra_outputs=extra_outputs)
 
         if self.has_intermediate_head:
             return (
