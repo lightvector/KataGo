@@ -1286,6 +1286,12 @@ int MainCmds::genbook(const vector<string>& args) {
           int gameThreadIdx = 0;
           addVariationToBookWithoutUpdate(gameThreadIdx, sgfHist, nodesHashesToUpdate);
           variationsAdded += 1;
+          if(variationsAdded % 400 == 0) {
+            logger.write(
+              "Tracing sgf, variationsAdded " +
+              Global::int64ToString(variationsAdded)
+            );
+          }
         }
       );
       logger.write(
