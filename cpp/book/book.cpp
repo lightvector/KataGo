@@ -741,6 +741,7 @@ static double sigmoid(double x) {
 }
 
 void BookParams::randomizeParams(Rand& rand, double stdev) {
+  errorFactor *= exp(0.5 * stdev * rand.nextGaussianTruncated(3.0));
   costPerMove *= exp(0.5 * stdev * rand.nextGaussianTruncated(3.0));
   costPerUCBWinLossLoss *= exp(stdev * rand.nextGaussianTruncated(3.0));
   costPerUCBWinLossLossPow3 *= exp(stdev * rand.nextGaussianTruncated(3.0));
