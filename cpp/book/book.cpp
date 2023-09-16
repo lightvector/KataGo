@@ -1557,7 +1557,7 @@ void Book::recomputeNodeCost(BookNode* node) {
       (node->pla == P_BLACK && passUtility < notInBookUtility + 0.02)
     );
 
-    // If we have more than 1/N of unexpanded policy, we cap the penalty for expanded moves at N.
+    // If we have more than 1/N of unexpanded policy, we cap the penalty for expanded moves as if we had N.
     double movesExpanded = (double)node->moves.size();
     if(movesExpanded > 1.0 / (rawPolicy + 1e-30)) {
       movesExpanded = 1.0 / (rawPolicy + 1e-30);
@@ -1641,13 +1641,13 @@ void Book::recomputeNodeCost(BookNode* node) {
           bestOtherCostFromRoot = locAndBookMoveOther.second.costFromRoot;
       }
     }
-    // Reduce 50% of cost towards the move that we're better than.
+    // Reduce 70% of cost towards the move that we're better than.
     if(bestOtherCostFromRoot < locAndBookMove.second.costFromRoot) {
       // cout << "Child " << (int)locAndBookMove.first
       //      << " cost " << locAndBookMove.second.costFromRoot
       //      << " reduced best cost of moves it beats " << bestOtherCostFromRoot
       //      << " becomes " << locAndBookMove.second.costFromRoot + 0.50 * (bestOtherCostFromRoot - locAndBookMove.second.costFromRoot) << endl;
-      locAndBookMove.second.costFromRoot += 0.50 * (bestOtherCostFromRoot - locAndBookMove.second.costFromRoot);
+      locAndBookMove.second.costFromRoot += 0.70 * (bestOtherCostFromRoot - locAndBookMove.second.costFromRoot);
     }
   }
   {
@@ -1662,12 +1662,12 @@ void Book::recomputeNodeCost(BookNode* node) {
           bestOtherCostFromRoot = locAndBookMoveOther.second.costFromRoot;
       }
     }
-    // Reduce 50% of cost towards the move that we're better than.
+    // Reduce 70% of cost towards the move that we're better than.
     if(bestOtherCostFromRoot - node->minCostFromRoot < node->thisNodeExpansionCost) {
       // cout << "This node expansion cost " << node->thisNodeExpansionCost
       //      << " reduced best cost of moves it beats " << bestOtherCostFromRoot - node->minCostFromRoot
       //      << " becomes " << node->thisNodeExpansionCost + 0.50 * (bestOtherCostFromRoot - node->minCostFromRoot - node->thisNodeExpansionCost) << endl;
-      node->thisNodeExpansionCost += 0.50 * (bestOtherCostFromRoot - node->minCostFromRoot - node->thisNodeExpansionCost);
+      node->thisNodeExpansionCost += 0.70 * (bestOtherCostFromRoot - node->minCostFromRoot - node->thisNodeExpansionCost);
     }
   }
 
@@ -1726,7 +1726,7 @@ void Book::recomputeNodeCost(BookNode* node) {
     if(bonus > bonusCap1)
       bonus = bonusCap1;
 
-    // Sharp score discrepancy is an uncapped bonus
+    // Sharp score discrepancy is an uncapped bonus at the very final node
     bonus += params.bonusPerSharpScoreDiscrepancy * std::max(0.0, sharpScoreDiscrepancy - 1.0);
     // cout << "This node expansion cost " << node->thisNodeExpansionCost
     //      << " errors " << winLossError << " " << scoreError << " " << sharpScoreDiscrepancy
@@ -1812,6 +1812,7 @@ void Book::recomputeNodeCost(BookNode* node) {
     }
   }
 
+  // Uncapped
   if(node->expansionIsWLPV || (node->canReExpand && node->recursiveValues.visits <= params.maxVisitsForReExpansion)) {
     double wlPVBonusScale = node->thisNodeExpansionCost + std::max(0.0, node->minCostFromRoot - node->minCostFromRootWLPV) * params.bonusForWLPVFinalProp;
     if(wlPVBonusScale > 0.0) {
