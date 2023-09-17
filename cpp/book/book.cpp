@@ -252,8 +252,7 @@ BookMove::BookMove()
    rawPolicy(0.0),
    costFromRoot(0.0),
    isWLPV(false),
-   biggestWLCostFromRoot(0.0),
-   posteriorPolicy(0.0)
+   biggestWLCostFromRoot(0.0)
 {}
 
 BookMove::BookMove(Loc mv, int s, BookHash h, double rp)
@@ -263,8 +262,7 @@ BookMove::BookMove(Loc mv, int s, BookHash h, double rp)
    rawPolicy(rp),
    costFromRoot(0.0),
    isWLPV(false),
-   biggestWLCostFromRoot(0.0),
-   posteriorPolicy(0.0)
+   biggestWLCostFromRoot(0.0)
 {}
 
 BookMove BookMove::getSymBookMove(int symmetry, int xSize, int ySize) {
@@ -281,7 +279,6 @@ BookMove BookMove::getSymBookMove(int symmetry, int xSize, int ySize) {
   ret.costFromRoot = costFromRoot;
   ret.isWLPV = isWLPV;
   ret.biggestWLCostFromRoot = biggestWLCostFromRoot;
-  ret.posteriorPolicy = posteriorPolicy;
   return ret;
 }
 
@@ -791,7 +788,7 @@ BookParams BookParams::loadFromCfg(ConfigParser& cfg, int64_t maxVisits) {
   cfgParams.utilityPerScore = cfg.getDouble("utilityPerScore",0.0,1000000.0);
   cfgParams.policyBoostSoftUtilityScale = cfg.getDouble("policyBoostSoftUtilityScale",0.0,1000000.0);
   cfgParams.utilityPerPolicyForSorting = cfg.getDouble("utilityPerPolicyForSorting",0.0,1000000.0);
-  cfgParams.posteriorPolicyScale = cfg.contains("posteriorPolicyScale") ? cfg.getDouble("posteriorPolicyScale",0.0,1000000.0) : 0.25;
+  cfgParams.adjustedVisitsWLScale = cfg.contains("adjustedVisitsWLScale") ? cfg.getDouble("adjustedVisitsWLScale",0.0,1000000.0) : 0.05;
   cfgParams.maxVisitsForReExpansion = cfg.contains("maxVisitsForReExpansion") ? cfg.getDouble("maxVisitsForReExpansion",0.0,1e50) : 0.0;
   cfgParams.visitsScale = cfg.contains("visitsScale") ? cfg.getDouble("visitsScale") : (maxVisits + 1) / 2;
   cfgParams.sharpScoreOutlierCap = cfg.getDouble("sharpScoreOutlierCap",0.0,1000000.0);
@@ -1282,114 +1279,87 @@ void Book::iterateEntireBookPreOrder(
   }
 }
 
-void Book::recomputePosteriorPolicy(
+void Book::recomputeAdjustedVisits(
   BookNode* node,
   double notInBookVisits,
   double notInBookMaxRawPolicy,
-  double notInBookLCB,
   double notInBookWL,
-  double notInBookUCB
+  double notInBookScoreMean,
+  double notInBookSharpScoreMean,
+  double notInBookScoreLCB,
+  double notInBookScoreUCB
 ) {
-  bool flip = node->pla != P_WHITE;
-  double bestWL = notInBookWL;
-  double bestWLBound = flip ? notInBookLCB : notInBookUCB;
+  std::vector<int> sortIdxBuf;
+  std::vector<double> sortValuesBuf;
+  std::vector<double> childAdjustedVisitsBuf;
 
-  double sumRawPolicyExplored = 0.0;
-  for(auto iter = node->moves.begin(); iter != node->moves.end(); ++iter) {
-    const BookNode* child = get(iter->second.hash);
-    sumRawPolicyExplored += iter->second.rawPolicy;
-    if(flip) {
-      bestWL = std::min(bestWL, child->recursiveValues.winLossValue);
-      bestWLBound = std::min(bestWLBound, child->recursiveValues.winLossLCB);
+  const double plaFactor = node->pla == P_WHITE ? 1.0 : -1.0;
+
+  // Compute the values for sorting all children, AND the not in book values.
+  int numItems;
+  {
+    int i = 0;
+    for(auto iter = node->moves.begin(); iter != node->moves.end(); ++iter) {
+      const BookNode* child = get(iter->second.hash);
+      const RecursiveBookValues& vals = child->recursiveValues;
+      sortIdxBuf.push_back(i);
+      sortValuesBuf.push_back(
+        getSortingValue(plaFactor,vals.winLossValue,vals.scoreMean,vals.sharpScoreMean,vals.scoreLCB,vals.scoreUCB,iter->second.rawPolicy)
+      );
+      childAdjustedVisitsBuf.push_back(vals.adjustedVisits);
+      i += 1;
     }
-    else {
-      bestWL = std::max(bestWL, child->recursiveValues.winLossValue);
-      bestWLBound = std::max(bestWLBound, child->recursiveValues.winLossUCB);
+    sortIdxBuf.push_back(i);
+    sortValuesBuf.push_back(
+      getSortingValue(plaFactor,notInBookWL,notInBookScoreMean,notInBookSharpScoreMean,notInBookScoreLCB,notInBookScoreUCB,notInBookMaxRawPolicy)
+    );
+    childAdjustedVisitsBuf.push_back(notInBookVisits);
+    i += 1;
+    numItems = i;
+  }
+
+  // Sort them from worst to best
+  std::sort(
+    sortIdxBuf.begin(),sortIdxBuf.end(),
+    [&](const size_t& idx0,
+        const size_t& idx1) {
+      return sortValuesBuf[idx0] < sortValuesBuf[idx1];
     }
+  );
+
+  // Compute an exponentially weighted moving average of visits, where "time" is measured by the number of
+  // units of params.adjustedVisitsWLScale.
+  // This blurs a little so that we ignore minor fluctuations if visits are not in ascending order.
+  // EWMA is in geometric average space.
+  double wsum = 0.0;
+  double wvsum = 0.0;
+  double prevSortingValue = -1e100;
+  std::vector<double> caps;
+  for(int i = 0; i<numItems; i++) {
+    double timeElapsed = sortValuesBuf[sortIdxBuf[i]] - prevSortingValue;
+    prevSortingValue = sortValuesBuf[sortIdxBuf[i]];
+    double factor = exp(-timeElapsed);
+    wsum *= factor;
+    wvsum *= factor;
+    wsum += 1.0;
+    wvsum += log(1.0 + params.visitsScale*0.05 + childAdjustedVisitsBuf[sortIdxBuf[i]]);
+    double ewmaVisits = exp(wvsum / wsum);
+    // Count the larger of the actual number of visits and the ewmaVisits
+    // Cap all visits of moves worse than this at this amount.
+    double adjustedVisitsCap = std::max(ewmaVisits, childAdjustedVisitsBuf[sortIdxBuf[i]]);
+    caps.push_back(adjustedVisitsCap);
   }
 
-  double notInBookSumRawPolicy = std::max(notInBookMaxRawPolicy, 1.0 - sumRawPolicyExplored);
-
-  // First pass - posterior policy based on 10% winrate being a factor of e
-  double unNormPolicySum = 0.0;
-  for(auto iter = node->moves.begin(); iter != node->moves.end(); ++iter) {
-    const BookNode* child = get(iter->second.hash);
-    if(flip)
-      iter->second.posteriorPolicy = exp(-(child->recursiveValues.winLossValue - bestWL) / 0.2);
-    else
-      iter->second.posteriorPolicy = exp((child->recursiveValues.winLossValue - bestWL) / 0.2);
-    unNormPolicySum += iter->second.posteriorPolicy;
+  // Okay, now iterate through in reverse order and sum up capped visits, allowing for params.visitsScale
+  // and other tolerance in the visits so that while visits are small and chunky or the differences aren't
+  // relatively that large we don't penalize distributions being weird
+  double adjustedVisits = 0;
+  double lowestCapSoFar = 1e100;
+  for(int i = numItems-1; i>= 0; i--) {
+    lowestCapSoFar = std::min(caps[i],lowestCapSoFar);
+    adjustedVisits += std::min(4.0 * lowestCapSoFar + params.visitsScale, childAdjustedVisitsBuf[sortIdxBuf[i]]);
   }
-  double notInBookPosteriorPolicy;
-  if(flip)
-    notInBookPosteriorPolicy = exp(-(notInBookWL - bestWL) / 0.2);
-  else
-    notInBookPosteriorPolicy = exp((notInBookWL - bestWL) / 0.2);
-  unNormPolicySum += notInBookPosteriorPolicy;
-
-  // Normalize and mix in 20% raw policy.
-  for(auto iter = node->moves.begin(); iter != node->moves.end(); ++iter)
-    iter->second.posteriorPolicy = 0.2 * iter->second.rawPolicy + 0.8 * iter->second.posteriorPolicy / unNormPolicySum;
-  notInBookPosteriorPolicy = 0.2 * notInBookSumRawPolicy + 0.8 * notInBookPosteriorPolicy / unNormPolicySum;
-
-  // Compute the average squared UCB-LCB difference, weighted by first pass posterior.
-  // Also add a certain minimum amount of variance: use utilityPerPolicyForSorting for this.
-  double varAvg = square(params.utilityPerPolicyForSorting);
-  for(auto iter = node->moves.begin(); iter != node->moves.end(); ++iter) {
-    const BookNode* child = get(iter->second.hash);
-    varAvg += iter->second.posteriorPolicy * square(0.5 * (child->recursiveValues.winLossUCB - child->recursiveValues.winLossLCB));
-  }
-  varAvg += notInBookPosteriorPolicy * square(0.5 * (notInBookUCB - notInBookLCB));
-
-  double wlScale = sqrt(varAvg) * params.posteriorPolicyScale;
-
-  // Second pass - posterior policy based on posteriorPolicyScale * sqrt(varAvg) being a factor of e.
-  // Partway optimistic.
-  unNormPolicySum = 0.0;
-  for(auto iter = node->moves.begin(); iter != node->moves.end(); ++iter) {
-    const BookNode* child = get(iter->second.hash);
-    if(flip)
-      iter->second.posteriorPolicy = exp(-(0.5 * (child->recursiveValues.winLossLCB + child->recursiveValues.winLossValue) - 0.5 * (bestWLBound + bestWL)) / wlScale);
-    else
-      iter->second.posteriorPolicy = exp((0.5 * (child->recursiveValues.winLossUCB + child->recursiveValues.winLossValue) - 0.5 * (bestWLBound + bestWL)) / wlScale);
-    unNormPolicySum += iter->second.posteriorPolicy;
-  }
-  if(flip)
-    notInBookPosteriorPolicy = exp(-(0.5 * (notInBookLCB + notInBookWL) - 0.5 * (bestWLBound + bestWL)) / wlScale);
-  else
-    notInBookPosteriorPolicy = exp((0.5 * (notInBookUCB + notInBookWL) - 0.5 * (bestWLBound + bestWL)) / wlScale);
-  unNormPolicySum += notInBookPosteriorPolicy;
-
-  // Normalize and mix in a tiny bit of raw policy.
-  double rawPolicyWeight = params.utilityPerPolicyForSorting / (1.0 + params.utilityPerPolicyForSorting);
-  for(auto iter = node->moves.begin(); iter != node->moves.end(); ++iter)
-    iter->second.posteriorPolicy = rawPolicyWeight * iter->second.rawPolicy + (1.0 - rawPolicyWeight) * iter->second.posteriorPolicy / unNormPolicySum;
-  notInBookPosteriorPolicy = rawPolicyWeight * notInBookSumRawPolicy + (1.0 - rawPolicyWeight) * notInBookPosteriorPolicy / unNormPolicySum;
-  node->thisValuesNotInBook.posteriorPolicy = notInBookPosteriorPolicy;
-
-  // Compute adjusted visits based on variance-like calculation using geometric mean of posterior policy and visit distr.
-  // Add a visits scale baseline to the number of adjusted visits, so that while visits are small and chunky we don't
-  // penalize distributions being weird
-  double sumAdjustedVisits = 0.0;
-  unNormPolicySum = 0.0;
-  varAvg = 0.0;
-  for(auto iter = node->moves.begin(); iter != node->moves.end(); ++iter) {
-    const BookNode* child = get(iter->second.hash);
-    double policyToUse = sqrt(iter->second.posteriorPolicy * child->recursiveValues.adjustedVisits);
-    double inverseDensity = policyToUse / (child->recursiveValues.adjustedVisits + params.visitsScale);
-    varAvg += policyToUse * sqrt(inverseDensity);
-    unNormPolicySum += policyToUse;
-    sumAdjustedVisits += child->recursiveValues.adjustedVisits;
-  }
-  double policyToUse = sqrt(notInBookPosteriorPolicy * notInBookVisits);
-  double inverseDensity = policyToUse / (notInBookVisits + params.visitsScale);
-  varAvg += policyToUse * sqrt(inverseDensity);
-  unNormPolicySum += policyToUse;
-  sumAdjustedVisits += notInBookVisits;
-
-  varAvg = varAvg / (unNormPolicySum * sqrt(unNormPolicySum));
-  node->recursiveValues.adjustedVisits = 1.0 / square(varAvg + 1e-100);
-  node->recursiveValues.adjustedVisits = std::min(sumAdjustedVisits,node->recursiveValues.adjustedVisits);
+  node->recursiveValues.adjustedVisits = adjustedVisits;
 }
 
 void Book::recomputeNodeValues(BookNode* node) {
@@ -1438,7 +1408,16 @@ void Book::recomputeNodeValues(BookNode* node) {
   }
 
   // Recompute at this point when the all the values are the not-in-book values.
-  recomputePosteriorPolicy(node, visits, node->thisValuesNotInBook.maxPolicy, winLossLCB, winLossValue, winLossUCB);
+  recomputeAdjustedVisits(
+    node,
+    visits,
+    node->thisValuesNotInBook.maxPolicy,
+    winLossValue,
+    scoreMean,
+    sharpScoreMean,
+    scoreLCB,
+    scoreUCB
+  );
 
   for(auto iter = node->moves.begin(); iter != node->moves.end(); ++iter) {
     const BookNode* child = get(iter->second.hash);
@@ -2282,7 +2261,6 @@ int64_t Book::exportToHtmlDir(
         //dataVarsStr += "'w':" + doubleToStringZeroDigits(uniqueChildValues[idx].weight) + ",";
         dataVarsStr += "'v':" + doubleToStringZeroDigits(uniqueChildValues[idx].visits) + ",";
         dataVarsStr += "'av':" + doubleToStringZeroDigits(uniqueChildValues[idx].adjustedVisits) + ",";
-        dataVarsStr += "'pp':" + doubleToStringFourDigits(uniqueMovesInBook[idx].posteriorPolicy) + ",";
         dataVarsStr += "'cost':" + doubleToStringFourDigits(uniqueMovesInBook[idx].costFromRoot - node->minCostFromRoot) + ",";
         dataVarsStr += "'costRoot':" + doubleToStringFourDigits(uniqueChildCosts[idx]) + ",";
         dataVarsStr += "'costWLPV':" + doubleToStringFourDigits(uniqueChildCostsWLPV[idx]) + ",";
@@ -2333,7 +2311,6 @@ int64_t Book::exportToHtmlDir(
           dataVarsStr += "'w':" + doubleToStringZeroDigits(values.weight) + ",";
           dataVarsStr += "'v':" + doubleToStringZeroDigits(values.visits) + ",";
           dataVarsStr += "'av':" + doubleToStringZeroDigits(values.visits) + ",";
-          dataVarsStr += "'pp':" + doubleToStringFourDigits(values.posteriorPolicy) + ",";
           dataVarsStr += "'cost':" + doubleToStringFourDigits(node->thisNodeExpansionCost) + ",";
           dataVarsStr += "'costRoot':" + doubleToStringFourDigits(node->minCostFromRoot + node->thisNodeExpansionCost) + ",";
           dataVarsStr += "'costWLPV':" + doubleToStringFourDigits(node->expansionIsWLPV ? node->minCostFromRootWLPV : node->minCostFromRoot + node->thisNodeExpansionCost) + ",";
@@ -2405,7 +2382,7 @@ void Book::saveToFile(const string& fileName) const {
     paramsDump["utilityPerScore"] = params.utilityPerScore;
     paramsDump["policyBoostSoftUtilityScale"] = params.policyBoostSoftUtilityScale;
     paramsDump["utilityPerPolicyForSorting"] = params.utilityPerPolicyForSorting;
-    paramsDump["posteriorPolicyScale"] = params.posteriorPolicyScale;
+    paramsDump["adjustedVisitsWLScale"] = params.adjustedVisitsWLScale;
     paramsDump["maxVisitsForReExpansion"] = params.maxVisitsForReExpansion;
     paramsDump["visitsScale"] = params.visitsScale;
     paramsDump["sharpScoreOutlierCap"] = params.sharpScoreOutlierCap;
@@ -2567,7 +2544,7 @@ Book* Book::loadFromFile(const std::string& fileName) {
       bookParams.utilityPerScore = params["utilityPerScore"].get<double>();
       bookParams.policyBoostSoftUtilityScale = params["policyBoostSoftUtilityScale"].get<double>();
       bookParams.utilityPerPolicyForSorting = params["utilityPerPolicyForSorting"].get<double>();
-      bookParams.posteriorPolicyScale = params.contains("posteriorPolicyScale") ? params["posteriorPolicyScale"].get<double>() : 0.25;
+      bookParams.adjustedVisitsWLScale = params.contains("adjustedVisitsWLScale") ? params["adjustedVisitsWLScale"].get<double>() : 0.05;
       bookParams.maxVisitsForReExpansion = params.contains("maxVisitsForReExpansion") ? params["maxVisitsForReExpansion"].get<double>() : 0.0;
       bookParams.visitsScale = params.contains("visitsScale") ? params["visitsScale"].get<double>() : 0.0;
       bookParams.sharpScoreOutlierCap = params.contains("sharpScoreOutlierCap") ? params["sharpScoreOutlierCap"].get<double>() : 10000.0;

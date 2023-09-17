@@ -46,7 +46,7 @@ void Tests::runBookTests() {
   params.utilityPerScore = 0.11;
   params.policyBoostSoftUtilityScale = 0.034;
   params.utilityPerPolicyForSorting = 0.021;
-  params.posteriorPolicyScale = 0.25;
+  params.adjustedVisitsWLScale = 0.05;
   params.maxVisitsForReExpansion = 25;
   params.visitsScale = 50;
   params.sharpScoreOutlierCap = 1.75;
@@ -148,8 +148,7 @@ void Tests::runBookTests() {
 
     if(loaded != NULL) {
       for(SymBookNode node: loaded->getAllNodes()) {
-        cout << costByHash[node.hash()] << " " << node.totalExpansionCost() << endl;
-        // testAssert(abs(costByHash[node.hash()] - node.totalExpansionCost()) < 1e-3);
+        testAssert(abs(costByHash[node.hash()] - node.totalExpansionCost()) < 1e-3);
       }
       delete loaded;
     }

@@ -53,7 +53,6 @@ struct BookMove {
   double costFromRoot;
   bool isWLPV; // Is this node the best winloss move from its parent?
   double biggestWLCostFromRoot; // Largest single cost due to winloss during path from root
-  double posteriorPolicy;
 
   BookMove();
   BookMove(Loc move, int symmetryToAlign, BookHash hash, double rawPolicy);
@@ -103,6 +102,9 @@ struct RecursiveBookValues {
   double weight = 0.0;
   double visits = 0.0;
 
+  // Count of visits, but downweighting highly nonmonotonic visit counts
+  // such as when an unimportant bad move happens to transpose to a variation
+  // with a lot more visits
   double adjustedVisits = 0.0;
 };
 
@@ -296,8 +298,8 @@ struct BookParams {
   double utilityPerScore = 0.0;
   double policyBoostSoftUtilityScale = 1.0;
   double utilityPerPolicyForSorting = 0.0;
-  // The scale of UCB-LCB difference
-  double posteriorPolicyScale;
+  // The scale of WL difference at which we are averaging for adjusting visit counts.
+  double adjustedVisitsWLScale = 0.05;
   // Allow re-expanding a node if it has <= this many visits
   double maxVisitsForReExpansion = 1000.0;
   // How many visits such that below this many is considered not many? Used to scale some visit-based cost heuristics.
@@ -456,13 +458,15 @@ class Book {
     const std::function<void(BookNode*)>& f
   );
 
-  void recomputePosteriorPolicy(
+  void recomputeAdjustedVisits(
     BookNode* node,
     double notInBookVisits,
     double notInBookMaxRawPolicy,
-    double notInBookLCB,
     double notInBookWL,
-    double notInBookUCB
+    double notInBookScoreMean,
+    double notInBookSharpScoreMean,
+    double notInBookScoreLCB,
+    double notInBookScoreUCB
   );
 
   void recomputeNodeValues(BookNode* node);

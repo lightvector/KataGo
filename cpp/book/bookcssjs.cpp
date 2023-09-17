@@ -578,7 +578,6 @@ function textCell(text) {
     headerRow.appendChild(textCell("ScoreLCB"));
     headerRow.appendChild(textCell("ScoreUCB"));
     headerRow.appendChild(textCell("Prior%"));
-    headerRow.appendChild(textCell("Post%"));
     // headerRow.appendChild(textCell("Wgt"));
     headerRow.appendChild(textCell("Visits"));
     headerRow.appendChild(textCell("AVisits"));
@@ -666,7 +665,6 @@ function textCell(text) {
       dataRow.appendChild(textCell((-moveData["sUCB"]).toFixed(2)));
       dataRow.appendChild(textCell((-moveData["sLCB"]).toFixed(2)));
       dataRow.appendChild(textCell((100.0 * moveData["p"]).toFixed(2)+"%"));
-      dataRow.appendChild(textCell((100.0 * moveData["pp"]).toFixed(2)+"%"));
       // dataRow.appendChild(textCell(Math.round(moveData["w"]).toLocaleString()));
       dataRow.appendChild(textCell(Math.round(moveData["v"]).toLocaleString()));
       dataRow.appendChild(textCell(Math.round(moveData["av"]).toLocaleString()));
