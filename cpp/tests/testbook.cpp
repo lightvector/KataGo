@@ -5,6 +5,7 @@
 #include <iomanip>
 
 #include "../core/fileutils.h"
+#include "../core/makedir.h"
 #include "../book/book.h"
 #include "../tests/testsearchcommon.h"
 
@@ -150,6 +151,21 @@ void Tests::runBookTests() {
       delete loaded;
     }
   }
+
+  const bool logToStdout = false;
+  const bool logToStderr = false;
+  const bool logTime = false;
+  Logger logger(nullptr, logToStdout, logToStderr, logTime);
+  logger.addOStream(cout);
+  MakeDir::make("./tests/");
+  MakeDir::make("./tests/results/");
+  MakeDir::make("./tests/results/bookhtml/");
+  string htmlDir = "./tests/results/bookhtml/";
+  string rulesLabel = "";
+  string rulesLink = "";
+  int64_t htmlMinVisits = 200;
+  bool htmlDevMode = false;
+  book->exportToHtmlDir(htmlDir,rulesLabel,rulesLink,htmlDevMode,htmlMinVisits,logger);
 
   delete book;
   FileUtils::tryRemoveFile(testFileName);
