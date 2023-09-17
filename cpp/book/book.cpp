@@ -2168,7 +2168,7 @@ int64_t Book::exportToHtmlDir(
         dataVarsStr += "'bigWLC':" + doubleToStringFourDigits(uniqueChildBiggestWLCost[idx]) + ",";
       }
       else {
-        dataVarsStr += "'ssM':" + doubleToStringTwoDigits(uniqueChildValues[idx].sharpScoreMean) + ",";
+        dataVarsStr += "'ssM':" + doubleToStringTwoDigits(0.5*(uniqueChildValues[idx].scoreMean+uniqueChildValues[idx].sharpScoreMean)) + ",";
         dataVarsStr += "'wlRad':" + doubleToStringFourDigits(0.5*(uniqueChildValues[idx].winLossUCB - uniqueChildValues[idx].winLossLCB)) + ",";
         dataVarsStr += "'sRad':" + doubleToStringTwoDigits(0.5*(uniqueChildValues[idx].scoreUCB - uniqueChildValues[idx].scoreLCB)) + ",";
         dataVarsStr += "'v':" + doubleToStringZeroDigits(uniqueChildValues[idx].visits) + ",";
@@ -2217,7 +2217,7 @@ int64_t Book::exportToHtmlDir(
           dataVarsStr += "'bigWLC':" + doubleToStringFourDigits(node->biggestWLCostFromRoot) + ",";
         }
         else {
-          dataVarsStr += "'ssM':" + doubleToStringTwoDigits(sharpScoreMean) + ",";
+          dataVarsStr += "'ssM':" + doubleToStringTwoDigits(0.5*(scoreMean+sharpScoreMean)) + ",";
           dataVarsStr += "'wlRad':" + doubleToStringFourDigits(0.5*(winLossValueUCB-winLossValueLCB)) + ",";
           dataVarsStr += "'sRad':" + doubleToStringTwoDigits(0.5*(scoreUCB-scoreLCB)) + ",";
           dataVarsStr += "'v':" + doubleToStringZeroDigits(values.visits) + ",";
