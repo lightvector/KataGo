@@ -2271,6 +2271,7 @@ void Book::saveToFile(const string& fileName) const {
     paramsDump["utilityPerPolicyForSorting"] = params.utilityPerPolicyForSorting;
     paramsDump["maxVisitsForReExpansion"] = params.maxVisitsForReExpansion;
     paramsDump["visitsScale"] = params.visitsScale;
+    paramsDump["sharpScoreOutlierCap"] = params.sharpScoreOutlierCap;
     paramsDump["initialSymmetry"] = initialSymmetry;
     out << paramsDump.dump() << endl;
   }
