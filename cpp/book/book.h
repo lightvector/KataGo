@@ -65,7 +65,7 @@ struct BookValues {
   // All values for which the player perspective matters are from white's perspective.
   double winLossValue = 0.0;
   double scoreMean = 0.0;
-  double sharpScoreMean = 0.0;
+  double sharpScoreMeanRaw = 0.0;
 
   // Average short term error of nodes in the search. Probably correlated with the confidence
   // of this node, but not necessarily being a meaningful measure of it directly.
@@ -77,6 +77,9 @@ struct BookValues {
   double maxPolicy = 0.0;
   double weight = 0.0;
   double visits = 0.0;
+
+  // Computed, not saved
+  double sharpScoreMeanClamped = 0.0;
 
   double getAdjustedWinLossError(const Rules& rules) const;
   double getAdjustedScoreError(const Rules& rules) const;
@@ -389,6 +392,15 @@ class Book {
   std::vector<SymBookNode> getAllLeaves(double minVisits);
   std::vector<SymBookNode> getAllNodes();
 
+  double getSortingValue(
+    double plaFactor,
+    double winLossValue,
+    double sharpScoreMeanClamped,
+    double scoreLCB,
+    double scoreUCB,
+    double rawPolicy
+  ) const;
+  
   // Return the number of files written
   int64_t exportToHtmlDir(
     const std::string& dirName,

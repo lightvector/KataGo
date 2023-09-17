@@ -116,7 +116,8 @@ void Tests::runBookTests() {
       BookValues& nodeValues = node.thisValuesNotInBook();
       nodeValues.winLossValue = rand.nextDouble(-1,1);
       nodeValues.scoreMean = rand.nextGaussian();
-      nodeValues.sharpScoreMean = rand.nextGaussian();
+      nodeValues.sharpScoreMeanRaw = rand.nextGaussian();
+      nodeValues.sharpScoreMeanClamped = nodeValues.sharpScoreMeanRaw;
       nodeValues.winLossError = rand.nextExponential() * 0.1;
       nodeValues.scoreError = rand.nextExponential();
       nodeValues.scoreStdev = rand.nextExponential();

@@ -16,6 +16,25 @@
 
 using nlohmann::json;
 
+static double square(double x) {
+  return x * x;
+}
+static double pow3(double x) {
+  return x * x * x;
+}
+static double pow7(double x) {
+  double cube = x * x * x;
+  return cube * cube * x;
+}
+
+// Clamp the score at contradicting the winloss too much for purposes of sorting
+static double clampScoreForSorting(double score, double winLoss) {
+  winLoss = std::max(-1.0, std::min(1.0, winLoss));
+  double scoreLowerBound = (winLoss - 1.0) / (winLoss + 1.0 + 0.0001) * 2;
+  double scoreUpperBound = -(-winLoss - 1.0) / (-winLoss + 1.0 + 0.0001) * 2;
+  return std::max(scoreLowerBound, std::min(scoreUpperBound, score));
+}
+
 BookHash::BookHash()
 :historyHash(),stateHash()
 {}
@@ -1271,12 +1290,12 @@ void Book::recomputeNodeValues(BookNode* node) {
   double visits = 0.0;
 
   {
-    const BookValues& values = node->thisValuesNotInBook;
+    BookValues& values = node->thisValuesNotInBook;
     double scoreError = values.getAdjustedScoreError(node->book->initialRules);
     double winLossError = values.getAdjustedWinLossError(node->book->initialRules);
     winLossValue = values.winLossValue;
     scoreMean = values.scoreMean;
-    sharpScoreMean = values.sharpScoreMean;
+    sharpScoreMean = values.sharpScoreMeanRaw;
     winLossLCB = values.winLossValue - params.errorFactor * winLossError;
     scoreLCB = values.scoreMean - params.errorFactor * scoreError;
     scoreFinalLCB = values.scoreMean - params.errorFactor * values.scoreStdev;
@@ -1298,6 +1317,8 @@ void Book::recomputeNodeValues(BookNode* node) {
       sharpScoreMean = scoreMean + params.sharpScoreOutlierCap;
     if(sharpScoreMean < scoreMean - params.sharpScoreOutlierCap)
       sharpScoreMean = scoreMean - params.sharpScoreOutlierCap;
+
+    values.sharpScoreMeanClamped = sharpScoreMean;
   }
 
   for(auto iter = node->moves.begin(); iter != node->moves.end(); ++iter) {
@@ -1348,17 +1369,6 @@ void Book::recomputeNodeValues(BookNode* node) {
   // cout << "Setting " << node->hash << " values" << endl;
   // cout << "Values " << values.winLossLCB << " " << values.winLossValue << " " << values.winLossUCB << endl;
   // cout << "Score " << values.scoreLCB << " " << values.scoreMean << " " << values.scoreUCB << endl;
-}
-
-static double square(double x) {
-  return x * x;
-}
-static double pow3(double x) {
-  return x * x * x;
-}
-static double pow7(double x) {
-  double cube = x * x * x;
-  return cube * cube * x;
 }
 
 double Book::getUtility(const RecursiveBookValues& values) const {
@@ -1741,7 +1751,7 @@ void Book::recomputeNodeCost(BookNode* node) {
   {
     double winLossError = node->thisValuesNotInBook.getAdjustedWinLossError(node->book->initialRules);
     double scoreError = node->thisValuesNotInBook.getAdjustedScoreError(node->book->initialRules);
-    double sharpScoreDiscrepancy = std::fabs(node->thisValuesNotInBook.sharpScoreMean - node->thisValuesNotInBook.scoreMean);
+    double sharpScoreDiscrepancy = std::fabs(node->thisValuesNotInBook.sharpScoreMeanRaw - node->thisValuesNotInBook.scoreMean);
 
     // If there's an unusually large share of the policy not expanded, add a mild bonus for it.
     // For the final node expansion cost, sharp score discrepancy beyond 1 point is not capped, to encourage expanding the
@@ -1896,6 +1906,21 @@ $$DATA_VARS
 </html>
 )%%";
 
+double Book::getSortingValue(
+  double plaFactor,
+  double winLossValue,
+  double sharpScoreMeanClamped,
+  double scoreLCB,
+  double scoreUCB,
+  double rawPolicy
+) const {
+  double sortingValue =
+    plaFactor * (winLossValue + clampScoreForSorting(sharpScoreMeanClamped, winLossValue) * params.utilityPerScore * 0.5)
+    + plaFactor * clampScoreForSorting(0.5*(plaFactor+1.0) * scoreLCB + 0.5*(1.0-plaFactor) * scoreUCB, winLossValue) * 0.5 * params.utilityPerScore
+    + params.utilityPerPolicyForSorting * (0.75 * rawPolicy + 0.5 * log10(rawPolicy + 0.0001)/4.0);
+  return sortingValue;
+}
+
 
 int64_t Book::exportToHtmlDir(
   const string& dirName,
@@ -1960,14 +1985,6 @@ int64_t Book::exportToHtmlDir(
     }
     path += ".html";
     return path;
-  };
-
-  // Clamp the score at contradicting the winloss too much for purposes of sorting
-  auto clampScoreForSorting = [](double score, double winLoss) {
-    winLoss = std::max(-1.0, std::min(1.0, winLoss));
-    double scoreLowerBound = (winLoss - 1.0) / (winLoss + 1.0 + 0.0001) * 2;
-    double scoreUpperBound = -(-winLoss - 1.0) / (-winLoss + 1.0 + 0.0001) * 2;
-    return std::max(scoreLowerBound, std::min(scoreUpperBound, score));
   };
 
   int64_t numFilesWritten = 0;
@@ -2096,9 +2113,7 @@ int64_t Book::exportToHtmlDir(
 
       RecursiveBookValues& vals = child.node->recursiveValues;
       double plaFactor = node->pla == P_WHITE ? 1.0 : -1.0;
-      double sortingValue = plaFactor * (vals.winLossValue + clampScoreForSorting(vals.sharpScoreMean, vals.winLossValue) * params.utilityPerScore * 0.5)
-        + plaFactor * clampScoreForSorting(node->pla == P_WHITE ? vals.scoreLCB : vals.scoreUCB, vals.winLossValue) * 0.5 * params.utilityPerScore
-        + params.utilityPerPolicyForSorting * (0.75 * bookMove.rawPolicy + 0.5 * log10(bookMove.rawPolicy + 0.0001)/4.0);
+      double sortingValue = getSortingValue(plaFactor,vals.winLossValue,vals.sharpScoreMean,vals.scoreLCB,vals.scoreUCB,bookMove.rawPolicy);
       sortingValues.push_back(sortingValue);
     }
 
@@ -2170,20 +2185,16 @@ int64_t Book::exportToHtmlDir(
         // double scoreFinalUCB = values.scoreMean + errorFactor * values.scoreStdev;
         // double scoreFinalLCB = values.scoreMean - errorFactor * values.scoreStdev;
 
-        // A quick hack to limit the issue of outliers from sharpScore, and adjust the LCB/UCB to reflect the uncertainty
-        // Skip scoreUCB/scoreLCB adjustment if there isn't any error at all, where the net doesn't support it.
         double scoreMean = values.scoreMean;
-        double sharpScoreMean = values.sharpScoreMean;
+        // Adjust the LCB/UCB to reflect the uncertainty from sharp score
+        // Skip scoreUCB/scoreLCB adjustment if there isn't any error at all, where the net doesn't support it.
         if(scoreError > 0) {
-          if(sharpScoreMean > scoreUCB)
-            scoreUCB = sharpScoreMean;
-          if(sharpScoreMean < scoreLCB)
-            scoreLCB = sharpScoreMean;
+          if(values.sharpScoreMeanRaw > scoreUCB)
+            scoreUCB = values.sharpScoreMeanRaw;
+          if(values.sharpScoreMeanRaw < scoreLCB)
+            scoreLCB = values.sharpScoreMeanRaw;
         }
-        if(sharpScoreMean > scoreMean + params.sharpScoreOutlierCap)
-          sharpScoreMean = scoreMean + params.sharpScoreOutlierCap;
-        if(sharpScoreMean < scoreMean - params.sharpScoreOutlierCap)
-          sharpScoreMean = scoreMean - params.sharpScoreOutlierCap;
+        double sharpScoreMean = values.sharpScoreMeanClamped;
 
         dataVarsStr += "{";
         dataVarsStr += "'move':'other',";
@@ -2296,7 +2307,7 @@ void Book::saveToFile(const string& fileName) const {
       nodeData["syms"] = node->symmetries;
       nodeData["wl"] = roundDouble(node->thisValuesNotInBook.winLossValue, 100000000);
       nodeData["sM"] = roundDouble(node->thisValuesNotInBook.scoreMean, 1000000);
-      nodeData["ssM"] = roundDouble(node->thisValuesNotInBook.sharpScoreMean, 1000000);
+      nodeData["ssM"] = roundDouble(node->thisValuesNotInBook.sharpScoreMeanRaw, 1000000);
       nodeData["wlE"] = roundDouble(node->thisValuesNotInBook.winLossError, 100000000);
       nodeData["sE"] = roundDouble(node->thisValuesNotInBook.scoreError, 1000000);
       nodeData["sStd"] = roundDouble(node->thisValuesNotInBook.scoreStdev, 1000000);
@@ -2313,7 +2324,7 @@ void Book::saveToFile(const string& fileName) const {
       nodeData["symmetries"] = node->symmetries;
       nodeData["winLossValue"] = node->thisValuesNotInBook.winLossValue;
       nodeData["scoreMean"] = node->thisValuesNotInBook.scoreMean;
-      nodeData["sharpScoreMean"] = node->thisValuesNotInBook.sharpScoreMean;
+      nodeData["sharpScoreMean"] = node->thisValuesNotInBook.sharpScoreMeanRaw;
       nodeData["winLossError"] = node->thisValuesNotInBook.winLossError;
       nodeData["scoreError"] = node->thisValuesNotInBook.scoreError;
       nodeData["scoreStdev"] = node->thisValuesNotInBook.scoreStdev;
@@ -2498,7 +2509,8 @@ Book* Book::loadFromFile(const std::string& fileName) {
       if(book->bookVersion >= 2) {
         node->thisValuesNotInBook.winLossValue = nodeData["wl"].get<double>();
         node->thisValuesNotInBook.scoreMean = nodeData["sM"].get<double>();
-        node->thisValuesNotInBook.sharpScoreMean = nodeData["ssM"].get<double>();
+        node->thisValuesNotInBook.sharpScoreMeanRaw = nodeData["ssM"].get<double>();
+        node->thisValuesNotInBook.sharpScoreMeanClamped = node->thisValuesNotInBook.sharpScoreMeanRaw; 
         node->thisValuesNotInBook.winLossError = nodeData["wlE"].get<double>();
         node->thisValuesNotInBook.scoreError = nodeData["sE"].get<double>();
         node->thisValuesNotInBook.scoreStdev = nodeData["sStd"].get<double>();
@@ -2509,7 +2521,8 @@ Book* Book::loadFromFile(const std::string& fileName) {
       else {
         node->thisValuesNotInBook.winLossValue = nodeData["winLossValue"].get<double>();
         node->thisValuesNotInBook.scoreMean = nodeData["scoreMean"].get<double>();
-        node->thisValuesNotInBook.sharpScoreMean = nodeData["sharpScoreMean"].get<double>();
+        node->thisValuesNotInBook.sharpScoreMeanRaw = nodeData["sharpScoreMean"].get<double>();
+        node->thisValuesNotInBook.sharpScoreMeanClamped = node->thisValuesNotInBook.sharpScoreMeanRaw; 
         node->thisValuesNotInBook.winLossError = nodeData["winLossError"].get<double>();
         node->thisValuesNotInBook.scoreError = nodeData["scoreError"].get<double>();
         node->thisValuesNotInBook.scoreStdev = nodeData["scoreStdev"].get<double>();

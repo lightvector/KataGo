@@ -563,12 +563,14 @@ int MainCmds::genbook(const vector<string>& args) {
     if(node.pla() == P_WHITE) {
       nodeValues.winLossValue = -1e20;
       nodeValues.scoreMean = -1e20;
-      nodeValues.sharpScoreMean =  -1e20;
+      nodeValues.sharpScoreMeanRaw = -1e20;
+      nodeValues.sharpScoreMeanClamped = -1e20;
     }
     else {
       nodeValues.winLossValue = 1e20;
       nodeValues.scoreMean = 1e20;
-      nodeValues.sharpScoreMean =  1e20;
+      nodeValues.sharpScoreMeanRaw = 1e20;
+      nodeValues.sharpScoreMeanClamped = 1e20;
     }
     nodeValues.winLossError = 0.0;
     nodeValues.scoreError = 0.0;
@@ -588,7 +590,8 @@ int MainCmds::genbook(const vector<string>& args) {
     if(hist.isNoResult) {
       nodeValues.winLossValue = 0.0;
       nodeValues.scoreMean = 0.0;
-      nodeValues.sharpScoreMean = 0.0;
+      nodeValues.sharpScoreMeanRaw = 0.0;
+      nodeValues.sharpScoreMeanClamped = 0.0;
     }
     else {
       if(hist.winner == P_WHITE) {
@@ -604,7 +607,8 @@ int MainCmds::genbook(const vector<string>& args) {
         nodeValues.winLossValue = 0.0;
       }
       nodeValues.scoreMean = hist.finalWhiteMinusBlackScore;
-      nodeValues.sharpScoreMean = hist.finalWhiteMinusBlackScore;
+      nodeValues.sharpScoreMeanRaw = hist.finalWhiteMinusBlackScore;
+      nodeValues.sharpScoreMeanClamped = hist.finalWhiteMinusBlackScore;
     }
 
     nodeValues.winLossError = 0.0;
@@ -673,7 +677,8 @@ int MainCmds::genbook(const vector<string>& args) {
     BookValues& nodeValues = node.thisValuesNotInBook();
     nodeValues.winLossValue = remainingSearchValues.winLossValue;
     nodeValues.scoreMean = remainingSearchValues.expectedScore;
-    nodeValues.sharpScoreMean = sharpScore;
+    nodeValues.sharpScoreMeanRaw = sharpScore;
+    nodeValues.sharpScoreMeanClamped = sharpScore;
     nodeValues.winLossError = errors.first;
     nodeValues.scoreError = errors.second;
     nodeValues.scoreStdev = remainingSearchValues.expectedScoreStdev;
@@ -1785,8 +1790,6 @@ int MainCmds::booktoposes(const vector<string>& args) {
   PosWriter posWriter("bookposes.txt", outDir, 1, 0, 100000);
   posWriter.start();
 
-  double utilityPerPolicyForSorting = book->getParams().utilityPerPolicyForSorting;
-
   std::mutex statsLock;
   int numPositionsProcessed = 0;
   int numPositionsWritten = 0;
@@ -1843,9 +1846,7 @@ int MainCmds::booktoposes(const vector<string>& args) {
         ConstSymBookNode child = node.follow(moves[i].move);
         RecursiveBookValues values = child.recursiveValues();
         double plaFactor = pla == P_WHITE ? 1.0 : -1.0;
-        double value = plaFactor * (values.winLossValue + values.sharpScoreMean * book->getParams().utilityPerScore * 0.5)
-          + plaFactor * (pla == P_WHITE ? values.scoreLCB : values.scoreUCB) * 0.5 * book->getParams().utilityPerScore
-          + utilityPerPolicyForSorting * (0.75 * moves[i].rawPolicy + 0.5 * log10(moves[i].rawPolicy + 0.0001)/4.0);
+        double value = book->getSortingValue(plaFactor,values.winLossValue,values.sharpScoreMean,values.scoreLCB,values.scoreUCB,moves[i].rawPolicy);
         sortingValue.push_back(value);
       }
 
