@@ -6,6 +6,7 @@
 #include "../core/hash.h"
 #include "../core/rand.h"
 #include "../core/logger.h"
+#include "../core/config_parser.h"
 #include "../game/boardhistory.h"
 
 struct BookHash {
@@ -299,6 +300,8 @@ struct BookParams {
   BookParams(const BookParams& other) = default;
   BookParams& operator=(const BookParams& other) = default;
 
+  static BookParams loadFromCfg(ConfigParser& cfg, int64_t maxVisits);
+  
   void randomizeParams(Rand& rand, double stdevFactor);
 };
 

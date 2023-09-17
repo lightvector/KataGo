@@ -318,35 +318,7 @@ int MainCmds::genbook(const vector<string>& args) {
   const int boardSizeY = cfg.getInt("boardSizeY",2,Board::MAX_LEN);
   const int repBound = cfg.getInt("repBound",3,1000);
 
-  BookParams cfgParams;
-  cfgParams.errorFactor = cfg.getDouble("errorFactor",0.01,100.0);
-  cfgParams.costPerMove = cfg.getDouble("costPerMove",0.0,1000000.0);
-  cfgParams.costPerUCBWinLossLoss = cfg.getDouble("costPerUCBWinLossLoss",0.0,1000000.0);
-  cfgParams.costPerUCBWinLossLossPow3 = cfg.getDouble("costPerUCBWinLossLossPow3",0.0,1000000.0);
-  cfgParams.costPerUCBWinLossLossPow7 = cfg.getDouble("costPerUCBWinLossLossPow7",0.0,1000000.0);
-  cfgParams.costPerUCBScoreLoss = cfg.getDouble("costPerUCBScoreLoss",0.0,1000000.0);
-  cfgParams.costPerLogPolicy = cfg.getDouble("costPerLogPolicy",0.0,1000000.0);
-  cfgParams.costPerMovesExpanded = cfg.getDouble("costPerMovesExpanded",0.0,1000000.0);
-  cfgParams.costPerSquaredMovesExpanded = cfg.getDouble("costPerSquaredMovesExpanded",0.0,1000000.0);
-  cfgParams.costWhenPassFavored = cfg.getDouble("costWhenPassFavored",0.0,1000000.0);
-  cfgParams.bonusPerWinLossError = cfg.getDouble("bonusPerWinLossError",0.0,1000000.0);
-  cfgParams.bonusPerScoreError = cfg.getDouble("bonusPerScoreError",0.0,1000000.0);
-  cfgParams.bonusPerSharpScoreDiscrepancy = cfg.getDouble("bonusPerSharpScoreDiscrepancy",0.0,1000000.0);
-  cfgParams.bonusPerExcessUnexpandedPolicy = cfg.getDouble("bonusPerExcessUnexpandedPolicy",0.0,1000000.0);
-  cfgParams.bonusPerUnexpandedBestWinLoss = cfg.getDouble("bonusPerUnexpandedBestWinLoss",0.0,1000000.0);
-  cfgParams.bonusForWLPV1 = cfg.contains("bonusForWLPV1") ? cfg.getDouble("bonusForWLPV1",0.0,1000000.0) : 0.0;
-  cfgParams.bonusForWLPV2 = cfg.contains("bonusForWLPV2") ? cfg.getDouble("bonusForWLPV2",0.0,1000000.0) : 0.0;
-  cfgParams.bonusForWLPVFinalProp = cfg.contains("bonusForWLPVFinalProp") ? cfg.getDouble("bonusForWLPVFinalProp",0.0,1.0) : 0.5;
-  cfgParams.bonusForBiggestWLCost = cfg.contains("bonusForBiggestWLCost") ? cfg.getDouble("bonusForBiggestWLCost",0.0,1000000.0) : 0.0;
-  cfgParams.scoreLossCap = cfg.getDouble("scoreLossCap",0.0,1000000.0);
-  cfgParams.earlyBookCostReductionFactor = cfg.contains("earlyBookCostReductionFactor") ? cfg.getDouble("earlyBookCostReductionFactor",0.0,1.0) : 0.0;
-  cfgParams.earlyBookCostReductionLambda = cfg.contains("earlyBookCostReductionLambda") ? cfg.getDouble("earlyBookCostReductionLambda",0.0,1.0) : 0.5;
-  cfgParams.utilityPerScore = cfg.getDouble("utilityPerScore",0.0,1000000.0);
-  cfgParams.policyBoostSoftUtilityScale = cfg.getDouble("policyBoostSoftUtilityScale",0.0,1000000.0);
-  cfgParams.utilityPerPolicyForSorting = cfg.getDouble("utilityPerPolicyForSorting",0.0,1000000.0);
-  cfgParams.maxVisitsForReExpansion = cfg.contains("maxVisitsForReExpansion") ? cfg.getDouble("maxVisitsForReExpansion",0.0,1e50) : 0.0;
-  cfgParams.visitsScale = cfg.contains("visitsScale") ? cfg.getDouble("visitsScale") : (params.maxVisits + 1) / 2;
-  cfgParams.sharpScoreOutlierCap = cfg.getDouble("sharpScoreOutlierCap",0.0,1000000.0);
+  BookParams cfgParams = BookParams::loadFromCfg(cfg, params.maxVisits);
 
   const double bonusFileScale = cfg.contains("bonusFileScale") ? cfg.getDouble("bonusFileScale",0.0,1000000.0) : 1.0;
 
@@ -1494,6 +1466,8 @@ int MainCmds::writebook(const vector<string>& args) {
   const string rulesLabel = cfg.getString("rulesLabel");
   const string rulesLink = cfg.getString("rulesLink");
   const double bonusFileScale = cfg.contains("bonusFileScale") ? cfg.getDouble("bonusFileScale",0.0,1000000.0) : 1.0;
+  const SearchParams params = Setup::loadSingleParams(cfg,Setup::SETUP_FOR_GTP);
+  BookParams cfgParams = BookParams::loadFromCfg(cfg, params.maxVisits);
 
   const bool loadKomiFromCfg = true;
   Rules rules = Setup::loadSingleRules(cfg,loadKomiFromCfg);
@@ -1530,6 +1504,7 @@ int MainCmds::writebook(const vector<string>& args) {
   MakeDir::make(htmlDir);
 
   Book* book = Book::loadFromFile(bookFile);
+  book->setParams(cfgParams);
   book->setBonusByHash(bonusByHash);
   book->setExpandBonusByHash(expandBonusByHash);
   book->setVisitsRequiredByHash(visitsRequiredByHash);
