@@ -172,6 +172,8 @@ static void maybeParseBonusFile(
           int symmetryToAlignRet;
           vector<int> symmetriesRet;
           if(parseCommand("BONUS",ret)) {
+            if(!std::isfinite(ret) || ret < 0 || ret > 10000)
+              throw StringError("Invalid BONUS: " + Global::doubleToString(ret));
             for(int bookVersion = 1; bookVersion <= Book::LATEST_BOOK_VERSION; bookVersion++) {
               BookHash::getHashAndSymmetry(hist, repBound, hashRet, symmetryToAlignRet, symmetriesRet, bookVersion);
               if(bonusByHash.find(hashRet) != bonusByHash.end())
@@ -183,6 +185,8 @@ static void maybeParseBonusFile(
           }
 
           if(parseCommand("EXPAND",ret)) {
+            if(!std::isfinite(ret) || ret < 0 || ret > 10000)
+              throw StringError("Invalid EXPAND: " + Global::doubleToString(ret));
             for(int bookVersion = 1; bookVersion <= Book::LATEST_BOOK_VERSION; bookVersion++) {
               BookHash::getHashAndSymmetry(hist, repBound, hashRet, symmetryToAlignRet, symmetriesRet, bookVersion);
               if(expandBonusByHash.find(hashRet) != expandBonusByHash.end())
@@ -194,6 +198,8 @@ static void maybeParseBonusFile(
           }
 
           if(parseCommand("VISITS",ret)) {
+            if(!std::isfinite(ret) || ret < 0)
+              throw StringError("Invalid VISITS: " + Global::doubleToString(ret));
             for(int bookVersion = 1; bookVersion <= Book::LATEST_BOOK_VERSION; bookVersion++) {
               BookHash::getHashAndSymmetry(hist, repBound, hashRet, symmetryToAlignRet, symmetriesRet, bookVersion);
               if(visitsRequiredByHash.find(hashRet) != visitsRequiredByHash.end())
@@ -205,6 +211,8 @@ static void maybeParseBonusFile(
           }
 
           if(parseCommand("BRANCH",ret)) {
+            if(!std::isfinite(ret) || ret < 0 || ret > 200)
+              throw StringError("Invalid BRANCH: " + Global::doubleToString(ret));
             for(int bookVersion = 1; bookVersion <= Book::LATEST_BOOK_VERSION; bookVersion++) {
               BookHash::getHashAndSymmetry(hist, repBound, hashRet, symmetryToAlignRet, symmetriesRet, bookVersion);
               if(branchRequiredByHash.find(hashRet) != branchRequiredByHash.end())
