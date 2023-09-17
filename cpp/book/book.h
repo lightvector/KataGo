@@ -395,6 +395,7 @@ class Book {
   double getSortingValue(
     double plaFactor,
     double winLossValue,
+    double scoreMean,
     double sharpScoreMeanClamped,
     double scoreLCB,
     double scoreUCB,

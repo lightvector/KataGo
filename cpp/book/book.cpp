@@ -1909,13 +1909,15 @@ $$DATA_VARS
 double Book::getSortingValue(
   double plaFactor,
   double winLossValue,
+  double scoreMean,
   double sharpScoreMeanClamped,
   double scoreLCB,
   double scoreUCB,
   double rawPolicy
 ) const {
+  double score = 0.5 * (sharpScoreMeanClamped + scoreMean);
   double sortingValue =
-    plaFactor * (winLossValue + clampScoreForSorting(sharpScoreMeanClamped, winLossValue) * params.utilityPerScore * 0.5)
+    plaFactor * (winLossValue + clampScoreForSorting(score, winLossValue) * params.utilityPerScore * 0.5)
     + plaFactor * clampScoreForSorting(0.5*(plaFactor+1.0) * scoreLCB + 0.5*(1.0-plaFactor) * scoreUCB, winLossValue) * 0.5 * params.utilityPerScore
     + params.utilityPerPolicyForSorting * (0.75 * rawPolicy + 0.5 * log10(rawPolicy + 0.0001)/4.0);
   return sortingValue;
@@ -2113,7 +2115,7 @@ int64_t Book::exportToHtmlDir(
 
       RecursiveBookValues& vals = child.node->recursiveValues;
       double plaFactor = node->pla == P_WHITE ? 1.0 : -1.0;
-      double sortingValue = getSortingValue(plaFactor,vals.winLossValue,vals.sharpScoreMean,vals.scoreLCB,vals.scoreUCB,bookMove.rawPolicy);
+      double sortingValue = getSortingValue(plaFactor,vals.winLossValue,vals.scoreMean,vals.sharpScoreMean,vals.scoreLCB,vals.scoreUCB,bookMove.rawPolicy);
       sortingValues.push_back(sortingValue);
     }
 

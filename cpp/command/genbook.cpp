@@ -1846,7 +1846,7 @@ int MainCmds::booktoposes(const vector<string>& args) {
         ConstSymBookNode child = node.follow(moves[i].move);
         RecursiveBookValues values = child.recursiveValues();
         double plaFactor = pla == P_WHITE ? 1.0 : -1.0;
-        double value = book->getSortingValue(plaFactor,values.winLossValue,values.sharpScoreMean,values.scoreLCB,values.scoreUCB,moves[i].rawPolicy);
+        double value = book->getSortingValue(plaFactor,values.winLossValue,values.scoreMean,values.sharpScoreMean,values.scoreLCB,values.scoreUCB,moves[i].rawPolicy);
         sortingValue.push_back(value);
       }
 
