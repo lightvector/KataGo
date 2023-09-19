@@ -382,9 +382,14 @@ void TrainingWriteBuffers::addRow(
   const vector<Board>* posHistForFutureBoards, //can be null
   bool isSidePosition,
   int numNeuralNetsBehindLatest,
+  double drawEquivalentWinsForWhite,
   Player playoutDoublingAdvantagePla,
   double playoutDoublingAdvantage,
-  const FinishedGameData& data,
+  Hash128 gameHash,
+  const std::vector<ChangedNeuralNet*>& changedNeuralNets,
+  bool hitTurnLimit,
+  int numExtraBlack,
+  int mode,
   Rand& rand
 ) {
   static_assert(NNModelVersion::latestInputsVersionImplemented == 7, "");
@@ -392,12 +397,11 @@ void TrainingWriteBuffers::addRow(
     throw StringError("Training write buffers: Does not support input version: " + Global::intToString(inputsVersion));
 
   int posArea = dataXLen*dataYLen;
-  assert(data.hasFullData);
   assert(curRows < maxRows);
 
   {
     MiscNNInputParams nnInputParams;
-    nnInputParams.drawEquivalentWinsForWhite = data.drawEquivalentWinsForWhite;
+    nnInputParams.drawEquivalentWinsForWhite = drawEquivalentWinsForWhite;
     //Note: this is coordinated with the fact that selfplay does not use this feature on side positions
     if(!isSidePosition)
       nnInputParams.playoutDoublingAdvantage = getOpp(nextPlayer) == playoutDoublingAdvantagePla ? -playoutDoublingAdvantage : playoutDoublingAdvantage;
@@ -405,7 +409,7 @@ void TrainingWriteBuffers::addRow(
       assert(playoutDoublingAdvantagePla == C_EMPTY);
       assert(playoutDoublingAdvantage == 0.0);
     }
-    
+
     bool inputsUseNHWC = false;
     float* rowBin = binaryInputNCHWUnpacked;
     float* rowGlobal = globalInputNC.data + curRows * numGlobalChannels;
@@ -500,7 +504,6 @@ void TrainingWriteBuffers::addRow(
     if(lead < -scoreTargetCap)
       lead = -scoreTargetCap;
 
-    //Flip based on next player for training
     rowGlobal[21] = lead;
     rowGlobal[29] = 1.0f;
   }
@@ -541,7 +544,6 @@ void TrainingWriteBuffers::addRow(
   rowGlobal[40] = useHist4 ? 1.0f : 0.0f;
 
   //Fill in hash of game
-  Hash128 gameHash = data.gameHash;
   rowGlobal[41] = (float)(gameHash.hash0 & 0x3FFFFF);
   rowGlobal[42] = (float)((gameHash.hash0 >> 22) & 0x3FFFFF);
   rowGlobal[43] = (float)((gameHash.hash0 >> 44) & 0xFFFFF);
@@ -550,21 +552,21 @@ void TrainingWriteBuffers::addRow(
   rowGlobal[46] = (float)((gameHash.hash1 >> 44) & 0xFFFFF);
 
   //Various other data
-  rowGlobal[47] = hist.currentSelfKomi(nextPlayer,data.drawEquivalentWinsForWhite);
+  rowGlobal[47] = hist.currentSelfKomi(nextPlayer,drawEquivalentWinsForWhite);
   rowGlobal[48] = (hist.encorePhase == 2 || hist.rules.scoringRule == Rules::SCORING_AREA) ? 1.0f : 0.0f;
 
   //Earlier neural net metadata
-  rowGlobal[49] = data.changedNeuralNets.size() > 0 ? 1.0f : 0.0f;
+  rowGlobal[49] = changedNeuralNets.size() > 0 ? 1.0f : 0.0f;
   rowGlobal[50] = (float)numNeuralNetsBehindLatest;
 
   //Some misc metadata
   rowGlobal[51] = (float)turnIdx;
-  rowGlobal[52] = data.hitTurnLimit ? 1.0f : 0.0f;
+  rowGlobal[52] = hitTurnLimit ? 1.0f : 0.0f;
   rowGlobal[53] = (float)startHist.moveHistory.size();
-  rowGlobal[54] = (float)data.numExtraBlack;
+  rowGlobal[54] = (float)numExtraBlack;
 
   //Metadata about how the game was initialized
-  rowGlobal[55] = (float)data.mode;
+  rowGlobal[55] = (float)mode;
   rowGlobal[56] = (float)hist.initialTurnNumber;
 
   //Some stats
@@ -581,6 +583,7 @@ void TrainingWriteBuffers::addRow(
     //after the start of a game
     float whiteBonusPoints = actualGameEndHist.whiteBonusScore - hist.whiteBonusScore;
     float selfBonusPoints = (nextPlayer == P_WHITE ? whiteBonusPoints : -whiteBonusPoints);
+    //Note: we have a lot of data where this isn't reliable for side positions
     rowGlobal[61] = selfBonusPoints != 0 ? selfBonusPoints : 0.0f; //Conditional avoids negative zero
   }
   else {
@@ -588,7 +591,7 @@ void TrainingWriteBuffers::addRow(
   }
 
   //Game finished
-  rowGlobal[62] = (!isSidePosition && actualGameEndHist.isGameFinished && !data.hitTurnLimit) ? 1.0f : 0.0f;
+  rowGlobal[62] = (!isSidePosition && actualGameEndHist.isGameFinished && !hitTurnLimit) ? 1.0f : 0.0f;
 
   //Version
   rowGlobal[63] = 2.0f;
@@ -982,6 +985,8 @@ void TrainingDataWriter::writeGame(const FinishedGameData& data) {
     }
   }
 
+  assert(data.hasFullData);
+
   Board board(data.startBoard);
   BoardHistory hist(data.startHist);
   Player nextPlayer = data.startPla;
@@ -1030,9 +1035,14 @@ void TrainingDataWriter::writeGame(const FinishedGameData& data) {
             &posHistForFutureBoards,
             isSidePosition,
             numNeuralNetsBehindLatest,
+            data.drawEquivalentWinsForWhite,
             data.playoutDoublingAdvantagePla,
             data.playoutDoublingAdvantage,
-            data,
+            data.gameHash,
+            data.changedNeuralNets,
+            data.hitTurnLimit,
+            data.numExtraBlack,
+            data.mode,
             rand
           );
           writeAndClearIfFull();
@@ -1088,9 +1098,14 @@ void TrainingDataWriter::writeGame(const FinishedGameData& data) {
             NULL,
             isSidePosition,
             numNeuralNetsBehindLatest,
+            data.drawEquivalentWinsForWhite,
             sp->playoutDoublingAdvantagePla,
             sp->playoutDoublingAdvantage,
-            data,
+            data.gameHash,
+            data.changedNeuralNets,
+            data.hitTurnLimit, // actual game hit turn limit
+            data.numExtraBlack,
+            data.mode,
             rand
           );
           writeAndClearIfFull();

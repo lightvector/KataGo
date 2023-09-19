@@ -258,9 +258,14 @@ struct TrainingWriteBuffers {
     const std::vector<Board>* posHistForFutureBoards, //can be null
     bool isSidePosition,
     int numNeuralNetsBehindLatest,
+    double drawEquivalentWinsForWhite,
     Player playoutDoublingAdvantagePla,
     double playoutDoublingAdvantage,
-    const FinishedGameData& data,
+    Hash128 gameHash,
+    const std::vector<ChangedNeuralNet*>& changedNeuralNets,
+    bool hitTurnLimit,
+    int numExtraBlack,
+    int mode,
     Rand& rand
   );
 
