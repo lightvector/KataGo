@@ -63,18 +63,20 @@ class Metrics:
         return 0.15 * global_weight * weight * loss
 
 
-    def loss_value_samplewise(self, pred_logits, target_probs, global_weight):
+    def loss_value_samplewise(self, pred_logits, target_probs, weight, global_weight):
         assert pred_logits.shape == (self.n, self.value_len)
         assert target_probs.shape == (self.n, self.value_len)
+        assert weight.shape == (self.n,)
         loss = cross_entropy(pred_logits, target_probs, dim=1)
-        return 1.20 * global_weight * loss
+        return 1.20 * global_weight * weight * loss
 
-    def loss_td_value_samplewise(self, pred_logits, target_probs, global_weight):
+    def loss_td_value_samplewise(self, pred_logits, target_probs, weight, global_weight):
         assert pred_logits.shape == (self.n, self.num_td_values, self.value_len)
         assert target_probs.shape == (self.n, self.num_td_values, self.value_len)
+        assert weight.shape == (self.n,)
         assert global_weight.shape == (self.n,)
         loss = cross_entropy(pred_logits, target_probs, dim=2) - cross_entropy(torch.log(target_probs + 1.0e-30), target_probs, dim=2)
-        return 1.20 * global_weight.unsqueeze(1) * loss
+        return 1.20 * global_weight.unsqueeze(1) * weight * loss
 
     def loss_td_score_samplewise(self, pred, target, weight, global_weight):
         assert pred.shape == (self.n, self.num_td_values)
@@ -482,6 +484,7 @@ class Metrics:
         target_weight_lead = target_global_nc[:, 29]
         target_weight_futurepos = target_global_nc[:, 33]
         target_weight_scoring = target_global_nc[:, 34]
+        target_weight_value = 1.0 - target_global_nc[:, 35]
 
         target_score_distribution = score_distribution_ns / 100.0
 
@@ -600,11 +603,11 @@ class Metrics:
 
 
         loss_value = self.loss_value_samplewise(
-            value_logits, target_value, global_weight
+            value_logits, target_value, target_weight_value, global_weight
         ).sum()
 
         loss_td_value_unsummed = self.loss_td_value_samplewise(
-            td_value_logits, target_td_value, global_weight
+            td_value_logits, target_td_value, target_weight_value, global_weight
         )
         assert self.num_td_values == 3
         loss_td_value1 = loss_td_value_unsummed[:,0].sum()

@@ -30,7 +30,9 @@ SidePosition::SidePosition()
    whiteValueTargets(),
    targetWeight(),
    targetWeightUnrounded(),
-   numNeuralNetChangesSoFar()
+   numNeuralNetChangesSoFar(),
+   playoutDoublingAdvantagePla(C_EMPTY),
+   playoutDoublingAdvantage(0.0)
 {}
 
 SidePosition::SidePosition(const Board& b, const BoardHistory& h, Player p, int numNNChangesSoFar)
@@ -45,7 +47,9 @@ SidePosition::SidePosition(const Board& b, const BoardHistory& h, Player p, int 
    whiteValueTargets(),
    targetWeight(1.0f),
    targetWeightUnrounded(1.0f),
-   numNeuralNetChangesSoFar(numNNChangesSoFar)
+   numNeuralNetChangesSoFar(numNNChangesSoFar),
+   playoutDoublingAdvantagePla(C_EMPTY),
+   playoutDoublingAdvantage(0.0)
 {}
 
 SidePosition::~SidePosition()
@@ -358,6 +362,8 @@ static void fillValueTDTargets(const vector<ValueTargets>& whiteValueTargetsByTu
 
 void TrainingWriteBuffers::addRow(
   const Board& board, const BoardHistory& hist, Player nextPlayer,
+  const BoardHistory& startHist,
+  const BoardHistory& actualGameEndHist,
   int turnIdx,
   float targetWeight,
   int64_t unreducedNumVisits,
@@ -368,6 +374,7 @@ void TrainingWriteBuffers::addRow(
   double searchEntropy,
   const vector<ValueTargets>& whiteValueTargets,
   int whiteValueTargetsIdx, //index in whiteValueTargets corresponding to this turn.
+  float valueTargetWeight,
   const NNRawStats& nnRawStats,
   const Board* finalBoard,
   Color* finalFullArea,
@@ -376,7 +383,14 @@ void TrainingWriteBuffers::addRow(
   const vector<Board>* posHistForFutureBoards, //can be null
   bool isSidePosition,
   int numNeuralNetsBehindLatest,
-  const FinishedGameData& data,
+  double drawEquivalentWinsForWhite,
+  Player playoutDoublingAdvantagePla,
+  double playoutDoublingAdvantage,
+  Hash128 gameHash,
+  const std::vector<ChangedNeuralNet*>& changedNeuralNets,
+  bool hitTurnLimit,
+  int numExtraBlack,
+  int mode,
   Rand& rand
 ) {
   static_assert(NNModelVersion::latestInputsVersionImplemented == 7, "");
@@ -384,15 +398,18 @@ void TrainingWriteBuffers::addRow(
     throw StringError("Training write buffers: Does not support input version: " + Global::intToString(inputsVersion));
 
   int posArea = dataXLen*dataYLen;
-  assert(data.hasFullData);
   assert(curRows < maxRows);
 
   {
     MiscNNInputParams nnInputParams;
-    nnInputParams.drawEquivalentWinsForWhite = data.drawEquivalentWinsForWhite;
+    nnInputParams.drawEquivalentWinsForWhite = drawEquivalentWinsForWhite;
     //Note: this is coordinated with the fact that selfplay does not use this feature on side positions
     if(!isSidePosition)
-      nnInputParams.playoutDoublingAdvantage = getOpp(nextPlayer) == data.playoutDoublingAdvantagePla ? -data.playoutDoublingAdvantage : data.playoutDoublingAdvantage;
+      nnInputParams.playoutDoublingAdvantage = getOpp(nextPlayer) == playoutDoublingAdvantagePla ? -playoutDoublingAdvantage : playoutDoublingAdvantage;
+    else {
+      assert(playoutDoublingAdvantagePla == C_EMPTY);
+      assert(playoutDoublingAdvantage == 0.0);
+    }
 
     bool inputsUseNHWC = false;
     float* rowBin = binaryInputNCHWUnpacked;
@@ -477,7 +494,10 @@ void TrainingWriteBuffers::addRow(
   rowGlobal[21] = 0.0f;
   rowGlobal[29] = 0.0f;
   const ValueTargets& thisTargets = whiteValueTargets[whiteValueTargetsIdx];
-  if(thisTargets.hasLead && !(data.endHist.isGameFinished && data.endHist.isNoResult)) {
+  //If the actual game ended in a no-result, we don't use lead for any position during the game
+  //including side positions, just in case.
+  if(thisTargets.hasLead && !(actualGameEndHist.isGameFinished && actualGameEndHist.isNoResult)) {
+    //Flip based on next player for training
     float lead = nextPlayer == P_WHITE ? thisTargets.lead : -thisTargets.lead;
     float scoreTargetCap = NNPos::MAX_BOARD_AREA + NNPos::EXTRA_SCORE_DISTR_RADIUS;
     if(lead > scoreTargetCap)
@@ -485,7 +505,6 @@ void TrainingWriteBuffers::addRow(
     if(lead < -scoreTargetCap)
       lead = -scoreTargetCap;
 
-    //Flip based on next player for training
     rowGlobal[21] = lead;
     rowGlobal[29] = 1.0f;
   }
@@ -511,7 +530,7 @@ void TrainingWriteBuffers::addRow(
   rowGlobal[30] = (float)policySurprise;
   rowGlobal[31] = (float)policyEntropy;
   rowGlobal[32] = (float)searchEntropy;
-  rowGlobal[35] = 0.0f;
+  rowGlobal[35] = (float)(1.0f - valueTargetWeight);
 
   //Fill in whether we should use history or not
   bool useHist0 = rand.nextDouble() < 0.98;
@@ -526,7 +545,6 @@ void TrainingWriteBuffers::addRow(
   rowGlobal[40] = useHist4 ? 1.0f : 0.0f;
 
   //Fill in hash of game
-  Hash128 gameHash = data.gameHash;
   rowGlobal[41] = (float)(gameHash.hash0 & 0x3FFFFF);
   rowGlobal[42] = (float)((gameHash.hash0 >> 22) & 0x3FFFFF);
   rowGlobal[43] = (float)((gameHash.hash0 >> 44) & 0xFFFFF);
@@ -535,21 +553,21 @@ void TrainingWriteBuffers::addRow(
   rowGlobal[46] = (float)((gameHash.hash1 >> 44) & 0xFFFFF);
 
   //Various other data
-  rowGlobal[47] = hist.currentSelfKomi(nextPlayer,data.drawEquivalentWinsForWhite);
+  rowGlobal[47] = hist.currentSelfKomi(nextPlayer,drawEquivalentWinsForWhite);
   rowGlobal[48] = (hist.encorePhase == 2 || hist.rules.scoringRule == Rules::SCORING_AREA) ? 1.0f : 0.0f;
 
   //Earlier neural net metadata
-  rowGlobal[49] = data.changedNeuralNets.size() > 0 ? 1.0f : 0.0f;
+  rowGlobal[49] = changedNeuralNets.size() > 0 ? 1.0f : 0.0f;
   rowGlobal[50] = (float)numNeuralNetsBehindLatest;
 
   //Some misc metadata
   rowGlobal[51] = (float)turnIdx;
-  rowGlobal[52] = data.hitTurnLimit ? 1.0f : 0.0f;
-  rowGlobal[53] = (float)data.startHist.moveHistory.size();
-  rowGlobal[54] = (float)data.numExtraBlack;
+  rowGlobal[52] = hitTurnLimit ? 1.0f : 0.0f;
+  rowGlobal[53] = (float)startHist.moveHistory.size();
+  rowGlobal[54] = (float)numExtraBlack;
 
   //Metadata about how the game was initialized
-  rowGlobal[55] = (float)data.mode;
+  rowGlobal[55] = (float)mode;
   rowGlobal[56] = (float)hist.initialTurnNumber;
 
   //Some stats
@@ -561,19 +579,23 @@ void TrainingWriteBuffers::addRow(
   rowGlobal[60] = (float)unreducedNumVisits;
 
   //Bonus points
-  {
+  if(!isSidePosition) {
     //Possibly this should count whiteHandicapBonusScore too, but in selfplay this never changes
     //after the start of a game
-    float whiteBonusPoints = data.endHist.whiteBonusScore - hist.whiteBonusScore;
+    float whiteBonusPoints = actualGameEndHist.whiteBonusScore - hist.whiteBonusScore;
     float selfBonusPoints = (nextPlayer == P_WHITE ? whiteBonusPoints : -whiteBonusPoints);
+    //Note: we have a lot of data where this isn't reliable for side positions
     rowGlobal[61] = selfBonusPoints != 0 ? selfBonusPoints : 0.0f; //Conditional avoids negative zero
   }
+  else {
+    rowGlobal[61] = 0.0f;
+  }
 
-  //Unused
-  rowGlobal[62] = 0.0f;
+  //Game finished
+  rowGlobal[62] = (!isSidePosition && actualGameEndHist.isGameFinished && !hitTurnLimit) ? 1.0f : 0.0f;
 
   //Version
-  rowGlobal[63] = 1.0f;
+  rowGlobal[63] = 2.0f;
 
   assert(64 == GLOBAL_TARGET_NUM_CHANNELS);
 
@@ -582,7 +604,7 @@ void TrainingWriteBuffers::addRow(
   int8_t* rowScoreDistr = scoreDistrN.data + curRows * scoreDistrLen;
   int8_t* rowOwnership = valueTargetsNCHW.data + curRows * VALUE_SPATIAL_TARGET_NUM_CHANNELS * posArea;
 
-  if(finalOwnership == NULL || (data.endHist.isGameFinished && data.endHist.isNoResult)) {
+  if(finalOwnership == NULL || (actualGameEndHist.isGameFinished && actualGameEndHist.isNoResult)) {
     rowGlobal[27] = 0.0f;
     rowGlobal[20] = 0.0f;
     for(int i = 0; i<posArea*2; i++)
@@ -677,9 +699,7 @@ void TrainingWriteBuffers::addRow(
   }
 
 
-  if(finalWhiteScoring == NULL
-     || (data.endHist.isGameFinished && data.endHist.isNoResult)
-  ) {
+  if(finalWhiteScoring == NULL || (actualGameEndHist.isGameFinished && actualGameEndHist.isNoResult)) {
     rowGlobal[34] = 0.0f;
     for(int i = 0; i<posArea; i++) {
       rowOwnership[i+posArea*4] = 0;
@@ -966,6 +986,8 @@ void TrainingDataWriter::writeGame(const FinishedGameData& data) {
     }
   }
 
+  assert(data.hasFullData);
+
   Board board(data.startBoard);
   BoardHistory hist(data.startHist);
   Player nextPlayer = data.startPla;
@@ -980,6 +1002,7 @@ void TrainingDataWriter::writeGame(const FinishedGameData& data) {
     const vector<PolicyTargetMove>* policyTarget0 = data.policyTargetsByTurn[turnAfterStart].policyTargets;
     const vector<PolicyTargetMove>* policyTarget1 = (turnAfterStart + 1 < numMoves) ? data.policyTargetsByTurn[turnAfterStart+1].policyTargets : NULL;
     bool isSidePosition = false;
+    float valueTargetWeight = 1.0f;
 
     int numNeuralNetsBehindLatest = 0;
     for(int i = 0; i<data.changedNeuralNets.size(); i++) {
@@ -994,6 +1017,8 @@ void TrainingDataWriter::writeGame(const FinishedGameData& data) {
         if(debugOut == NULL || rowCount % debugOnlyWriteEvery == 0) {
           writeBuffers->addRow(
             board,hist,nextPlayer,
+            data.startHist,
+            data.endHist,
             turnIdx,
             (float)data.trainingWeight,
             unreducedNumVisits,
@@ -1004,6 +1029,7 @@ void TrainingDataWriter::writeGame(const FinishedGameData& data) {
             data.searchEntropyByTurn[turnAfterStart],
             data.whiteValueTargetsByTurn,
             turnAfterStart,
+            valueTargetWeight,
             data.nnRawStatsByTurn[turnAfterStart],
             &(data.endHist.getRecentBoard(0)),
             data.finalFullArea,
@@ -1012,7 +1038,14 @@ void TrainingDataWriter::writeGame(const FinishedGameData& data) {
             &posHistForFutureBoards,
             isSidePosition,
             numNeuralNetsBehindLatest,
-            data,
+            data.drawEquivalentWinsForWhite,
+            data.playoutDoublingAdvantagePla,
+            data.playoutDoublingAdvantage,
+            data.gameHash,
+            data.changedNeuralNets,
+            data.hitTurnLimit,
+            data.numExtraBlack,
+            data.mode,
             rand
           );
           writeAndClearIfFull();
@@ -1045,9 +1078,12 @@ void TrainingDataWriter::writeGame(const FinishedGameData& data) {
           whiteValueTargetsBuf[0] = sp->whiteValueTargets;
           bool isSidePosition = true;
           int numNeuralNetsBehindLatest = (int)data.changedNeuralNets.size() - sp->numNeuralNetChangesSoFar;
+          float valueTargetWeight = 1.0f;
 
           writeBuffers->addRow(
             sp->board,sp->hist,sp->pla,
+            data.startHist,
+            data.endHist, // actual game ending hist, even for side position
             turnIdx,
             (float)data.trainingWeight,
             sp->unreducedNumVisits,
@@ -1058,6 +1094,7 @@ void TrainingDataWriter::writeGame(const FinishedGameData& data) {
             sp->searchEntropy,
             whiteValueTargetsBuf,
             0,
+            valueTargetWeight,
             sp->nnRawStats,
             NULL,
             NULL,
@@ -1066,7 +1103,14 @@ void TrainingDataWriter::writeGame(const FinishedGameData& data) {
             NULL,
             isSidePosition,
             numNeuralNetsBehindLatest,
-            data,
+            data.drawEquivalentWinsForWhite,
+            sp->playoutDoublingAdvantagePla,
+            sp->playoutDoublingAdvantage,
+            data.gameHash,
+            data.changedNeuralNets,
+            data.hitTurnLimit, // actual game hit turn limit
+            data.numExtraBlack,
+            data.mode,
             rand
           );
           writeAndClearIfFull();

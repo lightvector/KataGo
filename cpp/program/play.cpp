@@ -1823,6 +1823,10 @@ FinishedGameData* Play::runGame(
       toMoveBot->setPosition(sp->pla,sp->board,sp->hist);
       //We do NOT apply playoutDoublingAdvantage here. If changing this, note that it is coordinated with train data writing
       //not using playoutDoublingAdvantage for these rows too.
+      assert(toMoveBot->searchParams.playoutDoublingAdvantage == 0.0);
+      assert(toMoveBot->searchParams.playoutDoublingAdvantagePla == C_EMPTY);
+      sp->playoutDoublingAdvantagePla = C_EMPTY;
+      sp->playoutDoublingAdvantage = 0.0;
       Loc responseLoc = toMoveBot->runWholeSearchAndGetMove(sp->pla);
 
       extractPolicyTarget(sp->policyTarget, toMoveBot, toMoveBot->rootNode, locsBuf, playSelectionValuesBuf);
@@ -1944,7 +1948,9 @@ FinishedGameData* Play::runGame(
            //Avoid computing lead when no result was considered to be very likely, since in such cases
            //the relationship between komi and the result can somewhat break.
            gameData->whiteValueTargetsByTurn[turnAfterStart].noResult < 0.3 &&
-           gameRand.nextBool(playSettings.estimateLeadProb)
+           gameRand.nextBool(playSettings.estimateLeadProb) &&
+           //Or if the actual game ended in no result
+           !(gameData->endHist.isGameFinished && gameData->endHist.isNoResult)
         ) {
           if(shouldPause != nullptr)
             shouldPause->waitUntilFalse();
@@ -1964,8 +1970,12 @@ FinishedGameData* Play::runGame(
       for(int i = 0; i<gameData->sidePositions.size(); i++) {
         SidePosition* sp = gameData->sidePositions[i];
         if(sp->targetWeight > 0 &&
+           //Avoid computing lead when no result was considered to be very likely, since in such cases
+           //the relationship between komi and the result can somewhat break.
            sp->whiteValueTargets.noResult < 0.3 &&
-           gameRand.nextBool(playSettings.estimateLeadProb)
+           gameRand.nextBool(playSettings.estimateLeadProb) &&
+           //Or if the non-side-position actual game ended in no result
+           !(gameData->endHist.isGameFinished && gameData->endHist.isNoResult)
         ) {
           if(shouldPause != nullptr)
             shouldPause->waitUntilFalse();
