@@ -1823,6 +1823,10 @@ FinishedGameData* Play::runGame(
       toMoveBot->setPosition(sp->pla,sp->board,sp->hist);
       //We do NOT apply playoutDoublingAdvantage here. If changing this, note that it is coordinated with train data writing
       //not using playoutDoublingAdvantage for these rows too.
+      assert(toMoveBot->searchParams.playoutDoublingAdvantage == 0.0);
+      assert(toMoveBot->searchParams.playoutDoublingAdvantagePla == C_EMPTY);
+      sp->playoutDoublingAdvantagePla = C_EMPTY;
+      sp->playoutDoublingAdvantage = 0.0;
       Loc responseLoc = toMoveBot->runWholeSearchAndGetMove(sp->pla);
 
       extractPolicyTarget(sp->policyTarget, toMoveBot, toMoveBot->rootNode, locsBuf, playSelectionValuesBuf);

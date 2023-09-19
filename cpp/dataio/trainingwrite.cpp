@@ -30,7 +30,9 @@ SidePosition::SidePosition()
    whiteValueTargets(),
    targetWeight(),
    targetWeightUnrounded(),
-   numNeuralNetChangesSoFar()
+   numNeuralNetChangesSoFar(),
+   playoutDoublingAdvantagePla(C_EMPTY),
+   playoutDoublingAdvantage(0.0)
 {}
 
 SidePosition::SidePosition(const Board& b, const BoardHistory& h, Player p, int numNNChangesSoFar)
@@ -45,7 +47,9 @@ SidePosition::SidePosition(const Board& b, const BoardHistory& h, Player p, int 
    whiteValueTargets(),
    targetWeight(1.0f),
    targetWeightUnrounded(1.0f),
-   numNeuralNetChangesSoFar(numNNChangesSoFar)
+   numNeuralNetChangesSoFar(numNNChangesSoFar),
+   playoutDoublingAdvantagePla(C_EMPTY),
+   playoutDoublingAdvantage(0.0)
 {}
 
 SidePosition::~SidePosition()
@@ -376,6 +380,8 @@ void TrainingWriteBuffers::addRow(
   const vector<Board>* posHistForFutureBoards, //can be null
   bool isSidePosition,
   int numNeuralNetsBehindLatest,
+  Player playoutDoublingAdvantagePla,
+  double playoutDoublingAdvantage,
   const FinishedGameData& data,
   Rand& rand
 ) {
@@ -392,8 +398,12 @@ void TrainingWriteBuffers::addRow(
     nnInputParams.drawEquivalentWinsForWhite = data.drawEquivalentWinsForWhite;
     //Note: this is coordinated with the fact that selfplay does not use this feature on side positions
     if(!isSidePosition)
-      nnInputParams.playoutDoublingAdvantage = getOpp(nextPlayer) == data.playoutDoublingAdvantagePla ? -data.playoutDoublingAdvantage : data.playoutDoublingAdvantage;
-
+      nnInputParams.playoutDoublingAdvantage = getOpp(nextPlayer) == playoutDoublingAdvantagePla ? -playoutDoublingAdvantage : playoutDoublingAdvantage;
+    else {
+      assert(playoutDoublingAdvantagePla == C_EMPTY);
+      assert(playoutDoublingAdvantage == 0.0);
+    }
+    
     bool inputsUseNHWC = false;
     float* rowBin = binaryInputNCHWUnpacked;
     float* rowGlobal = globalInputNC.data + curRows * numGlobalChannels;
@@ -1012,6 +1022,8 @@ void TrainingDataWriter::writeGame(const FinishedGameData& data) {
             &posHistForFutureBoards,
             isSidePosition,
             numNeuralNetsBehindLatest,
+            data.playoutDoublingAdvantagePla,
+            data.playoutDoublingAdvantage,
             data,
             rand
           );
@@ -1066,6 +1078,8 @@ void TrainingDataWriter::writeGame(const FinishedGameData& data) {
             NULL,
             isSidePosition,
             numNeuralNetsBehindLatest,
+            sp->playoutDoublingAdvantagePla,
+            sp->playoutDoublingAdvantage,
             data,
             rand
           );

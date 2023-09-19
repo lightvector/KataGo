@@ -44,6 +44,8 @@ struct SidePosition {
   float targetWeight;
   float targetWeightUnrounded;
   int numNeuralNetChangesSoFar; //Number of neural net changes this game before the creation of this side position
+  Player playoutDoublingAdvantagePla;
+  double playoutDoublingAdvantage;
 
   SidePosition();
   SidePosition(const Board& board, const BoardHistory& hist, Player pla, int numNeuralNetChangesSoFar);
@@ -254,6 +256,8 @@ struct TrainingWriteBuffers {
     const std::vector<Board>* posHistForFutureBoards, //can be null
     bool isSidePosition,
     int numNeuralNetsBehindLatest,
+    Player playoutDoublingAdvantagePla,
+    double playoutDoublingAdvantage,
     const FinishedGameData& data,
     Rand& rand
   );
