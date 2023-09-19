@@ -1199,7 +1199,128 @@ xxxxxxxx.
       delete forkData;
     }
   }
+
   
+  {
+    cout << "====================================================================================================" << endl;
+    cout << "====================================================================================================" << endl;
+    cout << "====================================================================================================" << endl;
+    cout << "Testing no result" << endl;
+
+    int maxRows = 256;
+    double firstFileMinRandProp = 1.0;
+    int debugOnlyWriteEvery = 1;
+    int inputsVersion = 7;
+    
+    SearchParams params = SearchParams::forTestsV2();
+    params.rootNoiseEnabled = true;
+    params.chosenMoveTemperatureEarly = 0.1;
+    params.chosenMoveTemperature = 0.1;
+    params.maxVisits = 100;
+    params.drawEquivalentWinsForWhite = 0.5;
+
+    PlaySettings playSettings;
+    playSettings.initGamesWithPolicy = false;
+    playSettings.sidePositionProb = 0.3;
+    playSettings.cheapSearchProb = 0.5;
+    playSettings.cheapSearchVisits = 40;
+    playSettings.cheapSearchTargetWeight = 0;
+    playSettings.minAsymmetricCompensateKomiProb = 0.0;
+    playSettings.compensateAfterPolicyInitProb = 0.0;
+    playSettings.estimateLeadProb = 1.0;
+    playSettings.earlyForkGameProb = 0.0;
+    playSettings.forkGameProb = 0.0;
+
+    playSettings.policySurpriseDataWeight = 0.0;
+    playSettings.valueSurpriseDataWeight = 0.0;
+    playSettings.noResolveTargetWeights = false;
+    playSettings.allowResignation = false;
+    playSettings.reduceVisits = false;
+    playSettings.handicapAsymmetricPlayoutProb = 0;
+    playSettings.normalAsymmetricPlayoutProb = 0;
+    playSettings.sekiForkHackProb = 0;
+    playSettings.fancyKomiVarying = false;
+
+    playSettings.scaleDataWeight = 1.5;
+      
+    playSettings.forSelfPlay = true;
+    
+    std::map<string,string> cfgParams({
+        std::make_pair("maxMovesPerGame","200"),
+        std::make_pair("logSearchInfo","true"),
+        std::make_pair("logMoves","false"),
+        std::make_pair("komiAuto","true"),
+        std::make_pair("komiStdev","3.0"),
+        std::make_pair("handicapProb","0.0"),
+        std::make_pair("handicapCompensateKomiProb","1.0"),
+        std::make_pair("sgfCompensateKomiProb","1.0"),
+        std::make_pair("forkCompensateKomiProb","1.0"),
+        std::make_pair("komiBigStdevProb","0.0"),
+        std::make_pair("komiBigStdev","20.0"),
+        std::make_pair("drawRandRadius","0.5"),
+        std::make_pair("noResultStdev","0.16"),
+
+        std::make_pair("bSizes","9"),
+        std::make_pair("bSizeRelProbs","1"),
+        std::make_pair("koRules","SIMPLE"),
+        std::make_pair("scoringRules","AREA"),
+        std::make_pair("taxRules","SEKI"),
+        std::make_pair("multiStoneSuicideLegals","false"),
+        std::make_pair("hasButtons","false"),
+        std::make_pair("allowRectangleProb","0.0"),
+    });
+
+    MatchPairer::BotSpec botSpec;
+    botSpec.botIdx = 0;
+    botSpec.botName = "testbot";
+    botSpec.nnEval = nnEval;
+    botSpec.baseParams = params;
+
+    string seed = "seed-testing-temperature";
+    
+    {
+      cout << "Turn number initial 0 selfplay with high temperatures" << endl;
+      nnEval->clearCache();
+      nnEval->clearStats();
+
+      ConfigParser cfg(cfgParams);
+      ForkData* forkData = new ForkData();
+      GameRunner* gameRunner = new GameRunner(cfg, seed, playSettings, logger);
+      auto shouldStop = []() { return false; };
+      WaitableFlag* shouldPause = nullptr;
+      TrainingDataWriter dataWriter(&cout,inputsVersion, maxRows, firstFileMinRandProp, 9, 9, debugOnlyWriteEvery, seed);
+
+      Sgf::PositionSample startPosSample;
+      startPosSample.board = Board::parseBoard(9,9,R"%%(
+.........
+......o..
+xxxxxxx..
+oooooox..
+xo.o.oxx.
+.xoxoxoo.
+xxxxxxo..
+.oooooox.
+.........
+)%%");
+      startPosSample.nextPla = P_WHITE;
+      startPosSample.moves = std::vector<Move>();
+      startPosSample.initialTurnNumber = 0;
+      startPosSample.hintLoc = Board::NULL_LOC;
+      startPosSample.weight = 10.0;
+      startPosSample.trainingWeight = 0.72;
+    
+      FinishedGameData* data = gameRunner->runGame(seed, botSpec, botSpec, forkData, &startPosSample, logger, shouldStop, shouldPause, nullptr, nullptr, nullptr);
+      data->printDebug(cout);
+
+      dataWriter.writeGame(*data);
+      dataWriter.flushIfNonempty();
+
+      delete data;
+      delete gameRunner;
+      delete forkData;
+    }
+  }
+
   delete nnEval;
   NeuralNet::globalCleanup();
 }
