@@ -173,7 +173,7 @@ struct TrainingWriteBuffers {
   //C32: Search Entropy (for statistical purposes)
   //C33: Weight assigned to the future position targets valueTargetsNCHW C1-C2
   //C34: Weight assigned to the area/territory target valueTargetsNCHW C4
-  //C35: Unused
+  //C35: 1.0 minus weight assigned to value targets
 
   //C36-40: Precomputed mask values indicating if we should use historical moves 1-5, if we desire random history masking.
   //1 means use, 0 means don't use.
@@ -250,6 +250,7 @@ struct TrainingWriteBuffers {
     double searchEntropy,
     const std::vector<ValueTargets>& whiteValueTargets,
     int whiteValueTargetsIdx, //index in whiteValueTargets corresponding to this turn.
+    float valueTargetWeight,
     const NNRawStats& nnRawStats,
     const Board* finalBoard,
     Color* finalFullArea,

@@ -374,6 +374,7 @@ void TrainingWriteBuffers::addRow(
   double searchEntropy,
   const vector<ValueTargets>& whiteValueTargets,
   int whiteValueTargetsIdx, //index in whiteValueTargets corresponding to this turn.
+  float valueTargetWeight,
   const NNRawStats& nnRawStats,
   const Board* finalBoard,
   Color* finalFullArea,
@@ -529,7 +530,7 @@ void TrainingWriteBuffers::addRow(
   rowGlobal[30] = (float)policySurprise;
   rowGlobal[31] = (float)policyEntropy;
   rowGlobal[32] = (float)searchEntropy;
-  rowGlobal[35] = 0.0f;
+  rowGlobal[35] = (float)(1.0f - valueTargetWeight);
 
   //Fill in whether we should use history or not
   bool useHist0 = rand.nextDouble() < 0.98;
@@ -1001,6 +1002,7 @@ void TrainingDataWriter::writeGame(const FinishedGameData& data) {
     const vector<PolicyTargetMove>* policyTarget0 = data.policyTargetsByTurn[turnAfterStart].policyTargets;
     const vector<PolicyTargetMove>* policyTarget1 = (turnAfterStart + 1 < numMoves) ? data.policyTargetsByTurn[turnAfterStart+1].policyTargets : NULL;
     bool isSidePosition = false;
+    float valueTargetWeight = 1.0f;
 
     int numNeuralNetsBehindLatest = 0;
     for(int i = 0; i<data.changedNeuralNets.size(); i++) {
@@ -1027,6 +1029,7 @@ void TrainingDataWriter::writeGame(const FinishedGameData& data) {
             data.searchEntropyByTurn[turnAfterStart],
             data.whiteValueTargetsByTurn,
             turnAfterStart,
+            valueTargetWeight,
             data.nnRawStatsByTurn[turnAfterStart],
             &(data.endHist.getRecentBoard(0)),
             data.finalFullArea,
@@ -1075,6 +1078,7 @@ void TrainingDataWriter::writeGame(const FinishedGameData& data) {
           whiteValueTargetsBuf[0] = sp->whiteValueTargets;
           bool isSidePosition = true;
           int numNeuralNetsBehindLatest = (int)data.changedNeuralNets.size() - sp->numNeuralNetChangesSoFar;
+          float valueTargetWeight = 1.0f;
 
           writeBuffers->addRow(
             sp->board,sp->hist,sp->pla,
@@ -1090,6 +1094,7 @@ void TrainingDataWriter::writeGame(const FinishedGameData& data) {
             sp->searchEntropy,
             whiteValueTargetsBuf,
             0,
+            valueTargetWeight,
             sp->nnRawStats,
             NULL,
             NULL,
