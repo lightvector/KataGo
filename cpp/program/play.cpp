@@ -1948,7 +1948,9 @@ FinishedGameData* Play::runGame(
            //Avoid computing lead when no result was considered to be very likely, since in such cases
            //the relationship between komi and the result can somewhat break.
            gameData->whiteValueTargetsByTurn[turnAfterStart].noResult < 0.3 &&
-           gameRand.nextBool(playSettings.estimateLeadProb)
+           gameRand.nextBool(playSettings.estimateLeadProb) &&
+           //Or if the actual game ended in no result
+           !(gameData->endHist.isGameFinished && gameData->endHist.isNoResult)
         ) {
           if(shouldPause != nullptr)
             shouldPause->waitUntilFalse();
@@ -1968,8 +1970,12 @@ FinishedGameData* Play::runGame(
       for(int i = 0; i<gameData->sidePositions.size(); i++) {
         SidePosition* sp = gameData->sidePositions[i];
         if(sp->targetWeight > 0 &&
+           //Avoid computing lead when no result was considered to be very likely, since in such cases
+           //the relationship between komi and the result can somewhat break.
            sp->whiteValueTargets.noResult < 0.3 &&
-           gameRand.nextBool(playSettings.estimateLeadProb)
+           gameRand.nextBool(playSettings.estimateLeadProb) &&
+           //Or if the non-side-position actual game ended in no result
+           !(gameData->endHist.isGameFinished && gameData->endHist.isNoResult)
         ) {
           if(shouldPause != nullptr)
             shouldPause->waitUntilFalse();

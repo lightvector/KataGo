@@ -362,6 +362,8 @@ static void fillValueTDTargets(const vector<ValueTargets>& whiteValueTargetsByTu
 
 void TrainingWriteBuffers::addRow(
   const Board& board, const BoardHistory& hist, Player nextPlayer,
+  const BoardHistory& startHist,
+  const BoardHistory& actualGameEndHist,
   int turnIdx,
   float targetWeight,
   int64_t unreducedNumVisits,
@@ -487,7 +489,10 @@ void TrainingWriteBuffers::addRow(
   rowGlobal[21] = 0.0f;
   rowGlobal[29] = 0.0f;
   const ValueTargets& thisTargets = whiteValueTargets[whiteValueTargetsIdx];
-  if(thisTargets.hasLead && !(data.endHist.isGameFinished && data.endHist.isNoResult)) {
+  //If the actual game ended in a no-result, we don't use lead for any position during the game
+  //including side positions, just in case.
+  if(thisTargets.hasLead && !(actualGameEndHist.isGameFinished && actualGameEndHist.isNoResult)) {
+    //Flip based on next player for training
     float lead = nextPlayer == P_WHITE ? thisTargets.lead : -thisTargets.lead;
     float scoreTargetCap = NNPos::MAX_BOARD_AREA + NNPos::EXTRA_SCORE_DISTR_RADIUS;
     if(lead > scoreTargetCap)
@@ -555,7 +560,7 @@ void TrainingWriteBuffers::addRow(
   //Some misc metadata
   rowGlobal[51] = (float)turnIdx;
   rowGlobal[52] = data.hitTurnLimit ? 1.0f : 0.0f;
-  rowGlobal[53] = (float)data.startHist.moveHistory.size();
+  rowGlobal[53] = (float)startHist.moveHistory.size();
   rowGlobal[54] = (float)data.numExtraBlack;
 
   //Metadata about how the game was initialized
@@ -571,19 +576,22 @@ void TrainingWriteBuffers::addRow(
   rowGlobal[60] = (float)unreducedNumVisits;
 
   //Bonus points
-  {
+  if(!isSidePosition) {
     //Possibly this should count whiteHandicapBonusScore too, but in selfplay this never changes
     //after the start of a game
-    float whiteBonusPoints = data.endHist.whiteBonusScore - hist.whiteBonusScore;
+    float whiteBonusPoints = actualGameEndHist.whiteBonusScore - hist.whiteBonusScore;
     float selfBonusPoints = (nextPlayer == P_WHITE ? whiteBonusPoints : -whiteBonusPoints);
     rowGlobal[61] = selfBonusPoints != 0 ? selfBonusPoints : 0.0f; //Conditional avoids negative zero
   }
+  else {
+    rowGlobal[61] = 0.0f;
+  }
 
-  //Unused
-  rowGlobal[62] = 0.0f;
+  //Game finished
+  rowGlobal[62] = (!isSidePosition && actualGameEndHist.isGameFinished && !data.hitTurnLimit) ? 1.0f : 0.0f;
 
   //Version
-  rowGlobal[63] = 1.0f;
+  rowGlobal[63] = 2.0f;
 
   assert(64 == GLOBAL_TARGET_NUM_CHANNELS);
 
@@ -592,7 +600,7 @@ void TrainingWriteBuffers::addRow(
   int8_t* rowScoreDistr = scoreDistrN.data + curRows * scoreDistrLen;
   int8_t* rowOwnership = valueTargetsNCHW.data + curRows * VALUE_SPATIAL_TARGET_NUM_CHANNELS * posArea;
 
-  if(finalOwnership == NULL || (data.endHist.isGameFinished && data.endHist.isNoResult)) {
+  if(finalOwnership == NULL || (actualGameEndHist.isGameFinished && actualGameEndHist.isNoResult)) {
     rowGlobal[27] = 0.0f;
     rowGlobal[20] = 0.0f;
     for(int i = 0; i<posArea*2; i++)
@@ -687,9 +695,7 @@ void TrainingWriteBuffers::addRow(
   }
 
 
-  if(finalWhiteScoring == NULL
-     || (data.endHist.isGameFinished && data.endHist.isNoResult)
-  ) {
+  if(finalWhiteScoring == NULL || (actualGameEndHist.isGameFinished && actualGameEndHist.isNoResult)) {
     rowGlobal[34] = 0.0f;
     for(int i = 0; i<posArea; i++) {
       rowOwnership[i+posArea*4] = 0;
@@ -1004,6 +1010,8 @@ void TrainingDataWriter::writeGame(const FinishedGameData& data) {
         if(debugOut == NULL || rowCount % debugOnlyWriteEvery == 0) {
           writeBuffers->addRow(
             board,hist,nextPlayer,
+            data.startHist,
+            data.endHist,
             turnIdx,
             (float)data.trainingWeight,
             unreducedNumVisits,
@@ -1060,6 +1068,8 @@ void TrainingDataWriter::writeGame(const FinishedGameData& data) {
 
           writeBuffers->addRow(
             sp->board,sp->hist,sp->pla,
+            data.startHist,
+            data.endHist, // actual game ending hist, even for side position
             turnIdx,
             (float)data.trainingWeight,
             sp->unreducedNumVisits,

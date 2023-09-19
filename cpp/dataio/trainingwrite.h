@@ -207,9 +207,9 @@ struct TrainingWriteBuffers {
   //C58: Raw scoremean from neural net
   //C59: Policy prior entropy
   //C60: Number of visits in the search generating this row, prior to any reduction.
-  //C61: Number of bonus points the player to move will get onward from this point in the game
-  //C62: Unused
-  //C63: Data format version, currently always equals 1.
+  //C61: Number of bonus points the player to move will get onward from this point in the game. Reliable only if C27 and/or C62 (V2 and later), otherwise may make no sense.
+  //C62: V1: unused. V2: 1 if the game was finished and not a side position.
+  //C63: Data format version, currently always equals 2.
 
   NumpyBuffer<float> globalTargetsNC;
 
@@ -238,6 +238,8 @@ struct TrainingWriteBuffers {
 
   void addRow(
     const Board& board, const BoardHistory& hist, Player nextPlayer,
+    const BoardHistory& startHist,
+    const BoardHistory& actualGameEndHist,
     int turnAfterStart,
     float targetWeight,
     int64_t unreducedNumVisits,
