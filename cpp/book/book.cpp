@@ -1321,8 +1321,8 @@ void Book::recomputeAdjustedVisits(
   // Sort them from worst to best
   std::sort(
     sortIdxBuf.begin(),sortIdxBuf.end(),
-    [&](const size_t& idx0,
-        const size_t& idx1) {
+    [&](const int& idx0,
+        const int& idx1) {
       return sortValuesBuf[idx0] < sortValuesBuf[idx1];
     }
   );
@@ -1985,6 +1985,54 @@ void Book::recomputeNodeCost(BookNode* node) {
     int requiredBranch = branchRequiredByHash[node->hash];
     if(node->moves.size() < requiredBranch) {
       node->thisNodeExpansionCost -= 700.0;
+    }
+    else {
+      // If we require branch, also ensure that branching children have enough visits
+      int childEnoughVisitsCount = 0;    
+      for(auto& locAndBookMove: node->moves) {
+        const BookNode* child = get(locAndBookMove.second.hash);
+        double childVisits = child->recursiveValues.visits;
+        if(childVisits > params.maxVisitsForReExpansion) {
+          childEnoughVisitsCount += 1;
+        }
+      }
+      if(childEnoughVisitsCount < requiredBranch) {
+        std::vector<int> sortIdxBuf;
+        std::vector<double> sortValuesBuf;
+        std::vector<Loc> locBuf;
+        const double plaFactor = node->pla == P_WHITE ? 1.0 : -1.0;
+        for(auto& locAndBookMove: node->moves) {
+          const BookNode* child = get(locAndBookMove.second.hash);
+          const RecursiveBookValues& vals = child->recursiveValues;
+          sortIdxBuf.push_back((int)sortIdxBuf.size());
+          sortValuesBuf.push_back(
+            getSortingValue(plaFactor,vals.winLossValue,vals.scoreMean,vals.sharpScoreMean,vals.scoreLCB,vals.scoreUCB,locAndBookMove.second.rawPolicy)
+          );
+          locBuf.push_back(locAndBookMove.first);
+        }
+        // Sort from best to worst
+        std::sort(
+          sortIdxBuf.begin(),sortIdxBuf.end(),
+          [&](const int& idx0,
+              const int& idx1) {
+            return sortValuesBuf[idx0] > sortValuesBuf[idx1];
+          }
+        );
+        // In order, bonus the costs of the most promising moves
+        int numBonused = 0;
+        for(const int& idx: sortIdxBuf) {
+          if(numBonused + childEnoughVisitsCount >= requiredBranch)
+            break;
+          Loc loc = locBuf[idx];
+          BookMove& bookMove = node->moves[loc];
+          const BookNode* child = get(bookMove.hash);
+          double childVisits = child->recursiveValues.visits;
+          if(childVisits <= params.maxVisitsForReExpansion) {
+            numBonused += 1;
+            bookMove.costFromRoot -= 200.0;
+          }
+        }
+      }
     }
   }
 
