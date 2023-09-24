@@ -32,6 +32,10 @@ void Tests::runBoardAreaTests() {
         }
         out << endl;
       }
+      for(int i = 0; i<Board::MAX_ARR_SIZE; i++) {
+        if(!board.isOnBoard(i))
+          testAssert(result[i] == C_EMPTY);
+      }      
       out << endl;
       testAssert(boardsSeemEqual(copy,board));
       copy.checkConsistency();
@@ -1844,6 +1848,10 @@ Group tax
         }
         out << endl;
       }
+      for(int i = 0; i<Board::MAX_ARR_SIZE; i++) {
+        if(!board.isOnBoard(i))
+          testAssert(result[i] == C_EMPTY);
+      }      
       out << endl;
       testAssert(boardsSeemEqual(copy,board));
       copy.checkConsistency();
