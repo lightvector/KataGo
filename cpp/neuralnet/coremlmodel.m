@@ -81,11 +81,20 @@
   // Set compute precision name based on useFP16
   NSString *precisionName = useFP16.boolValue ? @"fp16" : @"fp32";
 
+  // Set model version
+  NSString *modelVersion = @"s7436087296-d3643132126";
+
   // Set model name based on xLen, yLen, and precisionName
-  NSString *modelName = [NSString stringWithFormat:@"KataGoModel%dx%d%@", xLen.intValue, yLen.intValue, precisionName];
+  NSString *modelName = [NSString stringWithFormat:@"KataGoModel%dx%d%@%@", xLen.intValue, yLen.intValue, precisionName, modelVersion];
 
   // Get compiled model name
   NSString *compiledModelName = [NSString stringWithFormat:@"%@.mlmodelc", modelName];
+
+  // Set the directory for KataGo models
+  NSString *directory = @"KataGoModels";
+
+  // Get path component
+  NSString *pathComponent = [NSString stringWithFormat:@"%@/%@", directory, compiledModelName];
 
   // Get default file manager
   NSFileManager *fileManager = [NSFileManager defaultManager];
@@ -99,7 +108,7 @@
                                                 error:nil];
 
   // Create the URL for the permanent compiled model file
-  NSURL *permanentURL = [appSupportURL URLByAppendingPathComponent:compiledModelName];
+  NSURL *permanentURL = [appSupportURL URLByAppendingPathComponent:pathComponent];
 
   // Initialize model
   MLModel *model = nil;
@@ -132,13 +141,23 @@
 
       NSLog(@"INFO: Copying model to the permanent location %@", permanentURL);
 
+      // Create the directory for KataGo models
+      BOOL success = [fileManager createDirectoryAtURL:[appSupportURL URLByAppendingPathComponent:directory]
+                           withIntermediateDirectories:true
+                                            attributes:nil
+                                                 error:nil];
+
+      assert(success);
+
       // Copy the file to the to the permanent location, replacing it if necessary
-      [fileManager replaceItemAtURL:permanentURL
-                      withItemAtURL:compiledURL
-                     backupItemName:nil
-                            options:NSFileManagerItemReplacementUsingNewMetadataOnly
-                   resultingItemURL:nil
-                              error:nil];
+      success = [fileManager replaceItemAtURL:permanentURL
+                                withItemAtURL:compiledURL
+                               backupItemName:nil
+                                      options:NSFileManagerItemReplacementUsingNewMetadataOnly
+                             resultingItemURL:nil
+                                        error:nil];
+
+      assert(success);
     }
   }
 
@@ -157,6 +176,8 @@
   model = [MLModel modelWithContentsOfURL:permanentURL
                             configuration:configuration
                                     error:nil];
+
+  assert(model != nil);
 
   NSLog(@"INFO: Created model: %@", model.modelDescription.metadata[MLModelDescriptionKey]);
 
