@@ -15,10 +15,12 @@ struct Message: Identifiable, Equatable, Hashable {
     /// Text of this message
     let text: String
 
-    /// Initialize a message with a text
-    /// - Parameter text: a text
-    init(text: String) {
-        self.text = String(text.prefix(200))
+    /// Initialize a message with a text and a max length
+    /// - Parameters:
+    ///   - text: a text
+    ///   - maxLength: a max length
+    init(text: String, maxLength: Int) {
+        self.text = String(text.prefix(maxLength))
     }
 }
 
@@ -41,6 +43,7 @@ struct CommandButton: View {
 struct CommandView: View {
     @EnvironmentObject var messagesObject: MessagesObject
     @EnvironmentObject var stones: Stones
+    @EnvironmentObject var config: Config
     @State private var command = ""
 
     var body: some View {
@@ -69,12 +72,12 @@ struct CommandView: View {
                     .disableAutocorrection(true)
                     .textInputAutocapitalization(.never)
                     .onSubmit {
-                        messagesObject.messages.append(Message(text: command))
+                        messagesObject.messages.append(Message(text: command,  maxLength: config.maxMessageCharacters))
                         KataGoHelper.sendCommand(command)
                         command = ""
                     }
                 Button(action: {
-                    messagesObject.messages.append(Message(text: command))
+                    messagesObject.messages.append(Message(text: command, maxLength: config.maxMessageCharacters))
                     KataGoHelper.sendCommand(command)
                     command = ""
                 }) {
@@ -94,9 +97,11 @@ struct CommandView: View {
 
 struct CommandView_Previews: PreviewProvider {
     static let messageObject = MessagesObject()
+    static let config = Config()
 
     static var previews: some View {
         CommandView()
             .environmentObject(messageObject)
+            .environmentObject(config)
     }
 }

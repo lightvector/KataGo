@@ -68,20 +68,22 @@ class Analysis: ObservableObject {
     @Published var ownership: [BoardPoint: Ownership] = [:]
 }
 
+class Config: ObservableObject {
+    static let defaultMaxMessageCharacters: Int = 200
+    static let defaultMaxAnalysisMoves: Int = 8
+    @Published var maxMessageCharacters: Int = defaultMaxMessageCharacters
+    @Published var maxAnalysisMoves: Int = defaultMaxAnalysisMoves
+}
+
 struct ContentView: View {
     @StateObject var stones = Stones()
     @StateObject var messagesObject = MessagesObject()
     @StateObject var board = Board()
     @StateObject var player = PlayerObject()
     @StateObject var analysis = Analysis()
-    @State private var selection = Tab.command
+    @StateObject var config = Config()
     @State private var isShowingBoard = false
     @State private var boardText: [String] = []
-
-    enum Tab {
-        case command
-        case goban
-    }
 
     init() {
         // Start a thread to run KataGo GTP
@@ -91,25 +93,28 @@ struct ContentView: View {
     }
 
     var body: some View {
-        TabView(selection: $selection) {
+        TabView() {
             CommandView()
                 .tabItem {
                     Label("Command", systemImage: "text.alignleft")
                 }
-                .tag(Tab.command)
 
             GobanView()
                 .tabItem {
                     Label("Goban", systemImage: "circle")
                 }
-                .tag(Tab.goban)
-                .padding()
+
+            ConfigView()
+                .tabItem {
+                    Label("Config", systemImage: "slider.horizontal.3")
+                }
         }
         .environmentObject(stones)
         .environmentObject(messagesObject)
         .environmentObject(board)
         .environmentObject(player)
         .environmentObject(analysis)
+        .environmentObject(config)
         .onAppear() {
             // Get messages from KataGo and append to the list of messages
             createMessageTask()
@@ -119,7 +124,7 @@ struct ContentView: View {
     /// Create message task
     private func createMessageTask() {
         Task {
-            messagesObject.messages.append(Message(text: "Initializing..."))
+            messagesObject.messages.append(Message(text: "Initializing...", maxLength: config.maxMessageCharacters))
             KataGoHelper.sendCommand("showboard")
             while true {
                 let line = await Task.detached {
@@ -128,7 +133,7 @@ struct ContentView: View {
                 }.value
 
                 // Create a message with the line
-                let message = Message(text: line)
+                let message = Message(text: line, maxLength: config.maxMessageCharacters)
 
                 // Append the message to the list of messages
                 messagesObject.messages.append(message)

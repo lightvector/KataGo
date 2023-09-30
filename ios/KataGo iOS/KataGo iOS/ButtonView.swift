@@ -9,13 +9,14 @@ import SwiftUI
 
 struct ButtonView: View {
     @EnvironmentObject var messagesObject: MessagesObject
+    @EnvironmentObject var config: Config
     let commands: [String]
     
     var body: some View {
         HStack {
             ForEach(commands, id:\.self) { command in
                 CommandButton(title: command) {
-                    messagesObject.messages.append(Message(text: command))
+                    messagesObject.messages.append(Message(text: command, maxLength: config.maxMessageCharacters))
                     KataGoHelper.sendCommand(command)
                 }
                 .scaledToFit()

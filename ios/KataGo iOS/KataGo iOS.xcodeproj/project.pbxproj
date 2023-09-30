@@ -141,7 +141,8 @@
 		E1D7D3AB2AA7547D00556DFB /* ButtonView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1D7D3AA2AA7547D00556DFB /* ButtonView.swift */; };
 		E1D7D3AD2AA897C000556DFB /* StoneView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1D7D3AC2AA897C000556DFB /* StoneView.swift */; };
 		E1D7D3B32AAA1F5600556DFB /* AnalysisView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1D7D3B22AAA1F5600556DFB /* AnalysisView.swift */; };
-		E1DEF2BC2AA2221F007A7ADB /* KataGoModel19x19fp16.mlpackage in Resources */ = {isa = PBXBuildFile; fileRef = E18F3F732A514B9500D335E1 /* KataGoModel19x19fp16.mlpackage */; };
+		E1E1717C2AB88B37004DCC3C /* KataGoModel19x19fp16.mlpackage in Resources */ = {isa = PBXBuildFile; fileRef = E18F3F732A514B9500D335E1 /* KataGoModel19x19fp16.mlpackage */; };
+		E1E1717E2AB9DAED004DCC3C /* ConfigView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1E1717D2AB9DAED004DCC3C /* ConfigView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -377,6 +378,7 @@
 		E1D7D3AA2AA7547D00556DFB /* ButtonView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ButtonView.swift; sourceTree = "<group>"; };
 		E1D7D3AC2AA897C000556DFB /* StoneView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StoneView.swift; sourceTree = "<group>"; };
 		E1D7D3B22AAA1F5600556DFB /* AnalysisView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnalysisView.swift; sourceTree = "<group>"; };
+		E1E1717D2AB9DAED004DCC3C /* ConfigView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConfigView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -444,6 +446,7 @@
 				E1D7D3AC2AA897C000556DFB /* StoneView.swift */,
 				E1D7D3B22AAA1F5600556DFB /* AnalysisView.swift */,
 				E1B63BE32AABDF3500094965 /* BoardLineView.swift */,
+				E1E1717D2AB9DAED004DCC3C /* ConfigView.swift */,
 			);
 			path = "KataGo iOS";
 			sourceTree = "<group>";
@@ -795,7 +798,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				E1DEF2BC2AA2221F007A7ADB /* KataGoModel19x19fp16.mlpackage in Resources */,
+				E1E1717C2AB88B37004DCC3C /* KataGoModel19x19fp16.mlpackage in Resources */,
 				E18F3F782A514B9700D335E1 /* default_gtp.cfg in Resources */,
 				E18F3E182A51466C00D335E1 /* Preview Assets.xcassets in Resources */,
 				E18F3E152A51466C00D335E1 /* Assets.xcassets in Resources */,
@@ -947,6 +950,7 @@
 				E18F3EA22A51485E00D335E1 /* searchnnhelpers.cpp in Sources */,
 				E18F3F672A51493100D335E1 /* evalsgf.cpp in Sources */,
 				E18F3E682A51483100D335E1 /* testsymmetries.cpp in Sources */,
+				E1E1717E2AB9DAED004DCC3C /* ConfigView.swift in Sources */,
 				E18F3EFB2A5148EF00D335E1 /* homedata.cpp in Sources */,
 				E18F3EDD2A5148B100D335E1 /* metalbackend.cpp in Sources */,
 				E18F3F352A51491900D335E1 /* config_parser.cpp in Sources */,
