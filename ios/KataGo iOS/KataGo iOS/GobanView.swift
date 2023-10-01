@@ -24,7 +24,7 @@ struct GobanView: View {
                 }
                 .onChange(of: isAnalyzing) { flag in
                     if flag {
-                        KataGoHelper.sendCommand(getKataAnalyzeCommand())
+                        KataGoHelper.sendCommand(config.getKataAnalyzeCommand())
                     } else {
                         KataGoHelper.sendCommand("stop")
                     }
@@ -54,73 +54,25 @@ struct GobanView: View {
 
                     KataGoHelper.sendCommand("showboard")
                     if isAnalyzing {
-                        KataGoHelper.sendCommand(getKataAnalyzeCommand())
+                        KataGoHelper.sendCommand(config.getKataAnalyzeCommand())
                     }
                 }
             }
             .onAppear() {
                 KataGoHelper.sendCommand("showboard")
                 if isAnalyzing {
-                    KataGoHelper.sendCommand(getKataAnalyzeCommand())
+                    KataGoHelper.sendCommand(config.getKataAnalyzeCommand())
                 }
             }
             .onChange(of: config.maxAnalysisMoves) { _ in
                 if isAnalyzing {
-                    KataGoHelper.sendCommand(getKataAnalyzeCommand())
+                    KataGoHelper.sendCommand(config.getKataAnalyzeCommand())
                 }
             }
 
-            HStack {
-                Button(action: {
-                    KataGoHelper.sendCommand("undo")
-                    KataGoHelper.sendCommand("showboard")
-                    if isAnalyzing {
-                        KataGoHelper.sendCommand(getKataAnalyzeCommand())
-                    }
-                }) {
-                    Image(systemName: "arrow.uturn.backward")
-                }
-                Button(action: {
-                    let nextColor = (player.nextColorForPlayCommand == .black) ? "b" : "w"
-                    let pass = "play \(nextColor) pass"
-                    KataGoHelper.sendCommand(pass)
-                    KataGoHelper.sendCommand("showboard")
-                    if isAnalyzing {
-                        KataGoHelper.sendCommand(getKataAnalyzeCommand())
-                    }
-                }) {
-                    Image(systemName: "hand.raised")
-                }
-                Button(action: {
-                    if isAnalyzing {
-                        KataGoHelper.sendCommand(getKataAnalyzeCommand())
-                    }
-                }) {
-                    Image(systemName: "play")
-                }
-                Button(action: {
-                    if isAnalyzing {
-                        KataGoHelper.sendCommand("stop")
-                    }
-                }) {
-                    Image(systemName: "stop")
-                }
-                Button(action: {
-                    KataGoHelper.sendCommand("clear_board")
-                    KataGoHelper.sendCommand("showboard")
-                    if isAnalyzing {
-                        KataGoHelper.sendCommand(getKataAnalyzeCommand())
-                    }
-                }) {
-                    Image(systemName: "clear")
-                }
-            }
-            .padding()
+            ToolbarView(isAnalyzing: $isAnalyzing)
+                .padding()
         }
-    }
-
-    func getKataAnalyzeCommand() -> String {
-        return "kata-analyze interval 20 maxmoves \(config.maxAnalysisMoves) ownership true ownershipStdev true"
     }
 
     func locationToMove(location: CGPoint, dimensions: Dimensions) -> String? {

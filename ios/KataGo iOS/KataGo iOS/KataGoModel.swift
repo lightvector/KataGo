@@ -55,6 +55,10 @@ class Analysis: ObservableObject {
 class Config: ObservableObject {
     @Published var maxMessageCharacters: Int = defaultMaxMessageCharacters
     @Published var maxAnalysisMoves: Int = defaultMaxAnalysisMoves
+
+    func getKataAnalyzeCommand() -> String {
+        return "kata-analyze interval 20 maxmoves \(maxAnalysisMoves) ownership true ownershipStdev true"
+    }
 }
 
 extension Config {
