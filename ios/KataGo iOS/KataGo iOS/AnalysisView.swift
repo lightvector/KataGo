@@ -9,11 +9,12 @@ import SwiftUI
 
 struct AnalysisView: View {
     @EnvironmentObject var analysis: Analysis
-    @EnvironmentObject var board: Board
-    let dimensions: Dimensions
+    @EnvironmentObject var board: ObservableBoard
+    let geometry: GeometryProxy
 
     var body: some View {
         let maxVisits = computeMaxVisits()
+        let dimensions = Dimensions(geometry: geometry, board: board)
 
         ForEach(analysis.data, id: \.self) { data in
             if let move = data["move"] {
@@ -31,7 +32,7 @@ struct AnalysisView: View {
 
         ForEach(analysis.ownership.keys.sorted(), id: \.self) { point in
             if let ownership = analysis.ownership[point] {
-                let whiteness = (analysis.nextShow == .white) ? (Double(ownership.mean) + 1) / 2 : (Double(-ownership.mean) + 1) / 2
+                let whiteness = (analysis.nextColorForAnalysis == .white) ? (Double(ownership.mean) + 1) / 2 : (Double(-ownership.mean) + 1) / 2
                 let definiteness = abs(whiteness - 0.5) * 2
                 // Show a black or white square if definiteness is high and stdev is low
                 // Show nothing if definiteness is low and stdev is low
@@ -199,24 +200,23 @@ struct AnalysisView: View {
 
 struct AnalysisView_Previews: PreviewProvider {
     static let analysis = Analysis()
-    static let board = Board()
+    static let board = ObservableBoard()
+
     static var previews: some View {
         ZStack {
             Rectangle()
                 .foregroundColor(.brown)
 
             GeometryReader { geometry in
-                let dimensions = Dimensions(geometry: geometry, width: 2, height: 2)
-
-                AnalysisView(dimensions: dimensions)
+                AnalysisView(geometry: geometry)
             }
             .environmentObject(analysis)
             .environmentObject(board)
             .onAppear() {
-                AnalysisView_Previews.analysis.data = [["move": "A1", "winrate": "0.54321012345", "scoreLead": "0.123456789", "order": "0", "visits": "12345678"], ["move": "B1", "winrate": "0.4", "scoreLead": "-9.8", "order": "1", "visits": "2345678"], ["move": "A2", "winrate": "0.321", "scoreLead": "-12.345", "order": "2", "visits": "198"]]
-                AnalysisView_Previews.analysis.ownership = [BoardPoint(x: 0, y: 0): Ownership(mean: 0.12, stdev: 0.5), BoardPoint(x: 1, y: 0): Ownership(mean: 0.987654321, stdev: 0.1), BoardPoint(x: 0, y: 1): Ownership(mean: -0.123456789, stdev: 0.4), BoardPoint(x: 1, y: 1): Ownership(mean: -0.98, stdev: 0.2)]
                 AnalysisView_Previews.board.width = 2
                 AnalysisView_Previews.board.height = 2
+                AnalysisView_Previews.analysis.data = [["move": "A1", "winrate": "0.54321012345", "scoreLead": "0.123456789", "order": "0", "visits": "12345678"], ["move": "B1", "winrate": "0.4", "scoreLead": "-9.8", "order": "1", "visits": "2345678"], ["move": "A2", "winrate": "0.321", "scoreLead": "-12.345", "order": "2", "visits": "198"]]
+                AnalysisView_Previews.analysis.ownership = [BoardPoint(x: 0, y: 0): Ownership(mean: 0.12, stdev: 0.5), BoardPoint(x: 1, y: 0): Ownership(mean: 0.987654321, stdev: 0.1), BoardPoint(x: 0, y: 1): Ownership(mean: -0.123456789, stdev: 0.4), BoardPoint(x: 1, y: 1): Ownership(mean: -0.98, stdev: 0.2)]
             }
         }
     }

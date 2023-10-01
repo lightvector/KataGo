@@ -7,23 +7,6 @@
 
 import SwiftUI
 
-/// Message with a text and an ID
-struct Message: Identifiable, Equatable, Hashable {
-    /// Identification of this message
-    let id = UUID()
-
-    /// Text of this message
-    let text: String
-
-    /// Initialize a message with a text and a max length
-    /// - Parameters:
-    ///   - text: a text
-    ///   - maxLength: a max length
-    init(text: String, maxLength: Int) {
-        self.text = String(text.prefix(maxLength))
-    }
-}
-
 struct CommandButton: View {
     var title: String
     var action: () -> Void

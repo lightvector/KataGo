@@ -9,9 +9,11 @@ import SwiftUI
 
 struct StoneView: View {
     @EnvironmentObject var stones: Stones
-    let dimensions: Dimensions
+    @EnvironmentObject var board: ObservableBoard
+    let geometry: GeometryProxy
 
     var body: some View {
+        let dimensions = Dimensions(geometry: geometry, board: board)
         drawStones(dimensions: dimensions)
     }
 
@@ -128,17 +130,20 @@ struct StoneView: View {
 
 struct StoneView_Previews: PreviewProvider {
     static let stones = Stones()
+    static let board = ObservableBoard()
     static var previews: some View {
         ZStack {
             Rectangle()
                 .foregroundColor(.brown)
 
             GeometryReader { geometry in
-                let dimensions = Dimensions(geometry: geometry, width: 2, height: 2)
-                StoneView(dimensions: dimensions)
+                StoneView(geometry: geometry)
             }
             .environmentObject(stones)
+            .environmentObject(board)
             .onAppear() {
+                StoneView_Previews.board.width = 2
+                StoneView_Previews.board.height = 2
                 StoneView_Previews.stones.blackPoints = [BoardPoint(x: 0, y: 0), BoardPoint(x: 1, y: 1)]
                 StoneView_Previews.stones.whitePoints = [BoardPoint(x: 0, y: 1), BoardPoint(x: 1, y: 0)]
             }

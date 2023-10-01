@@ -7,29 +7,9 @@
 
 import SwiftUI
 
-struct Dimensions {
-    let squareLength: CGFloat
-    let boardWidth: CGFloat
-    let boardHeight: CGFloat
-    let marginWidth: CGFloat
-    let marginHeight: CGFloat
-
-    init(geometry: GeometryProxy, width: CGFloat, height: CGFloat) {
-        let totalWidth = geometry.size.width
-        let totalHeight = geometry.size.height
-        let squareWidth = totalWidth / (width + 1)
-        let squareHeight = totalHeight / (height + 1)
-        squareLength = min(squareWidth, squareHeight)
-        boardWidth = width * squareLength
-        boardHeight = height * squareLength
-        marginWidth = (totalWidth - boardWidth + squareLength) / 2
-        marginHeight = (totalHeight - boardHeight + squareLength) / 2
-    }
-}
-
 struct GobanView: View {
     @EnvironmentObject var stones: Stones
-    @EnvironmentObject var board: Board
+    @EnvironmentObject var board: ObservableBoard
     @EnvironmentObject var player: PlayerObject
     @EnvironmentObject var analysis: Analysis
     @EnvironmentObject var config: Config
@@ -53,22 +33,22 @@ struct GobanView: View {
             .padding()
 
             GeometryReader { geometry in
-                let dimensions = Dimensions(geometry: geometry, width: board.width, height: board.height)
+                let dimensions = Dimensions(geometry: geometry, board: board)
                 ZStack {
                     BoardLineView(dimensions: dimensions, boardWidth: board.width, boardHeight: board.height)
-                    StoneView(dimensions: dimensions)
+                    StoneView(geometry: geometry)
                     if isAnalyzing {
-                        AnalysisView(dimensions: dimensions)
+                        AnalysisView(geometry: geometry)
                     }
                 }
                 .onTapGesture(coordinateSpace: .local) { location in
                     if let move = locationToMove(location: location, dimensions: dimensions) {
-                        if player.nextPlay == .black {
+                        if player.nextColorForPlayCommand == .black {
                             KataGoHelper.sendCommand("play b \(move)")
-                            player.nextPlay = .white
+                            player.nextColorForPlayCommand = .white
                         } else {
                             KataGoHelper.sendCommand("play w \(move)")
-                            player.nextPlay = .black
+                            player.nextColorForPlayCommand = .black
                         }
                     }
 
@@ -101,7 +81,7 @@ struct GobanView: View {
                     Image(systemName: "arrow.uturn.backward")
                 }
                 Button(action: {
-                    let nextColor = (player.nextPlay == .black) ? "b" : "w"
+                    let nextColor = (player.nextColorForPlayCommand == .black) ? "b" : "w"
                     let pass = "play \(nextColor) pass"
                     KataGoHelper.sendCommand(pass)
                     KataGoHelper.sendCommand("showboard")
@@ -166,7 +146,7 @@ struct GobanView: View {
 
 struct GobanView_Previews: PreviewProvider {
     static let stones = Stones()
-    static let board = Board()
+    static let board = ObservableBoard()
     static let analysis = Analysis()
     static let player = PlayerObject()
     static let config = Config()

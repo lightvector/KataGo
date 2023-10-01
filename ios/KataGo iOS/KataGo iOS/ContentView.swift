@@ -7,78 +7,10 @@
 
 import SwiftUI
 
-class Board: ObservableObject {
-    @Published var width: CGFloat = 19
-    @Published var height: CGFloat = 19
-}
-
-struct BoardPoint: Hashable, Comparable {
-    static func < (lhs: BoardPoint, rhs: BoardPoint) -> Bool {
-        if lhs.y > rhs.y {
-            return false
-        } else if lhs.y < rhs.y {
-            return true
-        } else if lhs.x < rhs.x {
-            return true
-        } else {
-            return false
-        }
-    }
-
-    let x: Int
-    let y: Int
-}
-
-class Stones: ObservableObject {
-    @Published var blackPoints: [BoardPoint] = []
-    @Published var whitePoints: [BoardPoint] = []
-}
-
-class MessagesObject: ObservableObject {
-    @Published var messages: [Message] = []
-}
-
-enum PlayerColor {
-    case black
-    case white
-}
-
-class PlayerObject: ObservableObject {
-    @Published var nextPlay = PlayerColor.black
-    @Published var nextShow = PlayerColor.black
-}
-
-struct Ownership {
-    let mean: Float
-    let stdev: Float?
-
-    init(mean: Float, stdev: Float?) {
-        self.mean = mean
-        self.stdev = stdev
-    }
-
-    init(mean: Float) {
-        self.init(mean: mean, stdev: nil)
-    }
-}
-
-class Analysis: ObservableObject {
-    @Published var nextShow = PlayerColor.white
-    @Published var data: [[String: String]] = []
-    @Published var ownership: [BoardPoint: Ownership] = [:]
-}
-
-class Config: ObservableObject {
-    static let defaultMaxMessageCharacters: Int = 200
-    static let defaultMaxAnalysisMoves: Int = 8
-    @Published var maxMessageCharacters: Int = defaultMaxMessageCharacters
-    @Published var maxAnalysisMoves: Int = defaultMaxAnalysisMoves
-}
-
 struct ContentView: View {
     @StateObject var stones = Stones()
     @StateObject var messagesObject = MessagesObject()
-    @StateObject var board = Board()
+    @StateObject var board = ObservableBoard()
     @StateObject var player = PlayerObject()
     @StateObject var analysis = Analysis()
     @StateObject var config = Config()
@@ -158,11 +90,11 @@ struct ContentView: View {
                 isShowingBoard = false
                 (stones.blackPoints, stones.whitePoints, board.width, board.height) = parseBoardPoints(board: boardText)
                 if message.prefix("Next player: Black".count) == "Next player: Black" {
-                    player.nextPlay = .black
-                    player.nextShow = .black
+                    player.nextColorForPlayCommand = .black
+                    player.nextColorFromShowBoard = .black
                 } else {
-                    player.nextPlay = .white
-                    player.nextShow = .white
+                    player.nextColorForPlayCommand = .white
+                    player.nextColorFromShowBoard = .white
                 }
             } else {
                 boardText.append(message)
@@ -212,7 +144,7 @@ struct ContentView: View {
                 analysis.ownership = extractOwnership(message: String(lastData))
             }
 
-            analysis.nextShow = player.nextShow
+            analysis.nextColorForAnalysis = player.nextColorFromShowBoard
         }
     }
 

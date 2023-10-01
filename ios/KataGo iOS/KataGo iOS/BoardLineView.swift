@@ -88,12 +88,15 @@ struct BoardLineView: View {
 }
 
 struct BoardLineView_Previews: PreviewProvider {
+    static let board = ObservableBoard()
     static var previews: some View {
         GeometryReader { geometry in
-            let boardWidth: CGFloat = 13
-            let boardHeight: CGFloat = 13
-            let dimensions = Dimensions(geometry: geometry, width: boardWidth, height: boardHeight)
-            BoardLineView(dimensions: dimensions, boardWidth: boardWidth, boardHeight: boardHeight)
+            let dimensions = Dimensions(geometry: geometry, board: board)
+            BoardLineView(dimensions: dimensions, boardWidth: board.width, boardHeight: board.height)
+        }
+        .onAppear() {
+            BoardLineView_Previews.board.width = 13
+            BoardLineView_Previews.board.height = 13
         }
     }
 }
