@@ -39,8 +39,9 @@ struct ConfigItem: View {
 
 struct ConfigItems: View {
     @EnvironmentObject var config: Config
-    @State var maxMessageCharacters: String = "200"
-    @State var maxAnalysisMoves: String = "8"
+    @State var maxMessageCharacters: String = "\(Config.defaultMaxMessageCharacters)"
+    @State var maxAnalysisMoves: String = "\(Config.defaultMaxAnalysisMoves)"
+    @State var analysisInterval: String = "\(Config.defaultAnalysisInterval)"
 
     var body: some View {
         VStack {
@@ -56,13 +57,18 @@ struct ConfigItems: View {
                     config.maxAnalysisMoves = Int(newText) ??
                     Config.defaultMaxAnalysisMoves
                 }
+                .padding(.bottom)
+
+            ConfigItem(title: "Analysis interval (centiseconds):", content: $analysisInterval)
+                .onChange(of: analysisInterval) { newText in
+                    config.analysisInterval = Int(newText) ??
+                    Config.defaultAnalysisInterval
+                }
         }
     }
 }
 
 struct ConfigView: View {
-    @State var isEditing = EditMode.inactive
-
     var body: some View {
         VStack {
             EditButtonBar()
@@ -71,11 +77,14 @@ struct ConfigView: View {
                 .padding()
         }
         .frame(maxHeight: .infinity, alignment: .topLeading)
-        .environment(\.editMode, $isEditing)
+        .onAppear() {
+            KataGoHelper.sendCommand("stop")
+        }
     }
 }
 
 struct ConfigView_Previews: PreviewProvider {
+    static let isEditing = EditMode.inactive
     static let config = Config()
     static var previews: some View {
         ConfigView()

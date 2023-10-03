@@ -16,6 +16,7 @@ struct ContentView: View {
     @StateObject var config = Config()
     @State private var isShowingBoard = false
     @State private var boardText: [String] = []
+    @State var isEditing = EditMode.inactive
 
     init() {
         // Start a thread to run KataGo GTP
@@ -47,6 +48,7 @@ struct ContentView: View {
         .environmentObject(player)
         .environmentObject(analysis)
         .environmentObject(config)
+        .environment(\.editMode, $isEditing)
         .onAppear() {
             // Get messages from KataGo and append to the list of messages
             createMessageTask()
