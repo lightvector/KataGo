@@ -328,7 +328,7 @@ The variance accumulates to be larger than 1 due to the summations with skip con
 
 For any series of blocks in a stack, such as the main trunk, since each block adds an output of variance 1, the variance of the trunk increments by 1 with each block. So each successive block that reads from that trunk needs to set K for its first normalization layer to the inverse sqrt of that incrementing variance:
 
-<tr><td><img src="https://raw.githubusercontent.com/lightvector/KataGo/master/images/docs/fixvariancescaleinittrunk.png" width="360"/></td></tr>
+<tr><td><img src="https://raw.githubusercontent.com/lightvector/KataGo/master/images/docs/fixvariancescaleinittrunk.png" width="310"/></td></tr>
 
 These are all consequences of the rule that every K is set so that it normalizes the idealized variance back to 1. By itself, this appears to work at least as well in KataGo as Fixup, but is a more general rule, so can be applied to more complex architectures that Fixup doesn't describe how to handle, such as the above nested residual block.
 
