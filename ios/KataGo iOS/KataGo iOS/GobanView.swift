@@ -76,10 +76,15 @@ struct GobanView: View {
     }
 
     func locationToMove(location: CGPoint, dimensions: Dimensions) -> String? {
-        let x = Int(round((location.x - dimensions.marginWidth) / dimensions.squareLength))
-        let y = Int(round((location.y - dimensions.marginHeight) / dimensions.squareLength)) + 1
+        let calculateCoordinate = { (point: CGFloat, margin: CGFloat, length: CGFloat) -> Int in
+            return Int(round((point - margin) / length))
+        }
 
-        // Mapping 0-18 to letters A-T (without I)
+        let y = calculateCoordinate(location.y, dimensions.marginHeight, dimensions.squareLength) + 1
+        let x = calculateCoordinate(location.x, dimensions.marginWidth, dimensions.squareLength)
+
+        guard (1...Int(board.height)).contains(y), (0..<Int(board.width)).contains(x) else { return nil }
+
         let letterMap: [Int: String] = [
             0: "A", 1: "B", 2: "C", 3: "D", 4: "E",
             5: "F", 6: "G", 7: "H", 8: "J", 9: "K",
@@ -87,12 +92,7 @@ struct GobanView: View {
             15: "Q", 16: "R", 17: "S", 18: "T"
         ]
 
-        if let letter = letterMap[x] {
-            let move = "\(letter)\(y)"
-            return move
-        } else {
-            return nil
-        }
+        return letterMap[x].map { "\($0)\(y)" }
     }
 }
 
