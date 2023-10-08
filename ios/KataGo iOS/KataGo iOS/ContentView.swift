@@ -79,7 +79,7 @@ struct ContentView: View {
                 maybeCollectAnalysis(message: line)
 
                 // Remove when there are too many messages
-                while messagesObject.messages.count > 100 {
+                while messagesObject.messages.count > config.maxMessageLines {
                     messagesObject.messages.removeFirst()
                 }
             }

@@ -42,6 +42,7 @@ struct ConfigItems: View {
     @State var maxMessageCharacters: String = "\(Config.defaultMaxMessageCharacters)"
     @State var maxAnalysisMoves: String = "\(Config.defaultMaxAnalysisMoves)"
     @State var analysisInterval: String = "\(Config.defaultAnalysisInterval)"
+    @State var maxMessageLines: String = "\(Config.defaultMaxMessageLines)"
 
     var body: some View {
         VStack {
@@ -63,6 +64,13 @@ struct ConfigItems: View {
                 .onChange(of: analysisInterval) { newText in
                     config.analysisInterval = Int(newText) ??
                     Config.defaultAnalysisInterval
+                }
+                .padding(.bottom)
+
+            ConfigItem(title: "Max message lines:", content: $maxMessageLines)
+                .onChange(of: maxMessageLines) { newText in
+                    config.maxMessageLines = Int(newText) ??
+                    Config.defaultMaxMessageLines
                 }
         }
     }
