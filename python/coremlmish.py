@@ -19,7 +19,7 @@ if "mish" in _TORCH_OPS_REGISTRY:
     del _TORCH_OPS_REGISTRY["mish"]
 
 # Set the function to use
-__function__ = "mish_torch_ne"
+__function__ = "mish_torch_softplus"
 
 # Torch Mish operator that can run on Neural Engine
 #
