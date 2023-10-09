@@ -1068,6 +1068,12 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
                     for stat, value in stats.items():
                         metrics[stat] = value
 
+                if "use_repvgg_learning_rate" in model_config and model_config["use_repvgg_learning_rate"]:
+                    gradscale_constant = torch.tensor([[1.0,1.0,1.0],[1.0,2.0,1.0],[1.0,1.0,1.0]],dtype=torch.float32,device=device,requires_grad=False).view(1,1,3,3)
+                    for name, param in ddp_model.named_parameters():
+                        if "normactconv" in name and ".conv.weight" in name and len(param.shape) == 4 and param.shape[2] == 3 and param.shape[3] == 3:
+                            param.grad *= gradscale_constant
+
                 # Loosen gradient clipping as we shift to smaller learning rates
                 gnorm_cap = gnorm_cap / math.sqrt(max(0.0000001,lr_scale * lr_scale_auto_factor(train_state)))
 

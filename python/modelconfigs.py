@@ -1481,6 +1481,11 @@ for name, base_config in list(config_of_name.items()):
     config["use_repvgg_linear"] = True
     config_of_name[name+"-rvgl"] = config
 
+    config = base_config.copy()
+    config["use_repvgg_init"] = True
+    config["use_repvgg_learning_rate"] = True
+    config_of_name[name+"-rvglr"] = config
+
 for name, base_config in list(config_of_name.items()):
     # Add intermediate heads, for use with self-distillation or embedding small net in big one.
     config = base_config.copy()
