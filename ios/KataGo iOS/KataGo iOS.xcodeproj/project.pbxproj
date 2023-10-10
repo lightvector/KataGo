@@ -143,7 +143,7 @@
 		E1D7D3AB2AA7547D00556DFB /* ButtonView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1D7D3AA2AA7547D00556DFB /* ButtonView.swift */; };
 		E1D7D3AD2AA897C000556DFB /* StoneView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1D7D3AC2AA897C000556DFB /* StoneView.swift */; };
 		E1D7D3B32AAA1F5600556DFB /* AnalysisView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1D7D3B22AAA1F5600556DFB /* AnalysisView.swift */; };
-		E1E1717C2AB88B37004DCC3C /* KataGoModel19x19fp16s7436087296-d3643132126.mlpackage in Resources */ = {isa = PBXBuildFile; fileRef = E18F3F732A514B9500D335E1 /* KataGoModel19x19fp16s7436087296-d3643132126.mlpackage */; };
+		E1E1717C2AB88B37004DCC3C /* KataGoModel19x19fp16.mlpackage in Resources */ = {isa = PBXBuildFile; fileRef = E18F3F732A514B9500D335E1 /* KataGoModel19x19fp16.mlpackage */; };
 		E1E1717E2AB9DAED004DCC3C /* ConfigView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1E1717D2AB9DAED004DCC3C /* ConfigView.swift */; };
 /* End PBXBuildFile section */
 
@@ -368,7 +368,7 @@
 		E18F3F6C2A51494000D335E1 /* book.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = book.h; path = ../../cpp/book/book.h; sourceTree = "<group>"; };
 		E18F3F6D2A51494000D335E1 /* book.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = book.cpp; path = ../../cpp/book/book.cpp; sourceTree = "<group>"; };
 		E18F3F712A5149AB00D335E1 /* libz.tbd */ = {isa = PBXFileReference; lastKnownFileType = "sourcecode.text-based-dylib-definition"; name = libz.tbd; path = usr/lib/libz.tbd; sourceTree = SDKROOT; };
-		E18F3F732A514B9500D335E1 /* KataGoModel19x19fp16s7436087296-d3643132126.mlpackage */ = {isa = PBXFileReference; explicitFileType = wrapper.application; path = "KataGoModel19x19fp16s7436087296-d3643132126.mlpackage"; sourceTree = "<group>"; };
+		E18F3F732A514B9500D335E1 /* KataGoModel19x19fp16.mlpackage */ = {isa = PBXFileReference; explicitFileType = wrapper.application; path = KataGoModel19x19fp16.mlpackage; sourceTree = "<group>"; };
 		E18F3F742A514B9700D335E1 /* default_model.bin.gz */ = {isa = PBXFileReference; lastKnownFileType = archive.gzip; path = default_model.bin.gz; sourceTree = "<group>"; };
 		E18F3F752A514B9700D335E1 /* default_gtp.cfg */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = default_gtp.cfg; sourceTree = "<group>"; };
 		E19D2E352AC8E5DB00C2A807 /* KataGoModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KataGoModel.swift; sourceTree = "<group>"; };
@@ -694,7 +694,7 @@
 			children = (
 				E18F3F752A514B9700D335E1 /* default_gtp.cfg */,
 				E18F3F742A514B9700D335E1 /* default_model.bin.gz */,
-				E18F3F732A514B9500D335E1 /* KataGoModel19x19fp16s7436087296-d3643132126.mlpackage */,
+				E18F3F732A514B9500D335E1 /* KataGoModel19x19fp16.mlpackage */,
 			);
 			path = Resources;
 			sourceTree = "<group>";
@@ -804,7 +804,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				E1E1717C2AB88B37004DCC3C /* KataGoModel19x19fp16s7436087296-d3643132126.mlpackage in Resources */,
+				E1E1717C2AB88B37004DCC3C /* KataGoModel19x19fp16.mlpackage in Resources */,
 				E18F3F782A514B9700D335E1 /* default_gtp.cfg in Resources */,
 				E18F3E182A51466C00D335E1 /* Preview Assets.xcassets in Resources */,
 				E18F3E152A51466C00D335E1 /* Assets.xcassets in Resources */,

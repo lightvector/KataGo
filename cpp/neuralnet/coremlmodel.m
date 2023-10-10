@@ -81,11 +81,20 @@
   // Set compute precision name based on useFP16
   NSString *precisionName = useFP16.boolValue ? @"fp16" : @"fp32";
 
-  // Set model version
-  NSString *modelVersion = @"s7436087296-d3643132126";
-
   // Set model name based on xLen, yLen, and precisionName
-  NSString *modelName = [NSString stringWithFormat:@"KataGoModel%dx%d%@%@", xLen.intValue, yLen.intValue, precisionName, modelVersion];
+  NSString *modelName = [NSString stringWithFormat:@"KataGoModel%dx%d%@", xLen.intValue, yLen.intValue, precisionName];
+
+  // Compile MLModel with the model name
+  MLModel *model = [KataGoModel compileMLModelWithModelName:modelName];
+
+  return model;
+}
+
+
+/// Compile the MLModel for KataGoModel and returns the compiled model.
+/// - Parameters:
+///   - modelName: The name of the MLModel.
++ (nullable MLModel *)compileMLModelWithModelName:(NSString * _Nonnull)modelName {
 
   // Get compiled model name
   NSString *compiledModelName = [NSString stringWithFormat:@"%@.mlmodelc", modelName];
@@ -113,26 +122,61 @@
   // Initialize model
   MLModel *model = nil;
 
+  // Set model type name
+  NSString *typeName = @"mlpackage";
+
+  // Get model path from bundle resource
+  NSString *modelPath = [[NSBundle bundleForClass:[self class]] pathForResource:modelName
+                                                                         ofType:typeName];
+
+  // Get model URL
+  NSURL *modelURL = [NSURL fileURLWithPath:modelPath];
+
+  // Get model data
+  NSData *modelData = [NSData dataWithContentsOfURL:modelURL];
+
+  // Initialize hash data
+  NSMutableData *hashData = [NSMutableData dataWithLength:CC_SHA256_DIGEST_LENGTH];
+
+  // Get SHA256 data
+  CC_SHA256(modelData.bytes, (CC_LONG)modelData.length, hashData.mutableBytes);
+
+  // Get hash digest
+  NSString *digest = [hashData base64EncodedStringWithOptions:0];
+
+  // Set digest path
+  NSString *savedDigestPath = [NSString stringWithFormat:@"%@/%@.digest", directory, modelName];
+
+  // Get digest URL
+  NSURL *savedDigestURL = [appSupportURL URLByAppendingPathComponent:savedDigestPath];
+
+  // Get saved digest
+  NSString *savedDigest = [NSString stringWithContentsOfURL:savedDigestURL encoding:NSUTF8StringEncoding error:nil];
+
   // Check permanent compiled model is reachable
   BOOL reachableModel = [permanentURL checkResourceIsReachableAndReturnError:nil];
 
-  // Try compiling the model from the ML package
   if (!reachableModel) {
-    // Set model type name
-    NSString *typeName = @"mlpackage";
+    NSLog(@"INFO: Compiling model because it is not reachable");
+  }
 
-    // Get model path from bundle resource
-    NSString *modelPath = [[NSBundle bundleForClass:[self class]] pathForResource:modelName
-                                                                           ofType:typeName];
+  // Check the saved digest is changed or not
+  BOOL isChangedDigest = ![digest isEqualToString:savedDigest];
 
+  if (isChangedDigest) {
+    NSLog(@"INFO: Compiling model because the digest has changed");
+  }
+
+  // Model should be compiled if the compiled model is not reachable or the digest changes
+  BOOL shouldCompile = !reachableModel || isChangedDigest;
+
+  if (shouldCompile) {
     if (nil == modelPath) {
       // If model is not found in bundle resource, return nil
       NSLog(@"ERROR: Could not load %@.%@ in the bundle resource", modelName, typeName);
       return model;
     } else {
       // If model is found in bundle resource, compile it and return the compiled model
-      NSURL *modelURL = [NSURL fileURLWithPath:modelPath];
-
       NSLog(@"INFO: Compiling model at %@", modelURL);
 
       // Compile the model
@@ -156,6 +200,14 @@
                                       options:NSFileManagerItemReplacementUsingNewMetadataOnly
                              resultingItemURL:nil
                                         error:nil];
+
+      assert(success);
+
+      // Update the digest
+      success = [digest writeToURL:savedDigestURL
+                        atomically:YES
+                          encoding:NSUTF8StringEncoding
+                             error:nil];
 
       assert(success);
     }

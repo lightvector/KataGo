@@ -1,5 +1,6 @@
 #import <Foundation/Foundation.h>
 #import <CoreML/CoreML.h>
+#import <CommonCrypto/CommonDigest.h>
 #include <stdint.h>
 #include <os/log.h>
 
@@ -81,6 +82,11 @@ API_AVAILABLE(macos(10.15), ios(13.0), watchos(6.0), tvos(13.0)) __attribute__((
 + (nullable MLModel *)compileMLModelWithXLen:(NSNumber *)xLen
                                         yLen:(NSNumber *)yLen
                                      useFP16:(NSNumber *)useFP16;
+
+/// Compile the MLModel for KataGoModel and returns the compiled model.
+/// - Parameters:
+///   - modelName: The name of the MLModel.
++ (nullable MLModel *)compileMLModelWithModelName:(NSString *)modelName;
 
 /// Returns the URL of the underlying .mlmodelc directory for KataGoModel.
 + (nullable NSURL *)URLOfModelInThisBundle;
