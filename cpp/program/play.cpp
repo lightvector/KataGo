@@ -1471,6 +1471,26 @@ FinishedGameData* Play::runGame(
       break;
 
     Search* toMoveBot = pla == P_BLACK ? botB : botW;
+    if(playSettings.dynamicSelfKomiBonusMin != 0.0 || playSettings.dynamicSelfKomiBonusMax != 0.0) {
+      //This might NOT work with selfplay data recording, we'd need to check on stuff like lead and such that
+      //it doesn't get fiddled with. For now, use only for match
+      if(botB == botW || recordFullData)
+        throw StringError("Dynamic komi for matches only right now");
+      double plaFactor = pla == P_BLACK ? -1 : 1;
+      double currentKomiBonus = plaFactor * (toMoveBot->rootHistory.rules.komi - hist.rules.komi);
+      if(historicalMctsWinLossValues.size() >= 2) {
+        double prevWinLoss = plaFactor * historicalMctsWinLossValues[historicalMctsWinLossValues.size()-2];
+        if(prevWinLoss < playSettings.dynamicSelfKomiWinLossMin)
+          currentKomiBonus += 0.5;
+        if(prevWinLoss > playSettings.dynamicSelfKomiWinLossMax)
+          currentKomiBonus -= 0.5;
+      }
+      if(currentKomiBonus < playSettings.dynamicSelfKomiBonusMin)
+        currentKomiBonus = playSettings.dynamicSelfKomiBonusMin;
+      if(currentKomiBonus > playSettings.dynamicSelfKomiBonusMax)
+        currentKomiBonus = playSettings.dynamicSelfKomiBonusMax;
+      toMoveBot->setKomiIfNew((float)(plaFactor * currentKomiBonus + hist.rules.komi));
+    }
 
     SearchLimitsThisMove limits = getSearchLimitsThisMove(
       toMoveBot, pla, playSettings, gameRand, historicalMctsWinLossValues, clearBotBeforeSearch, otherGameProps
