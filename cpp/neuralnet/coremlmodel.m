@@ -68,33 +68,112 @@
 
 @implementation KataGoModel
 
-/// Compile MLModel from the bundle resource
+
+/// Get URL of the MLModel at Application Support Directory.
 /// - Parameters:
-///   - xLen: x-direction of the board
-///   - yLen: y-direction of the board
-///   - useFP16: use FP16 or FP32
-/// - Returns: compiled MLModel
-+ (nullable MLModel *)compileMLModelWithXLen:(NSNumber * _Nonnull)xLen
-                                        yLen:(NSNumber * _Nonnull)yLen
-                                     useFP16:(NSNumber * _Nonnull)useFP16 {
+///   - modelName: The name of the MLModel.
++ (nullable NSURL *)getAppMLModelURL:(NSString * _Nonnull)modelName {
+  // Get model package name
+  NSString *mlpackageName = [NSString stringWithFormat:@"%@.mlpackage", modelName];
 
-  // Set compute precision name based on useFP16
-  NSString *precisionName = useFP16.boolValue ? @"fp16" : @"fp32";
+  // Set the directory for KataGo models
+  NSString *directory = @"KataGoModels";
 
-  // Set model name based on xLen, yLen, and precisionName
-  NSString *modelName = [NSString stringWithFormat:@"KataGoModel%dx%d%@", xLen.intValue, yLen.intValue, precisionName];
+  // Get path component
+  NSString *pathComponent = [NSString stringWithFormat:@"%@/%@", directory, mlpackageName];
 
-  // Compile MLModel with the model name
-  MLModel *model = [KataGoModel compileMLModelWithModelName:modelName];
+  // Get default file manager
+  NSFileManager *fileManager = [NSFileManager defaultManager];
 
-  return model;
+  // Get application support directory
+  // Create the directory if it does not already exist
+  NSURL *appSupportURL = [fileManager URLForDirectory:NSApplicationSupportDirectory
+                                             inDomain:NSUserDomainMask
+                                    appropriateForURL:nil
+                                               create:true
+                                                error:nil];
+
+  // Create the URL for the model package file
+  NSURL *modelURL = [appSupportURL URLByAppendingPathComponent:pathComponent];
+
+  return modelURL;
 }
 
+
+/// Compile the MLModel at Application Support Directory for KataGoModel and returns the compiled model.
+/// - Parameters:
+///   - modelName: The name of the MLModel.
++ (nullable MLModel *)compileAppMLModelWithModelName:(NSString * _Nonnull)modelName {
+
+  // Get URL of the MLModel at Application Support Directory
+  NSURL *modelURL = [KataGoModel getAppMLModelURL:modelName];
+
+  // Check the MLModel is reachable
+  BOOL isReachable = [modelURL checkResourceIsReachableAndReturnError:nil];
+
+  MLModel *mlmodel = nil;
+
+  if (isReachable) {
+    // Compile MLModel if the MLModel is reachable
+    mlmodel = [KataGoModel compileMLModelWithModelName:modelName
+                                              modelURL:modelURL];
+  }
+
+  return mlmodel;
+}
+
+
+/// Compile the MLModel at bundle for KataGoModel and returns the compiled model.
+/// - Parameters:
+///   - modelName: The name of the MLModel.
++ (nullable MLModel *)compileBundleMLModelWithModelName:(NSString * _Nonnull)modelName {
+
+  // Set model type name
+  NSString *typeName = @"mlpackage";
+
+  // Get model path from bundle resource
+  NSString *modelPath = [[NSBundle mainBundle] pathForResource:modelName
+                                                         ofType:typeName];
+
+  // Get model URL at bundle
+  NSURL *bundleModelURL = [NSURL fileURLWithPath:modelPath];
+
+  // Compile MLModel
+  MLModel *mlmodel = [KataGoModel compileMLModelWithModelName:modelName
+                                                     modelURL:bundleModelURL];
+
+  if (mlmodel != nil) {
+    // Get model URL at App Support Directory
+    NSURL *appModelURL = [KataGoModel getAppMLModelURL:modelName];
+
+    // Get default file manager
+    NSFileManager *fileManager = [NSFileManager defaultManager];
+
+    NSLog(@"INFO: Removing old model in Application Support directory %@", appModelURL);
+
+    // Remove the old model in Application Support directory
+    [fileManager removeItemAtURL:appModelURL
+                           error:nil];
+
+    NSLog(@"INFO: Copying bundle model to Application Support directory %@", appModelURL);
+
+    // Copy the mlpackage to App Support Directory
+    BOOL success = [fileManager copyItemAtURL:bundleModelURL
+                                        toURL:appModelURL
+                                        error:nil];
+
+    assert(success);
+  }
+
+  return mlmodel;
+}
 
 /// Compile the MLModel for KataGoModel and returns the compiled model.
 /// - Parameters:
 ///   - modelName: The name of the MLModel.
-+ (nullable MLModel *)compileMLModelWithModelName:(NSString * _Nonnull)modelName {
+///   - modelURL: The URL of the MLModel.
++ (nullable MLModel *)compileMLModelWithModelName:(NSString * _Nonnull)modelName
+                                         modelURL:(NSURL * _Nonnull)modelURL {
 
   // Get compiled model name
   NSString *compiledModelName = [NSString stringWithFormat:@"%@.mlmodelc", modelName];
@@ -122,18 +201,13 @@
   // Initialize model
   MLModel *model = nil;
 
-  // Set model type name
-  NSString *typeName = @"mlpackage";
-
-  // Get model path from bundle resource
-  NSString *modelPath = [[NSBundle bundleForClass:[self class]] pathForResource:modelName
-                                                                         ofType:typeName];
-
-  // Get model URL
-  NSURL *modelURL = [NSURL fileURLWithPath:modelPath];
+  // Create the URL for the model data file
+  NSURL *dataURL = [modelURL URLByAppendingPathComponent:@"Data/com.apple.CoreML/model.mlmodel"];
 
   // Get model data
-  NSData *modelData = [NSData dataWithContentsOfURL:modelURL];
+  NSData *modelData = [NSData dataWithContentsOfURL:dataURL];
+
+  assert(modelData != nil);
 
   // Initialize hash data
   NSMutableData *hashData = [NSMutableData dataWithLength:CC_SHA256_DIGEST_LENGTH];
@@ -171,46 +245,39 @@
   BOOL shouldCompile = !reachableModel || isChangedDigest;
 
   if (shouldCompile) {
-    if (nil == modelPath) {
-      // If model is not found in bundle resource, return nil
-      NSLog(@"ERROR: Could not load %@.%@ in the bundle resource", modelName, typeName);
-      return model;
-    } else {
-      // If model is found in bundle resource, compile it and return the compiled model
-      NSLog(@"INFO: Compiling model at %@", modelURL);
+    NSLog(@"INFO: Compiling model at %@", modelURL);
 
-      // Compile the model
-      NSURL *compiledURL = [MLModel compileModelAtURL:modelURL
-                                                error:nil];
+    // Compile the model
+    NSURL *compiledURL = [MLModel compileModelAtURL:modelURL
+                                              error:nil];
 
-      NSLog(@"INFO: Copying model to the permanent location %@", permanentURL);
+    NSLog(@"INFO: Copying compiled model to the permanent location %@", permanentURL);
 
-      // Create the directory for KataGo models
-      BOOL success = [fileManager createDirectoryAtURL:[appSupportURL URLByAppendingPathComponent:directory]
-                           withIntermediateDirectories:true
-                                            attributes:nil
-                                                 error:nil];
+    // Create the directory for KataGo models
+    BOOL success = [fileManager createDirectoryAtURL:[appSupportURL URLByAppendingPathComponent:directory]
+                         withIntermediateDirectories:true
+                                          attributes:nil
+                                               error:nil];
 
-      assert(success);
+    assert(success);
 
-      // Copy the file to the to the permanent location, replacing it if necessary
-      success = [fileManager replaceItemAtURL:permanentURL
-                                withItemAtURL:compiledURL
-                               backupItemName:nil
-                                      options:NSFileManagerItemReplacementUsingNewMetadataOnly
-                             resultingItemURL:nil
-                                        error:nil];
+    // Copy the file to the to the permanent location, replacing it if necessary
+    success = [fileManager replaceItemAtURL:permanentURL
+                              withItemAtURL:compiledURL
+                             backupItemName:nil
+                                    options:NSFileManagerItemReplacementUsingNewMetadataOnly
+                           resultingItemURL:nil
+                                      error:nil];
 
-      assert(success);
+    assert(success);
 
-      // Update the digest
-      success = [digest writeToURL:savedDigestURL
-                        atomically:YES
-                          encoding:NSUTF8StringEncoding
-                             error:nil];
+    // Update the digest
+    success = [digest writeToURL:savedDigestURL
+                      atomically:YES
+                        encoding:NSUTF8StringEncoding
+                           error:nil];
 
-      assert(success);
-    }
+    assert(success);
   }
 
   // Initialize the model configuration

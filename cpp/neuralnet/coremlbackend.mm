@@ -82,10 +82,21 @@
   NSNumber * modelIndex = [CoreMLBackend getNextModelIndex];
 
   @synchronized (self) {
-    // The CoreML model is compiled.
-    MLModel * mlmodel = [KataGoModel compileMLModelWithXLen:xLen
-                                                       yLen:yLen
-                                                    useFP16:useFP16];
+    // Get the model string
+    string modelString = CoreMLProcess::getModelName(useFP16.boolValue);
+
+    // Create the model name
+    NSString * modelName = [NSString stringWithUTF8String:modelString.c_str()];
+
+    // Compile the model in Application Support
+    MLModel * mlmodel = [KataGoModel compileAppMLModelWithModelName:modelName];
+
+    if (mlmodel == nil) {
+      // Compile the model in Bundle
+      mlmodel = [KataGoModel compileBundleMLModelWithModelName:modelName];
+    }
+
+    assert(mlmodel != nil);
 
     // The CoreMLBackend object is created.
     backends[modelIndex] = [[CoreMLBackend alloc] initWithMLModel:mlmodel

@@ -74,19 +74,27 @@ API_AVAILABLE(macos(10.15), ios(13.0), watchos(6.0), tvos(13.0)) __attribute__((
 /// The underlying MLModel object for this KataGoModel instance.
 @property (readonly, nonatomic, nullable) MLModel * model;
 
-/// Compile the MLModel for KataGoModel and returns the compiled model.
+/// Get URL of the MLModel at Application Support Directory.
 /// - Parameters:
-///   - xLen: The X dimension of the input_spatial MLMultiArray.
-///   - yLen: The Y dimension of the input_spatial MLMultiArray.
-///   - useFP16: A boolean NSNumber that specifies whether to use 16-bit floating point precision for the input and output tensors of the compiled model.
-+ (nullable MLModel *)compileMLModelWithXLen:(NSNumber *)xLen
-                                        yLen:(NSNumber *)yLen
-                                     useFP16:(NSNumber *)useFP16;
+///   - modelName: The name of the MLModel.
++ (nullable NSURL *)getAppMLModelURL:(NSString * _Nonnull)modelName;
+
+/// Compile the MLModel at Application Support Directory for KataGoModel and returns the compiled model.
+/// - Parameters:
+///   - modelName: The name of the MLModel.
++ (nullable MLModel *)compileAppMLModelWithModelName:(NSString * _Nonnull)modelName;
+
+/// Compile the MLModel at bundle for KataGoModel and returns the compiled model.
+/// - Parameters:
+///   - modelName: The name of the MLModel.
++ (nullable MLModel *)compileBundleMLModelWithModelName:(NSString * _Nonnull)modelName;
 
 /// Compile the MLModel for KataGoModel and returns the compiled model.
 /// - Parameters:
 ///   - modelName: The name of the MLModel.
-+ (nullable MLModel *)compileMLModelWithModelName:(NSString *)modelName;
+///   - modelURL: The URL of the MLModel.   
++ (nullable MLModel *)compileMLModelWithModelName:(NSString * _Nonnull)modelName
+                                         modelURL:(NSURL * _Nonnull)modelURL;
 
 /// Returns the URL of the underlying .mlmodelc directory for KataGoModel.
 + (nullable NSURL *)URLOfModelInThisBundle;
