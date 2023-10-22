@@ -18,6 +18,8 @@
 
 + (void)sendCommand:(NSString * _Nonnull)command;
 
++ (nullable NSURL *)getAppMLModelURL;
+
 @end
 
 #endif /* KataGoHelper_h */
