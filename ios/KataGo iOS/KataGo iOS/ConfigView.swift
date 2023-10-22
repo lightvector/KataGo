@@ -72,6 +72,9 @@ struct ConfigItems: View {
                     config.maxMessageLines = Int(newText) ??
                     Config.defaultMaxMessageLines
                 }
+                .padding(.bottom)
+
+            PickModelButton()
         }
     }
 }
