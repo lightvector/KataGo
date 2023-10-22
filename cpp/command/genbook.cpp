@@ -1367,7 +1367,7 @@ int MainCmds::genbook(const vector<string>& args) {
         logger.write("Randomized params and recomputed costs");
       }
 
-      std::vector<SymBookNode> nodesToExpand = book->getNextNToExpand(std::min(1+iteration/2,numToExpandPerIteration));
+      std::vector<SymBookNode> nodesToExpand = book->getNextNToExpand(std::min(1+iteration,numToExpandPerIteration));
       // Try to make all of the expanded nodes be consistent in symmetry so that they can share cache, in case
       // many of them are for related board positions.
       optimizeSymmetriesInplace(nodesToExpand, &rand, logger);

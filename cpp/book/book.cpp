@@ -2065,8 +2065,8 @@ double Book::getSortingValue(
 ) const {
   double score = 0.5 * (sharpScoreMeanClamped + scoreMean);
   double sortingValue =
-    plaFactor * (winLossValue + clampScoreForSorting(score, winLossValue) * params.utilityPerScore * 0.5)
-    + plaFactor * clampScoreForSorting(0.5*(plaFactor+1.0) * scoreLCB + 0.5*(1.0-plaFactor) * scoreUCB, winLossValue) * 0.5 * params.utilityPerScore
+    plaFactor * (winLossValue + clampScoreForSorting(score, winLossValue) * params.utilityPerScore * 0.75)
+    + plaFactor * clampScoreForSorting(0.5*(plaFactor+1.0) * scoreLCB + 0.5*(1.0-plaFactor) * scoreUCB, winLossValue) * 0.25 * params.utilityPerScore
     + params.utilityPerPolicyForSorting * (0.75 * rawPolicy + 0.5 * log10(rawPolicy + 0.0001)/4.0);
   return sortingValue;
 }
