@@ -12,6 +12,13 @@ using namespace std;
 
 //--------------------------------------------------------------
 
+string CoreMLProcess::getModelName(bool useFP16) {
+  char buf[32];
+  const char* precisionName = useFP16 ? "fp16" : "fp32";
+  snprintf(buf, 32, "KataGoModel%dx%d%s", COMPILE_MAX_BOARD_LEN, COMPILE_MAX_BOARD_LEN, precisionName);
+  return string(buf);
+}
+
 size_t CoreMLProcess::calculateBufferOffset(size_t row, size_t singleResultElts, size_t resultChannels) {
   return row * singleResultElts * resultChannels;
 }

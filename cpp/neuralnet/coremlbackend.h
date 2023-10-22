@@ -9,6 +9,7 @@
 using namespace std;
 
 namespace CoreMLProcess {
+  string getModelName(bool useFP16);
   size_t calculateBufferOffset(size_t row, size_t singleResultElts, size_t resultChannels);
   int calculateIndex(const int y, const int x, const int xLen);
   float policyOptimismCalc(const double policyOptimism, const float p, const float pOpt);
