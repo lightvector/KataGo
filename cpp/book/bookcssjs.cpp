@@ -592,6 +592,7 @@ function textCell(text) {
     headerRow.appendChild(textCell("Score Uncertainty"));
     headerRow.appendChild(textCell("Prior%"));
     headerRow.appendChild(textCell("Visits"));
+    headerRow.appendChild(textCell("AVisits"));
   }
   table.appendChild(headerRow);
 
@@ -685,6 +686,7 @@ function textCell(text) {
         dataRow.appendChild(textCell((moveData["sRad"]).toFixed(2)));
       dataRow.appendChild(textCell((100.0 * moveData["p"]).toFixed(2)+"%"));
       dataRow.appendChild(textCell(Math.round(moveData["v"]).toLocaleString()));
+      dataRow.appendChild(textCell(Math.round(moveData["av"]).toLocaleString()));
     }
 
     dataRow.style.background = getBadnessColorOfMoveIdx(i,0.35);
@@ -721,6 +723,7 @@ function textItem(label,text) {
   legendList.appendChild(textItem("Score Uncertainty","Measure of uncertainty in Score. Does NOT correspond to any standard well-defined statistical metric, this is purely a heuristic indicator. Browse the book to get a feel for its scaling and what it means."));
   legendList.appendChild(textItem("Prior%","Raw policy prior of neural net"));
   legendList.appendChild(textItem("Visits","Total number of visits, multi-counting transpositions (i.e., number of visits to produce this book if there were no transposition handling)."));
+  legendList.appendChild(textItem("AVisits","Adjusted number of visits, still multi-counting transpositions, but downweighting visits on a less-preferred move that got vastly more visits than the top move."));
   legend.appendChild(legendList);
   body.appendChild(legend);
 }
