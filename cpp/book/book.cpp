@@ -2372,6 +2372,7 @@ int64_t Book::exportToHtmlDir(
           dataVarsStr += "'wlRad':" + doubleToStringFourDigits(0.5*(winLossValueUCB-winLossValueLCB)) + ",";
           dataVarsStr += "'sRad':" + doubleToStringTwoDigits(0.5*(scoreUCB-scoreLCB)) + ",";
           dataVarsStr += "'v':" + doubleToStringZeroDigits(values.visits) + ",";
+          dataVarsStr += "'av':" + doubleToStringZeroDigits(values.visits) + ",";
         }
         dataVarsStr += "},";
       }
