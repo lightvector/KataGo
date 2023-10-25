@@ -344,17 +344,6 @@ Connection::Connection(
     httpsClient->enable_server_certificate_verification(true);
   }
 
-  //Do an initial test query to make sure the server's there!
-  auto response = get("/");
-  if(response == nullptr) {
-    throw StringError("Could not connect to server at " + serverUrl + ", invalid host or port, or SSL error, or some other httplib error, or no response");
-  }
-  else if(response->status != 200) {
-    ostringstream out;
-    debugPrintResponse(out,response);
-    throw StringError("Server did not give status 200 for initial query, response was:\n" + out.str());
-  }
-
   //Now set up auth as specified for any subsequent queries
   if(!isSSL) {
     httpClient->set_basic_auth(username.c_str(), password.c_str());
@@ -362,6 +351,24 @@ Connection::Connection(
   else {
     httpsClient->set_basic_auth(username.c_str(), password.c_str());
   }
+}
+
+void Connection::testConnection() {
+  auto f = [&](int& loopFailMode) {
+    (void)loopFailMode;
+    auto response = get("/");
+    if(response == nullptr) {
+      throw StringError("Could not connect to server at " + serverUrl + ", invalid host or port, or SSL error, or some other httplib error, or no response");
+    }
+    else if(response->status != 200) {
+      ostringstream out;
+      debugPrintResponse(out,response);
+      throw StringError("Server did not give status 200 for initial query, response was:\n" + out.str());
+    }
+  };
+  std::function<bool()> shouldStop = []() { return false; };
+  const int maxTries = 5;
+  retryLoop("Initial connection", maxTries, shouldStop, f);
 }
 
 void Connection::recreateClients() {
@@ -573,19 +580,32 @@ static T parseReal(const json& response, const char* field, T min, T max) {
 }
 
 RunParameters Connection::getRunParameters() {
-  try {
-    json run = parseJson(get("/api/runs/current_for_client/"));
-    RunParameters runParams;
-    runParams.runName = parseString(run,"name",MAX_RUN_NAME_LEN);
-    runParams.infoUrl = parseString(run,"url",MAX_URL_LEN);
-    runParams.dataBoardLen = parseInteger<int>(run,"data_board_len",3,Board::MAX_LEN);
-    runParams.inputsVersion = parseInteger<int>(run,"inputs_version",NNModelVersion::oldestInputsVersionImplemented,NNModelVersion::latestInputsVersionImplemented);
-    runParams.maxSearchThreadsAllowed = parseInteger<int>(run,"max_search_threads_allowed",1,16384);
-    return runParams;
-  }
-  catch(const StringError& e) {
-    throw StringError(string("Error when requesting initial run parameters from server: ") + e.what());
-  }
+  bool gotRunParams = false;
+  RunParameters runParams;
+  auto f = [&](int& loopFailMode) {
+    (void)loopFailMode;
+    try {
+      gotRunParams = false;
+      json run = parseJson(get("/api/runs/current_for_client/"));
+      runParams = RunParameters();
+      runParams.runName = parseString(run,"name",MAX_RUN_NAME_LEN);
+      runParams.infoUrl = parseString(run,"url",MAX_URL_LEN);
+      runParams.dataBoardLen = parseInteger<int>(run,"data_board_len",3,Board::MAX_LEN);
+      runParams.inputsVersion = parseInteger<int>(run,"inputs_version",NNModelVersion::oldestInputsVersionImplemented,NNModelVersion::latestInputsVersionImplemented);
+      runParams.maxSearchThreadsAllowed = parseInteger<int>(run,"max_search_threads_allowed",1,16384);
+      gotRunParams = true;
+      return;
+    }
+    catch(const StringError& e) {
+      throw StringError(string("Error when requesting initial run parameters from server: ") + e.what());
+    }
+  };
+  std::function<bool()> shouldStop = []() { return false; };
+  const int maxTries = 5;
+  retryLoop("Getting run parameters", maxTries, shouldStop, f);
+  if(!gotRunParams)
+    throw StringError("Unknown bug: did not obtain initial run parameters from server but no exception bubbled up to top level");
+  return runParams;
 }
 
 static constexpr int DEFAULT_MAX_TRIES = 100;
@@ -649,7 +669,7 @@ bool Connection::retryLoop(const char* errorLabel, int maxTries, std::function<b
       continue;
     }
     if(i > 0)
-      logger->write(string(errorLabel) + "Connection to server is back!");
+      logger->write(string(errorLabel) + ": Connection to server is back!");
     break;
   }
   return true;

@@ -146,12 +146,14 @@ ooooooo
       search->setPosition(nextPla,board,hist);
       search->runWholeSearch(nextPla);
 
-      //In theory nothing requires this, but it would be kind of crazy if this were false
-      testAssert(search->rootNode->iterateAndCountChildren() > 1);
-      int childrenCapacity;
-      const SearchChildPointer* children = search->rootNode->getChildren(childrenCapacity);
+      ConstSearchNodeChildrenReference children = search->rootNode->getChildren();
+      int childrenCapacity = children.getCapacity();
       testAssert(childrenCapacity > 1);
+
+      //In theory nothing requires this, but it would be kind of crazy if this were false
+      testAssert(children.iterateAndCountChildren() > 1);
       testAssert(children[1].getIfAllocated() != NULL);
+
       Loc locToDescend = children[1].getMoveLoc();
 
       PrintTreeOptions options;
@@ -222,8 +224,8 @@ o..oo.x
     nextPla = getOpp(nextPla);
 
     auto hasSuicideRootMoves = [](const Search* search) {
-      int childrenCapacity;
-      const SearchChildPointer* children = search->rootNode->getChildren(childrenCapacity);
+      ConstSearchNodeChildrenReference children = search->rootNode->getChildren();
+      int childrenCapacity = children.getCapacity();
       for(int i = 0; i<childrenCapacity; i++) {
         const SearchNode* child = children[i].getIfAllocated();
         if(child == NULL)
@@ -234,8 +236,8 @@ o..oo.x
       return false;
     };
     auto hasPassAliveRootMoves = [](const Search* search) {
-      int childrenCapacity;
-      const SearchChildPointer* children = search->rootNode->getChildren(childrenCapacity);
+      ConstSearchNodeChildrenReference children = search->rootNode->getChildren();
+      int childrenCapacity = children.getCapacity();
       for(int i = 0; i<childrenCapacity; i++) {
         const SearchNode* child = children[i].getIfAllocated();
         if(child == NULL)
@@ -1626,12 +1628,14 @@ ooooooo
       search->setPosition(nextPla,board,hist);
       search->runWholeSearch(nextPla);
 
-      //In theory nothing requires this, but it would be kind of crazy if this were false
-      testAssert(search->rootNode->iterateAndCountChildren() > 1);
-      int childrenCapacity;
-      const SearchChildPointer* children = search->rootNode->getChildren(childrenCapacity);
+      ConstSearchNodeChildrenReference children = search->rootNode->getChildren();
+      int childrenCapacity = children.getCapacity();
       testAssert(childrenCapacity > 1);
+
+      //In theory nothing requires this, but it would be kind of crazy if this were false
+      testAssert(children.iterateAndCountChildren() > 1);
       testAssert(children[1].getIfAllocated() != NULL);
+
       Loc locToDescend = children[1].getMoveLoc();
 
       PrintTreeOptions options;
@@ -1679,10 +1683,8 @@ ooooooo
     cout << "Testing avoiding of all or almost all moves" << endl;
     cout << "===================================================================" << endl;
 
-    NNEvaluator* nnEval = startNNEval(modelFile,logger,"",9,5,0,true,false,false,true,false);
     SearchParams params;
     params.maxVisits = 100;
-    Search* search = new Search(params, nnEval, &logger, "autoSearchRandSeed1234");
     Rules rules = Rules::getTrompTaylorish();
     TestSearchOptions opts;
 
@@ -1695,6 +1697,8 @@ oo..o..oo
 )%%");
 
     {
+      NNEvaluator* nnEval = startNNEval(modelFile,logger,"",9,5,0,true,false,false,true,false);
+      Search* search = new Search(params, nnEval, &logger, "autoSearchRandSeed1234");
       cout << "Avoid all but 2 moves for both players, including passing" << endl;
       vector<int> avoidMoveUntilByLoc(Board::MAX_ARR_SIZE);
       for(int y = 0; y < board.y_size; y++) {
@@ -1759,9 +1763,13 @@ oo..o..oo
       options = options.maxDepth(1);
       search->printTree(cout, search->rootNode, options, P_WHITE);
       cout << endl;
+      delete search;
+      delete nnEval;
     }
 
     {
+      NNEvaluator* nnEval = startNNEval(modelFile,logger,"",9,5,0,true,false,false,true,false);
+      Search* search = new Search(params, nnEval, &logger, "autoSearchRandSeed1235");
       cout << "Avoid all moves for both players, including passing" << endl;
       vector<int> avoidMoveUntilByLoc(Board::MAX_ARR_SIZE);
       for(int y = 0; y < board.y_size; y++) {
@@ -1801,9 +1809,13 @@ oo..o..oo
       );
       testAssert(suc);
       cout << json << endl;
+      delete search;
+      delete nnEval;
     }
 
     {
+      NNEvaluator* nnEval = startNNEval(modelFile,logger,"",9,5,0,true,false,false,true,false);
+      Search* search = new Search(params, nnEval, &logger, "autoSearchRandSeed1236");
       cout << "Avoid all moves for black, including passing" << endl;
       vector<int> avoidMoveUntilByLoc(Board::MAX_ARR_SIZE);
       for(int y = 0; y < board.y_size; y++) {
@@ -1843,10 +1855,9 @@ oo..o..oo
       );
       testAssert(suc);
       cout << json << endl;
+      delete search;
+      delete nnEval;
     }
-
-    delete search;
-    delete nnEval;
     cout << endl;
   }
 
@@ -2268,6 +2279,39 @@ oxooox.
     params.printParams(cout);
     cout << endl;
 
+  }
+
+  {
+    cout << "===================================================================" << endl;
+    cout << "Board size distribution" << endl;
+    cout << "===================================================================" << endl;
+    ConfigParser cfg;
+    cfg.overrideKey("koRules","SIMPLE");
+    cfg.overrideKey("scoringRules","AREA");
+    cfg.overrideKey("taxRules","SEKI");
+    cfg.overrideKey("multiStoneSuicideLegals","false");
+    cfg.overrideKey("hasButtons","false");
+    cfg.overrideKey("bSizes","2,4,6,8");
+    cfg.overrideKey("bSizeRelProbs","1,2,3,4");
+    cfg.overrideKey("allowRectangleProb","0.3");
+    cfg.overrideKey("komiAuto","true");
+    GameInitializer gameInit(cfg, logger, "board size distribution random seed");
+
+    std::map<std::pair<int,int>,int> boardSizeDistribution;
+    for(int i = 0; i<100000; i++) {
+      Board board;
+      Player pla;
+      BoardHistory hist;
+      ExtraBlackAndKomi extraBlackAndKomi;
+      OtherGameProperties otherGameProps;
+      gameInit.createGame(board,pla,hist,extraBlackAndKomi,NULL,PlaySettings(),otherGameProps,NULL);
+      boardSizeDistribution[std::make_pair(board.x_size,board.y_size)] += 1;
+    }
+    for(int x = 2; x<=8; x += 2) {
+      for(int y = 2; y<=8; y += 2) {
+        cout << x << "x" << y << " " << boardSizeDistribution[std::make_pair(x,y)] << endl;
+      }
+    }
   }
 
   NeuralNet::globalCleanup();

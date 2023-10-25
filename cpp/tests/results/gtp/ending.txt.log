@@ -7,6 +7,7 @@ lagBuffer = 1.0
 logAllGTPCommunication = true
 logFile = tests/results/gtp/ending.txt.log
 logSearchInfo = true
+logSearchInfoForChosenMove = false
 logTimeStamp = false
 logToStderr = false
 maxPlayouts = 10000
@@ -172,14 +173,14 @@ koSIMPLEscoreAREAtaxNONEsui0whbNfpok1komi5
 Time taken: ###
 Root visits: 100
 New playouts: 76
-NN rows: 24
-NN batches: 24
+NN rows: 26
+NN batches: 26
 NN avg batch size: 1
-PV: A1 C1 A5 G6 C6 pass pass pass
+PV: A1 C1 A5 pass B3 pass pass pass
 Tree:
-: T -19.21c W -23.47c S   0.20c ( +0.0 L  -0.0) N     100  --  A1 C1 A5 G6 C6 pass pass
+: T -19.31c W -23.66c S   0.28c ( +0.0 L  -0.0) N     100  --  A1 C1 A5 pass B3 pass pass
 ---White(^)---
-A1  : T -17.98c W -22.23c S   0.28c ( +0.0 L  -0.0) LCB  -31.71c P 66.25% WF  96.5 PSV      96 N      97  --  A1 C1 A5 G6 C6 pass pass pass
+A1  : T -18.08c W -22.43c S   0.37c ( +0.0 L  -0.0) LCB  -32.17c P 66.25% WF  96.4 PSV      96 N      97  --  A1 C1 A5 pass B3 pass pass pass
 C1  : T -94.87c W -90.50c S  -4.36c ( -1.2 L  -1.3) LCB -444.87c P 17.02% WF   0.8 PSV       1 N       1  --  C1
 A5  : T -75.94c W -94.00c S  -4.41c ( -1.2 L  -1.2) LCB -425.94c P  5.39% WF   0.9 PSV       0 N       1  --  A5
 
@@ -201,14 +202,14 @@ koSIMPLEscoreAREAtaxNONEsui0whbNfpok1komi5
 Time taken: ###
 Root visits: 50
 New playouts: 50
-NN rows: 48
-NN batches: 48
+NN rows: 47
+NN batches: 47
 NN avg batch size: 1
-PV: C1 D1 B1 pass A5 F5 pass pass
+PV: C1 D1 B1 pass A5 pass pass pass
 Tree:
-: T 104.08c W  99.90c S   3.81c ( +3.5 L  +3.3) N      50  --  C1 D1 B1 pass A5 F5 pass
+: T 104.01c W  99.90c S   3.81c ( +3.5 L  +3.3) N      50  --  C1 D1 B1 pass A5 pass pass
 ---White(^)---
-C1  : T 104.10c W  99.91c S   3.81c ( +3.5 L  +3.3) LCB  103.38c P 96.89% WF  49.0 PSV      49 N      49  --  C1 D1 B1 pass A5 F5 pass pass
+C1  : T 104.03c W  99.91c S   3.81c ( +3.5 L  +3.3) LCB  103.25c P 96.89% WF  49.0 PSV      49 N      49  --  C1 D1 B1 pass A5 pass pass pass
 
 : = C1
 : Controller: showboard
@@ -249,11 +250,11 @@ New playouts: 100
 NN rows: 0
 NN batches: 0
 NN avg batch size: -nan
-PV: D1 B1 pass A5 pass pass pass
+PV: D1 B1 pass A5 F5 pass pass pass
 Tree:
-: T -107.82c W -99.93c S  -7.49c ( -3.5 L  -3.4) N     100  --  D1 B1 pass A5 pass pass pass
+: T -107.55c W -99.92c S  -7.40c ( -3.5 L  -3.3) N     100  --  D1 B1 pass A5 F5 pass pass
 ---Black(^)---
-D1  : T -107.89c W -99.94c S  -7.54c ( -3.5 L  -3.4) LCB -108.37c P 90.77% WF  99.0 PSV      99 N      99  --  D1 B1 pass A5 pass pass pass
+D1  : T -107.61c W -99.93c S  -7.45c ( -3.5 L  -3.4) LCB -108.17c P 90.77% WF  99.0 PSV      99 N      99  --  D1 B1 pass A5 F5 pass pass pass
 
 : = D1
 : Controller: undo
@@ -494,5 +495,5 @@ W stones captured: 1
 : = 
 : Controller: final_score
 : = B+9.0
-: GPU -1 finishing, processed 737 rows 737 batches
+: GPU -1 finishing, processed 727 rows 727 batches
 : All cleaned up, quitting

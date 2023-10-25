@@ -23,6 +23,8 @@
 
 #include "../external/nlohmann_json/json.hpp"
 
+typedef int SearchNodeState; // See SearchNode::STATE_*
+
 struct SearchNode;
 struct SearchThread;
 struct Search;
@@ -34,6 +36,8 @@ struct ReportedSearchValues;
 struct SearchChildPointer;
 struct SubtreeValueBiasTable;
 struct SearchNodeTable;
+struct SearchNodeChildrenReference;
+struct ConstSearchNodeChildrenReference;
 
 //Per-thread state
 struct SearchThread {
@@ -550,7 +554,7 @@ private:
   ) const;
 
   void selectBestChildToDescend(
-    SearchThread& thread, const SearchNode& node, int nodeState,
+    SearchThread& thread, const SearchNode& node, SearchNodeState nodeState,
     int& numChildrenFound, int& bestChildIdx, Loc& bestChildMoveLoc,
     bool isRoot
   ) const;
@@ -613,7 +617,13 @@ private:
     bool isRoot
   );
 
-  bool maybeCatchUpEdgeVisits(SearchThread& thread, SearchNode& node, SearchNode* child, const int& nodeState, const int bestChildIdx);
+  bool maybeCatchUpEdgeVisits(
+    SearchThread& thread,
+    SearchNode& node,
+    SearchNode* child,
+    const SearchNodeState& nodeState,
+    const int bestChildIdx
+  );
 
   //----------------------------------------------------------------------------------------
   // Private helpers for search results and analysis and top level move selection
@@ -672,7 +682,7 @@ private:
     double pruneProp,
     double desiredProp,
     double thisNodeWeight,
-    const SearchChildPointer* children,
+    ConstSearchNodeChildrenReference children,
     double* childWeightBuf,
     int childrenCapacity,
     std::unordered_set<const SearchNode*>& graphPath,

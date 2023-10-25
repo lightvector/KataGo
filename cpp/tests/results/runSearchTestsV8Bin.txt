@@ -25,6 +25,7 @@ MoveNum: 3 HASH: 51A2E952B6FF793C9B33F3C9C4FAA3F6
  2 . . . . . . . . .
  1 . . . . . . . . .
 
+koSIMPLEscoreAREAtaxALLsui0fpok1komi7 0
 Root visits: 200
 New playouts: 200
 NN rows: 192
@@ -56,6 +57,7 @@ MoveNum: 3 HASH: 51A2E952B6FF793C9B33F3C9C4FAA3F6
  2 . . . . . . . . .
  1 . . . . . . . . .
 
+koSIMPLEscoreAREAtaxALLsui0fpok1komi7 0
 Root visits: 200
 New playouts: 200
 NN rows: 192
@@ -87,6 +89,7 @@ MoveNum: 3 HASH: 51A2E952B6FF793C9B33F3C9C4FAA3F6
  2 . . . . . . . . .
  1 . . . . . . . . .
 
+koSIMPLEscoreAREAtaxALLsui0fpok1komi7 0
 Root visits: 200
 New playouts: 200
 NN rows: 192
@@ -142,6 +145,7 @@ MoveNum: 11 HASH: 2C25470E65B6D05041FBAA25100A43F4
  2 . . . . . . . . . . . . . . . . . . .
  1 . . . . . . . . . . . . . . . . . . .
 
+koSIMPLEscoreTERRITORYtaxSEKIsui0komi6.5 0
 Root visits: 200
 New playouts: 200
 NN rows: 195
@@ -194,6 +198,7 @@ MoveNum: 11 HASH: 2C25470E65B6D05041FBAA25100A43F4
  2 . . . . . . . . . . . . . . . . . . .
  1 . . . . . . . . . . . . . . . . . . .
 
+koSIMPLEscoreTERRITORYtaxSEKIsui0komi6.5 0
 Root visits: 200
 New playouts: 200
 NN rows: 195
@@ -257,6 +262,7 @@ MoveNum: 8 HASH: CD3FB5DC05D00B0870968B214E383553
  2 . . . . . . . . . . . . . . . . . . .
  1 . . . . . . . . . . . . . . . . . . .
 
+koSIMPLEscoreTERRITORYtaxSEKIsui0komi6.5 0
 Root visits: 200
 New playouts: 200
 NN rows: 202
@@ -301,6 +307,7 @@ MoveNum: 8 HASH: CD3FB5DC05D00B0870968B214E383553
  2 . . . . . . . . . . . . . . . . . . .
  1 . . . . . . . . . . . . . . . . . . .
 
+koSIMPLEscoreTERRITORYtaxSEKIsui0komi6.5 0
 Root visits: 200
 New playouts: 200
 NN rows: 202
@@ -364,6 +371,7 @@ MoveNum: 8 HASH: EB3485F1C1921D5CD4B08C09B7E45930
  2 . . . . . . . . . . . . . . . . . . .
  1 . . . . . . . . . . . . . . . . . . .
 
+koSITUATIONALscoreAREAtaxNONEsui0whbN-1fpok1komi7 0
 Root visits: 200
 New playouts: 200
 NN rows: 185
@@ -406,6 +414,7 @@ MoveNum: 8 HASH: EB3485F1C1921D5CD4B08C09B7E45930
  2 . . . . . . . . . . . . . . . . . . .
  1 . . . . . . . . . . . . . . . . . . .
 
+koSITUATIONALscoreAREAtaxNONEsui0whbN-1fpok1komi7 0
 Root visits: 200
 New playouts: 200
 NN rows: 185
@@ -457,6 +466,7 @@ MoveNum: 8 HASH: EB3485F1C1921D5CD4B08C09B7E45930
  2 . . . . . . . . . . . . . . . . . . .
  1 . . . . . . . . . . . . . . . . . . .
 
+koSITUATIONALscoreAREAtaxNONEsui0whbN-1fpok1komi7 0
 Root visits: 200
 New playouts: 200
 NN rows: 377
@@ -502,6 +512,7 @@ MoveNum: 8 HASH: EB3485F1C1921D5CD4B08C09B7E45930
  2 . . . . . . . . . . . . . . . . . . .
  1 . . . . . . . . . . . . . . . . . . .
 
+koSITUATIONALscoreAREAtaxNONEsui0whbN-1fpok1komi7 0
 Root visits: 200
 New playouts: 200
 NN rows: 377
@@ -556,6 +567,7 @@ MoveNum: 8 HASH: EB3485F1C1921D5CD4B08C09B7E45930
  2 . . . . . . . . . . . . . . . . . . .
  1 . . . . . . . . . . . . . . . . . . .
 
+koSITUATIONALscoreAREAtaxNONEsui0whbN-1fpok1komi7 0
 Root visits: 200
 New playouts: 200
 NN rows: 571
@@ -591,6 +603,7 @@ MoveNum: 8 HASH: EB3485F1C1921D5CD4B08C09B7E45930
  2 . . . . . . . . . . . . . . . . . . .
  1 . . . . . . . . . . . . . . . . . . .
 
+koSITUATIONALscoreAREAtaxNONEsui0whbN-1fpok1komi7 0
 Root visits: 200
 New playouts: 200
 NN rows: 571
@@ -1813,6 +1826,7 @@ MoveNum: 0 HASH: 8595DB6D59892330655EAE1DD0C010EE
  2 . . . . . . . . . . . . X . X O O . .
  1 . . . . . . . . . . . . . X . . . . .
 
+koSIMPLEscoreAREAtaxNONEsui0whbNfpok1komi7.5 0
 Root visits: 400
 New playouts: 400
 NN rows: 293
@@ -1867,6 +1881,7 @@ MoveNum: 0 HASH: 8595DB6D59892330655EAE1DD0C010EE
  2 . . . . . . . . . . . . X . X O O . .
  1 . . . . . . . . . . . . . X . . . . .
 
+koSIMPLEscoreAREAtaxNONEsui0whbNfpok1komi7.5 0
 Root visits: 400
 New playouts: 400
 NN rows: 350
@@ -1924,6 +1939,7 @@ MoveNum: 24 HASH: DE09B9F4C165FF4C2FC0A51126B73011
  2 . . . . . . . . . . . . . . . . . . .
  1 . . . . . . . . . . . . . . . . . . .
 
+koPOSITIONALscoreAREAtaxNONEsui1komi7.5 0
 Root visits: 200
 New playouts: 200
 NN rows: 199
@@ -1974,6 +1990,7 @@ MoveNum: 32 HASH: D9C2A638E6AE4C79E905139C8C6B6D9D
  2 . . . . . . . . . . . . . . . . . . .
  1 . . . . . . . . . . . . . . . . . . .
 
+koPOSITIONALscoreAREAtaxNONEsui1komi7.5 0
 Root visits: 200
 New playouts: 200
 NN rows: 175
@@ -2022,6 +2039,7 @@ MoveNum: 124 HASH: 30E9B229EB54D448F1694BCC636ACB95
  2 . . . O . . . X X . . . X . . . . . .
  1 . . . . . . . . . . . . . . . . . . .
 
+koPOSITIONALscoreAREAtaxNONEsui1komi7.5 0
 Root visits: 200
 New playouts: 200
 NN rows: 200
@@ -2071,6 +2089,7 @@ MoveNum: 29 HASH: 4F21C5F444382AE424369459C8C7130B
  2 . . . . . . . . . . . . . . . . . . .
  1 . . . . . . . . . . . . . . . . . . .
 
+koPOSITIONALscoreAREAtaxNONEsui1komi-3.5 0
 Root visits: 200
 New playouts: 200
 NN rows: 199
@@ -2116,6 +2135,7 @@ MoveNum: 83 HASH: C863D3FB714E5A5371C036FBE75093F4
  2 . . . . . . . . . . . X X . . . . . .
  1 . . . . . . . . . . . . . . . . . . .
 
+koPOSITIONALscoreAREAtaxNONEsui1komi-3.5 0
 Root visits: 200
 New playouts: 200
 NN rows: 200
@@ -2161,6 +2181,7 @@ MoveNum: 8 HASH: B8C132183E8F914E3FE0148237D26C84
  2 . . . . X2O3. . .
  1 . . . . . . . . .
 
+koSIMPLEscoreTERRITORYtaxSEKIsui0komi0 0
 Root visits: 20
 New playouts: 20
 NN rows: 20
@@ -2225,6 +2246,7 @@ MoveNum: 9 HASH: 1F2D040C9A1A366671E055DC8A5F5B19
  2 . . . . X1O2. . .
  1 . . . . . . . . .
 
+koSIMPLEscoreTERRITORYtaxSEKIsui0komi0 0
 Root visits: 20
 New playouts: 10
 NN rows: 31
@@ -2287,6 +2309,7 @@ MoveNum: 10 HASH: 06DD309026A3F9380B4C53375FC943D7
  2 . . . . X O1. . .
  1 . . . . . . . . .
 
+koSIMPLEscoreTERRITORYtaxSEKIsui0komi0 0
 Root visits: 20
 New playouts: 11
 NN rows: 43
@@ -2330,6 +2353,7 @@ MoveNum: 8 HASH: B8C132183E8F914E3FE0148237D26C84
  2 . . . . X2O3. . .
  1 . . . . . . . . .
 
+koSIMPLEscoreTERRITORYtaxSEKIsui0komi0 0
 Root visits: 20
 New playouts: 20
 NN rows: 19
@@ -2394,6 +2418,7 @@ MoveNum: 9 HASH: 1F2D040C9A1A366671E055DC8A5F5B19
  2 . . . . X1O2. . .
  1 . . . . . . . . .
 
+koSIMPLEscoreTERRITORYtaxSEKIsui0komi0 0
 Root visits: 20
 New playouts: 10
 NN rows: 30
@@ -2454,6 +2479,7 @@ MoveNum: 10 HASH: AA6CB21FB0B2D007F96829C9B270C678
  2 . . . . X O1. . .
  1 . . . . . . . . .
 
+koSIMPLEscoreTERRITORYtaxSEKIsui0komi0 0
 Root visits: 20
 New playouts: 12
 NN rows: 43
@@ -2496,6 +2522,7 @@ MoveNum: 8 HASH: B8C132183E8F914E3FE0148237D26C84
  2 . . . . X2O3. . .
  1 . . . . . . . . .
 
+koSIMPLEscoreTERRITORYtaxSEKIsui0komi0 0
 Root visits: 300
 New playouts: 300
 NN rows: 246
@@ -2537,6 +2564,7 @@ MoveNum: 9 HASH: 1F2D040C9A1A366671E055DC8A5F5B19
  2 . . . . X1O2. . .
  1 . . . . . . . . .
 
+koSIMPLEscoreTERRITORYtaxSEKIsui0komi0 0
 Root visits: 300
 New playouts: 32
 NN rows: 278
@@ -2573,6 +2601,7 @@ MoveNum: 10 HASH: AA6CB21FB0B2D007F96829C9B270C678
  2 . . . . X O1. . .
  1 . . . . . . . . .
 
+koSIMPLEscoreTERRITORYtaxSEKIsui0komi0 0
 Root visits: 300
 New playouts: 122
 NN rows: 399
@@ -2606,6 +2635,7 @@ MoveNum: 0 HASH: 3FFB7666E7C1EFCE23BF6CDC5FB40F59
  2 O X X X O O X O O O O
  1 . X . O . O X O . X .
 
+koSIMPLEscoreAREAtaxNONEsui0whbNfpok1komi7.5 0
 Root visits: 300
 New playouts: 300
 NN rows: 287
@@ -2679,6 +2709,7 @@ MoveNum: 0 HASH: 3FFB7666E7C1EFCE23BF6CDC5FB40F59
  2 O X X X O O X O O O O
  1 . X . O . O X O . X .
 
+koSIMPLEscoreAREAtaxNONEsui0whbNfpok1komi7.5 0
 Root visits: 300
 New playouts: 300
 NN rows: 286
@@ -2755,6 +2786,7 @@ MoveNum: 0 HASH: 3FFB7666E7C1EFCE23BF6CDC5FB40F59
  2 O X X X O O X O O O O
  1 . X . O . O X O . X .
 
+koSIMPLEscoreAREAtaxNONEsui0button1whbNfpok1komi7.5 0
 Root visits: 300
 New playouts: 300
 NN rows: 286
@@ -2828,6 +2860,7 @@ MoveNum: 0 HASH: 3FFB7666E7C1EFCE23BF6CDC5FB40F59
  2 O X X X O O X O O O O
  1 . X . O . O X O . X .
 
+koSIMPLEscoreAREAtaxNONEsui0button1whbNfpok1komi7.5 0
 Root visits: 300
 New playouts: 300
 NN rows: 284
@@ -2904,6 +2937,7 @@ MoveNum: 0 HASH: 3FFB7666E7C1EFCE23BF6CDC5FB40F59
  2 O X X X O O X O O O O
  1 . X . O . O X O . X .
 
+koSIMPLEscoreAREAtaxNONEsui0whbNfpok1komi7.5 0
 Root visits: 300
 New playouts: 300
 NN rows: 291
@@ -2911,10 +2945,10 @@ NN batches: 291
 NN avg batch size: 1
 PV: J7 C9 L7 C5
 Tree:
-: T 103.15c W  99.33c S   3.84c ( +5.9 L  +5.8) N     300  --  J7 C9 L7 C5
+: T 103.13c W  99.30c S   3.85c ( +5.9 L  +5.8) N     300  --  J7 C9 L7 C5
 ---Black(v)---
 J7  : T 102.79c W  99.20c S   3.62c ( +5.8 L  +5.7) LCB  104.67c P 15.26% WF  49.2 PSV      53 N      49  --  J7 C9 L7 C5
-J1  : T 102.94c W  99.29c S   3.67c ( +5.8 L  +5.7) LCB  105.30c P  9.60% WF  30.1 PSV      30 N      30  --  J1 C9 J3 C5
+J1  : T 103.02c W  99.31c S   3.74c ( +5.9 L  +5.7) LCB  105.44c P  9.60% WF  29.0 PSV      29 N      29  --  J1 C9 J3 C5
 J3  : T 103.44c W  99.43c S   4.04c ( +6.0 L  +5.8) LCB  106.02c P  9.83% WF  27.9 PSV      28 N      28  --  J3 C9 J7 C5 L7
 L11 : T 102.38c W  99.18c S   3.21c ( +5.6 L  +5.5) LCB  105.24c P  6.10% WF  22.2 PSV      21 N      22  --  L11 C5 J7 A5
 G11 : T 102.40c W  99.23c S   3.18c ( +5.6 L  +5.4) LCB  105.19c P  6.09% WF  22.2 PSV      21 N      22  --  G11 C9 J7 C11
@@ -2929,7 +2963,7 @@ L4  : T 104.06c W  99.36c S   4.69c ( +6.3 L  +6.2) LCB  111.65c P  4.09% WF   9
 C1  : T 104.49c W  99.38c S   5.12c ( +6.5 L  +6.4) LCB  116.01c P  3.55% WF   7.9 PSV       8 N       8  --  C1 C5 E1
 A1  : T 104.72c W  99.63c S   5.12c ( +6.5 L  +6.3) LCB  116.60c P  3.51% WF   7.9 PSV       8 N       8  --  A1 C5 J7
 C5  : T 103.45c W  99.75c S   3.71c ( +5.9 L  +5.7) LCB  114.44c P  2.96% WF   8.0 PSV       8 N       8  --  C5 A5 J7 C9
-pss : T 102.57c W  99.22c S   3.36c ( +5.7 L  +5.6) LCB  122.12c P  1.73% WF   6.0 PSV       5 N       6  --  pass C5 J7
+pss : T 101.40c W  97.74c S   3.69c ( +5.9 L  +5.7) LCB  117.17c P  1.73% WF   7.1 PSV       7 N       7  --  pass C5 J7 A5
 A5  : T 102.66c W  99.72c S   2.94c ( +5.5 L  +5.3) LCB  130.38c P  1.64% WF   5.0 PSV       5 N       5  --  A5 C5 J7
   92.3   98.5   94.2   96.1   99.7  -99.5  -99.6  -99.4  -99.4  -99.3  -99.7 
   98.5   98.5   98.7   96.4   99.7  -99.8  -99.9  -99.5  -99.7  -99.7  -99.9 
@@ -2945,7 +2979,7 @@ A5  : T 102.66c W  99.72c S   2.94c ( +5.5 L  +5.3) LCB  130.38c P  1.64% WF   5
 
 J7 visits 49 edgeVisits 49 utilityNoBonus 102.79c utilityWithBonus 102.79c endingScoreBonus -0.00
 J3 visits 28 edgeVisits 28 utilityNoBonus 103.44c utilityWithBonus 103.44c endingScoreBonus -0.00
-J1 visits 30 edgeVisits 30 utilityNoBonus 102.94c utilityWithBonus 102.94c endingScoreBonus -0.00
+J1 visits 29 edgeVisits 29 utilityNoBonus 103.02c utilityWithBonus 103.02c endingScoreBonus -0.00
 L1 visits 19 edgeVisits 19 utilityNoBonus 103.61c utilityWithBonus 103.61c endingScoreBonus -0.00
 A11 visits 16 edgeVisits 16 utilityNoBonus 104.42c utilityWithBonus 104.42c endingScoreBonus -0.00
 L11 visits 22 edgeVisits 22 utilityNoBonus 102.38c utilityWithBonus 102.38c endingScoreBonus -0.00
@@ -2959,7 +2993,7 @@ C9 visits 11 edgeVisits 11 utilityNoBonus 103.65c utilityWithBonus 103.65c endin
 C1 visits 8 edgeVisits 8 utilityNoBonus 104.49c utilityWithBonus 104.49c endingScoreBonus -0.00
 A1 visits 8 edgeVisits 8 utilityNoBonus 104.72c utilityWithBonus 104.72c endingScoreBonus -0.00
 C5 visits 8 edgeVisits 8 utilityNoBonus 103.45c utilityWithBonus 103.45c endingScoreBonus -0.00
-pass visits 6 edgeVisits 6 utilityNoBonus 102.57c utilityWithBonus 102.57c endingScoreBonus -0.00
+pass visits 7 edgeVisits 7 utilityNoBonus 101.40c utilityWithBonus 101.40c endingScoreBonus -0.00
 A5 visits 5 edgeVisits 5 utilityNoBonus 102.66c utilityWithBonus 102.66c endingScoreBonus -0.00
 With root ending bonus pts===================
 
@@ -2977,6 +3011,7 @@ MoveNum: 0 HASH: 3FFB7666E7C1EFCE23BF6CDC5FB40F59
  2 O X X X O O X O O O O
  1 . X . O . O X O . X .
 
+koSIMPLEscoreAREAtaxNONEsui0whbNfpok1komi7.5 0
 Root visits: 300
 New playouts: 300
 NN rows: 289
@@ -2984,10 +3019,10 @@ NN batches: 289
 NN avg batch size: 1
 PV: J7 C9 L7 C5
 Tree:
-: T 103.21c W  99.34c S   3.89c ( +6.0 L  +5.8) N     300  --  J7 C9 L7 C5
+: T 103.17c W  99.30c S   3.89c ( +6.0 L  +5.8) N     300  --  J7 C9 L7 C5
 ---Black(v)---
 J7  : T 102.84c W  99.21c S   3.66c ( +5.9 L  +5.7) LCB  104.69c P 15.26% WF  51.2 PSV      55 N      51  --  J7 C9 L7 C5
-J1  : T 103.02c W  99.30c S   3.74c ( +5.9 L  +5.7) LCB  105.34c P  9.60% WF  31.1 PSV      31 N      31  --  J1 C9 J3 C5
+J1  : T 103.02c W  99.30c S   3.74c ( +5.9 L  +5.7) LCB  105.34c P  9.60% WF  31.0 PSV      31 N      31  --  J1 C9 J3 C5
 J3  : T 103.43c W  99.42c S   4.04c ( +6.0 L  +5.8) LCB  105.85c P  9.83% WF  29.9 PSV      30 N      30  --  J3 C9 J7 C5 L7
 L11 : T 102.38c W  99.18c S   3.21c ( +5.6 L  +5.5) LCB  105.24c P  6.10% WF  22.2 PSV      22 N      22  --  L11 C5 J7 A5
 G11 : T 102.40c W  99.23c S   3.18c ( +5.6 L  +5.4) LCB  105.19c P  6.09% WF  22.2 PSV      22 N      22  --  G11 C9 J7 C11
@@ -2996,13 +3031,13 @@ A11 : T 104.42c W  99.61c S   4.84c ( +6.4 L  +6.1) LCB  108.41c P  6.16% WF  15
 G8  : T 102.45c W  99.24c S   3.22c ( +5.7 L  +5.5) LCB  107.36c P  5.19% WF  15.1 PSV      15 N      15  --  G8 C5 J7 A5
 J11 : T 102.32c W  99.13c S   3.20c ( +5.7 L  +5.5) LCB  106.15c P  4.22% WF  15.1 PSV      15 N      15  --  J11 C5 J7 A5
 C11 : T 104.51c W  99.59c S   4.96c ( +6.4 L  +6.1) LCB  109.28c P  5.30% WF  13.8 PSV      13 N      14  --  C11 C9 J7 C5 L7
-H4  : T 103.56c W  99.36c S   4.20c ( +6.1 L  +6.0) LCB  110.59c P  4.16% WF  11.0 PSV      10 N      11  --  H4 C5 J7
+H4  : T 103.36c W  99.34c S   4.03c ( +6.0 L  +6.0) LCB  111.52c P  4.16% WF  10.0 PSV      10 N      10  --  H4 C5 J7
 C9  : T 103.70c W  99.57c S   4.14c ( +6.1 L  +5.9) LCB  111.90c P  4.02% WF  10.0 PSV      10 N      10  --  C9 C5 J7 A5
 L4  : T 104.06c W  99.36c S   4.69c ( +6.3 L  +6.2) LCB  112.67c P  4.09% WF   9.9 PSV       9 N      10  --  L4 C9 J7
 C1  : T 104.49c W  99.38c S   5.12c ( +6.5 L  +6.4) LCB  117.00c P  3.55% WF   7.9 PSV       8 N       8  --  C1 C5 E1
 A1  : T 105.07c W  99.62c S   5.46c ( +6.7 L  +6.4) LCB  120.98c P  3.51% WF   6.9 PSV       7 N       7  --  A1 C5 J7
 C5  : T 103.33c W  99.76c S   3.57c ( +5.8 L  +5.6) LCB  118.69c P  2.96% WF   7.0 PSV       7 N       7  --  C5 A5 J7
-pss : T 102.57c W  99.22c S   3.36c ( +5.7 L  +5.6) LCB  122.12c P  1.73% WF   6.0 PSV       6 N       6  --  pass C5 J7
+pss : T 101.40c W  97.74c S   3.69c ( +5.9 L  +5.7) LCB  117.17c P  1.73% WF   7.1 PSV       7 N       7  --  pass C5 J7 A5
 A5  : T 102.66c W  99.72c S   2.94c ( +5.5 L  +5.3) LCB  131.01c P  1.64% WF   5.0 PSV       5 N       5  --  A5 C5 J7
   92.3   98.5   94.2   96.1   99.7  -99.5  -99.6  -99.4  -99.4  -99.3  -99.7 
   98.5   98.5   98.7   96.4   99.7  -99.8  -99.9  -99.5  -99.7  -99.7  -99.9 
@@ -3026,13 +3061,13 @@ G11 visits 22 edgeVisits 22 utilityNoBonus 102.40c utilityWithBonus 102.40c endi
 C11 visits 14 edgeVisits 14 utilityNoBonus 104.51c utilityWithBonus 104.51c endingScoreBonus -0.00
 G8 visits 15 edgeVisits 15 utilityNoBonus 102.45c utilityWithBonus 103.51c endingScoreBonus 0.48
 J11 visits 15 edgeVisits 15 utilityNoBonus 102.32c utilityWithBonus 102.32c endingScoreBonus -0.00
-H4 visits 11 edgeVisits 11 utilityNoBonus 103.56c utilityWithBonus 104.61c endingScoreBonus 0.48
+H4 visits 10 edgeVisits 10 utilityNoBonus 103.36c utilityWithBonus 104.41c endingScoreBonus 0.48
 L4 visits 10 edgeVisits 10 utilityNoBonus 104.06c utilityWithBonus 105.08c endingScoreBonus 0.47
 C9 visits 10 edgeVisits 10 utilityNoBonus 103.70c utilityWithBonus 104.59c endingScoreBonus 0.40
 C1 visits 8 edgeVisits 8 utilityNoBonus 104.49c utilityWithBonus 105.49c endingScoreBonus 0.46
 A1 visits 7 edgeVisits 7 utilityNoBonus 105.07c utilityWithBonus 105.89c endingScoreBonus 0.38
 C5 visits 7 edgeVisits 7 utilityNoBonus 103.33c utilityWithBonus 104.39c endingScoreBonus 0.47
-pass visits 6 edgeVisits 6 utilityNoBonus 102.57c utilityWithBonus 102.57c endingScoreBonus -0.00
+pass visits 7 edgeVisits 7 utilityNoBonus 101.40c utilityWithBonus 101.40c endingScoreBonus -0.00
 A5 visits 5 edgeVisits 5 utilityNoBonus 102.66c utilityWithBonus 103.28c endingScoreBonus 0.28
 ===================================================================
 Ending bonus points in area scoring with selfatari moves, black first, button
@@ -3053,6 +3088,7 @@ MoveNum: 0 HASH: 3FFB7666E7C1EFCE23BF6CDC5FB40F59
  2 O X X X O O X O O O O
  1 . X . O . O X O . X .
 
+koSIMPLEscoreAREAtaxNONEsui0button1whbNfpok1komi7.5 0
 Root visits: 300
 New playouts: 300
 NN rows: 283
@@ -3126,6 +3162,7 @@ MoveNum: 0 HASH: 3FFB7666E7C1EFCE23BF6CDC5FB40F59
  2 O X X X O O X O O O O
  1 . X . O . O X O . X .
 
+koSIMPLEscoreAREAtaxNONEsui0button1whbNfpok1komi7.5 0
 Root visits: 300
 New playouts: 300
 NN rows: 280
@@ -3202,6 +3239,7 @@ MoveNum: 0 HASH: 3FFB7666E7C1EFCE23BF6CDC5FB40F59
  2 O X X X O O X O O O O
  1 . X . O . O X O . X .
 
+koSIMPLEscoreTERRITORYtaxSEKIsui0komi6.5 0
 Root visits: 300
 New playouts: 300
 NN rows: 252
@@ -3275,6 +3313,7 @@ MoveNum: 0 HASH: 3FFB7666E7C1EFCE23BF6CDC5FB40F59
  2 O X X X O O X O O O O
  1 . X . O . O X O . X .
 
+koSIMPLEscoreTERRITORYtaxSEKIsui0komi6.5 0
 Root visits: 300
 New playouts: 300
 NN rows: 254
@@ -3351,6 +3390,7 @@ MoveNum: 0 HASH: 3FFB7666E7C1EFCE23BF6CDC5FB40F59
  2 O X X X O O X O O O O
  1 . X . O . O X O . X .
 
+koSIMPLEscoreTERRITORYtaxSEKIsui0komi6.5 2
 Root visits: 300
 New playouts: 300
 NN rows: 257
@@ -3424,6 +3464,7 @@ MoveNum: 0 HASH: 3FFB7666E7C1EFCE23BF6CDC5FB40F59
  2 O X X X O O X O O O O
  1 . X . O . O X O . X .
 
+koSIMPLEscoreTERRITORYtaxSEKIsui0komi6.5 2
 Root visits: 300
 New playouts: 300
 NN rows: 252
@@ -3499,6 +3540,7 @@ MoveNum: 0 HASH: 4D72B4DBC647CF796F650AFB443D5C08
  2 . . . . . X O O X . O
  1 . . . . . X O . X O .
 
+koSIMPLEscoreAREAtaxNONEsui0whbNfpok1komi7.5 0
 Root visits: 300
 New playouts: 300
 NN rows: 267
@@ -3506,7 +3548,7 @@ NN batches: 267
 NN avg batch size: 1
 PV: F9 pass G11 pass
 Tree:
-: T 120.75c W  99.97c S  20.72c (+71.1 L +69.6) N     300  --  F9 pass G11 pass
+: T 120.74c W  99.97c S  20.72c (+71.1 L +69.6) N     300  --  F9 pass G11 pass
 ---White(^)---
 F9  : T 121.52c W  99.98c S  21.51c (+71.7 L +71.5) LCB  118.89c P  7.85% WF  28.2 PSV      60 N      28  --  F9 pass G11 pass
 K10 : T 120.25c W  99.98c S  20.25c (+70.5 L +70.2) LCB  118.33c P 12.53% WF  35.8 PSV      36 N      36  --  K10 pass K6 pass H1
@@ -3524,7 +3566,7 @@ D11 : T 120.04c W  99.98c S  19.97c (+70.5 L +69.3) LCB  112.87c P  4.53% WF  11
 B5  : T 120.21c W  99.97c S  20.24c (+70.7 L +69.0) LCB  104.71c P  2.88% WF   7.0 PSV       7 N       7  --  B5 pass K10 pass
 F8  : T 120.74c W  99.97c S  20.78c (+71.2 L +69.5) LCB  104.96c P  2.38% WF   7.0 PSV       6 N       7  --  F8 pass K6 pass
 L1  : T 119.79c W  99.96c S  19.81c (+70.1 L +68.3) LCB   45.81c P  1.27% WF   3.0 PSV       3 N       3  --  L1 pass K10
-pss : T 121.12c W  99.98c S  21.12c (+71.3 L +69.4) LCB   47.27c P  1.11% WF   3.0 PSV       3 N       3  --  pass pass K10
+pss : T 120.50c W  99.97c S  20.45c (+71.0 L +68.8) LCB   46.51c P  1.11% WF   3.0 PSV       3 N       3  --  pass pass K10
 L11 : T 119.60c W  99.93c S  19.67c (+70.8 L +70.1) LCB  -29.35c P  0.92% WF   2.0 PSV       2 N       2  --  L11 pass
 E4  : T 118.63c W  99.94c S  18.69c (+69.6 L +65.3) LCB -231.82c P  0.80% WF   1.0 PSV       1 N       1  --  E4
 F5  : T 120.34c W  99.96c S  20.38c (+70.9 L +66.4) LCB -230.19c P  0.71% WF   1.0 PSV       1 N       1  --  F5
@@ -3568,7 +3610,7 @@ L7 visits 17 edgeVisits 17 utilityNoBonus 122.02c utilityWithBonus 122.02c endin
 B5 visits 7 edgeVisits 7 utilityNoBonus 120.21c utilityWithBonus 119.61c endingScoreBonus -0.48
 F8 visits 7 edgeVisits 7 utilityNoBonus 120.74c utilityWithBonus 120.19c endingScoreBonus -0.46
 L1 visits 3 edgeVisits 3 utilityNoBonus 119.79c utilityWithBonus 119.79c endingScoreBonus 0.00
-pass visits 3 edgeVisits 3 utilityNoBonus 121.12c utilityWithBonus 121.12c endingScoreBonus 0.00
+pass visits 3 edgeVisits 3 utilityNoBonus 120.50c utilityWithBonus 120.50c endingScoreBonus 0.00
 L11 visits 2 edgeVisits 2 utilityNoBonus 119.60c utilityWithBonus 119.60c endingScoreBonus 0.00
 E4 visits 1 edgeVisits 1 utilityNoBonus 118.63c utilityWithBonus 118.18c endingScoreBonus -0.35
 F5 visits 1 edgeVisits 1 utilityNoBonus 120.34c utilityWithBonus 119.81c endingScoreBonus -0.42
@@ -3598,6 +3640,7 @@ MoveNum: 0 HASH: 7040C4EE8B6FD28698E389CFC5FE3878
  2 . . . . . . . . .
  1 . . . . . . . . .
 
+koPOSITIONALscoreAREAtaxNONEsui1komi7.5 0
 Root visits: 400
 New playouts: 400
 NN rows: 392
@@ -3632,6 +3675,7 @@ MoveNum: 0 HASH: 7040C4EE8B6FD28698E389CFC5FE3878
  2 . . . . . . . . .
  1 . . . . . . . . .
 
+koPOSITIONALscoreAREAtaxNONEsui1komi7.5 0
 Root visits: 400
 New playouts: 400
 NN rows: 392
@@ -3665,6 +3709,7 @@ MoveNum: 0 HASH: 7040C4EE8B6FD28698E389CFC5FE3878
  2 . . . . . . . . .
  1 . . . . . . . . .
 
+koPOSITIONALscoreAREAtaxNONEsui1komi7.5 0
 Root visits: 400
 New playouts: 400
 NN rows: 392
@@ -3701,6 +3746,7 @@ MoveNum: 0 HASH: 7040C4EE8B6FD28698E389CFC5FE3878
  2 . . . . . . . . .
  1 . . . . . . . . .
 
+koPOSITIONALscoreAREAtaxNONEsui1komi7.5 0
 Root visits: 200
 New playouts: 200
 NN rows: 199
@@ -3733,6 +3779,7 @@ MoveNum: 0 HASH: 7040C4EE8B6FD28698E389CFC5FE3878
  2 . . . . . . . . .
  1 . . . . . . . . .
 
+koPOSITIONALscoreAREAtaxNONEsui1komi7.5 0
 Root visits: 200
 New playouts: 200
 NN rows: 199
@@ -3765,6 +3812,7 @@ MoveNum: 0 HASH: 7040C4EE8B6FD28698E389CFC5FE3878
  2 . . . . . . . . .
  1 . . . . . . . . .
 
+koPOSITIONALscoreAREAtaxNONEsui1komi7.5 0
 Root visits: 200
 New playouts: 200
 NN rows: 199
@@ -3815,6 +3863,7 @@ MoveNum: 0 HASH: 5430CBE343145C5831EBE7C1F1FA4A90
  2 . . . . . . . . . . . . . . . . . . .
  1 . . . . . . . . . . . . . . . . . . .
 
+koSIMPLEscoreAREAtaxNONEsui0whbNfpok1komi7.5 0
 Root visits: 200
 New playouts: 200
 NN rows: 197
@@ -3858,6 +3907,7 @@ MoveNum: 0 HASH: 5430CBE343145C5831EBE7C1F1FA4A90
  2 . . . . . . . . . . . . . . . . . . .
  1 . . . . . . . . . . . . . . . . . . .
 
+koSIMPLEscoreAREAtaxNONEsui0whbNfpok1komi7.5 0
 Root visits: 200
 New playouts: 200
 NN rows: 197
@@ -3901,6 +3951,7 @@ MoveNum: 0 HASH: 5430CBE343145C5831EBE7C1F1FA4A90
  2 . . . . . . . . . . . . . . . . . . .
  1 . . . . . . . . . . . . . . . . . . .
 
+koSIMPLEscoreAREAtaxNONEsui0whbNfpok1komi7.5 0
 Root visits: 5
 New playouts: 5
 NN rows: 5
@@ -3934,6 +3985,7 @@ MoveNum: 0 HASH: 5430CBE343145C5831EBE7C1F1FA4A90
  2 . . . . . . . . . . . . . . . . . . .
  1 . . . . . . . . . . . . . . . . . . .
 
+koSIMPLEscoreAREAtaxNONEsui0whbNfpok1komi7.5 0
 Root visits: 200
 New playouts: 200
 NN rows: 197
@@ -3977,6 +4029,7 @@ MoveNum: 0 HASH: 5430CBE343145C5831EBE7C1F1FA4A90
  2 . . . . . . . . . . . . . . . . . . .
  1 . . . . . . . . . . . . . . . . . . .
 
+koSIMPLEscoreAREAtaxNONEsui0whbNfpok1komi7.5 0
 Root visits: 200
 New playouts: 200
 NN rows: 197
@@ -4024,6 +4077,7 @@ MoveNum: 0 HASH: 5430CBE343145C5831EBE7C1F1FA4A90
  2 . . . . . . . . . . . . . . . . . . .
  1 . . . . . . . . . . . . . . . . . . .
 
+koSIMPLEscoreAREAtaxNONEsui0whbNfpok1komi7.5 0
 Root visits: 5
 New playouts: 5
 NN rows: 5
@@ -4057,6 +4111,7 @@ MoveNum: 0 HASH: 5430CBE343145C5831EBE7C1F1FA4A90
  2 . . . . . . . . . . . . . . . . . . .
  1 . . . . . . . . . . . . . . . . . . .
 
+koSIMPLEscoreAREAtaxNONEsui0whbNfpok1komi7.5 0
 Root visits: 200
 New playouts: 200
 NN rows: 197
@@ -4105,6 +4160,7 @@ MoveNum: 0 HASH: 5430CBE343145C5831EBE7C1F1FA4A90
  2 . . . . . . . . . . . . . . . . . . .
  1 . . . . . . . . . . . . . . . . . . .
 
+koSIMPLEscoreAREAtaxNONEsui0whbNfpok1komi7.5 0
 Root visits: 200
 New playouts: 200
 NN rows: 202
@@ -4153,6 +4209,7 @@ MoveNum: 0 HASH: 5430CBE343145C5831EBE7C1F1FA4A90
  2 . . . . . . . . . . . . . . . . . . .
  1 . . . . . . . . . . . . . . . . . . .
 
+koSIMPLEscoreAREAtaxNONEsui0whbNfpok1komi7.5 0
 Root visits: 200
 New playouts: 200
 NN rows: 202
@@ -4201,6 +4258,7 @@ MoveNum: 0 HASH: 5430CBE343145C5831EBE7C1F1FA4A90
  2 . . . . . . . . . . . . . . . . . . .
  1 . . . . . . . . . . . . . . . . . . .
 
+koSIMPLEscoreAREAtaxNONEsui0whbNfpok1komi7.5 0
 Root visits: 5
 New playouts: 5
 NN rows: 9
@@ -4234,6 +4292,7 @@ MoveNum: 0 HASH: 5430CBE343145C5831EBE7C1F1FA4A90
  2 . . . . . . . . . . . . . . . . . . .
  1 . . . . . . . . . . . . . . . . . . .
 
+koSIMPLEscoreAREAtaxNONEsui0whbNfpok1komi7.5 0
 Root visits: 200
 New playouts: 200
 NN rows: 201
@@ -4282,6 +4341,7 @@ MoveNum: 0 HASH: 5430CBE343145C5831EBE7C1F1FA4A90
  2 . . . . . . . . . . . . . . . . . . .
  1 . . . . . . . . . . . . . . . . . . .
 
+koSIMPLEscoreAREAtaxNONEsui0whbNfpok1komi7.5 0
 Root visits: 200
 New playouts: 200
 NN rows: 201
@@ -4326,6 +4386,7 @@ MoveNum: 0 HASH: 5430CBE343145C5831EBE7C1F1FA4A90
  2 . . . . . . . . . . . . . . . . . . .
  1 . . . . . . . . . . . . . . . . . . .
 
+koSIMPLEscoreAREAtaxNONEsui0whbNfpok1komi7.5 0
 Root visits: 200
 New playouts: 200
 NN rows: 201
@@ -4373,6 +4434,7 @@ MoveNum: 0 HASH: 712C7DEC6A90B45777C4A12CFD85AEFA
  2 . . . . . . . . . . . . . . . . . . .
  1 . . . . . . . . . . . . . . . . . . .
 
+koSIMPLEscoreAREAtaxNONEsui0whbNfpok1komi7.5 0
 Root visits: 500
 New playouts: 500
 NN rows: 488
@@ -4421,6 +4483,7 @@ MoveNum: 0 HASH: 712C7DEC6A90B45777C4A12CFD85AEFA
  2 . . . . . . . . . . . . . . . . . . .
  1 . . . . . . . . . . . . . . . . . . .
 
+koSIMPLEscoreAREAtaxNONEsui0whbNfpok1komi7.5 0
 Root visits: 500
 New playouts: 500
 NN rows: 487
@@ -4479,6 +4542,7 @@ MoveNum: 0 HASH: 712C7DEC6A90B45777C4A12CFD85AEFA
  2 . . . . . . . . . . . . . . . . . . .
  1 . . . . . . . . . . . . . . . . . . .
 
+koSIMPLEscoreAREAtaxNONEsui0whbNfpok1komi7.5 0
 Root visits: 500
 New playouts: 500
 NN rows: 487
@@ -4537,6 +4601,7 @@ MoveNum: 0 HASH: 712C7DEC6A90B45777C4A12CFD85AEFA
  2 . . . . . . . . . . . . . . . . . . .
  1 . . . . . . . . . . . . . . . . . . .
 
+koSIMPLEscoreAREAtaxNONEsui0whbNfpok1komi7.5 0
 Root visits: 500
 New playouts: 500
 NN rows: 487
@@ -4595,6 +4660,7 @@ MoveNum: 0 HASH: 712C7DEC6A90B45777C4A12CFD85AEFA
  2 . . . . . . . . . . . . . . . . . . .
  1 . . . . . . . . . . . . . . . . . . .
 
+koSIMPLEscoreAREAtaxNONEsui0whbNfpok1komi7.5 0
 Root visits: 500
 New playouts: 500
 NN rows: 487
@@ -4653,6 +4719,7 @@ MoveNum: 0 HASH: 712C7DEC6A90B45777C4A12CFD85AEFA
  2 . . . . . . . . . . . . . . . . . . .
  1 . . . . . . . . . . . . . . . . . . .
 
+koSIMPLEscoreAREAtaxNONEsui0whbNfpok1komi7.5 0
 Root visits: 2500
 New playouts: 2500
 NN rows: 2380
@@ -4735,6 +4802,7 @@ MoveNum: 0 HASH: 712C7DEC6A90B45777C4A12CFD85AEFA
  2 . . . . . . . . . . . . . . . . . . .
  1 . . . . . . . . . . . . . . . . . . .
 
+koSIMPLEscoreAREAtaxNONEsui0whbNfpok1komi7.5 0
 Root visits: 2500
 New playouts: 2500
 NN rows: 2380
@@ -4817,6 +4885,7 @@ MoveNum: 0 HASH: 712C7DEC6A90B45777C4A12CFD85AEFA
  2 . . . . . . . . . . . . . . . . . . .
  1 . . . . . . . . . . . . . . . . . . .
 
+koSIMPLEscoreAREAtaxNONEsui0whbNfpok1komi7.5 0
 Root visits: 2500
 New playouts: 2500
 NN rows: 2380
@@ -4899,6 +4968,7 @@ MoveNum: 0 HASH: 712C7DEC6A90B45777C4A12CFD85AEFA
  2 . . . . . . . . . . . . . . . . . . .
  1 . . . . . . . . . . . . . . . . . . .
 
+koSIMPLEscoreAREAtaxNONEsui0whbNfpok1komi7.5 0
 Root visits: 2500
 New playouts: 2500
 NN rows: 2380
@@ -4973,6 +5043,7 @@ MoveNum: 0 HASH: BD1462547D9800FEAC5BE4AEE35F3CA1
  2 . . . O O O . O X
  1 . . . . . . . O .
 
+koSIMPLEscoreTERRITORYtaxSEKIsui0komi6.5 0
 Root visits: 600
 New playouts: 600
 NN rows: 416
@@ -5014,6 +5085,7 @@ MoveNum: 0 HASH: BD1462547D9800FEAC5BE4AEE35F3CA1
  2 . . . O O O . O X
  1 . . . . . . . O .
 
+koSIMPLEscoreTERRITORYtaxSEKIsui0komi6.5 0
 Root visits: 600
 New playouts: 600
 NN rows: 416
@@ -5055,6 +5127,7 @@ MoveNum: 0 HASH: BD1462547D9800FEAC5BE4AEE35F3CA1
  2 . . . O O O . O X
  1 . . . . . . . O .
 
+koSIMPLEscoreTERRITORYtaxSEKIsui0komi6.5 0
 Root visits: 600
 New playouts: 600
 NN rows: 276
@@ -5090,6 +5163,7 @@ MoveNum: 0 HASH: BD1462547D9800FEAC5BE4AEE35F3CA1
  2 . . . O O O . O X
  1 . . . . . . . O .
 
+koSIMPLEscoreTERRITORYtaxSEKIsui0komi6.5 0
 Root visits: 600
 New playouts: 600
 NN rows: 276
@@ -5125,28 +5199,29 @@ MoveNum: 0 HASH: 086C2CEF1E05F58D28EE1499F236BEF6
  2 O O O O . O . O O
  1 . . . O O O O O .
 
+koSIMPLEscoreAREAtaxNONEsui0whbNfpok1komi14 0
 Root visits: 600
 New playouts: 600
-NN rows: 140
-NN batches: 140
+NN rows: 142
+NN batches: 142
 NN avg batch size: 1
 PV: pass pass pass
 Tree:
-: T  97.67c W  93.75c S   3.89c ( +0.8 L  +0.9) N     600  --  pass pass pass
+: T  94.29c W  90.51c S   3.74c ( +0.8 L  +0.8) N     600  --  pass pass pass
 ---White(^)---
-pss : T  98.94c W  94.98c S   3.93c ( +0.8 L  +0.9) LCB   95.66c P 57.56% WF 500.3 PSV     494 N     494  --  pass pass pass
-J3  : T  96.06c W  92.03c S   4.01c ( +0.8 L  +0.8) LCB   82.39c P 11.24% WF  56.0 PSV      52 N      58  --  J3 pass pass pass
-C3  : T  97.23c W  93.39c S   3.83c ( +0.8 L  +0.8) LCB   82.55c P  3.75% WF  16.7 PSV      17 N      17  --  C3 pass pass pass
-B1  : T  94.93c W  91.08c S   3.83c ( +0.8 L  +0.9) LCB   75.97c P  3.80% WF  12.5 PSV      12 N      13  --  B1 pass pass pass
-D3  : T  70.77c W  67.90c S   2.87c ( +0.5 L  +0.7) LCB  -14.41c P  4.15% WF   2.5 PSV       3 N       3  --  D3 pass pass
+pss : T  95.55c W  91.74c S   3.77c ( +0.8 L  +0.8) LCB   89.83c P 57.56% WF 476.5 PSV     470 N     470  --  pass pass pass
+J3  : T  91.60c W  87.65c S   3.92c ( +0.8 L  +0.8) LCB   68.49c P 11.24% WF  55.3 PSV      44 N      58  --  J3 pass pass pass
+B1  : T  95.18c W  91.45c S   3.70c ( +0.7 L  +0.8) LCB   78.70c P  3.80% WF  21.9 PSV      20 N      22  --  B1 pass pass pass
+C3  : T  93.87c W  90.15c S   3.69c ( +0.7 L  +0.8) LCB   72.59c P  3.75% WF  22.6 PSV      16 N      23  --  C3 pass pass pass
+D3  : T  89.34c W  85.95c S   3.37c ( +0.6 L  +0.7) LCB   56.84c P  4.15% WF  11.3 PSV      11 N      12  --  D3 pass pass pass
 C1  : T  63.34c W  61.07c S   2.28c ( +0.3 L  +0.4) LCB  -97.55c P  2.77% WF   1.6 PSV       2 N       2  --  C1 pass
-A1  : T  62.88c W  60.35c S   2.55c ( +0.4 L  +0.5) LCB -105.52c P  2.57% WF   1.6 PSV       1 N       2  --  A1 pass
-J1  : T  48.50c W  46.41c S   2.10c ( +0.3 L  +0.4) LCB -149.60c P  2.44% WF   1.4 PSV       1 N       2  --  J1 pass
-F3  : T  65.02c W  62.81c S   2.22c ( +0.3 L  +0.3) LCB  -97.14c P  2.40% WF   1.6 PSV       1 N       2  --  F3 pass
-E2  : T  65.73c W  63.48c S   2.26c ( +0.3 L  +0.4) LCB  -97.66c P  2.19% WF   1.6 PSV       1 N       2  --  E2 pass
-G2  : T  59.44c W  57.20c S   2.25c ( +0.3 L  +0.4) LCB -114.01c P  1.99% WF   1.5 PSV       1 N       2  --  G2 pass
-E7  : T  68.48c W  64.94c S   3.54c ( +0.7 L  +1.3) LCB -283.00c P  0.82% WF   0.8 PSV       0 N       1  --  E7
-E8  : T  65.21c W  62.30c S   2.92c ( +0.5 L  +1.1) LCB -286.27c P  0.73% WF   0.8 PSV       0 N       1  --  E8
+A1  : T  62.88c W  60.35c S   2.55c ( +0.4 L  +0.5) LCB -105.52c P  2.57% WF   1.6 PSV       2 N       2  --  A1 pass
+F3  : T  65.02c W  62.81c S   2.22c ( +0.3 L  +0.3) LCB  -97.14c P  2.40% WF   1.6 PSV       2 N       2  --  F3 pass
+J1  : T  48.50c W  46.41c S   2.10c ( +0.3 L  +0.4) LCB -149.60c P  2.44% WF   1.5 PSV       1 N       2  --  J1 pass
+E2  : T  65.73c W  63.48c S   2.26c ( +0.3 L  +0.4) LCB  -97.66c P  2.19% WF   1.7 PSV       1 N       2  --  E2 pass
+G2  : T  59.44c W  57.20c S   2.25c ( +0.3 L  +0.4) LCB -114.01c P  1.99% WF   1.6 PSV       1 N       2  --  G2 pass
+E7  : T  68.48c W  64.94c S   3.54c ( +0.7 L  +1.3) LCB -283.00c P  0.82% WF   0.9 PSV       0 N       1  --  E7
+E8  : T  65.21c W  62.30c S   2.92c ( +0.5 L  +1.1) LCB -286.27c P  0.73% WF   0.9 PSV       0 N       1  --  E8
 Move loc: pass
 Conservative pass: J3
 ===================================================================
@@ -5164,31 +5239,32 @@ MoveNum: 0 HASH: 086C2CEF1E05F58D28EE1499F236BEF6
  2 O O O O . O . O O
  1 . . . O O O O O .
 
+koSIMPLEscoreAREAtaxNONEsui0whbNfpok1komi7.5 0
 Root visits: 600
 New playouts: 600
-NN rows: 270
-NN batches: 270
+NN rows: 274
+NN batches: 274
 NN avg batch size: 1
 PV: pass D3 pass pass pass
 Tree:
-: T -105.52c W -99.96c S  -5.51c ( -4.9 L  -4.8) N     600  --  pass D3 pass pass pass
+: T -105.41c W -99.96c S  -5.41c ( -4.9 L  -4.8) N     600  --  pass D3 pass pass pass
 ---Black(v)---
-pss : T -105.68c W -99.97c S  -5.66c ( -5.0 L  -4.9) LCB -105.15c P 49.97% WF 346.7 PSV     346 N     346  --  pass D3 pass pass pass
-A8  : T -105.39c W -99.96c S  -5.39c ( -4.9 L  -4.7) LCB -104.29c P 11.90% WF  76.8 PSV      77 N      77  --  A8 pass pass pass
-E9  : T -105.00c W -99.95c S  -5.03c ( -4.7 L  -4.6) LCB -100.64c P  4.04% WF  18.9 PSV      19 N      19  --  E9 pass pass pass
-E8  : T -104.70c W -99.95c S  -4.72c ( -4.6 L  -4.5) LCB -100.50c P  4.19% WF  18.8 PSV      18 N      19  --  E8 pass pass pass
-C9  : T -105.07c W -99.95c S  -5.09c ( -4.8 L  -4.6) LCB -100.38c P  3.66% WF  16.9 PSV      17 N      17  --  C9 pass pass pass
-H9  : T -105.36c W -99.96c S  -5.37c ( -4.9 L  -4.7) LCB -100.44c P  3.25% WF  16.0 PSV      16 N      16  --  H9 pass pass pass
-J9  : T -105.59c W -99.96c S  -5.60c ( -4.9 L  -4.8) LCB -100.54c P  2.94% WF  15.0 PSV      15 N      15  --  J9 pass pass pass
-E7  : T -104.98c W -99.96c S  -5.00c ( -4.7 L  -4.6) LCB  -99.77c P  3.17% WF  14.9 PSV      14 N      15  --  E7 pass pass pass
-C8  : T -104.94c W -99.95c S  -4.96c ( -4.7 L  -4.6) LCB  -97.90c P  2.68% WF  11.9 PSV      12 N      12  --  C8 pass pass pass
-D6  : T -105.36c W -99.96c S  -5.36c ( -4.9 L  -4.7) LCB  -97.56c P  2.35% WF  11.0 PSV      11 N      11  --  D6 pass pass pass
-F6  : T -105.67c W -99.97c S  -5.67c ( -5.0 L  -4.8) LCB  -96.79c P  2.03% WF  10.0 PSV      10 N      10  --  F6 pass pass pass
-J7  : T -105.96c W -99.97c S  -5.97c ( -5.1 L  -4.9) LCB  -97.19c P  1.97% WF  10.0 PSV      10 N      10  --  J7 pass pass pass
-G6  : T -105.85c W -99.97c S  -5.85c ( -5.0 L  -4.9) LCB  -93.20c P  1.63% WF   8.0 PSV       8 N       8  --  G6 pass pass pass
-C6  : T -105.70c W -99.96c S  -5.70c ( -5.0 L  -4.8) LCB  -92.99c P  1.58% WF   8.0 PSV       8 N       8  --  C6 pass pass pass
-G8  : T -105.66c W -99.96c S  -5.66c ( -5.0 L  -4.8) LCB  -89.58c P  1.45% WF   7.0 PSV       7 N       7  --  G8 pass pass pass
-A6  : T -105.81c W -99.96c S  -5.82c ( -5.0 L  -4.9) LCB  -84.77c P  1.11% WF   6.0 PSV       5 N       6  --  A6 pass pass pass
+pss : T -105.56c W -99.97c S  -5.54c ( -4.9 L  -4.9) LCB -104.93c P 49.97% WF 346.7 PSV     346 N     346  --  pass D3 pass pass pass
+A8  : T -105.03c W -99.95c S  -5.04c ( -4.7 L  -4.6) LCB -103.64c P 11.90% WF  73.6 PSV      73 N      74  --  A8 pass pass pass
+E8  : T -104.88c W -99.95c S  -4.89c ( -4.7 L  -4.6) LCB -100.00c P  4.19% WF  18.9 PSV      19 N      19  --  E8 pass pass pass
+E9  : T -105.06c W -99.95c S  -5.08c ( -4.8 L  -4.6) LCB -100.17c P  4.04% WF  18.9 PSV      19 N      19  --  E9 pass pass pass
+C9  : T -104.92c W -99.94c S  -4.95c ( -4.7 L  -4.6) LCB  -99.81c P  3.66% WF  17.9 PSV      17 N      18  --  C9 pass pass pass
+H9  : T -105.13c W -99.95c S  -5.16c ( -4.8 L  -4.7) LCB  -99.44c P  3.25% WF  15.0 PSV      15 N      15  --  H9 pass pass pass
+E7  : T -105.26c W -99.96c S  -5.27c ( -4.8 L  -4.7) LCB  -99.69c P  3.17% WF  15.0 PSV      15 N      15  --  E7 pass pass pass
+J9  : T -105.64c W -99.96c S  -5.66c ( -5.0 L  -4.8) LCB -100.33c P  2.94% WF  15.0 PSV      15 N      15  --  J9 pass pass pass
+C8  : T -104.95c W -99.95c S  -4.97c ( -4.7 L  -4.6) LCB  -97.56c P  2.68% WF  11.9 PSV      12 N      12  --  C8 pass pass pass
+D6  : T -105.20c W -99.96c S  -5.22c ( -4.8 L  -4.7) LCB  -97.17c P  2.35% WF  11.0 PSV      11 N      11  --  D6 pass pass pass
+F6  : T -105.75c W -99.96c S  -5.75c ( -5.0 L  -4.9) LCB  -96.51c P  2.03% WF  10.0 PSV      10 N      10  --  F6 pass pass pass
+J7  : T -105.45c W -99.95c S  -5.49c ( -4.9 L  -4.8) LCB  -96.10c P  1.97% WF  10.0 PSV      10 N      10  --  J7 pass pass pass
+G6  : T -106.34c W -99.97c S  -6.34c ( -5.2 L  -5.1) LCB  -95.81c P  1.63% WF   9.1 PSV       9 N       9  --  G6 pass pass pass
+C6  : T -105.52c W -99.96c S  -5.54c ( -4.9 L  -4.8) LCB  -94.64c P  1.58% WF   9.0 PSV       8 N       9  --  C6 pass pass pass
+G8  : T -105.81c W -99.96c S  -5.83c ( -5.0 L  -4.9) LCB  -92.97c P  1.45% WF   8.0 PSV       7 N       8  --  G8 pass pass pass
+A6  : T -106.28c W -99.96c S  -6.31c ( -5.2 L  -5.0) LCB  -85.07c P  1.11% WF   6.0 PSV       6 N       6  --  A6 pass pass pass
 D3  : T -104.13c W -99.94c S  -4.20c ( -4.5 L  -4.3) LCB  -28.86c P  0.87% WF   3.0 PSV       3 N       3  --  D3 C3
 Move loc: pass
 Conservative pass: A8
@@ -5206,6 +5282,7 @@ MoveNum: 0 HASH: D46BCE48709570285E6B87898ED2D85F
  2 . . X O O O X
  1 . . . . . . .
 
+koSIMPLEscoreTERRITORYtaxSEKIsui0komi8 0
 Root visits: 1000
 New playouts: 1000
 NN rows: 595
@@ -5252,6 +5329,7 @@ MoveNum: 1 HASH: A6292DE96C1F2F62039F5B21E780BC26
  2 . . X O O O X
  1 . . . . . . .
 
+koSIMPLEscoreTERRITORYtaxSEKIsui0komi8 0
 Root visits: 1000
 New playouts: 529
 NN rows: 888
@@ -5297,6 +5375,7 @@ MoveNum: 2 HASH: 287B2504F1D8EC84668170F2E2EC72B2
  2 . . X O O O X
  1 . . . X2. . .
 
+koSIMPLEscoreTERRITORYtaxSEKIsui0komi8 0
 Root visits: 1000
 New playouts: 37
 NN rows: 920
@@ -5335,40 +5414,41 @@ MoveNum: 1 HASH: 1CF008B150161F7CBED6D737AB5AE3B6
  2 . O . . . O . O .
  1 . . . . . . . . .
 
+koSIMPLEscoreAREAtaxNONEsui0whbNfpok1komi4 0
 Root visits: 600
 New playouts: 600
-NN rows: 303
-NN batches: 303
+NN rows: 301
+NN batches: 301
 NN avg batch size: 1
-PV: G4 E6 E3 pass pass pass
+PV: G4 F6 E3 E6 C3 pass pass pass
 Tree:
-: T -94.40c W -90.66c S  -3.73c ( -1.0 L  -0.9) N     600  --  G4 E6 E3 pass pass pass
+: T -93.51c W -89.74c S  -3.75c ( -1.0 L  -0.9) N     600  --  G4 F6 E3 E6 C3 pass pass
 ---White(^)---
-G4  : T -92.40c W -88.99c S  -3.39c ( -0.9 L  -0.8) LCB  -96.94c P  8.72% WF 135.7 PSV     153 N     132  --  G4 E6 E3 pass pass pass
-E3  : T -94.23c W -90.71c S  -3.51c ( -0.9 L  -0.8) LCB -100.16c P 10.22% WF  79.0 PSV      79 N      79  --  E3 E6 pass pass pass
-B3  : T -93.77c W -90.14c S  -3.61c ( -1.0 L  -0.8) LCB -101.65c P  4.54% WF  34.1 PSV      34 N      34  --  B3 E6 G4 pass E3 pass pass pass
-H4  : T -92.78c W -89.31c S  -3.45c ( -0.9 L  -0.8) LCB -103.12c P  4.06% WF  32.5 PSV      32 N      32  --  H4 E6 B3 pass E3 pass pass pass
-H3  : T -95.26c W -91.37c S  -3.88c ( -1.1 L  -0.9) LCB -103.73c P  4.65% WF  28.7 PSV      28 N      29  --  H3 E6 H4 pass E3 pass pass pass
-G2  : T -97.51c W -93.32c S  -4.18c ( -1.2 L  -1.0) LCB -107.83c P  4.92% WF  20.3 PSV      20 N      21  --  G2 E6 G4 pass E3 pass pass pass
-G1  : T -94.84c W -90.80c S  -4.03c ( -1.1 L  -0.9) LCB -107.77c P  3.77% WF  19.9 PSV      20 N      20  --  G1 E6 G4 pass E3 pass pass pass
-A1  : T -96.62c W -92.39c S  -4.22c ( -1.2 L  -1.0) LCB -108.69c P  4.82% WF  18.6 PSV      19 N      19  --  A1 E6 G4 pass E3 pass pass pass
-J3  : T -93.45c W -89.55c S  -3.89c ( -1.1 L  -0.9) LCB -108.04c P  2.88% WF  19.1 PSV      19 N      19  --  J3 E6 G4 pass E3 pass pass pass
-J4  : T -94.68c W -90.78c S  -3.88c ( -1.1 L  -0.9) LCB -106.96c P  3.47% WF  19.9 PSV      18 N      20  --  J4 E6 G4 pass E3 pass pass pass
-C3  : T -94.56c W -90.65c S  -3.90c ( -1.1 L  -0.9) LCB -108.79c P  3.48% WF  17.9 PSV      18 N      18  --  C3 E6 G4 pass E3 pass pass pass
-J1  : T -94.30c W -90.53c S  -3.76c ( -1.0 L  -0.9) LCB -111.00c P  2.99% WF  17.0 PSV      17 N      17  --  J1 E6 G4 pass E3 pass pass pass
-D3  : T -95.93c W -92.16c S  -3.76c ( -1.0 L  -0.9) LCB -107.70c P  3.74% WF  15.7 PSV      16 N      16  --  D3 E6 G4 pass E3 pass pass pass
-A2  : T -97.19c W -93.11c S  -4.06c ( -1.1 L  -1.0) LCB -106.17c P  3.61% WF  14.6 PSV      15 N      15  --  A2 E6 G4 pass E3 pass pass pass
-D2  : T -95.94c W -91.89c S  -4.04c ( -1.1 L  -0.9) LCB -107.30c P  3.61% WF  14.8 PSV      15 N      15  --  D2 E6 G4 pass E3 pass pass pass
-C2  : T -96.06c W -92.03c S  -4.02c ( -1.1 L  -0.9) LCB -107.19c P  3.43% WF  14.7 PSV      14 N      15  --  C2 E6 G4 pass E3 pass pass pass
-C1  : T -93.77c W -90.02c S  -3.74c ( -1.0 L  -0.8) LCB -107.52c P  2.15% WF  15.0 PSV      13 N      15  --  C1 E6 G4 pass E3 pass pass pass
-E2  : T -96.22c W -92.45c S  -3.75c ( -1.0 L  -0.9) LCB -107.41c P  3.27% WF  12.8 PSV      13 N      13  --  E2 E6 G4 pass E3 pass pass pass
-J2  : T -94.33c W -90.31c S  -4.00c ( -1.1 L  -0.9) LCB -111.53c P  2.44% WF  13.0 PSV      13 N      13  --  J2 E6 E3 pass G4 pass pass pass
-B1  : T -95.95c W -92.14c S  -3.79c ( -1.1 L  -0.9) LCB -107.06c P  2.27% WF  10.8 PSV       9 N      11  --  B1 E6 G4 pass E3 pass pass pass
-H1  : T -96.62c W -92.35c S  -4.25c ( -1.2 L  -1.0) LCB -113.64c P  2.33% WF   9.8 PSV       9 N      10  --  H1 E6 E3 pass pass pass
-E1  : T -97.97c W -93.80c S  -4.16c ( -1.2 L  -1.0) LCB -114.11c P  2.66% WF   8.7 PSV       8 N       9  --  E1 E6 E3 pass pass pass
-F1  : T -97.00c W -92.90c S  -4.09c ( -1.1 L  -0.9) LCB -114.98c P  2.39% WF   8.8 PSV       8 N       9  --  F1 E6 E3 pass pass pass
-pss : T -96.63c W -92.36c S  -4.26c ( -1.2 L  -0.9) LCB -113.45c P  1.79% WF   7.8 PSV       8 N       8  --  pass E6 E3 pass pass pass
-D1  : T -95.87c W -91.82c S  -4.04c ( -1.1 L  -0.9) LCB -114.20c P  1.61% WF   7.9 PSV       7 N       8  --  D1 E6 E3 pass pass pass
+G4  : T -91.57c W -88.07c S  -3.49c ( -0.9 L  -0.8) LCB  -97.31c P  8.72% WF 128.3 PSV     127 N     125  --  G4 F6 E3 E6 C3 pass pass pass
+E3  : T -92.88c W -89.41c S  -3.46c ( -0.9 L  -0.8) LCB  -98.75c P 10.22% WF  90.6 PSV      90 N      90  --  E3 E6 G4 pass pass pass
+B3  : T -93.73c W -90.00c S  -3.72c ( -1.0 L  -0.9) LCB -103.46c P  4.54% WF  30.9 PSV      31 N      31  --  B3 E6 G4 pass E3 pass pass pass
+H3  : T -94.82c W -90.87c S  -3.94c ( -1.1 L  -0.9) LCB -107.05c P  4.65% WF  23.6 PSV      24 N      24  --  H3 E6 G4 pass E3 pass pass pass
+J4  : T -92.68c W -88.78c S  -3.90c ( -1.1 L  -0.9) LCB -109.37c P  3.47% WF  22.1 PSV      22 N      22  --  J4 E6 G4 pass E3 pass pass pass
+J3  : T -92.22c W -88.26c S  -3.96c ( -1.1 L  -0.9) LCB -108.75c P  2.88% WF  23.2 PSV      21 N      23  --  J3 E6 G4 pass E3 pass pass pass
+G2  : T -96.29c W -92.18c S  -4.09c ( -1.1 L  -1.0) LCB -107.51c P  4.92% WF  20.4 PSV      21 N      21  --  G2 E6 G4 pass E3 pass pass pass
+H4  : T -93.83c W -90.02c S  -3.80c ( -1.0 L  -0.9) LCB -109.04c P  4.06% WF  20.9 PSV      21 N      21  --  H4 E6 G4 pass E3 pass pass pass
+G1  : T -93.65c W -89.80c S  -3.84c ( -1.1 L  -0.9) LCB -107.77c P  3.77% WF  19.9 PSV      20 N      20  --  G1 E6 G4 pass E3 pass pass pass
+A1  : T -95.64c W -91.51c S  -4.13c ( -1.2 L  -0.9) LCB -108.04c P  4.82% WF  19.5 PSV      19 N      20  --  A1 E6 G4 pass E3 pass pass pass
+C3  : T -93.37c W -89.48c S  -3.88c ( -1.1 L  -0.9) LCB -108.15c P  3.48% WF  20.0 PSV      19 N      20  --  C3 E6 G4 pass E3 pass pass pass
+D3  : T -94.34c W -90.52c S  -3.81c ( -1.0 L  -0.9) LCB -109.31c P  3.74% WF  17.8 PSV      17 N      18  --  D3 E6 G4 pass E3 pass pass pass
+J1  : T -93.19c W -89.63c S  -3.55c ( -1.0 L  -0.8) LCB -110.34c P  2.99% WF  17.0 PSV      17 N      17  --  J1 E6 G4 pass E3 pass pass pass
+A2  : T -96.18c W -92.07c S  -4.10c ( -1.2 L  -0.9) LCB -106.56c P  3.61% WF  16.5 PSV      16 N      17  --  A2 E6 G4 pass E3 pass pass pass
+D2  : T -94.56c W -90.46c S  -4.09c ( -1.1 L  -0.9) LCB -109.38c P  3.61% WF  16.8 PSV      16 N      17  --  D2 E6 G4 pass E3 pass pass pass
+C2  : T -94.65c W -90.73c S  -3.91c ( -1.1 L  -0.9) LCB -107.65c P  3.43% WF  15.8 PSV      15 N      16  --  C2 E6 G4 pass E3 pass pass pass
+C1  : T -92.85c W -89.18c S  -3.66c ( -1.0 L  -0.8) LCB -107.26c P  2.15% WF  16.1 PSV      13 N      16  --  C1 E6 G4 pass E3 pass pass pass
+J2  : T -93.44c W -89.39c S  -4.04c ( -1.1 L  -0.9) LCB -110.58c P  2.44% WF  15.0 PSV      13 N      15  --  J2 E6 E3 pass G4 pass pass pass
+E2  : T -97.15c W -93.31c S  -3.83c ( -1.1 L  -0.9) LCB -111.31c P  3.27% WF   9.7 PSV      10 N      10  --  E2 E6 E3 pass pass pass
+H1  : T -94.71c W -90.54c S  -4.17c ( -1.2 L  -0.9) LCB -114.55c P  2.33% WF   9.9 PSV      10 N      10  --  H1 E6 E3 pass pass pass
+F1  : T -95.66c W -91.67c S  -3.98c ( -1.1 L  -0.9) LCB -115.14c P  2.39% WF   9.8 PSV       9 N      10  --  F1 E6 E3 pass pass pass
+E1  : T -96.96c W -92.88c S  -4.07c ( -1.1 L  -0.9) LCB -113.73c P  2.66% WF   8.7 PSV       9 N       9  --  E1 E6 E3 pass pass pass
+B1  : T -95.98c W -92.14c S  -3.84c ( -1.1 L  -0.9) LCB -112.83c P  2.27% WF   7.8 PSV       8 N       8  --  B1 E6 E3 pass pass pass
+D1  : T -93.59c W -89.65c S  -3.93c ( -1.1 L  -0.9) LCB -115.24c P  1.61% WF   8.0 PSV       8 N       8  --  D1 E6 E3 pass pass pass
+pss : T -96.32c W -92.19c S  -4.13c ( -1.2 L  -0.9) LCB -113.04c P  1.79% WF   8.8 PSV       7 N       9  --  pass E6 E3 pass pass pass
 C8  : T -101.44c W -94.95c S  -6.48c ( -2.0 L  -1.4) LCB -452.81c P  0.63% WF   1.0 PSV       1 N       1  --  C8
 F6  : T -101.59c W -95.38c S  -6.20c ( -1.9 L  -1.4) LCB -452.96c P  0.53% WF   1.0 PSV       1 N       1  --  F6
 Move loc: G4
@@ -5388,47 +5468,48 @@ MoveNum: 1 HASH: 8600F6F7B23C22826BF26963B4E71E97
  2 . O . . O O . O .
  1 . . . . . . . . .
 
+koSIMPLEscoreAREAtaxNONEsui0whbNfpok1komi7 0
 Root visits: 600
 New playouts: 600
-NN rows: 513
-NN batches: 513
+NN rows: 497
+NN batches: 497
 NN avg batch size: 1
-PV: F6 E3 E6 pass C8 pass pass
+PV: F6 E3 E6 pass pass pass
 Tree:
-: T 103.24c W  98.33c S   4.89c ( +1.7 L  +1.5) N     600  --  F6 E3 E6 pass C8 pass pass
+: T 102.97c W  98.17c S   4.79c ( +1.6 L  +1.5) N     600  --  F6 E3 E6 pass pass pass
 ---Black(v)---
-F6  : T 102.60c W  98.09c S   4.50c ( +1.5 L  +1.4) LCB  104.96c P  6.10% WF  52.4 PSV     117 N      52  --  F6 E3 E6 pass C8 pass pass
-E6  : T 103.48c W  98.47c S   4.98c ( +1.7 L  +1.6) LCB  105.49c P 11.82% WF  80.8 PSV      81 N      81  --  E6 E3 pass pass pass
-B6  : T 102.67c W  98.16c S   4.49c ( +1.5 L  +1.5) LCB  105.83c P  3.88% WF  33.2 PSV      33 N      33  --  B6 E3 F6 pass E6 pass pass pass
-C7  : T 103.68c W  98.67c S   4.99c ( +1.7 L  +1.6) LCB  106.72c P  4.91% WF  32.9 PSV      32 N      33  --  C7 E3 F6 pass E6 pass pass pass
-G7  : T 103.73c W  98.59c S   5.12c ( +1.7 L  +1.6) LCB  106.81c P  4.90% WF  30.8 PSV      31 N      31  --  G7 E3 E6 pass pass pass
-D6  : T 103.66c W  98.72c S   4.92c ( +1.7 L  +1.6) LCB  106.96c P  4.33% WF  27.9 PSV      28 N      28  --  D6 E3 E6 pass C8 pass pass pass
-D8  : T 103.76c W  98.68c S   5.07c ( +1.7 L  +1.6) LCB  107.18c P  3.90% WF  24.9 PSV      25 N      25  --  D8 E3 F6 pass E6 pass pass pass
-F8  : T 103.98c W  98.67c S   5.28c ( +1.8 L  +1.7) LCB  108.22c P  3.48% WF  20.9 PSV      21 N      21  --  F8 E3 E6 pass pass pass
-H7  : T 102.65c W  98.11c S   4.52c ( +1.5 L  +1.4) LCB  108.11c P  3.24% WF  20.1 PSV      20 N      20  --  H7 E3 F6 pass E6 pass pass pass
-C6  : T 104.04c W  98.77c S   5.25c ( +1.8 L  +1.6) LCB  109.19c P  3.97% WF  18.9 PSV      19 N      19  --  C6 E3 F6 pass E6 pass pass pass
-F9  : T 102.25c W  97.71c S   4.52c ( +1.5 L  +1.4) LCB  107.74c P  2.94% WF  19.2 PSV      19 N      19  --  F9 E3 F6 pass E6 pass pass
-C8  : T 103.68c W  98.48c S   5.19c ( +1.8 L  +1.6) LCB  109.20c P  3.60% WF  17.9 PSV      18 N      18  --  C8 E3 F6 pass E6 pass pass
-J8  : T 102.50c W  97.97c S   4.52c ( +1.5 L  +1.4) LCB  108.01c P  2.69% WF  17.1 PSV      17 N      17  --  J8 E3 F6 pass E6 pass pass
-H8  : T 103.49c W  98.42c S   5.05c ( +1.7 L  +1.6) LCB  109.86c P  3.21% WF  17.0 PSV      16 N      17  --  H8 E3 F6 pass E6 pass pass pass
-A6  : T 102.96c W  98.18c S   4.77c ( +1.6 L  +1.5) LCB  109.09c P  2.72% WF  16.0 PSV      16 N      16  --  A6 E3 F6 pass E6 pass pass
-J7  : T 102.99c W  98.26c S   4.72c ( +1.6 L  +1.5) LCB  109.20c P  2.64% WF  15.0 PSV      15 N      15  --  J7 E3 F6 pass E6 pass pass
-H9  : T 103.12c W  98.16c S   4.94c ( +1.7 L  +1.5) LCB  109.56c P  2.61% WF  14.0 PSV      14 N      14  --  H9 E3 F6 pass E6 pass pass
-A7  : T 103.16c W  98.32c S   4.83c ( +1.6 L  +1.5) LCB  110.00c P  2.49% WF  14.0 PSV      13 N      14  --  A7 E3 F6 pass E6 pass
-D9  : T 103.36c W  98.31c S   5.03c ( +1.7 L  +1.5) LCB  110.35c P  2.59% WF  13.0 PSV      13 N      13  --  D9 E3 F6 pass E6 pass pass
-G9  : T 103.47c W  98.50c S   4.95c ( +1.7 L  +1.5) LCB  110.39c P  2.43% WF  13.0 PSV      12 N      13  --  G9 E3 F6 pass E6 pass pass
-A8  : T 103.19c W  98.27c S   4.91c ( +1.7 L  +1.5) LCB  110.89c P  2.33% WF  12.0 PSV      12 N      12  --  A8 E3 F6 pass E6 pass
-E9  : T 103.13c W  98.34c S   4.79c ( +1.6 L  +1.5) LCB  110.66c P  2.21% WF  12.0 PSV      12 N      12  --  E9 E3 F6 pass E6 pass pass
-B8  : T 104.45c W  98.86c S   5.57c ( +1.9 L  +1.7) LCB  113.08c P  2.50% WF  10.9 PSV      11 N      11  --  B8 E3 E6 pass pass pass
-H4  : T 101.92c W  97.38c S   4.54c ( +1.5 L  +1.5) LCB  111.93c P  1.34% WF  10.1 PSV       9 N      10  --  H4 G4 E6 H3 pass E3
-B9  : T 103.24c W  98.34c S   4.89c ( +1.7 L  +1.5) LCB  114.48c P  1.72% WF   9.0 PSV       9 N       9  --  B9 E3 E6 pass pass pass
+F6  : T 102.40c W  97.95c S   4.43c ( +1.5 L  +1.4) LCB  104.71c P  6.10% WF  51.4 PSV     103 N      51  --  F6 E3 E6 pass pass pass
+E6  : T 103.09c W  98.26c S   4.81c ( +1.6 L  +1.5) LCB  104.99c P 11.82% WF  82.9 PSV      83 N      83  --  E6 E3 pass pass pass
+B6  : T 102.34c W  97.97c S   4.36c ( +1.5 L  +1.4) LCB  105.43c P  3.88% WF  33.2 PSV      33 N      33  --  B6 E3 F6 pass E6 pass pass pass
+G7  : T 103.38c W  98.47c S   4.89c ( +1.7 L  +1.6) LCB  106.34c P  4.90% WF  31.9 PSV      32 N      32  --  G7 E3 E6 pass pass pass
+C7  : T 103.49c W  98.56c S   4.91c ( +1.7 L  +1.6) LCB  106.48c P  4.91% WF  31.8 PSV      31 N      32  --  C7 E3 E6 pass pass pass
+D6  : T 103.58c W  98.56c S   5.00c ( +1.7 L  +1.6) LCB  106.78c P  4.33% WF  27.8 PSV      27 N      28  --  D6 E3 E6 pass C8 pass pass pass
+D8  : T 103.53c W  98.55c S   4.96c ( +1.7 L  +1.6) LCB  106.89c P  3.90% WF  24.9 PSV      25 N      25  --  D8 E3 F6 pass E6 pass pass pass
+F8  : T 103.72c W  98.54c S   5.16c ( +1.7 L  +1.6) LCB  107.92c P  3.48% WF  20.9 PSV      21 N      21  --  F8 E3 E6 pass pass pass
+H7  : T 102.37c W  97.94c S   4.40c ( +1.5 L  +1.4) LCB  107.73c P  3.24% WF  20.1 PSV      20 N      20  --  H7 E3 F6 pass E6 pass pass pass
+C6  : T 103.72c W  98.58c S   5.12c ( +1.7 L  +1.6) LCB  108.91c P  3.97% WF  18.9 PSV      19 N      19  --  C6 E3 F6 pass E6 pass pass pass
+F9  : T 101.94c W  97.56c S   4.35c ( +1.5 L  +1.4) LCB  107.47c P  2.94% WF  19.2 PSV      19 N      19  --  F9 E3 F6 pass E6 pass pass pass
+C8  : T 103.41c W  98.40c S   4.99c ( +1.7 L  +1.5) LCB  108.93c P  3.60% WF  17.9 PSV      18 N      18  --  C8 E3 F6 pass E6 pass pass
+H8  : T 103.11c W  98.21c S   4.88c ( +1.6 L  +1.5) LCB  109.40c P  3.21% WF  17.0 PSV      17 N      17  --  H8 E3 F6 pass E6 pass pass pass
+A6  : T 102.40c W  97.82c S   4.56c ( +1.5 L  +1.4) LCB  108.52c P  2.72% WF  16.1 PSV      16 N      16  --  A6 E3 F6 pass E6 pass pass
+J8  : T 102.40c W  97.83c S   4.55c ( +1.5 L  +1.4) LCB  108.18c P  2.69% WF  16.1 PSV      16 N      16  --  J8 E3 F6 pass E6 pass pass
+H9  : T 102.38c W  97.78c S   4.59c ( +1.6 L  +1.4) LCB  108.27c P  2.61% WF  16.1 PSV      16 N      16  --  H9 E3 F6 pass E6 pass pass
+J7  : T 102.47c W  97.94c S   4.52c ( +1.5 L  +1.4) LCB  108.60c P  2.64% WF  15.1 PSV      15 N      15  --  J7 E3 F6 pass E6 pass pass
+D9  : T 103.15c W  98.20c S   4.94c ( +1.7 L  +1.5) LCB  109.58c P  2.59% WF  14.0 PSV      13 N      14  --  D9 E3 F6 pass E6 pass pass
+G9  : T 102.91c W  98.15c S   4.74c ( +1.6 L  +1.5) LCB  109.84c P  2.43% WF  13.0 PSV      13 N      13  --  G9 E3 F6 pass E6 pass pass
+A7  : T 103.68c W  98.34c S   5.33c ( +1.8 L  +1.6) LCB  111.42c P  2.49% WF  11.9 PSV      12 N      12  --  A7 E3 E6 pass pass pass
+A8  : T 102.88c W  98.21c S   4.66c ( +1.6 L  +1.5) LCB  110.53c P  2.33% WF  12.0 PSV      12 N      12  --  A8 E3 E6 pass pass pass
+B8  : T 104.20c W  98.74c S   5.45c ( +1.8 L  +1.6) LCB  112.79c P  2.50% WF  10.9 PSV      11 N      11  --  B8 E3 E6 pass pass pass
+E9  : T 103.41c W  98.36c S   5.04c ( +1.7 L  +1.5) LCB  111.70c P  2.21% WF  11.0 PSV      11 N      11  --  E9 E3 E6 pass pass pass
+B9  : T 103.01c W  98.21c S   4.79c ( +1.6 L  +1.5) LCB  114.17c P  1.72% WF   9.0 PSV       9 N       9  --  B9 E3 E6 pass pass pass
+H4  : T 101.53c W  97.26c S   4.27c ( +1.5 L  +1.5) LCB  113.01c P  1.34% WF   9.1 PSV       9 N       9  --  H4 G4 E6 H3 pass E3
 G4  : T 103.35c W  97.72c S   5.63c ( +1.9 L  +1.7) LCB  116.39c P  1.66% WF   9.0 PSV       8 N       9  --  G4 H4 E6 E3 pass
 B3  : T 104.30c W  98.25c S   6.04c ( +2.1 L  +1.8) LCB  121.35c P  1.52% WF   6.9 PSV       6 N       7  --  B3 C3 E6 E3 pass
-C9  : T 103.14c W  98.18c S   4.95c ( +1.7 L  +1.5) LCB  124.32c P  1.11% WF   6.0 PSV       6 N       6  --  C9 E3 E6 pass pass
-A2  : T 101.38c W  97.27c S   4.10c ( +1.4 L  +1.4) LCB  123.04c P  0.75% WF   6.1 PSV       6 N       6  --  A2 B3 E6 A1
-J9  : T 103.07c W  97.92c S   5.14c ( +1.8 L  +1.5) LCB  124.63c P  0.95% WF   6.0 PSV       5 N       6  --  J9 E3 E6 pass pass
-A9  : T 103.34c W  98.32c S   5.02c ( +1.7 L  +1.5) LCB  133.21c P  1.00% WF   5.0 PSV       5 N       5  --  A9 E3 E6 pass pass
-pss : T 103.05c W  98.23c S   4.82c ( +1.6 L  +1.4) LCB  131.32c P  0.76% WF   5.0 PSV       5 N       5  --  pass E3 E6 pass
+C9  : T 102.62c W  97.87c S   4.75c ( +1.6 L  +1.4) LCB  123.73c P  1.11% WF   6.0 PSV       6 N       6  --  C9 E3 E6 pass pass
+J9  : T 102.71c W  97.72c S   4.99c ( +1.7 L  +1.4) LCB  124.17c P  0.95% WF   6.0 PSV       5 N       6  --  J9 E3 E6 pass pass
+pss : T 103.14c W  97.91c S   5.23c ( +1.8 L  +1.4) LCB  123.26c P  0.76% WF   6.0 PSV       5 N       6  --  pass E3 E6 pass pass
+A2  : T 101.38c W  97.27c S   4.10c ( +1.4 L  +1.4) LCB  123.04c P  0.75% WF   6.1 PSV       5 N       6  --  A2 B3 E6 A1
+A9  : T 102.92c W  98.10c S   4.82c ( +1.7 L  +1.4) LCB  132.64c P  1.00% WF   5.0 PSV       5 N       5  --  A9 E3 E6 pass pass
 C3  : T 103.99c W  98.76c S   5.23c ( +1.8 L  +1.8) LCB  254.39c P  0.61% WF   2.0 PSV       2 N       2  --  C3 B3
 Move loc: F6
 Friendly pass: pass
@@ -5458,6 +5539,7 @@ MoveNum: 0 HASH: 193699C7DD4DE8B4271E3CA1562F4A5B
  2 . . . . . X O . . . . . . . . . . . .
  1 . . . . . . . . . . . . . . . . . . .
 
+koSIMPLEscoreTERRITORYtaxSEKIsui0komi6.5 0
 Root visits: 1000
 New playouts: 1000
 NN rows: 718
@@ -5529,6 +5611,7 @@ MoveNum: 0 HASH: 193699C7DD4DE8B4271E3CA1562F4A5B
  2 . . . . . X O . . . . . . . . . . . .
  1 . . . . . . . . . . . . . . . . . . .
 
+koSIMPLEscoreTERRITORYtaxSEKIsui0komi6.5 0
 Root visits: 1000
 New playouts: 1000
 NN rows: 721
@@ -5600,6 +5683,7 @@ MoveNum: 0 HASH: 193699C7DD4DE8B4271E3CA1562F4A5B
  2 . . . . . X O . . . . . . . . . . . .
  1 . . . . . . . . . . . . . . . . . . .
 
+koSIMPLEscoreTERRITORYtaxSEKIsui0komi6.5 0
 Root visits: 1000
 New playouts: 1000
 NN rows: 718
@@ -5671,6 +5755,7 @@ MoveNum: 0 HASH: 193699C7DD4DE8B4271E3CA1562F4A5B
  2 . . . . . X O . . . . . . . . . . . .
  1 . . . . . . . . . . . . . . . . . . .
 
+koSIMPLEscoreTERRITORYtaxSEKIsui0komi6.5 0
 Root visits: 1000
 New playouts: 1000
 NN rows: 725
@@ -5732,6 +5817,7 @@ MoveNum: 0 HASH: 193699C7DD4DE8B4271E3CA1562F4A5B
  2 . . . . . X O . . . . . . . . . . . .
  1 . . . . . . . . . . . . . . . . . . .
 
+koSIMPLEscoreTERRITORYtaxSEKIsui0komi6.5 0
 Root visits: 8000
 New playouts: 8000
 NN rows: 4778
@@ -5811,6 +5897,7 @@ MoveNum: 0 HASH: 193699C7DD4DE8B4271E3CA1562F4A5B
  2 . . . . . X O . . . . . . . . . . . .
  1 . . . . . . . . . . . . . . . . . . .
 
+koSIMPLEscoreTERRITORYtaxSEKIsui0komi6.5 0
 Root visits: 8000
 New playouts: 8000
 NN rows: 4778
@@ -5890,6 +5977,7 @@ MoveNum: 0 HASH: 193699C7DD4DE8B4271E3CA1562F4A5B
  2 . . . . . X O . . . . . . . . . . . .
  1 . . . . . . . . . . . . . . . . . . .
 
+koSIMPLEscoreTERRITORYtaxSEKIsui0komi6.5 0
 Root visits: 8000
 New playouts: 8000
 NN rows: 4778
@@ -5969,6 +6057,7 @@ MoveNum: 0 HASH: 193699C7DD4DE8B4271E3CA1562F4A5B
  2 . . . . . X O . . . . . . . . . . . .
  1 . . . . . . . . . . . . . . . . . . .
 
+koSIMPLEscoreTERRITORYtaxSEKIsui0komi6.5 0
 Root visits: 8000
 New playouts: 8000
 NN rows: 4789
@@ -6048,6 +6137,7 @@ MoveNum: 0 HASH: 193699C7DD4DE8B4271E3CA1562F4A5B
  2 . . . . . X O . . . . . . . . . . . .
  1 . . . . . . . . . . . . . . . . . . .
 
+koSIMPLEscoreTERRITORYtaxSEKIsui0komi6.5 0
 Root visits: 8000
 New playouts: 8000
 NN rows: 4682
@@ -6114,6 +6204,7 @@ MoveNum: 7 HASH: EE61AADA9E893FB0EBB205E3F2F6CEA0
  2 . . . . . . . . . . . . . . . . . . .
  1 . . . . . . . . . . . . . . . . . . .
 
+koSIMPLEscoreTERRITORYtaxSEKIsui0komi6.5 0
 Root visits: 1000
 New playouts: 1000
 NN rows: 968
@@ -6190,6 +6281,7 @@ MoveNum: 7 HASH: EE61AADA9E893FB0EBB205E3F2F6CEA0
  2 . . . . . . . . . . . . . . . . . . .
  1 . . . . . . . . . . . . . . . . . . .
 
+koSIMPLEscoreTERRITORYtaxSEKIsui0komi6.5 0
 Root visits: 1000
 New playouts: 1000
 NN rows: 971
@@ -6266,6 +6358,7 @@ MoveNum: 7 HASH: EE61AADA9E893FB0EBB205E3F2F6CEA0
  2 . . . . . . . . . . . . . . . . . . .
  1 . . . . . . . . . . . . . . . . . . .
 
+koSIMPLEscoreTERRITORYtaxSEKIsui0komi6.5 0
 Root visits: 1000
 New playouts: 1000
 NN rows: 971
@@ -6342,6 +6435,7 @@ MoveNum: 8 HASH: C5772EFFB539367B2C6329DFEFD06852
  2 . . . . . . . . . . . . . . . . . . .
  1 . . . . . . . . . . . . . . . . . . .
 
+koSIMPLEscoreTERRITORYtaxSEKIsui0komi6.5 0
 Root visits: 1000
 New playouts: 813
 NN rows: 790
@@ -6409,6 +6503,7 @@ MoveNum: 8 HASH: C5772EFFB539367B2C6329DFEFD06852
  2 . . . . . . . . . . . . . . . . . . .
  1 . . . . . . . . . . . . . . . . . . .
 
+koSIMPLEscoreTERRITORYtaxSEKIsui0komi6.5 0
 Root visits: 1000
 New playouts: 1000
 NN rows: 993
@@ -6477,6 +6572,7 @@ MoveNum: 9 HASH: 996501AEBCF40F7ECA2430600BFDFA05
  2 . . . . . . . . . . . . . . . . . . .
  1 . . . . . . . . . . . . . . . . . . .
 
+koSIMPLEscoreTERRITORYtaxSEKIsui0komi6.5 0
 Root visits: 1000
 New playouts: 926
 NN rows: 910
@@ -6533,6 +6629,7 @@ MoveNum: 9 HASH: 996501AEBCF40F7ECA2430600BFDFA05
  2 . . . . . . . . . . . . . . . . . . .
  1 . . . . . . . . . . . . . . . . . . .
 
+koSIMPLEscoreTERRITORYtaxSEKIsui0komi6.5 0
 Root visits: 1000
 New playouts: 1000
 NN rows: 952
@@ -6589,6 +6686,7 @@ MoveNum: 9 HASH: 996501AEBCF40F7ECA2430600BFDFA05
  2 . . . . . . . . . . . . . . . . . . .
  1 . . . . . . . . . . . . . . . . . . .
 
+koSIMPLEscoreTERRITORYtaxSEKIsui0komi6.5 0
 Root visits: 1000
 New playouts: 998
 NN rows: 951
@@ -6646,6 +6744,7 @@ MoveNum: 6 HASH: 85E0ED361349F2B9D1688CB2FFEB3063
  2 . . . . . . . . . . . . . . . . . . .
  1 . . . . . . . . . . . . . . . . . . .
 
+koSIMPLEscoreTERRITORYtaxSEKIsui0komi6.5 0
 Root visits: 1000
 New playouts: 1000
 NN rows: 930
@@ -6685,6 +6784,7 @@ MoveNum: 6 HASH: 85E0ED361349F2B9D1688CB2FFEB3063
  2 . . . . . . . . . . . . . . . . . . .
  1 . . . . . . . . . . . . . . . . . . .
 
+koSIMPLEscoreTERRITORYtaxSEKIsui0komi6.5 0
 Root visits: 1000
 New playouts: 1000
 NN rows: 930
@@ -6724,6 +6824,7 @@ MoveNum: 0 HASH: 0483785A1D3D994549631CC1DE3E1CCE
  2 . . . . . . . . . . . . . . . . . . .
  1 . . . . . . . . . . . . . . . . . . .
 
+koSIMPLEscoreTERRITORYtaxSEKIsui0komi25.5 0
 Root visits: 1000
 New playouts: 1000
 NN rows: 937
@@ -6811,6 +6912,7 @@ MoveNum: 2 HASH: A2E899876ACD29B60860FF9DCC162CE3
  2 . . . . . . . . . . . . . . . . . . .
  1 . . . . . . . . . . . . . . . . . . .
 
+koSIMPLEscoreTERRITORYtaxSEKIsui0komi25.5 0
 Root visits: 1000
 New playouts: 1000
 NN rows: 956
@@ -6891,6 +6993,7 @@ MoveNum: 4 HASH: 4DD29357BDBD5961319EF9FFDC0C41FD
  2 . . . . . . . . . . . . . . . . . . .
  1 . . . . . . . . . . . . . . . . . . .
 
+koSIMPLEscoreTERRITORYtaxSEKIsui0komi25.5 0
 Root visits: 1000
 New playouts: 1000
 NN rows: 956
@@ -6964,6 +7067,7 @@ MoveNum: 6 HASH: 145A71A7418E41E4F38BDD7CBEEDFE0A
  2 . . . . . . . . . . . . . . . . . . .
  1 . . . . . . . . . . . . . . . . . . .
 
+koSIMPLEscoreTERRITORYtaxSEKIsui0komi25.5 0
 Root visits: 1000
 New playouts: 1000
 NN rows: 942
@@ -7019,7 +7123,7 @@ D8  : T -87.97c W -79.71c S  -8.26c (-25.1 L -23.5) LCB -437.97c P  0.34% WF   1
 E15 : T -83.69c W -76.01c S  -7.68c (-24.3 L -23.1) LCB -433.69c P  0.31% WF   1.0 PSV       1 N       1  --  E15
 E5  : T -82.59c W -75.26c S  -7.33c (-23.9 L -22.5) LCB -432.59c P  0.31% WF   1.0 PSV       1 N       1  --  E5
 L4  : T -84.24c W -77.03c S  -7.22c (-23.5 L -21.9) LCB -434.24c P  0.31% WF   1.0 PSV       1 N       1  --  L4
-: GPU 0 finishing, processed 55444 rows 55444 batches
+: GPU 0 finishing, processed 55432 rows 55432 batches
 : Initializing neural net buffer to be size 19 * 19 allowing smaller boards
 : Cuda backend thread 0: Found GPU NVIDIA RTX A5000 memory 25434652672 compute capability major 8 minor 6
 : Cuda backend thread 0: Model version 8 useFP16 = false useNHWC = false
@@ -7037,6 +7141,7 @@ MoveNum: 0 HASH: 1C3E2CFF3462D0A28CEC88C4DAA5C529
  2 O X X X X X X
  1 X X . . . . .
 
+koPOSITIONALscoreAREAtaxNONEsui1komi7.5 0
 Root visits: 100
 New playouts: 100
 NN rows: 62
@@ -7101,6 +7206,7 @@ MoveNum: 0 HASH: 007D5F8898540BEFBFE0A7E24314E20D
  2 . . . . . . . . . . . . . . .
  1 . . . . . . . . . . . . . . .
 
+koSITUATIONALscoreAREAtaxNONEsui0whbN-1fpok1komi7.5 0
 Root visits: 1
 New playouts: 1
 NN rows: 9
@@ -7147,6 +7253,7 @@ MoveNum: 0 HASH: 007D5F8898540BEFBFE0A7E24314E20D
  2 . . . . . . . . . . . . . . .
  1 . . . . . . . . . . . . . . .
 
+koSITUATIONALscoreAREAtaxNONEsui0whbN-1fpok1komi7.5 0
 Root visits: 1
 New playouts: 1
 NN rows: 9
@@ -7193,6 +7300,7 @@ MoveNum: 0 HASH: 007D5F8898540BEFBFE0A7E24314E20D
  2 . . . . . . . . . . . . . . .
  1 . . . . . . . . . . . . . . .
 
+koSITUATIONALscoreAREAtaxNONEsui0whbN-1fpok1komi7.5 0
 Root visits: 1
 New playouts: 1
 NN rows: 9

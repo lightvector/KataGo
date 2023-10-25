@@ -255,6 +255,7 @@ int MainCmds::gatekeeper(const vector<string>& args) {
   try {
     KataGoCommandLine cmd("Test neural nets to see if they should be accepted for self-play training data generation.");
     cmd.addConfigFileArg("","");
+    cmd.addOverrideConfigArg();
 
     TCLAP::ValueArg<string> testModelsDirArg("","test-models-dir","Dir to poll and load models from",true,string(),"DIR");
     TCLAP::ValueArg<string> sgfOutputDirArg("","sgf-output-dir","Dir to output sgf files",true,string(),"DIR");

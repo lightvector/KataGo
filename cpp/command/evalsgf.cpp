@@ -559,8 +559,8 @@ int MainCmds::evalsgf(const vector<string>& args) {
 
     for(int nodeIdx = 0; nodeIdx<nodes.size(); nodeIdx++) {
       SearchNode& node = *(nodes[nodeIdx]);
-      int childrenCapacity;
-      SearchChildPointer* children = node.getChildren(childrenCapacity);
+      SearchNodeChildrenReference children = node.getChildren();
+      int childrenCapacity = children.getCapacity();
       for(int i = 0; i<childrenCapacity; i++) {
         SearchNode* child = children[i].getIfAllocated();
         if(child == NULL)

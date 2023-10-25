@@ -30,6 +30,16 @@ int MainCmds::contribute(const std::vector<std::string>& args) {
 }
 
 #else
+#if defined(CACHE_TENSORRT_PLAN) && defined(USE_TENSORRT_BACKEND)
+
+int MainCmds::contribute(const std::vector<std::string>& args) {
+  (void)args;
+  std::cout << "This version of KataGo was compiled with CACHE_TENSORRT_PLAN enabled, which does not support contribute due to excessive disk space usage and possible performance issues." << std::endl;
+  std::cout << "Compile with CACHE_TENSORRT_PLAN=0 (-DUSE_CACHE_TENSORRT_PLAN=0 in CMake) instead." << std::endl;
+  return 0;
+}
+
+#else
 
 #include "../distributed/client.h"
 
@@ -589,7 +599,10 @@ int MainCmds::contribute(const vector<string>& args) {
     mirrorUseProxy,
     &logger
   );
+  connection->testConnection();
+  logger.write("Connected to " + serverUrl);
   const Client::RunParameters runParams = connection->getRunParameters();
+  logger.write("Found active training run: " + runParams.runName);
 
   MakeDir::make(baseDir);
   baseDir = baseDir + "/" + runParams.runName;
@@ -1408,4 +1421,6 @@ int MainCmds::contribute(const vector<string>& args) {
   return 0;
 }
 
+#endif //CACHE_TENSORRT_PLAN
 #endif //BUILD_DISTRIBUTED
+

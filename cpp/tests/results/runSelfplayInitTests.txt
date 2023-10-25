@@ -31,6 +31,7 @@ HASH: 956C234ACE2FE18A0777F8C98CCB9E10
 Initial pla Black
 Encore phase 0
 Turns this phase 3
+Approx valid turns this phase 3
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
@@ -59,6 +60,7 @@ HASH: BE7AA76FE59FE841C0A6D4F591ED38E2
 Initial pla Black
 Encore phase 0
 Turns this phase 4
+Approx valid turns this phase 4
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
@@ -149,6 +151,7 @@ HASH: 4FF60143494DC5817BA189A08C5B8841
 Initial pla Black
 Encore phase 0
 Turns this phase 3
+Approx valid turns this phase 3
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi-3
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
@@ -187,6 +190,7 @@ HASH: 7F7D37A01214AAAE65047AABF10EBE19
 Initial pla Black
 Encore phase 0
 Turns this phase 1
+Approx valid turns this phase 1
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
@@ -215,6 +219,7 @@ HASH: F6341357CF34D38F34C5587BE54761CD
 Initial pla Black
 Encore phase 0
 Turns this phase 2
+Approx valid turns this phase 2
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
@@ -313,6 +318,7 @@ HASH: 77B4E1FA696E63454E2F8110463B3089
 Initial pla Black
 Encore phase 0
 Turns this phase 1
+Approx valid turns this phase 1
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
@@ -341,6 +347,7 @@ HASH: 5CA265DF42DE6A8E89FEAD2C5B1D967B
 Initial pla Black
 Encore phase 0
 Turns this phase 2
+Approx valid turns this phase 2
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
@@ -439,6 +446,7 @@ HASH: CFC54270FFDEDCB73D541C2CED5CF964
 Initial pla Black
 Encore phase 0
 Turns this phase 8
+Approx valid turns this phase 8
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
@@ -467,6 +475,7 @@ HASH: 65392124418A186DFC254C1C2DA366D1
 Initial pla Black
 Encore phase 0
 Turns this phase 9
+Approx valid turns this phase 9
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
@@ -556,6 +565,7 @@ HASH: 90D7F0EA2EC9373EEFC368FBEA53187E
 Initial pla Black
 Encore phase 0
 Turns this phase 9
+Approx valid turns this phase 9
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
@@ -594,6 +604,7 @@ HASH: 3484C02AF2213AB20F3240BF8D974F67
 Initial pla Black
 Encore phase 0
 Turns this phase 9
+Approx valid turns this phase 9
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
@@ -622,6 +633,7 @@ HASH: BDCDE4DD2F0143935EF3626F99DE90B3
 Initial pla Black
 Encore phase 0
 Turns this phase 10
+Approx valid turns this phase 10
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
@@ -712,6 +724,7 @@ HASH: 36E54B920A51C1C15436197C8963D487
 Initial pla Black
 Encore phase 0
 Turns this phase 4
+Approx valid turns this phase 4
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi8.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
@@ -750,6 +763,7 @@ HASH: C3F03E168D2341B162EA3346418666BE
 Initial pla Black
 Encore phase 0
 Turns this phase 1
+Approx valid turns this phase 1
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
@@ -778,6 +792,7 @@ HASH: 9BDF2F5B7BF94CEEC64D26D3E7260756
 Initial pla Black
 Encore phase 0
 Turns this phase 2
+Approx valid turns this phase 2
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
@@ -876,6 +891,7 @@ HASH: DD529D42E0F79740CF9BE211911BAA5F
 Initial pla Black
 Encore phase 0
 Turns this phase 2
+Approx valid turns this phase 2
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
@@ -904,6 +920,7 @@ HASH: 314BFE5369E75124598DDFC48C8FE3E3
 Initial pla Black
 Encore phase 0
 Turns this phase 3
+Approx valid turns this phase 3
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
@@ -1002,6 +1019,7 @@ HASH: C672395E3EFB6E00CCF6A61CCAE874B5
 Initial pla Black
 Encore phase 0
 Turns this phase 0
+Approx valid turns this phase 0
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
@@ -1030,6 +1048,7 @@ HASH: 77B4E1FA696E63454E2F8110463B3089
 Initial pla Black
 Encore phase 0
 Turns this phase 1
+Approx valid turns this phase 1
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
@@ -1119,6 +1138,7 @@ HASH: 282193ACFAA7797D79C3317CE8D59343
 Initial pla Black
 Encore phase 0
 Turns this phase 1
+Approx valid turns this phase 1
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
@@ -1148,6 +1168,7 @@ HASH: 4786C19936C66D93FCAEABE687F644A5
 Initial pla Black
 Encore phase 0
 Turns this phase 3
+Approx valid turns this phase 3
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
@@ -1177,6 +1198,7 @@ HASH: 8A58F2DB0012E744B257D952E512F14E
 Initial pla Black
 Encore phase 0
 Turns this phase 5
+Approx valid turns this phase 5
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
@@ -1207,6 +1229,7 @@ HASH: C1B7B73EFE5042B98BD20F5A6D1E8E5D
 Initial pla Black
 Encore phase 0
 Turns this phase 1
+Approx valid turns this phase 1
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi6.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
@@ -1245,6 +1268,7 @@ HASH: C672395E3EFB6E00CCF6A61CCAE874B5
 Initial pla Black
 Encore phase 0
 Turns this phase 0
+Approx valid turns this phase 0
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
@@ -1273,6 +1297,7 @@ HASH: 77B4E1FA696E63454E2F8110463B3089
 Initial pla Black
 Encore phase 0
 Turns this phase 1
+Approx valid turns this phase 1
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
@@ -1362,6 +1387,7 @@ HASH: E0C17398429C9D721603F6F49B496C18
 Initial pla Black
 Encore phase 0
 Turns this phase 1
+Approx valid turns this phase 1
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
@@ -1392,6 +1418,7 @@ HASH: 239F52685E69AC779AA5F8B6A4327FF6
 Initial pla Black
 Encore phase 0
 Turns this phase 1
+Approx valid turns this phase 1
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
@@ -1430,6 +1457,7 @@ HASH: C672395E3EFB6E00CCF6A61CCAE874B5
 Initial pla Black
 Encore phase 0
 Turns this phase 0
+Approx valid turns this phase 0
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
@@ -1458,6 +1486,7 @@ HASH: 77B4E1FA696E63454E2F8110463B3089
 Initial pla Black
 Encore phase 0
 Turns this phase 1
+Approx valid turns this phase 1
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
@@ -1547,6 +1576,7 @@ HASH: 541BB9B53DD7EE619E5AC0C18552758B
 Initial pla Black
 Encore phase 0
 Turns this phase 1
+Approx valid turns this phase 1
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
@@ -1577,6 +1607,7 @@ HASH: 94D292F441A2369C0028A58C784A7EE4
 Initial pla Black
 Encore phase 0
 Turns this phase 1
+Approx valid turns this phase 1
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
@@ -1615,6 +1646,7 @@ HASH: 214EBD7741EE2AD7EA6C5319DC78C7A8
 Initial pla Black
 Encore phase 0
 Turns this phase 2
+Approx valid turns this phase 2
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi18.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
@@ -1643,6 +1675,7 @@ HASH: ADB28DA4B7FC25B1E4B9B7FD8F29466D
 Initial pla Black
 Encore phase 0
 Turns this phase 3
+Approx valid turns this phase 3
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi18.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
@@ -1733,6 +1766,7 @@ HASH: 32DE169C88D7AEFDF8774E5A517CD8C0
 Initial pla Black
 Encore phase 0
 Turns this phase 3
+Approx valid turns this phase 3
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi17.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
@@ -1771,6 +1805,7 @@ HASH: 5E59B48A5BFB0CC021AB02B04CB2F9A9
 Initial pla Black
 Encore phase 0
 Turns this phase 1
+Approx valid turns this phase 1
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi21
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
@@ -1799,6 +1834,7 @@ HASH: 891745114C57CCDA21D61424BF4C960B
 Initial pla Black
 Encore phase 0
 Turns this phase 2
+Approx valid turns this phase 2
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi21
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
@@ -1888,6 +1924,7 @@ HASH: 2B8F93D9F56B515C49DCCFFBBA958177
 Initial pla Black
 Encore phase 0
 Turns this phase 2
+Approx valid turns this phase 2
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi21
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
@@ -1918,6 +1955,7 @@ HASH: DE8B7BF8F718480C3AF578017650E008
 Initial pla Black
 Encore phase 0
 Turns this phase 2
+Approx valid turns this phase 2
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi30
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
@@ -1956,6 +1994,7 @@ HASH: 4597D84724649ECA47A54854E29EA154
 Initial pla Black
 Encore phase 0
 Turns this phase 18
+Approx valid turns this phase 18
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi14
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
@@ -1984,6 +2023,7 @@ HASH: 6F83F1901C1F5B928A813DC8624706E6
 Initial pla Black
 Encore phase 0
 Turns this phase 19
+Approx valid turns this phase 19
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi14
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
@@ -2073,6 +2113,7 @@ HASH: 49F9611FBF8C720812CD1BF5F2D69E69
 Initial pla Black
 Encore phase 0
 Turns this phase 19
+Approx valid turns this phase 19
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi14
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
@@ -2103,6 +2144,7 @@ HASH: 54828A8326AA3717E3BC1178E4935A74
 Initial pla Black
 Encore phase 0
 Turns this phase 5
+Approx valid turns this phase 5
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi17
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
@@ -2141,6 +2183,7 @@ HASH: 2100447A29B83C761690DFA289BAD2FD
 Initial pla Black
 Encore phase 0
 Turns this phase 2
+Approx valid turns this phase 2
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi22.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
@@ -2169,6 +2212,7 @@ HASH: 07B30EBC55DFCF04CC658F4AD81BCA50
 Initial pla Black
 Encore phase 0
 Turns this phase 3
+Approx valid turns this phase 3
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi22.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
@@ -2258,6 +2302,7 @@ HASH: CD19276BA0A8FA128086E277942E9B41
 Initial pla Black
 Encore phase 0
 Turns this phase 3
+Approx valid turns this phase 3
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi22.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
@@ -2296,6 +2341,7 @@ HASH: 3ED8C8BF9994E08FDA19D53DA391B346
 Initial pla Black
 Encore phase 0
 Turns this phase 7
+Approx valid turns this phase 7
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi29
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
@@ -2324,6 +2370,7 @@ HASH: 51A87950062228CF91E3C7976961DCA7
 Initial pla Black
 Encore phase 0
 Turns this phase 8
+Approx valid turns this phase 8
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi29
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
@@ -2422,6 +2469,7 @@ HASH: 6C5F336F6FA020765EB29387EABB46A9
 Initial pla Black
 Encore phase 0
 Turns this phase 3
+Approx valid turns this phase 3
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi21
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
@@ -2450,6 +2498,7 @@ HASH: A25EC1BDA3C140BD04D325A876C140D9
 Initial pla Black
 Encore phase 0
 Turns this phase 4
+Approx valid turns this phase 4
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi21
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
@@ -2540,6 +2589,7 @@ HASH: 55B99112985BE22D599A07FC5C71ADCE
 Initial pla Black
 Encore phase 0
 Turns this phase 4
+Approx valid turns this phase 4
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi33
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
@@ -2578,6 +2628,7 @@ HASH: 4CA5D0454EEA4E9F97667EF2F645D096
 Initial pla Black
 Encore phase 0
 Turns this phase 8
+Approx valid turns this phase 8
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi23
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
@@ -2606,6 +2657,7 @@ HASH: 64556AEE308B2EE3E53EA1DF82A8BAF6
 Initial pla Black
 Encore phase 0
 Turns this phase 9
+Approx valid turns this phase 9
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi23
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
@@ -2704,6 +2756,7 @@ HASH: 9904489C68ED396F8D3CAB452D908594
 Initial pla Black
 Encore phase 0
 Turns this phase 1
+Approx valid turns this phase 1
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi21.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
@@ -2732,6 +2785,7 @@ HASH: 131D35D61FBFB42B77A47D67AE5236BA
 Initial pla Black
 Encore phase 0
 Turns this phase 2
+Approx valid turns this phase 2
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi21.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
@@ -2822,6 +2876,7 @@ HASH: A329E41DF9D6DBB077BF682382908ABE
 Initial pla Black
 Encore phase 0
 Turns this phase 2
+Approx valid turns this phase 2
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi23
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
@@ -2860,6 +2915,7 @@ HASH: 0A8F07C2D2BEF2ECD5D16244D296904B
 Initial pla Black
 Encore phase 0
 Turns this phase 8
+Approx valid turns this phase 8
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi20.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
@@ -2888,6 +2944,7 @@ HASH: 2E465641210F2D88831D30C59274F693
 Initial pla Black
 Encore phase 0
 Turns this phase 9
+Approx valid turns this phase 9
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi20.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
@@ -2977,6 +3034,7 @@ HASH: B380093CFE5136427C23BEF3E9705AE7
 Initial pla Black
 Encore phase 0
 Turns this phase 9
+Approx valid turns this phase 9
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi20.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
@@ -3015,6 +3073,7 @@ HASH: E4CF54ABA26684589F3C74FFC418CD4B
 Initial pla Black
 Encore phase 0
 Turns this phase 4
+Approx valid turns this phase 4
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi17
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
@@ -3043,6 +3102,7 @@ HASH: 904A6F8823AE32A7A3A49DA28A087011
 Initial pla Black
 Encore phase 0
 Turns this phase 5
+Approx valid turns this phase 5
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi17
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
@@ -3141,6 +3201,7 @@ HASH: 02F6C75D6C2BB13646C736AE5A5C4430
 Initial pla Black
 Encore phase 0
 Turns this phase 1
+Approx valid turns this phase 1
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi33
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
@@ -3169,6 +3230,7 @@ HASH: 1AD75E01883D92CBF0387E40A6EA0897
 Initial pla Black
 Encore phase 0
 Turns this phase 2
+Approx valid turns this phase 2
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi33
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
@@ -3258,6 +3320,7 @@ HASH: DA5E7A87DBC1631270CC1B61943A148E
 Initial pla Black
 Encore phase 0
 Turns this phase 2
+Approx valid turns this phase 2
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi33
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
@@ -3288,6 +3351,7 @@ HASH: 4EA9726D4D7DF47D8AB1CFD33F02E3E7
 Initial pla Black
 Encore phase 0
 Turns this phase 2
+Approx valid turns this phase 2
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi39.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
@@ -3326,6 +3390,7 @@ HASH: 9E5E123C2E9A8AC2B63BB1B32BEC722A
 Initial pla Black
 Encore phase 0
 Turns this phase 6
+Approx valid turns this phase 6
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi35.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
@@ -3354,6 +3419,7 @@ HASH: 1F4A57008712EF044CE50DCCF50E4655
 Initial pla Black
 Encore phase 0
 Turns this phase 7
+Approx valid turns this phase 7
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi35.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
@@ -3452,6 +3518,7 @@ HASH: 98FE3886D6AAFA226CEF989E0107B620
 Initial pla Black
 Encore phase 0
 Turns this phase 9
+Approx valid turns this phase 9
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi29
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
@@ -3480,6 +3547,7 @@ HASH: 4FB0C91DC1063A386C928E0AF2F9D982
 Initial pla Black
 Encore phase 0
 Turns this phase 10
+Approx valid turns this phase 10
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi29
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
@@ -3569,6 +3637,7 @@ HASH: 4FB24C3955A12A1F91D6BC96FFE3240D
 Initial pla Black
 Encore phase 0
 Turns this phase 10
+Approx valid turns this phase 10
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi29
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
@@ -3598,6 +3667,7 @@ HASH: A08EC21F7D6FE8BBC9379FFB2CDAFE4D
 Initial pla Black
 Encore phase 0
 Turns this phase 12
+Approx valid turns this phase 12
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi29
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
@@ -3636,6 +3706,7 @@ HASH: 4DEAC61645B66DA802BE814132E1DBAC
 Initial pla Black
 Encore phase 0
 Turns this phase 19
+Approx valid turns this phase 19
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi35.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
@@ -3664,6 +3735,7 @@ HASH: B66EEE43A00A09E3EAC48BBF97973B10
 Initial pla Black
 Encore phase 0
 Turns this phase 20
+Approx valid turns this phase 20
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi35.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
@@ -3753,6 +3825,7 @@ HASH: 77C76A97D48D8F77F83D42279DE1D486
 Initial pla Black
 Encore phase 0
 Turns this phase 20
+Approx valid turns this phase 20
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi35.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
@@ -3791,6 +3864,7 @@ HASH: BDAAD43BEBB48F129706D9A2A83A5823
 Initial pla Black
 Encore phase 0
 Turns this phase 10
+Approx valid turns this phase 10
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi41.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
@@ -3819,6 +3893,7 @@ HASH: AE3A7FD0228D0B38851DC4E1253E474B
 Initial pla Black
 Encore phase 0
 Turns this phase 11
+Approx valid turns this phase 11
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi41.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
@@ -3909,6 +3984,7 @@ HASH: 7A3E917AEF6438B5B8141EB58F4339E2
 Initial pla Black
 Encore phase 0
 Turns this phase 8
+Approx valid turns this phase 8
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi43
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
@@ -3947,6 +4023,7 @@ HASH: 7C44FD9827996FFDEF46040BBEA50FCB
 Initial pla Black
 Encore phase 0
 Turns this phase 10
+Approx valid turns this phase 10
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi41
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
@@ -3975,6 +4052,7 @@ HASH: 178962FE46BBB2DD5B1C025F42A2595F
 Initial pla Black
 Encore phase 0
 Turns this phase 11
+Approx valid turns this phase 11
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi41
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
@@ -4064,6 +4142,7 @@ HASH: 5AF7B75E5BFE9C8F35B354E3EF041766
 Initial pla Black
 Encore phase 0
 Turns this phase 11
+Approx valid turns this phase 11
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi41
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
@@ -4102,6 +4181,7 @@ HASH: E1DC9C430E68928B0BDFAA79E52DCF58
 Initial pla Black
 Encore phase 0
 Turns this phase 1
+Approx valid turns this phase 1
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi35
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
@@ -4130,6 +4210,7 @@ HASH: 6BC5E109793A1FCFF1477C5B66EF7C76
 Initial pla Black
 Encore phase 0
 Turns this phase 2
+Approx valid turns this phase 2
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi35
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
@@ -4220,6 +4301,7 @@ HASH: 7ACAFF68023FCD933385754E16D59521
 Initial pla Black
 Encore phase 0
 Turns this phase 2
+Approx valid turns this phase 2
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi40
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
@@ -4258,6 +4340,7 @@ HASH: 161CBF522B8B91EEBB777A41E0F4889B
 Initial pla Black
 Encore phase 0
 Turns this phase 4
+Approx valid turns this phase 4
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi33
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
@@ -4286,6 +4369,7 @@ HASH: 32D5EED1D83A4E8AEDBB28C0A016EE43
 Initial pla Black
 Encore phase 0
 Turns this phase 5
+Approx valid turns this phase 5
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi33
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
@@ -4376,6 +4460,7 @@ HASH: 1FAFAE86610A0C3DCDD16F4705920EB1
 Initial pla Black
 Encore phase 0
 Turns this phase 5
+Approx valid turns this phase 5
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi31.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
@@ -4414,6 +4499,7 @@ HASH: C76FD685720F61F9D12AFA91B48CD7F5
 Initial pla Black
 Encore phase 0
 Turns this phase 0
+Approx valid turns this phase 0
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi36.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
@@ -4442,6 +4528,7 @@ HASH: 6F6431624D475736294DB4D883221EC1
 Initial pla Black
 Encore phase 0
 Turns this phase 1
+Approx valid turns this phase 1
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi36.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
@@ -4540,6 +4627,7 @@ HASH: 63EF0DF391273A1CE2013C8456CDD7AA
 Initial pla Black
 Encore phase 0
 Turns this phase 15
+Approx valid turns this phase 15
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi37
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
@@ -4568,6 +4656,7 @@ HASH: 556EE404BD2A6D624DBF719E0863B631
 Initial pla Black
 Encore phase 0
 Turns this phase 16
+Approx valid turns this phase 16
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi37
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
@@ -4658,6 +4747,7 @@ HASH: 96DE522E045E593DD00A42A9198B9D94
 Initial pla Black
 Encore phase 0
 Turns this phase 16
+Approx valid turns this phase 16
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi53
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
@@ -4696,6 +4786,7 @@ HASH: CFC1288A747AF3D3BA50B31A2F8EF29F
 Initial pla Black
 Encore phase 0
 Turns this phase 1
+Approx valid turns this phase 1
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi6.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
@@ -4724,6 +4815,7 @@ HASH: 207A83F41843684E4B1D311FDBE9DA47
 Initial pla Black
 Encore phase 0
 Turns this phase 2
+Approx valid turns this phase 2
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi6.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
@@ -4814,6 +4906,7 @@ HASH: BA170FD9DAEAAE4FD2277E51D9A98A41
 Initial pla Black
 Encore phase 0
 Turns this phase 2
+Approx valid turns this phase 2
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
@@ -4852,6 +4945,7 @@ HASH: EDE222D4AF9AF53F353D9F4A0AFB3DFC
 Initial pla Black
 Encore phase 0
 Turns this phase 3
+Approx valid turns this phase 3
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi6
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
@@ -4880,6 +4974,7 @@ HASH: B1B7F967D4B3990E233AFF6D6A383082
 Initial pla Black
 Encore phase 0
 Turns this phase 4
+Approx valid turns this phase 4
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi6
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
@@ -4970,6 +5065,7 @@ HASH: 7DF6ECC50F4281E4F1DE43618FDBBCAB
 Initial pla Black
 Encore phase 0
 Turns this phase 1
+Approx valid turns this phase 1
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi20.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
@@ -5008,6 +5104,7 @@ HASH: CEC1DF13C1C92D99489E817DF8FD63B6
 Initial pla Black
 Encore phase 0
 Turns this phase 0
+Approx valid turns this phase 0
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi6
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
@@ -5036,6 +5133,7 @@ HASH: B947147AE9BE1A8A7B0C53096B68F8F7
 Initial pla Black
 Encore phase 0
 Turns this phase 1
+Approx valid turns this phase 1
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi6
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
@@ -5125,6 +5223,7 @@ HASH: A75E8C371B3C011C2F39D722820D16F1
 Initial pla Black
 Encore phase 0
 Turns this phase 1
+Approx valid turns this phase 1
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi6
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
@@ -5163,6 +5262,7 @@ HASH: 2BAC99F3A250CEEB7A6DC7B4FC815AA7
 Initial pla Black
 Encore phase 0
 Turns this phase 4
+Approx valid turns this phase 4
 Rules koPOSITIONALscoreAREAtaxNONEsui1button1komi7.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
@@ -5191,6 +5291,7 @@ HASH: F999B796D8A4756336DC684A56D92A0F
 Initial pla Black
 Encore phase 0
 Turns this phase 5
+Approx valid turns this phase 5
 Rules koPOSITIONALscoreAREAtaxNONEsui1button1komi7.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
@@ -5289,6 +5390,7 @@ HASH: D21F92F92B4EDF2F578B355BE38E00DD
 Initial pla Black
 Encore phase 0
 Turns this phase 16
+Approx valid turns this phase 16
 Rules koPOSITIONALscoreAREAtaxNONEsui1button1komi7.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
@@ -5317,6 +5419,7 @@ HASH: 80BF3953541787B39B5536CB512C0A8C
 Initial pla Black
 Encore phase 0
 Turns this phase 17
+Approx valid turns this phase 17
 Rules koPOSITIONALscoreAREAtaxNONEsui1button1komi7.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
@@ -5407,6 +5510,7 @@ HASH: C525564D0609577EA5F96F7DBC683CA1
 Initial pla Black
 Encore phase 0
 Turns this phase 17
+Approx valid turns this phase 17
 Rules koPOSITIONALscoreAREAtaxNONEsui1button1komi5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
@@ -5445,6 +5549,7 @@ HASH: 7A122BDF500E96BAC0E2E033874717AD
 Initial pla Black
 Encore phase 0
 Turns this phase 3
+Approx valid turns this phase 3
 Rules koPOSITIONALscoreAREAtaxNONEsui1button1komi17
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
@@ -5473,6 +5578,7 @@ HASH: 5104AFFA7BBE9F710733CC0F9A61B15F
 Initial pla Black
 Encore phase 0
 Turns this phase 4
+Approx valid turns this phase 4
 Rules koPOSITIONALscoreAREAtaxNONEsui1button1komi17
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
@@ -5562,6 +5668,7 @@ HASH: 45E94486015D5881B75A273914778018
 Initial pla Black
 Encore phase 0
 Turns this phase 4
+Approx valid turns this phase 4
 Rules koPOSITIONALscoreAREAtaxNONEsui1button1komi17
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
@@ -5592,6 +5699,7 @@ HASH: F01DA6DBAF88E052C213F33194CC70DC
 Initial pla Black
 Encore phase 0
 Turns this phase 4
+Approx valid turns this phase 4
 Rules koPOSITIONALscoreAREAtaxNONEsui1button1komi18.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
@@ -5630,6 +5738,7 @@ HASH: 5E59B48A5BFB0CC021AB02B04CB2F9A9
 Initial pla Black
 Encore phase 0
 Turns this phase 1
+Approx valid turns this phase 1
 Rules koPOSITIONALscoreAREAtaxNONEsui1button1komi21
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
@@ -5658,6 +5767,7 @@ HASH: 891745114C57CCDA21D61424BF4C960B
 Initial pla Black
 Encore phase 0
 Turns this phase 2
+Approx valid turns this phase 2
 Rules koPOSITIONALscoreAREAtaxNONEsui1button1komi21
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
@@ -5748,6 +5858,7 @@ HASH: 52EE2F94DED845DCB20BF53D534960A2
 Initial pla Black
 Encore phase 0
 Turns this phase 2
+Approx valid turns this phase 2
 Rules koPOSITIONALscoreAREAtaxNONEsui1button1komi35.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
@@ -5786,6 +5897,7 @@ HASH: 4D0F3286CB8284A7BCC19DDDA3906C4B
 Initial pla Black
 Encore phase 0
 Turns this phase 1
+Approx valid turns this phase 1
 Rules koPOSITIONALscoreAREAtaxNONEsui1button1komi34.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
@@ -5814,6 +5926,7 @@ HASH: 552EABDA2F94A75A0A3ED5335F2620EC
 Initial pla Black
 Encore phase 0
 Turns this phase 2
+Approx valid turns this phase 2
 Rules koPOSITIONALscoreAREAtaxNONEsui1button1komi34.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
@@ -5904,6 +6017,7 @@ HASH: 6DED992DD0C25F221319C13C7FAF15D4
 Initial pla Black
 Encore phase 0
 Turns this phase 2
+Approx valid turns this phase 2
 Rules koPOSITIONALscoreAREAtaxNONEsui1button1komi35
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
@@ -5942,6 +6056,7 @@ HASH: BE829A1A291536333C28FA4FCC9E021F
 Initial pla Black
 Encore phase 0
 Turns this phase 0
+Approx valid turns this phase 0
 Rules koPOSITIONALscoreAREAtaxNONEsui1button1komi41.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
@@ -5970,6 +6085,7 @@ HASH: 967220B15774564F4E702562B873687F
 Initial pla Black
 Encore phase 0
 Turns this phase 1
+Approx valid turns this phase 1
 Rules koPOSITIONALscoreAREAtaxNONEsui1button1komi41.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
@@ -6059,6 +6175,7 @@ HASH: 6E229CCA205FA3E9505CCBE241606D82
 Initial pla Black
 Encore phase 0
 Turns this phase 1
+Approx valid turns this phase 1
 Rules koPOSITIONALscoreAREAtaxNONEsui1button1komi41.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
@@ -6089,6 +6206,7 @@ HASH: 3F96DF26809D53F5C6F64630127C3660
 Initial pla Black
 Encore phase 0
 Turns this phase 1
+Approx valid turns this phase 1
 Rules koPOSITIONALscoreAREAtaxNONEsui1button1komi37
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
@@ -6133,6 +6251,7 @@ HASH: 0EF0AAC79FFDB40A3A7363753BCC0FA1
 Initial pla Black
 Encore phase 0
 Turns this phase 3
+Approx valid turns this phase 3
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
@@ -6161,6 +6280,7 @@ HASH: 19D400C28A0BC14475E9B731F968DE28
 Initial pla Black
 Encore phase 0
 Turns this phase 18
+Approx valid turns this phase 18
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
@@ -6357,6 +6477,7 @@ HASH: 951754CBEC0CC0EE7E743BBF6D6E14C6
 Initial pla Black
 Encore phase 0
 Turns this phase 2
+Approx valid turns this phase 2
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
@@ -6385,6 +6506,7 @@ HASH: 5ACD5BDA3F271E8F5AD0F105CA9B159C
 Initial pla Black
 Encore phase 0
 Turns this phase 32
+Approx valid turns this phase 32
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
@@ -6686,6 +6808,7 @@ HASH: 90584658979A6C0B7BCAB49FD0C8FFD9
 Initial pla Black
 Encore phase 0
 Turns this phase 3
+Approx valid turns this phase 3
 Rules koPOSITIONALscoreAREAtaxNONEsui1button1komi7.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
@@ -6714,6 +6837,7 @@ HASH: 636738C93BED6362D66950045434454E
 Initial pla Black
 Encore phase 0
 Turns this phase 33
+Approx valid turns this phase 33
 Rules koPOSITIONALscoreAREAtaxNONEsui1button1komi7.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
@@ -7888,6 +8012,7 @@ HASH: C672395E3EFB6E00CCF6A61CCAE874B5
 Initial pla Black
 Encore phase 0
 Turns this phase 0
+Approx valid turns this phase 0
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
@@ -7916,6 +8041,7 @@ HASH: C1A5F067B614FC583866421BAD5FEFA7
 Initial pla Black
 Encore phase 0
 Turns this phase 30
+Approx valid turns this phase 30
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
@@ -8217,6 +8343,7 @@ HASH: C672395E3EFB6E00CCF6A61CCAE874B5
 Initial pla Black
 Encore phase 0
 Turns this phase 0
+Approx valid turns this phase 0
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
@@ -8245,6 +8372,7 @@ HASH: BDE74B167C58DED2CFA34B0D9656F659
 Initial pla Black
 Encore phase 0
 Turns this phase 30
+Approx valid turns this phase 30
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
@@ -8977,6 +9105,7 @@ HASH: 1EBB48228A53D10080C37C11616C2681
 Initial pla Black
 Encore phase 0
 Turns this phase 0
+Approx valid turns this phase 0
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
@@ -9005,6 +9134,7 @@ HASH: 8489370D3DF419F8D70FC451B02FE8B3
 Initial pla Black
 Encore phase 0
 Turns this phase 15
+Approx valid turns this phase 15
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
@@ -9201,6 +9331,7 @@ HASH: C78E9483A6F391146051BFA5E35365B1
 Initial pla Black
 Encore phase 0
 Turns this phase 7
+Approx valid turns this phase 7
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
@@ -9229,6 +9360,7 @@ HASH: B8A9D107E1BD3567D9C1727DD2330B8D
 Initial pla Black
 Encore phase 0
 Turns this phase 84
+Approx valid turns this phase 84
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
@@ -9431,6 +9563,7 @@ HASH: 5C0775622CA4BC43BA7859BCEC01AB7C
 Initial pla Black
 Encore phase 0
 Turns this phase 12
+Approx valid turns this phase 12
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
@@ -9459,6 +9592,7 @@ HASH: F99952753F3D88091555461012372E21
 Initial pla Black
 Encore phase 0
 Turns this phase 27
+Approx valid turns this phase 27
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
@@ -9646,6 +9780,7 @@ HASH: E119575656AE13BB68F8797BAE0DAF72
 Initial pla Black
 Encore phase 0
 Turns this phase 19
+Approx valid turns this phase 19
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
@@ -9675,6 +9810,7 @@ HASH: CE9FF494E292E7030ECE1571F00E2843
 Initial pla Black
 Encore phase 0
 Turns this phase 22
+Approx valid turns this phase 22
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
@@ -9704,6 +9840,7 @@ HASH: C9CE448CA9744CA361C7ECEA0825E2FB
 Initial pla Black
 Encore phase 0
 Turns this phase 21
+Approx valid turns this phase 21
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
@@ -9742,6 +9879,7 @@ HASH: C672395E3EFB6E00CCF6A61CCAE874B5
 Initial pla Black
 Encore phase 0
 Turns this phase 0
+Approx valid turns this phase 0
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
@@ -9770,6 +9908,7 @@ HASH: 03B96CB5B6BD90BE1B205B8CEA89510A
 Initial pla Black
 Encore phase 0
 Turns this phase 20
+Approx valid turns this phase 20
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
@@ -9992,6 +10131,7 @@ HASH: 5CD9FF6EAF575D7100EC5DE264846B33
 Initial pla Black
 Encore phase 0
 Turns this phase 4
+Approx valid turns this phase 4
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
@@ -10021,6 +10161,7 @@ HASH: 9F0445E2560F664EBD45ACCCBF529FE5
 Initial pla Black
 Encore phase 0
 Turns this phase 11
+Approx valid turns this phase 11
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
@@ -10050,6 +10191,7 @@ HASH: A00D9BF82721897496C1EF7A37C3105B
 Initial pla Black
 Encore phase 0
 Turns this phase 15
+Approx valid turns this phase 15
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
@@ -10079,6 +10221,7 @@ HASH: 3FF8394D926FD4396CE67872FD488D57
 Initial pla Black
 Encore phase 0
 Turns this phase 19
+Approx valid turns this phase 19
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
@@ -10108,6 +10251,7 @@ HASH: 472B3727345C3CC22D4E504289972216
 Initial pla Black
 Encore phase 0
 Turns this phase 20
+Approx valid turns this phase 20
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
@@ -10137,6 +10281,7 @@ HASH: 81ABC9E96586519114EF10F2D7D74B4C
 Initial pla Black
 Encore phase 0
 Turns this phase 13
+Approx valid turns this phase 13
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
@@ -10166,6 +10311,7 @@ HASH: 62BAC5134AEFBCAB2A83FFB3A4CC4A0B
 Initial pla Black
 Encore phase 0
 Turns this phase 15
+Approx valid turns this phase 15
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
@@ -10204,6 +10350,7 @@ HASH: C672395E3EFB6E00CCF6A61CCAE874B5
 Initial pla Black
 Encore phase 0
 Turns this phase 0
+Approx valid turns this phase 0
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
@@ -10232,6 +10379,7 @@ HASH: 9CAF1DA013939D259C921F54EF813BF6
 Initial pla Black
 Encore phase 0
 Turns this phase 20
+Approx valid turns this phase 20
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
@@ -10454,6 +10602,7 @@ HASH: 2F9BF0B79FB46E1AEA889485E09B5161
 Initial pla Black
 Encore phase 0
 Turns this phase 2
+Approx valid turns this phase 2
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
@@ -10483,6 +10632,7 @@ HASH: 59206297F106453F27E23876D0738470
 Initial pla Black
 Encore phase 0
 Turns this phase 3
+Approx valid turns this phase 3
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
@@ -10512,6 +10662,7 @@ HASH: 66A6F57B8A63885F4A24902267A564EA
 Initial pla Black
 Encore phase 0
 Turns this phase 10
+Approx valid turns this phase 10
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
@@ -10541,6 +10692,7 @@ HASH: 725927CD7F27F4E2DBE8AE752728B204
 Initial pla Black
 Encore phase 0
 Turns this phase 11
+Approx valid turns this phase 11
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
@@ -10570,6 +10722,7 @@ HASH: BD7009E15AE72C4718DA252D82ED8116
 Initial pla Black
 Encore phase 0
 Turns this phase 12
+Approx valid turns this phase 12
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
@@ -10599,6 +10752,7 @@ HASH: A239018056C82D1B861F9B06487FAA1E
 Initial pla Black
 Encore phase 0
 Turns this phase 16
+Approx valid turns this phase 16
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
@@ -10628,6 +10782,7 @@ HASH: 4D75B98EB5208329932EC7F804E06807
 Initial pla Black
 Encore phase 0
 Turns this phase 19
+Approx valid turns this phase 19
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
@@ -10657,6 +10812,7 @@ HASH: 54BFE2D6B929F490A77E51892C67F918
 Initial pla Black
 Encore phase 0
 Turns this phase 20
+Approx valid turns this phase 20
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
@@ -10686,6 +10842,7 @@ HASH: B4CF885E5D4A8391CDDA197CC85A4D76
 Initial pla Black
 Encore phase 0
 Turns this phase 12
+Approx valid turns this phase 12
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
@@ -10715,6 +10872,7 @@ HASH: 08617CD990BE4865F8BB56CF10B40F09
 Initial pla Black
 Encore phase 0
 Turns this phase 13
+Approx valid turns this phase 13
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
@@ -10753,6 +10911,7 @@ HASH: C672395E3EFB6E00CCF6A61CCAE874B5
 Initial pla Black
 Encore phase 0
 Turns this phase 0
+Approx valid turns this phase 0
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
@@ -10781,6 +10940,7 @@ HASH: 4FBF02D6DEB23304796625AEF4C9EF39
 Initial pla Black
 Encore phase 0
 Turns this phase 20
+Approx valid turns this phase 20
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
@@ -11003,6 +11163,7 @@ HASH: A0FA10617EC2A35F4E529784B5C55F2B
 Initial pla Black
 Encore phase 0
 Turns this phase 2
+Approx valid turns this phase 2
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
@@ -11032,6 +11193,7 @@ HASH: F82A27E67A4D81EF84F2DABCFEE41466
 Initial pla Black
 Encore phase 0
 Turns this phase 8
+Approx valid turns this phase 8
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
@@ -11061,6 +11223,7 @@ HASH: A762784B2103D8C1FE34056A119A44D1
 Initial pla Black
 Encore phase 0
 Turns this phase 12
+Approx valid turns this phase 12
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
@@ -11090,6 +11253,7 @@ HASH: FA4382F1ABFE85B610F1FAA895B56607
 Initial pla Black
 Encore phase 0
 Turns this phase 14
+Approx valid turns this phase 14
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
@@ -11119,6 +11283,7 @@ HASH: 38026E61380FE696FA32649FC965A852
 Initial pla Black
 Encore phase 0
 Turns this phase 18
+Approx valid turns this phase 18
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
@@ -11148,6 +11313,7 @@ HASH: EDB726DEEE68966A40FDBEFC78731F8D
 Initial pla Black
 Encore phase 0
 Turns this phase 19
+Approx valid turns this phase 19
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
@@ -11177,6 +11343,7 @@ HASH: 414154AE51569AD0CCE5E251DBDB5B77
 Initial pla Black
 Encore phase 0
 Turns this phase 21
+Approx valid turns this phase 21
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
@@ -11206,6 +11373,7 @@ HASH: 2D27DEE4386FD4C22F429E6DFAE78CEB
 Initial pla Black
 Encore phase 0
 Turns this phase 23
+Approx valid turns this phase 23
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
@@ -11235,6 +11403,7 @@ HASH: 4F18564B21A73E2A4BD9DE6C0B75C712
 Initial pla Black
 Encore phase 0
 Turns this phase 25
+Approx valid turns this phase 25
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
@@ -11456,206 +11625,206 @@ HASH: 54579E0A87F182BA544C02BE0164C001
 
 
 LEAD: -1.91509
-koSITUATIONALscoreAREAtaxNONEsui0button1komi22
-Start moves size 0 Start pla Black XY 13 13 Extra black 1 Draw equiv 0.843903 Mode 3 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
-koSIMPLEscoreAREAtaxSEKIsui1komi-30
-Start moves size 0 Start pla Black XY 12 12 Extra black 0 Draw equiv 0.161264 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
-koPOSITIONALscoreAREAtaxNONEsui0komi4.5
-Start moves size 0 Start pla Black XY 13 13 Extra black 0 Draw equiv 0.892325 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
-koSIMPLEscoreAREAtaxNONEsui1komi36
-Start moves size 0 Start pla Black XY 12 12 Extra black 1 Draw equiv 0.984887 Mode 3 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
-koPOSITIONALscoreTERRITORYtaxNONEsui0komi7.5
-Start moves size 0 Start pla Black XY 10 12 Extra black 0 Draw equiv 0.68828 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
-koSITUATIONALscoreAREAtaxSEKIsui1button1komi5
-Start moves size 0 Start pla Black XY 12 12 Extra black 0 Draw equiv 0.747207 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
-koSITUATIONALscoreAREAtaxNONEsui0komi14
-Start moves size 0 Start pla Black XY 11 11 Extra black 1 Draw equiv 0.347813 Mode 3 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
-koSITUATIONALscoreTERRITORYtaxNONEsui0komi11
-Start moves size 0 Start pla Black XY 11 11 Extra black 0 Draw equiv 0.740681 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
-koSITUATIONALscoreAREAtaxNONEsui0komi6.5
-Start moves size 0 Start pla Black XY 10 10 Extra black 0 Draw equiv 0.0818164 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
-koPOSITIONALscoreTERRITORYtaxNONEsui0komi21
-Start moves size 0 Start pla Black XY 12 12 Extra black 1 Draw equiv 0.952148 Mode 3 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
-koPOSITIONALscoreAREAtaxSEKIsui0komi10
-Start moves size 0 Start pla Black XY 11 11 Extra black 0 Draw equiv 0.466017 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
-koPOSITIONALscoreTERRITORYtaxNONEsui0komi2.5
-Start moves size 0 Start pla Black XY 13 13 Extra black 0 Draw equiv 0.85591 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
-koSIMPLEscoreTERRITORYtaxSEKIsui0komi20.5
-Start moves size 0 Start pla Black XY 13 13 Extra black 1 Draw equiv 0.340372 Mode 3 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
-koPOSITIONALscoreTERRITORYtaxNONEsui0komi7.5
-Start moves size 0 Start pla Black XY 11 11 Extra black 0 Draw equiv 0.444024 Mode 1 BeganInEncorePhase 2 UsedInitialPosition 0 Forkstuff 0 0
-koSITUATIONALscoreAREAtaxSEKIsui0komi4
-Start moves size 0 Start pla Black XY 10 10 Extra black 0 Draw equiv 0.122575 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
-koPOSITIONALscoreAREAtaxSEKIsui1button1komi9
-Start moves size 0 Start pla Black XY 11 11 Extra black 0 Draw equiv 0.191673 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
-koPOSITIONALscoreTERRITORYtaxNONEsui1komi8.5
-Start moves size 0 Start pla Black XY 12 12 Extra black 0 Draw equiv 0.195274 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
-koSIMPLEscoreAREAtaxSEKIsui1komi23.5
-Start moves size 0 Start pla Black XY 12 12 Extra black 1 Draw equiv 0.387 Mode 3 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
-koPOSITIONALscoreTERRITORYtaxSEKIsui0komi7.5
-Start moves size 0 Start pla Black XY 11 11 Extra black 0 Draw equiv 0.565224 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
-koSITUATIONALscoreAREAtaxNONEsui1button1komi35.5
-Start moves size 0 Start pla Black XY 10 11 Extra black 0 Draw equiv 0.379775 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
-koSITUATIONALscoreAREAtaxALLsui0komi5
-Start moves size 0 Start pla Black XY 13 13 Extra black 0 Draw equiv 0.897493 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
-koSIMPLEscoreAREAtaxNONEsui1komi9
-Start moves size 0 Start pla Black XY 11 11 Extra black 0 Draw equiv 0.361411 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
-koSIMPLEscoreTERRITORYtaxNONEsui0komi20.5
-Start moves size 0 Start pla Black XY 12 13 Extra black 1 Draw equiv 0.500891 Mode 3 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
-koPOSITIONALscoreTERRITORYtaxNONEsui0komi33.5
-Start moves size 0 Start pla Black XY 12 12 Extra black 0 Draw equiv 0.997469 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
-koSIMPLEscoreTERRITORYtaxSEKIsui0komi43
-Start moves size 0 Start pla Black XY 13 11 Extra black 1 Draw equiv 0.394667 Mode 3 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
-koSITUATIONALscoreAREAtaxSEKIsui1komi5
-Start moves size 0 Start pla Black XY 11 11 Extra black 0 Draw equiv 0.567436 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
-koSITUATIONALscoreAREAtaxSEKIsui0button1komi10
-Start moves size 0 Start pla Black XY 13 13 Extra black 0 Draw equiv 0.322085 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
-koSITUATIONALscoreAREAtaxSEKIsui1button1komi8
-Start moves size 0 Start pla Black XY 10 10 Extra black 0 Draw equiv 0.0642046 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
-koPOSITIONALscoreAREAtaxSEKIsui0komi41
-Start moves size 0 Start pla Black XY 11 10 Extra black 0 Draw equiv 0.546943 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
-koSIMPLEscoreTERRITORYtaxSEKIsui0komi9.5
-Start moves size 0 Start pla Black XY 11 11 Extra black 0 Draw equiv 0.181557 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
-koSIMPLEscoreAREAtaxSEKIsui0button1komi9
-Start moves size 0 Start pla Black XY 13 12 Extra black 0 Draw equiv 0.570289 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
-koPOSITIONALscoreAREAtaxNONEsui0komi5
-Start moves size 0 Start pla Black XY 13 13 Extra black 0 Draw equiv 0.901184 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
-koSITUATIONALscoreTERRITORYtaxALLsui0komi9
-Start moves size 0 Start pla Black XY 10 10 Extra black 0 Draw equiv 0.587444 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
-koPOSITIONALscoreAREAtaxNONEsui0button1komi22
-Start moves size 0 Start pla Black XY 12 12 Extra black 1 Draw equiv 0.241549 Mode 3 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
-koSIMPLEscoreTERRITORYtaxALLsui0komi9.5
-Start moves size 0 Start pla Black XY 12 12 Extra black 0 Draw equiv 0.0928733 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
-koSITUATIONALscoreAREAtaxNONEsui1komi6
-Start moves size 0 Start pla Black XY 11 11 Extra black 0 Draw equiv 0.709404 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
-koSITUATIONALscoreTERRITORYtaxNONEsui0komi-27
-Start moves size 0 Start pla Black XY 10 10 Extra black 0 Draw equiv 0.516409 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
-koSIMPLEscoreTERRITORYtaxSEKIsui0komi9
-Start moves size 0 Start pla Black XY 10 10 Extra black 0 Draw equiv 0.916551 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
-koSITUATIONALscoreAREAtaxALLsui1button1komi6.5
-Start moves size 0 Start pla Black XY 11 11 Extra black 0 Draw equiv 0.465733 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
-koSIMPLEscoreAREAtaxALLsui0komi21.5
-Start moves size 0 Start pla Black XY 12 12 Extra black 0 Draw equiv 0.471655 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
-koPOSITIONALscoreAREAtaxNONEsui0button1komi6
-Start moves size 0 Start pla Black XY 10 10 Extra black 0 Draw equiv 0.216052 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
-koSITUATIONALscoreAREAtaxALLsui1komi5.5
-Start moves size 0 Start pla Black XY 11 12 Extra black 0 Draw equiv 0.769865 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
-koSIMPLEscoreAREAtaxNONEsui0button1komi57.5
-Start moves size 0 Start pla Black XY 13 13 Extra black 0 Draw equiv 0.458373 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
-koPOSITIONALscoreAREAtaxSEKIsui1button1komi8.5
-Start moves size 0 Start pla Black XY 11 11 Extra black 0 Draw equiv 0.425624 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
-koPOSITIONALscoreAREAtaxSEKIsui0komi6
-Start moves size 0 Start pla Black XY 10 10 Extra black 0 Draw equiv 0.0381066 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
-koPOSITIONALscoreAREAtaxSEKIsui0komi22
-Start moves size 0 Start pla Black XY 11 11 Extra black 1 Draw equiv 0.00887522 Mode 3 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
-koSITUATIONALscoreAREAtaxNONEsui1komi-0
-Start moves size 0 Start pla Black XY 12 12 Extra black 0 Draw equiv 0.504095 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
-koSITUATIONALscoreAREAtaxSEKIsui1button1komi5
-Start moves size 0 Start pla Black XY 11 11 Extra black 0 Draw equiv 0.762023 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
-koSIMPLEscoreTERRITORYtaxNONEsui0komi10.5
-Start moves size 0 Start pla Black XY 13 13 Extra black 0 Draw equiv 0.208393 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
-koSITUATIONALscoreTERRITORYtaxALLsui1komi5
-Start moves size 0 Start pla Black XY 11 11 Extra black 0 Draw equiv 0.916463 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
-koPOSITIONALscoreTERRITORYtaxNONEsui0komi10
-Start moves size 0 Start pla Black XY 12 12 Extra black 0 Draw equiv 0.886063 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
-koPOSITIONALscoreTERRITORYtaxSEKIsui1komi8
-Start moves size 0 Start pla Black XY 10 10 Extra black 0 Draw equiv 0.939517 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
-koSIMPLEscoreTERRITORYtaxNONEsui1komi11
-Start moves size 0 Start pla Black XY 12 12 Extra black 1 Draw equiv 0.657298 Mode 3 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
-koSITUATIONALscoreAREAtaxALLsui0button1komi6.5
-Start moves size 0 Start pla Black XY 12 12 Extra black 0 Draw equiv 0.967325 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
-koSITUATIONALscoreAREAtaxALLsui0komi24.5
-Start moves size 0 Start pla Black XY 13 13 Extra black 1 Draw equiv 0.332162 Mode 3 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
-koPOSITIONALscoreAREAtaxNONEsui0button1komi4.5
-Start moves size 0 Start pla Black XY 10 10 Extra black 0 Draw equiv 0.849189 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
-koPOSITIONALscoreAREAtaxSEKIsui0komi-14
-Start moves size 0 Start pla Black XY 11 11 Extra black 1 Draw equiv 0.343442 Mode 3 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
-koPOSITIONALscoreTERRITORYtaxNONEsui1komi-4
-Start moves size 0 Start pla Black XY 10 10 Extra black 0 Draw equiv 0.554473 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
-koPOSITIONALscoreTERRITORYtaxNONEsui0komi-21.5
-Start moves size 0 Start pla Black XY 13 13 Extra black 0 Draw equiv 0.975534 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
-koSIMPLEscoreTERRITORYtaxNONEsui1komi7
-Start moves size 0 Start pla Black XY 11 12 Extra black 0 Draw equiv 0.219838 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
-koPOSITIONALscoreAREAtaxNONEsui1komi22.5
-Start moves size 0 Start pla Black XY 13 13 Extra black 1 Draw equiv 0.440676 Mode 3 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
-koPOSITIONALscoreTERRITORYtaxNONEsui1komi18.5
-Start moves size 0 Start pla Black XY 13 13 Extra black 1 Draw equiv 0.648856 Mode 3 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
-koSIMPLEscoreAREAtaxNONEsui1komi8.5
-Start moves size 0 Start pla Black XY 12 12 Extra black 0 Draw equiv 0.804123 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
-koSIMPLEscoreAREAtaxNONEsui1button1komi5.5
-Start moves size 0 Start pla Black XY 10 10 Extra black 0 Draw equiv 0.88198 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
-koSITUATIONALscoreAREAtaxALLsui0komi21
-Start moves size 0 Start pla Black XY 11 11 Extra black 1 Draw equiv 0.97668 Mode 3 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
-koSIMPLEscoreAREAtaxALLsui1button1komi9
-Start moves size 0 Start pla Black XY 12 13 Extra black 0 Draw equiv 0.916361 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
-koPOSITIONALscoreAREAtaxSEKIsui0komi7
-Start moves size 0 Start pla Black XY 12 12 Extra black 0 Draw equiv 0.44986 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
-koPOSITIONALscoreAREAtaxALLsui1komi24
-Start moves size 0 Start pla Black XY 13 10 Extra black 1 Draw equiv 0.956195 Mode 3 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
-koSITUATIONALscoreTERRITORYtaxNONEsui0komi8.5
-Start moves size 0 Start pla Black XY 13 13 Extra black 0 Draw equiv 0.718933 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
-koSITUATIONALscoreAREAtaxSEKIsui0button1komi7.5
-Start moves size 0 Start pla Black XY 12 11 Extra black 0 Draw equiv 0.640998 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
-koSIMPLEscoreAREAtaxNONEsui1komi2.5
-Start moves size 0 Start pla Black XY 10 10 Extra black 0 Draw equiv 0.5198 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
-koSITUATIONALscoreTERRITORYtaxALLsui0komi9
-Start moves size 0 Start pla Black XY 12 12 Extra black 0 Draw equiv 0.790313 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
-koSITUATIONALscoreAREAtaxNONEsui0komi5
-Start moves size 0 Start pla Black XY 13 13 Extra black 0 Draw equiv 0.857439 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
-koPOSITIONALscoreTERRITORYtaxSEKIsui0komi-13.5
-Start moves size 0 Start pla Black XY 11 11 Extra black 0 Draw equiv 0.231922 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
-koSITUATIONALscoreTERRITORYtaxSEKIsui0komi-13
-Start moves size 0 Start pla Black XY 13 12 Extra black 0 Draw equiv 0.73346 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
-koSIMPLEscoreAREAtaxSEKIsui1komi22
-Start moves size 0 Start pla Black XY 11 11 Extra black 1 Draw equiv 0.0426219 Mode 3 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
-koSITUATIONALscoreAREAtaxNONEsui1komi6.5
-Start moves size 0 Start pla Black XY 13 13 Extra black 0 Draw equiv 0.937319 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
-koSIMPLEscoreAREAtaxSEKIsui0komi20
-Start moves size 0 Start pla Black XY 11 11 Extra black 1 Draw equiv 0.545548 Mode 3 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
-koPOSITIONALscoreAREAtaxNONEsui0komi7.5
-Start moves size 0 Start pla Black XY 12 12 Extra black 0 Draw equiv 0.422072 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
-koSIMPLEscoreTERRITORYtaxALLsui0komi5
-Start moves size 0 Start pla Black XY 12 12 Extra black 0 Draw equiv 0.291426 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
-koPOSITIONALscoreTERRITORYtaxNONEsui1komi5.5
-Start moves size 0 Start pla Black XY 12 12 Extra black 0 Draw equiv 0.493993 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
-koSITUATIONALscoreAREAtaxNONEsui0button1komi7.5
-Start moves size 0 Start pla Black XY 11 12 Extra black 0 Draw equiv 0.989002 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
-koSIMPLEscoreAREAtaxNONEsui0komi6.5
-Start moves size 0 Start pla Black XY 11 11 Extra black 0 Draw equiv 0.624797 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
-koPOSITIONALscoreTERRITORYtaxALLsui0komi29.5
-Start moves size 0 Start pla Black XY 13 13 Extra black 0 Draw equiv 0.173513 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
-koSIMPLEscoreTERRITORYtaxALLsui0komi5
-Start moves size 0 Start pla Black XY 12 12 Extra black 0 Draw equiv 0.681552 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
-koSITUATIONALscoreAREAtaxALLsui0komi3.5
-Start moves size 0 Start pla Black XY 12 11 Extra black 0 Draw equiv 0.916352 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
-koSITUATIONALscoreAREAtaxNONEsui0komi8.5
-Start moves size 0 Start pla Black XY 10 10 Extra black 0 Draw equiv 0.1492 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
-koSIMPLEscoreAREAtaxSEKIsui1button1komi7.5
-Start moves size 0 Start pla Black XY 12 12 Extra black 0 Draw equiv 0.610402 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
-koSIMPLEscoreAREAtaxALLsui1komi7.5
-Start moves size 0 Start pla Black XY 10 11 Extra black 0 Draw equiv 0.694085 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
-koSIMPLEscoreAREAtaxSEKIsui0komi41.5
-Start moves size 0 Start pla Black XY 11 11 Extra black 0 Draw equiv 0.144765 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
-koSIMPLEscoreTERRITORYtaxALLsui0komi30
-Start moves size 0 Start pla Black XY 12 12 Extra black 1 Draw equiv 0.852912 Mode 3 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
-koSIMPLEscoreAREAtaxNONEsui1komi4.5
-Start moves size 0 Start pla Black XY 13 13 Extra black 0 Draw equiv 0.955829 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
-koPOSITIONALscoreAREAtaxSEKIsui1komi6
-Start moves size 0 Start pla Black XY 10 10 Extra black 0 Draw equiv 0.752465 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
-koSITUATIONALscoreTERRITORYtaxSEKIsui1komi10
-Start moves size 0 Start pla Black XY 10 10 Extra black 0 Draw equiv 0.309974 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
-koPOSITIONALscoreAREAtaxSEKIsui1komi-21
-Start moves size 0 Start pla Black XY 13 13 Extra black 1 Draw equiv 0.693706 Mode 3 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
-koPOSITIONALscoreTERRITORYtaxSEKIsui0komi14
-Start moves size 0 Start pla Black XY 13 13 Extra black 0 Draw equiv 0.900469 Mode 1 BeganInEncorePhase 1 UsedInitialPosition 0 Forkstuff 0 0
-koSIMPLEscoreAREAtaxSEKIsui0komi6.5
-Start moves size 0 Start pla Black XY 11 11 Extra black 0 Draw equiv 0.704495 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
-koSITUATIONALscoreTERRITORYtaxSEKIsui0komi5.5
-Start moves size 0 Start pla Black XY 13 13 Extra black 0 Draw equiv 0.533318 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
-koSITUATIONALscoreTERRITORYtaxSEKIsui1komi7.5
-Start moves size 0 Start pla Black XY 12 12 Extra black 0 Draw equiv 0.758239 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
+koSITUATIONALscoreAREAtaxSEKIsui0komi23
+Start moves size 0 Start pla Black XY 13 12 Extra black 1 Draw equiv 0.599298 Mode 3 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
+koPOSITIONALscoreTERRITORYtaxALLsui1komi4.5
+Start moves size 0 Start pla Black XY 13 11 Extra black 0 Draw equiv 0.541782 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
+koSITUATIONALscoreAREAtaxSEKIsui1komi23
+Start moves size 0 Start pla Black XY 13 12 Extra black 1 Draw equiv 0.892325 Mode 3 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
+koSITUATIONALscoreAREAtaxALLsui0komi36
+Start moves size 0 Start pla Black XY 12 12 Extra black 1 Draw equiv 0.68324 Mode 3 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
+koSITUATIONALscoreAREAtaxNONEsui0komi13.5
+Start moves size 0 Start pla Black XY 13 13 Extra black 0 Draw equiv 0.971989 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
+koSIMPLEscoreTERRITORYtaxALLsui0komi19.5
+Start moves size 0 Start pla Black XY 12 12 Extra black 1 Draw equiv 0.944795 Mode 3 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
 koSITUATIONALscoreTERRITORYtaxSEKIsui1komi9
-Start moves size 0 Start pla Black XY 10 10 Extra black 0 Draw equiv 0.211812 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
+Start moves size 0 Start pla Black XY 10 10 Extra black 0 Draw equiv 0.417337 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
+koSIMPLEscoreTERRITORYtaxSEKIsui0komi12.5
+Start moves size 0 Start pla Black XY 13 13 Extra black 0 Draw equiv 0.00828598 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
+koSIMPLEscoreTERRITORYtaxNONEsui1komi6
+Start moves size 0 Start pla Black XY 12 12 Extra black 0 Draw equiv 0.770258 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
+koPOSITIONALscoreAREAtaxSEKIsui1komi3.5
+Start moves size 0 Start pla Black XY 11 11 Extra black 0 Draw equiv 0.419554 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
+koSIMPLEscoreTERRITORYtaxSEKIsui0komi49.5
+Start moves size 0 Start pla Black XY 10 10 Extra black 0 Draw equiv 0.866775 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
+koPOSITIONALscoreAREAtaxNONEsui1komi3
+Start moves size 0 Start pla Black XY 11 13 Extra black 0 Draw equiv 0.665413 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
+koPOSITIONALscoreTERRITORYtaxNONEsui0komi8
+Start moves size 0 Start pla Black XY 12 12 Extra black 0 Draw equiv 0.217338 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
+koPOSITIONALscoreTERRITORYtaxNONEsui1komi21
+Start moves size 0 Start pla Black XY 13 13 Extra black 1 Draw equiv 0.0732536 Mode 3 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
+koSIMPLEscoreAREAtaxSEKIsui1button1komi3.5
+Start moves size 0 Start pla Black XY 10 10 Extra black 0 Draw equiv 0.651648 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
+koPOSITIONALscoreAREAtaxSEKIsui1komi9
+Start moves size 0 Start pla Black XY 11 11 Extra black 0 Draw equiv 0.675326 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
+koPOSITIONALscoreTERRITORYtaxSEKIsui0komi8.5
+Start moves size 0 Start pla Black XY 11 11 Extra black 0 Draw equiv 0.932177 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
+koSITUATIONALscoreAREAtaxNONEsui0komi8
+Start moves size 0 Start pla Black XY 11 11 Extra black 0 Draw equiv 0.499446 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
+koSITUATIONALscoreTERRITORYtaxSEKIsui0komi7.5
+Start moves size 0 Start pla Black XY 11 11 Extra black 0 Draw equiv 0.469492 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
+koPOSITIONALscoreTERRITORYtaxSEKIsui1komi40
+Start moves size 0 Start pla Black XY 12 12 Extra black 0 Draw equiv 0.0775247 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
+koSIMPLEscoreAREAtaxALLsui1button1komi20
+Start moves size 0 Start pla Black XY 11 11 Extra black 1 Draw equiv 0.484604 Mode 3 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
+koSIMPLEscoreTERRITORYtaxALLsui1komi10
+Start moves size 0 Start pla Black XY 12 12 Extra black 0 Draw equiv 0.150596 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
+koSITUATIONALscoreTERRITORYtaxNONEsui0komi5
+Start moves size 0 Start pla Black XY 12 12 Extra black 0 Draw equiv 0.709592 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
+koSITUATIONALscoreAREAtaxSEKIsui1komi8.5
+Start moves size 0 Start pla Black XY 12 12 Extra black 0 Draw equiv 0.331883 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
+koSIMPLEscoreAREAtaxNONEsui1komi9
+Start moves size 0 Start pla Black XY 13 13 Extra black 0 Draw equiv 0.361411 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
+koPOSITIONALscoreTERRITORYtaxALLsui1komi5.5
+Start moves size 0 Start pla Black XY 12 12 Extra black 0 Draw equiv 0.210731 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
+koSITUATIONALscoreTERRITORYtaxNONEsui1komi9.5
+Start moves size 0 Start pla Black XY 12 12 Extra black 0 Draw equiv 0.74098 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
+koSITUATIONALscoreTERRITORYtaxSEKIsui0komi21.5
+Start moves size 0 Start pla Black XY 11 11 Extra black 0 Draw equiv 0.175239 Mode 1 BeganInEncorePhase 1 UsedInitialPosition 0 Forkstuff 0 0
+koSIMPLEscoreTERRITORYtaxSEKIsui1komi10
+Start moves size 0 Start pla Black XY 12 12 Extra black 0 Draw equiv 0.444892 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
+koSIMPLEscoreAREAtaxSEKIsui0komi8.5
+Start moves size 0 Start pla Black XY 12 12 Extra black 0 Draw equiv 0.479239 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
+koSITUATIONALscoreTERRITORYtaxALLsui1komi9.5
+Start moves size 0 Start pla Black XY 13 13 Extra black 0 Draw equiv 0.382035 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
+koSIMPLEscoreTERRITORYtaxSEKIsui0komi6
+Start moves size 0 Start pla Black XY 12 10 Extra black 0 Draw equiv 0.0650604 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
+koPOSITIONALscoreAREAtaxSEKIsui0komi28.5
+Start moves size 0 Start pla Black XY 10 10 Extra black 0 Draw equiv 0.0168599 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
+koSITUATIONALscoreAREAtaxSEKIsui1komi74
+Start moves size 0 Start pla Black XY 12 12 Extra black 0 Draw equiv 0.471835 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
+koSITUATIONALscoreTERRITORYtaxALLsui0komi9.5
+Start moves size 0 Start pla Black XY 13 12 Extra black 0 Draw equiv 0.570289 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
+koPOSITIONALscoreAREAtaxNONEsui0komi-3
+Start moves size 0 Start pla Black XY 13 12 Extra black 0 Draw equiv 0.869866 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
+koPOSITIONALscoreAREAtaxSEKIsui1komi3.5
+Start moves size 0 Start pla Black XY 13 13 Extra black 0 Draw equiv 0.883438 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
+koPOSITIONALscoreTERRITORYtaxALLsui0komi9
+Start moves size 0 Start pla Black XY 12 12 Extra black 0 Draw equiv 0.884566 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
+koSIMPLEscoreAREAtaxSEKIsui1button1komi6
+Start moves size 0 Start pla Black XY 13 13 Extra black 0 Draw equiv 0.367846 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
+koSIMPLEscoreTERRITORYtaxALLsui1komi28
+Start moves size 0 Start pla Black XY 11 11 Extra black 1 Draw equiv 0.657114 Mode 3 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
+koSITUATIONALscoreAREAtaxSEKIsui0komi-6
+Start moves size 0 Start pla Black XY 10 10 Extra black 0 Draw equiv 0.83754 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
+koSITUATIONALscoreTERRITORYtaxNONEsui0komi6
+Start moves size 0 Start pla Black XY 11 11 Extra black 0 Draw equiv 0.71452 Mode 1 BeganInEncorePhase 1 UsedInitialPosition 0 Forkstuff 0 0
+koSITUATIONALscoreTERRITORYtaxALLsui0komi51.5
+Start moves size 0 Start pla Black XY 10 13 Extra black 0 Draw equiv 0.815678 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
+koSITUATIONALscoreAREAtaxALLsui0komi19
+Start moves size 0 Start pla Black XY 11 11 Extra black 1 Draw equiv 0.969468 Mode 3 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
+koPOSITIONALscoreAREAtaxNONEsui0komi26
+Start moves size 0 Start pla Black XY 12 12 Extra black 1 Draw equiv 0.203467 Mode 3 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
+koPOSITIONALscoreAREAtaxSEKIsui1komi36.5
+Start moves size 0 Start pla Black XY 13 13 Extra black 0 Draw equiv 0.293017 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
+koSIMPLEscoreAREAtaxSEKIsui0button1komi18.5
+Start moves size 0 Start pla Black XY 11 11 Extra black 1 Draw equiv 0.300929 Mode 3 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
+koPOSITIONALscoreAREAtaxNONEsui0komi6
+Start moves size 0 Start pla Black XY 13 13 Extra black 0 Draw equiv 0.219729 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
+koPOSITIONALscoreTERRITORYtaxSEKIsui0komi10
+Start moves size 0 Start pla Black XY 11 11 Extra black 0 Draw equiv 0.530759 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
+koSITUATIONALscoreAREAtaxNONEsui0komi-12.5
+Start moves size 0 Start pla Black XY 10 10 Extra black 0 Draw equiv 0.615133 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
+koSITUATIONALscoreAREAtaxALLsui1komi9.5
+Start moves size 0 Start pla Black XY 11 11 Extra black 0 Draw equiv 0.00887522 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
+koSITUATIONALscoreTERRITORYtaxSEKIsui0komi13.5
+Start moves size 0 Start pla Black XY 12 12 Extra black 1 Draw equiv 0.504095 Mode 3 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
+koSITUATIONALscoreAREAtaxNONEsui0komi3.5
+Start moves size 0 Start pla Black XY 11 11 Extra black 0 Draw equiv 0.820045 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
+koPOSITIONALscoreAREAtaxNONEsui0komi7
+Start moves size 0 Start pla Black XY 12 12 Extra black 0 Draw equiv 0.655163 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
+koSITUATIONALscoreTERRITORYtaxSEKIsui0komi5
+Start moves size 0 Start pla Black XY 10 10 Extra black 0 Draw equiv 0.618101 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
+koSIMPLEscoreAREAtaxSEKIsui0komi4.5
+Start moves size 0 Start pla Black XY 13 13 Extra black 0 Draw equiv 0.870133 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
+koPOSITIONALscoreAREAtaxNONEsui0komi8
+Start moves size 0 Start pla Black XY 11 11 Extra black 0 Draw equiv 0.0162095 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
+koSITUATIONALscoreTERRITORYtaxNONEsui1komi18.5
+Start moves size 0 Start pla Black XY 13 13 Extra black 1 Draw equiv 0.994361 Mode 3 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
+koSIMPLEscoreAREAtaxSEKIsui0komi4.5
+Start moves size 0 Start pla Black XY 11 11 Extra black 0 Draw equiv 0.868552 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
+koPOSITIONALscoreTERRITORYtaxALLsui1komi7.5
+Start moves size 0 Start pla Black XY 12 12 Extra black 0 Draw equiv 0.207275 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
+koSITUATIONALscoreTERRITORYtaxNONEsui0komi36
+Start moves size 0 Start pla Black XY 10 10 Extra black 0 Draw equiv 0.0625842 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
+koSITUATIONALscoreTERRITORYtaxNONEsui1komi6
+Start moves size 0 Start pla Black XY 11 12 Extra black 0 Draw equiv 0.239229 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
+koPOSITIONALscoreAREAtaxSEKIsui0komi22.5
+Start moves size 0 Start pla Black XY 12 12 Extra black 1 Draw equiv 0.848758 Mode 3 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
+koPOSITIONALscoreAREAtaxALLsui1button1komi6
+Start moves size 0 Start pla Black XY 10 10 Extra black 0 Draw equiv 0.717562 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
+koSIMPLEscoreTERRITORYtaxNONEsui0komi6.5
+Start moves size 0 Start pla Black XY 12 12 Extra black 0 Draw equiv 0.0612369 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
+koSITUATIONALscoreAREAtaxNONEsui0button1komi8.5
+Start moves size 0 Start pla Black XY 10 10 Extra black 0 Draw equiv 0.375226 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
+koPOSITIONALscoreTERRITORYtaxNONEsui1komi7.5
+Start moves size 0 Start pla Black XY 12 12 Extra black 0 Draw equiv 0.00155214 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
+koSIMPLEscoreAREAtaxNONEsui0button1komi24
+Start moves size 0 Start pla Black XY 12 12 Extra black 1 Draw equiv 0.0576495 Mode 3 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
+koSITUATIONALscoreAREAtaxNONEsui1komi8
+Start moves size 0 Start pla Black XY 12 12 Extra black 0 Draw equiv 0.309807 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
+koSIMPLEscoreTERRITORYtaxSEKIsui1komi3
+Start moves size 0 Start pla Black XY 12 12 Extra black 1 Draw equiv 0.382279 Mode 3 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
+koSIMPLEscoreTERRITORYtaxSEKIsui1komi2
+Start moves size 0 Start pla Black XY 12 11 Extra black 0 Draw equiv 0.793206 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
+koPOSITIONALscoreAREAtaxNONEsui0komi34.5
+Start moves size 0 Start pla Black XY 12 12 Extra black 0 Draw equiv 0.947522 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
+koSIMPLEscoreTERRITORYtaxALLsui1komi5.5
+Start moves size 0 Start pla Black XY 12 12 Extra black 0 Draw equiv 0.383423 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
+koSITUATIONALscoreTERRITORYtaxALLsui0komi5
+Start moves size 0 Start pla Black XY 11 11 Extra black 0 Draw equiv 0.943719 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
+koSIMPLEscoreAREAtaxNONEsui1button1komi5.5
+Start moves size 0 Start pla Black XY 11 11 Extra black 0 Draw equiv 0.829381 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
+koSITUATIONALscoreAREAtaxSEKIsui1komi6.5
+Start moves size 0 Start pla Black XY 11 11 Extra black 0 Draw equiv 0.468897 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
+koPOSITIONALscoreAREAtaxALLsui0komi6.5
+Start moves size 0 Start pla Black XY 12 12 Extra black 0 Draw equiv 0.294952 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
+koSITUATIONALscoreAREAtaxNONEsui1button1komi8
+Start moves size 0 Start pla Black XY 12 11 Extra black 0 Draw equiv 0.766858 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
+koSITUATIONALscoreAREAtaxNONEsui0button1komi7.5
+Start moves size 0 Start pla Black XY 12 11 Extra black 0 Draw equiv 0.0197188 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
+koPOSITIONALscoreTERRITORYtaxNONEsui1komi5
+Start moves size 0 Start pla Black XY 11 12 Extra black 0 Draw equiv 0.198974 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
+koPOSITIONALscoreTERRITORYtaxNONEsui1komi6
+Start moves size 0 Start pla Black XY 10 11 Extra black 0 Draw equiv 0.539648 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
+koSIMPLEscoreTERRITORYtaxSEKIsui0komi23.5
+Start moves size 0 Start pla Black XY 12 12 Extra black 0 Draw equiv 0.927901 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
+koSIMPLEscoreAREAtaxSEKIsui0komi6.5
+Start moves size 0 Start pla Black XY 12 12 Extra black 0 Draw equiv 0.393058 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
+koSIMPLEscoreAREAtaxNONEsui0komi23.5
+Start moves size 0 Start pla Black XY 10 10 Extra black 0 Draw equiv 0.961618 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
+koPOSITIONALscoreAREAtaxSEKIsui1button1komi25
+Start moves size 0 Start pla Black XY 12 12 Extra black 1 Draw equiv 0.427123 Mode 3 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
+koSITUATIONALscoreAREAtaxALLsui1button1komi4.5
+Start moves size 0 Start pla Black XY 12 12 Extra black 0 Draw equiv 0.358287 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
+koSITUATIONALscoreAREAtaxNONEsui0komi25
+Start moves size 0 Start pla Black XY 11 11 Extra black 0 Draw equiv 0.384596 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
+koSIMPLEscoreAREAtaxNONEsui0komi7.5
+Start moves size 0 Start pla Black XY 10 12 Extra black 0 Draw equiv 0.294576 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
+koPOSITIONALscoreAREAtaxNONEsui1komi8.5
+Start moves size 0 Start pla Black XY 12 12 Extra black 0 Draw equiv 0.151066 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
+koSITUATIONALscoreTERRITORYtaxNONEsui0komi10
+Start moves size 0 Start pla Black XY 13 13 Extra black 0 Draw equiv 0.635647 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
+koPOSITIONALscoreAREAtaxSEKIsui0komi31
+Start moves size 0 Start pla Black XY 11 11 Extra black 0 Draw equiv 0.71517 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
+koPOSITIONALscoreTERRITORYtaxNONEsui1komi5
+Start moves size 0 Start pla Black XY 13 13 Extra black 0 Draw equiv 0.0523484 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
+koSIMPLEscoreAREAtaxSEKIsui0komi6
+Start moves size 0 Start pla Black XY 11 11 Extra black 0 Draw equiv 0.00838014 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
+koSITUATIONALscoreAREAtaxALLsui0komi7
+Start moves size 0 Start pla Black XY 11 11 Extra black 0 Draw equiv 0.619527 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
+koSIMPLEscoreAREAtaxALLsui1komi7.5
+Start moves size 0 Start pla Black XY 10 10 Extra black 0 Draw equiv 0.492711 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
+koSIMPLEscoreAREAtaxSEKIsui0button1komi6.5
+Start moves size 0 Start pla Black XY 13 13 Extra black 0 Draw equiv 0.400572 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
+koSITUATIONALscoreTERRITORYtaxNONEsui1komi21
+Start moves size 0 Start pla Black XY 11 11 Extra black 1 Draw equiv 0.733678 Mode 3 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
+koPOSITIONALscoreAREAtaxSEKIsui1komi5.5
+Start moves size 0 Start pla Black XY 12 12 Extra black 0 Draw equiv 0.129902 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
+koSIMPLEscoreTERRITORYtaxNONEsui1komi15
+Start moves size 0 Start pla Black XY 13 13 Extra black 0 Draw equiv 0.093037 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
+koPOSITIONALscoreAREAtaxNONEsui0komi6.5
+Start moves size 0 Start pla Black XY 12 12 Extra black 0 Draw equiv 0.676115 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
 ====================================================================================================
 ====================================================================================================
 ====================================================================================================
@@ -11686,6 +11855,7 @@ HASH: 6D7B9BD0653F4FE761D8EA5338E563E0
 Initial pla Black
 Encore phase 0
 Turns this phase 0
+Approx valid turns this phase 0
 Rules koSIMPLEscoreAREAtaxNONEsui0whbNfpok1komi7.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
@@ -11716,6 +11886,7 @@ HASH: A3BE3A147A7CB2197B9CA35F7586E776
 Initial pla Black
 Encore phase 0
 Turns this phase 5
+Approx valid turns this phase 5
 Rules koSIMPLEscoreAREAtaxNONEsui0whbNfpok1komi7.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
@@ -11847,6 +12018,7 @@ HASH: 1ED20080E25DC28EE5D7FF62CDEA3935
 Initial pla Black
 Encore phase 0
 Turns this phase 10
+Approx valid turns this phase 10
 Rules koSIMPLEscoreAREAtaxNONEsui0whbNfpok1komi7.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
@@ -11877,6 +12049,7 @@ HASH: 898697990F0655127C712199FDF92F98
 Initial pla Black
 Encore phase 0
 Turns this phase 15
+Approx valid turns this phase 15
 Rules koSIMPLEscoreAREAtaxNONEsui0whbNfpok1komi7.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
@@ -12008,6 +12181,7 @@ HASH: 7C63721EF246DC3BEDDECD834AEE5615
 Initial pla Black
 Encore phase 0
 Turns this phase 20
+Approx valid turns this phase 20
 Rules koSIMPLEscoreAREAtaxNONEsui0whbNfpok1komi7.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
@@ -12038,6 +12212,7 @@ HASH: 68488570B1FF75F928E4C2AE4AC0B0F0
 Initial pla Black
 Encore phase 0
 Turns this phase 25
+Approx valid turns this phase 25
 Rules koSIMPLEscoreAREAtaxNONEsui0whbNfpok1komi7.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
@@ -12169,6 +12344,7 @@ HASH: E2393A492BAB0D19A102524A629D0BD2
 Initial pla Black
 Encore phase 0
 Turns this phase 30
+Approx valid turns this phase 30
 Rules koSIMPLEscoreAREAtaxNONEsui0whbNfpok1komi7.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
@@ -12199,6 +12375,7 @@ HASH: E0723CD88070271E65FD746BE76D6BBC
 Initial pla Black
 Encore phase 0
 Turns this phase 35
+Approx valid turns this phase 35
 Rules koSIMPLEscoreAREAtaxNONEsui0whbNfpok1komi7.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
@@ -12330,6 +12507,7 @@ HASH: 7664CC3D7AA85118C27CC30DA362236B
 Initial pla Black
 Encore phase 0
 Turns this phase 40
+Approx valid turns this phase 40
 Rules koSIMPLEscoreAREAtaxNONEsui0whbNfpok1komi7.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
@@ -12360,6 +12538,7 @@ HASH: 6E05242469A9D8467B13F43F8ECFDE80
 Initial pla Black
 Encore phase 0
 Turns this phase 45
+Approx valid turns this phase 45
 Rules koSIMPLEscoreAREAtaxNONEsui0whbNfpok1komi7.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
@@ -12491,6 +12670,7 @@ HASH: DDEF5096036F73F1F1E5B2D3FCABDC94
 Initial pla Black
 Encore phase 0
 Turns this phase 50
+Approx valid turns this phase 50
 Rules koSIMPLEscoreAREAtaxNONEsui0whbNfpok1komi7.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
@@ -12521,6 +12701,7 @@ HASH: EACD4B0A28BB90A0A81EDFDF47B0DCC5
 Initial pla Black
 Encore phase 0
 Turns this phase 55
+Approx valid turns this phase 55
 Rules koSIMPLEscoreAREAtaxNONEsui0whbNfpok1komi7.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
@@ -12652,6 +12833,7 @@ HASH: 1F336BE619269F7FE91B97BD22475E2C
 Initial pla Black
 Encore phase 0
 Turns this phase 60
+Approx valid turns this phase 60
 Rules koSIMPLEscoreAREAtaxNONEsui0whbNfpok1komi7.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
@@ -12682,6 +12864,7 @@ HASH: BB16D44182A28AE67850A651D5CED57F
 Initial pla Black
 Encore phase 0
 Turns this phase 65
+Approx valid turns this phase 65
 Rules koSIMPLEscoreAREAtaxNONEsui0whbNfpok1komi7.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
@@ -12813,6 +12996,7 @@ HASH: 978E329C94DC9CD9DFE89939F1E9EFAB
 Initial pla Black
 Encore phase 0
 Turns this phase 70
+Approx valid turns this phase 70
 Rules koSIMPLEscoreAREAtaxNONEsui0whbNfpok1komi7.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
@@ -12843,6 +13027,7 @@ HASH: 06AF435893A23F200D49F6DCEE474993
 Initial pla Black
 Encore phase 0
 Turns this phase 75
+Approx valid turns this phase 75
 Rules koSIMPLEscoreAREAtaxNONEsui0whbNfpok1komi7.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
@@ -12974,6 +13159,7 @@ HASH: D4D04EBE071ED16E46E4139D3EEE9C01
 Initial pla Black
 Encore phase 0
 Turns this phase 80
+Approx valid turns this phase 80
 Rules koSIMPLEscoreAREAtaxNONEsui0whbNfpok1komi7.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
@@ -13004,6 +13190,7 @@ HASH: 8CF0BD481D0E1F48DF8CB589D4DDD474
 Initial pla Black
 Encore phase 0
 Turns this phase 85
+Approx valid turns this phase 85
 Rules koSIMPLEscoreAREAtaxNONEsui0whbNfpok1komi7.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
@@ -13135,6 +13322,7 @@ HASH: CF8701264BFCFE900CB9B821907DDDDC
 Initial pla Black
 Encore phase 0
 Turns this phase 90
+Approx valid turns this phase 90
 Rules koSIMPLEscoreAREAtaxNONEsui0whbNfpok1komi7.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
@@ -13165,6 +13353,7 @@ HASH: 98CB45210AA7082E437BB1D6CB2C9F82
 Initial pla Black
 Encore phase 0
 Turns this phase 95
+Approx valid turns this phase 95
 Rules koSIMPLEscoreAREAtaxNONEsui0whbNfpok1komi7.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
@@ -13296,6 +13485,7 @@ HASH: 6449B52B7D02356D0A237FD249895B10
 Initial pla Black
 Encore phase 0
 Turns this phase 100
+Approx valid turns this phase 100
 Rules koSIMPLEscoreAREAtaxNONEsui0whbNfpok1komi7.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
@@ -13326,6 +13516,7 @@ HASH: 16157A431016D17129AC17E34E744E66
 Initial pla Black
 Encore phase 0
 Turns this phase 105
+Approx valid turns this phase 105
 Rules koSIMPLEscoreAREAtaxNONEsui0whbNfpok1komi7.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
@@ -13457,6 +13648,7 @@ HASH: 232A49B9B7EA3BA512778FE656790BEE
 Initial pla Black
 Encore phase 0
 Turns this phase 110
+Approx valid turns this phase 110
 Rules koSIMPLEscoreAREAtaxNONEsui0whbNfpok1komi7.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
@@ -13487,6 +13679,7 @@ HASH: 792E32F57D44B7C8B2A799B1C2522730
 Initial pla Black
 Encore phase 0
 Turns this phase 115
+Approx valid turns this phase 115
 Rules koSIMPLEscoreAREAtaxNONEsui0whbNfpok1komi7.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
@@ -13618,6 +13811,7 @@ HASH: 9C02FCAB416D0625BA8D77C3F9BA36F7
 Initial pla Black
 Encore phase 0
 Turns this phase 120
+Approx valid turns this phase 120
 Rules koSIMPLEscoreAREAtaxNONEsui0whbNfpok1komi7.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
@@ -13648,6 +13842,7 @@ HASH: 3CB319BC8BD33265B7EDBB3F5C294B19
 Initial pla Black
 Encore phase 0
 Turns this phase 125
+Approx valid turns this phase 125
 Rules koSIMPLEscoreAREAtaxNONEsui0whbNfpok1komi7.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
@@ -13779,6 +13974,7 @@ HASH: 7815803071F1D061FC832E2239B0D096
 Initial pla Black
 Encore phase 0
 Turns this phase 130
+Approx valid turns this phase 130
 Rules koSIMPLEscoreAREAtaxNONEsui0whbNfpok1komi7.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
@@ -13809,6 +14005,7 @@ HASH: 410E06622EBA756E865026A2ECD16985
 Initial pla Black
 Encore phase 0
 Turns this phase 135
+Approx valid turns this phase 135
 Rules koSIMPLEscoreAREAtaxNONEsui0whbNfpok1komi7.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
@@ -13940,6 +14137,7 @@ HASH: 7E01ED607499C46829152518C563B135
 Initial pla Black
 Encore phase 0
 Turns this phase 140
+Approx valid turns this phase 140
 Rules koSIMPLEscoreAREAtaxNONEsui0whbNfpok1komi7.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
@@ -13970,6 +14168,7 @@ HASH: D7300FADFE0E61031F033507895E3E5B
 Initial pla Black
 Encore phase 0
 Turns this phase 145
+Approx valid turns this phase 145
 Rules koSIMPLEscoreAREAtaxNONEsui0whbNfpok1komi7.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
@@ -14682,6 +14881,7 @@ HASH: 9F0B2D702FC8448C75410E097F089AEB
 Initial pla Black
 Encore phase 0
 Turns this phase 0
+Approx valid turns this phase 0
 Rules koSIMPLEscoreTERRITORYtaxNONEsui0komi7.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
@@ -14708,6 +14908,7 @@ HASH: BFBE836D87C15D9D3F8AFE8CAE85D33C
 Initial pla Black
 Encore phase 0
 Turns this phase 20
+Approx valid turns this phase 20
 Rules koSIMPLEscoreTERRITORYtaxNONEsui0komi7.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
@@ -15614,6 +15815,7 @@ HASH: 9F0B2D702FC8448C75410E097F089AEB
 Initial pla Black
 Encore phase 0
 Turns this phase 0
+Approx valid turns this phase 0
 Rules koSIMPLEscoreTERRITORYtaxNONEsui0komi7.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
@@ -15640,6 +15842,7 @@ HASH: 44CD7AD1BDB9D94040BE99751EEFFA0A
 Initial pla Black
 Encore phase 0
 Turns this phase 20
+Approx valid turns this phase 20
 Rules koSIMPLEscoreTERRITORYtaxNONEsui0komi7.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
@@ -15954,4 +16157,4 @@ valueTargetsNCHW
 0 0 0 0 0 0 0 0 0 0 0 0 -1 1 0 0 0 0 0 1 1 0 -1 0 1 0 0 0 1 -1 -1 0 1 0 0 0 0 -1 -1 0 1 0 0 -1 0 0 0 1 1 0 -1 0 0 0 0 0 1 -1 -1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -1 1 0 0 0 0 0 1 1 0 -1 0 1 0 0 0 1 -1 -1 0 1 0 0 0 0 -1 -1 0 1 0 0 -1 0 0 0 1 1 0 -1 0 0 0 0 0 1 -1 -1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -1 1 0 0 0 0 0 1 1 0 -1 0 1 0 0 0 1 -1 -1 0 1 0 0 0 0 -1 -1 0 1 0 0 -1 0 0 0 1 1 0 -1 0 0 0 0 0 1 -1 -1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -120 120 0 0 0 0 0 120 120 0 -120 0 120 0 0 0 120 -120 -120 0 120 0 0 0 0 -120 -120 0 120 0 0 -120 0 0 0 120 120 0 -120 0 0 0 0 0 120 -120 -120 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
 0 0 0 0 0 0 0 0 0 0 0 0 1 -1 0 0 0 0 0 -1 -1 0 1 0 -1 0 0 0 -1 1 1 0 -1 0 0 0 0 1 1 0 -1 0 0 1 0 0 0 -1 -1 0 1 0 0 0 0 0 -1 1 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 -1 0 0 0 0 0 -1 -1 0 1 0 -1 0 0 0 -1 1 1 0 -1 0 0 0 0 1 1 0 -1 0 0 1 0 0 0 -1 -1 0 1 0 0 0 0 0 -1 1 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 -1 0 0 0 0 0 -1 -1 0 1 0 -1 0 0 0 -1 1 1 0 -1 0 0 0 0 1 1 0 -1 0 0 1 0 0 0 -1 -1 0 1 0 0 0 0 0 -1 1 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 120 -120 0 0 0 0 0 -120 -120 0 120 0 -120 0 0 0 -120 120 120 0 -120 0 0 0 0 120 120 0 -120 0 0 120 0 0 0 -120 -120 0 120 0 0 0 0 0 -120 120 120 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
 
-: GPU 0 finishing, processed 49419 rows 49419 batches
+: GPU 0 finishing, processed 48883 rows 48883 batches

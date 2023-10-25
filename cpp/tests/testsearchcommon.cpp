@@ -41,6 +41,7 @@ void TestSearchCommon::printPolicyValueOwnership(const Board& board, const NNRes
 
 void TestSearchCommon::printBasicStuffAfterSearch(const Board& board, const BoardHistory& hist, const Search* search, PrintTreeOptions options) {
   Board::printBoard(cout, board, Board::NULL_LOC, &(hist.moveHistory));
+  cout << hist.rules << " " << hist.encorePhase << "\n";
   cout << "Root visits: " << search->getRootVisits() << "\n";
   cout << "New playouts: " << search->lastSearchNumPlayouts << "\n";
   cout << "NN rows: " << search->nnEvaluator->numRowsProcessed() << endl;
@@ -258,8 +259,8 @@ void TestSearchCommon::verifyTreePostOrder(Search* search, int onlyRequireAtLeas
     idxOfNode[node] = i;
   }
   for(size_t i = 0; i<nodes.size(); i++) {
-    int childrenCapacity;
-    const SearchChildPointer* children = nodes[i]->getChildren(childrenCapacity);
+    ConstSearchNodeChildrenReference children = nodes[i]->getChildren();
+    int childrenCapacity = children.getCapacity();
     for(int j = 0; j<childrenCapacity; j++) {
       const SearchNode* child = children[j].getIfAllocated();
       if(child == NULL)

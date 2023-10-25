@@ -25,6 +25,8 @@ void Search::computeRootNNEvaluation(NNResultBuf& nnResultBuf, bool includeOwner
       getOpp(pla) == playoutDoublingAdvantagePla ? -searchParams.playoutDoublingAdvantage : searchParams.playoutDoublingAdvantage
     );
   }
+  if(searchParams.ignorePreRootHistory || searchParams.ignoreAllHistory)
+    nnInputParams.maxHistory = 0;
   nnEvaluator->evaluate(
     board, hist, pla,
     nnInputParams,
@@ -61,6 +63,11 @@ bool Search::initNodeNNOutput(
     nnInputParams.playoutDoublingAdvantage = (
       getOpp(thread.pla) == playoutDoublingAdvantagePla ? -searchParams.playoutDoublingAdvantage : searchParams.playoutDoublingAdvantage
     );
+  }
+  if(searchParams.ignoreAllHistory)
+    nnInputParams.maxHistory = 0;
+  else if(searchParams.ignorePreRootHistory) {
+    nnInputParams.maxHistory = isRoot ? 0 : std::max(0, (int)thread.history.moveHistory.size() - (int)rootHistory.moveHistory.size());
   }
 
   std::shared_ptr<NNOutput>* result;
@@ -148,11 +155,21 @@ void Search::maybeRecomputeExistingNNOutput(
       //Recompute if we have no ownership map, since we need it for getEndingWhiteScoreBonus
       //If conservative passing, then we may also need to recompute the root policy ignoring the history if a pass ends the game
       //If averaging a bunch of symmetries, then we need to recompute it too
+      //If root needs different optimism, we need to recompute it.
+      //Also do so when ignoring history pre root
       if(nnOutput->whiteOwnerMap == NULL ||
          (searchParams.conservativePass && thread.history.passWouldEndGame(thread.board,thread.pla)) ||
-         searchParams.rootNumSymmetriesToSample > 1
+         searchParams.rootNumSymmetriesToSample > 1 ||
+         searchParams.rootPolicyOptimism != searchParams.policyOptimism ||
+         (searchParams.ignorePreRootHistory && !searchParams.ignoreAllHistory)
       ) {
-        initNodeNNOutput(thread,node,isRoot,false,true);
+        //We *can* use cached evaluations even though parameters are changing, because:
+        //conservativePass is part of the nn hash
+        //Symmetry averaging skips the cache on its own when it does symmetry sampling without replacement
+        //The optimism is part of the nn hash
+        //When pre-root history is ignored at the root, maxHistory is 0 and the nn cache distinguishes 0 from nonzero.
+        const bool skipCache = false;
+        initNodeNNOutput(thread,node,isRoot,skipCache,true);
       }
       //We also need to recompute the root nn if we have root noise or temperature and that's missing.
       else {

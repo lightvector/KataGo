@@ -43,6 +43,7 @@ struct MiscNNInputParams {
   // If no symmetry is specified, it will use default or random based on config, unless node is already cached.
   int symmetry = NNInputs::SYMMETRY_NOTSPECIFIED;
   double policyOptimism = 0.0;
+  int maxHistory = 1000;
 
   static const Hash128 ZOBRIST_CONSERVATIVE_PASS;
   static const Hash128 ZOBRIST_FRIENDLY_PASS;
@@ -51,6 +52,7 @@ struct MiscNNInputParams {
   static const Hash128 ZOBRIST_NN_POLICY_TEMP;
   static const Hash128 ZOBRIST_AVOID_MYTDAGGER_HACK;
   static const Hash128 ZOBRIST_POLICY_OPTIMISM;
+  static const Hash128 ZOBRIST_ZERO_HISTORY;
 };
 
 namespace NNInputs {
@@ -220,12 +222,12 @@ namespace ScoreValue {
   double whiteScoreDrawAdjust(double finalWhiteMinusBlackScore, double drawEquivalentWinsForWhite, const BoardHistory& hist);
 
   //The unscaled utility of achieving a certain score difference
-  double whiteScoreValueOfScoreSmooth(double finalWhiteMinusBlackScore, double center, double scale, double drawEquivalentWinsForWhite, const Board& b, const BoardHistory& hist);
-  double whiteScoreValueOfScoreSmoothNoDrawAdjust(double finalWhiteMinusBlackScore, double center, double scale, const Board& b);
+  double whiteScoreValueOfScoreSmooth(double finalWhiteMinusBlackScore, double center, double scale, double drawEquivalentWinsForWhite, double sqrtBoardArea, const BoardHistory& hist);
+  double whiteScoreValueOfScoreSmoothNoDrawAdjust(double finalWhiteMinusBlackScore, double center, double scale, double sqrtBoardArea);
   //Approximately invert whiteScoreValueOfScoreSmooth
-  double approxWhiteScoreOfScoreValueSmooth(double scoreValue, double center, double scale, const Board& b);
+  double approxWhiteScoreOfScoreValueSmooth(double scoreValue, double center, double scale, double sqrtBoardArea);
   //The derviative of whiteScoreValueOfScoreSmoothNoDrawAdjust with respect to finalWhiteMinusBlackScore.
-  double whiteDScoreValueDScoreSmoothNoDrawAdjust(double finalWhiteMinusBlackScore, double center, double scale, const Board& b);
+  double whiteDScoreValueDScoreSmoothNoDrawAdjust(double finalWhiteMinusBlackScore, double center, double scale, double sqrtBoardArea);
 
   //Compute what the scoreMeanSq should be for a final game result
   //It is NOT simply the same as finalWhiteMinusBlackScore^2 because for integer komi we model it as a distribution where with the appropriate probability
@@ -234,7 +236,7 @@ namespace ScoreValue {
 
   //The expected unscaled utility of the final score difference, given the mean and stdev of the distribution of that difference,
   //assuming roughly a normal distribution.
-  double expectedWhiteScoreValue(double whiteScoreMean, double whiteScoreStdev, double center, double scale, const Board& b);
+  double expectedWhiteScoreValue(double whiteScoreMean, double whiteScoreStdev, double center, double scale, double sqrtBoardArea);
 
   //Get the standard deviation of score given the E(score) and E(score^2)
   double getScoreStdev(double scoreMeanAvg, double scoreMeanSqAvg);

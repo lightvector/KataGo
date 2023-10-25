@@ -35,7 +35,7 @@ mkdir -p "$TMPDIR"/val
 
 echo "Beginning shuffle at" $(date "+%Y-%m-%d %H:%M:%S")
 
-if [[ -n "$SKIP_VALIDATE" ]]
+if [[ -n "${SKIP_VALIDATE:-}" ]]
 then
   (
       time python3 ./shuffle.py \

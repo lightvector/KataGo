@@ -151,9 +151,8 @@ void Search::applyRecursivelyPostOrderMulithreadedHelper(
     return;
 
   //Recurse on all children
-  int childrenCapacity;
-  SearchChildPointer* children = node->getChildren(childrenCapacity);
-  int numChildren = SearchNode::iterateAndCountChildrenInArray(children,childrenCapacity);
+  SearchNodeChildrenReference children = node->getChildren();
+  int numChildren = children.iterateAndCountChildren();
 
   if(numChildren > 0) {
     size_t randBufStart = randBuf.size();
@@ -224,9 +223,8 @@ void Search::applyRecursivelyAnyOrderMulithreadedHelper(
     return;
 
   //Recurse on all children
-  int childrenCapacity;
-  SearchChildPointer* children = node->getChildren(childrenCapacity);
-  int numChildren = SearchNode::iterateAndCountChildrenInArray(children,childrenCapacity);
+  SearchNodeChildrenReference children = node->getChildren();
+  int numChildren = children.iterateAndCountChildren();
 
   if(numChildren > 0) {
     size_t randBufStart = randBuf.size();

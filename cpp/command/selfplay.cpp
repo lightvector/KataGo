@@ -44,6 +44,7 @@ int MainCmds::selfplay(const vector<string>& args) {
   try {
     KataGoCommandLine cmd("Generate training data via self play.");
     cmd.addConfigFileArg("","");
+    cmd.addOverrideConfigArg();
 
     TCLAP::ValueArg<string> modelsDirArg("","models-dir","Dir to poll and load models from",true,string(),"DIR");
     TCLAP::ValueArg<string> outputDirArg("","output-dir","Dir to output files",true,string(),"DIR");

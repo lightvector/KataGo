@@ -88,7 +88,9 @@ class ConfigParser {
   std::vector<float> getFloats(const std::string& key, float min, float max);
   std::vector<double> getDoubles(const std::string& key, double min, double max);
 
- private:
+  std::vector<std::pair<int,int>> getNonNegativeIntDashedPairs(const std::string& key, int min, int max);
+
+private:
   bool initialized;
   std::string fileName;
   std::string contents;

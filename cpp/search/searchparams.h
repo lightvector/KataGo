@@ -95,6 +95,13 @@ struct SearchParams {
   float nnPolicyTemperature; //Scale neural net policy probabilities by this temperature, applies everywhere in the tree
   bool antiMirror; //Enable anti-mirroring logic
 
+  //Ignore history prior to the root of the search. This is enforced strictly only for the root node of the
+  //search. Deeper nodes may see history prior to the root of the search if searches were performed from earlier positions
+  //and those gamestates were also reached by those earlier searches with the nn evals cached.
+  //This is true even without tree reuse.
+  bool ignorePreRootHistory;
+  bool ignoreAllHistory; //Always ignore history entirely
+
   double subtreeValueBiasFactor; //Dynamically adjust neural net utilties based on empirical stats about their errors in search
   int32_t subtreeValueBiasTableNumShards; //Number of shards for subtreeValueBiasFactor for initial hash lookup and mutexing
   double subtreeValueBiasFreeProp; //When a node is no longer part of the relevant search tree, only decay this proportion of the weight.

@@ -242,6 +242,15 @@ void Board::setSimpleKoLoc(Loc loc) {
 }
 
 
+double Board::sqrtBoardArea() const {
+    if (x_size == y_size) {
+        return x_size;
+    }
+    else {
+        return sqrt(x_size * y_size);
+    }
+}
+
 //Gets the number of stones of the chain at loc. Precondition: location must be black or white.
 int Board::getChainSize(Loc loc) const
 {

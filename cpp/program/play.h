@@ -64,6 +64,8 @@ struct OtherGameProperties {
   Hash128 hintPosHash;
   Loc hintLoc = Board::NULL_LOC;
 
+  double trainingWeight = 1.0;
+
   //Note: these two behave slightly differently than the ones in searchParams - as properties for the whole
   //game, they make the playouts *actually* vary instead of only making the neural net think they do.
   double playoutDoublingAdvantage = 0.0;
@@ -111,7 +113,7 @@ class GameInitializer {
   Rules createRules();
   bool isAllowedBSize(int xSize, int ySize);
 
-  std::vector<int> getAllowedBSizes() const;
+  std::vector<std::pair<int,int>> getAllowedBSizes() const;
   int getMinBoardXSize() const;
   int getMinBoardYSize() const;
   int getMaxBoardXSize() const;
@@ -142,10 +144,8 @@ class GameInitializer {
   std::vector<int> allowedScoringRules;
   std::vector<int> allowedTaxRules;
 
-  std::vector<int> allowedBSizes;
+  std::vector<std::pair<int,int>> allowedBSizes;
   std::vector<double> allowedBSizeRelProbs;
-
-  double allowRectangleProb;
 
   float komiMean;
   float komiStdev;

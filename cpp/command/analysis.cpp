@@ -322,7 +322,7 @@ int MainCmds::analysis(const vector<string>& args) {
 
         if(logSearchInfo) {
           ostringstream sout;
-          PlayUtils::printGenmoveLog(sout,bot,nnEval,Board::NULL_LOC,NAN,request->perspective);
+          PlayUtils::printGenmoveLog(sout,bot,nnEval,Board::NULL_LOC,NAN,request->perspective,false);
           logger.write(sout.str());
         }
 

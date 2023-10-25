@@ -244,8 +244,9 @@ double Search::getScoreUtility(double scoreMeanAvg, double scoreMeanSqAvg) const
   double scoreMean = scoreMeanAvg;
   double scoreMeanSq = scoreMeanSqAvg;
   double scoreStdev = ScoreValue::getScoreStdev(scoreMean, scoreMeanSq);
-  double staticScoreValue = ScoreValue::expectedWhiteScoreValue(scoreMean,scoreStdev,0.0,2.0,rootBoard);
-  double dynamicScoreValue = ScoreValue::expectedWhiteScoreValue(scoreMean,scoreStdev,recentScoreCenter,searchParams.dynamicScoreCenterScale,rootBoard);
+  double sqrtBoardArea = rootBoard.sqrtBoardArea();
+  double staticScoreValue = ScoreValue::expectedWhiteScoreValue(scoreMean,scoreStdev,0.0,2.0, sqrtBoardArea);
+  double dynamicScoreValue = ScoreValue::expectedWhiteScoreValue(scoreMean,scoreStdev,recentScoreCenter,searchParams.dynamicScoreCenterScale, sqrtBoardArea);
   return staticScoreValue * searchParams.staticScoreUtilityFactor + dynamicScoreValue * searchParams.dynamicScoreUtilityFactor;
 }
 
@@ -253,19 +254,21 @@ double Search::getScoreUtilityDiff(double scoreMeanAvg, double scoreMeanSqAvg, d
   double scoreMean = scoreMeanAvg;
   double scoreMeanSq = scoreMeanSqAvg;
   double scoreStdev = ScoreValue::getScoreStdev(scoreMean, scoreMeanSq);
+  double sqrtBoardArea = rootBoard.sqrtBoardArea();
   double staticScoreValueDiff =
-    ScoreValue::expectedWhiteScoreValue(scoreMean + delta,scoreStdev,0.0,2.0,rootBoard)
-    -ScoreValue::expectedWhiteScoreValue(scoreMean,scoreStdev,0.0,2.0,rootBoard);
+    ScoreValue::expectedWhiteScoreValue(scoreMean + delta,scoreStdev,0.0,2.0, sqrtBoardArea)
+    -ScoreValue::expectedWhiteScoreValue(scoreMean,scoreStdev,0.0,2.0, sqrtBoardArea);
   double dynamicScoreValueDiff =
-    ScoreValue::expectedWhiteScoreValue(scoreMean + delta,scoreStdev,recentScoreCenter,searchParams.dynamicScoreCenterScale,rootBoard)
-    -ScoreValue::expectedWhiteScoreValue(scoreMean,scoreStdev,recentScoreCenter,searchParams.dynamicScoreCenterScale,rootBoard);
+    ScoreValue::expectedWhiteScoreValue(scoreMean + delta,scoreStdev,recentScoreCenter,searchParams.dynamicScoreCenterScale, sqrtBoardArea)
+    -ScoreValue::expectedWhiteScoreValue(scoreMean,scoreStdev,recentScoreCenter,searchParams.dynamicScoreCenterScale, sqrtBoardArea);
   return staticScoreValueDiff * searchParams.staticScoreUtilityFactor + dynamicScoreValueDiff * searchParams.dynamicScoreUtilityFactor;
 }
 
 //Ignores scoreMeanSq's effect on the utility, since that's complicated
 double Search::getApproxScoreUtilityDerivative(double scoreMean) const {
-  double staticScoreValueDerivative = ScoreValue::whiteDScoreValueDScoreSmoothNoDrawAdjust(scoreMean,0.0,2.0,rootBoard);
-  double dynamicScoreValueDerivative = ScoreValue::whiteDScoreValueDScoreSmoothNoDrawAdjust(scoreMean,recentScoreCenter,searchParams.dynamicScoreCenterScale,rootBoard);
+  double sqrtBoardArea = rootBoard.sqrtBoardArea();
+  double staticScoreValueDerivative = ScoreValue::whiteDScoreValueDScoreSmoothNoDrawAdjust(scoreMean,0.0,2.0, sqrtBoardArea);
+  double dynamicScoreValueDerivative = ScoreValue::whiteDScoreValueDScoreSmoothNoDrawAdjust(scoreMean,recentScoreCenter,searchParams.dynamicScoreCenterScale, sqrtBoardArea);
   return staticScoreValueDerivative * searchParams.staticScoreUtilityFactor + dynamicScoreValueDerivative * searchParams.dynamicScoreUtilityFactor;
 }
 
@@ -410,16 +413,17 @@ bool Search::shouldSuppressPass(const SearchNode* n) const {
   const SearchNode* passNode = NULL;
   int64_t passEdgeVisits = 0;
 
-  int childrenCapacity;
-  const SearchChildPointer* children = node.getChildren(childrenCapacity);
+  ConstSearchNodeChildrenReference children = node.getChildren();
+  int childrenCapacity = children.getCapacity();
   for(int i = 0; i<childrenCapacity; i++) {
-    const SearchNode* child = children[i].getIfAllocated();
+    const SearchChildPointer& childPointer = children[i];
+    const SearchNode* child = childPointer.getIfAllocated();
     if(child == NULL)
       break;
-    Loc moveLoc = children[i].getMoveLocRelaxed();
+    Loc moveLoc = childPointer.getMoveLocRelaxed();
     if(moveLoc == Board::PASS_LOC) {
       passNode = child;
-      passEdgeVisits = children[i].getEdgeVisits();
+      passEdgeVisits = childPointer.getEdgeVisits();
       break;
     }
   }
@@ -450,10 +454,11 @@ bool Search::shouldSuppressPass(const SearchNode* n) const {
   //Suppress pass if we find a move that is not a spot that the opponent almost certainly owns
   //or that is adjacent to a pla owned spot, and is not greatly worse than pass.
   for(int i = 0; i<childrenCapacity; i++) {
-    const SearchNode* child = children[i].getIfAllocated();
+    const SearchChildPointer& childPointer = children[i];
+    const SearchNode* child = childPointer.getIfAllocated();
     if(child == NULL)
       break;
-    Loc moveLoc = children[i].getMoveLocRelaxed();
+    Loc moveLoc = childPointer.getMoveLocRelaxed();
     if(moveLoc == Board::PASS_LOC)
       continue;
     int pos = NNPos::locToPos(moveLoc,rootBoard.x_size,nnXLen,nnYLen);
@@ -472,7 +477,7 @@ bool Search::shouldSuppressPass(const SearchNode* n) const {
     if(oppOwned && !adjToPlaOwned)
       continue;
 
-    int64_t edgeVisits = children[i].getEdgeVisits();
+    int64_t edgeVisits = childPointer.getEdgeVisits();
 
     double scoreMeanAvg = child->stats.scoreMeanAvg.load(std::memory_order_acquire);
     double leadAvg = child->stats.leadAvg.load(std::memory_order_acquire);

@@ -60,11 +60,13 @@ NUM_TRAIN_SAMPLES_PER_EPOCH=100000  # Training will proceed in chunks of this ma
 MAX_TRAIN_PER_DATA=8 # On average, train only this many times on each data row. Larger numbers may cause overfitting.
 NUM_TRAIN_SAMPLES_PER_SWA=80000  # Stochastic weight averaging frequency.
 BATCHSIZE=128 # For lower-end GPUs 64 or smaller may be needed to avoid running out of GPU memory.
-SHUFFLE_MINROWS=50000 # Require this many rows at the very start before beginning training.
+SHUFFLE_MINROWS=100000 # Require this many rows at the very start before beginning training.
 MAX_TRAIN_SAMPLES_PER_CYCLE=500000  # Each cycle will do at most this many training steps.
+TAPER_WINDOW_SCALE=50000 # Parameter setting the scale at which the shuffler will make the training window grow sublinearly.
 SHUFFLE_KEEPROWS=600000 # Needs to be larger than MAX_TRAIN_SAMPLES_PER_CYCLE, so the shuffler samples enough rows each cycle for the training to use.
 
 # Paths to the selfplay and gatekeeper configs that contain board sizes, rules, search parameters, etc.
+# See cpp/configs/training/README.md for some notes on other selfplay configs.
 SELFPLAY_CONFIG="$GITROOTDIR"/cpp/configs/training/selfplay1.cfg
 GATING_CONFIG="$GITROOTDIR"/cpp/configs/training/gatekeeper1.cfg
 
@@ -88,6 +90,9 @@ cd "$DATED_ARCHIVE"
 set -x
 while true
 do
+    echo "Gatekeeper"
+    time ./katago gatekeeper -rejected-models-dir "$BASEDIR"/rejectedmodels -accepted-models-dir "$BASEDIR"/models/ -sgf-output-dir "$BASEDIR"/gatekeepersgf/ -test-models-dir "$BASEDIR"/modelstobetested/ -config "$DATED_ARCHIVE"/gatekeeper.cfg -quit-if-no-nets-to-test | tee -a "$BASEDIR"/gatekeepersgf/stdout.txt
+
     echo "Selfplay"
     time ./katago selfplay -max-games-total "$NUM_GAMES_PER_CYCLE" -output-dir "$BASEDIR"/selfplay -models-dir "$BASEDIR"/models -config "$DATED_ARCHIVE"/selfplay.cfg | tee -a "$BASEDIR"/selfplay/stdout.txt
 
@@ -95,7 +100,7 @@ do
     (
         # Skip validate since peeling off 5% of data is actually a bit too chunky and discrete when running at a small scale, and validation data
         # doesn't actually add much to debugging a fast-changing RL training.
-        time SKIP_VALIDATE=1 ./shuffle.sh "$BASEDIR" "$SCRATCHDIR" "$NUM_THREADS_FOR_SHUFFLING" "$BATCHSIZE" -min-rows "$SHUFFLE_MINROWS" -keep-target-rows "$SHUFFLE_KEEPROWS" | tee -a "$BASEDIR"/logs/outshuffle.txt
+        time SKIP_VALIDATE=1 ./shuffle.sh "$BASEDIR" "$SCRATCHDIR" "$NUM_THREADS_FOR_SHUFFLING" "$BATCHSIZE" -min-rows "$SHUFFLE_MINROWS" -keep-target-rows "$SHUFFLE_KEEPROWS" -taper-window-scale "$TAPER_WINDOW_SCALE" | tee -a "$BASEDIR"/logs/outshuffle.txt
     )
 
     echo "Train"
@@ -106,8 +111,6 @@ do
         time ./export_model_for_selfplay.sh "$NAMEPREFIX" "$BASEDIR" "$USEGATING" | tee -a "$BASEDIR"/logs/outexport.txt
     )
 
-    echo "Gatekeeper"
-    time ./katago gatekeeper -rejected-models-dir "$BASEDIR"/rejectedmodels -accepted-models-dir "$BASEDIR"/models/ -sgf-output-dir "$BASEDIR"/gatekeepersgf/ -test-models-dir "$BASEDIR"/modelstobetested/ -config "$DATED_ARCHIVE"/gatekeeper.cfg -quit-if-no-nets-to-test | tee -a "$BASEDIR"/gatekeepersgf/stdout.txt
 done
 
 exit 0

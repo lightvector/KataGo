@@ -160,11 +160,8 @@ void Tests::runNNInputsV3V4Tests() {
   };
 
   auto fillRows = [](int version, Hash128& hash,
-                     Board& board, const BoardHistory& hist, Player nextPla, double drawEquivalentWinsForWhite, int nnXLen, int nnYLen, bool inputsUseNHWC,
+                     Board& board, const BoardHistory& hist, Player nextPla, MiscNNInputParams nnInputParams, int nnXLen, int nnYLen, bool inputsUseNHWC,
                      float* rowBin, float* rowGlobal) {
-    MiscNNInputParams nnInputParams;
-    nnInputParams.drawEquivalentWinsForWhite = drawEquivalentWinsForWhite;
-
     hash = NNInputs::getHash(board,hist,nextPla,nnInputParams);
 
     static_assert(NNModelVersion::latestInputsVersionImplemented == 7, "");
@@ -223,7 +220,9 @@ void Tests::runNNInputsV3V4Tests() {
 
       auto run = [&](bool inputsUseNHWC) {
         Hash128 hash;
-        fillRows(version,hash,board,hist,nextPla,drawEquivalentWinsForWhite,nnXLen,nnYLen,inputsUseNHWC,rowBin,rowGlobal);
+        MiscNNInputParams nnInputParams;
+        nnInputParams.drawEquivalentWinsForWhite = drawEquivalentWinsForWhite;
+        fillRows(version,hash,board,hist,nextPla,nnInputParams,nnXLen,nnYLen,inputsUseNHWC,rowBin,rowGlobal);
         out << hash << endl;
         for(int c = 0; c<numFeaturesBin; c++)
           printNNInputHWAndBoard(out,version,board,hist,nnXLen,nnYLen,inputsUseNHWC,rowBin,c);
@@ -282,7 +281,9 @@ void Tests::runNNInputsV3V4Tests() {
 
       auto run = [&](bool inputsUseNHWC) {
         Hash128 hash;
-        fillRows(version,hash,board,hist,nextPla,drawEquivalentWinsForWhite,nnXLen,nnYLen,inputsUseNHWC,rowBin,rowGlobal);
+        MiscNNInputParams nnInputParams;
+        nnInputParams.drawEquivalentWinsForWhite = drawEquivalentWinsForWhite;
+        fillRows(version,hash,board,hist,nextPla,nnInputParams,nnXLen,nnYLen,inputsUseNHWC,rowBin,rowGlobal);
         out << hash << endl;
         int c = version != 5 ? 6 : 3;
         printNNInputHWAndBoard(out,version,board,hist,nnXLen,nnYLen,inputsUseNHWC,rowBin,c);
@@ -342,7 +343,9 @@ void Tests::runNNInputsV3V4Tests() {
 
       auto run = [&](bool inputsUseNHWC) {
         Hash128 hash;
-        fillRows(version,hash,board,hist,nextPla,drawEquivalentWinsForWhite,nnXLen,nnYLen,inputsUseNHWC,rowBin,rowGlobal);
+        MiscNNInputParams nnInputParams;
+        nnInputParams.drawEquivalentWinsForWhite = drawEquivalentWinsForWhite;
+        fillRows(version,hash,board,hist,nextPla,nnInputParams,nnXLen,nnYLen,inputsUseNHWC,rowBin,rowGlobal);
         out << hash << endl;
         for(int c = 0; c<numFeaturesBin; c++)
           printNNInputHWAndBoard(out,version,board,hist,nnXLen,nnYLen,inputsUseNHWC,rowBin,c);
@@ -401,7 +404,9 @@ void Tests::runNNInputsV3V4Tests() {
 
       auto run = [&](bool inputsUseNHWC) {
         Hash128 hash;
-        fillRows(version,hash,board,hist,nextPla,drawEquivalentWinsForWhite,nnXLen,nnYLen,inputsUseNHWC,rowBin,rowGlobal);
+        MiscNNInputParams nnInputParams;
+        nnInputParams.drawEquivalentWinsForWhite = drawEquivalentWinsForWhite;
+        fillRows(version,hash,board,hist,nextPla,nnInputParams,nnXLen,nnYLen,inputsUseNHWC,rowBin,rowGlobal);
         out << hash << endl;
         for(int c = 0; c<numFeaturesBin; c++)
           printNNInputHWAndBoard(out,version,board,hist,nnXLen,nnYLen,inputsUseNHWC,rowBin,c);
@@ -460,7 +465,9 @@ xxx..xx
 
       bool inputsUseNHWC = true;
       Hash128 hash;
-      fillRows(version,hash,board,hist,nextPla,drawEquivalentWinsForWhite,nnXLen,nnYLen,inputsUseNHWC,rowBin,rowGlobal);
+      MiscNNInputParams nnInputParams;
+      nnInputParams.drawEquivalentWinsForWhite = drawEquivalentWinsForWhite;
+      fillRows(version,hash,board,hist,nextPla,nnInputParams,nnXLen,nnYLen,inputsUseNHWC,rowBin,rowGlobal);
 
       int c = 18;
       printNNInputHWAndBoard(out,version,board,hist,nnXLen,nnYLen,inputsUseNHWC,rowBin,c);
@@ -471,14 +478,14 @@ xxx..xx
 
       nextPla = P_WHITE;
       hist.clear(board,nextPla,initialRules,0);
-      fillRows(version,hash,board,hist,nextPla,drawEquivalentWinsForWhite,nnXLen,nnYLen,inputsUseNHWC,rowBin,rowGlobal);
+      fillRows(version,hash,board,hist,nextPla,nnInputParams,nnXLen,nnYLen,inputsUseNHWC,rowBin,rowGlobal);
       for(c = 0; c<numFeaturesGlobal; c++)
         printNNInputGlobal(out,version,rowGlobal,c);
 
       nextPla = P_BLACK;
       initialRules.komi = 1;
       hist.clear(board,nextPla,initialRules,0);
-      fillRows(version,hash,board,hist,nextPla,drawEquivalentWinsForWhite,nnXLen,nnYLen,inputsUseNHWC,rowBin,rowGlobal);
+      fillRows(version,hash,board,hist,nextPla,nnInputParams,nnXLen,nnYLen,inputsUseNHWC,rowBin,rowGlobal);
       for(c = 0; c<numFeaturesGlobal; c++)
         printNNInputGlobal(out,version,rowGlobal,c);
 
@@ -599,7 +606,9 @@ xxx..xx
               BoardHistory hist(board,nextPla,rules[i+j],0);
               bool inputsUseNHWC = true;
               Hash128 hash;
-              fillRows(version,hash,board,hist,nextPla,drawEquivalentWinsForWhite,nnXLen,nnYLen,inputsUseNHWC,rowBin,rowGlobal);
+              MiscNNInputParams nnInputParams;
+              nnInputParams.drawEquivalentWinsForWhite = drawEquivalentWinsForWhite;
+              fillRows(version,hash,board,hist,nextPla,nnInputParams,nnXLen,nnYLen,inputsUseNHWC,rowBin,rowGlobal);
               out << rowGlobal[c] << " ";
             }
             out << endl;
@@ -664,7 +673,9 @@ xxx..xx
           out << endl;
           bool inputsUseNHWC = true;
           Hash128 hash;
-          fillRows(version,hash,board,hist,nextPla,drawEquivalentWinsForWhite,nnXLen,nnYLen,inputsUseNHWC,rowBin,rowGlobal);
+          MiscNNInputParams nnInputParams;
+          nnInputParams.drawEquivalentWinsForWhite = drawEquivalentWinsForWhite;
+          fillRows(version,hash,board,hist,nextPla,nnInputParams,nnXLen,nnYLen,inputsUseNHWC,rowBin,rowGlobal);
           out << "Pass Hist Channels: ";
           for(int c = 0; c<5; c++)
             out << rowGlobal[c] << " ";
@@ -735,7 +746,9 @@ xxx..xx
           out << "Move " << i << endl;
           bool inputsUseNHWC = true;
           Hash128 hash;
-          fillRows(version,hash,board,hist,nextPla,drawEquivalentWinsForWhite,nnXLen,nnYLen,inputsUseNHWC,rowBin,rowGlobal);
+          MiscNNInputParams nnInputParams;
+          nnInputParams.drawEquivalentWinsForWhite = drawEquivalentWinsForWhite;
+          fillRows(version,hash,board,hist,nextPla,nnInputParams,nnXLen,nnYLen,inputsUseNHWC,rowBin,rowGlobal);
           printNNInputHWAndBoard(out,version,board,hist,nnXLen,nnYLen,inputsUseNHWC,rowBin,18);
           printNNInputHWAndBoard(out,version,board,hist,nnXLen,nnYLen,inputsUseNHWC,rowBin,19);
         }
@@ -793,7 +806,9 @@ o.xoo.x
           auto run = [&](bool inputsUseNHWC) {
             Player nextPla = hist.moveHistory.size() > 0 ? getOpp(hist.moveHistory[hist.moveHistory.size()-1].pla) : hist.initialPla;
             Hash128 hash;
-            fillRows(version,hash,board,hist,nextPla,drawEquivalentWinsForWhite,nnXLen,nnYLen,inputsUseNHWC,rowBin,rowGlobal);
+            MiscNNInputParams nnInputParams;
+            nnInputParams.drawEquivalentWinsForWhite = drawEquivalentWinsForWhite;
+            fillRows(version,hash,board,hist,nextPla,nnInputParams,nnXLen,nnYLen,inputsUseNHWC,rowBin,rowGlobal);
             out << hash << endl;
             printNNInputGlobal(out,version,rowGlobal,5);
             int c = 18;
@@ -891,7 +906,9 @@ o.xoo.x
 
       auto run = [&](bool inputsUseNHWC) {
         Hash128 hash;
-        fillRows(version,hash,board,hist,nextPla,drawEquivalentWinsForWhite,nnXLen,nnYLen,inputsUseNHWC,rowBin,rowGlobal);
+        MiscNNInputParams nnInputParams;
+        nnInputParams.drawEquivalentWinsForWhite = drawEquivalentWinsForWhite;
+        fillRows(version,hash,board,hist,nextPla,nnInputParams,nnXLen,nnYLen,inputsUseNHWC,rowBin,rowGlobal);
         printNNInputHWAndBoard(out,version,board,hist,nnXLen,nnYLen,inputsUseNHWC,rowBin,9);
         printNNInputHWAndBoard(out,version,board,hist,nnXLen,nnYLen,inputsUseNHWC,rowBin,10);
         printNNInputHWAndBoard(out,version,board,hist,nnXLen,nnYLen,inputsUseNHWC,rowBin,11);
@@ -957,7 +974,9 @@ o.xoo.x
         bool inputsUseNHWC = true;
         Hash128 hash;
         Board b = board;
-        fillRows(version,hash,b,hist,nextPla,drawEquivalentWinsForWhite,nnXLen,nnYLen,inputsUseNHWC,rowBin,rowGlobal);
+        MiscNNInputParams nnInputParams;
+        nnInputParams.drawEquivalentWinsForWhite = drawEquivalentWinsForWhite;
+        fillRows(version,hash,b,hist,nextPla,nnInputParams,nnXLen,nnYLen,inputsUseNHWC,rowBin,rowGlobal);
         for(int c = 0; c<numFeaturesGlobal; c++)
           cout << rowGlobal[c] << " ";
         cout << endl;
@@ -1055,6 +1074,7 @@ o.xoo.x
 
     auto testScoring = [](const Board& board, const BoardHistory& hist, bool expectedFriendlyPassSuppress) {
       hist.printDebugInfo(cout,board);
+      cout << "Finished or past normal end: " << (hist.isGameFinished || hist.isPastNormalPhaseEnd) << endl;
       cout << "Pass would end phase: " << hist.passWouldEndPhase(board,hist.presumedNextMovePla) << endl;
       cout << "Pass would end game: " << hist.passWouldEndGame(board,hist.presumedNextMovePla) << endl;
       cout << "Pass should suppress: " << hist.shouldSuppressEndGameFromFriendlyPass(board,hist.presumedNextMovePla) << endl;
@@ -1067,6 +1087,9 @@ o.xoo.x
 
       MiscNNInputParams nnInputParams;
       nnInputParams.drawEquivalentWinsForWhite = 0.5;
+
+      // Currently should be true given that we only test game-end stuff, not illegal moves.
+      testAssert((hist.numApproxValidTurnsThisPhase > 0) == (hist.numTurnsThisPhase > 0));
 
       {
         BoardHistory histCopy(hist);
@@ -1093,7 +1116,7 @@ o.xoo.x
           }
         }
         historyInput += rowGlobal[0];
-        testAssert((hist.moveHistory.size() > 0 && !hist.isGameFinished && hist.numTurnsThisPhase > 0) == (historyInput > 0.0f));
+        testAssert((hist.moveHistory.size() > 0 && hist.numApproxValidTurnsThisPhase > 0) == (historyInput > 0.0f));
       }
 
       {
@@ -1120,7 +1143,7 @@ o.xoo.x
           }
         }
         historyInput += rowGlobal[0];
-        testAssert((hist.moveHistory.size() > 0 && !hist.isGameFinished && hist.numTurnsThisPhase > 0 && !expectedFriendlyPassSuppress) == (historyInput > 0.0f));
+        testAssert((hist.moveHistory.size() > 0 && hist.numApproxValidTurnsThisPhase > 0 && !expectedFriendlyPassSuppress) == (historyInput > 0.0f));
       }
 
       Color area[Board::MAX_ARR_SIZE];
@@ -1152,9 +1175,9 @@ o.xoo.x
           cout << "Komi " << komi << " hasHistory " << (historyInput > 0.0f) << endl;
         }
         if(hist.rules.scoringRule == Rules::SCORING_TERRITORY && hist.encorePhase < 2)
-          testAssert((hist.moveHistory.size() > 0 && !hist.isGameFinished && hist.numTurnsThisPhase > 0) == (historyInput > 0.0f));
+          testAssert((hist.moveHistory.size() > 0 && hist.numApproxValidTurnsThisPhase > 0) == (historyInput > 0.0f));
         else
-          testAssert((hist.moveHistory.size() > 0 && !hist.isGameFinished && hist.numTurnsThisPhase > 0 &&
+          testAssert((hist.moveHistory.size() > 0 && hist.numApproxValidTurnsThisPhase > 0 &&
                       (!hist.passWouldEndGame(board,hist.presumedNextMovePla) || histCopy.winner == hist.presumedNextMovePla)) == (historyInput > 0.0f));
       }
 
@@ -1353,5 +1376,123 @@ ooxooxo
     cout << "Ok" << endl;
   }
 
+  {
+    const char* name = "NN Inputs history scoring past end of game or end of phase";
+    cout << "-----------------------------------------------------------------" <<  endl;
+    cout << name << endl;
+    cout << "-----------------------------------------------------------------" <<  endl;
+
+    const vector<string> sgfStrs = {
+      "(;GM[1]FF[4]SZ[9]KM[7];B[ff];W[ee];B[dd];W[];B[];W[];B[cc];W[bb];B[];W[])",
+      "(;GM[1]FF[4]SZ[9]KM[-7];B[ff];W[ee];B[dd];W[];B[];W[];B[cc];W[bb];B[];W[])",
+    };
+
+    for(int whichRules = 0; whichRules <= 3; whichRules++) {
+      Rules rulesToUse = Rules::parseRules("tromp-taylor");
+      if(whichRules == 1) {
+        rulesToUse = Rules::parseRules("japanese");
+        rulesToUse.friendlyPassOk = false;
+      }
+      if(whichRules == 2) {
+        rulesToUse = Rules::parseRules("tromp-taylor");
+        rulesToUse.hasButton = true;
+      }
+      if(whichRules == 3) {
+        rulesToUse = Rules::parseRules("tromp-taylor");
+        rulesToUse.friendlyPassOk = true;
+      }
+
+      for(const string& sgfStr : sgfStrs) {
+        cout << sgfStr << endl;
+        CompactSgf* sgf = CompactSgf::parse(sgfStr);
+        vector<Move>& moves = sgf->moves;
+
+        for(int whichMode = 0; whichMode <= 2; whichMode++) {
+          bool enablePassingHacks = false;
+          bool conservativePassAndIsRoot = false;
+          if(whichMode == 1)
+            enablePassingHacks = true;
+          if(whichMode == 2) {
+            enablePassingHacks = true;
+            conservativePassAndIsRoot = true;
+          }
+          for(int version = 6; version <= maxVersion; version++) {
+            cout << "rules " << rulesToUse.toString() << endl;
+            cout << "enablePassingHacks " << enablePassingHacks << " conservativePassAndIsRoot " << conservativePassAndIsRoot << endl;
+            cout << "VERSION " << version << endl;
+            Board board;
+            Player nextPla;
+            BoardHistory hist;
+            Rules rules = sgf->getRulesOrFailAllowUnspecified(rulesToUse);
+            sgf->setupInitialBoardAndHist(rules, board, nextPla, hist);
+
+            int nnXLen = 9;
+            int nnYLen = 9;
+            double drawEquivalentWinsForWhite = 0.5;
+
+            int numFeaturesBin;
+            int numFeaturesGlobal;
+            float* rowBin;
+            float* rowGlobal;
+            allocateRows(version,nnXLen,nnYLen,numFeaturesBin,numFeaturesGlobal,rowBin,rowGlobal);
+
+            for(size_t i = 0; i<moves.size()+1; i++) {
+              bool inputsUseNHWC = false;
+              Hash128 hash;
+              MiscNNInputParams nnInputParams;
+              nnInputParams.drawEquivalentWinsForWhite = drawEquivalentWinsForWhite;
+              nnInputParams.enablePassingHacks = enablePassingHacks;
+              nnInputParams.conservativePassAndIsRoot = conservativePassAndIsRoot;
+              fillRows(version,hash,board,hist,nextPla,nnInputParams,nnXLen,nnYLen,inputsUseNHWC,rowBin,rowGlobal);
+
+              auto histLocStr = [&](int lookback) {
+                int numPosesFound = 0;
+                int histPos = 0;
+                for(int y = 0; y<board.y_size; y++) {
+                  for(int x = 0; x<board.x_size; x++) {
+                    if(rowBin[nnXLen*nnYLen*(9+lookback-1) + y*nnXLen + x] > 0) {
+                      numPosesFound += 1;
+                      histPos += y*nnXLen + x;
+                    }
+                  }
+                }
+                if(rowGlobal[lookback-1] > 0) {
+                  numPosesFound += 1;
+                  histPos += nnYLen*nnXLen;
+                }
+                testAssert(numPosesFound <= 1);
+                if(numPosesFound == 1)
+                  return Location::toString(NNPos::posToLoc(histPos,board.x_size,board.y_size,nnXLen,nnYLen), board);
+                return Location::toString(Board::NULL_LOC, board);
+              };
+
+              out << "encorephase " << hist.encorePhase
+                  << " finished " << hist.isGameFinished
+                  << " numTurnsThisPhase " << hist.numTurnsThisPhase
+                  << " numApproxValidTurnsThisPhase " << hist.numApproxValidTurnsThisPhase << endl;
+              out << hash << endl;
+              out << "History that net sees "
+                  << histLocStr(1) << " " << histLocStr(2) << " " << histLocStr(3) << " " << histLocStr(4) << " " << histLocStr(5) << endl;
+
+              if(i == (int)moves.size())
+                break;
+
+              out << "Move " << i << " " << Location::toString(moves[i].loc, board) << endl;
+              testAssert(hist.isLegal(board,moves[i].loc,moves[i].pla));
+              bool preventEncore = true;
+              hist.makeBoardMoveAssumeLegal(board,moves[i].loc,moves[i].pla,NULL,preventEncore);
+              nextPla = getOpp(moves[i].pla);
+            }
+
+            delete[] rowBin;
+            delete[] rowGlobal;
+
+            cout << getAndClear(out) << endl;
+          }
+        }
+        delete sgf;
+      }
+    }
+  }
 }
 

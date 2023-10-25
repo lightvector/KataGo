@@ -910,7 +910,7 @@ void NNEvaluator::evaluate(
         buf.result->whiteWinProb = (float)winProb;
         buf.result->whiteLossProb = (float)lossProb;
         buf.result->whiteNoResultProb = (float)noResultProb;
-        buf.result->whiteScoreMean = (float)ScoreValue::approxWhiteScoreOfScoreValueSmooth(scoreValue,0.0,2.0,board);
+        buf.result->whiteScoreMean = (float)ScoreValue::approxWhiteScoreOfScoreValueSmooth(scoreValue,0.0,2.0,board.sqrtBoardArea());
         buf.result->whiteScoreMeanSq = buf.result->whiteScoreMean * buf.result->whiteScoreMean;
         buf.result->whiteLead = buf.result->whiteScoreMean;
         buf.result->varTimeLeft = -1;
@@ -921,7 +921,7 @@ void NNEvaluator::evaluate(
         buf.result->whiteWinProb = (float)lossProb;
         buf.result->whiteLossProb = (float)winProb;
         buf.result->whiteNoResultProb = (float)noResultProb;
-        buf.result->whiteScoreMean = -(float)ScoreValue::approxWhiteScoreOfScoreValueSmooth(scoreValue,0.0,2.0,board);
+        buf.result->whiteScoreMean = -(float)ScoreValue::approxWhiteScoreOfScoreValueSmooth(scoreValue,0.0,2.0,board.sqrtBoardArea());
         buf.result->whiteScoreMeanSq = buf.result->whiteScoreMean * buf.result->whiteScoreMean;
         buf.result->whiteLead = buf.result->whiteScoreMean;
         buf.result->varTimeLeft = -1;
