@@ -13,31 +13,16 @@ struct GobanView: View {
     @EnvironmentObject var player: PlayerObject
     @EnvironmentObject var analysis: Analysis
     @EnvironmentObject var config: Config
-    @State var isAnalyzing = true
     let texture = WoodImage.createTexture()
 
     var body: some View {
         VStack {
-            HStack {
-                Toggle(isOn: $isAnalyzing) {
-                    Text("Analysis")
-                }
-                .onChange(of: isAnalyzing) { flag in
-                    if flag {
-                        KataGoHelper.sendCommand(config.getKataAnalyzeCommand())
-                    } else {
-                        KataGoHelper.sendCommand("stop")
-                    }
-                }
-            }
-            .padding()
-
             GeometryReader { geometry in
                 let dimensions = Dimensions(geometry: geometry, board: board)
                 ZStack {
                     BoardLineView(dimensions: dimensions, boardWidth: board.width, boardHeight: board.height)
                     StoneView(geometry: geometry)
-                    if isAnalyzing {
+                    if config.isAnalyzing {
                         AnalysisView(geometry: geometry)
                     }
                 }
@@ -53,24 +38,24 @@ struct GobanView: View {
                     }
 
                     KataGoHelper.sendCommand("showboard")
-                    if isAnalyzing {
+                    if config.isAnalyzing {
                         KataGoHelper.sendCommand(config.getKataAnalyzeCommand())
                     }
                 }
             }
             .onAppear() {
                 KataGoHelper.sendCommand("showboard")
-                if isAnalyzing {
+                if config.isAnalyzing {
                     KataGoHelper.sendCommand(config.getKataAnalyzeCommand())
                 }
             }
             .onChange(of: config.maxAnalysisMoves) { _ in
-                if isAnalyzing {
+                if config.isAnalyzing {
                     KataGoHelper.sendCommand(config.getKataAnalyzeCommand())
                 }
             }
 
-            ToolbarView(isAnalyzing: $isAnalyzing)
+            ToolbarView()
                 .padding()
         }
     }

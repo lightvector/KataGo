@@ -69,7 +69,7 @@ struct CommandView: View {
             }
             .padding()
 
-            ButtonView(commands: ["kata-set-rules chinese", "komi 7", "undo", "clear_board"])
+            ButtonView(commands: ["kata-set-rules chinese", "komi 7"])
         }
         .padding()
         .onAppear() {

@@ -26,7 +26,7 @@ struct ButtonView: View {
 }
 
 struct ButtonView_Previews: PreviewProvider {
-    static let commands = ["kata-set-rules chinese", "komi 7", "undo", "clear_board"]
+    static let commands = ["kata-set-rules chinese", "komi 7"]
     static var messagesObject = MessagesObject()
 
     static var previews: some View {

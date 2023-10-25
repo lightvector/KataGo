@@ -10,14 +10,13 @@ import SwiftUI
 struct ToolbarView: View {
     @EnvironmentObject var player: PlayerObject
     @EnvironmentObject var config: Config
-    @Binding var isAnalyzing: Bool
     
     var body: some View {
         HStack {
             Button(action: {
                 KataGoHelper.sendCommand("undo")
                 KataGoHelper.sendCommand("showboard")
-                if isAnalyzing {
+                if config.isAnalyzing {
                     KataGoHelper.sendCommand(config.getKataAnalyzeCommand())
                 }
             }) {
@@ -30,7 +29,7 @@ struct ToolbarView: View {
                 let pass = "play \(nextColor) pass"
                 KataGoHelper.sendCommand(pass)
                 KataGoHelper.sendCommand("showboard")
-                if isAnalyzing {
+                if config.isAnalyzing {
                     KataGoHelper.sendCommand(config.getKataAnalyzeCommand())
                 }
             }) {
@@ -39,7 +38,7 @@ struct ToolbarView: View {
             .padding()
 
             Button(action: {
-                if isAnalyzing {
+                if config.isAnalyzing {
                     KataGoHelper.sendCommand(config.getKataAnalyzeCommand())
                 }
             }) {
@@ -48,7 +47,7 @@ struct ToolbarView: View {
             .padding()
 
             Button(action: {
-                if isAnalyzing {
+                if config.isAnalyzing {
                     KataGoHelper.sendCommand("stop")
                 }
             }) {
@@ -59,7 +58,7 @@ struct ToolbarView: View {
             Button(action: {
                 KataGoHelper.sendCommand("clear_board")
                 KataGoHelper.sendCommand("showboard")
-                if isAnalyzing {
+                if config.isAnalyzing {
                     KataGoHelper.sendCommand(config.getKataAnalyzeCommand())
                 }
             }) {
@@ -76,7 +75,7 @@ struct ToolbarView_Previews: PreviewProvider {
 
     static var previews: some View {
         @State var isAnalyzing = true
-        ToolbarView(isAnalyzing: $isAnalyzing)
+        ToolbarView()
             .environmentObject(player)
             .environmentObject(config)
     }

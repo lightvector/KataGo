@@ -39,6 +39,7 @@ struct ConfigItem: View {
 
 struct ConfigItems: View {
     @EnvironmentObject var config: Config
+    @State var isAnalyzing = Config.defaultIsAnalyzing
     @State var maxMessageCharacters: String = "\(Config.defaultMaxMessageCharacters)"
     @State var maxAnalysisMoves: String = "\(Config.defaultMaxAnalysisMoves)"
     @State var analysisInterval: String = "\(Config.defaultAnalysisInterval)"
@@ -46,6 +47,16 @@ struct ConfigItems: View {
 
     var body: some View {
         VStack {
+            HStack {
+                Toggle(isOn: $isAnalyzing) {
+                    Text("Analysis")
+                }
+                .onChange(of: isAnalyzing) { newFlag in
+                    config.isAnalyzing = newFlag
+                }
+            }
+            .padding(.bottom)
+
             ConfigItem(title: "Max message characters:", content: $maxMessageCharacters)
                 .onChange(of: maxMessageCharacters) { newText in
                     config.maxMessageCharacters = Int(newText) ??
