@@ -74,10 +74,15 @@ extension Config {
 
 struct Dimensions {
     let squareLength: CGFloat
+    let squareLengthDiv2: CGFloat
+    let squareLengthDiv4: CGFloat
+    let squareLengthDiv8: CGFloat
+    let squareLengthDiv16: CGFloat
     let boardWidth: CGFloat
     let boardHeight: CGFloat
     let marginWidth: CGFloat
     let marginHeight: CGFloat
+    let stoneLength: CGFloat
 
     init(geometry: GeometryProxy, board: ObservableBoard) {
         self.init(geometry: geometry, width: board.width, height: board.height)
@@ -89,10 +94,15 @@ struct Dimensions {
         let squareWidth = totalWidth / (width + 1)
         let squareHeight = totalHeight / (height + 1)
         squareLength = min(squareWidth, squareHeight)
+        squareLengthDiv2 = squareLength / 2
+        squareLengthDiv4 = squareLength / 4
+        squareLengthDiv8 = squareLength / 8
+        squareLengthDiv16 = squareLength / 16
         boardWidth = width * squareLength
         boardHeight = height * squareLength
         marginWidth = (totalWidth - boardWidth + squareLength) / 2
         marginHeight = (totalHeight - boardHeight + squareLength) / 2
+        stoneLength = squareLength * 0.95
     }
 }
 
