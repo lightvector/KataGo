@@ -7,7 +7,6 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		E120681D2AD57737003F9A31 /* PickModelButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = E120681C2AD57737003F9A31 /* PickModelButton.swift */; };
 		E18F3E112A51466A00D335E1 /* KataGo_iOSApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = E18F3E102A51466A00D335E1 /* KataGo_iOSApp.swift */; };
 		E18F3E132A51466A00D335E1 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E18F3E122A51466A00D335E1 /* ContentView.swift */; };
 		E18F3E152A51466C00D335E1 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = E18F3E142A51466C00D335E1 /* Assets.xcassets */; };
@@ -166,7 +165,6 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
-		E120681C2AD57737003F9A31 /* PickModelButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PickModelButton.swift; sourceTree = "<group>"; };
 		E18F3E0D2A51466A00D335E1 /* KataGo iOS.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "KataGo iOS.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		E18F3E102A51466A00D335E1 /* KataGo_iOSApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KataGo_iOSApp.swift; sourceTree = "<group>"; };
 		E18F3E122A51466A00D335E1 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
@@ -455,7 +453,6 @@
 				E1E1717D2AB9DAED004DCC3C /* ConfigView.swift */,
 				E19D2E352AC8E5DB00C2A807 /* KataGoModel.swift */,
 				E19D2E372AC97FA300C2A807 /* ToolbarView.swift */,
-				E120681C2AD57737003F9A31 /* PickModelButton.swift */,
 			);
 			path = "KataGo iOS";
 			sourceTree = "<group>";
@@ -854,7 +851,6 @@
 				E18F3EA62A51485E00D335E1 /* searchparams.cpp in Sources */,
 				E18F3E132A51466A00D335E1 /* ContentView.swift in Sources */,
 				E18F3EFC2A5148EF00D335E1 /* poswriter.cpp in Sources */,
-				E120681D2AD57737003F9A31 /* PickModelButton.swift in Sources */,
 				E18F3E692A51483100D335E1 /* testsearchv8.cpp in Sources */,
 				E18F3EDC2A5148B100D335E1 /* coremlbackend.cpp in Sources */,
 				E19D2E362AC8E5DB00C2A807 /* KataGoModel.swift in Sources */,

@@ -88,13 +88,8 @@
     // Create the model name
     NSString * modelName = [NSString stringWithUTF8String:modelString.c_str()];
 
-    // Compile the model in Application Support
-    MLModel * mlmodel = [KataGoModel compileAppMLModelWithModelName:modelName];
-
-    if (mlmodel == nil) {
-      // Compile the model in Bundle
-      mlmodel = [KataGoModel compileBundleMLModelWithModelName:modelName];
-    }
+    // Compile the model in Bundle
+    MLModel * mlmodel = [KataGoModel compileBundleMLModelWithModelName:modelName];
 
     assert(mlmodel != nil);
 
