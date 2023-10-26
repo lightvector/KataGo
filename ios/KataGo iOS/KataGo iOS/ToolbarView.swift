@@ -7,12 +7,12 @@
 
 import SwiftUI
 
-struct ToolbarView: View {
+struct ToolbarItems: View {
     @EnvironmentObject var player: PlayerObject
     @EnvironmentObject var config: Config
-    
+
     var body: some View {
-        HStack {
+        Group {
             Button(action: {
                 KataGoHelper.sendCommand("undo")
                 KataGoHelper.sendCommand("showboard")
@@ -65,6 +65,23 @@ struct ToolbarView: View {
                 Image(systemName: "clear")
             }
             .padding()
+        }
+    }
+}
+
+struct ToolbarView: View {
+    @Environment(\.horizontalSizeClass) var hSizeClass
+    @Environment(\.verticalSizeClass) var vSizeClass
+
+    var body: some View {
+        if hSizeClass == .compact && vSizeClass == .regular {
+            HStack {
+                ToolbarItems()
+            }
+        } else {
+            VStack {
+                ToolbarItems()
+            }
         }
     }
 }

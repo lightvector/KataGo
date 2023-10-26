@@ -7,7 +7,7 @@
 
 import SwiftUI
 
-struct GobanView: View {
+struct GobanItems: View {
     @EnvironmentObject var stones: Stones
     @EnvironmentObject var board: ObservableBoard
     @EnvironmentObject var player: PlayerObject
@@ -16,7 +16,7 @@ struct GobanView: View {
     let texture = WoodImage.createTexture()
 
     var body: some View {
-        VStack {
+        Group {
             GeometryReader { geometry in
                 let dimensions = Dimensions(geometry: geometry, board: board)
                 ZStack {
@@ -78,6 +78,23 @@ struct GobanView: View {
         ]
 
         return letterMap[x].map { "\($0)\(y)" }
+    }
+}
+
+struct GobanView: View {
+    @Environment(\.horizontalSizeClass) var hSizeClass
+    @Environment(\.verticalSizeClass) var vSizeClass
+
+    var body: some View {
+        if hSizeClass == .compact && vSizeClass == .regular {
+            VStack {
+                GobanItems()
+            }
+        } else {
+            HStack {
+                GobanItems()
+            }
+        }
     }
 }
 
