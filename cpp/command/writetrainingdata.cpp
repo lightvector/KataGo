@@ -70,7 +70,7 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
   const int inputsVersion = 7;
   const int numBinaryChannels = NNInputs::NUM_FEATURES_SPATIAL_V7;
   const int numGlobalChannels = NNInputs::NUM_FEATURES_GLOBAL_V7;
-  
+
   NNEvaluator* nnEval;
   {
     Setup::initializeSession(cfg);
@@ -87,7 +87,7 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
     );
   }
   logger.write("Loaded neural net");
-  
+
   vector<string> sgfFiles;
   FileHelpers::collectSgfsFromDirsOrFiles(sgfDirs,sgfFiles);
 
@@ -127,7 +127,7 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
       )
     );
   }
-  
+
   auto processSgf = [&](int threadIdx, size_t index) {
     const string& fileName = sgfFiles[index];
     Sgf* sgfRaw = NULL;
@@ -151,7 +151,7 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
     }
 
     TrainingWriteBuffers* dataBuffer = threadDataBuffers[threadIdx];
-    
+    (void)dataBuffer;
 
   // void clear();
 
@@ -181,14 +181,14 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
 
   // void writeToZipFile(const std::string& fileName);
 
-    
+
     reportSgfDone(true);
     delete sgf;
     delete sgfRaw;
   };
 
   Parallel::iterRange(numThreads, sgfFiles.size(), std::function<void(int,size_t)>(processSgf));
-    
+
   logger.write(nnEval->getModelFileName());
   logger.write("NN rows: " + Global::int64ToString(nnEval->numRowsProcessed()));
   logger.write("NN batches: " + Global::int64ToString(nnEval->numBatchesProcessed()));
