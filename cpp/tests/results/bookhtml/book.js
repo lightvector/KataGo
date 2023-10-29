@@ -1,116 +1,9 @@
-#include "../book/book.h"
+const rulesLabel = "";
+const rulesLink = "";
+const devMode = false;
+const bSizeX = 4;
+const bSizeY = 4;
 
-const std::string Book::BOOK_CSS = R"%%(
-
-
-body {
-  font-family: BlinkMacSystemFont,-apple-system,"Segoe UI",Roboto,Oxygen,Ubuntu,Cantarell,"Fira Sans","Droid Sans","Helvetica Neue",Helvetica,Arial,sans-serif;
-  font-weight:500;
-}
-
-a:link { text-decoration: none; color:#485fc7 }
-a:visited { text-decoration: none; color:rgb(85, 26, 139) }
-a:hover { text-decoration: none; color:#000000 }
-a:active { text-decoration: none; color:#ff0055 }
-
-svg {
-  font-family:sans-serif;
-  font-weight:400;
-}
-
-h1 {
-  margin-top:10px;
-  margin-bottom:10px;
-}
-
-.backLink {
-  margin-top:6px;
-  margin-bottom:6px;
-}
-
-.moveTable {
-  display: table;
-  border-style: solid;
-  border-width: 1px;
-  border-collapse: collapse;
-}
-
-.moveTableHeader {
-  display: table-row;
-  font-weight: bold;
-  /*
-  border-style: solid;
-  border-width: 1px;
-  border-color: black;
-  */
-}
-
-.moveTableRow {
-  display: table-row;
-  /*
-  border-style: solid;
-  border-width: 1px;
-  border-color: black;
-  */
-}
-
-.moveTableRowLinked:link { text-decoration: none; color: rgb(0, 0, 238) }
-.moveTableRowLinked:visited { text-decoration: none; color: rgb(85, 26, 139) }
-.moveTableRowLinked:hover { text-decoration: none; }
-.moveTableRowLinked:active { text-decoration: none; color:#ff0000 }
-
-.moveTableCell {
-  display: table-cell;
-  padding: 10px;
-  text-decoration:none;
-}
-
-.moveTableRow:hover {
-  outline-style: solid;
-  outline-width: 1px;
-  outline-color: black;
-}
-.moveTableRow.moveHovered {
-  outline-style: solid;
-  outline-width: 1px;
-  outline-color: black;
-}
-
-#whoToPlay {
-  padding:10px;
-}
-
-.stoneShadow {
-  display: block;
-  opacity: 0.001;
-}
-.stoneShadow.tableHovered {
-  display: block;
-  opacity: 0.3;
-}
-.stoneShadowUnhoverable {
-  display: block;
-  opacity: 0.001;
-}
-.stoneShadowUnhoverable.tableHovered {
-  display: block;
-  opacity: 0.3;
-}
-.stoneShadow:hover {
-  display: block;
-  opacity: 0.3;
-}
-
-.legend {
-  padding-top:10px;
-}
-.legend ul {
-  margin-top:0.5em;
-}
-
-)%%";
-
-const std::string Book::BOOK_JS1 = R"%%(
 
 let url = new URL(window.location.href);
 let sym = url.searchParams.get("symmetry");
@@ -239,8 +132,7 @@ let hoverTableEltsByMove = {};
   body.appendChild(link);
 }
 
-)%%";
-const std::string Book::BOOK_JS2 = R"%%(
+
 
 let svgNS = "http://www.w3.org/2000/svg";
 {
@@ -542,8 +434,7 @@ let svgNS = "http://www.w3.org/2000/svg";
   body.appendChild(boardSvg);
 }
 
-)%%";
-const std::string Book::BOOK_JS3 = R"%%(
+
 
 {
   let whoToPlay = document.createElement("div");
@@ -592,7 +483,6 @@ function textCell(text) {
     headerRow.appendChild(textCell("Score Uncertainty"));
     headerRow.appendChild(textCell("Prior%"));
     headerRow.appendChild(textCell("Visits"));
-    headerRow.appendChild(textCell("AVisits"));
   }
   table.appendChild(headerRow);
 
@@ -686,7 +576,6 @@ function textCell(text) {
         dataRow.appendChild(textCell((moveData["sRad"]).toFixed(2)));
       dataRow.appendChild(textCell((100.0 * moveData["p"]).toFixed(2)+"%"));
       dataRow.appendChild(textCell(Math.round(moveData["v"]).toLocaleString()));
-      dataRow.appendChild(textCell(Math.round(moveData["av"]).toLocaleString()));
     }
 
     dataRow.style.background = getBadnessColorOfMoveIdx(i,0.35);
@@ -723,9 +612,7 @@ function textItem(label,text) {
   legendList.appendChild(textItem("Score Uncertainty","Measure of uncertainty in Score. Does NOT correspond to any standard well-defined statistical metric, this is purely a heuristic indicator. Browse the book to get a feel for its scaling and what it means."));
   legendList.appendChild(textItem("Prior%","Raw policy prior of neural net"));
   legendList.appendChild(textItem("Visits","Total number of visits, multi-counting transpositions (i.e., number of visits to produce this book if there were no transposition handling)."));
-  legendList.appendChild(textItem("AVisits","Adjusted number of visits, still multi-counting transpositions, but downweighting visits on a less-preferred move that got vastly more visits than the top move."));
   legend.appendChild(legendList);
   body.appendChild(legend);
 }
 
-)%%";

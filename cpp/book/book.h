@@ -4,7 +4,9 @@
 
 #include "../core/global.h"
 #include "../core/hash.h"
+#include "../core/rand.h"
 #include "../core/logger.h"
+#include "../core/config_parser.h"
 #include "../game/boardhistory.h"
 
 struct BookHash {
@@ -63,7 +65,7 @@ struct BookValues {
   // All values for which the player perspective matters are from white's perspective.
   double winLossValue = 0.0;
   double scoreMean = 0.0;
-  double sharpScoreMean = 0.0;
+  double sharpScoreMeanRaw = 0.0;
 
   // Average short term error of nodes in the search. Probably correlated with the confidence
   // of this node, but not necessarily being a meaningful measure of it directly.
@@ -73,8 +75,13 @@ struct BookValues {
   double scoreStdev = 0.0;
 
   double maxPolicy = 0.0;
+  double sumPolicy = 0.0;
   double weight = 0.0;
   double visits = 0.0;
+
+  // Computed, not saved
+  double sharpScoreMeanClamped = 0.0;
+  double posteriorPolicy = 0.0;
 
   double getAdjustedWinLossError(const Rules& rules) const;
   double getAdjustedScoreError(const Rules& rules) const;
@@ -94,6 +101,11 @@ struct RecursiveBookValues {
   // Weighted by sum
   double weight = 0.0;
   double visits = 0.0;
+
+  // Count of visits, but downweighting highly nonmonotonic visit counts
+  // such as when an unimportant bad move happens to transpose to a variation
+  // with a lot more visits
+  double adjustedVisits = 0.0;
 };
 
 class SymBookNode;
@@ -186,7 +198,8 @@ class SymBookNode {
   // Fills moveHistoryRet with the sequence of moves played. If there is an illegal move, includes the illegal move.
   // This should only happen if a book was loaded from disk that is corrupted, or else only astronomically rarely on hash collisions.
   bool getBoardHistoryReachingHere(BoardHistory& ret, std::vector<Loc>& moveHistoryRet);
-
+  bool getBoardHistoryReachingHere(BoardHistory& ret, std::vector<Loc>& moveHistoryRet, std::vector<double>& winlossRet);
+  
   friend class ConstSymBookNode;
   friend class Book;
 };
@@ -235,8 +248,73 @@ class ConstSymBookNode {
   // Returns false and does not modify ret if playing the moves in the book to reach here hit an illegal move.
   // This should only happen if a book was loaded from disk that is corrupted, or else only astronomically rarely on hash collisions.
   bool getBoardHistoryReachingHere(BoardHistory& ret, std::vector<Loc>& moveHistoryRet);
+  bool getBoardHistoryReachingHere(BoardHistory& ret, std::vector<Loc>& moveHistoryRet, std::vector<double>& winlossRet);
 
   friend class Book;
+};
+
+struct BookParams {
+  double errorFactor = 1.0;
+  // Fixed cost per move
+  double costPerMove = 1.0;
+  // Cost per 1 unit of winloss value that a move's UCB is worse than the best UCB
+  // As well as versions that compare winloss^3 and winloss^7, to emphasize the tails.
+  double costPerUCBWinLossLoss = 0.0;
+  double costPerUCBWinLossLossPow3 = 0.0;
+  double costPerUCBWinLossLossPow7 = 0.0;
+  // Cost per point of score that a move's UCB is better than the best UCB
+  double costPerUCBScoreLoss = 0.0;
+  // Cost per nat of log policy that a move is less likely than 100%.
+  double costPerLogPolicy = 0.0;
+  // For expanding new moves - extra penalty per move or move squared already expanded at a node.
+  double costPerMovesExpanded = 1.0;
+  double costPerSquaredMovesExpanded = 0.0;
+  // Cost when pass is the favorite move (helps truncate lines that are solved to the end of game)
+  double costWhenPassFavored = 0.0;
+  // Bonuses per difference between UCB and LCB
+  double bonusPerWinLossError = 0.0;
+  double bonusPerScoreError = 0.0;
+  // Bonus per point of score difference between sharp score and plain lead
+  double bonusPerSharpScoreDiscrepancy = 0.0;
+  // Bonus per policy mass that is not expanded at a node, encourage expanding most of the policy mass.
+  double bonusPerExcessUnexpandedPolicy = 0.0;
+  // Bonus per winloss by which the unexpanded node is better than any of the moves that have been explored.
+  double bonusPerUnexpandedBestWinLoss = 0.0;
+  // Bonus if a move is the PV in terms of winloss, if that winloss value is near 0, as a cost reduction factor.
+  double bonusForWLPV1 = 0.0;
+  // Bonus if a move is the PV in terms of winloss, if that winloss value is near -0.5 or +0.5, as a cost reduction factor.
+  double bonusForWLPV2 = 0.0;
+  // Interpolate to applying the bonus for WLPV only to the leaf node at the end that is the final PV node, rather than all moves along the way.
+  double bonusForWLPVFinalProp = 0.5;
+  // Bonus for the biggest single WL cost on a given path, per unit of cost. (helps favor lines with only 1 mistake but not lines with more than one)
+  double bonusForBiggestWLCost = 0.0;
+  // Cap on how bad UCBScoreLoss can be.
+  double scoreLossCap = 10000.0;
+  // Reduce costs near the start of a book. First move costs are reduced by earlyBookCostReductionFactor
+  // and this gets multiplied by by earlyBookCostReductionLambda per move deeper.
+  double earlyBookCostReductionFactor = 0.0;
+  double earlyBookCostReductionLambda = 0.0;
+  // Affects html rendering - used for integrating score into sorting of moves.
+  double utilityPerScore = 0.0;
+  double policyBoostSoftUtilityScale = 1.0;
+  double utilityPerPolicyForSorting = 0.0;
+  // The scale of WL difference at which we are averaging for adjusting visit counts.
+  double adjustedVisitsWLScale = 0.05;
+  // Allow re-expanding a node if it has <= this many visits
+  double maxVisitsForReExpansion = 1000.0;
+  // How many visits such that below this many is considered not many? Used to scale some visit-based cost heuristics.
+  double visitsScale = 1000.0;
+  // When rendering - cap sharp scores that differ by more than this many points from regular score.
+  double sharpScoreOutlierCap = 10000.0;
+
+  BookParams() = default;
+  ~BookParams() = default;
+  BookParams(const BookParams& other) = default;
+  BookParams& operator=(const BookParams& other) = default;
+
+  static BookParams loadFromCfg(ConfigParser& cfg, int64_t maxVisits);
+  
+  void randomizeParams(Rand& rand, double stdevFactor);
 };
 
 // Book object for storing and minimaxing stats based on deep search, supports full tranposing symmetry handling.
@@ -258,55 +336,8 @@ class Book {
   const int repBound;
 
  private:
-  // This times shortterm error is considered the stdev for UCB purposes.
-  double errorFactor;
-  // Fixed cost per move
-  double costPerMove;
-  // Cost per 1 unit of winloss value that a move's UCB is worse than the best UCB
-  // As well as versions that compare winloss^3 and winloss^7, to emphasize the tails.
-  double costPerUCBWinLossLoss;
-  double costPerUCBWinLossLossPow3;
-  double costPerUCBWinLossLossPow7;
-  // Cost per point of score that a move's UCB is better than the best UCB
-  double costPerUCBScoreLoss;
-  // Cost per nat of log policy that a move is less likely than 100%.
-  double costPerLogPolicy;
-  // For expanding new moves - extra penalty per move or move squared already expanded at a node.
-  double costPerMovesExpanded;
-  double costPerSquaredMovesExpanded;
-  // Cost when pass is the favorite move (helps truncate lines that are solved to the end of game)
-  double costWhenPassFavored;
-  // Bonuses per difference between UCB and LCB
-  double bonusPerWinLossError;
-  double bonusPerScoreError;
-  // Bonus per point of score difference between sharp score and plain lead
-  double bonusPerSharpScoreDiscrepancy;
-  // Bonus per policy mass that is not expanded at a node, encourage expanding most of the policy mass.
-  double bonusPerExcessUnexpandedPolicy;
-  // Bonus per winloss by which the unexpanded node is better than any of the moves that have been explored.
-  double bonusPerUnexpandedBestWinLoss;
-  // Bonus if a move is the PV in terms of winloss, if that winloss value is near 0, as a cost reduction factor.
-  double bonusForWLPV1;
-  // Bonus if a move is the PV in terms of winloss, if that winloss value is near -0.5 or +0.5, as a cost reduction factor.
-  double bonusForWLPV2;
-  // Bonus for the biggest single WL cost on a given path, per unit of cost. (helps favor lines with only 1 mistake but not lines with more than one)
-  double bonusForBiggestWLCost;
-  // Cap on how bad UCBScoreLoss can be.
-  double scoreLossCap;
-  // Reduce costs near the start of a book. First move costs are reduced by earlyBookCostReductionFactor
-  // and this gets multiplied by by earlyBookCostReductionLambda per move deeper.
-  double earlyBookCostReductionFactor;
-  double earlyBookCostReductionLambda;
-  // Affects html rendering - used for integrating score into sorting of moves.
-  double utilityPerScore;
-  double policyBoostSoftUtilityScale;
-  double utilityPerPolicyForSorting;
-  // Allow re-expanding a node if it has <= this many visits
-  double maxVisitsForReExpansion;
-  // How many visits such that below this many is considered not many? Used to scale some visit-based cost heuristics.
-  double visitsScale;
-  // When rendering - cap sharp scores that differ by more than this many points from regular score.
-  double sharpScoreOutlierCap;
+  BookParams params;
+
   std::map<BookHash,double> bonusByHash;
   std::map<BookHash,double> expandBonusByHash;
   std::map<BookHash,double> visitsRequiredByHash;
@@ -323,33 +354,7 @@ class Book {
     Rules rules,
     Player initialPla,
     int repBound,
-    double errorFactor,
-    double costPerMove,
-    double costPerUCBWinLossLoss,
-    double costPerUCBWinLossLossPow3,
-    double costPerUCBWinLossLossPow7,
-    double costPerUCBScoreLoss,
-    double costPerLogPolicy,
-    double costPerMovesExpanded,
-    double costPerSquaredMovesExpanded,
-    double costWhenPassFavored,
-    double bonusPerWinLossError,
-    double bonusPerScoreError,
-    double bonusPerSharpScoreDiscrepancy,
-    double bonusPerExcessUnexpandedPolicy,
-    double bonusPerUnexpandedBestWinLoss,
-    double bonusForWLPV1,
-    double bonusForWLPV2,
-    double bonusForBiggestWLCost,
-    double scoreLossCap,
-    double earlyBookCostReductionFactor,
-    double earlyBookCostReductionLambda,
-    double utilityPerScore,
-    double policyBoostSoftUtilityScale,
-    double utilityPerPolicyForSorting,
-    double maxVisitsForReExpansion,
-    double visitsScale,
-    double sharpScoreOutlierCap
+    BookParams params
   );
   ~Book();
 
@@ -366,58 +371,8 @@ class Book {
 
   size_t size() const;
 
-  double getErrorFactor() const;
-  void setErrorFactor(double d);
-  double getCostPerMove() const;
-  void setCostPerMove(double d);
-  double getCostPerUCBWinLossLoss() const;
-  void setCostPerUCBWinLossLoss(double d);
-  double getCostPerUCBWinLossLossPow3() const;
-  void setCostPerUCBWinLossLossPow3(double d);
-  double getCostPerUCBWinLossLossPow7() const;
-  void setCostPerUCBWinLossLossPow7(double d);
-  double getCostPerUCBScoreLoss() const;
-  void setCostPerUCBScoreLoss(double d);
-  double getCostPerLogPolicy() const;
-  void setCostPerLogPolicy(double d);
-  double getCostPerMovesExpanded() const;
-  void setCostPerMovesExpanded(double d);
-  double getCostPerSquaredMovesExpanded() const;
-  void setCostPerSquaredMovesExpanded(double d);
-  double getCostWhenPassFavored() const;
-  void setCostWhenPassFavored(double d);
-  double getBonusPerWinLossError() const;
-  void setBonusPerWinLossError(double d);
-  double getBonusPerScoreError() const;
-  void setBonusPerScoreError(double d);
-  double getBonusPerSharpScoreDiscrepancy() const;
-  void setBonusPerSharpScoreDiscrepancy(double d);
-  double getBonusPerExcessUnexpandedPolicy() const;
-  void setBonusPerExcessUnexpandedPolicy(double d);
-  double getBonusPerUnexpandedBestWinLoss() const;
-  void setBonusPerUnexpandedBestWinLoss(double d);
-  double getBonusForWLPV1() const;
-  void setBonusForWLPV1(double d);
-  double getBonusForWLPV2() const;
-  void setBonusForWLPV2(double d);
-  double getBonusForBiggestWLCost() const;
-  void setBonusForBiggestWLCost(double d);
-  double getScoreLossCap() const;
-  void setScoreLossCap(double d);
-  double getEarlyBookCostReductionFactor() const;
-  void setEarlyBookCostReductionFactor(double d);
-  double getEarlyBookCostReductionLambda() const;
-  void setEarlyBookCostReductionLambda(double d);
-  double getUtilityPerScore() const;
-  void setUtilityPerScore(double d);
-  double getPolicyBoostSoftUtilityScale() const;
-  void setPolicyBoostSoftUtilityScale(double d);
-  double getUtilityPerPolicyForSorting() const;
-  void setUtilityPerPolicyForSorting(double d);
-  double getMaxVisitsForReExpansion() const;
-  void setMaxVisitsForReExpansion(double d);
-  double getVisitsScale() const;
-  void setVisitsScale(double d);
+  BookParams getParams() const;
+  void setParams(const BookParams& params);
 
   std::map<BookHash,double> getBonusByHash() const;
   void setBonusByHash(const std::map<BookHash,double>& d);
@@ -446,6 +401,16 @@ class Book {
   std::vector<SymBookNode> getAllLeaves(double minVisits);
   std::vector<SymBookNode> getAllNodes();
 
+  double getSortingValue(
+    double plaFactor,
+    double winLossValue,
+    double scoreMean,
+    double sharpScoreMeanClamped,
+    double scoreLCB,
+    double scoreUCB,
+    double rawPolicy
+  ) const;
+  
   // Return the number of files written
   int64_t exportToHtmlDir(
     const std::string& dirName,
@@ -457,7 +422,7 @@ class Book {
   );
 
   void saveToFile(const std::string& fileName) const;
-  static Book* loadFromFile(const std::string& fileName, double sharpScoreOutlierCap);
+  static Book* loadFromFile(const std::string& fileName);
 
  private:
   int64_t getIdx(BookHash hash) const;
@@ -491,6 +456,17 @@ class Book {
 
   void iterateEntireBookPreOrder(
     const std::function<void(BookNode*)>& f
+  );
+
+  void recomputeAdjustedVisits(
+    BookNode* node,
+    double notInBookVisits,
+    double notInBookMaxRawPolicy,
+    double notInBookWL,
+    double notInBookScoreMean,
+    double notInBookSharpScoreMean,
+    double notInBookScoreLCB,
+    double notInBookScoreUCB
   );
 
   void recomputeNodeValues(BookNode* node);
