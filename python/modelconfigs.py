@@ -38,20 +38,21 @@ ModelConfig = Dict[str,Any]
 # version = 12 # V7 features, Optimistic policy head
 # version = 13 # V7 features, Adjusted scaling on shortterm score variance, and made C++ side read in scalings.
 # version = 14 # V7 features, Squared softplus for error variance predictions
+# version = 15 # V7 features, Extra nonlinearity for pass output
 
 def get_version(config: ModelConfig):
     return config["version"]
 
 def get_num_bin_input_features(config: ModelConfig):
     version = get_version(config)
-    if version == 10 or version == 11 or version == 12 or version == 13 or version == 14:
+    if version == 10 or version == 11 or version == 12 or version == 13 or version == 14 or version == 15:
         return 22
     else:
         assert(False)
 
 def get_num_global_input_features(config: ModelConfig):
     version = get_version(config)
-    if version == 10 or version == 11 or version == 12 or version == 13 or version == 14:
+    if version == 10 or version == 11 or version == 12 or version == 13 or version == 14 or version == 15:
         return 19
     else:
         assert(False)
@@ -1479,6 +1480,11 @@ for name, base_config in list(config_of_name.items()):
     config = base_config.copy()
     config["use_repvgg_linear"] = True
     config_of_name[name+"-rvgl"] = config
+
+    config = base_config.copy()
+    config["use_repvgg_init"] = True
+    config["use_repvgg_learning_rate"] = True
+    config_of_name[name+"-rvglr"] = config
 
 for name, base_config in list(config_of_name.items()):
     # Add intermediate heads, for use with self-distillation or embedding small net in big one.

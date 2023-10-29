@@ -20,7 +20,7 @@ struct PlaySettings {
   int compensateKomiVisits;
   //When NOT compensating komi, set the fair komi for white playing first rather than black playing first.
   double flipKomiProbWhenNoCompensate;
-  
+
   //Use this many visits in a short search to estimate the score, for computing lead
   int estimateLeadVisits;
   //On each train position, estimate the lead in points with this probability
@@ -79,6 +79,12 @@ struct PlaySettings {
   double normalAsymmetricPlayoutProb; //Probability of asymmetric playouts on normal games
   double maxAsymmetricRatio;
   double minAsymmetricCompensateKomiProb; //Minimum probability to make game fair if asymmetric (other probs will also override)
+
+  //Dynamic komi for matches
+  double dynamicSelfKomiBonusMin;
+  double dynamicSelfKomiBonusMax;
+  double dynamicSelfKomiWinLossMin;
+  double dynamicSelfKomiWinLossMax;
 
   //Record time taken per move
   bool recordTimePerMove;

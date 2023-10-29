@@ -16,6 +16,10 @@ PlaySettings::PlaySettings()
    allowResignation(false),resignThreshold(0.0),resignConsecTurns(1),
    forSelfPlay(false),
    handicapAsymmetricPlayoutProb(0.0),normalAsymmetricPlayoutProb(0.0),maxAsymmetricRatio(2.0),
+   dynamicSelfKomiBonusMin(0.0),
+   dynamicSelfKomiBonusMax(0.0),
+   dynamicSelfKomiWinLossMin(-1.0),
+   dynamicSelfKomiWinLossMax(1.0),
    recordTimePerMove(false)
 {}
 PlaySettings::~PlaySettings()
@@ -34,6 +38,15 @@ PlaySettings PlaySettings::loadForMatch(ConfigParser& cfg) {
     playSettings.compensateAfterPolicyInitProb = cfg.contains("compensateAfterPolicyInitProb") ? cfg.getDouble("compensateAfterPolicyInitProb",0.0,1.0) : 1.0;
     playSettings.policyInitAreaTemperature = cfg.contains("policyInitAreaTemperature") ? cfg.getDouble("policyInitAreaTemperature",0.1,5.0) : 1.0;
   }
+  playSettings.dynamicSelfKomiBonusMin = cfg.contains("dynamicSelfKomiBonusMin") ? cfg.getDouble("dynamicSelfKomiBonusMin",-100.0,100.0) : 0.0;
+  playSettings.dynamicSelfKomiBonusMax = cfg.contains("dynamicSelfKomiBonusMax") ? cfg.getDouble("dynamicSelfKomiBonusMax",-100.0,100.0) : 0.0;
+  playSettings.dynamicSelfKomiWinLossMin = cfg.contains("dynamicSelfKomiWinLossMin") ? cfg.getDouble("dynamicSelfKomiWinLossMin",-1.0,1.0) : -1.0;
+  playSettings.dynamicSelfKomiWinLossMax = cfg.contains("dynamicSelfKomiWinLossMax") ? cfg.getDouble("dynamicSelfKomiWinLossMax",-1.0,1.0) : 1.0;
+  if(playSettings.dynamicSelfKomiBonusMin > playSettings.dynamicSelfKomiBonusMax)
+    throw StringError("dynamicSelfKomiBonusMin > dynamicSelfKomiBonusMax");
+  if(playSettings.dynamicSelfKomiWinLossMin > playSettings.dynamicSelfKomiWinLossMax)
+    throw StringError("dynamicSelfKomiWinLossMin > dynamicSelfKomiWinLossMax");
+
   playSettings.recordTimePerMove = true;
   return playSettings;
 }

@@ -1471,6 +1471,26 @@ FinishedGameData* Play::runGame(
       break;
 
     Search* toMoveBot = pla == P_BLACK ? botB : botW;
+    if(playSettings.dynamicSelfKomiBonusMin != 0.0 || playSettings.dynamicSelfKomiBonusMax != 0.0) {
+      //This might NOT work with selfplay data recording, we'd need to check on stuff like lead and such that
+      //it doesn't get fiddled with. For now, use only for match
+      if(botB == botW || recordFullData)
+        throw StringError("Dynamic komi for matches only right now");
+      double plaFactor = pla == P_BLACK ? -1 : 1;
+      double currentKomiBonus = plaFactor * (toMoveBot->rootHistory.rules.komi - hist.rules.komi);
+      if(historicalMctsWinLossValues.size() >= 2) {
+        double prevWinLoss = plaFactor * historicalMctsWinLossValues[historicalMctsWinLossValues.size()-2];
+        if(prevWinLoss < playSettings.dynamicSelfKomiWinLossMin)
+          currentKomiBonus += 0.5;
+        if(prevWinLoss > playSettings.dynamicSelfKomiWinLossMax)
+          currentKomiBonus -= 0.5;
+      }
+      if(currentKomiBonus < playSettings.dynamicSelfKomiBonusMin)
+        currentKomiBonus = playSettings.dynamicSelfKomiBonusMin;
+      if(currentKomiBonus > playSettings.dynamicSelfKomiBonusMax)
+        currentKomiBonus = playSettings.dynamicSelfKomiBonusMax;
+      toMoveBot->setKomiIfNew((float)(plaFactor * currentKomiBonus + hist.rules.komi));
+    }
 
     SearchLimitsThisMove limits = getSearchLimitsThisMove(
       toMoveBot, pla, playSettings, gameRand, historicalMctsWinLossValues, clearBotBeforeSearch, otherGameProps
@@ -1823,6 +1843,10 @@ FinishedGameData* Play::runGame(
       toMoveBot->setPosition(sp->pla,sp->board,sp->hist);
       //We do NOT apply playoutDoublingAdvantage here. If changing this, note that it is coordinated with train data writing
       //not using playoutDoublingAdvantage for these rows too.
+      assert(toMoveBot->searchParams.playoutDoublingAdvantage == 0.0);
+      assert(toMoveBot->searchParams.playoutDoublingAdvantagePla == C_EMPTY);
+      sp->playoutDoublingAdvantagePla = C_EMPTY;
+      sp->playoutDoublingAdvantage = 0.0;
       Loc responseLoc = toMoveBot->runWholeSearchAndGetMove(sp->pla);
 
       extractPolicyTarget(sp->policyTarget, toMoveBot, toMoveBot->rootNode, locsBuf, playSelectionValuesBuf);
@@ -1944,7 +1968,9 @@ FinishedGameData* Play::runGame(
            //Avoid computing lead when no result was considered to be very likely, since in such cases
            //the relationship between komi and the result can somewhat break.
            gameData->whiteValueTargetsByTurn[turnAfterStart].noResult < 0.3 &&
-           gameRand.nextBool(playSettings.estimateLeadProb)
+           gameRand.nextBool(playSettings.estimateLeadProb) &&
+           //Or if the actual game ended in no result
+           !(gameData->endHist.isGameFinished && gameData->endHist.isNoResult)
         ) {
           if(shouldPause != nullptr)
             shouldPause->waitUntilFalse();
@@ -1964,8 +1990,12 @@ FinishedGameData* Play::runGame(
       for(int i = 0; i<gameData->sidePositions.size(); i++) {
         SidePosition* sp = gameData->sidePositions[i];
         if(sp->targetWeight > 0 &&
+           //Avoid computing lead when no result was considered to be very likely, since in such cases
+           //the relationship between komi and the result can somewhat break.
            sp->whiteValueTargets.noResult < 0.3 &&
-           gameRand.nextBool(playSettings.estimateLeadProb)
+           gameRand.nextBool(playSettings.estimateLeadProb) &&
+           //Or if the non-side-position actual game ended in no result
+           !(gameData->endHist.isGameFinished && gameData->endHist.isNoResult)
         ) {
           if(shouldPause != nullptr)
             shouldPause->waitUntilFalse();
