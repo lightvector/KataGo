@@ -17,7 +17,7 @@ See the [example analysis config](https://github.com/lightvector/KataGo/blob/mas
 
 ### Example Code
 
-For example code demonstrating how to invoke the analysis engine from Python, see [here](python/query_analysis_engine_example.py)!
+For example code demonstrating how to invoke the analysis engine from Python, see [here](https://github.com/lightvector/KataGo/blob/master/python/query_analysis_engine_example.py)!
 
 ### Protocol
 
