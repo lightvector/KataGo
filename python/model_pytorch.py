@@ -1066,6 +1066,7 @@ class NestedNestedBottleneckResBlock(torch.nn.Module):
 class PolicyHead(torch.nn.Module):
     def __init__(self, c_in, c_p1, c_g1, config, activation):
         super(PolicyHead, self).__init__()
+        self.config = config
         self.activation = activation
 
         if config["version"] <= 11:
@@ -1091,7 +1092,12 @@ class PolicyHead(torch.nn.Module):
         self.gpool = KataGPool()
 
         self.linear_g = torch.nn.Linear(3 * c_g1, c_p1, bias=False)
-        self.linear_pass = torch.nn.Linear(3 * c_g1, self.num_policy_outputs, bias=False)
+        if config["version"] <= 14:
+            self.linear_pass = torch.nn.Linear(3 * c_g1, self.num_policy_outputs, bias=False)
+        else:
+            self.linear_pass = torch.nn.Linear(3 * c_g1, c_p1, bias=True)
+            self.act_pass = act(self.activation)
+            self.linear_pass2 = torch.nn.Linear(c_p1, self.num_policy_outputs, bias=False)
 
         self.bias2 = BiasMask(
             c_p1,
@@ -1106,19 +1112,31 @@ class PolicyHead(torch.nn.Module):
         # Scaling so that variance on the p and g branches adds up to 1.0
         p_scale = 0.8
         g_scale = 0.6
+        bias_scale = 0.2
         # Extra scaling for outputs
         scale_output = 0.3
         init_weights(self.conv1p.weight, self.activation, scale=p_scale)
         init_weights(self.conv1g.weight, self.activation, scale=1.0)
         init_weights(self.linear_g.weight, self.activation, scale=g_scale)
-        init_weights(self.linear_pass.weight, "identity", scale=scale_output)
+        if self.config["version"] <= 14:
+            init_weights(self.linear_pass.weight, "identity", scale=scale_output)
+        else:
+            init_weights(self.linear_pass.weight, self.activation, scale=1.0)
+            init_weights(self.linear_pass.bias, self.activation, scale=bias_scale, fan_tensor=self.linear_pass.weight)
+            init_weights(self.linear_pass2.weight, "identity", scale=scale_output)
         init_weights(self.conv2p.weight, "identity", scale=scale_output)
 
     def add_reg_dict(self, reg_dict:Dict[str,List]):
         reg_dict["output"].append(self.conv1p.weight)
         reg_dict["output"].append(self.conv1g.weight)
         reg_dict["output"].append(self.linear_g.weight)
-        reg_dict["output"].append(self.linear_pass.weight)
+        if self.config["version"] <= 14:
+            reg_dict["output"].append(self.linear_pass.weight)
+        else:
+            reg_dict["output"].append(self.linear_pass.weight)
+            reg_dict["output_noreg"].append(self.linear_pass.bias)
+            reg_dict["output"].append(self.linear_pass2.weight)
+
         reg_dict["output"].append(self.conv2p.weight)
         self.biasg.add_reg_dict(reg_dict)
         self.bias2.add_reg_dict(reg_dict)
@@ -1137,7 +1155,13 @@ class PolicyHead(torch.nn.Module):
         outg = self.actg(outg)
         outg = self.gpool(outg, mask=mask, mask_sum_hw=mask_sum_hw).squeeze(-1).squeeze(-1) # NC
 
-        outpass = self.linear_pass(outg) # NC
+        if self.config["version"] <= 14:
+            outpass = self.linear_pass(outg) # NC
+        else:
+            outpass = self.linear_pass(outg) # NC
+            outpass = self.act_pass(outpass) # NC
+            outpass = self.linear_pass2(outpass) # NC
+
         outg = self.linear_g(outg).unsqueeze(-1).unsqueeze(-1) # NCHW
 
         outp = outp + outg

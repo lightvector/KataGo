@@ -313,13 +313,24 @@ def main(args):
             write_conv_weight(name+".conv2p", torch.stack((policyhead.conv2p.weight[0],), dim=0))
             assert policyhead.linear_pass.weight.shape[0] == 4
             write_matmul(name+".linear_pass", torch.stack((policyhead.linear_pass.weight[0],), dim=0))
-        else:
+            assert policyhead.linear_pass.bias is None
+        elif version <= 14:
             assert policyhead.conv2p.weight.shape[0] == 6
             write_conv_weight(name+".conv2p", torch.stack((policyhead.conv2p.weight[0], policyhead.conv2p.weight[5]), dim=0))
             assert policyhead.linear_pass.weight.shape[0] == 6
             write_matmul(name+".linear_pass", torch.stack((policyhead.linear_pass.weight[0], policyhead.linear_pass.weight[5]), dim=0))
+            assert policyhead.linear_pass.bias is None
+        else:
+            assert policyhead.conv2p.weight.shape[0] == 6
+            write_conv_weight(name+".conv2p", torch.stack((policyhead.conv2p.weight[0], policyhead.conv2p.weight[5]), dim=0))
+            write_matmul(name+".linear_pass", policyhead.linear_pass.weight)
+            write_matbias(name+".linear_pass_bias", policyhead.linear_pass.bias)
+            write_activation(name+".act_pass", policyhead.act_pass)
+            assert policyhead.linear_pass2.weight.shape[0] == 6
+            write_matmul(name+".linear_pass2", torch.stack((policyhead.linear_pass2.weight[0], policyhead.linear_pass2.weight[5]), dim=0))
+            assert policyhead.linear_pass2.bias is None
+
         assert policyhead.conv2p.bias is None
-        assert policyhead.linear_pass.bias is None
 
 
     def write_value_head(name, valuehead):
