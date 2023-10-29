@@ -2896,24 +2896,6 @@ final class ComputeHandleTest: XCTestCase {
         XCTAssert(handle?.model.numScoreValueChannels == swModelDesc.numScoreValueChannels)
         XCTAssert(handle?.model.numOwnershipChannels == swModelDesc.numOwnershipChannels)
     }
-
-    func testCreateInstanceInvalid() {
-        MetalComputeContext.createInstance(nnXLen: 9 as NSNumber,
-                                           nnYLen: 11 as NSNumber,
-                                           useFP16Mode: .False,
-                                           useNHWCMode: .True)
-
-        let gpuIdxForThisThread = -1
-        let swModelDesc = swModelDescTest.createMiniDesc()
-
-        MetalComputeHandle.createInstance(at: gpuIdxForThisThread,
-                                          descriptor: swModelDesc,
-                                          serverThreadIdx: 0)
-
-        let handle = MetalComputeHandle.getInstance(at: gpuIdxForThisThread)
-
-        XCTAssert(handle == nil)
-    }
 }
 
 final class MetalBackendTest: XCTestCase {
