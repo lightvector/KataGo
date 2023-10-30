@@ -1262,7 +1262,7 @@ b28c512nbt = {
     ],
     "p1_num_channels":64,
     "g1_num_channels":64,
-    "v1_num_channels":96,
+    "v1_num_channels":128,
     "sbv2_num_channels":128,
     "num_scorebeliefs":8,
     "v2_size":144,
