@@ -276,11 +276,6 @@ static SWValueHeadDesc * valueHeadDescToSwift(const ValueHeadDesc * valueHead) {
     return swDesc;
 }
 
-/// Print the list of available Metal devices
-void MetalProcess::printMetalDevices(void) {
-    [MetalBackend printDevices];
-}
-
 /// Create a Metal context
 /// - Parameters:
 ///   - nnXLen: The width of the neural network input
@@ -316,21 +311,6 @@ void MetalProcess::createMetalContext(int nnXLen,
                                       useNHWCMode:useNHWCMode];
 }
 
-/// Destroy the Metal context
-void MetalProcess::destroyMetalContext(void) {
-    [MetalComputeContext destroyInstance];
-}
-
-/// Get x length of the Metal context
-int MetalProcess::getMetalContextXLen(void) {
-    return (int)[MetalBackend getContextXLen];
-}
-
-/// Get y length of the Metal context
-int MetalProcess::getMetalContextYLen(void) {
-    return (int)[MetalBackend getContextYLen];
-}
-
 /// Create a Metal handle
 /// - Parameters:
 ///   - gpuIdxForThisThread: The GPU index for this thread
@@ -356,37 +336,6 @@ void MetalProcess::createMetalHandle(int gpuIdxForThisThread,
     [MetalComputeHandle createInstanceAt:gpuIdxForThisThread
                               descriptor:swModelDesc
                          serverThreadIdx:serverThreadIdx];
-}
-
-/// Get output from a Metal handle
-/// - Parameters:
-///   - userInputBuffer: The user input buffer
-///   - userInputGlobalBuffer: The user input global buffer
-///   - policyOutput: The policy output
-///   - policyPassOutput: The policy pass output
-///   - valueOutput: The value output
-///   - ownershipOutput: The ownership output
-///   - scoreValueOutput: The score value output
-///   - gpuIdx: The GPU index
-///   - batchSize: The batch size
-void MetalProcess::getMetalHandleOutput(float* userInputBuffer,
-                                        float* userInputGlobalBuffer,
-                                        float* policyOutput,
-                                        float* policyPassOutput,
-                                        float* valueOutput,
-                                        float* ownershipOutput,
-                                        float* scoreValueOutput,
-                                        int gpuIdx,
-                                        int batchSize) {
-    [MetalBackend getOutputWithUserInputBuffer:userInputBuffer
-                         userInputGlobalBuffer:userInputGlobalBuffer
-                                  policyOutput:policyOutput
-                              policyPassOutput:policyPassOutput
-                                   valueOutput:valueOutput
-                               ownershipOutput:ownershipOutput
-                              scoreValueOutput:scoreValueOutput
-                                        gpuIdx:gpuIdx
-                                     batchSize:batchSize];
 }
 
 /// Evaluate a convolutional layer using Metal API for testing purposes

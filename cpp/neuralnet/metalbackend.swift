@@ -2367,7 +2367,7 @@ struct Model {
 /// A class that represents Metal backend.
 @objc class MetalBackend : NSObject {
     /// Print all available devices.
-    @objc class func printDevices() {
+    class func printDevices() {
         let device = MTLCreateSystemDefaultDevice()!
         print("Found Metal Device: \(device.name)")
     }
@@ -2417,4 +2417,40 @@ struct Model {
                                 batchSize: batchSize)
         }
     }
+}
+
+public func printMetalDevices() {
+    MetalBackend.printDevices()
+}
+
+public func getMetalHandleOutput(userInputBuffer: UnsafeMutablePointer<Float32>,
+                                 userInputGlobalBuffer: UnsafeMutablePointer<Float32>,
+                                 policyOutput: UnsafeMutablePointer<Float32>,
+                                 policyPassOutput: UnsafeMutablePointer<Float32>,
+                                 valueOutput: UnsafeMutablePointer<Float32>,
+                                 ownershipOutput: UnsafeMutablePointer<Float32>,
+                                 scoreValueOutput: UnsafeMutablePointer<Float32>,
+                                 gpuIdx: Int,
+                                 batchSize: Int) {
+    MetalBackend.getOutput(userInputBuffer: userInputBuffer,
+                           userInputGlobalBuffer: userInputGlobalBuffer,
+                           policyOutput: policyOutput,
+                           policyPassOutput: policyPassOutput,
+                           valueOutput: valueOutput,
+                           ownershipOutput: ownershipOutput,
+                           scoreValueOutput: scoreValueOutput,
+                           gpuIdx: gpuIdx,
+                           batchSize: batchSize)
+}
+
+public func getMetalContextXLen() -> Int32 {
+    return Int32(MetalBackend.getContextXLen())
+}
+
+public func getMetalContextYLen() -> Int32 {
+    return Int32(MetalBackend.getContextYLen())
+}
+
+public func destroyMetalContext() {
+    MetalComputeContext.destroyInstance()
 }

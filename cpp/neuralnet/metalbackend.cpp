@@ -6,6 +6,7 @@
 #include "../neuralnet/nninterface.h"
 #include "../neuralnet/metalbackend.h"
 #include "../neuralnet/coremlbackend.h"
+#include <metalswift.h>
 
 using namespace std;
 
@@ -117,7 +118,7 @@ ComputeContext::ComputeContext(int nnX, int nnY, enabled_t useFP16Mode, enabled_
 }
 
 ComputeContext::~ComputeContext() {
-  MetalProcess::destroyMetalContext();
+  katago::destroyMetalContext();
   CoreMLProcess::destroyCoreMLContext();
 }
 
@@ -180,8 +181,8 @@ ComputeHandle::ComputeHandle(
   const ModelDesc* modelDesc = &loadedModel->modelDesc;
   int coreMLStartIndex = 100;
 
-  nnXLen = MetalProcess::getMetalContextXLen();
-  nnYLen = MetalProcess::getMetalContextYLen();
+  nnXLen = katago::getMetalContextXLen();
+  nnYLen = katago::getMetalContextYLen();
   gpuIndex = gpuIdx;
   version = modelDesc->version;
   this->inputsUseNHWC = inputsUseNHWC;
@@ -271,7 +272,7 @@ bool NeuralNet::isUsingFP16(const ComputeHandle* handle) {
  * @brief Print information about the available devices.
  */
 void NeuralNet::printDevices() {
-  MetalProcess::printMetalDevices();
+  katago::printMetalDevices();
 }
 
 //--------------------------------------------------------------
@@ -564,16 +565,15 @@ void MetalProcess::getMetalOutput(
     MetalProcess::processRowData(row, gpuHandle, inputBuffers, inputBufs);
   }
 
-  MetalProcess::getMetalHandleOutput(
-    inputBuffers->userInputBuffer,
-    inputBuffers->userInputGlobalBuffer,
-    inputBuffers->policyResults,
-    inputBuffers->policyPassResults,
-    inputBuffers->valueResults,
-    inputBuffers->ownershipResults,
-    inputBuffers->scoreValuesResults,
-    gpuHandle->gpuIndex,
-    batchSize);
+  katago::getMetalHandleOutput(inputBuffers->userInputBuffer,
+                               inputBuffers->userInputGlobalBuffer,
+                               inputBuffers->policyResults,
+                               inputBuffers->policyPassResults,
+                               inputBuffers->valueResults,
+                               inputBuffers->ownershipResults,
+                               inputBuffers->scoreValuesResults,
+                               gpuHandle->gpuIndex,
+                               batchSize);
 
   for(size_t row = 0; row < batchSize; row++) {
     MetalProcess::processRow(row, gpuHandle, inputBuffers, inputBufs, outputs);

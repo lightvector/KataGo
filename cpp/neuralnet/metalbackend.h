@@ -42,26 +42,12 @@ namespace MetalProcess {
     NNResultBuf** inputBufs,
     vector<NNOutput*>& outputs);
 
-  void getMetalHandleOutput(
-    float* userInputBuffer,
-    float* userInputGlobalBuffer,
-    float* policyOutput,
-    float* policyPassOutput,
-    float* valueOutput,
-    float* ownershipOutput,
-    float* scoreValueOutput,
-    int gpuIdx,
-    int batchSize);
-
   void getMetalOutput(
     ComputeHandle* gpuHandle,
     InputBuffers* inputBuffers,
     int numBatchEltsFilled,
     NNResultBuf** inputBufs,
     vector<NNOutput*>& outputs);
-
-  /// Print the available Metal devices.
-  void printMetalDevices(void);
 
   /// Create a Metal computing context.
   /// - Parameters:
@@ -70,15 +56,6 @@ namespace MetalProcess {
   ///   - inputUseFP16Mode: Whether to use 16-bit floating-point precision or not.
   ///   - inputUseNHWCMode: Whether to use NHWC mode or not.
   void createMetalContext(int nnXLen, int nnYLen, enabled_t inputUseFP16Mode, enabled_t inputUseNHWCMode);
-
-  /// Destroy a Metal computing context.
-  void destroyMetalContext(void);
-
-  /// Get the length of the neural network input in the x dimension from Metal computing context
-  int getMetalContextXLen(void);
-
-  /// Get the length of the neural network input in the y dimension from Metal computing context
-  int getMetalContextYLen(void);
 
   /// Create a Metal computing handle.
   /// - Parameters:
