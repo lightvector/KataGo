@@ -76,7 +76,7 @@ class Metrics:
         assert weight.shape == (self.n,)
         assert global_weight.shape == (self.n,)
         loss = cross_entropy(pred_logits, target_probs, dim=2) - cross_entropy(torch.log(target_probs + 1.0e-30), target_probs, dim=2)
-        return 1.20 * global_weight.unsqueeze(1) * weight * loss
+        return 1.20 * global_weight.unsqueeze(1) * weight.unsqueeze(1) * loss
 
     def loss_td_score_samplewise(self, pred, target, weight, global_weight):
         assert pred.shape == (self.n, self.num_td_values)
