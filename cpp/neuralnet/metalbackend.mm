@@ -1,19 +1,20 @@
 #import "metalbackend.h"
 #import "metalswift.h"
 
+using namespace katago;
+
 /// Converts a ConvLayerDesc instance from C++ to Swift by creating a new SWConvLayerDesc instance with the same properties.
 /// - Parameter desc: The ConvLayerDesc instance to convert.
 /// - Returns: A SWConvLayerDesc instance with the same properties as the input ConvLayerDesc.
-static SWConvLayerDesc * convLayerDescToSwift(const ConvLayerDesc * desc) {
+static SWConvLayerDesc convLayerDescToSwift(const ConvLayerDesc * desc) {
 
-    SWConvLayerDesc * swDesc =
-    [[SWConvLayerDesc alloc] initWithConvYSize:[NSNumber numberWithInt:desc->convYSize]
-                                     convXSize:[NSNumber numberWithInt:desc->convXSize]
-                                    inChannels:[NSNumber numberWithInt:desc->inChannels]
-                                   outChannels:[NSNumber numberWithInt:desc->outChannels]
-                                     dilationY:desc->dilationY
-                                     dilationX:desc->dilationX
-                                       weights:(float*)desc->weights.data()];
+    SWConvLayerDesc swDesc = createSWConvLayerDesc(desc->convYSize,
+                                                   desc->convXSize,
+                                                   desc->inChannels,
+                                                   desc->outChannels,
+                                                   desc->dilationY,
+                                                   desc->dilationX,
+                                                   (float*)desc->weights.data());
 
     return swDesc;
 }
@@ -21,17 +22,17 @@ static SWConvLayerDesc * convLayerDescToSwift(const ConvLayerDesc * desc) {
 /// Converts a BatchNormLayerDesc instance from C++ to Swift by creating a new SWBatchNormLayerDesc instance with the same properties.
 /// - Parameter desc: The BatchNormLayerDesc instance to convert.
 /// - Returns: A SWBatchNormLayerDesc instance with the same properties as the input BatchNormLayerDesc.
-static SWBatchNormLayerDesc * batchNormLayerDescToSwift(const BatchNormLayerDesc * desc) {
+static SWBatchNormLayerDesc batchNormLayerDescToSwift(const BatchNormLayerDesc * desc) {
 
-    SWBatchNormLayerDesc * swDesc =
-    [[SWBatchNormLayerDesc alloc] initWithNumChannels:[NSNumber numberWithInt:desc->numChannels]
-                                              epsilon:desc->epsilon
-                                             hasScale:[NSNumber numberWithBool:desc->hasScale]
-                                              hasBias:[NSNumber numberWithBool:desc->hasBias]
-                                                 mean:(float*)desc->mean.data()
-                                             variance:(float*)desc->variance.data()
-                                                scale:(float*)desc->scale.data()
-                                                 bias:(float*)desc->bias.data()];
+    SWBatchNormLayerDesc swDesc =
+    createSWBatchNormLayerDesc(desc->numChannels,
+                               desc->epsilon,
+                               desc->hasScale,
+                               desc->hasBias,
+                               (float*)desc->mean.data(),
+                               (float*)desc->variance.data(),
+                               (float*)desc->scale.data(),
+                               (float*)desc->bias.data());
 
     return swDesc;
 }
@@ -40,41 +41,35 @@ static SWBatchNormLayerDesc * batchNormLayerDescToSwift(const BatchNormLayerDesc
 /// - Parameter desc: An activation layer description
 static ActivationKind activationLayerDescToSwift(const ActivationLayerDesc * desc) {
 
-    ActivationKind activationKind;
-
     switch (desc->activation) {
         case ACTIVATION_RELU:
-            activationKind = ActivationKindRelu;
-            break;
+            return ActivationKind::relu();
         case ACTIVATION_MISH:
-            activationKind = ActivationKindMish;
-            break;
+            return ActivationKind::mish();
         default:
-            activationKind = ActivationKindIdentity;
-            break;
+            return ActivationKind::identity();
     }
-
-    return activationKind;
 }
 
 /// Convert a residual block description from C++ to Swift
 /// - Parameter desc: A residual block description
 /// - Returns: The residual block description converted to SWResidualBlockDesc
-static SWResidualBlockDesc * residualBlockDescToSwift(const ResidualBlockDesc * desc) {
+static SWResidualBlockDesc residualBlockDescToSwift(const ResidualBlockDesc * desc) {
 
-    SWBatchNormLayerDesc * preBN = batchNormLayerDescToSwift(&desc->preBN);
+    SWBatchNormLayerDesc preBN = batchNormLayerDescToSwift(&desc->preBN);
     ActivationKind preActivationKind = activationLayerDescToSwift(&desc->preActivation);
-    SWConvLayerDesc * regularConv = convLayerDescToSwift(&desc->regularConv);
-    SWBatchNormLayerDesc * midBN = batchNormLayerDescToSwift(&desc->midBN);
+    SWConvLayerDesc regularConv = convLayerDescToSwift(&desc->regularConv);
+    SWBatchNormLayerDesc midBN = batchNormLayerDescToSwift(&desc->midBN);
     ActivationKind midActivationKind = activationLayerDescToSwift(&desc->midActivation);
-    SWConvLayerDesc * finalConv = convLayerDescToSwift(&desc->finalConv);
+    SWConvLayerDesc finalConv = convLayerDescToSwift(&desc->finalConv);
 
-    SWResidualBlockDesc * swDesc = [[SWResidualBlockDesc alloc] initWithPreBN:preBN
-                                                                preActivation:preActivationKind
-                                                                  regularConv:regularConv
-                                                                        midBN:midBN
-                                                                midActivation:midActivationKind
-                                                                    finalConv:finalConv];
+    SWResidualBlockDesc swDesc =
+    createSWResidualBlockDesc(preBN,
+                              preActivationKind,
+                              regularConv,
+                              midBN,
+                              midActivationKind,
+                              finalConv);
 
     return swDesc;
 }
@@ -82,12 +77,11 @@ static SWResidualBlockDesc * residualBlockDescToSwift(const ResidualBlockDesc * 
 /// Convert a matrix multiplication layer description from C++ to Swift
 /// - Parameter desc: A matrix multiplication layer description
 /// - Returns: The matrix multiplication layer description converted to SWMatMulLayerDesc
-static SWMatMulLayerDesc * matMulLayerDescToSwift(const MatMulLayerDesc * desc) {
+static SWMatMulLayerDesc matMulLayerDescToSwift(const MatMulLayerDesc * desc) {
 
-    SWMatMulLayerDesc * swDesc =
-    [[SWMatMulLayerDesc alloc] initInChannels:[NSNumber numberWithInt:desc->inChannels]
-                                  outChannels:[NSNumber numberWithInt:desc->outChannels]
-                                      weights:(float*)desc->weights.data()];
+    SWMatMulLayerDesc swDesc = createSWMatMulLayerDesc(desc->inChannels,
+                                                       desc->outChannels,
+                                                       (float*)desc->weights.data());
 
     return swDesc;
 }
@@ -95,81 +89,84 @@ static SWMatMulLayerDesc * matMulLayerDescToSwift(const MatMulLayerDesc * desc) 
 /// Convert a global pooling residual block description from C++ to Swift
 /// - Parameter desc: A global pooling residual block description
 /// - Returns: The global pooling residual block description converted to SWGlobalPoolingResidualBlockDesc
-static SWGlobalPoolingResidualBlockDesc* globalPoolingResidualBlockDescToSwift(const GlobalPoolingResidualBlockDesc* desc) {
+static SWGlobalPoolingResidualBlockDesc globalPoolingResidualBlockDescToSwift(const GlobalPoolingResidualBlockDesc* desc) {
 
-    SWBatchNormLayerDesc * preBN = batchNormLayerDescToSwift(&desc->preBN);
+    SWBatchNormLayerDesc preBN = batchNormLayerDescToSwift(&desc->preBN);
     ActivationKind preActivationKind = activationLayerDescToSwift(&desc->preActivation);
-    SWConvLayerDesc * regularConv = convLayerDescToSwift(&desc->regularConv);
-    SWConvLayerDesc * gpoolConv = convLayerDescToSwift(&desc->gpoolConv);
-    SWBatchNormLayerDesc * gpoolBN = batchNormLayerDescToSwift(&desc->gpoolBN);
+    SWConvLayerDesc regularConv = convLayerDescToSwift(&desc->regularConv);
+    SWConvLayerDesc gpoolConv = convLayerDescToSwift(&desc->gpoolConv);
+    SWBatchNormLayerDesc gpoolBN = batchNormLayerDescToSwift(&desc->gpoolBN);
     ActivationKind gpoolActivationKind = activationLayerDescToSwift(&desc->gpoolActivation);
-    SWMatMulLayerDesc * gpoolToBiasMul = matMulLayerDescToSwift(&desc->gpoolToBiasMul);
-    SWBatchNormLayerDesc * midBN = batchNormLayerDescToSwift(&desc->midBN);
+    SWMatMulLayerDesc gpoolToBiasMul = matMulLayerDescToSwift(&desc->gpoolToBiasMul);
+    SWBatchNormLayerDesc midBN = batchNormLayerDescToSwift(&desc->midBN);
     ActivationKind midActivationKind = activationLayerDescToSwift(&desc->midActivation);
-    SWConvLayerDesc * finalConv = convLayerDescToSwift(&desc->finalConv);
+    SWConvLayerDesc finalConv = convLayerDescToSwift(&desc->finalConv);
 
-    SWGlobalPoolingResidualBlockDesc * swDesc =
-    [[SWGlobalPoolingResidualBlockDesc alloc] initWithPreBN:preBN
-                                              preActivation:preActivationKind
-                                                regularConv:regularConv
-                                                  gpoolConv:gpoolConv
-                                                    gpoolBN:gpoolBN
-                                            gpoolActivation:gpoolActivationKind
-                                             gpoolToBiasMul:gpoolToBiasMul
-                                                      midBN:midBN
-                                              midActivation:midActivationKind
-                                                  finalConv:finalConv];
+    SWGlobalPoolingResidualBlockDesc swDesc =
+    createSWGlobalPoolingResidualBlockDesc(preBN,
+                                           preActivationKind,
+                                           regularConv,
+                                           gpoolConv,
+                                           gpoolBN,
+                                           gpoolActivationKind,
+                                           gpoolToBiasMul,
+                                           midBN,
+                                           midActivationKind,
+                                           finalConv);
 
     return swDesc;
 }
 
-static void residualBlocksToSwift(const std::vector<std::pair<int, unique_ptr_void>>& blocks, NSMutableArray<BlockDescriptor *> * swBlocks);
-static SWNestedBottleneckResidualBlockDesc* nestedBottleneckResidualBlockDescToSwift(const NestedBottleneckResidualBlockDesc* desc);
+static swift::Array<BlockDescriptor> residualBlocksToSwift(const std::vector<std::pair<int, unique_ptr_void>>& blocks);
+static SWNestedBottleneckResidualBlockDesc nestedBottleneckResidualBlockDescToSwift(const NestedBottleneckResidualBlockDesc* desc);
 
 /// Convert residual blocks from C++ to Swift
 /// - Parameters:
 ///   - blocks: Residual blocks
 ///   - swBlocks: A pointer to an array of BlockDescriptor
-static void residualBlocksToSwift(const std::vector<std::pair<int, unique_ptr_void>>& blocks, NSMutableArray<BlockDescriptor *> * swBlocks) {
+static swift::Array<BlockDescriptor> residualBlocksToSwift(const std::vector<std::pair<int, unique_ptr_void>>& blocks) {
+
+    auto builder = createBlockDescriptorBuilder();
 
     for (int i = 0; i < blocks.size(); i++) {
 
-        BlockDescriptor * swBlockDesc;
         void * blockDesc = blocks[i].second.get();
 
         if (blocks[i].first == GLOBAL_POOLING_BLOCK_KIND) {
-            swBlockDesc = globalPoolingResidualBlockDescToSwift((GlobalPoolingResidualBlockDesc*)blockDesc);
+            BlockDescriptor descriptor = globalPoolingResidualBlockDescToSwift((GlobalPoolingResidualBlockDesc*)blockDesc);
+            builder.enque(descriptor);
         } else if (blocks[i].first == NESTED_BOTTLENECK_BLOCK_KIND) {
-            swBlockDesc = nestedBottleneckResidualBlockDescToSwift((NestedBottleneckResidualBlockDesc*)blockDesc);
+            BlockDescriptor descriptor = nestedBottleneckResidualBlockDescToSwift((NestedBottleneckResidualBlockDesc*)blockDesc);
+            builder.enque(descriptor);
         } else {
-            swBlockDesc = residualBlockDescToSwift((ResidualBlockDesc*)blockDesc);
+            BlockDescriptor descriptor = residualBlockDescToSwift((ResidualBlockDesc*)blockDesc);
+            builder.enque(descriptor);
         }
-
-        [swBlocks addObject:swBlockDesc];
     }
+
+    return builder.getBlockDescriptors();
 }
 
 /// Convert a nested bottleneck residual block description from C++ to Swift
 /// - Parameter desc: A nested bottleneck residual block description
-static SWNestedBottleneckResidualBlockDesc* nestedBottleneckResidualBlockDescToSwift(const NestedBottleneckResidualBlockDesc* desc) {
+static SWNestedBottleneckResidualBlockDesc nestedBottleneckResidualBlockDescToSwift(const NestedBottleneckResidualBlockDesc* desc) {
 
-    SWBatchNormLayerDesc * preBN = batchNormLayerDescToSwift(&desc->preBN);
+    SWBatchNormLayerDesc preBN = batchNormLayerDescToSwift(&desc->preBN);
     ActivationKind preActivationKind = activationLayerDescToSwift(&desc->preActivation);
-    SWConvLayerDesc * preConv = convLayerDescToSwift(&desc->preConv);
-    NSMutableArray<BlockDescriptor *> * swBlocks = [[NSMutableArray alloc] init];
-    residualBlocksToSwift(desc->blocks, swBlocks);
-    SWBatchNormLayerDesc * postBN = batchNormLayerDescToSwift(&desc->postBN);
+    SWConvLayerDesc preConv = convLayerDescToSwift(&desc->preConv);
+    auto swBlocks = residualBlocksToSwift(desc->blocks);
+    SWBatchNormLayerDesc postBN = batchNormLayerDescToSwift(&desc->postBN);
     ActivationKind postActivationKind = activationLayerDescToSwift(&desc->postActivation);
-    SWConvLayerDesc * postConv = convLayerDescToSwift(&desc->postConv);
+    SWConvLayerDesc postConv = convLayerDescToSwift(&desc->postConv);
 
-    SWNestedBottleneckResidualBlockDesc * swDesc =
-    [[SWNestedBottleneckResidualBlockDesc alloc] initWithPreBN:preBN
-                                                 preActivation:preActivationKind
-                                                       preConv:preConv
-                                              blockDescriptors:swBlocks
-                                                        postBN:postBN
-                                                postActivation:postActivationKind
-                                                      postConv:postConv];
+    SWNestedBottleneckResidualBlockDesc swDesc =
+    createSWNestedBottleneckResidualBlockDesc(preBN,
+                                              preActivationKind,
+                                              preConv,
+                                              swBlocks,
+                                              postBN,
+                                              postActivationKind,
+                                              postConv);
 
     return swDesc;
 }
@@ -177,26 +174,24 @@ static SWNestedBottleneckResidualBlockDesc* nestedBottleneckResidualBlockDescToS
 /// Convert a trunk description from C++ to Swift
 /// - Parameter trunk: A trunk description
 /// - Returns: The trunk description converted to SWTrunkDesc
-static SWTrunkDesc * trunkDescToSwift(const TrunkDesc * trunk) {
+static SWTrunkDesc trunkDescToSwift(const TrunkDesc * trunk) {
 
-    SWConvLayerDesc * initialConv = convLayerDescToSwift(&trunk->initialConv);
-    SWMatMulLayerDesc * initialMatMul = matMulLayerDescToSwift(&trunk->initialMatMul);
-    NSMutableArray<BlockDescriptor *> * swBlocks = [[NSMutableArray alloc] init];
-    residualBlocksToSwift(trunk->blocks, swBlocks);
-    SWBatchNormLayerDesc * trunkTipBN = batchNormLayerDescToSwift(&trunk->trunkTipBN);
+    SWConvLayerDesc initialConv = convLayerDescToSwift(&trunk->initialConv);
+    SWMatMulLayerDesc initialMatMul = matMulLayerDescToSwift(&trunk->initialMatMul);
+    auto swBlocks = residualBlocksToSwift(trunk->blocks);
+    SWBatchNormLayerDesc trunkTipBN = batchNormLayerDescToSwift(&trunk->trunkTipBN);
     ActivationKind trunkTipActivation = activationLayerDescToSwift(&trunk->trunkTipActivation);
 
-    SWTrunkDesc * swTrunkDesc =
-    [[SWTrunkDesc alloc] initWithVersion:trunk->version
-                        trunkNumChannels:[NSNumber numberWithInt:trunk->trunkNumChannels]
-                          midNumChannels:[NSNumber numberWithInt:trunk->midNumChannels]
-                      regularNumChannels:[NSNumber numberWithInt:trunk->regularNumChannels]
-                        gpoolNumChannels:[NSNumber numberWithInt:trunk->gpoolNumChannels]
-                             initialConv:initialConv
-                           initialMatMul:initialMatMul
-                        blockDescriptors:swBlocks
-                              trunkTipBN:trunkTipBN
-                      trunkTipActivation:trunkTipActivation];
+    SWTrunkDesc swTrunkDesc = createSWTrunkDesc(trunk->version,
+                                                trunk->trunkNumChannels,
+                                                trunk->midNumChannels,
+                                                trunk->regularNumChannels,
+                                                trunk->gpoolNumChannels,
+                                                initialConv,
+                                                initialMatMul,
+                                                swBlocks,
+                                                trunkTipBN,
+                                                trunkTipActivation);
 
     return swTrunkDesc;
 }
@@ -204,29 +199,28 @@ static SWTrunkDesc * trunkDescToSwift(const TrunkDesc * trunk) {
 /// Convert a policy head description from C++ to Swift
 /// - Parameter policyHead: A policy head description
 /// - Returns: The policy head description converted to SWPolicyHeadDesc
-static SWPolicyHeadDesc * policyHeadDescToSwift(const PolicyHeadDesc * policyHead) {
+static SWPolicyHeadDesc policyHeadDescToSwift(const PolicyHeadDesc * policyHead) {
 
-    SWConvLayerDesc * p1Conv = convLayerDescToSwift(&policyHead->p1Conv);
-    SWConvLayerDesc * g1Conv = convLayerDescToSwift(&policyHead->g1Conv);
-    SWBatchNormLayerDesc * g1BN = batchNormLayerDescToSwift(&policyHead->g1BN);
+    SWConvLayerDesc p1Conv = convLayerDescToSwift(&policyHead->p1Conv);
+    SWConvLayerDesc g1Conv = convLayerDescToSwift(&policyHead->g1Conv);
+    SWBatchNormLayerDesc g1BN = batchNormLayerDescToSwift(&policyHead->g1BN);
     ActivationKind g1Activation = activationLayerDescToSwift(&policyHead->g1Activation);
-    SWMatMulLayerDesc * gpoolToBiasMul = matMulLayerDescToSwift(&policyHead->gpoolToBiasMul);
-    SWBatchNormLayerDesc * p1BN = batchNormLayerDescToSwift(&policyHead->p1BN);
+    SWMatMulLayerDesc gpoolToBiasMul = matMulLayerDescToSwift(&policyHead->gpoolToBiasMul);
+    SWBatchNormLayerDesc p1BN = batchNormLayerDescToSwift(&policyHead->p1BN);
     ActivationKind p1Activation = activationLayerDescToSwift(&policyHead->p1Activation);
-    SWConvLayerDesc * p2Conv = convLayerDescToSwift(&policyHead->p2Conv);
-    SWMatMulLayerDesc * gpoolToPassMul = matMulLayerDescToSwift(&policyHead->gpoolToPassMul);
+    SWConvLayerDesc p2Conv = convLayerDescToSwift(&policyHead->p2Conv);
+    SWMatMulLayerDesc gpoolToPassMul = matMulLayerDescToSwift(&policyHead->gpoolToPassMul);
 
-    SWPolicyHeadDesc * swPolicyHead =
-    [[SWPolicyHeadDesc alloc] initWithVersion:policyHead->version
-                                       p1Conv:p1Conv
-                                       g1Conv:g1Conv
-                                         g1BN:g1BN
-                                 g1Activation:g1Activation
-                               gpoolToBiasMul:gpoolToBiasMul
-                                         p1BN:p1BN
-                                 p1Activation:p1Activation
-                                       p2Conv:p2Conv
-                               gpoolToPassMul:gpoolToPassMul];
+    SWPolicyHeadDesc swPolicyHead = createSWPolicyHeadDesc(policyHead->version,
+                                                           p1Conv,
+                                                           g1Conv,
+                                                           g1BN,
+                                                           g1Activation,
+                                                           gpoolToBiasMul,
+                                                           p1BN,
+                                                           p1Activation,
+                                                           p2Conv,
+                                                           gpoolToPassMul);
 
     return swPolicyHead;
 }
@@ -234,10 +228,9 @@ static SWPolicyHeadDesc * policyHeadDescToSwift(const PolicyHeadDesc * policyHea
 /// Convert a matrix bias layer description from C++ to Swift
 /// - Parameter desc: A matrix bias layer description
 /// - Returns: The matrix bias layer description converted to SWMatBiasLayerDesc
-static SWMatBiasLayerDesc * matBiasLayerDescToSwift(const MatBiasLayerDesc * desc) {
-    SWMatBiasLayerDesc * swDesc =
-    [[SWMatBiasLayerDesc alloc] initWithNumChannels:[NSNumber numberWithInt:desc->numChannels]
-                                            weights:(float*)desc->weights.data()];
+static SWMatBiasLayerDesc matBiasLayerDescToSwift(const MatBiasLayerDesc * desc) {
+
+    SWMatBiasLayerDesc swDesc = createSWMatBiasLayerDesc(desc->numChannels, (float*)desc->weights.data());
 
     return swDesc;
 }
@@ -245,33 +238,32 @@ static SWMatBiasLayerDesc * matBiasLayerDescToSwift(const MatBiasLayerDesc * des
 /// Convert a value head description from C++ to Swift
 /// - Parameter valueHead: A value head description
 /// - Returns: The value head description converted to SWValueHeadDesc
-static SWValueHeadDesc * valueHeadDescToSwift(const ValueHeadDesc * valueHead) {
+static SWValueHeadDesc valueHeadDescToSwift(const ValueHeadDesc * valueHead) {
 
-    SWConvLayerDesc * v1Conv = convLayerDescToSwift(&valueHead->v1Conv);
-    SWBatchNormLayerDesc * v1BN = batchNormLayerDescToSwift(&valueHead->v1BN);
+    SWConvLayerDesc v1Conv = convLayerDescToSwift(&valueHead->v1Conv);
+    SWBatchNormLayerDesc v1BN = batchNormLayerDescToSwift(&valueHead->v1BN);
     ActivationKind v1Activation = activationLayerDescToSwift(&valueHead->v1Activation);
-    SWMatMulLayerDesc * v2Mul = matMulLayerDescToSwift(&valueHead->v2Mul);
-    SWMatBiasLayerDesc * v2Bias = matBiasLayerDescToSwift(&valueHead->v2Bias);
+    SWMatMulLayerDesc v2Mul = matMulLayerDescToSwift(&valueHead->v2Mul);
+    SWMatBiasLayerDesc v2Bias = matBiasLayerDescToSwift(&valueHead->v2Bias);
     ActivationKind v2Activation = activationLayerDescToSwift(&valueHead->v2Activation);
-    SWMatMulLayerDesc * v3Mul = matMulLayerDescToSwift(&valueHead->v3Mul);
-    SWMatBiasLayerDesc * v3Bias = matBiasLayerDescToSwift(&valueHead->v3Bias);
-    SWMatMulLayerDesc * sv3Mul = matMulLayerDescToSwift(&valueHead->sv3Mul);
-    SWMatBiasLayerDesc * sv3Bias = matBiasLayerDescToSwift(&valueHead->sv3Bias);
-    SWConvLayerDesc * vOwnershipConv = convLayerDescToSwift(&valueHead->vOwnershipConv);
+    SWMatMulLayerDesc v3Mul = matMulLayerDescToSwift(&valueHead->v3Mul);
+    SWMatBiasLayerDesc v3Bias = matBiasLayerDescToSwift(&valueHead->v3Bias);
+    SWMatMulLayerDesc sv3Mul = matMulLayerDescToSwift(&valueHead->sv3Mul);
+    SWMatBiasLayerDesc sv3Bias = matBiasLayerDescToSwift(&valueHead->sv3Bias);
+    SWConvLayerDesc vOwnershipConv = convLayerDescToSwift(&valueHead->vOwnershipConv);
 
-    SWValueHeadDesc * swDesc =
-    [[SWValueHeadDesc alloc] initWithVersion:valueHead->version
-                                      v1Conv:v1Conv
-                                        v1BN:v1BN
-                                v1Activation:v1Activation
-                                       v2Mul:v2Mul
-                                      v2Bias:v2Bias
-                                v2Activation:v2Activation
-                                       v3Mul:v3Mul
-                                      v3Bias:v3Bias
-                                      sv3Mul:sv3Mul
-                                     sv3Bias:sv3Bias
-                              vOwnershipConv:vOwnershipConv];
+    SWValueHeadDesc swDesc = createSWValueHeadDesc(valueHead->version,
+                                                   v1Conv,
+                                                   v1BN,
+                                                   v1Activation,
+                                                   v2Mul,
+                                                   v2Bias,
+                                                   v2Activation,
+                                                   v3Mul,
+                                                   v3Bias,
+                                                   sv3Mul,
+                                                   sv3Bias,
+                                                   vOwnershipConv);
 
     return swDesc;
 }
@@ -286,29 +278,17 @@ void MetalProcess::createMetalContext(int nnXLen,
                                       int nnYLen,
                                       enabled_t inputUseFP16Mode,
                                       enabled_t inputUseNHWCMode) {
-    SWEnable useFP16Mode;
-    SWEnable useNHWCMode;
+    SWEnable useFP16Mode =
+    (inputUseFP16Mode == enabled_t::False) ? SWEnable::False() :
+    (inputUseFP16Mode == enabled_t::True) ? SWEnable::True() :
+    SWEnable::Auto();
 
-    if (inputUseFP16Mode == enabled_t::False) {
-        useFP16Mode = SWEnableFalse;
-    } else if (inputUseFP16Mode == enabled_t::True) {
-        useFP16Mode = SWEnableTrue;
-    } else {
-        useFP16Mode = SWEnableAuto;
-    }
+    SWEnable useNHWCMode =
+    (inputUseNHWCMode == enabled_t::False) ? SWEnable::False() :
+    (inputUseNHWCMode == enabled_t::True) ? SWEnable::True() :
+    SWEnable::Auto();
 
-    if (inputUseNHWCMode == enabled_t::False) {
-        useNHWCMode = SWEnableFalse;
-    } else if (inputUseNHWCMode == enabled_t::True) {
-        useNHWCMode = SWEnableTrue;
-    } else {
-        useNHWCMode = SWEnableAuto;
-    }
-
-    [MetalComputeContext createInstanceWithNnXLen:[NSNumber numberWithInt:nnXLen]
-                                           nnYLen:[NSNumber numberWithInt:nnYLen]
-                                      useFP16Mode:useFP16Mode
-                                      useNHWCMode:useNHWCMode];
+    createMetalComputeContext(nnXLen, nnYLen, useFP16Mode, useNHWCMode);
 }
 
 /// Create a Metal handle
@@ -319,23 +299,19 @@ void MetalProcess::createMetalContext(int nnXLen,
 void MetalProcess::createMetalHandle(int gpuIdxForThisThread,
                                      const ModelDesc* desc,
                                      int serverThreadIdx) {
-    NSString * name = [NSString stringWithUTF8String:desc->name.c_str()];
 
-    SWModelDesc * swModelDesc =
-    [[SWModelDesc alloc] initWithVersion:desc->version
-                                    name:name
-                        numInputChannels:[NSNumber numberWithInt:desc->numInputChannels]
-                  numInputGlobalChannels:[NSNumber numberWithInt:desc->numInputGlobalChannels]
-                        numValueChannels:[NSNumber numberWithInt:desc->numValueChannels]
-                   numScoreValueChannels:[NSNumber numberWithInt:desc->numScoreValueChannels]
-                    numOwnershipChannels:[NSNumber numberWithInt:desc->numOwnershipChannels]
-                                   trunk:trunkDescToSwift(&desc->trunk)
-                              policyHead:policyHeadDescToSwift(&desc->policyHead)
-                               valueHead:valueHeadDescToSwift(&desc->valueHead)];
+    SWModelDesc swModelDesc = createSWModelDesc(desc->version,
+                                                swift::String(desc->name),
+                                                desc->numInputChannels,
+                                                desc->numInputGlobalChannels,
+                                                desc->numValueChannels,
+                                                desc->numScoreValueChannels,
+                                                desc->numOwnershipChannels,
+                                                trunkDescToSwift(&desc->trunk),
+                                                policyHeadDescToSwift(&desc->policyHead),
+                                                valueHeadDescToSwift(&desc->valueHead));
 
-    [MetalComputeHandle createInstanceAt:gpuIdxForThisThread
-                              descriptor:swModelDesc
-                         serverThreadIdx:serverThreadIdx];
+    createMetalComputeHandle(gpuIdxForThisThread, swModelDesc, serverThreadIdx);
 }
 
 /// Evaluate a convolutional layer using Metal API for testing purposes
@@ -352,12 +328,7 @@ void testMetalEvaluateConv(const ConvLayerDesc* desc,
                            int batchSize,
                            float* input,
                            float* output) {
-    [ConvLayer testWithDescriptor:convLayerDescToSwift(desc)
-                           nnXLen:[NSNumber numberWithInt:nnXLen]
-                           nnYLen:[NSNumber numberWithInt:nnYLen]
-                        batchSize:[NSNumber numberWithInt:batchSize]
-                            input:input
-                           output:output];
+    testConvLayer(convLayerDescToSwift(desc), nnXLen, nnYLen, batchSize, input, output);
 }
 
 /// Evaluate a batch normalization layer using Metal API for testing purposes
@@ -376,13 +347,7 @@ void testMetalEvaluateBatchNorm(const BatchNormLayerDesc* desc,
                                 float* input,
                                 float* mask,
                                 float* output) {
-    [BatchNormLayer testWithDescriptor:batchNormLayerDescToSwift(desc)
-                                nnXLen:[NSNumber numberWithInt:nnXLen]
-                                nnYLen:[NSNumber numberWithInt:nnYLen]
-                             batchSize:[NSNumber numberWithInt:batchSize]
-                                 input:input
-                                  mask:mask
-                                output:output];
+    testBatchNormLayer(batchNormLayerDescToSwift(desc), nnXLen, nnYLen, batchSize, input, mask, output);
 }
 
 /// Evaluate a residual block using Metal API for testing purposes
@@ -401,13 +366,7 @@ void testMetalEvaluateResidualBlock(const ResidualBlockDesc* desc,
                                     float* input,
                                     float* mask,
                                     float* output) {
-    [ResidualBlock testWithDescriptor:residualBlockDescToSwift(desc)
-                            batchSize:[NSNumber numberWithInt:batchSize]
-                               nnXLen:[NSNumber numberWithInt:nnXLen]
-                               nnYLen:[NSNumber numberWithInt:nnYLen]
-                                input:input
-                                 mask:mask
-                               output:output];
+    testResidualBlock(residualBlockDescToSwift(desc), batchSize, nnXLen, nnYLen, input, mask, output);
 }
 
 /// Evaluate a global pooling residual block using Metal API for testing purposes
@@ -426,11 +385,11 @@ void testMetalEvaluateGlobalPoolingResidualBlock(const GlobalPoolingResidualBloc
                                                  float* input,
                                                  float* mask,
                                                  float* output) {
-    [GlobalPoolingResidualBlock testWithDescriptor:globalPoolingResidualBlockDescToSwift(desc)
-                                         batchSize:[NSNumber numberWithInt:batchSize]
-                                            nnXLen:[NSNumber numberWithInt:nnXLen]
-                                            nnYLen:[NSNumber numberWithInt:nnYLen]
-                                             input:input
-                                              mask:mask
-                                            output:output];
+    testGlobalPoolingResidualBlock(globalPoolingResidualBlockDescToSwift(desc),
+                                   batchSize,
+                                   nnXLen,
+                                   nnYLen,
+                                   input,
+                                   mask,
+                                   output);
 }

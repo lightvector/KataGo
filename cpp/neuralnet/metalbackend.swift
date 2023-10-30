@@ -368,8 +368,8 @@ struct NetworkTester {
     }
 }
 
-/// A class that represents a description of convolutional layer.
-@objc class SWConvLayerDesc: NSObject {
+/// A struct that represents a description of convolutional layer.
+public struct SWConvLayerDesc {
     let convYSize: NSNumber
     let convXSize: NSNumber
     let inChannels: NSNumber
@@ -387,13 +387,13 @@ struct NetworkTester {
     ///   - dilationY: The dilation in the Y direction.
     ///   - dilationX: The dilation in the X direction.
     ///   - weights: A pointer to the weights.
-    @objc init(convYSize: NSNumber,
-               convXSize: NSNumber,
-               inChannels: NSNumber,
-               outChannels: NSNumber,
-               dilationY: Int,
-               dilationX: Int,
-               weights: UnsafeMutablePointer<Float32>) {
+    init(convYSize: NSNumber,
+         convXSize: NSNumber,
+         inChannels: NSNumber,
+         outChannels: NSNumber,
+         dilationY: Int,
+         dilationX: Int,
+         weights: UnsafeMutablePointer<Float32>) {
         self.convYSize = convYSize
         self.convXSize = convXSize
         self.inChannels = inChannels
@@ -404,8 +404,24 @@ struct NetworkTester {
     }
 }
 
+public func createSWConvLayerDesc(convYSize: Int32,
+                                  convXSize: Int32,
+                                  inChannels: Int32,
+                                  outChannels: Int32,
+                                  dilationY: Int32,
+                                  dilationX: Int32,
+                                  weights: UnsafeMutablePointer<Float32>) -> SWConvLayerDesc {
+    return SWConvLayerDesc(convYSize: convYSize as NSNumber,
+                           convXSize: convXSize as NSNumber,
+                           inChannels: inChannels as NSNumber,
+                           outChannels: outChannels as NSNumber,
+                           dilationY: Int(dilationY),
+                           dilationX: Int(dilationX),
+                           weights: weights)
+}
+
 /// A class that represents a convolutional layer using MPSGraph
-@objc class ConvLayer: NSObject {
+class ConvLayer {
     /// The result tensor of the convolutional operation
     let resultTensor: MPSGraphTensor
     /// The convolution 2D operation descriptor
@@ -426,12 +442,12 @@ struct NetworkTester {
     ///   - batchSize: The batch size of the input tensor
     ///   - input: A pointer to the input tensor data
     ///   - output: A pointer to the output tensor data
-    @objc class func test(descriptor: SWConvLayerDesc,
-                          nnXLen: NSNumber,
-                          nnYLen: NSNumber,
-                          batchSize: NSNumber,
-                          input: UnsafeMutablePointer<Float32>,
-                          output: UnsafeMutablePointer<Float32>) {
+    class func test(descriptor: SWConvLayerDesc,
+                    nnXLen: NSNumber,
+                    nnYLen: NSNumber,
+                    batchSize: NSNumber,
+                    input: UnsafeMutablePointer<Float32>,
+                    output: UnsafeMutablePointer<Float32>) {
         if let device = MTLCreateSystemDefaultDevice() {
             let graph = MPSGraph()
 
@@ -501,8 +517,22 @@ struct NetworkTester {
     }
 }
 
-/// A class that represents a description of a batch normalization layer.
-@objc class SWBatchNormLayerDesc: NSObject {
+public func testConvLayer(descriptor: SWConvLayerDesc,
+                          nnXLen: Int32,
+                          nnYLen: Int32,
+                          batchSize: Int32,
+                          input: UnsafeMutablePointer<Float32>,
+                          output: UnsafeMutablePointer<Float32>) {
+    ConvLayer.test(descriptor: descriptor,
+                   nnXLen: nnXLen as NSNumber,
+                   nnYLen: nnYLen as NSNumber,
+                   batchSize: batchSize as NSNumber,
+                   input: input,
+                   output: output)
+}
+
+/// A struct that represents a description of a batch normalization layer.
+public struct SWBatchNormLayerDesc {
     let numChannels: NSNumber
     let epsilon: Float32
     let hasScale: NSNumber
@@ -522,14 +552,14 @@ struct NetworkTester {
     ///   - variance: A pointer to the variance.
     ///   - scale: A pointer to the scale.
     ///   - bias: A pointer to the bias.
-    @objc init(numChannels: NSNumber,
-               epsilon: Float32,
-               hasScale: NSNumber,
-               hasBias: NSNumber,
-               mean: UnsafeMutablePointer<Float32>,
-               variance: UnsafeMutablePointer<Float32>,
-               scale: UnsafeMutablePointer<Float32>,
-               bias: UnsafeMutablePointer<Float32>) {
+    init(numChannels: NSNumber,
+         epsilon: Float32,
+         hasScale: NSNumber,
+         hasBias: NSNumber,
+         mean: UnsafeMutablePointer<Float32>,
+         variance: UnsafeMutablePointer<Float32>,
+         scale: UnsafeMutablePointer<Float32>,
+         bias: UnsafeMutablePointer<Float32>) {
         self.numChannels = numChannels
         self.epsilon = epsilon
         self.hasScale = hasScale
@@ -541,8 +571,26 @@ struct NetworkTester {
     }
 }
 
+public func createSWBatchNormLayerDesc(numChannels: Int32,
+                                       epsilon: Float32,
+                                       hasScale: Bool,
+                                       hasBias: Bool,
+                                       mean: UnsafeMutablePointer<Float32>,
+                                       variance: UnsafeMutablePointer<Float32>,
+                                       scale: UnsafeMutablePointer<Float32>,
+                                       bias: UnsafeMutablePointer<Float32>) -> SWBatchNormLayerDesc {
+    return SWBatchNormLayerDesc(numChannels: numChannels as NSNumber,
+                                epsilon: epsilon,
+                                hasScale: hasScale as NSNumber,
+                                hasBias: hasBias as NSNumber,
+                                mean: mean,
+                                variance: variance,
+                                scale: scale,
+                                bias: bias)
+}
+
 /// A class that represents a batch normalization layer.
-@objc class BatchNormLayer: NSObject {
+class BatchNormLayer {
     let resultTensor: MPSGraphTensor
 
     /// Executes a test for the batch normalization layer.
@@ -554,13 +602,13 @@ struct NetworkTester {
     ///   - input: A pointer to the input data.
     ///   - mask: A pointer to the mask data.
     ///   - output: A pointer to the output data.
-    @objc class func test(descriptor: SWBatchNormLayerDesc,
-                          nnXLen: NSNumber,
-                          nnYLen: NSNumber,
-                          batchSize: NSNumber,
-                          input: UnsafeMutablePointer<Float32>,
-                          mask: UnsafeMutablePointer<Float32>,
-                          output: UnsafeMutablePointer<Float32>) {
+    class func test(descriptor: SWBatchNormLayerDesc,
+                    nnXLen: NSNumber,
+                    nnYLen: NSNumber,
+                    batchSize: NSNumber,
+                    input: UnsafeMutablePointer<Float32>,
+                    mask: UnsafeMutablePointer<Float32>,
+                    output: UnsafeMutablePointer<Float32>) {
 
         NetworkTester.test(batchSize: batchSize,
                            nnXLen: nnXLen,
@@ -644,8 +692,24 @@ struct NetworkTester {
     }
 }
 
+public func testBatchNormLayer(descriptor: SWBatchNormLayerDesc,
+                               nnXLen: Int32,
+                               nnYLen: Int32,
+                               batchSize: Int32,
+                               input: UnsafeMutablePointer<Float32>,
+                               mask: UnsafeMutablePointer<Float32>,
+                               output: UnsafeMutablePointer<Float32>) {
+    BatchNormLayer.test(descriptor: descriptor,
+                        nnXLen: nnXLen as NSNumber,
+                        nnYLen: nnYLen as NSNumber,
+                        batchSize: batchSize as NSNumber,
+                        input: input,
+                        mask: mask,
+                        output: output)
+}
+
 /// An enumeration of the different kinds of activation function.
-@objc enum ActivationKind: Int {
+public enum ActivationKind {
     case identity
     case relu
     case mish
@@ -678,7 +742,7 @@ struct ActivationLayer {
 }
 
 /// A class that represents a residual block in a convolutional neural network.
-@objc class SWResidualBlockDesc: BlockDescriptor {
+public class SWResidualBlockDesc: BlockDescriptor {
     /// A description of the batch normalization layer that is applied before the first convolutional layer.
     let preBN: SWBatchNormLayerDesc
 
@@ -705,12 +769,12 @@ struct ActivationLayer {
     ///   - midBN: A description of the batch normalization layer that is applied after the middle convolutional layer.
     ///   - midActivation: The type of activation function that is applied after the middle convolutional layer.
     ///   - finalConv: A description of the convolutional layer that is applied at the end of the residual block.
-    @objc init(preBN: SWBatchNormLayerDesc,
-               preActivation: ActivationKind,
-               regularConv: SWConvLayerDesc,
-               midBN: SWBatchNormLayerDesc,
-               midActivation: ActivationKind,
-               finalConv: SWConvLayerDesc) {
+    init(preBN: SWBatchNormLayerDesc,
+         preActivation: ActivationKind,
+         regularConv: SWConvLayerDesc,
+         midBN: SWBatchNormLayerDesc,
+         midActivation: ActivationKind,
+         finalConv: SWConvLayerDesc) {
         self.preBN = preBN
         self.preActivation = preActivation
         self.regularConv = regularConv
@@ -720,8 +784,22 @@ struct ActivationLayer {
     }
 }
 
+public func createSWResidualBlockDesc(preBN: SWBatchNormLayerDesc,
+                                      preActivation: ActivationKind,
+                                      regularConv: SWConvLayerDesc,
+                                      midBN: SWBatchNormLayerDesc,
+                                      midActivation: ActivationKind,
+                                      finalConv: SWConvLayerDesc) -> SWResidualBlockDesc {
+    return SWResidualBlockDesc(preBN: preBN,
+                               preActivation: preActivation,
+                               regularConv: regularConv,
+                               midBN: midBN,
+                               midActivation: midActivation,
+                               finalConv: finalConv)
+}
+
 /// A class that represents a Residual Block layer
-@objc class ResidualBlock: NSObject {
+class ResidualBlock {
     let resultTensor: MPSGraphTensor
 
     /// A function that runs tests on the Residual Block layer
@@ -734,13 +812,13 @@ struct ActivationLayer {
     ///   - input: The input float32 pointer
     ///   - mask: The mask float32 pointer
     ///   - output: The output float32 pointer
-    @objc class func test(descriptor: SWResidualBlockDesc,
-                          batchSize: NSNumber,
-                          nnXLen: NSNumber,
-                          nnYLen: NSNumber,
-                          input: UnsafeMutablePointer<Float32>,
-                          mask: UnsafeMutablePointer<Float32>,
-                          output: UnsafeMutablePointer<Float32>) {
+    class func test(descriptor: SWResidualBlockDesc,
+                    batchSize: NSNumber,
+                    nnXLen: NSNumber,
+                    nnYLen: NSNumber,
+                    input: UnsafeMutablePointer<Float32>,
+                    mask: UnsafeMutablePointer<Float32>,
+                    output: UnsafeMutablePointer<Float32>) {
 
         NetworkTester.test(batchSize: batchSize,
                            nnXLen: nnXLen,
@@ -816,6 +894,22 @@ struct ActivationLayer {
 
         assert(resultTensor.shape?.count == 4)
     }
+}
+
+public func testResidualBlock(descriptor: SWResidualBlockDesc,
+                              batchSize: Int32,
+                              nnXLen: Int32,
+                              nnYLen: Int32,
+                              input: UnsafeMutablePointer<Float32>,
+                              mask: UnsafeMutablePointer<Float32>,
+                              output: UnsafeMutablePointer<Float32>) {
+    ResidualBlock.test(descriptor: descriptor,
+                       batchSize: batchSize as NSNumber,
+                       nnXLen: nnXLen as NSNumber,
+                       nnYLen: nnYLen as NSNumber,
+                       input: input,
+                       mask: mask,
+                       output: output)
 }
 
 /// A structure that represents a global pooling layer
@@ -907,8 +1001,8 @@ struct GlobalPoolingValueLayer {
     }
 }
 
-/// A class that represents a matrix multiplication layer descriptor
-@objc class SWMatMulLayerDesc: NSObject {
+/// A struct that represents a matrix multiplication layer descriptor
+public struct SWMatMulLayerDesc {
     /// The number of input channels
     let inChannels: NSNumber
     /// The number of output channels
@@ -921,13 +1015,21 @@ struct GlobalPoolingValueLayer {
     ///   - inChannels: The number of input channels
     ///   - outChannels: The number of output channels
     ///   - weights: The weights used for the matrix multiplication
-    @objc init(inChannels: NSNumber,
-               outChannels: NSNumber,
-               weights: UnsafeMutablePointer<Float32>) {
+    init(inChannels: NSNumber,
+         outChannels: NSNumber,
+         weights: UnsafeMutablePointer<Float32>) {
         self.inChannels = inChannels
         self.outChannels = outChannels
         self.weights = weights
     }
+}
+
+public func createSWMatMulLayerDesc(inChannels: Int32,
+                                    outChannels: Int32,
+                                    weights: UnsafeMutablePointer<Float32>) -> SWMatMulLayerDesc {
+    return SWMatMulLayerDesc(inChannels: inChannels as NSNumber,
+                             outChannels: outChannels as NSNumber,
+                             weights: weights)
 }
 
 /// A structure representing a matrix multiplication layer.
@@ -972,7 +1074,7 @@ struct MatMulLayer {
 }
 
 /// An Objective-C class that represents the bias layer description used in Swift.
-@objc class SWMatBiasLayerDesc: NSObject {
+public struct SWMatBiasLayerDesc {
     /// The number of channels.
     let numChannels: NSNumber
     /// The pointer to the weights.
@@ -982,11 +1084,17 @@ struct MatMulLayer {
     /// - Parameters:
     ///   - numChannels: The number of channels.
     ///   - weights: The pointer to the weights.
-    @objc init(numChannels: NSNumber,
-               weights: UnsafeMutablePointer<Float32>) {
+    init(numChannels: NSNumber,
+         weights: UnsafeMutablePointer<Float32>) {
         self.numChannels = numChannels
         self.weights = weights
     }
+}
+
+public func createSWMatBiasLayerDesc(numChannels: Int32,
+                                     weights: UnsafeMutablePointer<Float32>) -> SWMatBiasLayerDesc {
+    return SWMatBiasLayerDesc(numChannels: numChannels as NSNumber,
+                              weights: weights)
 }
 
 /// A structure that performs matrix bias operations
@@ -1056,7 +1164,7 @@ struct AddNCBiasLayer {
 }
 
 /// A class that represents a residual block with global pooling.
-@objc class SWGlobalPoolingResidualBlockDesc: BlockDescriptor {
+public class SWGlobalPoolingResidualBlockDesc: BlockDescriptor {
     /// The batch normalization layer before the residual block.
     let preBN: SWBatchNormLayerDesc
 
@@ -1099,16 +1207,16 @@ struct AddNCBiasLayer {
     ///   - midBN: The batch normalization layer after the matrix multiplication layer.
     ///   - midActivation: The activation function after the mid batch normalization layer.
     ///   - finalConv: The final convolutional layer in the residual block.
-    @objc init(preBN: SWBatchNormLayerDesc,
-               preActivation: ActivationKind,
-               regularConv: SWConvLayerDesc,
-               gpoolConv: SWConvLayerDesc,
-               gpoolBN: SWBatchNormLayerDesc,
-               gpoolActivation: ActivationKind,
-               gpoolToBiasMul: SWMatMulLayerDesc,
-               midBN: SWBatchNormLayerDesc,
-               midActivation: ActivationKind,
-               finalConv: SWConvLayerDesc) {
+    init(preBN: SWBatchNormLayerDesc,
+         preActivation: ActivationKind,
+         regularConv: SWConvLayerDesc,
+         gpoolConv: SWConvLayerDesc,
+         gpoolBN: SWBatchNormLayerDesc,
+         gpoolActivation: ActivationKind,
+         gpoolToBiasMul: SWMatMulLayerDesc,
+         midBN: SWBatchNormLayerDesc,
+         midActivation: ActivationKind,
+         finalConv: SWConvLayerDesc) {
         self.preBN = preBN
         self.preActivation = preActivation
         self.regularConv = regularConv
@@ -1122,8 +1230,31 @@ struct AddNCBiasLayer {
     }
 }
 
+public func createSWGlobalPoolingResidualBlockDesc(preBN: SWBatchNormLayerDesc,
+                                                   preActivation: ActivationKind,
+                                                   regularConv: SWConvLayerDesc,
+                                                   gpoolConv: SWConvLayerDesc,
+                                                   gpoolBN: SWBatchNormLayerDesc,
+                                                   gpoolActivation: ActivationKind,
+                                                   gpoolToBiasMul: SWMatMulLayerDesc,
+                                                   midBN: SWBatchNormLayerDesc,
+                                                   midActivation: ActivationKind,
+                                                   finalConv: SWConvLayerDesc) -> SWGlobalPoolingResidualBlockDesc {
+
+    return SWGlobalPoolingResidualBlockDesc(preBN: preBN,
+                                            preActivation: preActivation,
+                                            regularConv: regularConv,
+                                            gpoolConv: gpoolConv,
+                                            gpoolBN: gpoolBN,
+                                            gpoolActivation: gpoolActivation,
+                                            gpoolToBiasMul: gpoolToBiasMul,
+                                            midBN: midBN,
+                                            midActivation: midActivation,
+                                            finalConv: finalConv)
+}
+
 /// A class representing a residual block with global pooling
-@objc class GlobalPoolingResidualBlock: NSObject {
+class GlobalPoolingResidualBlock {
     let resultTensor: MPSGraphTensor
 
     /// A method to test the global pooling residual block
@@ -1136,13 +1267,13 @@ struct AddNCBiasLayer {
     ///   - input: The input pointer
     ///   - mask: The mask pointer
     ///   - output: The output pointer
-    @objc class func test(descriptor: SWGlobalPoolingResidualBlockDesc,
-                          batchSize: NSNumber,
-                          nnXLen: NSNumber,
-                          nnYLen: NSNumber,
-                          input: UnsafeMutablePointer<Float32>,
-                          mask: UnsafeMutablePointer<Float32>,
-                          output: UnsafeMutablePointer<Float32>) {
+    class func test(descriptor: SWGlobalPoolingResidualBlockDesc,
+                    batchSize: NSNumber,
+                    nnXLen: NSNumber,
+                    nnYLen: NSNumber,
+                    input: UnsafeMutablePointer<Float32>,
+                    mask: UnsafeMutablePointer<Float32>,
+                    output: UnsafeMutablePointer<Float32>) {
 
         NetworkTester.test(batchSize: batchSize,
                            nnXLen: nnXLen,
@@ -1271,8 +1402,24 @@ struct AddNCBiasLayer {
     }
 }
 
+public func testGlobalPoolingResidualBlock(descriptor: SWGlobalPoolingResidualBlockDesc,
+                                           batchSize: Int32,
+                                           nnXLen: Int32,
+                                           nnYLen: Int32,
+                                           input: UnsafeMutablePointer<Float32>,
+                                           mask: UnsafeMutablePointer<Float32>,
+                                           output: UnsafeMutablePointer<Float32>) {
+    GlobalPoolingResidualBlock.test(descriptor: descriptor,
+                                    batchSize: batchSize as NSNumber,
+                                    nnXLen: nnXLen as NSNumber,
+                                    nnYLen: nnYLen as NSNumber,
+                                    input: input,
+                                    mask: mask,
+                                    output: output)
+}
+
 /// A class that represents a nested bottleneck residual block
-@objc class SWNestedBottleneckResidualBlockDesc: BlockDescriptor {
+public class SWNestedBottleneckResidualBlockDesc: BlockDescriptor {
     /// The batch normalization layer before the residual block.
     let preBN: SWBatchNormLayerDesc
 
@@ -1302,13 +1449,13 @@ struct AddNCBiasLayer {
     ///   - postBN: The batch normalization layer after the residual block.
     ///   - postActivation: The activation function after the post batch normalization layer.
     ///   - postConv: The convolutional layer after the post activation layer.
-    @objc init(preBN: SWBatchNormLayerDesc,
-               preActivation: ActivationKind,
-               preConv: SWConvLayerDesc,
-               blockDescriptors: [BlockDescriptor],
-               postBN: SWBatchNormLayerDesc,
-               postActivation: ActivationKind,
-               postConv: SWConvLayerDesc) {
+    init(preBN: SWBatchNormLayerDesc,
+         preActivation: ActivationKind,
+         preConv: SWConvLayerDesc,
+         blockDescriptors: [BlockDescriptor],
+         postBN: SWBatchNormLayerDesc,
+         postActivation: ActivationKind,
+         postConv: SWConvLayerDesc) {
         self.preBN = preBN
         self.preActivation = preActivation
         self.preConv = preConv
@@ -1319,7 +1466,35 @@ struct AddNCBiasLayer {
     }
 }
 
-@objc class BlockDescriptor: NSObject {
+public func createSWNestedBottleneckResidualBlockDesc(preBN: SWBatchNormLayerDesc,
+                                                      preActivation: ActivationKind,
+                                                      preConv: SWConvLayerDesc,
+                                                      blockDescriptors: [BlockDescriptor],
+                                                      postBN: SWBatchNormLayerDesc,
+                                                      postActivation: ActivationKind,
+                                                      postConv: SWConvLayerDesc) -> SWNestedBottleneckResidualBlockDesc {
+    return SWNestedBottleneckResidualBlockDesc(preBN: preBN,
+                                               preActivation: preActivation,
+                                               preConv: preConv,
+                                               blockDescriptors: blockDescriptors,
+                                               postBN: postBN,
+                                               postActivation: postActivation,
+                                               postConv: postConv)
+}
+
+public class BlockDescriptor {
+}
+
+public class BlockDescriptorBuilder {
+    public var blockDescriptors: [BlockDescriptor] = []
+
+    public func enque(with descriptor: BlockDescriptor) {
+        blockDescriptors.append(descriptor)
+    }
+}
+
+public func createBlockDescriptorBuilder() -> BlockDescriptorBuilder {
+    return BlockDescriptorBuilder()
 }
 
 /// A structure that represents a block stack
@@ -1509,7 +1684,7 @@ struct NestedBottleneckResidualBlock {
 }
 
 /// A class that describes a trunk for a neural network
-@objc class SWTrunkDesc: NSObject {
+public class SWTrunkDesc {
     /// The version of the ResNet trunk
     let version: Int
     /// Number of channels for the trunk
@@ -1543,16 +1718,16 @@ struct NestedBottleneckResidualBlock {
     ///   - blockDescriptors: The list of blocks that make up the trunk
     ///   - trunkTipBN: The description of the batch normalization layer that is applied at the end of the trunk
     ///   - trunkTipActivation: The activation function that is applied at the end of the trunk
-    @objc init(version: Int,
-               trunkNumChannels: NSNumber,
-               midNumChannels: NSNumber,
-               regularNumChannels: NSNumber,
-               gpoolNumChannels: NSNumber,
-               initialConv: SWConvLayerDesc,
-               initialMatMul: SWMatMulLayerDesc,
-               blockDescriptors: [BlockDescriptor],
-               trunkTipBN: SWBatchNormLayerDesc,
-               trunkTipActivation: ActivationKind) {
+    init(version: Int,
+         trunkNumChannels: NSNumber,
+         midNumChannels: NSNumber,
+         regularNumChannels: NSNumber,
+         gpoolNumChannels: NSNumber,
+         initialConv: SWConvLayerDesc,
+         initialMatMul: SWMatMulLayerDesc,
+         blockDescriptors: [BlockDescriptor],
+         trunkTipBN: SWBatchNormLayerDesc,
+         trunkTipActivation: ActivationKind) {
         self.version = version
         self.trunkNumChannels = trunkNumChannels
         self.midNumChannels = midNumChannels
@@ -1564,6 +1739,28 @@ struct NestedBottleneckResidualBlock {
         self.trunkTipBN = trunkTipBN
         self.trunkTipActivation = trunkTipActivation
     }
+}
+
+public func createSWTrunkDesc(version: Int32,
+                              trunkNumChannels: Int32,
+                              midNumChannels: Int32,
+                              regularNumChannels: Int32,
+                              gpoolNumChannels: Int32,
+                              initialConv: SWConvLayerDesc,
+                              initialMatMul: SWMatMulLayerDesc,
+                              blockDescriptors: [BlockDescriptor],
+                              trunkTipBN: SWBatchNormLayerDesc,
+                              trunkTipActivation: ActivationKind) -> SWTrunkDesc {
+    return SWTrunkDesc(version: Int(version),
+                       trunkNumChannels: trunkNumChannels as NSNumber,
+                       midNumChannels: midNumChannels as NSNumber,
+                       regularNumChannels: regularNumChannels as NSNumber,
+                       gpoolNumChannels: gpoolNumChannels as NSNumber,
+                       initialConv: initialConv,
+                       initialMatMul: initialMatMul,
+                       blockDescriptors: blockDescriptors,
+                       trunkTipBN: trunkTipBN,
+                       trunkTipActivation: trunkTipActivation)
 }
 
 /// A structure representing a ResNet trunk for a neural network
@@ -1641,7 +1838,7 @@ struct Trunk {
 
 /// A class that describes a policy head for a neural network, responsible for predicting
 /// the best moves for the current player and the opposing player on the subsequent turn.
-@objc class SWPolicyHeadDesc: NSObject {
+public struct SWPolicyHeadDesc {
     /// The version of the policy head
     let version: Int
     /// The 1x1 convolution layer for P
@@ -1675,16 +1872,16 @@ struct Trunk {
     ///   - p1Activation: The activation function for P
     ///   - p2Conv: The 1x1 convolution layer with 2 channels for outputting two policy distributions
     ///   - gpoolToPassMul: The fully connected linear layer for outputting logits for the pass move
-    @objc init(version: Int,
-               p1Conv: SWConvLayerDesc,
-               g1Conv: SWConvLayerDesc,
-               g1BN: SWBatchNormLayerDesc,
-               g1Activation: ActivationKind,
-               gpoolToBiasMul: SWMatMulLayerDesc,
-               p1BN: SWBatchNormLayerDesc,
-               p1Activation: ActivationKind,
-               p2Conv: SWConvLayerDesc,
-               gpoolToPassMul: SWMatMulLayerDesc) {
+    init(version: Int,
+         p1Conv: SWConvLayerDesc,
+         g1Conv: SWConvLayerDesc,
+         g1BN: SWBatchNormLayerDesc,
+         g1Activation: ActivationKind,
+         gpoolToBiasMul: SWMatMulLayerDesc,
+         p1BN: SWBatchNormLayerDesc,
+         p1Activation: ActivationKind,
+         p2Conv: SWConvLayerDesc,
+         gpoolToPassMul: SWMatMulLayerDesc) {
         self.version = version
         self.p1Conv = p1Conv
         self.g1Conv = g1Conv
@@ -1696,6 +1893,28 @@ struct Trunk {
         self.p2Conv = p2Conv
         self.gpoolToPassMul = gpoolToPassMul
     }
+}
+
+public func createSWPolicyHeadDesc(version: Int32,
+                                   p1Conv: SWConvLayerDesc,
+                                   g1Conv: SWConvLayerDesc,
+                                   g1BN: SWBatchNormLayerDesc,
+                                   g1Activation: ActivationKind,
+                                   gpoolToBiasMul: SWMatMulLayerDesc,
+                                   p1BN: SWBatchNormLayerDesc,
+                                   p1Activation: ActivationKind,
+                                   p2Conv: SWConvLayerDesc,
+                                   gpoolToPassMul: SWMatMulLayerDesc) -> SWPolicyHeadDesc {
+    return SWPolicyHeadDesc(version: Int(version),
+                            p1Conv: p1Conv,
+                            g1Conv: g1Conv,
+                            g1BN: g1BN,
+                            g1Activation: g1Activation,
+                            gpoolToBiasMul: gpoolToBiasMul,
+                            p1BN: p1BN,
+                            p1Activation: p1Activation,
+                            p2Conv: p2Conv,
+                            gpoolToPassMul: gpoolToPassMul)
 }
 
 /// A structure that represents a policy head of a neural network.
@@ -1796,8 +2015,8 @@ struct PolicyHead {
     }
 }
 
-/// A class that describes the value head of a neural network
-@objc class SWValueHeadDesc: NSObject {
+/// A struct that describes the value head of a neural network
+public struct SWValueHeadDesc {
     /// The version of the value head
     let version: Int
     /// The description of the first convolutional layer in the value head
@@ -1837,18 +2056,18 @@ struct PolicyHead {
     ///   - sv3Mul: The description of the matrix multiplication layer that is applied to the output of the third bias layer in the value head
     ///   - sv3Bias: The description of the bias layer that is applied to the output of the matrix multiplication layer in the value head
     ///   - vOwnershipConv: The description of the convolutional layer that is applied to the board ownership map in the value head
-    @objc init(version: Int,
-               v1Conv: SWConvLayerDesc,
-               v1BN: SWBatchNormLayerDesc,
-               v1Activation: ActivationKind,
-               v2Mul: SWMatMulLayerDesc,
-               v2Bias: SWMatBiasLayerDesc,
-               v2Activation: ActivationKind,
-               v3Mul: SWMatMulLayerDesc,
-               v3Bias: SWMatBiasLayerDesc,
-               sv3Mul: SWMatMulLayerDesc,
-               sv3Bias: SWMatBiasLayerDesc,
-               vOwnershipConv: SWConvLayerDesc) {
+    init(version: Int,
+         v1Conv: SWConvLayerDesc,
+         v1BN: SWBatchNormLayerDesc,
+         v1Activation: ActivationKind,
+         v2Mul: SWMatMulLayerDesc,
+         v2Bias: SWMatBiasLayerDesc,
+         v2Activation: ActivationKind,
+         v3Mul: SWMatMulLayerDesc,
+         v3Bias: SWMatBiasLayerDesc,
+         sv3Mul: SWMatMulLayerDesc,
+         sv3Bias: SWMatBiasLayerDesc,
+         vOwnershipConv: SWConvLayerDesc) {
         self.version = version
         self.v1Conv = v1Conv
         self.v1BN = v1BN
@@ -1862,6 +2081,32 @@ struct PolicyHead {
         self.sv3Bias = sv3Bias
         self.vOwnershipConv = vOwnershipConv
     }
+}
+
+public func createSWValueHeadDesc(version: Int32,
+                                  v1Conv: SWConvLayerDesc,
+                                  v1BN: SWBatchNormLayerDesc,
+                                  v1Activation: ActivationKind,
+                                  v2Mul: SWMatMulLayerDesc,
+                                  v2Bias: SWMatBiasLayerDesc,
+                                  v2Activation: ActivationKind,
+                                  v3Mul: SWMatMulLayerDesc,
+                                  v3Bias: SWMatBiasLayerDesc,
+                                  sv3Mul: SWMatMulLayerDesc,
+                                  sv3Bias: SWMatBiasLayerDesc,
+                                  vOwnershipConv: SWConvLayerDesc) -> SWValueHeadDesc {
+    return SWValueHeadDesc(version: Int(version),
+                           v1Conv: v1Conv,
+                           v1BN: v1BN,
+                           v1Activation: v1Activation,
+                           v2Mul: v2Mul,
+                           v2Bias: v2Bias,
+                           v2Activation: v2Activation,
+                           v3Mul: v3Mul,
+                           v3Bias: v3Bias,
+                           sv3Mul: sv3Mul,
+                           sv3Bias: sv3Bias,
+                           vOwnershipConv: vOwnershipConv)
 }
 
 /// A structure that creates a value head for the neural network, which produces the value, score value, and ownership tensors.
@@ -1965,8 +2210,8 @@ struct ValueHead {
 }
 
 
-/// A class that describes a neural network model used for playing the game of Go.
-@objc class SWModelDesc : NSObject {
+/// A struct that describes a neural network model used for playing the game of Go.
+public struct SWModelDesc {
     /// The version of the model.
     let version: Int
     /// The name of the model.
@@ -2000,16 +2245,16 @@ struct ValueHead {
     ///   - trunk: The description of the trunk that makes up the backbone of the model.
     ///   - policyHead: The description of the policy head that predicts the probability of playing at a particular position.
     ///   - valueHead: The description of the value head that predicts the expected outcome of a game state.
-    @objc init(version: Int,
-               name: String,
-               numInputChannels: NSNumber,
-               numInputGlobalChannels: NSNumber,
-               numValueChannels: NSNumber,
-               numScoreValueChannels: NSNumber,
-               numOwnershipChannels: NSNumber,
-               trunk: SWTrunkDesc,
-               policyHead: SWPolicyHeadDesc,
-               valueHead: SWValueHeadDesc) {
+    init(version: Int,
+         name: String,
+         numInputChannels: NSNumber,
+         numInputGlobalChannels: NSNumber,
+         numValueChannels: NSNumber,
+         numScoreValueChannels: NSNumber,
+         numOwnershipChannels: NSNumber,
+         trunk: SWTrunkDesc,
+         policyHead: SWPolicyHeadDesc,
+         valueHead: SWValueHeadDesc) {
         self.version = version
         self.name = name
         self.numInputChannels = numInputChannels
@@ -2021,6 +2266,28 @@ struct ValueHead {
         self.policyHead = policyHead
         self.valueHead = valueHead
     }
+}
+
+public func createSWModelDesc(version: Int32,
+                              name: String,
+                              numInputChannels: Int32,
+                              numInputGlobalChannels: Int32,
+                              numValueChannels: Int32,
+                              numScoreValueChannels: Int32,
+                              numOwnershipChannels: Int32,
+                              trunk: SWTrunkDesc,
+                              policyHead: SWPolicyHeadDesc,
+                              valueHead: SWValueHeadDesc) -> SWModelDesc {
+    return SWModelDesc(version: Int(version),
+                       name: name,
+                       numInputChannels: numInputChannels as NSNumber,
+                       numInputGlobalChannels: numInputGlobalChannels as NSNumber,
+                       numValueChannels: numValueChannels as NSNumber,
+                       numScoreValueChannels: numScoreValueChannels as NSNumber,
+                       numOwnershipChannels: numOwnershipChannels as NSNumber,
+                       trunk: trunk,
+                       policyHead: policyHead,
+                       valueHead: valueHead)
 }
 
 /// A structure representing a neural network model for processing Go game states.
@@ -2243,14 +2510,14 @@ struct Model {
 }
 
 // A enum to represent enabled/disabled/auto option of a feature.
-@objc enum SWEnable: Int {
+public enum SWEnable {
     case False
     case True
     case Auto
 }
 
 /// A class that represents context of GPU devices.
-@objc class MetalComputeContext: NSObject {
+public class MetalComputeContext {
     static let defaultNnXLen: NSNumber = 19
     static let defaultNnYLen: NSNumber = 19
 
@@ -2268,10 +2535,10 @@ struct Model {
     ///   - nnYLen: The height of the input tensor.
     ///   - useFP16Mode: use FP16 mode or not.
     ///   - useNHWCMode: use NHWC mode or not.
-    @objc class func createInstance(nnXLen: NSNumber,
-                                    nnYLen: NSNumber,
-                                    useFP16Mode: SWEnable,
-                                    useNHWCMode: SWEnable) {
+    class func createInstance(nnXLen: NSNumber,
+                              nnYLen: NSNumber,
+                              useFP16Mode: SWEnable,
+                              useNHWCMode: SWEnable) {
         objc_sync_enter(self)
         defer { objc_sync_exit(self) }
 
@@ -2280,7 +2547,7 @@ struct Model {
     }
 
     /// Destroy the context.
-    @objc class func destroyInstance() {
+    class func destroyInstance() {
         objc_sync_enter(self)
         defer { objc_sync_exit(self) }
 
@@ -2289,7 +2556,7 @@ struct Model {
 
     /// Get the context.
     /// - Returns: The context.
-    @objc class func getInstance() -> MetalComputeContext {
+    class func getInstance() -> MetalComputeContext {
         objc_sync_enter(self)
         defer { objc_sync_exit(self) }
 
@@ -2307,8 +2574,18 @@ struct Model {
     }
 }
 
+public func createMetalComputeContext(nnXLen: Int32,
+                                      nnYLen: Int32,
+                                      useFP16Mode: SWEnable,
+                                      useNHWCMode: SWEnable) {
+    MetalComputeContext.createInstance(nnXLen: nnXLen as NSNumber,
+                                       nnYLen: nnYLen as NSNumber,
+                                       useFP16Mode: useFP16Mode,
+                                       useNHWCMode: useNHWCMode)
+}
+
 /// A class that represents a handle of GPU device.
-@objc class MetalComputeHandle: NSObject {
+public class MetalComputeHandle {
     static var handles: [Int: MetalComputeHandle] = [:]
     let model: Model
 
@@ -2317,9 +2594,9 @@ struct Model {
     ///   - gpuIdxForThisThread: The index of GPU device.
     ///   - descriptor: The descriptor of the model.
     ///   - serverThreadIdx: The index of the server thread.
-    @objc class func createInstance(at gpuIdxForThisThread: Int,
-                                    descriptor: SWModelDesc,
-                                    serverThreadIdx: Int) {
+    class func createInstance(at gpuIdxForThisThread: Int,
+                              descriptor: SWModelDesc,
+                              serverThreadIdx: Int) {
         objc_sync_enter(self)
         defer { objc_sync_exit(self) }
 
@@ -2331,7 +2608,7 @@ struct Model {
     /// Gets the handle of GPU device.
     /// - Parameter gpuIdxForThisThread: The index of GPU device.
     /// - Returns: The handle of GPU device.
-    @objc class func getInstance(at gpuIdxForThisThread: Int) -> MetalComputeHandle? {
+    class func getInstance(at gpuIdxForThisThread: Int) -> MetalComputeHandle? {
         objc_sync_enter(self)
         defer { objc_sync_exit(self) }
         return handles[gpuIdxForThisThread]
@@ -2364,8 +2641,16 @@ struct Model {
     }
 }
 
+public func createMetalComputeHandle(at gpuIdxForThisThread: Int32,
+                                     descriptor: SWModelDesc,
+                                     serverThreadIdx: Int32) {
+    MetalComputeHandle.createInstance(at: Int(gpuIdxForThisThread),
+                                      descriptor: descriptor,
+                                      serverThreadIdx: Int(serverThreadIdx))
+}
+
 /// A class that represents Metal backend.
-@objc class MetalBackend : NSObject {
+class MetalBackend {
     /// Print all available devices.
     class func printDevices() {
         let device = MTLCreateSystemDefaultDevice()!
@@ -2374,13 +2659,13 @@ struct Model {
 
     /// Get width of the input tensor.
     /// - Returns: The width of the input tensor.
-    @objc class func getContextXLen() -> Int {
+    class func getContextXLen() -> Int {
         return MetalComputeContext.getInstance().nnXLen.intValue
     }
 
     /// Get height of the input tensor.
     /// - Returns: The height of the input tensor.
-    @objc class func getContextYLen() -> Int {
+    class func getContextYLen() -> Int {
         return MetalComputeContext.getInstance().nnYLen.intValue
     }
 
@@ -2395,15 +2680,15 @@ struct Model {
     ///   - scoreValueOutput: The score value output data.
     ///   - gpuIdx: The index of the GPU to use.
     ///   - batchSize: The batch size.
-    @objc class func getOutput(userInputBuffer: UnsafeMutablePointer<Float32>,
-                               userInputGlobalBuffer: UnsafeMutablePointer<Float32>,
-                               policyOutput: UnsafeMutablePointer<Float32>,
-                               policyPassOutput: UnsafeMutablePointer<Float32>,
-                               valueOutput: UnsafeMutablePointer<Float32>,
-                               ownershipOutput: UnsafeMutablePointer<Float32>,
-                               scoreValueOutput: UnsafeMutablePointer<Float32>,
-                               gpuIdx: Int,
-                               batchSize: Int) {
+    class func getOutput(userInputBuffer: UnsafeMutablePointer<Float32>,
+                         userInputGlobalBuffer: UnsafeMutablePointer<Float32>,
+                         policyOutput: UnsafeMutablePointer<Float32>,
+                         policyPassOutput: UnsafeMutablePointer<Float32>,
+                         valueOutput: UnsafeMutablePointer<Float32>,
+                         ownershipOutput: UnsafeMutablePointer<Float32>,
+                         scoreValueOutput: UnsafeMutablePointer<Float32>,
+                         gpuIdx: Int,
+                         batchSize: Int) {
         autoreleasepool {
             let handle = MetalComputeHandle.getInstance(at: gpuIdx)
 
