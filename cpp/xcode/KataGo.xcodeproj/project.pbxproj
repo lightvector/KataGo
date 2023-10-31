@@ -76,7 +76,6 @@
 		E10ACAB12928A6D30004AB17 /* main.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 50827347EBFE4467996C3150 /* main.cpp */; };
 		E10ACAB22928A6D30004AB17 /* desc.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 5D8F26726AAF403C833FBD7F /* desc.cpp */; };
 		E10ACAB32928A6D30004AB17 /* metalbackend.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4845ACCEFC204BA89C033482 /* metalbackend.cpp */; };
-		E10ACAB42928A6D30004AB17 /* metalbackend.mm in Sources */ = {isa = PBXBuildFile; fileRef = D555BE954F924C7886538563 /* metalbackend.mm */; };
 		E10ACAB52928A6D30004AB17 /* modelversion.cpp in Sources */ = {isa = PBXBuildFile; fileRef = DDCAE99038794BE8B4BB3962 /* modelversion.cpp */; };
 		E10ACAB62928A6D30004AB17 /* nneval.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 92C3AF4C79ED491988E9C5BC /* nneval.cpp */; };
 		E10ACAB72928A6D30004AB17 /* nninputs.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D41000BDB70543A4820D445A /* nninputs.cpp */; };
@@ -267,7 +266,6 @@
 		D1DFBE2386CE449D82894520 /* testtrainingwrite.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = testtrainingwrite.cpp; path = tests/testtrainingwrite.cpp; sourceTree = SOURCE_ROOT; };
 		D41000BDB70543A4820D445A /* nninputs.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = nninputs.cpp; path = neuralnet/nninputs.cpp; sourceTree = SOURCE_ROOT; };
 		D49AE95F1DD947B5BFF58C1F /* contribute.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = contribute.cpp; path = command/contribute.cpp; sourceTree = SOURCE_ROOT; };
-		D555BE954F924C7886538563 /* metalbackend.mm */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.objcpp; fileEncoding = 4; name = metalbackend.mm; path = neuralnet/metalbackend.mm; sourceTree = SOURCE_ROOT; };
 		D61629242F5143EBB2D9BEC9 /* base64.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = base64.cpp; path = core/base64.cpp; sourceTree = SOURCE_ROOT; };
 		D645BB8AAF424700A75ED223 /* threadsafecounter.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = threadsafecounter.cpp; path = core/threadsafecounter.cpp; sourceTree = SOURCE_ROOT; };
 		D8710CF2CCA3478EB65063C6 /* gatekeeper.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = gatekeeper.cpp; path = command/gatekeeper.cpp; sourceTree = SOURCE_ROOT; };
@@ -430,7 +428,6 @@
 				948AF9E88374487D85E846C2 /* match.cpp */,
 				BE7F7520CA15440EBDF0A21D /* md5.cpp */,
 				4845ACCEFC204BA89C033482 /* metalbackend.cpp */,
-				D555BE954F924C7886538563 /* metalbackend.mm */,
 				E199A6F428E1E6D400A2E051 /* metalbackend.swift */,
 				64D3C3432AB3409C942F7A0E /* misc.cpp */,
 				DDCAE99038794BE8B4BB3962 /* modelversion.cpp */,
@@ -654,7 +651,6 @@
 				E10ACAB12928A6D30004AB17 /* main.cpp in Sources */,
 				E10ACAB22928A6D30004AB17 /* desc.cpp in Sources */,
 				E10ACAB32928A6D30004AB17 /* metalbackend.cpp in Sources */,
-				E10ACAB42928A6D30004AB17 /* metalbackend.mm in Sources */,
 				E10ACAB52928A6D30004AB17 /* modelversion.cpp in Sources */,
 				E10ACAB62928A6D30004AB17 /* nneval.cpp in Sources */,
 				E10ACAB72928A6D30004AB17 /* nninputs.cpp in Sources */,

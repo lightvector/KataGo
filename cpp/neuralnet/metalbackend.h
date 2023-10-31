@@ -48,21 +48,6 @@ namespace MetalProcess {
     int numBatchEltsFilled,
     NNResultBuf** inputBufs,
     vector<NNOutput*>& outputs);
-
-  /// Create a Metal computing context.
-  /// - Parameters:
-  ///   - nnXLen: The length of the neural network input in the x dimension.
-  ///   - nnYLen: The length of the neural network input in the y dimension.
-  ///   - inputUseFP16Mode: Whether to use 16-bit floating-point precision or not.
-  ///   - inputUseNHWCMode: Whether to use NHWC mode or not.
-  void createMetalContext(int nnXLen, int nnYLen, enabled_t inputUseFP16Mode, enabled_t inputUseNHWCMode);
-
-  /// Create a Metal computing handle.
-  /// - Parameters:
-  ///   - gpuIdxForThisThread: A GPU index for this thread.
-  ///   - desc: A model description.
-  ///   - serverThreadIdx: A server thread index.
-  void createMetalHandle(int gpuIdxForThisThread, const ModelDesc* desc, int serverThreadIdx);
 };
 
 /**
