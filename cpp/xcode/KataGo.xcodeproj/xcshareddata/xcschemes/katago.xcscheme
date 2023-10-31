@@ -60,6 +60,10 @@
             argument = "gtp -config coreml_example.cfg -model model.bin.gz"
             isEnabled = "YES">
          </CommandLineArgument>
+         <CommandLineArgument
+            argument = "runnnlayertests"
+            isEnabled = "NO">
+         </CommandLineArgument>
       </CommandLineArguments>
    </LaunchAction>
    <ProfileAction

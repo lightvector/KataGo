@@ -918,6 +918,9 @@ bool NeuralNet::testEvaluateConv(
   const vector<float>& inputBuffer,
   vector<float>& outputBuffer) {
 
+  size_t numOutputFloats = (size_t)batchSize * nnXLen * nnYLen * desc->outChannels;
+  outputBuffer.resize(numOutputFloats);
+
   testConvLayer(convLayerDescToSwift(desc),
                 nnXLen,
                 nnYLen,
@@ -957,6 +960,9 @@ bool NeuralNet::testEvaluateBatchNorm(
   const vector<float>& maskBuffer,
   vector<float>& outputBuffer) {
 
+  size_t numOutputFloats = (size_t)batchSize * nnXLen * nnYLen * desc->numChannels;
+  outputBuffer.resize(numOutputFloats);
+
   testBatchNormLayer(batchNormLayerDescToSwift(desc),
                      nnXLen,
                      nnYLen,
@@ -995,7 +1001,10 @@ bool NeuralNet::testEvaluateResidualBlock(
   const vector<float>& maskBuffer,
   vector<float>& outputBuffer) {
 
-  testResidualBlock(residualBlockDescToSwift(desc), 
+  size_t numTrunkFloats = (size_t)batchSize * nnXLen * nnYLen * desc->preBN.numChannels;
+  outputBuffer.resize(numTrunkFloats);
+
+  testResidualBlock(residualBlockDescToSwift(desc),
                     batchSize,
                     nnXLen,
                     nnYLen,
@@ -1033,6 +1042,9 @@ bool NeuralNet::testEvaluateGlobalPoolingResidualBlock(
   const vector<float>& inputBuffer,
   const vector<float>& maskBuffer,
   vector<float>& outputBuffer) {
+
+  size_t numTrunkFloats = (size_t)batchSize * nnXLen * nnYLen * desc->preBN.numChannels;
+  outputBuffer.resize(numTrunkFloats);
 
   testGlobalPoolingResidualBlock(globalPoolingResidualBlockDescToSwift(desc),
                                  batchSize,
