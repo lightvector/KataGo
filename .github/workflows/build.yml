@@ -3,6 +3,7 @@ on:
   push:
     paths:
       - 'cpp/**'
+      - '.github/workflows/build.yml'
 
 jobs:
   build:
