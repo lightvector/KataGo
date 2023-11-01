@@ -7,47 +7,93 @@
 #include "../neuralnet/nneval.h"
 #include "../neuralnet/nninputs.h"
 #include "../neuralnet/nninterface.h"
+#include <metalswift.h>
 
 using namespace std;
+using namespace katago;
 
 namespace MetalProcess {
-  void copyRowData(float* dest, const float* src, size_t numElements);
-  void processRowData(size_t row, ComputeHandle* gpuHandle, InputBuffers* inputBuffers, NNResultBuf** inputBufs);
-  float policyOptimismCalc(const double policyOptimism, const float p, const float pOpt);
-  void processOptimism(InputBuffers* inputBuffers, NNOutput* currentOutput, const double policyOptimism, size_t row);
+SWConvLayerDesc convLayerDescToSwift(const ConvLayerDesc * desc);
+SWBatchNormLayerDesc batchNormLayerDescToSwift(const BatchNormLayerDesc * desc);
+ActivationKind activationLayerDescToSwift(const ActivationLayerDesc * desc);
+SWResidualBlockDesc residualBlockDescToSwift(const ResidualBlockDesc * desc);
+SWMatMulLayerDesc matMulLayerDescToSwift(const MatMulLayerDesc * desc);
+SWGlobalPoolingResidualBlockDesc globalPoolingResidualBlockDescToSwift(const GlobalPoolingResidualBlockDesc* desc);
+swift::Array<BlockDescriptor> residualBlocksToSwift(const vector<pair<int, unique_ptr_void>>& blocks);
+SWNestedBottleneckResidualBlockDesc nestedBottleneckResidualBlockDescToSwift(const NestedBottleneckResidualBlockDesc* desc);
+SWTrunkDesc trunkDescToSwift(const TrunkDesc * trunk);
+SWPolicyHeadDesc policyHeadDescToSwift(const PolicyHeadDesc * policyHead);
+SWMatBiasLayerDesc matBiasLayerDescToSwift(const MatBiasLayerDesc * desc);
+SWValueHeadDesc valueHeadDescToSwift(const ValueHeadDesc * valueHead);
 
-  void processPolicy(
-    InputBuffers* inputBuffers,
-    NNOutput* currentOutput,
-    const ComputeHandle* gpuHandle,
-    NNResultBuf* inputBuf,
-    size_t row);
+void createMetalComputeHandle(const ModelDesc* modelDesc,
+                              int gpuIdx,
+                              int serverThreadIdx);
 
-  void processValue(const InputBuffers* inputBuffers, NNOutput* currentOutput, const size_t row);
+bool testEvaluateConv(const ConvLayerDesc* desc,
+                      int batchSize,
+                      int nnXLen,
+                      int nnYLen,
+                      const vector<float>& inputBuffer,
+                      vector<float>& outputBuffer);
 
-  void processOwnership(
-    const InputBuffers* inputBuffers,
-    NNOutput* currentOutput,
-    const ComputeHandle* gpuHandle,
-    const int symmetry,
-    const size_t row);
+bool testEvaluateBatchNorm(const BatchNormLayerDesc* desc,
+                           int batchSize,
+                           int nnXLen,
+                           int nnYLen,
+                           const vector<float>& inputBuffer,
+                           const vector<float>& maskBuffer,
+                           vector<float>& outputBuffer);
 
-  void
-  processScoreValues(const InputBuffers* inputBuffers, NNOutput* currentOutput, const int version, const size_t row);
+bool testEvaluateResidualBlock(const ResidualBlockDesc* desc,
+                               int batchSize,
+                               int nnXLen,
+                               int nnYLen,
+                               const vector<float>& inputBuffer,
+                               const vector<float>& maskBuffer,
+                               vector<float>& outputBuffer);
 
-  void processRow(
-    size_t row,
-    const ComputeHandle* gpuHandle,
-    InputBuffers* inputBuffers,
-    NNResultBuf** inputBufs,
-    vector<NNOutput*>& outputs);
+bool testEvaluateGlobalPoolingResidualBlock(const GlobalPoolingResidualBlockDesc* desc,
+                                            int batchSize,
+                                            int nnXLen,
+                                            int nnYLen,
+                                            const vector<float>& inputBuffer,
+                                            const vector<float>& maskBuffer,
+                                            vector<float>& outputBuffer);
 
-  void getMetalOutput(
-    ComputeHandle* gpuHandle,
-    InputBuffers* inputBuffers,
-    int numBatchEltsFilled,
-    NNResultBuf** inputBufs,
-    vector<NNOutput*>& outputs);
+void copyRowData(float* dest, const float* src, size_t numElements);
+void processRowData(size_t row, ComputeHandle* gpuHandle, InputBuffers* inputBuffers, NNResultBuf** inputBufs);
+float policyOptimismCalc(const double policyOptimism, const float p, const float pOpt);
+void processOptimism(InputBuffers* inputBuffers, NNOutput* currentOutput, const double policyOptimism, size_t row);
+
+void processPolicy(InputBuffers* inputBuffers,
+                   NNOutput* currentOutput,
+                   const ComputeHandle* gpuHandle,
+                   NNResultBuf* inputBuf,
+                   size_t row);
+
+void processValue(const InputBuffers* inputBuffers, NNOutput* currentOutput, const size_t row);
+
+void processOwnership(const InputBuffers* inputBuffers,
+                      NNOutput* currentOutput,
+                      const ComputeHandle* gpuHandle,
+                      const int symmetry,
+                      const size_t row);
+
+void
+processScoreValues(const InputBuffers* inputBuffers, NNOutput* currentOutput, const int version, const size_t row);
+
+void processRow(size_t row,
+                const ComputeHandle* gpuHandle,
+                InputBuffers* inputBuffers,
+                NNResultBuf** inputBufs,
+                vector<NNOutput*>& outputs);
+
+void getMetalOutput(ComputeHandle* gpuHandle,
+                    InputBuffers* inputBuffers,
+                    int numBatchEltsFilled,
+                    NNResultBuf** inputBufs,
+                    vector<NNOutput*>& outputs);
 };
 
 /**
