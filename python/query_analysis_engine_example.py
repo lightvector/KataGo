@@ -28,10 +28,10 @@ def sgfmill_to_str(move: Move) -> str:
 
 class KataGo:
 
-    def __init__(self, katago_path: str, config_path: str, model_path: str):
+    def __init__(self, katago_path: str, config_path: str, model_path: str, additional_args: List[str] = []):
         self.query_counter = 0
         katago = subprocess.Popen(
-            [katago_path, "analysis", "-config", config_path, "-model", model_path],
+            [katago_path, "analysis", "-config", config_path, "-model", model_path, *additional_args],
             stdin=subprocess.PIPE,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
