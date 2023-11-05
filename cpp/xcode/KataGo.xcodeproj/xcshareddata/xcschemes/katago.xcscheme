@@ -53,7 +53,7 @@
       </BuildableProductRunnable>
       <CommandLineArguments>
          <CommandLineArgument
-            argument = "benchmark -config coreml_example.cfg -model model.bin.gz -t 8"
+            argument = "benchmark -config coreml_example.cfg -model model.bin.gz -t 16 -v 1600"
             isEnabled = "NO">
          </CommandLineArgument>
          <CommandLineArgument
