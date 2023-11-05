@@ -2313,7 +2313,7 @@ struct Model {
     /// The number of channels in the ownership output layer
     let numOwnershipChannels: NSNumber
     /// The command queue used to execute the graph on the GPU
-    let commandQueue: MTLCommandQueue?
+    let commandQueue: MTLCommandQueue
     /// The input layer of the neural network
     let input: InputLayer
     /// The global input layer of the neural network
@@ -2351,7 +2351,7 @@ struct Model {
         self.numValueChannels = descriptor.numValueChannels
         self.numScoreValueChannels = descriptor.numScoreValueChannels
         self.numOwnershipChannels = descriptor.numOwnershipChannels
-        commandQueue = device.makeCommandQueue()
+        commandQueue = device.makeCommandQueue()!
 
         input = InputLayer(graph: graph,
                            nnXLen: nnXLen,
@@ -2489,23 +2489,16 @@ struct Model {
                      inputGlobal.tensor: MPSGraphTensorData(inputGlobalArray),
                      mask.tensor: MPSGraphTensorData(maskArray)]
 
-        if let commandBuffer = commandQueue?.makeCommandBuffer() {
-            let mpsCommandBuffer = MPSCommandBuffer(commandBuffer: commandBuffer)
+        let fetch = graph.run(with: commandQueue,
+                              feeds: feeds,
+                              targetTensors: targetTensors,
+                              targetOperations: nil)
 
-            let fetch = graph.encode(to: mpsCommandBuffer,
-                                     feeds: feeds,
-                                     targetTensors: targetTensors,
-                                     targetOperations: nil,
-                                     executionDescriptor: nil)
-
-            mpsCommandBuffer.commit()
-            mpsCommandBuffer.waitUntilCompleted()
-            fetch[policyHead.policyTensor]?.mpsndarray().readBytes(policy)
-            fetch[policyHead.policyPassTensor]?.mpsndarray().readBytes(policyPass)
-            fetch[valueHead.valueTensor]?.mpsndarray().readBytes(value)
-            fetch[valueHead.scoreValueTensor]?.mpsndarray().readBytes(scoreValue)
-            fetch[valueHead.ownershipTensor]?.mpsndarray().readBytes(ownership)
-        }
+        fetch[policyHead.policyTensor]?.mpsndarray().readBytes(policy)
+        fetch[policyHead.policyPassTensor]?.mpsndarray().readBytes(policyPass)
+        fetch[valueHead.valueTensor]?.mpsndarray().readBytes(value)
+        fetch[valueHead.scoreValueTensor]?.mpsndarray().readBytes(scoreValue)
+        fetch[valueHead.ownershipTensor]?.mpsndarray().readBytes(ownership)
     }
 }
 
@@ -2690,16 +2683,14 @@ class MetalBackend {
                          gpuIdx: Int,
                          batchSize: Int) {
         autoreleasepool {
-            let handle = MetalComputeHandle.getInstance(at: gpuIdx)
-
-            handle?.model.apply(input: userInputBuffer,
-                                inputGlobal: userInputGlobalBuffer,
-                                policy: policyOutput,
-                                policyPass: policyPassOutput,
-                                value: valueOutput,
-                                scoreValue: scoreValueOutput,
-                                ownership: ownershipOutput,
-                                batchSize: batchSize)
+            MetalComputeHandle.handles[gpuIdx]?.model.apply(input: userInputBuffer,
+                                                            inputGlobal: userInputGlobalBuffer,
+                                                            policy: policyOutput,
+                                                            policyPass: policyPassOutput,
+                                                            value: valueOutput,
+                                                            scoreValue: scoreValueOutput,
+                                                            ownership: ownershipOutput,
+                                                            batchSize: batchSize)
         }
     }
 }
