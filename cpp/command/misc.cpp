@@ -604,6 +604,7 @@ int MainCmds::samplesgfs(const vector<string>& args) {
   string valueFluctuationModelFile;
   double valueFluctuationTurnScale;
   double valueFluctuationMaxWeight;
+  bool valueFluctuationMakeKomiFair;
 
   int minMinRank;
   int minMinRating;
@@ -641,6 +642,7 @@ int MainCmds::samplesgfs(const vector<string>& args) {
     TCLAP::ValueArg<string> valueFluctuationModelFileArg("","value-fluctuation-model","Upweight positions prior to value fluctuations",false,string(),"MODELFILE");
     TCLAP::ValueArg<double> valueFluctuationTurnScaleArg("","value-fluctuation-turn-scale","How much prior on average",false,1.0,"AVGTURNS");
     TCLAP::ValueArg<double> valueFluctuationMaxWeightArg("","value-fluctuation-max-weight","",false,10.0,"MAXWEIGHT");
+    TCLAP::SwitchArg valueFluctuationMakeKomiFairArg("","value-fluctuation-make-komi-fair","");
     TCLAP::ValueArg<int> minMinRankArg("","min-min-rank","Require both players in a game to have rank at least this",false,Sgf::RANK_UNKNOWN,"INT");
     TCLAP::ValueArg<int> minMinRatingArg("","min-min-rating","Require both players in a game to have rating at least this",false,-1000000000,"INT");
     TCLAP::ValueArg<string> requiredPlayerNameArg("","required-player-name","Require player making the move to have this name",false,string(),"NAME");
@@ -673,6 +675,7 @@ int MainCmds::samplesgfs(const vector<string>& args) {
     cmd.add(valueFluctuationModelFileArg);
     cmd.add(valueFluctuationTurnScaleArg);
     cmd.add(valueFluctuationMaxWeightArg);
+    cmd.add(valueFluctuationMakeKomiFairArg);
     cmd.add(minMinRankArg);
     cmd.add(minMinRatingArg);
     cmd.add(requiredPlayerNameArg);
@@ -704,6 +707,7 @@ int MainCmds::samplesgfs(const vector<string>& args) {
     valueFluctuationModelFile = valueFluctuationModelFileArg.getValue();
     valueFluctuationTurnScale = valueFluctuationTurnScaleArg.getValue();
     valueFluctuationMaxWeight = valueFluctuationMaxWeightArg.getValue();
+    valueFluctuationMakeKomiFair = valueFluctuationMakeKomiFairArg.getValue();
     minMinRank = minMinRankArg.getValue();
     minMinRating = minMinRatingArg.getValue();
     requiredPlayerName = requiredPlayerNameArg.getValue();
@@ -903,6 +907,16 @@ int MainCmds::samplesgfs(const vector<string>& args) {
       BoardHistory hist;
       Rules rules = compactSgf.getRulesOrFailAllowUnspecified(Rules::getSimpleTerritory());
       compactSgf.setupInitialBoardAndHist(rules, board, nextPla, hist);
+
+      if(valueFluctuationMakeKomiFair) {
+        Rand rand;
+        string searchRandSeed = Global::uint64ToString(rand.nextUInt64());
+        SearchParams params = SearchParams::basicDecentParams();
+        Search* search = new Search(params,valueFluctuationNNEval,&logger,searchRandSeed);
+        OtherGameProperties otherGameProps;
+        int64_t numVisits = 30;
+        PlayUtils::adjustKomiToEven(search, search, board, hist, nextPla, numVisits, otherGameProps, rand);
+      }
 
       const bool preventEncore = true;
       const vector<Move>& sgfMoves = compactSgf.moves;
