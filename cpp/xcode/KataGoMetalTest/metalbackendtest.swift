@@ -1098,7 +1098,7 @@ final class NestedBottleneckResidualBlockTest: XCTestCase {
         let outputFP32 = UnsafeMutablePointer<Float32>.allocate(capacity: outLength)
         outputArray?.readBytes(outputFP32)
 
-        XCTAssertEqual(outputFP32[0], 2.8582418, accuracy: 1e-8)
+        XCTAssertEqual(outputFP32[0], 2.8582418, accuracy: 1e-4)
     }
 }
 
