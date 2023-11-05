@@ -171,7 +171,7 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
-		063E4C878E7E43858A863A78 /* benchmark.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = benchmark.cpp; path = command/benchmark.cpp; sourceTree = SOURCE_ROOT; };
+		063E4C878E7E43858A863A78 /* benchmark.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; indentWidth = 2; name = benchmark.cpp; path = command/benchmark.cpp; sourceTree = SOURCE_ROOT; };
 		07DAAE05A9FA46F5B271903E /* searchmirror.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = searchmirror.cpp; path = search/searchmirror.cpp; sourceTree = SOURCE_ROOT; };
 		0E2F9938E72849F691272AA0 /* testsearch.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = testsearch.cpp; path = tests/testsearch.cpp; sourceTree = SOURCE_ROOT; };
 		0EDC97A2834E434691EA91C1 /* testsearchcommon.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = testsearchcommon.cpp; path = tests/testsearchcommon.cpp; sourceTree = SOURCE_ROOT; };
@@ -263,7 +263,7 @@
 		C33571C53ECC4C82B0A9DA7D /* searchnodetable.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = searchnodetable.cpp; path = search/searchnodetable.cpp; sourceTree = SOURCE_ROOT; };
 		CA66CE9038574A0BB16D80B6 /* evalsgf.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = evalsgf.cpp; path = command/evalsgf.cpp; sourceTree = SOURCE_ROOT; };
 		CAD1B260FFB74AF9BA66A58A /* fileutils.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = fileutils.cpp; path = core/fileutils.cpp; sourceTree = SOURCE_ROOT; };
-		D104762E63AF4C6A8ADB220E /* setup.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = setup.cpp; path = program/setup.cpp; sourceTree = SOURCE_ROOT; };
+		D104762E63AF4C6A8ADB220E /* setup.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; indentWidth = 2; name = setup.cpp; path = program/setup.cpp; sourceTree = SOURCE_ROOT; };
 		D1DFBE2386CE449D82894520 /* testtrainingwrite.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = testtrainingwrite.cpp; path = tests/testtrainingwrite.cpp; sourceTree = SOURCE_ROOT; };
 		D41000BDB70543A4820D445A /* nninputs.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = nninputs.cpp; path = neuralnet/nninputs.cpp; sourceTree = SOURCE_ROOT; };
 		D49AE95F1DD947B5BFF58C1F /* contribute.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = contribute.cpp; path = command/contribute.cpp; sourceTree = SOURCE_ROOT; };
@@ -770,6 +770,7 @@
 				DEAD_CODE_STRIPPING = YES;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = fast;
 				GCC_PREPROCESSOR_DEFINITIONS = (
 					NO_GIT_REVISION,
 					NO_LIBZIP,
