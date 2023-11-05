@@ -292,13 +292,13 @@ final class ConvLayerTest: XCTestCase {
 
         let inChannels: NSNumber = 1
 
-        let descriptor = SWConvLayerDesc(convYSize: convYSize as NSNumber,
-                                         convXSize: convXSize as NSNumber,
-                                         inChannels: inChannels,
-                                         outChannels: outChannels,
-                                         dilationY: 1,
-                                         dilationX: 1,
-                                         weights: weights)
+        let descriptor = createSWConvLayerDesc(convYSize: Int32(convYSize),
+                                               convXSize: Int32(convXSize),
+                                               inChannels: Int32(truncating: inChannels),
+                                               outChannels: Int32(truncating: outChannels),
+                                               dilationY: 1,
+                                               dilationX: 1,
+                                               weights: weights)
 
         let batchSize: NSNumber = 1
         let nnXLen: NSNumber = 3
@@ -319,12 +319,12 @@ final class ConvLayerTest: XCTestCase {
 
         let outputPointer = UnsafeMutablePointer<Float32>.allocate(capacity: outputLength)
 
-        ConvLayer.test(descriptor: descriptor,
-                       nnXLen: nnXLen,
-                       nnYLen: nnYLen,
-                       batchSize: batchSize,
-                       input: inputPointer,
-                       output: outputPointer)
+        testConvLayer(descriptor: descriptor,
+                      nnXLen: Int32(truncating: nnXLen),
+                      nnYLen: Int32(truncating: nnYLen),
+                      batchSize: Int32(truncating: batchSize),
+                      input: inputPointer,
+                      output: outputPointer)
 
         XCTAssertEqual(outputPointer[0], 0, accuracy: 1e-8)
         XCTAssertEqual(outputPointer[2], 0, accuracy: 1e-8)
@@ -367,14 +367,14 @@ final class BatchNormLayerTest: XCTestCase {
         bias[0] = 10
         bias[1] = 0
 
-        let descriptor = SWBatchNormLayerDesc(numChannels: numChannels,
-                                              epsilon: 0.1,
-                                              hasScale: true,
-                                              hasBias: true,
-                                              mean: mean,
-                                              variance: variance,
-                                              scale: scale,
-                                              bias: bias)
+        let descriptor = createSWBatchNormLayerDesc(numChannels: Int32(truncating: numChannels),
+                                                    epsilon: 0.1,
+                                                    hasScale: true,
+                                                    hasBias: true,
+                                                    mean: mean,
+                                                    variance: variance,
+                                                    scale: scale,
+                                                    bias: bias)
 
         let batchSize: NSNumber = 2
         let nnXLen: NSNumber = 5
@@ -411,13 +411,13 @@ final class BatchNormLayerTest: XCTestCase {
 
         let outputPointer = UnsafeMutablePointer<Float32>.allocate(capacity: outputLength)
 
-        BatchNormLayer.test(descriptor: descriptor,
-                            nnXLen: nnXLen,
-                            nnYLen: nnYLen,
-                            batchSize: batchSize,
-                            input: inputPointer,
-                            mask: maskPointer,
-                            output: outputPointer)
+        testBatchNormLayer(descriptor: descriptor,
+                           nnXLen: Int32(truncating: nnXLen),
+                           nnYLen: Int32(truncating: nnYLen),
+                           batchSize: Int32(truncating: batchSize),
+                           input: inputPointer,
+                           mask: maskPointer,
+                           output: outputPointer)
 
         XCTAssertEqual(outputPointer[0], 10.25, accuracy: 1e-8)
         XCTAssertEqual(outputPointer[8], 10.45, accuracy: 1e-8)
@@ -619,24 +619,24 @@ final class ResidualBlockTest: XCTestCase {
 
         finalConv.weights[0] = 1; finalConv.weights[1] = 1
 
-        let descriptor = SWResidualBlockDesc(preBN: preBN,
-                                             preActivation: ActivationKind.relu,
-                                             regularConv: regularConv,
-                                             midBN: midBN,
-                                             midActivation: ActivationKind.relu,
-                                             finalConv: finalConv)
+        let descriptor = createSWResidualBlockDesc(preBN: preBN,
+                                                   preActivation: ActivationKind.relu,
+                                                   regularConv: regularConv,
+                                                   midBN: midBN,
+                                                   midActivation: ActivationKind.relu,
+                                                   finalConv: finalConv)
 
         let outputLength = batchSize.intValue * trunkChannels.intValue * nnYLen.intValue * nnXLen.intValue
 
         let outputPointer = UnsafeMutablePointer<Float32>.allocate(capacity: outputLength)
 
-        ResidualBlock.test(descriptor: descriptor,
-                           batchSize: batchSize,
-                           nnXLen: nnXLen,
-                           nnYLen: nnYLen,
-                           input: inputPointer,
-                           mask: maskPointer,
-                           output: outputPointer)
+        testResidualBlock(descriptor: descriptor,
+                          batchSize: Int32(truncating: batchSize),
+                          nnXLen: Int32(truncating: nnXLen),
+                          nnYLen: Int32(truncating: nnYLen),
+                          input: inputPointer,
+                          mask: maskPointer,
+                          output: outputPointer)
 
         XCTAssertEqual(outputPointer[0], 1, accuracy: 1e-8)
         XCTAssertEqual(outputPointer[3], 0, accuracy: 1e-8)
@@ -873,9 +873,9 @@ final class GlobalPoolingResidualBlockTest: XCTestCase {
         gpoolBN.bias[0] = 0; gpoolBN.bias[1] = -2
 
         let gpoolToBiasMul =
-        SWMatMulLayerDesc(inChannels: 6,
-                          outChannels: 1,
-                          weights: UnsafeMutablePointer<Float32>.allocate(capacity: 6))
+        createSWMatMulLayerDesc(inChannels: 6,
+                                outChannels: 1,
+                                weights: UnsafeMutablePointer<Float32>.allocate(capacity: 6))
 
         gpoolToBiasMul.weights[0] = 36
         gpoolToBiasMul.weights[1] = 36
@@ -923,13 +923,13 @@ final class GlobalPoolingResidualBlockTest: XCTestCase {
 
         let outputPointer = UnsafeMutablePointer<Float32>.allocate(capacity: 24)
 
-        GlobalPoolingResidualBlock.test(descriptor: descriptor,
-                                        batchSize: batchSize,
-                                        nnXLen: nnXLen,
-                                        nnYLen: nnYLen,
-                                        input: inputPointer,
-                                        mask: maskPointer,
-                                        output: outputPointer)
+        testGlobalPoolingResidualBlock(descriptor: descriptor,
+                                       batchSize: Int32(truncating: batchSize),
+                                       nnXLen: Int32(truncating: nnXLen),
+                                       nnYLen: Int32(truncating: nnYLen),
+                                       input: inputPointer,
+                                       mask: maskPointer,
+                                       output: outputPointer)
 
         let y = UnsafeMutablePointer<Float32>.allocate(capacity: 24)
 
@@ -1025,13 +1025,13 @@ final class NestedBottleneckResidualBlockTest: XCTestCase {
                                            midActivation: preActivation,
                                            finalConv: preConv)
 
-        let nestedBottleneck = SWNestedBottleneckResidualBlockDesc(preBN: preBN,
-                                                                   preActivation: preActivation,
-                                                                   preConv: preConv,
-                                                                   blockDescriptors: [ordinary],
-                                                                   postBN: preBN,
-                                                                   postActivation: preActivation,
-                                                                   postConv: preConv)
+        let nestedBottleneck = createSWNestedBottleneckResidualBlockDesc(preBN: preBN,
+                                                                         preActivation: preActivation,
+                                                                         preConv: preConv,
+                                                                         blockDescriptors: [ordinary],
+                                                                         postBN: preBN,
+                                                                         postActivation: preActivation,
+                                                                         postConv: preConv)
 
         let descriptor = SWNestedBottleneckResidualBlockDesc(preBN: preBN,
                                                              preActivation: preActivation,
@@ -1347,8 +1347,8 @@ final class MatBiasLayerTest: XCTestCase {
         weights[0] = 1
         weights[1] = -1
 
-        let descriptor = SWMatBiasLayerDesc(numChannels: numChannels as NSNumber,
-                                            weights: weights)
+        let descriptor = createSWMatBiasLayerDesc(numChannels: Int32(numChannels),
+                                                  weights: weights)
 
         let graph = MPSGraph()
 
@@ -1542,29 +1542,29 @@ final class TrunkTest: XCTestCase {
                                                weights: gpoolToBiasMulWeights)
 
         let globalPoolingResidualBlock =
-        SWGlobalPoolingResidualBlockDesc(preBN: unityBN,
-                                         preActivation: ActivationKind.relu,
-                                         regularConv: unityConv,
-                                         gpoolConv: unityConv,
-                                         gpoolBN: unityBN,
-                                         gpoolActivation: ActivationKind.relu,
-                                         gpoolToBiasMul: gpoolToBiasMul,
-                                         midBN: unityBN,
-                                         midActivation: ActivationKind.relu,
-                                         finalConv: unityConv)
+        createSWGlobalPoolingResidualBlockDesc(preBN: unityBN,
+                                               preActivation: ActivationKind.relu,
+                                               regularConv: unityConv,
+                                               gpoolConv: unityConv,
+                                               gpoolBN: unityBN,
+                                               gpoolActivation: ActivationKind.relu,
+                                               gpoolToBiasMul: gpoolToBiasMul,
+                                               midBN: unityBN,
+                                               midActivation: ActivationKind.relu,
+                                               finalConv: unityConv)
 
         let blocks = [residualBlock, globalPoolingResidualBlock]
 
-        let descriptor = SWTrunkDesc(version: 0,
-                                     trunkNumChannels: numChannels as NSNumber,
-                                     midNumChannels: numChannels as NSNumber,
-                                     regularNumChannels: numChannels as NSNumber,
-                                     gpoolNumChannels: numChannels as NSNumber,
-                                     initialConv: unityConv,
-                                     initialMatMul: initialMatMul,
-                                     blockDescriptors: blocks,
-                                     trunkTipBN: unityBN,
-                                     trunkTipActivation: ActivationKind.relu)
+        let descriptor = createSWTrunkDesc(version: 0,
+                                           trunkNumChannels: Int32(numChannels),
+                                           midNumChannels: Int32(numChannels),
+                                           regularNumChannels: Int32(numChannels),
+                                           gpoolNumChannels: Int32(numChannels),
+                                           initialConv: unityConv,
+                                           initialMatMul: initialMatMul,
+                                           blockDescriptors: blocks,
+                                           trunkTipBN: unityBN,
+                                           trunkTipActivation: ActivationKind.relu)
 
         let graph = MPSGraph()
 
@@ -1773,16 +1773,16 @@ final class PolicyHeadTest: XCTestCase {
                                                outChannels: outChannels as NSNumber,
                                                weights: gpoolToPassMulWeights)
 
-        let descriptor = SWPolicyHeadDesc(version: 0,
-                                          p1Conv: unityConv,
-                                          g1Conv: unityConv,
-                                          g1BN: unityBN,
-                                          g1Activation: ActivationKind.relu,
-                                          gpoolToBiasMul: gpoolToBiasMul,
-                                          p1BN: unityBN,
-                                          p1Activation: ActivationKind.relu,
-                                          p2Conv: p2Conv,
-                                          gpoolToPassMul: gpoolToPassMul)
+        let descriptor = createSWPolicyHeadDesc(version: 0,
+                                                p1Conv: unityConv,
+                                                g1Conv: unityConv,
+                                                g1BN: unityBN,
+                                                g1Activation: ActivationKind.relu,
+                                                gpoolToBiasMul: gpoolToBiasMul,
+                                                p1BN: unityBN,
+                                                p1Activation: ActivationKind.relu,
+                                                p2Conv: p2Conv,
+                                                gpoolToPassMul: gpoolToPassMul)
 
         let graph = MPSGraph()
 
@@ -2038,18 +2038,18 @@ final class ValueHeadTest: XCTestCase {
                                              dilationX: 1,
                                              weights: vOwnershipConvWeights)
 
-        let descriptor = SWValueHeadDesc(version: 0,
-                                         v1Conv: v1Conv,
-                                         v1BN: v1BN,
-                                         v1Activation: ActivationKind.relu,
-                                         v2Mul: v2Mul,
-                                         v2Bias: v2Bias,
-                                         v2Activation: ActivationKind.relu,
-                                         v3Mul: v3Mul,
-                                         v3Bias: v3Bias,
-                                         sv3Mul: sv3Mul,
-                                         sv3Bias: sv3Bias,
-                                         vOwnershipConv: vOwnershipConv)
+        let descriptor = createSWValueHeadDesc(version: 0,
+                                               v1Conv: v1Conv,
+                                               v1BN: v1BN,
+                                               v1Activation: ActivationKind.relu,
+                                               v2Mul: v2Mul,
+                                               v2Bias: v2Bias,
+                                               v2Activation: ActivationKind.relu,
+                                               v3Mul: v3Mul,
+                                               v3Bias: v3Bias,
+                                               sv3Mul: sv3Mul,
+                                               sv3Bias: sv3Bias,
+                                               vOwnershipConv: vOwnershipConv)
 
         let graph = MPSGraph()
 
@@ -2255,16 +2255,16 @@ final class SWModelDescTest {
                                         sv3Bias: zeroMatBias,
                                         vOwnershipConv: unityConv)
 
-        let modelDesc = SWModelDesc(version: 0,
-                                    name: "test",
-                                    numInputChannels: 1,
-                                    numInputGlobalChannels: 1,
-                                    numValueChannels: 1,
-                                    numScoreValueChannels: 1,
-                                    numOwnershipChannels: 1,
-                                    trunk: trunkDesc,
-                                    policyHead: policyHead,
-                                    valueHead: valueHead)
+        let modelDesc = createSWModelDesc(version: 0,
+                                          name: "test",
+                                          numInputChannels: 1,
+                                          numInputGlobalChannels: 1,
+                                          numValueChannels: 1,
+                                          numScoreValueChannels: 1,
+                                          numOwnershipChannels: 1,
+                                          trunk: trunkDesc,
+                                          policyHead: policyHead,
+                                          valueHead: valueHead)
 
         return modelDesc
     }
@@ -2837,10 +2837,10 @@ final class ComputeContextTest: XCTestCase {
         let useFP16Mode: SWEnable = .False
         let useNHWCMode: SWEnable = .False
 
-        MetalComputeContext.createInstance(nnXLen: nnXLen,
-                                           nnYLen: nnYLen,
-                                           useFP16Mode: useFP16Mode,
-                                           useNHWCMode: useNHWCMode)
+        createMetalComputeContext(nnXLen: Int32(truncating: nnXLen),
+                                  nnYLen: Int32(truncating: nnYLen),
+                                  useFP16Mode: useFP16Mode,
+                                  useNHWCMode: useNHWCMode)
 
         let context = MetalComputeContext.getInstance()
 
@@ -2859,7 +2859,7 @@ final class ComputeContextTest: XCTestCase {
                                            useFP16Mode: useFP16Mode,
                                            useNHWCMode: useNHWCMode)
 
-        MetalComputeContext.destroyInstance()
+        destroyMetalContext()
 
         let context = MetalComputeContext.getInstance()
 
@@ -2880,9 +2880,9 @@ final class ComputeHandleTest: XCTestCase {
         let gpuIdxForThisThread = 0
         let swModelDesc = swModelDescTest.createMiniDesc()
 
-        MetalComputeHandle.createInstance(at: gpuIdxForThisThread,
-                                          descriptor: swModelDesc,
-                                          serverThreadIdx: 0)
+        createMetalComputeHandle(at: Int32(gpuIdxForThisThread),
+                                 descriptor: swModelDesc,
+                                 serverThreadIdx: 0)
 
         let handle = MetalComputeHandle.getInstance(at: gpuIdxForThisThread)
         let context = MetalComputeContext.getInstance()
@@ -2902,7 +2902,7 @@ final class MetalBackendTest: XCTestCase {
     let swModelDescTest = SWModelDescTest()
 
     func testPrintDevices() {
-        MetalBackend.printDevices()
+        printMetalDevices()
     }
 
     func testGetContextXLen() {
@@ -2914,7 +2914,7 @@ final class MetalBackendTest: XCTestCase {
                                            useFP16Mode: .False,
                                            useNHWCMode: .False)
 
-        XCTAssert(MetalBackend.getContextXLen() == nnXLen)
+        XCTAssert(getMetalContextXLen() == nnXLen)
     }
 
     func testGetContextYLen() {
@@ -2926,7 +2926,7 @@ final class MetalBackendTest: XCTestCase {
                                            useFP16Mode: .False,
                                            useNHWCMode: .False)
 
-        XCTAssert(MetalBackend.getContextYLen() == nnYLen)
+        XCTAssert(getMetalContextYLen() == nnYLen)
     }
 
     func testGetOutput() {
@@ -2951,15 +2951,15 @@ final class MetalBackendTest: XCTestCase {
         var scoreValueOutput = [Float32](repeating: 1, count: 1)
         var ownershipOutput = [Float32](repeating: 1, count: 1)
 
-        MetalBackend.getOutput(userInputBuffer: &input,
-                               userInputGlobalBuffer: &inputGlobal,
-                               policyOutput: &policyOutput,
-                               policyPassOutput: &policyPassOutput,
-                               valueOutput: &valueOutput,
-                               ownershipOutput: &ownershipOutput,
-                               scoreValueOutput: &scoreValueOutput,
-                               gpuIdx: gpuIdx,
-                               batchSize: 1)
+        getMetalHandleOutput(userInputBuffer: &input,
+                             userInputGlobalBuffer: &inputGlobal,
+                             policyOutput: &policyOutput,
+                             policyPassOutput: &policyPassOutput,
+                             valueOutput: &valueOutput,
+                             ownershipOutput: &ownershipOutput,
+                             scoreValueOutput: &scoreValueOutput,
+                             gpuIdx: gpuIdx,
+                             batchSize: 1)
 
         XCTAssertEqual(policyOutput[0], 101.68, accuracy: 1e-4)
         XCTAssertEqual(policyPassOutput[0], 68.88, accuracy: 1e-4)
