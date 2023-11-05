@@ -6,6 +6,7 @@
 #include "../neuralnet/nninterface.h"
 #include "../neuralnet/metalbackend.h"
 #include "../neuralnet/coremlbackend.h"
+#include "../tests/tests.h"
 
 /// Converts a ConvLayerDesc instance from C++ to Swift by creating a new SWConvLayerDesc instance with the same properties.
 /// - Parameter desc: The ConvLayerDesc instance to convert.
@@ -1096,6 +1097,10 @@ bool NeuralNet::testEvaluateGlobalPoolingResidualBlock(
   vector<float>& outputBuffer) {
 
   return MetalProcess::testEvaluateGlobalPoolingResidualBlock(desc, batchSize, nnXLen, nnYLen, inputBuffer, maskBuffer, outputBuffer);
+}
+
+void runNNLayerTests() {
+  Tests::runNNLayerTests();
 }
 
 #endif  // USE_COREML_BACKEND
