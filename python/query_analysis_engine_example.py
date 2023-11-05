@@ -16,9 +16,11 @@ import sgfmill.ascii_boards
 from typing import Tuple, List, Optional, Union, Literal
 
 Color = Union[Literal["b"],Literal["w"]]
-Move = Union[Literal["pass"],Tuple[int,int]]
+Move = Union[None,Literal["pass"],Tuple[int,int]]
 
 def sgfmill_to_str(move: Move) -> str:
+    if move is None:
+        return "pass"
     if move == "pass":
         return "pass"
     (y,x) = move
