@@ -15,4 +15,9 @@ jobs:
     - name: Run Xcode build
       run: |
         cd cpp/xcode
-        /Applications/Xcode_15.0.1.app/Contents/Developer/usr/bin/xcodebuild -scheme ALL_BUILDS -configuration Release build
+        /Applications/Xcode_15.0.1.app/Contents/Developer/usr/bin/xcodebuild -scheme katago -configuration Release build
+
+    - name: Run Xcode test
+      run: |
+        cd cpp/xcode
+        /Applications/Xcode_15.0.1.app/Contents/Developer/usr/bin/xcodebuild -scheme katago -configuration Release test
