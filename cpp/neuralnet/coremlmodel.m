@@ -156,13 +156,13 @@
     // Get default file manager
     NSFileManager *fileManager = [NSFileManager defaultManager];
 
-    NSLog(@"INFO: Removing old model in Application Support directory %@", appModelURL);
+    NSLog(@"INFO: Removing old CoreML model in Application Support directory %@", appModelURL);
 
     // Remove the old model in Application Support directory
     [fileManager removeItemAtURL:appModelURL
                            error:nil];
 
-    NSLog(@"INFO: Copying bundle model to Application Support directory %@", appModelURL);
+    NSLog(@"INFO: Copying bundle CoreML model to Application Support directory %@", appModelURL);
 
     // Copy the mlpackage to App Support Directory
     BOOL success = [fileManager copyItemAtURL:bundleModelURL
@@ -238,27 +238,27 @@
   BOOL reachableModel = [permanentURL checkResourceIsReachableAndReturnError:nil];
 
   if (!reachableModel) {
-    NSLog(@"INFO: Compiling model because it is not reachable");
+    NSLog(@"INFO: Compiling CoreML model because it is not reachable");
   }
 
   // Check the saved digest is changed or not
   BOOL isChangedDigest = ![digest isEqualToString:savedDigest];
 
   if (isChangedDigest) {
-    NSLog(@"INFO: Compiling model because the digest has changed");
+    NSLog(@"INFO: Compiling CoreML model because the digest has changed");
   }
 
   // Model should be compiled if the compiled model is not reachable or the digest changes
   BOOL shouldCompile = !reachableModel || isChangedDigest;
 
   if (shouldCompile) {
-    NSLog(@"INFO: Compiling model at %@", modelURL);
+    NSLog(@"INFO: Compiling CoreML model at %@", modelURL);
 
     // Compile the model
     NSURL *compiledURL = [MLModel compileModelAtURL:modelURL
                                               error:nil];
 
-    NSLog(@"INFO: Copying compiled model to the permanent location %@", permanentURL);
+    NSLog(@"INFO: Copying the compiled CoreML model to the permanent location %@", permanentURL);
 
     // Create the directory for KataGo models
     BOOL success = [fileManager createDirectoryAtURL:[appSupportURL URLByAppendingPathComponent:directory]
@@ -296,7 +296,7 @@
   // Set the model display name
   configuration.modelDisplayName = modelName;
 
-  NSLog(@"INFO: Creating model with contents %@", permanentURL);
+  NSLog(@"INFO: Creating CoreML model with contents %@", permanentURL);
 
   // Create the model
   model = [MLModel modelWithContentsOfURL:permanentURL
@@ -305,7 +305,7 @@
 
   assert(model != nil);
 
-  NSLog(@"INFO: Created model: %@", model.modelDescription.metadata[MLModelDescriptionKey]);
+  NSLog(@"INFO: Created CoreML model: %@", model.modelDescription.metadata[MLModelDescriptionKey]);
 
   // Return the model
   return model;
