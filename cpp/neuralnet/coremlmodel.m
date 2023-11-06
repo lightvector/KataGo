@@ -131,9 +131,16 @@
   // Set model type name
   NSString *typeName = @"mlpackage";
 
+  NSString *modelPath;
+
   // Get model path from bundle resource
-  NSString *modelPath = [[NSBundle mainBundle] pathForResource:modelName
-                                                         ofType:typeName];
+  modelPath = [[NSBundle mainBundle] pathForResource:modelName
+                                              ofType:typeName];
+
+  if (modelPath == nil) {
+    // Fallback to create a default model path
+    modelPath = [NSString stringWithFormat:@"%@.%@", modelName, typeName];
+  }
 
   // Get model URL at bundle
   NSURL *bundleModelURL = [NSURL fileURLWithPath:modelPath];
