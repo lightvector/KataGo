@@ -244,7 +244,7 @@
 		E157FE4C2AF7D2E400E25677 /* CoreML.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = E1AD404F28E1D5A700E41968 /* CoreML.framework */; };
 		E157FE4D2AF7D2E800E25677 /* Metal.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = E1AD404928E1D59700E41968 /* Metal.framework */; };
 		E157FE4E2AF7D2ED00E25677 /* MetalPerformanceShadersGraph.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = E1AD404B28E1D59700E41968 /* MetalPerformanceShadersGraph.framework */; };
-		E157FE4F2AF7DA1600E25677 /* nnLayerTests.mm in Sources */ = {isa = PBXBuildFile; fileRef = E157FDCE2AF7CE2500E25677 /* nnLayerTests.mm */; };
+		E157FE4F2AF7DA1600E25677 /* testnn.mm in Sources */ = {isa = PBXBuildFile; fileRef = E157FDCE2AF7CE2500E25677 /* testnn.mm */; };
 		E157FE512AF7DADF00E25677 /* metalbackendtest.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1E29E1228F5B05300E73FF8 /* metalbackendtest.swift */; };
 		E17D098C294D45CF005968E9 /* gputest.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E17D098A294D45CF005968E9 /* gputest.cpp */; };
 /* End PBXBuildFile section */
@@ -360,7 +360,7 @@
 		E13CF66228E1896C005CB016 /* coremlbackend.cpp */ = {isa = PBXFileReference; fileEncoding = 4; indentWidth = 2; lastKnownFileType = sourcecode.cpp.cpp; name = coremlbackend.cpp; path = neuralnet/coremlbackend.cpp; sourceTree = "<group>"; };
 		E13CF66328E1896C005CB016 /* coremlmodel.m */ = {isa = PBXFileReference; fileEncoding = 4; indentWidth = 2; lastKnownFileType = sourcecode.c.objc; name = coremlmodel.m; path = neuralnet/coremlmodel.m; sourceTree = "<group>"; };
 		E157FDCC2AF7CE2300E25677 /* katagotest.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = katagotest.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
-		E157FDCE2AF7CE2500E25677 /* nnLayerTests.mm */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.objcpp; path = nnLayerTests.mm; sourceTree = "<group>"; };
+		E157FDCE2AF7CE2500E25677 /* testnn.mm */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.objcpp; path = testnn.mm; sourceTree = "<group>"; };
 		E17D098A294D45CF005968E9 /* gputest.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = gputest.cpp; path = command/gputest.cpp; sourceTree = "<group>"; };
 		E199A6F428E1E6D400A2E051 /* metalbackend.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = metalbackend.swift; path = neuralnet/metalbackend.swift; sourceTree = SOURCE_ROOT; };
 		E199A6F828E25E8100A2E051 /* metalbridge.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = metalbridge.h; path = neuralnet/metalbridge.h; sourceTree = "<group>"; };
@@ -462,7 +462,7 @@
 			isa = PBXGroup;
 			children = (
 				E1E29E1228F5B05300E73FF8 /* metalbackendtest.swift */,
-				E157FDCE2AF7CE2500E25677 /* nnLayerTests.mm */,
+				E157FDCE2AF7CE2500E25677 /* testnn.mm */,
 			);
 			name = KataGoMetalTest;
 			path = xcode/KataGoMetalTest;
@@ -796,7 +796,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				E157FE512AF7DADF00E25677 /* metalbackendtest.swift in Sources */,
-				E157FE4F2AF7DA1600E25677 /* nnLayerTests.mm in Sources */,
+				E157FE4F2AF7DA1600E25677 /* testnn.mm in Sources */,
 				E157FDD82AF7D1E500E25677 /* analysis.cpp in Sources */,
 				E157FDD92AF7D1E500E25677 /* analysisdata.cpp in Sources */,
 				E157FDDA2AF7D1E500E25677 /* asyncbot.cpp in Sources */,
