@@ -13,7 +13,7 @@ from threading import Thread
 import sgfmill
 import sgfmill.boards
 import sgfmill.ascii_boards
-from typing import Tuple, List, Optional, Union, Literal
+from typing import Tuple, List, Optional, Union, Literal, Any, Dict
 
 Color = Union[Literal["b"],Literal["w"]]
 Move = Union[None,Literal["pass"],Tuple[int,int]]
@@ -73,7 +73,9 @@ class KataGo:
         query["includePolicy"] = True
         if max_visits is not None:
             query["maxVisits"] = max_visits
+        return self.query_raw(query)
 
+    def query_raw(self, query: Dict[str,Any]):
         self.katago.stdin.write((json.dumps(query) + "\n").encode())
         self.katago.stdin.flush()
 
