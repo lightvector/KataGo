@@ -2532,21 +2532,22 @@ int MainCmds::viewstartposes(const vector<string>& args) {
       throw StringError("Illegal move in startpos: " + Sgf::PositionSample::toJsonLine(startPos));
     }
 
-    Loc hintLoc = startPos.hintLoc;
-    cout << "StartPos: " << s << "/" << startPoses.size() << "\n";
-    cout << "Next pla: " << PlayerIO::playerToString(pla) << "\n";
-    cout << "Weight: " << startPos.weight << "\n";
-    cout << "TrainingWeight: " << startPos.trainingWeight << "\n";
-    cout << "HintLoc: " << Location::toString(hintLoc,board) << "\n";
-    Board::printBoard(cout, board, hintLoc, &(hist.moveHistory));
-    cout << endl;
-
     bool autoKomi = true;
     if(autoKomi && bot != NULL) {
       const int64_t numVisits = 10;
       OtherGameProperties props;
       PlayUtils::adjustKomiToEven(bot->getSearchStopAndWait(),NULL,board,hist,pla,numVisits,props,rand);
     }
+
+    Loc hintLoc = startPos.hintLoc;
+    cout << "StartPos: " << s << "/" << startPoses.size() << "\n";
+    cout << "Next pla: " << PlayerIO::playerToString(pla) << "\n";
+    cout << "Weight: " << startPos.weight << "\n";
+    cout << "TrainingWeight: " << startPos.trainingWeight << "\n";
+    cout << "HintLoc: " << Location::toString(hintLoc,board) << "\n";
+    cout << "Auto komi: " << hist.rules.komi << "\n";
+    Board::printBoard(cout, board, hintLoc, &(hist.moveHistory));
+    cout << endl;
 
     if(bot != NULL) {
       bot->setPosition(pla,board,hist);
