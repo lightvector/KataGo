@@ -401,14 +401,12 @@ ComputeContext::ComputeContext(int nnX, int nnY, enabled_t useFP16Mode, enabled_
   (useNHWCMode == enabled_t::True) ? SWEnable::True() :
   SWEnable::Auto();
 
-  createMetalComputeContext(nnX, nnY, swUseFP16Mode, swUseNHWCMode);
-
-  CoreMLProcess::createCoreMLContext();
+  createMetalContext(nnX, nnY, swUseFP16Mode, swUseNHWCMode);
 }
 
 ComputeContext::~ComputeContext() {
   destroyMetalContext();
-  CoreMLProcess::destroyCoreMLContext();
+  destroyCoreMLContext();
 }
 
 /**
@@ -485,16 +483,16 @@ ComputeHandle::ComputeHandle(
     MetalProcess::createMetalComputeHandle(modelDesc, gpuIdx, serverThreadIdx);
   } else {
     // Create a Core ML backend
-    modelIndex = CoreMLProcess::createCoreMLBackend(modelXLen, modelYLen, serverThreadIdx, useFP16);
+    modelIndex = (int)createCoreMLBackend(modelXLen, modelYLen, serverThreadIdx, useFP16);
     // Get the model version
-    modelVersion = CoreMLProcess::getCoreMLBackendVersion(modelIndex);
+    modelVersion = (int)getCoreMLBackendVersion(modelIndex);
   }
 }
 
 ComputeHandle::~ComputeHandle() {
   if(!useMetal) {
     // Free the CoreML backend
-    CoreMLProcess::freeCoreMLBackend(modelIndex);
+    freeCoreMLBackend(modelIndex);
   }
 }
 

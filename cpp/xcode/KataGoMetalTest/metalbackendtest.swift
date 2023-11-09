@@ -2837,10 +2837,10 @@ final class ComputeContextTest: XCTestCase {
         let useFP16Mode: SWEnable = .False
         let useNHWCMode: SWEnable = .False
 
-        createMetalComputeContext(nnXLen: Int32(truncating: nnXLen),
-                                  nnYLen: Int32(truncating: nnYLen),
-                                  useFP16Mode: useFP16Mode,
-                                  useNHWCMode: useNHWCMode)
+        createMetalContext(nnXLen: Int32(truncating: nnXLen),
+                           nnYLen: Int32(truncating: nnYLen),
+                           useFP16Mode: useFP16Mode,
+                           useNHWCMode: useNHWCMode)
 
         let context = MetalComputeContext.getInstance()
 

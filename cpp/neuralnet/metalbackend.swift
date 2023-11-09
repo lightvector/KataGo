@@ -1,6 +1,7 @@
 import Foundation
 import MetalPerformanceShaders
 import MetalPerformanceShadersGraph
+import OSLog
 
 /// An extension to the Data struct for handling float data with optional FP16 conversion.
 extension Data {
@@ -2567,10 +2568,11 @@ public class MetalComputeContext {
     }
 }
 
-public func createMetalComputeContext(nnXLen: Int32,
-                                      nnYLen: Int32,
-                                      useFP16Mode: SWEnable,
-                                      useNHWCMode: SWEnable) {
+public func createMetalContext(nnXLen: Int32,
+                               nnYLen: Int32,
+                               useFP16Mode: SWEnable,
+                               useNHWCMode: SWEnable) {
+
     MetalComputeContext.createInstance(nnXLen: nnXLen as NSNumber,
                                        nnYLen: nnYLen as NSNumber,
                                        useFP16Mode: useFP16Mode,
@@ -2623,7 +2625,7 @@ public class MetalComputeHandle {
         let device = MTLCreateSystemDefaultDevice()!
 
         // Log the selected device's name, model version, and model name.
-        NSLog("Metal backend thread \(threadIdx): \(device.name), Model version \(descriptor.version) \(descriptor.name)")
+        Logger().info("Metal backend thread \(threadIdx): \(device.name), Model version \(descriptor.version) \(descriptor.name)")
 
         // Create a model with the specified device, graph, descriptor, and other parameters.
         model = Model(device: device,
