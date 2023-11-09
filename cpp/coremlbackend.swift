@@ -156,6 +156,74 @@ class CoreMLBackend {
             }
         }
     }
+
+    func getBatchOutput(binInputs: UnsafeMutablePointer<Float32>,
+                        globalInputs: UnsafeMutablePointer<Float32>,
+                        policyOutputs: UnsafeMutablePointer<Float32>,
+                        valueOutputs: UnsafeMutablePointer<Float32>,
+                        ownershipOutputs: UnsafeMutablePointer<Float32>,
+                        miscValuesOutputs: UnsafeMutablePointer<Float32>,
+                        moreMiscValuesOutputs: UnsafeMutablePointer<Float32>,
+                        batchSize: Int) {
+        
+        autoreleasepool {
+            let spatialStrides = [numSpatialFeatures * yLen * xLen,
+                                  yLen * xLen,
+                                  xLen,
+                                  1] as [NSNumber]
+            
+            let globalStrides = [numGlobalFeatures, 1] as [NSNumber]
+            let spatialSize = numSpatialFeatures * yLen * xLen
+            
+            let inputArray = (0..<batchSize).map { index -> KataGoModelInput in
+                let binInputsArray = try! MLMultiArray(
+                    dataPointer: binInputs.advanced(by: index * spatialSize),
+                    shape: [1, numSpatialFeatures, yLen, xLen] as [NSNumber],
+                    dataType: .float,
+                    strides: spatialStrides)
+                
+                let globalInputsArray = try! MLMultiArray(
+                    dataPointer: globalInputs.advanced(by: index * numGlobalFeatures),
+                    shape: [1, numGlobalFeatures] as [NSNumber],
+                    dataType: .float,
+                    strides: globalStrides)
+                
+                return KataGoModelInput(input_spatial: binInputsArray, input_global: globalInputsArray)
+            }
+            
+            let inputBatch = KataGoModelInputBatch(inputArray: inputArray)
+            let options = MLPredictionOptions()
+            let outputBatch = model.prediction(from: inputBatch, options: options)
+            
+            outputBatch.outputArray.enumerated().forEach { index, output in
+                let policyOutputBase = policyOutputs.advanced(by: index * output.output_policy.count)
+                let valueOutputBase = valueOutputs.advanced(by: index * output.out_value.count)
+                let ownershipOutputBase = ownershipOutputs.advanced(by: index * output.out_ownership.count)
+                let miscValuesOutputBase = miscValuesOutputs.advanced(by: index * output.out_miscvalue.count)
+                let moreMiscValuesOutputBase = moreMiscValuesOutputs.advanced(by: index * output.out_moremiscvalue.count)
+                
+                (0..<output.output_policy.count).forEach { i in
+                    policyOutputBase[i] = output.output_policy[i].floatValue
+                }
+                
+                (0..<output.out_value.count).forEach { i in
+                    valueOutputBase[i] = output.out_value[i].floatValue
+                }
+                
+                (0..<output.out_ownership.count).forEach { i in
+                    ownershipOutputBase[i] = output.out_ownership[i].floatValue
+                }
+                
+                (0..<output.out_miscvalue.count).forEach { i in
+                    miscValuesOutputBase[i] = output.out_miscvalue[i].floatValue
+                }
+                
+                (0..<output.out_moremiscvalue.count).forEach { i in
+                    moreMiscValuesOutputBase[i] = output.out_moremiscvalue[i].floatValue
+                }
+            }
+        }
+    }
 }
 
 public func createCoreMLContext() {
@@ -198,7 +266,7 @@ public func getCoreMLHandleOutput(userInputBuffer: UnsafeMutablePointer<Float32>
                                   miscValuesOutputs: UnsafeMutablePointer<Float32>,
                                   moreMiscValuesOutputs: UnsafeMutablePointer<Float32>,
                                   modelIndex: Int) {
-    
+
     let model = CoreMLBackend.getBackend(at: modelIndex)
 
     model.getOutput(binInputs: userInputBuffer,
@@ -208,4 +276,26 @@ public func getCoreMLHandleOutput(userInputBuffer: UnsafeMutablePointer<Float32>
                     ownershipOutputs: ownershipOutputs,
                     miscValuesOutputs: miscValuesOutputs,
                     moreMiscValuesOutputs: moreMiscValuesOutputs)
+}
+
+public func getCoreMLHandleBatchOutput(userInputBuffer: UnsafeMutablePointer<Float32>,
+                                       userInputGlobalBuffer: UnsafeMutablePointer<Float32>,
+                                       policyOutputs: UnsafeMutablePointer<Float32>,
+                                       valueOutputs: UnsafeMutablePointer<Float32>,
+                                       ownershipOutputs: UnsafeMutablePointer<Float32>,
+                                       miscValuesOutputs: UnsafeMutablePointer<Float32>,
+                                       moreMiscValuesOutputs: UnsafeMutablePointer<Float32>,
+                                       modelIndex: Int,
+                                       batchSize: Int) {
+
+    let model = CoreMLBackend.getBackend(at: modelIndex)
+
+    model.getBatchOutput(binInputs: userInputBuffer,
+                         globalInputs: userInputGlobalBuffer,
+                         policyOutputs: policyOutputs,
+                         valueOutputs: valueOutputs,
+                         ownershipOutputs: ownershipOutputs,
+                         miscValuesOutputs: miscValuesOutputs,
+                         moreMiscValuesOutputs: moreMiscValuesOutputs,
+                         batchSize: batchSize)
 }

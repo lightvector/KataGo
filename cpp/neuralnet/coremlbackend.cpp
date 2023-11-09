@@ -201,16 +201,10 @@ void CoreMLProcess::getCoreMLOutput(
   assert(singleScoreValuesResultElts == 10);
   assert(singleMoreMiscValuesResultElts == 8);
 
-  // Get CoreML backend output
   for(size_t row = 0; row < batchSize; row++) {
     float* rowSpatialBuffer = &inputBuffers->rowSpatialBuffer[singleSpatialElts * row];
     float* rowSpatialInput = &inputBuffers->userInputBuffer[singleInputElts * row];
     float* rowGlobalInput = &inputBuffers->userInputGlobalBuffer[singleInputGlobalElts * row];
-    float* policyOutputBuf = &inputBuffers->policyResults[row * (singlePolicyResultElts * policyResultChannels)];
-    float* valueOutputBuf = &inputBuffers->valueResults[row * singleValueResultElts];
-    float* ownershipOutputBuf = &inputBuffers->ownershipResults[row * singleOwnershipResultElts];
-    float* miscValuesOutputBuf = &inputBuffers->scoreValuesResults[row * singleScoreValuesResultElts];
-    float* moreMiscValuesOutputBuf = &inputBuffers->moreMiscValuesResults[row * singleMoreMiscValuesResultElts];
 
     const float* rowGlobal = inputBufs[row]->rowGlobal;
     const float* rowSpatial = inputBufs[row]->rowSpatial;
@@ -238,17 +232,17 @@ void CoreMLProcess::getCoreMLOutput(
         }
       }
     }
-
-    getCoreMLHandleOutput(
-      rowSpatialInput,
-      rowGlobalInput,
-      policyOutputBuf,
-      valueOutputBuf,
-      ownershipOutputBuf,
-      miscValuesOutputBuf,
-      moreMiscValuesOutputBuf,
-      gpuHandle->modelIndex);
   }
+
+  getCoreMLHandleBatchOutput(inputBuffers->userInputBuffer,
+                             inputBuffers->userInputGlobalBuffer,
+                             inputBuffers->policyResults,
+                             inputBuffers->valueResults,
+                             inputBuffers->ownershipResults,
+                             inputBuffers->scoreValuesResults,
+                             inputBuffers->moreMiscValuesResults,
+                             gpuHandle->modelIndex,
+                             batchSize);
 
   // Fill results by CoreML model output
   for(size_t row = 0; row < batchSize; row++) {

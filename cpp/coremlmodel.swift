@@ -34,6 +34,22 @@ class KataGoModelInput: MLFeatureProvider {
     }
 }
 
+class KataGoModelInputBatch: MLBatchProvider {
+    var inputArray: [KataGoModelInput]
+
+    var count: Int {
+        inputArray.count
+    }
+
+    func features(at index: Int) -> MLFeatureProvider {
+        return inputArray[index]
+    }
+    
+    init(inputArray: [KataGoModelInput]) {
+        self.inputArray = inputArray
+    }
+}
+
 class KataGoModelOutput: MLFeatureProvider {
     var output_policy: MLMultiArray
     var out_value: MLMultiArray
@@ -75,6 +91,22 @@ class KataGoModelOutput: MLFeatureProvider {
         } else {
             return nil
         }
+    }
+}
+
+class KataGoModelOutputBatch: MLBatchProvider {
+    var outputArray: [KataGoModelOutput]
+
+    var count: Int {
+        outputArray.count
+    }
+
+    func features(at index: Int) -> MLFeatureProvider {
+        return outputArray[index]
+    }
+
+    init(outputArray: [KataGoModelOutput]) {
+        self.outputArray = outputArray
     }
 }
 
@@ -270,10 +302,8 @@ class KataGoModel {
         self.model = model
     }
 
-    func prediction(from input: KataGoModelInput,
-                    options: MLPredictionOptions) -> KataGoModelOutput {
+    private func createOutput(from outFeatures: MLFeatureProvider) -> KataGoModelOutput {
 
-        let outFeatures = try! model.prediction(from: input, options: options)
         let output_policy = (outFeatures.featureValue(for: "output_policy")?.multiArrayValue)!
         let out_value = (outFeatures.featureValue(for: "out_value")?.multiArrayValue)!
         let out_miscvalue = (outFeatures.featureValue(for: "out_miscvalue")?.multiArrayValue)!
@@ -285,5 +315,27 @@ class KataGoModel {
                                  out_miscvalue: out_miscvalue,
                                  out_moremiscvalue: out_moremiscvalue,
                                  out_ownership: out_ownership)
+    }
+
+    func prediction(from input: KataGoModelInput,
+                    options: MLPredictionOptions) -> KataGoModelOutput {
+
+        let outFeatures = try! model.prediction(from: input, options: options)
+        return createOutput(from: outFeatures)
+    }
+
+    func prediction(from inputBatch: KataGoModelInputBatch,
+                    options: MLPredictionOptions) -> KataGoModelOutputBatch {
+        do {
+            let outFeaturesBatch = try model.predictions(from: inputBatch, options: options)
+            let outputArray = (0..<outFeaturesBatch.count).map { index -> KataGoModelOutput in
+                let outFeatures = outFeaturesBatch.features(at: index)
+                return createOutput(from: outFeatures)
+            }
+
+            return KataGoModelOutputBatch(outputArray: outputArray)
+        } catch {
+            fatalError("An error occurred: \(error)")
+        }
     }
 }
