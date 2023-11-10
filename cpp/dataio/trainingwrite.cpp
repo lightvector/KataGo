@@ -375,6 +375,7 @@ void TrainingWriteBuffers::addRow(
   const vector<ValueTargets>& whiteValueTargets,
   int whiteValueTargetsIdx, //index in whiteValueTargets corresponding to this turn.
   float valueTargetWeight,
+  float tdValueTargetWeight,
   const NNRawStats& nnRawStats,
   const Board* finalBoard,
   Color* finalFullArea,
@@ -506,7 +507,8 @@ void TrainingWriteBuffers::addRow(
       lead = -scoreTargetCap;
 
     rowGlobal[21] = lead;
-    rowGlobal[29] = 1.0f;
+    //Lead weight scales by how much we trust value in general
+    rowGlobal[29] = valueTargetWeight;
   }
 
   //Expected time of arrival of winloss variance, in turns
@@ -526,10 +528,11 @@ void TrainingWriteBuffers::addRow(
 
   //Unused
   rowGlobal[23] = 0.0f;
-  rowGlobal[24] = 0.0f;
+  rowGlobal[24] = (float)(1.0f - tdValueTargetWeight);
   rowGlobal[30] = (float)policySurprise;
   rowGlobal[31] = (float)policyEntropy;
   rowGlobal[32] = (float)searchEntropy;
+  // Value weight
   rowGlobal[35] = (float)(1.0f - valueTargetWeight);
 
   //Fill in whether we should use history or not
@@ -619,7 +622,8 @@ void TrainingWriteBuffers::addRow(
     assert(finalFullArea != NULL);
     assert(finalBoard != NULL);
 
-    rowGlobal[27] = 1.0f;
+    //Ownership weight scales by value weight
+    rowGlobal[27] = valueTargetWeight;
     //Fill score info
     const ValueTargets& lastTargets = whiteValueTargets[whiteValueTargets.size()-1];
     float score = nextPlayer == P_WHITE ? lastTargets.score : -lastTargets.score;
@@ -673,6 +677,7 @@ void TrainingWriteBuffers::addRow(
     assert(boards.size() == whiteValueTargets.size());
     assert(boards.size() > 0);
 
+    // Future position weight
     rowGlobal[33] = 1.0f;
     int endIdx = (int)boards.size()-1;
     const Board& board2 = boards[std::min(whiteValueTargetsIdx+8,endIdx)];
@@ -706,7 +711,8 @@ void TrainingWriteBuffers::addRow(
     }
   }
   else {
-    rowGlobal[34] = 1.0f;
+    // Scoring weight scales with value weight
+    rowGlobal[34] = valueTargetWeight;
     //Fill with zeros in case the buffers differ in size
     for(int i = 0; i<posArea; i++) {
       rowOwnership[i+posArea*4] = 0;
@@ -1003,6 +1009,7 @@ void TrainingDataWriter::writeGame(const FinishedGameData& data) {
     const vector<PolicyTargetMove>* policyTarget1 = (turnAfterStart + 1 < numMoves) ? data.policyTargetsByTurn[turnAfterStart+1].policyTargets : NULL;
     bool isSidePosition = false;
     float valueTargetWeight = 1.0f;
+    float tdValueTargetWeight = 1.0f;
 
     int numNeuralNetsBehindLatest = 0;
     for(int i = 0; i<data.changedNeuralNets.size(); i++) {
@@ -1030,6 +1037,7 @@ void TrainingDataWriter::writeGame(const FinishedGameData& data) {
             data.whiteValueTargetsByTurn,
             turnAfterStart,
             valueTargetWeight,
+            tdValueTargetWeight,
             data.nnRawStatsByTurn[turnAfterStart],
             &(data.endHist.getRecentBoard(0)),
             data.finalFullArea,
@@ -1079,6 +1087,7 @@ void TrainingDataWriter::writeGame(const FinishedGameData& data) {
           bool isSidePosition = true;
           int numNeuralNetsBehindLatest = (int)data.changedNeuralNets.size() - sp->numNeuralNetChangesSoFar;
           float valueTargetWeight = 1.0f;
+          float tdValueTargetWeight = 1.0f;
 
           writeBuffers->addRow(
             sp->board,sp->hist,sp->pla,
@@ -1095,6 +1104,7 @@ void TrainingDataWriter::writeGame(const FinishedGameData& data) {
             whiteValueTargetsBuf,
             0,
             valueTargetWeight,
+            tdValueTargetWeight,
             sp->nnRawStats,
             NULL,
             NULL,

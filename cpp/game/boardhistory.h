@@ -36,6 +36,7 @@ struct BoardHistory {
   //How we count handicap at the start of the game. Set manually by some close-to-user-level apps or subcommands
   bool assumeMultipleStartingBlackMovesAreHandicap;
   bool whiteHasMoved;
+  int overrideNumHandicapStones;
 
   static const int NUM_RECENT_BOARDS = 6;
   Board recentBoards[NUM_RECENT_BOARDS];
@@ -117,6 +118,8 @@ struct BoardHistory {
   void setInitialTurnNumber(int64_t n);
   //Set assumeMultipleStartingBlackMovesAreHandicap and update bonus points accordingly
   void setAssumeMultipleStartingBlackMovesAreHandicap(bool b);
+  //Set overrideNumHandicapStones and update bonus points accordingly
+  void setOverrideNumHandicapStones(int n);
 
   //Returns a copy of this board history rewound to the initial board, pla, etc, with other fields
   //(such as setInitialTurnNumber, setAssumeMultipleStartingBlackMovesAreHandicap) set identically.
@@ -177,7 +180,7 @@ struct BoardHistory {
 
   //Does not do anything like assumeMultipleStartingBlackMovesAreHandicap, computes based on board alone
   static int numHandicapStonesOnBoard(const Board& b);
-  //Takes into account assumeMultipleStartingBlackMovesAreHandicap
+  //Takes into account assumeMultipleStartingBlackMovesAreHandicap and/or overrideNumHandicapStones
   int computeNumHandicapStones() const;
   int computeWhiteHandicapBonus() const;
 

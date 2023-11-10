@@ -485,6 +485,7 @@ class Metrics:
         target_weight_futurepos = target_global_nc[:, 33]
         target_weight_scoring = target_global_nc[:, 34]
         target_weight_value = 1.0 - target_global_nc[:, 35]
+        target_weight_td_value = 1.0 - target_global_nc[:, 24]
 
         target_score_distribution = score_distribution_ns / 100.0
 
@@ -607,7 +608,7 @@ class Metrics:
         ).sum()
 
         loss_td_value_unsummed = self.loss_td_value_samplewise(
-            td_value_logits, target_td_value, target_weight_value, global_weight
+            td_value_logits, target_td_value, target_weight_td_value, global_weight
         )
         assert self.num_td_values == 3
         loss_td_value1 = loss_td_value_unsummed[:,0].sum()

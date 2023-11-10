@@ -160,7 +160,8 @@ struct TrainingWriteBuffers {
   //C20: Actual final score, from the perspective of the player to move, adjusted for draw utility, zero if C27 is zero.
   //C21: Lead in points, number of points to make the game fair, zero if C29 is zero.
   //C22: Expected arrival time of WL variance.
-  //C23-24: Unused
+  //C23: Unused
+  //C24: 1.0 minus weight assigned to td value targets
 
   //C25 Weight multiplier for row as a whole
 
@@ -251,6 +252,7 @@ struct TrainingWriteBuffers {
     const std::vector<ValueTargets>& whiteValueTargets,
     int whiteValueTargetsIdx, //index in whiteValueTargets corresponding to this turn.
     float valueTargetWeight,
+    float tdValueTargetWeight,
     const NNRawStats& nnRawStats,
     const Board* finalBoard,
     Color* finalFullArea,

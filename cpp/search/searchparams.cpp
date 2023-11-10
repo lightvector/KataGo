@@ -176,6 +176,7 @@ SearchParams SearchParams::basicDecentParams() {
   params.rootEndingBonusPoints = 0.5;
   params.rootPruneUselessMoves = true;
   params.conservativePass = true;
+  params.enablePassingHacks = true;
   params.useNonBuggyLcb = true;
   params.useGraphSearch = true;
   params.fpuParentWeightByVisitedPolicy = true;
