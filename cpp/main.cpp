@@ -144,6 +144,8 @@ static int handleSubcommand(const string& subcommand, const vector<string>& args
     return MainCmds::viewstartposes(subArgs);
   else if(subcommand == "demoplay")
     return MainCmds::demoplay(subArgs);
+  else if(subcommand == "writetrainingdata")
+    return MainCmds::writetrainingdata(subArgs);
   else if(subcommand == "sampleinitializations")
     return MainCmds::sampleinitializations(subArgs);
   else if(subcommand == "runbeginsearchspeedtest")
