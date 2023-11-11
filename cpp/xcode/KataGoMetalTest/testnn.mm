@@ -50,6 +50,9 @@
     args.push_back("katago");
     args.push_back("gtp.cfg");
     args.push_back("model.bin.gz");
+    // Create new CoreML files
+    MainCmds::runownershiptests(args);
+    // Reuse the CoreML files
     MainCmds::runownershiptests(args);
 }
 
