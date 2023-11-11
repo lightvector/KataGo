@@ -78,11 +78,11 @@
       </BuildableProductRunnable>
       <CommandLineArguments>
          <CommandLineArgument
-            argument = "benchmark -config coreml_example.cfg -model model.bin.gz -t 16 -v 1600"
+            argument = "benchmark -config gtp.cfg -model model.bin.gz -t 16 -v 1600"
             isEnabled = "NO">
          </CommandLineArgument>
          <CommandLineArgument
-            argument = "gtp -config coreml_example.cfg -model model.bin.gz"
+            argument = "gtp -config gtp.cfg -model model.bin.gz"
             isEnabled = "YES">
          </CommandLineArgument>
       </CommandLineArguments>
