@@ -30,12 +30,11 @@ jobs:
         cd models
         wget https://github.com/ChinChangYang/KataGo/releases/download/v1.13.2-coreml1/KataGoModel19x19fp16v14s7709731328.mlpackage.zip
         unzip KataGoModel19x19fp16v14s7709731328.mlpackage.zip
-        ln -s ../../../../../../../models/KataGoModel19x19fp16v14s7709731328.mlpackage ../cpp/xcode/DerivedData/KataGo/Build/Products/Release/KataGoModel19x19fp16.mlpackage
+        ln -s ../../../../../../models/KataGoModel19x19fp16v14s7709731328.mlpackage ../cpp/xcode/DerivedData/Build/Products/Release/KataGoModel19x19fp16.mlpackage
 
     - name: Setup test data
       run: |
-        cd cpp/xcode/DerivedData/KataGo/Build/Products/Release/
-        ln -s ../../../../../../tests .
+        ln -s ../../../../../tests cpp/xcode/DerivedData/Build/Products/Release/tests
 
     - name: Run Xcode test
       run: |
