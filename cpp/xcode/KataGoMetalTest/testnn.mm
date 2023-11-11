@@ -27,7 +27,7 @@
 - (void)testNNOnTinyBoard {
     std::vector<std::string> args;
     args.push_back("katago");
-    args.push_back("../../../../../../../models/model.bin.gz");
+    args.push_back("model.bin.gz");
     args.push_back("false");
     args.push_back("false");
     args.push_back("0");
@@ -38,7 +38,7 @@
 - (void)testNNSymmetries {
     std::vector<std::string> args;
     args.push_back("katago");
-    args.push_back("../../../../../../../models/model.bin.gz");
+    args.push_back("model.bin.gz");
     args.push_back("false");
     args.push_back("false");
     args.push_back("false");
@@ -48,8 +48,8 @@
 - (void)testOwnership {
     std::vector<std::string> args;
     args.push_back("katago");
-    args.push_back("../../../../../../configs/misc/coreml_example.cfg");
-    args.push_back("../../../../../../../models/model.bin.gz");
+    args.push_back("gtp.cfg");
+    args.push_back("models/model.bin.gz");
     MainCmds::runownershiptests(args);
 }
 

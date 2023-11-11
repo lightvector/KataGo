@@ -17,12 +17,16 @@ jobs:
         cd cpp/xcode
         /Applications/Xcode_15.0.1.app/Contents/Developer/usr/bin/xcodebuild -derivedDataPath DerivedData -scheme katago -configuration Release build
 
+    - name: Setup configuration
+      run: |
+        ln -s ../../../../../configs/misc/coreml_example.cfg cpp/xcode/DerivedData/Build/Products/Release/gtp.cfg
+
     - name: Setup network
       run: |
         mkdir -p models
         cd models
         wget https://github.com/ChinChangYang/KataGo/releases/download/v1.13.2-coreml1/kata1-b18c384nbt-s7709731328-d3715293823.bin.gz
-        mv kata1-b18c384nbt-s7709731328-d3715293823.bin.gz model.bin.gz
+        ln -s ../../../../../../models/kata1-b18c384nbt-s7709731328-d3715293823.bin.gz ../cpp/xcode/DerivedData/Build/Products/Release/model.bin.gz
 
     - name: Setup CoreML model
       run: |
