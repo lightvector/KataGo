@@ -44,7 +44,7 @@ class KataGoModelInputBatch: MLBatchProvider {
     func features(at index: Int) -> MLFeatureProvider {
         return inputArray[index]
     }
-    
+
     init(inputArray: [KataGoModelInput]) {
         self.inputArray = inputArray
     }
@@ -113,7 +113,7 @@ class KataGoModelOutputBatch: MLBatchProvider {
 class KataGoModel {
     let model: MLModel
 
-    class func getAppMLModelURL(modelName: String) -> URL {
+    class func getAppMLModelURL(modelName: String) throws -> URL {
         // Get model package name
         let mlpackageName = "\(modelName).mlpackage"
 
@@ -128,68 +128,78 @@ class KataGoModel {
 
         // Get application support directory
         // Create the directory if it does not already exist
-        let appSupportURL = try! fileManager.url(for: .applicationSupportDirectory,
-                                            in: .userDomainMask,
-                                            appropriateFor: nil,
-                                            create: true)
+        let appSupportURL = try fileManager.url(for: .applicationSupportDirectory,
+                                                in: .userDomainMask,
+                                                appropriateFor: nil,
+                                                create: true)
 
         // Create the URL for the model package file
         let modelURL = appSupportURL.appending(component: pathComponent)
-        
+
         return modelURL;
     }
 
     class func compileAppMLModel(modelName: String) -> MLModel? {
-        // Get URL of the MLModel at Application Support Directory
-        let modelURL = getAppMLModelURL(modelName: modelName)
-
-        // Check the MLModel is reachable
-        let isReachable = try! modelURL.checkResourceIsReachable()
-
         var mlmodel: MLModel?
 
-        if (isReachable) {
-            // Compile MLModel if the MLModel is reachable
-            mlmodel = compileMLModel(modelName: modelName, modelURL: modelURL)
+        do {
+            // Get URL of the MLModel at Application Support Directory
+            let modelURL = try getAppMLModelURL(modelName: modelName)
+
+            // Check the MLModel is reachable
+            let isReachable = try modelURL.checkResourceIsReachable()
+
+            if (isReachable) {
+                // Compile MLModel if the MLModel is reachable
+                mlmodel = try compileMLModel(modelName: modelName, modelURL: modelURL)
+            }
+        } catch {
+            Logger().error("An error occurred: \(error)")
         }
 
         return mlmodel;
     }
 
     class func compileBundleMLModel(modelName: String) -> MLModel? {
-        // Set model type name
-        let typeName = "mlpackage"
+        var mlmodel: MLModel?
 
-        // Get model path from bundle resource
-        // Fallback to create a default model path
-        let modelPath = Bundle.main.path(forResource: modelName, ofType: typeName) ?? "\(modelName).\(typeName)"
+        do {
+            // Set model type name
+            let typeName = "mlpackage"
 
-        // Get model URL at bundle
-        let bundleModelURL = URL(filePath: modelPath)
+            // Get model path from bundle resource
+            // Fallback to create a default model path
+            let modelPath = Bundle.main.path(forResource: modelName, ofType: typeName) ?? "\(modelName).\(typeName)"
 
-        // Compile MLModel
-        let mlmodel = compileMLModel(modelName: modelName, modelURL: bundleModelURL)
+            // Get model URL at bundle
+            let bundleModelURL = URL(filePath: modelPath)
 
-        // Get model URL at App Support Directory
-        let appModelURL = getAppMLModelURL(modelName: modelName)
+            // Compile MLModel
+            mlmodel = try compileMLModel(modelName: modelName, modelURL: bundleModelURL)
 
-        // Get default file manager
-        let fileManager = FileManager.default
+            // Get model URL at App Support Directory
+            let appModelURL = try getAppMLModelURL(modelName: modelName)
 
-        Logger().info("Removing old CoreML model in Application Support directory \(appModelURL)");
+            // Get default file manager
+            let fileManager = FileManager.default
 
-        // Remove the old model in Application Support directory
-        try! fileManager.removeItem(at: appModelURL)
+            Logger().info("Removing old CoreML model in Application Support directory \(appModelURL)");
 
-        Logger().info("Copying bundle CoreML model to Application Support directory \(appModelURL)")
+            // Remove the old model in Application Support directory
+            try fileManager.removeItem(at: appModelURL)
 
-        // Copy the mlpackage to App Support Directory
-        try! fileManager.copyItem(at: bundleModelURL, to: appModelURL)
+            Logger().info("Copying bundle CoreML model to Application Support directory \(appModelURL)")
+
+            // Copy the mlpackage to App Support Directory
+            try fileManager.copyItem(at: bundleModelURL, to: appModelURL)
+        } catch {
+            Logger().error("An error occurred: \(error)")
+        }
 
         return mlmodel;
     }
 
-    class func compileMLModel(modelName: String, modelURL: URL) -> MLModel {
+    class func compileMLModel(modelName: String, modelURL: URL) throws -> MLModel {
         // Get compiled model name
         let compiledModelName = "\(modelName).mlmodelc"
 
@@ -204,10 +214,10 @@ class KataGoModel {
 
         // Get application support directory
         // Create the directory if it does not already exist
-        let appSupportURL = try! fileManager.url(for: .applicationSupportDirectory,
-                                                 in: .userDomainMask,
-                                                 appropriateFor: nil,
-                                                 create: true)
+        let appSupportURL = try fileManager.url(for: .applicationSupportDirectory,
+                                                in: .userDomainMask,
+                                                appropriateFor: nil,
+                                                create: true)
 
         // Create the URL for the permanent compiled model file
         let permanentURL = appSupportURL.appending(component: pathComponent)
@@ -219,7 +229,7 @@ class KataGoModel {
         let dataURL = modelURL.appending(component: "Data/com.apple.CoreML/model.mlmodel")
 
         // Get model data
-        let modelData = try! Data(contentsOf: dataURL)
+        let modelData = try Data(contentsOf: dataURL)
 
         // Get SHA256 data
         let hashData = Data(SHA256.hash(data: modelData).makeIterator())
@@ -234,20 +244,30 @@ class KataGoModel {
         let savedDigestURL = appSupportURL.appending(component: savedDigestPath)
 
         // Get saved digest
-        let savedDigest = try! String(contentsOf: savedDigestURL, encoding: .utf8)
+        var isChangedDigest = true
+
+        do {
+            if (try savedDigestURL.checkResourceIsReachable()) {
+                let savedDigest = try String(contentsOf: savedDigestURL, encoding: .utf8)
+
+                // Check the saved digest is changed or not
+                isChangedDigest = digest != savedDigest
+
+                if (isChangedDigest) {
+                    Logger().info("Compiling CoreML model because the digest has changed");
+                }
+            } else {
+                Logger().info("Compiling CoreML model because the saved digest URL is not reachable: \(savedDigestURL)")
+            }
+        } catch {
+            Logger().warning("Compiling CoreML model because it is unable to get the saved digest from: \(savedDigestURL)")
+        }
 
         // Check permanent compiled model is reachable
-        let reachableModel = try! permanentURL.checkResourceIsReachable()
+        let reachableModel = try permanentURL.checkResourceIsReachable()
 
         if (!reachableModel) {
             Logger().info("Compiling CoreML model because it is not reachable");
-        }
-
-        // Check the saved digest is changed or not
-        let isChangedDigest = digest != savedDigest
-
-        if (isChangedDigest) {
-            Logger().info("Compiling CoreML model because the digest has changed");
         }
 
         // Model should be compiled if the compiled model is not reachable or the digest changes
@@ -257,23 +277,23 @@ class KataGoModel {
             Logger().info("Compiling CoreML model at \(modelURL)");
 
             // Compile the model
-            let compiledURL = try! MLModel.compileModel(at: modelURL)
+            let compiledURL = try MLModel.compileModel(at: modelURL)
 
             Logger().info("Copying the compiled CoreML model to the permanent location \(permanentURL)");
 
             // Create the directory for KataGo models
-            try! fileManager.createDirectory(at: appSupportURL.appending(component: directory),
+            try fileManager.createDirectory(at: appSupportURL.appending(component: directory),
                                             withIntermediateDirectories: true)
 
             // Copy the file to the to the permanent location, replacing it if necessary
-            try! fileManager.replaceItem(at: permanentURL,
+            try fileManager.replaceItem(at: permanentURL,
                                         withItemAt: compiledURL,
                                         backupItemName: nil,
                                         options: .usingNewMetadataOnly,
                                         resultingItemURL: nil)
 
             // Update the digest
-            try! digest.write(to: savedDigestURL, atomically: true, encoding: .utf8)
+            try digest.write(to: savedDigestURL, atomically: true, encoding: .utf8)
         }
 
         // Initialize the model configuration
@@ -288,7 +308,7 @@ class KataGoModel {
         Logger().info("Creating CoreML model with contents \(permanentURL)");
 
         // Create the model
-        model = try! MLModel(contentsOf: permanentURL, configuration: configuration)
+        model = try MLModel(contentsOf: permanentURL, configuration: configuration)
 
         let description: String = model.modelDescription.metadata[MLModelMetadataKey.description] as! String? ?? "Unknown"
 
@@ -316,26 +336,23 @@ class KataGoModel {
                                  out_moremiscvalue: out_moremiscvalue,
                                  out_ownership: out_ownership)
     }
-
+    
     func prediction(from input: KataGoModelInput,
-                    options: MLPredictionOptions) -> KataGoModelOutput {
+                    options: MLPredictionOptions) throws -> KataGoModelOutput {
 
-        let outFeatures = try! model.prediction(from: input, options: options)
+        let outFeatures = try model.prediction(from: input, options: options)
         return createOutput(from: outFeatures)
     }
 
     func prediction(from inputBatch: KataGoModelInputBatch,
-                    options: MLPredictionOptions) -> KataGoModelOutputBatch {
-        do {
-            let outFeaturesBatch = try model.predictions(from: inputBatch, options: options)
-            let outputArray = (0..<outFeaturesBatch.count).map { index -> KataGoModelOutput in
-                let outFeatures = outFeaturesBatch.features(at: index)
-                return createOutput(from: outFeatures)
-            }
+                    options: MLPredictionOptions) throws -> KataGoModelOutputBatch {
 
-            return KataGoModelOutputBatch(outputArray: outputArray)
-        } catch {
-            fatalError("An error occurred: \(error)")
+        let outFeaturesBatch = try model.predictions(from: inputBatch, options: options)
+        let outputArray = (0..<outFeaturesBatch.count).map { index -> KataGoModelOutput in
+            let outFeatures = outFeaturesBatch.features(at: index)
+            return createOutput(from: outFeatures)
         }
+
+        return KataGoModelOutputBatch(outputArray: outputArray)
     }
 }

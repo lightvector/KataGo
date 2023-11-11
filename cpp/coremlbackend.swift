@@ -53,18 +53,20 @@ class CoreMLBackend {
     class func createInstance(xLen: Int, yLen: Int, useFP16: Bool) -> Int {
         // The next ML model index is retrieved.
         let modelIndex = getNextModelIndex()
-        
+
         objc_sync_enter(self)
         defer { objc_sync_exit(self) }
-        
+
         // Get the model name.
         let modelName = getModelName(useFP16: useFP16)
-        
+
         // Compile the model in Bundle.
-        let mlmodel = KataGoModel.compileBundleMLModel(modelName: modelName)
-        
-        // The CoreMLBackend object is created.
-        backends[modelIndex] = CoreMLBackend(model: mlmodel!, xLen: xLen, yLen: yLen)
+        if let mlmodel = KataGoModel.compileBundleMLModel(modelName: modelName) {
+            // The CoreMLBackend object is created.
+            backends[modelIndex] = CoreMLBackend(model: mlmodel, xLen: xLen, yLen: yLen)
+        } else {
+            fatalError("Unable to compile bundle MLModel from model: \(modelName)")
+        }
 
         // The ML model index is returned.
         return modelIndex;
@@ -100,63 +102,6 @@ class CoreMLBackend {
         self.numGlobalFeatures = 19
     }
 
-    func getOutput(binInputs: UnsafeMutablePointer<Float32>,
-                   globalInputs: UnsafeMutablePointer<Float32>,
-                   policyOutputs: UnsafeMutablePointer<Float32>,
-                   valueOutputs: UnsafeMutablePointer<Float32>,
-                   ownershipOutputs: UnsafeMutablePointer<Float32>,
-                   miscValuesOutputs: UnsafeMutablePointer<Float32>,
-                   moreMiscValuesOutputs: UnsafeMutablePointer<Float32>) {
-
-        autoreleasepool {
-            // Strides are used to access the data in the MLMultiArray.
-            let strides = [numSpatialFeatures * yLen * xLen,
-                           yLen * xLen,
-                           xLen,
-                           1] as [NSNumber]
-            
-            // Create the MLMultiArray for the spatial features.
-            let bin_inputs_array = try! MLMultiArray(dataPointer: binInputs,
-                                                     shape: [1, numSpatialFeatures, yLen, xLen] as [NSNumber],
-                                                     dataType: .float,
-                                                     strides: strides)
-            
-            // Create the MLMultiArray for the global features.
-            let global_inputs_array = try! MLMultiArray(dataPointer: globalInputs,
-                                                        shape: [1, numGlobalFeatures] as [NSNumber],
-                                                        dataType: .float,
-                                                        strides: [numGlobalFeatures, 1] as [NSNumber])
-            
-            let input = KataGoModelInput(input_spatial: bin_inputs_array,
-                                         input_global: global_inputs_array)
-            
-            let options = MLPredictionOptions()
-            
-            let output = model.prediction(from: input, options: options)
-            
-            // Copy the output to the output buffers.
-            for i in 0..<output.output_policy.count {
-                policyOutputs[i] = output.output_policy[i].floatValue
-            }
-            
-            for i in 0..<output.out_value.count {
-                valueOutputs[i] = output.out_value[i].floatValue
-            }
-            
-            for i in 0..<output.out_ownership.count {
-                ownershipOutputs[i] = output.out_ownership[i].floatValue
-            }
-            
-            for i in 0..<output.out_miscvalue.count {
-                miscValuesOutputs[i] = output.out_miscvalue[i].floatValue
-            }
-            
-            for i in 0..<output.out_moremiscvalue.count {
-                moreMiscValuesOutputs[i] = output.out_moremiscvalue[i].floatValue
-            }
-        }
-    }
-
     func getBatchOutput(binInputs: UnsafeMutablePointer<Float32>,
                         globalInputs: UnsafeMutablePointer<Float32>,
                         policyOutputs: UnsafeMutablePointer<Float32>,
@@ -165,62 +110,66 @@ class CoreMLBackend {
                         miscValuesOutputs: UnsafeMutablePointer<Float32>,
                         moreMiscValuesOutputs: UnsafeMutablePointer<Float32>,
                         batchSize: Int) {
-        
+
         autoreleasepool {
-            let spatialStrides = [numSpatialFeatures * yLen * xLen,
-                                  yLen * xLen,
-                                  xLen,
-                                  1] as [NSNumber]
-            
-            let globalStrides = [numGlobalFeatures, 1] as [NSNumber]
-            let spatialSize = numSpatialFeatures * yLen * xLen
-            
-            let inputArray = (0..<batchSize).map { index -> KataGoModelInput in
-                let binInputsArray = try! MLMultiArray(
-                    dataPointer: binInputs.advanced(by: index * spatialSize),
-                    shape: [1, numSpatialFeatures, yLen, xLen] as [NSNumber],
-                    dataType: .float,
-                    strides: spatialStrides)
-                
-                let globalInputsArray = try! MLMultiArray(
-                    dataPointer: globalInputs.advanced(by: index * numGlobalFeatures),
-                    shape: [1, numGlobalFeatures] as [NSNumber],
-                    dataType: .float,
-                    strides: globalStrides)
-                
-                return KataGoModelInput(input_spatial: binInputsArray, input_global: globalInputsArray)
-            }
-            
-            let inputBatch = KataGoModelInputBatch(inputArray: inputArray)
-            let options = MLPredictionOptions()
-            let outputBatch = model.prediction(from: inputBatch, options: options)
-            
-            outputBatch.outputArray.enumerated().forEach { index, output in
-                let policyOutputBase = policyOutputs.advanced(by: index * output.output_policy.count)
-                let valueOutputBase = valueOutputs.advanced(by: index * output.out_value.count)
-                let ownershipOutputBase = ownershipOutputs.advanced(by: index * output.out_ownership.count)
-                let miscValuesOutputBase = miscValuesOutputs.advanced(by: index * output.out_miscvalue.count)
-                let moreMiscValuesOutputBase = moreMiscValuesOutputs.advanced(by: index * output.out_moremiscvalue.count)
-                
-                (0..<output.output_policy.count).forEach { i in
-                    policyOutputBase[i] = output.output_policy[i].floatValue
+            do {
+                let spatialStrides = [numSpatialFeatures * yLen * xLen,
+                                      yLen * xLen,
+                                      xLen,
+                                      1] as [NSNumber]
+
+                let globalStrides = [numGlobalFeatures, 1] as [NSNumber]
+                let spatialSize = numSpatialFeatures * yLen * xLen
+
+                let inputArray = try (0..<batchSize).map { index -> KataGoModelInput in
+                    let binInputsArray = try MLMultiArray(
+                        dataPointer: binInputs.advanced(by: index * spatialSize),
+                        shape: [1, numSpatialFeatures, yLen, xLen] as [NSNumber],
+                        dataType: .float,
+                        strides: spatialStrides)
+
+                    let globalInputsArray = try MLMultiArray(
+                        dataPointer: globalInputs.advanced(by: index * numGlobalFeatures),
+                        shape: [1, numGlobalFeatures] as [NSNumber],
+                        dataType: .float,
+                        strides: globalStrides)
+
+                    return KataGoModelInput(input_spatial: binInputsArray, input_global: globalInputsArray)
                 }
-                
-                (0..<output.out_value.count).forEach { i in
-                    valueOutputBase[i] = output.out_value[i].floatValue
+
+                let inputBatch = KataGoModelInputBatch(inputArray: inputArray)
+                let options = MLPredictionOptions()
+                let outputBatch = try model.prediction(from: inputBatch, options: options)
+
+                outputBatch.outputArray.enumerated().forEach { index, output in
+                    let policyOutputBase = policyOutputs.advanced(by: index * output.output_policy.count)
+                    let valueOutputBase = valueOutputs.advanced(by: index * output.out_value.count)
+                    let ownershipOutputBase = ownershipOutputs.advanced(by: index * output.out_ownership.count)
+                    let miscValuesOutputBase = miscValuesOutputs.advanced(by: index * output.out_miscvalue.count)
+                    let moreMiscValuesOutputBase = moreMiscValuesOutputs.advanced(by: index * output.out_moremiscvalue.count)
+
+                    (0..<output.output_policy.count).forEach { i in
+                        policyOutputBase[i] = output.output_policy[i].floatValue
+                    }
+
+                    (0..<output.out_value.count).forEach { i in
+                        valueOutputBase[i] = output.out_value[i].floatValue
+                    }
+
+                    (0..<output.out_ownership.count).forEach { i in
+                        ownershipOutputBase[i] = output.out_ownership[i].floatValue
+                    }
+
+                    (0..<output.out_miscvalue.count).forEach { i in
+                        miscValuesOutputBase[i] = output.out_miscvalue[i].floatValue
+                    }
+
+                    (0..<output.out_moremiscvalue.count).forEach { i in
+                        moreMiscValuesOutputBase[i] = output.out_moremiscvalue[i].floatValue
+                    }
                 }
-                
-                (0..<output.out_ownership.count).forEach { i in
-                    ownershipOutputBase[i] = output.out_ownership[i].floatValue
-                }
-                
-                (0..<output.out_miscvalue.count).forEach { i in
-                    miscValuesOutputBase[i] = output.out_miscvalue[i].floatValue
-                }
-                
-                (0..<output.out_moremiscvalue.count).forEach { i in
-                    moreMiscValuesOutputBase[i] = output.out_moremiscvalue[i].floatValue
-                }
+            } catch {
+                Logger().error("An error occurred: \(error)")
             }
         }
     }
@@ -240,7 +189,7 @@ public func createCoreMLBackend(modelXLen: Int,
                                 useFP16: Bool) -> Int {
 
     // Load the model.
-    let modelIndex = CoreMLBackend.createInstance(xLen: modelXLen, 
+    let modelIndex = CoreMLBackend.createInstance(xLen: modelXLen,
                                                   yLen: modelYLen,
                                                   useFP16: useFP16)
 
@@ -256,26 +205,6 @@ public func freeCoreMLBackend(modelIndex: Int) {
 
 public func getCoreMLBackendVersion(modelIndex: Int) -> Int {
     return CoreMLBackend.getBackend(at: modelIndex).version
-}
-
-public func getCoreMLHandleOutput(userInputBuffer: UnsafeMutablePointer<Float32>,
-                                  userInputGlobalBuffer: UnsafeMutablePointer<Float32>,
-                                  policyOutputs: UnsafeMutablePointer<Float32>,
-                                  valueOutputs: UnsafeMutablePointer<Float32>,
-                                  ownershipOutputs: UnsafeMutablePointer<Float32>,
-                                  miscValuesOutputs: UnsafeMutablePointer<Float32>,
-                                  moreMiscValuesOutputs: UnsafeMutablePointer<Float32>,
-                                  modelIndex: Int) {
-
-    let model = CoreMLBackend.getBackend(at: modelIndex)
-
-    model.getOutput(binInputs: userInputBuffer,
-                    globalInputs: userInputGlobalBuffer,
-                    policyOutputs: policyOutputs,
-                    valueOutputs: valueOutputs,
-                    ownershipOutputs: ownershipOutputs,
-                    miscValuesOutputs: miscValuesOutputs,
-                    moreMiscValuesOutputs: moreMiscValuesOutputs)
 }
 
 public func getCoreMLHandleBatchOutput(userInputBuffer: UnsafeMutablePointer<Float32>,
