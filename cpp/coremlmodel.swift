@@ -263,7 +263,7 @@ class KataGoModel {
         if !shouldCompile {
             // Check permanent compiled model is reachable
             do {
-                shouldCompile = try !permanentURL.checkResourceIsReachable()
+                shouldCompile = try (!permanentURL.checkResourceIsReachable())
 
                 if (shouldCompile) {
                     Logger().info("Compiling CoreML model because the permanent URL is not reachable: \(permanentURL)");
