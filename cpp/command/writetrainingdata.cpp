@@ -103,6 +103,7 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
   string nnModelFile;
   vector<string> sgfDirs;
   string noTrainUsersFile;
+  string noGameUsersFile;
   string isBotUsersFile;
   string whatDataSource;
   size_t maxFilesToLoad;
@@ -116,6 +117,7 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
 
     TCLAP::MultiArg<string> sgfDirArg("","sgfdir","Directory of sgf files",false,"DIR");
     TCLAP::ValueArg<string> noTrainUsersArg("","no-train-users-file","Avoid training on these player's moves",true,string(),"TXTFILE");
+    TCLAP::ValueArg<string> noGameUsersArg("","no-game-users-file","Avoid training on games with these players",true,string(),"TXTFILE");
     TCLAP::ValueArg<string> isBotUsersArg("","is-bot-users-file","Mark these usernames as bots",true,string(),"TXTFILE");
     TCLAP::ValueArg<string> whatDataSourceArg("","what-data-source","What data source",true,string(),"NAME");
     TCLAP::ValueArg<size_t> maxFilesToLoadArg("","max-files-to-load","Max sgf files to try to load",false,(size_t)10000000000000ULL,"NUM");
@@ -123,6 +125,7 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
 
     cmd.add(sgfDirArg);
     cmd.add(noTrainUsersArg);
+    cmd.add(noGameUsersArg);
     cmd.add(isBotUsersArg);
     cmd.add(whatDataSourceArg);
     cmd.add(maxFilesToLoadArg);
@@ -133,6 +136,7 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
     nnModelFile = cmd.getModelFile();
     sgfDirs = sgfDirArg.getValue();
     noTrainUsersFile = noTrainUsersArg.getValue();
+    noGameUsersFile = noGameUsersArg.getValue();
     isBotUsersFile = isBotUsersArg.getValue();
     whatDataSource = whatDataSourceArg.getValue();
     maxFilesToLoad = maxFilesToLoadArg.getValue();
@@ -152,12 +156,27 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
   for(const string& arg: args)
     logger.write(string("Command: ") + arg);
 
-  MakeDir::make(outputDir);
-  const int numThreads = 16;
+  {
+    MakeDir::make(outputDir);
+    std::vector<string> outputDirFiles = FileUtils::listFiles(outputDir);
+    for(const string& file: outputDirFiles) {
+      if(Global::isSuffix(file,".npz"))
+        throw StringError("outputDir already contains npz files: " + outputDir);
+    }
+  }
+
+  const int numWorkerThreads = 16;
+  const int numSearchThreads = 1;
+  const int numTotalThreads = numWorkerThreads * numSearchThreads;
 
   const int dataBoardLen = cfg.getInt("dataBoardLen",3,37);
-  const int maxRowsPerTrainFile = cfg.getInt("maxRowsPerTrainFile",1,100000000);
-  const int minGameLenToWrite = cfg.getInt("minGameLenToWrite",1,100000000);
+  const int maxApproxRowsPerTrainFile = cfg.getInt("maxApproxRowsPerTrainFile",1,100000000);
+
+  const std::vector<std::pair<int,int>> allowedBoardSizes =
+    cfg.getNonNegativeIntDashedPairs("allowedBoardSizes", 2, Board::MAX_LEN);
+
+  if(dataBoardLen > Board::MAX_LEN)
+    throw StringError("dataBoardLen > maximum board len, must recompile to increase");
 
   static_assert(NNModelVersion::latestInputsVersionImplemented == 7, "");
   const int inputsVersion = 7;
@@ -165,14 +184,15 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
   const int numGlobalChannels = NNInputs::NUM_FEATURES_GLOBAL_V7;
 
   const std::set<string> noTrainUsers = loadStrippedTxtFileLines(noTrainUsersFile);
+  const std::set<string> noGameUsers = loadStrippedTxtFileLines(noGameUsersFile);
   const std::set<string> isBotUsers = loadStrippedTxtFileLines(isBotUsersFile);
 
   NNEvaluator* nnEval;
   {
     Setup::initializeSession(cfg);
-    const int maxConcurrentEvals = numThreads * 2 + 16; // * 2 + 16 just to give plenty of headroom
-    const int expectedConcurrentEvals = numThreads;
-    const int defaultMaxBatchSize = std::max(8,((numThreads+3)/4)*4);
+    const int maxConcurrentEvals = numTotalThreads * 2 + 16; // * 2 + 16 just to give plenty of headroom
+    const int expectedConcurrentEvals = numTotalThreads;
+    const int defaultMaxBatchSize = std::max(8,((numTotalThreads+3)/4)*4);
     const bool defaultRequireExactNNLen = false;
     const bool disableFP16 = false;
     const string expectedSha256 = "";
@@ -187,10 +207,12 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
   string searchRandSeed = Global::uint64ToString(seedRand.nextUInt64());
   SearchParams params = SearchParams::basicDecentParams();
   params.maxVisits = 50;
-  Search* search = new Search(params,nnEval,&logger,searchRandSeed);
+  params.numThreads = numSearchThreads;
+  params.rootEndingBonusPoints = 0.8; // More aggressive game ending
 
   vector<string> sgfFiles;
   FileHelpers::collectSgfsFromDirsOrFiles(sgfDirs,sgfFiles);
+  logger.write("Collected " + Global::int64ToString(sgfFiles.size()) + " files");
 
   Setup::initializeSession(cfg);
 
@@ -217,40 +239,105 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
 
   std::vector<TrainingWriteBuffers*> threadDataBuffers;
   std::vector<Rand*> threadRands;
-  for(int i = 0; i<numThreads; i++) {
+  std::vector<Search*> threadSearchers;
+  for(int threadIdx = 0; threadIdx<numWorkerThreads; threadIdx++) {
     threadRands.push_back(new Rand());
     threadDataBuffers.push_back(
       new TrainingWriteBuffers(
         inputsVersion,
-        maxRowsPerTrainFile,
+        (maxApproxRowsPerTrainFile * 4/3 + Board::MAX_PLAY_SIZE * 2 + 100),
         numBinaryChannels,
         numGlobalChannels,
         dataBoardLen,
         dataBoardLen
       )
     );
+    Search* search = new Search(params,nnEval,&logger,searchRandSeed);
+    threadSearchers.push_back(search);
   }
+
+  auto saveDataBuffer = [&](TrainingWriteBuffers* dataBuffer, Rand& rand) {
+    int64_t numRows = dataBuffer->curRows;
+    string resultingFilename = outputDir + "/" + Global::uint64ToHexString(rand.nextUInt64()) + ".npz";
+    string tmpFilename = resultingFilename + ".tmp";
+    dataBuffer->writeToZipFile(tmpFilename);
+    dataBuffer->clear();
+    FileUtils::rename(tmpFilename,resultingFilename);
+    logger.write("Saved output file with " + Global::int64ToString(numRows) + " rows: " + resultingFilename);
+  };
 
   std::mutex statsLock;
   std::map<string,int64_t> gameCountByUsername;
   std::map<string,int64_t> gameCountByRank;
-  std::map<string,int64_t> gameCountByTimeControl;
+  std::map<string,int64_t> gameCountByBSize;
   std::map<string,int64_t> gameCountByRules;
   std::map<string,int64_t> gameCountByKomi;
   std::map<string,int64_t> gameCountByHandicap;
   std::map<string,int64_t> gameCountByResult;
+  std::map<string,int64_t> gameCountByTimeControl;
+  std::map<string,int64_t> gameCountByIsRanked;
+  std::map<string,int64_t> gameCountByEvent;
+
+  std::map<string,int64_t> acceptedGameCountByUsername;
+  std::map<string,int64_t> acceptedGameCountByRank;
+  std::map<string,int64_t> acceptedGameCountByBSize;
+  std::map<string,int64_t> acceptedGameCountByRules;
+  std::map<string,int64_t> acceptedGameCountByKomi;
+  std::map<string,int64_t> acceptedGameCountByHandicap;
+  std::map<string,int64_t> acceptedGameCountByResult;
+  std::map<string,int64_t> acceptedGameCountByTimeControl;
+  std::map<string,int64_t> acceptedGameCountByIsRanked;
+  std::map<string,int64_t> acceptedGameCountByEvent;
+
 
   auto processSgf = [&](int threadIdx, size_t index) {
     const string& fileName = sgfFiles[index];
     std::unique_ptr<Sgf> sgfRaw = NULL;
+    XYSize xySize;
     try {
       sgfRaw = std::unique_ptr<Sgf>(Sgf::loadFile(fileName));
+      xySize = sgfRaw->getXYSize();
     }
     catch(const StringError& e) {
       logger.write("Invalid SGF " + fileName + ": " + e.what());
       reportSgfDone(false);
       return;
     }
+
+    if(xySize.x > dataBoardLen || xySize.y > dataBoardLen) {
+      logger.write(
+        "SGF board size > dataBoardLen in " + fileName + ":"
+        + " " + Global::intToString(xySize.x)
+        + " " + Global::intToString(xySize.y)
+        + " " + Global::intToString(dataBoardLen)
+      );
+      reportSgfDone(false);
+      return;
+    }
+    {
+      bool foundBoardSize = false;
+      for(const std::pair<int,int> p: allowedBoardSizes) {
+        if(p.first == xySize.x && p.second == xySize.y)
+          foundBoardSize = true;
+        if(p.first == xySize.y && p.second == xySize.x)
+          foundBoardSize = true;
+      }
+      if(!foundBoardSize) {
+        logger.write(
+          "SGF board size not in allowedBoardSizes in " + fileName + ":"
+          + " " + Global::intToString(xySize.x)
+          + " " + Global::intToString(xySize.y)
+        );
+        reportSgfDone(false);
+        return;
+      }
+    }
+
+    const int boardArea = xySize.x * xySize.y;
+    const double sqrtBoardArea = sqrt(boardArea);
+    const string sizeStr = " (size " + Global::intToString(xySize.x) + "x" + Global::intToString(xySize.y) + ")";
+    const string bSizeStr = Global::intToString(xySize.x) + "x" + Global::intToString(xySize.y);
+
     std::unique_ptr<CompactSgf> sgf = NULL;
     try {
       sgf = std::make_unique<CompactSgf>(sgfRaw.get());
@@ -265,11 +352,50 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
     string sgfWUsername = sgfRaw->getRootPropertyWithDefault("PW", "");
     string sgfBRank = sgfRaw->getRootPropertyWithDefault("BR", "");
     string sgfWRank = sgfRaw->getRootPropertyWithDefault("WR", "");
-    string sgfTimeControl = sgfRaw->getRootPropertyWithDefault("TC", "");
     string sgfRules = sgfRaw->getRootPropertyWithDefault("RU", "");
     string sgfKomi = sgfRaw->getRootPropertyWithDefault("KM", "");
     string sgfHandicap = sgfRaw->getRootPropertyWithDefault("HA", "");
     string sgfResult = sgfRaw->getRootPropertyWithDefault("RE", "");
+    string sgfEvent = sgfRaw->getRootPropertyWithDefault("EV", "");
+
+    bool sgfGameIsRanked = false;
+    if(whatDataSource == "ogs") {
+      string sgfGC = sgfRaw->getRootPropertyWithDefault("GC", "");
+      std::vector<string> pieces = Global::split(sgfGC,',');
+      bool isRanked = false;
+      bool isUnranked = false;
+      for(const string& s: pieces) {
+        if(s == "ranked")
+          isRanked = true;
+        if(s == "unranked")
+          isUnranked = true;
+      }
+      if(!isRanked && !isUnranked) {
+        logger.write("Unknown ranking status in SGF " + fileName);
+        reportSgfDone(false);
+        return;
+      }
+      sgfGameIsRanked = isRanked;
+    }
+
+    string sgfTimeControl;
+    {
+      string sgfTM = sgfRaw->getRootPropertyWithDefault("TM", "");
+      string sgfOT = sgfRaw->getRootPropertyWithDefault("OT", "");
+      string sgfLC = sgfRaw->getRootPropertyWithDefault("LC", "");
+      string sgfLT = sgfRaw->getRootPropertyWithDefault("LT", "");
+
+      if(sgfTM != "" && sgfOT != "")
+        sgfTimeControl = sgfTM + "+" + sgfOT;
+      else if(sgfTM != "" && (sgfLC != "" || sgfLT != ""))
+        sgfTimeControl = sgfTM + "+" + sgfLC + "x" + sgfLT;
+      else if(sgfTM != "")
+        sgfTimeControl = sgfTM;
+      else if(sgfOT != "")
+        sgfTimeControl = sgfOT;
+      else if(sgfLC != "" || sgfLT != "")
+        sgfTimeControl = sgfLC + "x" + sgfLT;
+    }
 
     {
       std::lock_guard<std::mutex> lock(statsLock);
@@ -277,10 +403,20 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
       gameCountByUsername[sgfWUsername] += 1;
       gameCountByRank[sgfBRank] += 1;
       gameCountByRank[sgfWRank] += 1;
-      gameCountByTimeControl[sgfTimeControl] += 1;
+      gameCountByBSize[bSizeStr] += 1;
       gameCountByRules[sgfRules] += 1;
       gameCountByKomi[sgfKomi] += 1;
+      gameCountByHandicap[sgfHandicap] += 1;
       gameCountByResult[sgfResult] += 1;
+      gameCountByTimeControl[sgfTimeControl] += 1;
+      gameCountByIsRanked[sgfGameIsRanked ? "true" : "false"] += 1;
+      gameCountByEvent[sgfEvent] += 1;
+    }
+
+    if(noGameUsers.find(sgfBUsername) != noGameUsers.end() || noGameUsers.find(sgfWUsername) != noGameUsers.end()) {
+      logger.write("Filtering due to undesired user in sgf " + fileName);
+      reportSgfDone(false);
+      return;
     }
 
     const bool shouldTrainB = noTrainUsers.find(sgfBUsername) == noTrainUsers.end();
@@ -288,18 +424,18 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
 
     int sgfHandicapParsed = -1;
     if(sgfHandicap != "") {
-      if(Global::tryStringToInt(sgfHandicap,sgfHandicapParsed) && sgfHandicapParsed >= 0 && sgfHandicapParsed <= 9) {
+      const int maxAllowedHandicap = (int)(sqrtBoardArea / 2.0);
+      if(Global::tryStringToInt(sgfHandicap,sgfHandicapParsed) && sgfHandicapParsed >= 0 && sgfHandicapParsed <= maxAllowedHandicap) {
         // Yay
       }
       else {
-        logger.write("Unable to parse handicap in sgf " + fileName + ": " + sgfHandicap);
+        logger.write("Unable to parse handicap or handicap too extreme in sgf " + fileName + ": " + sgfHandicap + sizeStr);
         reportSgfDone(false);
         return;
       }
     }
 
     TrainingWriteBuffers* dataBuffer = threadDataBuffers[threadIdx];
-    (void)dataBuffer;
     Rand& rand = *threadRands[threadIdx];
 
     Board board;
@@ -309,10 +445,17 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
     sgf->setupInitialBoardAndHist(rules, board, nextPla, hist);
     const vector<Move>& sgfMoves = sgf->moves;
 
+    if(sgfMoves.size() > boardArea * 1.5 + 40.0) {
+      logger.write("Too many moves in sgf " + fileName + ": " + Global::uint64ToString(sgfMoves.size()) + sizeStr);
+      reportSgfDone(false);
+      return;
+    }
+
     bool sgfGameEnded = false;
     bool sgfGameEndedByTime = false;
     bool sgfGameEndedByResign = false;
     bool sgfGameEndedByScore = false;
+    bool sgfGameEndedByForfeit = false;
     bool sgfGameEndedByOther = false;
     Player sgfGameWinner = C_EMPTY;
     double sgfGameWhiteFinalScore = 0.0;
@@ -339,6 +482,20 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
         sgfGameEndedByTime = true;
         sgfGameWinner = P_WHITE;
       }
+      else if(s == "b+f" || s == "black+f") {
+        sgfGameEnded = true;
+        sgfGameEndedByForfeit = true;
+        sgfGameWinner = P_BLACK;
+      }
+      else if(s == "w+f" || s == "white+f") {
+        sgfGameEnded = true;
+        sgfGameEndedByForfeit = true;
+        sgfGameWinner = P_WHITE;
+      }
+      else if(s == "void") {
+        sgfGameEnded = true;
+        sgfGameEndedByOther = true;
+      }
       else if(s == "draw" || s == "0" || s == "jigo") {
         sgfGameEnded = true;
         sgfGameEndedByScore = true;
@@ -354,7 +511,7 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
       ) {
         if(
           std::isfinite(sgfGameWhiteFinalScore)
-          && std::abs(sgfGameWhiteFinalScore) < board.x_size * board.y_size
+          && std::abs(sgfGameWhiteFinalScore) < boardArea
         ) {
           sgfGameEnded = true;
           sgfGameEndedByScore = true;
@@ -364,7 +521,7 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
             sgfGameWinner = C_EMPTY;
         }
         else {
-          logger.write("Game ended with invalid score " + fileName + " result " + sgfResult);
+          logger.write("Game ended with invalid score " + fileName + " result " + sgfResult + sizeStr);
           reportSgfDone(false);
           return;
         }
@@ -378,7 +535,7 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
       ) {
         if(
           std::isfinite(sgfGameWhiteFinalScore)
-          && std::abs(sgfGameWhiteFinalScore) < board.x_size * board.y_size
+          && std::abs(sgfGameWhiteFinalScore) < boardArea
         ) {
           sgfGameEnded = true;
           sgfGameEndedByScore = true;
@@ -388,7 +545,7 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
             sgfGameWinner = C_EMPTY;
         }
         else {
-          logger.write("Game ended with invalid score " + fileName + " result " + sgfResult);
+          logger.write("Game ended with invalid score " + fileName + " result " + sgfResult + sizeStr);
           reportSgfDone(false);
           return;
         }
@@ -411,30 +568,40 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
       throw StringError("Unknown data source: " + whatDataSource);
     }
 
-    //If there are any passes in the first 30 moves, start only after the latest such pass.
+    const int consecBlackMovesTurns = 6 + boardArea / 40;
+    const int skipEarlyPassesTurns = 12 + boardArea / 20;
+    const int disallowEarlyPassesTurns = 14 + boardArea / 10;
+    const int minGameLenToWrite = 15 + boardArea / 8;
+    const int maxKataFinishMoves = 30 + boardArea / 5;
+
+    //If there are any passes in the early moves, start only after the latest such pass.
     int startGameAt = 0;
-    for(size_t m = 0; m<sgfMoves.size() && m < 30; m++) {
+    for(size_t m = 0; m<sgfMoves.size() && m < skipEarlyPassesTurns; m++) {
       if(sgfMoves[m].loc == Board::PASS_LOC)
         startGameAt = m+1;
     }
-    //If there are any passes in moves 30 to 50, reject, we're invalid.
-    for(size_t m = 30; m<sgfMoves.size() && m < 50; m++) {
+    //If there are any passes in moves semi-early moves, reject, we're invalid.
+    for(size_t m = skipEarlyPassesTurns; m<sgfMoves.size() && m < disallowEarlyPassesTurns; m++) {
       if(sgfMoves[m].loc == Board::PASS_LOC) {
-        logger.write("Pass during moves 30-50 in " + fileName);
+        logger.write(
+          "Pass during moves " +
+          Global::intToString(skipEarlyPassesTurns) + "-" + Global::intToString(disallowEarlyPassesTurns)
+          + " in " + fileName + sizeStr
+        );
         reportSgfDone(false);
         return;
       }
     }
 
     //If there are multiple black moves in a row to start, start at the last one.
-    for(size_t m = 1; m<sgfMoves.size() && m < 15; m++) {
+    for(size_t m = 1; m<sgfMoves.size() && m < consecBlackMovesTurns; m++) {
       if(sgfMoves[m].pla == P_BLACK && sgfMoves[m-1].pla == P_BLACK) {
         startGameAt = m;
       }
     }
 
     if(startGameAt >= sgfMoves.size()) {
-      logger.write("Game too short overlaps with start in " + fileName + " turns " + Global::uint64ToString(sgfMoves.size()));
+      logger.write("Game too short overlaps with start in " + fileName + " turns " + Global::uint64ToString(sgfMoves.size()) + sizeStr);
       reportSgfDone(false);
       return;
     }
@@ -445,13 +612,13 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
 
       //Quit out if according to our rules, we already finished the game, or we're somehow in a cleanup phase
       if(hist.isGameFinished || hist.encorePhase > 0) {
-        logger.write("Game unexpectedly ended near start in " + fileName);
+        logger.write("Game unexpectedly ended near start in " + fileName + sizeStr);
         reportSgfDone(false);
         return;
       }
       bool suc = hist.isLegal(board,move.loc,move.pla);
       if(!suc) {
-        logger.write("Illegal move near start in " + fileName + " move " + Location::toString(move.loc, board.x_size, board.y_size));
+        logger.write("Illegal move near start in " + fileName + " move " + Location::toString(move.loc, board.x_size, board.y_size) + sizeStr);
         reportSgfDone(false);
         return;
       }
@@ -514,7 +681,7 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
     }
 
     if(moves.size() < minGameLenToWrite) {
-      logger.write("Game too short in " + fileName + " turns " + Global::uint64ToString(moves.size()));
+      logger.write("Game too short in " + fileName + " turns " + Global::uint64ToString(moves.size()) + sizeStr);
       reportSgfDone(false);
       return;
     }
@@ -536,9 +703,15 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
     // up the position and carry out encore for JP-style rules.
     if(sgfGameEndedByScore) {
       bool gameFinishedProperly = false;
-      for(int m = endIdxForRecording; m<endIdxForRecording+100; m++) {
+      for(int m = endIdxForRecording; m<endIdxForRecording+maxKataFinishMoves; m++) {
+        Search* search = threadSearchers[threadIdx];
+        search->setPosition(nextPla,board,hist);
         Loc moveLoc = search->runWholeSearchAndGetMove(nextPla);
         moves.push_back(Move(moveLoc,nextPla));
+
+        bool suc = hist.isLegal(board,moveLoc,nextPla);
+        (void)suc;
+        assert(suc);
 
         bool preventEncore = false;
         hist.makeBoardMoveAssumeLegal(board,moveLoc,nextPla,NULL,preventEncore);
@@ -560,7 +733,7 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
       }
 
       if(gameFinishedProperly) {
-        // Does our result match the sgf recorded result?
+        // Does our result match the sgf recorded result for winner?
         // If no, reduce weight a lot
         valueTargetWeight = (hist.winner == sgfGameWinner) ? 1.0f : 0.1f;
 
@@ -581,7 +754,7 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
         valueTargetWeight = 2.0f * (float)std::max(0.0, whiteValueTargets[whiteValueTargets.size()-1].win - 0.5);
 
         // Assume white catches up in score at the same rate from turn 0 to 200 - does that leave white ahead?
-        if(numExtraBlack > 0 && whiteValueTargets.size() < 200 && whiteValueTargets.size() > 30) {
+        if(numExtraBlack > 0 && board.x_size == 19 && board.y_size == 19 && whiteValueTargets.size() < 200 && whiteValueTargets.size() > 30) {
           double change = whiteValueTargets[whiteValueTargets.size()-1].lead - whiteValueTargets[0].lead;
           double extrapolatedChange = change * (200.0 / whiteValueTargets.size());
           if(whiteValueTargets[0].lead + extrapolatedChange > 0.5) {
@@ -636,7 +809,7 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
       // If we manually hacked the td value, prevent an abrupt game end with a forced value from biasing it too much
       // by disabling the td targets if we get too close.
       float tdValueTargetWeight = valueTargetWeight;
-      if(hasForcedWinner && whiteValueTargets.size() - m < 50) {
+      if(hasForcedWinner && whiteValueTargets.size() - m < (5 + boardArea / 8)) {
         tdValueTargetWeight = 0.0f;
       }
 
@@ -686,27 +859,87 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
         );
       }
     }
-    // void writeToZipFile(const std::string& fileName);
+
+    if(dataBuffer->curRows >= maxApproxRowsPerTrainFile)
+      saveDataBuffer(dataBuffer,rand);
+
+    {
+      std::lock_guard<std::mutex> lock(statsLock);
+      if(shouldTrainB)
+        acceptedGameCountByUsername[sgfBUsername] += 1;
+      if(shouldTrainW)
+        acceptedGameCountByUsername[sgfWUsername] += 1;
+      if(shouldTrainB)
+        acceptedGameCountByRank[sgfBRank] += 1;
+      if(shouldTrainW)
+        acceptedGameCountByRank[sgfWRank] += 1;
+      acceptedGameCountByBSize[bSizeStr] += 1;
+      acceptedGameCountByRules[sgfRules] += 1;
+      acceptedGameCountByKomi[sgfKomi] += 1;
+      acceptedGameCountByHandicap[sgfHandicap] += 1;
+      acceptedGameCountByResult[sgfResult] += 1;
+      acceptedGameCountByTimeControl[sgfTimeControl] += 1;
+      acceptedGameCountByIsRanked[sgfGameIsRanked ? "true" : "false"] += 1;
+      acceptedGameCountByEvent[sgfEvent] += 1;
+    }
+
     reportSgfDone(true);
   };
 
-  Parallel::iterRange(numThreads, std::min(maxFilesToLoad,sgfFiles.size()), std::function<void(int,size_t)>(processSgf));
+  Parallel::iterRange(
+    numWorkerThreads,
+    std::min(maxFilesToLoad,sgfFiles.size()),
+    std::function<void(int,size_t)>(processSgf)
+  );
 
-  auto printGameCountsMap = [&](const std::map<string,int64_t> counts, const string& label) {
+  for(int threadIdx = 0; threadIdx<numWorkerThreads; threadIdx++) {
+    Rand& rand = *threadRands[threadIdx];
+    TrainingWriteBuffers* dataBuffer = threadDataBuffers[threadIdx];
+    if(dataBuffer->curRows > 0)
+      saveDataBuffer(dataBuffer,rand);
+  }
+
+  auto printGameCountsMap = [&](const std::map<string,int64_t> counts, const string& label, bool sortByCount) {
     logger.write("===================================================");
     logger.write("Counts by " + label);
-    for(const auto& keyAndCount: counts) {
-      logger.write(keyAndCount.first + ": " + Global::int64ToString(keyAndCount.second));
+    if(!sortByCount) {
+      for(const auto& keyAndCount: counts) {
+        logger.write(keyAndCount.first + ": " + Global::int64ToString(keyAndCount.second));
+      }
+    }
+    else {
+      std::vector<std::pair<string, int64_t>> pairVec(counts.begin(), counts.end());
+      std::sort(
+        pairVec.begin(),
+        pairVec.end(),
+        [](const std::pair<string, int64_t>& a, const std::pair<string, int64_t>& b) {
+          return a.second > b.second;
+        }
+      );
+      for(const auto& keyAndCount: pairVec) {
+        logger.write(keyAndCount.first + ": " + Global::int64ToString(keyAndCount.second));
+      }
     }
     logger.write("===================================================");
   };
-  printGameCountsMap(gameCountByUsername,"username");
-  printGameCountsMap(gameCountByRank,"rank");
-  printGameCountsMap(gameCountByTimeControl,"time control");
-  printGameCountsMap(gameCountByRules,"rules");
-  printGameCountsMap(gameCountByKomi,"komi");
-  printGameCountsMap(gameCountByHandicap,"handicap");
-  printGameCountsMap(gameCountByResult,"result");
+  printGameCountsMap(gameCountByUsername,"username",true);
+  printGameCountsMap(acceptedGameCountByUsername,"username (accepted)",true);
+  printGameCountsMap(gameCountByRank,"rank",false);
+  printGameCountsMap(acceptedGameCountByRank,"rank (accepted)",false);
+  printGameCountsMap(gameCountByRank,"bSize",true);
+  printGameCountsMap(acceptedGameCountByRank,"bSize (accepted)",true);
+  printGameCountsMap(gameCountByTimeControl,"time control",false);
+  printGameCountsMap(acceptedGameCountByTimeControl,"time control (accepted)",false);
+  printGameCountsMap(gameCountByRules,"rules",false);
+  printGameCountsMap(acceptedGameCountByRules,"rules (accepted)",false);
+  printGameCountsMap(gameCountByKomi,"komi",false);
+  printGameCountsMap(acceptedGameCountByKomi,"komi (accepted)",false);
+  printGameCountsMap(gameCountByHandicap,"handicap",false);
+  printGameCountsMap(acceptedGameCountByHandicap,"handicap (accepted)",false);
+  printGameCountsMap(gameCountByResult,"result",false);
+  printGameCountsMap(acceptedGameCountByResult,"result (accepted)",false);
+  printGameCountsMap(gameCountByEvent,"event",false);
+  printGameCountsMap(acceptedGameCountByEvent,"event (accepted)",false);
 
   logger.write(nnEval->getModelFileName());
   logger.write("NN rows: " + Global::int64ToString(nnEval->numRowsProcessed()));
@@ -715,8 +948,11 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
 
   logger.write("All done");
 
-  for(int i = 0; i<numThreads; i++)
+  for(int i = 0; i<numWorkerThreads; i++) {
     delete threadDataBuffers[i];
+    delete threadRands[i];
+    delete threadSearchers[i];
+  }
 
   delete nnEval;
   NeuralNet::globalCleanup();
