@@ -40,8 +40,8 @@ class CoreMLBackend {
         return modelIndex;
     }
 
-    class func getBackend(at index: Int) -> CoreMLBackend {
-        return backends[index]!
+    class func getBackend(at index: Int) -> CoreMLBackend? {
+        return backends[index]
     }
 
     class func getModelName(useFP16: Bool) -> String {
@@ -92,7 +92,16 @@ class CoreMLBackend {
         self.yLen = yLen
 
         // The model version must be at least 8.
-        self.version = Int(model.modelDescription.metadata[MLModelMetadataKey.versionString] as! String)!
+        if let versionString = model.modelDescription.metadata[MLModelMetadataKey.versionString] as? String {
+            if let versionInt = Int(versionString) {
+                self.version = versionInt
+            } else {
+                self.version = -1
+            }
+        } else {
+            self.version = -1
+        }
+
         assert(self.version >= 8, "version must not be smaller than 8: \(self.version)")
 
         // The number of spatial features must be 22.
@@ -204,7 +213,9 @@ public func freeCoreMLBackend(modelIndex: Int) {
 }
 
 public func getCoreMLBackendVersion(modelIndex: Int) -> Int {
-    return CoreMLBackend.getBackend(at: modelIndex).version
+    let backend = CoreMLBackend.getBackend(at: modelIndex)
+    let version = backend?.version ?? -1
+    return version
 }
 
 public func getCoreMLHandleBatchOutput(userInputBuffer: UnsafeMutablePointer<Float32>,
@@ -217,14 +228,16 @@ public func getCoreMLHandleBatchOutput(userInputBuffer: UnsafeMutablePointer<Flo
                                        modelIndex: Int,
                                        batchSize: Int) {
 
-    let model = CoreMLBackend.getBackend(at: modelIndex)
-
-    model.getBatchOutput(binInputs: userInputBuffer,
-                         globalInputs: userInputGlobalBuffer,
-                         policyOutputs: policyOutputs,
-                         valueOutputs: valueOutputs,
-                         ownershipOutputs: ownershipOutputs,
-                         miscValuesOutputs: miscValuesOutputs,
-                         moreMiscValuesOutputs: moreMiscValuesOutputs,
-                         batchSize: batchSize)
+    if let model = CoreMLBackend.getBackend(at: modelIndex) {
+        model.getBatchOutput(binInputs: userInputBuffer,
+                             globalInputs: userInputGlobalBuffer,
+                             policyOutputs: policyOutputs,
+                             valueOutputs: valueOutputs,
+                             ownershipOutputs: ownershipOutputs,
+                             miscValuesOutputs: miscValuesOutputs,
+                             moreMiscValuesOutputs: moreMiscValuesOutputs,
+                             batchSize: batchSize)
+    } else {
+        fatalError("Unable to get CoreML backend at model index: \(modelIndex)")
+    }
 }
