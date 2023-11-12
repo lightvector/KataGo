@@ -284,7 +284,7 @@ void MetalProcess::createMetalComputeHandle(const ModelDesc* modelDesc,
                                               policyHeadDescToSwift(&modelDesc->policyHead),
                                               valueHeadDescToSwift(&modelDesc->valueHead));
 
-  createMetalComputeHandle(gpuIdx, swModelDesc, serverThreadIdx);
+  createMetalComputeHandle(swModelDesc, serverThreadIdx);
 }
 
 //---------------------------------------------------------------------------------------------------------
@@ -860,7 +860,6 @@ void MetalProcess::getMetalOutput(
                        inputBuffers->valueResults,
                        inputBuffers->ownershipResults,
                        inputBuffers->scoreValuesResults,
-                       gpuHandle->gpuIndex,
                        batchSize);
 
   for(size_t row = 0; row < batchSize; row++) {

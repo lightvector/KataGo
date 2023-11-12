@@ -2877,14 +2877,12 @@ final class ComputeHandleTest: XCTestCase {
                                            useFP16Mode: .False,
                                            useNHWCMode: .False)
 
-        let gpuIdxForThisThread = 0
         let swModelDesc = swModelDescTest.createMiniDesc()
 
-        createMetalComputeHandle(at: Int32(gpuIdxForThisThread),
-                                 descriptor: swModelDesc,
+        createMetalComputeHandle(descriptor: swModelDesc,
                                  serverThreadIdx: 0)
 
-        let handle = MetalComputeHandle.getInstance(at: gpuIdxForThisThread)
+        let handle = MetalComputeHandle.handle
         let context = MetalComputeContext.getInstance()
 
         XCTAssert(handle?.model.nnXLen == context.nnXLen)
@@ -2930,8 +2928,6 @@ final class MetalBackendTest: XCTestCase {
     }
 
     func testGetOutput() {
-        let gpuIdx: Int = 0
-
         MetalComputeContext.createInstance(nnXLen: 1 as NSNumber,
                                            nnYLen: 1 as NSNumber,
                                            useFP16Mode: .False,
@@ -2939,8 +2935,7 @@ final class MetalBackendTest: XCTestCase {
 
         let swModelDesc = swModelDescTest.createMiniDesc()
 
-        MetalComputeHandle.createInstance(at: gpuIdx,
-                                          descriptor: swModelDesc,
+        MetalComputeHandle.createInstance(descriptor: swModelDesc,
                                           serverThreadIdx: 0)
         
         var input = [Float32](repeating: 1, count: 1)
@@ -2958,7 +2953,6 @@ final class MetalBackendTest: XCTestCase {
                              valueOutput: &valueOutput,
                              ownershipOutput: &ownershipOutput,
                              scoreValueOutput: &scoreValueOutput,
-                             gpuIdx: gpuIdx,
                              batchSize: 1)
 
         XCTAssertEqual(policyOutput[0], 101.68, accuracy: 1e-4)

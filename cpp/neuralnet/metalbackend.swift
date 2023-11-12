@@ -304,68 +304,68 @@ struct NetworkTester {
                      networkBuilder: (MPSGraph, InputLayer, MaskLayer) -> MPSGraphTensor) {
 
         // Create a Metal device.
-        if let device = MTLCreateSystemDefaultDevice() {
-            // Create a MPSGraph.
-            let graph = MPSGraph()
+        let device = MetalComputeContext.device
 
-            // Create the input and mask layers.
-            let inputLayer = InputLayer(graph: graph,
-                                        nnXLen: nnXLen,
-                                        nnYLen: nnYLen,
-                                        numChannels: numChannels)
+        // Create a MPSGraph.
+        let graph = MPSGraph()
 
-            let maskLayer = MaskLayer(graph: graph,
-                                      nnXLen: nnXLen,
-                                      nnYLen: nnYLen)
+        // Create the input and mask layers.
+        let inputLayer = InputLayer(graph: graph,
+                                    nnXLen: nnXLen,
+                                    nnYLen: nnYLen,
+                                    numChannels: numChannels)
 
-            // Build the custom network configuration using the provided networkBuilder closure.
-            let resultTensor = networkBuilder(graph, inputLayer, maskLayer)
+        let maskLayer = MaskLayer(graph: graph,
+                                  nnXLen: nnXLen,
+                                  nnYLen: nnYLen)
 
-            // Create input shape
-            let inputShape = InputShape.create(batchSize: batchSize,
-                                               numChannels: numChannels,
-                                               nnYLen: nnYLen,
-                                               nnXLen: nnXLen)
+        // Build the custom network configuration using the provided networkBuilder closure.
+        let resultTensor = networkBuilder(graph, inputLayer, maskLayer)
 
-            // Create MPSNDArrayDescriptors from the input shape.
-            let sourceDescriptor = MPSNDArrayDescriptor(dataType: inputLayer.tensor.dataType,
-                                                        shape: inputShape)
+        // Create input shape
+        let inputShape = InputShape.create(batchSize: batchSize,
+                                           numChannels: numChannels,
+                                           nnYLen: nnYLen,
+                                           nnXLen: nnXLen)
 
-            // Create MPSNDArray from the source descriptor.
-            let sourceArray = MPSNDArray(device: device,
-                                         descriptor: sourceDescriptor)
+        // Create MPSNDArrayDescriptors from the input shape.
+        let sourceDescriptor = MPSNDArrayDescriptor(dataType: inputLayer.tensor.dataType,
+                                                    shape: inputShape)
 
-            // Create a mask shape
-            let maskShape = InputShape.create(batchSize: batchSize,
-                                              numChannels: 1,
-                                              nnYLen: nnYLen,
-                                              nnXLen: nnXLen)
+        // Create MPSNDArray from the source descriptor.
+        let sourceArray = MPSNDArray(device: device,
+                                     descriptor: sourceDescriptor)
 
-            // Create MPSNDArrayDescriptors from the mask shape.
-            let maskDescriptor = MPSNDArrayDescriptor(dataType: maskLayer.tensor.dataType,
-                                                      shape: maskShape)
+        // Create a mask shape
+        let maskShape = InputShape.create(batchSize: batchSize,
+                                          numChannels: 1,
+                                          nnYLen: nnYLen,
+                                          nnXLen: nnXLen)
 
-            // Create MPSNDArray from the mask descriptor.
-            let maskArray = MPSNDArray(device: device,
-                                       descriptor: maskDescriptor)
+        // Create MPSNDArrayDescriptors from the mask shape.
+        let maskDescriptor = MPSNDArrayDescriptor(dataType: maskLayer.tensor.dataType,
+                                                  shape: maskShape)
 
-            // Write input and mask data to their respective MPSNDArrays, converting to FP16 if necessary.
-            sourceArray.writeBytes(input)
-            maskArray.writeBytes(mask)
+        // Create MPSNDArray from the mask descriptor.
+        let maskArray = MPSNDArray(device: device,
+                                   descriptor: maskDescriptor)
 
-            // Create MPSGraphTensorData objects from the source and mask arrays.
-            let sourceTensorData = MPSGraphTensorData(sourceArray)
-            let maskTensorData = MPSGraphTensorData(maskArray)
+        // Write input and mask data to their respective MPSNDArrays, converting to FP16 if necessary.
+        sourceArray.writeBytes(input)
+        maskArray.writeBytes(mask)
 
-            // Execute the graph and fetch the result.
-            let fetch = graph.run(feeds: [inputLayer.tensor: sourceTensorData,
-                                          maskLayer.tensor: maskTensorData],
-                                  targetTensors: [resultTensor],
-                                  targetOperations: nil)
+        // Create MPSGraphTensorData objects from the source and mask arrays.
+        let sourceTensorData = MPSGraphTensorData(sourceArray)
+        let maskTensorData = MPSGraphTensorData(maskArray)
 
-            // Read the output data from the result tensor, converting from FP16 to FP32 if necessary.
-            fetch[resultTensor]?.mpsndarray().readBytes(output)
-        }
+        // Execute the graph and fetch the result.
+        let fetch = graph.run(feeds: [inputLayer.tensor: sourceTensorData,
+                                      maskLayer.tensor: maskTensorData],
+                              targetTensors: [resultTensor],
+                              targetOperations: nil)
+
+        // Read the output data from the result tensor, converting from FP16 to FP32 if necessary.
+        fetch[resultTensor]?.mpsndarray().readBytes(output)
     }
 }
 
@@ -449,40 +449,39 @@ class ConvLayer {
                     batchSize: NSNumber,
                     input: UnsafeMutablePointer<Float32>,
                     output: UnsafeMutablePointer<Float32>) {
-        if let device = MTLCreateSystemDefaultDevice() {
-            let graph = MPSGraph()
+        let device = MetalComputeContext.device
+        let graph = MPSGraph()
 
-            let source = InputLayer(graph: graph,
-                                    nnXLen: nnXLen,
-                                    nnYLen: nnYLen,
-                                    numChannels: descriptor.inChannels)
+        let source = InputLayer(graph: graph,
+                                nnXLen: nnXLen,
+                                nnYLen: nnYLen,
+                                numChannels: descriptor.inChannels)
 
-            let conv = ConvLayer(graph: graph,
-                                 sourceTensor: source.tensor,
-                                 descriptor: descriptor,
-                                 nnXLen: nnXLen,
-                                 nnYLen: nnYLen)
+        let conv = ConvLayer(graph: graph,
+                             sourceTensor: source.tensor,
+                             descriptor: descriptor,
+                             nnXLen: nnXLen,
+                             nnYLen: nnYLen)
 
-            let inputShape = InputShape.create(batchSize: batchSize,
-                                               numChannels: descriptor.inChannels,
-                                               nnYLen: nnYLen,
-                                               nnXLen: nnXLen)
+        let inputShape = InputShape.create(batchSize: batchSize,
+                                           numChannels: descriptor.inChannels,
+                                           nnYLen: nnYLen,
+                                           nnXLen: nnXLen)
 
-            let sourceDescriptor = MPSNDArrayDescriptor(dataType: source.tensor.dataType,
-                                                        shape: inputShape)
+        let sourceDescriptor = MPSNDArrayDescriptor(dataType: source.tensor.dataType,
+                                                    shape: inputShape)
 
-            let sourceArray = MPSNDArray(device: device,
-                                         descriptor: sourceDescriptor)
+        let sourceArray = MPSNDArray(device: device,
+                                     descriptor: sourceDescriptor)
 
-            sourceArray.writeBytes(input)
-            let sourceTensorData = MPSGraphTensorData(sourceArray)
+        sourceArray.writeBytes(input)
+        let sourceTensorData = MPSGraphTensorData(sourceArray)
 
-            let fetch = graph.run(feeds: [source.tensor: sourceTensorData],
-                                  targetTensors: [conv.resultTensor],
-                                  targetOperations: nil)
+        let fetch = graph.run(feeds: [source.tensor: sourceTensorData],
+                              targetTensors: [conv.resultTensor],
+                              targetOperations: nil)
 
-            fetch[conv.resultTensor]?.mpsndarray().readBytes(output)
-        }
+        fetch[conv.resultTensor]?.mpsndarray().readBytes(output)
     }
 
     /// Initializes a ConvLayer object
@@ -2313,8 +2312,6 @@ struct Model {
     let numScoreValueChannels: NSNumber
     /// The number of channels in the ownership output layer
     let numOwnershipChannels: NSNumber
-    /// The command queue used to execute the graph on the GPU
-    let commandQueue: MTLCommandQueue
     /// The input layer of the neural network
     let input: InputLayer
     /// The global input layer of the neural network
@@ -2352,7 +2349,6 @@ struct Model {
         self.numValueChannels = descriptor.numValueChannels
         self.numScoreValueChannels = descriptor.numScoreValueChannels
         self.numOwnershipChannels = descriptor.numOwnershipChannels
-        commandQueue = device.makeCommandQueue()!
 
         input = InputLayer(graph: graph,
                            nnXLen: nnXLen,
@@ -2411,7 +2407,6 @@ struct Model {
                          valueHead.valueTensor,
                          valueHead.scoreValueTensor,
                          valueHead.ownershipTensor]
-
     }
 
     /// Applies the model to the given input data, and generates predictions for policy, value and ownership
@@ -2480,20 +2475,22 @@ struct Model {
                                nnYLen.intValue * nnXLen.intValue * MemoryLayout<Float32>.size,
                                numInputChannels.intValue * nnYLen.intValue * nnXLen.intValue * MemoryLayout<Float32>.size]
 
-        let maskStrideBytes = maskStrideArray.withUnsafeMutableBytes {
-            $0.baseAddress!.assumingMemoryBound(to: Int.self)
-        }
-
-        maskArray.writeBytes(inputPointer, strideBytes: maskStrideBytes)
+        maskArray.writeBytes(inputPointer, strideBytes: &maskStrideArray)
 
         let feeds = [input.tensor: MPSGraphTensorData(inputArray),
                      inputGlobal.tensor: MPSGraphTensorData(inputGlobalArray),
                      mask.tensor: MPSGraphTensorData(maskArray)]
 
-        let fetch = graph.run(with: commandQueue,
+        let fetch = graph.run(with: MetalComputeContext.commandQueue,
                               feeds: feeds,
                               targetTensors: targetTensors,
                               targetOperations: nil)
+
+        assert(fetch[policyHead.policyTensor] != nil)
+        assert(fetch[policyHead.policyPassTensor] != nil)
+        assert(fetch[valueHead.valueTensor] != nil)
+        assert(fetch[valueHead.scoreValueTensor] != nil)
+        assert(fetch[valueHead.ownershipTensor] != nil)
 
         fetch[policyHead.policyTensor]?.mpsndarray().readBytes(policy)
         fetch[policyHead.policyPassTensor]?.mpsndarray().readBytes(policyPass)
@@ -2518,10 +2515,13 @@ public class MetalComputeContext {
     static let defaultInstance = MetalComputeContext(nnXLen: defaultNnXLen,
                                                      nnYLen: defaultNnYLen)
 
-    static var instance = defaultInstance
+    // There is no way to repair from null device. Try one of other backends if this fails.
+    static let device = MTLCreateSystemDefaultDevice()!
 
-    let nnXLen: NSNumber
-    let nnYLen: NSNumber
+    /// The command queue used to execute the graph on the GPU
+    static let commandQueue = device.makeCommandQueue()!
+
+    static var instance = defaultInstance
 
     /// Create a context.
     /// - Parameters:
@@ -2533,29 +2533,23 @@ public class MetalComputeContext {
                               nnYLen: NSNumber,
                               useFP16Mode: SWEnable,
                               useNHWCMode: SWEnable) {
-        objc_sync_enter(self)
-        defer { objc_sync_exit(self) }
-
         instance = MetalComputeContext(nnXLen: nnXLen,
                                        nnYLen: nnYLen)
     }
 
     /// Destroy the context.
     class func destroyInstance() {
-        objc_sync_enter(self)
-        defer { objc_sync_exit(self) }
-
         instance = defaultInstance
     }
 
     /// Get the context.
     /// - Returns: The context.
     class func getInstance() -> MetalComputeContext {
-        objc_sync_enter(self)
-        defer { objc_sync_exit(self) }
-
         return instance
     }
+
+    let nnXLen: NSNumber
+    let nnYLen: NSNumber
 
     /// Initialize a context.
     /// - Parameters:
@@ -2581,51 +2575,33 @@ public func createMetalContext(nnXLen: Int32,
 
 /// A class that represents a handle of GPU device.
 public class MetalComputeHandle {
-    static var handles: [Int: MetalComputeHandle] = [:]
+    static var handle: MetalComputeHandle?
     let model: Model
 
     /// Creates a new handle of GPU device.
     /// - Parameters:
-    ///   - gpuIdxForThisThread: The index of GPU device.
     ///   - descriptor: The descriptor of the model.
     ///   - serverThreadIdx: The index of the server thread.
-    class func createInstance(at gpuIdxForThisThread: Int,
-                              descriptor: SWModelDesc,
+    class func createInstance(descriptor: SWModelDesc,
                               serverThreadIdx: Int) {
-        objc_sync_enter(self)
-        defer { objc_sync_exit(self) }
-
-        handles[gpuIdxForThisThread] = MetalComputeHandle(descriptor: descriptor,
-                                                          gpuIdxForThisThread: gpuIdxForThisThread,
-                                                          serverThreadIdx: serverThreadIdx)
-    }
-
-    /// Gets the handle of GPU device.
-    /// - Parameter gpuIdxForThisThread: The index of GPU device.
-    /// - Returns: The handle of GPU device.
-    class func getInstance(at gpuIdxForThisThread: Int) -> MetalComputeHandle? {
-        objc_sync_enter(self)
-        defer { objc_sync_exit(self) }
-        return handles[gpuIdxForThisThread]
+        handle = MetalComputeHandle(descriptor: descriptor,
+                                    serverThreadIdx: serverThreadIdx)
     }
 
     /// Initializes a new instance of the `MetalComputeHandle` class.
     /// - Parameters:
     ///   - descriptor: The descriptor of the model.
-    ///   - gpuIdx: The index of GPU device.
     ///   - threadIdx: The index of the server thread.
-    /// - Returns: An optional `MetalComputeHandle` instance. Returns `nil` if the provided GPU index is invalid.
-    private init?(descriptor: SWModelDesc,
-                  gpuIdxForThisThread gpuIdx: Int,
-                  serverThreadIdx threadIdx: Int) {
+    /// - Returns: A `MetalComputeHandle` instance.
+    private init(descriptor: SWModelDesc,
+                 serverThreadIdx threadIdx: Int) {
 
-        let context = MetalComputeContext.getInstance()
-
-        // In iOS, the MTLCopyAllDevices function is not available
-        let device = MTLCreateSystemDefaultDevice()!
+        let device = MetalComputeContext.device
 
         // Log the selected device's name, model version, and model name.
         Logger().info("Metal backend thread \(threadIdx): \(device.name), Model version \(descriptor.version) \(descriptor.name)")
+
+        let context = MetalComputeContext.getInstance()
 
         // Create a model with the specified device, graph, descriptor, and other parameters.
         model = Model(device: device,
@@ -2636,11 +2612,9 @@ public class MetalComputeHandle {
     }
 }
 
-public func createMetalComputeHandle(at gpuIdxForThisThread: Int32,
-                                     descriptor: SWModelDesc,
+public func createMetalComputeHandle(descriptor: SWModelDesc,
                                      serverThreadIdx: Int32) {
-    MetalComputeHandle.createInstance(at: Int(gpuIdxForThisThread),
-                                      descriptor: descriptor,
+    MetalComputeHandle.createInstance(descriptor: descriptor,
                                       serverThreadIdx: Int(serverThreadIdx))
 }
 
@@ -2648,7 +2622,7 @@ public func createMetalComputeHandle(at gpuIdxForThisThread: Int32,
 class MetalBackend {
     /// Print all available devices.
     class func printDevices() {
-        let device = MTLCreateSystemDefaultDevice()!
+        let device = MetalComputeContext.device
         print("Found Metal Device: \(device.name)")
     }
 
@@ -2673,7 +2647,6 @@ class MetalBackend {
     ///   - valueOutput: The value output data.
     ///   - ownershipOutput: The ownership output data.
     ///   - scoreValueOutput: The score value output data.
-    ///   - gpuIdx: The index of the GPU to use.
     ///   - batchSize: The batch size.
     class func getOutput(userInputBuffer: UnsafeMutablePointer<Float32>,
                          userInputGlobalBuffer: UnsafeMutablePointer<Float32>,
@@ -2682,17 +2655,19 @@ class MetalBackend {
                          valueOutput: UnsafeMutablePointer<Float32>,
                          ownershipOutput: UnsafeMutablePointer<Float32>,
                          scoreValueOutput: UnsafeMutablePointer<Float32>,
-                         gpuIdx: Int,
                          batchSize: Int) {
+
+        assert(MetalComputeHandle.handle != nil)
+
         autoreleasepool {
-            MetalComputeHandle.handles[gpuIdx]?.model.apply(input: userInputBuffer,
-                                                            inputGlobal: userInputGlobalBuffer,
-                                                            policy: policyOutput,
-                                                            policyPass: policyPassOutput,
-                                                            value: valueOutput,
-                                                            scoreValue: scoreValueOutput,
-                                                            ownership: ownershipOutput,
-                                                            batchSize: batchSize)
+            MetalComputeHandle.handle?.model.apply(input: userInputBuffer,
+                                                   inputGlobal: userInputGlobalBuffer,
+                                                   policy: policyOutput,
+                                                   policyPass: policyPassOutput,
+                                                   value: valueOutput,
+                                                   scoreValue: scoreValueOutput,
+                                                   ownership: ownershipOutput,
+                                                   batchSize: batchSize)
         }
     }
 }
@@ -2708,7 +2683,6 @@ public func getMetalHandleOutput(userInputBuffer: UnsafeMutablePointer<Float32>,
                                  valueOutput: UnsafeMutablePointer<Float32>,
                                  ownershipOutput: UnsafeMutablePointer<Float32>,
                                  scoreValueOutput: UnsafeMutablePointer<Float32>,
-                                 gpuIdx: Int,
                                  batchSize: Int) {
     MetalBackend.getOutput(userInputBuffer: userInputBuffer,
                            userInputGlobalBuffer: userInputGlobalBuffer,
@@ -2717,7 +2691,6 @@ public func getMetalHandleOutput(userInputBuffer: UnsafeMutablePointer<Float32>,
                            valueOutput: valueOutput,
                            ownershipOutput: ownershipOutput,
                            scoreValueOutput: scoreValueOutput,
-                           gpuIdx: gpuIdx,
                            batchSize: batchSize)
 }
 
