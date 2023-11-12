@@ -402,6 +402,7 @@ ComputeContext::ComputeContext(int nnX, int nnY, enabled_t useFP16Mode, enabled_
   SWEnable::Auto();
 
   createMetalContext(nnX, nnY, swUseFP16Mode, swUseNHWCMode);
+  createCoreMLContext();
 }
 
 ComputeContext::~ComputeContext() {
