@@ -176,42 +176,32 @@ void CoreMLProcess::getCoreMLOutput(
   int version = gpuHandle->modelVersion;
   int numSpatialFeatures = NNModelVersion::getNumSpatialFeatures(version);
   int numGlobalFeatures = NNModelVersion::getNumGlobalFeatures(version);
+  size_t singleSpatialElts = inputBuffers->singleSpatialElts;
+  size_t singleInputElts = inputBuffers->singleInputElts;
+  size_t singleInputGlobalElts = inputBuffers->singleInputGlobalElts;
 
   assert(batchSize <= inputBuffers->maxBatchSize);
   assert(batchSize > 0);
   assert((numSpatialFeatures * modelXLen * modelYLen) == inputBuffers->singleInputElts);
   assert(numGlobalFeatures == inputBuffers->singleInputGlobalElts);
   assert(version == getCoreMLBackendVersion(gpuHandle->modelIndex));
-
-  size_t policyResultChannels = inputBuffers->policyResultChannels;
-  size_t singleSpatialElts = inputBuffers->singleSpatialElts;
-  size_t singleInputElts = inputBuffers->singleInputElts;
-  size_t singleInputGlobalElts = inputBuffers->singleInputGlobalElts;
-  size_t singlePolicyResultElts = inputBuffers->singleModelPolicyResultElts;
-  size_t singleValueResultElts = inputBuffers->singleValueResultElts;
-  size_t singleOwnershipResultElts = inputBuffers->singleModelOwnershipResultElts;
-  size_t singleScoreValuesResultElts = inputBuffers->singleScoreValuesResultElts;
-  size_t singleMoreMiscValuesResultElts = inputBuffers->singleMoreMiscValuesResultElts;
-
   assert(singleInputElts == (modelXLen * modelYLen * 22));
   assert(singleInputGlobalElts == 19);
-  assert(singlePolicyResultElts == ((modelXLen * modelYLen) + 1));
-  assert(singleValueResultElts == 3);
-  assert(singleOwnershipResultElts == (modelXLen * modelYLen));
-  assert(singleScoreValuesResultElts == 10);
-  assert(singleMoreMiscValuesResultElts == 8);
+  assert(inputBuffers->singleModelPolicyResultElts == ((modelXLen * modelYLen) + 1));
+  assert(inputBuffers->singleValueResultElts == 3);
+  assert(inputBuffers->singleModelOwnershipResultElts == (modelXLen * modelYLen));
+  assert(inputBuffers->singleScoreValuesResultElts == 10);
+  assert(inputBuffers->singleMoreMiscValuesResultElts == 8);
+  assert(gpuHandle->inputsUseNHWC == false);
 
   for(size_t row = 0; row < batchSize; row++) {
     float* rowSpatialBuffer = &inputBuffers->rowSpatialBuffer[singleSpatialElts * row];
     float* rowSpatialInput = &inputBuffers->userInputBuffer[singleInputElts * row];
     float* rowGlobalInput = &inputBuffers->userInputGlobalBuffer[singleInputGlobalElts * row];
-
     const float* rowGlobal = inputBufs[row]->rowGlobal;
     const float* rowSpatial = inputBufs[row]->rowSpatial;
 
     std::copy(&rowGlobal[0], &rowGlobal[numGlobalFeatures], rowGlobalInput);
-
-    assert(gpuHandle->inputsUseNHWC == false);
 
     SymmetryHelpers::copyInputsWithSymmetry(
       rowSpatial,
