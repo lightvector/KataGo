@@ -799,7 +799,7 @@ static Loc chooseRandomForkingMove(const NNOutput* nnOutput, const Board& board,
     return PlayUtils::chooseRandomLegalMove(board, hist, pla, gameRand, banMove);
 }
 
-static void extractPolicyTarget(
+void Play::extractPolicyTarget(
   vector<PolicyTargetMove>& buf,
   const Search* toMoveBot,
   const SearchNode* node,
@@ -896,7 +896,7 @@ static void recordTreePositionsRec(
 
   if(plaAlwaysBest && node != toMoveBot->rootNode) {
     SidePosition* sp = new SidePosition(board,hist,pla,numNeuralNetChangesSoFar);
-    extractPolicyTarget(sp->policyTarget, toMoveBot, node, locsBuf, playSelectionValuesBuf);
+    Play::extractPolicyTarget(sp->policyTarget, toMoveBot, node, locsBuf, playSelectionValuesBuf);
     extractValueTargets(sp->whiteValueTargets, toMoveBot, node);
 
     double policySurprise = 0.0, policyEntropy = 0.0, searchEntropy = 0.0;
@@ -1533,7 +1533,7 @@ FinishedGameData* Play::runGame(
     else {
       vector<PolicyTargetMove>* policyTarget = new vector<PolicyTargetMove>();
       int64_t unreducedNumVisits = toMoveBot->getRootVisits();
-      extractPolicyTarget(*policyTarget, toMoveBot, toMoveBot->rootNode, locsBuf, playSelectionValuesBuf);
+      Play::extractPolicyTarget(*policyTarget, toMoveBot, toMoveBot->rootNode, locsBuf, playSelectionValuesBuf);
       gameData->policyTargetsByTurn.push_back(PolicyTarget(policyTarget,unreducedNumVisits));
       gameData->nnRawStatsByTurn.push_back(computeNNRawStats(toMoveBot, board, hist, pla));
 
@@ -1849,7 +1849,7 @@ FinishedGameData* Play::runGame(
       sp->playoutDoublingAdvantage = 0.0;
       Loc responseLoc = toMoveBot->runWholeSearchAndGetMove(sp->pla);
 
-      extractPolicyTarget(sp->policyTarget, toMoveBot, toMoveBot->rootNode, locsBuf, playSelectionValuesBuf);
+      Play::extractPolicyTarget(sp->policyTarget, toMoveBot, toMoveBot->rootNode, locsBuf, playSelectionValuesBuf);
       extractValueTargets(sp->whiteValueTargets, toMoveBot, toMoveBot->rootNode);
 
       double policySurprise = 0.0, policyEntropy = 0.0, searchEntropy = 0.0;

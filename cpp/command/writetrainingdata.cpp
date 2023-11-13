@@ -10,6 +10,7 @@
 #include "../dataio/files.h"
 #include "../neuralnet/modelversion.h"
 #include "../program/setup.h"
+#include "../program/play.h"
 #include "../command/commandline.h"
 #include "../main.h"
 
@@ -28,6 +29,42 @@ static ValueTargets makeForcedWinnerValueTarget(Player winner) {
   targets.hasLead = false;
   targets.lead = 0.0f;
   return targets;
+}
+
+static void getNNEval(
+  const Board& board,
+  const BoardHistory& hist,
+  Player nextPla,
+  double drawEquivalentWinsForWhite,
+  Player playoutDoublingAdvantagePla,
+  double playoutDoublingAdvantage,
+  NNEvaluator* nnEval,
+  NNResultBuf& buf
+) {
+  bool skipCache = true;
+  bool includeOwnerMap = true;
+  MiscNNInputParams nnInputParams;
+  nnInputParams.conservativePassAndIsRoot = true;
+  nnInputParams.enablePassingHacks = true;
+  nnInputParams.drawEquivalentWinsForWhite = drawEquivalentWinsForWhite;
+  nnInputParams.playoutDoublingAdvantage = (playoutDoublingAdvantagePla == getOpp(nextPla) ? -playoutDoublingAdvantage : playoutDoublingAdvantage);
+  Board copy(board);
+  nnEval->evaluate(copy,hist,nextPla,nnInputParams,buf,skipCache,includeOwnerMap);
+}
+
+static double getPassProb(
+  const Board& board,
+  const BoardHistory& hist,
+  Player nextPla,
+  double drawEquivalentWinsForWhite,
+  Player playoutDoublingAdvantagePla,
+  double playoutDoublingAdvantage,
+  NNEvaluator* nnEval
+) {
+  NNResultBuf buf;
+  getNNEval(board,hist,nextPla,drawEquivalentWinsForWhite,playoutDoublingAdvantagePla,playoutDoublingAdvantage,nnEval,buf);
+  int passPos = NNPos::getPassPos(nnEval->getNNXLen(),nnEval->getNNYLen());
+  return buf.result->policyProbs[passPos];
 }
 
 static ValueTargets makeWhiteValueTarget(
@@ -63,15 +100,7 @@ static ValueTargets makeWhiteValueTarget(
   }
 
   NNResultBuf buf;
-  bool skipCache = true;
-  bool includeOwnerMap = false;
-  MiscNNInputParams nnInputParams;
-  nnInputParams.conservativePassAndIsRoot = true;
-  nnInputParams.enablePassingHacks = true;
-  nnInputParams.drawEquivalentWinsForWhite = drawEquivalentWinsForWhite;
-  nnInputParams.playoutDoublingAdvantage = (playoutDoublingAdvantagePla == getOpp(nextPla) ? -playoutDoublingAdvantage : playoutDoublingAdvantage);
-  Board copy(board);
-  nnEval->evaluate(copy,hist,nextPla,nnInputParams,buf,skipCache,includeOwnerMap);
+  getNNEval(board,hist,nextPla,drawEquivalentWinsForWhite,playoutDoublingAdvantagePla,playoutDoublingAdvantage,nnEval,buf);
 
   targets.win = buf.result->whiteWinProb;
   targets.loss = buf.result->whiteLossProb;
@@ -93,6 +122,49 @@ static std::set<string> loadStrippedTxtFileLines(const string& filePath) {
   return ret;
 }
 
+static bool isLikelyBot(const string& username) {
+  string s = Global::trim(Global::toLower(username));
+  if(s.find("gnugo") != std::string::npos)
+    return true;
+  if(s.find("gnu go") != std::string::npos)
+    return true;
+  if(s.find("fuego") != std::string::npos)
+    return true;
+  if(s.find("katago") != std::string::npos)
+    return true;
+  if(s.find("kata-bot") != std::string::npos)
+    return true;
+  if(s.find("crazystone") != std::string::npos)
+    return true;
+  if(s.find("_bot_") != std::string::npos)
+    return true;
+  if(Global::isSuffix(s,"_bot"))
+    return true;
+  if(Global::isSuffix(s,"-bot"))
+    return true;
+  if(s.find("leela") != std::string::npos)
+    return true;
+  if(s.find("pachi") != std::string::npos)
+    return true;
+  if(s.find("manyfaces") != std::string::npos)
+    return true;
+  if(s.find("amybot") != std::string::npos)
+    return true;
+  if(s.find("randombot") != std::string::npos)
+    return true;
+  if(s.find("random_bot") != std::string::npos)
+    return true;
+  if(s.find("random bot") != std::string::npos)
+    return true;
+  if(s.find("weakbot") != std::string::npos)
+    return true;
+  if(s.find("weak_bot") != std::string::npos)
+    return true;
+  if(s.find("weak bot") != std::string::npos)
+    return true;
+  return false;
+}
+
 
 int MainCmds::writetrainingdata(const vector<string>& args) {
   Board::initHash();
@@ -105,9 +177,13 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
   string noTrainUsersFile;
   string noGameUsersFile;
   string isBotUsersFile;
+  bool noTrainOnBots;
+  bool useFancyBotUsers;
   string whatDataSource;
   size_t maxFilesToLoad;
+  double keepProb;
   string outputDir;
+  int verbosity;
 
   try {
     KataGoCommandLine cmd("Generate training data from sgfs.");
@@ -119,17 +195,25 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
     TCLAP::ValueArg<string> noTrainUsersArg("","no-train-users-file","Avoid training on these player's moves",true,string(),"TXTFILE");
     TCLAP::ValueArg<string> noGameUsersArg("","no-game-users-file","Avoid training on games with these players",true,string(),"TXTFILE");
     TCLAP::ValueArg<string> isBotUsersArg("","is-bot-users-file","Mark these usernames as bots",true,string(),"TXTFILE");
+    TCLAP::SwitchArg noTrainOnBotsArg("","no-train-on-bots","Use bot users files as additional no train users file");
+    TCLAP::SwitchArg useFancyBotUsersArg("","use-fancy-bot-users","Use some hardcoded rules to mark as bots some common names");
     TCLAP::ValueArg<string> whatDataSourceArg("","what-data-source","What data source",true,string(),"NAME");
     TCLAP::ValueArg<size_t> maxFilesToLoadArg("","max-files-to-load","Max sgf files to try to load",false,(size_t)10000000000000ULL,"NUM");
+    TCLAP::ValueArg<double> keepProbArg("","keep-prob","Keep poses with this prob",false,1.0,"PROB");
     TCLAP::ValueArg<string> outputDirArg("","output-dir","Dir to output files",true,string(),"DIR");
+    TCLAP::ValueArg<int> verbosityArg("","verbosity","1-3",false,1,"NUM");
 
     cmd.add(sgfDirArg);
     cmd.add(noTrainUsersArg);
     cmd.add(noGameUsersArg);
     cmd.add(isBotUsersArg);
+    cmd.add(noTrainOnBotsArg);
+    cmd.add(useFancyBotUsersArg);
     cmd.add(whatDataSourceArg);
     cmd.add(maxFilesToLoadArg);
+    cmd.add(keepProbArg);
     cmd.add(outputDirArg);
+    cmd.add(verbosityArg);
 
     cmd.parseArgs(args);
 
@@ -138,9 +222,13 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
     noTrainUsersFile = noTrainUsersArg.getValue();
     noGameUsersFile = noGameUsersArg.getValue();
     isBotUsersFile = isBotUsersArg.getValue();
+    noTrainOnBots = noTrainOnBotsArg.getValue();
+    useFancyBotUsers = useFancyBotUsersArg.getValue();
     whatDataSource = whatDataSourceArg.getValue();
     maxFilesToLoad = maxFilesToLoadArg.getValue();
+    keepProb = keepProbArg.getValue();
     outputDir = outputDirArg.getValue();
+    verbosity = verbosityArg.getValue();
 
     cmd.getConfig(cfg);
   }
@@ -209,6 +297,8 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
   params.maxVisits = 50;
   params.numThreads = numSearchThreads;
   params.rootEndingBonusPoints = 0.8; // More aggressive game ending
+  params.conservativePass = true;
+  params.enablePassingHacks = true;
 
   vector<string> sgfFiles;
   FileHelpers::collectSgfsFromDirsOrFiles(sgfDirs,sgfFiles);
@@ -218,16 +308,46 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
 
   cfg.warnUnusedKeys(cerr,&logger);
 
-  //Done loading!
-  //------------------------------------------------------------------------------------
+  // Done loading!
+  // ------------------------------------------------------------------------------------
   std::atomic<int64_t> numSgfsDone(0);
   std::atomic<int64_t> numSgfErrors(0);
 
-  auto reportSgfDone = [&](bool wasSuccess) {
+  std::mutex statsLock;
+  std::map<string,int64_t> gameCountByUsername;
+  std::map<string,int64_t> gameCountByRank;
+  std::map<string,int64_t> gameCountByBSize;
+  std::map<string,int64_t> gameCountByRules;
+  std::map<string,int64_t> gameCountByKomi;
+  std::map<string,int64_t> gameCountByHandicap;
+  std::map<string,int64_t> gameCountByResult;
+  std::map<string,int64_t> gameCountByTimeControl;
+  std::map<string,int64_t> gameCountByIsRanked;
+  std::map<string,int64_t> gameCountByEvent;
+
+  std::map<string,int64_t> acceptedGameCountByUsername;
+  std::map<string,int64_t> acceptedGameCountByRank;
+  std::map<string,int64_t> acceptedGameCountByBSize;
+  std::map<string,int64_t> acceptedGameCountByRules;
+  std::map<string,int64_t> acceptedGameCountByKomi;
+  std::map<string,int64_t> acceptedGameCountByHandicap;
+  std::map<string,int64_t> acceptedGameCountByResult;
+  std::map<string,int64_t> acceptedGameCountByTimeControl;
+  std::map<string,int64_t> acceptedGameCountByIsRanked;
+  std::map<string,int64_t> acceptedGameCountByEvent;
+
+  std::map<string,int64_t> acceptedGameCountByUsage;
+  std::map<string,int64_t> doneGameCountByReason;
+
+  auto reportSgfDone = [&](bool wasSuccess, const string& reasonLabel) {
     if(!wasSuccess)
       numSgfErrors.fetch_add(1);
     int64_t numErrors = numSgfErrors.load();
     int64_t numDone = numSgfsDone.fetch_add(1) + 1;
+    {
+      std::lock_guard<std::mutex> lock(statsLock);
+      doneGameCountByReason[reasonLabel] += 1;
+    }
 
     if(numDone == sgfFiles.size() || numDone % 100 == 0) {
       logger.write(
@@ -253,6 +373,7 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
       )
     );
     Search* search = new Search(params,nnEval,&logger,searchRandSeed);
+    search->setAlwaysIncludeOwnerMap(true);
     threadSearchers.push_back(search);
   }
 
@@ -266,29 +387,6 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
     logger.write("Saved output file with " + Global::int64ToString(numRows) + " rows: " + resultingFilename);
   };
 
-  std::mutex statsLock;
-  std::map<string,int64_t> gameCountByUsername;
-  std::map<string,int64_t> gameCountByRank;
-  std::map<string,int64_t> gameCountByBSize;
-  std::map<string,int64_t> gameCountByRules;
-  std::map<string,int64_t> gameCountByKomi;
-  std::map<string,int64_t> gameCountByHandicap;
-  std::map<string,int64_t> gameCountByResult;
-  std::map<string,int64_t> gameCountByTimeControl;
-  std::map<string,int64_t> gameCountByIsRanked;
-  std::map<string,int64_t> gameCountByEvent;
-
-  std::map<string,int64_t> acceptedGameCountByUsername;
-  std::map<string,int64_t> acceptedGameCountByRank;
-  std::map<string,int64_t> acceptedGameCountByBSize;
-  std::map<string,int64_t> acceptedGameCountByRules;
-  std::map<string,int64_t> acceptedGameCountByKomi;
-  std::map<string,int64_t> acceptedGameCountByHandicap;
-  std::map<string,int64_t> acceptedGameCountByResult;
-  std::map<string,int64_t> acceptedGameCountByTimeControl;
-  std::map<string,int64_t> acceptedGameCountByIsRanked;
-  std::map<string,int64_t> acceptedGameCountByEvent;
-
 
   auto processSgf = [&](int threadIdx, size_t index) {
     const string& fileName = sgfFiles[index];
@@ -300,7 +398,7 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
     }
     catch(const StringError& e) {
       logger.write("Invalid SGF " + fileName + ": " + e.what());
-      reportSgfDone(false);
+      reportSgfDone(false,"SGFInvalid");
       return;
     }
 
@@ -311,7 +409,7 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
         + " " + Global::intToString(xySize.y)
         + " " + Global::intToString(dataBoardLen)
       );
-      reportSgfDone(false);
+      reportSgfDone(false,"SGFGreaterThanDataBoardLen");
       return;
     }
     {
@@ -328,7 +426,7 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
           + " " + Global::intToString(xySize.x)
           + " " + Global::intToString(xySize.y)
         );
-        reportSgfDone(false);
+        reportSgfDone(false,"SGFDisallowedBoardSize");
         return;
       }
     }
@@ -344,12 +442,12 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
     }
     catch(const StringError& e) {
       logger.write("Invalid SGF " + fileName + ": " + e.what());
-      reportSgfDone(false);
+      reportSgfDone(false,"SGFInvalidCompact");
       return;
     }
 
-    string sgfBUsername = sgfRaw->getRootPropertyWithDefault("PB", "");
-    string sgfWUsername = sgfRaw->getRootPropertyWithDefault("PW", "");
+    string sgfBUsername = Global::trim(sgfRaw->getRootPropertyWithDefault("PB", ""));
+    string sgfWUsername = Global::trim(sgfRaw->getRootPropertyWithDefault("PW", ""));
     string sgfBRank = sgfRaw->getRootPropertyWithDefault("BR", "");
     string sgfWRank = sgfRaw->getRootPropertyWithDefault("WR", "");
     string sgfRules = sgfRaw->getRootPropertyWithDefault("RU", "");
@@ -372,7 +470,7 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
       }
       if(!isRanked && !isUnranked) {
         logger.write("Unknown ranking status in SGF " + fileName);
-        reportSgfDone(false);
+        reportSgfDone(false,"GameUnknownRankingStatus");
         return;
       }
       sgfGameIsRanked = isRanked;
@@ -415,12 +513,26 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
 
     if(noGameUsers.find(sgfBUsername) != noGameUsers.end() || noGameUsers.find(sgfWUsername) != noGameUsers.end()) {
       logger.write("Filtering due to undesired user in sgf " + fileName);
-      reportSgfDone(false);
+      reportSgfDone(false,"UserInNoGameUsers");
       return;
     }
 
-    const bool shouldTrainB = noTrainUsers.find(sgfBUsername) == noTrainUsers.end();
-    const bool shouldTrainW = noTrainUsers.find(sgfWUsername) == noTrainUsers.end();
+    bool isBotB = isBotUsers.find(sgfBUsername) != isBotUsers.end();
+    bool isBotW = isBotUsers.find(sgfWUsername) != isBotUsers.end();
+    if(useFancyBotUsers) {
+      isBotB = isBotB || isLikelyBot(sgfBUsername);
+      isBotW = isBotW || isLikelyBot(sgfWUsername);
+    }
+
+    const bool shouldTrainB = noTrainUsers.find(sgfBUsername) == noTrainUsers.end() && !(noTrainOnBots && isBotB);
+    const bool shouldTrainW = noTrainUsers.find(sgfWUsername) == noTrainUsers.end() && !(noTrainOnBots && isBotW);
+
+    if(!shouldTrainB && !shouldTrainW) {
+      if(verbosity >= 2)
+        logger.write("Filtering due to both users no training in sgf " + fileName);
+      reportSgfDone(false,"UserBothNoTrain");
+      return;
+    }
 
     int sgfHandicapParsed = -1;
     if(sgfHandicap != "") {
@@ -430,7 +542,7 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
       }
       else {
         logger.write("Unable to parse handicap or handicap too extreme in sgf " + fileName + ": " + sgfHandicap + sizeStr);
-        reportSgfDone(false);
+        reportSgfDone(false,"GameBadHandicap");
         return;
       }
     }
@@ -447,7 +559,7 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
 
     if(sgfMoves.size() > boardArea * 1.5 + 40.0) {
       logger.write("Too many moves in sgf " + fileName + ": " + Global::uint64ToString(sgfMoves.size()) + sizeStr);
-      reportSgfDone(false);
+      reportSgfDone(false,"MovesTooManyMoves");
       return;
     }
 
@@ -522,7 +634,7 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
         }
         else {
           logger.write("Game ended with invalid score " + fileName + " result " + sgfResult + sizeStr);
-          reportSgfDone(false);
+          reportSgfDone(false,"ResultInvalidScore");
           return;
         }
       }
@@ -546,13 +658,13 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
         }
         else {
           logger.write("Game ended with invalid score " + fileName + " result " + sgfResult + sizeStr);
-          reportSgfDone(false);
+          reportSgfDone(false,"ResultInvalidScore");
           return;
         }
       }
       else {
         logger.write("Game ended with unknown result " + fileName + " result " + sgfResult);
-        reportSgfDone(false);
+        reportSgfDone(false,"ResultUnknown");
         return;
       }
     }
@@ -574,13 +686,13 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
     const int minGameLenToWrite = 15 + boardArea / 8;
     const int maxKataFinishMoves = 30 + boardArea / 5;
 
-    //If there are any passes in the early moves, start only after the latest such pass.
+    // If there are any passes in the early moves, start only after the latest such pass.
     int startGameAt = 0;
     for(size_t m = 0; m<sgfMoves.size() && m < skipEarlyPassesTurns; m++) {
       if(sgfMoves[m].loc == Board::PASS_LOC)
         startGameAt = m+1;
     }
-    //If there are any passes in moves semi-early moves, reject, we're invalid.
+    // If there are any passes in moves semi-early moves, reject, we're invalid.
     for(size_t m = skipEarlyPassesTurns; m<sgfMoves.size() && m < disallowEarlyPassesTurns; m++) {
       if(sgfMoves[m].loc == Board::PASS_LOC) {
         logger.write(
@@ -588,12 +700,12 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
           Global::intToString(skipEarlyPassesTurns) + "-" + Global::intToString(disallowEarlyPassesTurns)
           + " in " + fileName + sizeStr
         );
-        reportSgfDone(false);
+        reportSgfDone(false,"MovesSemiEarlyPass");
         return;
       }
     }
 
-    //If there are multiple black moves in a row to start, start at the last one.
+    // If there are multiple black moves in a row to start, start at the last one.
     for(size_t m = 1; m<sgfMoves.size() && m < consecBlackMovesTurns; m++) {
       if(sgfMoves[m].pla == P_BLACK && sgfMoves[m-1].pla == P_BLACK) {
         startGameAt = m;
@@ -601,35 +713,36 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
     }
 
     if(startGameAt >= sgfMoves.size()) {
-      logger.write("Game too short overlaps with start in " + fileName + " turns " + Global::uint64ToString(sgfMoves.size()) + sizeStr);
-      reportSgfDone(false);
+      if(verbosity >= 2)
+        logger.write("Game too short overlaps with start in " + fileName + " turns " + Global::uint64ToString(sgfMoves.size()) + sizeStr);
+      reportSgfDone(false,"MovesTooShortOverlaps");
       return;
     }
 
-    //Fastforward through initial bit before we start
+    // Fastforward through initial bit before we start
     for(size_t m = 0; m<startGameAt; m++) {
       Move move = sgfMoves[m];
 
-      //Quit out if according to our rules, we already finished the game, or we're somehow in a cleanup phase
+      // Quit out if according to our rules, we already finished the game, or we're somehow in a cleanup phase
       if(hist.isGameFinished || hist.encorePhase > 0) {
         logger.write("Game unexpectedly ended near start in " + fileName + sizeStr);
-        reportSgfDone(false);
+        reportSgfDone(false,"MovesUnexpectedGameEndNearStart");
         return;
       }
       bool suc = hist.isLegal(board,move.loc,move.pla);
       if(!suc) {
         logger.write("Illegal move near start in " + fileName + " move " + Location::toString(move.loc, board.x_size, board.y_size) + sizeStr);
-        reportSgfDone(false);
+        reportSgfDone(false,"MovesIllegalMoveNearStart");
         return;
       }
       bool preventEncore = false;
       hist.makeBoardMoveAssumeLegal(board,move.loc,move.pla,NULL,preventEncore);
     }
 
-    //Use the actual first player of the game.
+    // Use the actual first player of the game.
     nextPla = sgfMoves[startGameAt].pla;
 
-    //Set up handicap behavior
+    // Set up handicap behavior
     hist.setAssumeMultipleStartingBlackMovesAreHandicap(assumeMultipleStartingBlackMovesAreHandicap);
     hist.setOverrideNumHandicapStones(overrideNumHandicapStones);
     int numExtraBlack = hist.computeNumHandicapStones();
@@ -642,7 +755,9 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
     vector<BoardHistory> hists;
     vector<Player> nextPlas;
     vector<ValueTargets> whiteValueTargets;
-    vector<Move> moves;
+    vector<Loc> moves;
+    vector<vector<PolicyTargetMove>> policyTargets;
+    vector<double> trainingWeights;
 
     for(size_t m = startGameAt; m<sgfMoves.size()+1; m++) {
       boards.push_back(board);
@@ -656,23 +771,32 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
 
       if(m >= sgfMoves.size())
         break;
-      //Quit out if according to our rules, we already finished the game, or we're somehow in a cleanup phase
+      // Quit out if according to our rules, we already finished the game, or we're somehow in a cleanup phase
       if(hist.isGameFinished || hist.encorePhase > 0)
         break;
 
       Move move = sgfMoves[m];
-      moves.push_back(move);
+      moves.push_back(move.loc);
+      policyTargets.push_back(vector<PolicyTargetMove>());
+      policyTargets[policyTargets.size()-1].push_back(PolicyTargetMove(move.loc,1));
 
-      //Bad data checks
+      // We want policies learned from human moves to be compatible with KataGo using them in a search which may use
+      // stricter computer rules. So if a player passes, we do NOT train on it.
+      double trainingWeight = 1.0;
+      if(move.loc == Board::PASS_LOC)
+        trainingWeight = 0.0;
+      trainingWeights.push_back(trainingWeight);
+
+      // Bad data checks
       if(move.pla != nextPla && m > 0) {
-        logger.write("Bad SGF " + fileName + " early due to non-alternating players on turn " + Global::intToString(m));
-        reportSgfDone(false);
+        logger.write("Bad SGF " + fileName + " due to non-alternating players on turn " + Global::intToString(m));
+        reportSgfDone(false,"MovesNonAlternating");
         return;
       }
       bool suc = hist.isLegal(board,move.loc,move.pla);
       if(!suc) {
         logger.write("Illegal move in " + fileName + " turn " + Global::intToString(m) + " move " + Location::toString(move.loc, board.x_size, board.y_size));
-        reportSgfDone(false);
+        reportSgfDone(false,"MovesIllegal");
         return;
       }
       bool preventEncore = false;
@@ -680,15 +804,28 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
       nextPla = getOpp(move.pla);
     }
 
-    if(moves.size() < minGameLenToWrite) {
-      logger.write("Game too short in " + fileName + " turns " + Global::uint64ToString(moves.size()) + sizeStr);
-      reportSgfDone(false);
+    // Now that we finished game play from the SGF, pop off as many passes as possible
+    while(moves.size() > 0 && moves[moves.size()-1] == Board::PASS_LOC) {
+      boards.pop_back();
+      hists.pop_back();
+      nextPlas.pop_back();
+      whiteValueTargets.pop_back();
+      moves.pop_back();
+      policyTargets.pop_back();
+      trainingWeights.pop_back();
+    }
+
+    if(policyTargets.size() < minGameLenToWrite) {
+      if(verbosity >= 2)
+        logger.write("Game too short in " + fileName + " turns " + Global::uint64ToString(policyTargets.size()) + sizeStr);
+      reportSgfDone(false,"MovesTooShort");
       return;
     }
 
-    // The turn that we will record data up to
-    int endIdxForRecording = (int)moves.size();
+    int endIdxFromSgf = (int)policyTargets.size();
+    (void)endIdxFromSgf;
 
+    string usageStr;
     float valueTargetWeight = 0.0f;
     bool hasOwnershipTargets = false;
     bool hasForcedWinner = false; // Did we manually modify value targets to declare the winner?
@@ -702,51 +839,142 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
     // If this was a scored position, fill out the remaining turns with KataGo making moves, just to clean
     // up the position and carry out encore for JP-style rules.
     if(sgfGameEndedByScore) {
-      bool gameFinishedProperly = false;
-      for(int m = endIdxForRecording; m<endIdxForRecording+maxKataFinishMoves; m++) {
-        Search* search = threadSearchers[threadIdx];
-        search->setPosition(nextPla,board,hist);
-        Loc moveLoc = search->runWholeSearchAndGetMove(nextPla);
-        moves.push_back(Move(moveLoc,nextPla));
+      Search* search = threadSearchers[threadIdx];
 
-        bool suc = hist.isLegal(board,moveLoc,nextPla);
-        (void)suc;
-        assert(suc);
+      // Before we have KataGo play anything, require KataGo to agree that the game ended in a position
+      // that was basically finished.
+      bool gameIsNearEnd = false;
+      {
+        ReportedSearchValues valuesIfBlackFirst;
+        vector<double> ownershipIfBlackFirst;
+        {
+          search->setPosition(P_BLACK,board,hist);
+          search->runWholeSearchAndGetMove(P_BLACK);
+          valuesIfBlackFirst = search->getRootValuesRequireSuccess();
+          ownershipIfBlackFirst = search->getAverageTreeOwnership();
+        }
+        ReportedSearchValues valuesIfWhiteFirst;
+        vector<double> ownershipIfWhiteFirst;
+        {
+          search->setPosition(P_WHITE,board,hist);
+          search->runWholeSearchAndGetMove(P_WHITE);
+          valuesIfWhiteFirst = search->getRootValuesRequireSuccess();
+          ownershipIfWhiteFirst = search->getAverageTreeOwnership();
+        }
 
-        bool preventEncore = false;
-        hist.makeBoardMoveAssumeLegal(board,moveLoc,nextPla,NULL,preventEncore);
-        nextPla = getOpp(nextPla);
-
-        boards.push_back(board);
-        hists.push_back(hist);
-        nextPlas.push_back(nextPla);
-
-        ValueTargets targets = makeWhiteValueTarget(
-          board, hist, nextPla, drawEquivalentWinsForWhite, playoutDoublingAdvantagePla, playoutDoublingAdvantage, nnEval
-        );
-        whiteValueTargets.push_back(targets);
-
-        if(hist.isGameFinished) {
-          gameFinishedProperly = true;
-          break;
+        double absAvgLead = abs(0.5 * (valuesIfBlackFirst.lead + valuesIfWhiteFirst.lead));
+        double leadDiff = abs(valuesIfBlackFirst.lead - valuesIfWhiteFirst.lead);
+        double winlossDiff = abs(valuesIfBlackFirst.winLossValue - valuesIfWhiteFirst.winLossValue);
+        // Remaining difference between side to move is less than 4 pointsish, and the winrate is close
+        if(leadDiff < 3.5 + 0.05 * absAvgLead && winlossDiff < 0.2) {
+          const double maxFractionOfBoardUnsettled = 0.10 + 6.0 / boardArea;
+          int blackCountUnsettled = 0;
+          int whiteCountUnsettled = 0;
+          int blackWhiteVeryDifferent = 0;
+          for(int y = 0; y<board.y_size; y++) {
+            for(int x = 0; x<board.x_size; x++) {
+              int pos = NNPos::xyToPos(x,y,nnEval->getNNXLen());
+              if(abs(ownershipIfBlackFirst[pos]) < 0.9)
+                blackCountUnsettled += 1;
+              if(abs(ownershipIfWhiteFirst[pos]) < 0.9)
+                whiteCountUnsettled += 1;
+              if(abs(ownershipIfBlackFirst[pos] - ownershipIfWhiteFirst[pos]) > 1.0)
+                blackWhiteVeryDifferent += 1;
+            }
+          }
+          if(
+            blackWhiteVeryDifferent / boardArea < maxFractionOfBoardUnsettled
+            && blackCountUnsettled / boardArea < maxFractionOfBoardUnsettled
+            && whiteCountUnsettled / boardArea < maxFractionOfBoardUnsettled
+          ) {
+            gameIsNearEnd = true;
+          }
         }
       }
 
-      if(gameFinishedProperly) {
-        // Does our result match the sgf recorded result for winner?
-        // If no, reduce weight a lot
-        valueTargetWeight = (hist.winner == sgfGameWinner) ? 1.0f : 0.1f;
-
-        // Ownership stuff!
-        hasOwnershipTargets = true;
-        hists[hists.size()-1].endAndScoreGameNow(board,finalOwnership);
-        board.calculateArea(finalFullArea, true, true, true, hist.rules.multiStoneSuicideLegal);
-        NNInputs::fillScoring(board,finalOwnership,hist.rules.taxRule == Rules::TAX_ALL,finalWhiteScoring);
-      }
-      else {
-        logger.write("SGF " + fileName + " ended with score but it doesn't finish in a reasonable time");
+      if(!gameIsNearEnd) {
+        logger.write("SGF " + fileName + " ended with score but is not near ending position");
+        if(verbosity >= 3) {
+          ostringstream out;
+          out << board << endl;
+          logger.write(out.str());
+        }
         valueTargetWeight = 0.0f;
         hasOwnershipTargets = false;
+        usageStr = "NoValueScoredNotNearEnding";
+      }
+      else {
+        bool gameFinishedProperly = false;
+        vector<Loc> locsBuf;
+        vector<double> playSelectionValuesBuf;
+        for(int extraM = 0; extraM<maxKataFinishMoves; extraM++) {
+          search->setPosition(nextPla,board,hist);
+          Loc moveLoc = search->runWholeSearchAndGetMove(nextPla);
+
+          moves.push_back(moveLoc);
+          policyTargets.push_back(vector<PolicyTargetMove>());
+          Play::extractPolicyTarget(policyTargets[policyTargets.size()-1],search,search->rootNode,locsBuf,playSelectionValuesBuf);
+
+          // KataGo cleanup moves get weighted a tiny bit, so we can preserve the instinct to cleanup
+          // in the right way for strict rules as according to KataGo's cleanup instincts.
+          trainingWeights.push_back(0.05);
+
+          bool suc = hist.isLegal(board,moveLoc,nextPla);
+          (void)suc;
+          assert(suc);
+
+          bool preventEncore = false;
+          hist.makeBoardMoveAssumeLegal(board,moveLoc,nextPla,NULL,preventEncore);
+          nextPla = getOpp(nextPla);
+
+          boards.push_back(board);
+          hists.push_back(hist);
+          nextPlas.push_back(nextPla);
+
+          ValueTargets targets = makeWhiteValueTarget(
+            board, hist, nextPla, drawEquivalentWinsForWhite, playoutDoublingAdvantagePla, playoutDoublingAdvantage, nnEval
+          );
+          whiteValueTargets.push_back(targets);
+
+          if(hist.isGameFinished) {
+            gameFinishedProperly = true;
+            break;
+          }
+        }
+
+        if(gameFinishedProperly) {
+          // Does our result match the sgf recorded result for winner?
+          // If no, reduce weight a lot
+          if(hist.winner == sgfGameWinner) {
+            if(verbosity >= 2)
+              logger.write("SGF " + fileName + " ended with score and was good data " + Global::uint64ToString(moves.size()-endIdxFromSgf));
+            valueTargetWeight = 1.0f;
+            usageStr = "GoodValueAndOwnerScored";
+          }
+          else {
+            logger.write("SGF " + fileName + " ended with score and was finishable but got different result than sgf " + Global::uint64ToString(moves.size()-endIdxFromSgf));
+            valueTargetWeight = 0.1f;
+            usageStr = "LowWeightValueAndOwnerDisagreeingResult";
+          }
+
+          // Ownership stuff!
+          hasOwnershipTargets = true;
+          hists[hists.size()-1].endAndScoreGameNow(board,finalOwnership);
+          board.calculateArea(finalFullArea, true, true, true, hist.rules.multiStoneSuicideLegal);
+          NNInputs::fillScoring(board,finalOwnership,hist.rules.taxRule == Rules::TAX_ALL,finalWhiteScoring);
+        }
+        else {
+          logger.write("SGF " + fileName + " ended with score but it doesn't finish in a reasonable time");
+          if(verbosity >= 3) {
+            ostringstream out;
+            out << boards[endIdxFromSgf] << endl;
+            out << board << endl;
+            logger.write(out.str());
+          }
+          valueTargetWeight = 0.0f;
+          hasOwnershipTargets = false;
+          usageStr = "NoValueDoesntFinish";
+        }
       }
     }
     else if(sgfGameEndedByResign || sgfGameEndedByTime) {
@@ -760,11 +988,17 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
           if(whiteValueTargets[0].lead + extrapolatedChange > 0.5) {
             // Black resigned while ahead, but white was catching up in a handicp game, so count full weight.
             valueTargetWeight = 1.0f;
+            usageStr = "FullValueBlackHandicapResign";
           }
         }
         hasOwnershipTargets = false;
         hasForcedWinner = true;
         whiteValueTargets[whiteValueTargets.size()-1] = makeForcedWinnerValueTarget(P_WHITE);
+        usageStr = (
+          valueTargetWeight <= 0.0 ? "NoValue" :
+          valueTargetWeight <= 0.9 ? "ReducedValue" :
+          "FullValue"
+        );
       }
       else if(sgfGameWinner == P_BLACK) {
         // Player resigned when they were still ahead. Downweight and/or don't use.
@@ -772,31 +1006,34 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
         hasOwnershipTargets = false;
         hasForcedWinner = true;
         whiteValueTargets[whiteValueTargets.size()-1] = makeForcedWinnerValueTarget(P_BLACK);
+        usageStr = (
+          valueTargetWeight <= 0.0 ? "NoValue" :
+          valueTargetWeight <= 0.9 ? "ReducedValue" :
+          "FullValue"
+        );
       }
       else {
         ASSERT_UNREACHABLE;
       }
       // For games ending by time, treat them similarly to resigns except use a lower and sharper weighting for outcome.
       // Square so that we require the winrate to have been more clear to accept such a loss, and further downeight by constant factor.
-      valueTargetWeight = 0.5f * valueTargetWeight * valueTargetWeight;
+      if(sgfGameEndedByTime) {
+        valueTargetWeight = 0.5f * valueTargetWeight * valueTargetWeight;
+        usageStr += "EndedByTime";
+      }
+      else {
+        usageStr += "EndedByResign";
+      }
     }
     else {
       valueTargetWeight = 0.0f;
       hasOwnershipTargets = false;
+      usageStr += "NoValueOtherResult";
     }
 
-    for(size_t m = 0; m<endIdxForRecording; m++) {
+    for(size_t m = 0; m<(int)policyTargets.size(); m++) {
       int turnIdx = (int)m;
-      float targetWeight = 1.0;
       int64_t unreducedNumVisits = 0;
-      std::vector<PolicyTargetMove> policyTarget0;
-      policyTarget0.push_back(PolicyTargetMove(moves[m].loc,1));
-      bool hasPolicyTarget1 = false;
-      std::vector<PolicyTargetMove> policyTarget1;
-      if(m+1 < moves.size()) {
-        hasPolicyTarget1 = true;
-        policyTarget1.push_back(PolicyTargetMove(moves[m+1].loc,1));
-      }
       const double policySurprise = 0;
       const double policyEntropy = 0;
       const double searchEntropy = 0;
@@ -820,7 +1057,11 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
       const bool hitTurnLimit = false;
       const int mode = 0;
 
-      if((nextPlas[m] == P_BLACK && shouldTrainB) || (nextPlas[m] == P_WHITE && shouldTrainW)) {
+      if(
+        trainingWeights[m] > 1e-8
+        && ((nextPlas[m] == P_BLACK && shouldTrainB) || (nextPlas[m] == P_WHITE && shouldTrainW))
+        && rand.nextDouble() < keepProb
+      ) {
         dataBuffer->addRow(
           boards[m],
           hists[m],
@@ -828,10 +1069,10 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
           hists[0],
           hists[hists.size()-1],
           turnIdx,
-          targetWeight,
+          (float)trainingWeights[m],
           unreducedNumVisits,
-          &policyTarget0,
-          (hasPolicyTarget1 ? &policyTarget1 : NULL),
+          &policyTargets[m],
+          (m+1 < policyTargets.size() && rand.nextDouble() < trainingWeights[m+1] ? &policyTargets[m+1] : NULL),
           policySurprise,
           policyEntropy,
           searchEntropy,
@@ -881,9 +1122,10 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
       acceptedGameCountByTimeControl[sgfTimeControl] += 1;
       acceptedGameCountByIsRanked[sgfGameIsRanked ? "true" : "false"] += 1;
       acceptedGameCountByEvent[sgfEvent] += 1;
+      acceptedGameCountByUsage[usageStr] += 1;
     }
 
-    reportSgfDone(true);
+    reportSgfDone(true,"Used");
   };
 
   Parallel::iterRange(
@@ -926,8 +1168,8 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
   printGameCountsMap(acceptedGameCountByUsername,"username (accepted)",true);
   printGameCountsMap(gameCountByRank,"rank",false);
   printGameCountsMap(acceptedGameCountByRank,"rank (accepted)",false);
-  printGameCountsMap(gameCountByRank,"bSize",true);
-  printGameCountsMap(acceptedGameCountByRank,"bSize (accepted)",true);
+  printGameCountsMap(gameCountByBSize,"bSize",true);
+  printGameCountsMap(acceptedGameCountByBSize,"bSize (accepted)",true);
   printGameCountsMap(gameCountByTimeControl,"time control",false);
   printGameCountsMap(acceptedGameCountByTimeControl,"time control (accepted)",false);
   printGameCountsMap(gameCountByRules,"rules",false);
@@ -940,6 +1182,10 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
   printGameCountsMap(acceptedGameCountByResult,"result (accepted)",false);
   printGameCountsMap(gameCountByEvent,"event",false);
   printGameCountsMap(acceptedGameCountByEvent,"event (accepted)",false);
+  printGameCountsMap(gameCountByIsRanked,"isRanked",false);
+  printGameCountsMap(acceptedGameCountByIsRanked,"isRanked (accepted)",false);
+  printGameCountsMap(acceptedGameCountByUsage,"usage (accepted)",false);
+  printGameCountsMap(doneGameCountByReason,"done",false);
 
   logger.write(nnEval->getModelFileName());
   logger.write("NN rows: " + Global::int64ToString(nnEval->numRowsProcessed()));
