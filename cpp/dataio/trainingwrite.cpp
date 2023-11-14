@@ -226,8 +226,9 @@ void FinishedGameData::printDebug(ostream& out) const {
 static const int POLICY_TARGET_NUM_CHANNELS = 2;
 static const int GLOBAL_TARGET_NUM_CHANNELS = 64;
 static const int VALUE_SPATIAL_TARGET_NUM_CHANNELS = 5;
+static const int METADATA_INPUT_NUM_CHANNELS = 128;
 
-TrainingWriteBuffers::TrainingWriteBuffers(int iVersion, int maxRws, int numBChannels, int numFChannels, int xLen, int yLen)
+TrainingWriteBuffers::TrainingWriteBuffers(int iVersion, int maxRws, int numBChannels, int numFChannels, int xLen, int yLen, bool includeMetadata)
   :inputsVersion(iVersion),
    maxRows(maxRws),
    numBinaryChannels(numBChannels),
@@ -235,6 +236,7 @@ TrainingWriteBuffers::TrainingWriteBuffers(int iVersion, int maxRws, int numBCha
    dataXLen(xLen),
    dataYLen(yLen),
    packedBoardArea((xLen*yLen + 7)/8),
+   hasMetadataInput(includeMetadata),
    curRows(0),
    binaryInputNCHWUnpacked(NULL),
    binaryInputNCHWPacked({maxRws, numBChannels, packedBoardArea}),
@@ -242,7 +244,8 @@ TrainingWriteBuffers::TrainingWriteBuffers(int iVersion, int maxRws, int numBCha
    policyTargetsNCMove({maxRws, POLICY_TARGET_NUM_CHANNELS, NNPos::getPolicySize(xLen,yLen)}),
    globalTargetsNC({maxRws, GLOBAL_TARGET_NUM_CHANNELS}),
    scoreDistrN({maxRws, xLen*yLen*2+NNPos::EXTRA_SCORE_DISTR_RADIUS*2}),
-   valueTargetsNCHW({maxRws, VALUE_SPATIAL_TARGET_NUM_CHANNELS, yLen, xLen})
+   valueTargetsNCHW({maxRws, VALUE_SPATIAL_TARGET_NUM_CHANNELS, yLen, xLen}),
+   metadataInputNC({(includeMetadata ? maxRws : 1), METADATA_INPUT_NUM_CHANNELS})
 {
   binaryInputNCHWUnpacked = new float[numBChannels * xLen * yLen];
 }
@@ -392,6 +395,7 @@ void TrainingWriteBuffers::addRow(
   bool hitTurnLimit,
   int numExtraBlack,
   int mode,
+  SGFMetadata* sgfMeta,
   Rand& rand
 ) {
   static_assert(NNModelVersion::latestInputsVersionImplemented == 7, "");
@@ -729,6 +733,15 @@ void TrainingWriteBuffers::addRow(
     }
   }
 
+
+  if(hasMetadataInput) {
+    assert(sgfMeta != NULL);
+    float* rowMetadata = metadataInputNC.data + curRows * METADATA_INPUT_NUM_CHANNELS;
+    //TODO
+    for(int i = 0; i<METADATA_INPUT_NUM_CHANNELS; i++)
+      rowMetadata[i] = 0.0f;
+  }
+
   curRows++;
 }
 
@@ -754,6 +767,11 @@ void TrainingWriteBuffers::writeToZipFile(const string& fileName) {
 
   numBytes = valueTargetsNCHW.prepareHeaderWithNumRows(curRows);
   zipFile.writeBuffer("valueTargetsNCHW", valueTargetsNCHW.dataIncludingHeader, numBytes);
+
+  if(hasMetadataInput) {
+    numBytes = metadataInputNC.prepareHeaderWithNumRows(curRows);
+    zipFile.writeBuffer("metadataInputNC", metadataInputNC.dataIncludingHeader, numBytes);
+  }
 
   zipFile.close();
 }
@@ -831,6 +849,18 @@ void TrainingWriteBuffers::writeToTextOstream(ostream& out) {
     if((i+1) % (len/curRows) == 0) out << endl;
   }
   out << endl;
+
+  if(hasMetadataInput) {
+    out << "metadataInputNC" << endl;
+    metadataInputNC.prepareHeaderWithNumRows(curRows);
+    printHeader((const char*)metadataInputNC.dataIncludingHeader);
+    len = metadataInputNC.getActualDataLen(curRows);
+    for(int i = 0; i<len; i++) {
+      out << (int)metadataInputNC.data[i] << " ";
+      if((i+1) % (len/curRows) == 0) out << endl;
+    }
+    out << endl;
+  }
 }
 
 //-------------------------------------------------------------------------------------
@@ -874,7 +904,16 @@ TrainingDataWriter::TrainingDataWriter(const string& outDir, ostream* dbgOut, in
     throw StringError("TrainingDataWriter: Unsupported inputs version: " + Global::intToString(inputsVersion));
   }
 
-  writeBuffers = new TrainingWriteBuffers(inputsVersion, maxRowsPerFile, numBinaryChannels, numGlobalChannels, dataXLen, dataYLen);
+  const bool hasMetadataInput = false;
+  writeBuffers = new TrainingWriteBuffers(
+    inputsVersion,
+    maxRowsPerFile,
+    numBinaryChannels,
+    numGlobalChannels,
+    dataXLen,
+    dataYLen,
+    hasMetadataInput
+  );
 
   if(firstFileMinRandProp < 0 || firstFileMinRandProp > 1)
     throw StringError("TrainingDataWriter: firstFileMinRandProp not in [0,1]: " + Global::doubleToString(firstFileMinRandProp));
@@ -1054,6 +1093,7 @@ void TrainingDataWriter::writeGame(const FinishedGameData& data) {
             data.hitTurnLimit,
             data.numExtraBlack,
             data.mode,
+            NULL,
             rand
           );
           writeAndClearIfFull();
@@ -1121,6 +1161,7 @@ void TrainingDataWriter::writeGame(const FinishedGameData& data) {
             data.hitTurnLimit, // actual game hit turn limit
             data.numExtraBlack,
             data.mode,
+            NULL,
             rand
           );
           writeAndClearIfFull();

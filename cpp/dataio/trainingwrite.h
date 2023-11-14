@@ -1,6 +1,7 @@
 #ifndef DATAIO_TRAINING_WRITE_H_
 #define DATAIO_TRAINING_WRITE_H_
 
+#include "../core/datetime.h"
 #include "../dataio/numpywrite.h"
 #include "../neuralnet/nninputs.h"
 #include "../neuralnet/nninterface.h"
@@ -50,6 +51,33 @@ struct SidePosition {
   SidePosition();
   SidePosition(const Board& board, const BoardHistory& hist, Player pla, int numNeuralNetChangesSoFar);
   ~SidePosition();
+};
+
+struct SGFMetadata {
+  int inversePlaRank = 0; //KG = 0, 9d = 1, 8d = 2,... 1d = 9, 1k = 10, 2k = 11, ...
+  int inverseOppRank = 0;
+  bool plaIsHuman = false;
+  bool oppIsHuman = false;
+
+  bool gameIsUnrated = false;
+
+  //One-hot for all things with metadata
+  bool tcIsUnknown = false;
+  bool tcIsNone = false;
+  bool tcIsAbsolute = false;
+  bool tcIsSimple = false;
+  bool tcIsByoYomi = false;
+  bool tcIsCanadian = false;
+  bool tcIsFischer = false;
+
+  float mainTimeSeconds = 0.0f;
+  float periodTimeSeconds = 0.0f;
+  int byoYomiPeriods = 0;
+  int canadianMoves = 0;
+
+  int boardArea = 0;
+
+  SimpleDate gameDate;
 };
 
 STRUCT_NAMED_PAIR(std::string,name,int,turnIdx,ChangedNeuralNet);
@@ -131,6 +159,8 @@ struct TrainingWriteBuffers {
   int dataXLen;
   int dataYLen;
   int packedBoardArea;
+
+  bool hasMetadataInput;
 
   int curRows;
   float* binaryInputNCHWUnpacked;
@@ -229,7 +259,17 @@ struct TrainingWriteBuffers {
   //C4: Final board area/territory [-120,120]. All 0 if C34 has weight 0. Unlike ownership, takes into account group tax and scoring rules.
   NumpyBuffer<int8_t> valueTargetsNCHW;
 
-  TrainingWriteBuffers(int inputsVersion, int maxRows, int numBinaryChannels, int numGlobalChannels, int dataXLen, int dataYLen);
+  NumpyBuffer<float> metadataInputNC;
+
+  TrainingWriteBuffers(
+    int inputsVersion,
+    int maxRows,
+    int numBinaryChannels,
+    int numGlobalChannels,
+    int dataXLen,
+    int dataYLen,
+    bool hasMetadataInput
+  );
   ~TrainingWriteBuffers();
 
   TrainingWriteBuffers(const TrainingWriteBuffers&) = delete;
@@ -269,6 +309,7 @@ struct TrainingWriteBuffers {
     bool hitTurnLimit,
     int numExtraBlack,
     int mode,
+    SGFMetadata* sgfMeta,
     Rand& rand
   );
 

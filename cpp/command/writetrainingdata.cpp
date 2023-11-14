@@ -362,6 +362,7 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
   std::vector<Search*> threadSearchers;
   for(int threadIdx = 0; threadIdx<numWorkerThreads; threadIdx++) {
     threadRands.push_back(new Rand());
+    const bool hasMetadataInput = true;
     threadDataBuffers.push_back(
       new TrainingWriteBuffers(
         inputsVersion,
@@ -369,7 +370,8 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
         numBinaryChannels,
         numGlobalChannels,
         dataBoardLen,
-        dataBoardLen
+        dataBoardLen,
+        hasMetadataInput
       )
     );
     Search* search = new Search(params,nnEval,&logger,searchRandSeed);
@@ -679,6 +681,8 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
     else {
       throw StringError("Unknown data source: " + whatDataSource);
     }
+
+    SGFMetadata sgfMeta;
 
     const int consecBlackMovesTurns = 6 + boardArea / 40;
     const int skipEarlyPassesTurns = 12 + boardArea / 20;
@@ -1096,6 +1100,7 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
           hitTurnLimit,
           numExtraBlack,
           mode,
+          &sgfMeta,
           rand
         );
       }
