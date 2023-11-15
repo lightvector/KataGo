@@ -165,6 +165,70 @@ static bool isLikelyBot(const string& username) {
   return false;
 }
 
+static int parseSGFRank(const string& rankStr) {
+  int rankNumber = 0;
+  bool isDan = false;
+  bool isPro = false;
+  if(Global::isSuffix(rankStr," kyu")) {
+    rankNumber = Global::stringToInt(Global::chopSuffix(rankStr," kyu"));
+  }
+  else if(Global::isSuffix(rankStr," k")) {
+    rankNumber = Global::stringToInt(Global::chopSuffix(rankStr," k"));
+  }
+  else if(Global::isSuffix(rankStr,"kyu")) {
+    rankNumber = Global::stringToInt(Global::chopSuffix(rankStr,"kyu"));
+  }
+  else if(Global::isSuffix(rankStr,"k")) {
+    rankNumber = Global::stringToInt(Global::chopSuffix(rankStr,"k"));
+  }
+  else if(Global::isSuffix(rankStr," dan")) {
+    rankNumber = Global::stringToInt(Global::chopSuffix(rankStr," dan"));
+    isDan = true;
+  }
+  else if(Global::isSuffix(rankStr," d")) {
+    rankNumber = Global::stringToInt(Global::chopSuffix(rankStr," d"));
+    isDan = true;
+  }
+  else if(Global::isSuffix(rankStr,"dan")) {
+    rankNumber = Global::stringToInt(Global::chopSuffix(rankStr,"dan"));
+    isDan = true;
+  }
+  else if(Global::isSuffix(rankStr,"d")) {
+    rankNumber = Global::stringToInt(Global::chopSuffix(rankStr,"d"));
+    isDan = true;
+  }
+  else if(Global::isSuffix(rankStr," pro")) {
+    rankNumber = Global::stringToInt(Global::chopSuffix(rankStr," pro"));
+    isPro = true;
+  }
+  else if(Global::isSuffix(rankStr," p")) {
+    rankNumber = Global::stringToInt(Global::chopSuffix(rankStr," p"));
+    isPro = true;
+  }
+  else if(Global::isSuffix(rankStr,"pro")) {
+    rankNumber = Global::stringToInt(Global::chopSuffix(rankStr,"pro"));
+    isPro = true;
+  }
+  else if(Global::isSuffix(rankStr,"p")) {
+    rankNumber = Global::stringToInt(Global::chopSuffix(rankStr,"p"));
+    isPro = true;
+  }
+  else {
+    throw StringError("Unable to parse rank: " + rankStr);
+  }
+  if(isPro)
+    return 1;
+  if(isDan) {
+    if(rankNumber <= 0)
+      throw StringError("Unable to parse rank: " + rankStr);
+    if(rankNumber > 9)
+      rankNumber = 9;
+    return 10 - rankNumber;
+  }
+  if(rankNumber <= 0)
+    throw StringError("Unable to parse rank: " + rankStr);
+  return 9 + rankNumber;
+}
 
 int MainCmds::writetrainingdata(const vector<string>& args) {
   Board::initHash();
@@ -457,6 +521,7 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
     string sgfHandicap = sgfRaw->getRootPropertyWithDefault("HA", "");
     string sgfResult = sgfRaw->getRootPropertyWithDefault("RE", "");
     string sgfEvent = sgfRaw->getRootPropertyWithDefault("EV", "");
+    string sgfDate = sgfRaw->getRootPropertyWithDefault("DT", "");
 
     bool sgfGameIsRanked = false;
     if(whatDataSource == "ogs") {
@@ -478,13 +543,12 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
       sgfGameIsRanked = isRanked;
     }
 
+    string sgfTM = sgfRaw->getRootPropertyWithDefault("TM", "");
+    string sgfOT = sgfRaw->getRootPropertyWithDefault("OT", "");
+    string sgfLC = sgfRaw->getRootPropertyWithDefault("LC", "");
+    string sgfLT = sgfRaw->getRootPropertyWithDefault("LT", "");
     string sgfTimeControl;
     {
-      string sgfTM = sgfRaw->getRootPropertyWithDefault("TM", "");
-      string sgfOT = sgfRaw->getRootPropertyWithDefault("OT", "");
-      string sgfLC = sgfRaw->getRootPropertyWithDefault("LC", "");
-      string sgfLT = sgfRaw->getRootPropertyWithDefault("LT", "");
-
       if(sgfTM != "" && sgfOT != "")
         sgfTimeControl = sgfTM + "+" + sgfOT;
       else if(sgfTM != "" && (sgfLC != "" || sgfLT != ""))
@@ -673,16 +737,112 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
 
     bool assumeMultipleStartingBlackMovesAreHandicap;
     int overrideNumHandicapStones = -1;
+    bool tcIsUnknown = false;
+    bool tcIsNone = false;
+    bool tcIsAbsolute = false;
+    bool tcIsSimple = false;
+    bool tcIsByoYomi = false;
+    bool tcIsCanadian = false;
+    bool tcIsFischer = false;
+    double mainTimeSeconds = 0.0;
+    double periodTimeSeconds = 0.0;
+    int byoYomiPeriods = 0;
+    int canadianMoves = 0;
+    SimpleDate gameDate;
+    int sgfSource;
     if(whatDataSource == "ogs") {
       assumeMultipleStartingBlackMovesAreHandicap = false;
       if(sgfHandicapParsed >= 0)
         overrideNumHandicapStones = sgfHandicapParsed;
+
+      if(sgfTM != "" && sgfOT != "") {
+        if(sgfOT.find(" byo-yomi") != std::string::npos) {
+          tcIsByoYomi = true;
+          mainTimeSeconds = Global::stringToDouble(sgfTM);
+          vector<string> pieces = Global::split(Global::split(sgfOT,' ')[0],'x');
+          if(pieces.size() != 2)
+            throw StringError("Could not parse OT: " + sgfOT);
+          byoYomiPeriods = Global::stringToInt(pieces[0]);
+          periodTimeSeconds = Global::stringToDouble(pieces[1]);
+          if(byoYomiPeriods <= 0 || byoYomiPeriods > 1000 || !std::isfinite(periodTimeSeconds) || periodTimeSeconds <= 0 || periodTimeSeconds > 100000000)
+            throw StringError("Could not parse OT: " + sgfOT);
+        }
+        else if(sgfOT.find(" fischer") != std::string::npos) {
+          tcIsFischer = true;
+          mainTimeSeconds = Global::stringToDouble(sgfTM);
+          vector<string> pieces = Global::split(sgfOT,' ');
+          periodTimeSeconds = Global::stringToDouble(pieces[0]);
+          if(!std::isfinite(periodTimeSeconds) || periodTimeSeconds <= 0 || periodTimeSeconds > 100000000)
+            throw StringError("Could not parse OT: " + sgfOT);
+        }
+        else if(sgfOT.find(" simple") != std::string::npos) {
+          tcIsSimple = true;
+          mainTimeSeconds = Global::stringToDouble(sgfTM);
+          vector<string> pieces = Global::split(sgfOT,' ');
+          periodTimeSeconds = Global::stringToDouble(pieces[0]);
+          if(!std::isfinite(periodTimeSeconds) || periodTimeSeconds <= 0 || periodTimeSeconds > 100000000)
+            throw StringError("Could not parse OT: " + sgfOT);
+        }
+        else if(sgfOT.find(" canadian") != std::string::npos) {
+          tcIsCanadian = true;
+          mainTimeSeconds = Global::stringToDouble(sgfTM);
+          vector<string> pieces = Global::split(Global::split(sgfOT,' ')[0],'/');
+          if(pieces.size() != 2)
+            throw StringError("Could not parse OT: " + sgfOT);
+          canadianMoves = Global::stringToInt(pieces[0]);
+          periodTimeSeconds = Global::stringToDouble(pieces[1]);
+          if(canadianMoves <= 0 || canadianMoves > 1000 || !std::isfinite(periodTimeSeconds) || periodTimeSeconds <= 0 || periodTimeSeconds > 100000000)
+            throw StringError("Could not parse OT: " + sgfOT);
+          // Switch it to permove time to make it more comparable
+          periodTimeSeconds = periodTimeSeconds / canadianMoves;
+        }
+        if(!std::isfinite(mainTimeSeconds) || mainTimeSeconds < 0 || mainTimeSeconds > 1000000000)
+          throw StringError("Could not parse TM: " + sgfTM);
+      }
+      else if(sgfTM != "") {
+        tcIsAbsolute = true;
+        mainTimeSeconds = Global::stringToDouble(sgfTM);
+        if(!std::isfinite(mainTimeSeconds) || mainTimeSeconds <= 0 || mainTimeSeconds > 1000000000)
+          throw StringError("Could not parse TM: " + sgfTM);
+      }
+      else if(sgfOT != "") {
+        throw StringError("Unexpected OGS time control with OT only: " + sgfOT);
+      }
+      else {
+        tcIsNone = true;
+      }
+
+      gameDate = SimpleDate(sgfDate);
+      sgfSource = SGFMetadata::SOURCE_OGS;
     }
     else {
       throw StringError("Unknown data source: " + whatDataSource);
     }
 
     SGFMetadata sgfMeta;
+    sgfMeta.inverseBRank = parseSGFRank(sgfBRank);
+    sgfMeta.inverseWRank = parseSGFRank(sgfWRank);
+    sgfMeta.bIsHuman = !isBotB;
+    sgfMeta.wIsHuman = !isBotW;
+    sgfMeta.gameIsUnrated = !sgfGameIsRanked;
+
+    sgfMeta.tcIsUnknown = tcIsUnknown;
+    sgfMeta.tcIsNone = tcIsNone;
+    sgfMeta.tcIsAbsolute = tcIsAbsolute;
+    sgfMeta.tcIsSimple = tcIsSimple;
+    sgfMeta.tcIsByoYomi = tcIsByoYomi;
+    sgfMeta.tcIsCanadian = tcIsCanadian;
+    sgfMeta.tcIsFischer = tcIsFischer;
+
+    sgfMeta.mainTimeSeconds = mainTimeSeconds;
+    sgfMeta.periodTimeSeconds = periodTimeSeconds;
+    sgfMeta.byoYomiPeriods = byoYomiPeriods;
+    sgfMeta.canadianMoves = canadianMoves;
+
+    sgfMeta.boardArea = boardArea;
+    sgfMeta.gameDate = gameDate;
+
+    sgfMeta.source = sgfSource;
 
     const int consecBlackMovesTurns = 6 + boardArea / 40;
     const int skipEarlyPassesTurns = 12 + boardArea / 20;

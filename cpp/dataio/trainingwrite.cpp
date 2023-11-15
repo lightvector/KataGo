@@ -226,7 +226,7 @@ void FinishedGameData::printDebug(ostream& out) const {
 static const int POLICY_TARGET_NUM_CHANNELS = 2;
 static const int GLOBAL_TARGET_NUM_CHANNELS = 64;
 static const int VALUE_SPATIAL_TARGET_NUM_CHANNELS = 5;
-static const int METADATA_INPUT_NUM_CHANNELS = 128;
+static const int METADATA_INPUT_NUM_CHANNELS = 192;
 
 TrainingWriteBuffers::TrainingWriteBuffers(int iVersion, int maxRws, int numBChannels, int numFChannels, int xLen, int yLen, bool includeMetadata)
   :inputsVersion(iVersion),
@@ -733,13 +733,68 @@ void TrainingWriteBuffers::addRow(
     }
   }
 
-
   if(hasMetadataInput) {
     assert(sgfMeta != NULL);
     float* rowMetadata = metadataInputNC.data + curRows * METADATA_INPUT_NUM_CHANNELS;
-    //TODO
+
     for(int i = 0; i<METADATA_INPUT_NUM_CHANNELS; i++)
       rowMetadata[i] = 0.0f;
+
+    bool plaIsHuman = (nextPlayer == P_WHITE) ? sgfMeta->wIsHuman : sgfMeta->bIsHuman;
+    bool oppIsHuman = (nextPlayer == P_WHITE) ? sgfMeta->bIsHuman : sgfMeta->wIsHuman;
+    rowMetadata[0] = plaIsHuman ? 1.0f : 0.0f;
+    rowMetadata[1] = oppIsHuman ? 1.0f : 0.0f;
+
+    static constexpr int RANK_START_IDX = 2;
+    int invPlaRank = (nextPlayer == P_WHITE) ? sgfMeta->inverseWRank : sgfMeta->inverseBRank;
+    int invOppRank = (nextPlayer == P_WHITE) ? sgfMeta->inverseBRank : sgfMeta->inverseWRank;
+    static constexpr int RANK_LEN_PER_PLA = 34;
+    for(int i = 0; i<std::min(invPlaRank,RANK_LEN_PER_PLA); i++)
+      rowMetadata[RANK_START_IDX + i] = 1.0f;
+    for(int i = 0; i<std::min(invOppRank,RANK_LEN_PER_PLA); i++)
+      rowMetadata[RANK_START_IDX + RANK_LEN_PER_PLA + i] = 1.0f;
+
+    static_assert(70 == RANK_START_IDX + 2 * RANK_LEN_PER_PLA, "");
+    rowMetadata[70] = sgfMeta->gameIsUnrated ? 1.0f : 0.0f;
+    rowMetadata[71] = sgfMeta->tcIsUnknown ? 1.0f : 0.0f;
+    rowMetadata[72] = sgfMeta->tcIsNone ? 1.0f : 0.0f;
+    rowMetadata[73] = sgfMeta->tcIsAbsolute ? 1.0f : 0.0f;
+    rowMetadata[74] = sgfMeta->tcIsSimple ? 1.0f : 0.0f;
+    rowMetadata[75] = sgfMeta->tcIsByoYomi ? 1.0f : 0.0f;
+    rowMetadata[76] = sgfMeta->tcIsCanadian ? 1.0f : 0.0f;
+    rowMetadata[77] = sgfMeta->tcIsFischer ? 1.0f : 0.0f;
+
+    double mainTimeSecondsCapped = std::min(std::max(sgfMeta->mainTimeSeconds,0.0),3.0*86400);
+    double periodTimeSecondsCapped = std::min(std::max(sgfMeta->periodTimeSeconds,0.0),1.0*86400);
+    rowMetadata[78] = (float)(0.4 * (log(mainTimeSecondsCapped + 60.0) - 6.5));
+    rowMetadata[79] = (float)(0.3 * (log(periodTimeSecondsCapped + 1.0) - 3.0));
+    int byoYomiPeriodsCapped = std::min(std::max(sgfMeta->byoYomiPeriods,0),50);
+    int canadianMovesCapped = std::min(std::max(sgfMeta->canadianMoves,0),50);
+    rowMetadata[80] = (float)(0.5 * (log(byoYomiPeriodsCapped + 2.0) - 1.5));
+    rowMetadata[81] = (float)(0.25 * (log(canadianMovesCapped + 2.0) - 1.5));
+
+    rowMetadata[82] = (float)(0.5 * log(sgfMeta->boardArea/361.0));
+
+    double daysDifference = sgfMeta->gameDate.numDaysAfter(SimpleDate(1970,1,1));
+    static constexpr int DATE_START_IDX = 83;
+    static constexpr int DATE_LEN = 32;
+    // 7 because we're curious if there's a day-of-the-week effect
+    // on gameplay...
+    double period = 7.0;
+    static constexpr double factor = pow(80000, 1.0/(DATE_LEN-1));
+    static constexpr double twopi = 6.283185307179586476925;
+    for(int i = 0; i<DATE_LEN; i++) {
+      double numRevolutions = daysDifference / period;
+      rowMetadata[DATE_START_IDX + i*2 + 0] = (float)(cos(numRevolutions * twopi));
+      rowMetadata[DATE_START_IDX + i*2 + 1] = (float)(sin(numRevolutions * twopi));
+      period *= factor;
+    }
+    static_assert(147 == DATE_START_IDX + 2 * DATE_LEN, "");
+
+    assert(sgfMeta->source >= 0 && sgfMeta->source < 16);
+    rowMetadata[147 + sgfMeta->source] = 1.0f;
+
+    static_assert(147 + 16 < METADATA_INPUT_NUM_CHANNELS, "");
   }
 
   curRows++;

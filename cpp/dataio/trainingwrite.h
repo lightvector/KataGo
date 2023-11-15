@@ -54,10 +54,10 @@ struct SidePosition {
 };
 
 struct SGFMetadata {
-  int inversePlaRank = 0; //KG = 0, 9d = 1, 8d = 2,... 1d = 9, 1k = 10, 2k = 11, ...
-  int inverseOppRank = 0;
-  bool plaIsHuman = false;
-  bool oppIsHuman = false;
+  int inverseBRank = 0; //KG = 0, 9d = 1, 8d = 2,... 1d = 9, 1k = 10, 2k = 11, ...
+  int inverseWRank = 0;
+  bool bIsHuman = false;
+  bool wIsHuman = false;
 
   bool gameIsUnrated = false;
 
@@ -70,14 +70,22 @@ struct SGFMetadata {
   bool tcIsCanadian = false;
   bool tcIsFischer = false;
 
-  float mainTimeSeconds = 0.0f;
-  float periodTimeSeconds = 0.0f;
+  double mainTimeSeconds = 0.0;
+  double periodTimeSeconds = 0.0;
   int byoYomiPeriods = 0;
   int canadianMoves = 0;
 
   int boardArea = 0;
 
   SimpleDate gameDate;
+
+  int source = 0;
+  static const int SOURCE_OGS = 1;
+  static const int SOURCE_KGS = 2;
+  static const int SOURCE_FOX = 3;
+  static const int SOURCE_TYGEM = 4;
+  static const int SOURCE_GOGOD = 5;
+  static const int SOURCE_GO4GO = 6;
 };
 
 STRUCT_NAMED_PAIR(std::string,name,int,turnIdx,ChangedNeuralNet);
