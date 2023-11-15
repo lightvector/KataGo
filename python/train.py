@@ -303,14 +303,14 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
                 os.replace(get_checkpoint_path() + ".tmp", get_checkpoint_path())
 
     def get_weight_decay(raw_model, lr_scale, warmup_scale, train_state, running_metrics, group_name):
-        lr_scale *= lr_scale_auto_factor(train_state)
+        lr_scale_with_auto = lr_scale * lr_scale_auto_factor(train_state)
         if raw_model.get_norm_kind() == "fixup" or raw_model.get_norm_kind() == "fixscale":
             if group_name == "normal" or group_name == "normal_gamma" or group_name == "output":
                 return 0.000001 * world_size * batch_size / 256.0
             elif group_name == "noreg":
-                return 0.0
+                return 0.00000002 * world_size * batch_size / 256.0
             elif group_name == "output_noreg":
-                return 0.0
+                return 0.00000002 * world_size * batch_size / 256.0
             else:
                 assert False
         elif (
@@ -340,13 +340,13 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
                 # than expected.
                 # So we scale sublinearly with lr_scale so as to slightly preadjust to this effect.
                 # Adaptive scale should then help keep us there thereafter.
-                return 0.00125 * world_size * batch_size / 256.0 * math.pow(lr_scale * warmup_scale,0.75) * adaptive_scale * gamma_scale
+                return 0.00125 * world_size * batch_size / 256.0 * math.pow(lr_scale_with_auto * warmup_scale,0.75) * adaptive_scale * gamma_scale
             elif group_name == "output":
                 return 0.000001 * world_size * batch_size / 256.0
             elif group_name == "noreg":
-                return 0.0
+                return 0.0000125 * world_size * batch_size / 256.0 * math.pow(lr_scale_with_auto * warmup_scale,0.75)
             elif group_name == "output_noreg":
-                return 0.0
+                return 0.00000002 * world_size * batch_size / 256.0
             else:
                 assert False
         else:
