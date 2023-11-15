@@ -20,14 +20,18 @@ import multiprocessing
 
 import numpy as np
 
-keys = [
-    "binaryInputNCHWPacked",
-    "globalInputNC",
-    "policyTargetsNCMove",
-    "globalTargetsNC",
-    "scoreDistrN",
-    "valueTargetsNCHW"
-]
+def assert_keys(npz,include_meta):
+    keys = [
+        "binaryInputNCHWPacked",
+        "globalInputNC",
+        "policyTargetsNCMove",
+        "globalTargetsNC",
+        "scoreDistrN",
+        "valueTargetsNCHW",
+    ]
+    if include_meta:
+        keys.append("metadataInputNC")
+    assert(set(npz.keys()) == set(keys))
 
 def is_temp_npz_like(filename):
     return "_" in filename
@@ -45,7 +49,7 @@ def joint_shuffle_take_first_n(n,arrs):
 def memusage_mb():
     return psutil.Process(os.getpid()).memory_info().rss // 1048576
 
-def shardify(input_idx, input_file_group, num_out_files, out_tmp_dirs, keep_prob):
+def shardify(input_idx, input_file_group, num_out_files, out_tmp_dirs, keep_prob, include_meta):
     np.random.seed([int.from_bytes(os.urandom(4), byteorder='little') for i in range(4)])
 
     assert(len(input_file_group) > 0)
@@ -54,9 +58,9 @@ def shardify(input_idx, input_file_group, num_out_files, out_tmp_dirs, keep_prob
     if len(input_file_group) == 1:
         try:
             with np.load(input_file_group[0]) as npz:
-                assert(set(npz.keys()) == set(keys))
+                assert_keys(npz,include_meta)
                 ###
-                #WARNING - if adding anything here, also add it to joint_shuffle below!
+                # WARNING - if adding anything here, also add it to joint_shuffle below!
                 ###
                 binaryInputNCHWPacked = npz["binaryInputNCHWPacked"]
                 globalInputNC = npz["globalInputNC"]
@@ -64,6 +68,7 @@ def shardify(input_idx, input_file_group, num_out_files, out_tmp_dirs, keep_prob
                 globalTargetsNC = npz["globalTargetsNC"]
                 scoreDistrN = npz["scoreDistrN"]
                 valueTargetsNCHW = npz["valueTargetsNCHW"]
+                metadataInputNC = npz["metadataInputNC"] if include_meta else None
         except FileNotFoundError:
             num_files_not_found += 1
             print("WARNING: file not found by shardify: ", input_file_group[0])
@@ -75,17 +80,19 @@ def shardify(input_idx, input_file_group, num_out_files, out_tmp_dirs, keep_prob
         globalTargetsNCList = []
         scoreDistrNList = []
         valueTargetsNCHWList = []
+        metadataInputNCList = []
 
         for input_file in input_file_group:
             try:
                 with np.load(input_file) as npz:
-                    assert(set(npz.keys()) == set(keys))
+                    assert_keys(npz,include_meta)
                     binaryInputNCHWPackedList.append(npz["binaryInputNCHWPacked"])
                     globalInputNCList.append(npz["globalInputNC"])
                     policyTargetsNCMoveList.append(npz["policyTargetsNCMove"])
                     globalTargetsNCList.append(npz["globalTargetsNC"])
                     scoreDistrNList.append(npz["scoreDistrN"])
                     valueTargetsNCHWList.append(npz["valueTargetsNCHW"])
+                    metadataInputNCList.append(npz["metadataInputNC"] if include_meta else None)
             except FileNotFoundError:
                 num_files_not_found += 1
                 print("WARNING: file not found by shardify: ", input_file)
@@ -99,6 +106,7 @@ def shardify(input_idx, input_file_group, num_out_files, out_tmp_dirs, keep_prob
         globalTargetsNC = np.concatenate(globalTargetsNCList,axis=0)
         scoreDistrN = np.concatenate(scoreDistrNList,axis=0)
         valueTargetsNCHW = np.concatenate(valueTargetsNCHWList,axis=0)
+        metadataInputNC = np.concatenate(metadataInputNCList,axis=0) if include_meta else None
 
     num_rows_to_keep = binaryInputNCHWPacked.shape[0]
     assert(globalInputNC.shape[0] == num_rows_to_keep)
@@ -106,13 +114,25 @@ def shardify(input_idx, input_file_group, num_out_files, out_tmp_dirs, keep_prob
     assert(globalTargetsNC.shape[0] == num_rows_to_keep)
     assert(scoreDistrN.shape[0] == num_rows_to_keep)
     assert(valueTargetsNCHW.shape[0] == num_rows_to_keep)
+    assert(metadataInputNC.shape[0] == num_rows_to_keep if include_meta else True)
 
     if keep_prob < 1.0:
         num_rows_to_keep = min(num_rows_to_keep,int(round(num_rows_to_keep * keep_prob)))
 
-    [binaryInputNCHWPacked,globalInputNC,policyTargetsNCMove,globalTargetsNC,scoreDistrN,valueTargetsNCHW] = (
-        joint_shuffle_take_first_n(num_rows_to_keep,[binaryInputNCHWPacked,globalInputNC,policyTargetsNCMove,globalTargetsNC,scoreDistrN,valueTargetsNCHW])
-    )
+    if include_meta:
+        [binaryInputNCHWPacked,globalInputNC,policyTargetsNCMove,globalTargetsNC,scoreDistrN,valueTargetsNCHW,metadataInputNC] = (
+            joint_shuffle_take_first_n(
+                num_rows_to_keep,
+                [binaryInputNCHWPacked,globalInputNC,policyTargetsNCMove,globalTargetsNC,scoreDistrN,valueTargetsNCHW,metadataInputNC]
+            )
+        )
+    else:
+        [binaryInputNCHWPacked,globalInputNC,policyTargetsNCMove,globalTargetsNC,scoreDistrN,valueTargetsNCHW] = (
+            joint_shuffle_take_first_n(
+                num_rows_to_keep,
+                [binaryInputNCHWPacked,globalInputNC,policyTargetsNCMove,globalTargetsNC,scoreDistrN,valueTargetsNCHW]
+            )
+        )
 
     assert(binaryInputNCHWPacked.shape[0] == num_rows_to_keep)
     assert(globalInputNC.shape[0] == num_rows_to_keep)
@@ -120,6 +140,7 @@ def shardify(input_idx, input_file_group, num_out_files, out_tmp_dirs, keep_prob
     assert(globalTargetsNC.shape[0] == num_rows_to_keep)
     assert(scoreDistrN.shape[0] == num_rows_to_keep)
     assert(valueTargetsNCHW.shape[0] == num_rows_to_keep)
+    assert(metadataInputNC.shape[0] == num_rows_to_keep if include_meta else True)
 
     rand_assts = np.random.randint(num_out_files,size=[num_rows_to_keep])
     counts = np.bincount(rand_assts,minlength=num_out_files)
@@ -132,18 +153,30 @@ def shardify(input_idx, input_file_group, num_out_files, out_tmp_dirs, keep_prob
     for out_idx in range(num_out_files):
         start = countsums[out_idx]-counts[out_idx]
         stop = countsums[out_idx]
-        np.savez_compressed(
-            os.path.join(out_tmp_dirs[out_idx], str(input_idx) + ".npz"),
-            binaryInputNCHWPacked = binaryInputNCHWPacked[start:stop],
-            globalInputNC = globalInputNC[start:stop],
-            policyTargetsNCMove = policyTargetsNCMove[start:stop],
-            globalTargetsNC = globalTargetsNC[start:stop],
-            scoreDistrN = scoreDistrN[start:stop],
-            valueTargetsNCHW = valueTargetsNCHW[start:stop]
-        )
+        if include_meta:
+            np.savez_compressed(
+                os.path.join(out_tmp_dirs[out_idx], str(input_idx) + ".npz"),
+                binaryInputNCHWPacked = binaryInputNCHWPacked[start:stop],
+                globalInputNC = globalInputNC[start:stop],
+                policyTargetsNCMove = policyTargetsNCMove[start:stop],
+                globalTargetsNC = globalTargetsNC[start:stop],
+                scoreDistrN = scoreDistrN[start:stop],
+                valueTargetsNCHW = valueTargetsNCHW[start:stop],
+                metadataInputNC = metadataInputNC[start:stop],
+            )
+        else:
+            np.savez_compressed(
+                os.path.join(out_tmp_dirs[out_idx], str(input_idx) + ".npz"),
+                binaryInputNCHWPacked = binaryInputNCHWPacked[start:stop],
+                globalInputNC = globalInputNC[start:stop],
+                policyTargetsNCMove = policyTargetsNCMove[start:stop],
+                globalTargetsNC = globalTargetsNC[start:stop],
+                scoreDistrN = scoreDistrN[start:stop],
+                valueTargetsNCHW = valueTargetsNCHW[start:stop],
+            )
     return num_files_not_found
 
-def merge_shards(filename, num_shards_to_merge, out_tmp_dir, batch_size, ensure_batch_multiple, output_npz):
+def merge_shards(filename, num_shards_to_merge, out_tmp_dir, batch_size, ensure_batch_multiple, output_npz, include_meta):
     np.random.seed([int.from_bytes(os.urandom(4), byteorder='little') for i in range(5)])
 
     if output_npz:
@@ -157,12 +190,13 @@ def merge_shards(filename, num_shards_to_merge, out_tmp_dir, batch_size, ensure_
     globalTargetsNCs = []
     scoreDistrNs = []
     valueTargetsNCHWs = []
+    metadataInputNCs = []
 
     for input_idx in range(num_shards_to_merge):
         shard_filename = os.path.join(out_tmp_dir, str(input_idx) + ".npz")
         try:
             with np.load(shard_filename) as npz:
-                assert(set(npz.keys()) == set(keys))
+                assert_keys(npz,include_meta)
 
                 binaryInputNCHWPacked = npz["binaryInputNCHWPacked"]
                 globalInputNC = npz["globalInputNC"]
@@ -170,6 +204,7 @@ def merge_shards(filename, num_shards_to_merge, out_tmp_dir, batch_size, ensure_
                 globalTargetsNC = npz["globalTargetsNC"]
                 scoreDistrN = npz["scoreDistrN"]
                 valueTargetsNCHW = npz["valueTargetsNCHW"]
+                metadataInputNC = npz["metadataInputNC"] if include_meta else None
 
                 binaryInputNCHWPackeds.append(binaryInputNCHWPacked)
                 globalInputNCs.append(globalInputNC)
@@ -177,6 +212,7 @@ def merge_shards(filename, num_shards_to_merge, out_tmp_dir, batch_size, ensure_
                 globalTargetsNCs.append(globalTargetsNC)
                 scoreDistrNs.append(scoreDistrN)
                 valueTargetsNCHWs.append(valueTargetsNCHW)
+                metadataInputNCs.append(metadataInputNC)
         except FileNotFoundError:
             print("WARNING: Empty shard in merge_shards for shard :", input_idx, filename)
 
@@ -185,7 +221,7 @@ def merge_shards(filename, num_shards_to_merge, out_tmp_dir, batch_size, ensure_
         return 0
 
     ###
-    #WARNING - if adding anything here, also add it to joint_shuffle below!
+    # WARNING - if adding anything here, also add it to joint_shuffle below!
     ###
     binaryInputNCHWPacked = np.concatenate(binaryInputNCHWPackeds)
     globalInputNC = np.concatenate(globalInputNCs)
@@ -193,6 +229,7 @@ def merge_shards(filename, num_shards_to_merge, out_tmp_dir, batch_size, ensure_
     globalTargetsNC = np.concatenate(globalTargetsNCs)
     scoreDistrN = np.concatenate(scoreDistrNs)
     valueTargetsNCHW = np.concatenate(valueTargetsNCHWs)
+    metadataInputNC = np.concatenate(metadataInputNCs) if include_meta else None
 
     num_rows = binaryInputNCHWPacked.shape[0]
     assert(globalInputNC.shape[0] == num_rows)
@@ -200,10 +237,22 @@ def merge_shards(filename, num_shards_to_merge, out_tmp_dir, batch_size, ensure_
     assert(globalTargetsNC.shape[0] == num_rows)
     assert(scoreDistrN.shape[0] == num_rows)
     assert(valueTargetsNCHW.shape[0] == num_rows)
+    assert(metadataInputNC.shape[0] == num_rows if include_meta else True)
 
-    [binaryInputNCHWPacked,globalInputNC,policyTargetsNCMove,globalTargetsNC,scoreDistrN,valueTargetsNCHW] = (
-        joint_shuffle_take_first_n(num_rows,[binaryInputNCHWPacked,globalInputNC,policyTargetsNCMove,globalTargetsNC,scoreDistrN,valueTargetsNCHW])
-    )
+    if include_meta:
+        [binaryInputNCHWPacked,globalInputNC,policyTargetsNCMove,globalTargetsNC,scoreDistrN,valueTargetsNCHW,metadataInputNC] = (
+            joint_shuffle_take_first_n(
+                num_rows,
+                [binaryInputNCHWPacked,globalInputNC,policyTargetsNCMove,globalTargetsNC,scoreDistrN,valueTargetsNCHW,metadataInputNC],
+            )
+        )
+    else:
+        [binaryInputNCHWPacked,globalInputNC,policyTargetsNCMove,globalTargetsNC,scoreDistrN,valueTargetsNCHW] = (
+            joint_shuffle_take_first_n(
+                num_rows,
+                [binaryInputNCHWPacked,globalInputNC,policyTargetsNCMove,globalTargetsNC,scoreDistrN,valueTargetsNCHW],
+            )
+        )
 
     assert(binaryInputNCHWPacked.shape[0] == num_rows)
     assert(globalInputNC.shape[0] == num_rows)
@@ -211,23 +260,36 @@ def merge_shards(filename, num_shards_to_merge, out_tmp_dir, batch_size, ensure_
     assert(globalTargetsNC.shape[0] == num_rows)
     assert(scoreDistrN.shape[0] == num_rows)
     assert(valueTargetsNCHW.shape[0] == num_rows)
+    assert(metadataInputNC.shape[0] == num_rows if include_meta else True)
 
     # print("%s: Merge writing... (mem usage %dMB)" % (str(datetime.datetime.now()),memusage_mb()), flush=True)
 
-    #Just truncate and lose the batch at the end, it's fine
+    # Just truncate and lose the batch at the end, it's fine
     num_batches = (num_rows // (batch_size * ensure_batch_multiple)) * ensure_batch_multiple
     if output_npz:
         start = 0
         stop = num_batches*batch_size
-        np.savez_compressed(
-            filename,
-            binaryInputNCHWPacked = binaryInputNCHWPacked[start:stop],
-            globalInputNC = globalInputNC[start:stop],
-            policyTargetsNCMove = policyTargetsNCMove[start:stop],
-            globalTargetsNC = globalTargetsNC[start:stop],
-            scoreDistrN = scoreDistrN[start:stop],
-            valueTargetsNCHW = valueTargetsNCHW[start:stop]
-        )
+        if include_meta:
+            np.savez_compressed(
+                filename,
+                binaryInputNCHWPacked = binaryInputNCHWPacked[start:stop],
+                globalInputNC = globalInputNC[start:stop],
+                policyTargetsNCMove = policyTargetsNCMove[start:stop],
+                globalTargetsNC = globalTargetsNC[start:stop],
+                scoreDistrN = scoreDistrN[start:stop],
+                valueTargetsNCHW = valueTargetsNCHW[start:stop],
+                metadataInputNC = metadataInputNC[start:stop],
+            )
+        else:
+            np.savez_compressed(
+                filename,
+                binaryInputNCHWPacked = binaryInputNCHWPacked[start:stop],
+                globalInputNC = globalInputNC[start:stop],
+                policyTargetsNCMove = policyTargetsNCMove[start:stop],
+                globalTargetsNC = globalTargetsNC[start:stop],
+                scoreDistrN = scoreDistrN[start:stop],
+                valueTargetsNCHW = valueTargetsNCHW[start:stop],
+            )
     else:
         assert False, "No longer supports outputting tensorflow data"
 
@@ -366,6 +428,7 @@ if __name__ == '__main__':
     optional_args.add_argument('-only-include-md5-path-prop-lbound', type=float, required=False, help='Just before sharding, include only filepaths hashing to float >= this')
     optional_args.add_argument('-only-include-md5-path-prop-ubound', type=float, required=False, help='Just before sharding, include only filepaths hashing to float < this')
     optional_args.add_argument('-output-npz', action="store_true", required=False, help='Output results as npz files')
+    optional_args.add_argument('-include-meta', action="store_true", required=False, help='Include sgf metadata inputs')
 
     args = parser.parse_args()
     dirs = args.dirs
@@ -400,6 +463,7 @@ if __name__ == '__main__':
     only_include_md5_path_prop_lbound = args.only_include_md5_path_prop_lbound
     only_include_md5_path_prop_ubound = args.only_include_md5_path_prop_ubound
     output_npz = args.output_npz
+    include_meta = args.include_meta
 
     if min_rows is None:
         print("NOTE: -min-rows was not specified, defaulting to requiring 250K rows before shuffling.")
@@ -478,7 +542,7 @@ if __name__ == '__main__':
                         i -= 1
                         for (filename,mtime,num_rows) in filename_mtime_num_rowss:
                             if is_temp_npz_like(filename):
-                                #print("WARNING: file looks like a temp file, treating as exclude: ", os.path.join(path,dirname,filename))
+                                # print("WARNING: file looks like a temp file, treating as exclude: ", os.path.join(path,dirname,filename))
                                 excluded_count += 1
                                 tempfilelike_count += 1
                                 continue
@@ -549,12 +613,12 @@ if __name__ == '__main__':
                     num_rows = results[info[0]]
                     all_files[i] = (info[0], info[1], num_rows)
 
-    num_rows_total = 0 #Number of data rows
-    num_random_rows_capped = 0 #Number of random data rows, capped at min_rows - we never keep more than min_rows many data rows if they're from random.
-    num_postrandom_rows = 0 #Number of NON-random rows
+    num_rows_total = 0 # Number of data rows
+    num_random_rows_capped = 0 # Number of random data rows, capped at min_rows - we never keep more than min_rows many data rows if they're from random.
+    num_postrandom_rows = 0 # Number of NON-random rows
 
-    #How far offset do we start on the power-law window tail? E.g. what number of postrandom rows do we need before the window size grows by a factor
-    #of 2^(taper_window_exponent)? For now, we set it equal to the min rows
+    # How far offset do we start on the power-law window tail? E.g. what number of postrandom rows do we need before the window size grows by a factor
+    # of 2^(taper_window_exponent)? For now, we set it equal to the min rows
     if taper_window_scale is not None:
         window_taper_offset = taper_window_scale
     else:
@@ -565,13 +629,13 @@ if __name__ == '__main__':
         global num_postrandom_rows
         return num_random_rows_capped + num_postrandom_rows
     def num_desired_rows():
-        #Every post-random row moves one row beyond window_taper_offset
+        # Every post-random row moves one row beyond window_taper_offset
         power_law_x = num_usable_rows() - min_rows + window_taper_offset + add_to_data_rows
-        #Apply power law and correct for window_taper_offset so we're still anchored at 0
+        # Apply power law and correct for window_taper_offset so we're still anchored at 0
         unscaled_power_law = (power_law_x ** taper_window_exponent) - (window_taper_offset ** taper_window_exponent)
-        #Scale so that we have an initial derivative of 1
+        # Scale so that we have an initial derivative of 1
         scaled_power_law = unscaled_power_law / (taper_window_exponent * (window_taper_offset ** (taper_window_exponent-1)))
-        #Scale so that we have the desired initial slope, and add back the minimum random rows
+        # Scale so that we have the desired initial slope, and add back the minimum random rows
         return int(scaled_power_law * expand_window_per_row + min_rows)
 
     with TimeStuff("Processing found files"):
@@ -595,17 +659,17 @@ if __name__ == '__main__':
         print("No rows found")
         sys.exit(0)
 
-    #If we don't have enough rows, then quit out
+    # If we don't have enough rows, then quit out
     if num_rows_total < min_rows:
         print("Not enough rows, only %d (fewer than %d)" % (num_rows_total,min_rows))
         sys.exit(0)
 
     print("Total rows found: %d (%d usable)" % (num_rows_total,num_usable_rows()), flush=True)
 
-    #Reverse so that recent files are first
+    # Reverse so that recent files are first
     all_files.reverse()
 
-    #Now assemble only the files we need to hit our desired window size
+    # Now assemble only the files we need to hit our desired window size
     desired_num_rows = num_desired_rows()
     desired_num_rows = max(desired_num_rows,min_rows)
     desired_num_rows = min(desired_num_rows,max_rows) if max_rows is not None else desired_num_rows
@@ -726,13 +790,15 @@ if __name__ == '__main__':
     with multiprocessing.Pool(num_processes) as pool:
         with TimeStuff("Sharding"):
             shard_results = pool.starmap(shardify, [
-                (input_idx, desired_input_file_groups[input_idx], num_out_files, out_tmp_dirs, keep_prob) for input_idx in range(len(desired_input_file_groups))
+                (input_idx, desired_input_file_groups[input_idx], num_out_files, out_tmp_dirs, keep_prob, include_meta)
+                for input_idx in range(len(desired_input_file_groups))
             ])
 
         with TimeStuff("Merging"):
             num_shards_to_merge = len(desired_input_file_groups)
             merge_results = pool.starmap(merge_shards, [
-                (out_files[idx],num_shards_to_merge,out_tmp_dirs[idx],batch_size,ensure_batch_multiple,output_npz) for idx in range(len(out_files))
+                (out_files[idx],num_shards_to_merge,out_tmp_dirs[idx],batch_size,ensure_batch_multiple,output_npz,include_meta)
+                for idx in range(len(out_files))
             ])
         print("Number of rows by output file:",flush=True)
         print(list(zip(out_files,merge_results)),flush=True)
