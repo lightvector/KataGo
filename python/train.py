@@ -258,15 +258,11 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
         if not lr_scale_auto:
             return 1.0
 
-        if train_state["global_step_samples"] < 60000000:
+        if train_state["global_step_samples"] < 550000000:
             return 8.0
-        if train_state["global_step_samples"] < 110000000:
-            return 4.0
-        if train_state["global_step_samples"] < 160000000:
-            return 2.0
-        if train_state["global_step_samples"] < 200000000:
-            return 1.0
-        return 0.25
+        if train_state["global_step_samples"] < 1100000000:
+            return 6.0
+        return 4.0
 
     def get_checkpoint_path():
         return os.path.join(traindir,"checkpoint.ckpt")
@@ -658,6 +654,8 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
             )
             if group_name == "normal":
                 normal_weight_decay = param_group["weight_decay"]
+
+            logging.info(f"Param group {param_group['group_name']} lr {param_group['lr']} weight_decay {param_group['weight_decay']}")
 
         return per_sample_lr * warmup_scale, normal_weight_decay
 
@@ -1086,6 +1084,7 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
 
                 metrics["pslr_batch"] = lr_right_now
                 metrics["wdnormal_batch"] = normal_weight_decay_right_now
+                metrics["gnorm_cap_batch"] = gnorm_cap
 
                 if use_fp16:
                     scaler.step(optimizer)
