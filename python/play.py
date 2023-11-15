@@ -662,6 +662,14 @@ def add_input_feature_visualizations(layer_name, feature_idx, normalization_div)
 for i in range(model.bin_input_shape[1]):
     add_input_feature_visualizations("input-" + str(i),i, normalization_div=1)
 
+for i in range(board_size):
+    for j in range(board_size):
+        coord = f"{colstr[i]}{j}"
+        ownership_command = f"gfx/OwnershipCorr-{coord}/ownership_corr {coord}"
+        futurepos_command = f"gfx/FutureposCorr-{coord}/futurepos_corr {coord}"
+        known_analyze_commands.append(ownership_command)
+        known_analyze_commands.append(futurepos_command)
+
 def get_board_matrix_str(matrix, scale, formatstr):
     ret = ""
     matrix = matrix.reshape([features.pos_len,features.pos_len])
@@ -807,6 +815,37 @@ while True:
     elif command[0] == "seki2":
         outputs = get_outputs(gs, rules)
         gfx_commands = get_gfx_commands_for_heatmap(outputs["seki_by_loc2"], gs.board, normalization_div=None, is_percent=True, value_and_score_from=None)
+        ret = "\n".join(gfx_commands)
+    elif command[0] == "ownership_corr":
+        outputs = get_outputs(gs, rules)
+        loc = parse_coord(command[1], gs.board)
+        loc = features.loc_to_tensor_pos(loc, gs.board)
+        corr = np.reshape(outputs["ownership_corr"], (corr_feature_len, features.pos_len ** 2))
+        corr = np.transpose(corr)
+        values = 1 - pairwise_distances(corr, np.reshape(corr[loc], (1, -1)), metric='cosine')
+        locs_and_values = []
+        for y in range(gs.board.size):
+            for x in range(gs.board.size):
+                loc = gs.board.loc(x, y)
+                pos = features.loc_to_tensor_pos(loc, gs.board)
+                locs_and_values.append((loc, values[pos, 0]))
+        gfx_commands = get_gfx_commands_for_heatmap(locs_and_values, gs.board, normalization_div=None, is_percent=True, value_and_score_from=None, hotcold=True)
+        ret = "\n".join(gfx_commands)
+
+    elif command[0] == "futurepos_corr":
+        outputs = get_outputs(gs, rules)
+        loc = parse_coord(command[1], gs.board)
+        loc = features.loc_to_tensor_pos(loc, gs.board)
+        corr = np.reshape(outputs["futurepos_corr"], (corr_feature_len, features.pos_len ** 2))
+        corr = np.transpose(corr)
+        values = 1 - pairwise_distances(corr, np.reshape(corr[loc], (1, -1)), metric='cosine')
+        locs_and_values = []
+        for y in range(gs.board.size):
+            for x in range(gs.board.size):
+                loc = gs.board.loc(x, y)
+                pos = features.loc_to_tensor_pos(loc, gs.board)
+                locs_and_values.append((loc, values[pos, 0]))
+        gfx_commands = get_gfx_commands_for_heatmap(locs_and_values, gs.board, normalization_div=None, is_percent=True, value_and_score_from=None, hotcold=True)
         ret = "\n".join(gfx_commands)
 
     elif command[0] == "policy_raw":
