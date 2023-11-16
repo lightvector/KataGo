@@ -12,7 +12,7 @@ import colorsys
 import json
 import numpy as np
 from sklearn.cluster import OPTICS as optics
-from sklearn.metrics.pairwise import pairwise_distances
+from sklearn.metrics.pairwise import pairwise_distances, linear_kernel
 from scipy.spatial.distance import cosine as cosine_similarity
 
 from board import Board
@@ -822,13 +822,13 @@ while True:
         loc = features.loc_to_tensor_pos(loc, gs.board)
         corr = np.reshape(outputs["ownership_corr"], (corr_feature_len, features.pos_len ** 2))
         corr = np.transpose(corr)
-        values = 1 - pairwise_distances(corr, np.reshape(corr[loc], (1, -1)), metric='cosine')
+        results = np.inner(corr, np.reshape(corr[loc], (1, -1)))
         locs_and_values = []
         for y in range(gs.board.size):
             for x in range(gs.board.size):
                 loc = gs.board.loc(x, y)
                 pos = features.loc_to_tensor_pos(loc, gs.board)
-                locs_and_values.append((loc, values[pos, 0]))
+                locs_and_values.append((loc, results[pos, 0]))
         gfx_commands = get_gfx_commands_for_heatmap(locs_and_values, gs.board, normalization_div=None, is_percent=True, value_and_score_from=None, hotcold=True)
         ret = "\n".join(gfx_commands)
 
@@ -838,13 +838,13 @@ while True:
         loc = features.loc_to_tensor_pos(loc, gs.board)
         corr = np.reshape(outputs["futurepos_corr"], (corr_feature_len, features.pos_len ** 2))
         corr = np.transpose(corr)
-        values = 1 - pairwise_distances(corr, np.reshape(corr[loc], (1, -1)), metric='cosine')
+        results = np.inner(corr, np.reshape(corr[loc], (1, -1)))
         locs_and_values = []
         for y in range(gs.board.size):
             for x in range(gs.board.size):
                 loc = gs.board.loc(x, y)
                 pos = features.loc_to_tensor_pos(loc, gs.board)
-                locs_and_values.append((loc, values[pos, 0]))
+                locs_and_values.append((loc, results[pos, 0]))
         gfx_commands = get_gfx_commands_for_heatmap(locs_and_values, gs.board, normalization_div=None, is_percent=True, value_and_score_from=None, hotcold=True)
         ret = "\n".join(gfx_commands)
 
@@ -928,7 +928,7 @@ while True:
         loc = features.loc_to_tensor_pos(loc, gs.board)
         corr = np.reshape(outputs["ownership_corr"], (corr_feature_len, features.pos_len ** 2))
         corr = np.transpose(corr)
-        results = 1 - pairwise_distances(corr, np.reshape(corr[loc], (1, -1)), metric='cosine')
+        results = np.inner(corr, np.reshape(corr[loc], (1, -1)))
         ret = get_board_matrix_str(np.transpose(results), 100.0, "%+7.3f")
 
     elif command[0] == "futurepos_corr_raw":
@@ -951,7 +951,7 @@ while True:
         loc = features.loc_to_tensor_pos(loc, gs.board)
         corr = np.reshape(outputs["ownership_corr"], (corr_feature_len, features.pos_len ** 2))
         corr = np.transpose(corr)
-        results = 1 - pairwise_distances(corr, np.reshape(corr[loc], (1, -1)), metric='cosine')
+        results = np.inner(corr, np.reshape(corr[loc], (1, -1)))
         ret = get_board_matrix_str(np.transpose(results), 100.0, "%+7.3f")
 
     elif command[0] == "seki_raw":
