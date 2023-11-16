@@ -664,7 +664,7 @@ for i in range(model.bin_input_shape[1]):
 
 for i in range(board_size):
     for j in range(board_size):
-        coord = f"{colstr[i]}{j}"
+        coord = f"{colstr[i]}{j+1}"
         ownership_command = f"gfx/OwnershipCorr-{coord}/ownership_corr {coord}"
         futurepos_command = f"gfx/FutureposCorr-{coord}/futurepos_corr {coord}"
         known_analyze_commands.append(ownership_command)
