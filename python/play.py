@@ -11,6 +11,9 @@ import logging
 import colorsys
 import json
 import numpy as np
+from sklearn.cluster import OPTICS as optics
+from sklearn.metrics.pairwise import pairwise_distances, linear_kernel
+from scipy.spatial.distance import cosine as cosine_similarity
 
 from board import Board
 from features import Features
@@ -39,6 +42,9 @@ use_swa = args["use_swa"]
 
 # Hardcoded max board size
 pos_len = 19
+
+# Hardcoded correlation feature length size
+corr_feature_len = 32
 
 # Model ----------------------------------------------------------------
 
@@ -138,6 +144,8 @@ def get_outputs(gs, rules):
         seki = seki_probs[1] - seki_probs[2]
         seki2 = torch.sigmoid(seki_logits[3,:,:]).cpu().numpy()
         scorebelief = torch.nn.functional.softmax(scorebelief_logits,dim=0).cpu().numpy()
+        ownership_corr = tanh_vec_magnitude(out_ownership_corr)
+        futurepos_corr = tanh_vec_magnitude(out_futurepos_corr)
 
     board = gs.board
 
@@ -271,7 +279,9 @@ def get_outputs(gs, rules):
         "seki2": seki2,
         "seki_by_loc2": seki_by_loc2,
         "scorebelief": scorebelief,
-        "genmove_result": genmove_result
+        "genmove_result": genmove_result,
+        "ownership_corr": ownership_corr,
+        "futurepos_corr": futurepos_corr
     }
 
 def get_input_feature(gs, rules, feature_idx):
@@ -531,6 +541,38 @@ def print_scorebelief(gs,outputs):
     return ret
 
 
+def tanh_vec_magnitude(xs):
+    magsq = torch.sum(torch.square(xs), dim=1, keepdim=True)
+    # Smoothly map the magnitude from [0,infinity) -> [0,1) via tanh
+    # So we need to multiply vectors x by a factor of tanh(|x|) / |x| = tanh(sqrt(|x|^2)) / sqrt(|x|^2)
+    # But there's a division by 0 when |x| = 0, and also sqrt(0) has infinite gradient..
+    # So to do this in a numerically stable way, we do this piecewise, using 3rd order taylor expansion
+    # around 0. Taylor expansion of tanh(sqrt(x)) / sqrt(x) is 1 - 1/3 x + 2/15 x^2 - 17/315 x^3.
+    delta = 0.010
+    sqrtmagsqboundedbelow = torch.sqrt(torch.clamp(magsq,min=0.008))
+    magsqboundedabove = torch.clamp(magsq,max=0.012)
+    magsqboundedabove2 = torch.square(magsqboundedabove)
+    norm_factor = torch.where(
+            magsq > delta,
+            torch.tanh(sqrtmagsqboundedbelow) / sqrtmagsqboundedbelow,
+            1.0 - (1.0 / 3.0) * magsqboundedabove * (1.0 + (17.0 / 105.0) * magsqboundedabove2) + (2.0 / 15.0) * magsqboundedabove2
+            )
+    return xs * norm_factor
+
+
+def abs_cosine_metric(x, y):
+    return 1 - abs(cosine_similarity(x, y))
+
+
+def corr_distances_by_cosine_metric(corr_input):
+    clustering = optics(metric=abs_cosine_metric).fit(corr_input)
+    if max(clustering.labels_ == -1):
+        raise RuntimeError("No clusters found")
+    centers = np.vstack([np.average(corr_input[clustering.labels_ == i], axis=0) for i in range(max(clustering.labels_) + 1)])
+    results = pairwise_distances(corr_input, centers, metric='cosine')
+    return np.transpose(results)
+
+
 # Basic parsing --------------------------------------------------------
 colstr = 'ABCDEFGHJKLMNOPQRST'
 def parse_coord(s,board):
@@ -578,6 +620,7 @@ known_commands = [
     'scorebelief',
     'passalive',
 ]
+
 known_analyze_commands = [
     'gfx/Policy/policy',
     'gfx/Policy1/policy1',
@@ -618,6 +661,14 @@ def add_input_feature_visualizations(layer_name, feature_idx, normalization_div)
 
 for i in range(model.bin_input_shape[1]):
     add_input_feature_visualizations("input-" + str(i),i, normalization_div=1)
+
+for i in range(board_size):
+    for j in range(board_size):
+        coord = f"{colstr[i]}{j+1}"
+        ownership_command = f"gfx/OwnershipCorr-{coord}/ownership_corr {coord}"
+        futurepos_command = f"gfx/FutureposCorr-{coord}/futurepos_corr {coord}"
+        known_analyze_commands.append(ownership_command)
+        known_analyze_commands.append(futurepos_command)
 
 def get_board_matrix_str(matrix, scale, formatstr):
     ret = ""
@@ -674,6 +725,27 @@ while True:
         gs.moves.append((pla,loc))
         gs.boards.append(gs.board.copy())
         ret = str_coord(loc,gs.board)
+
+    elif command[0] == "genmoves":
+        count = 10
+        if len(command) > 1:
+            count = int(command[1])
+            if count < 0 or count > pos_len**2:
+                count = 10
+
+        move_str = list()
+        for i in range(count):
+            outputs = get_outputs(gs, rules)
+            loc = outputs["genmove_result"]
+            pla = gs.board.pla
+
+            gs.board.play(pla,loc)
+            gs.moves.append((pla,loc))
+            gs.boards.append(gs.board.copy())
+            move_str.append(str_coord(loc,gs.board))
+
+        ret = ', '.join(move_str)
+
 
     elif command[0] == "name":
         ret = 'KataGo Raw Neural Net Debug/Test Script'
@@ -744,6 +816,37 @@ while True:
         outputs = get_outputs(gs, rules)
         gfx_commands = get_gfx_commands_for_heatmap(outputs["seki_by_loc2"], gs.board, normalization_div=None, is_percent=True, value_and_score_from=None)
         ret = "\n".join(gfx_commands)
+    elif command[0] == "ownership_corr":
+        outputs = get_outputs(gs, rules)
+        loc = parse_coord(command[1], gs.board)
+        loc = features.loc_to_tensor_pos(loc, gs.board)
+        corr = np.reshape(outputs["ownership_corr"], (corr_feature_len, features.pos_len ** 2))
+        corr = np.transpose(corr)
+        results = np.inner(corr, np.reshape(corr[loc], (1, -1)))
+        locs_and_values = []
+        for y in range(gs.board.size):
+            for x in range(gs.board.size):
+                loc = gs.board.loc(x, y)
+                pos = features.loc_to_tensor_pos(loc, gs.board)
+                locs_and_values.append((loc, results[pos, 0]))
+        gfx_commands = get_gfx_commands_for_heatmap(locs_and_values, gs.board, normalization_div=None, is_percent=True, value_and_score_from=None, hotcold=True)
+        ret = "\n".join(gfx_commands)
+
+    elif command[0] == "futurepos_corr":
+        outputs = get_outputs(gs, rules)
+        loc = parse_coord(command[1], gs.board)
+        loc = features.loc_to_tensor_pos(loc, gs.board)
+        corr = np.reshape(outputs["futurepos_corr"], (corr_feature_len, features.pos_len ** 2))
+        corr = np.transpose(corr)
+        results = np.inner(corr, np.reshape(corr[loc], (1, -1)))
+        locs_and_values = []
+        for y in range(gs.board.size):
+            for x in range(gs.board.size):
+                loc = gs.board.loc(x, y)
+                pos = features.loc_to_tensor_pos(loc, gs.board)
+                locs_and_values.append((loc, results[pos, 0]))
+        gfx_commands = get_gfx_commands_for_heatmap(locs_and_values, gs.board, normalization_div=None, is_percent=True, value_and_score_from=None, hotcold=True)
+        ret = "\n".join(gfx_commands)
 
     elif command[0] == "policy_raw":
         outputs = get_outputs(gs, rules)
@@ -804,6 +907,53 @@ while True:
     elif command[0] == "futurepos1_raw":
         outputs = get_outputs(gs, rules)
         ret = get_board_matrix_str(outputs["futurepos"][1], 100.0, "%+7.3f")
+
+    elif command[0] == "ownership_corr_raw":
+        outputs = get_outputs(gs, rules)
+        corr = np.reshape(outputs["ownership_corr"], (corr_feature_len, features.pos_len ** 2))
+        corr = np.transpose(corr)
+        try:
+            distances = corr_distances_by_cosine_metric(corr)
+            ret = '\n\n'.join(list(get_board_matrix_str(i, 100.0, "%+7.3f") for i in distances))
+        except RuntimeError:
+            ret = "No clusters found returning raw output instead\n\n"
+            corr = np.transpose(corr)
+            for i in range(corr_feature_len):
+                ret += get_board_matrix_str(corr[i], 100.0, "%+7.3f")
+                ret += '\n'
+
+    elif command[0] == "ownership_corr":
+        outputs = get_outputs(gs, rules)
+        loc = parse_coord(command[1], gs.board)
+        loc = features.loc_to_tensor_pos(loc, gs.board)
+        corr = np.reshape(outputs["ownership_corr"], (corr_feature_len, features.pos_len ** 2))
+        corr = np.transpose(corr)
+        results = np.inner(corr, np.reshape(corr[loc], (1, -1)))
+        ret = get_board_matrix_str(np.transpose(results), 100.0, "%+7.3f")
+
+    elif command[0] == "futurepos_corr_raw":
+        outputs = get_outputs(gs, rules)
+        corr = np.reshape(outputs["futurepos_corr"], (corr_feature_len, features.pos_len ** 2))
+        corr = np.transpose(corr)
+        try:
+            distances = corr_distances_by_cosine_metric(corr)
+            ret = '\n\n'.join(list(get_board_matrix_str(i, 100.0, "%+7.3f") for i in distances))
+        except RuntimeError:
+            ret = "No clusters found returning raw output instead\n\n"
+            corr = np.transpose(corr)
+            for i in range(corr_feature_len):
+                ret += get_board_matrix_str(corr[i], 100.0, "%+7.3f")
+                ret += '\n'
+
+    elif command[0] == "futurepos_corr":
+        outputs = get_outputs(gs, rules)
+        loc = parse_coord(command[1], gs.board)
+        loc = features.loc_to_tensor_pos(loc, gs.board)
+        corr = np.reshape(outputs["ownership_corr"], (corr_feature_len, features.pos_len ** 2))
+        corr = np.transpose(corr)
+        results = np.inner(corr, np.reshape(corr[loc], (1, -1)))
+        ret = get_board_matrix_str(np.transpose(results), 100.0, "%+7.3f")
+
     elif command[0] == "seki_raw":
         outputs = get_outputs(gs, rules)
         ret = get_board_matrix_str(outputs["seki"], 100.0, "%+7.3f")
