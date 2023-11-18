@@ -764,8 +764,11 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
             throw StringError("Could not parse OT: " + sgfOT);
           byoYomiPeriods = Global::stringToInt(pieces[0]);
           periodTimeSeconds = Global::stringToDouble(pieces[1]);
-          if(byoYomiPeriods <= 0 || byoYomiPeriods > 1000 || !std::isfinite(periodTimeSeconds) || periodTimeSeconds <= 0 || periodTimeSeconds > 100000000)
-            throw StringError("Could not parse OT: " + sgfOT);
+          if(byoYomiPeriods <= 0 || byoYomiPeriods > 1000 || !std::isfinite(periodTimeSeconds) || periodTimeSeconds <= 0 || periodTimeSeconds > 100000000) {
+            logger.write("Could not parse OT: " + sgfOT);
+            reportSgfDone(false,"BadTimeControl");
+            return;
+          }
         }
         else if(sgfOT.find(" fischer") != std::string::npos) {
           tcIsFischer = true;
