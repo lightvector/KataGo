@@ -8,7 +8,6 @@
 #import "KataGoHelper.h"
 #import "../../cpp/main.h"
 #import <sstream>
-#import "coremlmodel.h"
 #import "../../cpp/neuralnet/coremlbackend.h"
 
 using namespace std;
@@ -124,19 +123,6 @@ ostream outToKataGo(&tsbToKataGo);
 + (void)sendCommand:(NSString * _Nonnull)command {
     // Write GTP commands to the outToKataGo
     outToKataGo << string([command UTF8String]) << endl;
-}
-
-+ (nullable NSURL *)getAppMLModelURL {
-    // Get the model string
-    string modelString = CoreMLProcess::getModelName(true);
-
-    // Create the model name
-    NSString* modelName = [NSString stringWithUTF8String:modelString.c_str()];
-
-    // Get URL of the MLModel at Application Support Directory
-    NSURL* modelURL = [KataGoModel getAppMLModelURL:modelName];
-
-    return modelURL;
 }
 
 @end

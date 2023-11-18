@@ -7,10 +7,10 @@
 #include "../neuralnet/nneval.h"
 #include "../neuralnet/nninputs.h"
 #include "../neuralnet/nninterface.h"
-#include <metalswift.h>
+#include <KataGoSwift/KataGoSwift-Swift.h>
 
 using namespace std;
-using namespace katago;
+using namespace KataGoSwift;
 
 namespace MetalProcess {
 SWConvLayerDesc convLayerDescToSwift(const ConvLayerDesc * desc);

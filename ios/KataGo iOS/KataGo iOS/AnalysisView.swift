@@ -12,10 +12,11 @@ struct AnalysisView: View {
     @EnvironmentObject var board: ObservableBoard
     let geometry: GeometryProxy
 
-    var body: some View {
-        let maxVisits = computeMaxVisits()
-        let dimensions = Dimensions(geometry: geometry, board: board)
+    var dimensions: Dimensions {
+        Dimensions(geometry: geometry, board: board)
+    }
 
+    var shadows: some View {
         ForEach(analysis.data, id: \.self) { data in
             if let move = data["move"] {
                 if let point = moveToPoint(move: move) {
@@ -29,15 +30,24 @@ struct AnalysisView: View {
                 }
             }
         }
+    }
 
-        ForEach(analysis.ownership.keys.sorted(), id: \.self) { point in
+    func computeDefiniteness(_ whiteness: Double) -> Double {
+        return Swift.abs(whiteness - 0.5) * 2
+    }
+
+    var ownerships: some View {
+        let sortedOwnershipKeys = analysis.ownership.keys.sorted()
+
+        return ForEach(sortedOwnershipKeys, id: \.self) { point in
             if let ownership = analysis.ownership[point] {
                 let whiteness = (analysis.nextColorForAnalysis == .white) ? (Double(ownership.mean) + 1) / 2 : (Double(-ownership.mean) + 1) / 2
-                let definiteness = abs(whiteness - 0.5) * 2
+                let definiteness = computeDefiniteness(whiteness)
                 // Show a black or white square if definiteness is high and stdev is low
                 // Show nothing if definiteness is low and stdev is low
                 // Show a square with linear gradient of black and white if definiteness is low and stdev is high
                 let scale = max(CGFloat(definiteness), CGFloat(ownership.stdev ?? 0)) * 0.7
+
                 Rectangle()
                     .foregroundColor(Color(hue: 0, saturation: 0, brightness: whiteness).opacity(0.8))
                     .frame(width: dimensions.squareLength * scale, height: dimensions.squareLength * scale)
@@ -45,8 +55,12 @@ struct AnalysisView: View {
                               y: dimensions.marginHeight + CGFloat(point.y) * dimensions.squareLength)
             }
         }
+    }
 
-        ForEach(analysis.data, id: \.self) { data in
+    var moves: some View {
+        let maxVisits = computeMaxVisits()
+
+        return ForEach(analysis.data, id: \.self) { data in
             if let move = data["move"] {
                 if let point = moveToPoint(move: move) {
                     let winrate = Float(data["winrate"] ?? "0") ?? 0
@@ -83,6 +97,12 @@ struct AnalysisView: View {
                 }
             }
         }
+    }
+
+    var body: some View {
+        shadows
+        ownerships
+        moves
     }
 
     func convertToSIUnits(_ number: Int) -> String {
