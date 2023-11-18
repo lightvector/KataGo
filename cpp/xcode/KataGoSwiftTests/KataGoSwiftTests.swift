@@ -2111,7 +2111,7 @@ final class ValueHeadTest: XCTestCase {
         let maskArrayShape = [batchSize, 1, nnYLen, nnXLen] as [NSNumber]
         let maskDescriptor = MPSNDArrayDescriptor(dataType: mask.tensor.dataType,
                                                   shape: maskArrayShape)
-        
+
         let maskArray = MPSNDArray(device: device,
                                    descriptor: maskDescriptor)
 
@@ -2937,7 +2937,7 @@ final class MetalBackendTest: XCTestCase {
 
         MetalComputeHandle.createInstance(descriptor: swModelDesc,
                                           serverThreadIdx: 0)
-        
+
         var input = [Float32](repeating: 1, count: 1)
         var inputGlobal = [Float32](repeating: 1, count: 1)
         var policyOutput = [Float32](repeating: 1, count: 1)

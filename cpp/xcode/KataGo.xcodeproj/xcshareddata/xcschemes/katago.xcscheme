@@ -53,6 +53,16 @@
                ReferencedContainer = "container:xcode/KataGo.xcodeproj">
             </BuildableReference>
          </TestableReference>
+         <TestableReference
+            skipped = "NO">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "E1DACF612B089B5500082FF7"
+               BuildableName = "KataGoSwiftTests.xctest"
+               BlueprintName = "KataGoSwiftTests"
+               ReferencedContainer = "container:xcode/KataGo.xcodeproj">
+            </BuildableReference>
+         </TestableReference>
       </Testables>
    </TestAction>
    <LaunchAction
