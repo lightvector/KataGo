@@ -6,7 +6,7 @@ on:
       - '.github/workflows/build.yml'
 
 jobs:
-  build:
+  xcodebuild:
     runs-on: macos-13
     steps:
     - name: Checkout code
@@ -44,3 +44,23 @@ jobs:
       run: |
         cd cpp/xcode
         /Applications/Xcode_15.0.1.app/Contents/Developer/usr/bin/xcodebuild -derivedDataPath DerivedData -scheme katago -configuration Release test
+
+  cmake-macos:
+    runs-on: macos-13
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Run cmake ninja
+      run: |
+        cd cpp
+        mv CMakeLists.txt-macos CMakeLists.txt
+        mkdir build
+        cd build
+        cmake -G Ninja ../
+        ninja
+
+    - name: Run KataGo tests
+      run: |
+        cd cpp/build
+        ./katago runnnlayertests
