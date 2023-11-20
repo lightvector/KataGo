@@ -57,7 +57,8 @@ jobs:
 
     - name: Setup Xcode
       run: |
-        xcode-select /Applications/Xcode_15.0.1.app/Contents/Developer
+        xcode-select -p
+        xcode-select -s /Applications/Xcode_15.0.1.app/Contents/Developer
 
     - name: Run cmake ninja
       run: |
