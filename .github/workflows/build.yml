@@ -55,6 +55,10 @@ jobs:
       run: |
         brew install ninja
 
+    - name: Setup Xcode
+      run: |
+        xcode-select /Applications/Xcode_15.0.1.app/Contents/Developer
+
     - name: Run cmake ninja
       run: |
         cd cpp
