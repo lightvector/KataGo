@@ -1,0 +1,289 @@
+cmake_minimum_required(VERSION 3.26)
+
+if(NOT "${CMAKE_GENERATOR}" STREQUAL "Ninja")
+  message(FATAL_ERROR "Bidirectional C++ Interop requires Ninja generator. Have ${CMAKE_GENERATOR}")
+endif()
+
+project(katago LANGUAGES CXX Swift)
+
+if("${CMAKE_Swift_COMPILER_VERSION}" VERSION_LESS 5.9)
+  message(FATAL_ERROR "Bidirectional C++ Interop requires Swift 5.9 or greater. Have ${CMAKE_Swift_COMPILER_VERSION}")
+endif()
+
+if(NOT "${CMAKE_CXX_COMPILER_ID}" STREQUAL "AppleClang")
+  message(FATAL_ERROR "Project requires building with AppleClang. Have ${CMAKE_CXX_COMPILER_ID}")
+endif()
+
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/macos/cmake/modules")
+include(InitializeSwift)
+include(AddSwift)
+
+set(CMAKE_OSX_DEPLOYMENT_TARGET 13.0)
+set(CMAKE_CXX_STANDARD 14)
+
+include_directories(external)
+include_directories(external/tclap-1.2.2/include)
+include_directories(SYSTEM external/filesystem-1.5.8/include) #SYSTEM suppresses a few warnings
+
+#--------------------------- PLATFORM SPECIFIC -------------------------------------------------------------------------
+
+if(NOT WIN32)
+  string(ASCII 27 Esc)
+  set(ColorReset   "${Esc}[m")
+  set(ColorBold    "${Esc}[1m")
+  set(ColorRed     "${Esc}[31m")
+  set(ColorBoldRed "${ColorRed}${ColorBold}")
+endif()
+
+#--------------------------- CMAKE VARIABLES (partly for Cmake GUI) ----------------------------------------------------
+
+set(BUILD_DISTRIBUTED 0 CACHE BOOL "Build with http support for contributing to distributed training")
+set(NO_GIT_REVISION 0 CACHE BOOL "Disable embedding the git revision into the compiled exe")
+set(USE_BIGGER_BOARDS_EXPENSIVE 0 CACHE BOOL "Allow boards up to size 29. Compiling with this will use more memory and slow down KataGo, even when playing on boards of size 19.")
+
+#--------------------------- NEURAL NET BACKEND ------------------------------------------------------------------------
+
+message(STATUS "Building 'katago' executable for GTP engine and other tools.")
+message(STATUS "Using CoreML backend.")
+set(NEURALNET_BACKEND_SOURCES
+  ../neuralnet/coremlbackend.cpp
+  ../neuralnet/metalbackend.cpp
+  )
+
+#--------------------------- GIT ---------------------------------------------------------------------------------------
+
+if(NO_GIT_REVISION AND (NOT BUILD_DISTRIBUTED))
+  message(STATUS "-DNO_GIT_REVISION=1 is set, avoiding including the Git revision in compiled executable")
+  unset(GIT_HEADER_FILE_ALWAYS_UPDATED)
+else()
+  if(NO_GIT_REVISION AND BUILD_DISTRIBUTED)
+    message(STATUS "${ColorRed}NO_GIT_REVISION is set, but BUILD_DISTRIBUTED is also set and distributed requires git revision, so ignoring NO_GIT_REVISION.${ColorReset}")
+  elseif(BUILD_DISTRIBUTED)
+    message(STATUS "Including Git revision in the compiled executable")
+  else()
+    message(STATUS "Including Git revision in the compiled executable, specify -DNO_GIT_REVISION=1 to disable")
+  endif()
+  find_package(Git)
+  if(NOT GIT_FOUND)
+    set(GIT_EXECUTABLE ${GIT_EXECUTABLE} CACHE FILEPATH "Path to git executable")
+    mark_as_advanced(CLEAR GIT_EXECUTABLE)
+    if(BUILD_DISTRIBUTED)
+      message(SEND_ERROR "${ColorBoldRed}Git executable was not found, specify GIT_EXECUTABLE as the path to the git executable.${ColorReset}")
+    else()
+      message(SEND_ERROR "${ColorBoldRed}Git executable was not found. Either specify GIT_EXECUTABLE as the path to the git executable, or use NO_GIT_REVISION to disable.${ColorReset}")
+    endif()
+  endif()
+  set(GIT_HEADER_FILE_TEMPLATE_BARE program/gitinfotemplate.h)
+  set(GIT_HEADER_FILE_ALWAYS_UPDATED_BARE program/gitinfoupdated.h)
+  set(GIT_HEADER_FILE_BARE program/gitinfo.h)
+  set(GIT_HEADER_FILE_TEMPLATE ${CMAKE_SOURCE_DIR}/${GIT_HEADER_FILE_TEMPLATE_BARE})
+  set(GIT_HEADER_FILE_ALWAYS_UPDATED ${CMAKE_BINARY_DIR}/${GIT_HEADER_FILE_ALWAYS_UPDATED_BARE})
+  set(GIT_HEADER_FILE ${CMAKE_BINARY_DIR}/${GIT_HEADER_FILE_BARE})
+  add_custom_command(
+    OUTPUT ${GIT_HEADER_FILE_ALWAYS_UPDATED}
+    COMMAND ${CMAKE_COMMAND} -E copy ${GIT_HEADER_FILE_TEMPLATE} ${GIT_HEADER_FILE_ALWAYS_UPDATED}
+    COMMAND ${GIT_EXECUTABLE} describe --match=DummyTagNotExisting --always --abbrev=40 --dirty >> ${GIT_HEADER_FILE_ALWAYS_UPDATED}
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different ${GIT_HEADER_FILE_ALWAYS_UPDATED} ${GIT_HEADER_FILE}
+    COMMAND ${CMAKE_COMMAND} -E remove ${GIT_HEADER_FILE_ALWAYS_UPDATED}
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+    VERBATIM
+    )
+endif()
+
+#--------------------------- C++ Swift Interop --------------------------------
+
+_swift_generate_cxx_header_target(
+  KataGoSwift_Swift_h
+  KataGoSwift
+  "${CMAKE_CURRENT_BINARY_DIR}/include/KataGoSwift/KataGoSwift-swift.h"
+  SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/neuralnet/coremlbackend.swift"
+  "${CMAKE_CURRENT_SOURCE_DIR}/neuralnet/coremlmodel.swift"
+  "${CMAKE_CURRENT_SOURCE_DIR}/neuralnet/metalbackend.swift")
+
+add_library(KataGoSwift STATIC
+  neuralnet/coremlbackend.swift
+  neuralnet/coremlmodel.swift
+  neuralnet/metalbackend.swift)
+
+add_dependencies(KataGoSwift KataGoSwift_Swift_h)
+target_include_directories(KataGoSwift PUBLIC "${CMAKE_CURRENT_BINARY_DIR}/include")
+set_target_properties(KataGoSwift PROPERTIES Swift_MODULE_NAME "KataGoSwift")
+target_compile_options(KataGoSwift PUBLIC
+  "$<$<COMPILE_LANGUAGE:Swift>:-cxx-interoperability-mode=default>")
+
+#--------------------------- KATAGO COMPILING AND LINKING --------------------------------------------------------------
+
+add_executable(katago
+  ../core/global.cpp
+  ../core/base64.cpp
+  ../core/bsearch.cpp
+  ../core/commandloop.cpp
+  ../core/config_parser.cpp
+  ../core/datetime.cpp
+  ../core/elo.cpp
+  ../core/fancymath.cpp
+  ../core/fileutils.cpp
+  ../core/hash.cpp
+  ../core/logger.cpp
+  ../core/mainargs.cpp
+  ../core/makedir.cpp
+  ../core/md5.cpp
+  ../core/multithread.cpp
+  ../core/rand.cpp
+  ../core/rand_helpers.cpp
+  ../core/sha2.cpp
+  ../core/test.cpp
+  ../core/threadsafecounter.cpp
+  ../core/threadsafequeue.cpp
+  ../core/threadtest.cpp
+  ../core/timer.cpp
+  ../game/board.cpp
+  ../game/rules.cpp
+  ../game/boardhistory.cpp
+  ../game/graphhash.cpp
+  ../dataio/sgf.cpp
+  ../dataio/numpywrite.cpp
+  ../dataio/poswriter.cpp
+  ../dataio/trainingwrite.cpp
+  ../dataio/loadmodel.cpp
+  ../dataio/homedata.cpp
+  ../dataio/files.cpp
+  ../neuralnet/nninputs.cpp
+  ../neuralnet/modelversion.cpp
+  ../neuralnet/nneval.cpp
+  ../neuralnet/desc.cpp
+  ${NEURALNET_BACKEND_SOURCES}
+  ../book/book.cpp
+  ../book/bookcssjs.cpp
+  ../search/timecontrols.cpp
+  ../search/searchparams.cpp
+  ../search/mutexpool.cpp
+  ../search/search.cpp
+  ../search/searchnode.cpp
+  ../search/searchresults.cpp
+  ../search/searchhelpers.cpp
+  ../search/searchexplorehelpers.cpp
+  ../search/searchmirror.cpp
+  ../search/searchmultithreadhelpers.cpp
+  ../search/searchnnhelpers.cpp
+  ../search/searchtimehelpers.cpp
+  ../search/searchupdatehelpers.cpp
+  ../search/asyncbot.cpp
+  ../search/distributiontable.cpp
+  ../search/localpattern.cpp
+  ../search/searchnodetable.cpp
+  ../search/subtreevaluebiastable.cpp
+  ../search/patternbonustable.cpp
+  ../search/analysisdata.cpp
+  ../search/reportedsearchvalues.cpp
+  ../program/gtpconfig.cpp
+  ../program/setup.cpp
+  ../program/playutils.cpp
+  ../program/playsettings.cpp
+  ../program/play.cpp
+  ../program/selfplaymanager.cpp
+  ${GIT_HEADER_FILE_ALWAYS_UPDATED}
+  ../tests/testboardarea.cpp
+  ../tests/testboardbasic.cpp
+  ../tests/testbook.cpp
+  ../tests/testcommon.cpp
+  ../tests/testconfig.cpp
+  ../tests/testmisc.cpp
+  ../tests/testnnevalcanary.cpp
+  ../tests/testrules.cpp
+  ../tests/testscore.cpp
+  ../tests/testsgf.cpp
+  ../tests/testsymmetries.cpp
+  ../tests/testnninputs.cpp
+  ../tests/testownership.cpp
+  ../tests/testsearchcommon.cpp
+  ../tests/testsearchnonn.cpp
+  ../tests/testsearch.cpp
+  ../tests/testsearchv3.cpp
+  ../tests/testsearchv8.cpp
+  ../tests/testsearchv9.cpp
+  ../tests/testsearchmisc.cpp
+  ../tests/testtime.cpp
+  ../tests/testtrainingwrite.cpp
+  ../tests/testnn.cpp
+  ../tests/tinymodel.cpp
+  ../tests/tinymodeldata.cpp
+  ../distributed/client.cpp
+  ../command/commandline.cpp
+  ../command/analysis.cpp
+  ../command/benchmark.cpp
+  ../command/contribute.cpp
+  ../command/evalsgf.cpp
+  ../command/gatekeeper.cpp
+  ../command/genbook.cpp
+  ../command/gputest.cpp
+  ../command/gtp.cpp
+  ../command/match.cpp
+  ../command/misc.cpp
+  ../command/runtests.cpp
+  ../command/sandbox.cpp
+  ../command/selfplay.cpp
+  ../command/tune.cpp
+  ../main.cpp
+  )
+
+target_compile_definitions(katago PRIVATE USE_COREML_BACKEND)
+
+if(USE_BIGGER_BOARDS_EXPENSIVE)
+  target_compile_definitions(katago PRIVATE COMPILE_MAX_BOARD_LEN=29)
+endif()
+
+if(NO_GIT_REVISION AND (NOT BUILD_DISTRIBUTED))
+  target_compile_definitions(katago PRIVATE NO_GIT_REVISION)
+endif()
+
+find_package(ZLIB)
+if(ZLIB_FOUND)
+  include_directories(${ZLIB_INCLUDE_DIRS})
+  target_link_libraries(katago ${ZLIB_LIBRARIES})
+else()
+  set(ZLIB_INCLUDE_DIR ${ZLIB_INCLUDE_DIR} CACHE PATH "Path to directory with zlib.h and other header files")
+  set(ZLIB_LIBRARY ${ZLIB_LIBRARY} CACHE FILEPATH "Path to 'libz.so' on Linux or 'libz.lib' on Windows")
+  mark_as_advanced(CLEAR ZLIB_INCLUDE_DIR ZLIB_LIBRARY)
+  message(SEND_ERROR "${ColorBoldRed}zlib was not found, if zlib is actually installed but not being found you can set ZLIB_INCLUDE_DIR to the directory with zlib.h and other headers, and ZLIB_LIBRARY to the compiled library 'libz.so' on Linux or 'libz.lib' on Windows. On the command line, this is -DZLIB_INCLUDE_DIR=... and -DZLIB_LIBRARY=... ${ColorReset}")
+endif(ZLIB_FOUND)
+
+find_library(LIBZIP_LIBRARY NAMES zip)
+find_path(LIBZIP_INCLUDE_DIR_ZIP NAMES zip.h)
+find_path(LIBZIP_INCLUDE_DIR_ZIPCONF NAMES zipconf.h)
+if((NOT LIBZIP_LIBRARY) OR (NOT LIBZIP_INCLUDE_DIR_ZIP) OR (NOT LIBZIP_INCLUDE_DIR_ZIPCONF))
+  if(BUILD_DISTRIBUTED)
+    message(SEND_ERROR "${ColorBoldRed}WARNING: BUILD_DISTRIBUTED was requested but libzip library was NOT found. KataGo needs this for writing training data so libzip is required. On Linux, install through your normal package manager. On Windows, set LIBZIP_INCLUDE_DIR_ZIP to the directory that includes zip.h and other files, and LIBZIP_INCLUDE_DIR_ZIPCONF to the directory that includes zipconf.h and other files, and LIBZIP_LIBRARY to the libzip.lib or zip.lib file. ${ColorReset}")
+  endif()
+  target_compile_definitions(katago PRIVATE NO_LIBZIP)
+  message(WARNING "${ColorBoldRed}WARNING: libzip library was NOT found. KataGo should still work for GTP/matches/analysis if everything else is good, but selfplay for writing training data will not be possible.${ColorReset}")
+  set(LIBZIP_INCLUDE_DIR_ZIP ${LIBZIP_INCLUDE_DIR_ZIP} CACHE PATH "Path to directory with zip.h and other header files")
+  set(LIBZIP_INCLUDE_DIR_ZIPCONF ${LIBZIP_INCLUDE_DIR_ZIPCONF} CACHE PATH "Path to directory with zipconf.h and other header files")
+  set(LIBZIP_LIBRARY ${LIBZIP_LIBRARY} CACHE FILEPATH "Path to 'libzip.so' on Linux or 'libzip.lib' or 'zip.lib' on Windows")
+  mark_as_advanced(CLEAR LIBZIP_INCLUDE_DIR_ZIP LIBZIP_INCLUDE_DIR_ZIPCONF LIBZIP_LIBRARY)
+else()
+  include_directories(${LIBZIP_INCLUDE_DIR_ZIP})
+  include_directories(${LIBZIP_INCLUDE_DIR_ZIPCONF})
+  target_link_libraries(katago ${LIBZIP_LIBRARY})
+endif()
+
+if(BUILD_DISTRIBUTED)
+  message(STATUS "-DBUILD_DISTRIBUTED=1 is set, compiling code and dependencies to contribute to distributed training")
+  target_compile_definitions(katago PRIVATE BUILD_DISTRIBUTED)
+  find_package(OpenSSL REQUIRED)
+  target_link_libraries(katago ${OPENSSL_SSL_LIBRARIES} ${OPENSSL_CRYPTO_LIBRARIES})
+  include_directories(${OPENSSL_INCLUDE_DIR})
+  include_directories(external/httplib)
+endif()
+
+#------------------------------------------------------------------------------------
+
+message(STATUS "Setting up build for AppleClang.")
+target_link_libraries(katago KataGoSwift)
+find_package (Threads REQUIRED)
+target_link_libraries(katago Threads::Threads)
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -O2 -pedantic -Wall -Wextra -Wno-sign-compare -Wcast-align -Wcast-qual -Wctor-dtor-privacy -Wdisabled-optimization -Wformat=2 -Wmissing-declarations -Wmissing-include-dirs -Woverloaded-virtual -Wredundant-decls -Wshadow -Wstrict-overflow=1 -Wswitch-default -Wfloat-conversion -Wunused")
+message(STATUS "Enabling AppleClang-specific build options.")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wnull-dereference -Wdangling-else")
+
+target_include_directories(katago PUBLIC ${CMAKE_CURRENT_BINARY_DIR})
