@@ -27,7 +27,7 @@ int MainCmds::testgpuerror(const vector<string>& args) {
   int boardSize;
   bool quickTest;
   try {
-    KataGoCommandLine cmd("Benchmark with gtp config to test speed with different numbers of threads.");
+    KataGoCommandLine cmd("Test GPU error between FP16 and FP32 with and without batching");
     cmd.addConfigFileArg(KataGoCommandLine::defaultGtpConfigFileName(),"gtp_example.cfg");
     cmd.addModelFileArg();
     TCLAP::ValueArg<int> boardSizeArg("","boardsize", "Size of board to benchmark on (9,13,19), default 19", false, 19, "SIZE");
