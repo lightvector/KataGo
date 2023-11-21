@@ -69,7 +69,34 @@ jobs:
         cmake -G Ninja ../
         ninja
 
+    - name: Setup configuration
+      run: |
+        ln -s ../configs/misc/coreml_example.cfg cpp/build/gtp.cfg
+
+    - name: Setup network
+      run: |
+        mkdir -p models
+        cd models
+        wget https://github.com/ChinChangYang/KataGo/releases/download/v1.13.2-coreml1/kata1-b18c384nbt-s7709731328-d3715293823.bin.gz
+        ln -s ../../models/kata1-b18c384nbt-s7709731328-d3715293823.bin.gz ../cpp/build/model.bin.gz
+
+    - name: Setup CoreML model
+      run: |
+        mkdir -p models
+        cd models
+        wget https://github.com/ChinChangYang/KataGo/releases/download/v1.13.2-coreml1/KataGoModel19x19fp16v14s7709731328.mlpackage.zip
+        unzip KataGoModel19x19fp16v14s7709731328.mlpackage.zip
+        ln -s ../../models/KataGoModel19x19fp16v14s7709731328.mlpackage ../cpp/build/KataGoModel19x19fp16.mlpackage
+
+    - name: Setup test data
+      run: |
+        ln -s ../tests cpp/build/tests
+
     - name: Run KataGo tests
       run: |
         cd cpp/build
         ./katago runnnlayertests
+        ./katago runoutputtests
+        ./katago runnnontinyboardtest model.bin.gz false false 0 false
+        ./katago runnnsymmetriestest model.bin.gz false false false
+        ./katago runownershiptests gtp.cfg model.bin.gz
