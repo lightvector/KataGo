@@ -122,7 +122,7 @@ static std::set<string> loadStrippedTxtFileLines(const string& filePath) {
   return ret;
 }
 
-static bool isLikelyBot(const string& username) {
+static bool isLikelyBot(const string& username, const string& whatDataSource) {
   string s = Global::trim(Global::toLower(username));
   if(s.find("gnugo") != std::string::npos)
     return true;
@@ -135,12 +135,6 @@ static bool isLikelyBot(const string& username) {
   if(s.find("kata-bot") != std::string::npos)
     return true;
   if(s.find("crazystone") != std::string::npos)
-    return true;
-  if(s.find("_bot_") != std::string::npos)
-    return true;
-  if(Global::isSuffix(s,"_bot"))
-    return true;
-  if(Global::isSuffix(s,"-bot"))
     return true;
   if(s.find("leela") != std::string::npos)
     return true;
@@ -162,14 +156,85 @@ static bool isLikelyBot(const string& username) {
     return true;
   if(s.find("weak bot") != std::string::npos)
     return true;
+  if(whatDataSource == "ogs") {
+    if(s.find("_bot_") != std::string::npos)
+      return true;
+    if(Global::isSuffix(s,"_bot"))
+      return true;
+    if(Global::isSuffix(s,"-bot"))
+      return true;
+  }
+  if(whatDataSource == "kgs") {
+    if(Global::isPrefix(s,"ayabot"))
+      return true;
+    if(Global::isPrefix(s,"ayamc"))
+      return true;
+    if(Global::isPrefix(s,"dcnn"))
+      return true;
+    if(Global::isPrefix(s,"jbxkata"))
+      return true;
+    if(Global::isPrefix(s,"hirabot"))
+      return true;
+    if(Global::isPrefix(s,"swissbot"))
+      return true;
+    if(Global::isPrefix(s,"golois"))
+      return true;
+    if(Global::isPrefix(s,"hiramc"))
+      return true;
+    if(Global::isPrefix(s,"petgo"))
+      return true;
+    if(Global::isPrefix(s,"easybot"))
+      return true;
+    if(Global::isPrefix(s,"zen19"))
+      return true;
+    if(Global::isPrefix(s,"darkfmcts"))
+      return true;
+    if(Global::isPrefix(s,"mfgo") && s.find("kyu") != std::string::npos)
+      return true;
+    if(Global::isPrefix(s,"mfgo") && s.find("dnnbot") != std::string::npos)
+      return true;
+    if(Global::isPrefix(s,"nexus") && s.find("5k") != std::string::npos)
+      return true;
+    if(Global::isPrefix(s,"nexus") && s.find("10k") != std::string::npos)
+      return true;
+    if(Global::isPrefix(s,"valkyria"))
+      return true;
+    if(Global::isPrefix(s,"mogobot"))
+      return true;
+    if(Global::isPrefix(s,"orego"))
+      return true;
+    if(Global::isPrefix(s,"neuralz"))
+      return true;
+    if(Global::isPrefix(s,"rankbot"))
+      return true;
+    if(Global::isPrefix(s,"sai0bot"))
+      return true;
+    if(Global::isPrefix(s,"postneo"))
+      return true;
+    if(s == "ericabot")
+      return true;
+    if(s == "bonobot")
+      return true;
+    if(s == "czechbot")
+      return true;
+  }
+
   return false;
 }
 
-static int parseSGFRank(const string& rankStr) {
+static void parseSGFRank(const string& rankStr, int& inverseRankRet, bool& isUnrankedRet, bool& isUnknownRet) {
   int rankNumber = 0;
   bool isDan = false;
   bool isPro = false;
-  if(Global::isSuffix(rankStr," kyu")) {
+  bool isUnranked = false;
+  bool isUnknown = false;
+  if(rankStr == "") {
+    isUnknown = true;
+  }
+  else if(rankStr == "-") {
+    isUnranked = true;
+  }
+  else if(Global::isSuffix(rankStr," kyu")) {
     rankNumber = Global::stringToInt(Global::chopSuffix(rankStr," kyu"));
   }
   else if(Global::isSuffix(rankStr," k")) {
@@ -216,19 +281,153 @@ static int parseSGFRank(const string& rankStr) {
   else {
     throw StringError("Unable to parse rank: " + rankStr);
   }
-  if(isPro)
-    return 1;
-  if(isDan) {
+
+  if(isUnknown) {
+    inverseRankRet = 0;
+    isUnrankedRet = false;
+    isUnknownRet = true;
+  }
+  else if(isUnranked) {
+    inverseRankRet = 0;
+    isUnrankedRet = true;
+    isUnknownRet = false;
+  }
+  else if(isPro) {
+    inverseRankRet = 1;
+    isUnrankedRet = false;
+    isUnknownRet = false;
+  }
+  else if(isDan) {
     if(rankNumber <= 0)
       throw StringError("Unable to parse rank: " + rankStr);
     if(rankNumber > 9)
       rankNumber = 9;
-    return 10 - rankNumber;
+    inverseRankRet = 10 - rankNumber;
+    isUnrankedRet = false;
+    isUnknownRet = false;
   }
-  if(rankNumber <= 0)
-    throw StringError("Unable to parse rank: " + rankStr);
-  return 9 + rankNumber;
+  else {
+    if(rankNumber <= 0)
+      throw StringError("Unable to parse rank: " + rankStr);
+    inverseRankRet = 9 + rankNumber;
+    isUnrankedRet = false;
+    isUnknownRet = false;
+  }
 }
+
+struct KGSCsvLine {
+  SimpleDate date;
+  string sgfWUsername;
+  string sgfWRank;
+  string sgfBUsername;
+  string sgfBRank;
+  int indexThisDayZeroIndexed;
+  bool isRated;
+  int boardSize;
+  int handicap;
+  float komi;
+  string unknownField; // Not sure what this is
+  float result;
+
+  string getKey() {
+    return date.toString() + "|$#" + sgfWUsername + "|$#" + sgfBUsername + "|" + Global::intToString(indexThisDayZeroIndexed);
+  }
+  static string makeKey(SimpleDate date, string sgfWUsername, string sgfBUsername, int indexThisDayZeroIndexed) {
+    return date.toString() + "|$#" + sgfWUsername + "|$#" + sgfBUsername + "|" + Global::intToString(indexThisDayZeroIndexed);
+  }
+};
+
+static void readKgsCsv(
+  const string& kgsCsv,
+  SimpleDate kgsCsvMinDate,
+  SimpleDate kgsCsvMaxDate,
+  Logger& logger,
+  std::map<string,KGSCsvLine>& kgsCsvMap
+) {
+  std::vector<string> lines = FileUtils::readFileLines(kgsCsv, '\n');
+  logger.write("Loaded KGS csv with " + Global::uint64ToString(lines.size()) + " lines");
+  for(const string& origLine: lines) {
+    std::vector<string> pieces = Global::split(Global::trim(origLine),',');
+    if(pieces.size() != 12)
+      continue;
+    for(size_t i = 0; i<pieces.size(); i++)
+      pieces[i] = Global::trim(pieces[i],"\"");
+
+    KGSCsvLine data;
+    data.date = SimpleDate(pieces[0]);
+    if(data.date < kgsCsvMinDate || data.date > kgsCsvMaxDate)
+      continue;
+
+    data.sgfWUsername = pieces[1];
+    data.sgfWRank = pieces[2];
+    data.sgfBUsername = pieces[3];
+    data.sgfBRank = pieces[4];
+    data.indexThisDayZeroIndexed = Global::stringToInt(pieces[5]);
+    if(pieces[6] == "ranked" || pieces[6] == "tournament")
+      data.isRated = true;
+    else if(pieces[6] == "free" || pieces[6] == "teaching" || pieces[6] == "simul")
+      data.isRated = false;
+    else
+      throw StringError("Unknown option for rating field in kgs csv: " + pieces[6]);
+    data.boardSize = Global::stringToInt(pieces[7]);
+    data.handicap = Global::stringToInt(pieces[8]);
+    data.komi = Global::stringToFloat(pieces[9]);
+    data.unknownField = pieces[10];
+    data.result = -Global::stringToFloat(pieces[11]);
+    kgsCsvMap[data.getKey()] = data;
+  }
+  logger.write("Parsed KGS csv and kept " + Global::uint64ToString(kgsCsvMap.size()) + " lines");
+}
+
+static string parseFileNameToKgsCsvKey(
+  const string& fileName,
+  const string& sgfWUsername,
+  const string& sgfBUsername
+) {
+  std::vector<string> fileNamePieces = Global::split(fileName,'/');
+  if(fileNamePieces.size() >= 4) {
+    int year, month, day;
+    if(
+      Global::tryStringToInt(fileNamePieces[fileNamePieces.size()-4],year) &&
+      Global::tryStringToInt(fileNamePieces[fileNamePieces.size()-3],month) &&
+      Global::tryStringToInt(fileNamePieces[fileNamePieces.size()-2],day)
+    ) {
+      SimpleDate fileDirDate;
+      bool parsedDate = false;
+      try {
+        fileDirDate = SimpleDate(year,month,day);
+        parsedDate = true;
+      }
+      catch(const StringError& e) {
+        (void)e;
+      }
+      if(parsedDate) {
+        string fileNameBase = fileNamePieces[fileNamePieces.size()-1];
+        if(Global::isSuffix(fileNameBase,".sgf"))
+          fileNameBase = Global::chopSuffix(fileNameBase,".sgf");
+        string expectedFileNamePrefix = sgfWUsername + "-" + sgfBUsername;
+        if(Global::isPrefix(fileNameBase,expectedFileNamePrefix)) {
+          string remainder = Global::chopPrefix(fileNameBase,expectedFileNamePrefix);
+          int indexThisDayOneIndexed;
+          if(remainder == "")
+            indexThisDayOneIndexed = 1;
+          else if(Global::isPrefix(remainder,"-") && Global::tryStringToInt(remainder,indexThisDayOneIndexed)) {
+            indexThisDayOneIndexed = -indexThisDayOneIndexed;
+          }
+          else {
+            indexThisDayOneIndexed = -1;
+          }
+          if(indexThisDayOneIndexed > 0) {
+            int indexThisDayZeroIndexed = indexThisDayOneIndexed - 1;
+            return KGSCsvLine::makeKey(fileDirDate, sgfWUsername, sgfBUsername, indexThisDayZeroIndexed);
+          }
+        }
+      }
+    }
+  }
+  return string();
+}
+
 
 int MainCmds::writetrainingdata(const vector<string>& args) {
   Board::initHash();
@@ -244,6 +443,9 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
   bool noTrainOnBots;
   bool useFancyBotUsers;
   string whatDataSource;
+  string kgsCsv;
+  SimpleDate kgsCsvMinDate("0000-01-01");
+  SimpleDate kgsCsvMaxDate("9999-12-31");
   size_t maxFilesToLoad;
   double keepProb;
   string outputDir;
@@ -262,6 +464,9 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
     TCLAP::SwitchArg noTrainOnBotsArg("","no-train-on-bots","Use bot users files as additional no train users file");
     TCLAP::SwitchArg useFancyBotUsersArg("","use-fancy-bot-users","Use some hardcoded rules to mark as bots some common names");
     TCLAP::ValueArg<string> whatDataSourceArg("","what-data-source","What data source",true,string(),"NAME");
+    TCLAP::ValueArg<string> kgsCsvArg("","kgs-csv","KGS keeps whether games are rated as separate csv",false,string(),"CSVFILE");
+    TCLAP::ValueArg<string> kgsCsvMinDateArg("","kgs-csv-min-date","Min date to use from csv",false,string(),"DATE");
+    TCLAP::ValueArg<string> kgsCsvMaxDateArg("","kgs-csv-max-date","Max date to use from csv",false,string(),"DATE");
     TCLAP::ValueArg<size_t> maxFilesToLoadArg("","max-files-to-load","Max sgf files to try to load",false,(size_t)10000000000000ULL,"NUM");
     TCLAP::ValueArg<double> keepProbArg("","keep-prob","Keep poses with this prob",false,1.0,"PROB");
     TCLAP::ValueArg<string> outputDirArg("","output-dir","Dir to output files",true,string(),"DIR");
@@ -274,6 +479,9 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
     cmd.add(noTrainOnBotsArg);
     cmd.add(useFancyBotUsersArg);
     cmd.add(whatDataSourceArg);
+    cmd.add(kgsCsvArg);
+    cmd.add(kgsCsvMinDateArg);
+    cmd.add(kgsCsvMaxDateArg);
     cmd.add(maxFilesToLoadArg);
     cmd.add(keepProbArg);
     cmd.add(outputDirArg);
@@ -289,6 +497,11 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
     noTrainOnBots = noTrainOnBotsArg.getValue();
     useFancyBotUsers = useFancyBotUsersArg.getValue();
     whatDataSource = whatDataSourceArg.getValue();
+    kgsCsv = kgsCsvArg.getValue();
+    if(kgsCsvMinDateArg.getValue() != "")
+      kgsCsvMinDate = SimpleDate(kgsCsvMinDateArg.getValue());
+    if(kgsCsvMaxDateArg.getValue() != "")
+      kgsCsvMaxDate = SimpleDate(kgsCsvMaxDateArg.getValue());
     maxFilesToLoad = maxFilesToLoadArg.getValue();
     keepProb = keepProbArg.getValue();
     outputDir = outputDirArg.getValue();
@@ -364,6 +577,13 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
   params.conservativePass = true;
   params.enablePassingHacks = true;
 
+  std::map<string,KGSCsvLine> kgsCsvMap;
+  if(kgsCsv != "") {
+    if(whatDataSource != "kgs")
+      throw StringError("Provided kgs csv but data source is not kgs");
+    readKgsCsv(kgsCsv, kgsCsvMinDate, kgsCsvMaxDate, logger, kgsCsvMap);
+  }
+
   vector<string> sgfFiles;
   FileHelpers::collectSgfsFromDirsOrFiles(sgfDirs,sgfFiles);
   logger.write("Collected " + Global::int64ToString(sgfFiles.size()) + " files");
@@ -386,7 +606,7 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
   std::map<string,int64_t> gameCountByHandicap;
   std::map<string,int64_t> gameCountByResult;
   std::map<string,int64_t> gameCountByTimeControl;
-  std::map<string,int64_t> gameCountByIsRanked;
+  std::map<string,int64_t> gameCountByIsRated;
   std::map<string,int64_t> gameCountByEvent;
 
   std::map<string,int64_t> acceptedGameCountByUsername;
@@ -397,11 +617,12 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
   std::map<string,int64_t> acceptedGameCountByHandicap;
   std::map<string,int64_t> acceptedGameCountByResult;
   std::map<string,int64_t> acceptedGameCountByTimeControl;
-  std::map<string,int64_t> acceptedGameCountByIsRanked;
+  std::map<string,int64_t> acceptedGameCountByIsRated;
   std::map<string,int64_t> acceptedGameCountByEvent;
 
   std::map<string,int64_t> acceptedGameCountByUsage;
   std::map<string,int64_t> doneGameCountByReason;
+  std::map<string,int64_t> warningsByReason;
 
   auto reportSgfDone = [&](bool wasSuccess, const string& reasonLabel) {
     if(!wasSuccess)
@@ -523,24 +744,55 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
     string sgfEvent = sgfRaw->getRootPropertyWithDefault("EV", "");
     string sgfDate = sgfRaw->getRootPropertyWithDefault("DT", "");
 
-    bool sgfGameIsRanked = false;
+    bool sgfGameIsRated = false;
+    bool sgfGameRatednessIsUnknown = false;
+    bool foundKgsEntry = false;
+    KGSCsvLine kgsEntry;
     if(whatDataSource == "ogs") {
       string sgfGC = sgfRaw->getRootPropertyWithDefault("GC", "");
       std::vector<string> pieces = Global::split(sgfGC,',');
-      bool isRanked = false;
-      bool isUnranked = false;
+      bool isRated = false;
+      bool isUnrated = false;
       for(const string& s: pieces) {
         if(s == "ranked")
-          isRanked = true;
+          isRated = true;
         if(s == "unranked")
-          isUnranked = true;
+          isUnrated = true;
       }
-      if(!isRanked && !isUnranked) {
-        logger.write("Unknown ranking status in SGF " + fileName);
-        reportSgfDone(false,"GameUnknownRankingStatus");
+      if(!isRated && !isUnrated) {
+        logger.write("Unknown rating status in SGF " + fileName);
+        reportSgfDone(false,"GameUnknownRatingStatus");
         return;
       }
-      sgfGameIsRanked = isRanked;
+      sgfGameIsRated = isRated;
+    }
+    else if(whatDataSource == "kgs") {
+      sgfGameRatednessIsUnknown = true;
+      if(kgsCsv != "") {
+        string key = parseFileNameToKgsCsvKey(fileName, sgfWUsername, sgfBUsername);
+        if(key == "") {
+          logger.write("WARNING: Unable to parse KGS csv key from file path for " + fileName);
+          std::lock_guard<std::mutex> lock(statsLock);
+          warningsByReason["UnableParseKGSCsvKey"] += 1;
+        }
+        else {
+          const auto& iter = kgsCsvMap.find(key);
+          if(iter != kgsCsvMap.end()) {
+            kgsEntry = iter->second;
+            foundKgsEntry = true;
+            sgfGameIsRated = kgsEntry.isRated;
+            sgfGameRatednessIsUnknown = false;
+          }
+          else {
+            logger.write("WARNING: Unable to find KGS csv key for " + fileName);
+            std::lock_guard<std::mutex> lock(statsLock);
+            warningsByReason["UnableFindKGSCsvKey"] += 1;
+          }
+        }
+      }
+    }
+    else {
+      throw StringError("Unknown what-data-source " + whatDataSource);
     }
 
     string sgfTM = sgfRaw->getRootPropertyWithDefault("TM", "");
@@ -573,7 +825,7 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
       gameCountByHandicap[sgfHandicap] += 1;
       gameCountByResult[sgfResult] += 1;
       gameCountByTimeControl[sgfTimeControl] += 1;
-      gameCountByIsRanked[sgfGameIsRanked ? "true" : "false"] += 1;
+      gameCountByIsRated[sgfGameRatednessIsUnknown ? "unknown" : sgfGameIsRated ? "true" : "false"] += 1;
       gameCountByEvent[sgfEvent] += 1;
     }
 
@@ -586,8 +838,8 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
     bool isBotB = isBotUsers.find(sgfBUsername) != isBotUsers.end();
     bool isBotW = isBotUsers.find(sgfWUsername) != isBotUsers.end();
     if(useFancyBotUsers) {
-      isBotB = isBotB || isLikelyBot(sgfBUsername);
-      isBotW = isBotW || isLikelyBot(sgfWUsername);
+      isBotB = isBotB || isLikelyBot(sgfBUsername,whatDataSource);
+      isBotW = isBotW || isLikelyBot(sgfWUsername,whatDataSource);
     }
 
     const bool shouldTrainB = noTrainUsers.find(sgfBUsername) == noTrainUsers.end() && !(noTrainOnBots && isBotB);
@@ -640,32 +892,32 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
 
     if(sgfResult != "") {
       string s = Global::trim(Global::toLower(sgfResult));
-      if(s == "b+r" || s == "black+r") {
+      if(s == "b+r" || s == "black+r" || s == "b+resign") {
         sgfGameEnded = true;
         sgfGameEndedByResign = true;
         sgfGameWinner = P_BLACK;
       }
-      else if(s == "w+r" || s == "white+r") {
+      else if(s == "w+r" || s == "white+r" || s == "w+resign") {
         sgfGameEnded = true;
         sgfGameEndedByResign = true;
         sgfGameWinner = P_WHITE;
       }
-      else if(s == "b+t" || s == "black+t") {
+      else if(s == "b+t" || s == "black+t" || s == "b+time") {
         sgfGameEnded = true;
         sgfGameEndedByTime = true;
         sgfGameWinner = P_BLACK;
       }
-      else if(s == "w+t" || s == "white+t") {
+      else if(s == "w+t" || s == "white+t" || s == "w+time") {
         sgfGameEnded = true;
         sgfGameEndedByTime = true;
         sgfGameWinner = P_WHITE;
       }
-      else if(s == "b+f" || s == "black+f") {
+      else if(s == "b+f" || s == "black+f" || s == "b+forfeit") {
         sgfGameEnded = true;
         sgfGameEndedByForfeit = true;
         sgfGameWinner = P_BLACK;
       }
-      else if(s == "w+f" || s == "white+f") {
+      else if(s == "w+f" || s == "white+f" || s == "w+forfeit") {
         sgfGameEnded = true;
         sgfGameEndedByForfeit = true;
         sgfGameWinner = P_WHITE;
@@ -750,7 +1002,7 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
     int canadianMoves = 0;
     SimpleDate gameDate;
     int sgfSource;
-    if(whatDataSource == "ogs") {
+    if(whatDataSource == "ogs" || whatDataSource == "kgs") {
       assumeMultipleStartingBlackMovesAreHandicap = false;
       if(sgfHandicapParsed >= 0)
         overrideNumHandicapStones = sgfHandicapParsed;
@@ -786,7 +1038,7 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
           if(!std::isfinite(periodTimeSeconds) || periodTimeSeconds <= 0 || periodTimeSeconds > 100000000)
             throw StringError("Could not parse OT: " + sgfOT);
         }
-        else if(sgfOT.find(" canadian") != std::string::npos) {
+        else if(sgfOT.find(" canadian") != std::string::npos || sgfOT.find(" Canadian") != std::string::npos) {
           tcIsCanadian = true;
           mainTimeSeconds = Global::stringToDouble(sgfTM);
           vector<string> pieces = Global::split(Global::split(sgfOT,' ')[0],'/');
@@ -809,25 +1061,46 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
           throw StringError("Could not parse TM: " + sgfTM);
       }
       else if(sgfOT != "") {
-        throw StringError("Unexpected OGS time control with OT only: " + sgfOT);
+        throw StringError("Unexpected OGS/KGS time control with OT only: " + sgfOT);
       }
       else {
         tcIsNone = true;
       }
 
-      gameDate = SimpleDate(sgfDate);
-      sgfSource = SGFMetadata::SOURCE_OGS;
+      if(whatDataSource == "ogs") {
+        gameDate = SimpleDate(sgfDate);
+        sgfSource = SGFMetadata::SOURCE_OGS;
+      }
+      else if(whatDataSource == "kgs") {
+        gameDate = SimpleDate(sgfDate);
+        sgfSource = SGFMetadata::SOURCE_KGS;
+      }
+      else {
+        ASSERT_UNREACHABLE;
+      }
     }
     else {
       throw StringError("Unknown data source: " + whatDataSource);
     }
 
+    // Error check
+    if(foundKgsEntry) {
+      if(overrideNumHandicapStones > 0 && overrideNumHandicapStones != kgsEntry.handicap)
+        throw StringError("Handicap doesn't match csv for " + fileName);
+      float k;
+      if(Global::tryStringToFloat(sgfKomi,k) && k != kgsEntry.komi)
+        throw StringError("Komi doesn't match csv for " + fileName);
+      if(sgfGameEndedByScore && sgfGameWhiteFinalScore != kgsEntry.result)
+        throw StringError("Score doesn't match csv for " + fileName);
+    }
+
     SGFMetadata sgfMeta;
-    sgfMeta.inverseBRank = parseSGFRank(sgfBRank);
-    sgfMeta.inverseWRank = parseSGFRank(sgfWRank);
+    parseSGFRank(sgfBRank, sgfMeta.inverseBRank, sgfMeta.bIsUnranked, sgfMeta.bRankIsUnknown);
+    parseSGFRank(sgfWRank, sgfMeta.inverseWRank, sgfMeta.wIsUnranked, sgfMeta.wRankIsUnknown);
     sgfMeta.bIsHuman = !isBotB;
     sgfMeta.wIsHuman = !isBotW;
-    sgfMeta.gameIsUnrated = !sgfGameIsRanked;
+    sgfMeta.gameIsUnrated = !sgfGameIsRated;
+    sgfMeta.gameRatednessIsUnknown = sgfGameRatednessIsUnknown;
 
     sgfMeta.tcIsUnknown = tcIsUnknown;
     sgfMeta.tcIsNone = tcIsNone;
@@ -948,9 +1221,10 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
       policyTargets[policyTargets.size()-1].push_back(PolicyTargetMove(move.loc,1));
 
       // We want policies learned from human moves to be compatible with KataGo using them in a search which may use
-      // stricter computer rules. So if a player passes, we do NOT train on it.
+      // stricter computer rules. So if a player passes, we do NOT train on it. And do NOT train on the opponent's response
+      // to a pass, to avoid nonpunishment of bad passes under strict game end rules.
       double trainingWeight = 1.0;
-      if(move.loc == Board::PASS_LOC)
+      if(move.loc == Board::PASS_LOC || (moves.size() > 1 && moves[moves.size()-2] == Board::PASS_LOC))
         trainingWeight = 0.0;
       trainingWeights.push_back(trainingWeight);
 
@@ -1288,7 +1562,7 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
       acceptedGameCountByHandicap[sgfHandicap] += 1;
       acceptedGameCountByResult[sgfResult] += 1;
       acceptedGameCountByTimeControl[sgfTimeControl] += 1;
-      acceptedGameCountByIsRanked[sgfGameIsRanked ? "true" : "false"] += 1;
+      acceptedGameCountByIsRated[sgfGameRatednessIsUnknown ? "unknown" : sgfGameIsRated ? "true" : "false"] += 1;
       acceptedGameCountByEvent[sgfEvent] += 1;
       acceptedGameCountByUsage[usageStr] += 1;
     }
@@ -1350,10 +1624,11 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
   printGameCountsMap(acceptedGameCountByResult,"result (accepted)",false);
   printGameCountsMap(gameCountByEvent,"event",false);
   printGameCountsMap(acceptedGameCountByEvent,"event (accepted)",false);
-  printGameCountsMap(gameCountByIsRanked,"isRanked",false);
-  printGameCountsMap(acceptedGameCountByIsRanked,"isRanked (accepted)",false);
+  printGameCountsMap(gameCountByIsRated,"isRated",false);
+  printGameCountsMap(acceptedGameCountByIsRated,"isRated (accepted)",false);
   printGameCountsMap(acceptedGameCountByUsage,"usage (accepted)",false);
   printGameCountsMap(doneGameCountByReason,"done",false);
+  printGameCountsMap(warningsByReason,"warnings",false);
 
   logger.write(nnEval->getModelFileName());
   logger.write("NN rows: " + Global::int64ToString(nnEval->numRowsProcessed()));

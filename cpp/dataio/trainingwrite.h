@@ -54,12 +54,17 @@ struct SidePosition {
 };
 
 struct SGFMetadata {
-  int inverseBRank = 0; //KG = 0, 9d = 1, 8d = 2,... 1d = 9, 1k = 10, 2k = 11, ...
+  int inverseBRank = 0; // KG = 0, 9d = 1, 8d = 2,... 1d = 9, 1k = 10, 2k = 11, ...
   int inverseWRank = 0;
+  bool bIsUnranked = false; // KGS "-" rank
+  bool wIsUnranked = false;
+  bool bRankIsUnknown = false; // No rank in file
+  bool wRankIsUnknown = false;
   bool bIsHuman = false;
   bool wIsHuman = false;
 
   bool gameIsUnrated = false;
+  bool gameRatednessIsUnknown = false;
 
   //One-hot for all things with metadata
   bool tcIsUnknown = false;
