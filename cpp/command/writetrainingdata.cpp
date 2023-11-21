@@ -52,20 +52,20 @@ static void getNNEval(
   nnEval->evaluate(copy,hist,nextPla,nnInputParams,buf,skipCache,includeOwnerMap);
 }
 
-static double getPassProb(
-  const Board& board,
-  const BoardHistory& hist,
-  Player nextPla,
-  double drawEquivalentWinsForWhite,
-  Player playoutDoublingAdvantagePla,
-  double playoutDoublingAdvantage,
-  NNEvaluator* nnEval
-) {
-  NNResultBuf buf;
-  getNNEval(board,hist,nextPla,drawEquivalentWinsForWhite,playoutDoublingAdvantagePla,playoutDoublingAdvantage,nnEval,buf);
-  int passPos = NNPos::getPassPos(nnEval->getNNXLen(),nnEval->getNNYLen());
-  return buf.result->policyProbs[passPos];
-}
+// static double getPassProb(
+//   const Board& board,
+//   const BoardHistory& hist,
+//   Player nextPla,
+//   double drawEquivalentWinsForWhite,
+//   Player playoutDoublingAdvantagePla,
+//   double playoutDoublingAdvantage,
+//   NNEvaluator* nnEval
+// ) {
+//   NNResultBuf buf;
+//   getNNEval(board,hist,nextPla,drawEquivalentWinsForWhite,playoutDoublingAdvantagePla,playoutDoublingAdvantage,nnEval,buf);
+//   int passPos = NNPos::getPassPos(nnEval->getNNXLen(),nnEval->getNNYLen());
+//   return buf.result->policyProbs[passPos];
+// }
 
 static ValueTargets makeWhiteValueTarget(
   const Board& board,
@@ -530,7 +530,7 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
     }
   }
 
-  const int numWorkerThreads = 16;
+  const int numWorkerThreads = 64;
   const int numSearchThreads = 1;
   const int numTotalThreads = numWorkerThreads * numSearchThreads;
 
@@ -768,6 +768,10 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
     }
     else if(whatDataSource == "kgs") {
       sgfGameRatednessIsUnknown = true;
+      if(sgfBRank == "")
+        sgfBRank = "-";
+      if(sgfWRank == "")
+        sgfWRank = "-";
       if(kgsCsv != "") {
         string key = parseFileNameToKgsCsvKey(fileName, sgfWUsername, sgfBUsername);
         if(key == "") {
@@ -1470,7 +1474,11 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
       valueTargetWeight = 0.0f;
       hasOwnershipTargets = false;
       usageStr += "NoValueOtherResult";
+      (void)sgfGameEnded;
+      (void)sgfGameEndedByForfeit;
+      (void)sgfGameEndedByOther;
     }
+
 
     for(size_t m = 0; m<(int)policyTargets.size(); m++) {
       int turnIdx = (int)m;
@@ -1576,12 +1584,20 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
     std::function<void(int,size_t)>(processSgf)
   );
 
-  for(int threadIdx = 0; threadIdx<numWorkerThreads; threadIdx++) {
-    Rand& rand = *threadRands[threadIdx];
-    TrainingWriteBuffers* dataBuffer = threadDataBuffers[threadIdx];
+  auto saveDataBufferJob = [&](int threadIdx, size_t bufferToSaveIdx) {
+    (void)threadIdx;
+    Rand& rand = *threadRands[bufferToSaveIdx];
+    TrainingWriteBuffers* dataBuffer = threadDataBuffers[bufferToSaveIdx];
     if(dataBuffer->curRows > 0)
       saveDataBuffer(dataBuffer,rand);
-  }
+  };
+
+
+  Parallel::iterRange(
+    std::min(8,numWorkerThreads),
+    numWorkerThreads,
+    std::function<void(int,size_t)>(saveDataBufferJob)
+  );
 
   auto printGameCountsMap = [&](const std::map<string,int64_t> counts, const string& label, bool sortByCount) {
     logger.write("===================================================");
