@@ -45,6 +45,15 @@ jobs:
         cd cpp/xcode
         /Applications/Xcode_15.0.1.app/Contents/Developer/usr/bin/xcodebuild -derivedDataPath DerivedData -scheme katago -configuration Release test
 
+    - name: Run KataGo tests
+      run: |
+        cd cpp/xcode/DerivedData/Build/Products/Release
+        ./katago runnnlayertests
+        ./katago runoutputtests
+        ./katago runnnontinyboardtest model.bin.gz false false 0 false
+        ./katago runnnsymmetriestest model.bin.gz false false false
+        ./katago runownershiptests gtp.cfg model.bin.gz
+  
   cmake-macos:
     runs-on: macos-13
     steps:
