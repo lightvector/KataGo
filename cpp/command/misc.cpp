@@ -795,7 +795,7 @@ int MainCmds::samplesgfs(const vector<string>& args) {
       return false;
     if(sgf->depth() > maxDepth)
       return false;
-    if(std::fabs(sgf->getKomi()) > maxKomi)
+    if(std::fabs(sgf->getKomiOrDefault(7.5f)) > maxKomi)
       return false;
     if(minMinRank != Sgf::RANK_UNKNOWN) {
       if(sgf->getRank(P_BLACK) < minMinRank || sgf->getRank(P_WHITE) < minMinRank)
@@ -1458,7 +1458,7 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
       return false;
     if(sgf->depth() > maxDepth)
       return false;
-    if(std::fabs(sgf->getKomi()) > maxKomi)
+    if(std::fabs(sgf->getKomiOrDefault(7.5f)) > maxKomi)
       return false;
     if(minMinRank != Sgf::RANK_UNKNOWN) {
       if(sgf->getRank(P_BLACK) < minMinRank && sgf->getRank(P_WHITE) < minMinRank)

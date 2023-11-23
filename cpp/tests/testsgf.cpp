@@ -19,7 +19,7 @@ void Tests::runSgfTests() {
     out << "xSize " << sgf->xSize << endl;
     out << "ySize " << sgf->ySize << endl;
     out << "depth " << sgf->depth << endl;
-    out << "komi " << sgf->komi << endl;
+    out << "komi " << sgf->getRulesOrFailAllowUnspecified(Rules()).komi << endl;
 
     Board board;
     BoardHistory hist;
@@ -1101,7 +1101,7 @@ void Tests::runSgfFileTests() {
   Sgf* sgf = Sgf::loadFile("tests/data/foxlike.sgf");
   testAssert(sgf->getXYSize().x == 19);
   testAssert(sgf->getXYSize().y == 19);
-  testAssert(sgf->getKomi() == 6.5f);
+  testAssert(sgf->getKomiOrFail() == 6.5f);
   testAssert(sgf->hasRules() == true);
   testAssert(sgf->getRulesOrFail().equalsIgnoringKomi(Rules::parseRules("chinese")));
   testAssert(sgf->getHandicapValue() == 2);
