@@ -38,16 +38,20 @@ static void getNNEval(
   double drawEquivalentWinsForWhite,
   Player playoutDoublingAdvantagePla,
   double playoutDoublingAdvantage,
+  int maxHistory,
   NNEvaluator* nnEval,
   NNResultBuf& buf
 ) {
   bool skipCache = true;
   bool includeOwnerMap = true;
   MiscNNInputParams nnInputParams;
+  // Use conservative pass so that if players interleave passing in the middle of their moves
+  // when it would not be valid under a strict passing ruleset, it doesn't create a huge swing in value.
   nnInputParams.conservativePassAndIsRoot = true;
   nnInputParams.enablePassingHacks = true;
   nnInputParams.drawEquivalentWinsForWhite = drawEquivalentWinsForWhite;
   nnInputParams.playoutDoublingAdvantage = (playoutDoublingAdvantagePla == getOpp(nextPla) ? -playoutDoublingAdvantage : playoutDoublingAdvantage);
+  nnInputParams.maxHistory = maxHistory;
   Board copy(board);
   nnEval->evaluate(copy,hist,nextPla,nnInputParams,buf,skipCache,includeOwnerMap);
 }
@@ -62,7 +66,7 @@ static void getNNEval(
 //   NNEvaluator* nnEval
 // ) {
 //   NNResultBuf buf;
-//   getNNEval(board,hist,nextPla,drawEquivalentWinsForWhite,playoutDoublingAdvantagePla,playoutDoublingAdvantage,nnEval,buf);
+//   getNNEval(board,hist,nextPla,drawEquivalentWinsForWhite,playoutDoublingAdvantagePla,playoutDoublingAdvantage,1000,nnEval,buf);
 //   int passPos = NNPos::getPassPos(nnEval->getNNXLen(),nnEval->getNNYLen());
 //   return buf.result->policyProbs[passPos];
 // }
@@ -100,7 +104,8 @@ static ValueTargets makeWhiteValueTarget(
   }
 
   NNResultBuf buf;
-  getNNEval(board,hist,nextPla,drawEquivalentWinsForWhite,playoutDoublingAdvantagePla,playoutDoublingAdvantage,nnEval,buf);
+  int maxHistory = 1000;
+  getNNEval(board,hist,nextPla,drawEquivalentWinsForWhite,playoutDoublingAdvantagePla,playoutDoublingAdvantage,maxHistory,nnEval,buf);
 
   targets.win = buf.result->whiteWinProb;
   targets.loss = buf.result->whiteLossProb;
@@ -665,7 +670,7 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
   params.useUncertainty = false; // To prevent weird selection effects at low playouts
   params.numThreads = numSearchThreads;
   params.rootEndingBonusPoints = 0.8; // More aggressive game ending
-  params.conservativePass = true;
+  params.conservativePass = false; // false since we want game completions to be consistent with strict rules
   params.enablePassingHacks = true;
 
   std::map<string,KGSCsvLine> kgsCsvMap;
@@ -1068,6 +1073,9 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
       throw StringError("Unknown data source: " + whatDataSource);
     }
 
+    // No friendly pass since we want to complete consistent with strict rules
+    rules.friendlyPassOk = false;
+
     Board board;
     Player nextPla;
     BoardHistory hist;
@@ -1400,11 +1408,11 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
     const int minGameLenToWrite = 15 + boardArea / 8;
     const int maxKataFinishMoves = 30 + boardArea / 5;
 
-    // If there are any passes in the early moves, start only after the latest such pass.
+    // If there are any passes in the early moves, start only on the move after the latest such pass.
     int startGameAt = 0;
     for(size_t m = 0; m<sgfMoves.size() && m < skipEarlyPassesTurns; m++) {
       if(sgfMoves[m].loc == Board::PASS_LOC)
-        startGameAt = m+1;
+        startGameAt = m+2;
     }
     // If there are any passes in moves semi-early moves, reject, we're invalid.
     for(size_t m = skipEarlyPassesTurns; m<sgfMoves.size() && m < disallowEarlyPassesTurns; m++) {
@@ -1422,7 +1430,7 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
     // If there are multiple black moves in a row to start, start at the last one.
     for(size_t m = 1; m<sgfMoves.size() && m < consecBlackMovesTurns; m++) {
       if(sgfMoves[m].pla == P_BLACK && sgfMoves[m-1].pla == P_BLACK) {
-        startGameAt = m;
+        startGameAt = std::max(startGameAt,(int)m);
       }
     }
 
@@ -1528,6 +1536,10 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
       moves.pop_back();
       policyTargets.pop_back();
       trainingWeights.pop_back();
+
+      board = boards[boards.size()-1];
+      hist = hists[hists.size()-1];
+      nextPla = nextPlas[nextPlas.size()-1];
     }
 
     if(policyTargets.size() < minGameLenToWrite) {
@@ -1658,9 +1670,63 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
         }
 
         if(gameFinishedProperly) {
+          // Ownership stuff!
+          hasOwnershipTargets = true;
+          hists[hists.size()-1].endAndScoreGameNow(board,finalOwnership);
+          board.calculateArea(finalFullArea, true, true, true, hist.rules.multiStoneSuicideLegal);
+          NNInputs::fillScoring(board,finalOwnership,hist.rules.taxRule == Rules::TAX_ALL,finalWhiteScoring);
+
+          // Make sure KataGo didn't leave huge unscored regions due to passing weirdness, and make sure the scoring agrees with
+          // a historyless nn eval of the position.
+          bool weirdScoringState = false;
+          {
+            NNResultBuf buf;
+            const int maxHistory = 0;
+            getNNEval(board,hist,nextPla,drawEquivalentWinsForWhite,playoutDoublingAdvantagePla,playoutDoublingAdvantage,maxHistory,nnEval,buf);
+            int ownershipDisagreeCount = 0;
+            int unscoredCount = 0;
+            for(int y = 0; y<board.y_size; y++) {
+              for(int x = 0; x<board.x_size; x++) {
+                int pos = NNPos::xyToPos(x,y,nnEval->getNNXLen());
+                Loc loc = Location::getLoc(x,y,board.x_size);
+                if(buf.result->whiteOwnerMap[pos] > 0.90 && finalOwnership[loc] != P_WHITE)
+                  ownershipDisagreeCount += 1;
+                else if(buf.result->whiteOwnerMap[pos] < -0.90 && finalOwnership[loc] != P_BLACK)
+                  ownershipDisagreeCount += 1;
+
+                if(finalOwnership[loc] == C_EMPTY)
+                  unscoredCount += 1;
+              }
+            }
+
+            const double maxFractionOfBoardUnscored = 0.01 + 5.0 / boardArea;
+            const double maxFractionOfBoardDisagree = 0.01 + 5.0 / boardArea;
+            if(
+              unscoredCount > boardArea * maxFractionOfBoardUnscored ||
+              ownershipDisagreeCount > boardArea * maxFractionOfBoardDisagree
+            ) {
+              weirdScoringState = true;
+            }
+          }
+
           // Does our result match the sgf recorded result for winner?
           // If no, reduce weight a lot
-          if(hist.winner == sgfGameWinner) {
+          // Also check for weird scoring state
+          if(weirdScoringState) {
+            logger.write("SGF " + fileName + " ended with score and was finishable but scoring state was weird");
+            valueTargetWeight = 0.0;
+            usageStr = "NoValueWeirdScoringState";
+            if(verbosity >= 3) {
+              ostringstream out;
+              out << endIdxFromSgf << endl;
+              out << boards[endIdxFromSgf] << endl;
+              out << boards.size() << endl;
+              out << board << endl;
+              logger.write(out.str());
+              WriteSgf::writeSgf(cout, "", "", hist, NULL, true, true);
+            }
+          }
+          else if(hist.winner == sgfGameWinner) {
             if(verbosity >= 2)
               logger.write("SGF " + fileName + " ended with score and was good data " + Global::uint64ToString(moves.size()-endIdxFromSgf));
             valueTargetWeight = 1.0f;
@@ -1670,21 +1736,27 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
             logger.write("SGF " + fileName + " ended with score and was finishable but got different result than sgf " + Global::uint64ToString(moves.size()-endIdxFromSgf));
             valueTargetWeight = 0.1f;
             usageStr = "LowWeightValueAndOwnerDisagreeingResult";
+            if(verbosity >= 3) {
+              ostringstream out;
+              out << endIdxFromSgf << endl;
+              out << boards[endIdxFromSgf] << endl;
+              out << boards.size() << endl;
+              out << board << endl;
+              logger.write(out.str());
+              WriteSgf::writeSgf(cout, "", "", hist, NULL, true, true);
+            }
           }
-
-          // Ownership stuff!
-          hasOwnershipTargets = true;
-          hists[hists.size()-1].endAndScoreGameNow(board,finalOwnership);
-          board.calculateArea(finalFullArea, true, true, true, hist.rules.multiStoneSuicideLegal);
-          NNInputs::fillScoring(board,finalOwnership,hist.rules.taxRule == Rules::TAX_ALL,finalWhiteScoring);
         }
         else {
           logger.write("SGF " + fileName + " ended with score but it doesn't finish in a reasonable time");
           if(verbosity >= 3) {
             ostringstream out;
+            out << endIdxFromSgf << endl;
             out << boards[endIdxFromSgf] << endl;
+            out << boards.size() << endl;
             out << board << endl;
             logger.write(out.str());
+            // WriteSgf::writeSgf(cout, "", "", hist, NULL, true, true);
           }
           valueTargetWeight = 0.0f;
           hasOwnershipTargets = false;
