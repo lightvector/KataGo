@@ -1000,16 +1000,28 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
 
     Rules rules;
     if(whatDataSource == "ogs" || whatDataSource == "kgs") {
-      rules = sgf->getRulesOrFail();
+      try {
+        rules = sgf->getRulesOrFail();
+      }
+      catch(const StringError& e) {
+        logger.write("Failed to get rules for sgf: " + fileName + " " + e.what());
+        reportSgfDone(false,"GameBadRules");
+      }
     }
     else if(whatDataSource == "fox") {
-      rules = sgf->getRulesOrFail();
+      try {
+        rules = sgf->getRulesOrFail();
+      }
+      catch(const StringError& e) {
+        logger.write("Failed to get rules for sgf: " + fileName + " " + e.what());
+        reportSgfDone(false,"GameBadRules");
+      }
       //Ugly hack for fox that seems to have komi 0 when the real komi is 6.5
       if(sgfRules == "Japanese" && sgfKomi == "0") {
         rules.komi = 6.5;
       }
       else {
-        throw StringError("Unhandled case " + sgfKomi + " " + sgfRules);
+        throw StringError("Unhandled case " + sgfKomi + " " + sgfRules + " " + fileName);
       }
     }
     else if(whatDataSource == "gogod") {
