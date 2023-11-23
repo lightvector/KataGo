@@ -778,6 +778,7 @@ void TrainingWriteBuffers::addRow(
     rowMetadata[79] = sgfMeta->tcIsByoYomi ? 1.0f : 0.0f;
     rowMetadata[80] = sgfMeta->tcIsCanadian ? 1.0f : 0.0f;
     rowMetadata[81] = sgfMeta->tcIsFischer ? 1.0f : 0.0f;
+    assert(rowMetadata[75] + rowMetadata[76] + rowMetadata[77] + rowMetadata[78] + rowMetadata[79] + rowMetadata[80] + rowMetadata[81] == 1.0f);
 
     double mainTimeSecondsCapped = std::min(std::max(sgfMeta->mainTimeSeconds,0.0),3.0*86400);
     double periodTimeSecondsCapped = std::min(std::max(sgfMeta->periodTimeSeconds,0.0),1.0*86400);

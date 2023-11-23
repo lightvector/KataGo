@@ -840,6 +840,7 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
     string sgfResult = sgfRaw->getRootPropertyWithDefault("RE", "");
     string sgfEvent = sgfRaw->getRootPropertyWithDefault("EV", "");
     string sgfDate = sgfRaw->getRootPropertyWithDefault("DT", "");
+    string sgfPlace = sgfRaw->getRootPropertyWithDefault("PC", "");
 
     bool sgfGameIsRated = false;
     bool sgfGameRatednessIsUnknown = false;
@@ -927,6 +928,9 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
       else if(sgfTC != "" || sgfTT != "")
         sgfTimeControl = sgfTC + "x" + sgfTT;
     }
+    else if(whatDataSource == "gogod") {
+      sgfTimeControl = "";
+    }
     else {
       throw StringError("Unknown data source: " + whatDataSource);
     }
@@ -989,18 +993,79 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
       return;
     }
 
-    TrainingWriteBuffers* dataBuffer = threadDataBuffers[threadIdx];
-    Rand& rand = *threadRands[threadIdx];
-
-    Rules rules = sgf->getRulesOrFailAllowUnspecified(Rules::parseRules("chinese"));
-    //Ugly hack for fox that seems to have komi 0 when the real komi is 6.5
-    if(whatDataSource == "fox") {
+    Rules rules;
+    if(whatDataSource == "ogs" || whatDataSource == "kgs") {
+      rules = sgf->getRulesOrFail();
+    }
+    else if(whatDataSource == "fox") {
+      rules = sgf->getRulesOrFail();
+      //Ugly hack for fox that seems to have komi 0 when the real komi is 6.5
       if(sgfRules == "Japanese" && sgfKomi == "0") {
         rules.komi = 6.5;
       }
       else {
         throw StringError("Unhandled case " + sgfKomi + " " + sgfRules);
       }
+    }
+    else if(whatDataSource == "gogod") {
+      bool whiteWinsJigo = false;
+      if(sgfRules == "Chinese" || sgfRules == "Korean" || sgfRules == "Japanese") {
+        rules = Rules::parseRules(sgfRules);
+      }
+      else {
+        if(sgfRules == "W wins jigo") {
+          whiteWinsJigo = true;
+        }
+        if(sgfPlace == "Hanguk Kiweon")
+          rules = Rules::parseRules("Korean");
+        else if(sgfPlace == "Nihon Ki-in")
+          rules = Rules::parseRules("Japanese");
+        else if(sgfPlace.find("Beijing") != string::npos) {
+          rules = Rules::parseRules("Chinese");
+        }
+        else {
+          logger.write("Unable to handle rules, need more cases in sgf " + fileName + ": " + sgfRules + " " + sgfKomi + " " + sgfPlace + " " + sgfEvent);
+          reportSgfDone(false,"GameRulesParsing");
+          return;
+        }
+
+        // If komi is unrecorded, just go ahead and use modern komi, maybe some results will differ but otherwise it's not too bad.
+        if(sgfKomi != "") {
+          if(!Global::tryStringToFloat(sgfKomi,rules.komi)) {
+            logger.write("Unable to handle rules, need more cases in sgf " + fileName + ": " + sgfRules + " " + sgfKomi + " " + sgfPlace + " " + sgfEvent);
+            reportSgfDone(false,"GameRulesParsing");
+            return;
+          }
+        }
+
+        // gogod uses zi for chinese komi, we should check if there's any weirdness
+        if(rules.scoringRule == Rules::SCORING_AREA && rules.komi >= 4) {
+          logger.write("Unable to handle rules, need more cases in sgf " + fileName + ": " + sgfRules + " " + sgfKomi + " " + sgfPlace + " " + sgfEvent);
+          reportSgfDone(false,"GameRulesParsing");
+          return;
+        }
+        if(rules.scoringRule == Rules::SCORING_AREA) {
+          rules.komi *= 2;
+        }
+
+        if(whiteWinsJigo) {
+          if(rules.komi != (int)rules.komi) {
+            logger.write("Unable to handle rules, need more cases in sgf " + fileName + ": " + sgfRules + " " + sgfKomi + " " + sgfPlace + " " + sgfEvent);
+            reportSgfDone(false,"GameRulesParsing");
+            return;
+          }
+          rules.komi += 0.5f;
+        }
+
+        if(!Rules::komiIsIntOrHalfInt(rules.komi)) {
+          logger.write("Unable to handle rules, need more cases in sgf " + fileName + ": " + sgfRules + " " + sgfKomi + " " + sgfPlace + " " + sgfEvent);
+          reportSgfDone(false,"GameRulesParsing");
+          return;
+        }
+      }
+    }
+    else {
+      throw StringError("Unknown data source: " + whatDataSource);
     }
 
     Board board;
@@ -1241,6 +1306,52 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
 
       gameDate = SimpleDate(sgfDate);
       sgfSource = SGFMetadata::SOURCE_FOX;
+    }
+    else if(whatDataSource == "gogod") {
+      assumeMultipleStartingBlackMovesAreHandicap = false;
+      if(sgfHandicapParsed >= 0)
+        overrideNumHandicapStones = sgfHandicapParsed;
+
+      //gogod doesn't seem to have TC
+      tcIsUnknown = true;
+
+      // Handle unusual date annotations
+      string sgfDateToParse;
+      size_t startIdx = sgfDate.find_first_of("0123456789");
+      if(startIdx != string::npos
+         && sgfDate.size() >= startIdx+4
+         && contains("0123456789",sgfDate[startIdx+1])
+         && contains("0123456789",sgfDate[startIdx+2])
+         && contains("0123456789",sgfDate[startIdx+3])
+      ) {
+        if(sgfDate.size() >= startIdx+7
+           && contains("-",sgfDate[startIdx+4])
+           && contains("0123456789",sgfDate[startIdx+5])
+           && contains("0123456789",sgfDate[startIdx+6])
+        ) {
+          if(sgfDate.size() >= startIdx+10
+             && contains("-",sgfDate[startIdx+7])
+             && contains("0123456789",sgfDate[startIdx+8])
+             && contains("0123456789",sgfDate[startIdx+9])
+          ) {
+            sgfDateToParse = sgfDate.substr(startIdx,10);
+          }
+          else {
+            sgfDateToParse = sgfDate.substr(startIdx,7) + "-01";
+          }
+        }
+        else {
+          sgfDateToParse = sgfDate.substr(startIdx,7) + "-01-01";
+        }
+      }
+      else {
+        logger.write("Unable to handle date" + fileName + ": " + sgfDate);
+        reportSgfDone(false,"GameDateParsing");
+        return;
+      }
+
+      gameDate = SimpleDate(sgfDateToParse);
+      sgfSource = SGFMetadata::SOURCE_GOGOD;
     }
     else {
       throw StringError("Unknown data source: " + whatDataSource);
@@ -1498,11 +1609,11 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
 
       if(!gameIsNearEnd) {
         logger.write("SGF " + fileName + " ended with score but is not near ending position");
-        if(verbosity >= 3) {
-          ostringstream out;
-          out << board << endl;
-          logger.write(out.str());
-        }
+        // if(verbosity >= 3) {
+        //   ostringstream out;
+        //   out << board << endl;
+        //   logger.write(out.str());
+        // }
         valueTargetWeight = 0.0f;
         hasOwnershipTargets = false;
         usageStr = "NoValueScoredNotNearEnding";
