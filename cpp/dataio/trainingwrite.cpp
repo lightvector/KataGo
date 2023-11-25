@@ -379,6 +379,7 @@ void TrainingWriteBuffers::addRow(
   int whiteValueTargetsIdx, //index in whiteValueTargets corresponding to this turn.
   float valueTargetWeight,
   float tdValueTargetWeight,
+  float leadTargetWeightFactor,
   const NNRawStats& nnRawStats,
   const Board* finalBoard,
   Color* finalFullArea,
@@ -512,7 +513,7 @@ void TrainingWriteBuffers::addRow(
 
     rowGlobal[21] = lead;
     //Lead weight scales by how much we trust value in general
-    rowGlobal[29] = valueTargetWeight;
+    rowGlobal[29] = valueTargetWeight * leadTargetWeightFactor;
   }
 
   //Expected time of arrival of winloss variance, in turns
@@ -1120,6 +1121,7 @@ void TrainingDataWriter::writeGame(const FinishedGameData& data) {
     bool isSidePosition = false;
     float valueTargetWeight = 1.0f;
     float tdValueTargetWeight = 1.0f;
+    float leadTargetWeightFactor = 1.0f;
 
     int numNeuralNetsBehindLatest = 0;
     for(int i = 0; i<data.changedNeuralNets.size(); i++) {
@@ -1148,6 +1150,7 @@ void TrainingDataWriter::writeGame(const FinishedGameData& data) {
             turnAfterStart,
             valueTargetWeight,
             tdValueTargetWeight,
+            leadTargetWeightFactor,
             data.nnRawStatsByTurn[turnAfterStart],
             &(data.endHist.getRecentBoard(0)),
             data.finalFullArea,
@@ -1199,6 +1202,7 @@ void TrainingDataWriter::writeGame(const FinishedGameData& data) {
           int numNeuralNetsBehindLatest = (int)data.changedNeuralNets.size() - sp->numNeuralNetChangesSoFar;
           float valueTargetWeight = 1.0f;
           float tdValueTargetWeight = 1.0f;
+          float leadTargetWeightFactor = 1.0f;
 
           writeBuffers->addRow(
             sp->board,sp->hist,sp->pla,
@@ -1216,6 +1220,7 @@ void TrainingDataWriter::writeGame(const FinishedGameData& data) {
             0,
             valueTargetWeight,
             tdValueTargetWeight,
+            leadTargetWeightFactor,
             sp->nnRawStats,
             NULL,
             NULL,

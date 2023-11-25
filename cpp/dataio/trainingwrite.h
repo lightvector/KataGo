@@ -306,6 +306,7 @@ struct TrainingWriteBuffers {
     int whiteValueTargetsIdx, //index in whiteValueTargets corresponding to this turn.
     float valueTargetWeight,
     float tdValueTargetWeight,
+    float leadTargetWeightFactor,
     const NNRawStats& nnRawStats,
     const Board* finalBoard,
     Color* finalFullArea,

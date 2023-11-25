@@ -21,6 +21,15 @@ using namespace std;
 
 static ValueTargets makeForcedWinnerValueTarget(Player winner) {
   ValueTargets targets;
+  if(winner == C_EMPTY) {
+    targets.win = 0.5f;
+    targets.loss = 0.5f;
+    targets.noResult = 0.0f;
+    targets.score = 0.0f;
+    targets.hasLead = false;
+    targets.lead = 0.0f;
+    return targets;
+  }
   assert(winner == P_BLACK || winner == P_WHITE);
   targets.win = winner == P_WHITE ? 1.0f : 0.0f;
   targets.loss = winner == P_BLACK ? 1.0f : 0.0f;
@@ -97,7 +106,7 @@ static ValueTargets makeWhiteValueTarget(
       targets.loss = 1.0f - targets.win;
       targets.noResult = 0.0f;
       targets.score = (float)ScoreValue::whiteScoreDrawAdjust(copyHist.finalWhiteMinusBlackScore,drawEquivalentWinsForWhite,hist);
-      targets.hasLead = true;
+      targets.hasLead = false;
       targets.lead = targets.score;
     }
     return targets;
@@ -111,7 +120,7 @@ static ValueTargets makeWhiteValueTarget(
   targets.loss = buf.result->whiteLossProb;
   targets.noResult = buf.result->whiteNoResultProb;
   targets.score = buf.result->whiteScoreMean;
-  targets.hasLead = true;
+  targets.hasLead = false;
   targets.lead = buf.result->whiteLead;
   return targets;
 }
@@ -264,17 +273,27 @@ static void parseSGFRank(
     }
     //-------------------------------------------------------------
     //Don't know how strong "insei" or "ama" are
-    else if(rankStrLower == "insei" || rankStrLower == "ama" || rankStrLower == "ama." || rankStrLower == "nr") {
+    else if(
+      rankStrLower == "insei"
+      || rankStrLower == "ama"
+      || rankStrLower == "ama."
+      || rankStrLower == "amateur"
+      || rankStrLower == "nr"
+    ) {
       isUnknown = true;
     }
     else if(
-      rankStrLower == "meijin" ||
-      rankStrLower == "kisei" ||
-      rankStrLower == "judan" ||
-      rankStrLower == "holder" ||
-      rankStrLower == "challenger" ||
-      rankStrLower == "oza" ||
-      rankStrLower == "tianyuan"
+      rankStrLower == "meijin"
+      || rankStrLower == "kisei"
+      || rankStrLower == "judan"
+      || rankStrLower == "holder"
+      || rankStrLower == "challenger"
+      || rankStrLower == "oza"
+      || rankStrLower == "tianyuan"
+      || rankStrLower == "mingren"
+      || rankStrLower == "tengen"
+      || rankStrLower == "guoshou"
+      || rankStrLower == "gosei"
 
     ) {
       rankNumber = 9;
@@ -739,6 +758,7 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
   std::map<string,int64_t> acceptedGameCountByTimeControl;
   std::map<string,int64_t> acceptedGameCountByIsRated;
   std::map<string,int64_t> acceptedGameCountByEvent;
+  std::map<string,int64_t> acceptedGameCountByYear;
 
   std::map<string,int64_t> acceptedGameCountByUsage;
   std::map<string,int64_t> doneGameCountByReason;
@@ -1108,6 +1128,19 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
         || sgfPlaceAndEvent.find("Internet") != string::npos
         || sgfPlaceAndEvent.find("Online") != string::npos
         || sgfPlaceAndEvent.find("online") != string::npos
+        || sgfPlaceAndEvent.find("on-line") != string::npos
+        || sgfPlaceAndEvent.find("High School") != string::npos
+        || sgfPlaceAndEvent.find("Middle School") != string::npos
+        || sgfPlaceAndEvent.find("Primary School") != string::npos
+        || sgfPlaceAndEvent.find("Elementary School") != string::npos
+        || sgfPlaceAndEvent.find("Cross-Straits") != string::npos
+        || sgfPlaceAndEvent.find("Computer") != string::npos
+        || sgfPlaceAndEvent.find("computer") != string::npos
+        || sgfPlaceAndEvent.find("Machine") != string::npos
+        || sgfPlaceAndEvent.find("Sunjang") != string::npos
+        || sgfRules.find("Sunjang") != string::npos
+        || sgfPlaceAndEvent.find("World AI ") != string::npos
+        || Global::isPrefix(sgfPlaceAndEvent,"AI ")
         || sgfBRank.find("&") != string::npos
         || sgfWRank.find("&") != string::npos
       ) {
@@ -1118,7 +1151,7 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
       }
 
       bool whiteWinsJigo = false;
-      if(sgfRules == "Chinese" || sgfRules == "Korean" || sgfRules == "Japanese") {
+      if(sgfRules == "Chinese" || sgfRules == "Korean" || sgfRules == "Japanese" || sgfRules == "NZ" || sgfRules == "AGA") {
         rules = Rules::parseRules(sgfRules);
       }
       else if(Global::isPrefix(sgfRules,"Tang")) {
@@ -1285,6 +1318,7 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
     bool sgfGameEndedByResign = false;
     bool sgfGameEndedByScore = false;
     bool sgfGameEndedByForfeit = false;
+    bool sgfGameEndedButRecordIncomplete = false;
     bool sgfGameEndedByOther = false;
     Player sgfGameWinner = C_EMPTY;
     double sgfGameWhiteFinalScore = 0.0;
@@ -1383,25 +1417,27 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
           return;
         }
       }
-      else if(
-        (Global::isPrefix(s,"b+") || Global::isPrefix(s,"black+"))
-        && s.find("moves beyond") != string::npos
-        && s.find("not known") != string::npos
-      ) {
-        // If game record is incomplete, weight it and treat it as a game ending by resign
-        sgfGameEnded = true;
-        sgfGameEndedByResign = true;
-        sgfGameWinner = P_BLACK;
-      }
-      else if(
-        (Global::isPrefix(s,"w+") || Global::isPrefix(s,"white+"))
-        && s.find("moves beyond") != string::npos
-        && s.find("not known") != string::npos
-      ) {
-        // If game record is incomplete, weight it and treat it as a game ending by resign
-        sgfGameEnded = true;
-        sgfGameEndedByResign = true;
-        sgfGameWinner = P_WHITE;
+      else if(s.find("moves beyond") != string::npos && s.find("not known") != string::npos) {
+        if(Global::isPrefix(s,"b+") || Global::isPrefix(s,"black+")) {
+          sgfGameEnded = true;
+          sgfGameEndedButRecordIncomplete = true;
+          sgfGameWinner = P_BLACK;
+        }
+        else if(Global::isPrefix(s,"w+") || Global::isPrefix(s,"white+")) {
+          sgfGameEnded = true;
+          sgfGameEndedButRecordIncomplete = true;
+          sgfGameWinner = P_WHITE;
+        }
+        else if(Global::isPrefix(s,"draw") || Global::isPrefix(s,"jigo")) {
+          sgfGameEnded = true;
+          sgfGameEndedButRecordIncomplete = true;
+          sgfGameWinner = C_EMPTY;
+        }
+        else {
+          logger.write("Game ended with invalid score " + fileName + " result " + sgfResult + sizeStr);
+          reportSgfDone(false,"ResultInvalidScore");
+          return;
+        }
       }
       else {
         logger.write("Game ended with unknown result " + fileName + " result " + sgfResult);
@@ -1958,6 +1994,7 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
           if(weirdScoringState) {
             logger.write("SGF " + fileName + " ended with score and was finishable but scoring state was weird");
             valueTargetWeight = 0.0;
+            hasOwnershipTargets = false;
             usageStr = "NoValueWeirdScoringState";
             if(verbosity >= 3) {
               ostringstream out;
@@ -2008,8 +2045,10 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
       }
     }
     else if((sgfGameEndedByResign || sgfGameEndedByTime) && !rulesDisableValueTraining) {
+      const double whiteFinalWinProb = std::max(whiteValueTargets[whiteValueTargets.size()-1].win, 0.0f);
+      const double whiteFinalLossProb = std::max(whiteValueTargets[whiteValueTargets.size()-1].loss, 0.0f);
       if(sgfGameWinner == P_WHITE) {
-        valueTargetWeight = 2.0f * (float)std::max(0.0, whiteValueTargets[whiteValueTargets.size()-1].win - 0.5);
+        valueTargetWeight = 2.0f * (float)std::max(0.0, whiteFinalWinProb - 0.5);
 
         // Assume white catches up in score at the same rate from turn 0 to 200 - does that leave white ahead?
         if(numExtraBlack > 0 && board.x_size == 19 && board.y_size == 19 && whiteValueTargets.size() < 200 && whiteValueTargets.size() > 30) {
@@ -2032,7 +2071,7 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
       }
       else if(sgfGameWinner == P_BLACK) {
         // Player resigned when they were still ahead. Downweight and/or don't use.
-        valueTargetWeight = 2.0f * (float)std::max(0.0, whiteValueTargets[whiteValueTargets.size()-1].loss - 0.5);
+        valueTargetWeight = 2.0f * (float)std::max(0.0, whiteFinalLossProb - 0.5);
         hasOwnershipTargets = false;
         hasForcedWinner = true;
         whiteValueTargets[whiteValueTargets.size()-1] = makeForcedWinnerValueTarget(P_BLACK);
@@ -2055,6 +2094,46 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
         usageStr += "EndedByResign";
       }
     }
+    else if(sgfGameEndedButRecordIncomplete && !rulesDisableValueTraining) {
+      const double whiteFinalWinProb = std::max(whiteValueTargets[whiteValueTargets.size()-1].win, 0.0f);
+      const double whiteFinalLossProb = std::max(whiteValueTargets[whiteValueTargets.size()-1].loss, 0.0f);
+      if(sgfGameWinner == P_WHITE) {
+        // Downweight results that are really very contrary to the lead as misrecords but otherwise use it.
+        valueTargetWeight = (float)pow(whiteFinalWinProb, 0.25);
+        hasOwnershipTargets = false;
+        hasForcedWinner = true;
+        whiteValueTargets[whiteValueTargets.size()-1] = makeForcedWinnerValueTarget(P_WHITE);
+        usageStr = (
+          valueTargetWeight <= 0.0 ? "NoValue" :
+          valueTargetWeight <= 0.9 ? "ReducedValue" :
+          "FullValue"
+        );
+      }
+      else if(sgfGameWinner == P_BLACK) {
+        // Downweight results that are really very contrary to the lead as misrecords but otherwise use it.
+        valueTargetWeight = (float)pow(whiteFinalLossProb, 0.25);
+        hasOwnershipTargets = false;
+        hasForcedWinner = true;
+        whiteValueTargets[whiteValueTargets.size()-1] = makeForcedWinnerValueTarget(P_BLACK);
+      }
+      else if(sgfGameWinner == C_EMPTY) {
+        // Downweight results that are really very contrary to the lead as misrecords but otherwise use it.
+        valueTargetWeight = (float)pow(whiteFinalWinProb * whiteFinalLossProb, 0.25);
+        hasOwnershipTargets = false;
+        hasForcedWinner = true;
+        whiteValueTargets[whiteValueTargets.size()-1] = makeForcedWinnerValueTarget(C_EMPTY);
+      }
+      else {
+        ASSERT_UNREACHABLE;
+      }
+
+      usageStr = (
+        valueTargetWeight <= 0.0 ? "NoValue" :
+        valueTargetWeight <= 0.9 ? "ReducedValue" :
+        "FullValue"
+      );
+      usageStr += "EndedButRecordIncomplete";
+    }
     else {
       valueTargetWeight = 0.0f;
       hasOwnershipTargets = false;
@@ -2070,7 +2149,21 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
       valueTargetWeight *= 0.2f;
     }
 
-    for(size_t m = 0; m<(int)policyTargets.size(); m++) {
+    // The lead target needs to be the final game outcome because otherwise it will just learn to
+    // judge what KataGo's notion of the lead is which is not reflective of the player level
+    // being modeled.
+    // Only fill in the lead when we have ownership targets, with the game scored correctly.
+    // Lead is going to be pretty high variance,
+    if(hasOwnershipTargets) {
+      assert(!hasForcedWinner);
+      for(size_t m = 0; m<whiteValueTargets.size()-1; m++) {
+        const ValueTargets& finalTargets = whiteValueTargets[whiteValueTargets.size()-1];
+        whiteValueTargets[m].hasLead = true;
+        whiteValueTargets[m].lead = finalTargets.score;
+      }
+    }
+
+    for(size_t m = 0; m<policyTargets.size(); m++) {
       int turnIdx = (int)m;
       int64_t unreducedNumVisits = 0;
       const double policySurprise = 0;
@@ -2088,6 +2181,9 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
       if(hasForcedWinner && whiteValueTargets.size() - m < (5 + boardArea / 8)) {
         tdValueTargetWeight = 0.0f;
       }
+
+      // Lead is going to be a lot higher variance than KataGo normally handles, so reduce it a bunch.
+      float leadTargetWeightFactor = 0.25f;
 
       const bool isSidePosition = false;
       const int numNeuralNetsBehindLatest = 0;
@@ -2119,6 +2215,7 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
           turnIdx,
           valueTargetWeight,
           tdValueTargetWeight,
+          leadTargetWeightFactor,
           nnRawStats,
           &boards[boards.size()-1],
           (hasOwnershipTargets ? finalFullArea : NULL),
@@ -2163,6 +2260,7 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
       acceptedGameCountByIsRated[sgfGameRatednessIsUnknown ? "unknown" : sgfGameIsRated ? "true" : "false"] += 1;
       acceptedGameCountByEvent[sgfEvent] += 1;
       acceptedGameCountByUsage[usageStr] += 1;
+      acceptedGameCountByYear[Global::intToString(gameDate.year)] += 1;
     }
 
     reportSgfDone(true,"Used");
@@ -2189,7 +2287,12 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
     std::function<void(int,size_t)>(saveDataBufferJob)
   );
 
-  auto printGameCountsMap = [&](const std::map<string,int64_t> counts, const string& label, bool sortByCount) {
+  auto printGameCountsMap = [&](
+    const std::map<string,int64_t> counts,
+    const string& label,
+    bool sortByCount,
+    std::map<string,int64_t>* accCounts
+  ) {
     logger.write("===================================================");
     logger.write("Counts by " + label);
     if(!sortByCount) {
@@ -2207,34 +2310,41 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
         }
       );
       for(const auto& keyAndCount: pairVec) {
-        logger.write(keyAndCount.first + ": " + Global::int64ToString(keyAndCount.second));
+        const string& key = keyAndCount.first;
+        if(accCounts != NULL && contains(*accCounts,key)) {
+          logger.write(key + ": " + Global::int64ToString(keyAndCount.second) + " (acc " + Global::int64ToString((*accCounts)[key]) + ")");
+        }
+        else {
+          logger.write(key + ": " + Global::int64ToString(keyAndCount.second));
+        }
       }
     }
     logger.write("===================================================");
   };
-  printGameCountsMap(gameCountByUsername,"username",true);
-  printGameCountsMap(acceptedGameCountByUsername,"username (accepted)",true);
-  printGameCountsMap(gameCountByRank,"rank",false);
-  printGameCountsMap(acceptedGameCountByRank,"rank (accepted)",false);
-  printGameCountsMap(gameCountByBSize,"bSize",true);
-  printGameCountsMap(acceptedGameCountByBSize,"bSize (accepted)",true);
-  printGameCountsMap(gameCountByTimeControl,"time control",false);
-  printGameCountsMap(acceptedGameCountByTimeControl,"time control (accepted)",false);
-  printGameCountsMap(gameCountByRules,"rules",false);
-  printGameCountsMap(acceptedGameCountByRules,"rules (accepted)",false);
-  printGameCountsMap(gameCountByKomi,"komi",false);
-  printGameCountsMap(acceptedGameCountByKomi,"komi (accepted)",false);
-  printGameCountsMap(gameCountByHandicap,"handicap",false);
-  printGameCountsMap(acceptedGameCountByHandicap,"handicap (accepted)",false);
-  printGameCountsMap(gameCountByResult,"result",false);
-  printGameCountsMap(acceptedGameCountByResult,"result (accepted)",false);
-  printGameCountsMap(gameCountByEvent,"event",false);
-  printGameCountsMap(acceptedGameCountByEvent,"event (accepted)",false);
-  printGameCountsMap(gameCountByIsRated,"isRated",false);
-  printGameCountsMap(acceptedGameCountByIsRated,"isRated (accepted)",false);
-  printGameCountsMap(acceptedGameCountByUsage,"usage (accepted)",false);
-  printGameCountsMap(doneGameCountByReason,"done",false);
-  printGameCountsMap(warningsByReason,"warnings",false);
+  printGameCountsMap(gameCountByUsername,"username",true,&acceptedGameCountByUsername);
+  printGameCountsMap(acceptedGameCountByUsername,"username (accepted)",true,NULL);
+  printGameCountsMap(gameCountByRank,"rank",false,&acceptedGameCountByRank);
+  printGameCountsMap(acceptedGameCountByRank,"rank (accepted)",false,NULL);
+  printGameCountsMap(gameCountByBSize,"bSize",true,&acceptedGameCountByBSize);
+  printGameCountsMap(acceptedGameCountByBSize,"bSize (accepted)",true,NULL);
+  printGameCountsMap(gameCountByTimeControl,"time control",false,&acceptedGameCountByTimeControl);
+  printGameCountsMap(acceptedGameCountByTimeControl,"time control (accepted)",false,NULL);
+  printGameCountsMap(gameCountByRules,"rules",false,&acceptedGameCountByRules);
+  printGameCountsMap(acceptedGameCountByRules,"rules (accepted)",false,NULL);
+  printGameCountsMap(gameCountByKomi,"komi",false,&acceptedGameCountByKomi);
+  printGameCountsMap(acceptedGameCountByKomi,"komi (accepted)",false,NULL);
+  printGameCountsMap(gameCountByHandicap,"handicap",false,&acceptedGameCountByHandicap);
+  printGameCountsMap(acceptedGameCountByHandicap,"handicap (accepted)",false,NULL);
+  printGameCountsMap(gameCountByResult,"result",false,&acceptedGameCountByResult);
+  printGameCountsMap(acceptedGameCountByResult,"result (accepted)",false,NULL);
+  printGameCountsMap(gameCountByEvent,"event",false,&acceptedGameCountByEvent);
+  printGameCountsMap(acceptedGameCountByEvent,"event (accepted)",false,NULL);
+  printGameCountsMap(gameCountByIsRated,"isRated",false,&acceptedGameCountByIsRated);
+  printGameCountsMap(acceptedGameCountByIsRated,"isRated (accepted)",false,NULL);
+  printGameCountsMap(acceptedGameCountByUsage,"usage (accepted)",false,NULL);
+  printGameCountsMap(acceptedGameCountByYear,"year (accepted)",false,NULL);
+  printGameCountsMap(doneGameCountByReason,"done",false,NULL);
+  printGameCountsMap(warningsByReason,"warnings",false,NULL);
 
   logger.write(nnEval->getModelFileName());
   logger.write("NN rows: " + Global::int64ToString(nnEval->numRowsProcessed()));
