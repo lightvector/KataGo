@@ -270,7 +270,6 @@ SWValueHeadDesc MetalProcess::valueHeadDescToSwift(const ValueHeadDesc * valueHe
 }
 
 void MetalProcess::createMetalComputeHandle(const ModelDesc* modelDesc,
-                                            int gpuIdx,
                                             int serverThreadIdx) {
 
   SWModelDesc swModelDesc = createSWModelDesc(modelDesc->version,
@@ -481,7 +480,7 @@ ComputeHandle::ComputeHandle(
   useMetal = (gpuIdx < coreMLStartIndex);
 
   if(useMetal) {
-    MetalProcess::createMetalComputeHandle(modelDesc, gpuIdx, serverThreadIdx);
+    MetalProcess::createMetalComputeHandle(modelDesc, serverThreadIdx);
   } else {
     // Create a Core ML backend
     modelIndex = (int)createCoreMLBackend(modelXLen, modelYLen, serverThreadIdx, useFP16);
@@ -522,6 +521,7 @@ ComputeHandle* NeuralNet::createComputeHandle(
   int gpuIdxForThisThread,
   int serverThreadIdx) {
 
+  (void)logger;
   (void)maxBatchSize;
   // Current implementation always tolerates excess nn len
   (void)requireExactNNLen;
@@ -936,6 +936,8 @@ bool NeuralNet::testEvaluateConv(
   const vector<float>& inputBuffer,
   vector<float>& outputBuffer) {
 
+  (void)useFP16;
+  (void)useNHWC;
   return MetalProcess::testEvaluateConv(desc, batchSize, nnXLen, nnYLen, inputBuffer, outputBuffer);
 }
 
@@ -988,6 +990,8 @@ bool NeuralNet::testEvaluateBatchNorm(
   const vector<float>& maskBuffer,
   vector<float>& outputBuffer) {
 
+  (void)useFP16;
+  (void)useNHWC;
   return MetalProcess::testEvaluateBatchNorm(desc, batchSize, nnXLen, nnYLen, inputBuffer, maskBuffer, outputBuffer);
 }
 
@@ -1040,6 +1044,8 @@ bool NeuralNet::testEvaluateResidualBlock(
   const vector<float>& maskBuffer,
   vector<float>& outputBuffer) {
 
+  (void)useFP16;
+  (void)useNHWC;
   return MetalProcess::testEvaluateResidualBlock(desc, batchSize, nnXLen, nnYLen, inputBuffer, maskBuffer, outputBuffer);
 }
 
@@ -1093,6 +1099,8 @@ bool NeuralNet::testEvaluateGlobalPoolingResidualBlock(
   const vector<float>& maskBuffer,
   vector<float>& outputBuffer) {
 
+  (void)useFP16;
+  (void)useNHWC;
   return MetalProcess::testEvaluateGlobalPoolingResidualBlock(desc, batchSize, nnXLen, nnYLen, inputBuffer, maskBuffer, outputBuffer);
 }
 

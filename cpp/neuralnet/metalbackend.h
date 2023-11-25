@@ -7,7 +7,7 @@
 #include "../neuralnet/nneval.h"
 #include "../neuralnet/nninputs.h"
 #include "../neuralnet/nninterface.h"
-#include <KataGoSwift/KataGoSwift-Swift.h>
+#include <KataGoSwift/KataGoSwift-swift.h>
 
 using namespace std;
 using namespace KataGoSwift;
@@ -27,7 +27,6 @@ SWMatBiasLayerDesc matBiasLayerDescToSwift(const MatBiasLayerDesc * desc);
 SWValueHeadDesc valueHeadDescToSwift(const ValueHeadDesc * valueHead);
 
 void createMetalComputeHandle(const ModelDesc* modelDesc,
-                              int gpuIdx,
                               int serverThreadIdx);
 
 bool testEvaluateConv(const ConvLayerDesc* desc,
