@@ -127,6 +127,17 @@ static std::set<string> loadStrippedTxtFileLines(const string& filePath) {
   return ret;
 }
 
+static std::set<string> loadStrippedTxtFileLinesWithComments(const string& filePath) {
+  std::vector<string> lines = FileUtils::readFileLines(filePath,'\n');
+  std::set<string> ret;
+  for(const string& line: lines) {
+    string s = Global::trim(Global::stripComments(line));
+    if(s.size() > 0)
+      ret.insert(s);
+  }
+  return ret;
+}
+
 static bool isLikelyBot(const string& username, const string& whatDataSource) {
   string s = Global::trim(Global::toLower(username));
   if(s.find("gnugo") != std::string::npos)
@@ -243,117 +254,116 @@ static void parseSGFRank(
   bool isUnranked = false;
   bool isUnknown = false;
 
-  if(rankStr == "") {
-    isUnknown = true;
+  string rankStrLower = Global::toLower(rankStr);
+  try {
+    if(rankStr == "") {
+      isUnknown = true;
+    }
+    else if(rankStr == "-") {
+      isUnranked = true;
+    }
+    //-------------------------------------------------------------
+    //Don't know how strong "insei" or "ama" are
+    else if(rankStrLower == "insei" || rankStrLower == "ama" || rankStrLower == "ama." || rankStrLower == "nr") {
+      isUnknown = true;
+    }
+    else if(
+      rankStrLower == "meijin" ||
+      rankStrLower == "kisei" ||
+      rankStrLower == "judan" ||
+      rankStrLower == "holder" ||
+      rankStrLower == "challenger" ||
+      rankStrLower == "oza" ||
+      rankStrLower == "tianyuan"
+
+    ) {
+      rankNumber = 9;
+      isPro = true;
+    }
+    //-------------------------------------------------------------
+    else if(Global::isSuffix(rankStr," kyu")) {
+      rankNumber = Global::stringToInt(Global::chopSuffix(rankStr," kyu"));
+      isKyu = true;
+    }
+    else if(Global::isSuffix(rankStr," k")) {
+      rankNumber = Global::stringToInt(Global::chopSuffix(rankStr," k"));
+      isKyu = true;
+    }
+    else if(Global::isSuffix(rankStr,"kyu")) {
+      rankNumber = Global::stringToInt(Global::chopSuffix(rankStr,"kyu"));
+      isKyu = true;
+    }
+    else if(Global::isSuffix(rankStr,"k")) {
+      rankNumber = Global::stringToInt(Global::chopSuffix(rankStr,"k"));
+      isKyu = true;
+    }
+    //UTF-8 for 级(kyu/grade)
+    else if(Global::isSuffix(rankStr,"\xE7\xBA\xA7")) {
+      rankNumber = Global::stringToInt(Global::chopSuffix(rankStr,"\xE7\xBA\xA7"));
+      isKyu = true;
+    }
+    //-------------------------------------------------------------
+    else if(Global::isSuffix(rankStr,"k ama")) {
+      rankNumber = Global::stringToInt(Global::chopSuffix(rankStr,"k ama"));
+      isKyuAma = true;
+    }
+    //-------------------------------------------------------------
+    else if(Global::isSuffix(rankStr," dan")) {
+      rankNumber = Global::stringToInt(Global::chopSuffix(rankStr," dan"));
+      isDan = true;
+    }
+    else if(Global::isSuffix(rankStr," d")) {
+      rankNumber = Global::stringToInt(Global::chopSuffix(rankStr," d"));
+      isDan = true;
+    }
+    else if(Global::isSuffix(rankStr,"dan")) {
+      rankNumber = Global::stringToInt(Global::chopSuffix(rankStr,"dan"));
+      isDan = true;
+    }
+    else if(Global::isSuffix(rankStr,"d")) {
+      rankNumber = Global::stringToInt(Global::chopSuffix(rankStr,"d"));
+      isDan = true;
+    }
+    //UTF-8 for 段(dan)
+    else if(Global::isSuffix(rankStr,"\xE6\xAE\xB5")) {
+      rankNumber = Global::stringToInt(Global::chopSuffix(rankStr,"\xE6\xAE\xB5"));
+      isDan = true;
+    }
+    //-------------------------------------------------------------
+    else if(Global::isSuffix(rankStr,"d ama")) {
+      rankNumber = Global::stringToInt(Global::chopSuffix(rankStr,"d ama"));
+      isDanAma = true;
+    }
+    else if(Global::isSuffix(rankStr,"a")) {
+      rankNumber = Global::stringToInt(Global::chopSuffix(rankStr,"a"));
+      isDanAma = true;
+    }
+    //-------------------------------------------------------------
+    else if(Global::isSuffix(rankStr," pro")) {
+      rankNumber = Global::stringToInt(Global::chopSuffix(rankStr," pro"));
+      isPro = true;
+    }
+    else if(Global::isSuffix(rankStr," p")) {
+      rankNumber = Global::stringToInt(Global::chopSuffix(rankStr," p"));
+      isPro = true;
+    }
+    else if(Global::isSuffix(rankStr,"pro")) {
+      rankNumber = Global::stringToInt(Global::chopSuffix(rankStr,"pro"));
+      isPro = true;
+    }
+    else if(Global::isSuffix(rankStr,"p")) {
+      rankNumber = Global::stringToInt(Global::chopSuffix(rankStr,"p"));
+      isPro = true;
+    }
+    //-------------------------------------------------------------
+    else {
+      throw StringError("Unable to parse rank: " + rankStr);
+    }
+    //-------------------------------------------------------------
   }
-  else if(rankStr == "-") {
-    isUnranked = true;
-  }
-  //-------------------------------------------------------------
-  else if(Global::isSuffix(rankStr," kyu")) {
-    rankNumber = Global::stringToInt(Global::chopSuffix(rankStr," kyu"));
-    isKyu = true;
-  }
-  else if(Global::isSuffix(rankStr," k")) {
-    rankNumber = Global::stringToInt(Global::chopSuffix(rankStr," k"));
-    isKyu = true;
-  }
-  else if(Global::isSuffix(rankStr,"kyu")) {
-    rankNumber = Global::stringToInt(Global::chopSuffix(rankStr,"kyu"));
-    isKyu = true;
-  }
-  else if(Global::isSuffix(rankStr,"k")) {
-    rankNumber = Global::stringToInt(Global::chopSuffix(rankStr,"k"));
-    isKyu = true;
-  }
-  //UTF-8 for 级(kyu/grade)
-  else if(Global::isSuffix(rankStr,"\xE7\xBA\xA7")) {
-    rankNumber = Global::stringToInt(Global::chopSuffix(rankStr,"\xE7\xBA\xA7"));
-    isKyu = true;
-  }
-  //-------------------------------------------------------------
-  else if(Global::isSuffix(rankStr,"k ama")) {
-    rankNumber = Global::stringToInt(Global::chopSuffix(rankStr,"k ama"));
-    isKyuAma = true;
-  }
-  //-------------------------------------------------------------
-  else if(Global::isSuffix(rankStr," dan")) {
-    rankNumber = Global::stringToInt(Global::chopSuffix(rankStr," dan"));
-    isDan = true;
-  }
-  else if(Global::isSuffix(rankStr," d")) {
-    rankNumber = Global::stringToInt(Global::chopSuffix(rankStr," d"));
-    isDan = true;
-  }
-  else if(Global::isSuffix(rankStr,"dan")) {
-    rankNumber = Global::stringToInt(Global::chopSuffix(rankStr,"dan"));
-    isDan = true;
-  }
-  else if(Global::isSuffix(rankStr,"d")) {
-    rankNumber = Global::stringToInt(Global::chopSuffix(rankStr,"d"));
-    isDan = true;
-  }
-  //UTF-8 for 段(dan)
-  else if(Global::isSuffix(rankStr,"\xE6\xAE\xB5")) {
-    rankNumber = Global::stringToInt(Global::chopSuffix(rankStr,"\xE6\xAE\xB5"));
-    isDan = true;
-  }
-  //-------------------------------------------------------------
-  else if(Global::isSuffix(rankStr,"d ama")) {
-    rankNumber = Global::stringToInt(Global::chopSuffix(rankStr,"d ama"));
-    isDanAma = true;
-  }
-  else if(Global::isSuffix(rankStr,"a")) {
-    rankNumber = Global::stringToInt(Global::chopSuffix(rankStr,"a"));
-    isDanAma = true;
-  }
-  //-------------------------------------------------------------
-  else if(Global::isSuffix(rankStr," pro")) {
-    rankNumber = Global::stringToInt(Global::chopSuffix(rankStr," pro"));
-    isPro = true;
-  }
-  else if(Global::isSuffix(rankStr," p")) {
-    rankNumber = Global::stringToInt(Global::chopSuffix(rankStr," p"));
-    isPro = true;
-  }
-  else if(Global::isSuffix(rankStr,"pro")) {
-    rankNumber = Global::stringToInt(Global::chopSuffix(rankStr,"pro"));
-    isPro = true;
-  }
-  else if(Global::isSuffix(rankStr,"p")) {
-    rankNumber = Global::stringToInt(Global::chopSuffix(rankStr,"p"));
-    isPro = true;
-  }
-  else if(rankStr == "meijin" || rankStr == "kisei" || rankStr == "judan" || rankStr == "holder") {
-    rankNumber = 9;
-    isPro = true;
-  }
-  //-------------------------------------------------------------
-  //Don't know how strong insei are
-  else if(rankStr == "insei") {
-    isUnknown = true;
-  }
-  //Rengo in gogod
-  else if(
-    whatDataSource == "gogod" &&
-    rankStr.size() > 7 &&
-    rankStr[1] == 'd' &&
-    rankStr[2] == ' ' &&
-    rankStr[3] == '&' &&
-    rankStr[4] == ' ' &&
-    rankStr[6] == 'd' &&
-    Global::isDigits(rankStr,0,1) && Global::isDigits(rankStr,5,6)
-  ) {
-    isDan = true;
-    int number1 = Global::parseDigits(rankStr,0,1);
-    int number2 = Global::parseDigits(rankStr,5,6);
-    rankNumber = std::min(number1,number2);
-  }
-  //-------------------------------------------------------------
-  else {
+  catch(const StringError&) {
     throw StringError("Unable to parse rank: " + rankStr);
   }
-  //-------------------------------------------------------------
 
   assert((int)isKyu + (int)isKyuAma + (int)isDan + (int)isDanAma + (int)isPro + (int)isUnranked + (int)isUnknown == 1);
 
@@ -529,6 +539,7 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
   string noTrainUsersFile;
   string noGameUsersFile;
   string isBotUsersFile;
+  string excludeGamesFile;
   bool noTrainOnBots;
   bool useFancyBotUsers;
   string whatDataSource;
@@ -536,6 +547,7 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
   SimpleDate kgsCsvMinDate("0000-01-01");
   SimpleDate kgsCsvMaxDate("9999-12-31");
   size_t maxFilesToLoad;
+  bool shuffleFiles;
   double keepProb;
   double gameKeepProb;
   string outputDir;
@@ -551,6 +563,7 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
     TCLAP::ValueArg<string> noTrainUsersArg("","no-train-users-file","Avoid training on these player's moves",true,string(),"TXTFILE");
     TCLAP::ValueArg<string> noGameUsersArg("","no-game-users-file","Avoid training on games with these players",true,string(),"TXTFILE");
     TCLAP::ValueArg<string> isBotUsersArg("","is-bot-users-file","Mark these usernames as bots",true,string(),"TXTFILE");
+    TCLAP::ValueArg<string> excludeGamesArg("","exclude-games-file","Exclude games whose paths contain these strings",false,string(),"TXTFILE");
     TCLAP::SwitchArg noTrainOnBotsArg("","no-train-on-bots","Use bot users files as additional no train users file");
     TCLAP::SwitchArg useFancyBotUsersArg("","use-fancy-bot-users","Use some hardcoded rules to mark as bots some common names");
     TCLAP::ValueArg<string> whatDataSourceArg("","what-data-source","What data source",true,string(),"NAME");
@@ -558,6 +571,7 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
     TCLAP::ValueArg<string> kgsCsvMinDateArg("","kgs-csv-min-date","Min date to use from csv",false,string(),"DATE");
     TCLAP::ValueArg<string> kgsCsvMaxDateArg("","kgs-csv-max-date","Max date to use from csv",false,string(),"DATE");
     TCLAP::ValueArg<size_t> maxFilesToLoadArg("","max-files-to-load","Max sgf files to try to load",false,(size_t)10000000000000ULL,"NUM");
+    TCLAP::SwitchArg shuffleFilesArg("","shuffle-files","Shuffle order of files handled");
     TCLAP::ValueArg<double> keepProbArg("","keep-prob","Keep poses with this prob",false,1.0,"PROB");
     TCLAP::ValueArg<double> gameKeepProbArg("","game-keep-prob","Keep games with this prob",false,1.0,"PROB");
     TCLAP::ValueArg<string> outputDirArg("","output-dir","Dir to output files",true,string(),"DIR");
@@ -567,6 +581,7 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
     cmd.add(noTrainUsersArg);
     cmd.add(noGameUsersArg);
     cmd.add(isBotUsersArg);
+    cmd.add(excludeGamesArg);
     cmd.add(noTrainOnBotsArg);
     cmd.add(useFancyBotUsersArg);
     cmd.add(whatDataSourceArg);
@@ -574,6 +589,7 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
     cmd.add(kgsCsvMinDateArg);
     cmd.add(kgsCsvMaxDateArg);
     cmd.add(maxFilesToLoadArg);
+    cmd.add(shuffleFilesArg);
     cmd.add(keepProbArg);
     cmd.add(gameKeepProbArg);
     cmd.add(outputDirArg);
@@ -586,6 +602,7 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
     noTrainUsersFile = noTrainUsersArg.getValue();
     noGameUsersFile = noGameUsersArg.getValue();
     isBotUsersFile = isBotUsersArg.getValue();
+    excludeGamesFile = excludeGamesArg.getValue();
     noTrainOnBots = noTrainOnBotsArg.getValue();
     useFancyBotUsers = useFancyBotUsersArg.getValue();
     whatDataSource = whatDataSourceArg.getValue();
@@ -595,6 +612,7 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
     if(kgsCsvMaxDateArg.getValue() != "")
       kgsCsvMaxDate = SimpleDate(kgsCsvMaxDateArg.getValue());
     maxFilesToLoad = maxFilesToLoadArg.getValue();
+    shuffleFiles = shuffleFilesArg.getValue();
     keepProb = keepProbArg.getValue();
     gameKeepProb = gameKeepProbArg.getValue();
     outputDir = outputDirArg.getValue();
@@ -644,6 +662,8 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
   const std::set<string> noTrainUsers = loadStrippedTxtFileLines(noTrainUsersFile);
   const std::set<string> noGameUsers = loadStrippedTxtFileLines(noGameUsersFile);
   const std::set<string> isBotUsers = loadStrippedTxtFileLines(isBotUsersFile);
+  const std::set<string> excludeFiles =
+    (excludeGamesFile != "") ? loadStrippedTxtFileLinesWithComments(excludeGamesFile) : std::set<string>();
 
   NNEvaluator* nnEval;
   {
@@ -683,6 +703,10 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
   vector<string> sgfFiles;
   FileHelpers::collectSgfsFromDirsOrFiles(sgfDirs,sgfFiles);
   logger.write("Collected " + Global::int64ToString(sgfFiles.size()) + " files");
+
+  if(shuffleFiles) {
+    seedRand.shuffle(sgfFiles);
+  }
 
   Setup::initializeSession(cfg);
 
@@ -779,6 +803,14 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
       return;
 
     const string& fileName = sgfFiles[index];
+
+    for(const string& excluded: excludeFiles) {
+      if(fileName.find(excluded) != string::npos) {
+        reportSgfDone(false,"SGFExcluded");
+        return;
+      }
+    }
+
     std::unique_ptr<Sgf> sgfRaw = NULL;
     XYSize xySize;
     try {
@@ -835,17 +867,35 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
       return;
     }
 
-    string sgfBUsername = Global::trim(sgfRaw->getRootPropertyWithDefault("PB", ""));
-    string sgfWUsername = Global::trim(sgfRaw->getRootPropertyWithDefault("PW", ""));
-    string sgfBRank = sgfRaw->getRootPropertyWithDefault("BR", "");
-    string sgfWRank = sgfRaw->getRootPropertyWithDefault("WR", "");
-    string sgfRules = sgfRaw->getRootPropertyWithDefault("RU", "");
-    string sgfKomi = sgfRaw->getRootPropertyWithDefault("KM", "");
-    string sgfHandicap = sgfRaw->getRootPropertyWithDefault("HA", "");
-    string sgfResult = sgfRaw->getRootPropertyWithDefault("RE", "");
-    string sgfEvent = sgfRaw->getRootPropertyWithDefault("EV", "");
-    string sgfDate = sgfRaw->getRootPropertyWithDefault("DT", "");
-    string sgfPlace = sgfRaw->getRootPropertyWithDefault("PC", "");
+    string sgfBUsername;
+    string sgfWUsername;
+    string sgfBRank;
+    string sgfWRank;
+    string sgfRules;
+    string sgfKomi;
+    string sgfHandicap;
+    string sgfResult;
+    string sgfEvent;
+    string sgfDate;
+    string sgfPlace;
+    try {
+      sgfBUsername = Global::trim(sgfRaw->getRootPropertyWithDefault("PB", ""));
+      sgfWUsername = Global::trim(sgfRaw->getRootPropertyWithDefault("PW", ""));
+      sgfBRank = sgfRaw->getRootPropertyWithDefault("BR", "");
+      sgfWRank = sgfRaw->getRootPropertyWithDefault("WR", "");
+      sgfRules = sgfRaw->getRootPropertyWithDefault("RU", "");
+      sgfKomi = sgfRaw->getRootPropertyWithDefault("KM", "");
+      sgfHandicap = sgfRaw->getRootPropertyWithDefault("HA", "");
+      sgfResult = sgfRaw->getRootPropertyWithDefault("RE", "");
+      sgfEvent = sgfRaw->getRootPropertyWithDefault("EV", "");
+      sgfDate = sgfRaw->getRootPropertyWithDefault("DT", "");
+      sgfPlace = sgfRaw->getRootPropertyWithDefault("PC", "");
+    }
+    catch(const StringError& e) {
+      logger.write("Invalid SGF " + fileName + ": " + e.what());
+      reportSgfDone(false,"SGFInvalid");
+      return;
+    }
 
     bool sgfGameIsRated = false;
     bool sgfGameRatednessIsUnknown = false;
@@ -898,6 +948,12 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
         }
       }
     }
+    else if(whatDataSource == "gogod") {
+      sgfGameIsRated = true;
+    }
+    else if(whatDataSource == "go4go") {
+      sgfGameIsRated = true;
+    }
     else {
       throw StringError("Unknown what-data-source " + whatDataSource);
     }
@@ -934,6 +990,9 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
         sgfTimeControl = sgfTC + "x" + sgfTT;
     }
     else if(whatDataSource == "gogod") {
+      sgfTimeControl = "";
+    }
+    else if(whatDataSource == "go4go") {
       sgfTimeControl = "";
     }
     else {
@@ -999,6 +1058,7 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
     }
 
     Rules rules;
+    bool rulesDisableValueTraining = false;
     if(whatDataSource == "ogs" || whatDataSource == "kgs") {
       try {
         rules = sgf->getRulesOrFail();
@@ -1006,6 +1066,7 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
       catch(const StringError& e) {
         logger.write("Failed to get rules for sgf: " + fileName + " " + e.what());
         reportSgfDone(false,"GameBadRules");
+        return;
       }
     }
     else if(whatDataSource == "fox") {
@@ -1015,6 +1076,7 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
       catch(const StringError& e) {
         logger.write("Failed to get rules for sgf: " + fileName + " " + e.what());
         reportSgfDone(false,"GameBadRules");
+        return;
       }
       //Ugly hack for fox that seems to have komi 0 when the real komi is 6.5
       if(sgfRules == "Japanese" && sgfKomi == "0") {
@@ -1025,23 +1087,128 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
       }
     }
     else if(whatDataSource == "gogod") {
+      string sgfPlaceAndEvent = sgfPlace + " | " + sgfEvent;
+
+      // Filter out unusual events and games that are hard to know the rules and player strengths
+      if(
+        sgfPlaceAndEvent.find("Environmental Go") != string::npos
+        || sgfRules.find("Ing Goe") != string::npos
+        || sgfRules.find("gives komi") != string::npos
+        || sgfPlaceAndEvent.find("Children") != string::npos
+        || sgfPlaceAndEvent.find("Student") != string::npos
+        || sgfPlaceAndEvent.find("Youth") != string::npos
+        || sgfPlaceAndEvent.find("Young ") != string::npos
+        || sgfPlaceAndEvent.find("1-dans v. 9-dans") != string::npos
+        || sgfPlaceAndEvent.find("Teaching") != string::npos
+        || sgfPlaceAndEvent.find("teaching") != string::npos
+        || sgfPlaceAndEvent.find("pair go") != string::npos
+        || sgfPlaceAndEvent.find("Pair go") != string::npos
+        || sgfPlaceAndEvent.find("Amateur") != string::npos
+        || sgfPlaceAndEvent.find("amateur") != string::npos
+        || sgfPlaceAndEvent.find("Internet") != string::npos
+        || sgfPlaceAndEvent.find("Online") != string::npos
+        || sgfPlaceAndEvent.find("online") != string::npos
+        || sgfBRank.find("&") != string::npos
+        || sgfWRank.find("&") != string::npos
+      ) {
+        if(verbosity >= 2)
+          logger.write("Unable to handle rules in sgf " + fileName + ": " + sgfRules + "|" + sgfKomi + "|" + sgfPlace + "|" + sgfEvent);
+        reportSgfDone(false,"UnsupportedRules");
+        return;
+      }
+
       bool whiteWinsJigo = false;
       if(sgfRules == "Chinese" || sgfRules == "Korean" || sgfRules == "Japanese") {
         rules = Rules::parseRules(sgfRules);
+      }
+      else if(Global::isPrefix(sgfRules,"Tang")) {
+        rules = Rules::parseRules("Japanese");
+        rules.taxRule = Rules::TAX_ALL;
+        rulesDisableValueTraining = true; // Since we're not entirely sure on the evaluation, also many games are incomplete
+      }
+      else if(sgfRules == "Old Chinese") {
+        rules = Rules::parseRules("Chinese");
+        rulesDisableValueTraining = true; // Since we're not entirely sure on the evaluation, also many games are incomplete
       }
       else {
         if(sgfRules == "W wins jigo") {
           whiteWinsJigo = true;
         }
-        if(sgfPlace == "Hanguk Kiweon")
+        bool mentionsKorea = sgfPlaceAndEvent.find("Korea") != string::npos;
+        bool mentionsJapan = sgfPlaceAndEvent.find("Japan") != string::npos;
+        bool mentionsChina = sgfPlaceAndEvent.find("China") != string::npos || sgfPlaceAndEvent.find("Chinese") != string::npos;
+        if((int)mentionsKorea + (int)mentionsJapan + (int)mentionsChina > 1) {
+          logger.write("Unable to handle rules, need more cases in sgf " + fileName + ": " + sgfRules + "|" + sgfKomi + "|" + sgfPlace + "|" + sgfEvent);
+          reportSgfDone(false,"GameRulesParsing");
+          return;
+        }
+
+        if(
+          mentionsKorea
+          || sgfPlaceAndEvent.find("Hanguk Kiweon") != string::npos
+          || sgfPlaceAndEvent.find("LG Cup") != string::npos
+          || sgfPlaceAndEvent.find("Samsung Cup") != string::npos
+          || sgfPlaceAndEvent.find("Seoul") != string::npos
+          || sgfPlaceAndEvent.find("BC Card") != string::npos
+          || sgfPlaceAndEvent.find("Myeongin") != string::npos
+          || sgfPlaceAndEvent.find("Hayago") != string::npos
+          || sgfPlaceAndEvent.find("KBS Cup") != string::npos
+          || sgfPlaceAndEvent.find("Paedal") != string::npos
+          || sgfPlaceAndEvent.find("Kuksu") != string::npos
+          || sgfPlaceAndEvent.find("Nongshim Cup") != string::npos
+          || sgfPlaceAndEvent.find("Maxim Cup") != string::npos
+          || sgfPlaceAndEvent.find("Tong Yang Cup") != string::npos
+          || sgfPlaceAndEvent.find("Kiseong") != string::npos
+          || sgfPlaceAndEvent.find("Kiwang") != string::npos
+          || sgfPlaceAndEvent.find("Ki wang") != string::npos
+          || sgfPlaceAndEvent.find("Chaegowi") != string::npos
+          || sgfPlaceAndEvent.find("Wangwi") != string::npos
+          || sgfPlaceAndEvent.find("GG Auction") != string::npos
+          || sgfPlaceAndEvent.find("GS Caltex") != string::npos
+          || sgfPlaceAndEvent.find("Ha Ch'an-seok Cup") != string::npos
+        ) {
           rules = Rules::parseRules("Korean");
-        else if(sgfPlace == "Nihon Ki-in")
+        }
+        else if(
+          mentionsJapan
+          || sgfPlaceAndEvent.find("Nihon Ki-in") != string::npos
+          || sgfPlaceAndEvent.find("Kansai Ki-in") != string::npos
+          || sgfPlaceAndEvent.find("Tokyo") != string::npos
+          || sgfPlaceAndEvent.find("Honinbo") != string::npos
+          || sgfPlaceAndEvent.find("Oza") != string::npos
+          || sgfPlaceAndEvent.find("Tengen") != string::npos
+          || sgfPlaceAndEvent.find("Gosei") != string::npos
+          || sgfPlaceAndEvent.find("Judan") != string::npos
+          || sgfPlaceAndEvent.find("Ryusei") != string::npos
+          || sgfPlaceAndEvent.find("Kisei") != string::npos
+          || sgfPlaceAndEvent.find("Meijin") != string::npos
+          || sgfPlaceAndEvent.find("NHK Cup") != string::npos
+          || sgfPlaceAndEvent.find("Osaka") != string::npos
+          || sgfPlaceAndEvent.find("Saikyo") != string::npos
+          || sgfPlaceAndEvent.find("Daiwa Cup") != string::npos
+          || sgfPlaceAndEvent.find("Castle Game") != string::npos
+          || sgfPlaceAndEvent.find("Globis Cup") != string::npos
+          || sgfPlaceAndEvent.find("Shinei") != string::npos
+          || sgfPlaceAndEvent.find("Shinjin-O") != string::npos
+          || sgfPlaceAndEvent.find("Kakusei") != string::npos
+          || sgfPlaceAndEvent.find("Fujitsu Cup") != string::npos
+          || sgfPlaceAndEvent.find("Toyota") != string::npos
+          || sgfPlaceAndEvent.find("Oteai") != string::npos
+       ) {
           rules = Rules::parseRules("Japanese");
-        else if(sgfPlace.find("Beijing") != string::npos) {
+        }
+        else if(
+          mentionsChina
+          || sgfPlaceAndEvent.find("Beijing") != string::npos
+          || sgfPlaceAndEvent.find("Chunlan Cup") != string::npos
+          || sgfPlaceAndEvent.find("MLily Cup") != string::npos
+          || sgfPlaceAndEvent.find("Lanke Cup") != string::npos
+          || sgfPlaceAndEvent.find("CCTV Cup") != string::npos
+        ) {
           rules = Rules::parseRules("Chinese");
         }
         else {
-          logger.write("Unable to handle rules, need more cases in sgf " + fileName + ": " + sgfRules + " " + sgfKomi + " " + sgfPlace + " " + sgfEvent);
+          logger.write("Unable to handle rules, need more cases in sgf " + fileName + ": " + sgfRules + "|" + sgfKomi + "|" + sgfPlace + "|" + sgfEvent);
           reportSgfDone(false,"GameRulesParsing");
           return;
         }
@@ -1049,7 +1216,7 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
         // If komi is unrecorded, just go ahead and use modern komi, maybe some results will differ but otherwise it's not too bad.
         if(sgfKomi != "") {
           if(!Global::tryStringToFloat(sgfKomi,rules.komi)) {
-            logger.write("Unable to handle rules, need more cases in sgf " + fileName + ": " + sgfRules + " " + sgfKomi + " " + sgfPlace + " " + sgfEvent);
+            logger.write("Unable to handle rules, need more cases in sgf " + fileName + ": " + sgfRules + "|" + sgfKomi + "|" + sgfPlace + "|" + sgfEvent);
             reportSgfDone(false,"GameRulesParsing");
             return;
           }
@@ -1057,7 +1224,7 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
 
         // gogod uses zi for chinese komi, we should check if there's any weirdness
         if(rules.scoringRule == Rules::SCORING_AREA && rules.komi >= 4) {
-          logger.write("Unable to handle rules, need more cases in sgf " + fileName + ": " + sgfRules + " " + sgfKomi + " " + sgfPlace + " " + sgfEvent);
+          logger.write("Unable to handle rules, need more cases in sgf " + fileName + ": " + sgfRules + "|" + sgfKomi + "|" + sgfPlace + "|" + sgfEvent);
           reportSgfDone(false,"GameRulesParsing");
           return;
         }
@@ -1067,7 +1234,7 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
 
         if(whiteWinsJigo) {
           if(rules.komi != (int)rules.komi) {
-            logger.write("Unable to handle rules, need more cases in sgf " + fileName + ": " + sgfRules + " " + sgfKomi + " " + sgfPlace + " " + sgfEvent);
+            logger.write("Unable to handle rules, need more cases in sgf " + fileName + ": " + sgfRules + "|" + sgfKomi + "|" + sgfPlace + "|" + sgfEvent);
             reportSgfDone(false,"GameRulesParsing");
             return;
           }
@@ -1075,11 +1242,24 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
         }
 
         if(!Rules::komiIsIntOrHalfInt(rules.komi)) {
-          logger.write("Unable to handle rules, need more cases in sgf " + fileName + ": " + sgfRules + " " + sgfKomi + " " + sgfPlace + " " + sgfEvent);
+          logger.write("Unable to handle rules, need more cases in sgf " + fileName + ": " + sgfRules + "|" + sgfKomi + "|" + sgfPlace + "|" + sgfEvent);
           reportSgfDone(false,"GameRulesParsing");
           return;
         }
       }
+    }
+    else if(whatDataSource == "go4go") {
+      try {
+        rules = sgf->getRulesOrFail();
+      }
+      catch(const StringError& e) {
+        logger.write("Failed to get rules for sgf: " + fileName + " " + e.what());
+        reportSgfDone(false,"GameBadRules");
+        return;
+      }
+      // Basically everything using komi 8 in go4go is "komi 8 but black wins ties
+      if(rules.komi == 8)
+        rules.komi = 7.5;
     }
     else {
       throw StringError("Unknown data source: " + whatDataSource);
@@ -1145,6 +1325,10 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
         sgfGameEnded = true;
         sgfGameEndedByOther = true;
       }
+      else if(s == "?") {
+        sgfGameEnded = true;
+        sgfGameEndedByOther = true;
+      }
       else if(s == "draw" || s == "0" || s == "jigo") {
         sgfGameEnded = true;
         sgfGameEndedByScore = true;
@@ -1198,6 +1382,26 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
           reportSgfDone(false,"ResultInvalidScore");
           return;
         }
+      }
+      else if(
+        (Global::isPrefix(s,"b+") || Global::isPrefix(s,"black+"))
+        && s.find("moves beyond") != string::npos
+        && s.find("not known") != string::npos
+      ) {
+        // If game record is incomplete, weight it and treat it as a game ending by resign
+        sgfGameEnded = true;
+        sgfGameEndedByResign = true;
+        sgfGameWinner = P_BLACK;
+      }
+      else if(
+        (Global::isPrefix(s,"w+") || Global::isPrefix(s,"white+"))
+        && s.find("moves beyond") != string::npos
+        && s.find("not known") != string::npos
+      ) {
+        // If game record is incomplete, weight it and treat it as a game ending by resign
+        sgfGameEnded = true;
+        sgfGameEndedByResign = true;
+        sgfGameWinner = P_WHITE;
       }
       else {
         logger.write("Game ended with unknown result " + fileName + " result " + sgfResult);
@@ -1340,19 +1544,19 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
       size_t startIdx = sgfDate.find_first_of("0123456789");
       if(startIdx != string::npos
          && sgfDate.size() >= startIdx+4
-         && contains("0123456789",sgfDate[startIdx+1])
-         && contains("0123456789",sgfDate[startIdx+2])
-         && contains("0123456789",sgfDate[startIdx+3])
+         && Global::isDigit(sgfDate[startIdx+1])
+         && Global::isDigit(sgfDate[startIdx+2])
+         && Global::isDigit(sgfDate[startIdx+3])
       ) {
         if(sgfDate.size() >= startIdx+7
-           && contains("-",sgfDate[startIdx+4])
-           && contains("0123456789",sgfDate[startIdx+5])
-           && contains("0123456789",sgfDate[startIdx+6])
+           && sgfDate[startIdx+4] == '-'
+           && Global::isDigit(sgfDate[startIdx+5])
+           && Global::isDigit(sgfDate[startIdx+6])
         ) {
           if(sgfDate.size() >= startIdx+10
-             && contains("-",sgfDate[startIdx+7])
-             && contains("0123456789",sgfDate[startIdx+8])
-             && contains("0123456789",sgfDate[startIdx+9])
+             && sgfDate[startIdx+7] == '-'
+             && Global::isDigit(sgfDate[startIdx+8])
+             && Global::isDigit(sgfDate[startIdx+9])
           ) {
             sgfDateToParse = sgfDate.substr(startIdx,10);
           }
@@ -1361,7 +1565,7 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
           }
         }
         else {
-          sgfDateToParse = sgfDate.substr(startIdx,7) + "-01-01";
+          sgfDateToParse = sgfDate.substr(startIdx,4) + "-01-01";
         }
       }
       else {
@@ -1370,8 +1574,28 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
         return;
       }
 
-      gameDate = SimpleDate(sgfDateToParse);
+      if(Global::isSuffix(sgfDateToParse,"-00-00"))
+        sgfDateToParse = Global::chopSuffix(sgfDateToParse,"-00-00") + "-01-01";
+      else if(Global::isSuffix(sgfDateToParse,"-00"))
+        sgfDateToParse = Global::chopSuffix(sgfDateToParse,"-00") + "-01";
+
+      try {
+        gameDate = SimpleDate(sgfDateToParse);
+      }
+      catch(const StringError& e) {
+        logger.write("Failed to get date for sgf: " + fileName + " " + e.what());
+        reportSgfDone(false,"GameBadDate");
+        return;
+      }
       sgfSource = SGFMetadata::SOURCE_GOGOD;
+    }
+    else if(whatDataSource == "go4go") {
+      assumeMultipleStartingBlackMovesAreHandicap = false;
+      if(sgfHandicapParsed >= 0)
+        overrideNumHandicapStones = sgfHandicapParsed;
+      tcIsUnknown = true;
+      gameDate = SimpleDate(sgfDate);
+      sgfSource = SGFMetadata::SOURCE_GO4GO;
     }
     else {
       throw StringError("Unknown data source: " + whatDataSource);
@@ -1389,8 +1613,15 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
     }
 
     SGFMetadata sgfMeta;
-    parseSGFRank(sgfBRank, sgfMeta.inverseBRank, sgfMeta.bIsUnranked, sgfMeta.bRankIsUnknown, whatDataSource);
-    parseSGFRank(sgfWRank, sgfMeta.inverseWRank, sgfMeta.wIsUnranked, sgfMeta.wRankIsUnknown, whatDataSource);
+    try {
+      parseSGFRank(sgfBRank, sgfMeta.inverseBRank, sgfMeta.bIsUnranked, sgfMeta.bRankIsUnknown, whatDataSource);
+      parseSGFRank(sgfWRank, sgfMeta.inverseWRank, sgfMeta.wIsUnranked, sgfMeta.wRankIsUnknown, whatDataSource);
+    }
+    catch(const std::exception& e) {
+      logger.write("Failed to get rules for sgf: " + fileName + " " + e.what());
+      reportSgfDone(false,"GameBadRankParse");
+      return;
+    }
     sgfMeta.bIsHuman = !isBotB;
     sgfMeta.wIsHuman = !isBotW;
     sgfMeta.gameIsUnrated = !sgfGameIsRated;
@@ -1577,7 +1808,7 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
 
     // If this was a scored position, fill out the remaining turns with KataGo making moves, just to clean
     // up the position and carry out encore for JP-style rules.
-    if(sgfGameEndedByScore) {
+    if(sgfGameEndedByScore && !rulesDisableValueTraining) {
       Search* search = threadSearchers[threadIdx];
 
       // Before we have KataGo play anything, require KataGo to agree that the game ended in a position
@@ -1776,7 +2007,7 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
         }
       }
     }
-    else if(sgfGameEndedByResign || sgfGameEndedByTime) {
+    else if((sgfGameEndedByResign || sgfGameEndedByTime) && !rulesDisableValueTraining) {
       if(sgfGameWinner == P_WHITE) {
         valueTargetWeight = 2.0f * (float)std::max(0.0, whiteValueTargets[whiteValueTargets.size()-1].win - 0.5);
 
@@ -1833,6 +2064,11 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
       (void)sgfGameEndedByOther;
     }
 
+    // Everything in gogod is sketchy for value learning, due to the uneven mix of data
+    // and very different komis.
+    if(whatDataSource == "gogod") {
+      valueTargetWeight *= 0.2f;
+    }
 
     for(size_t m = 0; m<(int)policyTargets.size(); m++) {
       int turnIdx = (int)m;
