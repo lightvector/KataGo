@@ -122,6 +122,13 @@
 		E10ACAFD2928BBF00004AB17 /* CoreML.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = E1AD404F28E1D5A700E41968 /* CoreML.framework */; };
 		E12453D52A1CF0DE0062DF9C /* testbook.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E12453D42A1CF0DE0062DF9C /* testbook.cpp */; };
 		E12453D72A1D015E0062DF9C /* poswriter.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E12453D62A1D015E0062DF9C /* poswriter.cpp */; };
+		E12EC21A2B10D61E0024E274 /* coremlbackend.swift in Sources */ = {isa = PBXBuildFile; fileRef = E12EC2172B10D61E0024E274 /* coremlbackend.swift */; };
+		E12EC21B2B10D61E0024E274 /* coremlbackend.swift in Sources */ = {isa = PBXBuildFile; fileRef = E12EC2172B10D61E0024E274 /* coremlbackend.swift */; };
+		E12EC21C2B10D61E0024E274 /* metalbackend.swift in Sources */ = {isa = PBXBuildFile; fileRef = E12EC2182B10D61E0024E274 /* metalbackend.swift */; };
+		E12EC21D2B10D61E0024E274 /* metalbackend.swift in Sources */ = {isa = PBXBuildFile; fileRef = E12EC2182B10D61E0024E274 /* metalbackend.swift */; };
+		E12EC21E2B10D61E0024E274 /* coremlmodel.swift in Sources */ = {isa = PBXBuildFile; fileRef = E12EC2192B10D61E0024E274 /* coremlmodel.swift */; };
+		E12EC21F2B10D61E0024E274 /* coremlmodel.swift in Sources */ = {isa = PBXBuildFile; fileRef = E12EC2192B10D61E0024E274 /* coremlmodel.swift */; };
+		E12EC22E2B10E3310024E274 /* KataGoSwift.framework in CopyFiles */ = {isa = PBXBuildFile; fileRef = E1DACF4C2B08997300082FF7 /* KataGoSwift.framework */; };
 		E157FDD82AF7D1E500E25677 /* analysis.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E7B41A9FE4124FA1AB3FBEF1 /* analysis.cpp */; };
 		E157FDD92AF7D1E500E25677 /* analysisdata.cpp in Sources */ = {isa = PBXBuildFile; fileRef = BF423768A6B74FF18FDC44E7 /* analysisdata.cpp */; };
 		E157FDDA2AF7D1E500E25677 /* asyncbot.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F2D4BF5BF0CD446F80DFDACE /* asyncbot.cpp */; };
@@ -239,16 +246,9 @@
 		E157FE4D2AF7D2E800E25677 /* Metal.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = E1AD404928E1D59700E41968 /* Metal.framework */; };
 		E157FE4E2AF7D2ED00E25677 /* MetalPerformanceShadersGraph.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = E1AD404B28E1D59700E41968 /* MetalPerformanceShadersGraph.framework */; };
 		E157FE4F2AF7DA1600E25677 /* testnn.mm in Sources */ = {isa = PBXBuildFile; fileRef = E157FDCE2AF7CE2500E25677 /* testnn.mm */; };
-		E172E5072B0E352F0096D3D1 /* KataGoSwift.framework in CopyFiles */ = {isa = PBXBuildFile; fileRef = E1DACF4C2B08997300082FF7 /* KataGoSwift.framework */; };
 		E17D098C294D45CF005968E9 /* gputest.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E17D098A294D45CF005968E9 /* gputest.cpp */; };
-		E1DACF582B0899E100082FF7 /* coremlbackend.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1DACF552B0899E100082FF7 /* coremlbackend.swift */; };
-		E1DACF592B0899E100082FF7 /* coremlmodel.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1DACF562B0899E100082FF7 /* coremlmodel.swift */; };
-		E1DACF5A2B0899E100082FF7 /* metalbackend.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1DACF572B0899E100082FF7 /* metalbackend.swift */; };
 		E1DACF5D2B089A5400082FF7 /* KataGoSwift.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = E1DACF4C2B08997300082FF7 /* KataGoSwift.framework */; };
 		E1DACF652B089B5500082FF7 /* KataGoSwiftTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1DACF642B089B5500082FF7 /* KataGoSwiftTests.swift */; };
-		E1DACF6E2B089C0200082FF7 /* coremlbackend.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1DACF552B0899E100082FF7 /* coremlbackend.swift */; };
-		E1DACF6F2B089C0200082FF7 /* coremlmodel.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1DACF562B0899E100082FF7 /* coremlmodel.swift */; };
-		E1DACF702B089C0200082FF7 /* metalbackend.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1DACF572B0899E100082FF7 /* metalbackend.swift */; };
 		E1DACF732B089C7700082FF7 /* KataGoSwift.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = E1DACF4C2B08997300082FF7 /* KataGoSwift.framework */; };
 /* End PBXBuildFile section */
 
@@ -270,13 +270,13 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXCopyFilesBuildPhase section */
-		E172E5062B0E35210096D3D1 /* CopyFiles */ = {
+		E12EC22D2B10E3200024E274 /* CopyFiles */ = {
 			isa = PBXCopyFilesBuildPhase;
 			buildActionMask = 2147483647;
 			dstPath = ../Frameworks;
 			dstSubfolderSpec = 16;
 			files = (
-				E172E5072B0E352F0096D3D1 /* KataGoSwift.framework in CopyFiles */,
+				E12EC22E2B10E3310024E274 /* KataGoSwift.framework in CopyFiles */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -388,6 +388,11 @@
 		E10ACAF92928A8160004AB17 /* coremlbackend.h */ = {isa = PBXFileReference; indentWidth = 2; lastKnownFileType = sourcecode.c.h; name = coremlbackend.h; path = neuralnet/coremlbackend.h; sourceTree = "<group>"; tabWidth = 4; };
 		E12453D42A1CF0DE0062DF9C /* testbook.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = testbook.cpp; path = tests/testbook.cpp; sourceTree = "<group>"; };
 		E12453D62A1D015E0062DF9C /* poswriter.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = poswriter.cpp; path = dataio/poswriter.cpp; sourceTree = "<group>"; };
+		E12EC2172B10D61E0024E274 /* coremlbackend.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; name = coremlbackend.swift; path = neuralnet/coremlbackend.swift; sourceTree = "<group>"; };
+		E12EC2182B10D61E0024E274 /* metalbackend.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; name = metalbackend.swift; path = neuralnet/metalbackend.swift; sourceTree = "<group>"; };
+		E12EC2192B10D61E0024E274 /* coremlmodel.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; name = coremlmodel.swift; path = neuralnet/coremlmodel.swift; sourceTree = "<group>"; };
+		E12EC2242B10E0520024E274 /* coreml_analysis.cfg */ = {isa = PBXFileReference; lastKnownFileType = text; name = coreml_analysis.cfg; path = configs/misc/coreml_analysis.cfg; sourceTree = "<group>"; };
+		E12EC2252B10E0520024E274 /* coreml_example.cfg */ = {isa = PBXFileReference; lastKnownFileType = text; name = coreml_example.cfg; path = configs/misc/coreml_example.cfg; sourceTree = "<group>"; };
 		E13CF66228E1896C005CB016 /* coremlbackend.cpp */ = {isa = PBXFileReference; fileEncoding = 4; indentWidth = 2; lastKnownFileType = sourcecode.cpp.cpp; name = coremlbackend.cpp; path = neuralnet/coremlbackend.cpp; sourceTree = "<group>"; };
 		E157FDCC2AF7CE2300E25677 /* katagotest.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = katagotest.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		E157FDCE2AF7CE2500E25677 /* testnn.mm */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.objcpp; path = testnn.mm; sourceTree = "<group>"; };
@@ -400,9 +405,6 @@
 		E1AD404F28E1D5A700E41968 /* CoreML.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreML.framework; path = System/Library/Frameworks/CoreML.framework; sourceTree = SDKROOT; };
 		E1AD405128E1D75B00E41968 /* libz.tbd */ = {isa = PBXFileReference; lastKnownFileType = "sourcecode.text-based-dylib-definition"; name = libz.tbd; path = usr/lib/libz.tbd; sourceTree = SDKROOT; };
 		E1DACF4C2B08997300082FF7 /* KataGoSwift.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = KataGoSwift.framework; sourceTree = BUILT_PRODUCTS_DIR; };
-		E1DACF552B0899E100082FF7 /* coremlbackend.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; name = coremlbackend.swift; path = neuralnet/coremlbackend.swift; sourceTree = SOURCE_ROOT; };
-		E1DACF562B0899E100082FF7 /* coremlmodel.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; name = coremlmodel.swift; path = neuralnet/coremlmodel.swift; sourceTree = SOURCE_ROOT; };
-		E1DACF572B0899E100082FF7 /* metalbackend.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; name = metalbackend.swift; path = neuralnet/metalbackend.swift; sourceTree = SOURCE_ROOT; };
 		E1DACF622B089B5500082FF7 /* KataGoSwiftTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = KataGoSwiftTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		E1DACF642B089B5500082FF7 /* KataGoSwiftTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KataGoSwiftTests.swift; sourceTree = "<group>"; };
 		E3F8D82F94E14F11BA0F59E6 /* testscore.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = testscore.cpp; path = tests/testscore.cpp; sourceTree = SOURCE_ROOT; };
@@ -460,12 +462,12 @@
 		29C8B1F369034337B2CC96EF = {
 			isa = PBXGroup;
 			children = (
-				30DEE4A41280490EA8216883 /* KataGo */,
-				E1E29E1128F5B05300E73FF8 /* KataGoTest */,
-				E1DACF4D2B08997400082FF7 /* KataGoSwift */,
-				E1DACF632B089B5500082FF7 /* KataGoSwiftTests */,
-				8218F7988402482BAFDA7E88 /* Products */,
 				E1AD404828E1D59700E41968 /* Frameworks */,
+				30DEE4A41280490EA8216883 /* KataGo */,
+				E1DACF632B089B5500082FF7 /* KataGoSwiftTests */,
+				E1E29E1128F5B05300E73FF8 /* KataGoTest */,
+				8218F7988402482BAFDA7E88 /* Products */,
+				E12EC2232B10E01E0024E274 /* Resources */,
 			);
 			sourceTree = "<group>";
 		};
@@ -499,6 +501,15 @@
 			name = Products;
 			sourceTree = "<group>";
 		};
+		E12EC2232B10E01E0024E274 /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				E12EC2242B10E0520024E274 /* coreml_analysis.cfg */,
+				E12EC2252B10E0520024E274 /* coreml_example.cfg */,
+			);
+			name = Resources;
+			sourceTree = "<group>";
+		};
 		E1AD404828E1D59700E41968 /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
@@ -509,17 +520,6 @@
 				E1AD404B28E1D59700E41968 /* MetalPerformanceShadersGraph.framework */,
 			);
 			name = Frameworks;
-			sourceTree = "<group>";
-		};
-		E1DACF4D2B08997400082FF7 /* KataGoSwift */ = {
-			isa = PBXGroup;
-			children = (
-				E1DACF552B0899E100082FF7 /* coremlbackend.swift */,
-				E1DACF562B0899E100082FF7 /* coremlmodel.swift */,
-				E1DACF572B0899E100082FF7 /* metalbackend.swift */,
-			);
-			name = KataGoSwift;
-			path = xcode/KataGoSwift;
 			sourceTree = "<group>";
 		};
 		E1DACF632B089B5500082FF7 /* KataGoSwiftTests */ = {
@@ -559,6 +559,8 @@
 				23D034621365403182419780 /* config_parser.cpp */,
 				D49AE95F1DD947B5BFF58C1F /* contribute.cpp */,
 				E13CF66228E1896C005CB016 /* coremlbackend.cpp */,
+				E12EC2172B10D61E0024E274 /* coremlbackend.swift */,
+				E12EC2192B10D61E0024E274 /* coremlmodel.swift */,
 				71DC745C32B543C191262823 /* datetime.cpp */,
 				5D8F26726AAF403C833FBD7F /* desc.cpp */,
 				32DD1B600C014B49ADDB237E /* distributiontable.cpp */,
@@ -585,6 +587,7 @@
 				948AF9E88374487D85E846C2 /* match.cpp */,
 				BE7F7520CA15440EBDF0A21D /* md5.cpp */,
 				4845ACCEFC204BA89C033482 /* metalbackend.cpp */,
+				E12EC2182B10D61E0024E274 /* metalbackend.swift */,
 				64D3C3432AB3409C942F7A0E /* misc.cpp */,
 				DDCAE99038794BE8B4BB3962 /* modelversion.cpp */,
 				5185F4BC63B5490AAE4F37CB /* multithread.cpp */,
@@ -677,7 +680,7 @@
 			buildPhases = (
 				E10ACA7C2928A6D30004AB17 /* Sources */,
 				E10ACAEB2928A6D30004AB17 /* Frameworks */,
-				E172E5062B0E35210096D3D1 /* CopyFiles */,
+				E12EC22D2B10E3200024E274 /* CopyFiles */,
 			);
 			buildRules = (
 			);
@@ -1051,9 +1054,9 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				E1DACF582B0899E100082FF7 /* coremlbackend.swift in Sources */,
-				E1DACF5A2B0899E100082FF7 /* metalbackend.swift in Sources */,
-				E1DACF592B0899E100082FF7 /* coremlmodel.swift in Sources */,
+				E12EC21E2B10D61E0024E274 /* coremlmodel.swift in Sources */,
+				E12EC21C2B10D61E0024E274 /* metalbackend.swift in Sources */,
+				E12EC21A2B10D61E0024E274 /* coremlbackend.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1061,10 +1064,10 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				E1DACF6E2B089C0200082FF7 /* coremlbackend.swift in Sources */,
-				E1DACF6F2B089C0200082FF7 /* coremlmodel.swift in Sources */,
-				E1DACF702B089C0200082FF7 /* metalbackend.swift in Sources */,
+				E12EC21B2B10D61E0024E274 /* coremlbackend.swift in Sources */,
+				E12EC21D2B10D61E0024E274 /* metalbackend.swift in Sources */,
 				E1DACF652B089B5500082FF7 /* KataGoSwiftTests.swift in Sources */,
+				E12EC21F2B10D61E0024E274 /* coremlmodel.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1387,6 +1390,7 @@
 		E157FDD02AF7CE2500E25677 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
 				CLANG_ANALYZER_NONNULL = YES;
@@ -1434,6 +1438,7 @@
 		E157FDD12AF7CE2500E25677 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
 				CLANG_ANALYZER_NONNULL = YES;
@@ -1480,6 +1485,7 @@
 		E157FDD22AF7CE2500E25677 /* MinSizeRel */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
 				CLANG_ANALYZER_NONNULL = YES;
@@ -1526,6 +1532,7 @@
 		E157FDD32AF7CE2500E25677 /* RelWithDebInfo */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
 				CLANG_ANALYZER_NONNULL = YES;
