@@ -129,6 +129,10 @@
 		E12EC21E2B10D61E0024E274 /* coremlmodel.swift in Sources */ = {isa = PBXBuildFile; fileRef = E12EC2192B10D61E0024E274 /* coremlmodel.swift */; };
 		E12EC21F2B10D61E0024E274 /* coremlmodel.swift in Sources */ = {isa = PBXBuildFile; fileRef = E12EC2192B10D61E0024E274 /* coremlmodel.swift */; };
 		E12EC22E2B10E3310024E274 /* KataGoSwift.framework in CopyFiles */ = {isa = PBXBuildFile; fileRef = E1DACF4C2B08997300082FF7 /* KataGoSwift.framework */; };
+		E12EC2302B1237440024E274 /* parallel.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E12EC22F2B1237440024E274 /* parallel.cpp */; };
+		E12EC2312B1237440024E274 /* parallel.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E12EC22F2B1237440024E274 /* parallel.cpp */; };
+		E12EC2332B12375C0024E274 /* writetrainingdata.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E12EC2322B12375B0024E274 /* writetrainingdata.cpp */; };
+		E12EC2342B12375C0024E274 /* writetrainingdata.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E12EC2322B12375B0024E274 /* writetrainingdata.cpp */; };
 		E157FDD82AF7D1E500E25677 /* analysis.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E7B41A9FE4124FA1AB3FBEF1 /* analysis.cpp */; };
 		E157FDD92AF7D1E500E25677 /* analysisdata.cpp in Sources */ = {isa = PBXBuildFile; fileRef = BF423768A6B74FF18FDC44E7 /* analysisdata.cpp */; };
 		E157FDDA2AF7D1E500E25677 /* asyncbot.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F2D4BF5BF0CD446F80DFDACE /* asyncbot.cpp */; };
@@ -393,6 +397,8 @@
 		E12EC2192B10D61E0024E274 /* coremlmodel.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; name = coremlmodel.swift; path = neuralnet/coremlmodel.swift; sourceTree = "<group>"; };
 		E12EC2242B10E0520024E274 /* coreml_analysis.cfg */ = {isa = PBXFileReference; lastKnownFileType = text; name = coreml_analysis.cfg; path = configs/misc/coreml_analysis.cfg; sourceTree = "<group>"; };
 		E12EC2252B10E0520024E274 /* coreml_example.cfg */ = {isa = PBXFileReference; lastKnownFileType = text; name = coreml_example.cfg; path = configs/misc/coreml_example.cfg; sourceTree = "<group>"; };
+		E12EC22F2B1237440024E274 /* parallel.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = parallel.cpp; path = core/parallel.cpp; sourceTree = "<group>"; };
+		E12EC2322B12375B0024E274 /* writetrainingdata.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = writetrainingdata.cpp; path = command/writetrainingdata.cpp; sourceTree = "<group>"; };
 		E13CF66228E1896C005CB016 /* coremlbackend.cpp */ = {isa = PBXFileReference; fileEncoding = 4; indentWidth = 2; lastKnownFileType = sourcecode.cpp.cpp; name = coremlbackend.cpp; path = neuralnet/coremlbackend.cpp; sourceTree = "<group>"; };
 		E157FDCC2AF7CE2300E25677 /* katagotest.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = katagotest.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		E157FDCE2AF7CE2500E25677 /* testnn.mm */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.objcpp; path = testnn.mm; sourceTree = "<group>"; };
@@ -595,6 +601,7 @@
 				92C3AF4C79ED491988E9C5BC /* nneval.cpp */,
 				D41000BDB70543A4820D445A /* nninputs.cpp */,
 				4F20754875D24724A133A9AE /* numpywrite.cpp */,
+				E12EC22F2B1237440024E274 /* parallel.cpp */,
 				6A5C095FD31A4636994B5E5A /* patternbonustable.cpp */,
 				3FBACE432776421CAEDF6786 /* play.cpp */,
 				7A57BA046921422DB33C7614 /* playsettings.cpp */,
@@ -657,6 +664,7 @@
 				279C4ABB40FE447483F0F975 /* tinymodeldata.cpp */,
 				6F9788817DEA4417A321C3A0 /* trainingwrite.cpp */,
 				A241D7415C384D3A81BF73AC /* tune.cpp */,
+				E12EC2322B12375B0024E274 /* writetrainingdata.cpp */,
 			);
 			name = "Source Files";
 			sourceTree = "<group>";
@@ -837,12 +845,14 @@
 				E10ACA8E2928A6D30004AB17 /* tune.cpp in Sources */,
 				E10ACA8F2928A6D30004AB17 /* base64.cpp in Sources */,
 				E10ACA902928A6D30004AB17 /* bsearch.cpp in Sources */,
+				E12EC2332B12375C0024E274 /* writetrainingdata.cpp in Sources */,
 				E10ACA912928A6D30004AB17 /* commandloop.cpp in Sources */,
 				E10ACA922928A6D30004AB17 /* config_parser.cpp in Sources */,
 				E10ACA932928A6D30004AB17 /* datetime.cpp in Sources */,
 				E10ACA942928A6D30004AB17 /* elo.cpp in Sources */,
 				E10ACA952928A6D30004AB17 /* fancymath.cpp in Sources */,
 				E10ACA962928A6D30004AB17 /* fileutils.cpp in Sources */,
+				E12EC2302B1237440024E274 /* parallel.cpp in Sources */,
 				E10ACA972928A6D30004AB17 /* global.cpp in Sources */,
 				E10ACA982928A6D30004AB17 /* hash.cpp in Sources */,
 				E10ACA992928A6D30004AB17 /* logger.cpp in Sources */,
@@ -966,6 +976,7 @@
 				E157FDF52AF7D1E600E25677 /* gputest.cpp in Sources */,
 				E157FDF62AF7D1E600E25677 /* graphhash.cpp in Sources */,
 				E157FDF72AF7D1E600E25677 /* gtp.cpp in Sources */,
+				E12EC2342B12375C0024E274 /* writetrainingdata.cpp in Sources */,
 				E157FDF82AF7D1E600E25677 /* gtpconfig.cpp in Sources */,
 				E157FDF92AF7D1E600E25677 /* hash.cpp in Sources */,
 				E157FDFA2AF7D1E600E25677 /* homedata.cpp in Sources */,
@@ -978,6 +989,7 @@
 				E157FE012AF7D1E600E25677 /* match.cpp in Sources */,
 				E157FE022AF7D1E600E25677 /* md5.cpp in Sources */,
 				E157FE032AF7D1E600E25677 /* metalbackend.cpp in Sources */,
+				E12EC2312B1237440024E274 /* parallel.cpp in Sources */,
 				E157FE052AF7D1E600E25677 /* misc.cpp in Sources */,
 				E157FE062AF7D1E600E25677 /* modelversion.cpp in Sources */,
 				E157FE072AF7D1E600E25677 /* multithread.cpp in Sources */,
