@@ -181,6 +181,7 @@ add_executable(katago
   core/makedir.cpp
   core/md5.cpp
   core/multithread.cpp
+  core/parallel.cpp
   core/rand.cpp
   core/rand_helpers.cpp
   core/sha2.cpp
@@ -276,6 +277,7 @@ add_executable(katago
   command/sandbox.cpp
   command/selfplay.cpp
   command/tune.cpp
+  command/writetrainingdata.cpp
   main.cpp
   )
 

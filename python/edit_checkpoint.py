@@ -30,7 +30,7 @@ if output_json_to is not None:
         config = data["config"] if "config" in data else None,
     )
     with open(output_json_to,"w") as f:
-        json.dump(data,f,indent=2)
+        json.dump(data,f,indent=2,default=repr)
     print(f"Dumped to {output_json_to}")
 
 elif overwrite_checkpoint_from_json:
@@ -55,4 +55,4 @@ else:
         train_state = data["train_state"],
         config = data["config"] if "config" in data else None,
     )
-    print(json.dumps(data_to_write,indent=2))
+    print(json.dumps(data_to_write,indent=2,default=repr))

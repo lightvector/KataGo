@@ -44,6 +44,8 @@ struct SidePosition {
   float targetWeight;
   float targetWeightUnrounded;
   int numNeuralNetChangesSoFar; //Number of neural net changes this game before the creation of this side position
+  Player playoutDoublingAdvantagePla;
+  double playoutDoublingAdvantage;
 
   SidePosition();
   SidePosition(const Board& board, const BoardHistory& hist, Player pla, int numNeuralNetChangesSoFar);
@@ -171,7 +173,7 @@ struct TrainingWriteBuffers {
   //C32: Search Entropy (for statistical purposes)
   //C33: Weight assigned to the future position targets valueTargetsNCHW C1-C2
   //C34: Weight assigned to the area/territory target valueTargetsNCHW C4
-  //C35: Unused
+  //C35: 1.0 minus weight assigned to value targets
 
   //C36-40: Precomputed mask values indicating if we should use historical moves 1-5, if we desire random history masking.
   //1 means use, 0 means don't use.
@@ -205,9 +207,9 @@ struct TrainingWriteBuffers {
   //C58: Raw scoremean from neural net
   //C59: Policy prior entropy
   //C60: Number of visits in the search generating this row, prior to any reduction.
-  //C61: Number of bonus points the player to move will get onward from this point in the game
-  //C62: Unused
-  //C63: Data format version, currently always equals 1.
+  //C61: Number of bonus points the player to move will get onward from this point in the game. Reliable only if C27 and/or C62 (V2 and later), otherwise may make no sense.
+  //C62: V1: unused. V2: 1 if the game was finished and not a side position.
+  //C63: Data format version, currently always equals 2.
 
   NumpyBuffer<float> globalTargetsNC;
 
@@ -236,6 +238,8 @@ struct TrainingWriteBuffers {
 
   void addRow(
     const Board& board, const BoardHistory& hist, Player nextPlayer,
+    const BoardHistory& startHist,
+    const BoardHistory& actualGameEndHist,
     int turnAfterStart,
     float targetWeight,
     int64_t unreducedNumVisits,
@@ -246,6 +250,7 @@ struct TrainingWriteBuffers {
     double searchEntropy,
     const std::vector<ValueTargets>& whiteValueTargets,
     int whiteValueTargetsIdx, //index in whiteValueTargets corresponding to this turn.
+    float valueTargetWeight,
     const NNRawStats& nnRawStats,
     const Board* finalBoard,
     Color* finalFullArea,
@@ -254,7 +259,14 @@ struct TrainingWriteBuffers {
     const std::vector<Board>* posHistForFutureBoards, //can be null
     bool isSidePosition,
     int numNeuralNetsBehindLatest,
-    const FinishedGameData& data,
+    double drawEquivalentWinsForWhite,
+    Player playoutDoublingAdvantagePla,
+    double playoutDoublingAdvantage,
+    Hash128 gameHash,
+    const std::vector<ChangedNeuralNet*>& changedNeuralNets,
+    bool hitTurnLimit,
+    int numExtraBlack,
+    int mode,
     Rand& rand
   );
 
