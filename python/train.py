@@ -31,7 +31,7 @@ from torch.optim.swa_utils import AveragedModel
 from torch.cuda.amp import GradScaler, autocast
 
 import modelconfigs
-from model_pytorch import Model
+from model_pytorch import Model, ExtraOutputs, MetadataEncoder
 from metrics_pytorch import Metrics
 import load_model
 import data_processing_pytorch
@@ -1026,17 +1026,25 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
                 model_config=model_config
             ):
                 optimizer.zero_grad(set_to_none=True)
+                extra_outputs = None
+                if raw_model.get_has_metadata_encoder():
+                    extra_outputs = ExtraOutputs([MetadataEncoder.OUTMEAN_KEY,MetadataEncoder.OUTLOGVAR_KEY])
+
                 if use_fp16:
                     with autocast():
-                        model_outputs = ddp_model(batch["binaryInputNCHW"],batch["globalInputNC"])
+                        model_outputs = ddp_model(batch["binaryInputNCHW"],batch["globalInputNC"],extra_outputs=extra_outputs)
                     model_outputs = raw_model.float32ify_output(model_outputs)
                 else:
-                    model_outputs = ddp_model(batch["binaryInputNCHW"],batch["globalInputNC"])
+                    model_outputs = ddp_model(batch["binaryInputNCHW"],batch["globalInputNC"],extra_outputs=extra_outputs)
+
+                # TODO
+                meta_encoder_loss_scale = 0.01
 
                 postprocessed = raw_model.postprocess_output(model_outputs)
                 metrics = metrics_obj.metrics_dict_batchwise(
                     raw_model,
                     postprocessed,
+                    extra_outputs,
                     batch,
                     is_training=True,
                     soft_policy_weight_scale=soft_policy_weight_scale,
@@ -1044,6 +1052,7 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
                     td_value_loss_scales=td_value_loss_scales,
                     main_loss_scale=main_loss_scale,
                     intermediate_loss_scale=intermediate_loss_scale,
+                    meta_encoder_loss_scale=meta_encoder_loss_scale,
                 )
 
                 # DDP averages loss across instances, so to preserve LR as per-sample lr, we scale by world size.

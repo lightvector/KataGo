@@ -17,7 +17,7 @@ import torch.nn
 from torch.optim.swa_utils import AveragedModel
 
 import modelconfigs
-from model_pytorch import Model, ExtraOutputs
+from model_pytorch import Model, ExtraOutputs, MetadataEncoder
 from metrics_pytorch import Metrics
 import data_processing_pytorch
 from load_model import load_model
@@ -205,6 +205,8 @@ def main(args):
             end = torch.cuda.Event(enable_timing=True)
 
             extra_outputs = ExtraOutputs(norm_layer_names)
+            if model.get_has_metadata_encoder():
+                extra_outputs.add_requested([MetadataEncoder.OUTMEAN_KEY,MetadataEncoder.OUTLOGVAR_KEY])
 
             start.record()
             if swa_model is not None:
@@ -224,6 +226,7 @@ def main(args):
             metrics = metrics_obj.metrics_dict_batchwise(
                 model,
                 postprocessed,
+                extra_outputs,
                 batch,
                 is_training=False,
                 soft_policy_weight_scale=soft_policy_weight_scale,
@@ -231,6 +234,7 @@ def main(args):
                 td_value_loss_scales=td_value_loss_scales,
                 main_loss_scale=1.0,
                 intermediate_loss_scale=None,
+                meta_encoder_loss_scale=0.0,
             )
             metrics = detensorify_metrics(metrics)
 

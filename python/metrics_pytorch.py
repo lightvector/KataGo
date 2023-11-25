@@ -1,7 +1,7 @@
 from typing import Any, Dict, List
 import math
 
-from model_pytorch import EXTRA_SCORE_DISTR_RADIUS, Model, compute_gain
+from model_pytorch import EXTRA_SCORE_DISTR_RADIUS, Model, compute_gain, ExtraOutputs, MetadataEncoder
 
 import torch
 import torch.nn
@@ -362,6 +362,7 @@ class Metrics:
         self,
         raw_model,
         model_output_postprocessed_byheads,
+        extra_outputs,
         batch,
         is_training,
         soft_policy_weight_scale,
@@ -369,6 +370,7 @@ class Metrics:
         td_value_loss_scales,
         main_loss_scale,
         intermediate_loss_scale,
+        meta_encoder_loss_scale,
     ):
         results = self.metrics_dict_batchwise_single_heads_output(
             raw_model,
@@ -407,8 +409,36 @@ class Metrics:
                         results["I"+key] = value
                 results["loss_sum"] = results["loss_sum"] + intermediate_loss_scale * iresults["loss_sum"]
 
+            if raw_model.get_has_metadata_encoder():
+                meta_results = self.metrics_dict_meta_encoder(meta_encoder_loss_scale, extra_outputs)
+                for key,value in meta_results.items():
+                    if key != "loss_sum":
+                        results["I"+key] = value
+                results["loss_sum"] = results["loss_sum"] + meta_results["loss_sum"]
+
         return results
 
+    def metrics_dict_meta_encoder(
+        self,
+        meta_encoder_loss_scale,
+        extra_outputs,
+    ):
+        outmean = extra_outputs.returned[MetadataEncoder.OUTMEAN_KEY]
+        outlogvar = extra_outputs.returned[MetadataEncoder.OUTLOGVAR_KEY]
+
+        loss_meta_kl_unreduced = 0.5 * torch.sum(
+            torch.square(outmean)
+            + torch.exp(outlogvar)
+            - logvar
+            - 1.0
+            , dim=1
+        )
+        loss_meta_kl = torch.sum(loss_meta_kl_unreduced)
+        results = {
+            "metaklloss_sum": loss_meta_kl,
+            "loss_sum": meta_encoder_loss_scale * loss_meta_kl,
+        }
+        return results
 
     def metrics_dict_batchwise_single_heads_output(
         self,

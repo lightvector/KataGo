@@ -18,6 +18,9 @@ class ExtraOutputs:
         self.available: List[str] = []
         self.returned: Dict[str,torch.Tensor] = {}
 
+    def add_requested(self, requested: List[str]):
+        self.requested = self.requested.union(set(requested))
+
     def report(self, name: str, value: torch.Tensor):
         self.available.append(name)
         if name in self.requested:
@@ -1379,6 +1382,72 @@ class ValueHead(torch.nn.Module):
             out_scorebelief_logprobs,
         )
 
+class MetadataEncoder(torch.nn.Module):
+    def __init__(self, config: modelconfigs.ModelConfig, activation):
+        super(MetadataEncoder, self).__init__()
+
+        self.config = config
+        self.activation = activation
+
+        self.c_input = 192
+        self.c_internal = self.config["metadata_encoder"]["internal_num_channels"]
+        self.c_output = self.config["metadata_encoder"]["output_num_channels"]
+        self.c_trunk = self.config["trunk_num_channels"]
+
+        self.linear1 = torch.nn.Linear(c_input, c_internal, bias=True)
+        self.act1 = act(self.activation, inplace=True)
+        self.linear2 = torch.nn.Linear(c_internal, c_internal, bias=True)
+        self.act2 = act(self.activation, inplace=True)
+        self.linear3_mean = torch.nn.Linear(c_internal, c_output, bias=False)
+        self.linear3_logvar = torch.nn.Linear(c_internal, c_output, bias=False)
+
+        self.linear_output_to_trunk = torch.nn.Linear(c_output, c_trunk, bias=False)
+
+    def initialize(self):
+        with torch.no_grad():
+            init_weights(self.linear1.weight, self.activation, scale=1.0)
+            init_weights(self.linear1.bias, self.activation, scale=1.0, fan_tensor=self.linear1.weight)
+            init_weights(self.linear2.weight, self.activation, scale=1.0)
+            init_weights(self.linear2.bias, self.activation, scale=1.0, fan_tensor=self.linear2.weight)
+            init_weights(self.linear3_mean.weight, self.activation, scale=1.0)
+            init_weights(self.linear3_logvar.weight, self.activation, scale=1.0)
+            init_weights(self.linear_output_to_trunk.weight, self.activation, scale=1.0)
+
+    def add_reg_dict(self, reg_dict:Dict[str,List]):
+        reg_dict["output"].append(self.linear_1.weight)
+        reg_dict["output_noreg"].append(self.linear_1.bias)
+        reg_dict["output"].append(self.linear_2.weight)
+        reg_dict["output_noreg"].append(self.linear_2.bias)
+        reg_dict["output"].append(self.linear_3_mean.weight)
+        reg_dict["output"].append(self.linear_3_logvar.weight)
+        reg_dict["normal"].append(self.linear_output_to_trunk.weight)
+
+    @classvar
+    OUTMEAN_KEY = "meta_encoder.outmean"
+    OUTLOGVAR_KEY = "meta_encoder.outlogvar"
+
+    def forward(input_meta):
+        x = input_meta
+        x = self.linear1(x)
+        x = self.act1(x)
+        x = self.linear2(x)
+        x = self.act2(x)
+        outmean = self.linear3_mean(x)
+        outlogvar = self.linear3_logvar(x)
+
+        if extra_outputs is not None:
+            extra_outputs.report(MetadataEncoder.OUTMEAN_KEY, outmean)
+            extra_outputs.report(MetadataEncoder.OUTLOGVAR_KEY, outlogvar)
+
+        if self.training:
+            randnormals = torch.randn(outmean.shape, dtype=torch.float32, device=outmean.device)
+            out = outmean + randnormals * torch.exp(outlogvar)
+        else:
+            out = outmean
+
+        return self.linear_output_to_trunk(out)
+
+
 class Model(torch.nn.Module):
     def __init__(self, config: modelconfigs.ModelConfig, pos_len: int):
         super(Model, self).__init__()
@@ -1432,6 +1501,11 @@ class Model(torch.nn.Module):
         else:
             self.conv_spatial = torch.nn.Conv2d(22, self.c_trunk, kernel_size=3, padding="same", bias=False)
         self.linear_global = torch.nn.Linear(19, self.c_trunk, bias=False)
+
+        if "metadata_encoder" in config and config["metadata_encoder"] is not None:
+            self.metadata_encoder = MetadataEncoder(config)
+        else:
+            self.metadata_encoder = None
 
         self.bin_input_shape = [22, pos_len, pos_len]
         self.global_input_shape = [19]
@@ -1571,6 +1645,9 @@ class Model(torch.nn.Module):
             init_weights(self.conv_spatial.weight, self.activation, scale=spatial_scale)
             init_weights(self.linear_global.weight, self.activation, scale=global_scale)
 
+            if self.metadata_encoder is not None:
+                self.metadata_encoder.initialize()
+
             if self.norm_kind == "fixup":
                 fixup_scale = 1.0 / math.sqrt(self.num_total_blocks)
                 for block in self.blocks:
@@ -1594,6 +1671,8 @@ class Model(torch.nn.Module):
 
     def get_has_intermediate_head(self) -> bool:
         return self.has_intermediate_head
+    def get_has_metadata_encoder(self) -> bool:
+        return self.metadata_encoder is not None
 
     def add_reg_dict(self, reg_dict:Dict[str,List]):
         reg_dict["normal"] = []
@@ -1604,6 +1683,8 @@ class Model(torch.nn.Module):
 
         reg_dict["normal"].append(self.conv_spatial.weight)
         reg_dict["normal"].append(self.linear_global.weight)
+        if self.metadata_encoder is not None:
+            self.metadata_encoder.add_reg_dict(reg_dict)
         for block in self.blocks:
             block.add_reg_dict(reg_dict)
         self.norm_trunkfinal.add_reg_dict(reg_dict)
@@ -1641,7 +1722,13 @@ class Model(torch.nn.Module):
     # The outer tuple indexes different sets of heads, such as if the net also computes intermediate heads.
     #   0 is the main output, 1 is intermediate.
     # The inner tuple ranges over the outputs of a set of heads (policy, value, etc).
-    def forward(self, input_spatial, input_global, extra_outputs: Optional[ExtraOutputs] = None):
+    def forward(
+        self,
+        input_spatial,
+        input_global,
+        input_meta = None,
+        extra_outputs: Optional[ExtraOutputs] = None,
+    ):
         # float_formatter = "{:.3f}".format
         # np.set_printoptions(formatter={'float_kind':float_formatter}, threshold=1000000, linewidth=10000)
         if extra_outputs is None:
@@ -1653,7 +1740,14 @@ class Model(torch.nn.Module):
 
         x_spatial = self.conv_spatial(input_spatial)
         x_global = self.linear_global(input_global).unsqueeze(-1).unsqueeze(-1)
+
         out = x_spatial + x_global
+
+        if self.metadata_encoder is not None:
+            assert input_meta is not None
+            x_meta = self.metadata_encoder.forward(input_meta)
+            out = out + x_meta.unsqueeze(-1).unsqueeze(-1)
+
         # print("TENSOR BEFORE TRUNK")
         # print(out)
 
