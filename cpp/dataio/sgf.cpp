@@ -357,31 +357,44 @@ XYSize Sgf::getXYSize() const {
     );
   return XYSize(xSize,ySize);
 }
-
-float Sgf::getKomi() const {
+float Sgf::getKomiOrFail() const {
   checkNonEmpty(nodes);
+  return nodes[0]->getKomiOrFail();
+}
 
-  //Default, if SGF doesn't specify
-  if(!nodes[0]->hasProperty("KM"))
-    return 7.5f;
+float Sgf::getKomiOrDefault(float defaultKomi) const {
+  checkNonEmpty(nodes);
+  return nodes[0]->getKomiOrDefault(defaultKomi);
+}
+
+float SgfNode::getKomiOrFail() const {
+  if(!hasProperty("KM"))
+    propertyFail("Sgf does not specify komi");
+  return getKomiOrDefault(0.0f);
+}
+
+float SgfNode::getKomiOrDefault(float defaultKomi) const {
+   //Default, if SGF doesn't specify
+  if(!hasProperty("KM"))
+    return defaultKomi;
 
   float komi;
-  bool suc = Global::tryStringToFloat(nodes[0]->getSingleProperty("KM"), komi);
+  bool suc = Global::tryStringToFloat(getSingleProperty("KM"), komi);
   if(!suc)
     propertyFail("Could not parse komi in sgf");
 
   if(!Rules::komiIsIntOrHalfInt(komi)) {
     //Hack - if the komi is a quarter integer and it looks like a Chinese GoGoD file, then double komi and accept
-    if(Rules::komiIsIntOrHalfInt(komi*2.0f) && nodes[0]->hasProperty("US") && nodes[0]->hasProperty("RU") &&
-       Global::isPrefix(nodes[0]->getSingleProperty("US"),"GoGoD") &&
-       Global::toLower(nodes[0]->getSingleProperty("RU")) == "chinese")
+    if(Rules::komiIsIntOrHalfInt(komi*2.0f) && hasProperty("US") && hasProperty("RU") &&
+       Global::isPrefix(getSingleProperty("US"),"GoGoD") &&
+       Global::toLower(getSingleProperty("RU")) == "chinese")
       komi *= 2.0f;
     else
       propertyFail("Komi in sgf is not integer or half-integer");
   }
 
   //Hack - check for foxwq sgfs with weird komis
-  if(nodes[0]->hasProperty("AP") && contains(nodes[0]->getProperties("AP"),"foxwq")) {
+  if(hasProperty("AP") && contains(getProperties("AP"),"foxwq")) {
     if(komi == 550)
       komi = 5.5f;
     else if(komi == 325 || komi == 650)
@@ -422,8 +435,7 @@ bool Sgf::hasRules() const {
 Rules Sgf::getRulesOrFail() const {
   checkNonEmpty(nodes);
   Rules rules = nodes[0]->getRulesFromRUTagOrFail();
-  //In SGF files the komi comes from the KM tag.
-  rules.komi = getKomi();
+  rules.komi = getKomiOrFail();
   return rules;
 }
 
@@ -1386,7 +1398,6 @@ CompactSgf::CompactSgf(const Sgf* sgf)
   xSize = size.x;
   ySize = size.y;
   depth = sgf->depth();
-  komi = sgf->getKomi();
   hash = sgf->hash;
 
   sgf->getPlacements(placements, xSize, ySize);
@@ -1411,7 +1422,7 @@ CompactSgf::CompactSgf(Sgf&& sgf)
   xSize = size.x;
   ySize = size.y;
   depth = sgf.depth();
-  komi = sgf.getKomi();
+
   hash = sgf.hash;
 
   sgf.getPlacements(placements, xSize, ySize);
@@ -1480,35 +1491,65 @@ bool CompactSgf::hasRules() const {
 
 Rules CompactSgf::getRulesOrFail() const {
   Rules rules = rootNode.getRulesFromRUTagOrFail();
-  rules.komi = komi;
+  rules.komi = rootNode.getKomiOrFail();
   return rules;
 }
 
 Rules CompactSgf::getRulesOrFailAllowUnspecified(const Rules& defaultRules) const {
-  //But still carry over the komi no matter what!
-  Rules rules = defaultRules;
-  rules.komi = komi;
+  Rules rules;
+  if(!hasRules())
+    rules = defaultRules;
+  else
+    rules = rootNode.getRulesFromRUTagOrFail();
 
-  if(!hasRules()) {
-    return rules;
-  }
-  return getRulesOrFail();
+  if(rootNode.hasProperty("KM"))
+    rules.komi = rootNode.getKomiOrFail();
+  return rules;
 }
 
 Rules CompactSgf::getRulesOrWarn(const Rules& defaultRules, std::function<void(const string& msg)> f) const {
-  //But still carry over the komi no matter what!
-  Rules rules = defaultRules;
-  rules.komi = komi;
-
   if(!hasRules()) {
-    f("Sgf has no rules, using default rules: " + rules.toString());
-    return rules;
+    Rules rules = defaultRules;
+    if(rootNode.hasProperty("KM")) {
+      try {
+        rules.komi = rootNode.getKomiOrFail();
+      }
+      catch(const std::exception& e) {
+        f("Sgf has no rules, also there was an error parsing komi, using default rules: " + rules.toString());
+        return rules;
+      }
+      f("Sgf has no rules, using default rules with SGF-specified komi: " + rules.toString());
+      return rules;
+    }
+    else {
+      f("Sgf has no rules or komi, using default rules: " + rules.toString());
+      return rules;
+    }
   }
+
+  Rules rules;
   try {
-    return getRulesOrFail();
+    rules = rootNode.getRulesFromRUTagOrFail();
   }
   catch(const std::exception& e) {
+    rules = defaultRules;
+    if(rootNode.hasProperty("KM")) {
+      try {
+        rules.komi = rootNode.getKomiOrFail();
+      }
+      catch(const std::exception&) {}
+    }
     f("WARNING: using default rules " + rules.toString() + " because could not parse sgf rules: " + e.what());
+    return rules;
+  }
+
+  if(rootNode.hasProperty("KM")) {
+    try {
+      rules.komi = rootNode.getKomiOrFail();
+    }
+    catch(const std::exception& e) {
+      f("There was an error parsing komi, using default komi with rules: " + rules.toString());
+    }
   }
   return rules;
 }

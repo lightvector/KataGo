@@ -13,12 +13,14 @@ from threading import Thread
 import sgfmill
 import sgfmill.boards
 import sgfmill.ascii_boards
-from typing import Tuple, List, Optional, Union, Literal
+from typing import Tuple, List, Optional, Union, Literal, Any, Dict
 
 Color = Union[Literal["b"],Literal["w"]]
-Move = Union[Literal["pass"],Tuple[int,int]]
+Move = Union[None,Literal["pass"],Tuple[int,int]]
 
 def sgfmill_to_str(move: Move) -> str:
+    if move is None:
+        return "pass"
     if move == "pass":
         return "pass"
     (y,x) = move
@@ -26,10 +28,10 @@ def sgfmill_to_str(move: Move) -> str:
 
 class KataGo:
 
-    def __init__(self, katago_path: str, config_path: str, model_path: str):
+    def __init__(self, katago_path: str, config_path: str, model_path: str, additional_args: List[str] = []):
         self.query_counter = 0
         katago = subprocess.Popen(
-            [katago_path, "analysis", "-config", config_path, "-model", model_path],
+            [katago_path, "analysis", "-config", config_path, "-model", model_path, *additional_args],
             stdin=subprocess.PIPE,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
@@ -71,7 +73,9 @@ class KataGo:
         query["includePolicy"] = True
         if max_visits is not None:
             query["maxVisits"] = max_visits
+        return self.query_raw(query)
 
+    def query_raw(self, query: Dict[str,Any]):
         self.katago.stdin.write((json.dumps(query) + "\n").encode())
         self.katago.stdin.flush()
 

@@ -604,6 +604,7 @@ int MainCmds::samplesgfs(const vector<string>& args) {
   string valueFluctuationModelFile;
   double valueFluctuationTurnScale;
   double valueFluctuationMaxWeight;
+  bool valueFluctuationMakeKomiFair;
 
   int minMinRank;
   int minMinRating;
@@ -641,6 +642,7 @@ int MainCmds::samplesgfs(const vector<string>& args) {
     TCLAP::ValueArg<string> valueFluctuationModelFileArg("","value-fluctuation-model","Upweight positions prior to value fluctuations",false,string(),"MODELFILE");
     TCLAP::ValueArg<double> valueFluctuationTurnScaleArg("","value-fluctuation-turn-scale","How much prior on average",false,1.0,"AVGTURNS");
     TCLAP::ValueArg<double> valueFluctuationMaxWeightArg("","value-fluctuation-max-weight","",false,10.0,"MAXWEIGHT");
+    TCLAP::SwitchArg valueFluctuationMakeKomiFairArg("","value-fluctuation-make-komi-fair","");
     TCLAP::ValueArg<int> minMinRankArg("","min-min-rank","Require both players in a game to have rank at least this",false,Sgf::RANK_UNKNOWN,"INT");
     TCLAP::ValueArg<int> minMinRatingArg("","min-min-rating","Require both players in a game to have rating at least this",false,-1000000000,"INT");
     TCLAP::ValueArg<string> requiredPlayerNameArg("","required-player-name","Require player making the move to have this name",false,string(),"NAME");
@@ -673,6 +675,7 @@ int MainCmds::samplesgfs(const vector<string>& args) {
     cmd.add(valueFluctuationModelFileArg);
     cmd.add(valueFluctuationTurnScaleArg);
     cmd.add(valueFluctuationMaxWeightArg);
+    cmd.add(valueFluctuationMakeKomiFairArg);
     cmd.add(minMinRankArg);
     cmd.add(minMinRatingArg);
     cmd.add(requiredPlayerNameArg);
@@ -704,6 +707,7 @@ int MainCmds::samplesgfs(const vector<string>& args) {
     valueFluctuationModelFile = valueFluctuationModelFileArg.getValue();
     valueFluctuationTurnScale = valueFluctuationTurnScaleArg.getValue();
     valueFluctuationMaxWeight = valueFluctuationMaxWeightArg.getValue();
+    valueFluctuationMakeKomiFair = valueFluctuationMakeKomiFairArg.getValue();
     minMinRank = minMinRankArg.getValue();
     minMinRating = minMinRatingArg.getValue();
     requiredPlayerName = requiredPlayerNameArg.getValue();
@@ -791,7 +795,7 @@ int MainCmds::samplesgfs(const vector<string>& args) {
       return false;
     if(sgf->depth() > maxDepth)
       return false;
-    if(std::fabs(sgf->getKomi()) > maxKomi)
+    if(std::fabs(sgf->getKomiOrDefault(7.5f)) > maxKomi)
       return false;
     if(minMinRank != Sgf::RANK_UNKNOWN) {
       if(sgf->getRank(P_BLACK) < minMinRank || sgf->getRank(P_WHITE) < minMinRank)
@@ -903,6 +907,16 @@ int MainCmds::samplesgfs(const vector<string>& args) {
       BoardHistory hist;
       Rules rules = compactSgf.getRulesOrFailAllowUnspecified(Rules::getSimpleTerritory());
       compactSgf.setupInitialBoardAndHist(rules, board, nextPla, hist);
+
+      if(valueFluctuationMakeKomiFair) {
+        Rand rand;
+        string searchRandSeed = Global::uint64ToString(rand.nextUInt64());
+        SearchParams params = SearchParams::basicDecentParams();
+        Search* search = new Search(params,valueFluctuationNNEval,&logger,searchRandSeed);
+        OtherGameProperties otherGameProps;
+        int64_t numVisits = 30;
+        PlayUtils::adjustKomiToEven(search, search, board, hist, nextPla, numVisits, otherGameProps, rand);
+      }
 
       const bool preventEncore = true;
       const vector<Move>& sgfMoves = compactSgf.moves;
@@ -1444,7 +1458,7 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
       return false;
     if(sgf->depth() > maxDepth)
       return false;
-    if(std::fabs(sgf->getKomi()) > maxKomi)
+    if(std::fabs(sgf->getKomiOrDefault(7.5f)) > maxKomi)
       return false;
     if(minMinRank != Sgf::RANK_UNKNOWN) {
       if(sgf->getRank(P_BLACK) < minMinRank && sgf->getRank(P_WHITE) < minMinRank)
@@ -2411,6 +2425,7 @@ int MainCmds::viewstartposes(const vector<string>& args) {
   vector<string> startPosesFiles;
   double minWeight;
   int idxToView;
+  bool checkLegality;
   try {
     KataGoCommandLine cmd("View startposes");
     cmd.addConfigFileArg("","",false);
@@ -2420,13 +2435,16 @@ int MainCmds::viewstartposes(const vector<string>& args) {
     TCLAP::MultiArg<string> startPosesFileArg("","start-poses-file","Startposes file",true,"DIR");
     TCLAP::ValueArg<double> minWeightArg("","min-weight","Min weight of startpos to view",false,0.0,"WEIGHT");
     TCLAP::ValueArg<int> idxArg("","idx","Index of startpos to view in file",false,-1,"IDX");
+    TCLAP::SwitchArg checkLegalityArg("","check-legality","Print startposes that are illegal or that have illegal hints");
     cmd.add(startPosesFileArg);
     cmd.add(minWeightArg);
     cmd.add(idxArg);
+    cmd.add(checkLegalityArg);
     cmd.parseArgs(args);
     startPosesFiles = startPosesFileArg.getValue();
     minWeight = minWeightArg.getValue();
     idxToView = idxArg.getValue();
+    checkLegality = checkLegalityArg.getValue();
 
     cmd.getConfigAllowEmpty(cfg);
     if(cfg.getFileName() != "")
@@ -2440,7 +2458,10 @@ int MainCmds::viewstartposes(const vector<string>& args) {
   Rand rand;
 
   const bool logToStdoutDefault = true;
-  Logger logger(&cfg, logToStdoutDefault);
+  const bool logToStderrDefault = false;
+  const bool logTimeDefault = true;
+  const bool logConfigContents = cfg.getFileName() != "";
+  Logger logger(&cfg, logToStdoutDefault, logToStderrDefault, logTimeDefault, logConfigContents);
 
   Rules rules;
   AsyncBot* bot = NULL;
@@ -2515,17 +2536,19 @@ int MainCmds::viewstartposes(const vector<string>& args) {
       pla = getOpp(startPos.moves[i].pla);
     }
     if(!allLegal) {
-      throw StringError("Illegal move in startpos: " + Sgf::PositionSample::toJsonLine(startPos));
+      if(checkLegality) {
+        cout << "Illegal move in startpos in " + Global::concat(startPosesFiles,",") + ": " + Sgf::PositionSample::toJsonLine(startPos) << endl;
+        continue;
+      }
+      else
+        throw StringError("Illegal move in startpos: " + Sgf::PositionSample::toJsonLine(startPos));
     }
 
-    Loc hintLoc = startPos.hintLoc;
-    cout << "StartPos: " << s << "/" << startPoses.size() << "\n";
-    cout << "Next pla: " << PlayerIO::playerToString(pla) << "\n";
-    cout << "Weight: " << startPos.weight << "\n";
-    cout << "TrainingWeight: " << startPos.trainingWeight << "\n";
-    cout << "HintLoc: " << Location::toString(hintLoc,board) << "\n";
-    Board::printBoard(cout, board, hintLoc, &(hist.moveHistory));
-    cout << endl;
+    if(checkLegality) {
+      if(startPos.moves.size() > 0 && startPos.moves[0].pla != startPos.nextPla) {
+        cout << "Mismatching nextPla in startpos in " + Global::concat(startPosesFiles,",") + ": " + Sgf::PositionSample::toJsonLine(startPos) << endl;
+      }
+    }
 
     bool autoKomi = true;
     if(autoKomi && bot != NULL) {
@@ -2534,17 +2557,44 @@ int MainCmds::viewstartposes(const vector<string>& args) {
       PlayUtils::adjustKomiToEven(bot->getSearchStopAndWait(),NULL,board,hist,pla,numVisits,props,rand);
     }
 
-    if(bot != NULL) {
-      bot->setPosition(pla,board,hist);
-      if(hintLoc != Board::NULL_LOC)
-        bot->setRootHintLoc(hintLoc);
-      else
-        bot->setRootHintLoc(Board::NULL_LOC);
-      bot->genMoveSynchronous(bot->getSearch()->rootPla,TimeControls());
-      const Search* search = bot->getSearchStopAndWait();
-      PrintTreeOptions options;
-      Player perspective = P_WHITE;
-      search->printTree(cout, search->rootNode, options, perspective);
+    Loc hintLoc = startPos.hintLoc;
+    if(checkLegality) {
+      if(hintLoc != Board::NULL_LOC) {
+        bool isLegal = hist.isLegal(board,hintLoc,pla);
+        if(!isLegal) {
+          cout << "Illegal hint in startpos in " + Global::concat(startPosesFiles,",") + ": " + Sgf::PositionSample::toJsonLine(startPos) << endl;
+          Board::printBoard(cout, board, hintLoc, &(hist.moveHistory));
+          continue;
+        }
+      }
+    }
+
+    if(bot != NULL || !checkLegality) {
+      cout << "StartPos: " << s << "/" << startPoses.size() << "\n";
+      cout << "Next pla: " << PlayerIO::playerToString(pla) << "\n";
+      cout << "Weight: " << startPos.weight << "\n";
+      cout << "TrainingWeight: " << startPos.trainingWeight << "\n";
+      cout << "StartPosInitialNextPla: " << PlayerIO::playerToString(startPos.nextPla) << "\n";
+      cout << "StartPosMoves: ";
+      for(int i = 0; i<(int)startPos.moves.size(); i++)
+        cout << (startPos.moves[i].pla == P_WHITE ? "w" : "b") << Location::toString(startPos.moves[i].loc,board) << " ";
+      cout << "\n";
+      cout << "Auto komi: " << hist.rules.komi << "\n";
+      Board::printBoard(cout, board, hintLoc, &(hist.moveHistory));
+      cout << endl;
+
+      if(bot != NULL) {
+        bot->setPosition(pla,board,hist);
+        if(hintLoc != Board::NULL_LOC)
+          bot->setRootHintLoc(hintLoc);
+        else
+          bot->setRootHintLoc(Board::NULL_LOC);
+        bot->genMoveSynchronous(bot->getSearch()->rootPla,TimeControls());
+        const Search* search = bot->getSearchStopAndWait();
+        PrintTreeOptions options;
+        Player perspective = P_WHITE;
+        search->printTree(cout, search->rootNode, options, perspective);
+      }
     }
   }
 

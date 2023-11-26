@@ -6,6 +6,7 @@
 #include "../core/elo.h"
 #include "../core/fancymath.h"
 #include "../core/config_parser.h"
+#include "../core/datetime.h"
 #include "../core/fileutils.h"
 #include "../core/base64.h"
 #include "../core/timer.h"
@@ -31,6 +32,7 @@ int MainCmds::runtests(const vector<string>& args) {
 
   BSearch::runTests();
   Rand::runTests();
+  DateTime::runTests();
   FancyMath::runTests();
   ComputeElos::runTests();
   Base64::runTests();
@@ -83,7 +85,7 @@ int MainCmds::runoutputtests(const vector<string>& args) {
   Tests::runCollectFilesTests();
   Tests::runLoadModelTests();
   Tests::runBookTests();
-  
+
   ScoreValue::freeTables();
 
   return 0;

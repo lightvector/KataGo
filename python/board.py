@@ -806,7 +806,7 @@ class Board:
         return False
 
     def wouldBeKoCapture(self, loc, pla):
-        if self.board[loc] == Board.EMPTY:
+        if self.board[loc] != Board.EMPTY:
             return False
         #Check that surounding points are are all opponent owned and exactly one of them is capturable
         opp = Board.get_opp(pla)
