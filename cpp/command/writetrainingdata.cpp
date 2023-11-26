@@ -659,6 +659,7 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
         throw StringError("outputDir already contains npz files: " + outputDir);
     }
   }
+  logger.addFile(outputDir + "/" + "log.log");
 
   const int numWorkerThreads = 64;
   const int numSearchThreads = 1;
@@ -747,6 +748,7 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
   std::map<string,int64_t> gameCountByTimeControl;
   std::map<string,int64_t> gameCountByIsRated;
   std::map<string,int64_t> gameCountByEvent;
+  std::map<string,int64_t> gameCountByPlace;
 
   std::map<string,int64_t> acceptedGameCountByUsername;
   std::map<string,int64_t> acceptedGameCountByRank;
@@ -758,6 +760,7 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
   std::map<string,int64_t> acceptedGameCountByTimeControl;
   std::map<string,int64_t> acceptedGameCountByIsRated;
   std::map<string,int64_t> acceptedGameCountByEvent;
+  std::map<string,int64_t> acceptedGameCountByPlace;
   std::map<string,int64_t> acceptedGameCountByYear;
 
   std::map<string,int64_t> acceptedGameCountByUsage;
@@ -1033,6 +1036,7 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
       gameCountByTimeControl[sgfTimeControl] += 1;
       gameCountByIsRated[sgfGameRatednessIsUnknown ? "unknown" : sgfGameIsRated ? "true" : "false"] += 1;
       gameCountByEvent[sgfEvent] += 1;
+      gameCountByPlace[sgfPlace] += 1;
     }
 
     if(noGameUsers.find(sgfBUsername) != noGameUsers.end() || noGameUsers.find(sgfWUsername) != noGameUsers.end()) {
@@ -1112,7 +1116,6 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
       // Filter out unusual events and games that are hard to know the rules and player strengths
       if(
         sgfPlaceAndEvent.find("Environmental Go") != string::npos
-        || sgfRules.find("Ing Goe") != string::npos
         || sgfRules.find("gives komi") != string::npos
         || sgfPlaceAndEvent.find("Children") != string::npos
         || sgfPlaceAndEvent.find("Student") != string::npos
@@ -1153,6 +1156,21 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
       bool whiteWinsJigo = false;
       if(sgfRules == "Chinese" || sgfRules == "Korean" || sgfRules == "Japanese" || sgfRules == "NZ" || sgfRules == "AGA") {
         rules = Rules::parseRules(sgfRules);
+      }
+      else if(sgfRules == "Ing" || sgfRules == "Ing Goe") {
+        rules = Rules::parseRules("Chinese");
+        if(rules.komi == 7.5) {
+          //Good!
+        }
+        // Ing rules with komi 8 are basically 7.5 with black wins draws
+        else if(rules.komi == 8) {
+          rules.komi = 7.5;
+        }
+        else {
+          logger.write("Unable to handle rules, need more cases in sgf " + fileName + ": " + sgfRules + "|" + sgfKomi + "|" + sgfPlace + "|" + sgfEvent);
+          reportSgfDone(false,"GameRulesParsing");
+          return;
+        }
       }
       else if(Global::isPrefix(sgfRules,"Tang")) {
         rules = Rules::parseRules("Japanese");
@@ -1325,6 +1343,42 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
 
     if(sgfResult != "") {
       string s = Global::trim(Global::toLower(sgfResult));
+      // Remove annotations for score in zi, we don't use the actual score so it doesn't matter if
+      // it's inaccurate.
+      {
+        size_t found = s.find(" (zi)");
+        if (found != std::string::npos)
+          s.erase(found, 5);
+      }
+      {
+        size_t found = s.find(" {zi}");
+        if (found != std::string::npos)
+          s.erase(found, 5);
+      }
+      // Remove annotations for ko connecting
+      {
+        size_t foundConnect = s.find("connect");
+        if(foundConnect == string::npos)
+          foundConnect = s.find("win");
+        size_t foundKo = s.find("ko");
+        if(foundConnect != string::npos && foundKo != string::npos) {
+          size_t foundL = s.find_last_of('(',foundConnect);
+          if(foundL == string::npos)
+            foundL = s.find_last_of('{',foundConnect);
+          size_t foundR = s.find_first_of(')',foundKo);
+          if(foundR == string::npos)
+            foundR = s.find_first_of('}',foundKo);
+          if(foundL != string::npos && foundKo != string::npos && foundL < foundR) {
+            s.erase(foundL, foundR-foundL+1);
+            s = Global::trim(s);
+          }
+        }
+      }
+
+      // Don't use games with time penalty that might have changed result
+      if(s.find("time penalty") != string::npos)
+        rulesDisableValueTraining = true;
+
       if(s == "b+r" || s == "black+r" || s == "b+resign") {
         sgfGameEnded = true;
         sgfGameEndedByResign = true;
@@ -1417,7 +1471,20 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
           return;
         }
       }
-      else if(s.find("moves beyond") != string::npos && s.find("not known") != string::npos) {
+      else if(
+        (
+          s.find("oves beyond") != string::npos ||
+          s.find("oves after") != string::npos ||
+          s.find("urther moves") != string::npos
+        )
+        && (
+          s.find("not known") != string::npos ||
+          s.find("not recorded") != string::npos ||
+          s.find("not given") != string::npos ||
+          s.find("no further") != string::npos ||
+          s.find("omitted") != string::npos
+        )
+      ) {
         if(Global::isPrefix(s,"b+") || Global::isPrefix(s,"black+")) {
           sgfGameEnded = true;
           sgfGameEndedButRecordIncomplete = true;
@@ -1438,6 +1505,16 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
           reportSgfDone(false,"ResultInvalidScore");
           return;
         }
+      }
+      else if(s == "b+") {
+        sgfGameEnded = true;
+        sgfGameEndedButRecordIncomplete = true;
+        sgfGameWinner = P_BLACK;
+      }
+      else if(s == "w+") {
+        sgfGameEnded = true;
+        sgfGameEndedButRecordIncomplete = true;
+        sgfGameWinner = P_BLACK;
       }
       else {
         logger.write("Game ended with unknown result " + fileName + " result " + sgfResult);
@@ -2002,8 +2079,8 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
               out << boards[endIdxFromSgf] << endl;
               out << boards.size() << endl;
               out << board << endl;
+              WriteSgf::writeSgf(out, "", "", hist, NULL, true, true);
               logger.write(out.str());
-              WriteSgf::writeSgf(cout, "", "", hist, NULL, true, true);
             }
           }
           else if(hist.winner == sgfGameWinner) {
@@ -2022,8 +2099,8 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
               out << boards[endIdxFromSgf] << endl;
               out << boards.size() << endl;
               out << board << endl;
+              WriteSgf::writeSgf(out, "", "", hist, NULL, true, true);
               logger.write(out.str());
-              WriteSgf::writeSgf(cout, "", "", hist, NULL, true, true);
             }
           }
         }
@@ -2036,7 +2113,6 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
             out << boards.size() << endl;
             out << board << endl;
             logger.write(out.str());
-            // WriteSgf::writeSgf(cout, "", "", hist, NULL, true, true);
           }
           valueTargetWeight = 0.0f;
           hasOwnershipTargets = false;
@@ -2259,6 +2335,7 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
       acceptedGameCountByTimeControl[sgfTimeControl] += 1;
       acceptedGameCountByIsRated[sgfGameRatednessIsUnknown ? "unknown" : sgfGameIsRated ? "true" : "false"] += 1;
       acceptedGameCountByEvent[sgfEvent] += 1;
+      acceptedGameCountByPlace[sgfPlace] += 1;
       acceptedGameCountByUsage[usageStr] += 1;
       acceptedGameCountByYear[Global::intToString(gameDate.year)] += 1;
     }
@@ -2295,13 +2372,8 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
   ) {
     logger.write("===================================================");
     logger.write("Counts by " + label);
-    if(!sortByCount) {
-      for(const auto& keyAndCount: counts) {
-        logger.write(keyAndCount.first + ": " + Global::int64ToString(keyAndCount.second));
-      }
-    }
-    else {
-      std::vector<std::pair<string, int64_t>> pairVec(counts.begin(), counts.end());
+    std::vector<std::pair<string, int64_t>> pairVec(counts.begin(), counts.end());
+    if(sortByCount) {
       std::sort(
         pairVec.begin(),
         pairVec.end(),
@@ -2309,14 +2381,14 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
           return a.second > b.second;
         }
       );
-      for(const auto& keyAndCount: pairVec) {
-        const string& key = keyAndCount.first;
-        if(accCounts != NULL && contains(*accCounts,key)) {
-          logger.write(key + ": " + Global::int64ToString(keyAndCount.second) + " (acc " + Global::int64ToString((*accCounts)[key]) + ")");
-        }
-        else {
-          logger.write(key + ": " + Global::int64ToString(keyAndCount.second));
-        }
+    }
+    for(const auto& keyAndCount: pairVec) {
+      const string& key = keyAndCount.first;
+      if(accCounts != NULL && contains(*accCounts,key)) {
+        logger.write(key + ": " + Global::int64ToString(keyAndCount.second) + " (acc " + Global::int64ToString((*accCounts)[key]) + ")");
+      }
+      else {
+        logger.write(key + ": " + Global::int64ToString(keyAndCount.second));
       }
     }
     logger.write("===================================================");
@@ -2339,6 +2411,10 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
   printGameCountsMap(acceptedGameCountByResult,"result (accepted)",false,NULL);
   printGameCountsMap(gameCountByEvent,"event",false,&acceptedGameCountByEvent);
   printGameCountsMap(acceptedGameCountByEvent,"event (accepted)",false,NULL);
+  if(whatDataSource != "ogs") {
+    printGameCountsMap(gameCountByPlace,"place",false,&acceptedGameCountByPlace);
+    printGameCountsMap(acceptedGameCountByPlace,"place (accepted)",false,NULL);
+  }
   printGameCountsMap(gameCountByIsRated,"isRated",false,&acceptedGameCountByIsRated);
   printGameCountsMap(acceptedGameCountByIsRated,"isRated (accepted)",false,NULL);
   printGameCountsMap(acceptedGameCountByUsage,"usage (accepted)",false,NULL);
