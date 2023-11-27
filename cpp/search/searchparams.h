@@ -110,6 +110,7 @@ struct SearchParams {
   //Threading-related
   int nodeTableShardsPowerOfTwo; //Controls number of shards of node table for graph search transposition lookup
   double numVirtualLossesPerThread; //Number of virtual losses for one thread to add
+  double suppressVirtualLossExploreFactor;
 
   //Asyncbot
   int numThreads; //Number of threads

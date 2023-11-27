@@ -450,6 +450,7 @@ private:
   ) const;
   void maybeApplyAntiMirrorForcedExplore(
     double& childUtility,
+    double& childUtilityNoVL,
     const double parentUtility,
     const Loc moveLoc,
     const float* policyProbs,
@@ -511,14 +512,29 @@ private:
   // Move selection during search
   // searchexplorehelpers.cpp
   //----------------------------------------------------------------------------------------
+  struct ExploreInfo {
+    double exploreSelectionValue;
+    double exploreSelectionValueNoVL; // no virtual loss
+    double exploreComponent;
+
+    static inline ExploreInfo constantSelectionValue(double d) {
+      ExploreInfo info;
+      info.exploreSelectionValue = d;
+      info.exploreSelectionValueNoVL = d;
+      info.exploreComponent = 0.0;
+      return info;
+    }
+  };
+
   double getExploreScaling(
     double totalChildWeight, double parentUtilityStdevFactor
   ) const;
-  double getExploreSelectionValue(
+  ExploreInfo getExploreSelectionValue(
     double exploreScaling,
     double nnPolicyProb,
     double childWeight,
     double childUtility,
+    double childUtilityNoVL,
     Player pla
   ) const;
   double getExploreSelectionValueInverse(
@@ -528,7 +544,7 @@ private:
     double childUtility,
     Player pla
   ) const;
-  double getExploreSelectionValueOfChild(
+  ExploreInfo getExploreSelectionValueOfChild(
     const SearchNode& parent, const float* parentPolicyProbs, const SearchNode* child,
     Loc moveLoc,
     double exploreScaling,
@@ -536,7 +552,7 @@ private:
     double parentUtility, double parentWeightPerVisit,
     bool isDuringSearch, bool antiMirror, double maxChildWeight, SearchThread* thread
   ) const;
-  double getNewExploreSelectionValue(
+  ExploreInfo getNewExploreSelectionValue(
     const SearchNode& parent,
     double exploreScaling,
     float nnPolicyProb,
@@ -560,6 +576,7 @@ private:
   void selectBestChildToDescend(
     SearchThread& thread, const SearchNode& node, SearchNodeState nodeState,
     int& numChildrenFound, int& bestChildIdx, Loc& bestChildMoveLoc,
+    bool& suppressEdgeVisit,
     bool isRoot
   ) const;
 
