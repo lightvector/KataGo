@@ -301,6 +301,7 @@ struct InputBuffers {
   size_t singleModelOwnershipResultElts;
   size_t singleOwnerMapElts;
   size_t singleScoreValuesResultElts;
+  size_t singleNnScoreValuesResultElts;
   size_t singleMoreMiscValuesResultElts;
 
   size_t rowSpatialBufferElts;

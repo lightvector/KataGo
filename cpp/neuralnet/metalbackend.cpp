@@ -596,6 +596,7 @@ InputBuffers::InputBuffers(const LoadedModel* loadedModel, int maxBatchSz, int n
   singleModelOwnershipResultElts = (size_t)m.numOwnershipChannels * modelXLen * modelYLen;
   singleOwnerMapElts = (size_t)m.numOwnershipChannels * nnXLen * nnYLen;
   singleScoreValuesResultElts = 10;
+  singleNnScoreValuesResultElts = 6;
   singleMoreMiscValuesResultElts = 8;
 
   assert(NNModelVersion::getNumSpatialFeatures(m.version) == m.numInputChannels);
@@ -756,6 +757,7 @@ void MetalProcess::processValue(
   NNOutput* currentOutput,
   const size_t row) {
   const size_t singleValueResultElts = inputBuffers->singleValueResultElts;
+  assert(singleValueResultElts == 3);
   const float* valueOutputBuf = &inputBuffers->valueResults[row * singleValueResultElts];
   currentOutput->whiteWinProb = valueOutputBuf[0];
   currentOutput->whiteLossProb = valueOutputBuf[1];
@@ -786,8 +788,7 @@ void MetalProcess::processScoreValues(
   NNOutput* currentOutput,
   const int version,
   const size_t row) {
-  const size_t singleScoreValuesResultElts = inputBuffers->singleScoreValuesResultElts;
-  const size_t scoreValuesOutputBufOffset = row * singleScoreValuesResultElts;
+  const size_t scoreValuesOutputBufOffset = row * inputBuffers->singleNnScoreValuesResultElts;
   const float* scoreValuesOutputBuf = &inputBuffers->scoreValuesResults[scoreValuesOutputBufOffset];
 
   currentOutput->whiteScoreMean = scoreValuesOutputBuf[0];
@@ -847,7 +848,7 @@ void MetalProcess::getMetalOutput(
   assert((NNModelVersion::getNumSpatialFeatures(gpuHandle->version) * gpuHandle->nnXLen * gpuHandle->nnYLen) <= inputBuffers->singleInputElts);
   assert(NNModelVersion::getNumGlobalFeatures(gpuHandle->version) == inputBuffers->singleInputGlobalElts);
   assert(inputBuffers->singleValueResultElts == 3);
-  assert(inputBuffers->singleScoreValuesResultElts >= 6);
+  assert(inputBuffers->singleScoreValuesResultElts == 10);
 
   for(size_t row = 0; row < batchSize; row++) {
     MetalProcess::processRowData(row, gpuHandle, inputBuffers, inputBufs);
