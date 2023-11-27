@@ -348,6 +348,7 @@ NNOutput::NNOutput(const NNOutput& other) {
     noisedPolicyProbs = NULL;
 
   std::copy(other.policyProbs, other.policyProbs+NNPos::MAX_NN_POLICY_SIZE, policyProbs);
+  policyOptimismUsed = other.policyOptimismUsed;
 }
 
 NNOutput::NNOutput(const vector<shared_ptr<NNOutput>>& others) {
@@ -442,7 +443,24 @@ NNOutput::NNOutput(const vector<shared_ptr<NNOutput>>& others) {
         policyProbs[pos] /= floatLen;
     }
   }
-
+  {
+    bool allOptimismsMatch = true;
+    for(int i = 1; i<len; i++) {
+      if(others[i]->policyOptimismUsed != others[0]->policyOptimismUsed) {
+        allOptimismsMatch = false;
+        break;
+      }
+    }
+    if(allOptimismsMatch) {
+      policyOptimismUsed = others[0]->policyOptimismUsed;
+    }
+    else {
+      policyOptimismUsed = 0.0;
+      for(int i = 0; i<len; i++) {
+        policyOptimismUsed += others[i]->policyOptimismUsed / (float)len;
+      }
+    }
+  }
 }
 
 NNOutput& NNOutput::operator=(const NNOutput& other) {
@@ -479,6 +497,7 @@ NNOutput& NNOutput::operator=(const NNOutput& other) {
     noisedPolicyProbs = NULL;
 
   std::copy(other.policyProbs, other.policyProbs+NNPos::MAX_NN_POLICY_SIZE, policyProbs);
+  policyOptimismUsed = other.policyOptimismUsed;
 
   return *this;
 }

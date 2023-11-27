@@ -520,6 +520,7 @@ void NNEvaluator::serve(
         resultBuf->result->varTimeLeft = (float)varTimeLeft;
         resultBuf->result->shorttermWinlossError = 0.0f;
         resultBuf->result->shorttermScoreError = 0.0f;
+        resultBuf->result->policyOptimismUsed = (float)resultBuf->policyOptimism;
         resultBuf->hasResult = true;
         resultBuf->clientWaitingForResult.notify_all();
         resultLock.unlock();
@@ -775,6 +776,7 @@ void NNEvaluator::evaluate(
     buf.result->shorttermWinlossError = resultWithoutOwnerMap->shorttermWinlossError;
     buf.result->shorttermScoreError = resultWithoutOwnerMap->shorttermScoreError;
     std::copy(resultWithoutOwnerMap->policyProbs, resultWithoutOwnerMap->policyProbs + NNPos::MAX_NN_POLICY_SIZE, buf.result->policyProbs);
+    buf.result->policyOptimismUsed = (float)resultWithoutOwnerMap->policyOptimismUsed;
     buf.result->nnXLen = resultWithoutOwnerMap->nnXLen;
     buf.result->nnYLen = resultWithoutOwnerMap->nnYLen;
     assert(buf.result->whiteOwnerMap != NULL);
@@ -871,6 +873,8 @@ void NNEvaluator::evaluate(
     //Fill everything out-of-bounds too, for robustness.
     for(int i = policySize; i<NNPos::MAX_NN_POLICY_SIZE; i++)
       policy[i] = -1.0f;
+
+    buf.result->policyOptimismUsed = (float)nnInputParams.policyOptimism;
 
     //Fix up the value as well. Note that the neural net gives us back the value from the perspective
     //of the player so we need to negate that to make it the white value.

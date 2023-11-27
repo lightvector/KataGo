@@ -250,6 +250,9 @@ struct Search {
     double searchFactor
   );
 
+  //Without performing a whole search, recompute the root nn output for any root-level parameters.
+  void maybeRecomputeRootNNOutput();
+
   //Expert manual playout-by-playout interface
   void beginSearch(bool pondering);
   bool runSinglePlayout(SearchThread& thread, double upperBoundVisitsLeft);
@@ -499,7 +502,8 @@ private:
     SearchThread& thread, SearchNode& node,
     bool isRoot, bool skipCache, bool isReInit
   );
-  void maybeRecomputeExistingNNOutput(
+  // Returns true if any recomputation happened
+  bool maybeRecomputeExistingNNOutput(
     SearchThread& thread, SearchNode& node, bool isRoot
   );
 
