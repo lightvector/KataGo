@@ -1518,12 +1518,12 @@ struct Buffers {
   ) :
     trunk(desc.trunk.trunkNumChannels, nnXLen, nnYLen, maxBatchSize),
 
-    policyPass(desc.policyHead.gpoolToPassMul.outChannels, maxBatchSize),
-    policy(desc.policyHead.p2Conv.outChannels, nnXLen, nnYLen, maxBatchSize),
+    policyPass(desc.numPolicyChannels, maxBatchSize),
+    policy(desc.numPolicyChannels, nnXLen, nnYLen, maxBatchSize),
 
-    value(desc.valueHead.v3Mul.outChannels, maxBatchSize),
-    scoreValue(desc.valueHead.sv3Mul.outChannels, maxBatchSize),
-    ownership(desc.valueHead.vOwnershipConv.outChannels, nnXLen, nnYLen, maxBatchSize),
+    value(desc.numValueChannels, maxBatchSize),
+    scoreValue(desc.numScoreValueChannels, maxBatchSize),
+    ownership(desc.numOwnershipChannels, nnXLen, nnYLen, maxBatchSize),
 
     mask(nnXLen, nnYLen, maxBatchSize),
     maskSum(maxBatchSize),
