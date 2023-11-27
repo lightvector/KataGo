@@ -103,7 +103,7 @@ string NeuralNet::getModelName(const LoadedModel* loadedModel) {
 }
 
 int NeuralNet::getModelVersion(const LoadedModel* loadedModel) {
-  return loadedModel->modelDesc.version;
+  return loadedModel->modelDesc.modelVersion;
 }
 
 Rules NeuralNet::getSupportedRules(const LoadedModel* loadedModel, const Rules& desiredRules, bool& supported) {
@@ -124,7 +124,7 @@ struct TRTModel {
   const LoadedModel* rawModel;
   vector<unique_ptr<float[]>> extraWeights;
 
-  int version;
+  int modelVersion;
   uint8_t tuneHash[32];
   IOptimizationProfile* profile;
   unique_ptr<INetworkDefinition> network;
@@ -180,14 +180,14 @@ struct ModelParser {
     tuneDesc = Global::strprintf(
       R"|("salt"(%d)"model"(%d,%d,%d,%d,%d,%d))|",
       tuneSalt,
-      modelDesc->version,
+      modelDesc->modelVersion,
       modelDesc->numInputChannels,
       modelDesc->numInputGlobalChannels,
       modelDesc->numValueChannels,
       modelDesc->numScoreValueChannels,
       modelDesc->numOwnershipChannels);
 
-    model->version = modelDesc->version;
+    model->modelVersion = modelDesc->modelVersion;
     network->setName(modelDesc->name.c_str());
 
     initInputs();
@@ -238,13 +238,13 @@ struct ModelParser {
     int numInputChannels = modelDesc->numInputChannels;
     int numInputGlobalChannels = modelDesc->numInputGlobalChannels;
 
-    int numFeatures = NNModelVersion::getNumSpatialFeatures(model->version);
+    int numFeatures = NNModelVersion::getNumSpatialFeatures(model->modelVersion);
     if(numInputChannels != numFeatures)
       throw StringError(Global::strprintf(
         "Neural net numInputChannels (%d) was not the expected number based on version (%d)",
         numInputChannels,
         numFeatures));
-    int numGlobalFeatures = NNModelVersion::getNumGlobalFeatures(model->version);
+    int numGlobalFeatures = NNModelVersion::getNumGlobalFeatures(model->modelVersion);
     if(numInputGlobalChannels != numGlobalFeatures)
       throw StringError(Global::strprintf(
         "Neural net numInputGlobalChannels (%d) was not the expected number based on version (%d)",
@@ -463,14 +463,30 @@ struct ModelParser {
 
     auto p2ConvLayer = buildConvLayer(p1MaskLayer->getOutput(0), &desc->p2Conv, true);
     p2ConvLayer->setPrecision(DataType::kFLOAT);
-    auto gpoolToPassMulLayer = buildMatMulLayer(gpoolLayer->getOutput(0), &desc->gpoolToPassMul, true);
-    gpoolToPassMulLayer->setPrecision(DataType::kFLOAT);
+    if(model->modelVersion >= 15) {
+      auto gpoolToPassMulLayer = buildMatMulLayer(gpoolLayer->getOutput(0), &desc->gpoolToPassMul, true);
+      gpoolToPassMulLayer->setPrecision(DataType::kFLOAT);
+      auto gpoolToPassBiasLayer = buildMatBiasLayer(gpoolToPassMulLayer->getOutput(0), &desc->gpoolToPassBias, true);
+      auto gpoolToPassActLayer = buildActivationLayer(gpoolToPassBiasLayer->getOutput(0), &desc->passActivation, true);
+      auto gpoolToPassMul2Layer = buildMatMulLayer(gpoolToPassActLayer->getOutput(0), &desc->gpoolToPassMul2, true);
+      gpoolToPassMul2Layer->setPrecision(DataType::kFLOAT);
 
-    auto outputPolicyPass = gpoolToPassMulLayer->getOutput(0);
-    network->markOutput(*outputPolicyPass);
-    outputPolicyPass->setName("OutputPolicyPass");
-    outputPolicyPass->setType(DataType::kFLOAT);
-    outputPolicyPass->setAllowedFormats(1U << static_cast<int>(TensorFormat::kLINEAR));
+      auto outputPolicyPass = gpoolToPassMul2Layer->getOutput(0);
+      network->markOutput(*outputPolicyPass);
+      outputPolicyPass->setName("OutputPolicyPass");
+      outputPolicyPass->setType(DataType::kFLOAT);
+      outputPolicyPass->setAllowedFormats(1U << static_cast<int>(TensorFormat::kLINEAR));
+    }
+    else {
+      auto gpoolToPassMulLayer = buildMatMulLayer(gpoolLayer->getOutput(0), &desc->gpoolToPassMul, true);
+      gpoolToPassMulLayer->setPrecision(DataType::kFLOAT);
+
+      auto outputPolicyPass = gpoolToPassMulLayer->getOutput(0);
+      network->markOutput(*outputPolicyPass);
+      outputPolicyPass->setName("OutputPolicyPass");
+      outputPolicyPass->setType(DataType::kFLOAT);
+      outputPolicyPass->setAllowedFormats(1U << static_cast<int>(TensorFormat::kLINEAR));
+    }
 
     auto outputPolicy = p2ConvLayer->getOutput(0);
     network->markOutput(*outputPolicy);
@@ -931,7 +947,7 @@ struct ComputeHandle {
     ctx = context;
 
     maxBatchSize = maxBatchSz;
-    modelVersion = loadedModel->modelDesc.version;
+    modelVersion = loadedModel->modelDesc.modelVersion;
 
     // Certain minor versions of TensorRT uses a global logger, which is bad.
     // Since TensorRT maintains ABI compatibility between minor versions, a dynamic library mismatch
@@ -1319,7 +1335,7 @@ ComputeHandle* NeuralNet::createComputeHandle(
   if(logger != NULL) {
     logger->write(
       "TensorRT backend thread " + Global::intToString(serverThreadIdx) + ": Model version " +
-      Global::intToString(loadedModel->modelDesc.version) + " useFP16 = " + Global::boolToString(handle->usingFP16));
+      Global::intToString(loadedModel->modelDesc.modelVersion) + " useFP16 = " + Global::boolToString(handle->usingFP16));
     logger->write(
       "TensorRT backend thread " + Global::intToString(serverThreadIdx) +
       ": Model name: " + loadedModel->modelDesc.name);
@@ -1394,9 +1410,6 @@ struct InputBuffers {
       throw StringError(
         Global::strprintf("nnYLen (%d) is greater than NNPos::MAX_BOARD_LEN (%d)", nnYLen, NNPos::MAX_BOARD_LEN));
 
-    const int policyChannels = m.version >= 12 ? 2 : 1;
-    assert(policyChannels == m.policyHead.p2Conv.outChannels);
-
     maxBatchSize = maxBatchSz;
     singleMaskElts = nnXLen * nnYLen;
     singleMaskBytes = singleMaskElts * sizeof(float);
@@ -1404,9 +1417,9 @@ struct InputBuffers {
     singleFeatureBytes = singleFeatureElts * sizeof(float);
     singleGlobalFeatureElts = m.numInputGlobalChannels;
     singleGlobalFeatureBytes = singleGlobalFeatureElts * sizeof(float);
-    singlePolicyPassResultElts = (size_t)policyChannels;
+    singlePolicyPassResultElts = (size_t)m.numPolicyChannels;
     singlePolicyPassResultBytes = singlePolicyPassResultElts * sizeof(float);
-    singlePolicyResultElts = (size_t)policyChannels * nnXLen * nnYLen;
+    singlePolicyResultElts = (size_t)m.numPolicyChannels * nnXLen * nnYLen;
     singlePolicyResultBytes = singlePolicyResultElts * sizeof(float);
     singleValueResultElts = m.numValueChannels;
     singleValueResultBytes = singleValueResultElts * sizeof(float);
@@ -1415,8 +1428,8 @@ struct InputBuffers {
     singleOwnershipResultElts = m.numOwnershipChannels * nnXLen * nnYLen;
     singleOwnershipResultBytes = singleOwnershipResultElts * sizeof(float);
 
-    assert(NNModelVersion::getNumSpatialFeatures(m.version) == m.numInputChannels);
-    assert(NNModelVersion::getNumGlobalFeatures(m.version) == m.numInputGlobalChannels);
+    assert(NNModelVersion::getNumSpatialFeatures(m.modelVersion) == m.numInputChannels);
+    assert(NNModelVersion::getNumGlobalFeatures(m.modelVersion) == m.numInputGlobalChannels);
 
     maskInputBufferBytes = maxBatchSize * singleMaskBytes;
     featureInputBufferBytes = maxBatchSize * singleFeatureBytes;
@@ -1462,10 +1475,10 @@ void NeuralNet::getOutput(
   int batchSize = numBatchEltsFilled;
   int nnXLen = gpuHandle->ctx->nnXLen;
   int nnYLen = gpuHandle->ctx->nnYLen;
-  int version = gpuHandle->modelVersion;
+  int modelVersion = gpuHandle->modelVersion;
 
-  int numSpatialFeatures = NNModelVersion::getNumSpatialFeatures(version);
-  int numGlobalFeatures = NNModelVersion::getNumGlobalFeatures(version);
+  int numSpatialFeatures = NNModelVersion::getNumSpatialFeatures(modelVersion);
+  int numGlobalFeatures = NNModelVersion::getNumGlobalFeatures(modelVersion);
 
   for(int nIdx = 0; nIdx < batchSize; nIdx++) {
     float* rowMaskInput = &inputBuffers->maskInputs[inputBuffers->singleMaskElts * nIdx];
@@ -1498,9 +1511,8 @@ void NeuralNet::getOutput(
   assert(inputBuffers->scoreValueResultBufferBytes == gpuHandle->getBufferBytes("OutputScoreValue"));
   assert(inputBuffers->ownershipResultBufferBytes == gpuHandle->getBufferBytes("OutputOwnership"));
 
-  const int policyChannels = version >= 12 ? 2 : 1;
-  assert(inputBuffers->singlePolicyPassResultElts == policyChannels);
-  assert(inputBuffers->singlePolicyResultElts == policyChannels * nnXLen * nnYLen);
+  const int numPolicyChannels = inputBuffers->singlePolicyPassResultElts;
+  assert(inputBuffers->singlePolicyResultElts == numPolicyChannels * nnXLen * nnYLen);
 
   // Transfers from host memory to device memory are asynchronous with respect to the host
   CUDA_ERR(
@@ -1592,7 +1604,7 @@ void NeuralNet::getOutput(
     // policy probabilities and white game outcome probabilities
     // Also we don't fill in the nnHash here either
     // Handle version >= 12 policy optimism
-    if(policyChannels == 2) {
+    if(numPolicyChannels == 2) {
       // TRT is all NCHW
       for(int i = 0; i<nnXLen*nnYLen; i++) {
         float p = policySrcBuf[i];
@@ -1603,7 +1615,7 @@ void NeuralNet::getOutput(
       policyProbs[nnXLen*nnYLen] = policyPassSrcBuf[0] + (policyPassSrcBuf[1] - policyPassSrcBuf[0]) * policyOptimism;
     }
     else {
-      assert(policyChannels == 1);
+      assert(numPolicyChannels == 1);
       SymmetryHelpers::copyOutputsWithSymmetry(policySrcBuf, policyProbs, 1, nnYLen, nnXLen, inputBufs[row]->symmetry);
       policyProbs[nnXLen * nnYLen] = policyPassSrcBuf[0];
     }
@@ -1624,7 +1636,7 @@ void NeuralNet::getOutput(
     }
 
     int numScoreValueChannels = inputBuffers->singleScoreValueResultElts;
-    if(version >= 9) {
+    if(modelVersion >= 9) {
       assert(numScoreValueChannels == 6);
       output->whiteScoreMean = inputBuffers->scoreValueResults[row * numScoreValueChannels];
       output->whiteScoreMeanSq = inputBuffers->scoreValueResults[row * numScoreValueChannels + 1];
@@ -1632,7 +1644,7 @@ void NeuralNet::getOutput(
       output->varTimeLeft = inputBuffers->scoreValueResults[row * numScoreValueChannels + 3];
       output->shorttermWinlossError = inputBuffers->scoreValueResults[row * numScoreValueChannels + 4];
       output->shorttermScoreError = inputBuffers->scoreValueResults[row * numScoreValueChannels + 5];
-    } else if(version >= 8) {
+    } else if(modelVersion >= 8) {
       assert(numScoreValueChannels == 4);
       output->whiteScoreMean = inputBuffers->scoreValueResults[row * numScoreValueChannels];
       output->whiteScoreMeanSq = inputBuffers->scoreValueResults[row * numScoreValueChannels + 1];
@@ -1640,7 +1652,7 @@ void NeuralNet::getOutput(
       output->varTimeLeft = inputBuffers->scoreValueResults[row * numScoreValueChannels + 3];
       output->shorttermWinlossError = 0;
       output->shorttermScoreError = 0;
-    } else if(version >= 4) {
+    } else if(modelVersion >= 4) {
       assert(numScoreValueChannels == 2);
       output->whiteScoreMean = inputBuffers->scoreValueResults[row * numScoreValueChannels];
       output->whiteScoreMeanSq = inputBuffers->scoreValueResults[row * numScoreValueChannels + 1];
@@ -1648,7 +1660,7 @@ void NeuralNet::getOutput(
       output->varTimeLeft = 0;
       output->shorttermWinlossError = 0;
       output->shorttermScoreError = 0;
-    } else if(version >= 3) {
+    } else if(modelVersion >= 3) {
       assert(numScoreValueChannels == 1);
       output->whiteScoreMean = inputBuffers->scoreValueResults[row * numScoreValueChannels];
       // Version 3 neural nets don't have any second moment output, implicitly already folding it in, so we just use the
