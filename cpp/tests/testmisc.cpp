@@ -67,8 +67,8 @@ void Tests::runLoadModelTests() {
     cout << modelName << " " << modelFile << " " << modelDir << endl;
     testAssert(modelTime > 0);
     testAssert(modelName == "abc.bin.gz");
-    testAssert(modelDir == "tests/models/findLatestModelTest2");
-    testAssert(modelFile == "tests/models/findLatestModelTest2/abc.bin.gz");
+    testAssert(modelDir == "tests/models/findLatestModelTest2" || modelDir == "tests\\models\\findLatestModelTest2");
+    testAssert(modelFile == "tests/models/findLatestModelTest2/abc.bin.gz" || modelFile == "tests\\models\\findLatestModelTest2\\abc.bin.gz");
     testAssert(FileUtils::weaklyCanonical(modelDir) == FileUtils::weaklyCanonical(modelsDir));
     testAssert(Global::isPrefix(FileUtils::weaklyCanonical(modelDir), FileUtils::weaklyCanonical(modelsDir)));
   }
@@ -86,8 +86,8 @@ void Tests::runLoadModelTests() {
     cout << modelName << " " << modelFile << " " << modelDir << endl;
     testAssert(modelTime > 0);
     testAssert(modelName == "def");
-    testAssert(modelDir == "tests/models/findLatestModelTest3/def");
-    testAssert(modelFile == "tests/models/findLatestModelTest3/def/model.bin.gz");
+    testAssert(modelDir == "tests/models/findLatestModelTest3/def" || modelDir == "tests\\models\\findLatestModelTest3\\def");
+    testAssert(modelFile == "tests/models/findLatestModelTest3/def/model.bin.gz" || modelFile == "tests\\models\\findLatestModelTest3\\def\\model.bin.gz");
     testAssert(FileUtils::weaklyCanonical(modelDir) != FileUtils::weaklyCanonical(modelsDir));
     testAssert(Global::isPrefix(FileUtils::weaklyCanonical(modelDir), FileUtils::weaklyCanonical(modelsDir)));
   }
@@ -106,8 +106,8 @@ void Tests::runLoadModelTests() {
     cout << modelName << " " << modelFile << " " << modelDir << endl;
     testAssert(modelTime > 0);
     testAssert(modelName == "abc.bin.gz");
-    testAssert(modelDir == "tests/models/findLatestModelTest4");
-    testAssert(modelFile == "tests/models/findLatestModelTest4/abc.bin.gz");
+    testAssert(modelDir == "tests/models/findLatestModelTest4" || modelDir == "tests\\models\\findLatestModelTest4");
+    testAssert(modelFile == "tests/models/findLatestModelTest4/abc.bin.gz" || modelFile == "tests\\models\\findLatestModelTest4\\abc.bin.gz");
     testAssert(FileUtils::weaklyCanonical(modelDir) == FileUtils::weaklyCanonical(modelsDir));
     testAssert(Global::isPrefix(FileUtils::weaklyCanonical(modelDir), FileUtils::weaklyCanonical(modelsDir)));
   }
@@ -126,8 +126,8 @@ void Tests::runLoadModelTests() {
     cout << modelName << " " << modelFile << " " << modelDir << endl;
     testAssert(modelTime > 0);
     testAssert(modelName == "def");
-    testAssert(modelDir == "tests/models/findLatestModelTest4/def");
-    testAssert(modelFile == "tests/models/findLatestModelTest4/def/model.bin.gz");
+    testAssert(modelDir == "tests/models/findLatestModelTest4/def" || modelDir == "tests\\models\\findLatestModelTest4\\def");
+    testAssert(modelFile == "tests/models/findLatestModelTest4/def/model.bin.gz" || "tests\\models\\findLatestModelTest4\\def\\model.bin.gz");
     testAssert(FileUtils::weaklyCanonical(modelDir) != FileUtils::weaklyCanonical(modelsDir));
     testAssert(Global::isPrefix(FileUtils::weaklyCanonical(modelDir), FileUtils::weaklyCanonical(modelsDir)));
   }
@@ -146,8 +146,8 @@ void Tests::runLoadModelTests() {
     cout << modelName << " " << modelFile << " " << modelDir << endl;
     testAssert(modelTime > 0);
     testAssert(modelName == "ghi.bin.gz");
-    testAssert(modelDir == "tests/models/findLatestModelTest4/def");
-    testAssert(modelFile == "tests/models/findLatestModelTest4/def/ghi.bin.gz");
+    testAssert(modelDir == "tests/models/findLatestModelTest4/def" || modelDir == "tests\\models\\findLatestModelTest4\\def");
+    testAssert(modelFile == "tests/models/findLatestModelTest4/def/ghi.bin.gz" || modelFile == "tests\\models\\findLatestModelTest4\\def\\ghi.bin.gz");
     testAssert(FileUtils::weaklyCanonical(modelDir) != FileUtils::weaklyCanonical(modelsDir));
     testAssert(Global::isPrefix(FileUtils::weaklyCanonical(modelDir), FileUtils::weaklyCanonical(modelsDir)));
   }
