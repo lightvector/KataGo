@@ -364,8 +364,11 @@ void DateTime::runTests() {
     SimpleDate date1;
     SimpleDate date2;
     int d1 = rand.nextInt(-10000000,10000000);
-    int d2 = rand.nextInt(-20,20) * (rand.nextBool(0.1) ? 100 : 1);
-    int d3 = rand.nextInt(-20,20); d3 = d3 * d3 * (rand.nextBool(0.5) ? -1 : 1) * (rand.nextBool(0.1) ? 37 : 1);
+    int d2 = rand.nextInt(-20,20);
+    d2 *= (rand.nextBool(0.1) ? 100 : 1);
+    int d3 = rand.nextInt(-20,20);
+    d3 = d3 * d3 * (rand.nextBool(0.5) ? -1 : 1);
+    d3 *= (rand.nextBool(0.1) ? 37 : 1);
 
     date1 += d1;
     testAssert(SimpleDate() + d1 == date1);
