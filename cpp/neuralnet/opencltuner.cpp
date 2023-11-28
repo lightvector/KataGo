@@ -963,7 +963,7 @@ OpenCLTuner::ModelInfoForTuning OpenCLTuner::ModelInfoForTuning::ofDesc(const Mo
   modelInfo.midNumChannels = desc->trunk.midNumChannels;
   modelInfo.regularNumChannels = desc->trunk.regularNumChannels;
   modelInfo.gpoolNumChannels = desc->trunk.gpoolNumChannels;
-  modelInfo.version = desc->version;
+  modelInfo.modelVersion = desc->modelVersion;
   return modelInfo;
 }
 
@@ -2771,7 +2771,7 @@ void OpenCLTuner::tune(
   cl_command_queue commandQueue = device->commandQueue;
   const vector<cl_device_id>& deviceIdsToUse = { device->info.deviceId };
 
-  out << "Beginning GPU tuning for " << device->info.name << " modelVersion " << modelInfo.version << " channels " << modelInfo.trunkNumChannels << endl;
+  out << "Beginning GPU tuning for " << device->info.name << " modelVersion " << modelInfo.modelVersion << " channels " << modelInfo.trunkNumChannels << endl;
 
   // Start a dummy thread to put a bunch of load on the GPU, so that we can encourage dynamic-clock-speed GPUs
   // to stay at a high setting during the tuning.
@@ -3193,7 +3193,7 @@ string OpenCLTuner::defaultFileName(const string& gpuName, int nnXLen, int nnYLe
 }
 
 string OpenCLTuner::defaultFileName(const string& gpuName, int nnXLen, int nnYLen, OpenCLTuner::ModelInfoForTuning modelInfo) {
-  return defaultFileName(gpuName, nnXLen, nnYLen, modelInfo.trunkNumChannels, modelInfo.version);
+  return defaultFileName(gpuName, nnXLen, nnYLen, modelInfo.trunkNumChannels, modelInfo.modelVersion);
 }
 
 static OpenCLTuneParams loadFromTunerFile(const string& fileName, Logger* logger) {
@@ -3350,7 +3350,7 @@ void OpenCLTuner::autoTuneEverything(
   string gpuName = allDeviceInfos[gpuIdxForTuning].name;
 
   //Just hardcodedly tune all the models that KataGo's main run uses.
-  static_assert(NNModelVersion::latestModelVersionImplemented == 14, "");
+  static_assert(NNModelVersion::latestModelVersionImplemented == 15, "");
   vector<ModelInfoForTuning> modelInfos;
   {
     ModelInfoForTuning modelInfo;
@@ -3360,7 +3360,7 @@ void OpenCLTuner::autoTuneEverything(
     modelInfo.midNumChannels = 96;
     modelInfo.regularNumChannels = 64;
     modelInfo.gpoolNumChannels = 32;
-    modelInfo.version = 8;
+    modelInfo.modelVersion = 8;
     modelInfos.push_back(modelInfo);
   }
   {
@@ -3371,7 +3371,7 @@ void OpenCLTuner::autoTuneEverything(
     modelInfo.midNumChannels = 128;
     modelInfo.regularNumChannels = 96;
     modelInfo.gpoolNumChannels = 32;
-    modelInfo.version = 8;
+    modelInfo.modelVersion = 8;
     modelInfos.push_back(modelInfo);
   }
   {
@@ -3382,7 +3382,7 @@ void OpenCLTuner::autoTuneEverything(
     modelInfo.midNumChannels = 192;
     modelInfo.regularNumChannels = 128;
     modelInfo.gpoolNumChannels = 64;
-    modelInfo.version = 8;
+    modelInfo.modelVersion = 8;
     modelInfos.push_back(modelInfo);
   }
   {
@@ -3393,7 +3393,7 @@ void OpenCLTuner::autoTuneEverything(
     modelInfo.midNumChannels = 256;
     modelInfo.regularNumChannels = 192;
     modelInfo.gpoolNumChannels = 64;
-    modelInfo.version = 8;
+    modelInfo.modelVersion = 8;
     modelInfos.push_back(modelInfo);
   }
   {
@@ -3404,7 +3404,7 @@ void OpenCLTuner::autoTuneEverything(
     modelInfo.midNumChannels = 256;
     modelInfo.regularNumChannels = 192;
     modelInfo.gpoolNumChannels = 64;
-    modelInfo.version = 10;
+    modelInfo.modelVersion = 10;
     modelInfos.push_back(modelInfo);
   }
   {
@@ -3415,7 +3415,7 @@ void OpenCLTuner::autoTuneEverything(
     modelInfo.midNumChannels = 320;
     modelInfo.regularNumChannels = 224;
     modelInfo.gpoolNumChannels = 96;
-    modelInfo.version = 10;
+    modelInfo.modelVersion = 10;
     modelInfos.push_back(modelInfo);
   }
   {
@@ -3426,7 +3426,7 @@ void OpenCLTuner::autoTuneEverything(
     modelInfo.midNumChannels = 192;
     modelInfo.regularNumChannels = 128;
     modelInfo.gpoolNumChannels = 64;
-    modelInfo.version = 11;
+    modelInfo.modelVersion = 11;
     modelInfos.push_back(modelInfo);
   }
   {
@@ -3437,7 +3437,7 @@ void OpenCLTuner::autoTuneEverything(
     modelInfo.midNumChannels = 192;
     modelInfo.regularNumChannels = 128;
     modelInfo.gpoolNumChannels = 64;
-    modelInfo.version = 14;
+    modelInfo.modelVersion = 14;
     modelInfos.push_back(modelInfo);
   }
   {
@@ -3448,7 +3448,7 @@ void OpenCLTuner::autoTuneEverything(
     modelInfo.midNumChannels = 256;
     modelInfo.regularNumChannels = 192;
     modelInfo.gpoolNumChannels = 64;
-    modelInfo.version = 14;
+    modelInfo.modelVersion = 15;
     modelInfos.push_back(modelInfo);
   }
 

@@ -90,7 +90,7 @@ static void readFloats(istream& in, size_t numFloats, bool binaryFloats, const s
 
 static void parseResidualBlockStack(
   std::istream& in,
-  int version,
+  int modelVersion,
   bool binaryFloats,
   std::string name,
   int numBlocks,
@@ -236,11 +236,11 @@ BatchNormLayerDesc& BatchNormLayerDesc::operator=(BatchNormLayerDesc&& other) {
 
 //-----------------------------------------------------------------------------
 
-ActivationLayerDesc::ActivationLayerDesc() : activation(ACTIVATION_RELU) {}
+ActivationLayerDesc::ActivationLayerDesc() : name(), activation(ACTIVATION_RELU) {}
 
-ActivationLayerDesc::ActivationLayerDesc(istream& in, int version) {
+ActivationLayerDesc::ActivationLayerDesc(istream& in, int modelVersion) {
   in >> name;
-  if(version >= 11) {
+  if(modelVersion >= 11) {
     string kind;
     in >> kind;
     if(kind == "ACTIVATION_IDENTITY")
@@ -271,7 +271,7 @@ ActivationLayerDesc& ActivationLayerDesc::operator=(ActivationLayerDesc&& other)
 
 //-----------------------------------------------------------------------------
 
-MatMulLayerDesc::MatMulLayerDesc() : inChannels(0), outChannels(0) {}
+MatMulLayerDesc::MatMulLayerDesc() : name(), inChannels(0), outChannels(0), weights() {}
 
 MatMulLayerDesc::MatMulLayerDesc(istream& in, bool binaryFloats) {
   in >> name;
@@ -317,7 +317,7 @@ MatMulLayerDesc& MatMulLayerDesc::operator=(MatMulLayerDesc&& other) {
 
 //-----------------------------------------------------------------------------
 
-MatBiasLayerDesc::MatBiasLayerDesc() : numChannels(0) {}
+MatBiasLayerDesc::MatBiasLayerDesc() : name(), numChannels(0), weights() {}
 
 MatBiasLayerDesc::MatBiasLayerDesc(istream& in, bool binaryFloats) {
   in >> name;
@@ -353,16 +353,16 @@ MatBiasLayerDesc& MatBiasLayerDesc::operator=(MatBiasLayerDesc&& other) {
 
 ResidualBlockDesc::ResidualBlockDesc() {}
 
-ResidualBlockDesc::ResidualBlockDesc(istream& in, int version, bool binaryFloats) {
+ResidualBlockDesc::ResidualBlockDesc(istream& in, int modelVersion, bool binaryFloats) {
   in >> name;
   if(in.fail())
     throw StringError(name + ": res block failed to parse name");
 
   preBN = BatchNormLayerDesc(in,binaryFloats);
-  preActivation = ActivationLayerDesc(in,version);
+  preActivation = ActivationLayerDesc(in,modelVersion);
   regularConv = ConvLayerDesc(in,binaryFloats);
   midBN = BatchNormLayerDesc(in,binaryFloats);
-  midActivation = ActivationLayerDesc(in,version);
+  midActivation = ActivationLayerDesc(in,modelVersion);
   finalConv = ConvLayerDesc(in,binaryFloats);
 
   if(preBN.numChannels != regularConv.inChannels)
@@ -411,16 +411,16 @@ GlobalPoolingResidualBlockDesc::GlobalPoolingResidualBlockDesc(istream& in, int 
   in >> name;
   if(in.fail())
     throw StringError(name + ": gpool res block failed to parse name");
-  version = vrsn;
+  modelVersion = vrsn;
   preBN = BatchNormLayerDesc(in,binaryFloats);
-  preActivation = ActivationLayerDesc(in,version);
+  preActivation = ActivationLayerDesc(in,modelVersion);
   regularConv = ConvLayerDesc(in,binaryFloats);
   gpoolConv = ConvLayerDesc(in,binaryFloats);
   gpoolBN = BatchNormLayerDesc(in,binaryFloats);
-  gpoolActivation = ActivationLayerDesc(in,version);
+  gpoolActivation = ActivationLayerDesc(in,modelVersion);
   gpoolToBiasMul = MatMulLayerDesc(in,binaryFloats);
   midBN = BatchNormLayerDesc(in,binaryFloats);
-  midActivation = ActivationLayerDesc(in,version);
+  midActivation = ActivationLayerDesc(in,modelVersion);
   finalConv = ConvLayerDesc(in,binaryFloats);
 
   if(preBN.numChannels != regularConv.inChannels)
@@ -488,7 +488,7 @@ void GlobalPoolingResidualBlockDesc::iterConvLayers(std::function<void(const Con
 
 NestedBottleneckResidualBlockDesc::NestedBottleneckResidualBlockDesc() {}
 
-NestedBottleneckResidualBlockDesc::NestedBottleneckResidualBlockDesc(istream& in, int version, bool binaryFloats) {
+NestedBottleneckResidualBlockDesc::NestedBottleneckResidualBlockDesc(istream& in, int modelVersion, bool binaryFloats) {
   in >> name;
   if(in.fail())
     throw StringError(name + ": res block failed to parse name");
@@ -499,13 +499,13 @@ NestedBottleneckResidualBlockDesc::NestedBottleneckResidualBlockDesc(istream& in
     throw StringError(name + ": nested bottleneck res block num blocks must be positive");
 
   preBN = BatchNormLayerDesc(in,binaryFloats);
-  preActivation = ActivationLayerDesc(in,version);
+  preActivation = ActivationLayerDesc(in,modelVersion);
   preConv = ConvLayerDesc(in,binaryFloats);
 
-  parseResidualBlockStack(in, version, binaryFloats, name, numBlocks, preConv.outChannels, blocks);
+  parseResidualBlockStack(in, modelVersion, binaryFloats, name, numBlocks, preConv.outChannels, blocks);
 
   postBN = BatchNormLayerDesc(in,binaryFloats);
-  postActivation = ActivationLayerDesc(in,version);
+  postActivation = ActivationLayerDesc(in,modelVersion);
   postConv = ConvLayerDesc(in,binaryFloats);
 
   if(preBN.numChannels != preConv.inChannels)
@@ -565,7 +565,7 @@ void NestedBottleneckResidualBlockDesc::iterConvLayers(std::function<void(const 
 
 static void parseResidualBlockStack(
   std::istream& in,
-  int version,
+  int modelVersion,
   bool binaryFloats,
   std::string name,
   int numBlocks,
@@ -578,7 +578,7 @@ static void parseResidualBlockStack(
     if(in.fail())
       throw StringError(name + ": failed to parse block kind");
     if(kind == "ordinary_block") {
-      unique_ptr_void descPtr = make_unique_void(new ResidualBlockDesc(in,version,binaryFloats));
+      unique_ptr_void descPtr = make_unique_void(new ResidualBlockDesc(in,modelVersion,binaryFloats));
       ResidualBlockDesc& desc = *((ResidualBlockDesc*)descPtr.get());
 
       if(desc.preBN.numChannels != trunkNumChannels)
@@ -599,7 +599,7 @@ static void parseResidualBlockStack(
       blocks.push_back(make_pair(ORDINARY_BLOCK_KIND, std::move(descPtr)));
     }
     else if(kind == "gpool_block") {
-      unique_ptr_void descPtr = make_unique_void(new GlobalPoolingResidualBlockDesc(in, version, binaryFloats));
+      unique_ptr_void descPtr = make_unique_void(new GlobalPoolingResidualBlockDesc(in, modelVersion, binaryFloats));
       GlobalPoolingResidualBlockDesc& desc = *((GlobalPoolingResidualBlockDesc*)descPtr.get());
 
       if(desc.preBN.numChannels != trunkNumChannels)
@@ -620,7 +620,7 @@ static void parseResidualBlockStack(
       blocks.push_back(make_pair(GLOBAL_POOLING_BLOCK_KIND, std::move(descPtr)));
     }
     else if(kind == "nested_bottleneck_block") {
-      unique_ptr_void descPtr = make_unique_void(new NestedBottleneckResidualBlockDesc(in,version,binaryFloats));
+      unique_ptr_void descPtr = make_unique_void(new NestedBottleneckResidualBlockDesc(in,modelVersion,binaryFloats));
       NestedBottleneckResidualBlockDesc& desc = *((NestedBottleneckResidualBlockDesc*)descPtr.get());
 
       if(desc.preBN.numChannels != trunkNumChannels)
@@ -652,7 +652,7 @@ static void parseResidualBlockStack(
 
 
 TrunkDesc::TrunkDesc()
-  : version(-1),
+  : modelVersion(-1),
     numBlocks(0),
     trunkNumChannels(0),
     midNumChannels(0),
@@ -661,7 +661,7 @@ TrunkDesc::TrunkDesc()
 
 TrunkDesc::TrunkDesc(istream& in, int vrsn, bool binaryFloats) {
   in >> name;
-  version = vrsn;
+  modelVersion = vrsn;
   in >> numBlocks;
   in >> trunkNumChannels;
   in >> midNumChannels;
@@ -669,6 +669,18 @@ TrunkDesc::TrunkDesc(istream& in, int vrsn, bool binaryFloats) {
   int dilatedNumChannels; //unused
   in >> dilatedNumChannels;
   in >> gpoolNumChannels;
+
+  if(modelVersion >= 15) {
+    int unused;
+    in >> unused;
+    in >> unused;
+    in >> unused;
+    in >> unused;
+    in >> unused;
+    in >> unused;
+    if(in.fail())
+      throw StringError(name + ": trunk failed to parse unused params");
+  }
 
   if(in.fail())
     throw StringError(name + ": trunk failed to parse num blocks or various channel parameters");
@@ -697,10 +709,10 @@ TrunkDesc::TrunkDesc(istream& in, int vrsn, bool binaryFloats) {
                initialMatMul.outChannels,
                trunkNumChannels));
 
-  parseResidualBlockStack(in, version, binaryFloats, name, numBlocks, trunkNumChannels, blocks);
+  parseResidualBlockStack(in, modelVersion, binaryFloats, name, numBlocks, trunkNumChannels, blocks);
 
   trunkTipBN = BatchNormLayerDesc(in,binaryFloats);
-  trunkTipActivation = ActivationLayerDesc(in,version);
+  trunkTipActivation = ActivationLayerDesc(in,modelVersion);
 
   if(trunkTipBN.numChannels != trunkNumChannels)
     throw StringError(
@@ -716,7 +728,7 @@ TrunkDesc::~TrunkDesc() {
 
 TrunkDesc::TrunkDesc(TrunkDesc&& other) {
   name = std::move(other.name);
-  version = other.version;
+  modelVersion = other.modelVersion;
   numBlocks = other.numBlocks;
   trunkNumChannels = other.trunkNumChannels;
   midNumChannels = other.midNumChannels;
@@ -731,7 +743,7 @@ TrunkDesc::TrunkDesc(TrunkDesc&& other) {
 
 TrunkDesc& TrunkDesc::operator=(TrunkDesc&& other) {
   name = std::move(other.name);
-  version = other.version;
+  modelVersion = other.modelVersion;
   numBlocks = other.numBlocks;
   trunkNumChannels = other.trunkNumChannels;
   midNumChannels = other.midNumChannels;
@@ -765,11 +777,12 @@ void TrunkDesc::iterConvLayers(std::function<void(const ConvLayerDesc& desc)> f)
 
 //-----------------------------------------------------------------------------
 
-PolicyHeadDesc::PolicyHeadDesc() : version(-1) {}
+PolicyHeadDesc::PolicyHeadDesc() : modelVersion(-1) {}
 
 PolicyHeadDesc::PolicyHeadDesc(istream& in, int vrsn, bool binaryFloats) {
   in >> name;
-  version = vrsn;
+  modelVersion = vrsn;
+  policyOutChannels = modelVersion >= 12 ? 2 : 1;
 
   if(in.fail())
     throw StringError(name + ": policy head failed to parse name");
@@ -777,12 +790,22 @@ PolicyHeadDesc::PolicyHeadDesc(istream& in, int vrsn, bool binaryFloats) {
   p1Conv = ConvLayerDesc(in,binaryFloats);
   g1Conv = ConvLayerDesc(in,binaryFloats);
   g1BN = BatchNormLayerDesc(in,binaryFloats);
-  g1Activation = ActivationLayerDesc(in,version);
+  g1Activation = ActivationLayerDesc(in,modelVersion);
   gpoolToBiasMul = MatMulLayerDesc(in,binaryFloats);
   p1BN = BatchNormLayerDesc(in,binaryFloats);
-  p1Activation = ActivationLayerDesc(in,version);
+  p1Activation = ActivationLayerDesc(in,modelVersion);
   p2Conv = ConvLayerDesc(in,binaryFloats);
   gpoolToPassMul = MatMulLayerDesc(in,binaryFloats);
+  if(modelVersion >= 15) {
+    gpoolToPassBias = MatBiasLayerDesc(in,binaryFloats);
+    passActivation = ActivationLayerDesc(in,modelVersion);
+    gpoolToPassMul2 = MatMulLayerDesc(in,binaryFloats);
+  }
+  else {
+    gpoolToPassBias = MatBiasLayerDesc();
+    passActivation = ActivationLayerDesc();
+    gpoolToPassMul2 = MatMulLayerDesc();
+  }
 
   if(in.fail())
     throw StringError(name + ": policy head istream fail after parsing layers");
@@ -816,17 +839,23 @@ PolicyHeadDesc::PolicyHeadDesc(istream& in, int vrsn, bool binaryFloats) {
                ": gpoolToPassMul.inChannels (%d) != g1BN.numChannels*3 (%d)",
                gpoolToPassMul.inChannels,
                g1BN.numChannels * 3));
-  if(version >= 12) {
-    if(p2Conv.outChannels != 2)
-      throw StringError(name + Global::strprintf(": p2Conv.outChannels (%d) != 2", p2Conv.outChannels));
-    if(gpoolToPassMul.outChannels != 2)
-      throw StringError(name + Global::strprintf(": gpoolToPassMul.outChannels (%d) != 2", gpoolToPassMul.outChannels));
+  if(modelVersion >= 15) {
+    if(p2Conv.outChannels != policyOutChannels)
+      throw StringError(name + Global::strprintf(": p2Conv.outChannels (%d) != %d", p2Conv.outChannels, policyOutChannels));
+    if(gpoolToPassMul.outChannels != gpoolToPassBias.numChannels)
+      throw StringError(name + Global::strprintf(": gpoolToPassMul.outChannels (%d) != gpoolToPassBias.numChannels (%d)", gpoolToPassMul.outChannels, gpoolToPassBias.numChannels));
+    if(gpoolToPassMul.outChannels != gpoolToPassMul2.inChannels)
+      throw StringError(name + Global::strprintf(": gpoolToPassMul.outChannels (%d) != gpoolToPassMul2.inChannels (%d)", gpoolToPassMul.outChannels, gpoolToPassMul2.inChannels));
+    if(gpoolToPassMul.outChannels != p1Conv.outChannels)
+      throw StringError(name + Global::strprintf(": gpoolToPassMul.outChannels (%d) != p1Conv.outChannels (%d)", gpoolToPassMul.outChannels, p1Conv.outChannels));
+    if(gpoolToPassMul2.outChannels != policyOutChannels)
+      throw StringError(name + Global::strprintf(": gpoolToPassMul2.outChannels (%d) != %d", gpoolToPassMul2.outChannels, policyOutChannels));
   }
   else {
-    if(p2Conv.outChannels != 1)
-      throw StringError(name + Global::strprintf(": p2Conv.outChannels (%d) != 1", p2Conv.outChannels));
-    if(gpoolToPassMul.outChannels != 1)
-      throw StringError(name + Global::strprintf(": gpoolToPassMul.outChannels (%d) != 1", gpoolToPassMul.outChannels));
+    if(p2Conv.outChannels != policyOutChannels)
+      throw StringError(name + Global::strprintf(": p2Conv.outChannels (%d) != %d", p2Conv.outChannels, policyOutChannels));
+    if(gpoolToPassMul.outChannels != policyOutChannels)
+      throw StringError(name + Global::strprintf(": gpoolToPassMul.outChannels (%d) != %d", gpoolToPassMul.outChannels, policyOutChannels));
   }
 }
 
@@ -838,7 +867,8 @@ PolicyHeadDesc::PolicyHeadDesc(PolicyHeadDesc&& other) {
 
 PolicyHeadDesc& PolicyHeadDesc::operator=(PolicyHeadDesc&& other) {
   name = std::move(other.name);
-  version = other.version;
+  modelVersion = other.modelVersion;
+  policyOutChannels = other.policyOutChannels;
   p1Conv = std::move(other.p1Conv);
   g1Conv = std::move(other.g1Conv);
   g1BN = std::move(other.g1BN);
@@ -848,6 +878,9 @@ PolicyHeadDesc& PolicyHeadDesc::operator=(PolicyHeadDesc&& other) {
   p1Activation = std::move(other.p1Activation);
   p2Conv = std::move(other.p2Conv);
   gpoolToPassMul = std::move(other.gpoolToPassMul);
+  gpoolToPassBias = std::move(other.gpoolToPassBias);
+  passActivation = std::move(other.passActivation);
+  gpoolToPassMul2 = std::move(other.gpoolToPassMul2);
   return *this;
 }
 
@@ -859,21 +892,21 @@ void PolicyHeadDesc::iterConvLayers(std::function<void(const ConvLayerDesc& desc
 
 //-----------------------------------------------------------------------------
 
-ValueHeadDesc::ValueHeadDesc() : version(-1) {}
+ValueHeadDesc::ValueHeadDesc() : modelVersion(-1) {}
 
 ValueHeadDesc::ValueHeadDesc(istream& in, int vrsn, bool binaryFloats) {
   in >> name;
-  version = vrsn;
+  modelVersion = vrsn;
 
   if(in.fail())
     throw StringError(name + ": value head failed to parse name");
 
   v1Conv = ConvLayerDesc(in,binaryFloats);
   v1BN = BatchNormLayerDesc(in,binaryFloats);
-  v1Activation = ActivationLayerDesc(in,version);
+  v1Activation = ActivationLayerDesc(in,modelVersion);
   v2Mul = MatMulLayerDesc(in,binaryFloats);
   v2Bias = MatBiasLayerDesc(in,binaryFloats);
-  v2Activation = ActivationLayerDesc(in,version);
+  v2Activation = ActivationLayerDesc(in,modelVersion);
   v3Mul = MatMulLayerDesc(in,binaryFloats);
   v3Bias = MatBiasLayerDesc(in,binaryFloats);
 
@@ -912,19 +945,19 @@ ValueHeadDesc::ValueHeadDesc(istream& in, int vrsn, bool binaryFloats) {
       name +
       Global::strprintf(": sv3Mul.inChannels (%d) != v2Mul.outChannels (%d)", sv3Mul.inChannels, v2Mul.outChannels));
 
-  if(version >= 9) {
+  if(modelVersion >= 9) {
     if(sv3Mul.outChannels != 6)
       throw StringError(name + Global::strprintf(": sv3Mul.outChannels (%d) != 6", sv3Mul.outChannels));
     if(sv3Bias.numChannels != 6)
       throw StringError(name + Global::strprintf(": sv3Bias.numChannels (%d) != 6", sv3Bias.numChannels));
   }
-  else if(version >= 8) {
+  else if(modelVersion >= 8) {
     if(sv3Mul.outChannels != 4)
       throw StringError(name + Global::strprintf(": sv3Mul.outChannels (%d) != 4", sv3Mul.outChannels));
     if(sv3Bias.numChannels != 4)
       throw StringError(name + Global::strprintf(": sv3Bias.numChannels (%d) != 4", sv3Bias.numChannels));
   }
-  else if(version >= 4) {
+  else if(modelVersion >= 4) {
     if(sv3Mul.outChannels != 2)
       throw StringError(name + Global::strprintf(": sv3Mul.outChannels (%d) != 2", sv3Mul.outChannels));
     if(sv3Bias.numChannels != 2)
@@ -955,7 +988,7 @@ ValueHeadDesc::ValueHeadDesc(ValueHeadDesc&& other) {
 
 ValueHeadDesc& ValueHeadDesc::operator=(ValueHeadDesc&& other) {
   name = std::move(other.name);
-  version = other.version;
+  modelVersion = other.modelVersion;
   v1Conv = std::move(other.v1Conv);
   v1BN = std::move(other.v1BN);
   v1Activation = std::move(other.v1Activation);
@@ -992,9 +1025,10 @@ ModelPostProcessParams::~ModelPostProcessParams()
 //-----------------------------------------------------------------------------
 
 ModelDesc::ModelDesc()
-  : version(-1),
+  : modelVersion(-1),
     numInputChannels(0),
     numInputGlobalChannels(0),
+    numPolicyChannels(0),
     numValueChannels(0),
     numScoreValueChannels(0),
     numOwnershipChannels(0),
@@ -1004,16 +1038,16 @@ ModelDesc::ModelDesc()
 ModelDesc::ModelDesc(istream& in, const string& sha256_, bool binaryFloats) {
   in >> name;
   sha256 = sha256_;
-  in >> version;
+  in >> modelVersion;
   if(in.fail())
     throw StringError("Model failed to parse name or version. Is this a valid model file? You probably specified the wrong file.");
 
-  if(version < 0)
-    throw StringError("This neural net has an invalid version, you probably specified the wrong file. Supposed model version: " + Global::intToString(version));
-  if(version < 3)
-    throw StringError("This neural net is from an extremely old version of KataGo and is no longer supported by the engine. Model version: " + Global::intToString(version));
-  if(version > NNModelVersion::latestModelVersionImplemented)
-    throw StringError("This neural net requires a newer KataGo version. Obtain a newer KataGo at https://github.com/lightvector/KataGo. Model version: " + Global::intToString(version));
+  if(modelVersion < 0)
+    throw StringError("This neural net has an invalid version, you probably specified the wrong file. Supposed model version: " + Global::intToString(modelVersion));
+  if(modelVersion < 3)
+    throw StringError("This neural net is from an extremely old version of KataGo and is no longer supported by the engine. Model version: " + Global::intToString(modelVersion));
+  if(modelVersion > NNModelVersion::latestModelVersionImplemented)
+    throw StringError("This neural net requires a newer KataGo version. Obtain a newer KataGo at https://github.com/lightvector/KataGo. Model version: " + Global::intToString(modelVersion));
 
   in >> numInputChannels;
   if(in.fail())
@@ -1027,40 +1061,40 @@ ModelDesc::ModelDesc(istream& in, const string& sha256_, bool binaryFloats) {
   if(numInputGlobalChannels <= 0)
     throw StringError(name + ": model numInputGlobalChannels must be positive");
 
-  if(version >= 13) {
+  if(modelVersion >= 13) {
     in >> postProcessParams.tdScoreMultiplier;
     if(in.fail())
-      throw StringError(name + ": modelfailed to parse tdScoreMultiplier");
+      throw StringError(name + ": model failed to parse tdScoreMultiplier");
     if(postProcessParams.tdScoreMultiplier <= 0)
       throw StringError(name + ": model tdScoreMultiplier must be positive");
     in >> postProcessParams.scoreMeanMultiplier;
     if(in.fail())
-      throw StringError(name + ": modelfailed to parse scoreMeanMultiplier");
+      throw StringError(name + ": model failed to parse scoreMeanMultiplier");
     if(postProcessParams.scoreMeanMultiplier <= 0)
       throw StringError(name + ": model scoreMeanMultiplier must be positive");
     in >> postProcessParams.scoreStdevMultiplier;
     if(in.fail())
-      throw StringError(name + ": modelfailed to parse scoreStdevMultiplier");
+      throw StringError(name + ": model failed to parse scoreStdevMultiplier");
     if(postProcessParams.scoreStdevMultiplier <= 0)
       throw StringError(name + ": model scoreStdevMultiplier must be positive");
     in >> postProcessParams.leadMultiplier;
     if(in.fail())
-      throw StringError(name + ": modelfailed to parse leadMultiplier");
+      throw StringError(name + ": model failed to parse leadMultiplier");
     if(postProcessParams.leadMultiplier <= 0)
       throw StringError(name + ": model leadMultiplier must be positive");
     in >> postProcessParams.varianceTimeMultiplier;
     if(in.fail())
-      throw StringError(name + ": modelfailed to parse varianceTimeMultiplier");
+      throw StringError(name + ": model failed to parse varianceTimeMultiplier");
     if(postProcessParams.varianceTimeMultiplier <= 0)
       throw StringError(name + ": model varianceTimeMultiplier must be positive");
     in >> postProcessParams.shorttermValueErrorMultiplier;
     if(in.fail())
-      throw StringError(name + ": modelfailed to parse shorttermValueErrorMultiplier");
+      throw StringError(name + ": model failed to parse shorttermValueErrorMultiplier");
     if(postProcessParams.shorttermValueErrorMultiplier <= 0)
       throw StringError(name + ": model shorttermValueErrorMultiplier must be positive");
     in >> postProcessParams.shorttermScoreErrorMultiplier;
     if(in.fail())
-      throw StringError(name + ": modelfailed to parse shorttermScoreErrorMultiplier");
+      throw StringError(name + ": model failed to parse shorttermScoreErrorMultiplier");
     if(postProcessParams.shorttermScoreErrorMultiplier <= 0)
       throw StringError(name + ": model shorttermScoreErrorMultiplier must be positive");
   }
@@ -1068,10 +1102,25 @@ ModelDesc::ModelDesc(istream& in, const string& sha256_, bool binaryFloats) {
     postProcessParams = ModelPostProcessParams();
   }
 
-  trunk = TrunkDesc(in, version, binaryFloats);
-  policyHead = PolicyHeadDesc(in, version, binaryFloats);
-  valueHead = ValueHeadDesc(in, version, binaryFloats);
+  if(modelVersion >= 15) {
+    int unused;
+    in >> unused;
+    in >> unused;
+    in >> unused;
+    in >> unused;
+    in >> unused;
+    in >> unused;
+    in >> unused;
+    in >> unused;
+    if(in.fail())
+      throw StringError(name + ": model failed to parse unused params");
+  }
 
+  trunk = TrunkDesc(in, modelVersion, binaryFloats);
+  policyHead = PolicyHeadDesc(in, modelVersion, binaryFloats);
+  valueHead = ValueHeadDesc(in, modelVersion, binaryFloats);
+
+  numPolicyChannels = policyHead.policyOutChannels;
   numValueChannels = valueHead.v3Mul.outChannels;
   numScoreValueChannels = valueHead.sv3Mul.outChannels;
   numOwnershipChannels = valueHead.vOwnershipConv.outChannels;
@@ -1121,9 +1170,10 @@ ModelDesc::ModelDesc(ModelDesc&& other) {
 ModelDesc& ModelDesc::operator=(ModelDesc&& other) {
   name = std::move(other.name);
   sha256 = std::move(other.sha256);
-  version = other.version;
+  modelVersion = other.modelVersion;
   numInputChannels = other.numInputChannels;
   numInputGlobalChannels = other.numInputGlobalChannels;
+  numPolicyChannels = other.numPolicyChannels;
   numValueChannels = other.numValueChannels;
   numScoreValueChannels = other.numScoreValueChannels;
   numOwnershipChannels = other.numOwnershipChannels;
@@ -1227,10 +1277,9 @@ void ModelDesc::loadFromFileMaybeGZipped(const string& fileName, ModelDesc& desc
 
 
 Rules ModelDesc::getSupportedRules(const Rules& desiredRules, bool& supported) const {
-  static_assert(NNModelVersion::latestModelVersionImplemented == 14, "");
   Rules rules = desiredRules;
   supported = true;
-  if(version <= 6) {
+  if(modelVersion <= 6) {
     if(rules.koRule == Rules::KO_SIMPLE || rules.koRule == Rules::KO_SPIGHT) {
       rules.koRule = Rules::KO_SITUATIONAL;
       supported = false;
@@ -1248,7 +1297,7 @@ Rules ModelDesc::getSupportedRules(const Rules& desiredRules, bool& supported) c
       supported = false;
     }
   }
-  else if(version <= 14) {
+  else {
     if(rules.koRule == Rules::KO_SPIGHT) {
       rules.koRule = Rules::KO_SITUATIONAL;
       supported = false;
@@ -1257,9 +1306,6 @@ Rules ModelDesc::getSupportedRules(const Rules& desiredRules, bool& supported) c
       rules.hasButton = false;
       supported = false;
     }
-  }
-  else {
-    ASSERT_UNREACHABLE;
   }
 
   return rules;

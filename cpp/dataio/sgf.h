@@ -38,6 +38,8 @@ struct SgfNode {
   Color getPLSpecifiedColor() const;
   Rules getRulesFromRUTagOrFail() const;
   Player getSgfWinner() const;
+  float getKomiOrFail() const;
+  float getKomiOrDefault(float defaultKomi) const;
 };
 
 struct Sgf {
@@ -61,7 +63,8 @@ struct Sgf {
   static std::vector<Sgf*> loadSgfsFiles(const std::vector<std::string>& files);
 
   XYSize getXYSize() const;
-  float getKomi() const;
+  float getKomiOrFail() const;
+  float getKomiOrDefault(float defaultKomi) const;
   bool hasRules() const;
   Rules getRulesOrFail() const;
   int getHandicapValue() const;
@@ -112,7 +115,7 @@ struct Sgf {
     bool hasPreviousPositions(int numPrevious) const;
 
     int64_t getCurrentTurnNumber() const;
-    
+
     //For the moment, only used in testing since it does extra consistency checks.
     //If we need a version to be used in "prod", we could make an efficient version maybe as operator==.
     bool isEqualForTesting(const PositionSample& other, bool checkNumCaptures, bool checkSimpleKo) const;
@@ -197,7 +200,6 @@ struct CompactSgf {
   int xSize;
   int ySize;
   int64_t depth;
-  float komi;
   Player sgfWinner;
   Hash128 hash;
 

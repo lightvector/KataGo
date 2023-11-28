@@ -96,7 +96,7 @@ string NeuralNet::getModelName(const LoadedModel* loadedModel) {
 }
 
 int NeuralNet::getModelVersion(const LoadedModel* loadedModel) {
-  return loadedModel->modelDesc.version;
+  return loadedModel->modelDesc.modelVersion;
 }
 
 Rules NeuralNet::getSupportedRules(const LoadedModel* loadedModel, const Rules& desiredRules, bool& supported) {
@@ -786,8 +786,10 @@ struct MatMulLayer {
       inChannels(desc.inChannels),
       outChannels(desc.outChannels)
   {
-    weights = TENSOR2(desc.outChannels, desc.inChannels);
-    memcpy(weights.data(), desc.weights.data(), sizeof(SCALAR) * weights.size());
+    if(inChannels > 0 && outChannels > 0) {
+      weights = TENSOR2(desc.outChannels, desc.inChannels);
+      memcpy(weights.data(), desc.weights.data(), sizeof(SCALAR) * weights.size());
+    }
   }
 
   void apply(CONSTTENSORMAP2* in, TENSORMAP2* out) const {
@@ -1168,7 +1170,7 @@ void BlockStack::apply(
 
 struct Trunk {
   const string name;
-  const int version;
+  const int modelVersion;
 
   const ConvLayer initialConv;
   const MatMulLayer initialMatMul;
@@ -1181,7 +1183,7 @@ struct Trunk {
 
   Trunk(const TrunkDesc& desc, int nnX, int nnY)
     : name(desc.name),
-      version(desc.version),
+      modelVersion(desc.modelVersion),
       initialConv(desc.initialConv,nnX,nnY),
       initialMatMul(desc.initialMatMul),
       blocks(desc.blocks,desc.numBlocks,nnX,nnY),
@@ -1228,7 +1230,7 @@ struct Trunk {
 
 struct PolicyHead {
   const string name;
-  const int version;
+  const int modelVersion;
 
   const ConvLayer p1Conv;
   const ConvLayer g1Conv;
@@ -1237,6 +1239,9 @@ struct PolicyHead {
   const BatchNormLayer p1BN;
   const ConvLayer p2Conv;
   const MatMulLayer gpoolToPassMul;
+  const MatBiasLayer gpoolToPassBias;
+  const ActivationLayer passActivation;
+  const MatMulLayer gpoolToPassMul2;
 
   PolicyHead() = delete;
   PolicyHead(const PolicyHead&) = delete;
@@ -1244,14 +1249,17 @@ struct PolicyHead {
 
   PolicyHead(const PolicyHeadDesc& desc, int nnX, int nnY)
     : name(desc.name),
-      version(desc.version),
+      modelVersion(desc.modelVersion),
       p1Conv(desc.p1Conv,nnX,nnY),
       g1Conv(desc.g1Conv,nnX,nnY),
       g1BN(desc.g1BN,desc.g1Activation),
       gpoolToBiasMul(desc.gpoolToBiasMul),
       p1BN(desc.p1BN,desc.p1Activation),
       p2Conv(desc.p2Conv,nnX,nnY),
-      gpoolToPassMul(desc.gpoolToPassMul)
+      gpoolToPassMul(desc.gpoolToPassMul),
+      gpoolToPassBias(desc.gpoolToPassBias),
+      passActivation(desc.passActivation),
+      gpoolToPassMul2(desc.gpoolToPassMul2)
   {}
 
   size_t requiredConvWorkspaceElts(size_t maxBatchSize) const {
@@ -1279,12 +1287,14 @@ struct PolicyHead {
     SizedBuf<float*> g1Out2Buf(scratch->allocator, scratch->getBufSizeXY(g1Conv.outChannels));
     SizedBuf<float*> g1ConcatBuf(scratch->allocator, scratch->getBufSize(g1Conv.outChannels*3));
     SizedBuf<float*> g1BiasBuf(scratch->allocator, scratch->getBufSize(p1Conv.outChannels));
+    SizedBuf<float*> p1PassBuf(scratch->allocator, scratch->getBufSize(p1Conv.outChannels));
     TENSORMAP4 p1Out(p1OutBuf.buf, p1Conv.outChannels, handle->nnXLen, handle->nnYLen, batchSize);
     TENSORMAP4 p1Out2(p1Out2Buf.buf, p1Conv.outChannels, handle->nnXLen, handle->nnYLen, batchSize);
     TENSORMAP4 g1Out(g1OutBuf.buf, g1Conv.outChannels, handle->nnXLen, handle->nnYLen, batchSize);
     TENSORMAP4 g1Out2(g1Out2Buf.buf, g1Conv.outChannels, handle->nnXLen, handle->nnYLen, batchSize);
     TENSORMAP2 g1Concat(g1ConcatBuf.buf, g1Conv.outChannels*3, batchSize);
     TENSORMAP2 g1Bias(g1BiasBuf.buf, p1Conv.outChannels, batchSize);
+    TENSORMAP2 p1Pass(p1PassBuf.buf, p1Conv.outChannels, batchSize);
 
     p1Conv.apply(handle, trunk, &p1Out, convWorkspace, false);
     g1Conv.apply(handle, trunk, &g1Out, convWorkspace, false);
@@ -1294,13 +1304,22 @@ struct PolicyHead {
     addNCBiasInplace(&p1Out, &g1Bias);
     p1BN.apply(&p1Out, &p1Out2, mask);
     p2Conv.apply(handle, &p1Out2, policy, convWorkspace, false);
-    gpoolToPassMul.apply(&g1Concat, policyPass);
+
+    if(modelVersion >= 15) {
+      gpoolToPassMul.apply(&g1Concat, &p1Pass);
+      gpoolToPassBias.apply(&p1Pass);
+      passActivation.apply(&p1Pass, &p1Pass);
+      gpoolToPassMul2.apply(&p1Pass, policyPass);
+    }
+    else {
+      gpoolToPassMul.apply(&g1Concat, policyPass);
+    }
   }
 };
 
 struct ValueHead {
   const string name;
-  const int version;
+  const int modelVersion;
 
   const ConvLayer v1Conv;
   const BatchNormLayer v1BN;
@@ -1319,7 +1338,7 @@ struct ValueHead {
 
   ValueHead(const ValueHeadDesc& desc, int nnX, int nnY)
     : name(desc.name),
-      version(desc.version),
+      modelVersion(desc.modelVersion),
       v1Conv(desc.v1Conv,nnX,nnY),
       v1BN(desc.v1BN,desc.v1Activation),
       v2Mul(desc.v2Mul),
@@ -1381,9 +1400,10 @@ struct ValueHead {
 
 struct Model {
   const string name;
-  const int version;
+  const int modelVersion;
   const int numInputChannels;
   const int numInputGlobalChannels;
+  const int numPolicyChannels;
   const int numValueChannels;
   const int numScoreValueChannels;
   const int numOwnershipChannels;
@@ -1398,9 +1418,10 @@ struct Model {
 
   Model(const ModelDesc& desc, int nnX, int nnY)
     : name(desc.name),
-      version(desc.version),
+      modelVersion(desc.modelVersion),
       numInputChannels(desc.numInputChannels),
       numInputGlobalChannels(desc.numInputGlobalChannels),
+      numPolicyChannels(desc.numPolicyChannels),
       numValueChannels(desc.numValueChannels),
       numScoreValueChannels(desc.numScoreValueChannels),
       numOwnershipChannels(desc.numOwnershipChannels),
@@ -1497,12 +1518,12 @@ struct Buffers {
   ) :
     trunk(desc.trunk.trunkNumChannels, nnXLen, nnYLen, maxBatchSize),
 
-    policyPass(desc.policyHead.gpoolToPassMul.outChannels, maxBatchSize),
-    policy(desc.policyHead.p2Conv.outChannels, nnXLen, nnYLen, maxBatchSize),
+    policyPass(desc.numPolicyChannels, maxBatchSize),
+    policy(desc.numPolicyChannels, nnXLen, nnYLen, maxBatchSize),
 
-    value(desc.valueHead.v3Mul.outChannels, maxBatchSize),
-    scoreValue(desc.valueHead.sv3Mul.outChannels, maxBatchSize),
-    ownership(desc.valueHead.vOwnershipConv.outChannels, nnXLen, nnYLen, maxBatchSize),
+    value(desc.numValueChannels, maxBatchSize),
+    scoreValue(desc.numScoreValueChannels, maxBatchSize),
+    ownership(desc.numOwnershipChannels, nnXLen, nnYLen, maxBatchSize),
 
     mask(nnXLen, nnYLen, maxBatchSize),
     maskSum(maxBatchSize),
@@ -1530,20 +1551,18 @@ struct InputBuffers {
   InputBuffers(const LoadedModel* loadedModel, int maxBatchSz, int nnXLen, int nnYLen) {
     const ModelDesc& m = loadedModel->modelDesc;
 
-    const int policyChannels = m.version >= 12 ? 2 : 1;
-    assert(policyChannels == m.policyHead.p2Conv.outChannels);
     maxBatchSize = maxBatchSz;
     singleInputElts = m.numInputChannels * nnXLen * nnYLen;
     singleInputGlobalElts = m.numInputGlobalChannels;
 
-    singlePolicyPassResultElts = (size_t)(policyChannels);
-    singlePolicyResultElts = (size_t)(policyChannels * nnXLen * nnYLen);
+    singlePolicyPassResultElts = (size_t)(m.numPolicyChannels);
+    singlePolicyResultElts = (size_t)(m.numPolicyChannels * nnXLen * nnYLen);
     singleValueResultElts = (size_t)m.numValueChannels;
     singleScoreValueResultElts = (size_t)m.numScoreValueChannels;
     singleOwnershipResultElts = (size_t)m.numOwnershipChannels * nnXLen * nnYLen;
 
-    assert(NNModelVersion::getNumSpatialFeatures(m.version) == m.numInputChannels);
-    assert(NNModelVersion::getNumGlobalFeatures(m.version) == m.numInputGlobalChannels);
+    assert(NNModelVersion::getNumSpatialFeatures(m.modelVersion) == m.numInputChannels);
+    assert(NNModelVersion::getNumGlobalFeatures(m.modelVersion) == m.numInputGlobalChannels);
 
     spatialInput = vector<float>(m.numInputChannels * nnXLen * nnYLen * maxBatchSize);
     globalInput = vector<float>(m.numInputGlobalChannels * maxBatchSize);
@@ -1651,7 +1670,7 @@ ComputeHandle* NeuralNet::createComputeHandle(
   int serverThreadIdx
 ) {
   if(logger != NULL) {
-    logger->write("Eigen (CPU) backend thread " + Global::intToString(serverThreadIdx) + ": Model version " + Global::intToString(loadedModel->modelDesc.version));
+    logger->write("Eigen (CPU) backend thread " + Global::intToString(serverThreadIdx) + ": Model version " + Global::intToString(loadedModel->modelDesc.modelVersion));
     logger->write("Eigen (CPU) backend thread " + Global::intToString(serverThreadIdx) + ": Model name: " + loadedModel->modelDesc.name);
   }
 
@@ -1684,14 +1703,14 @@ void NeuralNet::getOutput(
   const int batchSize = numBatchEltsFilled;
   const int nnXLen = computeHandle->context->nnXLen;
   const int nnYLen = computeHandle->context->nnYLen;
-  const int version = computeHandle->model.version;
+  const int modelVersion = computeHandle->model.modelVersion;
 
-  const int numSpatialFeatures = NNModelVersion::getNumSpatialFeatures(version);
-  const int numGlobalFeatures = NNModelVersion::getNumGlobalFeatures(version);
+  const int numSpatialFeatures = NNModelVersion::getNumSpatialFeatures(modelVersion);
+  const int numGlobalFeatures = NNModelVersion::getNumGlobalFeatures(modelVersion);
   assert(numSpatialFeatures == computeHandle->model.numInputChannels);
   assert(numSpatialFeatures * nnXLen * nnYLen == inputBuffers->singleInputElts);
   assert(numGlobalFeatures == inputBuffers->singleInputGlobalElts);
-  const int policyChannels = version >= 12 ? 2 : 1;
+  const int numPolicyChannels = computeHandle->model.numPolicyChannels;
 
   for(int nIdx = 0; nIdx<batchSize; nIdx++) {
     float* rowSpatialInput = inputBuffers->spatialInput.data() + (inputBuffers->singleInputElts * nIdx);
@@ -1739,8 +1758,8 @@ void NeuralNet::getOutput(
     convWorkspace.data()
   );
 
-  assert(inputBuffers->singlePolicyPassResultElts == policyChannels);
-  assert(inputBuffers->singlePolicyResultElts == policyChannels * nnXLen * nnYLen);
+  assert(inputBuffers->singlePolicyPassResultElts == numPolicyChannels);
+  assert(inputBuffers->singlePolicyResultElts == numPolicyChannels * nnXLen * nnYLen);
 
   assert(outputs.size() == batchSize);
 
@@ -1758,15 +1777,15 @@ void NeuralNet::getOutput(
     assert(output->nnYLen == nnYLen);
     float policyOptimism = (float)inputBufs[row]->policyOptimism;
 
-    const float* policyPassSrcBuf = policyPassData + row * policyChannels;
-    const float* policySrcBuf = policyData + row * policyChannels * nnXLen * nnYLen;
+    const float* policyPassSrcBuf = policyPassData + row * numPolicyChannels;
+    const float* policySrcBuf = policyData + row * numPolicyChannels * nnXLen * nnYLen;
     float* policyProbs = output->policyProbs;
 
     // These are in logits, the client does the postprocessing to turn them into
     // policy probabilities and white game outcome probabilities
     // Also we don't fill in the nnHash here either
     // Handle version >= 12 policy optimism
-    if(policyChannels == 2) {
+    if(numPolicyChannels == 2) {
       // Eigen is all NHWC
       for(int i = 0; i<nnXLen*nnYLen; i++) {
         float p = policySrcBuf[i*2];
@@ -1777,7 +1796,7 @@ void NeuralNet::getOutput(
       policyProbs[nnXLen*nnYLen] = policyPassSrcBuf[0] + (policyPassSrcBuf[1] - policyPassSrcBuf[0]) * policyOptimism;
     }
     else {
-      assert(policyChannels == 1);
+      assert(numPolicyChannels == 1);
       SymmetryHelpers::copyOutputsWithSymmetry(policySrcBuf, policyProbs, 1, nnYLen, nnXLen, inputBufs[row]->symmetry);
       policyProbs[inputBuffers->singlePolicyResultElts] = policyPassSrcBuf[0];
     }
@@ -1796,7 +1815,7 @@ void NeuralNet::getOutput(
       SymmetryHelpers::copyOutputsWithSymmetry(ownershipSrcBuf, output->whiteOwnerMap, 1, nnYLen, nnXLen, inputBufs[row]->symmetry);
     }
 
-    if(version >= 9) {
+    if(modelVersion >= 9) {
       int numScoreValueChannels = computeHandle->model.numScoreValueChannels;
       assert(numScoreValueChannels == 6);
       output->whiteScoreMean = scoreValueData[row * numScoreValueChannels];
@@ -1806,7 +1825,7 @@ void NeuralNet::getOutput(
       output->shorttermWinlossError = scoreValueData[row * numScoreValueChannels + 4];
       output->shorttermScoreError = scoreValueData[row * numScoreValueChannels + 5];
     }
-    else if(version >= 8) {
+    else if(modelVersion >= 8) {
       int numScoreValueChannels = computeHandle->model.numScoreValueChannels;
       assert(numScoreValueChannels == 4);
       output->whiteScoreMean = scoreValueData[row * numScoreValueChannels];
@@ -1816,7 +1835,7 @@ void NeuralNet::getOutput(
       output->shorttermWinlossError = 0;
       output->shorttermScoreError = 0;
     }
-    else if(version >= 4) {
+    else if(modelVersion >= 4) {
       int numScoreValueChannels = computeHandle->model.numScoreValueChannels;
       assert(numScoreValueChannels == 2);
       output->whiteScoreMean = scoreValueData[row * numScoreValueChannels];
@@ -1826,7 +1845,7 @@ void NeuralNet::getOutput(
       output->shorttermWinlossError = 0;
       output->shorttermScoreError = 0;
     }
-    else if(version >= 3) {
+    else if(modelVersion >= 3) {
       int numScoreValueChannels = computeHandle->model.numScoreValueChannels;
       assert(numScoreValueChannels == 1);
       output->whiteScoreMean = scoreValueData[row * numScoreValueChannels];

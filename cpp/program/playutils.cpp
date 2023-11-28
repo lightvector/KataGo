@@ -933,7 +933,7 @@ PlayUtils::BenchmarkResults PlayUtils::benchmarkSearchOnPositionsAndPrint(
   //Ignore the SGF rules, except for komi. Just use Tromp-taylor.
   Rules initialRules = Rules::getTrompTaylorish();
   //Take the komi from the sgf, otherwise ignore the rules in the sgf
-  initialRules.komi = sgf->komi;
+  initialRules.komi = sgf->getRulesOrFailAllowUnspecified(initialRules).komi;
 
   Board board;
   Player nextPla;

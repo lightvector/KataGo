@@ -98,6 +98,18 @@ def main(args):
         writeln(model.shortterm_value_error_multiplier)
         writeln(model.shortterm_score_error_multiplier)
 
+    if version >= 15:
+        # Write some dummy placeholders for future features
+        writeln(0)
+        writeln(0)
+        writeln(0)
+        writeln(0)
+        writeln(0)
+        writeln(0)
+        writeln(0)
+        writeln(0)
+
+
     def write_weights(weights):
         # Little endian
         reshaped = np.reshape(weights.detach().numpy(),[-1])
@@ -283,6 +295,14 @@ def main(args):
         writeln(model.c_mid-model.c_gpool)
         writeln(model.c_gpool)
         writeln(model.c_gpool)
+        if version >= 15:
+            # Write some dummy placeholders for future features
+            writeln(0)
+            writeln(0)
+            writeln(0)
+            writeln(0)
+            writeln(0)
+            writeln(0)
 
         write_conv("model.conv_spatial", model.conv_spatial)
         write_matmul("model.linear_global", model.linear_global.weight)
