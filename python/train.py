@@ -260,7 +260,7 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
 
         if train_state["global_step_samples"] < 550000000:
             return 8.0
-        if train_state["global_step_samples"] < 1100000000:
+        if train_state["global_step_samples"] < 1400000000:
             return 6.0
         return 4.0
 
