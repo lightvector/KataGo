@@ -276,7 +276,79 @@ struct GpuErrorStats {
   }
 };
 
-bool Tests::runFP16Test(NNEvaluator* nnEval, NNEvaluator* nnEval32, Logger& logger, int boardSize, int maxBatchSizeCap, bool verbose, bool quickTest, bool& fp32BatchSuccessBuf) {
+void saveBaseToFile(const std::vector<std::shared_ptr<NNOutput>>& base, const string& baseFileName, Logger& logger, bool verbose) {
+  assert(baseFileName != "");
+  std::ofstream outFile(baseFileName, std::ios::binary);
+
+  if (!outFile)
+    throw StringError("Unable to save base to: " + baseFileName);
+
+  size_t size = base.size();
+  outFile.write(reinterpret_cast<const char*>(&size), sizeof(size));
+
+  for (const auto& nnOutputPtr : base) {
+    if (nnOutputPtr) {
+      outFile.write(reinterpret_cast<const char*>(&nnOutputPtr->nnHash), sizeof(nnOutputPtr->nnHash));
+      outFile.write(reinterpret_cast<const char*>(&nnOutputPtr->whiteWinProb), sizeof(nnOutputPtr->whiteWinProb));
+      outFile.write(reinterpret_cast<const char*>(&nnOutputPtr->whiteLossProb), sizeof(nnOutputPtr->whiteLossProb));
+      outFile.write(reinterpret_cast<const char*>(&nnOutputPtr->whiteNoResultProb), sizeof(nnOutputPtr->whiteNoResultProb));
+      outFile.write(reinterpret_cast<const char*>(&nnOutputPtr->whiteScoreMean), sizeof(nnOutputPtr->whiteScoreMean));
+      outFile.write(reinterpret_cast<const char*>(&nnOutputPtr->whiteScoreMeanSq), sizeof(nnOutputPtr->whiteScoreMeanSq));
+      outFile.write(reinterpret_cast<const char*>(&nnOutputPtr->whiteLead), sizeof(nnOutputPtr->whiteLead));
+      outFile.write(reinterpret_cast<const char*>(&nnOutputPtr->varTimeLeft), sizeof(nnOutputPtr->varTimeLeft));
+      outFile.write(reinterpret_cast<const char*>(&nnOutputPtr->shorttermWinlossError), sizeof(nnOutputPtr->shorttermWinlossError));
+      outFile.write(reinterpret_cast<const char*>(&nnOutputPtr->shorttermScoreError), sizeof(nnOutputPtr->shorttermScoreError));
+      outFile.write(reinterpret_cast<const char*>(nnOutputPtr->policyProbs), sizeof(float) * NNPos::MAX_NN_POLICY_SIZE);
+      outFile.write(reinterpret_cast<const char*>(&nnOutputPtr->nnXLen), sizeof(nnOutputPtr->nnXLen));
+      outFile.write(reinterpret_cast<const char*>(&nnOutputPtr->nnYLen), sizeof(nnOutputPtr->nnYLen));
+    }
+  }
+
+  if (verbose)
+    logger.write("Saved " + Global::uint64ToString((uint64_t)base.size()) + " positions to: " + baseFileName);
+
+  outFile.close();
+}
+
+void loadBaseFromFile(std::vector<std::shared_ptr<NNOutput>>& base, const string& baseFileName, Logger& logger, bool verbose) {
+  assert(baseFileName != "");
+  std::ifstream inFile(baseFileName, std::ios::binary);
+
+  if (!inFile)
+    throw StringError("Unable to load: " + baseFileName);
+
+  size_t size;
+  inFile.read(reinterpret_cast<char*>(&size), sizeof(size));
+  base.resize(size);
+
+  for (size_t i = 0; i < size; ++i) {
+    base[i] = std::make_shared<NNOutput>();
+
+    inFile.read(reinterpret_cast<char*>(&base[i]->nnHash), sizeof(base[i]->nnHash));
+    inFile.read(reinterpret_cast<char*>(&base[i]->whiteWinProb), sizeof(base[i]->whiteWinProb));
+    inFile.read(reinterpret_cast<char*>(&base[i]->whiteLossProb), sizeof(base[i]->whiteLossProb));
+    inFile.read(reinterpret_cast<char*>(&base[i]->whiteNoResultProb), sizeof(base[i]->whiteNoResultProb));
+    inFile.read(reinterpret_cast<char*>(&base[i]->whiteScoreMean), sizeof(base[i]->whiteScoreMean));
+    inFile.read(reinterpret_cast<char*>(&base[i]->whiteScoreMeanSq), sizeof(base[i]->whiteScoreMeanSq));
+    inFile.read(reinterpret_cast<char*>(&base[i]->whiteLead), sizeof(base[i]->whiteLead));
+    inFile.read(reinterpret_cast<char*>(&base[i]->varTimeLeft), sizeof(base[i]->varTimeLeft));
+    inFile.read(reinterpret_cast<char*>(&base[i]->shorttermWinlossError), sizeof(base[i]->shorttermWinlossError));
+    inFile.read(reinterpret_cast<char*>(&base[i]->shorttermScoreError), sizeof(base[i]->shorttermScoreError));
+    inFile.read(reinterpret_cast<char*>(&base[i]->policyProbs), sizeof(float) * NNPos::MAX_NN_POLICY_SIZE);
+    inFile.read(reinterpret_cast<char*>(&base[i]->nnXLen), sizeof(base[i]->nnXLen));
+    inFile.read(reinterpret_cast<char*>(&base[i]->nnYLen), sizeof(base[i]->nnYLen));
+
+    base[i]->whiteOwnerMap = nullptr;
+    base[i]->noisedPolicyProbs = nullptr;
+  }
+
+  if (verbose)
+    logger.write("Loaded " + Global::uint64ToString((uint64_t)base.size()) + " positions from: " + baseFileName);
+
+  inFile.close();
+}
+
+bool Tests::runFP16Test(NNEvaluator* nnEval, NNEvaluator* nnEval32, Logger& logger, int boardSize, int maxBatchSizeCap, bool verbose, bool quickTest, bool& fp32BatchSuccessBuf, const string& baseFileName) {
 
   int maxBatchSize = nnEval->getMaxBatchSize();
   if(maxBatchSize != nnEval32->getMaxBatchSize())
@@ -287,13 +359,10 @@ bool Tests::runFP16Test(NNEvaluator* nnEval, NNEvaluator* nnEval32, Logger& logg
     throw StringError("Invalid max batch size for fp16 test");
 
 #ifdef USE_EIGEN_BACKEND
-  (void)logger;
-  (void)boardSize;
-  (void)verbose;
-  (void)quickTest;
-  fp32BatchSuccessBuf = true;
-  return true;
-#else
+  if (baseFileName == "")
+    return true;
+#endif
+
   Rand filterRand("Tests::runFP16Test filter rand");
   auto loadHists = [&](const std::vector<string>& sgfStrs) {
     std::vector<BoardHistory> hists;
@@ -346,8 +415,24 @@ bool Tests::runFP16Test(NNEvaluator* nnEval, NNEvaluator* nnEval32, Logger& logg
     if(verbose)
       logger.write("Running evaluations in fp32");
     std::vector<std::shared_ptr<NNOutput>> base;
-    for(const BoardHistory& hist: hists)
-      base.push_back(evalBoard(nnEval32,hist));
+
+    bool loadedBaseFromFile = false;
+
+#ifndef USE_EIGEN_BACKEND
+    if (baseFileName != "") {
+      loadBaseFromFile(base, baseFileName, logger, verbose);
+      loadedBaseFromFile = true;
+    }
+#endif
+
+    if (!loadedBaseFromFile)
+      for(const BoardHistory& hist: hists)
+        base.push_back(evalBoard(nnEval32,hist));
+
+#ifdef USE_EIGEN_BACKEND
+    assert(baseFileName != "");
+    saveBaseToFile(base, baseFileName, logger, verbose);
+#endif
 
     std::vector<std::shared_ptr<NNOutput>> batched(hists.size());
     std::vector<std::shared_ptr<NNOutput>> current;
@@ -430,5 +515,4 @@ bool Tests::runFP16Test(NNEvaluator* nnEval, NNEvaluator* nnEval32, Logger& logg
 
     return success;
   }
-#endif
 }
