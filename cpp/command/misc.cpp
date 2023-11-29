@@ -1,7 +1,9 @@
 #include "../core/global.h"
 #include "../core/fileutils.h"
+#include "../core/fancymath.h"
 #include "../core/makedir.h"
 #include "../core/config_parser.h"
+#include "../core/parallel.h"
 #include "../core/timer.h"
 #include "../core/test.h"
 #include "../dataio/sgf.h"
@@ -605,12 +607,18 @@ int MainCmds::samplesgfs(const vector<string>& args) {
   double valueFluctuationTurnScale;
   double valueFluctuationMaxWeight;
   bool valueFluctuationMakeKomiFair;
+  double valueFluctuationWeightBySurprise;
+  double valueFluctuationWeightByCount;
+  double valueFluctuationWeightByUncertainty;
+  bool debugValueFluctuation;
 
   int minMinRank;
   int minMinRating;
   string requiredPlayerName;
   int maxHandicap;
   double maxKomi;
+
+  int numThreads;
 
   bool forTesting;
 
@@ -643,11 +651,17 @@ int MainCmds::samplesgfs(const vector<string>& args) {
     TCLAP::ValueArg<double> valueFluctuationTurnScaleArg("","value-fluctuation-turn-scale","How much prior on average",false,1.0,"AVGTURNS");
     TCLAP::ValueArg<double> valueFluctuationMaxWeightArg("","value-fluctuation-max-weight","",false,10.0,"MAXWEIGHT");
     TCLAP::SwitchArg valueFluctuationMakeKomiFairArg("","value-fluctuation-make-komi-fair","");
+    TCLAP::ValueArg<double> valueFluctuationWeightBySurpriseArg("","value-fluctuation-weight-by-surprise","",false,0.0,"SCALE");
+    TCLAP::ValueArg<double> valueFluctuationWeightByCountArg("","value-fluctuation-weight-by-count","",false,1.0,"SCALE");
+    TCLAP::ValueArg<double> valueFluctuationWeightByUncertaintyArg("","value-fluctuation-weight-by-uncertainty","",false,0.0,"SCALE");
+    TCLAP::SwitchArg debugValueFluctuationArg("","debug-value-fluctuation","");
     TCLAP::ValueArg<int> minMinRankArg("","min-min-rank","Require both players in a game to have rank at least this",false,Sgf::RANK_UNKNOWN,"INT");
     TCLAP::ValueArg<int> minMinRatingArg("","min-min-rating","Require both players in a game to have rating at least this",false,-1000000000,"INT");
     TCLAP::ValueArg<string> requiredPlayerNameArg("","required-player-name","Require player making the move to have this name",false,string(),"NAME");
     TCLAP::ValueArg<int> maxHandicapArg("","max-handicap","Require no more than this big handicap in stones",false,100,"INT");
     TCLAP::ValueArg<double> maxKomiArg("","max-komi","Require absolute value of game komi to be at most this",false,1000,"KOMI");
+
+    TCLAP::ValueArg<int> numThreadsArg("","num-threads","Number of threads to process",false,1,"INT");
 
     TCLAP::SwitchArg forTestingArg("","for-testing","For testing");
 
@@ -676,11 +690,16 @@ int MainCmds::samplesgfs(const vector<string>& args) {
     cmd.add(valueFluctuationTurnScaleArg);
     cmd.add(valueFluctuationMaxWeightArg);
     cmd.add(valueFluctuationMakeKomiFairArg);
+    cmd.add(valueFluctuationWeightBySurpriseArg);
+    cmd.add(valueFluctuationWeightByCountArg);
+    cmd.add(valueFluctuationWeightByUncertaintyArg);
+    cmd.add(debugValueFluctuationArg);
     cmd.add(minMinRankArg);
     cmd.add(minMinRatingArg);
     cmd.add(requiredPlayerNameArg);
     cmd.add(maxHandicapArg);
     cmd.add(maxKomiArg);
+    cmd.add(numThreadsArg);
     cmd.add(forTestingArg);
     cmd.parseArgs(args);
     sgfFilesFromCmdline = sgfArg.getValue();
@@ -708,11 +727,16 @@ int MainCmds::samplesgfs(const vector<string>& args) {
     valueFluctuationTurnScale = valueFluctuationTurnScaleArg.getValue();
     valueFluctuationMaxWeight = valueFluctuationMaxWeightArg.getValue();
     valueFluctuationMakeKomiFair = valueFluctuationMakeKomiFairArg.getValue();
+    valueFluctuationWeightBySurprise = valueFluctuationWeightBySurpriseArg.getValue();
+    valueFluctuationWeightByCount = valueFluctuationWeightByCountArg.getValue();
+    valueFluctuationWeightByUncertainty = valueFluctuationWeightByUncertaintyArg.getValue();
+    debugValueFluctuation = debugValueFluctuationArg.getValue();
     minMinRank = minMinRankArg.getValue();
     minMinRating = minMinRatingArg.getValue();
     requiredPlayerName = requiredPlayerNameArg.getValue();
     maxHandicap = maxHandicapArg.getValue();
     maxKomi = maxKomiArg.getValue();
+    numThreads = numThreadsArg.getValue();
     forTesting = forTestingArg.getValue();
   }
   catch (TCLAP::ArgException &e) {
@@ -737,19 +761,14 @@ int MainCmds::samplesgfs(const vector<string>& args) {
 
   logger.write("Found " + Global::int64ToString((int64_t)sgfFiles.size()) + " sgf files!");
 
-  std::set<string> sgfsSet;
-  {
-    vector<string> sgfsFiles;
-    FileHelpers::collectMultiSgfsFromDirsOrFiles(sgfsDirs,sgfsFiles);
-    logger.write("Found " + Global::int64ToString((int64_t)sgfsFiles.size()) + " sgfs files!");
-    for(const string& s: sgfsFiles) {
-      sgfFiles.push_back(s);
-      sgfsSet.insert(s);
-    }
-  }
+  vector<string> sgfsFiles;
+  FileHelpers::collectMultiSgfsFromDirsOrFiles(sgfsDirs,sgfsFiles);
+  logger.write("Found " + Global::int64ToString((int64_t)sgfsFiles.size()) + " sgfs files!");
 
-  if(forTesting)
+  if(forTesting) {
     std::sort(sgfFiles.begin(),sgfFiles.end());
+    std::sort(sgfsFiles.begin(),sgfsFiles.end());
+  }
 
   set<Hash128> excludeHashes = Sgf::readExcludes(excludeHashesFiles);
   logger.write("Loaded " + Global::uint64ToString(excludeHashes.size()) + " excludes");
@@ -765,7 +784,6 @@ int MainCmds::samplesgfs(const vector<string>& args) {
       cfg.overrideKey("nnRandSeed","forTesting");
 
     Setup::initializeSession(cfg);
-    int numThreads = 1;
     const int maxConcurrentEvals = numThreads * 2 + 16; // * 2 + 16 just to give plenty of headroom
     const int expectedConcurrentEvals = numThreads;
     const int defaultMaxBatchSize = std::max(8,((numThreads+3)/4)*4);
@@ -811,6 +829,8 @@ int MainCmds::samplesgfs(const vector<string>& args) {
   };
 
   // ---------------------------------------------------------------------------------------------------
+  std::mutex mutex;
+
   PosWriter posWriter("startposes.txt", outDir, 1, 0, 100000);
   posWriter.start();
 
@@ -853,9 +873,14 @@ int MainCmds::samplesgfs(const vector<string>& args) {
   std::map<string,int64_t> sgfCountUsedByPlayerName;
   std::map<string,int64_t> sgfCountUsedByResult;
 
+  double totalWeightFromCount = 0.0;
+  double totalWeightFromSurprise = 0.0;
+  double totalWeightFromUncertainty = 0.0;
   int64_t numExcluded = 0;
   int64_t numSgfsFilteredTopLevel = 0;
   auto trySgf = [&](Sgf* sgf) {
+    std::unique_lock<std::mutex> lock(mutex);
+
     if(contains(excludeHashes,sgf->hash)) {
       numExcluded += 1;
       return;
@@ -915,10 +940,12 @@ int MainCmds::samplesgfs(const vector<string>& args) {
         Search* search = new Search(params,valueFluctuationNNEval,&logger,searchRandSeed);
         OtherGameProperties otherGameProps;
         int64_t numVisits = 30;
+        lock.unlock();
         PlayUtils::adjustKomiToEven(search, search, board, hist, nextPla, numVisits, otherGameProps, rand);
+        lock.lock();
       }
 
-      const bool preventEncore = true;
+      const bool preventEncore = false;
       const vector<Move>& sgfMoves = compactSgf.moves;
 
       vector<Board> boards;
@@ -936,7 +963,9 @@ int MainCmds::samplesgfs(const vector<string>& args) {
         NNResultBuf buf;
         bool skipCache = true;
         bool includeOwnerMap = false;
+        lock.unlock();
         valueFluctuationNNEval->evaluate(board,hist,nextPla,nnInputParams,buf,skipCache,includeOwnerMap);
+        lock.lock();
 
         boards.push_back(board);
         hists.push_back(hist);
@@ -981,16 +1010,22 @@ int MainCmds::samplesgfs(const vector<string>& args) {
       double maxTurnNumber = maxTurnNumberBoardAreaProp * (hist.initialBoard.x_size * hist.initialBoard.y_size);
       //At this point we transition from indexing by move index alone to indexing by turn number in case the board
       //started in the middle of a nonempty position.
+      double totalSurprise = 0.0;
+      double totalUncertainty = 0.0;
       vector<double> winrateVariance;
       for(size_t i = 0; i<winLossValues.size()-1; i++) {
         int64_t turnNumber = hists[i].getCurrentTurnNumber();
         if(winrateVariance.size() <= turnNumber)
           winrateVariance.resize(turnNumber+1);
-        if(turnNumber >= minTurnNumber && turnNumber <= maxTurnNumber)
+        if(turnNumber >= minTurnNumber && turnNumber <= maxTurnNumber) {
           winrateVariance[turnNumber] = (winLossValues[i+1]-winLossValues[i]) * (winLossValues[i+1]-winLossValues[i]);
+          totalSurprise += FancyMath::binaryCrossEntropy(0.5 + 0.5 * winLossValues[i], 0.5 + 0.5 * winLossValues[winLossValues.size()-1], 0.001);
+          totalUncertainty += std::max(0.0, 1.0 - winLossValues[i] * winLossValues[i]);
+        }
         else
           winrateVariance[turnNumber] = 0.0;
       }
+
       //Apply exponential blur
       vector<double> winrateVarianceBlurred(winrateVariance.size());
       double blurSum = 0.0;
@@ -1009,9 +1044,33 @@ int MainCmds::samplesgfs(const vector<string>& args) {
         return;
 
       //Normalize
+      double desiredTotalWeight = (
+        valueFluctuationWeightByCount * totalCount +
+        valueFluctuationWeightBySurprise * totalSurprise +
+        valueFluctuationWeightByUncertainty * totalUncertainty
+      );
+      totalWeightFromCount += valueFluctuationWeightByCount * totalCount;
+      totalWeightFromSurprise += valueFluctuationWeightBySurprise * totalSurprise;
+      totalWeightFromUncertainty += valueFluctuationWeightByUncertainty * totalUncertainty;
       vector<double> desiredWeight(winrateVariance.size());
       for(size_t i = 0; i<desiredWeight.size(); i++) {
-        desiredWeight[i] = std::min(valueFluctuationMaxWeight, winrateVarianceBlurred[i] / totalWeight * totalCount);
+        desiredWeight[i] = std::min(valueFluctuationMaxWeight, winrateVarianceBlurred[i] / totalWeight * desiredTotalWeight);
+      }
+
+      if(debugValueFluctuation) {
+        ostringstream out;
+        std::vector<string> extraComments;
+        for(size_t i = 0; i<winLossValues.size(); i++) {
+          int64_t turnIdx = std::min((int64_t)(desiredWeight.size()-1), hists[i].getCurrentTurnNumber());
+          turnIdx = std::max(turnIdx,(int64_t)0);
+          extraComments.push_back(Global::strprintf("%.3f %.3f",winLossValues[i],desiredWeight[turnIdx]));
+        }
+        WriteSgf::writeSgf(
+          out, "B", "W",
+          hists[hists.size()-1],
+          extraComments
+        );
+        logger.write(out.str());
       }
 
       for(int64_t m = 0; m<(int64_t)moves.size(); m++) {
@@ -1082,40 +1141,66 @@ int MainCmds::samplesgfs(const vector<string>& args) {
     }
   };
 
-  for(size_t i = 0; i<sgfFiles.size(); i++) {
-    if(sgfsSet.find(sgfFiles[i]) != sgfsSet.end()) {
-      std::vector<Sgf*> sgfs;
-      try {
-        sgfs = Sgf::loadSgfsFile(sgfFiles[i]);
-        for(size_t j = 0; j<sgfs.size(); j++) {
-          trySgf(sgfs[j]);
-        }
-      }
-      catch(const StringError& e) {
-        logger.write("Invalid SGFS " + sgfFiles[i] + ": " + e.what());
-        continue;
-      }
-      for(size_t j = 0; j<sgfs.size(); j++) {
-        delete sgfs[j];
-      }
-    }
-    else {
+  {
+    auto processSgfFile = [&](int threadIdx, size_t index) {
+      (void)threadIdx;
       Sgf* sgf = NULL;
       try {
-        sgf = Sgf::loadFile(sgfFiles[i]);
+        sgf = Sgf::loadFile(sgfFiles[index]);
         trySgf(sgf);
       }
       catch(const StringError& e) {
-        logger.write("Invalid SGF " + sgfFiles[i] + ": " + e.what());
+        logger.write("Invalid SGF " + sgfFiles[index] + ": " + e.what());
       }
       if(sgf != NULL) {
         delete sgf;
       }
+    };
+    Parallel::iterRange(
+      numThreads,
+      sgfFiles.size(),
+      std::function<void(int,size_t)>(processSgfFile)
+    );
+  };
+
+  for(size_t i = 0; i<sgfsFiles.size(); i++) {
+    std::vector<Sgf*> sgfs;
+    try {
+      sgfs = Sgf::loadSgfsFile(sgfsFiles[i]);
+    }
+    catch(const StringError& e) {
+      logger.write("Invalid SGFS " + sgfsFiles[i] + ": " + e.what());
+      continue;
+    }
+
+    auto processSgf = [&](int threadIdx, size_t index) {
+      (void)threadIdx;
+      try {
+        trySgf(sgfs[index]);
+      }
+      catch(const StringError& e) {
+        logger.write("Bad sgf in SGFS" + sgfsFiles[index] + ": " + e.what());
+      }
+    };
+    Parallel::iterRange(
+      numThreads,
+      sgfs.size(),
+      std::function<void(int,size_t)>(processSgf)
+    );
+    for(size_t j = 0; j<sgfs.size(); j++) {
+      delete sgfs[j];
     }
   }
+
   logger.write("Kept " + Global::int64ToString(numKept) + " start positions");
   logger.write("Excluded " + Global::int64ToString(numExcluded) + "/" + Global::uint64ToString(sgfFiles.size()) + " sgf files");
   logger.write("Filtered " + Global::int64ToString(numSgfsFilteredTopLevel) + "/" + Global::uint64ToString(sgfFiles.size()) + " sgf files");
+  if(valueFluctuationNNEval != NULL) {
+    logger.write("totalWeightFromCount " + Global::doubleToString(totalWeightFromCount));
+    logger.write("totalWeightFromSurprise " + Global::doubleToString(totalWeightFromSurprise));
+    logger.write("totalWeightFromUncertainty " + Global::doubleToString(totalWeightFromUncertainty));
+  }
+
   if(verbosity >= 1) {
     logger.write("SGF count used by player name:");
     for(const auto &elt: sgfCountUsedByPlayerName) {

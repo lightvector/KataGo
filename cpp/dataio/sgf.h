@@ -248,6 +248,20 @@ namespace WriteSgf {
     bool omitResignPlayerMove,
     double overrideFinishedWhiteScore
   );
+  void writeSgf(
+    std::ostream& out, const std::string& bName, const std::string& wName,
+    const BoardHistory& endHist,
+    const std::vector<std::string>& extraComments
+  );
+  void writeSgf(
+    std::ostream& out, const std::string& bName, const std::string& wName,
+    const BoardHistory& endHist,
+    const FinishedGameData* gameData,
+    bool tryNicerRulesString,
+    bool omitResignPlayerMove,
+    double overrideFinishedWhiteScore,
+    const std::vector<std::string>& extraComments
+  );
 
   //If hist is a finished game, print the result to out along with SGF tag, else do nothing
   void printGameResult(std::ostream& out, const BoardHistory& hist);

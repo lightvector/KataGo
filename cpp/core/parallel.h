@@ -6,7 +6,7 @@
 #include "../core/multithread.h"
 
 namespace Parallel {
-  
+
   void iterRange(int numThreads, size_t size, const std::function<void(int, size_t)>& f);
 
 }

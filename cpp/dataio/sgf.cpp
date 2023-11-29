@@ -1693,6 +1693,7 @@ void WriteSgf::writeSgf(
     std::numeric_limits<double>::quiet_NaN()
   );
 }
+
 void WriteSgf::writeSgf(
   ostream& out, const string& bName, const string& wName,
   const BoardHistory& endHist,
@@ -1700,6 +1701,47 @@ void WriteSgf::writeSgf(
   bool tryNicerRulesString,
   bool omitResignPlayerMove,
   double overrideFinishedWhiteScore
+) {
+  writeSgf(
+    out,
+    bName,
+    wName,
+    endHist,
+    gameData,
+    tryNicerRulesString,
+    omitResignPlayerMove,
+    overrideFinishedWhiteScore,
+    std::vector<std::string>()
+  );
+}
+
+
+void WriteSgf::writeSgf(
+  ostream& out, const string& bName, const string& wName,
+  const BoardHistory& endHist,
+  const std::vector<std::string>& extraComments
+) {
+  writeSgf(
+    out,
+    bName,
+    wName,
+    endHist,
+    NULL,
+    false,
+    false,
+    std::numeric_limits<double>::quiet_NaN(),
+    extraComments
+  );
+}
+
+void WriteSgf::writeSgf(
+  ostream& out, const string& bName, const string& wName,
+  const BoardHistory& endHist,
+  const FinishedGameData* gameData,
+  bool tryNicerRulesString,
+  bool omitResignPlayerMove,
+  double overrideFinishedWhiteScore,
+  const std::vector<std::string>& extraComments
 ) {
   const Board& initialBoard = endHist.initialBoard;
   const Rules& rules = endHist.rules;
@@ -1761,50 +1803,59 @@ void WriteSgf::writeSgf(
   }
 
   size_t startTurnIdx = 0;
+  ostringstream commentOut;
   if(gameData != NULL) {
     startTurnIdx = gameData->startHist.moveHistory.size();
-    out << "C[startTurnIdx=" << startTurnIdx;
-    out << ",initTurnNum=" << gameData->startHist.initialTurnNumber;
-    out << ",gameHash=" << gameData->gameHash;
+    commentOut << "startTurnIdx=" << startTurnIdx;
+    commentOut << ",initTurnNum=" << gameData->startHist.initialTurnNumber;
+    commentOut << ",gameHash=" << gameData->gameHash;
 
     static_assert(FinishedGameData::NUM_MODES == 8, "");
     if(gameData->mode == FinishedGameData::MODE_NORMAL)
-      out << "," << "gtype=normal";
+      commentOut << "," << "gtype=normal";
     else if(gameData->mode == FinishedGameData::MODE_CLEANUP_TRAINING)
-      out << "," << "gtype=cleanuptraining";
+      commentOut << "," << "gtype=cleanuptraining";
     else if(gameData->mode == FinishedGameData::MODE_FORK)
-      out << "," << "gtype=fork";
+      commentOut << "," << "gtype=fork";
     else if(gameData->mode == FinishedGameData::MODE_HANDICAP)
-      out << "," << "gtype=handicap";
+      commentOut << "," << "gtype=handicap";
     else if(gameData->mode == FinishedGameData::MODE_SGFPOS)
-      out << "," << "gtype=sgfpos";
+      commentOut << "," << "gtype=sgfpos";
     else if(gameData->mode == FinishedGameData::MODE_HINTPOS)
-      out << "," << "gtype=hintpos";
+      commentOut << "," << "gtype=hintpos";
     else if(gameData->mode == FinishedGameData::MODE_HINTFORK)
-      out << "," << "gtype=hintfork";
+      commentOut << "," << "gtype=hintfork";
     else if(gameData->mode == FinishedGameData::MODE_ASYM)
-      out << "," << "gtype=asym";
+      commentOut << "," << "gtype=asym";
     else
-      out << "," << "gtype=other";
+      commentOut << "," << "gtype=other";
 
     if(gameData->beganInEncorePhase != 0)
-      out << "," << "beganInEncorePhase=" << gameData->beganInEncorePhase;
+      commentOut << "," << "beganInEncorePhase=" << gameData->beganInEncorePhase;
     if(gameData->usedInitialPosition != 0)
-      out << "," << "usedInitialPosition=" << gameData->usedInitialPosition;
+      commentOut << "," << "usedInitialPosition=" << gameData->usedInitialPosition;
     if(gameData->playoutDoublingAdvantage != 0)
-      out << "," << "pdaWhite=" << ((gameData->playoutDoublingAdvantagePla == P_WHITE ? 1 : -1) * gameData->playoutDoublingAdvantage);
+      commentOut << "," << "pdaWhite=" << ((gameData->playoutDoublingAdvantagePla == P_WHITE ? 1 : -1) * gameData->playoutDoublingAdvantage);
 
     for(int j = 0; j<gameData->changedNeuralNets.size(); j++) {
-      out << ",newNeuralNetTurn" << gameData->changedNeuralNets[j]->turnIdx
+      commentOut << ",newNeuralNetTurn" << gameData->changedNeuralNets[j]->turnIdx
           << "=" << gameData->changedNeuralNets[j]->name;
     }
     if(gameData->bTimeUsed > 0 || gameData->wTimeUsed > 0) {
-      out << "," << "bTimeUsed=" << gameData->bTimeUsed;
-      out << "," << "wTimeUsed=" << gameData->wTimeUsed;
+      commentOut << "," << "bTimeUsed=" << gameData->bTimeUsed;
+      commentOut << "," << "wTimeUsed=" << gameData->wTimeUsed;
     }
-    out << "]";
     assert(endHist.moveHistory.size() <= startTurnIdx + gameData->whiteValueTargetsByTurn.size());
   }
+
+  if(extraComments.size() > 0) {
+    if(commentOut.str().length() > 0)
+      commentOut << " ";
+    commentOut << extraComments[0];
+  }
+
+  if(commentOut.str().length() > 0)
+    out << "C[" << commentOut.str() << "]";
 
   string comment;
   Board board(initialBoard);
@@ -1882,6 +1933,12 @@ void WriteSgf::writeSgf(
       if(comment.length() > 0)
         comment += " ";
       comment += "result=" + WriteSgf::gameResultNoSgfTag(endHist,overrideFinishedWhiteScore);
+    }
+
+    if(extraComments.size() > i+1) {
+      if(comment.length() > 0)
+        comment += " ";
+      comment += extraComments[i+1];
     }
 
     if(comment.length() > 0)

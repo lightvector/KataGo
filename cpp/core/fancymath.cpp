@@ -134,6 +134,21 @@ double FancyMath::normToTApprox(double z, double degreesOfFreedom) {
   return sqrt(n * (expm1(z * z * (n-1.5) / ((n-1) * (n-1)))));
 }
 
+double FancyMath::binaryCrossEntropy(double predProb, double targetProb, double epsilon) {
+  double reverseProb = 1.0 - predProb;
+  predProb = epsilon * (1.0 - predProb) + (1.0 - epsilon) * predProb;
+  reverseProb = epsilon * (1.0 - reverseProb) + (1.0 - epsilon) * reverseProb;
+
+  // Just in case there is float weirdness
+  if(predProb < epsilon) predProb = epsilon;
+  if(predProb > 1.0 - epsilon) predProb = 1.0 - epsilon;
+  if(reverseProb < epsilon) reverseProb = epsilon;
+  if(reverseProb > 1.0 - epsilon) reverseProb = 1.0 - epsilon;
+
+  return targetProb * (-log(predProb)) + (1.0-targetProb) * (-log(reverseProb));
+}
+
+
 #define APPROX_EQ(x,y,tolerance) testApproxEq((x),(y),(tolerance), #x, #y, __FILE__, __LINE__)
 static void testApproxEq(double x, double y, double tolerance, const char* msgX, const char* msgY, const char *file, int line) {
 
@@ -287,6 +302,19 @@ void FancyMath::runTests() {
     APPROX_EQ(betacdf(0.75,.5e15,.5e3), 0.00000000000000000, 1e-13);
     // APPROX_EQ(betacdf(1-1e-12,.5e15,.5e3), 0.31645988794179647, 1e-5);
     APPROX_EQ(betacdf(1.00,.5e15,.5e3), 1.00000000000000000, 1e-13);
+  }
+
+  {
+    APPROX_EQ(binaryCrossEntropy(0.5,1.0,0.001), log(2.0), 1e-13);
+    APPROX_EQ(binaryCrossEntropy(0.5,0.0,0.001), log(2.0), 1e-13);
+    APPROX_EQ(binaryCrossEntropy(0.5,0.7,0.001), log(2.0), 1e-13);
+    APPROX_EQ(binaryCrossEntropy(1.0/exp(1.0),1.000,0.0), 1.0, 1e-13);
+    APPROX_EQ(binaryCrossEntropy(1.0/exp(1.0),0.000,0.0), 1.0 - log(exp(1.0)-1.0), 1e-13);
+    APPROX_EQ(binaryCrossEntropy(1.0/exp(1.0),0.000,0.5), log(2.0), 1e-13);
+    APPROX_EQ(binaryCrossEntropy(0.0,1.000,0.25), 2.0 * log(2.0), 1e-13);
+    APPROX_EQ(binaryCrossEntropy(1.0/6.0,1.000,0.25), log(3.0), 1e-13);
+    APPROX_EQ(binaryCrossEntropy(1.0/6.0,0.000,0.25), log(3.0/2.0), 1e-13);
+    APPROX_EQ(binaryCrossEntropy(1.0/6.0,0.800,0.25), 0.8 * log(3.0) + 0.2 * log(3.0/2.0), 1e-13);
   }
 
   {
