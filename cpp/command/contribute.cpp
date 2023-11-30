@@ -918,7 +918,8 @@ int MainCmds::contribute(const vector<string>& args) {
       // Cap test to avoid spawning too many threads when many selfplay games are running
       const int maxBatchSizeCap = std::min(4, 1 + nnEval->getMaxBatchSize()/2);
       bool fp32BatchSuccessBuf = true;
-      bool success = Tests::runFP16Test(nnEval,nnEval32,logger,boardSizeTest,maxBatchSizeCap,verbose,quickTest,fp32BatchSuccessBuf);
+      string baseFileName = "";
+      bool success = Tests::runFP16Test(nnEval,nnEval32,logger,boardSizeTest,maxBatchSizeCap,verbose,quickTest,fp32BatchSuccessBuf, baseFileName);
       if(!fp32BatchSuccessBuf) {
         logger.write("Error: large GPU numerical errors, unable to continue");
         shouldStop.store(true);
