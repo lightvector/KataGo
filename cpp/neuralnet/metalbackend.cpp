@@ -183,7 +183,7 @@ SWTrunkDesc MetalProcess::trunkDescToSwift(const TrunkDesc * trunk) {
   SWBatchNormLayerDesc trunkTipBN = batchNormLayerDescToSwift(&trunk->trunkTipBN);
   ActivationKind trunkTipActivation = activationLayerDescToSwift(&trunk->trunkTipActivation);
 
-  SWTrunkDesc swTrunkDesc = createSWTrunkDesc(trunk->version,
+  SWTrunkDesc swTrunkDesc = createSWTrunkDesc(trunk->modelVersion,
                                               trunk->trunkNumChannels,
                                               trunk->midNumChannels,
                                               trunk->regularNumChannels,
@@ -212,7 +212,7 @@ SWPolicyHeadDesc MetalProcess::policyHeadDescToSwift(const PolicyHeadDesc * poli
   SWConvLayerDesc p2Conv = convLayerDescToSwift(&policyHead->p2Conv);
   SWMatMulLayerDesc gpoolToPassMul = matMulLayerDescToSwift(&policyHead->gpoolToPassMul);
 
-  SWPolicyHeadDesc swPolicyHead = createSWPolicyHeadDesc(policyHead->version,
+  SWPolicyHeadDesc swPolicyHead = createSWPolicyHeadDesc(policyHead->modelVersion,
                                                          p1Conv,
                                                          g1Conv,
                                                          g1BN,
@@ -253,7 +253,7 @@ SWValueHeadDesc MetalProcess::valueHeadDescToSwift(const ValueHeadDesc * valueHe
   SWMatBiasLayerDesc sv3Bias = matBiasLayerDescToSwift(&valueHead->sv3Bias);
   SWConvLayerDesc vOwnershipConv = convLayerDescToSwift(&valueHead->vOwnershipConv);
 
-  SWValueHeadDesc swDesc = createSWValueHeadDesc(valueHead->version,
+  SWValueHeadDesc swDesc = createSWValueHeadDesc(valueHead->modelVersion,
                                                  v1Conv,
                                                  v1BN,
                                                  v1Activation,
@@ -272,7 +272,7 @@ SWValueHeadDesc MetalProcess::valueHeadDescToSwift(const ValueHeadDesc * valueHe
 void MetalProcess::createMetalComputeHandle(const ModelDesc* modelDesc,
                                             int serverThreadIdx) {
 
-  SWModelDesc swModelDesc = createSWModelDesc(modelDesc->version,
+  SWModelDesc swModelDesc = createSWModelDesc(modelDesc->modelVersion,
                                               swift::String(modelDesc->name),
                                               modelDesc->numInputChannels,
                                               modelDesc->numInputGlobalChannels,
@@ -352,7 +352,7 @@ string NeuralNet::getModelName(const LoadedModel* loadedModel) {
  * @return The version of the loaded model.
  */
 int NeuralNet::getModelVersion(const LoadedModel* loadedModel) {
-  return loadedModel->modelDesc.version;
+  return loadedModel->modelDesc.modelVersion;
 }
 
 /**
@@ -471,7 +471,7 @@ ComputeHandle::ComputeHandle(
   nnXLen = getMetalContextXLen();
   nnYLen = getMetalContextYLen();
   gpuIndex = gpuIdx;
-  version = modelDesc->version;
+  version = modelDesc->modelVersion;
   this->inputsUseNHWC = inputsUseNHWC;
 
   /* Use FP16 mode if the model supports it and the user has not explicitly
@@ -582,7 +582,7 @@ InputBuffers::InputBuffers(const LoadedModel* loadedModel, int maxBatchSz, int n
 
   maxBatchSize = maxBatchSz;
   policyResultChannels = m.policyHead.p2Conv.outChannels;
-  assert((m.version >= 12) ? (policyResultChannels == 2) : (policyResultChannels == 1));
+  assert((m.modelVersion >= 12) ? (policyResultChannels == 2) : (policyResultChannels == 1));
   assert(m.policyHead.p2Conv.outChannels == m.policyHead.gpoolToPassMul.outChannels);
   singleSpatialElts = (size_t)m.numInputChannels * nnXLen * nnYLen;
   singleInputElts = (size_t)m.numInputChannels * modelXLen * modelYLen;
@@ -599,8 +599,8 @@ InputBuffers::InputBuffers(const LoadedModel* loadedModel, int maxBatchSz, int n
   singleNnScoreValuesResultElts = 6;
   singleMoreMiscValuesResultElts = 8;
 
-  assert(NNModelVersion::getNumSpatialFeatures(m.version) == m.numInputChannels);
-  assert(NNModelVersion::getNumGlobalFeatures(m.version) == m.numInputGlobalChannels);
+  assert(NNModelVersion::getNumSpatialFeatures(m.modelVersion) == m.numInputChannels);
+  assert(NNModelVersion::getNumGlobalFeatures(m.modelVersion) == m.numInputGlobalChannels);
   assert(singleValueResultElts == 3);
 
   rowSpatialBufferElts = (size_t)maxBatchSz * singleSpatialElts;
