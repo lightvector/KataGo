@@ -4,8 +4,6 @@ import argparse
 import torch
 from load_model import load_model
 import coremltools as ct
-import coremlmish
-import coremllogsumexp
 
 description = """
 Convert a trained neural net to a CoreML model.
@@ -16,12 +14,6 @@ print(f'torch version: {torch.__version__}')
 
 # Print coremltools version
 print(f'coremltools version: {ct.__version__}')
-
-# Print coremlmish function
-print(f'Using coremlmish function: {coremlmish.__function__}')
-
-# Print coremllogsumexp name
-print(f'Using {coremllogsumexp.__name__}')
 
 
 def main():
