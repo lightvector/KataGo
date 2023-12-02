@@ -35,6 +35,17 @@
     MainCmds::runnnontinyboardtest(args);
 }
 
+- (void)testNNOnTinyBoardFp16 {
+    std::vector<std::string> args;
+    args.push_back("katago");
+    args.push_back("model.bin.gz");
+    args.push_back("false");
+    args.push_back("false");
+    args.push_back("0");
+    args.push_back("true");
+    MainCmds::runnnontinyboardtest(args);
+}
+
 - (void)testNNSymmetries {
     std::vector<std::string> args;
     args.push_back("katago");
