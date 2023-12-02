@@ -251,6 +251,8 @@ class KataGoModel {
                 shouldCompile = digest != savedDigest
 
                 if (shouldCompile) {
+                    Logger().info("Saved digest: \(savedDigest)")
+                    Logger().info("New digest: \(digest)")
                     Logger().info("Compiling CoreML model because the digest has changed");
                 }
             } else {
@@ -304,6 +306,9 @@ class KataGoModel {
                                     backupItemName: nil,
                                     options: .usingNewMetadataOnly,
                                     resultingItemURL: nil)
+
+        Logger().info("Writing digest to: \(savedDigestURL)")
+        Logger().info("Digest: \(digest)")
 
         // Update the digest
         try digest.write(to: savedDigestURL, atomically: true, encoding: .utf8)
