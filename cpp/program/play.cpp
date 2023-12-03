@@ -363,7 +363,7 @@ void GameInitializer::initShared(ConfigParser& cfg, Logger& logger) {
   minBoardYSize = allowedBSizes[0].second;
   maxBoardXSize = allowedBSizes[0].first;
   maxBoardYSize = allowedBSizes[0].second;
-  for(const std::pair<int,int> bSize: allowedBSizes) {
+  for(const std::pair<int,int>& bSize : allowedBSizes) {
     minBoardXSize = std::min(minBoardXSize, bSize.first);
     minBoardYSize = std::min(minBoardYSize, bSize.second);
     maxBoardXSize = std::max(maxBoardXSize, bSize.first);
