@@ -813,7 +813,8 @@
 			children = (
 				E118EF0B2B081D8500637D44 /* cpp */,
 			);
-			path = katago;
+			name = katago;
+			path = ../..;
 			sourceTree = "<group>";
 		};
 		E118EF0B2B081D8500637D44 /* cpp */ = {
@@ -831,8 +832,7 @@
 				E11838302B081DA700637D44 /* search */,
 				E11837142B081DA700637D44 /* tests */,
 			);
-			name = cpp;
-			path = ../../../cpp;
+			path = cpp;
 			sourceTree = "<group>";
 		};
 		E18F3E042A51466A00D335E1 = {
@@ -1425,10 +1425,6 @@
 				DYLIB_INSTALL_NAME_BASE = "@rpath";
 				ENABLE_MODULE_VERIFIER = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu17;
-				GCC_PREPROCESSOR_DEFINITIONS = (
-					"DEBUG=1",
-					"$(inherited)",
-				);
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
@@ -1451,7 +1447,6 @@
 				SDKROOT = auto;
 				SKIP_INSTALL = YES;
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx";
-				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 				SWIFT_VERSION = 5.0;
@@ -1543,7 +1538,6 @@
 				SDKROOT = auto;
 				SKIP_INSTALL = YES;
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx";
-				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
 				SYSTEM_HEADER_SEARCH_PATHS = "../../cpp/external/filesystem-1.5.8/include";
@@ -1639,14 +1633,13 @@
 				GCC_C_LANGUAGE_STANDARD = gnu11;
 				GCC_DYNAMIC_NO_PIC = NO;
 				GCC_NO_COMMON_BLOCKS = YES;
-				GCC_OPTIMIZATION_LEVEL = 0;
 				GCC_PREPROCESSOR_DEFINITIONS = (
 					"DEBUG=1",
-					"$(inherited)",
 					USE_COREML_BACKEND,
 					NO_LIBZIP,
 					NO_GIT_REVISION,
 					OS_IS_IOS,
+					"COMPILE_MAX_BOARD_LEN=29",
 				);
 				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
 				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
@@ -1709,6 +1702,7 @@
 					NO_LIBZIP,
 					NO_GIT_REVISION,
 					OS_IS_IOS,
+					"COMPILE_MAX_BOARD_LEN=29",
 				);
 				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
 				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;

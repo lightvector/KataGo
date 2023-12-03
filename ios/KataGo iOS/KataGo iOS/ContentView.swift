@@ -153,7 +153,7 @@ struct ContentView: View {
     func extractMoveData(dataLine: String) -> [String: String] {
         // Define patterns for extracting relevant information
         let patterns: [String: Regex] = [
-            "move": /move (\w\d+)/,
+            "move": /move (\w+\d+)/,
             "visits": /visits (\d+)/,
             "winrate": /winrate ([\d.eE]+)/,
             "scoreLead": /scoreLead ([-\d.eE]+)/

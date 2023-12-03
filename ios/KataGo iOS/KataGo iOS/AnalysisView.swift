@@ -198,20 +198,25 @@ struct AnalysisView: View {
     }
 
     func moveToPoint(move: String) -> BoardPoint? {
-        // Mapping letters A-T (without I) to numbers 0-18
-        let letterMap: [Character: Int] = [
+        // Mapping letters A-AD (without I) to numbers 0-28
+        let letterMap: [String: Int] = [
             "A": 0, "B": 1, "C": 2, "D": 3, "E": 4,
             "F": 5, "G": 6, "H": 7, "J": 8, "K": 9,
             "L": 10, "M": 11, "N": 12, "O": 13, "P": 14,
-            "Q": 15, "R": 16, "S": 17, "T": 18
+            "Q": 15, "R": 16, "S": 17, "T": 18, "U": 19,
+            "V": 20, "W": 21, "X": 22, "Y": 23, "Z": 24,
+            "AA": 25, "AB": 26, "AC": 27, "AD": 28
         ]
 
-        let letterPart = move.prefix(1)
-        let numberPart = move.dropFirst()
-
-        if let x = letterMap[Character(letterPart.uppercased())],
-           let y = Int(numberPart) {
-            return BoardPoint(x: x, y: y - 1)  // Subtract 1 from y to make it 0-indexed
+        let pattern = /([^\d\W]+)(\d+)/
+        if let match = move.firstMatch(of: pattern) {
+            if let x = letterMap[String(match.1).uppercased()],
+               let y = Int(match.2) {
+                // Subtract 1 from y to make it 0-indexed
+                return BoardPoint(x: x, y: y - 1)
+            } else {
+                return nil
+            }
         } else {
             return nil
         }
