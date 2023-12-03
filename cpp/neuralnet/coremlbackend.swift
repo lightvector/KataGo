@@ -44,10 +44,9 @@ class CoreMLBackend {
         return backends[index]
     }
 
-    class func getModelName(useFP16: Bool) -> String {
-        let COMPILE_MAX_BOARD_LEN = 19
+    class func getModelName(xLen: Int, yLen: Int, useFP16: Bool) -> String {
         let precision = useFP16 ? 16 : 32
-        return "KataGoModel\(COMPILE_MAX_BOARD_LEN)x\(COMPILE_MAX_BOARD_LEN)fp\(precision)"
+        return "KataGoModel\(xLen)x\(yLen)fp\(precision)"
     }
 
     class func createInstance(xLen: Int, yLen: Int, useFP16: Bool) -> Int {
@@ -58,7 +57,7 @@ class CoreMLBackend {
         defer { objc_sync_exit(self) }
 
         // Get the model name.
-        let modelName = getModelName(useFP16: useFP16)
+        let modelName = getModelName(xLen: xLen, yLen: yLen, useFP16: useFP16)
 
         // Compile the model in Bundle.
         if let mlmodel = KataGoModel.compileBundleMLModel(modelName: modelName) {
