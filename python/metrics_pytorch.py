@@ -366,8 +366,11 @@ class Metrics:
         batch,
         is_training,
         soft_policy_weight_scale,
+        disable_optimistic_policy,
         value_loss_scale,
         td_value_loss_scales,
+        seki_loss_scale,
+        variance_time_loss_scale,
         main_loss_scale,
         intermediate_loss_scale,
         meta_encoder_loss_scale,
@@ -378,9 +381,12 @@ class Metrics:
             batch,
             is_training=is_training,
             soft_policy_weight_scale=soft_policy_weight_scale,
+            disable_optimistic_policy=disable_optimistic_policy,
             value_loss_scale=value_loss_scale,
             td_value_loss_scales=td_value_loss_scales,
-            is_intermediate=False
+            seki_loss_scale=seki_loss_scale,
+            variance_time_loss_scale=variance_time_loss_scale,
+            is_intermediate=False,
         )
         if main_loss_scale is not None:
             results["loss_sum"] = main_loss_scale * results["loss_sum"]
@@ -400,9 +406,12 @@ class Metrics:
                     batch,
                     is_training=is_training,
                     soft_policy_weight_scale=soft_policy_weight_scale,
+                    disable_optimistic_policy=disable_optimistic_policy,
                     value_loss_scale=value_loss_scale,
                     td_value_loss_scales=td_value_loss_scales,
-                    is_intermediate=True
+                    seki_loss_scale=seki_loss_scale,
+                    variance_time_loss_scale=variance_time_loss_scale,
+                    is_intermediate=True,
                 )
                 for key,value in iresults.items():
                     if key != "loss_sum":
@@ -447,8 +456,11 @@ class Metrics:
         batch,
         is_training,
         soft_policy_weight_scale,
+        disable_optimistic_policy,
         value_loss_scale,
         td_value_loss_scales,
+        seki_loss_scale,
+        variance_time_loss_scale,
         is_intermediate,
     ):
         (
@@ -562,8 +574,16 @@ class Metrics:
         ).sum()
 
         if raw_model.config["version"] <= 11:
-            target_weight_longoptimistic_policy = torch.zeros_like(global_weight)
+            target_weight_longoptimistic_policy = target_weight_policy_player
             loss_longoptimistic_policy = torch.zeros_like(loss_policy_player)
+        elif disable_optimistic_policy:
+            target_weight_longoptimistic_policy = target_weight_policy_player * 0.5
+            loss_longoptimistic_policy = self.loss_policy_player_samplewise(
+                policy_logits[:, 4, :],
+                target_policy_player,
+                target_weight_longoptimistic_policy,
+                global_weight,
+            ).sum()
         else:
             # Long-term optimistic policy. Weight policy by:
             # Final game win squared (squaring discourages draws)
@@ -599,6 +619,14 @@ class Metrics:
         if raw_model.config["version"] <= 11:
             target_weight_shortoptimistic_policy = torch.zeros_like(global_weight)
             loss_shortoptimistic_policy = torch.zeros_like(loss_policy_player)
+        elif disable_optimistic_policy:
+            target_weight_shortoptimistic_policy = target_weight_policy_player * 0.5
+            loss_shortoptimistic_policy = self.loss_policy_player_samplewise(
+                policy_logits[:, 5, :],
+                target_policy_player,
+                target_weight_shortoptimistic_policy,
+                global_weight,
+            ).sum()
         else:
             # Short-term optimistic policy. Weight policy by:
             # The shortterm value outcome being around 1.5 sigma more than expected
@@ -751,13 +779,13 @@ class Metrics:
             + loss_ownership
             + loss_scoring
             + loss_futurepos
-            + loss_seki
+            + loss_seki * seki_loss_scale
             + loss_scoremean
             + loss_scorebelief_cdf
             + loss_scorebelief_pdf
             + loss_scorestdev
             + loss_lead
-            + loss_variance_time
+            + loss_variance_time * variance_time_loss_scale
             + loss_shortterm_value_error
             + loss_shortterm_score_error
         )

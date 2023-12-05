@@ -100,8 +100,11 @@ if __name__ == "__main__":
     optional_args.add_argument('-brenorm-adjustment-scale', type=float, help='How many samples to adjust brenorm params all but 1/e of the way to target', required=False)
 
     optional_args.add_argument('-soft-policy-weight-scale', type=float, default=8.0, help='Soft policy loss coeff', required=False)
+    optional_args.add_argument('-disable-optimistic-policy', help='Disable optimistic policy', required=False, action='store_true')
     optional_args.add_argument('-value-loss-scale', type=float, default=0.6, help='Additional value loss coeff', required=False)
     optional_args.add_argument('-td-value-loss-scales', type=str, default="0.6,0.6,0.6", help='Additional td value loss coeffs, 3 comma separated values', required=False)
+    optional_args.add_argument('-seki-loss-scale', type=float, default=1.0, help='Additional seki loss coeff', required=False)
+    optional_args.add_argument('-variance-time-loss-scale', type=float, default=1.0, help='Additional variance time loss coeff', required=False)
 
     optional_args.add_argument('-main-loss-scale', type=float, help='Loss factor scale for main head', required=False)
     optional_args.add_argument('-intermediate-loss-scale', type=float, help='Loss factor scale for intermediate head', required=False)
@@ -181,8 +184,11 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
     brenorm_adjustment_scale = args["brenorm_adjustment_scale"]
 
     soft_policy_weight_scale = args["soft_policy_weight_scale"]
+    disable_optimistic_policy = args["disable_optimistic_policy"]
     value_loss_scale = args["value_loss_scale"]
     td_value_loss_scales = [float(x) for x in args["td_value_loss_scales"].split(",")]
+    seki_loss_scale = args["seki_loss_scale"]
+    variance_time_loss_scale = args["variance_time_loss_scale"]
 
     main_loss_scale = args["main_loss_scale"]
     intermediate_loss_scale = args["intermediate_loss_scale"]
@@ -557,8 +563,11 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
     logging.info(f"lookahead_alpha {lookahead_alpha}")
     logging.info(f"lookahead_k {lookahead_k}")
     logging.info(f"soft_policy_weight_scale {soft_policy_weight_scale}")
+    logging.info(f"disable_optimistic_policy {disable_optimistic_policy}")
     logging.info(f"value_loss_scale {value_loss_scale}")
     logging.info(f"td_value_loss_scales {td_value_loss_scales}")
+    logging.info(f"seki_loss_scale {seki_loss_scale}")
+    logging.info(f"variance_time_loss_scale {variance_time_loss_scale}")
     logging.info(f"main_loss_scale {main_loss_scale}")
     logging.info(f"intermediate_loss_scale {intermediate_loss_scale}")
 
@@ -1048,8 +1057,11 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
                     batch,
                     is_training=True,
                     soft_policy_weight_scale=soft_policy_weight_scale,
+                    disable_optimistic_policy=disable_optimistic_policy,
                     value_loss_scale=value_loss_scale,
                     td_value_loss_scales=td_value_loss_scales,
+                    seki_loss_scale=seki_loss_scale,
+                    variance_time_loss_scale=variance_time_loss_scale,
                     main_loss_scale=main_loss_scale,
                     intermediate_loss_scale=intermediate_loss_scale,
                     meta_encoder_loss_scale=meta_encoder_loss_scale,
@@ -1224,8 +1236,11 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
                             batch,
                             is_training=False,
                             soft_policy_weight_scale=soft_policy_weight_scale,
+                            disable_optimistic_policy=disable_optimistic_policy,
                             value_loss_scale=value_loss_scale,
                             td_value_loss_scales=td_value_loss_scales,
+                            seki_loss_scale=seki_loss_scale,
+                            variance_time_loss_scale=variance_time_loss_scale,
                             main_loss_scale=main_loss_scale,
                             intermediate_loss_scale=intermediate_loss_scale,
                         )

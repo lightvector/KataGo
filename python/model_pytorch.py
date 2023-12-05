@@ -1422,7 +1422,6 @@ class MetadataEncoder(torch.nn.Module):
         reg_dict["output"].append(self.linear_3_logvar.weight)
         reg_dict["normal"].append(self.linear_output_to_trunk.weight)
 
-    @classvar
     OUTMEAN_KEY = "meta_encoder.outmean"
     OUTLOGVAR_KEY = "meta_encoder.outlogvar"
 
