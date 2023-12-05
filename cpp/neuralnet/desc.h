@@ -58,7 +58,7 @@ struct ActivationLayerDesc {
   int activation;
 
   ActivationLayerDesc();
-  ActivationLayerDesc(std::istream& in, int version);
+  ActivationLayerDesc(std::istream& in, int modelVersion);
   ActivationLayerDesc(ActivationLayerDesc&& other);
 
   ActivationLayerDesc(const ActivationLayerDesc&) = delete;
@@ -108,7 +108,7 @@ struct ResidualBlockDesc {
   ConvLayerDesc finalConv;
 
   ResidualBlockDesc();
-  ResidualBlockDesc(std::istream& in, int version, bool binaryFloats);
+  ResidualBlockDesc(std::istream& in, int modelVersion, bool binaryFloats);
   ResidualBlockDesc(ResidualBlockDesc&& other);
 
   ResidualBlockDesc(const ResidualBlockDesc&) = delete;
@@ -121,7 +121,7 @@ struct ResidualBlockDesc {
 
 struct GlobalPoolingResidualBlockDesc {
   std::string name;
-  int version;
+  int modelVersion;
   BatchNormLayerDesc preBN;
   ActivationLayerDesc preActivation;
   ConvLayerDesc regularConv;
@@ -134,7 +134,7 @@ struct GlobalPoolingResidualBlockDesc {
   ConvLayerDesc finalConv;
 
   GlobalPoolingResidualBlockDesc();
-  GlobalPoolingResidualBlockDesc(std::istream& in, int version, bool binaryFloats);
+  GlobalPoolingResidualBlockDesc(std::istream& in, int modelVersion, bool binaryFloats);
   GlobalPoolingResidualBlockDesc(GlobalPoolingResidualBlockDesc&& other);
 
   GlobalPoolingResidualBlockDesc(const GlobalPoolingResidualBlockDesc&) = delete;
@@ -160,7 +160,7 @@ struct NestedBottleneckResidualBlockDesc {
   ConvLayerDesc postConv;
 
   NestedBottleneckResidualBlockDesc();
-  NestedBottleneckResidualBlockDesc(std::istream& in, int version, bool binaryFloats);
+  NestedBottleneckResidualBlockDesc(std::istream& in, int modelVersion, bool binaryFloats);
   NestedBottleneckResidualBlockDesc(NestedBottleneckResidualBlockDesc&& other);
 
   NestedBottleneckResidualBlockDesc(const NestedBottleneckResidualBlockDesc&) = delete;
@@ -177,7 +177,7 @@ constexpr int NESTED_BOTTLENECK_BLOCK_KIND = 3;
 
 struct TrunkDesc {
   std::string name;
-  int version;
+  int modelVersion;
   int numBlocks;
   int trunkNumChannels;
   int midNumChannels;      // Currently every plain residual block must have the same number of mid conv channels
@@ -191,7 +191,7 @@ struct TrunkDesc {
 
   TrunkDesc();
   ~TrunkDesc();
-  TrunkDesc(std::istream& in, int version, bool binaryFloats);
+  TrunkDesc(std::istream& in, int modelVersion, bool binaryFloats);
   TrunkDesc(TrunkDesc&& other);
 
   TrunkDesc(const TrunkDesc&) = delete;
@@ -204,7 +204,8 @@ struct TrunkDesc {
 
 struct PolicyHeadDesc {
   std::string name;
-  int version;
+  int modelVersion;
+  int policyOutChannels;
   ConvLayerDesc p1Conv;
   ConvLayerDesc g1Conv;
   BatchNormLayerDesc g1BN;
@@ -214,10 +215,13 @@ struct PolicyHeadDesc {
   ActivationLayerDesc p1Activation;
   ConvLayerDesc p2Conv;
   MatMulLayerDesc gpoolToPassMul;
+  MatBiasLayerDesc gpoolToPassBias;
+  ActivationLayerDesc passActivation;
+  MatMulLayerDesc gpoolToPassMul2;
 
   PolicyHeadDesc();
   ~PolicyHeadDesc();
-  PolicyHeadDesc(std::istream& in, int version, bool binaryFloats);
+  PolicyHeadDesc(std::istream& in, int modelVersion, bool binaryFloats);
   PolicyHeadDesc(PolicyHeadDesc&& other);
 
   PolicyHeadDesc(const PolicyHeadDesc&) = delete;
@@ -230,7 +234,7 @@ struct PolicyHeadDesc {
 
 struct ValueHeadDesc {
   std::string name;
-  int version;
+  int modelVersion;
   ConvLayerDesc v1Conv;
   BatchNormLayerDesc v1BN;
   ActivationLayerDesc v1Activation;
@@ -245,7 +249,7 @@ struct ValueHeadDesc {
 
   ValueHeadDesc();
   ~ValueHeadDesc();
-  ValueHeadDesc(std::istream& in, int version, bool binaryFloats);
+  ValueHeadDesc(std::istream& in, int modelVersion, bool binaryFloats);
   ValueHeadDesc(ValueHeadDesc&& other);
 
   ValueHeadDesc(const ValueHeadDesc&) = delete;
@@ -272,9 +276,10 @@ struct ModelPostProcessParams {
 struct ModelDesc {
   std::string name;
   std::string sha256;
-  int version;
+  int modelVersion;
   int numInputChannels;
   int numInputGlobalChannels;
+  int numPolicyChannels;
   int numValueChannels;
   int numScoreValueChannels;
   int numOwnershipChannels;

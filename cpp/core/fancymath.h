@@ -22,7 +22,10 @@ namespace FancyMath {
   //such that the probability that a draw from StudentT(degreesOfFreedom) > t
   //is the same as a probability that a draw from StandardNormal() > z
   double normToTApprox(double z, double degreesOfFreedom);
-  
+
+  //predProb is scaled into the range [epsilon,1.0-epsilon].
+  double binaryCrossEntropy(double predProb, double targetProb, double epsilon);
+
   void runTests();
 }
 

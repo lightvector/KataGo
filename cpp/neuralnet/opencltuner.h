@@ -192,7 +192,7 @@ namespace OpenCLTuner {
     int midNumChannels;
     int regularNumChannels;
     int gpoolNumChannels;
-    int version;
+    int modelVersion;
 
     static ModelInfoForTuning ofDesc(const ModelDesc* desc);
   };
