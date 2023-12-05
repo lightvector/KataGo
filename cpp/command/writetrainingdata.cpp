@@ -568,7 +568,9 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
   size_t maxFilesToLoad;
   bool shuffleFiles;
   double keepProb;
-  double gameKeepProb;
+  double gameKeepFracMin;
+  double gameKeepFracMax;
+  int maxVisits;
   string outputDir;
   int verbosity;
 
@@ -592,7 +594,9 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
     TCLAP::ValueArg<size_t> maxFilesToLoadArg("","max-files-to-load","Max sgf files to try to load",false,(size_t)10000000000000ULL,"NUM");
     TCLAP::SwitchArg shuffleFilesArg("","shuffle-files","Shuffle order of files handled");
     TCLAP::ValueArg<double> keepProbArg("","keep-prob","Keep poses with this prob",false,1.0,"PROB");
-    TCLAP::ValueArg<double> gameKeepProbArg("","game-keep-prob","Keep games with this prob",false,1.0,"PROB");
+    TCLAP::ValueArg<double> gameKeepFracMinArg("","game-keep-frac-min","Keep games frac min",false,0.0,"MIN");
+    TCLAP::ValueArg<double> gameKeepFracMaxArg("","game-keep-frac-max","Keep games frac max",false,1.0,"MAX");
+    TCLAP::ValueArg<int> maxVisitsArg("","max-visits","Max visits",false,30,"NUM");
     TCLAP::ValueArg<string> outputDirArg("","output-dir","Dir to output files",true,string(),"DIR");
     TCLAP::ValueArg<int> verbosityArg("","verbosity","1-3",false,1,"NUM");
 
@@ -610,7 +614,9 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
     cmd.add(maxFilesToLoadArg);
     cmd.add(shuffleFilesArg);
     cmd.add(keepProbArg);
-    cmd.add(gameKeepProbArg);
+    cmd.add(gameKeepFracMinArg);
+    cmd.add(gameKeepFracMaxArg);
+    cmd.add(maxVisitsArg);
     cmd.add(outputDirArg);
     cmd.add(verbosityArg);
 
@@ -633,7 +639,9 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
     maxFilesToLoad = maxFilesToLoadArg.getValue();
     shuffleFiles = shuffleFilesArg.getValue();
     keepProb = keepProbArg.getValue();
-    gameKeepProb = gameKeepProbArg.getValue();
+    gameKeepFracMin = gameKeepFracMinArg.getValue();
+    gameKeepFracMax = gameKeepFracMaxArg.getValue();
+    maxVisits = maxVisitsArg.getValue();
     outputDir = outputDirArg.getValue();
     verbosity = verbosityArg.getValue();
 
@@ -704,7 +712,7 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
 
   string searchRandSeed = Global::uint64ToString(seedRand.nextUInt64());
   SearchParams params = SearchParams::basicDecentParams();
-  params.maxVisits = 30;
+  params.maxVisits = maxVisits;
   params.chosenMoveTemperatureEarly = 0.1;
   params.chosenMoveTemperature = 0.1;
   params.useUncertainty = false; // To prevent weird selection effects at low playouts
@@ -822,10 +830,14 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
     TrainingWriteBuffers* dataBuffer = threadDataBuffers[threadIdx];
     Rand& rand = *threadRands[threadIdx];
 
-    if(!rand.nextBool(gameKeepProb))
-      return;
-
     const string& fileName = sgfFiles[index];
+    {
+      double d = Hash::seededHashFloat(fileName,"writeTrainingDataKeepFrac");
+      if(d < gameKeepFracMin || d >= gameKeepFracMax) {
+        reportSgfDone(false,"SGFNotInKeepFrac");
+        return;
+      }
+    }
 
     for(const string& excluded: excludeFiles) {
       if(fileName.find(excluded) != string::npos) {
@@ -1322,7 +1334,14 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
     Board board;
     Player nextPla;
     BoardHistory hist;
-    sgf->setupInitialBoardAndHist(rules, board, nextPla, hist);
+    try {
+      sgf->setupInitialBoardAndHist(rules, board, nextPla, hist);
+    }
+    catch(const StringError& e) {
+      logger.write("Bad initial setup in sgf " + fileName + " " + e.what());
+      reportSgfDone(false,"BadInitialSetup");
+      return;
+    }
     const vector<Move>& sgfMoves = sgf->moves;
 
     if(sgfMoves.size() > boardArea * 1.5 + 40.0) {
@@ -1563,16 +1582,22 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
           mainTimeSeconds = Global::stringToDouble(sgfTM);
           vector<string> pieces = Global::split(sgfOT,' ');
           periodTimeSeconds = Global::stringToDouble(pieces[0]);
-          if(!std::isfinite(periodTimeSeconds) || periodTimeSeconds <= 0 || periodTimeSeconds > 100000000)
-            throw StringError("Could not parse OT: " + sgfOT);
+          if(!std::isfinite(periodTimeSeconds) || periodTimeSeconds <= 0 || periodTimeSeconds > 100000000) {
+            logger.write("Could not parse OT: " + sgfOT);
+            reportSgfDone(false,"BadTimeControl");
+            return;
+          }
         }
         else if(sgfOT.find(" simple") != std::string::npos) {
           tcIsSimple = true;
           mainTimeSeconds = Global::stringToDouble(sgfTM);
           vector<string> pieces = Global::split(sgfOT,' ');
           periodTimeSeconds = Global::stringToDouble(pieces[0]);
-          if(!std::isfinite(periodTimeSeconds) || periodTimeSeconds <= 0 || periodTimeSeconds > 100000000)
-            throw StringError("Could not parse OT: " + sgfOT);
+          if(!std::isfinite(periodTimeSeconds) || periodTimeSeconds <= 0 || periodTimeSeconds > 100000000) {
+            logger.write("Could not parse OT: " + sgfOT);
+            reportSgfDone(false,"BadTimeControl");
+            return;
+          }
         }
         else if(sgfOT.find(" canadian") != std::string::npos || sgfOT.find(" Canadian") != std::string::npos) {
           tcIsCanadian = true;
@@ -1582,8 +1607,11 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
             throw StringError("Could not parse OT: " + sgfOT);
           canadianMoves = Global::stringToInt(pieces[0]);
           periodTimeSeconds = Global::stringToDouble(pieces[1]);
-          if(canadianMoves <= 0 || canadianMoves > 1000 || !std::isfinite(periodTimeSeconds) || periodTimeSeconds <= 0 || periodTimeSeconds > 100000000)
-            throw StringError("Could not parse OT: " + sgfOT);
+          if(canadianMoves <= 0 || canadianMoves > 1000 || !std::isfinite(periodTimeSeconds) || periodTimeSeconds <= 0 || periodTimeSeconds > 100000000) {
+            logger.write("Could not parse OT: " + sgfOT);
+            reportSgfDone(false,"BadTimeControl");
+            return;
+          }
           // Switch it to permove time to make it more comparable
           periodTimeSeconds = periodTimeSeconds / canadianMoves;
         }
