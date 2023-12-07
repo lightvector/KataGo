@@ -744,6 +744,7 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
   // ------------------------------------------------------------------------------------
   std::atomic<int64_t> numSgfsDone(0);
   std::atomic<int64_t> numSgfErrors(0);
+  std::atomic<int64_t> numTotalRows(0);
 
   std::mutex statsLock;
   std::map<string,int64_t> gameCountByUsername;
@@ -823,6 +824,7 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
     dataBuffer->clear();
     FileUtils::rename(tmpFilename,resultingFilename);
     logger.write("Saved output file with " + Global::int64ToString(numRows) + " rows: " + resultingFilename);
+    numTotalRows.fetch_add(numRows);
   };
 
 
@@ -1312,17 +1314,19 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
       }
     }
     else if(whatDataSource == "go4go") {
-      try {
-        rules = sgf->getRulesOrFail();
-      }
-      catch(const StringError& e) {
-        logger.write("Failed to get rules for sgf: " + fileName + " " + e.what());
+      // Go4Go doesn't list rules, but is only modern games and with non-zi scoring, so just guess the rules based on komi.
+      // And basically everything using komi 8 in go4go is "komi 8 but black wins ties
+      if(sgfKomi == "6.5")
+        rules = Rules::parseRulesWithoutKomi("japanese",6.5);
+      else if(sgfKomi == "7.5")
+        rules = Rules::parseRulesWithoutKomi("chinese",7.5);
+      else if(sgfKomi == "8")
+        rules = Rules::parseRulesWithoutKomi("ing",7.5);
+      else {
+        logger.write("Failed to get rules for sgf: " + fileName);
         reportSgfDone(false,"GameBadRules");
         return;
       }
-      // Basically everything using komi 8 in go4go is "komi 8 but black wins ties
-      if(rules.komi == 8)
-        rules.komi = 7.5;
     }
     else {
       throw StringError("Unknown data source: " + whatDataSource);
@@ -2449,6 +2453,7 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
   printGameCountsMap(acceptedGameCountByYear,"year (accepted)",false,NULL);
   printGameCountsMap(doneGameCountByReason,"done",false,NULL);
   printGameCountsMap(warningsByReason,"warnings",false,NULL);
+  logger.write("Total rows: " + Global::int64ToString(numTotalRows.load()));
 
   logger.write(nnEval->getModelFileName());
   logger.write("NN rows: " + Global::int64ToString(nnEval->numRowsProcessed()));
