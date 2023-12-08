@@ -34,5 +34,8 @@
 : Kept 82 start positions
 : Excluded 0/2 sgf files
 : Filtered 0/2 sgf files
+: totalWeightFromCount 51
+: totalWeightFromSurprise 0
+: totalWeightFromUncertainty 0
 : GPU -1 finishing, processed 64 rows 64 batches
 : All done
