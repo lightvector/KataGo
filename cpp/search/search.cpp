@@ -974,8 +974,12 @@ void Search::recursivelyRecomputeStats(SearchNode& n) {
       //and has 0 visits because we began a search and then stopped it before any playouts happened.
       //In that case, there's not much to recompute.
       if(weightSum <= 0.0) {
-        assert(numVisits == 0);
-        assert(isRoot);
+        //It's also possible that a suppressed virtual loss edge visit on a multi-move chain
+        //causes the parent to have 0 visits... somehow???
+        if(searchParams.suppressVirtualLossExploreFactor >= 1e10) {
+          assert(numVisits == 0);
+          assert(isRoot);
+        }
       }
       else {
         double resultUtility = getResultUtility(winLossValueAvg, noResultValueAvg);
