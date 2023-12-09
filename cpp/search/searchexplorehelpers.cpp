@@ -177,7 +177,6 @@ Search::ExploreInfo Search::getExploreSelectionValueOfChild(
     }
 
     if(searchParams.wideRootNoise > 0.0 && nnPolicyProb >= 0) {
-      // TODO is this desired?
       // Does NOT update childUtilityNoVL - wide root noise is also ignored.
       maybeApplyWideRootNoise(childUtility, nnPolicyProb, searchParams, thread, parent);
     }
@@ -322,6 +321,7 @@ void Search::selectBestChildToDescend(
 
   double bestSelectionValue = POLICY_ILLEGAL_SELECTION_VALUE;
   double bestChildExploreComponent = 0.0;
+  double bestChildSelectionValueNoVL = 0.0;
   bestChildIdx = -1;
   bestChildMoveLoc = Board::NULL_LOC;
   suppressEdgeVisit = false;
@@ -399,6 +399,7 @@ void Search::selectBestChildToDescend(
     if(selectionValue > bestSelectionValue) {
       bestSelectionValue = selectionValue;
       bestChildExploreComponent = info.exploreComponent;
+      bestChildSelectionValueNoVL = info.exploreSelectionValueNoVL;
       bestChildIdx = i;
       bestChildMoveLoc = moveLoc;
     }
@@ -464,6 +465,7 @@ void Search::selectBestChildToDescend(
     if(selectionValue > bestSelectionValue) {
       bestSelectionValue = selectionValue;
       bestChildExploreComponent = info.exploreComponent;
+      bestChildSelectionValueNoVL = info.exploreSelectionValueNoVL;
       bestChildIdx = numChildrenFound;
       bestChildMoveLoc = bestNewMoveLoc;
     }
@@ -474,7 +476,7 @@ void Search::selectBestChildToDescend(
   }
 
   if(searchParams.suppressVirtualLossExploreFactor < 1e10) {
-    if(bestSelectionValue + bestChildExploreComponent * (searchParams.suppressVirtualLossExploreFactor-1.0) < bestSelectionValueNoVL) {
+    if(bestChildSelectionValueNoVL + bestChildExploreComponent * (searchParams.suppressVirtualLossExploreFactor-1.0) < bestSelectionValueNoVL) {
       suppressEdgeVisit = true;
     }
   }

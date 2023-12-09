@@ -601,7 +601,7 @@ private:
   double computeWeightFromNNOutput(const NNOutput* nnOutput) const;
 
   void updateStatsAfterPlayout(SearchNode& node, SearchThread& thread, bool isRoot);
-  void recomputeNodeStats(SearchNode& node, SearchThread& thread, int32_t numVisitsToAdd, bool isRoot);
+  void recomputeNodeStats(SearchNode& node, SearchThread& thread, bool isRoot);
 
   void downweightBadChildrenAndNormalizeWeight(
     int numChildren,
@@ -643,7 +643,8 @@ private:
     SearchNode& node,
     SearchNode* child,
     const SearchNodeState& nodeState,
-    const int bestChildIdx
+    const int bestChildIdx,
+    bool suppressEdgeVisit
   );
 
   //----------------------------------------------------------------------------------------

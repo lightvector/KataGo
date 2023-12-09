@@ -676,6 +676,9 @@ vector<SearchParams> Setup::loadParams(
     if(cfg.contains("numVirtualLossesPerThread"+idxStr)) params.numVirtualLossesPerThread = cfg.getDouble("numVirtualLossesPerThread"+idxStr, 0.01, 1000.0);
     else if(cfg.contains("numVirtualLossesPerThread"))   params.numVirtualLossesPerThread = cfg.getDouble("numVirtualLossesPerThread",        0.01, 1000.0);
     else                                                 params.numVirtualLossesPerThread = 1.0;
+    if(cfg.contains("suppressVirtualLossExploreFactor"+idxStr)) params.suppressVirtualLossExploreFactor = cfg.getDouble("suppressVirtualLossExploreFactor"+idxStr, 1.0, 1e10);
+    else if(cfg.contains("suppressVirtualLossExploreFactor"))   params.suppressVirtualLossExploreFactor = cfg.getDouble("suppressVirtualLossExploreFactor",        1.0, 1e10);
+    else                                                        params.suppressVirtualLossExploreFactor = 1e10;
 
     if(cfg.contains("treeReuseCarryOverTimeFactor"+idxStr)) params.treeReuseCarryOverTimeFactor = cfg.getDouble("treeReuseCarryOverTimeFactor"+idxStr,0.0,1.0);
     else if(cfg.contains("treeReuseCarryOverTimeFactor"))   params.treeReuseCarryOverTimeFactor = cfg.getDouble("treeReuseCarryOverTimeFactor",0.0,1.0);

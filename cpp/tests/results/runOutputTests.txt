@@ -19390,18 +19390,18 @@ HASH: 889AABAA57046DBC99E7A1BBE7F807A3
 A3  : T  -8.86c W  -9.54c S   0.69c ( +0.7 L  +0.7) LCB   -7.42c P 30.47% WF  19.0 PSV      19 N      19  --  A3
 
 Then continue the search to complete 100 visits.
-: T   5.27c W   4.87c S   0.32c ( +0.4 L  +0.4) N     100  --  A3 D1 G5 D5 pass C3
+: T   2.34c W   2.56c S  -0.26c ( -0.3 L  -0.3) N     100  --  A3 D1 D3 C5 pass pass
 ---Black(v)---
-A3  : T  12.64c W  10.11c S   2.22c ( +2.4 L  +2.4) LCB   49.37c P 30.47% WF  14.9 PSV      16 N      34  --  A3 D1 G5 D5 pass C3
-F5  : T  -0.41c W  -0.03c S  -0.33c ( -0.4 L  -0.4) LCB   13.11c P  6.97% WF  16.8 PSV      16 N      16  --  F5 G1 D5 D1 G5
-G5  : T   4.41c W   4.62c S  -0.22c ( -0.2 L  -0.2) LCB   13.81c P 13.36% WF  15.1 PSV      15 N      15  --  G5 D5 C5 A3
-G1  : T   2.77c W   2.95c S  -0.26c ( -0.3 L  -0.3) LCB   19.65c P  8.10% WF  11.2 PSV      11 N      11  --  G1 pass D5 A3 D1
-pss : T   6.83c W   7.58c S  -0.80c ( -0.9 L  -0.9) LCB   24.98c P 12.12% WF   9.9 PSV      10 N      10  --  pass G1 D5 pass
-D5  : T   4.09c W   5.08c S  -0.99c ( -1.1 L  -1.1) LCB   25.15c P  6.16% WF   6.1 PSV       6 N       6  --  D5 G5 F1
-C3  : T  -5.03c W  -7.68c S   2.60c ( +2.9 L  +2.9) LCB   43.60c P  4.47% WF   4.3 PSV       4 N       4  --  C3 G1 G5 F1
+A3  : T   8.28c W   6.94c S   1.17c ( +1.2 L  +1.2) LCB   36.69c P 30.47% WF  17.9 PSV      19 N      30  --  A3 D1 D3 C5 pass pass
+pss : T   0.42c W   1.58c S  -1.15c ( -1.2 L  -1.2) LCB   12.41c P 12.12% WF  17.3 PSV      17 N      17  --  pass D3 C3 D1 pass
+F5  : T  -3.75c W  -3.32c S  -0.48c ( -0.5 L  -0.5) LCB   11.28c P  6.97% WF  15.8 PSV      15 N      15  --  F5 A3 C5 F1
+G5  : T   1.62c W   2.95c S  -1.29c ( -1.4 L  -1.4) LCB   14.02c P 13.36% WF  12.1 PSV      12 N      12  --  G5 D5 C5 D1
+C3  : T  -3.58c W  -3.29c S  -0.22c ( -0.2 L  -0.2) LCB   13.19c P  4.47% WF   9.4 PSV       9 N       9  --  C3 pass G1 G5 C5
+G1  : T   3.68c W   4.99c S  -1.37c ( -1.6 L  -1.6) LCB   27.08c P  8.10% WF   7.9 PSV       7 N       8  --  G1 G5 A3 C1
+D5  : T   6.94c W   4.64c S   2.21c ( +2.5 L  +2.5) LCB   47.11c P  6.16% WF   4.8 PSV       4 N       5  --  D5 G5 F1
 F1  : T  24.66c W  22.58c S   2.09c ( +2.4 L  +2.4) LCB  284.66c P  5.28% WF   0.9 PSV       1 N       1  --  F1
 D1  : T  17.84c W  16.65c S   1.19c ( +1.4 L  +1.4) LCB  277.84c P  4.23% WF   0.9 PSV       1 N       1  --  D1
-C1  : T  30.05c W  24.37c S   5.68c ( +6.0 L  +6.0) LCB  290.05c P  3.82% WF   0.9 PSV       1 N       1  --  C1
+C1  : T   9.97c W  11.29c S  -1.32c ( -1.5 L  -1.5) LCB  269.97c P  3.82% WF   1.0 PSV       1 N       1  --  C1
 
 : GPU 0 finishing, processed 0 rows 0 batches
 : Initializing neural net buffer to be size 9 * 5 allowing smaller boards
@@ -20566,6 +20566,7 @@ subtreeValueBiasFreeProp: 0.8
 subtreeValueBiasWeightExponent: 0.5
 nodeTableShardsPowerOfTwo: 16
 numVirtualLossesPerThread: 3
+suppressVirtualLossExploreFactor: 1e+10
 numThreads: 1
 minPlayoutsPerThread: 0
 maxVisits: 1125899906842624
@@ -20660,6 +20661,7 @@ subtreeValueBiasFreeProp: 0.8
 subtreeValueBiasWeightExponent: 0.5
 nodeTableShardsPowerOfTwo: 16
 numVirtualLossesPerThread: 3
+suppressVirtualLossExploreFactor: 1e+10
 numThreads: 1
 minPlayoutsPerThread: 0
 maxVisits: 1125899906842624
@@ -20754,6 +20756,7 @@ subtreeValueBiasFreeProp: 0.8
 subtreeValueBiasWeightExponent: 0.85
 nodeTableShardsPowerOfTwo: 16
 numVirtualLossesPerThread: 1
+suppressVirtualLossExploreFactor: 1e+10
 numThreads: 1
 minPlayoutsPerThread: 8
 maxVisits: 1125899906842624
@@ -20848,6 +20851,7 @@ subtreeValueBiasFreeProp: 0.8
 subtreeValueBiasWeightExponent: 0.85
 nodeTableShardsPowerOfTwo: 16
 numVirtualLossesPerThread: 1
+suppressVirtualLossExploreFactor: 1e+10
 numThreads: 1
 minPlayoutsPerThread: 8
 maxVisits: 1125899906842624
@@ -20942,6 +20946,7 @@ subtreeValueBiasFreeProp: 0.8
 subtreeValueBiasWeightExponent: 0.85
 nodeTableShardsPowerOfTwo: 16
 numVirtualLossesPerThread: 1
+suppressVirtualLossExploreFactor: 1e+10
 numThreads: 1
 minPlayoutsPerThread: 0
 maxVisits: 1125899906842624
@@ -21036,6 +21041,7 @@ subtreeValueBiasFreeProp: 0.8
 subtreeValueBiasWeightExponent: 0.85
 nodeTableShardsPowerOfTwo: 16
 numVirtualLossesPerThread: 1
+suppressVirtualLossExploreFactor: 1e+10
 numThreads: 1
 minPlayoutsPerThread: 0
 maxVisits: 1125899906842624
@@ -21130,6 +21136,7 @@ subtreeValueBiasFreeProp: 0.8
 subtreeValueBiasWeightExponent: 0.85
 nodeTableShardsPowerOfTwo: 16
 numVirtualLossesPerThread: 1
+suppressVirtualLossExploreFactor: 1e+10
 numThreads: 1
 minPlayoutsPerThread: 0
 maxVisits: 1125899906842624
@@ -21224,6 +21231,7 @@ subtreeValueBiasFreeProp: 0.8
 subtreeValueBiasWeightExponent: 0.85
 nodeTableShardsPowerOfTwo: 16
 numVirtualLossesPerThread: 1
+suppressVirtualLossExploreFactor: 1e+10
 numThreads: 1
 minPlayoutsPerThread: 0
 maxVisits: 1125899906842624

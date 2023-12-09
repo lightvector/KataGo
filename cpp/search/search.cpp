@@ -747,7 +747,7 @@ void Search::beginSearch(bool pondering) {
         node.statsLock.clear(std::memory_order_release);
 
         //Update all other stats
-        recomputeNodeStats(node, dummyThread, 0, true);
+        recomputeNodeStats(node, dummyThread, true);
       }
     }
 
@@ -992,7 +992,7 @@ void Search::recursivelyRecomputeStats(SearchNode& n) {
     }
     else {
       //Otherwise recompute it using the usual method
-      recomputeNodeStats(*node, thread, 0, isRoot);
+      recomputeNodeStats(*node, thread, isRoot);
     }
   };
 
@@ -1157,7 +1157,7 @@ bool Search::playoutDescend(
   int numChildrenFound;
   int bestChildIdx;
   Loc bestChildMoveLoc;
-  bool suppressEdgeVisit; //TODO use this in the update logic
+  bool suppressEdgeVisit;
 
   SearchNode* child = NULL;
   while(true) {
@@ -1282,7 +1282,12 @@ bool Search::playoutDescend(
 
       //If edge visits is too much smaller than the child's visits, we can avoid descending.
       //Instead just add edge visits and treat that as a visit.
-      if(maybeCatchUpEdgeVisits(thread, node, child, nodeState, bestChildIdx)) {
+
+      if(maybeCatchUpEdgeVisits(thread, node, child, nodeState, bestChildIdx, suppressEdgeVisit)) {
+        if(suppressEdgeVisit) {
+          child->virtualLosses.fetch_add(-1,std::memory_order_release);
+          return false;
+        }
         updateStatsAfterPlayout(node,thread,isRoot);
         child->virtualLosses.fetch_add(-1,std::memory_order_release);
         return true;
@@ -1298,7 +1303,11 @@ bool Search::playoutDescend(
 
       //If edge visits is too much smaller than the child's visits, we can avoid descending.
       //Instead just add edge visits and treat that as a visit.
-      if(maybeCatchUpEdgeVisits(thread, node, child, nodeState, bestChildIdx)) {
+      if(maybeCatchUpEdgeVisits(thread, node, child, nodeState, bestChildIdx, suppressEdgeVisit)) {
+        if(suppressEdgeVisit) {
+          child->virtualLosses.fetch_add(-1,std::memory_order_release);
+          return false;
+        }
         updateStatsAfterPlayout(node,thread,isRoot);
         child->virtualLosses.fetch_add(-1,std::memory_order_release);
         return true;
@@ -1324,6 +1333,10 @@ bool Search::playoutDescend(
     //No insertion, child was already there
     if(!result.second) {
       SearchNodeChildrenReference children = node.getChildren(nodeState);
+      if(suppressEdgeVisit) {
+        child->virtualLosses.fetch_add(-1,std::memory_order_release);
+        return false;
+      }
       children[bestChildIdx].addEdgeVisits(1);
       updateStatsAfterPlayout(node,thread,isRoot);
       child->virtualLosses.fetch_add(-1,std::memory_order_release);
@@ -1335,9 +1348,11 @@ bool Search::playoutDescend(
   bool finishedPlayout = playoutDescend(thread,*child,false);
   //Update this node stats
   if(finishedPlayout) {
-    nodeState = node.state.load(std::memory_order_acquire);
-    SearchNodeChildrenReference children = node.getChildren(nodeState);
-    children[bestChildIdx].addEdgeVisits(1);
+    if(!suppressEdgeVisit) {
+      nodeState = node.state.load(std::memory_order_acquire);
+      SearchNodeChildrenReference children = node.getChildren(nodeState);
+      children[bestChildIdx].addEdgeVisits(1);
+    }
     updateStatsAfterPlayout(node,thread,isRoot);
   }
   child->virtualLosses.fetch_add(-1,std::memory_order_release);
@@ -1348,12 +1363,15 @@ bool Search::playoutDescend(
 
 //If edge visits is too much smaller than the child's visits, we can avoid descending.
 //Instead just add edge visits and return immediately.
+//Returns true if we do perform a catch up edge visit, OR if the child visits is already sufficient but suppressEdgeVisit
+//is true. In other words, returns true when we can terminate the playout and false when we need to go deeper.
 bool Search::maybeCatchUpEdgeVisits(
   SearchThread& thread,
   SearchNode& node,
   SearchNode* child,
   const SearchNodeState& nodeState,
-  const int bestChildIdx
+  const int bestChildIdx,
+  bool suppressEdgeVisit
 ) {
   //Don't need to do this since we already are pretty recent as of finding the best child.
   //nodeState = node.state.load(std::memory_order_acquire);
@@ -1373,6 +1391,9 @@ bool Search::maybeCatchUpEdgeVisits(
   //how many visits it has
   if(searchParams.graphSearchCatchUpLeakProb > 0.0 && edgeVisits < childVisits && thread.rand.nextBool(searchParams.graphSearchCatchUpLeakProb))
     return false;
+
+  if(suppressEdgeVisit)
+    return true;
 
   //If the edge visits exceeds the child then we need to search the child more, but as long as that's not the case,
   //we can add more edge visits.
