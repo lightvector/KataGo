@@ -67,4 +67,17 @@
     MainCmds::runownershiptests(args);
 }
 
+- (void)testGpuError {
+    std::vector<std::string> args;
+    args.push_back("katago");
+    args.push_back("-config");
+    args.push_back("gtp.cfg");
+    args.push_back("-model");
+    args.push_back("model.bin.gz");
+    args.push_back("-boardsize");
+    args.push_back("9");
+    args.push_back("-quick");
+    MainCmds::testgpuerror(args);
+}
+
 @end
