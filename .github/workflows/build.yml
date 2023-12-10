@@ -73,7 +73,7 @@ jobs:
       run: |
         mkdir -p cpp/build
         cd cpp/build
-        cmake -G Ninja ../
+        cmake -G Ninja -DUSE_BACKEND=EIGEN ../
         ninja
 
     - name: Setup network
