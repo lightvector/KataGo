@@ -69,18 +69,12 @@ jobs:
         xcode-select -p
         sudo xcode-select -s /Applications/Xcode_15.0.1.app/Contents/Developer
 
-    - name: Run cmake ninja
+    - name: Build KataGo with Eigen backend
       run: |
-        cd cpp
-        mv CMakeLists.txt-macos CMakeLists.txt
-        mkdir build
-        cd build
+        mkdir -p cpp/build
+        cd cpp/build
         cmake -G Ninja ../
         ninja
-
-    - name: Setup configuration
-      run: |
-        ln -s ../configs/misc/coreml_example.cfg cpp/build/gtp.cfg
 
     - name: Setup network
       run: |
@@ -89,6 +83,24 @@ jobs:
         wget https://github.com/ChinChangYang/KataGo/releases/download/v1.13.2-coreml1/kata1-b18c384nbt-s7709731328-d3715293823.bin.gz
         ln -s ../../models/kata1-b18c384nbt-s7709731328-d3715293823.bin.gz ../cpp/build/model.bin.gz
 
+    - name: Run KataGo GPU error test with Eigen backend
+      run: |
+        cd cpp/build
+        ./katago testgpuerror -config ../configs/gtp_example.cfg -model model.bin.gz -boardsize 9 -basefile base.bin
+
+    - name: Build KataGo with CoreML backend
+      run: |
+        cd cpp
+        mv CMakeLists.txt-macos CMakeLists.txt
+        mkdir -p build
+        cd build
+        cmake -G Ninja ../
+        ninja
+
+    - name: Setup configuration
+      run: |
+        ln -s ../configs/misc/coreml_example.cfg cpp/build/gtp.cfg
+
     - name: Setup CoreML model
       run: |
         mkdir -p models
@@ -96,6 +108,11 @@ jobs:
         wget https://github.com/ChinChangYang/KataGo/releases/download/v1.13.2-coreml1/KataGoModel19x19fp16v14s7709731328.mlpackage.zip
         unzip KataGoModel19x19fp16v14s7709731328.mlpackage.zip
         ln -s ../../models/KataGoModel19x19fp16v14s7709731328.mlpackage ../cpp/build/KataGoModel19x19fp16.mlpackage
+
+    - name: Run KataGo GPU error test with CoreML backend
+      run: |
+        cd cpp/build
+        ./katago testgpuerror -config gtp.cfg -model model.bin.gz -boardsize 9 -basefile base.bin
 
     - name: Setup test data
       run: |
