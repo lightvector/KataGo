@@ -120,5 +120,5 @@ int MainCmds::testgpuerror(const vector<string>& args) {
   NeuralNet::globalCleanup();
   ScoreValue::freeTables();
 
-  return 0;
+  return success ? 0 : 1;
 }
