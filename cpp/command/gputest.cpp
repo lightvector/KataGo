@@ -78,7 +78,13 @@ int MainCmds::testgpuerror(const vector<string>& args) {
     logger.write("For batch test, using default batch size 16");
   }
   const int maxConcurrentEvals = maxBatchSize * 2 + 16;
-  const int expectedConcurrentEvals = maxBatchSize * 2 + 16;
+  int expectedConcurrentEvals = maxBatchSize * 2 + 16;
+
+#ifdef USE_EIGEN_BACKEND
+  if(expectedConcurrentEvals > 2)
+    expectedConcurrentEvals = 2;
+#endif
+
   const bool defaultRequireExactNNLen = false;
 
   NNEvaluator* nnEval;
