@@ -1859,6 +1859,12 @@ public struct SWPolicyHeadDesc {
     let p2Conv: SWConvLayerDesc
     /// The fully connected linear layer for outputting logits for the pass move
     let gpoolToPassMul: SWMatMulLayerDesc
+    /// The description of the bias layer that is applied to the output of the matrix multiplication layer for model version >= 15
+    let gpoolToPassBias: SWMatBiasLayerDesc?
+    /// The activation function for the bias layer in model version >= 15
+    let passActivation: ActivationKind?
+    /// The fully connected linear layer for outputting logits for the pass move in model version >= 15
+    let gpoolToPassMul2: SWMatMulLayerDesc?
 
     /// Initializes a SWPolicyHeadDesc object with the given parameters
     /// - Parameters:
@@ -1881,7 +1887,10 @@ public struct SWPolicyHeadDesc {
          p1BN: SWBatchNormLayerDesc,
          p1Activation: ActivationKind,
          p2Conv: SWConvLayerDesc,
-         gpoolToPassMul: SWMatMulLayerDesc) {
+         gpoolToPassMul: SWMatMulLayerDesc,
+         gpoolToPassBias: SWMatBiasLayerDesc?,
+         passActivation: ActivationKind?,
+         gpoolToPassMul2: SWMatMulLayerDesc?) {
         self.version = version
         self.p1Conv = p1Conv
         self.g1Conv = g1Conv
@@ -1892,6 +1901,12 @@ public struct SWPolicyHeadDesc {
         self.p1Activation = p1Activation
         self.p2Conv = p2Conv
         self.gpoolToPassMul = gpoolToPassMul
+        self.gpoolToPassBias = gpoolToPassBias
+        self.passActivation = passActivation
+        self.gpoolToPassMul2 = gpoolToPassMul2
+
+        assert((version >= 15) || ((gpoolToPassBias == nil) && (passActivation == nil) && (gpoolToPassMul2 == nil)))
+        assert((version < 15) || ((gpoolToPassBias != nil) && (passActivation != nil) && (gpoolToPassMul2 != nil)))
     }
 }
 
@@ -1904,17 +1919,39 @@ public func createSWPolicyHeadDesc(version: Int32,
                                    p1BN: SWBatchNormLayerDesc,
                                    p1Activation: ActivationKind,
                                    p2Conv: SWConvLayerDesc,
-                                   gpoolToPassMul: SWMatMulLayerDesc) -> SWPolicyHeadDesc {
-    return SWPolicyHeadDesc(version: Int(version),
-                            p1Conv: p1Conv,
-                            g1Conv: g1Conv,
-                            g1BN: g1BN,
-                            g1Activation: g1Activation,
-                            gpoolToBiasMul: gpoolToBiasMul,
-                            p1BN: p1BN,
-                            p1Activation: p1Activation,
-                            p2Conv: p2Conv,
-                            gpoolToPassMul: gpoolToPassMul)
+                                   gpoolToPassMul: SWMatMulLayerDesc,
+                                   gpoolToPassBias: SWMatBiasLayerDesc,
+                                   passActivation: ActivationKind,
+                                   gpoolToPassMul2: SWMatMulLayerDesc) -> SWPolicyHeadDesc {
+    if version >= 15 {
+        return SWPolicyHeadDesc(version: Int(version),
+                                p1Conv: p1Conv,
+                                g1Conv: g1Conv,
+                                g1BN: g1BN,
+                                g1Activation: g1Activation,
+                                gpoolToBiasMul: gpoolToBiasMul,
+                                p1BN: p1BN,
+                                p1Activation: p1Activation,
+                                p2Conv: p2Conv,
+                                gpoolToPassMul: gpoolToPassMul,
+                                gpoolToPassBias: gpoolToPassBias,
+                                passActivation: passActivation,
+                                gpoolToPassMul2: gpoolToPassMul2)
+    } else {
+        return SWPolicyHeadDesc(version: Int(version),
+                                p1Conv: p1Conv,
+                                g1Conv: g1Conv,
+                                g1BN: g1BN,
+                                g1Activation: g1Activation,
+                                gpoolToBiasMul: gpoolToBiasMul,
+                                p1BN: p1BN,
+                                p1Activation: p1Activation,
+                                p2Conv: p2Conv,
+                                gpoolToPassMul: gpoolToPassMul,
+                                gpoolToPassBias: nil,
+                                passActivation: nil,
+                                gpoolToPassMul2: nil)
+    }
 }
 
 /// A structure that represents a policy head of a neural network.
@@ -2001,14 +2038,36 @@ struct PolicyHead {
                                nnXLen: nnXLen,
                                nnYLen: nnYLen)
 
+        policyTensor = p2Conv.resultTensor
+
         assert(g1Concat.resultTensor.shape?[1] == descriptor.gpoolToPassMul.inChannels)
 
         let gpoolToPassMul = MatMulLayer(graph: graph,
                                          descriptor: descriptor.gpoolToPassMul,
                                          sourceTensor: g1Concat.resultTensor)
 
-        policyTensor = p2Conv.resultTensor
-        policyPassTensor = gpoolToPassMul.resultTensor
+        if let gpoolToPassBias = descriptor.gpoolToPassBias,
+           let passActivation = descriptor.passActivation,
+           let gpoolToPassMul2 = descriptor.gpoolToPassMul2 {
+            assert(descriptor.version >= 15)
+
+            let gpoolToPassBiasLayer = MatBiasLayer(graph: graph,
+                                                    descriptor: gpoolToPassBias,
+                                                    sourceTensor: gpoolToPassMul.resultTensor)
+
+            let passActivationLayer = ActivationLayer(graph: graph,
+                                                      sourceTensor: gpoolToPassBiasLayer.resultTensor,
+                                                      activationKind: passActivation)
+
+            let gpoolToPassMul2Layer = MatMulLayer(graph: graph,
+                                                   descriptor: gpoolToPassMul2,
+                                                   sourceTensor: passActivationLayer.resultTensor)
+
+            policyPassTensor = gpoolToPassMul2Layer.resultTensor
+        } else {
+            assert(descriptor.version < 15)
+            policyPassTensor = gpoolToPassMul.resultTensor
+        }
 
         assert(policyTensor.shape?.count == 4)
         assert(policyPassTensor.shape?.count == 2)

@@ -1773,16 +1773,19 @@ final class PolicyHeadTest: XCTestCase {
                                                outChannels: outChannels as NSNumber,
                                                weights: gpoolToPassMulWeights)
 
-        let descriptor = createSWPolicyHeadDesc(version: 0,
-                                                p1Conv: unityConv,
-                                                g1Conv: unityConv,
-                                                g1BN: unityBN,
-                                                g1Activation: ActivationKind.relu,
-                                                gpoolToBiasMul: gpoolToBiasMul,
-                                                p1BN: unityBN,
-                                                p1Activation: ActivationKind.relu,
-                                                p2Conv: p2Conv,
-                                                gpoolToPassMul: gpoolToPassMul)
+        let descriptor = SWPolicyHeadDesc(version: 0,
+                                          p1Conv: unityConv,
+                                          g1Conv: unityConv,
+                                          g1BN: unityBN,
+                                          g1Activation: ActivationKind.relu,
+                                          gpoolToBiasMul: gpoolToBiasMul,
+                                          p1BN: unityBN,
+                                          p1Activation: ActivationKind.relu,
+                                          p2Conv: p2Conv,
+                                          gpoolToPassMul: gpoolToPassMul,
+                                          gpoolToPassBias: nil,
+                                          passActivation: nil,
+                                          gpoolToPassMul2: nil)
 
         let graph = MPSGraph()
 
@@ -2165,6 +2168,123 @@ final class SWModelDescTest {
     var biasWeights = [Float](repeating: 0, count: 1)
     var gpoolMatMulWeights = [Float](repeating: 3, count: 3)
     var zeroMatBiasWeights = [Float](repeating: 0, count: 1)
+    var gpoolToPassMulWeights = [Float](repeating: 3, count: 9)
+    var gpoolToPassBiasWeights = [Float](repeating: 0, count: 3)
+
+    func createMiniDescV15() -> SWModelDesc {
+        let version = 15
+
+        let unityConv = SWConvLayerDesc(convYSize: 1,
+                                        convXSize: 1,
+                                        inChannels: 1,
+                                        outChannels: 1,
+                                        dilationY: 1,
+                                        dilationX: 1,
+                                        weights: &unityConvWeights)
+
+        let unityMatMul = SWMatMulLayerDesc(inChannels: 1,
+                                            outChannels: 1,
+                                            weights: &unityMatMulWeights)
+
+
+        let unityBatchNorm = SWBatchNormLayerDesc(numChannels: 1,
+                                                  epsilon: 0.1,
+                                                  hasScale: false,
+                                                  hasBias: false,
+                                                  mean: &meanWeights,
+                                                  variance: &varianceWeights,
+                                                  scale: &scaleWeights,
+                                                  bias: &biasWeights)
+
+        let unityResidual = SWResidualBlockDesc(preBN: unityBatchNorm,
+                                                preActivation: ActivationKind.relu,
+                                                regularConv: unityConv,
+                                                midBN: unityBatchNorm,
+                                                midActivation: ActivationKind.relu,
+                                                finalConv: unityConv)
+
+        let gpoolMatMul = SWMatMulLayerDesc(inChannels: 3,
+                                            outChannels: 1,
+                                            weights: &gpoolMatMulWeights)
+
+        let globalPooling =
+        SWGlobalPoolingResidualBlockDesc(preBN: unityBatchNorm,
+                                         preActivation: ActivationKind.relu,
+                                         regularConv: unityConv,
+                                         gpoolConv: unityConv,
+                                         gpoolBN: unityBatchNorm,
+                                         gpoolActivation: ActivationKind.relu,
+                                         gpoolToBiasMul: gpoolMatMul,
+                                         midBN: unityBatchNorm,
+                                         midActivation: ActivationKind.relu,
+                                         finalConv: unityConv)
+
+        let blocks: [BlockDescriptor] = [unityResidual,
+                                         BlockDescriptor(),
+                                         globalPooling,
+                                         unityResidual]
+
+        let trunkDesc = SWTrunkDesc(version: version,
+                                    trunkNumChannels: 1,
+                                    midNumChannels: 1,
+                                    regularNumChannels: 1,
+                                    gpoolNumChannels: 1,
+                                    initialConv: unityConv,
+                                    initialMatMul: unityMatMul,
+                                    blockDescriptors: blocks,
+                                    trunkTipBN: unityBatchNorm,
+                                    trunkTipActivation: ActivationKind.relu)
+
+        let gpoolToPassMul = SWMatMulLayerDesc(inChannels: 3,
+                                               outChannels: 3,
+                                               weights: &gpoolToPassMulWeights)
+
+        let gpoolToPassBias = SWMatBiasLayerDesc(numChannels: 3,
+                                                 weights: &gpoolToPassBiasWeights)
+
+        let policyHead = SWPolicyHeadDesc(version: version,
+                                          p1Conv: unityConv,
+                                          g1Conv: unityConv,
+                                          g1BN: unityBatchNorm,
+                                          g1Activation: ActivationKind.relu,
+                                          gpoolToBiasMul: gpoolMatMul,
+                                          p1BN: unityBatchNorm,
+                                          p1Activation: ActivationKind.relu,
+                                          p2Conv: unityConv,
+                                          gpoolToPassMul: gpoolToPassMul,
+                                          gpoolToPassBias: gpoolToPassBias,
+                                          passActivation: ActivationKind.relu,
+                                          gpoolToPassMul2: gpoolMatMul)
+
+        let zeroMatBias = SWMatBiasLayerDesc(numChannels: 1,
+                                             weights: &zeroMatBiasWeights)
+
+        let valueHead = SWValueHeadDesc(version: version,
+                                        v1Conv: unityConv,
+                                        v1BN: unityBatchNorm,
+                                        v1Activation: ActivationKind.relu,
+                                        v2Mul: gpoolMatMul,
+                                        v2Bias: zeroMatBias,
+                                        v2Activation: ActivationKind.relu,
+                                        v3Mul: unityMatMul,
+                                        v3Bias: zeroMatBias,
+                                        sv3Mul: unityMatMul,
+                                        sv3Bias: zeroMatBias,
+                                        vOwnershipConv: unityConv)
+
+        let modelDesc = createSWModelDesc(version: Int32(version),
+                                          name: "test",
+                                          numInputChannels: 1,
+                                          numInputGlobalChannels: 1,
+                                          numValueChannels: 1,
+                                          numScoreValueChannels: 1,
+                                          numOwnershipChannels: 1,
+                                          trunk: trunkDesc,
+                                          policyHead: policyHead,
+                                          valueHead: valueHead)
+
+        return modelDesc
+    }
 
     func createMiniDesc() -> SWModelDesc {
         let unityConv = SWConvLayerDesc(convYSize: 1,
@@ -2237,7 +2357,10 @@ final class SWModelDescTest {
                                           p1BN: unityBatchNorm,
                                           p1Activation: ActivationKind.relu,
                                           p2Conv: unityConv,
-                                          gpoolToPassMul: gpoolMatMul)
+                                          gpoolToPassMul: gpoolMatMul,
+                                          gpoolToPassBias: nil,
+                                          passActivation: nil,
+                                          gpoolToPassMul2: nil)
 
         let zeroMatBias = SWMatBiasLayerDesc(numChannels: 1,
                                              weights: &zeroMatBiasWeights)
@@ -2272,6 +2395,63 @@ final class SWModelDescTest {
 
 final class ModelTest: XCTestCase {
     let swModelDescTest = SWModelDescTest()
+
+    func createMiniModelV15() -> Model? {
+        let modelDesc = swModelDescTest.createMiniDescV15()
+
+        let device = MTLCreateSystemDefaultDevice()!
+
+        let model = Model(device: device,
+                          graph: MPSGraph(),
+                          descriptor: modelDesc,
+                          nnXLen: 1,
+                          nnYLen: 1)
+
+        var input = [Float32](repeating: 1, count: 1)
+        var inputGlobal = [Float32](repeating: 1, count: 1)
+        var policyOutput = [Float32](repeating: 1, count: 1)
+        var policyPassOutput = [Float32](repeating: 1, count: 1)
+        var valueOutput = [Float32](repeating: 1, count: 1)
+        var scoreValueOutput = [Float32](repeating: 1, count: 1)
+        var ownershipOutput = [Float32](repeating: 1, count: 1)
+
+        model.apply(input: &input,
+                    inputGlobal: &inputGlobal,
+                    policy: &policyOutput,
+                    policyPass: &policyPassOutput,
+                    value: &valueOutput,
+                    scoreValue: &scoreValueOutput,
+                    ownership: &ownershipOutput,
+                    batchSize: 1)
+
+        return model
+    }
+
+    func testMiniModelV15() {
+        let model = createMiniModelV15()
+        var input = [Float32](repeating: 1, count: 1)
+        var inputGlobal = [Float32](repeating: 1, count: 1)
+        var policyOutput = [Float32](repeating: 1, count: 1)
+        var policyPassOutput = [Float32](repeating: 1, count: 1)
+        var valueOutput = [Float32](repeating: 1, count: 1)
+        var scoreValueOutput = [Float32](repeating: 1, count: 1)
+        var ownershipOutput = [Float32](repeating: 1, count: 1)
+
+        model?.apply(input: &input,
+                     inputGlobal: &inputGlobal,
+                     policy: &policyOutput,
+                     policyPass: &policyPassOutput,
+                     value: &valueOutput,
+                     scoreValue: &scoreValueOutput,
+                     ownership: &ownershipOutput,
+                     batchSize: 1)
+
+        XCTAssertEqual(policyOutput[0], 101.68, accuracy: 1e-4)
+        XCTAssertEqual(policyPassOutput[0], 619.9198, accuracy: 1e-4)
+        XCTAssertEqual(valueOutput[0], 126.936, accuracy: 1e-4)
+        XCTAssertEqual(scoreValueOutput[0], 126.936, accuracy: 1e-4)
+        XCTAssertEqual(ownershipOutput[0], 32.8, accuracy: 1e-4)
+    }
 
     func createMiniModel() -> Model? {
         let modelDesc = swModelDescTest.createMiniDesc()
@@ -2607,7 +2787,10 @@ final class ModelTest: XCTestCase {
                                           p1BN: p1BN,
                                           p1Activation: ActivationKind.relu,
                                           p2Conv: p2Conv,
-                                          gpoolToPassMul: gpoolToPassMul)
+                                          gpoolToPassMul: gpoolToPassMul,
+                                          gpoolToPassBias: nil,
+                                          passActivation: nil,
+                                          gpoolToPassMul2: nil)
 
         let v1Conv = SWConvLayerDesc(convYSize: 1,
                                      convXSize: 1,

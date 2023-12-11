@@ -211,6 +211,9 @@ SWPolicyHeadDesc MetalProcess::policyHeadDescToSwift(const PolicyHeadDesc * poli
   ActivationKind p1Activation = activationLayerDescToSwift(&policyHead->p1Activation);
   SWConvLayerDesc p2Conv = convLayerDescToSwift(&policyHead->p2Conv);
   SWMatMulLayerDesc gpoolToPassMul = matMulLayerDescToSwift(&policyHead->gpoolToPassMul);
+  SWMatBiasLayerDesc gpoolToPassBias = matBiasLayerDescToSwift(&policyHead->gpoolToPassBias);
+  ActivationKind passActivation = activationLayerDescToSwift(&policyHead->passActivation);
+  SWMatMulLayerDesc gpoolToPassMul2 = matMulLayerDescToSwift(&policyHead->gpoolToPassMul2);
 
   SWPolicyHeadDesc swPolicyHead = createSWPolicyHeadDesc(policyHead->modelVersion,
                                                          p1Conv,
@@ -221,7 +224,10 @@ SWPolicyHeadDesc MetalProcess::policyHeadDescToSwift(const PolicyHeadDesc * poli
                                                          p1BN,
                                                          p1Activation,
                                                          p2Conv,
-                                                         gpoolToPassMul);
+                                                         gpoolToPassMul,
+                                                         gpoolToPassBias,
+                                                         passActivation,
+                                                         gpoolToPassMul2);
 
   return swPolicyHead;
 }
@@ -583,7 +589,6 @@ InputBuffers::InputBuffers(const LoadedModel* loadedModel, int maxBatchSz, int n
   maxBatchSize = maxBatchSz;
   policyResultChannels = m.policyHead.p2Conv.outChannels;
   assert((m.modelVersion >= 12) ? (policyResultChannels == 2) : (policyResultChannels == 1));
-  assert(m.policyHead.p2Conv.outChannels == m.policyHead.gpoolToPassMul.outChannels);
   singleSpatialElts = (size_t)m.numInputChannels * nnXLen * nnYLen;
   singleInputElts = (size_t)m.numInputChannels * modelXLen * modelYLen;
   singleInputGlobalElts = (size_t)m.numInputGlobalChannels;
