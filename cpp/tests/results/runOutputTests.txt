@@ -20295,28 +20295,34 @@ HASH: 3081A148F9DBFE380F658C9BF2145BB4
  1 X . X . X
 
 
-: T  -1.44c W  -1.28c S  -0.20c ( -0.2 L  -0.2) N      21  --  pass E5 D1 pass pass pass A5
+: T  -1.44c W  -1.28c S  -0.20c ( -0.2 L  -0.2) N      21  --  B1 E5 A5 D4 B4 C5
 ---Black(v)---
-pss : T  -2.57c W  -0.58c S  -0.47c ( -0.3 L  -0.3) LCB   11.40c P 20.92% WF   2.7 PSV       6 N       6  --  pass E5 D1 pass pass pass A5
-B1  : T   0.31c W  -0.20c S  -0.25c ( -0.2 L  -0.2) LCB   11.89c P 47.60% WF   5.8 PSV       6 N      13  --  B1 E5 A5 D4 B4 C5
-D1  : T -26.42c W -26.38c S  -0.04c ( -0.1 L  -0.1) LCB  323.58c P 20.87% WF   0.4 PSV       1 N       1  --  D1
-Win 38.11c
-Loss 32.30c
-NoResult 29.59c
-ScoreMean 0.99
-ScoreMeanSq 104.1
-Lead 0.99
+B1  : T   0.31c W  -0.20c S  -0.25c ( -0.2 L  -0.2) LCB   11.89c P 39.88% WF   5.8 PSV       6 N      13  --  B1 E5 A5 D4 B4 C5
+D1  : T -26.42c W -26.38c S  -0.04c ( -0.1 L  -0.1) LCB  323.58c P  9.09% WF   0.4 PSV       1 N       1  --  D1
+pss : T  -2.57c W  -0.58c S  -0.47c ( -0.3 L  -0.3) LCB   12.06c P 22.50% WF   2.7 PSV       0 N       6  --  pass E5 D1 pass pass pass A5
+Win 36.55c
+Loss 26.09c
+NoResult 37.36c
+ScoreMean -4.04
+ScoreMeanSq 147.5
+Lead -4.04
 VarTimeLeft 500.0
 STWinlossError 34.66c
 STScoreError 3.80
-OptimismUsed 0.71
+OptimismUsed 0.43
 Policy
-Pass 209 
+Pass 216 
    -    -    -    -    - 
    -    -    -    -    - 
    -    -    -    -    - 
-   -    -    -    -  106 
-   -  476    -  209    - 
+   -    -    -    -  286 
+   -  424    -   74    - 
+   81   146   116    87    93 
+ -277  -190  -182   137  -146 
+ -170   400  -315   182  -203 
+  297  -173  -258  -262   129 
+   26  -426   -82    35  -262 
+
 : GPU 0 finishing, processed 0 rows 0 batches
 
 ===================================================================
@@ -20457,28 +20463,34 @@ HASH: 3081A148F9DBFE380F658C9BF2145BB4
  1 X . X . X
 
 
-: T  -1.44c W  -1.28c S  -0.20c ( -0.2 L  -0.2) N      21  --  pass E5 D1 pass pass pass A5
+: T  -1.44c W  -1.28c S  -0.20c ( -0.2 L  -0.2) N      21  --  B1 E5 A5 D4 B4 C5
 ---Black(v)---
-pss : T  -2.57c W  -0.58c S  -0.47c ( -0.3 L  -0.3) LCB   11.40c P 20.92% WF   2.7 PSV       6 N       6  --  pass E5 D1 pass pass pass A5
-B1  : T   0.31c W  -0.20c S  -0.25c ( -0.2 L  -0.2) LCB   11.89c P 47.60% WF   5.8 PSV       6 N      13  --  B1 E5 A5 D4 B4 C5
-D1  : T -26.42c W -26.38c S  -0.04c ( -0.1 L  -0.1) LCB  323.58c P 20.87% WF   0.4 PSV       1 N       1  --  D1
-Win 38.11c
-Loss 32.30c
-NoResult 29.59c
-ScoreMean 0.99
-ScoreMeanSq 104.1
-Lead 0.99
+B1  : T   0.31c W  -0.20c S  -0.25c ( -0.2 L  -0.2) LCB   11.89c P 39.88% WF   5.8 PSV       6 N      13  --  B1 E5 A5 D4 B4 C5
+D1  : T -26.42c W -26.38c S  -0.04c ( -0.1 L  -0.1) LCB  323.58c P  9.09% WF   0.4 PSV       1 N       1  --  D1
+pss : T  -2.57c W  -0.58c S  -0.47c ( -0.3 L  -0.3) LCB   12.06c P 22.50% WF   2.7 PSV       0 N       6  --  pass E5 D1 pass pass pass A5
+Win 36.55c
+Loss 26.09c
+NoResult 37.36c
+ScoreMean -4.04
+ScoreMeanSq 147.5
+Lead -4.04
 VarTimeLeft 500.0
 STWinlossError 34.66c
 STScoreError 3.80
-OptimismUsed 1.00
+OptimismUsed 0.00
 Policy
-Pass 209 
+Pass 216 
    -    -    -    -    - 
    -    -    -    -    - 
    -    -    -    -    - 
-   -    -    -    -  106 
-   -  476    -  209    - 
+   -    -    -    -  286 
+   -  424    -   74    - 
+   81   146   116    87    93 
+ -277  -190  -182   137  -146 
+ -170   400  -315   182  -203 
+  297  -173  -258  -262   129 
+   26  -426   -82    35  -262 
+
 : GPU 0 finishing, processed 0 rows 0 batches
 
 ===================================================================

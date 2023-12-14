@@ -2281,7 +2281,7 @@ x.x.x
     cout << search->rootBoard << endl;
     search->printTree(cout, search->rootNode, options, P_WHITE);
     search->rootNode->getNNOutput()->debugPrint(cout,search->rootBoard);
-    testAssert(abs(search->rootNode->getNNOutput()->policyOptimismUsed - 0.71) < 0.00001);
+    testAssert(abs(search->rootNode->getNNOutput()->policyOptimismUsed - 0.43) < 0.00001);
 
     delete search;
     delete nnEval;
@@ -2351,7 +2351,7 @@ x.x.x
     cout << search->rootBoard << endl;
     search->printTree(cout, search->rootNode, options, P_WHITE);
     search->rootNode->getNNOutput()->debugPrint(cout,search->rootBoard);
-    testAssert(abs(search->rootNode->getNNOutput()->policyOptimismUsed - 1.0) < 0.00001);
+    testAssert(abs(search->rootNode->getNNOutput()->policyOptimismUsed - 0.0) < 0.00001);
 
     delete search;
     delete nnEval;
