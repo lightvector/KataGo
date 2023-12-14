@@ -40,7 +40,7 @@
     args.push_back("-boardsize");
     args.push_back("9");
     args.push_back("-quick");
-    MainCmds::testgpuerror(args);
+    XCTAssert(MainCmds::testgpuerror(args) == 0);
 }
 
 @end
