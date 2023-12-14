@@ -21,6 +21,7 @@ Lead 7.87
 VarTimeLeft -1.0
 STWinlossError -100.00c
 STScoreError -1.00
+OptimismUsed 0.00
 Policy
 Pass   0 
    0    0    0    0    0 

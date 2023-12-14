@@ -579,6 +579,15 @@ void Search::runWholeSearch(
   double actualSearchStartTime = timer.getSeconds();
   performTaskWithThreads(&searchLoop, capThreads);
 
+  //If the search did not actually do anything, we need to still make sure to update the root node if it needs
+  //such an update (since root params may differ from tree params).
+  if(rootNode != NULL && rootNode->nodeAge.load(std::memory_order_acquire) != searchNodeAge) {
+    const int threadIdx = 0;
+    const bool isRoot = true;
+    SearchThread thread(threadIdx,*this);
+    maybeRecomputeExistingNNOutput(thread,*rootNode,isRoot);
+  }
+
   //Relaxed load is fine since numPlayoutsShared should be synchronized already due to the joins
   lastSearchNumPlayouts = numPlayoutsShared.load(std::memory_order_relaxed);
   effectiveSearchTimeCarriedOver += timer.getSeconds() - actualSearchStartTime;

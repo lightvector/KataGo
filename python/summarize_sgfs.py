@@ -41,7 +41,7 @@ class GoGameResultSummary(elo.GameResultSummary):
                 records.append(self.sgf_string_to_game_record(sgf, input_file))
             return records
         else:
-            with open(sgf_file_name, "rb") as f:
+            with open(input_file, "rb") as f:
                 sgf = f.read()
 
             return [self.sgf_string_to_game_record(sgf, input_file)]

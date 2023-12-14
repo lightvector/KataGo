@@ -143,7 +143,7 @@ int MainCmds::match(const vector<string>& args) {
   }
 
   vector<bool> botIsUsed(numBots);
-  for(const std::pair<int,int> pair: matchupsPerRound) {
+  for(const std::pair<int,int>& pair : matchupsPerRound) {
     botIsUsed[pair.first] = true;
     botIsUsed[pair.second] = true;
   }

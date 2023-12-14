@@ -1141,26 +1141,26 @@ HASH: 8A42E7A7CCEA1427957E25F726AE2715
 
 Root visits: 426
 Last search playouts: 0
-NN rows: 1008
-NN batches: 1008
+NN rows: 1009
+NN batches: 1009
 NN avg batch size: 1
 PlayoutDoublingAdvantage: -1.5
 PV: C11 C10 D11 E10 F11 E11 E12 F12 G12 D12 F13 C12
 Tree:
 : T  69.06c W  65.88c S   3.18c ( +8.9 L  +9.1) N     426  --  C11 C10 D11 E10 F11 E11 E12
 ---Black(v)---
-C11 : T  67.16c W  64.20c S   2.97c ( +8.7 L  +8.8) LCB   70.29c P 22.63% WF 184.6 PSV     335 N     180  --  C11 C10 D11 E10 F11 E11 E12 F12
-E4  : T  69.24c W  66.01c S   3.24c ( +8.9 L  +9.3) LCB   72.02c P 34.43% WF 161.7 PSV     161 N     163  --  E4 D6 H4 G11 C8 C7 D8 L4
-D5  : T  73.95c W  70.39c S   3.55c ( +9.2 L  +9.3) LCB   81.52c P 13.36% WF  30.1 PSV      32 N      32  --  D5 E2 F3 F2 G3 G11 J11 M10
-D11 : T  70.22c W  66.95c S   3.28c ( +9.0 L  +9.2) LCB   81.03c P  3.09% WF  12.8 PSV      12 N      13  --  D11 C11 E11 E10 F10
-G11 : T  70.50c W  67.12c S   3.40c ( +9.1 L  +9.3) LCB   82.74c P  2.33% WF   8.9 PSV       8 N       9  --  G11 L3 L4 K3 J4
-F4  : T  75.00c W  71.43c S   3.58c ( +9.2 L  +9.2) LCB   91.27c P  3.64% WF   6.7 PSV       7 N       7  --  F4 D5 C11 C10 D11 E11
-G10 : T  73.81c W  70.04c S   3.79c ( +9.4 L  +9.3) LCB   99.95c P  2.21% WF   5.8 PSV       5 N       6  --  G10 L3 L4 K3
-H4  : T  72.15c W  69.08c S   3.07c ( +8.7 L  +9.0) LCB  100.23c P  1.94% WF   4.9 PSV       5 N       5  --  H4 E4 C11 C10 D11
-F11 : T  75.98c W  71.33c S   4.65c (+10.3 L +10.2) LCB  152.06c P  1.91% WF   2.9 PSV       3 N       3  --  F11 L11 K11
-E10 : T  75.81c W  71.81c S   4.01c ( +9.6 L  +9.6) LCB  150.57c P  1.16% WF   2.9 PSV       2 N       3  --  E10 D11 E9
-E5  : T  77.06c W  72.71c S   4.34c (+10.0 L  +9.7) LCB  227.08c P  1.60% WF   1.9 PSV       2 N       2  --  E5 E2
-C10 : T  75.32c W  71.26c S   4.06c ( +9.8 L  +9.7) LCB  225.25c P  1.38% WF   1.9 PSV       2 N       2  --  C10 C11
+C11 : T  67.16c W  64.20c S   2.97c ( +8.7 L  +8.8) LCB   70.29c P 19.28% WF 184.6 PSV     294 N     180  --  C11 C10 D11 E10 F11 E11 E12 F12
+E4  : T  69.24c W  66.01c S   3.24c ( +8.9 L  +9.3) LCB   72.02c P 27.54% WF 161.7 PSV     141 N     163  --  E4 D6 H4 G11 C8 C7 D8 L4
+D5  : T  73.95c W  70.39c S   3.55c ( +9.2 L  +9.3) LCB   81.52c P 12.32% WF  30.1 PSV      31 N      32  --  D5 E2 F3 F2 G3 G11 J11 M10
+D11 : T  70.22c W  66.95c S   3.28c ( +9.0 L  +9.2) LCB   81.03c P  3.55% WF  12.8 PSV      13 N      13  --  D11 C11 E11 E10 F10
+G11 : T  70.50c W  67.12c S   3.40c ( +9.1 L  +9.3) LCB   82.74c P  2.79% WF   8.9 PSV       9 N       9  --  G11 L3 L4 K3 J4
+F4  : T  75.00c W  71.43c S   3.58c ( +9.2 L  +9.2) LCB   91.27c P  4.08% WF   6.7 PSV       7 N       7  --  F4 D5 C11 C10 D11 E11
+G10 : T  73.81c W  70.04c S   3.79c ( +9.4 L  +9.3) LCB   99.95c P  2.67% WF   5.8 PSV       6 N       6  --  G10 L3 L4 K3
+H4  : T  72.15c W  69.08c S   3.07c ( +8.7 L  +9.0) LCB  100.23c P  2.39% WF   4.9 PSV       5 N       5  --  H4 E4 C11 C10 D11
+F11 : T  75.98c W  71.33c S   4.65c (+10.3 L +10.2) LCB  152.06c P  2.36% WF   2.9 PSV       3 N       3  --  F11 L11 K11
+E10 : T  75.81c W  71.81c S   4.01c ( +9.6 L  +9.6) LCB  150.57c P  1.54% WF   2.9 PSV       3 N       3  --  E10 D11 E9
+E5  : T  77.06c W  72.71c S   4.34c (+10.0 L  +9.7) LCB  227.08c P  2.03% WF   1.9 PSV       2 N       2  --  E5 E2
+C10 : T  75.32c W  71.26c S   4.06c ( +9.8 L  +9.7) LCB  225.25c P  1.79% WF   1.9 PSV       2 N       2  --  C10 C11
 Basic search with PDA 1.5, no player
 HASH: 7483FCA004B18DAF3E71A20DFF4C1578
    A B C D E F G H J K L M N
@@ -1797,7 +1797,7 @@ G10 : T -41.16c W -41.01c S  -0.15c ( -5.6 L  -6.5) LCB  308.84c P  0.91% WF   0
 C8  : T -46.59c W -45.81c S  -0.78c ( -6.2 L  -6.5) LCB  303.41c P  0.83% WF   0.9 PSV       0 N       1  --  C8
 H10 : T -39.83c W -39.91c S   0.08c ( -5.4 L  -6.4) LCB  310.17c P  0.83% WF   0.9 PSV       0 N       1  --  H10
 F3  : T -48.77c W -47.81c S  -0.95c ( -6.4 L  -7.0) LCB  301.23c P  0.72% WF   0.9 PSV       0 N       1  --  F3
-: GPU 0 finishing, processed 5942 rows 5942 batches
+: GPU 0 finishing, processed 5943 rows 5943 batches
 : Cuda backend thread 0: Found GPU NVIDIA RTX A5000 memory 25434652672 compute capability major 8 minor 6
 : Cuda backend thread 0: Model version 8 useFP16 = false useNHWC = false
 : Cuda backend thread 0: Model name: b6c96-s175395328-d26788732

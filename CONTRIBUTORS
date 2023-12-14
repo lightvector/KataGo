@@ -42,6 +42,8 @@ Yuji Ichikiwa - For a minor fix to include paths.
 Thaddee Tyl ("espadrine") - Reporting and fixing of issue with half library intrinsics.
 Sebastian H ("nerai") - Minor code cleanup
 Jochen Voss ("seehuhn") - Typo fix in doc
+"kinfkong" - Added trt build configuration option
+"TTXS123OK" - Minor code style improvement.
 
 Separately from the authors of the content in this repo, additional special thanks to:
 Junyan Xu ("alreadydone") - for much testing and troubleshooting for Windows support
