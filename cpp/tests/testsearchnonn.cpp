@@ -1000,7 +1000,7 @@ xxxxooo
     nextPla = getOpp(nextPla);
     search3->setPosition(nextPla,board,hist);
 
-    assert(hist.isGameFinished);
+    testAssert(hist.isGameFinished);
 
     search->runWholeSearch(nextPla);
     search2->runWholeSearch(nextPla);
@@ -2218,6 +2218,145 @@ oxooox.
     cout << endl;
   }
 
+  {
+    cout << "===================================================================" << endl;
+    cout << "Policy optimism with tree reuse" << endl;
+    cout << "===================================================================" << endl;
+
+    NNEvaluator* nnEval = startNNEval(modelFile,logger,"policyoptimismtreereuse",7,7,0,true,false,false,true,false);
+    SearchParams params = SearchParams::forTestsV2();
+    params.maxVisits = 100;
+    params.rootPolicyOptimism = 0.43;
+    params.policyOptimism = 0.71;
+    SearchParams paramsLowVisits = params;
+    paramsLowVisits.maxVisits = 8;
+
+    Search* search = new Search(params, nnEval, &logger, "autoSearchRandSeeeeeed");
+    Rules rules = Rules::parseRules("japanese");
+    Board board = Board::parseBoard(5,5,R"%%(
+.o.o.
+ooooo
+xxoxx
+.xxx.
+x.x.x
+)%%");
+    Player nextPla = P_BLACK;
+    BoardHistory hist(board,nextPla,rules,0);
+    PrintTreeOptions options;
+    options = options.maxDepth(1);
+
+    search->setPosition(nextPla,board,hist);
+
+    cout << "Root position" << endl;
+    search->runWholeSearch(nextPla);
+    cout << search->rootBoard << endl;
+    search->printTree(cout, search->rootNode, options, P_WHITE);
+    search->rootNode->getNNOutput()->debugPrint(cout,search->rootBoard);
+    testAssert(abs(search->rootNode->getNNOutput()->policyOptimismUsed - 0.43) < 0.00001);
+
+    cout << "Make move and print" << endl;
+    search->makeMove(search->getChosenMoveLoc(),nextPla);
+    nextPla = getOpp(nextPla);
+    search->printTree(cout, search->rootNode, options, P_WHITE);
+    search->rootNode->getNNOutput()->debugPrint(cout,search->rootBoard);
+    testAssert(abs(search->rootNode->getNNOutput()->policyOptimismUsed - 0.71) < 0.00001);
+
+    cout << "Do search again" << endl;
+    search->runWholeSearch(nextPla);
+    cout << search->rootBoard << endl;
+    search->printTree(cout, search->rootNode, options, P_WHITE);
+    search->rootNode->getNNOutput()->debugPrint(cout,search->rootBoard);
+    testAssert(abs(search->rootNode->getNNOutput()->policyOptimismUsed - 0.43) < 0.00001);
+
+    cout << "Make move and print" << endl;
+    search->makeMove(search->getChosenMoveLoc(),nextPla);
+    nextPla = getOpp(nextPla);
+    search->printTree(cout, search->rootNode, options, P_WHITE);
+    search->rootNode->getNNOutput()->debugPrint(cout,search->rootBoard);
+    testAssert(abs(search->rootNode->getNNOutput()->policyOptimismUsed - 0.71) < 0.00001);
+
+    cout << "Do search again but with very low visits so the search already meets max visits" << endl;
+    search->setParamsNoClearing(paramsLowVisits);
+    search->runWholeSearch(nextPla);
+    cout << search->rootBoard << endl;
+    search->printTree(cout, search->rootNode, options, P_WHITE);
+    search->rootNode->getNNOutput()->debugPrint(cout,search->rootBoard);
+    testAssert(abs(search->rootNode->getNNOutput()->policyOptimismUsed - 0.71) < 0.00001);
+
+    delete search;
+    delete nnEval;
+    cout << endl;
+  }
+
+  {
+    cout << "===================================================================" << endl;
+    cout << "Policy optimism with tree reuse, 0 root" << endl;
+    cout << "===================================================================" << endl;
+
+    NNEvaluator* nnEval = startNNEval(modelFile,logger,"policyoptimismtreereuse",7,7,0,true,false,false,true,false);
+    SearchParams params = SearchParams::forTestsV2();
+    params.maxVisits = 100;
+    params.rootPolicyOptimism = 0.0;
+    params.policyOptimism = 1.0;
+    SearchParams paramsLowVisits = params;
+    paramsLowVisits.maxVisits = 8;
+
+    Search* search = new Search(params, nnEval, &logger, "autoSearchRandSeeeeeed");
+    Rules rules = Rules::parseRules("japanese");
+    Board board = Board::parseBoard(5,5,R"%%(
+.o.o.
+ooooo
+xxoxx
+.xxx.
+x.x.x
+)%%");
+    Player nextPla = P_BLACK;
+    BoardHistory hist(board,nextPla,rules,0);
+    PrintTreeOptions options;
+    options = options.maxDepth(1);
+
+    search->setPosition(nextPla,board,hist);
+
+    cout << "Root position" << endl;
+    search->runWholeSearch(nextPla);
+    cout << search->rootBoard << endl;
+    search->printTree(cout, search->rootNode, options, P_WHITE);
+    search->rootNode->getNNOutput()->debugPrint(cout,search->rootBoard);
+    testAssert(abs(search->rootNode->getNNOutput()->policyOptimismUsed - 0.0) < 0.00001);
+
+    cout << "Make move and print" << endl;
+    search->makeMove(search->getChosenMoveLoc(),nextPla);
+    nextPla = getOpp(nextPla);
+    search->printTree(cout, search->rootNode, options, P_WHITE);
+    search->rootNode->getNNOutput()->debugPrint(cout,search->rootBoard);
+    testAssert(abs(search->rootNode->getNNOutput()->policyOptimismUsed - 1.0) < 0.00001);
+
+    cout << "Do search again" << endl;
+    search->runWholeSearch(nextPla);
+    cout << search->rootBoard << endl;
+    search->printTree(cout, search->rootNode, options, P_WHITE);
+    search->rootNode->getNNOutput()->debugPrint(cout,search->rootBoard);
+    testAssert(abs(search->rootNode->getNNOutput()->policyOptimismUsed - 0.0) < 0.00001);
+
+    cout << "Make move and print" << endl;
+    search->makeMove(search->getChosenMoveLoc(),nextPla);
+    nextPla = getOpp(nextPla);
+    search->printTree(cout, search->rootNode, options, P_WHITE);
+    search->rootNode->getNNOutput()->debugPrint(cout,search->rootBoard);
+    testAssert(abs(search->rootNode->getNNOutput()->policyOptimismUsed - 1.0) < 0.00001);
+
+    cout << "Do search again but with very low visits so the search already meets max visits" << endl;
+    search->setParamsNoClearing(paramsLowVisits);
+    search->runWholeSearch(nextPla);
+    cout << search->rootBoard << endl;
+    search->printTree(cout, search->rootNode, options, P_WHITE);
+    search->rootNode->getNNOutput()->debugPrint(cout,search->rootBoard);
+    testAssert(abs(search->rootNode->getNNOutput()->policyOptimismUsed - 1.0) < 0.00001);
+
+    delete search;
+    delete nnEval;
+    cout << endl;
+  }
 
   {
     cout << "===================================================================" << endl;

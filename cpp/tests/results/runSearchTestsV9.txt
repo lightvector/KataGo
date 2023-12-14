@@ -7604,6 +7604,7 @@ Lead -0.53
 VarTimeLeft -1.0
 STWinlossError -100.00c
 STScoreError -1.00
+OptimismUsed 0.00
 Policy
 Pass  95 
    0    0    0    0    1    0    0    0 
@@ -7633,6 +7634,7 @@ Lead -1.53
 VarTimeLeft -1.0
 STWinlossError -100.00c
 STScoreError -1.00
+OptimismUsed 0.00
 Policy
 Pass  64 
    0    0    0    0    0    0    0    0 
@@ -7662,6 +7664,7 @@ Lead -0.78
 VarTimeLeft -1.0
 STWinlossError -100.00c
 STScoreError -1.00
+OptimismUsed 0.00
 Policy
 Pass  71 
    0    0    0    0    1    0    0    0 
@@ -7691,6 +7694,7 @@ Lead -1.19
 VarTimeLeft -1.0
 STWinlossError -100.00c
 STScoreError -1.00
+OptimismUsed 0.00
 Policy
 Pass  61 
    0    0    0    0    1    0    0    0 
@@ -7720,6 +7724,7 @@ Lead -1.20
 VarTimeLeft -1.0
 STWinlossError -100.00c
 STScoreError -1.00
+OptimismUsed 0.00
 Policy
 Pass  68 
    0    0    0    0    1    0    0    0 
@@ -7759,6 +7764,7 @@ Lead 0.53
 VarTimeLeft -1.0
 STWinlossError -100.00c
 STScoreError -1.00
+OptimismUsed 0.00
 Policy
 Pass  17 
    0    -   22    -    -  183   67    7 
@@ -7782,6 +7788,7 @@ Lead 2.48
 VarTimeLeft -1.0
 STWinlossError -100.00c
 STScoreError -1.00
+OptimismUsed 0.00
 Policy
 Pass  56 
    0    -   40    -    -  310   42   10 
@@ -7805,6 +7812,7 @@ Lead 2.57
 VarTimeLeft -1.0
 STWinlossError -100.00c
 STScoreError -1.00
+OptimismUsed 0.00
 Policy
 Pass  31 
    0    -   36    -    -  229   59    8 
@@ -7828,6 +7836,7 @@ Lead 0.47
 VarTimeLeft -1.0
 STWinlossError -100.00c
 STScoreError -1.00
+OptimismUsed 0.00
 Policy
 Pass  22 
    0    -   22    -    -  299   42    5 
@@ -7851,6 +7860,7 @@ Lead 1.92
 VarTimeLeft -1.0
 STWinlossError -100.00c
 STScoreError -1.00
+OptimismUsed 0.00
 Policy
 Pass  31 
    0    -   32    -    -  263   61    7 
@@ -7898,6 +7908,7 @@ Lead 1.82
 VarTimeLeft -1.0
 STWinlossError -100.00c
 STScoreError -1.00
+OptimismUsed 0.00
 Policy
 Pass   0 
    0    0    0    0    0    0    0    0    0    0    0    0    0    0    0    0    0    0    0 

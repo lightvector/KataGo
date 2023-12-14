@@ -525,6 +525,7 @@ void NNOutput::debugPrint(ostream& out, const Board& board) {
   out << "VarTimeLeft " << Global::strprintf("%.1f",varTimeLeft) << endl;
   out << "STWinlossError " << Global::strprintf("%.2fc",shorttermWinlossError*100) << endl;
   out << "STScoreError " << Global::strprintf("%.2f",shorttermScoreError) << endl;
+  out << "OptimismUsed " << Global::strprintf("%.2f",policyOptimismUsed) << endl;
 
   out << "Policy" << endl;
   out << "Pass" << Global::strprintf("%4d ", (int)round(policyProbs[NNPos::getPassPos(nnXLen,nnYLen)] * 1000)) << endl;

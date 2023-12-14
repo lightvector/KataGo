@@ -20158,6 +20158,330 @@ G7  : T  -2.06c W  -0.85c S  -1.17c ( -0.1 L  -0.1) LCB   12.21c P  0.81% WF  11
 : GPU 0 finishing, processed 0 rows 0 batches
 
 ===================================================================
+Policy optimism with tree reuse
+===================================================================
+: Initializing neural net buffer to be size 7 * 7 allowing smaller boards
+Root position
+HASH: 978932917796FD435AE1064BDE7745C1
+   A B C D E
+ 5 . O . O .
+ 4 O O O O O
+ 3 X X O X X
+ 2 . X X X .
+ 1 X . X . X
+
+
+: T  -4.01c W  -0.97c S  -3.12c ( -0.5 L  -0.5) N     100  --  A2 E5 pass C5 pass pass D1
+---Black(v)---
+A2  : T  -8.85c W  -4.09c S  -4.62c ( -1.3 L  -1.3) LCB   -0.55c P 14.63% WF  17.4 PSV      35 N      35  --  A2 E5 pass C5 pass pass D1 pass
+B1  : T   1.64c W   1.55c S  -1.67c ( +0.2 L  +0.2) LCB   11.99c P 49.90% WF  13.0 PSV      11 N      29  --  B1 E5 A2 pass E2 D1 B1 A5
+E2  : T  -3.44c W   0.32c S  -2.70c ( -0.3 L  -0.3) LCB    6.26c P 22.38% WF  15.5 PSV       8 N      34  --  E2 C5 pass pass D1 A5 B1 pass
+D1  : T   7.03c W  11.87c S  -4.84c ( -1.1 L  -1.1) LCB  357.03c P  7.36% WF   0.5 PSV       1 N       1  --  D1
+Win 31.33c
+Loss 42.91c
+NoResult 25.75c
+ScoreMean 1.69
+ScoreMeanSq 175.2
+Lead 1.69
+VarTimeLeft 500.0
+STWinlossError 34.66c
+STScoreError 3.80
+OptimismUsed 0.43
+Policy
+Pass  42 
+   -    -    -    -    - 
+   -    -    -    -    - 
+   -    -    -    -    - 
+ 128    -    -    -  214 
+   -  560    -   56    - 
+  -23  -202    22    21    19 
+   11   154   -83   -16  -110 
+ -253  -253    81   179   122 
+    8  -102   -34     4   -61 
+  236   158   -40   -63    80 
+
+Make move and print
+: T  -8.85c W  -4.09c S  -4.62c ( -1.3 L  -1.3) N      35  --  E5 pass C5 pass pass D1 pass
+---White(^)---
+E5  : T  -5.73c W  -1.69c S  -3.97c ( -1.0 L  -1.0) LCB  -15.40c P 41.30% WF  10.8 PSV      13 N      22  --  E5 pass C5 pass pass D1 pass A5
+A5  : T -13.87c W  -8.47c S  -5.38c ( -1.7 L  -1.7) LCB  -24.30c P 39.74% WF   5.2 PSV       5 N      11  --  A5 pass E5 pass pass
+pss : T -31.58c W -12.17c S -16.99c ( -8.1 L  -8.1) LCB -381.58c P 15.68% WF   0.6 PSV       0 N       1  --  pass
+Win 34.07c
+Loss 34.75c
+NoResult 31.19c
+ScoreMean 3.10
+ScoreMeanSq 158.1
+Lead 3.10
+VarTimeLeft 500.0
+STWinlossError 34.66c
+STScoreError 3.80
+OptimismUsed 0.71
+Policy
+Pass 157 
+ 397    -   33    -  413 
+   -    -    -    -    - 
+   -    -    -    -    - 
+   -    -    -    -    - 
+   -    -    -    -    - 
+Do search again
+HASH: 6421162A26A65820D9990E13C6190C4C
+   A B C D E
+ 5 . O . O .
+ 4 O O O O O
+ 3 X X O X X
+ 2 X X X X .
+ 1 X . X . X
+
+
+: T  -2.22c W  -2.56c S   1.74c ( +0.0 L  +0.0) N     100  --  C5 pass E5 D1 pass pass pass
+---White(^)---
+C5  : T  -0.38c W  -1.24c S   1.44c ( -0.1 L  -0.1) LCB   -9.71c P 13.36% WF   9.5 PSV      22 N      21  --  C5 pass E5 D1 pass pass pass A5
+pss : T  -1.03c W  -2.14c S   3.21c ( +0.8 L  +0.8) LCB   -9.86c P 41.63% WF  21.1 PSV      21 N      45  --  pass D1 A5 pass E5 pass pass pass
+E5  : T  -3.16c W  -1.91c S   0.20c ( -0.7 L  -0.7) LCB  -12.31c P 26.64% WF  10.4 PSV      10 N      22  --  E5 pass C5 pass pass D1 pass A5
+A5  : T  -9.88c W  -8.34c S  -1.50c ( -1.6 L  -1.6) LCB  -20.25c P 18.38% WF   4.9 PSV       3 N      11  --  A5 pass E5 pass pass
+Win 33.32c
+Loss 35.88c
+NoResult 30.80c
+ScoreMean 3.87
+ScoreMeanSq 185.3
+Lead 3.87
+VarTimeLeft 500.0
+STWinlossError 34.66c
+STScoreError 3.80
+OptimismUsed 0.43
+Policy
+Pass 449 
+ 170    -  116    -  264 
+   -    -    -    -    - 
+   -    -    -    -    - 
+   -    -    -    -    - 
+   -    -    -    -    - 
+   87   -19    83  -366  -110 
+ -186   151  -153   228   153 
+  156  -298    88   -60   304 
+  350   206   -68   133   181 
+  -69   -87   -39   313     7 
+
+Make move and print
+: T  -0.38c W  -1.24c S   1.44c ( -0.1 L  -0.1) N      21  --  pass E5 D1 pass pass pass A5
+---Black(v)---
+pss : T  -1.17c W  -0.63c S   1.20c ( -0.2 L  -0.2) LCB   12.55c P 20.92% WF   2.7 PSV       6 N       6  --  pass E5 D1 pass pass pass A5
+B1  : T   1.46c W  -0.14c S   1.38c ( -0.1 L  -0.1) LCB   12.91c P 47.60% WF   5.8 PSV       6 N      13  --  B1 E5 A5 D4 B4 C5
+D1  : T -24.93c W -26.38c S   1.45c ( -0.1 L  -0.1) LCB  325.07c P 20.87% WF   0.4 PSV       1 N       1  --  D1
+Win 38.11c
+Loss 32.30c
+NoResult 29.59c
+ScoreMean 0.99
+ScoreMeanSq 104.1
+Lead 0.99
+VarTimeLeft 500.0
+STWinlossError 34.66c
+STScoreError 3.80
+OptimismUsed 0.71
+Policy
+Pass 209 
+   -    -    -    -    - 
+   -    -    -    -    - 
+   -    -    -    -    - 
+   -    -    -    -  106 
+   -  476    -  209    - 
+Do search again but with very low visits so the search already meets max visits
+HASH: 3081A148F9DBFE380F658C9BF2145BB4
+   A B C D E
+ 5 . O O O .
+ 4 O O O O O
+ 3 X X O X X
+ 2 X X X X .
+ 1 X . X . X
+
+
+: T  -1.44c W  -1.28c S  -0.20c ( -0.2 L  -0.2) N      21  --  pass E5 D1 pass pass pass A5
+---Black(v)---
+pss : T  -2.57c W  -0.58c S  -0.47c ( -0.3 L  -0.3) LCB   11.40c P 20.92% WF   2.7 PSV       6 N       6  --  pass E5 D1 pass pass pass A5
+B1  : T   0.31c W  -0.20c S  -0.25c ( -0.2 L  -0.2) LCB   11.89c P 47.60% WF   5.8 PSV       6 N      13  --  B1 E5 A5 D4 B4 C5
+D1  : T -26.42c W -26.38c S  -0.04c ( -0.1 L  -0.1) LCB  323.58c P 20.87% WF   0.4 PSV       1 N       1  --  D1
+Win 38.11c
+Loss 32.30c
+NoResult 29.59c
+ScoreMean 0.99
+ScoreMeanSq 104.1
+Lead 0.99
+VarTimeLeft 500.0
+STWinlossError 34.66c
+STScoreError 3.80
+OptimismUsed 0.71
+Policy
+Pass 209 
+   -    -    -    -    - 
+   -    -    -    -    - 
+   -    -    -    -    - 
+   -    -    -    -  106 
+   -  476    -  209    - 
+: GPU 0 finishing, processed 0 rows 0 batches
+
+===================================================================
+Policy optimism with tree reuse, 0 root
+===================================================================
+: Initializing neural net buffer to be size 7 * 7 allowing smaller boards
+Root position
+HASH: 978932917796FD435AE1064BDE7745C1
+   A B C D E
+ 5 . O . O .
+ 4 O O O O O
+ 3 X X O X X
+ 2 . X X X .
+ 1 X . X . X
+
+
+: T  -4.01c W  -0.97c S  -3.12c ( -0.5 L  -0.5) N     100  --  A2 E5 pass C5 pass pass D1
+---Black(v)---
+A2  : T  -8.85c W  -4.09c S  -4.62c ( -1.3 L  -1.3) LCB   -0.55c P 14.63% WF  17.4 PSV      35 N      35  --  A2 E5 pass C5 pass pass D1 pass
+B1  : T   1.64c W   1.55c S  -1.67c ( +0.2 L  +0.2) LCB   11.99c P 49.90% WF  13.0 PSV      11 N      29  --  B1 E5 A2 pass E2 D1 B1 A5
+E2  : T  -3.44c W   0.32c S  -2.70c ( -0.3 L  -0.3) LCB    6.26c P 22.38% WF  15.5 PSV       8 N      34  --  E2 C5 pass pass D1 A5 B1 pass
+D1  : T   7.03c W  11.87c S  -4.84c ( -1.1 L  -1.1) LCB  357.03c P  7.36% WF   0.5 PSV       1 N       1  --  D1
+Win 31.33c
+Loss 42.91c
+NoResult 25.75c
+ScoreMean 1.69
+ScoreMeanSq 175.2
+Lead 1.69
+VarTimeLeft 500.0
+STWinlossError 34.66c
+STScoreError 3.80
+OptimismUsed 0.00
+Policy
+Pass  42 
+   -    -    -    -    - 
+   -    -    -    -    - 
+   -    -    -    -    - 
+ 128    -    -    -  214 
+   -  560    -   56    - 
+  -23  -202    22    21    19 
+   11   154   -83   -16  -110 
+ -253  -253    81   179   122 
+    8  -102   -34     4   -61 
+  236   158   -40   -63    80 
+
+Make move and print
+: T  -8.85c W  -4.09c S  -4.62c ( -1.3 L  -1.3) N      35  --  E5 pass C5 pass pass D1 pass
+---White(^)---
+E5  : T  -5.73c W  -1.69c S  -3.97c ( -1.0 L  -1.0) LCB  -15.40c P 41.30% WF  10.8 PSV      13 N      22  --  E5 pass C5 pass pass D1 pass A5
+A5  : T -13.87c W  -8.47c S  -5.38c ( -1.7 L  -1.7) LCB  -24.30c P 39.74% WF   5.2 PSV       5 N      11  --  A5 pass E5 pass pass
+pss : T -31.58c W -12.17c S -16.99c ( -8.1 L  -8.1) LCB -381.58c P 15.68% WF   0.6 PSV       0 N       1  --  pass
+Win 34.07c
+Loss 34.75c
+NoResult 31.19c
+ScoreMean 3.10
+ScoreMeanSq 158.1
+Lead 3.10
+VarTimeLeft 500.0
+STWinlossError 34.66c
+STScoreError 3.80
+OptimismUsed 1.00
+Policy
+Pass 157 
+ 397    -   33    -  413 
+   -    -    -    -    - 
+   -    -    -    -    - 
+   -    -    -    -    - 
+   -    -    -    -    - 
+Do search again
+HASH: 6421162A26A65820D9990E13C6190C4C
+   A B C D E
+ 5 . O . O .
+ 4 O O O O O
+ 3 X X O X X
+ 2 X X X X .
+ 1 X . X . X
+
+
+: T  -2.22c W  -2.56c S   1.74c ( +0.0 L  +0.0) N     100  --  C5 pass E5 D1 pass pass pass
+---White(^)---
+C5  : T  -0.38c W  -1.24c S   1.44c ( -0.1 L  -0.1) LCB   -9.71c P 13.36% WF   9.5 PSV      22 N      21  --  C5 pass E5 D1 pass pass pass A5
+pss : T  -1.03c W  -2.14c S   3.21c ( +0.8 L  +0.8) LCB   -9.86c P 41.63% WF  21.1 PSV      21 N      45  --  pass D1 A5 pass E5 pass pass pass
+E5  : T  -3.16c W  -1.91c S   0.20c ( -0.7 L  -0.7) LCB  -12.31c P 26.64% WF  10.4 PSV      10 N      22  --  E5 pass C5 pass pass D1 pass A5
+A5  : T  -9.88c W  -8.34c S  -1.50c ( -1.6 L  -1.6) LCB  -20.25c P 18.38% WF   4.9 PSV       3 N      11  --  A5 pass E5 pass pass
+Win 33.32c
+Loss 35.88c
+NoResult 30.80c
+ScoreMean 3.87
+ScoreMeanSq 185.3
+Lead 3.87
+VarTimeLeft 500.0
+STWinlossError 34.66c
+STScoreError 3.80
+OptimismUsed 0.00
+Policy
+Pass 449 
+ 170    -  116    -  264 
+   -    -    -    -    - 
+   -    -    -    -    - 
+   -    -    -    -    - 
+   -    -    -    -    - 
+   87   -19    83  -366  -110 
+ -186   151  -153   228   153 
+  156  -298    88   -60   304 
+  350   206   -68   133   181 
+  -69   -87   -39   313     7 
+
+Make move and print
+: T  -0.38c W  -1.24c S   1.44c ( -0.1 L  -0.1) N      21  --  pass E5 D1 pass pass pass A5
+---Black(v)---
+pss : T  -1.17c W  -0.63c S   1.20c ( -0.2 L  -0.2) LCB   12.55c P 20.92% WF   2.7 PSV       6 N       6  --  pass E5 D1 pass pass pass A5
+B1  : T   1.46c W  -0.14c S   1.38c ( -0.1 L  -0.1) LCB   12.91c P 47.60% WF   5.8 PSV       6 N      13  --  B1 E5 A5 D4 B4 C5
+D1  : T -24.93c W -26.38c S   1.45c ( -0.1 L  -0.1) LCB  325.07c P 20.87% WF   0.4 PSV       1 N       1  --  D1
+Win 38.11c
+Loss 32.30c
+NoResult 29.59c
+ScoreMean 0.99
+ScoreMeanSq 104.1
+Lead 0.99
+VarTimeLeft 500.0
+STWinlossError 34.66c
+STScoreError 3.80
+OptimismUsed 1.00
+Policy
+Pass 209 
+   -    -    -    -    - 
+   -    -    -    -    - 
+   -    -    -    -    - 
+   -    -    -    -  106 
+   -  476    -  209    - 
+Do search again but with very low visits so the search already meets max visits
+HASH: 3081A148F9DBFE380F658C9BF2145BB4
+   A B C D E
+ 5 . O O O .
+ 4 O O O O O
+ 3 X X O X X
+ 2 X X X X .
+ 1 X . X . X
+
+
+: T  -1.44c W  -1.28c S  -0.20c ( -0.2 L  -0.2) N      21  --  pass E5 D1 pass pass pass A5
+---Black(v)---
+pss : T  -2.57c W  -0.58c S  -0.47c ( -0.3 L  -0.3) LCB   11.40c P 20.92% WF   2.7 PSV       6 N       6  --  pass E5 D1 pass pass pass A5
+B1  : T   0.31c W  -0.20c S  -0.25c ( -0.2 L  -0.2) LCB   11.89c P 47.60% WF   5.8 PSV       6 N      13  --  B1 E5 A5 D4 B4 C5
+D1  : T -26.42c W -26.38c S  -0.04c ( -0.1 L  -0.1) LCB  323.58c P 20.87% WF   0.4 PSV       1 N       1  --  D1
+Win 38.11c
+Loss 32.30c
+NoResult 29.59c
+ScoreMean 0.99
+ScoreMeanSq 104.1
+Lead 0.99
+VarTimeLeft 500.0
+STWinlossError 34.66c
+STScoreError 3.80
+OptimismUsed 1.00
+Policy
+Pass 209 
+   -    -    -    -    - 
+   -    -    -    -    - 
+   -    -    -    -    - 
+   -    -    -    -  106 
+   -  476    -  209    - 
+: GPU 0 finishing, processed 0 rows 0 batches
+
+===================================================================
 Uninitialized search params
 ===================================================================
 winLossUtilityFactor: 1
