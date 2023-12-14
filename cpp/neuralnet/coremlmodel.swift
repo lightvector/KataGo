@@ -316,7 +316,7 @@ class KataGoModel {
 
     private class func loadModel(permanentURL: URL, modelName: String) throws -> MLModel {
         let configuration = MLModelConfiguration()
-        configuration.computeUnits = .cpuAndNeuralEngine
+        configuration.computeUnits = .all
         configuration.modelDisplayName = modelName
         Logger().info("Creating CoreML model with contents \(permanentURL)")
         return try MLModel(contentsOf: permanentURL, configuration: configuration)
