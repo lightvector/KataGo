@@ -419,10 +419,12 @@ class Metrics:
                 results["loss_sum"] = results["loss_sum"] + intermediate_loss_scale * iresults["loss_sum"]
 
             if raw_model.get_has_metadata_encoder():
+                assert meta_encoder_loss_scale is not None
                 meta_results = self.metrics_dict_meta_encoder(meta_encoder_loss_scale, extra_outputs)
                 for key,value in meta_results.items():
                     if key != "loss_sum":
-                        results["I"+key] = value
+                        assert key not in results
+                        results[key] = value
                 results["loss_sum"] = results["loss_sum"] + meta_results["loss_sum"]
 
         return results
@@ -438,7 +440,7 @@ class Metrics:
         loss_meta_kl_unreduced = 0.5 * torch.sum(
             torch.square(outmean)
             + torch.exp(outlogvar)
-            - logvar
+            - outlogvar
             - 1.0
             , dim=1
         )

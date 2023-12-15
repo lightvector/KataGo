@@ -1383,25 +1383,31 @@ class ValueHead(torch.nn.Module):
         )
 
 class MetadataEncoder(torch.nn.Module):
-    def __init__(self, config: modelconfigs.ModelConfig, activation):
+    def __init__(self, config: modelconfigs.ModelConfig):
         super(MetadataEncoder, self).__init__()
 
         self.config = config
-        self.activation = activation
+        self.activation = config["activation"]
 
         self.c_input = 192
         self.c_internal = self.config["metadata_encoder"]["internal_num_channels"]
         self.c_output = self.config["metadata_encoder"]["output_num_channels"]
         self.c_trunk = self.config["trunk_num_channels"]
 
-        self.linear1 = torch.nn.Linear(c_input, c_internal, bias=True)
-        self.act1 = act(self.activation, inplace=True)
-        self.linear2 = torch.nn.Linear(c_internal, c_internal, bias=True)
-        self.act2 = act(self.activation, inplace=True)
-        self.linear3_mean = torch.nn.Linear(c_internal, c_output, bias=False)
-        self.linear3_logvar = torch.nn.Linear(c_internal, c_output, bias=False)
+        # Scaling factor meant to partially compensate for typical output size
+        # We generally want the norm to be 1, not the magnitudes of each individual value.
+        self.outmean_scale = 0.125
+        self.outlogvar_scale = 0.5
+        self.outlogvar_offset = -3.0
 
-        self.linear_output_to_trunk = torch.nn.Linear(c_output, c_trunk, bias=False)
+        self.linear1 = torch.nn.Linear(self.c_input, self.c_internal, bias=True)
+        self.act1 = act(self.activation, inplace=True)
+        self.linear2 = torch.nn.Linear(self.c_internal, self.c_internal, bias=True)
+        self.act2 = act(self.activation, inplace=True)
+        self.linear3_mean = torch.nn.Linear(self.c_internal, self.c_output, bias=False)
+        self.linear3_logvar = torch.nn.Linear(self.c_internal, self.c_output, bias=False)
+
+        self.linear_output_to_trunk = torch.nn.Linear(self.c_output, self.c_trunk, bias=False)
 
     def initialize(self):
         with torch.no_grad():
@@ -1409,30 +1415,34 @@ class MetadataEncoder(torch.nn.Module):
             init_weights(self.linear1.bias, self.activation, scale=1.0, fan_tensor=self.linear1.weight)
             init_weights(self.linear2.weight, self.activation, scale=1.0)
             init_weights(self.linear2.bias, self.activation, scale=1.0, fan_tensor=self.linear2.weight)
-            init_weights(self.linear3_mean.weight, self.activation, scale=1.0)
-            init_weights(self.linear3_logvar.weight, self.activation, scale=1.0)
+            init_weights(self.linear3_mean.weight, self.activation, scale=0.2)
+            init_weights(self.linear3_logvar.weight, self.activation, scale=0.2)
             init_weights(self.linear_output_to_trunk.weight, self.activation, scale=1.0)
 
     def add_reg_dict(self, reg_dict:Dict[str,List]):
-        reg_dict["output"].append(self.linear_1.weight)
-        reg_dict["output_noreg"].append(self.linear_1.bias)
-        reg_dict["output"].append(self.linear_2.weight)
-        reg_dict["output_noreg"].append(self.linear_2.bias)
-        reg_dict["output"].append(self.linear_3_mean.weight)
-        reg_dict["output"].append(self.linear_3_logvar.weight)
+        reg_dict["output"].append(self.linear1.weight)
+        reg_dict["output_noreg"].append(self.linear1.bias)
+        reg_dict["output"].append(self.linear2.weight)
+        reg_dict["output_noreg"].append(self.linear2.bias)
+        reg_dict["output"].append(self.linear3_mean.weight)
+        reg_dict["output"].append(self.linear3_logvar.weight)
         reg_dict["normal"].append(self.linear_output_to_trunk.weight)
 
     OUTMEAN_KEY = "meta_encoder.outmean"
     OUTLOGVAR_KEY = "meta_encoder.outlogvar"
 
-    def forward(input_meta):
+    def forward(self, input_meta, extra_outputs: Optional[ExtraOutputs]):
         x = input_meta
         x = self.linear1(x)
         x = self.act1(x)
         x = self.linear2(x)
         x = self.act2(x)
-        outmean = self.linear3_mean(x)
-        outlogvar = self.linear3_logvar(x)
+        # Scaling factor meant to partially compensate for typical output size
+        # We generally want the norm to be 1, not the magnitudes of each individual value.
+        # For logvar, we offset it so that the distributions start out low variance and allow
+        # signal to show through.
+        outmean = self.linear3_mean(x) * self.outmean_scale
+        outlogvar = self.linear3_logvar(x) * self.outlogvar_scale + self.outlogvar_offset
 
         if extra_outputs is not None:
             extra_outputs.report(MetadataEncoder.OUTMEAN_KEY, outmean)
@@ -1744,7 +1754,7 @@ class Model(torch.nn.Module):
 
         if self.metadata_encoder is not None:
             assert input_meta is not None
-            x_meta = self.metadata_encoder.forward(input_meta)
+            x_meta = self.metadata_encoder.forward(input_meta,extra_outputs)
             out = out + x_meta.unsqueeze(-1).unsqueeze(-1)
 
         # print("TENSOR BEFORE TRUNK")
