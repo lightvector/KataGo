@@ -24,6 +24,7 @@
 #include "../external/nlohmann_json/json.hpp"
 
 typedef int SearchNodeState; // See SearchNode::STATE_*
+typedef int PlayoutResult;
 
 struct SearchNode;
 struct SearchThread;
@@ -253,9 +254,13 @@ struct Search {
   //Without performing a whole search, recompute the root nn output for any root-level parameters.
   void maybeRecomputeRootNNOutput();
 
+  static constexpr PlayoutResult PLAYOUT_FAILED = 0;
+  static constexpr PlayoutResult PLAYOUT_SUCCESS = 1;
+  static constexpr PlayoutResult PLAYOUT_NOINCREMENT = 2;
+
   //Expert manual playout-by-playout interface
   void beginSearch(bool pondering);
-  bool runSinglePlayout(SearchThread& thread, double upperBoundVisitsLeft);
+  PlayoutResult runSinglePlayout(SearchThread& thread, double upperBoundVisitsLeft);
 
   //================================================================================================================
   // SEARCH RESULTS AND TREE INSPECTION METHODS
@@ -637,7 +642,7 @@ private:
   void computeRootValues(); // Helper for begin search
   void recursivelyRecomputeStats(SearchNode& node); // Helper for search initialization
 
-  bool playoutDescend(
+  PlayoutResult playoutDescend(
     SearchThread& thread, SearchNode& node,
     bool isRoot
   );
