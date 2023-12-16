@@ -44,7 +44,7 @@ Search::ExploreInfo Search::getExploreSelectionValue(
 
   Search::ExploreInfo info;
   info.exploreSelectionValue = exploreComponent + valueComponent;
-  info.exploreSelectionValueNoVL = exploreComponent + valueComponentNoVL;
+  info.valueComponentNoVL = valueComponentNoVL;
   info.exploreComponent = exploreComponent;
   return info;
 }
@@ -314,19 +314,21 @@ double Search::getFpuValueForChildrenAssumeVisited(
 void Search::selectBestChildToDescend(
   SearchThread& thread, const SearchNode& node, SearchNodeState nodeState,
   int& numChildrenFound, int& bestChildIdx, Loc& bestChildMoveLoc,
-  bool& suppressEdgeVisit,
+  bool& suppressEdgeVisit, double& suppressEdgeVisitUtilityThreshold,
   bool isRoot) const
 {
   assert(thread.pla == node.nextPla);
 
   double bestSelectionValue = POLICY_ILLEGAL_SELECTION_VALUE;
   double bestChildExploreComponent = 0.0;
-  double bestChildSelectionValueNoVL = 0.0;
+  double bestChildValueComponentNoVL = 0.0;
   bestChildIdx = -1;
   bestChildMoveLoc = Board::NULL_LOC;
   suppressEdgeVisit = false;
+  suppressEdgeVisitUtilityThreshold = thread.pla == P_WHITE ? -1e10 : 1e10;
 
-  double bestSelectionValueNoVL = POLICY_ILLEGAL_SELECTION_VALUE;
+  double noVLBestSelectionValue = POLICY_ILLEGAL_SELECTION_VALUE;
+  int noVLBestIdx = -1;
 
   ConstSearchNodeChildrenReference children = node.getChildren(nodeState);
   int childrenCapacity = children.getCapacity();
@@ -399,13 +401,14 @@ void Search::selectBestChildToDescend(
     if(selectionValue > bestSelectionValue) {
       bestSelectionValue = selectionValue;
       bestChildExploreComponent = info.exploreComponent;
-      bestChildSelectionValueNoVL = info.exploreSelectionValueNoVL;
+      bestChildValueComponentNoVL = info.valueComponentNoVL;
       bestChildIdx = i;
       bestChildMoveLoc = moveLoc;
     }
-    double selectionValueNoVL = info.exploreSelectionValueNoVL;
-    if(selectionValueNoVL > bestSelectionValueNoVL) {
-      bestSelectionValueNoVL = selectionValueNoVL;
+    double noVLSelectionValue = info.valueComponentNoVL + info.exploreComponent;
+    if(noVLSelectionValue > noVLBestSelectionValue) {
+      noVLBestSelectionValue = noVLSelectionValue;
+      noVLBestIdx = i;
     }
 
     posesWithChildBuf[getPos(moveLoc)] = true;
@@ -465,18 +468,25 @@ void Search::selectBestChildToDescend(
     if(selectionValue > bestSelectionValue) {
       bestSelectionValue = selectionValue;
       bestChildExploreComponent = info.exploreComponent;
-      bestChildSelectionValueNoVL = info.exploreSelectionValueNoVL;
+      bestChildValueComponentNoVL = info.valueComponentNoVL;
       bestChildIdx = numChildrenFound;
       bestChildMoveLoc = bestNewMoveLoc;
     }
-    double selectionValueNoVL = info.exploreSelectionValueNoVL;
-    if(selectionValueNoVL > bestSelectionValueNoVL) {
-      bestSelectionValueNoVL = selectionValueNoVL;
+    double noVLSelectionValue = info.valueComponentNoVL + info.exploreComponent;
+    if(noVLSelectionValue > noVLBestSelectionValue) {
+      noVLBestSelectionValue = noVLSelectionValue;
+      noVLBestIdx = numChildrenFound;
     }
   }
 
-  if(searchParams.suppressVirtualLossExploreFactor < 1e10) {
-    if(bestChildSelectionValueNoVL + bestChildExploreComponent * (searchParams.suppressVirtualLossExploreFactor-1.0) < bestSelectionValueNoVL) {
+  if(searchParams.suppressVirtualLossExploreFactor < 1e10 && noVLBestIdx != bestChildIdx) {
+    // Compute the selection value if we uesd a much larger explore factor but with no virtual loss
+    // If that's still not good enough, suppress visit.
+    double expandedChildSelectionValue = bestChildValueComponentNoVL + bestChildExploreComponent * searchParams.suppressVirtualLossExploreFactor;
+    double gap = noVLBestSelectionValue - expandedChildSelectionValue;
+    // Taking advantage of the fact that the value component is just the sign-adjusted utility
+    suppressEdgeVisitUtilityThreshold = (thread.pla == P_WHITE) ? bestChildValueComponentNoVL+gap : -bestChildValueComponentNoVL-gap;
+    if(gap > 0) {
       suppressEdgeVisit = true;
     }
   }

@@ -514,13 +514,13 @@ private:
   //----------------------------------------------------------------------------------------
   struct ExploreInfo {
     double exploreSelectionValue;
-    double exploreSelectionValueNoVL; // no virtual loss
+    double valueComponentNoVL; // no virtual loss
     double exploreComponent;
 
     static inline ExploreInfo constantSelectionValue(double d) {
       ExploreInfo info;
       info.exploreSelectionValue = d;
-      info.exploreSelectionValueNoVL = d;
+      info.valueComponentNoVL = d;
       info.exploreComponent = 0.0;
       return info;
     }
@@ -573,10 +573,14 @@ private:
     double& parentUtility, double& parentWeightPerVisit, double& parentUtilityStdevFactor
   ) const;
 
+  // suppressEdgeVisit is filled in with whether we think we want to suppress this edge visit
+  // due to over-exploration.
+  // suppressEdgeVisitUtilityThreshold is the value such that if child utility improves past
+  // this value, then we do want to keep the visit
   void selectBestChildToDescend(
     SearchThread& thread, const SearchNode& node, SearchNodeState nodeState,
     int& numChildrenFound, int& bestChildIdx, Loc& bestChildMoveLoc,
-    bool& suppressEdgeVisit,
+    bool& suppressEdgeVisit, double& suppressEdgeVisitUtilityThreshold,
     bool isRoot
   ) const;
 
