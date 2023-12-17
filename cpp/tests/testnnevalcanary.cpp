@@ -1,11 +1,15 @@
 #include "../tests/tests.h"
 
+#include "../core/fileutils.h"
 #include "../neuralnet/nneval.h"
 #include "../dataio/sgf.h"
+
+#include "../external/nlohmann_json/json.hpp"
 
 //------------------------
 #include "../core/using.h"
 //------------------------
+using json = nlohmann::json;
 
 void Tests::runCanaryTests(NNEvaluator* nnEval, int symmetry, bool print) {
   {
@@ -171,12 +175,27 @@ void Tests::runCanaryTests(NNEvaluator* nnEval, int symmetry, bool print) {
 
 struct GpuErrorStats {
   std::vector<double> winrateError;
-  std::vector<double> scoreError;
+  std::vector<double> leadError;
+  std::vector<double> scoreMeanError;
+  std::vector<double> scoreStdevError;
   std::vector<double> topPolicyDiff;
   std::vector<double> policyKLDiv;
+  std::vector<double> shorttermWinlossErrorError;
+  std::vector<double> shorttermScoreErrorError;
+  std::vector<double> ownershipError;
   void appendStats(const std::shared_ptr<NNOutput>& base, const std::shared_ptr<NNOutput>& other) {
-    winrateError.push_back(std::abs(0.5*(base->whiteWinProb - base->whiteLossProb) - 0.5*(other->whiteWinProb - other->whiteLossProb)));
-    scoreError.push_back(std::abs(base->whiteLead - other->whiteLead));
+    winrateError.push_back(
+      std::abs(0.5*(base->whiteWinProb - base->whiteLossProb) - 0.5*(other->whiteWinProb - other->whiteLossProb))
+      + std::abs(base->whiteNoResultProb - other->whiteNoResultProb)
+    );
+    leadError.push_back(std::abs(base->whiteLead - other->whiteLead));
+    scoreMeanError.push_back(std::abs(base->whiteScoreMean - other->whiteScoreMean));
+    scoreStdevError.push_back(
+      std::abs(
+        sqrt(std::max(0.0, (double)base->whiteScoreMeanSq - base->whiteScoreMean*base->whiteScoreMean)) -
+        sqrt(std::max(0.0, (double)other->whiteScoreMeanSq - other->whiteScoreMean*other->whiteScoreMean))
+      )
+    );
 
     int topPolicyIdx = 0;
     double topPolicyProb = -1;
@@ -195,7 +214,24 @@ struct GpuErrorStats {
       }
     }
     policyKLDiv.push_back(klDivSum);
-  };
+
+    //A metric indicating the "typical" error in the winloss value or the score that the net expects, relative to the
+    //short-term future MCTS value.
+
+    shorttermWinlossErrorError.push_back(std::abs(base->shorttermWinlossError - other->shorttermWinlossError));
+    shorttermScoreErrorError.push_back(std::abs(base->shorttermScoreError - other->shorttermScoreError));
+
+    testAssert(base->whiteOwnerMap != NULL);
+    testAssert(other->whiteOwnerMap != NULL);
+    testAssert(base->nnXLen == other->nnXLen);
+    testAssert(base->nnYLen == other->nnYLen);
+    for(int y = 0; y<base->nnYLen; y++) {
+      for(int x = 0; x<base->nnXLen; x++) {
+        int pos = NNPos::xyToPos(x,y,base->nnXLen);
+        ownershipError.push_back(std::abs(base->whiteOwnerMap[pos] - other->whiteOwnerMap[pos]));
+      }
+    }
+  }
 
   double getAverage(std::vector<double>& vec) {
     double sum = 0;
@@ -215,140 +251,207 @@ struct GpuErrorStats {
     return sortedVec[sortedVec.size()-1];
   }
 
-  bool checkStats99(double wr, double score, double tpd, double pkld) {
+  void sortErrors() {
     std::sort(winrateError.begin(),winrateError.end());
-    std::sort(scoreError.begin(),scoreError.end());
+    std::sort(leadError.begin(),leadError.end());
+    std::sort(scoreMeanError.begin(),scoreMeanError.end());
+    std::sort(scoreStdevError.begin(),scoreStdevError.end());
     std::sort(topPolicyDiff.begin(),topPolicyDiff.end());
     std::sort(policyKLDiv.begin(),policyKLDiv.end());
+    std::sort(shorttermWinlossErrorError.begin(),shorttermWinlossErrorError.end());
+    std::sort(shorttermScoreErrorError.begin(),shorttermScoreErrorError.end());
+    std::sort(ownershipError.begin(),ownershipError.end());
+  }
+
+  bool checkStats99(double wr, double score, double tpd, double pkld) {
+    sortErrors();
     return (
       100*get99Percentile(winrateError) <= wr &&
-      get99Percentile(scoreError) <= score &&
+      get99Percentile(leadError) <= score &&
+      get99Percentile(scoreMeanError) <= score &&
+      get99Percentile(scoreStdevError) <= score*0.6 &&
       100*get99Percentile(topPolicyDiff) <= tpd &&
-      get99Percentile(policyKLDiv) <= pkld
+      get99Percentile(policyKLDiv) <= pkld &&
+      100*get99Percentile(shorttermWinlossErrorError) <= wr*1.8 &&
+      get99Percentile(shorttermScoreErrorError) <= score*0.75 &&
+      100*get99Percentile(ownershipError) <= wr*1.75
     );
   }
 
   bool checkStatsMax(double wr, double score, double tpd, double pkld) {
-    std::sort(winrateError.begin(),winrateError.end());
-    std::sort(scoreError.begin(),scoreError.end());
-    std::sort(topPolicyDiff.begin(),topPolicyDiff.end());
-    std::sort(policyKLDiv.begin(),policyKLDiv.end());
+    sortErrors();
     return (
       100*getMaxPercentile(winrateError) <= wr &&
-      getMaxPercentile(scoreError) <= score &&
+      getMaxPercentile(leadError) <= score &&
+      getMaxPercentile(scoreMeanError) <= score &&
+      getMaxPercentile(scoreStdevError) <= score*0.6 &&
       100*getMaxPercentile(topPolicyDiff) <= tpd &&
-      getMaxPercentile(policyKLDiv) <= pkld
+      getMaxPercentile(policyKLDiv) <= pkld &&
+      100*getMaxPercentile(shorttermWinlossErrorError) <= wr*1.8 &&
+      getMaxPercentile(shorttermScoreErrorError) <= score*0.75 &&
+      100*getMaxPercentile(ownershipError) <= wr*4.0 // more lenient since ownership maxes over more stuff
     );
   }
 
 
   void reportStats(const string& name, Logger& logger) {
-    std::sort(winrateError.begin(),winrateError.end());
-    std::sort(scoreError.begin(),scoreError.end());
-    std::sort(topPolicyDiff.begin(),topPolicyDiff.end());
-    std::sort(policyKLDiv.begin(),policyKLDiv.end());
+    sortErrors();
+    auto rpad = [](const string& s, int n) {
+      if(s.size() < n)
+        return s + std::string(n - s.size(),' ');
+      return s;
+    };
 
     logger.write(
-      name + " winrateError:  " +
+      rpad(name + " winrateError:   ", 60) +
       Global::strprintf(
-        "%7.5f%% %7.5f%% %7.5f%% %7.5f%%",
+        " %7.5f%%  %7.5f%%  %7.5f%%  %7.5f%%",
         100*getAverage(winrateError), 100*get90Percentile(winrateError), 100*get99Percentile(winrateError), 100*getMaxPercentile(winrateError)
       )
     );
     logger.write(
-      name + " scoreError:    " +
+      rpad(name + " leadError:      ", 60) +
       Global::strprintf(
-        " %7.5f  %7.5f  %7.5f  %7.5f",
-        getAverage(scoreError), get90Percentile(scoreError), get99Percentile(scoreError), getMaxPercentile(scoreError))
+        " %7.5f   %7.5f   %7.5f   %7.5f",
+        getAverage(leadError), get90Percentile(leadError), get99Percentile(leadError), getMaxPercentile(leadError))
     );
     logger.write(
-      name + " topPolicyDelta: " +
+      rpad(name + " scoreMeanError: ", 60) +
       Global::strprintf(
-        "%7.5f%% %7.5f%% %7.5f%% %7.5f%%",
+        " %7.5f   %7.5f   %7.5f   %7.5f",
+        getAverage(scoreMeanError), get90Percentile(scoreMeanError), get99Percentile(scoreMeanError), getMaxPercentile(scoreMeanError))
+    );
+    logger.write(
+      rpad(name + " scoreStdevError:", 60) +
+      Global::strprintf(
+        " %7.5f   %7.5f   %7.5f   %7.5f",
+        getAverage(scoreStdevError), get90Percentile(scoreStdevError), get99Percentile(scoreStdevError), getMaxPercentile(scoreStdevError))
+    );
+    logger.write(
+      rpad(name + " topPolicyDelta: ", 60) +
+      Global::strprintf(
+        " %7.5f%%  %7.5f%%  %7.5f%%  %7.5f%%",
         100*getAverage(topPolicyDiff), 100*get90Percentile(topPolicyDiff), 100*get99Percentile(topPolicyDiff), 100*getMaxPercentile(topPolicyDiff))
     );
     logger.write(
-      name + " policyKLDiv:   " +
+      rpad(name + " policyKLDiv:    ", 60) +
       Global::strprintf(
-        "%8.6f %8.6f %8.6f %8.6f",
+        " %8.6f  %8.6f  %8.6f  %8.6f",
         getAverage(policyKLDiv), get90Percentile(policyKLDiv), get99Percentile(policyKLDiv), getMaxPercentile(policyKLDiv))
+    );
+    logger.write(
+      rpad(name + " stWLErrorError:", 60) +
+      Global::strprintf(
+        " %7.5fc  %7.5fc  %7.5fc  %7.5fc",
+        100*getAverage(shorttermWinlossErrorError), 100*get90Percentile(shorttermWinlossErrorError), 100*get99Percentile(shorttermWinlossErrorError), 100*getMaxPercentile(shorttermWinlossErrorError))
+    );
+    logger.write(
+      rpad(name + " stScErrorError:", 60) +
+      Global::strprintf(
+        " %7.5f   %7.5f   %7.5f   %7.5f",
+        getAverage(shorttermScoreErrorError), get90Percentile(shorttermScoreErrorError), get99Percentile(shorttermScoreErrorError), getMaxPercentile(shorttermScoreErrorError))
+    );
+    logger.write(
+      rpad(name + " ownershipError:", 60) +
+      Global::strprintf(
+        " %7.5fc  %7.5fc  %7.5fc  %7.5fc",
+        100*getAverage(ownershipError), 100*get90Percentile(ownershipError), 100*get99Percentile(ownershipError), 100*getMaxPercentile(ownershipError))
     );
   }
 };
 
-void saveBaseToFile(const std::vector<std::shared_ptr<NNOutput>>& base, const string& baseFileName, Logger& logger, bool verbose) {
-  assert(baseFileName != "");
-  std::ofstream outFile(baseFileName, std::ios::binary);
+static std::string nnOutputToJson(const std::shared_ptr<NNOutput>& nnOutput) {
+  json ret;
+  ret["nnHash"] = nnOutput->nnHash.toString();
+  ret["whiteWinProb"] = nnOutput->whiteWinProb;
+  ret["whiteLossProb"] = nnOutput->whiteLossProb;
+  ret["whiteNoResultProb"] = nnOutput->whiteNoResultProb;
+  ret["whiteScoreMean"] = nnOutput->whiteScoreMean;
+  ret["whiteScoreMeanSq"] = nnOutput->whiteScoreMeanSq;
+  ret["whiteLead"] = nnOutput->whiteLead;
+  ret["varTimeLeft"] = nnOutput->varTimeLeft;
+  ret["shorttermWinlossError"] = nnOutput->shorttermWinlossError;
+  ret["shorttermScoreError"] = nnOutput->shorttermScoreError;
+  ret["policyProbs"] = std::vector<float>(&(nnOutput->policyProbs[0]), &(nnOutput->policyProbs[0]) + NNPos::MAX_NN_POLICY_SIZE);
+  ret["policyOptimismUsed"] = nnOutput->policyOptimismUsed;
+  ret["nnXLen"] = nnOutput->nnXLen;
+  ret["nnYLen"] = nnOutput->nnYLen;
+  testAssert(nnOutput->whiteOwnerMap != NULL);
+  ret["whiteOwnerMap"] = std::vector<float>(nnOutput->whiteOwnerMap, nnOutput->whiteOwnerMap + nnOutput->nnXLen*nnOutput->nnYLen);
+  return std::string(ret.dump());
+}
 
-  if (!outFile)
-    throw StringError("Unable to save base to: " + baseFileName);
+static std::shared_ptr<NNOutput> nnOutputOfJson(const std::string& s) {
+  std::shared_ptr<NNOutput> nnOutput = std::make_shared<NNOutput>();
+  json input = json::parse(s);
+  nnOutput->nnHash = Hash128::ofString(input["nnHash"].get<string>());
+  nnOutput->whiteWinProb = input["whiteWinProb"].get<float>();
+  nnOutput->whiteLossProb = input["whiteLossProb"].get<float>();
+  nnOutput->whiteNoResultProb = input["whiteNoResultProb"].get<float>();
+  nnOutput->whiteScoreMean = input["whiteScoreMean"].get<float>();
+  nnOutput->whiteScoreMeanSq = input["whiteScoreMeanSq"].get<float>();
+  nnOutput->whiteLead = input["whiteLead"].get<float>();
+  nnOutput->varTimeLeft = input["varTimeLeft"].get<float>();
+  nnOutput->shorttermWinlossError = input["shorttermWinlossError"].get<float>();
+  nnOutput->shorttermScoreError = input["shorttermScoreError"].get<float>();
+  std::vector<float> policyProbs = input["policyProbs"].get<std::vector<float>>();
+  testAssert(policyProbs.size() == NNPos::MAX_NN_POLICY_SIZE);
+  std::copy(policyProbs.begin(),policyProbs.end(),nnOutput->policyProbs);
+  nnOutput->policyOptimismUsed = input["policyOptimismUsed"].get<float>();
+  nnOutput->nnXLen = input["nnXLen"].get<int>();
+  nnOutput->nnYLen = input["nnYLen"].get<int>();
+  testAssert(nnOutput->nnXLen >= 2 && nnOutput->nnXLen <= NNPos::MAX_BOARD_LEN);
+  testAssert(nnOutput->nnYLen >= 2 && nnOutput->nnYLen <= NNPos::MAX_BOARD_LEN);
+  std::vector<float> whiteOwnerMap = input["whiteOwnerMap"].get<std::vector<float>>();
+  testAssert(whiteOwnerMap.size() == nnOutput->nnXLen*nnOutput->nnYLen);
+  nnOutput->whiteOwnerMap = new float[nnOutput->nnXLen*nnOutput->nnYLen];
+  std::copy(whiteOwnerMap.begin(),whiteOwnerMap.end(),nnOutput->whiteOwnerMap);
+  nnOutput->noisedPolicyProbs = nullptr;
+  return nnOutput;
+}
 
-  size_t size = base.size();
-  outFile.write(reinterpret_cast<const char*>(&size), sizeof(size));
+static void saveReferenceValuesToFile(const std::vector<std::shared_ptr<NNOutput>>& referenceValues, const string& referenceFileName, Logger& logger, bool verbose) {
+  testAssert(referenceFileName != "");
+  std::ofstream outFile;
+  FileUtils::open(outFile,referenceFileName);
+  if(!outFile)
+    throw StringError("Unable to save reference values to: " + referenceFileName);
 
-  for (const auto& nnOutputPtr : base) {
-    if (nnOutputPtr) {
-      outFile.write(reinterpret_cast<const char*>(&nnOutputPtr->nnHash), sizeof(nnOutputPtr->nnHash));
-      outFile.write(reinterpret_cast<const char*>(&nnOutputPtr->whiteWinProb), sizeof(nnOutputPtr->whiteWinProb));
-      outFile.write(reinterpret_cast<const char*>(&nnOutputPtr->whiteLossProb), sizeof(nnOutputPtr->whiteLossProb));
-      outFile.write(reinterpret_cast<const char*>(&nnOutputPtr->whiteNoResultProb), sizeof(nnOutputPtr->whiteNoResultProb));
-      outFile.write(reinterpret_cast<const char*>(&nnOutputPtr->whiteScoreMean), sizeof(nnOutputPtr->whiteScoreMean));
-      outFile.write(reinterpret_cast<const char*>(&nnOutputPtr->whiteScoreMeanSq), sizeof(nnOutputPtr->whiteScoreMeanSq));
-      outFile.write(reinterpret_cast<const char*>(&nnOutputPtr->whiteLead), sizeof(nnOutputPtr->whiteLead));
-      outFile.write(reinterpret_cast<const char*>(&nnOutputPtr->varTimeLeft), sizeof(nnOutputPtr->varTimeLeft));
-      outFile.write(reinterpret_cast<const char*>(&nnOutputPtr->shorttermWinlossError), sizeof(nnOutputPtr->shorttermWinlossError));
-      outFile.write(reinterpret_cast<const char*>(&nnOutputPtr->shorttermScoreError), sizeof(nnOutputPtr->shorttermScoreError));
-      outFile.write(reinterpret_cast<const char*>(nnOutputPtr->policyProbs), sizeof(float) * NNPos::MAX_NN_POLICY_SIZE);
-      outFile.write(reinterpret_cast<const char*>(&nnOutputPtr->nnXLen), sizeof(nnOutputPtr->nnXLen));
-      outFile.write(reinterpret_cast<const char*>(&nnOutputPtr->nnYLen), sizeof(nnOutputPtr->nnYLen));
-    }
+  for(const std::shared_ptr<NNOutput>& nnOutput : referenceValues) {
+    testAssert(nnOutput != nullptr);
+    outFile << nnOutputToJson(nnOutput) << "\n";
   }
-
-  if (verbose)
-    logger.write("Saved " + Global::uint64ToString((uint64_t)base.size()) + " positions to: " + baseFileName);
+  if(verbose)
+    logger.write("Saved reference values for " + Global::uint64ToString((uint64_t)referenceValues.size()) + " positions to: " + referenceFileName);
 
   outFile.close();
 }
 
-void loadBaseFromFile(std::vector<std::shared_ptr<NNOutput>>& base, const string& baseFileName, Logger& logger, bool verbose) {
-  assert(baseFileName != "");
-  std::ifstream inFile(baseFileName, std::ios::binary);
+static void loadReferenceValuesFromFile(std::vector<std::shared_ptr<NNOutput>>& referenceValues, const string& referenceFileName, Logger& logger, bool verbose) {
+  testAssert(referenceFileName != "");
+  referenceValues.clear();
+  std::vector<std::string> lines = FileUtils::readFileLines(referenceFileName,'\n');
 
-  if (!inFile)
-    throw StringError("Unable to load: " + baseFileName);
-
-  size_t size;
-  inFile.read(reinterpret_cast<char*>(&size), sizeof(size));
-  base.resize(size);
-
-  for (size_t i = 0; i < size; ++i) {
-    base[i] = std::make_shared<NNOutput>();
-
-    inFile.read(reinterpret_cast<char*>(&base[i]->nnHash), sizeof(base[i]->nnHash));
-    inFile.read(reinterpret_cast<char*>(&base[i]->whiteWinProb), sizeof(base[i]->whiteWinProb));
-    inFile.read(reinterpret_cast<char*>(&base[i]->whiteLossProb), sizeof(base[i]->whiteLossProb));
-    inFile.read(reinterpret_cast<char*>(&base[i]->whiteNoResultProb), sizeof(base[i]->whiteNoResultProb));
-    inFile.read(reinterpret_cast<char*>(&base[i]->whiteScoreMean), sizeof(base[i]->whiteScoreMean));
-    inFile.read(reinterpret_cast<char*>(&base[i]->whiteScoreMeanSq), sizeof(base[i]->whiteScoreMeanSq));
-    inFile.read(reinterpret_cast<char*>(&base[i]->whiteLead), sizeof(base[i]->whiteLead));
-    inFile.read(reinterpret_cast<char*>(&base[i]->varTimeLeft), sizeof(base[i]->varTimeLeft));
-    inFile.read(reinterpret_cast<char*>(&base[i]->shorttermWinlossError), sizeof(base[i]->shorttermWinlossError));
-    inFile.read(reinterpret_cast<char*>(&base[i]->shorttermScoreError), sizeof(base[i]->shorttermScoreError));
-    inFile.read(reinterpret_cast<char*>(&base[i]->policyProbs), sizeof(float) * NNPos::MAX_NN_POLICY_SIZE);
-    inFile.read(reinterpret_cast<char*>(&base[i]->nnXLen), sizeof(base[i]->nnXLen));
-    inFile.read(reinterpret_cast<char*>(&base[i]->nnYLen), sizeof(base[i]->nnYLen));
-
-    base[i]->whiteOwnerMap = nullptr;
-    base[i]->noisedPolicyProbs = nullptr;
+  for(const string& line: lines) {
+    if(Global::trim(line) != "") {
+      referenceValues.push_back(nnOutputOfJson(line));
+    }
   }
-
-  if (verbose)
-    logger.write("Loaded " + Global::uint64ToString((uint64_t)base.size()) + " positions from: " + baseFileName);
-
-  inFile.close();
+  if(verbose)
+    logger.write("Loaded reference values for " + Global::uint64ToString((uint64_t)referenceValues.size()) + " positions from: " + referenceFileName);
 }
 
-bool Tests::runFP16Test(NNEvaluator* nnEval, NNEvaluator* nnEval32, Logger& logger, int boardSize, int maxBatchSizeCap, bool verbose, bool quickTest, bool& fp32BatchSuccessBuf, const string& baseFileName) {
+bool Tests::runBackendErrorTest(
+  NNEvaluator* nnEval,
+  NNEvaluator* nnEval32,
+  Logger& logger,
+  int boardSize,
+  int maxBatchSizeCap,
+  bool verbose,
+  bool quickTest,
+  bool& fp32BatchSuccessBuf,
+  const string& referenceFileName
+) {
 
   int maxBatchSize = nnEval->getMaxBatchSize();
   if(maxBatchSize != nnEval32->getMaxBatchSize())
@@ -357,11 +460,6 @@ bool Tests::runFP16Test(NNEvaluator* nnEval, NNEvaluator* nnEval32, Logger& logg
     maxBatchSize = std::min(maxBatchSize,maxBatchSizeCap);
   if(maxBatchSize <= 0)
     throw StringError("Invalid max batch size for fp16 test");
-
-#ifdef USE_EIGEN_BACKEND
-  if (baseFileName == "")
-    return true;
-#endif
 
   Rand filterRand("Tests::runFP16Test filter rand");
   auto loadHists = [&](const std::vector<string>& sgfStrs) {
@@ -411,108 +509,136 @@ bool Tests::runFP16Test(NNEvaluator* nnEval, NNEvaluator* nnEval32, Logger& logg
     return buf.result;
   };
 
-  {
-    if(verbose)
-      logger.write("Running evaluations in fp32");
-    std::vector<std::shared_ptr<NNOutput>> base;
-
-    bool loadedBaseFromFile = false;
-
+  std::vector<std::shared_ptr<NNOutput>> referenceValues;
+  bool loadedReferenceValuesFromFile = false;
 #ifndef USE_EIGEN_BACKEND
-    if (baseFileName != "") {
-      loadBaseFromFile(base, baseFileName, logger, verbose);
-      loadedBaseFromFile = true;
-    }
+  if(referenceFileName != "") {
+    loadReferenceValuesFromFile(referenceValues, referenceFileName, logger, verbose);
+    loadedReferenceValuesFromFile = true;
+  }
 #endif
+  (void)loadReferenceValuesFromFile;
 
-    if (!loadedBaseFromFile)
-      for(const BoardHistory& hist: hists)
-        base.push_back(evalBoard(nnEval32,hist));
+  std::vector<std::shared_ptr<NNOutput>> fp32;
+  std::vector<std::shared_ptr<NNOutput>> fp32Batched(hists.size());
+  std::vector<std::shared_ptr<NNOutput>> current;
+  std::vector<std::shared_ptr<NNOutput>> currentBatched(hists.size());
 
-#ifdef USE_EIGEN_BACKEND
-    assert(baseFileName != "");
-    saveBaseToFile(base, baseFileName, logger, verbose);
-#endif
+  if(verbose)
+    logger.write("Beginning evaluations! These may take a long time on pure CPU, or on a weak GPU, but on a decent GPU shouldn't take too long.");
 
-    std::vector<std::shared_ptr<NNOutput>> batched(hists.size());
-    std::vector<std::shared_ptr<NNOutput>> current;
-    std::vector<std::shared_ptr<NNOutput>> cbatched(hists.size());
+  if(verbose)
+    logger.write("Running evaluations in fp32");
+  for(const BoardHistory& hist: hists)
+    fp32.push_back(evalBoard(nnEval32,hist));
+
+  Rand rand;
+
+  if(maxBatchSize <= 1)
+    fp32Batched = fp32;
+  else {
+    if(verbose)
+      logger.write("Running batched evaluations in fp32");
+    auto runThread = [&](int threadIdx) {
+      for(size_t i = threadIdx; i<hists.size(); i += maxBatchSize)
+        fp32Batched[i] = evalBoard(nnEval32,hists[i]);
+    };
+
+    std::vector<uint32_t> permutation(maxBatchSize);
+    rand.fillShuffledUIntRange(maxBatchSize, permutation.data());
+    vector<std::thread> threads;
+    for(int i = 0; i<maxBatchSize; i++)
+      threads.push_back(std::thread(runThread,permutation[i]));
+    for(int i = 0; i<maxBatchSize; i++)
+      threads[i].join();
+  }
+
+  if(nnEval32 != nnEval) {
+    if(verbose)
+      logger.write("Running evaluations using current config");
+    for(const BoardHistory& hist: hists)
+      current.push_back(evalBoard(nnEval,hist));
 
     if(maxBatchSize <= 1)
-      batched = base;
+      currentBatched = current;
     else {
       if(verbose)
-        logger.write("Running batched evaluations in fp32");
+        logger.write("Running batched evaluations using current config");
       auto runThread = [&](int threadIdx) {
         for(size_t i = threadIdx; i<hists.size(); i += maxBatchSize)
-          batched[i] = evalBoard(nnEval32,hists[i]);
+          currentBatched[i] = evalBoard(nnEval,hists[i]);
       };
+      std::vector<uint32_t> permutation(maxBatchSize);
+      rand.fillShuffledUIntRange(maxBatchSize, permutation.data());
       vector<std::thread> threads;
       for(int i = 0; i<maxBatchSize; i++)
-        threads.push_back(std::thread(runThread,i));
+        threads.push_back(std::thread(runThread,permutation[i]));
       for(int i = 0; i<maxBatchSize; i++)
         threads[i].join();
     }
+  }
 
-    if(nnEval32 != nnEval) {
-      if(verbose)
-        logger.write("Running evaluations using current config");
-      for(const BoardHistory& hist: hists) current.push_back(evalBoard(nnEval,hist));
+  if(loadedReferenceValuesFromFile) {
+    if(referenceValues.size() != fp32.size())
+      throw StringError(
+        "Number of reference values loaded from file does not match number of positions "
+        + Global::uint64ToString(referenceValues.size()) + " " + Global::uint64ToString(fp32.size()));
+  }
+  else {
+    logger.write("Using unbatched fp32 as the reference values");
+    referenceValues = fp32;
+  }
 
-      if(maxBatchSize <= 1)
-        cbatched = current;
-      else {
-        if(verbose)
-          logger.write("Running batched evaluations using current config");
-        auto runThread = [&](int threadIdx) {
-          for(size_t i = threadIdx; i<hists.size(); i += maxBatchSize)
-            cbatched[i] = evalBoard(nnEval,hists[i]);
-        };
-        vector<std::thread> threads;
-        for(int i = 0; i<maxBatchSize; i++)
-          threads.push_back(std::thread(runThread,i));
-        for(int i = 0; i<maxBatchSize; i++)
-          threads[i].join();
-      }
-    }
+  if(verbose) {
+    logger.write("Computed stats on " + Global::uint64ToString((uint64_t)referenceValues.size()) + " positions");
+    logger.write("Reporting the average, 90%, 99%, and max abs error between the following configurations: ");
+  }
 
-    if(verbose) {
-      logger.write("Computed stats on " + Global::uint64ToString((uint64_t)base.size()) + " positions");
-      logger.write("Reporting the average, 90%, 99%, and max abs error between the following configurations: ");
-    }
+  auto computeStats = [&](const string& name, const std::vector<std::shared_ptr<NNOutput>>& candidateValues, GpuErrorStats& stats) {
+    for(size_t i = 0; i<referenceValues.size(); i++)
+      stats.appendStats(referenceValues[i], candidateValues[i]);
+    if(verbose)
+      stats.reportStats(name, logger);
+  };
 
-    fp32BatchSuccessBuf = true;
-    bool success = true;
+  fp32BatchSuccessBuf = true;
+  bool success = true;
+
+  {
+    GpuErrorStats stats;
+    computeStats("fp32 error vs reference", fp32, stats);
+    fp32BatchSuccessBuf = fp32BatchSuccessBuf && stats.checkStats99( 0.45, 0.225, 0.45, 0.0006);
+    fp32BatchSuccessBuf = fp32BatchSuccessBuf && stats.checkStatsMax(1.35, 0.900, 1.35, 0.0012);
+  }
+
+  {
+    GpuErrorStats stats;
+    computeStats("batched fp32 error vs reference", fp32Batched, stats);
+    fp32BatchSuccessBuf = fp32BatchSuccessBuf && stats.checkStats99( 0.45, 0.225, 0.45, 0.0006);
+    fp32BatchSuccessBuf = fp32BatchSuccessBuf && stats.checkStatsMax(1.35, 0.900, 1.35, 0.0012);
+  }
+
+  if(nnEval32 != nnEval) {
     {
       GpuErrorStats stats;
-      for(size_t i = 0; i<base.size(); i++)
-        stats.appendStats(base[i], batched[i]);
-      if(verbose)
-        stats.reportStats("batched fp32 - fp32", logger);
-      fp32BatchSuccessBuf = fp32BatchSuccessBuf && stats.checkStats99( 0.45, 0.225, 0.45, 0.0006);
-      fp32BatchSuccessBuf = fp32BatchSuccessBuf && stats.checkStatsMax(1.35, 0.900, 1.35, 0.0012);
+      computeStats("current cfg error vs reference", current, stats);
+      success = success && stats.checkStats99( 2.0, 1.00, 2.50, 0.0020);
+      success = success && stats.checkStatsMax(5.0, 3.00, 6.00, 0.0040);
     }
-    if(nnEval32 != nnEval) {
-      {
-        GpuErrorStats stats;
-        for(size_t i = 0; i<base.size(); i++)
-          stats.appendStats(base[i], current[i]);
-        if(verbose)
-          stats.reportStats("current - fp32", logger);
-        success = success && stats.checkStats99( 2.0, 1.00, 2.50, 0.0020);
-        success = success && stats.checkStatsMax(5.0, 3.00, 6.00, 0.0040);
-      }
-      {
-        GpuErrorStats stats;
-        for(size_t i = 0; i<base.size(); i++)
-          stats.appendStats(base[i], cbatched[i]);
-        if(verbose)
-          stats.reportStats("batched current - fp32", logger);
-        success = success && stats.checkStats99( 2.0, 1.00, 2.50, 0.0020);
-        success = success && stats.checkStatsMax(5.0, 3.00, 6.00, 0.0040);
-      }
+    {
+      GpuErrorStats stats;
+      computeStats("batched current cfg error vs reference", currentBatched, stats);
+      success = success && stats.checkStats99( 2.0, 1.00, 2.50, 0.0020);
+      success = success && stats.checkStatsMax(5.0, 3.00, 6.00, 0.0040);
     }
-
-    return success;
   }
+
+#ifdef USE_EIGEN_BACKEND
+  if(referenceFileName != "")
+    saveReferenceValuesToFile(referenceValues, referenceFileName, logger, verbose);
+#endif
+  (void)saveReferenceValuesToFile;
+
+  return success && fp32BatchSuccessBuf;
+
 }
