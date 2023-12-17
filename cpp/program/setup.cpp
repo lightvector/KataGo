@@ -174,22 +174,9 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
       cfg.contains("numNNServerThreadsPerModel") ? cfg.getInt("numNNServerThreadsPerModel",1,1024) : 1;
 #else
     cfg.markAllKeysUsedWithPrefix("numNNServerThreadsPerModel");
-    auto getNumCores = [&logger]() {
-      int numCores = (int)std::thread::hardware_concurrency();
-      if(numCores <= 0) {
-        logger.write("Could not determine number of cores on this machine, choosing default parameters as if it were 8");
-        numCores = 8;
-      }
-      return numCores;
-    };
     int numNNServerThreadsPerModel =
       cfg.contains("numEigenThreadsPerModel") ? cfg.getInt("numEigenThreadsPerModel",1,1024) :
-      setupFor == SETUP_FOR_DISTRIBUTED ? std::min(expectedConcurrentEvals,getNumCores()) :
-      setupFor == SETUP_FOR_MATCH ? std::min(expectedConcurrentEvals,getNumCores()) :
-      setupFor == SETUP_FOR_ANALYSIS ? std::min(expectedConcurrentEvals,getNumCores()) :
-      setupFor == SETUP_FOR_GTP ? expectedConcurrentEvals :
-      setupFor == SETUP_FOR_BENCHMARK ? expectedConcurrentEvals :
-      cfg.getInt("numEigenThreadsPerModel",1,1024);
+      computeDefaultEigenBackendThreads(expectedConcurrentEvals,logger);
 #endif
 
     vector<int> gpuIdxByServerThread;
@@ -306,7 +293,7 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
     //and doesn't greatly benefit from having a bigger chunk of parallelizable work to do on the large scale.
     //So we just fix a size here that isn't crazy and saves memory, completely ignore what the user would have
     //specified for GPUs.
-    int nnMaxBatchSize = 4;
+    int nnMaxBatchSize = 2;
     cfg.markAllKeysUsedWithPrefix("nnMaxBatchSize");
     (void)defaultMaxBatchSize;
 #endif
@@ -347,6 +334,18 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
   }
 
   return nnEvals;
+}
+
+int Setup::computeDefaultEigenBackendThreads(int expectedConcurrentEvals, Logger& logger) {
+  auto getNumCores = [&logger]() {
+    int numCores = (int)std::thread::hardware_concurrency();
+    if(numCores <= 0) {
+      logger.write("Could not determine number of cores on this machine, choosing eigen backend threads as if it were 8");
+      numCores = 8;
+    }
+    return numCores;
+  };
+  return std::min(expectedConcurrentEvals,getNumCores());
 }
 
 string Setup::loadHomeDataDirOverride(

@@ -61,6 +61,8 @@ namespace Setup {
   constexpr double DEFAULT_ANALYSIS_WIDE_ROOT_NOISE = 0.04;
   constexpr bool DEFAULT_ANALYSIS_IGNORE_PRE_ROOT_HISTORY = true;
 
+  int computeDefaultEigenBackendThreads(int expectedConcurrentEvals, Logger& logger);
+
   //Loads search parameters for bot from config, by bot idx.
   //Fails if no parameters are found.
   std::vector<SearchParams> loadParams(

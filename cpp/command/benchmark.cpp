@@ -249,7 +249,7 @@ int MainCmds::benchmark(const vector<string>& args) {
       cout << "WARNING: Your nnMaxBatchSize is hardcoded to " + cfg.getString("nnMaxBatchSize") + ", recommend deleting it and using the default (which this benchmark assumes)" << endl;
 #ifdef USE_EIGEN_BACKEND
     if(cfg.contains("numEigenThreadsPerModel")) {
-      cout << "Note: Your numEigenThreadsPerModel is hardcoded to " + cfg.getString("numEigenThreadsPerModel") + ", consider deleting it and using the default (which this benchmark assumes when computing its performance stats)" << endl;
+      cout << "Note: Your numEigenThreadsPerModel is hardcoded to " + cfg.getString("numEigenThreadsPerModel") + ", this benchmark ignores it assumes that it is always set equal to the smaller of the number of search threads and the number of CPU cores on your computer when computing its performance stats." << endl;
     }
 #endif
 
@@ -328,7 +328,7 @@ static void setNumThreads(SearchParams& params, NNEvaluator* nnEval, Logger& log
   //Also, disable the logger to suppress the kill and respawn messages.
   logger.setDisabled(true);
   nnEval->killServerThreads();
-  nnEval->setNumThreads(vector<int>(numThreads,-1));
+  nnEval->setNumThreads(vector<int>(Setup::computeDefaultEigenBackendThreads(numThreads,logger),-1));
   nnEval->spawnServerThreads();
   //Also since we killed and respawned all the threads, re-warm them
   Rand seedRand;
