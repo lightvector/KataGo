@@ -284,7 +284,6 @@ static void warmStartNNEval(const CompactSgf* sgf, Logger& logger, const SearchP
 }
 
 static NNEvaluator* createNNEval(int maxNumThreads, CompactSgf* sgf, const string& modelFile, Logger& logger, ConfigParser& cfg, const SearchParams& params) {
-  const int maxConcurrentEvals = maxNumThreads * 2 + 16; // * 2 + 16 just to give plenty of headroom
   int expectedConcurrentEvals = maxNumThreads;
   const int defaultMaxBatchSize = std::max(8,((maxNumThreads+3)/4)*4);
 
@@ -301,7 +300,7 @@ static NNEvaluator* createNNEval(int maxNumThreads, CompactSgf* sgf, const strin
   const bool disableFP16 = false;
   const string expectedSha256 = "";
   NNEvaluator* nnEval = Setup::initializeNNEvaluator(
-    modelFile,modelFile,expectedSha256,cfg,logger,seedRand,maxConcurrentEvals,expectedConcurrentEvals,
+    modelFile,modelFile,expectedSha256,cfg,logger,seedRand,expectedConcurrentEvals,
     sgf->xSize,sgf->ySize,defaultMaxBatchSize,defaultRequireExactNNLen,disableFP16,
     Setup::SETUP_FOR_BENCHMARK
   );

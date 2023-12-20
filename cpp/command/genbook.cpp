@@ -374,14 +374,13 @@ int MainCmds::genbook(const vector<string>& args) {
   NNEvaluator* nnEval;
   {
     Setup::initializeSession(cfg);
-    const int maxConcurrentEvals = numGameThreads * params.numThreads * 2 + 16; // * 2 + 16 just to give plenty of headroom
     const int expectedConcurrentEvals = numGameThreads * params.numThreads;
     const int defaultMaxBatchSize = std::max(8,((numGameThreads * params.numThreads+3)/4)*4);
     const bool defaultRequireExactNNLen = true;
     const bool disableFP16 = false;
     const string expectedSha256 = "";
     nnEval = Setup::initializeNNEvaluator(
-      modelFile,modelFile,expectedSha256,cfg,logger,rand,maxConcurrentEvals,expectedConcurrentEvals,
+      modelFile,modelFile,expectedSha256,cfg,logger,rand,expectedConcurrentEvals,
       boardSizeX,boardSizeY,defaultMaxBatchSize,defaultRequireExactNNLen,disableFP16,
       Setup::SETUP_FOR_ANALYSIS
     );
@@ -1729,14 +1728,13 @@ int MainCmds::booktoposes(const vector<string>& args) {
   NNEvaluator* nnEval;
   {
     Setup::initializeSession(cfg);
-    int maxConcurrentEvals = numThreads * 2 + 16; // * 2 + 16 just to give plenty of headroom
     int expectedConcurrentEvals = numThreads;
     int defaultMaxBatchSize = std::max(8,((numThreads+3)/4)*4);
     bool defaultRequireExactNNLen = true;
     bool disableFP16 = false;
     string expectedSha256 = "";
     nnEval = Setup::initializeNNEvaluator(
-      modelFile,modelFile,expectedSha256,cfg,logger,seedRand,maxConcurrentEvals,expectedConcurrentEvals,
+      modelFile,modelFile,expectedSha256,cfg,logger,seedRand,expectedConcurrentEvals,
       book->initialBoard.x_size,book->initialBoard.y_size,defaultMaxBatchSize,defaultRequireExactNNLen,disableFP16,
       Setup::SETUP_FOR_GTP
     );

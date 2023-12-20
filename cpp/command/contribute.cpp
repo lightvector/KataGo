@@ -870,7 +870,6 @@ int MainCmds::contribute(const vector<string>& args) {
     }
 
     const int maxSimultaneousGamesThisNet = isRatingManager ? maxSimultaneousRatingGamesPossible : maxSimultaneousGames;
-    const int maxConcurrentEvals = runParams.maxSearchThreadsAllowed * maxSimultaneousGamesThisNet * 2 + 16;
     const int expectedConcurrentEvals = runParams.maxSearchThreadsAllowed * maxSimultaneousGamesThisNet;
     const bool defaultRequireExactNNLen = false;
     const int defaultMaxBatchSize = maxSimultaneousGamesThisNet;
@@ -888,7 +887,7 @@ int MainCmds::contribute(const vector<string>& args) {
     {
       const bool disableFP16 = false;
       nnEval = Setup::initializeNNEvaluator(
-        modelName,modelFile,modelInfo.sha256,*userCfg,logger,rand,maxConcurrentEvals,expectedConcurrentEvals,
+        modelName,modelFile,modelInfo.sha256,*userCfg,logger,rand,expectedConcurrentEvals,
         NNPos::MAX_BOARD_LEN,NNPos::MAX_BOARD_LEN,defaultMaxBatchSize,defaultRequireExactNNLen,disableFP16,
         Setup::SETUP_FOR_DISTRIBUTED
       );
@@ -902,7 +901,7 @@ int MainCmds::contribute(const vector<string>& args) {
       if(nnEval->isAnyThreadUsingFP16()) {
         const bool disableFP16 = true;
         nnEval32 = Setup::initializeNNEvaluator(
-          modelName,modelFile,modelInfo.sha256,*userCfg,logger,rand,maxConcurrentEvals,expectedConcurrentEvals,
+          modelName,modelFile,modelInfo.sha256,*userCfg,logger,rand,expectedConcurrentEvals,
           NNPos::MAX_BOARD_LEN,NNPos::MAX_BOARD_LEN,defaultMaxBatchSize,defaultRequireExactNNLen,disableFP16,
           Setup::SETUP_FOR_DISTRIBUTED
         );

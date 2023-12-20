@@ -77,7 +77,6 @@ int MainCmds::testgpuerror(const vector<string>& args) {
     maxBatchSize = 16;
     logger.write("For batch test, using default batch size 16");
   }
-  const int maxConcurrentEvals = maxBatchSize * 2 + 16;
   const int expectedConcurrentEvals = maxBatchSize;
 
   const bool defaultRequireExactNNLen = false;
@@ -88,7 +87,7 @@ int MainCmds::testgpuerror(const vector<string>& args) {
     logger.write("Initializing nneval using current config...");
     const bool disableFP16 = false;
     nnEval = Setup::initializeNNEvaluator(
-      modelFile,modelFile,expectedSha256,cfg,logger,seedRand,maxConcurrentEvals,expectedConcurrentEvals,
+      modelFile,modelFile,expectedSha256,cfg,logger,seedRand,expectedConcurrentEvals,
       boardSize,boardSize,maxBatchSize,defaultRequireExactNNLen,disableFP16,
       Setup::SETUP_FOR_BENCHMARK
     );
@@ -98,7 +97,7 @@ int MainCmds::testgpuerror(const vector<string>& args) {
       logger.write("Initializing nneval in fp32...");
       const bool disableFP16 = true;
       nnEval32 = Setup::initializeNNEvaluator(
-        modelFile,modelFile,expectedSha256,cfg,logger,seedRand,maxConcurrentEvals,expectedConcurrentEvals,
+        modelFile,modelFile,expectedSha256,cfg,logger,seedRand,expectedConcurrentEvals,
         boardSize,boardSize,maxBatchSize,defaultRequireExactNNLen,disableFP16,
         Setup::SETUP_FOR_BENCHMARK
       );
