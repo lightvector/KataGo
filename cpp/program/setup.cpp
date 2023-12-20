@@ -308,7 +308,6 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
       expectedSha256,
       &logger,
       nnMaxBatchSize,
-      maxConcurrentEvals,
       nnXLen,
       nnYLen,
       requireExactNNLen,
