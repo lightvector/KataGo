@@ -7,6 +7,7 @@
 #include "../core/commontypes.h"
 #include "../core/logger.h"
 #include "../core/multithread.h"
+#include "../core/threadsafequeue.h"
 #include "../game/board.h"
 #include "../game/boardhistory.h"
 #include "../neuralnet/nninputs.h"
@@ -67,7 +68,6 @@ struct NNResultBuf {
 //Each server thread should allocate and re-use one of these
 struct NNServerBuf {
   InputBuffers* inputBuffers;
-  NNResultBuf** resultBufs;
 
   NNServerBuf(const NNEvaluator& nneval, const LoadedModel* model);
   ~NNServerBuf();
@@ -83,7 +83,6 @@ class NNEvaluator {
     const std::string& expectedSha256,
     Logger* logger,
     int maxBatchSize,
-    int maxConcurrentEvals,
     int nnXLen,
     int nnYLen,
     bool requireExactNNLen,
@@ -113,6 +112,9 @@ class NNEvaluator {
   Logger* getLogger();
   bool isNeuralNetLess() const;
   int getMaxBatchSize() const;
+  int getCurrentBatchSize() const;
+  void setCurrentBatchSize(int batchSize);
+
   int getNumGpus() const;
   int getNumServerThreads() const;
   std::set<int> getGpuIdxs() const;
@@ -208,19 +210,15 @@ class NNEvaluator {
   int numServerThreadsEverSpawned;
   std::vector<std::thread*> serverThreads;
 
-  //These are basically constant
-  int maxNumRows;
-  int numResultBufss;
-  int numResultBufssMask;
+  const int maxBatchSize;
 
   //Counters for statistics
   std::atomic<uint64_t> m_numRowsProcessed;
   std::atomic<uint64_t> m_numBatchesProcessed;
 
-  std::condition_variable serverWaitingForBatchStart;
   mutable std::mutex bufferMutex;
 
-  //Everything under here is protected under bufferMutex--------------------------------------------
+  //Everything in this section is protected under bufferMutex--------------------------------------------
 
   bool isKilled; //Flag used for killing server threads
   int numServerThreadsStartingUp; //Counter for waiting until server threads are spawned
@@ -233,17 +231,16 @@ class NNEvaluator {
   int numEvalsToAwaken; //Current number of things waitingForFinish that should be woken up. Used to avoid spurious wakeups.
   std::condition_variable waitingForFinish; //Condvar for waiting for at least one ongoing eval to finish.
 
-  //Randomization settings for symmetries
-  bool currentDoRandomize;
-  int currentDefaultSymmetry;
+  //-------------------------------------------------------------------------------------------------
 
-  //An array of NNResultBuf** of length numResultBufss, each NNResultBuf** is an array of NNResultBuf* of length maxNumRows.
-  //If a full resultBufs array fills up, client threads can move on to fill up more without waiting. Implemented basically
-  //as a circular buffer.
-  NNResultBuf*** m_resultBufss;
-  int m_currentResultBufsLen; //Number of rows used in in the latest (not yet full) resultBufss.
-  int m_currentResultBufsIdx; //Index of the current resultBufs being filled.
-  int m_oldestResultBufsIdx; //Index of the oldest resultBufs that still needs to be processed by a server thread
+  //Randomization settings for symmetries
+  std::atomic<bool> currentDoRandomize;
+  std::atomic<int> currentDefaultSymmetry;
+  //Modifiable batch size smaller than maxBatchSize
+  std::atomic<int> currentBatchSize;
+
+  //Queued up requests
+  ThreadSafeQueue<NNResultBuf*> queryQueue;
 
  public:
   //Helper, for internal use only

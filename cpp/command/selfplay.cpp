@@ -155,8 +155,6 @@ int MainCmds::selfplay(const vector<string>& args) {
 
     logger.write("Found new neural net " + modelName);
 
-    // * 2 + 16 just in case to have plenty of room
-    const int maxConcurrentEvals = cfg.getInt("numSearchThreads") * numGameThreads * 2 + 16;
     const int expectedConcurrentEvals = cfg.getInt("numSearchThreads") * numGameThreads;
     const bool defaultRequireExactNNLen = minBoardXSizeUsed == maxBoardXSizeUsed && minBoardYSizeUsed == maxBoardYSizeUsed;
     const int defaultMaxBatchSize = -1;
@@ -165,7 +163,7 @@ int MainCmds::selfplay(const vector<string>& args) {
 
     Rand rand;
      NNEvaluator* nnEval = Setup::initializeNNEvaluator(
-      modelName,modelFile,expectedSha256,cfg,logger,rand,maxConcurrentEvals,expectedConcurrentEvals,
+      modelName,modelFile,expectedSha256,cfg,logger,rand,expectedConcurrentEvals,
       maxBoardXSizeUsed,maxBoardYSizeUsed,defaultMaxBatchSize,defaultRequireExactNNLen,disableFP16,
       Setup::SETUP_FOR_OTHER
     );

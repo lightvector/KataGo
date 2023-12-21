@@ -44,6 +44,12 @@ Where:
      Automatically search for the optimal number of threads (default if not
      specifying specific numbers of threads)
 
+   -fixed-batch-size <NUM>
+     Set max batch size to this fixed value
+
+   -half-batch-size
+     Set max batch size to half of the number of threads
+
    -i <SECONDS>,  -time <SECONDS>
      Typical amount of time per move spent while playing, in seconds
      (default 5)
