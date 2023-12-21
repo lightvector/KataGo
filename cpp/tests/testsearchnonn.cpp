@@ -2360,6 +2360,42 @@ x.x.x
 
   {
     cout << "===================================================================" << endl;
+    cout << "Zero node search" << endl;
+    cout << "===================================================================" << endl;
+
+    NNEvaluator* nnEval = startNNEval(modelFile,logger,"zeronodesearch",13,13,0,true,false,false,true,false);
+    SearchParams params = SearchParams::forTestsV2();
+    Search* search = new Search(params, nnEval, &logger, "autoSearchRandSeeeeeed");
+    Rules rules = Rules::parseRules("japanese");
+    Board board = Board::parseBoard(13,6,R"%%(
+.............
+.............
+.....o.......
+...x.........
+.............
+.............
+)%%");
+    Player nextPla = P_BLACK;
+    BoardHistory hist(board,nextPla,rules,0);
+    PrintTreeOptions options;
+    options = options.maxDepth(1);
+
+    search->setPosition(nextPla,board,hist);
+
+    std::atomic<bool> shouldStopNow(true);
+    search->runWholeSearch(shouldStopNow);
+    cout << search->rootBoard << endl;
+    search->printTree(cout, search->rootNode, options, P_WHITE);
+    testAssert(search->rootNode->getNNOutput() == nullptr);
+    cout << "Chosen move: " << Location::toString(search->getChosenMoveLoc(),board) << endl;
+
+    delete search;
+    delete nnEval;
+    cout << endl;
+  }
+
+  {
+    cout << "===================================================================" << endl;
     cout << "Uninitialized search params" << endl;
     cout << "===================================================================" << endl;
     SearchParams params;

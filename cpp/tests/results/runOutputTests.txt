@@ -20494,6 +20494,24 @@ Pass 216
 : GPU 0 finishing, processed 0 rows 0 batches
 
 ===================================================================
+Zero node search
+===================================================================
+: Initializing neural net buffer to be size 13 * 13 allowing smaller boards
+HASH: F93BA5320ECDE48E0834CAE4E8C11C06
+   A B C D E F G H J K L M N
+ 6 . . . . . . . . . . . . .
+ 5 . . . . . . . . . . . . .
+ 4 . . . . . O . . . . . . .
+ 3 . . . X . . . . . . . . .
+ 2 . . . . . . . . . . . . .
+ 1 . . . . . . . . . . . . .
+
+
+: N       0  --  
+Chosen move: null
+: GPU 0 finishing, processed 0 rows 0 batches
+
+===================================================================
 Uninitialized search params
 ===================================================================
 winLossUtilityFactor: 1
