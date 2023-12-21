@@ -112,6 +112,9 @@ class NNEvaluator {
   Logger* getLogger();
   bool isNeuralNetLess() const;
   int getMaxBatchSize() const;
+  int getCurrentBatchSize() const;
+  void setCurrentBatchSize(int batchSize);
+
   int getNumGpus() const;
   int getNumServerThreads() const;
   std::set<int> getGpuIdxs() const;
@@ -207,8 +210,7 @@ class NNEvaluator {
   int numServerThreadsEverSpawned;
   std::vector<std::thread*> serverThreads;
 
-  //These are basically constant
-  int maxNumRows;
+  const int maxBatchSize;
 
   //Counters for statistics
   std::atomic<uint64_t> m_numRowsProcessed;
@@ -234,6 +236,8 @@ class NNEvaluator {
   //Randomization settings for symmetries
   std::atomic<bool> currentDoRandomize;
   std::atomic<int> currentDefaultSymmetry;
+  //Modifiable batch size smaller than maxBatchSize
+  std::atomic<int> currentBatchSize;
 
   //Queued up requests
   ThreadSafeQueue<NNResultBuf*> queryQueue;

@@ -453,8 +453,8 @@ bool Tests::runBackendErrorTest(
   const string& referenceFileName
 ) {
 
-  int maxBatchSize = nnEval->getMaxBatchSize();
-  if(maxBatchSize != nnEval32->getMaxBatchSize())
+  int maxBatchSize = nnEval->getCurrentBatchSize();
+  if(maxBatchSize != nnEval32->getCurrentBatchSize())
     throw StringError("Inconsistent max batch size for fp16 test");
   if(maxBatchSizeCap > 0)
     maxBatchSize = std::min(maxBatchSize,maxBatchSizeCap);

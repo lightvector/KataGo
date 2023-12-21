@@ -35,9 +35,9 @@ NNResultBuf::~NNResultBuf() {
 NNServerBuf::NNServerBuf(const NNEvaluator& nnEval, const LoadedModel* model)
   :inputBuffers(NULL)
 {
-  int maxNumRows = nnEval.getMaxBatchSize();
+  int maxBatchSize = nnEval.getMaxBatchSize();
   if(model != NULL)
-    inputBuffers = NeuralNet::createInputBuffers(model,maxNumRows,nnEval.getNNXLen(),nnEval.getNNYLen());
+    inputBuffers = NeuralNet::createInputBuffers(model,maxBatchSize,nnEval.getNNXLen(),nnEval.getNNYLen());
 }
 
 NNServerBuf::~NNServerBuf() {
@@ -53,7 +53,7 @@ NNEvaluator::NNEvaluator(
   const string& mFileName,
   const string& expectedSha256,
   Logger* lg,
-  int maxBatchSize,
+  int maxBatchSz,
   int xLen,
   int yLen,
   bool rExactNNLen,
@@ -94,7 +94,7 @@ NNEvaluator::NNEvaluator(
    postProcessParams(),
    numServerThreadsEverSpawned(0),
    serverThreads(),
-   maxNumRows(maxBatchSize),
+   maxBatchSize(maxBatchSz),
    m_numRowsProcessed(0),
    m_numBatchesProcessed(0),
    bufferMutex(),
@@ -107,6 +107,7 @@ NNEvaluator::NNEvaluator(
    waitingForFinish(),
    currentDoRandomize(doRandomize),
    currentDefaultSymmetry(defaultSymmetry),
+   currentBatchSize(maxBatchSz),
    queryQueue()
 {
   if(nnXLen > NNPos::MAX_BOARD_LEN)
@@ -187,7 +188,15 @@ bool NNEvaluator::isNeuralNetLess() const {
   return debugSkipNeuralNet;
 }
 int NNEvaluator::getMaxBatchSize() const {
-  return maxNumRows;
+  return maxBatchSize;
+}
+int NNEvaluator::getCurrentBatchSize() const {
+  return currentBatchSize.load(std::memory_order_acquire);
+}
+void NNEvaluator::setCurrentBatchSize(int batchSize) {
+  if(batchSize <= 0 || batchSize > maxBatchSize)
+    throw StringError("Invalid setting for batch size");
+  currentBatchSize.store(batchSize,std::memory_order_release);
 }
 int NNEvaluator::getNumGpus() const {
 #ifdef USE_EIGEN_BACKEND
@@ -373,7 +382,7 @@ void NNEvaluator::serve(
       computeContext,
       loadedModel,
       logger,
-      maxNumRows,
+      maxBatchSize,
       requireExactNNLen,
       inputsUseNHWC,
       gpuIdxForThisThread,
@@ -390,14 +399,15 @@ void NNEvaluator::serve(
   }
 
   vector<NNResultBuf*> resultBufs;
-  resultBufs.reserve(maxNumRows);
+  resultBufs.reserve(maxBatchSize);
 
   vector<NNOutput*> outputBuf;
 
   unique_lock<std::mutex> lock(bufferMutex,std::defer_lock);
   while(true) {
     resultBufs.clear();
-    bool gotAnything = queryQueue.waitPopUpToN(resultBufs,maxNumRows);
+    int desiredBatchSize = std::min(maxBatchSize, currentBatchSize.load(std::memory_order_acquire));
+    bool gotAnything = queryQueue.waitPopUpToN(resultBufs,desiredBatchSize);
     //Queue being closed is a signal that we're done.
     if(!gotAnything)
       break;
