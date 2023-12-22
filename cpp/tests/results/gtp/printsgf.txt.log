@@ -36,7 +36,7 @@ trtUseFP16 = false
 : nnRandSeed0 = forTesting
 : After dedups: nnModelFile0 = tests/models/g170-b6c96-s175395328-d26788732.bin.gz useFP16 false useNHWC false
 : Initializing neural net buffer to be size 19 * 19 exactly
-: Cuda backend thread 0: Found GPU NVIDIA RTX A5000 memory 25434652672 compute capability major 8 minor 6
+: Cuda backend thread 0: Found GPU NVIDIA RTX A5000 memory 25425608704 compute capability major 8 minor 6
 : Cuda backend thread 0: Model version 8 useFP16 = false useNHWC = false
 : Cuda backend thread 0: Model name: g170-b6c96-s175395328-d26788732
 : Loaded neural net with nnXLen 19 nnYLen 19
@@ -68,7 +68,7 @@ trtUseFP16 = false
 : nnRandSeed0 = forTesting
 : After dedups: nnModelFile0 = tests/models/g170-b6c96-s175395328-d26788732.bin.gz useFP16 false useNHWC false
 : Initializing neural net buffer to be size 9 * 9 exactly
-: Cuda backend thread 0: Found GPU NVIDIA RTX A5000 memory 25434652672 compute capability major 8 minor 6
+: Cuda backend thread 0: Found GPU NVIDIA RTX A5000 memory 25425608704 compute capability major 8 minor 6
 : Cuda backend thread 0: Model version 8 useFP16 = false useNHWC = false
 : Cuda backend thread 0: Model name: g170-b6c96-s175395328-d26788732
 : Loaded neural net with nnXLen 9 nnYLen 9
@@ -93,7 +93,7 @@ trtUseFP16 = false
 : nnRandSeed0 = forTesting
 : After dedups: nnModelFile0 = tests/models/g170-b6c96-s175395328-d26788732.bin.gz useFP16 false useNHWC false
 : Initializing neural net buffer to be size 9 * 13 exactly
-: Cuda backend thread 0: Found GPU NVIDIA RTX A5000 memory 25434652672 compute capability major 8 minor 6
+: Cuda backend thread 0: Found GPU NVIDIA RTX A5000 memory 25425608704 compute capability major 8 minor 6
 : Cuda backend thread 0: Model version 8 useFP16 = false useNHWC = false
 : Cuda backend thread 0: Model name: g170-b6c96-s175395328-d26788732
 : Loaded neural net with nnXLen 9 nnYLen 13
@@ -131,12 +131,12 @@ NN avg batch size: 1
 PlayoutDoublingAdvantage: 2.625
 PV: F4 G10 C9 D9 B10 C11 C8 C6 B11 B12
 Tree:
-: T -83.28c W -77.86c S  -4.03c (-10.3 L -10.4) N     100  --  F4 G10 C9 D9 B10 C11 C8
+: T -83.29c W -77.87c S  -4.03c (-10.3 L -10.4) N     100  --  F4 G10 C9 D9 B10 C11 C8
 ---White(^)---
-F4  : T -83.09c W -77.25c S  -4.17c (-10.4 L -10.5) LCB  -89.63c P 55.50% WF  59.1 PSV      59 N      59  --  F4 G10 C9 D9 B10 C11 C8 C6
-F10 : T -84.28c W -79.36c S  -3.62c ( -9.9 L -10.3) LCB  -91.97c P 14.66% WF  13.9 PSV      12 N      14  --  F10 F11 G11 E11 F4 F9
-E4  : T -85.57c W -79.26c S  -4.19c (-10.4 L -10.6) LCB  -94.29c P 14.42% WF  12.9 PSV       9 N      13  --  E4 E3 F3 D3 F4 D6
-F3  : T -81.41c W -78.13c S  -3.65c (-10.0 L -10.3) LCB  -91.77c P  4.74% WF  13.1 PSV       8 N      13  --  F3 F4 G4 F5 E3 G5
+F4  : T -83.10c W -77.26c S  -4.17c (-10.4 L -10.5) LCB  -89.64c P 55.51% WF  59.1 PSV      59 N      59  --  F4 G10 C9 D9 B10 C11 C8 C6
+F10 : T -84.28c W -79.37c S  -3.62c ( -9.9 L -10.3) LCB  -91.96c P 14.69% WF  13.9 PSV      12 N      14  --  F10 F11 G11 E11 F4 F9
+E4  : T -85.58c W -79.27c S  -4.18c (-10.4 L -10.6) LCB  -94.30c P 14.38% WF  12.9 PSV       9 N      13  --  E4 E3 F3 D3 F4 D6
+F3  : T -81.42c W -78.14c S  -3.65c (-10.0 L -10.3) LCB  -91.78c P  4.74% WF  13.1 PSV       8 N      13  --  F3 F4 G4 F5 E3 G5
 
 : = F4
 : Controller: printsgf
