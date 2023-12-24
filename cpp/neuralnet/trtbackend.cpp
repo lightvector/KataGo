@@ -154,7 +154,7 @@ struct ModelParser {
   ModelParser(const ModelParser&) = delete;
   ModelParser& operator=(const ModelParser&) = delete;
 
-  static constexpr int tuneSalt = 3;  // Bump this when between katago versions we want to forcibly drop old timing caches and plan caches.
+  static constexpr int tuneSalt = 4;  // Bump this when between katago versions we want to forcibly drop old timing caches and plan caches.
 
   unique_ptr<TRTModel> build(
     unique_ptr<INetworkDefinition> net,
