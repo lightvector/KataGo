@@ -311,8 +311,9 @@ elseif(USE_BACKEND STREQUAL "TENSORRT")
   # Version 8 is required for serializing the builder timing cache.
   # Version 8.2 is required for eliminating the global logger for Builder and Runtime.
   # Version 8.5 is required for eliminating many deprecated APIs and adopting new features.
-  if(TENSORRT_VERSION VERSION_LESS 8.5)
-    message(FATAL_ERROR "TensorRT 8.5 or greater is required but ${TENSORRT_VERSION} was found.")
+  # Version 8.6 is required for CUDA 12 support and further reduction in initialization time.
+  if(TENSORRT_VERSION VERSION_LESS 8.6)
+    message(FATAL_ERROR "TensorRT 8.6 or greater is required but ${TENSORRT_VERSION} was found.")
   endif()
   include_directories(SYSTEM ${CUDAToolkit_INCLUDE_DIRS} ${TENSORRT_INCLUDE_DIR}) #SYSTEM is for suppressing some compiler warnings in thrust libraries
   target_link_libraries(katago CUDA::cudart_static ${TENSORRT_LIBRARY})

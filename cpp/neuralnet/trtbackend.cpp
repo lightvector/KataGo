@@ -893,8 +893,7 @@ struct ModelParser {
   }
 
   ILayer* applyCastLayer(ILayer* inputLayer, DataType dataType) {
-    auto castLayer = model->network->addIdentity(*inputLayer->getOutput(0));
-    castLayer->setOutputType(0, dataType);
+    auto castLayer = model->network->addCast(*inputLayer->getOutput(0), dataType);
     auto castLayerName = string(inputLayer->getName()) + "/cast";
     castLayer->setName(castLayerName.c_str());
     return castLayer;
@@ -934,6 +933,7 @@ struct ComputeHandle {
 
   TRTLogger trtLogger;
   map<string, void*> buffers;
+  unique_ptr<IRuntime> runtime;
   unique_ptr<ICudaEngine> engine;
   unique_ptr<IExecutionContext> exec;
 
@@ -952,7 +952,7 @@ struct ComputeHandle {
     // Certain minor versions of TensorRT uses a global logger, which is bad.
     // Since TensorRT maintains ABI compatibility between minor versions, a dynamic library mismatch
     // does not necessarily generate a dynamic link error, therefore, an extra check is required.
-    if(getInferLibVersion() != NV_TENSORRT_VERSION) {
+    if(getInferLibVersion() / 100 != NV_TENSORRT_VERSION / 100) {
       throw StringError("TensorRT backend: detected incompatible version of TensorRT library");
     }
 
@@ -993,13 +993,10 @@ struct ComputeHandle {
     debugOutputs = model->debugOutputs;
     config->addOptimizationProfile(profile);
 
-    // This is to avoid external tactic sources and tactics that have shape switching overhead
-    if(prop->major < 8) {
-      config->setTacticSources(
-        1U << static_cast<uint32_t>(TacticSource::kJIT_CONVOLUTIONS) |
-        1U << static_cast<uint32_t>(TacticSource::kEDGE_MASK_CONVOLUTIONS));
-    } else {
+    if(prop->major >= 8) {
+      // This is to avoid tactics that have shape switching overhead
       config->setTacticSources(1U << static_cast<uint32_t>(TacticSource::kJIT_CONVOLUTIONS));
+      config->setBuilderOptimizationLevel(2);
     }
 
     // So that there are no concurrent kernel executions probably from other parts of code while profiling
@@ -1183,7 +1180,7 @@ struct ComputeHandle {
 #endif
     }
 
-    auto runtime = unique_ptr<IRuntime>(createInferRuntime(trtLogger));
+    runtime.reset(createInferRuntime(trtLogger));
     if(!runtime) {
       throw StringError("TensorRT backend: failed to create runtime");
     }
