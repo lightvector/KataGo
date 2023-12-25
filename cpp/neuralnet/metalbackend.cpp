@@ -393,8 +393,9 @@ ModelPostProcessParams NeuralNet::getPostProcessParams(const LoadedModel* loaded
 
 //------------------------------------------------------------------------------
 
-ComputeContext::ComputeContext(int nnX, int nnY, enabled_t useFP16Mode, enabled_t useNHWCMode) {
+ComputeContext::ComputeContext(int nnX, int nnY, enabled_t useFP16Mode, enabled_t useNHWCMode, bool useCpuAndNeuralEngine) {
   this->useFP16Mode = useFP16Mode;
+  this->useCpuAndNeuralEngine = useCpuAndNeuralEngine;
 
   SWEnable swUseFP16Mode =
   (useFP16Mode == enabled_t::False) ? SWEnable::False() :
@@ -444,14 +445,26 @@ ComputeContext* NeuralNet::createComputeContext(
   enabled_t useNHWCMode,
   const LoadedModel* loadedModel) {
 
-  (void)gpuIdxs;
+  bool useCpuAndNeuralEngine = false;
+
+  // If Metal is enabled for GPU computation, CoreML uses CPU and Neural Engine.
+  // If Metal is disabled, CoreML uses all computation units, including CPU, GPU, and Neural Engine.
+  // This ensures that Metal and CoreML do not use GPU in the same computation context.
+  for (auto it = gpuIdxs.begin(); it != gpuIdxs.end(); it++) {
+    auto gpuIdx = *it;
+    if (gpuIdx < 100) {
+      useCpuAndNeuralEngine = true;
+      break;
+    }
+  }
+
   (void)logger;
   (void)openCLTunerFile;
   (void)homeDataDirOverride;
   (void)openCLReTunePerBoardSize;
   (void)loadedModel;
 
-  return new ComputeContext(nnXLen, nnYLen, useFP16Mode, useNHWCMode);
+  return new ComputeContext(nnXLen, nnYLen, useFP16Mode, useNHWCMode, useCpuAndNeuralEngine);
 }
 
 /**
@@ -489,7 +502,7 @@ ComputeHandle::ComputeHandle(
     MetalProcess::createMetalComputeHandle(modelDesc, serverThreadIdx);
   } else {
     // Create a Core ML backend
-    modelIndex = (int)createCoreMLBackend(modelXLen, modelYLen, serverThreadIdx, useFP16);
+    modelIndex = (int)createCoreMLBackend(modelXLen, modelYLen, serverThreadIdx, useFP16, context->useCpuAndNeuralEngine);
     // Get the model version
     modelVersion = (int)getCoreMLBackendVersion(modelIndex);
   }

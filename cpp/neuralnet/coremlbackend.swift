@@ -49,7 +49,7 @@ class CoreMLBackend {
         return "KataGoModel\(xLen)x\(yLen)fp\(precision)"
     }
 
-    class func createInstance(xLen: Int, yLen: Int, useFP16: Bool) -> Int {
+    class func createInstance(xLen: Int, yLen: Int, useFP16: Bool, useCpuAndNeuralEngine: Bool) -> Int {
         // The next ML model index is retrieved.
         let modelIndex = getNextModelIndex()
 
@@ -60,7 +60,9 @@ class CoreMLBackend {
         let modelName = getModelName(xLen: xLen, yLen: yLen, useFP16: useFP16)
 
         // Compile the model in Bundle.
-        if let mlmodel = KataGoModel.compileBundleMLModel(modelName: modelName) {
+        let mlmodel = KataGoModel.compileBundleMLModel(modelName: modelName, useCpuAndNeuralEngine: useCpuAndNeuralEngine)
+
+        if let mlmodel {
             // The CoreMLBackend object is created.
             backends[modelIndex] = CoreMLBackend(model: mlmodel, xLen: xLen, yLen: yLen)
         } else {
@@ -194,12 +196,14 @@ public func destroyCoreMLContext() {
 public func createCoreMLBackend(modelXLen: Int,
                                 modelYLen: Int,
                                 serverThreadIdx: Int,
-                                useFP16: Bool) -> Int {
+                                useFP16: Bool,
+                                useCpuAndNeuralEngine: Bool) -> Int {
 
     // Load the model.
     let modelIndex = CoreMLBackend.createInstance(xLen: modelXLen,
                                                   yLen: modelYLen,
-                                                  useFP16: useFP16)
+                                                  useFP16: useFP16,
+                                                  useCpuAndNeuralEngine: useCpuAndNeuralEngine)
 
     Logger().info("CoreML backend thread \(serverThreadIdx): Model-\(modelIndex) \(modelXLen)x\(modelYLen) useFP16 \(useFP16)");
 

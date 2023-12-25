@@ -153,6 +153,11 @@ struct ComputeContext {
   enabled_t useFP16Mode;
 
   /**
+   * @brief Whether to use CPU and Neural Engine for CoreML computations.
+   */
+  bool useCpuAndNeuralEngine;
+
+  /**
    * @brief Constructs a ComputeContext object.
    * This constructor creates a ComputeContext object and sets the configuration settings for neural network
    * computations, including whether to use FP16 mode and whether to use the NHWC format for input tensors.
@@ -160,8 +165,9 @@ struct ComputeContext {
    * @param nnY The height of the input tensor.
    * @param useFP16Mode Whether to use half-precision floating-point (FP16) mode for computations.
    * @param useNHWCMode Whether to use the NHWC format for input tensors.
+   * @param useCpuAndNeuralEngine Whether to use CPU and Neural Engine for CoreML computations.
    */
-  ComputeContext(int nnX, int nnY, enabled_t useFP16Mode, enabled_t useNHWCMode);
+  ComputeContext(int nnX, int nnY, enabled_t useFP16Mode, enabled_t useNHWCMode, bool useCpuAndNeuralEngine);
 
   /**
    * @brief Destroys the ComputeContext object.

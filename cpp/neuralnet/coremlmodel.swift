@@ -139,7 +139,7 @@ class KataGoModel {
         return modelURL;
     }
 
-    class func compileAppMLModel(modelName: String) -> MLModel? {
+    class func compileAppMLModel(modelName: String, useCpuAndNeuralEngine: Bool) -> MLModel? {
         var mlmodel: MLModel?
 
         do {
@@ -151,7 +151,9 @@ class KataGoModel {
 
             if (isReachable) {
                 // Compile MLModel if the MLModel is reachable
-                mlmodel = try compileMLModel(modelName: modelName, modelURL: modelURL)
+                mlmodel = try compileMLModel(modelName: modelName,
+                                             modelURL: modelURL,
+                                             useCpuAndNeuralEngine: useCpuAndNeuralEngine)
             }
         } catch {
             Logger().error("An error occurred: \(error)")
@@ -160,7 +162,7 @@ class KataGoModel {
         return mlmodel;
     }
 
-    class func compileBundleMLModel(modelName: String) -> MLModel? {
+    class func compileBundleMLModel(modelName: String, useCpuAndNeuralEngine: Bool) -> MLModel? {
         var mlmodel: MLModel?
 
         do {
@@ -175,7 +177,9 @@ class KataGoModel {
             let bundleModelURL = URL(filePath: modelPath)
 
             // Compile MLModel
-            mlmodel = try compileMLModel(modelName: modelName, modelURL: bundleModelURL)
+            mlmodel = try compileMLModel(modelName: modelName,
+                                         modelURL: bundleModelURL,
+                                         useCpuAndNeuralEngine: useCpuAndNeuralEngine)
 
             // Get model URL at App Support Directory
             let appModelURL = try getAppMLModelURL(modelName: modelName)
@@ -314,15 +318,15 @@ class KataGoModel {
         try digest.write(to: savedDigestURL, atomically: true, encoding: .utf8)
     }
 
-    private class func loadModel(permanentURL: URL, modelName: String) throws -> MLModel {
+    private class func loadModel(permanentURL: URL, modelName: String, useCpuAndNeuralEngine: Bool) throws -> MLModel {
         let configuration = MLModelConfiguration()
-        configuration.computeUnits = .all
+        configuration.computeUnits = useCpuAndNeuralEngine ? .cpuAndNeuralEngine : .all
         configuration.modelDisplayName = modelName
         Logger().info("Creating CoreML model with contents \(permanentURL)")
         return try MLModel(contentsOf: permanentURL, configuration: configuration)
     }
 
-    class func compileMLModel(modelName: String, modelURL: URL) throws -> MLModel {
+    class func compileMLModel(modelName: String, modelURL: URL, useCpuAndNeuralEngine: Bool) throws -> MLModel {
         let appSupportURL = try getApplicationSupportURL()
         let permanentURL = appSupportURL.appending(component: "KataGoModels/\(modelName).mlmodelc")
         let savedDigestURL = appSupportURL.appending(component: "KataGoModels/\(modelName).digest")
@@ -340,7 +344,9 @@ class KataGoModel {
                                     digest: digest)
         }
 
-        return try loadModel(permanentURL: permanentURL, modelName: modelName);
+        return try loadModel(permanentURL: permanentURL,
+                             modelName: modelName,
+                             useCpuAndNeuralEngine: useCpuAndNeuralEngine);
     }
 
     init(model: MLModel) {
