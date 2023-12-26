@@ -1679,7 +1679,7 @@ struct ComputeHandle {
   }
 
   ~ComputeHandle() {
-    std::lock_guard<std::mutex>(context->cachedModelsMutex);
+    std::lock_guard<std::mutex> lock(context->cachedModelsMutex);
     context->cachedModelsRefCount[modelCacheKey] -= 1;
     assert(context->cachedModelsRefCount[modelCacheKey] >= 0);
     if(context->cachedModelsRefCount[modelCacheKey] == 0) {
