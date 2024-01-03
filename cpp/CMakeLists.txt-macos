@@ -229,6 +229,7 @@ add_executable(katago
   ../main.cpp
   )
 
+target_compile_definitions(katago PRIVATE DEBUG)
 target_compile_definitions(katago PRIVATE USE_COREML_BACKEND)
 
 if(USE_BIGGER_BOARDS_EXPENSIVE)
