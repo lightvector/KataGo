@@ -205,6 +205,9 @@
 		E11887F52B0831B100637D44 /* libz.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = E18F3F712A5149AB00D335E1 /* libz.tbd */; };
 		E118EE962B081C3300637D44 /* katago.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = E118EE902B081C3200637D44 /* katago.framework */; };
 		E118EE972B081C3300637D44 /* katago.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = E118EE902B081C3200637D44 /* katago.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		E149B7F42B350EA8002B7F61 /* parallel.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E149B7F22B350EA8002B7F61 /* parallel.cpp */; };
+		E149B7F52B350EA8002B7F61 /* parallel.h in Headers */ = {isa = PBXBuildFile; fileRef = E149B7F32B350EA8002B7F61 /* parallel.h */; };
+		E149B7F62B351029002B7F61 /* KataGoModel19x19fp16.mlpackage in Resources */ = {isa = PBXBuildFile; fileRef = E18F3F732A514B9500D335E1 /* KataGoModel19x19fp16.mlpackage */; };
 		E18F3E112A51466A00D335E1 /* KataGo_iOSApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = E18F3E102A51466A00D335E1 /* KataGo_iOSApp.swift */; };
 		E18F3E132A51466A00D335E1 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E18F3E122A51466A00D335E1 /* ContentView.swift */; };
 		E18F3E152A51466C00D335E1 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = E18F3E142A51466C00D335E1 /* Assets.xcassets */; };
@@ -476,6 +479,8 @@
 		E11887EE2B08310800637D44 /* metalbackend.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; name = metalbackend.swift; path = ../../../cpp/neuralnet/metalbackend.swift; sourceTree = "<group>"; };
 		E118EE902B081C3200637D44 /* katago.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = katago.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		E118EF0C2B081D8500637D44 /* main.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = main.h; sourceTree = "<group>"; };
+		E149B7F22B350EA8002B7F61 /* parallel.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = parallel.cpp; sourceTree = "<group>"; };
+		E149B7F32B350EA8002B7F61 /* parallel.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = parallel.h; sourceTree = "<group>"; };
 		E18F3E0D2A51466A00D335E1 /* KataGo iOS.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "KataGo iOS.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		E18F3E102A51466A00D335E1 /* KataGo_iOSApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KataGo_iOSApp.swift; sourceTree = "<group>"; };
 		E18F3E122A51466A00D335E1 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
@@ -572,6 +577,8 @@
 		E11836D82B081DA700637D44 /* core */ = {
 			isa = PBXGroup;
 			children = (
+				E149B7F22B350EA8002B7F61 /* parallel.cpp */,
+				E149B7F32B350EA8002B7F61 /* parallel.h */,
 				E11836D92B081DA700637D44 /* using.h */,
 				E11836DA2B081DA700637D44 /* md5.cpp */,
 				E11836DB2B081DA700637D44 /* multithread.cpp */,
@@ -959,6 +966,7 @@
 				E118803B2B081E3900637D44 /* numpywrite.h in Headers */,
 				E11880562B081E3900637D44 /* commontypes.h in Headers */,
 				E11880762B081E3A00637D44 /* testsearchcommon.h in Headers */,
+				E149B7F52B350EA8002B7F61 /* parallel.h in Headers */,
 				E11880802B081E3A00637D44 /* tests.h in Headers */,
 				E118815F2B081E3E00637D44 /* nninterface.h in Headers */,
 				E118802E2B081E3900637D44 /* sgf.h in Headers */,
@@ -1188,6 +1196,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				E149B7F62B351029002B7F61 /* KataGoModel19x19fp16.mlpackage in Resources */,
 				E18F3F782A514B9700D335E1 /* default_gtp.cfg in Resources */,
 				E18F3E182A51466C00D335E1 /* Preview Assets.xcassets in Resources */,
 				E18F3E152A51466C00D335E1 /* Assets.xcassets in Resources */,
@@ -1234,6 +1243,7 @@
 				E11881872B081E3E00637D44 /* searchnode.cpp in Sources */,
 				E118805A2B081E3900637D44 /* bsearch.cpp in Sources */,
 				E11880532B081E3900637D44 /* mainargs.cpp in Sources */,
+				E149B7F42B350EA8002B7F61 /* parallel.cpp in Sources */,
 				E11880992B081E3A00637D44 /* tinymodeldata.cpp in Sources */,
 				E11881812B081E3E00637D44 /* subtreevaluebiastable.cpp in Sources */,
 				E11880322B081E3900637D44 /* loadmodel.cpp in Sources */,
