@@ -33,24 +33,17 @@ NNResultBuf::~NNResultBuf() {
 //-------------------------------------------------------------------------------------
 
 NNServerBuf::NNServerBuf(const NNEvaluator& nnEval, const LoadedModel* model)
-  :inputBuffers(NULL),
-   resultBufs(NULL)
+  :inputBuffers(NULL)
 {
-  int maxNumRows = nnEval.getMaxBatchSize();
+  int maxBatchSize = nnEval.getMaxBatchSize();
   if(model != NULL)
-    inputBuffers = NeuralNet::createInputBuffers(model,maxNumRows,nnEval.getNNXLen(),nnEval.getNNYLen());
-  resultBufs = new NNResultBuf*[maxNumRows];
-  for(int i = 0; i < maxNumRows; i++)
-    resultBufs[i] = NULL;
+    inputBuffers = NeuralNet::createInputBuffers(model,maxBatchSize,nnEval.getNNXLen(),nnEval.getNNYLen());
 }
 
 NNServerBuf::~NNServerBuf() {
   if(inputBuffers != NULL)
     NeuralNet::freeInputBuffers(inputBuffers);
   inputBuffers = NULL;
-  //Pointers inside here don't need to be deleted, they simply point to the clients waiting for results
-  delete[] resultBufs;
-  resultBufs = NULL;
 }
 
 //-------------------------------------------------------------------------------------
@@ -60,8 +53,7 @@ NNEvaluator::NNEvaluator(
   const string& mFileName,
   const string& expectedSha256,
   Logger* lg,
-  int maxBatchSize,
-  int maxConcurrentEvals,
+  int maxBatchSz,
   int xLen,
   int yLen,
   bool rExactNNLen,
@@ -102,12 +94,9 @@ NNEvaluator::NNEvaluator(
    postProcessParams(),
    numServerThreadsEverSpawned(0),
    serverThreads(),
-   maxNumRows(maxBatchSize),
-   numResultBufss(),
-   numResultBufssMask(),
+   maxBatchSize(maxBatchSz),
    m_numRowsProcessed(0),
    m_numBatchesProcessed(0),
-   serverWaitingForBatchStart(),
    bufferMutex(),
    isKilled(false),
    numServerThreadsStartingUp(0),
@@ -118,17 +107,13 @@ NNEvaluator::NNEvaluator(
    waitingForFinish(),
    currentDoRandomize(doRandomize),
    currentDefaultSymmetry(defaultSymmetry),
-   m_resultBufss(NULL),
-   m_currentResultBufsLen(0),
-   m_currentResultBufsIdx(0),
-   m_oldestResultBufsIdx(0)
+   currentBatchSize(maxBatchSz),
+   queryQueue()
 {
   if(nnXLen > NNPos::MAX_BOARD_LEN)
     throw StringError("Maximum supported nnEval board size is " + Global::intToString(NNPos::MAX_BOARD_LEN));
   if(nnYLen > NNPos::MAX_BOARD_LEN)
     throw StringError("Maximum supported nnEval board size is " + Global::intToString(NNPos::MAX_BOARD_LEN));
-  if(maxConcurrentEvals <= 0)
-    throw StringError("maxConcurrentEvals is negative: " + Global::intToString(maxConcurrentEvals));
   if(maxBatchSize <= 0)
     throw StringError("maxBatchSize is negative: " + Global::intToString(maxBatchSize));
   if(gpuIdxByServerThread.size() != numThreads)
@@ -142,23 +127,14 @@ NNEvaluator::NNEvaluator(
     );
   }
 
-  //Add three, just to give a bit of extra headroom, and make it a power of two
-  numResultBufss = maxConcurrentEvals / maxBatchSize + 3;
-  {
-    int x = 1;
-    while (x < numResultBufss)
-      x *= 2;
-    numResultBufss = x;
-  }
-  numResultBufssMask = numResultBufss - 1;
-
   if(nnCacheSizePowerOfTwo >= 0)
     nnCacheTable = new NNCacheTable(nnCacheSizePowerOfTwo, nnMutexPoolSizePowerofTwo);
 
   if(!debugSkipNeuralNet) {
     vector<int> gpuIdxs = gpuIdxByServerThread;
     std::sort(gpuIdxs.begin(), gpuIdxs.end());
-    std::unique(gpuIdxs.begin(), gpuIdxs.end());
+    auto last = std::unique(gpuIdxs.begin(), gpuIdxs.end());
+    gpuIdxs.erase(last,gpuIdxs.end());
     loadedModel = NeuralNet::loadModelFile(modelFileName,expectedSha256);
     modelVersion = NeuralNet::getModelVersion(loadedModel);
     inputsVersion = NNModelVersion::getInputsVersion(modelVersion);
@@ -174,25 +150,14 @@ NNEvaluator::NNEvaluator(
     inputsVersion = NNModelVersion::getInputsVersion(modelVersion);
   }
 
-  m_resultBufss = new NNResultBuf**[numResultBufss];
-  for(int i = 0; i < numResultBufss; i++) {
-    m_resultBufss[i] = new NNResultBuf*[maxBatchSize];
-    for(int j = 0; j < maxBatchSize; j++)
-      m_resultBufss[i][j] = NULL;
-  }
+  //Reserve a decent amount above the batch size so that allocation is unlikely.
+  queryQueue.reserve(maxBatchSize * 4 * gpuIdxByServerThread.size());
+  //Starts readonly. Becomes writable once we spawn server threads
+  queryQueue.setReadOnly();
 }
 
 NNEvaluator::~NNEvaluator() {
   killServerThreads();
-
-  for(int i = 0; i < numResultBufss; i++) {
-    NNResultBuf** resultBufs = m_resultBufss[i];
-    //Pointers inside here don't need to be deleted, they simply point to the clients waiting for results
-    delete[] resultBufs;
-    m_resultBufss[i] = NULL;
-  }
-  delete[] m_resultBufss;
-  m_resultBufss = NULL;
 
   if(computeContext != NULL)
     NeuralNet::freeComputeContext(computeContext);
@@ -224,7 +189,15 @@ bool NNEvaluator::isNeuralNetLess() const {
   return debugSkipNeuralNet;
 }
 int NNEvaluator::getMaxBatchSize() const {
-  return maxNumRows;
+  return maxBatchSize;
+}
+int NNEvaluator::getCurrentBatchSize() const {
+  return currentBatchSize.load(std::memory_order_acquire);
+}
+void NNEvaluator::setCurrentBatchSize(int batchSize) {
+  if(batchSize <= 0 || batchSize > maxBatchSize)
+    throw StringError("Invalid setting for batch size");
+  currentBatchSize.store(batchSize,std::memory_order_release);
 }
 int NNEvaluator::getNumGpus() const {
 #ifdef USE_EIGEN_BACKEND
@@ -273,20 +246,16 @@ bool NNEvaluator::supportsShorttermError() const {
 }
 
 bool NNEvaluator::getDoRandomize() const {
-  lock_guard<std::mutex> lock(bufferMutex);
-  return currentDoRandomize;
+  return currentDoRandomize.load(std::memory_order_acquire);
 }
 int NNEvaluator::getDefaultSymmetry() const {
-  lock_guard<std::mutex> lock(bufferMutex);
-  return currentDefaultSymmetry;
+  return currentDefaultSymmetry.load(std::memory_order_acquire);
 }
 void NNEvaluator::setDoRandomize(bool b) {
-  lock_guard<std::mutex> lock(bufferMutex);
-  currentDoRandomize = b;
+  currentDoRandomize.store(b, std::memory_order_release);
 }
 void NNEvaluator::setDefaultSymmetry(int s) {
-  lock_guard<std::mutex> lock(bufferMutex);
-  currentDefaultSymmetry = s;
+  currentDefaultSymmetry.store(s, std::memory_order_release);
 }
 
 Rules NNEvaluator::getSupportedRules(const Rules& desiredRules, bool& supported) {
@@ -359,6 +328,8 @@ void NNEvaluator::spawnServerThreads() {
     serverThreadsIsUsingFP16.resize(numThreads,0);
   }
 
+  queryQueue.unsetReadOnly();
+
   numServerThreadsStartingUp = numThreads;
   for(int i = 0; i<numThreads; i++) {
     int gpuIdxForThisThread = gpuIdxByServerThread[i];
@@ -379,7 +350,8 @@ void NNEvaluator::killServerThreads() {
   unique_lock<std::mutex> lock(bufferMutex);
   isKilled = true;
   lock.unlock();
-  serverWaitingForBatchStart.notify_all();
+  queryQueue.setReadOnly();
+
   waitingForFinish.notify_all();
 
   for(size_t i = 0; i<serverThreads.size(); i++)
@@ -411,7 +383,7 @@ void NNEvaluator::serve(
       computeContext,
       loadedModel,
       logger,
-      maxNumRows,
+      maxBatchSize,
       requireExactNNLen,
       inputsUseNHWC,
       gpuIdxForThisThread,
@@ -427,42 +399,31 @@ void NNEvaluator::serve(
       mainThreadWaitingForSpawn.notify_all();
   }
 
+  vector<NNResultBuf*> resultBufs;
+  resultBufs.reserve(maxBatchSize);
+
   vector<NNOutput*> outputBuf;
 
-  unique_lock<std::mutex> lock(bufferMutex);
+  unique_lock<std::mutex> lock(bufferMutex,std::defer_lock);
   while(true) {
-    while(m_currentResultBufsLen <= 0 && m_currentResultBufsIdx == m_oldestResultBufsIdx && !isKilled)
-      serverWaitingForBatchStart.wait(lock);
-
-    if(isKilled)
+    resultBufs.clear();
+    int desiredBatchSize = std::min(maxBatchSize, currentBatchSize.load(std::memory_order_acquire));
+    bool gotAnything = queryQueue.waitPopUpToN(resultBufs,desiredBatchSize);
+    //Queue being closed is a signal that we're done.
+    if(!gotAnything)
       break;
 
-    std::swap(m_resultBufss[m_oldestResultBufsIdx],buf.resultBufs);
+    int numRows = (int)resultBufs.size();
+    assert(numRows > 0);
 
-    int numRows;
-    //We grabbed everything in the latest buffer, so clients should move on to an entirely new buffer
-    if(m_currentResultBufsIdx == m_oldestResultBufsIdx) {
-      m_oldestResultBufsIdx = (m_oldestResultBufsIdx + 1) & numResultBufssMask;
-      m_currentResultBufsIdx = m_oldestResultBufsIdx;
-      numRows = m_currentResultBufsLen;
-      m_currentResultBufsLen = 0;
-    }
-    //We grabbed a buffer that clients have already entirely moved onward from.
-    else {
-      m_oldestResultBufsIdx = (m_oldestResultBufsIdx + 1) & numResultBufssMask;
-      numRows = maxNumRows;
-    }
-
-    numOngoingEvals += 1;
-    bool doRandomize = currentDoRandomize;
-    int defaultSymmetry = currentDefaultSymmetry;
-    lock.unlock();
+    bool doRandomize = currentDoRandomize.load(std::memory_order_acquire);
+    int defaultSymmetry = currentDefaultSymmetry.load(std::memory_order_acquire);
 
     if(debugSkipNeuralNet) {
       for(int row = 0; row < numRows; row++) {
-        assert(buf.resultBufs[row] != NULL);
-        NNResultBuf* resultBuf = buf.resultBufs[row];
-        buf.resultBufs[row] = NULL;
+        assert(resultBufs[row] != NULL);
+        NNResultBuf* resultBuf = resultBufs[row];
+        resultBufs[row] = NULL;
 
         int boardXSize = resultBuf->boardXSizeForServer;
         int boardYSize = resultBuf->boardYSizeForServer;
@@ -530,10 +491,10 @@ void NNEvaluator::serve(
       outputBuf.clear();
       for(int row = 0; row<numRows; row++) {
         NNOutput* emptyOutput = new NNOutput();
-        assert(buf.resultBufs[row] != NULL);
+        assert(resultBufs[row] != NULL);
         emptyOutput->nnXLen = nnXLen;
         emptyOutput->nnYLen = nnYLen;
-        if(buf.resultBufs[row]->includeOwnerMap)
+        if(resultBufs[row]->includeOwnerMap)
           emptyOutput->whiteOwnerMap = new float[nnXLen*nnYLen];
         else
           emptyOutput->whiteOwnerMap = NULL;
@@ -541,17 +502,17 @@ void NNEvaluator::serve(
       }
 
       for(int row = 0; row<numRows; row++) {
-        if(buf.resultBufs[row]->symmetry == NNInputs::SYMMETRY_NOTSPECIFIED) {
+        if(resultBufs[row]->symmetry == NNInputs::SYMMETRY_NOTSPECIFIED) {
           if(doRandomize)
-            buf.resultBufs[row]->symmetry = rand.nextUInt(SymmetryHelpers::NUM_SYMMETRIES);
+            resultBufs[row]->symmetry = rand.nextUInt(SymmetryHelpers::NUM_SYMMETRIES);
           else {
             assert(defaultSymmetry >= 0 && defaultSymmetry <= SymmetryHelpers::NUM_SYMMETRIES-1);
-            buf.resultBufs[row]->symmetry = defaultSymmetry;
+            resultBufs[row]->symmetry = defaultSymmetry;
           }
         }
       }
 
-      NeuralNet::getOutput(gpuHandle, buf.inputBuffers, numRows, buf.resultBufs, outputBuf);
+      NeuralNet::getOutput(gpuHandle, buf.inputBuffers, numRows, resultBufs.data(), outputBuf);
       assert(outputBuf.size() == numRows);
 
       m_numRowsProcessed.fetch_add(numRows, std::memory_order_relaxed);
@@ -560,9 +521,9 @@ void NNEvaluator::serve(
       numBatchesHandledThisThread += 1;
 
       for(int row = 0; row < numRows; row++) {
-        assert(buf.resultBufs[row] != NULL);
-        NNResultBuf* resultBuf = buf.resultBufs[row];
-        buf.resultBufs[row] = NULL;
+        assert(resultBufs[row] != NULL);
+        NNResultBuf* resultBuf = resultBufs[row];
+        resultBufs[row] = NULL;
 
         unique_lock<std::mutex> resultLock(resultBuf->resultMutex);
         assert(resultBuf->hasResult == false);
@@ -575,13 +536,14 @@ void NNEvaluator::serve(
 
     //Lock and update stats before looping again
     lock.lock();
-    numOngoingEvals -= 1;
+    numOngoingEvals -= numRows;
 
     if(numWaitingEvals > 0) {
       numEvalsToAwaken += numWaitingEvals;
       numWaitingEvals = 0;
       waitingForFinish.notify_all();
     }
+    lock.unlock();
     continue;
   }
 
@@ -736,24 +698,11 @@ void NNEvaluator::evaluate(
   buf.policyOptimism = nnInputParams.policyOptimism;
 
   unique_lock<std::mutex> lock(bufferMutex);
-
-  m_resultBufss[m_currentResultBufsIdx][m_currentResultBufsLen] = &buf;
-  m_currentResultBufsLen += 1;
-  if(m_currentResultBufsLen == 1 && m_currentResultBufsIdx == m_oldestResultBufsIdx)
-    serverWaitingForBatchStart.notify_one();
-
-  bool overlooped = false;
-  if(m_currentResultBufsLen >= maxNumRows) {
-    m_currentResultBufsLen = 0;
-    m_currentResultBufsIdx = (m_currentResultBufsIdx + 1) & numResultBufssMask;
-    overlooped = m_currentResultBufsIdx == m_oldestResultBufsIdx;
-  }
+  numOngoingEvals += 1;
   lock.unlock();
 
-  //This should only fire if we have more than maxConcurrentEvals evaluating, such that they wrap the
-  //circular buffer.
-  assert(!overlooped);
-  (void)overlooped; //Avoid unused variable when asserts disabled
+  bool suc = queryQueue.forcePush(&buf);
+  assert(suc);
 
   unique_lock<std::mutex> resultLock(buf.resultMutex);
   while(!buf.hasResult)

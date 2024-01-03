@@ -525,11 +525,13 @@ void Search::runWholeSearch(
           (numPlayouts >= maxPlayouts) ||
           (numPlayouts + numNonPlayoutVisits >= maxVisits);
 
+        //Time limits cannot stop us from doing at least a little search so we have a non-null tree
         if(hasMaxTime && numPlayouts >= 2 && timeUsed >= maxTime)
           shouldStop = true;
         if(hasTc && numPlayouts >= 2 && timeUsed >= tcMaxTimeLimit)
           shouldStop = true;
 
+        //But an explicit stop signal can stop us from doing any search
         if(shouldStop || shouldStopNow.load(std::memory_order_relaxed)) {
           shouldStopNow.store(true,std::memory_order_relaxed);
           break;
@@ -582,10 +584,14 @@ void Search::runWholeSearch(
   //If the search did not actually do anything, we need to still make sure to update the root node if it needs
   //such an update (since root params may differ from tree params).
   if(rootNode != NULL && rootNode->nodeAge.load(std::memory_order_acquire) != searchNodeAge) {
-    const int threadIdx = 0;
-    const bool isRoot = true;
-    SearchThread thread(threadIdx,*this);
-    maybeRecomputeExistingNNOutput(thread,*rootNode,isRoot);
+    //Also check if the root node even got an nn eval or not. It might not be, if we quit the search instantly upon
+    //start due to an explicit stop signal
+    if(rootNode->getNNOutput() != nullptr) {
+      const int threadIdx = 0;
+      const bool isRoot = true;
+      SearchThread thread(threadIdx,*this);
+      maybeRecomputeExistingNNOutput(thread,*rootNode,isRoot);
+    }
   }
 
   //Relaxed load is fine since numPlayoutsShared should be synchronized already due to the joins
