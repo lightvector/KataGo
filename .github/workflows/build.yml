@@ -98,7 +98,7 @@ jobs:
     - name: Run KataGo GPU error test with Eigen backend
       run: |
         cd cpp/build
-        ./katago testgpuerror -config ../configs/gtp_example.cfg -model model.bin.gz -boardsize 9 -basefile base.bin
+        ./katago testgpuerror -config ../configs/gtp_example.cfg -model model.bin.gz -boardsize 9 -reference-file base.bin
 
     - name: Build KataGo with CoreML backend
       run: |
@@ -132,7 +132,7 @@ jobs:
     - name: Run KataGo GPU error test with CoreML backend
       run: |
         cd cpp/build
-        ./katago testgpuerror -config gtp.cfg -model model.bin.gz -boardsize 9 -basefile base.bin
+        ./katago testgpuerror -config gtp.cfg -model model.bin.gz -boardsize 9 -reference-file base.bin
 
     - name: Setup test data
       run: |
