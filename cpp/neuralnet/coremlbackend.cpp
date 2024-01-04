@@ -112,7 +112,8 @@ void CoreMLProcess::processOwnership(
   const int nnYLen = gpuHandle->nnYLen;
   const int modelXLen = gpuHandle->modelXLen;
 
-  const size_t singleOwnershipResultElts = inputBuffers->singleNnOwnershipResultElts;
+  // CoreML model and NN ownership result elements differ 
+  const size_t singleOwnershipResultElts = inputBuffers->singleModelOwnershipResultElts;
   const size_t singleOwnerMapElts = inputBuffers->singleOwnerMapElts;
 
   // Calculate starting points in the buffers
