@@ -154,7 +154,8 @@ struct ModelParser {
   ModelParser(const ModelParser&) = delete;
   ModelParser& operator=(const ModelParser&) = delete;
 
-  static constexpr int tuneSalt = 4;  // Bump this when between katago versions we want to forcibly drop old timing caches and plan caches.
+  // Bump this when between katago versions we want to forcibly drop old timing caches and plan caches.
+  static constexpr int tuneSalt = 4;
 
   unique_ptr<TRTModel> build(
     unique_ptr<INetworkDefinition> net,
@@ -476,8 +477,7 @@ struct ModelParser {
       outputPolicyPass->setName("OutputPolicyPass");
       outputPolicyPass->setType(DataType::kFLOAT);
       outputPolicyPass->setAllowedFormats(1U << static_cast<int>(TensorFormat::kLINEAR));
-    }
-    else {
+    } else {
       auto gpoolToPassMulLayer = buildMatMulLayer(gpoolLayer->getOutput(0), &desc->gpoolToPassMul, true);
       gpoolToPassMulLayer->setPrecision(DataType::kFLOAT);
 
@@ -1053,8 +1053,7 @@ struct ComputeHandle {
         ctx->nnYLen,
         ctx->nnXLen,
         maxBatchSize,
-        usingFP16 ? 16 : 32
-      );
+        usingFP16 ? 16 : 32);
       string paramStr = Global::strprintf(
         "_%d_%s_%d_%s_%d_%d_%d_%d",
         getInferLibVersion(),
@@ -1064,8 +1063,7 @@ struct ComputeHandle {
         ctx->nnYLen,
         ctx->nnXLen,
         maxBatchSize,
-        usingFP16 ? 16 : 32
-      );
+        usingFP16 ? 16 : 32);
       try {
         plan = FileUtils::readFileBinary(planCacheFile);
       } catch(const StringError& e) {
@@ -1076,20 +1074,17 @@ struct ComputeHandle {
         if(plan.size() < 64 + paramStr.size()) {
           logger->write("Could not parse plan, unexpected size in " + planCacheFile);
           plan.clear();
-        }
-        else {
-          string cachedParamStr = plan.substr(plan.size()-paramStr.size());
-          string modelHash = plan.substr(plan.size()-64-paramStr.size(),64);
+        } else {
+          string cachedParamStr = plan.substr(plan.size() - paramStr.size());
+          string modelHash = plan.substr(plan.size() - 64 - paramStr.size(), 64);
           if(modelHash != loadedModel->modelDesc.sha256) {
             logger->write("Plan cache is corrupted or is for the wrong model in " + planCacheFile);
             plan.clear();
-          }
-          else if(cachedParamStr != paramStr) {
+          } else if(cachedParamStr != paramStr) {
             logger->write("Plan cache is corrupted or is for the wrong parameters in " + planCacheFile);
             plan.clear();
-          }
-          else {
-            plan.erase(plan.size()-64-paramStr.size());
+          } else {
+            plan.erase(plan.size() - 64 - paramStr.size());
           }
         }
       }
@@ -1103,27 +1098,18 @@ struct ComputeHandle {
         plan.insert(
           plan.end(),
           static_cast<char*>(planBuffer->data()),
-          static_cast<char*>(planBuffer->data()) + planBuffer->size()
-        );
+          static_cast<char*>(planBuffer->data()) + planBuffer->size());
         if(loadedModel->modelDesc.sha256.size() != 64) {
           throw StringError("Unexpected model hash size");
         }
-        plan.insert(
-          plan.end(),
-          loadedModel->modelDesc.sha256.begin(),
-          loadedModel->modelDesc.sha256.end()
-        );
-        plan.insert(
-          plan.end(),
-          paramStr.begin(),
-          paramStr.end()
-        );
+        plan.insert(plan.end(), loadedModel->modelDesc.sha256.begin(), loadedModel->modelDesc.sha256.end());
+        plan.insert(plan.end(), paramStr.begin(), paramStr.end());
         ofstream ofs;
         FileUtils::open(ofs, planCacheFile, ios::out | ios::binary);
         ofs.write(plan.data(), plan.size());
         ofs.close();
         logger->write("Saved new plan cache to " + planCacheFile);
-        plan.erase(plan.size()-64-paramStr.size());
+        plan.erase(plan.size() - 64 - paramStr.size());
         tuneMutex.unlock();
       } else {
         tuneMutex.unlock();
@@ -1348,7 +1334,8 @@ ComputeHandle* NeuralNet::createComputeHandle(
   if(logger != NULL) {
     logger->write(
       "TensorRT backend thread " + Global::intToString(serverThreadIdx) + ": Model version " +
-      Global::intToString(loadedModel->modelDesc.modelVersion) + " useFP16 = " + Global::boolToString(handle->usingFP16));
+      Global::intToString(loadedModel->modelDesc.modelVersion) +
+      " useFP16 = " + Global::boolToString(handle->usingFP16));
     logger->write(
       "TensorRT backend thread " + Global::intToString(serverThreadIdx) +
       ": Model name: " + loadedModel->modelDesc.name);
@@ -1619,15 +1606,15 @@ void NeuralNet::getOutput(
     // Handle version >= 12 policy optimism
     if(numPolicyChannels == 2) {
       // TRT is all NCHW
-      for(int i = 0; i<nnXLen*nnYLen; i++) {
+      for(int i = 0; i < nnXLen * nnYLen; i++) {
         float p = policySrcBuf[i];
-        float pOpt = policySrcBuf[i+nnXLen*nnYLen];
-        policyProbsTmp[i] = p + (pOpt-p) * policyOptimism;
+        float pOpt = policySrcBuf[i + nnXLen * nnYLen];
+        policyProbsTmp[i] = p + (pOpt - p) * policyOptimism;
       }
-      SymmetryHelpers::copyOutputsWithSymmetry(policyProbsTmp, policyProbs, 1, nnYLen, nnXLen, inputBufs[row]->symmetry);
-      policyProbs[nnXLen*nnYLen] = policyPassSrcBuf[0] + (policyPassSrcBuf[1] - policyPassSrcBuf[0]) * policyOptimism;
-    }
-    else {
+      SymmetryHelpers::copyOutputsWithSymmetry(
+        policyProbsTmp, policyProbs, 1, nnYLen, nnXLen, inputBufs[row]->symmetry);
+      policyProbs[nnXLen * nnYLen] = policyPassSrcBuf[0] + (policyPassSrcBuf[1] - policyPassSrcBuf[0]) * policyOptimism;
+    } else {
       assert(numPolicyChannels == 1);
       SymmetryHelpers::copyOutputsWithSymmetry(policySrcBuf, policyProbs, 1, nnYLen, nnXLen, inputBufs[row]->symmetry);
       policyProbs[nnXLen * nnYLen] = policyPassSrcBuf[0];
