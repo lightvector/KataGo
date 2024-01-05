@@ -11,15 +11,15 @@ This command installs [Ninja](https://ninja-build.org) onto your system.
 ## Source Code Acquisition
 For the creation of a KataGo executable and corresponding CoreML models, initiate by downloading the source code. Build KataGo equipped with the Metal and CoreML backends by executing:
 ```
-wget https://github.com/ChinChangYang/KataGo/archive/refs/tags/v1.13.2-coreml2.tar.gz
-tar -zxvf v1.13.2-coreml2.tar.gz
+wget https://github.com/ChinChangYang/KataGo/archive/metal-coreml-stable.tar.gz
+tar -zxvf metal-coreml-stable.tar.gz
 ```
-This command retrieves the `v1.13.2-coreml2` source code version and decompresses the tarball into the `KataGo-1.13.2-coreml2` directory.
+This command retrieves the `metal-coreml-stable` source code version and decompresses the tarball into the `KataGo-metal-coreml-stable` directory.
 
 ## Preparing the Workspace
 Transition into the workspace directory where the KataGo models and executable will be built:
 ```
-cd KataGo-1.13.2-coreml2
+cd KataGo-metal-coreml-stable
 ```
 
 ## Compiling KataGo
@@ -74,3 +74,49 @@ Activate the analysis engine with the `analysis` command, specify the binary mod
 ./katago analysis -model kata1-b18c384nbt-s8341979392-d3881113763.bin.gz -config ../configs/misc/coreml_analysis.cfg
 ```
 This initiates the analysis mode, taking advantage of both Metal and CoreML backends.
+
+## Updating the CoreML model
+
+### Prerequisite Software Installation
+
+Before initiating the update process, it is crucial to install the required software. Start by installing `miniconda`, then create and activate a Python environment specifically for `coremltools`. Follow these commands:
+
+```
+brew install miniconda
+conda create -n coremltools python=3.8
+conda activate coremltools
+pip install coremltools torch
+```
+
+This sequence first installs `miniconda`. Subsequently, a dedicated environment named `coremltools` is created using Python version 3.8. Finally, within this environment, `coremltools` and `torch` are installed, setting the stage for the model update process.
+
+### Downloading the Checkpoint File
+
+The next step involves acquiring the latest and most robust network checkpoint from the KataGo Networks. Navigate to [KataGo Networks](https://katagotraining.org/networks/) and select the strongest confidently-rated network available. For instance, if `kata1-b18c384nbt-s8526915840-d3929217702` is the latest, download the corresponding `.zip` file, such as `kata1-b18c384nbt-s8526915840-d3929217702.zip`. Upon downloading, unzip the file to access the `model.ckpt` checkpoint file.
+
+### Converting the Checkpoint File
+
+**To Binary Model**
+
+Utilize the `export_model_pytorch.py` script to transform the checkpoint file into a binary model compatible with the Metal backend:
+
+```
+python python/export_model_pytorch.py -checkpoint model.ckpt -export-dir model -model-name model -filename-prefix model -use-swa
+gzip model/model.bin
+```
+
+Executing this command sequence generates a compressed binary model file named `model.bin.gz`.
+
+**To CoreML Model**
+
+Similarly, for converting the checkpoint file into a CoreML model, the `convert_coreml_pytorch.py` script is employed:
+
+```
+python python/convert_coreml_pytorch.py -checkpoint model.ckpt -use-swa
+```
+
+This script outputs the CoreML model directory `KataGoModel19x19fp16.mlpackage`, specifically tailored for the CoreML backend.
+
+### Reorganizing the Models
+
+Post-conversion, it is advisable to reorganize the models for optimal accessibility. While relocating the binary model to the run directory is optional, linking the CoreML model within this directory is essential for its effective utilization by the CoreML backend.
