@@ -207,7 +207,6 @@
 		E118EE972B081C3300637D44 /* katago.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = E118EE902B081C3200637D44 /* katago.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		E149B7F42B350EA8002B7F61 /* parallel.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E149B7F22B350EA8002B7F61 /* parallel.cpp */; };
 		E149B7F52B350EA8002B7F61 /* parallel.h in Headers */ = {isa = PBXBuildFile; fileRef = E149B7F32B350EA8002B7F61 /* parallel.h */; };
-		E149B7F62B351029002B7F61 /* KataGoModel19x19fp16.mlpackage in Resources */ = {isa = PBXBuildFile; fileRef = E18F3F732A514B9500D335E1 /* KataGoModel19x19fp16.mlpackage */; };
 		E18F3E112A51466A00D335E1 /* KataGo_iOSApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = E18F3E102A51466A00D335E1 /* KataGo_iOSApp.swift */; };
 		E18F3E132A51466A00D335E1 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E18F3E122A51466A00D335E1 /* ContentView.swift */; };
 		E18F3E152A51466C00D335E1 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = E18F3E142A51466C00D335E1 /* Assets.xcassets */; };
@@ -220,6 +219,7 @@
 		E18F3F782A514B9700D335E1 /* default_gtp.cfg in Resources */ = {isa = PBXBuildFile; fileRef = E18F3F752A514B9700D335E1 /* default_gtp.cfg */; };
 		E19D2E362AC8E5DB00C2A807 /* KataGoModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = E19D2E352AC8E5DB00C2A807 /* KataGoModel.swift */; };
 		E19D2E382AC97FA300C2A807 /* ToolbarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E19D2E372AC97FA300C2A807 /* ToolbarView.swift */; };
+		E1A26B4B2B47693300BA922B /* KataGoModel29x29fp16.mlpackage in Resources */ = {isa = PBXBuildFile; fileRef = E1A26B492B47684400BA922B /* KataGoModel29x29fp16.mlpackage */; };
 		E1B63BE42AABDF3500094965 /* BoardLineView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1B63BE32AABDF3500094965 /* BoardLineView.swift */; };
 		E1B922752A5179A7006D3137 /* KataGoHelper.mm in Sources */ = {isa = PBXBuildFile; fileRef = E1B922742A5179A7006D3137 /* KataGoHelper.mm */; };
 		E1C682712AA2A4E7001B4F44 /* GobanView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1C682702AA2A4E7001B4F44 /* GobanView.swift */; };
@@ -492,11 +492,11 @@
 		E18F3E2B2A51466C00D335E1 /* KataGo_iOSUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KataGo_iOSUITests.swift; sourceTree = "<group>"; };
 		E18F3E2D2A51466C00D335E1 /* KataGo_iOSUITestsLaunchTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KataGo_iOSUITestsLaunchTests.swift; sourceTree = "<group>"; };
 		E18F3F712A5149AB00D335E1 /* libz.tbd */ = {isa = PBXFileReference; lastKnownFileType = "sourcecode.text-based-dylib-definition"; name = libz.tbd; path = usr/lib/libz.tbd; sourceTree = SDKROOT; };
-		E18F3F732A514B9500D335E1 /* KataGoModel19x19fp16.mlpackage */ = {isa = PBXFileReference; explicitFileType = wrapper.application; path = KataGoModel19x19fp16.mlpackage; sourceTree = "<group>"; };
 		E18F3F742A514B9700D335E1 /* default_model.bin.gz */ = {isa = PBXFileReference; lastKnownFileType = archive.gzip; path = default_model.bin.gz; sourceTree = "<group>"; };
 		E18F3F752A514B9700D335E1 /* default_gtp.cfg */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = default_gtp.cfg; sourceTree = "<group>"; };
 		E19D2E352AC8E5DB00C2A807 /* KataGoModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KataGoModel.swift; sourceTree = "<group>"; };
 		E19D2E372AC97FA300C2A807 /* ToolbarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToolbarView.swift; sourceTree = "<group>"; };
+		E1A26B492B47684400BA922B /* KataGoModel29x29fp16.mlpackage */ = {isa = PBXFileReference; explicitFileType = wrapper.application; path = KataGoModel29x29fp16.mlpackage; sourceTree = "<group>"; };
 		E1B63BE32AABDF3500094965 /* BoardLineView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BoardLineView.swift; sourceTree = "<group>"; };
 		E1B922742A5179A7006D3137 /* KataGoHelper.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = KataGoHelper.mm; sourceTree = "<group>"; };
 		E1B922762A5179C6006D3137 /* KataGoHelper.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = KataGoHelper.h; sourceTree = "<group>"; };
@@ -927,9 +927,9 @@
 		E18F3F792A514BA700D335E1 /* Resources */ = {
 			isa = PBXGroup;
 			children = (
+				E1A26B492B47684400BA922B /* KataGoModel29x29fp16.mlpackage */,
 				E18F3F752A514B9700D335E1 /* default_gtp.cfg */,
 				E18F3F742A514B9700D335E1 /* default_model.bin.gz */,
-				E18F3F732A514B9500D335E1 /* KataGoModel19x19fp16.mlpackage */,
 			);
 			path = Resources;
 			sourceTree = "<group>";
@@ -1196,7 +1196,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				E149B7F62B351029002B7F61 /* KataGoModel19x19fp16.mlpackage in Resources */,
+				E1A26B4B2B47693300BA922B /* KataGoModel29x29fp16.mlpackage in Resources */,
 				E18F3F782A514B9700D335E1 /* default_gtp.cfg in Resources */,
 				E18F3E182A51466C00D335E1 /* Preview Assets.xcassets in Resources */,
 				E18F3E152A51466C00D335E1 /* Assets.xcassets in Resources */,
