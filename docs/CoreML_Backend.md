@@ -117,6 +117,14 @@ python python/convert_coreml_pytorch.py -checkpoint model.ckpt -use-swa
 
 This script outputs the CoreML model directory `KataGoModel19x19fp16.mlpackage`, specifically tailored for the CoreML backend.
 
+However, it's important to note a specific scenario: If KataGo has been compiled with the option `COMPILE_MAX_BOARD_LEN=29` to support larger 29x29 board sizes, the CoreML model conversion requires an additional parameter. In such cases, include the `-pos-len 29` option in the script command to ensure compatibility with the larger board size. The command modifies as follows:
+
+```
+python python/convert_coreml_pytorch.py -checkpoint model.ckpt -use-swa -pos-len 29
+```
+
+This adjustment in the command results in the creation of a distinct CoreML model directory, `KataGoModel29x29fp16.mlpackage`, specifically tailored for KataGo versions supporting board sizes up to 29x29.
+
 ### Reorganizing the Models
 
 Post-conversion, it is advisable to reorganize the models for optimal accessibility. While relocating the binary model to the run directory is optional, linking the CoreML model within this directory is essential for its effective utilization by the CoreML backend.
