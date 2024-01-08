@@ -1159,6 +1159,7 @@ int MainCmds::samplesgfs(const vector<string>& args) {
     Parallel::iterRange(
       numThreads,
       sgfFiles.size(),
+      logger,
       std::function<void(int,size_t)>(processSgfFile)
     );
   };
@@ -1185,6 +1186,7 @@ int MainCmds::samplesgfs(const vector<string>& args) {
     Parallel::iterRange(
       numThreads,
       sgfs.size(),
+      logger,
       std::function<void(int,size_t)>(processSgf)
     );
     for(size_t j = 0; j<sgfs.size(); j++) {

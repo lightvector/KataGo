@@ -2378,6 +2378,7 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
   Parallel::iterRange(
     numWorkerThreads,
     std::min(maxFilesToLoad,sgfFiles.size()),
+    logger,
     std::function<void(int,size_t)>(processSgf)
   );
 
@@ -2393,6 +2394,7 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
   Parallel::iterRange(
     std::min(8,numWorkerThreads),
     numWorkerThreads,
+    logger,
     std::function<void(int,size_t)>(saveDataBufferJob)
   );
 
