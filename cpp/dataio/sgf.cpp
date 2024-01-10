@@ -174,6 +174,13 @@ const vector<string> SgfNode::getProperties(const string& key) const {
   return getProperties(key.c_str());
 }
 
+void SgfNode::addProperty(const string& key, const string& value) {
+  if(props == NULL)
+    props = new map<string,vector<string>>();
+  vector<string>& contents = (*props)[key];
+  contents.push_back(value);
+}
+
 bool SgfNode::hasPlacements() const {
   return props != NULL && (contains(*props,"AB") || contains(*props,"AW") || contains(*props,"AE"));
 }
@@ -597,12 +604,29 @@ string Sgf::getPlayerName(Player pla) const {
   return "";
 }
 
+bool Sgf::hasRootProperty(const std::string& property) const {
+  if(nodes.size() <= 0)
+    return false;
+  return nodes[0]->hasProperty(property);
+}
+
 std::string Sgf::getRootPropertyWithDefault(const std::string& property, const std::string& defaultRet) const {
   if(nodes.size() <= 0)
     return defaultRet;
   if(!nodes[0]->hasProperty(property))
     return defaultRet;
   return nodes[0]->getSingleProperty(property);
+}
+
+std::vector<std::string> Sgf::getRootProperties(const std::string& property) const {
+  if(nodes.size() <= 0)
+    return std::vector<std::string>();
+  return nodes[0]->getProperties(property);
+}
+
+void Sgf::addRootProperty(const std::string& key, const std::string& value) {
+  checkNonEmpty(nodes);
+  nodes[0]->addProperty(key,value);
 }
 
 void Sgf::getPlacements(vector<Move>& moves, int xSize, int ySize) const {
@@ -1218,11 +1242,7 @@ static bool maybeParseProperty(SgfNode* node, const string& str, int& pos) {
       node->move = parseSgfLocOrPassNoSize(parseTextValue(str,pos),P_WHITE);
     }
     else {
-      if(node->props == NULL)
-        node->props = new map<string,vector<string>>();
-      vector<string>& contents = (*(node->props))[key];
-      string value = parseTextValue(str,pos);
-      contents.push_back(value);
+      node->addProperty(key,parseTextValue(str,pos));
     }
     if(peekSgfChar(str,pos,newPos) != ']')
       sgfFail("Expected closing bracket",str,pos);

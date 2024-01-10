@@ -31,6 +31,8 @@ struct SgfNode {
   const std::vector<std::string> getProperties(const char* key) const;
   const std::vector<std::string> getProperties(const std::string& key) const;
 
+  void addProperty(const std::string& key, const std::string& value);
+
   bool hasPlacements() const;
   void accumPlacements(std::vector<Move>& moves, int xSize, int ySize) const;
   void accumMoves(std::vector<Move>& moves, int xSize, int ySize) const;
@@ -75,7 +77,11 @@ struct Sgf {
   int getRating(Player pla) const;
   std::string getPlayerName(Player pla) const;
 
+  bool hasRootProperty(const std::string& property) const;
   std::string getRootPropertyWithDefault(const std::string& property, const std::string& defaultRet) const;
+  std::vector<std::string> getRootProperties(const std::string& property) const;
+
+  void addRootProperty(const std::string& key, const std::string& value);
 
   void getPlacements(std::vector<Move>& moves, int xSize, int ySize) const;
   void getMoves(std::vector<Move>& moves, int xSize, int ySize) const;

@@ -889,6 +889,11 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
       }
     }
 
+    //Hack since some foxwq sgfs aren't labeled - get komi to parse properly
+    if(whatDataSource == "fox" && !(sgfRaw->hasRootProperty("AP") && contains(sgfRaw->getRootProperties("AP"),"foxwq"))) {
+      sgfRaw->addRootProperty("AP","foxwq");
+    }
+
     const int boardArea = xySize.x * xySize.y;
     const double sqrtBoardArea = sqrt(boardArea);
     const string sizeStr = " (size " + Global::intToString(xySize.x) + "x" + Global::intToString(xySize.y) + ")";
@@ -991,6 +996,9 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
     else if(whatDataSource == "go4go") {
       sgfGameIsRated = true;
     }
+    else if(whatDataSource == "fox") {
+      sgfGameRatednessIsUnknown = true;
+    }
     else {
       throw StringError("Unknown what-data-source " + whatDataSource);
     }
@@ -1089,7 +1097,7 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
       }
     }
     //Some Fox games have implict handicap placement, rather than trying to match/replicate we just ignore it.
-    if(whatDataSource == "fox" && sgfHandicapParsed != 0) {
+    if(whatDataSource == "fox" && sgfHandicapParsed != 0 && sgfHandicapParsed != 1) {
       logger.write("Skipping handicap game, not implemented, for sgf: " + fileName + ": " + sgfHandicap + sizeStr);
       reportSgfDone(false,"GameSkipHandicap");
       return;
@@ -1117,11 +1125,26 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
         return;
       }
       //Ugly hack for fox that seems to have komi 0 when the real komi is 6.5
-      if(sgfRules == "Japanese" && sgfKomi == "0") {
+      if(sgfRules == "Japanese" && rules.komi == 0.0 && sgfHandicapParsed == 0) {
         rules.komi = 6.5;
       }
+      else if(
+        (sgfRules == "Japanese" && rules.komi == 0.0 && sgfHandicapParsed == 1)
+        || (sgfRules == "Japanese" && rules.komi == 6.5 && sgfHandicapParsed == 0)
+        || (sgfRules == "Japanese" && rules.komi == 7.5 && sgfHandicapParsed == 0)
+        || (sgfRules == "Chinese" && rules.komi == 0.0 && sgfHandicapParsed == 1)
+        || (sgfRules == "Chinese" && rules.komi == 7.5 && sgfHandicapParsed == 0)
+      ) {
+        //Good.
+      }
+      else if(sgfHandicapParsed == 1 && rules.komi != 0.0) {
+        //Weird, let's filter this out.
+        reportSgfDone(false,"GameHandicap1MismatchKomi");
+      }
       else {
-        throw StringError("Unhandled case " + sgfKomi + " " + sgfRules + " " + fileName);
+        throw StringError(
+          "Unhandled case " + sgfKomi + " " + sgfRules + " " +
+          Global::doubleToString(rules.komi) + " " + Global::intToString(sgfHandicapParsed) + " " + fileName);
       }
     }
     else if(whatDataSource == "gogod") {
