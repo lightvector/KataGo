@@ -252,6 +252,10 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
         logging.warning("WARNING: No GPU, using CPU")
         device = torch.device("cpu")
 
+    seed = int.from_bytes(os.urandom(7), sys.byteorder)
+    logging.info(f"Seeding torch with {seed}")
+    torch.manual_seed(seed)
+
     # LOAD MODEL ---------------------------------------------------------------------
 
     def lr_scale_auto_factor(train_state):
