@@ -177,8 +177,7 @@ By only averaging errors in a bucket rather than absolute utilities, we continue
 <sub>(This method was first experimented with in KataGo in early 2021, and released in June 2021 with v1.9.0).</sub>
 
 This method can be motivated and explained by a simple observation. Consider the PUCT formula that controls exploitation versus exploration in modern AlphaZero-style MCTS:
-
-<img height="45px" src="https://render.githubusercontent.com/render/math?math=\text{Next action to explore}=\text{argmax}_a \, Q(a) %2B c_{\text{PUCT}} P(a) \frac{\sqrt{\sum_b N(b)}}{1 %2B N(a)}">
+$$\text{Next action to explore}=\text{argmax}_a \, Q(a) + c_{\text{PUCT}} P(a) \frac{\sqrt{\sum_b N(b)}}{1 + N(a)}$$
 
 Suppose for a given game/subgame/situation/tactic the value of the cPUCT coefficient is k. Then, consider a game/subgame/situation/tactic that is identical except all the differences between all the Q values at every node are doubled (e.g. the differences between the winrates of moves and the results of playouts are doubled). In this new game, the optimal cPUCT coefficient is now 2k because a coefficient of 2k is what is needed to exactly replicate the original search behavior, given that the differences in Q are all twice as large as before.
 
