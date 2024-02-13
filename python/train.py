@@ -270,7 +270,13 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
             return 4.0
         if train_state["global_step_samples"] < 3400000000:
             return 3.0
-        return 2.0
+        if train_state["global_step_samples"] < 4200000000:
+            return 2.0
+        if train_state["global_step_samples"] < 4900000000:
+            return 1.5
+        if train_state["global_step_samples"] < 5500000000:
+            return 1.0
+        return 0.7
 
     def get_checkpoint_path():
         return os.path.join(traindir,"checkpoint.ckpt")
