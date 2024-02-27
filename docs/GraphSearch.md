@@ -232,7 +232,7 @@ Q(n) = \frac{1}{N(n)} \left( U(n) + \sum_{c \in \mbox{Children}(n)}\,\,  N(c) Q(
 
 In other words, rather than thinking of Q as the average utility of all playouts that visited $n$, we can think of it in recursive terms as the weighted average of the Q values of the $n$'s children (weighted by the child visit count). Plus a small $1/N(n)$ weight on the raw neural net utility estimate of $n$ itself, which is essentially a regularizing prior for Q when the visit count is low. This effectively gives us a new, recursive definition of Q in terms of child nodes' Q, rather than as an average of playouts.
 
-However, weighting by the child visit count is the same as weighting by the visit distribution. And the visit distribution is the "posterior policy" that MCTS is optimizing! In other words, the *interpretation* of Q is that it is the (slightly regularized, estimated) expected utility of the posterior policy that MCTS is continually optimizing. Each node continually updates and reports this improved Q value, which is then used by the parent node for *its* own policy optimziation, and so on.
+However, weighting by the child visit count is the same as weighting by the visit distribution. And the visit distribution is the "posterior policy" that MCTS is optimizing! In other words, the *interpretation* of Q is that it is the (slightly regularized, estimated) expected utility of the posterior policy that MCTS is continually optimizing. Each node continually updates and reports this improved Q value, which is then used by the parent node for *its* own policy optimization, and so on.
 
 In mathematical notation, letting $\hat{\pi}$ be the visit distribution that is our posterior policy, this looks like:
 ```math
@@ -349,7 +349,7 @@ However, when transpositions occur, it's common to encounter a child node alread
 
 Yes! We can just increment the edge visits and immediately skip to the step of updating the parent and it's ancestors without giving the child another visit. The child already has enough visits to "support" the upweighted edge visits that the parent wants to assign it.
 
-However, it's not  obvious that this is a good idea. Speculatively, there might be some competing considerations:
+However, it's not obvious that this is a good idea. Speculatively, there might be some competing considerations:
 * If the edge visit count is low, while the child visit count is high, then the marginal extra visit to that child is probably less informative and less likely to be worth the compute cost given that it's already high enough for that parent, favoring stopping.
 * Nodes that tend to have child visits > edge visits are likely the nodes that are being transposed to more often. This means they affect more parents, making it more important to evaluate them accurately, favoring continuing.
 
@@ -360,6 +360,16 @@ For reference, KataGo currently DOES stops the playout by default, but offers a 
     if child.N <= edge_visits:
         perform_one_playout(child)
 ```
+
+### Other Implementation Details
+
+There are also some other implementation details worth mentioning beyond the basic pseudocode given above.
+
+* For game-over nodes the above pseudocode recomputes them always to have N = 1 and U = Q = game outcome utility, no matter how many times they are visited. This is fine since it does not prevent the parents' edge visit count leading to these nodes to increase as normal, but one could also adopt the convention to increment N for a game-over node each time it is visited. Doing this and averaging the game outcome U values sampled would be important if the game outcome is stochastic and for some reason we can only stochastically sample game outcomes rather than directly compute the correct expected utility of those outcomes. Alternatively, if `get_utility_of_game_outcome` is deterministic but expensive, we could as a minor optimization skip computing it if it's already computed.
+
+* It's also possible to add broader handling for game-over utilities to propagate provable values up the graph faster. When game-over states are relevant, plain MCTS/MCGS doesn't converge to optimal as cheaply as classical searches like alpha-beta search, since there is no provision for recognizing when utility values are *certain* rather than needing more visits to refine their quality and trustworthiness.
+
+* Crafting a genuinely collision-free hash for a complex game state may be tricky and/or more costly than a simpler hash. Using a sufficiently-large [Zobrist hash](https://en.wikipedia.org/wiki/Zobrist_hashing), such as 128 or 192 bits, is usually sufficient in practice to ensure no collisions ever happen, except for the possibility of adversarial gamestates generated to attack the hash. Depending on one's level of paranoia, and/or whether the game rules already allow cycles and how that is being handled, one can also add cycle detection to avoid infinite recursion if a cycle does occur due to collision.
 
 ## Conclusion
 
