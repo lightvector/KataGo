@@ -1,6 +1,6 @@
 # Monte-Carlo Graph Search from First Principles
 
-Monte-Carlo Tree Search (MCTS) except applied to directed graphs instead of trees ("Monte-Carlo Graph Search", "MCGS") is sometimes considered to be pretty tricky to implement in a sound way. 
+Monte-Carlo Tree Search (MCTS) except applied to directed graphs instead of trees ("Monte-Carlo Graph Search", "MCGS") is sometimes considered to be pretty tricky to implement in a sound way.
 
 Unfortunately, this is partly because the perhaps-standard academic reference for it, [Monte-Carlo Graph Search for AlphaZero (Czech, Korus, and Kersting, 2020)](https://arxiv.org/pdf/2012.11045.pdf), adheres closely to the "standard" formulation for MCTS on trees. This historically-standard formulation turns out to be a poor choice for conceptually understanding the generalization to graphs. This document presents an essentially-equivalent-but-cleaner formulation that I hope many will find more intuitive, and derives from basic principles why graph search needs to work this way and reveals some additional possible implementation choices beyond those considered by Czech et. al.
 
@@ -17,11 +17,11 @@ When transpositions are possible in a game, usually the number of them will grow
 
 However, standard implementations of Monte-Carlo Tree Search (MCTS) usually do not do this. They treat the game as a branching tree and inefficiently re-search every instance of each duplicated position within the tree. Various low-level optimizations (for example, caching and re-using neural net evaluations for repeated positions) can greatly reduce the cost of the repeated work, but there are still major downsides. For example if MCTS discovers a critical tactic in one of the instances, the corrected evaluation of the position will not propagate to other instances.
 
-Can we instead model the state space as a directed acyclic graph (DAG) by sharing nodes in this tree? 
+Can we instead model the state space as a directed acyclic graph (DAG) by sharing nodes in this tree?
 
-Yes! Whenever multiple paths lead to the same state, we can represent that state with just one node in the graph. 
+Yes! Whenever multiple paths lead to the same state, we can represent that state with just one node in the graph.
 
-The tricky part is that applying MCTS naively to a DAG can easily result in an unsound algorithm. This is because MCTS is normally formulated in terms of *running statistics* of playouts, owing to its historical development as an extension of multi-armed-bandit-based methods to trees. For reasons we will see soon, naively applying this formulation to graphs does not work. 
+The tricky part is that applying MCTS naively to a DAG can easily result in an unsound algorithm. This is because MCTS is normally formulated in terms of *running statistics* of playouts, owing to its historical development as an extension of multi-armed-bandit-based methods to trees. For reasons we will see soon, naively applying this formulation to graphs does not work.
 
 [Czech, Korus, and Kersting](https://arxiv.org/pdf/2012.11045.pdf) do a great job of fixing the problems and arriving at a sound algorithm based on this formulation, in spite of the challenges. However, there is an equivalent alternative way to approach MCTS from the perspective of *online policy learning*. In this alternative formulation, as we will see, generalization to graphs is relatively natural. It turns out we still arrive at a similar final algorithm as Czech et. al., but we can derive from basic principles _why_ the algorithm needs to work that way. If we're willing to concede some low-level optimizations, the resulting code is also much simpler.
 
@@ -92,7 +92,9 @@ where:
 
 As an aside, "PUCT" originated as an abbreviation for "Polynomial Upper Confidence Bounds for Trees", a "polynomial" variant of the "UCT" or "UCB1" algorithms from the multi-armed-bandit literature which use a formula with a different exploration term that involves a log scaling (see [Kocsis and Szepesvári, 2006](http://old.sztaki.hu/~szcsaba/papers/ecml06.pdf)). Properly, "PUCT" might describe a whole class of such variants, but nowadays in game-playing/machine-learning circles "PUCT" often just refers to AlphaZero's particular version of the formula for how to select actions to explore, which is also what we focus on here.
 
-To run the overall MCTS algorithm, we perform as many playouts as we can before exhausting our compute budget for the turn. We select the final action by looking at the root node and picking the child node with the highest number of visits $N$ (note: NOT by picking the child with the highest $Q$, a child node with a high $Q$ and low $N$ will often be a blunder that just got a noisily high utility average due to insufficient search).
+Also, as far as the name "Monte-Carlo Tree Search" itself, readers might note that there is nothing "Monte-Carlo" in the above algorithm - that it's completely deterministic! The name comes from the fact that originally, randomized rollouts to the end of the game were used for utility estimates, instead of querying a neural net. In hindsight, the name was a poor historical choice - it would be more accurate to call the algorithm something like "Bandit-based Tree Search", but for years now pretty much universally everyone has continued to use "MCTS" to refer to the modern deterministic versions.
+
+Anyways, to run the overall MCTS algorithm, we perform as many playouts as we can before exhausting our compute budget for the turn. We select the final action by looking at the root node and picking the child node with the highest number of visits $N$ (note: NOT by picking the child with the highest $Q$, a child node with a high $Q$ and low $N$ will often be a blunder that just got a noisily high utility average due to insufficient search).
 
 Additionally, the **visit distribution** over actions at the root node, indicating what proportion of child visits from the root node went to each child, $N(a) / \sum_b N(b)$, (e.g. pawn to e5 got 40% of the total visits, knight to d4 got 15%, etc.), can be used as the target distribution to train a neural net's policy to predict, as in the AlphaZero training loop.
 
@@ -141,7 +143,7 @@ Moreover, suppose node A receives some playouts next. It's quite possible that f
 <tr><td><sub>Because C has many playouts, A might prefer to explore worse nodes, biasing its Q down!</sub></td></tr>
 </table>
 
-This is because although PUCT (for the square node player) prefers exploring actions with high Q values, it *also* prefers exploring actions with fewer visits so far. As the total sum of visits increases, PUCT gradually becomes willing to also spend a few visits trying some worse actions to ensure no tactic is missed. Depending on the values of parameters like the prior policy P and $c_{\text{PUCT}}$, the large number of visits on node C could well induce these visits to try other probably worse actions, because node C has "already been explored enough". 
+This is because although PUCT (for the square node player) prefers exploring actions with high Q values, it *also* prefers exploring actions with fewer visits so far. As the total sum of visits increases, PUCT gradually becomes willing to also spend a few visits trying some worse actions to ensure no tactic is missed. Depending on the values of parameters like the prior policy P and $c_{\text{PUCT}}$, the large number of visits on node C could well induce these visits to try other probably worse actions, because node C has "already been explored enough".
 
 This means that the Q value of node A might even tend to go *down* over the next playouts because it is receiving playouts from actions that are likely to be bad, instead of increasing up to the "correct" evaluation of 0.51. If C received enough more playouts quickly enough relative to A, node A could in theory continue to have a significantly worse utility indefinitely.
 
@@ -157,7 +159,7 @@ But consider the following situation:
 <tr><td><sub>Another initial situation</sub></td></tr>
 </table>
 
-Node D has Q = 0.55. Since the square player is maximizing, this is roughly consistent with the fact that the best node under it, node E, has Q = 0.56. Node D also has spent one playout exploring node F, discovering that it is a transposition to a node F which earlier received 9 other visits from a different branch of the search, for a total of 10. 
+Node D has Q = 0.55. Since the square player is maximizing, this is roughly consistent with the fact that the best node under it, node E, has Q = 0.56. Node D also has spent one playout exploring node F, discovering that it is a transposition to a node F which earlier received 9 other visits from a different branch of the search, for a total of 10.
 
 Now, suppose node F gets 100 more visits from the other branches of search:
 <table class="image">
@@ -173,7 +175,7 @@ This algorithm is unsound as well. One could further try many arbitrary hacks to
 
 Let's go back and look at a little bit of modern theory on why MCTS works, so that we can derive the correct generalization instead of guessing at hacks.
 
-The following paper offers a foundational machine-learning-flavored perspective on MCTS: [Monte-Carlo Tree Search as Regularized Policy Optimization (Grill et. al, 2020)](https://arxiv.org/abs/2007.12509). 
+The following paper offers a foundational machine-learning-flavored perspective on MCTS: [Monte-Carlo Tree Search as Regularized Policy Optimization (Grill et. al, 2020)](https://arxiv.org/abs/2007.12509).
 
 For us, the relevant high-level insight is that when MCTS updates its stats at different nodes, it is actually running a form of online policy learning. At any node, as we repeatedly apply the PUCT formula over successive iterations to pick child nodes to visit, the cumulative **visit distribution** chosen by PUCT approximates and converges toward the solution to the following optimization problem:
 
@@ -188,7 +190,7 @@ Where:
 * And where $\lambda_N$ is a coefficient determining the strength of the KL-divergence term relative to the expected utility that decays at a particular rate as the number of visits N increases. As we search more and collect more confident evidence about the utilities of the actions, $\lambda_N$ decays and we become increasingly willing to deviate from the prior policy for smaller estimated improvements in utility.
 * The above is true for the PUCT formula for AlphaZero-style MCTS, but various analogous things are also true for other forms of MCTS that use different exploration formulas.
 
-In other words, the visit distribution of MCTS is itself a "posterior policy", and this posterior policy is an approximation to a smoother policy that starts out with the prior policy P from the neural net and which gradually improves it to maximize expected utility as more visits accumulate and give better evidence of the true utilities of the child nodes. 
+In other words, the visit distribution of MCTS is itself a "posterior policy", and this posterior policy is an approximation to a smoother policy that starts out with the prior policy P from the neural net and which gradually improves it to maximize expected utility as more visits accumulate and give better evidence of the true utilities of the child nodes.
 
 Effectively, MCTS is dynamically running a little learning algorithm locally at every node of the tree simultaneously, starting from the neural net's best guesses of policy and utility value, and improving further.
 
@@ -199,7 +201,7 @@ As an aside, it's also possible to compute the *exact* solution to the above opt
 ### Taking another look at Q
 Let's also dig a bit deeper into what the running statistics in MCTS might mean from this perspective, especially Q.
 
-Recall that whenever we visit a node $n$ for the first time, the visiting playout $p$ returns the raw neural net utility prediction $U(n)$ for the game position. 
+Recall that whenever we visit a node $n$ for the first time, the visiting playout $p$ returns the raw neural net utility prediction $U(n)$ for the game position.
 All playouts beyond the first one visiting $n$ will explore one of the children of $n$ and return the raw neural net utility estimate of some descendant of the node.
 Let $\mbox{Playouts}(n)$ indicate the set of all playouts that visit a node $n$, and let $U(p)$ also be the utility returned by a playout $p$:
 
@@ -208,7 +210,7 @@ Earlier, we defined $N$ and $Q$ for any node $n$:
 > * N - the number of visits so far to this node, i.e. playouts that ended on or passed through this node.
 > * Q - the running average of the utility values sampled by those playouts.
 
-In other words, 
+In other words,
 ```math
 Q(n) = \frac{1}{N(n)} \sum_{p \in \mbox{Playouts}(n)} U(p)
 ```
@@ -320,7 +322,7 @@ However, stale Q values do make the search inefficient. After all, shared Q valu
 
 Another thing to notice about the given pseudocode algorithm is that it uses an idempotent update for N and Q. In this implementation, regardless of what has happened before or how many intermediate updates have happened, a single visit to a node always ensures that its N and Q are correct.
 
-It is also possible to formulate an incremental update that is equivalent, or at least one that is equivalent in the limit of many visits. 
+It is also possible to formulate an incremental update that is equivalent, or at least one that is equivalent in the limit of many visits.
 
 This is analogous to how for the original MCTS on trees, the following two updates are equivalent:
 ```python
@@ -339,7 +341,7 @@ If one does NOT need to squeeze out the extra computational performance (e.g. if
 
 ### Continuing vs Stopping Playouts when Child Visits > Edge Visits
 
-In standard MCTS, adding an edge visit is the same thing as adding a child visit. These two concepts are the same on trees and we only needed to distinguish them when we move to graphs. 
+In standard MCTS, adding an edge visit is the same thing as adding a child visit. These two concepts are the same on trees and we only needed to distinguish them when we move to graphs.
 
 We can rephrase this in the language of policy optimization: whenever one upweights a given move in the node's posterior policy (by adding an edge visit), one also gives that move an incrementally larger bit of exploration to validate the Q value that it claims to have (by adding a child visit). As mentioned in [footnote 3](#footnote3), that the two increase together is good for robustness, and generally it's necessary for convergence/soundness that the child visit count tends to infinity as the edge visit count tends to infinity.
 
@@ -367,7 +369,7 @@ I hope at least some people find this document and explanation of Monte-Carlo Gr
 
 <a name="footnote1" href="#footnotesrc1">1</a>: It's also common to see code that tracks NxQ instead of Q, i.e. the running *sum* of playout utilities rather than the running average, and only divides by N at the end when querying the utility. This leads to a slightly simpler update, but in some cases may make certain lock-free multithreading implementations harder to reason about because it opens the chance for split reads: namely reading N and NxQ that are desynchronized, such that dividing NxQ by N gives a bogus value for Q.
 
-<a name="footnote2" href="#footnotesrc2">2</a>: In general, $D_{\text{KL}}(Y || X) = E_Y (\log(Y) - \log(X))$ is _"How surprised will I be if Y is true, given I initially believe X?"_. 
+<a name="footnote2" href="#footnotesrc2">2</a>: In general, $D_{\text{KL}}(Y || X) = E_Y (\log(Y) - \log(X))$ is _"How surprised will I be if Y is true, given I initially believe X?"_.
 
 For example suppose Y is the same as X except that Y puts a little bit of probability mass on an outcome A that X considers to be earthshatteringly unlikely. Then:
 * $D_{\text{KL}}(Y || X)$ will be large because even if Y doesn't think A is too likely, if A does happen X will be astronomically surprised.
@@ -375,11 +377,11 @@ For example suppose Y is the same as X except that Y puts a little bit of probab
 
 Given the roles these play, often one sees something like $D_{\text{KL}}(\text{Posterior || Prior})$, "How surprised will I be if Posterior is true, given I initially believe Prior?". Penalizing this term would mean that Posterior is encouraged to be a "subset/sharpening" of Prior. Posterior strongly wants to ONLY consider moves that Prior considers, but does NOT get penalized as much for failing to consider all of them.
 
-Here though, we have a reversed KL divergence, $D_{\text{KL}}(P || \pi)$ where $\pi$ is the Posterior and $P$ is the Prior. Penalizing this term means that Posterior is encouraged to be a "superset" of Prior. Posterior strongly wants to consider ALL moves that Prior considers, but does not get penalized as much if it also considers some moves that Prior would think to be earthshatteringly unlikely. 
+Here though, we have a reversed KL divergence, $D_{\text{KL}}(P || \pi)$ where $\pi$ is the Posterior and $P$ is the Prior. Penalizing this term means that Posterior is encouraged to be a "superset" of Prior. Posterior strongly wants to consider ALL moves that Prior considers, but does not get penalized as much if it also considers some moves that Prior would think to be earthshatteringly unlikely.
 
 Both KL divergences behave very similarly in the common case. But in the edge cases where they differ, the reversed KL divergence is arguably the better one for exploration (by making sure it considers ALL moves in the Prior) and for recovering from partial overfitting/overconfidence of the neural net (by tolerating when it considers moves that Prior thinks are entirely impossible), and this turns out to be the one MCTS implicitly uses.
 
-<a name="footnote3" href="#footnotesrc3">3</a>: A big challenge in practice with using the exact solution seems to be that using the direct solution to $\text{argmax}_{\pi} \sum_a \pi(a) Q(a) - \lambda_N KL(P || \pi)$ can sometimes put a large policy weight on a move with relatively few visits if its Q appears good enough. However, moves with high Q values but low visits are often erroneous, such as when a shallow search blunders by overlooking a key tactic. This problem maybe manifests more often at larger amounts of search the very shallow 50-visit searches tested in the paper. 
+<a name="footnote3" href="#footnotesrc3">3</a>: A big challenge in practice with using the exact solution seems to be that using the direct solution to $\text{argmax}_{\pi} \sum_a \pi(a) Q(a) - \lambda_N KL(P || \pi)$ can sometimes put a large policy weight on a move with relatively few visits if its Q appears good enough. However, moves with high Q values but low visits are often erroneous, such as when a shallow search blunders by overlooking a key tactic. This problem maybe manifests more often at larger amounts of search the very shallow 50-visit searches tested in the paper.
 
 From a theory perspective, we could say perhaps this is because the optimization problem doesn't account for differing _uncertainty_ based on the number of visits. There can also be problems due to correlations or adverse selection in the uncertainty in utilities, e.g. the same tactic occurs in many possible branches and throughout the search all the seemingly-highest-Q branches are *precisely* the branches overlooking that tactic and blundering. Using the visit distribution as the posterior policy is far more robust to this, because the only way to increase the weight of a move in the visit distribution is to actually search the move extensively. This means that a move cannot get a high weight until a deeper analysis of that move confirms the high Q value and cannot find any flaws in it.
 
