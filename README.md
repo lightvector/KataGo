@@ -41,6 +41,8 @@ KataGo's engine aims to be a useful tool for Go players and developers, and supp
 
 ## Training History and Research and Docs
 
+Here are some links to some docs/papers/posts about KataGo's research and training!
+
 * Paper about the major new ideas and techniques used in KataGo: [Accelerating Self-Play Learning in Go (arXiv)](https://arxiv.org/abs/1902.10565). Many of the specific parameters are outdated, but the general methods continue to be used.
 
 * Many major further improvements have been found since then, which have been incorporated into KataGo's more recent runs and are documented here: [KataGoMethods.md](docs/KataGoMethods.md).
