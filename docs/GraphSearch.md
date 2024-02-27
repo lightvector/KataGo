@@ -262,7 +262,7 @@ So, at each node $n$, we now track:
 
 And when computing PUCT, we use these edge visit counts rather than the child visit counts:
 ```math
-\text{Action to explore}=\text{argmax}_a \, Q(n,a) + c_{\text{PUCT}} P(n,a) \frac{\sqrt{\sum_b N(n,b)}}{1 + N(n,a)}$
+\text{Action to explore}=\text{argmax}_a \, \text{PlayerToMove}(n) * Q(n,a) + c_{\text{PUCT}} P(n,a) \frac{\sqrt{\sum_b N(n,b)}}{1 + N(n,a)}$
 ```
 
 A basic working algorithm might look like:
