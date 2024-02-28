@@ -322,18 +322,18 @@ However, stale Q values do make the search inefficient. After all, shared Q valu
 
 ### Incremental vs Idempotent Updates
 
-Another thing to notice about the given pseudocode algorithm is that it uses an idempotent update for N and Q. In this implementation, regardless of what has happened before or how many intermediate updates have happened, a single visit to a node always ensures that its N and Q are correct.
+Another thing to notice about the given pseudocode algorithm is that it uses an idempotent update for N and Q. In this implementation, regardless of what has happened before or how many intermediate updates have happened, a single visit to a node always ensures that its N and Q are correct as a function of its children.
 
 It is also possible to formulate an incremental update that is equivalent, or at least one that is equivalent in the limit of many visits.
 
-This is analogous to how for the original MCTS on trees, the following two updates are equivalent:
+This is analogous to how for the original MCTS on trees, the following two updates are equivalent following a single playout:
 ```python
     # Recursive, idempotent update
     node.Q = (1/node.N) * (node.U + sum(child.Q * child.N for child in node.children))
-    # Iterative update
+    # Incremental update. U is the final utility returned by the playout.
     node.Q = (1/node.N) * U + (node.N-1)/node.N * node.Q
 ```
-Here, the iterative update is a bit computationally cheaper since it doesn't require iteration over children.
+Here, the incremental update is a bit computationally cheaper since it doesn't require iteration over children.
 
 In the case of graphs, rather than trees, formulating a cheaper incremental update that behaves equivalently, or behaves equivalently in the limit, can be a little tricky, but it can be done and might result in higher performance. [Czech, Korus, and Kersting](https://arxiv.org/pdf/2012.11045.pdf) do in fact use a somewhat incremental formulation, since they approached the algorithm more directly from the historical "running statistics" presentation of MCTS, and so perhaps could be a reference for how to do this.
 
