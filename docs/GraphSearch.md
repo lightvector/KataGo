@@ -203,7 +203,7 @@ Let's also dig a bit deeper into what the running statistics in MCTS might mean 
 
 Recall that:
 * When we visit any node $n$ for the first time, the visiting playout $p$ returns the raw neural net utility prediction $U(n)$ for that game position.
-* All subsequent playouts visiting $n$ will explore one of the children of $n$ and return the raw neural net utility estimate of some descendant of the $n$.
+* All subsequent playouts visiting $n$ will explore one of the children of $n$ and return the raw neural net utility estimate of some descendant of $n$.
 
 Notationwise, let $\mbox{Playouts}(n)$ be the set of all playouts that visit $n$, and let $U(p)$ be the utility returned by any playout $p$.
 
@@ -232,7 +232,7 @@ Therefore:
 Q(n) = \frac{1}{N(n)} \left( U(n) + \sum_{c \in \mbox{Children}(n)}\,\,  N(c) Q(c) \right)
 ```
 
-In other words, rather than thinking of Q as the average utility of all playouts that visited $n$, we can think of it in recursive terms as the weighted average of the Q values of the $n$'s children (weighted by the child visit count). Plus a small $1/N(n)$ weight on the raw neural net utility estimate of $n$ itself, which is essentially a regularizing prior for Q when the visit count is low. This effectively gives us a new, recursive definition of Q in terms of child nodes' Q, rather than as an average of playouts.
+In other words, rather than thinking of Q as the average utility of all playouts that visited $n$, we can think of it in recursive terms as the weighted average of the Q values of $n$'s children (weighted by the child visit count). Plus a small $1/N(n)$ weight on the raw neural net utility estimate of $n$ itself, which is essentially a regularizing prior for Q when the visit count is low. This effectively gives us a new, recursive definition of Q in terms of child nodes' Q, rather than as an average of playouts.
 
 However, weighting by the child visit count is the same as weighting by the visit distribution. And the visit distribution is the "posterior policy" that MCTS is optimizing! In other words, the *interpretation* of Q is that it is the (slightly regularized, estimated) expected utility of the posterior policy that MCTS is optimizing. Each node continually updates and reports this improved Q value, which is then used by the parent node for *its* own policy optimization, and so on.
 
