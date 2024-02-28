@@ -1,6 +1,6 @@
 # Monte-Carlo Graph Search from First Principles
 
-Monte-Carlo Tree Search (MCTS) except applied to directed graphs instead of trees ("Monte-Carlo Graph Search", "MCGS") is sometimes considered to be pretty tricky to implement in a sound way.
+Monte-Carlo Tree Search (MCTS) except applied to directed graphs instead of trees - "Monte-Carlo Graph Search" ("MCGS") - is sometimes considered to be pretty tricky to implement in a sound way.
 
 Unfortunately, this is partly because the perhaps-standard academic reference for it, [Monte-Carlo Graph Search for AlphaZero (Czech, Korus, and Kersting, 2020)](https://arxiv.org/pdf/2012.11045.pdf), adheres closely to the "standard" formulation for MCTS on trees. This historically-standard formulation turns out to be a poor choice for conceptually understanding the generalization to graphs. This document presents an essentially-equivalent-but-cleaner formulation that I hope many will find more intuitive, and derives from basic principles why graph search needs to work this way and reveals some additional possible implementation choices beyond those considered by Czech et. al.
 
@@ -39,7 +39,7 @@ A single iteration, or *playout*, of MCTS consists of:
 
 1. Starting at the root of the tree, walk down the tree sampling the next action to explore according to some exploration formula.
 2. Once the walk falls off the end of the tree by reaching a state not yet searched, extend the tree with a node for that new state.
-3. Obtain an estimate of the utility U of the new state, e.g. by quering the value head of a neural net.
+3. Obtain an estimate of the utility U of the new state, e.g. by querying the value head of a neural net.
 4. Walk back up the tree, at each node incrementing N and updating the average Q with the new sampled utility U.
 
 Here's an illustration:
@@ -87,7 +87,7 @@ where:
 * $N(a)$ is the number of times action $a$ was tried, which is the same as the $N$ for the child node that $a$ leads to.
 * $Q(a)$ is similarly the average utility of $a$, which is the $Q$ of the child node that $a$ leads to (or a heuristic stand-in if that node has zero visits).
 * $\text{PlayerToMove}$ is -1 or 1 depending on the player to move, implementing the fact that one player is trying to maximize the utility and their opponent is trying to minimize. This would be always 1 in the case of a single-player game.
-* $P(a)$ is the the prior probability that the action is best, e.g. the raw policy prediction for $a$ from querying a neural net net.
+* $P(a)$ is the prior probability that the action is best, e.g. the raw policy prediction for $a$ from querying a neural net.
 * $c_{\text{PUCT}}$ is a tunable constant.
 
 As an aside, "PUCT" originated as an abbreviation for "Polynomial Upper Confidence Bounds for Trees", a "polynomial" variant of the "UCT" or "UCB1" algorithms from the multi-armed-bandit literature which use a formula with a different exploration term that involves a log scaling (see [Kocsis and Szepesvári, 2006](http://old.sztaki.hu/~szcsaba/papers/ecml06.pdf)). Properly, "PUCT" might describe a whole class of such variants, but nowadays in game-playing/machine-learning circles "PUCT" often just refers to AlphaZero's particular version of the formula for how to select actions to explore, which is also what we focus on here.
@@ -98,7 +98,7 @@ Anyways, to run the overall MCTS algorithm, we perform as many playouts as we ca
 
 Additionally, the **visit distribution** over actions at the root node, indicating what proportion of child visits from the root node went to each child, $N(a) / \sum_b N(b)$, (e.g. pawn to e5 got 40% of the total visits, knight to d4 got 15%, etc.), can be used as the target distribution to train a neural net's policy to predict, as in the AlphaZero training loop.
 
-In general the overall visit distribution produced by MCTS at any particular node often corresponds well with the range of plausible best actions in a position. This distribution often looks very much like the "policy" distribution of a strong agent, and in particular, a much-sharpened and refined version of the prior policy P. For reasons that we discuss more below, this is not a coincidence. This means one can do other things with this distribution that one might do with a policy. For example, it's common to sample from a policy distribution from a model using a temperature higher than zero. Sampling from the visit distribution with a nonzero temperature in this way similarly can be a good way to introduce variety in the final selected action, with very little cost to overall strength.
+In general the overall visit distribution produced by MCTS at any particular node often corresponds well with the range of plausible best actions in a position. This distribution often looks very much like the "policy" distribution of a strong agent, and in particular, a much-sharpened and refined version of the prior policy P. For reasons that we discuss more below, this is not a coincidence. This means one can do other things with this distribution that one might do with a policy. For example, it's common to sample from a policy distribution from a model using a small positive temperature. Sampling from the visit distribution with a small nonzero temperature similarly can be a good way to introduce variety in the final selected action with very little cost to overall strength.
 
 ## What Goes Wrong With Graphs?
 Suppose we apply the above algorithm exactly as described, except on a directed acyclic graph instead of a tree. The algorithm is identical except that rather than always allocating a new node when reaching a new gamestate:
@@ -129,7 +129,7 @@ Consider the following initial situation. Square nodes are where the player to m
 
 We have 3 nodes, with Q values around 0.38 or 0.39. Currently, at node A the player prefers the action that goes to node C, and node A's Q value is dominated the roughly 30 playouts it has received, almost all of which went to exploring node C. Node C also was visited by about 40 other playouts from a transposing path.
 
-Now, suppose node C recieves a lot more playouts from transposing paths, in the process, deeper below node C a new tactic is discovered that causes node C's utility to rise a lot, to 0.51:
+Now, suppose node C receives a lot more playouts from transposing paths, in the process, deeper below node C a new tactic is discovered that causes node C's utility to rise a lot, to 0.51:
 <table class="image">
 <tr><td><img src="../images/docs/mcgsbad2.png" height="350"/></td></tr>
 <tr><td><sub>Suppose C gets more playouts and its utility rises 0.39 -> 0.51</sub></td></tr>
@@ -185,25 +185,27 @@ For us, the relevant high-level insight is that when MCTS updates its stats at d
 ```
 Where:
 * $\sum_{a} \pi(a) Q(a)$ is sum-product of the utility estimate Q of the child node the action leads to and the probability of $\pi$ to play that action.
-    This is simply the estimated expected utility of following the policy.
-* $D_{\text{KL}}(P || \pi)$ is the (reversed)<sup name="footnotesrc2">[2](#footnote2)</sup> KL-divergence, a measure of how different $\pi$ is relative to the prior policy $P$.
-* And where $\lambda_N$ is a coefficient determining the strength of the KL-divergence term relative to the expected utility that decays at a particular rate as the number of visits N increases. As we search more and collect more confident evidence about the utilities of the actions, $\lambda_N$ decays and we become increasingly willing to deviate from the prior policy for smaller estimated improvements in utility.
+    This is simply the estimated expected utility of following the policy, and $\pi$ is trying to maximize this.
+* $D_{\text{KL}}(P || \pi)$ is the (reversed)<sup name="footnotesrc2">[2](#footnote2)</sup> KL-divergence, a measure of how different $\pi$ is relative to the prior policy $P$. $\pi$ is trying to reduce this and stay close to $P$ at the same time as it maximizes utility.
+* $\lambda_N$ is a coefficient determining the strength of the KL-divergence term relative to the expected utility. It decays at a particular rate as the number of visits N increases, so that as we search more and collect more confident evidence about the utilities of the actions, $\pi$ becomes increasingly willing to deviate more from the prior policy $P$ for smaller estimated improvements in utility.
 * The above is true for the PUCT formula for AlphaZero-style MCTS, but various analogous things are also true for other forms of MCTS that use different exploration formulas.
 
-In other words, the visit distribution of MCTS is itself a "posterior policy", and this posterior policy is an approximation to a smoother policy that starts out with the prior policy P from the neural net and which gradually improves it to maximize expected utility as more visits accumulate and give better evidence of the true utilities of the child nodes.
+In other words, the visit distribution of MCTS is a "posterior" policy that, approximately, takes the prior policy P from the neural net and gradually improves it to maximize expected utility as more visits accumulate and give better evidence of the true utilities of the child nodes.
 
-Effectively, MCTS is dynamically running a little learning algorithm locally at every node of the tree simultaneously, starting from the neural net's best guesses of policy and utility value, and improving further.
+Effectively, MCTS is running a little learning algorithm locally at every node of the tree simultaneously, starting from the neural net's best guesses of policy and utility value, and improving it further.
 
-This also gives context to our earlier observations on why the visit distribution can be treated so much like a high-quality policy, and for example why in AlphaZero the visit distribution is a good policy training target for future neural net training. Except for the discretization of the visits, it basically is the policy of a continuous learning algorithm that broadly resembles a lot of classical regularized reinforcement learning algorithms.
+This also gives context to our earlier observations on why the visit distribution can be treated so much like a high-quality policy, and for example why in AlphaZero the visit distribution is a good policy training target for future neural net training. Except for the discretization of the visits, it basically *is* the policy of a continuous learning algorithm that broadly resembles a lot of classical regularized reinforcement learning algorithms.
 
 As an aside, it's also possible to compute the *exact* solution to the above optimization problem and use the resulting exact solution as the policy instead of the visit distribution, which is merely an approximation that converges in the limit. This is what the [Grill et. al paper](https://arxiv.org/abs/2007.12509) indeed advocates for, although doing so may come with some challenges<sup name="footnotesrc3">[3](#footnote3)</sup> in practice that aren't accounted for by the theory.
 
 ### Taking another look at Q
 Let's also dig a bit deeper into what the running statistics in MCTS might mean from this perspective, especially Q.
 
-Recall that whenever we visit a node $n$ for the first time, the visiting playout $p$ returns the raw neural net utility prediction $U(n)$ for the game position.
-All playouts beyond the first one visiting $n$ will explore one of the children of $n$ and return the raw neural net utility estimate of some descendant of the node.
-Let $\mbox{Playouts}(n)$ indicate the set of all playouts that visit a node $n$, and let $U(p)$ also be the utility returned by a playout $p$:
+Recall that:
+* When we visit any node $n$ for the first time, the visiting playout $p$ returns the raw neural net utility prediction $U(n)$ for that game position.
+* All subsequent playouts visiting $n$ will explore one of the children of $n$ and return the raw neural net utility estimate of some descendant of the $n$.
+
+Notationwise, let $\mbox{Playouts}(n)$ be the set of all playouts that visit $n$, and let $U(p)$ be the utility returned by any playout $p$.
 
 Earlier, we defined $N$ and $Q$ for any node $n$:
 > Each node tracks:
@@ -215,7 +217,7 @@ In other words,
 Q(n) = \frac{1}{N(n)} \sum_{p \in \mbox{Playouts}(n)} U(p)
 ```
 
-But we can also derive a different equivalent way to express the Q value of n:
+But we can also rewrite Q in a different way:
 ```math
 \begin{align*}
 Q(n) &= \frac{1}{N(n)} \sum_{p \in \mbox{Playouts}(n)} U(p) && \text{\small(by definition of Q(n))} \\
@@ -232,7 +234,7 @@ Q(n) = \frac{1}{N(n)} \left( U(n) + \sum_{c \in \mbox{Children}(n)}\,\,  N(c) Q(
 
 In other words, rather than thinking of Q as the average utility of all playouts that visited $n$, we can think of it in recursive terms as the weighted average of the Q values of the $n$'s children (weighted by the child visit count). Plus a small $1/N(n)$ weight on the raw neural net utility estimate of $n$ itself, which is essentially a regularizing prior for Q when the visit count is low. This effectively gives us a new, recursive definition of Q in terms of child nodes' Q, rather than as an average of playouts.
 
-However, weighting by the child visit count is the same as weighting by the visit distribution. And the visit distribution is the "posterior policy" that MCTS is optimizing! In other words, the *interpretation* of Q is that it is the (slightly regularized, estimated) expected utility of the posterior policy that MCTS is continually optimizing. Each node continually updates and reports this improved Q value, which is then used by the parent node for *its* own policy optimization, and so on.
+However, weighting by the child visit count is the same as weighting by the visit distribution. And the visit distribution is the "posterior policy" that MCTS is optimizing! In other words, the *interpretation* of Q is that it is the (slightly regularized, estimated) expected utility of the posterior policy that MCTS is optimizing. Each node continually updates and reports this improved Q value, which is then used by the parent node for *its* own policy optimization, and so on.
 
 In mathematical notation, letting $\hat{\pi}$ be the visit distribution that is our posterior policy, this looks like:
 ```math
@@ -245,14 +247,14 @@ Overall, this gives us an equivalent but different perspective on how MCTS works
 
 Okay, let's take the above perspective and derive a sound way to do MCGS with directed acyclic graphs!
 
-All of the problems when extending naively from trees to graphs arose from the fact as MCTS is originally presented, it's implicitly assuming that the only visits to the child come from the parent. When a child node can instead also receive visits from a transposing path, we have problems:
+All of the problems when extending MCTS naively to graphs are a result of implicitly assuming that the only visits to children of a parent node come from the parent. When a child node can instead also receive visits from a transposing path, we have problems:
 
-* The visit counts of the child nodes can deviate arbitrarily much from what PUCT would have wanted to allocate, and so the visit distribution can no longer be interpreted as the approximate posterior policy.
-* The Q values of parent and child nodes are updated in inconsistent ways, such that the Q value can no longer be interpreted as the expected value of the posterior policy.
+* The visit counts of the child nodes can deviate arbitrarily much from what PUCT would have wanted to allocate, and so the child-visits distribution can no longer be interpreted as a reasonable posterior policy.
+* The Q values of parent and child nodes are updated in inconsistent ways, such that the Q value can no longer be interpreted as the expected value of the posterior policy either.
 
 So let's fix this!
 
-* The theory still guarantees that *the cumulative counts of the actions that PUCT selects from a given node* is what gives a posterior policy that approximates the optimized policy, therefore that is what we need to track rather than conflating it with child visits.
+* The theory still guarantees that *the cumulative counts of the actions that PUCT selects from a given node* is what gives a posterior policy that approximates the optimized policy $\pi$, therefore that is what we need to track rather than conflating it with child visits.
 * The optimization is sound when the Q value reported by a node is *the estimated expected value of the posterior policy*. Therefore once we have the posterior policy and the child Q values, rather than dealing with how to count individual playouts, we can just apply the recursive formulation of Q. We can still also include the regularizing 1/N weight on U(n).
 
 So, at each node $n$, we now track:
@@ -335,9 +337,9 @@ Here, the iterative update is a bit computationally cheaper since it doesn't req
 
 In the case of graphs, rather than trees, formulating a cheaper incremental update that behaves equivalently, or behaves equivalently in the limit, can be a little tricky, but it can be done and might result in higher performance. [Czech, Korus, and Kersting](https://arxiv.org/pdf/2012.11045.pdf) do in fact use a somewhat incremental formulation, since they approached the algorithm more directly from the historical "running statistics" presentation of MCTS, and so perhaps could be a reference for how to do this.
 
-Czech et. al. also make a somewhat interesting further choice to store Q values on edges, not just edge visit counts, and add an incremental mechanism for how a stale Q value can gradually "catch up" to more recent values (in contrast to directly computing the correct Q value), as well as introducing a hyperparameter controlling an error tolerance at which the mechanism doesn't apply (where theoretically staleness biases smaller than the tolerance could persist indefinitely). As far as I can tell, many of these extra complications are not strictly needed for correctness and can be conceptualized as "performance hacks/optimizations", or possibly changes that mildly alter exploration in a way that might have beneficial side effects. But as seen from the pseudocode given in this document, it's possible to get MCGS working with a simple algorithm, and *without* being forced to introduce any new error tolerance parameters or needing to track Q values on edges.
+Czech et. al. also make a somewhat interesting further choice to store Q values on edges, not just edge visit counts, and add an incremental mechanism for how a stale Q value can gradually "catch up" to more recent values (in contrast to just computing the correct Q value and catching up immediately), as well as introducing a hyperparameter controlling an error tolerance at which the mechanism doesn't apply (where theoretically staleness biases smaller than the tolerance could persist indefinitely). As far as I can tell, many of these extra complications are not needed for correctness and can be conceptualized as "performance hacks/optimizations", or in some cases as changes that mildly alter exploration and the way Q values converge that might either have small beneficial effects or small costs/harms, depending on the situation. But as seen from the pseudocode given in this document, it's possible to get MCGS working with a simple algorithm, and *without* being forced to introduce any new error tolerance parameters or needing to track Q values on edges.
 
-If one does NOT need to squeeze out the extra computational performance (e.g. if the code is GPU-bound on a neural net anyways such that CPU doesn't matter so much), then there are also some advantages to the idempotent update. For example, an idempotent update is easier to reason about, especially when also multithreading or when trying things like having a parallel thread to walk the tree and unstale-ify nodes as mentioned above. It also doesn't cost that much more if nodes don't have many children explored yet, and this is often the case for a lot of the nodes in a search due to the nature of exponential branching. KataGo currently uses the idempotent formulation.
+If one does NOT need to squeeze out the extra computational performance (e.g. if the code is GPU-bound on a neural net anyways such that CPU doesn't matter so much), then there are also some advantages to the idempotent update. For example, an idempotent update is easier to reason about, especially when also multithreading or when trying things like having a parallel thread to walk the tree and unstale-ify nodes as mentioned above. KataGo currently uses the idempotent formulation.
 
 ### Continuing vs Stopping Playouts when Child Visits > Edge Visits
 
@@ -355,7 +357,7 @@ However, it's not obvious that this is a good idea. Speculatively, there might b
 
 This is likely a good area for experimentation! One could also imagine using a more complex threshold, such as stopping if the child visits is *enough* larger, etc. It's possible that the best approach depends on the situation and/or the game.
 
-For reference, KataGo currently DOES stops the playout by default, but offers a configuration option to continue the playout instead, or to "leakily" stop the playout some probabilistic fraction of the time. The given pseudocode algorithm above for MCGS does NOT stop the playout, but doing so is as simple as adding a one-line check, if you want to experiment with this:
+For reference, KataGo currently DOES stop the playout by default, but offers a configuration option to continue the playout instead, or to "leakily" stop the playout some probabilistic fraction of the time. The given pseudocode algorithm above for MCGS does NOT stop the playout, but doing so is as simple as adding a one-line check, if you want to experiment with this:
 ```python
     if child.N <= edge_visits:
         perform_one_playout(child)
@@ -365,15 +367,15 @@ For reference, KataGo currently DOES stops the playout by default, but offers a 
 
 There are also some other implementation details worth mentioning beyond the basic pseudocode given above.
 
-* For game-over nodes the above pseudocode recomputes them always to have N = 1 and U = Q = game outcome utility, no matter how many times they are visited. This is fine since it does not prevent the parents' edge visit count leading to these nodes to increase as normal, but one could also adopt the convention to increment N for a game-over node each time it is visited. Doing this and averaging the game outcome U values sampled would be important if the game outcome is stochastic and for some reason we can only stochastically sample game outcomes rather than directly compute the correct expected utility of those outcomes. Alternatively, if `get_utility_of_game_outcome` is deterministic but expensive, we could as a minor optimization skip computing it if it's already computed.
+* For game-over nodes the above pseudocode recomputes them always to have N = 1 and U = Q = game outcome utility, no matter how many times they are visited. This is fine since it does not prevent the parents' edge visit count leading to these nodes to increase as normal, but one could also adopt the convention to increment N for a game-over node each time it is visited. Doing this and averaging the game outcome U values sampled would be important if the game outcome is stochastic and for some reason we can only stochastically sample it rather than directly compute the correct expected utility of the outcome. Alternatively, if `get_utility_of_game_outcome` is deterministic but expensive, we could as a minor optimization skip computing it if it's already computed.
 
 * It's also possible to add broader handling for game-over utilities to propagate provable values up the graph faster. When game-over states are relevant, plain MCTS/MCGS doesn't converge to optimal as cheaply as classical searches like alpha-beta search, since there is no provision for recognizing when utility values are *certain* rather than needing more visits to refine their quality and trustworthiness.
 
-* Crafting a genuinely collision-free hash for a complex game state may be tricky and/or more costly than a simpler hash. Using a sufficiently-large [Zobrist hash](https://en.wikipedia.org/wiki/Zobrist_hashing), such as 128 or 192 bits, is usually sufficient in practice to ensure no collisions ever happen, except for the possibility of adversarial gamestates generated to attack the hash. Depending on one's level of paranoia, and/or whether the game rules already allow cycles and how that is being handled, one can also add cycle detection to avoid infinite recursion if a cycle does occur due to collision.
+* We assumed gamestates had unique hashes for finding transpositions. Crafting a true collision-free hash for a complex game state may be tricky and costly. However, a sufficiently-large [Zobrist hash](https://en.wikipedia.org/wiki/Zobrist_hashing), such as 128 or 192 bits, is usually sufficient in practice to entirely prevent collisions, except perhaps from adversarial gamestates generated to attack the hash. Depending on one's level of paranoia, and/or whether the game rules already allow cycles and how that is being handled, one can also add cycle detection to avoid unbounded recursion if a cycle does occur due to collision.
 
 ## Conclusion
 
-I hope at least some people find this document and explanation of Monte-Carlo Graph Search useful! This document still doesn't cover some of the game-specific tricky bits that need to be handled regarding what happens when the game can cycle instead of being only acyclic, such as superko in Go<sup name="footnotesrc4">[4](#footnote4)</sup>, or third-time repetition in Chess. But I hope it gives some intuition behind how MCGS works, and what kinds of implementation differences could be interesting to vary and experiment with.
+I hope at least some people find this document and explanation of Monte-Carlo Graph Search useful! This document still doesn't cover some of the game-specific tricky bits that need to be handled regarding what happens when the game can cycle instead of being only acyclic, such as superko in Go<sup name="footnotesrc4">[4](#footnote4)</sup>, or third-time repetition in Chess. But I hope it gives some intuition behind how MCGS works, and what kinds of implementation choices could be interesting to vary and experiment with.
 
 <hr>
 
@@ -395,5 +397,5 @@ Both KL divergences behave very similarly in the common case. But in the edge ca
 
 From a theory perspective, we could say perhaps this is because the optimization problem doesn't account for differing _uncertainty_ based on the number of visits. There can also be problems due to correlations or adverse selection in the uncertainty in utilities, e.g. the same tactic occurs in many possible branches and throughout the search all the seemingly-highest-Q branches are *precisely* the branches overlooking that tactic and blundering. Using the visit distribution as the posterior policy is far more robust to this, because the only way to increase the weight of a move in the visit distribution is to actually search the move extensively. This means that a move cannot get a high weight until a deeper analysis of that move confirms the high Q value and cannot find any flaws in it.
 
-<a name="footnote4" href="#footnotesrc4">4</a>: For those curious, KataGo handles it in Go by leveraging an easily-proved theorem specific to Go: "Suppose a move has been played on some location. Let E be the number of empty spaces in all connected empty regions that border that move, and let S be the number of stones in the chain that contains that move. Then, even if the players cooperate, it will take at least S+E-1 moves to return to the position prior to the move". Based on this theorem, which can lower-bound the lengths of cycles, it's possible to construct a hash of the history that will almost never prevent sharing nodes for transpositions in normal situations, and yet is completely reliable at *not* sharing nodes when cycles are relevant, for all cycles up to a configurable desired cycle length.
+<a name="footnote4" href="#footnotesrc4">4</a>: For those curious, KataGo handles it in Go by leveraging an easily-proved theorem specific to Go: "Suppose a move has been played on some location. Let E be the number of empty spaces in all connected empty regions that border that move, and let S be the number of stones in the chain that contains that move. Then, even if the players cooperate, it will take at least S+E-1 moves to return to the position prior to that move". Based on this theorem, which can lower-bound the lengths of cycles, it's possible to construct a hash of the history that will almost never prevent sharing nodes for transpositions in normal situations, and yet is completely reliable at *not* sharing nodes when cycles are relevant, for all cycles up to a configurable desired cycle length.
 
