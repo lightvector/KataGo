@@ -120,7 +120,7 @@ In addition to a basic set of [GTP commands](https://www.lysator.liu.se/~gunnar/
             * **NOTE: Consumers of this data should attempt to be robust to the order of these fields, as well as to possible addition of new fields in the future.**
             * `move` - The move being analyzed.
             * `visits` - The number of visits invested into the move so far.
-            * `totalVisits` - The number of total visits of all the moves so far.
+            * `totalVisits` - The number of total visits of all the moves so far. The `totalVisits` sums up all the `visits` value of all the moves in the current output.
             * `winrate` - The winrate of the move so far, as a float in [0,1].
             * `scoreMean` - Same as scoreLead. "Mean" is a slight misnomer, but this field exists to preserve compatibility with existing tools.
             * `scoreStdev` - The predicted standard deviation of the final score of the game after this move, in points. (NOTE: due to the mechanics of MCTS, this value will be **significantly biased high** currently, although it can still be informative as a *relative* indicator).
