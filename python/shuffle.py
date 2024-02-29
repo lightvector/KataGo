@@ -365,6 +365,8 @@ if __name__ == '__main__':
     optional_args.add_argument('-exclude-basename', required=False, action="store_true", help='Consider an exclude to match if basename matches')
     optional_args.add_argument('-only-include-md5-path-prop-lbound', type=float, required=False, help='Just before sharding, include only filepaths hashing to float >= this')
     optional_args.add_argument('-only-include-md5-path-prop-ubound', type=float, required=False, help='Just before sharding, include only filepaths hashing to float < this')
+    optional_args.add_argument('-skip-mtime-range-start', type=float, required=False, help='')
+    optional_args.add_argument('-skip-mtime-range-end', type=float, required=False, help='')
     optional_args.add_argument('-output-npz', action="store_true", required=False, help='Output results as npz files')
 
     args = parser.parse_args()
@@ -399,6 +401,8 @@ if __name__ == '__main__':
     exclude_basename = args.exclude_basename
     only_include_md5_path_prop_lbound = args.only_include_md5_path_prop_lbound
     only_include_md5_path_prop_ubound = args.only_include_md5_path_prop_ubound
+    skip_mtime_range_start = args.skip_mtime_range_start
+    skip_mtime_range_end = args.skip_mtime_range_end
     output_npz = args.output_npz
 
     if min_rows is None:
@@ -615,7 +619,7 @@ if __name__ == '__main__':
     min_start_row = num_rows_total
     max_end_row = num_rows_total
     num_rows_used = 0
-    print_stride = 1 + len(all_files) // 40
+    print_stride = 1 + len(all_files) // 80
     end_row = num_rows_total
     with TimeStuff("Computing desired rows"):
         for i in range(len(all_files)):
@@ -625,6 +629,12 @@ if __name__ == '__main__':
             # Actually we just handle that in shardify - and accept that it might make our window slightly not far back enough
             # if not os.path.exists(filename):
             #   continue
+
+            if skip_mtime_range_start is not None and skip_mtime_range_end is not None:
+                if mtime >= skip_mtime_range_start and mtime <= skip_mtime_range_end:
+                    if np.random.randint(100000) == 0:
+                        print("DEBUG: skip mtime " + item[0], flush=True)
+                    continue
 
             if num_rows is not None and num_rows > 0:
                 desired_input_files.append((filename,num_rows))
