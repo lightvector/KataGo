@@ -909,6 +909,14 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
             metrics_out.write(json.dumps(metrics_to_print) + "\n")
             metrics_out.flush()
 
+    def clear_metric_nonfinite(metric_sums, metric_weights):
+        for metric in metric_sums:
+            if not math.isfinite(metric_sums[metric]):
+                logging.warning(f"NONFINITE VALUE OF METRIC {metric}, CLEARING IT BACK TO EMPTY")
+                metric_sums[metric] = 0.0
+                metric_weights[metric] = 0.0
+
+
     if rank == 0:
         train_metrics_out = open(os.path.join(traindir,"metrics_train.json"),"a")
         val_metrics_out = open(os.path.join(traindir,"metrics_val.json"),"a")
@@ -974,6 +982,8 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
 
         logging.info("GC collect")
         gc.collect()
+
+        clear_metric_nonfinite(running_metrics["sums"], running_metrics["weights"])
 
         logging.info("=========================================================================")
         logging.info("BEGINNING NEXT EPOCH " + str(num_epochs_this_instance))
