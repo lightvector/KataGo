@@ -826,6 +826,12 @@ struct GTPEngine {
         }
 
         const Board board = search->getRootBoard();
+        
+        int totalVisits = 0;
+        for(int i = 0; i<buf.size(); i++) {
+          totalVisits += buf[i].numVisits;
+        }
+          
         for(int i = 0; i<buf.size(); i++) {
           if(i > 0)
             out << " ";
@@ -849,6 +855,7 @@ struct GTPEngine {
           out << "info";
           out << " move " << Location::toString(data.move,board);
           out << " visits " << data.numVisits;
+          out << " totalVisits " << totalVisits;
           out << " utility " << utility;
           out << " winrate " << winrate;
           // We report lead for scoreMean here so that a bunch of legacy tools that use KataGo use lead instead, which
