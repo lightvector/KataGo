@@ -258,6 +258,9 @@ int MainCmds::benchmark(const vector<string>& args) {
 #ifdef USE_EIGEN_BACKEND
   cout << "You are currently using the Eigen (CPU) version of KataGo. Due to having no GPU, it may be slow." << endl;
 #endif
+#ifdef USE_COREML_BACKEND
+  cout << "You are currently using the CoreML version of KataGo." << endl;
+#endif
   cout << endl;
   cout << "Your GTP config is currently set to use numSearchThreads = " << params.numThreads << endl;
 
@@ -313,7 +316,13 @@ static void warmStartNNEval(const CompactSgf* sgf, Logger& logger, const SearchP
 
 static NNEvaluator* createNNEval(int maxNumThreads, CompactSgf* sgf, const string& modelFile, Logger& logger, ConfigParser& cfg, const SearchParams& params) {
   int expectedConcurrentEvals = maxNumThreads;
+
+#ifdef USE_COREML_BACKEND
+  // Enhancing GPU Batch Distribution in Tree Search Algorithm #783 (https://github.com/lightvector/KataGo/issues/783)
+  const int defaultMaxBatchSize = std::max(4,((maxNumThreads+3)/4)*2);
+#else
   const int defaultMaxBatchSize = std::max(8,((maxNumThreads+3)/4)*4);
+#endif
 
   Rand seedRand;
 
