@@ -273,7 +273,7 @@ The method is simple:
 
 **Add an auxiliary policy head that attempts to predict the policy target raised to power of (1/T) for some moderately large temperature T (and re-normalized to sum to 1).**
 
-Simply adding this auxiliary "soft" policy target also improves the learning of the original policy head, at least for KataGo. At first, this might seem a bit surprising. Why would predicting the the exact same data under just a simple transformation improve things?
+Simply adding this auxiliary "soft" policy target also improves the learning of the original policy head, at least for KataGo. At first, this might seem a bit surprising. Why would predicting the exact same data under just a simple transformation improve things?
 
 As intuition, consider a policy target like:
 

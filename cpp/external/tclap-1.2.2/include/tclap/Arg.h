@@ -259,7 +259,7 @@ class Arg
 		/**
 		 * Pure virtual method meant to handle the parsing and value assignment
 		 * of the string on the command line.
-		 * \param i - Pointer the the current argument in the list.
+		 * \param i - Pointer the current argument in the list.
 		 * \param args - Mutable list of strings. What is
 		 * passed in from main.
 		 */

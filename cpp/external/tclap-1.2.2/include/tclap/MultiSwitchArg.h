@@ -99,7 +99,7 @@ class MultiSwitchArg : public SwitchArg
 		 * Handles the processing of the argument.
 		 * This re-implements the SwitchArg version of this method to set the
 		 * _value of the argument appropriately.
-		 * \param i - Pointer the the current argument in the list.
+		 * \param i - Pointer the current argument in the list.
 		 * \param args - Mutable list of strings. Passed
 		 * in from main().
 		 */
