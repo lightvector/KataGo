@@ -696,14 +696,13 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
   NNEvaluator* nnEval;
   {
     Setup::initializeSession(cfg);
-    const int maxConcurrentEvals = numTotalThreads * 2 + 16; // * 2 + 16 just to give plenty of headroom
     const int expectedConcurrentEvals = numTotalThreads;
     const int defaultMaxBatchSize = std::max(8,((numTotalThreads+3)/4)*4);
     const bool defaultRequireExactNNLen = false;
     const bool disableFP16 = false;
     const string expectedSha256 = "";
     nnEval = Setup::initializeNNEvaluator(
-      nnModelFile,nnModelFile,expectedSha256,cfg,logger,seedRand,maxConcurrentEvals,expectedConcurrentEvals,
+      nnModelFile,nnModelFile,expectedSha256,cfg,logger,seedRand,expectedConcurrentEvals,
       NNPos::MAX_BOARD_LEN,NNPos::MAX_BOARD_LEN,defaultMaxBatchSize,defaultRequireExactNNLen,disableFP16,
       Setup::SETUP_FOR_ANALYSIS
     );

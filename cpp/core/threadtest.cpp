@@ -4,6 +4,7 @@
 #include "../core/multithread.h"
 #include "../core/threadsafecounter.h"
 #include "../core/threadsafequeue.h"
+#include "../core/rand.h"
 #include "../core/test.h"
 
 //------------------------
@@ -135,4 +136,96 @@ void ThreadTest::runTests() {
     testAssert(queue.isClosed());
   }
 
+  {
+    auto writer = [&](ThreadSafeQueue<int>* queue, double yieldProb) {
+      Rand rand;
+      for(int i = 1; i <= 10000; i++) {
+        if(rand.nextBool(yieldProb))
+          std::this_thread::yield();
+        queue->waitPush(i);
+      }
+    };
+    std::atomic<int64_t> total(0);
+    std::atomic<int64_t> totalSq(0);
+    auto reader = [&](ThreadSafeQueue<int>* queue, double yieldProb) {
+      Rand rand;
+      int64_t sum = 0;
+      int64_t sumSq = 0;
+      std::vector<int> buf;
+      while(true) {
+        if(rand.nextBool(yieldProb))
+          std::this_thread::yield();
+        if(rand.nextBool(0.5)) {
+          int x;
+          bool suc = queue->waitPop(x);
+          if(!suc)
+            break;
+          sum += x;
+          sumSq += x * x;
+        }
+        else {
+          int n = rand.nextInt(1,8);
+          bool suc = queue->waitPopUpToN(buf,n);
+          if(!suc)
+            break;
+          assert(buf.size() > 0 && buf.size() <= n);
+          for(int x: buf) {
+            sum += x;
+            sumSq += x * x;
+          }
+          buf.clear();
+        }
+      }
+      total.fetch_add(sum);
+      totalSq.fetch_add(sumSq);
+    };
+
+    {
+      total.store(0);
+      totalSq.store(0);
+      ThreadSafeQueue<int> queue;
+      std::vector<std::thread> writers;
+      std::vector<std::thread> readers;
+      writers.push_back(std::thread(writer,&queue,0.50));
+      writers.push_back(std::thread(writer,&queue,0.40));
+      writers.push_back(std::thread(writer,&queue,0.30));
+      writers.push_back(std::thread(writer,&queue,0.25));
+      writers.push_back(std::thread(writer,&queue,0.20));
+      writers.push_back(std::thread(writer,&queue,0.15));
+      writers.push_back(std::thread(writer,&queue,0.12));
+      writers.push_back(std::thread(writer,&queue,0.10));
+      readers.push_back(std::thread(reader,&queue,0.30));
+      for(std::thread& thread: writers)
+        thread.join();
+      queue.setReadOnly();
+      for(std::thread& thread: readers)
+        thread.join();
+      testAssert(total.load() == 8LL * 10000LL * 10001LL / 2);
+      testAssert(totalSq.load() == 8LL * 10000LL * 10001LL * 20001LL / 6);
+    }
+    {
+      total.store(0);
+      totalSq.store(0);
+      ThreadSafeQueue<int> queue;
+      std::vector<std::thread> writers;
+      std::vector<std::thread> readers;
+      writers.push_back(std::thread(writer,&queue,0.50));
+      writers.push_back(std::thread(writer,&queue,0.10));
+      readers.push_back(std::thread(reader,&queue,0.50));
+      readers.push_back(std::thread(reader,&queue,0.45));
+      readers.push_back(std::thread(reader,&queue,0.40));
+      readers.push_back(std::thread(reader,&queue,0.35));
+      readers.push_back(std::thread(reader,&queue,0.30));
+      readers.push_back(std::thread(reader,&queue,0.25));
+      readers.push_back(std::thread(reader,&queue,0.20));
+      readers.push_back(std::thread(reader,&queue,0.15));
+      for(std::thread& thread: writers)
+        thread.join();
+      queue.setReadOnly();
+      for(std::thread& thread: readers)
+        thread.join();
+      testAssert(total.load() == 2LL * 10000LL * 10001LL / 2);
+      testAssert(totalSq.load() == 2LL * 10000LL * 10001LL * 20001LL / 6);
+    }
+  }
 }

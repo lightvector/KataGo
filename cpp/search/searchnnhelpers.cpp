@@ -137,9 +137,10 @@ bool Search::initNodeNNOutput(
 
 
 //Assumes node already has an nnOutput
-void Search::maybeRecomputeExistingNNOutput(
+bool Search::maybeRecomputeExistingNNOutput(
   SearchThread& thread, SearchNode& node, bool isRoot
 ) {
+  bool recomputeHappened = false;
   //Right now only the root node currently ever needs to recompute, and only if it's old
   if(isRoot && node.nodeAge.load(std::memory_order_acquire) != searchNodeAge) {
     //See if we're the lucky thread that gets to do the update!
@@ -170,15 +171,19 @@ void Search::maybeRecomputeExistingNNOutput(
         //When pre-root history is ignored at the root, maxHistory is 0 and the nn cache distinguishes 0 from nonzero.
         const bool skipCache = false;
         initNodeNNOutput(thread,node,isRoot,skipCache,true);
+        recomputeHappened = true;
       }
       //We also need to recompute the root nn if we have root noise or temperature and that's missing.
       else {
         //We don't need to go all the way to the nnEvaluator, we just need to maybe add those transforms
         //to the existing policy.
         std::shared_ptr<NNOutput>* result = maybeAddPolicyNoiseAndTemp(thread,isRoot,nnOutput);
-        if(result != NULL)
+        if(result != NULL) {
           node.storeNNOutput(result,thread);
+          recomputeHappened = true;
+        }
       }
     }
   }
+  return recomputeHappened;
 }

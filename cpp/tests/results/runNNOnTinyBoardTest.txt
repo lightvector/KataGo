@@ -1,5 +1,5 @@
 : Initializing neural net buffer to be size 6 * 6 allowing smaller boards
-: Cuda backend thread 0: Found GPU NVIDIA RTX A5000 memory 25434652672 compute capability major 8 minor 6
+: Cuda backend thread 0: Found GPU NVIDIA RTX A5000 memory 25425608704 compute capability major 8 minor 6
 : Cuda backend thread 0: Model version 8 useFP16 = false useNHWC = false
 : Cuda backend thread 0: Model name: g170-b6c96-s175395328-d26788732
 HASH: 53602E4395E2B2B556BA45566880843F
@@ -16,11 +16,12 @@ Win 90.25c
 Loss 9.75c
 NoResult 0.00c
 ScoreMean 9.37
-ScoreMeanSq 242.9
+ScoreMeanSq 242.8
 Lead 7.87
 VarTimeLeft -1.0
 STWinlossError -100.00c
 STScoreError -1.00
+OptimismUsed 0.00
 Policy
 Pass   0 
    0    0    0    0    0 
@@ -29,9 +30,9 @@ Pass   0
    0    -    -    -    0 
    0    0    0    1    0 
   -21  -257    65  -419   121 
- -129  -353  -488  -148   241 
- -341  -366  -294    46   292 
- -322  -457   -81   559   277 
+ -129  -353  -489  -148   241 
+ -341  -367  -294    46   292 
+ -322  -457   -82   559   277 
  -247  -394  -127  -132    91 
 
 

@@ -16,7 +16,6 @@ static NNEvaluator* startNNEval(
   const string& modelName = modelFile;
   vector<int> gpuIdxByServerThread = {0};
   int maxBatchSize = 16;
-  int maxConcurrentEvals = 1024;
   int nnXLen = NNPos::MAX_BOARD_LEN;
   int nnYLen = NNPos::MAX_BOARD_LEN;
   bool requireExactNNLen = false;
@@ -36,7 +35,6 @@ static NNEvaluator* startNNEval(
     expectedSha256,
     &logger,
     maxBatchSize,
-    maxConcurrentEvals,
     nnXLen,
     nnYLen,
     requireExactNNLen,
@@ -1064,7 +1062,7 @@ xxxxxxxx.
     double firstFileMinRandProp = 1.0;
     int debugOnlyWriteEvery = 1;
     int inputsVersion = 7;
-    
+
     SearchParams params = SearchParams::forTestsV2();
     params.rootNoiseEnabled = true;
     params.cpuctExploration = 6.0;
@@ -1100,9 +1098,9 @@ xxxxxxxx.
     playSettings.fancyKomiVarying = false;
 
     playSettings.scaleDataWeight = 1.5;
-      
+
     playSettings.forSelfPlay = true;
-    
+
     std::map<string,string> cfgParams({
         std::make_pair("maxMovesPerGame","20"),
         std::make_pair("logSearchInfo","true"),
@@ -1135,7 +1133,7 @@ xxxxxxxx.
     botSpec.baseParams = params;
 
     string seed = "seed-testing-temperature";
-    
+
     {
       cout << "Turn number initial 0 selfplay with high temperatures" << endl;
       nnEval->clearCache();
@@ -1156,7 +1154,7 @@ xxxxxxxx.
       startPosSample.hintLoc = Board::NULL_LOC;
       startPosSample.weight = 10.0;
       startPosSample.trainingWeight = 0.35;
-    
+
       FinishedGameData* data = gameRunner->runGame(seed, botSpec, botSpec, forkData, &startPosSample, logger, shouldStop, shouldPause, nullptr, nullptr, nullptr);
       data->printDebug(cout);
 
@@ -1187,7 +1185,7 @@ xxxxxxxx.
       startPosSample.hintLoc = Board::NULL_LOC;
       startPosSample.weight = 10.0;
       startPosSample.trainingWeight = 0.35;
-    
+
       FinishedGameData* data = gameRunner->runGame(seed, botSpec, botSpec, forkData, &startPosSample, logger, shouldStop, shouldPause, nullptr, nullptr, nullptr);
       data->printDebug(cout);
 
@@ -1200,7 +1198,7 @@ xxxxxxxx.
     }
   }
 
-  
+
   {
     cout << "====================================================================================================" << endl;
     cout << "====================================================================================================" << endl;
@@ -1211,7 +1209,7 @@ xxxxxxxx.
     double firstFileMinRandProp = 1.0;
     int debugOnlyWriteEvery = 1;
     int inputsVersion = 7;
-    
+
     SearchParams params = SearchParams::forTestsV2();
     params.rootNoiseEnabled = true;
     params.chosenMoveTemperatureEarly = 0.1;
@@ -1242,9 +1240,9 @@ xxxxxxxx.
     playSettings.fancyKomiVarying = false;
 
     playSettings.scaleDataWeight = 1.5;
-      
+
     playSettings.forSelfPlay = true;
-    
+
     std::map<string,string> cfgParams({
         std::make_pair("maxMovesPerGame","200"),
         std::make_pair("logSearchInfo","true"),
@@ -1277,7 +1275,7 @@ xxxxxxxx.
     botSpec.baseParams = params;
 
     string seed = "seed-testing-temperature";
-    
+
     {
       cout << "Turn number initial 0 selfplay with high temperatures" << endl;
       nnEval->clearCache();
@@ -1308,7 +1306,7 @@ xxxxxxo..
       startPosSample.hintLoc = Board::NULL_LOC;
       startPosSample.weight = 10.0;
       startPosSample.trainingWeight = 0.72;
-    
+
       FinishedGameData* data = gameRunner->runGame(seed, botSpec, botSpec, forkData, &startPosSample, logger, shouldStop, shouldPause, nullptr, nullptr, nullptr);
       data->printDebug(cout);
 
@@ -1371,7 +1369,7 @@ void Tests::runSelfplayStatTestsWithNN(const string& modelFile) {
       komiDistribution[data->startHist.rules.komi] += 1;
       bStoneDistribution[data->startBoard.numPlaStonesOnBoard(P_BLACK)] += 1;
       wStoneDistribution[data->startBoard.numPlaStonesOnBoard(P_WHITE)] += 1;
-      bSizeDistribution[Global::intToString(data->startBoard.x_size) + "x" + Global::intToString(data->startBoard.y_size)] += 1; 
+      bSizeDistribution[Global::intToString(data->startBoard.x_size) + "x" + Global::intToString(data->startBoard.y_size)] += 1;
       turnDistribution[data->startHist.getCurrentTurnNumber()] += 1;
       delete data;
     }
@@ -2286,7 +2284,7 @@ oox.x....
     startPosSample.initialTurnNumber = 50;
     startPosSample.hintLoc = Board::NULL_LOC;
     startPosSample.weight = 10.0;
-    
+
     std::map<string,string> cfgParams({
         std::make_pair("maxMovesPerGame","0"),
         std::make_pair("logSearchInfo","false"),
@@ -2312,7 +2310,7 @@ oox.x....
     });
     runStatTest(cfgParams,playSettings,&startPosSample,name,200);
   }
-  
+
   {
     string name = "Game init test rectangles";
     //Statistical test of game initialization
