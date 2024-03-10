@@ -85,7 +85,6 @@ class SGFMetadata:
 
 
     def get_metadata_row(self, nextPlayer: str) -> np.ndarray:
-        assert sgfMeta is not None
         nextPlayer = nextPlayer.lower()
         rowMetadata = np.zeros(self.METADATA_INPUT_NUM_CHANNELS, dtype=np.float32)
 
