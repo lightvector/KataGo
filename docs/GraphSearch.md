@@ -25,7 +25,7 @@ The tricky part is that applying MCTS naively to a DAG can easily result in an u
 
 [Czech, Korus, and Kersting](https://arxiv.org/pdf/2012.11045.pdf) do a great job of fixing the problems and arriving at a sound algorithm based on this formulation, in spite of the challenges. However, there is an equivalent alternative way to approach MCTS from the perspective of *online policy learning*. In this alternative formulation, as we will see, generalization to graphs is relatively natural. It turns out we still arrive at a similar final algorithm as Czech et. al., but we can derive from basic principles _why_ the algorithm needs to work that way. If we're willing to concede some low-level optimizations, the resulting code is also much simpler.
 
-Note that for this document we will mostly be disregarding what to do when actual cycles in the graph are also possible. The handling necessary will vary depending on the particular rules of the game (e.g. 3rd-time repetition, 'superko' rule, etc). This means that for games with actual cycles, in practice there may need to be significant additional work to handle them correctly. Here we won't address those details, we'll just focus on the core concept of how to make MCTS work.
+Note that for this document we will mostly be disregarding what to do when actual cycles in the graph are also possible. The handling necessary will vary depending on the particular rules of the game (e.g. 3rd-time repetition, 'superko' rule, etc). This means that for games with actual cycles, in practice there may need to be significant additional work to handle them correctly. Here we won't address those details, we'll just focus on the core concept of how to make MCTS work. (Although, see also the [addendum](#addendum-2024-03-10---handling-cycles) with a link to a doc with some rough thoughts on handling cycles.)
 
 ## The Usual Formulation of MCTS - A Tree of Running Stats
 
@@ -377,8 +377,12 @@ There are also some other implementation details worth mentioning beyond the bas
 
 I hope at least some people find this document and explanation of Monte-Carlo Graph Search useful! This document still doesn't cover some of the game-specific tricky bits that need to be handled regarding what happens when the game can cycle instead of being only acyclic, such as superko in Go<sup name="footnotesrc4">[4](#footnote4)</sup>, or third-time repetition in Chess. But I hope it gives some intuition behind how MCGS works, and what kinds of implementation choices could be interesting to vary and experiment with.
 
+## Addendum (2024-03-10) - Handling Cycles
+In case it's further also helpful to someone, here's a link to a Google Doc with some thoughts on how to handle N-fold repetition and cycles in games like chess or in general. These thoughts are very much not as polished and doing this well may require some game-specific experimentation on heuristics: https://docs.google.com/document/d/1JbxsoMtr7_qAAkfYynAgpvuarMMJycaL5toXdnqVJoo/edit
+
 <hr>
 
+## Footnotes
 <a name="footnote1" href="#footnotesrc1">1</a>: It's also common to see code that tracks NxQ instead of Q, i.e. the running *sum* of playout utilities rather than the running average, and only divides by N at the end when querying the utility. This leads to a slightly simpler update, but in some cases may make certain lock-free multithreading implementations harder to reason about because it opens the chance for split reads: namely reading N and NxQ that are desynchronized, such that dividing NxQ by N gives a bogus value for Q.
 
 <a name="footnote2" href="#footnotesrc2">2</a>: In general, $D_{\text{KL}}(Y || X) = E_Y (\log(Y) - \log(X))$ is _"How surprised will I be if Y is true, given I initially believe X?"_.
