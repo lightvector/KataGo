@@ -100,7 +100,7 @@ namespace NeuralNet {
 
   //The neural net takes in 2 tensors as input.
   //One of them ("spatial") is 3-dimensional per-batch-element (4-dimensional including the batch dimension N),
-  //containing floats for the the values of different features (C) across the space of the board (H,W),
+  //containing floats for the values of different features (C) across the space of the board (H,W),
   //such as placement of stones and prior move locations.
   //The other ("global") is 1-dimensional per-batch-element containing floats for features that are
   //global to the board state, such as game rules and komi.
