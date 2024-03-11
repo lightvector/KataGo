@@ -108,7 +108,6 @@ if __name__ == "__main__":
 
     optional_args.add_argument('-main-loss-scale', type=float, help='Loss factor scale for main head', required=False)
     optional_args.add_argument('-intermediate-loss-scale', type=float, help='Loss factor scale for intermediate head', required=False)
-    optional_args.add_argument('-meta-encoder-loss-scale', type=float, help='Meta encoder loss scale', required=False)
 
     args = vars(parser.parse_args())
 
@@ -193,7 +192,6 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
 
     main_loss_scale = args["main_loss_scale"]
     intermediate_loss_scale = args["intermediate_loss_scale"]
-    meta_encoder_loss_scale = args["meta_encoder_loss_scale"]
 
     if lr_scale is None:
         lr_scale = 1.0
@@ -562,8 +560,6 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
                 main_loss_scale = 0.5
         elif intermediate_loss_scale is None:
             assert False, "Please specify both of main_loss_scale and intermediate_loss_scale or neither when using an architecture with an intermediate head."
-    if raw_model.get_has_metadata_encoder():
-        assert meta_encoder_loss_scale is not None, "Please specify meta_encoder_loss_scale"
 
     logging.info(f"swa_period_samples {swa_period_samples}")
     logging.info(f"swa_scale {swa_scale}")
@@ -577,7 +573,6 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
     logging.info(f"variance_time_loss_scale {variance_time_loss_scale}")
     logging.info(f"main_loss_scale {main_loss_scale}")
     logging.info(f"intermediate_loss_scale {intermediate_loss_scale}")
-    logging.info(f"meta_encoder_loss_scale {meta_encoder_loss_scale}")
 
     # Print all model parameters just to get a summary
     total_num_params = 0
@@ -1097,7 +1092,6 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
                     variance_time_loss_scale=variance_time_loss_scale,
                     main_loss_scale=main_loss_scale,
                     intermediate_loss_scale=intermediate_loss_scale,
-                    meta_encoder_loss_scale=meta_encoder_loss_scale,
                 )
 
                 # DDP averages loss across instances, so to preserve LR as per-sample lr, we scale by world size.

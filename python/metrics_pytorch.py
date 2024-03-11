@@ -373,7 +373,6 @@ class Metrics:
         variance_time_loss_scale,
         main_loss_scale,
         intermediate_loss_scale,
-        meta_encoder_loss_scale,
     ):
         results = self.metrics_dict_batchwise_single_heads_output(
             raw_model,
@@ -418,37 +417,6 @@ class Metrics:
                         results["I"+key] = value
                 results["loss_sum"] = results["loss_sum"] + intermediate_loss_scale * iresults["loss_sum"]
 
-            if raw_model.get_has_metadata_encoder():
-                assert meta_encoder_loss_scale is not None
-                meta_results = self.metrics_dict_meta_encoder(meta_encoder_loss_scale, extra_outputs)
-                for key,value in meta_results.items():
-                    if key != "loss_sum":
-                        assert key not in results
-                        results[key] = value
-                results["loss_sum"] = results["loss_sum"] + meta_results["loss_sum"]
-
-        return results
-
-    def metrics_dict_meta_encoder(
-        self,
-        meta_encoder_loss_scale,
-        extra_outputs,
-    ):
-        outmean = extra_outputs.returned[MetadataEncoder.OUTMEAN_KEY]
-        outlogvar = extra_outputs.returned[MetadataEncoder.OUTLOGVAR_KEY]
-
-        loss_meta_kl_unreduced = 0.5 * torch.sum(
-            torch.square(outmean)
-            + torch.exp(outlogvar)
-            - outlogvar
-            - 1.0
-            , dim=1
-        )
-        loss_meta_kl = torch.sum(loss_meta_kl_unreduced)
-        results = {
-            "metaklloss_sum": loss_meta_kl,
-            "loss_sum": meta_encoder_loss_scale * loss_meta_kl,
-        }
         return results
 
     def metrics_dict_batchwise_single_heads_output(

@@ -1507,6 +1507,5 @@ for name, base_config in list(config_of_name.items()):
     config = base_config.copy()
     config["metadata_encoder"] = {
         "internal_num_channels": config["trunk_num_channels"],
-        "output_num_channels": 64,
     }
     config_of_name[name+"-meta"] = config
