@@ -615,7 +615,7 @@ if __name__ == '__main__':
     min_start_row = num_rows_total
     max_end_row = num_rows_total
     num_rows_used = 0
-    print_stride = 1 + len(all_files) // 40
+    print_stride = 1 + len(all_files) // 80
     end_row = num_rows_total
     with TimeStuff("Computing desired rows"):
         for i in range(len(all_files)):
