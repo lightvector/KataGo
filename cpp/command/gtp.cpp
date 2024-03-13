@@ -467,13 +467,12 @@ struct GTPEngine {
         logger.write("Cleaned up old neural net and bot");
       }
 
-      const int maxConcurrentEvals = params.numThreads * 2 + 16; // * 2 + 16 just to give plenty of headroom
       const int expectedConcurrentEvals = params.numThreads;
       const int defaultMaxBatchSize = std::max(8,((params.numThreads+3)/4)*4);
       const bool disableFP16 = false;
       const string expectedSha256 = "";
       nnEval = Setup::initializeNNEvaluator(
-        nnModelFile,nnModelFile,expectedSha256,cfg,logger,seedRand,maxConcurrentEvals,expectedConcurrentEvals,
+        nnModelFile,nnModelFile,expectedSha256,cfg,logger,seedRand,expectedConcurrentEvals,
         nnXLen,nnYLen,defaultMaxBatchSize,defaultRequireExactNNLen,disableFP16,
         Setup::SETUP_FOR_GTP
       );

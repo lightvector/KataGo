@@ -57,7 +57,7 @@ trtUseFP16 = false
 : nnRandSeed0 = forTesting
 : After dedups: nnModelFile0 = tests/models/g170-b6c96-s175395328-d26788732.bin.gz useFP16 false useNHWC false
 : Initializing neural net buffer to be size 19 * 19 allowing smaller boards
-: Cuda backend thread 0: Found GPU NVIDIA RTX A5000 memory 25434652672 compute capability major 8 minor 6
+: Cuda backend thread 0: Found GPU NVIDIA RTX A5000 memory 25425608704 compute capability major 8 minor 6
 : Cuda backend thread 0: Model version 8 useFP16 = false useNHWC = false
 : Cuda backend thread 0: Model name: g170-b6c96-s175395328-d26788732
 : Loaded neural net
@@ -98,8 +98,8 @@ trtUseFP16 = false
 : Begun 2 / 2 sgfs, done 2 sgfs, skipped 0 sgfs, filtered 0 sgfs, filtered 0 individual poses
 : Waiting for final writing and cleanup
 : tests/models/g170-b6c96-s175395328-d26788732.bin.gz
-: NN rows: 7254
-: NN batches: 7254
+: NN rows: 7260
+: NN batches: 7260
 : NN avg batch size: 1
 : All done
-: GPU -1 finishing, processed 7254 rows 7254 batches
+: GPU -1 finishing, processed 7260 rows 7260 batches

@@ -176,7 +176,7 @@ void GameInitializer::initShared(ConfigParser& cfg, Logger& logger) {
   else if(cfg.contains("bSizesXY")) {
     if(cfg.contains("allowRectangleProb"))
       throw IOError("Cannot specify allowRectangleProb when specifying bSizesXY, please adjust the relative frequency of rectangles yourself");
-    allowedBSizes = cfg.getNonNegativeIntDashedPairs("bSizes", 2, Board::MAX_LEN);
+    allowedBSizes = cfg.getNonNegativeIntDashedPairs("bSizesXY", 2, Board::MAX_LEN);
     allowedBSizeRelProbs = cfg.getDoubles("bSizeRelProbs",0.0,1e100);
 
     double relProbSum = 0.0;
@@ -363,7 +363,7 @@ void GameInitializer::initShared(ConfigParser& cfg, Logger& logger) {
   minBoardYSize = allowedBSizes[0].second;
   maxBoardXSize = allowedBSizes[0].first;
   maxBoardYSize = allowedBSizes[0].second;
-  for(const std::pair<int,int> bSize: allowedBSizes) {
+  for(const std::pair<int,int>& bSize : allowedBSizes) {
     minBoardXSize = std::min(minBoardXSize, bSize.first);
     minBoardYSize = std::min(minBoardYSize, bSize.second);
     maxBoardXSize = std::max(maxBoardXSize, bSize.first);

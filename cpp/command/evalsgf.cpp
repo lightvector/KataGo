@@ -242,14 +242,13 @@ int MainCmds::evalsgf(const vector<string>& args) {
   NNEvaluator* nnEval;
   {
     Setup::initializeSession(cfg);
-    int maxConcurrentEvals = params.numThreads * 2 + 16; // * 2 + 16 just to give plenty of headroom
     int expectedConcurrentEvals = params.numThreads;
     int defaultMaxBatchSize = std::max(8,((params.numThreads+3)/4)*4);
     bool defaultRequireExactNNLen = true;
     bool disableFP16 = false;
     string expectedSha256 = "";
     nnEval = Setup::initializeNNEvaluator(
-      modelFile,modelFile,expectedSha256,cfg,logger,seedRand,maxConcurrentEvals,expectedConcurrentEvals,
+      modelFile,modelFile,expectedSha256,cfg,logger,seedRand,expectedConcurrentEvals,
       board.x_size,board.y_size,defaultMaxBatchSize,defaultRequireExactNNLen,disableFP16,
       Setup::SETUP_FOR_GTP
     );

@@ -27,18 +27,11 @@
 
 KataGo's public distributed training run is ongoing! See https://katagotraining.org/ for more details, to download the latest and strongest neural nets, or to learn how to contribute if you want to help KataGo improve further! Also check out the computer Go [discord channel](https://discord.gg/bqkZAz3)!
 
-As of 2023, KataGo remains one of the strongest open source Go bots available online. KataGo was trained using an AlphaZero-like process with many enhancements and improvements, and is capable of reaching top levels rapidly and entirely from scratch with no outside data, improving only via self-play. Some of these improvements take advantage of game-specific features and training targets, but also many of the techniques are general and could be applied in other games. As a result, early training is immensely faster than in other self-play-trained bots - with only a few strong GPUs for a few days, any researcher/enthusiast should be able to train a neural net from nothing to high amateur dan strength on the full 19x19 board. If tuned well, a training run using only a *single* top-end consumer GPU could possibly train a bot from scratch to superhuman strength within a few months.
+As of 2024, KataGo remains one of the strongest open source Go bots available online. KataGo was trained using an AlphaZero-like process with many enhancements and improvements, and is capable of reaching top levels rapidly and entirely from scratch with no outside data, improving only via self-play. Some of these improvements take advantage of game-specific features and training targets, but also many of the techniques are general and could be applied in other games. As a result, early training is immensely faster than in other self-play-trained bots - with only a few strong GPUs for a few days, any researcher/enthusiast should be able to train a neural net from nothing to high amateur dan strength on the full 19x19 board. If tuned well, a training run using only a *single* top-end consumer GPU could possibly train a bot from scratch to superhuman strength within a few months.
 
 Experimentally, KataGo did also try some limited ways of using external data at the end of its June 2020 run, and has continued to do so into its most recent public distributed run, "kata1" at https://katagotraining.org/. External data is not necessary for reaching top levels of play, but still appears to provide some mild benefits against some opponents, and noticeable benefits in a useful analysis tool for a variety of kinds of situations that don't occur in self-play but that do occur in human games and  games that users wish to analyze.
 
-Paper about the major new ideas and techniques used in KataGo: [Accelerating Self-Play Learning in Go (arXiv)](https://arxiv.org/abs/1902.10565).
-A few major further improvements have been found since then, which have been incorporated into KataGo's more recent runs. These and a few research notes can be found [here](docs/KataGoMethods.md).
-
-Many thanks to [Jane Street](https://www.janestreet.com/) for supporting the training of KataGo's major earlier published runs, as well as numerous many smaller testing runs and experiments. Blog posts about the initial release and some interesting subsequent experiments:
-* [Accelerating Self-Play Learning in Go](https://blog.janestreet.com/accelerating-self-play-learning-in-go/)
-* [Deep-Learning the Hardest Go Problem in the World](https://blog.janestreet.com/deep-learning-the-hardest-go-problem-in-the-world/).
-
-KataGo's engine also aims to be a useful tool for Go players and developers, and supports the following features:
+KataGo's engine aims to be a useful tool for Go players and developers, and supports the following features:
 * Estimates territory and score, rather than only "winrate", helping analyze kyu and amateur dan games besides only on moves that actually would swing the game outcome at pro/superhuman-levels of play.
 * Cares about maximizing score, enabling strong play in handicap games when far behind, and reducing slack play in the endgame when winning.
 * Supports alternative values of komi (including integer values) and good high-handicap game play.
@@ -46,9 +39,21 @@ KataGo's engine also aims to be a useful tool for Go players and developers, and
 * Supports a wide variety of [rules](https://lightvector.github.io/KataGo/rules.html), including rules that match Japanese rules in almost all common cases, and ancient stone-counting-like rules.
 * For tool/back-end developers - supports a JSON-based analysis engine that can batch multiple-game evaluations efficiently and be easier to use than GTP.
 
-## Training History and Research
+## Training History and Research and Docs
 
-For more details about KataGo's older training runs, including comparisons to other bots, see [Training History and Research](TrainingHistory.md)!
+Here are some links to some docs/papers/posts about KataGo's research and training!
+
+* Paper about the major new ideas and techniques used in KataGo: [Accelerating Self-Play Learning in Go (arXiv)](https://arxiv.org/abs/1902.10565). Many of the specific parameters are outdated, but the general methods continue to be used.
+
+* Many major further improvements have been found since then, which have been incorporated into KataGo's more recent runs and are documented here: [KataGoMethods.md](docs/KataGoMethods.md).
+
+* KataGo has a fully working implementation of Monte-Carlo Graph Search, extending MCTS to operate on graphs instead of just trees! An explanation can be found here [Monte-Carlo Graph Search from First Principles](docs/GraphSearch.md). This explanation is written to be general (not specific to KataGo) and to fill a big gap in explanatory material in the academic literature and hopefully it can be useful to others!
+
+* Many thanks to [Jane Street](https://www.janestreet.com/) for supporting the training of KataGo's major earlier published runs, as well as numerous many smaller testing runs and experiments. Blog posts about the initial release and some interesting subsequent experiments:
+    * [Accelerating Self-Play Learning in Go](https://blog.janestreet.com/accelerating-self-play-learning-in-go/)
+    * [Deep-Learning the Hardest Go Problem in the World](https://blog.janestreet.com/deep-learning-the-hardest-go-problem-in-the-world/).
+
+For more details about KataGo's older training runs, including comparisons to other bots, see [Older Training History and Research](TrainingHistory.md)!
 
 Also if you're looking to ask about general information about KataGo or how it works, or about some past Go bots besides KataGo, consider the computer Go [discord channel](https://discord.gg/bqkZAz3).
 
@@ -77,7 +82,7 @@ KataGo currently officially supports both Windows and Linux, with [precompiled e
 ### MacOS
 The community also provides KataGo packages for [Homebrew](https://brew.sh) on MacOS - releases there may lag behind official releases slightly.
 
-Use `brew install katago`. The latest config files and networks are installed in KataGo's `share` directory. Find them via `brew list --verbose katago`. A basic way to run katago will be `katago gtp -config $(brew list --verbose katago | grep gtp*.cfg) -model $(brew list --verbose katago | grep .gz | head -1)`. You should choose the Network according to the release notes here and customize the provided example config as with every other way of installing KataGo.
+Use `brew install katago`. The latest config files and networks are installed in KataGo's `share` directory. Find them via `brew list --verbose katago`. A basic way to run katago will be `katago gtp -config $(brew list --verbose katago | grep 'gtp.*\.cfg') -model $(brew list --verbose katago | grep .gz | head -1)`. You should choose the Network according to the release notes here and customize the provided example config as with every other way of installing KataGo.
 
 ### OpenCL vs CUDA vs TensorRT vs Eigen
 KataGo has four backends, OpenCL (GPU), CUDA (GPU), TensorRT (GPU), and Eigen (CPU).

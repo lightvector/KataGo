@@ -1,0 +1,62 @@
+: GTP Engine starting...
+: KataGo v1.14.1
+: Using TrompTaylor rules initially, unless GTP/GUI overrides this
+: Using 1 CPU thread(s) for search
+: nnRandSeed0 = forTesting
+: After dedups: nnModelFile0 = models/b18c384nbt-uec.bin.gz useFP16 false useNHWC false
+: Initializing neural net buffer to be size 9 * 9 exactly
+: Cuda backend thread 0: Found GPU NVIDIA RTX A5000 memory 25425608704 compute capability major 8 minor 6
+: Cuda backend thread 0: Model version 11 useFP16 = false useNHWC = false
+: Cuda backend thread 0: Model name: b18c384nbt-uec-20221121b
+: Loaded neural net with nnXLen 9 nnYLen 9
+: Initializing board with boardXSize 9 boardYSize 9
+: Loaded config configs/gtp_example.cfg and/or command-line and query overrides
+: Loaded model models/b18c384nbt-uec.bin.gz
+: Config override: cudaUseFP16 = false
+: Config override: cudaUseNHWC = false
+: Config override: defaultBoardSize = 9
+: Config override: forDeterministicTesting = true
+: Config override: logConfigContents = false
+: Config override: logDir = 
+: Config override: logFile = tests/results/gtp/genmoveanalyze.log
+: Config override: logTimeStamp = false
+: Config override: maxPlayouts = 10000
+: Config override: maxVisits = 30
+: Config override: nnRandSeed = forTesting
+: Config override: nnRandomize = false
+: Config override: numSearchThreads = 1
+: Config override: openclUseFP16 = false
+: Config override: searchRandSeed = forTesting
+: Config override: trtUseFP16 = false
+: Model name: b18c384nbt-uec-20221121b
+: GTP ready, beginning main protocol loop
+: Controller: kata-genmove_analyze b
+: MoveNum: 0 HASH: 9F0B2D702FC8448C75410E097F089AEB
+   A B C D E F G H J
+ 9 . . . . . . . . .
+ 8 . . . . . . . . .
+ 7 . . . . . . . . .
+ 6 . . . . . . . . .
+ 5 . . . . @ . . . .
+ 4 . . . . . . . . .
+ 3 . . . . . . . . .
+ 2 . . . . . . . . .
+ 1 . . . . . . . . .
+
+koPOSITIONALscoreAREAtaxNONEsui1komi7.5
+Time taken: ###
+Root visits: 30
+New playouts: 30
+NN rows: 30
+NN batches: 30
+NN avg batch size: 1
+PV: E5 E3 C4 D7
+Tree:
+: T -79.60c W -78.90c S  -0.90c ( -1.7 L  -0.4) N      30  --  E5 E3 C4 D7
+---Black(^)---
+E5  : T -80.23c W -79.65c S  -1.01c ( -1.8 L  -0.5) LCB  -82.42c P 58.12% WF  42.7 PSV      43 N      22  --  E5 E3 C4 D7
+F5  : T -77.64c W -76.61c S  -0.48c ( -1.5 L  -0.3) LCB  -93.09c P  8.61% WF  12.8 PSV      13 N       7  --  F5 D5 E7 D3 C6
+
+: = play E5
+: GPU -1 finishing, processed 30 rows 30 batches
+: All cleaned up, quitting

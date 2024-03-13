@@ -30,13 +30,13 @@ searchRandSeed = forTesting
 trtUseFP16 = false
 
 : GTP Engine starting...
-: KataGo v1.13.2
+: KataGo v1.14.1
 : Using TrompTaylor rules initially, unless GTP/GUI overrides this
 : Using 1 CPU thread(s) for search
 : nnRandSeed0 = forTesting
 : After dedups: nnModelFile0 = tests/models/g170-b6c96-s175395328-d26788732.bin.gz useFP16 false useNHWC false
 : Initializing neural net buffer to be size 19 * 19 exactly
-: Cuda backend thread 0: Found GPU NVIDIA RTX A5000 memory 25434652672 compute capability major 8 minor 6
+: Cuda backend thread 0: Found GPU NVIDIA RTX A5000 memory 25425608704 compute capability major 8 minor 6
 : Cuda backend thread 0: Model version 8 useFP16 = false useNHWC = false
 : Cuda backend thread 0: Model name: g170-b6c96-s175395328-d26788732
 : Loaded neural net with nnXLen 19 nnYLen 19
@@ -66,7 +66,7 @@ trtUseFP16 = false
 : nnRandSeed0 = forTesting
 : After dedups: nnModelFile0 = tests/models/g170-b6c96-s175395328-d26788732.bin.gz useFP16 false useNHWC false
 : Initializing neural net buffer to be size 15 * 15 exactly
-: Cuda backend thread 0: Found GPU NVIDIA RTX A5000 memory 25434652672 compute capability major 8 minor 6
+: Cuda backend thread 0: Found GPU NVIDIA RTX A5000 memory 25425608704 compute capability major 8 minor 6
 : Cuda backend thread 0: Model version 8 useFP16 = false useNHWC = false
 : Cuda backend thread 0: Model name: g170-b6c96-s175395328-d26788732
 : Loaded neural net with nnXLen 15 nnYLen 15
@@ -150,7 +150,7 @@ W stones captured: 0
 : nnRandSeed0 = forTesting
 : After dedups: nnModelFile0 = tests/models/g170-b6c96-s175395328-d26788732.bin.gz useFP16 false useNHWC false
 : Initializing neural net buffer to be size 19 * 19 exactly
-: Cuda backend thread 0: Found GPU NVIDIA RTX A5000 memory 25434652672 compute capability major 8 minor 6
+: Cuda backend thread 0: Found GPU NVIDIA RTX A5000 memory 25425608704 compute capability major 8 minor 6
 : Cuda backend thread 0: Model version 8 useFP16 = false useNHWC = false
 : Cuda backend thread 0: Model name: g170-b6c96-s175395328-d26788732
 : Loaded neural net with nnXLen 19 nnYLen 19

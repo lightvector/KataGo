@@ -132,6 +132,8 @@ struct NNOutput {
   //Indexed by pos rather than loc
   //Values in here will be set to negative for illegal moves, including superko
   float policyProbs[NNPos::MAX_NN_POLICY_SIZE];
+  //The optimism value used for this neural net evaluation.
+  float policyOptimismUsed;
 
   int nnXLen;
   int nnYLen;
