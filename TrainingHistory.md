@@ -1,4 +1,4 @@
-# KataGo Training History and Research
+# KataGo Older Training History and Research
 
 * [Current Status](#current-status)
 * [History](#history)
@@ -9,13 +9,13 @@
 
 ## Current Status
 
-As of 2023, KataGo's is currently continuing its public distributed run, "kata1"! The website, where you can download the latest networks and find instructions to contribute if you wish, is here:
+As of 2024, KataGo's is currently continuing its public distributed run, "kata1"! The website, where you can download the latest networks and find instructions to contribute if you wish, is here:
 
 https://katagotraining.org/
 
 This run, continuing from the peak of KataGo's g170 run, has already improved in strength a bit, with hopefully much further room to improve. KataGo is able to win variously more than 80% or 90% of games against various classic and benchmark opponents even with a large handicap in computation power allowed, as well as performing favorably against the peak of its older 170 run. See [here](https://lifein19x19.com/viewtopic.php?p=262982#p262982) for some results.
 
-## History
+## Older History
 
 Prior to opening up its first public distributed run, KataGo ran three major runs on cloud machines or clusters privately or with the help of sponsors (many thanks to [Jane Street](https://www.janestreet.com/) for supporting and making some of these earlier runs and the necessary experiments and testing possible!). The full history of networks and generated training data for all three of these runs is available [here](https://katagoarchive.org/g170/index.html).
 

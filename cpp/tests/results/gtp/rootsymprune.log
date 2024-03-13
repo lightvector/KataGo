@@ -30,13 +30,13 @@ searchRandSeed = forTesting
 trtUseFP16 = false
 
 : GTP Engine starting...
-: KataGo v1.13.2
+: KataGo v1.14.0
 : Using TrompTaylor rules initially, unless GTP/GUI overrides this
 : Using 1 CPU thread(s) for search
 : nnRandSeed0 = forTesting
 : After dedups: nnModelFile0 = tests/models/g170-b6c96-s175395328-d26788732.bin.gz useFP16 false useNHWC false
 : Initializing neural net buffer to be size 19 * 19 exactly
-: Cuda backend thread 0: Found GPU NVIDIA RTX A5000 memory 25434652672 compute capability major 8 minor 6
+: Cuda backend thread 0: Found GPU NVIDIA RTX A5000 memory 25425608704 compute capability major 8 minor 6
 : Cuda backend thread 0: Model version 8 useFP16 = false useNHWC = false
 : Cuda backend thread 0: Model name: g170-b6c96-s175395328-d26788732
 : Loaded neural net with nnXLen 19 nnYLen 19
@@ -93,17 +93,17 @@ NN batches: 77
 NN avg batch size: 1
 PV: R16 Q3 C4 D17 E4 Q5
 Tree:
-: T   0.41c W  -0.07c S   0.39c ( +0.2 L  +0.1) N     100  --  R16 Q3 C4 D17 E4 Q5
+: T   0.42c W  -0.07c S   0.39c ( +0.2 L  +0.1) N     100  --  R16 Q3 C4 D17 E4 Q5
 ---Black(^)---
-R16 : T   0.59c W   0.09c S   0.41c ( +0.3 L  +0.1) LCB   -0.19c P  7.34% WF  94.0 PSV      94 N      94  --  R16 Q3 C4 D17 E4 Q5
+R16 : T   0.60c W   0.09c S   0.41c ( +0.3 L  +0.1) LCB   -0.19c P  7.35% WF  94.0 PSV      94 N      94  --  R16 Q3 C4 D17 E4 Q5
 R16 Q3  : T  -0.02c W  -0.38c S   0.35c ( +0.2 L  +0.1) LCB    1.82c P 12.02% WF  21.1 PSV      32 N      21  --  Q3 C4 D17 E4 Q5
-R16 D3  : T   0.38c W  -0.17c S   0.42c ( +0.3 L  +0.2) LCB    3.01c P 13.84% WF  18.0 PSV      18 N      18  --  D3 Q3 D17 Q5 D5
+R16 D3  : T   0.38c W  -0.17c S   0.42c ( +0.3 L  +0.2) LCB    3.02c P 13.84% WF  18.0 PSV      18 N      18  --  D3 Q3 D17 Q5 D5
 R16 C16 : T   0.25c W  -0.23c S   0.40c ( +0.3 L  +0.1) LCB    3.92c P  8.75% WF  15.0 PSV      15 N      15  --  C16 Q3 D3 Q5
-R16 R4  : T   1.09c W   0.59c S   0.51c ( +0.4 L  +0.2) LCB    5.55c P 11.92% WF  13.0 PSV      13 N      13  --  R4 C4 D17 E4
-R16 D17 : T   1.20c W   0.76c S   0.44c ( +0.3 L  +0.2) LCB    8.65c P 10.44% WF  10.0 PSV      10 N      10  --  D17 Q3 C4 Q5
-R16 C4  : T   0.81c W   0.39c S   0.45c ( +0.3 L  +0.2) LCB    8.30c P  9.17% WF  10.0 PSV      10 N      10  --  C4 Q3 D17 Q5
-R16 Q16 : T   1.56c W   0.24c S   0.32c ( +0.2 L  +0.4) LCB   21.45c P  7.32% WF   6.0 PSV       6 N       6  --  Q16 Q17 P17 R17 Q3 C4
-Q16 : T  -1.78c W  -1.98c S   0.11c ( -0.2 L  -0.0) LCB  -29.79c P  3.90% WF   5.0 PSV       4 N       5  --  Q16 D3 D17 Q3
+R16 R4  : T   1.10c W   0.60c S   0.51c ( +0.4 L  +0.2) LCB    5.55c P 11.92% WF  13.0 PSV      13 N      13  --  R4 C4 D17 E4
+R16 D17 : T   1.20c W   0.75c S   0.44c ( +0.3 L  +0.2) LCB    8.65c P 10.43% WF  10.0 PSV      10 N      10  --  D17 Q3 C4 Q5
+R16 C4  : T   0.81c W   0.39c S   0.45c ( +0.3 L  +0.2) LCB    8.31c P  9.16% WF  10.0 PSV      10 N      10  --  C4 Q3 D17 Q5
+R16 Q16 : T   1.60c W   0.24c S   0.33c ( +0.1 L  +0.4) LCB   21.50c P  7.32% WF   6.0 PSV       6 N       6  --  Q16 Q17 P17 R17 Q3 C4
+Q16 : T  -1.79c W  -1.98c S   0.11c ( -0.2 L  -0.0) LCB  -29.79c P  3.90% WF   5.0 PSV       4 N       5  --  Q16 D3 D17 Q3
 
 : = R16
 : Controller: genmove_debug w
@@ -141,19 +141,19 @@ Tree:
 : T  -0.39c W  -0.13c S  -0.06c ( -0.3 L  -0.2) N     100  --  Q3 C4 D17 E4 Q5
 ---White(^)---
 Q3  : T   0.33c W   0.33c S  -0.00c ( -0.2 L  -0.1) LCB   -1.42c P 12.02% WF  21.1 PSV      33 N      21  --  Q3 C4 D17 E4 Q5
-Q3  C4  : T  -0.15c W   0.01c S   0.04c ( -0.1 L  -0.0) LCB   19.24c P 19.08% WF   6.0 PSV       8 N       6  --  C4 D17 E4 Q5
-Q3  C16 : T   0.29c W  -0.00c S  -0.04c ( -0.2 L  -0.1) LCB   21.26c P 19.01% WF   5.0 PSV       5 N       5  --  C16 D3 E16 Q5
-Q3  D3  : T   0.34c W   0.18c S  -0.01c ( -0.2 L  -0.0) LCB   28.05c P 18.24% WF   5.0 PSV       5 N       5  --  D3 C16 D5
-Q3  D17 : T   0.67c W   0.64c S  -0.02c ( -0.2 L  -0.0) LCB   33.73c P 18.11% WF   4.0 PSV       4 N       4  --  D17 D3 P16
-D3  : T  -0.04c W   0.17c S  -0.07c ( -0.3 L  -0.2) LCB   -2.68c P 13.84% WF  18.0 PSV      18 N      18  --  D3 Q3 D17 Q5 D5
+Q3  C4  : T  -0.14c W   0.01c S   0.04c ( -0.1 L  -0.0) LCB   19.25c P 19.05% WF   6.0 PSV       8 N       6  --  C4 D17 E4 Q5
+Q3  C16 : T   0.30c W   0.00c S  -0.04c ( -0.2 L  -0.1) LCB   21.27c P 19.02% WF   5.0 PSV       5 N       5  --  C16 D3 E16 Q5
+Q3  D3  : T   0.34c W   0.18c S  -0.02c ( -0.2 L  -0.0) LCB   28.05c P 18.24% WF   5.0 PSV       5 N       5  --  D3 C16 D5
+Q3  D17 : T   0.67c W   0.63c S  -0.02c ( -0.2 L  -0.0) LCB   33.73c P 18.11% WF   4.0 PSV       4 N       4  --  D17 D3 P16
+D3  : T  -0.04c W   0.17c S  -0.07c ( -0.3 L  -0.2) LCB   -2.67c P 13.84% WF  18.0 PSV      18 N      18  --  D3 Q3 D17 Q5 D5
 C16 : T   0.10c W   0.23c S  -0.06c ( -0.3 L  -0.1) LCB   -3.57c P  8.75% WF  15.0 PSV      13 N      15  --  C16 Q3 D3 Q5
-R4  : T  -0.73c W  -0.59c S  -0.16c ( -0.4 L  -0.2) LCB   -5.19c P 11.92% WF  13.0 PSV      13 N      13  --  R4 C4 D17 E4
-D17 : T  -0.86c W  -0.82c S  -0.08c ( -0.3 L  -0.2) LCB   -7.44c P 10.44% WF  10.0 PSV      10 N      10  --  D17 C4 Q3 E4 Q5
-C4  : T  -0.40c W  -0.39c S  -0.11c ( -0.3 L  -0.2) LCB   -7.91c P  9.17% WF  10.0 PSV      10 N      10  --  C4 Q3 D17 Q5
-Q16 : T  -1.63c W  -0.24c S   0.02c ( -0.2 L  -0.4) LCB  -21.60c P  7.32% WF   6.0 PSV       6 N       6  --  Q16 Q17 P17 R17 Q3 C4
+R4  : T  -0.74c W  -0.60c S  -0.16c ( -0.4 L  -0.2) LCB   -5.20c P 11.92% WF  13.0 PSV      13 N      13  --  R4 C4 D17 E4
+D17 : T  -0.86c W  -0.82c S  -0.08c ( -0.3 L  -0.2) LCB   -7.44c P 10.43% WF  10.0 PSV      10 N      10  --  D17 C4 Q3 E4 Q5
+C4  : T  -0.40c W  -0.39c S  -0.11c ( -0.3 L  -0.2) LCB   -7.91c P  9.16% WF  10.0 PSV      10 N      10  --  C4 Q3 D17 Q5
+Q16 : T  -1.64c W  -0.24c S   0.02c ( -0.1 L  -0.4) LCB  -21.61c P  7.32% WF   6.0 PSV       6 N       6  --  Q16 Q17 P17 R17 Q3 C4
 D4  : T  -3.03c W  -0.92c S  -0.13c ( -0.4 L  -0.4) LCB -152.16c P  5.92% WF   2.0 PSV       2 N       2  --  D4 C16
-D16 : T  -2.61c W  -0.73c S  -0.12c ( -0.4 L  -0.4) LCB -151.71c P  5.74% WF   2.0 PSV       2 N       2  --  D16 D3
-Q4  : T  -1.17c W   0.09c S  -0.02c ( -0.2 L  -0.2) LCB -150.18c P  5.08% WF   2.0 PSV       2 N       2  --  Q4 D3
+D16 : T  -2.62c W  -0.73c S  -0.12c ( -0.4 L  -0.4) LCB -151.71c P  5.74% WF   2.0 PSV       2 N       2  --  D16 D3
+Q4  : T  -1.17c W   0.09c S  -0.02c ( -0.2 L  -0.2) LCB -150.18c P  5.09% WF   2.0 PSV       2 N       2  --  Q4 D3
 
 : = Q3
 : Controller: genmove_debug b
@@ -190,14 +190,14 @@ PV: C16 C4 P16 E4 E16 Q5
 Tree:
 : T   0.64c W   0.44c S   0.16c ( +0.4 L  +0.3) N     100  --  C16 C4 P16 E4 E16 Q5
 ---Black(^)---
-C16 : T   0.98c W   0.75c S   0.20c ( +0.4 L  +0.4) LCB   -0.42c P 19.01% WF  27.0 PSV      37 N      27  --  C16 C4 P16 E4 E16 Q5
+C16 : T   0.98c W   0.75c S   0.20c ( +0.4 L  +0.4) LCB   -0.43c P 19.02% WF  27.0 PSV      37 N      27  --  C16 C4 P16 E4 E16 Q5
 D17 : T   1.02c W   0.41c S   0.23c ( +0.5 L  +0.3) LCB   -0.53c P 18.11% WF  24.0 PSV      24 N      24  --  D17 D3 P16 Q5 D15 D5
-C4  : T   0.76c W   0.56c S   0.14c ( +0.3 L  +0.3) LCB   -0.73c P 19.08% WF  23.0 PSV      23 N      23  --  C4 D17 E4 Q5 P16 D15
-D3  : T   0.59c W   0.50c S   0.14c ( +0.3 L  +0.3) LCB   -1.21c P 18.24% WF  21.0 PSV      21 N      21  --  D3 C16 P16 Q5 D5
-D3  C16 : T   0.38c W   0.22c S   0.14c ( +0.3 L  +0.3) LCB    7.53c P 28.10% WF  10.0 PSV      11 N      10  --  C16 P16 Q5 D5
-D3  D17 : T   0.73c W   0.64c S   0.17c ( +0.4 L  +0.3) LCB    7.77c P 31.52% WF  10.0 PSV      10 N      10  --  D17 P16 D15 D5
-Q4  : T  -3.63c W  -1.21c S  -0.34c ( -0.4 L  -0.2) LCB -152.78c P  5.38% WF   2.0 PSV       2 N       2  --  Q4 R4
-D16 : T  -2.92c W  -1.82c S  -0.20c ( -0.2 L  -0.2) LCB -151.89c P  5.17% WF   2.0 PSV       2 N       2  --  D16 D3
+C4  : T   0.76c W   0.55c S   0.14c ( +0.3 L  +0.3) LCB   -0.73c P 19.05% WF  23.0 PSV      23 N      23  --  C4 D17 E4 Q5 P16 D15
+D3  : T   0.59c W   0.49c S   0.14c ( +0.3 L  +0.3) LCB   -1.21c P 18.24% WF  21.0 PSV      21 N      21  --  D3 C16 P16 Q5 D5
+D3  C16 : T   0.38c W   0.22c S   0.14c ( +0.3 L  +0.3) LCB    7.53c P 28.08% WF  10.0 PSV      11 N      10  --  C16 P16 Q5 D5
+D3  D17 : T   0.73c W   0.64c S   0.17c ( +0.4 L  +0.3) LCB    7.77c P 31.55% WF  10.0 PSV      10 N      10  --  D17 P16 D15 D5
+Q4  : T  -3.63c W  -1.21c S  -0.34c ( -0.4 L  -0.2) LCB -152.79c P  5.38% WF   2.0 PSV       2 N       2  --  Q4 R4
+D16 : T  -2.93c W  -1.82c S  -0.20c ( -0.2 L  -0.2) LCB -151.90c P  5.18% WF   2.0 PSV       2 N       2  --  D16 D3
 
 : = D3
 : GPU -1 finishing, processed 147 rows 147 batches

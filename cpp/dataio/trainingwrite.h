@@ -91,6 +91,10 @@ struct SGFMetadata {
   static const int SOURCE_TYGEM = 4;
   static const int SOURCE_GOGOD = 5;
   static const int SOURCE_GO4GO = 6;
+
+  static constexpr int METADATA_INPUT_NUM_CHANNELS = 192;
+
+  static void fillMetadataRow(SGFMetadata* sgfMeta, float* rowMetadata, Player nextPlayer);
 };
 
 STRUCT_NAMED_PAIR(std::string,name,int,turnIdx,ChangedNeuralNet);

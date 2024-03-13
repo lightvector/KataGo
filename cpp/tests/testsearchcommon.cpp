@@ -199,7 +199,6 @@ NNEvaluator* TestSearchCommon::startNNEval(
   int maxBatchSize = 16;
   int nnCacheSizePowerOfTwo = 16;
   int nnMutexPoolSizePowerOfTwo = 12;
-  int maxConcurrentEvals = 1024;
   //bool debugSkipNeuralNet = false;
   bool openCLReTunePerBoardSize = false;
   const string& modelName = modelFile;
@@ -221,7 +220,6 @@ NNEvaluator* TestSearchCommon::startNNEval(
     expectedSha256,
     &logger,
     maxBatchSize,
-    maxConcurrentEvals,
     nnXLen,
     nnYLen,
     requireExactNNLen,

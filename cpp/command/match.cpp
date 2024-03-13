@@ -143,7 +143,7 @@ int MainCmds::match(const vector<string>& args) {
   }
 
   vector<bool> botIsUsed(numBots);
-  for(const std::pair<int,int> pair: matchupsPerRound) {
+  for(const std::pair<int,int>& pair : matchupsPerRound) {
     botIsUsed[pair.first] = true;
     botIsUsed[pair.second] = true;
   }
@@ -176,7 +176,6 @@ int MainCmds::match(const vector<string>& args) {
   const string gameSeedBase = Global::uint64ToHexString(seedRand.nextUInt64());
 
   //Work out an upper bound on how many concurrent nneval requests we could end up making.
-  int maxConcurrentEvals;
   int expectedConcurrentEvals;
   {
     //Work out the max threads any one bot uses
@@ -186,8 +185,6 @@ int MainCmds::match(const vector<string>& args) {
         maxBotThreads = paramss[i].numThreads;
     //Mutiply by the number of concurrent games we could have
     expectedConcurrentEvals = maxBotThreads * numGameThreads;
-    //Multiply by 2 and add some buffer, just so we have plenty of headroom.
-    maxConcurrentEvals = expectedConcurrentEvals * 2 + 16;
   }
 
   //Initialize object for randomizing game settings and running games
@@ -206,7 +203,7 @@ int MainCmds::match(const vector<string>& args) {
   const bool disableFP16 = false;
   const vector<string> expectedSha256s;
   vector<NNEvaluator*> nnEvals = Setup::initializeNNEvaluators(
-    nnModelNames,nnModelFiles,expectedSha256s,cfg,logger,seedRand,maxConcurrentEvals,expectedConcurrentEvals,
+    nnModelNames,nnModelFiles,expectedSha256s,cfg,logger,seedRand,expectedConcurrentEvals,
     maxBoardXSizeUsed,maxBoardYSizeUsed,defaultMaxBatchSize,defaultRequireExactNNLen,disableFP16,
     Setup::SETUP_FOR_MATCH
   );
