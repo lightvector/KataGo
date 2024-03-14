@@ -1,6 +1,7 @@
 # Monte-Carlo Graph Search from First Principles
+<sub>(Edit 2024-03-13: Corrected an error where PUCT was indicated as referring to "polynomial" UCT rather than "predictor" UCT, i.e. UCT/UCB with a predictive prior)</sub>
 
-Monte-Carlo Tree Search (MCTS) except applied to directed graphs instead of trees - "Monte-Carlo Graph Search" ("MCGS") - is sometimes considered to be pretty tricky to implement in a sound way.
+Monte-Carlo Tree Search (MCTS) except applied to directed graphs instead of trees, "Monte-Carlo Graph Search" ("MCGS"), is sometimes considered to be pretty tricky to implement in a sound way.
 
 Unfortunately, this is partly because the perhaps-standard academic reference for it, [Monte-Carlo Graph Search for AlphaZero (Czech, Korus, and Kersting, 2020)](https://arxiv.org/pdf/2012.11045.pdf), adheres closely to the "standard" formulation for MCTS on trees. This historically-standard formulation turns out to be a poor choice for conceptually understanding the generalization to graphs. This document presents an essentially-equivalent-but-cleaner formulation that I hope many will find more intuitive, and derives from basic principles why graph search needs to work this way and reveals some additional possible implementation choices beyond those considered by Czech et. al.
 
@@ -90,7 +91,7 @@ where:
 * $P(a)$ is the prior probability that the action is best, e.g. the raw policy prediction for $a$ from querying a neural net.
 * $c_{\text{PUCT}}$ is a tunable constant.
 
-As an aside, "PUCT" originated as an abbreviation for "Polynomial Upper Confidence Bounds for Trees", a "polynomial" variant of the "UCT" or "UCB1" algorithms from the multi-armed-bandit literature which use a formula with a different exploration term that involves a log scaling (see [Kocsis and Szepesvári, 2006](http://old.sztaki.hu/~szcsaba/papers/ecml06.pdf)). Properly, "PUCT" might describe a whole class of such variants, but nowadays in game-playing/machine-learning circles "PUCT" often just refers to AlphaZero's particular version of the formula for how to select actions to explore, which is also what we focus on here.
+As an aside, "PUCT" originated as an abbreviation for "Predictor Upper Confidence Bounds" for trees, a variant of the "UCT" or "UCB1" algorithms from the multi-armed-bandit literature that used a predictor, i.e. a prior, along with a exploration term that involves a log scaling (see [Kocsis and Szepesvári, 2006](http://old.sztaki.hu/~szcsaba/papers/ecml06.pdf) and [Rosin, 2011](https://link.springer.com/article/10.1007/s10472-011-9258-6)). AlphaZero's variant has a noticeably different functional form than the original and nowadays "PUCT" is somewhat ambiguous regarding the particular functional form and in game-playing/machine-learning circles often refers to AlphaZero's particular variant of the formula, which is also what we focus on here.
 
 Also, as far as the name "Monte-Carlo Tree Search" itself, readers might note that there is nothing "Monte-Carlo" in the above algorithm - that it's completely deterministic! The name comes from the fact that originally, randomized rollouts to the end of the game were used for utility estimates, instead of querying a neural net. In hindsight, the name was a poor historical choice - it would be more accurate to call the algorithm something like "Bandit-based Tree Search", but for years now pretty much universally everyone has continued to use "MCTS" to refer to the modern deterministic versions.
 
