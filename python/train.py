@@ -102,6 +102,7 @@ if __name__ == "__main__":
 
     optional_args.add_argument('-soft-policy-weight-scale', type=float, default=8.0, help='Soft policy loss coeff', required=False)
     optional_args.add_argument('-disable-optimistic-policy', help='Disable optimistic policy', required=False, action='store_true')
+    optional_args.add_argument('-meta-kata-only-soft-policy', help='Mask soft policy on non-kata rows using sgfmeta', required=False, action='store_true')
     optional_args.add_argument('-value-loss-scale', type=float, default=0.6, help='Additional value loss coeff', required=False)
     optional_args.add_argument('-td-value-loss-scales', type=str, default="0.6,0.6,0.6", help='Additional td value loss coeffs, 3 comma separated values', required=False)
     optional_args.add_argument('-seki-loss-scale', type=float, default=1.0, help='Additional seki loss coeff', required=False)
@@ -187,6 +188,7 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
 
     soft_policy_weight_scale = args["soft_policy_weight_scale"]
     disable_optimistic_policy = args["disable_optimistic_policy"]
+    meta_kata_only_soft_policy = args["meta_kata_only_soft_policy"]
     value_loss_scale = args["value_loss_scale"]
     td_value_loss_scales = [float(x) for x in args["td_value_loss_scales"].split(",")]
     seki_loss_scale = args["seki_loss_scale"]
@@ -573,6 +575,7 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
     logging.info(f"lookahead_k {lookahead_k}")
     logging.info(f"soft_policy_weight_scale {soft_policy_weight_scale}")
     logging.info(f"disable_optimistic_policy {disable_optimistic_policy}")
+    logging.info(f"meta_kata_only_soft_policy {meta_kata_only_soft_policy}")
     logging.info(f"value_loss_scale {value_loss_scale}")
     logging.info(f"td_value_loss_scales {td_value_loss_scales}")
     logging.info(f"seki_loss_scale {seki_loss_scale}")
@@ -1095,6 +1098,7 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
                     is_training=True,
                     soft_policy_weight_scale=soft_policy_weight_scale,
                     disable_optimistic_policy=disable_optimistic_policy,
+                    meta_kata_only_soft_policy=meta_kata_only_soft_policy,
                     value_loss_scale=value_loss_scale,
                     td_value_loss_scales=td_value_loss_scales,
                     seki_loss_scale=seki_loss_scale,
@@ -1273,6 +1277,7 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
                             is_training=False,
                             soft_policy_weight_scale=soft_policy_weight_scale,
                             disable_optimistic_policy=disable_optimistic_policy,
+                            meta_kata_only_soft_policy=meta_kata_only_soft_policy,
                             value_loss_scale=value_loss_scale,
                             td_value_loss_scales=td_value_loss_scales,
                             seki_loss_scale=seki_loss_scale,

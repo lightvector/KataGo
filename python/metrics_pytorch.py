@@ -367,6 +367,7 @@ class Metrics:
         is_training,
         soft_policy_weight_scale,
         disable_optimistic_policy,
+        meta_kata_only_soft_policy,
         value_loss_scale,
         td_value_loss_scales,
         seki_loss_scale,
@@ -381,6 +382,7 @@ class Metrics:
             is_training=is_training,
             soft_policy_weight_scale=soft_policy_weight_scale,
             disable_optimistic_policy=disable_optimistic_policy,
+            meta_kata_only_soft_policy=meta_kata_only_soft_policy,
             value_loss_scale=value_loss_scale,
             td_value_loss_scales=td_value_loss_scales,
             seki_loss_scale=seki_loss_scale,
@@ -406,6 +408,7 @@ class Metrics:
                     is_training=is_training,
                     soft_policy_weight_scale=soft_policy_weight_scale,
                     disable_optimistic_policy=disable_optimistic_policy,
+                    meta_kata_only_soft_policy=meta_kata_only_soft_policy,
                     value_loss_scale=value_loss_scale,
                     td_value_loss_scales=td_value_loss_scales,
                     seki_loss_scale=seki_loss_scale,
@@ -427,6 +430,7 @@ class Metrics:
         is_training,
         soft_policy_weight_scale,
         disable_optimistic_policy,
+        meta_kata_only_soft_policy,
         value_loss_scale,
         td_value_loss_scales,
         seki_loss_scale,
@@ -530,16 +534,25 @@ class Metrics:
             global_weight,
         ).sum()
 
+        target_weight_policy_player_soft = target_weight_policy_player
+        target_weight_policy_opponent_soft = target_weight_policy_opponent
+        if meta_kata_only_soft_policy:
+            metadata_input_nc = batch["metadataInputNC"]
+            assert metadata_input_nc.shape[0] == target_weight_policy_player_soft.shape[0]
+            # 151 indicates source 0 = katago
+            target_weight_policy_player_soft = target_weight_policy_player_soft * metadata_input_nc[:,151]
+            target_weight_policy_opponent_soft = target_weight_policy_opponent_soft * metadata_input_nc[:,151]
+
         loss_policy_player_soft = self.loss_policy_player_samplewise(
             policy_logits[:, 2, :],
             target_policy_player_soft,
-            target_weight_policy_player,
+            target_weight_policy_player_soft,
             global_weight,
         ).sum()
         loss_policy_opponent_soft = self.loss_policy_opponent_samplewise(
             policy_logits[:, 3, :],
             target_policy_opponent_soft,
-            target_weight_policy_opponent,
+            target_weight_policy_opponent_soft,
             global_weight,
         ).sum()
 
