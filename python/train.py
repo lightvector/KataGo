@@ -702,13 +702,11 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
     # Some globals
     last_curdatadir = None
     trainfilegenerator = None
-    num_train_files = 0
     vdatadir = None
 
     def maybe_reload_training_data():
         nonlocal last_curdatadir
         nonlocal trainfilegenerator
-        nonlocal num_train_files
         nonlocal vdatadir
 
         assert rank == 0, "Helper ddp training processes should not call maybe_reload_training_data"
@@ -773,16 +771,13 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
                 # Load training data files
                 tdatadir = os.path.join(curdatadir,"train")
                 train_files = [os.path.join(tdatadir,fname) for fname in os.listdir(tdatadir) if fname.endswith(".npz")]
-
-                # Make sure we're not repeating stuff if we're not supposed to repeat stuff
+                epoch0_train_files = [path for path in train_files if path not in train_state["data_files_used"]]
                 if no_repeat_files:
-                    old_len = len(train_files)
-                    train_files = [path for path in train_files if path not in train_state["data_files_used"]]
-                    new_len = len(train_files)
-                    logging.info(f"Dropping {old_len-new_len}/{old_len} files in: {tdatadir} as already used")
-                num_train_files = len(train_files)
+                    logging.info(f"Dropping {len(train_files)-len(epoch0_train_files)}/{len(train_files)} files in: {tdatadir} as already used")
+                else:
+                    logging.info(f"Skipping {len(train_files)-len(epoch0_train_files)}/{len(train_files)} files in: {tdatadir} as already used first pass")
 
-                if len(train_files) <= 0:
+                if len(train_files) <= 0 or (no_repeat_files and len(epoch0_train_files) <= 0):
                     if quit_if_no_data:
                         logging.info(f"No new training files found in: {tdatadir}, quitting")
                         sys.exit(0)
@@ -801,10 +796,8 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
                         if filename.startswith(old_dir):
                             train_state["data_files_used"].remove(filename)
 
-
-                # Filter down to a random subset that will comprise this epoch
                 def train_files_gen():
-                    train_files_shuffled = train_files.copy()
+                    train_files_shuffled = epoch0_train_files.copy()
                     while True:
                         random.shuffle(train_files_shuffled)
                         for filename in train_files_shuffled:
@@ -813,8 +806,11 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
                             yield filename
                         if no_repeat_files:
                             break
-                trainfilegenerator = train_files_gen()
+                        else:
+                            train_files_shuffled = train_files.copy()
+                            train_state["data_files_used"] = set()
 
+                trainfilegenerator = train_files_gen()
                 vdatadir = os.path.join(curdatadir,"val")
 
             # Same directory as before, no new shuffle
