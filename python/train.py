@@ -1266,13 +1266,20 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
                         pos_len=pos_len,
                         device=device,
                         randomize_symmetries=True,
+                        include_meta=raw_model.get_has_metadata_encoder(),
                         model_config=model_config
                     ):
-                        model_outputs = ddp_model(batch["binaryInputNCHW"],batch["globalInputNC"])
+                        model_outputs = ddp_model(
+                            batch["binaryInputNCHW"],
+                            batch["globalInputNC"],
+                            input_meta=(batch["metadataInputNC"] if raw_model.get_has_metadata_encoder() else None),
+                        )
                         postprocessed = raw_model.postprocess_output(model_outputs)
+                        extra_outputs = None
                         metrics = metrics_obj.metrics_dict_batchwise(
                             raw_model,
                             postprocessed,
+                            extra_outputs,
                             batch,
                             is_training=False,
                             soft_policy_weight_scale=soft_policy_weight_scale,
