@@ -1069,8 +1069,8 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
             ):
                 optimizer.zero_grad(set_to_none=True)
                 extra_outputs = None
-                if raw_model.get_has_metadata_encoder():
-                    extra_outputs = ExtraOutputs([MetadataEncoder.OUTMEAN_KEY,MetadataEncoder.OUTLOGVAR_KEY])
+                # if raw_model.get_has_metadata_encoder():
+                #     extra_outputs = ExtraOutputs([MetadataEncoder.OUTMEAN_KEY,MetadataEncoder.OUTLOGVAR_KEY])
 
                 if use_fp16:
                     with autocast():

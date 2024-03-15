@@ -205,8 +205,8 @@ def main(args):
             end = torch.cuda.Event(enable_timing=True)
 
             extra_outputs = ExtraOutputs(norm_layer_names)
-            if model.get_has_metadata_encoder():
-                extra_outputs.add_requested([MetadataEncoder.OUTMEAN_KEY,MetadataEncoder.OUTLOGVAR_KEY])
+            # if model.get_has_metadata_encoder():
+            #     extra_outputs.add_requested([MetadataEncoder.OUTMEAN_KEY,MetadataEncoder.OUTLOGVAR_KEY])
 
             start.record()
             if swa_model is not None:
