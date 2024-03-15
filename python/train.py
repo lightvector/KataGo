@@ -81,6 +81,7 @@ if __name__ == "__main__":
     optional_args.add_argument('-epochs-per-export', help='Export model once every this many epochs', type=int, required=False)
     optional_args.add_argument('-export-prob', help='Export model with this probablity', type=float, required=False)
     optional_args.add_argument('-max-epochs-this-instance', help='Terminate training after this many more epochs', type=int, required=False)
+    optional_args.add_argument('-max-training-samples', help='Terminate training after about this many training steps in samples', type=int, required=False)
     optional_args.add_argument('-sleep-seconds-per-epoch', help='Sleep this long between epochs', type=int, required=False)
     optional_args.add_argument('-max-train-bucket-per-new-data', help='When data added, add this many train rows per data row to bucket', type=float, required=False)
     optional_args.add_argument('-max-train-bucket-size', help='Approx total number of train rows allowed if data stops', type=float, required=False)
@@ -165,6 +166,7 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
     epochs_per_export = args["epochs_per_export"]
     export_prob = args["export_prob"]
     max_epochs_this_instance = args["max_epochs_this_instance"]
+    max_training_samples = args["max_training_samples"]
     sleep_seconds_per_epoch = args["sleep_seconds_per_epoch"]
     max_train_bucket_per_new_data = args["max_train_bucket_per_new_data"]
     max_train_bucket_size = args["max_train_bucket_size"]
@@ -268,14 +270,18 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
         if not lr_scale_auto:
             return 1.0
 
-        if train_state["global_step_samples"] < 60000000:
-            return 8.0
-        if train_state["global_step_samples"] < 110000000:
-            return 4.0
-        if train_state["global_step_samples"] < 160000000:
-            return 2.0
-        if train_state["global_step_samples"] < 200000000:
-            return 1.0
+        if train_state["global_step_samples"] < 200_000_000:
+            return 8.00
+        if train_state["global_step_samples"] < 400_000_000:
+            return 4.00
+        if train_state["global_step_samples"] < 500_000_000:
+            return 2.00
+        if train_state["global_step_samples"] < 550_000_000:
+            return 1.00
+        if train_state["global_step_samples"] < 600_000_000:
+            return 0.50
+        if train_state["global_step_samples"] < 650_000_000:
+            return 0.25
         return 0.25
 
     def get_checkpoint_path():
@@ -960,6 +966,13 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
         barrier.wait()
 
     while True:
+        if max_epochs_this_instance is not None and max_epochs_this_instance >= 0 and num_epochs_this_instance >= max_epochs_this_instance:
+            logging.info("Hit max epochs this instance, done")
+            break
+        if max_training_samples is not None and train_state["global_step_samples"] >= max_training_samples:
+            logging.info("Hit max training samples, done")
+            break
+
         if rank == 0:
             maybe_reload_training_data()
 
@@ -1323,9 +1336,6 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
                     time.sleep(2)
                     os.rename(savepathtmp,savepath)
 
-        if max_epochs_this_instance is not None and max_epochs_this_instance >= 0 and num_epochs_this_instance >= max_epochs_this_instance:
-            logging.info("Hit max epochs this instance, done")
-            break
 
         if sleep_seconds_per_epoch is None:
             time.sleep(1)
