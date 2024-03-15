@@ -1392,6 +1392,14 @@ class MetadataEncoder(torch.nn.Module):
         self.c_input = 192
         self.c_internal = self.config["metadata_encoder"]["internal_num_channels"]
         self.c_trunk = self.config["trunk_num_channels"]
+        self.out_scale = 0.5
+
+        self.register_buffer("feature_mask", torch.tensor(
+            # 86 is board area
+            data=[(0.0 if i == 86 else 1.0) for i in range(192)],
+            dtype=torch.float32,
+            requires_grad=False,
+        ), persistent=True)
 
         self.linear1 = torch.nn.Linear(self.c_input, self.c_internal, bias=True)
         self.act1 = act(self.activation, inplace=True)
@@ -1416,16 +1424,14 @@ class MetadataEncoder(torch.nn.Module):
         reg_dict["output_noreg"].append(self.linear2.bias)
         reg_dict["normal"].append(self.linear_output_to_trunk.weight)
 
-    OUTMEAN_KEY = "meta_encoder.outmean"
-    OUTLOGVAR_KEY = "meta_encoder.outlogvar"
-
     def forward(self, input_meta, extra_outputs: Optional[ExtraOutputs]):
         x = input_meta
+        x = x * self.feature_mask.reshape((1,-1))
         x = self.linear1(x)
         x = self.act1(x)
         x = self.linear2(x)
         x = self.act2(x)
-        return self.linear_output_to_trunk(x)
+        return self.out_scale * self.linear_output_to_trunk(x)
 
 
 class Model(torch.nn.Module):
