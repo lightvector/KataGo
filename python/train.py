@@ -1197,6 +1197,9 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
                     slow_param_data = lookahead_cache[param]
                     param.data.copy_(slow_param_data)
 
+        if rank == 0:
+            train_state["export_cycle_counter"] += 1
+
         save(ddp_model, swa_model, optimizer, metrics_obj, running_metrics, train_state, last_val_metrics)
 
         num_epochs_this_instance += 1
@@ -1261,7 +1264,6 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
                     ddp_model.train()
 
         if rank == 0:
-            train_state["export_cycle_counter"] += 1
             logging.info("Export cycle counter = " + str(train_state["export_cycle_counter"]))
 
             is_time_to_export = False
