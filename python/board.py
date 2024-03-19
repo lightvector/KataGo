@@ -48,6 +48,8 @@ class Board:
             self.group_prev = np.copy(copy_other.group_prev)
             self.zobrist = copy_other.zobrist
             self.simple_ko_point = copy_other.simple_ko_point
+            self.num_captures_made = copy_other.num_captures_made.copy()
+            self.num_non_pass_moves_made = copy_other.num_non_pass_moves_made.copy()
         else:
             self.pla = Board.BLACK
             self.board = np.zeros(shape=(self.arrsize), dtype=np.int8)
@@ -58,6 +60,8 @@ class Board:
             self.group_prev = np.zeros(shape=(self.arrsize), dtype=np.int16)
             self.zobrist = 0
             self.simple_ko_point = None
+            self.num_captures_made = {Board.BLACK: 0, Board.WHITE: 0}
+            self.num_non_pass_moves_made = {Board.BLACK: 0, Board.WHITE: 0}
 
             for i in range(-1,size+1):
                 self.board[self.loc(i,-1)] = Board.WALL
@@ -348,6 +352,8 @@ class Board:
             adj = loc + self.adj[i]
             if self.board[adj] == opp and self.group_liberty_count[self.group_head[adj]] == 1:
                 capDirs.append(i)
+        old_num_captures_made = self.num_captures_made.copy()
+        old_num_non_pass_moves_made = self.num_non_pass_moves_made.copy()
 
         self.playUnsafe(pla,loc)
 
@@ -355,14 +361,16 @@ class Board:
         selfCap = False
         if self.board[loc] == Board.EMPTY:
             selfCap = True
-        return (pla,loc,old_simple_ko_point,capDirs,selfCap)
+        return (pla,loc,old_simple_ko_point,capDirs,selfCap,old_num_captures_made,old_num_non_pass_moves_made)
 
     def undo(self,record):
-        (pla,loc,simple_ko_point,capDirs,selfCap) = record
+        (pla,loc,simple_ko_point,capDirs,selfCap,old_num_captures_made,old_num_non_pass_moves_made) = record
         opp = Board.get_opp(pla)
 
         self.simple_ko_point = simple_ko_point
         self.pla = pla
+        self.num_captures_made = old_num_captures_made.copy()
+        self.num_non_pass_moves_made = old_num_non_pass_moves_made.copy()
 
         if loc == Board.PASS_LOC:
             return
@@ -561,8 +569,14 @@ class Board:
             self.remove_unsafe(adj3)
 
         #Suicide
+        pla_stones_captured = 0
         if self.group_liberty_count[self.group_head[loc]] == 0:
+            pla_stones_captured += self.group_stone_count[self.group_head[loc]]
             self.remove_unsafe(loc)
+
+        self.num_captures_made[pla] += pla_stones_captured
+        self.num_captures_made[opp] += opp_stones_captured
+        self.num_non_pass_moves_made[pla] += 1
 
         #Update ko point for legality checking
         if opp_stones_captured == 1 and \

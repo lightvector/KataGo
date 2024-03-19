@@ -7,6 +7,7 @@ import datetime
 import math
 import numpy as np
 import random
+from board import Board
 
 @dataclass
 class SGFMetadata:
@@ -22,7 +23,7 @@ class SGFMetadata:
     gameIsUnrated: bool = False
     gameRatednessIsUnknown: bool = False
 
-    tcIsUnknown: bool = False
+    tcIsUnknown: bool = True
     tcIsNone: bool = False
     tcIsAbsolute: bool = False
     tcIsSimple: bool = False
@@ -35,7 +36,7 @@ class SGFMetadata:
     byoYomiPeriods: int = 0
     canadianMoves: int = 0
 
-    boardArea: int = 0
+    boardArea: int = 361
 
     gameDate: datetime.date = datetime.date(1970, 1, 1)
 
@@ -49,6 +50,16 @@ class SGFMetadata:
     SOURCE_GO4GO: ClassVar[int] = 6
 
     METADATA_INPUT_NUM_CHANNELS: ClassVar[int] = 192
+
+    @classmethod
+    def of_dict(cls, data: dict):
+        data["gameDate"] = datetime.date.fromisoformat(data["gameDate"])
+        return cls(**data)
+
+    def to_dict(self):
+        data = self.__dict__.copy()
+        data["gameDate"] = data["gameDate"].isoformat()
+        return data
 
     @classmethod
     def get_katago_selfplay_metadata(cls, board_area: int, rand: random.Random) -> "SGFMetadata":
@@ -84,28 +95,33 @@ class SGFMetadata:
         )
 
 
-    def get_metadata_row(self, nextPlayer: str) -> np.ndarray:
-        nextPlayer = nextPlayer.lower()
+    def get_metadata_row(self, nextPlayer) -> np.ndarray:
+        if isinstance(nextPlayer,str):
+            if nextPlayer.lower() == "w":
+                nextPlayer = Board.WHITE
+            elif nextPlayer.lower() == "b":
+                nextPlayer = Board.BLACK
+
         rowMetadata = np.zeros(self.METADATA_INPUT_NUM_CHANNELS, dtype=np.float32)
 
-        plaIsHuman = self.wIsHuman if nextPlayer == "w" else self.bIsHuman
-        oppIsHuman = self.bIsHuman if nextPlayer == "w" else self.wIsHuman
+        plaIsHuman = self.wIsHuman if nextPlayer == Board.WHITE else self.bIsHuman
+        oppIsHuman = self.bIsHuman if nextPlayer == Board.WHITE else self.wIsHuman
         rowMetadata[0] = 1.0 if plaIsHuman else 0.0
         rowMetadata[1] = 1.0 if oppIsHuman else 0.0
 
-        plaIsUnranked = self.wIsUnranked if nextPlayer == "w" else self.bIsUnranked
-        oppIsUnranked = self.bIsUnranked if nextPlayer == "w" else self.wIsUnranked
+        plaIsUnranked = self.wIsUnranked if nextPlayer == Board.WHITE else self.bIsUnranked
+        oppIsUnranked = self.bIsUnranked if nextPlayer == Board.WHITE else self.wIsUnranked
         rowMetadata[2] = 1.0 if plaIsUnranked else 0.0
         rowMetadata[3] = 1.0 if oppIsUnranked else 0.0
 
-        plaRankIsUnknown = self.wRankIsUnknown if nextPlayer == "w" else self.bRankIsUnknown
-        oppRankIsUnknown = self.bRankIsUnknown if nextPlayer == "w" else self.wRankIsUnknown
+        plaRankIsUnknown = self.wRankIsUnknown if nextPlayer == Board.WHITE else self.bRankIsUnknown
+        oppRankIsUnknown = self.bRankIsUnknown if nextPlayer == Board.WHITE else self.wRankIsUnknown
         rowMetadata[4] = 1.0 if plaRankIsUnknown else 0.0
         rowMetadata[5] = 1.0 if oppRankIsUnknown else 0.0
 
         RANK_START_IDX = 6
-        invPlaRank = self.inverseWRank if nextPlayer == "w" else self.inverseBRank
-        invOppRank = self.inverseBRank if nextPlayer == "w" else self.inverseWRank
+        invPlaRank = self.inverseWRank if nextPlayer == Board.WHITE else self.inverseBRank
+        invOppRank = self.inverseBRank if nextPlayer == Board.WHITE else self.inverseWRank
         RANK_LEN_PER_PLA = 34
         if not plaIsUnranked:
             for i in range(min(invPlaRank, RANK_LEN_PER_PLA)):
