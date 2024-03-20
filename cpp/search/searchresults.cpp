@@ -164,7 +164,7 @@ bool Search::getPlaySelectionValues(
       totalChildWeight,bestChildEdgeVisits,fpuValue,
       parentUtility,parentWeightPerVisit,
       isDuringSearch,false,nonLCBBestChildWeight,NULL
-    );
+    ).exploreSelectionValue;
 
     for(int i = 0; i<numChildren; i++) {
       const SearchChildPointer& childPointer = children[i];

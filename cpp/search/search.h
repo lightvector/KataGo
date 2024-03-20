@@ -24,6 +24,7 @@
 #include "../external/nlohmann_json/json.hpp"
 
 typedef int SearchNodeState; // See SearchNode::STATE_*
+typedef int PlayoutResult;
 
 struct SearchNode;
 struct SearchThread;
@@ -253,9 +254,13 @@ struct Search {
   //Without performing a whole search, recompute the root nn output for any root-level parameters.
   void maybeRecomputeRootNNOutput();
 
+  static constexpr PlayoutResult PLAYOUT_FAILED = 0;
+  static constexpr PlayoutResult PLAYOUT_SUCCESS = 1;
+  static constexpr PlayoutResult PLAYOUT_NOINCREMENT = 2;
+
   //Expert manual playout-by-playout interface
   void beginSearch(bool pondering);
-  bool runSinglePlayout(SearchThread& thread, double upperBoundVisitsLeft);
+  PlayoutResult runSinglePlayout(SearchThread& thread, double upperBoundVisitsLeft);
 
   //================================================================================================================
   // SEARCH RESULTS AND TREE INSPECTION METHODS
@@ -450,6 +455,7 @@ private:
   ) const;
   void maybeApplyAntiMirrorForcedExplore(
     double& childUtility,
+    double& childUtilityNoVL,
     const double parentUtility,
     const Loc moveLoc,
     const float* policyProbs,
@@ -511,14 +517,29 @@ private:
   // Move selection during search
   // searchexplorehelpers.cpp
   //----------------------------------------------------------------------------------------
+  struct ExploreInfo {
+    double exploreSelectionValue;
+    double valueComponentNoVL; // no virtual loss
+    double exploreComponent;
+
+    static inline ExploreInfo constantSelectionValue(double d) {
+      ExploreInfo info;
+      info.exploreSelectionValue = d;
+      info.valueComponentNoVL = d;
+      info.exploreComponent = 0.0;
+      return info;
+    }
+  };
+
   double getExploreScaling(
     double totalChildWeight, double parentUtilityStdevFactor
   ) const;
-  double getExploreSelectionValue(
+  ExploreInfo getExploreSelectionValue(
     double exploreScaling,
     double nnPolicyProb,
     double childWeight,
     double childUtility,
+    double childUtilityNoVL,
     Player pla
   ) const;
   double getExploreSelectionValueInverse(
@@ -528,7 +549,7 @@ private:
     double childUtility,
     Player pla
   ) const;
-  double getExploreSelectionValueOfChild(
+  ExploreInfo getExploreSelectionValueOfChild(
     const SearchNode& parent, const float* parentPolicyProbs, const SearchNode* child,
     Loc moveLoc,
     double exploreScaling,
@@ -536,7 +557,7 @@ private:
     double parentUtility, double parentWeightPerVisit,
     bool isDuringSearch, bool antiMirror, double maxChildWeight, SearchThread* thread
   ) const;
-  double getNewExploreSelectionValue(
+  ExploreInfo getNewExploreSelectionValue(
     const SearchNode& parent,
     double exploreScaling,
     float nnPolicyProb,
@@ -557,9 +578,14 @@ private:
     double& parentUtility, double& parentWeightPerVisit, double& parentUtilityStdevFactor
   ) const;
 
+  // suppressEdgeVisit is filled in with whether we think we want to suppress this edge visit
+  // due to over-exploration.
+  // suppressEdgeVisitUtilityThreshold is the value such that if child utility improves past
+  // this value, then we do want to keep the visit
   void selectBestChildToDescend(
     SearchThread& thread, const SearchNode& node, SearchNodeState nodeState,
     int& numChildrenFound, int& bestChildIdx, Loc& bestChildMoveLoc,
+    bool& suppressEdgeVisit, double& suppressEdgeVisitUtilityThreshold,
     bool isRoot
   ) const;
 
@@ -584,7 +610,7 @@ private:
   double computeWeightFromNNOutput(const NNOutput* nnOutput) const;
 
   void updateStatsAfterPlayout(SearchNode& node, SearchThread& thread, bool isRoot);
-  void recomputeNodeStats(SearchNode& node, SearchThread& thread, int32_t numVisitsToAdd, bool isRoot);
+  void recomputeNodeStats(SearchNode& node, SearchThread& thread, bool isRoot);
 
   void downweightBadChildrenAndNormalizeWeight(
     int numChildren,
@@ -616,7 +642,7 @@ private:
   void computeRootValues(); // Helper for begin search
   void recursivelyRecomputeStats(SearchNode& node); // Helper for search initialization
 
-  bool playoutDescend(
+  PlayoutResult playoutDescend(
     SearchThread& thread, SearchNode& node,
     bool isRoot
   );
@@ -626,7 +652,8 @@ private:
     SearchNode& node,
     SearchNode* child,
     const SearchNodeState& nodeState,
-    const int bestChildIdx
+    const int bestChildIdx,
+    bool suppressEdgeVisit
   );
 
   //----------------------------------------------------------------------------------------

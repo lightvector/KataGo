@@ -127,20 +127,20 @@ void Search::updateStatsAfterPlayout(SearchNode& node, SearchThread& thread, boo
   //If we atomically grab a nonzero, then we know another thread must already be doing the work, so we can skip the update ourselves.
   if(oldDirtyCounter > 0)
     return;
-  int32_t numVisitsCompleted = 1;
+  int32_t numThreadsCompleted = 1;
   while(true) {
     //Perform update
-    recomputeNodeStats(node,thread,numVisitsCompleted,isRoot);
+    recomputeNodeStats(node,thread,isRoot);
     //Now attempt to undo the counter
-    oldDirtyCounter = node.dirtyCounter.fetch_add(-numVisitsCompleted,std::memory_order_acq_rel);
-    int32_t newDirtyCounter = oldDirtyCounter - numVisitsCompleted;
+    oldDirtyCounter = node.dirtyCounter.fetch_add(-numThreadsCompleted,std::memory_order_acq_rel);
+    int32_t newDirtyCounter = oldDirtyCounter - numThreadsCompleted;
     //If no other threads incremented it in the meantime, so our decrement hits zero, we're done.
     if(newDirtyCounter <= 0) {
       assert(newDirtyCounter == 0);
       break;
     }
-    //Otherwise, more threads incremented this more in the meantime. So we need to loop again and add their visits, recomputing again.
-    numVisitsCompleted = newDirtyCounter;
+    //Otherwise, more threads incremented this more in the meantime. So we need to loop, recomputing again.
+    numThreadsCompleted = newDirtyCounter;
     continue;
   }
 }
@@ -148,7 +148,7 @@ void Search::updateStatsAfterPlayout(SearchNode& node, SearchThread& thread, boo
 //Recompute all the stats of this node based on its children, except its visits and virtual losses, which are not child-dependent and
 //are updated in the manner specified.
 //Assumes this node has an nnOutput
-void Search::recomputeNodeStats(SearchNode& node, SearchThread& thread, int numVisitsToAdd, bool isRoot) {
+void Search::recomputeNodeStats(SearchNode& node, SearchThread& thread, bool isRoot) {
   //Find all children and compute weighting of the children based on their values
   vector<MoreNodeStats>& statsBuf = thread.statsBuf;
   int numGoodChildren = 0;
@@ -156,6 +156,7 @@ void Search::recomputeNodeStats(SearchNode& node, SearchThread& thread, int numV
   ConstSearchNodeChildrenReference children = node.getChildren();
   int childrenCapacity = children.getCapacity();
   double origTotalChildWeight = 0.0;
+  int64_t thisNodeVisitsSum = 0;
   for(int i = 0; i<childrenCapacity; i++) {
     const SearchChildPointer& childPointer = children[i];
     const SearchNode* child = childPointer.getIfAllocated();
@@ -175,6 +176,7 @@ void Search::recomputeNodeStats(SearchNode& node, SearchThread& thread, int numV
     stats.weightAdjusted = stats.stats.getChildWeight(edgeVisits);
     stats.prevMoveLoc = moveLoc;
 
+    thisNodeVisitsSum += edgeVisits;
     origTotalChildWeight += stats.weightAdjusted;
     numGoodChildren++;
   }
@@ -299,6 +301,7 @@ void Search::recomputeNodeStats(SearchNode& node, SearchThread& thread, int numV
     utilitySqSum += utility * utility * weight;
     weightSqSum += weight * weight;
     weightSum += weight;
+    thisNodeVisitsSum += 1;
   }
 
   double winLossValueAvg = winLossValueSum / weightSum;
@@ -313,7 +316,10 @@ void Search::recomputeNodeStats(SearchNode& node, SearchThread& thread, int numV
   utilityAvg += getPatternBonus(node.patternBonusHash,getOpp(node.nextPla));
   utilitySqAvg = utilitySqAvg + (utilityAvg * utilityAvg - oldUtilityAvg * oldUtilityAvg);
 
-  //TODO statslock may be unnecessary now with the dirtyCounter mechanism?
+  // Make sure nominal node visits doesn't decrease from a recompute due to things like avoidMoves changing.
+  int64_t oldVisits = node.stats.visits.load(std::memory_order_acquire);
+  thisNodeVisitsSum = std::max(oldVisits, thisNodeVisitsSum);
+
   while(node.statsLock.test_and_set(std::memory_order_acquire));
   node.stats.winLossValueAvg.store(winLossValueAvg,std::memory_order_release);
   node.stats.noResultValueAvg.store(noResultValueAvg,std::memory_order_release);
@@ -324,7 +330,7 @@ void Search::recomputeNodeStats(SearchNode& node, SearchThread& thread, int numV
   node.stats.utilitySqAvg.store(utilitySqAvg,std::memory_order_release);
   node.stats.weightSqSum.store(weightSqSum,std::memory_order_release);
   node.stats.weightSum.store(weightSum,std::memory_order_release);
-  node.stats.visits.fetch_add(numVisitsToAdd,std::memory_order_release);
+  node.stats.visits.store(thisNodeVisitsSum,std::memory_order_release);
   node.statsLock.clear(std::memory_order_release);
 }
 

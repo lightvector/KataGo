@@ -24,22 +24,29 @@ double Search::getExploreScaling(
     * parentUtilityStdevFactor;
 }
 
-double Search::getExploreSelectionValue(
+Search::ExploreInfo Search::getExploreSelectionValue(
   double exploreScaling,
   double nnPolicyProb,
   double childWeight,
   double childUtility,
+  double childUtilityNoVL,
   Player pla
 ) const {
   if(nnPolicyProb < 0)
-    return POLICY_ILLEGAL_SELECTION_VALUE;
+    return ExploreInfo::constantSelectionValue(POLICY_ILLEGAL_SELECTION_VALUE);
 
   double exploreComponent = exploreScaling * nnPolicyProb / (1.0 + childWeight);
 
   //At the last moment, adjust value to be from the player's perspective, so that players prefer values in their favor
   //rather than in white's favor
   double valueComponent = pla == P_WHITE ? childUtility : -childUtility;
-  return exploreComponent + valueComponent;
+  double valueComponentNoVL = pla == P_WHITE ? childUtilityNoVL : -childUtilityNoVL;
+
+  Search::ExploreInfo info;
+  info.exploreSelectionValue = exploreComponent + valueComponent;
+  info.valueComponentNoVL = valueComponentNoVL;
+  info.exploreComponent = exploreComponent;
+  return info;
 }
 
 //Return the childWeight that would make Search::getExploreSelectionValue return the given explore selection value.
@@ -87,7 +94,7 @@ static void maybeApplyWideRootNoise(
 }
 
 
-double Search::getExploreSelectionValueOfChild(
+Search::ExploreInfo Search::getExploreSelectionValueOfChild(
   const SearchNode& parent, const float* parentPolicyProbs, const SearchNode* child,
   Loc moveLoc,
   double exploreScaling,
@@ -123,6 +130,7 @@ double Search::getExploreSelectionValueOfChild(
   }
 
   //Virtual losses to direct threads down different paths
+  double childUtilityNoVL = childUtility;
   if(childVirtualLosses > 0) {
     double virtualLossWeight = childVirtualLosses * searchParams.numVirtualLossesPerThread;
 
@@ -143,12 +151,12 @@ double Search::getExploreSelectionValueOfChild(
       double averageVisitsPerWeight = (childEdgeVisits + 1.0) / (childWeight + parentWeightPerVisit);
       double estimatedRequiredVisits = requiredWeight * averageVisitsPerWeight;
       if(childVisits + thread->upperBoundVisitsLeft < estimatedRequiredVisits)
-        return FUTILE_VISITS_PRUNE_VALUE;
+        return ExploreInfo::constantSelectionValue(FUTILE_VISITS_PRUNE_VALUE);
     }
     //Hack to get the root to funnel more visits down child branches
     if(searchParams.rootDesiredPerChildVisitsCoeff > 0.0) {
       if(nnPolicyProb > 0 && childWeight < sqrt(nnPolicyProb * totalChildWeight * searchParams.rootDesiredPerChildVisitsCoeff)) {
-        return 1e20;
+        return ExploreInfo::constantSelectionValue(1e20);
       }
     }
     //Hack for hintloc - must search this move almost as often as the most searched move
@@ -164,23 +172,24 @@ double Search::getExploreSelectionValueOfChild(
         int64_t cEdgeVisits = childPointer.getEdgeVisits();
         double cWeight = c->stats.getChildWeight(cEdgeVisits);
         if(childWeight + averageWeightPerVisit < cWeight * 0.8)
-          return 1e20;
+          return ExploreInfo::constantSelectionValue(1e20);
       }
     }
 
     if(searchParams.wideRootNoise > 0.0 && nnPolicyProb >= 0) {
+      // Does NOT update childUtilityNoVL - wide root noise is also ignored.
       maybeApplyWideRootNoise(childUtility, nnPolicyProb, searchParams, thread, parent);
     }
   }
   if(isDuringSearch && antiMirror && nnPolicyProb >= 0) {
     maybeApplyAntiMirrorPolicy(nnPolicyProb, moveLoc, parentPolicyProbs, parent.nextPla, thread);
-    maybeApplyAntiMirrorForcedExplore(childUtility, parentUtility, moveLoc, parentPolicyProbs, childWeight, totalChildWeight, parent.nextPla, thread, parent);
+    maybeApplyAntiMirrorForcedExplore(childUtility, childUtilityNoVL, parentUtility, moveLoc, parentPolicyProbs, childWeight, totalChildWeight, parent.nextPla, thread, parent);
   }
 
-  return getExploreSelectionValue(exploreScaling,nnPolicyProb,childWeight,childUtility,parent.nextPla);
+  return getExploreSelectionValue(exploreScaling,nnPolicyProb,childWeight,childUtility,childUtilityNoVL,parent.nextPla);
 }
 
-double Search::getNewExploreSelectionValue(
+Search::ExploreInfo Search::getNewExploreSelectionValue(
   const SearchNode& parent,
   double exploreScaling,
   float nnPolicyProb,
@@ -198,13 +207,13 @@ double Search::getNewExploreSelectionValue(
       double requiredWeight = searchParams.futileVisitsThreshold * maxChildWeight;
       double estimatedRequiredVisits = requiredWeight * averageVisitsPerWeight;
       if(thread->upperBoundVisitsLeft < estimatedRequiredVisits)
-        return FUTILE_VISITS_PRUNE_VALUE;
+        return ExploreInfo::constantSelectionValue(FUTILE_VISITS_PRUNE_VALUE);
     }
     if(searchParams.wideRootNoise > 0.0) {
       maybeApplyWideRootNoise(childUtility, nnPolicyProb, searchParams, thread, parent);
     }
   }
-  return getExploreSelectionValue(exploreScaling,nnPolicyProb,childWeight,childUtility,parent.nextPla);
+  return getExploreSelectionValue(exploreScaling,nnPolicyProb,childWeight,childUtility,childUtility,parent.nextPla);
 }
 
 double Search::getReducedPlaySelectionWeight(
@@ -305,13 +314,21 @@ double Search::getFpuValueForChildrenAssumeVisited(
 void Search::selectBestChildToDescend(
   SearchThread& thread, const SearchNode& node, SearchNodeState nodeState,
   int& numChildrenFound, int& bestChildIdx, Loc& bestChildMoveLoc,
+  bool& suppressEdgeVisit, double& suppressEdgeVisitUtilityThreshold,
   bool isRoot) const
 {
   assert(thread.pla == node.nextPla);
 
-  double maxSelectionValue = POLICY_ILLEGAL_SELECTION_VALUE;
+  double bestSelectionValue = POLICY_ILLEGAL_SELECTION_VALUE;
+  double bestChildExploreComponent = 0.0;
+  double bestChildValueComponentNoVL = 0.0;
   bestChildIdx = -1;
   bestChildMoveLoc = Board::NULL_LOC;
+  suppressEdgeVisit = false;
+  suppressEdgeVisitUtilityThreshold = thread.pla == P_WHITE ? -1e10 : 1e10;
+
+  double noVLBestSelectionValue = POLICY_ILLEGAL_SELECTION_VALUE;
+  int noVLBestIdx = -1;
 
   ConstSearchNodeChildrenReference children = node.getChildren(nodeState);
   int childrenCapacity = children.getCapacity();
@@ -372,7 +389,7 @@ void Search::selectBestChildToDescend(
 
     Loc moveLoc = childPointer.getMoveLocRelaxed();
     bool isDuringSearch = true;
-    double selectionValue = getExploreSelectionValueOfChild(
+    ExploreInfo info = getExploreSelectionValueOfChild(
       node,policyProbs,child,
       moveLoc,
       exploreScaling,
@@ -380,16 +397,18 @@ void Search::selectBestChildToDescend(
       parentUtility,parentWeightPerVisit,
       isDuringSearch,antiMirror,maxChildWeight,&thread
     );
-    if(selectionValue > maxSelectionValue) {
-      // if(child->state.load(std::memory_order_seq_cst) == SearchNode::STATE_EVALUATING) {
-      //   selectionValue -= EVALUATING_SELECTION_VALUE_PENALTY;
-      //   if(isRoot && child->prevMoveLoc == Location::ofString("K4",thread.board)) {
-      //     out << "ouch" << "\n";
-      //   }
-      // }
-      maxSelectionValue = selectionValue;
+    double selectionValue = info.exploreSelectionValue;
+    if(selectionValue > bestSelectionValue) {
+      bestSelectionValue = selectionValue;
+      bestChildExploreComponent = info.exploreComponent;
+      bestChildValueComponentNoVL = info.valueComponentNoVL;
       bestChildIdx = i;
       bestChildMoveLoc = moveLoc;
+    }
+    double noVLSelectionValue = info.valueComponentNoVL + info.exploreComponent;
+    if(noVLSelectionValue > noVLBestSelectionValue) {
+      noVLBestSelectionValue = noVLSelectionValue;
+      noVLBestIdx = i;
     }
 
     posesWithChildBuf[getPos(moveLoc)] = true;
@@ -438,17 +457,37 @@ void Search::selectBestChildToDescend(
     }
   }
   if(bestNewMoveLoc != Board::NULL_LOC) {
-    double selectionValue = getNewExploreSelectionValue(
+    ExploreInfo info = getNewExploreSelectionValue(
       node,
       exploreScaling,
       bestNewNNPolicyProb,fpuValue,
       parentWeightPerVisit,
       maxChildWeight,&thread
     );
-    if(selectionValue > maxSelectionValue) {
-      maxSelectionValue = selectionValue;
+    double selectionValue = info.exploreSelectionValue;
+    if(selectionValue > bestSelectionValue) {
+      bestSelectionValue = selectionValue;
+      bestChildExploreComponent = info.exploreComponent;
+      bestChildValueComponentNoVL = info.valueComponentNoVL;
       bestChildIdx = numChildrenFound;
       bestChildMoveLoc = bestNewMoveLoc;
+    }
+    double noVLSelectionValue = info.valueComponentNoVL + info.exploreComponent;
+    if(noVLSelectionValue > noVLBestSelectionValue) {
+      noVLBestSelectionValue = noVLSelectionValue;
+      noVLBestIdx = numChildrenFound;
+    }
+  }
+
+  if(searchParams.suppressVirtualLossExploreFactor < 1e10 && noVLBestIdx != bestChildIdx) {
+    // Compute the selection value if we uesd a much larger explore factor but with no virtual loss
+    // If that's still not good enough, suppress visit.
+    double expandedChildSelectionValue = bestChildValueComponentNoVL + bestChildExploreComponent * searchParams.suppressVirtualLossExploreFactor;
+    double gap = noVLBestSelectionValue - expandedChildSelectionValue;
+    // Taking advantage of the fact that the value component is just the sign-adjusted utility
+    suppressEdgeVisitUtilityThreshold = (thread.pla == P_WHITE) ? bestChildValueComponentNoVL+gap : -bestChildValueComponentNoVL-gap;
+    if(gap > 0) {
+      suppressEdgeVisit = true;
     }
   }
 }
