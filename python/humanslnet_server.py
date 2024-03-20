@@ -2,7 +2,9 @@ import sys
 import json
 import numpy as np
 from load_model import load_model
-from gamestate import GameState, SGFMetadata
+from gamestate import GameState
+from features import Features
+from sgfmetadata import SGFMetadata
 import argparse
 
 def numpy_array_encoder(obj):
@@ -15,9 +17,12 @@ def numpy_array_encoder(obj):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('-checkpoint', help='Checkpoint to test', required=True)
+    parser.add_argument('-use-swa', help='Use SWA model', action="store_true", required=False)
     args = parser.parse_args()
 
-    model, _, _ = load_model(args.checkpoint, use_swa=False, device="cpu", pos_len=19, verbose=False)
+    model, swa_model, _ = load_model(args.checkpoint, use_swa=args.use_swa, device="cuda:0", pos_len=19, verbose=False)
+    if swa_model is not None:
+        model = swa_model
     game_state = None
 
     def write(output):
@@ -30,43 +35,42 @@ def main():
     # outputs = game_state.get_model_outputs(model, sgfmeta=sgfmeta)
     # write(dict(outputs=outputs))
 
-    while True:
-        try:
-            line = sys.stdin.readline().strip()
-            if not line:
-                continue
+    for line in sys.stdin:
+        line = line.strip()
+        if not line:
+            continue
 
-            data = json.loads(line)
+        data = json.loads(line)
 
-            if data["command"] == "start":
-                board_size = data["board_size"]
-                rules = data["rules"]
-                game_state = GameState(board_size, rules)
-                write(dict(outputs=""))
+        if data["command"] == "start":
+            board_size = data["board_size"]
+            rules = data["rules"]
+            game_state = GameState(board_size, rules)
+            write(dict(outputs=""))
 
-            elif data["command"] == "play":
-                pla = data["pla"]
-                loc = data["loc"]
-                game_state.play(pla, loc)
-                write(dict(outputs=""))
+        elif data["command"] == "play":
+            pla = data["pla"]
+            loc = data["loc"]
+            game_state.play(pla, loc)
+            write(dict(outputs=""))
 
-            elif data["command"] == "undo":
-                game_state.undo()
-                write(dict(outputs=""))
+        elif data["command"] == "undo":
+            game_state.undo()
+            write(dict(outputs=""))
 
-            elif data["command"] == "get_model_outputs":
-                sgfmeta = SGFMetadata.of_dict(data["sgfmeta"])
-                outputs = game_state.get_model_outputs(model, sgfmeta=sgfmeta)
-                write(dict(outputs=outputs))
+        elif data["command"] == "redo":
+            game_state.redo()
+            write(dict(outputs=""))
 
-            else:
-                raise ValueError(f"Unknown command: {data['command']}")
+        elif data["command"] == "get_model_outputs":
+            sgfmeta = SGFMetadata.of_dict(data["sgfmeta"])
+            # features = Features(model.config, model.pos_len)
+            # foo = game_state.get_input_features(features)
+            outputs = game_state.get_model_outputs(model, sgfmeta=sgfmeta)
+            write(dict(outputs=dict(moves_and_probs0=outputs["moves_and_probs0"])))
 
-        except (KeyboardInterrupt, EOFError, BrokenPipeError):
-            break
-
-        except Exception as e:
-            raise RuntimeError(f"Error processing command: {e}")
+        else:
+            raise ValueError(f"Unknown command: {data['command']}")
 
 if __name__ == "__main__":
     main()

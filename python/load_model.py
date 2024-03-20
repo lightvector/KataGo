@@ -64,9 +64,8 @@ def load_model(checkpoint_file, use_swa, device, pos_len=19, verbose=False):
         swa_model = AveragedModel(model, device=device)
         swa_model.load_state_dict(swa_model_state_dict)
 
-        # Also just hack swa model to also have these fields
-        swa_model.config = model_config
-        swa_model.pos_len = pos_len
+        # Grab the model out of the SWA so that we have all the methods of the original model.
+        swa_model = swa_model.module
 
     if verbose:
         total_num_params = 0

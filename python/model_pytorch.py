@@ -1623,6 +1623,9 @@ class Model(torch.nn.Module):
                 self.pos_len,
             )
 
+    @property
+    def device(self):
+        return self.linear_global.weight.device
 
     def initialize(self):
         with torch.no_grad():

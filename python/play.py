@@ -34,11 +34,13 @@ Implements a basic GTP engine that uses the neural net directly to play moves.
 parser = argparse.ArgumentParser(description=description)
 parser.add_argument('-checkpoint', help='Checkpoint to test', required=False)
 parser.add_argument('-use-swa', help='Use SWA model', action="store_true", required=False)
+parser.add_argument('-device', help='Pytorch device, like cpu or cuda:0', required=False)
 
 args = vars(parser.parse_args())
 
 checkpoint_file = args["checkpoint"]
 use_swa = args["use_swa"]
+device = args["device"]
 
 # Hardcoded max board size
 pos_len = 19
@@ -56,12 +58,11 @@ logging.basicConfig(
 np.set_printoptions(linewidth=150)
 torch.set_printoptions(precision=7,sci_mode=False,linewidth=100000,edgeitems=1000,threshold=1000000)
 
-model, swa_model, _ = load_model(checkpoint_file, use_swa, device="cpu", pos_len=pos_len, verbose=True)
-model.eval()
-model_config = model.config
+model, swa_model, _ = load_model(checkpoint_file, use_swa, device=device, pos_len=pos_len, verbose=True)
 if swa_model is not None:
-    model = swa_model.module
-    model.eval()
+    model = swa_model
+model_config = model.config
+model.eval()
 
 features = Features(model_config, pos_len)
 

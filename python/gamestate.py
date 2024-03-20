@@ -53,6 +53,7 @@ class GameState:
         self.moves = []
         self.boards = [self.board.copy()]
         self.rules = rules
+        self.redo_stack = []
 
     def play(self, pla, loc):
         self.board.play(pla,loc)
@@ -64,8 +65,19 @@ class GameState:
 
     def undo(self):
         assert self.can_undo()
-        self.moves.pop()
-        self.boards.pop()
+        move = self.moves.pop()
+        board = self.boards.pop()
+        self.board = self.boards[-1].copy()
+        self.redo_stack.append((move,board))
+
+    def can_redo(self) -> bool:
+        return len(self.redo_stack) > 0
+
+    def redo(self):
+        assert self.can_redo()
+        move, board = self.redo_stack.pop()
+        self.moves.append(move)
+        self.boards.append(board)
         self.board = self.boards[-1].copy()
 
     def get_input_features(self, features: Features):
@@ -97,14 +109,14 @@ class GameState:
 
             input_meta = None
             if sgfmeta is not None:
-                input_meta = torch.tensor(sgfmeta.get_metadata_row(self.board.pla), dtype=torch.float32)
+                input_meta = torch.tensor(sgfmeta.get_metadata_row(self.board.pla), dtype=torch.float32, device=model.device)
                 input_meta = input_meta.reshape([1,-1])
 
             extra_outputs = ExtraOutputs(extra_output_names)
 
             model_outputs = model(
-                torch.tensor(bin_input_data, dtype=torch.float32),
-                torch.tensor(global_input_data, dtype=torch.float32),
+                torch.tensor(bin_input_data, dtype=torch.float32, device=model.device),
+                torch.tensor(global_input_data, dtype=torch.float32, device=model.device),
                 input_meta = input_meta,
                 extra_outputs=extra_outputs,
             )
