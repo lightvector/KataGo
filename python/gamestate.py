@@ -52,7 +52,7 @@ class GameState:
         self.board = Board(size=board_size)
         self.moves = []
         self.boards = [self.board.copy()]
-        self.rules = rules
+        self.rules = rules.copy()
         self.redo_stack = []
 
     def play(self, pla, loc):

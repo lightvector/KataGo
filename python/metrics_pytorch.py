@@ -557,7 +557,7 @@ class Metrics:
         ).sum()
 
         if raw_model.config["version"] <= 11:
-            target_weight_longoptimistic_policy = target_weight_policy_player
+            target_weight_longoptimistic_policy = torch.zeros_like(global_weight)
             loss_longoptimistic_policy = torch.zeros_like(loss_policy_player)
         elif disable_optimistic_policy:
             target_weight_longoptimistic_policy = target_weight_policy_player * 0.5

@@ -1720,8 +1720,6 @@ class Model(torch.nn.Module):
     ):
         # float_formatter = "{:.3f}".format
         # np.set_printoptions(formatter={'float_kind':float_formatter}, threshold=1000000, linewidth=10000)
-        if extra_outputs is None:
-            extra_outputs = ExtraOutputs([])
 
         mask = input_spatial[:, 0:1, :, :].contiguous()
         mask_sum_hw = torch.sum(mask,dim=(2,3),keepdim=True)
