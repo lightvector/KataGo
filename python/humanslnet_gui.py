@@ -261,6 +261,7 @@ class LabeledSlider(wx.Panel):
         self.options = options
         self.on_scroll_callback = on_scroll_callback
         self.title = title
+        self.is_extrapolation = False
 
         # Create the slider
         start_idx = 0 if start_option is None else options.index(start_option)
@@ -282,7 +283,7 @@ class LabeledSlider(wx.Panel):
 
         # Create a sizer to arrange the widgets
         sizer = wx.BoxSizer(wx.VERTICAL)
-        sizer.Add(self.label, 0, wx.ALIGN_CENTER | wx.ALL, 10)
+        sizer.Add(self.label, 0, wx.ALIGN_LEFT | wx.ALL, 10)
         sizer.Add(self.slider, 0, wx.EXPAND | wx.ALL, 10)
         self.SetSizer(sizer)
 
@@ -293,14 +294,20 @@ class LabeledSlider(wx.Panel):
         selected_index = self.get_selected_index()
         return self.options[selected_index]
 
-
-    def on_slider_scroll(self, event):
-        # Get the selected option based on the slider position
+    def refresh_label(self):
         option_index = self.slider.GetValue()
         selected_option = self.options[option_index]
+        self.label.SetLabel(self.title + ": " + str(selected_option) + ("" if not self.is_extrapolation else " (No Training Data)"))
+    
+    def set_is_extrapolation(self, b):
+        if self.is_extrapolation != b:
+            self.is_extrapolation = b
+            self.refresh_label()
 
-        # Update the label with the selected option
-        self.label.SetLabel(self.title + ": " + str(selected_option))
+    def on_slider_scroll(self, event):
+        option_index = self.slider.GetValue()
+        selected_option = self.options[option_index]
+        self.refresh_label()
         if self.on_scroll_callback:
             self.on_scroll_callback(option_index, selected_option)
         
@@ -311,6 +318,12 @@ class SliderWindow(wx.Frame):
         panel = wx.Panel(self)
         panel_sizer = wx.BoxSizer(wx.VERTICAL)
         panel_sizer.Add(400,0,0)
+        
+        self.source_slider = LabeledSlider(panel, title="Source", options=["KG","OGS","KGS","Fox","Tygem(Unused)","GoGoD","Go4Go"], 
+            on_scroll_callback = (lambda idx, option: self.update_metadata()),
+            start_option="GoGoD",
+        )
+        panel_sizer.Add(self.source_slider, 0, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.BOTTOM, 10)
 
         self.rank_slider = LabeledSlider(panel, title="Rank", options=[
             "KG","9d","8d","7d","6d","5d","4d","3d","2d","1d","1k","2k","3k","4k","5k","6k","7k","8k","9k","10k","11k","12k","13k","14k","15k","16k","17k","18k","19k","20k"
@@ -319,23 +332,17 @@ class SliderWindow(wx.Frame):
             start_option="9d",
         )
         panel_sizer.Add(self.rank_slider, 0, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.BOTTOM, 10)
-        
-        self.source_slider = LabeledSlider(panel, title="Source", options=["KG","OGS","KGS","Fox","Tygem(Unused)","GoGod","Go4Go"], 
-            on_scroll_callback = (lambda idx, option: self.update_metadata()),
-            start_option="GoGod",
-        )
-        panel_sizer.Add(self.source_slider, 0, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.BOTTOM, 10)
 
         self.date_slider = LabeledSlider(panel, title="Date", options=[
-            1800,1825,1850,1875,1900,1915,1930,1940,1950,1960,1970,1980,1985,1990,1995,2000,2005,2008,2010,2012,2014,2016,2017,2018,2019,2020,2021,2022,2023], 
+            1800,1825,1850,1875,1900,1915,1930,1940,1950,1960,1970,1980,1985,1990,1995,2000,2005,2008,2010,2012,2013,2014,2015,2016,2017,2018,2019,2020,2021,2022,2023], 
             on_scroll_callback = (lambda idx, option: self.update_metadata()),
-            start_option=2023,
+            start_option=2020,
         )
         panel_sizer.Add(self.date_slider, 0, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.BOTTOM, 10)
 
         self.tc_slider = LabeledSlider(panel, title="TimeControl", options=["Blitz","Fast","Slow","Unknown"], 
             on_scroll_callback = (lambda idx, option: self.update_metadata()),
-            start_option="Fast",
+            start_option="Unknown",
         )
         panel_sizer.Add(self.tc_slider, 0, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.BOTTOM, 10)
       
@@ -349,7 +356,7 @@ class SliderWindow(wx.Frame):
     
     def on_close(self, event):
         self.GetParent().server_process.terminate()
-        self.GetParent().close()
+        self.GetParent().Close()
 
     def update_metadata(self):
         sgfmeta = SGFMetadata(
@@ -368,6 +375,37 @@ class SliderWindow(wx.Frame):
             gameDate = datetime.date(self.date_slider.get_selected_option(),6,1),
             source = self.source_slider.get_selected_index(),
         )
+        
+        source = self.source_slider.get_selected_option()
+        if source == "KG":
+            self.rank_slider.set_is_extrapolation(self.rank_slider.get_selected_index() != 0)
+            self.tc_slider.set_is_extrapolation(self.tc_slider.get_selected_option() == "Unknown")
+            self.date_slider.set_is_extrapolation(self.date_slider.get_selected_option() < 2022)
+        elif source == "OGS":
+            self.rank_slider.set_is_extrapolation(self.rank_slider.get_selected_index() == 0)
+            self.tc_slider.set_is_extrapolation(self.tc_slider.get_selected_option() == "Unknown")
+            self.date_slider.set_is_extrapolation(self.date_slider.get_selected_option() < 2007)
+        elif source == "KGS":
+            self.rank_slider.set_is_extrapolation(self.rank_slider.get_selected_index() == 0)
+            self.tc_slider.set_is_extrapolation(self.tc_slider.get_selected_option() == "Unknown")
+            self.date_slider.set_is_extrapolation(self.date_slider.get_selected_option() < 2016)
+        elif source == "Fox":
+            self.rank_slider.set_is_extrapolation(self.rank_slider.get_selected_index() == 0 or self.rank_slider.get_selected_index() >= 28)
+            self.tc_slider.set_is_extrapolation(self.tc_slider.get_selected_option() == "Unknown")
+            self.date_slider.set_is_extrapolation(self.date_slider.get_selected_option() < 2014 or self.date_slider.get_selected_option() > 2019)
+        elif source == "Tygem(Unused)":
+            self.rank_slider.set_is_extrapolation(True)
+            self.tc_slider.set_is_extrapolation(True)
+            self.date_slider.set_is_extrapolation(True)
+        elif source == "GoGoD":
+            self.rank_slider.set_is_extrapolation(self.rank_slider.get_selected_index() == 0 or self.rank_slider.get_selected_index() > 5)
+            self.tc_slider.set_is_extrapolation(self.tc_slider.get_selected_option() != "Unknown")
+            self.date_slider.set_is_extrapolation(self.date_slider.get_selected_option() > 2020)
+        elif source == "Go4Go":
+            self.rank_slider.set_is_extrapolation(self.rank_slider.get_selected_index() != 1)
+            self.tc_slider.set_is_extrapolation(self.tc_slider.get_selected_option() != "Unknown")
+            self.date_slider.set_is_extrapolation(self.date_slider.get_selected_option() < 2020)
+        
         self.GetParent().board.set_sgfmeta(sgfmeta)
         self.GetParent().board.refresh_model()
 
