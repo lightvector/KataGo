@@ -59,6 +59,12 @@ class GameState:
         self.board.play(pla,loc)
         self.moves.append((pla,loc))
         self.boards.append(self.board.copy())
+        if len(self.redo_stack) > 0:
+            move, _ = self.redo_stack[-1]
+            if move == (pla,loc):
+                self.redo_stack.pop()
+            else:
+                self.redo_stack.clear()
 
     def can_undo(self) -> bool:
         return len(self.moves) > 0
