@@ -67,7 +67,11 @@ def main():
             # features = Features(model.config, model.pos_len)
             # foo = game_state.get_input_features(features)
             outputs = game_state.get_model_outputs(model, sgfmeta=sgfmeta)
-            write(dict(outputs=dict(moves_and_probs0=outputs["moves_and_probs0"])))
+            filtered_outputs = {}
+            for key in outputs:
+                if key in ["moves_and_probs0", "value", "lead", "scorestdev"]:
+                    filtered_outputs[key] = outputs[key]
+            write(dict(outputs=filtered_outputs))
 
         else:
             raise ValueError(f"Unknown command: {data['command']}")
