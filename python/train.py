@@ -325,14 +325,14 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
                 os.replace(get_checkpoint_path() + ".tmp", get_checkpoint_path())
 
     def get_weight_decay(raw_model, lr_scale, warmup_scale, train_state, running_metrics, group_name):
-        lr_scale *= lr_scale_auto_factor(train_state)
+        lr_scale_with_auto = lr_scale * lr_scale_auto_factor(train_state)
         if raw_model.get_norm_kind() == "fixup" or raw_model.get_norm_kind() == "fixscale":
             if group_name == "normal" or group_name == "normal_gamma" or group_name == "output":
                 return 0.000001 * world_size * batch_size / 256.0
             elif group_name == "noreg":
-                return 0.0
+                return 0.00000001 * world_size * batch_size / 256.0
             elif group_name == "output_noreg":
-                return 0.0
+                return 0.00000001 * world_size * batch_size / 256.0
             else:
                 assert False
         elif (
@@ -362,13 +362,13 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
                 # than expected.
                 # So we scale sublinearly with lr_scale so as to slightly preadjust to this effect.
                 # Adaptive scale should then help keep us there thereafter.
-                return 0.00125 * world_size * batch_size / 256.0 * math.pow(lr_scale * warmup_scale,0.75) * adaptive_scale * gamma_scale
+                return 0.00125 * world_size * batch_size / 256.0 * math.pow(lr_scale_with_auto * warmup_scale,0.75) * adaptive_scale * gamma_scale
             elif group_name == "output":
                 return 0.000001 * world_size * batch_size / 256.0
             elif group_name == "noreg":
-                return 0.0
+                return 0.000001 * world_size * batch_size / 256.0 * math.pow(lr_scale_with_auto * warmup_scale,0.75)
             elif group_name == "output_noreg":
-                return 0.0
+                return 0.00000001 * world_size * batch_size / 256.0
             else:
                 assert False
         else:
@@ -679,6 +679,8 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
             )
             if group_name == "normal":
                 normal_weight_decay = param_group["weight_decay"]
+
+            logging.info(f"Param group {param_group['group_name']} lr {param_group['lr']} weight_decay {param_group['weight_decay']}")
 
         return per_sample_lr * warmup_scale, normal_weight_decay
 
@@ -1147,6 +1149,7 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
 
                 metrics["pslr_batch"] = lr_right_now
                 metrics["wdnormal_batch"] = normal_weight_decay_right_now
+                metrics["gnorm_cap_batch"] = gnorm_cap
 
                 if use_fp16:
                     scaler.step(optimizer)
@@ -1234,6 +1237,9 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
                     slow_param_data = lookahead_cache[param]
                     param.data.copy_(slow_param_data)
 
+        if rank == 0:
+            train_state["export_cycle_counter"] += 1
+
         save(ddp_model, swa_model, optimizer, metrics_obj, running_metrics, train_state, last_val_metrics)
 
         num_epochs_this_instance += 1
@@ -1309,7 +1315,6 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
                     ddp_model.train()
 
         if rank == 0:
-            train_state["export_cycle_counter"] += 1
             logging.info("Export cycle counter = " + str(train_state["export_cycle_counter"]))
 
             is_time_to_export = False

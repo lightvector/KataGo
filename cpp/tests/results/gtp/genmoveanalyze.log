@@ -1,5 +1,5 @@
 : GTP Engine starting...
-: KataGo v1.14.0
+: KataGo v1.14.1
 : Using TrompTaylor rules initially, unless GTP/GUI overrides this
 : Using 1 CPU thread(s) for search
 : nnRandSeed0 = forTesting
@@ -58,5 +58,72 @@ E5  : T -80.23c W -79.65c S  -1.01c ( -1.8 L  -0.5) LCB  -82.42c P 58.12% WF  42
 F5  : T -77.64c W -76.61c S  -0.48c ( -1.5 L  -0.3) LCB  -93.09c P  8.61% WF  12.8 PSV      13 N       7  --  F5 D5 E7 D3 C6
 
 : = play E5
-: GPU -1 finishing, processed 30 rows 30 batches
+: Controller: komi 5
+: = 
+: Controller: kata-genmove_analyze w rootInfo true
+: MoveNum: 1 HASH: 38E71B648B5DE3A43B414F57C285AD76
+   A B C D E F G H J
+ 9 . . . . . . . . .
+ 8 . . . . . . . . .
+ 7 . . . . . . . . .
+ 6 . . . . . . . . .
+ 5 . . @ . X1. . . .
+ 4 . . . . . . . . .
+ 3 . . . . . . . . .
+ 2 . . . . . . . . .
+ 1 . . . . . . . . .
+
+koPOSITIONALscoreAREAtaxNONEsui1komi5
+Time taken: ###
+Root visits: 30
+New playouts: 30
+NN rows: 30
+NN batches: 30
+NN avg batch size: 1
+PV: C5 C4 G4
+Tree:
+: T -87.29c W -81.76c S  -5.28c ( -3.5 L  -2.1) N      30  --  C5 C4 G4
+---White(^)---
+C5  : T -80.48c W -77.15c S  -3.29c ( -2.5 L  -1.0) LCB  -87.38c P 16.62% WF  27.1 PSV      26 N      15  --  C5 C4 G4
+C4  : T -82.67c W -79.35c S  -3.32c ( -2.6 L  -0.7) LCB -432.67c P  1.58% WF   1.9 PSV       1 N       1  --  C4
+C3  : T -88.38c W -83.64c S  -4.74c ( -3.3 L  -1.2) LCB -438.38c P  0.84% WF   2.0 PSV       0 N       1  --  C3
+D4  : T -94.13c W -88.45c S  -5.68c ( -3.8 L  -1.7) LCB -444.13c P  0.05% WF   1.0 PSV       0 N       1  --  D4
+B5  : T -99.44c W -92.27c S  -7.17c ( -4.4 L  -2.6) LCB -449.44c P  0.04% WF   0.8 PSV       0 N       1  --  B5
+D5  : T -97.28c W -90.80c S  -6.48c ( -4.1 L  -1.9) LCB -447.28c P  0.01% WF   1.3 PSV       0 N       1  --  D5
+B4  : T -103.62c W -95.47c S  -8.15c ( -4.6 L  -3.3) LCB -453.62c P  0.01% WF   0.8 PSV       0 N       1  --  B4
+B3  : T -105.71c W -96.69c S  -9.02c ( -5.0 L  -4.1) LCB -455.71c P  0.01% WF   0.8 PSV       0 N       1  --  B3
+pss : T -120.36c W -99.92c S -20.44c (-10.5 L -10.8) LCB -470.36c P  0.01% WF   0.6 PSV       0 N       1  --  pass
+B2  : T -109.11c W -97.01c S -12.10c ( -6.3 L  -5.4) LCB -459.11c P  0.01% WF   1.0 PSV       0 N       1  --  B2
+
+: = play C5
+: Controller: kata-genmove_analyze b rootInfo true
+: MoveNum: 2 HASH: 21172FF837E42CFA41ED49BC1713B5B8
+   A B C D E F G H J
+ 9 . . . . . . . . .
+ 8 . . . . . . . . .
+ 7 . . . . . . . . .
+ 6 . . . . . . @ . .
+ 5 . . O2. X1. . . .
+ 4 . . . . . . . . .
+ 3 . . . . . . . . .
+ 2 . . . . . . . . .
+ 1 . . . . . . . . .
+
+koPOSITIONALscoreAREAtaxNONEsui1komi5
+Time taken: ###
+Root visits: 30
+New playouts: 22
+NN rows: 23
+NN batches: 23
+NN avg batch size: 1
+PV: G6 F3 D4 G4 D7 C7 E2
+Tree:
+: T  76.12c W  75.54c S   1.42c ( +2.4 L  +1.1) N      30  --  G6 F3 D4 G4 D7 C7 E2
+---Black(^)---
+G6  : T  77.86c W  76.21c S   1.61c ( +2.5 L  +1.2) LCB   69.92c P 20.27% WF  27.0 PSV      27 N      15  --  G6 F3 D4 G4 D7 C7 E2
+C6  : T  73.92c W  74.84c S   1.28c ( +2.4 L  +1.0) LCB   63.01c P 26.21% WF  19.3 PSV      13 N      13  --  C6 G6 F7 B6 C7 D5 E4
+G5  : T  65.29c W  66.38c S  -1.09c ( +1.2 L  +0.4) LCB -284.71c P  2.55% WF   1.2 PSV       0 N       1  --  G5
+
+: = play G6
+: GPU -1 finishing, processed 83 rows 83 batches
 : All cleaned up, quitting

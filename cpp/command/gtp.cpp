@@ -6,6 +6,7 @@
 #include "../core/datetime.h"
 #include "../core/makedir.h"
 #include "../dataio/sgf.h"
+#include "../search/searchnode.h"
 #include "../search/asyncbot.h"
 #include "../search/patternbonustable.h"
 #include "../program/setup.h"
@@ -716,6 +717,7 @@ struct GTPEngine {
     bool kata = false;
     int minMoves = 0;
     int maxMoves = 10000000;
+    bool showRootInfo = false;
     bool showOwnership = false;
     bool showOwnershipStdev = false;
     bool showMovesOwnership = false;
@@ -801,11 +803,16 @@ struct GTPEngine {
         vector<AnalysisData> buf;
         bool duplicateForSymmetries = true;
         search->getAnalysisData(buf,args.minMoves,false,analysisPVLen,duplicateForSymmetries);
+        ReportedSearchValues rootVals;
+        bool suc = search->getPrunedRootValues(rootVals);
+        if(!suc)
+          return;
         filterZeroVisitMoves(args,buf);
         if(buf.size() > args.maxMoves)
           buf.resize(args.maxMoves);
         if(buf.size() <= 0)
           return;
+        const SearchNode* rootNode = search->getRootNode();
 
         vector<double> ownership, ownershipStdev;
         if(args.showOwnershipStdev) {
@@ -916,6 +923,36 @@ struct GTPEngine {
                 int pos = NNPos::xyToPos(x,y,nnXLen);
                 out << " " << movesOwnershipStdev[pos];
               }
+            }
+          }
+        }
+
+        if(args.showRootInfo) {
+          out << " rootInfo";
+          double winrate = 0.5 * (1.0 + rootVals.winLossValue);
+          double scoreMean = rootVals.expectedScore;
+          double lead = rootVals.lead;
+          double utility = rootVals.utility;
+          if(perspective == P_BLACK || (perspective != P_BLACK && perspective != P_WHITE && pla == P_BLACK)) {
+            winrate = 1.0 - winrate;
+            scoreMean = -scoreMean;
+            lead = -lead;
+            utility = -utility;
+          }
+          out << " visits " << rootVals.visits;
+          out << " utility " << utility;
+          out << " winrate " << winrate;
+          out << " scoreMean " << lead;
+          out << " scoreStdev " << rootVals.expectedScoreStdev;
+          out << " scoreLead " << lead;
+          out << " scoreSelfplay " << scoreMean;
+          out << " weight " << rootVals.weight;
+          if(rootNode != NULL) {
+            const NNOutput* nnOutput = rootNode->getNNOutput();
+            if(nnOutput != NULL) {
+              out << " rawStWrError " << nnOutput->shorttermWinlossError;
+              out << " rawStScoreError " << nnOutput->shorttermScoreError;
+              out << " rawVarTimeLeft " << nnOutput->varTimeLeft;
             }
           }
         }
@@ -1544,6 +1581,7 @@ static GTPEngine::AnalyzeArgs parseAnalyzeCommand(
   double lzAnalyzeInterval = TimeControls::UNLIMITED_TIME_DEFAULT;
   int minMoves = 0;
   int maxMoves = 10000000;
+  bool showRootInfo = false;
   bool showOwnership = false;
   bool showOwnershipStdev = false;
   bool showMovesOwnership = false;
@@ -1669,6 +1707,9 @@ static GTPEngine::AnalyzeArgs parseAnalyzeCommand(
             maxMoves >= 0 && maxMoves < 1000000000) {
       continue;
     }
+    else if(isKata && key == "rootInfo" && Global::tryStringToBool(value,showRootInfo)) {
+      continue;
+    }
     else if(isKata && key == "ownership" && Global::tryStringToBool(value,showOwnership)) {
       continue;
     }
@@ -1700,6 +1741,7 @@ static GTPEngine::AnalyzeArgs parseAnalyzeCommand(
   args.secondsPerReport = lzAnalyzeInterval * 0.01;
   args.minMoves = minMoves;
   args.maxMoves = maxMoves;
+  args.showRootInfo = showRootInfo;
   args.showOwnership = showOwnership;
   args.showOwnershipStdev = showOwnershipStdev;
   args.showMovesOwnership = showMovesOwnership;

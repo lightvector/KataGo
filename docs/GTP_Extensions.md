@@ -108,6 +108,7 @@ In addition to a basic set of [GTP commands](https://www.lysator.liu.se/~gunnar/
    * `kata-analyze [player (optional)] [interval (optional)] KEYVALUEPAIR KEYVALUEPAIR ...`
       * Same as `lz-analyze` except a slightly different output format and some additional options and fields.
       * Additional possible key-value pairs:
+         * `rootInfo true` - Output the total number of visits and other root properties for the search. This is recommended for stats like visits rather than add visits across moves, since in some cases intermediary programs that run KataGo remotely may omit some moves to reduce io overhead.
          * `ownership true` - Output the predicted final ownership of every point on the board.
          * `ownershipStdev true` - Output the standard deviation of the distribution of predicted final ownerships of every point on the board across the search tree.
          * `movesOwnership true` - Output the predicted final ownership of every point on the board for every individual move.
@@ -116,6 +117,8 @@ In addition to a basic set of [GTP commands](https://www.lysator.liu.se/~gunnar/
          * `pvEdgeVisits true` - Output the number of visits spent following each move in each principal variation.
       * Output format:
          * Outputted lines look like `info move E4 visits 487 utility -0.0408357 winrate 0.480018 scoreMean -0.611848 scoreStdev 24.7058 scoreLead -0.611848 scoreSelfplay -0.515178 prior 0.221121 lcb 0.477221 utilityLcb -0.0486664 order 0 pv E4 E3 F3 D3 F4 P4 P3 O3 Q3 O4 K3 Q6 S6 E16 E17 info move P16 visits 470 utility -0.0414945 winrate 0.479712 scoreMean -0.63075 scoreStdev 24.7179 scoreLead -0.63075 scoreSelfplay -0.5221 prior 0.220566 lcb 0.47657 utilityLcb -0.0502929 order 1 pv P16 P17 O17 Q17 O16 E17 H17 D15 C15 D14 C13 D13 C12 D12 info move E16 visits 143 utility -0.0534071 winrate 0.474509 scoreMean -0.729858 scoreStdev 24.7991 scoreLead -0.729858 scoreSelfplay -0.735747 prior 0.104652 lcb 0.470674 utilityLcb -0.0641425 order 2 pv E16 P4 P3 O3 Q3 O4 E3 H3 D5 C5`
+         * Or, for example, if options like `rootInfo` and `ownership` are specified, they may look like: `info move E4 <same info for E4 as above> info move P16 <same info for P16 as above> info move E16 <same info for E16 as above> rootInfo visits 1101 <winrate, utility, other properties of root> ownership <361 floats predicting ownership of each board point>`
+         * Top level fields in the output format are "info", "rootInfo", "ownership", and "ownershipStdev". Each one is followed with various other informaiton.
          * `info` - Indicates the start of information for a new possible move, followed by key-value pairs. Current key-value pairs:
             * **NOTE: Consumers of this data should attempt to be robust to the order of these fields, as well as to possible addition of new fields in the future.**
             * `move` - The move being analyzed.
@@ -137,7 +140,21 @@ In addition to a basic set of [GTP commands](https://www.lysator.liu.se/~gunnar/
             * `pvEdgeVisits` - The number of visits used to explore each move in `pv`. Exists only if `pvEdgeVisits true` was requested. Differs from pvVisits when doing graph search and multiple move sequences lead to the same position - pvVisits will count the total number of visits for the position at that point in the PV, pvEdgeVisits will count only the visits reaching the position using the move in the PV from the preceding position.
             * `movesOwnership` - this indicates the start of information about predicted board ownership. Exists only if `movesOwnership true` was requested.
             * `movesOwnershipStdev` - The standard deviation of the ownership across the search. Exists only if `movesOwnershipStdev true` was requested.
-         * `ownership` - Alternatively to `info`, this indicates the start of information about predicted board ownership, which applies to every location on the board rather than only legal moves. Only present if `ownership true` was provided.
+         * `rootInfo` - Top level field that follows after all `info` fields, followed by key-value pairs. Current key-value pairs:
+            * **NOTE: Consumers of this data should attempt to be robust to the order of these fields, as well as to possible addition of new fields in the future.**
+            * `visits` - The number of visits invested into the search so far.
+            * `utility` - The utility of the move, combining both winrate and score, as a float in [-C,C] where C is the maximum possible utility.
+            * `winrate` - The average winrate of the search overall for the player to move, as a float in [0,1].
+            * `scoreMean` - Same as scoreLead. "Mean" is a slight misnomer, but this field exists to preserve compatibility with existing tools.
+            * `scoreStdev` - The predicted standard deviation of the final score of the game, in points. (NOTE: due to the mechanics of MCTS, this value will be **significantly biased high** currently, although it can still be informative as a *relative* indicator).
+            * `scoreLead` - The predicted average number of points that the current side is leading by (with this many points fewer, it would be an even game).
+            * `scoreSelfplay` - The predicted average value of the final score of the game from low-playout noisy selfplay, in points. (NOTE: users should usually prefer scoreLead, since scoreSelfplay may be biased by the fact that KataGo isn't perfectly score-maximizing).
+            * `weight` - The total weight of the visits invested into the search. The average weight of visits may be lower when less certain, and larger when more certain.
+            * `rawStWrError` - The short-term uncertainty the raw neural net believed there would be in the winrate of the position, prior to searching it.
+            * `rawStScoreError` - The short-term uncertainty the raw neural net believed there would be in the score of the position, prior to searching it.
+            * `rawVarTimeLeft` - The raw neural net's guess of "how long of a meaningful game is left?", in no particular units. A large number when expected that it will be a long game before the winner becomes clear. A small number when the net believes the winner is already clear, or that the winner is unclear but will become clear soon.
+            * Note that properties of the root like "winrate" and score will vary more smoothly and a bit more sluggishly than the corresponding property of the best move, since the rootInfo averages smoothly across all visits even while the top move may fluctuate rapidly. This may or may not be preferable over reporting the stats of the top move, depending on the purpose.
+         * `ownership` - Top level field that follows after all `info` fields. This indicates the start of information about predicted board ownership, which applies to every location on the board rather than only legal moves. Only present if `ownership true` was provided.
             * Following is BoardHeight*BoardWidth many consecutive floats in [-1,1] separated by spaces, predicting the final ownership of every board location from the perspective of the current player. Floats are in row-major order, starting at the top-left of the board (e.g. A19) and going to the bottom right (e.g. T1).
          * `ownershipStdev` - The standard deviation of the ownership across the search. Only present if `ownershipStdev true` was provided.
             * Similar to `ownership`, following is BoardHeight*BoardWidth many consecutive floats in [0,1] separated by spaces. Floats are in row-major order, starting at the top-left of the board (e.g. A19) and going to the bottom right (e.g. T1).
