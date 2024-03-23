@@ -2,6 +2,7 @@ import wx
 import subprocess
 import json
 import sys
+import os
 from threading import Thread
 import atexit
 import datetime
@@ -409,12 +410,22 @@ class SliderWindow(wx.Frame):
         self.GetParent().board.set_sgfmeta(sgfmeta)
         self.GetParent().board.refresh_model()
 
+class FileDropTarget(wx.FileDropTarget):
+    def __init__(self, window):
+        super().__init__()
+        self.window = window
+
+    def OnDropFiles(self, x, y, sgf_files):
+        return self.window.on_drop_files(sgf_files)
+
 class GoClient(wx.Frame):
     def __init__(self, server_command, game_state):
         super().__init__(parent=None, title="HumanSLNetViz")
         self.server_command = server_command
         self.game_state = game_state
         self.board_size = self.game_state.board_size
+
+        self.SetDropTarget(FileDropTarget(self))
 
         self.start_server()
         self.init_ui()
@@ -471,6 +482,9 @@ class GoClient(wx.Frame):
         t.daemon = True
         t.start()
 
+        self.init_server()
+
+    def init_server(self):
         command = {"command": "start", "board_size": self.board_size, "rules": GameState.RULES_JAPANESE}
         self.send_command(command)
         response = self.receive_response()
@@ -540,6 +554,30 @@ class GoClient(wx.Frame):
             self.handle_error(f"Unexpected response from server: {response}")
         self.board.Refresh()
         self.board.refresh_model()
+    
+    def on_drop_files(self, sgf_files):
+        if len(sgf_files) == 0:
+            return False
+            
+        sgf_file = sgf_files[0]
+        file_extension = os.path.splitext(sgf_file)[1]
+        if file_extension != ".sgf":
+            return False
+
+        game_state = load_sgf_game_state(sgf_file)
+        
+        self.game_state = game_state
+        self.board_size = self.game_state.board_size
+
+        self.board.game_state = game_state
+        self.board.board_size = self.board_size
+
+        self.init_server()
+
+        self.board.Refresh()
+        self.board.refresh_model()
+
+        return True
 
     def on_close(self, event):
         self.server_process.terminate()
