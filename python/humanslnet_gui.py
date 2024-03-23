@@ -57,7 +57,7 @@ def load_sgf_game_state(file_path):
             color = board.get(x, y)
             if color is not None:
                 moves.append((x, y, (Board.BLACK if color == "b" else Board.WHITE)))
-                
+
     for color, move in plays:
         if move is not None:
             x, y = move
@@ -76,7 +76,7 @@ class GoBoard(wx.Panel):
         self.board_size = game_state.board.size
         self.cell_size = cell_size
         self.margin = margin
-        
+
         self.sgfmeta = SGFMetadata()
         self.latest_model_response = None
 
@@ -112,22 +112,22 @@ class GoBoard(wx.Panel):
 
         for i in range(self.board_size):
             gc.StrokeLine(
-                self.px_of_x(0), 
+                self.px_of_x(0),
                 self.py_of_y(i),
-                self.px_of_x(self.board_size - 1), 
+                self.px_of_x(self.board_size - 1),
                 self.py_of_y(i),
             )
             gc.StrokeLine(
-                self.px_of_x(i), 
+                self.px_of_x(i),
                 self.py_of_y(0),
-                self.px_of_x(i), 
+                self.px_of_x(i),
                 self.py_of_y(self.board_size - 1),
             )
 
         for x in range(self.board_size):
             for y in range(self.board_size):
                 loc = self.game_state.board.loc(x, y)
-                
+
                 if self.game_state.board.board[loc] == Board.BLACK:
                     gc.SetBrush(wx.Brush(wx.BLACK))
                     gc.DrawEllipse(self.px_of_x(x) - (self.cell_size // 2 - 2), self.py_of_y(y) - (self.cell_size // 2 - 2), self.cell_size - 4, self.cell_size - 4)
@@ -139,7 +139,7 @@ class GoBoard(wx.Panel):
         for x in range(self.board_size):
             for y in range(self.board_size):
                 loc = self.game_state.board.loc(x, y)
-                
+
                 if len(self.game_state.moves) > 0 and self.game_state.moves[-1][1] == loc:
                     if self.game_state.moves[-1][0] == Board.BLACK:
                         gc.SetPen(wx.Pen(wx.Colour(0, 120, 255), 2))
@@ -163,7 +163,7 @@ class GoBoard(wx.Panel):
             text_y = self.py_of_y(y) - text_height // 2
             gc.DrawText(row_label, self.px_of_x(-0.8)-text_width//2, text_y)
             gc.DrawText(row_label, self.px_of_x(self.board_size-0.2)-text_width//2, text_y)
-            
+
         if self.latest_model_response is not None:
             bigger_font = wx.Font(10, wx.FONTFAMILY_DEFAULT, wx.FONTSTYLE_NORMAL, wx.FONTWEIGHT_NORMAL)
             small_font = wx.Font(8, wx.FONTFAMILY_DEFAULT, wx.FONTSTYLE_NORMAL, wx.FONTWEIGHT_NORMAL)
@@ -190,7 +190,7 @@ class GoBoard(wx.Panel):
             text_x = self.px_of_x(8)
             text_y = self.py_of_y(self.board_size+0.6) - text_height // 2
             gc.DrawText(label, text_x, text_y)
-            
+
             moves_and_probs0 = dict(self.latest_model_response["moves_and_probs0"])
             # print(moves_and_probs0)
             for y in range(self.board_size):
@@ -205,9 +205,9 @@ class GoBoard(wx.Panel):
                         gc.SetPen(wx.Pen(wx.Colour(0,0,0,alpha=a),1))
                         gc.SetFont(small_font,wx.Colour(0,0,0,alpha=a))
                         gc.DrawRectangle(
-                            self.px_of_x(x-0.45), 
-                            self.py_of_y(y-0.45), 
-                            self.px_of_x(x+0.45)-self.px_of_x(x-0.45), 
+                            self.px_of_x(x-0.45),
+                            self.py_of_y(y-0.45),
+                            self.px_of_x(x+0.45)-self.px_of_x(x-0.45),
                             self.py_of_y(y+0.45)-self.py_of_y(y-0.45),
                         )
 
@@ -217,7 +217,7 @@ class GoBoard(wx.Panel):
                         text_y = self.py_of_y(y) - text_height // 2
                         gc.DrawText(label, text_x, text_y)
 
-                        
+
     def on_click(self, event):
         x = self.x_of_px(event.GetX())
         y = self.y_of_py(event.GetY())
@@ -228,20 +228,20 @@ class GoBoard(wx.Panel):
 
             if self.game_state.board.would_be_legal(pla,loc):
                 self.game_state.play(pla, loc)
-                
+
                 command = {"command": "play", "pla": pla, "loc": loc}
                 parent = self.GetParent().GetParent()
                 parent.send_command(command)
                 response = parent.receive_response()
                 if response != {"outputs": ""}:
                     parent.handle_error(f"Unexpected response from server: {response}")
-                    
+
                 self.Refresh()
                 self.refresh_model()
 
     def set_sgfmeta(self, sgfmeta):
         self.sgfmeta = sgfmeta
-                
+
     def refresh_model(self):
         sgfmeta = self.sgfmeta
         command = {"command": "get_model_outputs", "sgfmeta": sgfmeta.to_dict()}
@@ -273,7 +273,7 @@ class LabeledSlider(wx.Panel):
         self.label = wx.StaticText(self, label = self.title + ": " + str(self.options[start_idx]))
 
         font_size = 12
-        
+
         font = self.label.GetFont()
         font.SetPointSize(font_size)
         self.label.SetFont(font)
@@ -298,7 +298,7 @@ class LabeledSlider(wx.Panel):
         option_index = self.slider.GetValue()
         selected_option = self.options[option_index]
         self.label.SetLabel(self.title + ": " + str(selected_option) + ("" if not self.is_extrapolation else " (No Training Data)"))
-    
+
     def set_is_extrapolation(self, b):
         if self.is_extrapolation != b:
             self.is_extrapolation = b
@@ -310,7 +310,7 @@ class LabeledSlider(wx.Panel):
         self.refresh_label()
         if self.on_scroll_callback:
             self.on_scroll_callback(option_index, selected_option)
-        
+
 
 class SliderWindow(wx.Frame):
     def __init__(self, parent):
@@ -318,8 +318,8 @@ class SliderWindow(wx.Frame):
         panel = wx.Panel(self)
         panel_sizer = wx.BoxSizer(wx.VERTICAL)
         panel_sizer.Add(400,0,0)
-        
-        self.source_slider = LabeledSlider(panel, title="Source", options=["KG","OGS","KGS","Fox","Tygem(Unused)","GoGoD","Go4Go"], 
+
+        self.source_slider = LabeledSlider(panel, title="Source", options=["KG","OGS","KGS","Fox","Tygem(Unused)","GoGoD","Go4Go"],
             on_scroll_callback = (lambda idx, option: self.update_metadata()),
             start_option="GoGoD",
         )
@@ -327,33 +327,33 @@ class SliderWindow(wx.Frame):
 
         self.rank_slider = LabeledSlider(panel, title="Rank", options=[
             "KG","9d","8d","7d","6d","5d","4d","3d","2d","1d","1k","2k","3k","4k","5k","6k","7k","8k","9k","10k","11k","12k","13k","14k","15k","16k","17k","18k","19k","20k"
-            ], 
+            ],
             on_scroll_callback = (lambda idx, option: self.update_metadata()),
             start_option="9d",
         )
         panel_sizer.Add(self.rank_slider, 0, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.BOTTOM, 10)
 
         self.date_slider = LabeledSlider(panel, title="Date", options=[
-            1800,1825,1850,1875,1900,1915,1930,1940,1950,1960,1970,1980,1985,1990,1995,2000,2005,2008,2010,2012,2013,2014,2015,2016,2017,2018,2019,2020,2021,2022,2023], 
+            1800,1825,1850,1875,1900,1915,1930,1940,1950,1960,1970,1980,1985,1990,1995,2000,2005,2008,2010,2012,2013,2014,2015,2016,2017,2018,2019,2020,2021,2022,2023],
             on_scroll_callback = (lambda idx, option: self.update_metadata()),
             start_option=2020,
         )
         panel_sizer.Add(self.date_slider, 0, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.BOTTOM, 10)
 
-        self.tc_slider = LabeledSlider(panel, title="TimeControl", options=["Blitz","Fast","Slow","Unknown"], 
+        self.tc_slider = LabeledSlider(panel, title="TimeControl", options=["Blitz","Fast","Slow","Unknown"],
             on_scroll_callback = (lambda idx, option: self.update_metadata()),
             start_option="Unknown",
         )
         panel_sizer.Add(self.tc_slider, 0, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.BOTTOM, 10)
-      
+
 
         panel.SetSizer(panel_sizer)
         sizer = wx.BoxSizer(wx.VERTICAL)
         sizer.Add(panel, 1, wx.EXPAND)
         self.SetSizerAndFit(sizer)
-        
+
         self.Bind(wx.EVT_CLOSE, self.on_close)
-    
+
     def on_close(self, event):
         self.GetParent().server_process.terminate()
         self.GetParent().Close()
@@ -375,7 +375,7 @@ class SliderWindow(wx.Frame):
             gameDate = datetime.date(self.date_slider.get_selected_option(),6,1),
             source = self.source_slider.get_selected_index(),
         )
-        
+
         source = self.source_slider.get_selected_option()
         if source == "KG":
             self.rank_slider.set_is_extrapolation(self.rank_slider.get_selected_index() != 0)
@@ -405,7 +405,7 @@ class SliderWindow(wx.Frame):
             self.rank_slider.set_is_extrapolation(self.rank_slider.get_selected_index() != 1)
             self.tc_slider.set_is_extrapolation(self.tc_slider.get_selected_option() != "Unknown")
             self.date_slider.set_is_extrapolation(self.date_slider.get_selected_option() < 2020)
-        
+
         self.GetParent().board.set_sgfmeta(sgfmeta)
         self.GetParent().board.refresh_model()
 
@@ -455,7 +455,6 @@ class GoClient(wx.Frame):
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             universal_newlines=True,
-            shell=True
         )
         atexit.register(self.server_process.terminate)
 
@@ -467,7 +466,7 @@ class GoClient(wx.Frame):
                     if returncode is not None:
                         return
                 print(line,end="")
-                
+
         t = Thread(target=print_stderr)
         t.daemon = True
         t.start()
@@ -495,7 +494,7 @@ class GoClient(wx.Frame):
         while True:
             returncode = self.server_process.poll()
             if returncode is not None:
-                raise OSError(f"Server terminated unexpectedly with {returncode=}") 
+                raise OSError(f"Server terminated unexpectedly with {returncode=}")
             response = self.server_process.stdout.readline().strip()
             if response != "":
                 break
@@ -505,7 +504,7 @@ class GoClient(wx.Frame):
     def handle_error(self, error_message):
         print(f"Error: {error_message}")
         self.server_process.terminate()
-        
+
         sys.exit(1)
 
     def on_key_down(self, event):
@@ -520,7 +519,7 @@ class GoClient(wx.Frame):
         if not self.game_state.can_undo():
             return
         self.game_state.undo()
-        
+
         command = {"command": "undo"}
         self.send_command(command)
         response = self.receive_response()
@@ -533,7 +532,7 @@ class GoClient(wx.Frame):
         if not self.game_state.can_redo():
             return
         self.game_state.redo()
-        
+
         command = {"command": "redo"}
         self.send_command(command)
         response = self.receive_response()
