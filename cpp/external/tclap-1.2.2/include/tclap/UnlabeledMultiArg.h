@@ -153,7 +153,7 @@ class UnlabeledMultiArg : public MultiArg<T>
 		 * This re-implements the Arg version of this method to set the
 		 * _value of the argument appropriately.  It knows the difference
 		 * between labeled and unlabeled.
-		 * \param i - Pointer the the current argument in the list.
+		 * \param i - Pointer the current argument in the list.
 		 * \param args - Mutable list of strings. Passed from main().
 		 */
 		virtual bool processArg(int* i, std::vector<std::string>& args); 
