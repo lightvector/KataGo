@@ -57,12 +57,12 @@ def load_sgf_game_state(file_path):
         for y in range(size):
             color = board.get(x, y)
             if color is not None:
-                moves.append((x, y, (Board.BLACK if color == "b" else Board.WHITE)))
+                moves.append((y, 18 - x, (Board.BLACK if color == "b" else Board.WHITE)))
 
     for color, move in plays:
         if move is not None:
             x, y = move
-            moves.append((x, y, (Board.BLACK if color == "b" else Board.WHITE)))
+            moves.append((y, 18 - x, (Board.BLACK if color == "b" else Board.WHITE)))
 
     game_state = GameState(size, GameState.RULES_JAPANESE)
     for (x,y,color) in moves:
@@ -523,37 +523,59 @@ class GoClient(wx.Frame):
 
     def on_key_down(self, event):
         key_code = event.GetKeyCode()
-        if key_code == wx.WXK_LEFT or key_code == wx.WXK_BACK:
+        if (key_code == wx.WXK_LEFT or key_code == wx.WXK_BACK) and event.ShiftDown():
+            self.undo(10)
+        elif key_code == wx.WXK_LEFT or key_code == wx.WXK_BACK:
             self.undo()
-        if key_code == wx.WXK_RIGHT:
+        elif key_code == wx.WXK_RIGHT and event.ShiftDown():
+            self.redo(10)
+        elif key_code == wx.WXK_RIGHT:
             self.redo()
+        elif key_code == wx.WXK_DOWN:
+            self.undo(len(self.game_state.moves))
+        elif key_code == wx.WXK_UP:
+            self.redo(len(self.game_state.redo_stack))
         event.Skip()
 
-    def undo(self):
-        if not self.game_state.can_undo():
-            return
-        self.game_state.undo()
+    def undo(self, undo_count = 1):
+        is_refresh_needed = False
+        for i in range(undo_count):
+            if not self.game_state.can_undo():
+                break
+            
+            is_refresh_needed = True
 
-        command = {"command": "undo"}
-        self.send_command(command)
-        response = self.receive_response()
-        if response != {"outputs": ""}:
-            self.handle_error(f"Unexpected response from server: {response}")
-        self.board.Refresh()
-        self.board.refresh_model()
+            self.game_state.undo()
 
-    def redo(self):
-        if not self.game_state.can_redo():
-            return
-        self.game_state.redo()
+            command = {"command": "undo"}
+            self.send_command(command)
+            response = self.receive_response()
+            if response != {"outputs": ""}:
+                self.handle_error(f"Unexpected response from server: {response}")
 
-        command = {"command": "redo"}
-        self.send_command(command)
-        response = self.receive_response()
-        if response != {"outputs": ""}:
-            self.handle_error(f"Unexpected response from server: {response}")
-        self.board.Refresh()
-        self.board.refresh_model()
+        if is_refresh_needed:
+            self.board.Refresh()
+            self.board.refresh_model()
+
+    def redo(self, redo_count = 1):
+        is_refresh_needed = False
+        for i in range(redo_count):
+            if not self.game_state.can_redo():
+                break
+            
+            is_refresh_needed = True
+
+            self.game_state.redo()
+
+            command = {"command": "redo"}
+            self.send_command(command)
+            response = self.receive_response()
+            if response != {"outputs": ""}:
+                self.handle_error(f"Unexpected response from server: {response}")
+
+        if is_refresh_needed:
+            self.board.Refresh()
+            self.board.refresh_model()
     
     def on_drop_files(self, sgf_files):
         if len(sgf_files) == 0:
