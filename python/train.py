@@ -252,6 +252,10 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
         logging.warning("WARNING: No GPU, using CPU")
         device = torch.device("cpu")
 
+    seed = int.from_bytes(os.urandom(7), sys.byteorder)
+    logging.info(f"Seeding torch with {seed}")
+    torch.manual_seed(seed)
+
     # LOAD MODEL ---------------------------------------------------------------------
 
     def lr_scale_auto_factor(train_state):
@@ -741,6 +745,13 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
                         if train_state["train_bucket_level"] > cap:
                             train_state["train_bucket_level"] = cap
                         logging.info("New rows in bucket: %.0f" % train_state["train_bucket_level"])
+                    if train_state["total_num_data_rows"] < train_state["train_bucket_level_at_row"]:
+                        # Bucket went backward! This must be a network imported from a different run, reset the train bucket level
+                        logging.warning("Train bucket last filled at %d rows but now there are only %d rows!" % (
+                            train_state["train_bucket_level_at_row"], train_state["total_num_data_rows"]
+                        ))
+                        logging.warning("Data was deleted or this network was transplanted into a new run, resetting the train bucket fill rows")
+                        train_state["train_bucket_level_at_row"] = train_state["total_num_data_rows"]
 
                 logging.info("Train steps since last reload: %.0f -> 0" % train_state["train_steps_since_last_reload"])
                 train_state["train_steps_since_last_reload"] = 0
@@ -898,6 +909,14 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
             metrics_out.write(json.dumps(metrics_to_print) + "\n")
             metrics_out.flush()
 
+    def clear_metric_nonfinite(metric_sums, metric_weights):
+        for metric in metric_sums:
+            if not math.isfinite(metric_sums[metric]):
+                logging.warning(f"NONFINITE VALUE OF METRIC {metric}, CLEARING IT BACK TO EMPTY")
+                metric_sums[metric] = 0.0
+                metric_weights[metric] = 0.0
+
+
     if rank == 0:
         train_metrics_out = open(os.path.join(traindir,"metrics_train.json"),"a")
         val_metrics_out = open(os.path.join(traindir,"metrics_val.json"),"a")
@@ -963,6 +982,8 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
 
         logging.info("GC collect")
         gc.collect()
+
+        clear_metric_nonfinite(running_metrics["sums"], running_metrics["weights"])
 
         logging.info("=========================================================================")
         logging.info("BEGINNING NEXT EPOCH " + str(num_epochs_this_instance))

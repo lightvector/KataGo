@@ -172,7 +172,7 @@ static void maybeParseBonusFile(
           int symmetryToAlignRet;
           vector<int> symmetriesRet;
           if(parseCommand("BONUS",ret)) {
-            if(!std::isfinite(ret) || ret < 0 || ret > 10000)
+            if(!std::isfinite(ret) || ret < -10000 || ret > 10000)
               throw StringError("Invalid BONUS: " + Global::doubleToString(ret));
             for(int bookVersion = 1; bookVersion <= Book::LATEST_BOOK_VERSION; bookVersion++) {
               BookHash::getHashAndSymmetry(hist, repBound, hashRet, symmetryToAlignRet, symmetriesRet, bookVersion);

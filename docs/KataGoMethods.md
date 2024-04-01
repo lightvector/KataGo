@@ -142,13 +142,10 @@ As of late 2020, KataGo has tentatively found a heuristic method to improve MCTS
 While similar things may have been invented and published elsewhere, as of late 2020, I am personally unaware of anything quite like this that has been successful in post-AlphaZero MCTS bots. This method adjusts only the utility estimates of MCTS search tree nodes. Exploration and the PUCT formula remain unchanged, except for taking the new utility values as input. The method is as follows:
 
 Firstly, we write the relationship that defines the MCTS utility of a search tree node in a mathematically equivalent but slightly different form than usually presented. Normally in AlphaZero-style MCTS, the MCTS utility estimate for a node during the search is the running average of the raw heuristic utility estimates from the neural net or other evaluation function, which here we call "NodeUtility", averaged over all playouts that passed through that node. Here, instead of expressing it as a running statistical average of the playouts that have been sent through that node, we define it as a recurrence based on its children. We define the MCTS utility of each search node *n* in terms of the raw heuristic utility estimate of that node and of the utility of its children *c* by:
-
-<!--\text{MCTSUtility}(n) = \frac{ \text{NodeUtility}(n) + \sum_{c} \text{MCTSUtility}(c) *  \text{Visits}(c) }{ 1 + \sum_{c}  \text{Visits}(c)}-->
-<img height="45px" src="https://render.githubusercontent.com/render/math?math=%5Ctext%7BMCTSUtility%7D(n)%20%3D%20%5Cfrac%7B%20%5Ctext%7BNodeUtility%7D(n)%20%2B%20%5Csum_%7Bc%7D%20%5Ctext%7BMCTSUtility%7D(c)%20*%20%20%5Ctext%7BVisits%7D(c)%20%7D%7B%201%20%2B%20%5Csum_%7Bc%7D%20%20%5Ctext%7BVisits%7D(c)%7D">
+$$\text{MCTSUtility}(n) = \frac{ \text{NodeUtility}(n) + \sum_{c} \text{MCTSUtility}(c) *  \text{Visits}(c) }{ 1 + \sum_{c}  \text{Visits}(c)}$$
 
 For a node that has at least one child, we also track the observed *error* of the neural net's raw utility prediction relative to its subtree, which we presume is probably a more accurate estimate due to the deeper search:
-<!--\text{ObsError}(n) = \text{NNUtility}(n) - \frac{\sum_{c} \text{MCTSUtility}(c) *  \text{Visits}(c) }{ \sum_{c}  \text{Visits}(c)}-->
-<img height="45px" src="https://render.githubusercontent.com/render/math?math=%5Ctext%7BObsError%7D(n)%20%3D%20%5Ctext%7BNNUtility%7D(n)%20-%20%5Cfrac%7B%5Csum_%7Bc%7D%20%5Ctext%7BMCTSUtility%7D(c)%20*%20%20%5Ctext%7BVisits%7D(c)%20%7D%7B%20%5Csum_%7Bc%7D%20%20%5Ctext%7BVisits%7D(c)%7D">
+$$\text{ObsError}(n) = \text{NNUtility}(n) - \frac{\sum_{c} \text{MCTSUtility}(c) *  \text{Visits}(c) }{ \sum_{c}  \text{Visits}(c)}$$
 
 In normal MCTS search, we would have NNUtility = NodeUtility (i.e. the neural net's raw value estimate of node are what get averaged in the running statistics), but as we will see below, for this method we distinguish the two.
 
@@ -160,13 +157,11 @@ We bucket all nodes in the search tree using the following combination as the ke
 * If the previous move made a move illegal due to ko ban, the location of that ko ban.
 
 For each bucket B, we define its weighted average observed bias:
-<!--\text{ObsBias}(B) = \frac{ \sum_{n \in B} \text{ObsError}(n) *  \text{ChildVisits}(n) ^ {\alpha} }{ \sum_{n \in B}  \text{ChildVisits}(n) ^ {\alpha} }-->
-<img height="45px" src="https://render.githubusercontent.com/render/math?math=%5Ctext%7BObsBias%7D(B)%20%3D%20%5Cfrac%7B%20%5Csum_%7Bn%20%5Cin%20B%7D%20%5Ctext%7BObsError%7D(n)%20*%20%20%5Ctext%7BChildVisits%7D(n)%20%5E%20%7B%5Calpha%7D%20%7D%7B%20%5Csum_%7Bn%20%5Cin%20B%7D%20%20%5Ctext%7BChildVisits%7D(n)%20%5E%20%7B%5Calpha%7D%20%7D">
+$$\text{ObsBias}(B) = \frac{ \sum_{n \in B} \text{ObsError}(n) *  \text{ChildVisits}(n) ^ {\alpha} }{ \sum_{n \in B}  \text{ChildVisits}(n) ^ {\alpha} }$$
 where ChildVisits(n) = Visits(n) - 1 is the total number of visits to children of that node.
 
 Then, instead of defining NodeUtility to be equal to the neural net's utility prediction on that node (as in normal MCTS), we define NodeUtility to be a "bias-corrected" value that adjusts the raw neural net evaluation:
-<!--\text{NodeUtility}(n) = \text{NNUtility}(n) - \lambda * \text{MostRecentRetrievedObsBias}(n)-->
-<img height="20px" src="https://render.githubusercontent.com/render/math?math=%5Ctext%7BNodeUtility%7D(n)%20%3D%20%5Ctext%7BNNUtility%7D(n)%20-%20%5Clambda%20*%20%5Ctext%7BMostRecentRetrievedObsBias%7D(n)">
+$$\text{NodeUtility}(n) = \text{NNUtility}(n) - \lambda * \text{MostRecentRetrievedObsBias}(n)$$
 
 Every time a playout finishes, while walking back up the tree, in the process of recomputing each node's MCTS utility to take into account the result, for that node's bucket, we also recompute the bucket's ObsBias based on the updated ObsError for that node. Then, we also immediately *retrieve* that ObsBias value to update this node's NodeUtility. This also applies to leaf nodes that are not game-terminal positions - when a node is created at the end of a search tree branch, it immediately retrieves the ObsBias for the bucket it belongs to (although, of course, since the node has no children yet with which to compute its own error, it does not affect the bucket's ObsBias yet).
 
@@ -182,8 +177,9 @@ By only averaging errors in a bucket rather than absolute utilities, we continue
 <sub>(This method was first experimented with in KataGo in early 2021, and released in June 2021 with v1.9.0).</sub>
 
 This method can be motivated and explained by a simple observation. Consider the PUCT formula that controls exploitation versus exploration in modern AlphaZero-style MCTS:
-
-<img height="45px" src="https://render.githubusercontent.com/render/math?math=\text{Next action to explore}=\text{argmax}_a \, Q(a) %2B c_{\text{PUCT}} P(a) \frac{\sqrt{\sum_b N(b)}}{1 %2B N(a)}">
+```math
+\text{Next action to explore}=\text{argmax}_a \, Q(a) + c_{\text{PUCT}} P(a) \frac{\sqrt{\sum_b N(b)}}{1 + N(a)}
+```
 
 Suppose for a given game/subgame/situation/tactic the value of the cPUCT coefficient is k. Then, consider a game/subgame/situation/tactic that is identical except all the differences between all the Q values at every node are doubled (e.g. the differences between the winrates of moves and the results of playouts are doubled). In this new game, the optimal cPUCT coefficient is now 2k because a coefficient of 2k is what is needed to exactly replicate the original search behavior, given that the differences in Q are all twice as large as before.
 
@@ -277,7 +273,7 @@ The method is simple:
 
 **Add an auxiliary policy head that attempts to predict the policy target raised to power of (1/T) for some moderately large temperature T (and re-normalized to sum to 1).**
 
-Simply adding this auxiliary "soft" policy target also improves the learning of the original policy head, at least for KataGo. At first, this might seem a bit surprising. Why would predicting the the exact same data under just a simple transformation improve things?
+Simply adding this auxiliary "soft" policy target also improves the learning of the original policy head, at least for KataGo. At first, this might seem a bit surprising. Why would predicting the exact same data under just a simple transformation improve things?
 
 As intuition, consider a policy target like:
 
