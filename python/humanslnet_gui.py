@@ -53,16 +53,16 @@ def load_sgf_game_state(file_path):
     board, plays = sgf_moves.get_setup_and_moves(game)
 
     moves = []
-    for x in range(size):
-        for y in range(size):
-            color = board.get(x, y)
+    for y in range(size):
+        for x in range(size):
+            color = board.get(y, x)
             if color is not None:
-                moves.append((y, 18 - x, (Board.BLACK if color == "b" else Board.WHITE)))
+                moves.append((x, size - 1 - y, (Board.BLACK if color == "b" else Board.WHITE)))
 
     for color, move in plays:
         if move is not None:
-            x, y = move
-            moves.append((y, 18 - x, (Board.BLACK if color == "b" else Board.WHITE)))
+            y, x = move
+            moves.append((x, size - 1 - y, (Board.BLACK if color == "b" else Board.WHITE)))
 
     game_state = GameState(size, GameState.RULES_JAPANESE)
     for (x,y,color) in moves:
@@ -542,7 +542,7 @@ class GoClient(wx.Frame):
         for i in range(undo_count):
             if not self.game_state.can_undo():
                 break
-            
+
             is_refresh_needed = True
 
             self.game_state.undo()
@@ -562,7 +562,7 @@ class GoClient(wx.Frame):
         for i in range(redo_count):
             if not self.game_state.can_redo():
                 break
-            
+
             is_refresh_needed = True
 
             self.game_state.redo()
@@ -576,18 +576,18 @@ class GoClient(wx.Frame):
         if is_refresh_needed:
             self.board.Refresh()
             self.board.refresh_model()
-    
+
     def on_drop_files(self, sgf_files):
         if len(sgf_files) == 0:
             return False
-            
+
         sgf_file = sgf_files[0]
         file_extension = os.path.splitext(sgf_file)[1]
         if file_extension != ".sgf":
             return False
 
         game_state = load_sgf_game_state(sgf_file)
-        
+
         self.game_state = game_state
         self.board_size = self.game_state.board_size
 
