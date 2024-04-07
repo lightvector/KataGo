@@ -120,7 +120,7 @@ void SGFMetadata::fillMetadataRow(SGFMetadata* sgfMeta, float* rowMetadata, Play
   // 7 because we're curious if there's a day-of-the-week effect
   // on gameplay...
   double period = 7.0;
-  static constexpr double factor = pow(80000, 1.0/(DATE_LEN-1));
+  static const double factor = pow(80000, 1.0/(DATE_LEN-1));
   static constexpr double twopi = 6.283185307179586476925;
   for(int i = 0; i<DATE_LEN; i++) {
     double numRevolutions = daysDifference / period;
