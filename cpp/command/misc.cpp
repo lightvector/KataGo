@@ -1482,30 +1482,13 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
 
   vector<string> sgfFiles;
   FileHelpers::collectSgfsFromDirsOrFiles(sgfDirs,sgfFiles);
-  logger.write("Found " + Global::int64ToString((int64_t)sgfFiles.size()) + " sgf files!");
-
-  std::set<string> sgfsSet;
-  {
-    vector<string> sgfsFiles;
-    FileHelpers::collectMultiSgfsFromDirsOrFiles(sgfsDirs,sgfsFiles);
-    logger.write("Found " + Global::int64ToString((int64_t)sgfsFiles.size()) + " sgfs files!");
-    for(const string& s: sgfsFiles) {
-      sgfFiles.push_back(s);
-      sgfsSet.insert(s);
-    }
-  }
+  FileHelpers::collectMultiSgfsFromDirsOrFiles(sgfsDirs,sgfFiles);
+  logger.write("Found " + Global::int64ToString((int64_t)sgfFiles.size()) + " sgf(s) files!");
 
   if(forTesting)
     std::sort(sgfFiles.begin(),sgfFiles.end());
-
-  vector<size_t> permutation(sgfFiles.size());
-  for(size_t i = 0; i<sgfFiles.size(); i++)
-    permutation[i] = i;
-  if(!forTesting) {
-    for(size_t i = 1; i<sgfFiles.size(); i++) {
-      size_t r = (size_t)seedRand.nextUInt64(i+1);
-      std::swap(permutation[i],permutation[r]);
-    }
+  else {
+    seedRand.shuffle(sgfFiles);
   }
 
   set<Hash128> excludeHashes = Sgf::readExcludes(excludeHashesFiles);
@@ -2200,42 +2183,14 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
     if(numSgfsBegun % std::min((size_t)20, 1 + sgfFiles.size() / 60) == 0)
       logSgfProgress();
 
-    const string& fileName = sgfFiles[permutation[i]];
+    const string& fileName = sgfFiles[i];
 
-    std::vector<Sgf*> sgfs;
-    if(sgfsSet.find(fileName) != sgfsSet.end()) {
-      try {
-        sgfs = Sgf::loadSgfsFile(fileName);
-      }
-      catch(const StringError& e) {
-        logger.write("Invalid SGFS " + fileName + ": " + e.what());
-        continue;
-      }
-    }
-    else {
-      Sgf* sgf = NULL;
-      try {
-        sgf = Sgf::loadFile(fileName);
-      }
-      catch(const StringError& e) {
-        logger.write("Invalid SGF " + fileName + ": " + e.what());
-        continue;
-      }
-      sgfs.push_back(sgf);
-    }
-
-    vector<size_t> subPermutation(sgfs.size());
-    for(size_t j = 0; j<sgfs.size(); j++)
-      subPermutation[j] = j;
-    if(!forTesting) {
-      for(size_t j = 1; j<sgfs.size(); j++) {
-        size_t r = (size_t)seedRand.nextUInt64(j+1);
-        std::swap(subPermutation[j],subPermutation[r]);
-      }
-    }
+    std::vector<Sgf*> sgfs = Sgf::loadSgfOrSgfsLogAndIgnoreErrors(fileName,logger);
+    if(!forTesting)
+      seedRand.shuffle(sgfs);
 
     for(size_t j = 0; j<sgfs.size(); j++) {
-      Sgf* sgf = sgfs[subPermutation[j]];
+      Sgf* sgf = sgfs[j];
 
       if(contains(excludeHashes,sgf->hash)) {
         logger.write("Filtering due to exclude: " + fileName);

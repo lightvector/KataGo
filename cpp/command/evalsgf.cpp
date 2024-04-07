@@ -29,6 +29,7 @@ int MainCmds::evalsgf(const vector<string>& args) {
   int64_t maxVisits;
   int numThreads;
   float overrideKomi;
+  string overrideRules;
   bool printOwnership;
   bool printRootNNValues;
   bool printPolicy;
@@ -60,6 +61,7 @@ int MainCmds::evalsgf(const vector<string>& args) {
     TCLAP::ValueArg<long> visitsArg("v","visits","Set the number of visits",false,-1,"VISITS");
     TCLAP::ValueArg<int> threadsArg("t","threads","Set the number of threads",false,-1,"THREADS");
     TCLAP::ValueArg<float> overrideKomiArg("","override-komi","Artificially set komi",false,std::numeric_limits<float>::quiet_NaN(),"KOMI");
+    TCLAP::ValueArg<string> overrideRulesArg("","override-rules","Artifically set rules",false,string(),"RULES");
     TCLAP::SwitchArg printOwnershipArg("","print-ownership","Print ownership");
     TCLAP::SwitchArg printRootNNValuesArg("","print-root-nn-values","Print root nn values");
     TCLAP::SwitchArg printPolicyArg("","print-policy","Print policy");
@@ -90,6 +92,7 @@ int MainCmds::evalsgf(const vector<string>& args) {
     cmd.add(visitsArg);
     cmd.add(threadsArg);
     cmd.add(overrideKomiArg);
+    cmd.add(overrideRulesArg);
     cmd.add(printOwnershipArg);
     cmd.add(printRootNNValuesArg);
     cmd.add(printPolicyArg);
@@ -118,6 +121,7 @@ int MainCmds::evalsgf(const vector<string>& args) {
     maxVisits = (int64_t)visitsArg.getValue();
     numThreads = threadsArg.getValue();
     overrideKomi = overrideKomiArg.getValue();
+    overrideRules = overrideRulesArg.getValue();
     printOwnership = printOwnershipArg.getValue();
     printRootNNValues = printRootNNValuesArg.getValue();
     printPolicy = printPolicyArg.getValue();
@@ -200,6 +204,9 @@ int MainCmds::evalsgf(const vector<string>& args) {
     defaultRules,
     [](const string& msg) { cout << msg << endl; }
   );
+  if(overrideRules != "") {
+    initialRules = Rules::parseRules(overrideRules);
+  }
   setUpBoardUsingRules(initialRules);
 
   //Parse move sequence arguments------------------------------------------

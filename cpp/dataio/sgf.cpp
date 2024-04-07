@@ -2,6 +2,7 @@
 
 #include "../core/fileutils.h"
 #include "../core/sha2.h"
+#include "../dataio/files.h"
 
 #include "../external/nlohmann_json/json.hpp"
 
@@ -851,10 +852,7 @@ void Sgf::iterAllPositionsHelper(
   for(size_t i = 0; i<children.size(); i++)
     permutation[i] = i;
   if(rand != NULL) {
-    for(size_t i = 1; i<permutation.size(); i++) {
-      size_t r = (size_t)rand->nextUInt64(i+1);
-      std::swap(permutation[i],permutation[r]);
-    }
+    rand->shuffle(permutation);
   }
 
   for(size_t c = 0; c<children.size(); c++) {
@@ -1401,6 +1399,32 @@ vector<Sgf*> Sgf::loadSgfsFiles(const vector<string>& files) {
     throw;
   }
   return sgfs;
+}
+
+std::vector<Sgf*> Sgf::loadSgfOrSgfsLogAndIgnoreErrors(const string& fileName, Logger& logger) {
+  if(FileHelpers::isMultiSgfs(fileName)) {
+    try {
+      std::vector<Sgf*> loaded = Sgf::loadSgfsFile(fileName);
+      return loaded;
+    }
+    catch(const StringError& e) {
+      logger.write("Invalid SGFS " + fileName + ": " + e.what());
+      return std::vector<Sgf*>();
+    }
+  }
+  else {
+    Sgf* sgf = NULL;
+    try {
+      sgf = Sgf::loadFile(fileName);
+    }
+    catch(const StringError& e) {
+      logger.write("Invalid SGF " + fileName + ": " + e.what());
+      return std::vector<Sgf*>();
+    }
+    std::vector<Sgf*> ret;
+    ret.push_back(sgf);
+    return ret;
+  }
 }
 
 

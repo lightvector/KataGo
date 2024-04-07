@@ -64,6 +64,8 @@ struct Sgf {
   static std::vector<Sgf*> loadSgfsFile(const std::string& file);
   static std::vector<Sgf*> loadSgfsFiles(const std::vector<std::string>& files);
 
+  static std::vector<Sgf*> loadSgfOrSgfsLogAndIgnoreErrors(const std::string& file, Logger& logger);
+
   XYSize getXYSize() const;
   float getKomiOrFail() const;
   float getKomiOrDefault(float defaultKomi) const;
