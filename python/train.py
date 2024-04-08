@@ -661,15 +661,21 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
             else:
                 assert False
 
+            changed = False
+
             # For lookahead optimizer, use weight decay appropriate for lr scale,
             # but tell optimizer to take larger steps so as to maintain the same
             # effective learning rate after lookahead averaging.
             if lookahead_alpha is not None:
-                param_group["lr"] = per_sample_lr * warmup_scale * group_scale / lookahead_alpha
+                new_lr_this_group = per_sample_lr * warmup_scale * group_scale / lookahead_alpha
             else:
-                param_group["lr"] = per_sample_lr * warmup_scale * group_scale
+                new_lr_this_group = per_sample_lr * warmup_scale * group_scale
 
-            param_group["weight_decay"] = get_weight_decay(
+            if param_group["lr"] != new_lr_this_group:
+                param_group["lr"] = new_lr_this_group
+                changed = True
+
+            new_weight_decay_this_group = get_weight_decay(
                 raw_model,
                 lr_scale,
                 warmup_scale=warmup_scale,
@@ -677,10 +683,15 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
                 running_metrics=running_metrics,
                 group_name=group_name,
             )
+            if param_group["weight_decay"] != new_weight_decay_this_group:
+                param_group["weight_decay"] = new_weight_decay_this_group
+                changed = True
+
             if group_name == "normal":
                 normal_weight_decay = param_group["weight_decay"]
 
-            logging.info(f"Param group {param_group['group_name']} lr {param_group['lr']} weight_decay {param_group['weight_decay']}")
+            if changed:
+                logging.info(f"Param group {param_group['group_name']} lr {param_group['lr']} weight_decay {param_group['weight_decay']}")
 
         return per_sample_lr * warmup_scale, normal_weight_decay
 
