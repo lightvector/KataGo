@@ -14,8 +14,10 @@ NNResultBuf::NNResultBuf()
     boardYSizeForServer(0),
     rowSpatialSize(0),
     rowGlobalSize(0),
+    rowMetaSize(0),
     rowSpatial(NULL),
     rowGlobal(NULL),
+    rowMeta(NULL),
     result(nullptr),
     errorLogLockout(false),
     // If no symmetry is specified, it will use default or random based on config.
@@ -28,6 +30,8 @@ NNResultBuf::~NNResultBuf() {
     delete[] rowSpatial;
   if(rowGlobal != NULL)
     delete[] rowGlobal;
+  if(rowMeta != NULL)
+    delete[] rowMeta;
 }
 
 //-------------------------------------------------------------------------------------
@@ -91,6 +95,7 @@ NNEvaluator::NNEvaluator(
    logger(lg),
    modelVersion(-1),
    inputsVersion(-1),
+   numInputMetaChannels(0),
    postProcessParams(),
    numServerThreadsEverSpawned(0),
    serverThreads(),
@@ -138,6 +143,7 @@ NNEvaluator::NNEvaluator(
     loadedModel = NeuralNet::loadModelFile(modelFileName,expectedSha256);
     modelVersion = NeuralNet::getModelVersion(loadedModel);
     inputsVersion = NNModelVersion::getInputsVersion(modelVersion);
+    numInputMetaChannels = NeuralNet::getNumInputMetaChannels(loadedModel);
     postProcessParams = NeuralNet::getPostProcessParams(loadedModel);
     computeContext = NeuralNet::createComputeContext(
       gpuIdxs,logger,nnXLen,nnYLen,
@@ -199,6 +205,10 @@ void NNEvaluator::setCurrentBatchSize(int batchSize) {
     throw StringError("Invalid setting for batch size");
   currentBatchSize.store(batchSize,std::memory_order_release);
 }
+bool NNEvaluator::requiresSGFMetadata() const {
+  return numInputMetaChannels > 0;
+}
+
 int NNEvaluator::getNumGpus() const {
 #ifdef USE_EIGEN_BACKEND
   return 1;
@@ -614,11 +624,32 @@ static bool daggerMatch(const Board& board, Player nextPla, Loc& banned, int sym
   return true;
 }
 
+void NNEvaluator::evaluate(
+  Board& board,
+  const BoardHistory& history,
+  Player nextPlayer,
+  const MiscNNInputParams& nnInputParams,
+  NNResultBuf& buf,
+  bool skipCache,
+  bool includeOwnerMap
+) {
+  evaluate(
+    board,
+    history,
+    nextPlayer,
+    NULL,
+    nnInputParams,
+    buf,
+    skipCache,
+    includeOwnerMap
+  );
+}
 
 void NNEvaluator::evaluate(
   Board& board,
   const BoardHistory& history,
   Player nextPlayer,
+  const SGFMetadata* sgfMeta,
   const MiscNNInputParams& nnInputParams,
   NNResultBuf& buf,
   bool skipCache,
@@ -639,6 +670,11 @@ void NNEvaluator::evaluate(
   }
 
   Hash128 nnHash = NNInputs::getHash(board, history, nextPlayer, nnInputParams);
+  if(numInputMetaChannels > 0) {
+    if(sgfMeta == NULL)
+      throw StringError("SGFMetadata is required for " + modelName + " but was not provided");
+    nnHash ^= sgfMeta->getHash(nextPlayer);
+  }
 
   bool hadResultWithoutOwnerMap = false;
   shared_ptr<NNOutput> resultWithoutOwnerMap;
@@ -660,7 +696,7 @@ void NNEvaluator::evaluate(
   buf.boardYSizeForServer = board.y_size;
 
   if(!debugSkipNeuralNet) {
-    int rowSpatialLen = NNModelVersion::getNumSpatialFeatures(modelVersion) * nnXLen * nnYLen;
+    const int rowSpatialLen = NNModelVersion::getNumSpatialFeatures(modelVersion) * nnXLen * nnYLen;
     if(buf.rowSpatial == NULL) {
       buf.rowSpatial = new float[rowSpatialLen];
       buf.rowSpatialSize = rowSpatialLen;
@@ -669,13 +705,22 @@ void NNEvaluator::evaluate(
       if(buf.rowSpatialSize != rowSpatialLen)
         throw StringError("Cannot reuse an nnResultBuf with different dimensions or model version");
     }
-    int rowGlobalLen = NNModelVersion::getNumGlobalFeatures(modelVersion);
+    const int rowGlobalLen = NNModelVersion::getNumGlobalFeatures(modelVersion);
     if(buf.rowGlobal == NULL) {
       buf.rowGlobal = new float[rowGlobalLen];
       buf.rowGlobalSize = rowGlobalLen;
     }
     else {
       if(buf.rowGlobalSize != rowGlobalLen)
+        throw StringError("Cannot reuse an nnResultBuf with different dimensions or model version");
+    }
+    const int rowMetaLen = numInputMetaChannels;
+    if(buf.rowMeta == NULL && rowMetaLen > 0) {
+      buf.rowMeta = new float[rowMetaLen];
+      buf.rowMetaSize = rowMetaLen;
+    }
+    else {
+      if(buf.rowMetaSize != rowMetaLen)
         throw StringError("Cannot reuse an nnResultBuf with different dimensions or model version");
     }
 
@@ -692,6 +737,22 @@ void NNEvaluator::evaluate(
       NNInputs::fillRowV7(board, history, nextPlayer, nnInputParams, nnXLen, nnYLen, inputsUseNHWC, buf.rowSpatial, buf.rowGlobal);
     else
       ASSERT_UNREACHABLE;
+
+    if(rowMetaLen > 0) {
+      if(sgfMeta == NULL)
+        throw StringError("SGFMetadata is required for " + modelName + " but was not provided");
+      SGFMetadata::fillMetadataRow(
+        sgfMeta,
+        buf.rowMeta,
+        nextPlayer,
+        board.x_size*board.y_size
+      );
+    }
+    else {
+      if(sgfMeta != NULL)
+        throw StringError("SGFMetadata is not required for " + modelName + " but was provided");
+      assert(buf.rowMeta == NULL);
+    }
   }
 
   buf.symmetry = nnInputParams.symmetry;

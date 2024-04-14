@@ -839,6 +839,7 @@ void SymmetryHelpers::getSymmetryDifferences(
 
 Hash128 SGFMetadata::getHash(Player nextPlayer) const {
   if(
+    !initialized ||
     inverseBRank < 0 ||
     inverseBRank >= 128 ||
     inverseWRank < 0 ||
@@ -850,7 +851,7 @@ Hash128 SGFMetadata::getHash(Player nextPlayer) const {
     byoYomiPeriods < 0 ||
     canadianMoves < 0
   ) {
-    Global::fatalError("Invalid SGFMetadata for hash");
+    Global::fatalError("Invalid or uninitialized SGFMetadata for hash");
   }
 
   uint32_t b =
@@ -927,6 +928,8 @@ Hash128 SGFMetadata::getHash(Player nextPlayer) const {
 
 void SGFMetadata::fillMetadataRow(const SGFMetadata* sgfMeta, float* rowMetadata, Player nextPlayer, int boardArea) {
   assert(sgfMeta != NULL);
+  if(!sgfMeta->initialized)
+    Global::fatalError("Invalid or uninitialized SGFMetadata");
 
   for(int i = 0; i<SGFMetadata::METADATA_INPUT_NUM_CHANNELS; i++)
     rowMetadata[i] = 0.0f;

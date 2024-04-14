@@ -57,6 +57,8 @@ struct MiscNNInputParams {
 };
 
 struct SGFMetadata {
+  bool initialized = false;
+
   int inverseBRank = 0; // KG = 0, 9d = 1, 8d = 2,... 1d = 9, 1k = 10, 2k = 11, ...
   int inverseWRank = 0;
   bool bIsUnranked = false; // KGS "-" rank

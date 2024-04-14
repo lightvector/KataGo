@@ -52,8 +52,10 @@ struct NNResultBuf {
   int boardYSizeForServer;
   int rowSpatialSize;
   int rowGlobalSize;
+  int rowMetaSize;
   float* rowSpatial;
   float* rowGlobal;
+  float* rowMeta;
   std::shared_ptr<NNOutput> result;
   bool errorLogLockout; //error flag to restrict log to 1 error to prevent spam
   int symmetry; //The symmetry to use for this eval
@@ -114,6 +116,7 @@ class NNEvaluator {
   int getMaxBatchSize() const;
   int getCurrentBatchSize() const;
   void setCurrentBatchSize(int batchSize);
+  bool requiresSGFMetadata() const;
 
   int getNumGpus() const;
   int getNumServerThreads() const;
@@ -142,6 +145,16 @@ class NNEvaluator {
     Board& board,
     const BoardHistory& history,
     Player nextPlayer,
+    const MiscNNInputParams& nnInputParams,
+    NNResultBuf& buf,
+    bool skipCache,
+    bool includeOwnerMap
+  );
+  void evaluate(
+    Board& board,
+    const BoardHistory& history,
+    Player nextPlayer,
+    const SGFMetadata* sgfMeta,
     const MiscNNInputParams& nnInputParams,
     NNResultBuf& buf,
     bool skipCache,
@@ -204,6 +217,7 @@ class NNEvaluator {
 
   int modelVersion;
   int inputsVersion;
+  int numInputMetaChannels;
 
   ModelPostProcessParams postProcessParams;
 

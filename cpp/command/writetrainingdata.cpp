@@ -1810,6 +1810,7 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
     sgfMeta.gameDate = gameDate;
 
     sgfMeta.source = sgfSource;
+    sgfMeta.initialized = true;
 
     const int consecBlackMovesTurns = 6 + boardArea / 40;
     const int skipEarlyPassesTurns = 12 + boardArea / 20;
