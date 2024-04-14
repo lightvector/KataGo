@@ -206,7 +206,7 @@ struct TrunkDesc {
   int regularNumChannels;  // Currently every gpool residual block must have the same number of regular conv hannels
   int gpoolNumChannels;    // Currently every gpooling residual block must have the same number of gpooling conv channels
 
-  int numSgfMetadataInputChannels;
+  int numInputMetaChannels;
 
   ConvLayerDesc initialConv;
   MatMulLayerDesc initialMatMul;
@@ -217,7 +217,7 @@ struct TrunkDesc {
 
   TrunkDesc();
   ~TrunkDesc();
-  TrunkDesc(std::istream& in, int modelVersion, bool binaryFloats, int numSgfMetadataInputChannels);
+  TrunkDesc(std::istream& in, int modelVersion, bool binaryFloats, int numInputSgfMetadataChannels);
   TrunkDesc(TrunkDesc&& other);
 
   TrunkDesc(const TrunkDesc&) = delete;
@@ -305,12 +305,11 @@ struct ModelDesc {
   int modelVersion;
   int numInputChannels;
   int numInputGlobalChannels;
+  int numInputMetaChannels;
   int numPolicyChannels;
   int numValueChannels;
   int numScoreValueChannels;
   int numOwnershipChannels;
-
-  int numSgfMetadataInputChannels;
 
   ModelPostProcessParams postProcessParams;
 
