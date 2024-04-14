@@ -837,7 +837,95 @@ void SymmetryHelpers::getSymmetryDifferences(
 
 //-------------------------------------------------------------------------------------------------------------
 
-void SGFMetadata::fillMetadataRow(SGFMetadata* sgfMeta, float* rowMetadata, Player nextPlayer, int boardArea) {
+Hash128 SGFMetadata::getHash(Player nextPlayer) const {
+  if(
+    inverseBRank < 0 ||
+    inverseBRank >= 128 ||
+    inverseWRank < 0 ||
+    inverseWRank >= 128 ||
+    source < 0 ||
+    source >= 128 ||
+    mainTimeSeconds < 0 ||
+    periodTimeSeconds < 0 ||
+    byoYomiPeriods < 0 ||
+    canadianMoves < 0
+  ) {
+    Global::fatalError("Invalid SGFMetadata for hash");
+  }
+
+  uint32_t b =
+    (uint32_t)inverseBRank +
+    (uint32_t)bIsUnranked * 128u +
+    (uint32_t)bRankIsUnknown * 256u +
+    (uint32_t)bIsHuman * 512u;
+  uint32_t w =
+    (uint32_t)inverseWRank +
+    (uint32_t)wIsUnranked * 128u +
+    (uint32_t)wRankIsUnknown * 256u +
+    (uint32_t)wIsHuman * 512u;
+
+  uint32_t x0 = 0;
+  uint32_t x1 = 0;
+  uint32_t x2 = 0;
+  uint32_t x3 = 0;
+
+  if(nextPlayer == P_BLACK)
+    x0 += b + (w << 10);
+  else
+    x0 += w + (b << 10);
+
+  x0 += (uint32_t)gameIsUnrated << 20;
+  x0 += (uint32_t)gameRatednessIsUnknown << 21;
+
+  uint32_t whichTC = 0;
+  if(tcIsUnknown)
+    whichTC = 1;
+  else if(tcIsNone)
+    whichTC = 2;
+  else if(tcIsAbsolute)
+    whichTC = 3;
+  else if(tcIsSimple)
+    whichTC = 4;
+  else if(tcIsByoYomi)
+    whichTC = 5;
+  else if(tcIsCanadian)
+    whichTC = 6;
+  else if(tcIsFischer)
+    whichTC = 7;
+
+  x0 += (uint32_t)whichTC << 22;
+  // 7 bits left for source going up to 128
+  x0 += (uint32_t)source << 25;
+
+  assert(std::isfinite(mainTimeSeconds));
+  assert(std::isfinite(periodTimeSeconds));
+  double mainTimeSecondsCapped = std::min(std::max(mainTimeSeconds,0.0),3.0*86400);
+  // ~20 bits
+  x1 += (uint32_t)(mainTimeSecondsCapped * 4);
+  double periodTimeSecondsCapped = std::min(std::max(periodTimeSeconds,0.0),1.0*86400);
+  // ~22 bits
+  x2 += (uint32_t)(periodTimeSecondsCapped * 32);
+
+  int byoYomiPeriodsCapped = std::min(std::max(byoYomiPeriods,0),50);
+  x1 += (uint32_t)byoYomiPeriodsCapped << 24;
+  int canadianMovesCapped = std::min(std::max(canadianMoves,0),50);
+  x2 += (uint32_t)canadianMovesCapped << 24;
+
+  int daysDifference = gameDate.numDaysAfter(SimpleDate(1970,1,1));
+  x3 += (uint32_t)daysDifference;
+
+  uint64_t h0 = Hash::combine(x0,x1);
+  uint64_t h1 = Hash::combine(x2,x3);
+  h0 = Hash::nasam(h0);
+  h1 += h0;
+  h1 = Hash::nasam(h1);
+  h0 += h1;
+
+  return Hash128(h0,h1);
+}
+
+
+void SGFMetadata::fillMetadataRow(const SGFMetadata* sgfMeta, float* rowMetadata, Player nextPlayer, int boardArea) {
   assert(sgfMeta != NULL);
 
   for(int i = 0; i<SGFMetadata::METADATA_INPUT_NUM_CHANNELS; i++)

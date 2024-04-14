@@ -95,7 +95,9 @@ struct SGFMetadata {
 
   static constexpr int METADATA_INPUT_NUM_CHANNELS = 192;
 
-  static void fillMetadataRow(SGFMetadata* sgfMeta, float* rowMetadata, Player nextPlayer, int boardArea);
+  Hash128 getHash(Player nextPlayer) const;
+
+  static void fillMetadataRow(const SGFMetadata* sgfMeta, float* rowMetadata, Player nextPlayer, int boardArea);
 };
 
 
