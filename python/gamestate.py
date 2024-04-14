@@ -115,7 +115,8 @@ class GameState:
 
             input_meta = None
             if sgfmeta is not None:
-                input_meta = torch.tensor(sgfmeta.get_metadata_row(self.board.pla), dtype=torch.float32, device=model.device)
+                metarow = sgfmeta.get_metadata_row(nextPlayer=self.board.pla, boardArea=self.board.size*self.board.size)
+                input_meta = torch.tensor(metarow, dtype=torch.float32, device=model.device)
                 input_meta = input_meta.reshape([1,-1])
 
             extra_outputs = ExtraOutputs(extra_output_names)

@@ -1807,7 +1807,6 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
     sgfMeta.byoYomiPeriods = byoYomiPeriods;
     sgfMeta.canadianMoves = canadianMoves;
 
-    sgfMeta.boardArea = boardArea;
     sgfMeta.gameDate = gameDate;
 
     sgfMeta.source = sgfSource;

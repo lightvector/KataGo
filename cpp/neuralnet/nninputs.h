@@ -83,8 +83,6 @@ struct SGFMetadata {
   int byoYomiPeriods = 0;
   int canadianMoves = 0;
 
-  int boardArea = 0;
-
   SimpleDate gameDate;
 
   int source = 0;
@@ -97,7 +95,7 @@ struct SGFMetadata {
 
   static constexpr int METADATA_INPUT_NUM_CHANNELS = 192;
 
-  static void fillMetadataRow(SGFMetadata* sgfMeta, float* rowMetadata, Player nextPlayer);
+  static void fillMetadataRow(SGFMetadata* sgfMeta, float* rowMetadata, Player nextPlayer, int boardArea);
 };
 
 

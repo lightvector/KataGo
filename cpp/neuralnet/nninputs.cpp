@@ -837,7 +837,7 @@ void SymmetryHelpers::getSymmetryDifferences(
 
 //-------------------------------------------------------------------------------------------------------------
 
-void SGFMetadata::fillMetadataRow(SGFMetadata* sgfMeta, float* rowMetadata, Player nextPlayer) {
+void SGFMetadata::fillMetadataRow(SGFMetadata* sgfMeta, float* rowMetadata, Player nextPlayer, int boardArea) {
   assert(sgfMeta != NULL);
 
   for(int i = 0; i<SGFMetadata::METADATA_INPUT_NUM_CHANNELS; i++)
@@ -892,7 +892,7 @@ void SGFMetadata::fillMetadataRow(SGFMetadata* sgfMeta, float* rowMetadata, Play
   rowMetadata[84] = (float)(0.5 * (log(byoYomiPeriodsCapped + 2.0) - 1.5));
   rowMetadata[85] = (float)(0.25 * (log(canadianMovesCapped + 2.0) - 1.5));
 
-  rowMetadata[86] = (float)(0.5 * log(sgfMeta->boardArea/361.0));
+  rowMetadata[86] = (float)(0.5 * log(boardArea/361.0));
 
   double daysDifference = sgfMeta->gameDate.numDaysAfter(SimpleDate(1970,1,1));
   static constexpr int DATE_START_IDX = 87;

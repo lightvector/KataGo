@@ -736,7 +736,7 @@ void TrainingWriteBuffers::addRow(
   if(hasMetadataInput) {
     assert(sgfMeta != NULL);
     float* rowMetadata = metadataInputNC.data + curRows * SGFMetadata::METADATA_INPUT_NUM_CHANNELS;
-    SGFMetadata::fillMetadataRow(sgfMeta, rowMetadata, nextPlayer);
+    SGFMetadata::fillMetadataRow(sgfMeta, rowMetadata, nextPlayer, board.x_size * board.y_size);
   }
 
   curRows++;
