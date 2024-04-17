@@ -633,7 +633,7 @@ if __name__ == '__main__':
             if skip_mtime_range_start is not None and skip_mtime_range_end is not None:
                 if mtime >= skip_mtime_range_start and mtime <= skip_mtime_range_end:
                     if np.random.randint(100000) == 0:
-                        print("DEBUG: skip mtime " + item[0], flush=True)
+                        print("DEBUG: skip mtime " + filename, flush=True)
                     continue
 
             if num_rows is not None and num_rows > 0:
