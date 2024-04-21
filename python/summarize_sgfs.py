@@ -4,6 +4,7 @@ from elo import GameRecord
 import itertools
 import math
 import os
+import re
 
 from dataclasses import dataclass
 from sgfmill import sgf
@@ -38,16 +39,27 @@ class GoGameResultSummary(elo.GameResultSummary):
 
             records = []
             for sgf in sgfs_strings:
-                records.append(self.sgf_string_to_game_record(sgf, input_file))
+                record = self.sgf_string_to_game_record(sgf, input_file)
+                if record is not None:
+                    records.append(record)
             return records
         else:
             with open(input_file, "rb") as f:
                 sgf = f.read()
 
-            return [self.sgf_string_to_game_record(sgf, input_file)]
+            records = []
+            record = self.sgf_string_to_game_record(sgf, input_file)
+            if record is not None:
+                records.append(record)
+            return records
 
     def sgf_string_to_game_record(self, sgf_string, debug_source = None) -> GameRecord:
         try:
+            # sgfmill for some reason can't handle rectangular boards, even though it's part of the SGF spec.
+            # So lie and say that they're square, so that we can load them.
+            sgf_string = re.sub(r'SZ\[(\d+):\d+\]', r'SZ[\1]', sgf_string.decode("utf-8"))
+            sgf_string = sgf_string.encode("utf-8")
+
             game = sgf.Sgf_game.from_bytes(sgf_string)
             winner = game.get_winner()
         except ValueError:

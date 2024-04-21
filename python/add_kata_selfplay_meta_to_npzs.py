@@ -41,10 +41,10 @@ def process_npz_files(in_dir, out_dir):
                 metadataInputNC = np.zeros((binaryInputNCHW.shape[0],SGFMetadata.METADATA_INPUT_NUM_CHANNELS), dtype=np.float32)
                 for i in range(binaryInputNCHW.shape[0]):
                     board_area = int(np.sum(binaryInputNCHW[i,0]))
-                    sgfmeta = SGFMetadata.get_katago_selfplay_metadata(board_area=board_area,rand=rand)
+                    sgfmeta = SGFMetadata.get_katago_selfplay_metadata(rand=rand)
                     # nextPlayer doesn't matter in selfplay because it only is used to swap pla/opp metadata
                     # and in this case both sides are identically katago
-                    metadataInputNC[i] = sgfmeta.get_metadata_row(nextPlayer=Board.WHITE)
+                    metadataInputNC[i] = sgfmeta.get_metadata_row(nextPlayer=Board.WHITE,boardArea=board_area)
 
                 np.savez_compressed(
                     os.path.join(out_dir, filename),

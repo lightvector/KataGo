@@ -650,6 +650,64 @@ static void parseResidualBlockStack(
 
 //-----------------------------------------------------------------------------
 
+SGFMetadataEncoderDesc::SGFMetadataEncoderDesc() {}
+
+SGFMetadataEncoderDesc::SGFMetadataEncoderDesc(istream& in, int modelVersion, bool binaryFloats) {
+  in >> name;
+
+  if(in.fail())
+    throw StringError(name + ": sgf metadata encoder failed to parse name");
+
+  mul1 = MatMulLayerDesc(in,binaryFloats);
+  bias1 = MatBiasLayerDesc(in,binaryFloats);
+  act1 = ActivationLayerDesc(in,modelVersion);
+  mul2 = MatMulLayerDesc(in,binaryFloats);
+  bias2 = MatBiasLayerDesc(in,binaryFloats);
+  act2 = ActivationLayerDesc(in,modelVersion);
+  mul3 = MatMulLayerDesc(in,binaryFloats);
+
+  if(in.fail())
+    throw StringError(name + ": sgf metadata encoder istream fail after parsing layers");
+
+  if(mul1.outChannels != bias1.numChannels)
+    throw StringError(
+      name +
+      Global::strprintf(": mul1.outChannels (%d) != bias1.numChannels (%d)", mul1.outChannels, bias1.numChannels));
+
+  if(mul2.inChannels != mul1.outChannels)
+    throw StringError(
+      name + Global::strprintf(
+               ": mul2.inChannels (%d) != mul1.outChannels (%d)", mul2.inChannels, mul1.outChannels));
+
+  if(mul2.outChannels != bias2.numChannels)
+    throw StringError(
+      name +
+      Global::strprintf(": mul2.outChannels (%d) != bias2.numChannels (%d)", mul2.outChannels, bias2.numChannels));
+  if(mul2.outChannels != mul3.inChannels)
+    throw StringError(
+      name +
+      Global::strprintf(": mul2.outChannels (%d) != mul3.inChannels (%d)", mul2.outChannels, mul3.inChannels));
+}
+
+SGFMetadataEncoderDesc::~SGFMetadataEncoderDesc() {}
+
+SGFMetadataEncoderDesc::SGFMetadataEncoderDesc(SGFMetadataEncoderDesc&& other) {
+  *this = std::move(other);
+}
+
+SGFMetadataEncoderDesc& SGFMetadataEncoderDesc::operator=(SGFMetadataEncoderDesc&& other) {
+  name = std::move(other.name);
+  mul1 = std::move(other.mul1);
+  bias1 = std::move(other.bias1);
+  act1 = std::move(other.act1);
+  mul2 = std::move(other.mul2);
+  bias2 = std::move(other.bias2);
+  act2 = std::move(other.act2);
+  mul3 = std::move(other.mul3);
+  return *this;
+}
+
+//-----------------------------------------------------------------------------
 
 TrunkDesc::TrunkDesc()
   : modelVersion(-1),
@@ -657,9 +715,11 @@ TrunkDesc::TrunkDesc()
     trunkNumChannels(0),
     midNumChannels(0),
     regularNumChannels(0),
-    gpoolNumChannels(0) {}
+    gpoolNumChannels(0),
+    numInputMetaChannels(0)
+{}
 
-TrunkDesc::TrunkDesc(istream& in, int vrsn, bool binaryFloats) {
+TrunkDesc::TrunkDesc(istream& in, int vrsn, bool binaryFloats, int numSgfMetadataInputC) {
   in >> name;
   modelVersion = vrsn;
   in >> numBlocks;
@@ -669,6 +729,8 @@ TrunkDesc::TrunkDesc(istream& in, int vrsn, bool binaryFloats) {
   int dilatedNumChannels; //unused
   in >> dilatedNumChannels;
   in >> gpoolNumChannels;
+
+  numInputMetaChannels = numSgfMetadataInputC;
 
   if(modelVersion >= 15) {
     int unused;
@@ -709,6 +771,25 @@ TrunkDesc::TrunkDesc(istream& in, int vrsn, bool binaryFloats) {
                initialMatMul.outChannels,
                trunkNumChannels));
 
+  if(numInputMetaChannels > 0) {
+    sgfMetadataEncoder = SGFMetadataEncoderDesc(in,modelVersion,binaryFloats);
+
+    if(numInputMetaChannels != sgfMetadataEncoder.mul1.inChannels)
+      throw StringError(
+        name + Global::strprintf(
+               ": %s sgfMetadataEncoder.mul1.inChannels (%d) != numInputMetaChannels (%d)",
+               sgfMetadataEncoder.name.c_str(),
+               sgfMetadataEncoder.mul1.inChannels,
+               numInputMetaChannels));
+    if(sgfMetadataEncoder.mul3.outChannels != trunkNumChannels)
+      throw StringError(
+        name + Global::strprintf(
+               ": %s sgfMetadataEncoder.mul3.outChannels (%d) != trunkNumChannels (%d)",
+               sgfMetadataEncoder.name.c_str(),
+               sgfMetadataEncoder.mul3.outChannels,
+               trunkNumChannels));
+  }
+
   parseResidualBlockStack(in, modelVersion, binaryFloats, name, numBlocks, trunkNumChannels, blocks);
 
   trunkTipBN = BatchNormLayerDesc(in,binaryFloats);
@@ -734,8 +815,10 @@ TrunkDesc::TrunkDesc(TrunkDesc&& other) {
   midNumChannels = other.midNumChannels;
   regularNumChannels = other.regularNumChannels;
   gpoolNumChannels = other.gpoolNumChannels;
+  numInputMetaChannels = other.numInputMetaChannels;
   initialConv = std::move(other.initialConv);
   initialMatMul = std::move(other.initialMatMul);
+  sgfMetadataEncoder = std::move(other.sgfMetadataEncoder);
   blocks = std::move(other.blocks);
   trunkTipBN = std::move(other.trunkTipBN);
   trunkTipActivation = std::move(other.trunkTipActivation);
@@ -749,8 +832,10 @@ TrunkDesc& TrunkDesc::operator=(TrunkDesc&& other) {
   midNumChannels = other.midNumChannels;
   regularNumChannels = other.regularNumChannels;
   gpoolNumChannels = other.gpoolNumChannels;
+  numInputMetaChannels = other.numInputMetaChannels;
   initialConv = std::move(other.initialConv);
   initialMatMul = std::move(other.initialMatMul);
+  sgfMetadataEncoder = std::move(other.sgfMetadataEncoder);
   blocks = std::move(other.blocks);
   trunkTipBN = std::move(other.trunkTipBN);
   trunkTipActivation = std::move(other.trunkTipActivation);
@@ -1028,6 +1113,7 @@ ModelDesc::ModelDesc()
   : modelVersion(-1),
     numInputChannels(0),
     numInputGlobalChannels(0),
+    numInputMetaChannels(0),
     numPolicyChannels(0),
     numValueChannels(0),
     numScoreValueChannels(0),
@@ -1103,8 +1189,9 @@ ModelDesc::ModelDesc(istream& in, const string& sha256_, bool binaryFloats) {
   }
 
   if(modelVersion >= 15) {
+    in >> numInputMetaChannels;
+
     int unused;
-    in >> unused;
     in >> unused;
     in >> unused;
     in >> unused;
@@ -1115,8 +1202,11 @@ ModelDesc::ModelDesc(istream& in, const string& sha256_, bool binaryFloats) {
     if(in.fail())
       throw StringError(name + ": model failed to parse unused params");
   }
+  else {
+    numInputMetaChannels = 0;
+  }
 
-  trunk = TrunkDesc(in, modelVersion, binaryFloats);
+  trunk = TrunkDesc(in, modelVersion, binaryFloats, numInputMetaChannels);
   policyHead = PolicyHeadDesc(in, modelVersion, binaryFloats);
   valueHead = ValueHeadDesc(in, modelVersion, binaryFloats);
 
@@ -1159,6 +1249,16 @@ ModelDesc::ModelDesc(istream& in, const string& sha256_, bool binaryFloats) {
                ": trunk.trunkNumChannels (%d) != valueHead.v1Conv.inChannels (%d)",
                trunk.trunkNumChannels,
                valueHead.v1Conv.inChannels));
+
+  if(numInputMetaChannels > 0) {
+    if(numInputMetaChannels != SGFMetadata::METADATA_INPUT_NUM_CHANNELS) {
+      throw StringError(
+        name + Global::strprintf(
+          ": numInputMetaChannels (%d) != METADATA_INPUT_NUM_CHANNELS (%d)",
+                 numInputMetaChannels,
+                 SGFMetadata::METADATA_INPUT_NUM_CHANNELS));
+    }
+  }
 }
 
 ModelDesc::~ModelDesc() {}
@@ -1173,6 +1273,7 @@ ModelDesc& ModelDesc::operator=(ModelDesc&& other) {
   modelVersion = other.modelVersion;
   numInputChannels = other.numInputChannels;
   numInputGlobalChannels = other.numInputGlobalChannels;
+  numInputMetaChannels = other.numInputMetaChannels;
   numPolicyChannels = other.numPolicyChannels;
   numValueChannels = other.numValueChannels;
   numScoreValueChannels = other.numScoreValueChannels;

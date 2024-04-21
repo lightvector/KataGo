@@ -372,7 +372,6 @@ class SliderWindow(wx.Frame):
             mainTimeSeconds = [300,900,1800,0][self.tc_slider.get_selected_index()],
             periodTimeSeconds = [10,15,30,0][self.tc_slider.get_selected_index()],
             byoYomiPeriods = [5,5,5,0][self.tc_slider.get_selected_index()],
-            boardArea = 361,
             gameDate = datetime.date(self.date_slider.get_selected_option(),6,1),
             source = self.source_slider.get_selected_index(),
         )

@@ -171,6 +171,28 @@ struct NestedBottleneckResidualBlockDesc {
   void iterConvLayers(std::function<void(const ConvLayerDesc& dest)> f) const;
 };
 
+struct SGFMetadataEncoderDesc {
+  std::string name;
+  MatMulLayerDesc mul1;
+  MatBiasLayerDesc bias1;
+  ActivationLayerDesc act1;
+  MatMulLayerDesc mul2;
+  MatBiasLayerDesc bias2;
+  ActivationLayerDesc act2;
+  MatMulLayerDesc mul3;
+
+  SGFMetadataEncoderDesc();
+  ~SGFMetadataEncoderDesc();
+  SGFMetadataEncoderDesc(std::istream& in, int modelVersion, bool binaryFloats);
+  SGFMetadataEncoderDesc(SGFMetadataEncoderDesc&& other);
+
+  SGFMetadataEncoderDesc(const SGFMetadataEncoderDesc&) = delete;
+  SGFMetadataEncoderDesc& operator=(const SGFMetadataEncoderDesc&) = delete;
+
+  SGFMetadataEncoderDesc& operator=(SGFMetadataEncoderDesc&& other);
+};
+
+
 constexpr int ORDINARY_BLOCK_KIND = 0;
 constexpr int GLOBAL_POOLING_BLOCK_KIND = 2;
 constexpr int NESTED_BOTTLENECK_BLOCK_KIND = 3;
@@ -183,15 +205,19 @@ struct TrunkDesc {
   int midNumChannels;      // Currently every plain residual block must have the same number of mid conv channels
   int regularNumChannels;  // Currently every gpool residual block must have the same number of regular conv hannels
   int gpoolNumChannels;    // Currently every gpooling residual block must have the same number of gpooling conv channels
+
+  int numInputMetaChannels;
+
   ConvLayerDesc initialConv;
   MatMulLayerDesc initialMatMul;
+  SGFMetadataEncoderDesc sgfMetadataEncoder;
   std::vector<std::pair<int, unique_ptr_void>> blocks;
   BatchNormLayerDesc trunkTipBN;
   ActivationLayerDesc trunkTipActivation;
 
   TrunkDesc();
   ~TrunkDesc();
-  TrunkDesc(std::istream& in, int modelVersion, bool binaryFloats);
+  TrunkDesc(std::istream& in, int modelVersion, bool binaryFloats, int numInputSgfMetadataChannels);
   TrunkDesc(TrunkDesc&& other);
 
   TrunkDesc(const TrunkDesc&) = delete;
@@ -279,6 +305,7 @@ struct ModelDesc {
   int modelVersion;
   int numInputChannels;
   int numInputGlobalChannels;
+  int numInputMetaChannels;
   int numPolicyChannels;
   int numValueChannels;
   int numScoreValueChannels;

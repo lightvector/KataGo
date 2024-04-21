@@ -99,8 +99,12 @@ def main(args):
         writeln(model.shortterm_score_error_multiplier)
 
     if version >= 15:
+        if model.metadata_encoder is not None:
+            writeln(model.metadata_encoder.c_input)
+        else:
+            writeln(0)
+
         # Write some dummy placeholders for future features
-        writeln(0)
         writeln(0)
         writeln(0)
         writeln(0)
@@ -287,6 +291,17 @@ def main(args):
         else:
             assert False, "This kind of block is not supported for export right now"
 
+    def write_metadata_encoder(name,encoder):
+        writeln(name)
+        write_matmul(name+".mul1", encoder.linear1.weight)
+        write_matbias(name+".mul1", encoder.linear1.bias)
+        write_activation(name+".act1", encoder.act1)
+        write_matmul(name+".mul2", encoder.linear2.weight)
+        write_matbias(name+".mul2", encoder.linear2.bias)
+        write_activation(name+".act2", encoder.act2)
+        write_matmul(name+".mul3", encoder.linear_output_to_trunk.weight)
+        assert encoder.linear_output_to_trunk.bias is None
+
     def write_trunk(name,model):
         writeln("trunk")
         writeln(len(model.blocks))
@@ -307,6 +322,9 @@ def main(args):
         write_conv("model.conv_spatial", model.conv_spatial)
         write_matmul("model.linear_global", model.linear_global.weight)
         assert model.linear_global.bias is None
+        if model.metadata_encoder is not None:
+            assert version >= 15
+            write_metadata_encoder("model.sgf_metadata_encoder",model.metadata_encoder)
 
         for i,block in enumerate(model.blocks):
             write_block("model.blocks."+str(i), block)
