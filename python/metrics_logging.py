@@ -1,6 +1,7 @@
 import logging
 import math
 import json
+import numpy as np
 
 # _sum metrics dict entries will get reported as a moving average of their values
 # _batch metrics dict entries will reported as the average per-batch value over the time since the last log
@@ -28,9 +29,11 @@ def log_metrics(metric_sums, metric_weights, metrics, metrics_out):
     metrics_to_print = {}
     for metric in metric_sums:
         if metric.endswith("_sum"):
-            metrics_to_print[metric[:-4]] = metric_sums[metric] / metric_weights[metric]
+            # Use np.float64 to avoid division by 0 complaint
+            metrics_to_print[metric[:-4]] = np.float64(metric_sums[metric]) / metric_weights[metric]
         elif metric.endswith("_batch"):
-            metrics_to_print[metric] = metric_sums[metric] / metric_weights[metric]
+            # Use np.float64 to avoid division by 0 complaint
+            metrics_to_print[metric] = np.float64(metric_sums[metric]) / metric_weights[metric]
             metric_sums[metric] *= 0.001
             metric_weights[metric] *= 0.001
         else:
