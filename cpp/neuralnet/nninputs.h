@@ -100,8 +100,9 @@ struct SGFMetadata {
   Hash128 getHash(Player nextPlayer) const;
 
   static void fillMetadataRow(const SGFMetadata* sgfMeta, float* rowMetadata, Player nextPlayer, int boardArea);
-};
 
+  static SGFMetadata getProfile(const std::string& humanSLProfileName);
+};
 
 namespace NNInputs {
   const int NUM_FEATURES_SPATIAL_V3 = 22;

@@ -325,6 +325,7 @@ struct GTPEngine {
   GTPEngine& operator=(const GTPEngine&) = delete;
 
   const string nnModelFile;
+  const string humanModelFile;
   const bool assumeMultipleStartingBlackMovesAreHandicap;
   const int analysisPVLen;
   const bool preventEncore;
@@ -344,6 +345,7 @@ struct GTPEngine {
   bool analysisAntiMirror;
 
   NNEvaluator* nnEval;
+  NNEvaluator* humanEval;
   AsyncBot* bot;
   Rules currentRules; //Should always be the same as the rules in bot, if bot is not NULL.
 
@@ -372,7 +374,8 @@ struct GTPEngine {
   std::vector<Sgf::PositionSample> genmoveSamples;
 
   GTPEngine(
-    const string& modelFile, SearchParams initialParams, Rules initialRules,
+    const string& modelFile, const string& hModelFile,
+    SearchParams initialParams, Rules initialRules,
     bool assumeMultiBlackHandicap, bool prevtEncore, bool autoPattern,
     double dynamicPDACapPerOppLead, double staticPDA, bool staticPDAPrecedence,
     double normAvoidRepeatedPatternUtility, double hcapAvoidRepeatedPatternUtility,
@@ -384,6 +387,7 @@ struct GTPEngine {
     std::unique_ptr<PatternBonusTable>&& pbTable
   )
     :nnModelFile(modelFile),
+     humanModelFile(hModelFile),
      assumeMultipleStartingBlackMovesAreHandicap(assumeMultiBlackHandicap),
      analysisPVLen(pvLen),
      preventEncore(prevtEncore),
@@ -400,6 +404,7 @@ struct GTPEngine {
      genmoveAntiMirror(genmoveAntiMir),
      analysisAntiMirror(analysisAntiMir),
      nnEval(NULL),
+     humanEval(NULL),
      bot(NULL),
      currentRules(initialRules),
      params(initialParams),
@@ -423,6 +428,7 @@ struct GTPEngine {
     stopAndWait();
     delete bot;
     delete nnEval;
+    delete humanEval;
   }
 
   void stopAndWait() {
@@ -463,8 +469,10 @@ struct GTPEngine {
         bot->stopAndWait();
         delete bot;
         delete nnEval;
+        delete humanEval;
         bot = NULL;
         nnEval = NULL;
+        humanEval = NULL;
         logger.write("Cleaned up old neural net and bot");
       }
 
@@ -478,6 +486,14 @@ struct GTPEngine {
         Setup::SETUP_FOR_GTP
       );
       logger.write("Loaded neural net with nnXLen " + Global::intToString(nnEval->getNNXLen()) + " nnYLen " + Global::intToString(nnEval->getNNYLen()));
+      if(humanModelFile != "") {
+        humanEval = Setup::initializeNNEvaluator(
+          humanModelFile,humanModelFile,expectedSha256,cfg,logger,seedRand,expectedConcurrentEvals,
+          nnXLen,nnYLen,defaultMaxBatchSize,defaultRequireExactNNLen,disableFP16,
+          Setup::SETUP_FOR_GTP
+        );
+        logger.write("Loaded human SL net with nnXLen " + Global::intToString(humanEval->getNNXLen()) + " nnYLen " + Global::intToString(humanEval->getNNYLen()));
+      }
 
       {
         bool rulesWereSupported;
@@ -515,7 +531,7 @@ struct GTPEngine {
       else
         searchRandSeed = Global::uint64ToString(seedRand.nextUInt64());
 
-      bot = new AsyncBot(params, nnEval, &logger, searchRandSeed);
+      bot = new AsyncBot(params, nnEval, humanEval, &logger, searchRandSeed);
       bot->setCopyOfExternalPatternBonusTable(patternBonusTable);
 
       Board board(boardXSize,boardYSize);
@@ -1008,6 +1024,8 @@ struct GTPEngine {
     maybeStartPondering = false;
 
     nnEval->clearStats();
+    if(humanEval != NULL)
+      humanEval->clearStats();
     TimeControls tc = pla == P_BLACK ? bTimeControls : wTimeControls;
 
     //Update dynamic PDA given whatever the most recent values are, if we're using dynamic
@@ -1208,6 +1226,8 @@ struct GTPEngine {
   void clearCache() {
     bot->clearSearch();
     nnEval->clearCache();
+    if(humanEval != NULL)
+      humanEval->clearCache();
   }
 
   void placeFixedHandicap(int n, string& response, bool& responseIsError) {
@@ -1761,11 +1781,13 @@ int MainCmds::gtp(const vector<string>& args) {
 
   ConfigParser cfg;
   string nnModelFile;
+  string humanModelFile;
   string overrideVersion;
   KataGoCommandLine cmd("Run KataGo main GTP engine for playing games or casual analysis.");
   try {
     cmd.addConfigFileArg(KataGoCommandLine::defaultGtpConfigFileName(),"gtp_example.cfg");
     cmd.addModelFileArg();
+    cmd.addHumanModelFileArg();
     cmd.setShortUsageArgLimit();
     cmd.addOverrideConfigArg();
 
@@ -1773,6 +1795,7 @@ int MainCmds::gtp(const vector<string>& args) {
     cmd.add(overrideVersionArg);
     cmd.parseArgs(args);
     nnModelFile = cmd.getModelFile();
+    humanModelFile = cmd.getHumanModelFile();
     overrideVersion = overrideVersionArg.getValue();
 
     cmd.getConfig(cfg);
@@ -1895,7 +1918,8 @@ int MainCmds::gtp(const vector<string>& args) {
   Player perspective = Setup::parseReportAnalysisWinrates(cfg,C_EMPTY);
 
   GTPEngine* engine = new GTPEngine(
-    nnModelFile,initialParams,initialRules,
+    nnModelFile,humanModelFile,
+    initialParams,initialRules,
     assumeMultipleStartingBlackMovesAreHandicap,preventEncore,autoAvoidPatterns,
     dynamicPlayoutDoublingAdvantageCapPerOppLead,
     staticPlayoutDoublingAdvantage,staticPDATakesPrecedence,
@@ -1939,15 +1963,23 @@ int MainCmds::gtp(const vector<string>& args) {
   cfg.warnUnusedKeys(cerr,&logger);
 
   logger.write("Loaded config " + cfg.getFileName());
-  logger.write("Loaded model "+ nnModelFile);
+  logger.write("Loaded model " + nnModelFile);
+  if(humanModelFile != "")
+    logger.write("Loaded human SL model " + humanModelFile);
   cmd.logOverrides(logger);
   logger.write("Model name: "+ (engine->nnEval == NULL ? string() : engine->nnEval->getInternalModelName()));
+  if(engine->humanEval != NULL)
+    logger.write("Human SL model name: "+ (engine->humanEval->getInternalModelName()));
   logger.write("GTP ready, beginning main protocol loop");
   //Also check loggingToStderr so that we don't duplicate the message from the log file
   if(startupPrintMessageToStderr && !logger.isLoggingToStderr()) {
     cerr << "Loaded config " << cfg.getFileName() << endl;
     cerr << "Loaded model " << nnModelFile << endl;
+    if(humanModelFile != "")
+      cerr << "Loaded human SL model " << humanModelFile << endl;
     cerr << "Model name: "+ (engine->nnEval == NULL ? string() : engine->nnEval->getInternalModelName()) << endl;
+    if(engine->humanEval != NULL)
+      cerr << "Human SL model name: "+ (engine->humanEval->getInternalModelName()) << endl;
     cerr << "GTP ready, beginning main protocol loop" << endl;
   }
 

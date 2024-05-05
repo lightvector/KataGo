@@ -202,6 +202,7 @@ add_executable(katago
   dataio/homedata.cpp
   dataio/files.cpp
   neuralnet/nninputs.cpp
+  neuralnet/sgfmetaprofiles.cpp
   neuralnet/modelversion.cpp
   neuralnet/nneval.cpp
   neuralnet/desc.cpp
