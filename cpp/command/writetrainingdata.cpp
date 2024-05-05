@@ -871,7 +871,7 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
     }
     {
       bool foundBoardSize = false;
-      for(const std::pair<int,int> p: allowedBoardSizes) {
+      for(const std::pair<int,int>& p: allowedBoardSizes) {
         if(p.first == xySize.x && p.second == xySize.y)
           foundBoardSize = true;
         if(p.first == xySize.y && p.second == xySize.x)
