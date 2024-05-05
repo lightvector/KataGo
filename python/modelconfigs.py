@@ -19,7 +19,7 @@ well or best: "-fson-mish-rvgl-bnh"
   but the latter is used for inference.
 """
 
-from typing import Dict, Any
+from typing import Dict, Any, Union
 
 ModelConfig = Dict[str,Any]
 
@@ -56,6 +56,19 @@ def get_num_global_input_features(config: ModelConfig):
         return 19
     else:
         assert(False)
+
+def get_num_meta_encoder_input_features(config_or_meta_encoder_version: Union[ModelConfig,int]):
+    if isinstance(config_or_meta_encoder_version,int):
+        version = config_or_meta_encoder_version
+    else:
+        if "metadata_encoder" not in config:
+            version = 0
+        elif "meta_encoder_version" not in config["metadata_encoder"]:
+            version = 1
+        else:
+            version = config["metadata_encoder"]["meta_encoder_version"]
+    assert version == 1
+    return 192
 
 b1c6nbt = {
     "version":15,
@@ -1506,6 +1519,7 @@ for name, base_config in list(config_of_name.items()):
 for name, base_config in list(config_of_name.items()):
     config = base_config.copy()
     config["metadata_encoder"] = {
+        "meta_encoder_version": 1,
         "internal_num_channels": config["trunk_num_channels"],
     }
     config_of_name[name+"-meta"] = config

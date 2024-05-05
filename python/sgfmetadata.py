@@ -8,6 +8,7 @@ import math
 import numpy as np
 import random
 from board import Board
+import modelconfigs
 
 @dataclass
 class SGFMetadata:
@@ -98,6 +99,10 @@ class SGFMetadata:
                 nextPlayer = Board.WHITE
             elif nextPlayer.lower() == "b":
                 nextPlayer = Board.BLACK
+
+        # This class implements "version 1" of sgf metadata encoding, make sure channel dims match up.
+        meta_encoder_version = 1
+        assert modelconfigs.get_num_meta_encoder_input_features(meta_encoder_version) == self.METADATA_INPUT_NUM_CHANNELS
 
         rowMetadata = np.zeros(self.METADATA_INPUT_NUM_CHANNELS, dtype=np.float32)
 

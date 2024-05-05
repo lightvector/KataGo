@@ -100,7 +100,7 @@ def main(args):
 
     if version >= 15:
         if model.metadata_encoder is not None:
-            writeln(model.metadata_encoder.c_input)
+            writeln(model.metadata_encoder.meta_encoder_version)
         else:
             writeln(0)
 
@@ -293,7 +293,9 @@ def main(args):
 
     def write_metadata_encoder(name,encoder):
         writeln(name)
-        write_matmul(name+".mul1", encoder.linear1.weight)
+        writeln(encoder.c_input)
+        # Torch order is oc,ic. Flatten feature mask into the first mul
+        write_matmul(name+".mul1", encoder.linear1.weight * encoder.feature_mask.reshape((1,-1)))
         write_matbias(name+".mul1", encoder.linear1.bias)
         write_activation(name+".act1", encoder.act1)
         write_matmul(name+".mul2", encoder.linear2.weight)

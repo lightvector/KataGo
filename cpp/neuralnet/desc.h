@@ -173,6 +173,8 @@ struct NestedBottleneckResidualBlockDesc {
 
 struct SGFMetadataEncoderDesc {
   std::string name;
+  int metaEncoderVersion;
+  int numInputMetaChannels;
   MatMulLayerDesc mul1;
   MatBiasLayerDesc bias1;
   ActivationLayerDesc act1;
@@ -183,7 +185,7 @@ struct SGFMetadataEncoderDesc {
 
   SGFMetadataEncoderDesc();
   ~SGFMetadataEncoderDesc();
-  SGFMetadataEncoderDesc(std::istream& in, int modelVersion, bool binaryFloats);
+  SGFMetadataEncoderDesc(std::istream& in, int modelVersion, int metaEncoderVersion, bool binaryFloats);
   SGFMetadataEncoderDesc(SGFMetadataEncoderDesc&& other);
 
   SGFMetadataEncoderDesc(const SGFMetadataEncoderDesc&) = delete;
@@ -206,7 +208,7 @@ struct TrunkDesc {
   int regularNumChannels;  // Currently every gpool residual block must have the same number of regular conv hannels
   int gpoolNumChannels;    // Currently every gpooling residual block must have the same number of gpooling conv channels
 
-  int numInputMetaChannels;
+  int metaEncoderVersion;
 
   ConvLayerDesc initialConv;
   MatMulLayerDesc initialMatMul;
@@ -217,7 +219,7 @@ struct TrunkDesc {
 
   TrunkDesc();
   ~TrunkDesc();
-  TrunkDesc(std::istream& in, int modelVersion, bool binaryFloats, int numInputSgfMetadataChannels);
+  TrunkDesc(std::istream& in, int modelVersion, bool binaryFloats, int metaEncoderVersion);
   TrunkDesc(TrunkDesc&& other);
 
   TrunkDesc(const TrunkDesc&) = delete;
@@ -310,6 +312,8 @@ struct ModelDesc {
   int numValueChannels;
   int numScoreValueChannels;
   int numOwnershipChannels;
+
+  int metaEncoderVersion;
 
   ModelPostProcessParams postProcessParams;
 

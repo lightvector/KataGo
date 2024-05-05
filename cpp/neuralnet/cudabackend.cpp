@@ -1442,7 +1442,7 @@ struct Trunk {
 
     initialConv = std::make_unique<ConvLayer>(cudaHandles,manager,&desc->initialConv,useFP16,inputsUseNHWC,useNHWC);
     initialMatMul = std::make_unique<MatMulLayer>(cudaHandles,&desc->initialMatMul,useFP16);
-    if(desc->numInputMetaChannels > 0)
+    if(desc->metaEncoderVersion > 0)
       sgfMetadataEncoder = std::make_unique<SGFMetadataEncoder>(cudaHandles,&desc->sgfMetadataEncoder,useFP16);
 
     trunkTipBN = std::make_unique<BatchNormLayer>(cudaHandles,&desc->trunkTipBN,&desc->trunkTipActivation,nnXLen,nnYLen,useFP16,useNHWC);

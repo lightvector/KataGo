@@ -1388,15 +1388,18 @@ class MetadataEncoder(torch.nn.Module):
 
         self.config = config
         self.activation = config["activation"]
+        self.meta_encoder_version = 1 if "meta_encoder_version" not in config["metadata_encoder"] else config["metadata_encoder"]["meta_encoder_version"]
 
-        self.c_input = 192
+        self.c_input = modelconfigs.get_num_meta_encoder_input_features(self.meta_encoder_version)
+        assert self.c_input == 192
+
         self.c_internal = self.config["metadata_encoder"]["internal_num_channels"]
         self.c_trunk = self.config["trunk_num_channels"]
         self.out_scale = 0.5
 
         self.register_buffer("feature_mask", torch.tensor(
             # 86 is board area
-            data=[(0.0 if i == 86 else 1.0) for i in range(192)],
+            data=[(0.0 if i == 86 else 1.0) for i in range(self.c_input)],
             dtype=torch.float32,
             requires_grad=False,
         ), persistent=True)

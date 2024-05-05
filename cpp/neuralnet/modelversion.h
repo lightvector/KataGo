@@ -19,6 +19,9 @@ namespace NNModelVersion {
   int getNumSpatialFeatures(int modelVersion);
   int getNumGlobalFeatures(int modelVersion);
 
+  // SGF metadata encoder input versions
+  int getNumInputMetaChannels(int metaEncoderVersion);
+
 }  // namespace NNModelVersion
 
 #endif  // NEURALNET_MODELVERSION_H_
