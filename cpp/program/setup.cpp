@@ -700,6 +700,13 @@ vector<SearchParams> Setup::loadParams(
     else if(cfg.contains("futileVisitsThreshold"))   params.futileVisitsThreshold = cfg.getDouble("futileVisitsThreshold",0.01,1.0);
     else                                             params.futileVisitsThreshold = 0.0;
 
+    if(setupFor != SETUP_FOR_DISTRIBUTED) {
+      string humanSLProfileName;
+      if(cfg.contains("humanSLProfile"+idxStr)) humanSLProfileName = cfg.getString("humanSLProfile"+idxStr);
+      else if(cfg.contains("humanSLProfile"))   humanSLProfileName = cfg.getString("humanSLProfile");
+      params.humanSLProfile = SGFMetadata::getProfile(humanSLProfileName);
+    }
+
     //On distributed, tolerate reading mutexPoolSize since older version configs use it.
     if(setupFor == SETUP_FOR_DISTRIBUTED)
       cfg.markAllKeysUsedWithPrefix("mutexPoolSize");

@@ -3,6 +3,7 @@
 
 #include "../core/global.h"
 #include "../game/board.h"
+#include "../neuralnet/sgfmetadata.h"
 
 struct SearchParams {
   //Utility function parameters
@@ -141,6 +142,9 @@ struct SearchParams {
   double obviousMovesPolicySurpriseTolerance; //What logits of surprise does the search result need to be at most to be (1/e) obvious?
 
   double futileVisitsThreshold; //If a move would not be able to match this proportion of the max visits move in the time or visit or playout cap remaining, prune it.
+
+  //Human SL network
+  SGFMetadata humanSLProfile;
 
 
   SearchParams();

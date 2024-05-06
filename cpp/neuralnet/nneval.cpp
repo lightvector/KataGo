@@ -702,6 +702,8 @@ void NNEvaluator::evaluate(
   if(numInputMetaChannels > 0) {
     if(sgfMeta == NULL)
       throw StringError("SGFMetadata is required for " + modelName + " but was not provided");
+    if(!sgfMeta->initialized)
+      throw StringError("SGFMetadata is required for " + modelName + " but was not initialized. Did you specify humanSLProfile=... in katago's config?");
     nnHash ^= sgfMeta->getHash(nextPlayer);
   }
 
@@ -770,6 +772,8 @@ void NNEvaluator::evaluate(
     if(rowMetaLen > 0) {
       if(sgfMeta == NULL)
         throw StringError("SGFMetadata is required for " + modelName + " but was not provided");
+      if(!sgfMeta->initialized)
+        throw StringError("SGFMetadata is required for " + modelName + " but was not initialized. Did you specify humanSLProfile=... in katago's config?");
       SGFMetadata::fillMetadataRow(
         sgfMeta,
         buf.rowMeta,
@@ -778,8 +782,6 @@ void NNEvaluator::evaluate(
       );
     }
     else {
-      if(sgfMeta != NULL)
-        throw StringError("SGFMetadata is not required for " + modelName + " but was provided");
       assert(buf.rowMeta == NULL);
     }
   }
