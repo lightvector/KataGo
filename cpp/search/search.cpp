@@ -1208,31 +1208,11 @@ bool Search::playoutDescend(
         }
       }
 
-      //As isReInit is true, we don't return, just keep going, since we didn't count this as a true visit in the node stats
-      nodeState = node.state.load(std::memory_order_acquire);
-      selectBestChildToDescend(thread,node,nodeState,numChildrenFound,bestChildIdx,bestChildMoveLoc,isRoot);
-
-      if(bestChildIdx >= 0) {
-        //New child
-        if(bestChildIdx >= numChildrenFound) {
-          //In THEORY it might still be illegal this time! This would be the case if when we initialized the NN output, we raced
-          //against someone reInitializing the output to add dirichlet noise or something, who was doing so based on an older cached
-          //nnOutput that still had the illegal move. If so, then just fail this playout and try again.
-          if(!thread.history.isLegal(thread.board,bestChildMoveLoc,thread.pla))
-            return false;
-        }
-        //Existing child
-        else {
-          //An illegal move should make it into the tree only in case of cycle or bad transposition
-          //We want the search to continue as best it can, so we increment visits so other search branches will still make progress.
-          SearchNodeChildrenReference children = node.getChildren(nodeState);
-          int childrenCapacity = children.getCapacity();
-          assert(childrenCapacity > bestChildIdx);
-          (void)childrenCapacity;
-          children[bestChildIdx].addEdgeVisits(1);
-          return true;
-        }
-      }
+      //Give up on this playout now that we've forced the nn output to be consistent legality of this path.
+      //Return TRUE though, so that the parent path we traversed increments its edge visits.
+      //We want the search to continue as best it can, so we increment visits so search will still make progress
+      //even if this keeps happening in some really bad transposition or something.
+      return true;
     }
 
     if(bestChildIdx <= -1) {
@@ -1339,6 +1319,7 @@ bool Search::playoutDescend(
   //If somehow we find ourselves in a cycle, increment edge visits and terminate the playout.
   //Basically if the search likes a cycle... just reinforce playing around the cycle and hope we return something
   //reasonable in the end of the search.
+  //Note that this means that child visits >= edge visits is NOT an invariant.
   {
     std::pair<std::unordered_set<SearchNode*>::iterator,bool> result = thread.graphPath.insert(child);
     //No insertion, child was already there
