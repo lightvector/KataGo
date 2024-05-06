@@ -7,6 +7,7 @@
 #include "../neuralnet/modelversion.h"
 #include "../neuralnet/nninterface.h"
 #include "../neuralnet/nninputs.h"
+#include "../neuralnet/sgfmetadata.h"
 #include "../neuralnet/nneval.h"
 #include "../neuralnet/desc.h"
 

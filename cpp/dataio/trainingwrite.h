@@ -3,6 +3,7 @@
 
 #include "../dataio/numpywrite.h"
 #include "../neuralnet/nninputs.h"
+#include "../neuralnet/sgfmetadata.h"
 #include "../neuralnet/nninterface.h"
 
 STRUCT_NAMED_PAIR(Loc,loc,int16_t,policyTarget,PolicyTargetMove);

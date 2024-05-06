@@ -7,6 +7,7 @@
 #include "../core/global.h"
 #include "../core/fileutils.h"
 #include "../neuralnet/modelversion.h"
+#include "../neuralnet/sgfmetadata.h"
 #include "../neuralnet/nninterface.h"
 
 using namespace std;

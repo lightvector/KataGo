@@ -11,6 +11,7 @@
 #include "../game/board.h"
 #include "../game/boardhistory.h"
 #include "../neuralnet/nninputs.h"
+#include "../neuralnet/sgfmetadata.h"
 #include "../neuralnet/nninterface.h"
 #include "../search/mutexpool.h"
 
