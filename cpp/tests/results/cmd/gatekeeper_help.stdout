@@ -9,7 +9,8 @@ USAGE:
    gatekeeper  -config <FILE> ...  [-override-config <KEYVALUEPAIRS>] ... 
                -test-models-dir <DIR> -sgf-output-dir <DIR>
                -accepted-models-dir <DIR> -rejected-models-dir <DIR>
-               [-selfplay-dir <DIR>] [...other flags...]
+               [-selfplay-dir <DIR>] [-required-candidate-win-prop <PROP>]
+               [...other flags...]
 
 
 Where: 
@@ -34,6 +35,9 @@ Where:
 
    -selfplay-dir <DIR>
      Dir where selfplay data will be produced if a model passes
+
+   -required-candidate-win-prop <PROP>
+     Required win prop to accept
 
    -no-autoreject-old-models
      Test older models than the latest accepted model
