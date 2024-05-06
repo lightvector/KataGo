@@ -624,6 +624,35 @@ static bool daggerMatch(const Board& board, Player nextPla, Loc& banned, int sym
   return true;
 }
 
+std::shared_ptr<NNOutput>* NNEvaluator::averageMultipleSymmetries(
+  Board& board,
+  const BoardHistory& history,
+  Player nextPlayer,
+  const SGFMetadata* sgfMeta,
+  const MiscNNInputParams& baseNNInputParams,
+  NNResultBuf& buf,
+  bool includeOwnerMap,
+  Rand& rand,
+  int numSymmetriesToSample
+) {
+  MiscNNInputParams nnInputParams = baseNNInputParams;
+  vector<std::shared_ptr<NNOutput>> ptrs;
+  std::array<int, SymmetryHelpers::NUM_SYMMETRIES> symmetryIndexes;
+  std::iota(symmetryIndexes.begin(), symmetryIndexes.end(), 0);
+  for(int i = 0; i<numSymmetriesToSample; i++) {
+    std::swap(symmetryIndexes[i], symmetryIndexes[rand.nextInt(i,SymmetryHelpers::NUM_SYMMETRIES-1)]);
+    nnInputParams.symmetry = symmetryIndexes[i];
+    bool skipCacheThisIteration = true; //Skip cache since there's no guarantee which symmetry is in the cache
+    evaluate(
+      board, history, nextPlayer, sgfMeta,
+      nnInputParams,
+      buf, skipCacheThisIteration, includeOwnerMap
+    );
+    ptrs.push_back(std::move(buf.result));
+  }
+  return new std::shared_ptr<NNOutput>(new NNOutput(ptrs));
+}
+
 void NNEvaluator::evaluate(
   Board& board,
   const BoardHistory& history,

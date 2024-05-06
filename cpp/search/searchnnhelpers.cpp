@@ -70,23 +70,14 @@ bool Search::initNodeNNOutput(
     nnInputParams.maxHistory = isRoot ? 0 : std::max(0, (int)thread.history.moveHistory.size() - (int)rootHistory.moveHistory.size());
   }
 
-  std::shared_ptr<NNOutput>* result;
+  std::shared_ptr<NNOutput>* result = NULL;
   if(isRoot && searchParams.rootNumSymmetriesToSample > 1) {
-    vector<std::shared_ptr<NNOutput>> ptrs;
-    std::array<int, SymmetryHelpers::NUM_SYMMETRIES> symmetryIndexes;
-    std::iota(symmetryIndexes.begin(), symmetryIndexes.end(), 0);
-    for(int i = 0; i<searchParams.rootNumSymmetriesToSample; i++) {
-      std::swap(symmetryIndexes[i], symmetryIndexes[thread.rand.nextInt(i,SymmetryHelpers::NUM_SYMMETRIES-1)]);
-      nnInputParams.symmetry = symmetryIndexes[i];
-      bool skipCacheThisIteration = true; //Skip cache since there's no guarantee which symmetry is in the cache
-      nnEvaluator->evaluate(
-        thread.board, thread.history, thread.pla,
-        nnInputParams,
-        thread.nnResultBuf, skipCacheThisIteration, includeOwnerMap
-      );
-      ptrs.push_back(std::move(thread.nnResultBuf.result));
-    }
-    result = new std::shared_ptr<NNOutput>(new NNOutput(ptrs));
+    result = nnEvaluator->averageMultipleSymmetries(
+      thread.board, thread.history, thread.pla, NULL,
+      nnInputParams,
+      thread.nnResultBuf, includeOwnerMap,
+      thread.rand, searchParams.rootNumSymmetriesToSample
+    );
   }
   else {
     nnEvaluator->evaluate(

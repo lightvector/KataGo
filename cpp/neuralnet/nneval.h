@@ -161,6 +161,17 @@ class NNEvaluator {
     bool skipCache,
     bool includeOwnerMap
   );
+  std::shared_ptr<NNOutput>* averageMultipleSymmetries(
+    Board& board,
+    const BoardHistory& history,
+    Player nextPlayer,
+    const SGFMetadata* sgfMeta,
+    const MiscNNInputParams& baseNNInputParams,
+    NNResultBuf& buf,
+    bool includeOwnerMap,
+    Rand& rand,
+    int numSymmetriesToSample
+  );
 
   //If there is at least one evaluate ongoing, wait until at least one finishes.
   //Returns immediately if there isn't one ongoing right now.
