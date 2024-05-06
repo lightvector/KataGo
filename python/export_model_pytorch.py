@@ -34,6 +34,7 @@ parser.add_argument('-export-dir', help='model file dir to save to', required=Tr
 parser.add_argument('-model-name', help='name to record in model file', required=True)
 parser.add_argument('-filename-prefix', help='filename prefix to save to within dir', required=True)
 parser.add_argument('-use-swa', help='Use SWA model', action="store_true", required=False)
+parser.add_argument('-export-14-as-15', help='Export model version 14 as 15', action="store_true", required=False)
 args = vars(parser.parse_args())
 
 
@@ -43,6 +44,7 @@ def main(args):
     model_name = args["model_name"]
     filename_prefix = args["filename_prefix"]
     use_swa = args["use_swa"]
+    export_14_as_15 = args["export_14_as_15"]
 
     os.makedirs(export_dir,exist_ok=True)
 
@@ -75,6 +77,10 @@ def main(args):
     # Ignore what's in the config if less than 11 since a lot of testing models
     # are on old version but actually have various new architectures.
     version = max(model_config["version"],11)
+    true_version = version
+    # Hack to be able to export version 14 as version 15
+    if version == 14 and export_14_as_15:
+        version = 15
 
     writeln(model_name)
     writeln(version)
@@ -360,6 +366,19 @@ def main(args):
             assert policyhead.linear_pass.weight.shape[0] == 6
             write_matmul(name+".linear_pass", torch.stack((policyhead.linear_pass.weight[0], policyhead.linear_pass.weight[5]), dim=0))
             assert policyhead.linear_pass.bias is None
+        elif version == 15 and true_version == 14:
+            assert policyhead.conv2p.weight.shape[0] == 6
+            write_conv_weight(name+".conv2p", torch.stack((policyhead.conv2p.weight[0], policyhead.conv2p.weight[5]), dim=0))
+            assert policyhead.linear_pass.weight.shape[0] == 6
+            linear_pass_stack = [policyhead.linear_pass.weight[0], policyhead.linear_pass.weight[5]]
+            c_p1 = int(policyhead.linear_g.weight.shape[0])
+            for _ in range(c_p1-2):
+                linear_pass_stack.append(torch.zeros_like(linear_pass_stack[0]))
+            write_matmul(name+".linear_pass", torch.stack(linear_pass_stack, dim=0))
+            assert policyhead.linear_pass.bias is None
+            write_matbias(name+".linear_pass_bias", torch.tensor([0.0]*c_p1,dtype=torch.float32,device="cpu"))
+            write_activation(name+".act_pass", torch.nn.Identity())
+            write_matmul(name+".linear_pass2", torch.tensor([[1.0,0.0]+[0.0]*(c_p1-2),[0.0,1.0]+[0.0]*(c_p1-2)],dtype=torch.float32,device="cpu"))
         else:
             assert policyhead.conv2p.weight.shape[0] == 6
             write_conv_weight(name+".conv2p", torch.stack((policyhead.conv2p.weight[0], policyhead.conv2p.weight[5]), dim=0))
