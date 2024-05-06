@@ -94,9 +94,11 @@ bool Search::getPlaySelectionValues(
     locs.push_back(moveLoc);
     totalChildWeight += childWeight;
 
+    // If the move appears to be outright illegal in policy probs, zero out the selection value.
+    // Also if we're suppressing passes.
     // We always push a value on to playSelectionValues even if that value is 0,
     // because some callers rely on this to line up with the raw indices in the children array of the node.
-    if(suppressPass && moveLoc == Board::PASS_LOC) {
+    if((suppressPass && moveLoc == Board::PASS_LOC) || policyProbs[getPos(moveLoc)] < 0) {
       playSelectionValues.push_back(0.0);
       if(retVisitCounts != NULL)
         (*retVisitCounts).push_back(0.0);
