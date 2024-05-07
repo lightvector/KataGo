@@ -2628,16 +2628,18 @@ void NeuralNet::getOutput(
     float* rowGlobalInput = inputBuffers->userInputGlobalBuffer + (inputBuffers->singleInputGlobalElts * nIdx);
     float* rowMetaInput = inputBuffers->userInputMetaBuffer + (inputBuffers->singleInputMetaElts * nIdx);
 
-    const float* rowGlobal = inputBufs[nIdx]->rowGlobal;
-    const float* rowSpatial = inputBufs[nIdx]->rowSpatial;
-    const float* rowMeta = inputBufs[nIdx]->rowMeta;
+    const float* rowGlobal = inputBufs[nIdx]->rowGlobalBuf.data();
+    const float* rowSpatial = inputBufs[nIdx]->rowSpatialBuf.data();
+    const float* rowMeta = inputBufs[nIdx]->rowMetaBuf.data();
+    bool hasRowMeta = inputBufs[nIdx]->hasRowMeta;
     std::copy(rowGlobal,rowGlobal+numGlobalFeatures,rowGlobalInput);
     if(numMetaFeatures > 0) {
       assert(rowMeta != NULL);
+      assert(hasRowMeta);
       std::copy(rowMeta,rowMeta+numMetaFeatures,rowMetaInput);
     }
     else {
-      assert(rowMeta == NULL);
+      assert(!hasRowMeta);
     }
     SymmetryHelpers::copyInputsWithSymmetry(rowSpatial, rowSpatialInput, 1, nnYLen, nnXLen, numSpatialFeatures, gpuHandle->inputsUseNHWC, inputBufs[nIdx]->symmetry);
   }

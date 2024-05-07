@@ -12,12 +12,10 @@ NNResultBuf::NNResultBuf()
     includeOwnerMap(false),
     boardXSizeForServer(0),
     boardYSizeForServer(0),
-    rowSpatialSize(0),
-    rowGlobalSize(0),
-    rowMetaSize(0),
-    rowSpatial(NULL),
-    rowGlobal(NULL),
-    rowMeta(NULL),
+    rowSpatialBuf(),
+    rowGlobalBuf(),
+    rowMetaBuf(),
+    hasRowMeta(false),
     result(nullptr),
     errorLogLockout(false),
     // If no symmetry is specified, it will use default or random based on config.
@@ -26,12 +24,6 @@ NNResultBuf::NNResultBuf()
 {}
 
 NNResultBuf::~NNResultBuf() {
-  if(rowSpatial != NULL)
-    delete[] rowSpatial;
-  if(rowGlobal != NULL)
-    delete[] rowGlobal;
-  if(rowMeta != NULL)
-    delete[] rowMeta;
 }
 
 //-------------------------------------------------------------------------------------
@@ -701,9 +693,9 @@ void NNEvaluator::evaluate(
   Hash128 nnHash = NNInputs::getHash(board, history, nextPlayer, nnInputParams);
   if(numInputMetaChannels > 0) {
     if(sgfMeta == NULL)
-      throw StringError("SGFMetadata is required for " + modelName + " but was not provided");
+      Global::fatalError("SGFMetadata is required for " + modelName + " but was not provided");
     if(!sgfMeta->initialized)
-      throw StringError("SGFMetadata is required for " + modelName + " but was not initialized. Did you specify humanSLProfile=... in katago's config?");
+      Global::fatalError("SGFMetadata is required for " + modelName + " but was not initialized. Did you specify humanSLProfile=... in katago's config?");
     nnHash ^= sgfMeta->getHash(nextPlayer);
   }
 
@@ -728,61 +720,44 @@ void NNEvaluator::evaluate(
 
   if(!debugSkipNeuralNet) {
     const int rowSpatialLen = NNModelVersion::getNumSpatialFeatures(modelVersion) * nnXLen * nnYLen;
-    if(buf.rowSpatial == NULL) {
-      buf.rowSpatial = new float[rowSpatialLen];
-      buf.rowSpatialSize = rowSpatialLen;
-    }
-    else {
-      if(buf.rowSpatialSize != rowSpatialLen)
-        throw StringError("Cannot reuse an nnResultBuf with different dimensions or model version");
-    }
+    if(buf.rowSpatialBuf.size() < rowSpatialLen)
+      buf.rowSpatialBuf.resize(rowSpatialLen);
     const int rowGlobalLen = NNModelVersion::getNumGlobalFeatures(modelVersion);
-    if(buf.rowGlobal == NULL) {
-      buf.rowGlobal = new float[rowGlobalLen];
-      buf.rowGlobalSize = rowGlobalLen;
-    }
-    else {
-      if(buf.rowGlobalSize != rowGlobalLen)
-        throw StringError("Cannot reuse an nnResultBuf with different dimensions or model version");
-    }
+    if(buf.rowGlobalBuf.size() < rowGlobalLen)
+      buf.rowGlobalBuf.resize(rowGlobalLen);
     const int rowMetaLen = numInputMetaChannels;
-    if(buf.rowMeta == NULL && rowMetaLen > 0) {
-      buf.rowMeta = new float[rowMetaLen];
-      buf.rowMetaSize = rowMetaLen;
-    }
-    else {
-      if(buf.rowMetaSize != rowMetaLen)
-        throw StringError("Cannot reuse an nnResultBuf with different dimensions or model version");
-    }
+    if(buf.rowMetaBuf.size() < rowMetaLen)
+      buf.rowMetaBuf.resize(rowMetaLen);
 
     static_assert(NNModelVersion::latestInputsVersionImplemented == 7, "");
     if(inputsVersion == 3)
-      NNInputs::fillRowV3(board, history, nextPlayer, nnInputParams, nnXLen, nnYLen, inputsUseNHWC, buf.rowSpatial, buf.rowGlobal);
+      NNInputs::fillRowV3(board, history, nextPlayer, nnInputParams, nnXLen, nnYLen, inputsUseNHWC, buf.rowSpatialBuf.data(), buf.rowGlobalBuf.data());
     else if(inputsVersion == 4)
-      NNInputs::fillRowV4(board, history, nextPlayer, nnInputParams, nnXLen, nnYLen, inputsUseNHWC, buf.rowSpatial, buf.rowGlobal);
+      NNInputs::fillRowV4(board, history, nextPlayer, nnInputParams, nnXLen, nnYLen, inputsUseNHWC, buf.rowSpatialBuf.data(), buf.rowGlobalBuf.data());
     else if(inputsVersion == 5)
-      NNInputs::fillRowV5(board, history, nextPlayer, nnInputParams, nnXLen, nnYLen, inputsUseNHWC, buf.rowSpatial, buf.rowGlobal);
+      NNInputs::fillRowV5(board, history, nextPlayer, nnInputParams, nnXLen, nnYLen, inputsUseNHWC, buf.rowSpatialBuf.data(), buf.rowGlobalBuf.data());
     else if(inputsVersion == 6)
-      NNInputs::fillRowV6(board, history, nextPlayer, nnInputParams, nnXLen, nnYLen, inputsUseNHWC, buf.rowSpatial, buf.rowGlobal);
+      NNInputs::fillRowV6(board, history, nextPlayer, nnInputParams, nnXLen, nnYLen, inputsUseNHWC, buf.rowSpatialBuf.data(), buf.rowGlobalBuf.data());
     else if(inputsVersion == 7)
-      NNInputs::fillRowV7(board, history, nextPlayer, nnInputParams, nnXLen, nnYLen, inputsUseNHWC, buf.rowSpatial, buf.rowGlobal);
+      NNInputs::fillRowV7(board, history, nextPlayer, nnInputParams, nnXLen, nnYLen, inputsUseNHWC, buf.rowSpatialBuf.data(), buf.rowGlobalBuf.data());
     else
       ASSERT_UNREACHABLE;
 
     if(rowMetaLen > 0) {
       if(sgfMeta == NULL)
-        throw StringError("SGFMetadata is required for " + modelName + " but was not provided");
+        Global::fatalError("SGFMetadata is required for " + modelName + " but was not provided");
       if(!sgfMeta->initialized)
-        throw StringError("SGFMetadata is required for " + modelName + " but was not initialized. Did you specify humanSLProfile=... in katago's config?");
+        Global::fatalError("SGFMetadata is required for " + modelName + " but was not initialized. Did you specify humanSLProfile=... in katago's config?");
       SGFMetadata::fillMetadataRow(
         sgfMeta,
-        buf.rowMeta,
+        buf.rowMetaBuf.data(),
         nextPlayer,
         board.x_size*board.y_size
       );
+      buf.hasRowMeta = true;
     }
     else {
-      assert(buf.rowMeta == NULL);
+      buf.hasRowMeta = false;
     }
   }
 

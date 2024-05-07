@@ -1485,8 +1485,8 @@ void NeuralNet::getOutput(
     float* rowFeatureInput = &inputBuffers->featureInputs[inputBuffers->singleFeatureElts * nIdx];
     float* rowGlobalFeatureInput = &inputBuffers->globalFeatureInputs[inputBuffers->singleGlobalFeatureElts * nIdx];
 
-    const float* rowFeature = inputBufs[nIdx]->rowSpatial;
-    const float* rowGlobalFeature = inputBufs[nIdx]->rowGlobal;
+    const float* rowFeature = inputBufs[nIdx]->rowSpatialBuf.data();
+    const float* rowGlobalFeature = inputBufs[nIdx]->rowGlobalBuf.data();
     SymmetryHelpers::copyInputsWithSymmetry(
       rowFeature, rowFeatureInput, 1, nnYLen, nnXLen, numSpatialFeatures, false, inputBufs[nIdx]->symmetry);
     copy(rowGlobalFeature, rowGlobalFeature + numGlobalFeatures, rowGlobalFeatureInput);

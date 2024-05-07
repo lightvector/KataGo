@@ -28,7 +28,7 @@ bool Search::getPlaySelectionValues(
     playSelectionValues.clear();
     return false;
   }
-  bool allowDirectPolicyMoves = true;
+  const bool allowDirectPolicyMoves = true;
   return getPlaySelectionValues(*rootNode, locs, playSelectionValues, NULL, scaleMaxToAtLeast, allowDirectPolicyMoves);
 }
 
@@ -42,7 +42,7 @@ bool Search::getPlaySelectionValues(
       retVisitCounts->clear();
     return false;
   }
-  bool allowDirectPolicyMoves = true;
+  const bool allowDirectPolicyMoves = true;
   return getPlaySelectionValues(*rootNode, locs, playSelectionValues, retVisitCounts, scaleMaxToAtLeast, allowDirectPolicyMoves);
 }
 
@@ -238,7 +238,7 @@ bool Search::getPlaySelectionValues(
     }
   }
 
-  auto isOkayRawPolicyMove = [&](Loc moveLoc, double policyProb, bool obeyAllowedRootMove) {
+  auto isOkayRawPolicyMoveAtRoot = [&](Loc moveLoc, double policyProb, bool obeyAllowedRootMove) {
     if(!rootHistory.isLegal(rootBoard,moveLoc,rootPla) || policyProb < 0 || (obeyAllowedRootMove && !isAllowedRootMove(moveLoc)))
       return false;
     const std::vector<int>& avoidMoveUntilByLoc = rootPla == P_BLACK ? avoidMoveUntilByLocBlack : avoidMoveUntilByLocWhite;
@@ -263,8 +263,10 @@ bool Search::getPlaySelectionValues(
       for(int movePos = 0; movePos<policySize; movePos++) {
         Loc moveLoc = NNPos::posToLoc(movePos,rootBoard.x_size,rootBoard.y_size,nnXLen,nnYLen);
         double policyProb = policyProbs[movePos];
-        if(!isOkayRawPolicyMove(moveLoc,policyProb,obeyAllowedRootMove))
+        if(!isOkayRawPolicyMoveAtRoot(moveLoc,policyProb,obeyAllowedRootMove))
           continue;
+        if(suppressPass && moveLoc == Board::PASS_LOC)
+          policyProb = 0.0;
         locs.push_back(moveLoc);
         playSelectionValues.push_back(policyProb);
         numChildren++;
@@ -313,71 +315,74 @@ bool Search::getPlaySelectionValues(
     const NNOutput* humanOutput = node.getHumanOutput();
     const float* humanProbs = humanOutput != NULL ? humanOutput->getPolicyProbsMaybeNoised() : NULL;
     if(humanProbs != NULL) {
-      std::set<Loc> locsSet(locs.begin(),locs.end());
-
-      //First, take a pass to just fill out all the legal/allowed moves into the play selection values.
-      double humanPolicySum = 0.0;
-      for(int movePos = 0; movePos<policySize; movePos++) {
-        Loc moveLoc = NNPos::posToLoc(movePos,rootBoard.x_size,rootBoard.y_size,nnXLen,nnYLen);
-        double humanProb = humanProbs[movePos];
-        const bool obeyAllowedRootMove = true;
-        if(!isOkayRawPolicyMove(moveLoc,humanProb,obeyAllowedRootMove))
-          continue;
-        if(humanProb > 0)
-          humanPolicySum += humanProb;
-        if(contains(locsSet,moveLoc))
-          continue;
-        locs.push_back(moveLoc);
-        locsSet.insert(moveLoc);
-        playSelectionValues.push_back(0.0);
-        numChildren++;
+      // First, take a pass to just fill out all the legal/allowed moves into the play selection values, if allowed, and if at root.
+      if(&node == rootNode && allowDirectPolicyMoves) {
+        std::set<Loc> locsSet(locs.begin(),locs.end());
+        for(int movePos = 0; movePos<policySize; movePos++) {
+          Loc moveLoc = NNPos::posToLoc(movePos,rootBoard.x_size,rootBoard.y_size,nnXLen,nnYLen);
+          double humanProb = humanProbs[movePos];
+          const bool obeyAllowedRootMove = true;
+          if(!isOkayRawPolicyMoveAtRoot(moveLoc,humanProb,obeyAllowedRootMove))
+            continue;
+          if(contains(locsSet,moveLoc))
+            continue;
+          locs.push_back(moveLoc);
+          locsSet.insert(moveLoc);
+          playSelectionValues.push_back(0.0); // Pushing zeros since we're just filling in
+          numChildren++;
+        }
       }
-      //Preliminarily ensure that there is a positive human probability sum on moves that are allowed.
-      if(humanPolicySum > 0.0) {
-        //Compute shifted human policy on the moves we have utilities for.
-        std::map<Loc,double> shiftedPolicy;
-        std::map<Loc,double> selfUtilities;
-        double selfUtilityMax = -1e10;
-        double selfUtilitySum = 0.0;
-        for(int i = 0; i<childrenCapacity; i++) {
-          const SearchChildPointer& childPointer = children[i];
-          const SearchNode* child = childPointer.getIfAllocated();
-          if(child == NULL)
-            break;
-          Loc moveLoc = childPointer.getMoveLocRelaxed();
-          double humanProb = humanProbs[getPos(moveLoc)];
-          if(humanProb > 0) {
-            shiftedPolicy[moveLoc] = humanProb;
-            selfUtilities[moveLoc] = (rootPla == P_WHITE ? 1 : -1) * child->stats.utilityAvg.load(std::memory_order_acquire);
-            selfUtilityMax = std::max(selfUtilityMax, selfUtilities[moveLoc]);
-            selfUtilitySum += selfUtilities[moveLoc];
-          }
-        }
-        //Straight linear average. Use this to complete the remaining utilities, i.e. for fpu
-        double selfUtilityAvg = selfUtilitySum / std::max((size_t)1, selfUtilities.size());
-        for(Loc loc: locs) {
-          if(!contains(shiftedPolicy,loc)) {
-            shiftedPolicy[loc] = std::max(0.0, (double)humanProbs[getPos(loc)]);
-            selfUtilities[loc] = selfUtilityAvg;
-          }
-        }
-        //Perform shift
-        for(Loc loc: locs)
-          shiftedPolicy[loc] *= exp((selfUtilities[loc] - selfUtilityMax)/searchParams.humanSLChosenMovePiklLambda);
-        double shiftedPolicySum = 0.0;
-        for(Loc loc: locs)
-          shiftedPolicySum += shiftedPolicy[loc];
-        //Renormalize and average in to current play selection values, scaling up to the current sum scale of playSelectionValues.
-        if(shiftedPolicySum > 0.0) {
-          for(Loc loc: locs)
-            shiftedPolicy[loc] /= shiftedPolicySum;
 
-          double playSelectionValueSum = 0.0;
-          for(double psv: playSelectionValues)
-            playSelectionValueSum += psv;
-          for(int i = 0; i<numChildren; i++)
-            playSelectionValues[i] += searchParams.humanSLChosenMoveProp * (playSelectionValueSum * shiftedPolicy[locs[i]] - playSelectionValues[i]);
+      // Grab utility on the moves we have utilities for.
+      std::map<Loc,double> shiftedPolicy;
+      std::map<Loc,double> selfUtilities;
+      double selfUtilityMax = -1e10;
+      double selfUtilitySum = 0.0;
+      for(int i = 0; i<childrenCapacity; i++) {
+        const SearchChildPointer& childPointer = children[i];
+        const SearchNode* child = childPointer.getIfAllocated();
+        if(child == NULL)
+          break;
+        Loc moveLoc = childPointer.getMoveLocRelaxed();
+        double humanProb = humanProbs[getPos(moveLoc)];
+        if((suppressPass && moveLoc == Board::PASS_LOC) || humanProb < 0)
+          humanProb = 0.0;
+
+        shiftedPolicy[moveLoc] = humanProb;
+        selfUtilities[moveLoc] = (rootPla == P_WHITE ? 1 : -1) * child->stats.utilityAvg.load(std::memory_order_acquire);
+        selfUtilityMax = std::max(selfUtilityMax, selfUtilities[moveLoc]);
+        selfUtilitySum += selfUtilities[moveLoc];
+      }
+      // Straight linear average. Use this to complete the remaining utilities, i.e. for fpu
+      double selfUtilityAvg = selfUtilitySum / std::max((size_t)1, selfUtilities.size());
+      selfUtilityMax = std::max(selfUtilityMax, selfUtilityAvg); // In case of 0 size
+      for(Loc loc: locs) {
+        if(!contains(shiftedPolicy,loc)) {
+          double humanProb = humanProbs[getPos(loc)];
+          if((suppressPass && loc == Board::PASS_LOC) || humanProb < 0)
+            humanProb = 0.0;
+          shiftedPolicy[loc] = humanProb;
+          selfUtilities[loc] = selfUtilityAvg;
         }
+      }
+      // Perform shift
+      for(Loc loc: locs)
+        shiftedPolicy[loc] *= exp((selfUtilities[loc] - selfUtilityMax)/searchParams.humanSLChosenMovePiklLambda);
+
+      double shiftedPolicySum = 0.0;
+      for(Loc loc: locs)
+        shiftedPolicySum += shiftedPolicy[loc];
+
+      // Renormalize and average in to current play selection values, scaling up to the current sum scale of playSelectionValues.
+      if(shiftedPolicySum > 0.0) {
+        for(Loc loc: locs)
+          shiftedPolicy[loc] /= shiftedPolicySum;
+
+        double playSelectionValueSum = 0.0;
+        for(double psv: playSelectionValues)
+          playSelectionValueSum += psv;
+        for(int i = 0; i<numChildren; i++)
+          playSelectionValues[i] += searchParams.humanSLChosenMoveProp * (playSelectionValueSum * shiftedPolicy[locs[i]] - playSelectionValues[i]);
       }
     }
   }
@@ -583,8 +588,8 @@ bool Search::getPolicySurpriseAndEntropy(double& surpriseRet, double& searchEntr
 
   vector<Loc> locs;
   vector<double> playSelectionValues;
-  bool allowDirectPolicyMoves = true;
-  bool alwaysComputeLcb = false;
+  const bool allowDirectPolicyMoves = true;
+  const bool alwaysComputeLcb = false;
   double lcbBuf[NNPos::MAX_NN_POLICY_SIZE];
   double radiusBuf[NNPos::MAX_NN_POLICY_SIZE];
   bool suc = getPlaySelectionValues(
@@ -742,7 +747,8 @@ void Search::appendPVForMove(
     return;
 
   for(int depth = 0; depth < maxDepth; depth++) {
-    bool success = getPlaySelectionValues(*node, scratchLocs, scratchValues, NULL, 1.0, false);
+    const bool allowDirectPolicyMoves = true;
+    bool success = getPlaySelectionValues(*node, scratchLocs, scratchValues, NULL, 1.0, allowDirectPolicyMoves);
     if(!success)
       return;
 
@@ -775,12 +781,22 @@ void Search::appendPVForMove(
 
     ConstSearchNodeChildrenReference children = node->getChildren();
     int childrenCapacity = children.getCapacity();
-    assert(bestChildIdx < childrenCapacity);
-    assert(scratchValues.size() <= childrenCapacity);
-    (void)childrenCapacity;
-
+    //Direct policy move
+    if(bestChildIdx >= childrenCapacity) {
+      buf.push_back(bestChildMoveLoc);
+      visitsBuf.push_back(0);
+      edgeVisitsBuf.push_back(0);
+      return;
+    }
     const SearchNode* child = children[bestChildIdx].getIfAllocated();
-    assert(child != NULL);
+    //Direct policy move
+    if(child == NULL) {
+      buf.push_back(bestChildMoveLoc);
+      visitsBuf.push_back(0);
+      edgeVisitsBuf.push_back(0);
+      return;
+    }
+
     node = child;
 
     int64_t visits = node->stats.visits.load(std::memory_order_acquire);
@@ -1477,9 +1493,9 @@ bool Search::getSharpScore(const SearchNode* node, double& ret) const {
 
   vector<double> playSelectionValues;
   vector<Loc> locs; // not used
-  bool allowDirectPolicyMoves = false;
-  bool alwaysComputeLcb = false;
-  bool neverUseLcb = true;
+  const bool allowDirectPolicyMoves = false;
+  const bool alwaysComputeLcb = false;
+  const bool neverUseLcb = true;
   bool suc = getPlaySelectionValues(*node,locs,playSelectionValues,NULL,1.0,allowDirectPolicyMoves,alwaysComputeLcb,neverUseLcb,NULL,NULL);
   // If there are no children, or otherwise values could not be computed, then fall back to the normal case
   if(!suc) {
@@ -2114,9 +2130,9 @@ bool Search::getPrunedNodeValues(const SearchNode* nodePtr, ReportedSearchValues
 
   vector<double> playSelectionValues;
   vector<Loc> locs; // not used
-  bool allowDirectPolicyMoves = false;
-  bool alwaysComputeLcb = false;
-  bool neverUseLcb = true;
+  const bool allowDirectPolicyMoves = false;
+  const bool alwaysComputeLcb = false;
+  const bool neverUseLcb = true;
   bool suc = getPlaySelectionValues(node,locs,playSelectionValues,NULL,1.0,allowDirectPolicyMoves,alwaysComputeLcb,neverUseLcb,NULL,NULL);
   //If there are no children, or otherwise values could not be computed,
   //then fall back to the normal case and just listen to the values on the node rather than trying

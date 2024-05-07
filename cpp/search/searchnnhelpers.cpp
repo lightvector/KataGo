@@ -138,7 +138,7 @@ bool Search::initNodeNNOutput(
     // Store human result first, so that the presence of the main result guarantees
     // that the human result exists in the case we have a human evaluator.
     if(humanResult != NULL) {
-      bool humanSuc = node.storeNNOutputIfNull(humanResult);
+      bool humanSuc = node.storeHumanOutputIfNull(humanResult);
       if(!humanSuc)
         delete humanResult;
     }

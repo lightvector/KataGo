@@ -51,12 +51,10 @@ struct NNResultBuf {
   bool includeOwnerMap;
   int boardXSizeForServer;
   int boardYSizeForServer;
-  int rowSpatialSize;
-  int rowGlobalSize;
-  int rowMetaSize;
-  float* rowSpatial;
-  float* rowGlobal;
-  float* rowMeta;
+  std::vector<float> rowSpatialBuf;
+  std::vector<float> rowGlobalBuf;
+  std::vector<float> rowMetaBuf;
+  bool hasRowMeta;
   std::shared_ptr<NNOutput> result;
   bool errorLogLockout; //error flag to restrict log to 1 error to prevent spam
   int symmetry; //The symmetry to use for this eval
