@@ -527,6 +527,9 @@ private:
   double getExploreScaling(
     double totalChildWeight, double parentUtilityStdevFactor
   ) const;
+  double getExploreScalingHuman(
+    double totalChildWeight
+  ) const;
   double getExploreSelectionValue(
     double exploreScaling,
     double nnPolicyProb,
@@ -572,7 +575,7 @@ private:
 
   void selectBestChildToDescend(
     SearchThread& thread, const SearchNode& node, SearchNodeState nodeState,
-    int& numChildrenFound, int& bestChildIdx, Loc& bestChildMoveLoc,
+    int& numChildrenFound, int& bestChildIdx, Loc& bestChildMoveLoc, bool& countEdgeVisit,
     bool isRoot
   ) const;
 

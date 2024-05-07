@@ -97,7 +97,17 @@ SearchParams::SearchParams()
    obviousMovesPolicyEntropyTolerance(0.30),
    obviousMovesPolicySurpriseTolerance(0.15),
    futileVisitsThreshold(0.0),
-   humanSLProfile()
+   humanSLProfile(),
+   humanSLCpuctExploration(1.0),
+   humanSLCpuctPermanent(0.0),
+   humanSLRootExploreProbWeightless(0.0),
+   humanSLRootExploreProbWeightful(0.0),
+   humanSLPlaExploreProbWeightless(0.0),
+   humanSLPlaExploreProbWeightful(0.0),
+   humanSLOppExploreProbWeightless(0.0),
+   humanSLOppExploreProbWeightful(0.0),
+   humanSLChosenMoveProp(0.0),
+   humanSLChosenMovePiklLambda(1000000000.0)
 {}
 
 SearchParams::~SearchParams()
@@ -339,4 +349,17 @@ void SearchParams::printParams(std::ostream& out) {
   PRINTPARAM(obviousMovesPolicySurpriseTolerance);
 
   PRINTPARAM(futileVisitsThreshold);
+
+
+  PRINTPARAM(humanSLCpuctExploration);
+  PRINTPARAM(humanSLCpuctPermanent);
+  PRINTPARAM(humanSLRootExploreProbWeightless);
+  PRINTPARAM(humanSLRootExploreProbWeightful);
+  PRINTPARAM(humanSLPlaExploreProbWeightless);
+  PRINTPARAM(humanSLPlaExploreProbWeightful);
+  PRINTPARAM(humanSLOppExploreProbWeightless);
+  PRINTPARAM(humanSLOppExploreProbWeightful);
+  PRINTPARAM(humanSLChosenMoveProp);
+  PRINTPARAM(humanSLChosenMovePiklLambda);
+
 }

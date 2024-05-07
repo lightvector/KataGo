@@ -20604,6 +20604,16 @@ obviousMovesTimeFactor: 1
 obviousMovesPolicyEntropyTolerance: 0.3
 obviousMovesPolicySurpriseTolerance: 0.15
 futileVisitsThreshold: 0
+humanSLCpuctExploration: 1
+humanSLCpuctPermanent: 0
+humanSLRootExploreProbWeightless: 0
+humanSLRootExploreProbWeightful: 0
+humanSLPlaExploreProbWeightless: 0
+humanSLPlaExploreProbWeightful: 0
+humanSLOppExploreProbWeightless: 0
+humanSLOppExploreProbWeightful: 0
+humanSLChosenMoveProp: 0
+humanSLChosenMovePiklLambda: 1e+09
 
 ===================================================================
 SearchParams forTestsV1
@@ -20698,6 +20708,16 @@ obviousMovesTimeFactor: 1
 obviousMovesPolicyEntropyTolerance: 0.3
 obviousMovesPolicySurpriseTolerance: 0.15
 futileVisitsThreshold: 0
+humanSLCpuctExploration: 1
+humanSLCpuctPermanent: 0
+humanSLRootExploreProbWeightless: 0
+humanSLRootExploreProbWeightful: 0
+humanSLPlaExploreProbWeightless: 0
+humanSLPlaExploreProbWeightful: 0
+humanSLOppExploreProbWeightless: 0
+humanSLOppExploreProbWeightful: 0
+humanSLChosenMoveProp: 0
+humanSLChosenMovePiklLambda: 1e+09
 
 ===================================================================
 SearchParams for GTP
@@ -20792,6 +20812,16 @@ obviousMovesTimeFactor: 1
 obviousMovesPolicyEntropyTolerance: 0.3
 obviousMovesPolicySurpriseTolerance: 0.15
 futileVisitsThreshold: 0
+humanSLCpuctExploration: 1
+humanSLCpuctPermanent: 0
+humanSLRootExploreProbWeightless: 0
+humanSLRootExploreProbWeightful: 0
+humanSLPlaExploreProbWeightless: 0
+humanSLPlaExploreProbWeightful: 0
+humanSLOppExploreProbWeightless: 0
+humanSLOppExploreProbWeightful: 0
+humanSLChosenMoveProp: 0
+humanSLChosenMovePiklLambda: 1e+09
 
 ===================================================================
 SearchParams for Analysis
@@ -20886,6 +20916,16 @@ obviousMovesTimeFactor: 1
 obviousMovesPolicyEntropyTolerance: 0.3
 obviousMovesPolicySurpriseTolerance: 0.15
 futileVisitsThreshold: 0
+humanSLCpuctExploration: 1
+humanSLCpuctPermanent: 0
+humanSLRootExploreProbWeightless: 0
+humanSLRootExploreProbWeightful: 0
+humanSLPlaExploreProbWeightless: 0
+humanSLPlaExploreProbWeightful: 0
+humanSLOppExploreProbWeightless: 0
+humanSLOppExploreProbWeightful: 0
+humanSLChosenMoveProp: 0
+humanSLChosenMovePiklLambda: 1e+09
 
 ===================================================================
 SearchParams for Match
@@ -20980,6 +21020,16 @@ obviousMovesTimeFactor: 1
 obviousMovesPolicyEntropyTolerance: 0.3
 obviousMovesPolicySurpriseTolerance: 0.15
 futileVisitsThreshold: 0
+humanSLCpuctExploration: 1
+humanSLCpuctPermanent: 0
+humanSLRootExploreProbWeightless: 0
+humanSLRootExploreProbWeightful: 0
+humanSLPlaExploreProbWeightless: 0
+humanSLPlaExploreProbWeightful: 0
+humanSLOppExploreProbWeightless: 0
+humanSLOppExploreProbWeightful: 0
+humanSLChosenMoveProp: 0
+humanSLChosenMovePiklLambda: 1e+09
 
 ===================================================================
 SearchParams for Benchmark
@@ -21074,6 +21124,16 @@ obviousMovesTimeFactor: 1
 obviousMovesPolicyEntropyTolerance: 0.3
 obviousMovesPolicySurpriseTolerance: 0.15
 futileVisitsThreshold: 0
+humanSLCpuctExploration: 1
+humanSLCpuctPermanent: 0
+humanSLRootExploreProbWeightless: 0
+humanSLRootExploreProbWeightful: 0
+humanSLPlaExploreProbWeightless: 0
+humanSLPlaExploreProbWeightful: 0
+humanSLOppExploreProbWeightless: 0
+humanSLOppExploreProbWeightful: 0
+humanSLChosenMoveProp: 0
+humanSLChosenMovePiklLambda: 1e+09
 
 ===================================================================
 SearchParams for Other
@@ -21168,6 +21228,16 @@ obviousMovesTimeFactor: 1
 obviousMovesPolicyEntropyTolerance: 0.3
 obviousMovesPolicySurpriseTolerance: 0.15
 futileVisitsThreshold: 0
+humanSLCpuctExploration: 1
+humanSLCpuctPermanent: 0
+humanSLRootExploreProbWeightless: 0
+humanSLRootExploreProbWeightful: 0
+humanSLPlaExploreProbWeightless: 0
+humanSLPlaExploreProbWeightful: 0
+humanSLOppExploreProbWeightless: 0
+humanSLOppExploreProbWeightful: 0
+humanSLChosenMoveProp: 0
+humanSLChosenMovePiklLambda: 1e+09
 
 ===================================================================
 SearchParams for Distributed
@@ -21262,6 +21332,16 @@ obviousMovesTimeFactor: 1
 obviousMovesPolicyEntropyTolerance: 0.3
 obviousMovesPolicySurpriseTolerance: 0.15
 futileVisitsThreshold: 0
+humanSLCpuctExploration: 1
+humanSLCpuctPermanent: 0
+humanSLRootExploreProbWeightless: 0
+humanSLRootExploreProbWeightful: 0
+humanSLPlaExploreProbWeightless: 0
+humanSLPlaExploreProbWeightful: 0
+humanSLOppExploreProbWeightless: 0
+humanSLOppExploreProbWeightful: 0
+humanSLChosenMoveProp: 0
+humanSLChosenMovePiklLambda: 1e+09
 
 ===================================================================
 Board size distribution

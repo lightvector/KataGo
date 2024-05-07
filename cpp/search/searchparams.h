@@ -144,7 +144,26 @@ struct SearchParams {
   double futileVisitsThreshold; //If a move would not be able to match this proportion of the max visits move in the time or visit or playout cap remaining, prune it.
 
   //Human SL network
-  SGFMetadata humanSLProfile;
+  SGFMetadata humanSLProfile;  //For any human SL model, make the net predict this rank / source / profile of player.
+  double humanSLCpuctExploration;  //Use this cpuct for -human-model. This divided by sqrt(visits) is the utility diff to majorly affect the posterior.
+  double humanSLCpuctPermanent;    //Same, but multiplied by sqrt(visits). This is the utility diff to majorly affect the posterior.
+
+  //Probability that a playout selects a move using the human SL net instead of the main net.
+  //Weightless - search the move to better judge it but do NOT weight that playout for the parent's value.
+  //Weightful - search the move and DO weight that playout for the parent's value. (Note: consider disabling useNoisePruning, which uses katago's policy).
+  double humanSLRootExploreProbWeightless;
+  double humanSLRootExploreProbWeightful;
+  double humanSLPlaExploreProbWeightless;
+  double humanSLPlaExploreProbWeightful;
+  double humanSLOppExploreProbWeightless;
+  double humanSLOppExploreProbWeightful;
+
+  //These two are PRIOR to the normal chosenMoveTemperature.
+  double humanSLChosenMoveProp; //Proportion of final move selection probability using human SL policy
+  double humanSLChosenMovePiklLambda; //Shift the final move selection significantly in response to utility differences this large.
+
+  //Tenuki factor vs local factor (upweight moves far from any recent history)
+  //Invadey factor (prefer moves in the opponent's not entirely certain area, downweight moves in own not entirely certain area)
 
 
   SearchParams();

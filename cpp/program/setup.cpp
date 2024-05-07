@@ -707,6 +707,37 @@ vector<SearchParams> Setup::loadParams(
       params.humanSLProfile = SGFMetadata::getProfile(humanSLProfileName);
     }
 
+    if(cfg.contains("humanSLCpuctExploration"+idxStr)) params.humanSLCpuctExploration = cfg.getDouble("humanSLCpuctExploration"+idxStr, 0.0, 1000.0);
+    else if(cfg.contains("humanSLCpuctExploration"))   params.humanSLCpuctExploration = cfg.getDouble("humanSLCpuctExploration",        0.0, 1000.0);
+    else                                               params.humanSLCpuctExploration = 1.0;
+    if(cfg.contains("humanSLCpuctPermanent"+idxStr)) params.humanSLCpuctPermanent = cfg.getDouble("humanSLCpuctPermanent"+idxStr, 0.0, 1000.0);
+    else if(cfg.contains("humanSLCpuctPermanent"))   params.humanSLCpuctPermanent = cfg.getDouble("humanSLCpuctPermanent",        0.0, 1000.0);
+    else                                             params.humanSLCpuctPermanent = 0.0;
+    if(cfg.contains("humanSLRootExploreProbWeightless"+idxStr)) params.humanSLRootExploreProbWeightless = cfg.getDouble("humanSLRootExploreProbWeightless"+idxStr, 0.0, 1.0);
+    else if(cfg.contains("humanSLRootExploreProbWeightless"))   params.humanSLRootExploreProbWeightless = cfg.getDouble("humanSLRootExploreProbWeightless",        0.0, 1.0);
+    else                                                        params.humanSLRootExploreProbWeightless = 0.0;
+    if(cfg.contains("humanSLRootExploreProbWeightful"+idxStr)) params.humanSLRootExploreProbWeightful = cfg.getDouble("humanSLRootExploreProbWeightful"+idxStr, 0.0, 1.0);
+    else if(cfg.contains("humanSLRootExploreProbWeightful"))   params.humanSLRootExploreProbWeightful = cfg.getDouble("humanSLRootExploreProbWeightful",        0.0, 1.0);
+    else                                                       params.humanSLRootExploreProbWeightful = 0.0;
+    if(cfg.contains("humanSLPlaExploreProbWeightless"+idxStr)) params.humanSLPlaExploreProbWeightless = cfg.getDouble("humanSLPlaExploreProbWeightless"+idxStr, 0.0, 1.0);
+    else if(cfg.contains("humanSLPlaExploreProbWeightless"))   params.humanSLPlaExploreProbWeightless = cfg.getDouble("humanSLPlaExploreProbWeightless",        0.0, 1.0);
+    else                                                       params.humanSLPlaExploreProbWeightless = 0.0;
+    if(cfg.contains("humanSLPlaExploreProbWeightful"+idxStr)) params.humanSLPlaExploreProbWeightful = cfg.getDouble("humanSLPlaExploreProbWeightful"+idxStr, 0.0, 1.0);
+    else if(cfg.contains("humanSLPlaExploreProbWeightful"))   params.humanSLPlaExploreProbWeightful = cfg.getDouble("humanSLPlaExploreProbWeightful",        0.0, 1.0);
+    else                                                      params.humanSLPlaExploreProbWeightful = 0.0;
+    if(cfg.contains("humanSLOppExploreProbWeightless"+idxStr)) params.humanSLOppExploreProbWeightless = cfg.getDouble("humanSLOppExploreProbWeightless"+idxStr, 0.0, 1.0);
+    else if(cfg.contains("humanSLOppExploreProbWeightless"))   params.humanSLOppExploreProbWeightless = cfg.getDouble("humanSLOppExploreProbWeightless",        0.0, 1.0);
+    else                                                       params.humanSLOppExploreProbWeightless = 0.0;
+    if(cfg.contains("humanSLOppExploreProbWeightful"+idxStr)) params.humanSLOppExploreProbWeightful = cfg.getDouble("humanSLOppExploreProbWeightful"+idxStr, 0.0, 1.0);
+    else if(cfg.contains("humanSLOppExploreProbWeightful"))   params.humanSLOppExploreProbWeightful = cfg.getDouble("humanSLOppExploreProbWeightful",        0.0, 1.0);
+    else                                                      params.humanSLOppExploreProbWeightful = 0.0;
+    if(cfg.contains("humanSLChosenMoveProp"+idxStr)) params.humanSLChosenMoveProp = cfg.getDouble("humanSLChosenMoveProp"+idxStr, 0.0, 1.0);
+    else if(cfg.contains("humanSLChosenMoveProp"))   params.humanSLChosenMoveProp = cfg.getDouble("humanSLChosenMoveProp",        0.0, 1.0);
+    else                                             params.humanSLChosenMoveProp = 0.0;
+    if(cfg.contains("humanSLChosenMovePiklLambda"+idxStr)) params.humanSLChosenMovePiklLambda = cfg.getDouble("humanSLChosenMovePiklLambda"+idxStr, 0.0, 1000000000.0);
+    else if(cfg.contains("humanSLChosenMovePiklLambda"))   params.humanSLChosenMovePiklLambda = cfg.getDouble("humanSLChosenMovePiklLambda",        0.0, 1000000000.0);
+    else                                                   params.humanSLChosenMovePiklLambda = 1000000000.0;
+
     //On distributed, tolerate reading mutexPoolSize since older version configs use it.
     if(setupFor == SETUP_FOR_DISTRIBUTED)
       cfg.markAllKeysUsedWithPrefix("mutexPoolSize");

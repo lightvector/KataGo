@@ -646,6 +646,14 @@ void Search::beginSearch(bool pondering) {
     //old probabilities without a lot of new search, so clearing ensures a better distribution.
     if(searchParams.avoidRepeatedPatternUtility != 0 || externalPatternBonusTable != nullptr)
       clearSearch();
+    //If we have a human SL net and the parameters are different for the different sides, clear the search.
+    if(humanEvaluator != NULL) {
+      if((searchParams.humanSLPlaExploreProbWeightless != searchParams.humanSLOppExploreProbWeightless) ||
+         (searchParams.humanSLPlaExploreProbWeightful != searchParams.humanSLOppExploreProbWeightful) ||
+         (searchParams.humanSLPlaExploreProbWeightless != searchParams.humanSLRootExploreProbWeightless) ||
+         (searchParams.humanSLPlaExploreProbWeightful != searchParams.humanSLRootExploreProbWeightful))
+        clearSearch();
+    }
   }
   plaThatSearchIsForLastSearch = plaThatSearchIsFor;
   //cout << "BEGINSEARCH " << PlayerIO::playerToString(rootPla) << " " << PlayerIO::playerToString(plaThatSearchIsFor) << endl;
@@ -1178,10 +1186,11 @@ bool Search::playoutDescend(
   int numChildrenFound;
   int bestChildIdx;
   Loc bestChildMoveLoc;
+  bool countEdgeVisit;
 
   SearchNode* child = NULL;
   while(true) {
-    selectBestChildToDescend(thread,node,nodeState,numChildrenFound,bestChildIdx,bestChildMoveLoc,isRoot);
+    selectBestChildToDescend(thread,node,nodeState,numChildrenFound,bestChildIdx,bestChildMoveLoc,countEdgeVisit,isRoot);
 
     //The absurdly rare case that the move chosen is not legal
     //(this should only happen either on a bug or where the nnHash doesn't have full legality information or when there's an actual hash collision).
@@ -1282,7 +1291,8 @@ bool Search::playoutDescend(
 
       //If edge visits is too much smaller than the child's visits, we can avoid descending.
       //Instead just add edge visits and treat that as a visit.
-      if(maybeCatchUpEdgeVisits(thread, node, child, nodeState, bestChildIdx)) {
+      //If we're not counting edge visits, then we're deliberately trying to add child visits beyond edge visits, skip
+      if(countEdgeVisit && maybeCatchUpEdgeVisits(thread, node, child, nodeState, bestChildIdx)) {
         updateStatsAfterPlayout(node,thread,isRoot);
         child->virtualLosses.fetch_add(-1,std::memory_order_release);
         return true;
@@ -1298,7 +1308,8 @@ bool Search::playoutDescend(
 
       //If edge visits is too much smaller than the child's visits, we can avoid descending.
       //Instead just add edge visits and treat that as a visit.
-      if(maybeCatchUpEdgeVisits(thread, node, child, nodeState, bestChildIdx)) {
+      //If we're not counting edge visits, then we're deliberately trying to add child visits beyond edge visits, skip
+      if(countEdgeVisit && maybeCatchUpEdgeVisits(thread, node, child, nodeState, bestChildIdx)) {
         updateStatsAfterPlayout(node,thread,isRoot);
         child->virtualLosses.fetch_add(-1,std::memory_order_release);
         return true;
@@ -1324,18 +1335,23 @@ bool Search::playoutDescend(
     std::pair<std::unordered_set<SearchNode*>::iterator,bool> result = thread.graphPath.insert(child);
     //No insertion, child was already there
     if(!result.second) {
-      SearchNodeChildrenReference children = node.getChildren(nodeState);
-      children[bestChildIdx].addEdgeVisits(1);
-      updateStatsAfterPlayout(node,thread,isRoot);
+      if(countEdgeVisit) {
+        SearchNodeChildrenReference children = node.getChildren(nodeState);
+        children[bestChildIdx].addEdgeVisits(1);
+        updateStatsAfterPlayout(node,thread,isRoot);
+      }
       child->virtualLosses.fetch_add(-1,std::memory_order_release);
-      return true;
+      // If we didn't count an edge visit, none of the parents need to update either.
+      return countEdgeVisit;
     }
   }
 
   //Recurse!
-  bool finishedPlayout = playoutDescend(thread,*child,false);
+  bool shouldUpdateChildAncestors = playoutDescend(thread,*child,false);
+
   //Update this node stats
-  if(finishedPlayout) {
+  shouldUpdateChildAncestors = shouldUpdateChildAncestors && countEdgeVisit;
+  if(shouldUpdateChildAncestors) {
     nodeState = node.state.load(std::memory_order_acquire);
     SearchNodeChildrenReference children = node.getChildren(nodeState);
     children[bestChildIdx].addEdgeVisits(1);
@@ -1343,7 +1359,7 @@ bool Search::playoutDescend(
   }
   child->virtualLosses.fetch_add(-1,std::memory_order_release);
 
-  return finishedPlayout;
+  return shouldUpdateChildAncestors;
 }
 
 

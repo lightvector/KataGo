@@ -222,6 +222,9 @@ static SGFMetadata makeModernProProfile(SimpleDate date) {
 }
 
 SGFMetadata SGFMetadata::getProfile(const string& humanSLProfileName) {
+  if(humanSLProfileName == "")
+    return SGFMetadata();
+
   if(Global::isPrefix(humanSLProfileName,"proyear_")) {
     string yearStr = Global::chopPrefix(humanSLProfileName,"proyear_");
     int year;
