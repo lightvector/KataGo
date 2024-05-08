@@ -310,7 +310,7 @@ bool Search::getPlaySelectionValues(
     }
   }
 
-  //Average in human policy
+  // Average in human policy
   if(humanEvaluator != NULL && searchParams.humanSLChosenMoveProp > 0.0) {
     const NNOutput* humanOutput = node.getHumanOutput();
     const float* humanProbs = humanOutput != NULL ? humanOutput->getPolicyProbsMaybeNoised() : NULL;
@@ -379,10 +379,32 @@ bool Search::getPlaySelectionValues(
           shiftedPolicy[loc] /= shiftedPolicySum;
 
         double playSelectionValueSum = 0.0;
-        for(double psv: playSelectionValues)
-          playSelectionValueSum += psv;
-        for(int i = 0; i<numChildren; i++)
+        double playSelectionValueNonPassSum = 0.0;
+        for(int i = 0; i<numChildren; i++) {
+          playSelectionValueSum += playSelectionValues[i];
+          if(locs[i] != Board::PASS_LOC)
+            playSelectionValueNonPassSum += playSelectionValues[i];
+        }
+
+        if(searchParams.humanSLChosenMoveIgnorePass) {
+          double shiftedPolicyNonPassSum = 0.0;
+          for(Loc loc: locs) {
+            if(loc != Board::PASS_LOC)
+              shiftedPolicyNonPassSum += shiftedPolicy[loc];
+          }
+          if(shiftedPolicyNonPassSum > 0.0) {
+            for(Loc loc: locs) {
+              if(loc != Board::PASS_LOC)
+                shiftedPolicy[loc] = shiftedPolicy[loc] / shiftedPolicyNonPassSum * playSelectionValueNonPassSum / playSelectionValueSum;
+              else
+                shiftedPolicy[loc] = (playSelectionValueSum - playSelectionValueNonPassSum) / playSelectionValueSum;
+            }
+          }
+        }
+
+        for(int i = 0; i<numChildren; i++) {
           playSelectionValues[i] += searchParams.humanSLChosenMoveProp * (playSelectionValueSum * shiftedPolicy[locs[i]] - playSelectionValues[i]);
+        }
       }
     }
   }

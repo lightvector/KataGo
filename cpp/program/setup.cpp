@@ -734,6 +734,9 @@ vector<SearchParams> Setup::loadParams(
     if(cfg.contains("humanSLChosenMoveProp"+idxStr)) params.humanSLChosenMoveProp = cfg.getDouble("humanSLChosenMoveProp"+idxStr, 0.0, 1.0);
     else if(cfg.contains("humanSLChosenMoveProp"))   params.humanSLChosenMoveProp = cfg.getDouble("humanSLChosenMoveProp",        0.0, 1.0);
     else                                             params.humanSLChosenMoveProp = 0.0;
+    if(cfg.contains("humanSLChosenMoveIgnorePass"+idxStr)) params.humanSLChosenMoveIgnorePass = cfg.getBool("humanSLChosenMoveIgnorePass"+idxStr);
+    else if(cfg.contains("humanSLChosenMoveIgnorePass"))   params.humanSLChosenMoveIgnorePass = cfg.getBool("humanSLChosenMoveIgnorePass");
+    else                                                   params.humanSLChosenMoveIgnorePass = false;
     if(cfg.contains("humanSLChosenMovePiklLambda"+idxStr)) params.humanSLChosenMovePiklLambda = cfg.getDouble("humanSLChosenMovePiklLambda"+idxStr, 0.0, 1000000000.0);
     else if(cfg.contains("humanSLChosenMovePiklLambda"))   params.humanSLChosenMovePiklLambda = cfg.getDouble("humanSLChosenMovePiklLambda",        0.0, 1000000000.0);
     else                                                   params.humanSLChosenMovePiklLambda = 1000000000.0;

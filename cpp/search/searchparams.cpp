@@ -107,6 +107,7 @@ SearchParams::SearchParams()
    humanSLOppExploreProbWeightless(0.0),
    humanSLOppExploreProbWeightful(0.0),
    humanSLChosenMoveProp(0.0),
+   humanSLChosenMoveIgnorePass(false),
    humanSLChosenMovePiklLambda(1000000000.0)
 {}
 
@@ -360,6 +361,7 @@ void SearchParams::printParams(std::ostream& out) {
   PRINTPARAM(humanSLOppExploreProbWeightless);
   PRINTPARAM(humanSLOppExploreProbWeightful);
   PRINTPARAM(humanSLChosenMoveProp);
+  PRINTPARAM(humanSLChosenMoveIgnorePass);
   PRINTPARAM(humanSLChosenMovePiklLambda);
 
 }
