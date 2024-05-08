@@ -1361,6 +1361,13 @@ struct GTPEngine {
       SearchParams tmpParams = params;
       tmpParams.playoutDoublingAdvantage = 0.0;
       tmpParams.conservativePass = true;
+      tmpParams.humanSLChosenMoveProp = 0.0;
+      tmpParams.humanSLRootExploreProbWeightful = 0.0;
+      tmpParams.humanSLRootExploreProbWeightless = 0.0;
+      tmpParams.humanSLPlaExploreProbWeightful = 0.0;
+      tmpParams.humanSLPlaExploreProbWeightless = 0.0;
+      tmpParams.humanSLOppExploreProbWeightful = 0.0;
+      tmpParams.humanSLOppExploreProbWeightless = 0.0;
       bot->setParams(tmpParams);
     }
 
@@ -1407,6 +1414,22 @@ struct GTPEngine {
   vector<bool> computeAnticipatedStatuses() {
     stopAndWait();
 
+    //No playoutDoublingAdvantage to avoid bias
+    //Also never assume the game will end abruptly due to pass
+    {
+      SearchParams tmpParams = params;
+      tmpParams.playoutDoublingAdvantage = 0.0;
+      tmpParams.conservativePass = true;
+      tmpParams.humanSLChosenMoveProp = 0.0;
+      tmpParams.humanSLRootExploreProbWeightful = 0.0;
+      tmpParams.humanSLRootExploreProbWeightless = 0.0;
+      tmpParams.humanSLPlaExploreProbWeightful = 0.0;
+      tmpParams.humanSLPlaExploreProbWeightless = 0.0;
+      tmpParams.humanSLOppExploreProbWeightful = 0.0;
+      tmpParams.humanSLOppExploreProbWeightless = 0.0;
+      bot->setParams(tmpParams);
+    }
+
     //Make absolutely sure we can restore the bot's old state
     const Player oldPla = bot->getRootPla();
     const Board oldBoard = bot->getRootBoard();
@@ -1433,6 +1456,7 @@ struct GTPEngine {
 
     //Restore
     bot->setPosition(oldPla,oldBoard,oldHist);
+    bot->setParams(params);
 
     return isAlive;
   }
