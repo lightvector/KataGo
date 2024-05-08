@@ -307,7 +307,7 @@ def main(args):
         write_matmul(name+".mul2", encoder.linear2.weight)
         write_matbias(name+".mul2", encoder.linear2.bias)
         write_activation(name+".act2", encoder.act2)
-        write_matmul(name+".mul3", encoder.linear_output_to_trunk.weight)
+        write_matmul(name+".mul3", encoder.out_scale * encoder.linear_output_to_trunk.weight)
         assert encoder.linear_output_to_trunk.bias is None
 
     def write_trunk(name,model):
