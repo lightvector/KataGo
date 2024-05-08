@@ -1502,7 +1502,7 @@ struct GTPEngine {
           NNResultBuf buf;
           bool skipCache = true;
           bool includeOwnerMap = false;
-          nnEval->evaluate(board,hist,pla,nnInputParams,buf,skipCache,includeOwnerMap);
+          nnEval->evaluate(board,hist,pla,&params.humanSLProfile,nnInputParams,buf,skipCache,includeOwnerMap);
 
           NNOutput* nnOutput = buf.result.get();
           wlStr += Global::strprintf("%.2fc ", 100.0 * (nnOutput->whiteWinProb - nnOutput->whiteLossProb));
@@ -1518,7 +1518,7 @@ struct GTPEngine {
           NNResultBuf buf;
           bool skipCache = true;
           bool includeOwnerMap = false;
-          nnEval->evaluate(prevBoard,prevHist,prevPla,nnInputParams,buf,skipCache,includeOwnerMap);
+          nnEval->evaluate(prevBoard,prevHist,prevPla,&params.humanSLProfile,nnInputParams,buf,skipCache,includeOwnerMap);
 
           NNOutput* nnOutput = buf.result.get();
           int pos = NNPos::locToPos(prevLoc,board.x_size,nnOutput->nnXLen,nnOutput->nnYLen);
@@ -1549,7 +1549,7 @@ struct GTPEngine {
         NNResultBuf buf;
         bool skipCache = true;
         bool includeOwnerMap = true;
-        nnEval->evaluate(board,hist,nextPla,nnInputParams,buf,skipCache,includeOwnerMap);
+        nnEval->evaluate(board,hist,nextPla,&params.humanSLProfile,nnInputParams,buf,skipCache,includeOwnerMap);
 
         NNOutput* nnOutput = buf.result.get();
         out << "symmetry " << symmetry << endl;
