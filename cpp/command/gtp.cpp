@@ -2083,8 +2083,29 @@ int MainCmds::gtp(const vector<string>& args) {
     else if(command == "version") {
       if(overrideVersion.size() > 0)
         response = overrideVersion;
-      else
+      else {
         response = Version::getKataGoVersion();
+
+        string shortPrefix;
+        if(engine->nnEval != NULL) {
+          string modelName = engine->nnEval->getInternalModelName();
+          if(Global::isPrefix(modelName,"kata1-"))
+            modelName = Global::chopPrefix(modelName,"kata1-");
+          if(modelName.size() > 2) {
+            size_t c = 1;
+            while(c < modelName.size() && Global::isDigit(modelName[c]))
+              c += 1;
+            shortPrefix = modelName.substr(0,c);
+          }
+
+          if(engine->humanEval != NULL || modelName.find("human") != std::string::npos) {
+            response += " " + shortPrefix + "+HumanSL";
+          }
+          else if(shortPrefix.size() > 0) {
+            response += " " + shortPrefix;
+          }
+        }
+      }
     }
 
     else if(command == "known_command") {
