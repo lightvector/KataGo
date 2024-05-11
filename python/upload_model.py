@@ -120,7 +120,12 @@ url = base_server_url + "api/networks/"
 
 with open(model_file,"rb") as model_file_handle:
     with open(model_zip,"rb") as model_zip_handle:
-        log_gamma_offset = -1.0 if network_size == "b60c320" else 0.0
+        log_gamma_offset = 0
+        if network_size == "b60c320":
+            log_gamma_offset = -1.5
+        elif network_size == "b28c512nbt":
+            log_gamma_offset = -1.2
+
         data = {
             "run": (None, base_server_url + "api/runs/" + run_name + "/"),
             "name": (None, model_name),
