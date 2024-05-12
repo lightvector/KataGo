@@ -566,7 +566,14 @@ Loc Search::getChosenMoveLoc() {
     searchParams.chosenMoveTemperatureHalflife, searchParams.chosenMoveTemperatureEarly, searchParams.chosenMoveTemperature
   );
 
-  uint32_t idxChosen = chooseIndexWithTemperature(nonSearchRand, playSelectionValues.data(), (int)playSelectionValues.size(), temperature);
+  uint32_t idxChosen = chooseIndexWithTemperature(
+    nonSearchRand,
+    playSelectionValues.data(),
+    (int)playSelectionValues.size(),
+    temperature,
+    searchParams.chosenMoveTemperatureOnlyBelowProb,
+    NULL
+  );
   return locs[idxChosen];
 }
 

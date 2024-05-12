@@ -51,6 +51,7 @@ SearchParams::SearchParams()
    chosenMoveTemperature(0.0),
    chosenMoveTemperatureEarly(0.0),
    chosenMoveTemperatureHalflife(19),
+   chosenMoveTemperatureOnlyBelowProb(1.0),
    chosenMoveSubtract(0.0),
    chosenMovePrune(1.0),
    useLcbForSelection(false),
@@ -283,6 +284,7 @@ void SearchParams::printParams(std::ostream& out) {
   PRINTPARAM(chosenMoveTemperature);
   PRINTPARAM(chosenMoveTemperatureEarly);
   PRINTPARAM(chosenMoveTemperatureHalflife);
+  PRINTPARAM(chosenMoveTemperatureOnlyBelowProb);
   PRINTPARAM(chosenMoveSubtract);
   PRINTPARAM(chosenMovePrune);
 

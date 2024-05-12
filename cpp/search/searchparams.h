@@ -71,6 +71,7 @@ struct SearchParams {
   double chosenMoveTemperature; //Make move roughly proportional to visit count ** (1/chosenMoveTemperature)
   double chosenMoveTemperatureEarly; //Temperature at start of game
   double chosenMoveTemperatureHalflife; //Halflife of decay from early temperature to temperature for the rest of the game, scales for board sizes other than 19.
+  double chosenMoveTemperatureOnlyBelowProb; //chosenMoveTemperature only begins dampening moves that pre-temperature are less likely than this.
   double chosenMoveSubtract; //Try to subtract this many visits from every move prior to applying temperature
   double chosenMovePrune; //Outright prune moves that have fewer than this many visits
 
@@ -158,7 +159,7 @@ struct SearchParams {
   double humanSLOppExploreProbWeightless;
   double humanSLOppExploreProbWeightful;
 
-  //These two are PRIOR to the normal chosenMoveTemperature.
+  //These three are PRIOR to the normal chosenMoveTemperature.
   double humanSLChosenMoveProp; //Proportion of final move selection probability using human SL policy
   bool humanSLChosenMoveIgnorePass; //If true, ignore human SL pass probability and use KataGo's passing logic
   double humanSLChosenMovePiklLambda; //Shift the final move selection significantly in response to utility differences this large.

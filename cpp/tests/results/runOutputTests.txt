@@ -20512,6 +20512,58 @@ Chosen move: null
 : GPU 0 finishing, processed 0 rows 0 batches
 
 ===================================================================
+Chosen move probs
+===================================================================
+Temperature 1 onlyBelowProb 1
+0.25
+0.125
+1
+0.5
+0.0625
+0.0625
+Temperature 1 onlyBelowProb 0.2
+0.25
+0.125
+1
+0.5
+0.0625
+0.0625
+Temperature 0.5 onlyBelowProb 1
+0.0625
+0.015625
+1
+0.25
+0.00390625
+0.00390625
+Temperature 0.5 onlyBelowProb 0.2
+0.15625
+0.0390625
+1
+0.5
+0.00976563
+0.00976563
+Temperature 2 onlyBelowProb 0.2
+0.316228
+0.223607
+1
+0.5
+0.158114
+0.158114
+Temperature 100000 onlyBelowProb 0.2
+0.399998
+0.399995
+1
+0.5
+0.399993
+0.399993
+Temperature 1e-05 onlyBelowProb 0.2
+0
+0
+1
+0.5
+0
+0
+===================================================================
 Uninitialized search params
 ===================================================================
 winLossUtilityFactor: 1
@@ -20558,6 +20610,7 @@ rootPolicyOptimism: 0
 chosenMoveTemperature: 0
 chosenMoveTemperatureEarly: 0
 chosenMoveTemperatureHalflife: 19
+chosenMoveTemperatureOnlyBelowProb: 1
 chosenMoveSubtract: 0
 chosenMovePrune: 1
 useLcbForSelection: 0
@@ -20613,6 +20666,7 @@ humanSLPlaExploreProbWeightful: 0
 humanSLOppExploreProbWeightless: 0
 humanSLOppExploreProbWeightful: 0
 humanSLChosenMoveProp: 0
+humanSLChosenMoveIgnorePass: 0
 humanSLChosenMovePiklLambda: 1e+09
 
 ===================================================================
@@ -20662,6 +20716,7 @@ rootPolicyOptimism: 0
 chosenMoveTemperature: 0
 chosenMoveTemperatureEarly: 0
 chosenMoveTemperatureHalflife: 19
+chosenMoveTemperatureOnlyBelowProb: 1
 chosenMoveSubtract: 0
 chosenMovePrune: 1
 useLcbForSelection: 1
@@ -20717,6 +20772,7 @@ humanSLPlaExploreProbWeightful: 0
 humanSLOppExploreProbWeightless: 0
 humanSLOppExploreProbWeightful: 0
 humanSLChosenMoveProp: 0
+humanSLChosenMoveIgnorePass: 0
 humanSLChosenMovePiklLambda: 1e+09
 
 ===================================================================
@@ -20766,6 +20822,7 @@ rootPolicyOptimism: 0.2
 chosenMoveTemperature: 0.1
 chosenMoveTemperatureEarly: 0.5
 chosenMoveTemperatureHalflife: 19
+chosenMoveTemperatureOnlyBelowProb: 1
 chosenMoveSubtract: 0
 chosenMovePrune: 1
 useLcbForSelection: 1
@@ -20821,6 +20878,7 @@ humanSLPlaExploreProbWeightful: 0
 humanSLOppExploreProbWeightless: 0
 humanSLOppExploreProbWeightful: 0
 humanSLChosenMoveProp: 0
+humanSLChosenMoveIgnorePass: 0
 humanSLChosenMovePiklLambda: 1e+09
 
 ===================================================================
@@ -20870,6 +20928,7 @@ rootPolicyOptimism: 0.2
 chosenMoveTemperature: 0.1
 chosenMoveTemperatureEarly: 0.5
 chosenMoveTemperatureHalflife: 19
+chosenMoveTemperatureOnlyBelowProb: 1
 chosenMoveSubtract: 0
 chosenMovePrune: 1
 useLcbForSelection: 1
@@ -20925,6 +20984,7 @@ humanSLPlaExploreProbWeightful: 0
 humanSLOppExploreProbWeightless: 0
 humanSLOppExploreProbWeightful: 0
 humanSLChosenMoveProp: 0
+humanSLChosenMoveIgnorePass: 0
 humanSLChosenMovePiklLambda: 1e+09
 
 ===================================================================
@@ -20974,6 +21034,7 @@ rootPolicyOptimism: 0.2
 chosenMoveTemperature: 0.1
 chosenMoveTemperatureEarly: 0.5
 chosenMoveTemperatureHalflife: 19
+chosenMoveTemperatureOnlyBelowProb: 1
 chosenMoveSubtract: 0
 chosenMovePrune: 1
 useLcbForSelection: 1
@@ -21029,6 +21090,7 @@ humanSLPlaExploreProbWeightful: 0
 humanSLOppExploreProbWeightless: 0
 humanSLOppExploreProbWeightful: 0
 humanSLChosenMoveProp: 0
+humanSLChosenMoveIgnorePass: 0
 humanSLChosenMovePiklLambda: 1e+09
 
 ===================================================================
@@ -21078,6 +21140,7 @@ rootPolicyOptimism: 0.2
 chosenMoveTemperature: 0.1
 chosenMoveTemperatureEarly: 0.5
 chosenMoveTemperatureHalflife: 19
+chosenMoveTemperatureOnlyBelowProb: 1
 chosenMoveSubtract: 0
 chosenMovePrune: 1
 useLcbForSelection: 1
@@ -21133,6 +21196,7 @@ humanSLPlaExploreProbWeightful: 0
 humanSLOppExploreProbWeightless: 0
 humanSLOppExploreProbWeightful: 0
 humanSLChosenMoveProp: 0
+humanSLChosenMoveIgnorePass: 0
 humanSLChosenMovePiklLambda: 1e+09
 
 ===================================================================
@@ -21182,6 +21246,7 @@ rootPolicyOptimism: 0
 chosenMoveTemperature: 0.1
 chosenMoveTemperatureEarly: 0.5
 chosenMoveTemperatureHalflife: 19
+chosenMoveTemperatureOnlyBelowProb: 1
 chosenMoveSubtract: 0
 chosenMovePrune: 1
 useLcbForSelection: 1
@@ -21237,6 +21302,7 @@ humanSLPlaExploreProbWeightful: 0
 humanSLOppExploreProbWeightless: 0
 humanSLOppExploreProbWeightful: 0
 humanSLChosenMoveProp: 0
+humanSLChosenMoveIgnorePass: 0
 humanSLChosenMovePiklLambda: 1e+09
 
 ===================================================================
@@ -21286,6 +21352,7 @@ rootPolicyOptimism: 0
 chosenMoveTemperature: 0.1
 chosenMoveTemperatureEarly: 0.5
 chosenMoveTemperatureHalflife: 19
+chosenMoveTemperatureOnlyBelowProb: 1
 chosenMoveSubtract: 0
 chosenMovePrune: 1
 useLcbForSelection: 1
@@ -21341,6 +21408,7 @@ humanSLPlaExploreProbWeightful: 0
 humanSLOppExploreProbWeightless: 0
 humanSLOppExploreProbWeightful: 0
 humanSLChosenMoveProp: 0
+humanSLChosenMoveIgnorePass: 0
 humanSLChosenMovePiklLambda: 1e+09
 
 ===================================================================

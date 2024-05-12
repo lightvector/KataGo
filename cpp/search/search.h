@@ -417,7 +417,9 @@ private:
   // searchhelpers.cpp
   //----------------------------------------------------------------------------------------
 public:
-  static uint32_t chooseIndexWithTemperature(Rand& rand, const double* relativeProbs, int numRelativeProbs, double temperature);
+  static uint32_t chooseIndexWithTemperature(
+    Rand& rand, const double* relativeProbs, int numRelativeProbs, double temperature, double onlyBelowProb, double* processedRelProbsBuf
+  );
   static void computeDirichletAlphaDistribution(int policySize, const float* policyProbs, double* alphaDistr);
   static void addDirichletNoise(const SearchParams& searchParams, Rand& rand, int policySize, float* policyProbs);
 private:
