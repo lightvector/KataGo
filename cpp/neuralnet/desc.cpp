@@ -1218,7 +1218,7 @@ ModelDesc::ModelDesc(istream& in, const string& sha256_, bool binaryFloats) {
         Global::intToString(metaEncoderVersion)
       );
     numInputMetaChannels = NNModelVersion::getNumInputMetaChannels(metaEncoderVersion);
-    if(numInputMetaChannels != SGFMetadata::METADATA_INPUT_NUM_CHANNELS) {
+    if(metaEncoderVersion > 0 && numInputMetaChannels != SGFMetadata::METADATA_INPUT_NUM_CHANNELS) {
       throw StringError(
         name + Global::strprintf(
           ": numInputMetaChannels (%d) != METADATA_INPUT_NUM_CHANNELS (%d)",
