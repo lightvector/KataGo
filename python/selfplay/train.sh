@@ -11,7 +11,7 @@ if [[ $# -lt 5 ]]
 then
     echo "Usage: $0 BASEDIR TRAININGNAME MODELKIND BATCHSIZE EXPORTMODE OTHERARGS"
     echo "BASEDIR containing selfplay data and models and related directories"
-    echo "TRANINGNAME name to prefix models with, specific to this training daemon"
+    echo "TRAININGNAME name to prefix models with, specific to this training daemon"
     echo "MODELKIND what size model to train, like b10c128, see ../modelconfigs.py"
     echo "BATCHSIZE number of samples to concat together per batch for training, must match shuffle"
     echo "EXPORTMODE 'main': train and export for selfplay. 'extra': train and export extra non-selfplay model. 'trainonly': train without export"
