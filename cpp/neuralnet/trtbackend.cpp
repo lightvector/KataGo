@@ -924,10 +924,14 @@ struct TRTLogger : ILogger {
       std::cerr << ("TensorRT backend: " + string(msg)) << std::endl;
     }
     if(severity == Severity::kERROR) {
-      if(string(msg).find("Cask convolution") != std::string::npos)
-        Global::fatalError("TensorRT backend fatal error: " + string(msg));
-      if(string(msg).find("Cask Convolution") != std::string::npos)
-        Global::fatalError("TensorRT backend fatal error: " + string(msg));
+      if((string(msg).find("Cask convolution") != std::string::npos) ||
+         (string(msg).find("Cask Convolution") != std::string::npos) ||
+         (string(msg).find("elementWiseRunner.cpp") != std::string::npos) ||
+         (string(msg).find("convBaseRunner.cpp") != std::string::npos) ||
+         (string(msg).find("Cuda Runtime") != std::string::npos)
+      ) {
+         Global::fatalError("TensorRT backend fatal error: " + string(msg));
+      }
     }
   }
 
@@ -981,6 +985,9 @@ struct TRTErrorRecorder : IErrorRecorder {
       (val != ErrorCode::kUNSPECIFIED_ERROR && val != ErrorCode::kSUCCESS)
       || (errors[errors.size()-1].second.find("Cask convolution") != std::string::npos)
       || (errors[errors.size()-1].second.find("Cask Convolution") != std::string::npos)
+      || (errors[errors.size()-1].second.find("elementWiseRunner.cpp") != std::string::npos)
+      || (errors[errors.size()-1].second.find("convBaseRunner.cpp") != std::string::npos)
+      || (errors[errors.size()-1].second.find("Cuda Runtime") != std::string::npos)
     ) {
       Global::fatalError("Fatal error reported from TensorRT: " + Global::intToString((int)val) + " " + std::string(desc));
     }
