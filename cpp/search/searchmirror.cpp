@@ -155,6 +155,7 @@ void Search::maybeApplyAntiMirrorPolicy(
 //to have bad values, and also tolerate us playing certain countering moves even if their values are a bit worse.
 void Search::maybeApplyAntiMirrorForcedExplore(
   double& childUtility,
+  double& childUtilityNoVL,
   const double parentUtility,
   const Loc moveLoc,
   const float* policyProbs,
@@ -219,15 +220,18 @@ void Search::maybeApplyAntiMirrorForcedExplore(
         proportionToBias /= mirrorCenterSymmetryError;
       }
 
+      double utilityToAdd = 0.0;
       if(thisChildWeight < proportionToDump * totalChildWeight) {
-        childUtility += (parent.nextPla == P_WHITE ? 100.0 : -100.0);
+        utilityToAdd += (parent.nextPla == P_WHITE ? 100.0 : -100.0);
       }
       if(thisChildWeight < proportionToBias * totalChildWeight) {
-        childUtility += (parent.nextPla == P_WHITE ? 0.18 : -0.18) * std::max(0.3, 1.0 - 0.7 * parentUtility * parentUtility);
+        utilityToAdd += (parent.nextPla == P_WHITE ? 0.18 : -0.18) * std::max(0.3, 1.0 - 0.7 * parentUtility * parentUtility);
       }
       if(thisChildWeight < 0.5 * proportionToBias * totalChildWeight) {
-        childUtility += (parent.nextPla == P_WHITE ? 0.36 : -0.36) * std::max(0.3, 1.0 - 0.7 * parentUtility * parentUtility);
+        utilityToAdd += (parent.nextPla == P_WHITE ? 0.36 : -0.36) * std::max(0.3, 1.0 - 0.7 * parentUtility * parentUtility);
       }
+      childUtility += utilityToAdd;
+      childUtilityNoVL += utilityToAdd;
     }
   }
   //Encourage us to find refuting moves, even if they look a little bad, in the difficult case
@@ -236,8 +240,10 @@ void Search::maybeApplyAntiMirrorForcedExplore(
     double proportionToDump = 0.0;
     if(isDifficult) {
       if(thread->board.isAdjacentToChain(moveLoc,centerLoc)) {
-        childUtility += (parent.nextPla == P_WHITE ? 0.75 : -0.75) / (1.0 + thread->board.getNumLiberties(centerLoc))
+        double utilityToAdd = (parent.nextPla == P_WHITE ? 0.75 : -0.75) / (1.0 + thread->board.getNumLiberties(centerLoc))
           / std::max(1.0,mirrorCenterSymmetryError) * std::max(0.3, 1.0 - 0.7 * parentUtility * parentUtility);
+        childUtility += utilityToAdd;
+        childUtilityNoVL += utilityToAdd;
         proportionToDump = 0.10 / thread->board.getNumLiberties(centerLoc);
       }
       int distanceSq = Location::euclideanDistanceSquared(moveLoc,centerLoc,xSize);
@@ -273,7 +279,9 @@ void Search::maybeApplyAntiMirrorForcedExplore(
     }
 
     if(thisChildWeight < proportionToDump * totalChildWeight) {
-      childUtility += (parent.nextPla == P_WHITE ? 100.0 : -100.0);
+      double utilityToAdd = (parent.nextPla == P_WHITE ? 100.0 : -100.0);
+      childUtility += utilityToAdd;
+      childUtilityNoVL += utilityToAdd;
     }
   }
 }

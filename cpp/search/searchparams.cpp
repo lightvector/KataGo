@@ -77,6 +77,9 @@ SearchParams::SearchParams()
    subtreeValueBiasWeightExponent(0.5),
    nodeTableShardsPowerOfTwo(16),
    numVirtualLossesPerThread(3.0),
+   suppressVirtualLossExploreFactor(1e10),
+   suppressVirtualLossHindsight(false),
+   suppressVirtualLossLeakCatchUp(false),
    numThreads(1),
    minPlayoutsPerThread(0.0),
    maxVisits(((int64_t)1) << 50),
@@ -307,6 +310,9 @@ void SearchParams::printParams(std::ostream& out) {
 
   PRINTPARAM(nodeTableShardsPowerOfTwo);
   PRINTPARAM(numVirtualLossesPerThread);
+  PRINTPARAM(suppressVirtualLossExploreFactor);
+  PRINTPARAM(suppressVirtualLossHindsight);
+  PRINTPARAM(suppressVirtualLossLeakCatchUp);
 
 
   PRINTPARAM(numThreads);
