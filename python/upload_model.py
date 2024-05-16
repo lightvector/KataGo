@@ -125,10 +125,10 @@ with open(model_file,"rb") as model_file_handle:
             log_gamma_offset = -1.5
         elif network_size == "b28c512nbt":
             log_gamma_offset = -1.1
-            rating_only = 0
+            rating_only = 1
         elif network_size == "b18c384nbt":
             log_gamma_offset = 0
-            rating_only = 1
+            rating_only = 0
 
         data = {
             "run": (None, base_server_url + "api/runs/" + run_name + "/"),
