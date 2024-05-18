@@ -20,6 +20,7 @@
 #include "../neuralnet/activations.h"
 
 #include "../core/simpleallocator.h"
+#include "../core/test.h"
 
 using namespace std;
 using Eigen::Tensor;
@@ -97,6 +98,10 @@ string NeuralNet::getModelName(const LoadedModel* loadedModel) {
 
 int NeuralNet::getModelVersion(const LoadedModel* loadedModel) {
   return loadedModel->modelDesc.modelVersion;
+}
+
+int NeuralNet::getNumInputMetaChannels(const LoadedModel* loadedModel) {
+  return loadedModel->modelDesc.numInputMetaChannels;
 }
 
 Rules NeuralNet::getSupportedRules(const LoadedModel* loadedModel, const Rules& desiredRules, bool& supported) {
@@ -1180,12 +1185,63 @@ void BlockStack::apply(
 
 // --------------------------------------------------------------------------------------------------------------
 
+struct SGFMetadataEncoder {
+  const string name;
+
+  const MatMulLayer mul1;
+  const MatBiasLayer bias1;
+  const ActivationLayer act1;
+  const MatMulLayer mul2;
+  const MatBiasLayer bias2;
+  const ActivationLayer act2;
+  const MatMulLayer mul3;
+
+  SGFMetadataEncoder() = delete;
+  SGFMetadataEncoder(const SGFMetadataEncoder&) = delete;
+  SGFMetadataEncoder& operator=(const SGFMetadataEncoder&) = delete;
+
+  SGFMetadataEncoder(const SGFMetadataEncoderDesc& desc)
+    : name(desc.name),
+      mul1(desc.mul1),
+      bias1(desc.bias1),
+      act1(desc.act1),
+      mul2(desc.mul2),
+      bias2(desc.bias2),
+      act2(desc.act2),
+      mul3(desc.mul3)
+  {}
+
+  void apply(
+    ScratchBuffers* scratch,
+    CONSTTENSORMAP2* input,
+    TENSORMAP2* output
+  ) const {
+    int batchSize = input->dimension(1);
+    SizedBuf<float*> internalBuf1(scratch->allocator, scratch->getBufSize(std::max(mul1.outChannels,mul2.outChannels)));
+    SizedBuf<float*> internalBuf2(scratch->allocator, scratch->getBufSize(std::max(mul1.outChannels,mul2.outChannels)));
+
+    TENSORMAP2 internal1(internalBuf1.buf, mul1.outChannels, batchSize);
+    TENSORMAP2 internal2(internalBuf2.buf, mul2.outChannels, batchSize);
+
+    mul1.apply(input, &internal1);
+    bias1.apply(&internal1);
+    act1.apply(&internal1, &internal1);
+    mul2.apply(&internal1, &internal2);
+    bias2.apply(&internal2);
+    act2.apply(&internal2, &internal2);
+    mul3.apply(&internal2, output);
+  }
+};
+
+// --------------------------------------------------------------------------------------------------------------
+
 struct Trunk {
   const string name;
   const int modelVersion;
 
   const ConvLayer initialConv;
   const MatMulLayer initialMatMul;
+  std::unique_ptr<SGFMetadataEncoder> sgfMetadataEncoder;
   const BlockStack blocks;
   const BatchNormLayer trunkTipBN;
 
@@ -1201,6 +1257,10 @@ struct Trunk {
       blocks(desc.blocks,desc.numBlocks,nnX,nnY),
       trunkTipBN(desc.trunkTipBN,desc.trunkTipActivation)
   {
+    if(desc.metaEncoderVersion > 0) {
+      sgfMetadataEncoder = std::make_unique<SGFMetadataEncoder>(desc.sgfMetadataEncoder);
+      testAssert(sgfMetadataEncoder->mul3.outChannels == initialMatMul.outChannels);
+    }
   }
 
   ~Trunk() {
@@ -1218,6 +1278,7 @@ struct Trunk {
     ScratchBuffers* scratch,
     CONSTTENSORMAP4* input,
     CONSTTENSORMAP2* inputGlobal,
+    CONSTTENSORMAP2* inputMeta,
     TENSORMAP4* trunk,
     CONSTTENSORMAP3* mask,
     const float* maskSum,
@@ -1232,6 +1293,14 @@ struct Trunk {
     initialConv.apply(handle, input, &trunkScratch, convWorkspace, false);
     initialMatMul.apply(inputGlobal, &inputMatMulOut);
     addNCBiasInplace(&trunkScratch, &inputMatMulOut);
+    if(sgfMetadataEncoder != nullptr) {
+      testAssert(inputMeta != NULL);
+      sgfMetadataEncoder->apply(scratch,inputMeta,&inputMatMulOut);
+      addNCBiasInplace(&trunkScratch, &inputMatMulOut);
+    }
+    else {
+      testAssert(inputMeta == NULL);
+    }
 
     // Flip trunkBuf and trunkScratchBuf so that the result gets accumulated in trunkScratchBuf
     blocks.apply(handle,scratch,&trunkScratch,trunk,mask,maskSum,convWorkspace);
@@ -1415,6 +1484,7 @@ struct Model {
   const int modelVersion;
   const int numInputChannels;
   const int numInputGlobalChannels;
+  const int numInputMetaChannels;
   const int numPolicyChannels;
   const int numValueChannels;
   const int numScoreValueChannels;
@@ -1433,6 +1503,7 @@ struct Model {
       modelVersion(desc.modelVersion),
       numInputChannels(desc.numInputChannels),
       numInputGlobalChannels(desc.numInputGlobalChannels),
+      numInputMetaChannels(desc.numInputMetaChannels),
       numPolicyChannels(desc.numPolicyChannels),
       numValueChannels(desc.numValueChannels),
       numScoreValueChannels(desc.numScoreValueChannels),
@@ -1455,6 +1526,7 @@ struct Model {
     ScratchBuffers* scratch,
     CONSTTENSORMAP4* input,
     CONSTTENSORMAP2* inputGlobal,
+    CONSTTENSORMAP2* inputMeta,
     TENSORMAP4* trunkBuf,
 
     TENSORMAP2* policyPass,
@@ -1476,6 +1548,7 @@ struct Model {
       scratch,
       input,
       inputGlobal,
+      inputMeta,
       trunkBuf,
       mask,
       maskSum,
@@ -1550,6 +1623,7 @@ struct InputBuffers {
 
   size_t singleInputElts;
   size_t singleInputGlobalElts;
+  size_t singleInputMetaElts;
 
   size_t singlePolicyPassResultElts;
   size_t singlePolicyResultElts;
@@ -1559,6 +1633,7 @@ struct InputBuffers {
 
   std::vector<float> spatialInput;
   std::vector<float> globalInput;
+  std::vector<float> metaInput;
 
   InputBuffers(const LoadedModel* loadedModel, int maxBatchSz, int nnXLen, int nnYLen) {
     const ModelDesc& m = loadedModel->modelDesc;
@@ -1566,6 +1641,7 @@ struct InputBuffers {
     maxBatchSize = maxBatchSz;
     singleInputElts = m.numInputChannels * nnXLen * nnYLen;
     singleInputGlobalElts = m.numInputGlobalChannels;
+    singleInputMetaElts = m.numInputMetaChannels;
 
     singlePolicyPassResultElts = (size_t)(m.numPolicyChannels);
     singlePolicyResultElts = (size_t)(m.numPolicyChannels * nnXLen * nnYLen);
@@ -1575,9 +1651,16 @@ struct InputBuffers {
 
     assert(NNModelVersion::getNumSpatialFeatures(m.modelVersion) == m.numInputChannels);
     assert(NNModelVersion::getNumGlobalFeatures(m.modelVersion) == m.numInputGlobalChannels);
+    if(m.numInputMetaChannels > 0) {
+      assert(SGFMetadata::METADATA_INPUT_NUM_CHANNELS == m.numInputMetaChannels);
+    }
 
     spatialInput = vector<float>(m.numInputChannels * nnXLen * nnYLen * maxBatchSize);
     globalInput = vector<float>(m.numInputGlobalChannels * maxBatchSize);
+    if(m.numInputMetaChannels > 0)
+      metaInput = vector<float>(m.numInputMetaChannels * maxBatchSize);
+    else
+      metaInput = vector<float>(1);
   }
 
   ~InputBuffers() { }
@@ -1737,6 +1820,7 @@ void NeuralNet::getOutput(
 
   const int numSpatialFeatures = NNModelVersion::getNumSpatialFeatures(modelVersion);
   const int numGlobalFeatures = NNModelVersion::getNumGlobalFeatures(modelVersion);
+  const int numMetaFeatures = inputBuffers->singleInputMetaElts;
   assert(numSpatialFeatures == computeHandle->model->numInputChannels);
   assert(numSpatialFeatures * nnXLen * nnYLen == inputBuffers->singleInputElts);
   assert(numGlobalFeatures == inputBuffers->singleInputGlobalElts);
@@ -1745,10 +1829,21 @@ void NeuralNet::getOutput(
   for(int nIdx = 0; nIdx<batchSize; nIdx++) {
     float* rowSpatialInput = inputBuffers->spatialInput.data() + (inputBuffers->singleInputElts * nIdx);
     float* rowGlobalInput = inputBuffers->globalInput.data() + (inputBuffers->singleInputGlobalElts * nIdx);
+    float* rowMetaInput = inputBuffers->metaInput.data() + (inputBuffers->singleInputMetaElts * nIdx);
 
     const float* rowGlobal = inputBufs[nIdx]->rowGlobalBuf.data();
     const float* rowSpatial = inputBufs[nIdx]->rowSpatialBuf.data();
+    const float* rowMeta = inputBufs[nIdx]->rowMetaBuf.data();
+    const bool hasRowMeta = inputBufs[nIdx]->hasRowMeta;
     std::copy(rowGlobal,rowGlobal+numGlobalFeatures,rowGlobalInput);
+    if(numMetaFeatures > 0) {
+      testAssert(rowMeta != NULL);
+      testAssert(hasRowMeta);
+      std::copy(rowMeta,rowMeta+numMetaFeatures,rowMetaInput);
+    }
+    else {
+      testAssert(!hasRowMeta);
+    }
     SymmetryHelpers::copyInputsWithSymmetry(rowSpatial, rowSpatialInput, 1, nnYLen, nnXLen, numSpatialFeatures, computeHandle->inputsUseNHWC, inputBufs[nIdx]->symmetry);
   }
 
@@ -1756,6 +1851,7 @@ void NeuralNet::getOutput(
 
   CONSTTENSORMAP4 input(inputBuffers->spatialInput.data(), numSpatialFeatures, nnXLen, nnYLen, batchSize);
   CONSTTENSORMAP2 inputGlobal(inputBuffers->globalInput.data(), numGlobalFeatures, batchSize);
+  CONSTTENSORMAP2 inputMeta(inputBuffers->metaInput.data(), numMetaFeatures, batchSize);
 
 #define MAP4(NAME) TENSORMAP4 NAME(buffers.NAME.data(), buffers.NAME.dimension(0), buffers.NAME.dimension(1), buffers.NAME.dimension(2), batchSize)
 #define MAP3(NAME) TENSORMAP3 NAME(buffers.NAME.data(), buffers.NAME.dimension(0), buffers.NAME.dimension(1), batchSize)
@@ -1777,6 +1873,7 @@ void NeuralNet::getOutput(
     computeHandle->scratch.get(),
     &input,
     &inputGlobal,
+    (numMetaFeatures > 0 ? &inputMeta : NULL),
     &trunk,
     &policyPass,
     &policy,

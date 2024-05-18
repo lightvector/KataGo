@@ -302,10 +302,10 @@ def main(args):
         writeln(encoder.c_input)
         # Torch order is oc,ic. Flatten feature mask into the first mul
         write_matmul(name+".mul1", encoder.linear1.weight * encoder.feature_mask.reshape((1,-1)))
-        write_matbias(name+".mul1", encoder.linear1.bias)
+        write_matbias(name+".bias1", encoder.linear1.bias)
         write_activation(name+".act1", encoder.act1)
         write_matmul(name+".mul2", encoder.linear2.weight)
-        write_matbias(name+".mul2", encoder.linear2.bias)
+        write_matbias(name+".bias2", encoder.linear2.bias)
         write_activation(name+".act2", encoder.act2)
         write_matmul(name+".mul3", encoder.out_scale * encoder.linear_output_to_trunk.weight)
         assert encoder.linear_output_to_trunk.bias is None

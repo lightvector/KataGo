@@ -12,6 +12,7 @@
 #include "../neuralnet/desc.h"
 
 #include "../core/simpleallocator.h"
+#include "../core/test.h"
 
 #include "../external/half-2.2.0/include/half.hpp"
 
@@ -1443,8 +1444,10 @@ struct Trunk {
 
     initialConv = std::make_unique<ConvLayer>(cudaHandles,manager,&desc->initialConv,useFP16,inputsUseNHWC,useNHWC);
     initialMatMul = std::make_unique<MatMulLayer>(cudaHandles,&desc->initialMatMul,useFP16);
-    if(desc->metaEncoderVersion > 0)
+    if(desc->metaEncoderVersion > 0) {
       sgfMetadataEncoder = std::make_unique<SGFMetadataEncoder>(cudaHandles,&desc->sgfMetadataEncoder,useFP16);
+      testAssert(sgfMetadataEncoder->mul3.outChannels == initialMatMul->outChannels);
+    }
 
     trunkTipBN = std::make_unique<BatchNormLayer>(cudaHandles,&desc->trunkTipBN,&desc->trunkTipActivation,nnXLen,nnYLen,useFP16,useNHWC);
     assert(desc->blocks.size() == numBlocks);
@@ -1518,7 +1521,7 @@ struct Trunk {
     CUDA_ERR(name.c_str(),cudaPeekAtLastError());
 
     if(sgfMetadataEncoder != nullptr) {
-      assert(inputMetaBuf != NULL);
+      testAssert(inputMetaBuf != NULL);
       //Feed the result into trunkBuf
       sgfMetadataEncoder->apply(cudaHandles,scratch,batchSize,inputMetaBuf,trunkBuf,workspaceBuf,workspaceBytes);
       //Then accumulate it into trunkScratch.buf, broadcasting during the process
@@ -1537,7 +1540,7 @@ struct Trunk {
       CUDA_ERR(name.c_str(),cudaPeekAtLastError());
     }
     else {
-      assert(inputMetaBuf == NULL);
+      testAssert(inputMetaBuf == NULL);
     }
 
     //Flip trunkBuf and trunkScratch.buf so that the result gets accumulated in trunkScratch.buf
@@ -2634,12 +2637,12 @@ void NeuralNet::getOutput(
     bool hasRowMeta = inputBufs[nIdx]->hasRowMeta;
     std::copy(rowGlobal,rowGlobal+numGlobalFeatures,rowGlobalInput);
     if(numMetaFeatures > 0) {
-      assert(rowMeta != NULL);
-      assert(hasRowMeta);
+      testAssert(rowMeta != NULL);
+      testAssert(hasRowMeta);
       std::copy(rowMeta,rowMeta+numMetaFeatures,rowMetaInput);
     }
     else {
-      assert(!hasRowMeta);
+      testAssert(!hasRowMeta);
     }
     SymmetryHelpers::copyInputsWithSymmetry(rowSpatial, rowSpatialInput, 1, nnYLen, nnXLen, numSpatialFeatures, gpuHandle->inputsUseNHWC, inputBufs[nIdx]->symmetry);
   }

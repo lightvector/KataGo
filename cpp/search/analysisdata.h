@@ -27,6 +27,8 @@ struct AnalysisData {
   double weightSqSum; //Sum of squares
   double utilitySqAvg;
   double scoreMeanSqAvg;
+  int64_t childVisits; //Visits of the underlying child node
+  double childWeightSum; //Weight sum of the underlying child node
   int order; //Preference order of the moves, 0 is best
   Loc isSymmetryOf; //If not Board::NULL_LOC, this move is a duplicate analysis data reflected from isSymmetryOf
   int symmetry; //The symmetry applied to isSymmetryOf to get move, or 0.

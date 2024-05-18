@@ -879,6 +879,7 @@ AnalysisData Search::getAnalysisDataOfSingleChild(
   double utilitySqAvg = 0.0;
   double weightSum = 0.0;
   double weightSqSum = 0.0;
+  double childWeightSum = 0.0;
 
   if(child != NULL) {
     childVisits = child->stats.visits.load(std::memory_order_acquire);
@@ -891,12 +892,13 @@ AnalysisData Search::getAnalysisDataOfSingleChild(
     utilitySqAvg = child->stats.utilitySqAvg.load(std::memory_order_acquire);
     weightSum = child->stats.getChildWeight(edgeVisits,childVisits);
     weightSqSum = child->stats.getChildWeightSq(edgeVisits,childVisits);
+    childWeightSum = child->stats.weightSum.load(std::memory_order_acquire);
   }
 
   AnalysisData data;
   data.move = move;
   data.numVisits = edgeVisits;
-  if(childVisits <= 0 || weightSum <= 1e-30 || weightSqSum <= 1e-60) {
+  if(childVisits <= 0 || childWeightSum <= 1e-30) {
     data.utility = fpuValue;
     data.scoreUtility = getScoreUtility(parentScoreMean,parentScoreMean*parentScoreMean+parentScoreStdev*parentScoreStdev);
     data.resultUtility = fpuValue - data.scoreUtility;
@@ -914,6 +916,8 @@ AnalysisData Search::getAnalysisDataOfSingleChild(
     data.weightSqSum = 0.0;
     data.utilitySqAvg = data.utility * data.utility;
     data.scoreMeanSqAvg = parentScoreMean * parentScoreMean + parentScoreStdev * parentScoreStdev;
+    data.childVisits = childVisits;
+    data.childWeightSum = childWeightSum;
   }
   else {
     data.utility = utilityAvg;
@@ -923,11 +927,13 @@ AnalysisData Search::getAnalysisDataOfSingleChild(
     data.scoreMean = scoreMeanAvg;
     data.scoreStdev = ScoreValue::getScoreStdev(scoreMeanAvg,scoreMeanSqAvg);
     data.lead = leadAvg;
-    data.ess = weightSum * weightSum / weightSqSum;
+    data.ess = weightSum * weightSum / std::max(1e-8,weightSqSum);
     data.weightSum = weightSum;
     data.weightSqSum = weightSqSum;
     data.utilitySqAvg = utilitySqAvg;
     data.scoreMeanSqAvg = scoreMeanSqAvg;
+    data.childVisits = childVisits;
+    data.childWeightSum = childWeightSum;
   }
 
   data.policyPrior = policyProb;
@@ -1995,7 +2001,7 @@ bool Search::getAnalysisJson(
     json moveInfo;
     moveInfo["move"] = Location::toString(data.move, board);
     moveInfo["visits"] = data.numVisits;
-    moveInfo["weight"] = data.weightSum;
+    moveInfo["weight"] = Global::roundDynamic(data.weightSum,OUTPUT_PRECISION);
     moveInfo["utility"] = Global::roundDynamic(utility,OUTPUT_PRECISION);
     moveInfo["winrate"] = Global::roundDynamic(winrate,OUTPUT_PRECISION);
     // We report lead for scoreMean here so that a bunch of legacy tools that use KataGo use lead instead, which
@@ -2010,6 +2016,8 @@ bool Search::getAnalysisJson(
     moveInfo["order"] = data.order;
     if(data.isSymmetryOf != Board::NULL_LOC)
       moveInfo["isSymmetryOf"] = Location::toString(data.isSymmetryOf, board);
+    moveInfo["childVisits"] = data.childVisits;
+    moveInfo["childWeight"] = Global::roundDynamic(data.childWeightSum,OUTPUT_PRECISION);
 
     json pv = json::array();
     int pvLen =
@@ -2109,21 +2117,40 @@ bool Search::getAnalysisJson(
 
   // Raw policy prior
   if(includePolicy) {
-    float policyProbs[NNPos::MAX_NN_POLICY_SIZE];
-    bool suc = getPolicy(policyProbs);
-    if(!suc)
-      return false;
-    json policy = json::array();
-    for(int y = 0; y < board.y_size; y++) {
-      for(int x = 0; x < board.x_size; x++) {
-        int pos = NNPos::xyToPos(x, y, nnXLen);
-        policy.push_back(Global::roundDynamic(policyProbs[pos],OUTPUT_PRECISION));
+    {
+      float policyProbs[NNPos::MAX_NN_POLICY_SIZE];
+      bool suc = getPolicy(policyProbs);
+      if(!suc)
+        return false;
+      json policy = json::array();
+      for(int y = 0; y < board.y_size; y++) {
+        for(int x = 0; x < board.x_size; x++) {
+          int pos = NNPos::xyToPos(x, y, nnXLen);
+          policy.push_back(Global::roundDynamic(policyProbs[pos],OUTPUT_PRECISION));
+        }
       }
+
+      int passPos = NNPos::locToPos(Board::PASS_LOC, board.x_size, nnXLen, nnYLen);
+      policy.push_back(Global::roundDynamic(policyProbs[passPos],OUTPUT_PRECISION));
+      ret["policy"] = policy;
     }
 
-    int passPos = NNPos::locToPos(Board::PASS_LOC, board.x_size, nnXLen, nnYLen);
-    policy.push_back(Global::roundDynamic(policyProbs[passPos],OUTPUT_PRECISION));
-    ret["policy"] = policy;
+    if(rootNode != NULL) {
+      const NNOutput* humanOutput = rootNode->getHumanOutput();
+      if(humanOutput != NULL) {
+        const float* policyProbs = humanOutput->getPolicyProbsMaybeNoised();
+        json policy = json::array();
+        for(int y = 0; y < board.y_size; y++) {
+          for(int x = 0; x < board.x_size; x++) {
+            int pos = NNPos::xyToPos(x, y, nnXLen);
+            policy.push_back(Global::roundDynamic(policyProbs[pos],OUTPUT_PRECISION));
+          }
+        }
+        int passPos = NNPos::locToPos(Board::PASS_LOC, board.x_size, nnXLen, nnYLen);
+        policy.push_back(Global::roundDynamic(policyProbs[passPos],OUTPUT_PRECISION));
+        ret["humanPolicy"] = policy;
+      }
+    }
   }
 
   // Average tree ownership
