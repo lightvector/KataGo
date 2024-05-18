@@ -159,13 +159,16 @@ bool Search::getPlaySelectionValues(
     double exploreScaling = getExploreScaling(totalChildWeight, parentUtilityStdevFactor);
 
     assert(nnOutput != NULL);
+    const bool countEdgeVisit = true;
     double bestChildExploreSelectionValue = getExploreSelectionValueOfChild(
       node,policyProbs,bestChild,
       bestMoveLoc,
       exploreScaling,
       totalChildWeight,bestChildEdgeVisits,fpuValue,
       parentUtility,parentWeightPerVisit,
-      isDuringSearch,false,nonLCBBestChildWeight,NULL
+      isDuringSearch,false,nonLCBBestChildWeight,
+      countEdgeVisit,
+      NULL
     );
 
     for(int i = 0; i<numChildren; i++) {

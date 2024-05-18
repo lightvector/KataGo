@@ -552,7 +552,9 @@ private:
     double exploreScaling,
     double totalChildWeight, int64_t childEdgeVisits, double fpuValue,
     double parentUtility, double parentWeightPerVisit,
-    bool isDuringSearch, bool antiMirror, double maxChildWeight, SearchThread* thread
+    bool isDuringSearch, bool antiMirror, double maxChildWeight,
+    bool countEdgeVisit,
+    SearchThread* thread
   ) const;
   double getNewExploreSelectionValue(
     const SearchNode& parent,
@@ -560,7 +562,9 @@ private:
     float nnPolicyProb,
     double fpuValue,
     double parentWeightPerVisit,
-    double maxChildWeight, SearchThread* thread
+    double maxChildWeight,
+    bool countEdgeVisit,
+    SearchThread* thread
   ) const;
   double getReducedPlaySelectionWeight(
     const SearchNode& parent, const float* parentPolicyProbs, const SearchNode* child,

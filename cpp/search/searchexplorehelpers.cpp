@@ -104,7 +104,9 @@ double Search::getExploreSelectionValueOfChild(
   double exploreScaling,
   double totalChildWeight, int64_t childEdgeVisits, double fpuValue,
   double parentUtility, double parentWeightPerVisit,
-  bool isDuringSearch, bool antiMirror, double maxChildWeight, SearchThread* thread
+  bool isDuringSearch, bool antiMirror, double maxChildWeight,
+  bool countEdgeVisit,
+  SearchThread* thread
 ) const {
   (void)parentUtility;
   int movePos = getPos(moveLoc);
@@ -115,7 +117,11 @@ double Search::getExploreSelectionValueOfChild(
   double utilityAvg = child->stats.utilityAvg.load(std::memory_order_acquire);
   double scoreMeanAvg = child->stats.scoreMeanAvg.load(std::memory_order_acquire);
   double scoreMeanSqAvg = child->stats.scoreMeanSqAvg.load(std::memory_order_acquire);
-  double childWeight = child->stats.getChildWeight(childEdgeVisits,childVisits);
+  double childWeight;
+  if(countEdgeVisit)
+    childWeight = child->stats.getChildWeight(childEdgeVisits,childVisits);
+  else
+    childWeight = child->stats.weightSum.load(std::memory_order_acquire);
 
   //It's possible that childVisits is actually 0 here with multithreading because we're visiting this node while a child has
   //been expanded but its thread not yet finished its first visit.
@@ -144,7 +150,7 @@ double Search::getExploreSelectionValueOfChild(
     childWeight += virtualLossWeight;
   }
 
-  if(isDuringSearch && (&parent == rootNode)) {
+  if(isDuringSearch && (&parent == rootNode) && countEdgeVisit) {
     //Futile visits pruning - skip this move if the amount of time we have left to search is too small, assuming
     //its average weight per visit is maintained.
     //We use childVisits rather than childEdgeVisits for the final estimate since when childEdgeVisits < childVisits, adding new visits is instant.
@@ -183,7 +189,7 @@ double Search::getExploreSelectionValueOfChild(
       maybeApplyWideRootNoise(childUtility, nnPolicyProb, searchParams, thread, parent);
     }
   }
-  if(isDuringSearch && antiMirror && nnPolicyProb >= 0) {
+  if(isDuringSearch && antiMirror && nnPolicyProb >= 0 && countEdgeVisit) {
     maybeApplyAntiMirrorPolicy(nnPolicyProb, moveLoc, parentPolicyProbs, parent.nextPla, thread);
     maybeApplyAntiMirrorForcedExplore(childUtility, parentUtility, moveLoc, parentPolicyProbs, childWeight, totalChildWeight, parent.nextPla, thread, parent);
   }
@@ -197,11 +203,13 @@ double Search::getNewExploreSelectionValue(
   float nnPolicyProb,
   double fpuValue,
   double parentWeightPerVisit,
-  double maxChildWeight, SearchThread* thread
+  double maxChildWeight,
+  bool countEdgeVisit,
+  SearchThread* thread
 ) const {
   double childWeight = 0;
   double childUtility = fpuValue;
-  if(&parent == rootNode) {
+  if(&parent == rootNode && countEdgeVisit) {
     //Futile visits pruning - skip this move if the amount of time we have left to search is too small
     if(searchParams.futileVisitsThreshold > 0) {
       //Avoid divide by 0 by adding a prior equal to the parent's weight per visit
@@ -411,6 +419,22 @@ void Search::selectBestChildToDescend(
   //for floating point error.
   assert(policyProbMassVisited <= 1.0001);
 
+  //If we're doing a weightless visit, then we should redo PUCT to operate on child node weight, not child edge weight
+  if(!countEdgeVisit) {
+    totalChildWeight = 0.0;
+    maxChildWeight = 0.0;
+    for(int i = 0; i<childrenCapacity; i++) {
+      const SearchChildPointer& childPointer = children[i];
+      const SearchNode* child = childPointer.getIfAllocated();
+      if(child == NULL)
+        break;
+      double childWeight = child->stats.weightSum.load(std::memory_order_acquire);
+      totalChildWeight += childWeight;
+      if(childWeight > maxChildWeight)
+        maxChildWeight = childWeight;
+    }
+  }
+
   //First play urgency
   double parentUtility;
   double parentWeightPerVisit;
@@ -448,7 +472,9 @@ void Search::selectBestChildToDescend(
       exploreScaling,
       totalChildWeight,childEdgeVisits,fpuValue,
       parentUtility,parentWeightPerVisit,
-      isDuringSearch,antiMirror,maxChildWeight,&thread
+      isDuringSearch,antiMirror,maxChildWeight,
+      countEdgeVisit,
+      &thread
     );
     if(selectionValue > maxSelectionValue) {
       // if(child->state.load(std::memory_order_seq_cst) == SearchNode::STATE_EVALUATING) {
@@ -513,7 +539,9 @@ void Search::selectBestChildToDescend(
       exploreScaling,
       bestNewNNPolicyProb,fpuValue,
       parentWeightPerVisit,
-      maxChildWeight,&thread
+      maxChildWeight,
+      countEdgeVisit,
+      &thread
     );
     if(selectionValue > maxSelectionValue) {
       maxSelectionValue = selectionValue;
