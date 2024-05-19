@@ -199,8 +199,8 @@ void CoreMLProcess::getCoreMLOutput(
     float* rowSpatialBuffer = &inputBuffers->rowSpatialBuffer[singleSpatialElts * row];
     float* rowSpatialInput = &inputBuffers->userInputBuffer[singleInputElts * row];
     float* rowGlobalInput = &inputBuffers->userInputGlobalBuffer[singleInputGlobalElts * row];
-    const float* rowGlobal = inputBufs[row]->rowGlobal;
-    const float* rowSpatial = inputBufs[row]->rowSpatial;
+    const float* rowGlobal = inputBufs[row]->rowGlobalBuf.data();
+    const float* rowSpatial = inputBufs[row]->rowSpatialBuf.data();
 
     std::copy(&rowGlobal[0], &rowGlobal[numGlobalFeatures], rowGlobalInput);
 

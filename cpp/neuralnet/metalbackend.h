@@ -21,6 +21,7 @@ SWMatMulLayerDesc matMulLayerDescToSwift(const MatMulLayerDesc * desc);
 SWGlobalPoolingResidualBlockDesc globalPoolingResidualBlockDescToSwift(const GlobalPoolingResidualBlockDesc* desc);
 swift::Array<BlockDescriptor> residualBlocksToSwift(const vector<pair<int, unique_ptr_void>>& blocks);
 SWNestedBottleneckResidualBlockDesc nestedBottleneckResidualBlockDescToSwift(const NestedBottleneckResidualBlockDesc* desc);
+SWSGFMetadataEncoderDesc sGFMetadataEncoderDescToSwift(const SGFMetadataEncoderDesc * desc);
 SWTrunkDesc trunkDescToSwift(const TrunkDesc * trunk);
 SWPolicyHeadDesc policyHeadDescToSwift(const PolicyHeadDesc * policyHead);
 SWMatBiasLayerDesc matBiasLayerDescToSwift(const MatBiasLayerDesc * desc);
@@ -298,6 +299,7 @@ struct InputBuffers {
   size_t singleSpatialElts;
   size_t singleInputElts;
   size_t singleInputGlobalElts;
+  size_t singleInputMetaElts;
   size_t singleNnPolicyResultElts;
   size_t singleModelPolicyResultElts;
   size_t singlePolicyPassResultElts;
@@ -313,6 +315,7 @@ struct InputBuffers {
   size_t rowSpatialBufferElts;
   size_t userInputBufferElts;
   size_t userInputGlobalBufferElts;
+  size_t userInputMetaBufferElts;
   size_t policyResultBufferElts;
   size_t policyPassResultBufferElts;
   size_t policyProbsBufferElts;
@@ -325,6 +328,7 @@ struct InputBuffers {
   float* rowSpatialBuffer;
   float* userInputBuffer;
   float* userInputGlobalBuffer;
+  float* userInputMetaBuffer;
   float* policyResults;
   float* policyPassResults;
   float* policyProbsBuffer;

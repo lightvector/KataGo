@@ -172,6 +172,32 @@ SWNestedBottleneckResidualBlockDesc MetalProcess::nestedBottleneckResidualBlockD
   return swDesc;
 }
 
+/// Convert a SGF metadata encoder description from C++ to Swift
+/// - Parameter desc: A SGF metadata encoder description
+/// - Returns: The SGF metadata encoder description converted to SWSGFMetadataEncoderDesc
+SWSGFMetadataEncoderDesc MetalProcess::sGFMetadataEncoderDescToSwift(const SGFMetadataEncoderDesc * desc) {
+
+  SWMatMulLayerDesc mul1 = matMulLayerDescToSwift(&desc->mul1);
+  SWMatBiasLayerDesc bias1 = matBiasLayerDescToSwift(&desc->bias1);
+  ActivationKind act1 = activationLayerDescToSwift(&desc->act1);
+  SWMatMulLayerDesc mul2 = matMulLayerDescToSwift(&desc->mul2);
+  SWMatBiasLayerDesc bias2 = matBiasLayerDescToSwift(&desc->bias2);
+  ActivationKind act2 = activationLayerDescToSwift(&desc->act2);
+  SWMatMulLayerDesc mul3 = matMulLayerDescToSwift(&desc->mul3);
+
+  SWSGFMetadataEncoderDesc swSGFMetadataEncoderDesc = createSWSGFMetadataEncoderDesc(desc->metaEncoderVersion,
+                                                                                     desc->numInputMetaChannels,
+                                                                                     mul1,
+                                                                                     bias1,
+                                                                                     act1,
+                                                                                     mul2,
+                                                                                     bias2,
+                                                                                     act2,
+                                                                                     mul3);
+
+  return swSGFMetadataEncoderDesc;
+}
+
 /// Convert a trunk description from C++ to Swift
 /// - Parameter trunk: A trunk description
 /// - Returns: The trunk description converted to SWTrunkDesc
@@ -179,6 +205,7 @@ SWTrunkDesc MetalProcess::trunkDescToSwift(const TrunkDesc * trunk) {
 
   SWConvLayerDesc initialConv = convLayerDescToSwift(&trunk->initialConv);
   SWMatMulLayerDesc initialMatMul = matMulLayerDescToSwift(&trunk->initialMatMul);
+  SWSGFMetadataEncoderDesc sgfMetadataEncoder = sGFMetadataEncoderDescToSwift(&trunk->sgfMetadataEncoder);
   auto swBlocks = residualBlocksToSwift(trunk->blocks);
   SWBatchNormLayerDesc trunkTipBN = batchNormLayerDescToSwift(&trunk->trunkTipBN);
   ActivationKind trunkTipActivation = activationLayerDescToSwift(&trunk->trunkTipActivation);
@@ -190,6 +217,7 @@ SWTrunkDesc MetalProcess::trunkDescToSwift(const TrunkDesc * trunk) {
                                               trunk->gpoolNumChannels,
                                               initialConv,
                                               initialMatMul,
+                                              sgfMetadataEncoder,
                                               swBlocks,
                                               trunkTipBN,
                                               trunkTipActivation);
@@ -282,6 +310,7 @@ void MetalProcess::createMetalComputeHandle(const ModelDesc* modelDesc,
                                               swift::String(modelDesc->name),
                                               modelDesc->numInputChannels,
                                               modelDesc->numInputGlobalChannels,
+                                              modelDesc->numInputMetaChannels,
                                               modelDesc->numValueChannels,
                                               modelDesc->numScoreValueChannels,
                                               modelDesc->numOwnershipChannels,
@@ -359,6 +388,22 @@ string NeuralNet::getModelName(const LoadedModel* loadedModel) {
  */
 int NeuralNet::getModelVersion(const LoadedModel* loadedModel) {
   return loadedModel->modelDesc.modelVersion;
+}
+
+/**
+ * @brief Retrieves the number of input meta channels from a loaded model.
+ *
+ * This function returns the number of input meta channels that are 
+ * contained in the neural network model described by the specified LoadedModel object.
+ * Input meta channels refer to the channels in the model that are used for pre-processing
+ * or auxiliary information which is not part of the main input data.
+ *
+ * @param loadedModel A pointer to the LoadedModel object containing the 
+ *        neural network model description from which to retrieve the number of input meta channels.
+ * @return An integer representing the number of input meta channels in the loaded model.
+ */
+int NeuralNet::getNumInputMetaChannels(const LoadedModel* loadedModel) {
+  return loadedModel->modelDesc.numInputMetaChannels;
 }
 
 /**
@@ -605,6 +650,7 @@ InputBuffers::InputBuffers(const LoadedModel* loadedModel, int maxBatchSz, int n
   singleSpatialElts = (size_t)m.numInputChannels * nnXLen * nnYLen;
   singleInputElts = (size_t)m.numInputChannels * modelXLen * modelYLen;
   singleInputGlobalElts = (size_t)m.numInputGlobalChannels;
+  singleInputMetaElts = (size_t)m.numInputMetaChannels;
   singleNnPolicyResultElts = (size_t)(nnXLen * nnYLen);
   singleModelPolicyResultElts = (size_t)((modelXLen * modelYLen) + 1);
   singlePolicyPassResultElts = 1;
@@ -624,6 +670,7 @@ InputBuffers::InputBuffers(const LoadedModel* loadedModel, int maxBatchSz, int n
   rowSpatialBufferElts = (size_t)maxBatchSz * singleSpatialElts;
   userInputBufferElts = (size_t)maxBatchSize * singleInputElts;
   userInputGlobalBufferElts = (size_t)maxBatchSize * singleInputGlobalElts;
+  userInputMetaBufferElts = (size_t)maxBatchSize * singleInputMetaElts;
   policyResultBufferElts = (size_t)maxBatchSize * singleModelPolicyResultElts * policyResultChannels;
   policyPassResultBufferElts = (size_t)maxBatchSize * singlePolicyPassResultElts * policyResultChannels;
   policyProbsBufferElts = (size_t)maxBatchSize * singlePolicyProbsElts * policyResultChannels;
@@ -639,6 +686,7 @@ InputBuffers::InputBuffers(const LoadedModel* loadedModel, int maxBatchSz, int n
   memset(&userInputBuffer[0], 0, userInputBufferElts * sizeof(userInputBuffer[0]));
 
   userInputGlobalBuffer = new float[userInputGlobalBufferElts];
+  userInputMetaBuffer = new float[userInputMetaBufferElts];
   policyResults = new float[policyResultBufferElts];
   policyPassResults = new float[policyPassResultBufferElts];
   policyProbsBuffer = new float[policyProbsBufferElts];
@@ -658,6 +706,7 @@ InputBuffers::~InputBuffers() {
   delete[] rowSpatialBuffer;
   delete[] userInputBuffer;
   delete[] userInputGlobalBuffer;
+  delete[] userInputMetaBuffer;
   delete[] policyResults;
   delete[] policyPassResults;
   delete[] policyProbsBuffer;
@@ -706,10 +755,13 @@ void MetalProcess::processRowData(size_t row, ComputeHandle* gpuHandle, InputBuf
 
   float* rowSpatialInput = &inputBuffers->userInputBuffer[inputBuffers->singleSpatialElts * row];
   float* rowGlobalInput = &inputBuffers->userInputGlobalBuffer[inputBuffers->singleInputGlobalElts * row];
-  const float* rowGlobal = inputBufs[row]->rowGlobal;
-  const float* rowSpatial = inputBufs[row]->rowSpatial;
+  float* rowMetaInput = &inputBuffers->userInputMetaBuffer[inputBuffers->singleInputMetaElts * row];
+  const float* rowGlobal = inputBufs[row]->rowGlobalBuf.data();
+  const float* rowSpatial = inputBufs[row]->rowSpatialBuf.data();
+  const float* rowMeta = inputBufs[row]->rowMetaBuf.data();
 
   MetalProcess::copyRowData(rowGlobalInput, rowGlobal, inputBuffers->singleInputGlobalElts);
+  MetalProcess::copyRowData(rowMetaInput, rowMeta, inputBuffers->singleInputMetaElts);
 
   SymmetryHelpers::copyInputsWithSymmetry(
     rowSpatial,
@@ -874,6 +926,7 @@ void MetalProcess::getMetalOutput(
 
   getMetalHandleOutput(inputBuffers->userInputBuffer,
                        inputBuffers->userInputGlobalBuffer,
+                       inputBuffers->userInputMetaBuffer,
                        inputBuffers->policyResults,
                        inputBuffers->policyPassResults,
                        inputBuffers->valueResults,

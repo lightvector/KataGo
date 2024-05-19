@@ -160,6 +160,36 @@ struct InputGlobalLayer {
     }
 }
 
+/// A structure representing the input meta layer for a neural network graph.
+struct InputMetaLayer {
+    /// A `MPSGraphTensor` representing the placeholder tensor in the graph.
+    let tensor: MPSGraphTensor
+    /// An array of `NSNumber` representing the shape of the tensor placeholder.
+    let shape: [NSNumber]
+
+    /// Initializes a new `InputMetaLayer` instance with the given graph and number of meta features.
+    ///
+    /// - Parameters:
+    ///   - graph: The `MPSGraph` instance where the placeholder tensor will be created.
+    ///   - numMetaFeatures: The number of meta features (channels) for the input tensor.
+    ///
+    /// This initializer sets the shape of the input tensor using a helper function `InputShape.create` with
+    /// a dynamic batch size (-1), the specified number of channels, and a spatial size of 1x1 (nnYLen and nnXLen).
+    /// It also creates a placeholder tensor in the MPS graph with the specified shape and data type `float32`.
+    init(graph: MPSGraph, numMetaFeatures: NSNumber) {
+        // Define the shape of the input tensor with dynamic batch size, specified number of channels, and spatial dimensions 1x1.
+        shape = InputShape.create(batchSize: -1,
+                                  numChannels: numMetaFeatures,
+                                  nnYLen: 1,
+                                  nnXLen: 1)
+
+        // Create a placeholder tensor in the graph with the above-defined shape and data type float32.
+        self.tensor = graph.placeholder(shape: shape,
+                                        dataType: MPSDataType.float32,
+                                        name: nil)
+    }
+}
+
 /// A structure that represents a mask layer for a neural network model.
 struct MaskLayer {
     let tensor: MPSGraphTensor
@@ -1683,6 +1713,166 @@ struct NestedBottleneckResidualBlock {
     }
 }
 
+/// Class representing the description of the SGF Metadata Encoder.
+///
+/// This encoder consists of three matrix multiplication layers, each followed by a bias and an activation function.
+public class SWSGFMetadataEncoderDesc {
+    /// Version of the SGF Metadata Encoder.
+    let version: Int
+
+    /// Number of input metadata channels.
+    let numInputMetaChannels: Int
+
+    /// Description of the first multiplication layer.
+    let mul1: SWMatMulLayerDesc
+
+    /// Description of the bias for the first layer.
+    let bias1: SWMatBiasLayerDesc
+
+    /// Activation kind for the first layer.
+    let act1: ActivationKind
+
+    /// Description of the second multiplication layer.
+    let mul2: SWMatMulLayerDesc
+
+    /// Description of the bias for the second layer.
+    let bias2: SWMatBiasLayerDesc
+
+    /// Activation kind for the second layer.
+    let act2: ActivationKind
+
+    /// Description of the third multiplication layer.
+    let mul3: SWMatMulLayerDesc
+
+    /// Initializes a new instance of the `SWSGFMetadataEncoderDesc` class.
+    ///
+    /// - Parameters:
+    ///   - version: The version of the SGF Metadata Encoder.
+    ///   - numInputMetaChannels: The number of input metadata channels.
+    ///   - mul1: Description of the first multiplication layer.
+    ///   - bias1: Description of the bias for the first layer.
+    ///   - act1: Activation kind for the first layer.
+    ///   - mul2: Description of the second multiplication layer.
+    ///   - bias2: Description of the bias for the second layer.
+    ///   - act2: Activation kind for the second layer.
+    ///   - mul3: Description of the third multiplication layer.
+    init(version: Int,
+         numInputMetaChannels: Int,
+         mul1: SWMatMulLayerDesc,
+         bias1: SWMatBiasLayerDesc,
+         act1: ActivationKind,
+         mul2: SWMatMulLayerDesc,
+         bias2: SWMatBiasLayerDesc,
+         act2: ActivationKind,
+         mul3: SWMatMulLayerDesc) {
+        self.version = version
+        self.numInputMetaChannels = numInputMetaChannels
+        self.mul1 = mul1
+        self.bias1 = bias1
+        self.act1 = act1
+        self.mul2 = mul2
+        self.bias2 = bias2
+        self.act2 = act2
+        self.mul3 = mul3
+    }
+}
+
+/// Creates an instance of `SWSGFMetadataEncoderDesc` using the specified parameters.
+///
+/// - Parameters:
+///   - version: An `Int32` representing the version of the encoder descriptor.
+///   - numInputMetaChannels: An `Int32` specifying the number of input metadata channels.
+///   - mul1: A `SWMatMulLayerDesc` representing the description of the first matrix multiplication layer.
+///   - bias1: A `SWMatBiasLayerDesc` representing the description of the bias for the first layer.
+///   - act1: An `ActivationKind` specifying the activation function applied after the first layer.
+///   - mul2: A `SWMatMulLayerDesc` representing the description of the second matrix multiplication layer.
+///   - bias2: A `SWMatBiasLayerDesc` representing the description of the bias for the second layer.
+///   - act2: An `ActivationKind` specifying the activation function applied after the second layer.
+///   - mul3: A `SWMatMulLayerDesc` representing the description of the third matrix multiplication layer.
+///
+/// - Returns:
+///   An instance of `SWSGFMetadataEncoderDesc` initialized with the provided parameters.
+public func createSWSGFMetadataEncoderDesc(version: Int32,
+                                           numInputMetaChannels: Int32,
+                                           mul1: SWMatMulLayerDesc,
+                                           bias1: SWMatBiasLayerDesc,
+                                           act1: ActivationKind,
+                                           mul2: SWMatMulLayerDesc,
+                                           bias2: SWMatBiasLayerDesc,
+                                           act2: ActivationKind,
+                                           mul3: SWMatMulLayerDesc) -> SWSGFMetadataEncoderDesc {
+    return SWSGFMetadataEncoderDesc(version: Int(version),
+                                    numInputMetaChannels: Int(numInputMetaChannels),
+                                    mul1: mul1,
+                                    bias1: bias1,
+                                    act1: act1,
+                                    mul2: mul2,
+                                    bias2: bias2,
+                                    act2: act2,
+                                    mul3: mul3)
+}
+
+/// A class that describes SGF metadata encoder.
+/// SGFMetadataEncoder takes a graph, a descriptor object defining various parameters for the encoding process,
+/// and an input tensor, and performs a sequence of matrix multiplications, bias additions, and activation functions
+/// to produce a final encoded tensor.
+class SGFMetadataEncoder {
+    /// The resulting tensor after encoding the metadata.
+    let resultTensor: MPSGraphTensor
+
+    /// Initializes an `SGFMetadataEncoder` instance and performs the encoding process.
+    ///
+    /// - Parameters:
+    ///   - graph: The computational graph object used to define and manage tensor operations.
+    ///   - descriptor: An object holding all the required parameters, including matrix multiplication, biases,
+    ///                 and activation functions for each layer.
+    ///   - sourceTensor: The initial input tensor containing the metadata to be encoded.
+    init(graph: MPSGraph,
+         descriptor: SWSGFMetadataEncoderDesc,
+         sourceTensor: MPSGraphTensor) {
+
+        // First matrix multiplication layer.
+        let mul1 = MatMulLayer(graph: graph,
+                               descriptor: descriptor.mul1,
+                               sourceTensor: sourceTensor)
+
+        // Adding bias to the result of the first matrix multiplication.
+        let bias1 = MatBiasLayer(graph: graph,
+                                 descriptor: descriptor.bias1,
+                                 sourceTensor: mul1.resultTensor)
+
+        // Applying the first activation function to the biased tensor.
+        let act1 = ActivationLayer(graph: graph,
+                                   sourceTensor: bias1.resultTensor,
+                                   activationKind: descriptor.act1)
+
+        // Second matrix multiplication layer taking the output of the first activation layer.
+        let mul2 = MatMulLayer(graph: graph,
+                               descriptor: descriptor.mul2,
+                               sourceTensor: act1.resultTensor)
+
+        // Adding bias to the result of the second matrix multiplication.
+        let bias2 = MatBiasLayer(graph: graph,
+                                 descriptor: descriptor.bias2,
+                                 sourceTensor: mul2.resultTensor)
+
+        // Applying the second activation function to the biased tensor.
+        let act2 = ActivationLayer(graph: graph,
+                                   sourceTensor: bias2.resultTensor,
+                                   activationKind: descriptor.act2)
+
+        // Third and final matrix multiplication layer taking the output of the second activation layer.
+        let mul3 = MatMulLayer(graph: graph,
+                               descriptor: descriptor.mul3,
+                               sourceTensor: act2.resultTensor)
+
+        // Setting the final result tensor to the output of the last matrix multiplication layer.
+        resultTensor = mul3.resultTensor
+
+        assert(resultTensor.shape?.count == 2)
+    }
+}
+
 /// A class that describes a trunk for a neural network
 public class SWTrunkDesc {
     /// The version of the ResNet trunk
@@ -1699,6 +1889,8 @@ public class SWTrunkDesc {
     let initialConv: SWConvLayerDesc
     /// The description of the initial matrix multiplication layer
     let initialMatMul: SWMatMulLayerDesc
+    /// The description of the SGF metadata encoder
+    let sgfMetadataEncoder: SWSGFMetadataEncoderDesc
     /// The list of blocks that make up the trunk
     let blockDescriptors: [BlockDescriptor]
     /// The description of the batch normalization layer that is applied at the end of the trunk
@@ -1715,6 +1907,7 @@ public class SWTrunkDesc {
     ///   - gpoolNumChannels: Number of channels for the global pooling section
     ///   - initialConv: The description of the initial convolutional layer
     ///   - initialMatMul: The description of the initial matrix multiplication layer
+    ///   - sgfMetadataEncoder: The description of the SGF metadata encoder
     ///   - blockDescriptors: The list of blocks that make up the trunk
     ///   - trunkTipBN: The description of the batch normalization layer that is applied at the end of the trunk
     ///   - trunkTipActivation: The activation function that is applied at the end of the trunk
@@ -1725,6 +1918,7 @@ public class SWTrunkDesc {
          gpoolNumChannels: NSNumber,
          initialConv: SWConvLayerDesc,
          initialMatMul: SWMatMulLayerDesc,
+         sgfMetadataEncoder: SWSGFMetadataEncoderDesc,
          blockDescriptors: [BlockDescriptor],
          trunkTipBN: SWBatchNormLayerDesc,
          trunkTipActivation: ActivationKind) {
@@ -1735,6 +1929,7 @@ public class SWTrunkDesc {
         self.gpoolNumChannels = gpoolNumChannels
         self.initialConv = initialConv
         self.initialMatMul = initialMatMul
+        self.sgfMetadataEncoder = sgfMetadataEncoder
         self.blockDescriptors = blockDescriptors
         self.trunkTipBN = trunkTipBN
         self.trunkTipActivation = trunkTipActivation
@@ -1748,6 +1943,7 @@ public func createSWTrunkDesc(version: Int32,
                               gpoolNumChannels: Int32,
                               initialConv: SWConvLayerDesc,
                               initialMatMul: SWMatMulLayerDesc,
+                              sgfMetadataEncoder: SWSGFMetadataEncoderDesc,
                               blockDescriptors: [BlockDescriptor],
                               trunkTipBN: SWBatchNormLayerDesc,
                               trunkTipActivation: ActivationKind) -> SWTrunkDesc {
@@ -1758,6 +1954,7 @@ public func createSWTrunkDesc(version: Int32,
                        gpoolNumChannels: gpoolNumChannels as NSNumber,
                        initialConv: initialConv,
                        initialMatMul: initialMatMul,
+                       sgfMetadataEncoder: sgfMetadataEncoder,
                        blockDescriptors: blockDescriptors,
                        trunkTipBN: trunkTipBN,
                        trunkTipActivation: trunkTipActivation)
@@ -1768,30 +1965,74 @@ struct Trunk {
     /// The resulting tensor after processing the trunk
     let resultTensor: MPSGraphTensor
 
+    /// Returns the block source tensor by processing the input meta tensor, if available, and adding a bias term.
+    /// 
+    /// - Parameters:
+    ///     - graph: The Metal Performance Shaders (MPS) graph.
+    ///     - descriptor: The SGF metadata encoder descriptor.
+    ///     - initialAdd: The initial add operation result tensor.
+    ///     - inputMetaTensor: The input meta tensor.
+    ///     - nnXLen: The X length of the neural network (NN).
+    ///     - nnYLen: The Y length of the neural network (NN).
+    ///     - numChannels: The number of channels of the initial add operation result tensor.
+    /// 
+    /// - Returns:
+    ///     - blockSourceTensor: The processed block source tensor.
+    /// 
+    /// This function is used to get the block source tensor by processing the input meta tensor, if available.
+    /// If the input meta tensor is not available, it returns the result tensor from the initial add operation.
+    /// The function uses SGF metadata encoder and AddNCBiasLayer to process the input meta tensor.
+    static func getBlockSourceTensor(graph: MPSGraph,
+                                     descriptor: SWSGFMetadataEncoderDesc,
+                                     initialAdd: AddNCBiasLayer,
+                                     inputMetaTensor: MPSGraphTensor,
+                                     nnXLen: NSNumber,
+                                     nnYLen: NSNumber,
+                                     numChannels: NSNumber) -> MPSGraphTensor {
+        var blockSourceTensor: MPSGraphTensor
+        
+        if descriptor.numInputMetaChannels > 0 {
+            let encoded = SGFMetadataEncoder(graph: graph,
+                                            descriptor: descriptor,
+                                            sourceTensor: inputMetaTensor)
+            
+            let encodedAdd = AddNCBiasLayer(graph: graph,
+                                            sourceTensor: initialAdd.resultTensor,
+                                            biasTensor: encoded.resultTensor,
+                                            nnXLen: nnXLen,
+                                            nnYLen: nnYLen,
+                                            numChannels: numChannels)
+
+            blockSourceTensor = encodedAdd.resultTensor
+        } else {
+            blockSourceTensor = initialAdd.resultTensor
+        }
+        
+        return blockSourceTensor
+    }
+
     /// Initializes a Trunk object
     /// - Parameters:
     ///   - graph: The graph used to build the trunk
     ///   - descriptor: A SWTrunkDesc object that describes the trunk
     ///   - inputTensor: The input tensor
     ///   - inputGlobalTensor: The input global tensor
+    ///   - inputMetaTensor: The input meta tensor
     ///   - maskTensor: The tensor used to mask input activations
     ///   - maskSumTensor: The sum of the mask tensor
     ///   - maskSumSqrtS14M01Tensor: The square root of the sum of the mask tensor
     ///   - nnXLen: The length of the X dimension of the input tensor
     ///   - nnYLen: The length of the Y dimension of the input tensor
-    ///   - numSpatialFeatures: The number of spatial features in the input tensor
-    ///   - numGlobalFeatures: The number of global features in the input tensor
     init(graph: MPSGraph,
          descriptor: SWTrunkDesc,
          inputTensor: MPSGraphTensor,
          inputGlobalTensor: MPSGraphTensor,
+         inputMetaTensor: MPSGraphTensor,
          maskTensor: MPSGraphTensor,
          maskSumTensor: MPSGraphTensor,
          maskSumSqrtS14M01Tensor: MPSGraphTensor,
          nnXLen: NSNumber,
-         nnYLen: NSNumber,
-         numSpatialFeatures: NSNumber,
-         numGlobalFeatures: NSNumber) {
+         nnYLen: NSNumber) {
 
         let initialConv = ConvLayer(graph: graph,
                                     sourceTensor: inputTensor,
@@ -1803,15 +2044,23 @@ struct Trunk {
                                         descriptor: descriptor.initialMatMul,
                                         sourceTensor: inputGlobalTensor)
 
-        let added = AddNCBiasLayer(graph: graph,
-                                   sourceTensor: initialConv.resultTensor,
-                                   biasTensor: initialMatMul.resultTensor,
-                                   nnXLen: nnXLen,
-                                   nnYLen: nnYLen,
-                                   numChannels: descriptor.initialMatMul.outChannels)
+        let initialAdd = AddNCBiasLayer(graph: graph,
+                                        sourceTensor: initialConv.resultTensor,
+                                        biasTensor: initialMatMul.resultTensor,
+                                        nnXLen: nnXLen,
+                                        nnYLen: nnYLen,
+                                        numChannels: descriptor.initialMatMul.outChannels)
+
+        let blockSourceTensor = Trunk.getBlockSourceTensor(graph: graph,
+                                                           descriptor: descriptor.sgfMetadataEncoder,
+                                                           initialAdd: initialAdd,
+                                                           inputMetaTensor: inputMetaTensor,
+                                                           nnXLen: nnXLen,
+                                                           nnYLen: nnYLen,
+                                                           numChannels: descriptor.initialMatMul.outChannels)
 
         let blocks = BlockStack(graph: graph,
-                                sourceTensor: added.resultTensor,
+                                sourceTensor: blockSourceTensor,
                                 maskTensor: maskTensor,
                                 maskSumTensor: maskSumTensor,
                                 maskSumSqrtS14M01Tensor: maskSumSqrtS14M01Tensor,
@@ -2279,6 +2528,8 @@ public struct SWModelDesc {
     let numInputChannels: NSNumber
     /// Number of channels for global input features.
     let numInputGlobalChannels: NSNumber
+    /// Number of channels for meta input features.
+    let numInputMetaChannels: NSNumber
     /// Number of channels for the value head output.
     let numValueChannels: NSNumber
     /// Number of channels for the score value head output.
@@ -2298,6 +2549,7 @@ public struct SWModelDesc {
     ///   - name: The name of the model.
     ///   - numInputChannels: Number of channels for input features.
     ///   - numInputGlobalChannels: Number of channels for global input features.
+    ///   - numInputMetaChannels: Number of channels for meta input features.
     ///   - numValueChannels: Number of channels for the value head output.
     ///   - numScoreValueChannels: Number of channels for the score value head output.
     ///   - numOwnershipChannels: Number of channels for the ownership head output.
@@ -2308,6 +2560,7 @@ public struct SWModelDesc {
          name: String,
          numInputChannels: NSNumber,
          numInputGlobalChannels: NSNumber,
+         numInputMetaChannels: NSNumber,
          numValueChannels: NSNumber,
          numScoreValueChannels: NSNumber,
          numOwnershipChannels: NSNumber,
@@ -2318,6 +2571,7 @@ public struct SWModelDesc {
         self.name = name
         self.numInputChannels = numInputChannels
         self.numInputGlobalChannels = numInputGlobalChannels
+        self.numInputMetaChannels = numInputMetaChannels
         self.numValueChannels = numValueChannels
         self.numScoreValueChannels = numScoreValueChannels
         self.numOwnershipChannels = numOwnershipChannels
@@ -2331,6 +2585,7 @@ public func createSWModelDesc(version: Int32,
                               name: String,
                               numInputChannels: Int32,
                               numInputGlobalChannels: Int32,
+                              numInputMetaChannels: Int32,
                               numValueChannels: Int32,
                               numScoreValueChannels: Int32,
                               numOwnershipChannels: Int32,
@@ -2341,6 +2596,7 @@ public func createSWModelDesc(version: Int32,
                        name: name,
                        numInputChannels: numInputChannels as NSNumber,
                        numInputGlobalChannels: numInputGlobalChannels as NSNumber,
+                       numInputMetaChannels: numInputMetaChannels as NSNumber,
                        numValueChannels: numValueChannels as NSNumber,
                        numScoreValueChannels: numScoreValueChannels as NSNumber,
                        numOwnershipChannels: numOwnershipChannels as NSNumber,
@@ -2361,10 +2617,6 @@ struct Model {
     let nnYLen: NSNumber
     /// The version of the model
     let version: Int
-    /// The number of channels in the input layer
-    let numInputChannels: NSNumber
-    /// The number of channels in the global input layer
-    let numInputGlobalChannels: NSNumber
     /// The number of channels in the value output layer
     let numValueChannels: NSNumber
     /// The number of channels in the score value output layer
@@ -2375,6 +2627,8 @@ struct Model {
     let input: InputLayer
     /// The global input layer of the neural network
     let inputGlobal: InputGlobalLayer
+    /// The meta input layer of the neural network
+    let inputMeta: InputMetaLayer
     /// The mask layer of the neural network
     let mask: MaskLayer
     /// The trunk of the neural network
@@ -2403,8 +2657,6 @@ struct Model {
         self.nnXLen = nnXLen
         self.nnYLen = nnYLen
         self.version = descriptor.version
-        self.numInputChannels = descriptor.numInputChannels
-        self.numInputGlobalChannels = descriptor.numInputGlobalChannels
         self.numValueChannels = descriptor.numValueChannels
         self.numScoreValueChannels = descriptor.numScoreValueChannels
         self.numOwnershipChannels = descriptor.numOwnershipChannels
@@ -2416,6 +2668,9 @@ struct Model {
 
         inputGlobal = InputGlobalLayer(graph: graph,
                                        numGlobalFeatures: descriptor.numInputGlobalChannels)
+
+        inputMeta = InputMetaLayer(graph: graph,
+                                   numMetaFeatures: descriptor.numInputMetaChannels)
 
         mask = MaskLayer(graph: graph,
                          nnXLen: nnXLen,
@@ -2434,13 +2689,12 @@ struct Model {
                       descriptor: descriptor.trunk,
                       inputTensor: input.tensor,
                       inputGlobalTensor: inputGlobal.tensor,
+                      inputMetaTensor: inputMeta.tensor,
                       maskTensor: mask.tensor,
                       maskSumTensor: maskSum.tensor,
                       maskSumSqrtS14M01Tensor: maskSumSqrtS14M01.tensor,
                       nnXLen: nnXLen,
-                      nnYLen: nnYLen,
-                      numSpatialFeatures: descriptor.numInputChannels,
-                      numGlobalFeatures: descriptor.numInputGlobalChannels)
+                      nnYLen: nnYLen)
 
         policyHead = PolicyHead(graph: graph,
                                 descriptor: descriptor.policyHead,
@@ -2472,6 +2726,7 @@ struct Model {
     /// - Parameters:
     ///   - inputPointer: UnsafeMutablePointer to a flattened 2D array of floats representing the input state
     ///   - inputGlobalPointer: UnsafeMutablePointer to a flattened array of floats representing global state features
+    ///   - inputMetaPointer: UnsafeMutablePointer to a flattened array of floats representing the metadata
     ///   - policy: UnsafeMutablePointer to a flattened 2D array of floats representing predicted policy
     ///   - policyPass: UnsafeMutablePointer to a flattened array of floats representing predicted probability of passing
     ///   - value: UnsafeMutablePointer to a flattened array of floats representing predicted value
@@ -2480,6 +2735,7 @@ struct Model {
     ///   - batchSize: The batch size
     func apply(input inputPointer: UnsafeMutablePointer<Float32>,
                inputGlobal inputGlobalPointer: UnsafeMutablePointer<Float32>,
+               inputMeta inputMetaPointer: UnsafeMutablePointer<Float32>,
                policy: UnsafeMutablePointer<Float32>,
                policyPass: UnsafeMutablePointer<Float32>,
                value: UnsafeMutablePointer<Float32>,
@@ -2518,6 +2774,21 @@ struct Model {
 
         inputGlobalArray.writeBytes(inputGlobalPointer)
 
+        let numInputMetaChannels = inputMeta.shape[channelAxis]
+
+        let inputMetaShape = InputShape.create(batchSize: batchSize as NSNumber,
+                                               numChannels: numInputMetaChannels,
+                                               nnYLen: 1,
+                                               nnXLen: 1)
+
+        let inputMetaDescriptor = MPSNDArrayDescriptor(dataType: inputMeta.tensor.dataType,
+                                                       shape: inputMetaShape)
+
+        let inputMetaArray = MPSNDArray(device: device,
+                                        descriptor: inputMetaDescriptor)
+
+        inputMetaArray.writeBytes(inputMetaPointer)
+
         let maskShape = InputShape.create(batchSize: batchSize as NSNumber,
                                           numChannels: 1,
                                           nnYLen: nnYLen,
@@ -2538,6 +2809,7 @@ struct Model {
 
         let feeds = [input.tensor: MPSGraphTensorData(inputArray),
                      inputGlobal.tensor: MPSGraphTensorData(inputGlobalArray),
+                     inputMeta.tensor: MPSGraphTensorData(inputMetaArray),
                      mask.tensor: MPSGraphTensorData(maskArray)]
 
         let fetch = graph.run(with: MetalComputeContext.commandQueue,
@@ -2701,6 +2973,7 @@ class MetalBackend {
     /// - Parameters:
     ///   - userInputBuffer: The input data.
     ///   - userInputGlobalBuffer: The global input data.
+    ///   - userInputMetaBuffer: The meta input data.
     ///   - policyOutput: The policy output data.
     ///   - policyPassOutput: The policy pass output data.
     ///   - valueOutput: The value output data.
@@ -2709,6 +2982,7 @@ class MetalBackend {
     ///   - batchSize: The batch size.
     class func getOutput(userInputBuffer: UnsafeMutablePointer<Float32>,
                          userInputGlobalBuffer: UnsafeMutablePointer<Float32>,
+                         userInputMetaBuffer: UnsafeMutablePointer<Float32>,
                          policyOutput: UnsafeMutablePointer<Float32>,
                          policyPassOutput: UnsafeMutablePointer<Float32>,
                          valueOutput: UnsafeMutablePointer<Float32>,
@@ -2721,6 +2995,7 @@ class MetalBackend {
         autoreleasepool {
             MetalComputeHandle.handle?.model.apply(input: userInputBuffer,
                                                    inputGlobal: userInputGlobalBuffer,
+                                                   inputMeta: userInputMetaBuffer,
                                                    policy: policyOutput,
                                                    policyPass: policyPassOutput,
                                                    value: valueOutput,
@@ -2735,8 +3010,40 @@ public func printMetalDevices() {
     MetalBackend.printDevices()
 }
 
+///
+/// Retrieves and processes output data using the Metal backend.
+///
+/// This function interfaces with the Metal framework to process and obtain
+/// output data based on the provided input buffers. It is designed to manage
+/// various pieces of data relevant to a specific batch operation and populate
+/// multiple output buffers. The function utilizes a backend method for the
+/// actual processing.
+///
+/// - Parameters:
+///   - userInputBuffer: An UnsafeMutablePointer to a Float32 array representing
+///     the user input buffer. This buffer contains the main input data required
+///     for processing.
+///   - userInputGlobalBuffer: An UnsafeMutablePointer to a Float32 array that
+///     holds global input data shared across the batch operation.
+///   - userInputMetaBuffer: An UnsafeMutablePointer to a Float32 array containing
+///     metadata associated with the user input.
+///   - policyOutput: An UnsafeMutablePointer to a Float32 array where the policy
+///     output will be stored. This output is generally used in scenarios
+///     involving machine learning models to represent predictive policies.
+///   - policyPassOutput: An UnsafeMutablePointer to a Float32 array to store the
+///     policy pass output.
+///   - valueOutput: An UnsafeMutablePointer to a Float32 array for storing
+///     computed value outputs.
+///   - ownershipOutput: An UnsafeMutablePointer to a Float32 array to hold the
+///     output representing ownership values.
+///   - scoreValueOutput: An UnsafeMutablePointer to a Float32 array for storing
+///     score values.
+///   - batchSize: An Int specifying the size of the batch to be processed. This
+///     indicates how many sets of input and corresponding outputs are being handled.
+///
 public func getMetalHandleOutput(userInputBuffer: UnsafeMutablePointer<Float32>,
                                  userInputGlobalBuffer: UnsafeMutablePointer<Float32>,
+                                 userInputMetaBuffer: UnsafeMutablePointer<Float32>,
                                  policyOutput: UnsafeMutablePointer<Float32>,
                                  policyPassOutput: UnsafeMutablePointer<Float32>,
                                  valueOutput: UnsafeMutablePointer<Float32>,
@@ -2745,6 +3052,7 @@ public func getMetalHandleOutput(userInputBuffer: UnsafeMutablePointer<Float32>,
                                  batchSize: Int) {
     MetalBackend.getOutput(userInputBuffer: userInputBuffer,
                            userInputGlobalBuffer: userInputGlobalBuffer,
+                           userInputMetaBuffer: userInputMetaBuffer,
                            policyOutput: policyOutput,
                            policyPassOutput: policyPassOutput,
                            valueOutput: valueOutput,
