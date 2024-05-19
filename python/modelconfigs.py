@@ -19,7 +19,7 @@ well or best: "-fson-mish-rvgl-bnh"
   but the latter is used for inference.
 """
 
-from typing import Dict, Any
+from typing import Dict, Any, Union
 
 ModelConfig = Dict[str,Any]
 
@@ -57,8 +57,21 @@ def get_num_global_input_features(config: ModelConfig):
     else:
         assert(False)
 
+def get_num_meta_encoder_input_features(config_or_meta_encoder_version: Union[ModelConfig,int]):
+    if isinstance(config_or_meta_encoder_version,int):
+        version = config_or_meta_encoder_version
+    else:
+        if "metadata_encoder" not in config:
+            version = 0
+        elif "meta_encoder_version" not in config["metadata_encoder"]:
+            version = 1
+        else:
+            version = config["metadata_encoder"]["meta_encoder_version"]
+    assert version == 1
+    return 192
+
 b1c6nbt = {
-    "version":14,
+    "version":15,
     "norm_kind":"fixup",
     "bnorm_epsilon": 1e-4,
     "bnorm_running_avg_momentum": 0.001,
@@ -80,7 +93,7 @@ b1c6nbt = {
 }
 
 b2c16 = {
-    "version":14,
+    "version":15,
     "norm_kind":"fixup",
     "bnorm_epsilon": 1e-4,
     "bnorm_running_avg_momentum": 0.001,
@@ -103,7 +116,7 @@ b2c16 = {
 }
 
 b4c32 = {
-    "version":14,
+    "version":15,
     "norm_kind":"fixup",
     "bnorm_epsilon": 1e-4,
     "bnorm_running_avg_momentum": 0.001,
@@ -128,7 +141,7 @@ b4c32 = {
 }
 
 b6c96 = {
-    "version":14,
+    "version":15,
     "norm_kind":"fixup",
     "bnorm_epsilon": 1e-4,
     "bnorm_running_avg_momentum": 0.001,
@@ -155,7 +168,7 @@ b6c96 = {
 }
 
 b10c128 = {
-    "version":14,
+    "version":15,
     "norm_kind":"fixup",
     "bnorm_epsilon": 1e-4,
     "bnorm_running_avg_momentum": 0.001,
@@ -186,7 +199,7 @@ b10c128 = {
 }
 
 b5c192nbt = {
-    "version":14,
+    "version":15,
     "norm_kind":"fixup",
     "bnorm_epsilon": 1e-4,
     "bnorm_running_avg_momentum": 0.001,
@@ -212,7 +225,7 @@ b5c192nbt = {
 }
 
 b15c192 = {
-    "version":14,
+    "version":15,
     "norm_kind":"fixup",
     "bnorm_epsilon": 1e-4,
     "bnorm_running_avg_momentum": 0.001,
@@ -248,7 +261,7 @@ b15c192 = {
 }
 
 b20c256 = {
-    "version":14,
+    "version":15,
     "norm_kind":"fixup",
     "bnorm_epsilon": 1e-4,
     "bnorm_running_avg_momentum": 0.001,
@@ -289,7 +302,7 @@ b20c256 = {
 }
 
 b30c256bt = {
-    "version":14,
+    "version":15,
     "norm_kind":"fixup",
     "bnorm_epsilon": 1e-4,
     "bnorm_running_avg_momentum": 0.001,
@@ -340,7 +353,7 @@ b30c256bt = {
 }
 
 b24c320bt = {
-    "version":14,
+    "version":15,
     "norm_kind":"fixup",
     "bnorm_epsilon": 1e-4,
     "bnorm_running_avg_momentum": 0.001,
@@ -385,7 +398,7 @@ b24c320bt = {
 }
 
 b20c384bt = {
-    "version":14,
+    "version":15,
     "norm_kind":"fixup",
     "bnorm_epsilon": 1e-4,
     "bnorm_running_avg_momentum": 0.001,
@@ -427,7 +440,7 @@ b20c384bt = {
 
 
 b10c512lbt = {
-    "version":14,
+    "version":15,
     "norm_kind":"fixup",
     "bnorm_epsilon": 1e-4,
     "bnorm_running_avg_momentum": 0.001,
@@ -459,7 +472,7 @@ b10c512lbt = {
 
 
 b15c384lbt = {
-    "version":14,
+    "version":15,
     "norm_kind":"fixup",
     "bnorm_epsilon": 1e-4,
     "bnorm_running_avg_momentum": 0.001,
@@ -495,7 +508,7 @@ b15c384lbt = {
 }
 
 b18c320lbt = {
-    "version":14,
+    "version":15,
     "norm_kind":"fixup",
     "bnorm_epsilon": 1e-4,
     "bnorm_running_avg_momentum": 0.001,
@@ -534,7 +547,7 @@ b18c320lbt = {
 }
 
 b23c256lbt = {
-    "version":14,
+    "version":15,
     "norm_kind":"fixup",
     "bnorm_epsilon": 1e-4,
     "bnorm_running_avg_momentum": 0.001,
@@ -578,7 +591,7 @@ b23c256lbt = {
 }
 
 b12c384llbt = {
-    "version":14,
+    "version":15,
     "norm_kind":"fixup",
     "bnorm_epsilon": 1e-4,
     "bnorm_running_avg_momentum": 0.001,
@@ -612,7 +625,7 @@ b12c384llbt = {
 
 
 b10c384nbt = {
-    "version":14,
+    "version":15,
     "norm_kind":"fixup",
     "bnorm_epsilon": 1e-4,
     "bnorm_running_avg_momentum": 0.001,
@@ -644,7 +657,7 @@ b10c384nbt = {
 
 
 b10c480nb3t = {
-    "version":14,
+    "version":15,
     "norm_kind":"fixup",
     "bnorm_epsilon": 1e-4,
     "bnorm_running_avg_momentum": 0.001,
@@ -676,7 +689,7 @@ b10c480nb3t = {
 
 
 b7c384lnbt = {
-    "version":14,
+    "version":15,
     "norm_kind":"fixup",
     "bnorm_epsilon": 1e-4,
     "bnorm_running_avg_momentum": 0.001,
@@ -704,7 +717,7 @@ b7c384lnbt = {
 }
 
 b5c512nnbt = {
-    "version":14,
+    "version":15,
     "norm_kind":"fixup",
     "bnorm_epsilon": 1e-4,
     "bnorm_running_avg_momentum": 0.001,
@@ -732,7 +745,7 @@ b5c512nnbt = {
 
 
 b20c384lbt = {
-    "version":14,
+    "version":15,
     "norm_kind":"fixup",
     "bnorm_epsilon": 1e-4,
     "bnorm_running_avg_momentum": 0.001,
@@ -774,7 +787,7 @@ b20c384lbt = {
 
 
 b30c320 = {
-    "version":14,
+    "version":15,
     "norm_kind":"fixup",
     "bnorm_epsilon": 1e-4,
     "bnorm_running_avg_momentum": 0.001,
@@ -825,7 +838,7 @@ b30c320 = {
 }
 
 b40c256 = {
-    "version":14,
+    "version":15,
     "norm_kind":"fixup",
     "bnorm_epsilon": 1e-4,
     "bnorm_running_avg_momentum": 0.001,
@@ -886,7 +899,7 @@ b40c256 = {
 }
 
 b18c384nbt = {
-    "version":14,
+    "version":15,
     "norm_kind":"fixup",
     "bnorm_epsilon": 1e-4,
     "bnorm_running_avg_momentum": 0.001,
@@ -925,7 +938,7 @@ b18c384nbt = {
 }
 
 b14c448nbt = {
-    "version":14,
+    "version":15,
     "norm_kind":"fixup",
     "bnorm_epsilon": 1e-4,
     "bnorm_running_avg_momentum": 0.001,
@@ -960,7 +973,7 @@ b14c448nbt = {
 }
 
 b40c384 = {
-    "version":14,
+    "version":15,
     "norm_kind":"fixup",
     "bnorm_epsilon": 1e-4,
     "bnorm_running_avg_momentum": 0.001,
@@ -1022,7 +1035,7 @@ b40c384 = {
 
 
 b60c320 = {
-    "version":14,
+    "version":15,
     "norm_kind":"fixup",
     "bnorm_epsilon": 1e-4,
     "bnorm_running_avg_momentum": 0.001,
@@ -1104,7 +1117,7 @@ b60c320 = {
 
 
 b41c384nbt = {
-    "version":14,
+    "version":15,
     "norm_kind":"fixup",
     "bnorm_epsilon": 1e-4,
     "bnorm_running_avg_momentum": 0.001,
@@ -1166,7 +1179,7 @@ b41c384nbt = {
 }
 
 b32c448nbt = {
-    "version":14,
+    "version":15,
     "norm_kind":"fixup",
     "bnorm_epsilon": 1e-4,
     "bnorm_running_avg_momentum": 0.001,
@@ -1220,7 +1233,7 @@ b32c448nbt = {
 
 
 b28c512nbt = {
-    "version":14,
+    "version":15,
     "norm_kind":"fixup",
     "bnorm_epsilon": 1e-4,
     "bnorm_running_avg_momentum": 0.001,
@@ -1262,14 +1275,14 @@ b28c512nbt = {
     ],
     "p1_num_channels":64,
     "g1_num_channels":64,
-    "v1_num_channels":96,
+    "v1_num_channels":128,
     "sbv2_num_channels":128,
     "num_scorebeliefs":8,
     "v2_size":144,
 }
 
 b20c640nbt = {
-    "version":14,
+    "version":15,
     "norm_kind":"fixup",
     "bnorm_epsilon": 1e-4,
     "bnorm_running_avg_momentum": 0.001,
@@ -1310,7 +1323,7 @@ b20c640nbt = {
 }
 
 sandbox = {
-    "version":14,
+    "version":15,
     "norm_kind":"fixup",
     "bnorm_epsilon": 1e-4,
     "bnorm_running_avg_momentum": 0.001,
@@ -1502,3 +1515,11 @@ for name, base_config in list(config_of_name.items()):
         config["intermediate_head_blocks"] = len(config["block_kind"])
         config["trunk_normless"] = True
         config_of_name[name+"-bnh"] = config
+
+for name, base_config in list(config_of_name.items()):
+    config = base_config.copy()
+    config["metadata_encoder"] = {
+        "meta_encoder_version": 1,
+        "internal_num_channels": config["trunk_num_channels"],
+    }
+    config_of_name[name+"-meta"] = config

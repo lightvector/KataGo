@@ -20,6 +20,7 @@ int MainCmds::evalsgf(const vector<string>& args) {
 
   ConfigParser cfg;
   string modelFile;
+  string humanModelFile;
   string sgfFile;
   int moveNum;
   string printBranch;
@@ -29,6 +30,7 @@ int MainCmds::evalsgf(const vector<string>& args) {
   int64_t maxVisits;
   int numThreads;
   float overrideKomi;
+  string overrideRules;
   bool printOwnership;
   bool printRootNNValues;
   bool printPolicy;
@@ -47,6 +49,7 @@ int MainCmds::evalsgf(const vector<string>& args) {
     KataGoCommandLine cmd("Run a search on a position from an sgf file, for debugging.");
     cmd.addConfigFileArg("","gtp_example.cfg");
     cmd.addModelFileArg();
+    cmd.addHumanModelFileArg();
 
     TCLAP::UnlabeledValueArg<string> sgfFileArg("","Sgf file to analyze",true,string(),"FILE");
     TCLAP::ValueArg<int> moveNumArg("m","move-num","Sgf move num to analyze, 1-indexed",true,0,"MOVENUM");
@@ -60,6 +63,7 @@ int MainCmds::evalsgf(const vector<string>& args) {
     TCLAP::ValueArg<long> visitsArg("v","visits","Set the number of visits",false,-1,"VISITS");
     TCLAP::ValueArg<int> threadsArg("t","threads","Set the number of threads",false,-1,"THREADS");
     TCLAP::ValueArg<float> overrideKomiArg("","override-komi","Artificially set komi",false,std::numeric_limits<float>::quiet_NaN(),"KOMI");
+    TCLAP::ValueArg<string> overrideRulesArg("","override-rules","Artifically set rules",false,string(),"RULES");
     TCLAP::SwitchArg printOwnershipArg("","print-ownership","Print ownership");
     TCLAP::SwitchArg printRootNNValuesArg("","print-root-nn-values","Print root nn values");
     TCLAP::SwitchArg printPolicyArg("","print-policy","Print policy");
@@ -90,6 +94,7 @@ int MainCmds::evalsgf(const vector<string>& args) {
     cmd.add(visitsArg);
     cmd.add(threadsArg);
     cmd.add(overrideKomiArg);
+    cmd.add(overrideRulesArg);
     cmd.add(printOwnershipArg);
     cmd.add(printRootNNValuesArg);
     cmd.add(printPolicyArg);
@@ -107,6 +112,7 @@ int MainCmds::evalsgf(const vector<string>& args) {
     cmd.parseArgs(args);
 
     modelFile = cmd.getModelFile();
+    humanModelFile = cmd.getHumanModelFile();
     sgfFile = sgfFileArg.getValue();
     moveNum = moveNumArg.getValue();
     printBranch = printBranchArg.getValue();
@@ -118,6 +124,7 @@ int MainCmds::evalsgf(const vector<string>& args) {
     maxVisits = (int64_t)visitsArg.getValue();
     numThreads = threadsArg.getValue();
     overrideKomi = overrideKomiArg.getValue();
+    overrideRules = overrideRulesArg.getValue();
     printOwnership = printOwnershipArg.getValue();
     printRootNNValues = printRootNNValuesArg.getValue();
     printPolicy = printPolicyArg.getValue();
@@ -200,6 +207,9 @@ int MainCmds::evalsgf(const vector<string>& args) {
     defaultRules,
     [](const string& msg) { cout << msg << endl; }
   );
+  if(overrideRules != "") {
+    initialRules = Rules::parseRules(overrideRules);
+  }
   setUpBoardUsingRules(initialRules);
 
   //Parse move sequence arguments------------------------------------------
@@ -216,7 +226,8 @@ int MainCmds::evalsgf(const vector<string>& args) {
   Logger logger(&cfg, logToStdoutDefault);
   logger.write("Engine starting...");
 
-  SearchParams params = Setup::loadSingleParams(cfg,Setup::SETUP_FOR_GTP);
+  bool hasHumanModel = humanModelFile != "";
+  SearchParams params = Setup::loadSingleParams(cfg,Setup::SETUP_FOR_GTP,hasHumanModel);
   if(maxVisits < -1 || maxVisits == 0)
     throw StringError("maxVisits: invalid value");
   else if(maxVisits == -1)
@@ -239,7 +250,8 @@ int MainCmds::evalsgf(const vector<string>& args) {
   else
     searchRandSeed = Global::uint64ToString(seedRand.nextUInt64());
 
-  NNEvaluator* nnEval;
+  NNEvaluator* nnEval = NULL;
+  NNEvaluator* humanEval = NULL;
   {
     Setup::initializeSession(cfg);
     int expectedConcurrentEvals = params.numThreads;
@@ -252,6 +264,13 @@ int MainCmds::evalsgf(const vector<string>& args) {
       board.x_size,board.y_size,defaultMaxBatchSize,defaultRequireExactNNLen,disableFP16,
       Setup::SETUP_FOR_GTP
     );
+    if(humanModelFile != "") {
+      humanEval = Setup::initializeNNEvaluator(
+        humanModelFile,humanModelFile,expectedSha256,cfg,logger,seedRand,expectedConcurrentEvals,
+        board.x_size,board.y_size,defaultMaxBatchSize,defaultRequireExactNNLen,disableFP16,
+        Setup::SETUP_FOR_GTP
+      );
+    }
   }
   logger.write("Loaded neural net");
 
@@ -336,10 +355,15 @@ int MainCmds::evalsgf(const vector<string>& args) {
     cout << "Encore phase " << hist.encorePhase << endl;
     Board::printBoard(cout, board, Board::NULL_LOC, &(hist.moveHistory));
     buf.result->debugPrint(cout,board);
+
+    if(humanEval != NULL) {
+      humanEval->evaluate(board,hist,nextPla,nnInputParams,buf,skipCache,includeOwnerMap);
+      buf.result->debugPrint(cout,board);
+    }
     return 0;
   }
 
-  AsyncBot* bot = new AsyncBot(params, nnEval, &logger, searchRandSeed);
+  AsyncBot* bot = new AsyncBot(params, nnEval, humanEval, &logger, searchRandSeed);
 
   bot->setPosition(nextPla,board,hist);
   if(hintLoc != "") {
@@ -386,6 +410,8 @@ int MainCmds::evalsgf(const vector<string>& args) {
 
   ClockTimer timer;
   nnEval->clearStats();
+  if(humanEval != NULL)
+    humanEval->clearStats();
   Loc loc = bot->genMoveSynchronous(bot->getSearch()->rootPla,TimeControls());
   (void)loc;
 
@@ -437,13 +463,10 @@ int MainCmds::evalsgf(const vector<string>& args) {
   }
 
   if(printPolicy) {
-    const NNOutput* nnOutput = search->rootNode->getNNOutput();
-    if(nnOutput != NULL) {
-      const float* policyProbs = nnOutput->getPolicyProbsMaybeNoised();
-      cout << "Root policy: " << endl;
+    auto doPrintPolicy = [&](const float* policyProbs, int nnXLen, int nnYLen) {
       for(int y = 0; y<board.y_size; y++) {
         for(int x = 0; x<board.x_size; x++) {
-          int pos = NNPos::xyToPos(x,y,nnOutput->nnXLen);
+          int pos = NNPos::xyToPos(x,y,nnXLen);
           double prob = policyProbs[pos];
           if(prob < 0)
             cout << "  -  " << " ";
@@ -452,18 +475,28 @@ int MainCmds::evalsgf(const vector<string>& args) {
         }
         cout << endl;
       }
-      double prob = policyProbs[NNPos::locToPos(Board::PASS_LOC,board.x_size,nnOutput->nnXLen,nnOutput->nnYLen)];
+      double prob = policyProbs[NNPos::locToPos(Board::PASS_LOC,board.x_size,nnXLen,nnYLen)];
       cout << "Pass " << Global::strprintf("%5.2f",prob*100) << endl;
-    }
-  }
-  if(printLogPolicy) {
+    };
+
     const NNOutput* nnOutput = search->rootNode->getNNOutput();
     if(nnOutput != NULL) {
       const float* policyProbs = nnOutput->getPolicyProbsMaybeNoised();
       cout << "Root policy: " << endl;
+      doPrintPolicy(policyProbs, nnOutput->nnXLen, nnOutput->nnYLen);
+    }
+    const NNOutput* humanOutput = search->rootNode->getHumanOutput();
+    if(humanOutput != NULL) {
+      const float* policyProbs = humanOutput->getPolicyProbsMaybeNoised();
+      cout << "Root human policy: " << endl;
+      doPrintPolicy(policyProbs, humanOutput->nnXLen, humanOutput->nnYLen);
+    }
+  }
+  if(printLogPolicy) {
+    auto doPrintLogPolicy = [&](const float* policyProbs, int nnXLen, int nnYLen) {
       for(int y = 0; y<board.y_size; y++) {
         for(int x = 0; x<board.x_size; x++) {
-          int pos = NNPos::xyToPos(x,y,nnOutput->nnXLen);
+          int pos = NNPos::xyToPos(x,y,nnXLen);
           double prob = policyProbs[pos];
           if(prob < 0)
             cout << "  _  " << " ";
@@ -472,8 +505,21 @@ int MainCmds::evalsgf(const vector<string>& args) {
         }
         cout << endl;
       }
-      double prob = policyProbs[NNPos::locToPos(Board::PASS_LOC,board.x_size,nnOutput->nnXLen,nnOutput->nnYLen)];
+      double prob = policyProbs[NNPos::locToPos(Board::PASS_LOC,board.x_size,nnXLen,nnYLen)];
       cout << "Pass " << Global::strprintf("%+5.2f",log(prob)) << endl;
+    };
+
+    const NNOutput* nnOutput = search->rootNode->getNNOutput();
+    if(nnOutput != NULL) {
+      const float* policyProbs = nnOutput->getPolicyProbsMaybeNoised();
+      cout << "Root policy: " << endl;
+      doPrintLogPolicy(policyProbs, nnOutput->nnXLen, nnOutput->nnYLen);
+    }
+    const NNOutput* humanOutput = search->rootNode->getHumanOutput();
+    if(humanOutput != NULL) {
+      const float* policyProbs = humanOutput->getPolicyProbsMaybeNoised();
+      cout << "Root human policy: " << endl;
+      doPrintLogPolicy(policyProbs, humanOutput->nnXLen, humanOutput->nnYLen);
     }
   }
 
@@ -605,6 +651,8 @@ int MainCmds::evalsgf(const vector<string>& args) {
 
   delete bot;
   delete nnEval;
+  if(humanEval != NULL)
+    delete humanEval;
   NeuralNet::globalCleanup();
   delete sgf;
   ScoreValue::freeTables();

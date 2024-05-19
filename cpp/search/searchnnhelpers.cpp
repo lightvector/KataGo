@@ -28,7 +28,7 @@ void Search::computeRootNNEvaluation(NNResultBuf& nnResultBuf, bool includeOwner
   if(searchParams.ignorePreRootHistory || searchParams.ignoreAllHistory)
     nnInputParams.maxHistory = 0;
   nnEvaluator->evaluate(
-    board, hist, pla,
+    board, hist, pla, &searchParams.humanSLProfile,
     nnInputParams,
     nnResultBuf, skipCache, includeOwnerMap
   );
@@ -70,31 +70,39 @@ bool Search::initNodeNNOutput(
     nnInputParams.maxHistory = isRoot ? 0 : std::max(0, (int)thread.history.moveHistory.size() - (int)rootHistory.moveHistory.size());
   }
 
-  std::shared_ptr<NNOutput>* result;
+  std::shared_ptr<NNOutput>* result = NULL;
+  std::shared_ptr<NNOutput>* humanResult = NULL;
   if(isRoot && searchParams.rootNumSymmetriesToSample > 1) {
-    vector<std::shared_ptr<NNOutput>> ptrs;
-    std::array<int, SymmetryHelpers::NUM_SYMMETRIES> symmetryIndexes;
-    std::iota(symmetryIndexes.begin(), symmetryIndexes.end(), 0);
-    for(int i = 0; i<searchParams.rootNumSymmetriesToSample; i++) {
-      std::swap(symmetryIndexes[i], symmetryIndexes[thread.rand.nextInt(i,SymmetryHelpers::NUM_SYMMETRIES-1)]);
-      nnInputParams.symmetry = symmetryIndexes[i];
-      bool skipCacheThisIteration = true; //Skip cache since there's no guarantee which symmetry is in the cache
-      nnEvaluator->evaluate(
-        thread.board, thread.history, thread.pla,
+    result = nnEvaluator->averageMultipleSymmetries(
+      thread.board, thread.history, thread.pla, &searchParams.humanSLProfile,
+      nnInputParams,
+      thread.nnResultBuf, includeOwnerMap,
+      thread.rand, searchParams.rootNumSymmetriesToSample
+    );
+    if(humanEvaluator != NULL) {
+      humanResult = humanEvaluator->averageMultipleSymmetries(
+        thread.board, thread.history, thread.pla, &searchParams.humanSLProfile,
         nnInputParams,
-        thread.nnResultBuf, skipCacheThisIteration, includeOwnerMap
+        thread.nnResultBuf, includeOwnerMap,
+        thread.rand, searchParams.rootNumSymmetriesToSample
       );
-      ptrs.push_back(std::move(thread.nnResultBuf.result));
     }
-    result = new std::shared_ptr<NNOutput>(new NNOutput(ptrs));
   }
   else {
     nnEvaluator->evaluate(
-      thread.board, thread.history, thread.pla,
+      thread.board, thread.history, thread.pla, &searchParams.humanSLProfile,
       nnInputParams,
       thread.nnResultBuf, skipCache, includeOwnerMap
     );
     result = new std::shared_ptr<NNOutput>(std::move(thread.nnResultBuf.result));
+    if(humanEvaluator != NULL) {
+      humanEvaluator->evaluate(
+        thread.board, thread.history, thread.pla, &searchParams.humanSLProfile,
+        nnInputParams,
+        thread.nnResultBuf, skipCache, includeOwnerMap
+      );
+      humanResult = new std::shared_ptr<NNOutput>(std::move(thread.nnResultBuf.result));
+    }
   }
 
   if(antiMirrorDifficult) {
@@ -121,17 +129,26 @@ bool Search::initNodeNNOutput(
   //slightly affecting the evals, but this is annoying to recompute from scratch, and on the next
   //visit updateStatsAfterPlayout should fix it all up anyways.
   if(isReInit) {
+    if(humanResult != NULL)
+      node.storeHumanOutput(humanResult,thread); // ignore the wasNullBefore from this one
     bool wasNullBefore = node.storeNNOutput(result,thread);
     return wasNullBefore;
   }
   else {
-    bool suc = node.storeNNOutputIfNull(result);
-    if(!suc) {
-      delete result;
-      return false;
+    // Store human result first, so that the presence of the main result guarantees
+    // that the human result exists in the case we have a human evaluator.
+    if(humanResult != NULL) {
+      bool humanSuc = node.storeHumanOutputIfNull(humanResult);
+      if(!humanSuc)
+        delete humanResult;
     }
-    addCurrentNNOutputAsLeafValue(node,true);
-    return true;
+    bool suc = node.storeNNOutputIfNull(result);
+    if(!suc)
+      delete result;
+    else {
+      addCurrentNNOutputAsLeafValue(node,true);
+    }
+    return suc;
   }
 }
 

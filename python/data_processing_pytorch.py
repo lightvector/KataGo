@@ -16,6 +16,7 @@ def read_npz_training_data(
     pos_len: int,
     device,
     randomize_symmetries: bool,
+    include_meta: bool,
     model_config: modelconfigs.ModelConfig,
 ):
     rand = np.random.default_rng(seed=list(os.urandom(12)))
@@ -31,6 +32,8 @@ def read_npz_training_data(
             globalTargetsNC = npz["globalTargetsNC"]
             scoreDistrN = npz["scoreDistrN"].astype(np.float32)
             valueTargetsNCHW = npz["valueTargetsNCHW"].astype(np.float32)
+            if include_meta:
+                metadataInputNC = npz["metadataInputNC"].astype(np.float32)
         del npz
 
         binaryInputNCHW = np.unpackbits(binaryInputNCHWPacked,axis=2)
@@ -59,6 +62,8 @@ def read_npz_training_data(
             batch_globalTargetsNC = torch.from_numpy(globalTargetsNC[start:end]).to(device)
             batch_scoreDistrN = torch.from_numpy(scoreDistrN[start:end]).to(device)
             batch_valueTargetsNCHW = torch.from_numpy(valueTargetsNCHW[start:end]).to(device)
+            if include_meta:
+                batch_metadataInputNC = torch.from_numpy(metadataInputNC[start:end]).to(device)
 
             (batch_binaryInputNCHW, batch_globalInputNC) = apply_history_matrices(
                 model_config, batch_binaryInputNCHW, batch_globalInputNC, batch_globalTargetsNC, h_base, h_builder
@@ -73,14 +78,25 @@ def read_npz_training_data(
             batch_policyTargetsNCMove = batch_policyTargetsNCMove.contiguous()
             batch_valueTargetsNCHW = batch_valueTargetsNCHW.contiguous()
 
-            batch = dict(
-                binaryInputNCHW = batch_binaryInputNCHW,
-                globalInputNC = batch_globalInputNC,
-                policyTargetsNCMove = batch_policyTargetsNCMove,
-                globalTargetsNC = batch_globalTargetsNC,
-                scoreDistrN = batch_scoreDistrN,
-                valueTargetsNCHW = batch_valueTargetsNCHW,
-            )
+            if include_meta:
+                batch = dict(
+                    binaryInputNCHW = batch_binaryInputNCHW,
+                    globalInputNC = batch_globalInputNC,
+                    policyTargetsNCMove = batch_policyTargetsNCMove,
+                    globalTargetsNC = batch_globalTargetsNC,
+                    scoreDistrN = batch_scoreDistrN,
+                    valueTargetsNCHW = batch_valueTargetsNCHW,
+                    metadataInputNC = batch_metadataInputNC,
+                )
+            else:
+                batch = dict(
+                    binaryInputNCHW = batch_binaryInputNCHW,
+                    globalInputNC = batch_globalInputNC,
+                    policyTargetsNCMove = batch_policyTargetsNCMove,
+                    globalTargetsNC = batch_globalTargetsNC,
+                    scoreDistrN = batch_scoreDistrN,
+                    valueTargetsNCHW = batch_valueTargetsNCHW,
+                )
             yield batch
 
 

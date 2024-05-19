@@ -1,7 +1,7 @@
 from typing import Any, Dict, List
 import math
 
-from model_pytorch import EXTRA_SCORE_DISTR_RADIUS, Model, compute_gain
+from model_pytorch import EXTRA_SCORE_DISTR_RADIUS, Model, compute_gain, ExtraOutputs, MetadataEncoder
 
 import torch
 import torch.nn
@@ -362,11 +362,16 @@ class Metrics:
         self,
         raw_model,
         model_output_postprocessed_byheads,
+        extra_outputs,
         batch,
         is_training,
         soft_policy_weight_scale,
+        disable_optimistic_policy,
+        meta_kata_only_soft_policy,
         value_loss_scale,
         td_value_loss_scales,
+        seki_loss_scale,
+        variance_time_loss_scale,
         main_loss_scale,
         intermediate_loss_scale,
     ):
@@ -376,9 +381,13 @@ class Metrics:
             batch,
             is_training=is_training,
             soft_policy_weight_scale=soft_policy_weight_scale,
+            disable_optimistic_policy=disable_optimistic_policy,
+            meta_kata_only_soft_policy=meta_kata_only_soft_policy,
             value_loss_scale=value_loss_scale,
             td_value_loss_scales=td_value_loss_scales,
-            is_intermediate=False
+            seki_loss_scale=seki_loss_scale,
+            variance_time_loss_scale=variance_time_loss_scale,
+            is_intermediate=False,
         )
         if main_loss_scale is not None:
             results["loss_sum"] = main_loss_scale * results["loss_sum"]
@@ -398,9 +407,13 @@ class Metrics:
                     batch,
                     is_training=is_training,
                     soft_policy_weight_scale=soft_policy_weight_scale,
+                    disable_optimistic_policy=disable_optimistic_policy,
+                    meta_kata_only_soft_policy=meta_kata_only_soft_policy,
                     value_loss_scale=value_loss_scale,
                     td_value_loss_scales=td_value_loss_scales,
-                    is_intermediate=True
+                    seki_loss_scale=seki_loss_scale,
+                    variance_time_loss_scale=variance_time_loss_scale,
+                    is_intermediate=True,
                 )
                 for key,value in iresults.items():
                     if key != "loss_sum":
@@ -409,7 +422,6 @@ class Metrics:
 
         return results
 
-
     def metrics_dict_batchwise_single_heads_output(
         self,
         raw_model,
@@ -417,8 +429,12 @@ class Metrics:
         batch,
         is_training,
         soft_policy_weight_scale,
+        disable_optimistic_policy,
+        meta_kata_only_soft_policy,
         value_loss_scale,
         td_value_loss_scales,
+        seki_loss_scale,
+        variance_time_loss_scale,
         is_intermediate,
     ):
         (
@@ -485,6 +501,7 @@ class Metrics:
         target_weight_futurepos = target_global_nc[:, 33]
         target_weight_scoring = target_global_nc[:, 34]
         target_weight_value = 1.0 - target_global_nc[:, 35]
+        target_weight_td_value = 1.0 - target_global_nc[:, 24]
 
         target_score_distribution = score_distribution_ns / 100.0
 
@@ -517,22 +534,39 @@ class Metrics:
             global_weight,
         ).sum()
 
+        target_weight_policy_player_soft = target_weight_policy_player
+        target_weight_policy_opponent_soft = target_weight_policy_opponent
+        if meta_kata_only_soft_policy:
+            metadata_input_nc = batch["metadataInputNC"]
+            assert metadata_input_nc.shape[0] == target_weight_policy_player_soft.shape[0]
+            # 151 indicates source 0 = katago
+            target_weight_policy_player_soft = target_weight_policy_player_soft * metadata_input_nc[:,151]
+            target_weight_policy_opponent_soft = target_weight_policy_opponent_soft * metadata_input_nc[:,151]
+
         loss_policy_player_soft = self.loss_policy_player_samplewise(
             policy_logits[:, 2, :],
             target_policy_player_soft,
-            target_weight_policy_player,
+            target_weight_policy_player_soft,
             global_weight,
         ).sum()
         loss_policy_opponent_soft = self.loss_policy_opponent_samplewise(
             policy_logits[:, 3, :],
             target_policy_opponent_soft,
-            target_weight_policy_opponent,
+            target_weight_policy_opponent_soft,
             global_weight,
         ).sum()
 
         if raw_model.config["version"] <= 11:
             target_weight_longoptimistic_policy = torch.zeros_like(global_weight)
             loss_longoptimistic_policy = torch.zeros_like(loss_policy_player)
+        elif disable_optimistic_policy:
+            target_weight_longoptimistic_policy = target_weight_policy_player * 0.5
+            loss_longoptimistic_policy = self.loss_policy_player_samplewise(
+                policy_logits[:, 4, :],
+                target_policy_player,
+                target_weight_longoptimistic_policy,
+                global_weight,
+            ).sum()
         else:
             # Long-term optimistic policy. Weight policy by:
             # Final game win squared (squaring discourages draws)
@@ -568,6 +602,14 @@ class Metrics:
         if raw_model.config["version"] <= 11:
             target_weight_shortoptimistic_policy = torch.zeros_like(global_weight)
             loss_shortoptimistic_policy = torch.zeros_like(loss_policy_player)
+        elif disable_optimistic_policy:
+            target_weight_shortoptimistic_policy = target_weight_policy_player * 0.5
+            loss_shortoptimistic_policy = self.loss_policy_player_samplewise(
+                policy_logits[:, 5, :],
+                target_policy_player,
+                target_weight_shortoptimistic_policy,
+                global_weight,
+            ).sum()
         else:
             # Short-term optimistic policy. Weight policy by:
             # The shortterm value outcome being around 1.5 sigma more than expected
@@ -607,7 +649,7 @@ class Metrics:
         ).sum()
 
         loss_td_value_unsummed = self.loss_td_value_samplewise(
-            td_value_logits, target_td_value, target_weight_value, global_weight
+            td_value_logits, target_td_value, target_weight_td_value, global_weight
         )
         assert self.num_td_values == 3
         loss_td_value1 = loss_td_value_unsummed[:,0].sum()
@@ -718,15 +760,15 @@ class Metrics:
             + loss_td_value3 * td_value_loss_scales[2]
             + loss_td_score
             + loss_ownership
-            + loss_scoring
+            + loss_scoring * 0.5
             + loss_futurepos
-            + loss_seki
+            + loss_seki * seki_loss_scale
             + loss_scoremean
             + loss_scorebelief_cdf
             + loss_scorebelief_pdf
             + loss_scorestdev
             + loss_lead
-            + loss_variance_time
+            + loss_variance_time * variance_time_loss_scale
             + loss_shortterm_value_error
             + loss_shortterm_score_error
         )

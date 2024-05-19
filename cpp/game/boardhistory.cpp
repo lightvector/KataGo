@@ -36,6 +36,7 @@ BoardHistory::BoardHistory()
    initialTurnNumber(0),
    assumeMultipleStartingBlackMovesAreHandicap(false),
    whiteHasMoved(false),
+   overrideNumHandicapStones(-1),
    recentBoards(),
    currentRecentBoardIdx(0),
    presumedNextMovePla(P_BLACK),
@@ -74,6 +75,7 @@ BoardHistory::BoardHistory(const Board& board, Player pla, const Rules& r, int e
    initialTurnNumber(0),
    assumeMultipleStartingBlackMovesAreHandicap(false),
    whiteHasMoved(false),
+   overrideNumHandicapStones(-1),
    recentBoards(),
    currentRecentBoardIdx(0),
    presumedNextMovePla(pla),
@@ -111,6 +113,7 @@ BoardHistory::BoardHistory(const BoardHistory& other)
    initialTurnNumber(other.initialTurnNumber),
    assumeMultipleStartingBlackMovesAreHandicap(other.assumeMultipleStartingBlackMovesAreHandicap),
    whiteHasMoved(other.whiteHasMoved),
+   overrideNumHandicapStones(other.overrideNumHandicapStones),
    recentBoards(),
    currentRecentBoardIdx(other.currentRecentBoardIdx),
    presumedNextMovePla(other.presumedNextMovePla),
@@ -151,6 +154,7 @@ BoardHistory& BoardHistory::operator=(const BoardHistory& other)
   initialTurnNumber = other.initialTurnNumber;
   assumeMultipleStartingBlackMovesAreHandicap = other.assumeMultipleStartingBlackMovesAreHandicap;
   whiteHasMoved = other.whiteHasMoved;
+  overrideNumHandicapStones = other.overrideNumHandicapStones;
   std::copy(other.recentBoards, other.recentBoards+NUM_RECENT_BOARDS, recentBoards);
   currentRecentBoardIdx = other.currentRecentBoardIdx;
   presumedNextMovePla = other.presumedNextMovePla;
@@ -192,6 +196,7 @@ BoardHistory::BoardHistory(BoardHistory&& other) noexcept
   initialTurnNumber(other.initialTurnNumber),
   assumeMultipleStartingBlackMovesAreHandicap(other.assumeMultipleStartingBlackMovesAreHandicap),
   whiteHasMoved(other.whiteHasMoved),
+  overrideNumHandicapStones(other.overrideNumHandicapStones),
   recentBoards(),
   currentRecentBoardIdx(other.currentRecentBoardIdx),
   presumedNextMovePla(other.presumedNextMovePla),
@@ -229,6 +234,7 @@ BoardHistory& BoardHistory::operator=(BoardHistory&& other) noexcept
   initialTurnNumber = other.initialTurnNumber;
   assumeMultipleStartingBlackMovesAreHandicap = other.assumeMultipleStartingBlackMovesAreHandicap;
   whiteHasMoved = other.whiteHasMoved;
+  overrideNumHandicapStones = other.overrideNumHandicapStones;
   std::copy(other.recentBoards, other.recentBoards+NUM_RECENT_BOARDS, recentBoards);
   currentRecentBoardIdx = other.currentRecentBoardIdx;
   presumedNextMovePla = other.presumedNextMovePla;
@@ -271,6 +277,7 @@ void BoardHistory::clear(const Board& board, Player pla, const Rules& r, int ePh
   initialTurnNumber = 0;
   assumeMultipleStartingBlackMovesAreHandicap = false;
   whiteHasMoved = false;
+  overrideNumHandicapStones = -1;
 
   //This makes it so that if we ask for recent boards with a lookback beyond what we have a history for,
   //we simply return copies of the starting board.
@@ -344,6 +351,7 @@ BoardHistory BoardHistory::copyToInitial() const {
   BoardHistory hist(initialBoard, initialPla, rules, initialEncorePhase);
   hist.setInitialTurnNumber(initialTurnNumber);
   hist.setAssumeMultipleStartingBlackMovesAreHandicap(assumeMultipleStartingBlackMovesAreHandicap);
+  hist.setOverrideNumHandicapStones(overrideNumHandicapStones);
   return hist;
 }
 
@@ -353,6 +361,11 @@ void BoardHistory::setInitialTurnNumber(int64_t n) {
 
 void BoardHistory::setAssumeMultipleStartingBlackMovesAreHandicap(bool b) {
   assumeMultipleStartingBlackMovesAreHandicap = b;
+  whiteHandicapBonusScore = (float)computeWhiteHandicapBonus();
+}
+
+void BoardHistory::setOverrideNumHandicapStones(int n) {
+  overrideNumHandicapStones = n;
   whiteHandicapBonusScore = (float)computeWhiteHandicapBonus();
 }
 
@@ -385,6 +398,9 @@ int BoardHistory::numHandicapStonesOnBoard(const Board& b) {
 }
 
 int BoardHistory::computeNumHandicapStones() const {
+  if(overrideNumHandicapStones >= 0)
+    return overrideNumHandicapStones;
+
   int blackNonPassTurnsToStart = 0;
   if(assumeMultipleStartingBlackMovesAreHandicap) {
     //Find the length of the initial sequence of black moves - treat a string of consecutive black

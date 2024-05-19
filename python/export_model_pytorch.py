@@ -34,6 +34,7 @@ parser.add_argument('-export-dir', help='model file dir to save to', required=Tr
 parser.add_argument('-model-name', help='name to record in model file', required=True)
 parser.add_argument('-filename-prefix', help='filename prefix to save to within dir', required=True)
 parser.add_argument('-use-swa', help='Use SWA model', action="store_true", required=False)
+parser.add_argument('-export-14-as-15', help='Export model version 14 as 15', action="store_true", required=False)
 args = vars(parser.parse_args())
 
 
@@ -43,6 +44,7 @@ def main(args):
     model_name = args["model_name"]
     filename_prefix = args["filename_prefix"]
     use_swa = args["use_swa"]
+    export_14_as_15 = args["export_14_as_15"]
 
     os.makedirs(export_dir,exist_ok=True)
 
@@ -75,6 +77,10 @@ def main(args):
     # Ignore what's in the config if less than 11 since a lot of testing models
     # are on old version but actually have various new architectures.
     version = max(model_config["version"],11)
+    true_version = version
+    # Hack to be able to export version 14 as version 15
+    if version == 14 and export_14_as_15:
+        version = 15
 
     writeln(model_name)
     writeln(version)
@@ -99,8 +105,12 @@ def main(args):
         writeln(model.shortterm_score_error_multiplier)
 
     if version >= 15:
+        if model.metadata_encoder is not None:
+            writeln(model.metadata_encoder.meta_encoder_version)
+        else:
+            writeln(0)
+
         # Write some dummy placeholders for future features
-        writeln(0)
         writeln(0)
         writeln(0)
         writeln(0)
@@ -287,6 +297,19 @@ def main(args):
         else:
             assert False, "This kind of block is not supported for export right now"
 
+    def write_metadata_encoder(name,encoder):
+        writeln(name)
+        writeln(encoder.c_input)
+        # Torch order is oc,ic. Flatten feature mask into the first mul
+        write_matmul(name+".mul1", encoder.linear1.weight * encoder.feature_mask.reshape((1,-1)))
+        write_matbias(name+".bias1", encoder.linear1.bias)
+        write_activation(name+".act1", encoder.act1)
+        write_matmul(name+".mul2", encoder.linear2.weight)
+        write_matbias(name+".bias2", encoder.linear2.bias)
+        write_activation(name+".act2", encoder.act2)
+        write_matmul(name+".mul3", encoder.out_scale * encoder.linear_output_to_trunk.weight)
+        assert encoder.linear_output_to_trunk.bias is None
+
     def write_trunk(name,model):
         writeln("trunk")
         writeln(len(model.blocks))
@@ -307,6 +330,9 @@ def main(args):
         write_conv("model.conv_spatial", model.conv_spatial)
         write_matmul("model.linear_global", model.linear_global.weight)
         assert model.linear_global.bias is None
+        if model.metadata_encoder is not None:
+            assert version >= 15
+            write_metadata_encoder("model.sgf_metadata_encoder",model.metadata_encoder)
 
         for i,block in enumerate(model.blocks):
             write_block("model.blocks."+str(i), block)
@@ -340,6 +366,19 @@ def main(args):
             assert policyhead.linear_pass.weight.shape[0] == 6
             write_matmul(name+".linear_pass", torch.stack((policyhead.linear_pass.weight[0], policyhead.linear_pass.weight[5]), dim=0))
             assert policyhead.linear_pass.bias is None
+        elif version == 15 and true_version == 14:
+            assert policyhead.conv2p.weight.shape[0] == 6
+            write_conv_weight(name+".conv2p", torch.stack((policyhead.conv2p.weight[0], policyhead.conv2p.weight[5]), dim=0))
+            assert policyhead.linear_pass.weight.shape[0] == 6
+            linear_pass_stack = [policyhead.linear_pass.weight[0], policyhead.linear_pass.weight[5]]
+            c_p1 = int(policyhead.linear_g.weight.shape[0])
+            for _ in range(c_p1-2):
+                linear_pass_stack.append(torch.zeros_like(linear_pass_stack[0]))
+            write_matmul(name+".linear_pass", torch.stack(linear_pass_stack, dim=0))
+            assert policyhead.linear_pass.bias is None
+            write_matbias(name+".linear_pass_bias", torch.tensor([0.0]*c_p1,dtype=torch.float32,device="cpu"))
+            write_activation(name+".act_pass", torch.nn.Identity())
+            write_matmul(name+".linear_pass2", torch.tensor([[1.0,0.0]+[0.0]*(c_p1-2),[0.0,1.0]+[0.0]*(c_p1-2)],dtype=torch.float32,device="cpu"))
         else:
             assert policyhead.conv2p.weight.shape[0] == 6
             write_conv_weight(name+".conv2p", torch.stack((policyhead.conv2p.weight[0], policyhead.conv2p.weight[5]), dim=0))
@@ -384,7 +423,7 @@ def main(args):
 
     if swa_model is not None:
         logging.info("Writing SWA model")
-        write_model(swa_model.module)
+        write_model(swa_model)
     else:
         logging.info("Writing model")
         write_model(model)

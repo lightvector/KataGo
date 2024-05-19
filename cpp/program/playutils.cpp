@@ -165,7 +165,8 @@ Loc PlayUtils::chooseRandomPolicyMove(
 
   //Just in case the policy map is somehow not consistent with the board position
   if(numLegalMoves > 0) {
-    uint32_t n = Search::chooseIndexWithTemperature(gameRand, relProbs, numLegalMoves, temperature);
+    double onlyBelowProb = 1.0;
+    uint32_t n = Search::chooseIndexWithTemperature(gameRand, relProbs, numLegalMoves, temperature, onlyBelowProb, NULL);
     return locs[n];
   }
   return Board::NULL_LOC;

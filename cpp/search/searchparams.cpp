@@ -51,6 +51,7 @@ SearchParams::SearchParams()
    chosenMoveTemperature(0.0),
    chosenMoveTemperatureEarly(0.0),
    chosenMoveTemperatureHalflife(19),
+   chosenMoveTemperatureOnlyBelowProb(1.0),
    chosenMoveSubtract(0.0),
    chosenMovePrune(1.0),
    useLcbForSelection(false),
@@ -96,7 +97,19 @@ SearchParams::SearchParams()
    obviousMovesTimeFactor(1.0),
    obviousMovesPolicyEntropyTolerance(0.30),
    obviousMovesPolicySurpriseTolerance(0.15),
-   futileVisitsThreshold(0.0)
+   futileVisitsThreshold(0.0),
+   humanSLProfile(),
+   humanSLCpuctExploration(1.0),
+   humanSLCpuctPermanent(0.0),
+   humanSLRootExploreProbWeightless(0.0),
+   humanSLRootExploreProbWeightful(0.0),
+   humanSLPlaExploreProbWeightless(0.0),
+   humanSLPlaExploreProbWeightful(0.0),
+   humanSLOppExploreProbWeightless(0.0),
+   humanSLOppExploreProbWeightful(0.0),
+   humanSLChosenMoveProp(0.0),
+   humanSLChosenMoveIgnorePass(false),
+   humanSLChosenMovePiklLambda(1000000000.0)
 {}
 
 SearchParams::~SearchParams()
@@ -176,6 +189,7 @@ SearchParams SearchParams::basicDecentParams() {
   params.rootEndingBonusPoints = 0.5;
   params.rootPruneUselessMoves = true;
   params.conservativePass = true;
+  params.enablePassingHacks = true;
   params.useNonBuggyLcb = true;
   params.useGraphSearch = true;
   params.fpuParentWeightByVisitedPolicy = true;
@@ -270,6 +284,7 @@ void SearchParams::printParams(std::ostream& out) {
   PRINTPARAM(chosenMoveTemperature);
   PRINTPARAM(chosenMoveTemperatureEarly);
   PRINTPARAM(chosenMoveTemperatureHalflife);
+  PRINTPARAM(chosenMoveTemperatureOnlyBelowProb);
   PRINTPARAM(chosenMoveSubtract);
   PRINTPARAM(chosenMovePrune);
 
@@ -337,4 +352,18 @@ void SearchParams::printParams(std::ostream& out) {
   PRINTPARAM(obviousMovesPolicySurpriseTolerance);
 
   PRINTPARAM(futileVisitsThreshold);
+
+
+  PRINTPARAM(humanSLCpuctExploration);
+  PRINTPARAM(humanSLCpuctPermanent);
+  PRINTPARAM(humanSLRootExploreProbWeightless);
+  PRINTPARAM(humanSLRootExploreProbWeightful);
+  PRINTPARAM(humanSLPlaExploreProbWeightless);
+  PRINTPARAM(humanSLPlaExploreProbWeightful);
+  PRINTPARAM(humanSLOppExploreProbWeightless);
+  PRINTPARAM(humanSLOppExploreProbWeightful);
+  PRINTPARAM(humanSLChosenMoveProp);
+  PRINTPARAM(humanSLChosenMoveIgnorePass);
+  PRINTPARAM(humanSLChosenMovePiklLambda);
+
 }

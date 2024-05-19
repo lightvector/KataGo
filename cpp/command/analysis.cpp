@@ -62,6 +62,7 @@ int MainCmds::analysis(const vector<string>& args) {
 
   ConfigParser cfg;
   string modelFile;
+  string humanModelFile;
   bool numAnalysisThreadsCmdlineSpecified;
   int numAnalysisThreadsCmdline;
   bool quitWithoutWaiting;
@@ -70,6 +71,7 @@ int MainCmds::analysis(const vector<string>& args) {
   try {
     cmd.addConfigFileArg("","analysis_example.cfg");
     cmd.addModelFileArg();
+    cmd.addHumanModelFileArg();
     cmd.setShortUsageArgLimit();
     cmd.addOverrideConfigArg();
 
@@ -80,6 +82,7 @@ int MainCmds::analysis(const vector<string>& args) {
     cmd.parseArgs(args);
 
     modelFile = cmd.getModelFile();
+    humanModelFile = cmd.getHumanModelFile();
     numAnalysisThreadsCmdlineSpecified = numAnalysisThreadsArg.isSet();
     numAnalysisThreadsCmdline = numAnalysisThreadsArg.getValue();
     quitWithoutWaiting = quitWithoutWaitingArg.getValue();
@@ -120,8 +123,9 @@ int MainCmds::analysis(const vector<string>& args) {
   const bool logErrorsAndWarnings = cfg.contains("logErrorsAndWarnings") ? cfg.getBool("logErrorsAndWarnings") : true;
   const bool logSearchInfo = cfg.contains("logSearchInfo") ? cfg.getBool("logSearchInfo") : false;
 
-  auto loadParams = [](ConfigParser& config, SearchParams& params, Player& perspective, Player defaultPerspective) {
-    params = Setup::loadSingleParams(config,Setup::SETUP_FOR_ANALYSIS);
+  auto loadParams = [&humanModelFile](ConfigParser& config, SearchParams& params, Player& perspective, Player defaultPerspective) {
+    bool hasHumanModel = humanModelFile != "";
+    params = Setup::loadSingleParams(config,Setup::SETUP_FOR_ANALYSIS,hasHumanModel);
     perspective = Setup::parseReportAnalysisWinrates(config,defaultPerspective);
     //Set a default for conservativePass that differs from matches or selfplay
     if(!config.contains("conservativePass") && !config.contains("conservativePass0"))
@@ -144,7 +148,8 @@ int MainCmds::analysis(const vector<string>& args) {
     cfg.contains("assumeMultipleStartingBlackMovesAreHandicap") ? cfg.getBool("assumeMultipleStartingBlackMovesAreHandicap") : true;
   const bool preventEncore = cfg.contains("preventCleanupPhase") ? cfg.getBool("preventCleanupPhase") : true;
 
-  NNEvaluator* nnEval;
+  NNEvaluator* nnEval = NULL;
+  NNEvaluator* humanEval = NULL;
   {
     Setup::initializeSession(cfg);
     const int expectedConcurrentEvals = numAnalysisThreads * defaultParams.numThreads;
@@ -157,6 +162,12 @@ int MainCmds::analysis(const vector<string>& args) {
       NNPos::MAX_BOARD_LEN,NNPos::MAX_BOARD_LEN,defaultMaxBatchSize,defaultRequireExactNNLen,disableFP16,
       Setup::SETUP_FOR_ANALYSIS
     );
+    if(humanModelFile != "")
+      humanEval = Setup::initializeNNEvaluator(
+        humanModelFile,humanModelFile,expectedSha256,cfg,logger,seedRand,expectedConcurrentEvals,
+        NNPos::MAX_BOARD_LEN,NNPos::MAX_BOARD_LEN,defaultMaxBatchSize,defaultRequireExactNNLen,disableFP16,
+        Setup::SETUP_FOR_ANALYSIS
+      );
   }
 
 #ifndef USE_EIGEN_BACKEND
@@ -362,7 +373,7 @@ int MainCmds::analysis(const vector<string>& args) {
   vector<AsyncBot*> bots;
   for(int threadIdx = 0; threadIdx<numAnalysisThreads; threadIdx++) {
     string searchRandSeed = Global::uint64ToHexString(seedRand.nextUInt64()) + Global::uint64ToHexString(seedRand.nextUInt64());
-    AsyncBot* bot = new AsyncBot(defaultParams, nnEval, &logger, searchRandSeed);
+    AsyncBot* bot = new AsyncBot(defaultParams, nnEval, humanEval, &logger, searchRandSeed);
     bot->setCopyOfExternalPatternBonusTable(patternBonusTable);
     threads.push_back(std::thread(analysisLoopProtected,bot,threadIdx));
     bots.push_back(bot);
@@ -441,6 +452,8 @@ int MainCmds::analysis(const vector<string>& args) {
         else if(action == "clear_cache") {
           //This should be thread-safe.
           nnEval->clearCache();
+          if(humanEval != NULL)
+            humanEval->clearCache();
           pushToWrite(new string(input.dump()));
         }
         else if(action == "terminate") {
@@ -1157,7 +1170,14 @@ int MainCmds::analysis(const vector<string>& args) {
   logger.write("NN rows: " + Global::int64ToString(nnEval->numRowsProcessed()));
   logger.write("NN batches: " + Global::int64ToString(nnEval->numBatchesProcessed()));
   logger.write("NN avg batch size: " + Global::doubleToString(nnEval->averageProcessedBatchSize()));
+  if(humanEval != NULL) {
+    logger.write(humanEval->getModelFileName());
+    logger.write("NN rows: " + Global::int64ToString(humanEval->numRowsProcessed()));
+    logger.write("NN batches: " + Global::int64ToString(humanEval->numBatchesProcessed()));
+    logger.write("NN avg batch size: " + Global::doubleToString(humanEval->averageProcessedBatchSize()));
+  }
   delete nnEval;
+  delete humanEval;
   NeuralNet::globalCleanup();
   ScoreValue::freeTables();
   logger.write("All cleaned up, quitting");

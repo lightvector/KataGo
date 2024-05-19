@@ -1,6 +1,7 @@
 #include "../search/search.h"
 
 #include "../core/fancymath.h"
+#include "../core/test.h"
 #include "../search/searchnode.h"
 #include "../search/patternbonustable.h"
 
@@ -8,41 +9,68 @@
 #include "../core/using.h"
 //------------------------
 
-uint32_t Search::chooseIndexWithTemperature(Rand& rand, const double* relativeProbs, int numRelativeProbs, double temperature) {
-  assert(numRelativeProbs > 0);
-  assert(numRelativeProbs <= Board::MAX_ARR_SIZE); //We're just doing this on the stack
+uint32_t Search::chooseIndexWithTemperature(
+  Rand& rand,
+  const double* relativeProbs,
+  int numRelativeProbs,
+  double temperature,
+  double onlyBelowProb,
+  double* processedRelProbsBuf
+) {
+  testAssert(numRelativeProbs > 0);
+  testAssert(numRelativeProbs <= Board::MAX_ARR_SIZE); //We're just doing this on the stack
   double processedRelProbs[Board::MAX_ARR_SIZE];
+  if(processedRelProbsBuf == NULL)
+    processedRelProbsBuf = &processedRelProbs[0];
 
-  double maxValue = 0.0;
+  double maxRelProb = 0.0;
+  double sumRelProb = 0.0;
   for(int i = 0; i<numRelativeProbs; i++) {
-    if(relativeProbs[i] > maxValue)
-      maxValue = relativeProbs[i];
+    sumRelProb += std::max(0.0, relativeProbs[i]);
+    if(relativeProbs[i] > maxRelProb)
+      maxRelProb = relativeProbs[i];
   }
-  assert(maxValue > 0.0);
+  testAssert(maxRelProb > 0.0);
+  testAssert(sumRelProb > 0.0);
 
   //Temperature so close to 0 that we just calculate the max directly
-  if(temperature <= 1.0e-4) {
+  if(temperature <= 1.0e-4 && onlyBelowProb >= 1.0) {
     double bestProb = relativeProbs[0];
     int bestIdx = 0;
+    processedRelProbsBuf[0] = 0;
     for(int i = 1; i<numRelativeProbs; i++) {
+      processedRelProbsBuf[i] = 0;
       if(relativeProbs[i] > bestProb) {
         bestProb = relativeProbs[i];
         bestIdx = i;
       }
     }
+    processedRelProbsBuf[bestIdx] = 1.0;
     return bestIdx;
   }
   //Actual temperature
   else {
-    double logMaxValue = log(maxValue);
+    double logMaxRelProb = log(maxRelProb);
+    double logSumRelProb = log(sumRelProb);
+    double logOnlyBelowProb = log(std::max(1e-50,onlyBelowProb));
     double sum = 0.0;
     for(int i = 0; i<numRelativeProbs; i++) {
-      //Numerically stable way to raise to power and normalize
-      processedRelProbs[i] = relativeProbs[i] <= 0.0 ? 0.0 : exp((log(relativeProbs[i]) - logMaxValue) / temperature);
-      sum += processedRelProbs[i];
+      if(relativeProbs[i] <= 0.0)
+        processedRelProbsBuf[i] = 0.0;
+      else {
+        double logRelProb = log(relativeProbs[i]) - logMaxRelProb;
+        double logRelProbThreshold = std::min(0.0, logOnlyBelowProb + logSumRelProb - logMaxRelProb);
+        double newLogRelProb;
+        if(logRelProb > logRelProbThreshold)
+          newLogRelProb = logRelProb;
+        else
+          newLogRelProb = (logRelProb - logRelProbThreshold) / temperature + logRelProbThreshold;
+        processedRelProbsBuf[i] = exp(newLogRelProb);
+      }
+      sum += processedRelProbsBuf[i];
     }
-    assert(sum > 0.0);
-    uint32_t idxChosen = rand.nextUInt(processedRelProbs,numRelativeProbs);
+    testAssert(sum > 0.0);
+    uint32_t idxChosen = rand.nextUInt(processedRelProbsBuf,numRelativeProbs);
     return idxChosen;
   }
 }

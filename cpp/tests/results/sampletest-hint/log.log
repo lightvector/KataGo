@@ -76,8 +76,7 @@ trtUseFP16 = false
 : WARNING: Unused key 'searchFactorWhenWinningThreshold' in configs/gtp_example.cfg and/or command-line and query overrides
 : WARNING: Unused key 'searchRandSeed' in configs/gtp_example.cfg and/or command-line and query overrides
 : --------------
-: Found 2 sgf files!
-: Found 0 sgfs files!
+: Found 2 sgf(s) files!
 : Loaded 0 excludes
 : Begun 1 / 2 sgfs, done 0 sgfs, skipped 0 sgfs, filtered 0 sgfs, filtered 0 individual poses
 : Starting tests/data/sampletest/sampletest7x7.sgf

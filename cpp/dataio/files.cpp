@@ -22,6 +22,10 @@ static bool posFilter(const string& name) {
   return Global::isSuffix(name,posSuffix);
 }
 
+bool FileHelpers::isMultiSgfs(const string& name) {
+  return multiSgfFilter(name);
+}
+
 void FileHelpers::collectSgfsFromDir(const std::string& dir, std::vector<std::string>& collected) {
   FileUtils::collectFiles(dir, &sgfFilter, collected);
 }

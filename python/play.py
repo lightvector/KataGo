@@ -14,12 +14,15 @@ import numpy as np
 
 from board import Board
 from features import Features
+from gamestate import GameState
+
+from typing import Dict, Any, List
 
 import torch
 import torch.nn
 
 import modelconfigs
-from model_pytorch import Model, EXTRA_SCORE_DISTR_RADIUS
+from model_pytorch import Model, EXTRA_SCORE_DISTR_RADIUS, ExtraOutputs
 from data_processing_pytorch import apply_symmetry
 from load_model import load_model
 
@@ -31,11 +34,13 @@ Implements a basic GTP engine that uses the neural net directly to play moves.
 parser = argparse.ArgumentParser(description=description)
 parser.add_argument('-checkpoint', help='Checkpoint to test', required=False)
 parser.add_argument('-use-swa', help='Use SWA model', action="store_true", required=False)
+parser.add_argument('-device', help='Pytorch device, like cpu or cuda:0', required=False)
 
 args = vars(parser.parse_args())
 
 checkpoint_file = args["checkpoint"]
 use_swa = args["use_swa"]
+device = args["device"]
 
 # Hardcoded max board size
 pos_len = 19
@@ -53,243 +58,29 @@ logging.basicConfig(
 np.set_printoptions(linewidth=150)
 torch.set_printoptions(precision=7,sci_mode=False,linewidth=100000,edgeitems=1000,threshold=1000000)
 
-model, swa_model, _ = load_model(checkpoint_file, use_swa, device="cpu", pos_len=pos_len, verbose=True)
-model.eval()
-model_config = model.config
+model, swa_model, _ = load_model(checkpoint_file, use_swa, device=device, pos_len=pos_len, verbose=True)
 if swa_model is not None:
-    model = swa_model.module
-    model.eval()
+    model = swa_model
+model_config = model.config
+model.eval()
 
 features = Features(model_config, pos_len)
-
-class GameState:
-    def __init__(self,board_size):
-        self.board_size = board_size
-        self.board = Board(size=board_size)
-        self.moves = []
-        self.boards = [self.board.copy()]
 
 
 # Moves ----------------------------------------------------------------
 
-
-def get_outputs(gs, rules):
-    with torch.no_grad():
-        model.eval()
-
-        bin_input_data = np.zeros(shape=[1]+model.bin_input_shape, dtype=np.float32)
-        global_input_data = np.zeros(shape=[1]+model.global_input_shape, dtype=np.float32)
-        pla = gs.board.pla
-        opp = Board.get_opp(pla)
-        move_idx = len(gs.moves)
-        # This function assumes N(HW)C order but we actually use NCHW order, so work with it and revert
-        bin_input_data = np.transpose(bin_input_data,axes=(0,2,3,1))
-        bin_input_data = bin_input_data.reshape([1,pos_len*pos_len,-1])
-        features.fill_row_features(gs.board,pla,opp,gs.boards,gs.moves,move_idx,rules,bin_input_data,global_input_data,idx=0)
-        bin_input_data = bin_input_data.reshape([1,pos_len,pos_len,-1])
-        bin_input_data = np.transpose(bin_input_data,axes=(0,3,1,2))
-
-        # Currently we don't actually do any symmetries
-        # symmetry = 0
-        # model_outputs = model(apply_symmetry(batch["binaryInputNCHW"],symmetry),batch["globalInputNC"])
-
-        model_outputs = model(
-            torch.tensor(bin_input_data, dtype=torch.float32),
-            torch.tensor(global_input_data, dtype=torch.float32),
-        )
-        outputs = model.postprocess_output(model_outputs)
-        (
-            policy_logits,      # N, num_policy_outputs, move
-            value_logits,       # N, {win,loss,noresult}
-            td_value_logits,    # N, {long, mid, short} {win,loss,noresult}
-            pred_td_score,      # N, {long, mid, short}
-            ownership_pretanh,  # N, 1, y, x
-            pred_scoring,       # N, 1, y, x
-            futurepos_pretanh,  # N, 2, y, x
-            seki_logits,        # N, 4, y, x
-            pred_scoremean,     # N
-            pred_scorestdev,    # N
-            pred_lead,          # N
-            pred_variance_time, # N
-            pred_shortterm_value_error, # N
-            pred_shortterm_score_error, # N
-            scorebelief_logits, # N, 2 * (self.pos_len*self.pos_len + EXTRA_SCORE_DISTR_RADIUS)
-        ) = (x[0] for x in outputs[0]) # N = 0
-
-        policy0 = torch.nn.functional.softmax(policy_logits[0,:],dim=0).cpu().numpy()
-        policy1 = torch.nn.functional.softmax(policy_logits[1,:],dim=0).cpu().numpy()
-        value = torch.nn.functional.softmax(value_logits,dim=0).cpu().numpy()
-        td_value = torch.nn.functional.softmax(td_value_logits[0,:],dim=0).cpu().numpy()
-        td_value2 = torch.nn.functional.softmax(td_value_logits[1,:],dim=0).cpu().numpy()
-        td_value3 = torch.nn.functional.softmax(td_value_logits[2,:],dim=0).cpu().numpy()
-        scoremean = pred_scoremean.cpu().item()
-        td_score = pred_td_score.cpu().numpy()
-        scorestdev = pred_scorestdev.cpu().item()
-        lead = pred_lead.cpu().item()
-        vtime = pred_variance_time.cpu().item()
-        estv = math.sqrt(pred_shortterm_value_error.cpu().item())
-        ests = math.sqrt(pred_shortterm_score_error.cpu().item())
-        ownership = torch.tanh(ownership_pretanh).cpu().numpy()
-        scoring = pred_scoring.cpu().numpy()
-        futurepos = torch.tanh(futurepos_pretanh).cpu().numpy()
-        seki_probs = torch.nn.functional.softmax(seki_logits[0:3,:,:],dim=0).cpu().numpy()
-        seki = seki_probs[1] - seki_probs[2]
-        seki2 = torch.sigmoid(seki_logits[3,:,:]).cpu().numpy()
-        scorebelief = torch.nn.functional.softmax(scorebelief_logits,dim=0).cpu().numpy()
-
-    board = gs.board
-
-    moves_and_probs0 = []
-    for i in range(len(policy0)):
-        move = features.tensor_pos_to_loc(i,board)
-        if i == len(policy0)-1:
-            moves_and_probs0.append((Board.PASS_LOC,policy0[i]))
-        elif board.would_be_legal(board.pla,move):
-            moves_and_probs0.append((move,policy0[i]))
-
-    moves_and_probs1 = []
-    for i in range(len(policy1)):
-        move = features.tensor_pos_to_loc(i,board)
-        if i == len(policy1)-1:
-            moves_and_probs1.append((Board.PASS_LOC,policy1[i]))
-        elif board.would_be_legal(board.pla,move):
-            moves_and_probs1.append((move,policy1[i]))
-
-    ownership_flat = ownership.reshape([features.pos_len * features.pos_len])
-    ownership_by_loc = []
-    board = gs.board
-    for y in range(board.size):
-        for x in range(board.size):
-            loc = board.loc(x,y)
-            pos = features.loc_to_tensor_pos(loc,board)
-            if board.pla == Board.WHITE:
-                ownership_by_loc.append((loc,ownership_flat[pos]))
-            else:
-                ownership_by_loc.append((loc,-ownership_flat[pos]))
-
-    scoring_flat = scoring.reshape([features.pos_len * features.pos_len])
-    scoring_by_loc = []
-    board = gs.board
-    for y in range(board.size):
-        for x in range(board.size):
-            loc = board.loc(x,y)
-            pos = features.loc_to_tensor_pos(loc,board)
-            if board.pla == Board.WHITE:
-                scoring_by_loc.append((loc,scoring_flat[pos]))
-            else:
-                scoring_by_loc.append((loc,-scoring_flat[pos]))
-
-    futurepos0_flat = futurepos[0,:,:].reshape([features.pos_len * features.pos_len])
-    futurepos0_by_loc = []
-    board = gs.board
-    for y in range(board.size):
-        for x in range(board.size):
-            loc = board.loc(x,y)
-            pos = features.loc_to_tensor_pos(loc,board)
-            if board.pla == Board.WHITE:
-                futurepos0_by_loc.append((loc,futurepos0_flat[pos]))
-            else:
-                futurepos0_by_loc.append((loc,-futurepos0_flat[pos]))
-
-    futurepos1_flat = futurepos[1,:,:].reshape([features.pos_len * features.pos_len])
-    futurepos1_by_loc = []
-    board = gs.board
-    for y in range(board.size):
-        for x in range(board.size):
-            loc = board.loc(x,y)
-            pos = features.loc_to_tensor_pos(loc,board)
-            if board.pla == Board.WHITE:
-                futurepos1_by_loc.append((loc,futurepos1_flat[pos]))
-            else:
-                futurepos1_by_loc.append((loc,-futurepos1_flat[pos]))
-
-    seki_flat = seki.reshape([features.pos_len * features.pos_len])
-    seki_by_loc = []
-    board = gs.board
-    for y in range(board.size):
-        for x in range(board.size):
-            loc = board.loc(x,y)
-            pos = features.loc_to_tensor_pos(loc,board)
-            if board.pla == Board.WHITE:
-                seki_by_loc.append((loc,seki_flat[pos]))
-            else:
-                seki_by_loc.append((loc,-seki_flat[pos]))
-
-    seki_flat2 = seki2.reshape([features.pos_len * features.pos_len])
-    seki_by_loc2 = []
-    board = gs.board
-    for y in range(board.size):
-        for x in range(board.size):
-            loc = board.loc(x,y)
-            pos = features.loc_to_tensor_pos(loc,board)
-            seki_by_loc2.append((loc,seki_flat2[pos]))
-
-    moves_and_probs = sorted(moves_and_probs0, key=lambda moveandprob: moveandprob[1], reverse=True)
-    # Generate a random number biased small and then find the appropriate move to make
-    # Interpolate from moving uniformly to choosing from the triangular distribution
-    alpha = 1
-    beta = 1 + math.sqrt(max(0,len(gs.moves)-20))
-    r = np.random.beta(alpha,beta)
-    probsum = 0.0
-    i = 0
-    genmove_result = Board.PASS_LOC
-    while True:
-        (move,prob) = moves_and_probs[i]
-        probsum += prob
-        if i >= len(moves_and_probs)-1 or probsum > r:
-            genmove_result = move
-            break
-        i += 1
-
-    return {
-        "policy0": policy0,
-        "policy1": policy1,
-        "moves_and_probs0": moves_and_probs0,
-        "moves_and_probs1": moves_and_probs1,
-        "value": value,
-        "td_value": td_value,
-        "td_value2": td_value2,
-        "td_value3": td_value3,
-        "scoremean": scoremean,
-        "td_score": td_score,
-        "scorestdev": scorestdev,
-        "lead": lead,
-        "vtime": vtime,
-        "estv": estv,
-        "ests": ests,
-        "ownership": ownership,
-        "ownership_by_loc": ownership_by_loc,
-        "scoring": scoring,
-        "scoring_by_loc": scoring_by_loc,
-        "futurepos": futurepos,
-        "futurepos0_by_loc": futurepos0_by_loc,
-        "futurepos1_by_loc": futurepos1_by_loc,
-        "seki": seki,
-        "seki_by_loc": seki_by_loc,
-        "seki2": seki2,
-        "seki_by_loc2": seki_by_loc2,
-        "scorebelief": scorebelief,
-        "genmove_result": genmove_result
-    }
-
-def get_input_feature(gs, rules, feature_idx):
-    board = gs.board
-    bin_input_data = np.zeros(shape=[1]+model.bin_input_shape, dtype=np.float32)
-    global_input_data = np.zeros(shape=[1]+model.global_input_shape, dtype=np.float32)
-    pla = board.pla
-    opp = Board.get_opp(pla)
-    move_idx = len(gs.moves)
-    features.fill_row_features(board,pla,opp,gs.boards,gs.moves,move_idx,rules,bin_input_data,global_input_data,idx=0)
-
+def get_input_feature(gs, feature_idx):
+    bin_input_data, global_input_data = gs.get_input_features(features)
     locs_and_values = []
-    for y in range(board.size):
-        for x in range(board.size):
+    for y in range(gs.board.size):
+        for x in range(gs.board.size):
             loc = board.loc(x,y)
-            pos = features.loc_to_tensor_pos(loc,board)
-            locs_and_values.append((loc,bin_input_data[0,pos,feature_idx]))
+            locs_and_values.append((loc,bin_input_data[0,feature_idx,y,x]))
     return locs_and_values
 
-def get_pass_alive(board, rules):
+def get_pass_alive(gs):
+    board = gs.board
+    rules = gs.rules
     pla = board.pla
     opp = Board.get_opp(pla)
     area = [-1 for i in range(board.arrsize)]
@@ -591,20 +382,7 @@ known_analyze_commands = [
 ]
 
 board_size = 19
-gs = GameState(board_size)
-
-rules = {
-    "koRule": "KO_POSITIONAL",
-    "scoringRule": "SCORING_AREA",
-    "taxRule": "TAX_NONE",
-    "multiStoneSuicideLegal": True,
-    "hasButton": False,
-    "encorePhase": 0,
-    "passWouldEndPhase": False,
-    "whiteKomi": 7.5,
-    "asymPowersOfTwo": 0.0,
-}
-
+gs = GameState(board_size, GameState.RULES_TT)
 
 input_feature_command_lookup = dict()
 def add_input_feature_visualizations(layer_name, feature_idx, normalization_div):
@@ -613,9 +391,26 @@ def add_input_feature_visualizations(layer_name, feature_idx, normalization_div)
     known_commands.append(command_name)
     known_analyze_commands.append("gfx/" + command_name + "/" + command_name)
     input_feature_command_lookup[command_name] = (feature_idx,normalization_div)
-
 for i in range(model.bin_input_shape[1]):
     add_input_feature_visualizations("input-" + str(i),i, normalization_div=1)
+
+attention_feature_command_lookup = dict()
+def add_attention_visualizations(extra_output_name, extra_output):
+    for c in range(extra_output.shape[0]):
+        command_name = extra_output_name
+        command_name = command_name.replace("/",":")
+        command_name += ":" + str(c)
+        known_commands.append(command_name)
+        known_analyze_commands.append("gfx/" + command_name + "/" + command_name)
+        attention_feature_command_lookup[command_name] = (extra_output_name, c)
+with torch.no_grad():
+    dummy_outputs = gs.get_model_outputs(model)
+    extra_attention_output_names = [name for name in dummy_outputs["available_extra_outputs"] if name.endswith(".attention") or name.endswith(".reverse_attention")]
+    dummy_outputs = gs.get_model_outputs(model)
+    for name in extra_attention_output_names:
+        add_attention_visualizations(name,dummy_outputs[name])
+    del dummy_outputs
+
 
 def get_board_matrix_str(matrix, scale, formatstr):
     ret = ""
@@ -654,23 +449,19 @@ while True:
     elif command[0] == "showboard":
         ret = "\n" + gs.board.to_string().strip()
     elif command[0] == "komi":
-        rules["whiteKomi"] = float(command[1])
+        gs.rules["whiteKomi"] = float(command[1])
     elif command[0] == "play":
         pla = (Board.BLACK if command[1] == "B" or command[1] == "b" else Board.WHITE)
         loc = parse_coord(command[2],gs.board)
-        gs.board.play(pla,loc)
-        gs.moves.append((pla,loc))
-        gs.boards.append(gs.board.copy())
+        gs.play(pla,loc)
     elif command[0] == "genmove":
-        outputs = get_outputs(gs, rules)
+        outputs = gs.get_model_outputs(model)
         loc = outputs["genmove_result"]
         pla = gs.board.pla
 
         if len(command) > 1:
             pla = (Board.BLACK if command[1] == "B" or command[1] == "b" else Board.WHITE)
-        gs.board.play(pla,loc)
-        gs.moves.append((pla,loc))
-        gs.boards.append(gs.board.copy())
+        gs.play(pla,loc)
         ret = str_coord(loc,gs.board)
 
     elif command[0] == "name":
@@ -686,65 +477,65 @@ while True:
     elif command[0] == "setrule":
         ret = ""
         if command[1] == "korule":
-            rules["koRule"] = command[2].upper()
+            gs.rules["koRule"] = command[2].upper()
         elif command[1] == "scoringrule":
-            rules["scoringRule"] = command[2].upper()
+            gs.rules["scoringRule"] = command[2].upper()
         elif command[1] == "taxrule":
-            rules["taxRule"] = command[2].upper()
+            gs.rules["taxRule"] = command[2].upper()
         elif command[1] == "multistonesuicidelegal":
-            rules["multiStoneSuicideLegal"] = (command[2].lower() == "true")
+            gs.rules["multiStoneSuicideLegal"] = (command[2].lower() == "true")
         elif command[1] == "hasbutton":
-            rules["hasButton"] = (command[2].lower() == "true")
+            gs.rules["hasButton"] = (command[2].lower() == "true")
         elif command[1] == "encorephase":
-            rules["encorePhase"] = int(command[2])
+            gs.rules["encorePhase"] = int(command[2])
         elif command[1] == "passwouldendphase":
-            rules["passWouldEndPhase"] = (command[2].lower() == "true")
+            gs.rules["passWouldEndPhase"] = (command[2].lower() == "true")
         elif command[1] == "whitekomi" or command[1] == "komi":
-            rules["whiteKomi"] = float(command[2])
+            gs.rules["whiteKomi"] = float(command[2])
         elif command[1] == "asym":
-            rules["asymPowersOfTwo"] = float(command[2])
+            gs.rules["asymPowersOfTwo"] = float(command[2])
         else:
             ret = "Unknown rules setting"
     elif command[0] == "policy":
-        outputs = get_outputs(gs, rules)
+        outputs = gs.get_model_outputs(model)
         gfx_commands = get_gfx_commands_for_heatmap(outputs["moves_and_probs0"], gs.board, normalization_div=None, is_percent=True, value_and_score_from=outputs)
         ret = "\n".join(gfx_commands)
     elif command[0] == "policy1":
-        outputs = get_outputs(gs, rules)
+        outputs = gs.get_model_outputs(model)
         gfx_commands = get_gfx_commands_for_heatmap(outputs["moves_and_probs1"], gs.board, normalization_div=None, is_percent=True, value_and_score_from=outputs)
         ret = "\n".join(gfx_commands)
     elif command[0] == "logpolicy":
-        outputs = get_outputs(gs, rules)
+        outputs = gs.get_model_outputs(model)
         moves_and_logprobs = [(move,max(0.0,4.9+math.log10(prob))) for (move,prob) in outputs["moves_and_probs0"]]
         gfx_commands = get_gfx_commands_for_heatmap(moves_and_logprobs, gs.board, normalization_div=6, is_percent=False, value_and_score_from=outputs)
         ret = "\n".join(gfx_commands)
     elif command[0] == "ownership":
-        outputs = get_outputs(gs, rules)
+        outputs = gs.get_model_outputs(model)
         gfx_commands = get_gfx_commands_for_heatmap(outputs["ownership_by_loc"], gs.board, normalization_div=None, is_percent=True, value_and_score_from=None, hotcold=True)
         ret = "\n".join(gfx_commands)
     elif command[0] == "scoring":
-        outputs = get_outputs(gs, rules)
+        outputs = gs.get_model_outputs(model)
         gfx_commands = get_gfx_commands_for_heatmap(outputs["scoring_by_loc"], gs.board, normalization_div=None, is_percent=True, value_and_score_from=None, hotcold=True)
         ret = "\n".join(gfx_commands)
     elif command[0] == "futurepos0":
-        outputs = get_outputs(gs, rules)
+        outputs = gs.get_model_outputs(model)
         gfx_commands = get_gfx_commands_for_heatmap(outputs["futurepos0_by_loc"], gs.board, normalization_div=None, is_percent=True, value_and_score_from=None, hotcold=True)
         ret = "\n".join(gfx_commands)
     elif command[0] == "futurepos1":
-        outputs = get_outputs(gs, rules)
+        outputs = gs.get_model_outputs(model)
         gfx_commands = get_gfx_commands_for_heatmap(outputs["futurepos1_by_loc"], gs.board, normalization_div=None, is_percent=True, value_and_score_from=None, hotcold=True)
         ret = "\n".join(gfx_commands)
     elif command[0] == "seki":
-        outputs = get_outputs(gs, rules)
+        outputs = gs.get_model_outputs(model)
         gfx_commands = get_gfx_commands_for_heatmap(outputs["seki_by_loc"], gs.board, normalization_div=None, is_percent=True, value_and_score_from=None)
         ret = "\n".join(gfx_commands)
     elif command[0] == "seki2":
-        outputs = get_outputs(gs, rules)
+        outputs = gs.get_model_outputs(model)
         gfx_commands = get_gfx_commands_for_heatmap(outputs["seki_by_loc2"], gs.board, normalization_div=None, is_percent=True, value_and_score_from=None)
         ret = "\n".join(gfx_commands)
 
     elif command[0] == "policy_raw":
-        outputs = get_outputs(gs, rules)
+        outputs = gs.get_model_outputs(model)
         ret = "\n"
 
         policysum = 0.0
@@ -773,7 +564,7 @@ while True:
         ret += "Pass: %6.3f" % (100.0 * outputs["policy0"][pos] / policysum)
 
     elif command[0] == "policy1_raw":
-        outputs = get_outputs(gs, rules)
+        outputs = gs.get_model_outputs(model)
         ret = "\n"
 
         for y in range(gs.board.size):
@@ -791,37 +582,54 @@ while True:
         ret += "Pass: %6.3f" % (100.0 * outputs["policy1"][pos])
 
     elif command[0] == "ownership_raw":
-        outputs = get_outputs(gs, rules)
+        outputs = gs.get_model_outputs(model)
         ret = get_board_matrix_str(outputs["ownership"], 100.0, "%+7.3f")
     elif command[0] == "scoring_raw":
-        outputs = get_outputs(gs, rules)
+        outputs = gs.get_model_outputs(model)
         ret = get_board_matrix_str(outputs["scoring"], 100.0, "%+7.3f")
     elif command[0] == "futurepos0_raw":
-        outputs = get_outputs(gs, rules)
+        outputs = gs.get_model_outputs(model)
         ret = get_board_matrix_str(outputs["futurepos"][0], 100.0, "%+7.3f")
     elif command[0] == "futurepos1_raw":
-        outputs = get_outputs(gs, rules)
+        outputs = gs.get_model_outputs(model)
         ret = get_board_matrix_str(outputs["futurepos"][1], 100.0, "%+7.3f")
     elif command[0] == "seki_raw":
-        outputs = get_outputs(gs, rules)
+        outputs = gs.get_model_outputs(model)
         ret = get_board_matrix_str(outputs["seki"], 100.0, "%+7.3f")
     elif command[0] == "seki2_raw":
-        outputs = get_outputs(gs, rules)
+        outputs = gs.get_model_outputs(model)
         ret = get_board_matrix_str(outputs["seki2"], 100.0, "%+7.3f")
 
     elif command[0] in input_feature_command_lookup:
         (feature_idx,normalization_div) = input_feature_command_lookup[command[0]]
-        locs_and_values = get_input_feature(gs, rules, feature_idx)
+        locs_and_values = get_input_feature(gs, feature_idx)
         gfx_commands = get_gfx_commands_for_heatmap(locs_and_values, gs.board, normalization_div, is_percent=False)
         ret = "\n".join(gfx_commands)
 
+    elif command[0] in attention_feature_command_lookup:
+        (extra_output_name,channel_idx) = attention_feature_command_lookup[command[0]]
+        outputs = gs.get_model_outputs(model, extra_output_names=[extra_output_name])
+        output = outputs[extra_output_name] # shape c, hw
+        output = output[channel_idx]
+        locs_and_values = []
+        board = gs.board
+        for y in range(board.size):
+            for x in range(board.size):
+                loc = board.loc(x,y)
+                pos = features.loc_to_tensor_pos(loc,board)
+                locs_and_values.append((loc,output[pos]))
+
+        normalization_div = "max"
+        gfx_commands = get_gfx_commands_for_heatmap(locs_and_values, gs.board, normalization_div, is_percent=True)
+        ret = "\n".join(gfx_commands)
+
     elif command[0] == "passalive":
-        locs_and_values = get_pass_alive(gs.board, rules)
+        locs_and_values = get_pass_alive(gs)
         gfx_commands = get_gfx_commands_for_heatmap(locs_and_values, gs.board, normalization_div=None, is_percent=False)
         ret = "\n".join(gfx_commands)
 
     elif command[0] == "scorebelief":
-        outputs = get_outputs(gs, rules)
+        outputs = gs.get_model_outputs(model)
         ret = print_scorebelief(gs,outputs)
 
     elif command[0] == "protocol_version":

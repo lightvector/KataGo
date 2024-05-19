@@ -3,6 +3,7 @@
 #include "../neuralnet/nninterface.h"
 #include "../neuralnet/openclincludes.h"
 #include "../neuralnet/nninputs.h"
+#include "../neuralnet/sgfmetadata.h"
 #include "../neuralnet/nneval.h"
 #include "../neuralnet/modelversion.h"
 #include "../neuralnet/openclkernels.h"
@@ -12,8 +13,12 @@
 #include "../neuralnet/openclhelpers.h"
 
 #include "../core/simpleallocator.h"
+#include "../core/test.h"
 
-using namespace std;
+//------------------------
+#include "../core/using.h"
+//------------------------
+
 using namespace OpenCLHelpers;
 
 using half_t = half_float::half;
@@ -130,6 +135,10 @@ string NeuralNet::getModelName(const LoadedModel* loadedModel) {
 
 int NeuralNet::getModelVersion(const LoadedModel* loadedModel) {
   return loadedModel->modelDesc.modelVersion;
+}
+
+int NeuralNet::getNumInputMetaChannels(const LoadedModel* loadedModel) {
+  return loadedModel->modelDesc.numInputMetaChannels;
 }
 
 Rules NeuralNet::getSupportedRules(const LoadedModel* loadedModel, const Rules& desiredRules, bool& supported) {
@@ -336,7 +345,7 @@ struct ComputeContext {
   const enabled_t usingNHWCMode;
 
   DevicesContext* devicesContext;
-  map<cl_device_id,CompiledPrograms*> compiledProgramsByDeviceId;
+  std::map<cl_device_id,CompiledPrograms*> compiledProgramsByDeviceId;
 
 #ifdef PROFILE_KERNELS
   static constexpr bool liveProfilingKernels = true;
@@ -880,7 +889,7 @@ struct BatchNormLayer {
     vector<float> mergedScale(numChannels);
     vector<float> mergedBias(numChannels);
     for(int i = 0; i<numChannels; i++) {
-      mergedScale[i] = desc->scale[i] / sqrt(desc->variance[i] + epsilon);
+      mergedScale[i] = desc->scale[i] / std::sqrt(desc->variance[i] + epsilon);
       mergedBias[i] = desc->bias[i] - mergedScale[i] * desc->mean[i];
     }
 
@@ -1991,6 +2000,55 @@ void BlockStack::apply(
   }
 }
 
+//--------------------------------------------------------------
+
+struct SGFMetadataEncoder {
+  const string name;
+
+  const MatMulLayer mul1;
+  const MatBiasLayer bias1;
+  const MatMulLayer mul2;
+  const MatBiasLayer bias2;
+  const MatMulLayer mul3;
+
+  SGFMetadataEncoder(
+    ComputeHandleInternal* handle,
+    const SGFMetadataEncoderDesc* desc
+  ) :
+    name(desc->name),
+    mul1(handle,&desc->mul1),
+    bias1(handle,&desc->bias1,desc->act1.activation),
+    mul2(handle,&desc->mul2),
+    bias2(handle,&desc->bias2,desc->act2.activation),
+    mul3(handle,&desc->mul3)
+  {
+  }
+
+  ~SGFMetadataEncoder() {
+  }
+
+  void apply(
+    ComputeHandleInternal* handle,
+    ScratchBuffers* scratch,
+    int batchSize,
+    cl_mem input,
+    cl_mem output
+  ) const {
+    SizedBuf<cl_mem> internalBuf1(scratch->allocator, scratch->getBufSizeFloat(std::max(mul1.outChannels,mul2.outChannels)));
+    SizedBuf<cl_mem> internalBuf2(scratch->allocator, scratch->getBufSizeFloat(std::max(mul1.outChannels,mul2.outChannels)));
+    mul1.apply(handle,batchSize,input,internalBuf1.buf);
+    bias1.apply(handle,batchSize,internalBuf1.buf);
+    mul2.apply(handle,batchSize,internalBuf1.buf,internalBuf2.buf);
+    bias2.apply(handle,batchSize,internalBuf2.buf);
+    mul3.apply(handle,batchSize,internalBuf2.buf,output);
+  }
+
+  SGFMetadataEncoder() = delete;
+  SGFMetadataEncoder(const SGFMetadataEncoder&) = delete;
+  SGFMetadataEncoder& operator=(const SGFMetadataEncoder&) = delete;
+
+};
+
 
 //--------------------------------------------------------------
 
@@ -2007,6 +2065,7 @@ struct Trunk {
 
   std::unique_ptr<ConvLayer> initialConv;
   std::unique_ptr<MatMulLayer> initialMatMul;
+  std::unique_ptr<SGFMetadataEncoder> sgfMetadataEncoder;
   const BlockStack blocks;
   std::unique_ptr<BatchNormLayer> trunkTipBN;
 
@@ -2039,6 +2098,10 @@ struct Trunk {
 
     initialConv = std::make_unique<ConvLayer>(handle,&desc->initialConv,nnXLen,nnYLen,useFP16);
     initialMatMul = std::make_unique<MatMulLayer>(handle,&desc->initialMatMul);
+    if(desc->metaEncoderVersion > 0) {
+      sgfMetadataEncoder = std::make_unique<SGFMetadataEncoder>(handle,&desc->sgfMetadataEncoder);
+      testAssert(sgfMetadataEncoder->mul3.outChannels == initialMatMul->outChannels);
+    }
     trunkTipBN = std::make_unique<BatchNormLayer>(handle,&desc->trunkTipBN,&desc->trunkTipActivation,nnXLen,nnYLen,useFP16);
   }
 
@@ -2058,6 +2121,7 @@ struct Trunk {
     int batchSize,
     cl_mem input,
     cl_mem inputGlobal,
+    cl_mem inputMeta,
     cl_mem trunk,
     cl_mem mask,
     cl_mem maskSum,
@@ -2079,6 +2143,17 @@ struct Trunk {
     initialMatMul->apply(handle,batchSize,inputGlobal,trunkScratch.buf);
     //Then accumulate it into trunk, broadcasting during the process
     addChannelBiases(handle, trunk, trunkScratch.buf, batchSize * trunkNumChannels, nnXLen*nnYLen);
+
+    if(sgfMetadataEncoder != nullptr) {
+      testAssert(inputMeta != NULL);
+      //Feed the result into trunkScratch
+      sgfMetadataEncoder->apply(handle,scratch,batchSize,inputMeta,trunkScratch.buf);
+      //Then accumulate it into trunk, broadcasting during the process
+      addChannelBiases(handle, trunk, trunkScratch.buf, batchSize * trunkNumChannels, nnXLen*nnYLen);
+    }
+    else {
+      testAssert(inputMeta == NULL);
+    }
 
     blocks.apply(handle,scratch,batchSize,trunk,trunkScratch.buf,mask,maskSum,convWorkspace,convWorkspace2);
     trunkTipBN->apply(handle,batchSize,trunk,trunk,mask);
@@ -2354,6 +2429,7 @@ struct Model {
   int nnYLen;
   int numInputChannels;
   int numInputGlobalChannels;
+  int numInputMetaChannels;
   int numPolicyChannels;
   int numValueChannels;
   int numScoreValueChannels;
@@ -2391,6 +2467,7 @@ struct Model {
 
     numInputChannels = desc->numInputChannels;
     numInputGlobalChannels = desc->numInputGlobalChannels;
+    numInputMetaChannels = desc->numInputMetaChannels;
     numPolicyChannels = desc->numPolicyChannels;
     numValueChannels = desc->numValueChannels;
     numScoreValueChannels = desc->numScoreValueChannels;
@@ -2406,9 +2483,16 @@ struct Model {
       throw StringError(Global::strprintf("Neural net numInputGlobalChannels (%d) was not the expected number based on version (%d)",
         numInputGlobalChannels, numGlobalFeatures
       ));
+    if(numInputMetaChannels > 0) {
+      if(numInputMetaChannels != SGFMetadata::METADATA_INPUT_NUM_CHANNELS)
+        throw StringError(Global::strprintf("Neural net numInputMetaChannels (%d) was not the expected number (%d)",
+          numInputMetaChannels, SGFMetadata::METADATA_INPUT_NUM_CHANNELS
+        ));
+    }
 
     checkBufferSize(maxBatchSize,nnXLen,nnYLen,numInputChannels);
     checkBufferSize(maxBatchSize,nnXLen,nnYLen,numInputGlobalChannels);
+    checkBufferSize(maxBatchSize,nnXLen,nnYLen,numInputMetaChannels);
     checkBufferSize(maxBatchSize,nnXLen,nnYLen,numPolicyChannels);
     checkBufferSize(maxBatchSize,nnXLen,nnYLen,numValueChannels);
     checkBufferSize(maxBatchSize,nnXLen,nnYLen,numScoreValueChannels);
@@ -2440,6 +2524,7 @@ struct Model {
 
     cl_mem input,
     cl_mem inputGlobal,
+    cl_mem inputMeta,
     cl_mem mask,
     cl_mem maskSum,
     cl_mem trunkBuf,
@@ -2485,6 +2570,7 @@ struct Model {
       batchSize,
       input,
       inputGlobal,
+      inputMeta,
       trunkBuf,
       mask,
       maskSum,
@@ -2525,8 +2611,10 @@ struct Model {
 struct Buffers {
   cl_mem input;
   cl_mem inputGlobal;
+  cl_mem inputMeta;
   size_t inputElts;
   size_t inputGlobalElts;
+  size_t inputMetaElts;
 
   cl_mem mask;
   cl_mem maskSum;
@@ -2560,9 +2648,16 @@ struct Buffers {
 
     inputElts = m.numInputChannels * batchXYElts;
     inputGlobalElts = m.numInputGlobalChannels * batchElts;
+    inputMetaElts = m.numInputMetaChannels * batchElts;
 
     input = createReadWriteBuffer(handle, inputElts, useFP16);
     inputGlobal = createReadWriteBuffer(handle, inputGlobalElts, false);
+    if(m.numInputMetaChannels > 0) {
+      inputMeta = createReadWriteBuffer(handle, inputMetaElts, false);
+    }
+    else {
+      inputMeta = NULL;
+    }
 
     mask = createReadWriteBuffer(handle, batchXYElts, useFP16);
     maskSum = createReadWriteBuffer(handle, batchElts, false);
@@ -2592,6 +2687,8 @@ struct Buffers {
   ~Buffers() {
     clReleaseMemObject(input);
     clReleaseMemObject(inputGlobal);
+    if(inputMeta != NULL)
+      clReleaseMemObject(inputMeta);
 
     clReleaseMemObject(mask);
     clReleaseMemObject(maskSum);
@@ -2719,6 +2816,7 @@ struct InputBuffers {
 
   size_t singleInputElts;
   size_t singleInputGlobalElts;
+  size_t singleInputMetaElts;
   size_t singlePolicyPassResultElts;
   size_t singlePolicyResultElts;
   size_t singleValueResultElts;
@@ -2727,6 +2825,7 @@ struct InputBuffers {
 
   size_t userInputBufferElts;
   size_t userInputGlobalBufferElts;
+  size_t userInputMetaBufferElts;
   size_t policyPassResultBufferElts;
   size_t policyResultBufferElts;
   size_t valueResultBufferElts;
@@ -2736,6 +2835,7 @@ struct InputBuffers {
   float* userInputBuffer; //Host pointer
   half_t* userInputBufferHalf; //Host pointer
   float* userInputGlobalBuffer; //Host pointer
+  float* userInputMetaBuffer; //Host pointer
 
   float* policyPassResults; //Host pointer
   float* policyResults; //Host pointer
@@ -2751,6 +2851,7 @@ struct InputBuffers {
     maxBatchSize = maxBatchSz;
     singleInputElts = (size_t)m.numInputChannels * nnXLen * nnYLen;
     singleInputGlobalElts = (size_t)m.numInputGlobalChannels;
+    singleInputMetaElts = (size_t)m.numInputMetaChannels;
     singlePolicyPassResultElts = (size_t)(m.numPolicyChannels);
     singlePolicyResultElts = (size_t)(m.numPolicyChannels * nnXLen * nnYLen);
     singleValueResultElts = (size_t)m.numValueChannels;
@@ -2759,9 +2860,13 @@ struct InputBuffers {
 
     assert(NNModelVersion::getNumSpatialFeatures(m.modelVersion) == m.numInputChannels);
     assert(NNModelVersion::getNumGlobalFeatures(m.modelVersion) == m.numInputGlobalChannels);
+    if(m.numInputMetaChannels > 0) {
+      assert(SGFMetadata::METADATA_INPUT_NUM_CHANNELS == m.numInputMetaChannels);
+    }
 
     userInputBufferElts = (size_t)m.numInputChannels * maxBatchSize * nnXLen * nnYLen;
     userInputGlobalBufferElts = (size_t)m.numInputGlobalChannels * maxBatchSize;
+    userInputMetaBufferElts = (size_t)m.numInputMetaChannels * maxBatchSize;
     policyPassResultBufferElts = (size_t)maxBatchSize * m.numPolicyChannels;
     policyResultBufferElts = (size_t)maxBatchSize * m.numPolicyChannels * nnXLen * nnYLen;
     valueResultBufferElts = (size_t)maxBatchSize * m.numValueChannels;
@@ -2771,6 +2876,10 @@ struct InputBuffers {
     userInputBuffer = new float[(size_t)m.numInputChannels * maxBatchSize * nnXLen * nnYLen];
     userInputBufferHalf = new half_t[(size_t)m.numInputChannels * maxBatchSize * nnXLen * nnYLen];
     userInputGlobalBuffer = new float[(size_t)m.numInputGlobalChannels * maxBatchSize];
+    if(m.numInputMetaChannels > 0)
+      userInputMetaBuffer = new float[(size_t)m.numInputMetaChannels * maxBatchSize];
+    else
+      userInputMetaBuffer = NULL;
 
     policyPassResults = new float[(size_t)maxBatchSize * m.numPolicyChannels];
     policyResults = new float[(size_t)maxBatchSize * m.numPolicyChannels * nnXLen * nnYLen];
@@ -2786,6 +2895,8 @@ struct InputBuffers {
     delete[] userInputBuffer;
     delete[] userInputBufferHalf;
     delete[] userInputGlobalBuffer;
+    if(userInputMetaBuffer != NULL)
+      delete[] userInputMetaBuffer;
     delete[] policyPassResults;
     delete[] policyResults;
     delete[] policyResultsHalf;
@@ -2826,6 +2937,7 @@ void NeuralNet::getOutput(
 
   const int numSpatialFeatures = NNModelVersion::getNumSpatialFeatures(modelVersion);
   const int numGlobalFeatures = NNModelVersion::getNumGlobalFeatures(modelVersion);
+  const int numMetaFeatures = inputBuffers->singleInputMetaElts;
   assert(numSpatialFeatures == gpuHandle->model->numInputChannels);
   assert(numSpatialFeatures * nnXLen * nnYLen == inputBuffers->singleInputElts);
   assert(numGlobalFeatures == inputBuffers->singleInputGlobalElts);
@@ -2834,10 +2946,21 @@ void NeuralNet::getOutput(
   for(int nIdx = 0; nIdx<batchSize; nIdx++) {
     float* rowSpatialInput = inputBuffers->userInputBuffer + (inputBuffers->singleInputElts * nIdx);
     float* rowGlobalInput = inputBuffers->userInputGlobalBuffer + (inputBuffers->singleInputGlobalElts * nIdx);
+    float* rowMetaInput = inputBuffers->userInputMetaBuffer + (inputBuffers->singleInputMetaElts * nIdx);
 
-    const float* rowGlobal = inputBufs[nIdx]->rowGlobal;
-    const float* rowSpatial = inputBufs[nIdx]->rowSpatial;
+    const float* rowGlobal = inputBufs[nIdx]->rowGlobalBuf.data();
+    const float* rowSpatial = inputBufs[nIdx]->rowSpatialBuf.data();
+    const float* rowMeta = inputBufs[nIdx]->rowMetaBuf.data();
+    const bool hasRowMeta = inputBufs[nIdx]->hasRowMeta;
     std::copy(rowGlobal,rowGlobal+numGlobalFeatures,rowGlobalInput);
+    if(numMetaFeatures > 0) {
+      testAssert(rowMeta != NULL);
+      testAssert(hasRowMeta);
+      std::copy(rowMeta,rowMeta+numMetaFeatures,rowMetaInput);
+    }
+    else {
+      testAssert(!hasRowMeta);
+    }
     SymmetryHelpers::copyInputsWithSymmetry(rowSpatial, rowSpatialInput, 1, nnYLen, nnXLen, numSpatialFeatures, gpuHandle->inputsUseNHWC, inputBufs[nIdx]->symmetry);
   }
 
@@ -2845,6 +2968,7 @@ void NeuralNet::getOutput(
 
   assert(inputBuffers->userInputBufferElts == buffers->inputElts);
   assert(inputBuffers->userInputGlobalBufferElts == buffers->inputGlobalElts);
+  assert(inputBuffers->userInputMetaBufferElts == buffers->inputMetaElts);
   assert(inputBuffers->policyResultBufferElts == buffers->policyElts);
   assert(inputBuffers->valueResultBufferElts == buffers->valueElts);
   assert(inputBuffers->singlePolicyPassResultElts == numPolicyChannels);
@@ -2905,6 +3029,21 @@ void NeuralNet::getOutput(
   );
   CHECK_ERR(err);
 
+  if(numMetaFeatures > 0) {
+    err = clEnqueueWriteBuffer(
+      handle->commandQueue,
+      buffers->inputMeta,
+      CL_FALSE,
+      0,
+      inputBuffers->singleInputMetaElts * sizeof(float) * batchSize,
+      inputBuffers->userInputMetaBuffer,
+      0,
+      NULL,
+      NULL
+    );
+    CHECK_ERR(err);
+  }
+
   gpuHandle->model->apply(
     handle,
     gpuHandle->scratch.get(),
@@ -2912,6 +3051,7 @@ void NeuralNet::getOutput(
 
     buffers->input,
     buffers->inputGlobal,
+    buffers->inputMeta,
 
     buffers->mask,
     buffers->maskSum,

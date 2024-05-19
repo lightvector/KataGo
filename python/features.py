@@ -11,6 +11,8 @@ class Features:
         self.pos_len = pos_len
         self.version = modelconfigs.get_version(config)
         self.pass_pos = self.pos_len * self.pos_len
+        self.bin_input_shape = [modelconfigs.get_num_bin_input_features(config), pos_len, pos_len]
+        self.global_input_shape = [modelconfigs.get_num_global_input_features(config)]
 
     def xy_to_tensor_pos(self,x,y):
         return y * self.pos_len + x
@@ -250,12 +252,11 @@ class Features:
                     elif stone == opp:
                         bin_input_data[idx,pos,21] = 1.0
 
-
-        #Not quite right, japanese rules aren't really implemented in the python
         bArea = board.size * board.size
         whiteKomi = rules["whiteKomi"]
         if rules["scoringRule"] == "SCORING_TERRITORY":
-            selfKomi = (whiteKomi+1 if pla == Board.WHITE else -whiteKomi)
+            whiteSelfKomi = whiteKomi + board.num_non_pass_moves_made[Board.BLACK] - board.num_non_pass_moves_made[Board.WHITE]
+            selfKomi = (whiteSelfKomi if pla == Board.WHITE else -whiteSelfKomi)
         else:
             selfKomi = (whiteKomi if pla == Board.WHITE else -whiteKomi)
 

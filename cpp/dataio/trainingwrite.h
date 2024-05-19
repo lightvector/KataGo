@@ -3,6 +3,7 @@
 
 #include "../dataio/numpywrite.h"
 #include "../neuralnet/nninputs.h"
+#include "../neuralnet/sgfmetadata.h"
 #include "../neuralnet/nninterface.h"
 
 STRUCT_NAMED_PAIR(Loc,loc,int16_t,policyTarget,PolicyTargetMove);
@@ -132,6 +133,8 @@ struct TrainingWriteBuffers {
   int dataYLen;
   int packedBoardArea;
 
+  bool hasMetadataInput;
+
   int curRows;
   float* binaryInputNCHWUnpacked;
 
@@ -160,7 +163,8 @@ struct TrainingWriteBuffers {
   //C20: Actual final score, from the perspective of the player to move, adjusted for draw utility, zero if C27 is zero.
   //C21: Lead in points, number of points to make the game fair, zero if C29 is zero.
   //C22: Expected arrival time of WL variance.
-  //C23-24: Unused
+  //C23: Unused
+  //C24: 1.0 minus weight assigned to td value targets
 
   //C25 Weight multiplier for row as a whole
 
@@ -228,7 +232,17 @@ struct TrainingWriteBuffers {
   //C4: Final board area/territory [-120,120]. All 0 if C34 has weight 0. Unlike ownership, takes into account group tax and scoring rules.
   NumpyBuffer<int8_t> valueTargetsNCHW;
 
-  TrainingWriteBuffers(int inputsVersion, int maxRows, int numBinaryChannels, int numGlobalChannels, int dataXLen, int dataYLen);
+  NumpyBuffer<float> metadataInputNC;
+
+  TrainingWriteBuffers(
+    int inputsVersion,
+    int maxRows,
+    int numBinaryChannels,
+    int numGlobalChannels,
+    int dataXLen,
+    int dataYLen,
+    bool hasMetadataInput
+  );
   ~TrainingWriteBuffers();
 
   TrainingWriteBuffers(const TrainingWriteBuffers&) = delete;
@@ -251,6 +265,8 @@ struct TrainingWriteBuffers {
     const std::vector<ValueTargets>& whiteValueTargets,
     int whiteValueTargetsIdx, //index in whiteValueTargets corresponding to this turn.
     float valueTargetWeight,
+    float tdValueTargetWeight,
+    float leadTargetWeightFactor,
     const NNRawStats& nnRawStats,
     const Board* finalBoard,
     Color* finalFullArea,
@@ -267,6 +283,7 @@ struct TrainingWriteBuffers {
     bool hitTurnLimit,
     int numExtraBlack,
     int mode,
+    SGFMetadata* sgfMeta,
     Rand& rand
   );
 

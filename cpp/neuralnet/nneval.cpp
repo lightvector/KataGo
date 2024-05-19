@@ -12,10 +12,10 @@ NNResultBuf::NNResultBuf()
     includeOwnerMap(false),
     boardXSizeForServer(0),
     boardYSizeForServer(0),
-    rowSpatialSize(0),
-    rowGlobalSize(0),
-    rowSpatial(NULL),
-    rowGlobal(NULL),
+    rowSpatialBuf(),
+    rowGlobalBuf(),
+    rowMetaBuf(),
+    hasRowMeta(false),
     result(nullptr),
     errorLogLockout(false),
     // If no symmetry is specified, it will use default or random based on config.
@@ -24,10 +24,6 @@ NNResultBuf::NNResultBuf()
 {}
 
 NNResultBuf::~NNResultBuf() {
-  if(rowSpatial != NULL)
-    delete[] rowSpatial;
-  if(rowGlobal != NULL)
-    delete[] rowGlobal;
 }
 
 //-------------------------------------------------------------------------------------
@@ -91,6 +87,7 @@ NNEvaluator::NNEvaluator(
    logger(lg),
    modelVersion(-1),
    inputsVersion(-1),
+   numInputMetaChannels(0),
    postProcessParams(),
    numServerThreadsEverSpawned(0),
    serverThreads(),
@@ -138,6 +135,7 @@ NNEvaluator::NNEvaluator(
     loadedModel = NeuralNet::loadModelFile(modelFileName,expectedSha256);
     modelVersion = NeuralNet::getModelVersion(loadedModel);
     inputsVersion = NNModelVersion::getInputsVersion(modelVersion);
+    numInputMetaChannels = NeuralNet::getNumInputMetaChannels(loadedModel);
     postProcessParams = NeuralNet::getPostProcessParams(loadedModel);
     computeContext = NeuralNet::createComputeContext(
       gpuIdxs,logger,nnXLen,nnYLen,
@@ -199,6 +197,10 @@ void NNEvaluator::setCurrentBatchSize(int batchSize) {
     throw StringError("Invalid setting for batch size");
   currentBatchSize.store(batchSize,std::memory_order_release);
 }
+bool NNEvaluator::requiresSGFMetadata() const {
+  return numInputMetaChannels > 0;
+}
+
 int NNEvaluator::getNumGpus() const {
 #ifdef USE_EIGEN_BACKEND
   return 1;
@@ -614,11 +616,61 @@ static bool daggerMatch(const Board& board, Player nextPla, Loc& banned, int sym
   return true;
 }
 
+std::shared_ptr<NNOutput>* NNEvaluator::averageMultipleSymmetries(
+  Board& board,
+  const BoardHistory& history,
+  Player nextPlayer,
+  const SGFMetadata* sgfMeta,
+  const MiscNNInputParams& baseNNInputParams,
+  NNResultBuf& buf,
+  bool includeOwnerMap,
+  Rand& rand,
+  int numSymmetriesToSample
+) {
+  MiscNNInputParams nnInputParams = baseNNInputParams;
+  vector<std::shared_ptr<NNOutput>> ptrs;
+  std::array<int, SymmetryHelpers::NUM_SYMMETRIES> symmetryIndexes;
+  std::iota(symmetryIndexes.begin(), symmetryIndexes.end(), 0);
+  for(int i = 0; i<numSymmetriesToSample; i++) {
+    std::swap(symmetryIndexes[i], symmetryIndexes[rand.nextInt(i,SymmetryHelpers::NUM_SYMMETRIES-1)]);
+    nnInputParams.symmetry = symmetryIndexes[i];
+    bool skipCacheThisIteration = true; //Skip cache since there's no guarantee which symmetry is in the cache
+    evaluate(
+      board, history, nextPlayer, sgfMeta,
+      nnInputParams,
+      buf, skipCacheThisIteration, includeOwnerMap
+    );
+    ptrs.push_back(std::move(buf.result));
+  }
+  return new std::shared_ptr<NNOutput>(new NNOutput(ptrs));
+}
 
 void NNEvaluator::evaluate(
   Board& board,
   const BoardHistory& history,
   Player nextPlayer,
+  const MiscNNInputParams& nnInputParams,
+  NNResultBuf& buf,
+  bool skipCache,
+  bool includeOwnerMap
+) {
+  evaluate(
+    board,
+    history,
+    nextPlayer,
+    NULL,
+    nnInputParams,
+    buf,
+    skipCache,
+    includeOwnerMap
+  );
+}
+
+void NNEvaluator::evaluate(
+  Board& board,
+  const BoardHistory& history,
+  Player nextPlayer,
+  const SGFMetadata* sgfMeta,
   const MiscNNInputParams& nnInputParams,
   NNResultBuf& buf,
   bool skipCache,
@@ -639,6 +691,13 @@ void NNEvaluator::evaluate(
   }
 
   Hash128 nnHash = NNInputs::getHash(board, history, nextPlayer, nnInputParams);
+  if(numInputMetaChannels > 0) {
+    if(sgfMeta == NULL)
+      Global::fatalError("SGFMetadata is required for " + modelName + " but was not provided");
+    if(!sgfMeta->initialized)
+      Global::fatalError("SGFMetadata is required for " + modelName + " but was not initialized. Did you specify humanSLProfile=... in katago's config?");
+    nnHash ^= sgfMeta->getHash(nextPlayer);
+  }
 
   bool hadResultWithoutOwnerMap = false;
   shared_ptr<NNOutput> resultWithoutOwnerMap;
@@ -660,38 +719,46 @@ void NNEvaluator::evaluate(
   buf.boardYSizeForServer = board.y_size;
 
   if(!debugSkipNeuralNet) {
-    int rowSpatialLen = NNModelVersion::getNumSpatialFeatures(modelVersion) * nnXLen * nnYLen;
-    if(buf.rowSpatial == NULL) {
-      buf.rowSpatial = new float[rowSpatialLen];
-      buf.rowSpatialSize = rowSpatialLen;
-    }
-    else {
-      if(buf.rowSpatialSize != rowSpatialLen)
-        throw StringError("Cannot reuse an nnResultBuf with different dimensions or model version");
-    }
-    int rowGlobalLen = NNModelVersion::getNumGlobalFeatures(modelVersion);
-    if(buf.rowGlobal == NULL) {
-      buf.rowGlobal = new float[rowGlobalLen];
-      buf.rowGlobalSize = rowGlobalLen;
-    }
-    else {
-      if(buf.rowGlobalSize != rowGlobalLen)
-        throw StringError("Cannot reuse an nnResultBuf with different dimensions or model version");
-    }
+    const int rowSpatialLen = NNModelVersion::getNumSpatialFeatures(modelVersion) * nnXLen * nnYLen;
+    if(buf.rowSpatialBuf.size() < rowSpatialLen)
+      buf.rowSpatialBuf.resize(rowSpatialLen);
+    const int rowGlobalLen = NNModelVersion::getNumGlobalFeatures(modelVersion);
+    if(buf.rowGlobalBuf.size() < rowGlobalLen)
+      buf.rowGlobalBuf.resize(rowGlobalLen);
+    const int rowMetaLen = numInputMetaChannels;
+    if(buf.rowMetaBuf.size() < rowMetaLen)
+      buf.rowMetaBuf.resize(rowMetaLen);
 
     static_assert(NNModelVersion::latestInputsVersionImplemented == 7, "");
     if(inputsVersion == 3)
-      NNInputs::fillRowV3(board, history, nextPlayer, nnInputParams, nnXLen, nnYLen, inputsUseNHWC, buf.rowSpatial, buf.rowGlobal);
+      NNInputs::fillRowV3(board, history, nextPlayer, nnInputParams, nnXLen, nnYLen, inputsUseNHWC, buf.rowSpatialBuf.data(), buf.rowGlobalBuf.data());
     else if(inputsVersion == 4)
-      NNInputs::fillRowV4(board, history, nextPlayer, nnInputParams, nnXLen, nnYLen, inputsUseNHWC, buf.rowSpatial, buf.rowGlobal);
+      NNInputs::fillRowV4(board, history, nextPlayer, nnInputParams, nnXLen, nnYLen, inputsUseNHWC, buf.rowSpatialBuf.data(), buf.rowGlobalBuf.data());
     else if(inputsVersion == 5)
-      NNInputs::fillRowV5(board, history, nextPlayer, nnInputParams, nnXLen, nnYLen, inputsUseNHWC, buf.rowSpatial, buf.rowGlobal);
+      NNInputs::fillRowV5(board, history, nextPlayer, nnInputParams, nnXLen, nnYLen, inputsUseNHWC, buf.rowSpatialBuf.data(), buf.rowGlobalBuf.data());
     else if(inputsVersion == 6)
-      NNInputs::fillRowV6(board, history, nextPlayer, nnInputParams, nnXLen, nnYLen, inputsUseNHWC, buf.rowSpatial, buf.rowGlobal);
+      NNInputs::fillRowV6(board, history, nextPlayer, nnInputParams, nnXLen, nnYLen, inputsUseNHWC, buf.rowSpatialBuf.data(), buf.rowGlobalBuf.data());
     else if(inputsVersion == 7)
-      NNInputs::fillRowV7(board, history, nextPlayer, nnInputParams, nnXLen, nnYLen, inputsUseNHWC, buf.rowSpatial, buf.rowGlobal);
+      NNInputs::fillRowV7(board, history, nextPlayer, nnInputParams, nnXLen, nnYLen, inputsUseNHWC, buf.rowSpatialBuf.data(), buf.rowGlobalBuf.data());
     else
       ASSERT_UNREACHABLE;
+
+    if(rowMetaLen > 0) {
+      if(sgfMeta == NULL)
+        Global::fatalError("SGFMetadata is required for " + modelName + " but was not provided");
+      if(!sgfMeta->initialized)
+        Global::fatalError("SGFMetadata is required for " + modelName + " but was not initialized. Did you specify humanSLProfile=... in katago's config?");
+      SGFMetadata::fillMetadataRow(
+        sgfMeta,
+        buf.rowMetaBuf.data(),
+        nextPlayer,
+        board.x_size*board.y_size
+      );
+      buf.hasRowMeta = true;
+    }
+    else {
+      buf.hasRowMeta = false;
+    }
   }
 
   buf.symmetry = nnInputParams.symmetry;

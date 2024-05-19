@@ -31,6 +31,10 @@ namespace Hash
 
   uint64_t simpleHash(const char* str);
   uint64_t simpleHash(const int* input, int len);
+
+  //Return value in [0,1) deterministically based on seeded hash. Note that 1.0 might
+  //be possible depending on how float math is configured
+  double seededHashFloat(const std::string& str, const std::string& seed);
 }
 
 //Hash is "little endian" in the sense that if you printed out hash1, then hash0, you would

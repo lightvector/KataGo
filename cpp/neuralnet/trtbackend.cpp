@@ -7,6 +7,7 @@
 #include "../core/fileutils.h"
 #include "../core/makedir.h"
 #include "../core/sha2.h"
+#include "../core/test.h"
 #include "../dataio/homedata.h"
 #include "../neuralnet/desc.h"
 #include "../neuralnet/modelversion.h"
@@ -106,6 +107,10 @@ int NeuralNet::getModelVersion(const LoadedModel* loadedModel) {
   return loadedModel->modelDesc.modelVersion;
 }
 
+int NeuralNet::getNumInputMetaChannels(const LoadedModel* loadedModel) {
+  return loadedModel->modelDesc.numInputMetaChannels;
+}
+
 Rules NeuralNet::getSupportedRules(const LoadedModel* loadedModel, const Rules& desiredRules, bool& supported) {
   return loadedModel->modelDesc.getSupportedRules(desiredRules, supported);
 }
@@ -141,8 +146,9 @@ struct ModelParser {
   unique_ptr<TRTModel> model;
 
   ITensor* inputMask;
-  ITensor* inputFeature;
-  ITensor* inputGlobalFeature;
+  ITensor* inputSpatial;
+  ITensor* inputGlobal;
+  ITensor* inputMeta;
 
   ILayer* maskSumLayer;
   ILayer* maskScaleLayer;
@@ -178,15 +184,31 @@ struct ModelParser {
     auto& network = model->network;
     auto modelDesc = &model->rawModel->modelDesc;
 
-    tuneDesc = Global::strprintf(
-      R"|("salt"(%d)"model"(%d,%d,%d,%d,%d,%d))|",
-      tuneSalt,
-      modelDesc->modelVersion,
-      modelDesc->numInputChannels,
-      modelDesc->numInputGlobalChannels,
-      modelDesc->numValueChannels,
-      modelDesc->numScoreValueChannels,
-      modelDesc->numOwnershipChannels);
+    if(modelDesc->numInputMetaChannels > 0) {
+      tuneDesc = Global::strprintf(
+        R"|("salt"(%d)"modelwithmeta"(%d,%d,%d,%d,%d,%d,%d))|",
+        tuneSalt,
+        modelDesc->modelVersion,
+        modelDesc->numInputChannels,
+        modelDesc->numInputGlobalChannels,
+        modelDesc->numInputMetaChannels,
+        modelDesc->numValueChannels,
+        modelDesc->numScoreValueChannels,
+        modelDesc->numOwnershipChannels
+      );
+    }
+    else {
+      tuneDesc = Global::strprintf(
+        R"|("salt"(%d)"model"(%d,%d,%d,%d,%d,%d))|",
+        tuneSalt,
+        modelDesc->modelVersion,
+        modelDesc->numInputChannels,
+        modelDesc->numInputGlobalChannels,
+        modelDesc->numValueChannels,
+        modelDesc->numScoreValueChannels,
+        modelDesc->numOwnershipChannels
+      );
+    }
 
     model->modelVersion = modelDesc->modelVersion;
     network->setName(modelDesc->name.c_str());
@@ -238,6 +260,7 @@ struct ModelParser {
     int nnYLen = model->nnYLen;
     int numInputChannels = modelDesc->numInputChannels;
     int numInputGlobalChannels = modelDesc->numInputGlobalChannels;
+    int numInputMetaChannels = modelDesc->numInputMetaChannels;
 
     int numFeatures = NNModelVersion::getNumSpatialFeatures(model->modelVersion);
     if(numInputChannels != numFeatures)
@@ -251,6 +274,12 @@ struct ModelParser {
         "Neural net numInputGlobalChannels (%d) was not the expected number based on version (%d)",
         numInputGlobalChannels,
         numGlobalFeatures));
+    if(numInputMetaChannels > 0) {
+      if(numInputMetaChannels != SGFMetadata::METADATA_INPUT_NUM_CHANNELS)
+        throw StringError(Global::strprintf("Neural net numInputMetaChannels (%d) was not the expected number (%d)",
+          numInputMetaChannels, SGFMetadata::METADATA_INPUT_NUM_CHANNELS
+        ));
+    }
 
     if(nnXLen > NNPos::MAX_BOARD_LEN)
       throw StringError(
@@ -265,24 +294,38 @@ struct ModelParser {
     profile->setDimensions("InputMask", OptProfileSelector::kOPT, Dims4(model->maxBatchSize, 1, nnYLen, nnXLen));
     profile->setDimensions("InputMask", OptProfileSelector::kMAX, Dims4(model->maxBatchSize, 1, nnYLen, nnXLen));
 
-    inputFeature = network->addInput("InputFeature", DataType::kFLOAT, {4, {-1, numInputChannels, nnYLen, nnXLen}});
-    inputFeature->setAllowedFormats(1U << static_cast<int>(TensorFormat::kLINEAR));
-    profile->setDimensions("InputFeature", OptProfileSelector::kMIN, Dims4(1, numInputChannels, nnYLen, nnXLen));
+    inputSpatial = network->addInput("InputSpatial", DataType::kFLOAT, {4, {-1, numInputChannels, nnYLen, nnXLen}});
+    inputSpatial->setAllowedFormats(1U << static_cast<int>(TensorFormat::kLINEAR));
+    profile->setDimensions("InputSpatial", OptProfileSelector::kMIN, Dims4(1, numInputChannels, nnYLen, nnXLen));
     profile->setDimensions(
-      "InputFeature", OptProfileSelector::kOPT, Dims4(model->maxBatchSize, numInputChannels, nnYLen, nnXLen));
+      "InputSpatial", OptProfileSelector::kOPT, Dims4(model->maxBatchSize, numInputChannels, nnYLen, nnXLen));
     profile->setDimensions(
-      "InputFeature", OptProfileSelector::kMAX, Dims4(model->maxBatchSize, numInputChannels, nnYLen, nnXLen));
+      "InputSpatial", OptProfileSelector::kMAX, Dims4(model->maxBatchSize, numInputChannels, nnYLen, nnXLen));
 
-    inputGlobalFeature =
-      network->addInput("InputGlobalFeature", DataType::kFLOAT, {4, {-1, numInputGlobalChannels, 1, 1}});
-    inputFeature->setAllowedFormats(1U << static_cast<int>(TensorFormat::kLINEAR));
-    profile->setDimensions("InputGlobalFeature", OptProfileSelector::kMIN, Dims4(1, numInputGlobalChannels, 1, 1));
+    inputGlobal =
+      network->addInput("InputGlobal", DataType::kFLOAT, {4, {-1, numInputGlobalChannels, 1, 1}});
+    inputSpatial->setAllowedFormats(1U << static_cast<int>(TensorFormat::kLINEAR));
+    profile->setDimensions("InputGlobal", OptProfileSelector::kMIN, Dims4(1, numInputGlobalChannels, 1, 1));
     profile->setDimensions(
-      "InputGlobalFeature", OptProfileSelector::kOPT, Dims4(model->maxBatchSize, numInputGlobalChannels, 1, 1));
+      "InputGlobal", OptProfileSelector::kOPT, Dims4(model->maxBatchSize, numInputGlobalChannels, 1, 1));
     profile->setDimensions(
-      "InputGlobalFeature", OptProfileSelector::kMAX, Dims4(model->maxBatchSize, numInputGlobalChannels, 1, 1));
+      "InputGlobal", OptProfileSelector::kMAX, Dims4(model->maxBatchSize, numInputGlobalChannels, 1, 1));
 
-    markDebugOutput(inputFeature, "Initial bin features");
+    if(numInputMetaChannels > 0) {
+      inputMeta =
+        network->addInput("InputMeta", DataType::kFLOAT, {4, {-1, numInputMetaChannels, 1, 1}});
+      inputSpatial->setAllowedFormats(1U << static_cast<int>(TensorFormat::kLINEAR));
+      profile->setDimensions("InputMeta", OptProfileSelector::kMIN, Dims4(1, numInputMetaChannels, 1, 1));
+      profile->setDimensions(
+        "InputMeta", OptProfileSelector::kOPT, Dims4(model->maxBatchSize, numInputMetaChannels, 1, 1));
+      profile->setDimensions(
+        "InputMeta", OptProfileSelector::kMAX, Dims4(model->maxBatchSize, numInputMetaChannels, 1, 1));
+    }
+    else {
+      inputMeta = NULL;
+    }
+
+    markDebugOutput(inputSpatial, "Initial bin features");
   }
 
   void initMaskProcLayers() {
@@ -375,20 +418,34 @@ struct ModelParser {
       desc->regularNumChannels,
       desc->gpoolNumChannels);
 
-    auto initialConvLayer = buildConvLayer(inputFeature, &desc->initialConv);
-    auto initialMatMulLayer = buildMatMulLayer(inputGlobalFeature, &desc->initialMatMul);
+    auto initialConvLayer = buildConvLayer(inputSpatial, &desc->initialConv);
+    auto initialMatMulLayer = buildMatMulLayer(inputGlobal, &desc->initialMatMul);
+    ILayer* initialMetaLayer;
+    if(desc->metaEncoderVersion > 0) {
+      initialMetaLayer = buildSGFMetadataEncoder(inputMeta, &desc->sgfMetadataEncoder);
+    }
+    else {
+      initialMetaLayer = NULL;
+    }
 
     auto initialConv = initialConvLayer->getOutput(0);
     auto initialMatMul = initialMatMulLayer->getOutput(0);
+    auto initialMeta = initialMetaLayer == NULL ? NULL : initialMetaLayer->getOutput(0);
 
     assert(initialConv->getDimensions().d[1] == numChannels);
     assert(initialMatMul->getDimensions().d[1] == numChannels);
+    if(initialMeta != NULL) {
+      assert(initialMeta->getDimensions().d[1] == numChannels);
+    }
 
     markDebugOutput(initialConvLayer->getOutput(0), "After initial conv");
 
     auto initialBiasLayer = network->addElementWise(*initialConv, *initialMatMul, ElementWiseOperation::kSUM);
-    auto initiaBiasLayerName = name + "/initbias";
-    initialBiasLayer->setName(initiaBiasLayerName.c_str());
+    if(initialMeta != NULL) {
+      initialBiasLayer = network->addElementWise(*(initialBiasLayer->getOutput(0)), *initialMeta, ElementWiseOperation::kSUM);
+    }
+    auto initialBiasLayerName = name + "/initbias";
+    initialBiasLayer->setName(initialBiasLayerName.c_str());
 
     assert(desc->blocks.size() == desc->numBlocks);
     auto trunkScratchLayer = buildResidualBlockStack(initialBiasLayer->getOutput(0), desc->blocks, "trunk");
@@ -549,6 +606,20 @@ struct ModelParser {
     assert(outputValue->getDimensions().d[1] == modelDesc->numValueChannels);
     assert(outputScoreValue->getDimensions().d[1] == modelDesc->numScoreValueChannels);
     assert(outputOwnership->getDimensions().d[1] == modelDesc->numOwnershipChannels);
+  }
+
+
+  ILayer* buildSGFMetadataEncoder(ITensor* input, const SGFMetadataEncoderDesc* desc) {
+    auto mul1Layer = buildMatMulLayer(input, &desc->mul1);
+    auto bias1Layer = buildMatBiasLayer(mul1Layer->getOutput(0), &desc->bias1);
+    auto act1Layer = buildActivationLayer(bias1Layer->getOutput(0), &desc->act1);
+
+    auto mul2Layer = buildMatMulLayer(act1Layer->getOutput(0), &desc->mul2);
+    auto bias2Layer = buildMatBiasLayer(mul2Layer->getOutput(0), &desc->bias2);
+    auto act2Layer = buildActivationLayer(bias2Layer->getOutput(0), &desc->act2);
+
+    auto mul3Layer = buildMatMulLayer(act2Layer->getOutput(0), &desc->mul3);
+    return mul3Layer;
   }
 
   ILayer* buildResidualBlock(ITensor* input, const ResidualBlockDesc* desc) {
@@ -1307,7 +1378,8 @@ ComputeHandle* NeuralNet::createComputeHandle(
   bool requireExactNNLen,
   bool inputsUseNHWC,
   int gpuIdxForThisThread,
-  int serverThreadIdx) {
+  int serverThreadIdx
+) {
   if(inputsUseNHWC) {
     throw StringError("TensorRT backend: inputsUseNHWC = false required, other configurations not supported");
   }
@@ -1367,10 +1439,12 @@ struct InputBuffers {
 
   size_t singleMaskElts;
   size_t singleMaskBytes;
-  size_t singleFeatureElts;
-  size_t singleFeatureBytes;
-  size_t singleGlobalFeatureElts;
-  size_t singleGlobalFeatureBytes;
+  size_t singleInputElts;
+  size_t singleInputBytes;
+  size_t singleInputGlobalElts;
+  size_t singleInputGlobalBytes;
+  size_t singleInputMetaElts;
+  size_t singleInputMetaBytes;
   size_t singlePolicyPassResultElts;
   size_t singlePolicyPassResultBytes;
   size_t singlePolicyResultElts;
@@ -1382,9 +1456,10 @@ struct InputBuffers {
   size_t singleOwnershipResultElts;
   size_t singleOwnershipResultBytes;
 
-  size_t maskInputBufferBytes;
-  size_t featureInputBufferBytes;
-  size_t globalFeatureInputBufferBytes;
+  size_t inputMaskBufferBytes;
+  size_t inputSpatialBufferBytes;
+  size_t inputGlobalBufferBytes;
+  size_t inputMetaBufferBytes;
   size_t policyPassResultBufferBytes;
   size_t policyResultBufferBytes;
   size_t valueResultBufferBytes;
@@ -1392,8 +1467,9 @@ struct InputBuffers {
   size_t ownershipResultBufferBytes;
 
   unique_ptr<float[]> maskInputs;           // Host pointer
-  unique_ptr<float[]> featureInputs;        // Host pointer
-  unique_ptr<float[]> globalFeatureInputs;  // Host pointer
+  unique_ptr<float[]> spatialInputs;        // Host pointer
+  unique_ptr<float[]> globalInputs;  // Host pointer
+  unique_ptr<float[]> metaInputs;  // Host pointer
   unique_ptr<float[]> policyPassResults;    // Host pointer
   unique_ptr<float[]> policyResults;        // Host pointer
   unique_ptr<float[]> valueResults;         // Host pointer
@@ -1413,10 +1489,12 @@ struct InputBuffers {
     maxBatchSize = maxBatchSz;
     singleMaskElts = nnXLen * nnYLen;
     singleMaskBytes = singleMaskElts * sizeof(float);
-    singleFeatureElts = m.numInputChannels * nnXLen * nnYLen;
-    singleFeatureBytes = singleFeatureElts * sizeof(float);
-    singleGlobalFeatureElts = m.numInputGlobalChannels;
-    singleGlobalFeatureBytes = singleGlobalFeatureElts * sizeof(float);
+    singleInputElts = m.numInputChannels * nnXLen * nnYLen;
+    singleInputBytes = singleInputElts * sizeof(float);
+    singleInputGlobalElts = m.numInputGlobalChannels;
+    singleInputGlobalBytes = singleInputGlobalElts * sizeof(float);
+    singleInputMetaElts = m.numInputMetaChannels;
+    singleInputMetaBytes = singleInputMetaElts * sizeof(float);
     singlePolicyPassResultElts = (size_t)m.numPolicyChannels;
     singlePolicyPassResultBytes = singlePolicyPassResultElts * sizeof(float);
     singlePolicyResultElts = (size_t)m.numPolicyChannels * nnXLen * nnYLen;
@@ -1430,10 +1508,14 @@ struct InputBuffers {
 
     assert(NNModelVersion::getNumSpatialFeatures(m.modelVersion) == m.numInputChannels);
     assert(NNModelVersion::getNumGlobalFeatures(m.modelVersion) == m.numInputGlobalChannels);
+    if(m.numInputMetaChannels > 0) {
+      assert(SGFMetadata::METADATA_INPUT_NUM_CHANNELS == m.numInputMetaChannels);
+    }
 
-    maskInputBufferBytes = maxBatchSize * singleMaskBytes;
-    featureInputBufferBytes = maxBatchSize * singleFeatureBytes;
-    globalFeatureInputBufferBytes = maxBatchSize * singleGlobalFeatureBytes;
+    inputMaskBufferBytes = maxBatchSize * singleMaskBytes;
+    inputSpatialBufferBytes = maxBatchSize * singleInputBytes;
+    inputGlobalBufferBytes = maxBatchSize * singleInputGlobalBytes;
+    inputMetaBufferBytes = maxBatchSize * singleInputMetaBytes;
     policyPassResultBufferBytes = maxBatchSize * singlePolicyPassResultBytes;
     policyResultBufferBytes = maxBatchSize * singlePolicyResultBytes;
     valueResultBufferBytes = maxBatchSize * singleValueResultBytes;
@@ -1441,8 +1523,9 @@ struct InputBuffers {
     ownershipResultBufferBytes = maxBatchSize * singleOwnershipResultBytes;
 
     maskInputs = make_unique<float[]>(maxBatchSize * singleMaskElts);
-    featureInputs = make_unique<float[]>(maxBatchSize * singleFeatureElts);
-    globalFeatureInputs = make_unique<float[]>(maxBatchSize * singleGlobalFeatureElts);
+    spatialInputs = make_unique<float[]>(maxBatchSize * singleInputElts);
+    globalInputs = make_unique<float[]>(maxBatchSize * singleInputGlobalElts);
+    metaInputs = make_unique<float[]>(maxBatchSize * singleInputMetaElts);
     policyPassResults = make_unique<float[]>(maxBatchSize * singlePolicyPassResultElts);
     policyResults = make_unique<float[]>(maxBatchSize * singlePolicyResultElts);
     valueResults = make_unique<float[]>(maxBatchSize * singleValueResultElts);
@@ -1472,39 +1555,58 @@ void NeuralNet::getOutput(
   assert(numBatchEltsFilled <= inputBuffers->maxBatchSize);
   assert(numBatchEltsFilled > 0);
 
-  int batchSize = numBatchEltsFilled;
-  int nnXLen = gpuHandle->ctx->nnXLen;
-  int nnYLen = gpuHandle->ctx->nnYLen;
-  int modelVersion = gpuHandle->modelVersion;
+  const int batchSize = numBatchEltsFilled;
+  const int nnXLen = gpuHandle->ctx->nnXLen;
+  const int nnYLen = gpuHandle->ctx->nnYLen;
+  const int modelVersion = gpuHandle->modelVersion;
 
-  int numSpatialFeatures = NNModelVersion::getNumSpatialFeatures(modelVersion);
-  int numGlobalFeatures = NNModelVersion::getNumGlobalFeatures(modelVersion);
+  const int numSpatialFeatures = NNModelVersion::getNumSpatialFeatures(modelVersion);
+  const int numGlobalFeatures = NNModelVersion::getNumGlobalFeatures(modelVersion);
+  const int numMetaFeatures = inputBuffers->singleInputMetaElts;
+  assert(numSpatialFeatures * nnXLen * nnYLen == inputBuffers->singleInputElts);
+  assert(numGlobalFeatures == inputBuffers->singleInputGlobalElts);
 
   for(int nIdx = 0; nIdx < batchSize; nIdx++) {
     float* rowMaskInput = &inputBuffers->maskInputs[inputBuffers->singleMaskElts * nIdx];
-    float* rowFeatureInput = &inputBuffers->featureInputs[inputBuffers->singleFeatureElts * nIdx];
-    float* rowGlobalFeatureInput = &inputBuffers->globalFeatureInputs[inputBuffers->singleGlobalFeatureElts * nIdx];
+    float* rowSpatialInput = &inputBuffers->spatialInputs[inputBuffers->singleInputElts * nIdx];
+    float* rowGlobalInput = &inputBuffers->globalInputs[inputBuffers->singleInputGlobalElts * nIdx];
+    float* rowMetaInput = &inputBuffers->metaInputs[inputBuffers->singleInputMetaElts * nIdx];
 
-    const float* rowFeature = inputBufs[nIdx]->rowSpatial;
-    const float* rowGlobalFeature = inputBufs[nIdx]->rowGlobal;
+    const float* rowGlobal = inputBufs[nIdx]->rowGlobalBuf.data();
+    const float* rowSpatial = inputBufs[nIdx]->rowSpatialBuf.data();
+    const float* rowMeta = inputBufs[nIdx]->rowMetaBuf.data();
+    const bool hasRowMeta = inputBufs[nIdx]->hasRowMeta;
+    copy(rowGlobal, rowGlobal + numGlobalFeatures, rowGlobalInput);
+    std::copy(rowGlobal,rowGlobal+numGlobalFeatures,rowGlobalInput);
+    if(numMetaFeatures > 0) {
+      testAssert(rowMeta != NULL);
+      testAssert(hasRowMeta);
+      std::copy(rowMeta,rowMeta+numMetaFeatures,rowMetaInput);
+    }
+    else {
+      testAssert(!hasRowMeta);
+    }
     SymmetryHelpers::copyInputsWithSymmetry(
-      rowFeature, rowFeatureInput, 1, nnYLen, nnXLen, numSpatialFeatures, false, inputBufs[nIdx]->symmetry);
-    copy(rowGlobalFeature, rowGlobalFeature + numGlobalFeatures, rowGlobalFeatureInput);
-    copy(rowFeatureInput, rowFeatureInput + inputBuffers->singleMaskElts, rowMaskInput);
+      rowSpatial, rowSpatialInput, 1, nnYLen, nnXLen, numSpatialFeatures, false, inputBufs[nIdx]->symmetry);
+    copy(rowSpatialInput, rowSpatialInput + inputBuffers->singleMaskElts, rowMaskInput);
   }
 
   assert(inputBuffers->singleMaskElts == gpuHandle->getBufferRowElts("InputMask"));
-  assert(inputBuffers->singleFeatureElts == gpuHandle->getBufferRowElts("InputFeature"));
-  assert(inputBuffers->singleGlobalFeatureElts == gpuHandle->getBufferRowElts("InputGlobalFeature"));
+  assert(inputBuffers->singleInputElts == gpuHandle->getBufferRowElts("InputSpatial"));
+  assert(inputBuffers->singleInputGlobalElts == gpuHandle->getBufferRowElts("InputGlobal"));
+  if(numMetaFeatures > 0)
+    assert(inputBuffers->singleInputMetaElts == gpuHandle->getBufferRowElts("InputMeta"));
   assert(inputBuffers->singlePolicyPassResultElts == gpuHandle->getBufferRowElts("OutputPolicyPass"));
   assert(inputBuffers->singlePolicyResultElts == gpuHandle->getBufferRowElts("OutputPolicy"));
   assert(inputBuffers->singleValueResultElts == gpuHandle->getBufferRowElts("OutputValue"));
   assert(inputBuffers->singleScoreValueResultElts == gpuHandle->getBufferRowElts("OutputScoreValue"));
   assert(inputBuffers->singleOwnershipResultElts == gpuHandle->getBufferRowElts("OutputOwnership"));
 
-  assert(inputBuffers->maskInputBufferBytes == gpuHandle->getBufferBytes("InputMask"));
-  assert(inputBuffers->featureInputBufferBytes == gpuHandle->getBufferBytes("InputFeature"));
-  assert(inputBuffers->globalFeatureInputBufferBytes == gpuHandle->getBufferBytes("InputGlobalFeature"));
+  assert(inputBuffers->inputMaskBufferBytes == gpuHandle->getBufferBytes("InputMask"));
+  assert(inputBuffers->inputSpatialBufferBytes == gpuHandle->getBufferBytes("InputSpatial"));
+  assert(inputBuffers->inputGlobalBufferBytes == gpuHandle->getBufferBytes("InputGlobal"));
+  if(numMetaFeatures > 0)
+    assert(inputBuffers->inputMetaBufferBytes == gpuHandle->getBufferBytes("InputMeta"));
   assert(inputBuffers->policyPassResultBufferBytes == gpuHandle->getBufferBytes("OutputPolicyPass"));
   assert(inputBuffers->policyResultBufferBytes == gpuHandle->getBufferBytes("OutputPolicy"));
   assert(inputBuffers->valueResultBufferBytes == gpuHandle->getBufferBytes("OutputValue"));
@@ -1525,25 +1627,39 @@ void NeuralNet::getOutput(
   CUDA_ERR(
     "getOutput",
     cudaMemcpyAsync(
-      gpuHandle->getBuffer("InputFeature"),
-      inputBuffers->featureInputs.get(),
-      inputBuffers->singleFeatureBytes * batchSize,
+      gpuHandle->getBuffer("InputSpatial"),
+      inputBuffers->spatialInputs.get(),
+      inputBuffers->singleInputBytes * batchSize,
       cudaMemcpyHostToDevice));
   CUDA_ERR(
     "getOutput",
     cudaMemcpyAsync(
-      gpuHandle->getBuffer("InputGlobalFeature"),
-      inputBuffers->globalFeatureInputs.get(),
-      inputBuffers->singleGlobalFeatureBytes * batchSize,
+      gpuHandle->getBuffer("InputGlobal"),
+      inputBuffers->globalInputs.get(),
+      inputBuffers->singleInputGlobalBytes * batchSize,
       cudaMemcpyHostToDevice));
+  if(numMetaFeatures > 0) {
+    CUDA_ERR(
+      "getOutput",
+      cudaMemcpyAsync(
+        gpuHandle->getBuffer("InputMeta"),
+        inputBuffers->metaInputs.get(),
+        inputBuffers->singleInputMetaBytes * batchSize,
+        cudaMemcpyHostToDevice));
+  }
 
   auto maskInputDims = gpuHandle->getBufferDynamicShape("InputMask", batchSize);
-  auto featureInputDims = gpuHandle->getBufferDynamicShape("InputFeature", batchSize);
-  auto globalFeatureInputDims = gpuHandle->getBufferDynamicShape("InputGlobalFeature", batchSize);
+  auto spatialInputDims = gpuHandle->getBufferDynamicShape("InputSpatial", batchSize);
+  auto globalInputDims = gpuHandle->getBufferDynamicShape("InputGlobal", batchSize);
 
   gpuHandle->exec->setInputShape("InputMask", maskInputDims);
-  gpuHandle->exec->setInputShape("InputFeature", featureInputDims);
-  gpuHandle->exec->setInputShape("InputGlobalFeature", globalFeatureInputDims);
+  gpuHandle->exec->setInputShape("InputSpatial", spatialInputDims);
+  gpuHandle->exec->setInputShape("InputGlobal", globalInputDims);
+
+  if(numMetaFeatures > 0) {
+    auto metaInputDims = gpuHandle->getBufferDynamicShape("InputMeta", batchSize);
+    gpuHandle->exec->setInputShape("InputMeta", metaInputDims);
+  }
 
   gpuHandle->exec->enqueueV3(cudaStreamPerThread);
 

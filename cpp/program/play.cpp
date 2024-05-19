@@ -799,7 +799,7 @@ static Loc chooseRandomForkingMove(const NNOutput* nnOutput, const Board& board,
     return PlayUtils::chooseRandomLegalMove(board, hist, pla, gameRand, banMove);
 }
 
-static void extractPolicyTarget(
+void Play::extractPolicyTarget(
   vector<PolicyTargetMove>& buf,
   const Search* toMoveBot,
   const SearchNode* node,
@@ -812,7 +812,7 @@ static void extractPolicyTarget(
   assert(!toMoveBot->searchParams.rootSymmetryPruning);
   bool allowDirectPolicyMoves = false;
   bool success = toMoveBot->getPlaySelectionValues(*node,locsBuf,playSelectionValuesBuf,NULL,scaleMaxToAtLeast,allowDirectPolicyMoves);
-  assert(success);
+  testAssert(success);
   (void)success; //Avoid warning when asserts are disabled
 
   assert(locsBuf.size() == playSelectionValuesBuf.size());
@@ -822,7 +822,7 @@ static void extractPolicyTarget(
   double maxValue = 0.0;
   for(int moveIdx = 0; moveIdx<locsBuf.size(); moveIdx++) {
     double value = playSelectionValuesBuf[moveIdx];
-    assert(value >= 0.0);
+    testAssert(value >= 0.0);
     if(value > maxValue)
       maxValue = value;
   }
@@ -841,7 +841,7 @@ static void extractPolicyTarget(
 static void extractValueTargets(ValueTargets& buf, const Search* toMoveBot, const SearchNode* node) {
   ReportedSearchValues values;
   bool success = toMoveBot->getNodeValues(node,values);
-  assert(success);
+  testAssert(success);
   (void)success; //Avoid warning when asserts are disabled
 
   buf.win = (float)values.winValue;
@@ -896,12 +896,12 @@ static void recordTreePositionsRec(
 
   if(plaAlwaysBest && node != toMoveBot->rootNode) {
     SidePosition* sp = new SidePosition(board,hist,pla,numNeuralNetChangesSoFar);
-    extractPolicyTarget(sp->policyTarget, toMoveBot, node, locsBuf, playSelectionValuesBuf);
+    Play::extractPolicyTarget(sp->policyTarget, toMoveBot, node, locsBuf, playSelectionValuesBuf);
     extractValueTargets(sp->whiteValueTargets, toMoveBot, node);
 
     double policySurprise = 0.0, policyEntropy = 0.0, searchEntropy = 0.0;
     bool success = toMoveBot->getPolicySurpriseAndEntropy(policySurprise, searchEntropy, policyEntropy, node);
-    assert(success);
+    testAssert(success);
     (void)success; //Avoid warning when asserts are disabled
     sp->policySurprise = policySurprise;
     sp->policyEntropy = policyEntropy;
@@ -1533,7 +1533,7 @@ FinishedGameData* Play::runGame(
     else {
       vector<PolicyTargetMove>* policyTarget = new vector<PolicyTargetMove>();
       int64_t unreducedNumVisits = toMoveBot->getRootVisits();
-      extractPolicyTarget(*policyTarget, toMoveBot, toMoveBot->rootNode, locsBuf, playSelectionValuesBuf);
+      Play::extractPolicyTarget(*policyTarget, toMoveBot, toMoveBot->rootNode, locsBuf, playSelectionValuesBuf);
       gameData->policyTargetsByTurn.push_back(PolicyTarget(policyTarget,unreducedNumVisits));
       gameData->nnRawStatsByTurn.push_back(computeNNRawStats(toMoveBot, board, hist, pla));
 
@@ -1541,7 +1541,7 @@ FinishedGameData* Play::runGame(
 
       double policySurprise = 0.0, policyEntropy = 0.0, searchEntropy = 0.0;
       bool success = toMoveBot->getPolicySurpriseAndEntropy(policySurprise, searchEntropy, policyEntropy);
-      assert(success);
+      testAssert(success);
       (void)success; //Avoid warning when asserts are disabled
       gameData->policySurpriseByTurn.push_back(policySurprise);
       gameData->policyEntropyByTurn.push_back(policyEntropy);
@@ -1596,15 +1596,15 @@ FinishedGameData* Play::runGame(
     //Finally, make the move on the bots
     bool suc;
     suc = botB->makeMove(loc,pla);
-    assert(suc);
+    testAssert(suc);
     if(botB != botW) {
       suc = botW->makeMove(loc,pla);
-      assert(suc);
+      testAssert(suc);
     }
     (void)suc; //Avoid warning when asserts disabled
 
     //And make the move on our copy of the board
-    assert(hist.isLegal(board,loc,pla));
+    testAssert(hist.isLegal(board,loc,pla));
     hist.makeBoardMoveAssumeLegal(board,loc,pla,NULL);
 
     //Check for resignation
@@ -1849,12 +1849,12 @@ FinishedGameData* Play::runGame(
       sp->playoutDoublingAdvantage = 0.0;
       Loc responseLoc = toMoveBot->runWholeSearchAndGetMove(sp->pla);
 
-      extractPolicyTarget(sp->policyTarget, toMoveBot, toMoveBot->rootNode, locsBuf, playSelectionValuesBuf);
+      Play::extractPolicyTarget(sp->policyTarget, toMoveBot, toMoveBot->rootNode, locsBuf, playSelectionValuesBuf);
       extractValueTargets(sp->whiteValueTargets, toMoveBot, toMoveBot->rootNode);
 
       double policySurprise = 0.0, policyEntropy = 0.0, searchEntropy = 0.0;
       bool success = toMoveBot->getPolicySurpriseAndEntropy(policySurprise, searchEntropy, policyEntropy);
-      assert(success);
+      testAssert(success);
       (void)success; //Avoid warning when asserts are disabled
       sp->policySurprise = policySurprise;
       sp->policyEntropy = policyEntropy;
@@ -2151,7 +2151,7 @@ void Play::maybeForkGame(
   }
 
   //Make that move
-  assert(hist.isLegal(board,bestMove,pla));
+  testAssert(hist.isLegal(board,bestMove,pla));
   hist.makeBoardMoveAssumeLegal(board,bestMove,pla,NULL);
   pla = getOpp(pla);
 

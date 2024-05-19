@@ -19,7 +19,12 @@ static void searchThreadLoop(AsyncBot* asyncBot, Logger* logger) {
   }
 }
 
-AsyncBot::AsyncBot(SearchParams params, NNEvaluator* nnEval, Logger* l, const string& randSeed)
+AsyncBot::AsyncBot(
+  SearchParams params,
+  NNEvaluator* nnEval,
+  Logger* l,
+  const string& randSeed
+)
   :search(NULL),
    controlMutex(),threadWaitingToSearch(),userWaitingForStop(),searchThread(),
    isRunning(false),isPondering(false),isKilled(false),shouldStopNow(false),
@@ -30,6 +35,26 @@ AsyncBot::AsyncBot(SearchParams params, NNEvaluator* nnEval, Logger* l, const st
    searchBegunCallback()
 {
   search = new Search(params,nnEval,l,randSeed);
+  searchThread = std::thread(searchThreadLoop,this,l);
+}
+
+AsyncBot::AsyncBot(
+  SearchParams params,
+  NNEvaluator* nnEval,
+  NNEvaluator* humanEval,
+  Logger* l,
+  const string& randSeed
+)
+  :search(NULL),
+   controlMutex(),threadWaitingToSearch(),userWaitingForStop(),searchThread(),
+   isRunning(false),isPondering(false),isKilled(false),shouldStopNow(false),
+   queuedSearchId(0),queuedOnMove(),timeControls(),searchFactor(1.0),
+   analyzeCallbackPeriod(-1),
+   analyzeFirstCallbackAfter(-1),
+   analyzeCallback(),
+   searchBegunCallback()
+{
+  search = new Search(params,nnEval,humanEval,l,randSeed);
   searchThread = std::thread(searchThreadLoop,this,l);
 }
 

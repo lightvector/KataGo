@@ -6,6 +6,7 @@
 #include "../core/datetime.h"
 #include "../core/makedir.h"
 #include "../dataio/sgf.h"
+#include "../search/searchnode.h"
 #include "../search/asyncbot.h"
 #include "../search/patternbonustable.h"
 #include "../program/setup.h"
@@ -266,7 +267,8 @@ static bool shouldResign(
   double lead,
   const double resignThreshold,
   const int resignConsecTurns,
-  const double resignMinScoreDifference
+  const double resignMinScoreDifference,
+  const double resignMinMovesPerBoardArea
 ) {
   double initialBlackAdvantageInPoints = initialBlackAdvantage(hist);
 
@@ -293,6 +295,8 @@ static bool shouldResign(
 
     noResignationWhenWhiteScoreAbove = resignScore;
   }
+  if(minTurnForResignation < resignMinMovesPerBoardArea * board.x_size * board.y_size)
+    minTurnForResignation = (int)(resignMinMovesPerBoardArea * board.x_size * board.y_size);
 
   if(hist.moveHistory.size() < minTurnForResignation)
     return false;
@@ -324,6 +328,7 @@ struct GTPEngine {
   GTPEngine& operator=(const GTPEngine&) = delete;
 
   const string nnModelFile;
+  const string humanModelFile;
   const bool assumeMultipleStartingBlackMovesAreHandicap;
   const int analysisPVLen;
   const bool preventEncore;
@@ -343,6 +348,7 @@ struct GTPEngine {
   bool analysisAntiMirror;
 
   NNEvaluator* nnEval;
+  NNEvaluator* humanEval;
   AsyncBot* bot;
   Rules currentRules; //Should always be the same as the rules in bot, if bot is not NULL.
 
@@ -371,7 +377,8 @@ struct GTPEngine {
   std::vector<Sgf::PositionSample> genmoveSamples;
 
   GTPEngine(
-    const string& modelFile, SearchParams initialParams, Rules initialRules,
+    const string& modelFile, const string& hModelFile,
+    SearchParams initialParams, Rules initialRules,
     bool assumeMultiBlackHandicap, bool prevtEncore, bool autoPattern,
     double dynamicPDACapPerOppLead, double staticPDA, bool staticPDAPrecedence,
     double normAvoidRepeatedPatternUtility, double hcapAvoidRepeatedPatternUtility,
@@ -383,6 +390,7 @@ struct GTPEngine {
     std::unique_ptr<PatternBonusTable>&& pbTable
   )
     :nnModelFile(modelFile),
+     humanModelFile(hModelFile),
      assumeMultipleStartingBlackMovesAreHandicap(assumeMultiBlackHandicap),
      analysisPVLen(pvLen),
      preventEncore(prevtEncore),
@@ -399,6 +407,7 @@ struct GTPEngine {
      genmoveAntiMirror(genmoveAntiMir),
      analysisAntiMirror(analysisAntiMir),
      nnEval(NULL),
+     humanEval(NULL),
      bot(NULL),
      currentRules(initialRules),
      params(initialParams),
@@ -422,6 +431,7 @@ struct GTPEngine {
     stopAndWait();
     delete bot;
     delete nnEval;
+    delete humanEval;
   }
 
   void stopAndWait() {
@@ -462,8 +472,10 @@ struct GTPEngine {
         bot->stopAndWait();
         delete bot;
         delete nnEval;
+        delete humanEval;
         bot = NULL;
         nnEval = NULL;
+        humanEval = NULL;
         logger.write("Cleaned up old neural net and bot");
       }
 
@@ -477,6 +489,14 @@ struct GTPEngine {
         Setup::SETUP_FOR_GTP
       );
       logger.write("Loaded neural net with nnXLen " + Global::intToString(nnEval->getNNXLen()) + " nnYLen " + Global::intToString(nnEval->getNNYLen()));
+      if(humanModelFile != "") {
+        humanEval = Setup::initializeNNEvaluator(
+          humanModelFile,humanModelFile,expectedSha256,cfg,logger,seedRand,expectedConcurrentEvals,
+          nnXLen,nnYLen,defaultMaxBatchSize,defaultRequireExactNNLen,disableFP16,
+          Setup::SETUP_FOR_GTP
+        );
+        logger.write("Loaded human SL net with nnXLen " + Global::intToString(humanEval->getNNXLen()) + " nnYLen " + Global::intToString(humanEval->getNNYLen()));
+      }
 
       {
         bool rulesWereSupported;
@@ -514,7 +534,7 @@ struct GTPEngine {
       else
         searchRandSeed = Global::uint64ToString(seedRand.nextUInt64());
 
-      bot = new AsyncBot(params, nnEval, &logger, searchRandSeed);
+      bot = new AsyncBot(params, nnEval, humanEval, &logger, searchRandSeed);
       bot->setCopyOfExternalPatternBonusTable(patternBonusTable);
 
       Board board(boardXSize,boardYSize);
@@ -716,6 +736,7 @@ struct GTPEngine {
     bool kata = false;
     int minMoves = 0;
     int maxMoves = 10000000;
+    bool showRootInfo = false;
     bool showOwnership = false;
     bool showOwnershipStdev = false;
     bool showMovesOwnership = false;
@@ -801,11 +822,16 @@ struct GTPEngine {
         vector<AnalysisData> buf;
         bool duplicateForSymmetries = true;
         search->getAnalysisData(buf,args.minMoves,false,analysisPVLen,duplicateForSymmetries);
+        ReportedSearchValues rootVals;
+        bool suc = search->getPrunedRootValues(rootVals);
+        if(!suc)
+          return;
         filterZeroVisitMoves(args,buf);
         if(buf.size() > args.maxMoves)
           buf.resize(args.maxMoves);
         if(buf.size() <= 0)
           return;
+        const SearchNode* rootNode = search->getRootNode();
 
         vector<double> ownership, ownershipStdev;
         if(args.showOwnershipStdev) {
@@ -920,6 +946,36 @@ struct GTPEngine {
           }
         }
 
+        if(args.showRootInfo) {
+          out << " rootInfo";
+          double winrate = 0.5 * (1.0 + rootVals.winLossValue);
+          double scoreMean = rootVals.expectedScore;
+          double lead = rootVals.lead;
+          double utility = rootVals.utility;
+          if(perspective == P_BLACK || (perspective != P_BLACK && perspective != P_WHITE && pla == P_BLACK)) {
+            winrate = 1.0 - winrate;
+            scoreMean = -scoreMean;
+            lead = -lead;
+            utility = -utility;
+          }
+          out << " visits " << rootVals.visits;
+          out << " utility " << utility;
+          out << " winrate " << winrate;
+          out << " scoreMean " << lead;
+          out << " scoreStdev " << rootVals.expectedScoreStdev;
+          out << " scoreLead " << lead;
+          out << " scoreSelfplay " << scoreMean;
+          out << " weight " << rootVals.weight;
+          if(rootNode != NULL) {
+            const NNOutput* nnOutput = rootNode->getNNOutput();
+            if(nnOutput != NULL) {
+              out << " rawStWrError " << nnOutput->shorttermWinlossError;
+              out << " rawStScoreError " << nnOutput->shorttermScoreError;
+              out << " rawVarTimeLeft " << nnOutput->varTimeLeft;
+            }
+          }
+        }
+
         if(args.showOwnership) {
           out << " ";
 
@@ -959,7 +1015,7 @@ struct GTPEngine {
     Player pla,
     Logger& logger, double searchFactorWhenWinningThreshold, double searchFactorWhenWinning,
     enabled_t cleanupBeforePass, enabled_t friendlyPass, bool ogsChatToStderr,
-    bool allowResignation, double resignThreshold, int resignConsecTurns, double resignMinScoreDifference,
+    bool allowResignation, double resignThreshold, int resignConsecTurns, double resignMinScoreDifference, double resignMinMovesPerBoardArea,
     bool logSearchInfo, bool logSearchInfoForChosenMove, bool debug, bool playChosenMove,
     string& response, bool& responseIsError, bool& maybeStartPondering,
     AnalyzeArgs args
@@ -971,6 +1027,8 @@ struct GTPEngine {
     maybeStartPondering = false;
 
     nnEval->clearStats();
+    if(humanEval != NULL)
+      humanEval->clearStats();
     TimeControls tc = pla == P_BLACK ? bTimeControls : wTimeControls;
 
     //Update dynamic PDA given whatever the most recent values are, if we're using dynamic
@@ -1075,7 +1133,7 @@ struct GTPEngine {
     //Decide whether we should resign---------------------
     bool resigned = allowResignation && shouldResign(
       bot->getRootBoard(),bot->getRootHist(),pla,recentWinLossValues,lead,
-      resignThreshold,resignConsecTurns,resignMinScoreDifference
+      resignThreshold,resignConsecTurns,resignMinScoreDifference,resignMinMovesPerBoardArea
     );
 
 
@@ -1171,6 +1229,8 @@ struct GTPEngine {
   void clearCache() {
     bot->clearSearch();
     nnEval->clearCache();
+    if(humanEval != NULL)
+      humanEval->clearCache();
   }
 
   void placeFixedHandicap(int n, string& response, bool& responseIsError) {
@@ -1301,6 +1361,13 @@ struct GTPEngine {
       SearchParams tmpParams = params;
       tmpParams.playoutDoublingAdvantage = 0.0;
       tmpParams.conservativePass = true;
+      tmpParams.humanSLChosenMoveProp = 0.0;
+      tmpParams.humanSLRootExploreProbWeightful = 0.0;
+      tmpParams.humanSLRootExploreProbWeightless = 0.0;
+      tmpParams.humanSLPlaExploreProbWeightful = 0.0;
+      tmpParams.humanSLPlaExploreProbWeightless = 0.0;
+      tmpParams.humanSLOppExploreProbWeightful = 0.0;
+      tmpParams.humanSLOppExploreProbWeightless = 0.0;
       bot->setParams(tmpParams);
     }
 
@@ -1347,6 +1414,22 @@ struct GTPEngine {
   vector<bool> computeAnticipatedStatuses() {
     stopAndWait();
 
+    //No playoutDoublingAdvantage to avoid bias
+    //Also never assume the game will end abruptly due to pass
+    {
+      SearchParams tmpParams = params;
+      tmpParams.playoutDoublingAdvantage = 0.0;
+      tmpParams.conservativePass = true;
+      tmpParams.humanSLChosenMoveProp = 0.0;
+      tmpParams.humanSLRootExploreProbWeightful = 0.0;
+      tmpParams.humanSLRootExploreProbWeightless = 0.0;
+      tmpParams.humanSLPlaExploreProbWeightful = 0.0;
+      tmpParams.humanSLPlaExploreProbWeightless = 0.0;
+      tmpParams.humanSLOppExploreProbWeightful = 0.0;
+      tmpParams.humanSLOppExploreProbWeightless = 0.0;
+      bot->setParams(tmpParams);
+    }
+
     //Make absolutely sure we can restore the bot's old state
     const Player oldPla = bot->getRootPla();
     const Board oldBoard = bot->getRootBoard();
@@ -1373,6 +1456,7 @@ struct GTPEngine {
 
     //Restore
     bot->setPosition(oldPla,oldBoard,oldHist);
+    bot->setParams(params);
 
     return isAlive;
   }
@@ -1418,7 +1502,7 @@ struct GTPEngine {
           NNResultBuf buf;
           bool skipCache = true;
           bool includeOwnerMap = false;
-          nnEval->evaluate(board,hist,pla,nnInputParams,buf,skipCache,includeOwnerMap);
+          nnEval->evaluate(board,hist,pla,&params.humanSLProfile,nnInputParams,buf,skipCache,includeOwnerMap);
 
           NNOutput* nnOutput = buf.result.get();
           wlStr += Global::strprintf("%.2fc ", 100.0 * (nnOutput->whiteWinProb - nnOutput->whiteLossProb));
@@ -1434,7 +1518,7 @@ struct GTPEngine {
           NNResultBuf buf;
           bool skipCache = true;
           bool includeOwnerMap = false;
-          nnEval->evaluate(prevBoard,prevHist,prevPla,nnInputParams,buf,skipCache,includeOwnerMap);
+          nnEval->evaluate(prevBoard,prevHist,prevPla,&params.humanSLProfile,nnInputParams,buf,skipCache,includeOwnerMap);
 
           NNOutput* nnOutput = buf.result.get();
           int pos = NNPos::locToPos(prevLoc,board.x_size,nnOutput->nnXLen,nnOutput->nnYLen);
@@ -1465,7 +1549,7 @@ struct GTPEngine {
         NNResultBuf buf;
         bool skipCache = true;
         bool includeOwnerMap = true;
-        nnEval->evaluate(board,hist,nextPla,nnInputParams,buf,skipCache,includeOwnerMap);
+        nnEval->evaluate(board,hist,nextPla,&params.humanSLProfile,nnInputParams,buf,skipCache,includeOwnerMap);
 
         NNOutput* nnOutput = buf.result.get();
         out << "symmetry " << symmetry << endl;
@@ -1544,6 +1628,7 @@ static GTPEngine::AnalyzeArgs parseAnalyzeCommand(
   double lzAnalyzeInterval = TimeControls::UNLIMITED_TIME_DEFAULT;
   int minMoves = 0;
   int maxMoves = 10000000;
+  bool showRootInfo = false;
   bool showOwnership = false;
   bool showOwnershipStdev = false;
   bool showMovesOwnership = false;
@@ -1669,6 +1754,9 @@ static GTPEngine::AnalyzeArgs parseAnalyzeCommand(
             maxMoves >= 0 && maxMoves < 1000000000) {
       continue;
     }
+    else if(isKata && key == "rootInfo" && Global::tryStringToBool(value,showRootInfo)) {
+      continue;
+    }
     else if(isKata && key == "ownership" && Global::tryStringToBool(value,showOwnership)) {
       continue;
     }
@@ -1700,6 +1788,7 @@ static GTPEngine::AnalyzeArgs parseAnalyzeCommand(
   args.secondsPerReport = lzAnalyzeInterval * 0.01;
   args.minMoves = minMoves;
   args.maxMoves = maxMoves;
+  args.showRootInfo = showRootInfo;
   args.showOwnership = showOwnership;
   args.showOwnershipStdev = showOwnershipStdev;
   args.showMovesOwnership = showMovesOwnership;
@@ -1719,11 +1808,13 @@ int MainCmds::gtp(const vector<string>& args) {
 
   ConfigParser cfg;
   string nnModelFile;
+  string humanModelFile;
   string overrideVersion;
   KataGoCommandLine cmd("Run KataGo main GTP engine for playing games or casual analysis.");
   try {
     cmd.addConfigFileArg(KataGoCommandLine::defaultGtpConfigFileName(),"gtp_example.cfg");
     cmd.addModelFileArg();
+    cmd.addHumanModelFileArg();
     cmd.setShortUsageArgLimit();
     cmd.addOverrideConfigArg();
 
@@ -1731,6 +1822,7 @@ int MainCmds::gtp(const vector<string>& args) {
     cmd.add(overrideVersionArg);
     cmd.parseArgs(args);
     nnModelFile = cmd.getModelFile();
+    humanModelFile = cmd.getHumanModelFile();
     overrideVersion = overrideVersionArg.getValue();
 
     cmd.getConfig(cfg);
@@ -1772,7 +1864,8 @@ int MainCmds::gtp(const vector<string>& args) {
     initialRules.komi = forcedKomi;
   }
 
-  SearchParams initialParams = Setup::loadSingleParams(cfg,Setup::SETUP_FOR_GTP);
+  bool hasHumanModel = humanModelFile != "";
+  SearchParams initialParams = Setup::loadSingleParams(cfg,Setup::SETUP_FOR_GTP,hasHumanModel);
   logger.write("Using " + Global::intToString(initialParams.numThreads) + " CPU thread(s) for search");
   //Set a default for conservativePass that differs from matches or selfplay
   if(!cfg.contains("conservativePass") && !cfg.contains("conservativePass0"))
@@ -1780,7 +1873,7 @@ int MainCmds::gtp(const vector<string>& args) {
   if(!cfg.contains("fillDameBeforePass") && !cfg.contains("fillDameBeforePass0"))
     initialParams.fillDameBeforePass = true;
 
-  const bool ponderingEnabled = cfg.getBool("ponderingEnabled");
+  const bool ponderingEnabled = cfg.contains("ponderingEnabled") ? cfg.getBool("ponderingEnabled") : false;
 
   const enabled_t cleanupBeforePass = cfg.contains("cleanupBeforePass") ? cfg.getEnabled("cleanupBeforePass") : enabled_t::Auto;
   const enabled_t friendlyPass = cfg.contains("friendlyPass") ? cfg.getEnabled("friendlyPass") : enabled_t::Auto;
@@ -1791,6 +1884,7 @@ int MainCmds::gtp(const vector<string>& args) {
   const double resignThreshold = cfg.contains("allowResignation") ? cfg.getDouble("resignThreshold",-1.0,0.0) : -1.0; //Threshold on [-1,1], regardless of winLossUtilityFactor
   const int resignConsecTurns = cfg.contains("resignConsecTurns") ? cfg.getInt("resignConsecTurns",1,100) : 3;
   const double resignMinScoreDifference = cfg.contains("resignMinScoreDifference") ? cfg.getDouble("resignMinScoreDifference",0.0,1000.0) : -1e10;
+  const double resignMinMovesPerBoardArea = cfg.contains("resignMinMovesPerBoardArea") ? cfg.getDouble("resignMinMovesPerBoardArea",0.0,1.0) : 0.0;
 
   Setup::initializeSession(cfg);
 
@@ -1853,7 +1947,8 @@ int MainCmds::gtp(const vector<string>& args) {
   Player perspective = Setup::parseReportAnalysisWinrates(cfg,C_EMPTY);
 
   GTPEngine* engine = new GTPEngine(
-    nnModelFile,initialParams,initialRules,
+    nnModelFile,humanModelFile,
+    initialParams,initialRules,
     assumeMultipleStartingBlackMovesAreHandicap,preventEncore,autoAvoidPatterns,
     dynamicPlayoutDoublingAdvantageCapPerOppLead,
     staticPlayoutDoublingAdvantage,staticPDATakesPrecedence,
@@ -1897,15 +1992,23 @@ int MainCmds::gtp(const vector<string>& args) {
   cfg.warnUnusedKeys(cerr,&logger);
 
   logger.write("Loaded config " + cfg.getFileName());
-  logger.write("Loaded model "+ nnModelFile);
+  logger.write("Loaded model " + nnModelFile);
+  if(humanModelFile != "")
+    logger.write("Loaded human SL model " + humanModelFile);
   cmd.logOverrides(logger);
   logger.write("Model name: "+ (engine->nnEval == NULL ? string() : engine->nnEval->getInternalModelName()));
+  if(engine->humanEval != NULL)
+    logger.write("Human SL model name: "+ (engine->humanEval->getInternalModelName()));
   logger.write("GTP ready, beginning main protocol loop");
   //Also check loggingToStderr so that we don't duplicate the message from the log file
   if(startupPrintMessageToStderr && !logger.isLoggingToStderr()) {
     cerr << "Loaded config " << cfg.getFileName() << endl;
     cerr << "Loaded model " << nnModelFile << endl;
+    if(humanModelFile != "")
+      cerr << "Loaded human SL model " << humanModelFile << endl;
     cerr << "Model name: "+ (engine->nnEval == NULL ? string() : engine->nnEval->getInternalModelName()) << endl;
+    if(engine->humanEval != NULL)
+      cerr << "Human SL model name: "+ (engine->humanEval->getInternalModelName()) << endl;
     cerr << "GTP ready, beginning main protocol loop" << endl;
   }
 
@@ -1981,8 +2084,29 @@ int MainCmds::gtp(const vector<string>& args) {
     else if(command == "version") {
       if(overrideVersion.size() > 0)
         response = overrideVersion;
-      else
+      else {
         response = Version::getKataGoVersion();
+
+        string shortPrefix;
+        if(engine->nnEval != NULL) {
+          string modelName = engine->nnEval->getInternalModelName();
+          if(Global::isPrefix(modelName,"kata1-"))
+            modelName = Global::chopPrefix(modelName,"kata1-");
+          if(modelName.size() > 2) {
+            size_t c = 1;
+            while(c < modelName.size() && Global::isDigit(modelName[c]))
+              c += 1;
+            shortPrefix = modelName.substr(0,c);
+          }
+
+          if(engine->humanEval != NULL || modelName.find("human") != std::string::npos) {
+            response += " " + shortPrefix + "+HumanSL";
+          }
+          else if(shortPrefix.size() > 0) {
+            response += " " + shortPrefix;
+          }
+        }
+      }
     }
 
     else if(command == "known_command") {
@@ -2680,7 +2804,7 @@ int MainCmds::gtp(const vector<string>& args) {
           pla,
           logger,searchFactorWhenWinningThreshold,searchFactorWhenWinning,
           cleanupBeforePass,friendlyPass,ogsChatToStderr,
-          allowResignation,resignThreshold,resignConsecTurns,resignMinScoreDifference,
+          allowResignation,resignThreshold,resignConsecTurns,resignMinScoreDifference,resignMinMovesPerBoardArea,
           logSearchInfo,logSearchInfoForChosenMove,debug,playChosenMove,
           response,responseIsError,maybeStartPondering,
           GTPEngine::AnalyzeArgs()
@@ -2710,7 +2834,7 @@ int MainCmds::gtp(const vector<string>& args) {
           pla,
           logger,searchFactorWhenWinningThreshold,searchFactorWhenWinning,
           cleanupBeforePass,friendlyPass,ogsChatToStderr,
-          allowResignation,resignThreshold,resignConsecTurns,resignMinScoreDifference,
+          allowResignation,resignThreshold,resignConsecTurns,resignMinScoreDifference,resignMinMovesPerBoardArea,
           logSearchInfo,logSearchInfoForChosenMove,debug,playChosenMove,
           response,responseIsError,maybeStartPondering,
           analyzeArgs
