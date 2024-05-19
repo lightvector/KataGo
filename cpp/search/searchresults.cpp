@@ -1227,7 +1227,7 @@ void Search::printTreeHelper(
 
     out << ": ";
 
-    if(data.numVisits > 0) {
+    if(data.childVisits > 0) {
       sprintf(buf,"T %6.2fc ",(perspectiveFactor * data.utility * 100.0));
       out << buf;
       sprintf(buf,"W %6.2fc ",(perspectiveFactor * data.resultUtility * 100.0));
