@@ -1562,6 +1562,7 @@ final class TrunkTest: XCTestCase {
                                            gpoolNumChannels: Int32(numChannels),
                                            initialConv: unityConv,
                                            initialMatMul: initialMatMul,
+                                           sgfMetadataEncoder: nil,
                                            blockDescriptors: blocks,
                                            trunkTipBN: unityBN,
                                            trunkTipActivation: ActivationKind.relu)
@@ -1590,13 +1591,12 @@ final class TrunkTest: XCTestCase {
                           descriptor: descriptor,
                           inputTensor: input.tensor,
                           inputGlobalTensor: inputGlobal.tensor,
+                          inputMetaTensor: nil,
                           maskTensor: mask.tensor,
                           maskSumTensor: maskSum.tensor,
                           maskSumSqrtS14M01Tensor: maskSumSqrtS14M01.tensor,
                           nnXLen: nnXLen as NSNumber,
-                          nnYLen: nnYLen as NSNumber,
-                          numSpatialFeatures: numChannels as NSNumber,
-                          numGlobalFeatures: numChannels as NSNumber)
+                          nnYLen: nnYLen as NSNumber)
 
         let inputCount = batchSize * numChannels * nnXLen * nnYLen
         let inputPointer = UnsafeMutablePointer<Float32>.allocate(capacity: inputCount)
@@ -2231,6 +2231,7 @@ final class SWModelDescTest {
                                     gpoolNumChannels: 1,
                                     initialConv: unityConv,
                                     initialMatMul: unityMatMul,
+                                    sgfMetadataEncoder: nil,
                                     blockDescriptors: blocks,
                                     trunkTipBN: unityBatchNorm,
                                     trunkTipActivation: ActivationKind.relu)
@@ -2276,6 +2277,7 @@ final class SWModelDescTest {
                                           name: "test",
                                           numInputChannels: 1,
                                           numInputGlobalChannels: 1,
+                                          numInputMetaChannels: 0,
                                           numValueChannels: 1,
                                           numScoreValueChannels: 1,
                                           numOwnershipChannels: 1,
@@ -2344,6 +2346,7 @@ final class SWModelDescTest {
                                     gpoolNumChannels: 1,
                                     initialConv: unityConv,
                                     initialMatMul: unityMatMul,
+                                    sgfMetadataEncoder: nil,
                                     blockDescriptors: blocks,
                                     trunkTipBN: unityBatchNorm,
                                     trunkTipActivation: ActivationKind.relu)
@@ -2382,6 +2385,7 @@ final class SWModelDescTest {
                                           name: "test",
                                           numInputChannels: 1,
                                           numInputGlobalChannels: 1,
+                                          numInputMetaChannels: 0,
                                           numValueChannels: 1,
                                           numScoreValueChannels: 1,
                                           numOwnershipChannels: 1,
@@ -2409,6 +2413,7 @@ final class ModelTest: XCTestCase {
 
         var input = [Float32](repeating: 1, count: 1)
         var inputGlobal = [Float32](repeating: 1, count: 1)
+        var inputMeta = [Float32](repeating: 0, count: 0)
         var policyOutput = [Float32](repeating: 1, count: 1)
         var policyPassOutput = [Float32](repeating: 1, count: 1)
         var valueOutput = [Float32](repeating: 1, count: 1)
@@ -2417,6 +2422,7 @@ final class ModelTest: XCTestCase {
 
         model.apply(input: &input,
                     inputGlobal: &inputGlobal,
+                    inputMeta: &inputMeta,
                     policy: &policyOutput,
                     policyPass: &policyPassOutput,
                     value: &valueOutput,
@@ -2431,6 +2437,7 @@ final class ModelTest: XCTestCase {
         let model = createMiniModelV15()
         var input = [Float32](repeating: 1, count: 1)
         var inputGlobal = [Float32](repeating: 1, count: 1)
+        var inputMeta = [Float32](repeating: 0, count: 0)
         var policyOutput = [Float32](repeating: 1, count: 1)
         var policyPassOutput = [Float32](repeating: 1, count: 1)
         var valueOutput = [Float32](repeating: 1, count: 1)
@@ -2439,6 +2446,7 @@ final class ModelTest: XCTestCase {
 
         model?.apply(input: &input,
                      inputGlobal: &inputGlobal,
+                     inputMeta: &inputMeta,
                      policy: &policyOutput,
                      policyPass: &policyPassOutput,
                      value: &valueOutput,
@@ -2466,6 +2474,7 @@ final class ModelTest: XCTestCase {
 
         var input = [Float32](repeating: 1, count: 1)
         var inputGlobal = [Float32](repeating: 1, count: 1)
+        var inputMeta = [Float32](repeating: 0, count: 0)
         var policyOutput = [Float32](repeating: 1, count: 1)
         var policyPassOutput = [Float32](repeating: 1, count: 1)
         var valueOutput = [Float32](repeating: 1, count: 1)
@@ -2474,6 +2483,7 @@ final class ModelTest: XCTestCase {
 
         model.apply(input: &input,
                     inputGlobal: &inputGlobal,
+                    inputMeta: &inputMeta,
                     policy: &policyOutput,
                     policyPass: &policyPassOutput,
                     value: &valueOutput,
@@ -2488,6 +2498,7 @@ final class ModelTest: XCTestCase {
         let model = createMiniModel()
         var input = [Float32](repeating: 1, count: 1)
         var inputGlobal = [Float32](repeating: 1, count: 1)
+        var inputMeta = [Float32](repeating: 0, count: 0)
         var policyOutput = [Float32](repeating: 1, count: 1)
         var policyPassOutput = [Float32](repeating: 1, count: 1)
         var valueOutput = [Float32](repeating: 1, count: 1)
@@ -2496,6 +2507,7 @@ final class ModelTest: XCTestCase {
 
         model?.apply(input: &input,
                      inputGlobal: &inputGlobal,
+                     inputMeta: &inputMeta,
                      policy: &policyOutput,
                      policyPass: &policyPassOutput,
                      value: &valueOutput,
@@ -2514,6 +2526,7 @@ final class ModelTest: XCTestCase {
         let model = createMiniModel()
         var input = [Float32](repeating: 1, count: 1)
         var inputGlobal = [Float32](repeating: 1, count: 1)
+        var inputMeta = [Float32](repeating: 0, count: 0)
         var policyOutput = [Float32](repeating: 1, count: 1)
         var policyPassOutput = [Float32](repeating: 1, count: 1)
         var valueOutput = [Float32](repeating: 1, count: 1)
@@ -2522,6 +2535,7 @@ final class ModelTest: XCTestCase {
 
         model?.apply(input: &input,
                      inputGlobal: &inputGlobal,
+                     inputMeta: &inputMeta,
                      policy: &policyOutput,
                      policyPass: &policyPassOutput,
                      value: &valueOutput,
@@ -2536,6 +2550,41 @@ final class ModelTest: XCTestCase {
         XCTAssertEqual(ownershipOutput[0], 32.8, accuracy: 1e-4)
     }
 
+    func createBuffers(batchSize: Int,
+                       nnYLen: Int,
+                       nnXLen: Int,
+                       numInputChannels: Int,
+                       numInputGlobalChannels: Int,
+                       numValueChannels: Int,
+                       numScoreValueChannels: Int,
+                       numOwnershipChannels: Int) -> (UnsafeMutablePointer<Float32>,
+                                                      UnsafeMutablePointer<Float32>,
+                                                      UnsafeMutablePointer<Float32>,
+                                                      UnsafeMutablePointer<Float32>,
+                                                      UnsafeMutablePointer<Float32>,
+                                                      UnsafeMutablePointer<Float32>,
+                                                      UnsafeMutablePointer<Float32>,
+                                                      UnsafeMutablePointer<Float32>) {
+
+        let inputCount = batchSize * nnYLen * nnXLen * numInputChannels
+        let inputGlobalCount = batchSize * numInputGlobalChannels
+        let inputMeta = 0
+        let policyCount = batchSize * nnYLen * nnXLen
+        let policyPassCount = batchSize
+        let valueCount = batchSize * numValueChannels
+        let scoreValueCount = batchSize * numScoreValueChannels
+        let ownershipCount = batchSize * nnYLen * nnXLen * numOwnershipChannels
+
+        return (UnsafeMutablePointer<Float32>.allocate(capacity: inputCount),
+                UnsafeMutablePointer<Float32>.allocate(capacity: inputGlobalCount),
+                UnsafeMutablePointer<Float32>.allocate(capacity: inputMeta),
+                UnsafeMutablePointer<Float32>.allocate(capacity: policyCount),
+                UnsafeMutablePointer<Float32>.allocate(capacity: policyPassCount),
+                UnsafeMutablePointer<Float32>.allocate(capacity: valueCount),
+                UnsafeMutablePointer<Float32>.allocate(capacity: scoreValueCount),
+                UnsafeMutablePointer<Float32>.allocate(capacity: ownershipCount))
+    }
+
     func createModelB40C256(batchSize: Int,
                             nnYLen: Int,
                             nnXLen: Int,
@@ -2543,7 +2592,7 @@ final class ModelTest: XCTestCase {
                             numInputGlobalChannels: Int,
                             numValueChannels: Int,
                             numScoreValueChannels: Int,
-                            numOwnershipChannels: Int) -> Model? {
+                            numOwnershipChannels: Int) -> Model {
         let version = 10
         let convCount = 3 * 3 * 256 * 256
         let normCount = 256
@@ -2724,6 +2773,7 @@ final class ModelTest: XCTestCase {
                                     gpoolNumChannels: 64,
                                     initialConv: initialConv,
                                     initialMatMul: initialMatMul,
+                                    sgfMetadataEncoder: nil,
                                     blockDescriptors: blocks,
                                     trunkTipBN: trunkTipBN,
                                     trunkTipActivation: ActivationKind.relu)
@@ -2844,6 +2894,7 @@ final class ModelTest: XCTestCase {
                                     name: "test",
                                     numInputChannels: numInputChannels as NSNumber,
                                     numInputGlobalChannels: numInputGlobalChannels as NSNumber,
+                                    numInputMetaChannels: 0,
                                     numValueChannels: numValueChannels as NSNumber,
                                     numScoreValueChannels: numScoreValueChannels as NSNumber,
                                     numOwnershipChannels: numOwnershipChannels as NSNumber,
@@ -2860,63 +2911,27 @@ final class ModelTest: XCTestCase {
                           nnYLen: nnYLen as NSNumber)
 
         // warm up to speed up later runs
-        let inputCount = batchSize * nnYLen * nnXLen * numInputChannels
-        let input = UnsafeMutablePointer<Float32>.allocate(capacity: inputCount)
-        let inputGlobalCount = batchSize * numInputGlobalChannels
-        let inputGlobal = UnsafeMutablePointer<Float32>.allocate(capacity: inputGlobalCount)
-        let policyCount = batchSize * nnYLen * nnXLen
-        let policyOutput = UnsafeMutablePointer<Float32>.allocate(capacity: policyCount)
-        let policyPassCount = batchSize
-        let policyPassOutput = UnsafeMutablePointer<Float32>.allocate(capacity: policyPassCount)
-        let valueCount = batchSize * numValueChannels
-        let valueOutput = UnsafeMutablePointer<Float32>.allocate(capacity: valueCount)
-        let scoreValueCount = batchSize * numScoreValueChannels
-        let scoreValueOutput = UnsafeMutablePointer<Float32>.allocate(capacity: scoreValueCount)
-        let ownershipCount = batchSize * nnYLen * nnXLen * numOwnershipChannels
-        let ownershipOutput = UnsafeMutablePointer<Float32>.allocate(capacity: ownershipCount)
+        let (input, inputGlobal, inputMeta, policy, policyPass, value, scoreValue, ownership) =
+        createBuffers(batchSize: batchSize,
+                      nnYLen: nnYLen,
+                      nnXLen: nnXLen,
+                      numInputChannels: numInputChannels,
+                      numInputGlobalChannels: numInputGlobalChannels,
+                      numValueChannels: numValueChannels,
+                      numScoreValueChannels: numScoreValueChannels,
+                      numOwnershipChannels: numOwnershipChannels)
 
         model.apply(input: input,
                     inputGlobal: inputGlobal,
-                    policy: policyOutput,
-                    policyPass: policyPassOutput,
-                    value: valueOutput,
-                    scoreValue: scoreValueOutput,
-                    ownership: ownershipOutput,
+                    inputMeta: inputMeta,
+                    policy: policy,
+                    policyPass: policyPass,
+                    value: value,
+                    scoreValue: scoreValue,
+                    ownership: ownership,
                     batchSize: batchSize)
 
         return model
-    }
-
-    func createBuffers(batchSize: Int,
-                       nnYLen: Int,
-                       nnXLen: Int,
-                       numInputChannels: Int,
-                       numInputGlobalChannels: Int,
-                       numValueChannels: Int,
-                       numScoreValueChannels: Int,
-                       numOwnershipChannels: Int) -> (UnsafeMutablePointer<Float32>,
-                                                      UnsafeMutablePointer<Float32>,
-                                                      UnsafeMutablePointer<Float32>,
-                                                      UnsafeMutablePointer<Float32>,
-                                                      UnsafeMutablePointer<Float32>,
-                                                      UnsafeMutablePointer<Float32>,
-                                                      UnsafeMutablePointer<Float32>) {
-
-        let inputCount = batchSize * nnYLen * nnXLen * numInputChannels
-        let inputGlobalCount = batchSize * numInputGlobalChannels
-        let policyCount = batchSize * nnYLen * nnXLen
-        let policyPassCount = batchSize
-        let valueCount = batchSize * numValueChannels
-        let scoreValueCount = batchSize * numScoreValueChannels
-        let ownershipCount = batchSize * nnYLen * nnXLen * numOwnershipChannels
-
-        return (UnsafeMutablePointer<Float32>.allocate(capacity: inputCount),
-                UnsafeMutablePointer<Float32>.allocate(capacity: inputGlobalCount),
-                UnsafeMutablePointer<Float32>.allocate(capacity: policyCount),
-                UnsafeMutablePointer<Float32>.allocate(capacity: policyPassCount),
-                UnsafeMutablePointer<Float32>.allocate(capacity: valueCount),
-                UnsafeMutablePointer<Float32>.allocate(capacity: scoreValueCount),
-                UnsafeMutablePointer<Float32>.allocate(capacity: ownershipCount))
     }
 
     // Test 40 blocks, 256 channels, 8 batches
@@ -2941,7 +2956,7 @@ final class ModelTest: XCTestCase {
                                        numScoreValueChannels: numScoreValueChannels,
                                        numOwnershipChannels: numOwnershipChannels)
 
-        let (input, inputGlobal, policy, policyPass, value, scoreValue, ownership) =
+        let (input, inputGlobal, inputMeta, policy, policyPass, value, scoreValue, ownership) =
         createBuffers(batchSize: batchSize,
                       nnYLen: nnYLen,
                       nnXLen: nnXLen,
@@ -2953,14 +2968,15 @@ final class ModelTest: XCTestCase {
 
         measure {
             for _ in 0..<iteration {
-                model?.apply(input: input,
-                             inputGlobal: inputGlobal,
-                             policy: policy,
-                             policyPass: policyPass,
-                             value: value,
-                             scoreValue: scoreValue,
-                             ownership: ownership,
-                             batchSize: batchSize)
+                model.apply(input: input,
+                            inputGlobal: inputGlobal,
+                            inputMeta: inputMeta,
+                            policy: policy,
+                            policyPass: policyPass,
+                            value: value,
+                            scoreValue: scoreValue,
+                            ownership: ownership,
+                            batchSize: batchSize)
             }
         }
     }
@@ -2987,7 +3003,7 @@ final class ModelTest: XCTestCase {
                                        numScoreValueChannels: numScoreValueChannels,
                                        numOwnershipChannels: numOwnershipChannels)
 
-        let (input, inputGlobal, policy, policyPass, value, scoreValue, ownership) =
+        let (input, inputGlobal, inputMeta, policy, policyPass, value, scoreValue, ownership) =
         createBuffers(batchSize: batchSize,
                       nnYLen: nnYLen,
                       nnXLen: nnXLen,
@@ -2999,14 +3015,15 @@ final class ModelTest: XCTestCase {
 
         measure {
             for _ in 0..<iteration {
-                model?.apply(input: input,
-                             inputGlobal: inputGlobal,
-                             policy: policy,
-                             policyPass: policyPass,
-                             value: value,
-                             scoreValue: scoreValue,
-                             ownership: ownership,
-                             batchSize: batchSize)
+                model.apply(input: input,
+                            inputGlobal: inputGlobal,
+                            inputMeta: inputMeta,
+                            policy: policy,
+                            policyPass: policyPass,
+                            value: value,
+                            scoreValue: scoreValue,
+                            ownership: ownership,
+                            batchSize: batchSize)
             }
         }
     }
@@ -3071,8 +3088,6 @@ final class ComputeHandleTest: XCTestCase {
         XCTAssert(handle?.model.nnXLen == context.nnXLen)
         XCTAssert(handle?.model.nnYLen == context.nnYLen)
         XCTAssert(handle?.model.version == swModelDesc.version)
-        XCTAssert(handle?.model.numInputChannels == swModelDesc.numInputChannels)
-        XCTAssert(handle?.model.numInputGlobalChannels == swModelDesc.numInputGlobalChannels)
         XCTAssert(handle?.model.numValueChannels == swModelDesc.numValueChannels)
         XCTAssert(handle?.model.numScoreValueChannels == swModelDesc.numScoreValueChannels)
         XCTAssert(handle?.model.numOwnershipChannels == swModelDesc.numOwnershipChannels)
@@ -3123,6 +3138,7 @@ final class MetalBackendTest: XCTestCase {
 
         var input = [Float32](repeating: 1, count: 1)
         var inputGlobal = [Float32](repeating: 1, count: 1)
+        var inputMeta = [Float32](repeating: 0, count: 0)
         var policyOutput = [Float32](repeating: 1, count: 1)
         var policyPassOutput = [Float32](repeating: 1, count: 1)
         var valueOutput = [Float32](repeating: 1, count: 1)
@@ -3131,6 +3147,7 @@ final class MetalBackendTest: XCTestCase {
 
         getMetalHandleOutput(userInputBuffer: &input,
                              userInputGlobalBuffer: &inputGlobal,
+                             userInputMetaBuffer: &inputMeta,
                              policyOutput: &policyOutput,
                              policyPassOutput: &policyPassOutput,
                              valueOutput: &valueOutput,

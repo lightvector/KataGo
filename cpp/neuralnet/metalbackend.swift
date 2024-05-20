@@ -1800,7 +1800,7 @@ public func createSWSGFMetadataEncoderDesc(version: Int32,
                                            mul2: SWMatMulLayerDesc,
                                            bias2: SWMatBiasLayerDesc,
                                            act2: ActivationKind,
-                                           mul3: SWMatMulLayerDesc) -> SWSGFMetadataEncoderDesc {
+                                           mul3: SWMatMulLayerDesc) -> SWSGFMetadataEncoderDesc? {
     return SWSGFMetadataEncoderDesc(version: Int(version),
                                     numInputMetaChannels: Int(numInputMetaChannels),
                                     mul1: mul1,
@@ -1890,7 +1890,7 @@ public class SWTrunkDesc {
     /// The description of the initial matrix multiplication layer
     let initialMatMul: SWMatMulLayerDesc
     /// The description of the SGF metadata encoder
-    let sgfMetadataEncoder: SWSGFMetadataEncoderDesc
+    let sgfMetadataEncoder: SWSGFMetadataEncoderDesc?
     /// The list of blocks that make up the trunk
     let blockDescriptors: [BlockDescriptor]
     /// The description of the batch normalization layer that is applied at the end of the trunk
@@ -1918,7 +1918,7 @@ public class SWTrunkDesc {
          gpoolNumChannels: NSNumber,
          initialConv: SWConvLayerDesc,
          initialMatMul: SWMatMulLayerDesc,
-         sgfMetadataEncoder: SWSGFMetadataEncoderDesc,
+         sgfMetadataEncoder: SWSGFMetadataEncoderDesc?,
          blockDescriptors: [BlockDescriptor],
          trunkTipBN: SWBatchNormLayerDesc,
          trunkTipActivation: ActivationKind) {
@@ -1943,7 +1943,7 @@ public func createSWTrunkDesc(version: Int32,
                               gpoolNumChannels: Int32,
                               initialConv: SWConvLayerDesc,
                               initialMatMul: SWMatMulLayerDesc,
-                              sgfMetadataEncoder: SWSGFMetadataEncoderDesc,
+                              sgfMetadataEncoder: SWSGFMetadataEncoderDesc?,
                               blockDescriptors: [BlockDescriptor],
                               trunkTipBN: SWBatchNormLayerDesc,
                               trunkTipActivation: ActivationKind) -> SWTrunkDesc {
@@ -1966,7 +1966,7 @@ struct Trunk {
     let resultTensor: MPSGraphTensor
 
     /// Returns the block source tensor by processing the input meta tensor, if available, and adding a bias term.
-    /// 
+    ///
     /// - Parameters:
     ///     - graph: The Metal Performance Shaders (MPS) graph.
     ///     - descriptor: The SGF metadata encoder descriptor.
@@ -1975,27 +1975,28 @@ struct Trunk {
     ///     - nnXLen: The X length of the neural network (NN).
     ///     - nnYLen: The Y length of the neural network (NN).
     ///     - numChannels: The number of channels of the initial add operation result tensor.
-    /// 
+    ///
     /// - Returns:
     ///     - blockSourceTensor: The processed block source tensor.
-    /// 
+    ///
     /// This function is used to get the block source tensor by processing the input meta tensor, if available.
     /// If the input meta tensor is not available, it returns the result tensor from the initial add operation.
     /// The function uses SGF metadata encoder and AddNCBiasLayer to process the input meta tensor.
     static func getBlockSourceTensor(graph: MPSGraph,
-                                     descriptor: SWSGFMetadataEncoderDesc,
+                                     descriptor: SWSGFMetadataEncoderDesc?,
                                      initialAdd: AddNCBiasLayer,
-                                     inputMetaTensor: MPSGraphTensor,
+                                     inputMetaTensor: MPSGraphTensor?,
                                      nnXLen: NSNumber,
                                      nnYLen: NSNumber,
                                      numChannels: NSNumber) -> MPSGraphTensor {
         var blockSourceTensor: MPSGraphTensor
-        
-        if descriptor.numInputMetaChannels > 0 {
+
+        if let inputMetaTensor,
+           let descriptor, descriptor.numInputMetaChannels > 0 {
             let encoded = SGFMetadataEncoder(graph: graph,
                                             descriptor: descriptor,
                                             sourceTensor: inputMetaTensor)
-            
+
             let encodedAdd = AddNCBiasLayer(graph: graph,
                                             sourceTensor: initialAdd.resultTensor,
                                             biasTensor: encoded.resultTensor,
@@ -2007,7 +2008,7 @@ struct Trunk {
         } else {
             blockSourceTensor = initialAdd.resultTensor
         }
-        
+
         return blockSourceTensor
     }
 
@@ -2027,7 +2028,7 @@ struct Trunk {
          descriptor: SWTrunkDesc,
          inputTensor: MPSGraphTensor,
          inputGlobalTensor: MPSGraphTensor,
-         inputMetaTensor: MPSGraphTensor,
+         inputMetaTensor: MPSGraphTensor?,
          maskTensor: MPSGraphTensor,
          maskSumTensor: MPSGraphTensor,
          maskSumSqrtS14M01Tensor: MPSGraphTensor,

@@ -175,7 +175,7 @@ SWNestedBottleneckResidualBlockDesc MetalProcess::nestedBottleneckResidualBlockD
 /// Convert a SGF metadata encoder description from C++ to Swift
 /// - Parameter desc: A SGF metadata encoder description
 /// - Returns: The SGF metadata encoder description converted to SWSGFMetadataEncoderDesc
-SWSGFMetadataEncoderDesc MetalProcess::sGFMetadataEncoderDescToSwift(const SGFMetadataEncoderDesc * desc) {
+swift::Optional<SWSGFMetadataEncoderDesc> MetalProcess::sGFMetadataEncoderDescToSwift(const SGFMetadataEncoderDesc * desc) {
 
   SWMatMulLayerDesc mul1 = matMulLayerDescToSwift(&desc->mul1);
   SWMatBiasLayerDesc bias1 = matBiasLayerDescToSwift(&desc->bias1);
@@ -185,15 +185,15 @@ SWSGFMetadataEncoderDesc MetalProcess::sGFMetadataEncoderDescToSwift(const SGFMe
   ActivationKind act2 = activationLayerDescToSwift(&desc->act2);
   SWMatMulLayerDesc mul3 = matMulLayerDescToSwift(&desc->mul3);
 
-  SWSGFMetadataEncoderDesc swSGFMetadataEncoderDesc = createSWSGFMetadataEncoderDesc(desc->metaEncoderVersion,
-                                                                                     desc->numInputMetaChannels,
-                                                                                     mul1,
-                                                                                     bias1,
-                                                                                     act1,
-                                                                                     mul2,
-                                                                                     bias2,
-                                                                                     act2,
-                                                                                     mul3);
+  auto swSGFMetadataEncoderDesc = createSWSGFMetadataEncoderDesc(desc->metaEncoderVersion,
+                                                                 desc->numInputMetaChannels,
+                                                                 mul1,
+                                                                 bias1,
+                                                                 act1,
+                                                                 mul2,
+                                                                 bias2,
+                                                                 act2,
+                                                                 mul3);
 
   return swSGFMetadataEncoderDesc;
 }
@@ -205,7 +205,7 @@ SWTrunkDesc MetalProcess::trunkDescToSwift(const TrunkDesc * trunk) {
 
   SWConvLayerDesc initialConv = convLayerDescToSwift(&trunk->initialConv);
   SWMatMulLayerDesc initialMatMul = matMulLayerDescToSwift(&trunk->initialMatMul);
-  SWSGFMetadataEncoderDesc sgfMetadataEncoder = sGFMetadataEncoderDescToSwift(&trunk->sgfMetadataEncoder);
+  auto sgfMetadataEncoder = sGFMetadataEncoderDescToSwift(&trunk->sgfMetadataEncoder);
   auto swBlocks = residualBlocksToSwift(trunk->blocks);
   SWBatchNormLayerDesc trunkTipBN = batchNormLayerDescToSwift(&trunk->trunkTipBN);
   ActivationKind trunkTipActivation = activationLayerDescToSwift(&trunk->trunkTipActivation);
@@ -393,12 +393,12 @@ int NeuralNet::getModelVersion(const LoadedModel* loadedModel) {
 /**
  * @brief Retrieves the number of input meta channels from a loaded model.
  *
- * This function returns the number of input meta channels that are 
+ * This function returns the number of input meta channels that are
  * contained in the neural network model described by the specified LoadedModel object.
  * Input meta channels refer to the channels in the model that are used for pre-processing
  * or auxiliary information which is not part of the main input data.
  *
- * @param loadedModel A pointer to the LoadedModel object containing the 
+ * @param loadedModel A pointer to the LoadedModel object containing the
  *        neural network model description from which to retrieve the number of input meta channels.
  * @return An integer representing the number of input meta channels in the loaded model.
  */

@@ -250,6 +250,8 @@
 		E157FE4D2AF7D2E800E25677 /* Metal.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = E1AD404928E1D59700E41968 /* Metal.framework */; };
 		E157FE4E2AF7D2ED00E25677 /* MetalPerformanceShadersGraph.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = E1AD404B28E1D59700E41968 /* MetalPerformanceShadersGraph.framework */; };
 		E157FE4F2AF7DA1600E25677 /* testnn.mm in Sources */ = {isa = PBXBuildFile; fileRef = E157FDCE2AF7CE2500E25677 /* testnn.mm */; };
+		E1605CE22BFAD6EB00A4B872 /* sgfmetadata.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E1605CE12BFAD6EB00A4B872 /* sgfmetadata.cpp */; };
+		E1605CE32BFAD70100A4B872 /* sgfmetadata.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E1605CE12BFAD6EB00A4B872 /* sgfmetadata.cpp */; };
 		E17D098C294D45CF005968E9 /* gputest.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E17D098A294D45CF005968E9 /* gputest.cpp */; };
 		E1DACF5D2B089A5400082FF7 /* KataGoSwift.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = E1DACF4C2B08997300082FF7 /* KataGoSwift.framework */; };
 		E1DACF652B089B5500082FF7 /* KataGoSwiftTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1DACF642B089B5500082FF7 /* KataGoSwiftTests.swift */; };
@@ -402,6 +404,7 @@
 		E13CF66228E1896C005CB016 /* coremlbackend.cpp */ = {isa = PBXFileReference; fileEncoding = 4; indentWidth = 2; lastKnownFileType = sourcecode.cpp.cpp; name = coremlbackend.cpp; path = neuralnet/coremlbackend.cpp; sourceTree = "<group>"; };
 		E157FDCC2AF7CE2300E25677 /* katagotest.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = katagotest.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		E157FDCE2AF7CE2500E25677 /* testnn.mm */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.objcpp; path = testnn.mm; sourceTree = "<group>"; };
+		E1605CE12BFAD6EB00A4B872 /* sgfmetadata.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; name = sgfmetadata.cpp; path = neuralnet/sgfmetadata.cpp; sourceTree = SOURCE_ROOT; };
 		E17D098A294D45CF005968E9 /* gputest.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = gputest.cpp; path = command/gputest.cpp; sourceTree = "<group>"; };
 		E199A6F828E25E8100A2E051 /* metalbridge.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = metalbridge.h; path = neuralnet/metalbridge.h; sourceTree = "<group>"; };
 		E199A6F928E25EE500A2E051 /* metalbackend.h */ = {isa = PBXFileReference; fileEncoding = 4; indentWidth = 2; lastKnownFileType = sourcecode.c.h; name = metalbackend.h; path = neuralnet/metalbackend.h; sourceTree = "<group>"; };
@@ -629,6 +632,7 @@
 				7C7A65C82B4C4AB5B83B1346 /* selfplaymanager.cpp */,
 				D104762E63AF4C6A8ADB220E /* setup.cpp */,
 				3E097292E4F34AB6806F67E6 /* sgf.cpp */,
+				E1605CE12BFAD6EB00A4B872 /* sgfmetadata.cpp */,
 				76F8951F199F416F99B96FE8 /* sha2.cpp */,
 				7891834D8FB144E0B13F6E21 /* subtreevaluebiastable.cpp */,
 				5639F08A96FD467CBD091947 /* test.cpp */,
@@ -825,6 +829,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				E1605CE22BFAD6EB00A4B872 /* sgfmetadata.cpp in Sources */,
 				E10ACA7D2928A6D30004AB17 /* book.cpp in Sources */,
 				E10ACA7E2928A6D30004AB17 /* bookcssjs.cpp in Sources */,
 				E10ACA7F2928A6D30004AB17 /* analysis.cpp in Sources */,
@@ -1000,6 +1005,7 @@
 				E157FE0C2AF7D1E600E25677 /* patternbonustable.cpp in Sources */,
 				E157FE0D2AF7D1E600E25677 /* play.cpp in Sources */,
 				E157FE0E2AF7D1E600E25677 /* playsettings.cpp in Sources */,
+				E1605CE32BFAD70100A4B872 /* sgfmetadata.cpp in Sources */,
 				E157FE0F2AF7D1E600E25677 /* playutils.cpp in Sources */,
 				E157FE102AF7D1E600E25677 /* poswriter.cpp in Sources */,
 				E157FE112AF7D1E600E25677 /* rand_helpers.cpp in Sources */,

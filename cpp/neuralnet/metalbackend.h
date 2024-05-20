@@ -21,7 +21,7 @@ SWMatMulLayerDesc matMulLayerDescToSwift(const MatMulLayerDesc * desc);
 SWGlobalPoolingResidualBlockDesc globalPoolingResidualBlockDescToSwift(const GlobalPoolingResidualBlockDesc* desc);
 swift::Array<BlockDescriptor> residualBlocksToSwift(const vector<pair<int, unique_ptr_void>>& blocks);
 SWNestedBottleneckResidualBlockDesc nestedBottleneckResidualBlockDescToSwift(const NestedBottleneckResidualBlockDesc* desc);
-SWSGFMetadataEncoderDesc sGFMetadataEncoderDescToSwift(const SGFMetadataEncoderDesc * desc);
+swift::Optional<SWSGFMetadataEncoderDesc> sGFMetadataEncoderDescToSwift(const SGFMetadataEncoderDesc * desc);
 SWTrunkDesc trunkDescToSwift(const TrunkDesc * trunk);
 SWPolicyHeadDesc policyHeadDescToSwift(const PolicyHeadDesc * policyHead);
 SWMatBiasLayerDesc matBiasLayerDescToSwift(const MatBiasLayerDesc * desc);
