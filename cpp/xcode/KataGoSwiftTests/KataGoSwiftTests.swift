@@ -3034,15 +3034,11 @@ final class ComputeContextTest: XCTestCase {
     func testCreateInstance() {
         let nnXLen: NSNumber = 9
         let nnYLen: NSNumber = 11
-        let useFP16Mode: SWEnable = .False
-        let useNHWCMode: SWEnable = .False
 
-        createMetalContext(nnXLen: Int32(truncating: nnXLen),
-                           nnYLen: Int32(truncating: nnYLen),
-                           useFP16Mode: useFP16Mode,
-                           useNHWCMode: useNHWCMode)
+        let id = createMetalComputeContext(nnXLen: Int32(truncating: nnXLen),
+                                           nnYLen: Int32(truncating: nnYLen))
 
-        let context = MetalComputeContext.getInstance()
+        let context = MetalComputeContext.getInstance(id: id)
 
         XCTAssert(context.nnXLen == nnXLen)
         XCTAssert(context.nnYLen == nnYLen)
@@ -3051,17 +3047,13 @@ final class ComputeContextTest: XCTestCase {
     func testDestroyInstance() {
         let nnXLen: NSNumber = 9
         let nnYLen: NSNumber = 11
-        let useFP16Mode: SWEnable = .False
-        let useNHWCMode: SWEnable = .False
 
-        MetalComputeContext.createInstance(nnXLen: nnXLen,
-                                           nnYLen: nnYLen,
-                                           useFP16Mode: useFP16Mode,
-                                           useNHWCMode: useNHWCMode)
+        let id = MetalComputeContext.createInstance(nnXLen: nnXLen,
+                                                    nnYLen: nnYLen)
 
-        destroyMetalContext()
+        destroyMetalComputeContext(id: id)
 
-        let context = MetalComputeContext.getInstance()
+        let context = MetalComputeContext.getInstance(id: id)
 
         XCTAssert(context.nnXLen == MetalComputeContext.defaultNnXLen)
         XCTAssert(context.nnYLen == MetalComputeContext.defaultNnYLen)
@@ -3072,25 +3064,23 @@ final class ComputeHandleTest: XCTestCase {
     let swModelDescTest = SWModelDescTest()
 
     func testCreateInstance() {
-        MetalComputeContext.createInstance(nnXLen: 9 as NSNumber,
-                                           nnYLen: 11 as NSNumber,
-                                           useFP16Mode: .False,
-                                           useNHWCMode: .False)
+        let contextId = MetalComputeContext.createInstance(nnXLen: 9 as NSNumber,
+                                                           nnYLen: 11 as NSNumber)
 
         let swModelDesc = swModelDescTest.createMiniDesc()
 
-        createMetalComputeHandle(descriptor: swModelDesc,
-                                 serverThreadIdx: 0)
+        let handleId = createMetalComputeHandle(descriptor: swModelDesc,
+                                                contextId: contextId)
 
-        let handle = MetalComputeHandle.handle
-        let context = MetalComputeContext.getInstance()
+        let handle = MetalComputeHandle.getInstance(id: handleId)
+        let context = MetalComputeContext.getInstance(id: contextId)
 
-        XCTAssert(handle?.model.nnXLen == context.nnXLen)
-        XCTAssert(handle?.model.nnYLen == context.nnYLen)
-        XCTAssert(handle?.model.version == swModelDesc.version)
-        XCTAssert(handle?.model.numValueChannels == swModelDesc.numValueChannels)
-        XCTAssert(handle?.model.numScoreValueChannels == swModelDesc.numScoreValueChannels)
-        XCTAssert(handle?.model.numOwnershipChannels == swModelDesc.numOwnershipChannels)
+        XCTAssert(handle.model.nnXLen == context.nnXLen)
+        XCTAssert(handle.model.nnYLen == context.nnYLen)
+        XCTAssert(handle.model.version == swModelDesc.version)
+        XCTAssert(handle.model.numValueChannels == swModelDesc.numValueChannels)
+        XCTAssert(handle.model.numScoreValueChannels == swModelDesc.numScoreValueChannels)
+        XCTAssert(handle.model.numOwnershipChannels == swModelDesc.numOwnershipChannels)
     }
 }
 
@@ -3105,36 +3095,30 @@ final class MetalBackendTest: XCTestCase {
         let nnXLen: Int = 9
         let nnYLen: Int = 11
 
-        MetalComputeContext.createInstance(nnXLen: nnXLen as NSNumber,
-                                           nnYLen: nnYLen as NSNumber,
-                                           useFP16Mode: .False,
-                                           useNHWCMode: .False)
+        let id = MetalComputeContext.createInstance(nnXLen: nnXLen as NSNumber,
+                                                    nnYLen: nnYLen as NSNumber)
 
-        XCTAssert(getMetalContextXLen() == nnXLen)
+        XCTAssert(getMetalContextXLen(id: id) == nnXLen)
     }
 
     func testGetContextYLen() {
         let nnXLen: Int = 9
         let nnYLen: Int = 11
 
-        MetalComputeContext.createInstance(nnXLen: nnXLen as NSNumber,
-                                           nnYLen: nnYLen as NSNumber,
-                                           useFP16Mode: .False,
-                                           useNHWCMode: .False)
+        let id = MetalComputeContext.createInstance(nnXLen: nnXLen as NSNumber,
+                                                    nnYLen: nnYLen as NSNumber)
 
-        XCTAssert(getMetalContextYLen() == nnYLen)
+        XCTAssert(getMetalContextYLen(id: id) == nnYLen)
     }
 
     func testGetOutput() {
-        MetalComputeContext.createInstance(nnXLen: 1 as NSNumber,
-                                           nnYLen: 1 as NSNumber,
-                                           useFP16Mode: .False,
-                                           useNHWCMode: .False)
+        let contextId = MetalComputeContext.createInstance(nnXLen: 1 as NSNumber,
+                                                           nnYLen: 1 as NSNumber)
 
         let swModelDesc = swModelDescTest.createMiniDesc()
 
-        MetalComputeHandle.createInstance(descriptor: swModelDesc,
-                                          serverThreadIdx: 0)
+        let handleId = MetalComputeHandle.createInstance(descriptor: swModelDesc,
+                                                         contextId: contextId)
 
         var input = [Float32](repeating: 1, count: 1)
         var inputGlobal = [Float32](repeating: 1, count: 1)
@@ -3145,7 +3129,8 @@ final class MetalBackendTest: XCTestCase {
         var scoreValueOutput = [Float32](repeating: 1, count: 1)
         var ownershipOutput = [Float32](repeating: 1, count: 1)
 
-        getMetalHandleOutput(userInputBuffer: &input,
+        getMetalHandleOutput(handleId: handleId,
+                             userInputBuffer: &input,
                              userInputGlobalBuffer: &inputGlobal,
                              userInputMetaBuffer: &inputMeta,
                              policyOutput: &policyOutput,

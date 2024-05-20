@@ -27,8 +27,8 @@ SWPolicyHeadDesc policyHeadDescToSwift(const PolicyHeadDesc * policyHead);
 SWMatBiasLayerDesc matBiasLayerDescToSwift(const MatBiasLayerDesc * desc);
 SWValueHeadDesc valueHeadDescToSwift(const ValueHeadDesc * valueHead);
 
-void createMetalComputeHandle(const ModelDesc* modelDesc,
-                              int serverThreadIdx);
+int createMetalComputeHandle(const ModelDesc* modelDesc,
+                             int serverThreadIdx);
 
 bool testEvaluateConv(const ConvLayerDesc* desc,
                       int batchSize,
@@ -159,6 +159,11 @@ struct ComputeContext {
   bool useCpuAndNeuralEngine;
 
   /**
+   * @brief ComputeContext ID
+   */
+  int identifier;
+
+  /**
    * @brief Constructs a ComputeContext object.
    * This constructor creates a ComputeContext object and sets the configuration settings for neural network
    * computations, including whether to use FP16 mode and whether to use the NHWC format for input tensors.
@@ -199,6 +204,8 @@ struct ComputeContext {
  * parameters and settings that determine how the computation is performed.
  */
 struct ComputeHandle {
+  int identifier;
+
   /**
    * @brief The x length of the neural network computation context.
    */

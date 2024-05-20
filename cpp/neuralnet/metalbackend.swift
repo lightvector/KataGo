@@ -3,6 +3,22 @@ import MetalPerformanceShaders
 import MetalPerformanceShadersGraph
 import OSLog
 
+class DefaultDevice {
+    static var device = MTLCreateSystemDefaultDevice()!
+}
+
+class StandardError: TextOutputStream {
+    /// A shared instance of the StandardError class.
+    static var instance = StandardError()
+
+    /// Writes the given string to standard error output.
+    func write(_ string: String) {
+        /// Attempts to write the contents of a Data object containing the UTF8-encoded string to
+        /// the standard error file handle.
+        try? FileHandle.standardError.write(contentsOf: Data(string.utf8))
+    }
+}
+
 /// An extension to the Data struct for handling float data with optional FP16 conversion.
 extension Data {
     /// Initializes a new Data instance using an UnsafeMutablePointer<Float32>, with optional conversion to FP16 format.
@@ -334,7 +350,7 @@ struct NetworkTester {
                      networkBuilder: (MPSGraph, InputLayer, MaskLayer) -> MPSGraphTensor) {
 
         // Create a Metal device.
-        let device = MetalComputeContext.device
+        let device = DefaultDevice.device
 
         // Create a MPSGraph.
         let graph = MPSGraph()
@@ -479,7 +495,7 @@ class ConvLayer {
                     batchSize: NSNumber,
                     input: UnsafeMutablePointer<Float32>,
                     output: UnsafeMutablePointer<Float32>) {
-        let device = MetalComputeContext.device
+        let device = DefaultDevice.device
         let graph = MPSGraph()
 
         let source = InputLayer(graph: graph,
@@ -2521,6 +2537,127 @@ struct ValueHead {
 
 /// A struct that describes a neural network model used for playing the game of Go.
 public struct SWModelDesc {
+
+    static let defaultDesc = createDefaultDesc()
+
+    static func createDefaultDesc() -> SWModelDesc {
+
+        var unityConvWeights = [Float](repeating: 1, count: 1)
+        var unityMatMulWeights = [Float](repeating: 1, count: 1)
+        var meanWeights = [Float](repeating: 0, count: 1)
+        var varianceWeights = [Float](repeating: 0.9, count: 1)
+        var scaleWeights = [Float](repeating: 1, count: 1)
+        var biasWeights = [Float](repeating: 0, count: 1)
+        var gpoolMatMulWeights = [Float](repeating: 3, count: 3)
+        var zeroMatBiasWeights = [Float](repeating: 0, count: 1)
+
+        let unityConv = SWConvLayerDesc(convYSize: 1,
+                                        convXSize: 1,
+                                        inChannels: 1,
+                                        outChannels: 1,
+                                        dilationY: 1,
+                                        dilationX: 1,
+                                        weights: &unityConvWeights)
+
+        let unityMatMul = SWMatMulLayerDesc(inChannels: 1,
+                                            outChannels: 1,
+                                            weights: &unityMatMulWeights)
+
+
+        let unityBatchNorm = SWBatchNormLayerDesc(numChannels: 1,
+                                                  epsilon: 0.1,
+                                                  hasScale: false,
+                                                  hasBias: false,
+                                                  mean: &meanWeights,
+                                                  variance: &varianceWeights,
+                                                  scale: &scaleWeights,
+                                                  bias: &biasWeights)
+
+        let unityResidual = SWResidualBlockDesc(preBN: unityBatchNorm,
+                                                preActivation: ActivationKind.relu,
+                                                regularConv: unityConv,
+                                                midBN: unityBatchNorm,
+                                                midActivation: ActivationKind.relu,
+                                                finalConv: unityConv)
+
+        let gpoolMatMul = SWMatMulLayerDesc(inChannels: 3,
+                                            outChannels: 1,
+                                            weights: &gpoolMatMulWeights)
+
+        let globalPooling =
+        SWGlobalPoolingResidualBlockDesc(preBN: unityBatchNorm,
+                                         preActivation: ActivationKind.relu,
+                                         regularConv: unityConv,
+                                         gpoolConv: unityConv,
+                                         gpoolBN: unityBatchNorm,
+                                         gpoolActivation: ActivationKind.relu,
+                                         gpoolToBiasMul: gpoolMatMul,
+                                         midBN: unityBatchNorm,
+                                         midActivation: ActivationKind.relu,
+                                         finalConv: unityConv)
+
+        let blocks: [BlockDescriptor] = [unityResidual,
+                                         BlockDescriptor(),
+                                         globalPooling,
+                                         unityResidual]
+
+        let trunkDesc = SWTrunkDesc(version: 0,
+                                    trunkNumChannels: 1,
+                                    midNumChannels: 1,
+                                    regularNumChannels: 1,
+                                    gpoolNumChannels: 1,
+                                    initialConv: unityConv,
+                                    initialMatMul: unityMatMul,
+                                    sgfMetadataEncoder: nil,
+                                    blockDescriptors: blocks,
+                                    trunkTipBN: unityBatchNorm,
+                                    trunkTipActivation: ActivationKind.relu)
+
+        let policyHead = SWPolicyHeadDesc(version: 0,
+                                          p1Conv: unityConv,
+                                          g1Conv: unityConv,
+                                          g1BN: unityBatchNorm,
+                                          g1Activation: ActivationKind.relu,
+                                          gpoolToBiasMul: gpoolMatMul,
+                                          p1BN: unityBatchNorm,
+                                          p1Activation: ActivationKind.relu,
+                                          p2Conv: unityConv,
+                                          gpoolToPassMul: gpoolMatMul,
+                                          gpoolToPassBias: nil,
+                                          passActivation: nil,
+                                          gpoolToPassMul2: nil)
+
+        let zeroMatBias = SWMatBiasLayerDesc(numChannels: 1,
+                                             weights: &zeroMatBiasWeights)
+
+        let valueHead = SWValueHeadDesc(version: 0,
+                                        v1Conv: unityConv,
+                                        v1BN: unityBatchNorm,
+                                        v1Activation: ActivationKind.relu,
+                                        v2Mul: gpoolMatMul,
+                                        v2Bias: zeroMatBias,
+                                        v2Activation: ActivationKind.relu,
+                                        v3Mul: unityMatMul,
+                                        v3Bias: zeroMatBias,
+                                        sv3Mul: unityMatMul,
+                                        sv3Bias: zeroMatBias,
+                                        vOwnershipConv: unityConv)
+
+        let modelDesc = createSWModelDesc(version: 8,
+                                          name: "default",
+                                          numInputChannels: 1,
+                                          numInputGlobalChannels: 1,
+                                          numInputMetaChannels: 0,
+                                          numValueChannels: 1,
+                                          numScoreValueChannels: 1,
+                                          numOwnershipChannels: 1,
+                                          trunk: trunkDesc,
+                                          policyHead: policyHead,
+                                          valueHead: valueHead)
+
+        return modelDesc
+    }
+
     /// The version of the model.
     let version: Int
     /// The name of the model.
@@ -2608,8 +2745,20 @@ public func createSWModelDesc(version: Int32,
 
 /// A structure representing a neural network model for processing Go game states.
 struct Model {
+
+    static let defaultNnXLen: NSNumber = 19
+    static let defaultNnYLen: NSNumber = 19
+
+    static let defaultModel = Model(device: DefaultDevice.device,
+                                    graph: MPSGraph(),
+                                    descriptor: SWModelDesc.defaultDesc,
+                                    nnXLen: defaultNnXLen,
+                                    nnYLen: defaultNnYLen)
+
     /// The Metal device
     let device: MTLDevice
+    /// The command queue used to execute the graph on the GPU
+    let commandQueue: MTLCommandQueue
     /// The Metal Performance Shaders graph object used for building and executing the graph
     let graph: MPSGraph
     /// The length of the neural network input in the x dimension
@@ -2654,6 +2803,7 @@ struct Model {
          nnXLen: NSNumber,
          nnYLen: NSNumber) {
         self.device = device
+        self.commandQueue = device.makeCommandQueue()!
         self.graph = graph
         self.nnXLen = nnXLen
         self.nnYLen = nnYLen
@@ -2813,7 +2963,7 @@ struct Model {
                      inputMeta.tensor: MPSGraphTensorData(inputMetaArray),
                      mask.tensor: MPSGraphTensorData(maskArray)]
 
-        let fetch = graph.run(with: MetalComputeContext.commandQueue,
+        let fetch = graph.run(with: commandQueue,
                               feeds: feeds,
                               targetTensors: targetTensors,
                               targetOperations: nil)
@@ -2841,174 +2991,165 @@ public enum SWEnable {
 
 /// A class that represents context of GPU devices.
 public class MetalComputeContext {
+
     static let defaultNnXLen: NSNumber = 19
     static let defaultNnYLen: NSNumber = 19
+    static let defaultId: Int32 = -1
 
-    static let defaultInstance = MetalComputeContext(nnXLen: defaultNnXLen,
-                                                     nnYLen: defaultNnYLen)
+    static let defaultContext = MetalComputeContext(nnXLen: defaultNnXLen,
+                                                    nnYLen: defaultNnYLen,
+                                                    id: defaultId)
 
-    // There is no way to repair from null device. Try one of other backends if this fails.
-    static let device = MTLCreateSystemDefaultDevice()!
+    static var contexts: [Int32: MetalComputeContext] = [:]
 
-    /// The command queue used to execute the graph on the GPU
-    static let commandQueue = device.makeCommandQueue()!
+    static let initialId: Int32 = 0
+    static private var nextId: Int32 = initialId
 
-    static var instance = defaultInstance
+    private class func getNextId() -> Int32 {
+        let id = nextId
+        nextId = nextId + 1
+        return id
+    }
 
     /// Create a context.
     /// - Parameters:
     ///   - nnXLen: The width of the input tensor.
     ///   - nnYLen: The height of the input tensor.
-    ///   - useFP16Mode: use FP16 mode or not.
-    ///   - useNHWCMode: use NHWC mode or not.
+    /// - Returns: The ID of the compute context
     class func createInstance(nnXLen: NSNumber,
-                              nnYLen: NSNumber,
-                              useFP16Mode: SWEnable,
-                              useNHWCMode: SWEnable) {
-        instance = MetalComputeContext(nnXLen: nnXLen,
-                                       nnYLen: nnYLen)
+                              nnYLen: NSNumber) -> Int32 {
+
+        let id = getNextId()
+
+        let context = MetalComputeContext(nnXLen: nnXLen,
+                                          nnYLen: nnYLen,
+                                          id: id)
+
+        contexts[id] = context
+
+        print("Metal compute context \(id): \(nnXLen)x\(nnYLen)",
+              to: &StandardError.instance)
+
+        return id
     }
 
     /// Destroy the context.
-    class func destroyInstance() {
-        instance = defaultInstance
+    class func destroyInstance(id: Int32) {
+        contexts[id] = nil
     }
 
     /// Get the context.
     /// - Returns: The context.
-    class func getInstance() -> MetalComputeContext {
-        return instance
+    class func getInstance(id: Int32) -> MetalComputeContext {
+        return contexts[id] ?? defaultContext
     }
 
     let nnXLen: NSNumber
     let nnYLen: NSNumber
+    let id: Int32
 
     /// Initialize a context.
     /// - Parameters:
     ///   - nnXLen: The width of the input tensor.
     ///   - nnYLen: The height of the input tensor.
+    ///   - id: The ID of the compute context
     private init(nnXLen: NSNumber,
-                 nnYLen: NSNumber) {
+                 nnYLen: NSNumber,
+                 id: Int32) {
         self.nnXLen = nnXLen
         self.nnYLen = nnYLen
+        self.id = id
     }
 }
 
-public func createMetalContext(nnXLen: Int32,
-                               nnYLen: Int32,
-                               useFP16Mode: SWEnable,
-                               useNHWCMode: SWEnable) {
+public func createMetalComputeContext(nnXLen: Int32,
+                                      nnYLen: Int32) -> Int32 {
 
-    MetalComputeContext.createInstance(nnXLen: nnXLen as NSNumber,
-                                       nnYLen: nnYLen as NSNumber,
-                                       useFP16Mode: useFP16Mode,
-                                       useNHWCMode: useNHWCMode)
+    return MetalComputeContext.createInstance(nnXLen: nnXLen as NSNumber,
+                                              nnYLen: nnYLen as NSNumber)
+}
+
+public func destroyMetalComputeContext(id: Int32) {
+    MetalComputeContext.destroyInstance(id: id)
 }
 
 /// A class that represents a handle of GPU device.
 public class MetalComputeHandle {
-    static var handle: MetalComputeHandle?
-    let model: Model
+    static let defaultId: Int32 = -1
+    static let defaultHandle = MetalComputeHandle(model: Model.defaultModel, id: defaultId)
+    static var handles: [Int32: MetalComputeHandle] = [:]
+    static let initialId: Int32 = 0
+    static var nextId: Int32 = initialId
+
+    private class func getNextId() -> Int32 {
+        let id = nextId
+        nextId = nextId + 1
+        return id
+    }
 
     /// Creates a new handle of GPU device.
     /// - Parameters:
     ///   - descriptor: The descriptor of the model.
-    ///   - serverThreadIdx: The index of the server thread.
+    ///   - contextId: The id of the ComputeContext object.
     class func createInstance(descriptor: SWModelDesc,
-                              serverThreadIdx: Int) {
-        handle = MetalComputeHandle(descriptor: descriptor,
-                                    serverThreadIdx: serverThreadIdx)
+                              contextId: Int32) -> Int32 {
+
+        let device = DefaultDevice.device
+        let context = MetalComputeContext.getInstance(id: contextId)
+
+        let model = Model(device: device,
+                          graph: MPSGraph(),
+                          descriptor: descriptor,
+                          nnXLen: context.nnXLen,
+                          nnYLen: context.nnYLen)
+
+        let id = getNextId()
+        let handle = MetalComputeHandle(model: model, id: id)
+
+        handles[id] = handle
+
+        print("Metal backend \(id): \(device.name), Model version \(descriptor.version) \(descriptor.name)",
+              to: &StandardError.instance)
+
+        return id
     }
 
-    /// Initializes a new instance of the `MetalComputeHandle` class.
-    /// - Parameters:
-    ///   - descriptor: The descriptor of the model.
-    ///   - threadIdx: The index of the server thread.
-    /// - Returns: A `MetalComputeHandle` instance.
-    private init(descriptor: SWModelDesc,
-                 serverThreadIdx threadIdx: Int) {
+    /// Destroy the handle.
+    class func destroyInstance(id: Int32) {
+        handles[id] = nil
+    }
 
-        let device = MetalComputeContext.device
+    /// Get the handle.
+    /// - Returns: The handle.
+    class func getInstance(id: Int32) -> MetalComputeHandle {
+        return handles[id] ?? defaultHandle
+    }
 
-        // Log the selected device's name, model version, and model name.
-        Logger().info("Metal backend thread \(threadIdx): \(device.name), Model version \(descriptor.version) \(descriptor.name)")
+    let model: Model
+    let id: Int32
 
-        let context = MetalComputeContext.getInstance()
-
-        // Create a model with the specified device, graph, descriptor, and other parameters.
-        model = Model(device: device,
-                      graph: MPSGraph(),
-                      descriptor: descriptor,
-                      nnXLen: context.nnXLen,
-                      nnYLen: context.nnYLen)
+    private init(model: Model, id: Int32) {
+        self.model = model
+        self.id = id
     }
 }
 
 public func createMetalComputeHandle(descriptor: SWModelDesc,
-                                     serverThreadIdx: Int32) {
-    MetalComputeHandle.createInstance(descriptor: descriptor,
-                                      serverThreadIdx: Int(serverThreadIdx))
+                                     contextId: Int32) -> Int32 {
+
+    return MetalComputeHandle.createInstance(descriptor: descriptor,
+                                             contextId: contextId)
 }
 
-/// A class that represents Metal backend.
-class MetalBackend {
-    /// Print all available devices.
-    class func printDevices() {
-        let device = MetalComputeContext.device
-        print("Found Metal Device: \(device.name)")
-    }
-
-    /// Get width of the input tensor.
-    /// - Returns: The width of the input tensor.
-    class func getContextXLen() -> Int {
-        return MetalComputeContext.getInstance().nnXLen.intValue
-    }
-
-    /// Get height of the input tensor.
-    /// - Returns: The height of the input tensor.
-    class func getContextYLen() -> Int {
-        return MetalComputeContext.getInstance().nnYLen.intValue
-    }
-
-    /// Get output data from the model.
-    /// - Parameters:
-    ///   - userInputBuffer: The input data.
-    ///   - userInputGlobalBuffer: The global input data.
-    ///   - userInputMetaBuffer: The meta input data.
-    ///   - policyOutput: The policy output data.
-    ///   - policyPassOutput: The policy pass output data.
-    ///   - valueOutput: The value output data.
-    ///   - ownershipOutput: The ownership output data.
-    ///   - scoreValueOutput: The score value output data.
-    ///   - batchSize: The batch size.
-    class func getOutput(userInputBuffer: UnsafeMutablePointer<Float32>,
-                         userInputGlobalBuffer: UnsafeMutablePointer<Float32>,
-                         userInputMetaBuffer: UnsafeMutablePointer<Float32>,
-                         policyOutput: UnsafeMutablePointer<Float32>,
-                         policyPassOutput: UnsafeMutablePointer<Float32>,
-                         valueOutput: UnsafeMutablePointer<Float32>,
-                         ownershipOutput: UnsafeMutablePointer<Float32>,
-                         scoreValueOutput: UnsafeMutablePointer<Float32>,
-                         batchSize: Int) {
-
-        assert(MetalComputeHandle.handle != nil)
-
-        autoreleasepool {
-            MetalComputeHandle.handle?.model.apply(input: userInputBuffer,
-                                                   inputGlobal: userInputGlobalBuffer,
-                                                   inputMeta: userInputMetaBuffer,
-                                                   policy: policyOutput,
-                                                   policyPass: policyPassOutput,
-                                                   value: valueOutput,
-                                                   scoreValue: scoreValueOutput,
-                                                   ownership: ownershipOutput,
-                                                   batchSize: batchSize)
-        }
-    }
+public func destroyMetalComputeHandle(handleId id: Int32) {
+    MetalComputeHandle.destroyInstance(id: id)
 }
 
 public func printMetalDevices() {
-    MetalBackend.printDevices()
+    let device = DefaultDevice.device
+
+    print("Found Metal Device: \(device.name)",
+          to: &StandardError.instance)
 }
 
 ///
@@ -3021,6 +3162,7 @@ public func printMetalDevices() {
 /// actual processing.
 ///
 /// - Parameters:
+///   - handleId: A compute handle ID
 ///   - userInputBuffer: An UnsafeMutablePointer to a Float32 array representing
 ///     the user input buffer. This buffer contains the main input data required
 ///     for processing.
@@ -3042,7 +3184,8 @@ public func printMetalDevices() {
 ///   - batchSize: An Int specifying the size of the batch to be processed. This
 ///     indicates how many sets of input and corresponding outputs are being handled.
 ///
-public func getMetalHandleOutput(userInputBuffer: UnsafeMutablePointer<Float32>,
+public func getMetalHandleOutput(handleId: Int32,
+                                 userInputBuffer: UnsafeMutablePointer<Float32>,
                                  userInputGlobalBuffer: UnsafeMutablePointer<Float32>,
                                  userInputMetaBuffer: UnsafeMutablePointer<Float32>,
                                  policyOutput: UnsafeMutablePointer<Float32>,
@@ -3051,25 +3194,26 @@ public func getMetalHandleOutput(userInputBuffer: UnsafeMutablePointer<Float32>,
                                  ownershipOutput: UnsafeMutablePointer<Float32>,
                                  scoreValueOutput: UnsafeMutablePointer<Float32>,
                                  batchSize: Int) {
-    MetalBackend.getOutput(userInputBuffer: userInputBuffer,
-                           userInputGlobalBuffer: userInputGlobalBuffer,
-                           userInputMetaBuffer: userInputMetaBuffer,
-                           policyOutput: policyOutput,
-                           policyPassOutput: policyPassOutput,
-                           valueOutput: valueOutput,
-                           ownershipOutput: ownershipOutput,
-                           scoreValueOutput: scoreValueOutput,
+
+    autoreleasepool {
+        let handle = MetalComputeHandle.getInstance(id: handleId)
+
+        handle.model.apply(input: userInputBuffer,
+                           inputGlobal: userInputGlobalBuffer,
+                           inputMeta: userInputMetaBuffer,
+                           policy: policyOutput,
+                           policyPass: policyPassOutput,
+                           value: valueOutput,
+                           scoreValue: scoreValueOutput,
+                           ownership: ownershipOutput,
                            batchSize: batchSize)
+    }
 }
 
-public func getMetalContextXLen() -> Int32 {
-    return Int32(MetalBackend.getContextXLen())
+public func getMetalContextXLen(id: Int32) -> Int32 {
+    return Int32(MetalComputeContext.getInstance(id: id).nnXLen.intValue)
 }
 
-public func getMetalContextYLen() -> Int32 {
-    return Int32(MetalBackend.getContextYLen())
-}
-
-public func destroyMetalContext() {
-    MetalComputeContext.destroyInstance()
+public func getMetalContextYLen(id: Int32) -> Int32 {
+    return Int32(MetalComputeContext.getInstance(id: id).nnYLen.intValue)
 }

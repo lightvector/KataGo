@@ -303,8 +303,8 @@ SWValueHeadDesc MetalProcess::valueHeadDescToSwift(const ValueHeadDesc * valueHe
   return swDesc;
 }
 
-void MetalProcess::createMetalComputeHandle(const ModelDesc* modelDesc,
-                                            int serverThreadIdx) {
+int MetalProcess::createMetalComputeHandle(const ModelDesc* modelDesc,
+                                           int serverThreadIdx) {
 
   SWModelDesc swModelDesc = createSWModelDesc(modelDesc->modelVersion,
                                               swift::String(modelDesc->name),
@@ -318,7 +318,7 @@ void MetalProcess::createMetalComputeHandle(const ModelDesc* modelDesc,
                                               policyHeadDescToSwift(&modelDesc->policyHead),
                                               valueHeadDescToSwift(&modelDesc->valueHead));
 
-  createMetalComputeHandle(swModelDesc, serverThreadIdx);
+  return createMetalComputeHandle(swModelDesc, serverThreadIdx);
 }
 
 //---------------------------------------------------------------------------------------------------------
@@ -452,12 +452,12 @@ ComputeContext::ComputeContext(int nnX, int nnY, enabled_t useFP16Mode, enabled_
   (useNHWCMode == enabled_t::True) ? SWEnable::True() :
   SWEnable::Auto();
 
-  createMetalContext(nnX, nnY, swUseFP16Mode, swUseNHWCMode);
+  identifier = createMetalComputeContext(nnX, nnY);
   createCoreMLContext();
 }
 
 ComputeContext::~ComputeContext() {
-  destroyMetalContext();
+  destroyMetalComputeContext(identifier);
   destroyCoreMLContext();
 }
 
@@ -532,8 +532,8 @@ ComputeHandle::ComputeHandle(
   const ModelDesc* modelDesc = &loadedModel->modelDesc;
   int coreMLStartIndex = 100;
 
-  nnXLen = getMetalContextXLen();
-  nnYLen = getMetalContextYLen();
+  nnXLen = getMetalContextXLen(context->identifier);
+  nnYLen = getMetalContextYLen(context->identifier);
   gpuIndex = gpuIdx;
   version = modelDesc->modelVersion;
   this->inputsUseNHWC = inputsUseNHWC;
@@ -544,7 +544,7 @@ ComputeHandle::ComputeHandle(
   useMetal = (gpuIdx < coreMLStartIndex);
 
   if(useMetal) {
-    MetalProcess::createMetalComputeHandle(modelDesc, serverThreadIdx);
+    identifier = MetalProcess::createMetalComputeHandle(modelDesc, serverThreadIdx);
   } else {
     // Create a Core ML backend
     modelIndex = (int)createCoreMLBackend(modelXLen, modelYLen, serverThreadIdx, useFP16, context->useCpuAndNeuralEngine);
@@ -554,7 +554,9 @@ ComputeHandle::ComputeHandle(
 }
 
 ComputeHandle::~ComputeHandle() {
-  if(!useMetal) {
+  if(useMetal) {
+    destroyMetalComputeHandle(identifier);
+  } else {
     // Free the CoreML backend
     freeCoreMLBackend(modelIndex);
   }
@@ -924,7 +926,8 @@ void MetalProcess::getMetalOutput(
     MetalProcess::processRowData(row, gpuHandle, inputBuffers, inputBufs);
   }
 
-  getMetalHandleOutput(inputBuffers->userInputBuffer,
+  getMetalHandleOutput(gpuHandle->identifier,
+                       inputBuffers->userInputBuffer,
                        inputBuffers->userInputGlobalBuffer,
                        inputBuffers->userInputMetaBuffer,
                        inputBuffers->policyResults,
