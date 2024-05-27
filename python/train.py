@@ -61,6 +61,9 @@ if __name__ == "__main__":
     optional_args.add_argument('-exportprefix', help='Prefix to append to names of models', required=False)
     optional_args.add_argument('-initial-checkpoint', help='If no training checkpoint exists, initialize from this checkpoint', required=False)
 
+    optional_args.add_argument('-always-initial-checkpoint', help='Always use even if ckpt exists already', required=False, action='store_true')
+    optional_args.add_argument('-required-initial-checkpoint-train-steps', help='Poll until it meets this', type=int, required=False)
+
     required_args.add_argument('-pos-len', help='Spatial edge length of expected training data, e.g. 19 for 19x19 Go', type=int, required=True)
     required_args.add_argument('-batch-size', help='Per-GPU batch size to use for training', type=int, required=True)
     optional_args.add_argument('-samples-per-epoch', help='Number of data samples to consider as one epoch', type=int, required=False)
@@ -142,6 +145,8 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
     exportdir = args["exportdir"]
     exportprefix = args["exportprefix"]
     initial_checkpoint = args["initial_checkpoint"]
+    always_initial_checkpoint = args["always_initial_checkpoint"]
+    required_initial_checkpoint_train_steps = args["required_initial_checkpoint_train_steps"]
 
     pos_len = args["pos_len"]
     batch_size = args["batch_size"]
@@ -404,13 +409,14 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
         return param_groups
 
     def load():
-        if not os.path.exists(get_checkpoint_path()):
-            logging.info("No preexisting checkpoint found at: " + get_checkpoint_path())
-            for i in range(NUM_SHORTTERM_CHECKPOINTS_TO_KEEP):
-                if os.path.exists(get_checkpoint_prev_path(i)):
-                    raise Exception(f"No preexisting checkpoint found, but {get_checkpoint_prev_path(i)} exists, something is wrong with the training dir")
+        if not os.path.exists(get_checkpoint_path()) or always_initial_checkpoint:
+            if not always_initial_checkpoint:
+                logging.info("No preexisting checkpoint found at: " + get_checkpoint_path())
+                for i in range(NUM_SHORTTERM_CHECKPOINTS_TO_KEEP):
+                    if os.path.exists(get_checkpoint_prev_path(i)):
+                        raise Exception(f"No preexisting checkpoint found, but {get_checkpoint_prev_path(i)} exists, something is wrong with the training dir")
 
-            if initial_checkpoint is not None:
+            if initial_checkpoint is not None or always_initial_checkpoint:
                 if os.path.exists(initial_checkpoint):
                     logging.info("Using initial checkpoint: {initial_checkpoint}")
                     path_to_load_from = initial_checkpoint
@@ -470,6 +476,18 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
             else:
                 logging.info("WARNING: Train state not found in state dict, using fresh train state")
 
+            if required_initial_checkpoint_train_steps:
+                if (
+                    "global_step_samples" not in train_state["global_step_samples"] or
+                    train_state["global_step_samples"] < required_initial_checkpoint_train_steps
+                ):
+                    # Sleep 15 minutes and try again
+                    logging.info(f"Requiring {required_initial_checkpoint_train_steps} but {global_step_samples=}")
+                    time.sleep(900)
+                    return None
+                # In the mode where we require a specifc number of train steps, go ahead and reset the export cycle.
+                train_state["export_cycle_counter"] = 0
+
             # Do this before loading the state dict, while the model is initialized to fresh values, to get a good baseline
             if "modelnorm_normal_baseline" not in train_state:
                 logging.info("Computing modelnorm_normal_baseline since not in train state")
@@ -524,7 +542,10 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
 
             return (model_config, ddp_model, raw_model, swa_model, optimizer, metrics_obj, running_metrics, train_state, last_val_metrics)
 
-    (model_config, ddp_model, raw_model, swa_model, optimizer, metrics_obj, running_metrics, train_state, last_val_metrics) = load()
+    loaded = None
+    while loaded is None:
+        loaded = load()
+    (model_config, ddp_model, raw_model, swa_model, optimizer, metrics_obj, running_metrics, train_state, last_val_metrics) = loaded
 
 
     if "global_step_samples" not in train_state:
@@ -1003,6 +1024,7 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
         logging.info("Currently up to data row " + str(train_state["total_num_data_rows"]))
         logging.info(f"Training dir: {traindir}")
         logging.info(f"Export dir: {exportdir}")
+        logging.info("Export cycle counter = " + str(train_state["export_cycle_counter"]))
         if use_fp16:
             logging.info(f"Current grad scale: {scaler.get_scale()}")
 
