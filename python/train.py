@@ -418,10 +418,10 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
 
             if initial_checkpoint is not None or always_initial_checkpoint:
                 if os.path.exists(initial_checkpoint):
-                    logging.info("Using initial checkpoint: {initial_checkpoint}")
+                    logging.info(f"Using initial checkpoint: {initial_checkpoint}")
                     path_to_load_from = initial_checkpoint
                 else:
-                    raise Exception("No preexisting checkpoint found, initial checkpoint provided is invalid: {initial_checkpoint}")
+                    raise Exception(f"No preexisting checkpoint found, initial checkpoint provided is invalid: {initial_checkpoint}")
             else:
                 path_to_load_from = None
         else:
@@ -478,7 +478,7 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
 
             if required_initial_checkpoint_train_steps:
                 if (
-                    "global_step_samples" not in train_state["global_step_samples"] or
+                    "global_step_samples" not in train_state or
                     train_state["global_step_samples"] < required_initial_checkpoint_train_steps
                 ):
                     # Sleep 15 minutes and try again
