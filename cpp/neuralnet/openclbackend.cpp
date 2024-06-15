@@ -913,8 +913,10 @@ struct BatchNormLayer {
       kernel = handle->scaleBiasMaskReluNCHWKernel;
     else if(activation == ACTIVATION_MISH)
       kernel = handle->scaleBiasMaskMishNCHWKernel;
-    else
+    else {
       assert(false);
+      Global::fatalError("bad activation");
+    }
 
     clSetKernelArg(kernel, 0, sizeof(cl_mem), (const void *)&input);
     clSetKernelArg(kernel, 1, sizeof(cl_mem), (const void *)&output);
@@ -1511,8 +1513,10 @@ struct MatBiasLayer {
       kernel = handle->addCBiasesNCReluKernel;
     else if(activation == ACTIVATION_MISH)
       kernel = handle->addCBiasesNCMishKernel;
-    else
+    else {
       assert(false);
+      Global::fatalError("bad activation");
+    }
 
     clSetKernelArg(kernel, 0, sizeof(cl_mem), (const void *)&input);
     clSetKernelArg(kernel, 1, sizeof(cl_mem), (const void *)&biasBuf);
