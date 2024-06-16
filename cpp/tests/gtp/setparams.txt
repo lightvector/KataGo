@@ -12,6 +12,7 @@ kata-get-param analysisWideRootNoise
 kata-get-param wideRootNoise
 genmove w
 undo
+kata-set-param wideRootNoise 0
 kata-set-param playoutDoublingAdvantage 1
 kata-get-params
 genmove w

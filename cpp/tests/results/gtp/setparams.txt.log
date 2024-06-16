@@ -161,7 +161,7 @@ D16 : T  -1.31c W  -0.67c S  -0.12c ( -0.5 L  -0.6) LCB  -75.21c P  5.50% WF   3
 : Controller: kata-get-param analysisWideRootNoise
 : = 1
 : Controller: kata-get-param wideRootNoise
-: ? Invalid parameter
+: = 0.0
 : Controller: genmove w
 : MoveNum: 1 HASH: 87712726FD65E13B89C878D9CA82BF83
    A B C D E F G H J K L M N O P Q R S T
@@ -211,11 +211,11 @@ D16 : T  -1.31c W  -0.67c S  -0.12c ( -0.5 L  -0.6) LCB  -75.21c P  5.50% WF   3
 : Controller: undo
 : = 
 : Controller: kata-set-params {"wideRootNoise":0.6, "analysisWideRootNoise" :0.9 }
-: ? unknown command
+: = 
 : Controller: kata-get-param analysisWideRootNoise
-: = 1
+: = 0.9
 : Controller: kata-get-param wideRootNoise
-: ? Invalid parameter
+: = 0.6
 : Controller: genmove w
 : MoveNum: 1 HASH: 87712726FD65E13B89C878D9CA82BF83
    A B C D E F G H J K L M N O P Q R S T
@@ -243,31 +243,33 @@ koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Time taken: ###
 Root visits: 100
 New playouts: 100
-NN rows: 0
-NN batches: 0
-NN avg batch size: -nan
-PV: Q17 D3 C16 Q5
+NN rows: 40
+NN batches: 40
+NN avg batch size: 1
+PV: Q17 D3 D17 Q5
 Tree:
-: T   0.12c W   0.04c S   0.07c ( -0.2 L  -0.2) N     100  --  Q17 D3 C16 Q5
+: T  -0.84c W  -0.68c S  -0.05c ( -0.4 L  -0.4) N     100  --  Q17 D3 D17 Q5
 ---White(^)---
-Q17 : T   1.10c W   0.58c S   0.11c ( -0.2 L  -0.1) LCB   -1.10c P 10.57% WF  18.1 PSV      30 N      18  --  Q17 D3 C16 Q5
-R16 : T   0.61c W   0.53c S   0.09c ( -0.2 L  -0.2) LCB   -1.97c P 13.79% WF  18.0 PSV      18 N      18  --  R16 D3 C16 Q5
-D3  : T   0.17c W  -0.02c S   0.02c ( -0.3 L  -0.2) LCB   -3.53c P 13.23% WF  14.0 PSV      14 N      14  --  D3 R16 D17 Q5
-D17 : T   0.02c W  -0.25c S   0.05c ( -0.2 L  -0.2) LCB   -5.57c P 10.21% WF  11.0 PSV      11 N      11  --  D17 D3 Q17 Q5
-C16 : T   0.49c W   0.13c S   0.14c ( -0.1 L  +0.0) LCB   -5.76c P  9.07% WF  11.0 PSV      11 N      11  --  C16 R16 D3 Q5
-C4  : T   0.20c W  -0.25c S   0.03c ( -0.3 L  -0.2) LCB   -7.25c P  9.01% WF  10.0 PSV      10 N      10  --  C4 Q17 D17 Q5
-Q4  : T  -1.92c W   0.30c S   0.22c ( +0.0 L  -0.3) LCB  -22.32c P  8.31% WF   6.0 PSV       5 N       6  --  Q4 R4 P3 R3
-D4  : T  -0.92c W  -1.06c S  -0.07c ( -0.4 L  -0.4) LCB  -43.82c P  5.42% WF   4.0 PSV       4 N       4  --  D4 C16 Q17
-Q16 : T  -1.53c W  -0.93c S  -0.03c ( -0.4 L  -0.4) LCB  -44.38c P  5.69% WF   4.0 PSV       3 N       4  --  Q16 D3 D17
-D16 : T  -1.31c W  -0.67c S  -0.12c ( -0.5 L  -0.6) LCB  -75.21c P  5.50% WF   3.0 PSV       3 N       3  --  D16 D3 Q17
+Q17 : T   0.41c W  -0.02c S   0.15c ( -0.1 L  -0.0) LCB   -6.11c P 10.57% WF  10.0 PSV      13 N      10  --  Q17 D3 D17 Q5
+R16 : T   0.14c W  -0.06c S   0.11c ( -0.2 L  -0.1) LCB   -7.07c P 13.79% WF  10.0 PSV      10 N      10  --  R16 D3 D17 Q5
+C16 : T   0.96c W   0.76c S   0.19c ( -0.0 L  +0.0) LCB  -13.50c P  9.07% WF   7.0 PSV       7 N       7  --  C16 D3 Q17 Q5
+D3  : T   1.10c W   0.48c S   0.06c ( -0.2 L  -0.2) LCB  -18.39c P 13.23% WF   6.0 PSV       6 N       6  --  D3 C16 Q17 E16
+D17 : T   0.34c W   0.04c S   0.12c ( -0.1 L  -0.1) LCB  -16.13c P 10.21% WF   6.0 PSV       6 N       6  --  D17 D3 Q17 Q5
+Q4  : T   0.21c W   0.20c S   0.11c ( -0.1 L  -0.3) LCB  -19.70c P  8.31% WF   6.0 PSV       6 N       6  --  Q4 R4 C4 C16 Q17 E16
+C4  : T   0.45c W   0.10c S   0.09c ( -0.2 L  -0.1) LCB  -27.51c P  9.01% WF   5.0 PSV       5 N       5  --  C4 C16 Q17 E16
+Q16 : T  -1.35c W  -1.29c S  -0.09c ( -0.5 L  -0.3) LCB   -8.53c P  5.69% WF   9.7 PSV       3 N      10  --  Q16 D3 D17 Q5
+D4  : T  -0.64c W  -0.90c S  -0.02c ( -0.4 L  -0.2) LCB  -15.07c P  5.42% WF   7.0 PSV       3 N       7  --  D4 C16 Q17 E16
+D16 : T  -2.22c W  -1.18c S  -0.10c ( -0.5 L  -0.4) LCB  -21.86c P  5.50% WF   6.0 PSV       2 N       6  --  D16 D3 Q17 Q5
 
 : = Q17
 : Controller: undo
 : = 
+: Controller: kata-set-param wideRootNoise 0
+: = 
 : Controller: kata-set-param playoutDoublingAdvantage 1
 : = 
 : Controller: kata-get-params
-: ? unknown command
+: = {"analysisIgnorePreRootHistory":"true","analysisWideRootNoise":"0.9","antiMirror":"false","chosenMovePrune":1.0,"chosenMoveSubtract":0.0,"chosenMoveTemperature":0.1,"chosenMoveTemperatureEarly":0.5,"chosenMoveTemperatureHalflife":19.0,"chosenMoveTemperatureOnlyBelowProb":1.0,"conservativePass":true,"cpuctExploration":1.0,"cpuctExplorationBase":500.0,"cpuctExplorationLog":0.45,"cpuctUtilityStdevPrior":0.4,"cpuctUtilityStdevPriorWeight":2.0,"cpuctUtilityStdevScale":0.85,"drawEquivalentWinsForWhite":0.5,"dynamicScoreCenterScale":0.75,"dynamicScoreCenterZeroWeight":0.2,"dynamicScoreUtilityFactor":0.3,"enablePassingHacks":true,"endgameTurnTimeDecay":100.0,"fillDameBeforePass":true,"fpuLossProp":0.0,"fpuParentWeight":0.0,"fpuParentWeightByVisitedPolicy":true,"fpuParentWeightByVisitedPolicyPow":2.0,"fpuReductionMax":0.2,"futileVisitsThreshold":0.0,"genmoveAntiMirror":"true","graphSearchCatchUpLeakProb":0.0,"graphSearchRepBound":11,"humanSLChosenMoveIgnorePass":false,"humanSLChosenMovePiklLambda":1000000000.0,"humanSLChosenMoveProp":0.0,"humanSLCpuctExploration":1.0,"humanSLCpuctPermanent":0.0,"humanSLOppExploreProbWeightful":0.0,"humanSLOppExploreProbWeightless":0.0,"humanSLPlaExploreProbWeightful":0.0,"humanSLPlaExploreProbWeightless":0.0,"humanSLProfile":"","humanSLRootExploreProbWeightful":0.0,"humanSLRootExploreProbWeightless":0.0,"ignoreAllHistory":false,"ignorePreRootHistory":false,"lagBuffer":1.0,"lcbStdevs":5.0,"maxPlayouts":10000,"maxPlayoutsPondering":1125899906842624,"maxTime":1e+20,"maxTimePondering":60.0,"maxVisits":100,"maxVisitsPondering":1125899906842624,"midgameTimeFactor":1.0,"midgameTurnPeakTime":130.0,"minPlayoutsPerThread":8.0,"minVisitPropForLCB":0.15,"nnPolicyTemperature":1.0,"noResultUtilityForWhite":0.0,"noisePruneUtilityScale":0.15,"noisePruningCap":1e+50,"numVirtualLossesPerThread":1.0,"obviousMovesPolicyEntropyTolerance":0.3,"obviousMovesPolicySurpriseTolerance":0.15,"obviousMovesTimeFactor":1.0,"overallocateTimeFactor":1.0,"playoutDoublingAdvantage":1.0,"playoutDoublingAdvantagePla":"E","policyOptimism":1.0,"rootDesiredPerChildVisitsCoeff":0.0,"rootDirichletNoiseTotalConcentration":10.83,"rootDirichletNoiseWeight":0.25,"rootEndingBonusPoints":0.5,"rootFpuLossProp":0.0,"rootFpuReductionMax":0.1,"rootNoiseEnabled":false,"rootNumSymmetriesToSample":1,"rootPolicyOptimism":0.2,"rootPolicyTemperature":1.0,"rootPolicyTemperatureEarly":1.0,"rootPruneUselessMoves":true,"rootSymmetryPruning":false,"searchFactorAfterOnePass":0.5,"searchFactorAfterTwoPass":0.25,"staticScoreUtilityFactor":0.1,"subtreeValueBiasFactor":0.45,"subtreeValueBiasFreeProp":0.8,"subtreeValueBiasTableNumShards":65536,"subtreeValueBiasWeightExponent":0.85,"treeReuseCarryOverTimeFactor":0.0,"uncertaintyCoeff":0.25,"uncertaintyExponent":1.0,"uncertaintyMaxWeight":8.0,"useGraphSearch":true,"useLcbForSelection":true,"useNoisePruning":true,"useNonBuggyLcb":true,"useUncertainty":true,"valueWeightExponent":0.25,"wideRootNoise":0.0,"winLossUtilityFactor":1.0}
 : Controller: genmove w
 : MoveNum: 1 HASH: 87712726FD65E13B89C878D9CA82BF83
    A B C D E F G H J K L M N O P Q R S T
@@ -317,9 +319,9 @@ D4  : T  42.34c W  44.11c S   2.22c (+11.1 L +10.1) LCB -107.42c P  4.14% WF   2
 : Controller: undo
 : = 
 : Controller: kata-set-param dynamicPlayoutDoublingAdvantageCapPerOppLead 0.045
-: ? Unknown or invalid parameter: dynamicPlayoutDoublingAdvantageCapPerOppLead
+: ? Could not set params: Cannot be overridden in kata-set-param: dynamicPlayoutDoublingAdvantageCapPerOppLead
 : Controller: kata-get-params
-: ? unknown command
+: = {"analysisIgnorePreRootHistory":"true","analysisWideRootNoise":"0.9","antiMirror":"false","chosenMovePrune":1.0,"chosenMoveSubtract":0.0,"chosenMoveTemperature":0.1,"chosenMoveTemperatureEarly":0.5,"chosenMoveTemperatureHalflife":19.0,"chosenMoveTemperatureOnlyBelowProb":1.0,"conservativePass":true,"cpuctExploration":1.0,"cpuctExplorationBase":500.0,"cpuctExplorationLog":0.45,"cpuctUtilityStdevPrior":0.4,"cpuctUtilityStdevPriorWeight":2.0,"cpuctUtilityStdevScale":0.85,"drawEquivalentWinsForWhite":0.5,"dynamicScoreCenterScale":0.75,"dynamicScoreCenterZeroWeight":0.2,"dynamicScoreUtilityFactor":0.3,"enablePassingHacks":true,"endgameTurnTimeDecay":100.0,"fillDameBeforePass":true,"fpuLossProp":0.0,"fpuParentWeight":0.0,"fpuParentWeightByVisitedPolicy":true,"fpuParentWeightByVisitedPolicyPow":2.0,"fpuReductionMax":0.2,"futileVisitsThreshold":0.0,"genmoveAntiMirror":"true","graphSearchCatchUpLeakProb":0.0,"graphSearchRepBound":11,"humanSLChosenMoveIgnorePass":false,"humanSLChosenMovePiklLambda":1000000000.0,"humanSLChosenMoveProp":0.0,"humanSLCpuctExploration":1.0,"humanSLCpuctPermanent":0.0,"humanSLOppExploreProbWeightful":0.0,"humanSLOppExploreProbWeightless":0.0,"humanSLPlaExploreProbWeightful":0.0,"humanSLPlaExploreProbWeightless":0.0,"humanSLProfile":"","humanSLRootExploreProbWeightful":0.0,"humanSLRootExploreProbWeightless":0.0,"ignoreAllHistory":false,"ignorePreRootHistory":false,"lagBuffer":1.0,"lcbStdevs":5.0,"maxPlayouts":10000,"maxPlayoutsPondering":1125899906842624,"maxTime":1e+20,"maxTimePondering":60.0,"maxVisits":100,"maxVisitsPondering":1125899906842624,"midgameTimeFactor":1.0,"midgameTurnPeakTime":130.0,"minPlayoutsPerThread":8.0,"minVisitPropForLCB":0.15,"nnPolicyTemperature":1.0,"noResultUtilityForWhite":0.0,"noisePruneUtilityScale":0.15,"noisePruningCap":1e+50,"numVirtualLossesPerThread":1.0,"obviousMovesPolicyEntropyTolerance":0.3,"obviousMovesPolicySurpriseTolerance":0.15,"obviousMovesTimeFactor":1.0,"overallocateTimeFactor":1.0,"playoutDoublingAdvantage":1.0,"playoutDoublingAdvantagePla":"E","policyOptimism":1.0,"rootDesiredPerChildVisitsCoeff":0.0,"rootDirichletNoiseTotalConcentration":10.83,"rootDirichletNoiseWeight":0.25,"rootEndingBonusPoints":0.5,"rootFpuLossProp":0.0,"rootFpuReductionMax":0.1,"rootNoiseEnabled":false,"rootNumSymmetriesToSample":1,"rootPolicyOptimism":0.2,"rootPolicyTemperature":1.0,"rootPolicyTemperatureEarly":1.0,"rootPruneUselessMoves":true,"rootSymmetryPruning":false,"searchFactorAfterOnePass":0.5,"searchFactorAfterTwoPass":0.25,"staticScoreUtilityFactor":0.1,"subtreeValueBiasFactor":0.45,"subtreeValueBiasFreeProp":0.8,"subtreeValueBiasTableNumShards":65536,"subtreeValueBiasWeightExponent":0.85,"treeReuseCarryOverTimeFactor":0.0,"uncertaintyCoeff":0.25,"uncertaintyExponent":1.0,"uncertaintyMaxWeight":8.0,"useGraphSearch":true,"useLcbForSelection":true,"useNoisePruning":true,"useNonBuggyLcb":true,"useUncertainty":true,"valueWeightExponent":0.25,"wideRootNoise":0.0,"winLossUtilityFactor":1.0}
 : Controller: genmove w
 : MoveNum: 1 HASH: 87712726FD65E13B89C878D9CA82BF83
    A B C D E F G H J K L M N O P Q R S T
@@ -415,7 +417,7 @@ D4  : T  42.34c W  44.11c S   2.22c (+11.1 L +10.1) LCB -107.42c P  4.14% WF   2
 
 : = D3
 : Controller: kata-set-param cpuctExploration 1.0
-: ? Unknown or invalid parameter: cpuctExploration
+: = 
 : Controller: debug_moves
 : = MoveNum: 1 HASH: 87712726FD65E13B89C878D9CA82BF83
    A B C D E F G H J K L M N O P Q R S T
@@ -451,7 +453,7 @@ D16 : T  41.61c W  43.82c S   2.17c (+11.0 L +10.0) LCB -108.30c P  5.13% WF   2
 D4  : T  42.34c W  44.11c S   2.22c (+11.1 L +10.1) LCB -107.42c P  4.14% WF   2.0 PSV       1 N       2  --  D4 C16
 
 : Controller: kata-set-param cpuctExploration 3.0
-: ? Unknown or invalid parameter: cpuctExploration
+: = 
 : Controller: debug_moves
 : = MoveNum: 1 HASH: 87712726FD65E13B89C878D9CA82BF83
    A B C D E F G H J K L M N O P Q R S T
@@ -474,26 +476,15 @@ D4  : T  42.34c W  44.11c S   2.22c (+11.1 L +10.1) LCB -107.42c P  4.14% WF   2
  3 . . . . . . . . . . . . . . . X1. . .
  2 . . . . . . . . . . . . . . . . . . .
  1 . . . . . . . . . . . . . . . . . . .
-: T  49.40c W  46.52c S   2.61c (+11.7 L +10.9) N     100  --  D3 C16 Q17 E16 Q15 Q5
----White(^)---
-D3  : T  51.80c W  48.05c S   2.81c (+12.0 L +11.2) LCB   49.44c P 12.40% WF  50.5 PSV      50 N      50  --  D3 C16 Q17 E16 Q15 Q5
-R16 : T  48.11c W  45.37c S   2.40c (+11.4 L +10.4) LCB   39.32c P 12.96% WF  11.9 PSV      10 N      12  --  R16 D3 D17 Q5
-D17 : T  47.12c W  45.37c S   2.43c (+11.4 L +10.4) LCB   32.73c P 13.23% WF   7.9 PSV       8 N       8  --  D17 C4 Q17 E4
-C16 : T  48.42c W  46.48c S   2.57c (+11.6 L +10.7) LCB   35.03c P  9.33% WF   7.9 PSV       8 N       8  --  C16 C4 Q17 E4
-C4  : T  49.00c W  45.76c S   2.50c (+11.5 L +10.8) LCB   35.61c P  7.98% WF   8.0 PSV       7 N       8  --  C4 D17 Q17 D15
-Q17 : T  47.11c W  44.45c S   2.26c (+11.2 L +10.3) LCB   34.44c P 11.44% WF   6.9 PSV       7 N       7  --  Q17 C16 D3 E16 Q15 Q5
-Q4  : T  36.24c W  37.70c S   2.09c (+10.9 L  +9.5) LCB -113.34c P  9.19% WF   1.9 PSV       2 N       2  --  Q4 R4
-D16 : T  41.61c W  43.82c S   2.17c (+11.0 L +10.0) LCB -108.30c P  5.13% WF   2.0 PSV       1 N       2  --  D16 C4
-D4  : T  42.34c W  44.11c S   2.22c (+11.1 L +10.1) LCB -107.42c P  4.14% WF   2.0 PSV       1 N       2  --  D4 C16
 
 : Controller: kata-get-param cpuctExploration
-: ? Invalid parameter
+: = 3.0
 : Controller: genmove_debug w
 : MoveNum: 1 HASH: 87712726FD65E13B89C878D9CA82BF83
    A B C D E F G H J K L M N O P Q R S T
 19 . . . . . . . . . . . . . . . . . . .
 18 . . . . . . . . . . . . . . . . . . .
-17 . . . . . . . . . . . . . . . . . . .
+17 . . . . . . . . . . . . . . . @ . . .
 16 . . . . . . . . . . . . . . . . . . .
 15 . . . . . . . . . . . . . . . . . . .
 14 . . . . . . . . . . . . . . . . . . .
@@ -507,32 +498,33 @@ D4  : T  42.34c W  44.11c S   2.22c (+11.1 L +10.1) LCB -107.42c P  4.14% WF   2
  6 . . . . . . . . . . . . . . . . . . .
  5 . . . . . . . . . . . . . . . . . . .
  4 . . . . . . . . . . . . . . . . . . .
- 3 . . . @ . . . . . . . . . . . X1. . .
+ 3 . . . . . . . . . . . . . . . X1. . .
  2 . . . . . . . . . . . . . . . . . . .
  1 . . . . . . . . . . . . . . . . . . .
 
 koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Time taken: ###
 Root visits: 100
-New playouts: 0
-NN rows: 0
-NN batches: 0
-NN avg batch size: -nan
+New playouts: 100
+NN rows: 22
+NN batches: 22
+NN avg batch size: 1
 PlayoutDoublingAdvantage: 1
-PV: D3 C16 Q17 E16 Q15 Q5
+PV: D3 C16 Q17 Q5
 Tree:
-: T  49.23c W  46.46c S   2.67c (+11.7 L +10.8) N     100  --  D3 C16 Q17 E16 Q15 Q5
+: T  48.17c W  45.32c S   2.51c (+11.5 L +10.5) N     100  --  D3 C16 Q17 Q5
 ---White(^)---
-D3  : T  51.71c W  48.05c S   2.89c (+12.0 L +11.2) LCB   49.22c P 12.40% WF  50.6 PSV      50 N      50  --  D3 C16 Q17 E16 Q15 Q5
-R16 : T  47.52c W  45.23c S   2.42c (+11.3 L +10.4) LCB   40.22c P 12.96% WF  11.9 PSV       9 N      12  --  R16 C16 D3 E16 P16 Q5
-C16 : T  48.50c W  46.48c S   2.65c (+11.6 L +10.7) LCB   35.11c P  9.33% WF   8.0 PSV       8 N       8  --  C16 C4 Q17 E4
-D17 : T  45.96c W  44.70c S   2.36c (+11.2 L +10.3) LCB   33.69c P 13.23% WF   7.9 PSV       7 N       8  --  D17 C4 Q17 E4
-C4  : T  48.61c W  45.76c S   2.58c (+11.5 L +10.8) LCB   35.32c P  7.98% WF   8.0 PSV       7 N       8  --  C4 D17 Q17 D15
-Q17 : T  47.94c W  44.65c S   2.39c (+11.2 L +10.4) LCB   35.15c P 11.44% WF   6.9 PSV       7 N       7  --  Q17 C16 D3 E16 Q15 Q5
-Q4  : T  36.32c W  37.70c S   2.17c (+10.9 L  +9.5) LCB -113.26c P  9.19% WF   1.9 PSV       2 N       2  --  Q4 R4
-D16 : T  41.70c W  43.82c S   2.25c (+11.0 L +10.0) LCB -108.22c P  5.13% WF   2.0 PSV       1 N       2  --  D16 C4
-D4  : T  42.42c W  44.11c S   2.30c (+11.1 L +10.1) LCB -107.34c P  4.14% WF   2.0 PSV       1 N       2  --  D4 C16
+D3  : T  49.98c W  46.92c S   2.69c (+11.8 L +10.9) LCB   44.92c P 12.40% WF  17.1 PSV      30 N      17  --  D3 C16 Q17 Q5
+R16 : T  49.74c W  46.20c S   2.58c (+11.6 L +10.6) LCB   42.92c P 12.96% WF  16.1 PSV      16 N      16  --  R16 C16 C4 E16
+D17 : T  47.90c W  45.12c S   2.46c (+11.5 L +10.4) LCB   40.80c P 13.23% WF  16.0 PSV      15 N      16  --  D17 D3 Q17 Q5
+Q17 : T  50.19c W  45.97c S   2.57c (+11.6 L +10.5) LCB   43.25c P 11.44% WF  15.1 PSV      15 N      15  --  Q17 C16 C4 E16
+C16 : T  50.58c W  46.60c S   2.73c (+11.8 L +10.7) LCB   43.61c P  9.33% WF  14.1 PSV      14 N      14  --  C16 C4 Q17 E4
+C4  : T  49.50c W  45.15c S   2.56c (+11.6 L +10.6) LCB   35.51c P  7.98% WF   8.0 PSV       8 N       8  --  C4 Q17 D17
+Q4  : T  33.84c W  36.26c S   1.66c (+10.3 L  +8.8) LCB  -10.97c P  9.19% WF   3.8 PSV       4 N       4  --  Q4 R4 R5 R3
+D16 : T  40.04c W  41.19c S   1.73c (+10.4 L  +9.6) LCB  -35.06c P  5.13% WF   2.9 PSV       3 N       3  --  D16 C4
+D4  : T  42.34c W  44.11c S   2.22c (+11.1 L +10.1) LCB -107.42c P  4.14% WF   2.0 PSV       2 N       2  --  D4 C16
+Q16 : T  36.66c W  41.22c S   1.78c (+10.4 L  +9.4) LCB -114.33c P  3.93% WF   1.9 PSV       2 N       2  --  Q16 C16
 
-: = D3
-: GPU -1 finishing, processed 264 rows 264 batches
+: = Q17
+: GPU -1 finishing, processed 326 rows 326 batches
 : All cleaned up, quitting

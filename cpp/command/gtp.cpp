@@ -2441,13 +2441,16 @@ int MainCmds::gtp(const vector<string>& args) {
           {
             ConfigParser cleanCfg;
             cleanCfg.overrideKeys(overrideSettings);
+            // Add required parameter so that it passes validation
+            cleanCfg.overrideKey("numSearchThreads",Global::intToString(engine->getGenmoveParams().numThreads));
+
             SearchParams buf1;
             SearchParams buf2;
             loadParams(cleanCfg, buf1, buf2);
 
             // These parameters have a bit of special handling so we can't change them easily right now
-            if(contains(overrideSettings,"dynamicPlayoutDoublingAdvantageCapPerOppLead")) throw StringError("Cannot be overridden in kata-set-params: dynamicPlayoutDoublingAdvantageCapPerOppLead");
-            if(contains(overrideSettings,"avoidRepeatedPatternUtility")) throw StringError("Cannot be overridden in kata-set-params: avoidRepeatedPatternUtility");
+            if(contains(overrideSettings,"dynamicPlayoutDoublingAdvantageCapPerOppLead")) throw StringError("Cannot be overridden in kata-set-param: dynamicPlayoutDoublingAdvantageCapPerOppLead");
+            if(contains(overrideSettings,"avoidRepeatedPatternUtility")) throw StringError("Cannot be overridden in kata-set-param: avoidRepeatedPatternUtility");
 
             vector<string> unusedKeys = cleanCfg.unusedKeys();
             for(const string& unused: unusedKeys) {

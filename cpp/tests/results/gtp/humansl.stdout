@@ -18,27 +18,27 @@
 
 = F15
 
-? unknown command
+= {"analysisIgnorePreRootHistory":"true","analysisWideRootNoise":"0.04","antiMirror":"false","chosenMovePrune":0.0,"chosenMoveSubtract":0.0,"chosenMoveTemperature":0.7,"chosenMoveTemperatureEarly":0.85,"chosenMoveTemperatureHalflife":80.0,"chosenMoveTemperatureOnlyBelowProb":0.01,"conservativePass":true,"cpuctExploration":1.0,"cpuctExplorationBase":500.0,"cpuctExplorationLog":0.45,"cpuctUtilityStdevPrior":0.4,"cpuctUtilityStdevPriorWeight":2.0,"cpuctUtilityStdevScale":0.85,"drawEquivalentWinsForWhite":0.5,"dynamicScoreCenterScale":0.75,"dynamicScoreCenterZeroWeight":0.2,"dynamicScoreUtilityFactor":0.0,"enablePassingHacks":true,"endgameTurnTimeDecay":100.0,"fillDameBeforePass":true,"fpuLossProp":0.0,"fpuParentWeight":0.0,"fpuParentWeightByVisitedPolicy":true,"fpuParentWeightByVisitedPolicyPow":2.0,"fpuReductionMax":0.2,"futileVisitsThreshold":0.0,"genmoveAntiMirror":"true","graphSearchCatchUpLeakProb":0.0,"graphSearchRepBound":11,"humanSLChosenMoveIgnorePass":true,"humanSLChosenMovePiklLambda":100000000.0,"humanSLChosenMoveProp":1.0,"humanSLCpuctExploration":0.5,"humanSLCpuctPermanent":0.2,"humanSLOppExploreProbWeightful":0.0,"humanSLOppExploreProbWeightless":0.0,"humanSLPlaExploreProbWeightful":0.0,"humanSLPlaExploreProbWeightless":0.0,"humanSLProfile":"preaz_12k","humanSLRootExploreProbWeightful":0.0,"humanSLRootExploreProbWeightless":0.0,"ignoreAllHistory":false,"ignorePreRootHistory":false,"lagBuffer":1.0,"lcbStdevs":5.0,"maxPlayouts":1125899906842624,"maxPlayoutsPondering":1125899906842624,"maxTime":1e+20,"maxTimePondering":1e+20,"maxVisits":40,"maxVisitsPondering":1125899906842624,"midgameTimeFactor":1.0,"midgameTurnPeakTime":130.0,"minPlayoutsPerThread":8.0,"minVisitPropForLCB":0.15,"nnPolicyTemperature":1.0,"noResultUtilityForWhite":0.0,"noisePruneUtilityScale":0.15,"noisePruningCap":1e+50,"numVirtualLossesPerThread":1.0,"obviousMovesPolicyEntropyTolerance":0.3,"obviousMovesPolicySurpriseTolerance":0.15,"obviousMovesTimeFactor":1.0,"overallocateTimeFactor":1.0,"playoutDoublingAdvantage":0.0,"playoutDoublingAdvantagePla":"E","policyOptimism":1.0,"rootDesiredPerChildVisitsCoeff":0.0,"rootDirichletNoiseTotalConcentration":10.83,"rootDirichletNoiseWeight":0.25,"rootEndingBonusPoints":0.5,"rootFpuLossProp":0.0,"rootFpuReductionMax":0.1,"rootNoiseEnabled":false,"rootNumSymmetriesToSample":2,"rootPolicyOptimism":0.2,"rootPolicyTemperature":1.0,"rootPolicyTemperatureEarly":1.0,"rootPruneUselessMoves":true,"rootSymmetryPruning":true,"searchFactorAfterOnePass":1.0,"searchFactorAfterTwoPass":1.0,"staticScoreUtilityFactor":0.3,"subtreeValueBiasFactor":0.0,"subtreeValueBiasFreeProp":0.8,"subtreeValueBiasTableNumShards":65536,"subtreeValueBiasWeightExponent":0.85,"treeReuseCarryOverTimeFactor":0.0,"uncertaintyCoeff":0.25,"uncertaintyExponent":1.0,"uncertaintyMaxWeight":8.0,"useGraphSearch":true,"useLcbForSelection":false,"useNoisePruning":false,"useNonBuggyLcb":true,"useUncertainty":false,"valueWeightExponent":0.25,"wideRootNoise":0.0,"winLossUtilityFactor":1.0}
 
-? Invalid parameter
+= preaz_12k
 
-? Unknown or invalid parameter: humanSLProfile
-
-= L17
-
-= G15
-
-= H16
+= 
 
 = E18
 
-= D10
+= C17
 
-= D12
+= G15
 
-= D6
+= G14
 
-= C6
+= H14
 
-? Invalid parameter
+= H13
+
+= J13
+
+= G13
+
+= preaz_5d
 

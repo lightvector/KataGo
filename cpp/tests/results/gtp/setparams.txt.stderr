@@ -52,7 +52,7 @@ MoveNum: 1 HASH: 87712726FD65E13B89C878D9CA82BF83
    A B C D E F G H J K L M N O P Q R S T
 19 . . . . . . . . . . . . . . . . . . .
 18 . . . . . . . . . . . . . . . . . . .
-17 . . . . . . . . . . . . . . . . . . .
+17 . . . . . . . . . . . . . . . @ . . .
 16 . . . . . . . . . . . . . . . . . . .
 15 . . . . . . . . . . . . . . . . . . .
 14 . . . . . . . . . . . . . . . . . . .
@@ -66,28 +66,29 @@ MoveNum: 1 HASH: 87712726FD65E13B89C878D9CA82BF83
  6 . . . . . . . . . . . . . . . . . . .
  5 . . . . . . . . . . . . . . . . . . .
  4 . . . . . . . . . . . . . . . . . . .
- 3 . . . @ . . . . . . . . . . . X1. . .
+ 3 . . . . . . . . . . . . . . . X1. . .
  2 . . . . . . . . . . . . . . . . . . .
  1 . . . . . . . . . . . . . . . . . . .
 
 koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Time taken: ###
 Root visits: 100
-New playouts: 0
-NN rows: 0
-NN batches: 0
-NN avg batch size: -nan
+New playouts: 100
+NN rows: 22
+NN batches: 22
+NN avg batch size: 1
 PlayoutDoublingAdvantage: 1
-PV: D3 C16 Q17 E16 Q15 Q5
+PV: D3 C16 Q17 Q5
 Tree:
-: T  49.23c W  46.46c S   2.67c (+11.7 L +10.8) N     100  --  D3 C16 Q17 E16 Q15 Q5
+: T  48.17c W  45.32c S   2.51c (+11.5 L +10.5) N     100  --  D3 C16 Q17 Q5
 ---White(^)---
-D3  : T  51.71c W  48.05c S   2.89c (+12.0 L +11.2) LCB   49.22c P 12.40% WF  50.6 PSV      50 N      50  --  D3 C16 Q17 E16 Q15 Q5
-R16 : T  47.52c W  45.23c S   2.42c (+11.3 L +10.4) LCB   40.22c P 12.96% WF  11.9 PSV       9 N      12  --  R16 C16 D3 E16 P16 Q5
-C16 : T  48.50c W  46.48c S   2.65c (+11.6 L +10.7) LCB   35.11c P  9.33% WF   8.0 PSV       8 N       8  --  C16 C4 Q17 E4
-D17 : T  45.96c W  44.70c S   2.36c (+11.2 L +10.3) LCB   33.69c P 13.23% WF   7.9 PSV       7 N       8  --  D17 C4 Q17 E4
-C4  : T  48.61c W  45.76c S   2.58c (+11.5 L +10.8) LCB   35.32c P  7.98% WF   8.0 PSV       7 N       8  --  C4 D17 Q17 D15
-Q17 : T  47.94c W  44.65c S   2.39c (+11.2 L +10.4) LCB   35.15c P 11.44% WF   6.9 PSV       7 N       7  --  Q17 C16 D3 E16 Q15 Q5
-Q4  : T  36.32c W  37.70c S   2.17c (+10.9 L  +9.5) LCB -113.26c P  9.19% WF   1.9 PSV       2 N       2  --  Q4 R4
-D16 : T  41.70c W  43.82c S   2.25c (+11.0 L +10.0) LCB -108.22c P  5.13% WF   2.0 PSV       1 N       2  --  D16 C4
-D4  : T  42.42c W  44.11c S   2.30c (+11.1 L +10.1) LCB -107.34c P  4.14% WF   2.0 PSV       1 N       2  --  D4 C16
+D3  : T  49.98c W  46.92c S   2.69c (+11.8 L +10.9) LCB   44.92c P 12.40% WF  17.1 PSV      30 N      17  --  D3 C16 Q17 Q5
+R16 : T  49.74c W  46.20c S   2.58c (+11.6 L +10.6) LCB   42.92c P 12.96% WF  16.1 PSV      16 N      16  --  R16 C16 C4 E16
+D17 : T  47.90c W  45.12c S   2.46c (+11.5 L +10.4) LCB   40.80c P 13.23% WF  16.0 PSV      15 N      16  --  D17 D3 Q17 Q5
+Q17 : T  50.19c W  45.97c S   2.57c (+11.6 L +10.5) LCB   43.25c P 11.44% WF  15.1 PSV      15 N      15  --  Q17 C16 C4 E16
+C16 : T  50.58c W  46.60c S   2.73c (+11.8 L +10.7) LCB   43.61c P  9.33% WF  14.1 PSV      14 N      14  --  C16 C4 Q17 E4
+C4  : T  49.50c W  45.15c S   2.56c (+11.6 L +10.6) LCB   35.51c P  7.98% WF   8.0 PSV       8 N       8  --  C4 Q17 D17
+Q4  : T  33.84c W  36.26c S   1.66c (+10.3 L  +8.8) LCB  -10.97c P  9.19% WF   3.8 PSV       4 N       4  --  Q4 R4 R5 R3
+D16 : T  40.04c W  41.19c S   1.73c (+10.4 L  +9.6) LCB  -35.06c P  5.13% WF   2.9 PSV       3 N       3  --  D16 C4
+D4  : T  42.34c W  44.11c S   2.22c (+11.1 L +10.1) LCB -107.42c P  4.14% WF   2.0 PSV       2 N       2  --  D4 C16
+Q16 : T  36.66c W  41.22c S   1.78c (+10.4 L  +9.4) LCB -114.33c P  3.93% WF   1.9 PSV       2 N       2  --  Q16 C16
