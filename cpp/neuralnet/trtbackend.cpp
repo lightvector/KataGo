@@ -994,10 +994,88 @@ struct TRTLogger : ILogger {
     if(severity == Severity::kERROR && logger && !logger->isLoggingToStderr() && !logger->isLoggingToStdout()) {
       std::cerr << ("TensorRT backend: " + string(msg)) << std::endl;
     }
+    if(severity == Severity::kERROR) {
+      if((string(msg).find("Cask convolution") != std::string::npos) ||
+         (string(msg).find("Cask Convolution") != std::string::npos) ||
+         (string(msg).find("elementWiseRunner.cpp") != std::string::npos) ||
+         (string(msg).find("convBaseRunner.cpp") != std::string::npos) ||
+         (string(msg).find("Cuda Runtime") != std::string::npos)
+      ) {
+         Global::fatalError("TensorRT backend fatal error: " + string(msg));
+      }
+    }
   }
 
   void setLogger(Logger* externalLogger) { logger = externalLogger; }
 };
+
+struct TRTErrorRecorder : IErrorRecorder {
+  mutable std::mutex mutex;
+  std::vector<std::pair<ErrorCode,std::string>> errors;
+  std::atomic<int32_t> refCount;
+  Logger* logger;
+
+  TRTErrorRecorder()
+    :mutex(),
+     errors(),
+     refCount(0),
+     logger(NULL)
+  {}
+
+  void clear() noexcept override {
+    std::lock_guard<std::mutex> lock(mutex);
+    errors.clear();
+  }
+  int32_t getNbErrors() const noexcept {
+    std::lock_guard<std::mutex> lock(mutex);
+    return (int32_t)errors.size();
+  }
+  ErrorCode getErrorCode(int32_t errorIdx) const noexcept {
+    std::lock_guard<std::mutex> lock(mutex);
+    if(errorIdx < 0 || errorIdx >= errors.size())
+      return ErrorCode::kINVALID_ARGUMENT;
+    return errors[errorIdx].first;
+  }
+  IErrorRecorder::ErrorDesc getErrorDesc(int32_t errorIdx) const noexcept {
+    std::lock_guard<std::mutex> lock(mutex);
+    if(errorIdx < 0 || errorIdx >= errors.size())
+      return "";
+    return errors[errorIdx].second.c_str();
+  }
+  bool hasOverflowed() const noexcept {
+    return false;
+  }
+  bool empty() const noexcept {
+    std::lock_guard<std::mutex> lock(mutex);
+    return errors.size() <= 0;
+  }
+  bool reportError(ErrorCode val, IErrorRecorder::ErrorDesc desc) noexcept {
+    std::lock_guard<std::mutex> lock(mutex);
+    errors.push_back(std::make_pair(val,string(desc)));
+    if(
+      (val != ErrorCode::kUNSPECIFIED_ERROR && val != ErrorCode::kSUCCESS)
+      || (errors[errors.size()-1].second.find("Cask convolution") != std::string::npos)
+      || (errors[errors.size()-1].second.find("Cask Convolution") != std::string::npos)
+      || (errors[errors.size()-1].second.find("elementWiseRunner.cpp") != std::string::npos)
+      || (errors[errors.size()-1].second.find("convBaseRunner.cpp") != std::string::npos)
+      || (errors[errors.size()-1].second.find("Cuda Runtime") != std::string::npos)
+    ) {
+      Global::fatalError("Fatal error reported from TensorRT: " + Global::intToString((int)val) + " " + std::string(desc));
+    }
+    logger->write("TensorRT error reported code: " + Global::intToString((int)val) + " " + std::string(desc));
+    return false;
+  }
+
+  void setLogger(Logger* externalLogger) { logger = externalLogger; }
+
+  IErrorRecorder::RefCount incRefCount() noexcept {
+    return ++refCount;
+  }
+  IErrorRecorder::RefCount decRefCount() noexcept {
+    return --refCount;
+  }
+};
+
 
 struct ComputeHandle {
   ComputeContext* ctx;
@@ -1008,6 +1086,7 @@ struct ComputeHandle {
   vector<pair<string, string>> debugOutputs;
 
   TRTLogger trtLogger;
+  TRTErrorRecorder trtErrorRecorder;
   map<string, void*> buffers;
   unique_ptr<IRuntime> runtime;
   unique_ptr<ICudaEngine> engine;
@@ -1257,6 +1336,8 @@ struct ComputeHandle {
     if(!runtime) {
       throw StringError("TensorRT backend: failed to create runtime");
     }
+    trtErrorRecorder.setLogger(logger);
+    runtime->setErrorRecorder(&trtErrorRecorder);
 
     engine.reset(runtime->deserializeCudaEngine(plan.data(), plan.size()));
     if(!engine) {
@@ -1279,6 +1360,7 @@ struct ComputeHandle {
 
     exec->setOptimizationProfileAsync(0, cudaStreamPerThread);
     cudaStreamSynchronize(cudaStreamPerThread);
+    trtErrorRecorder.clear();
   }
 
   ~ComputeHandle() {
@@ -1700,6 +1782,7 @@ void NeuralNet::getOutput(
       cudaMemcpyDeviceToHost));
 
   gpuHandle->printDebugOutput(batchSize);
+  gpuHandle->trtErrorRecorder.clear();
 
   assert(outputs.size() == batchSize);
 
