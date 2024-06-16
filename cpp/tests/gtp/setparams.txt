@@ -1,0 +1,29 @@
+genmove b
+clear_cache
+genmove w
+undo
+kata-set-param analysisWideRootNoise 1
+kata-get-param analysisWideRootNoise
+kata-get-param wideRootNoise
+genmove w
+undo
+kata-set-params {"wideRootNoise":0.6, "analysisWideRootNoise" :0.9 }
+kata-get-param analysisWideRootNoise
+kata-get-param wideRootNoise
+genmove w
+undo
+kata-set-param playoutDoublingAdvantage 1
+kata-get-params
+genmove w
+undo
+kata-set-param dynamicPlayoutDoublingAdvantageCapPerOppLead 0.045
+kata-get-params
+genmove w
+undo
+search_debug w
+kata-set-param cpuctExploration 1.0
+debug_moves
+kata-set-param cpuctExploration 3.0
+debug_moves
+kata-get-param cpuctExploration
+genmove_debug w
