@@ -5,6 +5,8 @@
 #include "../game/board.h"
 #include "../neuralnet/sgfmetadata.h"
 
+#include "../external/nlohmann_json/json.hpp"
+
 struct SearchParams {
   //Utility function parameters
   double winLossUtilityFactor;     //Scaling for [-1,1] value for winning/losing
@@ -164,14 +166,14 @@ struct SearchParams {
   bool humanSLChosenMoveIgnorePass; //If true, ignore human SL pass probability and use KataGo's passing logic
   double humanSLChosenMovePiklLambda; //Shift the final move selection significantly in response to utility differences this large.
 
-  //Tenuki factor vs local factor (upweight moves far from any recent history)
-  //Invadey factor (prefer moves in the opponent's not entirely certain area, downweight moves in own not entirely certain area)
-
-
   SearchParams();
   ~SearchParams();
 
-  void printParams(std::ostream& out);
+  bool operator==(const SearchParams& other) const;
+  bool operator!=(const SearchParams& other) const;
+
+  nlohmann::json changeableParametersToJson() const;
+  void printParams(std::ostream& out) const;
 
   //Params to use for testing, with some more recent values representative of more real use (as of Jan 2019)
   static SearchParams forTestsV1();

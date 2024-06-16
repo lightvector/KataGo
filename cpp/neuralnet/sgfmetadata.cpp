@@ -4,6 +4,42 @@
 #include "../core/using.h"
 //------------------------
 
+bool SGFMetadata::operator==(const SGFMetadata& other) const {
+  return (
+    initialized == other.initialized &&
+    inverseBRank == other.inverseBRank &&
+    inverseWRank == other.inverseWRank &&
+    bIsUnranked == other.bIsUnranked &&
+    wIsUnranked == other.wIsUnranked &&
+    bRankIsUnknown == other.bRankIsUnknown &&
+    wRankIsUnknown == other.wRankIsUnknown &&
+    bIsHuman == other.bIsHuman &&
+    wIsHuman == other.wIsHuman &&
+    gameIsUnrated == other.gameIsUnrated &&
+    gameRatednessIsUnknown == other.gameRatednessIsUnknown &&
+
+    tcIsUnknown == other.tcIsUnknown &&
+    tcIsNone == other.tcIsNone &&
+    tcIsAbsolute == other.tcIsAbsolute &&
+    tcIsSimple == other.tcIsSimple &&
+    tcIsByoYomi == other.tcIsByoYomi &&
+    tcIsCanadian == other.tcIsCanadian &&
+    tcIsFischer == other.tcIsFischer &&
+
+    mainTimeSeconds == other.mainTimeSeconds &&
+    periodTimeSeconds == other.periodTimeSeconds &&
+    byoYomiPeriods == other.byoYomiPeriods &&
+    canadianMoves == other.canadianMoves &&
+
+    gameDate == other.gameDate &&
+
+    source == other.source
+  );
+}
+bool SGFMetadata::operator!=(const SGFMetadata& other) const {
+  return !(*this == other);
+}
+
 Hash128 SGFMetadata::getHash(Player nextPlayer) const {
   if(
     !initialized ||

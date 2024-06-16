@@ -91,7 +91,7 @@ Search* AsyncBot::getSearchStopAndWait() {
 const Search* AsyncBot::getSearch() const {
   return search;
 }
-SearchParams AsyncBot::getParams() const {
+const SearchParams& AsyncBot::getParams() const {
   return search->searchParams;
 }
 

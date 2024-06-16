@@ -357,14 +357,16 @@ SearchParams Setup::loadSingleParams(
   ConfigParser& cfg,
   setup_for_t setupFor
 ) {
-  return loadSingleParams(cfg,setupFor,false);
+  const bool hasHumanModel = false;
+  return loadSingleParams(cfg,setupFor,hasHumanModel);
 }
 SearchParams Setup::loadSingleParams(
   ConfigParser& cfg,
   setup_for_t setupFor,
   bool hasHumanModel
 ) {
-  vector<SearchParams> paramss = loadParams(cfg, setupFor, hasHumanModel);
+  const bool loadSingleConfigOnly = true;
+  vector<SearchParams> paramss = loadParams(cfg, setupFor, hasHumanModel, loadSingleConfigOnly);
   if(paramss.size() != 1)
     throw StringError("Config contains parameters for multiple bot configurations, but this KataGo command only supports a single configuration");
   return paramss[0];
@@ -382,7 +384,9 @@ vector<SearchParams> Setup::loadParams(
   ConfigParser& cfg,
   setup_for_t setupFor
 ) {
-  return loadParams(cfg,setupFor,false);
+  const bool hasHumanModel = false;
+  const bool loadSingleConfigOnly = false;
+  return loadParams(cfg,setupFor,hasHumanModel,loadSingleConfigOnly);
 }
 
 vector<SearchParams> Setup::loadParams(
@@ -390,16 +394,31 @@ vector<SearchParams> Setup::loadParams(
   setup_for_t setupFor,
   bool hasHumanModel
 ) {
+  const bool loadSingleConfigOnly = false;
+  return loadParams(cfg,setupFor,hasHumanModel,loadSingleConfigOnly);
+}
+
+vector<SearchParams> Setup::loadParams(
+  ConfigParser& cfg,
+  setup_for_t setupFor,
+  bool hasHumanModel,
+  bool loadSingleConfigOnly
+) {
 
   vector<SearchParams> paramss;
   int numBots = 1;
   if(cfg.contains("numBots"))
     numBots = cfg.getInt("numBots",1,MAX_BOT_PARAMS_FROM_CFG);
 
+  if(loadSingleConfigOnly) {
+    if(numBots != 1)
+      throw ConfigParsingError("The config for this command cannot have numBots > 0");
+  }
+
   for(int i = 0; i<numBots; i++) {
     SearchParams params;
 
-    string idxStr = Global::intToString(i);
+    string idxStr = loadSingleConfigOnly ? "" : Global::intToString(i);
 
     if(cfg.contains("maxPlayouts"+idxStr)) params.maxPlayouts = cfg.getInt64("maxPlayouts"+idxStr, (int64_t)1, (int64_t)1 << 50);
     else if(cfg.contains("maxPlayouts"))   params.maxPlayouts = cfg.getInt64("maxPlayouts",        (int64_t)1, (int64_t)1 << 50);
