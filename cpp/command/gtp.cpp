@@ -364,7 +364,12 @@ struct GTPEngine {
   double desiredDynamicPDAForWhite;
   std::unique_ptr<PatternBonusTable> patternBonusTable;
 
+  double delayMoveScale;
+  double delayMoveMax;
+
   Player perspective;
+
+  Rand gtpRand;
 
   double genmoveTimeSum;
   //Positions during this game when genmove was called
@@ -377,6 +382,7 @@ struct GTPEngine {
     bool assumeMultiBlackHandicap, bool prevtEncore, bool autoPattern,
     double dynamicPDACapPerOppLead, bool staticPDAPrecedence,
     double normAvoidRepeatedPatternUtility, double hcapAvoidRepeatedPatternUtility,
+    double delayScale, double delayMax,
     Player persp, int pvLen,
     std::unique_ptr<PatternBonusTable>&& pbTable
   )
@@ -406,6 +412,8 @@ struct GTPEngine {
      lastSearchFactor(1.0),
      desiredDynamicPDAForWhite(0.0),
      patternBonusTable(std::move(pbTable)),
+     delayMoveScale(delayScale),
+     delayMoveMax(delayMax),
      perspective(persp),
      genmoveTimeSum(0.0),
      genmoveSamples()
@@ -1041,6 +1049,21 @@ struct GTPEngine {
       logger.write(sout.str());
       genmoveTimeSum += timer.getSeconds();
       return;
+    }
+
+    SearchNode* rootNode = bot->getSearch()->rootNode;
+    if(rootNode != NULL && delayMoveScale > 0.0 && delayMoveMax > 0.0) {
+      const NNOutput* humanOutput = rootNode->getHumanOutput();
+      const float* policyProbs = humanOutput != NULL ? humanOutput->getPolicyProbsMaybeNoised() : NULL;
+      int pos = bot->getSearch()->getPos(moveLoc);
+      if(policyProbs != NULL) {
+        double prob = std::max(0.0,(double)policyProbs[pos]);
+        double meanWait = 0.5 * delayMoveScale / (prob + 0.10);
+        double waitTime = gtpRand.nextGamma(2.0) * meanWait / 2.0;
+        waitTime = std::min(waitTime,delayMoveMax);
+        waitTime = std::max(waitTime,0.0001);
+        std::this_thread::sleep_for(std::chrono::duration<double>(waitTime));
+      }
     }
 
     ReportedSearchValues values;
@@ -1856,6 +1879,8 @@ int MainCmds::gtp(const vector<string>& args) {
   const double normalAvoidRepeatedPatternUtility = initialGenmoveParams.avoidRepeatedPatternUtility;
   const double handicapAvoidRepeatedPatternUtility = cfg.contains("avoidRepeatedPatternUtility") ?
     initialGenmoveParams.avoidRepeatedPatternUtility : 0.005;
+  const double delayMoveScale = cfg.contains("delayMoveScale") ? cfg.getDouble("delayMoveScale",0.0,10000.0) : 0.0;
+  const double delayMoveMax = cfg.contains("delayMoveMax") ? cfg.getDouble("delayMoveMax",0.0,1000000.0) : 1000000.0;
 
   int defaultBoardXSize = -1;
   int defaultBoardYSize = -1;
@@ -1897,6 +1922,7 @@ int MainCmds::gtp(const vector<string>& args) {
     dynamicPlayoutDoublingAdvantageCapPerOppLead,
     staticPDATakesPrecedence,
     normalAvoidRepeatedPatternUtility, handicapAvoidRepeatedPatternUtility,
+    delayMoveScale,delayMoveMax,
     perspective,analysisPVLen,
     std::move(patternBonusTable)
   );
