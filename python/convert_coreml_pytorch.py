@@ -83,6 +83,20 @@ def main():
     # Print the model version
     print(f"Model version: {version}")
 
+    # Get the meta encoder version
+    meta_encoder_version = (
+        0
+        if model.metadata_encoder is None
+        else (
+            1
+            if "meta_encoder_version" not in model.config["metadata_encoder"]
+            else model.config["metadata_encoder"]["meta_encoder_version"]
+        )
+    )
+
+    # Print the meta encoder version
+    print(f"Meta encoder version: {meta_encoder_version}")
+
     with torch.no_grad():
         # Set the model to eval mode
         func.eval()
@@ -175,13 +189,19 @@ def main():
         # Set the compute precision name
         precision_name = "fp16" if not fp32 else "fp32"
 
+        # Set the meta encoder name
+        meta_encoder_name = (
+            "" if meta_encoder_version == 0 else f"meta{meta_encoder_version}"
+        )
+
         # Set file name
-        mlmodel_file = f"KataGoModel{pos_len}x{pos_len}{precision_name}" f".mlpackage"
+        mlmodel_file = f"KataGoModel{pos_len}x{pos_len}{precision_name}{meta_encoder_name}.mlpackage"
 
         # Set model description
         mlmodel.short_description = (
             f"KataGo {pos_len}x{pos_len} compute "
             f"precision {precision_name} model version {version} "
+            f"meta encoder version {meta_encoder_version} "
             f"converted from {checkpoint_file}"
         )
 
