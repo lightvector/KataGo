@@ -2064,33 +2064,42 @@ bool Search::getAnalysisJson(
     if(!suc)
       return false;
 
-    double winrate = 0.5 * (1.0 + rootVals.winLossValue);
+    double winloss = rootVals.winLossValue;
     double scoreMean = rootVals.expectedScore;
     double lead = rootVals.lead;
     double utility = rootVals.utility;
-
-    if(perspective == P_BLACK || (perspective != P_BLACK && perspective != P_WHITE && rootPla == P_BLACK)) {
-      winrate = 1.0 - winrate;
-      scoreMean = -scoreMean;
-      lead = -lead;
-      utility = -utility;
-    }
+    double flipFactor = (perspective == P_BLACK || (perspective != P_BLACK && perspective != P_WHITE && rootPla == P_BLACK)) ? -1.0 : 1.0;
 
     json rootInfo;
     rootInfo["visits"] = rootVals.visits;
     rootInfo["weight"] = rootVals.weight;
-    rootInfo["winrate"] = Global::roundDynamic(winrate,OUTPUT_PRECISION);
-    rootInfo["scoreSelfplay"] = Global::roundDynamic(scoreMean,OUTPUT_PRECISION);
-    rootInfo["scoreLead"] = Global::roundDynamic(lead,OUTPUT_PRECISION);
+    rootInfo["winrate"] = Global::roundDynamic(0.5 + 0.5*winloss*flipFactor,OUTPUT_PRECISION);
+    rootInfo["scoreSelfplay"] = Global::roundDynamic(scoreMean*flipFactor,OUTPUT_PRECISION);
+    rootInfo["scoreLead"] = Global::roundDynamic(lead*flipFactor,OUTPUT_PRECISION);
     rootInfo["scoreStdev"] = Global::roundDynamic(rootVals.expectedScoreStdev,OUTPUT_PRECISION);
-    rootInfo["utility"] = Global::roundDynamic(utility,OUTPUT_PRECISION);
+    rootInfo["utility"] = Global::roundDynamic(utility*flipFactor,OUTPUT_PRECISION);
 
     if(rootNode != NULL) {
       const NNOutput* nnOutput = rootNode->getNNOutput();
       if(nnOutput != NULL) {
+        rootInfo["rawWinrate"] = Global::roundDynamic(0.5 + 0.5*(nnOutput->whiteWinProb - nnOutput->whiteLossProb)*flipFactor,OUTPUT_PRECISION);
+        rootInfo["rawLead"] = Global::roundDynamic(nnOutput->whiteLead*flipFactor,OUTPUT_PRECISION);
+        rootInfo["rawScoreSelfplay"] = Global::roundDynamic(nnOutput->whiteScoreMean*flipFactor,OUTPUT_PRECISION);
+        double wsm = nnOutput->whiteScoreMean;
+        rootInfo["rawScoreSelfplayStdev"] = Global::roundDynamic(sqrt(std::max(0.0, nnOutput->whiteScoreMeanSq - wsm*wsm)),OUTPUT_PRECISION);
+        rootInfo["rawNoResultProb"] = Global::roundDynamic(nnOutput->whiteNoResultProb,OUTPUT_PRECISION);
         rootInfo["rawStWrError"] = Global::roundDynamic(nnOutput->shorttermWinlossError * 0.5,OUTPUT_PRECISION);
         rootInfo["rawStScoreError"] = Global::roundDynamic(nnOutput->shorttermScoreError,OUTPUT_PRECISION);
         rootInfo["rawVarTimeLeft"] = Global::roundDynamic(nnOutput->varTimeLeft,OUTPUT_PRECISION);
+      }
+      const NNOutput* humanOutput = rootNode->getHumanOutput();
+      if(humanOutput != NULL) {
+        rootInfo["humanWinrate"] = Global::roundDynamic(0.5 + 0.5*(humanOutput->whiteWinProb - humanOutput->whiteLossProb)*flipFactor,OUTPUT_PRECISION);
+        rootInfo["humanScoreMean"] = Global::roundDynamic(humanOutput->whiteScoreMean*flipFactor,OUTPUT_PRECISION);
+        double wsm = humanOutput->whiteScoreMean;
+        rootInfo["humanScoreStdev"] = Global::roundDynamic(sqrt(std::max(0.0, humanOutput->whiteScoreMeanSq - wsm*wsm)),OUTPUT_PRECISION);
+        rootInfo["humanStWrError"] = Global::roundDynamic(humanOutput->shorttermWinlossError * 0.5,OUTPUT_PRECISION);
+        rootInfo["humanStScoreError"] = Global::roundDynamic(humanOutput->shorttermScoreError,OUTPUT_PRECISION);
       }
     }
 

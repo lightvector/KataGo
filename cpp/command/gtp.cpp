@@ -86,6 +86,7 @@ static const vector<string> knownCommands = {
 
   //Display raw neural net evaluations
   "kata-raw-nn",
+  "kata-raw-human-nn",
 
   //Misc other stuff
   "cputime",
@@ -1440,8 +1441,9 @@ struct GTPEngine {
     return Global::trim(policyStr + "\n" + wlStr + "\n" + leadStr);
   }
 
-  string rawNN(int whichSymmetry, double policyOptimism) {
-    if(nnEval == NULL)
+  string rawNN(int whichSymmetry, double policyOptimism, bool useHumanModel) {
+    NNEvaluator* nnEvalToUse = useHumanModel ? humanEval : nnEval;
+    if(nnEvalToUse == NULL)
       return "";
     ostringstream out;
 
@@ -1460,17 +1462,23 @@ struct GTPEngine {
         NNResultBuf buf;
         bool skipCache = true;
         bool includeOwnerMap = true;
-        nnEval->evaluate(board,hist,nextPla,&analysisParams.humanSLProfile,nnInputParams,buf,skipCache,includeOwnerMap);
+        nnEvalToUse->evaluate(board,hist,nextPla,&analysisParams.humanSLProfile,nnInputParams,buf,skipCache,includeOwnerMap);
 
         NNOutput* nnOutput = buf.result.get();
         out << "symmetry " << symmetry << endl;
         out << "whiteWin " << Global::strprintf("%.6f",nnOutput->whiteWinProb) << endl;
         out << "whiteLoss " << Global::strprintf("%.6f",nnOutput->whiteLossProb) << endl;
         out << "noResult " << Global::strprintf("%.6f",nnOutput->whiteNoResultProb) << endl;
-        out << "whiteLead " << Global::strprintf("%.3f",nnOutput->whiteLead) << endl;
-        out << "whiteScoreSelfplay " << Global::strprintf("%.3f",nnOutput->whiteScoreMean) << endl;
-        out << "whiteScoreSelfplaySq " << Global::strprintf("%.3f",nnOutput->whiteScoreMeanSq) << endl;
-        out << "varTimeLeft " << Global::strprintf("%.3f",nnOutput->varTimeLeft) << endl;
+        if(useHumanModel) {
+          out << "whiteScore " << Global::strprintf("%.3f",nnOutput->whiteScoreMean) << endl;
+          out << "whiteScoreSq " << Global::strprintf("%.3f",nnOutput->whiteScoreMeanSq) << endl;
+        }
+        else {
+          out << "whiteLead " << Global::strprintf("%.3f",nnOutput->whiteLead) << endl;
+          out << "whiteScoreSelfplay " << Global::strprintf("%.3f",nnOutput->whiteScoreMean) << endl;
+          out << "whiteScoreSelfplaySq " << Global::strprintf("%.3f",nnOutput->whiteScoreMeanSq) << endl;
+          out << "varTimeLeft " << Global::strprintf("%.3f",nnOutput->varTimeLeft) << endl;
+        }
         out << "shorttermWinlossError " << Global::strprintf("%.3f",nnOutput->shorttermWinlossError) << endl;
         out << "shorttermScoreError " << Global::strprintf("%.3f",nnOutput->shorttermScoreError) << endl;
 
@@ -3247,8 +3255,30 @@ int MainCmds::gtp(const vector<string>& args) {
           response = "Expected double from 0 to 1 for optimism but got '" + Global::concat(pieces," ") + "'";
         }
         else {
-          response = engine->rawNN(whichSymmetry, policyOptimism);
+          const bool useHumanModel = false;
+          response = engine->rawNN(whichSymmetry, policyOptimism, useHumanModel);
         }
+      }
+    }
+
+    else if(command == "kata-raw-human-nn") {
+      int whichSymmetry = NNInputs::SYMMETRY_ALL;
+      bool parsed = false;
+      if(pieces.size() == 1) {
+        string s = Global::trim(Global::toLower(pieces[0]));
+        if(s == "all")
+          parsed = true;
+        else if(Global::tryStringToInt(s,whichSymmetry) && whichSymmetry >= 0 && whichSymmetry <= SymmetryHelpers::NUM_SYMMETRIES-1)
+          parsed = true;
+      }
+      if(!parsed) {
+        responseIsError = true;
+        response = "Expected one argument 'all' or symmetry index [0-7] for kata-raw-human-nn but got '" + Global::concat(pieces," ") + "'";
+      }
+      else {
+        double policyOptimism = engine->getGenmoveParams().rootPolicyOptimism;
+        const bool useHumanModel = true;
+        response = engine->rawNN(whichSymmetry, policyOptimism, useHumanModel);
       }
     }
 
