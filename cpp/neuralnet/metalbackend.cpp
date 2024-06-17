@@ -304,7 +304,7 @@ SWValueHeadDesc MetalProcess::valueHeadDescToSwift(const ValueHeadDesc * valueHe
 }
 
 int MetalProcess::createMetalComputeHandle(const ModelDesc* modelDesc,
-                                           int serverThreadIdx) {
+                                           int contextId) {
 
   SWModelDesc swModelDesc = createSWModelDesc(modelDesc->modelVersion,
                                               swift::String(modelDesc->name),
@@ -318,7 +318,7 @@ int MetalProcess::createMetalComputeHandle(const ModelDesc* modelDesc,
                                               policyHeadDescToSwift(&modelDesc->policyHead),
                                               valueHeadDescToSwift(&modelDesc->valueHead));
 
-  return createMetalComputeHandle(swModelDesc, serverThreadIdx);
+  return createMetalComputeHandle(swModelDesc, contextId);
 }
 
 //---------------------------------------------------------------------------------------------------------
@@ -453,12 +453,10 @@ ComputeContext::ComputeContext(int nnX, int nnY, enabled_t useFP16Mode, enabled_
   SWEnable::Auto();
 
   identifier = createMetalComputeContext(nnX, nnY);
-  createCoreMLContext();
 }
 
 ComputeContext::~ComputeContext() {
   destroyMetalComputeContext(identifier);
-  destroyCoreMLContext();
 }
 
 /**
@@ -536,6 +534,7 @@ ComputeHandle::ComputeHandle(
   nnYLen = getMetalContextYLen(context->identifier);
   gpuIndex = gpuIdx;
   version = modelDesc->modelVersion;
+  metaEncoderVersion = modelDesc->metaEncoderVersion;
   this->inputsUseNHWC = inputsUseNHWC;
 
   /* Use FP16 mode if the model supports it and the user has not explicitly
@@ -544,13 +543,21 @@ ComputeHandle::ComputeHandle(
   useMetal = (gpuIdx < coreMLStartIndex);
 
   if(useMetal) {
-    identifier = MetalProcess::createMetalComputeHandle(modelDesc, serverThreadIdx);
+    identifier = MetalProcess::createMetalComputeHandle(modelDesc, context->identifier);
   } else {
     // Create a Core ML backend
-    modelIndex = (int)createCoreMLBackend(modelXLen, modelYLen, serverThreadIdx, useFP16, context->useCpuAndNeuralEngine);
+    modelIndex = createCoreMLBackend(modelXLen,
+                                     modelYLen,
+                                     useFP16,
+                                     metaEncoderVersion,
+                                     context->useCpuAndNeuralEngine);
     // Get the model version
-    modelVersion = (int)getCoreMLBackendVersion(modelIndex);
+    modelVersion = getCoreMLBackendVersion(modelIndex);
+    // Due to a design limition, the versions of Metal and CoreML models must match
+    assert(version == modelVersion);
   }
+
+  (void)serverThreadIdx;
 }
 
 ComputeHandle::~ComputeHandle() {
@@ -919,6 +926,7 @@ void MetalProcess::getMetalOutput(
   assert(batchSize <= inputBuffers->maxBatchSize);
   assert((NNModelVersion::getNumSpatialFeatures(gpuHandle->version) * gpuHandle->nnXLen * gpuHandle->nnYLen) <= inputBuffers->singleInputElts);
   assert(NNModelVersion::getNumGlobalFeatures(gpuHandle->version) == inputBuffers->singleInputGlobalElts);
+  assert(NNModelVersion::getNumInputMetaChannels(gpuHandle->metaEncoderVersion) == inputBuffers->singleInputMetaElts);
   assert(inputBuffers->singleValueResultElts == 3);
   assert(inputBuffers->singleScoreValuesResultElts == 10);
 

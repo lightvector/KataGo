@@ -89,6 +89,10 @@
       <CommandLineArguments>
          <CommandLineArgument
             argument = "gtp -config gtp.cfg -model model.bin.gz"
+            isEnabled = "NO">
+         </CommandLineArgument>
+         <CommandLineArgument
+            argument = "gtp -config gtp_human5k_coreml.cfg -model model.bin.gz -human-model b18c384nbt-humanv0.bin.gz"
             isEnabled = "YES">
          </CommandLineArgument>
       </CommandLineArguments>

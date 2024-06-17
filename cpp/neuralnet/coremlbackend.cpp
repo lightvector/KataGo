@@ -180,6 +180,7 @@ void CoreMLProcess::getCoreMLOutput(
   size_t singleSpatialElts = inputBuffers->singleSpatialElts;
   size_t singleInputElts = inputBuffers->singleInputElts;
   size_t singleInputGlobalElts = inputBuffers->singleInputGlobalElts;
+  size_t singleInputMetaElts = inputBuffers->singleInputMetaElts;
 
   assert(batchSize <= inputBuffers->maxBatchSize);
   assert(batchSize > 0);
@@ -199,10 +200,13 @@ void CoreMLProcess::getCoreMLOutput(
     float* rowSpatialBuffer = &inputBuffers->rowSpatialBuffer[singleSpatialElts * row];
     float* rowSpatialInput = &inputBuffers->userInputBuffer[singleInputElts * row];
     float* rowGlobalInput = &inputBuffers->userInputGlobalBuffer[singleInputGlobalElts * row];
+    float* rowMetaInput = &inputBuffers->userInputMetaBuffer[singleInputMetaElts * row];
     const float* rowGlobal = inputBufs[row]->rowGlobalBuf.data();
     const float* rowSpatial = inputBufs[row]->rowSpatialBuf.data();
+    const float* rowMeta = inputBufs[row]->rowMetaBuf.data();
 
-    std::copy(&rowGlobal[0], &rowGlobal[numGlobalFeatures], rowGlobalInput);
+    std::copy(&rowGlobal[0], &rowGlobal[singleInputGlobalElts], rowGlobalInput);
+    std::copy(&rowMeta[0], &rowMeta[singleInputMetaElts], rowMetaInput);
 
     SymmetryHelpers::copyInputsWithSymmetry(
       rowSpatial,
@@ -227,6 +231,7 @@ void CoreMLProcess::getCoreMLOutput(
 
   getCoreMLHandleBatchOutput(inputBuffers->userInputBuffer,
                              inputBuffers->userInputGlobalBuffer,
+                             inputBuffers->userInputMetaBuffer,
                              inputBuffers->policyResults,
                              inputBuffers->valueResults,
                              inputBuffers->ownershipResults,

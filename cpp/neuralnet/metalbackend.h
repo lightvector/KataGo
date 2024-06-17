@@ -28,7 +28,7 @@ SWMatBiasLayerDesc matBiasLayerDescToSwift(const MatBiasLayerDesc * desc);
 SWValueHeadDesc valueHeadDescToSwift(const ValueHeadDesc * valueHead);
 
 int createMetalComputeHandle(const ModelDesc* modelDesc,
-                             int serverThreadIdx);
+                             int contextId);
 
 bool testEvaluateConv(const ConvLayerDesc* desc,
                       int batchSize,
@@ -192,8 +192,8 @@ struct ComputeContext {
 
   /**
    * @brief Deletes the copy constructor.
-   * 
-   * @return ComputeContext& 
+   *
+   * @return ComputeContext&
    */
   ComputeContext& operator=(const ComputeContext&) = delete;
 };
@@ -225,6 +225,11 @@ struct ComputeHandle {
    * @brief The version of the loaded model.
    */
   int version;
+
+  /**
+   * @brief The version of the metadata encoder.
+   */
+  int metaEncoderVersion;
 
   /**
    * @brief Whether the input data uses NHWC format.

@@ -8,14 +8,14 @@
 import CryptoKit
 import Foundation
 import CoreML
-import OSLog
 
 class KataGoModelInput: MLFeatureProvider {
     var input_spatial: MLMultiArray
     var input_global: MLMultiArray
+    var input_meta: MLMultiArray?
 
     var featureNames: Set<String> {
-        return Set(["input_spatial", "input_global"])
+        return Set(["input_spatial", "input_global", "input_meta"])
     }
 
     init(input_spatial: MLMultiArray, input_global: MLMultiArray) {
@@ -23,11 +23,19 @@ class KataGoModelInput: MLFeatureProvider {
         self.input_global = input_global
     }
 
+    init(input_spatial: MLMultiArray, input_global: MLMultiArray, input_meta: MLMultiArray) {
+        self.input_spatial = input_spatial
+        self.input_global = input_global
+        self.input_meta = input_meta
+    }
+
     func featureValue(for featureName: String) -> MLFeatureValue? {
         if (featureName == "input_spatial") {
             return MLFeatureValue(multiArray: input_spatial)
         } else if (featureName == "input_global") {
             return MLFeatureValue(multiArray: input_global)
+        } else if (featureName == "input_meta"), let input_meta {
+            return MLFeatureValue(multiArray: input_meta)
         } else {
             return nil
         }
@@ -156,7 +164,7 @@ class KataGoModel {
                                              useCpuAndNeuralEngine: useCpuAndNeuralEngine)
             }
         } catch {
-            Logger().error("An error occurred: \(error)")
+            printError("An error occurred: \(error)")
         }
 
         return mlmodel;
@@ -189,25 +197,25 @@ class KataGoModel {
 
             do {
                 if try appModelURL.checkResourceIsReachable() {
-                    Logger().info("Removing old CoreML model in Application Support directory \(appModelURL)");
+                    printError("Removing old CoreML model in Application Support directory \(appModelURL)");
 
                     do {
                         // Remove the old model in Application Support directory
                         try fileManager.removeItem(at: appModelURL)
                     } catch {
-                        Logger().warning("Unable to remove the old CoreML model in Application Support directory \(appModelURL): \(error)")
+                        printError("Unable to remove the old CoreML model in Application Support directory \(appModelURL): \(error)")
                     }
                 }
             } catch {
-                Logger().warning("Unable to check if the old CoreML model is reachable in Application Support directory \(appModelURL)")
+                printError("Unable to check if the old CoreML model is reachable in Application Support directory \(appModelURL)")
             }
 
-            Logger().info("Copying bundle CoreML model to Application Support directory \(appModelURL)")
+            printError("Copying bundle CoreML model to Application Support directory \(appModelURL)")
 
             // Copy the mlpackage to App Support Directory
             try fileManager.copyItem(at: bundleModelURL, to: appModelURL)
         } catch {
-            Logger().error("An error occurred: \(error)")
+            printError("An error occurred: \(error)")
         }
 
         return mlmodel;
@@ -255,15 +263,15 @@ class KataGoModel {
                 shouldCompile = digest != savedDigest
 
                 if (shouldCompile) {
-                    Logger().info("Saved digest: \(savedDigest)")
-                    Logger().info("New digest: \(digest)")
-                    Logger().info("Compiling CoreML model because the digest has changed");
+                    printError("Saved digest: \(savedDigest)")
+                    printError("New digest: \(digest)")
+                    printError("Compiling CoreML model because the digest has changed");
                 }
             } else {
-                Logger().info("Compiling CoreML model because the saved digest URL is not reachable: \(savedDigestURL)")
+                printError("Compiling CoreML model because the saved digest URL is not reachable: \(savedDigestURL)")
             }
         } catch {
-            Logger().warning("Compiling CoreML model because it is unable to get the saved digest from: \(savedDigestURL)")
+            printError("Compiling CoreML model because it is unable to get the saved digest from: \(savedDigestURL)")
         }
 
         if !shouldCompile {
@@ -272,12 +280,12 @@ class KataGoModel {
                 shouldCompile = try (!permanentURL.checkResourceIsReachable())
 
                 if (shouldCompile) {
-                    Logger().info("Compiling CoreML model because the permanent URL is not reachable: \(permanentURL)");
+                    printError("Compiling CoreML model because the permanent URL is not reachable: \(permanentURL)");
                 }
             } catch {
                 shouldCompile = true
 
-                Logger().warning("Compiling CoreML model because it is unable to check the resource at: \(permanentURL)")
+                printError("Compiling CoreML model because it is unable to check the resource at: \(permanentURL)")
             }
         }
 
@@ -291,18 +299,18 @@ class KataGoModel {
         // Get default file manager
         let fileManager = FileManager.default
 
-        Logger().info("Compiling CoreML model at \(modelURL)");
+        printError("Compiling CoreML model at \(modelURL)");
 
         // Compile the model
         let compiledURL = try MLModel.compileModel(at: modelURL)
 
-        Logger().info("Creating the directory for the permanent location: \(permanentURL)");
+        printError("Creating the directory for the permanent location: \(permanentURL)");
 
         // Create the directory for KataGo models
         try fileManager.createDirectory(at: permanentURL.deletingLastPathComponent(),
                                         withIntermediateDirectories: true)
 
-        Logger().info("Copying the compiled CoreML model to the permanent location \(permanentURL)");
+        printError("Copying the compiled CoreML model to the permanent location \(permanentURL)");
 
         // Copy the file to the to the permanent location, replacing it if necessary
         try fileManager.replaceItem(at: permanentURL,
@@ -311,8 +319,8 @@ class KataGoModel {
                                     options: .usingNewMetadataOnly,
                                     resultingItemURL: nil)
 
-        Logger().info("Writing digest to: \(savedDigestURL)")
-        Logger().info("Digest: \(digest)")
+        printError("Writing digest to: \(savedDigestURL)")
+        printError("Digest: \(digest)")
 
         // Update the digest
         try digest.write(to: savedDigestURL, atomically: true, encoding: .utf8)
@@ -322,7 +330,7 @@ class KataGoModel {
         let configuration = MLModelConfiguration()
         configuration.computeUnits = useCpuAndNeuralEngine ? .cpuAndNeuralEngine : .all
         configuration.modelDisplayName = modelName
-        Logger().info("Creating CoreML model with contents \(permanentURL)")
+        printError("Creating CoreML model with contents \(permanentURL)")
         return try MLModel(contentsOf: permanentURL, configuration: configuration)
     }
 

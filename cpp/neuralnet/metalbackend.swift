@@ -1,22 +1,9 @@
 import Foundation
 import MetalPerformanceShaders
 import MetalPerformanceShadersGraph
-import OSLog
 
 class DefaultDevice {
     static var device = MTLCreateSystemDefaultDevice()!
-}
-
-class StandardError: TextOutputStream {
-    /// A shared instance of the StandardError class.
-    static var instance = StandardError()
-
-    /// Writes the given string to standard error output.
-    func write(_ string: String) {
-        /// Attempts to write the contents of a Data object containing the UTF8-encoded string to
-        /// the standard error file handle.
-        try? FileHandle.standardError.write(contentsOf: Data(string.utf8))
-    }
 }
 
 /// An extension to the Data struct for handling float data with optional FP16 conversion.
@@ -3027,8 +3014,7 @@ public class MetalComputeContext {
 
         contexts[id] = context
 
-        print("Metal compute context \(id): \(nnXLen)x\(nnYLen)",
-              to: &StandardError.instance)
+        printError("Metal compute context \(id): \(nnXLen)x\(nnYLen)")
 
         return id
     }
@@ -3108,8 +3094,7 @@ public class MetalComputeHandle {
 
         handles[id] = handle
 
-        print("Metal backend \(id): \(device.name), Model version \(descriptor.version) \(descriptor.name)",
-              to: &StandardError.instance)
+        printError("Metal backend \(id): \(device.name), Model version \(descriptor.version) \(descriptor.name)")
 
         return id
     }
@@ -3148,8 +3133,7 @@ public func destroyMetalComputeHandle(handleId id: Int32) {
 public func printMetalDevices() {
     let device = DefaultDevice.device
 
-    print("Found Metal Device: \(device.name)",
-          to: &StandardError.instance)
+    printError("Found Metal Device: \(device.name)")
 }
 
 ///
