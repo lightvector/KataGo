@@ -253,6 +253,8 @@
 		E1605CE22BFAD6EB00A4B872 /* sgfmetadata.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E1605CE12BFAD6EB00A4B872 /* sgfmetadata.cpp */; };
 		E1605CE32BFAD70100A4B872 /* sgfmetadata.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E1605CE12BFAD6EB00A4B872 /* sgfmetadata.cpp */; };
 		E17D098C294D45CF005968E9 /* gputest.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E17D098A294D45CF005968E9 /* gputest.cpp */; };
+		E18446502BFFF826004F5E3B /* misc.swift in Sources */ = {isa = PBXBuildFile; fileRef = E184464D2BFFF6A1004F5E3B /* misc.swift */; };
+		E18446512BFFF827004F5E3B /* misc.swift in Sources */ = {isa = PBXBuildFile; fileRef = E184464D2BFFF6A1004F5E3B /* misc.swift */; };
 		E1DACF5D2B089A5400082FF7 /* KataGoSwift.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = E1DACF4C2B08997300082FF7 /* KataGoSwift.framework */; };
 		E1DACF652B089B5500082FF7 /* KataGoSwiftTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1DACF642B089B5500082FF7 /* KataGoSwiftTests.swift */; };
 		E1DACF732B089C7700082FF7 /* KataGoSwift.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = E1DACF4C2B08997300082FF7 /* KataGoSwift.framework */; };
@@ -406,6 +408,7 @@
 		E157FDCE2AF7CE2500E25677 /* testnn.mm */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.objcpp; path = testnn.mm; sourceTree = "<group>"; };
 		E1605CE12BFAD6EB00A4B872 /* sgfmetadata.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; name = sgfmetadata.cpp; path = neuralnet/sgfmetadata.cpp; sourceTree = SOURCE_ROOT; };
 		E17D098A294D45CF005968E9 /* gputest.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = gputest.cpp; path = command/gputest.cpp; sourceTree = "<group>"; };
+		E184464D2BFFF6A1004F5E3B /* misc.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = misc.swift; path = neuralnet/misc.swift; sourceTree = "<group>"; };
 		E199A6F828E25E8100A2E051 /* metalbridge.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = metalbridge.h; path = neuralnet/metalbridge.h; sourceTree = "<group>"; };
 		E199A6F928E25EE500A2E051 /* metalbackend.h */ = {isa = PBXFileReference; fileEncoding = 4; indentWidth = 2; lastKnownFileType = sourcecode.c.h; name = metalbackend.h; path = neuralnet/metalbackend.h; sourceTree = "<group>"; };
 		E1AD404928E1D59700E41968 /* Metal.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Metal.framework; path = System/Library/Frameworks/Metal.framework; sourceTree = SDKROOT; };
@@ -598,6 +601,7 @@
 				4845ACCEFC204BA89C033482 /* metalbackend.cpp */,
 				E12EC2182B10D61E0024E274 /* metalbackend.swift */,
 				64D3C3432AB3409C942F7A0E /* misc.cpp */,
+				E184464D2BFFF6A1004F5E3B /* misc.swift */,
 				DDCAE99038794BE8B4BB3962 /* modelversion.cpp */,
 				5185F4BC63B5490AAE4F37CB /* multithread.cpp */,
 				6DA721BDC00F438688E0B241 /* mutexpool.cpp */,
@@ -770,6 +774,7 @@
 				TargetAttributes = {
 					E157FDCB2AF7CE2300E25677 = {
 						CreatedOnToolsVersion = 15.0.1;
+						LastSwiftMigration = 1540;
 					};
 					E1DACF4B2B08997300082FF7 = {
 						CreatedOnToolsVersion = 15.0.1;
@@ -1073,6 +1078,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				E12EC21E2B10D61E0024E274 /* coremlmodel.swift in Sources */,
+				E18446502BFFF826004F5E3B /* misc.swift in Sources */,
 				E12EC21C2B10D61E0024E274 /* metalbackend.swift in Sources */,
 				E12EC21A2B10D61E0024E274 /* coremlbackend.swift in Sources */,
 			);
@@ -1082,6 +1088,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				E18446512BFFF827004F5E3B /* misc.swift in Sources */,
 				E12EC21B2B10D61E0024E274 /* coremlbackend.swift in Sources */,
 				E12EC21D2B10D61E0024E274 /* metalbackend.swift in Sources */,
 				E1DACF652B089B5500082FF7 /* KataGoSwiftTests.swift in Sources */,
@@ -1450,6 +1457,8 @@
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.0;
 			};
 			name = Debug;
 		};
@@ -1497,6 +1506,7 @@
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
 			};
 			name = Release;
 		};
@@ -1544,6 +1554,7 @@
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
 			};
 			name = MinSizeRel;
 		};
@@ -1591,6 +1602,7 @@
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
 			};
 			name = RelWithDebInfo;
 		};

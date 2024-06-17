@@ -98,12 +98,14 @@ _swift_generate_cxx_header_target(
   "${CMAKE_CURRENT_BINARY_DIR}/include/KataGoSwift/KataGoSwift-swift.h"
   SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/neuralnet/coremlbackend.swift"
   "${CMAKE_CURRENT_SOURCE_DIR}/neuralnet/coremlmodel.swift"
-  "${CMAKE_CURRENT_SOURCE_DIR}/neuralnet/metalbackend.swift")
+  "${CMAKE_CURRENT_SOURCE_DIR}/neuralnet/metalbackend.swift"
+  "${CMAKE_CURRENT_SOURCE_DIR}/neuralnet/misc.swift")
 
 add_library(KataGoSwift STATIC
   neuralnet/coremlbackend.swift
   neuralnet/coremlmodel.swift
-  neuralnet/metalbackend.swift)
+  neuralnet/metalbackend.swift
+  neuralnet/misc.swift)
 
 add_dependencies(KataGoSwift KataGoSwift_Swift_h)
 target_include_directories(KataGoSwift PUBLIC "${CMAKE_CURRENT_BINARY_DIR}/include")
