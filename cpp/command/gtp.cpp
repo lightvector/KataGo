@@ -86,6 +86,7 @@ static const vector<string> knownCommands = {
 
   //Display raw neural net evaluations
   "kata-raw-nn",
+  "kata-raw-human-nn",
 
   //Misc other stuff
   "cputime",
@@ -335,17 +336,9 @@ struct GTPEngine {
   const bool autoAvoidPatterns;
 
   const double dynamicPlayoutDoublingAdvantageCapPerOppLead;
-  double staticPlayoutDoublingAdvantage;
   bool staticPDATakesPrecedence;
   double normalAvoidRepeatedPatternUtility;
   double handicapAvoidRepeatedPatternUtility;
-
-  double genmoveWideRootNoise;
-  double analysisWideRootNoise;
-  bool genmoveIgnorePreRootHistory;
-  bool analysisIgnorePreRootHistory;
-  bool genmoveAntiMirror;
-  bool analysisAntiMirror;
 
   NNEvaluator* nnEval;
   NNEvaluator* humanEval;
@@ -353,7 +346,9 @@ struct GTPEngine {
   Rules currentRules; //Should always be the same as the rules in bot, if bot is not NULL.
 
   //Stores the params we want to be using during genmoves or analysis
-  SearchParams params;
+  SearchParams genmoveParams;
+  SearchParams analysisParams;
+  bool isGenmoveParams;
 
   TimeControls bTimeControls;
   TimeControls wTimeControls;
@@ -367,10 +362,14 @@ struct GTPEngine {
   vector<double> recentWinLossValues;
   double lastSearchFactor;
   double desiredDynamicPDAForWhite;
-  bool avoidMYTDaggerHack;
   std::unique_ptr<PatternBonusTable> patternBonusTable;
 
+  double delayMoveScale;
+  double delayMoveMax;
+
   Player perspective;
+
+  Rand gtpRand;
 
   double genmoveTimeSum;
   //Positions during this game when genmove was called
@@ -378,14 +377,12 @@ struct GTPEngine {
 
   GTPEngine(
     const string& modelFile, const string& hModelFile,
-    SearchParams initialParams, Rules initialRules,
+    SearchParams initialGenmoveParams, SearchParams initialAnalysisParams,
+    Rules initialRules,
     bool assumeMultiBlackHandicap, bool prevtEncore, bool autoPattern,
-    double dynamicPDACapPerOppLead, double staticPDA, bool staticPDAPrecedence,
+    double dynamicPDACapPerOppLead, bool staticPDAPrecedence,
     double normAvoidRepeatedPatternUtility, double hcapAvoidRepeatedPatternUtility,
-    bool avoidDagger,
-    double genmoveWRN, double analysisWRN,
-    bool genmoveIPRH, bool analysisIPRH,
-    bool genmoveAntiMir, bool analysisAntiMir,
+    double delayScale, double delayMax,
     Player persp, int pvLen,
     std::unique_ptr<PatternBonusTable>&& pbTable
   )
@@ -396,21 +393,16 @@ struct GTPEngine {
      preventEncore(prevtEncore),
      autoAvoidPatterns(autoPattern),
      dynamicPlayoutDoublingAdvantageCapPerOppLead(dynamicPDACapPerOppLead),
-     staticPlayoutDoublingAdvantage(staticPDA),
      staticPDATakesPrecedence(staticPDAPrecedence),
      normalAvoidRepeatedPatternUtility(normAvoidRepeatedPatternUtility),
      handicapAvoidRepeatedPatternUtility(hcapAvoidRepeatedPatternUtility),
-     genmoveWideRootNoise(genmoveWRN),
-     analysisWideRootNoise(analysisWRN),
-     genmoveIgnorePreRootHistory(genmoveIPRH),
-     analysisIgnorePreRootHistory(analysisIPRH),
-     genmoveAntiMirror(genmoveAntiMir),
-     analysisAntiMirror(analysisAntiMir),
      nnEval(NULL),
      humanEval(NULL),
      bot(NULL),
      currentRules(initialRules),
-     params(initialParams),
+     genmoveParams(initialGenmoveParams),
+     analysisParams(initialAnalysisParams),
+     isGenmoveParams(true),
      bTimeControls(),
      wTimeControls(),
      initialBoard(),
@@ -419,8 +411,9 @@ struct GTPEngine {
      recentWinLossValues(),
      lastSearchFactor(1.0),
      desiredDynamicPDAForWhite(0.0),
-     avoidMYTDaggerHack(avoidDagger),
      patternBonusTable(std::move(pbTable)),
+     delayMoveScale(delayScale),
+     delayMoveMax(delayMax),
      perspective(persp),
      genmoveTimeSum(0.0),
      genmoveSamples()
@@ -479,8 +472,8 @@ struct GTPEngine {
         logger.write("Cleaned up old neural net and bot");
       }
 
-      const int expectedConcurrentEvals = params.numThreads;
-      const int defaultMaxBatchSize = std::max(8,((params.numThreads+3)/4)*4);
+      const int expectedConcurrentEvals = std::max(genmoveParams.numThreads, analysisParams.numThreads);
+      const int defaultMaxBatchSize = std::max(8,((expectedConcurrentEvals+3)/4)*4);
       const bool disableFP16 = false;
       const string expectedSha256 = "";
       nnEval = Setup::initializeNNEvaluator(
@@ -534,7 +527,7 @@ struct GTPEngine {
       else
         searchRandSeed = Global::uint64ToString(seedRand.nextUInt64());
 
-      bot = new AsyncBot(params, nnEval, humanEval, &logger, searchRandSeed);
+      bot = new AsyncBot(genmoveParams, nnEval, humanEval, &logger, searchRandSeed);
       bot->setCopyOfExternalPatternBonusTable(patternBonusTable);
 
       Board board(boardXSize,boardYSize);
@@ -606,48 +599,6 @@ struct GTPEngine {
   void updateKomiIfNew(float newKomi) {
     bot->setKomiIfNew(newKomi);
     currentRules.komi = newKomi;
-  }
-
-  void setStaticPlayoutDoublingAdvantage(double d) {
-    staticPlayoutDoublingAdvantage = d;
-    staticPDATakesPrecedence = true;
-  }
-  void setAnalysisWideRootNoise(double x) {
-    analysisWideRootNoise = x;
-  }
-  void setAnalysisIgnorePreRootHistory(bool b) {
-    analysisIgnorePreRootHistory = b;
-  }
-  void setRootPolicyTemperature(double x) {
-    params.rootPolicyTemperature = x;
-    bot->setParams(params);
-    bot->clearSearch();
-  }
-  void setNumSearchThreads(int numThreads) {
-    params.numThreads = numThreads;
-    bot->setParams(params);
-    bot->clearSearch();
-  }
-  void setMaxVisits(int64_t maxVisits) {
-    params.maxVisits = maxVisits;
-    bot->setParams(params);
-    bot->clearSearch();
-  }
-  void setMaxPlayouts(int64_t maxPlayouts) {
-    params.maxPlayouts = maxPlayouts;
-    bot->setParams(params);
-    bot->clearSearch();
-  }
-  void setMaxTime(double maxTime) {
-    params.maxTime = maxTime;
-    bot->setParams(params);
-    bot->clearSearch();
-  }
-  void setPolicyOptimism(double x) {
-    params.policyOptimism = x;
-    params.rootPolicyOptimism = x;
-    bot->setParams(params);
-    bot->clearSearch();
   }
 
   void updateDynamicPDA() {
@@ -1031,44 +982,25 @@ struct GTPEngine {
       humanEval->clearStats();
     TimeControls tc = pla == P_BLACK ? bTimeControls : wTimeControls;
 
+    if(!isGenmoveParams) {
+      bot->setParams(genmoveParams);
+      isGenmoveParams = true;
+    }
+
     //Update dynamic PDA given whatever the most recent values are, if we're using dynamic
     updateDynamicPDA();
-    //Make sure we have the right parameters, in case someone ran analysis in the meantime.
-    if(staticPDATakesPrecedence) {
-      if(params.playoutDoublingAdvantage != staticPlayoutDoublingAdvantage) {
-        params.playoutDoublingAdvantage = staticPlayoutDoublingAdvantage;
-        bot->setParams(params);
-      }
-    }
-    else {
+
+    SearchParams paramsToUse = genmoveParams;
+    //Make sure we have the right parameters, in case someone updated params in the meantime.
+    if(!staticPDATakesPrecedence) {
       double desiredDynamicPDA =
-        (params.playoutDoublingAdvantagePla == P_WHITE) ? desiredDynamicPDAForWhite :
-        (params.playoutDoublingAdvantagePla == P_BLACK) ? -desiredDynamicPDAForWhite :
-        (params.playoutDoublingAdvantagePla == C_EMPTY && pla == P_WHITE) ? desiredDynamicPDAForWhite :
-        (params.playoutDoublingAdvantagePla == C_EMPTY && pla == P_BLACK) ? -desiredDynamicPDAForWhite :
+        (paramsToUse.playoutDoublingAdvantagePla == P_WHITE) ? desiredDynamicPDAForWhite :
+        (paramsToUse.playoutDoublingAdvantagePla == P_BLACK) ? -desiredDynamicPDAForWhite :
+        (paramsToUse.playoutDoublingAdvantagePla == C_EMPTY && pla == P_WHITE) ? desiredDynamicPDAForWhite :
+        (paramsToUse.playoutDoublingAdvantagePla == C_EMPTY && pla == P_BLACK) ? -desiredDynamicPDAForWhite :
         (assert(false),0.0);
 
-      if(params.playoutDoublingAdvantage != desiredDynamicPDA) {
-        params.playoutDoublingAdvantage = desiredDynamicPDA;
-        bot->setParams(params);
-      }
-    }
-    Player avoidMYTDaggerHackPla = avoidMYTDaggerHack ? pla : C_EMPTY;
-    if(params.avoidMYTDaggerHackPla != avoidMYTDaggerHackPla) {
-      params.avoidMYTDaggerHackPla = avoidMYTDaggerHackPla;
-      bot->setParams(params);
-    }
-    if(params.wideRootNoise != genmoveWideRootNoise) {
-      params.wideRootNoise = genmoveWideRootNoise;
-      bot->setParams(params);
-    }
-    if(params.ignorePreRootHistory != genmoveIgnorePreRootHistory) {
-      params.ignorePreRootHistory = genmoveIgnorePreRootHistory;
-      bot->setParams(params);
-    }
-    if(params.antiMirror != genmoveAntiMirror) {
-      params.antiMirror = genmoveAntiMirror;
-      bot->setParams(params);
+      paramsToUse.playoutDoublingAdvantage = desiredDynamicPDA;
     }
 
     {
@@ -1078,14 +1010,15 @@ struct GTPEngine {
         if(initialOppAdvantage > getPointsThresholdForHandicapGame(getBoardSizeScaling(bot->getRootBoard())))
           avoidRepeatedPatternUtility = handicapAvoidRepeatedPatternUtility;
       }
-      if(params.avoidRepeatedPatternUtility != avoidRepeatedPatternUtility) {
-        params.avoidRepeatedPatternUtility = avoidRepeatedPatternUtility;
-        bot->setParams(params);
-      }
+      paramsToUse.avoidRepeatedPatternUtility = avoidRepeatedPatternUtility;
     }
 
+    if(paramsToUse != bot->getParams())
+      bot->setParams(paramsToUse);
+
+
     //Play faster when winning
-    double searchFactor = PlayUtils::getSearchFactor(searchFactorWhenWinningThreshold,searchFactorWhenWinning,params,recentWinLossValues,pla);
+    double searchFactor = PlayUtils::getSearchFactor(searchFactorWhenWinningThreshold,searchFactorWhenWinning,paramsToUse,recentWinLossValues,pla);
     lastSearchFactor = searchFactor;
 
     Loc moveLoc;
@@ -1116,6 +1049,21 @@ struct GTPEngine {
       logger.write(sout.str());
       genmoveTimeSum += timer.getSeconds();
       return;
+    }
+
+    SearchNode* rootNode = bot->getSearch()->rootNode;
+    if(rootNode != NULL && delayMoveScale > 0.0 && delayMoveMax > 0.0) {
+      const NNOutput* humanOutput = rootNode->getHumanOutput();
+      const float* policyProbs = humanOutput != NULL ? humanOutput->getPolicyProbsMaybeNoised() : NULL;
+      int pos = bot->getSearch()->getPos(moveLoc);
+      if(policyProbs != NULL) {
+        double prob = std::max(0.0,(double)policyProbs[pos]);
+        double meanWait = 0.5 * delayMoveScale / (prob + 0.10);
+        double waitTime = gtpRand.nextGamma(2.0) * meanWait / 2.0;
+        waitTime = std::min(waitTime,delayMoveMax);
+        waitTime = std::max(waitTime,0.0001);
+        std::this_thread::sleep_for(std::chrono::duration<double>(waitTime));
+      }
     }
 
     ReportedSearchValues values;
@@ -1158,11 +1106,11 @@ struct GTPEngine {
            << " Winrate " << Global::strprintf("%.2f%%", winrate * 100.0)
            << " ScoreLead " << Global::strprintf("%.1f", leadForPrinting)
            << " ScoreStdev " << Global::strprintf("%.1f", values.expectedScoreStdev);
-      if(params.playoutDoublingAdvantage != 0.0) {
+      if(paramsToUse.playoutDoublingAdvantage != 0.0) {
         cerr << Global::strprintf(
           " (PDA %.2f)",
-          bot->getSearch()->getRootPla() == getOpp(params.playoutDoublingAdvantagePla) ?
-          -params.playoutDoublingAdvantage : params.playoutDoublingAdvantage);
+          bot->getSearch()->getRootPla() == getOpp(paramsToUse.playoutDoublingAdvantagePla) ?
+          -paramsToUse.playoutDoublingAdvantage : paramsToUse.playoutDoublingAdvantage);
       }
       cerr << " PV ";
       bot->getSearch()->printPVForMove(cerr,bot->getSearch()->rootNode, moveLoc, analysisPVLen);
@@ -1184,7 +1132,7 @@ struct GTPEngine {
 
     //Implement friendly pass - in area scoring rules other than tromp-taylor, maybe pass once there are no points
     //left to gain.
-    int64_t numVisitsForFriendlyPass = 8 + std::min((int64_t)1000, std::min(params.maxVisits, params.maxPlayouts) / 10);
+    int64_t numVisitsForFriendlyPass = 8 + std::min((int64_t)1000, std::min(paramsToUse.maxVisits, paramsToUse.maxPlayouts) / 10);
     moveLoc = PlayUtils::maybeFriendlyPass(cleanupBeforePass, friendlyPass, pla, moveLoc, bot->getSearchStopAndWait(), numVisitsForFriendlyPass);
 
     //Implement cleanupBeforePass hack - if the bot wants to pass, instead cleanup if there is something to clean
@@ -1317,28 +1265,9 @@ struct GTPEngine {
 
   void analyze(Player pla, AnalyzeArgs args) {
     assert(args.analyzing);
-    //Analysis should ALWAYS be with the static value to prevent random hard-to-predict changes
-    //for users.
-    if(params.playoutDoublingAdvantage != staticPlayoutDoublingAdvantage) {
-      params.playoutDoublingAdvantage = staticPlayoutDoublingAdvantage;
-      bot->setParams(params);
-    }
-    if(params.avoidMYTDaggerHackPla != C_EMPTY) {
-      params.avoidMYTDaggerHackPla = C_EMPTY;
-      bot->setParams(params);
-    }
-    //Also wide root, if desired
-    if(params.wideRootNoise != analysisWideRootNoise) {
-      params.wideRootNoise = analysisWideRootNoise;
-      bot->setParams(params);
-    }
-    if(params.ignorePreRootHistory != analysisIgnorePreRootHistory) {
-      params.ignorePreRootHistory = analysisIgnorePreRootHistory;
-      bot->setParams(params);
-    }
-    if(params.antiMirror != analysisAntiMirror) {
-      params.antiMirror = analysisAntiMirror;
-      bot->setParams(params);
+    if(isGenmoveParams) {
+      bot->setParams(analysisParams);
+      isGenmoveParams = false;
     }
 
     std::function<void(const Search* search)> callback = getAnalyzeCallback(pla,args);
@@ -1358,7 +1287,7 @@ struct GTPEngine {
     //No playoutDoublingAdvantage to avoid bias
     //Also never assume the game will end abruptly due to pass
     {
-      SearchParams tmpParams = params;
+      SearchParams tmpParams = genmoveParams;
       tmpParams.playoutDoublingAdvantage = 0.0;
       tmpParams.conservativePass = true;
       tmpParams.humanSLChosenMoveProp = 0.0;
@@ -1368,6 +1297,8 @@ struct GTPEngine {
       tmpParams.humanSLPlaExploreProbWeightless = 0.0;
       tmpParams.humanSLOppExploreProbWeightful = 0.0;
       tmpParams.humanSLOppExploreProbWeightless = 0.0;
+      tmpParams.antiMirror = false;
+      tmpParams.avoidRepeatedPatternUtility = 0;
       bot->setParams(tmpParams);
     }
 
@@ -1392,7 +1323,7 @@ struct GTPEngine {
     }
     //Human-friendly score or incomplete game score estimation
     else {
-      int64_t numVisits = std::max(50, params.numThreads * 10);
+      int64_t numVisits = std::max(50, genmoveParams.numThreads * 10);
       //Try computing the lead for white
       double lead = PlayUtils::computeLead(bot->getSearchStopAndWait(),NULL,board,hist,pla,numVisits,OtherGameProperties());
 
@@ -1408,7 +1339,8 @@ struct GTPEngine {
 
     //Restore
     bot->setPosition(oldPla,oldBoard,oldHist);
-    bot->setParams(params);
+    bot->setParams(genmoveParams);
+    isGenmoveParams = true;
   }
 
   vector<bool> computeAnticipatedStatuses() {
@@ -1417,7 +1349,7 @@ struct GTPEngine {
     //No playoutDoublingAdvantage to avoid bias
     //Also never assume the game will end abruptly due to pass
     {
-      SearchParams tmpParams = params;
+      SearchParams tmpParams = genmoveParams;
       tmpParams.playoutDoublingAdvantage = 0.0;
       tmpParams.conservativePass = true;
       tmpParams.humanSLChosenMoveProp = 0.0;
@@ -1427,6 +1359,8 @@ struct GTPEngine {
       tmpParams.humanSLPlaExploreProbWeightless = 0.0;
       tmpParams.humanSLOppExploreProbWeightful = 0.0;
       tmpParams.humanSLOppExploreProbWeightless = 0.0;
+      tmpParams.antiMirror = false;
+      tmpParams.avoidRepeatedPatternUtility = 0;
       bot->setParams(tmpParams);
     }
 
@@ -1439,7 +1373,7 @@ struct GTPEngine {
     BoardHistory hist = bot->getRootHist();
     Player pla = bot->getRootPla();
 
-    int64_t numVisits = std::max(100, params.numThreads * 20);
+    int64_t numVisits = std::max(100, genmoveParams.numThreads * 20);
     vector<bool> isAlive;
     //Tromp-taylorish statuses, or finished territory game statuses (including noresult)
     if(hist.isGameFinished && (
@@ -1456,7 +1390,8 @@ struct GTPEngine {
 
     //Restore
     bot->setPosition(oldPla,oldBoard,oldHist);
-    bot->setParams(params);
+    bot->setParams(genmoveParams);
+    isGenmoveParams = true;
 
     return isAlive;
   }
@@ -1495,14 +1430,14 @@ struct GTPEngine {
         {
           MiscNNInputParams nnInputParams;
           nnInputParams.playoutDoublingAdvantage =
-            (params.playoutDoublingAdvantagePla == C_EMPTY || params.playoutDoublingAdvantagePla == pla) ?
-            staticPlayoutDoublingAdvantage : -staticPlayoutDoublingAdvantage;
+            (analysisParams.playoutDoublingAdvantagePla == C_EMPTY || analysisParams.playoutDoublingAdvantagePla == pla) ?
+            analysisParams.playoutDoublingAdvantage : -analysisParams.playoutDoublingAdvantage;
           nnInputParams.symmetry = symmetry;
 
           NNResultBuf buf;
           bool skipCache = true;
           bool includeOwnerMap = false;
-          nnEval->evaluate(board,hist,pla,&params.humanSLProfile,nnInputParams,buf,skipCache,includeOwnerMap);
+          nnEval->evaluate(board,hist,pla,&analysisParams.humanSLProfile,nnInputParams,buf,skipCache,includeOwnerMap);
 
           NNOutput* nnOutput = buf.result.get();
           wlStr += Global::strprintf("%.2fc ", 100.0 * (nnOutput->whiteWinProb - nnOutput->whiteLossProb));
@@ -1511,14 +1446,14 @@ struct GTPEngine {
         if(prevLoc != Board::NULL_LOC) {
           MiscNNInputParams nnInputParams;
           nnInputParams.playoutDoublingAdvantage =
-            (params.playoutDoublingAdvantagePla == C_EMPTY || params.playoutDoublingAdvantagePla == prevPla) ?
-            staticPlayoutDoublingAdvantage : -staticPlayoutDoublingAdvantage;
+            (analysisParams.playoutDoublingAdvantagePla == C_EMPTY || analysisParams.playoutDoublingAdvantagePla == prevPla) ?
+            analysisParams.playoutDoublingAdvantage : -analysisParams.playoutDoublingAdvantage;
           nnInputParams.symmetry = symmetry;
 
           NNResultBuf buf;
           bool skipCache = true;
           bool includeOwnerMap = false;
-          nnEval->evaluate(prevBoard,prevHist,prevPla,&params.humanSLProfile,nnInputParams,buf,skipCache,includeOwnerMap);
+          nnEval->evaluate(prevBoard,prevHist,prevPla,&analysisParams.humanSLProfile,nnInputParams,buf,skipCache,includeOwnerMap);
 
           NNOutput* nnOutput = buf.result.get();
           int pos = NNPos::locToPos(prevLoc,board.x_size,nnOutput->nnXLen,nnOutput->nnYLen);
@@ -1529,8 +1464,9 @@ struct GTPEngine {
     return Global::trim(policyStr + "\n" + wlStr + "\n" + leadStr);
   }
 
-  string rawNN(int whichSymmetry, double policyOptimism) {
-    if(nnEval == NULL)
+  string rawNN(int whichSymmetry, double policyOptimism, bool useHumanModel) {
+    NNEvaluator* nnEvalToUse = useHumanModel ? humanEval : nnEval;
+    if(nnEvalToUse == NULL)
       return "";
     ostringstream out;
 
@@ -1542,24 +1478,30 @@ struct GTPEngine {
 
         MiscNNInputParams nnInputParams;
         nnInputParams.playoutDoublingAdvantage =
-          (params.playoutDoublingAdvantagePla == C_EMPTY || params.playoutDoublingAdvantagePla == nextPla) ?
-          staticPlayoutDoublingAdvantage : -staticPlayoutDoublingAdvantage;
+          (analysisParams.playoutDoublingAdvantagePla == C_EMPTY || analysisParams.playoutDoublingAdvantagePla == nextPla) ?
+          analysisParams.playoutDoublingAdvantage : -analysisParams.playoutDoublingAdvantage;
         nnInputParams.symmetry = symmetry;
         nnInputParams.policyOptimism = policyOptimism;
         NNResultBuf buf;
         bool skipCache = true;
         bool includeOwnerMap = true;
-        nnEval->evaluate(board,hist,nextPla,&params.humanSLProfile,nnInputParams,buf,skipCache,includeOwnerMap);
+        nnEvalToUse->evaluate(board,hist,nextPla,&analysisParams.humanSLProfile,nnInputParams,buf,skipCache,includeOwnerMap);
 
         NNOutput* nnOutput = buf.result.get();
         out << "symmetry " << symmetry << endl;
         out << "whiteWin " << Global::strprintf("%.6f",nnOutput->whiteWinProb) << endl;
         out << "whiteLoss " << Global::strprintf("%.6f",nnOutput->whiteLossProb) << endl;
         out << "noResult " << Global::strprintf("%.6f",nnOutput->whiteNoResultProb) << endl;
-        out << "whiteLead " << Global::strprintf("%.3f",nnOutput->whiteLead) << endl;
-        out << "whiteScoreSelfplay " << Global::strprintf("%.3f",nnOutput->whiteScoreMean) << endl;
-        out << "whiteScoreSelfplaySq " << Global::strprintf("%.3f",nnOutput->whiteScoreMeanSq) << endl;
-        out << "varTimeLeft " << Global::strprintf("%.3f",nnOutput->varTimeLeft) << endl;
+        if(useHumanModel) {
+          out << "whiteScore " << Global::strprintf("%.3f",nnOutput->whiteScoreMean) << endl;
+          out << "whiteScoreSq " << Global::strprintf("%.3f",nnOutput->whiteScoreMeanSq) << endl;
+        }
+        else {
+          out << "whiteLead " << Global::strprintf("%.3f",nnOutput->whiteLead) << endl;
+          out << "whiteScoreSelfplay " << Global::strprintf("%.3f",nnOutput->whiteScoreMean) << endl;
+          out << "whiteScoreSelfplaySq " << Global::strprintf("%.3f",nnOutput->whiteScoreMeanSq) << endl;
+          out << "varTimeLeft " << Global::strprintf("%.3f",nnOutput->varTimeLeft) << endl;
+        }
         out << "shorttermWinlossError " << Global::strprintf("%.3f",nnOutput->shorttermWinlossError) << endl;
         out << "shorttermScoreError " << Global::strprintf("%.3f",nnOutput->shorttermScoreError) << endl;
 
@@ -1602,13 +1544,28 @@ struct GTPEngine {
     return Global::trim(out.str());
   }
 
-  SearchParams getParams() {
-    return params;
+  const SearchParams& getGenmoveParams() {
+    return genmoveParams;
   }
 
-  void setParams(SearchParams p) {
-    params = p;
-    bot->setParams(params);
+  void setGenmoveParamsIfChanged(const SearchParams& p) {
+    if(genmoveParams != p) {
+      genmoveParams = p;
+      if(isGenmoveParams)
+        bot->setParams(genmoveParams);
+    }
+  }
+
+  const SearchParams& getAnalysisParams() {
+    return analysisParams;
+  }
+
+  void setAnalysisParamsIfChanged(const SearchParams& p) {
+    if(analysisParams != p) {
+      analysisParams = p;
+      if(!isGenmoveParams)
+        bot->setParams(analysisParams);
+    }
   }
 };
 
@@ -1864,14 +1821,35 @@ int MainCmds::gtp(const vector<string>& args) {
     initialRules.komi = forcedKomi;
   }
 
-  bool hasHumanModel = humanModelFile != "";
-  SearchParams initialParams = Setup::loadSingleParams(cfg,Setup::SETUP_FOR_GTP,hasHumanModel);
-  logger.write("Using " + Global::intToString(initialParams.numThreads) + " CPU thread(s) for search");
-  //Set a default for conservativePass that differs from matches or selfplay
-  if(!cfg.contains("conservativePass") && !cfg.contains("conservativePass0"))
-    initialParams.conservativePass = true;
-  if(!cfg.contains("fillDameBeforePass") && !cfg.contains("fillDameBeforePass0"))
-    initialParams.fillDameBeforePass = true;
+  const bool hasHumanModel = humanModelFile != "";
+
+  auto loadParams = [&hasHumanModel](ConfigParser& config, SearchParams& genmoveOut, SearchParams& analysisOut) {
+    SearchParams params = Setup::loadSingleParams(config,Setup::SETUP_FOR_GTP,hasHumanModel);
+    //Set a default for conservativePass that differs from matches or selfplay
+    if(!config.contains("conservativePass"))
+      params.conservativePass = true;
+    if(!config.contains("fillDameBeforePass"))
+      params.fillDameBeforePass = true;
+
+    const double analysisWideRootNoise =
+      config.contains("analysisWideRootNoise") ? config.getDouble("analysisWideRootNoise",0.0,5.0) : Setup::DEFAULT_ANALYSIS_WIDE_ROOT_NOISE;
+    const double analysisIgnorePreRootHistory =
+      config.contains("analysisIgnorePreRootHistory") ? config.getBool("analysisIgnorePreRootHistory") : Setup::DEFAULT_ANALYSIS_IGNORE_PRE_ROOT_HISTORY;
+    const bool genmoveAntiMirror =
+      config.contains("genmoveAntiMirror") ? config.getBool("genmoveAntiMirror") : config.contains("antiMirror") ? config.getBool("antiMirror") : true;
+
+    genmoveOut = params;
+    analysisOut = params;
+
+    genmoveOut.antiMirror = genmoveAntiMirror;
+    analysisOut.wideRootNoise = analysisWideRootNoise;
+    analysisOut.ignorePreRootHistory = analysisIgnorePreRootHistory;
+  };
+
+  SearchParams initialGenmoveParams;
+  SearchParams initialAnalysisParams;
+  loadParams(cfg,initialGenmoveParams,initialAnalysisParams);
+  logger.write("Using " + Global::intToString(initialGenmoveParams.numThreads) + " CPU thread(s) for search");
 
   const bool ponderingEnabled = cfg.contains("ponderingEnabled") ? cfg.getBool("ponderingEnabled") : false;
 
@@ -1897,12 +1875,12 @@ int MainCmds::gtp(const vector<string>& args) {
   const bool preventEncore = cfg.contains("preventCleanupPhase") ? cfg.getBool("preventCleanupPhase") : true;
   const double dynamicPlayoutDoublingAdvantageCapPerOppLead =
     cfg.contains("dynamicPlayoutDoublingAdvantageCapPerOppLead") ? cfg.getDouble("dynamicPlayoutDoublingAdvantageCapPerOppLead",0.0,0.5) : 0.045;
-  double staticPlayoutDoublingAdvantage = initialParams.playoutDoublingAdvantage;
-  const bool staticPDATakesPrecedence = cfg.contains("playoutDoublingAdvantage") && !cfg.contains("dynamicPlayoutDoublingAdvantageCapPerOppLead");
-  const bool avoidMYTDaggerHack = cfg.contains("avoidMYTDaggerHack") ? cfg.getBool("avoidMYTDaggerHack") : false;
-  const double normalAvoidRepeatedPatternUtility = initialParams.avoidRepeatedPatternUtility;
-  const double handicapAvoidRepeatedPatternUtility = (cfg.contains("avoidRepeatedPatternUtility") || cfg.contains("avoidRepeatedPatternUtility0")) ?
-    initialParams.avoidRepeatedPatternUtility : 0.005;
+  bool staticPDATakesPrecedence = cfg.contains("playoutDoublingAdvantage") && !cfg.contains("dynamicPlayoutDoublingAdvantageCapPerOppLead");
+  const double normalAvoidRepeatedPatternUtility = initialGenmoveParams.avoidRepeatedPatternUtility;
+  const double handicapAvoidRepeatedPatternUtility = cfg.contains("avoidRepeatedPatternUtility") ?
+    initialGenmoveParams.avoidRepeatedPatternUtility : 0.005;
+  const double delayMoveScale = cfg.contains("delayMoveScale") ? cfg.getDouble("delayMoveScale",0.0,10000.0) : 0.0;
+  const double delayMoveMax = cfg.contains("delayMoveMax") ? cfg.getDouble("delayMoveMax",0.0,1000000.0) : 1000000.0;
 
   int defaultBoardXSize = -1;
   int defaultBoardYSize = -1;
@@ -1913,16 +1891,6 @@ int MainCmds::gtp(const vector<string>& args) {
 
   if(forDeterministicTesting)
     seedRand.init("forDeterministicTesting");
-
-  const double genmoveWideRootNoise = initialParams.wideRootNoise;
-  const double analysisWideRootNoise =
-    cfg.contains("analysisWideRootNoise") ? cfg.getDouble("analysisWideRootNoise",0.0,5.0) : Setup::DEFAULT_ANALYSIS_WIDE_ROOT_NOISE;
-  const double genmoveIgnorePreRootHistory = initialParams.ignorePreRootHistory;
-  const double analysisIgnorePreRootHistory =
-    cfg.contains("analysisIgnorePreRootHistory") ? cfg.getBool("analysisIgnorePreRootHistory") : Setup::DEFAULT_ANALYSIS_IGNORE_PRE_ROOT_HISTORY;
-  const bool analysisAntiMirror = initialParams.antiMirror;
-  const bool genmoveAntiMirror =
-    cfg.contains("genmoveAntiMirror") ? cfg.getBool("genmoveAntiMirror") : cfg.contains("antiMirror") ? cfg.getBool("antiMirror") : true;
 
   std::unique_ptr<PatternBonusTable> patternBonusTable = nullptr;
   {
@@ -1948,15 +1916,13 @@ int MainCmds::gtp(const vector<string>& args) {
 
   GTPEngine* engine = new GTPEngine(
     nnModelFile,humanModelFile,
-    initialParams,initialRules,
+    initialGenmoveParams,initialAnalysisParams,
+    initialRules,
     assumeMultipleStartingBlackMovesAreHandicap,preventEncore,autoAvoidPatterns,
     dynamicPlayoutDoublingAdvantageCapPerOppLead,
-    staticPlayoutDoublingAdvantage,staticPDATakesPrecedence,
+    staticPDATakesPrecedence,
     normalAvoidRepeatedPatternUtility, handicapAvoidRepeatedPatternUtility,
-    avoidMYTDaggerHack,
-    genmoveWideRootNoise,analysisWideRootNoise,
-    genmoveIgnorePreRootHistory,analysisIgnorePreRootHistory,
-    genmoveAntiMirror,analysisAntiMirror,
+    delayMoveScale,delayMoveMax,
     perspective,analysisPVLen,
     std::move(patternBonusTable)
   );
@@ -2324,8 +2290,17 @@ int MainCmds::gtp(const vector<string>& args) {
     }
 
     else if(command == "kata-list-params") {
-      //For now, rootPolicyTemperature is hidden since it's not clear we want to support it
-      response = "playoutDoublingAdvantage analysisWideRootNoise maxVisits maxPlayouts maxTime";
+      std::vector<string> paramsList;
+      paramsList.push_back("analysisWideRootNoise");
+      paramsList.push_back("analysisIgnorePreRootHistory");
+      paramsList.push_back("genmoveAntiMirror");
+      paramsList.push_back("antiMirror");
+      paramsList.push_back("humanSLProfile");
+      nlohmann::json params = engine->getGenmoveParams().changeableParametersToJson();
+      for(auto& elt : params.items()) {
+        paramsList.push_back(elt.key());
+      }
+      response = Global::concat(paramsList, " ");
     }
 
     else if(command == "kata-get-param") {
@@ -2334,121 +2309,207 @@ int MainCmds::gtp(const vector<string>& args) {
         response = "Expected one arguments for kata-get-param but got '" + Global::concat(pieces," ") + "'";
       }
       else {
-        SearchParams params = engine->getParams();
-        if(pieces[0] == "playoutDoublingAdvantage") {
-          response = Global::doubleToString(engine->staticPlayoutDoublingAdvantage);
-        }
-        else if(pieces[0] == "rootPolicyTemperature") {
-          response = Global::doubleToString(params.rootPolicyTemperature);
-        }
-        else if(pieces[0] == "analysisWideRootNoise") {
-          response = Global::doubleToString(engine->analysisWideRootNoise);
-        }
-        else if(pieces[0] == "analysisIgnorePreRootHistory") {
-          response = Global::boolToString(engine->analysisIgnorePreRootHistory);
-        }
-        else if(pieces[0] == "maxVisits") {
-          response = Global::int64ToString(params.maxVisits);
-        }
-        else if(pieces[0] == "maxPlayouts") {
-          response = Global::int64ToString(params.maxPlayouts);
-        }
-        else if(pieces[0] == "maxTime") {
-          response = Global::doubleToString(params.maxTime);
+        const SearchParams& genmoveParams = engine->getGenmoveParams();
+        const SearchParams& analysisParams = engine->getAnalysisParams();
+        if(pieces[0] == "analysisWideRootNoise")
+          response = Global::doubleToString(analysisParams.wideRootNoise);
+        else if(pieces[0] == "analysisIgnorePreRootHistory")
+          response = Global::boolToString(analysisParams.ignorePreRootHistory);
+        else if(pieces[0] == "genmoveAntiMirror")
+          response = Global::boolToString(genmoveParams.antiMirror);
+        else if(pieces[0] == "antiMirror")
+          response = Global::boolToString(analysisParams.antiMirror);
+        else if(pieces[0] == "humanSLProfile") {
+          response = cfg.contains("humanSLProfile") ? cfg.getString("humanSLProfile") : "";
         }
         else {
-          responseIsError = true;
-          response = "Invalid parameter";
+          nlohmann::json params = engine->getGenmoveParams().changeableParametersToJson();
+          if(params.find(pieces[0]) == params.end()) {
+            responseIsError = true;
+            response = "Invalid parameter: " + pieces[0];
+          }
+          else {
+            response = params[pieces[0]].dump();
+          }
         }
       }
     }
+    else if(command == "kata-get-params") {
+      const SearchParams& genmoveParams = engine->getGenmoveParams();
+      const SearchParams& analysisParams = engine->getAnalysisParams();
+      nlohmann::json params = engine->getGenmoveParams().changeableParametersToJson();
+      params["analysisWideRootNoise"] = Global::doubleToString(analysisParams.wideRootNoise);
+      params["analysisIgnorePreRootHistory"] = Global::boolToString(analysisParams.ignorePreRootHistory);
+      params["genmoveAntiMirror"] = Global::boolToString(genmoveParams.antiMirror);
+      params["antiMirror"] = Global::boolToString(analysisParams.antiMirror);
+      params["humanSLProfile"] = cfg.contains("humanSLProfile") ? cfg.getString("humanSLProfile") : "";
+      response = params.dump();
+    }
 
-    // TODO someday maybe make this fully general, like in the analysis engine.
-    else if(command == "kata-set-param") {
-      if(pieces.size() != 2) {
-        responseIsError = true;
-        response = "Expected two arguments for kata-set-param but got '" + Global::concat(pieces," ") + "'";
-      }
-      else {
-        bool b;
-        int i;
-        int64_t i64;
-        double d;
-        if(pieces[0] == "playoutDoublingAdvantage") {
-          if(Global::tryStringToDouble(pieces[1],d) && d >= -3.0 && d <= 3.0)
-            engine->setStaticPlayoutDoublingAdvantage(d);
-          else {
-            responseIsError = true;
-            response = "Invalid value for " + pieces[0] + ", must be float from -3.0 to 3.0";
-          }
-        }
-        else if(pieces[0] == "rootPolicyTemperature") {
-          if(Global::tryStringToDouble(pieces[1],d) && d >= 0.01 && d <= 100.0)
-            engine->setRootPolicyTemperature(d);
-          else {
-            responseIsError = true;
-            response = "Invalid value for " + pieces[0] + ", must be float from 0.01 to 100.0";
-          }
-        }
-        else if(pieces[0] == "analysisWideRootNoise") {
-          if(Global::tryStringToDouble(pieces[1],d) && d >= 0.0 && d <= 5.0)
-            engine->setAnalysisWideRootNoise(d);
-          else {
-            responseIsError = true;
-            response = "Invalid value for " + pieces[0] + ", must be float from 0.0 to 2.0";
-          }
-        }
-        else if(pieces[0] == "analysisIgnorePreRootHistory") {
-          if(Global::tryStringToBool(pieces[1],b))
-            engine->setAnalysisIgnorePreRootHistory(b);
-          else {
-            responseIsError = true;
-            response = "Invalid value for " + pieces[0] + ", must be bool";
-          }
-        }
-        else if(pieces[0] == "numSearchThreads") {
-          if(Global::tryStringToInt(pieces[1],i) && i >= 1 && i <= 1024)
-            engine->setNumSearchThreads(i);
-          else {
-            responseIsError = true;
-            response = "Invalid value for " + pieces[0] + ", must be integer from 1 to 1024";
-          }
-        }
-        else if(pieces[0] == "maxVisits") {
-          if(Global::tryStringToInt64(pieces[1],i64) && i64 >= 1 && i64 <= (int64_t)1 << 50)
-            engine->setMaxVisits(i64);
-          else {
-            responseIsError = true;
-            response = "Invalid value for " + pieces[0] + ", must be integer from 1 to 2^50";
-          }
-        }
-        else if(pieces[0] == "maxPlayouts") {
-          if(Global::tryStringToInt64(pieces[1],i64) && i64 >= 1 && i64 <= (int64_t)1 << 50)
-            engine->setMaxPlayouts(i64);
-          else {
-            responseIsError = true;
-            response = "Invalid value for " + pieces[0] + ", must be integer from 1 to 2^50";
-          }
-        }
-        else if(pieces[0] == "maxTime") {
-          if(Global::tryStringToDouble(pieces[1],d) && d >= 0 && d <= 1e20)
-            engine->setMaxTime(d);
-          else {
-            responseIsError = true;
-            response = "Invalid value for " + pieces[0] + ", must be integer from 1 to 2^50";
-          }
-        }
-        else if(pieces[0] == "policyOptimism") {
-          if(Global::tryStringToDouble(pieces[1],d) && d >= 0 && d <= 1)
-            engine->setPolicyOptimism(d);
-          else {
-            responseIsError = true;
-            response = "Invalid value for " + pieces[0] + ", must be integer from 1 to 1024";
-          }
+    // else if(command == "kata-set-param") {
+    //   if(pieces.size() != 2) {
+    //     responseIsError = true;
+    //     response = "Expected two arguments for kata-set-param but got '" + Global::concat(pieces," ") + "'";
+    //   }
+    //   else {
+    //     bool b;
+    //     int i;
+    //     int64_t i64;
+    //     double d;
+    //     if(pieces[0] == "playoutDoublingAdvantage") {
+    //       if(Global::tryStringToDouble(pieces[1],d) && d >= -3.0 && d <= 3.0)
+    //         engine->setStaticPlayoutDoublingAdvantage(d);
+    //       else {
+    //         responseIsError = true;
+    //         response = "Invalid value for " + pieces[0] + ", must be float from -3.0 to 3.0";
+    //       }
+    //     }
+    //     else if(pieces[0] == "rootPolicyTemperature") {
+    //       if(Global::tryStringToDouble(pieces[1],d) && d >= 0.01 && d <= 100.0)
+    //         engine->setRootPolicyTemperature(d);
+    //       else {
+    //         responseIsError = true;
+    //         response = "Invalid value for " + pieces[0] + ", must be float from 0.01 to 100.0";
+    //       }
+    //     }
+    //     else if(pieces[0] == "analysisWideRootNoise") {
+    //       if(Global::tryStringToDouble(pieces[1],d) && d >= 0.0 && d <= 5.0)
+    //         engine->setAnalysisWideRootNoise(d);
+    //       else {
+    //         responseIsError = true;
+    //         response = "Invalid value for " + pieces[0] + ", must be float from 0.0 to 2.0";
+    //       }
+    //     }
+    //     else if(pieces[0] == "analysisIgnorePreRootHistory") {
+    //       if(Global::tryStringToBool(pieces[1],b))
+    //         engine->setAnalysisIgnorePreRootHistory(b);
+    //       else {
+    //         responseIsError = true;
+    //         response = "Invalid value for " + pieces[0] + ", must be bool";
+    //       }
+    //     }
+    //     else if(pieces[0] == "numSearchThreads") {
+    //       if(Global::tryStringToInt(pieces[1],i) && i >= 1 && i <= 1024)
+    //         engine->setNumSearchThreads(i);
+    //       else {
+    //         responseIsError = true;
+    //         response = "Invalid value for " + pieces[0] + ", must be integer from 1 to 1024";
+    //       }
+    //     }
+    //     else if(pieces[0] == "maxVisits") {
+    //       if(Global::tryStringToInt64(pieces[1],i64) && i64 >= 1 && i64 <= (int64_t)1 << 50)
+    //         engine->setMaxVisits(i64);
+    //       else {
+    //         responseIsError = true;
+    //         response = "Invalid value for " + pieces[0] + ", must be integer from 1 to 2^50";
+    //       }
+    //     }
+    //     else if(pieces[0] == "maxPlayouts") {
+    //       if(Global::tryStringToInt64(pieces[1],i64) && i64 >= 1 && i64 <= (int64_t)1 << 50)
+    //         engine->setMaxPlayouts(i64);
+    //       else {
+    //         responseIsError = true;
+    //         response = "Invalid value for " + pieces[0] + ", must be integer from 1 to 2^50";
+    //       }
+    //     }
+    //     else if(pieces[0] == "maxTime") {
+    //       if(Global::tryStringToDouble(pieces[1],d) && d >= 0 && d <= 1e20)
+    //         engine->setMaxTime(d);
+    //       else {
+    //         responseIsError = true;
+    //         response = "Invalid value for " + pieces[0] + ", must be integer from 1 to 2^50";
+    //       }
+    //     }
+    //     else if(pieces[0] == "policyOptimism") {
+    //       if(Global::tryStringToDouble(pieces[1],d) && d >= 0 && d <= 1)
+    //         engine->setPolicyOptimism(d);
+    //       else {
+    //         responseIsError = true;
+    //         response = "Invalid value for " + pieces[0] + ", must be integer from 1 to 1024";
+    //       }
+    //     }
+    //     else {
+    //       responseIsError = true;
+    //       response = "Unknown or invalid parameter: " + pieces[0];
+    //     }
+    //   }
+    // }
+
+    else if(command == "kata-set-param" || command == "kata-set-params") {
+      std::map<string,string> overrideSettings;
+      if(command == "kata-set-param") {
+        if(pieces.size() != 2) {
+          responseIsError = true;
+          response = "Expected two arguments for kata-set-param but got '" + Global::concat(pieces," ") + "'";
         }
         else {
+          overrideSettings[pieces[0]] = pieces[1];
+        }
+      }
+      else {
+        if(pieces.size() < 1) {
           responseIsError = true;
-          response = "Unknown or invalid parameter: " + pieces[0];
+          response = "Expected argument for kata-set-param but got '" + Global::concat(pieces," ") + "'";
+        }
+        else {
+          try {
+            string rejoined = Global::concat(pieces, " ", 0, pieces.size());
+            nlohmann::json settings = nlohmann::json::parse(rejoined);
+            if(!settings.is_object())
+              throw StringError("Argument to kata-set-params must be a json object");
+
+            for(auto it = settings.begin(); it != settings.end(); ++it) {
+              overrideSettings[it.key()] = it.value().is_string() ? it.value().get<string>(): it.value().dump(); // always convert to string
+            }
+          }
+          catch(const StringError& exception) {
+            responseIsError = true;
+            response = string("Could not set params: ") + exception.what();
+          }
+        }
+      }
+
+      if(!responseIsError) {
+        try {
+          // First validate that everything in here is used by checking it by itself
+          {
+            ConfigParser cleanCfg;
+            cleanCfg.overrideKeys(overrideSettings);
+            // Add required parameter so that it passes validation
+            cleanCfg.overrideKey("numSearchThreads",Global::intToString(engine->getGenmoveParams().numThreads));
+
+            SearchParams buf1;
+            SearchParams buf2;
+            loadParams(cleanCfg, buf1, buf2);
+
+            // These parameters have a bit of special handling so we can't change them easily right now
+            if(contains(overrideSettings,"dynamicPlayoutDoublingAdvantageCapPerOppLead")) throw StringError("Cannot be overridden in kata-set-param: dynamicPlayoutDoublingAdvantageCapPerOppLead");
+            if(contains(overrideSettings,"avoidRepeatedPatternUtility")) throw StringError("Cannot be overridden in kata-set-param: avoidRepeatedPatternUtility");
+
+            vector<string> unusedKeys = cleanCfg.unusedKeys();
+            for(const string& unused: unusedKeys) {
+              throw StringError("Unrecognized or non-overridable parameter in kata-set-params: " + unused);
+            }
+          }
+
+          //Ignore any unused keys in the original config so far
+          cfg.markAllKeysUsedWithPrefix("");
+          // Now enshrine the new settings into the real config permanently, and parse.
+          cfg.overrideKeys(overrideSettings);
+          SearchParams genmoveParams;
+          SearchParams analysisParams;
+          loadParams(cfg,genmoveParams,analysisParams);
+
+          SearchParams::failIfParamsDifferOnUnchangeableParameter(initialGenmoveParams,genmoveParams);
+          SearchParams::failIfParamsDifferOnUnchangeableParameter(initialAnalysisParams,analysisParams);
+          engine->setGenmoveParamsIfChanged(genmoveParams);
+          engine->setAnalysisParamsIfChanged(analysisParams);
+          staticPDATakesPrecedence = cfg.contains("playoutDoublingAdvantage") && !cfg.contains("dynamicPlayoutDoublingAdvantageCapPerOppLead");
+          engine->staticPDATakesPrecedence = staticPDATakesPrecedence;
+        }
+        catch(const StringError& exception) {
+          responseIsError = true;
+          response = string("Could not set params: ") + exception.what();
         }
       }
     }
@@ -2706,9 +2767,9 @@ int MainCmds::gtp(const vector<string>& args) {
     }
 
     else if(command == "kata-debug-print-tc") {
-      response += "Black "+ engine->bTimeControls.toDebugString(engine->bot->getRootBoard(),engine->bot->getRootHist(),initialParams.lagBuffer);
+      response += "Black "+ engine->bTimeControls.toDebugString(engine->bot->getRootBoard(),engine->bot->getRootHist(),engine->getGenmoveParams().lagBuffer);
       response += "\n";
-      response += "White "+ engine->wTimeControls.toDebugString(engine->bot->getRootBoard(),engine->bot->getRootHist(),initialParams.lagBuffer);
+      response += "White "+ engine->wTimeControls.toDebugString(engine->bot->getRootBoard(),engine->bot->getRootHist(),engine->getGenmoveParams().lagBuffer);
     }
 
     else if(command == "play") {
@@ -3208,7 +3269,7 @@ int MainCmds::gtp(const vector<string>& args) {
         response = "Expected one argument 'all' or symmetry index [0-7] for kata-raw-nn but got '" + Global::concat(pieces," ") + "'";
       }
       else {
-        double policyOptimism = engine->params.rootPolicyOptimism;
+        double policyOptimism = engine->getGenmoveParams().rootPolicyOptimism;
         if(pieces.size() == 2) {
           parsed = false;
           if(Global::tryStringToDouble(pieces[0],policyOptimism) && isnan(policyOptimism) && policyOptimism >= 0.0 && policyOptimism <= 1.0) {
@@ -3220,8 +3281,30 @@ int MainCmds::gtp(const vector<string>& args) {
           response = "Expected double from 0 to 1 for optimism but got '" + Global::concat(pieces," ") + "'";
         }
         else {
-          response = engine->rawNN(whichSymmetry, policyOptimism);
+          const bool useHumanModel = false;
+          response = engine->rawNN(whichSymmetry, policyOptimism, useHumanModel);
         }
+      }
+    }
+
+    else if(command == "kata-raw-human-nn") {
+      int whichSymmetry = NNInputs::SYMMETRY_ALL;
+      bool parsed = false;
+      if(pieces.size() == 1) {
+        string s = Global::trim(Global::toLower(pieces[0]));
+        if(s == "all")
+          parsed = true;
+        else if(Global::tryStringToInt(s,whichSymmetry) && whichSymmetry >= 0 && whichSymmetry <= SymmetryHelpers::NUM_SYMMETRIES-1)
+          parsed = true;
+      }
+      if(!parsed) {
+        responseIsError = true;
+        response = "Expected one argument 'all' or symmetry index [0-7] for kata-raw-human-nn but got '" + Global::concat(pieces," ") + "'";
+      }
+      else {
+        double policyOptimism = engine->getGenmoveParams().rootPolicyOptimism;
+        const bool useHumanModel = true;
+        response = engine->rawNN(whichSymmetry, policyOptimism, useHumanModel);
       }
     }
 
@@ -3319,7 +3402,7 @@ int MainCmds::gtp(const vector<string>& args) {
             const PlayUtils::BenchmarkResults* baseline = NULL;
             const double secondsPerGameMove = 1.0;
             const bool printElo = false;
-            SearchParams params = engine->getParams();
+            SearchParams params = engine->getGenmoveParams();
             params.maxTime = 1.0e20;
             params.maxPlayouts = ((int64_t)1) << 50;
             params.maxVisits = numVisits;

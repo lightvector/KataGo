@@ -191,10 +191,10 @@ In addition to a basic set of [GTP commands](https://www.lysator.liu.se/~gunnar/
   * `kata-get-param PARAM`, `kata-set-param PARAM VALUE`
      * Get a parameter or set a parameter to a given value.
      * Current supported PARAMs are:
-        * `playoutDoublingAdvantage (float)`. See documentation for this parameter in [the example config](..cpp/configs/gtp_example.cfg). Setting this via this command affects the value used for analysis, and affects play only if the config is not already set to use `dynamicPlayoutDoublingAdvantageCapPerOppLead`.
-        * `analysisWideRootNoise (float)`. See documentation for this parameter in [the example config](..cpp/configs/gtp_example.cfg)
-        * `numSearchThreads (int)`. The number of CPU threads to use in parallel, see documentation for this parameter in [the example config](..cpp/configs/gtp_example.cfg).
-        * `maxVisits (int), maxPlayouts (int), maxTime (float)`. Set or override one or more limits on the search, see [the example config](..cpp/configs/gtp_example.cfg). KataGo will obey the *combination* of all three.
+        * `playoutDoublingAdvantage (float)`. See documentation for this parameter in [the example config](../cpp/configs/gtp_example.cfg). Setting this via this command affects the value used for analysis, and affects play only if the config is not already set to use `dynamicPlayoutDoublingAdvantageCapPerOppLead`.
+        * `analysisWideRootNoise (float)`. See documentation for this parameter in [the example config](../cpp/configs/gtp_example.cfg)
+        * `numSearchThreads (int)`. The number of CPU threads to use in parallel, see documentation for this parameter in [the example config](../cpp/configs/gtp_example.cfg).
+        * `maxVisits (int), maxPlayouts (int), maxTime (float)`. Set or override one or more limits on the search, see [the example config](../cpp/configs/gtp_example.cfg). KataGo will obey the *combination* of all three.
   * `kata-list-params`
      * Report all PARAMs supported by `kata-get-param`, separated by whitespace.
   * `cputime`, `gomill-cpu_time`

@@ -2232,9 +2232,9 @@ struct Buffers {
     inputMetaBufBytesFloat = m.numInputMetaChannels * batchFloatBytes;
     inputMetaBufBytes = m.numInputMetaChannels * batchBytes;
 
-    CUDA_ERR("Buffers",cudaMalloc(&inputBufFloat, inputBufBytesFloat));
+    CUDA_ERR("Buffers",cudaMalloc(reinterpret_cast<void**>(&inputBufFloat), inputBufBytesFloat));
     CUDA_ERR("Buffers",cudaMalloc(&inputBuf, inputBufBytes));
-    CUDA_ERR("Buffers",cudaMalloc(&inputGlobalBufFloat, inputGlobalBufBytesFloat));
+    CUDA_ERR("Buffers",cudaMalloc(reinterpret_cast<void**>(&inputGlobalBufFloat), inputGlobalBufBytesFloat));
     CUDA_ERR("Buffers",cudaMalloc(&inputGlobalBuf, inputGlobalBufBytes));
     if(m.numInputMetaChannels > 0) {
       CUDA_ERR("Buffers",cudaMalloc(&inputMetaBufFloat, inputMetaBufBytesFloat));
@@ -2247,15 +2247,15 @@ struct Buffers {
 
     assert(m.modelVersion >= 12 ? m.policyHead->p2Channels == 2 : m.policyHead->p2Channels == 1);
     policyPassBufBytes = m.policyHead->p2Channels * batchFloatBytes;
-    CUDA_ERR("Buffers",cudaMalloc(&policyPassBuf, policyPassBufBytes));
+    CUDA_ERR("Buffers",cudaMalloc(reinterpret_cast<void**>(&policyPassBuf), policyPassBufBytes));
     policyBufBytes = m.policyHead->p2Channels * batchXYFloatBytes;
-    CUDA_ERR("Buffers",cudaMalloc(&policyBuf, policyBufBytes));
+    CUDA_ERR("Buffers",cudaMalloc(reinterpret_cast<void**>(&policyBuf), policyBufBytes));
 
     valueBufBytes = m.valueHead->valueChannels * batchFloatBytes;
-    CUDA_ERR("Buffers",cudaMalloc(&valueBuf, valueBufBytes));
+    CUDA_ERR("Buffers",cudaMalloc(reinterpret_cast<void**>(&valueBuf), valueBufBytes));
 
     scoreValueBufBytes = m.valueHead->scoreValueChannels * batchFloatBytes;
-    CUDA_ERR("Buffers",cudaMalloc(&scoreValueBuf, scoreValueBufBytes));
+    CUDA_ERR("Buffers",cudaMalloc(reinterpret_cast<void**>(&scoreValueBuf), scoreValueBufBytes));
 
     //This buf is used for both an intermdiate fp16 result in fp16 mode, and ALSO the final fp32 output, so always must be fp32-sized
     ownershipBufBytes = m.valueHead->ownershipChannels * batchXYFloatBytes;
@@ -3067,8 +3067,8 @@ bool NeuralNet::testEvaluateGlobalPoolingResidualBlock(
 
   CudaUtils::mallocAndCopyToDevice("deviceInput", inputBuffer.data(), numInputFloats, deviceInput, useFP16);
   CudaUtils::mallocAndCopyToDevice("deviceMask", maskBuffer.data(), numMaskFloats, deviceMask, useFP16);
-  CUDA_ERR("deviceMaskFloat",cudaMalloc(&deviceMaskFloat, numMaskFloats * sizeof(float)));
-  CUDA_ERR("deviceMaskSum",cudaMalloc(&deviceMaskSum, numMaskSumFloats * sizeof(float)));
+  CUDA_ERR("deviceMaskFloat",cudaMalloc(reinterpret_cast<void**>(&deviceMaskFloat), numMaskFloats * sizeof(float)));
+  CUDA_ERR("deviceMaskSum",cudaMalloc(reinterpret_cast<void**>(&deviceMaskSum), numMaskSumFloats * sizeof(float)));
   deviceMaskFloatOrig = deviceMaskFloat;
   CudaUtils::mallocOnDevice("deviceScratch", numInputFloats, deviceScratch, useFP16);
 

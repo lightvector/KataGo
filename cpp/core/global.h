@@ -24,12 +24,10 @@
 //GLOBAL DEFINES AND FLAGS----------------------------------------------------
 #ifdef __GNUG__  //On g++ only
 
-#define NORETURN __attribute__ ((noreturn))
 #define PUREFUNC __attribute__ ((pure))
 
 #else //On other compilers
 
-#define NORETURN
 #define PUREFUNC
 
 #endif
@@ -55,8 +53,8 @@ namespace Global
   //ERRORS----------------------------------
 
   //Report fatal error message and exit
-  void fatalError(const char* s) NORETURN;
-  void fatalError(const std::string& s) NORETURN;
+  [[noreturn]] void fatalError(const char* s);
+  [[noreturn]] void fatalError(const std::string& s);
 
   //TIME------------------------------------
 

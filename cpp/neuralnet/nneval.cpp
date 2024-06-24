@@ -671,7 +671,7 @@ void NNEvaluator::evaluate(
   const BoardHistory& history,
   Player nextPlayer,
   const SGFMetadata* sgfMeta,
-  const MiscNNInputParams& nnInputParams,
+  const MiscNNInputParams& nnInputParamsArg,
   NNResultBuf& buf,
   bool skipCache,
   bool includeOwnerMap
@@ -689,6 +689,11 @@ void NNEvaluator::evaluate(
                         " nnYLen = " + Global::intToString(nnYLen) +
                         " and requireExactNNLen, but was asked to evaluate board with different x or y size");
   }
+
+  // Avoid using policy optimism for humanSL
+  MiscNNInputParams nnInputParams = nnInputParamsArg;
+  if(numInputMetaChannels > 0)
+    nnInputParams.policyOptimism = 0.0;
 
   Hash128 nnHash = NNInputs::getHash(board, history, nextPlayer, nnInputParams);
   if(numInputMetaChannels > 0) {

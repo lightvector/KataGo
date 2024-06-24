@@ -48,6 +48,9 @@ struct SGFMetadata {
 
   static constexpr int METADATA_INPUT_NUM_CHANNELS = 192;
 
+  bool operator==(const SGFMetadata& other) const;
+  bool operator!=(const SGFMetadata& other) const;
+
   Hash128 getHash(Player nextPlayer) const;
 
   static void fillMetadataRow(const SGFMetadata* sgfMeta, float* rowMetadata, Player nextPlayer, int boardArea);

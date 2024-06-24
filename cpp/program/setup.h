@@ -81,6 +81,12 @@ namespace Setup {
     setup_for_t setupFor,
     bool hasHumanModel
   );
+  std::vector<SearchParams> loadParams(
+    ConfigParser& cfg,
+    setup_for_t setupFor,
+    bool hasHumanModel,
+    bool loadSingleConfigOnly
+  );
 
   Player parseReportAnalysisWinrates(
     ConfigParser& cfg, Player defaultPerspective

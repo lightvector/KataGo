@@ -42,6 +42,7 @@ int MainCmds::evalsgf(const vector<string>& args) {
   bool printAvgShorttermError;
   bool printSharpScore;
   bool printGraph;
+  bool printJson;
   int printMaxDepth;
   bool rawNN;
   string dumpNpzInputTo;
@@ -75,6 +76,7 @@ int MainCmds::evalsgf(const vector<string>& args) {
     TCLAP::SwitchArg printAvgShorttermErrorArg("","print-avg-shortterm-error","Compute and print avgShorttermError");
     TCLAP::SwitchArg printSharpScoreArg("","print-sharp-score","Compute and print sharp weighted score");
     TCLAP::SwitchArg printGraphArg("","print-graph","Print graph structure of the search");
+    TCLAP::SwitchArg printJsonArg("","print-json","Print analysis json of the search");
     TCLAP::ValueArg<int> printMaxDepthArg("","print-max-depth","How deep to print",false,1,"DEPTH");
     TCLAP::SwitchArg rawNNArg("","raw-nn","Perform single raw neural net eval");
     TCLAP::ValueArg<string> dumpNpzInputToArg("","dump-npz-input-to","Dump the nn input tensor to npz file",false,string(),"NPZFILE");
@@ -106,6 +108,7 @@ int MainCmds::evalsgf(const vector<string>& args) {
     cmd.add(printAvgShorttermErrorArg);
     cmd.add(printSharpScoreArg);
     cmd.add(printGraphArg);
+    cmd.add(printJsonArg);
     cmd.add(printMaxDepthArg);
     cmd.add(rawNNArg);
     cmd.add(dumpNpzInputToArg);
@@ -136,6 +139,7 @@ int MainCmds::evalsgf(const vector<string>& args) {
     printAvgShorttermError = printAvgShorttermErrorArg.getValue();
     printSharpScore = printSharpScoreArg.getValue();
     printGraph = printGraphArg.getValue();
+    printJson = printJsonArg.getValue();
     printMaxDepth = printMaxDepthArg.getValue();
     rawNN = rawNNArg.getValue();
     dumpNpzInputTo = dumpNpzInputToArg.getValue();
@@ -614,6 +618,33 @@ int MainCmds::evalsgf(const vector<string>& args) {
       }
     }
     cout << endl;
+  }
+
+  if(printJson) {
+    int analysisPVLen = 7;
+    bool preventEncore = false;
+    bool includePolicy = printPolicy;
+    bool includeOwnership = printOwnership;
+    bool includeOwnershipStdev = false;
+    bool includeMovesOwnership = false;
+    bool includeMovesOwnershipStdev = false;
+    bool includePVVisits = true;
+    nlohmann::json ret;
+    bool suc = search->getAnalysisJson(
+      perspective,
+      analysisPVLen,
+      preventEncore,
+      includePolicy,
+      includeOwnership,
+      includeOwnershipStdev,
+      includeMovesOwnership,
+      includeMovesOwnershipStdev,
+      includePVVisits,
+      ret
+    );
+    if(suc) {
+      cout << ret << endl;
+    }
   }
 
   if(dumpNpzInputTo != "") {
