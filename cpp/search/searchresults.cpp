@@ -314,7 +314,7 @@ bool Search::getPlaySelectionValues(
   }
 
   // Average in human policy
-  if(humanEvaluator != NULL && searchParams.humanSLChosenMoveProp > 0.0) {
+  if(humanEvaluator != NULL && searchParams.humanSLProfile.initialized && searchParams.humanSLChosenMoveProp > 0.0) {
     const NNOutput* humanOutput = node.getHumanOutput();
     const float* humanProbs = humanOutput != NULL ? humanOutput->getPolicyProbsMaybeNoised() : NULL;
     if(humanProbs != NULL) {

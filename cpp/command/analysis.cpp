@@ -194,6 +194,12 @@ int MainCmds::analysis(const vector<string>& args) {
   logger.write("Loaded model "+ modelFile);
   cmd.logOverrides(logger);
 
+  if(humanModelFile != "" && !cfg.contains("humanSLProfile")) {
+    logger.write("WARNING: Provided -human-model but humanSLProfile was not set in the config. The human SL model will not be used until it is set.");
+    if(!logger.isLoggingToStderr())
+      cerr << "WARNING: Provided -human-model but humanSLProfile was not set in the config. The human SL model will not be used until it is set." << endl;
+  }
+
   ThreadSafeQueue<string*> toWriteQueue;
   auto writeLoop = [&toWriteQueue,&logAllResponses,&logger]() {
     while(true) {

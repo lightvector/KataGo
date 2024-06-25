@@ -1053,9 +1053,10 @@ struct GTPEngine {
 
     SearchNode* rootNode = bot->getSearch()->rootNode;
     if(rootNode != NULL && delayMoveScale > 0.0 && delayMoveMax > 0.0) {
-      const NNOutput* humanOutput = rootNode->getHumanOutput();
-      const float* policyProbs = humanOutput != NULL ? humanOutput->getPolicyProbsMaybeNoised() : NULL;
       int pos = bot->getSearch()->getPos(moveLoc);
+      const NNOutput* nnOutput = rootNode->getHumanOutput();
+      nnOutput = nnOutput != NULL ? nnOutput : rootNode->getNNOutput();
+      const float* policyProbs = nnOutput != NULL ? nnOutput->getPolicyProbsMaybeNoised() : NULL;
       if(policyProbs != NULL) {
         double prob = std::max(0.0,(double)policyProbs[pos]);
         double meanWait = 0.5 * delayMoveScale / (prob + 0.10);
@@ -1978,6 +1979,12 @@ int MainCmds::gtp(const vector<string>& args) {
     cerr << "GTP ready, beginning main protocol loop" << endl;
   }
 
+  if(humanModelFile != "" && !cfg.contains("humanSLProfile")) {
+    logger.write("WARNING: Provided -human-model but humanSLProfile was not set in the config. The human SL model will not be used until it is set.");
+    if(!logger.isLoggingToStderr())
+      cerr << "WARNING: Provided -human-model but humanSLProfile was not set in the config. The human SL model will not be used until it is set." << endl;
+  }
+
   bool currentlyAnalyzing = false;
   string line;
   while(getline(cin,line)) {
@@ -2438,9 +2445,12 @@ int MainCmds::gtp(const vector<string>& args) {
     else if(command == "kata-set-param" || command == "kata-set-params") {
       std::map<string,string> overrideSettings;
       if(command == "kata-set-param") {
-        if(pieces.size() != 2) {
+        if(pieces.size() != 1 && pieces.size() != 2) {
           responseIsError = true;
-          response = "Expected two arguments for kata-set-param but got '" + Global::concat(pieces," ") + "'";
+          response = "Expected one or two arguments for kata-set-param but got '" + Global::concat(pieces," ") + "'";
+        }
+        else if(pieces.size() == 1) {
+          overrideSettings[pieces[0]] = "";
         }
         else {
           overrideSettings[pieces[0]] = pieces[1];
@@ -3302,9 +3312,15 @@ int MainCmds::gtp(const vector<string>& args) {
         response = "Expected one argument 'all' or symmetry index [0-7] for kata-raw-human-nn but got '" + Global::concat(pieces," ") + "'";
       }
       else {
-        double policyOptimism = engine->getGenmoveParams().rootPolicyOptimism;
-        const bool useHumanModel = true;
-        response = engine->rawNN(whichSymmetry, policyOptimism, useHumanModel);
+        if(!engine->getGenmoveParams().humanSLProfile.initialized) {
+          responseIsError = true;
+          response = "Cannot run kata-raw-human-nn, humanSLProfile parameter was not set";
+        }
+        else {
+          double policyOptimism = engine->getGenmoveParams().rootPolicyOptimism;
+          const bool useHumanModel = true;
+          response = engine->rawNN(whichSymmetry, policyOptimism, useHumanModel);
+        }
       }
     }
 
