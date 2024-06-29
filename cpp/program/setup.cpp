@@ -737,18 +737,20 @@ vector<SearchParams> Setup::loadParams(
     else if(cfg.contains("futileVisitsThreshold"))   params.futileVisitsThreshold = cfg.getDouble("futileVisitsThreshold",0.01,1.0);
     else                                             params.futileVisitsThreshold = 0.0;
 
-    if(setupFor != SETUP_FOR_DISTRIBUTED) {
-      string humanSLProfileName;
-      if(cfg.contains("humanSLProfile"+idxStr)) humanSLProfileName = cfg.getString("humanSLProfile"+idxStr);
-      else if(cfg.contains("humanSLProfile"))   humanSLProfileName = cfg.getString("humanSLProfile");
-      params.humanSLProfile = SGFMetadata::getProfile(humanSLProfileName);
-    }
-
     auto throwHumanParsingError = [](const string& param) {
       throw ConfigParsingError(
         string("Provided parameter ") + param + string(" but no human model was specified (e.g -human-model b18c384nbt-humanv0.bin.gz)")
       );
     };
+
+    if(setupFor != SETUP_FOR_DISTRIBUTED) {
+      string humanSLProfileName;
+      if(!hasHumanModel && cfg.contains("humanSLProfile"+idxStr)) throwHumanParsingError("humanSLProfile"+idxStr);
+      else if(!hasHumanModel && cfg.contains("humanSLProfile")) throwHumanParsingError("humanSLProfile");
+      else if(cfg.contains("humanSLProfile"+idxStr)) humanSLProfileName = cfg.getString("humanSLProfile"+idxStr);
+      else if(cfg.contains("humanSLProfile"))   humanSLProfileName = cfg.getString("humanSLProfile");
+      params.humanSLProfile = SGFMetadata::getProfile(humanSLProfileName);
+    }
 
     if(!hasHumanModel && cfg.contains("humanSLCpuctExploration"+idxStr)) throwHumanParsingError("humanSLCpuctExploration"+idxStr);
     else if(!hasHumanModel && cfg.contains("humanSLCpuctExploration")) throwHumanParsingError("humanSLCpuctExploration");

@@ -489,6 +489,13 @@ struct GTPEngine {
           Setup::SETUP_FOR_GTP
         );
         logger.write("Loaded human SL net with nnXLen " + Global::intToString(humanEval->getNNXLen()) + " nnYLen " + Global::intToString(humanEval->getNNYLen()));
+        if(!humanEval->requiresSGFMetadata()) {
+          string warning;
+          warning += "WARNING: Human model was not trained from SGF metadata to vary by rank! Did you pass the wrong model for -human-model?\n";
+          logger.write(warning);
+          if(!loggingToStderr)
+            cerr << warning << endl;
+        }
       }
 
       {

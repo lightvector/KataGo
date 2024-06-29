@@ -162,12 +162,20 @@ int MainCmds::analysis(const vector<string>& args) {
       NNPos::MAX_BOARD_LEN,NNPos::MAX_BOARD_LEN,defaultMaxBatchSize,defaultRequireExactNNLen,disableFP16,
       Setup::SETUP_FOR_ANALYSIS
     );
-    if(humanModelFile != "")
+    if(humanModelFile != "") {
       humanEval = Setup::initializeNNEvaluator(
         humanModelFile,humanModelFile,expectedSha256,cfg,logger,seedRand,expectedConcurrentEvals,
         NNPos::MAX_BOARD_LEN,NNPos::MAX_BOARD_LEN,defaultMaxBatchSize,defaultRequireExactNNLen,disableFP16,
         Setup::SETUP_FOR_ANALYSIS
       );
+      if(!humanEval->requiresSGFMetadata()) {
+        string warning;
+        warning += "WARNING: Human model was not trained from SGF metadata to vary by rank! Did you pass the wrong model for -human-model?\n";
+        logger.write(warning);
+        if(!logToStderr)
+          cerr << warning << endl;
+      }
+    }
   }
 
 #ifndef USE_EIGEN_BACKEND
