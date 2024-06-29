@@ -574,6 +574,47 @@ int MainCmds::printclockinfo(const vector<string>& args) {
   return 0;
 }
 
+static void handleStartAnnotations(Sgf* rootSgf) {
+  std::function<bool(Sgf*)> hasStartNode = [&hasStartNode](Sgf* sgf) {
+    for(SgfNode* node : sgf->nodes) {
+      if(node->hasProperty("C")) {
+        std::string comment = node->getSingleProperty("C");
+        if(comment.find("%START%") != std::string::npos) {
+          return true;
+        }
+      }
+    }
+    for(Sgf* child : sgf->children) {
+      if(hasStartNode(child)) {
+        return true;
+      }
+    }
+    return false;
+  };
+
+  std::function<void(Sgf*)> markNodes = [&markNodes](Sgf* sgf) {
+    bool isInStartSubtree = false;
+    for(SgfNode* node : sgf->nodes) {
+      if(node->hasProperty("C")) {
+        std::string comment = node->getSingleProperty("C");
+        if(comment.find("%START%") != std::string::npos) {
+          isInStartSubtree = true;
+          break;
+        }
+      }
+      node->appendComment("%NOSAMPLE%");
+      node->appendComment("%NOHINT%");
+    }
+    if(!isInStartSubtree) {
+      for(Sgf* child : sgf->children)
+        markNodes(child);
+    }
+  };
+
+  if(hasStartNode(rootSgf)) {
+    markNodes(rootSgf);
+  }
+}
 
 int MainCmds::samplesgfs(const vector<string>& args) {
   Board::initHash();
@@ -911,6 +952,8 @@ int MainCmds::samplesgfs(const vector<string>& args) {
       numSgfsFilteredTopLevel += 1;
       return;
     }
+
+    handleStartAnnotations(sgf);
 
     if(valueFluctuationNNEval == NULL) {
       bool hashParent = false;
@@ -2219,6 +2262,7 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
       }
 
       logger.write("Starting " + fileName);
+      handleStartAnnotations(sgf);
 
       if(gameMode) {
         sgfQueue.waitPush(sgf);
