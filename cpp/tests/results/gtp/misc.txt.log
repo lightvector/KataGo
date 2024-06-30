@@ -70,5 +70,9 @@ trtUseFP16 = false
 : = 
 : Controller: get_komi
 : = -23
+: Controller: version
+: = 1.14.1+g170-b6c96-s175M
+: Controller: kata-get-models
+: = [{"internalName":"g170-b6c96-s175395328-d26788732","maxBatchSize":8,"name":"tests/models/g170-b6c96-s175395328-d26788732.bin.gz","usesHumanSLProfile":false,"usingFP16":"false","version":8}]
 : GPU -1 finishing, processed 0 rows 0 batches
 : All cleaned up, quitting

@@ -180,6 +180,53 @@ string NNEvaluator::getInternalModelName() const {
   else
     return NeuralNet::getModelName(loadedModel);
 }
+
+static bool tryAbbreviateStepString(const string& input, string& buf) {
+  size_t i = 0;
+  while(i < input.length() && !Global::isDigit(input[i]))
+    i++;
+  if(i > 1)
+    return false;
+
+  string prefix = input.substr(0, i);
+  int64_t number;
+  bool suc = Global::tryStringToInt64(input.substr(i),number);
+  if(!suc)
+    return false;
+
+  if(number >= 10000000000LL)
+    buf = prefix + std::to_string(number / 1000000000LL) + "G";
+  if(number >= 10000000)
+    buf = prefix + std::to_string(number / 1000000) + "M";
+  else if(number >= 10000)
+    buf = prefix + std::to_string(number / 1000) + "K";
+  else
+    buf = input;
+  return true;
+}
+
+string NNEvaluator::getAbbrevInternalModelName() const {
+  string name = getInternalModelName();
+  std::vector<string> pieces = Global::split(name,'-');
+  std::vector<string> newPieces;
+  for(const string& piece: pieces) {
+    string buf;
+    if(piece == "kata1") {
+      // skip
+    }
+    else if(piece.size() > 1 && piece[0] == 's' && tryAbbreviateStepString(piece,buf)) {
+      newPieces.push_back(buf);
+    }
+    else if(piece.size() > 1 && piece[0] == 'd' && tryAbbreviateStepString(piece,buf)) {
+      // skip
+    }
+    else {
+      newPieces.push_back(piece);
+    }
+  }
+  return Global::concat(newPieces,"-");
+}
+
 Logger* NNEvaluator::getLogger() {
   return logger;
 }

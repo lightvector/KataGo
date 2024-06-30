@@ -197,6 +197,7 @@ int MainCmds::analysis(const vector<string>& args) {
 
   //Check for unused config keys
   cfg.warnUnusedKeys(cerr,&logger);
+  Setup::maybeWarnHumanSLParams(defaultParams,nnEval,humanEval,cerr,logger);
 
   logger.write("Loaded config "+ cfg.getFileName());
   logger.write("Loaded model "+ modelFile);
@@ -461,6 +462,30 @@ int MainCmds::analysis(const vector<string>& args) {
         if(action == "query_version") {
           input["version"] = Version::getKataGoVersion();
           input["git_hash"] = Version::getGitRevision();
+          pushToWrite(new string(input.dump()));
+        }
+        if(action == "query_models") {
+          input["models"] = json::array();
+          if(nnEval != NULL) {
+            json modelInfo;
+            modelInfo["name"] = nnEval->getModelName();
+            modelInfo["internalName"] = nnEval->getInternalModelName();
+            modelInfo["maxBatchSize"] = nnEval->getMaxBatchSize();
+            modelInfo["usesHumanSLProfile"] = nnEval->requiresSGFMetadata();
+            modelInfo["version"] = nnEval->getModelVersion();
+            modelInfo["usingFP16"] = nnEval->getUsingFP16Mode().toString();
+            input["models"].push_back(modelInfo);
+          }
+          if(humanEval != NULL) {
+            json modelInfo;
+            modelInfo["name"] = humanEval->getModelName();
+            modelInfo["internalName"] = humanEval->getInternalModelName();
+            modelInfo["maxBatchSize"] = humanEval->getMaxBatchSize();
+            modelInfo["usesHumanSLProfile"] = humanEval->requiresSGFMetadata();
+            modelInfo["version"] = humanEval->getModelVersion();
+            modelInfo["usingFP16"] = humanEval->getUsingFP16Mode().toString();
+            input["models"].push_back(modelInfo);
+          }
           pushToWrite(new string(input.dump()));
         }
         else if(action == "clear_cache") {

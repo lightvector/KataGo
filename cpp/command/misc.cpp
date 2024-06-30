@@ -427,6 +427,7 @@ int MainCmds::demoplay(const vector<string>& args) {
 
   //Check for unused config keys
   cfg.warnUnusedKeys(cerr,&logger);
+  Setup::maybeWarnHumanSLParams(params,nnEval,NULL,cerr,logger);
 
   AsyncBot* bot = new AsyncBot(params, nnEval, &logger, searchRandSeed);
   bot->setAlwaysIncludeOwnerMap(true);
@@ -1522,6 +1523,7 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
 
   GameInitializer* gameInit = new GameInitializer(cfg,logger);
   cfg.warnUnusedKeys(cerr,&logger);
+  Setup::maybeWarnHumanSLParams(params,nnEval,NULL,cerr,logger);
 
   vector<string> sgfFiles;
   FileHelpers::collectSgfsFromDirsOrFiles(sgfDirs,sgfFiles);

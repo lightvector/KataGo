@@ -79,7 +79,7 @@ bool Search::initNodeNNOutput(
       thread.nnResultBuf, includeOwnerMap,
       thread.rand, searchParams.rootNumSymmetriesToSample
     );
-    if(humanEvaluator != NULL && searchParams.humanSLProfile.initialized) {
+    if(humanEvaluator != NULL && (searchParams.humanSLProfile.initialized || !humanEvaluator->requiresSGFMetadata())) {
       humanResult = humanEvaluator->averageMultipleSymmetries(
         thread.board, thread.history, thread.pla, &searchParams.humanSLProfile,
         nnInputParams,
@@ -95,7 +95,7 @@ bool Search::initNodeNNOutput(
       thread.nnResultBuf, skipCache, includeOwnerMap
     );
     result = new std::shared_ptr<NNOutput>(std::move(thread.nnResultBuf.result));
-    if(humanEvaluator != NULL && searchParams.humanSLProfile.initialized) {
+    if(humanEvaluator != NULL && (searchParams.humanSLProfile.initialized || !humanEvaluator->requiresSGFMetadata())) {
       humanEvaluator->evaluate(
         thread.board, thread.history, thread.pla, &searchParams.humanSLProfile,
         nnInputParams,

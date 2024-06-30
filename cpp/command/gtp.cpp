@@ -46,6 +46,7 @@ static const vector<string> knownCommands = {
   "kata-set-rules",
 
   //Get or change a few limited params dynamically
+  "kata-get-models",
   "kata-get-param",
   "kata-set-param",
   "kata-list-params",
@@ -1964,6 +1965,7 @@ int MainCmds::gtp(const vector<string>& args) {
 
   //Check for unused config keys
   cfg.warnUnusedKeys(cerr,&logger);
+  Setup::maybeWarnHumanSLParams(initialGenmoveParams,engine->nnEval,engine->humanEval,cerr,logger);
 
   logger.write("Loaded config " + cfg.getFileName());
   logger.write("Loaded model " + nnModelFile);
@@ -2065,27 +2067,13 @@ int MainCmds::gtp(const vector<string>& args) {
       if(overrideVersion.size() > 0)
         response = overrideVersion;
       else {
-        response = Version::getKataGoVersion();
-
-        string shortPrefix;
-        if(engine->nnEval != NULL) {
-          string modelName = engine->nnEval->getInternalModelName();
-          if(Global::isPrefix(modelName,"kata1-"))
-            modelName = Global::chopPrefix(modelName,"kata1-");
-          if(modelName.size() > 2) {
-            size_t c = 1;
-            while(c < modelName.size() && Global::isDigit(modelName[c]))
-              c += 1;
-            shortPrefix = modelName.substr(0,c);
-          }
-
-          if(engine->humanEval != NULL || modelName.find("human") != std::string::npos) {
-            response += " " + shortPrefix + "+HumanSL";
-          }
-          else if(shortPrefix.size() > 0) {
-            response += " " + shortPrefix;
-          }
-        }
+        std::vector<string> parts;
+        parts.push_back(Version::getKataGoVersion());
+        if(engine->nnEval != NULL)
+          parts.push_back(engine->nnEval->getAbbrevInternalModelName());
+        if(engine->humanEval != NULL)
+          parts.push_back(engine->humanEval->getAbbrevInternalModelName());
+        response = Global::concat(parts,"+");
       }
     }
 
@@ -2348,6 +2336,30 @@ int MainCmds::gtp(const vector<string>& args) {
         }
       }
     }
+    else if(command == "kata-get-models") {
+      nlohmann::json modelsList = nlohmann::json::array();
+      if(engine->nnEval != NULL) {
+        nlohmann::json modelInfo;
+        modelInfo["name"] = engine->nnEval->getModelName();
+        modelInfo["internalName"] = engine->nnEval->getInternalModelName();
+        modelInfo["maxBatchSize"] = engine->nnEval->getMaxBatchSize();
+        modelInfo["usesHumanSLProfile"] = engine->nnEval->requiresSGFMetadata();
+        modelInfo["version"] = engine->nnEval->getModelVersion();
+        modelInfo["usingFP16"] = engine->nnEval->getUsingFP16Mode().toString();
+        modelsList.push_back(modelInfo);
+      }
+      if(engine->humanEval != NULL) {
+        nlohmann::json modelInfo;
+        modelInfo["name"] = engine->humanEval->getModelName();
+        modelInfo["internalName"] = engine->humanEval->getInternalModelName();
+        modelInfo["maxBatchSize"] = engine->humanEval->getMaxBatchSize();
+        modelInfo["usesHumanSLProfile"] = engine->humanEval->requiresSGFMetadata();
+        modelInfo["version"] = engine->humanEval->getModelVersion();
+        modelInfo["usingFP16"] = engine->humanEval->getUsingFP16Mode().toString();
+        modelsList.push_back(modelInfo);
+      }
+      response = modelsList.dump();
+    }
     else if(command == "kata-get-params") {
       const SearchParams& genmoveParams = engine->getGenmoveParams();
       const SearchParams& analysisParams = engine->getAnalysisParams();
@@ -2359,96 +2371,6 @@ int MainCmds::gtp(const vector<string>& args) {
       params["humanSLProfile"] = cfg.contains("humanSLProfile") ? cfg.getString("humanSLProfile") : "";
       response = params.dump();
     }
-
-    // else if(command == "kata-set-param") {
-    //   if(pieces.size() != 2) {
-    //     responseIsError = true;
-    //     response = "Expected two arguments for kata-set-param but got '" + Global::concat(pieces," ") + "'";
-    //   }
-    //   else {
-    //     bool b;
-    //     int i;
-    //     int64_t i64;
-    //     double d;
-    //     if(pieces[0] == "playoutDoublingAdvantage") {
-    //       if(Global::tryStringToDouble(pieces[1],d) && d >= -3.0 && d <= 3.0)
-    //         engine->setStaticPlayoutDoublingAdvantage(d);
-    //       else {
-    //         responseIsError = true;
-    //         response = "Invalid value for " + pieces[0] + ", must be float from -3.0 to 3.0";
-    //       }
-    //     }
-    //     else if(pieces[0] == "rootPolicyTemperature") {
-    //       if(Global::tryStringToDouble(pieces[1],d) && d >= 0.01 && d <= 100.0)
-    //         engine->setRootPolicyTemperature(d);
-    //       else {
-    //         responseIsError = true;
-    //         response = "Invalid value for " + pieces[0] + ", must be float from 0.01 to 100.0";
-    //       }
-    //     }
-    //     else if(pieces[0] == "analysisWideRootNoise") {
-    //       if(Global::tryStringToDouble(pieces[1],d) && d >= 0.0 && d <= 5.0)
-    //         engine->setAnalysisWideRootNoise(d);
-    //       else {
-    //         responseIsError = true;
-    //         response = "Invalid value for " + pieces[0] + ", must be float from 0.0 to 2.0";
-    //       }
-    //     }
-    //     else if(pieces[0] == "analysisIgnorePreRootHistory") {
-    //       if(Global::tryStringToBool(pieces[1],b))
-    //         engine->setAnalysisIgnorePreRootHistory(b);
-    //       else {
-    //         responseIsError = true;
-    //         response = "Invalid value for " + pieces[0] + ", must be bool";
-    //       }
-    //     }
-    //     else if(pieces[0] == "numSearchThreads") {
-    //       if(Global::tryStringToInt(pieces[1],i) && i >= 1 && i <= 1024)
-    //         engine->setNumSearchThreads(i);
-    //       else {
-    //         responseIsError = true;
-    //         response = "Invalid value for " + pieces[0] + ", must be integer from 1 to 1024";
-    //       }
-    //     }
-    //     else if(pieces[0] == "maxVisits") {
-    //       if(Global::tryStringToInt64(pieces[1],i64) && i64 >= 1 && i64 <= (int64_t)1 << 50)
-    //         engine->setMaxVisits(i64);
-    //       else {
-    //         responseIsError = true;
-    //         response = "Invalid value for " + pieces[0] + ", must be integer from 1 to 2^50";
-    //       }
-    //     }
-    //     else if(pieces[0] == "maxPlayouts") {
-    //       if(Global::tryStringToInt64(pieces[1],i64) && i64 >= 1 && i64 <= (int64_t)1 << 50)
-    //         engine->setMaxPlayouts(i64);
-    //       else {
-    //         responseIsError = true;
-    //         response = "Invalid value for " + pieces[0] + ", must be integer from 1 to 2^50";
-    //       }
-    //     }
-    //     else if(pieces[0] == "maxTime") {
-    //       if(Global::tryStringToDouble(pieces[1],d) && d >= 0 && d <= 1e20)
-    //         engine->setMaxTime(d);
-    //       else {
-    //         responseIsError = true;
-    //         response = "Invalid value for " + pieces[0] + ", must be integer from 1 to 2^50";
-    //       }
-    //     }
-    //     else if(pieces[0] == "policyOptimism") {
-    //       if(Global::tryStringToDouble(pieces[1],d) && d >= 0 && d <= 1)
-    //         engine->setPolicyOptimism(d);
-    //       else {
-    //         responseIsError = true;
-    //         response = "Invalid value for " + pieces[0] + ", must be integer from 1 to 1024";
-    //       }
-    //     }
-    //     else {
-    //       responseIsError = true;
-    //       response = "Unknown or invalid parameter: " + pieces[0];
-    //     }
-    //   }
-    // }
-
     else if(command == "kata-set-param" || command == "kata-set-params") {
       std::map<string,string> overrideSettings;
       if(command == "kata-set-param") {
@@ -3319,7 +3241,11 @@ int MainCmds::gtp(const vector<string>& args) {
         response = "Expected one argument 'all' or symmetry index [0-7] for kata-raw-human-nn but got '" + Global::concat(pieces," ") + "'";
       }
       else {
-        if(!engine->getGenmoveParams().humanSLProfile.initialized) {
+        if(engine->humanEval == NULL) {
+          responseIsError = true;
+          response = "Cannot run kata-raw-human-nn, -human-model was not provided";
+        }
+        else if(!(engine->getGenmoveParams().humanSLProfile.initialized || !engine->humanEval->requiresSGFMetadata())) {
           responseIsError = true;
           response = "Cannot run kata-raw-human-nn, humanSLProfile parameter was not set";
         }

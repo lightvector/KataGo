@@ -110,6 +110,7 @@ class NNEvaluator {
   std::string getModelName() const;
   std::string getModelFileName() const;
   std::string getInternalModelName() const;
+  std::string getAbbrevInternalModelName() const;
   Logger* getLogger();
   bool isNeuralNetLess() const;
   int getMaxBatchSize() const;

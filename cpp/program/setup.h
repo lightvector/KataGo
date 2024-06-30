@@ -88,6 +88,14 @@ namespace Setup {
     bool loadSingleConfigOnly
   );
 
+  void maybeWarnHumanSLParams(
+    const SearchParams& params,
+    const NNEvaluator* nnEval,
+    const NNEvaluator* humanEval,
+    std::ostream& out,
+    Logger& logger
+  );
+
   Player parseReportAnalysisWinrates(
     ConfigParser& cfg, Player defaultPerspective
   );
