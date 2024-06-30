@@ -160,7 +160,7 @@ namespace PlayUtils {
 
   void printGenmoveLog(
     std::ostream& out,
-    const AsyncBot* bot,
+    const Search* search,
     const NNEvaluator* nnEval,
     Loc moveLoc,
     double timeTaken,

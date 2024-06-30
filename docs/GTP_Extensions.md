@@ -217,5 +217,5 @@ Debugging commands can change without warning, and their existence or data forma
      * Prints debugging statistics about move selections.  If "rawstats" is provided the engine will print out extended information about the move.  If a list of MOVE is provided the engine will print out information about that particular variation from the current play position.
   * `genmove_debug` COLOR
      * Functions exactly the same as `genmove`, but will print out addition debugging information to stderr.
-  * `search_debug` COLOR
+  * `kata-search_debug` COLOR
      * Functions exactly the same as `genmove_debug`, but will not actually perform a move.

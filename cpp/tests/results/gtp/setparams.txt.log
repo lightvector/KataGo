@@ -370,7 +370,7 @@ D4  : T  42.34c W  44.11c S   2.22c (+11.1 L +10.1) LCB -107.42c P  4.14% WF   2
 : = D3
 : Controller: undo
 : = 
-: Controller: search_debug w
+: Controller: kata-search_debug w
 : MoveNum: 1 HASH: 87712726FD65E13B89C878D9CA82BF83
    A B C D E F G H J K L M N O P Q R S T
 19 . . . . . . . . . . . . . . . . . . .
