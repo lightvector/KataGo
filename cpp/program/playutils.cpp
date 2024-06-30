@@ -989,17 +989,16 @@ PlayUtils::BenchmarkResults PlayUtils::benchmarkSearchOnPositionsAndPrint(
 
 void PlayUtils::printGenmoveLog(
   ostream& out,
-  const AsyncBot* bot,
+  const Search* search,
   const NNEvaluator* nnEval,
   Loc moveLoc,
   double timeTaken,
   Player perspective,
   bool logSearchInfoForChosenMove
 ) {
-  const Search* search = bot->getSearch();
-  const Board& board = bot->getRootBoard();
-  Board::printBoard(out, board, moveLoc, &(bot->getRootHist().moveHistory));
-  out << bot->getRootHist().rules << "\n";
+  const Board& board = search->getRootBoard();
+  Board::printBoard(out, board, moveLoc, &(search->getRootHist().moveHistory));
+  out << search->getRootHist().rules << "\n";
   if(!std::isnan(timeTaken))
     out << "Time taken: " << timeTaken << "\n";
   out << "Root visits: " << search->getRootVisits() << "\n";

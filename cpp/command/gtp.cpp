@@ -5,6 +5,7 @@
 #include "../core/timer.h"
 #include "../core/datetime.h"
 #include "../core/makedir.h"
+#include "../core/test.h"
 #include "../dataio/sgf.h"
 #include "../search/searchnode.h"
 #include "../search/asyncbot.h"
@@ -53,8 +54,11 @@ static const vector<string> knownCommands = {
   "kgs-rules",
 
   "genmove",
+  "kata-search", //Doesn't actually make the move
+  "kata-search_cancellable", //Doesn't actually make the move, also any command or newline cancels the search.
+
   "genmove_debug", //Prints additional info to stderr
-  "search_debug", //Prints additional info to stderr, doesn't actually make the move
+  "kata-search_debug", //Prints additional info to stderr, doesn't actually make the move
 
   //Clears neural net cached evaluations and bot search tree, allows fresh randomization
   "clear_cache",
@@ -81,6 +85,8 @@ static const vector<string> knownCommands = {
   // "genmove_analyze",
   "lz-genmove_analyze",
   "kata-genmove_analyze",
+  "kata-search_analyze",  //Doesn't actually make the move
+  "kata-search_analyze_cancellable",  //Doesn't actually make the move, also any command or newline cancels the search.
   // "analyze",
   "lz-analyze",
   "kata-analyze",
@@ -372,7 +378,10 @@ struct GTPEngine {
 
   Rand gtpRand;
 
+  ClockTimer genmoveTimer;
   double genmoveTimeSum;
+  std::atomic<int> genmoveExpectedId;
+
   //Positions during this game when genmove was called
   std::vector<Sgf::PositionSample> genmoveSamples;
 
@@ -416,7 +425,10 @@ struct GTPEngine {
      delayMoveScale(delayScale),
      delayMoveMax(delayMax),
      perspective(persp),
+     gtpRand(),
+     genmoveTimer(),
      genmoveTimeSum(0.0),
+     genmoveExpectedId(0),
      genmoveSamples()
   {
   }
@@ -429,6 +441,9 @@ struct GTPEngine {
   }
 
   void stopAndWait() {
+    // Invalidate any ongoing genmove
+    int expectedSearchId = (genmoveExpectedId.load() + 1) & 0x3FFFFFFF;
+    genmoveExpectedId.store(expectedSearchId);
     bot->stopAndWait();
   }
 
@@ -688,6 +703,22 @@ struct GTPEngine {
   void ponder() {
     bot->ponder(lastSearchFactor);
   }
+
+  struct GenmoveArgs {
+    double searchFactorWhenWinningThreshold;
+    double searchFactorWhenWinning;
+    enabled_t cleanupBeforePass;
+    enabled_t friendlyPass;
+    bool ogsChatToStderr;
+    bool allowResignation;
+    double resignThreshold;
+    int resignConsecTurns;
+    double resignMinScoreDifference;
+    double resignMinMovesPerBoardArea;
+    bool logSearchInfo;
+    bool logSearchInfoForChosenMove;
+    bool debug;
+  };
 
   struct AnalyzeArgs {
     bool analyzing = false;
@@ -972,18 +1003,75 @@ struct GTPEngine {
 
   void genMove(
     Player pla,
-    Logger& logger, double searchFactorWhenWinningThreshold, double searchFactorWhenWinning,
-    enabled_t cleanupBeforePass, enabled_t friendlyPass, bool ogsChatToStderr,
-    bool allowResignation, double resignThreshold, int resignConsecTurns, double resignMinScoreDifference, double resignMinMovesPerBoardArea,
-    bool logSearchInfo, bool logSearchInfoForChosenMove, bool debug, bool playChosenMove,
-    string& response, bool& responseIsError, bool& maybeStartPondering,
-    AnalyzeArgs args
+    Logger& logger,
+    const GenmoveArgs& gargs,
+    const AnalyzeArgs& args,
+    bool playChosenMove,
+    std::function<void(const string&, bool)> printGTPResponse,
+    bool& maybeStartPondering
   ) {
-    ClockTimer timer;
+    bool onMoveWasCalled = false;
+    Loc genmoveMoveLoc = Board::NULL_LOC;
+    auto onMove = [&genmoveMoveLoc,&onMoveWasCalled,this](Loc moveLoc, int searchId, Search* search) {
+      (void)searchId;
+      (void)search;
+      onMoveWasCalled = true;
+      genmoveMoveLoc = moveLoc;
+    };
+    launchGenMove(pla,gargs,args,onMove);
+    bot->waitForSearchToEnd();
+    testAssert(onMoveWasCalled);
+    string response;
+    bool responseIsError = false;
+    Loc moveLocToPlay = Board::NULL_LOC;
+    handleGenMoveResult(pla,bot->getSearchStopAndWait(),logger,gargs,args,genmoveMoveLoc,response,responseIsError,moveLocToPlay);
+    printGTPResponse(response,responseIsError);
+    if(moveLocToPlay != Board::NULL_LOC && playChosenMove) {
+      bool suc = bot->makeMove(moveLocToPlay,pla,preventEncore);
+      if(suc)
+        moveHistory.push_back(Move(moveLocToPlay,pla));
+      assert(suc);
+      (void)suc; //Avoid warning when asserts are off
 
-    response = "";
-    responseIsError = false;
-    maybeStartPondering = false;
+      maybeStartPondering = true;
+    }
+  }
+
+  void genMoveCancellable(
+    Player pla,
+    Logger& logger,
+    const GenmoveArgs& gargs,
+    const AnalyzeArgs& args,
+    std::function<void(const string&, bool)> printGTPResponse
+  ) {
+    // Make sure to capture things by value unless they're long-lived, since the callback needs to survive past the current scope.
+    auto onMove = [pla,&logger,gargs,args,printGTPResponse,this](Loc moveLoc, int searchId, Search* search) {
+      string response;
+      bool responseIsError = false;
+      Loc moveLocToPlay = Board::NULL_LOC;
+
+      // Search invalidated before completion
+      if(searchId != genmoveExpectedId.load()) {
+        if(args.analyzing)
+          response = "play cancelled";
+        else
+          response = "cancelled";
+        printGTPResponse(response,responseIsError);
+        return;
+      }
+      handleGenMoveResult(pla,search,logger,gargs,args,moveLoc,response,responseIsError,moveLocToPlay);
+      printGTPResponse(response,responseIsError);
+    };
+    launchGenMove(pla,gargs,args,onMove);
+  }
+
+  void launchGenMove(
+    Player pla,
+    GenmoveArgs gargs,
+    AnalyzeArgs args,
+    std::function<void(Loc, int, Search*)> onMove
+  ) {
+    genmoveTimer.reset();
 
     nnEval->clearStats();
     if(humanEval != NULL)
@@ -1026,42 +1114,67 @@ struct GTPEngine {
 
 
     //Play faster when winning
-    double searchFactor = PlayUtils::getSearchFactor(searchFactorWhenWinningThreshold,searchFactorWhenWinning,paramsToUse,recentWinLossValues,pla);
+    double searchFactor = PlayUtils::getSearchFactor(gargs.searchFactorWhenWinningThreshold,gargs.searchFactorWhenWinning,paramsToUse,recentWinLossValues,pla);
     lastSearchFactor = searchFactor;
 
-    Loc moveLoc;
     bot->setAvoidMoveUntilByLoc(args.avoidMoveUntilByLocBlack,args.avoidMoveUntilByLocWhite);
+
+    //So that we can tell by the end of the search whether we still care for the result.
+    int expectedSearchId = (genmoveExpectedId.load() + 1) & 0x3FFFFFFF;
+    genmoveExpectedId.store(expectedSearchId);
+
     if(args.analyzing) {
       std::function<void(const Search* search)> callback = getAnalyzeCallback(pla,args);
       if(args.showOwnership || args.showOwnershipStdev || args.showMovesOwnership || args.showMovesOwnershipStdev)
         bot->setAlwaysIncludeOwnerMap(true);
       else
         bot->setAlwaysIncludeOwnerMap(false);
-      moveLoc = bot->genMoveSynchronousAnalyze(pla, tc, searchFactor, args.secondsPerReport, args.secondsPerReport, callback);
+
       //Make sure callback happens at least once
-      callback(bot->getSearch());
+      auto onMoveWrapped = [onMove,callback](Loc moveLoc, int searchId, Search* search) {
+        callback(search);
+        onMove(moveLoc,searchId,search);
+      };
+      bot->genMoveAsyncAnalyze(pla, expectedSearchId, tc, searchFactor, onMoveWrapped, args.secondsPerReport, args.secondsPerReport, callback);
     }
     else {
-      moveLoc = bot->genMoveSynchronous(pla,tc,searchFactor);
+      bot->genMoveAsync(pla,expectedSearchId,tc,searchFactor,onMove);
     }
+  }
 
-    bool isLegal = bot->isLegalStrict(moveLoc,pla);
+  void handleGenMoveResult(
+    Player pla,
+    Search* searchBot,
+    Logger& logger,
+    const GenmoveArgs& gargs,
+    const AnalyzeArgs& args,
+    Loc moveLoc,
+    string& response, bool& responseIsError,
+    Loc& moveLocToPlay
+  ) {
+    response = "";
+    responseIsError = false;
+    moveLocToPlay = Board::NULL_LOC;
+
+    const Search* search = searchBot;
+
+    bool isLegal = search->isLegalStrict(moveLoc,pla);
     if(moveLoc == Board::NULL_LOC || !isLegal) {
       responseIsError = true;
       response = "genmove returned null location or illegal move";
       ostringstream sout;
       sout << "genmove null location or illegal move!?!" << "\n";
-      sout << bot->getRootBoard() << "\n";
+      sout << search->getRootBoard() << "\n";
       sout << "Pla: " << PlayerIO::playerToString(pla) << "\n";
-      sout << "MoveLoc: " << Location::toString(moveLoc,bot->getRootBoard()) << "\n";
+      sout << "MoveLoc: " << Location::toString(moveLoc,search->getRootBoard()) << "\n";
       logger.write(sout.str());
-      genmoveTimeSum += timer.getSeconds();
+      genmoveTimeSum += genmoveTimer.getSeconds();
       return;
     }
 
-    SearchNode* rootNode = bot->getSearch()->rootNode;
+    SearchNode* rootNode = search->rootNode;
     if(rootNode != NULL && delayMoveScale > 0.0 && delayMoveMax > 0.0) {
-      int pos = bot->getSearch()->getPos(moveLoc);
+      int pos = search->getPos(moveLoc);
       const NNOutput* nnOutput = rootNode->getHumanOutput();
       nnOutput = nnOutput != NULL ? nnOutput : rootNode->getNNOutput();
       const float* policyProbs = nnOutput != NULL ? nnOutput->getPolicyProbsMaybeNoised() : NULL;
@@ -1079,7 +1192,7 @@ struct GTPEngine {
     double winLossValue;
     double lead;
     {
-      values = bot->getSearch()->getRootValuesRequireSuccess();
+      values = search->getRootValuesRequireSuccess();
       winLossValue = values.winLossValue;
       lead = values.lead;
     }
@@ -1088,21 +1201,22 @@ struct GTPEngine {
     recentWinLossValues.push_back(winLossValue);
 
     //Decide whether we should resign---------------------
-    bool resigned = allowResignation && shouldResign(
-      bot->getRootBoard(),bot->getRootHist(),pla,recentWinLossValues,lead,
-      resignThreshold,resignConsecTurns,resignMinScoreDifference,resignMinMovesPerBoardArea
+    bool resigned = gargs.allowResignation && shouldResign(
+      search->getRootBoard(),search->getRootHist(),pla,recentWinLossValues,lead,
+      gargs.resignThreshold,gargs.resignConsecTurns,gargs.resignMinScoreDifference,gargs.resignMinMovesPerBoardArea
     );
-
 
     //Snapshot the time NOW - all meaningful play-related computation time is done, the rest is just
     //output of various things.
-    double timeTaken = timer.getSeconds();
+    double timeTaken = genmoveTimer.getSeconds();
     genmoveTimeSum += timeTaken;
 
     //Chatting and logging ----------------------------
 
-    if(ogsChatToStderr) {
-      int64_t visits = bot->getSearch()->getRootVisits();
+    const SearchParams& params = search->searchParams;
+
+    if(gargs.ogsChatToStderr) {
+      int64_t visits = search->getRootVisits();
       double winrate = 0.5 * (1.0 + (values.winValue - values.lossValue));
       double leadForPrinting = lead;
       //Print winrate from desired perspective
@@ -1115,24 +1229,24 @@ struct GTPEngine {
            << " Winrate " << Global::strprintf("%.2f%%", winrate * 100.0)
            << " ScoreLead " << Global::strprintf("%.1f", leadForPrinting)
            << " ScoreStdev " << Global::strprintf("%.1f", values.expectedScoreStdev);
-      if(paramsToUse.playoutDoublingAdvantage != 0.0) {
+      if(params.playoutDoublingAdvantage != 0.0) {
         cerr << Global::strprintf(
           " (PDA %.2f)",
-          bot->getSearch()->getRootPla() == getOpp(paramsToUse.playoutDoublingAdvantagePla) ?
-          -paramsToUse.playoutDoublingAdvantage : paramsToUse.playoutDoublingAdvantage);
+          search->getRootPla() == getOpp(params.playoutDoublingAdvantagePla) ?
+          -params.playoutDoublingAdvantage : params.playoutDoublingAdvantage);
       }
       cerr << " PV ";
-      bot->getSearch()->printPVForMove(cerr,bot->getSearch()->rootNode, moveLoc, analysisPVLen);
+      search->printPVForMove(cerr,search->rootNode, moveLoc, analysisPVLen);
       cerr << endl;
     }
 
-    if(logSearchInfo) {
+    if(gargs.logSearchInfo) {
       ostringstream sout;
-      PlayUtils::printGenmoveLog(sout,bot,nnEval,moveLoc,timeTaken,perspective,logSearchInfoForChosenMove);
+      PlayUtils::printGenmoveLog(sout,search,nnEval,moveLoc,timeTaken,perspective,gargs.logSearchInfoForChosenMove);
       logger.write(sout.str());
     }
-    if(debug) {
-      PlayUtils::printGenmoveLog(cerr,bot,nnEval,moveLoc,timeTaken,perspective,logSearchInfoForChosenMove);
+    if(gargs.debug) {
+      PlayUtils::printGenmoveLog(cerr,search,nnEval,moveLoc,timeTaken,perspective,gargs.logSearchInfoForChosenMove);
     }
 
     //Hacks--------------------------------------------------
@@ -1141,24 +1255,24 @@ struct GTPEngine {
 
     //Implement friendly pass - in area scoring rules other than tromp-taylor, maybe pass once there are no points
     //left to gain.
-    int64_t numVisitsForFriendlyPass = 8 + std::min((int64_t)1000, std::min(paramsToUse.maxVisits, paramsToUse.maxPlayouts) / 10);
-    moveLoc = PlayUtils::maybeFriendlyPass(cleanupBeforePass, friendlyPass, pla, moveLoc, bot->getSearchStopAndWait(), numVisitsForFriendlyPass);
+    int64_t numVisitsForFriendlyPass = 8 + std::min((int64_t)1000, std::min(params.maxVisits, params.maxPlayouts) / 10);
+    moveLoc = PlayUtils::maybeFriendlyPass(gargs.cleanupBeforePass, gargs.friendlyPass, pla, moveLoc, searchBot, numVisitsForFriendlyPass);
 
     //Implement cleanupBeforePass hack - if the bot wants to pass, instead cleanup if there is something to clean
     //and we are in a ruleset where this is necessary or the user has configured it.
-    moveLoc = PlayUtils::maybeCleanupBeforePass(cleanupBeforePass, friendlyPass, pla, moveLoc, bot);
+    moveLoc = PlayUtils::maybeCleanupBeforePass(gargs.cleanupBeforePass, gargs.friendlyPass, pla, moveLoc, bot);
 
     //Actual reporting of chosen move---------------------
     if(resigned)
       response = "resign";
     else
-      response = Location::toString(moveLoc,bot->getRootBoard());
+      response = Location::toString(moveLoc,search->getRootBoard());
 
     if(autoAvoidPatterns) {
       // Auto pattern expects moveless records using hintloc to contain the move.
       Sgf::PositionSample posSample;
-      const BoardHistory& hist = bot->getRootHist();
-      posSample.board = bot->getRootBoard();
+      const BoardHistory& hist = search->getRootHist();
+      posSample.board = search->getRootBoard();
       posSample.nextPla = pla;
       posSample.initialTurnNumber = hist.getCurrentTurnNumber();
       posSample.hintLoc = moveLoc;
@@ -1166,14 +1280,8 @@ struct GTPEngine {
       genmoveSamples.push_back(posSample);
     }
 
-    if(!resigned && moveLoc != Board::NULL_LOC && isLegal && playChosenMove) {
-      bool suc = bot->makeMove(moveLoc,pla,preventEncore);
-      if(suc)
-        moveHistory.push_back(Move(moveLoc,pla));
-      assert(suc);
-      (void)suc; //Avoid warning when asserts are off
-
-      maybeStartPondering = true;
+    if(!resigned) {
+      moveLocToPlay = moveLoc;
     }
 
     if(args.analyzing) {
@@ -1590,7 +1698,7 @@ static GTPEngine::AnalyzeArgs parseAnalyzeCommand(
   int numArgsParsed = 0;
 
   bool isLZ = (command == "lz-analyze" || command == "lz-genmove_analyze");
-  bool isKata = (command == "kata-analyze" || command == "kata-genmove_analyze");
+  bool isKata = (command == "kata-analyze" || command == "kata-genmove_analyze" || command == "kata-search_analyze" || command == "kata-search_analyze_cancellable");
   double lzAnalyzeInterval = TimeControls::UNLIMITED_TIME_DEFAULT;
   int minMoves = 0;
   int maxMoves = 10000000;
@@ -1994,6 +2102,7 @@ int MainCmds::gtp(const vector<string>& args) {
       cerr << "WARNING: Provided -human-model but humanSLProfile was not set in the config. The human SL model will not be used until it is set." << endl;
   }
 
+  bool currentlyGenmoving = false;
   bool currentlyAnalyzing = false;
   string line;
   while(getline(cin,line)) {
@@ -2006,10 +2115,16 @@ int MainCmds::gtp(const vector<string>& args) {
       line = CommandLoop::processSingleCommandLine(line);
 
       //Upon any input line at all, stop any analysis and output a newline
+      //Only difference between analysis and genmove is that genmove handles its own
+      //double newline in its onmove callback.
       if(currentlyAnalyzing) {
         currentlyAnalyzing = false;
         engine->stopAndWait();
         cout << endl;
+      }
+      if(currentlyGenmoving) {
+        currentlyGenmoving = false;
+        engine->stopAndWait();
       }
 
       if(line.length() == 0)
@@ -2048,6 +2163,53 @@ int MainCmds::gtp(const vector<string>& args) {
       command = pieces[0];
       pieces.erase(pieces.begin());
     }
+
+    auto printGTPResponse = [hasId,id,&logger,logAllGTPCommunication](const string& response, bool responseIsError) {
+      string postProcessed = response;
+      if(hasId)
+        postProcessed = Global::intToString(id) + " " + postProcessed;
+      else
+        postProcessed = " " + postProcessed;
+
+      if(responseIsError)
+        postProcessed = "?" + postProcessed;
+      else
+        postProcessed = "=" + postProcessed;
+
+      cout << postProcessed << endl;
+      cout << endl;
+
+      if(logAllGTPCommunication)
+        logger.write(postProcessed);
+    };
+    auto printGTPResponseHeader = [hasId,id,&logger,logAllGTPCommunication]() {
+      if(hasId) {
+        string s = "=" + Global::intToString(id);
+        cout << s << endl;
+        if(logAllGTPCommunication)
+          logger.write(s);
+      }
+      else {
+        cout << "=" << endl;
+        if(logAllGTPCommunication)
+          logger.write("=");
+      }
+    };
+
+    auto printGTPResponseNoHeader = [hasId,id,&logger,logAllGTPCommunication](const string& response, bool responseIsError) {
+      //Postprocessing of response in the case where we already printed the "=" and a newline ahead of time via printGTPResponseHeader.
+      if(!responseIsError) {
+        cout << response << endl;
+        cout << endl;
+      }
+      else {
+        cout << endl;
+        if(!logger.isLoggingToStderr())
+          cerr << response << endl;
+      }
+      if(logAllGTPCommunication)
+        logger.write(response);
+    };
 
     bool responseIsError = false;
     bool suppressResponse = false;
@@ -2786,33 +2948,73 @@ int MainCmds::gtp(const vector<string>& args) {
       }
     }
 
-    else if(command == "genmove" || command == "genmove_debug" || command == "search_debug") {
+    else if(
+      command == "genmove" ||
+      command == "genmove_debug" ||
+      command == "kata-search" ||
+      command == "kata-search_cancellable" ||
+      command == "kata-search_debug") {
       Player pla;
       if(pieces.size() != 1) {
         responseIsError = true;
-        response = "Expected one argument for genmove but got '" + Global::concat(pieces," ") + "'";
+        response = "Expected one argument for " + command + " but got '" + Global::concat(pieces," ") + "'";
       }
       else if(!PlayerIO::tryParsePlayer(pieces[0],pla)) {
         responseIsError = true;
         response = "Could not parse color: '" + pieces[0] + "'";
       }
       else {
-        bool debug = command == "genmove_debug" || command == "search_debug";
-        bool playChosenMove = command != "search_debug";
+        bool debug = command == "genmove_debug" || command == "kata-search_debug";
+        bool playChosenMove = command == "genmove" || command == "genmove_debug";
 
-        engine->genMove(
-          pla,
-          logger,searchFactorWhenWinningThreshold,searchFactorWhenWinning,
-          cleanupBeforePass,friendlyPass,ogsChatToStderr,
-          allowResignation,resignThreshold,resignConsecTurns,resignMinScoreDifference,resignMinMovesPerBoardArea,
-          logSearchInfo,logSearchInfoForChosenMove,debug,playChosenMove,
-          response,responseIsError,maybeStartPondering,
-          GTPEngine::AnalyzeArgs()
-        );
+        GTPEngine::GenmoveArgs gargs;
+        gargs.searchFactorWhenWinningThreshold = searchFactorWhenWinningThreshold;
+        gargs.searchFactorWhenWinning = searchFactorWhenWinning;
+        gargs.cleanupBeforePass = cleanupBeforePass;
+        gargs.friendlyPass = friendlyPass;
+        gargs.ogsChatToStderr = ogsChatToStderr;
+        gargs.allowResignation = allowResignation;
+        gargs.resignThreshold = resignThreshold;
+        gargs.resignConsecTurns = resignConsecTurns;
+        gargs.resignMinScoreDifference = resignMinScoreDifference;
+        gargs.resignMinMovesPerBoardArea = resignMinMovesPerBoardArea;
+        gargs.logSearchInfo = logSearchInfo;
+        gargs.logSearchInfoForChosenMove = logSearchInfoForChosenMove;
+        gargs.debug = debug;
+
+        if(command == "kata-search_cancellable") {
+          engine->genMoveCancellable(
+            pla,
+            logger,
+            gargs,
+            GTPEngine::AnalyzeArgs(),
+            printGTPResponse
+          );
+          suppressResponse = true; // genmove handles it manually by calling printGTPResponse
+          currentlyGenmoving = true; // so that any newline will interrupt us
+        }
+        else {
+          engine->genMove(
+            pla,
+            logger,
+            gargs,
+            GTPEngine::AnalyzeArgs(),
+            playChosenMove,
+            printGTPResponse,
+            maybeStartPondering
+          );
+          suppressResponse = true; // genmove handles it manually by calling printGTPResponse
+        }
       }
     }
 
-    else if(command == "genmove_analyze" || command == "lz-genmove_analyze" || command == "kata-genmove_analyze") {
+    else if(
+      command == "genmove_analyze" ||
+      command == "lz-genmove_analyze" ||
+      command == "kata-genmove_analyze" ||
+      command == "kata-search_analyze" ||
+      command == "kata-search_analyze_cancellable"
+    ) {
       Player pla = engine->bot->getRootPla();
       bool parseFailed = false;
       GTPEngine::AnalyzeArgs analyzeArgs = parseAnalyzeCommand(command, pieces, pla, parseFailed, engine);
@@ -2822,33 +3024,48 @@ int MainCmds::gtp(const vector<string>& args) {
       }
       else {
         bool debug = false;
-        bool playChosenMove = true;
+        bool playChosenMove = command == "genmove_analyze" || command == "lz-genmove_analyze" || command == "kata-genmove_analyze";
+
+        GTPEngine::GenmoveArgs gargs;
+        gargs.searchFactorWhenWinningThreshold = searchFactorWhenWinningThreshold;
+        gargs.searchFactorWhenWinning = searchFactorWhenWinning;
+        gargs.cleanupBeforePass = cleanupBeforePass;
+        gargs.friendlyPass = friendlyPass;
+        gargs.ogsChatToStderr = ogsChatToStderr;
+        gargs.allowResignation = allowResignation;
+        gargs.resignThreshold = resignThreshold;
+        gargs.resignConsecTurns = resignConsecTurns;
+        gargs.resignMinScoreDifference = resignMinScoreDifference;
+        gargs.resignMinMovesPerBoardArea = resignMinMovesPerBoardArea;
+        gargs.logSearchInfo = logSearchInfo;
+        gargs.logSearchInfoForChosenMove = logSearchInfoForChosenMove;
+        gargs.debug = debug;
 
         //Make sure the "equals" for GTP is printed out prior to the first analyze line, regardless of thread racing
-        if(hasId)
-          cout << "=" << Global::intToString(id) << endl;
-        else
-          cout << "=" << endl;
+        printGTPResponseHeader();
 
-        engine->genMove(
-          pla,
-          logger,searchFactorWhenWinningThreshold,searchFactorWhenWinning,
-          cleanupBeforePass,friendlyPass,ogsChatToStderr,
-          allowResignation,resignThreshold,resignConsecTurns,resignMinScoreDifference,resignMinMovesPerBoardArea,
-          logSearchInfo,logSearchInfoForChosenMove,debug,playChosenMove,
-          response,responseIsError,maybeStartPondering,
-          analyzeArgs
-        );
-        //And manually handle the result as well. In case of error, don't report any play.
-        suppressResponse = true;
-        if(!responseIsError) {
-          cout << response << endl;
-          cout << endl;
+        if(command == "kata-search_analyze_cancellable") {
+          engine->genMoveCancellable(
+            pla,
+            logger,
+            gargs,
+            analyzeArgs,
+            printGTPResponseNoHeader
+          );
+          suppressResponse = true; // genmove handles it manually by calling printGTPResponse
+          currentlyGenmoving = true; // so that any newline will interrupt us
         }
         else {
-          cout << endl;
-          if(!logger.isLoggingToStderr())
-            cerr << response << endl;
+          engine->genMove(
+            pla,
+            logger,
+            gargs,
+            analyzeArgs,
+            playChosenMove,
+            printGTPResponseNoHeader,
+            maybeStartPondering
+          );
+          suppressResponse = true; // genmove handles it manually by calling printGTPResponseNoHeader
         }
       }
     }
@@ -3180,10 +3397,7 @@ int MainCmds::gtp(const vector<string>& args) {
       }
       else {
         //Make sure the "equals" for GTP is printed out prior to the first analyze line, regardless of thread racing
-        if(hasId)
-          cout << "=" << Global::intToString(id) << endl;
-        else
-          cout << "=" << endl;
+        printGTPResponseHeader();
 
         engine->analyze(pla, analyzeArgs);
 
@@ -3356,10 +3570,7 @@ int MainCmds::gtp(const vector<string>& args) {
             params.maxPlayouts = ((int64_t)1) << 50;
             params.maxVisits = numVisits;
             //Make sure the "equals" for GTP is printed out prior to the benchmark line
-            if(hasId)
-              cout << "=" << Global::intToString(id) << endl;
-            else
-              cout << "=" << endl;
+            printGTPResponseHeader();
 
             try {
               PlayUtils::BenchmarkResults results = PlayUtils::benchmarkSearchOnPositionsAndPrint(
@@ -3401,25 +3612,8 @@ int MainCmds::gtp(const vector<string>& args) {
       response = "unknown command";
     }
 
-
-    //Postprocessing of response
-    if(hasId)
-      response = Global::intToString(id) + " " + response;
-    else
-      response = " " + response;
-
-    if(responseIsError)
-      response = "?" + response;
-    else
-      response = "=" + response;
-
-    if(!suppressResponse) {
-      cout << response << endl;
-      cout << endl;
-    }
-
-    if(logAllGTPCommunication)
-      logger.write(response);
+    if(!suppressResponse)
+      printGTPResponse(response,responseIsError);
 
     if(shouldQuitAfterResponse)
       break;
@@ -3428,6 +3622,18 @@ int MainCmds::gtp(const vector<string>& args) {
       engine->ponder();
 
   } //Close read loop
+
+  // Interrupt stuff if we close stdout
+  if(currentlyAnalyzing) {
+    currentlyAnalyzing = false;
+    engine->stopAndWait();
+    cout << endl;
+  }
+  if(currentlyGenmoving) {
+    currentlyGenmoving = false;
+    engine->stopAndWait();
+  }
+
 
   maybeSaveAvoidPatterns(true);
   delete engine;
