@@ -2073,7 +2073,7 @@ int MainCmds::gtp(const vector<string>& args) {
 
   //Check for unused config keys
   cfg.warnUnusedKeys(cerr,&logger);
-  Setup::maybeWarnHumanSLParams(initialGenmoveParams,engine->nnEval,engine->humanEval,cerr,logger);
+  Setup::maybeWarnHumanSLParams(initialGenmoveParams,engine->nnEval,engine->humanEval,cerr,&logger);
 
   logger.write("Loaded config " + cfg.getFileName());
   logger.write("Loaded model " + nnModelFile);
@@ -2590,6 +2590,10 @@ int MainCmds::gtp(const vector<string>& args) {
             vector<string> unusedKeys = cleanCfg.unusedKeys();
             for(const string& unused: unusedKeys) {
               throw StringError("Unrecognized or non-overridable parameter in kata-set-params: " + unused);
+            }
+            ostringstream out;
+            if(Setup::maybeWarnHumanSLParams(buf1,engine->nnEval,engine->humanEval,out,NULL)) {
+              throw StringError(out.str());
             }
           }
 

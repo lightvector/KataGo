@@ -7,3 +7,4 @@ get_komi
 
 version
 kata-get-models
+kata-set-param humanSLProfile rank_10k

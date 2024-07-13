@@ -395,7 +395,7 @@ int MainCmds::genbook(const vector<string>& args) {
 
   // Check for unused config keys
   cfg.warnUnusedKeys(cerr,&logger);
-  Setup::maybeWarnHumanSLParams(params,nnEval,NULL,cerr,logger);
+  Setup::maybeWarnHumanSLParams(params,nnEval,NULL,cerr,&logger);
 
   if(htmlDir != "")
     MakeDir::make(htmlDir);

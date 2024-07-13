@@ -197,7 +197,7 @@ int MainCmds::analysis(const vector<string>& args) {
 
   //Check for unused config keys
   cfg.warnUnusedKeys(cerr,&logger);
-  Setup::maybeWarnHumanSLParams(defaultParams,nnEval,humanEval,cerr,logger);
+  Setup::maybeWarnHumanSLParams(defaultParams,nnEval,humanEval,cerr,&logger);
 
   logger.write("Loaded config "+ cfg.getFileName());
   logger.write("Loaded model "+ modelFile);
@@ -915,6 +915,10 @@ int MainCmds::analysis(const vector<string>& args) {
             vector<string> unusedKeys = localCfg.unusedKeys();
             if(unusedKeys.size() > 0) {
               reportWarningForId(rbase.id, "overrideSettings", string("Unknown config params: ") + Global::concat(unusedKeys,","));
+            }
+            ostringstream out;
+            if(Setup::maybeWarnHumanSLParams(rbase.params,nnEval,humanEval,out,NULL)) {
+              throw StringError(out.str());
             }
           }
           catch(const StringError& exception) {

@@ -12,3 +12,6 @@
 
 = [{"internalName":"g170-b6c96-s175395328-d26788732","maxBatchSize":8,"name":"tests/models/g170-b6c96-s175395328-d26788732.bin.gz","usesHumanSLProfile":false,"usingFP16":"false","version":8}]
 
+? Could not set params: WARNING: humanSLProfile is specified as config param but model(s) don't use it: tests/models/g170-b6c96-s175395328-d26788732.bin.gz
+
+

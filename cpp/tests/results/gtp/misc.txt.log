@@ -74,5 +74,8 @@ trtUseFP16 = false
 : = 1.14.1+g170-b6c96-s175M
 : Controller: kata-get-models
 : = [{"internalName":"g170-b6c96-s175395328-d26788732","maxBatchSize":8,"name":"tests/models/g170-b6c96-s175395328-d26788732.bin.gz","usesHumanSLProfile":false,"usingFP16":"false","version":8}]
+: Controller: kata-set-param humanSLProfile rank_10k
+: ? Could not set params: WARNING: humanSLProfile is specified as config param but model(s) don't use it: tests/models/g170-b6c96-s175395328-d26788732.bin.gz
+
 : GPU -1 finishing, processed 0 rows 0 batches
 : All cleaned up, quitting

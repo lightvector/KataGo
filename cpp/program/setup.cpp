@@ -820,12 +820,12 @@ vector<SearchParams> Setup::loadParams(
 }
 
 
-void Setup::maybeWarnHumanSLParams(
+bool Setup::maybeWarnHumanSLParams(
   const SearchParams& params,
   const NNEvaluator* nnEval,
   const NNEvaluator* humanEval,
   std::ostream& out,
-  Logger& logger
+  Logger* logger
 ) {
   if(params.humanSLProfile.initialized) {
     bool hasAnySGFMetaUse =
@@ -840,10 +840,13 @@ void Setup::maybeWarnHumanSLParams(
           modelNames += " and ";
         modelNames += humanEval->getModelName();
       }
-      logger.write("WARNING: humanSLProfile is specified as config param but model(s) don't use it: " + modelNames);
+      if(logger != NULL)
+        logger->write("WARNING: humanSLProfile is specified as config param but model(s) don't use it: " + modelNames);
       out << "WARNING: humanSLProfile is specified as config param but model(s) don't use it: " << modelNames << endl;
+      return true;
     }
   }
+  return false;
 }
 
 

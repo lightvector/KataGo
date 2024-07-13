@@ -88,12 +88,12 @@ namespace Setup {
     bool loadSingleConfigOnly
   );
 
-  void maybeWarnHumanSLParams(
+  bool maybeWarnHumanSLParams(
     const SearchParams& params,
     const NNEvaluator* nnEval,
     const NNEvaluator* humanEval,
     std::ostream& out,
-    Logger& logger
+    Logger* logger
   );
 
   Player parseReportAnalysisWinrates(
