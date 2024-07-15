@@ -356,9 +356,6 @@ SearchParams SearchParams::basicDecentParams() {
 }
 
 void SearchParams::failIfParamsDifferOnUnchangeableParameter(const SearchParams& initial, const SearchParams& dynamic) {
-  if(dynamic.numThreads > initial.numThreads) {
-    throw StringError("Cannot increase number of search threads after initialization since this is used to initialize neural net buffer capacity");
-  }
   if(dynamic.nodeTableShardsPowerOfTwo != initial.nodeTableShardsPowerOfTwo) {
     throw StringError("Cannot change nodeTableShardsPowerOfTwo after initialization");
   }

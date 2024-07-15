@@ -2577,7 +2577,8 @@ int MainCmds::gtp(const vector<string>& args) {
             ConfigParser cleanCfg;
             cleanCfg.overrideKeys(overrideSettings);
             // Add required parameter so that it passes validation
-            cleanCfg.overrideKey("numSearchThreads",Global::intToString(engine->getGenmoveParams().numThreads));
+            if(!cleanCfg.contains("numSearchThreads"))
+              cleanCfg.overrideKey("numSearchThreads",Global::intToString(engine->getGenmoveParams().numThreads));
 
             SearchParams buf1;
             SearchParams buf2;
