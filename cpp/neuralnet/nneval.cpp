@@ -747,7 +747,7 @@ void NNEvaluator::evaluate(
     if(sgfMeta == NULL)
       Global::fatalError("SGFMetadata is required for " + modelName + " but was not provided");
     if(!sgfMeta->initialized)
-      Global::fatalError("SGFMetadata is required for " + modelName + " but was not initialized. Did you specify humanSLProfile=... in katago's config?");
+      Global::fatalError("SGFMetadata is required for " + modelName + " but was not initialized. Did you specify humanSLProfile=... in katago's config or via overrides?");
     nnHash ^= sgfMeta->getHash(nextPlayer);
   }
 
@@ -799,7 +799,7 @@ void NNEvaluator::evaluate(
       if(sgfMeta == NULL)
         Global::fatalError("SGFMetadata is required for " + modelName + " but was not provided");
       if(!sgfMeta->initialized)
-        Global::fatalError("SGFMetadata is required for " + modelName + " but was not initialized. Did you specify humanSLProfile=... in katago's config?");
+        Global::fatalError("SGFMetadata is required for " + modelName + " but was not initialized. Did you specify humanSLProfile=... in katago's config or via overrides?");
       SGFMetadata::fillMetadataRow(
         sgfMeta,
         buf.rowMetaBuf.data(),

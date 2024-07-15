@@ -522,6 +522,9 @@ private:
     SearchThread& thread, SearchNode& node, bool isRoot
   );
 
+  bool needsHumanOutputAtRoot() const;
+  bool needsHumanOutputInTree() const;
+
   //----------------------------------------------------------------------------------------
   // Move selection during search
   // searchexplorehelpers.cpp
