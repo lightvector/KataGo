@@ -2884,15 +2884,15 @@ J2  : T -133.78c W -100.00c S -33.78c (-55.1 L -54.3) LCB -483.86c P  0.40% WF  
 Just after movepass
 : T -119.62c W -99.98c S -20.21c (-31.3 L -32.2) N      53  --  F7 pass J8
 ---Black(v)---
-F7  : T -120.21c W -99.99c S -20.40c (-31.4 L -32.3) LCB -110.18c P 10.47% WF  63.2 PSV      63 N       9  --  F7 pass J8
+F7  : T -120.21c W -99.99c S -20.40c (-31.4 L -32.3) LCB -110.18c P 10.47% WF  63.2 PSV      63 N      10  --  F7 pass J8
 J8  : T -119.88c W -99.98c S -19.95c (-31.1 L -32.0) LCB -108.37c P  8.69% WF  54.2 PSV      40 N       8  --  J8 pass A9
 G9  : T -120.18c W -99.99c S -20.27c (-31.3 L -32.2) LCB -105.40c P  6.25% WF  47.3 PSV      37 N       7  --  G9 pass F7
 A9  : T -118.86c W -99.98c S -19.55c (-30.9 L -32.0) LCB  -75.66c P 10.02% WF  27.5 PSV      26 N       4  --  A9 pass F7
-E3  : T -118.56c W -99.98c S -19.44c (-30.9 L -32.1) LCB  -44.13c P  8.87% WF  20.4 PSV      21 N       3  --  E3 pass F7
+E3  : T -118.56c W -99.98c S -19.44c (-30.9 L -32.1) LCB  -44.13c P  8.87% WF  20.4 PSV      21 N       4  --  E3 pass F7
 G5  : T -119.40c W -99.99c S -20.38c (-31.4 L -32.3) LCB  -44.90c P  6.69% WF  20.7 PSV      21 N       3  --  G5 pass F7
 D6  : T -119.29c W -99.98c S -20.39c (-31.4 L -32.3) LCB  -44.77c P  6.49% WF  20.7 PSV      21 N       3  --  D6 pass A9
 D7  : T -119.50c W -99.98c S -20.53c (-31.5 L -32.4) LCB  -45.01c P  5.31% WF  20.8 PSV      19 N       3  --  D7 pass A9
-A7  : T -118.72c W -99.98c S -19.56c (-30.9 L -32.1) LCB  -44.28c P  7.19% WF  20.4 PSV      18 N       3  --  A7 pass F7
+A7  : T -118.72c W -99.98c S -19.56c (-30.9 L -32.1) LCB  -44.28c P  7.19% WF  20.4 PSV      18 N       4  --  A7 pass F7
 D8  : T -119.42c W -99.98c S -20.04c (-31.3 L -32.2) LCB  -44.81c P  5.26% WF  20.5 PSV      18 N       3  --  D8 pass A9
 H5  : T -119.17c W -99.98c S -20.22c (-31.4 L -32.3) LCB  -44.61c P  5.84% WF  20.5 PSV      17 N       3  --  H5 pass F7
 D9  : T -119.08c W -99.98c S -20.20c (-31.4 L -32.3) LCB  -44.43c P  5.19% WF  20.4 PSV      15 N       3  --  D9 pass F7
@@ -2918,7 +2918,7 @@ PV: F7 pass J8
 Tree:
 : T -116.08c W -97.62c S -17.34c (-30.6 L -31.6) N      75  --  F7 pass J8
 ---Black(v)---
-F7  : T -120.03c W -99.99c S -20.23c (-31.4 L -32.3) LCB -109.97c P  9.61% WF  65.5 PSV      79 N       9  --  F7 pass J8
+F7  : T -120.03c W -99.99c S -20.23c (-31.4 L -32.3) LCB -109.97c P  9.61% WF  65.5 PSV      79 N      10  --  F7 pass J8
 J8  : T -119.39c W -99.98c S -19.77c (-31.1 L -32.0) LCB -107.81c P  8.17% WF  56.1 PSV      44 N       8  --  J8 pass F7
 G9  : T -119.70c W -99.99c S -20.10c (-31.3 L -32.2) LCB -104.84c P  6.12% WF  48.8 PSV      36 N       7  --  G9 pass F7
 A9  : T -118.04c W -99.98c S -18.72c (-30.5 L -31.9) LCB  -89.91c P  9.25% WF  34.9 PSV      35 N       5  --  A9 pass F7

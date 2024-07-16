@@ -743,7 +743,7 @@ struct GTPEngine {
     //These should already be sorted so that 0-visit moves only appear at the end.
     int keptMoves = 0;
     for(int i = 0; i<buf.size(); i++) {
-      if(buf[i].numVisits > 0 || keptMoves < args.minMoves)
+      if(buf[i].childVisits > 0 || keptMoves < args.minMoves)
         buf[keptMoves++] = buf[i];
     }
     buf.resize(keptMoves);
@@ -778,7 +778,7 @@ struct GTPEngine {
           }
           cout << "info";
           cout << " move " << Location::toString(data.move,board);
-          cout << " visits " << data.numVisits;
+          cout << " visits " << data.childVisits;
           cout << " winrate " << round(winrate * 10000.0);
           cout << " prior " << round(data.policyPrior * 10000.0);
           cout << " lcb " << round(lcb * 10000.0);
@@ -864,7 +864,8 @@ struct GTPEngine {
           }
           out << "info";
           out << " move " << Location::toString(data.move,board);
-          out << " visits " << data.numVisits;
+          out << " visits " << data.childVisits;
+          out << " edgeVisits " << data.numVisits;
           out << " utility " << utility;
           out << " winrate " << winrate;
           // We report lead for scoreMean here so that a bunch of legacy tools that use KataGo use lead instead, which
@@ -876,7 +877,7 @@ struct GTPEngine {
           out << " prior " << data.policyPrior;
           out << " lcb " << lcb;
           out << " utilityLcb " << utilityLcb;
-          out << " weight " << data.weightSum;
+          out << " weight " << data.childWeightSum;
           if(data.isSymmetryOf != Board::NULL_LOC)
             out << " isSymmetryOf " << Location::toString(data.isSymmetryOf,board);
           out << " order " << data.order;

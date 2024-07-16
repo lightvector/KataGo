@@ -29,6 +29,8 @@ echo tests/results/gtp/searchcancellable
 echo -e 'kata-search_analyze b\nkata-genmove_analyze b\nkomi 5\nkata-search_analyze_cancellable w rootInfo true\nkata-search_cancellable w' | ./katago gtp -config configs/gtp_example.cfg -model models/b18c384nbt-uec.bin.gz -override-config "logFile=tests/results/gtp/searchcancellable.log, logConfigContents=false, logDir=, logTimeStamp=false, maxVisits=500, maxPlayouts=10000, numSearchThreads=1, nnRandomize=false, nnRandSeed=forTesting, searchRandSeed=forTesting, forDeterministicTesting=true, cudaUseFP16 = false, trtUseFP16 = false, openclUseFP16 = false, cudaUseNHWC = false, defaultBoardSize = 9" 1> tests/results/gtp/searchcancellable.stdout 2> tests/results/gtp/searchcancellable.stderr
 echo tests/results/gtp/humansl
 echo -e 'genmove b\ngenmove w\ngenmove b\ngenmove w\ngenmove b\ngenmove w\ngenmove b\ngenmove w\ngenmove b\ngenmove w\nkata-raw-human-nn 0\nkata-get-params\nkata-get-param humanSLProfile\nkata-set-param humanSLProfile preaz_5d\ngenmove b\ngenmove w\ngenmove b\ngenmove w\ngenmove b\ngenmove w\ngenmove b\ngenmove w\nkata-get-param humanSLProfile' | ./katago gtp -config configs/gtp_human5k_example.cfg -model models/b18c384nbt-uec.bin.gz -human-model models/b18c384nbt-humanv0.bin.gz -override-config "logFile=tests/results/gtp/humansl.log, logConfigContents=false, logDir=, logTimeStamp=false, numSearchThreads=1, nnRandomize=false, nnRandSeed=forTesting, searchRandSeed=forTesting, forDeterministicTesting=true, cudaUseFP16 = false, trtUseFP16 = false, openclUseFP16 = false, cudaUseNHWC = false, defaultBoardSize = 19, humanSLProfile = preaz_12k" 1> tests/results/gtp/humansl.stdout 2> tests/results/gtp/humansl.stderr
+echo tests/results/gtp/humansl2
+echo -e 'loadsgf tests/data/humanslbigdiff.sgf\nkata-search_analyze w' | ./katago gtp -config configs/gtp_human5k_example.cfg -model models/b18c384nbt-uec.bin.gz -human-model models/b18c384nbt-humanv0.bin.gz -override-config "logFile=tests/results/gtp/humansl2.log, logConfigContents=false, logDir=, logTimeStamp=false, numSearchThreads=1, nnRandomize=false, nnRandSeed=forTesting, searchRandSeed=forTesting, forDeterministicTesting=true, cudaUseFP16 = false, trtUseFP16 = false, openclUseFP16 = false, cudaUseNHWC = false, defaultBoardSize = 19, humanSLProfile = preaz_12k, humanSLRootExploreProbWeightless = 0.8, humanSLCpuctPermanent = 2.0, maxVisits=30" 1> tests/results/gtp/humansl2.stdout 2> tests/results/gtp/humansl2.stderr
 
 sed 's/^Time taken:.*/Time taken: ###/g' -i tests/results/gtp/*
 
@@ -46,7 +48,7 @@ rm -f tests/results/cmd/*
 
 mkdir -p tests/results/analysis
 rm -f tests/results/analysis/*
-for CMDFILE in tests/analysis/*
+for CMDFILE in tests/analysis/*.txt
 do
     echo $CMDFILE
     BASENAME=$(basename "$CMDFILE")
@@ -59,7 +61,7 @@ cat tests/analysis/symmetry.txt | ./katago analysis -config configs/analysis_exa
 
 cat tests/analysis/pvvisits.txt | ./katago analysis -config configs/analysis_example.cfg -model tests/models/g170-b6c96-s175395328-d26788732.bin.gz -override-config "logFile=tests/results/analysis/pvvisits_nograph.txt.log, logDir=, logTimeStamp=false, logAllRequests=true, logAllResponses=true, logSearchInfo=true, numAnalysisThreads=1, numSearchThreadsPerAnalysisThread=1, nnRandomize=false, rootSymmetryPruning=false, nnRandSeed=analysisTest, forDeterministicTesting=true, cudaUseFP16 = false, trtUseFP16 = false, openclUseFP16 = false, cudaUseNHWC = false, useGraphSearch=false" 1> tests/results/analysis/pvvisits_nograph.stdout 2> tests/results/analysis/pvvisits_nograph.stderr
 
-cat tests/analysis/humansl.txt | ./katago analysis -config configs/analysis_example.cfg -model tests/models/g170-b6c96-s175395328-d26788732.bin.gz -human-model models/b18c384nbt-humanv0.bin.gz -override-config "logFile=tests/results/analysis/humansl_sidetomove.txt.log, logDir=, logTimeStamp=false, logAllRequests=true, logAllResponses=true, logSearchInfo=true, maxVisits=100, maxPlayouts=10000, numAnalysisThreads=1, numSearchThreadsPerAnalysisThread=1, nnRandomize=false, rootSymmetryPruning=false, nnRandSeed=analysisTest, forDeterministicTesting=true, cudaUseFP16 = false, trtUseFP16 = false, openclUseFP16 = false, cudaUseNHWC = false, reportAnalysisWinratesAs=SIDETOMOVE, humanSLProfile = preaz_18k" 1> tests/results/analysis/humansl_sidetomove.stdout 2> tests/results/analysis/humansl_sidetomove.stderr
+cat tests/analysis/humansl.txt.noauto | ./katago analysis -config configs/analysis_example.cfg -model tests/models/g170-b6c96-s175395328-d26788732.bin.gz -human-model models/b18c384nbt-humanv0.bin.gz -override-config "logFile=tests/results/analysis/humansl_sidetomove.txt.log, logDir=, logTimeStamp=false, logAllRequests=true, logAllResponses=true, logSearchInfo=true, maxVisits=100, maxPlayouts=10000, numAnalysisThreads=1, numSearchThreadsPerAnalysisThread=1, nnRandomize=false, rootSymmetryPruning=false, nnRandSeed=analysisTest, forDeterministicTesting=true, cudaUseFP16 = false, trtUseFP16 = false, openclUseFP16 = false, cudaUseNHWC = false, reportAnalysisWinratesAs=SIDETOMOVE, humanSLProfile = preaz_18k" 1> tests/results/analysis/humansl_sidetomove.stdout 2> tests/results/analysis/humansl_sidetomove.stderr
 
 
 echo "checkbook"

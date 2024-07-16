@@ -1,0 +1,11 @@
+KataGo v1.14.1
+Using Japanese rules initially, unless GTP/GUI overrides this
+Initializing board with boardXSize 19 boardYSize 19
+Loaded config configs/gtp_human5k_example.cfg and/or command-line and query overrides
+Loaded model models/b18c384nbt-uec.bin.gz
+Loaded human SL model models/b18c384nbt-humanv0.bin.gz
+Model name: b18c384nbt-uec-20221121b
+Human SL model name: b18c384nbt-humanv0
+GTP ready, beginning main protocol loop
+Sgf has no rules, using default rules with SGF-specified komi: koSIMPLEscoreTERRITORYtaxSEKIsui0komi7.5
+Changing komi to 7.5

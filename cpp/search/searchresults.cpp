@@ -1292,7 +1292,9 @@ void Search::printTreeHelper(
       out << buf;
     }
 
-    sprintf(buf,"N %7" PRIu64 "  --  ", data.numVisits);
+    // Using child visits here instead of edge visits because edge visits is at least
+    // semi-reflected in WF and PSV.
+    sprintf(buf,"N %7" PRIu64 "  --  ", data.childVisits);
     out << buf;
 
     printPV(out, data.pv);
@@ -2010,8 +2012,8 @@ bool Search::getAnalysisJson(
 
     json moveInfo;
     moveInfo["move"] = Location::toString(data.move, board);
-    moveInfo["visits"] = data.numVisits;
-    moveInfo["weight"] = Global::roundDynamic(data.weightSum,OUTPUT_PRECISION);
+    moveInfo["visits"] = data.childVisits;
+    moveInfo["weight"] = Global::roundDynamic(data.childWeightSum,OUTPUT_PRECISION);
     moveInfo["utility"] = Global::roundDynamic(utility,OUTPUT_PRECISION);
     moveInfo["winrate"] = Global::roundDynamic(winrate,OUTPUT_PRECISION);
     // We report lead for scoreMean here so that a bunch of legacy tools that use KataGo use lead instead, which
@@ -2028,8 +2030,8 @@ bool Search::getAnalysisJson(
     moveInfo["order"] = data.order;
     if(data.isSymmetryOf != Board::NULL_LOC)
       moveInfo["isSymmetryOf"] = Location::toString(data.isSymmetryOf, board);
-    moveInfo["childVisits"] = data.childVisits;
-    moveInfo["childWeight"] = Global::roundDynamic(data.childWeightSum,OUTPUT_PRECISION);
+    moveInfo["edgeVisits"] = data.numVisits;
+    moveInfo["edgeWeight"] = Global::roundDynamic(data.weightSum,OUTPUT_PRECISION);
 
     json pv = json::array();
     int pvLen =
