@@ -123,6 +123,8 @@ int MainCmds::analysis(const vector<string>& args) {
   const bool logErrorsAndWarnings = cfg.contains("logErrorsAndWarnings") ? cfg.getBool("logErrorsAndWarnings") : true;
   const bool logSearchInfo = cfg.contains("logSearchInfo") ? cfg.getBool("logSearchInfo") : false;
 
+  const bool warnUnusedFields = cfg.contains("warnUnusedFields") ? cfg.getBool("warnUnusedFields") : true;
+
   auto loadParams = [&humanModelFile](ConfigParser& config, SearchParams& params, Player& perspective, Player defaultPerspective) {
     bool hasHumanModel = humanModelFile != "";
     params = Setup::loadSingleParams(config,Setup::SETUP_FOR_ANALYSIS,hasHumanModel);
@@ -203,11 +205,45 @@ int MainCmds::analysis(const vector<string>& args) {
   logger.write("Loaded model "+ modelFile);
   cmd.logOverrides(logger);
 
-  if(humanModelFile != "" && !cfg.contains("humanSLProfile")) {
-    logger.write("WARNING: Provided -human-model but humanSLProfile was not set in the config. The human SL model will not be used until it is set.");
+  if(humanModelFile != "" && !cfg.contains("humanSLProfile") && humanEval->requiresSGFMetadata()) {
+    logger.write("Warning: Provided -human-model but humanSLProfile is not yet set. The human SL model will only be used on queries that provide humanSLProfile in overrideSettings.");
     if(!logger.isLoggingToStderr())
-      cerr << "WARNING: Provided -human-model but humanSLProfile was not set in the config. The human SL model will not be used until it is set." << endl;
+      cerr << "Warning: Provided -human-model but humanSLProfile is not yet set. The human SL model will only be used on queries that provide humanSLProfile in overrideSettings." << endl;
   }
+
+  //Expected possible keys for queries
+  const std::set<std::string> expectedKeys = {
+    "id",
+    "action",
+    "terminateId",
+    "turnNumbers",
+    "boardXSize",
+    "boardYSize",
+    "initialStones",
+    "moves",
+    "initialPlayer",
+    "analyzeTurns",
+    "priorities",
+    "rules",
+    "komi",
+    "whiteHandicapBonus",
+    "overrideSettings",
+    "maxVisits",
+    "analysisPVLen",
+    "rootFpuReductionMax",
+    "rootPolicyTemperature",
+    "includeMovesOwnership",
+    "includeMovesOwnershipStdev",
+    "includeOwnership",
+    "includeOwnershipStdev",
+    "includePolicy",
+    "includePVVisits",
+    "reportDuringSearchEvery",
+    "firstReportDuringSearchAfter",
+    "priority",
+    "allowMoves",
+    "avoidMoves"
+  };
 
   ThreadSafeQueue<string*> toWriteQueue;
   auto writeLoop = [&toWriteQueue,&logAllResponses,&logger]() {
@@ -1091,6 +1127,13 @@ int MainCmds::analysis(const vector<string>& args) {
       Player nextPla = initialPlayer;
       BoardHistory hist(board,nextPla,rules,0);
       hist.setAssumeMultipleStartingBlackMovesAreHandicap(assumeMultipleStartingBlackMovesAreHandicap);
+
+      if(warnUnusedFields) {
+        for (auto it = input.begin(); it != input.end(); ++it) {
+          if(expectedKeys.find(it.key()) == expectedKeys.end())
+            reportWarningForId(rbase.id, it.key(), "Unexpected or unused field, do you have a typo? (set warnUnusedFields=false in the config to disable this warning)");
+        }
+      }
 
       //Build and enqueue requests
       vector<AnalyzeRequest*> newRequests;

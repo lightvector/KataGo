@@ -2097,10 +2097,10 @@ int MainCmds::gtp(const vector<string>& args) {
     cerr << "GTP ready, beginning main protocol loop" << endl;
   }
 
-  if(humanModelFile != "" && !cfg.contains("humanSLProfile")) {
-    logger.write("WARNING: Provided -human-model but humanSLProfile was not set in the config. The human SL model will not be used until it is set.");
+  if(humanModelFile != "" && !cfg.contains("humanSLProfile") && engine->humanEval->requiresSGFMetadata()) {
+    logger.write("WARNING: Provided -human-model but humanSLProfile was not set in the config or overrides. The human SL model will not be used until it is set in the config or at runtime via kata-set-param.");
     if(!logger.isLoggingToStderr())
-      cerr << "WARNING: Provided -human-model but humanSLProfile was not set in the config. The human SL model will not be used until it is set." << endl;
+      cerr << "WARNING: Provided -human-model but humanSLProfile was not set in the config or overrides. The human SL model will not be used until it is set in the config or at runtime via kata-set-param." << endl;
   }
 
   bool currentlyGenmoving = false;
