@@ -1,4 +1,4 @@
-## KataGo Parallel Analysis Engine
+# KataGo Parallel Analysis Engine
 
 KataGo contains an engine that can be used to analyze large numbers of positions in parallel (entire games, or multiple games).
 When properly configured and used with modern GPUs that can handle large batch sizes, this engine can be much faster than using
@@ -15,11 +15,11 @@ An example config file is provided in `cpp/configs/analysis_example.cfg`. Adjust
 
 See the [example analysis config](https://github.com/lightvector/KataGo/blob/master/cpp/configs/analysis_example.cfg#L60) for a fairly detailed discussion of how to tune these parameters.
 
-### Example Code
+## Example Code
 
 For example code demonstrating how to invoke the analysis engine from Python, see [here](https://github.com/lightvector/KataGo/blob/master/python/query_analysis_engine_example.py)!
 
-### Protocol
+## Protocol
 
 The engine accepts queries on stdin, and output results on stdout. Every query and every result should be a single line.
 The protocol is entirely asynchronous - new requests on stdin can be accepted at any time, and results will appear on stdout
@@ -30,7 +30,7 @@ If stdin is closed, then the engine will finish the analysis of all queued queri
 provided on the initial command line, in which case it will attempt to stop all threads and still exit cleanly but without
 necessarily finishing the analysis of whatever queries are open at the time.
 
-#### Queries
+### Queries
 
 Each query line written to stdin should be a JSON dictionary with certain fields. Note again that every query must be a *single line* - multi-line JSON queries are NOT supported. An example query would be:
 
@@ -100,12 +100,22 @@ Explanation of fields (including some optional fields not present in the above q
       * `untilDepth` - a positive integer, indicating the ply such that moves are prohibited before that ply.
       * Multiple dicts can specify different `untilDepth` for different sets of moves. The behavior is unspecified if a move is specified more than once with different `untilDepth`.
    * `allowMoves (list of dicts)`: Optional. Same as `avoidMoves` except prohibits all moves EXCEPT the moves specified. Currently, the list of dicts must also be length 1.
-   * `overrideSettings (object)`: Optional. Specify any number of `paramName:value` entries in this object to override those params from command line `CONFIG_FILE` for this query. Most search parameters can be overriden: `cpuctExploration`, `winLossUtilityFactor`, etc.
+   * `overrideSettings (object)`: Optional. Specify any number of `paramName:value` entries in this object to override those params from command line `CONFIG_FILE` for this query. Most search parameters can be overriden: `cpuctExploration`, `winLossUtilityFactor`, etc. Some notable parameters include:
+      * `playoutDoublingAdvantage (float)`. A value of PDA from -3 to 3 will adjust KataGo's evaluation to assume that the opponent is NOT of equal strength/compte, but rather that the current player has 2^(PDA) times as many playouts as the opponent. Dynamic versions of this are used to significant effect in handicap games in GTP mode, see [GTP example config](../cpp/configs/gtp_example.cfg).
+        * `wideRootNoise (float)`. See documentation for this parameter in [the example config](../cpp/configs/analysis_example.cfg)
+        * `ignorePreRootHistory (boolean)`. Whether to ignore pre-root history during analysis.
+        * `antiMirror (boolean)`. Whether to enable anti-mirror play during analysis. Off by default. Will probably result in biased and nonsensical winrates and other analysis values, but moves may detect and crudely respond to mirror play.
+        * `humanSLProfile (string)`. Set the human-like play that KataGo should imitate. Requires that a human SL model like `b18c384nbt-humanv0.bin.gz` is being used, typically via the command line parameter `-human-model`. Available profiles include:
+           * `preaz_20k` through `preaz_9d`: Imitate human players of the given rank. (based on 2016 pre-AlphaZero opening style).
+           * `rank_20k` through `rank_9d`: Imitate human players of the given rank (modern opening style).
+           * `proyear_1800` through `proyear_2023`: Imitate pro and strong insei moves based on historical game records from the specified year and surrounding years.
+           * See also section below, "Human SL Analysis Guide".
    * `reportDuringSearchEvery (float)`: Optional. Specify a number of seconds such that while this position is being searched, KataGo will report the partial analysis every that many seconds.
    * `priority (int)`: Optional. Analysis threads will prefer handling queries with the highest priority unless already started on another task, breaking ties in favor of earlier queries. If not specified, defaults to 0.
    * `priorities (list of integers)`: Optional. When using analyzeTurns, you can use this instead of `priority` if you want a different priority per turn. Must be of same length as `analyzeTurns`, `priorities[0]` is the priority for `analyzeTurns[0]`, `priorities[1]` is the priority for `analyzeTurns[1]`, etc.
 
-#### Responses
+
+### Responses
 
 Upon an error or a warning, responses will have one of the following formats:
 ```
@@ -120,7 +130,7 @@ In the case of a warning, the query will still proceed to generate analysis resp
 
 An example successful analysis response might be:
 ```json
-{"id":"foo","isDuringSearch":false,"moveInfos":[{"lcb":0.8740855166489953,"move":"Q5","order":0,"prior":0.8934692740440369,"pv":["Q5","R5","Q6","P4","O5","O4","R6","S5","N4","N5","N3"],"scoreLead":8.18535151076558,"scoreMean":8.18535151076558,"scoreSelfplay":10.414442461570038,"scoreStdev":23.987067985850913,"utility":0.7509536097709347,"utilityLcb":0.7717092488727239,"visits":495,"winrate":0.8666727883983563},{"lcb":1.936558574438095,"move":"D4","order":1,"prior":0.021620146930217743,"pv":["D4","Q5"],"scoreLead":12.300520420074463,"scoreMean":12.300520420074463,"scoreSelfplay":15.386500358581543,"scoreStdev":24.661467510313432,"utility":0.9287495791972984,"utilityLcb":2.8000000000000003,"visits":2,"winrate":0.9365585744380951},{"lcb":1.9393062554299831,"move":"Q16","order":2,"prior":0.006689758971333504,"pv":["Q16"],"scoreLead":12.97426986694336,"scoreMean":12.97426986694336,"scoreSelfplay":16.423904418945313,"scoreStdev":25.34494674587838,"utility":0.9410896213959669,"utilityLcb":2.8000000000000003,"visits":1,"winrate":0.9393062554299831},{"lcb":1.9348860532045364,"move":"D16","order":3,"prior":0.0064553022384643555,"pv":["D16"],"scoreLead":12.066888809204102,"scoreMean":12.066888809204102,"scoreSelfplay":15.591397285461426,"scoreStdev":25.65390196745236,"utility":0.9256971928661066,"utilityLcb":2.8000000000000003,"visits":1,"winrate":0.9348860532045364}],"rootInfo":{"currentPlayer":"B","lcb":0.8672585456293346,"scoreLead":8.219540952281882,"scoreSelfplay":10.456476293719811,"scoreStdev":23.99829921716391,"symHash":"1D25038E8FC8C26C456B8DF2DBF70C02","thisHash":"F8FAEDA0E0C89DDC5AA5CCBB5E7B859D","utility":0.7524437705003542,"visits":500,"winrate":0.8672585456293346},"turnNumber":2}
+{"id":"foo","isDuringSearch":false,"moveInfos":[{"lcb":0.8740855166489953,"move":"Q5","order":0,"prior":0.8934692740440369,"pv":["Q5","R5","Q6","P4","O5","O4","R6","S5","N4","N5","N3"],"scoreLead":8.18535151076558,"scoreMean":8.18535151076558,"scoreSelfplay":10.414442461570038,"scoreStdev":23.987067985850913,"utility":0.7509536097709347,"utilityLcb":0.7717092488727239,"visits":495,"edgeVisits":495,"winrate":0.8666727883983563},{"lcb":1.936558574438095,"move":"D4","order":1,"prior":0.021620146930217743,"pv":["D4","Q5"],"scoreLead":12.300520420074463,"scoreMean":12.300520420074463,"scoreSelfplay":15.386500358581543,"scoreStdev":24.661467510313432,"utility":0.9287495791972984,"utilityLcb":2.8000000000000003,"visits":2,"edgeVisits":2,"winrate":0.9365585744380951},{"lcb":1.9393062554299831,"move":"Q16","order":2,"prior":0.006689758971333504,"pv":["Q16"],"scoreLead":12.97426986694336,"scoreMean":12.97426986694336,"scoreSelfplay":16.423904418945313,"scoreStdev":25.34494674587838,"utility":0.9410896213959669,"utilityLcb":2.8000000000000003,"visits":1,"edgeVisits":1,"winrate":0.9393062554299831},{"lcb":1.9348860532045364,"move":"D16","order":3,"prior":0.0064553022384643555,"pv":["D16"],"scoreLead":12.066888809204102,"scoreMean":12.066888809204102,"scoreSelfplay":15.591397285461426,"scoreStdev":25.65390196745236,"utility":0.9256971928661066,"utilityLcb":2.8000000000000003,"visits":1,"edgeVisits":1,"winrate":0.9348860532045364}],"rootInfo":{"currentPlayer":"B","lcb":0.8672585456293346,"scoreLead":8.219540952281882,"scoreSelfplay":10.456476293719811,"scoreStdev":23.99829921716391,"symHash":"1D25038E8FC8C26C456B8DF2DBF70C02","thisHash":"F8FAEDA0E0C89DDC5AA5CCBB5E7B859D","utility":0.7524437705003542,"visits":500,"winrate":0.8672585456293346},"turnNumber":2}
 ```
 <details>
 <summary>
@@ -144,6 +154,7 @@ See formatted response.
         "utility": 0.7509536097709347,
         "utilityLcb": 0.7717092488727239,
         "visits": 495,
+        "edgeVisits": 495,
         "winrate": 0.8666727883983563
     }, {
         "lcb": 1.936558574438095,
@@ -158,6 +169,7 @@ See formatted response.
         "utility": 0.9287495791972984,
         "utilityLcb": 2.8000000000000003,
         "visits": 2,
+        "edgeVisits": 2,
         "winrate": 0.9365585744380951
     }, {
         "lcb": 1.9393062554299831,
@@ -172,6 +184,7 @@ See formatted response.
         "utility": 0.9410896213959669,
         "utilityLcb": 2.8000000000000003,
         "visits": 1,
+        "edgeVisits": 1,
         "winrate": 0.9393062554299831
     }, {
         "lcb": 1.9348860532045364,
@@ -186,6 +199,7 @@ See formatted response.
         "utility": 0.9256971928661066,
         "utilityLcb": 2.8000000000000003,
         "visits": 1,
+        "edgeVisits": 1,
         "winrate": 0.9348860532045364
     }],
     "rootInfo": {
@@ -210,6 +224,8 @@ See formatted response.
 
 Consumers of this data should attempt to be robust to possible addition of both new top-level fields in the future, as well as additions to fields in `moveInfos` or `rootInfo`.
 
+The various "human" fields are available if -human-model is provided and humanSLProfile is set.
+
 Current fields are:
 
    * `id`: The same id string that was provided on the query.
@@ -217,17 +233,20 @@ Current fields are:
    * `turnNumber`: The turn number being analyzed.
    * `moveInfos`: A list of JSON dictionaries, one per move that KataGo considered, with fields indicating the results of analysis. Current fields are:
       * `move` - The move being analyzed.
-      * `visits` - The number of visits invested into the move.
+      * `visits` - The number of visits that the child node received.
+      * `edgeVisits` - The number of visits that the root node "wants" to invest in the move, due to thinking it's a plausible or search-worthy move. Might differ from `visits` due to human SL weightless exploration, or graph search transpositions.
       * `winrate` - The winrate of the move, as a float in [0,1].
       * `scoreMean` - Same as scoreLead. "Mean" is a slight misnomer, but this field exists to preserve compatibility with existing tools.
       * `scoreStdev` - The predicted standard deviation of the final score of the game after this move, in points. (NOTE: due to the mechanics of MCTS, this value will be **significantly biased high** currently, although it can still be informative as *relative* indicator).
       * `scoreLead` - The predicted average number of points that the current side is leading by (with this many points fewer, it would be an even game).
       * `scoreSelfplay` - The predicted average value of the final score of the game after this move during selfplay, in points. (NOTE: users should usually prefer scoreLead, since scoreSelfplay may be biased by the fact that KataGo isn't perfectly score-maximizing).
       * `prior` - The policy prior of the move, as a float in [0,1].
+      * `humanPrior` - The human policy for the move, as a float in [0,1], if available.
       * `utility` - The utility of the move, combining both winrate and score, as a float in [-C,C] where C is the maximum possible utility. The maximum winrate utility can be set by `winLossUtilityFactor` in the config, while the maximum score utility is the sum of `staticScoreUtilityFactor` and `dynamicScoreUtilityFactor`.
       * `lcb` - The [LCB](https://github.com/leela-zero/leela-zero/issues/2282) of the move's winrate. Has the same units as winrate, but might lie outside of [0,1] since the current implementation doesn't strictly account for the 0-1 bounds.
       * `utilityLcb` - The LCB of the move's utility.
-      * `weight` - The total weight of the visits invested into the move. The average weight of visits may be lower when less certain, and larger when more certain.
+      * `weight` - The total weight of the visits that the child node received. The average weight of visits may be lower when less certain, and larger when more certain.
+      * `edgeWeight` - The total weight of the visits the parent wants to invest into the move. The average weight of visits may be lower when less certain, and larger when more certain.
       * `order` - KataGo's ranking of the move. 0 is the best, 1 is the next best, and so on.
       * `isSymmetryOf` - Another legal move. Possibly present if KataGo is configured to avoid searching some moves due to symmetry (`rootSymmetryPruning=true`). If present, this move was not actually searched, and all of its stats and PV are copied symmetrically from that other move.
       * `pv` - The principal variation ("PV") following this move. May be of variable length or even empty.
@@ -239,20 +258,32 @@ Current fields are:
       * `thisHash` - A string that will with extremely high probability be unique for each distinct (board position, player to move, simple ko ban) combination.
       * `symHash` - Like `thisHash` except the string will be the same between positions that are symmetrically equivalent. Does NOT necessarily take into account superko.
       * `currentPlayer` - The current player whose possible move choices are being analyzed, `"B"` or `"W"`.
+      * `rawWinrate` - The winrate prediction of the neural net by itself, without any search.
+      * `rawLead` - The lead prediction of the neural net by itself, without any search.
+      * `rawScoreSelfplay` - The selfplay score prediction of the neural net by itself, without any search.
+      * `rawScoreSelfplayStdev` - The standard deviation of the final game score predicted by the net itself, without any search.
+      * `rawNoResultProb` - The raw predicted probability of a no result game in Japanese-like rules.
       * `rawStWrError` - The short-term uncertainty the raw neural net believed there would be in the winrate of the position, prior to searching it.
       * `rawStScoreError` - The short-term uncertainty the raw neural net believed there would be in the score of the position, prior to searching it.
       * `rawVarTimeLeft` - The raw neural net's guess of "how long of a meaningful game is left?", in no particular units. A large number when expected that it will be a long game before the winner becomes clear. A small number when the net believes the winner is already clear, or that the winner is unclear but will become clear soon.
+      * `humanWinrate` - Same as `rawWinrate` but using the human model, if available.
+      * `humanScoreMean` - Same as `rawScoreSelfplay` but using the human model, if available.
+      * `humanScoreStdev` - Same as `rawScoreSelfplayStdev` but using the human model, if available.
+      * `humanStWrError` - The short-term uncertainty the raw neural net believes there will be in the winrate of the position as it gets played out by players of the configured profile, using the human model, if available.
+      * `humanStScoreError` - The short-term uncertainty the raw neural net believes there will be in the score evaluation of the position as it gets played out by players of the configured profile, using the human model, if available.
       * Note that properties of the root like "winrate" and score will vary more smoothly and a bit more sluggishly than the corresponding property of the best move, since the rootInfo averages smoothly across all visits even while the top move may fluctuate rapidly. This may or may not be preferable over reporting the stats of the top move, depending on the purpose.
    * `ownership` - If `includeOwnership` was true, then this field will be included. It is a JSON array of length `boardYSize * boardXSize` with values from -1 to 1 indicating the predicted ownership. Values are in row-major order, starting at the top-left of the board (e.g. A19) and going to the bottom right (e.g. T1).
    * `ownershipStdev` - If `includeOwnershipStdev` was true, then this field will be included. It is a JSON array of length `boardYSize * boardXSize` with values from 0 to 1 indicating the per-location standard deviation of predicted ownership in the search tree. Values are in row-major order, starting at the top-left of the board (e.g. A19) and going to the bottom right (e.g. T1).
    * `policy` - If `includePolicy` was true, then this field will be included. It is a JSON array of length `boardYSize * boardXSize + 1` with positive values summing to 1 indicating the neural network's prediction of the best move before any search, and `-1` indicating illegal moves. Values are in row-major order, starting at the top-left of the board (e.g. A19) and going to the bottom right (e.g. T1). The last value in the array is the policy value for passing.
+   * `humanPolicy` - If `includePolicy` was true, and a human model is available, then this field will be included. The format is the same as `policy`, but it reports the policy from the human model based on the configured `humanSLProfile`. See also section below, "Human SL Analysis Guide".
 
-#### Special Action Queries
+
+### Special Action Queries
 
 Currently a few special action queries are supported that direct the analysis engine to do something other than enqueue a new position or set of positions for analysis.
 A special action query is also sent as a JSON object, but with a different set of fields depending on the query.
 
-##### query_version
+#### query_version
 Requests that KataGo report its current version. Required fields:
 
    * `id (string)`: Required. An arbitrary string identifier for this query.
@@ -273,7 +304,7 @@ Example:
 {"action":"query_version","git_hash":"0b0c29750fd351a8364440a2c9c83dc50195c05b","id":"foo","version":"1.6.1"}
 ```
 
-##### clear_cache
+#### clear_cache
 Requests that KataGo empty its neural net cache. Required fields:
 
    * `id (string)`: Required. An arbitrary string identifier for this query.
@@ -292,7 +323,7 @@ Explanation: KataGo uses a cache of neural net query results to skip querying th
 * Testing or studying the variability of KataGo's search results for a given number of visits. Analyzing a position again after a cache clear will give a "fresh" look on that position that better matches the variety of possible results KataGo may return, simliar to if the analysis engine were entirely restarted. Each query will re-randomize the symmetry of the neural net used for that query instead of using the cached result, giving a new and more varied opinion.
 
 
-##### terminate
+#### terminate
 
 Requests that KataGo terminate zero or more analysis queries without waiting for them to finish normally. When a query is terminated, the engine will make a best effort to halt their analysis as soon as possible, reporting the results of whatever number of visits were performed up to that point. Required fields:
 
@@ -316,7 +347,7 @@ The terminate query itself will result in a response as well, to acknowledge rec
 
 The response will NOT generally wait for all of the effects of the action to take place - it may take a small amount of additional time for ongoing searches to actually terminate and report their partial results. A client of this API that wants to wait for all terminated queries to finish should on its own track the set of queries that it has sent for analysis, and wait for all of them to have finished. This can be done by relying on the property that every analysis query, whether terminated or not, and regardless of `reportDuringSearchEvery`, will conclude with exactly one reply where `isDuringSearch` is `false` - such a reply can therefore be used as a marker that an analysis query has finished. (Except during shutdown of the engine if `-quit-without-waiting` was specified).
 
-##### terminate_all
+#### terminate_all
 
 The same as terminate but does not require providing a `terminateId` field and applies to all queries, regardless of their `id`. Required fields:
 
@@ -332,3 +363,143 @@ Examples:
 The terminate_all query itself will result in a response as well, to acknowledge receipt and processing of the action. The response consists of echoing a json object back with exactly the same fields and data of the query.
 
 See the documentation for terminate above regarding the output from terminated queries. As with terminate, the response to terminate_all will NOT wait for all of the effects of the action to take place, and the results of all the old queries as they are terminated will be reported back asynchronously.
+
+#### query_models
+
+Requests that KataGo report information about the loaded models. Required fields:
+
+   * `id (string)`: Required. An arbitrary string identifier for this query.
+   * `action (string)`: Required. Should be the string `query_models`.
+
+Example:
+```json
+{"id":"foo","action":"query_models"}
+```
+
+The response to this query will echo back the same keys passed in, along with a key "models" containing an array of the models loaded. Each model in the array includes details such as the model name, internal name, maximum batch size, whether it uses a human SL profile, version, and FP16 usage. Example:
+
+```json
+{
+  "id": "foo",
+  "action": "query_models",
+  "models": [
+    {
+      "name": "kata1-b18c384nbt-s9732312320-d4245566942.bin.gz",
+      "internalName": "kata1-b18c384nbt-s9732312320-d4245566942",
+      "maxBatchSize": 256,
+      "usesHumanSLProfile": false,
+      "version": 14,
+      "usingFP16": "auto"
+    },
+    {
+      "name": "b18c384nbt-humanv0.bin.gz",
+      "internalName": "b18c384nbt-humanv0",
+      "maxBatchSize": 256,
+      "usesHumanSLProfile": true,
+      "version": 15,
+      "usingFP16": "auto"
+    }
+  ]
+}
+```
+
+## Human SL Analysis Guide
+
+As of version 1.15.0, released July 2024, KataGo supports a new human supervised learning ("human SL") model `b18c384nbt-humanv0.bin.gz` that was trained on a large number of human games to predict moves by players of all different ranks and the outcomes of those games. People have only just started to experiment with the model and there might be many creative possibilities for analysis or play.
+
+See also the GTP version of the notes on "humanSL" parameters in the [GTP human 5k example config](../cpp/configs/gtp_human5k_example.cfg). Although this is a GTP config, not an Analysis Engine config, the inline documentation about the "humanSL" parameters there might also be useful as further technical detail and context alongside the below.
+
+Below are some notes and suggestions for starting points on playing with the human SL model.
+
+### Setting Up to Use the Model
+
+There are two ways to pass in the human SL model.
+
+* The basic intended way: pass an additional argument `-human-model b18c384nbt-humanv0.bin.gz` in addition to still passing in KataGo's normal model.
+   * For example: `./katago analysis -config configs/analysis_example.cfg -model models/kata1-b28c512nbt-s7382862592-d4374571218.bin.gz -human-model models/b18c384nbt-humanv0.bin.gz`.
+   * Additionally, provide `humanSLProfile` via `overrideSettings` on queries. See documentation above for `overrideSettings`.
+   * Additionally, make sure to request `"includePolicy":true` in the query.
+   * Then, a new `humanPolicy` field will be reported on the result, indicating KataGo's prediction of how random human players matching the given humanSLProfile (e.g. 5 kyu rank) might play.
+   * If no further parameters are set, KataGo's main model will still be used for all other analysis.
+   * If further parameters are set, interesting *blended* usages of the KataGo's main model and the human SL model are possible. See some "recipes" below.
+
+* An alternative way: pass `-model b18c384nbt-humanv0.bin.gz` instead of KataGo's normal model, using the human model exclusively.
+   * For example: `./katago analysis -config configs/analysis_example.cfg -model models/b18c384nbt-humanv0.bin.gz`.
+   * Additionally, provide `humanSLProfile` via `overrideSettings` on queries. See documentation above for `overrideSettings`.
+   * Then, KataGo will use the human model at the configured profile for all analysis, rather than its normal typically-superhuman analysis.
+   * Note that if you are searching with many visits (or even just a few visits!), typically you can expect that KataGo will NOT match the strength of a player of the given humanSLProfile, but will still be stronger because the search will probably solve a lot of tactics that players of a weaker rank would not solve.
+      * The human SL model is trained such that using only *one* visit, and full temperature (i.e. choosing random moves from the policy proportionally often, rather than always choosing the top move), will give the closest match to how players of the given rank might play. This should be true up to mid-high dan level, at which point the raw model might start to fall short and need more than 1 visit to keep up in strength.
+
+   * If used as the main model, the human SL model may have significantly more pathologies and biases in its reported winrates and scores than KataGo's normal model, due to the SGF data it trained on.
+      * For example, in handicap games it might not report accurate scores or winrates because in recorded human handicap SGFs, White is usually a stronger player than Black and/or some servers may underhandicap games, biasing the result.
+      * For example, in even games, it might report erroneous scores and winrates after a big swing or in extreme positions, due to how human players may resign or go on tilt, or due to inaccurately recorded player ranks in the training data, or due to some fraction of sandbagger/airbagger games or AI cheating games in the training data.
+
+
+### Recipes for Various HumanSL Usages
+
+Here is a brief guide to some example usages, and hopefully a bit of inspiration for possible things to try. Settings can either be hardcoded in the config to apply to all queries, or (recommended) dynamically passed to `overrideSettings` to change them on a query-by-query basis.
+
+#### Human-like play
+
+For simply imitating how a player of a given rank would play, the recommended way is:
+
+* Set `humanSLProfile` appropriately.
+* Send a query with any number of visits (even 1 visit) with `"includePolicy":true`.
+* Read `humanPolicy` from the result and pick a random move according to the policy probabilities.
+
+Note that since old historical human games from training might vary in whether they record passes at all, it's possible the human SL net could have trouble passing appropriately in some board positions for some humanSLProfiles. For some weaker ranks, it's possible the human SL net may pass too early and leave positions unfinished in an undesirable way. If so, then the following should work well:
+
+* Set `humanSLProfile` appropriately.
+* Send a query with at least a few visits so KataGo can search the position itself (e.g. > 50 visits), still with `"includePolicy":true`.
+* If the top moveInfo from the result (the moveInfo with `"order":0`) is a pass, then pass.
+* Otherwise, read `humanPolicy` and pick a random move proportional to the policy probabilities, except excluding passing.
+
+#### Ensuring all likely human moves are analyzed
+
+For analysis, if you want to ensure all moves with high human policy get plenty of visits, you can try settings like the following:
+
+* Set `humanSLProfile` appropriately.
+* Set `"humanSLRootExploreProbWeightless":0.5` in `overrideSettings` (spend about 50% of playouts to explore human moves, in a weightless way that doesn't bias KataGo's evaluations).
+* Set something like `"humanSLCpuctPermanent":2.0` in `overrideSettings` (when exploring human moves, ensure high-human-policy moves get many visits even if they lose a lot). Set this to something lower if you want to reduce the number of visits for moves that are judged to be very bad.
+* Make sure to use plenty of visits overall.
+
+#### Possible metrics that might be interesting
+
+If you've ensured that all likely human moves are analyzed, there might be some interesting kinds of metrics to consider that can be derived from the human policy:
+
+* Mean score that a player would have after the current move, if sampling from the human policy, `sum(scoreLead * humanPrior) / sum(humanPrior)`.
+* Standard deviation of score change due to current move, if sampling from the human policy, `sqrt(sum((scoreLead-m)**2 * humanPrior) / sum(humanPrior))` where m is the above mean.
+* Difference in the human policy of the move played between the current rank and a player several ranks higher (send 1-visit queries with other humanSLProfiles to obtain the humanPolicy for other ranks).
+* Is something like "(actual score - mean score) / standard deviation of score" an interesting alternative to simply the absolute score loss for judging a mistake?
+* Is sorting or weighting mistakes by the amount that a player 4 ranks higher would be less likely to play that move, or other similar kinds of metrics, a good way to bias a game review towards mistakes that are more level-appropriate for a player to review?
+
+#### How to get stronger human-style play
+
+If you want to obtain human *style* moves, but playing stronger than a given human level in strength (i.e. match just the style, but not necessarily the strength), you can try this:
+
+* Ensure all human likely moves are analyzed, as described in an earlier section.
+* Choose a random move among all `moveInfos` with probability proportional to `humanPrior * exp(utility / 0.5)`. This will follow the humanPrior, but smoothly attenuate the probability of a move as it starts to lose more than 0.5 utility (about 25% winrate and/or some amount of score). Adjust the divisor 0.5 as desired.
+* Optionally, also set `"staticScoreUtilityFactor":0.5` in `overrideSettings`. (significantly increase how much score affects the utility, compared to just winrate).
+* A method like this, with adjusted numbers, might also be used to compensate for the gap that starts to open up in the human SL model no longer being able to match the strength of very top players at only 1 visit.
+
+#### Heavily bias the search to anticipate human-like sequences rather than KataGo sequences.
+
+Not many people have experimented with this yet, but in theory this could have very interesting effects! This will influence the winrates and scores that KataGo assigns to various moves to be much closer to the winrates and scores it would anticipate for various variations if they were played out the way it thinks human players of the configured profile might play them out, but still judging the endpoints of those variations using KataGo's own judgments.
+
+* Set `humanSLProfile` appropriately.
+* Set `"humanSLPlaExploreProbWeightful":0.9` and `"humanSLOppExploreProbWeightful":0.9` (spend about 90% of visits at every node using the human policy, in a weightful way that does bias KataGo's evaluations)
+* Set `"humanSLRootExploreProbWeightful":0.5` in `overrideSettings` (at the root use about 50% of playouts to explore human moves, and the other 50% use KataGo's normal policy).
+* Set something like `"humanSLCpuctPermanent":1.0` or whatever other values you want (when using the human policy, attenuate the policy from too many visits to things that are on the order of 1.0 utility, or 50% winrate worse).
+* Set `"useUncertainty":false` and `"subtreeValueBiasFactor":0.0` and `"useNoisePruning":false` (important, disables a few search features that add strength but are highly likely to interfere with the above kind of weightful biasing).
+
+#### Bias the search to anticipate human-like sequences rather than KataGo sequences, but only for the opponent.
+
+This kind of setting might be interesting for handicap games or trying to elicit trick plays and other kinds of opponent-aware tactics. Of course, experimentation may be needed for it to work well, and it might not work well, or might work "too" well and backfire.
+
+* Set `humanSLProfile` appropriately.
+* Set `"humanSLOppExploreProbWeightful":0.8` (spend about 80% of visits at every node using the human policy, in a weightful way that does bias KataGo's values, but only for the opponent!)
+* Set something like `"humanSLCpuctPermanent":0.5` or whatever other values you want (when using the human policy, do attenuate the policy from putting *too* many visits to things that are on the order of 0.5 utility, or 25% winrate worse).
+* Set `playoutDoublingAdvantage` also as desired and typical in handicap games.
+* Set `"useUncertainty":false` and `"subtreeValueBiasFactor":0.0` and `"useNoisePruning":false` (important, disables a few search features that add strength but are highly likely to interfere with the above kind of weightful biasing).
+   * Setting `"useNoisePruning":false` is probably the most important of these - it adds the least strength in normal usage but might interfere the most. One could experiment with still enabling the other two for strength.
+
