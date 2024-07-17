@@ -100,7 +100,7 @@ Explanation of fields (including some optional fields not present in the above q
       * `untilDepth` - a positive integer, indicating the ply such that moves are prohibited before that ply.
       * Multiple dicts can specify different `untilDepth` for different sets of moves. The behavior is unspecified if a move is specified more than once with different `untilDepth`.
    * `allowMoves (list of dicts)`: Optional. Same as `avoidMoves` except prohibits all moves EXCEPT the moves specified. Currently, the list of dicts must also be length 1.
-   * `overrideSettings (object)`: Optional. Specify any number of `paramName:value` entries in this object to override those params from command line `CONFIG_FILE` for this query. Most search parameters can be overriden: `cpuctExploration`, `winLossUtilityFactor`, etc. Some notable parameters include:
+   * `overrideSettings (object)`: Optional. Specify any number of `"paramName":value` entries in this object to override those params from command line `CONFIG_FILE` for this query. Most search parameters can be overriden: `cpuctExploration`, `winLossUtilityFactor`, etc. Some notable parameters include:
       * `playoutDoublingAdvantage (float)`. A value of PDA from -3 to 3 will adjust KataGo's evaluation to assume that the opponent is NOT of equal strength/compte, but rather that the current player has 2^(PDA) times as many playouts as the opponent. Dynamic versions of this are used to significant effect in handicap games in GTP mode, see [GTP example config](../cpp/configs/gtp_example.cfg).
         * `wideRootNoise (float)`. See documentation for this parameter in [the example config](../cpp/configs/analysis_example.cfg)
         * `ignorePreRootHistory (boolean)`. Whether to ignore pre-root history during analysis.
@@ -109,7 +109,7 @@ Explanation of fields (including some optional fields not present in the above q
            * `preaz_20k` through `preaz_9d`: Imitate human players of the given rank. (based on 2016 pre-AlphaZero opening style).
            * `rank_20k` through `rank_9d`: Imitate human players of the given rank (modern opening style).
            * `proyear_1800` through `proyear_2023`: Imitate pro and strong insei moves based on historical game records from the specified year and surrounding years.
-           * See also section below, "Human SL Analysis Guide".
+           * See also section below, "Human SL Analysis Guide" for various other parameters that are interesting to set in conjunction with this.
    * `reportDuringSearchEvery (float)`: Optional. Specify a number of seconds such that while this position is being searched, KataGo will report the partial analysis every that many seconds.
    * `priority (int)`: Optional. Analysis threads will prefer handling queries with the highest priority unless already started on another task, breaking ties in favor of earlier queries. If not specified, defaults to 0.
    * `priorities (list of integers)`: Optional. When using analyzeTurns, you can use this instead of `priority` if you want a different priority per turn. Must be of same length as `analyzeTurns`, `priorities[0]` is the priority for `analyzeTurns[0]`, `priorities[1]` is the priority for `analyzeTurns[1]`, etc.
@@ -407,7 +407,9 @@ The response to this query will echo back the same keys passed in, along with a 
 
 As of version 1.15.0, released July 2024, KataGo supports a new human supervised learning ("human SL") model `b18c384nbt-humanv0.bin.gz` that was trained on a large number of human games to predict moves by players of all different ranks and the outcomes of those games. People have only just started to experiment with the model and there might be many creative possibilities for analysis or play.
 
-See also the GTP version of the notes on "humanSL" parameters in the [GTP human 5k example config](../cpp/configs/gtp_human5k_example.cfg). Although this is a GTP config, not an Analysis Engine config, the inline documentation about the "humanSL" parameters there might also be useful as further technical detail and context alongside the below.
+See also the notes on "humanSL" and other parameters within the [GTP human 5k example config](../cpp/configs/gtp_human5k_example.cfg). Although this is a GTP config, not an analysis engine config, the inline documentation about how the "humanSL" parameters behave is just as applicable to the analysis engine.
+
+Similarly, for GTP users, most of the below notes are just as applicable to GTP play and analysis (used by engines like Lizzie or Sabaki) despite being written from the perspective of the analysis engine.
 
 Below are some notes and suggestions for starting points on playing with the human SL model.
 
@@ -437,14 +439,20 @@ There are two ways to pass in the human SL model.
 
 ### Recipes for Various HumanSL Usages
 
-Here is a brief guide to some example usages, and hopefully a bit of inspiration for possible things to try. Settings can either be hardcoded in the config to apply to all queries, or (recommended) dynamically passed to `overrideSettings` to change them on a query-by-query basis.
+Here is a brief guide to some example usages, and hopefully a bit of inspiration for possible things to try.
+
+Except for parameters explicitly documented earlier as belonging on the outer json query object (e.g. `includePolicy`, `maxVisits`), the parameters described below should be set within the `overrideSettings` of a query. E.g. `"overrideSettings":{"humanSLProfile":"rank_3d","humanSLRootExploreProbWeightless":0.5,"humanSLCpuctPermanent":2.0}`. Do NOT set them as a key of the outer json query object, as that will have no effect. It should issue a warning if you accidentally do.
+
+If desired, you can also hardcode parameters within the analysis config file, e.g. `humanSLProfile = rank_3d`.
+
+This guide is also applicable for GTP users, for configuring play and GTP-based analysis (e.g. kata-analyze). For GTP, set parameters within the GTP config file, and optionally change then dynamically via `kata-set-param` ([GTP Extensions](./GTP_Extensions.md)).
 
 #### Human-like play
 
 For simply imitating how a player of a given rank would play, the recommended way is:
 
 * Set `humanSLProfile` appropriately.
-* Send a query with any number of visits (even 1 visit) with `"includePolicy":true`.
+* Send a query with any number of visits (even 1 visit) with `"includePolicy":true` specified on the outer json query object.
 * Read `humanPolicy` from the result and pick a random move according to the policy probabilities.
 
 Note that since old historical human games from training might vary in whether they record passes at all, it's possible the human SL net could have trouble passing appropriately in some board positions for some humanSLProfiles. For some weaker ranks, it's possible the human SL net may pass too early and leave positions unfinished in an undesirable way. If so, then the following should work well:
@@ -454,13 +462,15 @@ Note that since old historical human games from training might vary in whether t
 * If the top moveInfo from the result (the moveInfo with `"order":0`) is a pass, then pass.
 * Otherwise, read `humanPolicy` and pick a random move proportional to the policy probabilities, except excluding passing.
 
+(Note: For GTP users, [gtp_human5k_example.cfg](../cpp/configs/gtp_human5k_example.cfg) already does human imitation play by default, with some GTP-specific hacks and parameters to get KataGo's move selection to use the human SL model in the above kind of way. See documentation in that config.)
+
 #### Ensuring all likely human moves are analyzed
 
-For analysis, if you want to ensure all moves with high human policy get plenty of visits, you can try settings like the following:
+For analysis and game review, if you want to ensure all moves with high human policy get plenty of visits, you can try settings like the following:
 
 * Set `humanSLProfile` appropriately.
-* Set `"humanSLRootExploreProbWeightless":0.5` in `overrideSettings` (spend about 50% of playouts to explore human moves, in a weightless way that doesn't bias KataGo's evaluations).
-* Set something like `"humanSLCpuctPermanent":2.0` in `overrideSettings` (when exploring human moves, ensure high-human-policy moves get many visits even if they lose a lot). Set this to something lower if you want to reduce the number of visits for moves that are judged to be very bad.
+* Set `humanSLRootExploreProbWeightless` to `0.5` (spend about 50% of playouts to explore human moves, in a weightless way that doesn't bias KataGo's evaluations).
+* Set `humanSLCpuctPermanent` to `2.0` or similar (when exploring human moves, ensure high-human-policy moves get many visits even if they lose a lot). Set it to something lower if you want to reduce visits for moves that are judged to be very bad.
 * Make sure to use plenty of visits overall.
 
 #### Possible metrics that might be interesting
@@ -479,27 +489,29 @@ If you want to obtain human *style* moves, but playing stronger than a given hum
 
 * Ensure all human likely moves are analyzed, as described in an earlier section.
 * Choose a random move among all `moveInfos` with probability proportional to `humanPrior * exp(utility / 0.5)`. This will follow the humanPrior, but smoothly attenuate the probability of a move as it starts to lose more than 0.5 utility (about 25% winrate and/or some amount of score). Adjust the divisor 0.5 as desired.
-* Optionally, also set `"staticScoreUtilityFactor":0.5` in `overrideSettings`. (significantly increase how much score affects the utility, compared to just winrate).
+* Optionally, also set `staticScoreUtilityFactor` to `0.5`. (significantly increase how much score affects the utility, compared to just winrate).
 * A method like this, with adjusted numbers, might also be used to compensate for the gap that starts to open up in the human SL model no longer being able to match the strength of very top players at only 1 visit.
+
+(Note: For GTP users, the parameter `humanSLChosenMovePiklLambda` does precisely this exp-based probability scaling.)
 
 #### Heavily bias the search to anticipate human-like sequences rather than KataGo sequences.
 
 Not many people have experimented with this yet, but in theory this could have very interesting effects! This will influence the winrates and scores that KataGo assigns to various moves to be much closer to the winrates and scores it would anticipate for various variations if they were played out the way it thinks human players of the configured profile might play them out, but still judging the endpoints of those variations using KataGo's own judgments.
 
 * Set `humanSLProfile` appropriately.
-* Set `"humanSLPlaExploreProbWeightful":0.9` and `"humanSLOppExploreProbWeightful":0.9` (spend about 90% of visits at every node using the human policy, in a weightful way that does bias KataGo's evaluations)
-* Set `"humanSLRootExploreProbWeightful":0.5` in `overrideSettings` (at the root use about 50% of playouts to explore human moves, and the other 50% use KataGo's normal policy).
-* Set something like `"humanSLCpuctPermanent":1.0` or whatever other values you want (when using the human policy, attenuate the policy from too many visits to things that are on the order of 1.0 utility, or 50% winrate worse).
-* Set `"useUncertainty":false` and `"subtreeValueBiasFactor":0.0` and `"useNoisePruning":false` (important, disables a few search features that add strength but are highly likely to interfere with the above kind of weightful biasing).
+* Set `humanSLPlaExploreProbWeightful` and `humanSLOppExploreProbWeightful` to `0.9` (spend about 90% of visits at every node using the human policy, in a weightful way that does bias KataGo's evaluations).
+* Set `humanSLRootExploreProbWeightful` to `0.5` (at the root use about 50% of playouts to explore human moves, and the other 50% use KataGo's normal policy).
+* Set `humanSLCpuctPermanent` to `1.0` or as otherwise desired (when using the human policy, attenuate the policy from too many visits to things that are on the order of 1.0 utility, or 50% winrate worse).
+* Set `useUncertainty` to `false` and `subtreeValueBiasFactor` to `0.0` and `useNoisePruning` to `false` (important, disables a few search features that add strength but are highly likely to interfere with this kind of weightful biasing).
 
 #### Bias the search to anticipate human-like sequences rather than KataGo sequences, but only for the opponent.
 
-This kind of setting might be interesting for handicap games or trying to elicit trick plays and other kinds of opponent-aware tactics. Of course, experimentation may be needed for it to work well, and it might not work well, or might work "too" well and backfire.
+This kind of setting could be interesting for handicap games or trying to elicit trick plays and other kinds of opponent-aware tactics. Of course, experimentation and tuning may be needed for it to work well, and it might not work well, or might work "too" well and backfire.
 
 * Set `humanSLProfile` appropriately.
-* Set `"humanSLOppExploreProbWeightful":0.8` (spend about 80% of visits at every node using the human policy, in a weightful way that does bias KataGo's values, but only for the opponent!)
-* Set something like `"humanSLCpuctPermanent":0.5` or whatever other values you want (when using the human policy, do attenuate the policy from putting *too* many visits to things that are on the order of 0.5 utility, or 25% winrate worse).
-* Set `playoutDoublingAdvantage` also as desired and typical in handicap games.
-* Set `"useUncertainty":false` and `"subtreeValueBiasFactor":0.0` and `"useNoisePruning":false` (important, disables a few search features that add strength but are highly likely to interfere with the above kind of weightful biasing).
-   * Setting `"useNoisePruning":false` is probably the most important of these - it adds the least strength in normal usage but might interfere the most. One could experiment with still enabling the other two for strength.
+* Set `humanSLOppExploreProbWeightful` to `0.8` (spend about 80% of visits at every node using the human policy, in a weightful way that does bias KataGo's values, but only for the opponent!).
+* Set `humanSLCpuctPermanent` to `0.5` or as desired (when using the human policy, do attenuate the policy from putting *too* many visits to things that are on the order of 0.5 utility, or 25% winrate worse).
+* Set `playoutDoublingAdvantage` also as desired or as typical for handicap games.
+* Set `useUncertainty` to `false` and `subtreeValueBiasFactor` to `0.0` and `useNoisePruning` to `false` (important, disables a few search features that add strength but are highly likely to interfere with this kind of weightful biasing).
+   * Setting `useNoisePruning` to `false` is probably the most important of these - it adds the least strength in normal usage but might interfere the most. One could experiment with still enabling the other two for strength.
 
