@@ -134,12 +134,12 @@ path/to/katago.exe gtp -model path/to/<NEURALNET>.bin.gz -config path/to/gtp_cus
 
 #### Human-style Play and Analysis
 
-You can have KataGo to imitate human play if you download the human SL model b18c384nbt-humanv0.bin.gz from https://github.com/lightvector/KataGo/releases/tag/v1.15.0, and run a command like the following, providing both the normal model and the human SL model:
+You can also have KataGo imitate human play if you download the human SL model b18c384nbt-humanv0.bin.gz from https://github.com/lightvector/KataGo/releases/tag/v1.15.0, and run a command like the following, providing both the normal model and the human SL model:
 ```
 ./katago.exe gtp -model <NEURALNET>.bin.gz -human-model b18c384nbt-humanv0.bin.gz -config gtp_human5k_example.cfg
 ```
 
-The [gtp_human5k_example.cfg](cpp/configs/gtp_human5k_example.cfg) configures KataGo to imitate 5-kyu-level players. You can change it to imitate other ranks too, as well as to do many more things, including making KataGo play in a human style but still at a strong level, or influence analysis in interesting ways. Read the config file itself for documentation on some of these possibilities!
+The [gtp_human5k_example.cfg](cpp/configs/gtp_human5k_example.cfg) configures KataGo to imitate 5-kyu-level players. You can change it to imitate other ranks too, as well as to do many more things, including making KataGo play in a human style but still at a strong level or analyze in interesting ways. Read the config file itself for documentation on some of these possibilities!
 
 And see also [this guide](https://github.com/lightvector/KataGo/blob/master/docs/Analysis_Engine.md#human-sl-analysis-guide) to using the human SL model, which is written from the perspective of the JSON-based analysis engine mentioned below, but is also applicable to gtp as well.
 
