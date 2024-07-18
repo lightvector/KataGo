@@ -176,12 +176,15 @@ In addition to a basic set of [GTP commands](https://www.lysator.liu.se/~gunnar/
      * `kata-search_cancellable` can be interrupted and cancelled by sending a newline or any other command.
         * If interrupted, the move will be the string `cancelled`.
         * A GTP controller should be prepared that when it cancels a search, it's possible that the search has just finished at the same time, and reports a real move rather than `cancelled`. Unlike `genmove`, since this command doesn't change the board state, this race should hopefully not be hard for a controller to handle.
+     * Important: Unlike genmove, `kata-search` and `kata-search_cancellable` will NOT begin pondering at the end of search even if pondering is enabled. If a GTP controller does wish to make the move suggested rather than cancel it, it should send the followup `play <MOVE>` command *as soon as possible*, so that pondering on the opponent's turn for the next move can begin.
+        * In particular, a GTP controller should NOT follow the pattern where it waits for the opponent to make a move and then sends both the bot and opponent's `play` commands followed by the next search command. Instead, it should send the bot's `play` command immediately, and then once the opponent makes a move, send the `play` command for the opponent and the next search command.
 
   * `kata-search_analyze`, `kata-search_analyze_cancellable`
      * Similar to `kata-genmove_analyze`, but do not actually make a move on the board.
      * `kata-search_analyze_cancellable` can be interrupted by sending a newline or any other command.
         * If interrupted, final move chosen made will be reported as the string `play cancelled`.
         * A GTP controller should be prepared that when it cancels a search, it's possible that the search has just finished at the same time, and reports a real move rather than `play cancelled`. Unlike `kata-genmove_analyze`, since this command doesn't change the board state, this race should hopefully not be hard for a controller to handle.
+     * The same note about pondering as for `kata-search` and `kata-search_cancellable` applies here. GTP controllers should reply with the `play` command confirming the move they wish to make as soon as possible.
 
   * `kata-raw-nn SYMMETRY`
      * `SYMMETRY` should be an integer from 0-7 or "all".

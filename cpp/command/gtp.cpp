@@ -1969,14 +1969,14 @@ int MainCmds::gtp(const vector<string>& args) {
   loadParams(cfg,initialGenmoveParams,initialAnalysisParams);
   logger.write("Using " + Global::intToString(initialGenmoveParams.numThreads) + " CPU thread(s) for search");
 
-  const bool ponderingEnabled = cfg.contains("ponderingEnabled") ? cfg.getBool("ponderingEnabled") : false;
+  bool ponderingEnabled = cfg.contains("ponderingEnabled") ? cfg.getBool("ponderingEnabled") : false;
 
   const enabled_t cleanupBeforePass = cfg.contains("cleanupBeforePass") ? cfg.getEnabled("cleanupBeforePass") : enabled_t::Auto;
   const enabled_t friendlyPass = cfg.contains("friendlyPass") ? cfg.getEnabled("friendlyPass") : enabled_t::Auto;
   if(cleanupBeforePass == enabled_t::True && friendlyPass == enabled_t::True)
     throw StringError("Cannot specify both cleanupBeforePass = true and friendlyPass = true at the same time");
 
-  const bool allowResignation = cfg.contains("allowResignation") ? cfg.getBool("allowResignation") : false;
+  bool allowResignation = cfg.contains("allowResignation") ? cfg.getBool("allowResignation") : false;
   const double resignThreshold = cfg.contains("allowResignation") ? cfg.getDouble("resignThreshold",-1.0,0.0) : -1.0; //Threshold on [-1,1], regardless of winLossUtilityFactor
   const int resignConsecTurns = cfg.contains("resignConsecTurns") ? cfg.getInt("resignConsecTurns",1,100) : 3;
   const double resignMinScoreDifference = cfg.contains("resignMinScoreDifference") ? cfg.getDouble("resignMinScoreDifference",0.0,1000.0) : -1e10;
@@ -2461,6 +2461,8 @@ int MainCmds::gtp(const vector<string>& args) {
       paramsList.push_back("genmoveAntiMirror");
       paramsList.push_back("antiMirror");
       paramsList.push_back("humanSLProfile");
+      paramsList.push_back("allowResignation");
+      paramsList.push_back("ponderingEnabled");
       nlohmann::json params = engine->getGenmoveParams().changeableParametersToJson();
       for(auto& elt : params.items()) {
         paramsList.push_back(elt.key());
@@ -2487,6 +2489,10 @@ int MainCmds::gtp(const vector<string>& args) {
         else if(pieces[0] == "humanSLProfile") {
           response = cfg.contains("humanSLProfile") ? cfg.getString("humanSLProfile") : "";
         }
+        else if(pieces[0] == "allowResignation")
+          response = Global::boolToString(allowResignation);
+        else if(pieces[0] == "ponderingEnabled")
+          response = Global::boolToString(ponderingEnabled);
         else {
           nlohmann::json params = engine->getGenmoveParams().changeableParametersToJson();
           if(params.find(pieces[0]) == params.end()) {
@@ -2532,6 +2538,8 @@ int MainCmds::gtp(const vector<string>& args) {
       params["genmoveAntiMirror"] = Global::boolToString(genmoveParams.antiMirror);
       params["antiMirror"] = Global::boolToString(analysisParams.antiMirror);
       params["humanSLProfile"] = cfg.contains("humanSLProfile") ? cfg.getString("humanSLProfile") : "";
+      params["allowResignation"] = Global::boolToString(allowResignation);
+      params["ponderingEnabled"] = Global::boolToString(ponderingEnabled);
       response = params.dump();
     }
     else if(command == "kata-set-param" || command == "kata-set-params") {
@@ -2588,6 +2596,8 @@ int MainCmds::gtp(const vector<string>& args) {
             // These parameters have a bit of special handling so we can't change them easily right now
             if(contains(overrideSettings,"dynamicPlayoutDoublingAdvantageCapPerOppLead")) throw StringError("Cannot be overridden in kata-set-param: dynamicPlayoutDoublingAdvantageCapPerOppLead");
             if(contains(overrideSettings,"avoidRepeatedPatternUtility")) throw StringError("Cannot be overridden in kata-set-param: avoidRepeatedPatternUtility");
+            cleanCfg.markKeyUsed("allowResignation");
+            cleanCfg.markKeyUsed("ponderingEnabled");
 
             vector<string> unusedKeys = cleanCfg.unusedKeys();
             for(const string& unused: unusedKeys) {
@@ -2607,12 +2617,17 @@ int MainCmds::gtp(const vector<string>& args) {
           SearchParams analysisParams;
           loadParams(cfg,genmoveParams,analysisParams);
 
+          bool desiredAllowResignation = cfg.contains("allowResignation") ? cfg.getBool("allowResignation") : false;
+          bool desiredPonderingEnabled = cfg.contains("ponderingEnabled") ? cfg.getBool("ponderingEnabled") : false;
+
           SearchParams::failIfParamsDifferOnUnchangeableParameter(initialGenmoveParams,genmoveParams);
           SearchParams::failIfParamsDifferOnUnchangeableParameter(initialAnalysisParams,analysisParams);
           engine->setGenmoveParamsIfChanged(genmoveParams);
           engine->setAnalysisParamsIfChanged(analysisParams);
           staticPDATakesPrecedence = cfg.contains("playoutDoublingAdvantage") && !cfg.contains("dynamicPlayoutDoublingAdvantageCapPerOppLead");
           engine->staticPDATakesPrecedence = staticPDATakesPrecedence;
+          allowResignation = desiredAllowResignation;
+          ponderingEnabled = desiredPonderingEnabled;
         }
         catch(const StringError& exception) {
           responseIsError = true;
