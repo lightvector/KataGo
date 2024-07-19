@@ -3032,31 +3032,14 @@ final class ModelTest: XCTestCase {
 final class ComputeContextTest: XCTestCase {
 
     func testCreateInstance() {
-        let nnXLen: NSNumber = 9
-        let nnYLen: NSNumber = 11
+        let nnXLen: Int32 = 9
+        let nnYLen: Int32 = 11
 
-        let id = createMetalComputeContext(nnXLen: Int32(truncating: nnXLen),
-                                           nnYLen: Int32(truncating: nnYLen))
-
-        let context = MetalComputeContext.getInstance(id: id)
+        let context = createMetalComputeContext(nnXLen: nnXLen,
+                                                nnYLen: nnYLen)
 
         XCTAssert(context.nnXLen == nnXLen)
         XCTAssert(context.nnYLen == nnYLen)
-    }
-
-    func testDestroyInstance() {
-        let nnXLen: NSNumber = 9
-        let nnYLen: NSNumber = 11
-
-        let id = MetalComputeContext.createInstance(nnXLen: nnXLen,
-                                                    nnYLen: nnYLen)
-
-        destroyMetalComputeContext(id: id)
-
-        let context = MetalComputeContext.getInstance(id: id)
-
-        XCTAssert(context.nnXLen == MetalComputeContext.defaultNnXLen)
-        XCTAssert(context.nnYLen == MetalComputeContext.defaultNnYLen)
     }
 }
 
@@ -3064,23 +3047,21 @@ final class ComputeHandleTest: XCTestCase {
     let swModelDescTest = SWModelDescTest()
 
     func testCreateInstance() {
-        let contextId = MetalComputeContext.createInstance(nnXLen: 9 as NSNumber,
-                                                           nnYLen: 11 as NSNumber)
+        let context = createMetalComputeContext(nnXLen: 9,
+                                                nnYLen: 11)
 
         let swModelDesc = swModelDescTest.createMiniDesc()
 
-        let handleId = createMetalComputeHandle(descriptor: swModelDesc,
-                                                contextId: contextId)
+        let handle = maybeCreateMetalComputeHandle(condition: true,
+                                                   descriptor: swModelDesc,
+                                                   context: context)
 
-        let handle = MetalComputeHandle.getInstance(id: handleId)
-        let context = MetalComputeContext.getInstance(id: contextId)
-
-        XCTAssert(handle.model.nnXLen == context.nnXLen)
-        XCTAssert(handle.model.nnYLen == context.nnYLen)
-        XCTAssert(handle.model.version == swModelDesc.version)
-        XCTAssert(handle.model.numValueChannels == swModelDesc.numValueChannels)
-        XCTAssert(handle.model.numScoreValueChannels == swModelDesc.numScoreValueChannels)
-        XCTAssert(handle.model.numOwnershipChannels == swModelDesc.numOwnershipChannels)
+        XCTAssert(handle?.model.nnXLen == context.nnXLen as NSNumber)
+        XCTAssert(handle?.model.nnYLen == context.nnYLen as NSNumber)
+        XCTAssert(handle?.model.version == swModelDesc.version)
+        XCTAssert(handle?.model.numValueChannels == swModelDesc.numValueChannels)
+        XCTAssert(handle?.model.numScoreValueChannels == swModelDesc.numScoreValueChannels)
+        XCTAssert(handle?.model.numOwnershipChannels == swModelDesc.numOwnershipChannels)
     }
 }
 
@@ -3091,34 +3072,15 @@ final class MetalBackendTest: XCTestCase {
         printMetalDevices()
     }
 
-    func testGetContextXLen() {
-        let nnXLen: Int = 9
-        let nnYLen: Int = 11
-
-        let id = MetalComputeContext.createInstance(nnXLen: nnXLen as NSNumber,
-                                                    nnYLen: nnYLen as NSNumber)
-
-        XCTAssert(getMetalContextXLen(id: id) == nnXLen)
-    }
-
-    func testGetContextYLen() {
-        let nnXLen: Int = 9
-        let nnYLen: Int = 11
-
-        let id = MetalComputeContext.createInstance(nnXLen: nnXLen as NSNumber,
-                                                    nnYLen: nnYLen as NSNumber)
-
-        XCTAssert(getMetalContextYLen(id: id) == nnYLen)
-    }
-
     func testGetOutput() {
-        let contextId = MetalComputeContext.createInstance(nnXLen: 1 as NSNumber,
-                                                           nnYLen: 1 as NSNumber)
+        let context = createMetalComputeContext(nnXLen: 1,
+                                                nnYLen: 1)
 
         let swModelDesc = swModelDescTest.createMiniDesc()
 
-        let handleId = MetalComputeHandle.createInstance(descriptor: swModelDesc,
-                                                         contextId: contextId)
+        let handle = maybeCreateMetalComputeHandle(condition: true,
+                                                   descriptor: swModelDesc,
+                                                   context: context)
 
         var input = [Float32](repeating: 1, count: 1)
         var inputGlobal = [Float32](repeating: 1, count: 1)
@@ -3129,16 +3091,15 @@ final class MetalBackendTest: XCTestCase {
         var scoreValueOutput = [Float32](repeating: 1, count: 1)
         var ownershipOutput = [Float32](repeating: 1, count: 1)
 
-        getMetalHandleOutput(handleId: handleId,
-                             userInputBuffer: &input,
-                             userInputGlobalBuffer: &inputGlobal,
-                             userInputMetaBuffer: &inputMeta,
-                             policyOutput: &policyOutput,
-                             policyPassOutput: &policyPassOutput,
-                             valueOutput: &valueOutput,
-                             ownershipOutput: &ownershipOutput,
-                             scoreValueOutput: &scoreValueOutput,
-                             batchSize: 1)
+        handle?.model.apply(input: &input,
+                            inputGlobal: &inputGlobal,
+                            inputMeta: &inputMeta,
+                            policy: &policyOutput,
+                            policyPass: &policyPassOutput,
+                            value: &valueOutput,
+                            scoreValue: &scoreValueOutput,
+                            ownership: &ownershipOutput,
+                            batchSize: 1)
 
         XCTAssertEqual(policyOutput[0], 101.68, accuracy: 1e-4)
         XCTAssertEqual(policyPassOutput[0], 68.88, accuracy: 1e-4)
