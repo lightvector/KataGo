@@ -443,9 +443,12 @@ There are two ways to pass in the human SL model.
 
 Here is a brief guide to some example usages, and hopefully a bit of inspiration for possible things to try.
 
-Except for parameters explicitly documented earlier as belonging on the outer json query object (e.g. `includePolicy`, `maxVisits`), the parameters described below should be set within the `overrideSettings` of a query. E.g. `"overrideSettings":{"humanSLProfile":"rank_3d","humanSLRootExploreProbWeightless":0.5,"humanSLCpuctPermanent":2.0}`. Do NOT set them as a key of the outer json query object, as that will have no effect. It should issue a warning if you accidentally do.
+Except for parameters explicitly documented earlier as belonging on the outer json query object (e.g. `includePolicy`, `maxVisits`), the parameters described below should be set within the `overrideSettings` of a query. E.g:
 
-If desired, you can also hardcode parameters within the analysis config file, e.g. `humanSLProfile = rank_3d`.
+```
+"overrideSettings":{"humanSLProfile":"rank_3d","ignorePreRootHistory":false,"humanSLRootExploreProbWeightless":0.5,"humanSLCpuctPermanent":2.0}```
+
+Do NOT set such parmeters as a key of the outer json query object, as that will have no effect. KataGo should issue a warning if you accidentally do. If desired, you can also hardcode parameters within the analysis config file, e.g. `humanSLProfile = rank_3d`.
 
 This guide is also applicable for GTP users, for configuring play and GTP-based analysis (e.g. kata-analyze). For GTP, set parameters within the GTP config file, and optionally change then dynamically via `kata-set-param` ([GTP Extensions](./GTP_Extensions.md)).
 
@@ -515,7 +518,7 @@ Not many people have experimented with this yet, but in theory this could have v
 This kind of setting could be interesting for handicap games or trying to elicit trick plays and other kinds of opponent-aware tactics. Of course, experimentation and tuning may be needed for it to work well, and it might not work well, or might work "too" well and backfire.
 
 * Set `humanSLProfile` and `ignorePreRootHistory` and `rootNumSymmetriesToSample` as desired.
-   * This is also proably a really interesting place to experiment with the various `preaz_{BR}_{WR}` or `rank_{BR}_{WR}` settings with asymmetric ranks.
+   * This is also probably a really interesting place to experiment with the various `preaz_{BR}_{WR}` or `rank_{BR}_{WR}` settings with asymmetric ranks.
 * Set `humanSLOppExploreProbWeightful` to `0.8` (spend about 80% of visits at every node using the human policy, in a weightful way that does bias KataGo's values, but only for the opponent!).
 * Set `humanSLCpuctPermanent` to `0.5` or as desired (when using the human policy, do attenuate the policy from putting *too* many visits to things that are on the order of 0.5 utility, or 25% winrate worse).
 * Set `playoutDoublingAdvantage` also as desired or as typical for handicap games.
