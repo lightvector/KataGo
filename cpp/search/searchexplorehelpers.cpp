@@ -363,7 +363,10 @@ void Search::selectBestChildToDescend(
   }
 
   bool useHumanSL = false;
-  if(humanEvaluator != NULL && totalChildWeight > 0) {
+  if(humanEvaluator != NULL &&
+     (searchParams.humanSLProfile.initialized || !humanEvaluator->requiresSGFMetadata()) &&
+     totalChildWeight > 0
+  ) {
     const NNOutput* humanOutput = node.getHumanOutput();
     if(humanOutput != NULL) {
       double weightlessProb;

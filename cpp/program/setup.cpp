@@ -745,6 +745,9 @@ vector<SearchParams> Setup::loadParams(
     else if(cfg.contains("futileVisitsThreshold"))   params.futileVisitsThreshold = cfg.getDouble("futileVisitsThreshold",0.01,1.0);
     else                                             params.futileVisitsThreshold = 0.0;
 
+    // This does NOT report an error under throwHumanParsingError like the parameters below that expect a second model
+    // because the user might be providing the human model as the MAIN model. In which case humanSLProfile is still a
+    // valid param but the others are not.
     if(setupFor != SETUP_FOR_DISTRIBUTED) {
       string humanSLProfileName;
       if(cfg.contains("humanSLProfile"+idxStr)) humanSLProfileName = cfg.getString("humanSLProfile"+idxStr);
@@ -823,6 +826,37 @@ vector<SearchParams> Setup::loadParams(
 
   return paramss;
 }
+
+
+bool Setup::maybeWarnHumanSLParams(
+  const SearchParams& params,
+  const NNEvaluator* nnEval,
+  const NNEvaluator* humanEval,
+  std::ostream& out,
+  Logger* logger
+) {
+  if(params.humanSLProfile.initialized) {
+    bool hasAnySGFMetaUse =
+      (nnEval != NULL && nnEval->requiresSGFMetadata()) ||
+      (humanEval != NULL && humanEval->requiresSGFMetadata());
+    if(!hasAnySGFMetaUse) {
+      string modelNames;
+      if(nnEval != NULL)
+        modelNames += nnEval->getModelName();
+      if(humanEval != NULL) {
+        if(modelNames.size() > 0)
+          modelNames += " and ";
+        modelNames += humanEval->getModelName();
+      }
+      if(logger != NULL)
+        logger->write("WARNING: humanSLProfile is specified as config param but model(s) don't use it: " + modelNames);
+      out << "WARNING: humanSLProfile is specified as config param but model(s) don't use it: " << modelNames << endl;
+      return true;
+    }
+  }
+  return false;
+}
+
 
 Player Setup::parseReportAnalysisWinrates(
   ConfigParser& cfg, Player defaultPerspective

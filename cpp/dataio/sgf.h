@@ -32,6 +32,7 @@ struct SgfNode {
   const std::vector<std::string> getProperties(const std::string& key) const;
 
   void addProperty(const std::string& key, const std::string& value);
+  void appendComment(const std::string& value);
 
   bool hasPlacements() const;
   void accumPlacements(std::vector<Move>& moves, int xSize, int ySize) const;

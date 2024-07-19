@@ -443,6 +443,11 @@ map<string,string> ConfigParser::parseCommaSeparated(const string& commaSeparate
   return keyValues;
 }
 
+void ConfigParser::markKeyUsed(const string& key) {
+  std::lock_guard<std::mutex> lock(usedKeysMutex);
+  usedKeys.insert(key);
+}
+
 void ConfigParser::markAllKeysUsedWithPrefix(const string& prefix) {
   std::lock_guard<std::mutex> lock(usedKeysMutex);
   for(auto iter = keyValues.begin(); iter != keyValues.end(); ++iter) {

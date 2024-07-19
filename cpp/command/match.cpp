@@ -225,6 +225,11 @@ int MainCmds::match(const vector<string>& args) {
 
   //Check for unused config keys
   cfg.warnUnusedKeys(cerr,&logger);
+  for(int i = 0; i<numBots; i++) {
+    if(!botIsUsed[i])
+      continue;
+    Setup::maybeWarnHumanSLParams(paramss[i],nnEvalsByBot[i],NULL,cerr,&logger);
+  }
 
   //Done loading!
   //------------------------------------------------------------------------------------

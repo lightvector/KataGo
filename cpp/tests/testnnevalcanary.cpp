@@ -505,7 +505,8 @@ bool Tests::runBackendErrorTest(
     NNResultBuf buf;
     bool skipCache = true;
     bool includeOwnerMap = true;
-    nnE->evaluate(board,hist,hist.presumedNextMovePla,nnInputParams,buf,skipCache,includeOwnerMap);
+    SGFMetadata sgfMeta = SGFMetadata::getProfile("preaz_5k");
+    nnE->evaluate(board,hist,hist.presumedNextMovePla,&sgfMeta,nnInputParams,buf,skipCache,includeOwnerMap);
     return buf.result;
   };
 

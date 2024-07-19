@@ -182,6 +182,17 @@ void SgfNode::addProperty(const string& key, const string& value) {
   contents.push_back(value);
 }
 
+void SgfNode::appendComment(const string& value) {
+  if(props == NULL)
+    props = new map<string,vector<string>>();
+  vector<string>& contents = (*props)["C"];
+  if(contents.size() == 0)
+    contents.push_back(value);
+  else {
+    contents[contents.size()-1] = contents[contents.size()-1] + value;
+  }
+}
+
 bool SgfNode::hasPlacements() const {
   return props != NULL && (contains(*props,"AB") || contains(*props,"AW") || contains(*props,"AE"));
 }

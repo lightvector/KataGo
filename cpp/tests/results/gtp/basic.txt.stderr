@@ -1,4 +1,4 @@
-KataGo v1.14.1
+KataGo v1.15.0
 Using TrompTaylor rules initially, unless GTP/GUI overrides this
 Initializing board with boardXSize 19 boardYSize 19
 Loaded config configs/gtp_example.cfg and/or command-line and query overrides
@@ -210,3 +210,60 @@ F4  : T -11.83c W  -8.54c S  -1.55c ( -1.0 L  -0.6) LCB  -32.47c P  6.98% WF   5
 F6  : T -13.13c W  -9.83c S  -1.54c ( -1.0 L  -0.7) LCB  -34.29c P  7.39% WF   5.9 PSV       4 N       6  --  F6 D4 F4 D7
 D4  : T -11.33c W  -8.27c S  -1.38c ( -0.9 L  -0.6) LCB  -32.05c P  5.47% WF   6.0 PSV       4 N       6  --  D4 F6 D7 F4
 D6  : T -11.92c W  -8.99c S  -1.35c ( -0.8 L  -0.7) LCB  -32.90c P  5.21% WF   6.0 PSV       4 N       6  --  D6 F4 F6 C4
+MoveNum: 0 HASH: F6947E54F53D680912E6585605F8EFAC
+   A B C D E F G H J
+ 9 . . . . . . . . .
+ 8 . . . . . . . . .
+ 7 . . . . . . . . .
+ 6 . . . . X . . . .
+ 5 . . . . . . . . .
+ 4 . . . . @ . . . .
+ 3 . . . . . . . . .
+ 2 . . . . . . . . .
+ 1 . . . . . . . . .
+
+koPOSITIONALscoreAREAtaxNONEsui1komi7.5
+Time taken: ###
+Root visits: 100
+New playouts: 100
+NN rows: 1
+NN batches: 1
+NN avg batch size: 1
+PV: E4 G5 G4 H4 F5 F6 H5 G6 H3 D4 D3 C4 C3 B3
+Tree:
+: T  13.07c W  11.58c S  -0.19c ( +0.8 L  +0.6) N     100  --  E4 G5 G4 H4 F5 F6 H5
+---White(^)---
+E4  : T  13.83c W  12.13c S  -0.15c ( +0.8 L  +0.7) LCB    7.21c P 61.92% WF  90.7 PSV      90 N      91  --  E4 G5 G4 H4 F5 F6 H5 G6
+F4  : T   6.21c W   6.03c S  -0.62c ( +0.5 L  +0.3) LCB  -36.77c P 10.42% WF   3.9 PSV       4 N       4  --  F4 D4 G6 G7
+D4  : T   2.65c W   4.43c S  -0.83c ( +0.4 L  +0.1) LCB  -40.58c P 11.66% WF   3.9 PSV       3 N       4  --  D4 F4 C6 C7
+MoveNum: 0 HASH: F6947E54F53D680912E6585605F8EFAC
+   A B C D E F G H J
+ 9 . . . . . . . . .
+ 8 . . . . . . . . .
+ 7 . . . . . . . . .
+ 6 . . . . X . . . .
+ 5 . . . . . . . . .
+ 4 . . . @ . . . . .
+ 3 . . . . . . . . .
+ 2 . . . . . . . . .
+ 1 . . . . . . . . .
+
+koPOSITIONALscoreAREAtaxNONEsui1komi7.5
+Time taken: ###
+Root visits: 100
+New playouts: 100
+NN rows: 0
+NN batches: 0
+NN avg batch size: -nan
+PV: D4 G5 F4 G4 F3
+Tree:
+: T  97.71c W  92.81c S   4.81c (+14.2 L +11.7) N     100  --  D4 G5 F4 G4 F3
+---Black(^)---
+D4  : T  98.62c W  93.16c S   5.44c (+14.6 L +11.9) LCB   96.02c P 27.20% WF  42.2 PSV      42 N      42  --  D4 G5 F4 G4 F3
+E4  : T  97.85c W  92.77c S   4.94c (+14.3 L +12.3) LCB   95.87c P 22.79% WF  29.0 PSV      28 N      29  --  E4 C6 C4 G4 G6 F3
+D3  : T  96.97c W  92.56c S   4.20c (+13.8 L +11.2) LCB   90.33c P 10.56% WF  11.0 PSV      10 N      11  --  D3 G6 G7 C6
+F4  : T  97.41c W  92.69c S   4.36c (+13.9 L +11.1) LCB   82.29c P  6.54% WF   7.0 PSV       7 N       7  --  F4 D3 C5
+E3  : T  95.27c W  92.21c S   2.52c (+12.6 L +10.4) LCB   52.49c P  6.61% WF   4.0 PSV       4 N       4  --  E3 G6 G7
+C5  : T  94.95c W  92.00c S   3.52c (+13.2 L +11.2) LCB   51.28c P  6.25% WF   4.0 PSV       4 N       4  --  C5 F4 G6
+D5  : T  83.75c W  85.69c S  -1.94c ( +9.5 L  +7.6) LCB -266.25c P  7.05% WF   1.0 PSV       1 N       1  --  D5
+C4  : T  92.96c W  91.38c S   1.59c (+11.9 L  +8.9) LCB -257.04c P  2.73% WF   1.0 PSV       1 N       1  --  C4

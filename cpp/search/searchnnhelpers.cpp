@@ -34,6 +34,17 @@ void Search::computeRootNNEvaluation(NNResultBuf& nnResultBuf, bool includeOwner
   );
 }
 
+bool Search::needsHumanOutputAtRoot() const {
+  return humanEvaluator != NULL && (searchParams.humanSLProfile.initialized || !humanEvaluator->requiresSGFMetadata());
+}
+bool Search::needsHumanOutputInTree() const {
+  return needsHumanOutputAtRoot() && (
+    searchParams.humanSLPlaExploreProbWeightless > 0 ||
+    searchParams.humanSLPlaExploreProbWeightful > 0 ||
+    searchParams.humanSLOppExploreProbWeightless > 0 ||
+    searchParams.humanSLOppExploreProbWeightful > 0
+  );
+}
 
 //If isReInit is false, among any threads trying to store, the first one wins
 //If isReInit is true, we always replace, even for threads that come later.
@@ -79,7 +90,7 @@ bool Search::initNodeNNOutput(
       thread.nnResultBuf, includeOwnerMap,
       thread.rand, searchParams.rootNumSymmetriesToSample
     );
-    if(humanEvaluator != NULL) {
+    if(needsHumanOutputInTree() || (isRoot && needsHumanOutputAtRoot())) {
       humanResult = humanEvaluator->averageMultipleSymmetries(
         thread.board, thread.history, thread.pla, &searchParams.humanSLProfile,
         nnInputParams,
@@ -95,7 +106,7 @@ bool Search::initNodeNNOutput(
       thread.nnResultBuf, skipCache, includeOwnerMap
     );
     result = new std::shared_ptr<NNOutput>(std::move(thread.nnResultBuf.result));
-    if(humanEvaluator != NULL) {
+    if(needsHumanOutputInTree() || (isRoot && needsHumanOutputAtRoot())) {
       humanEvaluator->evaluate(
         thread.board, thread.history, thread.pla, &searchParams.humanSLProfile,
         nnInputParams,
@@ -168,18 +179,21 @@ bool Search::maybeRecomputeExistingNNOutput(
     uint32_t oldAge = node.nodeAge.exchange(searchNodeAge,std::memory_order_acq_rel);
     if(oldAge < searchNodeAge) {
       NNOutput* nnOutput = node.getNNOutput();
+      NNOutput* humanOutput = node.getHumanOutput();
       assert(nnOutput != NULL);
 
       //Recompute if we have no ownership map, since we need it for getEndingWhiteScoreBonus
       //If conservative passing, then we may also need to recompute the root policy ignoring the history if a pass ends the game
       //If averaging a bunch of symmetries, then we need to recompute it too
       //If root needs different optimism, we need to recompute it.
+      //If humanSL is missing, but we want it, we need to recompute.
       //Also do so when ignoring history pre root
       if(nnOutput->whiteOwnerMap == NULL ||
          (searchParams.conservativePass && thread.history.passWouldEndGame(thread.board,thread.pla)) ||
          searchParams.rootNumSymmetriesToSample > 1 ||
          searchParams.rootPolicyOptimism != searchParams.policyOptimism ||
-         (searchParams.ignorePreRootHistory && !searchParams.ignoreAllHistory)
+         (searchParams.ignorePreRootHistory && !searchParams.ignoreAllHistory) ||
+         (humanOutput == NULL && needsHumanOutputAtRoot())
       ) {
         //We *can* use cached evaluations even though parameters are changing, because:
         //conservativePass is part of the nn hash

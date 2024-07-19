@@ -21,7 +21,7 @@ kata-set-param dynamicPlayoutDoublingAdvantageCapPerOppLead 0.045
 kata-get-params
 genmove w
 undo
-search_debug w
+kata-search_debug w
 kata-set-param cpuctExploration 1.0
 debug_moves
 kata-set-param cpuctExploration 3.0

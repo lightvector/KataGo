@@ -164,15 +164,15 @@ bool AsyncBot::isLegalStrict(Loc moveLoc, Player movePla) const {
   return search->isLegalStrict(moveLoc,movePla);
 }
 
-void AsyncBot::genMoveAsync(Player movePla, int searchId, const TimeControls& tc, const std::function<void(Loc,int)>& onMove) {
+void AsyncBot::genMoveAsync(Player movePla, int searchId, const TimeControls& tc, const std::function<void(Loc,int,Search*)>& onMove) {
   genMoveAsync(movePla,searchId,tc,1.0,onMove,nullptr);
 }
 
-void AsyncBot::genMoveAsync(Player movePla, int searchId, const TimeControls& tc, double sf, const std::function<void(Loc,int)>& onMove) {
+void AsyncBot::genMoveAsync(Player movePla, int searchId, const TimeControls& tc, double sf, const std::function<void(Loc,int,Search*)>& onMove) {
   genMoveAsync(movePla,searchId,tc,sf,onMove,nullptr);
 }
 
-void AsyncBot::genMoveAsync(Player movePla, int searchId, const TimeControls& tc, double sf, const std::function<void(Loc,int)>& onMove, const std::function<void()>& onSearchBegun) {
+void AsyncBot::genMoveAsync(Player movePla, int searchId, const TimeControls& tc, double sf, const std::function<void(Loc,int,Search*)>& onMove, const std::function<void()>& onSearchBegun) {
   std::unique_lock<std::mutex> lock(controlMutex);
   stopAndWaitAlreadyLocked(lock);
   assert(!isRunning);
@@ -207,9 +207,10 @@ Loc AsyncBot::genMoveSynchronous(Player movePla, const TimeControls& tc, double 
 
 Loc AsyncBot::genMoveSynchronous(Player movePla, const TimeControls& tc, double sf, const std::function<void()>& onSearchBegun) {
   Loc moveLoc = Board::NULL_LOC;
-  std::function<void(Loc,int)> onMove = [&moveLoc](Loc loc, int searchId) {
+  std::function<void(Loc,int,Search*)> onMove = [&moveLoc](Loc loc, int searchId, Search* s) {
     assert(searchId == 0);
     (void)searchId; //avoid warning when asserts disabled
+    (void)s;
     moveLoc = loc;
   };
   genMoveAsync(movePla,0,tc,sf,onMove,onSearchBegun);
@@ -278,7 +279,7 @@ void AsyncBot::genMoveAsyncAnalyze(
   int searchId,
   const TimeControls& tc,
   double sf,
-  const std::function<void(Loc,int)>& onMove,
+  const std::function<void(Loc,int,Search*)>& onMove,
   double callbackPeriod,
   double firstCallbackAfter,
   const std::function<void(const Search* search)>& callback
@@ -291,7 +292,7 @@ void AsyncBot::genMoveAsyncAnalyze(
   int searchId,
   const TimeControls& tc,
   double sf,
-  const std::function<void(Loc,int)>& onMove,
+  const std::function<void(Loc,int,Search*)>& onMove,
   double callbackPeriod,
   double firstCallbackAfter,
   const std::function<void(const Search* search)>& callback,
@@ -342,9 +343,10 @@ Loc AsyncBot::genMoveSynchronousAnalyze(
   const std::function<void()>& onSearchBegun
 ) {
   Loc moveLoc = Board::NULL_LOC;
-  std::function<void(Loc,int)> onMove = [&moveLoc](Loc loc, int searchId) {
+  std::function<void(Loc,int,Search*)> onMove = [&moveLoc](Loc loc, int searchId, Search* s) {
     assert(searchId == 0);
     (void)searchId; //avoid warning when asserts disabled
+    (void)s;
     moveLoc = loc;
   };
   genMoveAsyncAnalyze(movePla,0,tc,sf,onMove,callbackPeriod,firstCallbackAfter,callback,onSearchBegun);
@@ -479,7 +481,7 @@ void AsyncBot::internalSearchThreadLoop() {
     lock.lock();
     //Call queuedOnMove under the lock just in case
     if(queuedOnMove)
-      queuedOnMove(moveLoc,queuedSearchId);
+      queuedOnMove(moveLoc,queuedSearchId,search);
     isRunning = false;
     isPondering = false;
     userWaitingForStop.notify_all();

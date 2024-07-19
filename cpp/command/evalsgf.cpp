@@ -346,6 +346,7 @@ int MainCmds::evalsgf(const vector<string>& args) {
 
   //Check for unused config keys
   cfg.warnUnusedKeys(cerr,&logger);
+  Setup::maybeWarnHumanSLParams(params,nnEval,NULL,cerr,&logger);
 
   if(rawNN) {
     NNResultBuf buf;

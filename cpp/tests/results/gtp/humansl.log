@@ -1,5 +1,5 @@
 : GTP Engine starting...
-: KataGo v1.14.1
+: KataGo v1.15.0
 : Using Japanese rules initially, unless GTP/GUI overrides this
 : Using 1 CPU thread(s) for search
 : nnRandSeed0 = forTesting
@@ -10,7 +10,7 @@
 : Cuda backend thread 0: Model name: b18c384nbt-uec-20221121b
 : Loaded neural net with nnXLen 19 nnYLen 19
 : nnRandSeed0 = forTesting
-: After dedups: nnModelFile0 = models//b18c384nbt-humanv0.bin.gz useFP16 false useNHWC false
+: After dedups: nnModelFile0 = models/b18c384nbt-humanv0.bin.gz useFP16 false useNHWC false
 : Initializing neural net buffer to be size 19 * 19 exactly
 : Cuda backend thread 0: Found GPU NVIDIA RTX A5000 memory 25425608704 compute capability major 8 minor 6
 : Cuda backend thread 0: Model version 15 useFP16 = false useNHWC = false
@@ -19,7 +19,7 @@
 : Initializing board with boardXSize 19 boardYSize 19
 : Loaded config configs/gtp_human5k_example.cfg and/or command-line and query overrides
 : Loaded model models/b18c384nbt-uec.bin.gz
-: Loaded human SL model models//b18c384nbt-humanv0.bin.gz
+: Loaded human SL model models/b18c384nbt-humanv0.bin.gz
 : Config override: cudaUseFP16 = false
 : Config override: cudaUseNHWC = false
 : Config override: defaultBoardSize = 19
@@ -73,7 +73,7 @@ Tree:
 : T  -5.20c W  -5.03c S  -0.17c ( -0.4 L  -0.3) N      40  --  Q16 D4 Q4 D16 F17 R3
 ---Black(^)---
 Q16 : T  -5.15c W  -4.99c S  -0.16c ( -0.4 L  -0.3) LCB   -7.81c P  8.87% WF  23.0 PSV      30 N      23  --  Q16 D4 Q4 D16 F17 R3
-R16 : T  -5.25c W  -5.08c S  -0.18c ( -0.4 L  -0.3) LCB   -9.02c P  5.26% WF  16.0 PSV       5 N      16  --  R16 D4 C16 R4
+R16 : T  -5.25c W  -5.08c S  -0.18c ( -0.4 L  -0.3) LCB   -9.02c P  5.26% WF  16.0 PSV       5 N      16  --  R16 D16 Q3 D3 O16 R5
 
 : = Q16
 : Controller: genmove w
@@ -106,12 +106,12 @@ New playouts: 21
 NN rows: 23
 NN batches: 23
 NN avg batch size: 1
-PV: D4 Q4 D16 F3 R17 Q17 R16
+PV: D4 Q4 D16 F17 R3 Q3 R4 Q5
 Tree:
-: T   4.90c W   4.73c S   0.17c ( +0.4 L  +0.3) N      40  --  D4 Q4 D16 F3 R17 Q17 R16
+: T   4.90c W   4.73c S   0.17c ( +0.4 L  +0.3) N      40  --  D4 Q4 D16 F17 R3 Q3 R4
 ---White(^)---
-D4  : T   5.21c W   5.03c S   0.18c ( +0.4 L  +0.3) LCB    3.18c P 39.15% WF  29.0 PSV      29 N      29  --  D4 Q4 D16 F3 R17 Q17 R16
-D16 : T   3.83c W   3.71c S   0.12c ( +0.3 L  +0.2) LCB   -3.49c P 19.44% WF  10.0 PSV      10 N      10  --  D16 D4 Q4 C14 C3
+D4  : T   5.21c W   5.03c S   0.18c ( +0.4 L  +0.3) LCB    3.18c P 39.15% WF  29.0 PSV      29 N      29  --  D4 Q4 D16 F17 R3 Q3 R4 Q5
+D16 : T   3.83c W   3.71c S   0.12c ( +0.3 L  +0.2) LCB   -3.49c P 19.44% WF  10.0 PSV      10 N      10  --  D16 D4 Q4 R3 R4
 
 : = D16
 : Controller: genmove b
@@ -149,9 +149,9 @@ Tree:
 : T  -3.86c W  -3.75c S  -0.11c ( -0.2 L  -0.2) N      40  --  Q4 D4 F17 R3
 ---Black(^)---
 Q4  : T  -5.17c W  -5.03c S  -0.14c ( -0.3 L  -0.2) LCB  -73.79c P  7.13% WF   3.0 PSV      28 N       3  --  Q4 D4 F17 R3
-D4  : T  -3.18c W  -3.09c S  -0.09c ( -0.2 L  -0.1) LCB   -5.21c P 29.49% WF  23.1 PSV      10 N      23  --  D4 Q4 F17 C3
+D4  : T  -3.18c W  -3.09c S  -0.09c ( -0.2 L  -0.1) LCB   -5.21c P 29.49% WF  23.1 PSV      10 N      23  --  D4 Q4 C14 C3 C4
 F17 : T  -4.97c W  -4.80c S  -0.17c ( -0.4 L  -0.3) LCB  -18.93c P 13.47% WF   6.0 PSV       0 N       6  --  F17 D4 Q4 R3
-C17 : T  -4.43c W  -4.32c S  -0.11c ( -0.2 L  -0.2) LCB  -19.10c P 13.35% WF   7.0 PSV       0 N       7  --  C17 C16 D17
+C17 : T  -4.43c W  -4.32c S  -0.11c ( -0.2 L  -0.2) LCB  -19.10c P 13.35% WF   7.0 PSV       0 N       7  --  C17 D17 C16 D15 B14
 
 : = R4
 : Controller: genmove w
@@ -184,11 +184,11 @@ New playouts: 40
 NN rows: 42
 NN batches: 42
 NN avg batch size: 1
-PV: D4 P4 O17 R14 Q17
+PV: D4 C17 D17 C16 D15 B14 R17 Q17 R16
 Tree:
-: T   5.74c W   5.53c S   0.21c ( +0.5 L  +0.3) N      40  --  D4 P4 O17 R14 Q17
+: T   5.74c W   5.53c S   0.21c ( +0.5 L  +0.3) N      40  --  D4 C17 D17 C16 D15 B14 R17
 ---White(^)---
-D4  : T   5.94c W   5.72c S   0.21c ( +0.5 L  +0.3) LCB    4.42c P 77.55% WF  36.0 PSV      28 N      36  --  D4 P4 O17 R14 Q17
+D4  : T   5.94c W   5.72c S   0.21c ( +0.5 L  +0.3) LCB    4.42c P 77.55% WF  36.0 PSV      28 N      36  --  D4 C17 D17 C16 D15 B14 R17 Q17
 D3  : T   2.85c W   2.75c S   0.10c ( +0.2 L  +0.3) LCB  -65.68c P 13.05% WF   3.0 PSV      11 N       3  --  D3 C17 C16
 
 : = D4
@@ -227,9 +227,9 @@ Tree:
 : T  -6.12c W  -5.90c S  -0.22c ( -0.5 L  -0.3) N      40  --  P3
 ---Black(^)---
 O4  : T  -8.50c W  -8.22c S  -0.28c ( -0.6 L  -0.3) LCB -146.81c P  7.29% WF   2.0 PSV      23 N       2  --  O4 R17
-P4  : T  -6.30c W  -6.11c S  -0.19c ( -0.4 L  -0.3) LCB  -10.25c P 28.04% WF  14.0 PSV      13 N      14  --  P4 O17 R14 Q17
+P4  : T  -6.30c W  -6.11c S  -0.19c ( -0.4 L  -0.3) LCB  -10.25c P 28.04% WF  14.0 PSV      13 N      14  --  P4 R17 R16 Q17 O17 P17 P16 O18
 C3  : T  -6.51c W  -6.29c S  -0.22c ( -0.5 L  -0.3) LCB  -16.98c P 17.34% WF   8.0 PSV       2 N       8  --  C3 C4 D3 E4 F2
-C17 : T  -5.26c W  -5.04c S  -0.22c ( -0.5 L  -0.3) LCB   -8.82c P 20.79% WF  15.0 PSV       1 N      15  --  C17 C16 D17 E16
+C17 : T  -5.26c W  -5.04c S  -0.22c ( -0.5 L  -0.3) LCB   -8.82c P 20.79% WF  15.0 PSV       1 N      15  --  C17 D17 C16 D15 B14 R17 Q17 R16
 
 : = F17
 : Controller: genmove w
@@ -307,7 +307,7 @@ Tree:
 : T   1.78c W   1.70c S   0.08c ( +0.2 L  +0.0) N      40  --  G16 F15 E18 C17 G15 G14 F14
 ---Black(^)---
 G16 : T   2.10c W   2.00c S   0.09c ( +0.2 L  +0.1) LCB   -1.49c P 58.33% WF  24.0 PSV      26 N      24  --  G16 F15 E18 C17 G15 G14 F14 G13
-E17 : T   1.40c W   1.33c S   0.07c ( +0.1 L  -0.0) LCB   -3.57c P 39.40% WF  15.0 PSV      12 N      15  --  E17 E16 D17 C17 G16 G17 C18
+E17 : T   1.40c W   1.33c S   0.07c ( +0.1 L  -0.0) LCB   -3.57c P 39.40% WF  15.0 PSV      12 N      15  --  E17 E16 D17 C17 G16 C16 H17 O17
 
 : = G16
 : Controller: genmove w
@@ -340,11 +340,11 @@ New playouts: 16
 NN rows: 15
 NN batches: 15
 NN avg batch size: 1
-PV: F15 E18 G15 H16 P3
+PV: F15 E18 C17 G15 G14 F14 G13 E14 D15 D14 C14 C13 B14 B13 D12
 Tree:
-: T  -2.24c W  -2.14c S  -0.11c ( -0.2 L  -0.1) N      40  --  F15 E18 G15 H16 P3
+: T  -2.24c W  -2.14c S  -0.11c ( -0.2 L  -0.1) N      40  --  F15 E18 C17 G15 G14 F14 G13
 ---White(^)---
-F15 : T  -2.46c W  -2.35c S  -0.11c ( -0.3 L  -0.1) LCB   -4.75c P 98.25% WF  39.0 PSV      39 N      39  --  F15 E18 G15 H16 P3
+F15 : T  -2.46c W  -2.35c S  -0.11c ( -0.3 L  -0.1) LCB   -4.75c P 98.25% WF  39.0 PSV      39 N      39  --  F15 E18 C17 G15 G14 F14 G13 E14
 
 : = E17
 : Controller: genmove b
@@ -377,11 +377,11 @@ New playouts: 40
 NN rows: 42
 NN batches: 42
 NN avg batch size: 1
-PV: F15 E16 F18 G15 H15 G14
+PV: F15 E16 F18 G15 H16 G14 E18 C17 L16 P3 D13 E14 C10 R17
 Tree:
-: T  10.93c W  10.52c S   0.41c ( +0.9 L  +0.5) N      40  --  F15 E16 F18 G15 H15 G14
+: T  10.93c W  10.52c S   0.41c ( +0.9 L  +0.5) N      40  --  F15 E16 F18 G15 H16 G14 E18
 ---Black(^)---
-F15 : T  10.94c W  10.53c S   0.41c ( +0.9 L  +0.5) LCB    5.14c P 98.86% WF  39.0 PSV      39 N      39  --  F15 E16 F18 G15 H15 G14
+F15 : T  10.94c W  10.53c S   0.41c ( +0.9 L  +0.5) LCB    5.14c P 98.86% WF  39.0 PSV      39 N      39  --  F15 E16 F18 G15 H16 G14 E18 C17
 
 : = F18
 : Controller: genmove w
@@ -418,7 +418,7 @@ PV: E18
 Tree:
 : T  10.31c W   9.94c S   0.37c ( +0.8 L  +0.6) N      40  --  E18
 ---White(^)---
-F15 : T  10.28c W   9.91c S   0.37c ( +0.9 L  +0.6) LCB    6.62c P 98.33% WF  39.0 PSV      39 N      39  --  F15 G15 E18 F14 G14 E14 D15 D14
+F15 : T  10.28c W   9.91c S   0.37c ( +0.9 L  +0.6) LCB    6.62c P 98.33% WF  39.0 PSV      39 N      39  --  F15 G15 F14 E18 D18 C18
 
 : = F15
 : Controller: kata-raw-human-nn 0
@@ -472,7 +472,7 @@ whiteOwnership
 0.1769531 0.1555713 0.2166493 0.2197529 0.1889668 0.0995496 0.0712387 0.0341152 0.0123868 -0.0080341 -0.0023700 0.0298980 0.0139905 -0.0803933 -0.1731938 -0.3272078 -0.4674190 -0.5339595 -0.5650020 
 0.2079038 0.1773694 0.1671279 0.1637462 0.1686951 0.1211960 0.0785840 0.0311002 -0.0009085 -0.0074448 0.0138626 0.0324022 0.0129211 -0.0685134 -0.1544745 -0.3148130 -0.4032225 -0.4870207 -0.5388658
 : Controller: kata-get-params
-: = {"analysisIgnorePreRootHistory":"true","analysisWideRootNoise":"0.04","antiMirror":"false","chosenMovePrune":0.0,"chosenMoveSubtract":0.0,"chosenMoveTemperature":0.7,"chosenMoveTemperatureEarly":0.85,"chosenMoveTemperatureHalflife":80.0,"chosenMoveTemperatureOnlyBelowProb":0.01,"conservativePass":true,"cpuctExploration":1.0,"cpuctExplorationBase":500.0,"cpuctExplorationLog":0.45,"cpuctUtilityStdevPrior":0.4,"cpuctUtilityStdevPriorWeight":2.0,"cpuctUtilityStdevScale":0.85,"drawEquivalentWinsForWhite":0.5,"dynamicScoreCenterScale":0.75,"dynamicScoreCenterZeroWeight":0.2,"dynamicScoreUtilityFactor":0.0,"enablePassingHacks":true,"endgameTurnTimeDecay":100.0,"fillDameBeforePass":true,"fpuLossProp":0.0,"fpuParentWeight":0.0,"fpuParentWeightByVisitedPolicy":true,"fpuParentWeightByVisitedPolicyPow":2.0,"fpuReductionMax":0.2,"futileVisitsThreshold":0.0,"genmoveAntiMirror":"true","graphSearchCatchUpLeakProb":0.0,"graphSearchRepBound":11,"humanSLChosenMoveIgnorePass":true,"humanSLChosenMovePiklLambda":100000000.0,"humanSLChosenMoveProp":1.0,"humanSLCpuctExploration":0.5,"humanSLCpuctPermanent":0.2,"humanSLOppExploreProbWeightful":0.0,"humanSLOppExploreProbWeightless":0.0,"humanSLPlaExploreProbWeightful":0.0,"humanSLPlaExploreProbWeightless":0.0,"humanSLProfile":"preaz_12k","humanSLRootExploreProbWeightful":0.0,"humanSLRootExploreProbWeightless":0.0,"ignoreAllHistory":false,"ignorePreRootHistory":false,"lagBuffer":1.0,"lcbStdevs":5.0,"maxPlayouts":1125899906842624,"maxPlayoutsPondering":1125899906842624,"maxTime":1e+20,"maxTimePondering":1e+20,"maxVisits":40,"maxVisitsPondering":1125899906842624,"midgameTimeFactor":1.0,"midgameTurnPeakTime":130.0,"minPlayoutsPerThread":8.0,"minVisitPropForLCB":0.15,"nnPolicyTemperature":1.0,"noResultUtilityForWhite":0.0,"noisePruneUtilityScale":0.15,"noisePruningCap":1e+50,"numVirtualLossesPerThread":1.0,"obviousMovesPolicyEntropyTolerance":0.3,"obviousMovesPolicySurpriseTolerance":0.15,"obviousMovesTimeFactor":1.0,"overallocateTimeFactor":1.0,"playoutDoublingAdvantage":0.0,"playoutDoublingAdvantagePla":"E","policyOptimism":1.0,"rootDesiredPerChildVisitsCoeff":0.0,"rootDirichletNoiseTotalConcentration":10.83,"rootDirichletNoiseWeight":0.25,"rootEndingBonusPoints":0.5,"rootFpuLossProp":0.0,"rootFpuReductionMax":0.1,"rootNoiseEnabled":false,"rootNumSymmetriesToSample":2,"rootPolicyOptimism":0.2,"rootPolicyTemperature":1.0,"rootPolicyTemperatureEarly":1.0,"rootPruneUselessMoves":true,"rootSymmetryPruning":true,"searchFactorAfterOnePass":1.0,"searchFactorAfterTwoPass":1.0,"staticScoreUtilityFactor":0.3,"subtreeValueBiasFactor":0.0,"subtreeValueBiasFreeProp":0.8,"subtreeValueBiasTableNumShards":65536,"subtreeValueBiasWeightExponent":0.85,"treeReuseCarryOverTimeFactor":0.0,"uncertaintyCoeff":0.25,"uncertaintyExponent":1.0,"uncertaintyMaxWeight":8.0,"useGraphSearch":true,"useLcbForSelection":false,"useNoisePruning":false,"useNonBuggyLcb":true,"useUncertainty":false,"valueWeightExponent":0.25,"wideRootNoise":0.0,"winLossUtilityFactor":1.0}
+: = {"allowResignation":"true","analysisIgnorePreRootHistory":"false","analysisWideRootNoise":"0.04","antiMirror":"false","chosenMovePrune":0.0,"chosenMoveSubtract":0.0,"chosenMoveTemperature":0.7,"chosenMoveTemperatureEarly":0.85,"chosenMoveTemperatureHalflife":80.0,"chosenMoveTemperatureOnlyBelowProb":0.01,"conservativePass":true,"cpuctExploration":1.0,"cpuctExplorationBase":500.0,"cpuctExplorationLog":0.45,"cpuctUtilityStdevPrior":0.4,"cpuctUtilityStdevPriorWeight":2.0,"cpuctUtilityStdevScale":0.85,"delayMoveMax":"10","delayMoveScale":"2","drawEquivalentWinsForWhite":0.5,"dynamicScoreCenterScale":0.75,"dynamicScoreCenterZeroWeight":0.2,"dynamicScoreUtilityFactor":0.0,"enablePassingHacks":true,"endgameTurnTimeDecay":100.0,"fillDameBeforePass":true,"fpuLossProp":0.0,"fpuParentWeight":0.0,"fpuParentWeightByVisitedPolicy":true,"fpuParentWeightByVisitedPolicyPow":2.0,"fpuReductionMax":0.2,"futileVisitsThreshold":0.0,"genmoveAntiMirror":"true","graphSearchCatchUpLeakProb":0.0,"graphSearchRepBound":11,"humanSLChosenMoveIgnorePass":true,"humanSLChosenMovePiklLambda":100000000.0,"humanSLChosenMoveProp":1.0,"humanSLCpuctExploration":0.5,"humanSLCpuctPermanent":0.2,"humanSLOppExploreProbWeightful":0.0,"humanSLOppExploreProbWeightless":0.0,"humanSLPlaExploreProbWeightful":0.0,"humanSLPlaExploreProbWeightless":0.0,"humanSLProfile":"preaz_12k","humanSLRootExploreProbWeightful":0.0,"humanSLRootExploreProbWeightless":0.0,"ignoreAllHistory":false,"ignorePreRootHistory":false,"lagBuffer":1.0,"lcbStdevs":5.0,"maxPlayouts":1125899906842624,"maxPlayoutsPondering":1125899906842624,"maxTime":1e+20,"maxTimePondering":1e+20,"maxVisits":40,"maxVisitsPondering":1125899906842624,"midgameTimeFactor":1.0,"midgameTurnPeakTime":130.0,"minPlayoutsPerThread":8.0,"minVisitPropForLCB":0.15,"nnPolicyTemperature":1.0,"noResultUtilityForWhite":0.0,"noisePruneUtilityScale":0.15,"noisePruningCap":1e+50,"numVirtualLossesPerThread":1.0,"obviousMovesPolicyEntropyTolerance":0.3,"obviousMovesPolicySurpriseTolerance":0.15,"obviousMovesTimeFactor":1.0,"overallocateTimeFactor":1.0,"playoutDoublingAdvantage":0.0,"playoutDoublingAdvantagePla":"E","policyOptimism":1.0,"ponderingEnabled":"false","rootDesiredPerChildVisitsCoeff":0.0,"rootDirichletNoiseTotalConcentration":10.83,"rootDirichletNoiseWeight":0.25,"rootEndingBonusPoints":0.5,"rootFpuLossProp":0.0,"rootFpuReductionMax":0.1,"rootNoiseEnabled":false,"rootNumSymmetriesToSample":2,"rootPolicyOptimism":0.2,"rootPolicyTemperature":1.0,"rootPolicyTemperatureEarly":1.0,"rootPruneUselessMoves":true,"rootSymmetryPruning":true,"searchFactorAfterOnePass":1.0,"searchFactorAfterTwoPass":1.0,"staticScoreUtilityFactor":0.3,"subtreeValueBiasFactor":0.0,"subtreeValueBiasFreeProp":0.8,"subtreeValueBiasTableNumShards":65536,"subtreeValueBiasWeightExponent":0.85,"treeReuseCarryOverTimeFactor":0.0,"uncertaintyCoeff":0.25,"uncertaintyExponent":1.0,"uncertaintyMaxWeight":8.0,"useGraphSearch":true,"useLcbForSelection":false,"useNoisePruning":false,"useNonBuggyLcb":true,"useUncertainty":false,"valueWeightExponent":0.25,"wideRootNoise":0.0,"winLossUtilityFactor":1.0}
 : Controller: kata-get-param humanSLProfile
 : = preaz_12k
 : Controller: kata-set-param humanSLProfile preaz_5d
@@ -507,12 +507,12 @@ New playouts: 40
 NN rows: 7
 NN batches: 7
 NN avg batch size: 1
-PV: E18 D18 G15 G14 F14
+PV: E18 C17 G15 F14 O17 K17 G14
 Tree:
-: T -10.05c W  -9.68c S  -0.37c ( -0.8 L  -0.6) N      40  --  E18 D18 G15 G14 F14
+: T -10.05c W  -9.68c S  -0.37c ( -0.8 L  -0.6) N      40  --  E18 C17 G15 F14 O17 K17 G14
 ---Black(^)---
-E18 : T -10.34c W  -9.97c S  -0.37c ( -0.8 L  -0.6) LCB  -16.28c P 38.49% WF  15.0 PSV      27 N      15  --  E18 D18 G15 G14 F14
-G15 : T  -9.78c W  -9.42c S  -0.36c ( -0.8 L  -0.6) LCB  -14.97c P 54.65% WF  24.0 PSV      12 N      24  --  G15 G14 E18 D18 F14
+E18 : T -10.34c W  -9.97c S  -0.37c ( -0.8 L  -0.6) LCB  -16.28c P 38.49% WF  15.0 PSV      27 N      15  --  E18 C17 G15 F14 O17 K17 G14
+G15 : T  -9.78c W  -9.42c S  -0.36c ( -0.8 L  -0.6) LCB  -14.97c P 54.65% WF  24.0 PSV      12 N      24  --  G15 F14 E18 D18 C18 D19
 
 : = E18
 : Controller: genmove w
@@ -550,7 +550,7 @@ Tree:
 : T  10.59c W  10.20c S   0.39c ( +0.9 L  +0.6) N      40  --  D18 G15 G14 F14
 ---White(^)---
 D18 : T   6.71c W   6.49c S   0.22c ( +0.5 L  +0.4) LCB  -15.04c P 23.43% WF   4.9 PSV      29 N       5  --  D18 G15 G14 F14
-C17 : T  11.17c W  10.75c S   0.42c ( +1.0 L  +0.6) LCB    7.60c P 75.30% WF  34.1 PSV      10 N      34  --  C17 G15 G14 F14
+C17 : T  11.17c W  10.75c S   0.42c ( +1.0 L  +0.6) LCB    7.60c P 75.30% WF  34.1 PSV      10 N      34  --  C17 G15 F14 O17 P3 Q5 K17 G14
 
 : = C17
 : Controller: genmove b
@@ -583,11 +583,11 @@ New playouts: 6
 NN rows: 8
 NN batches: 8
 NN avg batch size: 1
-PV: G15 G14 F14
+PV: G15 F14 O17 P3 Q5 K17 G14 G13 H13
 Tree:
-: T -11.24c W -10.81c S  -0.42c ( -1.0 L  -0.6) N      40  --  G15 G14 F14
+: T -11.24c W -10.81c S  -0.42c ( -1.0 L  -0.6) N      40  --  G15 F14 O17 P3 Q5 K17 G14
 ---Black(^)---
-G15 : T -11.25c W -10.83c S  -0.42c ( -1.0 L  -0.6) LCB  -15.11c P 96.75% WF  39.0 PSV      39 N      39  --  G15 G14 F14
+G15 : T -11.25c W -10.83c S  -0.42c ( -1.0 L  -0.6) LCB  -15.11c P 96.75% WF  39.0 PSV      39 N      39  --  G15 F14 O17 P3 Q5 K17 G14 G13
 
 : = G15
 : Controller: genmove w
@@ -625,7 +625,7 @@ Tree:
 : T  11.33c W  10.90c S   0.43c ( +1.0 L  +0.6) N      40  --  G14 F14 G13
 ---White(^)---
 G14 : T   8.02c W   7.71c S   0.30c ( +0.7 L  +0.5) LCB  -61.75c P 22.84% WF   3.0 PSV      24 N       3  --  G14 F14 G13
-F14 : T  11.63c W  11.19c S   0.44c ( +1.0 L  +0.7) LCB    7.69c P 74.09% WF  36.0 PSV      15 N      36  --  F14 G14 G13 F13 G12
+F14 : T  11.63c W  11.19c S   0.44c ( +1.0 L  +0.7) LCB    7.69c P 74.09% WF  36.0 PSV      15 N      36  --  F14 O17 P3 Q5 K17 G14 G13 H13
 
 : = G14
 : Controller: genmove b
@@ -658,12 +658,12 @@ New playouts: 37
 NN rows: 39
 NN batches: 39
 NN avg batch size: 1
-PV: F14 H14 J15
+PV: F14 G13 E14 D14 D13 C14 F12 G12 C13
 Tree:
-: T -12.93c W -12.46c S  -0.47c ( -1.1 L  -0.7) N      40  --  F14 H14 J15
+: T -12.93c W -12.46c S  -0.47c ( -1.1 L  -0.7) N      40  --  F14 G13 E14 D14 D13 C14 F12
 ---Black(^)---
-F14 : T -12.58c W -12.12c S  -0.46c ( -1.1 L  -0.7) LCB  -18.91c P 76.53% WF  34.1 PSV      32 N      34  --  F14 H14 J15
-J15 : T -16.07c W -15.51c S  -0.56c ( -1.3 L  -0.8) LCB  -42.08c P 17.83% WF   4.9 PSV       6 N       5  --  J15 F13 C9
+F14 : T -12.58c W -12.12c S  -0.46c ( -1.1 L  -0.7) LCB  -18.91c P 76.53% WF  34.1 PSV      32 N      34  --  F14 G13 E14 D14 D13 C14 F12 G12
+J15 : T -16.07c W -15.51c S  -0.56c ( -1.3 L  -0.8) LCB  -42.08c P 17.83% WF   4.9 PSV       6 N       5  --  J15 F13 O17 H14
 
 : = H14
 : Controller: genmove w
@@ -701,7 +701,7 @@ Tree:
 : T  24.49c W  23.57c S   0.91c ( +2.1 L  +1.4) N      40  --  H13 J14 G13 J13 O17 M17
 ---White(^)---
 H13 : T  18.83c W  18.13c S   0.70c ( +1.6 L  +1.1) LCB    0.41c P 28.97% WF   5.9 PSV      29 N       6  --  H13 J14 G13 J13 O17 M17
-G13 : T  25.62c W  24.66c S   0.96c ( +2.2 L  +1.4) LCB   19.59c P 66.02% WF  33.1 PSV      10 N      33  --  G13 H13 G12 H12 G11 C9 C7
+G13 : T  25.62c W  24.66c S   0.96c ( +2.2 L  +1.4) LCB   19.59c P 66.02% WF  33.1 PSV      10 N      33  --  G13 H13 G12 C9 K17 N17 H15 H16
 
 : = H13
 : Controller: genmove b
@@ -734,11 +734,11 @@ New playouts: 34
 NN rows: 36
 NN batches: 36
 NN avg batch size: 1
-PV: J14 G13 J13 O17 M17 M16 L17 L16 K17
+PV: J14 G13 J13 O17 M17 C10 R17 P3
 Tree:
-: T -17.22c W -16.56c S  -0.66c ( -1.5 L  -1.0) N      40  --  J14 G13 J13 O17 M17 M16 L17
+: T -17.22c W -16.56c S  -0.66c ( -1.5 L  -1.0) N      40  --  J14 G13 J13 O17 M17 C10 R17
 ---Black(^)---
-J14 : T -16.88c W -16.23c S  -0.65c ( -1.5 L  -1.0) LCB  -21.92c P 88.65% WF  37.0 PSV      36 N      37  --  J14 G13 J13 O17 M17 M16 L17 L16
+J14 : T -16.88c W -16.23c S  -0.65c ( -1.5 L  -1.0) LCB  -21.92c P 88.65% WF  37.0 PSV      36 N      37  --  J14 G13 J13 O17 M17 C10 R17 P3
 F14 : T -21.32c W -20.53c S  -0.79c ( -1.8 L  -1.2) LCB -160.40c P  6.98% WF   2.0 PSV       2 N       2  --  F14 G13
 
 : = J13
@@ -777,12 +777,12 @@ Tree:
 : T  41.03c W  39.50c S   1.54c ( +3.5 L  +2.3) N      40  --  G13 J14
 ---White(^)---
 G13 : T  21.86c W  21.05c S   0.81c ( +1.8 L  +1.3) LCB -117.46c P 18.35% WF   1.9 PSV      18 N       2  --  G13 J14
-J14 : T  42.99c W  41.38c S   1.61c ( +3.7 L  +2.4) LCB   37.12c P 65.71% WF  36.2 PSV      10 N      36  --  J14 H15 G13 K14 O17 P17
+J14 : T  42.99c W  41.38c S   1.61c ( +3.7 L  +2.4) LCB   37.12c P 65.71% WF  36.2 PSV      10 N      36  --  J14 H15 G13 K14 N17 J15 Q18 C10
 G17 : T  11.63c W  11.14c S   0.49c ( +1.1 L  +0.7) LCB -313.37c P 10.96% WF   0.9 PSV      10 N       1  --  G17
 
 : = G13
 : Controller: kata-get-param humanSLProfile
 : = preaz_5d
 : GPU -1 finishing, processed 512 rows 512 batches
-: GPU -1 finishing, processed 539 rows 539 batches
+: GPU -1 finishing, processed 37 rows 37 batches
 : All cleaned up, quitting

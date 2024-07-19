@@ -123,6 +123,8 @@ int MainCmds::analysis(const vector<string>& args) {
   const bool logErrorsAndWarnings = cfg.contains("logErrorsAndWarnings") ? cfg.getBool("logErrorsAndWarnings") : true;
   const bool logSearchInfo = cfg.contains("logSearchInfo") ? cfg.getBool("logSearchInfo") : false;
 
+  const bool warnUnusedFields = cfg.contains("warnUnusedFields") ? cfg.getBool("warnUnusedFields") : true;
+
   auto loadParams = [&humanModelFile](ConfigParser& config, SearchParams& params, Player& perspective, Player defaultPerspective) {
     bool hasHumanModel = humanModelFile != "";
     params = Setup::loadSingleParams(config,Setup::SETUP_FOR_ANALYSIS,hasHumanModel);
@@ -162,12 +164,20 @@ int MainCmds::analysis(const vector<string>& args) {
       NNPos::MAX_BOARD_LEN,NNPos::MAX_BOARD_LEN,defaultMaxBatchSize,defaultRequireExactNNLen,disableFP16,
       Setup::SETUP_FOR_ANALYSIS
     );
-    if(humanModelFile != "")
+    if(humanModelFile != "") {
       humanEval = Setup::initializeNNEvaluator(
         humanModelFile,humanModelFile,expectedSha256,cfg,logger,seedRand,expectedConcurrentEvals,
         NNPos::MAX_BOARD_LEN,NNPos::MAX_BOARD_LEN,defaultMaxBatchSize,defaultRequireExactNNLen,disableFP16,
         Setup::SETUP_FOR_ANALYSIS
       );
+      if(!humanEval->requiresSGFMetadata()) {
+        string warning;
+        warning += "WARNING: Human model was not trained from SGF metadata to vary by rank! Did you pass the wrong model for -human-model?\n";
+        logger.write(warning);
+        if(!logToStderr)
+          cerr << warning << endl;
+      }
+    }
   }
 
 #ifndef USE_EIGEN_BACKEND
@@ -189,10 +199,51 @@ int MainCmds::analysis(const vector<string>& args) {
 
   //Check for unused config keys
   cfg.warnUnusedKeys(cerr,&logger);
+  Setup::maybeWarnHumanSLParams(defaultParams,nnEval,humanEval,cerr,&logger);
 
   logger.write("Loaded config "+ cfg.getFileName());
   logger.write("Loaded model "+ modelFile);
   cmd.logOverrides(logger);
+
+  if(humanModelFile != "" && !cfg.contains("humanSLProfile") && humanEval->requiresSGFMetadata()) {
+    logger.write("Warning: Provided -human-model but humanSLProfile is not yet set. The human SL model will only be used on queries that provide humanSLProfile in overrideSettings.");
+    if(!logger.isLoggingToStderr())
+      cerr << "Warning: Provided -human-model but humanSLProfile is not yet set. The human SL model will only be used on queries that provide humanSLProfile in overrideSettings." << endl;
+  }
+
+  //Expected possible keys for queries
+  const std::set<std::string> expectedKeys = {
+    "id",
+    "action",
+    "terminateId",
+    "turnNumbers",
+    "boardXSize",
+    "boardYSize",
+    "initialStones",
+    "moves",
+    "initialPlayer",
+    "analyzeTurns",
+    "priorities",
+    "rules",
+    "komi",
+    "whiteHandicapBonus",
+    "overrideSettings",
+    "maxVisits",
+    "analysisPVLen",
+    "rootFpuReductionMax",
+    "rootPolicyTemperature",
+    "includeMovesOwnership",
+    "includeMovesOwnershipStdev",
+    "includeOwnership",
+    "includeOwnershipStdev",
+    "includePolicy",
+    "includePVVisits",
+    "reportDuringSearchEvery",
+    "firstReportDuringSearchAfter",
+    "priority",
+    "allowMoves",
+    "avoidMoves"
+  };
 
   ThreadSafeQueue<string*> toWriteQueue;
   auto writeLoop = [&toWriteQueue,&logAllResponses,&logger]() {
@@ -332,7 +383,7 @@ int MainCmds::analysis(const vector<string>& args) {
 
         if(logSearchInfo) {
           ostringstream sout;
-          PlayUtils::printGenmoveLog(sout,bot,nnEval,Board::NULL_LOC,NAN,request->perspective,false);
+          PlayUtils::printGenmoveLog(sout,bot->getSearch(),nnEval,Board::NULL_LOC,NAN,request->perspective,false);
           logger.write(sout.str());
         }
 
@@ -449,6 +500,30 @@ int MainCmds::analysis(const vector<string>& args) {
           input["git_hash"] = Version::getGitRevision();
           pushToWrite(new string(input.dump()));
         }
+        else if(action == "query_models") {
+          input["models"] = json::array();
+          if(nnEval != NULL) {
+            json modelInfo;
+            modelInfo["name"] = nnEval->getModelName();
+            modelInfo["internalName"] = nnEval->getInternalModelName();
+            modelInfo["maxBatchSize"] = nnEval->getMaxBatchSize();
+            modelInfo["usesHumanSLProfile"] = nnEval->requiresSGFMetadata();
+            modelInfo["version"] = nnEval->getModelVersion();
+            modelInfo["usingFP16"] = nnEval->getUsingFP16Mode().toString();
+            input["models"].push_back(modelInfo);
+          }
+          if(humanEval != NULL) {
+            json modelInfo;
+            modelInfo["name"] = humanEval->getModelName();
+            modelInfo["internalName"] = humanEval->getInternalModelName();
+            modelInfo["maxBatchSize"] = humanEval->getMaxBatchSize();
+            modelInfo["usesHumanSLProfile"] = humanEval->requiresSGFMetadata();
+            modelInfo["version"] = humanEval->getModelVersion();
+            modelInfo["usingFP16"] = humanEval->getUsingFP16Mode().toString();
+            input["models"].push_back(modelInfo);
+          }
+          pushToWrite(new string(input.dump()));
+        }
         else if(action == "clear_cache") {
           //This should be thread-safe.
           nnEval->clearCache();
@@ -519,7 +594,7 @@ int MainCmds::analysis(const vector<string>& args) {
           pushToWrite(new string(input.dump()));
         }
         else {
-          reportError("'action' field must be 'query_version' or 'terminate' or 'terminate_all'");
+          reportError("'action' field must be 'query_version' or 'query_models' or 'clear_cache' or 'terminate' or 'terminate_all'");
         }
 
         continue;
@@ -877,6 +952,10 @@ int MainCmds::analysis(const vector<string>& args) {
             if(unusedKeys.size() > 0) {
               reportWarningForId(rbase.id, "overrideSettings", string("Unknown config params: ") + Global::concat(unusedKeys,","));
             }
+            ostringstream out;
+            if(Setup::maybeWarnHumanSLParams(rbase.params,nnEval,humanEval,out,NULL)) {
+              throw StringError(out.str());
+            }
           }
           catch(const StringError& exception) {
             reportErrorForId(rbase.id, "overrideSettings", string("Could not set settings: ") + exception.what());
@@ -1048,6 +1127,13 @@ int MainCmds::analysis(const vector<string>& args) {
       Player nextPla = initialPlayer;
       BoardHistory hist(board,nextPla,rules,0);
       hist.setAssumeMultipleStartingBlackMovesAreHandicap(assumeMultipleStartingBlackMovesAreHandicap);
+
+      if(warnUnusedFields) {
+        for (auto it = input.begin(); it != input.end(); ++it) {
+          if(expectedKeys.find(it.key()) == expectedKeys.end())
+            reportWarningForId(rbase.id, it.key(), "Unexpected or unused field, do you have a typo? (set warnUnusedFields=false in the config to disable this warning)");
+        }
+      }
 
       //Build and enqueue requests
       vector<AnalyzeRequest*> newRequests;
