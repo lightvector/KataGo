@@ -446,7 +446,8 @@ Here is a brief guide to some example usages, and hopefully a bit of inspiration
 Except for parameters explicitly documented earlier as belonging on the outer json query object (e.g. `includePolicy`, `maxVisits`), the parameters described below should be set within the `overrideSettings` of a query. E.g:
 
 ```
-"overrideSettings":{"humanSLProfile":"rank_3d","ignorePreRootHistory":false,"humanSLRootExploreProbWeightless":0.5,"humanSLCpuctPermanent":2.0}```
+"overrideSettings":{"humanSLProfile":"rank_3d","ignorePreRootHistory":false,"humanSLRootExploreProbWeightless":0.5,"humanSLCpuctPermanent":2.0}
+```
 
 Do NOT set such parmeters as a key of the outer json query object, as that will have no effect. KataGo should issue a warning if you accidentally do. If desired, you can also hardcode parameters within the analysis config file, e.g. `humanSLProfile = rank_3d`.
 
