@@ -8,3 +8,21 @@ get_komi
 version
 kata-get-models
 kata-set-param humanSLProfile rank_10k
+kata-get-param allowResignation
+kata-get-param ponderingEnabled
+kata-get-param delayMoveMax
+kata-get-param maxVisits
+kata-set-param delayMoveMax 1234
+kata-set-param allowResignation false
+kata-get-param allowResignation
+kata-get-param ponderingEnabled
+kata-get-param delayMoveMax
+kata-get-param maxVisits
+kata-set-param delayMoveMax 12345
+kata-set-param maxVisits 4321
+kata-get-param allowResignation
+kata-get-param ponderingEnabled
+kata-get-param delayMoveMax
+kata-get-param maxVisits
+
+

@@ -1997,8 +1997,8 @@ int MainCmds::gtp(const vector<string>& args) {
   const double normalAvoidRepeatedPatternUtility = initialGenmoveParams.avoidRepeatedPatternUtility;
   const double handicapAvoidRepeatedPatternUtility = cfg.contains("avoidRepeatedPatternUtility") ?
     initialGenmoveParams.avoidRepeatedPatternUtility : 0.005;
-  const double delayMoveScale = cfg.contains("delayMoveScale") ? cfg.getDouble("delayMoveScale",0.0,10000.0) : 0.0;
-  const double delayMoveMax = cfg.contains("delayMoveMax") ? cfg.getDouble("delayMoveMax",0.0,1000000.0) : 1000000.0;
+  const double initialDelayMoveScale = cfg.contains("delayMoveScale") ? cfg.getDouble("delayMoveScale",0.0,10000.0) : 0.0;
+  const double initialDelayMoveMax = cfg.contains("delayMoveMax") ? cfg.getDouble("delayMoveMax",0.0,1000000.0) : 1000000.0;
 
   int defaultBoardXSize = -1;
   int defaultBoardYSize = -1;
@@ -2040,7 +2040,7 @@ int MainCmds::gtp(const vector<string>& args) {
     dynamicPlayoutDoublingAdvantageCapPerOppLead,
     staticPDATakesPrecedence,
     normalAvoidRepeatedPatternUtility, handicapAvoidRepeatedPatternUtility,
-    delayMoveScale,delayMoveMax,
+    initialDelayMoveScale,initialDelayMoveMax,
     perspective,analysisPVLen,
     std::move(patternBonusTable)
   );
@@ -2463,6 +2463,8 @@ int MainCmds::gtp(const vector<string>& args) {
       paramsList.push_back("humanSLProfile");
       paramsList.push_back("allowResignation");
       paramsList.push_back("ponderingEnabled");
+      paramsList.push_back("delayMoveScale");
+      paramsList.push_back("delayMoveMax");
       nlohmann::json params = engine->getGenmoveParams().changeableParametersToJson();
       for(auto& elt : params.items()) {
         paramsList.push_back(elt.key());
@@ -2486,13 +2488,16 @@ int MainCmds::gtp(const vector<string>& args) {
           response = Global::boolToString(genmoveParams.antiMirror);
         else if(pieces[0] == "antiMirror")
           response = Global::boolToString(analysisParams.antiMirror);
-        else if(pieces[0] == "humanSLProfile") {
+        else if(pieces[0] == "humanSLProfile")
           response = cfg.contains("humanSLProfile") ? cfg.getString("humanSLProfile") : "";
-        }
         else if(pieces[0] == "allowResignation")
           response = Global::boolToString(allowResignation);
         else if(pieces[0] == "ponderingEnabled")
           response = Global::boolToString(ponderingEnabled);
+        else if(pieces[0] == "delayMoveScale")
+          response = Global::doubleToString(engine->delayMoveScale);
+        else if(pieces[0] == "delayMoveMax")
+          response = Global::doubleToString(engine->delayMoveMax);
         else {
           nlohmann::json params = engine->getGenmoveParams().changeableParametersToJson();
           if(params.find(pieces[0]) == params.end()) {
@@ -2540,6 +2545,8 @@ int MainCmds::gtp(const vector<string>& args) {
       params["humanSLProfile"] = cfg.contains("humanSLProfile") ? cfg.getString("humanSLProfile") : "";
       params["allowResignation"] = Global::boolToString(allowResignation);
       params["ponderingEnabled"] = Global::boolToString(ponderingEnabled);
+      params["delayMoveScale"] = Global::doubleToString(engine->delayMoveScale);
+      params["delayMoveMax"] = Global::doubleToString(engine->delayMoveMax);
       response = params.dump();
     }
     else if(command == "kata-set-param" || command == "kata-set-params") {
@@ -2598,6 +2605,8 @@ int MainCmds::gtp(const vector<string>& args) {
             if(contains(overrideSettings,"avoidRepeatedPatternUtility")) throw StringError("Cannot be overridden in kata-set-param: avoidRepeatedPatternUtility");
             cleanCfg.markKeyUsed("allowResignation");
             cleanCfg.markKeyUsed("ponderingEnabled");
+            cleanCfg.markKeyUsed("delayMoveScale");
+            cleanCfg.markKeyUsed("delayMoveMax");
 
             vector<string> unusedKeys = cleanCfg.unusedKeys();
             for(const string& unused: unusedKeys) {
@@ -2617,8 +2626,10 @@ int MainCmds::gtp(const vector<string>& args) {
           SearchParams analysisParams;
           loadParams(cfg,genmoveParams,analysisParams);
 
-          bool desiredAllowResignation = cfg.contains("allowResignation") ? cfg.getBool("allowResignation") : false;
-          bool desiredPonderingEnabled = cfg.contains("ponderingEnabled") ? cfg.getBool("ponderingEnabled") : false;
+          bool desiredAllowResignation = cfg.contains("allowResignation") ? cfg.getBool("allowResignation") : allowResignation;
+          bool desiredPonderingEnabled = cfg.contains("ponderingEnabled") ? cfg.getBool("ponderingEnabled") : ponderingEnabled;
+          double desiredDelayMoveScale = cfg.contains("delayMoveScale") ? cfg.getDouble("delayMoveScale",0.0,10000.0) : engine->delayMoveScale;
+          double desiredDelayMoveMax = cfg.contains("delayMoveMax") ? cfg.getDouble("delayMoveMax",0.0,1000000.0) : engine->delayMoveMax;
 
           SearchParams::failIfParamsDifferOnUnchangeableParameter(initialGenmoveParams,genmoveParams);
           SearchParams::failIfParamsDifferOnUnchangeableParameter(initialAnalysisParams,analysisParams);
@@ -2628,6 +2639,8 @@ int MainCmds::gtp(const vector<string>& args) {
           engine->staticPDATakesPrecedence = staticPDATakesPrecedence;
           allowResignation = desiredAllowResignation;
           ponderingEnabled = desiredPonderingEnabled;
+          engine->delayMoveScale = desiredDelayMoveScale;
+          engine->delayMoveMax = desiredDelayMoveMax;
         }
         catch(const StringError& exception) {
           responseIsError = true;
