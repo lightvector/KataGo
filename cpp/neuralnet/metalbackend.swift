@@ -2915,9 +2915,6 @@ public func maybeCreateMetalComputeHandle(condition: Bool,
 }
 
 public func printMetalDevices() {
-    if let device = MTLCreateSystemDefaultDevice() {
-        printError("Found Metal Device: \(device.name)")
-    } else {
-        printError("No Metal Devices!")
-    }
+    let device = MTLCreateSystemDefaultDevice()!
+    printError("Found Metal Device: \(device.name)")
 }
