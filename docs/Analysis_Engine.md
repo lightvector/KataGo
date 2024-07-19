@@ -105,9 +105,11 @@ Explanation of fields (including some optional fields not present in the above q
         * `wideRootNoise (float)`. See documentation for this parameter in [the example config](../cpp/configs/analysis_example.cfg)
         * `ignorePreRootHistory (boolean)`. Whether to ignore pre-root history during analysis.
         * `antiMirror (boolean)`. Whether to enable anti-mirror play during analysis. Off by default. Will probably result in biased and nonsensical winrates and other analysis values, but moves may detect and crudely respond to mirror play.
+        * `rootNumSymmetriesToSample (int from 1 to 8)`. How many of the 8 possible random symmetries to evaluate the neural net with and average. Defaults to 1, but if you set this to 2, or 8 you might get a slightly higher-quality policy at the root due to noise reduction.
         * `humanSLProfile (string)`. Set the human-like play that KataGo should imitate. Requires that a human SL model like `b18c384nbt-humanv0.bin.gz` is being used, typically via the command line parameter `-human-model`. Available profiles include:
            * `preaz_20k` through `preaz_9d`: Imitate human players of the given rank. (based on 2016 pre-AlphaZero opening style).
            * `rank_20k` through `rank_9d`: Imitate human players of the given rank (modern opening style).
+           * `preaz_{BR}_{WR}` or `rank_{BR}_{WR}`: Same, but predict how black with the rank BR and white with the rank WR would play against each other, *knowing* that the other player is stronger/weaker than them. Warning: for rank differences > 9 ranks, or drastically mis-matched to the handicap used in the game, this may be out of distribution due to lack of training data and the model might not behave well! Experiment with care.
            * `proyear_1800` through `proyear_2023`: Imitate pro and strong insei moves based on historical game records from the specified year and surrounding years.
            * See also section below, "Human SL Analysis Guide" for various other parameters that are interesting to set in conjunction with this.
    * `reportDuringSearchEvery (float)`: Optional. Specify a number of seconds such that while this position is being searched, KataGo will report the partial analysis every that many seconds.
@@ -452,23 +454,27 @@ This guide is also applicable for GTP users, for configuring play and GTP-based 
 For simply imitating how a player of a given rank would play, the recommended way is:
 
 * Set `humanSLProfile` appropriately.
+* Set `ignorePreRootHistory` to `false` (normally analysis ignores history to be unbiased by move order, but humans definitely behave differently based on recent moves!).
 * Send a query with any number of visits (even 1 visit) with `"includePolicy":true` specified on the outer json query object.
 * Read `humanPolicy` from the result and pick a random move according to the policy probabilities.
 
 Note that since old historical human games from training might vary in whether they record passes at all, it's possible the human SL net could have trouble passing appropriately in some board positions for some humanSLProfiles. For some weaker ranks, it's possible the human SL net may pass too early and leave positions unfinished in an undesirable way. If so, then the following should work well:
 
 * Set `humanSLProfile` appropriately.
+* Set `ignorePreRootHistory` to `false`.
 * Send a query with at least a few visits so KataGo can search the position itself (e.g. > 50 visits), still with `"includePolicy":true`.
 * If the top moveInfo from the result (the moveInfo with `"order":0`) is a pass, then pass.
 * Otherwise, read `humanPolicy` and pick a random move proportional to the policy probabilities, except excluding passing.
 
 (Note: For GTP users, [gtp_human5k_example.cfg](../cpp/configs/gtp_human5k_example.cfg) already does human imitation play by default, with some GTP-specific hacks and parameters to get KataGo's move selection to use the human SL model in the above kind of way. See documentation in that config.)
 
+Optionally, also you can set `rootNumSymmetriesToSample` to `2`, or to `8` instead of the default `1`. This will slightly add latency but improve the quality of the human policy by averaging more symmetries, which might be good when relying so heavily on the raw human policy without any search.
+
 #### Ensuring all likely human moves are analyzed
 
 For analysis and game review, if you want to ensure all moves with high human policy get plenty of visits, you can try settings like the following:
 
-* Set `humanSLProfile` appropriately.
+* Set `humanSLProfile` and `ignorePreRootHistory` and `rootNumSymmetriesToSample` as desired.
 * Set `humanSLRootExploreProbWeightless` to `0.5` (spend about 50% of playouts to explore human moves, in a weightless way that doesn't bias KataGo's evaluations).
 * Set `humanSLCpuctPermanent` to `2.0` or similar (when exploring human moves, ensure high-human-policy moves get many visits even if they lose a lot). Set it to something lower if you want to reduce visits for moves that are judged to be very bad.
 * Make sure to use plenty of visits overall.
@@ -498,7 +504,7 @@ If you want to obtain human *style* moves, but playing stronger than a given hum
 
 Not many people have experimented with this yet, but in theory this could have very interesting effects! This will influence the winrates and scores that KataGo assigns to various moves to be much closer to the winrates and scores it would anticipate for various variations if they were played out the way it thinks human players of the configured profile might play them out, but still judging the endpoints of those variations using KataGo's own judgments.
 
-* Set `humanSLProfile` appropriately.
+* Set `humanSLProfile` and `ignorePreRootHistory` and `rootNumSymmetriesToSample` as desired.
 * Set `humanSLPlaExploreProbWeightful` and `humanSLOppExploreProbWeightful` to `0.9` (spend about 90% of visits at every node using the human policy, in a weightful way that does bias KataGo's evaluations).
 * Set `humanSLRootExploreProbWeightful` to `0.5` (at the root use about 50% of playouts to explore human moves, and the other 50% use KataGo's normal policy).
 * Set `humanSLCpuctPermanent` to `1.0` or as otherwise desired (when using the human policy, attenuate the policy from too many visits to things that are on the order of 1.0 utility, or 50% winrate worse).
@@ -508,7 +514,8 @@ Not many people have experimented with this yet, but in theory this could have v
 
 This kind of setting could be interesting for handicap games or trying to elicit trick plays and other kinds of opponent-aware tactics. Of course, experimentation and tuning may be needed for it to work well, and it might not work well, or might work "too" well and backfire.
 
-* Set `humanSLProfile` appropriately.
+* Set `humanSLProfile` and `ignorePreRootHistory` and `rootNumSymmetriesToSample` as desired.
+   * This is also proably a really interesting place to experiment with the various `preaz_{BR}_{WR}` or `rank_{BR}_{WR}` settings with asymmetric ranks.
 * Set `humanSLOppExploreProbWeightful` to `0.8` (spend about 80% of visits at every node using the human policy, in a weightful way that does bias KataGo's values, but only for the opponent!).
 * Set `humanSLCpuctPermanent` to `0.5` or as desired (when using the human policy, do attenuate the policy from putting *too* many visits to things that are on the order of 0.5 utility, or 25% winrate worse).
 * Set `playoutDoublingAdvantage` also as desired or as typical for handicap games.

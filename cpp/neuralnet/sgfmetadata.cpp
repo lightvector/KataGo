@@ -210,12 +210,12 @@ void SGFMetadata::fillMetadataRow(const SGFMetadata* sgfMeta, float* rowMetadata
   static_assert(151 + 16 < SGFMetadata::METADATA_INPUT_NUM_CHANNELS, "");
 }
 
-static SGFMetadata makeBasicRankProfile(int inverseRank, bool preAZ) {
+static SGFMetadata makeBasicRankProfile(int inverseRankBlack, int inverseRankWhite, bool preAZ) {
   // KGS rating system is pretty reasonable, so let's use KGS as the source.
   SGFMetadata ret;
   ret.initialized = true;
-  ret.inverseBRank = inverseRank;
-  ret.inverseWRank = inverseRank;
+  ret.inverseBRank = inverseRankBlack;
+  ret.inverseWRank = inverseRankWhite;
   ret.bIsHuman = true;
   ret.wIsHuman = true;
   ret.gameRatednessIsUnknown = true;
@@ -273,45 +273,62 @@ SGFMetadata SGFMetadata::getProfile(const string& humanSLProfileName) {
     }
   }
   if(Global::isPrefix(humanSLProfileName,"rank_") || Global::isPrefix(humanSLProfileName,"preaz_")) {
-    string rankStr;
+    string ranksStr;
     bool preAZ;
     if(Global::isPrefix(humanSLProfileName,"rank_")) {
-      rankStr = Global::chopPrefix(humanSLProfileName,"rank_");
+      ranksStr = Global::chopPrefix(humanSLProfileName,"rank_");
       preAZ = false;
     }
     else {
-      rankStr = Global::chopPrefix(humanSLProfileName,"preaz_");
+      ranksStr = Global::chopPrefix(humanSLProfileName,"preaz_");
       preAZ = true;
     }
-    if(rankStr == "9d") return makeBasicRankProfile(1,preAZ);
-    if(rankStr == "8d") return makeBasicRankProfile(2,preAZ);
-    if(rankStr == "7d") return makeBasicRankProfile(3,preAZ);
-    if(rankStr == "6d") return makeBasicRankProfile(4,preAZ);
-    if(rankStr == "5d") return makeBasicRankProfile(5,preAZ);
-    if(rankStr == "4d") return makeBasicRankProfile(6,preAZ);
-    if(rankStr == "3d") return makeBasicRankProfile(7,preAZ);
-    if(rankStr == "2d") return makeBasicRankProfile(8,preAZ);
-    if(rankStr == "1d") return makeBasicRankProfile(9,preAZ);
-    if(rankStr == "1k") return makeBasicRankProfile(10,preAZ);
-    if(rankStr == "2k") return makeBasicRankProfile(11,preAZ);
-    if(rankStr == "3k") return makeBasicRankProfile(12,preAZ);
-    if(rankStr == "4k") return makeBasicRankProfile(13,preAZ);
-    if(rankStr == "5k") return makeBasicRankProfile(14,preAZ);
-    if(rankStr == "6k") return makeBasicRankProfile(15,preAZ);
-    if(rankStr == "7k") return makeBasicRankProfile(16,preAZ);
-    if(rankStr == "8k") return makeBasicRankProfile(17,preAZ);
-    if(rankStr == "9k") return makeBasicRankProfile(18,preAZ);
-    if(rankStr == "10k") return makeBasicRankProfile(19,preAZ);
-    if(rankStr == "11k") return makeBasicRankProfile(20,preAZ);
-    if(rankStr == "12k") return makeBasicRankProfile(21,preAZ);
-    if(rankStr == "13k") return makeBasicRankProfile(22,preAZ);
-    if(rankStr == "14k") return makeBasicRankProfile(23,preAZ);
-    if(rankStr == "15k") return makeBasicRankProfile(24,preAZ);
-    if(rankStr == "16k") return makeBasicRankProfile(25,preAZ);
-    if(rankStr == "17k") return makeBasicRankProfile(26,preAZ);
-    if(rankStr == "18k") return makeBasicRankProfile(27,preAZ);
-    if(rankStr == "19k") return makeBasicRankProfile(28,preAZ);
-    if(rankStr == "20k") return makeBasicRankProfile(29,preAZ);
+
+    auto getInverseRank = [](const string& rankStr) {
+      if(rankStr == "9d") return 1;
+      if(rankStr == "8d") return 2;
+      if(rankStr == "7d") return 3;
+      if(rankStr == "6d") return 4;
+      if(rankStr == "5d") return 5;
+      if(rankStr == "4d") return 6;
+      if(rankStr == "3d") return 7;
+      if(rankStr == "2d") return 8;
+      if(rankStr == "1d") return 9;
+      if(rankStr == "1k") return 10;
+      if(rankStr == "2k") return 11;
+      if(rankStr == "3k") return 12;
+      if(rankStr == "4k") return 13;
+      if(rankStr == "5k") return 14;
+      if(rankStr == "6k") return 15;
+      if(rankStr == "7k") return 16;
+      if(rankStr == "8k") return 17;
+      if(rankStr == "9k") return 18;
+      if(rankStr == "10k") return 19;
+      if(rankStr == "11k") return 20;
+      if(rankStr == "12k") return 21;
+      if(rankStr == "13k") return 22;
+      if(rankStr == "14k") return 23;
+      if(rankStr == "15k") return 24;
+      if(rankStr == "16k") return 25;
+      if(rankStr == "17k") return 26;
+      if(rankStr == "18k") return 27;
+      if(rankStr == "19k") return 28;
+      if(rankStr == "20k") return 29;
+      return -1;
+    };
+
+    int inverseRank = getInverseRank(ranksStr);
+    if(inverseRank != -1)
+      return makeBasicRankProfile(inverseRank,inverseRank,preAZ);
+
+    std::vector<std::string> pieces = Global::split(ranksStr,'_');
+    if(pieces.size() == 2) {
+      int inverseRankBlack = getInverseRank(pieces[0]);
+      int inverseRankWhite = getInverseRank(pieces[1]);
+      if(inverseRankBlack != -1 && inverseRankWhite != -1) {
+        return makeBasicRankProfile(inverseRankBlack,inverseRankWhite,preAZ);
+      }
+    }
   }
 
   throw StringError("Unknown human SL network profile: " + humanSLProfileName);
