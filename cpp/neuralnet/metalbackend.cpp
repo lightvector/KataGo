@@ -303,22 +303,18 @@ SWValueHeadDesc MetalProcess::valueHeadDescToSwift(const ValueHeadDesc * valueHe
   return swDesc;
 }
 
-int MetalProcess::createMetalComputeHandle(const ModelDesc* modelDesc,
-                                           int contextId) {
-
-  SWModelDesc swModelDesc = createSWModelDesc(modelDesc->modelVersion,
-                                              swift::String(modelDesc->name),
-                                              modelDesc->numInputChannels,
-                                              modelDesc->numInputGlobalChannels,
-                                              modelDesc->numInputMetaChannels,
-                                              modelDesc->numValueChannels,
-                                              modelDesc->numScoreValueChannels,
-                                              modelDesc->numOwnershipChannels,
-                                              trunkDescToSwift(&modelDesc->trunk),
-                                              policyHeadDescToSwift(&modelDesc->policyHead),
-                                              valueHeadDescToSwift(&modelDesc->valueHead));
-
-  return createMetalComputeHandle(swModelDesc, contextId);
+SWModelDesc MetalProcess::modelDescToSwift(const ModelDesc* modelDesc) {
+  return createSWModelDesc(modelDesc->modelVersion,
+                           swift::String(modelDesc->name),
+                           modelDesc->numInputChannels,
+                           modelDesc->numInputGlobalChannels,
+                           modelDesc->numInputMetaChannels,
+                           modelDesc->numValueChannels,
+                           modelDesc->numScoreValueChannels,
+                           modelDesc->numOwnershipChannels,
+                           trunkDescToSwift(&modelDesc->trunk),
+                           policyHeadDescToSwift(&modelDesc->policyHead),
+                           valueHeadDescToSwift(&modelDesc->valueHead));
 }
 
 //---------------------------------------------------------------------------------------------------------
@@ -438,7 +434,8 @@ ModelPostProcessParams NeuralNet::getPostProcessParams(const LoadedModel* loaded
 
 //------------------------------------------------------------------------------
 
-ComputeContext::ComputeContext(int nnX, int nnY, enabled_t useFP16Mode, enabled_t useNHWCMode, bool useCpuAndNeuralEngine) {
+ComputeContext::ComputeContext(int nnX, int nnY, enabled_t useFP16Mode, enabled_t useNHWCMode, bool useCpuAndNeuralEngine):
+metalComputeContext(createMetalComputeContext(nnX, nnY)) {
   this->useFP16Mode = useFP16Mode;
   this->useCpuAndNeuralEngine = useCpuAndNeuralEngine;
 
@@ -451,12 +448,9 @@ ComputeContext::ComputeContext(int nnX, int nnY, enabled_t useFP16Mode, enabled_
   (useNHWCMode == enabled_t::False) ? SWEnable::False() :
   (useNHWCMode == enabled_t::True) ? SWEnable::True() :
   SWEnable::Auto();
-
-  identifier = createMetalComputeContext(nnX, nnY);
 }
 
 ComputeContext::~ComputeContext() {
-  destroyMetalComputeContext(identifier);
 }
 
 /**
@@ -521,17 +515,25 @@ void NeuralNet::freeComputeContext(ComputeContext* computeContext) {
 
 //--------------------------------------------------------------
 
-ComputeHandle::ComputeHandle(
-  ComputeContext* context,
-  const LoadedModel* loadedModel,
-  bool inputsUseNHWC,
-  int gpuIdx,
-  int serverThreadIdx) {
+ComputeHandle::ComputeHandle(ComputeContext* context,
+                             const LoadedModel* loadedModel,
+                             bool inputsUseNHWC,
+                             int gpuIdx,
+                             int serverThreadIdx):
+metalhandle(maybeCreateMetalComputeHandle((gpuIdx < 100),
+                                          MetalProcess::modelDescToSwift(&loadedModel->modelDesc),
+                                          context->metalComputeContext)),
+coremlbackend(maybeCreateCoreMLBackend((gpuIdx >= 100),
+                                       modelXLen,
+                                       modelYLen,
+                                       (context->useFP16Mode != enabled_t::False),
+                                       loadedModel->modelDesc.metaEncoderVersion,
+                                       context->useCpuAndNeuralEngine)) {
   const ModelDesc* modelDesc = &loadedModel->modelDesc;
-  int coreMLStartIndex = 100;
+  auto metalContext = context->metalComputeContext;
 
-  nnXLen = getMetalContextXLen(context->identifier);
-  nnYLen = getMetalContextYLen(context->identifier);
+  nnXLen = metalContext.getNnXLen();
+  nnYLen = metalContext.getNnYLen();
   gpuIndex = gpuIdx;
   version = modelDesc->modelVersion;
   metaEncoderVersion = modelDesc->metaEncoderVersion;
@@ -540,19 +542,10 @@ ComputeHandle::ComputeHandle(
   /* Use FP16 mode if the model supports it and the user has not explicitly
    * disabled it. */
   useFP16 = (context->useFP16Mode != enabled_t::False);
-  useMetal = (gpuIdx < coreMLStartIndex);
 
-  if(useMetal) {
-    identifier = MetalProcess::createMetalComputeHandle(modelDesc, context->identifier);
-  } else {
-    // Create a Core ML backend
-    modelIndex = createCoreMLBackend(modelXLen,
-                                     modelYLen,
-                                     useFP16,
-                                     metaEncoderVersion,
-                                     context->useCpuAndNeuralEngine);
+  if(coremlbackend) {
     // Get the model version
-    modelVersion = getCoreMLBackendVersion(modelIndex);
+    modelVersion = coremlbackend.get().getVersion();
     // Due to a design limition, the versions of Metal and CoreML models must match
     assert(version == modelVersion);
   }
@@ -561,12 +554,6 @@ ComputeHandle::ComputeHandle(
 }
 
 ComputeHandle::~ComputeHandle() {
-  if(useMetal) {
-    destroyMetalComputeHandle(identifier);
-  } else {
-    // Free the CoreML backend
-    freeCoreMLBackend(modelIndex);
-  }
 }
 
 /**
@@ -934,16 +921,18 @@ void MetalProcess::getMetalOutput(
     MetalProcess::processRowData(row, gpuHandle, inputBuffers, inputBufs);
   }
 
-  getMetalHandleOutput(gpuHandle->identifier,
-                       inputBuffers->userInputBuffer,
-                       inputBuffers->userInputGlobalBuffer,
-                       inputBuffers->userInputMetaBuffer,
-                       inputBuffers->policyResults,
-                       inputBuffers->policyPassResults,
-                       inputBuffers->valueResults,
-                       inputBuffers->ownershipResults,
-                       inputBuffers->scoreValuesResults,
-                       batchSize);
+  auto metalHandle = gpuHandle->metalhandle;
+  assert(metalHandle);
+
+  metalHandle.get().apply(inputBuffers->userInputBuffer,
+                          inputBuffers->userInputGlobalBuffer,
+                          inputBuffers->userInputMetaBuffer,
+                          inputBuffers->policyResults,
+                          inputBuffers->policyPassResults,
+                          inputBuffers->valueResults,
+                          inputBuffers->scoreValuesResults,
+                          inputBuffers->ownershipResults,
+                          batchSize);
 
   for(size_t row = 0; row < batchSize; row++) {
     MetalProcess::processRow(row, gpuHandle, inputBuffers, inputBufs, outputs);
@@ -967,7 +956,7 @@ void NeuralNet::getOutput(
   NNResultBuf** inputBufs,
   vector<NNOutput*>& outputs) {
 
-  if (gpuHandle->useMetal) {
+  if (gpuHandle->metalhandle) {
     MetalProcess::getMetalOutput(gpuHandle, inputBuffers, numBatchEltsFilled, inputBufs, outputs);
   } else {
     CoreMLProcess::getCoreMLOutput(gpuHandle, inputBuffers, numBatchEltsFilled, inputBufs, outputs);

@@ -8,24 +8,7 @@
 import Foundation
 import CoreML
 
-class CoreMLBackend {
-    private static var backends: [Int32: CoreMLBackend] = [:]
-    private static var modelIndex: Int32 = -1
-
-    class func getNextModelIndex() -> Int32 {
-        objc_sync_enter(self)
-        defer { objc_sync_exit(self) }
-
-        // The next CoreMLBackend index is the current index + 1.
-        modelIndex = modelIndex + 1
-
-        // The CoreMLBackend index is returned.
-        return modelIndex;
-    }
-
-    class func getBackend(at index: Int32) -> CoreMLBackend? {
-        return backends[index]
-    }
+public class CoreMLBackend {
 
     class func getModelName(xLen: Int, yLen: Int, useFP16: Bool, metaEncoderVersion: Int) -> String {
         let precision = useFP16 ? 16 : 32
@@ -33,41 +16,10 @@ class CoreMLBackend {
         return "KataGoModel\(xLen)x\(yLen)fp\(precision)\(encoder)"
     }
 
-    class func createInstance(xLen: Int, yLen: Int, useFP16: Bool, metaEncoderVersion: Int, useCpuAndNeuralEngine: Bool) -> Int32 {
-        // The next ML model index is retrieved.
-        let modelIndex = getNextModelIndex()
-
-        objc_sync_enter(self)
-        defer { objc_sync_exit(self) }
-
-        // Get the model name.
-        let modelName = getModelName(xLen: xLen, yLen: yLen, useFP16: useFP16, metaEncoderVersion: metaEncoderVersion)
-
-        // Compile the model in Bundle.
-        let mlmodel = KataGoModel.compileBundleMLModel(modelName: modelName, useCpuAndNeuralEngine: useCpuAndNeuralEngine)
-
-        if let mlmodel {
-            // The CoreMLBackend object is created.
-            backends[modelIndex] = CoreMLBackend(model: mlmodel, xLen: xLen, yLen: yLen, metaEncoderVersion: metaEncoderVersion)
-        } else {
-            fatalError("Unable to compile bundle MLModel from model: \(modelName)")
-        }
-
-        // The ML model index is returned.
-        return modelIndex;
-    }
-
-    class func destroyInstance(index: Int32) {
-        objc_sync_enter(self)
-        defer { objc_sync_exit(self) }
-
-        backends[index] = nil
-    }
-
     let model: KataGoModel
     let xLen: Int
     let yLen: Int
-    let version: Int32
+    public let version: Int32
     let numSpatialFeatures: Int
     let numGlobalFeatures: Int
     let numMetaFeatures: Int
@@ -102,15 +54,15 @@ class CoreMLBackend {
         self.numMetaFeatures = 192
     }
 
-    func getBatchOutput(binInputs: UnsafeMutablePointer<Float32>,
-                        globalInputs: UnsafeMutablePointer<Float32>,
-                        metaInputs: UnsafeMutablePointer<Float32>,
-                        policyOutputs: UnsafeMutablePointer<Float32>,
-                        valueOutputs: UnsafeMutablePointer<Float32>,
-                        ownershipOutputs: UnsafeMutablePointer<Float32>,
-                        miscValuesOutputs: UnsafeMutablePointer<Float32>,
-                        moreMiscValuesOutputs: UnsafeMutablePointer<Float32>,
-                        batchSize: Int) {
+    public func getBatchOutput(binInputs: UnsafeMutablePointer<Float32>,
+                               globalInputs: UnsafeMutablePointer<Float32>,
+                               metaInputs: UnsafeMutablePointer<Float32>,
+                               policyOutputs: UnsafeMutablePointer<Float32>,
+                               valueOutputs: UnsafeMutablePointer<Float32>,
+                               ownershipOutputs: UnsafeMutablePointer<Float32>,
+                               miscValuesOutputs: UnsafeMutablePointer<Float32>,
+                               moreMiscValuesOutputs: UnsafeMutablePointer<Float32>,
+                               batchSize: Int) {
 
         autoreleasepool {
             do {
@@ -190,57 +142,26 @@ class CoreMLBackend {
     }
 }
 
-public func createCoreMLBackend(modelXLen: Int,
-                                modelYLen: Int,
-                                useFP16: Bool,
-                                metaEncoderVersion: Int,
-                                useCpuAndNeuralEngine: Bool) -> Int32 {
+public func maybeCreateCoreMLBackend(condition: Bool,
+                                     xLen: Int,
+                                     yLen: Int,
+                                     useFP16: Bool,
+                                     metaEncoderVersion: Int,
+                                     useCpuAndNeuralEngine: Bool) -> CoreMLBackend? {
+    guard condition else { return nil }
 
-    // Load the model.
-    let modelIndex = CoreMLBackend.createInstance(xLen: modelXLen,
-                                                  yLen: modelYLen,
-                                                  useFP16: useFP16,
-                                                  metaEncoderVersion: metaEncoderVersion,
-                                                  useCpuAndNeuralEngine: useCpuAndNeuralEngine)
+    // Get the model name.
+    let modelName = CoreMLBackend.getModelName(xLen: xLen, yLen: yLen, useFP16: useFP16, metaEncoderVersion: metaEncoderVersion)
 
-    printError("CoreML backend \(modelIndex): \(modelXLen)x\(modelYLen) useFP16 \(useFP16) metaEncoderVersion \(metaEncoderVersion)");
+    // Compile the model in Bundle.
+    let mlmodel = KataGoModel.compileBundleMLModel(modelName: modelName, useCpuAndNeuralEngine: useCpuAndNeuralEngine)
 
-    // Return the model index.
-    return modelIndex;
-}
+    if let mlmodel {
+        printError("CoreML backend: \(xLen)x\(yLen) useFP16 \(useFP16) metaEncoderVersion \(metaEncoderVersion)");
 
-public func freeCoreMLBackend(modelIndex: Int32) {
-    CoreMLBackend.destroyInstance(index: modelIndex)
-}
-
-public func getCoreMLBackendVersion(modelIndex: Int32) -> Int32 {
-    let backend = CoreMLBackend.getBackend(at: modelIndex)
-    let version = backend?.version ?? -1
-    return version
-}
-
-public func getCoreMLHandleBatchOutput(userInputBuffer: UnsafeMutablePointer<Float32>,
-                                       userInputGlobalBuffer: UnsafeMutablePointer<Float32>,
-                                       userInputMetaBuffer: UnsafeMutablePointer<Float32>,
-                                       policyOutputs: UnsafeMutablePointer<Float32>,
-                                       valueOutputs: UnsafeMutablePointer<Float32>,
-                                       ownershipOutputs: UnsafeMutablePointer<Float32>,
-                                       miscValuesOutputs: UnsafeMutablePointer<Float32>,
-                                       moreMiscValuesOutputs: UnsafeMutablePointer<Float32>,
-                                       modelIndex: Int32,
-                                       batchSize: Int) {
-
-    if let model = CoreMLBackend.getBackend(at: modelIndex) {
-        model.getBatchOutput(binInputs: userInputBuffer,
-                             globalInputs: userInputGlobalBuffer,
-                             metaInputs: userInputMetaBuffer,
-                             policyOutputs: policyOutputs,
-                             valueOutputs: valueOutputs,
-                             ownershipOutputs: ownershipOutputs,
-                             miscValuesOutputs: miscValuesOutputs,
-                             moreMiscValuesOutputs: moreMiscValuesOutputs,
-                             batchSize: batchSize)
+        // The CoreMLBackend object is created.
+        return CoreMLBackend(model: mlmodel, xLen: xLen, yLen: yLen, metaEncoderVersion: metaEncoderVersion)
     } else {
-        fatalError("Unable to get CoreML backend at model index: \(modelIndex)")
+        fatalError("Unable to compile bundle MLModel from model: \(modelName)")
     }
 }

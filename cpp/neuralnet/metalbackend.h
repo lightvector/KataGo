@@ -26,9 +26,7 @@ SWTrunkDesc trunkDescToSwift(const TrunkDesc * trunk);
 SWPolicyHeadDesc policyHeadDescToSwift(const PolicyHeadDesc * policyHead);
 SWMatBiasLayerDesc matBiasLayerDescToSwift(const MatBiasLayerDesc * desc);
 SWValueHeadDesc valueHeadDescToSwift(const ValueHeadDesc * valueHead);
-
-int createMetalComputeHandle(const ModelDesc* modelDesc,
-                             int contextId);
+SWModelDesc modelDescToSwift(const ModelDesc* modelDesc);
 
 bool testEvaluateConv(const ConvLayerDesc* desc,
                       int batchSize,
@@ -164,6 +162,11 @@ struct ComputeContext {
   int identifier;
 
   /**
+   * @brief Metal compute context instance
+   */
+  MetalComputeContext metalComputeContext;
+
+  /**
    * @brief Constructs a ComputeContext object.
    * This constructor creates a ComputeContext object and sets the configuration settings for neural network
    * computations, including whether to use FP16 mode and whether to use the NHWC format for input tensors.
@@ -242,11 +245,6 @@ struct ComputeHandle {
   bool useFP16;
 
   /**
-   * @brief Whether to use Metal for computations (as opposed to CoreML).
-   */
-  bool useMetal;
-
-  /**
    * @brief The x length of the CoreML model.
    */
   int modelXLen = COMPILE_MAX_BOARD_LEN;
@@ -265,6 +263,16 @@ struct ComputeHandle {
    * @brief The index of the CoreML model.
    */
   int modelIndex;
+
+  /**
+   * @brief The Metal handle instance.
+   */
+  swift::Optional<MetalComputeHandle> metalhandle;
+
+  /**
+   * @brief The CoreML backend instance.
+   */
+  swift::Optional<CoreMLBackend> coremlbackend;
 
   /**
    * @brief Construct a new ComputeHandle object.

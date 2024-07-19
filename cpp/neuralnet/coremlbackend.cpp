@@ -170,6 +170,7 @@ void CoreMLProcess::getCoreMLOutput(
   NNResultBuf** inputBufs,
   vector<NNOutput*>& outputs) {
   int batchSize = numBatchEltsFilled;
+  auto coremlbackend = gpuHandle->coremlbackend;
   int nnXLen = gpuHandle->nnXLen;
   int nnYLen = gpuHandle->nnYLen;
   int modelXLen = gpuHandle->modelXLen;
@@ -184,9 +185,10 @@ void CoreMLProcess::getCoreMLOutput(
 
   assert(batchSize <= inputBuffers->maxBatchSize);
   assert(batchSize > 0);
+  assert(coremlbackend);
   assert((numSpatialFeatures * modelXLen * modelYLen) == inputBuffers->singleInputElts);
   assert(numGlobalFeatures == inputBuffers->singleInputGlobalElts);
-  assert(version == getCoreMLBackendVersion(gpuHandle->modelIndex));
+  assert(version == coremlbackend.get().getVersion());
   assert(singleInputElts == (modelXLen * modelYLen * 22));
   assert(singleInputGlobalElts == 19);
   assert(inputBuffers->singleModelPolicyResultElts == ((modelXLen * modelYLen) + 1));
@@ -229,16 +231,15 @@ void CoreMLProcess::getCoreMLOutput(
     }
   }
 
-  getCoreMLHandleBatchOutput(inputBuffers->userInputBuffer,
-                             inputBuffers->userInputGlobalBuffer,
-                             inputBuffers->userInputMetaBuffer,
-                             inputBuffers->policyResults,
-                             inputBuffers->valueResults,
-                             inputBuffers->ownershipResults,
-                             inputBuffers->scoreValuesResults,
-                             inputBuffers->moreMiscValuesResults,
-                             gpuHandle->modelIndex,
-                             batchSize);
+  coremlbackend.get().getBatchOutput(inputBuffers->userInputBuffer,
+                                     inputBuffers->userInputGlobalBuffer,
+                                     inputBuffers->userInputMetaBuffer,
+                                     inputBuffers->policyResults,
+                                     inputBuffers->valueResults,
+                                     inputBuffers->ownershipResults,
+                                     inputBuffers->scoreValuesResults,
+                                     inputBuffers->moreMiscValuesResults,
+                                     batchSize);
 
   // Fill results by CoreML model output
   for(size_t row = 0; row < batchSize; row++) {
