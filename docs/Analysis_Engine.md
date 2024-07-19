@@ -449,7 +449,7 @@ Except for parameters explicitly documented earlier as belonging on the outer js
 "overrideSettings":{"humanSLProfile":"rank_3d","ignorePreRootHistory":false,"humanSLRootExploreProbWeightless":0.5,"humanSLCpuctPermanent":2.0}
 ```
 
-Do NOT set such parmeters as a key of the outer json query object, as that will have no effect. KataGo should issue a warning if you accidentally do. If desired, you can also hardcode parameters within the analysis config file, e.g. `humanSLProfile = rank_3d`.
+Do NOT set such parameters as a key of the outer json query object, as that will have no effect. KataGo should issue a warning if you accidentally do. If desired, you can also hardcode parameters within the analysis config file, e.g. `humanSLProfile = rank_3d`.
 
 This guide is also applicable for GTP users, for configuring play and GTP-based analysis (e.g. kata-analyze). For GTP, set parameters within the GTP config file, and optionally change then dynamically via `kata-set-param` ([GTP Extensions](./GTP_Extensions.md)).
 
