@@ -500,7 +500,7 @@ int MainCmds::analysis(const vector<string>& args) {
           input["git_hash"] = Version::getGitRevision();
           pushToWrite(new string(input.dump()));
         }
-        if(action == "query_models") {
+        else if(action == "query_models") {
           input["models"] = json::array();
           if(nnEval != NULL) {
             json modelInfo;
@@ -594,7 +594,7 @@ int MainCmds::analysis(const vector<string>& args) {
           pushToWrite(new string(input.dump()));
         }
         else {
-          reportError("'action' field must be 'query_version' or 'terminate' or 'terminate_all'");
+          reportError("'action' field must be 'query_version' or 'query_models' or 'clear_cache' or 'terminate' or 'terminate_all'");
         }
 
         continue;
