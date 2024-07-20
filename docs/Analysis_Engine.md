@@ -429,7 +429,7 @@ There are two ways to pass in the human SL model.
 
 * An alternative way: pass `-model b18c384nbt-humanv0.bin.gz` instead of KataGo's normal model, using the human model exclusively.
    * For example: `./katago analysis -config configs/analysis_example.cfg -model models/b18c384nbt-humanv0.bin.gz`.
-   * Additionally, provide `humanSLProfile` via `overrideSettings` on queries. See documentation above for `overrideSettings`.
+   * Additionally, provide `humanSLProfile` via `overrideSettings` on queries. See documentation above for `overrideSettings`. (In the case of GTP, set `humanSLProfile` in the GTP config, and update it at runtime via `kata-set-param` if you want to change it dynamically).
    * Then, KataGo will use the human model at the configured profile for all analysis, rather than its normal typically-superhuman analysis.
    * Note that if you are searching with many visits (or even just a few visits!), typically you can expect that KataGo will NOT match the strength of a player of the given humanSLProfile, but will still be stronger because the search will probably solve a lot of tactics that players of a weaker rank would not solve.
       * The human SL model is trained such that using only *one* visit, and full temperature (i.e. choosing random moves from the policy proportionally often, rather than always choosing the top move), will give the closest match to how players of the given rank might play. This should be true up to mid-high dan level, at which point the raw model might start to fall short and need more than 1 visit to keep up in strength.
