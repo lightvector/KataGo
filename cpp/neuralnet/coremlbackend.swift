@@ -8,6 +8,14 @@
 import Foundation
 import CoreML
 
+extension MLModel {
+    var version: Int32 {
+        let versionString = modelDescription.metadata[MLModelMetadataKey.versionString] as! String
+        let versionInt = Int32(versionString)!
+        return versionInt
+    }
+}
+
 public class CoreMLBackend {
 
     class func getModelName(xLen: Int, yLen: Int, useFP16: Bool, metaEncoderVersion: Int) -> String {
@@ -25,6 +33,10 @@ public class CoreMLBackend {
     let numMetaFeatures: Int
     let metaEncoderVersion: Int
 
+    var spatialSize: Int {
+        numSpatialFeatures * yLen * xLen
+    }
+
     init(model: MLModel, xLen: Int, yLen: Int, metaEncoderVersion: Int) {
         self.model = KataGoModel(model: model)
         self.xLen = xLen
@@ -32,17 +44,8 @@ public class CoreMLBackend {
         self.metaEncoderVersion = metaEncoderVersion
 
         // The model version must be at least 8.
-        if let versionString = model.modelDescription.metadata[MLModelMetadataKey.versionString] as? String {
-            if let versionInt = Int32(versionString) {
-                self.version = versionInt
-            } else {
-                self.version = -1
-            }
-        } else {
-            self.version = -1
-        }
-
-        assert(self.version >= 8, "version must not be smaller than 8: \(self.version)")
+        self.version = model.version
+        assert(self.version >= 8)
 
         // The number of spatial features must be 22.
         self.numSpatialFeatures = 22
@@ -65,89 +68,84 @@ public class CoreMLBackend {
                                batchSize: Int) {
 
         autoreleasepool {
-            do {
-                let spatialStrides = [numSpatialFeatures * yLen * xLen,
-                                      yLen * xLen,
-                                      xLen,
-                                      1] as [NSNumber]
+            let spatialStrides = [numSpatialFeatures * yLen * xLen,
+                                  yLen * xLen,
+                                  xLen,
+                                  1] as [NSNumber]
 
-                let globalStrides = [numGlobalFeatures, 1] as [NSNumber]
-                let spatialSize = numSpatialFeatures * yLen * xLen
+            let globalStrides = [numGlobalFeatures, 1] as [NSNumber]
 
-                let inputArray = try (0..<batchSize).map { index -> KataGoModelInput in
-                    let binInputsArray = try MLMultiArray(
-                        dataPointer: binInputs.advanced(by: index * spatialSize),
-                        shape: [1, numSpatialFeatures, yLen, xLen] as [NSNumber],
+            let inputArray = (0..<batchSize).map { index -> KataGoModelInput in
+                let binInputsArray = try! MLMultiArray(
+                    dataPointer: binInputs.advanced(by: index * spatialSize),
+                    shape: [1, numSpatialFeatures, yLen, xLen] as [NSNumber],
+                    dataType: .float,
+                    strides: spatialStrides)
+
+                let globalInputsArray = try! MLMultiArray(
+                    dataPointer: globalInputs.advanced(by: index * numGlobalFeatures),
+                    shape: [1, numGlobalFeatures] as [NSNumber],
+                    dataType: .float,
+                    strides: globalStrides)
+
+                if metaEncoderVersion == 0 {
+                    return KataGoModelInput(input_spatial: binInputsArray, input_global: globalInputsArray)
+                } else {
+                    let metaStrides = [numMetaFeatures, 1] as [NSNumber]
+
+                    let metaInputsArray = try! MLMultiArray(
+                        dataPointer: metaInputs.advanced(by: index * numMetaFeatures),
+                        shape: [1, numMetaFeatures] as [NSNumber],
                         dataType: .float,
-                        strides: spatialStrides)
+                        strides: metaStrides)
 
-                    let globalInputsArray = try MLMultiArray(
-                        dataPointer: globalInputs.advanced(by: index * numGlobalFeatures),
-                        shape: [1, numGlobalFeatures] as [NSNumber],
-                        dataType: .float,
-                        strides: globalStrides)
+                    return KataGoModelInput(input_spatial: binInputsArray,
+                                            input_global: globalInputsArray,
+                                            input_meta: metaInputsArray)
+                }
+            }
 
-                    if metaEncoderVersion == 0 {
-                        return KataGoModelInput(input_spatial: binInputsArray, input_global: globalInputsArray)
-                    } else {
-                        let metaStrides = [numMetaFeatures, 1] as [NSNumber]
+            let inputBatch = KataGoModelInputBatch(inputArray: inputArray)
+            let options = MLPredictionOptions()
+            let outputBatch = try! model.prediction(from: inputBatch, options: options)
 
-                        let metaInputsArray = try MLMultiArray(
-                            dataPointer: metaInputs.advanced(by: index * numMetaFeatures),
-                            shape: [1, numMetaFeatures] as [NSNumber],
-                            dataType: .float,
-                            strides: metaStrides)
+            outputBatch.outputArray.enumerated().forEach { index, output in
+                let policyOutputBase = policyOutputs.advanced(by: index * output.output_policy.count)
+                let valueOutputBase = valueOutputs.advanced(by: index * output.out_value.count)
+                let ownershipOutputBase = ownershipOutputs.advanced(by: index * output.out_ownership.count)
+                let miscValuesOutputBase = miscValuesOutputs.advanced(by: index * output.out_miscvalue.count)
+                let moreMiscValuesOutputBase = moreMiscValuesOutputs.advanced(by: index * output.out_moremiscvalue.count)
 
-                        return KataGoModelInput(input_spatial: binInputsArray,
-                                                input_global: globalInputsArray,
-                                                input_meta: metaInputsArray)
-                    }
+                (0..<output.output_policy.count).forEach { i in
+                    policyOutputBase[i] = output.output_policy[i].floatValue
                 }
 
-                let inputBatch = KataGoModelInputBatch(inputArray: inputArray)
-                let options = MLPredictionOptions()
-                let outputBatch = try model.prediction(from: inputBatch, options: options)
-
-                outputBatch.outputArray.enumerated().forEach { index, output in
-                    let policyOutputBase = policyOutputs.advanced(by: index * output.output_policy.count)
-                    let valueOutputBase = valueOutputs.advanced(by: index * output.out_value.count)
-                    let ownershipOutputBase = ownershipOutputs.advanced(by: index * output.out_ownership.count)
-                    let miscValuesOutputBase = miscValuesOutputs.advanced(by: index * output.out_miscvalue.count)
-                    let moreMiscValuesOutputBase = moreMiscValuesOutputs.advanced(by: index * output.out_moremiscvalue.count)
-
-                    (0..<output.output_policy.count).forEach { i in
-                        policyOutputBase[i] = output.output_policy[i].floatValue
-                    }
-
-                    (0..<output.out_value.count).forEach { i in
-                        valueOutputBase[i] = output.out_value[i].floatValue
-                    }
-
-                    (0..<output.out_ownership.count).forEach { i in
-                        ownershipOutputBase[i] = output.out_ownership[i].floatValue
-                    }
-
-                    (0..<output.out_miscvalue.count).forEach { i in
-                        miscValuesOutputBase[i] = output.out_miscvalue[i].floatValue
-                    }
-
-                    (0..<output.out_moremiscvalue.count).forEach { i in
-                        moreMiscValuesOutputBase[i] = output.out_moremiscvalue[i].floatValue
-                    }
+                (0..<output.out_value.count).forEach { i in
+                    valueOutputBase[i] = output.out_value[i].floatValue
                 }
-            } catch {
-                printError("An error occurred: \(error)")
+
+                (0..<output.out_ownership.count).forEach { i in
+                    ownershipOutputBase[i] = output.out_ownership[i].floatValue
+                }
+
+                (0..<output.out_miscvalue.count).forEach { i in
+                    miscValuesOutputBase[i] = output.out_miscvalue[i].floatValue
+                }
+
+                (0..<output.out_moremiscvalue.count).forEach { i in
+                    moreMiscValuesOutputBase[i] = output.out_moremiscvalue[i].floatValue
+                }
             }
         }
     }
 }
 
-public func maybeCreateCoreMLBackend(condition: Bool,
-                                     xLen: Int,
-                                     yLen: Int,
-                                     useFP16: Bool,
-                                     metaEncoderVersion: Int,
-                                     useCpuAndNeuralEngine: Bool) -> CoreMLBackend? {
+public func maybeCreateCoreMLBackend(condition: Bool = true,
+                                     xLen: Int = 19,
+                                     yLen: Int = 19,
+                                     useFP16: Bool = false,
+                                     metaEncoderVersion: Int = 0,
+                                     useCpuAndNeuralEngine: Bool = true) -> CoreMLBackend? {
     guard condition else { return nil }
 
     // Get the model name.
@@ -162,6 +160,7 @@ public func maybeCreateCoreMLBackend(condition: Bool,
         // The CoreMLBackend object is created.
         return CoreMLBackend(model: mlmodel, xLen: xLen, yLen: yLen, metaEncoderVersion: metaEncoderVersion)
     } else {
-        fatalError("Unable to compile bundle MLModel from model: \(modelName)")
+        printError("Unable to compile bundle MLModel from model: \(modelName)")
+        return nil
     }
 }
