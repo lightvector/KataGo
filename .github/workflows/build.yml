@@ -52,6 +52,14 @@ jobs:
         unzip KataGoModel19x19fp32v14s7709731328.mlpackage.zip
         ln -s ../../../../../../models/KataGoModel19x19fp32v14s7709731328.mlpackage ../cpp/xcode/DerivedData/Build/Products/Debug/KataGoModel19x19fp32.mlpackage
 
+    - name: Setup CoreML model FP32 meta
+      run: |
+        mkdir -p models
+        cd models
+        wget https://github.com/ChinChangYang/KataGo/releases/download/v1.15.1-coreml1/KataGoModel19x19fp32meta1.mlpackage.zip
+        unzip KataGoModel19x19fp32meta1.mlpackage.zip
+        ln -s ../../../../../../models/KataGoModel19x19fp32meta1.mlpackage ../cpp/xcode/DerivedData/Build/Products/Debug/KataGoModel19x19fp32meta1.mlpackage
+
     - name: Setup test data
       run: |
         ln -s ../../../../../tests cpp/xcode/DerivedData/Build/Products/Debug/tests
