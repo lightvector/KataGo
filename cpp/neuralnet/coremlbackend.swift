@@ -18,7 +18,10 @@ extension MLModel {
 
 public class CoreMLBackend {
 
-    class func getModelName(xLen: Int, yLen: Int, useFP16: Bool, metaEncoderVersion: Int) -> String {
+    class func getModelName(xLen: Int = 19,
+                            yLen: Int = 19,
+                            useFP16: Bool = true,
+                            metaEncoderVersion: Int = 0) -> String {
         let precision = useFP16 ? 16 : 32
         let encoder = (metaEncoderVersion > 0) ? "meta\(metaEncoderVersion)" : ""
         return "KataGoModel\(xLen)x\(yLen)fp\(precision)\(encoder)"
@@ -108,6 +111,8 @@ public class CoreMLBackend {
             let inputBatch = KataGoModelInputBatch(inputArray: inputArray)
             let options = MLPredictionOptions()
             let outputBatch = try! model.prediction(from: inputBatch, options: options)
+
+            assert(outputBatch.count == batchSize)
 
             outputBatch.outputArray.enumerated().forEach { index, output in
                 let policyOutputBase = policyOutputs.advanced(by: index * output.output_policy.count)

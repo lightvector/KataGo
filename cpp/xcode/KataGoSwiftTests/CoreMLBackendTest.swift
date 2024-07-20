@@ -17,7 +17,20 @@ final class CoreMLBackendTest: XCTestCase {
     }
 
     func testCoreMLBackendMeta() {
-        let backend = maybeCreateCoreMLBackend(metaEncoderVersion: 1)!
+        let backend = maybeCreateCoreMLBackend(metaEncoderVersion: 1,
+                                               useCpuAndNeuralEngine: false)!
+
+        checkBackendOutput(backend: backend)
+    }
+
+    func testCoreMLBackendMetaNE() {
+        let backend = maybeCreateCoreMLBackend(metaEncoderVersion: 1,
+                                               useCpuAndNeuralEngine: true)!
+
+        checkBackendOutput(backend: backend)
+    }
+
+    func checkBackendOutput(backend: CoreMLBackend) {
         var binInputs = [Float32](repeating: 1, count: backend.spatialSize)
         var globalInputs = [Float32](repeating: 1, count: backend.numGlobalFeatures)
         var metaInputs = [Float32](repeating: 1, count: backend.numMetaFeatures)
@@ -44,16 +57,16 @@ final class CoreMLBackendTest: XCTestCase {
                                moreMiscValuesOutputs: &moreMiscValuesOutputs,
                                batchSize: batchSize)
 
-        XCTAssertEqual(policyOutputs[0], -14.865191, accuracy: 1e-8)
-        XCTAssertEqual(policyOutputs[policyOutputsSize - 1], -4.618183, accuracy: 1e-8)
-        XCTAssertEqual(valueOutputs[0], -2.6804342, accuracy: 1e-8)
-        XCTAssertEqual(valueOutputs[valueOutputsSize - 1], -10.766362, accuracy: 1e-8)
-        XCTAssertEqual(ownershipOutputs[0], -0.057577543, accuracy: 1e-8)
-        XCTAssertEqual(ownershipOutputs[ownershipOutputsSize - 1], -0.08216003, accuracy: 1e-8)
-        XCTAssertEqual(miscValuesOutputs[0], -15.050249, accuracy: 1e-8)
-        XCTAssertEqual(miscValuesOutputs[miscValuesOutputsSize - 1], -8.116829, accuracy: 1e-8)
-        XCTAssertEqual(moreMiscValuesOutputs[0], -4.3661594, accuracy: 1e-8)
-        XCTAssertEqual(moreMiscValuesOutputs[moreMiscValuesOutputsSize - 1], -20.357855, accuracy: 1e-8)
+        XCTAssertEqual(policyOutputs[0], -14.86533, accuracy: 1e-3)
+        XCTAssertEqual(policyOutputs[policyOutputsSize - 1], -4.618265, accuracy: 1e-3)
+        XCTAssertEqual(valueOutputs[0], -2.6803048, accuracy: 1e-3)
+        XCTAssertEqual(valueOutputs[valueOutputsSize - 1], -10.766384, accuracy: 1e-3)
+        XCTAssertEqual(ownershipOutputs[0], -0.05757516, accuracy: 1e-3)
+        XCTAssertEqual(ownershipOutputs[ownershipOutputsSize - 1], -0.08216501, accuracy: 1e-3)
+        XCTAssertEqual(miscValuesOutputs[0], -15.050129, accuracy: 1e-3)
+        XCTAssertEqual(miscValuesOutputs[miscValuesOutputsSize - 1], -8.116809, accuracy: 1e-3)
+        XCTAssertEqual(moreMiscValuesOutputs[0], -4.365787, accuracy: 1e-3)
+        XCTAssertEqual(moreMiscValuesOutputs[moreMiscValuesOutputsSize - 1], -20.357615, accuracy: 1e-3)
+
     }
 }
-

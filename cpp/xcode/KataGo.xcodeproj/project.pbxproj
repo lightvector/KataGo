@@ -254,6 +254,7 @@
 		E1605CE32BFAD70100A4B872 /* sgfmetadata.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E1605CE12BFAD6EB00A4B872 /* sgfmetadata.cpp */; };
 		E16BC82D2C4A8AEB00EA3A1E /* ModelTest.swift in Sources */ = {isa = PBXBuildFile; fileRef = E16BC82C2C4A8AEB00EA3A1E /* ModelTest.swift */; };
 		E16BC82F2C4B461500EA3A1E /* CoreMLBackendTest.swift in Sources */ = {isa = PBXBuildFile; fileRef = E16BC82E2C4B461500EA3A1E /* CoreMLBackendTest.swift */; };
+		E16BC8352C4B835F00EA3A1E /* CoreMLModelTest.swift in Sources */ = {isa = PBXBuildFile; fileRef = E16BC8342C4B835F00EA3A1E /* CoreMLModelTest.swift */; };
 		E17D098C294D45CF005968E9 /* gputest.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E17D098A294D45CF005968E9 /* gputest.cpp */; };
 		E18446502BFFF826004F5E3B /* misc.swift in Sources */ = {isa = PBXBuildFile; fileRef = E184464D2BFFF6A1004F5E3B /* misc.swift */; };
 		E18446512BFFF827004F5E3B /* misc.swift in Sources */ = {isa = PBXBuildFile; fileRef = E184464D2BFFF6A1004F5E3B /* misc.swift */; };
@@ -411,6 +412,7 @@
 		E1605CE12BFAD6EB00A4B872 /* sgfmetadata.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; name = sgfmetadata.cpp; path = neuralnet/sgfmetadata.cpp; sourceTree = SOURCE_ROOT; };
 		E16BC82C2C4A8AEB00EA3A1E /* ModelTest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModelTest.swift; sourceTree = "<group>"; };
 		E16BC82E2C4B461500EA3A1E /* CoreMLBackendTest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoreMLBackendTest.swift; sourceTree = "<group>"; };
+		E16BC8342C4B835F00EA3A1E /* CoreMLModelTest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoreMLModelTest.swift; sourceTree = "<group>"; };
 		E17D098A294D45CF005968E9 /* gputest.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = gputest.cpp; path = command/gputest.cpp; sourceTree = "<group>"; };
 		E184464D2BFFF6A1004F5E3B /* misc.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = misc.swift; path = neuralnet/misc.swift; sourceTree = "<group>"; };
 		E199A6F828E25E8100A2E051 /* metalbridge.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = metalbridge.h; path = neuralnet/metalbridge.h; sourceTree = "<group>"; };
@@ -544,6 +546,7 @@
 				E1DACF642B089B5500082FF7 /* KataGoSwiftTests.swift */,
 				E16BC82C2C4A8AEB00EA3A1E /* ModelTest.swift */,
 				E16BC82E2C4B461500EA3A1E /* CoreMLBackendTest.swift */,
+				E16BC8342C4B835F00EA3A1E /* CoreMLModelTest.swift */,
 			);
 			name = KataGoSwiftTests;
 			path = xcode/KataGoSwiftTests;
@@ -1097,6 +1100,7 @@
 				E18446512BFFF827004F5E3B /* misc.swift in Sources */,
 				E12EC21B2B10D61E0024E274 /* coremlbackend.swift in Sources */,
 				E12EC21D2B10D61E0024E274 /* metalbackend.swift in Sources */,
+				E16BC8352C4B835F00EA3A1E /* CoreMLModelTest.swift in Sources */,
 				E16BC82D2C4A8AEB00EA3A1E /* ModelTest.swift in Sources */,
 				E1DACF652B089B5500082FF7 /* KataGoSwiftTests.swift in Sources */,
 				E12EC21F2B10D61E0024E274 /* coremlmodel.swift in Sources */,
