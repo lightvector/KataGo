@@ -77,12 +77,6 @@ def main():
     # Print the model name
     print(f"Using model: {func.__class__.__name__}")
 
-    # Get the model version
-    version = model.config["version"]
-
-    # Print the model version
-    print(f"Model version: {version}")
-
     # Get the meta encoder version
     meta_encoder_version = (
         0
@@ -96,6 +90,15 @@ def main():
 
     # Print the meta encoder version
     print(f"Meta encoder version: {meta_encoder_version}")
+
+    # Get the model version
+    version = model.config["version"]
+
+    # Workaround for incorrect model version
+    version = max(version, 15) if meta_encoder_version > 0 else version
+
+    # Print the model version
+    print(f"Model version: {version}")
 
     with torch.no_grad():
         # Set the model to eval mode
