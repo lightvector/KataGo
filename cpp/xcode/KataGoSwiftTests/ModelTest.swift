@@ -391,25 +391,6 @@ final class ModelTest: XCTestCase {
                           nnXLen: 1,
                           nnYLen: 1)
 
-        var input = [Float32](repeating: 1, count: 1)
-        var inputGlobal = [Float32](repeating: 1, count: 1)
-        var inputMeta = [Float32](repeating: 0, count: 0)
-        var policyOutput = [Float32](repeating: 1, count: 1)
-        var policyPassOutput = [Float32](repeating: 1, count: 1)
-        var valueOutput = [Float32](repeating: 1, count: 1)
-        var scoreValueOutput = [Float32](repeating: 1, count: 1)
-        var ownershipOutput = [Float32](repeating: 1, count: 1)
-
-        model.apply(input: &input,
-                    inputGlobal: &inputGlobal,
-                    inputMeta: &inputMeta,
-                    policy: &policyOutput,
-                    policyPass: &policyPassOutput,
-                    value: &valueOutput,
-                    scoreValue: &scoreValueOutput,
-                    ownership: &ownershipOutput,
-                    batchSize: 1)
-
         return model
     }
 
@@ -424,25 +405,6 @@ final class ModelTest: XCTestCase {
                           nnXLen: 1,
                           nnYLen: 1)
 
-        var input = [Float32](repeating: 1, count: 1)
-        var inputGlobal = [Float32](repeating: 1, count: 1)
-        var inputMeta = [Float32](repeating: 0, count: 0)
-        var policyOutput = [Float32](repeating: 1, count: 1)
-        var policyPassOutput = [Float32](repeating: 1, count: 1)
-        var valueOutput = [Float32](repeating: 1, count: 1)
-        var scoreValueOutput = [Float32](repeating: 1, count: 1)
-        var ownershipOutput = [Float32](repeating: 1, count: 1)
-
-        model.apply(input: &input,
-                    inputGlobal: &inputGlobal,
-                    inputMeta: &inputMeta,
-                    policy: &policyOutput,
-                    policyPass: &policyPassOutput,
-                    value: &valueOutput,
-                    scoreValue: &scoreValueOutput,
-                    ownership: &ownershipOutput,
-                    batchSize: 1)
-
         return model
     }
 
@@ -450,7 +412,7 @@ final class ModelTest: XCTestCase {
         let model = createMiniModelV15Meta()
         var input = [Float32](repeating: 1, count: 1)
         var inputGlobal = [Float32](repeating: 1, count: 1)
-        var inputMeta = [Float32](repeating: 0, count: 0)
+        var inputMeta = [Float32](repeating: 1, count: 1)
         var policyOutput = [Float32](repeating: 1, count: 1)
         var policyPassOutput = [Float32](repeating: 1, count: 1)
         var valueOutput = [Float32](repeating: 1, count: 1)
@@ -467,11 +429,11 @@ final class ModelTest: XCTestCase {
                      ownership: &ownershipOutput,
                      batchSize: 1)
 
-        XCTAssertEqual(policyOutput[0], 101.68, accuracy: 1e-4)
-        XCTAssertEqual(policyPassOutput[0], 619.9198, accuracy: 1e-4)
-        XCTAssertEqual(valueOutput[0], 126.936, accuracy: 1e-4)
-        XCTAssertEqual(scoreValueOutput[0], 126.936, accuracy: 1e-4)
-        XCTAssertEqual(ownershipOutput[0], 32.8, accuracy: 1e-4)
+        XCTAssertEqual(policyOutput[0], 152.51999, accuracy: 1e-4)
+        XCTAssertEqual(policyPassOutput[0], 929.87976, accuracy: 1e-4)
+        XCTAssertEqual(valueOutput[0], 190.40402, accuracy: 1e-4)
+        XCTAssertEqual(scoreValueOutput[0], 190.40402, accuracy: 1e-4)
+        XCTAssertEqual(ownershipOutput[0], 49.199997, accuracy: 1e-4)
     }
 
     func testMiniModelV15() {
