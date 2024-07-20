@@ -6,6 +6,7 @@
 //
 
 #import <XCTest/XCTest.h>
+#import "../neuralnet/nninterface.h"
 #import "../main.h"
 
 @interface TestNN : XCTestCase
@@ -28,6 +29,18 @@
     MainCmds::runownershiptests(args);
     // Reuse the CoreML files
     MainCmds::runownershiptests(args);
+}
+
+- (void)testOwnershipV8 {
+    std::vector<std::string> args;
+    args.push_back("katago");
+    args.push_back("metal_gtp.cfg");
+    args.push_back("modelv8.bin.gz");
+    MainCmds::runownershiptests(args);
+}
+
+- (void)testPrintDevices {
+    NeuralNet::printDevices();
 }
 
 @end

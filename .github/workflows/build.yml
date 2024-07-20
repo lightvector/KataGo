@@ -20,6 +20,7 @@ jobs:
     - name: Setup configuration
       run: |
         ln -s ../../../../../configs/misc/coreml_example.cfg cpp/xcode/DerivedData/Build/Products/Debug/gtp.cfg
+        ln -s ../../../../../configs/misc/metal_gtp.cfg cpp/xcode/DerivedData/Build/Products/Debug/metal_gtp.cfg
 
     - name: Setup network
       run: |
@@ -27,6 +28,13 @@ jobs:
         cd models
         wget https://github.com/ChinChangYang/KataGo/releases/download/v1.13.2-coreml1/kata1-b18c384nbt-s7709731328-d3715293823.bin.gz
         ln -s ../../../../../../models/kata1-b18c384nbt-s7709731328-d3715293823.bin.gz ../cpp/xcode/DerivedData/Build/Products/Debug/model.bin.gz
+
+    - name: Setup network of version 8
+      run: |
+        mkdir -p models
+        cd models
+        wget https://github.com/lightvector/KataGo/releases/download/v1.4.5/g170-b40c256x2-s5095420928-d1229425124.bin.gz
+        ln -s ../../../../../../models/g170-b40c256x2-s5095420928-d1229425124.bin.gz ../cpp/xcode/DerivedData/Build/Products/Debug/modelv8.bin.gz
 
     - name: Setup CoreML model FP16
       run: |
