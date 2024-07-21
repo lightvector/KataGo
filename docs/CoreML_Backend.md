@@ -128,3 +128,65 @@ This adjustment in the command results in the creation of a distinct CoreML mode
 ### Reorganizing the Models
 
 Post-conversion, it is advisable to reorganize the models for optimal accessibility. While relocating the binary model to the run directory is optional, linking the CoreML model within this directory is essential for its effective utilization by the CoreML backend.
+
+# Human-trained Model
+
+KataGo's human-trained model was first introduced in the [KataGo v1.15.0 release](https://github.com/lightvector/KataGo/releases/tag/v1.15.0). To run this advanced model with the Metal and CoreML backends, follow these steps:
+
+## Download the Models
+
+- Download the human-trained binary model:
+
+```
+wget https://github.com/lightvector/KataGo/releases/download/v1.15.0/b18c384nbt-humanv0.bin.gz
+```
+
+- Download the human-trained CoreML model:
+
+```
+wget https://github.com/ChinChangYang/KataGo/releases/download/v1.15.1-coreml1/KataGoModel19x19fp16meta1.mlpackage.zip
+unzip KataGoModel19x19fp16meta1.mlpackage.zip
+```
+
+Place the models in the run directory where the katago executable is built.
+
+## Updating the Human-trained CoreML Model
+
+- Download the checkpoint file
+
+```
+wget https://github.com/lightvector/KataGo/releases/download/v1.15.0/b18c384nbt-humanv0.ckpt
+```
+
+- Convert the checkpoint file to a CoreML model:
+
+```
+python python/convert_coreml_pytorch.py -checkpoint b18c384nbt-humanv0.ckpt -use-swa
+```
+
+This will output the CoreML model directory KataGoModel19x19fp16meta1.mlpackage, tailored for the CoreML backend.
+
+## Configuring Multi-Threaded Metal and CoreML Execution
+
+To utilize the processing power of Metal and CoreML execution, you'll need to modify the gtp_human5k_coreml.cfg configuration file. Specifically, append the following lines at the end of the file:
+
+```
+# CoreML settings--------------------------------------
+numNNServerThreadsPerModel = 2
+coremlDeviceToUseThread0 = 0 # GPU
+coremlDeviceToUseThread1 = 100 # Neural Engine
+```
+
+These configuration settings instruct the KataGo to utilize two threads for executing neural networks, leveraging both the GPU and Neural Engine resources.
+
+## Running the Human-trained CoreML Model
+
+- Run the following command:
+
+```
+./katago gtp -model <model_name>.bin.gz -human-model b18c384nbt-humanv0.bin.gz -config ../configs/misc/gtp_human5k_coreml.cfg
+```
+
+Replace `<model_name>` with the actual model name, such as `kata1-b18c384nbt-s8341979392-d3881113763`.
+
+Note: Make sure that the human-trained CoreML model is in the same directory as the katago executable.
