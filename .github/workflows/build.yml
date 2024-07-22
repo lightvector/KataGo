@@ -116,6 +116,18 @@ jobs:
         cd cpp/build
         ./katago testgpuerror -config ../configs/gtp_example.cfg -model model.bin.gz -boardsize 9 -reference-file base.bin
 
+    - name: Setup human SL network
+      run: |
+        mkdir -p models
+        cd models
+        wget https://github.com/lightvector/KataGo/releases/download/v1.15.0/b18c384nbt-humanv0.bin.gz
+        ln -s ../../models/b18c384nbt-humanv0.bin.gz ../cpp/build/b18c384nbt-humanv0.bin.gz
+
+    - name: Run KataGo GPU error test of human SL network with Eigen backend
+      run: |
+        cd cpp/build
+        ./katago testgpuerror -config ../configs/misc/gtp_human5k_coreml.cfg -model b18c384nbt-humanv0.bin.gz -boardsize 9 -reference-file base-humanv0.bin
+
     - name: Build KataGo with CoreML backend
       run: |
         cd cpp
@@ -149,6 +161,27 @@ jobs:
       run: |
         cd cpp/build
         ./katago testgpuerror -config gtp.cfg -model model.bin.gz -boardsize 9 -reference-file base.bin
+
+    - name: Setup CoreML model FP16 of human SL network
+      run: |
+        mkdir -p models
+        cd models
+        wget https://github.com/ChinChangYang/KataGo/releases/download/v1.15.1-coreml1/KataGoModel19x19fp16meta1.mlpackage.zip
+        unzip KataGoModel19x19fp16meta1.mlpackage.zip
+        ln -s ../../models/KataGoModel19x19fp16meta1.mlpackage ../cpp/build/KataGoModel19x19fp16meta1.mlpackage
+  
+    - name: Setup CoreML model FP32 of human SL network
+      run: |
+        mkdir -p models
+        cd models
+        wget https://github.com/ChinChangYang/KataGo/releases/download/v1.15.1-coreml1/KataGoModel19x19fp32meta1.mlpackage.zip
+        unzip KataGoModel19x19fp32meta1.mlpackage.zip
+        ln -s ../../models/KataGoModel19x19fp32meta1.mlpackage ../cpp/build/KataGoModel19x19fp32meta1.mlpackage
+  
+    - name: Run KataGo GPU error test of human SL network with CoreML backend
+      run: |
+        cd cpp/build
+        ./katago testgpuerror -config ../configs/misc/gtp_human5k_coreml.cfg -model b18c384nbt-humanv0.bin.gz -boardsize 9 -reference-file base-humanv0.bin
 
     - name: Setup test data
       run: |
