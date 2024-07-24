@@ -495,12 +495,12 @@ If you've ensured that all likely human moves are analyzed, there might be some 
 
 #### How to get stronger human-style play
 
-If you want to obtain human *style* moves, but playing stronger than a given human level in strength (i.e. match just the style, but not necessarily the strength), you can try this:
+If you want to obtain human *style* moves, but play stronger than a given human level in strength (i.e. match just the style, but not necessarily the strength), or compensate for the gap in strength of the raw neural net at high-dan play, you can try this:
 
 * Ensure all human likely moves are analyzed, as described in an earlier section.
 * Choose a random move among all `moveInfos` with probability proportional to `humanPrior * exp(utility / 0.5)`. This will follow the humanPrior, but smoothly attenuate the probability of a move as it starts to lose more than 0.5 utility (about 25% winrate and/or some amount of score). Adjust the divisor 0.5 as desired.
 * Optionally, also set `staticScoreUtilityFactor` to `0.5`. (significantly increase how much score affects the utility, compared to just winrate).
-* A method like this, with adjusted numbers, might also be used to compensate for the gap that starts to open up in the human SL model no longer being able to match the strength of very top players at only 1 visit.
+* A method like this, with appropriate adjusted numbers, is a good way to compensate for the gap that starts to open up in the human SL model no longer being able to match the strength of very top players at only 1 visit, but experimentation may be needed to tune the numbers.
 
 (Note: For GTP users, the parameter `humanSLChosenMovePiklLambda` does precisely this exp-based probability scaling.)
 
