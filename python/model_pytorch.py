@@ -1106,7 +1106,7 @@ class NestedNestedBottleneckResBlock(torch.nn.Module):
 
 
 class PolicyHead(torch.nn.Module):
-    def __init__(self, c_in, c_p1, c_g1, config, activation, for_coreml: bool = False):
+    def __init__(self, c_in, c_p1, c_g1, config, activation):
         super(PolicyHead, self).__init__()
         self.config = config
         self.activation = activation
@@ -1148,7 +1148,6 @@ class PolicyHead(torch.nn.Module):
         )
         self.act2 = act(activation)
         self.conv2p = torch.nn.Conv2d(c_p1, self.num_policy_outputs, kernel_size=1, padding="same", bias=False)
-        self.for_coreml = for_coreml
 
     def initialize(self):
         # Scaling so that variance on the p and g branches adds up to 1.0
@@ -1211,15 +1210,6 @@ class PolicyHead(torch.nn.Module):
         outp = self.act2(outp)
         outp = self.conv2p(outp)
         outpolicy = outp
-
-        if self.for_coreml:
-            if self.num_policy_outputs == 4:
-                outpass = outpass[:, 0:1]
-                outpolicy = outpolicy[:, 0:1, :, :]
-            else:
-                outpass = outpass[:, [0,5]]
-                outpolicy = outpolicy[:, [0,5], :, :]
-
         # mask out parts outside the board by making them a huge neg number, so that they're 0 after softmax
         outpolicy = outpolicy - (1.0 - mask) * 5000.0
         # NC(HW) concat with NC1
@@ -1603,7 +1593,6 @@ class Model(torch.nn.Module):
             self.c_g1,
             self.config,
             self.activation,
-            self.for_coreml,
         )
         self.value_head = ValueHead(
             self.c_trunk,

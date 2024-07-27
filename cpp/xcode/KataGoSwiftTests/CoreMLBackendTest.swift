@@ -35,7 +35,7 @@ final class CoreMLBackendTest: XCTestCase {
         var globalInputs = [Float32](repeating: 1, count: backend.numGlobalFeatures)
         var metaInputs = [Float32](repeating: 1, count: backend.numMetaFeatures)
         // See the contents in Predictions tab of a mlpackage file
-        let policyOutputsSize = 1 * 2 * 362
+        let policyOutputsSize = 1 * 6 * 362
         let valueOutputsSize = 1 * 3
         let ownershipOutputsSize = 1 * 1 * 19 * 19
         let miscValuesOutputsSize = 1 * 10

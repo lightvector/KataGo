@@ -643,6 +643,7 @@ InputBuffers::InputBuffers(const LoadedModel* loadedModel, int maxBatchSz, int n
   maxBatchSize = maxBatchSz;
   policyResultChannels = m.policyHead.p2Conv.outChannels;
   assert((m.modelVersion >= 12) ? (policyResultChannels == 2) : (policyResultChannels == 1));
+  modelPolicyResultChannels = (m.modelVersion >= 12) ? 6 : 4;
   singleSpatialElts = (size_t)m.numInputChannels * nnXLen * nnYLen;
   singleInputElts = (size_t)m.numInputChannels * modelXLen * modelYLen;
   singleInputGlobalElts = (size_t)m.numInputGlobalChannels;
@@ -670,6 +671,7 @@ InputBuffers::InputBuffers(const LoadedModel* loadedModel, int maxBatchSz, int n
   policyResultBufferElts = (size_t)maxBatchSize * singleModelPolicyResultElts * policyResultChannels;
   policyPassResultBufferElts = (size_t)maxBatchSize * singlePolicyPassResultElts * policyResultChannels;
   policyProbsBufferElts = (size_t)maxBatchSize * singlePolicyProbsElts * policyResultChannels;
+  modelPolicyResultBufferElts = (size_t)maxBatchSize * singleModelPolicyResultElts * modelPolicyResultChannels;
   valueResultBufferElts = (size_t)maxBatchSize * singleValueResultElts;
   ownershipResultBufferElts = (size_t)maxBatchSize * singleModelOwnershipResultElts;
   ownerMapBufferElts = (size_t)maxBatchSz * singleOwnerMapElts;
@@ -686,6 +688,7 @@ InputBuffers::InputBuffers(const LoadedModel* loadedModel, int maxBatchSz, int n
   policyResults = new float[policyResultBufferElts];
   policyPassResults = new float[policyPassResultBufferElts];
   policyProbsBuffer = new float[policyProbsBufferElts];
+  modelPolicyResults = new float[modelPolicyResultBufferElts];
   valueResults = new float[valueResultBufferElts];
   ownershipResults = new float[ownershipResultBufferElts];
   ownerMapBuffer = new float[ownerMapBufferElts];

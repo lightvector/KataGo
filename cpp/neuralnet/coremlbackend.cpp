@@ -25,15 +25,16 @@ float CoreMLProcess::policyOptimismCalc(const double policyOptimism, const float
 }
 
 float CoreMLProcess::assignPolicyValue(
-  const size_t policyResultChannels,
+  const size_t modelPolicyResultChannels,
   const double policyOptimism,
   const float* targetBuffer,
   const size_t outputIdx,
   const size_t singleModelPolicyResultElts) {
-  return (policyResultChannels == 1)
+  const size_t pOptIndex = 5;
+  return (modelPolicyResultChannels == 1)
            ? targetBuffer[outputIdx]
            : policyOptimismCalc(
-               policyOptimism, targetBuffer[outputIdx], targetBuffer[outputIdx + singleModelPolicyResultElts]);
+               policyOptimism, targetBuffer[outputIdx], targetBuffer[outputIdx + (pOptIndex * singleModelPolicyResultElts)]);
 }
 
 void CoreMLProcess::processPolicy(
@@ -47,10 +48,10 @@ void CoreMLProcess::processPolicy(
   const int modelXLen = gpuHandle->modelXLen;
   auto& inputBuffersRef = *inputBuffers;
   const size_t targetBufferOffset =
-    calculateBufferOffset(row, inputBuffersRef.singleModelPolicyResultElts, inputBuffersRef.policyResultChannels);
+    calculateBufferOffset(row, inputBuffersRef.singleModelPolicyResultElts, inputBuffersRef.modelPolicyResultChannels);
   const size_t currentBufferOffset =
     calculateBufferOffset(row, inputBuffersRef.singlePolicyProbsElts, inputBuffersRef.policyResultChannels);
-  float* targetBuffer = &inputBuffersRef.policyResults[targetBufferOffset];
+  float* targetBuffer = &inputBuffersRef.modelPolicyResults[targetBufferOffset];
   float* currentBuffer = &inputBuffersRef.policyProbsBuffer[currentBufferOffset];
   const auto symmetry = inputBuf->symmetry;
   const auto policyOptimism = inputBuf->policyOptimism;
@@ -60,7 +61,7 @@ void CoreMLProcess::processPolicy(
     int probsIdx = calculateIndex(y, x, gpuHandleXLen);
 
     currentBuffer[probsIdx] = assignPolicyValue(
-      inputBuffersRef.policyResultChannels,
+      inputBuffersRef.modelPolicyResultChannels,
       policyOptimism,
       targetBuffer,
       outputIdx,
@@ -79,7 +80,7 @@ void CoreMLProcess::processPolicy(
   size_t endOfPolicyProbsIdx = inputBuffersRef.singlePolicyProbsElts - 1;
 
   currentOutput->policyProbs[endOfPolicyProbsIdx] = assignPolicyValue(
-    inputBuffersRef.policyResultChannels,
+    inputBuffersRef.modelPolicyResultChannels,
     policyOptimism,
     targetBuffer,
     endOfModelPolicyIdx,
@@ -233,7 +234,7 @@ void CoreMLProcess::getCoreMLOutput(
   coremlbackend.get().getBatchOutput(inputBuffers->userInputBuffer,
                                      inputBuffers->userInputGlobalBuffer,
                                      inputBuffers->userInputMetaBuffer,
-                                     inputBuffers->policyResults,
+                                     inputBuffers->modelPolicyResults,
                                      inputBuffers->valueResults,
                                      inputBuffers->ownershipResults,
                                      inputBuffers->scoreValuesResults,

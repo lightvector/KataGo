@@ -28,7 +28,7 @@ public class CoreMLBackend {
                             useFP16: Bool = true,
                             metaEncoderVersion: Int = 0) -> String {
         let precision = useFP16 ? 16 : 32
-        let encoder = (metaEncoderVersion > 0) ? "meta\(metaEncoderVersion)" : ""
+        let encoder = (metaEncoderVersion > 0) ? "m\(metaEncoderVersion)" : ""
         return "KataGoModel\(xLen)x\(yLen)fp\(precision)\(encoder)"
     }
 
