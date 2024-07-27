@@ -14,6 +14,11 @@ extension MLModel {
         let versionInt = Int32(versionString)!
         return versionInt
     }
+
+    var metaDescription: String {
+        let description = modelDescription.metadata[MLModelMetadataKey.description] as! String
+        return description
+    }
 }
 
 public class CoreMLBackend {
@@ -161,6 +166,7 @@ public func maybeCreateCoreMLBackend(condition: Bool = true,
 
     if let mlmodel {
         printError("CoreML backend: \(xLen)x\(yLen) useFP16 \(useFP16) metaEncoderVersion \(metaEncoderVersion)");
+        printError("CoreML backend: \(mlmodel.metaDescription)");
 
         // The CoreMLBackend object is created.
         return CoreMLBackend(model: mlmodel, xLen: xLen, yLen: yLen, metaEncoderVersion: metaEncoderVersion)

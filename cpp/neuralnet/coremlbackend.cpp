@@ -177,7 +177,6 @@ void CoreMLProcess::getCoreMLOutput(
   int modelYLen = gpuHandle->modelYLen;
   int version = gpuHandle->modelVersion;
   int numSpatialFeatures = NNModelVersion::getNumSpatialFeatures(version);
-  int numGlobalFeatures = NNModelVersion::getNumGlobalFeatures(version);
   size_t singleSpatialElts = inputBuffers->singleSpatialElts;
   size_t singleInputElts = inputBuffers->singleInputElts;
   size_t singleInputGlobalElts = inputBuffers->singleInputGlobalElts;
@@ -187,7 +186,7 @@ void CoreMLProcess::getCoreMLOutput(
   assert(batchSize > 0);
   assert(coremlbackend);
   assert((numSpatialFeatures * modelXLen * modelYLen) == inputBuffers->singleInputElts);
-  assert(numGlobalFeatures == inputBuffers->singleInputGlobalElts);
+  assert(NNModelVersion::getNumGlobalFeatures(version) == inputBuffers->singleInputGlobalElts);
   assert(version == coremlbackend.get().getVersion());
   assert(singleInputElts == (modelXLen * modelYLen * 22));
   assert(singleInputGlobalElts == 19);

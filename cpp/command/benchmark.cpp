@@ -316,13 +316,7 @@ static void warmStartNNEval(const CompactSgf* sgf, Logger& logger, const SearchP
 
 static NNEvaluator* createNNEval(int maxNumThreads, CompactSgf* sgf, const string& modelFile, Logger& logger, ConfigParser& cfg, const SearchParams& params) {
   int expectedConcurrentEvals = maxNumThreads;
-
-#ifdef USE_COREML_BACKEND
-  // Enhancing GPU Batch Distribution in Tree Search Algorithm #783 (https://github.com/lightvector/KataGo/issues/783)
-  const int defaultMaxBatchSize = std::max(4,((maxNumThreads+3)/4)*2);
-#else
   const int defaultMaxBatchSize = std::max(8,((maxNumThreads+3)/4)*4);
-#endif
 
   Rand seedRand;
 
