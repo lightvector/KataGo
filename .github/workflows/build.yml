@@ -40,25 +40,25 @@ jobs:
       run: |
         mkdir -p models
         cd models
-        wget https://github.com/ChinChangYang/KataGo/releases/download/v1.13.2-coreml1/KataGoModel19x19fp16v14s7709731328.mlpackage.zip
-        unzip KataGoModel19x19fp16v14s7709731328.mlpackage.zip
-        ln -s ../../../../../../models/KataGoModel19x19fp16v14s7709731328.mlpackage ../cpp/xcode/DerivedData/Build/Products/Debug/KataGoModel19x19fp16.mlpackage
+        wget https://github.com/ChinChangYang/KataGo/releases/download/v1.15.1-coreml2/KataGoModel19x19fp16v14s9996604416.mlpackage.zip
+        unzip KataGoModel19x19fp16v14s9996604416.mlpackage.zip
+        ln -s ../../../../../../models/KataGoModel19x19fp16v14s9996604416.mlpackage ../cpp/xcode/DerivedData/Build/Products/Debug/KataGoModel19x19fp16.mlpackage
 
     - name: Setup CoreML model FP32
       run: |
         mkdir -p models
         cd models
-        wget https://github.com/ChinChangYang/KataGo/releases/download/v1.13.2-coreml1/KataGoModel19x19fp32v14s7709731328.mlpackage.zip
-        unzip KataGoModel19x19fp32v14s7709731328.mlpackage.zip
-        ln -s ../../../../../../models/KataGoModel19x19fp32v14s7709731328.mlpackage ../cpp/xcode/DerivedData/Build/Products/Debug/KataGoModel19x19fp32.mlpackage
+        wget https://github.com/ChinChangYang/KataGo/releases/download/v1.15.1-coreml2/KataGoModel19x19fp32v14s9996604416.mlpackage.zip
+        unzip KataGoModel19x19fp32v14s9996604416.mlpackage.zip
+        ln -s ../../../../../../models/KataGoModel19x19fp32v14s9996604416.mlpackage ../cpp/xcode/DerivedData/Build/Products/Debug/KataGoModel19x19fp32.mlpackage
 
     - name: Setup CoreML model FP32 meta
       run: |
         mkdir -p models
         cd models
-        wget https://github.com/ChinChangYang/KataGo/releases/download/v1.15.1-coreml1/KataGoModel19x19fp32meta1.mlpackage.zip
-        unzip KataGoModel19x19fp32meta1.mlpackage.zip
-        ln -s ../../../../../../models/KataGoModel19x19fp32meta1.mlpackage ../cpp/xcode/DerivedData/Build/Products/Debug/KataGoModel19x19fp32meta1.mlpackage
+        wget https://github.com/ChinChangYang/KataGo/releases/download/v1.15.1-coreml2/KataGoModel19x19fp32v15m1humanv0.mlpackage.zip
+        unzip KataGoModel19x19fp32v15m1humanv0.mlpackage.zip
+        ln -s ../../../../../../models/KataGoModel19x19fp32v15m1humanv0.mlpackage ../cpp/xcode/DerivedData/Build/Products/Debug/KataGoModel19x19fp32m1.mlpackage
 
     - name: Setup test data
       run: |
@@ -145,17 +145,17 @@ jobs:
       run: |
         mkdir -p models
         cd models
-        wget https://github.com/ChinChangYang/KataGo/releases/download/v1.13.2-coreml1/KataGoModel19x19fp16v14s7709731328.mlpackage.zip
-        unzip KataGoModel19x19fp16v14s7709731328.mlpackage.zip
-        ln -s ../../models/KataGoModel19x19fp16v14s7709731328.mlpackage ../cpp/build/KataGoModel19x19fp16.mlpackage
+        wget https://github.com/ChinChangYang/KataGo/releases/download/v1.15.1-coreml2/KataGoModel19x19fp16v14s9996604416.mlpackage.zip
+        unzip KataGoModel19x19fp16v14s9996604416.mlpackage.zip
+        ln -s ../../models/KataGoModel19x19fp16v14s9996604416.mlpackage ../cpp/build/KataGoModel19x19fp16.mlpackage
 
     - name: Setup CoreML model FP32
       run: |
         mkdir -p models
         cd models
-        wget https://github.com/ChinChangYang/KataGo/releases/download/v1.13.2-coreml1/KataGoModel19x19fp32v14s7709731328.mlpackage.zip
-        unzip KataGoModel19x19fp32v14s7709731328.mlpackage.zip
-        ln -s ../../models/KataGoModel19x19fp32v14s7709731328.mlpackage ../cpp/build/KataGoModel19x19fp32.mlpackage
+        wget https://github.com/ChinChangYang/KataGo/releases/download/v1.15.1-coreml2/KataGoModel19x19fp32v14s9996604416.mlpackage.zip
+        unzip KataGoModel19x19fp32v14s9996604416.mlpackage.zip
+        ln -s ../../models/KataGoModel19x19fp32v14s9996604416.mlpackage ../cpp/build/KataGoModel19x19fp32.mlpackage
 
     - name: Run KataGo GPU error test with CoreML backend
       run: |
@@ -166,17 +166,17 @@ jobs:
       run: |
         mkdir -p models
         cd models
-        wget https://github.com/ChinChangYang/KataGo/releases/download/v1.15.1-coreml1/KataGoModel19x19fp16meta1.mlpackage.zip
-        unzip KataGoModel19x19fp16meta1.mlpackage.zip
-        ln -s ../../models/KataGoModel19x19fp16meta1.mlpackage ../cpp/build/KataGoModel19x19fp16meta1.mlpackage
+        wget https://github.com/ChinChangYang/KataGo/releases/download/v1.15.1-coreml2/KataGoModel19x19fp16v15m1humanv0.mlpackage.zip
+        unzip KataGoModel19x19fp16v15m1humanv0.mlpackage.zip
+        ln -s ../../models/KataGoModel19x19fp16v15m1humanv0.mlpackage ../cpp/build/KataGoModel19x19fp16m1.mlpackage
   
     - name: Setup CoreML model FP32 of human SL network
       run: |
         mkdir -p models
         cd models
-        wget https://github.com/ChinChangYang/KataGo/releases/download/v1.15.1-coreml1/KataGoModel19x19fp32meta1.mlpackage.zip
-        unzip KataGoModel19x19fp32meta1.mlpackage.zip
-        ln -s ../../models/KataGoModel19x19fp32meta1.mlpackage ../cpp/build/KataGoModel19x19fp32meta1.mlpackage
+        wget https://github.com/ChinChangYang/KataGo/releases/download/v1.15.1-coreml2/KataGoModel19x19fp32v15m1humanv0.mlpackage.zip
+        unzip KataGoModel19x19fp32v15m1humanv0.mlpackage.zip
+        ln -s ../../models/KataGoModel19x19fp32v15m1humanv0.mlpackage ../cpp/build/KataGoModel19x19fp32m1.mlpackage
   
     - name: Run KataGo GPU error test of human SL network with CoreML backend
       run: |
