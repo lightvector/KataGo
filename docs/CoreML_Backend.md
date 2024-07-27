@@ -37,15 +37,15 @@ Executing these commands compiles KataGo in the `cpp/build` directory.
 ## Download the KataGo model
 Acquire the KataGo model in binary format suitable for the Metal backend:
 ```
-wget https://github.com/ChinChangYang/KataGo/releases/download/v1.13.2-coreml2/kata1-b18c384nbt-s8341979392-d3881113763.bin.gz
-wget https://github.com/ChinChangYang/KataGo/releases/download/v1.13.2-coreml2/KataGoModel19x19fp16v14s8341979392.mlpackage.zip
-unzip KataGoModel19x19fp16v14s8341979392.mlpackage.zip
+wget https://github.com/ChinChangYang/KataGo/releases/download/v1.15.1-coreml2/kata1-b18c384nbt-s9996604416-d4316597426.bin.gz
+wget https://github.com/ChinChangYang/KataGo/releases/download/v1.15.1-coreml2/KataGoModel19x19fp16v14s9996604416.mlpackage.zip
+unzip KataGoModel19x19fp16v14s9996604416.mlpackage.zip
 ```
 
 ## Organizing Binary and CoreML Model
 Optionally, relocate the binary model to the run directory. However, it is essential to link the CoreML model in the run directory to ensure its accessibility by the CoreML backend:
 ```
-ln -s KataGoModel19x19fp16v14s8341979392.mlpackage KataGoModel19x19fp16.mlpackage
+ln -s KataGoModel19x19fp16v14s9996604416.mlpackage KataGoModel19x19fp16.mlpackage
 ```
 
 ## Utilization of KataGo
@@ -55,7 +55,7 @@ KataGo can be operated in several modes, thanks to its extensive command options
 
 To conduct a benchmark, use the `benchmark` command, specify the binary model location, and apply the `coreml_example.cfg` configuration:
 ```
-./katago benchmark -model kata1-b18c384nbt-s8341979392-d3881113763.bin.gz -config ../configs/misc/coreml_example.cfg -t 32 -v 1600
+./katago benchmark -model kata1-b18c384nbt-s9996604416-d4316597426.bin.gz -config ../configs/misc/coreml_example.cfg -t 16 -v 1600
 ```
 This command activates the benchmark mode utilizing both Metal and CoreML backends.
 
@@ -63,7 +63,7 @@ This command activates the benchmark mode utilizing both Metal and CoreML backen
 
 For running the GTP protocol, utilize the `gtp` command, specify the binary model location, and use the `coreml_example.cfg` configuration:
 ```
-./katago gtp -model kata1-b18c384nbt-s8341979392-d3881113763.bin.gz -config ../configs/misc/coreml_example.cfg
+./katago gtp -model kata1-b18c384nbt-s9996604416-d4316597426.bin.gz -config ../configs/misc/coreml_example.cfg
 ```
 This enables the GTP protocol leveraging Metal and CoreML backends.
 
@@ -71,7 +71,7 @@ This enables the GTP protocol leveraging Metal and CoreML backends.
 
 Activate the analysis engine with the `analysis` command, specify the binary model location, and use the `coreml_analysis.cfg` configuration:
 ```
-./katago analysis -model kata1-b18c384nbt-s8341979392-d3881113763.bin.gz -config ../configs/misc/coreml_analysis.cfg
+./katago analysis -model kata1-b18c384nbt-s9996604416-d4316597426.bin.gz -config ../configs/misc/coreml_analysis.cfg
 ```
 This initiates the analysis mode, taking advantage of both Metal and CoreML backends.
 
@@ -144,27 +144,17 @@ wget https://github.com/lightvector/KataGo/releases/download/v1.15.0/b18c384nbt-
 - Download the human-trained CoreML model:
 
 ```
-wget https://github.com/ChinChangYang/KataGo/releases/download/v1.15.1-coreml1/KataGoModel19x19fp16meta1.mlpackage.zip
-unzip KataGoModel19x19fp16meta1.mlpackage.zip
+wget https://github.com/ChinChangYang/KataGo/releases/download/v1.15.1-coreml2/KataGoModel19x19fp16v15m1humanv0.mlpackage.zip
+unzip KataGoModel19x19fp16v15m1humanv0.mlpackage.zip
+```
+
+It is essential to link the human-trained CoreML model in the run directory to ensure its accessibility by the CoreML backend:
+
+```
+ln -s KataGoModel19x19fp16v15m1humanv0.mlpackage KataGoModel19x19fp16m1.mlpackage
 ```
 
 Place the models in the run directory where the katago executable is built.
-
-## Updating the Human-trained CoreML Model
-
-- Download the checkpoint file
-
-```
-wget https://github.com/lightvector/KataGo/releases/download/v1.15.0/b18c384nbt-humanv0.ckpt
-```
-
-- Convert the checkpoint file to a CoreML model:
-
-```
-python python/convert_coreml_pytorch.py -checkpoint b18c384nbt-humanv0.ckpt -use-swa
-```
-
-This will output the CoreML model directory KataGoModel19x19fp16meta1.mlpackage, tailored for the CoreML backend.
 
 ## Configuring Multi-Threaded Metal and CoreML Execution
 
@@ -184,9 +174,23 @@ These configuration settings instruct the KataGo to utilize two threads for exec
 - Run the following command:
 
 ```
-./katago gtp -model <model_name>.bin.gz -human-model b18c384nbt-humanv0.bin.gz -config ../configs/misc/gtp_human5k_coreml.cfg
+./katago gtp -model kata1-b18c384nbt-s9996604416-d4316597426.bin.gz -human-model b18c384nbt-humanv0.bin.gz -config ../configs/misc/gtp_human5k_coreml.cfg
 ```
 
-Replace `<model_name>` with the actual model name, such as `kata1-b18c384nbt-s8341979392-d3881113763`.
-
 Note: Make sure that the human-trained CoreML model is in the same directory as the katago executable.
+
+## Updating the Human-trained CoreML Model
+
+- Download the checkpoint file
+
+```
+wget https://github.com/lightvector/KataGo/releases/download/v1.15.0/b18c384nbt-humanv0.ckpt
+```
+
+- Convert the checkpoint file to a CoreML model:
+
+```
+python python/convert_coreml_pytorch.py -checkpoint b18c384nbt-humanv0.ckpt -use-swa
+```
+
+This will output the CoreML model directory KataGoModel19x19fp16m1.mlpackage, tailored for the CoreML backend.
