@@ -544,6 +544,14 @@ double Search::interpolateEarly(double halflife, double earlyValue, double value
   return value + (earlyValue - value) * pow(0.5, halflives);
 }
 
+void Search::getSelfUtilityLCBAndRadiusZeroVisits(double& lcbBuf, double& radiusBuf) const {
+  // Max radius of the entire utility range
+  double utilityRangeRadius = searchParams.winLossUtilityFactor + searchParams.staticScoreUtilityFactor + searchParams.dynamicScoreUtilityFactor;
+  radiusBuf = 2.0 * utilityRangeRadius * searchParams.lcbStdevs;
+  lcbBuf = -radiusBuf;
+  return;
+}
+
 void Search::getSelfUtilityLCBAndRadius(const SearchNode& parent, const SearchNode* child, int64_t edgeVisits, Loc moveLoc, double& lcbBuf, double& radiusBuf) const {
   int64_t childVisits = child->stats.visits.load(std::memory_order_acquire);
   double scoreMeanAvg = child->stats.scoreMeanAvg.load(std::memory_order_acquire);

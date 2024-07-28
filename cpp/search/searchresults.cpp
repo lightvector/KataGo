@@ -999,10 +999,22 @@ void Search::getAnalysisData(
       return;
     assert(numChildren <= NNPos::MAX_NN_POLICY_SIZE);
 
-    bool alwaysComputeLcb = true;
-    bool success = getPlaySelectionValues(node, scratchLocs, scratchValues, NULL, 1.0, false, alwaysComputeLcb, false, lcbBuf, radiusBuf);
-    if(!success)
-      return;
+    const bool alwaysComputeLcb = true;
+    bool gotPlaySelectionValues = getPlaySelectionValues(node, scratchLocs, scratchValues, NULL, 1.0, false, alwaysComputeLcb, false, lcbBuf, radiusBuf);
+
+    // No play selection values - then fill with values consistent with all 0 visits.
+    // We want it to be possible to get analysis data even when all visits are weightless.
+    if(!gotPlaySelectionValues) {
+      for(int i = 0; i<numChildren; i++) {
+        scratchLocs.push_back(childrenMoveLocs[i]);
+        scratchValues.push_back(0.0);
+      }
+      double lcbBufValue;
+      double radiusBufValue;
+      getSelfUtilityLCBAndRadiusZeroVisits(lcbBufValue,radiusBufValue);
+      std::fill(lcbBuf,lcbBuf+numChildren,lcbBufValue);
+      std::fill(radiusBuf,radiusBuf+numChildren,radiusBufValue);
+    }
 
     const NNOutput* nnOutput = node.getNNOutput();
     const float* policyProbsFromNN = nnOutput->getPolicyProbsMaybeNoised();

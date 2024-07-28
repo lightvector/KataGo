@@ -449,6 +449,7 @@ private:
 
   // LCB helpers
   void getSelfUtilityLCBAndRadius(const SearchNode& parent, const SearchNode* child, int64_t edgeVisits, Loc moveLoc, double& lcbBuf, double& radiusBuf) const;
+  void getSelfUtilityLCBAndRadiusZeroVisits(double& lcbBuf, double& radiusBuf) const;
 
   //----------------------------------------------------------------------------------------
   // Mirror handling logic
