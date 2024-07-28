@@ -1,6 +1,6 @@
 #!/bin/sh
-wget https://github.com/ChinChangYang/KataGo/releases/download/v1.13.2-coreml1/kata1-b18c384nbt-s7709731328-d3715293823.bin.gz
-mv kata1-b18c384nbt-s7709731328-d3715293823.bin.gz DerivedData/KataGo/Build/Products/Debug/model.bin.gz
+wget https://github.com/ChinChangYang/KataGo/releases/download/v1.15.1-coreml2/kata1-b18c384nbt-s9996604416-d4316597426.bin.gz
+mv kata1-b18c384nbt-s9996604416-d4316597426.bin.gz DerivedData/KataGo/Build/Products/Debug/model.bin.gz
 wget https://github.com/lightvector/KataGo/releases/download/v1.4.5/g170-b40c256x2-s5095420928-d1229425124.bin.gz
 mv g170-b40c256x2-s5095420928-d1229425124.bin.gz DerivedData/KataGo/Build/Products/Debug/modelv8.bin.gz
 wget https://github.com/ChinChangYang/KataGo/releases/download/v1.15.1-coreml2/KataGoModel19x19fp16v14s9996604416.mlpackage.zip

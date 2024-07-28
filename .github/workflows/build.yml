@@ -26,8 +26,8 @@ jobs:
       run: |
         mkdir -p models
         cd models
-        wget https://github.com/ChinChangYang/KataGo/releases/download/v1.13.2-coreml1/kata1-b18c384nbt-s7709731328-d3715293823.bin.gz
-        ln -s ../../../../../../models/kata1-b18c384nbt-s7709731328-d3715293823.bin.gz ../cpp/xcode/DerivedData/Build/Products/Debug/model.bin.gz
+        wget https://github.com/ChinChangYang/KataGo/releases/download/v1.15.1-coreml2/kata1-b18c384nbt-s9996604416-d4316597426.bin.gz
+        ln -s ../../../../../../models/kata1-b18c384nbt-s9996604416-d4316597426.bin.gz ../cpp/xcode/DerivedData/Build/Products/Debug/model.bin.gz
 
     - name: Setup network of version 8
       run: |
@@ -108,8 +108,8 @@ jobs:
       run: |
         mkdir -p models
         cd models
-        wget https://github.com/ChinChangYang/KataGo/releases/download/v1.13.2-coreml1/kata1-b18c384nbt-s7709731328-d3715293823.bin.gz
-        ln -s ../../models/kata1-b18c384nbt-s7709731328-d3715293823.bin.gz ../cpp/build/model.bin.gz
+        wget https://github.com/ChinChangYang/KataGo/releases/download/v1.15.1-coreml2/kata1-b18c384nbt-s9996604416-d4316597426.bin.gz
+        ln -s ../../models/kata1-b18c384nbt-s9996604416-d4316597426.bin.gz ../cpp/build/model.bin.gz
 
     - name: Run KataGo GPU error test with Eigen backend
       run: |

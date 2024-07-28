@@ -151,6 +151,7 @@ public class CoreMLBackend {
 }
 
 public func maybeCreateCoreMLBackend(condition: Bool = true,
+                                     serverThreadIdx: Int = 0,
                                      xLen: Int = 19,
                                      yLen: Int = 19,
                                      useFP16: Bool = false,
@@ -165,8 +166,8 @@ public func maybeCreateCoreMLBackend(condition: Bool = true,
     let mlmodel = KataGoModel.compileBundleMLModel(modelName: modelName, useCpuAndNeuralEngine: useCpuAndNeuralEngine)
 
     if let mlmodel {
-        printError("CoreML backend: \(xLen)x\(yLen) useFP16 \(useFP16) metaEncoderVersion \(metaEncoderVersion)");
-        printError("CoreML backend: \(mlmodel.metaDescription)");
+        printError("CoreML backend \(serverThreadIdx): \(xLen)x\(yLen) useFP16 \(useFP16) metaEncoderVersion \(metaEncoderVersion) useCpuAndNeuralEngine \(useCpuAndNeuralEngine)");
+        printError("CoreML backend \(serverThreadIdx): \(mlmodel.metaDescription)");
 
         // The CoreMLBackend object is created.
         return CoreMLBackend(model: mlmodel, xLen: xLen, yLen: yLen, metaEncoderVersion: metaEncoderVersion)

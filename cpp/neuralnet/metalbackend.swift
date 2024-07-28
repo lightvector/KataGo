@@ -2895,6 +2895,7 @@ public class MetalComputeHandle {
 }
 
 public func maybeCreateMetalComputeHandle(condition: Bool,
+                                          serverThreadIdx: Int = 0,
                                           descriptor: SWModelDesc,
                                           context: MetalComputeContext) -> MetalComputeHandle? {
     guard condition else { return nil }
@@ -2909,7 +2910,7 @@ public func maybeCreateMetalComputeHandle(condition: Bool,
 
     let handle = MetalComputeHandle(model: model)
 
-    printError("Metal backend: \(device.name), Model version \(descriptor.version) \(descriptor.name), \(context.nnXLen)x\(context.nnYLen)")
+    printError("Metal backend \(serverThreadIdx): \(device.name), Model version \(descriptor.version) \(descriptor.name), \(context.nnXLen)x\(context.nnYLen)")
 
     return handle
 }
