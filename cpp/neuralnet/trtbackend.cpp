@@ -1023,8 +1023,7 @@ struct ComputeHandle {
     config->setFlag(BuilderFlag::kREFIT_IDENTICAL);
 #endif
 
-    auto network = unique_ptr<INetworkDefinition>(
-      builder->createNetworkV2(1U << static_cast<int>(NetworkDefinitionCreationFlag::kEXPLICIT_BATCH)));
+    auto network = unique_ptr<INetworkDefinition>(builder->createNetworkV2(0));
     if(!network) {
       throw StringError("TensorRT backend: failed to create network definition");
     }
