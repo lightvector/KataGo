@@ -364,8 +364,7 @@ void Search::selectBestChildToDescend(
 
   bool useHumanSL = false;
   if(humanEvaluator != NULL &&
-     (searchParams.humanSLProfile.initialized || !humanEvaluator->requiresSGFMetadata()) &&
-     totalChildWeight > 0
+     (searchParams.humanSLProfile.initialized || !humanEvaluator->requiresSGFMetadata())
   ) {
     const NNOutput* humanOutput = node.getHumanOutput();
     if(humanOutput != NULL) {
@@ -385,7 +384,7 @@ void Search::selectBestChildToDescend(
       }
 
       double totalHumanProb = weightlessProb + weightfulProb;
-      if(totalHumanProb > 0.0 && totalChildWeight > 1.0 / totalHumanProb) {
+      if(totalHumanProb > 0.0) {
         double r = thread.rand.nextDouble();
         if(r < weightlessProb) {
           useHumanSL = true;
