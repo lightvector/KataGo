@@ -556,6 +556,8 @@ coremlbackend(maybeCreateCoreMLBackend((gpuIdx >= 100),
 ComputeHandle::~ComputeHandle() {
 }
 
+static mutex computeHandleMutex;
+
 /**
  * @brief Create a new ComputeHandle object for performing neural network computations.
  * This function creates a new ComputeHandle object for performing neural network computations,
@@ -588,7 +590,12 @@ ComputeHandle* NeuralNet::createComputeHandle(
 
   // Transfer the default GPU index into physical GPU index 0
   int gpuIdx = (gpuIdxForThisThread == -1) ? 0 : gpuIdxForThisThread;
-  ComputeHandle* handle = new ComputeHandle(context, loadedModel, inputsUseNHWC, gpuIdx, serverThreadIdx);
+  ComputeHandle* handle = nullptr;
+
+  {
+    lock_guard<mutex> lock(computeHandleMutex);
+    handle = new ComputeHandle(context, loadedModel, inputsUseNHWC, gpuIdx, serverThreadIdx);
+  }
 
   return handle;
 }
