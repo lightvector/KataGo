@@ -194,7 +194,7 @@ def main():
 
         # Set the meta encoder name
         meta_encoder_name = (
-            "" if meta_encoder_version == 0 else f"meta{meta_encoder_version}"
+            "" if meta_encoder_version == 0 else f"m{meta_encoder_version}"
         )
 
         # Set file name

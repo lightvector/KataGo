@@ -193,4 +193,4 @@ wget https://github.com/lightvector/KataGo/releases/download/v1.15.0/b18c384nbt-
 python python/convert_coreml_pytorch.py -checkpoint b18c384nbt-humanv0.ckpt -use-swa
 ```
 
-This will output the CoreML model directory KataGoModel19x19fp16m1.mlpackage, tailored for the CoreML backend.
+This will output the CoreML model directory `KataGoModel19x19fp16m1.mlpackage`, tailored for the CoreML backend.
