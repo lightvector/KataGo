@@ -1,0 +1,31 @@
+Beginning: Finding files
+Finished: Finding files in 0.0 seconds
+Total number of files: 1
+Total number of files with unknown row count: 1
+Excluded count: 0
+Excluded count due to looking like temp file: 0
+Excluded count due to cmdline excludes file: 0
+GC collect
+Beginning: Sorting
+Finished: Sorting in 0.0 seconds
+Beginning: Computing rows for unsummarized files
+Finished: Computing rows for unsummarized files in 0.5150797367095947 seconds
+Beginning: Processing found files
+Finished: Processing found files in 0.0 seconds
+Total rows found: 256 (1 usable)
+Desired num rows: 1 / 256
+Beginning: Computing desired rows
+Using: C:/Users/chang/OneDrive/Documents/GitHub/KataGo/selfplay/random\tdata\EDB10FBB59C78438.npz (0-0) (256/1 desired rows)
+Finished: Computing desired rows in 0.0 seconds
+Finally, using: (0-256) (256/1 desired rows)
+GC collect
+Writing 1 output files with 256 kept / 1 desired rows
+Due to only_include_md5, filtering down to 1/1 files
+Grouping 1 input files into 1 sharding groups
+Beginning: Sharding
+Finished: Sharding in 0.26877784729003906 seconds
+Beginning: Merging
+Finished: Merging in 0.0604405403137207 seconds
+Number of rows by output file:
+[('C:/Users/chang/OneDrive/Documents/GitHub/KataGo/shuffleddata/20240802-135052/train\\data0.npz', 256)]
+Cleaning up tmp dir: C:/Users/chang/OneDrive/Documents/GitHub/KataGo/shufflescratch/train\tmp.shuf0
