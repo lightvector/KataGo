@@ -2250,3 +2250,152 @@ winLossUtilityFactor = 1.0
 2024-08-02 14:04:27-0400: Game loop thread 7 terminating
 2024-08-02 14:04:31-0400: Game loop thread 3 terminating
 2024-08-02 14:04:33-0400: Game loop thread 8 terminating
+2024-08-02 14:04:35-0400: Game loop thread 4 terminating
+2024-08-02 14:04:48-0400: Game loop thread 0 terminating
+2024-08-02 14:04:53-0400: Game loop thread 9 terminating
+2024-08-02 14:04:56-0400: Game loop thread 2 terminating
+2024-08-02 14:04:56-0400: Data write loop finishing for neural net: kata9x9-b18c384nbt-20231025.bin.gz vs kata1-b18c384nbt-s9821054208-d4269405333.bin.gz
+2024-08-02 14:04:56-0400: Data write loop cleaned up and terminating for kata9x9-b18c384nbt-20231025.bin.gz vs kata1-b18c384nbt-s9821054208-d4269405333.bin.gz
+2024-08-02 14:04:56-0400: Candidate lost match, score 13.500 to 25.500 in 39 games, rejecting candidate kata1-b18c384nbt-s9821054208-d4269405333.bin.gz
+2024-08-02 14:04:56-0400: Moving C:\Users\chang\OneDrive\Documents\GitHub\KataGo\modelstobetested\kata1-b18c384nbt-s9821054208-d4269405333.bin.gz to C:/Users/chang/OneDrive/Documents/GitHub/KataGo/rejectedmodels/kata1-b18c384nbt-s9821054208-d4269405333.bin.gz
+2024-08-02 14:04:56-0400: GPU -1 finishing, processed 28112 rows 11624 batches
+2024-08-02 14:04:56-0400: GPU -1 finishing, processed 27873 rows 11561 batches
+2024-08-02 14:04:58-0400: All cleaned up, quitting
+2024-08-02 14:05:22-0400: Running with following config:
+allowRectangleProb = 0.50
+allowResignation = true
+bSizeRelProbs = 1,1,8
+bSizes = 7,8,9
+chosenMovePrune = 1
+chosenMoveSubtract = 0
+chosenMoveTemperature = 0.2
+chosenMoveTemperatureEarly = 0.5
+chosenMoveTemperatureHalflife = 19
+cpuctExploration = 1.1
+cpuctExplorationLog = 0.0
+cudaUseFP16 = auto
+cudaUseNHWC = auto
+drawEquivalentWinsForWhite = 0.5
+dynamicScoreCenterScale = 0.50
+dynamicScoreCenterZeroWeight = 0.25
+dynamicScoreUtilityFactor = 0.25
+fpuReductionMax = 0.2
+handicapCompensateKomiProb = 1.0
+handicapProb = 0.0
+hasButtons = false,false,true
+koRules = SIMPLE,POSITIONAL,SITUATIONAL
+komiAuto = True
+lcbStdevs = 5.0
+logGamesEvery = 10
+logMoves = false
+logSearchInfo = false
+logToStdout = true
+maxMovesPerGame = 1600
+maxVisits = 30
+minVisitPropForLCB = 0.15
+multiStoneSuicideLegals = false,true
+nnCacheSizePowerOfTwo = 21
+nnMaxBatchSize = 128
+nnMutexPoolSizePowerOfTwo = 15
+nnRandomize = true
+noResultUtilityForWhite = 0.0
+numGameThreads = 10
+numGamesPerGating = 50
+numNNServerThreadsPerModel = 1
+numSearchThreads = 1
+numVirtualLossesPerThread = 1
+policyOptimism = 1.0
+resignConsecTurns = 5
+resignThreshold = -0.90
+rootEndingBonusPoints = 0.5
+rootFpuReductionMax = 0.1
+rootPolicyOptimism = 0.0
+rootPruneUselessMoves = true
+scoringRules = AREA,TERRITORY
+staticScoreUtilityFactor = 0.00
+subtreeValueBiasFactor = 0.35
+subtreeValueBiasWeightExponent = 0.8
+taxRules = NONE,NONE,SEKI,SEKI,ALL
+uncertaintyCoeff = 0.25
+uncertaintyExponent = 1.0
+useGraphSearch = true
+useLcbForSelection = true
+useNonBuggyLcb = true
+useUncertainty = true
+valueWeightExponent = 0.5
+winLossUtilityFactor = 1.0
+
+2024-08-02 14:05:22-0400: Gatekeeper Engine starting...
+2024-08-02 14:05:22-0400: Git revision: 7939e2c3eb43df04e08de8c166889c6d5e937bfa
+2024-08-02 14:05:22-0400: Required candidate win prop: 0.5
+2024-08-02 14:05:22-0400: Loaded all config stuff, watching for new neural nets in C:/Users/chang/OneDrive/Documents/GitHub/KataGo/modelstobetested/
+2024-08-02 14:05:22-0400: All cleaned up, quitting
+2024-08-02 14:05:46-0400: Running with following config:
+allowRectangleProb = 0.50
+allowResignation = true
+bSizeRelProbs = 1,1,8
+bSizes = 7,8,9
+chosenMovePrune = 1
+chosenMoveSubtract = 0
+chosenMoveTemperature = 0.2
+chosenMoveTemperatureEarly = 0.5
+chosenMoveTemperatureHalflife = 19
+cpuctExploration = 1.1
+cpuctExplorationLog = 0.0
+cudaUseFP16 = auto
+cudaUseNHWC = auto
+drawEquivalentWinsForWhite = 0.5
+dynamicScoreCenterScale = 0.50
+dynamicScoreCenterZeroWeight = 0.25
+dynamicScoreUtilityFactor = 0.25
+fpuReductionMax = 0.2
+handicapCompensateKomiProb = 1.0
+handicapProb = 0.0
+hasButtons = false,false,true
+koRules = SIMPLE,POSITIONAL,SITUATIONAL
+komiAuto = True
+lcbStdevs = 5.0
+logGamesEvery = 10
+logMoves = false
+logSearchInfo = false
+logToStdout = true
+maxMovesPerGame = 1600
+maxVisits = 30
+minVisitPropForLCB = 0.15
+multiStoneSuicideLegals = false,true
+nnCacheSizePowerOfTwo = 21
+nnMaxBatchSize = 128
+nnMutexPoolSizePowerOfTwo = 15
+nnRandomize = true
+noResultUtilityForWhite = 0.0
+numGameThreads = 10
+numGamesPerGating = 50
+numNNServerThreadsPerModel = 1
+numSearchThreads = 1
+numVirtualLossesPerThread = 1
+policyOptimism = 1.0
+resignConsecTurns = 5
+resignThreshold = -0.90
+rootEndingBonusPoints = 0.5
+rootFpuReductionMax = 0.1
+rootPolicyOptimism = 0.0
+rootPruneUselessMoves = true
+scoringRules = AREA,TERRITORY
+staticScoreUtilityFactor = 0.00
+subtreeValueBiasFactor = 0.35
+subtreeValueBiasWeightExponent = 0.8
+taxRules = NONE,NONE,SEKI,SEKI,ALL
+uncertaintyCoeff = 0.25
+uncertaintyExponent = 1.0
+useGraphSearch = true
+useLcbForSelection = true
+useNonBuggyLcb = true
+useUncertainty = true
+valueWeightExponent = 0.5
+winLossUtilityFactor = 1.0
+
+2024-08-02 14:05:46-0400: Gatekeeper Engine starting...
+2024-08-02 14:05:46-0400: Git revision: 7939e2c3eb43df04e08de8c166889c6d5e937bfa
+2024-08-02 14:05:46-0400: Required candidate win prop: 0.5
+2024-08-02 14:05:46-0400: Loaded all config stuff, watching for new neural nets in C:/Users/chang/OneDrive/Documents/GitHub/KataGo/modelstobetested/
+2024-08-02 14:05:47-0400: All cleaned up, quitting
