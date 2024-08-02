@@ -1,0 +1,186 @@
+Beginning shuffle at 2024-08-02 13:03:27
+Beginning: Finding files
+Finished: Finding files in 0.0 seconds
+Total number of files: 0
+Total number of files with unknown row count: 0
+Excluded count: 0
+Excluded count due to looking like temp file: 0
+Excluded count due to cmdline excludes file: 0
+GC collect
+Beginning: Sorting
+Finished: Sorting in 0.0 seconds
+Beginning: Computing rows for unsummarized files
+Finished: Computing rows for unsummarized files in 0.2690620422363281 seconds
+Beginning: Processing found files
+Finished: Processing found files in 0.0 seconds
+No rows found
+Cleaning up any old dirs
+Finished shuffle at 2024-08-02 13:03:41
+
+
+Beginning shuffle at 2024-08-02 13:05:32
+Beginning: Finding files
+Finished: Finding files in 0.0 seconds
+Total number of files: 1
+Total number of files with unknown row count: 1
+Excluded count: 0
+Excluded count due to looking like temp file: 0
+Excluded count due to cmdline excludes file: 0
+GC collect
+Beginning: Sorting
+Finished: Sorting in 0.0 seconds
+Beginning: Computing rows for unsummarized files
+Finished: Computing rows for unsummarized files in 0.3456449508666992 seconds
+Beginning: Processing found files
+Finished: Processing found files in 0.0 seconds
+Not enough rows, only 256 (fewer than 100000)
+Beginning shuffle at 2024-08-02 13:11:52
+Beginning: Finding files
+Finished: Finding files in 0.0 seconds
+Total number of files: 1
+Total number of files with unknown row count: 1
+Excluded count: 0
+Excluded count due to looking like temp file: 0
+Excluded count due to cmdline excludes file: 0
+GC collect
+Beginning: Sorting
+Finished: Sorting in 0.0 seconds
+Beginning: Computing rows for unsummarized files
+Finished: Computing rows for unsummarized files in 0.3596169948577881 seconds
+Beginning: Processing found files
+Finished: Processing found files in 0.0 seconds
+Not enough rows, only 256 (fewer than 100000)
+Beginning shuffle at 2024-08-02 13:12:58
+Beginning: Finding files
+Finished: Finding files in 0.0 seconds
+Total number of files: 1
+Total number of files with unknown row count: 1
+Excluded count: 0
+Excluded count due to looking like temp file: 0
+Excluded count due to cmdline excludes file: 0
+GC collect
+Beginning: Sorting
+Finished: Sorting in 0.0 seconds
+Beginning: Computing rows for unsummarized files
+Finished: Computing rows for unsummarized files in 0.4232609272003174 seconds
+Beginning: Processing found files
+Finished: Processing found files in 0.0 seconds
+Not enough rows, only 256 (fewer than 100000)
+Beginning shuffle at 2024-08-02 13:33:23
+Beginning: Finding files
+Finished: Finding files in 0.010001420974731445 seconds
+Total number of files: 1
+Total number of files with unknown row count: 1
+Excluded count: 0
+Excluded count due to looking like temp file: 0
+Excluded count due to cmdline excludes file: 0
+GC collect
+Beginning: Sorting
+Finished: Sorting in 0.0 seconds
+Beginning shuffle at 2024-08-02 13:43:15
+Beginning: Finding files
+Finished: Finding files in 0.0 seconds
+Total number of files: 1
+Total number of files with unknown row count: 1
+Excluded count: 0
+Excluded count due to looking like temp file: 0
+Excluded count due to cmdline excludes file: 0
+GC collect
+Beginning: Sorting
+Finished: Sorting in 0.0 seconds
+Beginning: Computing rows for unsummarized files
+Finished: Computing rows for unsummarized files in 0.5505616664886475 seconds
+Beginning: Processing found files
+Finished: Processing found files in 0.0 seconds
+Total rows found: 256 (1 usable)
+Desired num rows: 1 / 256
+Beginning: Computing desired rows
+Using: C:/Users/chang/OneDrive/Documents/GitHub/KataGo/selfplay/random\tdata\EDB10FBB59C78438.npz (0-0) (256/1 desired rows)
+Finished: Computing desired rows in 0.0 seconds
+Finally, using: (0-256) (256/1 desired rows)
+GC collect
+Writing 1 output files with 256 kept / 1 desired rows
+Due to only_include_md5, filtering down to 1/1 files
+Grouping 1 input files into 1 sharding groups
+Beginning: Sharding
+Finished: Sharding in 0.29215359687805176 seconds
+Beginning: Merging
+Finished: Merging in 0.07358598709106445 seconds
+Number of rows by output file:
+[('C:/Users/chang/OneDrive/Documents/GitHub/KataGo/shuffleddata/20240802-134314/train\\data0.npz', 256)]
+Cleaning up tmp dir: C:/Users/chang/OneDrive/Documents/GitHub/KataGo/shufflescratch/train\tmp.shuf0
+Beginning shuffle at 2024-08-02 13:43:37
+Beginning: Finding files
+Finished: Finding files in 0.0 seconds
+Total number of files: 1
+Total number of files with unknown row count: 1
+Excluded count: 0
+Excluded count due to looking like temp file: 0
+Excluded count due to cmdline excludes file: 0
+GC collect
+Beginning: Sorting
+Finished: Sorting in 0.0 seconds
+Beginning: Computing rows for unsummarized files
+Finished: Computing rows for unsummarized files in 0.5149235725402832 seconds
+Beginning: Processing found files
+Finished: Processing found files in 0.0 seconds
+Total rows found: 256 (1 usable)
+Desired num rows: 1 / 256
+Beginning: Computing desired rows
+Using: C:/Users/chang/OneDrive/Documents/GitHub/KataGo/selfplay/random\tdata\EDB10FBB59C78438.npz (0-0) (256/1 desired rows)
+Finished: Computing desired rows in 0.0 seconds
+Finally, using: (0-256) (256/1 desired rows)
+GC collect
+Writing 1 output files with 256 kept / 1 desired rows
+Due to only_include_md5, filtering down to 1/1 files
+Grouping 1 input files into 1 sharding groups
+Beginning: Sharding
+Finished: Sharding in 0.2978343963623047 seconds
+Beginning: Merging
+Finished: Merging in 0.06620359420776367 seconds
+Number of rows by output file:
+[('C:/Users/chang/OneDrive/Documents/GitHub/KataGo/shuffleddata/20240802-134337/train\\data0.npz', 256)]
+Cleaning up tmp dir: C:/Users/chang/OneDrive/Documents/GitHub/KataGo/shufflescratch/train\tmp.shuf0
+Beginning shuffle at 2024-08-02 13:44:01
+Beginning: Finding files
+Finished: Finding files in 0.0 seconds
+Total number of files: 1
+Total number of files with unknown row count: 1
+Excluded count: 0
+Excluded count due to looking like temp file: 0
+Excluded count due to cmdline excludes file: 0
+GC collect
+Beginning: Sorting
+Finished: Sorting in 0.0 seconds
+Beginning: Computing rows for unsummarized files
+Finished: Computing rows for unsummarized files in 0.5260789394378662 seconds
+Beginning: Processing found files
+Finished: Processing found files in 0.0 seconds
+Total rows found: 256 (1 usable)
+Desired num rows: 1 / 256
+Beginning: Computing desired rows
+Using: C:/Users/chang/OneDrive/Documents/GitHub/KataGo/selfplay/random\tdata\EDB10FBB59C78438.npz (0-0) (256/1 desired rows)
+Finished: Computing desired rows in 0.0 seconds
+Finally, using: (0-256) (256/1 desired rows)
+GC collect
+Writing 1 output files with 256 kept / 1 desired rows
+Due to only_include_md5, filtering down to 1/1 files
+Grouping 1 input files into 1 sharding groups
+Beginning: Sharding
+Finished: Sharding in 0.26628947257995605 seconds
+Beginning: Merging
+Finished: Merging in 0.0745384693145752 seconds
+Number of rows by output file:
+[('C:/Users/chang/OneDrive/Documents/GitHub/KataGo/shuffleddata/20240802-134401/train\\data0.npz', 256)]
+Cleaning up tmp dir: C:/Users/chang/OneDrive/Documents/GitHub/KataGo/shufflescratch/train\tmp.shuf0
+Beginning shuffle at 2024-08-02 13:44:25
+Beginning: Finding files
+Finished: Finding files in 0.0 seconds
+Total number of files: 1
+Total number of files with unknown row count: 1
+Excluded count: 0
+Excluded count due to looking like temp file: 0
+Excluded count due to cmdline excludes file: 0
+GC collect
+Beginning: Sorting
+Finished: Sorting in 0.0 seconds

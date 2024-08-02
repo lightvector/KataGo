@@ -1,0 +1,10 @@
+Beginning: Finding files
+Finished: Finding files in 0.0 seconds
+Total number of files: 1
+Total number of files with unknown row count: 1
+Excluded count: 0
+Excluded count due to looking like temp file: 0
+Excluded count due to cmdline excludes file: 0
+GC collect
+Beginning: Sorting
+Finished: Sorting in 0.0 seconds

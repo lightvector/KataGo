@@ -1,0 +1,15 @@
+Beginning: Finding files
+Finished: Finding files in 0.0 seconds
+Total number of files: 0
+Total number of files with unknown row count: 0
+Excluded count: 0
+Excluded count due to looking like temp file: 0
+Excluded count due to cmdline excludes file: 0
+GC collect
+Beginning: Sorting
+Finished: Sorting in 0.0 seconds
+Beginning: Computing rows for unsummarized files
+Finished: Computing rows for unsummarized files in 0.2690620422363281 seconds
+Beginning: Processing found files
+Finished: Processing found files in 0.0 seconds
+No rows found

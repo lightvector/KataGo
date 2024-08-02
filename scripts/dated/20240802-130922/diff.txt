@@ -1,0 +1,83 @@
+diff --git a/cpp/configs/training/gatekeeper1_maxsize9.cfg b/cpp/configs/training/gatekeeper1_maxsize9.cfg
+index 6dbedc48..12df4d61 100644
+--- a/cpp/configs/training/gatekeeper1_maxsize9.cfg
++++ b/cpp/configs/training/gatekeeper1_maxsize9.cfg
+@@ -15,7 +15,7 @@ logToStdout = true
+ 
+ # Match-----------------------------------------------------------------------------------
+ 
+-numGameThreads = 128
++numGameThreads = 10
+ maxMovesPerGame = 1600
+ numGamesPerGating = 200
+ 
+diff --git a/cpp/configs/training/selfplay1_maxsize9.cfg b/cpp/configs/training/selfplay1_maxsize9.cfg
+index 0446706b..3f83514b 100644
+--- a/cpp/configs/training/selfplay1_maxsize9.cfg
++++ b/cpp/configs/training/selfplay1_maxsize9.cfg
+@@ -81,7 +81,7 @@ fancyKomiVarying = true  # In non-compensated handicap and fork games, vary komi
+ 
+ # Match-----------------------------------------------------------------------------------
+ 
+-numGameThreads = 128
++numGameThreads = 10
+ maxMovesPerGame = 1600
+ 
+ # Rules------------------------------------------------------------------------------------
+diff --git a/python/selfplay/synchronous_loop.sh b/python/selfplay/synchronous_loop.sh
+index 46cfbc3d..dbfd573f 100755
+--- a/python/selfplay/synchronous_loop.sh
++++ b/python/selfplay/synchronous_loop.sh
+@@ -54,7 +54,7 @@ mkdir -p "$BASEDIR"/gatekeepersgf
+ # you have strong hardware or are later into a run you may want to reduce the overhead by scaling
+ # these numbers up and doing more games and training per cycle, exporting models less frequently, etc.
+ 
+-NUM_GAMES_PER_CYCLE=500 # Every cycle, play this many games
++NUM_GAMES_PER_CYCLE=50 # Every cycle, play this many games
+ NUM_THREADS_FOR_SHUFFLING=8
+ NUM_TRAIN_SAMPLES_PER_EPOCH=100000  # Training will proceed in chunks of this many rows, subject to MAX_TRAIN_PER_DATA.
+ MAX_TRAIN_PER_DATA=8 # On average, train only this many times on each data row. Larger numbers may cause overfitting.
+@@ -67,8 +67,8 @@ SHUFFLE_KEEPROWS=600000 # Needs to be larger than MAX_TRAIN_SAMPLES_PER_CYCLE, s
+ 
+ # Paths to the selfplay and gatekeeper configs that contain board sizes, rules, search parameters, etc.
+ # See cpp/configs/training/README.md for some notes on other selfplay configs.
+-SELFPLAY_CONFIG="$GITROOTDIR"/cpp/configs/training/selfplay1.cfg
+-GATING_CONFIG="$GITROOTDIR"/cpp/configs/training/gatekeeper1.cfg
++SELFPLAY_CONFIG="$GITROOTDIR"/cpp/configs/training/selfplay1_maxsize9.cfg
++GATING_CONFIG="$GITROOTDIR"/cpp/configs/training/gatekeeper1_maxsize9.cfg
+ 
+ # Copy all the relevant scripts and configs and the katago executable to a dated directory.
+ # For archival and logging purposes - you can look back and see exactly the python code on a particular date
+@@ -91,10 +91,22 @@ set -x
+ while true
+ do
+     echo "Gatekeeper"
+-    time ./katago gatekeeper -rejected-models-dir "$BASEDIR"/rejectedmodels -accepted-models-dir "$BASEDIR"/models/ -sgf-output-dir "$BASEDIR"/gatekeepersgf/ -test-models-dir "$BASEDIR"/modelstobetested/ -config "$DATED_ARCHIVE"/gatekeeper.cfg -quit-if-no-nets-to-test | tee -a "$BASEDIR"/gatekeepersgf/stdout.txt
++time /c/Users/chang/Downloads/katago-v1.15.1-cuda12.1-cudnn8.9.7-windows-x64/katago.exe gatekeeper \
++    -rejected-models-dir /c/Users/chang/OneDrive/Documents/GitHub/KataGo/rejectedmodels \
++    -accepted-models-dir /c/Users/chang/OneDrive/Documents/GitHub/KataGo/models/ \
++    -sgf-output-dir /c/Users/chang/OneDrive/Documents/GitHub/KataGo/gatekeepersgf/ \
++    -test-models-dir /c/Users/chang/OneDrive/Documents/GitHub/KataGo/modelstobetested/ \
++    -config /c/Users/chang/OneDrive/Documents/GitHub/KataGo/cpp/configs/training/gatekeeper1_maxsize9.cfg \
++    -quit-if-no-nets-to-test | tee -a /c/Users/chang/OneDrive/Documents/GitHub/KataGo/gatekeepersgf/stdout.txt
++
++echo "Selfplay"
++time /c/Users/chang/Downloads/katago-v1.15.1-cuda12.1-cudnn8.9.7-windows-x64/katago.exe selfplay \
++    -max-games-total 10 \
++    -output-dir /c/Users/chang/OneDrive/Documents/GitHub/KataGo/selfplay \
++    -models-dir /c/Users/chang/OneDrive/Documents/GitHub/KataGo/modelstobetested \
++    -config /c/Users/chang/OneDrive/Documents/GitHub/KataGo/cpp/configs/training/selfplay1_maxsize9.cfg | tee -a /c/Users/chang/OneDrive/Documents/GitHub/KataGo/selfplay/stdout.txt
++
+ 
+-    echo "Selfplay"
+-    time ./katago selfplay -max-games-total "$NUM_GAMES_PER_CYCLE" -output-dir "$BASEDIR"/selfplay -models-dir "$BASEDIR"/models -config "$DATED_ARCHIVE"/selfplay.cfg | tee -a "$BASEDIR"/selfplay/stdout.txt
+ 
+     echo "Shuffle"
+     (
+@@ -113,5 +125,6 @@ do
+ 
+ done
+ 
++
+ exit 0
+ }
