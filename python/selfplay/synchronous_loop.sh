@@ -101,7 +101,7 @@ time /c/Users/chang/Downloads/katago-v1.15.1-cuda12.1-cudnn8.9.7-windows-x64/kat
 
 echo "Selfplay"
 time /c/Users/chang/Downloads/katago-v1.15.1-cuda12.1-cudnn8.9.7-windows-x64/katago.exe selfplay \
-    -max-games-total 10 \
+    -max-games-total 50 \
     -output-dir /c/Users/chang/OneDrive/Documents/GitHub/KataGo/selfplay \
     -models-dir /c/Users/chang/OneDrive/Documents/GitHub/KataGo/modelstobetested \
     -config /c/Users/chang/OneDrive/Documents/GitHub/KataGo/cpp/configs/training/selfplay1_maxsize9.cfg | tee -a /c/Users/chang/OneDrive/Documents/GitHub/KataGo/selfplay/stdout.txt

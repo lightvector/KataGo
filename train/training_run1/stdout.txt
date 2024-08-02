@@ -3080,3 +3080,342 @@ Total trainable params: 26389941
 Using lookahead optimizer 0.5 6
 Training in FP32.
 Shuffled data train.json file does not exist, there seems to be no data or not enough data yet, qutting: C:\Users\chang\OneDrive\Documents\GitHub\KataGo\shuffleddata\current\train.json
+['./train.py', '-traindir', 'C:/Users/chang/OneDrive/Documents/GitHub/KataGo/train/training_run1', '-datadir', 'C:/Users/chang/OneDrive/Documents/GitHub/KataGo/shuffleddata/current/', '-exportdir', 'C:/Users/chang/OneDrive/Documents/GitHub/KataGo/torchmodels_toexport', '-exportprefix', 'training_run1', '-pos-len', '19', '-batch-size', '128', '-model-kind', 'b18c384nbt', '-samples-per-epoch', '100000', '-swa-period-samples', '80000', '-quit-if-no-data', '-stop-when-train-bucket-limited', '-no-repeat-files', '-max-train-bucket-per-new-data', '8', '-max-train-bucket-size', '500000']
+Using GPU device: NVIDIA GeForce RTX 4060 Laptop GPU
+Seeding torch with 5345355589227814
+No preexisting checkpoint found at: C:/Users/chang/OneDrive/Documents/GitHub/KataGo/train/training_run1\checkpoint.ckpt
+Initializing new model!
+{'version': 14, 'norm_kind': 'fixup', 'bnorm_epsilon': 0.0001, 'bnorm_running_avg_momentum': 0.001, 'initial_conv_1x1': False, 'trunk_num_channels': 384, 'mid_num_channels': 192, 'gpool_num_channels': 64, 'use_attention_pool': False, 'num_attention_pool_heads': 4, 'block_kind': [['rconv1', 'bottlenest2'], ['rconv2', 'bottlenest2'], ['rconv3', 'bottlenest2gpool'], ['rconv4', 'bottlenest2'], ['rconv5', 'bottlenest2'], ['rconv6', 'bottlenest2gpool'], ['rconv7', 'bottlenest2'], ['rconv8', 'bottlenest2'], ['rconv9', 'bottlenest2gpool'], ['rconv10', 'bottlenest2'], ['rconv11', 'bottlenest2'], ['rconv12', 'bottlenest2gpool'], ['rconv13', 'bottlenest2'], ['rconv14', 'bottlenest2'], ['rconv15', 'bottlenest2gpool'], ['rconv16', 'bottlenest2'], ['rconv17', 'bottlenest2'], ['rconv18', 'bottlenest2']], 'p1_num_channels': 48, 'g1_num_channels': 48, 'v1_num_channels': 96, 'sbv2_num_channels': 112, 'num_scorebeliefs': 8, 'v2_size': 128}
+Model norm normal baseline computed: 4488.80126953125
+swa_period_samples 80000.0
+swa_scale 8
+lookahead_alpha 0.5
+lookahead_k 6
+soft_policy_weight_scale 8.0
+value_loss_scale 0.6
+td_value_loss_scales [0.6, 0.6, 0.6]
+main_loss_scale None
+intermediate_loss_scale None
+Parameters in model:
+conv_spatial.weight, [384, 22, 3, 3], 76032 params
+linear_global.weight, [384, 19], 7296 params
+blocks.0.normactconvp.norm.beta, [1, 384, 1, 1], 384 params
+blocks.0.normactconvp.conv.weight, [192, 384, 1, 1], 73728 params
+blocks.0.blockstack.0.normactconv1.norm.beta, [1, 192, 1, 1], 192 params
+blocks.0.blockstack.0.normactconv1.conv.weight, [192, 192, 3, 3], 331776 params
+blocks.0.blockstack.0.normactconv2.norm.beta, [1, 192, 1, 1], 192 params
+blocks.0.blockstack.0.normactconv2.norm.gamma, [1, 192, 1, 1], 192 params
+blocks.0.blockstack.0.normactconv2.conv.weight, [192, 192, 3, 3], 331776 params
+blocks.0.blockstack.1.normactconv1.norm.beta, [1, 192, 1, 1], 192 params
+blocks.0.blockstack.1.normactconv1.conv.weight, [192, 192, 3, 3], 331776 params
+blocks.0.blockstack.1.normactconv2.norm.beta, [1, 192, 1, 1], 192 params
+blocks.0.blockstack.1.normactconv2.norm.gamma, [1, 192, 1, 1], 192 params
+blocks.0.blockstack.1.normactconv2.conv.weight, [192, 192, 3, 3], 331776 params
+blocks.0.normactconvq.norm.beta, [1, 192, 1, 1], 192 params
+blocks.0.normactconvq.norm.gamma, [1, 192, 1, 1], 192 params
+blocks.0.normactconvq.conv.weight, [384, 192, 1, 1], 73728 params
+blocks.1.normactconvp.norm.beta, [1, 384, 1, 1], 384 params
+blocks.1.normactconvp.conv.weight, [192, 384, 1, 1], 73728 params
+blocks.1.blockstack.0.normactconv1.norm.beta, [1, 192, 1, 1], 192 params
+blocks.1.blockstack.0.normactconv1.conv.weight, [192, 192, 3, 3], 331776 params
+blocks.1.blockstack.0.normactconv2.norm.beta, [1, 192, 1, 1], 192 params
+blocks.1.blockstack.0.normactconv2.norm.gamma, [1, 192, 1, 1], 192 params
+blocks.1.blockstack.0.normactconv2.conv.weight, [192, 192, 3, 3], 331776 params
+blocks.1.blockstack.1.normactconv1.norm.beta, [1, 192, 1, 1], 192 params
+blocks.1.blockstack.1.normactconv1.conv.weight, [192, 192, 3, 3], 331776 params
+blocks.1.blockstack.1.normactconv2.norm.beta, [1, 192, 1, 1], 192 params
+blocks.1.blockstack.1.normactconv2.norm.gamma, [1, 192, 1, 1], 192 params
+blocks.1.blockstack.1.normactconv2.conv.weight, [192, 192, 3, 3], 331776 params
+blocks.1.normactconvq.norm.beta, [1, 192, 1, 1], 192 params
+blocks.1.normactconvq.norm.gamma, [1, 192, 1, 1], 192 params
+blocks.1.normactconvq.conv.weight, [384, 192, 1, 1], 73728 params
+blocks.2.normactconvp.norm.beta, [1, 384, 1, 1], 384 params
+blocks.2.normactconvp.conv.weight, [192, 384, 1, 1], 73728 params
+blocks.2.blockstack.0.normactconv1.norm.beta, [1, 192, 1, 1], 192 params
+blocks.2.blockstack.0.normactconv1.convpool.conv1r.weight, [128, 192, 3, 3], 221184 params
+blocks.2.blockstack.0.normactconv1.convpool.conv1g.weight, [64, 192, 3, 3], 110592 params
+blocks.2.blockstack.0.normactconv1.convpool.normg.beta, [1, 64, 1, 1], 64 params
+blocks.2.blockstack.0.normactconv1.convpool.linear_g.weight, [128, 192], 24576 params
+blocks.2.blockstack.0.normactconv2.norm.beta, [1, 128, 1, 1], 128 params
+blocks.2.blockstack.0.normactconv2.norm.gamma, [1, 128, 1, 1], 128 params
+blocks.2.blockstack.0.normactconv2.conv.weight, [192, 128, 3, 3], 221184 params
+blocks.2.blockstack.1.normactconv1.norm.beta, [1, 192, 1, 1], 192 params
+blocks.2.blockstack.1.normactconv1.conv.weight, [192, 192, 3, 3], 331776 params
+blocks.2.blockstack.1.normactconv2.norm.beta, [1, 192, 1, 1], 192 params
+blocks.2.blockstack.1.normactconv2.norm.gamma, [1, 192, 1, 1], 192 params
+blocks.2.blockstack.1.normactconv2.conv.weight, [192, 192, 3, 3], 331776 params
+blocks.2.normactconvq.norm.beta, [1, 192, 1, 1], 192 params
+blocks.2.normactconvq.norm.gamma, [1, 192, 1, 1], 192 params
+blocks.2.normactconvq.conv.weight, [384, 192, 1, 1], 73728 params
+blocks.3.normactconvp.norm.beta, [1, 384, 1, 1], 384 params
+blocks.3.normactconvp.conv.weight, [192, 384, 1, 1], 73728 params
+blocks.3.blockstack.0.normactconv1.norm.beta, [1, 192, 1, 1], 192 params
+blocks.3.blockstack.0.normactconv1.conv.weight, [192, 192, 3, 3], 331776 params
+blocks.3.blockstack.0.normactconv2.norm.beta, [1, 192, 1, 1], 192 params
+blocks.3.blockstack.0.normactconv2.norm.gamma, [1, 192, 1, 1], 192 params
+blocks.3.blockstack.0.normactconv2.conv.weight, [192, 192, 3, 3], 331776 params
+blocks.3.blockstack.1.normactconv1.norm.beta, [1, 192, 1, 1], 192 params
+blocks.3.blockstack.1.normactconv1.conv.weight, [192, 192, 3, 3], 331776 params
+blocks.3.blockstack.1.normactconv2.norm.beta, [1, 192, 1, 1], 192 params
+blocks.3.blockstack.1.normactconv2.norm.gamma, [1, 192, 1, 1], 192 params
+blocks.3.blockstack.1.normactconv2.conv.weight, [192, 192, 3, 3], 331776 params
+blocks.3.normactconvq.norm.beta, [1, 192, 1, 1], 192 params
+blocks.3.normactconvq.norm.gamma, [1, 192, 1, 1], 192 params
+blocks.3.normactconvq.conv.weight, [384, 192, 1, 1], 73728 params
+blocks.4.normactconvp.norm.beta, [1, 384, 1, 1], 384 params
+blocks.4.normactconvp.conv.weight, [192, 384, 1, 1], 73728 params
+blocks.4.blockstack.0.normactconv1.norm.beta, [1, 192, 1, 1], 192 params
+blocks.4.blockstack.0.normactconv1.conv.weight, [192, 192, 3, 3], 331776 params
+blocks.4.blockstack.0.normactconv2.norm.beta, [1, 192, 1, 1], 192 params
+blocks.4.blockstack.0.normactconv2.norm.gamma, [1, 192, 1, 1], 192 params
+blocks.4.blockstack.0.normactconv2.conv.weight, [192, 192, 3, 3], 331776 params
+blocks.4.blockstack.1.normactconv1.norm.beta, [1, 192, 1, 1], 192 params
+blocks.4.blockstack.1.normactconv1.conv.weight, [192, 192, 3, 3], 331776 params
+blocks.4.blockstack.1.normactconv2.norm.beta, [1, 192, 1, 1], 192 params
+blocks.4.blockstack.1.normactconv2.norm.gamma, [1, 192, 1, 1], 192 params
+blocks.4.blockstack.1.normactconv2.conv.weight, [192, 192, 3, 3], 331776 params
+blocks.4.normactconvq.norm.beta, [1, 192, 1, 1], 192 params
+blocks.4.normactconvq.norm.gamma, [1, 192, 1, 1], 192 params
+blocks.4.normactconvq.conv.weight, [384, 192, 1, 1], 73728 params
+blocks.5.normactconvp.norm.beta, [1, 384, 1, 1], 384 params
+blocks.5.normactconvp.conv.weight, [192, 384, 1, 1], 73728 params
+blocks.5.blockstack.0.normactconv1.norm.beta, [1, 192, 1, 1], 192 params
+blocks.5.blockstack.0.normactconv1.convpool.conv1r.weight, [128, 192, 3, 3], 221184 params
+blocks.5.blockstack.0.normactconv1.convpool.conv1g.weight, [64, 192, 3, 3], 110592 params
+blocks.5.blockstack.0.normactconv1.convpool.normg.beta, [1, 64, 1, 1], 64 params
+blocks.5.blockstack.0.normactconv1.convpool.linear_g.weight, [128, 192], 24576 params
+blocks.5.blockstack.0.normactconv2.norm.beta, [1, 128, 1, 1], 128 params
+blocks.5.blockstack.0.normactconv2.norm.gamma, [1, 128, 1, 1], 128 params
+blocks.5.blockstack.0.normactconv2.conv.weight, [192, 128, 3, 3], 221184 params
+blocks.5.blockstack.1.normactconv1.norm.beta, [1, 192, 1, 1], 192 params
+blocks.5.blockstack.1.normactconv1.conv.weight, [192, 192, 3, 3], 331776 params
+blocks.5.blockstack.1.normactconv2.norm.beta, [1, 192, 1, 1], 192 params
+blocks.5.blockstack.1.normactconv2.norm.gamma, [1, 192, 1, 1], 192 params
+blocks.5.blockstack.1.normactconv2.conv.weight, [192, 192, 3, 3], 331776 params
+blocks.5.normactconvq.norm.beta, [1, 192, 1, 1], 192 params
+blocks.5.normactconvq.norm.gamma, [1, 192, 1, 1], 192 params
+blocks.5.normactconvq.conv.weight, [384, 192, 1, 1], 73728 params
+blocks.6.normactconvp.norm.beta, [1, 384, 1, 1], 384 params
+blocks.6.normactconvp.conv.weight, [192, 384, 1, 1], 73728 params
+blocks.6.blockstack.0.normactconv1.norm.beta, [1, 192, 1, 1], 192 params
+blocks.6.blockstack.0.normactconv1.conv.weight, [192, 192, 3, 3], 331776 params
+blocks.6.blockstack.0.normactconv2.norm.beta, [1, 192, 1, 1], 192 params
+blocks.6.blockstack.0.normactconv2.norm.gamma, [1, 192, 1, 1], 192 params
+blocks.6.blockstack.0.normactconv2.conv.weight, [192, 192, 3, 3], 331776 params
+blocks.6.blockstack.1.normactconv1.norm.beta, [1, 192, 1, 1], 192 params
+blocks.6.blockstack.1.normactconv1.conv.weight, [192, 192, 3, 3], 331776 params
+blocks.6.blockstack.1.normactconv2.norm.beta, [1, 192, 1, 1], 192 params
+blocks.6.blockstack.1.normactconv2.norm.gamma, [1, 192, 1, 1], 192 params
+blocks.6.blockstack.1.normactconv2.conv.weight, [192, 192, 3, 3], 331776 params
+blocks.6.normactconvq.norm.beta, [1, 192, 1, 1], 192 params
+blocks.6.normactconvq.norm.gamma, [1, 192, 1, 1], 192 params
+blocks.6.normactconvq.conv.weight, [384, 192, 1, 1], 73728 params
+blocks.7.normactconvp.norm.beta, [1, 384, 1, 1], 384 params
+blocks.7.normactconvp.conv.weight, [192, 384, 1, 1], 73728 params
+blocks.7.blockstack.0.normactconv1.norm.beta, [1, 192, 1, 1], 192 params
+blocks.7.blockstack.0.normactconv1.conv.weight, [192, 192, 3, 3], 331776 params
+blocks.7.blockstack.0.normactconv2.norm.beta, [1, 192, 1, 1], 192 params
+blocks.7.blockstack.0.normactconv2.norm.gamma, [1, 192, 1, 1], 192 params
+blocks.7.blockstack.0.normactconv2.conv.weight, [192, 192, 3, 3], 331776 params
+blocks.7.blockstack.1.normactconv1.norm.beta, [1, 192, 1, 1], 192 params
+blocks.7.blockstack.1.normactconv1.conv.weight, [192, 192, 3, 3], 331776 params
+blocks.7.blockstack.1.normactconv2.norm.beta, [1, 192, 1, 1], 192 params
+blocks.7.blockstack.1.normactconv2.norm.gamma, [1, 192, 1, 1], 192 params
+blocks.7.blockstack.1.normactconv2.conv.weight, [192, 192, 3, 3], 331776 params
+blocks.7.normactconvq.norm.beta, [1, 192, 1, 1], 192 params
+blocks.7.normactconvq.norm.gamma, [1, 192, 1, 1], 192 params
+blocks.7.normactconvq.conv.weight, [384, 192, 1, 1], 73728 params
+blocks.8.normactconvp.norm.beta, [1, 384, 1, 1], 384 params
+blocks.8.normactconvp.conv.weight, [192, 384, 1, 1], 73728 params
+blocks.8.blockstack.0.normactconv1.norm.beta, [1, 192, 1, 1], 192 params
+blocks.8.blockstack.0.normactconv1.convpool.conv1r.weight, [128, 192, 3, 3], 221184 params
+blocks.8.blockstack.0.normactconv1.convpool.conv1g.weight, [64, 192, 3, 3], 110592 params
+blocks.8.blockstack.0.normactconv1.convpool.normg.beta, [1, 64, 1, 1], 64 params
+blocks.8.blockstack.0.normactconv1.convpool.linear_g.weight, [128, 192], 24576 params
+blocks.8.blockstack.0.normactconv2.norm.beta, [1, 128, 1, 1], 128 params
+blocks.8.blockstack.0.normactconv2.norm.gamma, [1, 128, 1, 1], 128 params
+blocks.8.blockstack.0.normactconv2.conv.weight, [192, 128, 3, 3], 221184 params
+blocks.8.blockstack.1.normactconv1.norm.beta, [1, 192, 1, 1], 192 params
+blocks.8.blockstack.1.normactconv1.conv.weight, [192, 192, 3, 3], 331776 params
+blocks.8.blockstack.1.normactconv2.norm.beta, [1, 192, 1, 1], 192 params
+blocks.8.blockstack.1.normactconv2.norm.gamma, [1, 192, 1, 1], 192 params
+blocks.8.blockstack.1.normactconv2.conv.weight, [192, 192, 3, 3], 331776 params
+blocks.8.normactconvq.norm.beta, [1, 192, 1, 1], 192 params
+blocks.8.normactconvq.norm.gamma, [1, 192, 1, 1], 192 params
+blocks.8.normactconvq.conv.weight, [384, 192, 1, 1], 73728 params
+blocks.9.normactconvp.norm.beta, [1, 384, 1, 1], 384 params
+blocks.9.normactconvp.conv.weight, [192, 384, 1, 1], 73728 params
+blocks.9.blockstack.0.normactconv1.norm.beta, [1, 192, 1, 1], 192 params
+blocks.9.blockstack.0.normactconv1.conv.weight, [192, 192, 3, 3], 331776 params
+blocks.9.blockstack.0.normactconv2.norm.beta, [1, 192, 1, 1], 192 params
+blocks.9.blockstack.0.normactconv2.norm.gamma, [1, 192, 1, 1], 192 params
+blocks.9.blockstack.0.normactconv2.conv.weight, [192, 192, 3, 3], 331776 params
+blocks.9.blockstack.1.normactconv1.norm.beta, [1, 192, 1, 1], 192 params
+blocks.9.blockstack.1.normactconv1.conv.weight, [192, 192, 3, 3], 331776 params
+blocks.9.blockstack.1.normactconv2.norm.beta, [1, 192, 1, 1], 192 params
+blocks.9.blockstack.1.normactconv2.norm.gamma, [1, 192, 1, 1], 192 params
+blocks.9.blockstack.1.normactconv2.conv.weight, [192, 192, 3, 3], 331776 params
+blocks.9.normactconvq.norm.beta, [1, 192, 1, 1], 192 params
+blocks.9.normactconvq.norm.gamma, [1, 192, 1, 1], 192 params
+blocks.9.normactconvq.conv.weight, [384, 192, 1, 1], 73728 params
+blocks.10.normactconvp.norm.beta, [1, 384, 1, 1], 384 params
+blocks.10.normactconvp.conv.weight, [192, 384, 1, 1], 73728 params
+blocks.10.blockstack.0.normactconv1.norm.beta, [1, 192, 1, 1], 192 params
+blocks.10.blockstack.0.normactconv1.conv.weight, [192, 192, 3, 3], 331776 params
+blocks.10.blockstack.0.normactconv2.norm.beta, [1, 192, 1, 1], 192 params
+blocks.10.blockstack.0.normactconv2.norm.gamma, [1, 192, 1, 1], 192 params
+blocks.10.blockstack.0.normactconv2.conv.weight, [192, 192, 3, 3], 331776 params
+blocks.10.blockstack.1.normactconv1.norm.beta, [1, 192, 1, 1], 192 params
+blocks.10.blockstack.1.normactconv1.conv.weight, [192, 192, 3, 3], 331776 params
+blocks.10.blockstack.1.normactconv2.norm.beta, [1, 192, 1, 1], 192 params
+blocks.10.blockstack.1.normactconv2.norm.gamma, [1, 192, 1, 1], 192 params
+blocks.10.blockstack.1.normactconv2.conv.weight, [192, 192, 3, 3], 331776 params
+blocks.10.normactconvq.norm.beta, [1, 192, 1, 1], 192 params
+blocks.10.normactconvq.norm.gamma, [1, 192, 1, 1], 192 params
+blocks.10.normactconvq.conv.weight, [384, 192, 1, 1], 73728 params
+blocks.11.normactconvp.norm.beta, [1, 384, 1, 1], 384 params
+blocks.11.normactconvp.conv.weight, [192, 384, 1, 1], 73728 params
+blocks.11.blockstack.0.normactconv1.norm.beta, [1, 192, 1, 1], 192 params
+blocks.11.blockstack.0.normactconv1.convpool.conv1r.weight, [128, 192, 3, 3], 221184 params
+blocks.11.blockstack.0.normactconv1.convpool.conv1g.weight, [64, 192, 3, 3], 110592 params
+blocks.11.blockstack.0.normactconv1.convpool.normg.beta, [1, 64, 1, 1], 64 params
+blocks.11.blockstack.0.normactconv1.convpool.linear_g.weight, [128, 192], 24576 params
+blocks.11.blockstack.0.normactconv2.norm.beta, [1, 128, 1, 1], 128 params
+blocks.11.blockstack.0.normactconv2.norm.gamma, [1, 128, 1, 1], 128 params
+blocks.11.blockstack.0.normactconv2.conv.weight, [192, 128, 3, 3], 221184 params
+blocks.11.blockstack.1.normactconv1.norm.beta, [1, 192, 1, 1], 192 params
+blocks.11.blockstack.1.normactconv1.conv.weight, [192, 192, 3, 3], 331776 params
+blocks.11.blockstack.1.normactconv2.norm.beta, [1, 192, 1, 1], 192 params
+blocks.11.blockstack.1.normactconv2.norm.gamma, [1, 192, 1, 1], 192 params
+blocks.11.blockstack.1.normactconv2.conv.weight, [192, 192, 3, 3], 331776 params
+blocks.11.normactconvq.norm.beta, [1, 192, 1, 1], 192 params
+blocks.11.normactconvq.norm.gamma, [1, 192, 1, 1], 192 params
+blocks.11.normactconvq.conv.weight, [384, 192, 1, 1], 73728 params
+blocks.12.normactconvp.norm.beta, [1, 384, 1, 1], 384 params
+blocks.12.normactconvp.conv.weight, [192, 384, 1, 1], 73728 params
+blocks.12.blockstack.0.normactconv1.norm.beta, [1, 192, 1, 1], 192 params
+blocks.12.blockstack.0.normactconv1.conv.weight, [192, 192, 3, 3], 331776 params
+blocks.12.blockstack.0.normactconv2.norm.beta, [1, 192, 1, 1], 192 params
+blocks.12.blockstack.0.normactconv2.norm.gamma, [1, 192, 1, 1], 192 params
+blocks.12.blockstack.0.normactconv2.conv.weight, [192, 192, 3, 3], 331776 params
+blocks.12.blockstack.1.normactconv1.norm.beta, [1, 192, 1, 1], 192 params
+blocks.12.blockstack.1.normactconv1.conv.weight, [192, 192, 3, 3], 331776 params
+blocks.12.blockstack.1.normactconv2.norm.beta, [1, 192, 1, 1], 192 params
+blocks.12.blockstack.1.normactconv2.norm.gamma, [1, 192, 1, 1], 192 params
+blocks.12.blockstack.1.normactconv2.conv.weight, [192, 192, 3, 3], 331776 params
+blocks.12.normactconvq.norm.beta, [1, 192, 1, 1], 192 params
+blocks.12.normactconvq.norm.gamma, [1, 192, 1, 1], 192 params
+blocks.12.normactconvq.conv.weight, [384, 192, 1, 1], 73728 params
+blocks.13.normactconvp.norm.beta, [1, 384, 1, 1], 384 params
+blocks.13.normactconvp.conv.weight, [192, 384, 1, 1], 73728 params
+blocks.13.blockstack.0.normactconv1.norm.beta, [1, 192, 1, 1], 192 params
+blocks.13.blockstack.0.normactconv1.conv.weight, [192, 192, 3, 3], 331776 params
+blocks.13.blockstack.0.normactconv2.norm.beta, [1, 192, 1, 1], 192 params
+blocks.13.blockstack.0.normactconv2.norm.gamma, [1, 192, 1, 1], 192 params
+blocks.13.blockstack.0.normactconv2.conv.weight, [192, 192, 3, 3], 331776 params
+blocks.13.blockstack.1.normactconv1.norm.beta, [1, 192, 1, 1], 192 params
+blocks.13.blockstack.1.normactconv1.conv.weight, [192, 192, 3, 3], 331776 params
+blocks.13.blockstack.1.normactconv2.norm.beta, [1, 192, 1, 1], 192 params
+blocks.13.blockstack.1.normactconv2.norm.gamma, [1, 192, 1, 1], 192 params
+blocks.13.blockstack.1.normactconv2.conv.weight, [192, 192, 3, 3], 331776 params
+blocks.13.normactconvq.norm.beta, [1, 192, 1, 1], 192 params
+blocks.13.normactconvq.norm.gamma, [1, 192, 1, 1], 192 params
+blocks.13.normactconvq.conv.weight, [384, 192, 1, 1], 73728 params
+blocks.14.normactconvp.norm.beta, [1, 384, 1, 1], 384 params
+blocks.14.normactconvp.conv.weight, [192, 384, 1, 1], 73728 params
+blocks.14.blockstack.0.normactconv1.norm.beta, [1, 192, 1, 1], 192 params
+blocks.14.blockstack.0.normactconv1.convpool.conv1r.weight, [128, 192, 3, 3], 221184 params
+blocks.14.blockstack.0.normactconv1.convpool.conv1g.weight, [64, 192, 3, 3], 110592 params
+blocks.14.blockstack.0.normactconv1.convpool.normg.beta, [1, 64, 1, 1], 64 params
+blocks.14.blockstack.0.normactconv1.convpool.linear_g.weight, [128, 192], 24576 params
+blocks.14.blockstack.0.normactconv2.norm.beta, [1, 128, 1, 1], 128 params
+blocks.14.blockstack.0.normactconv2.norm.gamma, [1, 128, 1, 1], 128 params
+blocks.14.blockstack.0.normactconv2.conv.weight, [192, 128, 3, 3], 221184 params
+blocks.14.blockstack.1.normactconv1.norm.beta, [1, 192, 1, 1], 192 params
+blocks.14.blockstack.1.normactconv1.conv.weight, [192, 192, 3, 3], 331776 params
+blocks.14.blockstack.1.normactconv2.norm.beta, [1, 192, 1, 1], 192 params
+blocks.14.blockstack.1.normactconv2.norm.gamma, [1, 192, 1, 1], 192 params
+blocks.14.blockstack.1.normactconv2.conv.weight, [192, 192, 3, 3], 331776 params
+blocks.14.normactconvq.norm.beta, [1, 192, 1, 1], 192 params
+blocks.14.normactconvq.norm.gamma, [1, 192, 1, 1], 192 params
+blocks.14.normactconvq.conv.weight, [384, 192, 1, 1], 73728 params
+blocks.15.normactconvp.norm.beta, [1, 384, 1, 1], 384 params
+blocks.15.normactconvp.conv.weight, [192, 384, 1, 1], 73728 params
+blocks.15.blockstack.0.normactconv1.norm.beta, [1, 192, 1, 1], 192 params
+blocks.15.blockstack.0.normactconv1.conv.weight, [192, 192, 3, 3], 331776 params
+blocks.15.blockstack.0.normactconv2.norm.beta, [1, 192, 1, 1], 192 params
+blocks.15.blockstack.0.normactconv2.norm.gamma, [1, 192, 1, 1], 192 params
+blocks.15.blockstack.0.normactconv2.conv.weight, [192, 192, 3, 3], 331776 params
+blocks.15.blockstack.1.normactconv1.norm.beta, [1, 192, 1, 1], 192 params
+blocks.15.blockstack.1.normactconv1.conv.weight, [192, 192, 3, 3], 331776 params
+blocks.15.blockstack.1.normactconv2.norm.beta, [1, 192, 1, 1], 192 params
+blocks.15.blockstack.1.normactconv2.norm.gamma, [1, 192, 1, 1], 192 params
+blocks.15.blockstack.1.normactconv2.conv.weight, [192, 192, 3, 3], 331776 params
+blocks.15.normactconvq.norm.beta, [1, 192, 1, 1], 192 params
+blocks.15.normactconvq.norm.gamma, [1, 192, 1, 1], 192 params
+blocks.15.normactconvq.conv.weight, [384, 192, 1, 1], 73728 params
+blocks.16.normactconvp.norm.beta, [1, 384, 1, 1], 384 params
+blocks.16.normactconvp.conv.weight, [192, 384, 1, 1], 73728 params
+blocks.16.blockstack.0.normactconv1.norm.beta, [1, 192, 1, 1], 192 params
+blocks.16.blockstack.0.normactconv1.conv.weight, [192, 192, 3, 3], 331776 params
+blocks.16.blockstack.0.normactconv2.norm.beta, [1, 192, 1, 1], 192 params
+blocks.16.blockstack.0.normactconv2.norm.gamma, [1, 192, 1, 1], 192 params
+blocks.16.blockstack.0.normactconv2.conv.weight, [192, 192, 3, 3], 331776 params
+blocks.16.blockstack.1.normactconv1.norm.beta, [1, 192, 1, 1], 192 params
+blocks.16.blockstack.1.normactconv1.conv.weight, [192, 192, 3, 3], 331776 params
+blocks.16.blockstack.1.normactconv2.norm.beta, [1, 192, 1, 1], 192 params
+blocks.16.blockstack.1.normactconv2.norm.gamma, [1, 192, 1, 1], 192 params
+blocks.16.blockstack.1.normactconv2.conv.weight, [192, 192, 3, 3], 331776 params
+blocks.16.normactconvq.norm.beta, [1, 192, 1, 1], 192 params
+blocks.16.normactconvq.norm.gamma, [1, 192, 1, 1], 192 params
+blocks.16.normactconvq.conv.weight, [384, 192, 1, 1], 73728 params
+blocks.17.normactconvp.norm.beta, [1, 384, 1, 1], 384 params
+blocks.17.normactconvp.conv.weight, [192, 384, 1, 1], 73728 params
+blocks.17.blockstack.0.normactconv1.norm.beta, [1, 192, 1, 1], 192 params
+blocks.17.blockstack.0.normactconv1.conv.weight, [192, 192, 3, 3], 331776 params
+blocks.17.blockstack.0.normactconv2.norm.beta, [1, 192, 1, 1], 192 params
+blocks.17.blockstack.0.normactconv2.norm.gamma, [1, 192, 1, 1], 192 params
+blocks.17.blockstack.0.normactconv2.conv.weight, [192, 192, 3, 3], 331776 params
+blocks.17.blockstack.1.normactconv1.norm.beta, [1, 192, 1, 1], 192 params
+blocks.17.blockstack.1.normactconv1.conv.weight, [192, 192, 3, 3], 331776 params
+blocks.17.blockstack.1.normactconv2.norm.beta, [1, 192, 1, 1], 192 params
+blocks.17.blockstack.1.normactconv2.norm.gamma, [1, 192, 1, 1], 192 params
+blocks.17.blockstack.1.normactconv2.conv.weight, [192, 192, 3, 3], 331776 params
+blocks.17.normactconvq.norm.beta, [1, 192, 1, 1], 192 params
+blocks.17.normactconvq.norm.gamma, [1, 192, 1, 1], 192 params
+blocks.17.normactconvq.conv.weight, [384, 192, 1, 1], 73728 params
+norm_trunkfinal.beta, [1, 384, 1, 1], 384 params
+policy_head.conv1p.weight, [48, 384, 1, 1], 18432 params
+policy_head.conv1g.weight, [48, 384, 1, 1], 18432 params
+policy_head.biasg.beta, [1, 48, 1, 1], 48 params
+policy_head.linear_g.weight, [48, 144], 6912 params
+policy_head.linear_pass.weight, [6, 144], 864 params
+policy_head.bias2.beta, [1, 48, 1, 1], 48 params
+policy_head.conv2p.weight, [6, 48, 1, 1], 288 params
+value_head.conv1.weight, [96, 384, 1, 1], 36864 params
+value_head.bias1.beta, [1, 96, 1, 1], 96 params
+value_head.linear2.weight, [128, 288], 36864 params
+value_head.linear2.bias, [128], 128 params
+value_head.linear_valuehead.weight, [3, 128], 384 params
+value_head.linear_valuehead.bias, [3], 3 params
+value_head.linear_miscvaluehead.weight, [10, 128], 1280 params
+value_head.linear_miscvaluehead.bias, [10], 10 params
+value_head.linear_moremiscvaluehead.weight, [8, 128], 1024 params
+value_head.linear_moremiscvaluehead.bias, [8], 8 params
+value_head.conv_ownership.weight, [1, 96, 1, 1], 96 params
+value_head.conv_scoring.weight, [1, 96, 1, 1], 96 params
+value_head.conv_futurepos.weight, [2, 384, 1, 1], 768 params
+value_head.conv_seki.weight, [4, 384, 1, 1], 1536 params
+value_head.linear_s2.weight, [112, 288], 32256 params
+value_head.linear_s2.bias, [112], 112 params
+value_head.linear_s2off.weight, [112, 1], 112 params
+value_head.linear_s2par.weight, [112, 1], 112 params
+value_head.linear_s3.weight, [8, 112], 896 params
+value_head.linear_s3.bias, [8], 8 params
+value_head.linear_smix.weight, [8, 288], 2304 params
+value_head.linear_smix.bias, [8], 8 params
+Total num params: 26389941
+Total trainable params: 26389941
+Using lookahead optimizer 0.5 6
+Training in FP32.
+Shuffled data train.json file does not exist, there seems to be no data or not enough data yet, qutting: C:\Users\chang\OneDrive\Documents\GitHub\KataGo\shuffleddata\current\train.json

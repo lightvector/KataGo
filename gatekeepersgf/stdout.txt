@@ -1982,3 +1982,271 @@ winLossUtilityFactor = 1.0
 2024-08-02 13:54:23-0400: Started 20 games
 2024-08-02 13:54:23-0400: Game 9: winner black kata9x9-b18c384nbt-20231025.bin.gz RE[B+R]
 2024-08-02 13:54:23-0400: Game 10: winner white kata9x9-b18c384nbt-20231025.bin.gz RE[W+R]
+2024-08-02 13:54:54-0400: Game 11: winner white kata9x9-b18c384nbt-20231025.bin.gz RE[W+R]
+2024-08-02 13:54:59-0400: Game 12: draw RE[0]
+2024-08-02 13:55:03-0400: Game 13: winner black kata9x9-b18c384nbt-20231025.bin.gz RE[B+R]
+2024-08-02 13:55:05-0400: Game 14: winner black kata9x9-b18c384nbt-20231025.bin.gz RE[B+R]
+2024-08-02 13:55:08-0400: Game 15: winner black kata9x9-b18c384nbt-20231025.bin.gz RE[B+R]
+2024-08-02 13:55:16-0400: Game 16: draw RE[0]
+2024-08-02 13:55:19-0400: Game 17: draw RE[0]
+2024-08-02 13:55:21-0400: Game 18: winner white kata1-b18c384nbt-s9937771520-d4300882049.bin.gz RE[W+R]
+2024-08-02 13:55:40-0400: Started 30 games
+2024-08-02 13:55:40-0400: Game 19: draw RE[0]
+2024-08-02 13:55:43-0400: Game 20: draw RE[0]
+2024-08-02 13:55:49-0400: Game 21: draw RE[0]
+2024-08-02 13:55:54-0400: Game 22: winner white kata9x9-b18c384nbt-20231025.bin.gz RE[W+R]
+2024-08-02 13:56:10-0400: Game 23: draw RE[0]
+2024-08-02 13:56:10-0400: Game 24: draw RE[0]
+2024-08-02 13:56:15-0400: Game 25: winner white kata9x9-b18c384nbt-20231025.bin.gz RE[W+R]
+2024-08-02 13:56:18-0400: Game 26: draw RE[0]
+2024-08-02 13:56:18-0400: Game 27: draw RE[0]
+2024-08-02 13:56:26-0400: Game 28: draw RE[0]
+2024-08-02 13:56:30-0400: Started 40 games
+2024-08-02 13:56:30-0400: Game 29: draw RE[0]
+2024-08-02 13:56:45-0400: Game 30: draw RE[0]
+2024-08-02 13:56:48-0400: Game 31: draw RE[0]
+2024-08-02 13:56:53-0400: Game 32: draw RE[0]
+2024-08-02 13:56:56-0400: Game 33: draw RE[0]
+2024-08-02 13:57:01-0400: Game 34: draw RE[0]
+2024-08-02 13:57:02-0400: Game 35: winner white kata1-b18c384nbt-s9937771520-d4300882049.bin.gz RE[W+R]
+2024-08-02 13:57:02-0400: Game 36: draw RE[0]
+2024-08-02 13:57:10-0400: Game 37: winner black kata9x9-b18c384nbt-20231025.bin.gz RE[B+R]
+2024-08-02 13:57:15-0400: Game 38: winner black kata1-b18c384nbt-s9937771520-d4300882049.bin.gz RE[B+R]
+2024-08-02 13:57:32-0400: Started 50 games
+2024-08-02 13:57:32-0400: Game 39: winner black kata9x9-b18c384nbt-20231025.bin.gz RE[B+R]
+2024-08-02 13:57:37-0400: Game loop thread 0 terminating
+2024-08-02 13:57:37-0400: Game 40: winner white kata1-b18c384nbt-s9937771520-d4300882049.bin.gz RE[W+R]
+2024-08-02 13:57:38-0400: Game loop thread 7 terminating
+2024-08-02 13:57:38-0400: Game 41: winner white kata9x9-b18c384nbt-20231025.bin.gz RE[W+R]
+2024-08-02 13:57:38-0400: Candidate has already won enough games, terminating remaning games
+2024-08-02 13:57:38-0400: Game loop thread 4 terminating
+2024-08-02 13:57:38-0400: Game loop thread 8 terminating
+2024-08-02 13:57:39-0400: Game loop thread 1 terminating
+2024-08-02 13:57:39-0400: Game loop thread 5 terminating
+2024-08-02 13:57:39-0400: Game loop thread 9 terminating
+2024-08-02 13:57:47-0400: Game loop thread 2 terminating
+2024-08-02 13:57:50-0400: Game loop thread 3 terminating
+2024-08-02 13:57:56-0400: Game loop thread 6 terminating
+2024-08-02 13:57:56-0400: Data write loop finishing for neural net: kata1-b18c384nbt-s9937771520-d4300882049.bin.gz vs kata9x9-b18c384nbt-20231025.bin.gz
+2024-08-02 13:57:56-0400: Data write loop cleaned up and terminating for kata1-b18c384nbt-s9937771520-d4300882049.bin.gz vs kata9x9-b18c384nbt-20231025.bin.gz
+2024-08-02 13:57:56-0400: Candidate won match, score 25.500 to 16.500 in 42 games, accepting candidate kata9x9-b18c384nbt-20231025.bin.gz
+2024-08-02 13:57:58-0400: Moving C:\Users\chang\OneDrive\Documents\GitHub\KataGo\modelstobetested\kata9x9-b18c384nbt-20231025.bin.gz to C:/Users/chang/OneDrive/Documents/GitHub/KataGo/models//kata9x9-b18c384nbt-20231025.bin.gz
+2024-08-02 13:57:58-0400: GPU -1 finishing, processed 29392 rows 11853 batches
+2024-08-02 13:57:58-0400: GPU -1 finishing, processed 29644 rows 11861 batches
+2024-08-02 13:58:00-0400: Found new candidate neural net kata1-b28c512nbt-s7168446720-d4316919285.bin.gz
+2024-08-02 13:58:00-0400: Rejecting kata1-b28c512nbt-s7168446720-d4316919285.bin.gz automatically since older than best accepted model
+2024-08-02 13:58:00-0400: Moving C:\Users\chang\OneDrive\Documents\GitHub\KataGo\modelstobetested\kata1-b28c512nbt-s7168446720-d4316919285.bin.gz to C:/Users/chang/OneDrive/Documents/GitHub/KataGo/rejectedmodels/kata1-b28c512nbt-s7168446720-d4316919285.bin.gz
+2024-08-02 13:58:00-0400: All cleaned up, quitting
+2024-08-02 13:59:14-0400: Running with following config:
+allowRectangleProb = 0.50
+allowResignation = true
+bSizeRelProbs = 1,1,8
+bSizes = 7,8,9
+chosenMovePrune = 1
+chosenMoveSubtract = 0
+chosenMoveTemperature = 0.2
+chosenMoveTemperatureEarly = 0.5
+chosenMoveTemperatureHalflife = 19
+cpuctExploration = 1.1
+cpuctExplorationLog = 0.0
+cudaUseFP16 = auto
+cudaUseNHWC = auto
+drawEquivalentWinsForWhite = 0.5
+dynamicScoreCenterScale = 0.50
+dynamicScoreCenterZeroWeight = 0.25
+dynamicScoreUtilityFactor = 0.25
+fpuReductionMax = 0.2
+handicapCompensateKomiProb = 1.0
+handicapProb = 0.0
+hasButtons = false,false,true
+koRules = SIMPLE,POSITIONAL,SITUATIONAL
+komiAuto = True
+lcbStdevs = 5.0
+logGamesEvery = 10
+logMoves = false
+logSearchInfo = false
+logToStdout = true
+maxMovesPerGame = 1600
+maxVisits = 30
+minVisitPropForLCB = 0.15
+multiStoneSuicideLegals = false,true
+nnCacheSizePowerOfTwo = 21
+nnMaxBatchSize = 128
+nnMutexPoolSizePowerOfTwo = 15
+nnRandomize = true
+noResultUtilityForWhite = 0.0
+numGameThreads = 10
+numGamesPerGating = 50
+numNNServerThreadsPerModel = 1
+numSearchThreads = 1
+numVirtualLossesPerThread = 1
+policyOptimism = 1.0
+resignConsecTurns = 5
+resignThreshold = -0.90
+rootEndingBonusPoints = 0.5
+rootFpuReductionMax = 0.1
+rootPolicyOptimism = 0.0
+rootPruneUselessMoves = true
+scoringRules = AREA,TERRITORY
+staticScoreUtilityFactor = 0.00
+subtreeValueBiasFactor = 0.35
+subtreeValueBiasWeightExponent = 0.8
+taxRules = NONE,NONE,SEKI,SEKI,ALL
+uncertaintyCoeff = 0.25
+uncertaintyExponent = 1.0
+useGraphSearch = true
+useLcbForSelection = true
+useNonBuggyLcb = true
+useUncertainty = true
+valueWeightExponent = 0.5
+winLossUtilityFactor = 1.0
+
+2024-08-02 13:59:14-0400: Gatekeeper Engine starting...
+2024-08-02 13:59:14-0400: Git revision: 7939e2c3eb43df04e08de8c166889c6d5e937bfa
+2024-08-02 13:59:14-0400: Required candidate win prop: 0.5
+2024-08-02 13:59:14-0400: Loaded all config stuff, watching for new neural nets in C:/Users/chang/OneDrive/Documents/GitHub/KataGo/modelstobetested/
+2024-08-02 13:59:16-0400: All cleaned up, quitting
+2024-08-02 14:00:53-0400: Running with following config:
+allowRectangleProb = 0.50
+allowResignation = true
+bSizeRelProbs = 1,1,8
+bSizes = 7,8,9
+chosenMovePrune = 1
+chosenMoveSubtract = 0
+chosenMoveTemperature = 0.2
+chosenMoveTemperatureEarly = 0.5
+chosenMoveTemperatureHalflife = 19
+cpuctExploration = 1.1
+cpuctExplorationLog = 0.0
+cudaUseFP16 = auto
+cudaUseNHWC = auto
+drawEquivalentWinsForWhite = 0.5
+dynamicScoreCenterScale = 0.50
+dynamicScoreCenterZeroWeight = 0.25
+dynamicScoreUtilityFactor = 0.25
+fpuReductionMax = 0.2
+handicapCompensateKomiProb = 1.0
+handicapProb = 0.0
+hasButtons = false,false,true
+koRules = SIMPLE,POSITIONAL,SITUATIONAL
+komiAuto = True
+lcbStdevs = 5.0
+logGamesEvery = 10
+logMoves = false
+logSearchInfo = false
+logToStdout = true
+maxMovesPerGame = 1600
+maxVisits = 30
+minVisitPropForLCB = 0.15
+multiStoneSuicideLegals = false,true
+nnCacheSizePowerOfTwo = 21
+nnMaxBatchSize = 128
+nnMutexPoolSizePowerOfTwo = 15
+nnRandomize = true
+noResultUtilityForWhite = 0.0
+numGameThreads = 10
+numGamesPerGating = 50
+numNNServerThreadsPerModel = 1
+numSearchThreads = 1
+numVirtualLossesPerThread = 1
+policyOptimism = 1.0
+resignConsecTurns = 5
+resignThreshold = -0.90
+rootEndingBonusPoints = 0.5
+rootFpuReductionMax = 0.1
+rootPolicyOptimism = 0.0
+rootPruneUselessMoves = true
+scoringRules = AREA,TERRITORY
+staticScoreUtilityFactor = 0.00
+subtreeValueBiasFactor = 0.35
+subtreeValueBiasWeightExponent = 0.8
+taxRules = NONE,NONE,SEKI,SEKI,ALL
+uncertaintyCoeff = 0.25
+uncertaintyExponent = 1.0
+useGraphSearch = true
+useLcbForSelection = true
+useNonBuggyLcb = true
+useUncertainty = true
+valueWeightExponent = 0.5
+winLossUtilityFactor = 1.0
+
+2024-08-02 14:00:53-0400: Gatekeeper Engine starting...
+2024-08-02 14:00:53-0400: Git revision: 7939e2c3eb43df04e08de8c166889c6d5e937bfa
+2024-08-02 14:00:53-0400: Required candidate win prop: 0.5
+2024-08-02 14:00:53-0400: Loaded all config stuff, watching for new neural nets in C:/Users/chang/OneDrive/Documents/GitHub/KataGo/modelstobetested/
+2024-08-02 14:00:53-0400: Found new candidate neural net kata1-b18c384nbt-s9821054208-d4269405333.bin.gz
+2024-08-02 14:00:53-0400: nnRandSeed0 = 879159619320124078
+2024-08-02 14:00:53-0400: After dedups: nnModelFile0 = C:\Users\chang\OneDrive\Documents\GitHub\KataGo\modelstobetested\kata1-b18c384nbt-s9821054208-d4269405333.bin.gz useFP16 auto useNHWC auto
+2024-08-02 14:00:53-0400: Initializing neural net buffer to be size 9 * 9 allowing smaller boards
+2024-08-02 14:00:56-0400: Cuda backend thread 0: Found GPU NVIDIA GeForce RTX 4060 Laptop GPU memory 8585216000 compute capability major 8 minor 9
+2024-08-02 14:00:56-0400: Cuda backend thread 0: Model version 14 useFP16 = true useNHWC = true
+2024-08-02 14:00:56-0400: Cuda backend thread 0: Model name: kata1-b18c384nbt-s9821054208-d4269405333
+2024-08-02 14:01:00-0400: Loaded candidate neural net kata1-b18c384nbt-s9821054208-d4269405333.bin.gz from: C:\Users\chang\OneDrive\Documents\GitHub\KataGo\modelstobetested\kata1-b18c384nbt-s9821054208-d4269405333.bin.gz
+2024-08-02 14:01:00-0400: nnRandSeed0 = 2077263155661339447
+2024-08-02 14:01:00-0400: After dedups: nnModelFile0 = C:\Users\chang\OneDrive\Documents\GitHub\KataGo\models\kata9x9-b18c384nbt-20231025.bin.gz useFP16 auto useNHWC auto
+2024-08-02 14:01:00-0400: Initializing neural net buffer to be size 9 * 9 allowing smaller boards
+2024-08-02 14:01:02-0400: Cuda backend thread 0: Found GPU NVIDIA GeForce RTX 4060 Laptop GPU memory 8585216000 compute capability major 8 minor 9
+2024-08-02 14:01:02-0400: Cuda backend thread 0: Model version 12 useFP16 = true useNHWC = true
+2024-08-02 14:01:02-0400: Cuda backend thread 0: Model name: kata9x9-b18c384nbt-s6603587840-d252232394
+2024-08-02 14:01:05-0400: Loaded accepted neural net kata9x9-b18c384nbt-20231025.bin.gz from: C:\Users\chang\OneDrive\Documents\GitHub\KataGo\models\kata9x9-b18c384nbt-20231025.bin.gz
+2024-08-02 14:01:05-0400: Data write loop starting for neural net: kata9x9-b18c384nbt-20231025.bin.gz vs kata1-b18c384nbt-s9821054208-d4269405333.bin.gz
+2024-08-02 14:01:05-0400: Game loop thread 0 starting game testing candidate: kata1-b18c384nbt-s9821054208-d4269405333.bin.gz
+2024-08-02 14:01:05-0400: Game loop thread 1 starting game testing candidate: kata1-b18c384nbt-s9821054208-d4269405333.bin.gz
+2024-08-02 14:01:05-0400: Game loop thread 2 starting game testing candidate: kata1-b18c384nbt-s9821054208-d4269405333.bin.gz
+2024-08-02 14:01:05-0400: Game loop thread 3 starting game testing candidate: kata1-b18c384nbt-s9821054208-d4269405333.bin.gz
+2024-08-02 14:01:05-0400: Game loop thread 4 starting game testing candidate: kata1-b18c384nbt-s9821054208-d4269405333.bin.gz
+2024-08-02 14:01:05-0400: Game loop thread 5 starting game testing candidate: kata1-b18c384nbt-s9821054208-d4269405333.bin.gz
+2024-08-02 14:01:05-0400: Game loop thread 6 starting game testing candidate: kata1-b18c384nbt-s9821054208-d4269405333.bin.gz
+2024-08-02 14:01:05-0400: Game loop thread 7 starting game testing candidate: kata1-b18c384nbt-s9821054208-d4269405333.bin.gz
+2024-08-02 14:01:05-0400: Game loop thread 8 starting game testing candidate: kata1-b18c384nbt-s9821054208-d4269405333.bin.gz
+2024-08-02 14:01:05-0400: Game loop thread 9 starting game testing candidate: kata1-b18c384nbt-s9821054208-d4269405333.bin.gz
+2024-08-02 14:01:05-0400: Started 10 games
+2024-08-02 14:01:41-0400: Game 0: winner black kata1-b18c384nbt-s9821054208-d4269405333.bin.gz RE[B+R]
+2024-08-02 14:01:43-0400: Game 1: draw RE[0]
+2024-08-02 14:01:51-0400: Game 2: winner black kata9x9-b18c384nbt-20231025.bin.gz RE[B+R]
+2024-08-02 14:01:52-0400: Game 3: winner white kata9x9-b18c384nbt-20231025.bin.gz RE[W+R]
+2024-08-02 14:01:55-0400: Game 4: winner white kata1-b18c384nbt-s9821054208-d4269405333.bin.gz RE[W+R]
+2024-08-02 14:01:58-0400: Game 5: winner white kata9x9-b18c384nbt-20231025.bin.gz RE[W+R]
+2024-08-02 14:02:02-0400: Game 6: winner white kata9x9-b18c384nbt-20231025.bin.gz RE[W+R]
+2024-08-02 14:02:14-0400: Game 7: draw RE[0]
+2024-08-02 14:02:16-0400: Game 8: draw RE[0]
+2024-08-02 14:02:23-0400: Started 20 games
+2024-08-02 14:02:23-0400: Game 9: draw RE[0]
+2024-08-02 14:02:27-0400: Game 10: winner black kata1-b18c384nbt-s9821054208-d4269405333.bin.gz RE[B+R]
+2024-08-02 14:02:32-0400: Game 11: winner black kata9x9-b18c384nbt-20231025.bin.gz RE[B+R]
+2024-08-02 14:02:33-0400: Game 12: winner white kata9x9-b18c384nbt-20231025.bin.gz RE[W+R]
+2024-08-02 14:02:43-0400: Game 13: winner black kata1-b18c384nbt-s9821054208-d4269405333.bin.gz RE[B+R]
+2024-08-02 14:02:57-0400: Game 14: draw RE[0]
+2024-08-02 14:02:57-0400: Game 15: draw RE[0]
+2024-08-02 14:03:00-0400: Game 16: winner white kata1-b18c384nbt-s9821054208-d4269405333.bin.gz RE[W+R]
+2024-08-02 14:03:01-0400: Game 17: winner black kata9x9-b18c384nbt-20231025.bin.gz RE[B+R]
+2024-08-02 14:03:05-0400: Game 18: draw RE[0]
+2024-08-02 14:03:07-0400: Started 30 games
+2024-08-02 14:03:07-0400: Game 19: winner white kata9x9-b18c384nbt-20231025.bin.gz RE[W+R]
+2024-08-02 14:03:16-0400: Game 20: winner white kata9x9-b18c384nbt-20231025.bin.gz RE[W+R]
+2024-08-02 14:03:20-0400: Game 21: draw RE[0]
+2024-08-02 14:03:28-0400: Game 22: draw RE[0]
+2024-08-02 14:03:29-0400: Game 23: winner black kata9x9-b18c384nbt-20231025.bin.gz RE[B+R]
+2024-08-02 14:03:32-0400: Game 24: winner white kata9x9-b18c384nbt-20231025.bin.gz RE[W+R]
+2024-08-02 14:03:35-0400: Game 25: draw RE[0]
+2024-08-02 14:03:36-0400: Game 26: winner black kata9x9-b18c384nbt-20231025.bin.gz RE[B+R]
+2024-08-02 14:03:40-0400: Game 27: winner black kata1-b18c384nbt-s9821054208-d4269405333.bin.gz RE[B+R]
+2024-08-02 14:03:40-0400: Game 28: winner white kata9x9-b18c384nbt-20231025.bin.gz RE[W+R]
+2024-08-02 14:03:50-0400: Started 40 games
+2024-08-02 14:03:50-0400: Game 29: winner black kata9x9-b18c384nbt-20231025.bin.gz RE[B+R]
+2024-08-02 14:03:51-0400: Game 30: draw RE[0]
+2024-08-02 14:03:54-0400: Game 31: winner white kata9x9-b18c384nbt-20231025.bin.gz RE[W+R]
+2024-08-02 14:03:56-0400: Game 32: draw RE[0]
+2024-08-02 14:03:59-0400: Game 33: draw RE[0]
+2024-08-02 14:04:06-0400: Game 34: winner white kata9x9-b18c384nbt-20231025.bin.gz RE[W+R]
+2024-08-02 14:04:08-0400: Game 35: draw RE[0]
+2024-08-02 14:04:13-0400: Game 36: draw RE[0]
+2024-08-02 14:04:25-0400: Game 37: winner white kata9x9-b18c384nbt-20231025.bin.gz RE[W+R]
+2024-08-02 14:04:27-0400: Game 38: winner black kata9x9-b18c384nbt-20231025.bin.gz RE[B+R]
+2024-08-02 14:04:27-0400: Candidate has already lost too many games, terminating remaning games
+2024-08-02 14:04:27-0400: Game loop thread 6 terminating
+2024-08-02 14:04:27-0400: Game loop thread 1 terminating
+2024-08-02 14:04:27-0400: Game loop thread 5 terminating
+2024-08-02 14:04:27-0400: Game loop thread 7 terminating
+2024-08-02 14:04:31-0400: Game loop thread 3 terminating
+2024-08-02 14:04:33-0400: Game loop thread 8 terminating
