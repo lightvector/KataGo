@@ -50,6 +50,10 @@ struct SearchThread {
   //The path we trace down the graph as we do a playout
   std::unordered_set<SearchNode*> graphPath;
 
+  //Tracks whether this thread did something that "should" be counted as a playout
+  //for the purpose of playout limits
+  bool shouldCountPlayout;
+
   Rand rand;
 
   NNResultBuf nnResultBuf;
