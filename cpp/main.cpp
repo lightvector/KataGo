@@ -210,11 +210,11 @@ int main(int argc, const char* const* argv) {
 
 
 string Version::getKataGoVersion() {
-  return string("1.15.1-coreml3");
+  return string("1.15.2-coreml1");
 }
 
 string Version::getKataGoVersionForHelp() {
-  return string("KataGo v1.15.1-coreml3");
+  return string("KataGo v1.15.2-coreml1");
 }
 
 string Version::getKataGoVersionFullInfo() {

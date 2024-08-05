@@ -30,7 +30,7 @@ searchRandSeed = forTesting
 trtUseFP16 = false
 
 : GTP Engine starting...
-: KataGo v1.15.1
+: KataGo v1.15.2
 : Using TrompTaylor rules initially, unless GTP/GUI overrides this
 : Using 1 CPU thread(s) for search
 : nnRandSeed0 = forTesting
@@ -71,7 +71,7 @@ trtUseFP16 = false
 : Controller: get_komi
 : = -23
 : Controller: version
-: = 1.15.1+g170-b6c96-s175M
+: = 1.15.2+g170-b6c96-s175M
 : Controller: kata-get-models
 : = [{"internalName":"g170-b6c96-s175395328-d26788732","maxBatchSize":8,"name":"tests/models/g170-b6c96-s175395328-d26788732.bin.gz","usesHumanSLProfile":false,"usingFP16":"false","version":8}]
 : Controller: kata-set-param humanSLProfile rank_10k

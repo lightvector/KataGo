@@ -429,7 +429,7 @@ There are two ways to pass in the human SL model.
 
 * An alternative way: pass `-model b18c384nbt-humanv0.bin.gz` instead of KataGo's normal model, using the human model exclusively.
    * For example: `./katago analysis -config configs/analysis_example.cfg -model models/b18c384nbt-humanv0.bin.gz`.
-   * Additionally, provide `humanSLProfile` via `overrideSettings` on queries. See documentation above for `overrideSettings`.
+   * Additionally, provide `humanSLProfile` via `overrideSettings` on queries. See documentation above for `overrideSettings`. (In the case of GTP, set `humanSLProfile` in the GTP config, and update it at runtime via `kata-set-param` if you want to change it dynamically).
    * Then, KataGo will use the human model at the configured profile for all analysis, rather than its normal typically-superhuman analysis.
    * Note that if you are searching with many visits (or even just a few visits!), typically you can expect that KataGo will NOT match the strength of a player of the given humanSLProfile, but will still be stronger because the search will probably solve a lot of tactics that players of a weaker rank would not solve.
       * The human SL model is trained such that using only *one* visit, and full temperature (i.e. choosing random moves from the policy proportionally often, rather than always choosing the top move), will give the closest match to how players of the given rank might play. This should be true up to mid-high dan level, at which point the raw model might start to fall short and need more than 1 visit to keep up in strength.
@@ -495,12 +495,16 @@ If you've ensured that all likely human moves are analyzed, there might be some 
 
 #### How to get stronger human-style play
 
-If you want to obtain human *style* moves, but playing stronger than a given human level in strength (i.e. match just the style, but not necessarily the strength), you can try this:
+If you want to obtain human *style* moves, but play stronger than a given human level in strength (i.e. match just the style, but not necessarily the strength), or compensate for the gap in strength of the raw neural net at high-dan play, you can try this:
 
 * Ensure all human likely moves are analyzed, as described in an earlier section.
 * Choose a random move among all `moveInfos` with probability proportional to `humanPrior * exp(utility / 0.5)`. This will follow the humanPrior, but smoothly attenuate the probability of a move as it starts to lose more than 0.5 utility (about 25% winrate and/or some amount of score). Adjust the divisor 0.5 as desired.
 * Optionally, also set `staticScoreUtilityFactor` to `0.5`. (significantly increase how much score affects the utility, compared to just winrate).
-* A method like this, with adjusted numbers, might also be used to compensate for the gap that starts to open up in the human SL model no longer being able to match the strength of very top players at only 1 visit.
+* Another significant way to influence the strength is to decrease the temperature settings.
+    * In the analysis engine, this would be implemented by additionally raising `humanPrior ** (1/temperature)` for some temperature, and renormalizing.
+    * In GTP, this can be done by setting `chosenMoveTemperatureOnlyBelowProb` to `1.0` and then decreasing `chosenMoveTemperatureEarly` and `chosenMoveTemperature`.
+    * In either case, decreasing the temperature will make the bot play more deterministically and mimic a narrower fraction of the human distribution, but can improve strength as well.
+* A combination of methods like this, with appropriate adjusted numbers, is a good way to compensate for the gap that starts to open up in the human SL model no longer being able to match the strength of very top players at only 1 visit, but experimentation may be needed to tune the numbers.
 
 (Note: For GTP users, the parameter `humanSLChosenMovePiklLambda` does precisely this exp-based probability scaling.)
 
