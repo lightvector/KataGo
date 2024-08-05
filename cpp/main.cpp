@@ -15,6 +15,7 @@
 #include "core/using.h"
 //------------------------
 
+#ifndef OS_IS_IOS
 static void printHelp(const vector<string>& args) {
   cout << endl;
   if(args.size() >= 1)
@@ -205,14 +206,15 @@ int main(int argc, const char* const* argv) {
   return handleSubcommand(cmdArg, args);
 #endif
 }
+#endif
 
 
 string Version::getKataGoVersion() {
-  return string("1.15.2");
+  return string("1.15.2-coreml1");
 }
 
 string Version::getKataGoVersionForHelp() {
-  return string("KataGo v1.15.2");
+  return string("KataGo v1.15.2-coreml1");
 }
 
 string Version::getKataGoVersionFullInfo() {
@@ -233,6 +235,8 @@ string Version::getKataGoVersionFullInfo() {
   out << "Using OpenCL backend" << endl;
 #elif defined(USE_EIGEN_BACKEND)
   out << "Using Eigen(CPU) backend" << endl;
+#elif defined(USE_COREML_BACKEND)
+  out << "Using CoreML backend" << endl;
 #else
   out << "Using dummy backend" << endl;
 #endif
@@ -267,6 +271,8 @@ string Version::getGitRevisionWithBackend() {
   s += "-opencl";
 #elif defined(USE_EIGEN_BACKEND)
   s += "-eigen";
+#elif defined(USE_COREML_BACKEND)
+  s += "-coreml";
 #else
   s += "-dummy";
 #endif
