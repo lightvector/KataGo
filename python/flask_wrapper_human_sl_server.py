@@ -16,7 +16,7 @@ lock = threading.Lock()
 
 def start_cli():
     global cli_process
-    command = "python ./humanslnet_server.py -checkpoint ./b18c384nbt-humanv0.ckpt -device cpu -webserver"
+    command = "python ./humanslnet_server.py -checkpoint ./b18c384nbt-humanv0.ckpt -device cpu -webserver True"
 
     with lock:
         if cli_process is None:
