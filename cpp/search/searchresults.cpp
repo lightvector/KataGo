@@ -295,8 +295,21 @@ bool Search::getPlaySelectionValues(
       maxValue = playSelectionValues[i];
   }
 
-  if(maxValue <= 1e-50)
-    return false;
+  if(maxValue <= 1e-50) {
+    //If we reached this point we have nonzero many children but the children are all weightless.
+    //In that case, at least set each one to be weighted by its policy.
+    for(int i = 0; i<numChildren; i++) {
+      playSelectionValues[i] = std::max(0.0,(double)policyProbs[getPos(locs[i])]);
+    }
+    //Recompute max
+    for(int i = 0; i<numChildren; i++) {
+      if(playSelectionValues[i] > maxValue)
+        maxValue = playSelectionValues[i];
+    }
+    if(maxValue <= 1e-50) {
+      return false;
+    }
+  }
 
   //Sanity check - if somehow we had more than this, something must have overflowed or gone wrong
   assert(maxValue < 1e40);

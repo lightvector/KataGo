@@ -506,7 +506,8 @@ If you want to obtain human *style* moves, but play stronger than a given human 
     * In either case, decreasing the temperature will make the bot play more deterministically and mimic a narrower fraction of the human distribution, but can improve strength as well.
 * A combination of methods like this, with appropriate adjusted numbers, is a good way to compensate for the gap that starts to open up in the human SL model no longer being able to match the strength of very top players at only 1 visit, but experimentation may be needed to tune the numbers.
 
-(Note: For GTP users, the parameter `humanSLChosenMovePiklLambda` does precisely this exp-based probability scaling.)
+Note: For GTP users, the parameter `humanSLChosenMovePiklLambda` does precisely this exp-based probability scaling.
+An example set of parameters is given in [gtp_human9d_search_example.cfg](../cpp/configs/gtp_human9d_search_example.cfg), some of which may also be instructive to read even if you're using the analysis engine mode rather than GTP.
 
 #### Heavily bias the search to anticipate human-like sequences rather than KataGo sequences.
 
