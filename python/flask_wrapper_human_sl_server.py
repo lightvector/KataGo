@@ -1,9 +1,11 @@
 from flask import Flask, request, jsonify
-from subprocess import Popen, PIPE, STDOUT
+from subprocess import Popen, PIPE
+import time
 import threading
 import json
-import os
 from flask_cors import CORS, cross_origin
+import os
+
 app = Flask(__name__)
 cors = CORS(app)
 app.config['CORS_HEADERS'] = 'Content-Type'
@@ -16,12 +18,20 @@ lock = threading.Lock()
 
 def start_cli():
     global cli_process
+    global monitor_output_thread
     command = "python ./humanslnet_server.py -checkpoint ./b18c384nbt-humanv0.ckpt -device cpu -webserver True"
 
     with lock:
         if cli_process is None:
-            cli_process = Popen(command, shell=True, stdin=PIPE, stdout=PIPE, stderr=STDOUT, text=True)
+            cli_process = Popen(command, shell=True, stdin=PIPE, stdout=PIPE, stderr=PIPE, text=True)
+
             wait_for_ready_state(cli_process)
+            stderr_thread = threading.Thread(target=monitor_stderr, args=(cli_process,))
+            
+            stderr_thread.daemon = True
+            
+            stderr_thread.start()
+
 
 def wait_for_ready_state(process):
     """Reads lines from the CLI program until it outputs the ready state message."""
@@ -37,6 +47,28 @@ def wait_for_ready_state(process):
                 break  # Stop reading once the ready state is detected
     except Exception as e:
         print(f"Error reading initial output: {str(e)}")
+
+def monitor_stderr(process):
+    global cli_process
+    while True:
+        error_output = process.stderr.readline()
+        if error_output == '' and process.poll() is not None:
+            break
+        if error_output:
+            print(f"ERROR: {error_output.strip()}")
+            if "ERROR" in error_output or "Exception" in error_output or "Error" in error_output:
+                print("Error detected, quitting the process...")
+                os._exit(1)
+        time.sleep(0.1)
+
+
+def restart_process():
+    global cli_process
+    with lock:
+        if cli_process:
+            cli_process.kill()
+            cli_process = None
+            start_cli()
 
 @app.route('/', methods=['POST'])
 @cross_origin()

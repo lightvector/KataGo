@@ -70,8 +70,6 @@ def main():
 
         elif data["command"] == "get_model_outputs":
             sgfmeta = SGFMetadata.of_dict(data["sgfmeta"])
-            # features = Features(model.config, model.pos_len)
-            # foo = game_state.get_input_features(features)
             outputs = game_state.get_model_outputs(model, sgfmeta=sgfmeta)
             filtered_outputs = {}
             for key in outputs:
@@ -79,8 +77,19 @@ def main():
                     filtered_outputs[key] = outputs[key]
             write(dict(outputs=filtered_outputs))
 
+        elif data["command"] == "get_best_move":
+            sgfmeta = SGFMetadata.of_dict(data["sgfmeta"])
+
+            # Run Monte Carlo Tree Search with a specified number of visits
+            visits = data.get("visits", 100)  # Default to 100 visits if not specified
+            game_state.run_monte_carlo_tree_search(model, sgfmeta, visits)
+
+            # Write the refined outputs back to the output
+            write({"best_move": game_state.best_move})
+
         else:
             raise ValueError(f"Unknown command: {data['command']}")
+
 
 if __name__ == "__main__":
     main()
