@@ -63,6 +63,11 @@ int NeuralNet::getModelVersion(const LoadedModel* loadedModel) {
   throw StringError("Dummy neural net backend: NeuralNet::getModelVersion unimplemented");
 }
 
+int NeuralNet::getNumInputMetaChannels(const LoadedModel* loadedModel) {
+  (void)loadedModel;
+  throw StringError("Dummy neural net backend: NeuralNet::getNumInputMetaChannels unimplemented");
+}
+
 Rules NeuralNet::getSupportedRules(const LoadedModel* loadedModel, const Rules& desiredRules, bool& supported) {
   (void)loadedModel;
   (void)desiredRules;

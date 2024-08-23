@@ -295,8 +295,21 @@ bool Search::getPlaySelectionValues(
       maxValue = playSelectionValues[i];
   }
 
-  if(maxValue <= 1e-50)
-    return false;
+  if(maxValue <= 1e-50) {
+    //If we reached this point we have nonzero many children but the children are all weightless.
+    //In that case, at least set each one to be weighted by its policy.
+    for(int i = 0; i<numChildren; i++) {
+      playSelectionValues[i] = std::max(0.0,(double)policyProbs[getPos(locs[i])]);
+    }
+    //Recompute max
+    for(int i = 0; i<numChildren; i++) {
+      if(playSelectionValues[i] > maxValue)
+        maxValue = playSelectionValues[i];
+    }
+    if(maxValue <= 1e-50) {
+      return false;
+    }
+  }
 
   //Sanity check - if somehow we had more than this, something must have overflowed or gone wrong
   assert(maxValue < 1e40);
@@ -999,10 +1012,22 @@ void Search::getAnalysisData(
       return;
     assert(numChildren <= NNPos::MAX_NN_POLICY_SIZE);
 
-    bool alwaysComputeLcb = true;
-    bool success = getPlaySelectionValues(node, scratchLocs, scratchValues, NULL, 1.0, false, alwaysComputeLcb, false, lcbBuf, radiusBuf);
-    if(!success)
-      return;
+    const bool alwaysComputeLcb = true;
+    bool gotPlaySelectionValues = getPlaySelectionValues(node, scratchLocs, scratchValues, NULL, 1.0, false, alwaysComputeLcb, false, lcbBuf, radiusBuf);
+
+    // No play selection values - then fill with values consistent with all 0 visits.
+    // We want it to be possible to get analysis data even when all visits are weightless.
+    if(!gotPlaySelectionValues) {
+      for(int i = 0; i<numChildren; i++) {
+        scratchLocs.push_back(childrenMoveLocs[i]);
+        scratchValues.push_back(0.0);
+      }
+      double lcbBufValue;
+      double radiusBufValue;
+      getSelfUtilityLCBAndRadiusZeroVisits(lcbBufValue,radiusBufValue);
+      std::fill(lcbBuf,lcbBuf+numChildren,lcbBufValue);
+      std::fill(radiusBuf,radiusBuf+numChildren,radiusBufValue);
+    }
 
     const NNOutput* nnOutput = node.getNNOutput();
     const float* policyProbsFromNN = nnOutput->getPolicyProbsMaybeNoised();
