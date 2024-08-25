@@ -5,6 +5,7 @@ import torch
 from load_model import load_model
 import coremltools as ct
 import coremlmish
+import coremltools.optimize as cto
 
 description = """
 Convert a trained neural net to a CoreML model.
@@ -197,9 +198,6 @@ def main():
             "" if meta_encoder_version == 0 else f"m{meta_encoder_version}"
         )
 
-        # Set file name
-        mlmodel_file = f"KataGoModel{pos_len}x{pos_len}{precision_name}{meta_encoder_name}.mlpackage"
-
         # Set model description
         mlmodel.short_description = (
             f"KataGo {pos_len}x{pos_len} compute "
@@ -217,12 +215,36 @@ def main():
             mlmodel._spec, weights_dir=mlmodel._weights_dir
         )
 
+        # Set file name
+        mlmodel_file = f"KataGoModel{pos_len}x{pos_len}{precision_name}{meta_encoder_name}.mlpackage"
+
         # Save the model
         print(f"Saving model ...")
         rebuilt_mlmodel.save(mlmodel_file)
 
         # Print the file name
         print(f"Saved Core ML model at {mlmodel_file}")
+
+        # Define compressor configuration
+        nbits = 8
+        op_config = cto.coreml.OpPalettizerConfig(nbits=nbits)
+
+        # Define optimization config
+        config = cto.coreml.OptimizationConfig(global_config=op_config)
+                
+        # Palettize weights
+        print(f"Palettizing mode ...")
+        compressed_mlmodel = cto.coreml.palettize_weights(rebuilt_mlmodel, config)
+
+        # Set compressed file name
+        compressed_file = f"KataGoModel{pos_len}x{pos_len}{precision_name}{meta_encoder_name}b{nbits}.mlpackage"
+
+        # Save the compressed model
+        print(f"Saving compressed model ...")
+        compressed_mlmodel.save(compressed_file)
+
+        # Print the compressed file name
+        print(f"Saved compressed model at {compressed_file}")
 
 
 if __name__ == "__main__":
