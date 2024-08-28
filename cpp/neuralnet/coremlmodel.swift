@@ -104,7 +104,7 @@ class KataGoModel {
         return bundleModelURL
     }
 
-    class func compileBundleMLModel(modelName: String, useCpuAndNeuralEngine: Bool) -> MLModel? {
+    class func compileBundleMLModel(modelName: String, computeUnits: MLComputeUnits) -> MLModel? {
         var mlmodel: MLModel?
 
         do {
@@ -114,7 +114,7 @@ class KataGoModel {
             // Compile MLModel
             mlmodel = try compileMLModel(modelName: modelName,
                                          modelURL: bundleModelURL,
-                                         useCpuAndNeuralEngine: useCpuAndNeuralEngine)
+                                         computeUnits: computeUnits)
         } catch {
             printError("An error occurred: \(error)")
         }
@@ -225,9 +225,9 @@ class KataGoModel {
         try digest.write(to: savedDigestURL, atomically: true, encoding: .utf8)
     }
 
-    private class func loadModel(permanentURL: URL, modelName: String, useCpuAndNeuralEngine: Bool) throws -> MLModel {
+    private class func loadModel(permanentURL: URL, modelName: String, computeUnits: MLComputeUnits) throws -> MLModel {
         let configuration = MLModelConfiguration()
-        configuration.computeUnits = useCpuAndNeuralEngine ? .cpuAndNeuralEngine : .all
+        configuration.computeUnits = computeUnits
         configuration.modelDisplayName = modelName
         printError("Creating CoreML model with contents \(permanentURL)")
         return try MLModel(contentsOf: permanentURL, configuration: configuration)
@@ -247,7 +247,7 @@ class KataGoModel {
         return savedDigestURL
     }
 
-    class func compileMLModel(modelName: String, modelURL: URL, useCpuAndNeuralEngine: Bool) throws -> MLModel {
+    class func compileMLModel(modelName: String, modelURL: URL, computeUnits: MLComputeUnits) throws -> MLModel {
         let permanentURL = try getMLModelCPermanentURL(modelName: modelName)
         let savedDigestURL = try getSavedDigestURL(modelName: modelName)
         let digest = try getDigest(modelURL: modelURL)
@@ -265,7 +265,7 @@ class KataGoModel {
 
         return try loadModel(permanentURL: permanentURL,
                              modelName: modelName,
-                             useCpuAndNeuralEngine: useCpuAndNeuralEngine);
+                             computeUnits: computeUnits);
     }
 
     init(model: MLModel) {

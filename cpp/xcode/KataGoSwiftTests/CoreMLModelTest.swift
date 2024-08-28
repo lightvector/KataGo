@@ -16,7 +16,7 @@ final class CoreMLModelTest: XCTestCase {
         try! FileManager.default.removeItem(at: savedDigestURL)
 
         let mlmodel = KataGoModel.compileBundleMLModel(modelName: modelName,
-                                                       useCpuAndNeuralEngine: true)
+                                                       computeUnits: .cpuAndNeuralEngine)
 
         XCTAssertNotNil(mlmodel)
     }
@@ -25,13 +25,13 @@ final class CoreMLModelTest: XCTestCase {
         let modelName = CoreMLBackend.getModelName()
 
         _ = KataGoModel.compileBundleMLModel(modelName: modelName,
-                                             useCpuAndNeuralEngine: true)
+                                             computeUnits: .cpuAndNeuralEngine)
 
         let permanentURL = try! KataGoModel.getMLModelCPermanentURL(modelName: modelName)
         try! FileManager.default.removeItem(at: permanentURL)
 
         let mlmodel = KataGoModel.compileBundleMLModel(modelName: modelName,
-                                                       useCpuAndNeuralEngine: true)
+                                                       computeUnits: .cpuAndNeuralEngine)
 
         XCTAssertNotNil(mlmodel)
     }
@@ -40,13 +40,13 @@ final class CoreMLModelTest: XCTestCase {
         let modelName = CoreMLBackend.getModelName()
 
         _ = KataGoModel.compileBundleMLModel(modelName: modelName,
-                                             useCpuAndNeuralEngine: true)
+                                             computeUnits: .cpuAndNeuralEngine)
 
         let savedDigestURL = try! KataGoModel.getSavedDigestURL(modelName: modelName)
         try! "".write(to: savedDigestURL, atomically: true, encoding: .utf8)
 
         let mlmodel = KataGoModel.compileBundleMLModel(modelName: modelName,
-                                                       useCpuAndNeuralEngine: true)
+                                                       computeUnits: .cpuAndNeuralEngine)
 
         XCTAssertNotNil(mlmodel)
     }

@@ -40,16 +40,18 @@ public class CoreMLBackend {
     let numGlobalFeatures: Int
     let numMetaFeatures: Int
     let metaEncoderVersion: Int
+    let modelName: String
 
     var spatialSize: Int {
         numSpatialFeatures * yLen * xLen
     }
 
-    init(model: MLModel, xLen: Int, yLen: Int, metaEncoderVersion: Int) {
+    init(model: MLModel, xLen: Int, yLen: Int, metaEncoderVersion: Int, modelName: String) {
         self.model = KataGoModel(model: model)
         self.xLen = xLen
         self.yLen = yLen
         self.metaEncoderVersion = metaEncoderVersion
+        self.modelName = modelName
 
         // The model version must be at least 8.
         self.version = model.version
@@ -115,7 +117,7 @@ public class CoreMLBackend {
 
             let inputBatch = KataGoModelInputBatch(inputArray: inputArray)
             let options = MLPredictionOptions()
-            let outputBatch = try! model.prediction(from: inputBatch, options: options)
+            let outputBatch = safelyPredict(from: inputBatch, options: options)
 
             assert(outputBatch.count == batchSize)
 
@@ -148,6 +150,20 @@ public class CoreMLBackend {
             }
         }
     }
+
+    func safelyPredict(from inputBatch: KataGoModelInputBatch,
+                       options: MLPredictionOptions) -> KataGoModelOutputBatch {
+        if let firstTry = try? model.prediction(from: inputBatch, options: options) {
+            return firstTry
+        } else if let secondTry = try? model.prediction(from: inputBatch, options: options) {
+            return secondTry
+        } else {
+            let mlmodel = KataGoModel.compileBundleMLModel(modelName: modelName, computeUnits: .cpuOnly)!
+            let model = KataGoModel(model: mlmodel)
+            let cpuTry = try! model.prediction(from: inputBatch, options: options)
+            return cpuTry
+        }
+    }
 }
 
 public func maybeCreateCoreMLBackend(condition: Bool = true,
@@ -162,15 +178,18 @@ public func maybeCreateCoreMLBackend(condition: Bool = true,
     // Get the model name.
     let modelName = CoreMLBackend.getModelName(xLen: xLen, yLen: yLen, useFP16: useFP16, metaEncoderVersion: metaEncoderVersion)
 
+    // Specify compute units.
+    let computeUnits: MLComputeUnits = useCpuAndNeuralEngine ? .cpuAndNeuralEngine : .all
+
     // Compile the model in Bundle.
-    let mlmodel = KataGoModel.compileBundleMLModel(modelName: modelName, useCpuAndNeuralEngine: useCpuAndNeuralEngine)
+    let mlmodel = KataGoModel.compileBundleMLModel(modelName: modelName, computeUnits: computeUnits)
 
     if let mlmodel {
         printError("CoreML backend \(serverThreadIdx): \(xLen)x\(yLen) useFP16 \(useFP16) metaEncoderVersion \(metaEncoderVersion) useCpuAndNeuralEngine \(useCpuAndNeuralEngine)");
         printError("CoreML backend \(serverThreadIdx): \(mlmodel.metaDescription)");
 
         // The CoreMLBackend object is created.
-        return CoreMLBackend(model: mlmodel, xLen: xLen, yLen: yLen, metaEncoderVersion: metaEncoderVersion)
+        return CoreMLBackend(model: mlmodel, xLen: xLen, yLen: yLen, metaEncoderVersion: metaEncoderVersion, modelName: modelName)
     } else {
         printError("Unable to compile bundle MLModel from model: \(modelName)")
         return nil
