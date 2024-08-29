@@ -32,7 +32,7 @@ public class CoreMLBackend {
         return "KataGoModel\(xLen)x\(yLen)fp\(precision)\(encoder)"
     }
 
-    let model: KataGoModel
+    var model: KataGoModel
     let xLen: Int
     let yLen: Int
     public let version: Int32
@@ -117,8 +117,8 @@ public class CoreMLBackend {
 
             let inputBatch = KataGoModelInputBatch(inputArray: inputArray)
             let options = MLPredictionOptions()
-            let outputBatch = safelyPredict(from: inputBatch, options: options)
 
+            let outputBatch = safelyPredict(from: inputBatch, options: options)!
             assert(outputBatch.count == batchSize)
 
             outputBatch.outputArray.enumerated().forEach { index, output in
@@ -152,17 +152,34 @@ public class CoreMLBackend {
     }
 
     func safelyPredict(from inputBatch: KataGoModelInputBatch,
-                       options: MLPredictionOptions) -> KataGoModelOutputBatch {
-        if let firstTry = try? model.prediction(from: inputBatch, options: options) {
-            return firstTry
-        } else if let secondTry = try? model.prediction(from: inputBatch, options: options) {
-            return secondTry
-        } else {
-            let mlmodel = KataGoModel.compileBundleMLModel(modelName: modelName, computeUnits: .cpuOnly)!
-            let model = KataGoModel(model: mlmodel)
-            let cpuTry = try! model.prediction(from: inputBatch, options: options)
-            return cpuTry
+                       options: MLPredictionOptions) -> KataGoModelOutputBatch? {
+        if let prediction = try? model.prediction(from: inputBatch, options: options) {
+            return prediction
         }
+
+        let computeUnits = model.model.configuration.computeUnits
+
+        for mustCompile in [false, true] {
+            if let prediction = compileAndPredict(with: computeUnits, from: inputBatch, options: options, mustCompile: mustCompile) {
+                return prediction
+            }
+        }
+
+        return nil
+    }
+
+    private func compileAndPredict(with computeUnits: MLComputeUnits,
+                                   from inputBatch: KataGoModelInputBatch,
+                                   options: MLPredictionOptions,
+                                   mustCompile: Bool) -> KataGoModelOutputBatch? {
+        if let mlmodel = KataGoModel.compileBundleMLModel(modelName: modelName, computeUnits: computeUnits, mustCompile: mustCompile) {
+            model = KataGoModel(model: mlmodel)
+            if let outputBatch = try? model.prediction(from: inputBatch, options: options) {
+                return outputBatch
+            }
+        }
+
+        return nil
     }
 }
 

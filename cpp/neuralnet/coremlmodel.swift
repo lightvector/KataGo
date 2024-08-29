@@ -104,7 +104,7 @@ class KataGoModel {
         return bundleModelURL
     }
 
-    class func compileBundleMLModel(modelName: String, computeUnits: MLComputeUnits) -> MLModel? {
+    class func compileBundleMLModel(modelName: String, computeUnits: MLComputeUnits, mustCompile: Bool = false) -> MLModel? {
         var mlmodel: MLModel?
 
         do {
@@ -114,7 +114,8 @@ class KataGoModel {
             // Compile MLModel
             mlmodel = try compileMLModel(modelName: modelName,
                                          modelURL: bundleModelURL,
-                                         computeUnits: computeUnits)
+                                         computeUnits: computeUnits,
+                                         mustCompile: mustCompile)
         } catch {
             printError("An error occurred: \(error)")
         }
@@ -247,14 +248,14 @@ class KataGoModel {
         return savedDigestURL
     }
 
-    class func compileMLModel(modelName: String, modelURL: URL, computeUnits: MLComputeUnits) throws -> MLModel {
+    class func compileMLModel(modelName: String, modelURL: URL, computeUnits: MLComputeUnits, mustCompile: Bool) throws -> MLModel {
         let permanentURL = try getMLModelCPermanentURL(modelName: modelName)
         let savedDigestURL = try getSavedDigestURL(modelName: modelName)
         let digest = try getDigest(modelURL: modelURL)
 
-        let shouldCompileModel = checkShouldCompileModel(permanentURL: permanentURL,
-                                                         savedDigestURL: savedDigestURL,
-                                                         digest: digest)
+        let shouldCompileModel = mustCompile || checkShouldCompileModel(permanentURL: permanentURL,
+                                                                        savedDigestURL: savedDigestURL,
+                                                                        digest: digest)
 
         if shouldCompileModel {
             try compileAndSaveModel(permanentURL: permanentURL,
