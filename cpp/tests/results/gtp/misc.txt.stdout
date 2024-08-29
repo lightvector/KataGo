@@ -8,7 +8,7 @@
 
 = -23
 
-= 1.15.1+g170-b6c96-s175M
+= 1.15.3+g170-b6c96-s175M
 
 = [{"internalName":"g170-b6c96-s175395328-d26788732","maxBatchSize":8,"name":"tests/models/g170-b6c96-s175395328-d26788732.bin.gz","usesHumanSLProfile":false,"usingFP16":"false","version":8}]
 

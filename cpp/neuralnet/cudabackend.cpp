@@ -2237,7 +2237,7 @@ struct Buffers {
     CUDA_ERR("Buffers",cudaMalloc(reinterpret_cast<void**>(&inputGlobalBufFloat), inputGlobalBufBytesFloat));
     CUDA_ERR("Buffers",cudaMalloc(&inputGlobalBuf, inputGlobalBufBytes));
     if(m.numInputMetaChannels > 0) {
-      CUDA_ERR("Buffers",cudaMalloc(&inputMetaBufFloat, inputMetaBufBytesFloat));
+      CUDA_ERR("Buffers",cudaMalloc(reinterpret_cast<void**>(&inputMetaBufFloat), inputMetaBufBytesFloat));
       CUDA_ERR("Buffers",cudaMalloc(&inputMetaBuf, inputMetaBufBytes));
     }
     else {
