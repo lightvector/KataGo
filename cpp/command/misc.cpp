@@ -1358,6 +1358,7 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
   double gameModeFastThreshold;
   bool flipIfPassOrWFirst;
   bool allowGameOver;
+  bool manualHintOnly;
   double trainingWeight;
 
   int minRank;
@@ -1396,6 +1397,7 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
     TCLAP::ValueArg<double> gameModeFastThresholdArg("","game-mode-fast-threshold","Utility threshold for game mode fast pass",false,0.005,"UTILS");
     TCLAP::SwitchArg flipIfPassOrWFirstArg("","flip-if-pass","Try to heuristically find cases where an sgf passes to simulate white<->black");
     TCLAP::SwitchArg allowGameOverArg("","allow-game-over","Allow sampling game over positions in sgf");
+    TCLAP::SwitchArg manualHintOnlyArg("","manual-hint-only","Allow only positions marked for hint in the sgf");
     TCLAP::ValueArg<double> trainingWeightArg("","training-weight","Scale the loss function weight from data from games that originate from this position",false,1.0,"WEIGHT");
     TCLAP::ValueArg<int> minRankArg("","min-rank","Require player making the move to have rank at least this",false,Sgf::RANK_UNKNOWN,"INT");
     TCLAP::ValueArg<int> minMinRankArg("","min-min-rank","Require both players in a game to have rank at least this",false,Sgf::RANK_UNKNOWN,"INT");
@@ -1427,6 +1429,7 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
     cmd.add(gameModeFastThresholdArg);
     cmd.add(flipIfPassOrWFirstArg);
     cmd.add(allowGameOverArg);
+    cmd.add(manualHintOnlyArg);
     cmd.add(trainingWeightArg);
     cmd.add(minRankArg);
     cmd.add(minMinRankArg);
@@ -1459,6 +1462,7 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
     gameModeFastThreshold = gameModeFastThresholdArg.getValue();
     flipIfPassOrWFirst = flipIfPassOrWFirstArg.getValue();
     allowGameOver = allowGameOverArg.getValue();
+    manualHintOnly = manualHintOnlyArg.getValue();
     trainingWeight = trainingWeightArg.getValue();
     minRank = minRankArg.getValue();
     minMinRank = minMinRankArg.getValue();
@@ -1805,7 +1809,7 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
   // ---------------------------------------------------------------------------------------------------
   //SGF MODE
 
-  auto processSgfGame = [&logger,&gameInit,&nnEval,&expensiveEvaluateMove,autoKomi,&gameModeFastThreshold,&maxDepth,&numFilteredSgfs,&maxHandicap,&maxPolicy,allowGameOver,trainingWeight](
+  auto processSgfGame = [&logger,&gameInit,&nnEval,&expensiveEvaluateMove,autoKomi,&gameModeFastThreshold,&maxDepth,&numFilteredSgfs,&maxHandicap,&maxPolicy,allowGameOver,manualHintOnly,trainingWeight](
     Search* search, Rand& rand, const string& fileName, CompactSgf* sgf, bool blackOkay, bool whiteOkay
   ) {
     //Don't use the SGF rules - randomize them for a bit more entropy
@@ -2286,6 +2290,10 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
               if((hist.moveHistory[hintIdx].pla == P_BLACK && !blackOkay) || (hist.moveHistory[hintIdx].pla == P_WHITE && !whiteOkay))
                 return;
 
+              bool markedAsHintPos = (comments.size() > 0 && comments.find("%HINT%") != string::npos);
+              if(manualHintOnly && !markedAsHintPos)
+                return;
+
               //unusedSample doesn't have enough history, doesn't have hintloc the way we want it
               int64_t numEnqueued = 1+numPosesEnqueued.fetch_add(1);
               if(numEnqueued % 500 == 0)
@@ -2293,7 +2301,7 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
               PosQueueEntry entry;
               entry.hist = new BoardHistory(hist);
               assert(hist.getCurrentTurnNumber() == unusedSample.getCurrentTurnNumber());
-              entry.markedAsHintPos = (comments.size() > 0 && comments.find("%HINT%") != string::npos);
+              entry.markedAsHintPos = markedAsHintPos;
               posQueue.waitPush(entry);
             }
           );
@@ -2804,5 +2812,133 @@ int MainCmds::sampleinitializations(const vector<string>& args) {
     delete nnEval;
 
   ScoreValue::freeTables();
+  return 0;
+}
+
+
+int MainCmds::checksgfhintpolicy(const vector<string>& args) {
+  Board::initHash();
+  ScoreValue::initTables();
+  Rand seedRand;
+
+  ConfigParser cfg;
+  string nnModelFile;
+  vector<string> sgfDirs;
+  try {
+    KataGoCommandLine cmd("Check policy for hint positions in sgfs");
+    cmd.addConfigFileArg("","");
+    cmd.addModelFileArg();
+    cmd.addOverrideConfigArg();
+
+    TCLAP::MultiArg<string> sgfDirArg("","sgfdir","Directory of sgf files",true,"DIR");
+    cmd.add(sgfDirArg);
+    cmd.parseArgs(args);
+
+    nnModelFile = cmd.getModelFile();
+    sgfDirs = sgfDirArg.getValue();
+
+    cmd.getConfig(cfg);
+  }
+  catch (TCLAP::ArgException &e) {
+    cerr << "Error: " << e.error() << " for argument " << e.argId() << endl;
+    return 1;
+  }
+
+  const bool logToStdoutDefault = true;
+  Logger logger(&cfg, logToStdoutDefault);
+
+  NNEvaluator* nnEval;
+  {
+    Setup::initializeSession(cfg);
+    const int expectedConcurrentEvals = 1;
+    const int defaultMaxBatchSize = 8;
+    const bool defaultRequireExactNNLen = false;
+    const bool disableFP16 = false;
+    const string expectedSha256 = "";
+    nnEval = Setup::initializeNNEvaluator(
+      nnModelFile,nnModelFile,expectedSha256,cfg,logger,seedRand,expectedConcurrentEvals,
+      NNPos::MAX_BOARD_LEN,NNPos::MAX_BOARD_LEN,defaultMaxBatchSize,defaultRequireExactNNLen,disableFP16,
+      Setup::SETUP_FOR_ANALYSIS
+    );
+  }
+  logger.write("Loaded neural net");
+
+  vector<string> sgfFiles;
+  FileHelpers::collectSgfsFromDirs(sgfDirs, sgfFiles);
+  logger.write("Found " + Global::int64ToString((int64_t)sgfFiles.size()) + " sgf files!");
+
+  int64_t numHintPositions = 0;
+  double logPolicySum = 0.0;
+  double logPolicyWeight = 0.0;
+
+  for(size_t i = 0; i<sgfFiles.size(); i++) {
+    Sgf* sgf = NULL;
+    try {
+      sgf = Sgf::loadFile(sgfFiles[i]);
+    }
+    catch(const StringError& e) {
+      logger.write("Invalid SGF " + sgfFiles[i] + ": " + e.what());
+      continue;
+    }
+
+    std::set<Hash128> uniqueHashes;
+    bool hashComments = true;
+    bool hashParent = true;
+    bool flipIfPassOrWFirst = false;
+    bool allowGameOver = false;
+    Rand rand;
+
+    const std::vector<Rules> rulesToUse = {
+      Rules::parseRules("chinese"),
+      Rules::parseRules("japanese")
+    };
+
+    logger.write("Processing sgf: " + sgfFiles[i] + " hint positions " + Global::int64ToString(numHintPositions));
+    sgf->iterAllUniquePositions(
+      uniqueHashes, hashComments, hashParent, flipIfPassOrWFirst, allowGameOver, &rand,
+      [&](Sgf::PositionSample& posSample, const BoardHistory& hist, const string& comments) {
+        if(comments.find("%HINT%") == string::npos)
+          return;
+        (void)hist; // Ignore, we want the position before the hint move
+
+        if(!posSample.hasPreviousPositions(1))
+          return;
+        numHintPositions++;
+        Sgf::PositionSample priorPosSample = posSample.previousPosition(1.0);
+
+        for(const Rules& rules: rulesToUse) {
+          Player nextPla;
+          BoardHistory histBefore = priorPosSample.getCurrentBoardHistory(rules,nextPla);
+          Board board = histBefore.getRecentBoard(0);
+
+          for(int symmetry = 0; symmetry < 8; symmetry++) {
+            MiscNNInputParams nnInputParams;
+            NNResultBuf buf;
+            bool skipCache = true;
+            bool includeOwnerMap = false;
+            nnEval->evaluate(board,histBefore,nextPla,nnInputParams,buf,skipCache,includeOwnerMap);
+
+            shared_ptr<NNOutput> nnOutput = std::move(buf.result);
+            int pos = NNPos::locToPos(posSample.moves[posSample.moves.size()-1].loc, board.x_size, nnOutput->nnXLen, nnOutput->nnYLen);
+            double policy = nnOutput->policyProbs[pos];
+            logPolicySum += log(policy + 1e-30);
+            logPolicyWeight += 1.0;
+          }
+        }
+      }
+    );
+
+    delete sgf;
+  }
+
+  double averageLogPolicy = logPolicySum / logPolicyWeight;
+
+  cout << "Total number of hint positions: " << numHintPositions << endl;
+  cout << "Average log policy across all hints: " << averageLogPolicy << endl;
+
+  delete nnEval;
+  NeuralNet::globalCleanup();
+  ScoreValue::freeTables();
+
   return 0;
 }
