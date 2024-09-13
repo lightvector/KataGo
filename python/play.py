@@ -443,9 +443,9 @@ while True:
             print("Warning: Trying to set incompatible boardsize %s (!= %d)" % (command[1], N), file=sys.stderr)
             ret = None
         board_size = int(command[1])
-        gs = GameState(board_size)
+        gs = GameState(board_size, GameState.RULES_TT)
     elif command[0] == "clear_board":
-        gs = GameState(board_size)
+        gs = GameState(board_size, GameState.RULES_TT)
     elif command[0] == "showboard":
         ret = "\n" + gs.board.to_string().strip()
     elif command[0] == "komi":
