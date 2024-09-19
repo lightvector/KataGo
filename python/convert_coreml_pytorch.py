@@ -44,6 +44,14 @@ def main():
         "-fp32", help="32-bit floating-point", action="store_true", required=False
     )
 
+    # Add an argument of the number of bits to use for palettizing the weights
+    parser.add_argument(
+        "-nbits",
+        help="Number of bits to use for palettizing the weights",
+        type=int,
+        required=False,
+    )
+
     # Parse the arguments
     args = vars(parser.parse_args())
 
@@ -61,6 +69,9 @@ def main():
 
     # Get the argument of 32-bit floating-point
     fp32 = args["fp32"]
+
+    # Get the argument of the number of bits to use for palettizing the weights
+    nbits = args["nbits"]
 
     # Load the model
     model, swa_model, _ = load_model(
@@ -198,21 +209,42 @@ def main():
             "" if meta_encoder_version == 0 else f"m{meta_encoder_version}"
         )
 
+        if nbits != None:
+            # Define compressor configuration
+            op_config = cto.coreml.OpPalettizerConfig(nbits=nbits)
+
+            # Define optimization config
+            config = cto.coreml.OptimizationConfig(global_config=op_config)
+
+            # Palettize weights
+            print(f"Palettizing weights with {nbits} bit(s) ...")
+            compressed_mlmodel = cto.coreml.palettize_weights(mlmodel, config)
+
+            # Compression description
+            compression_description = f"{nbits}-bit quantization "
+        else:
+            # Uncompressed model
+            compressed_mlmodel = mlmodel
+
+            # No compression description for the uncompressed model
+            compression_description = ""
+
         # Set model description
-        mlmodel.short_description = (
+        compressed_mlmodel.short_description = (
             f"KataGo {pos_len}x{pos_len} compute "
             f"precision {precision_name} model version {version} "
+            f"{compression_description}"
             f"meta encoder version {meta_encoder_version} "
             f"converted from {checkpoint_file}"
         )
 
         # Set model version
-        mlmodel.version = f"{version}"
+        compressed_mlmodel.version = f"{version}"
 
         # Rebuild the model with the updated spec
         print(f"Rebuilding model with updated spec ...")
         rebuilt_mlmodel = ct.models.MLModel(
-            mlmodel._spec, weights_dir=mlmodel._weights_dir
+            compressed_mlmodel._spec, weights_dir=compressed_mlmodel._weights_dir
         )
 
         # Set file name
@@ -224,27 +256,6 @@ def main():
 
         # Print the file name
         print(f"Saved Core ML model at {mlmodel_file}")
-
-        # Define compressor configuration
-        nbits = 8
-        op_config = cto.coreml.OpPalettizerConfig(nbits=nbits)
-
-        # Define optimization config
-        config = cto.coreml.OptimizationConfig(global_config=op_config)
-                
-        # Palettize weights
-        print(f"Palettizing mode ...")
-        compressed_mlmodel = cto.coreml.palettize_weights(rebuilt_mlmodel, config)
-
-        # Set compressed file name
-        compressed_file = f"KataGoModel{pos_len}x{pos_len}{precision_name}{meta_encoder_name}b{nbits}.mlpackage"
-
-        # Save the compressed model
-        print(f"Saving compressed model ...")
-        compressed_mlmodel.save(compressed_file)
-
-        # Print the compressed file name
-        print(f"Saved compressed model at {compressed_file}")
 
 
 if __name__ == "__main__":
