@@ -12,6 +12,8 @@ from coremltools.optimize.coreml import (
     OpPalettizerConfig,
     prune_weights,
     palettize_weights,
+    OpLinearQuantizerConfig,
+    linear_quantize_weights,
 )
 
 description = """
@@ -89,7 +91,7 @@ def main():
     nbits = args["nbits"]
 
     # Get the argument of the target sparsity for pruning the weights
-    sparsity = args["sparsity"] if args["sparsity"] else 0
+    sparsity = args["sparsity"] if args["sparsity"] else 0.0
 
     # Load the model
     model, swa_model, _ = load_model(
@@ -231,28 +233,58 @@ def main():
             "" if meta_encoder_version == 0 else f"m{meta_encoder_version}"
         )
 
-        # Define sparsity configuration
-        sparsity_config = OpMagnitudePrunerConfig(target_sparsity=sparsity)
+        if sparsity > 0:
+            # Define sparsity configuration
+            sparsity_config = OpMagnitudePrunerConfig(target_sparsity=sparsity)
 
-        # Define pruning config
-        pruning_config = OptimizationConfig(global_config=sparsity_config)
+            # Define pruning config
+            pruning_config = OptimizationConfig(global_config=sparsity_config)
 
-        # Prune weights
-        print(f"Pruning weights with {sparsity} sparsity ...")
-        pruned_mlmodel = prune_weights(mlmodel, config=pruning_config)
+            # Prune weights
+            print(f"Pruning weights with {sparsity} sparsity ...")
+            pruned_mlmodel = prune_weights(mlmodel, config=pruning_config)
+
+            # Enable joint compression
+            joint_compression = True
+        else:
+            # Model without pruning
+            pruned_mlmodel = mlmodel
+
+            # Disable joint compression
+            joint_compression = False
 
         if nbits != None:
-            # Define compressor configuration
-            nbits_config = OpPalettizerConfig(nbits=nbits)
+            if nbits == 8:
+                # Define weight threshold configuration
+                weight_threshold = 2048
+                threshold_config = OpLinearQuantizerConfig(
+                    mode="linear_symmetric", weight_threshold=weight_threshold
+                )
 
-            # Define optimization config
-            palettizing_config = OptimizationConfig(global_config=nbits_config)
+                # Define quantization config
+                quantizing_config = OptimizationConfig(global_config=threshold_config)
 
-            # Palettize weights
-            print(f"Palettizing weights with {nbits} bit(s) ...")
-            compressed_mlmodel = palettize_weights(
-                pruned_mlmodel, palettizing_config, joint_compression=True,
-            )
+                # Quantize weights
+                print(f"Quantizing weights to 8 bits with the threshold {weight_threshold} ...")
+                compressed_mlmodel = linear_quantize_weights(
+                    pruned_mlmodel,
+                    config=quantizing_config,
+                    joint_compression=joint_compression,
+                )
+            else:
+                # Define compressor configuration
+                nbits_config = OpPalettizerConfig(nbits=nbits)
+
+                # Define palettization config
+                palettizing_config = OptimizationConfig(global_config=nbits_config)
+
+                # Palettize weights
+                print(f"Palettizing weights with {nbits} bit(s) ...")
+                compressed_mlmodel = palettize_weights(
+                    pruned_mlmodel,
+                    palettizing_config,
+                    joint_compression=joint_compression,
+                )
 
             # Compression description
             compression_description = f"{nbits}-bit quantization "
