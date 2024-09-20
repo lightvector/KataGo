@@ -5,7 +5,14 @@ import torch
 from load_model import load_model
 import coremltools as ct
 import coremlmish
-import coremltools.optimize as cto
+
+from coremltools.optimize.coreml import (
+    OptimizationConfig,
+    OpMagnitudePrunerConfig,
+    OpPalettizerConfig,
+    prune_weights,
+    palettize_weights,
+)
 
 description = """
 Convert a trained neural net to a CoreML model.
@@ -52,6 +59,14 @@ def main():
         required=False,
     )
 
+    # Add an argument of the target sparsity for pruning the weights
+    parser.add_argument(
+        "-sparsity",
+        help="Target sparsity to use for pruning the weights",
+        type=float,
+        required=False,
+    )
+
     # Parse the arguments
     args = vars(parser.parse_args())
 
@@ -72,6 +87,9 @@ def main():
 
     # Get the argument of the number of bits to use for palettizing the weights
     nbits = args["nbits"]
+
+    # Get the argument of the target sparsity for pruning the weights
+    sparsity = args["sparsity"] if args["sparsity"] else 0
 
     # Load the model
     model, swa_model, _ = load_model(
@@ -162,6 +180,9 @@ def main():
             ]
         )
 
+        # Define the minimum deployment target
+        minimum_deployment_target = ct.target.iOS18 if nbits != None else None
+
         # Convert the model
         print(f"Converting model ...")
 
@@ -170,6 +191,7 @@ def main():
             convert_to="mlprogram",
             inputs=inputs,
             compute_precision=compute_precision,
+            minimum_deployment_target=minimum_deployment_target,
         )
 
         # Get the protobuf spec
@@ -209,22 +231,34 @@ def main():
             "" if meta_encoder_version == 0 else f"m{meta_encoder_version}"
         )
 
+        # Define sparsity configuration
+        sparsity_config = OpMagnitudePrunerConfig(target_sparsity=sparsity)
+
+        # Define pruning config
+        pruning_config = OptimizationConfig(global_config=sparsity_config)
+
+        # Prune weights
+        print(f"Pruning weights with {sparsity} sparsity ...")
+        pruned_mlmodel = prune_weights(mlmodel, config=pruning_config)
+
         if nbits != None:
             # Define compressor configuration
-            op_config = cto.coreml.OpPalettizerConfig(nbits=nbits)
+            nbits_config = OpPalettizerConfig(nbits=nbits)
 
             # Define optimization config
-            config = cto.coreml.OptimizationConfig(global_config=op_config)
+            palettizing_config = OptimizationConfig(global_config=nbits_config)
 
             # Palettize weights
             print(f"Palettizing weights with {nbits} bit(s) ...")
-            compressed_mlmodel = cto.coreml.palettize_weights(mlmodel, config)
+            compressed_mlmodel = palettize_weights(
+                pruned_mlmodel, palettizing_config, joint_compression=True,
+            )
 
             # Compression description
             compression_description = f"{nbits}-bit quantization "
         else:
             # Uncompressed model
-            compressed_mlmodel = mlmodel
+            compressed_mlmodel = pruned_mlmodel
 
             # No compression description for the uncompressed model
             compression_description = ""
