@@ -246,12 +246,18 @@ def main():
 
             # Enable joint compression
             joint_compression = True
+
+            # Sparsity description
+            sparsity_description = f"sparsity {sparsity} "
         else:
             # Model without pruning
             pruned_mlmodel = mlmodel
 
             # Disable joint compression
             joint_compression = False
+
+            # No sparsity description
+            sparsity_description = ""
 
         if nbits != None:
             if nbits == 8:
@@ -287,7 +293,7 @@ def main():
                 )
 
             # Compression description
-            compression_description = f"{nbits}-bit quantization "
+            compression_description = f"quantization bits {nbits} "
         else:
             # Uncompressed model
             compressed_mlmodel = pruned_mlmodel
@@ -299,6 +305,7 @@ def main():
         compressed_mlmodel.short_description = (
             f"KataGo {pos_len}x{pos_len} compute "
             f"precision {precision_name} model version {version} "
+            f"{sparsity_description}"
             f"{compression_description}"
             f"meta encoder version {meta_encoder_version} "
             f"converted from {checkpoint_file}"
