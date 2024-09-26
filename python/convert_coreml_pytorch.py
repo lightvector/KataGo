@@ -71,7 +71,7 @@ def parse_arguments() -> argparse.Namespace:
     parser.add_argument(
         "-nbits",
         type=int,
-        choices=[8, 4, 2, 1],
+        choices=[8, 6, 4, 3, 2, 1],
         help="Number of bits for palettizing the weights (e.g., 8).",
     )
     parser.add_argument(
@@ -166,16 +166,12 @@ def apply_optimizations(
     # Apply quantization or palettization if nbits is specified
     if nbits is not None:
         if nbits == 8:
-            weight_threshold = 2048
             threshold_config = OpLinearQuantizerConfig(
-                mode="linear_symmetric",
-                weight_threshold=weight_threshold,
+                mode="linear",
             )
             quantizing_config = OptimizationConfig(global_config=threshold_config)
 
-            print(
-                f"Quantizing weights to {nbits} bits with threshold {weight_threshold} ..."
-            )
+            print(f"Quantizing weights to {nbits} bits ...")
             mlmodel = linear_quantize_weights(
                 mlmodel,
                 config=quantizing_config,
@@ -183,7 +179,12 @@ def apply_optimizations(
             )
         else:
             palettizing_config = OptimizationConfig(
-                global_config=OpPalettizerConfig(nbits=nbits)
+                global_config=OpPalettizerConfig(
+                    nbits=nbits,
+                    mode="kmeans",
+                    granularity="per_grouped_channel",
+                    group_size=4,
+                )
             )
 
             print(f"Palettizing weights with {nbits} bit(s) ...")
