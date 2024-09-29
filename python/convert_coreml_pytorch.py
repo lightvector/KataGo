@@ -270,8 +270,14 @@ def main():
     print(f"Using model: {func.__class__.__name__}")
 
     # Determine meta encoder version
-    meta_encoder_version = model.config.get("metadata_encoder", {}).get(
-        "meta_encoder_version", 0
+    meta_encoder_version = (
+        0
+        if model.metadata_encoder is None
+        else (
+            1
+            if "meta_encoder_version" not in model.config["metadata_encoder"]
+            else model.config["metadata_encoder"]["meta_encoder_version"]
+        )
     )
     print(f"Meta encoder version: {meta_encoder_version}")
 
