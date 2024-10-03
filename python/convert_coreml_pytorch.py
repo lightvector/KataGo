@@ -3,7 +3,7 @@
 Convert a trained PyTorch neural network to a CoreML model.
 
 Example usage:
-    python3 convert_coreml_pytorch.py -checkpoint b18c384nbt-uec-20221121b.ckpt -use-swa
+    python3 convert_coreml_pytorch.py -checkpoint b18c384nbt-uec-20221121b.ckpt -use-swa -nbits 8
 """
 
 import argparse
@@ -298,7 +298,11 @@ def main():
     compute_precision = ct.precision.FLOAT32 if fp32 else ct.precision.FLOAT16
 
     # Determine minimum deployment target
-    minimum_deployment_target = ct.target.iOS18 if nbits else None
+    minimum_deployment_target = (
+        ct.target.iOS18 if sparsity or (nbits and nbits != 8) else 
+        ct.target.iOS16 if nbits == 8 else 
+        None
+    )
 
     # Convert traced model to CoreML
     mlmodel = convert_to_coreml(
