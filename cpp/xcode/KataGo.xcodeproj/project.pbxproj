@@ -1,0 +1,2089 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 56;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		E10ACA7D2928A6D30004AB17 /* book.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 973B04213D1B4030B35FB01C /* book.cpp */; };
+		E10ACA7E2928A6D30004AB17 /* bookcssjs.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 6DD28F2EE5FB490F906D63BA /* bookcssjs.cpp */; };
+		E10ACA7F2928A6D30004AB17 /* analysis.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E7B41A9FE4124FA1AB3FBEF1 /* analysis.cpp */; };
+		E10ACA802928A6D30004AB17 /* benchmark.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 063E4C878E7E43858A863A78 /* benchmark.cpp */; };
+		E10ACA812928A6D30004AB17 /* commandline.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 6CD97C1775DC4E678823595E /* commandline.cpp */; };
+		E10ACA822928A6D30004AB17 /* contribute.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D49AE95F1DD947B5BFF58C1F /* contribute.cpp */; };
+		E10ACA832928A6D30004AB17 /* evalsgf.cpp in Sources */ = {isa = PBXBuildFile; fileRef = CA66CE9038574A0BB16D80B6 /* evalsgf.cpp */; };
+		E10ACA842928A6D30004AB17 /* gatekeeper.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D8710CF2CCA3478EB65063C6 /* gatekeeper.cpp */; };
+		E10ACA862928A6D30004AB17 /* genbook.cpp in Sources */ = {isa = PBXBuildFile; fileRef = B2460699580B49F689D028D5 /* genbook.cpp */; };
+		E10ACA872928A6D30004AB17 /* gtp.cpp in Sources */ = {isa = PBXBuildFile; fileRef = AD94201E380643C3985E9D62 /* gtp.cpp */; };
+		E10ACA882928A6D30004AB17 /* match.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 948AF9E88374487D85E846C2 /* match.cpp */; };
+		E10ACA8A2928A6D30004AB17 /* misc.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 64D3C3432AB3409C942F7A0E /* misc.cpp */; };
+		E10ACA8B2928A6D30004AB17 /* runtests.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 5902EDD2F6A74BE7966E2001 /* runtests.cpp */; };
+		E10ACA8C2928A6D30004AB17 /* sandbox.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 11318DB744F340DCB41F7248 /* sandbox.cpp */; };
+		E10ACA8D2928A6D30004AB17 /* selfplay.cpp in Sources */ = {isa = PBXBuildFile; fileRef = AFF33AEBABB1472B9F241A98 /* selfplay.cpp */; };
+		E10ACA8E2928A6D30004AB17 /* tune.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A241D7415C384D3A81BF73AC /* tune.cpp */; };
+		E10ACA8F2928A6D30004AB17 /* base64.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D61629242F5143EBB2D9BEC9 /* base64.cpp */; };
+		E10ACA902928A6D30004AB17 /* bsearch.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 176C18FD215D45179B93393C /* bsearch.cpp */; };
+		E10ACA912928A6D30004AB17 /* commandloop.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4BF5823DCA854224809D93A8 /* commandloop.cpp */; };
+		E10ACA922928A6D30004AB17 /* config_parser.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 23D034621365403182419780 /* config_parser.cpp */; };
+		E10ACA932928A6D30004AB17 /* datetime.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 71DC745C32B543C191262823 /* datetime.cpp */; };
+		E10ACA942928A6D30004AB17 /* elo.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 59353ECA2B0140FA9365623E /* elo.cpp */; };
+		E10ACA952928A6D30004AB17 /* fancymath.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 2626105D31ED44D98E6B9B9D /* fancymath.cpp */; };
+		E10ACA962928A6D30004AB17 /* fileutils.cpp in Sources */ = {isa = PBXBuildFile; fileRef = CAD1B260FFB74AF9BA66A58A /* fileutils.cpp */; };
+		E10ACA972928A6D30004AB17 /* global.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A8748F2EFAAF401DACE6B60A /* global.cpp */; };
+		E10ACA982928A6D30004AB17 /* hash.cpp in Sources */ = {isa = PBXBuildFile; fileRef = BDF52FD481AA424BBC59124D /* hash.cpp */; };
+		E10ACA992928A6D30004AB17 /* logger.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 7B2C186FF8B3422CB64E6039 /* logger.cpp */; };
+		E10ACA9A2928A6D30004AB17 /* mainargs.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 92F4695F66A84118BDCAA13F /* mainargs.cpp */; };
+		E10ACA9B2928A6D30004AB17 /* makedir.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 63D5831B449B48D1AD132F9F /* makedir.cpp */; };
+		E10ACA9C2928A6D30004AB17 /* md5.cpp in Sources */ = {isa = PBXBuildFile; fileRef = BE7F7520CA15440EBDF0A21D /* md5.cpp */; };
+		E10ACA9D2928A6D30004AB17 /* multithread.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 5185F4BC63B5490AAE4F37CB /* multithread.cpp */; };
+		E10ACA9E2928A6D30004AB17 /* rand.cpp in Sources */ = {isa = PBXBuildFile; fileRef = B8E283A3B8004F289DACCD8A /* rand.cpp */; };
+		E10ACA9F2928A6D30004AB17 /* rand_helpers.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 59BC63FBF0804F63A27369AE /* rand_helpers.cpp */; };
+		E10ACAA02928A6D30004AB17 /* sha2.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 76F8951F199F416F99B96FE8 /* sha2.cpp */; };
+		E10ACAA12928A6D30004AB17 /* test.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 5639F08A96FD467CBD091947 /* test.cpp */; };
+		E10ACAA22928A6D30004AB17 /* threadsafecounter.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D645BB8AAF424700A75ED223 /* threadsafecounter.cpp */; };
+		E10ACAA32928A6D30004AB17 /* threadsafequeue.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 34B63C891D53453F9C258280 /* threadsafequeue.cpp */; };
+		E10ACAA42928A6D30004AB17 /* threadtest.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 69300B311DE94520A56A3B5F /* threadtest.cpp */; };
+		E10ACAA52928A6D30004AB17 /* timer.cpp in Sources */ = {isa = PBXBuildFile; fileRef = EEB543E9A42948748BF883C3 /* timer.cpp */; };
+		E10ACAA62928A6D30004AB17 /* files.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 8C31483CD76D48F2A7327613 /* files.cpp */; };
+		E10ACAA72928A6D30004AB17 /* homedata.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 6E87CD61EFA340A1AF4B8BCE /* homedata.cpp */; };
+		E10ACAA82928A6D30004AB17 /* loadmodel.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 8FBE5F0F301A405D85F23D38 /* loadmodel.cpp */; };
+		E10ACAA92928A6D30004AB17 /* numpywrite.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F20754875D24724A133A9AE /* numpywrite.cpp */; };
+		E10ACAAA2928A6D30004AB17 /* sgf.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 3E097292E4F34AB6806F67E6 /* sgf.cpp */; };
+		E10ACAAB2928A6D30004AB17 /* trainingwrite.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 6F9788817DEA4417A321C3A0 /* trainingwrite.cpp */; };
+		E10ACAAC2928A6D30004AB17 /* client.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 792CF6207CA54AABB0F058C6 /* client.cpp */; };
+		E10ACAAD2928A6D30004AB17 /* board.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 8F0B49CAFCB24D31808DB2C1 /* board.cpp */; };
+		E10ACAAE2928A6D30004AB17 /* boardhistory.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 540D93E0576C47C789279AF8 /* boardhistory.cpp */; };
+		E10ACAAF2928A6D30004AB17 /* graphhash.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 10EB7D2538F94B26BE1B1740 /* graphhash.cpp */; };
+		E10ACAB02928A6D30004AB17 /* rules.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 727A790F2FEA4DBEA8ABAE85 /* rules.cpp */; };
+		E10ACAB12928A6D30004AB17 /* main.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 50827347EBFE4467996C3150 /* main.cpp */; };
+		E10ACAB22928A6D30004AB17 /* desc.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 5D8F26726AAF403C833FBD7F /* desc.cpp */; };
+		E10ACAB32928A6D30004AB17 /* metalbackend.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4845ACCEFC204BA89C033482 /* metalbackend.cpp */; };
+		E10ACAB52928A6D30004AB17 /* modelversion.cpp in Sources */ = {isa = PBXBuildFile; fileRef = DDCAE99038794BE8B4BB3962 /* modelversion.cpp */; };
+		E10ACAB62928A6D30004AB17 /* nneval.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 92C3AF4C79ED491988E9C5BC /* nneval.cpp */; };
+		E10ACAB72928A6D30004AB17 /* nninputs.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D41000BDB70543A4820D445A /* nninputs.cpp */; };
+		E10ACAB82928A6D30004AB17 /* gtpconfig.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 5BCE97296A5249A0B49C766F /* gtpconfig.cpp */; };
+		E10ACAB92928A6D30004AB17 /* play.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 3FBACE432776421CAEDF6786 /* play.cpp */; };
+		E10ACABA2928A6D30004AB17 /* playsettings.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 7A57BA046921422DB33C7614 /* playsettings.cpp */; };
+		E10ACABB2928A6D30004AB17 /* playutils.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 9FB3A34B1C8D4CBF9997DDA7 /* playutils.cpp */; };
+		E10ACABC2928A6D30004AB17 /* selfplaymanager.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 7C7A65C82B4C4AB5B83B1346 /* selfplaymanager.cpp */; };
+		E10ACABD2928A6D30004AB17 /* setup.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D104762E63AF4C6A8ADB220E /* setup.cpp */; };
+		E10ACABE2928A6D30004AB17 /* analysisdata.cpp in Sources */ = {isa = PBXBuildFile; fileRef = BF423768A6B74FF18FDC44E7 /* analysisdata.cpp */; };
+		E10ACABF2928A6D30004AB17 /* asyncbot.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F2D4BF5BF0CD446F80DFDACE /* asyncbot.cpp */; };
+		E10ACAC02928A6D30004AB17 /* distributiontable.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 32DD1B600C014B49ADDB237E /* distributiontable.cpp */; };
+		E10ACAC12928A6D30004AB17 /* localpattern.cpp in Sources */ = {isa = PBXBuildFile; fileRef = DD4302F4D69E4EE98EA75B2C /* localpattern.cpp */; };
+		E10ACAC22928A6D30004AB17 /* mutexpool.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 6DA721BDC00F438688E0B241 /* mutexpool.cpp */; };
+		E10ACAC32928A6D30004AB17 /* patternbonustable.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 6A5C095FD31A4636994B5E5A /* patternbonustable.cpp */; };
+		E10ACAC42928A6D30004AB17 /* reportedsearchvalues.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 706365E669744784A6A6DE57 /* reportedsearchvalues.cpp */; };
+		E10ACAC52928A6D30004AB17 /* search.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 93FF01FEC8DA40DB916C4F0A /* search.cpp */; };
+		E10ACAC62928A6D30004AB17 /* searchexplorehelpers.cpp in Sources */ = {isa = PBXBuildFile; fileRef = EC59266A435045C5B84F9105 /* searchexplorehelpers.cpp */; };
+		E10ACAC72928A6D30004AB17 /* searchhelpers.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A72EC47D68904D38A5EAE635 /* searchhelpers.cpp */; };
+		E10ACAC82928A6D30004AB17 /* searchmirror.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 07DAAE05A9FA46F5B271903E /* searchmirror.cpp */; };
+		E10ACAC92928A6D30004AB17 /* searchmultithreadhelpers.cpp in Sources */ = {isa = PBXBuildFile; fileRef = BCBCE4A8D83F42FBA4EA0CBE /* searchmultithreadhelpers.cpp */; };
+		E10ACACA2928A6D30004AB17 /* searchnnhelpers.cpp in Sources */ = {isa = PBXBuildFile; fileRef = AA6C3E7D4604497D8B94AC50 /* searchnnhelpers.cpp */; };
+		E10ACACB2928A6D30004AB17 /* searchnode.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 206727F6853C468F84FC44AE /* searchnode.cpp */; };
+		E10ACACC2928A6D30004AB17 /* searchnodetable.cpp in Sources */ = {isa = PBXBuildFile; fileRef = C33571C53ECC4C82B0A9DA7D /* searchnodetable.cpp */; };
+		E10ACACD2928A6D30004AB17 /* searchparams.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 1660F43339464F1F82D603C2 /* searchparams.cpp */; };
+		E10ACACE2928A6D30004AB17 /* searchresults.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 1BAD528CE45E4D31A6F0F058 /* searchresults.cpp */; };
+		E10ACACF2928A6D30004AB17 /* searchtimehelpers.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 77C31BA9C8864C07B491DF1D /* searchtimehelpers.cpp */; };
+		E10ACAD02928A6D30004AB17 /* searchupdatehelpers.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 73D2A262E3E542FD8063F8DD /* searchupdatehelpers.cpp */; };
+		E10ACAD12928A6D30004AB17 /* subtreevaluebiastable.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 7891834D8FB144E0B13F6E21 /* subtreevaluebiastable.cpp */; };
+		E10ACAD22928A6D30004AB17 /* timecontrols.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 888C7B98F8B64150B0903946 /* timecontrols.cpp */; };
+		E10ACAD32928A6D30004AB17 /* testboardarea.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 3D4E9B8ABFBF4DAEB11058E1 /* testboardarea.cpp */; };
+		E10ACAD42928A6D30004AB17 /* testboardbasic.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F18310A722494DAEACBE09BC /* testboardbasic.cpp */; };
+		E10ACAD52928A6D30004AB17 /* testcommon.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 8C9D17518AE04398A975E5AE /* testcommon.cpp */; };
+		E10ACAD62928A6D30004AB17 /* testconfig.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 346C96C8324D4BE8A12D1A97 /* testconfig.cpp */; };
+		E10ACAD72928A6D30004AB17 /* testmisc.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 48669007B9164F5FB011F549 /* testmisc.cpp */; };
+		E10ACAD82928A6D30004AB17 /* testnn.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 41CCB0DF860045E5A8697BDD /* testnn.cpp */; };
+		E10ACAD92928A6D30004AB17 /* testnnevalcanary.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 88BAF51D4B34475A90D1D7CC /* testnnevalcanary.cpp */; };
+		E10ACADA2928A6D30004AB17 /* testnninputs.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4B137CD979C7436188D684A7 /* testnninputs.cpp */; };
+		E10ACADB2928A6D30004AB17 /* testownership.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0F8F91005809465EB2EDD409 /* testownership.cpp */; };
+		E10ACADC2928A6D30004AB17 /* testrules.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 2F5B917DA90147ABBAC18571 /* testrules.cpp */; };
+		E10ACADD2928A6D30004AB17 /* testscore.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E3F8D82F94E14F11BA0F59E6 /* testscore.cpp */; };
+		E10ACADE2928A6D30004AB17 /* testsearch.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0E2F9938E72849F691272AA0 /* testsearch.cpp */; };
+		E10ACADF2928A6D30004AB17 /* testsearchcommon.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0EDC97A2834E434691EA91C1 /* testsearchcommon.cpp */; };
+		E10ACAE02928A6D30004AB17 /* testsearchmisc.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4BF2B81FB1BB43AC81344E4A /* testsearchmisc.cpp */; };
+		E10ACAE12928A6D30004AB17 /* testsearchnonn.cpp in Sources */ = {isa = PBXBuildFile; fileRef = BC9F65190B644C969D327CD9 /* testsearchnonn.cpp */; };
+		E10ACAE22928A6D30004AB17 /* testsearchv3.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 43CF521030274453B04827E1 /* testsearchv3.cpp */; };
+		E10ACAE32928A6D30004AB17 /* testsearchv8.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 661A920818694712953495A7 /* testsearchv8.cpp */; };
+		E10ACAE42928A6D30004AB17 /* testsearchv9.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 1356448A03004176848C790A /* testsearchv9.cpp */; };
+		E10ACAE52928A6D30004AB17 /* testsgf.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 952F0B54C8BF410C9EA67989 /* testsgf.cpp */; };
+		E10ACAE62928A6D30004AB17 /* testsymmetries.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 84BCAFD2361F4BE8B5025F65 /* testsymmetries.cpp */; };
+		E10ACAE72928A6D30004AB17 /* testtime.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A255C9FAA2E145048F33368C /* testtime.cpp */; };
+		E10ACAE82928A6D30004AB17 /* testtrainingwrite.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D1DFBE2386CE449D82894520 /* testtrainingwrite.cpp */; };
+		E10ACAE92928A6D30004AB17 /* tinymodel.cpp in Sources */ = {isa = PBXBuildFile; fileRef = BE70F73F685D4EDA9977822F /* tinymodel.cpp */; };
+		E10ACAEA2928A6D30004AB17 /* tinymodeldata.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 279C4ABB40FE447483F0F975 /* tinymodeldata.cpp */; };
+		E10ACAEC2928A6D30004AB17 /* MetalPerformanceShaders.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = E1AD404A28E1D59700E41968 /* MetalPerformanceShaders.framework */; };
+		E10ACAED2928A6D30004AB17 /* libz.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = E1AD405128E1D75B00E41968 /* libz.tbd */; };
+		E10ACAEE2928A6D30004AB17 /* Metal.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = E1AD404928E1D59700E41968 /* Metal.framework */; };
+		E10ACAEF2928A6D30004AB17 /* MetalPerformanceShadersGraph.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = E1AD404B28E1D59700E41968 /* MetalPerformanceShadersGraph.framework */; };
+		E10ACAFA2928A8D30004AB17 /* coremlbackend.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E13CF66228E1896C005CB016 /* coremlbackend.cpp */; };
+		E10ACAFD2928BBF00004AB17 /* CoreML.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = E1AD404F28E1D5A700E41968 /* CoreML.framework */; };
+		E12453D52A1CF0DE0062DF9C /* testbook.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E12453D42A1CF0DE0062DF9C /* testbook.cpp */; };
+		E12453D72A1D015E0062DF9C /* poswriter.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E12453D62A1D015E0062DF9C /* poswriter.cpp */; };
+		E12EC21A2B10D61E0024E274 /* coremlbackend.swift in Sources */ = {isa = PBXBuildFile; fileRef = E12EC2172B10D61E0024E274 /* coremlbackend.swift */; };
+		E12EC21B2B10D61E0024E274 /* coremlbackend.swift in Sources */ = {isa = PBXBuildFile; fileRef = E12EC2172B10D61E0024E274 /* coremlbackend.swift */; };
+		E12EC21C2B10D61E0024E274 /* metalbackend.swift in Sources */ = {isa = PBXBuildFile; fileRef = E12EC2182B10D61E0024E274 /* metalbackend.swift */; };
+		E12EC21D2B10D61E0024E274 /* metalbackend.swift in Sources */ = {isa = PBXBuildFile; fileRef = E12EC2182B10D61E0024E274 /* metalbackend.swift */; };
+		E12EC21E2B10D61E0024E274 /* coremlmodel.swift in Sources */ = {isa = PBXBuildFile; fileRef = E12EC2192B10D61E0024E274 /* coremlmodel.swift */; };
+		E12EC21F2B10D61E0024E274 /* coremlmodel.swift in Sources */ = {isa = PBXBuildFile; fileRef = E12EC2192B10D61E0024E274 /* coremlmodel.swift */; };
+		E12EC22E2B10E3310024E274 /* KataGoSwift.framework in CopyFiles */ = {isa = PBXBuildFile; fileRef = E1DACF4C2B08997300082FF7 /* KataGoSwift.framework */; };
+		E12EC2302B1237440024E274 /* parallel.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E12EC22F2B1237440024E274 /* parallel.cpp */; };
+		E12EC2312B1237440024E274 /* parallel.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E12EC22F2B1237440024E274 /* parallel.cpp */; };
+		E12EC2332B12375C0024E274 /* writetrainingdata.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E12EC2322B12375B0024E274 /* writetrainingdata.cpp */; };
+		E12EC2342B12375C0024E274 /* writetrainingdata.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E12EC2322B12375B0024E274 /* writetrainingdata.cpp */; };
+		E157FDD82AF7D1E500E25677 /* analysis.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E7B41A9FE4124FA1AB3FBEF1 /* analysis.cpp */; };
+		E157FDD92AF7D1E500E25677 /* analysisdata.cpp in Sources */ = {isa = PBXBuildFile; fileRef = BF423768A6B74FF18FDC44E7 /* analysisdata.cpp */; };
+		E157FDDA2AF7D1E500E25677 /* asyncbot.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F2D4BF5BF0CD446F80DFDACE /* asyncbot.cpp */; };
+		E157FDDB2AF7D1E500E25677 /* base64.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D61629242F5143EBB2D9BEC9 /* base64.cpp */; };
+		E157FDDC2AF7D1E500E25677 /* benchmark.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 063E4C878E7E43858A863A78 /* benchmark.cpp */; };
+		E157FDDD2AF7D1E500E25677 /* board.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 8F0B49CAFCB24D31808DB2C1 /* board.cpp */; };
+		E157FDDE2AF7D1E500E25677 /* boardhistory.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 540D93E0576C47C789279AF8 /* boardhistory.cpp */; };
+		E157FDDF2AF7D1E500E25677 /* book.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 973B04213D1B4030B35FB01C /* book.cpp */; };
+		E157FDE02AF7D1E500E25677 /* bookcssjs.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 6DD28F2EE5FB490F906D63BA /* bookcssjs.cpp */; };
+		E157FDE12AF7D1E500E25677 /* bsearch.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 176C18FD215D45179B93393C /* bsearch.cpp */; };
+		E157FDE22AF7D1E500E25677 /* client.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 792CF6207CA54AABB0F058C6 /* client.cpp */; };
+		E157FDE32AF7D1E500E25677 /* commandline.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 6CD97C1775DC4E678823595E /* commandline.cpp */; };
+		E157FDE42AF7D1E500E25677 /* commandloop.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4BF5823DCA854224809D93A8 /* commandloop.cpp */; };
+		E157FDE52AF7D1E600E25677 /* config_parser.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 23D034621365403182419780 /* config_parser.cpp */; };
+		E157FDE62AF7D1E600E25677 /* contribute.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D49AE95F1DD947B5BFF58C1F /* contribute.cpp */; };
+		E157FDE72AF7D1E600E25677 /* coremlbackend.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E13CF66228E1896C005CB016 /* coremlbackend.cpp */; };
+		E157FDEA2AF7D1E600E25677 /* datetime.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 71DC745C32B543C191262823 /* datetime.cpp */; };
+		E157FDEB2AF7D1E600E25677 /* desc.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 5D8F26726AAF403C833FBD7F /* desc.cpp */; };
+		E157FDEC2AF7D1E600E25677 /* distributiontable.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 32DD1B600C014B49ADDB237E /* distributiontable.cpp */; };
+		E157FDED2AF7D1E600E25677 /* elo.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 59353ECA2B0140FA9365623E /* elo.cpp */; };
+		E157FDEE2AF7D1E600E25677 /* evalsgf.cpp in Sources */ = {isa = PBXBuildFile; fileRef = CA66CE9038574A0BB16D80B6 /* evalsgf.cpp */; };
+		E157FDEF2AF7D1E600E25677 /* fancymath.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 2626105D31ED44D98E6B9B9D /* fancymath.cpp */; };
+		E157FDF02AF7D1E600E25677 /* files.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 8C31483CD76D48F2A7327613 /* files.cpp */; };
+		E157FDF12AF7D1E600E25677 /* fileutils.cpp in Sources */ = {isa = PBXBuildFile; fileRef = CAD1B260FFB74AF9BA66A58A /* fileutils.cpp */; };
+		E157FDF22AF7D1E600E25677 /* gatekeeper.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D8710CF2CCA3478EB65063C6 /* gatekeeper.cpp */; };
+		E157FDF32AF7D1E600E25677 /* genbook.cpp in Sources */ = {isa = PBXBuildFile; fileRef = B2460699580B49F689D028D5 /* genbook.cpp */; };
+		E157FDF42AF7D1E600E25677 /* global.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A8748F2EFAAF401DACE6B60A /* global.cpp */; };
+		E157FDF52AF7D1E600E25677 /* gputest.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E17D098A294D45CF005968E9 /* gputest.cpp */; };
+		E157FDF62AF7D1E600E25677 /* graphhash.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 10EB7D2538F94B26BE1B1740 /* graphhash.cpp */; };
+		E157FDF72AF7D1E600E25677 /* gtp.cpp in Sources */ = {isa = PBXBuildFile; fileRef = AD94201E380643C3985E9D62 /* gtp.cpp */; };
+		E157FDF82AF7D1E600E25677 /* gtpconfig.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 5BCE97296A5249A0B49C766F /* gtpconfig.cpp */; };
+		E157FDF92AF7D1E600E25677 /* hash.cpp in Sources */ = {isa = PBXBuildFile; fileRef = BDF52FD481AA424BBC59124D /* hash.cpp */; };
+		E157FDFA2AF7D1E600E25677 /* homedata.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 6E87CD61EFA340A1AF4B8BCE /* homedata.cpp */; };
+		E157FDFB2AF7D1E600E25677 /* loadmodel.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 8FBE5F0F301A405D85F23D38 /* loadmodel.cpp */; };
+		E157FDFC2AF7D1E600E25677 /* localpattern.cpp in Sources */ = {isa = PBXBuildFile; fileRef = DD4302F4D69E4EE98EA75B2C /* localpattern.cpp */; };
+		E157FDFD2AF7D1E600E25677 /* logger.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 7B2C186FF8B3422CB64E6039 /* logger.cpp */; };
+		E157FDFE2AF7D1E600E25677 /* main.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 50827347EBFE4467996C3150 /* main.cpp */; };
+		E157FDFF2AF7D1E600E25677 /* mainargs.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 92F4695F66A84118BDCAA13F /* mainargs.cpp */; };
+		E157FE002AF7D1E600E25677 /* makedir.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 63D5831B449B48D1AD132F9F /* makedir.cpp */; };
+		E157FE012AF7D1E600E25677 /* match.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 948AF9E88374487D85E846C2 /* match.cpp */; };
+		E157FE022AF7D1E600E25677 /* md5.cpp in Sources */ = {isa = PBXBuildFile; fileRef = BE7F7520CA15440EBDF0A21D /* md5.cpp */; };
+		E157FE032AF7D1E600E25677 /* metalbackend.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4845ACCEFC204BA89C033482 /* metalbackend.cpp */; };
+		E157FE052AF7D1E600E25677 /* misc.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 64D3C3432AB3409C942F7A0E /* misc.cpp */; };
+		E157FE062AF7D1E600E25677 /* modelversion.cpp in Sources */ = {isa = PBXBuildFile; fileRef = DDCAE99038794BE8B4BB3962 /* modelversion.cpp */; };
+		E157FE072AF7D1E600E25677 /* multithread.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 5185F4BC63B5490AAE4F37CB /* multithread.cpp */; };
+		E157FE082AF7D1E600E25677 /* mutexpool.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 6DA721BDC00F438688E0B241 /* mutexpool.cpp */; };
+		E157FE092AF7D1E600E25677 /* nneval.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 92C3AF4C79ED491988E9C5BC /* nneval.cpp */; };
+		E157FE0A2AF7D1E600E25677 /* nninputs.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D41000BDB70543A4820D445A /* nninputs.cpp */; };
+		E157FE0B2AF7D1E600E25677 /* numpywrite.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F20754875D24724A133A9AE /* numpywrite.cpp */; };
+		E157FE0C2AF7D1E600E25677 /* patternbonustable.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 6A5C095FD31A4636994B5E5A /* patternbonustable.cpp */; };
+		E157FE0D2AF7D1E600E25677 /* play.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 3FBACE432776421CAEDF6786 /* play.cpp */; };
+		E157FE0E2AF7D1E600E25677 /* playsettings.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 7A57BA046921422DB33C7614 /* playsettings.cpp */; };
+		E157FE0F2AF7D1E600E25677 /* playutils.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 9FB3A34B1C8D4CBF9997DDA7 /* playutils.cpp */; };
+		E157FE102AF7D1E600E25677 /* poswriter.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E12453D62A1D015E0062DF9C /* poswriter.cpp */; };
+		E157FE112AF7D1E600E25677 /* rand_helpers.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 59BC63FBF0804F63A27369AE /* rand_helpers.cpp */; };
+		E157FE122AF7D1E600E25677 /* rand.cpp in Sources */ = {isa = PBXBuildFile; fileRef = B8E283A3B8004F289DACCD8A /* rand.cpp */; };
+		E157FE132AF7D1E600E25677 /* reportedsearchvalues.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 706365E669744784A6A6DE57 /* reportedsearchvalues.cpp */; };
+		E157FE142AF7D1E600E25677 /* rules.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 727A790F2FEA4DBEA8ABAE85 /* rules.cpp */; };
+		E157FE152AF7D1E600E25677 /* runtests.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 5902EDD2F6A74BE7966E2001 /* runtests.cpp */; };
+		E157FE162AF7D1E600E25677 /* sandbox.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 11318DB744F340DCB41F7248 /* sandbox.cpp */; };
+		E157FE172AF7D1E600E25677 /* search.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 93FF01FEC8DA40DB916C4F0A /* search.cpp */; };
+		E157FE182AF7D1E600E25677 /* searchexplorehelpers.cpp in Sources */ = {isa = PBXBuildFile; fileRef = EC59266A435045C5B84F9105 /* searchexplorehelpers.cpp */; };
+		E157FE192AF7D1E600E25677 /* searchhelpers.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A72EC47D68904D38A5EAE635 /* searchhelpers.cpp */; };
+		E157FE1A2AF7D1E600E25677 /* searchmirror.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 07DAAE05A9FA46F5B271903E /* searchmirror.cpp */; };
+		E157FE1B2AF7D1E600E25677 /* searchmultithreadhelpers.cpp in Sources */ = {isa = PBXBuildFile; fileRef = BCBCE4A8D83F42FBA4EA0CBE /* searchmultithreadhelpers.cpp */; };
+		E157FE1C2AF7D1E600E25677 /* searchnnhelpers.cpp in Sources */ = {isa = PBXBuildFile; fileRef = AA6C3E7D4604497D8B94AC50 /* searchnnhelpers.cpp */; };
+		E157FE1D2AF7D1E600E25677 /* searchnode.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 206727F6853C468F84FC44AE /* searchnode.cpp */; };
+		E157FE1E2AF7D1E600E25677 /* searchnodetable.cpp in Sources */ = {isa = PBXBuildFile; fileRef = C33571C53ECC4C82B0A9DA7D /* searchnodetable.cpp */; };
+		E157FE1F2AF7D1E600E25677 /* searchparams.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 1660F43339464F1F82D603C2 /* searchparams.cpp */; };
+		E157FE202AF7D1E600E25677 /* searchresults.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 1BAD528CE45E4D31A6F0F058 /* searchresults.cpp */; };
+		E157FE212AF7D1E600E25677 /* searchtimehelpers.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 77C31BA9C8864C07B491DF1D /* searchtimehelpers.cpp */; };
+		E157FE222AF7D1E600E25677 /* searchupdatehelpers.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 73D2A262E3E542FD8063F8DD /* searchupdatehelpers.cpp */; };
+		E157FE232AF7D1E600E25677 /* selfplay.cpp in Sources */ = {isa = PBXBuildFile; fileRef = AFF33AEBABB1472B9F241A98 /* selfplay.cpp */; };
+		E157FE242AF7D1E600E25677 /* selfplaymanager.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 7C7A65C82B4C4AB5B83B1346 /* selfplaymanager.cpp */; };
+		E157FE252AF7D1E600E25677 /* setup.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D104762E63AF4C6A8ADB220E /* setup.cpp */; };
+		E157FE262AF7D1E600E25677 /* sgf.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 3E097292E4F34AB6806F67E6 /* sgf.cpp */; };
+		E157FE272AF7D1E600E25677 /* sha2.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 76F8951F199F416F99B96FE8 /* sha2.cpp */; };
+		E157FE282AF7D1E600E25677 /* subtreevaluebiastable.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 7891834D8FB144E0B13F6E21 /* subtreevaluebiastable.cpp */; };
+		E157FE292AF7D1E600E25677 /* test.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 5639F08A96FD467CBD091947 /* test.cpp */; };
+		E157FE2A2AF7D1E600E25677 /* testboardarea.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 3D4E9B8ABFBF4DAEB11058E1 /* testboardarea.cpp */; };
+		E157FE2B2AF7D1E600E25677 /* testboardbasic.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F18310A722494DAEACBE09BC /* testboardbasic.cpp */; };
+		E157FE2C2AF7D1E600E25677 /* testbook.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E12453D42A1CF0DE0062DF9C /* testbook.cpp */; };
+		E157FE2D2AF7D1E600E25677 /* testcommon.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 8C9D17518AE04398A975E5AE /* testcommon.cpp */; };
+		E157FE2E2AF7D1E600E25677 /* testconfig.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 346C96C8324D4BE8A12D1A97 /* testconfig.cpp */; };
+		E157FE2F2AF7D1E600E25677 /* testmisc.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 48669007B9164F5FB011F549 /* testmisc.cpp */; };
+		E157FE302AF7D1E600E25677 /* testnn.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 41CCB0DF860045E5A8697BDD /* testnn.cpp */; };
+		E157FE312AF7D1E600E25677 /* testnnevalcanary.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 88BAF51D4B34475A90D1D7CC /* testnnevalcanary.cpp */; };
+		E157FE322AF7D1E700E25677 /* testnninputs.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4B137CD979C7436188D684A7 /* testnninputs.cpp */; };
+		E157FE332AF7D1E700E25677 /* testownership.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0F8F91005809465EB2EDD409 /* testownership.cpp */; };
+		E157FE342AF7D1E700E25677 /* testrules.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 2F5B917DA90147ABBAC18571 /* testrules.cpp */; };
+		E157FE352AF7D1E700E25677 /* testscore.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E3F8D82F94E14F11BA0F59E6 /* testscore.cpp */; };
+		E157FE362AF7D1E700E25677 /* testsearch.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0E2F9938E72849F691272AA0 /* testsearch.cpp */; };
+		E157FE372AF7D1E700E25677 /* testsearchcommon.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0EDC97A2834E434691EA91C1 /* testsearchcommon.cpp */; };
+		E157FE382AF7D1E700E25677 /* testsearchmisc.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4BF2B81FB1BB43AC81344E4A /* testsearchmisc.cpp */; };
+		E157FE392AF7D1E700E25677 /* testsearchnonn.cpp in Sources */ = {isa = PBXBuildFile; fileRef = BC9F65190B644C969D327CD9 /* testsearchnonn.cpp */; };
+		E157FE3A2AF7D1E700E25677 /* testsearchv3.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 43CF521030274453B04827E1 /* testsearchv3.cpp */; };
+		E157FE3B2AF7D1E700E25677 /* testsearchv8.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 661A920818694712953495A7 /* testsearchv8.cpp */; };
+		E157FE3C2AF7D1E700E25677 /* testsearchv9.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 1356448A03004176848C790A /* testsearchv9.cpp */; };
+		E157FE3D2AF7D1E700E25677 /* testsgf.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 952F0B54C8BF410C9EA67989 /* testsgf.cpp */; };
+		E157FE3E2AF7D1E700E25677 /* testsymmetries.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 84BCAFD2361F4BE8B5025F65 /* testsymmetries.cpp */; };
+		E157FE3F2AF7D1E700E25677 /* testtime.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A255C9FAA2E145048F33368C /* testtime.cpp */; };
+		E157FE402AF7D1E700E25677 /* testtrainingwrite.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D1DFBE2386CE449D82894520 /* testtrainingwrite.cpp */; };
+		E157FE412AF7D1E700E25677 /* threadsafecounter.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D645BB8AAF424700A75ED223 /* threadsafecounter.cpp */; };
+		E157FE422AF7D1E700E25677 /* threadsafequeue.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 34B63C891D53453F9C258280 /* threadsafequeue.cpp */; };
+		E157FE432AF7D1E700E25677 /* threadtest.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 69300B311DE94520A56A3B5F /* threadtest.cpp */; };
+		E157FE442AF7D1E700E25677 /* timecontrols.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 888C7B98F8B64150B0903946 /* timecontrols.cpp */; };
+		E157FE452AF7D1E700E25677 /* timer.cpp in Sources */ = {isa = PBXBuildFile; fileRef = EEB543E9A42948748BF883C3 /* timer.cpp */; };
+		E157FE462AF7D1E700E25677 /* tinymodel.cpp in Sources */ = {isa = PBXBuildFile; fileRef = BE70F73F685D4EDA9977822F /* tinymodel.cpp */; };
+		E157FE472AF7D1E700E25677 /* tinymodeldata.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 279C4ABB40FE447483F0F975 /* tinymodeldata.cpp */; };
+		E157FE482AF7D1E700E25677 /* trainingwrite.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 6F9788817DEA4417A321C3A0 /* trainingwrite.cpp */; };
+		E157FE492AF7D1E700E25677 /* tune.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A241D7415C384D3A81BF73AC /* tune.cpp */; };
+		E157FE4A2AF7D22800E25677 /* MetalPerformanceShaders.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = E1AD404A28E1D59700E41968 /* MetalPerformanceShaders.framework */; };
+		E157FE4B2AF7D23800E25677 /* libz.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = E1AD405128E1D75B00E41968 /* libz.tbd */; };
+		E157FE4C2AF7D2E400E25677 /* CoreML.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = E1AD404F28E1D5A700E41968 /* CoreML.framework */; };
+		E157FE4D2AF7D2E800E25677 /* Metal.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = E1AD404928E1D59700E41968 /* Metal.framework */; };
+		E157FE4E2AF7D2ED00E25677 /* MetalPerformanceShadersGraph.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = E1AD404B28E1D59700E41968 /* MetalPerformanceShadersGraph.framework */; };
+		E157FE4F2AF7DA1600E25677 /* testnn.mm in Sources */ = {isa = PBXBuildFile; fileRef = E157FDCE2AF7CE2500E25677 /* testnn.mm */; };
+		E1605CE22BFAD6EB00A4B872 /* sgfmetadata.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E1605CE12BFAD6EB00A4B872 /* sgfmetadata.cpp */; };
+		E1605CE32BFAD70100A4B872 /* sgfmetadata.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E1605CE12BFAD6EB00A4B872 /* sgfmetadata.cpp */; };
+		E16BC82D2C4A8AEB00EA3A1E /* ModelTest.swift in Sources */ = {isa = PBXBuildFile; fileRef = E16BC82C2C4A8AEB00EA3A1E /* ModelTest.swift */; };
+		E16BC82F2C4B461500EA3A1E /* CoreMLBackendTest.swift in Sources */ = {isa = PBXBuildFile; fileRef = E16BC82E2C4B461500EA3A1E /* CoreMLBackendTest.swift */; };
+		E16BC8352C4B835F00EA3A1E /* CoreMLModelTest.swift in Sources */ = {isa = PBXBuildFile; fileRef = E16BC8342C4B835F00EA3A1E /* CoreMLModelTest.swift */; };
+		E17D098C294D45CF005968E9 /* gputest.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E17D098A294D45CF005968E9 /* gputest.cpp */; };
+		E18446502BFFF826004F5E3B /* misc.swift in Sources */ = {isa = PBXBuildFile; fileRef = E184464D2BFFF6A1004F5E3B /* misc.swift */; };
+		E18446512BFFF827004F5E3B /* misc.swift in Sources */ = {isa = PBXBuildFile; fileRef = E184464D2BFFF6A1004F5E3B /* misc.swift */; };
+		E1DACF5D2B089A5400082FF7 /* KataGoSwift.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = E1DACF4C2B08997300082FF7 /* KataGoSwift.framework */; };
+		E1DACF652B089B5500082FF7 /* KataGoSwiftTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1DACF642B089B5500082FF7 /* KataGoSwiftTests.swift */; };
+		E1DACF732B089C7700082FF7 /* KataGoSwift.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = E1DACF4C2B08997300082FF7 /* KataGoSwift.framework */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		E1DACF5B2B089A4B00082FF7 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 91644CF2108748368B902DCE /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = E1DACF4B2B08997300082FF7;
+			remoteInfo = KataGoSwift;
+		};
+		E1DACF712B089C6F00082FF7 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 91644CF2108748368B902DCE /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = E1DACF4B2B08997300082FF7;
+			remoteInfo = KataGoSwift;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		E12EC22D2B10E3200024E274 /* CopyFiles */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = ../Frameworks;
+			dstSubfolderSpec = 16;
+			files = (
+				E12EC22E2B10E3310024E274 /* KataGoSwift.framework in CopyFiles */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
+/* Begin PBXFileReference section */
+		063E4C878E7E43858A863A78 /* benchmark.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; indentWidth = 2; name = benchmark.cpp; path = command/benchmark.cpp; sourceTree = SOURCE_ROOT; };
+		07DAAE05A9FA46F5B271903E /* searchmirror.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = searchmirror.cpp; path = search/searchmirror.cpp; sourceTree = SOURCE_ROOT; };
+		0E2F9938E72849F691272AA0 /* testsearch.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = testsearch.cpp; path = tests/testsearch.cpp; sourceTree = SOURCE_ROOT; };
+		0EDC97A2834E434691EA91C1 /* testsearchcommon.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = testsearchcommon.cpp; path = tests/testsearchcommon.cpp; sourceTree = SOURCE_ROOT; };
+		0F8F91005809465EB2EDD409 /* testownership.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = testownership.cpp; path = tests/testownership.cpp; sourceTree = SOURCE_ROOT; };
+		10EB7D2538F94B26BE1B1740 /* graphhash.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = graphhash.cpp; path = game/graphhash.cpp; sourceTree = SOURCE_ROOT; };
+		11318DB744F340DCB41F7248 /* sandbox.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = sandbox.cpp; path = command/sandbox.cpp; sourceTree = SOURCE_ROOT; };
+		1356448A03004176848C790A /* testsearchv9.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = testsearchv9.cpp; path = tests/testsearchv9.cpp; sourceTree = SOURCE_ROOT; };
+		1660F43339464F1F82D603C2 /* searchparams.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = searchparams.cpp; path = search/searchparams.cpp; sourceTree = SOURCE_ROOT; };
+		176C18FD215D45179B93393C /* bsearch.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = bsearch.cpp; path = core/bsearch.cpp; sourceTree = SOURCE_ROOT; };
+		1BAD528CE45E4D31A6F0F058 /* searchresults.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = searchresults.cpp; path = search/searchresults.cpp; sourceTree = SOURCE_ROOT; };
+		206727F6853C468F84FC44AE /* searchnode.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = searchnode.cpp; path = search/searchnode.cpp; sourceTree = SOURCE_ROOT; };
+		23D034621365403182419780 /* config_parser.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = config_parser.cpp; path = core/config_parser.cpp; sourceTree = SOURCE_ROOT; };
+		2626105D31ED44D98E6B9B9D /* fancymath.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = fancymath.cpp; path = core/fancymath.cpp; sourceTree = SOURCE_ROOT; };
+		279C4ABB40FE447483F0F975 /* tinymodeldata.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = tinymodeldata.cpp; path = tests/tinymodeldata.cpp; sourceTree = SOURCE_ROOT; };
+		2F5B917DA90147ABBAC18571 /* testrules.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = testrules.cpp; path = tests/testrules.cpp; sourceTree = SOURCE_ROOT; };
+		32DD1B600C014B49ADDB237E /* distributiontable.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = distributiontable.cpp; path = search/distributiontable.cpp; sourceTree = SOURCE_ROOT; };
+		346C96C8324D4BE8A12D1A97 /* testconfig.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = testconfig.cpp; path = tests/testconfig.cpp; sourceTree = SOURCE_ROOT; };
+		34B63C891D53453F9C258280 /* threadsafequeue.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = threadsafequeue.cpp; path = core/threadsafequeue.cpp; sourceTree = SOURCE_ROOT; };
+		3D4E9B8ABFBF4DAEB11058E1 /* testboardarea.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = testboardarea.cpp; path = tests/testboardarea.cpp; sourceTree = SOURCE_ROOT; };
+		3E097292E4F34AB6806F67E6 /* sgf.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = sgf.cpp; path = dataio/sgf.cpp; sourceTree = SOURCE_ROOT; };
+		3FBACE432776421CAEDF6786 /* play.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = play.cpp; path = program/play.cpp; sourceTree = SOURCE_ROOT; };
+		41CCB0DF860045E5A8697BDD /* testnn.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = testnn.cpp; path = tests/testnn.cpp; sourceTree = SOURCE_ROOT; };
+		43CF521030274453B04827E1 /* testsearchv3.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = testsearchv3.cpp; path = tests/testsearchv3.cpp; sourceTree = SOURCE_ROOT; };
+		4845ACCEFC204BA89C033482 /* metalbackend.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; indentWidth = 2; name = metalbackend.cpp; path = neuralnet/metalbackend.cpp; sourceTree = SOURCE_ROOT; };
+		48669007B9164F5FB011F549 /* testmisc.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = testmisc.cpp; path = tests/testmisc.cpp; sourceTree = SOURCE_ROOT; };
+		4B137CD979C7436188D684A7 /* testnninputs.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = testnninputs.cpp; path = tests/testnninputs.cpp; sourceTree = SOURCE_ROOT; };
+		4BF2B81FB1BB43AC81344E4A /* testsearchmisc.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = testsearchmisc.cpp; path = tests/testsearchmisc.cpp; sourceTree = SOURCE_ROOT; };
+		4BF5823DCA854224809D93A8 /* commandloop.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = commandloop.cpp; path = core/commandloop.cpp; sourceTree = SOURCE_ROOT; };
+		4F20754875D24724A133A9AE /* numpywrite.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = numpywrite.cpp; path = dataio/numpywrite.cpp; sourceTree = SOURCE_ROOT; };
+		50827347EBFE4467996C3150 /* main.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; indentWidth = 2; path = main.cpp; sourceTree = SOURCE_ROOT; };
+		5185F4BC63B5490AAE4F37CB /* multithread.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = multithread.cpp; path = core/multithread.cpp; sourceTree = SOURCE_ROOT; };
+		540D93E0576C47C789279AF8 /* boardhistory.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = boardhistory.cpp; path = game/boardhistory.cpp; sourceTree = SOURCE_ROOT; };
+		5639F08A96FD467CBD091947 /* test.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = test.cpp; path = core/test.cpp; sourceTree = SOURCE_ROOT; };
+		5902EDD2F6A74BE7966E2001 /* runtests.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = runtests.cpp; path = command/runtests.cpp; sourceTree = SOURCE_ROOT; };
+		59353ECA2B0140FA9365623E /* elo.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = elo.cpp; path = core/elo.cpp; sourceTree = SOURCE_ROOT; };
+		59BC63FBF0804F63A27369AE /* rand_helpers.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = rand_helpers.cpp; path = core/rand_helpers.cpp; sourceTree = SOURCE_ROOT; };
+		5BCE97296A5249A0B49C766F /* gtpconfig.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = gtpconfig.cpp; path = program/gtpconfig.cpp; sourceTree = SOURCE_ROOT; };
+		5D8F26726AAF403C833FBD7F /* desc.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = desc.cpp; path = neuralnet/desc.cpp; sourceTree = SOURCE_ROOT; };
+		63D5831B449B48D1AD132F9F /* makedir.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = makedir.cpp; path = core/makedir.cpp; sourceTree = SOURCE_ROOT; };
+		64D3C3432AB3409C942F7A0E /* misc.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = misc.cpp; path = command/misc.cpp; sourceTree = SOURCE_ROOT; };
+		661A920818694712953495A7 /* testsearchv8.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = testsearchv8.cpp; path = tests/testsearchv8.cpp; sourceTree = SOURCE_ROOT; };
+		69300B311DE94520A56A3B5F /* threadtest.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = threadtest.cpp; path = core/threadtest.cpp; sourceTree = SOURCE_ROOT; };
+		6A5C095FD31A4636994B5E5A /* patternbonustable.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = patternbonustable.cpp; path = search/patternbonustable.cpp; sourceTree = SOURCE_ROOT; };
+		6CD97C1775DC4E678823595E /* commandline.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = commandline.cpp; path = command/commandline.cpp; sourceTree = SOURCE_ROOT; };
+		6DA721BDC00F438688E0B241 /* mutexpool.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = mutexpool.cpp; path = search/mutexpool.cpp; sourceTree = SOURCE_ROOT; };
+		6DD28F2EE5FB490F906D63BA /* bookcssjs.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = bookcssjs.cpp; path = book/bookcssjs.cpp; sourceTree = SOURCE_ROOT; };
+		6E87CD61EFA340A1AF4B8BCE /* homedata.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = homedata.cpp; path = dataio/homedata.cpp; sourceTree = SOURCE_ROOT; };
+		6F9788817DEA4417A321C3A0 /* trainingwrite.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = trainingwrite.cpp; path = dataio/trainingwrite.cpp; sourceTree = SOURCE_ROOT; };
+		706365E669744784A6A6DE57 /* reportedsearchvalues.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = reportedsearchvalues.cpp; path = search/reportedsearchvalues.cpp; sourceTree = SOURCE_ROOT; };
+		71DC745C32B543C191262823 /* datetime.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = datetime.cpp; path = core/datetime.cpp; sourceTree = SOURCE_ROOT; };
+		727A790F2FEA4DBEA8ABAE85 /* rules.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = rules.cpp; path = game/rules.cpp; sourceTree = SOURCE_ROOT; };
+		73D2A262E3E542FD8063F8DD /* searchupdatehelpers.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = searchupdatehelpers.cpp; path = search/searchupdatehelpers.cpp; sourceTree = SOURCE_ROOT; };
+		76F8951F199F416F99B96FE8 /* sha2.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = sha2.cpp; path = core/sha2.cpp; sourceTree = SOURCE_ROOT; };
+		77C31BA9C8864C07B491DF1D /* searchtimehelpers.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = searchtimehelpers.cpp; path = search/searchtimehelpers.cpp; sourceTree = SOURCE_ROOT; };
+		7891834D8FB144E0B13F6E21 /* subtreevaluebiastable.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = subtreevaluebiastable.cpp; path = search/subtreevaluebiastable.cpp; sourceTree = SOURCE_ROOT; };
+		792CF6207CA54AABB0F058C6 /* client.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = client.cpp; path = distributed/client.cpp; sourceTree = SOURCE_ROOT; };
+		7A57BA046921422DB33C7614 /* playsettings.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = playsettings.cpp; path = program/playsettings.cpp; sourceTree = SOURCE_ROOT; };
+		7B2C186FF8B3422CB64E6039 /* logger.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = logger.cpp; path = core/logger.cpp; sourceTree = SOURCE_ROOT; };
+		7C7A65C82B4C4AB5B83B1346 /* selfplaymanager.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = selfplaymanager.cpp; path = program/selfplaymanager.cpp; sourceTree = SOURCE_ROOT; };
+		84BCAFD2361F4BE8B5025F65 /* testsymmetries.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = testsymmetries.cpp; path = tests/testsymmetries.cpp; sourceTree = SOURCE_ROOT; };
+		888C7B98F8B64150B0903946 /* timecontrols.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = timecontrols.cpp; path = search/timecontrols.cpp; sourceTree = SOURCE_ROOT; };
+		88BAF51D4B34475A90D1D7CC /* testnnevalcanary.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = testnnevalcanary.cpp; path = tests/testnnevalcanary.cpp; sourceTree = SOURCE_ROOT; };
+		8C31483CD76D48F2A7327613 /* files.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = files.cpp; path = dataio/files.cpp; sourceTree = SOURCE_ROOT; };
+		8C9D17518AE04398A975E5AE /* testcommon.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = testcommon.cpp; path = tests/testcommon.cpp; sourceTree = SOURCE_ROOT; };
+		8F0B49CAFCB24D31808DB2C1 /* board.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = board.cpp; path = game/board.cpp; sourceTree = SOURCE_ROOT; };
+		8FBE5F0F301A405D85F23D38 /* loadmodel.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = loadmodel.cpp; path = dataio/loadmodel.cpp; sourceTree = SOURCE_ROOT; };
+		92C3AF4C79ED491988E9C5BC /* nneval.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = nneval.cpp; path = neuralnet/nneval.cpp; sourceTree = SOURCE_ROOT; };
+		92F4695F66A84118BDCAA13F /* mainargs.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = mainargs.cpp; path = core/mainargs.cpp; sourceTree = SOURCE_ROOT; };
+		93FF01FEC8DA40DB916C4F0A /* search.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = search.cpp; path = search/search.cpp; sourceTree = SOURCE_ROOT; };
+		948AF9E88374487D85E846C2 /* match.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = match.cpp; path = command/match.cpp; sourceTree = SOURCE_ROOT; };
+		952F0B54C8BF410C9EA67989 /* testsgf.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = testsgf.cpp; path = tests/testsgf.cpp; sourceTree = SOURCE_ROOT; };
+		973B04213D1B4030B35FB01C /* book.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = book.cpp; path = book/book.cpp; sourceTree = SOURCE_ROOT; };
+		9FB3A34B1C8D4CBF9997DDA7 /* playutils.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = playutils.cpp; path = program/playutils.cpp; sourceTree = SOURCE_ROOT; };
+		A241D7415C384D3A81BF73AC /* tune.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = tune.cpp; path = command/tune.cpp; sourceTree = SOURCE_ROOT; };
+		A255C9FAA2E145048F33368C /* testtime.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = testtime.cpp; path = tests/testtime.cpp; sourceTree = SOURCE_ROOT; };
+		A72EC47D68904D38A5EAE635 /* searchhelpers.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = searchhelpers.cpp; path = search/searchhelpers.cpp; sourceTree = SOURCE_ROOT; };
+		A8748F2EFAAF401DACE6B60A /* global.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = global.cpp; path = core/global.cpp; sourceTree = SOURCE_ROOT; };
+		AA6C3E7D4604497D8B94AC50 /* searchnnhelpers.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = searchnnhelpers.cpp; path = search/searchnnhelpers.cpp; sourceTree = SOURCE_ROOT; };
+		AD94201E380643C3985E9D62 /* gtp.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = gtp.cpp; path = command/gtp.cpp; sourceTree = SOURCE_ROOT; };
+		AFF33AEBABB1472B9F241A98 /* selfplay.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = selfplay.cpp; path = command/selfplay.cpp; sourceTree = SOURCE_ROOT; };
+		B2460699580B49F689D028D5 /* genbook.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = genbook.cpp; path = command/genbook.cpp; sourceTree = SOURCE_ROOT; };
+		B8E283A3B8004F289DACCD8A /* rand.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = rand.cpp; path = core/rand.cpp; sourceTree = SOURCE_ROOT; };
+		BC9F65190B644C969D327CD9 /* testsearchnonn.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = testsearchnonn.cpp; path = tests/testsearchnonn.cpp; sourceTree = SOURCE_ROOT; };
+		BCBCE4A8D83F42FBA4EA0CBE /* searchmultithreadhelpers.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = searchmultithreadhelpers.cpp; path = search/searchmultithreadhelpers.cpp; sourceTree = SOURCE_ROOT; };
+		BDF52FD481AA424BBC59124D /* hash.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = hash.cpp; path = core/hash.cpp; sourceTree = SOURCE_ROOT; };
+		BE70F73F685D4EDA9977822F /* tinymodel.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = tinymodel.cpp; path = tests/tinymodel.cpp; sourceTree = SOURCE_ROOT; };
+		BE7F7520CA15440EBDF0A21D /* md5.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = md5.cpp; path = core/md5.cpp; sourceTree = SOURCE_ROOT; };
+		BF423768A6B74FF18FDC44E7 /* analysisdata.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = analysisdata.cpp; path = search/analysisdata.cpp; sourceTree = SOURCE_ROOT; };
+		C33571C53ECC4C82B0A9DA7D /* searchnodetable.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = searchnodetable.cpp; path = search/searchnodetable.cpp; sourceTree = SOURCE_ROOT; };
+		CA66CE9038574A0BB16D80B6 /* evalsgf.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = evalsgf.cpp; path = command/evalsgf.cpp; sourceTree = SOURCE_ROOT; };
+		CAD1B260FFB74AF9BA66A58A /* fileutils.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = fileutils.cpp; path = core/fileutils.cpp; sourceTree = SOURCE_ROOT; };
+		D104762E63AF4C6A8ADB220E /* setup.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; indentWidth = 2; name = setup.cpp; path = program/setup.cpp; sourceTree = SOURCE_ROOT; };
+		D1DFBE2386CE449D82894520 /* testtrainingwrite.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = testtrainingwrite.cpp; path = tests/testtrainingwrite.cpp; sourceTree = SOURCE_ROOT; };
+		D41000BDB70543A4820D445A /* nninputs.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = nninputs.cpp; path = neuralnet/nninputs.cpp; sourceTree = SOURCE_ROOT; };
+		D49AE95F1DD947B5BFF58C1F /* contribute.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = contribute.cpp; path = command/contribute.cpp; sourceTree = SOURCE_ROOT; };
+		D61629242F5143EBB2D9BEC9 /* base64.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = base64.cpp; path = core/base64.cpp; sourceTree = SOURCE_ROOT; };
+		D645BB8AAF424700A75ED223 /* threadsafecounter.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = threadsafecounter.cpp; path = core/threadsafecounter.cpp; sourceTree = SOURCE_ROOT; };
+		D8710CF2CCA3478EB65063C6 /* gatekeeper.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = gatekeeper.cpp; path = command/gatekeeper.cpp; sourceTree = SOURCE_ROOT; };
+		DD4302F4D69E4EE98EA75B2C /* localpattern.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = localpattern.cpp; path = search/localpattern.cpp; sourceTree = SOURCE_ROOT; };
+		DDCAE99038794BE8B4BB3962 /* modelversion.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = modelversion.cpp; path = neuralnet/modelversion.cpp; sourceTree = SOURCE_ROOT; };
+		E10ACAF52928A6D30004AB17 /* katago */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = katago; sourceTree = BUILT_PRODUCTS_DIR; };
+		E10ACAF92928A8160004AB17 /* coremlbackend.h */ = {isa = PBXFileReference; indentWidth = 2; lastKnownFileType = sourcecode.c.h; name = coremlbackend.h; path = neuralnet/coremlbackend.h; sourceTree = "<group>"; tabWidth = 4; };
+		E12453D42A1CF0DE0062DF9C /* testbook.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = testbook.cpp; path = tests/testbook.cpp; sourceTree = "<group>"; };
+		E12453D62A1D015E0062DF9C /* poswriter.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = poswriter.cpp; path = dataio/poswriter.cpp; sourceTree = "<group>"; };
+		E12EC2172B10D61E0024E274 /* coremlbackend.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; name = coremlbackend.swift; path = neuralnet/coremlbackend.swift; sourceTree = "<group>"; };
+		E12EC2182B10D61E0024E274 /* metalbackend.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; name = metalbackend.swift; path = neuralnet/metalbackend.swift; sourceTree = "<group>"; };
+		E12EC2192B10D61E0024E274 /* coremlmodel.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; name = coremlmodel.swift; path = neuralnet/coremlmodel.swift; sourceTree = "<group>"; };
+		E12EC2242B10E0520024E274 /* coreml_analysis.cfg */ = {isa = PBXFileReference; lastKnownFileType = text; name = coreml_analysis.cfg; path = configs/misc/coreml_analysis.cfg; sourceTree = "<group>"; };
+		E12EC2252B10E0520024E274 /* coreml_example.cfg */ = {isa = PBXFileReference; lastKnownFileType = text; name = coreml_example.cfg; path = configs/misc/coreml_example.cfg; sourceTree = "<group>"; };
+		E12EC22F2B1237440024E274 /* parallel.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = parallel.cpp; path = core/parallel.cpp; sourceTree = "<group>"; };
+		E12EC2322B12375B0024E274 /* writetrainingdata.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = writetrainingdata.cpp; path = command/writetrainingdata.cpp; sourceTree = "<group>"; };
+		E13CF66228E1896C005CB016 /* coremlbackend.cpp */ = {isa = PBXFileReference; fileEncoding = 4; indentWidth = 2; lastKnownFileType = sourcecode.cpp.cpp; name = coremlbackend.cpp; path = neuralnet/coremlbackend.cpp; sourceTree = "<group>"; };
+		E157FDCC2AF7CE2300E25677 /* katagotest.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = katagotest.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		E157FDCE2AF7CE2500E25677 /* testnn.mm */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.objcpp; path = testnn.mm; sourceTree = "<group>"; };
+		E1605CE12BFAD6EB00A4B872 /* sgfmetadata.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; name = sgfmetadata.cpp; path = neuralnet/sgfmetadata.cpp; sourceTree = SOURCE_ROOT; };
+		E16BC82C2C4A8AEB00EA3A1E /* ModelTest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModelTest.swift; sourceTree = "<group>"; };
+		E16BC82E2C4B461500EA3A1E /* CoreMLBackendTest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoreMLBackendTest.swift; sourceTree = "<group>"; };
+		E16BC8342C4B835F00EA3A1E /* CoreMLModelTest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoreMLModelTest.swift; sourceTree = "<group>"; };
+		E17D098A294D45CF005968E9 /* gputest.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = gputest.cpp; path = command/gputest.cpp; sourceTree = "<group>"; };
+		E184464D2BFFF6A1004F5E3B /* misc.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = misc.swift; path = neuralnet/misc.swift; sourceTree = "<group>"; };
+		E199A6F828E25E8100A2E051 /* metalbridge.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = metalbridge.h; path = neuralnet/metalbridge.h; sourceTree = "<group>"; };
+		E199A6F928E25EE500A2E051 /* metalbackend.h */ = {isa = PBXFileReference; fileEncoding = 4; indentWidth = 2; lastKnownFileType = sourcecode.c.h; name = metalbackend.h; path = neuralnet/metalbackend.h; sourceTree = "<group>"; };
+		E1AD404928E1D59700E41968 /* Metal.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Metal.framework; path = System/Library/Frameworks/Metal.framework; sourceTree = SDKROOT; };
+		E1AD404A28E1D59700E41968 /* MetalPerformanceShaders.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = MetalPerformanceShaders.framework; path = System/Library/Frameworks/MetalPerformanceShaders.framework; sourceTree = SDKROOT; };
+		E1AD404B28E1D59700E41968 /* MetalPerformanceShadersGraph.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = MetalPerformanceShadersGraph.framework; path = System/Library/Frameworks/MetalPerformanceShadersGraph.framework; sourceTree = SDKROOT; };
+		E1AD404F28E1D5A700E41968 /* CoreML.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreML.framework; path = System/Library/Frameworks/CoreML.framework; sourceTree = SDKROOT; };
+		E1AD405128E1D75B00E41968 /* libz.tbd */ = {isa = PBXFileReference; lastKnownFileType = "sourcecode.text-based-dylib-definition"; name = libz.tbd; path = usr/lib/libz.tbd; sourceTree = SDKROOT; };
+		E1DACF4C2B08997300082FF7 /* KataGoSwift.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = KataGoSwift.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+		E1DACF622B089B5500082FF7 /* KataGoSwiftTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = KataGoSwiftTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		E1DACF642B089B5500082FF7 /* KataGoSwiftTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KataGoSwiftTests.swift; sourceTree = "<group>"; };
+		E3F8D82F94E14F11BA0F59E6 /* testscore.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = testscore.cpp; path = tests/testscore.cpp; sourceTree = SOURCE_ROOT; };
+		E7B41A9FE4124FA1AB3FBEF1 /* analysis.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = analysis.cpp; path = command/analysis.cpp; sourceTree = SOURCE_ROOT; };
+		EC59266A435045C5B84F9105 /* searchexplorehelpers.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = searchexplorehelpers.cpp; path = search/searchexplorehelpers.cpp; sourceTree = SOURCE_ROOT; };
+		EEB543E9A42948748BF883C3 /* timer.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = timer.cpp; path = core/timer.cpp; sourceTree = SOURCE_ROOT; };
+		F18310A722494DAEACBE09BC /* testboardbasic.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = testboardbasic.cpp; path = tests/testboardbasic.cpp; sourceTree = SOURCE_ROOT; };
+		F2D4BF5BF0CD446F80DFDACE /* asyncbot.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = asyncbot.cpp; path = search/asyncbot.cpp; sourceTree = SOURCE_ROOT; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		E10ACAEB2928A6D30004AB17 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				E1DACF5D2B089A5400082FF7 /* KataGoSwift.framework in Frameworks */,
+				E10ACAEC2928A6D30004AB17 /* MetalPerformanceShaders.framework in Frameworks */,
+				E10ACAED2928A6D30004AB17 /* libz.tbd in Frameworks */,
+				E10ACAFD2928BBF00004AB17 /* CoreML.framework in Frameworks */,
+				E10ACAEE2928A6D30004AB17 /* Metal.framework in Frameworks */,
+				E10ACAEF2928A6D30004AB17 /* MetalPerformanceShadersGraph.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		E157FDC92AF7CE2300E25677 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				E1DACF732B089C7700082FF7 /* KataGoSwift.framework in Frameworks */,
+				E157FE4A2AF7D22800E25677 /* MetalPerformanceShaders.framework in Frameworks */,
+				E157FE4B2AF7D23800E25677 /* libz.tbd in Frameworks */,
+				E157FE4C2AF7D2E400E25677 /* CoreML.framework in Frameworks */,
+				E157FE4D2AF7D2E800E25677 /* Metal.framework in Frameworks */,
+				E157FE4E2AF7D2ED00E25677 /* MetalPerformanceShadersGraph.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		E1DACF492B08997300082FF7 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		E1DACF5F2B089B5500082FF7 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		29C8B1F369034337B2CC96EF = {
+			isa = PBXGroup;
+			children = (
+				E1AD404828E1D59700E41968 /* Frameworks */,
+				30DEE4A41280490EA8216883 /* KataGo */,
+				E1DACF632B089B5500082FF7 /* KataGoSwiftTests */,
+				E1E29E1128F5B05300E73FF8 /* KataGoTest */,
+				8218F7988402482BAFDA7E88 /* Products */,
+				E12EC2232B10E01E0024E274 /* Resources */,
+			);
+			sourceTree = "<group>";
+		};
+		30DEE4A41280490EA8216883 /* KataGo */ = {
+			isa = PBXGroup;
+			children = (
+				E42DAD7F6DF94192AED73FF1 /* Source Files */,
+				3B22C5B3776049BD9CC4D5D9 /* Header Files */,
+			);
+			name = KataGo;
+			sourceTree = "<group>";
+		};
+		3B22C5B3776049BD9CC4D5D9 /* Header Files */ = {
+			isa = PBXGroup;
+			children = (
+				E10ACAF92928A8160004AB17 /* coremlbackend.h */,
+				E199A6F928E25EE500A2E051 /* metalbackend.h */,
+				E199A6F828E25E8100A2E051 /* metalbridge.h */,
+			);
+			name = "Header Files";
+			sourceTree = "<group>";
+		};
+		8218F7988402482BAFDA7E88 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				E10ACAF52928A6D30004AB17 /* katago */,
+				E157FDCC2AF7CE2300E25677 /* katagotest.xctest */,
+				E1DACF4C2B08997300082FF7 /* KataGoSwift.framework */,
+				E1DACF622B089B5500082FF7 /* KataGoSwiftTests.xctest */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		E12EC2232B10E01E0024E274 /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				E12EC2242B10E0520024E274 /* coreml_analysis.cfg */,
+				E12EC2252B10E0520024E274 /* coreml_example.cfg */,
+			);
+			name = Resources;
+			sourceTree = "<group>";
+		};
+		E1AD404828E1D59700E41968 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				E1AD405128E1D75B00E41968 /* libz.tbd */,
+				E1AD404F28E1D5A700E41968 /* CoreML.framework */,
+				E1AD404928E1D59700E41968 /* Metal.framework */,
+				E1AD404A28E1D59700E41968 /* MetalPerformanceShaders.framework */,
+				E1AD404B28E1D59700E41968 /* MetalPerformanceShadersGraph.framework */,
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
+		E1DACF632B089B5500082FF7 /* KataGoSwiftTests */ = {
+			isa = PBXGroup;
+			children = (
+				E1DACF642B089B5500082FF7 /* KataGoSwiftTests.swift */,
+				E16BC82C2C4A8AEB00EA3A1E /* ModelTest.swift */,
+				E16BC82E2C4B461500EA3A1E /* CoreMLBackendTest.swift */,
+				E16BC8342C4B835F00EA3A1E /* CoreMLModelTest.swift */,
+			);
+			name = KataGoSwiftTests;
+			path = xcode/KataGoSwiftTests;
+			sourceTree = "<group>";
+		};
+		E1E29E1128F5B05300E73FF8 /* KataGoTest */ = {
+			isa = PBXGroup;
+			children = (
+				E157FDCE2AF7CE2500E25677 /* testnn.mm */,
+			);
+			name = KataGoTest;
+			path = xcode/KataGoTest;
+			sourceTree = "<group>";
+		};
+		E42DAD7F6DF94192AED73FF1 /* Source Files */ = {
+			isa = PBXGroup;
+			children = (
+				E7B41A9FE4124FA1AB3FBEF1 /* analysis.cpp */,
+				BF423768A6B74FF18FDC44E7 /* analysisdata.cpp */,
+				F2D4BF5BF0CD446F80DFDACE /* asyncbot.cpp */,
+				D61629242F5143EBB2D9BEC9 /* base64.cpp */,
+				063E4C878E7E43858A863A78 /* benchmark.cpp */,
+				8F0B49CAFCB24D31808DB2C1 /* board.cpp */,
+				540D93E0576C47C789279AF8 /* boardhistory.cpp */,
+				973B04213D1B4030B35FB01C /* book.cpp */,
+				6DD28F2EE5FB490F906D63BA /* bookcssjs.cpp */,
+				176C18FD215D45179B93393C /* bsearch.cpp */,
+				792CF6207CA54AABB0F058C6 /* client.cpp */,
+				6CD97C1775DC4E678823595E /* commandline.cpp */,
+				4BF5823DCA854224809D93A8 /* commandloop.cpp */,
+				23D034621365403182419780 /* config_parser.cpp */,
+				D49AE95F1DD947B5BFF58C1F /* contribute.cpp */,
+				E13CF66228E1896C005CB016 /* coremlbackend.cpp */,
+				E12EC2172B10D61E0024E274 /* coremlbackend.swift */,
+				E12EC2192B10D61E0024E274 /* coremlmodel.swift */,
+				71DC745C32B543C191262823 /* datetime.cpp */,
+				5D8F26726AAF403C833FBD7F /* desc.cpp */,
+				32DD1B600C014B49ADDB237E /* distributiontable.cpp */,
+				59353ECA2B0140FA9365623E /* elo.cpp */,
+				CA66CE9038574A0BB16D80B6 /* evalsgf.cpp */,
+				2626105D31ED44D98E6B9B9D /* fancymath.cpp */,
+				8C31483CD76D48F2A7327613 /* files.cpp */,
+				CAD1B260FFB74AF9BA66A58A /* fileutils.cpp */,
+				D8710CF2CCA3478EB65063C6 /* gatekeeper.cpp */,
+				B2460699580B49F689D028D5 /* genbook.cpp */,
+				A8748F2EFAAF401DACE6B60A /* global.cpp */,
+				E17D098A294D45CF005968E9 /* gputest.cpp */,
+				10EB7D2538F94B26BE1B1740 /* graphhash.cpp */,
+				AD94201E380643C3985E9D62 /* gtp.cpp */,
+				5BCE97296A5249A0B49C766F /* gtpconfig.cpp */,
+				BDF52FD481AA424BBC59124D /* hash.cpp */,
+				6E87CD61EFA340A1AF4B8BCE /* homedata.cpp */,
+				8FBE5F0F301A405D85F23D38 /* loadmodel.cpp */,
+				DD4302F4D69E4EE98EA75B2C /* localpattern.cpp */,
+				7B2C186FF8B3422CB64E6039 /* logger.cpp */,
+				50827347EBFE4467996C3150 /* main.cpp */,
+				92F4695F66A84118BDCAA13F /* mainargs.cpp */,
+				63D5831B449B48D1AD132F9F /* makedir.cpp */,
+				948AF9E88374487D85E846C2 /* match.cpp */,
+				BE7F7520CA15440EBDF0A21D /* md5.cpp */,
+				4845ACCEFC204BA89C033482 /* metalbackend.cpp */,
+				E12EC2182B10D61E0024E274 /* metalbackend.swift */,
+				64D3C3432AB3409C942F7A0E /* misc.cpp */,
+				E184464D2BFFF6A1004F5E3B /* misc.swift */,
+				DDCAE99038794BE8B4BB3962 /* modelversion.cpp */,
+				5185F4BC63B5490AAE4F37CB /* multithread.cpp */,
+				6DA721BDC00F438688E0B241 /* mutexpool.cpp */,
+				92C3AF4C79ED491988E9C5BC /* nneval.cpp */,
+				D41000BDB70543A4820D445A /* nninputs.cpp */,
+				4F20754875D24724A133A9AE /* numpywrite.cpp */,
+				E12EC22F2B1237440024E274 /* parallel.cpp */,
+				6A5C095FD31A4636994B5E5A /* patternbonustable.cpp */,
+				3FBACE432776421CAEDF6786 /* play.cpp */,
+				7A57BA046921422DB33C7614 /* playsettings.cpp */,
+				9FB3A34B1C8D4CBF9997DDA7 /* playutils.cpp */,
+				E12453D62A1D015E0062DF9C /* poswriter.cpp */,
+				59BC63FBF0804F63A27369AE /* rand_helpers.cpp */,
+				B8E283A3B8004F289DACCD8A /* rand.cpp */,
+				706365E669744784A6A6DE57 /* reportedsearchvalues.cpp */,
+				727A790F2FEA4DBEA8ABAE85 /* rules.cpp */,
+				5902EDD2F6A74BE7966E2001 /* runtests.cpp */,
+				11318DB744F340DCB41F7248 /* sandbox.cpp */,
+				93FF01FEC8DA40DB916C4F0A /* search.cpp */,
+				EC59266A435045C5B84F9105 /* searchexplorehelpers.cpp */,
+				A72EC47D68904D38A5EAE635 /* searchhelpers.cpp */,
+				07DAAE05A9FA46F5B271903E /* searchmirror.cpp */,
+				BCBCE4A8D83F42FBA4EA0CBE /* searchmultithreadhelpers.cpp */,
+				AA6C3E7D4604497D8B94AC50 /* searchnnhelpers.cpp */,
+				206727F6853C468F84FC44AE /* searchnode.cpp */,
+				C33571C53ECC4C82B0A9DA7D /* searchnodetable.cpp */,
+				1660F43339464F1F82D603C2 /* searchparams.cpp */,
+				1BAD528CE45E4D31A6F0F058 /* searchresults.cpp */,
+				77C31BA9C8864C07B491DF1D /* searchtimehelpers.cpp */,
+				73D2A262E3E542FD8063F8DD /* searchupdatehelpers.cpp */,
+				AFF33AEBABB1472B9F241A98 /* selfplay.cpp */,
+				7C7A65C82B4C4AB5B83B1346 /* selfplaymanager.cpp */,
+				D104762E63AF4C6A8ADB220E /* setup.cpp */,
+				3E097292E4F34AB6806F67E6 /* sgf.cpp */,
+				E1605CE12BFAD6EB00A4B872 /* sgfmetadata.cpp */,
+				76F8951F199F416F99B96FE8 /* sha2.cpp */,
+				7891834D8FB144E0B13F6E21 /* subtreevaluebiastable.cpp */,
+				5639F08A96FD467CBD091947 /* test.cpp */,
+				3D4E9B8ABFBF4DAEB11058E1 /* testboardarea.cpp */,
+				F18310A722494DAEACBE09BC /* testboardbasic.cpp */,
+				E12453D42A1CF0DE0062DF9C /* testbook.cpp */,
+				8C9D17518AE04398A975E5AE /* testcommon.cpp */,
+				346C96C8324D4BE8A12D1A97 /* testconfig.cpp */,
+				48669007B9164F5FB011F549 /* testmisc.cpp */,
+				41CCB0DF860045E5A8697BDD /* testnn.cpp */,
+				88BAF51D4B34475A90D1D7CC /* testnnevalcanary.cpp */,
+				4B137CD979C7436188D684A7 /* testnninputs.cpp */,
+				0F8F91005809465EB2EDD409 /* testownership.cpp */,
+				2F5B917DA90147ABBAC18571 /* testrules.cpp */,
+				E3F8D82F94E14F11BA0F59E6 /* testscore.cpp */,
+				0E2F9938E72849F691272AA0 /* testsearch.cpp */,
+				0EDC97A2834E434691EA91C1 /* testsearchcommon.cpp */,
+				4BF2B81FB1BB43AC81344E4A /* testsearchmisc.cpp */,
+				BC9F65190B644C969D327CD9 /* testsearchnonn.cpp */,
+				43CF521030274453B04827E1 /* testsearchv3.cpp */,
+				661A920818694712953495A7 /* testsearchv8.cpp */,
+				1356448A03004176848C790A /* testsearchv9.cpp */,
+				952F0B54C8BF410C9EA67989 /* testsgf.cpp */,
+				84BCAFD2361F4BE8B5025F65 /* testsymmetries.cpp */,
+				A255C9FAA2E145048F33368C /* testtime.cpp */,
+				D1DFBE2386CE449D82894520 /* testtrainingwrite.cpp */,
+				D645BB8AAF424700A75ED223 /* threadsafecounter.cpp */,
+				34B63C891D53453F9C258280 /* threadsafequeue.cpp */,
+				69300B311DE94520A56A3B5F /* threadtest.cpp */,
+				888C7B98F8B64150B0903946 /* timecontrols.cpp */,
+				EEB543E9A42948748BF883C3 /* timer.cpp */,
+				BE70F73F685D4EDA9977822F /* tinymodel.cpp */,
+				279C4ABB40FE447483F0F975 /* tinymodeldata.cpp */,
+				6F9788817DEA4417A321C3A0 /* trainingwrite.cpp */,
+				A241D7415C384D3A81BF73AC /* tune.cpp */,
+				E12EC2322B12375B0024E274 /* writetrainingdata.cpp */,
+			);
+			name = "Source Files";
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXHeadersBuildPhase section */
+		E1DACF472B08997300082FF7 /* Headers */ = {
+			isa = PBXHeadersBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXHeadersBuildPhase section */
+
+/* Begin PBXNativeTarget section */
+		E10ACA7B2928A6D30004AB17 /* katago */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = E10ACAF02928A6D30004AB17 /* Build configuration list for PBXNativeTarget "katago" */;
+			buildPhases = (
+				E10ACA7C2928A6D30004AB17 /* Sources */,
+				E10ACAEB2928A6D30004AB17 /* Frameworks */,
+				E12EC22D2B10E3200024E274 /* CopyFiles */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				E1DACF5C2B089A4B00082FF7 /* PBXTargetDependency */,
+			);
+			name = katago;
+			productName = katago;
+			productReference = E10ACAF52928A6D30004AB17 /* katago */;
+			productType = "com.apple.product-type.tool";
+		};
+		E157FDCB2AF7CE2300E25677 /* katagotest */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = E157FDD42AF7CE2500E25677 /* Build configuration list for PBXNativeTarget "katagotest" */;
+			buildPhases = (
+				E157FDC82AF7CE2300E25677 /* Sources */,
+				E157FDC92AF7CE2300E25677 /* Frameworks */,
+				E157FDCA2AF7CE2300E25677 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				E1DACF722B089C6F00082FF7 /* PBXTargetDependency */,
+			);
+			name = katagotest;
+			productName = testc;
+			productReference = E157FDCC2AF7CE2300E25677 /* katagotest.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+		E1DACF4B2B08997300082FF7 /* KataGoSwift */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = E1DACF542B08997400082FF7 /* Build configuration list for PBXNativeTarget "KataGoSwift" */;
+			buildPhases = (
+				E1DACF472B08997300082FF7 /* Headers */,
+				E1DACF482B08997300082FF7 /* Sources */,
+				E1DACF492B08997300082FF7 /* Frameworks */,
+				E1DACF4A2B08997300082FF7 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = KataGoSwift;
+			productName = KataGoSwift;
+			productReference = E1DACF4C2B08997300082FF7 /* KataGoSwift.framework */;
+			productType = "com.apple.product-type.framework";
+		};
+		E1DACF612B089B5500082FF7 /* KataGoSwiftTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = E1DACF692B089B5500082FF7 /* Build configuration list for PBXNativeTarget "KataGoSwiftTests" */;
+			buildPhases = (
+				E1DACF5E2B089B5500082FF7 /* Sources */,
+				E1DACF5F2B089B5500082FF7 /* Frameworks */,
+				E1DACF602B089B5500082FF7 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = KataGoSwiftTests;
+			productName = KataGoSwiftTests;
+			productReference = E1DACF622B089B5500082FF7 /* KataGoSwiftTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		91644CF2108748368B902DCE /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				DefaultBuildSystemTypeForWorkspace = Latest;
+				LastSwiftUpdateCheck = 1500;
+				LastUpgradeCheck = 1500;
+				TargetAttributes = {
+					E157FDCB2AF7CE2300E25677 = {
+						CreatedOnToolsVersion = 15.0.1;
+						LastSwiftMigration = 1540;
+					};
+					E1DACF4B2B08997300082FF7 = {
+						CreatedOnToolsVersion = 15.0.1;
+						LastSwiftMigration = 1500;
+					};
+					E1DACF612B089B5500082FF7 = {
+						CreatedOnToolsVersion = 15.0.1;
+					};
+				};
+			};
+			buildConfigurationList = 0838DC7C409844AFA516AAE2 /* Build configuration list for PBXProject "KataGo" */;
+			compatibilityVersion = "Xcode 14.0";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = 29C8B1F369034337B2CC96EF;
+			projectDirPath = ../;
+			projectRoot = "";
+			targets = (
+				E10ACA7B2928A6D30004AB17 /* katago */,
+				E157FDCB2AF7CE2300E25677 /* katagotest */,
+				E1DACF4B2B08997300082FF7 /* KataGoSwift */,
+				E1DACF612B089B5500082FF7 /* KataGoSwiftTests */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		E157FDCA2AF7CE2300E25677 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		E1DACF4A2B08997300082FF7 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		E1DACF602B089B5500082FF7 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		E10ACA7C2928A6D30004AB17 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				E1605CE22BFAD6EB00A4B872 /* sgfmetadata.cpp in Sources */,
+				E10ACA7D2928A6D30004AB17 /* book.cpp in Sources */,
+				E10ACA7E2928A6D30004AB17 /* bookcssjs.cpp in Sources */,
+				E10ACA7F2928A6D30004AB17 /* analysis.cpp in Sources */,
+				E10ACA802928A6D30004AB17 /* benchmark.cpp in Sources */,
+				E17D098C294D45CF005968E9 /* gputest.cpp in Sources */,
+				E10ACA812928A6D30004AB17 /* commandline.cpp in Sources */,
+				E10ACA822928A6D30004AB17 /* contribute.cpp in Sources */,
+				E10ACA832928A6D30004AB17 /* evalsgf.cpp in Sources */,
+				E10ACA842928A6D30004AB17 /* gatekeeper.cpp in Sources */,
+				E10ACA862928A6D30004AB17 /* genbook.cpp in Sources */,
+				E12453D72A1D015E0062DF9C /* poswriter.cpp in Sources */,
+				E10ACA872928A6D30004AB17 /* gtp.cpp in Sources */,
+				E10ACA882928A6D30004AB17 /* match.cpp in Sources */,
+				E10ACA8A2928A6D30004AB17 /* misc.cpp in Sources */,
+				E10ACA8B2928A6D30004AB17 /* runtests.cpp in Sources */,
+				E10ACA8C2928A6D30004AB17 /* sandbox.cpp in Sources */,
+				E10ACA8D2928A6D30004AB17 /* selfplay.cpp in Sources */,
+				E10ACA8E2928A6D30004AB17 /* tune.cpp in Sources */,
+				E10ACA8F2928A6D30004AB17 /* base64.cpp in Sources */,
+				E10ACA902928A6D30004AB17 /* bsearch.cpp in Sources */,
+				E12EC2332B12375C0024E274 /* writetrainingdata.cpp in Sources */,
+				E10ACA912928A6D30004AB17 /* commandloop.cpp in Sources */,
+				E10ACA922928A6D30004AB17 /* config_parser.cpp in Sources */,
+				E10ACA932928A6D30004AB17 /* datetime.cpp in Sources */,
+				E10ACA942928A6D30004AB17 /* elo.cpp in Sources */,
+				E10ACA952928A6D30004AB17 /* fancymath.cpp in Sources */,
+				E10ACA962928A6D30004AB17 /* fileutils.cpp in Sources */,
+				E12EC2302B1237440024E274 /* parallel.cpp in Sources */,
+				E10ACA972928A6D30004AB17 /* global.cpp in Sources */,
+				E10ACA982928A6D30004AB17 /* hash.cpp in Sources */,
+				E10ACA992928A6D30004AB17 /* logger.cpp in Sources */,
+				E10ACA9A2928A6D30004AB17 /* mainargs.cpp in Sources */,
+				E10ACA9B2928A6D30004AB17 /* makedir.cpp in Sources */,
+				E10ACA9C2928A6D30004AB17 /* md5.cpp in Sources */,
+				E10ACA9D2928A6D30004AB17 /* multithread.cpp in Sources */,
+				E10ACA9E2928A6D30004AB17 /* rand.cpp in Sources */,
+				E10ACA9F2928A6D30004AB17 /* rand_helpers.cpp in Sources */,
+				E12453D52A1CF0DE0062DF9C /* testbook.cpp in Sources */,
+				E10ACAA02928A6D30004AB17 /* sha2.cpp in Sources */,
+				E10ACAA12928A6D30004AB17 /* test.cpp in Sources */,
+				E10ACAA22928A6D30004AB17 /* threadsafecounter.cpp in Sources */,
+				E10ACAA32928A6D30004AB17 /* threadsafequeue.cpp in Sources */,
+				E10ACAA42928A6D30004AB17 /* threadtest.cpp in Sources */,
+				E10ACAA52928A6D30004AB17 /* timer.cpp in Sources */,
+				E10ACAA62928A6D30004AB17 /* files.cpp in Sources */,
+				E10ACAA72928A6D30004AB17 /* homedata.cpp in Sources */,
+				E10ACAA82928A6D30004AB17 /* loadmodel.cpp in Sources */,
+				E10ACAA92928A6D30004AB17 /* numpywrite.cpp in Sources */,
+				E10ACAAA2928A6D30004AB17 /* sgf.cpp in Sources */,
+				E10ACAAB2928A6D30004AB17 /* trainingwrite.cpp in Sources */,
+				E10ACAAC2928A6D30004AB17 /* client.cpp in Sources */,
+				E10ACAAD2928A6D30004AB17 /* board.cpp in Sources */,
+				E10ACAAE2928A6D30004AB17 /* boardhistory.cpp in Sources */,
+				E10ACAAF2928A6D30004AB17 /* graphhash.cpp in Sources */,
+				E10ACAB02928A6D30004AB17 /* rules.cpp in Sources */,
+				E10ACAB12928A6D30004AB17 /* main.cpp in Sources */,
+				E10ACAB22928A6D30004AB17 /* desc.cpp in Sources */,
+				E10ACAB32928A6D30004AB17 /* metalbackend.cpp in Sources */,
+				E10ACAB52928A6D30004AB17 /* modelversion.cpp in Sources */,
+				E10ACAB62928A6D30004AB17 /* nneval.cpp in Sources */,
+				E10ACAB72928A6D30004AB17 /* nninputs.cpp in Sources */,
+				E10ACAB82928A6D30004AB17 /* gtpconfig.cpp in Sources */,
+				E10ACAB92928A6D30004AB17 /* play.cpp in Sources */,
+				E10ACABA2928A6D30004AB17 /* playsettings.cpp in Sources */,
+				E10ACABB2928A6D30004AB17 /* playutils.cpp in Sources */,
+				E10ACABC2928A6D30004AB17 /* selfplaymanager.cpp in Sources */,
+				E10ACABD2928A6D30004AB17 /* setup.cpp in Sources */,
+				E10ACABE2928A6D30004AB17 /* analysisdata.cpp in Sources */,
+				E10ACABF2928A6D30004AB17 /* asyncbot.cpp in Sources */,
+				E10ACAC02928A6D30004AB17 /* distributiontable.cpp in Sources */,
+				E10ACAC12928A6D30004AB17 /* localpattern.cpp in Sources */,
+				E10ACAC22928A6D30004AB17 /* mutexpool.cpp in Sources */,
+				E10ACAC32928A6D30004AB17 /* patternbonustable.cpp in Sources */,
+				E10ACAC42928A6D30004AB17 /* reportedsearchvalues.cpp in Sources */,
+				E10ACAC52928A6D30004AB17 /* search.cpp in Sources */,
+				E10ACAC62928A6D30004AB17 /* searchexplorehelpers.cpp in Sources */,
+				E10ACAC72928A6D30004AB17 /* searchhelpers.cpp in Sources */,
+				E10ACAC82928A6D30004AB17 /* searchmirror.cpp in Sources */,
+				E10ACAC92928A6D30004AB17 /* searchmultithreadhelpers.cpp in Sources */,
+				E10ACACA2928A6D30004AB17 /* searchnnhelpers.cpp in Sources */,
+				E10ACACB2928A6D30004AB17 /* searchnode.cpp in Sources */,
+				E10ACACC2928A6D30004AB17 /* searchnodetable.cpp in Sources */,
+				E10ACACD2928A6D30004AB17 /* searchparams.cpp in Sources */,
+				E10ACACE2928A6D30004AB17 /* searchresults.cpp in Sources */,
+				E10ACACF2928A6D30004AB17 /* searchtimehelpers.cpp in Sources */,
+				E10ACAD02928A6D30004AB17 /* searchupdatehelpers.cpp in Sources */,
+				E10ACAD12928A6D30004AB17 /* subtreevaluebiastable.cpp in Sources */,
+				E10ACAD22928A6D30004AB17 /* timecontrols.cpp in Sources */,
+				E10ACAD32928A6D30004AB17 /* testboardarea.cpp in Sources */,
+				E10ACAD42928A6D30004AB17 /* testboardbasic.cpp in Sources */,
+				E10ACAD52928A6D30004AB17 /* testcommon.cpp in Sources */,
+				E10ACAD62928A6D30004AB17 /* testconfig.cpp in Sources */,
+				E10ACAD72928A6D30004AB17 /* testmisc.cpp in Sources */,
+				E10ACAD82928A6D30004AB17 /* testnn.cpp in Sources */,
+				E10ACAD92928A6D30004AB17 /* testnnevalcanary.cpp in Sources */,
+				E10ACADA2928A6D30004AB17 /* testnninputs.cpp in Sources */,
+				E10ACADB2928A6D30004AB17 /* testownership.cpp in Sources */,
+				E10ACADC2928A6D30004AB17 /* testrules.cpp in Sources */,
+				E10ACADD2928A6D30004AB17 /* testscore.cpp in Sources */,
+				E10ACADE2928A6D30004AB17 /* testsearch.cpp in Sources */,
+				E10ACADF2928A6D30004AB17 /* testsearchcommon.cpp in Sources */,
+				E10ACAE02928A6D30004AB17 /* testsearchmisc.cpp in Sources */,
+				E10ACAE12928A6D30004AB17 /* testsearchnonn.cpp in Sources */,
+				E10ACAE22928A6D30004AB17 /* testsearchv3.cpp in Sources */,
+				E10ACAE32928A6D30004AB17 /* testsearchv8.cpp in Sources */,
+				E10ACAE42928A6D30004AB17 /* testsearchv9.cpp in Sources */,
+				E10ACAE52928A6D30004AB17 /* testsgf.cpp in Sources */,
+				E10ACAE62928A6D30004AB17 /* testsymmetries.cpp in Sources */,
+				E10ACAFA2928A8D30004AB17 /* coremlbackend.cpp in Sources */,
+				E10ACAE72928A6D30004AB17 /* testtime.cpp in Sources */,
+				E10ACAE82928A6D30004AB17 /* testtrainingwrite.cpp in Sources */,
+				E10ACAE92928A6D30004AB17 /* tinymodel.cpp in Sources */,
+				E10ACAEA2928A6D30004AB17 /* tinymodeldata.cpp in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		E157FDC82AF7CE2300E25677 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				E157FE4F2AF7DA1600E25677 /* testnn.mm in Sources */,
+				E157FDD82AF7D1E500E25677 /* analysis.cpp in Sources */,
+				E157FDD92AF7D1E500E25677 /* analysisdata.cpp in Sources */,
+				E157FDDA2AF7D1E500E25677 /* asyncbot.cpp in Sources */,
+				E157FDDB2AF7D1E500E25677 /* base64.cpp in Sources */,
+				E157FDDC2AF7D1E500E25677 /* benchmark.cpp in Sources */,
+				E157FDDD2AF7D1E500E25677 /* board.cpp in Sources */,
+				E157FDDE2AF7D1E500E25677 /* boardhistory.cpp in Sources */,
+				E157FDDF2AF7D1E500E25677 /* book.cpp in Sources */,
+				E157FDE02AF7D1E500E25677 /* bookcssjs.cpp in Sources */,
+				E157FDE12AF7D1E500E25677 /* bsearch.cpp in Sources */,
+				E157FDE22AF7D1E500E25677 /* client.cpp in Sources */,
+				E157FDE32AF7D1E500E25677 /* commandline.cpp in Sources */,
+				E157FDE42AF7D1E500E25677 /* commandloop.cpp in Sources */,
+				E157FDE52AF7D1E600E25677 /* config_parser.cpp in Sources */,
+				E157FDE62AF7D1E600E25677 /* contribute.cpp in Sources */,
+				E157FDE72AF7D1E600E25677 /* coremlbackend.cpp in Sources */,
+				E157FDEA2AF7D1E600E25677 /* datetime.cpp in Sources */,
+				E157FDEB2AF7D1E600E25677 /* desc.cpp in Sources */,
+				E157FDEC2AF7D1E600E25677 /* distributiontable.cpp in Sources */,
+				E157FDED2AF7D1E600E25677 /* elo.cpp in Sources */,
+				E157FDEE2AF7D1E600E25677 /* evalsgf.cpp in Sources */,
+				E157FDEF2AF7D1E600E25677 /* fancymath.cpp in Sources */,
+				E157FDF02AF7D1E600E25677 /* files.cpp in Sources */,
+				E157FDF12AF7D1E600E25677 /* fileutils.cpp in Sources */,
+				E157FDF22AF7D1E600E25677 /* gatekeeper.cpp in Sources */,
+				E157FDF32AF7D1E600E25677 /* genbook.cpp in Sources */,
+				E157FDF42AF7D1E600E25677 /* global.cpp in Sources */,
+				E157FDF52AF7D1E600E25677 /* gputest.cpp in Sources */,
+				E157FDF62AF7D1E600E25677 /* graphhash.cpp in Sources */,
+				E157FDF72AF7D1E600E25677 /* gtp.cpp in Sources */,
+				E12EC2342B12375C0024E274 /* writetrainingdata.cpp in Sources */,
+				E157FDF82AF7D1E600E25677 /* gtpconfig.cpp in Sources */,
+				E157FDF92AF7D1E600E25677 /* hash.cpp in Sources */,
+				E157FDFA2AF7D1E600E25677 /* homedata.cpp in Sources */,
+				E157FDFB2AF7D1E600E25677 /* loadmodel.cpp in Sources */,
+				E157FDFC2AF7D1E600E25677 /* localpattern.cpp in Sources */,
+				E157FDFD2AF7D1E600E25677 /* logger.cpp in Sources */,
+				E157FDFE2AF7D1E600E25677 /* main.cpp in Sources */,
+				E157FDFF2AF7D1E600E25677 /* mainargs.cpp in Sources */,
+				E157FE002AF7D1E600E25677 /* makedir.cpp in Sources */,
+				E157FE012AF7D1E600E25677 /* match.cpp in Sources */,
+				E157FE022AF7D1E600E25677 /* md5.cpp in Sources */,
+				E157FE032AF7D1E600E25677 /* metalbackend.cpp in Sources */,
+				E12EC2312B1237440024E274 /* parallel.cpp in Sources */,
+				E157FE052AF7D1E600E25677 /* misc.cpp in Sources */,
+				E157FE062AF7D1E600E25677 /* modelversion.cpp in Sources */,
+				E157FE072AF7D1E600E25677 /* multithread.cpp in Sources */,
+				E157FE082AF7D1E600E25677 /* mutexpool.cpp in Sources */,
+				E157FE092AF7D1E600E25677 /* nneval.cpp in Sources */,
+				E157FE0A2AF7D1E600E25677 /* nninputs.cpp in Sources */,
+				E157FE0B2AF7D1E600E25677 /* numpywrite.cpp in Sources */,
+				E157FE0C2AF7D1E600E25677 /* patternbonustable.cpp in Sources */,
+				E157FE0D2AF7D1E600E25677 /* play.cpp in Sources */,
+				E157FE0E2AF7D1E600E25677 /* playsettings.cpp in Sources */,
+				E1605CE32BFAD70100A4B872 /* sgfmetadata.cpp in Sources */,
+				E157FE0F2AF7D1E600E25677 /* playutils.cpp in Sources */,
+				E157FE102AF7D1E600E25677 /* poswriter.cpp in Sources */,
+				E157FE112AF7D1E600E25677 /* rand_helpers.cpp in Sources */,
+				E157FE122AF7D1E600E25677 /* rand.cpp in Sources */,
+				E157FE132AF7D1E600E25677 /* reportedsearchvalues.cpp in Sources */,
+				E157FE142AF7D1E600E25677 /* rules.cpp in Sources */,
+				E157FE152AF7D1E600E25677 /* runtests.cpp in Sources */,
+				E157FE162AF7D1E600E25677 /* sandbox.cpp in Sources */,
+				E157FE172AF7D1E600E25677 /* search.cpp in Sources */,
+				E157FE182AF7D1E600E25677 /* searchexplorehelpers.cpp in Sources */,
+				E157FE192AF7D1E600E25677 /* searchhelpers.cpp in Sources */,
+				E157FE1A2AF7D1E600E25677 /* searchmirror.cpp in Sources */,
+				E157FE1B2AF7D1E600E25677 /* searchmultithreadhelpers.cpp in Sources */,
+				E157FE1C2AF7D1E600E25677 /* searchnnhelpers.cpp in Sources */,
+				E157FE1D2AF7D1E600E25677 /* searchnode.cpp in Sources */,
+				E157FE1E2AF7D1E600E25677 /* searchnodetable.cpp in Sources */,
+				E157FE1F2AF7D1E600E25677 /* searchparams.cpp in Sources */,
+				E157FE202AF7D1E600E25677 /* searchresults.cpp in Sources */,
+				E157FE212AF7D1E600E25677 /* searchtimehelpers.cpp in Sources */,
+				E157FE222AF7D1E600E25677 /* searchupdatehelpers.cpp in Sources */,
+				E157FE232AF7D1E600E25677 /* selfplay.cpp in Sources */,
+				E157FE242AF7D1E600E25677 /* selfplaymanager.cpp in Sources */,
+				E157FE252AF7D1E600E25677 /* setup.cpp in Sources */,
+				E157FE262AF7D1E600E25677 /* sgf.cpp in Sources */,
+				E157FE272AF7D1E600E25677 /* sha2.cpp in Sources */,
+				E157FE282AF7D1E600E25677 /* subtreevaluebiastable.cpp in Sources */,
+				E157FE292AF7D1E600E25677 /* test.cpp in Sources */,
+				E157FE2A2AF7D1E600E25677 /* testboardarea.cpp in Sources */,
+				E157FE2B2AF7D1E600E25677 /* testboardbasic.cpp in Sources */,
+				E157FE2C2AF7D1E600E25677 /* testbook.cpp in Sources */,
+				E157FE2D2AF7D1E600E25677 /* testcommon.cpp in Sources */,
+				E157FE2E2AF7D1E600E25677 /* testconfig.cpp in Sources */,
+				E157FE2F2AF7D1E600E25677 /* testmisc.cpp in Sources */,
+				E157FE302AF7D1E600E25677 /* testnn.cpp in Sources */,
+				E157FE312AF7D1E600E25677 /* testnnevalcanary.cpp in Sources */,
+				E157FE322AF7D1E700E25677 /* testnninputs.cpp in Sources */,
+				E157FE332AF7D1E700E25677 /* testownership.cpp in Sources */,
+				E157FE342AF7D1E700E25677 /* testrules.cpp in Sources */,
+				E157FE352AF7D1E700E25677 /* testscore.cpp in Sources */,
+				E157FE362AF7D1E700E25677 /* testsearch.cpp in Sources */,
+				E157FE372AF7D1E700E25677 /* testsearchcommon.cpp in Sources */,
+				E157FE382AF7D1E700E25677 /* testsearchmisc.cpp in Sources */,
+				E157FE392AF7D1E700E25677 /* testsearchnonn.cpp in Sources */,
+				E157FE3A2AF7D1E700E25677 /* testsearchv3.cpp in Sources */,
+				E157FE3B2AF7D1E700E25677 /* testsearchv8.cpp in Sources */,
+				E157FE3C2AF7D1E700E25677 /* testsearchv9.cpp in Sources */,
+				E157FE3D2AF7D1E700E25677 /* testsgf.cpp in Sources */,
+				E157FE3E2AF7D1E700E25677 /* testsymmetries.cpp in Sources */,
+				E157FE3F2AF7D1E700E25677 /* testtime.cpp in Sources */,
+				E157FE402AF7D1E700E25677 /* testtrainingwrite.cpp in Sources */,
+				E157FE412AF7D1E700E25677 /* threadsafecounter.cpp in Sources */,
+				E157FE422AF7D1E700E25677 /* threadsafequeue.cpp in Sources */,
+				E157FE432AF7D1E700E25677 /* threadtest.cpp in Sources */,
+				E157FE442AF7D1E700E25677 /* timecontrols.cpp in Sources */,
+				E157FE452AF7D1E700E25677 /* timer.cpp in Sources */,
+				E157FE462AF7D1E700E25677 /* tinymodel.cpp in Sources */,
+				E157FE472AF7D1E700E25677 /* tinymodeldata.cpp in Sources */,
+				E157FE482AF7D1E700E25677 /* trainingwrite.cpp in Sources */,
+				E157FE492AF7D1E700E25677 /* tune.cpp in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		E1DACF482B08997300082FF7 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				E12EC21E2B10D61E0024E274 /* coremlmodel.swift in Sources */,
+				E18446502BFFF826004F5E3B /* misc.swift in Sources */,
+				E12EC21C2B10D61E0024E274 /* metalbackend.swift in Sources */,
+				E12EC21A2B10D61E0024E274 /* coremlbackend.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		E1DACF5E2B089B5500082FF7 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				E18446512BFFF827004F5E3B /* misc.swift in Sources */,
+				E12EC21B2B10D61E0024E274 /* coremlbackend.swift in Sources */,
+				E12EC21D2B10D61E0024E274 /* metalbackend.swift in Sources */,
+				E16BC8352C4B835F00EA3A1E /* CoreMLModelTest.swift in Sources */,
+				E16BC82D2C4A8AEB00EA3A1E /* ModelTest.swift in Sources */,
+				E1DACF652B089B5500082FF7 /* KataGoSwiftTests.swift in Sources */,
+				E12EC21F2B10D61E0024E274 /* coremlmodel.swift in Sources */,
+				E16BC82F2C4B461500EA3A1E /* CoreMLBackendTest.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		E1DACF5C2B089A4B00082FF7 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = E1DACF4B2B08997300082FF7 /* KataGoSwift */;
+			targetProxy = E1DACF5B2B089A4B00082FF7 /* PBXContainerItemProxy */;
+		};
+		E1DACF722B089C6F00082FF7 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = E1DACF4B2B08997300082FF7 /* KataGoSwift */;
+			targetProxy = E1DACF712B089C6F00082FF7 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		21D7B48532FF4B628A950893 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_CXX_LANGUAGE_STANDARD = "c++17";
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				DEAD_CODE_STRIPPING = YES;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = fast;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					NO_GIT_REVISION,
+					NO_LIBZIP,
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				HEADER_SEARCH_PATHS = (
+					external,
+					"external/tclap-1.2.2/include",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 13.2;
+				ONLY_ACTIVE_ARCH = YES;
+				OTHER_LDFLAGS = "";
+				SDKROOT = macosx;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OBJC_INTEROP_MODE = objcxx;
+				SWIFT_STRICT_CONCURRENCY = complete;
+				SWIFT_VERSION = 5.0;
+				SYSTEM_HEADER_SEARCH_PATHS = "external/filesystem-1.5.8/include";
+				USE_HEADERMAP = NO;
+			};
+			name = Release;
+		};
+		2E758B3F414F42EF9A6AF293 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_CXX_LANGUAGE_STANDARD = "c++17";
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				DEAD_CODE_STRIPPING = YES;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					NO_GIT_REVISION,
+					NO_LIBZIP,
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				HEADER_SEARCH_PATHS = (
+					external,
+					"external/tclap-1.2.2/include",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 13.2;
+				ONLY_ACTIVE_ARCH = YES;
+				OTHER_LDFLAGS = "";
+				SDKROOT = macosx;
+				SWIFT_OBJC_INTEROP_MODE = objcxx;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_STRICT_CONCURRENCY = complete;
+				SWIFT_VERSION = 5.0;
+				SYSTEM_HEADER_SEARCH_PATHS = "external/filesystem-1.5.8/include";
+				USE_HEADERMAP = NO;
+			};
+			name = Debug;
+		};
+		94577FBF6620419F9DEF8C32 /* MinSizeRel */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_CXX_LANGUAGE_STANDARD = "c++17";
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				DEAD_CODE_STRIPPING = YES;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					NO_GIT_REVISION,
+					NO_LIBZIP,
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				HEADER_SEARCH_PATHS = (
+					external,
+					"external/tclap-1.2.2/include",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 13.2;
+				ONLY_ACTIVE_ARCH = YES;
+				OTHER_LDFLAGS = "";
+				SDKROOT = macosx;
+				SWIFT_OBJC_INTEROP_MODE = objcxx;
+				SWIFT_STRICT_CONCURRENCY = complete;
+				SWIFT_VERSION = 5.0;
+				SYSTEM_HEADER_SEARCH_PATHS = "external/filesystem-1.5.8/include";
+				USE_HEADERMAP = NO;
+			};
+			name = MinSizeRel;
+		};
+		DC5B919756BF4E8EA9889C99 /* RelWithDebInfo */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_CXX_LANGUAGE_STANDARD = "c++17";
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				DEAD_CODE_STRIPPING = YES;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					NO_GIT_REVISION,
+					NO_LIBZIP,
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				HEADER_SEARCH_PATHS = (
+					external,
+					"external/tclap-1.2.2/include",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 13.2;
+				ONLY_ACTIVE_ARCH = YES;
+				OTHER_LDFLAGS = "";
+				SDKROOT = macosx;
+				SWIFT_OBJC_INTEROP_MODE = objcxx;
+				SWIFT_STRICT_CONCURRENCY = complete;
+				SWIFT_VERSION = 5.0;
+				SYSTEM_HEADER_SEARCH_PATHS = "external/filesystem-1.5.8/include";
+				USE_HEADERMAP = NO;
+			};
+			name = RelWithDebInfo;
+		};
+		E10ACAF12928A6D30004AB17 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CLANG_ENABLE_MODULES = YES;
+				CODE_SIGN_IDENTITY = "-";
+				DEAD_CODE_STRIPPING = YES;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					USE_COREML_BACKEND,
+					"$(inherited)",
+				);
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@loader_path/../Frameworks",
+				);
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_OBJC_BRIDGING_HEADER = neuralnet/metalbridge.h;
+			};
+			name = Debug;
+		};
+		E10ACAF22928A6D30004AB17 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CLANG_ENABLE_MODULES = YES;
+				CODE_SIGN_IDENTITY = "-";
+				DEAD_CODE_STRIPPING = YES;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					USE_COREML_BACKEND,
+					NDEBUG,
+					"$(inherited)",
+				);
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@loader_path/../Frameworks",
+				);
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_OBJC_BRIDGING_HEADER = neuralnet/metalbridge.h;
+			};
+			name = Release;
+		};
+		E10ACAF32928A6D30004AB17 /* MinSizeRel */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CLANG_ENABLE_MODULES = YES;
+				CODE_SIGN_IDENTITY = "-";
+				DEAD_CODE_STRIPPING = YES;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					USE_COREML_BACKEND,
+					"$(inherited)",
+				);
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@loader_path/../Frameworks",
+				);
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_OBJC_BRIDGING_HEADER = neuralnet/metalbridge.h;
+			};
+			name = MinSizeRel;
+		};
+		E10ACAF42928A6D30004AB17 /* RelWithDebInfo */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CLANG_ENABLE_MODULES = YES;
+				CODE_SIGN_IDENTITY = "-";
+				DEAD_CODE_STRIPPING = YES;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					USE_COREML_BACKEND,
+					NDEBUG,
+					"$(inherited)",
+				);
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@loader_path/../Frameworks",
+				);
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_OBJC_BRIDGING_HEADER = neuralnet/metalbridge.h;
+			};
+			name = RelWithDebInfo;
+		};
+		E157FDD02AF7CE2500E25677 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "-";
+				CODE_SIGN_STYLE = Manual;
+				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = "";
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					USE_COREML_BACKEND,
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(LD_RUNPATH_SEARCH_PATHS_SHALLOW_BUNDLE_$(SHALLOW_BUNDLE))",
+					"@executable_path/../Frameworks",
+					"@loader_path/../Frameworks",
+				);
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MARKETING_VERSION = 1.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				PRODUCT_BUNDLE_IDENTIFIER = ccy.katagotest;
+				PRODUCT_MODULE_NAME = katago;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE_SPECIFIER = "";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		E157FDD12AF7CE2500E25677 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "-";
+				CODE_SIGN_STYLE = Manual;
+				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = "";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					USE_COREML_BACKEND,
+					"$(inherited)",
+				);
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(LD_RUNPATH_SEARCH_PATHS_SHALLOW_BUNDLE_$(SHALLOW_BUNDLE))",
+					"@executable_path/../Frameworks",
+					"@loader_path/../Frameworks",
+				);
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MARKETING_VERSION = 1.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_BUNDLE_IDENTIFIER = ccy.katagotest;
+				PRODUCT_MODULE_NAME = katago;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE_SPECIFIER = "";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+		E157FDD22AF7CE2500E25677 /* MinSizeRel */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "-";
+				CODE_SIGN_STYLE = Manual;
+				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = "";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					USE_COREML_BACKEND,
+					"$(inherited)",
+				);
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(LD_RUNPATH_SEARCH_PATHS_SHALLOW_BUNDLE_$(SHALLOW_BUNDLE))",
+					"@executable_path/../Frameworks",
+					"@loader_path/../Frameworks",
+				);
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MARKETING_VERSION = 1.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_BUNDLE_IDENTIFIER = ccy.katagotest;
+				PRODUCT_MODULE_NAME = katago;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE_SPECIFIER = "";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+			};
+			name = MinSizeRel;
+		};
+		E157FDD32AF7CE2500E25677 /* RelWithDebInfo */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "-";
+				CODE_SIGN_STYLE = Manual;
+				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = "";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					USE_COREML_BACKEND,
+					"$(inherited)",
+				);
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(LD_RUNPATH_SEARCH_PATHS_SHALLOW_BUNDLE_$(SHALLOW_BUNDLE))",
+					"@executable_path/../Frameworks",
+					"@loader_path/../Frameworks",
+				);
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MARKETING_VERSION = 1.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_BUNDLE_IDENTIFIER = ccy.katagotest;
+				PRODUCT_MODULE_NAME = katago;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE_SPECIFIER = "";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+			};
+			name = RelWithDebInfo;
+		};
+		E1DACF502B08997400082FF7 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CODE_SIGN_STYLE = Manual;
+				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = 1;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				DEFINES_MODULE = YES;
+				DEVELOPMENT_TEAM = "";
+				DYLIB_COMPATIBILITY_VERSION = 1;
+				DYLIB_CURRENT_VERSION = 1;
+				DYLIB_INSTALL_NAME_BASE = "@rpath";
+				ENABLE_MODULE_VERIFIER = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = (
+					"@executable_path/../Frameworks",
+					"@loader_path/Frameworks",
+				);
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MACOSX_DEPLOYMENT_TARGET = 13.2;
+				MARKETING_VERSION = 1.0;
+				MODULE_VERIFIER_SUPPORTED_LANGUAGES = "objective-c objective-c++";
+				MODULE_VERIFIER_SUPPORTED_LANGUAGE_STANDARDS = "gnu17 gnu++20";
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				PRODUCT_BUNDLE_IDENTIFIER = ccy.KataGoSwift;
+				PRODUCT_NAME = "$(TARGET_NAME:c99extidentifier)";
+				PROVISIONING_PROFILE_SPECIFIER = "";
+				SDKROOT = auto;
+				SKIP_INSTALL = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx";
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				VERSIONING_SYSTEM = "apple-generic";
+				VERSION_INFO_PREFIX = "";
+			};
+			name = Debug;
+		};
+		E1DACF512B08997400082FF7 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CODE_SIGN_STYLE = Manual;
+				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = 1;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				DEFINES_MODULE = YES;
+				DEVELOPMENT_TEAM = "";
+				DYLIB_COMPATIBILITY_VERSION = 1;
+				DYLIB_CURRENT_VERSION = 1;
+				DYLIB_INSTALL_NAME_BASE = "@rpath";
+				ENABLE_MODULE_VERIFIER = YES;
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = (
+					"@executable_path/../Frameworks",
+					"@loader_path/Frameworks",
+				);
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MACOSX_DEPLOYMENT_TARGET = 13.2;
+				MARKETING_VERSION = 1.0;
+				MODULE_VERIFIER_SUPPORTED_LANGUAGES = "objective-c objective-c++";
+				MODULE_VERIFIER_SUPPORTED_LANGUAGE_STANDARDS = "gnu17 gnu++20";
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_BUNDLE_IDENTIFIER = ccy.KataGoSwift;
+				PRODUCT_NAME = "$(TARGET_NAME:c99extidentifier)";
+				PROVISIONING_PROFILE_SPECIFIER = "";
+				SDKROOT = auto;
+				SKIP_INSTALL = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				VERSIONING_SYSTEM = "apple-generic";
+				VERSION_INFO_PREFIX = "";
+			};
+			name = Release;
+		};
+		E1DACF522B08997400082FF7 /* MinSizeRel */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CODE_SIGN_STYLE = Manual;
+				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = 1;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				DEFINES_MODULE = YES;
+				DEVELOPMENT_TEAM = "";
+				DYLIB_COMPATIBILITY_VERSION = 1;
+				DYLIB_CURRENT_VERSION = 1;
+				DYLIB_INSTALL_NAME_BASE = "@rpath";
+				ENABLE_MODULE_VERIFIER = YES;
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = (
+					"@executable_path/../Frameworks",
+					"@loader_path/Frameworks",
+				);
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MACOSX_DEPLOYMENT_TARGET = 13.2;
+				MARKETING_VERSION = 1.0;
+				MODULE_VERIFIER_SUPPORTED_LANGUAGES = "objective-c objective-c++";
+				MODULE_VERIFIER_SUPPORTED_LANGUAGE_STANDARDS = "gnu17 gnu++20";
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_BUNDLE_IDENTIFIER = ccy.KataGoSwift;
+				PRODUCT_NAME = "$(TARGET_NAME:c99extidentifier)";
+				PROVISIONING_PROFILE_SPECIFIER = "";
+				SDKROOT = auto;
+				SKIP_INSTALL = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				VERSIONING_SYSTEM = "apple-generic";
+				VERSION_INFO_PREFIX = "";
+			};
+			name = MinSizeRel;
+		};
+		E1DACF532B08997400082FF7 /* RelWithDebInfo */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CODE_SIGN_STYLE = Manual;
+				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = 1;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				DEFINES_MODULE = YES;
+				DEVELOPMENT_TEAM = "";
+				DYLIB_COMPATIBILITY_VERSION = 1;
+				DYLIB_CURRENT_VERSION = 1;
+				DYLIB_INSTALL_NAME_BASE = "@rpath";
+				ENABLE_MODULE_VERIFIER = YES;
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = (
+					"@executable_path/../Frameworks",
+					"@loader_path/Frameworks",
+				);
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MACOSX_DEPLOYMENT_TARGET = 13.2;
+				MARKETING_VERSION = 1.0;
+				MODULE_VERIFIER_SUPPORTED_LANGUAGES = "objective-c objective-c++";
+				MODULE_VERIFIER_SUPPORTED_LANGUAGE_STANDARDS = "gnu17 gnu++20";
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_BUNDLE_IDENTIFIER = ccy.KataGoSwift;
+				PRODUCT_NAME = "$(TARGET_NAME:c99extidentifier)";
+				PROVISIONING_PROFILE_SPECIFIER = "";
+				SDKROOT = auto;
+				SKIP_INSTALL = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				VERSIONING_SYSTEM = "apple-generic";
+				VERSION_INFO_PREFIX = "";
+			};
+			name = RelWithDebInfo;
+		};
+		E1DACF6A2B089B5500082FF7 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CODE_SIGN_STYLE = Manual;
+				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = 1;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				DEVELOPMENT_TEAM = "";
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GENERATE_INFOPLIST_FILE = YES;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MACOSX_DEPLOYMENT_TARGET = 13.2;
+				MARKETING_VERSION = 1.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				PRODUCT_BUNDLE_IDENTIFIER = ccy.KataGoSwiftTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE_SPECIFIER = "";
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		E1DACF6B2B089B5500082FF7 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CODE_SIGN_STYLE = Manual;
+				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = 1;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				DEVELOPMENT_TEAM = "";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GENERATE_INFOPLIST_FILE = YES;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MACOSX_DEPLOYMENT_TARGET = 13.2;
+				MARKETING_VERSION = 1.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_BUNDLE_IDENTIFIER = ccy.KataGoSwiftTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE_SPECIFIER = "";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+		E1DACF6C2B089B5500082FF7 /* MinSizeRel */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CODE_SIGN_STYLE = Manual;
+				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = 1;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				DEVELOPMENT_TEAM = "";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GENERATE_INFOPLIST_FILE = YES;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MACOSX_DEPLOYMENT_TARGET = 13.2;
+				MARKETING_VERSION = 1.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_BUNDLE_IDENTIFIER = ccy.KataGoSwiftTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE_SPECIFIER = "";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+			};
+			name = MinSizeRel;
+		};
+		E1DACF6D2B089B5500082FF7 /* RelWithDebInfo */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CODE_SIGN_STYLE = Manual;
+				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = 1;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				DEVELOPMENT_TEAM = "";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GENERATE_INFOPLIST_FILE = YES;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MACOSX_DEPLOYMENT_TARGET = 13.2;
+				MARKETING_VERSION = 1.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_BUNDLE_IDENTIFIER = ccy.KataGoSwiftTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE_SPECIFIER = "";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+			};
+			name = RelWithDebInfo;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		0838DC7C409844AFA516AAE2 /* Build configuration list for PBXProject "KataGo" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				2E758B3F414F42EF9A6AF293 /* Debug */,
+				21D7B48532FF4B628A950893 /* Release */,
+				94577FBF6620419F9DEF8C32 /* MinSizeRel */,
+				DC5B919756BF4E8EA9889C99 /* RelWithDebInfo */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		E10ACAF02928A6D30004AB17 /* Build configuration list for PBXNativeTarget "katago" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				E10ACAF12928A6D30004AB17 /* Debug */,
+				E10ACAF22928A6D30004AB17 /* Release */,
+				E10ACAF32928A6D30004AB17 /* MinSizeRel */,
+				E10ACAF42928A6D30004AB17 /* RelWithDebInfo */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		E157FDD42AF7CE2500E25677 /* Build configuration list for PBXNativeTarget "katagotest" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				E157FDD02AF7CE2500E25677 /* Debug */,
+				E157FDD12AF7CE2500E25677 /* Release */,
+				E157FDD22AF7CE2500E25677 /* MinSizeRel */,
+				E157FDD32AF7CE2500E25677 /* RelWithDebInfo */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		E1DACF542B08997400082FF7 /* Build configuration list for PBXNativeTarget "KataGoSwift" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				E1DACF502B08997400082FF7 /* Debug */,
+				E1DACF512B08997400082FF7 /* Release */,
+				E1DACF522B08997400082FF7 /* MinSizeRel */,
+				E1DACF532B08997400082FF7 /* RelWithDebInfo */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		E1DACF692B089B5500082FF7 /* Build configuration list for PBXNativeTarget "KataGoSwiftTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				E1DACF6A2B089B5500082FF7 /* Debug */,
+				E1DACF6B2B089B5500082FF7 /* Release */,
+				E1DACF6C2B089B5500082FF7 /* MinSizeRel */,
+				E1DACF6D2B089B5500082FF7 /* RelWithDebInfo */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = 91644CF2108748368B902DCE /* Project object */;
+}
