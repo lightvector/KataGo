@@ -7,6 +7,7 @@
 #include "../game/boardhistory.h"
 #include "../neuralnet/nneval.h"
 #include "../search/subtreevaluebiastable.h"
+#include "../search/evalcache.h"
 
 typedef int SearchNodeState; // See SearchNode::STATE_*
 
@@ -233,6 +234,7 @@ struct SearchNode {
   //child handles passes after a pass move, this property is not encoded in the hash!
   //On the root, this might not be up to date outside of the search regarding forceNonTerminal.
   Hash128 graphHashMaybeForceNonTerminal;
+  EvalCacheEntry* evalCacheEntry;
 
   std::atomic<int32_t> dirtyCounter;
 

@@ -495,6 +495,56 @@ void Search::selectBestChildToDescend(
 
   const std::vector<int>& avoidMoveUntilByLoc = thread.pla == P_BLACK ? avoidMoveUntilByLocBlack : avoidMoveUntilByLocWhite;
 
+  //Try all the things in the eval cache that are moves we haven't visited yet.
+  if(searchParams.useEvalCache && searchParams.useGraphSearch && node.evalCacheEntry != NULL && mirroringPla == C_EMPTY) {
+    for(const auto& pair: node.evalCacheEntry->firstExploreEvals) {
+      Loc moveLoc = pair.first;
+      int movePos = getPos(moveLoc);
+      bool alreadyTried = posesWithChildBuf[movePos];
+      if(alreadyTried)
+        continue;
+
+      //Special logic for the root
+      if(isRoot) {
+        assert(thread.board.pos_hash == rootBoard.pos_hash);
+        assert(thread.pla == rootPla);
+        if(!isAllowedRootMove(moveLoc))
+          continue;
+      }
+      if(avoidMoveUntilByLoc.size() > 0) {
+        assert(avoidMoveUntilByLoc.size() >= Board::MAX_ARR_SIZE);
+        int untilDepth = avoidMoveUntilByLoc[moveLoc];
+        if(thread.history.moveHistory.size() - rootHistory.moveHistory.size() < untilDepth)
+          continue;
+      }
+
+      //Quit immediately for illegal moves
+      float nnPolicyProb = policyProbs[movePos];
+      if(nnPolicyProb < 0)
+        continue;
+
+      FirstExploreEval eval = pair.second;
+      double cacheAvgUtility =
+        getResultUtility(eval.avgWinLoss,0.0)
+        + getScoreUtility(eval.avgScoreMean, eval.avgScoreMean * eval.avgScoreMean);
+
+      double selectionValue = getNewExploreSelectionValue(
+        node,
+        exploreScaling,
+        nnPolicyProb,cacheAvgUtility,
+        parentWeightPerVisit,
+        maxChildWeight,
+        countEdgeVisit,
+        &thread
+      );
+      if(selectionValue > maxSelectionValue) {
+        maxSelectionValue = selectionValue;
+        bestChildIdx = numChildrenFound;
+        bestChildMoveLoc = moveLoc;
+      }
+    }
+  }
+
   //Try the new child with the best policy value
   Loc bestNewMoveLoc = Board::NULL_LOC;
   float bestNewNNPolicyProb = -1.0f;

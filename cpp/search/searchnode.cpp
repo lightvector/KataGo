@@ -170,6 +170,7 @@ SearchNode::SearchNode(Player pla, bool fnt, uint32_t mIdx, Hash128 gh)
    lastSubtreeValueBiasWeight(0.0),
    subtreeValueBiasTableEntry(),
    graphHashMaybeForceNonTerminal(gh),
+   evalCacheEntry(NULL),
    dirtyCounter(0)
 {
 }
@@ -192,6 +193,7 @@ SearchNode::SearchNode(const SearchNode& other, bool fnt, bool copySubtreeValueB
    lastSubtreeValueBiasWeight(0.0),
    subtreeValueBiasTableEntry(),
    graphHashMaybeForceNonTerminal(other.graphHashMaybeForceNonTerminal),
+   evalCacheEntry(other.evalCacheEntry),
    dirtyCounter(other.dirtyCounter.load(std::memory_order_acquire))
 {
   {

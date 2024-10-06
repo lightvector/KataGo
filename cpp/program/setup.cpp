@@ -702,6 +702,14 @@ vector<SearchParams> Setup::loadParams(
     else if(cfg.contains("subtreeValueBiasWeightExponent")) params.subtreeValueBiasWeightExponent = cfg.getDouble("subtreeValueBiasWeightExponent", 0.0, 1.0);
     else params.subtreeValueBiasWeightExponent = 0.85;
 
+    if(cfg.contains("useEvalCache"+idxStr)) params.useEvalCache = cfg.getBool("useEvalCache"+idxStr);
+    else if(cfg.contains("useEvalCache"))   params.useEvalCache = cfg.getBool("useEvalCache");
+    else                                    params.useEvalCache = false;
+
+    if(cfg.contains("evalCacheMinVisits"+idxStr)) params.evalCacheMinVisits = cfg.getInt64("evalCacheMinVisits"+idxStr, (int64_t)1, (int64_t)1 << 50);
+    else if(cfg.contains("evalCacheMinVisits"))   params.evalCacheMinVisits = cfg.getInt64("evalCacheMinVisits",        (int64_t)1, (int64_t)1 << 50);
+    else                                          params.evalCacheMinVisits = 100;
+
     if(cfg.contains("nodeTableShardsPowerOfTwo"+idxStr)) params.nodeTableShardsPowerOfTwo = cfg.getInt("nodeTableShardsPowerOfTwo"+idxStr, 8, 24);
     else if(cfg.contains("nodeTableShardsPowerOfTwo"))   params.nodeTableShardsPowerOfTwo = cfg.getInt("nodeTableShardsPowerOfTwo",        8, 24);
     else                                                 params.nodeTableShardsPowerOfTwo = 16;
