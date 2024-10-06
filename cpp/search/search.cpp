@@ -690,11 +690,17 @@ void Search::beginSearch(bool pondering) {
 
   SearchThread dummyThread(-1, *this);
 
+  //If we're using graph search, we recompute the graph hash from scratch at the start of search.
+  if(searchParams.useGraphSearch)
+    rootGraphHash = GraphHash::getGraphHashFromScratch(rootHistory, rootPla, searchParams.graphSearchRepBound, searchParams.drawEquivalentWinsForWhite);
+  else
+    rootGraphHash = Hash128();
+
   if(rootNode == NULL) {
     //Avoid storing the root node in the nodeTable, guarantee that it never is part of a cycle, allocate it directly.
     //Also force that it is non-terminal.
     const bool forceNonTerminal = rootHistory.isGameFinished; // Make sure the root isn't considered terminal if game would be finished.
-    rootNode = new SearchNode(rootPla, forceNonTerminal, createMutexIdxForNode(dummyThread));
+    rootNode = new SearchNode(rootPla, forceNonTerminal, createMutexIdxForNode(dummyThread), rootGraphHash);
   }
   else {
     //If the root node has any existing children, then prune things down if there are moves that should not be allowed at the root.
@@ -838,7 +844,7 @@ SearchNode* Search::allocateOrFindNode(SearchThread& thread, Player nextPla, Loc
       child = insertLoc->second;
     }
     else {
-      child = new SearchNode(nextPla, forceNonTerminal, createMutexIdxForNode(thread));
+      child = new SearchNode(nextPla, forceNonTerminal, createMutexIdxForNode(thread), graphHash);
 
       //Also perform subtree value bias and pattern bonus handling under the mutex. These parameters are no atomic, so
       //if the node is accessed concurrently by other nodes through the table, we need to make sure these parameters are fully
@@ -1068,12 +1074,6 @@ void Search::computeRootValues() {
     if(recentScoreCenter < expectedScore - cap)
       recentScoreCenter = expectedScore - cap;
   }
-
-  //If we're using graph search, we recompute the graph hash from scratch at the start of search.
-  if(searchParams.useGraphSearch)
-    rootGraphHash = GraphHash::getGraphHashFromScratch(rootHistory, rootPla, searchParams.graphSearchRepBound, searchParams.drawEquivalentWinsForWhite);
-  else
-    rootGraphHash = Hash128();
 
   Player opponentWasMirroringPla = mirroringPla;
   //Update mirroringPla, mirrorAdvantage, mirrorCenterSymmetryError
