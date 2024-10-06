@@ -225,10 +225,19 @@ struct SearchNode {
   double lastSubtreeValueBiasWeight;
   std::shared_ptr<SubtreeValueBiasEntry> subtreeValueBiasTableEntry;
 
+  //Only valid if useGraphSearch is true.
+  //Graph hash of this node except with an additional factor hashed in if this node would normally be a terminal node
+  //and we are forcing it not to be due to being the root, or a child of the root after passing (if conservativePass)
+  //or after any pass in the tree that friendlyPassOk marks as should not be ending the game.
+  //Note that this is NOT a unique key for evaluations due to special behavior of the root where it affects how a
+  //child handles passes after a pass move, this property is not encoded in the hash!
+  //On the root, this might not be up to date outside of the search regarding forceNonTerminal.
+  Hash128 graphHashMaybeForceNonTerminal;
+
   std::atomic<int32_t> dirtyCounter;
 
   //--------------------------------------------------------------------------------
-  SearchNode(Player prevPla, bool forceNonTerminal, uint32_t mutexIdx);
+  SearchNode(Player prevPla, bool forceNonTerminal, uint32_t mutexIdx, Hash128 graphHashMaybeForceNonTerminal);
   SearchNode(const SearchNode&, bool forceNonTerminal, bool copySubtreeValueBias);
   ~SearchNode();
 

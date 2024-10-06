@@ -63,6 +63,9 @@ SearchThread::~SearchThread() {
 
 //-----------------------------------------------------------------------------------------
 
+//Based on sha256 of "search.cpp FORCE_NON_TERMINAL_HASH"
+static const Hash128 FORCE_NON_TERMINAL_HASH = Hash128(0xd4c31800cb8809e2ULL,0xf75f9d2083f2ffcaULL);
+
 static const double VALUE_WEIGHT_DEGREES_OF_FREEDOM = 3.0;
 
 Search::Search(SearchParams params, NNEvaluator* nnEval, Logger* lg, const string& rSeed)
@@ -342,6 +345,25 @@ bool Search::makeMove(Loc moveLoc, Player movePla, bool preventEncore) {
   rootPla = getOpp(rootPla);
   rootKoHashTable->recompute(rootHistory);
 
+  //Explicitly clear avoid move arrays when we play a move - user needs to respecify them if they want them.
+  avoidMoveUntilByLocBlack.clear();
+  avoidMoveUntilByLocWhite.clear();
+
+  //If we're newly inferring some moves as handicap that we weren't before, clear since score will be wrong.
+  if(rootHistory.whiteHandicapBonusScore != oldWhiteHandicapBonusScore)
+    clearSearch();
+
+  //In the case that we are conservativePass and a pass would end the game, need to clear the search.
+  //This is because deeper in the tree, such a node would have been explored as ending the game, but now that
+  //it's a root pass, it needs to be treated as if it no longer ends the game.
+  if(searchParams.conservativePass && rootHistory.passWouldEndGame(rootBoard,rootPla))
+    clearSearch();
+
+  //In the case that we're preventing encore, and the phase would have ended, we also need to clear the search
+  //since the search was conducted on the assumption that we're going into encore now.
+  if(preventEncore && rootHistory.passWouldEndPhase(rootBoard,rootPla))
+    clearSearch();
+
   if(rootNode != NULL) {
     SearchNode* child = NULL;
     {
@@ -396,25 +418,6 @@ bool Search::makeMove(Loc moveLoc, Player movePla, bool preventEncore) {
       clearSearch();
     }
   }
-
-  //Explicitly clear avoid move arrays when we play a move - user needs to respecify them if they want them.
-  avoidMoveUntilByLocBlack.clear();
-  avoidMoveUntilByLocWhite.clear();
-
-  //If we're newly inferring some moves as handicap that we weren't before, clear since score will be wrong.
-  if(rootHistory.whiteHandicapBonusScore != oldWhiteHandicapBonusScore)
-    clearSearch();
-
-  //In the case that we are conservativePass and a pass would end the game, need to clear the search.
-  //This is because deeper in the tree, such a node would have been explored as ending the game, but now that
-  //it's a root pass, it needs to be treated as if it no longer ends the game.
-  if(searchParams.conservativePass && rootHistory.passWouldEndGame(rootBoard,rootPla))
-    clearSearch();
-
-  //In the case that we're preventing encore, and the phase would have ended, we also need to clear the search
-  //since the search was conducted on the assumption that we're going into encore now.
-  if(preventEncore && rootHistory.passWouldEndPhase(rootBoard,rootPla))
-    clearSearch();
 
   return true;
 }
@@ -700,15 +703,25 @@ void Search::beginSearch(bool pondering) {
     rootSymmetries.push_back(0);
   }
 
+  //If we're using graph search, we recompute the graph hash from scratch at the start of search.
+  if(searchParams.useGraphSearch)
+    rootGraphHash = GraphHash::getGraphHashFromScratch(rootHistory, rootPla, searchParams.graphSearchRepBound, searchParams.drawEquivalentWinsForWhite);
+  else
+    rootGraphHash = Hash128();
+
   SearchThread dummyThread(-1, *this);
 
   if(rootNode == NULL) {
     //Avoid storing the root node in the nodeTable, guarantee that it never is part of a cycle, allocate it directly.
     //Also force that it is non-terminal.
     const bool forceNonTerminal = rootHistory.isGameFinished; // Make sure the root isn't considered terminal if game would be finished.
-    rootNode = new SearchNode(rootPla, forceNonTerminal, createMutexIdxForNode(dummyThread));
+    Hash128 graphHashMaybeForceNonTerminal = forceNonTerminal ? (rootGraphHash ^ FORCE_NON_TERMINAL_HASH) : rootGraphHash;
+    rootNode = new SearchNode(rootPla, forceNonTerminal, createMutexIdxForNode(dummyThread), graphHashMaybeForceNonTerminal);
   }
   else {
+    //Update root graph hash in case forceNonTerminal changed.
+    rootNode->graphHashMaybeForceNonTerminal = rootNode->forceNonTerminal ? (rootGraphHash ^ FORCE_NON_TERMINAL_HASH) : rootGraphHash;
+
     //If the root node has any existing children, then prune things down if there are moves that should not be allowed at the root.
     SearchNode& node = *rootNode;
     SearchNodeChildrenReference children = node.getChildren();
@@ -814,9 +827,6 @@ uint32_t Search::createMutexIdxForNode(SearchThread& thread) const {
   return thread.rand.nextUInt() & (mutexPool->getNumMutexes()-1);
 }
 
-//Based on sha256 of "search.cpp FORCE_NON_TERMINAL_HASH"
-static const Hash128 FORCE_NON_TERMINAL_HASH = Hash128(0xd4c31800cb8809e2ULL,0xf75f9d2083f2ffcaULL);
-
 //Must be called AFTER making the bestChildMoveLoc in the thread board and hist.
 SearchNode* Search::allocateOrFindNode(SearchThread& thread, Player nextPla, Loc bestChildMoveLoc, bool forceNonTerminal, Hash128 graphHash) {
   //Hash to use as a unique id for this node in the table, for transposition detection.
@@ -850,7 +860,7 @@ SearchNode* Search::allocateOrFindNode(SearchThread& thread, Player nextPla, Loc
       child = insertLoc->second;
     }
     else {
-      child = new SearchNode(nextPla, forceNonTerminal, createMutexIdxForNode(thread));
+      child = new SearchNode(nextPla, forceNonTerminal, createMutexIdxForNode(thread), childHash);
 
       //Also perform subtree value bias and pattern bonus handling under the mutex. These parameters are no atomic, so
       //if the node is accessed concurrently by other nodes through the table, we need to make sure these parameters are fully
@@ -1080,12 +1090,6 @@ void Search::computeRootValues() {
     if(recentScoreCenter < expectedScore - cap)
       recentScoreCenter = expectedScore - cap;
   }
-
-  //If we're using graph search, we recompute the graph hash from scratch at the start of search.
-  if(searchParams.useGraphSearch)
-    rootGraphHash = GraphHash::getGraphHashFromScratch(rootHistory, rootPla, searchParams.graphSearchRepBound, searchParams.drawEquivalentWinsForWhite);
-  else
-    rootGraphHash = Hash128();
 
   Player opponentWasMirroringPla = mirroringPla;
   //Update mirroringPla, mirrorAdvantage, mirrorCenterSymmetryError
