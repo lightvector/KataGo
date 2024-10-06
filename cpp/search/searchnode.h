@@ -7,6 +7,7 @@
 #include "../game/boardhistory.h"
 #include "../neuralnet/nneval.h"
 #include "../search/subtreevaluebiastable.h"
+#include "../search/evalcache.h"
 
 typedef int SearchNodeState; // See SearchNode::STATE_*
 
@@ -229,6 +230,7 @@ struct SearchNode {
   //Graph hash of this node.
   //Note that this is NOT a unique key for evaluations due to nodes varying by forceNonTerminal.
   Hash128 graphHash;
+  EvalCacheEntry* evalCacheEntry;
 
   std::atomic<int32_t> dirtyCounter;
 
