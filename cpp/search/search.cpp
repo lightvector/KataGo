@@ -333,6 +333,15 @@ bool Search::makeMove(Loc moveLoc, Player movePla, bool preventEncore) {
   if(movePla != rootPla)
     setPlayerAndClearHistory(movePla);
 
+  //If the white handicap bonus changes due to the move, we will also need to recompute everything since this is
+  //basically like a change to the komi.
+  float oldWhiteHandicapBonusScore = rootHistory.whiteHandicapBonusScore;
+
+  //Compute these first so we can know if we need to set forceNonTerminal below.
+  rootHistory.makeBoardMoveAssumeLegal(rootBoard,moveLoc,rootPla,rootKoHashTable,preventEncore);
+  rootPla = getOpp(rootPla);
+  rootKoHashTable->recompute(rootHistory);
+
   if(rootNode != NULL) {
     SearchNode* child = NULL;
     {
@@ -373,7 +382,7 @@ bool Search::makeMove(Loc moveLoc, Player movePla, bool preventEncore) {
 
       //Okay, this is now our new root! Create a copy so as to keep the root out of the node table.
       const bool copySubtreeValueBias = false;
-      const bool forceNonTerminal = true;
+      const bool forceNonTerminal = rootHistory.isGameFinished; // Make sure the root isn't considered terminal if game would be finished.
       rootNode = new SearchNode(*child, forceNonTerminal, copySubtreeValueBias);
       //Sweep over the new root marking it as good (calling NULL function), and then delete anything unmarked.
       //This will include the old copy of the child that we promoted to root.
@@ -387,14 +396,6 @@ bool Search::makeMove(Loc moveLoc, Player movePla, bool preventEncore) {
       clearSearch();
     }
   }
-
-  //If the white handicap bonus changes due to the move, we will also need to recompute everything since this is
-  //basically like a change to the komi.
-  float oldWhiteHandicapBonusScore = rootHistory.whiteHandicapBonusScore;
-
-  rootHistory.makeBoardMoveAssumeLegal(rootBoard,moveLoc,rootPla,rootKoHashTable,preventEncore);
-  rootPla = getOpp(rootPla);
-  rootKoHashTable->recompute(rootHistory);
 
   //Explicitly clear avoid move arrays when we play a move - user needs to respecify them if they want them.
   avoidMoveUntilByLocBlack.clear();
@@ -704,7 +705,7 @@ void Search::beginSearch(bool pondering) {
   if(rootNode == NULL) {
     //Avoid storing the root node in the nodeTable, guarantee that it never is part of a cycle, allocate it directly.
     //Also force that it is non-terminal.
-    const bool forceNonTerminal = true;
+    const bool forceNonTerminal = rootHistory.isGameFinished; // Make sure the root isn't considered terminal if game would be finished.
     rootNode = new SearchNode(rootPla, forceNonTerminal, createMutexIdxForNode(dummyThread));
   }
   else {
@@ -1124,9 +1125,10 @@ bool Search::playoutDescend(
   bool isRoot
 ) {
   //Hit terminal node, finish
-  //forceNonTerminal marks special nodes where we cannot end the game. This includes the root, since if we are searching a position
+  //forceNonTerminal marks special nodes where we cannot end the game, and is set IF they would normally be finished.
+  //This includes the root if the root would be game-ended, since if we are searching a position
   //we presumably want to actually explore deeper and get a result. Also it includes the node following a pass from the root in
-  //the case where we are conservativePass. For friendlyPassOk rules, it may include deeper nodes.
+  //the case where we are conservativePass and the game would be ended. For friendlyPassOk rules, it may include deeper nodes.
   //Note that we also carefully clear the search when a pass from the root would be terminal, so nodes should never need to switch
   //status after tree reuse in the latter case.
   if(thread.history.isGameFinished && !node.forceNonTerminal) {
@@ -1259,8 +1261,9 @@ bool Search::playoutDescend(
       (void)childrenCapacity;
 
       //We can only test this before we make the move, so do it now.
-      const bool forceNonTerminalDueToFriendlyPass =
-        bestChildMoveLoc == Board::PASS_LOC && thread.history.shouldSuppressEndGameFromFriendlyPass(thread.board, thread.pla);
+      const bool canForceNonTerminalDueToFriendlyPass =
+        bestChildMoveLoc == Board::PASS_LOC &&
+        thread.history.shouldSuppressEndGameFromFriendlyPass(thread.board, thread.pla);
 
       //Make the move! We need to make the move before we create the node so we can see the new state and get the right graphHash.
       thread.history.makeBoardMoveAssumeLegal(thread.board,bestChildMoveLoc,thread.pla,rootKoHashTable);
@@ -1272,9 +1275,9 @@ bool Search::playoutDescend(
 
       //If conservative pass, passing from the root is always non-terminal
       //If friendly passing rules, we might also be non-terminal
-      const bool forceNonTerminal = bestChildMoveLoc == Board::PASS_LOC && (
+      const bool forceNonTerminal = bestChildMoveLoc == Board::PASS_LOC && thread.history.isGameFinished && (
         (searchParams.conservativePass && (&node == rootNode)) ||
-        forceNonTerminalDueToFriendlyPass
+        canForceNonTerminalDueToFriendlyPass
       );
       child = allocateOrFindNode(thread, thread.pla, bestChildMoveLoc, forceNonTerminal, thread.graphHash);
       child->virtualLosses.fetch_add(1,std::memory_order_release);
