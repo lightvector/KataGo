@@ -1239,6 +1239,8 @@ Hash128 BoardHistory::getSituationRulesAndKoHash(const Board& board, const Board
     hash ^= Rules::ZOBRIST_MULTI_STONE_SUICIDE_HASH;
   if(hist.hasButton)
     hash ^= Rules::ZOBRIST_BUTTON_HASH;
+  if(hist.rules.friendlyPassOk)
+    hash ^= Rules::ZOBRIST_FRIENDLY_PASS_OK_HASH;
 
   return hash;
 }

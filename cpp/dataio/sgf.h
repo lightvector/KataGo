@@ -123,6 +123,8 @@ struct Sgf {
     Sgf::PositionSample previousPosition(double newWeight) const;
     bool hasPreviousPositions(int numPrevious) const;
 
+    BoardHistory getCurrentBoardHistory(const Rules& rules, Player& nextPlaToMove) const;
+
     int64_t getCurrentTurnNumber() const;
 
     //For the moment, only used in testing since it does extra consistency checks.

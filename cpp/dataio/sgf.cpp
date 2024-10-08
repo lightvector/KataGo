@@ -1111,6 +1111,23 @@ Sgf::PositionSample Sgf::PositionSample::previousPosition(double newWeight) cons
   return other;
 }
 
+BoardHistory Sgf::PositionSample::getCurrentBoardHistory(const Rules& rules, Player& nextPlaToMove) const {
+  int encorePhase = 0;
+  Player pla = nextPla;
+  Board boardCopy = board;
+  BoardHistory hist(boardCopy,pla,rules,encorePhase);
+  int numSampleMoves = (int)moves.size();
+  for(int i = 0; i<numSampleMoves; i++) {
+    if(!hist.isLegal(boardCopy,moves[i].loc,moves[i].pla))
+      return hist;
+    assert(moves[i].pla == pla);
+    hist.makeBoardMoveAssumeLegal(boardCopy,moves[i].loc,moves[i].pla,NULL);
+    pla = getOpp(pla);
+  }
+  nextPlaToMove = pla;
+  return hist;
+}
+
 int64_t Sgf::PositionSample::getCurrentTurnNumber() const {
   return std::max((int64_t)0, initialTurnNumber + (int64_t)moves.size());
 }

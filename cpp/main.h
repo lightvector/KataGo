@@ -46,6 +46,7 @@ namespace MainCmds {
 
   int trystartposes(const std::vector<std::string>& args);
   int viewstartposes(const std::vector<std::string>& args);
+  int checksgfhintpolicy(const std::vector<std::string>& args);
 
   int demoplay(const std::vector<std::string>& args);
   int printclockinfo(const std::vector<std::string>& args);
