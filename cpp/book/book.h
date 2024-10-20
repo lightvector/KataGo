@@ -199,7 +199,7 @@ class SymBookNode {
   // This should only happen if a book was loaded from disk that is corrupted, or else only astronomically rarely on hash collisions.
   bool getBoardHistoryReachingHere(BoardHistory& ret, std::vector<Loc>& moveHistoryRet);
   bool getBoardHistoryReachingHere(BoardHistory& ret, std::vector<Loc>& moveHistoryRet, std::vector<double>& winlossRet);
-  
+
   friend class ConstSymBookNode;
   friend class Book;
 };
@@ -288,6 +288,8 @@ struct BookParams {
   double bonusForWLPVFinalProp = 0.5;
   // Bonus for the biggest single WL cost on a given path, per unit of cost. (helps favor lines with only 1 mistake but not lines with more than one)
   double bonusForBiggestWLCost = 0.0;
+  // Bonus for moves that are very behind in visits relative to moves that they are near or better than.
+  double bonusBehindInVisitsScale = 0.0;
   // Cap on how bad UCBScoreLoss can be.
   double scoreLossCap = 10000.0;
   // Reduce costs near the start of a book. First move costs are reduced by earlyBookCostReductionFactor
@@ -304,6 +306,8 @@ struct BookParams {
   double maxVisitsForReExpansion = 1000.0;
   // How many visits such that below this many is considered not many? Used to scale some visit-based cost heuristics.
   double visitsScale = 1000.0;
+  // Same, but notes how many visits are used at leaves of the book.
+  double visitsScaleLeaves = 100.0;
   // When rendering - cap sharp scores that differ by more than this many points from regular score.
   double sharpScoreOutlierCap = 10000.0;
 
@@ -312,8 +316,8 @@ struct BookParams {
   BookParams(const BookParams& other) = default;
   BookParams& operator=(const BookParams& other) = default;
 
-  static BookParams loadFromCfg(ConfigParser& cfg, int64_t maxVisits);
-  
+  static BookParams loadFromCfg(ConfigParser& cfg, int64_t maxVisits, int64_t maxVisitsForLeaves);
+
   void randomizeParams(Rand& rand, double stdevFactor);
 };
 
@@ -410,7 +414,7 @@ class Book {
     double scoreUCB,
     double rawPolicy
   ) const;
-  
+
   // Return the number of files written
   int64_t exportToHtmlDir(
     const std::string& dirName,
