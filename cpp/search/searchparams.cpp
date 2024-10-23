@@ -69,6 +69,7 @@ SearchParams::SearchParams()
    avoidMYTDaggerHackPla(C_EMPTY),
    wideRootNoise(0.0),
    enablePassingHacks(false),
+   enableMorePassingHacks(false),
    playoutDoublingAdvantage(0.0),
    playoutDoublingAdvantagePla(C_EMPTY),
    avoidRepeatedPatternUtility(0.0),
@@ -194,6 +195,7 @@ bool SearchParams::operator==(const SearchParams& other) const {
     avoidMYTDaggerHackPla == other.avoidMYTDaggerHackPla &&
     wideRootNoise == other.wideRootNoise &&
     enablePassingHacks == other.enablePassingHacks &&
+    enableMorePassingHacks == other.enableMorePassingHacks &&
 
     playoutDoublingAdvantage == other.playoutDoublingAdvantage &&
     playoutDoublingAdvantagePla == other.playoutDoublingAdvantagePla &&
@@ -437,6 +439,7 @@ json SearchParams::changeableParametersToJson() const {
   // ret["avoidMYTDaggerHackPla"] = PlayerIO::playerToStringShort(avoidMYTDaggerHackPla);
   ret["wideRootNoise"] = wideRootNoise;
   ret["enablePassingHacks"] = enablePassingHacks;
+  ret["enableMorePassingHacks"] = enableMorePassingHacks;
 
   // Special handling in GTP
   ret["playoutDoublingAdvantage"] = playoutDoublingAdvantage;
@@ -585,6 +588,7 @@ void SearchParams::printParams(std::ostream& out) const {
   std::cout << "avoidMYTDaggerHackPla" << ": " << (int)avoidMYTDaggerHackPla << std::endl;
   PRINTPARAM(wideRootNoise);
   PRINTPARAM(enablePassingHacks);
+  PRINTPARAM(enableMorePassingHacks);
 
   PRINTPARAM(playoutDoublingAdvantage);
   std::cout << "playoutDoublingAdvantagePla" << ": " << (int)playoutDoublingAdvantagePla << std::endl;

@@ -339,6 +339,7 @@ void Search::selectBestChildToDescend(
   double policyProbMassVisited = 0.0;
   double maxChildWeight = 0.0;
   double totalChildWeight = 0.0;
+  int64_t totalChildEdgeVisits = 0;
   const NNOutput* nnOutput = node.getNNOutput();
   assert(nnOutput != NULL);
   const float* policyProbs = nnOutput->getPolicyProbsMaybeNoised();
@@ -360,6 +361,7 @@ void Search::selectBestChildToDescend(
     totalChildWeight += childWeight;
     if(childWeight > maxChildWeight)
       maxChildWeight = childWeight;
+    totalChildEdgeVisits += edgeVisits;
   }
 
   bool useHumanSL = false;
@@ -551,4 +553,31 @@ void Search::selectBestChildToDescend(
       bestChildMoveLoc = bestNewMoveLoc;
     }
   }
+
+  if(totalChildEdgeVisits >= 2 && searchParams.enableMorePassingHacks && thread.history.passWouldEndPhase(thread.board,thread.pla)) {
+    bool hasPassMove = false;
+    bool hasNonPassMove = false;
+    for(int i = 0; i<childrenCapacity; i++) {
+      const SearchChildPointer& childPointer = children[i];
+      const SearchNode* child = childPointer.getIfAllocated();
+      if(child == NULL)
+        break;
+      Loc moveLoc = childPointer.getMoveLocRelaxed();
+      if(moveLoc == Board::PASS_LOC)
+        hasPassMove = true;
+      else
+        hasNonPassMove = true;
+    }
+    if(!hasPassMove && bestChildMoveLoc != Board::PASS_LOC) {
+      bestChildIdx = numChildrenFound;
+      bestChildMoveLoc = Board::PASS_LOC;
+      countEdgeVisit = false;
+    }
+    else if(!hasNonPassMove && bestChildMoveLoc == Board::PASS_LOC && bestNewMoveLoc != Board::PASS_LOC) {
+      bestChildIdx = numChildrenFound;
+      bestChildMoveLoc = bestNewMoveLoc;
+      countEdgeVisit = false;
+    }
+  }
+
 }
