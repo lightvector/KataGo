@@ -460,7 +460,7 @@ json SearchParams::changeableParametersToJson() const {
   // ret["nodeTableShardsPowerOfTwo"] = nodeTableShardsPowerOfTwo;
   ret["numVirtualLossesPerThread"] = numVirtualLossesPerThread;
 
-  // ret["numThreads"] = numThreads;
+  ret["numSearchThreads"] = numThreads; // NOTE: different name since that's how setup.cpp loads it
   ret["minPlayoutsPerThread"] = minPlayoutsPerThread;
   ret["maxVisits"] = maxVisits;
   ret["maxPlayouts"] = maxPlayouts;

@@ -28,3 +28,6 @@ kata-set-param cpuctExploration 3.0
 debug_moves
 kata-get-param cpuctExploration
 genmove_debug w
+kata-get-param numSearchThreads
+kata-set-param numSearchThreads 2
+kata-get-param numSearchThreads
