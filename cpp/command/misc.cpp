@@ -2942,3 +2942,93 @@ int MainCmds::checksgfhintpolicy(const vector<string>& args) {
 
   return 0;
 }
+
+int MainCmds::evalrandominits(const vector<string>& args) {
+  Board::initHash();
+  ScoreValue::initTables();
+
+  ConfigParser cfg;
+  string modelFile;
+  try {
+    KataGoCommandLine cmd("View startposes");
+    cmd.addConfigFileArg("","");
+    cmd.addModelFileArg();
+    cmd.addOverrideConfigArg();
+
+    cmd.parseArgs(args);
+
+    cmd.getConfigAllowEmpty(cfg);
+    if(cfg.getFileName() != "")
+      modelFile = cmd.getModelFile();
+  }
+  catch (TCLAP::ArgException &e) {
+    cerr << "Error: " << e.error() << " for argument " << e.argId() << endl;
+    return 1;
+  }
+
+  Rand rand;
+
+  const bool logToStdoutDefault = true;
+  Logger logger(&cfg, logToStdoutDefault);
+
+  NNEvaluator* nnEval = NULL;
+  if(cfg.getFileName() != "") {
+    SearchParams params = Setup::loadSingleParams(cfg,Setup::SETUP_FOR_GTP);
+    {
+      Setup::initializeSession(cfg);
+      const int expectedConcurrentEvals = params.numThreads;
+      const int defaultMaxBatchSize = std::max(8,((params.numThreads+3)/4)*4);
+      const bool defaultRequireExactNNLen = false;
+      const bool disableFP16 = false;
+      const string expectedSha256 = "";
+      nnEval = Setup::initializeNNEvaluator(
+        modelFile,modelFile,expectedSha256,cfg,logger,rand,expectedConcurrentEvals,
+        Board::MAX_LEN,Board::MAX_LEN,defaultMaxBatchSize,defaultRequireExactNNLen,disableFP16,
+        Setup::SETUP_FOR_GTP
+      );
+    }
+    logger.write("Loaded neural net");
+  }
+
+  Search* evalBot;
+  {
+    SearchParams params = Setup::loadSingleParams(cfg,Setup::SETUP_FOR_DISTRIBUTED);
+    params.maxVisits = 40;
+    params.numThreads = 1;
+    string seed = Global::uint64ToString(rand.nextUInt64());
+    evalBot = new Search(params, nnEval, &logger, seed);
+  }
+
+  Rand gameRand;
+  while(true) {
+    Board board(19,19);
+    Player pla = P_BLACK;
+    Rules rules = Rules::parseRules("japanese");
+    BoardHistory hist(board,pla,rules,0);
+    int numInitialMovesToPlay = (int)gameRand.nextUInt(200);
+    double temperature = 1.0;
+    for(int i = 0; i<numInitialMovesToPlay; i++) {
+      NNResultBuf buf;
+      Loc loc = PlayUtils::getGameInitializationMove(evalBot, evalBot, board, hist, pla, buf, gameRand, temperature);
+
+      assert(hist.isLegal(board,loc,pla));
+      hist.makeBoardMoveAssumeLegal(board,loc,pla,NULL);
+      pla = getOpp(pla);
+
+      hist.endGameIfAllPassAlive(board);
+      if(hist.isGameFinished)
+        break;
+    }
+
+    evalBot->setPosition(pla,board,hist);
+    evalBot->runWholeSearch(pla);
+    ReportedSearchValues values = evalBot->getRootValuesRequireSuccess();
+    cout << numInitialMovesToPlay << "," << values.winLossValue << "," << values.lead << endl;
+  }
+  delete evalBot;
+  if(nnEval != NULL)
+    delete nnEval;
+
+  ScoreValue::freeTables();
+  return 0;
+}

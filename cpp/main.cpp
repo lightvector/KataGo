@@ -150,6 +150,8 @@ static int handleSubcommand(const string& subcommand, const vector<string>& args
     return MainCmds::writetrainingdata(subArgs);
   else if(subcommand == "sampleinitializations")
     return MainCmds::sampleinitializations(subArgs);
+  else if(subcommand == "evalrandominits")
+    return MainCmds::evalrandominits(subArgs);
   else if(subcommand == "runbeginsearchspeedtest")
     return MainCmds::runbeginsearchspeedtest(subArgs);
   else if(subcommand == "runownershipspeedtest")

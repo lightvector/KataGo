@@ -51,6 +51,7 @@ namespace MainCmds {
   int demoplay(const std::vector<std::string>& args);
   int printclockinfo(const std::vector<std::string>& args);
   int sampleinitializations(const std::vector<std::string>& args);
+  int evalrandominits(const std::vector<std::string>& args);
 
   int sandbox();
 }
