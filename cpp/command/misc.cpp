@@ -1370,6 +1370,7 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
   double maxPolicy;
   double minHintWeight;
   double hintScale;
+  double moreUtilityWeight;
 
   bool forTesting;
 
@@ -1408,6 +1409,7 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
     TCLAP::ValueArg<double> maxPolicyArg("","max-policy","Chop off moves with raw policy more than this",false,1000,"POLICY");
     TCLAP::ValueArg<double> minHintWeightArg("","min-hint-weight","Hinted moves get at least this weight",false,0.0,"WEIGHT");
     TCLAP::ValueArg<double> hintScaleArg("","hint-scale","Manually hinted moves get weight scaled by this",false,1.0,"FACTOR");
+    TCLAP::ValueArg<double> moreUtilityWeightArg("","more-utility-weight","Increase weight when hint move is uniquely better than other moves",false,0.0,"WEIGHTSCALE");
 
     TCLAP::SwitchArg forTestingArg("","for-testing","For testing");
 
@@ -1440,6 +1442,7 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
     cmd.add(maxPolicyArg);
     cmd.add(minHintWeightArg);
     cmd.add(hintScaleArg);
+    cmd.add(moreUtilityWeightArg);
     cmd.add(forTestingArg);
     cmd.parseArgs(args);
 
@@ -1473,6 +1476,7 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
     maxPolicy = maxPolicyArg.getValue();
     minHintWeight = minHintWeightArg.getValue();
     hintScale = hintScaleArg.getValue();
+    moreUtilityWeight = moreUtilityWeightArg.getValue();
     forTesting = forTestingArg.getValue();
 
     if((int)gameMode + (int)treeMode + (int)surpriseMode != 1)
@@ -1585,7 +1589,7 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
     return true;
   };
 
-  auto expensiveEvaluateMove = [&posWriter,&turnWeightLambda,&maxAutoKomi,&maxHandicap,&numFilteredIndivdualPoses,&surpriseMode,&minHintWeight,&hintScale,&logger,trainingWeight](
+  auto expensiveEvaluateMove = [&posWriter,&turnWeightLambda,&maxAutoKomi,&maxHandicap,&numFilteredIndivdualPoses,&surpriseMode,&minHintWeight,&hintScale,&logger,trainingWeight,moreUtilityWeight](
     Search* search, Loc missedLoc,
     Player nextPla, const Board& board, const BoardHistory& hist,
     const Sgf::PositionSample& sample, bool markedAsHintPos
@@ -1739,8 +1743,30 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
     sampleToWrite.weight += std::fabs(baseValues.utility - quickValues.utility);
     sampleToWrite.weight += std::fabs(baseValues.utility - veryQuickValues.utility);
 
+    constexpr double NULL_UTILITY = -1e10; // Placeholder if no utility is found
+    double selfUtilityOfHintMove = NULL_UTILITY;
+    double selfUtilityOfBestOtherMove = NULL_UTILITY;
+    if(moreUtilityWeight > 0.0) {
+      vector<AnalysisData> analysisData;
+      const int minMovesToTryToGet = 0;
+      const bool includeWeightFactors = false;
+      const int maxPVDepth = 0;
+      const bool duplicateForSymmetries = true;
+      search->getAnalysisData(analysisData, minMovesToTryToGet, includeWeightFactors, maxPVDepth, duplicateForSymmetries);
+      for(const AnalysisData& data: analysisData) {
+        if(data.move == missedLoc)
+          selfUtilityOfHintMove = (nextPla == P_WHITE ? data.utility : -data.utility);
+        else
+          selfUtilityOfBestOtherMove = std::max(selfUtilityOfBestOtherMove, (nextPla == P_WHITE ? data.utility : -data.utility));
+      }
+    }
+
     //Bot DOES see the move?
     if(moveLoc == missedLoc) {
+      if(moreUtilityWeight > 0.0 && selfUtilityOfHintMove > NULL_UTILITY && selfUtilityOfBestOtherMove > NULL_UTILITY) {
+        sampleToWrite.weight += moreUtilityWeight * (-0.3 + sqrt(0.09 + std::max(0.0, selfUtilityOfHintMove - selfUtilityOfBestOtherMove)));
+      }
+
       if(quickMoveLoc == moveLoc)
         sampleToWrite.weight = sampleToWrite.weight * 0.75 - 0.1;
       if(veryQuickMoveLoc == moveLoc)
@@ -1761,21 +1787,27 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
     //Bot doesn't see the move?
     else if(moveLoc != missedLoc) {
 
-      //If marked as a hint pos, always trust that it should be better and add it.
-      bool shouldWriteMove = markedAsHintPos;
-
-      if(!shouldWriteMove) {
-        ReportedSearchValues moveValues;
+      ReportedSearchValues moveValues;
+      ReportedSearchValues missedValues;
+      // If marked as hint pos and no utility bonus, then we don't need these values
+      if(markedAsHintPos && moreUtilityWeight <= 0.0) {}
+      else {
         if(!maybeGetValuesAfterMove(search,moveLoc,nextPla,board,hist,1.0,moveValues))
           return;
-        // ostringstream out0;
-        // out0 << "BOT MOVE " << Location::toString(moveLoc,board) << endl;
-        // search->printTree(out0, search->rootNode, PrintTreeOptions().maxDepth(0),perspective);
-        // cout << out0.str() << endl;
-
-        ReportedSearchValues missedValues;
         if(!maybeGetValuesAfterMove(search,missedLoc,nextPla,board,hist,1.0,missedValues))
           return;
+      }
+      if(moreUtilityWeight > 0.0) {
+        selfUtilityOfBestOtherMove = std::max(selfUtilityOfBestOtherMove, (nextPla == P_WHITE ? moveValues.utility : -moveValues.utility));
+        selfUtilityOfHintMove = std::max(selfUtilityOfHintMove, (nextPla == P_WHITE ? missedValues.utility : -missedValues.utility));
+      }
+
+      bool shouldWriteMove = false;
+      if(markedAsHintPos) {
+        //If marked as a hint pos, always trust that it should be better and add it.
+        shouldWriteMove = true;
+      }
+      else {
         // ostringstream out0;
         // out0 << "SGF MOVE " << Location::toString(missedLoc,board) << endl;
         // search->printTree(out0, search->rootNode, PrintTreeOptions().maxDepth(0),perspective);
@@ -1794,6 +1826,11 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
       if(shouldWriteMove) {
         //Moves that the bot didn't see get written out more
         sampleToWrite.weight = sampleToWrite.weight * 1.5 + 1.0;
+
+        if(moreUtilityWeight > 0.0 && selfUtilityOfHintMove > NULL_UTILITY && selfUtilityOfBestOtherMove > NULL_UTILITY) {
+          sampleToWrite.weight += moreUtilityWeight * (-0.3 + sqrt(0.09 + std::max(0.0, selfUtilityOfHintMove - selfUtilityOfBestOtherMove)));
+        }
+
         sampleToWrite.weight *= exp(-sampleToWrite.initialTurnNumber * turnWeightLambda);
         if(markedAsHintPos)
           sampleToWrite.weight *= hintScale;
@@ -1859,7 +1896,7 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
 
       ReportedSearchValues superQuickValues;
       {
-        bool suc = maybeGetValuesAfterMove(search,Board::NULL_LOC,nextPla,board,hist,1.0/80.0,superQuickValues);
+        bool suc = maybeGetValuesAfterMove(search,Board::NULL_LOC,nextPla,board,hist,1.0/60.0,superQuickValues);
         if(!suc)
           break;
       }
@@ -1918,7 +1955,7 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
     vector<double> pastValue(winLossValues.size());
     vector<double> pastLead(winLossValues.size());
     futureValue[winLossValues.size()] = winLossValues[winLossValues.size()-1];
-    futureLead[winLossValues.size()] = scoreLeads[winLossValues.size()];
+    futureLead[winLossValues.size()] = scoreLeads[winLossValues.size()-1];
     for(int i = (int)winLossValues.size()-1; i >= 0; i--) {
       futureValue[i] = 0.10 * winLossValues[i] + 0.90 * futureValue[i+1];
       futureLead[i] = 0.10 * scoreLeads[i] + 0.90 * futureLead[i+1];
@@ -1983,6 +2020,7 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
         sample, false
       );
     }
+    logger.write("Sgf processed: " + fileName);
   };
 
   const int maxSgfQueueSize = 1024;
@@ -2319,7 +2357,6 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
   }
   logSgfProgress();
   logger.write("All sgfs loaded, waiting for finishing analysis");
-  logger.write(Global::uint64ToString(sgfQueue.size()) + " sgfs still enqueued");
   logger.write(Global::uint64ToString(sgfQueue.size()) + " sgfs still enqueued");
 
   sgfQueue.setReadOnly();
