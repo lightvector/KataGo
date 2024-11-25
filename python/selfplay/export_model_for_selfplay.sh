@@ -34,7 +34,7 @@ function exportStuff() {
     TODIR="$2"
 
     #Sort by timestamp so that we process in order of oldest to newest if there are multiple
-    for FILEPATH in $(find "$BASEDIR"/"$FROMDIR"/ -mindepth 1 -maxdepth 1 -printf "%T@ %p\n" | sort -n | cut -d ' ' -f 2)
+    for FILEPATH in $(gfind "$BASEDIR"/"$FROMDIR"/ -mindepth 1 -maxdepth 1 -printf "%T@ %p\n" | sort -n | cut -d ' ' -f 2)
     do
         #Make sure to skip tmp directories that are transiently there by the training,
         #they are probably in the process of being written
@@ -64,14 +64,14 @@ function exportStuff() {
                 mkdir "$TMPDST"
 
                 set -x
-                python3 ./export_model_pytorch.py \
+                python ./export_model_pytorch.py \
                         -checkpoint "$SRC"/model.ckpt \
                         -export-dir "$TMPDST" \
                         -model-name "$NAMEPREFIX""-""$NAME" \
                         -filename-prefix model \
                         -use-swa
 
-                python3 ./clean_checkpoint.py \
+                python ./clean_checkpoint.py \
                         -checkpoint "$SRC"/model.ckpt \
                         -output "$TMPDST"/model.ckpt
                 set +x
