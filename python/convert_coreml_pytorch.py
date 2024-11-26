@@ -80,6 +80,11 @@ def parse_arguments() -> argparse.Namespace:
         default=0.0,
         help="Target sparsity for pruning the weights (default: 0.0).",
     )
+    parser.add_argument(
+        "-output",
+        required=False,
+        help="Path to the converted Core ML package.",
+    )
 
     return parser.parse_args()
 
@@ -227,12 +232,16 @@ def save_coreml_model(
     pos_len: int,
     precision_name: str,
     meta_encoder_version: int,
+    output_path: str,
 ) -> str:
     """Save the CoreML model to a file and return the file path."""
-    meta_encoder_suffix = f"m{meta_encoder_version}" if meta_encoder_version > 0 else ""
-    filename = (
-        f"KataGoModel{pos_len}x{pos_len}{precision_name}{meta_encoder_suffix}.mlpackage"
-    )
+    if output_path is None:
+        meta_encoder_suffix = f"m{meta_encoder_version}" if meta_encoder_version > 0 else ""
+        filename = (
+            f"KataGoModel{pos_len}x{pos_len}{precision_name}{meta_encoder_suffix}.mlpackage"
+        )
+    else:
+        filename = output_path
 
     print("Saving model ...")
     mlmodel.save(filename)
@@ -254,6 +263,7 @@ def main():
     fp32 = args.fp32
     nbits = args.nbits
     sparsity = args.sparsity
+    output_path = args.output
 
     # Load the model
     model, swa_model, _ = load_model(
@@ -372,6 +382,7 @@ def main():
         pos_len=pos_len,
         precision_name=precision_name,
         meta_encoder_version=meta_encoder_version,
+        output_path=output_path,
     )
 
 
