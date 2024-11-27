@@ -12,7 +12,9 @@ class Logger;
 class KataGoCommandLine : public TCLAP::CmdLine
 {
   TCLAP::ValueArg<std::string>* modelFileArg;
+  TCLAP::ValueArg<std::string>* coreMLModelFileArg;
   TCLAP::ValueArg<std::string>* humanModelFileArg;
+  TCLAP::ValueArg<std::string>* humanCoreMLModelFileArg;
   TCLAP::MultiArg<std::string>* configFileArg;
   TCLAP::MultiArg<std::string>* overrideConfigArg;
   std::string defaultConfigFileName;
@@ -31,7 +33,9 @@ class KataGoCommandLine : public TCLAP::CmdLine
   void setShortUsageArgLimit();
 
   void addModelFileArg();
+  void addCoreMLModelFileArg();
   void addHumanModelFileArg();
+  void addHumanCoreMLModelFileArg();
   //Empty string indicates no default or no example
   void addConfigFileArg(const std::string& defaultConfigFileName, const std::string& exampleConfigFile);
   void addConfigFileArg(const std::string& defaultConfigFileName, const std::string& exampleConfigFile, bool required);
@@ -40,9 +44,11 @@ class KataGoCommandLine : public TCLAP::CmdLine
   void logOverrides(Logger& logger) const;
 
   std::string getModelFile() const;
+  std::string getCoreMLModelFile() const;
   bool modelFileIsDefault() const;
 
   std::string getHumanModelFile() const;
+  std::string getHumanCoreMLModelFile() const;
 
   //cfg must be uninitialized, this will initialize it based on user-provided arguments
   void getConfig(ConfigParser& cfg) const;
