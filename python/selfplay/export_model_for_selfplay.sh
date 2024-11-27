@@ -77,6 +77,12 @@ function exportStuff() {
                 set +x
 
                 rm -r "$SRC"
+
+                python ./convert_coreml_pytorch.py \
+                       -checkpoint "$TMPDST"/model.ckpt \
+                       -output "$TMPDST"/KataGoModel19x19fp16.mlpackage \
+                       -use-swa
+
                 gzip "$TMPDST"/model.bin
 
                 #Make a bunch of the directories that selfplay will need so that there isn't a race on the selfplay

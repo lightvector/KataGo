@@ -348,10 +348,11 @@ void NeuralNet::globalCleanup() {
  * object is returned as a pointer.
  * @param file The name of the file containing the neural network model.
  * @param expectedSha256 The expected SHA-256 hash of the model file.
+ * @param dir The name of the directory containing the neural network model.
  * @return A pointer to the LoadedModel object created by loading the model file.
  */
-LoadedModel* NeuralNet::loadModelFile(const string& file, const string& expectedSha256) {
-  LoadedModel* loadedModel = new LoadedModel(file, expectedSha256);
+LoadedModel* NeuralNet::loadModelFile(const string& file, const string& expectedSha256, const string& dir) {
+  LoadedModel* loadedModel = new LoadedModel(file, expectedSha256, dir);
   return loadedModel;
 }
 
@@ -530,7 +531,8 @@ coremlbackend(maybeCreateCoreMLBackend((gpuIdx >= 100),
                                        modelYLen,
                                        (context->useFP16Mode != enabled_t::False),
                                        loadedModel->modelDesc.metaEncoderVersion,
-                                       context->useCpuAndNeuralEngine)) {
+                                       context->useCpuAndNeuralEngine,
+                                       loadedModel->modelDirectory)) {
   const ModelDesc* modelDesc = &loadedModel->modelDesc;
   auto metalContext = context->metalComputeContext;
 

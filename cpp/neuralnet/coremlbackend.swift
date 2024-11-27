@@ -41,17 +41,19 @@ public class CoreMLBackend {
     let numMetaFeatures: Int
     let metaEncoderVersion: Int
     let modelName: String
+    let modelDirectory: String
 
     var spatialSize: Int {
         numSpatialFeatures * yLen * xLen
     }
 
-    init(model: MLModel, xLen: Int, yLen: Int, metaEncoderVersion: Int, modelName: String) {
+    init(model: MLModel, xLen: Int, yLen: Int, metaEncoderVersion: Int, modelName: String, modelDirectory: String) {
         self.model = KataGoModel(model: model)
         self.xLen = xLen
         self.yLen = yLen
         self.metaEncoderVersion = metaEncoderVersion
         self.modelName = modelName
+        self.modelDirectory = modelDirectory
 
         // The model version must be at least 8.
         self.version = model.version
@@ -172,7 +174,7 @@ public class CoreMLBackend {
                                    from inputBatch: KataGoModelInputBatch,
                                    options: MLPredictionOptions,
                                    mustCompile: Bool) -> KataGoModelOutputBatch? {
-        if let mlmodel = KataGoModel.compileBundleMLModel(modelName: modelName, computeUnits: computeUnits, mustCompile: mustCompile) {
+        if let mlmodel = KataGoModel.compileBundleMLModel(modelName: modelName, computeUnits: computeUnits, mustCompile: mustCompile, modelDirectory: modelDirectory) {
             model = KataGoModel(model: mlmodel)
             if let outputBatch = try? model.prediction(from: inputBatch, options: options) {
                 return outputBatch
@@ -189,7 +191,8 @@ public func maybeCreateCoreMLBackend(condition: Bool = true,
                                      yLen: Int = 19,
                                      useFP16: Bool = false,
                                      metaEncoderVersion: Int = 0,
-                                     useCpuAndNeuralEngine: Bool = true) -> CoreMLBackend? {
+                                     useCpuAndNeuralEngine: Bool = true,
+                                     modelDirectory: String = "") -> CoreMLBackend? {
     guard condition else { return nil }
 
     // Get the model name.
@@ -199,14 +202,22 @@ public func maybeCreateCoreMLBackend(condition: Bool = true,
     let computeUnits: MLComputeUnits = useCpuAndNeuralEngine ? .cpuAndNeuralEngine : .all
 
     // Compile the model in Bundle.
-    let mlmodel = KataGoModel.compileBundleMLModel(modelName: modelName, computeUnits: computeUnits)
+    let mlmodel = KataGoModel.compileBundleMLModel(modelName: modelName,
+                                                   computeUnits: computeUnits,
+                                                   mustCompile: false,
+                                                   modelDirectory: modelDirectory)
 
     if let mlmodel {
         printError("CoreML backend \(serverThreadIdx): \(xLen)x\(yLen) useFP16 \(useFP16) metaEncoderVersion \(metaEncoderVersion) useCpuAndNeuralEngine \(useCpuAndNeuralEngine)");
         printError("CoreML backend \(serverThreadIdx): \(mlmodel.metaDescription)");
 
         // The CoreMLBackend object is created.
-        return CoreMLBackend(model: mlmodel, xLen: xLen, yLen: yLen, metaEncoderVersion: metaEncoderVersion, modelName: modelName)
+        return CoreMLBackend(model: mlmodel,
+                             xLen: xLen,
+                             yLen: yLen,
+                             metaEncoderVersion: metaEncoderVersion,
+                             modelName: modelName,
+                             modelDirectory: modelDirectory)
     } else {
         printError("Unable to compile bundle MLModel from model: \(modelName)")
         return nil

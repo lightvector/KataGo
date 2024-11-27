@@ -93,23 +93,28 @@ class KataGoModelOutputBatch {
 class KataGoModel {
     let model: MLModel
 
-    class func getBundleModelURL(modelName: String) -> URL {
+    class func getBundleModelURL(modelName: String, modelDirectory: String) -> URL {
         // Set model type name
         let typeName = "mlpackage"
         // Get model path from bundle resource
         // Fallback to create a default model path
         let modelPath = Bundle.main.path(forResource: modelName, ofType: typeName) ?? "\(modelName).\(typeName)"
-        let bundleModelURL = URL(filePath: modelPath)
+        // If modelDirectory is not empty, prepend it to the modelPath
+        let finalPath = modelDirectory.isEmpty ? modelPath : "\(modelDirectory)/\(modelName).\(typeName)" 
+        let bundleModelURL = URL(filePath: finalPath)
 
         return bundleModelURL
     }
 
-    class func compileBundleMLModel(modelName: String, computeUnits: MLComputeUnits, mustCompile: Bool = false) -> MLModel? {
+    class func compileBundleMLModel(modelName: String,
+                                    computeUnits: MLComputeUnits,
+                                    mustCompile: Bool = false,
+                                    modelDirectory: String = "") -> MLModel? {
         var mlmodel: MLModel?
 
         do {
             // Get model URL at bundle
-            let bundleModelURL = getBundleModelURL(modelName: modelName)
+            let bundleModelURL = getBundleModelURL(modelName: modelName, modelDirectory: modelDirectory)
 
             // Compile MLModel
             mlmodel = try compileMLModel(modelName: modelName,

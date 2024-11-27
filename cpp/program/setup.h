@@ -38,9 +38,43 @@ namespace Setup {
     setup_for_t setupFor
   );
 
+  NNEvaluator* initializeCoreMLEvaluator(
+    const std::string& nnModelNames,
+    const std::string& nnModelFiles,
+    const std::string& nnModelDir,
+    const std::string& expectedSha256,
+    ConfigParser& cfg,
+    Logger& logger,
+    Rand& seedRand,
+    int expectedConcurrentEvals,
+    int defaultNNXLen,
+    int defaultNNYLen,
+    int defaultMaxBatchSize,
+    bool defaultRequireExactNNLen,
+    bool disableFP16,
+    setup_for_t setupFor
+  );
+
   std::vector<NNEvaluator*> initializeNNEvaluators(
     const std::vector<std::string>& nnModelNames,
     const std::vector<std::string>& nnModelFiles,
+    const std::vector<std::string>& expectedSha256s,
+    ConfigParser& cfg,
+    Logger& logger,
+    Rand& seedRand,
+    int expectedConcurrentEvals,
+    int defaultNNXLen,
+    int defaultNNYLen,
+    int defaultMaxBatchSize,
+    bool defaultRequireExactNNLen,
+    bool disableFP16,
+    setup_for_t setupFor
+  );
+
+  std::vector<NNEvaluator*> initializeCoreMLEvaluators(
+    const std::vector<std::string>& nnModelNames,
+    const std::vector<std::string>& nnModelFiles,
+    const std::vector<std::string>& nnModelDirs,
     const std::vector<std::string>& expectedSha256s,
     ConfigParser& cfg,
     Logger& logger,

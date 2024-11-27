@@ -68,8 +68,61 @@ NNEvaluator::NNEvaluator(
   bool doRandomize,
   int defaultSymmetry
 )
+  :NNEvaluator(
+    mName,
+    mFileName,
+    "",
+    expectedSha256,
+    lg,
+    maxBatchSz,
+    xLen,
+    yLen,
+    rExactNNLen,
+    iUseNHWC,
+    nnCacheSizePowerOfTwo,
+    nnMutexPoolSizePowerofTwo,
+    skipNeuralNet,
+    openCLTunerFile,
+    homeDataDirOverride,
+    openCLReTunePerBoardSize,
+    useFP16Mode,
+    useNHWCMode,
+    numThr,
+    gpuIdxByServerThr,
+    rSeed,
+    doRandomize,
+    defaultSymmetry)
+{
+}
+
+NNEvaluator::NNEvaluator(
+  const string& mName,
+  const string& mFileName,
+  const string& mDirName,
+  const string& expectedSha256,
+  Logger* lg,
+  int maxBatchSz,
+  int xLen,
+  int yLen,
+  bool rExactNNLen,
+  bool iUseNHWC,
+  int nnCacheSizePowerOfTwo,
+  int nnMutexPoolSizePowerofTwo,
+  bool skipNeuralNet,
+  const string& openCLTunerFile,
+  const string& homeDataDirOverride,
+  bool openCLReTunePerBoardSize,
+  enabled_t useFP16Mode,
+  enabled_t useNHWCMode,
+  int numThr,
+  const vector<int>& gpuIdxByServerThr,
+  const string& rSeed,
+  bool doRandomize,
+  int defaultSymmetry
+)
   :modelName(mName),
    modelFileName(mFileName),
+   modelDirName(mDirName),
    nnXLen(xLen),
    nnYLen(yLen),
    requireExactNNLen(rExactNNLen),
@@ -132,7 +185,7 @@ NNEvaluator::NNEvaluator(
     std::sort(gpuIdxs.begin(), gpuIdxs.end());
     auto last = std::unique(gpuIdxs.begin(), gpuIdxs.end());
     gpuIdxs.erase(last,gpuIdxs.end());
-    loadedModel = NeuralNet::loadModelFile(modelFileName,expectedSha256);
+    loadedModel = NeuralNet::loadModelFile(modelFileName,expectedSha256,modelDirName);
     modelVersion = NeuralNet::getModelVersion(loadedModel);
     inputsVersion = NNModelVersion::getInputsVersion(modelVersion);
     numInputMetaChannels = NeuralNet::getNumInputMetaChannels(loadedModel);

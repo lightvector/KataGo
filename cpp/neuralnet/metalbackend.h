@@ -108,13 +108,20 @@ struct LoadedModel {
   ModelDesc modelDesc;
 
   /**
+   * @brief The directory of the loaded model.
+   */
+  const string modelDirectory;
+
+  /**
    * @brief Construct a new Loaded Model object
    * This constructor loads a machine learning model from a file and sets the modelDesc field to the
    * characteristics of the loaded model.
    * @param fileName The name of the file containing the machine learning model.
    * @param expectedSha256 The expected SHA-256 hash of the model file.
    */
-  LoadedModel(const string& fileName, const string& expectedSha256) {
+  LoadedModel(const string& fileName, const string& expectedSha256, const string& dirName)
+    :modelDirectory(dirName)
+  {
     ModelDesc::loadFromFileMaybeGZipped(fileName, modelDesc, expectedSha256);
   }
 
