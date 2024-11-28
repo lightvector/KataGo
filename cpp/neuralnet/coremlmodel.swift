@@ -254,22 +254,12 @@ class KataGoModel {
     }
 
     class func compileMLModel(modelName: String, modelURL: URL, computeUnits: MLComputeUnits, mustCompile: Bool) throws -> MLModel {
-        let permanentURL = try getMLModelCPermanentURL(modelName: modelName)
-        let savedDigestURL = try getSavedDigestURL(modelName: modelName)
-        let digest = try getDigest(modelURL: modelURL)
+        printError("Compiling CoreML model at \(modelURL)");
 
-        let shouldCompileModel = mustCompile || checkShouldCompileModel(permanentURL: permanentURL,
-                                                                        savedDigestURL: savedDigestURL,
-                                                                        digest: digest)
+        // Compile the model
+        let compiledURL = try MLModel.compileModel(at: modelURL)
 
-        if shouldCompileModel {
-            try compileAndSaveModel(permanentURL: permanentURL,
-                                    savedDigestURL: savedDigestURL,
-                                    modelURL: modelURL,
-                                    digest: digest)
-        }
-
-        return try loadModel(permanentURL: permanentURL,
+        return try loadModel(permanentURL: compiledURL,
                              modelName: modelName,
                              computeUnits: computeUnits);
     }
