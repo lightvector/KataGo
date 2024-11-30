@@ -24,6 +24,7 @@ parser.add_argument('-connection-config', help='config with serverUrl and userna
 parser.add_argument('-set-total-weight', help='set total weight of poses to this', type=float, required=False)
 parser.add_argument('-weight-factor', help='multiply weight of poses by this', type=float, required=False)
 parser.add_argument('-separate-summaries', help='summarize dirs separately', action="store_true", required=False)
+parser.add_argument('-separate-summaries-separate-files', help='not merging files in dir for summaries', action="store_true", required=False)
 parser.add_argument('-extra-stats', help='show some extra stats', action="store_true", required=False)
 parser.add_argument('-notes', help='notes or description label for poses', required=False)
 args = vars(parser.parse_args())
@@ -35,6 +36,7 @@ connection_config_file = args["connection_config"]
 set_total_weight = args["set_total_weight"]
 weight_factor = args["weight_factor"]
 separate_summaries = args["separate_summaries"]
+separate_summaries_separate_files = args["separate_summaries_separate_files"]
 extra_stats = args["extra_stats"]
 notes = args["notes"]
 
@@ -90,10 +92,19 @@ def print_extra_stats(poses):
 
 log("Loading positions")
 poses_by_key = {}
+poses_by_key_by_separate_files = {}
 
 def handle_file(poses_by_key, poses_file):
     log("Loading" + ": " + poses_file)
-    poses_by_key_this_file = {}
+    if separate_summaries_separate_files:
+        separate_files_key = poses_file
+    else:
+        separate_files_key = os.path.dirname(poses_file)
+
+    if separate_files_key not in poses_by_key_by_separate_files:
+        poses_by_key_by_separate_files[separate_files_key] = {}
+    poses_by_key_this_file = poses_by_key_by_separate_files[separate_files_key]
+
     with open(poses_file,"r") as f:
         for line in f:
             line = line.strip()
@@ -133,15 +144,6 @@ def handle_file(poses_by_key, poses_file):
                 poses_by_key_this_file[key]["weight"] += weight
             else:
                 poses_by_key_this_file[key] = pos.copy()
-    if separate_summaries:
-        sumweight,sumweightsq = compute_sum_sumsq(poses_by_key_this_file.values())
-        if sumweight > 0 and sumweightsq > 0:
-            log("Found %d unique positions" % len(poses_by_key_this_file.values()))
-            log("Found %f total weight" % sumweight)
-            log("Found %f ess" % (sumweight * sumweight / sumweightsq))
-            if extra_stats:
-                print_extra_stats(poses_by_key_this_file.values())
-            log("%d %f %f" % (len(poses_by_key_this_file.values()), sumweight, (sumweight * sumweight / sumweightsq)))
 
 poses_files_or_dirs = sorted(poses_files_or_dirs)
 for poses_file_or_dir in poses_files_or_dirs:
@@ -154,6 +156,18 @@ for poses_file_or_dir in poses_files_or_dirs:
                     handle_file(poses_by_key, os.path.join(path,filename))
     else:
         handle_file(poses_by_key, poses_file_or_dir)
+
+if separate_summaries:
+    for key, poses_by_key_this_key in poses_by_key_by_separate_files.items():
+        sumweight,sumweightsq = compute_sum_sumsq(poses_by_key_this_key.values())
+        if sumweight > 0 and sumweightsq > 0:
+            log(key)
+            log("Found %d unique positions" % len(poses_by_key_this_key.values()))
+            log("Found %f total weight" % sumweight)
+            log("Found %f ess" % (sumweight * sumweight / sumweightsq))
+            if extra_stats:
+                print_extra_stats(poses_by_key_this_key.values())
+            log("%d %f %f" % (len(poses_by_key_this_key.values()), sumweight, (sumweight * sumweight / sumweightsq)))
 
 poses = poses_by_key.values()
 sumweight,sumweightsq = compute_sum_sumsq(poses)
