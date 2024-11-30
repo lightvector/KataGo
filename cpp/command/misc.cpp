@@ -1331,6 +1331,7 @@ static double surpriseWeight(double policyProb, Rand& rand, bool alwaysAddWeight
 struct PosQueueEntry {
   BoardHistory* hist;
   bool markedAsHintPos;
+  bool markedAsHintPosLight;
 };
 
 int MainCmds::dataminesgfs(const vector<string>& args) {
@@ -1355,6 +1356,7 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
   int64_t maxDepth;
   double turnWeightLambda;
   int maxPosesPerOutFile;
+  double utilityThreshold;
   double gameModeFastThreshold;
   bool flipIfPassOrWFirst;
   bool allowGameOver;
@@ -1371,6 +1373,7 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
   double minHintWeight;
   double hintScale;
   double moreUtilityWeight;
+  int startPosesBeforeHintsLen;
 
   bool forTesting;
 
@@ -1395,6 +1398,7 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
     TCLAP::ValueArg<int> maxDepthArg("","max-depth","Max depth allowed for sgf",false,1000000,"INT");
     TCLAP::ValueArg<double> turnWeightLambdaArg("","turn-weight-lambda","Adjust weight for writing down each position",false,0.0,"LAMBDA");
     TCLAP::ValueArg<int> maxPosesPerOutFileArg("","max-poses-per-out-file","Number of hintposes per output file",false,100000,"INT");
+    TCLAP::ValueArg<double> utilityThresholdArg("","utility-threshold","Utility threshold for expensive pass",false,0.01,"UTILS");
     TCLAP::ValueArg<double> gameModeFastThresholdArg("","game-mode-fast-threshold","Utility threshold for game mode fast pass",false,0.005,"UTILS");
     TCLAP::SwitchArg flipIfPassOrWFirstArg("","flip-if-pass","Try to heuristically find cases where an sgf passes to simulate white<->black");
     TCLAP::SwitchArg allowGameOverArg("","allow-game-over","Allow sampling game over positions in sgf");
@@ -1410,6 +1414,7 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
     TCLAP::ValueArg<double> minHintWeightArg("","min-hint-weight","Hinted moves get at least this weight",false,0.0,"WEIGHT");
     TCLAP::ValueArg<double> hintScaleArg("","hint-scale","Manually hinted moves get weight scaled by this",false,1.0,"FACTOR");
     TCLAP::ValueArg<double> moreUtilityWeightArg("","more-utility-weight","Increase weight when hint move is uniquely better than other moves",false,0.0,"WEIGHTSCALE");
+    TCLAP::ValueArg<int> startPosesBeforeHintsLenArg("","start-poses-before-hints","Add weight for startposes before hints in game mode",false,0,"NMOVES");
 
     TCLAP::SwitchArg forTestingArg("","for-testing","For testing");
 
@@ -1428,6 +1433,7 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
     cmd.add(maxDepthArg);
     cmd.add(turnWeightLambdaArg);
     cmd.add(maxPosesPerOutFileArg);
+    cmd.add(utilityThresholdArg);
     cmd.add(gameModeFastThresholdArg);
     cmd.add(flipIfPassOrWFirstArg);
     cmd.add(allowGameOverArg);
@@ -1443,6 +1449,7 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
     cmd.add(minHintWeightArg);
     cmd.add(hintScaleArg);
     cmd.add(moreUtilityWeightArg);
+    cmd.add(startPosesBeforeHintsLenArg);
     cmd.add(forTestingArg);
     cmd.parseArgs(args);
 
@@ -1462,6 +1469,7 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
     maxDepth = maxDepthArg.getValue();
     turnWeightLambda = turnWeightLambdaArg.getValue();
     maxPosesPerOutFile = maxPosesPerOutFileArg.getValue();
+    utilityThreshold = utilityThresholdArg.getValue();
     gameModeFastThreshold = gameModeFastThresholdArg.getValue();
     flipIfPassOrWFirst = flipIfPassOrWFirstArg.getValue();
     allowGameOver = allowGameOverArg.getValue();
@@ -1477,10 +1485,13 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
     minHintWeight = minHintWeightArg.getValue();
     hintScale = hintScaleArg.getValue();
     moreUtilityWeight = moreUtilityWeightArg.getValue();
+    startPosesBeforeHintsLen = startPosesBeforeHintsLenArg.getValue();
     forTesting = forTestingArg.getValue();
 
     if((int)gameMode + (int)treeMode + (int)surpriseMode != 1)
       throw StringError("Must specify either -game-mode or -tree-mode or -surprise-mode");
+    if(startPosesBeforeHintsLen != 0 && gameMode != 1)
+      throw StringError("startPosesBeforeHintsLen only works with -game-mode");
 
     cmd.getConfig(cfg);
   }
@@ -1589,21 +1600,21 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
     return true;
   };
 
-  auto expensiveEvaluateMove = [&posWriter,&turnWeightLambda,&maxAutoKomi,&maxHandicap,&numFilteredIndivdualPoses,&surpriseMode,&minHintWeight,&hintScale,&logger,trainingWeight,moreUtilityWeight](
+  auto expensiveEvaluateMove = [&posWriter,&turnWeightLambda,&maxAutoKomi,&maxHandicap,&numFilteredIndivdualPoses,&surpriseMode,&minHintWeight,&hintScale,&logger,trainingWeight,moreUtilityWeight,utilityThreshold](
     Search* search, Loc missedLoc,
     Player nextPla, const Board& board, const BoardHistory& hist,
-    const Sgf::PositionSample& sample, bool markedAsHintPos
+    const Sgf::PositionSample& sample, bool markedAsHintPos, bool markedAsHintPosLight
   ) {
     if(shouldStop.load(std::memory_order_acquire))
-      return;
+      return 0.0;
 
     if(std::fabs(hist.rules.komi) > maxAutoKomi) {
       numFilteredIndivdualPoses.fetch_add(1);
-      return;
+      return 0.0;
     }
     if(hist.computeNumHandicapStones() > maxHandicap) {
       numFilteredIndivdualPoses.fetch_add(1);
-      return;
+      return 0.0;
     }
 
     {
@@ -1616,7 +1627,7 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
         }
       }
       if(numStonesOnBoard < 6)
-        return;
+        return 0.0;
     }
 
     if(surpriseMode) {
@@ -1628,14 +1639,14 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
       {
         bool suc = maybeGetValuesAfterMove(search,Board::NULL_LOC,nextPla,board,hist,1.0/50.0,veryQuickValues);
         if(!suc)
-          return;
+          return 0.0;
       }
       Loc veryQuickMoveLoc = search->getChosenMoveLoc();
       ReportedSearchValues baseValues;
       {
         bool suc = maybeGetValuesAfterMove(search,Board::NULL_LOC,nextPla,board,hist,1.0,baseValues);
         if(!suc)
-          return;
+          return 0.0;
       }
       Loc moveLoc = search->getChosenMoveLoc();
 
@@ -1644,13 +1655,13 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
         {
           bool suc = maybeGetValuesAfterMove(search,veryQuickMoveLoc,nextPla,board,hist,1.0/2.0,veryQuickAfterMoveValues);
           if(!suc)
-            return;
+            return 0.0;
         }
         ReportedSearchValues baseAfterMoveValues;
         {
           bool suc = maybeGetValuesAfterMove(search,moveLoc,nextPla,board,hist,1.0/2.0,baseAfterMoveValues);
           if(!suc)
-            return;
+            return 0.0;
         }
         if(
           (nextPla == P_WHITE && baseAfterMoveValues.utility - veryQuickAfterMoveValues.utility > 0.2) ||
@@ -1666,7 +1677,7 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
           if(sampleToWrite.hasPreviousPositions(2))
             posWriter.writePos(sampleToWrite.previousPosition(sampleToWrite.weight * 0.25).previousPosition(sampleToWrite.weight * 0.25));
           logger.write("Surprising good " + Global::doubleToString(sampleToWrite.weight));
-          return;
+          return sampleToWrite.weight;
         }
       }
 
@@ -1684,7 +1695,7 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
         if(sampleToWrite.hasPreviousPositions(2))
           posWriter.writePos(sampleToWrite.previousPosition(sampleToWrite.weight * 0.25).previousPosition(sampleToWrite.weight * 0.25));
         logger.write("Inevitable bad " + Global::doubleToString(sampleToWrite.weight));
-        return;
+        return sampleToWrite.weight;
       }
       if(
         (nextPla == P_WHITE && baseValues.utility - veryQuickValues.utility > 0.2) ||
@@ -1700,16 +1711,16 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
         if(sampleToWrite.hasPreviousPositions(2))
           posWriter.writePos(sampleToWrite.previousPosition(sampleToWrite.weight * 0.25).previousPosition(sampleToWrite.weight * 0.25));
         logger.write("Inevitable good " + Global::doubleToString(sampleToWrite.weight));
-        return;
+        return sampleToWrite.weight;
       }
-      return;
+      return 0.0;
     }
 
     ReportedSearchValues veryQuickValues;
     {
       bool suc = maybeGetValuesAfterMove(search,Board::NULL_LOC,nextPla,board,hist,1.0/25.0,veryQuickValues);
       if(!suc)
-        return;
+        return 0.0;
     }
     Loc veryQuickMoveLoc = search->getChosenMoveLoc();
 
@@ -1717,7 +1728,7 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
     {
       bool suc = maybeGetValuesAfterMove(search,Board::NULL_LOC,nextPla,board,hist,1.0/5.0,quickValues);
       if(!suc)
-        return;
+        return 0.0;
     }
     Loc quickMoveLoc = search->getChosenMoveLoc();
 
@@ -1725,7 +1736,7 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
     {
       bool suc = maybeGetValuesAfterMove(search,Board::NULL_LOC,nextPla,board,hist,1.0,baseValues);
       if(!suc)
-        return;
+        return 0.0;
     }
     Loc moveLoc = search->getChosenMoveLoc();
 
@@ -1776,11 +1787,16 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
 
       if(markedAsHintPos)
         sampleToWrite.weight *= hintScale;
+
       if(sampleToWrite.weight < minHintWeight && markedAsHintPos)
         sampleToWrite.weight = minHintWeight;
+      if(sampleToWrite.weight < minHintWeight / 2 && markedAsHintPosLight)
+        sampleToWrite.weight = minHintWeight / 2;
+
       if(sampleToWrite.weight > 0.1) {
         //Still good to learn from given that policy was really low
         posWriter.writePos(sampleToWrite);
+        return sampleToWrite.weight;
       }
     }
 
@@ -1793,9 +1809,9 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
       if(markedAsHintPos && moreUtilityWeight <= 0.0) {}
       else {
         if(!maybeGetValuesAfterMove(search,moveLoc,nextPla,board,hist,1.0,moveValues))
-          return;
+          return 0.0;
         if(!maybeGetValuesAfterMove(search,missedLoc,nextPla,board,hist,1.0,missedValues))
-          return;
+          return 0.0;
       }
       if(moreUtilityWeight > 0.0) {
         selfUtilityOfBestOtherMove = std::max(selfUtilityOfBestOtherMove, (nextPla == P_WHITE ? moveValues.utility : -moveValues.utility));
@@ -1815,7 +1831,6 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
 
         //If the move is this minimum amount better, then record this position as a hint
         //Otherwise the bot actually thinks the move isn't better, so we reject it as an invalid hint.
-        const double utilityThreshold = 0.01;
         ReportedSearchValues postValues = search->getRootValuesRequireSuccess();
         if((nextPla == P_WHITE && missedValues.utility > moveValues.utility + utilityThreshold) ||
            (nextPla == P_BLACK && missedValues.utility < moveValues.utility - utilityThreshold)) {
@@ -1823,9 +1838,15 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
         }
       }
 
+      double lightFactor = 1.0;
+      if(!shouldWriteMove && markedAsHintPosLight) {
+        shouldWriteMove = true;
+        lightFactor = 1.0/3.0;
+      }
+
       if(shouldWriteMove) {
         //Moves that the bot didn't see get written out more
-        sampleToWrite.weight = sampleToWrite.weight * 1.5 + 1.0;
+        sampleToWrite.weight = (sampleToWrite.weight * 1.5 + 1.0) * lightFactor;
 
         if(moreUtilityWeight > 0.0 && selfUtilityOfHintMove > NULL_UTILITY && selfUtilityOfBestOtherMove > NULL_UTILITY) {
           sampleToWrite.weight += moreUtilityWeight * (-0.3 + sqrt(0.09 + std::max(0.0, selfUtilityOfHintMove - selfUtilityOfBestOtherMove)));
@@ -1836,17 +1857,22 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
           sampleToWrite.weight *= hintScale;
         if(sampleToWrite.weight < minHintWeight && markedAsHintPos)
           sampleToWrite.weight = minHintWeight;
+        if(sampleToWrite.weight < minHintWeight / 2 && markedAsHintPosLight)
+          sampleToWrite.weight = minHintWeight / 2;
         if(sampleToWrite.weight > 0.1) {
           posWriter.writePos(sampleToWrite);
+          return sampleToWrite.weight;
         }
       }
     }
+
+    return 0.0;
   };
 
   // ---------------------------------------------------------------------------------------------------
-  //SGF MODE
+  //GAME MODE
 
-  auto processSgfGame = [&logger,&gameInit,&nnEval,&expensiveEvaluateMove,autoKomi,&gameModeFastThreshold,&maxDepth,&numFilteredSgfs,&maxHandicap,&maxPolicy,allowGameOver,manualHintOnly,trainingWeight](
+  auto processSgfGame = [&posWriter,&logger,&gameInit,&nnEval,&expensiveEvaluateMove,autoKomi,&gameModeFastThreshold,&maxDepth,&numFilteredSgfs,&maxHandicap,&maxPolicy,allowGameOver,manualHintOnly,trainingWeight,startPosesBeforeHintsLen](
     Search* search, Rand& rand, const string& fileName, CompactSgf* sgf, bool blackOkay, bool whiteOkay
   ) {
     //Don't use the SGF rules - randomize them for a bit more entropy
@@ -1971,6 +1997,7 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
     const double sumThreshold = gameModeFastThreshold;
 
     //cout << fileName << endl;
+    std::map<int,double> startPosesBeforeHintsWeights;
     for(int m = 0; m<moves.size(); m++) {
 
       if(shouldStop.load(std::memory_order_acquire))
@@ -2015,11 +2042,36 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
         PlayUtils::adjustKomiToEven(search,NULL,boards[m],hists[m],nextPlas[m],numVisits,props,rand);
       }
 
-      expensiveEvaluateMove(
+      double wroteHintPosWeight = expensiveEvaluateMove(
         search, moves[m].loc, nextPlas[m], boards[m], hists[m],
-        sample, false
+        sample, false, false
       );
+
+      if(wroteHintPosWeight && startPosesBeforeHintsLen > 0) {
+        for(int i = std::max(0,m-startPosesBeforeHintsLen); i < m; i++) {
+          double newWeight = std::max(startPosesBeforeHintsWeights[i], wroteHintPosWeight / sqrt(startPosesBeforeHintsLen));
+          startPosesBeforeHintsWeights[i] = newWeight;
+        }
+      }
     }
+
+    for(int m = 0; m<moves.size(); m++) {
+      if(startPosesBeforeHintsWeights[m] > 0) {
+        Sgf::PositionSample sample;
+        const int numMovesToRecord = 8;
+        int startIdx = std::max(0,m-numMovesToRecord);
+        sample.board = boards[startIdx];
+        sample.nextPla = nextPlas[startIdx];
+        for(int j = startIdx; j<m; j++)
+          sample.moves.push_back(moves[j]);
+        sample.initialTurnNumber = hists[m].initialTurnNumber + startIdx;
+        sample.hintLoc = Board::NULL_LOC;
+        sample.weight = startPosesBeforeHintsWeights[m];
+        sample.trainingWeight = trainingWeight;
+        posWriter.writePos(sample);
+      }
+    }
+
     logger.write("Sgf processed: " + fileName);
   };
 
@@ -2069,7 +2121,7 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
   //TREE MODE
 
   auto treePosHandler = [&gameInit,&nnEval,&expensiveEvaluateMove,&autoKomi,&maxPolicy,&flipIfPassOrWFirst,&surpriseMode,trainingWeight](
-    Search* search, Rand& rand, const BoardHistory& treeHist, bool markedAsHintPos
+    Search* search, Rand& rand, const BoardHistory& treeHist, bool markedAsHintPos, bool markedAsHintPosLight
   ) {
     if(shouldStop.load(std::memory_order_acquire))
       return;
@@ -2174,7 +2226,7 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
 
     if(policyProb > maxPolicy)
       return;
-    bool alwaysAddWeight = markedAsHintPos || surpriseMode;
+    bool alwaysAddWeight = markedAsHintPos || markedAsHintPosLight || surpriseMode;
     double weight = surpriseWeight(policyProb,rand,alwaysAddWeight);
     if(weight <= 0)
       return;
@@ -2187,7 +2239,7 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
 
     expensiveEvaluateMove(
       search, sample.hintLoc, pla, board, hist,
-      sample, markedAsHintPos
+      sample, markedAsHintPos, markedAsHintPosLight
     );
   };
 
@@ -2213,13 +2265,14 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
         break;
       BoardHistory* hist = p.hist;
       bool markedAsHintPos = p.markedAsHintPos;
+      bool markedAsHintPosLight = p.markedAsHintPosLight;
 
       int64_t numEnqueued = numPosesEnqueued.load();
       int64_t numBegun = 1+numPosesBegun.fetch_add(1);
       if(numBegun % 20 == 0)
         logger.write("Begun " + Global::int64ToString(numBegun) + "/" + Global::int64ToString(numEnqueued) + " poses");
 
-      treePosHandler(search, rand, *hist, markedAsHintPos);
+      treePosHandler(search, rand, *hist, markedAsHintPos, markedAsHintPosLight);
 
       int64_t numDone = 1+numPosesDone.fetch_add(1);
       if(numDone % 20 == 0)
@@ -2329,7 +2382,8 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
                 return;
 
               bool markedAsHintPos = (comments.size() > 0 && comments.find("%HINT%") != string::npos);
-              if(manualHintOnly && !markedAsHintPos)
+              bool markedAsHintPosLight = (comments.size() > 0 && comments.find("%HINTLIGHT%") != string::npos);
+              if(manualHintOnly && !markedAsHintPos && !markedAsHintPosLight)
                 return;
 
               //unusedSample doesn't have enough history, doesn't have hintloc the way we want it
@@ -2340,6 +2394,7 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
               entry.hist = new BoardHistory(hist);
               assert(hist.getCurrentTurnNumber() == unusedSample.getCurrentTurnNumber());
               entry.markedAsHintPos = markedAsHintPos;
+              entry.markedAsHintPosLight = markedAsHintPosLight;
               posQueue.waitPush(entry);
             }
           );
