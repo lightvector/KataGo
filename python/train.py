@@ -542,6 +542,8 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
         train_state["train_steps_since_last_reload"] = 0
     if "export_cycle_counter" not in train_state:
         train_state["export_cycle_counter"] = 0
+    if "window_start_data_row_idx" not in train_state:
+        train_state["window_start_data_row_idx"] = 0
     if "total_num_data_rows" not in train_state:
         train_state["total_num_data_rows"] = 0
     if "old_train_data_dirs" not in train_state:
@@ -755,6 +757,7 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
 
                 with open(trainjsonpath) as f:
                     datainfo = json.load(f)
+                    train_state["window_start_data_row_idx"] = datainfo["range"][0]
                     train_state["total_num_data_rows"] = datainfo["range"][1]
 
                 # Fill the buckets
@@ -1112,6 +1115,8 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
                 metrics["pslr_batch"] = lr_right_now
                 metrics["wdnormal_batch"] = normal_weight_decay_right_now
                 metrics["gnorm_cap_batch"] = gnorm_cap
+                metrics["window_start"] = train_state["window_start_data_row_idx"]
+                metrics["window_end"] = train_state["total_num_data_rows"]
 
                 if use_fp16:
                     scaler.step(optimizer)
