@@ -326,8 +326,6 @@ int MainCmds::genbook(const vector<string>& args) {
   const int boardSizeY = cfg.getInt("boardSizeY",2,Board::MAX_LEN);
   const int repBound = cfg.getInt("repBound",3,1000);
 
-  BookParams cfgParams = BookParams::loadFromCfg(cfg, params.maxVisits);
-
   const double bonusFileScale = cfg.contains("bonusFileScale") ? cfg.getDouble("bonusFileScale",0.0,1000000.0) : 1.0;
 
   const double randomizeParamsStdev = cfg.contains("randomizeParamsStdev") ? cfg.getDouble("randomizeParamsStdev",0.0,2.0) : 0.0;
@@ -342,6 +340,8 @@ int MainCmds::genbook(const vector<string>& args) {
     cfg.contains("maxDepthToRecord") ? cfg.getInt("maxDepthToRecord", 1, 100) : 1;
   const int64_t maxVisitsForLeaves =
     cfg.contains("maxVisitsForLeaves") ? cfg.getInt64("maxVisitsForLeaves", (int64_t)1, (int64_t)1 << 50) : (params.maxVisits+1) / 2;
+
+  BookParams cfgParams = BookParams::loadFromCfg(cfg, params.maxVisits, maxVisitsForLeaves);
 
   const int numGameThreads = cfg.getInt("numGameThreads",1,1000);
   const int numToExpandPerIteration = cfg.getInt("numToExpandPerIteration",1,10000000);
@@ -453,6 +453,7 @@ int MainCmds::genbook(const vector<string>& args) {
         cfgParams.bonusForWLPV2 != existingBookParams.bonusForWLPV2 ||
         cfgParams.bonusForWLPVFinalProp != existingBookParams.bonusForWLPVFinalProp ||
         cfgParams.bonusForBiggestWLCost != existingBookParams.bonusForBiggestWLCost ||
+        cfgParams.bonusBehindInVisitsScale != existingBookParams.bonusBehindInVisitsScale ||
         cfgParams.scoreLossCap != existingBookParams.scoreLossCap ||
         cfgParams.earlyBookCostReductionFactor != existingBookParams.earlyBookCostReductionFactor ||
         cfgParams.earlyBookCostReductionLambda != existingBookParams.earlyBookCostReductionLambda ||
@@ -462,6 +463,7 @@ int MainCmds::genbook(const vector<string>& args) {
         cfgParams.adjustedVisitsWLScale != existingBookParams.adjustedVisitsWLScale ||
         cfgParams.maxVisitsForReExpansion != existingBookParams.maxVisitsForReExpansion ||
         cfgParams.visitsScale != existingBookParams.visitsScale ||
+        cfgParams.visitsScaleLeaves != existingBookParams.visitsScaleLeaves ||
         cfgParams.sharpScoreOutlierCap != existingBookParams.sharpScoreOutlierCap
       ) {
         throw StringError("Book parameters do not match");
@@ -1367,7 +1369,12 @@ int MainCmds::genbook(const vector<string>& args) {
         logger.write("Randomized params and recomputed costs");
       }
 
-      std::vector<SymBookNode> nodesToExpand = book->getNextNToExpand(std::min(1+iteration,numToExpandPerIteration));
+      std::vector<SymBookNode> nodesToExpand = book->getNextNToExpand(
+        std::min(
+          1 + iteration*2 + (iteration*iteration / 25),
+          numToExpandPerIteration
+        )
+      );
       // Try to make all of the expanded nodes be consistent in symmetry so that they can share cache, in case
       // many of them are for related board positions.
       optimizeSymmetriesInplace(nodesToExpand, &rand, logger);
@@ -1481,7 +1488,11 @@ int MainCmds::writebook(const vector<string>& args) {
   const string rulesLink = cfg.getString("rulesLink");
   const double bonusFileScale = cfg.contains("bonusFileScale") ? cfg.getDouble("bonusFileScale",0.0,1000000.0) : 1.0;
   const SearchParams params = Setup::loadSingleParams(cfg,Setup::SETUP_FOR_GTP);
-  BookParams cfgParams = BookParams::loadFromCfg(cfg, params.maxVisits);
+
+  const int64_t maxVisitsForLeaves =
+    cfg.contains("maxVisitsForLeaves") ? cfg.getInt64("maxVisitsForLeaves", (int64_t)1, (int64_t)1 << 50) : (params.maxVisits+1) / 2;
+
+  BookParams cfgParams = BookParams::loadFromCfg(cfg, params.maxVisits, maxVisitsForLeaves);
 
   const bool loadKomiFromCfg = true;
   Rules rules = Setup::loadSingleRules(cfg,loadKomiFromCfg);
