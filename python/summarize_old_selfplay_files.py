@@ -44,7 +44,10 @@ def summarize_dir(dirpath):
     filename_mtime_num_rowss = []
     for filename in filenames:
         filepath = os.path.join(dirpath,filename)
-        mtime = os.path.getmtime(filepath)
+
+        # HACK - not actually using mtime for data ordering in this branch
+        # mtime = os.path.getmtime(filepath)
+        mtime = 0
 
         # Files that look like they are temp files should be recorded and warned
         if is_temp_npz_like(filename):
@@ -80,6 +83,21 @@ def summarize_dir(dirpath):
     print("Summarizing new dir with %d rows: %s" % (num_rows_this_dir,dirpath),flush=True)
     return (dirpath, filename_mtime_num_rowss, num_rows_this_dir)
 
+
+def parse_date_from_from_second_to_last_elt(path_str: str):
+    """
+    Parse a date from a path where the date is the second-to-last element in the path.
+    Like "/prefix/path/2024-05-01/subdir"
+    Returns the parsed date if found, None otherwise.
+    """
+    path = Path(path_str)
+    if len(path.parts) < 2:
+        return None
+    date_str = path.parts[-2]
+    try:
+        return dateutil.parser.parse(date_str)
+    except ValueError:
+        return None
 
 class TimeStuff(object):
 
@@ -152,12 +170,8 @@ if __name__ == '__main__':
                         continue
 
                     else:
-                        parseddate = None
-                        try:
-                            parseddate = dateutil.parser.parse(dirname)
-                        except ValueError:
-                            parseddate = None
-                        if parseddate is not None and parseddate < datetime.datetime.now() - datetime.timedelta(days=2.0):
+                        parseddate = parse_date_from_from_second_to_last_elt(dirpath)
+                        if parseddate is not None:
                             # Handle this dir and don't recurse further
                             del dirnames[i]
                             dirs_to_handle.append(dirpath)

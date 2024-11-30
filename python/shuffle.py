@@ -584,7 +584,12 @@ if __name__ == '__main__':
                 filenames = filtered_filenames
 
                 files_with_unknown_num_rows.extend(filenames)
-                filenames = [(filename,os.path.getmtime(filename)) for filename in filenames]
+
+                # HACK - not actually using mtime for data ordering in this branch
+                # mtime = os.path.getmtime(filename)
+                mtime = 0
+
+                filenames = [(filename,mtime) for filename in filenames]
                 all_files.extend(filenames)
     print("Total number of files: %d" % len(all_files), flush=True)
     print("Total number of files with unknown row count: %d" % len(files_with_unknown_num_rows), flush=True)
@@ -597,7 +602,10 @@ if __name__ == '__main__':
     gc.collect()
 
     with TimeStuff("Sorting"):
-        all_files.sort(key=(lambda x: x[1]), reverse=False)
+        # HACK - sorting by filepath in this branch, relying on all the data to be in the same directory
+        # organized by ISO-formatted dated subdirectories
+        all_files.sort(key=(lambda x: x[0]), reverse=False)
+        # all_files.sort(key=(lambda x: x[1]), reverse=False)
 
     # Wait a few seconds just in case to limit the chance of filesystem races, now that we know exactly
     # the set of filenames we want
@@ -679,7 +687,7 @@ if __name__ == '__main__':
     min_start_row = num_rows_total
     max_end_row = num_rows_total
     num_rows_used = 0
-    print_stride = 1 + len(all_files) // 80
+    print_stride = 1 + len(all_files) // 400
     end_row = num_rows_total
     with TimeStuff("Computing desired rows"):
         for i in range(len(all_files)):
