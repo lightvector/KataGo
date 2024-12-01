@@ -848,23 +848,23 @@ int MainCmds::samplesgfs(const vector<string>& args) {
     return true;
   };
 
-  auto isSgfOkay = [&](const Sgf* sgf) {
+  auto isSgfOkay = [&](const Sgf* sgf, string& reasonBuf) {
     if(maxHandicap < 100 && sgf->getHandicapValue() > maxHandicap)
-      return false;
+    {reasonBuf = "handicap"; return false;}
     if(sgf->depth() > maxDepth)
-      return false;
+    {reasonBuf = "depth" + Global::intToString(sgf->depth()); return false;}
     if(std::fabs(sgf->getKomiOrDefault(7.5f)) > maxKomi)
-      return false;
+    {reasonBuf = "komi"; return false;}
     if(minMinRank != Sgf::RANK_UNKNOWN) {
       if(sgf->getRank(P_BLACK) < minMinRank || sgf->getRank(P_WHITE) < minMinRank)
-        return false;
+      {reasonBuf = "rank"; return false;}
     }
     if(minMinRating > -10000000) {
       if(sgf->getRating(P_BLACK) < minMinRating || sgf->getRating(P_WHITE) < minMinRating)
-        return false;
+      {reasonBuf = "rating"; return false;}
     }
     if(!isPlayerOkay(sgf,P_BLACK) && !isPlayerOkay(sgf,P_WHITE))
-      return false;
+    {reasonBuf = "player " + sgf->getPlayerName(P_BLACK) + " " + sgf->getPlayerName(P_WHITE); return false;}
     return true;
   };
 
@@ -941,9 +941,10 @@ int MainCmds::samplesgfs(const vector<string>& args) {
     }
 
     try {
-      if(!isSgfOkay(sgf)) {
+      string reasonBuf;
+      if(!isSgfOkay(sgf,reasonBuf)) {
         if(verbosity >= 2)
-          logger.write("Filtering due to not okay: " + sgf->fileName);
+          logger.write("Filtering due to not okay (" + reasonBuf + "): " + sgf->fileName);
         numSgfsFilteredTopLevel += 1;
         return;
       }
@@ -1363,6 +1364,7 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
   bool manualHintOnly;
   double trainingWeight;
 
+  int minTurn;
   int minRank;
   int minMinRank;
   string requiredPlayerName;
@@ -1404,6 +1406,7 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
     TCLAP::SwitchArg allowGameOverArg("","allow-game-over","Allow sampling game over positions in sgf");
     TCLAP::SwitchArg manualHintOnlyArg("","manual-hint-only","Allow only positions marked for hint in the sgf");
     TCLAP::ValueArg<double> trainingWeightArg("","training-weight","Scale the loss function weight from data from games that originate from this position",false,1.0,"WEIGHT");
+    TCLAP::ValueArg<int> minTurnArg("","min-turn","Only get hints for the given turn or later",false,0,"TURNIDX");
     TCLAP::ValueArg<int> minRankArg("","min-rank","Require player making the move to have rank at least this",false,Sgf::RANK_UNKNOWN,"INT");
     TCLAP::ValueArg<int> minMinRankArg("","min-min-rank","Require both players in a game to have rank at least this",false,Sgf::RANK_UNKNOWN,"INT");
     TCLAP::ValueArg<string> requiredPlayerNameArg("","required-player-name","Require player making the move to have this name",false,string(),"NAME");
@@ -1439,6 +1442,7 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
     cmd.add(allowGameOverArg);
     cmd.add(manualHintOnlyArg);
     cmd.add(trainingWeightArg);
+    cmd.add(minTurnArg);
     cmd.add(minRankArg);
     cmd.add(minMinRankArg);
     cmd.add(requiredPlayerNameArg);
@@ -1475,6 +1479,7 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
     allowGameOver = allowGameOverArg.getValue();
     manualHintOnly = manualHintOnlyArg.getValue();
     trainingWeight = trainingWeightArg.getValue();
+    minTurn = minTurnArg.getValue();
     minRank = minRankArg.getValue();
     minMinRank = minMinRankArg.getValue();
     requiredPlayerName = requiredPlayerNameArg.getValue();
@@ -1584,23 +1589,24 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
     return true;
   };
 
-  auto isSgfOkay = [&](const Sgf* sgf) {
+  
+  auto isSgfOkay = [&](const Sgf* sgf, string& reasonBuf) {
     if(maxHandicap < 100 && sgf->getHandicapValue() > maxHandicap)
-      return false;
+    {reasonBuf = "handicap"; return false;}
     if(sgf->depth() > maxDepth)
-      return false;
+    {reasonBuf = "depth" + Global::intToString(sgf->depth()); return false;}
     if(std::fabs(sgf->getKomiOrDefault(7.5f)) > maxKomi)
-      return false;
+    {reasonBuf = "komi"; return false;}
     if(minMinRank != Sgf::RANK_UNKNOWN) {
-      if(sgf->getRank(P_BLACK) < minMinRank && sgf->getRank(P_WHITE) < minMinRank)
-        return false;
+      if(sgf->getRank(P_BLACK) < minMinRank || sgf->getRank(P_WHITE) < minMinRank)
+      {reasonBuf = "rank"; return false;}
     }
     if(!isPlayerOkay(sgf,P_BLACK) && !isPlayerOkay(sgf,P_WHITE))
-      return false;
+    {reasonBuf = "player " + sgf->getPlayerName(P_BLACK) + " " + sgf->getPlayerName(P_WHITE); return false;}
     return true;
   };
 
-  auto expensiveEvaluateMove = [&posWriter,&turnWeightLambda,&maxAutoKomi,&maxHandicap,&numFilteredIndivdualPoses,&surpriseMode,&minHintWeight,&hintScale,&logger,trainingWeight,moreUtilityWeight,utilityThreshold](
+  auto expensiveEvaluateMove = [&posWriter,&turnWeightLambda,&maxAutoKomi,&maxHandicap,&numFilteredIndivdualPoses,&surpriseMode,&minHintWeight,&hintScale,&logger,trainingWeight,moreUtilityWeight,utilityThreshold,minTurn](
     Search* search, Loc missedLoc,
     Player nextPla, const Board& board, const BoardHistory& hist,
     const Sgf::PositionSample& sample, bool markedAsHintPos, bool markedAsHintPosLight
@@ -1616,6 +1622,8 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
       numFilteredIndivdualPoses.fetch_add(1);
       return 0.0;
     }
+    if(minTurn > 0 && (size_t)(sample.initialTurnNumber + sample.moves.size()) < minTurn)
+      return 0.0;
 
     {
       int numStonesOnBoard = 0;
@@ -1872,7 +1880,7 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
   // ---------------------------------------------------------------------------------------------------
   //GAME MODE
 
-  auto processSgfGame = [&posWriter,&logger,&gameInit,&nnEval,&expensiveEvaluateMove,autoKomi,&gameModeFastThreshold,&maxDepth,&numFilteredSgfs,&maxHandicap,&maxPolicy,allowGameOver,manualHintOnly,trainingWeight,startPosesBeforeHintsLen](
+  auto processSgfGame = [&posWriter,&logger,&gameInit,&nnEval,&expensiveEvaluateMove,autoKomi,&gameModeFastThreshold,&maxDepth,&numFilteredSgfs,&maxHandicap,&maxPolicy,allowGameOver,manualHintOnly,trainingWeight,startPosesBeforeHintsLen,minTurn](
     Search* search, Rand& rand, const string& fileName, CompactSgf* sgf, bool blackOkay, bool whiteOkay
   ) {
     //Don't use the SGF rules - randomize them for a bit more entropy
@@ -1989,8 +1997,8 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
     pastValue[0] = winLossValues[0];
     pastLead[0] = scoreLeads[0];
     for(int i = 1; i<(int)winLossValues.size(); i++) {
-      pastValue[i] = 0.5 * winLossValues[i] + 0.5 * pastValue[i+1];
-      pastLead[i] = 0.5 * scoreLeads[i] + 0.5 * pastLead[i+1];
+      pastValue[i] = 0.5 * winLossValues[i] + 0.5 * pastValue[i-1];
+      pastLead[i] = 0.5 * scoreLeads[i] + 0.5 * pastLead[i-1];
     }
 
     const double scoreLeadWeight = 0.01;
@@ -2004,6 +2012,9 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
         break;
 
       if((nextPlas[m] == P_BLACK && !blackOkay) || (nextPlas[m] == P_WHITE && !whiteOkay))
+        continue;
+
+      if(m < minTurn)
         continue;
 
       //cout << m << endl;
@@ -2047,8 +2058,8 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
         sample, false, false
       );
 
-      if(wroteHintPosWeight && startPosesBeforeHintsLen > 0) {
-        for(int i = std::max(0,m-startPosesBeforeHintsLen); i < m; i++) {
+      if(wroteHintPosWeight > 0 && startPosesBeforeHintsLen > 0) {
+        for(int i = std::max(0,m-startPosesBeforeHintsLen); i <= m+1; i++) {
           double newWeight = std::max(startPosesBeforeHintsWeights[i], wroteHintPosWeight / sqrt(startPosesBeforeHintsLen));
           startPosesBeforeHintsWeights[i] = newWeight;
         }
@@ -2075,7 +2086,7 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
     logger.write("Sgf processed: " + fileName);
   };
 
-  const int maxSgfQueueSize = 1024;
+  const int maxSgfQueueSize = 128;
   ThreadSafeQueue<Sgf*> sgfQueue(maxSgfQueueSize);
   auto processSgfLoop = [&logger,&processSgfGame,&sgfQueue,&params,&nnEval,&numSgfsDone,&isPlayerOkay,&tolerateIllegalMoves]() {
     Rand rand;
@@ -2244,7 +2255,7 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
   };
 
 
-  const int64_t maxPosQueueSize = 16384;
+  const int64_t maxPosQueueSize = 1024;
   ThreadSafeQueue<PosQueueEntry> posQueue(maxPosQueueSize);
   std::atomic<int64_t> numPosesBegun(0);
   std::atomic<int64_t> numPosesDone(0);
@@ -2339,8 +2350,9 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
         continue;
       }
       try {
-        if(!isSgfOkay(sgf)) {
-          logger.write("Filtering due to not okay: " + fileName);
+        string reasonBuf;
+        if(!isSgfOkay(sgf,reasonBuf)) {
+          logger.write("Filtering due to not okay (" + reasonBuf + "): " + fileName);
           numSgfsFilteredTopLevel += 1;
           delete sgf;
           continue;
@@ -2452,6 +2464,7 @@ int MainCmds::trystartposes(const vector<string>& args) {
   string nnModelFile;
   vector<string> startPosesFiles;
   double minWeight;
+  bool autoKomi;
   try {
     KataGoCommandLine cmd("Try running searches starting from startposes");
     cmd.addConfigFileArg("","");
@@ -2460,12 +2473,15 @@ int MainCmds::trystartposes(const vector<string>& args) {
 
     TCLAP::MultiArg<string> startPosesFileArg("","startposes","Startposes file",true,"DIR");
     TCLAP::ValueArg<double> minWeightArg("","min-weight","Minimum weight of startpos to try",false,0.0,"WEIGHT");
+    TCLAP::SwitchArg autoKomiArg("","auto-komi","Auto komi");
     cmd.add(startPosesFileArg);
     cmd.add(minWeightArg);
+    cmd.add(autoKomiArg);
     cmd.parseArgs(args);
     nnModelFile = cmd.getModelFile();
     startPosesFiles = startPosesFileArg.getValue();
     minWeight = minWeightArg.getValue();
+    autoKomi = autoKomiArg.getValue();
     cmd.getConfig(cfg);
   }
   catch (TCLAP::ArgException &e) {
@@ -2552,7 +2568,7 @@ int MainCmds::trystartposes(const vector<string>& args) {
       throw StringError("Illegal move in startpos: " + Sgf::PositionSample::toJsonLine(startPos));
     }
 
-    {
+    if(autoKomi) {
       const int64_t numVisits = 10;
       OtherGameProperties props;
       PlayUtils::adjustKomiToEven(search,NULL,board,hist,pla,numVisits,props,seedRand);
@@ -2610,6 +2626,7 @@ int MainCmds::viewstartposes(const vector<string>& args) {
   double minWeight;
   int idxToView;
   bool checkLegality;
+  bool autoKomi;
   try {
     KataGoCommandLine cmd("View startposes");
     cmd.addConfigFileArg("","",false);
@@ -2620,15 +2637,18 @@ int MainCmds::viewstartposes(const vector<string>& args) {
     TCLAP::ValueArg<double> minWeightArg("","min-weight","Min weight of startpos to view",false,0.0,"WEIGHT");
     TCLAP::ValueArg<int> idxArg("","idx","Index of startpos to view in file",false,-1,"IDX");
     TCLAP::SwitchArg checkLegalityArg("","check-legality","Print startposes that are illegal or that have illegal hints");
+    TCLAP::SwitchArg autoKomiArg("","auto-komi","Auto komi");
     cmd.add(startPosesFileArg);
     cmd.add(minWeightArg);
     cmd.add(idxArg);
     cmd.add(checkLegalityArg);
+    cmd.add(autoKomiArg);
     cmd.parseArgs(args);
     startPosesFiles = startPosesFileArg.getValue();
     minWeight = minWeightArg.getValue();
     idxToView = idxArg.getValue();
     checkLegality = checkLegalityArg.getValue();
+    autoKomi = autoKomiArg.getValue();
 
     cmd.getConfigAllowEmpty(cfg);
     if(cfg.getFileName() != "")
@@ -2733,7 +2753,6 @@ int MainCmds::viewstartposes(const vector<string>& args) {
       }
     }
 
-    bool autoKomi = true;
     if(autoKomi && bot != NULL) {
       const int64_t numVisits = 10;
       OtherGameProperties props;
