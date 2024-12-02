@@ -1115,8 +1115,8 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
                 metrics["pslr_batch"] = lr_right_now
                 metrics["wdnormal_batch"] = normal_weight_decay_right_now
                 metrics["gnorm_cap_batch"] = gnorm_cap
-                metrics["window_start"] = train_state["window_start_data_row_idx"]
-                metrics["window_end"] = train_state["total_num_data_rows"]
+                metrics["window_start_batch"] = train_state["window_start_data_row_idx"]
+                metrics["window_end_batch"] = train_state["total_num_data_rows"]
 
                 if use_fp16:
                     scaler.step(optimizer)
