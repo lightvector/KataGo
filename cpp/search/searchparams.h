@@ -162,6 +162,9 @@ struct SearchParams {
   double humanSLOppExploreProbWeightless;
   double humanSLOppExploreProbWeightful;
 
+  //Mix in this amount of the humanSL value into the values at nodes
+  double humanSLValueProportion;
+
   //These three are PRIOR to the normal chosenMoveTemperature.
   double humanSLChosenMoveProp; //Proportion of final move selection probability using human SL policy
   bool humanSLChosenMoveIgnorePass; //If true, ignore human SL pass probability and use KataGo's passing logic

@@ -1068,9 +1068,14 @@ void Search::computeRootValues() {
     //Grab a neural net evaluation for the current position and use that as the center
     if(!foundExpectedScoreFromTree) {
       NNResultBuf nnResultBuf;
+      NNResultBuf humanResultBuf;
       bool includeOwnerMap = true;
-      computeRootNNEvaluation(nnResultBuf,includeOwnerMap);
+      bool includeHumanResult = humanEvaluator != NULL && searchParams.humanSLValueProportion > 0;
+      computeRootNNEvaluation(nnResultBuf,humanResultBuf,includeOwnerMap,includeHumanResult);
       expectedScore = nnResultBuf.result->whiteScoreMean;
+      if(includeHumanResult) {
+        expectedScore += searchParams.humanSLValueProportion * ((double)(humanResultBuf.result->whiteScoreMean) - expectedScore);
+      }
     }
 
     recentScoreCenter = expectedScore * (1.0 - searchParams.dynamicScoreCenterZeroWeight);
