@@ -261,13 +261,6 @@ double Search::getResultUtility(double winLossValue, double noResultValue) const
   );
 }
 
-double Search::getResultUtilityFromNN(const NNOutput& nnOutput) const {
-  return (
-    (nnOutput.whiteWinProb - nnOutput.whiteLossProb) * searchParams.winLossUtilityFactor +
-    nnOutput.whiteNoResultProb * searchParams.noResultUtilityForWhite
-  );
-}
-
 double Search::getScoreUtility(double scoreMeanAvg, double scoreMeanSqAvg) const {
   double scoreMean = scoreMeanAvg;
   double scoreMeanSq = scoreMeanSqAvg;
@@ -298,12 +291,6 @@ double Search::getApproxScoreUtilityDerivative(double scoreMean) const {
   double staticScoreValueDerivative = ScoreValue::whiteDScoreValueDScoreSmoothNoDrawAdjust(scoreMean,0.0,2.0, sqrtBoardArea);
   double dynamicScoreValueDerivative = ScoreValue::whiteDScoreValueDScoreSmoothNoDrawAdjust(scoreMean,recentScoreCenter,searchParams.dynamicScoreCenterScale, sqrtBoardArea);
   return staticScoreValueDerivative * searchParams.staticScoreUtilityFactor + dynamicScoreValueDerivative * searchParams.dynamicScoreUtilityFactor;
-}
-
-
-double Search::getUtilityFromNN(const NNOutput& nnOutput) const {
-  double resultUtility = getResultUtilityFromNN(nnOutput);
-  return resultUtility + getScoreUtility(nnOutput.whiteScoreMean, nnOutput.whiteScoreMeanSq);
 }
 
 

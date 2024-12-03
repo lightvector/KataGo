@@ -2285,6 +2285,16 @@ bool Search::getPrunedNodeValues(const SearchNode* nodePtr, ReportedSearchValues
     double scoreMean = (double)nnOutput->whiteScoreMean;
     double scoreMeanSq = (double)nnOutput->whiteScoreMeanSq;
     double lead = (double)nnOutput->whiteLead;
+    if(humanEvaluator != NULL && searchParams.humanSLValueProportion > 0) {
+      const NNOutput* humanOutput = node.getHumanOutput();
+      assert(humanOutput != NULL);
+      winProb += searchParams.humanSLValueProportion * ((double)(humanOutput->whiteWinProb) - winProb);
+      lossProb += searchParams.humanSLValueProportion * ((double)(humanOutput->whiteLossProb) - lossProb);
+      noResultProb += searchParams.humanSLValueProportion * ((double)(humanOutput->whiteNoResultProb) - noResultProb);
+      scoreMean += searchParams.humanSLValueProportion * ((double)(humanOutput->whiteScoreMean) - scoreMean);
+      scoreMeanSq += searchParams.humanSLValueProportion * ((double)(humanOutput->whiteScoreMeanSq) - scoreMeanSq);
+      lead += searchParams.humanSLValueProportion * ((double)(humanOutput->whiteLead) - lead);
+    }
     double utility =
       getResultUtility(winProb-lossProb, noResultProb)
       + getScoreUtility(scoreMean, scoreMeanSq);

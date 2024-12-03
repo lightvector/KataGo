@@ -797,6 +797,11 @@ vector<SearchParams> Setup::loadParams(
     else if(cfg.contains("humanSLOppExploreProbWeightful"+idxStr)) params.humanSLOppExploreProbWeightful = cfg.getDouble("humanSLOppExploreProbWeightful"+idxStr, 0.0, 1.0);
     else if(cfg.contains("humanSLOppExploreProbWeightful"))   params.humanSLOppExploreProbWeightful = cfg.getDouble("humanSLOppExploreProbWeightful",        0.0, 1.0);
     else                                                      params.humanSLOppExploreProbWeightful = 0.0;
+    if(!hasHumanModel && cfg.contains("humanSLValueProportion"+idxStr)) throwHumanParsingError("humanSLValueProportion"+idxStr);
+    else if(!hasHumanModel && cfg.contains("humanSLValueProportion")) throwHumanParsingError("humanSLValueProportion");
+    else if(cfg.contains("humanSLValueProportion"+idxStr)) params.humanSLValueProportion = cfg.getDouble("humanSLValueProportion"+idxStr, 0.0, 1.0);
+    else if(cfg.contains("humanSLValueProportion"))   params.humanSLValueProportion = cfg.getDouble("humanSLValueProportion",        0.0, 1.0);
+    else                                              params.humanSLValueProportion = 0.0;
     if(!hasHumanModel && cfg.contains("humanSLChosenMoveProp"+idxStr)) throwHumanParsingError("humanSLChosenMoveProp"+idxStr);
     else if(!hasHumanModel && cfg.contains("humanSLChosenMoveProp")) throwHumanParsingError("humanSLChosenMoveProp");
     else if(cfg.contains("humanSLChosenMoveProp"+idxStr)) params.humanSLChosenMoveProp = cfg.getDouble("humanSLChosenMoveProp"+idxStr, 0.0, 1.0);

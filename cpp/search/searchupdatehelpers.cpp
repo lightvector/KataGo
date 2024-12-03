@@ -81,6 +81,29 @@ void Search::addLeafValue(
   }
 }
 
+double Search::getThisNodeNNUtility(const SearchNode& node) const {
+  const NNOutput* nnOutput = node.getNNOutput();
+  assert(nnOutput != NULL);
+  double winProb = (double)nnOutput->whiteWinProb;
+  double lossProb = (double)nnOutput->whiteLossProb;
+  double noResultProb = (double)nnOutput->whiteNoResultProb;
+  double scoreMean = (double)nnOutput->whiteScoreMean;
+  double scoreMeanSq = (double)nnOutput->whiteScoreMeanSq;
+  if(humanEvaluator != NULL && searchParams.humanSLValueProportion > 0) {
+    const NNOutput* humanOutput = node.getHumanOutput();
+    assert(humanOutput != NULL);
+    winProb += searchParams.humanSLValueProportion * ((double)(humanOutput->whiteWinProb) - winProb);
+    lossProb += searchParams.humanSLValueProportion * ((double)(humanOutput->whiteLossProb) - lossProb);
+    noResultProb += searchParams.humanSLValueProportion * ((double)(humanOutput->whiteNoResultProb) - noResultProb);
+    scoreMean += searchParams.humanSLValueProportion * ((double)(humanOutput->whiteScoreMean) - scoreMean);
+    scoreMeanSq += searchParams.humanSLValueProportion * ((double)(humanOutput->whiteScoreMeanSq) - scoreMeanSq);
+  }
+  double utility =
+    getResultUtility(winProb-lossProb, noResultProb)
+    + getScoreUtility(scoreMean, scoreMeanSq);
+  return utility;
+}
+
 void Search::addCurrentNNOutputAsLeafValue(SearchNode& node, bool assumeNoExistingWeight) {
   const NNOutput* nnOutput = node.getNNOutput();
   assert(nnOutput != NULL);
@@ -92,6 +115,16 @@ void Search::addCurrentNNOutputAsLeafValue(SearchNode& node, bool assumeNoExisti
   double scoreMeanSq = (double)nnOutput->whiteScoreMeanSq;
   double lead = (double)nnOutput->whiteLead;
   double weight = computeWeightFromNNOutput(nnOutput);
+  if(humanEvaluator != NULL && searchParams.humanSLValueProportion > 0) {
+    const NNOutput* humanOutput = node.getHumanOutput();
+    assert(humanOutput != NULL);
+    winProb += searchParams.humanSLValueProportion * ((double)(humanOutput->whiteWinProb) - winProb);
+    lossProb += searchParams.humanSLValueProportion * ((double)(humanOutput->whiteLossProb) - lossProb);
+    noResultProb += searchParams.humanSLValueProportion * ((double)(humanOutput->whiteNoResultProb) - noResultProb);
+    scoreMean += searchParams.humanSLValueProportion * ((double)(humanOutput->whiteScoreMean) - scoreMean);
+    scoreMeanSq += searchParams.humanSLValueProportion * ((double)(humanOutput->whiteScoreMeanSq) - scoreMeanSq);
+    lead += searchParams.humanSLValueProportion * ((double)(humanOutput->whiteLead) - lead);
+  }
   addLeafValue(node,winProb-lossProb,noResultProb,scoreMean,scoreMeanSq,lead,weight,false,assumeNoExistingWeight);
 }
 
@@ -248,6 +281,17 @@ void Search::recomputeNodeStats(SearchNode& node, SearchThread& thread, int numV
     double scoreMean = (double)nnOutput->whiteScoreMean;
     double scoreMeanSq = (double)nnOutput->whiteScoreMeanSq;
     double lead = (double)nnOutput->whiteLead;
+    if(humanEvaluator != NULL && searchParams.humanSLValueProportion > 0) {
+      const NNOutput* humanOutput = node.getHumanOutput();
+      assert(humanOutput != NULL);
+      winProb += searchParams.humanSLValueProportion * ((double)(humanOutput->whiteWinProb) - winProb);
+      lossProb += searchParams.humanSLValueProportion * ((double)(humanOutput->whiteLossProb) - lossProb);
+      noResultProb += searchParams.humanSLValueProportion * ((double)(humanOutput->whiteNoResultProb) - noResultProb);
+      scoreMean += searchParams.humanSLValueProportion * ((double)(humanOutput->whiteScoreMean) - scoreMean);
+      scoreMeanSq += searchParams.humanSLValueProportion * ((double)(humanOutput->whiteScoreMeanSq) - scoreMeanSq);
+      lead += searchParams.humanSLValueProportion * ((double)(humanOutput->whiteLead) - lead);
+    }
+
     double utility =
       getResultUtility(winProb-lossProb, noResultProb)
       + getScoreUtility(scoreMean, scoreMeanSq);
