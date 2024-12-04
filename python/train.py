@@ -254,11 +254,15 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
         atexit.register(multiprocessing_cleanup)
         assert torch.cuda.is_available()
 
-    if True or torch.cuda.is_available():
+    if torch.cuda.is_available():
         my_gpu_id = multi_gpu_device_ids[rank]
         torch.cuda.set_device(my_gpu_id)
         logging.info("Using GPU device: " + torch.cuda.get_device_name())
         device = torch.device("cuda", my_gpu_id)
+    elif torch.backends.mps.is_available():
+        my_gpu_id = multi_gpu_device_ids[rank]
+        logging.info("Using MPS device")
+        device = torch.device("mps", my_gpu_id)
     else:
         logging.warning("WARNING: No GPU, using CPU")
         device = torch.device("cpu")
