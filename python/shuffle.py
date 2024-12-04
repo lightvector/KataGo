@@ -517,7 +517,7 @@ if __name__ == '__main__':
                     break
                 time.sleep(1)
             if not success:
-                raise RuntimeError("Could not load summary file")
+                raise RuntimeError("Could not load exclude file")
 
     # If excluding basenames, also add them to the set
     if exclude_basename:
