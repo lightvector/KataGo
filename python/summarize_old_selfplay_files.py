@@ -93,7 +93,7 @@ class TimeStuff(object):
     def __exit__(self, exception_type, exception_val, trace):
         self.t1 = time.time()
         print("Finished: %s in %s seconds" % (self.taskstr, str(self.t1 - self.t0)), flush=True)
-        return True
+        return False
 
 
 if __name__ == '__main__':
