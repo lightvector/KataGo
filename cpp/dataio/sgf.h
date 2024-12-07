@@ -43,6 +43,8 @@ struct SgfNode {
   Player getSgfWinner() const;
   float getKomiOrFail() const;
   float getKomiOrDefault(float defaultKomi) const;
+
+  std::string getPlayerName(Player pla) const;
 };
 
 struct Sgf {

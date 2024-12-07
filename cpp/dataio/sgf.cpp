@@ -301,6 +301,20 @@ Player SgfNode::getSgfWinner() const {
   return C_EMPTY;
 }
 
+string SgfNode::getPlayerName(Player pla) const {
+  if(pla == P_BLACK) {
+    if(!hasProperty("PB"))
+      return "";
+    return getSingleProperty("PB");
+  }
+  else if(pla == P_WHITE) {
+    if(!hasProperty("PW"))
+      return "";
+    return getSingleProperty("PW");
+  }
+  return "";
+}
+
 Sgf::Sgf()
 {}
 Sgf::~Sgf() {
