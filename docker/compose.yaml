@@ -1,0 +1,28 @@
+# docker compose file for running katrain,katago with tensorrt
+# make sure run ```xhost +``` before running this docker-compose file to allow GUI access
+services:
+  katrain:
+    build:
+      context: .
+      dockerfile: ./katrain_tensorrt.DockerFile
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    devices:
+      - "/dev/snd:/dev/snd"
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+      stack:
+        soft: 67108864
+        hard: 67108864
+    environment:
+      - DISPLAY=$DISPLAY
+    volumes:
+      - /tmp/.X11-unix:/tmp/.X11-unix
+    ipc: host
