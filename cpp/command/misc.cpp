@@ -646,6 +646,7 @@ int MainCmds::samplesgfs(const vector<string>& args) {
 
   string valueFluctuationModelFile;
   double valueFluctuationTurnScale;
+  double valueFluctuationForwardTurnScale;
   double valueFluctuationMaxWeight;
   bool valueFluctuationMakeKomiFair;
   double valueFluctuationWeightBySurprise;
@@ -690,6 +691,7 @@ int MainCmds::samplesgfs(const vector<string>& args) {
 
     TCLAP::ValueArg<string> valueFluctuationModelFileArg("","value-fluctuation-model","Upweight positions prior to value fluctuations",false,string(),"MODELFILE");
     TCLAP::ValueArg<double> valueFluctuationTurnScaleArg("","value-fluctuation-turn-scale","How much prior on average",false,1.0,"AVGTURNS");
+    TCLAP::ValueArg<double> valueFluctuationForwardTurnScaleArg("","value-fluctuation-forward-turn-scale","How much prior on average",false,1.0,"AVGTURNS");
     TCLAP::ValueArg<double> valueFluctuationMaxWeightArg("","value-fluctuation-max-weight","",false,10.0,"MAXWEIGHT");
     TCLAP::SwitchArg valueFluctuationMakeKomiFairArg("","value-fluctuation-make-komi-fair","");
     TCLAP::ValueArg<double> valueFluctuationWeightBySurpriseArg("","value-fluctuation-weight-by-surprise","",false,0.0,"SCALE");
@@ -729,6 +731,7 @@ int MainCmds::samplesgfs(const vector<string>& args) {
     cmd.add(verbosityArg);
     cmd.add(valueFluctuationModelFileArg);
     cmd.add(valueFluctuationTurnScaleArg);
+    cmd.add(valueFluctuationForwardTurnScaleArg);
     cmd.add(valueFluctuationMaxWeightArg);
     cmd.add(valueFluctuationMakeKomiFairArg);
     cmd.add(valueFluctuationWeightBySurpriseArg);
@@ -766,6 +769,7 @@ int MainCmds::samplesgfs(const vector<string>& args) {
     verbosity = verbosityArg.getValue();
     valueFluctuationModelFile = valueFluctuationModelFileArg.getValue();
     valueFluctuationTurnScale = valueFluctuationTurnScaleArg.getValue();
+    valueFluctuationForwardTurnScale = valueFluctuationForwardTurnScaleArg.getValue();
     valueFluctuationMaxWeight = valueFluctuationMaxWeightArg.getValue();
     valueFluctuationMakeKomiFair = valueFluctuationMakeKomiFairArg.getValue();
     valueFluctuationWeightBySurprise = valueFluctuationWeightBySurpriseArg.getValue();
@@ -816,8 +820,10 @@ int MainCmds::samplesgfs(const vector<string>& args) {
 
   NNEvaluator* valueFluctuationNNEval = NULL;
   if(valueFluctuationModelFile != "") {
-    if(valueFluctuationTurnScale <= 0.0 || valueFluctuationTurnScale > 100000000.0)
+    if(valueFluctuationTurnScale < 1.0 || valueFluctuationTurnScale > 100000000.0)
       throw StringError("Invalid valueFluctuationTurnScale");
+    if(valueFluctuationForwardTurnScale < 1.0 || valueFluctuationForwardTurnScale > 100000000.0)
+      throw StringError("Invalid valueFluctuationForwardTurnScale");
     if(valueFluctuationMaxWeight <= 0.0 || valueFluctuationMaxWeight > 100000000.0)
       throw StringError("Invalid valueFluctuationMaxWeight");
     ConfigParser cfg;
@@ -1071,18 +1077,41 @@ int MainCmds::samplesgfs(const vector<string>& args) {
 
       //Apply exponential blur
       vector<double> winrateVarianceBlurred(winrateVariance.size());
-      double blurSum = 0.0;
+      {
+        double blurSum = 0.0;
+        for(size_t i = winrateVariance.size(); i--;) {
+          blurSum *= 1.0 - 1.0 / valueFluctuationTurnScale;
+          blurSum += winrateVariance[i];
+          winrateVarianceBlurred[i] = blurSum / valueFluctuationTurnScale; // Normalize so blur only sums to 1
+        }
+      }
+
+      //Apply exponential forward blur
+      if(valueFluctuationForwardTurnScale > 1.0) {
+        vector<double> winrateVarianceMoreBlurred(winrateVariance.size());
+        double blurSum = 0.0;
+        for(size_t i = 0; i < winrateVariance.size(); i++) {
+          blurSum *= 1.0 - 1.0 / valueFluctuationForwardTurnScale;
+          blurSum += winrateVarianceBlurred[i];
+          winrateVarianceMoreBlurred[i] = blurSum / valueFluctuationForwardTurnScale; // Normalize so blur only sums to 1
+        }
+        winrateVarianceBlurred = winrateVarianceMoreBlurred;
+      }
+
       double totalWeight = 0.0;
       int totalCount = 0;
-      for(size_t i = winrateVariance.size(); i--;) {
-        blurSum *= 1.0 - 1.0 / valueFluctuationTurnScale;
-        blurSum += winrateVariance[i];
+      for(size_t i = 0; i < winrateVariance.size(); i++) {
         if(i >= minTurnNumber && i <= maxTurnNumber) {
-          winrateVarianceBlurred[i] = blurSum;
+          // Rescale so the blur has total weight valueFluctuationTurnScale + valueFluctuationForwardTurnScale
+          winrateVarianceBlurred[i] *= valueFluctuationTurnScale + valueFluctuationForwardTurnScale;
           totalWeight += winrateVarianceBlurred[i];
           totalCount += 1;
         }
+        else {
+          winrateVarianceBlurred[i] = 0;
+        }
       }
+
       if(totalCount <= 0 || totalWeight <= 0)
         return;
 
@@ -1589,7 +1618,7 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
     return true;
   };
 
-  
+
   auto isSgfOkay = [&](const Sgf* sgf, string& reasonBuf) {
     if(maxHandicap < 100 && sgf->getHandicapValue() > maxHandicap)
     {reasonBuf = "handicap"; return false;}
