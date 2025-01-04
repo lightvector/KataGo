@@ -420,7 +420,11 @@ float SgfNode::getKomiOrDefault(float defaultKomi) const {
     //Hack - if the komi is a quarter integer and it looks like a Chinese GoGoD file, then double komi and accept
     if(Rules::komiIsIntOrHalfInt(komi*2.0f) && hasProperty("US") && hasProperty("RU") &&
        Global::isPrefix(getSingleProperty("US"),"GoGoD") &&
-       Global::toLower(getSingleProperty("RU")) == "chinese")
+       (
+         Global::toLower(getSingleProperty("RU")) == "chinese" ||
+         Global::toLower(getSingleProperty("RU")) == "chinese, pair go"
+       )
+    )
       komi *= 2.0f;
     else
       propertyFail("Komi in sgf is not integer or half-integer");
