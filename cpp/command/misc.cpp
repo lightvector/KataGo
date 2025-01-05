@@ -643,6 +643,7 @@ int MainCmds::samplesgfs(const vector<string>& args) {
   bool hashComments;
   double trainingWeight;
   int verbosity;
+  bool tolerateIllegalMoves;
 
   string valueFluctuationModelFile;
   double valueFluctuationTurnScale;
@@ -688,6 +689,7 @@ int MainCmds::samplesgfs(const vector<string>& args) {
     TCLAP::SwitchArg hashCommentsArg("","hash-comments","Hash comments in sgf");
     TCLAP::ValueArg<double> trainingWeightArg("","training-weight","Scale the loss function weight from data from games that originate from this position",false,1.0,"WEIGHT");
     TCLAP::ValueArg<int> verbosityArg("","verbosity","Print more stuff",false,0,"INT");
+    TCLAP::SwitchArg tolerateIllegalMovesArg("","tolerate-illegal-moves","Tolerate illegal moves");
 
     TCLAP::ValueArg<string> valueFluctuationModelFileArg("","value-fluctuation-model","Upweight positions prior to value fluctuations",false,string(),"MODELFILE");
     TCLAP::ValueArg<double> valueFluctuationTurnScaleArg("","value-fluctuation-turn-scale","How much prior on average",false,1.0,"AVGTURNS");
@@ -729,6 +731,7 @@ int MainCmds::samplesgfs(const vector<string>& args) {
     cmd.add(hashCommentsArg);
     cmd.add(trainingWeightArg);
     cmd.add(verbosityArg);
+    cmd.add(tolerateIllegalMovesArg);
     cmd.add(valueFluctuationModelFileArg);
     cmd.add(valueFluctuationTurnScaleArg);
     cmd.add(valueFluctuationForwardTurnScaleArg);
@@ -767,6 +770,7 @@ int MainCmds::samplesgfs(const vector<string>& args) {
     hashComments = hashCommentsArg.getValue();
     trainingWeight = trainingWeightArg.getValue();
     verbosity = verbosityArg.getValue();
+    tolerateIllegalMoves = tolerateIllegalMovesArg.getValue();
     valueFluctuationModelFile = valueFluctuationModelFileArg.getValue();
     valueFluctuationTurnScale = valueFluctuationTurnScaleArg.getValue();
     valueFluctuationForwardTurnScale = valueFluctuationForwardTurnScaleArg.getValue();
@@ -1222,7 +1226,10 @@ int MainCmds::samplesgfs(const vector<string>& args) {
         trySgf(sgf);
       }
       catch(const StringError& e) {
-        logger.write("Invalid SGF " + sgfFiles[index] + ": " + e.what());
+        if(tolerateIllegalMoves)
+          logger.write("Invalid SGF " + sgfFiles[index] + ": " + e.what());
+        else
+          throw;
       }
       if(sgf != NULL) {
         delete sgf;
@@ -1242,7 +1249,10 @@ int MainCmds::samplesgfs(const vector<string>& args) {
       sgfs = Sgf::loadSgfsFile(sgfsFiles[i]);
     }
     catch(const StringError& e) {
-      logger.write("Invalid SGFS " + sgfsFiles[i] + ": " + e.what());
+      if(tolerateIllegalMoves)
+        logger.write("Invalid SGFS " + sgfsFiles[i] + ": " + e.what());
+      else
+        throw;
       continue;
     }
 
@@ -1252,7 +1262,10 @@ int MainCmds::samplesgfs(const vector<string>& args) {
         trySgf(sgfs[index]);
       }
       catch(const StringError& e) {
-        logger.write("Bad sgf in SGFS" + sgfsFiles[index] + ": " + e.what());
+        if(tolerateIllegalMoves)
+          logger.write("Bad sgf in SGFS" + sgfsFiles[index] + ": " + e.what());
+        else
+          throw;
       }
     };
     Parallel::iterRange(
