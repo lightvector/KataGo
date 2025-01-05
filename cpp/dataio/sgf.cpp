@@ -3,6 +3,7 @@
 #include "../core/fileutils.h"
 #include "../core/sha2.h"
 #include "../dataio/files.h"
+#include "../program/playutils.h"
 
 #include "../external/nlohmann_json/json.hpp"
 
@@ -432,7 +433,7 @@ float SgfNode::getKomiOrDefault(float defaultKomi) const {
 
   //Hack - check for foxwq sgfs with weird komis
   if(hasProperty("AP") && contains(getProperties("AP"),"foxwq")) {
-    if(komi == 550)
+    if(komi == 550 || komi == 275)
       komi = 5.5f;
     else if(komi == 325 || komi == 650)
       komi = 6.5f;
@@ -865,7 +866,7 @@ void Sgf::iterAllPositionsHelper(
         // trace << Location::toString(buf[j].loc,board) << endl;
 
         throw StringError(
-          "Illegal move in " + fileName + " effective turn " + Global::int64ToString(j+hist.initialTurnNumber) + " move " +
+          "Illegal move in " + fileName + " effective turn " + Global::int64ToString(j+(int64_t)(hist.moveHistory.size())+hist.initialTurnNumber) + " move " +
           Location::toString(buf[j].loc, board.x_size, board.y_size) + " SGF trace (branches 0-indexed): " + trace.str()
         );
       }
@@ -1353,6 +1354,39 @@ static Sgf* maybeParseSgf(const string& str, int& pos) {
   catch (...) {
     delete sgf;
     throw;
+  }
+
+  // Hack for missing handicap placements in fox
+  int handicap = 0;
+  if(sgf->nodes.size() > 1
+     && sgf->nodes[0]->hasProperty("AP")
+     && (
+       contains(sgf->nodes[0]->getProperties("AP"),"foxwq")
+       || (
+         contains(sgf->nodes[0]->getProperties("AP"),"GNU Go:3.8") // Some older fox games are labeled as gnugo only
+         && sgf->getRootPropertyWithDefault("GN","-") == "" // But also have this identifying characteristic
+       )
+     )
+     && sgf->getRootPropertyWithDefault("SZ","") == "19"
+     && !sgf->nodes[0]->hasPlacements()
+     && sgf->nodes[0]->move.pla == C_EMPTY
+     && sgf->nodes[1]->move.pla == C_WHITE
+     && Global::tryStringToInt(sgf->getRootPropertyWithDefault("HA",""),handicap)
+     && handicap >= 2
+     && handicap <= 9
+  ) {
+    Board board(19,19);
+    PlayUtils::placeFixedHandicap(board, handicap);
+    for(int y = 0; y<board.y_size; y++) {
+      for(int x = 0; x<board.x_size; x++) {
+        Loc loc = Location::getLoc(x,y,board.x_size);
+        if(board.colors[loc] == C_BLACK) {
+          ostringstream out;
+          writeSgfLoc(out, Location::getLoc(x,y,board.x_size), board.x_size, board.y_size);
+          sgf->addRootProperty("AB",out.str());
+        }
+      }
+    }
   }
   return sgf;
 }
