@@ -2503,6 +2503,7 @@ int MainCmds::trystartposes(const vector<string>& args) {
   vector<string> startPosesFiles;
   double minWeight;
   bool autoKomi;
+  bool randomSample;
   try {
     KataGoCommandLine cmd("Try running searches starting from startposes");
     cmd.addConfigFileArg("","");
@@ -2512,14 +2513,18 @@ int MainCmds::trystartposes(const vector<string>& args) {
     TCLAP::MultiArg<string> startPosesFileArg("","startposes","Startposes file",true,"DIR");
     TCLAP::ValueArg<double> minWeightArg("","min-weight","Minimum weight of startpos to try",false,0.0,"WEIGHT");
     TCLAP::SwitchArg autoKomiArg("","auto-komi","Auto komi");
+    TCLAP::SwitchArg randomSampleArg("","random-sample","Weighted random sample");
+
     cmd.add(startPosesFileArg);
     cmd.add(minWeightArg);
     cmd.add(autoKomiArg);
+    cmd.add(randomSampleArg);
     cmd.parseArgs(args);
     nnModelFile = cmd.getModelFile();
     startPosesFiles = startPosesFileArg.getValue();
     minWeight = minWeightArg.getValue();
     autoKomi = autoKomiArg.getValue();
+    randomSample = randomSampleArg.getValue();
     cmd.getConfig(cfg);
   }
   catch (TCLAP::ArgException &e) {
@@ -2580,10 +2585,23 @@ int MainCmds::trystartposes(const vector<string>& args) {
   string searchRandSeed = Global::uint64ToString(seedRand.nextUInt64());
   Search* search = new Search(params,nnEval,&logger,searchRandSeed);
 
+  std::vector<double> startPosCumProbs;
+  double cumProb = 0;
+  for(size_t i = 0; i<startPoses.size(); i++) {
+    cumProb += startPoses[i].weight;
+    startPosCumProbs.push_back(cumProb);
+  }
+
   // ---------------------------------------------------------------------------------------------------
 
   for(size_t s = 0; s<startPoses.size(); s++) {
-    const Sgf::PositionSample& startPos = startPoses[s];
+    size_t r;
+    if(randomSample)
+      r = seedRand.nextIndexCumulative(startPosCumProbs.data(),startPosCumProbs.size());
+    else
+      r = s;
+
+    const Sgf::PositionSample& startPos = startPoses[r];
     if(startPos.weight < minWeight)
       continue;
 

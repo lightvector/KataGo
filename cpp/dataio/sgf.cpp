@@ -801,12 +801,14 @@ void Sgf::iterAllPositionsHelper(
       samplePositionHelper(board,hist,nextPla,sampleBuf,uniqueHashes,requireUnique,hashComments,hashParent,flipIfPassOrWFirst,allowGameOver,comments,f);
     }
 
+    Color plColor = nodes[i]->getPLSpecifiedColor();
+
     //Handle placements
-    if(nodes[i]->hasPlacements()) {
+    if(nodes[i]->hasPlacements() || (plColor != C_EMPTY && plColor != nextPla)) {
       buf.clear();
       nodes[i]->accumPlacements(buf,xSize,ySize);
+      int netStonesAdded = 0;
       if(buf.size() > 0) {
-        int netStonesAdded = 0;
         for(size_t j = 0; j<buf.size(); j++) {
           if(board.colors[buf[j].loc] != C_EMPTY && buf[j].pla == C_EMPTY)
             netStonesAdded--;
@@ -826,9 +828,12 @@ void Sgf::iterAllPositionsHelper(
             "Illegal placements in " + fileName + " SGF trace (branches 0-indexed): " + trace.str()
           );
         }
+      }
 
+      if(buf.size() > 0 || (plColor != C_EMPTY && plColor != nextPla)) {
         board.clearSimpleKoLoc();
-        //Clear history any time placements happen, but make sure we track the initial turn number.
+
+        //Clear history any time placements or player change happen, but make sure we track the initial turn number.
         int64_t initialTurnNumber = hist.initialTurnNumber;
         initialTurnNumber += (int64_t)hist.moveHistory.size();
 
@@ -841,6 +846,9 @@ void Sgf::iterAllPositionsHelper(
         if(board.numStonesOnBoard() > initialTurnNumber)
           initialTurnNumber = board.numStonesOnBoard();
 
+        if(plColor != C_EMPTY && plColor != nextPla) {
+          nextPla = plColor;
+        }
         hist.clear(board,nextPla,rules,0);
         hist.setInitialTurnNumber(initialTurnNumber);
       }
