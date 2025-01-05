@@ -866,7 +866,7 @@ void Sgf::iterAllPositionsHelper(
         // trace << Location::toString(buf[j].loc,board) << endl;
 
         throw StringError(
-          "Illegal move in " + fileName + " effective turn " + Global::int64ToString(j+(int64_t)(hist.moveHistory.size())+hist.initialTurnNumber) + " move " +
+          "Illegal move in " + fileName + " effective turn " + Global::int64ToString((int64_t)(hist.moveHistory.size())+hist.initialTurnNumber) + " move " +
           Location::toString(buf[j].loc, board.x_size, board.y_size) + " SGF trace (branches 0-indexed): " + trace.str()
         );
       }
