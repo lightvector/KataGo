@@ -2237,14 +2237,10 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
       pla = getOpp(pla);
     }
 
-    //Make sure the hinted move is legal too
+    //Make sure the hinted move is legal too under our randomized rules.
     int hintIdx = (int)treeHist.moveHistory.size()-1;
-    if(!treeHist.isLegal(board,treeHist.moveHistory[hintIdx].loc,treeHist.moveHistory[hintIdx].pla))
-      return;
     assert(treeHist.moveHistory[hintIdx].pla == pla);
     assert(treeHist.moveHistory[hintIdx].loc == sample.hintLoc);
-
-    //And make sure it's legal under our randomized rules.
     if(!hist.isLegal(board,sample.hintLoc,pla))
       return;
 
