@@ -553,6 +553,8 @@ void GameInitializer::createGameSharedUnsynchronized(
     testAssert(startPos.moves.size() < 0xFFFFFF);
     for(size_t i = 0; i<startPos.moves.size(); i++) {
       bool isLegal = hist.isLegal(board,startPos.moves[i].loc,startPos.moves[i].pla);
+      //Makes a best effort to still use the position, stopping if we hit an illegal move. It's possible
+      //we hit this because of rules differences making a superko move or self-capture illegal, for example.
       if(!isLegal) {
         //If we stop due to illegality, it doesn't make sense to still use the hintLoc
         hintLoc = Board::NULL_LOC;
@@ -2233,6 +2235,7 @@ void Play::maybeHintForkGame(
   if(hist.isGameFinished)
     return;
 
+  testAssert(pla == hist.presumedNextMovePla);
   if(!hist.isLegal(board,otherGameProps.hintLoc,pla))
     return;
 

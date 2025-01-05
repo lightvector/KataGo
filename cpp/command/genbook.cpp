@@ -791,6 +791,8 @@ int MainCmds::genbook(const vector<string>& args) {
         throw StringError("Target board history to add player got out of sync");
       if(movePla != node.pla())
         throw StringError("Target board history to add player got out of sync with node");
+      if(movePla != hist.presumedNextMovePla)
+        throw StringError("Target board history to add player got out of sync with hist");
 
       // Illegal move, possibly due to rules mismatch between the books. In that case, we just stop where we are.
       if(!hist.isLegal(board,moveLoc,movePla)) {

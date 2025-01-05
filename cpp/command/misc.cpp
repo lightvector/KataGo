@@ -3061,7 +3061,9 @@ int MainCmds::checksgfhintpolicy(const vector<string>& args) {
 
         for(const Rules& rules: rulesToUse) {
           Player nextPla;
-          BoardHistory histBefore = priorPosSample.getCurrentBoardHistory(rules,nextPla);
+          BoardHistory histBefore;
+          bool suc = priorPosSample.tryGetCurrentBoardHistory(rules,nextPla,histBefore);
+          testAssert(suc);
           Board board = histBefore.getRecentBoard(0);
 
           for(int symmetry = 0; symmetry < 8; symmetry++) {

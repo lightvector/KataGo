@@ -303,19 +303,7 @@ void Search::clearSearch() {
 }
 
 bool Search::isLegalTolerant(Loc moveLoc, Player movePla) const {
-  //Tolerate sgf files or GTP reporting suicide moves, even if somehow the rules are set to disallow them.
-  bool multiStoneSuicideLegal = true;
-
-  //If we somehow have the same player making multiple moves in a row (possible in GTP or an sgf file),
-  //clear the ko loc - the simple ko loc of a player should not prohibit the opponent playing there!
-  if(movePla != rootPla) {
-    Board copy = rootBoard;
-    copy.clearSimpleKoLoc();
-    return copy.isLegal(moveLoc,movePla,multiStoneSuicideLegal);
-  }
-  else {
-    return rootHistory.isLegalTolerant(rootBoard,moveLoc,movePla);
-  }
+  return rootHistory.isLegalTolerant(rootBoard,moveLoc,movePla);
 }
 
 bool Search::isLegalStrict(Loc moveLoc, Player movePla) const {

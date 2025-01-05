@@ -1130,21 +1130,21 @@ Sgf::PositionSample Sgf::PositionSample::previousPosition(double newWeight) cons
   return other;
 }
 
-BoardHistory Sgf::PositionSample::getCurrentBoardHistory(const Rules& rules, Player& nextPlaToMove) const {
+bool Sgf::PositionSample::tryGetCurrentBoardHistory(const Rules& rules, Player& nextPlaToMove, BoardHistory& hist) const {
   int encorePhase = 0;
   Player pla = nextPla;
   Board boardCopy = board;
-  BoardHistory hist(boardCopy,pla,rules,encorePhase);
+  hist.clear(boardCopy,pla,rules,encorePhase);
   int numSampleMoves = (int)moves.size();
   for(int i = 0; i<numSampleMoves; i++) {
     if(!hist.isLegal(boardCopy,moves[i].loc,moves[i].pla))
-      return hist;
+      return false;
     assert(moves[i].pla == pla);
     hist.makeBoardMoveAssumeLegal(boardCopy,moves[i].loc,moves[i].pla,NULL);
     pla = getOpp(pla);
   }
   nextPlaToMove = pla;
-  return hist;
+  return true;
 }
 
 int64_t Sgf::PositionSample::getCurrentTurnNumber() const {
