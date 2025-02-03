@@ -165,7 +165,9 @@ class KataHelpOutput : public TCLAP::StdOutput
 KataGoCommandLine::KataGoCommandLine(const string& message)
   :TCLAP::CmdLine(message, ' ', Version::getKataGoVersionFullInfo(),true),
    modelFileArg(NULL),
+   coreMLModelFileArg(NULL),
    humanModelFileArg(NULL),
+   humanCoreMLModelFileArg(NULL),
    configFileArg(NULL),
    overrideConfigArg(NULL),
    defaultConfigFileName(),
@@ -178,7 +180,9 @@ KataGoCommandLine::KataGoCommandLine(const string& message)
 
 KataGoCommandLine::~KataGoCommandLine() {
   delete modelFileArg;
+  delete coreMLModelFileArg;
   delete humanModelFileArg;
+  delete humanCoreMLModelFileArg;
   delete configFileArg;
   delete overrideConfigArg;
   delete helpOutput;
@@ -211,6 +215,15 @@ void KataGoCommandLine::addModelFileArg() {
   this->add(*modelFileArg);
 }
 
+void KataGoCommandLine::addCoreMLModelFileArg() {
+  assert(coreMLModelFileArg == NULL);
+  string helpDesc = "Core ML model file";
+  bool required = false;
+  string defaultPath = "";
+  coreMLModelFileArg = new TCLAP::ValueArg<string>("","coreml-model",helpDesc,required,defaultPath,"FILE");
+  this->add(*coreMLModelFileArg);
+}
+
 void KataGoCommandLine::addHumanModelFileArg() {
   assert(humanModelFileArg == NULL);
   string helpDesc = "Human SL neural net model file";
@@ -218,6 +231,15 @@ void KataGoCommandLine::addHumanModelFileArg() {
   string defaultPath = "";
   humanModelFileArg = new TCLAP::ValueArg<string>("","human-model",helpDesc,required,defaultPath,"FILE");
   this->add(*humanModelFileArg);
+}
+
+void KataGoCommandLine::addHumanCoreMLModelFileArg() {
+  assert(humanCoreMLModelFileArg == NULL);
+  string helpDesc = "Human SL Core ML model file";
+  bool required = false;
+  string defaultPath = "";
+  humanCoreMLModelFileArg = new TCLAP::ValueArg<string>("","human-coreml-model",helpDesc,required,defaultPath,"FILE");
+  this->add(*humanCoreMLModelFileArg);
 }
 
 //Empty string indicates no default
@@ -278,6 +300,11 @@ string KataGoCommandLine::getModelFile() const {
   return modelFile;
 }
 
+string KataGoCommandLine::getCoreMLModelFile() const {
+  assert(coreMLModelFileArg != NULL);
+  return coreMLModelFileArg->getValue();
+}
+
 bool KataGoCommandLine::modelFileIsDefault() const {
   return modelFileArg->getValue().empty();
 }
@@ -286,6 +313,11 @@ bool KataGoCommandLine::modelFileIsDefault() const {
 string KataGoCommandLine::getHumanModelFile() const {
   assert(humanModelFileArg != NULL);
   return humanModelFileArg->getValue();
+}
+
+string KataGoCommandLine::getHumanCoreMLModelFile() const {
+  assert(humanCoreMLModelFileArg != NULL);
+  return humanCoreMLModelFileArg->getValue();
 }
 
 vector<string> KataGoCommandLine::getConfigFiles() const {
