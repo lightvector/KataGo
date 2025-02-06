@@ -56,4 +56,43 @@ void customCudaApplyCScaleBiasNHWC(const float* in, float* out, const float* sca
 void customCudaApplyCScaleBiasNHWC(const half* in, half* out, const half* scale, const half* biases, const half* mask, int n, int xy, int c, int activation);
 
 
+/*
+Input tensor of dimensions (N, H, W, C)
+Output tensor of dimensions (N, H_inner, W_inner, H_outer, W_outer, C)
+where H_outer = ceil(H/3), W_outer = ceil(H/3), H_inner = 3, W_inner = 3.
+
+Sets
+out[n, hi, wi, ho, wo, c] = in[n, ho*3+hi, wo*3+wi, c]
+except where ho*3+hi >= H, or wo*3+wi >= W, in which case the output is set to 0.
+*/
+void customCudaDilationTransposeNHWC(const float* in, float* out, int nSize, int hSize, int wSize, int cSize);
+void customCudaDilationTransposeNHWC(const half* in, half* out, int nSize, int hSize, int wSize, int cSize);
+// Inverse transforms
+void customCudaDilationUntransposeNHWC(const float* in, float* out, int nSize, int hSize, int wSize, int cSize);
+void customCudaDilationUntransposeNHWC(const half* in, half* out, int nSize, int hSize, int wSize, int cSize);
+
+/*
+Input tensor of dimensions (N, C, H, W)
+Output tensor of dimensions (N, H_inner, W_inner, C, H_outer, W_outer)
+where H_outer = ceil(H/3), W_outer = ceil(H/3), H_inner = 3, W_inner = 3.
+
+Sets
+out[n, hi, wi, c, ho, wo] = in[n, c, ho*3+hi, wo*3+wi]
+except where ho*3+hi >= H, or wo*3+wi >= W, in which case the output is set to 0.
+*/
+void customCudaDilationTransposeNCHW(const float* in, float* out, int nSize, int cSize, int hSize, int wSize);
+void customCudaDilationTransposeNCHW(const half* in, half* out, int nSize, int cSize, int hSize, int wSize);
+// Inverse transforms
+void customCudaDilationUntransposeNCHW(const float* in, float* out, int nSize, int cSize, int hSize, int wSize);
+void customCudaDilationUntransposeNCHW(const half* in, half* out, int nSize, int cSize, int hSize, int wSize);
+
+/*
+Sets
+out[n, hi, wi, ho, wo] = 1
+except where ho*3+hi >= H, or wo*3+wi >= W, in which case the output is set to 0.
+*/
+void customCudaDilationFillMask(float* out, int nSize, int hSize, int wSize);
+void customCudaDilationFillMask(half* out, int nSize, int hSize, int wSize);
+
+
 #endif  // NEURALNET_CUDAHELPERS_H_

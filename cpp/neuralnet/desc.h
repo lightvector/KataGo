@@ -148,6 +148,7 @@ struct GlobalPoolingResidualBlockDesc {
 struct NestedBottleneckResidualBlockDesc {
   std::string name;
   int numBlocks;
+  bool useDilation;
 
   BatchNormLayerDesc preBN;
   ActivationLayerDesc preActivation;
@@ -160,7 +161,7 @@ struct NestedBottleneckResidualBlockDesc {
   ConvLayerDesc postConv;
 
   NestedBottleneckResidualBlockDesc();
-  NestedBottleneckResidualBlockDesc(std::istream& in, int modelVersion, bool binaryFloats);
+  NestedBottleneckResidualBlockDesc(std::istream& in, int modelVersion, bool binaryFloats, bool useDilation);
   NestedBottleneckResidualBlockDesc(NestedBottleneckResidualBlockDesc&& other);
 
   NestedBottleneckResidualBlockDesc(const NestedBottleneckResidualBlockDesc&) = delete;

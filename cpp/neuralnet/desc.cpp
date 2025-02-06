@@ -489,7 +489,7 @@ void GlobalPoolingResidualBlockDesc::iterConvLayers(std::function<void(const Con
 
 NestedBottleneckResidualBlockDesc::NestedBottleneckResidualBlockDesc() {}
 
-NestedBottleneckResidualBlockDesc::NestedBottleneckResidualBlockDesc(istream& in, int modelVersion, bool binaryFloats) {
+NestedBottleneckResidualBlockDesc::NestedBottleneckResidualBlockDesc(istream& in, int modelVersion, bool binaryFloats, bool dilation) {
   in >> name;
   if(in.fail())
     throw StringError(name + ": res block failed to parse name");
@@ -498,6 +498,8 @@ NestedBottleneckResidualBlockDesc::NestedBottleneckResidualBlockDesc(istream& in
     throw StringError(name + ": nested bottleneck res block failed to parse num blocks");
   if(numBlocks < 1)
     throw StringError(name + ": nested bottleneck res block num blocks must be positive");
+
+  useDilation = dilation;
 
   preBN = BatchNormLayerDesc(in,binaryFloats);
   preActivation = ActivationLayerDesc(in,modelVersion);
@@ -533,6 +535,7 @@ NestedBottleneckResidualBlockDesc::NestedBottleneckResidualBlockDesc(NestedBottl
 NestedBottleneckResidualBlockDesc& NestedBottleneckResidualBlockDesc::operator=(NestedBottleneckResidualBlockDesc&& other) {
   name = std::move(other.name);
   numBlocks = other.numBlocks;
+  useDilation = other.useDilation;
   preBN = std::move(other.preBN);
   preActivation = std::move(other.preActivation);
   preConv = std::move(other.preConv);
@@ -620,8 +623,9 @@ static void parseResidualBlockStack(
 
       blocks.push_back(make_pair(GLOBAL_POOLING_BLOCK_KIND, std::move(descPtr)));
     }
-    else if(kind == "nested_bottleneck_block") {
-      unique_ptr_void descPtr = make_unique_void(new NestedBottleneckResidualBlockDesc(in,modelVersion,binaryFloats));
+    else if(kind == "nested_bottleneck_block" || kind == "dilation_nested_bottleneck_block") {
+      bool useDilation = (kind == "dilation_nested_bottleneck_block");
+      unique_ptr_void descPtr = make_unique_void(new NestedBottleneckResidualBlockDesc(in,modelVersion,binaryFloats,useDilation));
       NestedBottleneckResidualBlockDesc& desc = *((NestedBottleneckResidualBlockDesc*)descPtr.get());
 
       if(desc.preBN.numChannels != trunkNumChannels)

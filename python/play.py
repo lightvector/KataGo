@@ -562,6 +562,9 @@ while True:
         loc = Board.PASS_LOC
         pos = features.loc_to_tensor_pos(loc,gs.board)
         ret += "Pass: %6.3f" % (100.0 * outputs["policy0"][pos] / policysum)
+        for key in ["value","scoremean","lead","vtime"]:
+            v = outputs[key]
+            ret += f"\n{key}: {v}"
 
     elif command[0] == "policy1_raw":
         outputs = gs.get_model_outputs(model)
