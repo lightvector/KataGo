@@ -12,6 +12,29 @@ import modelconfigs
 
 EXTRA_SCORE_DISTR_RADIUS = 60
 
+def enumerate_tensor(tensor):
+    """Iterate over (idx_tuple, value) for all values in a tensor"""
+    from itertools import product
+
+    shape = tensor.shape
+    indices = [range(s) for s in shape]
+    for idx in product(*indices):
+        value = tensor[idx]
+        yield idx, value
+
+def debug_print_tensor(tensor):
+    torch.set_printoptions(threshold=10000000,sci_mode=False)
+    print(tensor)
+    total1 = 0
+    total2 = 0
+    total3 = 0
+    for (nn,cc,hh,ww), value in enumerate_tensor(tensor):
+        total1 += (((cc + hh // 2 + ww // 3 + nn // 4) % 2)*2-1) * value
+        total2 += (((cc + hh // 3 + ww // 1 + nn // 3) % 2)*2-1) * value
+        total3 += (((cc + hh // 5 + ww // 2 + nn // 2) % 2)*2-1) * value
+    print(f"TOTAL {out.shape} {total1} {total2} {total3}")
+
+
 class ExtraOutputs:
     def __init__(self, requested: List[str]):
         self.requested: Set[str] = set(requested)

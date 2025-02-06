@@ -406,7 +406,6 @@ def add_attention_visualizations(extra_output_name, extra_output):
 with torch.no_grad():
     dummy_outputs = gs.get_model_outputs(model)
     extra_attention_output_names = [name for name in dummy_outputs["available_extra_outputs"] if name.endswith(".attention") or name.endswith(".reverse_attention")]
-    dummy_outputs = gs.get_model_outputs(model)
     for name in extra_attention_output_names:
         add_attention_visualizations(name,dummy_outputs[name])
     del dummy_outputs
@@ -474,6 +473,15 @@ while True:
         ret = 'true' if command[1] in known_commands else 'false'
     elif command[0] == "gogui-analyze_commands":
         ret = '\n'.join(known_analyze_commands)
+    elif command[0] == "setrules":
+        if command[1].lower() == "chinese":
+            gs.rules = GameState.RULES_CHINESE.copy()
+        elif command[1].lower() == "japanese":
+            gs.rules = GameState.RULES_JAPANESE.copy()
+        elif command[1].lower() == "tromp_taylor":
+            gs.rules = GameState.RULES_TT.copy()
+        else:
+            ret = "Unknown rules"
     elif command[0] == "setrule":
         ret = ""
         if command[1] == "korule":
