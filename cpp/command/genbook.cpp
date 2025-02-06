@@ -1678,7 +1678,7 @@ int MainCmds::booktoposes(const vector<string>& args) {
     TCLAP::ValueArg<int> includeDepthArg("","include-depth","Include positions up to this depth",false,-1,"DEPTH");
     TCLAP::ValueArg<double> includeVisitsArg("","include-visits","Include positions this many visits or more",false,1e300,"VISITS");
     TCLAP::ValueArg<int> maxDepthArg("","max-depth","Only include positions up to this depth",false,100000000,"DEPTH");
-    TCLAP::ValueArg<double> minVisitsArg("","max-visits","Only include positions with this many visits or more",false,-1.0,"VISITS");
+    TCLAP::ValueArg<double> minVisitsArg("","min-visits","Only include positions with this many visits or more",false,-1.0,"VISITS");
     TCLAP::SwitchArg enableHintsArg("","enable-hints","Hint the top book move");
     TCLAP::ValueArg<double> constantWeightArg("","constant-weight","How much weight to give each position as a fixed baseline",false,0.0,"FLOAT");
     TCLAP::ValueArg<double> depthWeightArg("","depth-weight","How much extra weight to give based on depth",false,0.0,"FLOAT");
