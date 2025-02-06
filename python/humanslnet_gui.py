@@ -74,7 +74,8 @@ class GoBoard(wx.Panel):
     def __init__(self, parent, game_state, cell_size=30, margin=30):
         super().__init__(parent)
         self.game_state = game_state
-        self.board_size = game_state.board.size
+        self.board_x_size = game_state.board.x_size
+        self.board_y_size = game_state.board.y_size
         self.cell_size = cell_size
         self.margin = margin
 
@@ -86,8 +87,8 @@ class GoBoard(wx.Panel):
         self.Bind(wx.EVT_LEFT_UP, self.on_click)
 
     def get_desired_size(self):
-        board_width = self.board_size * self.cell_size + 2 * self.margin
-        board_height = self.board_size * self.cell_size + self.cell_size + 2 * self.margin
+        board_width = self.board_x_size * self.cell_size + 2 * self.margin
+        board_height = self.board_y_size * self.cell_size + self.cell_size + 2 * self.margin
         return board_width, board_height
 
     def px_of_x(self, x):
@@ -111,22 +112,23 @@ class GoBoard(wx.Panel):
 
         gc.SetPen(wx.Pen(wx.BLACK, 1))
 
-        for i in range(self.board_size):
+        for i in range(self.board_y_size):
             gc.StrokeLine(
                 self.px_of_x(0),
                 self.py_of_y(i),
-                self.px_of_x(self.board_size - 1),
+                self.px_of_x(self.board_x_size - 1),
                 self.py_of_y(i),
             )
+        for i in range(self.board_x_size):
             gc.StrokeLine(
                 self.px_of_x(i),
                 self.py_of_y(0),
                 self.px_of_x(i),
-                self.py_of_y(self.board_size - 1),
+                self.py_of_y(self.board_y_size - 1),
             )
 
-        for x in range(self.board_size):
-            for y in range(self.board_size):
+        for x in range(self.board_x_size):
+            for y in range(self.board_y_size):
                 loc = self.game_state.board.loc(x, y)
 
                 if self.game_state.board.board[loc] == Board.BLACK:
@@ -137,8 +139,8 @@ class GoBoard(wx.Panel):
                     gc.DrawEllipse(self.px_of_x(x) - (self.cell_size // 2 - 2), self.py_of_y(y) - (self.cell_size // 2 - 2), self.cell_size - 4, self.cell_size - 4)
 
         gc.SetBrush(wx.Brush(wx.BLACK, wx.TRANSPARENT))
-        for x in range(self.board_size):
-            for y in range(self.board_size):
+        for x in range(self.board_x_size):
+            for y in range(self.board_y_size):
                 loc = self.game_state.board.loc(x, y)
 
                 if len(self.game_state.moves) > 0 and self.game_state.moves[-1][1] == loc:
@@ -150,20 +152,20 @@ class GoBoard(wx.Panel):
 
         # Draw column labels
         gc.SetFont(wx.Font(10, wx.FONTFAMILY_DEFAULT, wx.FONTSTYLE_NORMAL, wx.FONTWEIGHT_NORMAL), wx.BLACK)
-        for x in range(self.board_size):
+        for x in range(self.board_x_size):
             col_label = "ABCDEFGHJKLMNOPQRSTUVWXYZ"[x]
             text_width, text_height = gc.GetTextExtent(col_label)
             text_x = self.px_of_x(x) - text_width // 2
             gc.DrawText(col_label, text_x, self.py_of_y(-0.8)-text_height//2)
-            gc.DrawText(col_label, text_x, self.py_of_y(self.board_size-0.2)-text_height//2)
+            gc.DrawText(col_label, text_x, self.py_of_y(self.board_y_size-0.2)-text_height//2)
 
         # Draw row labels
-        for y in range(self.board_size):
-            row_label = str(self.board_size - y)
+        for y in range(self.board_y_size):
+            row_label = str(self.board_y_size - y)
             text_width, text_height = gc.GetTextExtent(row_label)
             text_y = self.py_of_y(y) - text_height // 2
             gc.DrawText(row_label, self.px_of_x(-0.8)-text_width//2, text_y)
-            gc.DrawText(row_label, self.px_of_x(self.board_size-0.2)-text_width//2, text_y)
+            gc.DrawText(row_label, self.px_of_x(self.board_x_size-0.2)-text_width//2, text_y)
 
         if self.latest_model_response is not None:
             bigger_font = wx.Font(10, wx.FONTFAMILY_DEFAULT, wx.FONTSTYLE_NORMAL, wx.FONTWEIGHT_NORMAL)
@@ -182,20 +184,20 @@ class GoBoard(wx.Panel):
             label = "Raw NN Black Win%% %.1f" % (black_wr*100.0)
             text_width, text_height = gc.GetTextExtent(label)
             text_x = self.px_of_x(0)
-            text_y = self.py_of_y(self.board_size+0.6) - text_height // 2
+            text_y = self.py_of_y(self.board_y_size+0.6) - text_height // 2
             gc.DrawText(label, text_x, text_y)
 
             black_score = score_prediction * sign
             label = "Raw NN Black ScoreMean %.1f +/- %.1f (2 stdv)" % (black_score, 2 * scorestdev_prediction)
             text_width, text_height = gc.GetTextExtent(label)
             text_x = self.px_of_x(8)
-            text_y = self.py_of_y(self.board_size+0.6) - text_height // 2
+            text_y = self.py_of_y(self.board_y_size+0.6) - text_height // 2
             gc.DrawText(label, text_x, text_y)
 
             moves_and_probs0 = dict(self.latest_model_response["moves_and_probs0"])
             # print(moves_and_probs0)
-            for y in range(self.board_size):
-                for x in range(self.board_size):
+            for y in range(self.board_y_size):
+                for x in range(self.board_x_size):
                     loc = self.game_state.board.loc(x, y)
                     max_prob = max(moves_and_probs0.values())
                     if loc in moves_and_probs0:
@@ -223,7 +225,7 @@ class GoBoard(wx.Panel):
         x = self.x_of_px(event.GetX())
         y = self.y_of_py(event.GetY())
 
-        if 0 <= x < self.board_size and 0 <= y < self.board_size:
+        if 0 <= x < self.board_x_size and 0 <= y < self.board_y_size:
             loc = self.game_state.board.loc(x, y)
             pla = self.game_state.board.pla
 
@@ -422,7 +424,8 @@ class GoClient(wx.Frame):
         super().__init__(parent=None, title="HumanSLNetViz")
         self.server_command = server_command
         self.game_state = game_state
-        self.board_size = self.game_state.board_size
+        self.board_x_size = self.game_state.board_x_size
+        self.board_y_size = self.game_state.board_y_size
 
         self.SetDropTarget(FileDropTarget(self))
 
@@ -484,7 +487,7 @@ class GoClient(wx.Frame):
         self.init_server()
 
     def init_server(self):
-        command = {"command": "start", "board_size": self.board_size, "rules": GameState.RULES_JAPANESE}
+        command = {"command": "start", "board_x_size": self.board_x_size, "board_y_size": self.board_y_size, "rules": GameState.RULES_JAPANESE}
         self.send_command(command)
         response = self.receive_response()
         if response != {"outputs": ""}:
@@ -588,10 +591,12 @@ class GoClient(wx.Frame):
         game_state = load_sgf_game_state(sgf_file)
 
         self.game_state = game_state
-        self.board_size = self.game_state.board_size
+        self.board_x_size = self.game_state.board.x_size
+        self.board_y_size = self.game_state.board.y_size
 
         self.board.game_state = game_state
-        self.board.board_size = self.board_size
+        self.board.board_x_size = self.board_x_size
+        self.board.board_y_size = self.board_y_size
 
         self.init_server()
 
