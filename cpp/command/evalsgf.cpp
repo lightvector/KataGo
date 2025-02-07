@@ -55,7 +55,7 @@ int MainCmds::evalsgf(const vector<string>& args) {
 
     TCLAP::UnlabeledValueArg<string> sgfFileArg("","Sgf file to analyze",true,string(),"FILE");
     TCLAP::ValueArg<int> moveNumArg("m","move-num","Sgf move num to analyze",true,0,"MOVENUM");
-    TCLAP::ValueArg<int> moveNumEndArg("","move-num-end","End sgf move num range to analyze, inclusive",true,-1,"MOVENUM");
+    TCLAP::ValueArg<int> moveNumEndArg("","move-num-end","End sgf move num range to analyze, inclusive",false,-1,"MOVENUM");
 
     TCLAP::ValueArg<string> printBranchArg("","print-branch","Move branch in search tree to print",false,string(),"MOVE MOVE ...");
     TCLAP::ValueArg<string> printArg("p","print","Alias for -print-branch",false,string(),"MOVE MOVE ...");

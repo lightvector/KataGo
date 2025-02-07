@@ -4,6 +4,7 @@
 
 #include "../neuralnet/cudahelpers.h"
 #include "../neuralnet/cudautils.h"
+#include "../neuralnet/dilationhelpers.h"
 #include "../neuralnet/modelversion.h"
 #include "../neuralnet/nninterface.h"
 #include "../neuralnet/nninputs.h"
@@ -141,14 +142,17 @@ struct CudnnManager {
   const int maxBatchSize;
   const int nnXLen;
   const int nnYLen;
+
   std::map<CudnnTensorDesc4DKey, ByBatchSize<cudnnTensorDescriptor_t>*> tensorDesc4DByBatchSizeByKey;
+  std::unique_ptr<CudnnManager> dilationManager;
 
   CudnnManager(string name_, int maxBatchSize_, int nnXLen_, int nnYLen_)
     :name(name_),
      maxBatchSize(maxBatchSize_),
      nnXLen(nnXLen_),
      nnYLen(nnYLen_),
-     tensorDesc4DByBatchSizeByKey()
+     tensorDesc4DByBatchSizeByKey(),
+     dilationManager(nullptr)
   {
   }
 
@@ -156,6 +160,19 @@ struct CudnnManager {
     for(auto& iter: tensorDesc4DByBatchSizeByKey) {
       delete iter.second;
     }
+  }
+
+  CudnnManager* getDilationManager() {
+    constexpr int dilationFactor = 3;
+    if(dilationManager == nullptr) {
+      dilationManager = std::make_unique<CudnnManager>(
+        name+"_dilation",
+        maxBatchSize*dilationFactor*dilationFactor,
+        DilationHelpers::divRoundUp(nnXLen,dilationFactor),
+        DilationHelpers::divRoundUp(nnYLen,dilationFactor)
+      );
+    }
+    return dilationManager.get();
   }
 
   ByBatchSizeView<cudnnTensorDescriptor_t> getTensorDesc4DByBatchSize(
@@ -188,7 +205,10 @@ struct CudnnManager {
 //---------------------------------------------------------------------------------
 
 struct ScratchBuffers {
-
+  const int maxBatchSize;
+  const int nnXLen;
+  const int nnYLen;
+  const bool usingFP16;
   const size_t batchXYFloatBytes;
   const size_t batchFloatBytes;
   const size_t batchXYBytes;
@@ -200,15 +220,22 @@ struct ScratchBuffers {
   void* zeroBuf;
   void* oneBuf;
 
+  std::unique_ptr<ScratchBuffers> dilationBuffers;
+
   ScratchBuffers() = delete;
   ScratchBuffers(const ScratchBuffers&) = delete;
   ScratchBuffers& operator=(const ScratchBuffers&) = delete;
 
-  ScratchBuffers(int maxBatchSize, int nnXLen, int nnYLen, bool useFP16)
-    : batchXYFloatBytes((size_t)maxBatchSize * nnXLen * nnYLen * sizeof(float)),
-      batchFloatBytes((size_t)maxBatchSize * sizeof(float)),
-      batchXYBytes((size_t)maxBatchSize * nnXLen * nnYLen * (useFP16 ? sizeof(half_t) : sizeof(float))),
-      batchBytes((size_t)maxBatchSize * (useFP16 ? sizeof(half_t) : sizeof(float)))
+  ScratchBuffers(int maxBatchSz, int nnX, int nnY, bool useFP16)
+    : maxBatchSize(maxBatchSz),
+      nnXLen(nnX),
+      nnYLen(nnY),
+      usingFP16(useFP16),
+      batchXYFloatBytes((size_t)maxBatchSz * nnX * nnY * sizeof(float)),
+      batchFloatBytes((size_t)maxBatchSz * sizeof(float)),
+      batchXYBytes((size_t)maxBatchSz * nnX * nnY * (useFP16 ? sizeof(half_t) : sizeof(float))),
+      batchBytes((size_t)maxBatchSz * (useFP16 ? sizeof(half_t) : sizeof(float))),
+      dilationBuffers(nullptr)
   {
     std::function<void*(size_t)> allocateFunc = [](size_t size) {
       void* buf;
@@ -227,6 +254,19 @@ struct ScratchBuffers {
     delete allocator;
     free(zeroBuf);
     free(oneBuf);
+  }
+
+  ScratchBuffers* getDilationBuffers() {
+    constexpr int dilationFactor = 3;
+    if(dilationBuffers == nullptr) {
+      dilationBuffers = std::make_unique<ScratchBuffers>(
+        maxBatchSize*dilationFactor*dilationFactor,
+        DilationHelpers::divRoundUp(nnXLen,dilationFactor),
+        DilationHelpers::divRoundUp(nnYLen,dilationFactor),
+        usingFP16
+      );
+    }
+    return dilationBuffers.get();
   }
 
   size_t getBufSizeXY(int channels) const {
@@ -1042,8 +1082,6 @@ struct BlockStack {
     int nBlocks,
     int trunkChannels,
     const std::vector<std::pair<int, unique_ptr_void>>& descBlocks,
-    int nnX,
-    int nnY,
     bool useFP16,
     bool useNHWC
   );
@@ -1072,6 +1110,11 @@ struct BlockStack {
 
 struct NestedBottleneckResidualBlock {
   const string name;
+  const bool useDilation;
+  const bool usingFP16;
+  const bool usingNHWC;
+  const int nnXLen;
+  const int nnYLen;
   const NormActConv normActConv1;
   const BlockStack blocks;
   const NormActConv normActConv2;
@@ -1089,8 +1132,13 @@ struct NestedBottleneckResidualBlock {
     bool useFP16,
     bool useNHWC
   ): name(desc->name),
+     useDilation(desc->useDilation),
+     usingFP16(useFP16),
+     usingNHWC(useNHWC),
+     nnXLen(nnX),
+     nnYLen(nnY),
      normActConv1(cudaHandles,manager,&desc->preBN,&desc->preActivation,&desc->preConv,nnX,nnY,useFP16,useNHWC),
-     blocks(cudaHandles,manager,desc->numBlocks,desc->preConv.outChannels,desc->blocks,nnX,nnY,useFP16,useNHWC),
+     blocks(cudaHandles,(desc->useDilation ? manager->getDilationManager() : manager),desc->numBlocks,desc->preConv.outChannels,desc->blocks,useFP16,useNHWC),
      normActConv2(cudaHandles,manager,&desc->postBN,&desc->postActivation,&desc->postConv,nnX,nnY,useFP16,useNHWC)
   {
   }
@@ -1124,24 +1172,103 @@ struct NestedBottleneckResidualBlock {
     void* workspaceBuf,
     size_t workspaceBytes
   ) const {
-    SizedBuf<void*> mid(scratch->allocator, scratch->getBufSizeXY(normActConv1.outChannels));
-    SizedBuf<void*> midScratch(scratch->allocator, scratch->getBufSizeXY(normActConv1.outChannels));
-    assert(normActConv1.outChannels == normActConv2.inChannels);
-    normActConv1.apply(cudaHandles,batchSize,false,trunkBuf,trunkScratchBuf,mid.buf,maskBuf,workspaceBuf,workspaceBytes);
-    blocks.apply(
-      cudaHandles,
-      scratch,
-      batchSize,
-      maskBuf,
-      maskSumBuf,
-      mid.buf,
-      midScratch.buf,
-      workspaceBuf,
-      workspaceBytes
-    );
-    normActConv2.apply(cudaHandles,batchSize,true,mid.buf,midScratch.buf,trunkBuf,maskBuf,workspaceBuf,workspaceBytes);
-  }
+    if(useDilation) {
+      SizedBuf<void*> mid(scratch->allocator, scratch->getBufSizeXY(normActConv1.outChannels));
+      SizedBuf<void*> midScratch(scratch->allocator, scratch->getBufSizeXY(normActConv1.outChannels));
+      assert(normActConv1.outChannels == normActConv2.inChannels);
 
+      constexpr int dilationFactor = 3;
+      ScratchBuffers* scratchDilated = scratch->getDilationBuffers();
+      SizedBuf<void*> midDilated(scratchDilated->allocator, scratchDilated->getBufSizeXY(normActConv1.outChannels));
+      SizedBuf<void*> midScratchDilated(scratchDilated->allocator, scratchDilated->getBufSizeXY(normActConv1.outChannels));
+      SizedBuf<void*> maskDilated(scratchDilated->allocator, scratchDilated->getBufSizeXY(1));
+      void* maskDilatedBuf = NULL;
+      float* maskSumBufDilated = NULL; // Only used by gpooling, which doesn't exist in nested residual blocks with dilation
+
+      normActConv1.apply(cudaHandles,batchSize,false,trunkBuf,trunkScratchBuf,mid.buf,maskBuf,workspaceBuf,workspaceBytes);
+
+      if(usingFP16) {
+        if(usingNHWC)
+          customCudaDilationTransposeNHWC((half*)mid.buf,(half*)midDilated.buf,batchSize,nnYLen,nnXLen,normActConv1.outChannels);
+        else
+          customCudaDilationTransposeNCHW((half*)mid.buf,(half*)midDilated.buf,batchSize,normActConv1.outChannels,nnYLen,nnXLen);
+
+        // NCHW == NHWC when C = 1, and NCHW transpose's code works a bit more parallelly for mask where C = 1.
+        if(maskBuf != NULL) {
+          customCudaDilationTransposeNCHW((half*)maskBuf,(half*)maskDilated.buf,batchSize,1,nnYLen,nnXLen);
+          maskDilatedBuf = maskDilated.buf;
+        }
+        else if(nnYLen % dilationFactor != 0 || nnXLen % dilationFactor != 0) {
+          customCudaDilationFillMask((half*)maskDilated.buf,batchSize,nnYLen,nnXLen);
+          maskDilatedBuf = maskDilated.buf;
+        }
+      }
+      else {
+        if(usingNHWC)
+          customCudaDilationTransposeNHWC((float*)mid.buf,(float*)midDilated.buf,batchSize,nnYLen,nnXLen,normActConv1.outChannels);
+        else
+          customCudaDilationTransposeNCHW((float*)mid.buf,(float*)midDilated.buf,batchSize,normActConv1.outChannels,nnYLen,nnXLen);
+
+        // NCHW == NHWC when C = 1, and this transpose's code works a bit more parallelly if C = 1.
+        if(maskBuf != NULL) {
+          customCudaDilationTransposeNCHW((float*)maskBuf,(float*)maskDilated.buf,batchSize,1,nnYLen,nnXLen);
+          maskDilatedBuf = maskDilated.buf;
+        }
+        else if(nnYLen % dilationFactor != 0 || nnXLen % dilationFactor != 0) {
+          customCudaDilationFillMask((float*)maskDilated.buf,batchSize,nnYLen,nnXLen);
+          maskDilatedBuf = maskDilated.buf;
+        }
+      }
+      CUDA_ERR(name.c_str(),cudaPeekAtLastError());
+
+      blocks.apply(
+        cudaHandles,
+        scratchDilated,
+        batchSize*dilationFactor*dilationFactor,
+        maskDilatedBuf,
+        maskSumBufDilated,
+        midDilated.buf,
+        midScratchDilated.buf,
+        workspaceBuf,
+        workspaceBytes
+      );
+
+      if(usingFP16) {
+        if(usingNHWC)
+          customCudaDilationUntransposeNHWC((half*)midDilated.buf,(half*)mid.buf,batchSize,nnYLen,nnXLen,normActConv1.outChannels);
+        else
+          customCudaDilationUntransposeNCHW((half*)midDilated.buf,(half*)mid.buf,batchSize,normActConv1.outChannels,nnYLen,nnXLen);
+      }
+      else {
+        if(usingNHWC)
+          customCudaDilationUntransposeNHWC((float*)midDilated.buf,(float*)mid.buf,batchSize,nnYLen,nnXLen,normActConv1.outChannels);
+        else
+          customCudaDilationUntransposeNCHW((float*)midDilated.buf,(float*)mid.buf,batchSize,normActConv1.outChannels,nnYLen,nnXLen);
+      }
+      CUDA_ERR(name.c_str(),cudaPeekAtLastError());
+
+      normActConv2.apply(cudaHandles,batchSize,true,mid.buf,midScratch.buf,trunkBuf,maskBuf,workspaceBuf,workspaceBytes);
+    }
+
+    else {
+      SizedBuf<void*> mid(scratch->allocator, scratch->getBufSizeXY(normActConv1.outChannels));
+      SizedBuf<void*> midScratch(scratch->allocator, scratch->getBufSizeXY(normActConv1.outChannels));
+      assert(normActConv1.outChannels == normActConv2.inChannels);
+      normActConv1.apply(cudaHandles,batchSize,false,trunkBuf,trunkScratchBuf,mid.buf,maskBuf,workspaceBuf,workspaceBytes);
+      blocks.apply(
+        cudaHandles,
+        scratch,
+        batchSize,
+        maskBuf,
+        maskSumBuf,
+        mid.buf,
+        midScratch.buf,
+        workspaceBuf,
+        workspaceBytes
+      );
+      normActConv2.apply(cudaHandles,batchSize,true,mid.buf,midScratch.buf,trunkBuf,maskBuf,workspaceBuf,workspaceBytes);
+    }
+  }
 };
 
 //------------------------------------------------------------------------------
@@ -1152,15 +1279,13 @@ BlockStack::BlockStack(
   int nBlocks,
   int trunkChannels,
   const std::vector<std::pair<int, unique_ptr_void>>& descBlocks,
-  int nnX,
-  int nnY,
   bool useFP16,
   bool useNHWC
 ) :
   numBlocks(nBlocks),
   trunkNumChannels(trunkChannels),
-  nnXLen(nnX),
-  nnYLen(nnY),
+  nnXLen(manager->nnXLen),
+  nnYLen(manager->nnYLen),
   usingFP16(useFP16),
   usingNHWC(useNHWC)
 {
@@ -1430,7 +1555,7 @@ struct Trunk {
     nnYLen(nnY),
     usingFP16(useFP16),
     usingNHWC(useNHWC),
-    blocks(cudaHandles,manager,desc->numBlocks,desc->trunkNumChannels,desc->blocks,nnX,nnY,useFP16,useNHWC)
+    blocks(cudaHandles,manager,desc->numBlocks,desc->trunkNumChannels,desc->blocks,useFP16,useNHWC)
   {
     int midNumChannels = desc->midNumChannels;
     int regularNumChannels = desc->regularNumChannels;

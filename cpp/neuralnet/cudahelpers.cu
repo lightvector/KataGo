@@ -1732,3 +1732,499 @@ void customCudaApplyCScaleBiasNHWC(const float* in, float* out, const float* sca
 void customCudaApplyCScaleBiasNHWC(const half* in, half* out, const half* scale, const half* biases, const half* mask, int nSize, int xySize, int cSize, int activation) {
   sharedApplyCScaleBiasNHWC(in,out,scale,biases,mask,nSize,xySize,cSize,true,activation);
 }
+
+
+//--------------------------------------------------------------------------------------------------------------
+
+template <typename T>
+__global__
+void dilationTransposeNHWCKernel(
+  const T* in,
+  T* out,
+  int nSize,
+  int hSize,
+  int wSize,
+  int cSize,
+  int hOuterSize,
+  int wOuterSize
+) {
+  int cIdx = blockIdx.x * blockDim.x + threadIdx.x;
+  int y = blockIdx.y * blockDim.y + threadIdx.y;
+  int hoIdx = y / wOuterSize;
+  int woIdx = y % wOuterSize;
+  int n = blockIdx.z;
+
+  if(cIdx >= cSize || hoIdx >= hOuterSize)
+    return;
+
+  // Not sure if this is exactly ideal, but we go ahead and don't bother with shared memory, relying on
+  // coalescing to work across the C dimension to get good performance as long as C is a decent power of 2.
+  for(int hiIdx = 0; hiIdx < 3; hiIdx++) {
+    for(int wiIdx = 0; wiIdx < 3; wiIdx++) {
+      int hInIdx = hoIdx * 3 + hiIdx;
+      int wInIdx = woIdx * 3 + wiIdx;
+      int outIdx = ((((n * 3 + hiIdx) * 3 + wiIdx) * hOuterSize + hoIdx) * wOuterSize + woIdx) * cSize + cIdx;
+
+      if(hInIdx >= hSize || wInIdx >= wSize) {
+        out[outIdx] = (T)0;
+      }
+      else {
+        int inIdx = ((n * hSize + hInIdx) * wSize + wInIdx) * cSize + cIdx;
+        out[outIdx] = in[inIdx];
+      }
+    }
+  }
+}
+
+template <typename T>
+void dilationTransposeNHWCTemplate(const T* in, T* out, int nSize, int hSize, int wSize, int cSize) {
+  if(nSize > 65536)
+    throw std::runtime_error("customCudaDilationTransposeNHWC: nSize too large");
+  if(hSize*wSize > 65536)
+    throw std::runtime_error("customCudaDilationTransposeNHWC: hSize*wSize too large");
+
+  int hOuterSize = (hSize + 2) / 3;
+  int wOuterSize = (wSize + 2) / 3;
+
+  int cThreads = 1;
+  while(cThreads < targetNumThreads && cThreads < cSize)
+    cThreads *= 2;
+  int cBlocks = (cSize + cThreads - 1) / cThreads;
+
+  dim3 grid(cBlocks, hOuterSize * wOuterSize, nSize);
+  dim3 threads(cThreads, 1, 1);
+
+  dilationTransposeNHWCKernel<<<grid,threads>>>(in, out, nSize, hSize, wSize, cSize, hOuterSize, wOuterSize);
+}
+
+template <typename T>
+__global__
+void dilationUntransposeNHWCKernel(
+  const T* in,
+  T* out,
+  int nSize,
+  int hSize,
+  int wSize,
+  int cSize,
+  int hOuterSize,
+  int wOuterSize
+) {
+  int cIdx = blockIdx.x * blockDim.x + threadIdx.x;
+  int y = blockIdx.y * blockDim.y + threadIdx.y;
+  int hoIdx = y / wOuterSize;
+  int woIdx = y % wOuterSize;
+  int n = blockIdx.z;
+
+  if(cIdx >= cSize || hoIdx >= hOuterSize)
+    return;
+
+  // Not sure if this is exactly ideal, but we go ahead and don't bother with shared memory, relying on
+  // coalescing to work across the C dimension to get good performance as long as C is a decent power of 2.
+  for(int hiIdx = 0; hiIdx < 3; hiIdx++) {
+    for(int wiIdx = 0; wiIdx < 3; wiIdx++) {
+      int hOutIdx = hoIdx * 3 + hiIdx;
+      int wOutIdx = woIdx * 3 + wiIdx;
+
+      if(hOutIdx < hSize && wOutIdx < wSize) {
+        int inIdx = ((((n * 3 + hiIdx) * 3 + wiIdx) * hOuterSize + hoIdx) * wOuterSize + woIdx) * cSize + cIdx;
+        int outIdx = ((n * hSize + hOutIdx) * wSize + wOutIdx) * cSize + cIdx;
+        out[outIdx] = in[inIdx];
+      }
+    }
+  }
+}
+
+template <typename T>
+void dilationUntransposeNHWCTemplate(const T* in, T* out, int nSize, int hSize, int wSize, int cSize) {
+  if(nSize > 65536)
+    throw std::runtime_error("customCudaDilationUntransposeNHWC: nSize too large");
+  if(hSize*wSize > 65536)
+    throw std::runtime_error("customCudaDilationUntransposeNHWC: hSize*wSize too large");
+
+  int hOuterSize = (hSize + 2) / 3;
+  int wOuterSize = (wSize + 2) / 3;
+
+  int cThreads = 1;
+  while(cThreads < targetNumThreads && cThreads < cSize)
+    cThreads *= 2;
+  int cBlocks = (cSize + cThreads - 1) / cThreads;
+
+  dim3 grid(cBlocks, hOuterSize * wOuterSize, nSize);
+  dim3 threads(cThreads, 1, 1);
+
+  dilationUntransposeNHWCKernel<<<grid,threads>>>(in, out, nSize, hSize, wSize, cSize, hOuterSize, wOuterSize);
+}
+
+// See header file for semantics
+void customCudaDilationTransposeNHWC(const float* in, float* out, int nSize, int hSize, int wSize, int cSize) {
+  dilationTransposeNHWCTemplate<float>(in, out, nSize, hSize, wSize, cSize);
+}
+
+void customCudaDilationTransposeNHWC(const half* in, half* out, int nSize, int hSize, int wSize, int cSize) {
+  dilationTransposeNHWCTemplate<half>(in, out, nSize, hSize, wSize, cSize);
+}
+// Inverse transforms
+void customCudaDilationUntransposeNHWC(const float* in, float* out, int nSize, int hSize, int wSize, int cSize) {
+  dilationUntransposeNHWCTemplate<float>(in, out, nSize, hSize, wSize, cSize);
+}
+
+void customCudaDilationUntransposeNHWC(const half* in, half* out, int nSize, int hSize, int wSize, int cSize) {
+  dilationUntransposeNHWCTemplate<half>(in, out, nSize, hSize, wSize, cSize);
+}
+
+//--------------------------------------------------------------------------------------------------------------
+
+// For floats, this is 32kb. Max shared memory on CUDA per block is 48kb.
+static constexpr int MAX_DT_TILE_SIZE = 8192;
+
+template <typename T>
+__global__
+void dilationTransposeNCHWKernel(
+  const T* in,
+  T* out,
+  int nSize,
+  int cSize,
+  int hSize,
+  int wSize,
+  int hOuterSize,
+  int wOuterSize,
+  int cProcessedPerBlock,
+  int eltsInputPerThread,
+  int eltsOutputPerThread
+) {
+  extern __shared__ double tileShared[]; // use double just for alignment
+  T *tile = reinterpret_cast<T*>(tileShared);
+
+  int x = threadIdx.x;
+  int threadsPerBlock = blockDim.x;
+  int cIdxBase = blockIdx.x * cProcessedPerBlock;
+  int n = blockIdx.y;
+
+  // A block of threads reads a chunk in[n, cIdxBase:cIdxBase+cProcessedPerBlock, :, :] sequentially (i.e. grid-stridedly) from in's perspective.
+  // And writes it in the same order into tile[0:cProcessedPerBlock, :, :]
+
+  int hwSize = hSize*wSize;
+  int inBase = (n * cSize + cIdxBase) * hwSize;
+  for(int i = 0; i < eltsInputPerThread; i++) {
+    int inOffset = i*threadsPerBlock+x;
+    int cOffset = inOffset / hwSize;
+    int cIdx = cIdxBase + cOffset;
+    if(cIdx < cSize && cOffset < cProcessedPerBlock)
+      tile[inOffset] = in[inBase + inOffset];
+  }
+
+  __syncthreads();
+
+  // Now, the block of threads writes to out[n,0:3,0:3,cIdxBase:cIdxBase+cProcessedPerBlock, :, :] sequentially (i.e. grid-stridedly) from out's perspective.
+  // by reading from tile[0:cProcessedPerBlock, :, :] doing the index computations necessary to figure out where in the tile to look.
+  int howoSize = hOuterSize*wOuterSize;
+  int cphowoSize = cProcessedPerBlock * howoSize;
+  for(int i = 0; i < eltsOutputPerThread; i++) {
+    int outCounter = i*threadsPerBlock+x;
+    int hiwiIdx = outCounter / cphowoSize;
+    if(hiwiIdx < 9) {
+      int cphowoIdx = outCounter % cphowoSize;
+      int cOffset = cphowoIdx / howoSize;
+      int cIdx = cIdxBase + cOffset;
+      if(cIdx < cSize && cOffset < cProcessedPerBlock) {
+        int howoIdx = cphowoIdx % howoSize;
+        int hoIdx = howoIdx / wOuterSize;
+        int woIdx = howoIdx % wOuterSize;
+
+        int hInIdx = hoIdx * 3 + hiwiIdx / 3;
+        int wInIdx = woIdx * 3 + hiwiIdx % 3;
+
+        int outIdx = ((n * 9 + hiwiIdx) * cSize + cIdx) * howoSize + howoIdx;
+        if(hInIdx >= hSize || wInIdx >= wSize) {
+          out[outIdx] = (T)0;
+        }
+        else {
+          out[outIdx] = tile[(cOffset * hSize + hInIdx) * wSize + wInIdx];
+        }
+      }
+    }
+  }
+}
+
+template <typename T>
+void dilationTransposeNCHWTemplate(const T* in, T* out, int nSize, int cSize, int hSize, int wSize) {
+  if(nSize > 65536)
+    throw std::runtime_error("customCudaDilationTransposeNCHW: nSize too large");
+  if(hSize * wSize > MAX_DT_TILE_SIZE)
+    throw std::runtime_error("customCudaDilationTransposeNCHW: hSize*wSize too large");
+
+  int hOuterSize = (hSize + 2) / 3;
+  int wOuterSize = (wSize + 2) / 3;
+
+  // Reduce threads if it would be overkill for the total number of values per batch, but otherwise go up to 512
+  int threadsPerBlock = 32;
+  while(threadsPerBlock < cSize * hOuterSize * wOuterSize * 9 && threadsPerBlock < 512) {
+    threadsPerBlock *= 2;
+  }
+
+  // Process as many channels as we can at a time subject to shared memory tile size limit
+  int cProcessedPerBlock = 1;
+  while(cProcessedPerBlock * 2 < cSize && cProcessedPerBlock * 2 * hSize * wSize < MAX_DT_TILE_SIZE) {
+    cProcessedPerBlock *= 2;
+  }
+
+  size_t sharedMemSize = std::max((size_t)64, sizeof(T) * cProcessedPerBlock * hSize * wSize);
+
+  int eltsInputPerThread = (cProcessedPerBlock * hSize * wSize + (threadsPerBlock-1)) / threadsPerBlock;
+  int eltsOutputPerThread = (cProcessedPerBlock * hOuterSize * wOuterSize * 9 + (threadsPerBlock-1)) / threadsPerBlock;
+
+  int numStepsToProcessAllOfC = (cSize+cProcessedPerBlock-1)/cProcessedPerBlock;
+  dim3 grid(numStepsToProcessAllOfC, nSize, 1);
+  dim3 threads(threadsPerBlock, 1, 1);
+
+  dilationTransposeNCHWKernel<<<grid,threads,sharedMemSize>>>(in, out, nSize, cSize, hSize, wSize, hOuterSize, wOuterSize, cProcessedPerBlock, eltsInputPerThread, eltsOutputPerThread);
+}
+
+template <typename T>
+__global__
+void dilationUntransposeNCHWKernel(
+  const T* in,
+  T* out,
+  int nSize,
+  int cSize,
+  int hSize,
+  int wSize,
+  int hOuterSize,
+  int wOuterSize,
+  int cProcessedPerBlock,
+  int eltsInputPerThread,
+  int eltsOutputPerThread
+) {
+  extern __shared__ double tileShared[]; // use double just for alignment
+  T *tile = reinterpret_cast<T*>(tileShared);
+
+  int x = threadIdx.x;
+  int threadsPerBlock = blockDim.x;
+  int cIdxBase = blockIdx.x * cProcessedPerBlock;
+  int n = blockIdx.y;
+
+  // A block of threads reads from in[n,0:3,0:3,cIdxBase:cIdxBase+cProcessedPerBlock, :, :] sequentially (i.e. grid-stridedly) from out's perspective.
+  // writing to tile[0:cProcessedPerBlock, :, :] doing the index computations necessary to figure out where in the tile to look.
+
+  int howoSize = hOuterSize*wOuterSize;
+  int cphowoSize = cProcessedPerBlock * howoSize;
+  for(int i = 0; i < eltsInputPerThread; i++) {
+    int inCounter = i*threadsPerBlock+x;
+    int hiwiIdx = inCounter / cphowoSize;
+    if(hiwiIdx < 9) {
+      int cphowoIdx = inCounter % cphowoSize;
+      int cOffset = cphowoIdx / howoSize;
+      int cIdx = cIdxBase + cOffset;
+      if(cIdx < cSize && cOffset < cProcessedPerBlock) {
+        int howoIdx = cphowoIdx % howoSize;
+        int hoIdx = howoIdx / wOuterSize;
+        int woIdx = howoIdx % wOuterSize;
+
+        int hOutIdx = hoIdx * 3 + hiwiIdx / 3;
+        int wOutIdx = woIdx * 3 + hiwiIdx % 3;
+
+        int inIdx = ((n * 9 + hiwiIdx) * cSize + cIdx) * howoSize + howoIdx;
+        if(hOutIdx >= hSize || wOutIdx >= wSize) {
+          // pass
+        }
+        else {
+          tile[(cOffset * hSize + hOutIdx) * wSize + wOutIdx] = in[inIdx];
+        }
+      }
+    }
+  }
+
+  __syncthreads();
+
+  // Now, the block of threads writes to out[n, cIdxBase:cIdxBase+cProcessedPerBlock, :, :] sequentially (i.e. grid-stridedly) from in's perspective.
+  // And writes it in the same order from tile[0:cProcessedPerBlock, :, :]
+
+  int hwSize = hSize*wSize;
+  int outBase = (n * cSize + cIdxBase) * hwSize;
+  for(int i = 0; i < eltsInputPerThread; i++) {
+    int outOffset = i*threadsPerBlock+x;
+    int cOffset = outOffset / hwSize;
+    int cIdx = cIdxBase + cOffset;
+    if(cIdx < cSize && cOffset < cProcessedPerBlock)
+      out[outBase + outOffset] = tile[outOffset];
+  }
+}
+
+template <typename T>
+void dilationUntransposeNCHWTemplate(const T* in, T* out, int nSize, int cSize, int hSize, int wSize) {
+  if(nSize > 65536)
+    throw std::runtime_error("customCudaDilationUntransposeNCHW: nSize too large");
+  if(hSize * wSize > MAX_DT_TILE_SIZE)
+    throw std::runtime_error("customCudaDilationUntransposeNCHW: hSize*wSize too large");
+
+  int hOuterSize = (hSize + 2) / 3;
+  int wOuterSize = (wSize + 2) / 3;
+
+  // Reduce threads if it would be overkill for the total number of values per batch, but otherwise go up to 512
+  int threadsPerBlock = 32;
+  while(threadsPerBlock < cSize * hOuterSize * wOuterSize * 9 && threadsPerBlock < 512) {
+    threadsPerBlock *= 2;
+  }
+
+  // Process as many channels as we can at a time subject to shared memory tile size limit
+  int cProcessedPerBlock = 1;
+  while(cProcessedPerBlock * 2 < cSize && cProcessedPerBlock * 2 * hSize * wSize < MAX_DT_TILE_SIZE) {
+    cProcessedPerBlock *= 2;
+  }
+
+  size_t sharedMemSize = std::max((size_t)64, sizeof(T) * cProcessedPerBlock * hSize * wSize);
+
+  int eltsInputPerThread = (cProcessedPerBlock * hOuterSize * wOuterSize * 9 + (threadsPerBlock-1)) / threadsPerBlock;
+  int eltsOutputPerThread = (cProcessedPerBlock * hSize * wSize + (threadsPerBlock-1)) / threadsPerBlock;
+
+  int numStepsToProcessAllOfC = (cSize+cProcessedPerBlock-1)/cProcessedPerBlock;
+  dim3 grid(numStepsToProcessAllOfC, nSize, 1);
+  dim3 threads(threadsPerBlock, 1, 1);
+
+  dilationUntransposeNCHWKernel<<<grid,threads,sharedMemSize>>>(in, out, nSize, cSize, hSize, wSize, hOuterSize, wOuterSize, cProcessedPerBlock, eltsInputPerThread, eltsOutputPerThread);
+}
+
+// See header file for semantics
+void customCudaDilationTransposeNCHW(const float* in, float* out, int nSize, int cSize, int hSize, int wSize) {
+  dilationTransposeNCHWTemplate<float>(in, out, nSize, cSize, hSize, wSize);
+}
+
+void customCudaDilationTransposeNCHW(const half* in, half* out, int nSize, int cSize, int hSize, int wSize) {
+  dilationTransposeNCHWTemplate<half>(in, out, nSize, cSize, hSize, wSize);
+}
+// Inverse transforms
+void customCudaDilationUntransposeNCHW(const float* in, float* out, int nSize, int cSize, int hSize, int wSize) {
+  dilationUntransposeNCHWTemplate<float>(in, out, nSize, cSize, hSize, wSize);
+}
+
+void customCudaDilationUntransposeNCHW(const half* in, half* out, int nSize, int cSize, int hSize, int wSize) {
+  dilationUntransposeNCHWTemplate<half>(in, out, nSize, cSize, hSize, wSize);
+}
+
+//--------------------------------------------------------------------------------------------------------------
+
+__global__
+void dilationFillMaskFloatKernel(
+  float* out,
+  int nSize,
+  int hSize,
+  int wSize,
+  int hOuterSize,
+  int wOuterSize,
+  int eltsOutputPerThread
+) {
+  int x = threadIdx.x;
+  int threadsPerBlock = blockDim.x;
+  int n = blockIdx.y;
+
+  // Now, the block of threads writes to out[n,0:3,0:3, :, :] sequentially (i.e. grid-stridedly) from out's perspective.
+  int howoSize = hOuterSize*wOuterSize;
+  for(int i = 0; i < eltsOutputPerThread; i++) {
+    int outCounter = i*threadsPerBlock+x;
+    int hiwiIdx = outCounter / howoSize;
+    if(hiwiIdx < 9) {
+      int howoIdx = outCounter % howoSize;
+      int hoIdx = howoIdx / wOuterSize;
+      int woIdx = howoIdx % wOuterSize;
+
+      int hInIdx = hoIdx * 3 + hiwiIdx / 3;
+      int wInIdx = woIdx * 3 + hiwiIdx % 3;
+
+      int outIdx = (n * 9 + hiwiIdx) * howoSize + howoIdx;
+      if(hInIdx >= hSize || wInIdx >= wSize) {
+        out[outIdx] = 0.0f;
+      }
+      else {
+        out[outIdx] = 1.0f;
+      }
+    }
+  }
+}
+__global__
+void dilationFillMaskHalfKernel(
+  half* out,
+  int nSize,
+  int hSize,
+  int wSize,
+  int hOuterSize,
+  int wOuterSize,
+  int eltsOutputPerThread
+) {
+#ifdef CUDA_SUPPORTS_FP16
+  int x = threadIdx.x;
+  int threadsPerBlock = blockDim.x;
+  int n = blockIdx.y;
+
+  // Now, the block of threads writes to out[n,0:3,0:3, :, :] sequentially (i.e. grid-stridedly) from out's perspective.
+  int howoSize = hOuterSize*wOuterSize;
+  for(int i = 0; i < eltsOutputPerThread; i++) {
+    int outCounter = i*threadsPerBlock+x;
+    int hiwiIdx = outCounter / howoSize;
+    if(hiwiIdx < 9) {
+      int howoIdx = outCounter % howoSize;
+      int hoIdx = howoIdx / wOuterSize;
+      int woIdx = howoIdx % wOuterSize;
+
+      int hInIdx = hoIdx * 3 + hiwiIdx / 3;
+      int wInIdx = woIdx * 3 + hiwiIdx % 3;
+
+      int outIdx = (n * 9 + hiwiIdx) * howoSize + howoIdx;
+      if(hInIdx >= hSize || wInIdx >= wSize) {
+        out[outIdx] = (half)0;
+      }
+      else {
+        out[outIdx] = __float2half(1.0f);
+      }
+    }
+  }
+#else
+  //Do nothing, FP16 not supported
+#endif
+}
+
+void customCudaDilationFillMask(float* out, int nSize, int hSize, int wSize) {
+  if(nSize > 65536)
+    throw std::runtime_error("customCudaDilationFillMask: nSize too large");
+  if(hSize * wSize > MAX_DT_TILE_SIZE)
+    throw std::runtime_error("customCudaDilationFillMask: hSize*wSize too large");
+
+  int hOuterSize = (hSize + 2) / 3;
+  int wOuterSize = (wSize + 2) / 3;
+
+  // Reduce threads if it would be overkill for the total number of values per batch, but otherwise go up to 512
+  int threadsPerBlock = 32;
+  while(threadsPerBlock < hOuterSize * wOuterSize * 9 && threadsPerBlock < 512) {
+    threadsPerBlock *= 2;
+  }
+
+  int eltsOutputPerThread = (hOuterSize * wOuterSize * 9 + (threadsPerBlock-1)) / threadsPerBlock;
+
+  dim3 grid(1, nSize, 1);
+  dim3 threads(threadsPerBlock, 1, 1);
+
+  dilationFillMaskFloatKernel<<<grid,threads>>>(out, nSize, hSize, wSize, hOuterSize, wOuterSize, eltsOutputPerThread);
+}
+
+void customCudaDilationFillMask(half* out, int nSize, int hSize, int wSize) {
+  if(nSize > 65536)
+    throw std::runtime_error("customCudaDilationFillMask: nSize too large");
+  if(hSize * wSize > MAX_DT_TILE_SIZE)
+    throw std::runtime_error("customCudaDilationFillMask: hSize*wSize too large");
+
+  int hOuterSize = (hSize + 2) / 3;
+  int wOuterSize = (wSize + 2) / 3;
+
+  // Reduce threads if it would be overkill for the total number of values per batch, but otherwise go up to 512
+  int threadsPerBlock = 32;
+  while(threadsPerBlock < hOuterSize * wOuterSize * 9 && threadsPerBlock < 512) {
+    threadsPerBlock *= 2;
+  }
+
+  int eltsOutputPerThread = (hOuterSize * wOuterSize * 9 + (threadsPerBlock-1)) / threadsPerBlock;
+
+  dim3 grid(1, nSize, 1);
+  dim3 threads(threadsPerBlock, 1, 1);
+
+  dilationFillMaskHalfKernel<<<grid,threads>>>(out, nSize, hSize, wSize, hOuterSize, wOuterSize, eltsOutputPerThread);
+}
+

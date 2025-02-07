@@ -19,7 +19,7 @@ import torch.nn
 from torch.optim.swa_utils import AveragedModel
 
 import modelconfigs
-from model_pytorch import Model, ResBlock, NestedBottleneckResBlock
+from model_pytorch import Model, ResBlock, NestedBottleneckResBlock, DilationNestedBottleneckResBlock
 from load_model import load_model
 
 #Command and args-------------------------------------------------------------------
@@ -287,6 +287,15 @@ def main(args):
             write_normactconv(name+".normactconv2", block.normactconv2)
         elif isinstance(block,NestedBottleneckResBlock):
             writeln("nested_bottleneck_block")
+            writeln(name)
+            writeln(block.internal_length)
+            assert block.internal_length == len(block.blockstack)
+            write_normactconv(name+".normactconvp", block.normactconvp)
+            for i,subblock in enumerate(block.blockstack):
+                write_block(name+".blockstack."+str(i),subblock)
+            write_normactconv(name+".normactconvq", block.normactconvq)
+        elif isinstance(block,DilationNestedBottleneckResBlock):
+            writeln("dilation_nested_bottleneck_block")
             writeln(name)
             writeln(block.internal_length)
             assert block.internal_length == len(block.blockstack)

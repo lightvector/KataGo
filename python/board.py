@@ -30,11 +30,17 @@ class Board:
         ZOBRIST_PLA.append(ZOBRIST_RAND.getrandbits(64))
 
     def __init__(self,size,copy_other=None):
-        if size < 2 or size > 39:
+        if isinstance(size,int):
+            self.x_size = size
+            self.y_size = size
+        else:
+            self.x_size, self.y_size = size
+        if self.x_size < 2 or self.x_size > 39:
             raise ValueError("Invalid board size: " + str(size))
-        self.size = size
-        self.arrsize = (size+1)*(size+2)+1
-        self.dy = size+1
+        if self.y_size < 2 or self.y_size > 39:
+            raise ValueError("Invalid board size: " + str(size))
+        self.arrsize = (self.x_size+1)*(self.y_size+2)+1
+        self.dy = self.x_size+1
         self.adj = [-self.dy,-1,1,self.dy]
         self.diag = [-self.dy-1,-self.dy+1,self.dy-1,self.dy+1]
 
@@ -63,11 +69,12 @@ class Board:
             self.num_captures_made = {Board.BLACK: 0, Board.WHITE: 0}
             self.num_non_pass_moves_made = {Board.BLACK: 0, Board.WHITE: 0}
 
-            for i in range(-1,size+1):
+            for i in range(-1,self.x_size+1):
                 self.board[self.loc(i,-1)] = Board.WALL
-                self.board[self.loc(i,size)] = Board.WALL
+                self.board[self.loc(i,self.y_size)] = Board.WALL
+            for i in range(-1,self.y_size+1):
                 self.board[self.loc(-1,i)] = Board.WALL
-                self.board[self.loc(size,i)] = Board.WALL
+                self.board[self.loc(self.x_size,i)] = Board.WALL
 
             #More-easily catch errors
             self.group_head[0] = -1
@@ -75,14 +82,14 @@ class Board:
             self.group_prev[0] = -1
 
     def copy(self):
-        return Board(self.size,copy_other=self)
+        return Board((self.x_size,self.y_size),copy_other=self)
 
     @staticmethod
     def get_opp(pla):
         return 3-pla
     @staticmethod
-    def loc_static(x,y,size):
-        return (x+1) + (size+1)*(y+1)
+    def loc_static(x,y,x_size):
+        return (x+1) + (x_size+1)*(y+1)
 
     def loc(self,x,y):
         return (x+1) + self.dy*(y+1)
@@ -269,12 +276,12 @@ class Board:
                 return 'X '
             elif self.board[loc] == Board.WHITE:
                 return 'O '
-            elif (x == 3 or x == self.size/2 or x == self.size-1-3) and (y == 3 or y == self.size/2 or y == self.size-1-3):
+            elif (x == 3 or x == self.x_size/2 or x == self.x_size-1-3) and (y == 3 or y == self.y_size/2 or y == self.y_size-1-3):
                 return '* '
             else:
                 return '. '
 
-        return "\n".join("".join(get_piece(x,y) for x in range(self.size)) for y in range(self.size))
+        return "\n".join("".join(get_piece(x,y) for x in range(self.x_size)) for y in range(self.y_size))
 
     def to_liberty_string(self):
         def get_piece(x,y):
@@ -285,12 +292,12 @@ class Board:
                     return str(libs) + ' '
                 else:
                     return '@ '
-            elif (x == 3 or x == self.size/2 or x == self.size-1-3) and (y == 3 or y == self.size/2 or y == self.size-1-3):
+            elif (x == 3 or x == self.x_size/2 or x == self.x_size-1-3) and (y == 3 or y == self.y_size/2 or y == self.y_size-1-3):
                 return '* '
             else:
                 return '. '
 
-        return "\n".join("".join(get_piece(x,y) for x in range(self.size)) for y in range(self.size))
+        return "\n".join("".join(get_piece(x,y) for x in range(self.x_size)) for y in range(self.y_size))
 
     def set_pla(self,pla):
         self.pla = pla
@@ -910,7 +917,7 @@ class Board:
         pla = self.board[loc]
         opp = Board.get_opp(pla)
 
-        arrSize = self.size * self.size * 2 #A bit bigger due to paranoia about recaptures making the sequence longer.
+        arrSize = self.x_size * self.y_size * 2 #A bit bigger due to paranoia about recaptures making the sequence longer.
 
         #Stack for the search. These are lists of possible moves to search at each level of the stack
         moveLists = [[] for i in range(arrSize)]
@@ -1108,8 +1115,8 @@ class Board:
         self.calculateAreaForPla(Board.WHITE,safeBigTerritories,unsafeBigTerritories,isMultiStoneSuicideLegal,result)
 
         if nonPassAliveStones:
-            for y in range(self.size):
-                for x in range(self.size):
+            for y in range(self.y_size):
+                for x in range(self.x_size):
                     loc = self.loc(x,y)
                     if result[loc] == Board.EMPTY:
                         result[loc] = self.board[loc]
@@ -1122,8 +1129,8 @@ class Board:
         self.calculateAreaForPla(Board.BLACK,True,True,isMultiStoneSuicideLegal,basicArea)
         self.calculateAreaForPla(Board.WHITE,True,True,isMultiStoneSuicideLegal,basicArea)
 
-        for y in range(self.size):
-            for x in range(self.size):
+        for y in range(self.y_size):
+            for x in range(self.x_size):
                 loc = self.loc(x,y)
                 if basicArea[loc] == Board.EMPTY:
                     basicArea[loc] = self.board[loc]
@@ -1131,15 +1138,15 @@ class Board:
         self.calculateNonDameTouchingAreaHelper(basicArea,result)
 
         if keepTerritories:
-            for y in range(self.size):
-                for x in range(self.size):
+            for y in range(self.y_size):
+                for x in range(self.x_size):
                     loc = self.loc(x,y)
                     if basicArea[loc] != Board.EMPTY and basicArea[loc] != self.board[loc]:
                         result[loc] = basicArea[loc]
 
         if keepStones:
-            for y in range(self.size):
-                for x in range(self.size):
+            for y in range(self.y_size):
+                for x in range(self.x_size):
                     loc = self.loc(x,y)
                     if basicArea[loc] != Board.EMPTY and basicArea[loc] == self.board[loc]:
                         result[loc] = basicArea[loc]
@@ -1160,7 +1167,7 @@ class Board:
         #A region is vital for a pla group if all its spaces are adjacent to that pla group.
         #All lists are concatenated together, the most we can have is bounded by (MAX_LEN * MAX_LEN+1) / 2
         #independent regions, each one vital for at most 4 pla groups, add some extra just in case.
-        maxRegions = (self.size * self.size + 1)//2 + 1
+        maxRegions = (self.x_size * self.y_size + 1)//2 + 1
         vitalForPlaHeadsListsMaxLen = maxRegions * 4
         vitalForPlaHeadsLists = [-1 for i in range(vitalForPlaHeadsListsMaxLen)]
         vitalForPlaHeadsListsTotal = 0
@@ -1230,8 +1237,8 @@ class Board:
             return nextTailTarget
 
         atLeastOnePla = False
-        for y in range(self.size):
-            for x in range(self.size):
+        for y in range(self.y_size):
+            for x in range(self.x_size):
                 loc = self.loc(x,y)
 
                 if regionHeadByLoc[loc] != Board.PASS_LOC:
@@ -1282,8 +1289,8 @@ class Board:
         allPlaHeads = []
 
         #Accumulate with duplicates
-        for y in range(self.size):
-            for x in range(self.size):
+        for y in range(self.y_size):
+            for x in range(self.x_size):
                 loc = self.loc(x,y)
                 if self.board[loc] == pla:
                     allPlaHeads.append(self.group_head[loc])
@@ -1382,8 +1389,8 @@ class Board:
         ADJ2 = self.adj[2]
         ADJ3 = self.adj[3]
 
-        for y in range(self.size):
-            for x in range(self.size):
+        for y in range(self.y_size):
+            for x in range(self.x_size):
                 loc = self.loc(x,y)
                 if basicArea[loc] != Board.EMPTY and not isDameTouching[loc]:
                     #Touches dame?
@@ -1414,8 +1421,8 @@ class Board:
 
         #Now, walk through and copy all non-dame-touching basic areas into the result counting
         #how many there are.
-        for y in range(self.size):
-            for x in range(self.size):
+        for y in range(self.y_size):
+            for x in range(self.x_size):
                 loc = self.loc(x,y)
                 if basicArea[loc] != Board.EMPTY and not isDameTouching[loc] and result[loc] != basicArea[loc]:
                     pla = basicArea[loc]
