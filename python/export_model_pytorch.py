@@ -219,6 +219,8 @@ def main(args):
             writeln("ACTIVATION_RELU")
         elif isinstance(activation,torch.nn.Mish):
             writeln("ACTIVATION_MISH")
+        elif isinstance(activation,torch.nn.GELU):
+            writeln("ACTIVATION_GELU")
         elif isinstance(activation,torch.nn.Identity):
             writeln("ACTIVATION_IDENTITY")
         else:

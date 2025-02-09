@@ -250,6 +250,8 @@ ActivationLayerDesc::ActivationLayerDesc(istream& in, int modelVersion) {
       activation = ACTIVATION_RELU;
     else if(kind == "ACTIVATION_MISH")
       activation = ACTIVATION_MISH;
+    else if(kind == "ACTIVATION_GELU")
+      activation = ACTIVATION_GELU;
     else
       throw StringError(
         name + ": unknown activation " + kind
