@@ -196,6 +196,7 @@ def main(args):
             pos_len,
             device,
             randomize_symmetries=True,
+            include_meta=model.get_has_metadata_encoder(),
             model_config=model_config,
         ):
             if max_batches is not None and num_batches_tested >= max_batches:
