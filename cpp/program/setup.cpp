@@ -1029,24 +1029,24 @@ static string boardSizeToStr(int boardXSize, int boardYSize) {
 }
 
 static int getAutoPatternIntParam(ConfigParser& cfg, const string& param, int boardXSize, int boardYSize, int min, int max) {
-  if(!cfg.contains(param))
-    throw ConfigParsingError(param + " was not specified in the config");
   if(cfg.contains(param + boardSizeToStr(boardXSize,boardYSize)))
     return cfg.getInt(param + boardSizeToStr(boardXSize,boardYSize), min, max);
+  if(!cfg.contains(param))
+    throw ConfigParsingError(param + " was not specified in the config");
   return cfg.getInt(param, min, max);
 }
 static int64_t getAutoPatternInt64Param(ConfigParser& cfg, const string& param, int boardXSize, int boardYSize, int64_t min, int64_t max) {
-  if(!cfg.contains(param))
-    throw ConfigParsingError(param + " was not specified in the config");
   if(cfg.contains(param + boardSizeToStr(boardXSize,boardYSize)))
     return cfg.getInt64(param + boardSizeToStr(boardXSize,boardYSize), min, max);
+  if(!cfg.contains(param))
+    throw ConfigParsingError(param + " was not specified in the config");
   return cfg.getInt64(param, min, max);
 }
 static double getAutoPatternDoubleParam(ConfigParser& cfg, const string& param, int boardXSize, int boardYSize, double min, double max) {
-  if(!cfg.contains(param))
-    throw ConfigParsingError(param + " was not specified in the config");
   if(cfg.contains(param + boardSizeToStr(boardXSize,boardYSize)))
     return cfg.getDouble(param + boardSizeToStr(boardXSize,boardYSize), min, max);
+  if(!cfg.contains(param))
+    throw ConfigParsingError(param + " was not specified in the config");
   return cfg.getDouble(param, min, max);
 }
 
@@ -1124,6 +1124,14 @@ std::unique_ptr<PatternBonusTable> Setup::loadAndPruneAutoPatternBonusTables(Con
       string logSource = dirPath;
       patternBonusTable->avoidRepeatedPosMovesAndDeleteExcessFiles({baseDir + "/" + dirName},penalty,lambda,minTurnNumber,maxTurnNumber,maxPoses,logger,logSource);
     }
+
+
+    cfg.markAllKeysUsedWithPrefix("autoAvoidRepeatUtility");
+    cfg.markAllKeysUsedWithPrefix("autoAvoidRepeatLambda");
+    cfg.markAllKeysUsedWithPrefix("autoAvoidRepeatMinTurnNumber");
+    cfg.markAllKeysUsedWithPrefix("autoAvoidRepeatMaxTurnNumber");
+    cfg.markAllKeysUsedWithPrefix("autoAvoidRepeatMaxPoses");
+    cfg.markAllKeysUsedWithPrefix("autoAvoidRepeatSaveChunkSize");
   }
   return patternBonusTable;
 }
