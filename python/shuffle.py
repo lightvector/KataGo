@@ -737,7 +737,7 @@ if __name__ == '__main__':
 
     clean_tmp_dirs()
     for tmp_dir in out_tmp_dirs:
-        os.mkdir(tmp_dir)
+        os.makedirs(tmp_dir,exist_ok=True)
 
     num_rows_in_desired_files = 0
     if only_include_md5_path_prop_lbound is not None or only_include_md5_path_prop_ubound is not None:
