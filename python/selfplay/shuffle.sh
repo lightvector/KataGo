@@ -99,11 +99,14 @@ fi
 #Just in case, give a little time for nfs
 sleep 10
 
-#rm if it already exists
-rm -f "$BASEDIR"/shuffleddata/current_tmp
+# #rm if it already exists
+# rm -f "$BASEDIR"/shuffleddata/current_tmp
 
-ln -s $OUTDIR "$BASEDIR"/shuffleddata/current_tmp
-mv -Tf "$BASEDIR"/shuffleddata/current_tmp "$BASEDIR"/shuffleddata/current
+# ln -s $OUTDIR "$BASEDIR"/shuffleddata/current_tmp
+# mv -Tf "$BASEDIR"/shuffleddata/current_tmp "$BASEDIR"/shuffleddata/current
+
+# 使用 Python 创建符号链接 (Use Python to create the symlink)
+python3 ./create_symlink.py "$BASEDIR/shuffleddata/$OUTDIR" "$BASEDIR/shuffleddata/current"
 
 # CLEANUP ---------------------------------------------------------------
 
