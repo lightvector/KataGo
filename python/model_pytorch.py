@@ -375,7 +375,7 @@ class KataGPool(torch.nn.Module):
         """
         mask_sum_hw_sqrt_offset = torch.sqrt(mask_sum_hw) - 14.0
 
-        layer_mean = torch.sum(x, dim=(2, 3), keepdim=True, dtype=torch.float32) / mask_sum_hw
+        layer_mean = torch.sum(x, dim=(2, 3), keepdim=True) / mask_sum_hw
         # All activation functions we use right now are always greater than -1.0, and map 0 -> 0.
         # So off-board areas will equal 0, and then this max is mask-safe if we assign -1.0 to off-board areas.
         (layer_max,_argmax) = torch.max((x+(mask-1.0)).view(x.shape[0],x.shape[1],-1).to(torch.float32), dim=2)
@@ -404,7 +404,7 @@ class KataValueHeadGPool(torch.nn.Module):
         """
         mask_sum_hw_sqrt_offset = torch.sqrt(mask_sum_hw) - 14.0
 
-        layer_mean = torch.sum(x, dim=(2, 3), keepdim=True, dtype=torch.float32) / mask_sum_hw
+        layer_mean = torch.sum(x, dim=(2, 3), keepdim=True) / mask_sum_hw
 
         out_pool1 = layer_mean
         out_pool2 = layer_mean * (mask_sum_hw_sqrt_offset / 10.0)
@@ -1310,7 +1310,6 @@ class PolicyHead(torch.nn.Module):
         self.act2 = act(activation)
         self.conv2p = torch.nn.Conv2d(c_p1, self.num_policy_outputs, kernel_size=1, padding="same", bias=False)
 
-
     def initialize(self):
         # Scaling so that variance on the p and g branches adds up to 1.0
         p_scale = 0.8
@@ -1372,7 +1371,6 @@ class PolicyHead(torch.nn.Module):
         outp = self.act2(outp)
         outp = self.conv2p(outp)
         outpolicy = outp
-
         # mask out parts outside the board by making them a huge neg number, so that they're 0 after softmax
         outpolicy = outpolicy - (1.0 - mask) * 5000.0
         # NC(HW) concat with NC1
@@ -1599,7 +1597,7 @@ class MetadataEncoder(torch.nn.Module):
 
 
 class Model(torch.nn.Module):
-    def __init__(self, config: modelconfigs.ModelConfig, pos_len: int):
+    def __init__(self, config: modelconfigs.ModelConfig, pos_len: int, for_coreml: bool = False):
         super(Model, self).__init__()
 
         self.config = config
@@ -1617,6 +1615,7 @@ class Model(torch.nn.Module):
         self.num_scorebeliefs = config["num_scorebeliefs"]
         self.num_total_blocks = len(self.block_kind)
         self.pos_len = pos_len
+        self.for_coreml = for_coreml
 
         if config["version"] <= 12:
             self.td_score_multiplier = 20.0
@@ -1912,6 +1911,8 @@ class Model(torch.nn.Module):
         # print("TENSOR BEFORE TRUNK")
         # print(out)
 
+        self.has_intermediate_head = False if self.for_coreml else self.has_intermediate_head
+
         if self.has_intermediate_head:
             count = 0
             for block in self.blocks[:self.intermediate_head_blocks]:
@@ -1997,6 +1998,14 @@ class Model(torch.nn.Module):
                     iout_scorebelief_logprobs,
                 ),
             )
+        elif self.for_coreml:
+            return ((
+                out_policy,
+                out_value,
+                out_miscvalue,
+                out_moremiscvalue,
+                out_ownership,
+            ),)
         else:
             return ((
                 out_policy,
