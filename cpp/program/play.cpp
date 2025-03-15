@@ -852,6 +852,39 @@ static void extractValueTargets(ValueTargets& buf, const Search* toMoveBot, cons
   buf.score = (float)values.expectedScore;
 }
 
+static void extractQValueTargets(
+  vector<QValueTargetMove>& buf,
+  const Search* toMoveBot,
+  const SearchNode* node
+) {
+  ConstSearchNodeChildrenReference children = node->getChildren();
+  int numChildren = children.iterateAndCountChildren();
+  for(int childIdx = 0; childIdx < numChildren; childIdx++) {
+    const SearchChildPointer& childPtr = children[childIdx];
+    const SearchNode* child = childPtr.getIfAllocated();
+
+    if(child == NULL)
+      continue;
+
+    ReportedSearchValues values;
+    bool success = toMoveBot->getNodeValues(child, values);
+    if(!success)
+      continue;
+    if(values.visits <= 0)
+      continue;
+
+    Loc moveLoc = childPtr.getMoveLoc();
+    buf.push_back(
+      QValueTargetMove(
+        moveLoc,
+        (float)values.winLossValue,
+        (float)values.expectedScore,
+        values.visits
+      )
+    );
+  }
+}
+
 static NNRawStats computeNNRawStats(const Search* bot, const Board& board, const BoardHistory& hist, Player pla) {
   NNResultBuf buf;
   MiscNNInputParams nnInputParams;
@@ -900,6 +933,7 @@ static void recordTreePositionsRec(
     SidePosition* sp = new SidePosition(board,hist,pla,numNeuralNetChangesSoFar);
     Play::extractPolicyTarget(sp->policyTarget, toMoveBot, node, locsBuf, playSelectionValuesBuf);
     extractValueTargets(sp->whiteValueTargets, toMoveBot, node);
+    extractQValueTargets(sp->whiteQValueTargets.targets, toMoveBot, node);
 
     double policySurprise = 0.0, policyEntropy = 0.0, searchEntropy = 0.0;
     bool success = toMoveBot->getPolicySurpriseAndEntropy(policySurprise, searchEntropy, policyEntropy, node);
@@ -1526,6 +1560,9 @@ FinishedGameData* Play::runGame(
     ValueTargets whiteValueTargets;
     extractValueTargets(whiteValueTargets, toMoveBot, toMoveBot->rootNode);
     gameData->whiteValueTargetsByTurn.push_back(whiteValueTargets);
+    QValueTargets whiteQValueTargets;
+    extractQValueTargets(whiteQValueTargets.targets, toMoveBot, toMoveBot->rootNode);
+    gameData->whiteQValueTargetsByTurn.push_back(whiteQValueTargets);
 
     if(!recordFullData) {
       //Go ahead and record this anyways with just the visits, as a bit of a hack so that the sgf output can also write the number of visits.
@@ -1853,6 +1890,7 @@ FinishedGameData* Play::runGame(
 
       Play::extractPolicyTarget(sp->policyTarget, toMoveBot, toMoveBot->rootNode, locsBuf, playSelectionValuesBuf);
       extractValueTargets(sp->whiteValueTargets, toMoveBot, toMoveBot->rootNode);
+      extractQValueTargets(sp->whiteQValueTargets.targets, toMoveBot, toMoveBot->rootNode);
 
       double policySurprise = 0.0, policyEntropy = 0.0, searchEntropy = 0.0;
       bool success = toMoveBot->getPolicySurpriseAndEntropy(policySurprise, searchEntropy, policyEntropy);

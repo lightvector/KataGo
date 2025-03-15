@@ -2336,6 +2336,7 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
       const std::vector<ChangedNeuralNet*> changedNeuralNets;
       const bool hitTurnLimit = false;
       const int mode = 0;
+      const std::vector<QValueTargets> whiteQValueTargets;
 
       if(
         trainingWeights[m] > 1e-8
@@ -2357,6 +2358,7 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
           policyEntropy,
           searchEntropy,
           whiteValueTargets,
+          whiteQValueTargets,
           turnIdx,
           valueTargetWeight,
           tdValueTargetWeight,
