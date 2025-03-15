@@ -55,58 +55,50 @@ def shardify(input_idx, input_file_group, num_out_files, out_tmp_dirs, keep_prob
     assert(len(input_file_group) > 0)
     num_files_not_found = 0
 
-    if len(input_file_group) == 1:
+    binaryInputNCHWPackedList = []
+    globalInputNCList = []
+    policyTargetsNCMoveList = []
+    globalTargetsNCList = []
+    scoreDistrNList = []
+    valueTargetsNCHWList = []
+    metadataInputNCList = []
+
+    for input_file in input_file_group:
         try:
-            with np.load(input_file_group[0]) as npz:
+            with np.load(input_file) as npz:
                 assert_keys(npz,include_meta)
-                ###
-                # WARNING - if adding anything here, also add it to joint_shuffle below!
-                ###
-                binaryInputNCHWPacked = npz["binaryInputNCHWPacked"]
-                globalInputNC = npz["globalInputNC"]
-                policyTargetsNCMove = npz["policyTargetsNCMove"]
-                globalTargetsNC = npz["globalTargetsNC"]
-                scoreDistrN = npz["scoreDistrN"]
-                valueTargetsNCHW = npz["valueTargetsNCHW"]
-                metadataInputNC = npz["metadataInputNC"] if include_meta else None
+                binaryInputNCHWPackedList.append(npz["binaryInputNCHWPacked"])
+                globalInputNCList.append(npz["globalInputNC"])
+                policyTargetsNCMoveList.append(npz["policyTargetsNCMove"])
+                globalTargetsNCList.append(npz["globalTargetsNC"])
+                scoreDistrNList.append(npz["scoreDistrN"])
+                valueTargetsNCHWList.append(npz["valueTargetsNCHW"])
+                metadataInputNCList.append(npz["metadataInputNC"] if include_meta else None)
         except FileNotFoundError:
             num_files_not_found += 1
-            print("WARNING: file not found by shardify: ", input_file_group[0])
-            return num_files_not_found # Early quit since we don't know shapes
+            print("WARNING: file not found by shardify: ", input_file)
+            pass
+    if len(binaryInputNCHWPackedList) <= 0:
+        return num_files_not_found # Early quit since we don't know shapes
+
+    if len(input_file_group) == 1:
+        binaryInputNCHWPacked = binaryInputNCHWPackedList[0]
+        globalInputNC = globalInputNCList[0]
+        policyTargetsNCMove = policyTargetsNCMoveList[0]
+        globalTargetsNC = globalTargetsNCList[0]
+        scoreDistrN = scoreDistrNList[0]
+        valueTargetsNCHW = valueTargetsNCHWList[0]
+        metadataInputNC = metadataInputNCList[0]
+        qValueTargetsNCMove = qValueTargetsNCMoveList[0]
     else:
-        binaryInputNCHWPackedList = []
-        globalInputNCList = []
-        policyTargetsNCMoveList = []
-        globalTargetsNCList = []
-        scoreDistrNList = []
-        valueTargetsNCHWList = []
-        metadataInputNCList = []
-
-        for input_file in input_file_group:
-            try:
-                with np.load(input_file) as npz:
-                    assert_keys(npz,include_meta)
-                    binaryInputNCHWPackedList.append(npz["binaryInputNCHWPacked"])
-                    globalInputNCList.append(npz["globalInputNC"])
-                    policyTargetsNCMoveList.append(npz["policyTargetsNCMove"])
-                    globalTargetsNCList.append(npz["globalTargetsNC"])
-                    scoreDistrNList.append(npz["scoreDistrN"])
-                    valueTargetsNCHWList.append(npz["valueTargetsNCHW"])
-                    metadataInputNCList.append(npz["metadataInputNC"] if include_meta else None)
-            except FileNotFoundError:
-                num_files_not_found += 1
-                print("WARNING: file not found by shardify: ", input_file)
-                pass
-        if len(binaryInputNCHWPackedList) <= 0:
-            return num_files_not_found # Early quit since we don't know shapes
-
-        binaryInputNCHWPacked = np.concatenate(binaryInputNCHWPackedList,axis=0)
-        globalInputNC = np.concatenate(globalInputNCList,axis=0)
-        policyTargetsNCMove = np.concatenate(policyTargetsNCMoveList,axis=0)
-        globalTargetsNC = np.concatenate(globalTargetsNCList,axis=0)
-        scoreDistrN = np.concatenate(scoreDistrNList,axis=0)
-        valueTargetsNCHW = np.concatenate(valueTargetsNCHWList,axis=0)
-        metadataInputNC = np.concatenate(metadataInputNCList,axis=0) if include_meta else None
+        binaryInputNCHWPacked = np.concatenate(binaryInputNCHWPackedList, axis=0)
+        globalInputNC = np.concatenate(globalInputNCList, axis=0)
+        policyTargetsNCMove = np.concatenate(policyTargetsNCMoveList, axis=0)
+        globalTargetsNC = np.concatenate(globalTargetsNCList, axis=0)
+        scoreDistrN = np.concatenate(scoreDistrNList, axis=0)
+        valueTargetsNCHW = np.concatenate(valueTargetsNCHWList, axis=0)
+        metadataInputNC = np.concatenate(metadataInputNCList, axis=0) if include_meta else None
+        qValueTargetsNCMove = np.concatenate(qValueTargetsNCMoveList, axis=0) if include_qvalues else None
 
     num_rows_to_keep = binaryInputNCHWPacked.shape[0]
     assert(globalInputNC.shape[0] == num_rows_to_keep)
