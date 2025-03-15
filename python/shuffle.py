@@ -695,7 +695,6 @@ if __name__ == '__main__':
                 start_row = end_row - num_rows
                 min_start_row = min(start_row, min_start_row)
                 num_rows_used += num_rows
-                end_row -= num_rows
             else:
                 start_row = end_row
 
@@ -703,6 +702,9 @@ if __name__ == '__main__':
                 print("Using: %s (%d-%d) (%d/%d desired rows)" % (filename,start_row,end_row,num_rows_used,desired_num_rows), flush=True)
             if num_rows_used >= desired_num_rows:
                 break
+
+            # Update end row for next loop
+            end_row = start_row
 
     print("Finally, using: (%d-%d) (%d/%d desired rows)" % (min_start_row,max_end_row,num_rows_used,desired_num_rows), flush=True)
 
