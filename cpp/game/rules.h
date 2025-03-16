@@ -101,6 +101,7 @@ struct Rules {
   static const Hash128 ZOBRIST_TAX_RULE_HASH[3];
   static const Hash128 ZOBRIST_MULTI_STONE_SUICIDE_HASH;
   static const Hash128 ZOBRIST_BUTTON_HASH;
+  static const Hash128 ZOBRIST_FRIENDLY_PASS_OK_HASH;
 
 private:
   nlohmann::json toJsonHelper(bool omitKomi, bool omitDefaults) const;

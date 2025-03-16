@@ -50,6 +50,10 @@ struct SearchThread {
   //The path we trace down the graph as we do a playout
   std::unordered_set<SearchNode*> graphPath;
 
+  //Tracks whether this thread did something that "should" be counted as a playout
+  //for the purpose of playout limits
+  bool shouldCountPlayout;
+
   Rand rand;
 
   NNResultBuf nnResultBuf;
@@ -141,6 +145,7 @@ struct Search {
 
   Logger* logger;
   NNEvaluator* nnEvaluator;
+  NNEvaluator* humanEvaluator;
   int nnXLen;
   int nnYLen;
   int policySize;
@@ -173,7 +178,19 @@ struct Search {
 
   //Note - randSeed controls a few things in the search, but a lot of the randomness actually comes from
   //random symmetries of the neural net evaluations, see nneval.h
-  Search(SearchParams params, NNEvaluator* nnEval, Logger* logger, const std::string& randSeed);
+  Search(
+    SearchParams params,
+    NNEvaluator* nnEval,
+    Logger* logger,
+    const std::string& randSeed
+  );
+  Search(
+    SearchParams params,
+    NNEvaluator* nnEval,
+    NNEvaluator* humanEval,
+    Logger* logger,
+    const std::string& randSeed
+  );
   ~Search();
 
   Search(const Search&) = delete;
@@ -404,7 +421,9 @@ private:
   // searchhelpers.cpp
   //----------------------------------------------------------------------------------------
 public:
-  static uint32_t chooseIndexWithTemperature(Rand& rand, const double* relativeProbs, int numRelativeProbs, double temperature);
+  static uint32_t chooseIndexWithTemperature(
+    Rand& rand, const double* relativeProbs, int numRelativeProbs, double temperature, double onlyBelowProb, double* processedRelProbsBuf
+  );
   static void computeDirichletAlphaDistribution(int policySize, const float* policyProbs, double* alphaDistr);
   static void addDirichletNoise(const SearchParams& searchParams, Rand& rand, int policySize, float* policyProbs);
 private:
@@ -434,6 +453,7 @@ private:
 
   // LCB helpers
   void getSelfUtilityLCBAndRadius(const SearchNode& parent, const SearchNode* child, int64_t edgeVisits, Loc moveLoc, double& lcbBuf, double& radiusBuf) const;
+  void getSelfUtilityLCBAndRadiusZeroVisits(double& lcbBuf, double& radiusBuf) const;
 
   //----------------------------------------------------------------------------------------
   // Mirror handling logic
@@ -507,12 +527,18 @@ private:
     SearchThread& thread, SearchNode& node, bool isRoot
   );
 
+  bool needsHumanOutputAtRoot() const;
+  bool needsHumanOutputInTree() const;
+
   //----------------------------------------------------------------------------------------
   // Move selection during search
   // searchexplorehelpers.cpp
   //----------------------------------------------------------------------------------------
   double getExploreScaling(
     double totalChildWeight, double parentUtilityStdevFactor
+  ) const;
+  double getExploreScalingHuman(
+    double totalChildWeight
   ) const;
   double getExploreSelectionValue(
     double exploreScaling,
@@ -534,7 +560,9 @@ private:
     double exploreScaling,
     double totalChildWeight, int64_t childEdgeVisits, double fpuValue,
     double parentUtility, double parentWeightPerVisit,
-    bool isDuringSearch, bool antiMirror, double maxChildWeight, SearchThread* thread
+    bool isDuringSearch, bool antiMirror, double maxChildWeight,
+    bool countEdgeVisit,
+    SearchThread* thread
   ) const;
   double getNewExploreSelectionValue(
     const SearchNode& parent,
@@ -542,7 +570,9 @@ private:
     float nnPolicyProb,
     double fpuValue,
     double parentWeightPerVisit,
-    double maxChildWeight, SearchThread* thread
+    double maxChildWeight,
+    bool countEdgeVisit,
+    SearchThread* thread
   ) const;
   double getReducedPlaySelectionWeight(
     const SearchNode& parent, const float* parentPolicyProbs, const SearchNode* child,
@@ -559,7 +589,7 @@ private:
 
   void selectBestChildToDescend(
     SearchThread& thread, const SearchNode& node, SearchNodeState nodeState,
-    int& numChildrenFound, int& bestChildIdx, Loc& bestChildMoveLoc,
+    int& numChildrenFound, int& bestChildIdx, Loc& bestChildMoveLoc, bool& countEdgeVisit,
     bool isRoot
   ) const;
 

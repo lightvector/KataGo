@@ -1,6 +1,7 @@
 # Monte-Carlo Graph Search from First Principles
+<sub>(Edit 2024-03-13: Corrected an error where PUCT was indicated as referring to "polynomial" UCT rather than "predictor" UCT, i.e. UCT/UCB with a predictive prior)</sub>
 
-Monte-Carlo Tree Search (MCTS) except applied to directed graphs instead of trees - "Monte-Carlo Graph Search" ("MCGS") - is sometimes considered to be pretty tricky to implement in a sound way.
+Monte-Carlo Tree Search (MCTS) except applied to directed graphs instead of trees, "Monte-Carlo Graph Search" ("MCGS"), is sometimes considered to be pretty tricky to implement in a sound way.
 
 Unfortunately, this is partly because the perhaps-standard academic reference for it, [Monte-Carlo Graph Search for AlphaZero (Czech, Korus, and Kersting, 2020)](https://arxiv.org/pdf/2012.11045.pdf), adheres closely to the "standard" formulation for MCTS on trees. This historically-standard formulation turns out to be a poor choice for conceptually understanding the generalization to graphs. This document presents an essentially-equivalent-but-cleaner formulation that I hope many will find more intuitive, and derives from basic principles why graph search needs to work this way and reveals some additional possible implementation choices beyond those considered by Czech et. al.
 
@@ -25,7 +26,7 @@ The tricky part is that applying MCTS naively to a DAG can easily result in an u
 
 [Czech, Korus, and Kersting](https://arxiv.org/pdf/2012.11045.pdf) do a great job of fixing the problems and arriving at a sound algorithm based on this formulation, in spite of the challenges. However, there is an equivalent alternative way to approach MCTS from the perspective of *online policy learning*. In this alternative formulation, as we will see, generalization to graphs is relatively natural. It turns out we still arrive at a similar final algorithm as Czech et. al., but we can derive from basic principles _why_ the algorithm needs to work that way. If we're willing to concede some low-level optimizations, the resulting code is also much simpler.
 
-Note that for this document we will mostly be disregarding what to do when actual cycles in the graph are also possible. The handling necessary will vary depending on the particular rules of the game (e.g. 3rd-time repetition, 'superko' rule, etc). This means that for games with actual cycles, in practice there may need to be significant additional work to handle them correctly. Here we won't address those details, we'll just focus on the core concept of how to make MCTS work.
+Note that for this document we will mostly be disregarding what to do when actual cycles in the graph are also possible. The handling necessary will vary depending on the particular rules of the game (e.g. 3rd-time repetition, 'superko' rule, etc). This means that for games with actual cycles, in practice there may need to be significant additional work to handle them correctly. Here we won't address those details, we'll just focus on the core concept of how to make MCTS work. (Although, see also the [addendum](#addendum-2024-03-10---handling-cycles) with a link to a doc with some rough thoughts on handling cycles.)
 
 ## The Usual Formulation of MCTS - A Tree of Running Stats
 
@@ -90,7 +91,7 @@ where:
 * $P(a)$ is the prior probability that the action is best, e.g. the raw policy prediction for $a$ from querying a neural net.
 * $c_{\text{PUCT}}$ is a tunable constant.
 
-As an aside, "PUCT" originated as an abbreviation for "Polynomial Upper Confidence Bounds for Trees", a "polynomial" variant of the "UCT" or "UCB1" algorithms from the multi-armed-bandit literature which use a formula with a different exploration term that involves a log scaling (see [Kocsis and Szepesvári, 2006](http://old.sztaki.hu/~szcsaba/papers/ecml06.pdf)). Properly, "PUCT" might describe a whole class of such variants, but nowadays in game-playing/machine-learning circles "PUCT" often just refers to AlphaZero's particular version of the formula for how to select actions to explore, which is also what we focus on here.
+As an aside, "PUCT" originated as an abbreviation for "Predictor Upper Confidence Bounds" for trees, a variant of the "UCT" or "UCB1" algorithms from the multi-armed-bandit literature that used a predictor, i.e. a prior, along with a exploration term that involves a log scaling (see [Kocsis and Szepesvári, 2006](http://old.sztaki.hu/~szcsaba/papers/ecml06.pdf) and [Rosin, 2011](https://link.springer.com/article/10.1007/s10472-011-9258-6)). AlphaZero's variant has a noticeably different functional form than the original and nowadays "PUCT" is somewhat ambiguous regarding the particular functional form and in game-playing/machine-learning circles often refers to AlphaZero's particular variant of the formula, which is also what we focus on here.
 
 Also, as far as the name "Monte-Carlo Tree Search" itself, readers might note that there is nothing "Monte-Carlo" in the above algorithm - that it's completely deterministic! The name comes from the fact that originally, randomized rollouts to the end of the game were used for utility estimates, instead of querying a neural net. In hindsight, the name was a poor historical choice - it would be more accurate to call the algorithm something like "Bandit-based Tree Search", but for years now pretty much universally everyone has continued to use "MCTS" to refer to the modern deterministic versions.
 
@@ -349,7 +350,7 @@ We can rephrase this in the language of policy optimization: whenever one upweig
 
 However, when transpositions occur, it's common to encounter a child node already having **more** visits than the edge that leads to it. Can we say that the child node already has "enough" visits in this case and cut short the playout, to improve the efficiency of the search?
 
-Yes! We can just increment the edge visits and immediately skip to the step of updating the parent and it's ancestors without giving the child another visit. The child already has enough visits to "support" the upweighted edge visits that the parent wants to assign it.
+Yes! We can just increment the edge visits and immediately skip to the step of updating the parent and its ancestors without giving the child another visit. The child already has enough visits to "support" the upweighted edge visits that the parent wants to assign it.
 
 However, it's not obvious that this is a good idea. Speculatively, there might be some competing considerations:
 * If the edge visit count is low, while the child visit count is high, then the marginal extra visit to that child is probably less informative and less likely to be worth the compute cost given that it's already high enough for that parent, favoring stopping.
@@ -377,8 +378,12 @@ There are also some other implementation details worth mentioning beyond the bas
 
 I hope at least some people find this document and explanation of Monte-Carlo Graph Search useful! This document still doesn't cover some of the game-specific tricky bits that need to be handled regarding what happens when the game can cycle instead of being only acyclic, such as superko in Go<sup name="footnotesrc4">[4](#footnote4)</sup>, or third-time repetition in Chess. But I hope it gives some intuition behind how MCGS works, and what kinds of implementation choices could be interesting to vary and experiment with.
 
+## Addendum (2024-03-10) - Handling Cycles
+In case it's further also helpful to someone, here's a link to a Google Doc with some thoughts on how to handle N-fold repetition and cycles in games like chess or in general. These thoughts are very much not as polished and doing this well may require some game-specific experimentation on heuristics: https://docs.google.com/document/d/1JbxsoMtr7_qAAkfYynAgpvuarMMJycaL5toXdnqVJoo/edit
+
 <hr>
 
+## Footnotes
 <a name="footnote1" href="#footnotesrc1">1</a>: It's also common to see code that tracks NxQ instead of Q, i.e. the running *sum* of playout utilities rather than the running average, and only divides by N at the end when querying the utility. This leads to a slightly simpler update, but in some cases may make certain lock-free multithreading implementations harder to reason about because it opens the chance for split reads: namely reading N and NxQ that are desynchronized, such that dividing NxQ by N gives a bogus value for Q.
 
 <a name="footnote2" href="#footnotesrc2">2</a>: In general, $D_{\text{KL}}(Y || X) = E_Y (\log(Y) - \log(X))$ is _"How surprised will I be if Y is true, given I initially believe X?"_.

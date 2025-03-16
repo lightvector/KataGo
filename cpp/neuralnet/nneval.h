@@ -11,6 +11,7 @@
 #include "../game/board.h"
 #include "../game/boardhistory.h"
 #include "../neuralnet/nninputs.h"
+#include "../neuralnet/sgfmetadata.h"
 #include "../neuralnet/nninterface.h"
 #include "../search/mutexpool.h"
 
@@ -50,10 +51,10 @@ struct NNResultBuf {
   bool includeOwnerMap;
   int boardXSizeForServer;
   int boardYSizeForServer;
-  int rowSpatialSize;
-  int rowGlobalSize;
-  float* rowSpatial;
-  float* rowGlobal;
+  std::vector<float> rowSpatialBuf;
+  std::vector<float> rowGlobalBuf;
+  std::vector<float> rowMetaBuf;
+  bool hasRowMeta;
   std::shared_ptr<NNOutput> result;
   bool errorLogLockout; //error flag to restrict log to 1 error to prevent spam
   int symmetry; //The symmetry to use for this eval
@@ -109,11 +110,13 @@ class NNEvaluator {
   std::string getModelName() const;
   std::string getModelFileName() const;
   std::string getInternalModelName() const;
+  std::string getAbbrevInternalModelName() const;
   Logger* getLogger();
   bool isNeuralNetLess() const;
   int getMaxBatchSize() const;
   int getCurrentBatchSize() const;
   void setCurrentBatchSize(int batchSize);
+  bool requiresSGFMetadata() const;
 
   int getNumGpus() const;
   int getNumServerThreads() const;
@@ -146,6 +149,27 @@ class NNEvaluator {
     NNResultBuf& buf,
     bool skipCache,
     bool includeOwnerMap
+  );
+  void evaluate(
+    Board& board,
+    const BoardHistory& history,
+    Player nextPlayer,
+    const SGFMetadata* sgfMeta,
+    const MiscNNInputParams& nnInputParams,
+    NNResultBuf& buf,
+    bool skipCache,
+    bool includeOwnerMap
+  );
+  std::shared_ptr<NNOutput>* averageMultipleSymmetries(
+    Board& board,
+    const BoardHistory& history,
+    Player nextPlayer,
+    const SGFMetadata* sgfMeta,
+    const MiscNNInputParams& baseNNInputParams,
+    NNResultBuf& buf,
+    bool includeOwnerMap,
+    Rand& rand,
+    int numSymmetriesToSample
   );
 
   //If there is at least one evaluate ongoing, wait until at least one finishes.
@@ -204,6 +228,7 @@ class NNEvaluator {
 
   int modelVersion;
   int inputsVersion;
+  int numInputMetaChannels;
 
   ModelPostProcessParams postProcessParams;
 

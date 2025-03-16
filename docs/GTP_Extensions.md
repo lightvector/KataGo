@@ -108,6 +108,7 @@ In addition to a basic set of [GTP commands](https://www.lysator.liu.se/~gunnar/
    * `kata-analyze [player (optional)] [interval (optional)] KEYVALUEPAIR KEYVALUEPAIR ...`
       * Same as `lz-analyze` except a slightly different output format and some additional options and fields.
       * Additional possible key-value pairs:
+         * `rootInfo true` - Output the total number of visits and other root properties for the search. This is recommended for stats like visits rather than add visits across moves, since in some cases intermediary programs that run KataGo remotely may omit some moves to reduce io overhead.
          * `ownership true` - Output the predicted final ownership of every point on the board.
          * `ownershipStdev true` - Output the standard deviation of the distribution of predicted final ownerships of every point on the board across the search tree.
          * `movesOwnership true` - Output the predicted final ownership of every point on the board for every individual move.
@@ -116,10 +117,13 @@ In addition to a basic set of [GTP commands](https://www.lysator.liu.se/~gunnar/
          * `pvEdgeVisits true` - Output the number of visits spent following each move in each principal variation.
       * Output format:
          * Outputted lines look like `info move E4 visits 487 utility -0.0408357 winrate 0.480018 scoreMean -0.611848 scoreStdev 24.7058 scoreLead -0.611848 scoreSelfplay -0.515178 prior 0.221121 lcb 0.477221 utilityLcb -0.0486664 order 0 pv E4 E3 F3 D3 F4 P4 P3 O3 Q3 O4 K3 Q6 S6 E16 E17 info move P16 visits 470 utility -0.0414945 winrate 0.479712 scoreMean -0.63075 scoreStdev 24.7179 scoreLead -0.63075 scoreSelfplay -0.5221 prior 0.220566 lcb 0.47657 utilityLcb -0.0502929 order 1 pv P16 P17 O17 Q17 O16 E17 H17 D15 C15 D14 C13 D13 C12 D12 info move E16 visits 143 utility -0.0534071 winrate 0.474509 scoreMean -0.729858 scoreStdev 24.7991 scoreLead -0.729858 scoreSelfplay -0.735747 prior 0.104652 lcb 0.470674 utilityLcb -0.0641425 order 2 pv E16 P4 P3 O3 Q3 O4 E3 H3 D5 C5`
+         * Or, for example, if options like `rootInfo` and `ownership` are specified, they may look like: `info move E4 <same info for E4 as above> info move P16 <same info for P16 as above> info move E16 <same info for E16 as above> rootInfo visits 1101 <winrate, utility, other properties of root> ownership <361 floats predicting ownership of each board point>`
+         * Top level fields in the output format are "info", "rootInfo", "ownership", and "ownershipStdev". Each one is followed with various other informaiton.
          * `info` - Indicates the start of information for a new possible move, followed by key-value pairs. Current key-value pairs:
             * **NOTE: Consumers of this data should attempt to be robust to the order of these fields, as well as to possible addition of new fields in the future.**
             * `move` - The move being analyzed.
-            * `visits` - The number of visits invested into the move so far.
+            * `visits` - The number of visits invested that the child node received.
+            * `edgeVisits` - The number of visits that the root node "wants" to invest in the move, due to thinking it's a plausible or search-worthy move. Might differ from `visits` due to human SL weightless exploration, or graph search transpositions.
             * `winrate` - The winrate of the move so far, as a float in [0,1].
             * `scoreMean` - Same as scoreLead. "Mean" is a slight misnomer, but this field exists to preserve compatibility with existing tools.
             * `scoreStdev` - The predicted standard deviation of the final score of the game after this move, in points. (NOTE: due to the mechanics of MCTS, this value will be **significantly biased high** currently, although it can still be informative as a *relative* indicator).
@@ -137,7 +141,21 @@ In addition to a basic set of [GTP commands](https://www.lysator.liu.se/~gunnar/
             * `pvEdgeVisits` - The number of visits used to explore each move in `pv`. Exists only if `pvEdgeVisits true` was requested. Differs from pvVisits when doing graph search and multiple move sequences lead to the same position - pvVisits will count the total number of visits for the position at that point in the PV, pvEdgeVisits will count only the visits reaching the position using the move in the PV from the preceding position.
             * `movesOwnership` - this indicates the start of information about predicted board ownership. Exists only if `movesOwnership true` was requested.
             * `movesOwnershipStdev` - The standard deviation of the ownership across the search. Exists only if `movesOwnershipStdev true` was requested.
-         * `ownership` - Alternatively to `info`, this indicates the start of information about predicted board ownership, which applies to every location on the board rather than only legal moves. Only present if `ownership true` was provided.
+         * `rootInfo` - Top level field that follows after all `info` fields, followed by key-value pairs. Current key-value pairs:
+            * **NOTE: Consumers of this data should attempt to be robust to the order of these fields, as well as to possible addition of new fields in the future.**
+            * `visits` - The number of visits invested into the search so far.
+            * `utility` - The utility of the move, combining both winrate and score, as a float in [-C,C] where C is the maximum possible utility.
+            * `winrate` - The average winrate of the search overall for the player to move, as a float in [0,1].
+            * `scoreMean` - Same as scoreLead. "Mean" is a slight misnomer, but this field exists to preserve compatibility with existing tools.
+            * `scoreStdev` - The predicted standard deviation of the final score of the game, in points. (NOTE: due to the mechanics of MCTS, this value will be **significantly biased high** currently, although it can still be informative as a *relative* indicator).
+            * `scoreLead` - The predicted average number of points that the current side is leading by (with this many points fewer, it would be an even game).
+            * `scoreSelfplay` - The predicted average value of the final score of the game from low-playout noisy selfplay, in points. (NOTE: users should usually prefer scoreLead, since scoreSelfplay may be biased by the fact that KataGo isn't perfectly score-maximizing).
+            * `weight` - The total weight of the visits invested into the search. The average weight of visits may be lower when less certain, and larger when more certain.
+            * `rawStWrError` - The short-term uncertainty the raw neural net believed there would be in the winrate of the position, prior to searching it.
+            * `rawStScoreError` - The short-term uncertainty the raw neural net believed there would be in the score of the position, prior to searching it.
+            * `rawVarTimeLeft` - The raw neural net's guess of "how long of a meaningful game is left?", in no particular units. A large number when expected that it will be a long game before the winner becomes clear. A small number when the net believes the winner is already clear, or that the winner is unclear but will become clear soon.
+            * Note that properties of the root like "winrate" and score will vary more smoothly and a bit more sluggishly than the corresponding property of the best move, since the rootInfo averages smoothly across all visits even while the top move may fluctuate rapidly. This may or may not be preferable over reporting the stats of the top move, depending on the purpose.
+         * `ownership` - Top level field that follows after all `info` fields. This indicates the start of information about predicted board ownership, which applies to every location on the board rather than only legal moves. Only present if `ownership true` was provided.
             * Following is BoardHeight*BoardWidth many consecutive floats in [-1,1] separated by spaces, predicting the final ownership of every board location from the perspective of the current player. Floats are in row-major order, starting at the top-left of the board (e.g. A19) and going to the bottom right (e.g. T1).
          * `ownershipStdev` - The standard deviation of the ownership across the search. Only present if `ownershipStdev true` was provided.
             * Similar to `ownership`, following is BoardHeight*BoardWidth many consecutive floats in [0,1] separated by spaces. Floats are in row-major order, starting at the top-left of the board (e.g. A19) and going to the bottom right (e.g. T1).
@@ -151,6 +169,22 @@ In addition to a basic set of [GTP commands](https://www.lysator.liu.se/~gunnar/
   * `analyze, genmove_analyze`
      * Same as `kata-analyze` and `kata-genmove_analyze`, but intended specifically for the Sabaki GUI app in that all floating point values are always formatted with a decimal point, even when a value happens to be an integer. May also have slightly less compact output in other ways (e.g. extra trailing zeros on some decimals).
      * The output format of `analyze` and `genmove_analyze` may update in future versions if Sabaki's format updates.
+
+  * `kata-search`, `kata-search_cancellable`
+     * These commands are the same as `genmove`, but do not actually make the move on the board.
+        * A GTP controller that does wish to make the move can issue the normal GTP `play` command, passing the move back.
+     * `kata-search_cancellable` can be interrupted and cancelled by sending a newline or any other command.
+        * If interrupted, the move will be the string `cancelled`.
+        * A GTP controller should be prepared that when it cancels a search, it's possible that the search has just finished at the same time, and reports a real move rather than `cancelled`. Unlike `genmove`, since this command doesn't change the board state, this race should hopefully not be hard for a controller to handle.
+     * Important: Unlike genmove, `kata-search` and `kata-search_cancellable` will NOT begin pondering at the end of search even if pondering is enabled. If a GTP controller does wish to make the move suggested rather than cancel it, it should send the followup `play <MOVE>` command *as soon as possible*, so that pondering on the opponent's turn for the next move can begin.
+        * In particular, a GTP controller should NOT follow the pattern where it waits for the opponent to make a move and then sends both the bot and opponent's `play` commands followed by the next search command. Instead, it should send the bot's `play` command immediately, and then once the opponent makes a move, send the `play` command for the opponent and the next search command.
+
+  * `kata-search_analyze`, `kata-search_analyze_cancellable`
+     * Similar to `kata-genmove_analyze`, but do not actually make a move on the board.
+     * `kata-search_analyze_cancellable` can be interrupted by sending a newline or any other command.
+        * If interrupted, final move chosen made will be reported as the string `play cancelled`.
+        * A GTP controller should be prepared that when it cancels a search, it's possible that the search has just finished at the same time, and reports a real move rather than `play cancelled`. Unlike `kata-genmove_analyze`, since this command doesn't change the board state, this race should hopefully not be hard for a controller to handle.
+     * The same note about pondering as for `kata-search` and `kata-search_cancellable` applies here. GTP controllers should reply with the `play` command confirming the move they wish to make as soon as possible.
 
   * `kata-raw-nn SYMMETRY`
      * `SYMMETRY` should be an integer from 0-7 or "all".
@@ -171,15 +205,41 @@ In addition to a basic set of [GTP commands](https://www.lysator.liu.se/~gunnar/
      whiteOwnership (boardXSize * boardYSize floats) - predicted ownership by white (from -1 to 1).
      ```
      Any consumers of this data should attempt to be robust to any pattern of whitespace within the output, as well as possibly the future addition of new keys and values. The ordering of the keys is also not guaranteed - consumers should be capable of handling any permutation of them.
+
+  * `kata-raw-human-nn SYMMETRY`
+     * Similar to `kata-raw-nn`, but uses the human SL model for evaluation.
+     * `SYMMETRY` should be an integer from 0-7 or "all".
+     * This command is only available if a human SL model was provided using the `-human-model` command line option. Typically, this should be a model like `b18c384nbt-humanv0.bin.gz`.
+
   * `kata-get-param PARAM`, `kata-set-param PARAM VALUE`
      * Get a parameter or set a parameter to a given value.
-     * Current supported PARAMs are:
-        * `playoutDoublingAdvantage (float)`. See documentation for this parameter in [the example config](..cpp/configs/gtp_example.cfg). Setting this via this command affects the value used for analysis, and affects play only if the config is not already set to use `dynamicPlayoutDoublingAdvantageCapPerOppLead`.
-        * `analysisWideRootNoise (float)`. See documentation for this parameter in [the example config](..cpp/configs/gtp_example.cfg)
-        * `numSearchThreads (int)`. The number of CPU threads to use in parallel, see documentation for this parameter in [the example config](..cpp/configs/gtp_example.cfg).
-        * `maxVisits (int), maxPlayouts (int), maxTime (float)`. Set or override one or more limits on the search, see [the example config](..cpp/configs/gtp_example.cfg). KataGo will obey the *combination* of all three.
+     * Almost any search-related parameter in the GTP config can be retrieved or set. Some of the notable ones are:
+        * `playoutDoublingAdvantage (float)`. See documentation for this parameter in [the example config](../cpp/configs/gtp_example.cfg). Setting this via this command affects the value used for analysis, and affects play only if the config is not already set to use `dynamicPlayoutDoublingAdvantageCapPerOppLead`.
+        * `analysisWideRootNoise (float)`. See documentation for this parameter in [the example config](../cpp/configs/gtp_example.cfg)
+        * `numSearchThreads (int)`. The number of CPU threads to use in parallel, see documentation for this parameter in [the example config](../cpp/configs/gtp_example.cfg).
+        * `maxVisits (int), maxPlayouts (int), maxTime (float)`. Set or override one or more limits on the search, see [the example config](../cpp/configs/gtp_example.cfg). KataGo will obey the *combination* of all three.
+        * `analysisIgnorePreRootHistory (boolean)`. Whether to ignore pre-root history during analysis.
+        * `genmoveAntiMirror (boolean)`. Whether to enable anti-mirror play during genmove.
+        * `antiMirror (boolean)`. Whether to enable anti-mirror play during analysis.
+        * `humanSLProfile (string)`. Set the human-like play that KataGo should imitate. Requires that a human SL model like `b18c384nbt-humanv0.bin.gz` is being used, typically via the command line parameter `-human-model`. Available profiles include:
+           * `preaz_20k` through `preaz_9d`: Imitate human players of the given rank. (based on 2016 pre-AlphaZero opening style).
+           * `rank_20k` through `rank_9d`: Imitate human players of the given rank (modern opening style).
+           * `proyear_1800` through `proyear_2023`: Imitate pro and strong insei moves based on historical game records from the specified year and surrounding years.
+
   * `kata-list-params`
      * Report all PARAMs supported by `kata-get-param`, separated by whitespace.
+
+  * `kata-get-params`
+     * Get the current values of all parameters as a JSON dictionary.
+
+  * `kata-set-params PARAMS`
+     * Set multiple parameters at once. `PARAMS` should be a JSON dictionary of parameter names and values.
+
+  * `kata-get-models`
+     * Returns a JSON array with information about the loaded models (main model and human SL model if available).
+     * Each item in the array is a json object with at least the following keys: `"name", "internalName", "maxBatchSize", "usesHumanSLProfile", "version", "usingFP16"`.
+     * This command can be used by controllers to tell if a human SL model is loaded (e.g. one for which `"usesHumanSLProfile"` is true).
+
   * `cputime`, `gomill-cpu_time`
      * Returns the approximate total wall-clock-time spent during the handling of `genmove` or the various flavors of `genmove_analyze` commands described above so far during the entire current instance of the engine, as a floating point number of seconds. Does NOT currently count time spent during pondering or during the various `lz-analyze`, `kata-analyze`, etc.
      * Note: Gomill specifies that its variant of the command should return the total time summed across CPUs. For KataGo, this time is both unuseful and hard to measure because much of the time is spent waiting on the GPU, not on the CPU, and with different threads sometimes blocking each other through the multitheading and often exceeding the number of cores on a user's system, time spent on CPUs is hard to make sense of. So instead we report wall-clock-time, which is far more useful to record and should correspond more closely to what users may want to know for actual practical benchmarking and performance.
@@ -200,5 +260,5 @@ Debugging commands can change without warning, and their existence or data forma
      * Prints debugging statistics about move selections.  If "rawstats" is provided the engine will print out extended information about the move.  If a list of MOVE is provided the engine will print out information about that particular variation from the current play position.
   * `genmove_debug` COLOR
      * Functions exactly the same as `genmove`, but will print out addition debugging information to stderr.
-  * `search_debug` COLOR
+  * `kata-search_debug` COLOR
      * Functions exactly the same as `genmove_debug`, but will not actually perform a move.

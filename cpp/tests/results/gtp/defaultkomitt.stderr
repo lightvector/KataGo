@@ -1,4 +1,4 @@
-KataGo v1.14.1
+KataGo v1.15.3
 Using koPOSITIONALscoreAREAtaxNONEsui0 rules initially, unless GTP/GUI overrides this
 Initializing board with boardXSize 19 boardYSize 19
 Loaded config configs/gtp_example.cfg and/or command-line and query overrides

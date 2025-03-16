@@ -4,6 +4,8 @@
 #include "../core/global.h"
 
 namespace FileHelpers {
+  bool isMultiSgfs(const std::string& name);
+
   void collectSgfsFromDir(const std::string& dir, std::vector<std::string>& collected);
   void collectSgfsFromDirOrFile(const std::string& dirOrFile, std::vector<std::string>& collected);
   void collectSgfsFromDirs(const std::vector<std::string>& dirs, std::vector<std::string>& collected);

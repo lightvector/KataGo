@@ -103,6 +103,7 @@ void Tests::runBookTests() {
           if(!child.isNull() && !childIsTransposing)
             nodesHashesToUpdate.insert(child.hash());
           nodesHashesToUpdate.insert(node.hash());
+          node = child;
         }
         else {
           node = node.playMove(board,hist,moveLoc);

@@ -27,7 +27,7 @@
 
 KataGo's public distributed training run is ongoing! See https://katagotraining.org/ for more details, to download the latest and strongest neural nets, or to learn how to contribute if you want to help KataGo improve further! Also check out the computer Go [discord channel](https://discord.gg/bqkZAz3)!
 
-As of 2024, KataGo remains one of the strongest open source Go bots available online. KataGo was trained using an AlphaZero-like process with many enhancements and improvements, and is capable of reaching top levels rapidly and entirely from scratch with no outside data, improving only via self-play. Some of these improvements take advantage of game-specific features and training targets, but also many of the techniques are general and could be applied in other games. As a result, early training is immensely faster than in other self-play-trained bots - with only a few strong GPUs for a few days, any researcher/enthusiast should be able to train a neural net from nothing to high amateur dan strength on the full 19x19 board. If tuned well, a training run using only a *single* top-end consumer GPU could possibly train a bot from scratch to superhuman strength within a few months.
+As of 2025, KataGo remains one of the strongest open source Go bots available online. KataGo was trained using an AlphaZero-like process with many enhancements and improvements, and is capable of reaching top levels rapidly and entirely from scratch with no outside data, improving only via self-play. Some of these improvements take advantage of game-specific features and training targets, but also many of the techniques are general and could be applied in other games. As a result, early training is immensely faster than in other self-play-trained bots - with only a few strong GPUs for a few days, any researcher/enthusiast should be able to train a neural net from nothing to high amateur dan strength on the full 19x19 board. If tuned well, a training run using only a *single* top-end consumer GPU could possibly train a bot from scratch to superhuman strength within a few months.
 
 Experimentally, KataGo did also try some limited ways of using external data at the end of its June 2020 run, and has continued to do so into its most recent public distributed run, "kata1" at https://katagotraining.org/. External data is not necessary for reaching top levels of play, but still appears to provide some mild benefits against some opponents, and noticeable benefits in a useful analysis tool for a variety of kinds of situations that don't occur in self-play but that do occur in human games and  games that users wish to analyze.
 
@@ -131,6 +131,17 @@ You may need to specify different paths when entering KataGo's command for a GUI
 path/to/katago.exe gtp -model path/to/<NEURALNET>.bin.gz
 path/to/katago.exe gtp -model path/to/<NEURALNET>.bin.gz -config path/to/gtp_custom.cfg
 ```
+
+#### Human-style Play and Analysis
+
+You can also have KataGo imitate human play if you download the human SL model b18c384nbt-humanv0.bin.gz from https://github.com/lightvector/KataGo/releases/tag/v1.15.0, and run a command like the following, providing both the normal model and the human SL model:
+```
+./katago.exe gtp -model <NEURALNET>.bin.gz -human-model b18c384nbt-humanv0.bin.gz -config gtp_human5k_example.cfg
+```
+
+The [gtp_human5k_example.cfg](cpp/configs/gtp_human5k_example.cfg) configures KataGo to imitate 5-kyu-level players. You can change it to imitate other ranks too, as well as to do many more things, including making KataGo play in a human style but still at a strong level or analyze in interesting ways. Read the config file itself for documentation on some of these possibilities!
+
+And see also [this guide](https://github.com/lightvector/KataGo/blob/master/docs/Analysis_Engine.md#human-sl-analysis-guide) to using the human SL model, which is written from the perspective of the JSON-based analysis engine mentioned below, but is also applicable to gtp as well.
 
 #### Other Commands:
 

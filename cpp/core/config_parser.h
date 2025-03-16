@@ -42,6 +42,7 @@ class ConfigParser {
   static std::map<std::string,std::string> parseCommaSeparated(const std::string& commaSeparatedValues);
 
   void warnUnusedKeys(std::ostream& out, Logger* logger) const;
+  void markKeyUsed(const std::string& key);
   void markAllKeysUsedWithPrefix(const std::string& prefix);
   void unsetUsedKey(const std::string& key);
   void applyAlias(const std::string& mapThisKey, const std::string& toThisKey);

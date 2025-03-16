@@ -695,7 +695,7 @@ class GameResultSummary:
                 for (dirpath, dirnames, filenames) in os.walk(input_file_or_dir):
                     files += [os.path.join(dirpath, file) for file in filenames if self.is_game_file(os.path.join(dirpath, file))]
             else:
-                files = [os.path.join(input_file_or_dir, file) for file in os.listdir(input_file_or_dir) if self.is_game_file(os.path.join(dirpath, file))]
+                files = [os.path.join(input_file_or_dir, file) for file in os.listdir(input_file_or_dir) if self.is_game_file(os.path.join(input_file_or_dir, file))]
         else:
             if self.is_game_file(input_file_or_dir):
                 files.append(input_file_or_dir)

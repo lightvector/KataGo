@@ -28,12 +28,23 @@ void Search::computeRootNNEvaluation(NNResultBuf& nnResultBuf, bool includeOwner
   if(searchParams.ignorePreRootHistory || searchParams.ignoreAllHistory)
     nnInputParams.maxHistory = 0;
   nnEvaluator->evaluate(
-    board, hist, pla,
+    board, hist, pla, &searchParams.humanSLProfile,
     nnInputParams,
     nnResultBuf, skipCache, includeOwnerMap
   );
 }
 
+bool Search::needsHumanOutputAtRoot() const {
+  return humanEvaluator != NULL && (searchParams.humanSLProfile.initialized || !humanEvaluator->requiresSGFMetadata());
+}
+bool Search::needsHumanOutputInTree() const {
+  return needsHumanOutputAtRoot() && (
+    searchParams.humanSLPlaExploreProbWeightless > 0 ||
+    searchParams.humanSLPlaExploreProbWeightful > 0 ||
+    searchParams.humanSLOppExploreProbWeightless > 0 ||
+    searchParams.humanSLOppExploreProbWeightful > 0
+  );
+}
 
 //If isReInit is false, among any threads trying to store, the first one wins
 //If isReInit is true, we always replace, even for threads that come later.
@@ -70,31 +81,39 @@ bool Search::initNodeNNOutput(
     nnInputParams.maxHistory = isRoot ? 0 : std::max(0, (int)thread.history.moveHistory.size() - (int)rootHistory.moveHistory.size());
   }
 
-  std::shared_ptr<NNOutput>* result;
+  std::shared_ptr<NNOutput>* result = NULL;
+  std::shared_ptr<NNOutput>* humanResult = NULL;
   if(isRoot && searchParams.rootNumSymmetriesToSample > 1) {
-    vector<std::shared_ptr<NNOutput>> ptrs;
-    std::array<int, SymmetryHelpers::NUM_SYMMETRIES> symmetryIndexes;
-    std::iota(symmetryIndexes.begin(), symmetryIndexes.end(), 0);
-    for(int i = 0; i<searchParams.rootNumSymmetriesToSample; i++) {
-      std::swap(symmetryIndexes[i], symmetryIndexes[thread.rand.nextInt(i,SymmetryHelpers::NUM_SYMMETRIES-1)]);
-      nnInputParams.symmetry = symmetryIndexes[i];
-      bool skipCacheThisIteration = true; //Skip cache since there's no guarantee which symmetry is in the cache
-      nnEvaluator->evaluate(
-        thread.board, thread.history, thread.pla,
+    result = nnEvaluator->averageMultipleSymmetries(
+      thread.board, thread.history, thread.pla, &searchParams.humanSLProfile,
+      nnInputParams,
+      thread.nnResultBuf, includeOwnerMap,
+      thread.rand, searchParams.rootNumSymmetriesToSample
+    );
+    if(needsHumanOutputInTree() || (isRoot && needsHumanOutputAtRoot())) {
+      humanResult = humanEvaluator->averageMultipleSymmetries(
+        thread.board, thread.history, thread.pla, &searchParams.humanSLProfile,
         nnInputParams,
-        thread.nnResultBuf, skipCacheThisIteration, includeOwnerMap
+        thread.nnResultBuf, includeOwnerMap,
+        thread.rand, searchParams.rootNumSymmetriesToSample
       );
-      ptrs.push_back(std::move(thread.nnResultBuf.result));
     }
-    result = new std::shared_ptr<NNOutput>(new NNOutput(ptrs));
   }
   else {
     nnEvaluator->evaluate(
-      thread.board, thread.history, thread.pla,
+      thread.board, thread.history, thread.pla, &searchParams.humanSLProfile,
       nnInputParams,
       thread.nnResultBuf, skipCache, includeOwnerMap
     );
     result = new std::shared_ptr<NNOutput>(std::move(thread.nnResultBuf.result));
+    if(needsHumanOutputInTree() || (isRoot && needsHumanOutputAtRoot())) {
+      humanEvaluator->evaluate(
+        thread.board, thread.history, thread.pla, &searchParams.humanSLProfile,
+        nnInputParams,
+        thread.nnResultBuf, skipCache, includeOwnerMap
+      );
+      humanResult = new std::shared_ptr<NNOutput>(std::move(thread.nnResultBuf.result));
+    }
   }
 
   if(antiMirrorDifficult) {
@@ -121,17 +140,26 @@ bool Search::initNodeNNOutput(
   //slightly affecting the evals, but this is annoying to recompute from scratch, and on the next
   //visit updateStatsAfterPlayout should fix it all up anyways.
   if(isReInit) {
+    if(humanResult != NULL)
+      node.storeHumanOutput(humanResult,thread); // ignore the wasNullBefore from this one
     bool wasNullBefore = node.storeNNOutput(result,thread);
     return wasNullBefore;
   }
   else {
-    bool suc = node.storeNNOutputIfNull(result);
-    if(!suc) {
-      delete result;
-      return false;
+    // Store human result first, so that the presence of the main result guarantees
+    // that the human result exists in the case we have a human evaluator.
+    if(humanResult != NULL) {
+      bool humanSuc = node.storeHumanOutputIfNull(humanResult);
+      if(!humanSuc)
+        delete humanResult;
     }
-    addCurrentNNOutputAsLeafValue(node,true);
-    return true;
+    bool suc = node.storeNNOutputIfNull(result);
+    if(!suc)
+      delete result;
+    else {
+      addCurrentNNOutputAsLeafValue(node,true);
+    }
+    return suc;
   }
 }
 
@@ -151,18 +179,21 @@ bool Search::maybeRecomputeExistingNNOutput(
     uint32_t oldAge = node.nodeAge.exchange(searchNodeAge,std::memory_order_acq_rel);
     if(oldAge < searchNodeAge) {
       NNOutput* nnOutput = node.getNNOutput();
+      NNOutput* humanOutput = node.getHumanOutput();
       assert(nnOutput != NULL);
 
       //Recompute if we have no ownership map, since we need it for getEndingWhiteScoreBonus
       //If conservative passing, then we may also need to recompute the root policy ignoring the history if a pass ends the game
       //If averaging a bunch of symmetries, then we need to recompute it too
       //If root needs different optimism, we need to recompute it.
+      //If humanSL is missing, but we want it, we need to recompute.
       //Also do so when ignoring history pre root
       if(nnOutput->whiteOwnerMap == NULL ||
          (searchParams.conservativePass && thread.history.passWouldEndGame(thread.board,thread.pla)) ||
          searchParams.rootNumSymmetriesToSample > 1 ||
          searchParams.rootPolicyOptimism != searchParams.policyOptimism ||
-         (searchParams.ignorePreRootHistory && !searchParams.ignoreAllHistory)
+         (searchParams.ignorePreRootHistory && !searchParams.ignoreAllHistory) ||
+         (humanOutput == NULL && needsHumanOutputAtRoot())
       ) {
         //We *can* use cached evaluations even though parameters are changing, because:
         //conservativePass is part of the nn hash

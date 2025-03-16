@@ -290,6 +290,14 @@ namespace Play {
     const OtherGameProperties& otherGameProps
   );
 
+  void extractPolicyTarget(
+    std::vector<PolicyTargetMove>& buf,
+    const Search* toMoveBot,
+    const SearchNode* node,
+    std::vector<Loc>& locsBuf,
+    std::vector<double>& playSelectionValuesBuf
+  );
+
 }
 
 

@@ -31,10 +31,12 @@ from torch.optim.swa_utils import AveragedModel
 from torch.cuda.amp import GradScaler, autocast
 
 import modelconfigs
-from model_pytorch import Model
+from model_pytorch import Model, ExtraOutputs, MetadataEncoder
 from metrics_pytorch import Metrics
+from push_back_generator import PushBackGenerator
 import load_model
 import data_processing_pytorch
+from metrics_logging import accumulate_metrics, log_metrics, clear_metric_nonfinite
 
 # HANDLE COMMAND AND ARGS -------------------------------------------------------------------
 
@@ -84,6 +86,7 @@ if __name__ == "__main__":
     optional_args.add_argument('-epochs-per-export', help='Export model once every this many epochs', type=int, required=False)
     optional_args.add_argument('-export-prob', help='Export model with this probablity', type=float, required=False)
     optional_args.add_argument('-max-epochs-this-instance', help='Terminate training after this many more epochs', type=int, required=False)
+    optional_args.add_argument('-max-training-samples', help='Terminate training after about this many training steps in samples', type=int, required=False)
     optional_args.add_argument('-sleep-seconds-per-epoch', help='Sleep this long between epochs', type=int, required=False)
     optional_args.add_argument('-max-train-bucket-per-new-data', help='When data added, add this many train rows per data row to bucket', type=float, required=False)
     optional_args.add_argument('-max-train-bucket-size', help='Approx total number of train rows allowed if data stops', type=float, required=False)
@@ -103,8 +106,12 @@ if __name__ == "__main__":
     optional_args.add_argument('-brenorm-adjustment-scale', type=float, help='How many samples to adjust brenorm params all but 1/e of the way to target', required=False)
 
     optional_args.add_argument('-soft-policy-weight-scale', type=float, default=8.0, help='Soft policy loss coeff', required=False)
+    optional_args.add_argument('-disable-optimistic-policy', help='Disable optimistic policy', required=False, action='store_true')
+    optional_args.add_argument('-meta-kata-only-soft-policy', help='Mask soft policy on non-kata rows using sgfmeta', required=False, action='store_true')
     optional_args.add_argument('-value-loss-scale', type=float, default=0.6, help='Additional value loss coeff', required=False)
     optional_args.add_argument('-td-value-loss-scales', type=str, default="0.6,0.6,0.6", help='Additional td value loss coeffs, 3 comma separated values', required=False)
+    optional_args.add_argument('-seki-loss-scale', type=float, default=1.0, help='Additional seki loss coeff', required=False)
+    optional_args.add_argument('-variance-time-loss-scale', type=float, default=1.0, help='Additional variance time loss coeff', required=False)
 
     optional_args.add_argument('-main-loss-scale', type=float, help='Loss factor scale for main head', required=False)
     optional_args.add_argument('-intermediate-loss-scale', type=float, help='Loss factor scale for intermediate head', required=False)
@@ -167,6 +174,7 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
     epochs_per_export = args["epochs_per_export"]
     export_prob = args["export_prob"]
     max_epochs_this_instance = args["max_epochs_this_instance"]
+    max_training_samples = args["max_training_samples"]
     sleep_seconds_per_epoch = args["sleep_seconds_per_epoch"]
     max_train_bucket_per_new_data = args["max_train_bucket_per_new_data"]
     max_train_bucket_size = args["max_train_bucket_size"]
@@ -186,8 +194,12 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
     brenorm_adjustment_scale = args["brenorm_adjustment_scale"]
 
     soft_policy_weight_scale = args["soft_policy_weight_scale"]
+    disable_optimistic_policy = args["disable_optimistic_policy"]
+    meta_kata_only_soft_policy = args["meta_kata_only_soft_policy"]
     value_loss_scale = args["value_loss_scale"]
     td_value_loss_scales = [float(x) for x in args["td_value_loss_scales"].split(",")]
+    seki_loss_scale = args["seki_loss_scale"]
+    variance_time_loss_scale = args["variance_time_loss_scale"]
 
     main_loss_scale = args["main_loss_scale"]
     intermediate_loss_scale = args["intermediate_loss_scale"]
@@ -556,6 +568,8 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
         train_state["train_steps_since_last_reload"] = 0
     if "export_cycle_counter" not in train_state:
         train_state["export_cycle_counter"] = 0
+    if "window_start_data_row_idx" not in train_state:
+        train_state["window_start_data_row_idx"] = 0
     if "total_num_data_rows" not in train_state:
         train_state["total_num_data_rows"] = 0
     if "old_train_data_dirs" not in train_state:
@@ -584,14 +598,17 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
         elif intermediate_loss_scale is None:
             assert False, "Please specify both of main_loss_scale and intermediate_loss_scale or neither when using an architecture with an intermediate head."
 
-
     logging.info(f"swa_period_samples {swa_period_samples}")
     logging.info(f"swa_scale {swa_scale}")
     logging.info(f"lookahead_alpha {lookahead_alpha}")
     logging.info(f"lookahead_k {lookahead_k}")
     logging.info(f"soft_policy_weight_scale {soft_policy_weight_scale}")
+    logging.info(f"disable_optimistic_policy {disable_optimistic_policy}")
+    logging.info(f"meta_kata_only_soft_policy {meta_kata_only_soft_policy}")
     logging.info(f"value_loss_scale {value_loss_scale}")
     logging.info(f"td_value_loss_scales {td_value_loss_scales}")
+    logging.info(f"seki_loss_scale {seki_loss_scale}")
+    logging.info(f"variance_time_loss_scale {variance_time_loss_scale}")
     logging.info(f"main_loss_scale {main_loss_scale}")
     logging.info(f"intermediate_loss_scale {intermediate_loss_scale}")
 
@@ -673,15 +690,21 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
             else:
                 assert False
 
+            changed = False
+
             # For lookahead optimizer, use weight decay appropriate for lr scale,
             # but tell optimizer to take larger steps so as to maintain the same
             # effective learning rate after lookahead averaging.
             if lookahead_alpha is not None:
-                param_group["lr"] = per_sample_lr * warmup_scale * group_scale / lookahead_alpha
+                new_lr_this_group = per_sample_lr * warmup_scale * group_scale / lookahead_alpha
             else:
-                param_group["lr"] = per_sample_lr * warmup_scale * group_scale
+                new_lr_this_group = per_sample_lr * warmup_scale * group_scale
 
-            param_group["weight_decay"] = get_weight_decay(
+            if param_group["lr"] != new_lr_this_group:
+                param_group["lr"] = new_lr_this_group
+                changed = True
+
+            new_weight_decay_this_group = get_weight_decay(
                 raw_model,
                 lr_scale,
                 warmup_scale=warmup_scale,
@@ -689,10 +712,15 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
                 running_metrics=running_metrics,
                 group_name=group_name,
             )
+            if param_group["weight_decay"] != new_weight_decay_this_group:
+                param_group["weight_decay"] = new_weight_decay_this_group
+                changed = True
+
             if group_name == "normal":
                 normal_weight_decay = param_group["weight_decay"]
 
-            logging.info(f"Param group {param_group['group_name']} lr {param_group['lr']} weight_decay {param_group['weight_decay']}")
+            if changed:
+                logging.info(f"Param group {param_group['group_name']} lr {param_group['lr']} weight_decay {param_group['weight_decay']}")
 
         return per_sample_lr * warmup_scale, normal_weight_decay
 
@@ -719,13 +747,11 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
     # Some globals
     last_curdatadir = None
     trainfilegenerator = None
-    num_train_files = 0
     vdatadir = None
 
     def maybe_reload_training_data():
         nonlocal last_curdatadir
         nonlocal trainfilegenerator
-        nonlocal num_train_files
         nonlocal vdatadir
 
         assert rank == 0, "Helper ddp training processes should not call maybe_reload_training_data"
@@ -757,6 +783,7 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
 
                 with open(trainjsonpath) as f:
                     datainfo = json.load(f)
+                    train_state["window_start_data_row_idx"] = datainfo["range"][0]
                     train_state["total_num_data_rows"] = datainfo["range"][1]
 
                 # Fill the buckets
@@ -790,16 +817,13 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
                 # Load training data files
                 tdatadir = os.path.join(curdatadir,"train")
                 train_files = [os.path.join(tdatadir,fname) for fname in os.listdir(tdatadir) if fname.endswith(".npz")]
-
-                # Make sure we're not repeating stuff if we're not supposed to repeat stuff
+                epoch0_train_files = [path for path in train_files if path not in train_state["data_files_used"]]
                 if no_repeat_files:
-                    old_len = len(train_files)
-                    train_files = [path for path in train_files if path not in train_state["data_files_used"]]
-                    new_len = len(train_files)
-                    logging.info(f"Dropping {old_len-new_len}/{old_len} files in: {tdatadir} as already used")
-                num_train_files = len(train_files)
+                    logging.info(f"Dropping {len(train_files)-len(epoch0_train_files)}/{len(train_files)} files in: {tdatadir} as already used")
+                else:
+                    logging.info(f"Skipping {len(train_files)-len(epoch0_train_files)}/{len(train_files)} files in: {tdatadir} as already used first pass")
 
-                if len(train_files) <= 0:
+                if len(train_files) <= 0 or (no_repeat_files and len(epoch0_train_files) <= 0):
                     if quit_if_no_data:
                         logging.info(f"No new training files found in: {tdatadir}, quitting")
                         sys.exit(0)
@@ -818,10 +842,8 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
                         if filename.startswith(old_dir):
                             train_state["data_files_used"].remove(filename)
 
-
-                # Filter down to a random subset that will comprise this epoch
                 def train_files_gen():
-                    train_files_shuffled = train_files.copy()
+                    train_files_shuffled = epoch0_train_files.copy()
                     while True:
                         random.shuffle(train_files_shuffled)
                         for filename in train_files_shuffled:
@@ -830,8 +852,11 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
                             yield filename
                         if no_repeat_files:
                             break
-                trainfilegenerator = train_files_gen()
+                        else:
+                            train_files_shuffled = train_files.copy()
+                            train_state["data_files_used"] = set()
 
+                trainfilegenerator = PushBackGenerator(train_files_gen())
                 vdatadir = os.path.join(curdatadir,"val")
 
             # Same directory as before, no new shuffle
@@ -872,7 +897,8 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
             if batches_to_use_so_far + num_batches_this_file > num_batches_per_subepoch:
                 # If we're going over the desired amount, randomly skip the file with probability equal to the
                 # proportion of batches over - this makes it so that in expectation, we have the desired number of batches
-                if batches_to_use_so_far > 0 and random.random() >= (batches_to_use_so_far + num_batches_this_file - num_batches_per_subepoch) / num_batches_this_file:
+                if batches_to_use_so_far > 0 and random.random() <= (batches_to_use_so_far + num_batches_this_file - num_batches_per_subepoch) / num_batches_this_file:
+                    trainfilegenerator.push_back(filename)
                     found_enough = True
                     break
 
@@ -897,56 +923,6 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
             else:
                 ret[key] = metrics[key]
         return ret
-
-    # _sum metrics dict entries will get reported as a moving average of their values
-    # _batch metrics dict entries will reported as the average per-batch value over the time since the last log
-    # All other values will get reported as a total sum across the entire run so far.
-
-    def accumulate_metrics(metric_sums, metric_weights, metrics, batch_size, decay, new_weight):
-        if decay != 1.0:
-            for metric in metric_sums:
-                if metric.endswith("_sum"):
-                    metric_sums[metric] *= decay
-                    metric_weights[metric] *= decay
-
-        for metric in metrics:
-            if metric.endswith("_sum"):
-                metric_sums[metric] += metrics[metric] * new_weight
-                metric_weights[metric] += batch_size * new_weight
-            elif metric.endswith("_batch"):
-                metric_sums[metric] += metrics[metric] * new_weight
-                metric_weights[metric] += 1 * new_weight
-            else:
-                metric_sums[metric] += metrics[metric]
-                metric_weights[metric] += batch_size
-
-    def log_metrics(metric_sums, metric_weights, metrics, metrics_out):
-        metrics_to_print = {}
-        for metric in metric_sums:
-            if metric.endswith("_sum"):
-                metrics_to_print[metric[:-4]] = metric_sums[metric] / metric_weights[metric]
-            elif metric.endswith("_batch"):
-                metrics_to_print[metric] = metric_sums[metric] / metric_weights[metric]
-                metric_sums[metric] *= 0.001
-                metric_weights[metric] *= 0.001
-            else:
-                metrics_to_print[metric] = metric_sums[metric]
-        for metric in metrics:
-            if metric not in metric_sums:
-                metrics_to_print[metric] = metrics[metric]
-
-        logging.info(", ".join(["%s = %f" % (metric, metrics_to_print[metric]) for metric in metrics_to_print]))
-        if metrics_out:
-            metrics_out.write(json.dumps(metrics_to_print) + "\n")
-            metrics_out.flush()
-
-    def clear_metric_nonfinite(metric_sums, metric_weights):
-        for metric in metric_sums:
-            if not math.isfinite(metric_sums[metric]):
-                logging.warning(f"NONFINITE VALUE OF METRIC {metric}, CLEARING IT BACK TO EMPTY")
-                metric_sums[metric] = 0.0
-                metric_weights[metric] = 0.0
-
 
     if rank == 0:
         train_metrics_out = open(os.path.join(traindir,"metrics_train.json"),"a")
@@ -983,6 +959,13 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
         barrier.wait()
 
     while True:
+        if max_epochs_this_instance is not None and max_epochs_this_instance >= 0 and num_epochs_this_instance >= max_epochs_this_instance:
+            logging.info("Hit max epochs this instance, done")
+            break
+        if max_training_samples is not None and train_state["global_step_samples"] >= max_training_samples:
+            logging.info("Hit max training samples, done")
+            break
+
         if rank == 0:
             maybe_reload_training_data()
 
@@ -1076,25 +1059,45 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
                 pos_len=pos_len,
                 device=device,
                 randomize_symmetries=True,
+                include_meta=raw_model.get_has_metadata_encoder(),
                 model_config=model_config
             ):
                 optimizer.zero_grad(set_to_none=True)
+                extra_outputs = None
+                # if raw_model.get_has_metadata_encoder():
+                #     extra_outputs = ExtraOutputs([MetadataEncoder.OUTMEAN_KEY,MetadataEncoder.OUTLOGVAR_KEY])
+
                 if use_fp16:
                     with autocast():
-                        model_outputs = ddp_model(batch["binaryInputNCHW"],batch["globalInputNC"])
+                        model_outputs = ddp_model(
+                            batch["binaryInputNCHW"],
+                            batch["globalInputNC"],
+                            input_meta=(batch["metadataInputNC"] if raw_model.get_has_metadata_encoder() else None),
+                            extra_outputs=extra_outputs,
+                        )
                     model_outputs = raw_model.float32ify_output(model_outputs)
                 else:
-                    model_outputs = ddp_model(batch["binaryInputNCHW"],batch["globalInputNC"])
+                    model_outputs = ddp_model(
+                        batch["binaryInputNCHW"],
+                        batch["globalInputNC"],
+                        input_meta=(batch["metadataInputNC"] if raw_model.get_has_metadata_encoder() else None),
+                        extra_outputs=extra_outputs,
+                    )
 
                 postprocessed = raw_model.postprocess_output(model_outputs)
                 metrics = metrics_obj.metrics_dict_batchwise(
                     raw_model,
                     postprocessed,
+                    extra_outputs,
                     batch,
                     is_training=True,
                     soft_policy_weight_scale=soft_policy_weight_scale,
+                    disable_optimistic_policy=disable_optimistic_policy,
+                    meta_kata_only_soft_policy=meta_kata_only_soft_policy,
                     value_loss_scale=value_loss_scale,
                     td_value_loss_scales=td_value_loss_scales,
+                    seki_loss_scale=seki_loss_scale,
+                    variance_time_loss_scale=variance_time_loss_scale,
                     main_loss_scale=main_loss_scale,
                     intermediate_loss_scale=intermediate_loss_scale,
                 )
@@ -1140,6 +1143,8 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
                 metrics["pslr_batch"] = lr_right_now
                 metrics["wdnormal_batch"] = normal_weight_decay_right_now
                 metrics["gnorm_cap_batch"] = gnorm_cap
+                metrics["window_start_batch"] = train_state["window_start_data_row_idx"]
+                metrics["window_end_batch"] = train_state["total_num_data_rows"]
 
                 if use_fp16:
                     scaler.step(optimizer)
@@ -1184,7 +1189,7 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
                     log_metrics(running_metrics["sums"], running_metrics["weights"], metrics, train_metrics_out)
 
                 # Update LR more frequently at the start for smoother warmup ramp and wd adjustment
-                if train_state["global_step_samples"] <= 50000000 and batch_count_this_epoch % 10 == 0:
+                if train_state["global_step_samples"] <= 50000000 and batch_count_this_epoch % 50 == 0:
                     lr_right_now, normal_weight_decay_right_now = update_and_return_lr_and_wd()
 
                 # Update batch renorm parameters
@@ -1262,18 +1267,29 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
                         pos_len=pos_len,
                         device=device,
                         randomize_symmetries=True,
+                        include_meta=raw_model.get_has_metadata_encoder(),
                         model_config=model_config
                     ):
-                        model_outputs = ddp_model(batch["binaryInputNCHW"],batch["globalInputNC"])
+                        model_outputs = ddp_model(
+                            batch["binaryInputNCHW"],
+                            batch["globalInputNC"],
+                            input_meta=(batch["metadataInputNC"] if raw_model.get_has_metadata_encoder() else None),
+                        )
                         postprocessed = raw_model.postprocess_output(model_outputs)
+                        extra_outputs = None
                         metrics = metrics_obj.metrics_dict_batchwise(
                             raw_model,
                             postprocessed,
+                            extra_outputs,
                             batch,
                             is_training=False,
                             soft_policy_weight_scale=soft_policy_weight_scale,
+                            disable_optimistic_policy=disable_optimistic_policy,
+                            meta_kata_only_soft_policy=meta_kata_only_soft_policy,
                             value_loss_scale=value_loss_scale,
                             td_value_loss_scales=td_value_loss_scales,
+                            seki_loss_scale=seki_loss_scale,
+                            variance_time_loss_scale=variance_time_loss_scale,
                             main_loss_scale=main_loss_scale,
                             intermediate_loss_scale=intermediate_loss_scale,
                         )
@@ -1328,9 +1344,6 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
                     time.sleep(2)
                     os.rename(savepathtmp,savepath)
 
-        if max_epochs_this_instance is not None and max_epochs_this_instance >= 0 and num_epochs_this_instance >= max_epochs_this_instance:
-            logging.info("Hit max epochs this instance, done")
-            break
 
         if sleep_seconds_per_epoch is None:
             time.sleep(1)

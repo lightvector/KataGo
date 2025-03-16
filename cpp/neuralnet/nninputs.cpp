@@ -836,7 +836,6 @@ void SymmetryHelpers::getSymmetryDifferences(
 }
 
 
-
 //-------------------------------------------------------------------------------------------------------------
 
 static void setRowBin(float* rowBin, int pos, int feature, float value, int posStride, int featureStride) {

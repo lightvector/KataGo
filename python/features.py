@@ -11,6 +11,8 @@ class Features:
         self.pos_len = pos_len
         self.version = modelconfigs.get_version(config)
         self.pass_pos = self.pos_len * self.pos_len
+        self.bin_input_shape = [modelconfigs.get_num_bin_input_features(config), pos_len, pos_len]
+        self.global_input_shape = [modelconfigs.get_num_global_input_features(config)]
 
     def xy_to_tensor_pos(self,x,y):
         return y * self.pos_len + x
@@ -23,11 +25,13 @@ class Features:
         if pos == self.pass_pos:
             return None
         pos_len = self.pos_len
-        bsize = board.size
-        assert(self.pos_len >= bsize)
+        x_size = board.x_size
+        y_size = board.y_size
+        assert(self.pos_len >= x_size)
+        assert(self.pos_len >= y_size)
         x = pos % pos_len
         y = pos // pos_len
-        if x < 0 or x >= bsize or y < 0 or y >= bsize:
+        if x < 0 or x >= x_size or y < 0 or y >= y_size:
             return board.loc(-10,-10) #Return an illegal move since this is offboard
         return board.loc(x,y)
 
@@ -55,11 +59,13 @@ class Features:
         chainHeadsSolved = {}
         copy = board.copy()
 
-        bsize = board.size
-        assert(self.pos_len >= bsize)
+        x_size = board.x_size
+        y_size = board.y_size
+        assert(self.pos_len >= x_size)
+        assert(self.pos_len >= y_size)
 
-        for y in range(bsize):
-            for x in range(bsize):
+        for y in range(y_size):
+            for x in range(x_size):
                 pos = self.xy_to_tensor_pos(x,y)
                 loc = board.loc(x,y)
                 stone = board.board[loc]
@@ -90,13 +96,15 @@ class Features:
     def fill_row_features(self, board, pla, opp, boards, moves, move_idx, rules, bin_input_data, global_input_data, idx):
         assert(self.version >= 10)
 
-        bsize = board.size
-        assert(self.pos_len >= bsize)
+        x_size = board.x_size
+        y_size = board.y_size
+        assert(self.pos_len >= x_size)
+        assert(self.pos_len >= y_size)
         assert(len(boards) > 0)
         assert(board.zobrist == boards[move_idx].zobrist)
 
-        for y in range(bsize):
-            for x in range(bsize):
+        for y in range(y_size):
+            for x in range(x_size):
                 pos = self.xy_to_tensor_pos(x,y)
                 bin_input_data[idx,pos,0] = 1.0
                 loc = board.loc(x,y)
@@ -227,8 +235,8 @@ class Features:
                     rules["multiStoneSuicideLegal"]
                 )
 
-        for y in range(bsize):
-            for x in range(bsize):
+        for y in range(y_size):
+            for x in range(x_size):
                 loc = board.loc(x,y)
                 pos = self.xy_to_tensor_pos(x,y)
 
@@ -240,8 +248,8 @@ class Features:
         #Features 20,21 - second encore phase starting stones, we just set them to the current stones in pythong
         #since we don't really have a jp rules impl
         if rules["encorePhase"] >= 2:
-            for y in range(bsize):
-                for x in range(bsize):
+            for y in range(y_size):
+                for x in range(x_size):
                     pos = self.xy_to_tensor_pos(x,y)
                     loc = board.loc(x,y)
                     stone = board.board[loc]
@@ -250,12 +258,11 @@ class Features:
                     elif stone == opp:
                         bin_input_data[idx,pos,21] = 1.0
 
-
-        #Not quite right, japanese rules aren't really implemented in the python
-        bArea = board.size * board.size
+        bArea = board.y_size * board.x_size
         whiteKomi = rules["whiteKomi"]
         if rules["scoringRule"] == "SCORING_TERRITORY":
-            selfKomi = (whiteKomi+1 if pla == Board.WHITE else -whiteKomi)
+            whiteSelfKomi = whiteKomi + board.num_non_pass_moves_made[Board.BLACK] - board.num_non_pass_moves_made[Board.WHITE]
+            selfKomi = (whiteSelfKomi if pla == Board.WHITE else -whiteSelfKomi)
         else:
             selfKomi = (whiteKomi if pla == Board.WHITE else -whiteKomi)
 
@@ -310,7 +317,7 @@ class Features:
             global_input_data[idx,17] = 1.0
 
         if rules["scoringRule"] == "SCORING_AREA" or rules["encorePhase"] > 1:
-            boardAreaIsEven = (board.size % 2 == 0)
+            boardAreaIsEven = (board.x_size % 2 == 0) or (board.y_size % 2 == 0)
 
             drawableKomisAreEven = boardAreaIsEven
 

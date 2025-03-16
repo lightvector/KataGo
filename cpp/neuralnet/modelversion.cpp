@@ -77,3 +77,11 @@ int NNModelVersion::getNumGlobalFeatures(int modelVersion) {
   fail(modelVersion);
   return -1;
 }
+
+int NNModelVersion::getNumInputMetaChannels(int metaEncoderVersion) {
+  if(metaEncoderVersion == 0)
+    return 0;
+  if(metaEncoderVersion == 1)
+    return 192;
+  throw StringError("NNModelVersion: metaEncoderVersion not currently implemented or supported: " + Global::intToString(metaEncoderVersion));
+}

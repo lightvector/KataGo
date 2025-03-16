@@ -1,5 +1,7 @@
 #include "../core/hash.h"
 
+#include "../core/sha2.h"
+
 /*
  * hash.cpp
  * Author: David Wu
@@ -148,6 +150,15 @@ uint64_t Hash::simpleHash(const int* input, int len)
   uint32_t lo = jenkinsMixSingle(lowBits(m1),highBits(m2),lowBits(m3));
   uint32_t hi = jenkinsMixSingle(highBits(m1),lowBits(m2),highBits(m3));
   return combine(hi ^ m4, lo + m4);
+}
+
+double Hash::seededHashFloat(const std::string& str, const std::string& seed) {
+  string s = seed + "|" + str;
+  uint64_t hash[4];
+  SHA2::get256(s.c_str(), hash);
+  uint64_t bits = hash[0] & ((1ULL << 53)-1ULL);
+  double x = (double)bits / (double)(1ULL << 53);
+  return x;
 }
 
 //Hash128------------------------------------------------------------------------

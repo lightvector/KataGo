@@ -36,6 +36,7 @@ BoardHistory::BoardHistory()
    initialTurnNumber(0),
    assumeMultipleStartingBlackMovesAreHandicap(false),
    whiteHasMoved(false),
+   overrideNumHandicapStones(-1),
    recentBoards(),
    currentRecentBoardIdx(0),
    presumedNextMovePla(P_BLACK),
@@ -74,6 +75,7 @@ BoardHistory::BoardHistory(const Board& board, Player pla, const Rules& r, int e
    initialTurnNumber(0),
    assumeMultipleStartingBlackMovesAreHandicap(false),
    whiteHasMoved(false),
+   overrideNumHandicapStones(-1),
    recentBoards(),
    currentRecentBoardIdx(0),
    presumedNextMovePla(pla),
@@ -111,6 +113,7 @@ BoardHistory::BoardHistory(const BoardHistory& other)
    initialTurnNumber(other.initialTurnNumber),
    assumeMultipleStartingBlackMovesAreHandicap(other.assumeMultipleStartingBlackMovesAreHandicap),
    whiteHasMoved(other.whiteHasMoved),
+   overrideNumHandicapStones(other.overrideNumHandicapStones),
    recentBoards(),
    currentRecentBoardIdx(other.currentRecentBoardIdx),
    presumedNextMovePla(other.presumedNextMovePla),
@@ -151,6 +154,7 @@ BoardHistory& BoardHistory::operator=(const BoardHistory& other)
   initialTurnNumber = other.initialTurnNumber;
   assumeMultipleStartingBlackMovesAreHandicap = other.assumeMultipleStartingBlackMovesAreHandicap;
   whiteHasMoved = other.whiteHasMoved;
+  overrideNumHandicapStones = other.overrideNumHandicapStones;
   std::copy(other.recentBoards, other.recentBoards+NUM_RECENT_BOARDS, recentBoards);
   currentRecentBoardIdx = other.currentRecentBoardIdx;
   presumedNextMovePla = other.presumedNextMovePla;
@@ -192,6 +196,7 @@ BoardHistory::BoardHistory(BoardHistory&& other) noexcept
   initialTurnNumber(other.initialTurnNumber),
   assumeMultipleStartingBlackMovesAreHandicap(other.assumeMultipleStartingBlackMovesAreHandicap),
   whiteHasMoved(other.whiteHasMoved),
+  overrideNumHandicapStones(other.overrideNumHandicapStones),
   recentBoards(),
   currentRecentBoardIdx(other.currentRecentBoardIdx),
   presumedNextMovePla(other.presumedNextMovePla),
@@ -229,6 +234,7 @@ BoardHistory& BoardHistory::operator=(BoardHistory&& other) noexcept
   initialTurnNumber = other.initialTurnNumber;
   assumeMultipleStartingBlackMovesAreHandicap = other.assumeMultipleStartingBlackMovesAreHandicap;
   whiteHasMoved = other.whiteHasMoved;
+  overrideNumHandicapStones = other.overrideNumHandicapStones;
   std::copy(other.recentBoards, other.recentBoards+NUM_RECENT_BOARDS, recentBoards);
   currentRecentBoardIdx = other.currentRecentBoardIdx;
   presumedNextMovePla = other.presumedNextMovePla;
@@ -271,6 +277,7 @@ void BoardHistory::clear(const Board& board, Player pla, const Rules& r, int ePh
   initialTurnNumber = 0;
   assumeMultipleStartingBlackMovesAreHandicap = false;
   whiteHasMoved = false;
+  overrideNumHandicapStones = -1;
 
   //This makes it so that if we ask for recent boards with a lookback beyond what we have a history for,
   //we simply return copies of the starting board.
@@ -344,6 +351,7 @@ BoardHistory BoardHistory::copyToInitial() const {
   BoardHistory hist(initialBoard, initialPla, rules, initialEncorePhase);
   hist.setInitialTurnNumber(initialTurnNumber);
   hist.setAssumeMultipleStartingBlackMovesAreHandicap(assumeMultipleStartingBlackMovesAreHandicap);
+  hist.setOverrideNumHandicapStones(overrideNumHandicapStones);
   return hist;
 }
 
@@ -353,6 +361,11 @@ void BoardHistory::setInitialTurnNumber(int64_t n) {
 
 void BoardHistory::setAssumeMultipleStartingBlackMovesAreHandicap(bool b) {
   assumeMultipleStartingBlackMovesAreHandicap = b;
+  whiteHandicapBonusScore = (float)computeWhiteHandicapBonus();
+}
+
+void BoardHistory::setOverrideNumHandicapStones(int n) {
+  overrideNumHandicapStones = n;
   whiteHandicapBonusScore = (float)computeWhiteHandicapBonus();
 }
 
@@ -385,6 +398,9 @@ int BoardHistory::numHandicapStonesOnBoard(const Board& b) {
 }
 
 int BoardHistory::computeNumHandicapStones() const {
+  if(overrideNumHandicapStones >= 0)
+    return overrideNumHandicapStones;
+
   int blackNonPassTurnsToStart = 0;
   if(assumeMultipleStartingBlackMovesAreHandicap) {
     //Find the length of the initial sequence of black moves - treat a string of consecutive black
@@ -745,6 +761,9 @@ void BoardHistory::setKoRecapBlocked(Loc loc, bool b) {
 }
 
 bool BoardHistory::isLegal(const Board& board, Loc moveLoc, Player movePla) const {
+  if(movePla != presumedNextMovePla)
+    return false;
+
   //Ko-moves in the encore that are recapture blocked are interpreted as pass-for-ko, so they are legal
   if(encorePhase > 0) {
     if(moveLoc >= 0 && moveLoc < Board::MAX_ARR_SIZE && moveLoc != Board::PASS_LOC) {
@@ -858,16 +877,22 @@ bool BoardHistory::isFinalPhase() const {
 }
 
 bool BoardHistory::isLegalTolerant(const Board& board, Loc moveLoc, Player movePla) const {
-  bool multiStoneSuicideLegal = true; //Tolerate suicide regardless of rules
-  if(encorePhase <= 0 && board.isKoBanned(moveLoc))
+  // Allow either side to move during tolerant play, but still check that a player is specified
+  if(movePla != P_BLACK && movePla != P_WHITE)
+    return false;
+  bool multiStoneSuicideLegal = true; // Tolerate suicide regardless of rules
+  if(encorePhase <= 0 && movePla == presumedNextMovePla && board.isKoBanned(moveLoc))
     return false;
   if(!isPassForKo(board, moveLoc, movePla) && !board.isLegalIgnoringKo(moveLoc,movePla,multiStoneSuicideLegal))
     return false;
   return true;
 }
 bool BoardHistory::makeBoardMoveTolerant(Board& board, Loc moveLoc, Player movePla) {
-  bool multiStoneSuicideLegal = true; //Tolerate suicide regardless of rules
-  if(encorePhase <= 0 && board.isKoBanned(moveLoc))
+  // Allow either side to move during tolerant play, but still check that a player is specified
+  if(movePla != P_BLACK && movePla != P_WHITE)
+    return false;
+  bool multiStoneSuicideLegal = true; // Tolerate suicide regardless of rules
+  if(encorePhase <= 0 && movePla == presumedNextMovePla && board.isKoBanned(moveLoc))
     return false;
   if(!isPassForKo(board, moveLoc, movePla) && !board.isLegalIgnoringKo(moveLoc,movePla,multiStoneSuicideLegal))
     return false;
@@ -875,7 +900,10 @@ bool BoardHistory::makeBoardMoveTolerant(Board& board, Loc moveLoc, Player moveP
   return true;
 }
 bool BoardHistory::makeBoardMoveTolerant(Board& board, Loc moveLoc, Player movePla, bool preventEncore) {
-  bool multiStoneSuicideLegal = true; //Tolerate suicide regardless of rules
+  // Allow either side to move during tolerant play, but still check that a player is specified
+  if(movePla != P_BLACK && movePla == presumedNextMovePla && movePla != P_WHITE)
+    return false;
+  bool multiStoneSuicideLegal = true; // Tolerate suicide regardless of rules
   if(encorePhase <= 0 && board.isKoBanned(moveLoc))
     return false;
   if(!isPassForKo(board, moveLoc, movePla) && !board.isLegalIgnoringKo(moveLoc,movePla,multiStoneSuicideLegal))
@@ -1223,6 +1251,8 @@ Hash128 BoardHistory::getSituationRulesAndKoHash(const Board& board, const Board
     hash ^= Rules::ZOBRIST_MULTI_STONE_SUICIDE_HASH;
   if(hist.hasButton)
     hash ^= Rules::ZOBRIST_BUTTON_HASH;
+  if(hist.rules.friendlyPassOk)
+    hash ^= Rules::ZOBRIST_FRIENDLY_PASS_OK_HASH;
 
   return hash;
 }

@@ -5,7 +5,9 @@
 #include "../core/timer.h"
 #include "../core/datetime.h"
 #include "../core/makedir.h"
+#include "../core/test.h"
 #include "../dataio/sgf.h"
+#include "../search/searchnode.h"
 #include "../search/asyncbot.h"
 #include "../search/patternbonustable.h"
 #include "../program/setup.h"
@@ -45,14 +47,18 @@ static const vector<string> knownCommands = {
   "kata-set-rules",
 
   //Get or change a few limited params dynamically
+  "kata-get-models",
   "kata-get-param",
   "kata-set-param",
   "kata-list-params",
   "kgs-rules",
 
   "genmove",
+  "kata-search", //Doesn't actually make the move
+  "kata-search_cancellable", //Doesn't actually make the move, also any command or newline cancels the search.
+
   "genmove_debug", //Prints additional info to stderr
-  "search_debug", //Prints additional info to stderr, doesn't actually make the move
+  "kata-search_debug", //Prints additional info to stderr, doesn't actually make the move
 
   //Clears neural net cached evaluations and bot search tree, allows fresh randomization
   "clear_cache",
@@ -79,12 +85,15 @@ static const vector<string> knownCommands = {
   // "genmove_analyze",
   "lz-genmove_analyze",
   "kata-genmove_analyze",
+  "kata-search_analyze",  //Doesn't actually make the move
+  "kata-search_analyze_cancellable",  //Doesn't actually make the move, also any command or newline cancels the search.
   // "analyze",
   "lz-analyze",
   "kata-analyze",
 
   //Display raw neural net evaluations
   "kata-raw-nn",
+  "kata-raw-human-nn",
 
   //Misc other stuff
   "cputime",
@@ -266,7 +275,8 @@ static bool shouldResign(
   double lead,
   const double resignThreshold,
   const int resignConsecTurns,
-  const double resignMinScoreDifference
+  const double resignMinScoreDifference,
+  const double resignMinMovesPerBoardArea
 ) {
   double initialBlackAdvantageInPoints = initialBlackAdvantage(hist);
 
@@ -293,6 +303,8 @@ static bool shouldResign(
 
     noResignationWhenWhiteScoreAbove = resignScore;
   }
+  if(minTurnForResignation < resignMinMovesPerBoardArea * board.x_size * board.y_size)
+    minTurnForResignation = (int)(resignMinMovesPerBoardArea * board.x_size * board.y_size);
 
   if(hist.moveHistory.size() < minTurnForResignation)
     return false;
@@ -324,30 +336,26 @@ struct GTPEngine {
   GTPEngine& operator=(const GTPEngine&) = delete;
 
   const string nnModelFile;
+  const string humanModelFile;
   const bool assumeMultipleStartingBlackMovesAreHandicap;
   const int analysisPVLen;
   const bool preventEncore;
   const bool autoAvoidPatterns;
 
   const double dynamicPlayoutDoublingAdvantageCapPerOppLead;
-  double staticPlayoutDoublingAdvantage;
   bool staticPDATakesPrecedence;
   double normalAvoidRepeatedPatternUtility;
   double handicapAvoidRepeatedPatternUtility;
 
-  double genmoveWideRootNoise;
-  double analysisWideRootNoise;
-  bool genmoveIgnorePreRootHistory;
-  bool analysisIgnorePreRootHistory;
-  bool genmoveAntiMirror;
-  bool analysisAntiMirror;
-
   NNEvaluator* nnEval;
+  NNEvaluator* humanEval;
   AsyncBot* bot;
   Rules currentRules; //Should always be the same as the rules in bot, if bot is not NULL.
 
   //Stores the params we want to be using during genmoves or analysis
-  SearchParams params;
+  SearchParams genmoveParams;
+  SearchParams analysisParams;
+  bool isGenmoveParams;
 
   TimeControls bTimeControls;
   TimeControls wTimeControls;
@@ -361,47 +369,50 @@ struct GTPEngine {
   vector<double> recentWinLossValues;
   double lastSearchFactor;
   double desiredDynamicPDAForWhite;
-  bool avoidMYTDaggerHack;
   std::unique_ptr<PatternBonusTable> patternBonusTable;
+
+  double delayMoveScale;
+  double delayMoveMax;
 
   Player perspective;
 
+  Rand gtpRand;
+
+  ClockTimer genmoveTimer;
   double genmoveTimeSum;
+  std::atomic<int> genmoveExpectedId;
+
   //Positions during this game when genmove was called
   std::vector<Sgf::PositionSample> genmoveSamples;
 
   GTPEngine(
-    const string& modelFile, SearchParams initialParams, Rules initialRules,
+    const string& modelFile, const string& hModelFile,
+    SearchParams initialGenmoveParams, SearchParams initialAnalysisParams,
+    Rules initialRules,
     bool assumeMultiBlackHandicap, bool prevtEncore, bool autoPattern,
-    double dynamicPDACapPerOppLead, double staticPDA, bool staticPDAPrecedence,
+    double dynamicPDACapPerOppLead, bool staticPDAPrecedence,
     double normAvoidRepeatedPatternUtility, double hcapAvoidRepeatedPatternUtility,
-    bool avoidDagger,
-    double genmoveWRN, double analysisWRN,
-    bool genmoveIPRH, bool analysisIPRH,
-    bool genmoveAntiMir, bool analysisAntiMir,
+    double delayScale, double delayMax,
     Player persp, int pvLen,
     std::unique_ptr<PatternBonusTable>&& pbTable
   )
     :nnModelFile(modelFile),
+     humanModelFile(hModelFile),
      assumeMultipleStartingBlackMovesAreHandicap(assumeMultiBlackHandicap),
      analysisPVLen(pvLen),
      preventEncore(prevtEncore),
      autoAvoidPatterns(autoPattern),
      dynamicPlayoutDoublingAdvantageCapPerOppLead(dynamicPDACapPerOppLead),
-     staticPlayoutDoublingAdvantage(staticPDA),
      staticPDATakesPrecedence(staticPDAPrecedence),
      normalAvoidRepeatedPatternUtility(normAvoidRepeatedPatternUtility),
      handicapAvoidRepeatedPatternUtility(hcapAvoidRepeatedPatternUtility),
-     genmoveWideRootNoise(genmoveWRN),
-     analysisWideRootNoise(analysisWRN),
-     genmoveIgnorePreRootHistory(genmoveIPRH),
-     analysisIgnorePreRootHistory(analysisIPRH),
-     genmoveAntiMirror(genmoveAntiMir),
-     analysisAntiMirror(analysisAntiMir),
      nnEval(NULL),
+     humanEval(NULL),
      bot(NULL),
      currentRules(initialRules),
-     params(initialParams),
+     genmoveParams(initialGenmoveParams),
+     analysisParams(initialAnalysisParams),
+     isGenmoveParams(true),
      bTimeControls(),
      wTimeControls(),
      initialBoard(),
@@ -410,10 +421,14 @@ struct GTPEngine {
      recentWinLossValues(),
      lastSearchFactor(1.0),
      desiredDynamicPDAForWhite(0.0),
-     avoidMYTDaggerHack(avoidDagger),
      patternBonusTable(std::move(pbTable)),
+     delayMoveScale(delayScale),
+     delayMoveMax(delayMax),
      perspective(persp),
+     gtpRand(),
+     genmoveTimer(),
      genmoveTimeSum(0.0),
+     genmoveExpectedId(0),
      genmoveSamples()
   {
   }
@@ -422,9 +437,13 @@ struct GTPEngine {
     stopAndWait();
     delete bot;
     delete nnEval;
+    delete humanEval;
   }
 
   void stopAndWait() {
+    // Invalidate any ongoing genmove
+    int expectedSearchId = (genmoveExpectedId.load() + 1) & 0x3FFFFFFF;
+    genmoveExpectedId.store(expectedSearchId);
     bot->stopAndWait();
   }
 
@@ -462,13 +481,15 @@ struct GTPEngine {
         bot->stopAndWait();
         delete bot;
         delete nnEval;
+        delete humanEval;
         bot = NULL;
         nnEval = NULL;
+        humanEval = NULL;
         logger.write("Cleaned up old neural net and bot");
       }
 
-      const int expectedConcurrentEvals = params.numThreads;
-      const int defaultMaxBatchSize = std::max(8,((params.numThreads+3)/4)*4);
+      const int expectedConcurrentEvals = std::max(genmoveParams.numThreads, analysisParams.numThreads);
+      const int defaultMaxBatchSize = std::max(8,((expectedConcurrentEvals+3)/4)*4);
       const bool disableFP16 = false;
       const string expectedSha256 = "";
       nnEval = Setup::initializeNNEvaluator(
@@ -477,6 +498,21 @@ struct GTPEngine {
         Setup::SETUP_FOR_GTP
       );
       logger.write("Loaded neural net with nnXLen " + Global::intToString(nnEval->getNNXLen()) + " nnYLen " + Global::intToString(nnEval->getNNYLen()));
+      if(humanModelFile != "") {
+        humanEval = Setup::initializeNNEvaluator(
+          humanModelFile,humanModelFile,expectedSha256,cfg,logger,seedRand,expectedConcurrentEvals,
+          nnXLen,nnYLen,defaultMaxBatchSize,defaultRequireExactNNLen,disableFP16,
+          Setup::SETUP_FOR_GTP
+        );
+        logger.write("Loaded human SL net with nnXLen " + Global::intToString(humanEval->getNNXLen()) + " nnYLen " + Global::intToString(humanEval->getNNYLen()));
+        if(!humanEval->requiresSGFMetadata()) {
+          string warning;
+          warning += "WARNING: Human model was not trained from SGF metadata to vary by rank! Did you pass the wrong model for -human-model?\n";
+          logger.write(warning);
+          if(!loggingToStderr)
+            cerr << warning << endl;
+        }
+      }
 
       {
         bool rulesWereSupported;
@@ -514,7 +550,7 @@ struct GTPEngine {
       else
         searchRandSeed = Global::uint64ToString(seedRand.nextUInt64());
 
-      bot = new AsyncBot(params, nnEval, &logger, searchRandSeed);
+      bot = new AsyncBot(genmoveParams, nnEval, humanEval, &logger, searchRandSeed);
       bot->setCopyOfExternalPatternBonusTable(patternBonusTable);
 
       Board board(boardXSize,boardYSize);
@@ -586,48 +622,6 @@ struct GTPEngine {
   void updateKomiIfNew(float newKomi) {
     bot->setKomiIfNew(newKomi);
     currentRules.komi = newKomi;
-  }
-
-  void setStaticPlayoutDoublingAdvantage(double d) {
-    staticPlayoutDoublingAdvantage = d;
-    staticPDATakesPrecedence = true;
-  }
-  void setAnalysisWideRootNoise(double x) {
-    analysisWideRootNoise = x;
-  }
-  void setAnalysisIgnorePreRootHistory(bool b) {
-    analysisIgnorePreRootHistory = b;
-  }
-  void setRootPolicyTemperature(double x) {
-    params.rootPolicyTemperature = x;
-    bot->setParams(params);
-    bot->clearSearch();
-  }
-  void setNumSearchThreads(int numThreads) {
-    params.numThreads = numThreads;
-    bot->setParams(params);
-    bot->clearSearch();
-  }
-  void setMaxVisits(int64_t maxVisits) {
-    params.maxVisits = maxVisits;
-    bot->setParams(params);
-    bot->clearSearch();
-  }
-  void setMaxPlayouts(int64_t maxPlayouts) {
-    params.maxPlayouts = maxPlayouts;
-    bot->setParams(params);
-    bot->clearSearch();
-  }
-  void setMaxTime(double maxTime) {
-    params.maxTime = maxTime;
-    bot->setParams(params);
-    bot->clearSearch();
-  }
-  void setPolicyOptimism(double x) {
-    params.policyOptimism = x;
-    params.rootPolicyOptimism = x;
-    bot->setParams(params);
-    bot->clearSearch();
   }
 
   void updateDynamicPDA() {
@@ -710,12 +704,29 @@ struct GTPEngine {
     bot->ponder(lastSearchFactor);
   }
 
+  struct GenmoveArgs {
+    double searchFactorWhenWinningThreshold;
+    double searchFactorWhenWinning;
+    enabled_t cleanupBeforePass;
+    enabled_t friendlyPass;
+    bool ogsChatToStderr;
+    bool allowResignation;
+    double resignThreshold;
+    int resignConsecTurns;
+    double resignMinScoreDifference;
+    double resignMinMovesPerBoardArea;
+    bool logSearchInfo;
+    bool logSearchInfoForChosenMove;
+    bool debug;
+  };
+
   struct AnalyzeArgs {
     bool analyzing = false;
     bool lz = false;
     bool kata = false;
     int minMoves = 0;
     int maxMoves = 10000000;
+    bool showRootInfo = false;
     bool showOwnership = false;
     bool showOwnershipStdev = false;
     bool showMovesOwnership = false;
@@ -732,7 +743,7 @@ struct GTPEngine {
     //These should already be sorted so that 0-visit moves only appear at the end.
     int keptMoves = 0;
     for(int i = 0; i<buf.size(); i++) {
-      if(buf[i].numVisits > 0 || keptMoves < args.minMoves)
+      if(buf[i].childVisits > 0 || keptMoves < args.minMoves)
         buf[keptMoves++] = buf[i];
     }
     buf.resize(keptMoves);
@@ -767,7 +778,7 @@ struct GTPEngine {
           }
           cout << "info";
           cout << " move " << Location::toString(data.move,board);
-          cout << " visits " << data.numVisits;
+          cout << " visits " << data.childVisits;
           cout << " winrate " << round(winrate * 10000.0);
           cout << " prior " << round(data.policyPrior * 10000.0);
           cout << " lcb " << round(lcb * 10000.0);
@@ -801,11 +812,16 @@ struct GTPEngine {
         vector<AnalysisData> buf;
         bool duplicateForSymmetries = true;
         search->getAnalysisData(buf,args.minMoves,false,analysisPVLen,duplicateForSymmetries);
+        ReportedSearchValues rootVals;
+        bool suc = search->getPrunedRootValues(rootVals);
+        if(!suc)
+          return;
         filterZeroVisitMoves(args,buf);
         if(buf.size() > args.maxMoves)
           buf.resize(args.maxMoves);
         if(buf.size() <= 0)
           return;
+        const SearchNode* rootNode = search->getRootNode();
 
         vector<double> ownership, ownershipStdev;
         if(args.showOwnershipStdev) {
@@ -848,7 +864,8 @@ struct GTPEngine {
           }
           out << "info";
           out << " move " << Location::toString(data.move,board);
-          out << " visits " << data.numVisits;
+          out << " visits " << data.childVisits;
+          out << " edgeVisits " << data.numVisits;
           out << " utility " << utility;
           out << " winrate " << winrate;
           // We report lead for scoreMean here so that a bunch of legacy tools that use KataGo use lead instead, which
@@ -860,7 +877,7 @@ struct GTPEngine {
           out << " prior " << data.policyPrior;
           out << " lcb " << lcb;
           out << " utilityLcb " << utilityLcb;
-          out << " weight " << data.weightSum;
+          out << " weight " << data.childWeightSum;
           if(data.isSymmetryOf != Board::NULL_LOC)
             out << " isSymmetryOf " << Location::toString(data.isSymmetryOf,board);
           out << " order " << data.order;
@@ -920,6 +937,36 @@ struct GTPEngine {
           }
         }
 
+        if(args.showRootInfo) {
+          out << " rootInfo";
+          double winrate = 0.5 * (1.0 + rootVals.winLossValue);
+          double scoreMean = rootVals.expectedScore;
+          double lead = rootVals.lead;
+          double utility = rootVals.utility;
+          if(perspective == P_BLACK || (perspective != P_BLACK && perspective != P_WHITE && pla == P_BLACK)) {
+            winrate = 1.0 - winrate;
+            scoreMean = -scoreMean;
+            lead = -lead;
+            utility = -utility;
+          }
+          out << " visits " << rootVals.visits;
+          out << " utility " << utility;
+          out << " winrate " << winrate;
+          out << " scoreMean " << lead;
+          out << " scoreStdev " << rootVals.expectedScoreStdev;
+          out << " scoreLead " << lead;
+          out << " scoreSelfplay " << scoreMean;
+          out << " weight " << rootVals.weight;
+          if(rootNode != NULL) {
+            const NNOutput* nnOutput = rootNode->getNNOutput();
+            if(nnOutput != NULL) {
+              out << " rawStWrError " << nnOutput->shorttermWinlossError;
+              out << " rawStScoreError " << nnOutput->shorttermScoreError;
+              out << " rawVarTimeLeft " << nnOutput->varTimeLeft;
+            }
+          }
+        }
+
         if(args.showOwnership) {
           out << " ";
 
@@ -957,60 +1004,100 @@ struct GTPEngine {
 
   void genMove(
     Player pla,
-    Logger& logger, double searchFactorWhenWinningThreshold, double searchFactorWhenWinning,
-    enabled_t cleanupBeforePass, enabled_t friendlyPass, bool ogsChatToStderr,
-    bool allowResignation, double resignThreshold, int resignConsecTurns, double resignMinScoreDifference,
-    bool logSearchInfo, bool logSearchInfoForChosenMove, bool debug, bool playChosenMove,
-    string& response, bool& responseIsError, bool& maybeStartPondering,
-    AnalyzeArgs args
+    Logger& logger,
+    const GenmoveArgs& gargs,
+    const AnalyzeArgs& args,
+    bool playChosenMove,
+    std::function<void(const string&, bool)> printGTPResponse,
+    bool& maybeStartPondering
   ) {
-    ClockTimer timer;
+    bool onMoveWasCalled = false;
+    Loc genmoveMoveLoc = Board::NULL_LOC;
+    auto onMove = [&genmoveMoveLoc,&onMoveWasCalled,this](Loc moveLoc, int searchId, Search* search) {
+      (void)searchId;
+      (void)search;
+      onMoveWasCalled = true;
+      genmoveMoveLoc = moveLoc;
+    };
+    launchGenMove(pla,gargs,args,onMove);
+    bot->waitForSearchToEnd();
+    testAssert(onMoveWasCalled);
+    string response;
+    bool responseIsError = false;
+    Loc moveLocToPlay = Board::NULL_LOC;
+    handleGenMoveResult(pla,bot->getSearchStopAndWait(),logger,gargs,args,genmoveMoveLoc,response,responseIsError,moveLocToPlay);
+    printGTPResponse(response,responseIsError);
+    if(moveLocToPlay != Board::NULL_LOC && playChosenMove) {
+      bool suc = bot->makeMove(moveLocToPlay,pla,preventEncore);
+      if(suc)
+        moveHistory.push_back(Move(moveLocToPlay,pla));
+      assert(suc);
+      (void)suc; //Avoid warning when asserts are off
 
-    response = "";
-    responseIsError = false;
-    maybeStartPondering = false;
+      maybeStartPondering = true;
+    }
+  }
+
+  void genMoveCancellable(
+    Player pla,
+    Logger& logger,
+    const GenmoveArgs& gargs,
+    const AnalyzeArgs& args,
+    std::function<void(const string&, bool)> printGTPResponse
+  ) {
+    // Make sure to capture things by value unless they're long-lived, since the callback needs to survive past the current scope.
+    auto onMove = [pla,&logger,gargs,args,printGTPResponse,this](Loc moveLoc, int searchId, Search* search) {
+      string response;
+      bool responseIsError = false;
+      Loc moveLocToPlay = Board::NULL_LOC;
+
+      // Search invalidated before completion
+      if(searchId != genmoveExpectedId.load()) {
+        if(args.analyzing)
+          response = "play cancelled";
+        else
+          response = "cancelled";
+        printGTPResponse(response,responseIsError);
+        return;
+      }
+      handleGenMoveResult(pla,search,logger,gargs,args,moveLoc,response,responseIsError,moveLocToPlay);
+      printGTPResponse(response,responseIsError);
+    };
+    launchGenMove(pla,gargs,args,onMove);
+  }
+
+  void launchGenMove(
+    Player pla,
+    GenmoveArgs gargs,
+    AnalyzeArgs args,
+    std::function<void(Loc, int, Search*)> onMove
+  ) {
+    genmoveTimer.reset();
 
     nnEval->clearStats();
+    if(humanEval != NULL)
+      humanEval->clearStats();
     TimeControls tc = pla == P_BLACK ? bTimeControls : wTimeControls;
+
+    if(!isGenmoveParams) {
+      bot->setParams(genmoveParams);
+      isGenmoveParams = true;
+    }
 
     //Update dynamic PDA given whatever the most recent values are, if we're using dynamic
     updateDynamicPDA();
-    //Make sure we have the right parameters, in case someone ran analysis in the meantime.
-    if(staticPDATakesPrecedence) {
-      if(params.playoutDoublingAdvantage != staticPlayoutDoublingAdvantage) {
-        params.playoutDoublingAdvantage = staticPlayoutDoublingAdvantage;
-        bot->setParams(params);
-      }
-    }
-    else {
+
+    SearchParams paramsToUse = genmoveParams;
+    //Make sure we have the right parameters, in case someone updated params in the meantime.
+    if(!staticPDATakesPrecedence) {
       double desiredDynamicPDA =
-        (params.playoutDoublingAdvantagePla == P_WHITE) ? desiredDynamicPDAForWhite :
-        (params.playoutDoublingAdvantagePla == P_BLACK) ? -desiredDynamicPDAForWhite :
-        (params.playoutDoublingAdvantagePla == C_EMPTY && pla == P_WHITE) ? desiredDynamicPDAForWhite :
-        (params.playoutDoublingAdvantagePla == C_EMPTY && pla == P_BLACK) ? -desiredDynamicPDAForWhite :
+        (paramsToUse.playoutDoublingAdvantagePla == P_WHITE) ? desiredDynamicPDAForWhite :
+        (paramsToUse.playoutDoublingAdvantagePla == P_BLACK) ? -desiredDynamicPDAForWhite :
+        (paramsToUse.playoutDoublingAdvantagePla == C_EMPTY && pla == P_WHITE) ? desiredDynamicPDAForWhite :
+        (paramsToUse.playoutDoublingAdvantagePla == C_EMPTY && pla == P_BLACK) ? -desiredDynamicPDAForWhite :
         (assert(false),0.0);
 
-      if(params.playoutDoublingAdvantage != desiredDynamicPDA) {
-        params.playoutDoublingAdvantage = desiredDynamicPDA;
-        bot->setParams(params);
-      }
-    }
-    Player avoidMYTDaggerHackPla = avoidMYTDaggerHack ? pla : C_EMPTY;
-    if(params.avoidMYTDaggerHackPla != avoidMYTDaggerHackPla) {
-      params.avoidMYTDaggerHackPla = avoidMYTDaggerHackPla;
-      bot->setParams(params);
-    }
-    if(params.wideRootNoise != genmoveWideRootNoise) {
-      params.wideRootNoise = genmoveWideRootNoise;
-      bot->setParams(params);
-    }
-    if(params.ignorePreRootHistory != genmoveIgnorePreRootHistory) {
-      params.ignorePreRootHistory = genmoveIgnorePreRootHistory;
-      bot->setParams(params);
-    }
-    if(params.antiMirror != genmoveAntiMirror) {
-      params.antiMirror = genmoveAntiMirror;
-      bot->setParams(params);
+      paramsToUse.playoutDoublingAdvantage = desiredDynamicPDA;
     }
 
     {
@@ -1020,51 +1107,93 @@ struct GTPEngine {
         if(initialOppAdvantage > getPointsThresholdForHandicapGame(getBoardSizeScaling(bot->getRootBoard())))
           avoidRepeatedPatternUtility = handicapAvoidRepeatedPatternUtility;
       }
-      if(params.avoidRepeatedPatternUtility != avoidRepeatedPatternUtility) {
-        params.avoidRepeatedPatternUtility = avoidRepeatedPatternUtility;
-        bot->setParams(params);
-      }
+      paramsToUse.avoidRepeatedPatternUtility = avoidRepeatedPatternUtility;
     }
 
+    if(paramsToUse != bot->getParams())
+      bot->setParams(paramsToUse);
+
+
     //Play faster when winning
-    double searchFactor = PlayUtils::getSearchFactor(searchFactorWhenWinningThreshold,searchFactorWhenWinning,params,recentWinLossValues,pla);
+    double searchFactor = PlayUtils::getSearchFactor(gargs.searchFactorWhenWinningThreshold,gargs.searchFactorWhenWinning,paramsToUse,recentWinLossValues,pla);
     lastSearchFactor = searchFactor;
 
-    Loc moveLoc;
     bot->setAvoidMoveUntilByLoc(args.avoidMoveUntilByLocBlack,args.avoidMoveUntilByLocWhite);
+
+    //So that we can tell by the end of the search whether we still care for the result.
+    int expectedSearchId = (genmoveExpectedId.load() + 1) & 0x3FFFFFFF;
+    genmoveExpectedId.store(expectedSearchId);
+
     if(args.analyzing) {
       std::function<void(const Search* search)> callback = getAnalyzeCallback(pla,args);
       if(args.showOwnership || args.showOwnershipStdev || args.showMovesOwnership || args.showMovesOwnershipStdev)
         bot->setAlwaysIncludeOwnerMap(true);
       else
         bot->setAlwaysIncludeOwnerMap(false);
-      moveLoc = bot->genMoveSynchronousAnalyze(pla, tc, searchFactor, args.secondsPerReport, args.secondsPerReport, callback);
+
       //Make sure callback happens at least once
-      callback(bot->getSearch());
+      auto onMoveWrapped = [onMove,callback](Loc moveLoc, int searchId, Search* search) {
+        callback(search);
+        onMove(moveLoc,searchId,search);
+      };
+      bot->genMoveAsyncAnalyze(pla, expectedSearchId, tc, searchFactor, onMoveWrapped, args.secondsPerReport, args.secondsPerReport, callback);
     }
     else {
-      moveLoc = bot->genMoveSynchronous(pla,tc,searchFactor);
+      bot->genMoveAsync(pla,expectedSearchId,tc,searchFactor,onMove);
     }
+  }
 
-    bool isLegal = bot->isLegalStrict(moveLoc,pla);
+  void handleGenMoveResult(
+    Player pla,
+    Search* searchBot,
+    Logger& logger,
+    const GenmoveArgs& gargs,
+    const AnalyzeArgs& args,
+    Loc moveLoc,
+    string& response, bool& responseIsError,
+    Loc& moveLocToPlay
+  ) {
+    response = "";
+    responseIsError = false;
+    moveLocToPlay = Board::NULL_LOC;
+
+    const Search* search = searchBot;
+
+    bool isLegal = search->isLegalStrict(moveLoc,pla);
     if(moveLoc == Board::NULL_LOC || !isLegal) {
       responseIsError = true;
       response = "genmove returned null location or illegal move";
       ostringstream sout;
       sout << "genmove null location or illegal move!?!" << "\n";
-      sout << bot->getRootBoard() << "\n";
+      sout << search->getRootBoard() << "\n";
       sout << "Pla: " << PlayerIO::playerToString(pla) << "\n";
-      sout << "MoveLoc: " << Location::toString(moveLoc,bot->getRootBoard()) << "\n";
+      sout << "MoveLoc: " << Location::toString(moveLoc,search->getRootBoard()) << "\n";
       logger.write(sout.str());
-      genmoveTimeSum += timer.getSeconds();
+      genmoveTimeSum += genmoveTimer.getSeconds();
       return;
+    }
+
+    SearchNode* rootNode = search->rootNode;
+    if(rootNode != NULL && delayMoveScale > 0.0 && delayMoveMax > 0.0) {
+      int pos = search->getPos(moveLoc);
+      const NNOutput* nnOutput = rootNode->getHumanOutput();
+      nnOutput = nnOutput != NULL ? nnOutput : rootNode->getNNOutput();
+      const float* policyProbs = nnOutput != NULL ? nnOutput->getPolicyProbsMaybeNoised() : NULL;
+      if(policyProbs != NULL) {
+        double prob = std::max(0.0,(double)policyProbs[pos]);
+        double meanWait = 0.5 * delayMoveScale / (prob + 0.10);
+        double waitTime = gtpRand.nextGamma(2.0) * meanWait / 2.0;
+        waitTime = std::min(waitTime,delayMoveMax);
+        waitTime = std::max(waitTime,0.0001);
+        std::this_thread::sleep_for(std::chrono::duration<double>(waitTime));
+      }
     }
 
     ReportedSearchValues values;
     double winLossValue;
     double lead;
     {
-      values = bot->getSearch()->getRootValuesRequireSuccess();
+      values = search->getRootValuesRequireSuccess();
       winLossValue = values.winLossValue;
       lead = values.lead;
     }
@@ -1073,21 +1202,22 @@ struct GTPEngine {
     recentWinLossValues.push_back(winLossValue);
 
     //Decide whether we should resign---------------------
-    bool resigned = allowResignation && shouldResign(
-      bot->getRootBoard(),bot->getRootHist(),pla,recentWinLossValues,lead,
-      resignThreshold,resignConsecTurns,resignMinScoreDifference
+    bool resigned = gargs.allowResignation && shouldResign(
+      search->getRootBoard(),search->getRootHist(),pla,recentWinLossValues,lead,
+      gargs.resignThreshold,gargs.resignConsecTurns,gargs.resignMinScoreDifference,gargs.resignMinMovesPerBoardArea
     );
-
 
     //Snapshot the time NOW - all meaningful play-related computation time is done, the rest is just
     //output of various things.
-    double timeTaken = timer.getSeconds();
+    double timeTaken = genmoveTimer.getSeconds();
     genmoveTimeSum += timeTaken;
 
     //Chatting and logging ----------------------------
 
-    if(ogsChatToStderr) {
-      int64_t visits = bot->getSearch()->getRootVisits();
+    const SearchParams& params = search->searchParams;
+
+    if(gargs.ogsChatToStderr) {
+      int64_t visits = search->getRootVisits();
       double winrate = 0.5 * (1.0 + (values.winValue - values.lossValue));
       double leadForPrinting = lead;
       //Print winrate from desired perspective
@@ -1103,21 +1233,21 @@ struct GTPEngine {
       if(params.playoutDoublingAdvantage != 0.0) {
         cerr << Global::strprintf(
           " (PDA %.2f)",
-          bot->getSearch()->getRootPla() == getOpp(params.playoutDoublingAdvantagePla) ?
+          search->getRootPla() == getOpp(params.playoutDoublingAdvantagePla) ?
           -params.playoutDoublingAdvantage : params.playoutDoublingAdvantage);
       }
       cerr << " PV ";
-      bot->getSearch()->printPVForMove(cerr,bot->getSearch()->rootNode, moveLoc, analysisPVLen);
+      search->printPVForMove(cerr,search->rootNode, moveLoc, analysisPVLen);
       cerr << endl;
     }
 
-    if(logSearchInfo) {
+    if(gargs.logSearchInfo) {
       ostringstream sout;
-      PlayUtils::printGenmoveLog(sout,bot,nnEval,moveLoc,timeTaken,perspective,logSearchInfoForChosenMove);
+      PlayUtils::printGenmoveLog(sout,search,nnEval,moveLoc,timeTaken,perspective,gargs.logSearchInfoForChosenMove);
       logger.write(sout.str());
     }
-    if(debug) {
-      PlayUtils::printGenmoveLog(cerr,bot,nnEval,moveLoc,timeTaken,perspective,logSearchInfoForChosenMove);
+    if(gargs.debug) {
+      PlayUtils::printGenmoveLog(cerr,search,nnEval,moveLoc,timeTaken,perspective,gargs.logSearchInfoForChosenMove);
     }
 
     //Hacks--------------------------------------------------
@@ -1127,23 +1257,23 @@ struct GTPEngine {
     //Implement friendly pass - in area scoring rules other than tromp-taylor, maybe pass once there are no points
     //left to gain.
     int64_t numVisitsForFriendlyPass = 8 + std::min((int64_t)1000, std::min(params.maxVisits, params.maxPlayouts) / 10);
-    moveLoc = PlayUtils::maybeFriendlyPass(cleanupBeforePass, friendlyPass, pla, moveLoc, bot->getSearchStopAndWait(), numVisitsForFriendlyPass);
+    moveLoc = PlayUtils::maybeFriendlyPass(gargs.cleanupBeforePass, gargs.friendlyPass, pla, moveLoc, searchBot, numVisitsForFriendlyPass);
 
     //Implement cleanupBeforePass hack - if the bot wants to pass, instead cleanup if there is something to clean
     //and we are in a ruleset where this is necessary or the user has configured it.
-    moveLoc = PlayUtils::maybeCleanupBeforePass(cleanupBeforePass, friendlyPass, pla, moveLoc, bot);
+    moveLoc = PlayUtils::maybeCleanupBeforePass(gargs.cleanupBeforePass, gargs.friendlyPass, pla, moveLoc, bot);
 
     //Actual reporting of chosen move---------------------
     if(resigned)
       response = "resign";
     else
-      response = Location::toString(moveLoc,bot->getRootBoard());
+      response = Location::toString(moveLoc,search->getRootBoard());
 
     if(autoAvoidPatterns) {
       // Auto pattern expects moveless records using hintloc to contain the move.
       Sgf::PositionSample posSample;
-      const BoardHistory& hist = bot->getRootHist();
-      posSample.board = bot->getRootBoard();
+      const BoardHistory& hist = search->getRootHist();
+      posSample.board = search->getRootBoard();
       posSample.nextPla = pla;
       posSample.initialTurnNumber = hist.getCurrentTurnNumber();
       posSample.hintLoc = moveLoc;
@@ -1151,14 +1281,8 @@ struct GTPEngine {
       genmoveSamples.push_back(posSample);
     }
 
-    if(!resigned && moveLoc != Board::NULL_LOC && isLegal && playChosenMove) {
-      bool suc = bot->makeMove(moveLoc,pla,preventEncore);
-      if(suc)
-        moveHistory.push_back(Move(moveLoc,pla));
-      assert(suc);
-      (void)suc; //Avoid warning when asserts are off
-
-      maybeStartPondering = true;
+    if(!resigned) {
+      moveLocToPlay = moveLoc;
     }
 
     if(args.analyzing) {
@@ -1171,6 +1295,8 @@ struct GTPEngine {
   void clearCache() {
     bot->clearSearch();
     nnEval->clearCache();
+    if(humanEval != NULL)
+      humanEval->clearCache();
   }
 
   void placeFixedHandicap(int n, string& response, bool& responseIsError) {
@@ -1257,28 +1383,9 @@ struct GTPEngine {
 
   void analyze(Player pla, AnalyzeArgs args) {
     assert(args.analyzing);
-    //Analysis should ALWAYS be with the static value to prevent random hard-to-predict changes
-    //for users.
-    if(params.playoutDoublingAdvantage != staticPlayoutDoublingAdvantage) {
-      params.playoutDoublingAdvantage = staticPlayoutDoublingAdvantage;
-      bot->setParams(params);
-    }
-    if(params.avoidMYTDaggerHackPla != C_EMPTY) {
-      params.avoidMYTDaggerHackPla = C_EMPTY;
-      bot->setParams(params);
-    }
-    //Also wide root, if desired
-    if(params.wideRootNoise != analysisWideRootNoise) {
-      params.wideRootNoise = analysisWideRootNoise;
-      bot->setParams(params);
-    }
-    if(params.ignorePreRootHistory != analysisIgnorePreRootHistory) {
-      params.ignorePreRootHistory = analysisIgnorePreRootHistory;
-      bot->setParams(params);
-    }
-    if(params.antiMirror != analysisAntiMirror) {
-      params.antiMirror = analysisAntiMirror;
-      bot->setParams(params);
+    if(isGenmoveParams) {
+      bot->setParams(analysisParams);
+      isGenmoveParams = false;
     }
 
     std::function<void(const Search* search)> callback = getAnalyzeCallback(pla,args);
@@ -1298,9 +1405,18 @@ struct GTPEngine {
     //No playoutDoublingAdvantage to avoid bias
     //Also never assume the game will end abruptly due to pass
     {
-      SearchParams tmpParams = params;
+      SearchParams tmpParams = genmoveParams;
       tmpParams.playoutDoublingAdvantage = 0.0;
       tmpParams.conservativePass = true;
+      tmpParams.humanSLChosenMoveProp = 0.0;
+      tmpParams.humanSLRootExploreProbWeightful = 0.0;
+      tmpParams.humanSLRootExploreProbWeightless = 0.0;
+      tmpParams.humanSLPlaExploreProbWeightful = 0.0;
+      tmpParams.humanSLPlaExploreProbWeightless = 0.0;
+      tmpParams.humanSLOppExploreProbWeightful = 0.0;
+      tmpParams.humanSLOppExploreProbWeightless = 0.0;
+      tmpParams.antiMirror = false;
+      tmpParams.avoidRepeatedPatternUtility = 0;
       bot->setParams(tmpParams);
     }
 
@@ -1325,7 +1441,7 @@ struct GTPEngine {
     }
     //Human-friendly score or incomplete game score estimation
     else {
-      int64_t numVisits = std::max(50, params.numThreads * 10);
+      int64_t numVisits = std::max(50, genmoveParams.numThreads * 10);
       //Try computing the lead for white
       double lead = PlayUtils::computeLead(bot->getSearchStopAndWait(),NULL,board,hist,pla,numVisits,OtherGameProperties());
 
@@ -1341,11 +1457,30 @@ struct GTPEngine {
 
     //Restore
     bot->setPosition(oldPla,oldBoard,oldHist);
-    bot->setParams(params);
+    bot->setParams(genmoveParams);
+    isGenmoveParams = true;
   }
 
   vector<bool> computeAnticipatedStatuses() {
     stopAndWait();
+
+    //No playoutDoublingAdvantage to avoid bias
+    //Also never assume the game will end abruptly due to pass
+    {
+      SearchParams tmpParams = genmoveParams;
+      tmpParams.playoutDoublingAdvantage = 0.0;
+      tmpParams.conservativePass = true;
+      tmpParams.humanSLChosenMoveProp = 0.0;
+      tmpParams.humanSLRootExploreProbWeightful = 0.0;
+      tmpParams.humanSLRootExploreProbWeightless = 0.0;
+      tmpParams.humanSLPlaExploreProbWeightful = 0.0;
+      tmpParams.humanSLPlaExploreProbWeightless = 0.0;
+      tmpParams.humanSLOppExploreProbWeightful = 0.0;
+      tmpParams.humanSLOppExploreProbWeightless = 0.0;
+      tmpParams.antiMirror = false;
+      tmpParams.avoidRepeatedPatternUtility = 0;
+      bot->setParams(tmpParams);
+    }
 
     //Make absolutely sure we can restore the bot's old state
     const Player oldPla = bot->getRootPla();
@@ -1356,7 +1491,7 @@ struct GTPEngine {
     BoardHistory hist = bot->getRootHist();
     Player pla = bot->getRootPla();
 
-    int64_t numVisits = std::max(100, params.numThreads * 20);
+    int64_t numVisits = std::max(100, genmoveParams.numThreads * 20);
     vector<bool> isAlive;
     //Tromp-taylorish statuses, or finished territory game statuses (including noresult)
     if(hist.isGameFinished && (
@@ -1373,6 +1508,8 @@ struct GTPEngine {
 
     //Restore
     bot->setPosition(oldPla,oldBoard,oldHist);
+    bot->setParams(genmoveParams);
+    isGenmoveParams = true;
 
     return isAlive;
   }
@@ -1411,14 +1548,14 @@ struct GTPEngine {
         {
           MiscNNInputParams nnInputParams;
           nnInputParams.playoutDoublingAdvantage =
-            (params.playoutDoublingAdvantagePla == C_EMPTY || params.playoutDoublingAdvantagePla == pla) ?
-            staticPlayoutDoublingAdvantage : -staticPlayoutDoublingAdvantage;
+            (analysisParams.playoutDoublingAdvantagePla == C_EMPTY || analysisParams.playoutDoublingAdvantagePla == pla) ?
+            analysisParams.playoutDoublingAdvantage : -analysisParams.playoutDoublingAdvantage;
           nnInputParams.symmetry = symmetry;
 
           NNResultBuf buf;
           bool skipCache = true;
           bool includeOwnerMap = false;
-          nnEval->evaluate(board,hist,pla,nnInputParams,buf,skipCache,includeOwnerMap);
+          nnEval->evaluate(board,hist,pla,&analysisParams.humanSLProfile,nnInputParams,buf,skipCache,includeOwnerMap);
 
           NNOutput* nnOutput = buf.result.get();
           wlStr += Global::strprintf("%.2fc ", 100.0 * (nnOutput->whiteWinProb - nnOutput->whiteLossProb));
@@ -1427,14 +1564,14 @@ struct GTPEngine {
         if(prevLoc != Board::NULL_LOC) {
           MiscNNInputParams nnInputParams;
           nnInputParams.playoutDoublingAdvantage =
-            (params.playoutDoublingAdvantagePla == C_EMPTY || params.playoutDoublingAdvantagePla == prevPla) ?
-            staticPlayoutDoublingAdvantage : -staticPlayoutDoublingAdvantage;
+            (analysisParams.playoutDoublingAdvantagePla == C_EMPTY || analysisParams.playoutDoublingAdvantagePla == prevPla) ?
+            analysisParams.playoutDoublingAdvantage : -analysisParams.playoutDoublingAdvantage;
           nnInputParams.symmetry = symmetry;
 
           NNResultBuf buf;
           bool skipCache = true;
           bool includeOwnerMap = false;
-          nnEval->evaluate(prevBoard,prevHist,prevPla,nnInputParams,buf,skipCache,includeOwnerMap);
+          nnEval->evaluate(prevBoard,prevHist,prevPla,&analysisParams.humanSLProfile,nnInputParams,buf,skipCache,includeOwnerMap);
 
           NNOutput* nnOutput = buf.result.get();
           int pos = NNPos::locToPos(prevLoc,board.x_size,nnOutput->nnXLen,nnOutput->nnYLen);
@@ -1445,8 +1582,9 @@ struct GTPEngine {
     return Global::trim(policyStr + "\n" + wlStr + "\n" + leadStr);
   }
 
-  string rawNN(int whichSymmetry, double policyOptimism) {
-    if(nnEval == NULL)
+  string rawNN(int whichSymmetry, double policyOptimism, bool useHumanModel) {
+    NNEvaluator* nnEvalToUse = useHumanModel ? humanEval : nnEval;
+    if(nnEvalToUse == NULL)
       return "";
     ostringstream out;
 
@@ -1458,24 +1596,30 @@ struct GTPEngine {
 
         MiscNNInputParams nnInputParams;
         nnInputParams.playoutDoublingAdvantage =
-          (params.playoutDoublingAdvantagePla == C_EMPTY || params.playoutDoublingAdvantagePla == nextPla) ?
-          staticPlayoutDoublingAdvantage : -staticPlayoutDoublingAdvantage;
+          (analysisParams.playoutDoublingAdvantagePla == C_EMPTY || analysisParams.playoutDoublingAdvantagePla == nextPla) ?
+          analysisParams.playoutDoublingAdvantage : -analysisParams.playoutDoublingAdvantage;
         nnInputParams.symmetry = symmetry;
         nnInputParams.policyOptimism = policyOptimism;
         NNResultBuf buf;
         bool skipCache = true;
         bool includeOwnerMap = true;
-        nnEval->evaluate(board,hist,nextPla,nnInputParams,buf,skipCache,includeOwnerMap);
+        nnEvalToUse->evaluate(board,hist,nextPla,&analysisParams.humanSLProfile,nnInputParams,buf,skipCache,includeOwnerMap);
 
         NNOutput* nnOutput = buf.result.get();
         out << "symmetry " << symmetry << endl;
         out << "whiteWin " << Global::strprintf("%.6f",nnOutput->whiteWinProb) << endl;
         out << "whiteLoss " << Global::strprintf("%.6f",nnOutput->whiteLossProb) << endl;
         out << "noResult " << Global::strprintf("%.6f",nnOutput->whiteNoResultProb) << endl;
-        out << "whiteLead " << Global::strprintf("%.3f",nnOutput->whiteLead) << endl;
-        out << "whiteScoreSelfplay " << Global::strprintf("%.3f",nnOutput->whiteScoreMean) << endl;
-        out << "whiteScoreSelfplaySq " << Global::strprintf("%.3f",nnOutput->whiteScoreMeanSq) << endl;
-        out << "varTimeLeft " << Global::strprintf("%.3f",nnOutput->varTimeLeft) << endl;
+        if(useHumanModel) {
+          out << "whiteScore " << Global::strprintf("%.3f",nnOutput->whiteScoreMean) << endl;
+          out << "whiteScoreSq " << Global::strprintf("%.3f",nnOutput->whiteScoreMeanSq) << endl;
+        }
+        else {
+          out << "whiteLead " << Global::strprintf("%.3f",nnOutput->whiteLead) << endl;
+          out << "whiteScoreSelfplay " << Global::strprintf("%.3f",nnOutput->whiteScoreMean) << endl;
+          out << "whiteScoreSelfplaySq " << Global::strprintf("%.3f",nnOutput->whiteScoreMeanSq) << endl;
+          out << "varTimeLeft " << Global::strprintf("%.3f",nnOutput->varTimeLeft) << endl;
+        }
         out << "shorttermWinlossError " << Global::strprintf("%.3f",nnOutput->shorttermWinlossError) << endl;
         out << "shorttermScoreError " << Global::strprintf("%.3f",nnOutput->shorttermScoreError) << endl;
 
@@ -1518,13 +1662,28 @@ struct GTPEngine {
     return Global::trim(out.str());
   }
 
-  SearchParams getParams() {
-    return params;
+  const SearchParams& getGenmoveParams() {
+    return genmoveParams;
   }
 
-  void setParams(SearchParams p) {
-    params = p;
-    bot->setParams(params);
+  void setGenmoveParamsIfChanged(const SearchParams& p) {
+    if(genmoveParams != p) {
+      genmoveParams = p;
+      if(isGenmoveParams)
+        bot->setParams(genmoveParams);
+    }
+  }
+
+  const SearchParams& getAnalysisParams() {
+    return analysisParams;
+  }
+
+  void setAnalysisParamsIfChanged(const SearchParams& p) {
+    if(analysisParams != p) {
+      analysisParams = p;
+      if(!isGenmoveParams)
+        bot->setParams(analysisParams);
+    }
   }
 };
 
@@ -1540,10 +1699,11 @@ static GTPEngine::AnalyzeArgs parseAnalyzeCommand(
   int numArgsParsed = 0;
 
   bool isLZ = (command == "lz-analyze" || command == "lz-genmove_analyze");
-  bool isKata = (command == "kata-analyze" || command == "kata-genmove_analyze");
+  bool isKata = (command == "kata-analyze" || command == "kata-genmove_analyze" || command == "kata-search_analyze" || command == "kata-search_analyze_cancellable");
   double lzAnalyzeInterval = TimeControls::UNLIMITED_TIME_DEFAULT;
   int minMoves = 0;
   int maxMoves = 10000000;
+  bool showRootInfo = false;
   bool showOwnership = false;
   bool showOwnershipStdev = false;
   bool showMovesOwnership = false;
@@ -1669,6 +1829,9 @@ static GTPEngine::AnalyzeArgs parseAnalyzeCommand(
             maxMoves >= 0 && maxMoves < 1000000000) {
       continue;
     }
+    else if(isKata && key == "rootInfo" && Global::tryStringToBool(value,showRootInfo)) {
+      continue;
+    }
     else if(isKata && key == "ownership" && Global::tryStringToBool(value,showOwnership)) {
       continue;
     }
@@ -1700,6 +1863,7 @@ static GTPEngine::AnalyzeArgs parseAnalyzeCommand(
   args.secondsPerReport = lzAnalyzeInterval * 0.01;
   args.minMoves = minMoves;
   args.maxMoves = maxMoves;
+  args.showRootInfo = showRootInfo;
   args.showOwnership = showOwnership;
   args.showOwnershipStdev = showOwnershipStdev;
   args.showMovesOwnership = showMovesOwnership;
@@ -1719,11 +1883,13 @@ int MainCmds::gtp(const vector<string>& args) {
 
   ConfigParser cfg;
   string nnModelFile;
+  string humanModelFile;
   string overrideVersion;
   KataGoCommandLine cmd("Run KataGo main GTP engine for playing games or casual analysis.");
   try {
     cmd.addConfigFileArg(KataGoCommandLine::defaultGtpConfigFileName(),"gtp_example.cfg");
     cmd.addModelFileArg();
+    cmd.addHumanModelFileArg();
     cmd.setShortUsageArgLimit();
     cmd.addOverrideConfigArg();
 
@@ -1731,6 +1897,7 @@ int MainCmds::gtp(const vector<string>& args) {
     cmd.add(overrideVersionArg);
     cmd.parseArgs(args);
     nnModelFile = cmd.getModelFile();
+    humanModelFile = cmd.getHumanModelFile();
     overrideVersion = overrideVersionArg.getValue();
 
     cmd.getConfig(cfg);
@@ -1772,25 +1939,48 @@ int MainCmds::gtp(const vector<string>& args) {
     initialRules.komi = forcedKomi;
   }
 
-  SearchParams initialParams = Setup::loadSingleParams(cfg,Setup::SETUP_FOR_GTP);
-  logger.write("Using " + Global::intToString(initialParams.numThreads) + " CPU thread(s) for search");
-  //Set a default for conservativePass that differs from matches or selfplay
-  if(!cfg.contains("conservativePass") && !cfg.contains("conservativePass0"))
-    initialParams.conservativePass = true;
-  if(!cfg.contains("fillDameBeforePass") && !cfg.contains("fillDameBeforePass0"))
-    initialParams.fillDameBeforePass = true;
+  const bool hasHumanModel = humanModelFile != "";
 
-  const bool ponderingEnabled = cfg.getBool("ponderingEnabled");
+  auto loadParams = [&hasHumanModel](ConfigParser& config, SearchParams& genmoveOut, SearchParams& analysisOut) {
+    SearchParams params = Setup::loadSingleParams(config,Setup::SETUP_FOR_GTP,hasHumanModel);
+    //Set a default for conservativePass that differs from matches or selfplay
+    if(!config.contains("conservativePass"))
+      params.conservativePass = true;
+    if(!config.contains("fillDameBeforePass"))
+      params.fillDameBeforePass = true;
+
+    const double analysisWideRootNoise =
+      config.contains("analysisWideRootNoise") ? config.getDouble("analysisWideRootNoise",0.0,5.0) : Setup::DEFAULT_ANALYSIS_WIDE_ROOT_NOISE;
+    const double analysisIgnorePreRootHistory =
+      config.contains("analysisIgnorePreRootHistory") ? config.getBool("analysisIgnorePreRootHistory") : Setup::DEFAULT_ANALYSIS_IGNORE_PRE_ROOT_HISTORY;
+    const bool genmoveAntiMirror =
+      config.contains("genmoveAntiMirror") ? config.getBool("genmoveAntiMirror") : config.contains("antiMirror") ? config.getBool("antiMirror") : true;
+
+    genmoveOut = params;
+    analysisOut = params;
+
+    genmoveOut.antiMirror = genmoveAntiMirror;
+    analysisOut.wideRootNoise = analysisWideRootNoise;
+    analysisOut.ignorePreRootHistory = analysisIgnorePreRootHistory;
+  };
+
+  SearchParams initialGenmoveParams;
+  SearchParams initialAnalysisParams;
+  loadParams(cfg,initialGenmoveParams,initialAnalysisParams);
+  logger.write("Using " + Global::intToString(initialGenmoveParams.numThreads) + " CPU thread(s) for search");
+
+  bool ponderingEnabled = cfg.contains("ponderingEnabled") ? cfg.getBool("ponderingEnabled") : false;
 
   const enabled_t cleanupBeforePass = cfg.contains("cleanupBeforePass") ? cfg.getEnabled("cleanupBeforePass") : enabled_t::Auto;
   const enabled_t friendlyPass = cfg.contains("friendlyPass") ? cfg.getEnabled("friendlyPass") : enabled_t::Auto;
   if(cleanupBeforePass == enabled_t::True && friendlyPass == enabled_t::True)
     throw StringError("Cannot specify both cleanupBeforePass = true and friendlyPass = true at the same time");
 
-  const bool allowResignation = cfg.contains("allowResignation") ? cfg.getBool("allowResignation") : false;
+  bool allowResignation = cfg.contains("allowResignation") ? cfg.getBool("allowResignation") : false;
   const double resignThreshold = cfg.contains("allowResignation") ? cfg.getDouble("resignThreshold",-1.0,0.0) : -1.0; //Threshold on [-1,1], regardless of winLossUtilityFactor
   const int resignConsecTurns = cfg.contains("resignConsecTurns") ? cfg.getInt("resignConsecTurns",1,100) : 3;
   const double resignMinScoreDifference = cfg.contains("resignMinScoreDifference") ? cfg.getDouble("resignMinScoreDifference",0.0,1000.0) : -1e10;
+  const double resignMinMovesPerBoardArea = cfg.contains("resignMinMovesPerBoardArea") ? cfg.getDouble("resignMinMovesPerBoardArea",0.0,1.0) : 0.0;
 
   Setup::initializeSession(cfg);
 
@@ -1803,12 +1993,12 @@ int MainCmds::gtp(const vector<string>& args) {
   const bool preventEncore = cfg.contains("preventCleanupPhase") ? cfg.getBool("preventCleanupPhase") : true;
   const double dynamicPlayoutDoublingAdvantageCapPerOppLead =
     cfg.contains("dynamicPlayoutDoublingAdvantageCapPerOppLead") ? cfg.getDouble("dynamicPlayoutDoublingAdvantageCapPerOppLead",0.0,0.5) : 0.045;
-  double staticPlayoutDoublingAdvantage = initialParams.playoutDoublingAdvantage;
-  const bool staticPDATakesPrecedence = cfg.contains("playoutDoublingAdvantage") && !cfg.contains("dynamicPlayoutDoublingAdvantageCapPerOppLead");
-  const bool avoidMYTDaggerHack = cfg.contains("avoidMYTDaggerHack") ? cfg.getBool("avoidMYTDaggerHack") : false;
-  const double normalAvoidRepeatedPatternUtility = initialParams.avoidRepeatedPatternUtility;
-  const double handicapAvoidRepeatedPatternUtility = (cfg.contains("avoidRepeatedPatternUtility") || cfg.contains("avoidRepeatedPatternUtility0")) ?
-    initialParams.avoidRepeatedPatternUtility : 0.005;
+  bool staticPDATakesPrecedence = cfg.contains("playoutDoublingAdvantage") && !cfg.contains("dynamicPlayoutDoublingAdvantageCapPerOppLead");
+  const double normalAvoidRepeatedPatternUtility = initialGenmoveParams.avoidRepeatedPatternUtility;
+  const double handicapAvoidRepeatedPatternUtility = cfg.contains("avoidRepeatedPatternUtility") ?
+    initialGenmoveParams.avoidRepeatedPatternUtility : 0.005;
+  const double initialDelayMoveScale = cfg.contains("delayMoveScale") ? cfg.getDouble("delayMoveScale",0.0,10000.0) : 0.0;
+  const double initialDelayMoveMax = cfg.contains("delayMoveMax") ? cfg.getDouble("delayMoveMax",0.0,1000000.0) : 1000000.0;
 
   int defaultBoardXSize = -1;
   int defaultBoardYSize = -1;
@@ -1819,16 +2009,6 @@ int MainCmds::gtp(const vector<string>& args) {
 
   if(forDeterministicTesting)
     seedRand.init("forDeterministicTesting");
-
-  const double genmoveWideRootNoise = initialParams.wideRootNoise;
-  const double analysisWideRootNoise =
-    cfg.contains("analysisWideRootNoise") ? cfg.getDouble("analysisWideRootNoise",0.0,5.0) : Setup::DEFAULT_ANALYSIS_WIDE_ROOT_NOISE;
-  const double genmoveIgnorePreRootHistory = initialParams.ignorePreRootHistory;
-  const double analysisIgnorePreRootHistory =
-    cfg.contains("analysisIgnorePreRootHistory") ? cfg.getBool("analysisIgnorePreRootHistory") : Setup::DEFAULT_ANALYSIS_IGNORE_PRE_ROOT_HISTORY;
-  const bool analysisAntiMirror = initialParams.antiMirror;
-  const bool genmoveAntiMirror =
-    cfg.contains("genmoveAntiMirror") ? cfg.getBool("genmoveAntiMirror") : cfg.contains("antiMirror") ? cfg.getBool("antiMirror") : true;
 
   std::unique_ptr<PatternBonusTable> patternBonusTable = nullptr;
   {
@@ -1853,15 +2033,14 @@ int MainCmds::gtp(const vector<string>& args) {
   Player perspective = Setup::parseReportAnalysisWinrates(cfg,C_EMPTY);
 
   GTPEngine* engine = new GTPEngine(
-    nnModelFile,initialParams,initialRules,
+    nnModelFile,humanModelFile,
+    initialGenmoveParams,initialAnalysisParams,
+    initialRules,
     assumeMultipleStartingBlackMovesAreHandicap,preventEncore,autoAvoidPatterns,
     dynamicPlayoutDoublingAdvantageCapPerOppLead,
-    staticPlayoutDoublingAdvantage,staticPDATakesPrecedence,
+    staticPDATakesPrecedence,
     normalAvoidRepeatedPatternUtility, handicapAvoidRepeatedPatternUtility,
-    avoidMYTDaggerHack,
-    genmoveWideRootNoise,analysisWideRootNoise,
-    genmoveIgnorePreRootHistory,analysisIgnorePreRootHistory,
-    genmoveAntiMirror,analysisAntiMirror,
+    initialDelayMoveScale,initialDelayMoveMax,
     perspective,analysisPVLen,
     std::move(patternBonusTable)
   );
@@ -1895,20 +2074,36 @@ int MainCmds::gtp(const vector<string>& args) {
 
   //Check for unused config keys
   cfg.warnUnusedKeys(cerr,&logger);
+  Setup::maybeWarnHumanSLParams(initialGenmoveParams,engine->nnEval,engine->humanEval,cerr,&logger);
 
   logger.write("Loaded config " + cfg.getFileName());
-  logger.write("Loaded model "+ nnModelFile);
+  logger.write("Loaded model " + nnModelFile);
+  if(humanModelFile != "")
+    logger.write("Loaded human SL model " + humanModelFile);
   cmd.logOverrides(logger);
   logger.write("Model name: "+ (engine->nnEval == NULL ? string() : engine->nnEval->getInternalModelName()));
+  if(engine->humanEval != NULL)
+    logger.write("Human SL model name: "+ (engine->humanEval->getInternalModelName()));
   logger.write("GTP ready, beginning main protocol loop");
   //Also check loggingToStderr so that we don't duplicate the message from the log file
   if(startupPrintMessageToStderr && !logger.isLoggingToStderr()) {
     cerr << "Loaded config " << cfg.getFileName() << endl;
     cerr << "Loaded model " << nnModelFile << endl;
+    if(humanModelFile != "")
+      cerr << "Loaded human SL model " << humanModelFile << endl;
     cerr << "Model name: "+ (engine->nnEval == NULL ? string() : engine->nnEval->getInternalModelName()) << endl;
+    if(engine->humanEval != NULL)
+      cerr << "Human SL model name: "+ (engine->humanEval->getInternalModelName()) << endl;
     cerr << "GTP ready, beginning main protocol loop" << endl;
   }
 
+  if(humanModelFile != "" && !cfg.contains("humanSLProfile") && engine->humanEval->requiresSGFMetadata()) {
+    logger.write("WARNING: Provided -human-model but humanSLProfile was not set in the config or overrides. The human SL model will not be used until it is set in the config or at runtime via kata-set-param.");
+    if(!logger.isLoggingToStderr())
+      cerr << "WARNING: Provided -human-model but humanSLProfile was not set in the config or overrides. The human SL model will not be used until it is set in the config or at runtime via kata-set-param." << endl;
+  }
+
+  bool currentlyGenmoving = false;
   bool currentlyAnalyzing = false;
   string line;
   while(getline(cin,line)) {
@@ -1921,10 +2116,16 @@ int MainCmds::gtp(const vector<string>& args) {
       line = CommandLoop::processSingleCommandLine(line);
 
       //Upon any input line at all, stop any analysis and output a newline
+      //Only difference between analysis and genmove is that genmove handles its own
+      //double newline in its onmove callback.
       if(currentlyAnalyzing) {
         currentlyAnalyzing = false;
         engine->stopAndWait();
         cout << endl;
+      }
+      if(currentlyGenmoving) {
+        currentlyGenmoving = false;
+        engine->stopAndWait();
       }
 
       if(line.length() == 0)
@@ -1964,6 +2165,53 @@ int MainCmds::gtp(const vector<string>& args) {
       pieces.erase(pieces.begin());
     }
 
+    auto printGTPResponse = [hasId,id,&logger,logAllGTPCommunication](const string& response, bool responseIsError) {
+      string postProcessed = response;
+      if(hasId)
+        postProcessed = Global::intToString(id) + " " + postProcessed;
+      else
+        postProcessed = " " + postProcessed;
+
+      if(responseIsError)
+        postProcessed = "?" + postProcessed;
+      else
+        postProcessed = "=" + postProcessed;
+
+      cout << postProcessed << endl;
+      cout << endl;
+
+      if(logAllGTPCommunication)
+        logger.write(postProcessed);
+    };
+    auto printGTPResponseHeader = [hasId,id,&logger,logAllGTPCommunication]() {
+      if(hasId) {
+        string s = "=" + Global::intToString(id);
+        cout << s << endl;
+        if(logAllGTPCommunication)
+          logger.write(s);
+      }
+      else {
+        cout << "=" << endl;
+        if(logAllGTPCommunication)
+          logger.write("=");
+      }
+    };
+
+    auto printGTPResponseNoHeader = [hasId,id,&logger,logAllGTPCommunication](const string& response, bool responseIsError) {
+      //Postprocessing of response in the case where we already printed the "=" and a newline ahead of time via printGTPResponseHeader.
+      if(!responseIsError) {
+        cout << response << endl;
+        cout << endl;
+      }
+      else {
+        cout << endl;
+        if(!logger.isLoggingToStderr())
+          cerr << response << endl;
+      }
+      if(logAllGTPCommunication)
+        logger.write(response);
+    };
+
     bool responseIsError = false;
     bool suppressResponse = false;
     bool shouldQuitAfterResponse = false;
@@ -1981,8 +2229,15 @@ int MainCmds::gtp(const vector<string>& args) {
     else if(command == "version") {
       if(overrideVersion.size() > 0)
         response = overrideVersion;
-      else
-        response = Version::getKataGoVersion();
+      else {
+        std::vector<string> parts;
+        parts.push_back(Version::getKataGoVersion());
+        if(engine->nnEval != NULL)
+          parts.push_back(engine->nnEval->getAbbrevInternalModelName());
+        if(engine->humanEval != NULL)
+          parts.push_back(engine->humanEval->getAbbrevInternalModelName());
+        response = Global::concat(parts,"+");
+      }
     }
 
     else if(command == "known_command") {
@@ -2200,8 +2455,21 @@ int MainCmds::gtp(const vector<string>& args) {
     }
 
     else if(command == "kata-list-params") {
-      //For now, rootPolicyTemperature is hidden since it's not clear we want to support it
-      response = "playoutDoublingAdvantage analysisWideRootNoise maxVisits maxPlayouts maxTime";
+      std::vector<string> paramsList;
+      paramsList.push_back("analysisWideRootNoise");
+      paramsList.push_back("analysisIgnorePreRootHistory");
+      paramsList.push_back("genmoveAntiMirror");
+      paramsList.push_back("antiMirror");
+      paramsList.push_back("humanSLProfile");
+      paramsList.push_back("allowResignation");
+      paramsList.push_back("ponderingEnabled");
+      paramsList.push_back("delayMoveScale");
+      paramsList.push_back("delayMoveMax");
+      nlohmann::json params = engine->getGenmoveParams().changeableParametersToJson();
+      for(auto& elt : params.items()) {
+        paramsList.push_back(elt.key());
+      }
+      response = Global::concat(paramsList, " ");
     }
 
     else if(command == "kata-get-param") {
@@ -2210,121 +2478,173 @@ int MainCmds::gtp(const vector<string>& args) {
         response = "Expected one arguments for kata-get-param but got '" + Global::concat(pieces," ") + "'";
       }
       else {
-        SearchParams params = engine->getParams();
-        if(pieces[0] == "playoutDoublingAdvantage") {
-          response = Global::doubleToString(engine->staticPlayoutDoublingAdvantage);
-        }
-        else if(pieces[0] == "rootPolicyTemperature") {
-          response = Global::doubleToString(params.rootPolicyTemperature);
-        }
-        else if(pieces[0] == "analysisWideRootNoise") {
-          response = Global::doubleToString(engine->analysisWideRootNoise);
-        }
-        else if(pieces[0] == "analysisIgnorePreRootHistory") {
-          response = Global::boolToString(engine->analysisIgnorePreRootHistory);
-        }
-        else if(pieces[0] == "maxVisits") {
-          response = Global::int64ToString(params.maxVisits);
-        }
-        else if(pieces[0] == "maxPlayouts") {
-          response = Global::int64ToString(params.maxPlayouts);
-        }
-        else if(pieces[0] == "maxTime") {
-          response = Global::doubleToString(params.maxTime);
-        }
+        const SearchParams& genmoveParams = engine->getGenmoveParams();
+        const SearchParams& analysisParams = engine->getAnalysisParams();
+        if(pieces[0] == "analysisWideRootNoise")
+          response = Global::doubleToString(analysisParams.wideRootNoise);
+        else if(pieces[0] == "analysisIgnorePreRootHistory")
+          response = Global::boolToString(analysisParams.ignorePreRootHistory);
+        else if(pieces[0] == "genmoveAntiMirror")
+          response = Global::boolToString(genmoveParams.antiMirror);
+        else if(pieces[0] == "antiMirror")
+          response = Global::boolToString(analysisParams.antiMirror);
+        else if(pieces[0] == "humanSLProfile")
+          response = cfg.contains("humanSLProfile") ? cfg.getString("humanSLProfile") : "";
+        else if(pieces[0] == "allowResignation")
+          response = Global::boolToString(allowResignation);
+        else if(pieces[0] == "ponderingEnabled")
+          response = Global::boolToString(ponderingEnabled);
+        else if(pieces[0] == "delayMoveScale")
+          response = Global::doubleToString(engine->delayMoveScale);
+        else if(pieces[0] == "delayMoveMax")
+          response = Global::doubleToString(engine->delayMoveMax);
         else {
-          responseIsError = true;
-          response = "Invalid parameter";
+          nlohmann::json params = engine->getGenmoveParams().changeableParametersToJson();
+          if(params.find(pieces[0]) == params.end()) {
+            responseIsError = true;
+            response = "Invalid parameter: " + pieces[0];
+          }
+          else {
+            response = params[pieces[0]].dump();
+          }
         }
       }
     }
-
-    // TODO someday maybe make this fully general, like in the analysis engine.
-    else if(command == "kata-set-param") {
-      if(pieces.size() != 2) {
-        responseIsError = true;
-        response = "Expected two arguments for kata-set-param but got '" + Global::concat(pieces," ") + "'";
+    else if(command == "kata-get-models") {
+      nlohmann::json modelsList = nlohmann::json::array();
+      if(engine->nnEval != NULL) {
+        nlohmann::json modelInfo;
+        modelInfo["name"] = engine->nnEval->getModelName();
+        modelInfo["internalName"] = engine->nnEval->getInternalModelName();
+        modelInfo["maxBatchSize"] = engine->nnEval->getMaxBatchSize();
+        modelInfo["usesHumanSLProfile"] = engine->nnEval->requiresSGFMetadata();
+        modelInfo["version"] = engine->nnEval->getModelVersion();
+        modelInfo["usingFP16"] = engine->nnEval->getUsingFP16Mode().toString();
+        modelsList.push_back(modelInfo);
       }
-      else {
-        bool b;
-        int i;
-        int64_t i64;
-        double d;
-        if(pieces[0] == "playoutDoublingAdvantage") {
-          if(Global::tryStringToDouble(pieces[1],d) && d >= -3.0 && d <= 3.0)
-            engine->setStaticPlayoutDoublingAdvantage(d);
-          else {
-            responseIsError = true;
-            response = "Invalid value for " + pieces[0] + ", must be float from -3.0 to 3.0";
-          }
+      if(engine->humanEval != NULL) {
+        nlohmann::json modelInfo;
+        modelInfo["name"] = engine->humanEval->getModelName();
+        modelInfo["internalName"] = engine->humanEval->getInternalModelName();
+        modelInfo["maxBatchSize"] = engine->humanEval->getMaxBatchSize();
+        modelInfo["usesHumanSLProfile"] = engine->humanEval->requiresSGFMetadata();
+        modelInfo["version"] = engine->humanEval->getModelVersion();
+        modelInfo["usingFP16"] = engine->humanEval->getUsingFP16Mode().toString();
+        modelsList.push_back(modelInfo);
+      }
+      response = modelsList.dump();
+    }
+    else if(command == "kata-get-params") {
+      const SearchParams& genmoveParams = engine->getGenmoveParams();
+      const SearchParams& analysisParams = engine->getAnalysisParams();
+      nlohmann::json params = engine->getGenmoveParams().changeableParametersToJson();
+      params["analysisWideRootNoise"] = Global::doubleToString(analysisParams.wideRootNoise);
+      params["analysisIgnorePreRootHistory"] = Global::boolToString(analysisParams.ignorePreRootHistory);
+      params["genmoveAntiMirror"] = Global::boolToString(genmoveParams.antiMirror);
+      params["antiMirror"] = Global::boolToString(analysisParams.antiMirror);
+      params["humanSLProfile"] = cfg.contains("humanSLProfile") ? cfg.getString("humanSLProfile") : "";
+      params["allowResignation"] = Global::boolToString(allowResignation);
+      params["ponderingEnabled"] = Global::boolToString(ponderingEnabled);
+      params["delayMoveScale"] = Global::doubleToString(engine->delayMoveScale);
+      params["delayMoveMax"] = Global::doubleToString(engine->delayMoveMax);
+      response = params.dump();
+    }
+    else if(command == "kata-set-param" || command == "kata-set-params") {
+      std::map<string,string> overrideSettings;
+      if(command == "kata-set-param") {
+        if(pieces.size() != 1 && pieces.size() != 2) {
+          responseIsError = true;
+          response = "Expected one or two arguments for kata-set-param but got '" + Global::concat(pieces," ") + "'";
         }
-        else if(pieces[0] == "rootPolicyTemperature") {
-          if(Global::tryStringToDouble(pieces[1],d) && d >= 0.01 && d <= 100.0)
-            engine->setRootPolicyTemperature(d);
-          else {
-            responseIsError = true;
-            response = "Invalid value for " + pieces[0] + ", must be float from 0.01 to 100.0";
-          }
-        }
-        else if(pieces[0] == "analysisWideRootNoise") {
-          if(Global::tryStringToDouble(pieces[1],d) && d >= 0.0 && d <= 5.0)
-            engine->setAnalysisWideRootNoise(d);
-          else {
-            responseIsError = true;
-            response = "Invalid value for " + pieces[0] + ", must be float from 0.0 to 2.0";
-          }
-        }
-        else if(pieces[0] == "analysisIgnorePreRootHistory") {
-          if(Global::tryStringToBool(pieces[1],b))
-            engine->setAnalysisIgnorePreRootHistory(b);
-          else {
-            responseIsError = true;
-            response = "Invalid value for " + pieces[0] + ", must be bool";
-          }
-        }
-        else if(pieces[0] == "numSearchThreads") {
-          if(Global::tryStringToInt(pieces[1],i) && i >= 1 && i <= 1024)
-            engine->setNumSearchThreads(i);
-          else {
-            responseIsError = true;
-            response = "Invalid value for " + pieces[0] + ", must be integer from 1 to 1024";
-          }
-        }
-        else if(pieces[0] == "maxVisits") {
-          if(Global::tryStringToInt64(pieces[1],i64) && i64 >= 1 && i64 <= (int64_t)1 << 50)
-            engine->setMaxVisits(i64);
-          else {
-            responseIsError = true;
-            response = "Invalid value for " + pieces[0] + ", must be integer from 1 to 2^50";
-          }
-        }
-        else if(pieces[0] == "maxPlayouts") {
-          if(Global::tryStringToInt64(pieces[1],i64) && i64 >= 1 && i64 <= (int64_t)1 << 50)
-            engine->setMaxPlayouts(i64);
-          else {
-            responseIsError = true;
-            response = "Invalid value for " + pieces[0] + ", must be integer from 1 to 2^50";
-          }
-        }
-        else if(pieces[0] == "maxTime") {
-          if(Global::tryStringToDouble(pieces[1],d) && d >= 0 && d <= 1e20)
-            engine->setMaxTime(d);
-          else {
-            responseIsError = true;
-            response = "Invalid value for " + pieces[0] + ", must be integer from 1 to 2^50";
-          }
-        }
-        else if(pieces[0] == "policyOptimism") {
-          if(Global::tryStringToDouble(pieces[1],d) && d >= 0 && d <= 1)
-            engine->setPolicyOptimism(d);
-          else {
-            responseIsError = true;
-            response = "Invalid value for " + pieces[0] + ", must be integer from 1 to 1024";
-          }
+        else if(pieces.size() == 1) {
+          overrideSettings[pieces[0]] = "";
         }
         else {
+          overrideSettings[pieces[0]] = pieces[1];
+        }
+      }
+      else {
+        if(pieces.size() < 1) {
           responseIsError = true;
-          response = "Unknown or invalid parameter: " + pieces[0];
+          response = "Expected argument for kata-set-param but got '" + Global::concat(pieces," ") + "'";
+        }
+        else {
+          try {
+            string rejoined = Global::concat(pieces, " ", 0, pieces.size());
+            nlohmann::json settings = nlohmann::json::parse(rejoined);
+            if(!settings.is_object())
+              throw StringError("Argument to kata-set-params must be a json object");
+
+            for(auto it = settings.begin(); it != settings.end(); ++it) {
+              overrideSettings[it.key()] = it.value().is_string() ? it.value().get<string>(): it.value().dump(); // always convert to string
+            }
+          }
+          catch(const StringError& exception) {
+            responseIsError = true;
+            response = string("Could not set params: ") + exception.what();
+          }
+        }
+      }
+
+      if(!responseIsError) {
+        try {
+          // First validate that everything in here is used by checking it by itself
+          {
+            ConfigParser cleanCfg;
+            cleanCfg.overrideKeys(overrideSettings);
+            // Add required parameter so that it passes validation
+            if(!cleanCfg.contains("numSearchThreads"))
+              cleanCfg.overrideKey("numSearchThreads",Global::intToString(engine->getGenmoveParams().numThreads));
+
+            SearchParams buf1;
+            SearchParams buf2;
+            loadParams(cleanCfg, buf1, buf2);
+
+            // These parameters have a bit of special handling so we can't change them easily right now
+            if(contains(overrideSettings,"dynamicPlayoutDoublingAdvantageCapPerOppLead")) throw StringError("Cannot be overridden in kata-set-param: dynamicPlayoutDoublingAdvantageCapPerOppLead");
+            if(contains(overrideSettings,"avoidRepeatedPatternUtility")) throw StringError("Cannot be overridden in kata-set-param: avoidRepeatedPatternUtility");
+            cleanCfg.markKeyUsed("allowResignation");
+            cleanCfg.markKeyUsed("ponderingEnabled");
+            cleanCfg.markKeyUsed("delayMoveScale");
+            cleanCfg.markKeyUsed("delayMoveMax");
+
+            vector<string> unusedKeys = cleanCfg.unusedKeys();
+            for(const string& unused: unusedKeys) {
+              throw StringError("Unrecognized or non-overridable parameter in kata-set-params: " + unused);
+            }
+            ostringstream out;
+            if(Setup::maybeWarnHumanSLParams(buf1,engine->nnEval,engine->humanEval,out,NULL)) {
+              throw StringError(out.str());
+            }
+          }
+
+          //Ignore any unused keys in the original config so far
+          cfg.markAllKeysUsedWithPrefix("");
+          // Now enshrine the new settings into the real config permanently, and parse.
+          cfg.overrideKeys(overrideSettings);
+          SearchParams genmoveParams;
+          SearchParams analysisParams;
+          loadParams(cfg,genmoveParams,analysisParams);
+
+          bool desiredAllowResignation = cfg.contains("allowResignation") ? cfg.getBool("allowResignation") : allowResignation;
+          bool desiredPonderingEnabled = cfg.contains("ponderingEnabled") ? cfg.getBool("ponderingEnabled") : ponderingEnabled;
+          double desiredDelayMoveScale = cfg.contains("delayMoveScale") ? cfg.getDouble("delayMoveScale",0.0,10000.0) : engine->delayMoveScale;
+          double desiredDelayMoveMax = cfg.contains("delayMoveMax") ? cfg.getDouble("delayMoveMax",0.0,1000000.0) : engine->delayMoveMax;
+
+          SearchParams::failIfParamsDifferOnUnchangeableParameter(initialGenmoveParams,genmoveParams);
+          SearchParams::failIfParamsDifferOnUnchangeableParameter(initialAnalysisParams,analysisParams);
+          engine->setGenmoveParamsIfChanged(genmoveParams);
+          engine->setAnalysisParamsIfChanged(analysisParams);
+          staticPDATakesPrecedence = cfg.contains("playoutDoublingAdvantage") && !cfg.contains("dynamicPlayoutDoublingAdvantageCapPerOppLead");
+          engine->staticPDATakesPrecedence = staticPDATakesPrecedence;
+          allowResignation = desiredAllowResignation;
+          ponderingEnabled = desiredPonderingEnabled;
+          engine->delayMoveScale = desiredDelayMoveScale;
+          engine->delayMoveMax = desiredDelayMoveMax;
+        }
+        catch(const StringError& exception) {
+          responseIsError = true;
+          response = string("Could not set params: ") + exception.what();
         }
       }
     }
@@ -2582,9 +2902,9 @@ int MainCmds::gtp(const vector<string>& args) {
     }
 
     else if(command == "kata-debug-print-tc") {
-      response += "Black "+ engine->bTimeControls.toDebugString(engine->bot->getRootBoard(),engine->bot->getRootHist(),initialParams.lagBuffer);
+      response += "Black "+ engine->bTimeControls.toDebugString(engine->bot->getRootBoard(),engine->bot->getRootHist(),engine->getGenmoveParams().lagBuffer);
       response += "\n";
-      response += "White "+ engine->wTimeControls.toDebugString(engine->bot->getRootBoard(),engine->bot->getRootHist(),initialParams.lagBuffer);
+      response += "White "+ engine->wTimeControls.toDebugString(engine->bot->getRootBoard(),engine->bot->getRootHist(),engine->getGenmoveParams().lagBuffer);
     }
 
     else if(command == "play") {
@@ -2662,33 +2982,73 @@ int MainCmds::gtp(const vector<string>& args) {
       }
     }
 
-    else if(command == "genmove" || command == "genmove_debug" || command == "search_debug") {
+    else if(
+      command == "genmove" ||
+      command == "genmove_debug" ||
+      command == "kata-search" ||
+      command == "kata-search_cancellable" ||
+      command == "kata-search_debug") {
       Player pla;
       if(pieces.size() != 1) {
         responseIsError = true;
-        response = "Expected one argument for genmove but got '" + Global::concat(pieces," ") + "'";
+        response = "Expected one argument for " + command + " but got '" + Global::concat(pieces," ") + "'";
       }
       else if(!PlayerIO::tryParsePlayer(pieces[0],pla)) {
         responseIsError = true;
         response = "Could not parse color: '" + pieces[0] + "'";
       }
       else {
-        bool debug = command == "genmove_debug" || command == "search_debug";
-        bool playChosenMove = command != "search_debug";
+        bool debug = command == "genmove_debug" || command == "kata-search_debug";
+        bool playChosenMove = command == "genmove" || command == "genmove_debug";
 
-        engine->genMove(
-          pla,
-          logger,searchFactorWhenWinningThreshold,searchFactorWhenWinning,
-          cleanupBeforePass,friendlyPass,ogsChatToStderr,
-          allowResignation,resignThreshold,resignConsecTurns,resignMinScoreDifference,
-          logSearchInfo,logSearchInfoForChosenMove,debug,playChosenMove,
-          response,responseIsError,maybeStartPondering,
-          GTPEngine::AnalyzeArgs()
-        );
+        GTPEngine::GenmoveArgs gargs;
+        gargs.searchFactorWhenWinningThreshold = searchFactorWhenWinningThreshold;
+        gargs.searchFactorWhenWinning = searchFactorWhenWinning;
+        gargs.cleanupBeforePass = cleanupBeforePass;
+        gargs.friendlyPass = friendlyPass;
+        gargs.ogsChatToStderr = ogsChatToStderr;
+        gargs.allowResignation = allowResignation;
+        gargs.resignThreshold = resignThreshold;
+        gargs.resignConsecTurns = resignConsecTurns;
+        gargs.resignMinScoreDifference = resignMinScoreDifference;
+        gargs.resignMinMovesPerBoardArea = resignMinMovesPerBoardArea;
+        gargs.logSearchInfo = logSearchInfo;
+        gargs.logSearchInfoForChosenMove = logSearchInfoForChosenMove;
+        gargs.debug = debug;
+
+        if(command == "kata-search_cancellable") {
+          engine->genMoveCancellable(
+            pla,
+            logger,
+            gargs,
+            GTPEngine::AnalyzeArgs(),
+            printGTPResponse
+          );
+          suppressResponse = true; // genmove handles it manually by calling printGTPResponse
+          currentlyGenmoving = true; // so that any newline will interrupt us
+        }
+        else {
+          engine->genMove(
+            pla,
+            logger,
+            gargs,
+            GTPEngine::AnalyzeArgs(),
+            playChosenMove,
+            printGTPResponse,
+            maybeStartPondering
+          );
+          suppressResponse = true; // genmove handles it manually by calling printGTPResponse
+        }
       }
     }
 
-    else if(command == "genmove_analyze" || command == "lz-genmove_analyze" || command == "kata-genmove_analyze") {
+    else if(
+      command == "genmove_analyze" ||
+      command == "lz-genmove_analyze" ||
+      command == "kata-genmove_analyze" ||
+      command == "kata-search_analyze" ||
+      command == "kata-search_analyze_cancellable"
+    ) {
       Player pla = engine->bot->getRootPla();
       bool parseFailed = false;
       GTPEngine::AnalyzeArgs analyzeArgs = parseAnalyzeCommand(command, pieces, pla, parseFailed, engine);
@@ -2698,33 +3058,48 @@ int MainCmds::gtp(const vector<string>& args) {
       }
       else {
         bool debug = false;
-        bool playChosenMove = true;
+        bool playChosenMove = command == "genmove_analyze" || command == "lz-genmove_analyze" || command == "kata-genmove_analyze";
+
+        GTPEngine::GenmoveArgs gargs;
+        gargs.searchFactorWhenWinningThreshold = searchFactorWhenWinningThreshold;
+        gargs.searchFactorWhenWinning = searchFactorWhenWinning;
+        gargs.cleanupBeforePass = cleanupBeforePass;
+        gargs.friendlyPass = friendlyPass;
+        gargs.ogsChatToStderr = ogsChatToStderr;
+        gargs.allowResignation = allowResignation;
+        gargs.resignThreshold = resignThreshold;
+        gargs.resignConsecTurns = resignConsecTurns;
+        gargs.resignMinScoreDifference = resignMinScoreDifference;
+        gargs.resignMinMovesPerBoardArea = resignMinMovesPerBoardArea;
+        gargs.logSearchInfo = logSearchInfo;
+        gargs.logSearchInfoForChosenMove = logSearchInfoForChosenMove;
+        gargs.debug = debug;
 
         //Make sure the "equals" for GTP is printed out prior to the first analyze line, regardless of thread racing
-        if(hasId)
-          cout << "=" << Global::intToString(id) << endl;
-        else
-          cout << "=" << endl;
+        printGTPResponseHeader();
 
-        engine->genMove(
-          pla,
-          logger,searchFactorWhenWinningThreshold,searchFactorWhenWinning,
-          cleanupBeforePass,friendlyPass,ogsChatToStderr,
-          allowResignation,resignThreshold,resignConsecTurns,resignMinScoreDifference,
-          logSearchInfo,logSearchInfoForChosenMove,debug,playChosenMove,
-          response,responseIsError,maybeStartPondering,
-          analyzeArgs
-        );
-        //And manually handle the result as well. In case of error, don't report any play.
-        suppressResponse = true;
-        if(!responseIsError) {
-          cout << response << endl;
-          cout << endl;
+        if(command == "kata-search_analyze_cancellable") {
+          engine->genMoveCancellable(
+            pla,
+            logger,
+            gargs,
+            analyzeArgs,
+            printGTPResponseNoHeader
+          );
+          suppressResponse = true; // genmove handles it manually by calling printGTPResponse
+          currentlyGenmoving = true; // so that any newline will interrupt us
         }
         else {
-          cout << endl;
-          if(!logger.isLoggingToStderr())
-            cerr << response << endl;
+          engine->genMove(
+            pla,
+            logger,
+            gargs,
+            analyzeArgs,
+            playChosenMove,
+            printGTPResponseNoHeader,
+            maybeStartPondering
+          );
+          suppressResponse = true; // genmove handles it manually by calling printGTPResponseNoHeader
         }
       }
     }
@@ -3056,10 +3431,7 @@ int MainCmds::gtp(const vector<string>& args) {
       }
       else {
         //Make sure the "equals" for GTP is printed out prior to the first analyze line, regardless of thread racing
-        if(hasId)
-          cout << "=" << Global::intToString(id) << endl;
-        else
-          cout << "=" << endl;
+        printGTPResponseHeader();
 
         engine->analyze(pla, analyzeArgs);
 
@@ -3084,7 +3456,7 @@ int MainCmds::gtp(const vector<string>& args) {
         response = "Expected one argument 'all' or symmetry index [0-7] for kata-raw-nn but got '" + Global::concat(pieces," ") + "'";
       }
       else {
-        double policyOptimism = engine->params.rootPolicyOptimism;
+        double policyOptimism = engine->getGenmoveParams().rootPolicyOptimism;
         if(pieces.size() == 2) {
           parsed = false;
           if(Global::tryStringToDouble(pieces[0],policyOptimism) && isnan(policyOptimism) && policyOptimism >= 0.0 && policyOptimism <= 1.0) {
@@ -3096,7 +3468,39 @@ int MainCmds::gtp(const vector<string>& args) {
           response = "Expected double from 0 to 1 for optimism but got '" + Global::concat(pieces," ") + "'";
         }
         else {
-          response = engine->rawNN(whichSymmetry, policyOptimism);
+          const bool useHumanModel = false;
+          response = engine->rawNN(whichSymmetry, policyOptimism, useHumanModel);
+        }
+      }
+    }
+
+    else if(command == "kata-raw-human-nn") {
+      int whichSymmetry = NNInputs::SYMMETRY_ALL;
+      bool parsed = false;
+      if(pieces.size() == 1) {
+        string s = Global::trim(Global::toLower(pieces[0]));
+        if(s == "all")
+          parsed = true;
+        else if(Global::tryStringToInt(s,whichSymmetry) && whichSymmetry >= 0 && whichSymmetry <= SymmetryHelpers::NUM_SYMMETRIES-1)
+          parsed = true;
+      }
+      if(!parsed) {
+        responseIsError = true;
+        response = "Expected one argument 'all' or symmetry index [0-7] for kata-raw-human-nn but got '" + Global::concat(pieces," ") + "'";
+      }
+      else {
+        if(engine->humanEval == NULL) {
+          responseIsError = true;
+          response = "Cannot run kata-raw-human-nn, -human-model was not provided";
+        }
+        else if(!(engine->getGenmoveParams().humanSLProfile.initialized || !engine->humanEval->requiresSGFMetadata())) {
+          responseIsError = true;
+          response = "Cannot run kata-raw-human-nn, humanSLProfile parameter was not set";
+        }
+        else {
+          double policyOptimism = engine->getGenmoveParams().rootPolicyOptimism;
+          const bool useHumanModel = true;
+          response = engine->rawNN(whichSymmetry, policyOptimism, useHumanModel);
         }
       }
     }
@@ -3195,15 +3599,12 @@ int MainCmds::gtp(const vector<string>& args) {
             const PlayUtils::BenchmarkResults* baseline = NULL;
             const double secondsPerGameMove = 1.0;
             const bool printElo = false;
-            SearchParams params = engine->getParams();
+            SearchParams params = engine->getGenmoveParams();
             params.maxTime = 1.0e20;
             params.maxPlayouts = ((int64_t)1) << 50;
             params.maxVisits = numVisits;
             //Make sure the "equals" for GTP is printed out prior to the benchmark line
-            if(hasId)
-              cout << "=" << Global::intToString(id) << endl;
-            else
-              cout << "=" << endl;
+            printGTPResponseHeader();
 
             try {
               PlayUtils::BenchmarkResults results = PlayUtils::benchmarkSearchOnPositionsAndPrint(
@@ -3245,25 +3646,8 @@ int MainCmds::gtp(const vector<string>& args) {
       response = "unknown command";
     }
 
-
-    //Postprocessing of response
-    if(hasId)
-      response = Global::intToString(id) + " " + response;
-    else
-      response = " " + response;
-
-    if(responseIsError)
-      response = "?" + response;
-    else
-      response = "=" + response;
-
-    if(!suppressResponse) {
-      cout << response << endl;
-      cout << endl;
-    }
-
-    if(logAllGTPCommunication)
-      logger.write(response);
+    if(!suppressResponse)
+      printGTPResponse(response,responseIsError);
 
     if(shouldQuitAfterResponse)
       break;
@@ -3272,6 +3656,18 @@ int MainCmds::gtp(const vector<string>& args) {
       engine->ponder();
 
   } //Close read loop
+
+  // Interrupt stuff if we close stdout
+  if(currentlyAnalyzing) {
+    currentlyAnalyzing = false;
+    engine->stopAndWait();
+    cout << endl;
+  }
+  if(currentlyGenmoving) {
+    currentlyGenmoving = false;
+    engine->stopAndWait();
+  }
+
 
   maybeSaveAvoidPatterns(true);
   delete engine;

@@ -2396,6 +2396,66 @@ x.x.x
 
   {
     cout << "===================================================================" << endl;
+    cout << "Chosen move probs" << endl;
+    cout << "===================================================================" << endl;
+    Rand rand;
+
+    auto testRelativeProbs = [&](const std::vector<double>& relativeProbs, double temperature, double onlyBelowProb) {
+      std::vector<double> processedRelProbsBuf(Board::MAX_ARR_SIZE);
+      Search::chooseIndexWithTemperature(
+        rand, relativeProbs.data(), (int)relativeProbs.size(), temperature, onlyBelowProb, processedRelProbsBuf.data()
+      );
+      cout << "Temperature " << temperature << " onlyBelowProb " << onlyBelowProb << endl;
+      for (size_t i = 0; i < relativeProbs.size(); i++)
+        cout << processedRelProbsBuf[i] << endl;
+    };
+
+    {
+      const std::vector<double> relativeProbs({40,20,160,80,10,10});
+      const double temperature = 1.0;
+      const double onlyBelowProb = 1.0;
+      testRelativeProbs(relativeProbs, temperature, onlyBelowProb);
+    }
+    {
+      const std::vector<double> relativeProbs({40,20,160,80,10,10});
+      const double temperature = 1.0;
+      const double onlyBelowProb = 0.2;
+      testRelativeProbs(relativeProbs, temperature, onlyBelowProb);
+    }
+    {
+      const std::vector<double> relativeProbs({40,20,160,80,10,10});
+      const double temperature = 0.5;
+      const double onlyBelowProb = 1.0;
+      testRelativeProbs(relativeProbs, temperature, onlyBelowProb);
+    }
+    {
+      const std::vector<double> relativeProbs({40,20,160,80,10,10});
+      const double temperature = 0.5;
+      const double onlyBelowProb = 0.2;
+      testRelativeProbs(relativeProbs, temperature, onlyBelowProb);
+    }
+    {
+      const std::vector<double> relativeProbs({40,20,160,80,10,10});
+      const double temperature = 2.0;
+      const double onlyBelowProb = 0.2;
+      testRelativeProbs(relativeProbs, temperature, onlyBelowProb);
+    }
+    {
+      const std::vector<double> relativeProbs({40,20,160,80,10,10});
+      const double temperature = 100000.0;
+      const double onlyBelowProb = 0.2;
+      testRelativeProbs(relativeProbs, temperature, onlyBelowProb);
+    }
+    {
+      const std::vector<double> relativeProbs({40,20,160,80,10,10});
+      const double temperature = 0.00001;
+      const double onlyBelowProb = 0.2;
+      testRelativeProbs(relativeProbs, temperature, onlyBelowProb);
+    }
+  }
+
+  {
+    cout << "===================================================================" << endl;
     cout << "Uninitialized search params" << endl;
     cout << "===================================================================" << endl;
     SearchParams params;
