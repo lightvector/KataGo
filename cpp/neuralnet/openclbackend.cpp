@@ -3170,7 +3170,7 @@ void NeuralNet::getOutput(
     // policy probabilities and white game outcome probabilities
     // Also we don't fill in the nnHash here either
     // Handle modelVersion >= 12 policy optimism
-    if(numPolicyChannels == 2) {
+    if(numPolicyChannels == 2 || (numPolicyChannels == 4 && modelVersion >= 16)) {
       // OpenCL is all NCHW
       for(int i = 0; i<nnXLen*nnYLen; i++) {
         float p = policySrcBuf[i];

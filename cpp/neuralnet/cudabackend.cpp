@@ -2757,11 +2757,11 @@ void NeuralNet::getOutput(
     // policy probabilities and white game outcome probabilities
     // Also we don't fill in the nnHash here either
     // Handle version >= 12 policy optimism
-    if(numPolicyChannels == 2) {
-      if(gpuHandle->usingNHWC) {
+    if(numPolicyChannels == 2 || (numPolicyChannels == 4 && modelVersion >= 16)) {
+       if(gpuHandle->usingNHWC) {
         for(int i = 0; i<nnXLen*nnYLen; i++) {
-          float p = policySrcBuf[i*2];
-          float pOpt = policySrcBuf[i*2+1];
+          float p = policySrcBuf[i*numPolicyChannels];
+          float pOpt = policySrcBuf[i*numPolicyChannels+1];
           policyProbsTmp[i] = p + (pOpt-p) * policyOptimism;
         }
         SymmetryHelpers::copyOutputsWithSymmetry(policyProbsTmp, policyProbs, 1, nnYLen, nnXLen, inputBufs[row]->symmetry);

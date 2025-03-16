@@ -884,7 +884,13 @@ PolicyHeadDesc::PolicyHeadDesc() : modelVersion(-1) {}
 PolicyHeadDesc::PolicyHeadDesc(istream& in, int vrsn, bool binaryFloats) {
   in >> name;
   modelVersion = vrsn;
-  policyOutChannels = modelVersion >= 12 ? 2 : 1;
+
+  if(modelVersion >= 16)
+    policyOutChannels = 4;
+  else if(modelVersion >= 12)
+    policyOutChannels = 2;
+  else
+    policyOutChannels = 1;
 
   if(in.fail())
     throw StringError(name + ": policy head failed to parse name");

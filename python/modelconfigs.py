@@ -39,7 +39,7 @@ ModelConfig = Dict[str,Any]
 # version = 13 # V7 features, Adjusted scaling on shortterm score variance, and made C++ side read in scalings.
 # version = 14 # V7 features, Squared softplus for error variance predictions
 # version = 15 # V7 features, Extra nonlinearity for pass output
-# version = 16 # V8 features, Q value predictions in the policy head
+# version = 16 # V7 features, Q value predictions in the policy head
 
 def get_version(config: ModelConfig):
     return config["version"]
