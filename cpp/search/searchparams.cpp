@@ -81,6 +81,8 @@ SearchParams::SearchParams()
    subtreeValueBiasTableNumShards(65536),
    subtreeValueBiasFreeProp(0.8),
    subtreeValueBiasWeightExponent(0.5),
+   useEvalCache(false),
+   evalCacheMinVisits(100),
    nodeTableShardsPowerOfTwo(16),
    numVirtualLossesPerThread(3.0),
    numThreads(1),
@@ -212,6 +214,9 @@ bool SearchParams::operator==(const SearchParams& other) const {
     subtreeValueBiasTableNumShards == other.subtreeValueBiasTableNumShards &&
     subtreeValueBiasFreeProp == other.subtreeValueBiasFreeProp &&
     subtreeValueBiasWeightExponent == other.subtreeValueBiasWeightExponent &&
+
+    useEvalCache == other.useEvalCache &&
+    evalCacheMinVisits == other.evalCacheMinVisits &&
 
     nodeTableShardsPowerOfTwo == other.nodeTableShardsPowerOfTwo &&
     numVirtualLossesPerThread == other.numVirtualLossesPerThread &&
@@ -460,6 +465,9 @@ json SearchParams::changeableParametersToJson() const {
   ret["subtreeValueBiasFreeProp"] = subtreeValueBiasFreeProp;
   ret["subtreeValueBiasWeightExponent"] = subtreeValueBiasWeightExponent;
 
+  ret["useEvalCache"] = useEvalCache;
+  ret["evalCacheMinVisits"] = evalCacheMinVisits;
+
   // ret["nodeTableShardsPowerOfTwo"] = nodeTableShardsPowerOfTwo;
   ret["numVirtualLossesPerThread"] = numVirtualLossesPerThread;
 
@@ -606,6 +614,8 @@ void SearchParams::printParams(std::ostream& out) const {
   PRINTPARAM(subtreeValueBiasFreeProp);
   PRINTPARAM(subtreeValueBiasWeightExponent);
 
+  PRINTPARAM(useEvalCache);
+  PRINTPARAM(evalCacheMinVisits);
 
   PRINTPARAM(nodeTableShardsPowerOfTwo);
   PRINTPARAM(numVirtualLossesPerThread);
