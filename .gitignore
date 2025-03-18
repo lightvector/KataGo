@@ -83,3 +83,6 @@ for_release/
 
 tests/results/matchsgfs/
 tests/results/matchsgfs2/
+
+android/app/src/main/jniLibs/arm64-v8a/libOpenCL.so 
+android/app/src/main/jniLibs/armeabi-v7a/libOpenCL.so 
