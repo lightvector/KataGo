@@ -21,6 +21,8 @@ import atexit
 from collections import defaultdict
 from typing import Dict, List
 
+from threading import BrokenBarrierError
+
 import torch
 import torch.nn
 import torch.optim
@@ -143,7 +145,23 @@ def multiprocessing_setup(rank: int, world_size: int):
     logging.info(f"Returned from torch.distributed.init_process_group, my rank = {rank}, world_size={world_size}")
 
 def multiprocessing_cleanup():
+    logging.info("Multiprocessing cleanup")
     torch.distributed.destroy_process_group()
+
+def safe_barrier(barrier, rank):
+    if barrier is not None:
+        try:
+            barrier.wait()
+        except BrokenBarrierError:
+            logging.info("Barrier was broken, so we are exiting {rank=}")
+            safe_exit(barrier,0)
+
+def safe_exit(barrier, exit_code):
+    if barrier is not None:
+        logging.info("Aborting barrier for ddp processes to also exit")
+        barrier.abort()
+    logging.info(f"Exiting with code {exit_code=}")
+    sys.exit(exit_code)
 
 
 def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writepipes, barrier):
@@ -764,7 +782,7 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
                 if not os.path.exists(curdatadir):
                     if quit_if_no_data:
                         logging.info("Shuffled data path does not exist, there seems to be no data or not enough data yet, qutting: %s" % curdatadir)
-                        sys.exit(0)
+                        safe_exit(barrier,0)
                     logging.info("Shuffled data path does not exist, there seems to be no shuffled data yet, waiting and trying again later: %s" % curdatadir)
                     time.sleep(30)
                     continue
@@ -773,7 +791,7 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
                 if not os.path.exists(trainjsonpath):
                     if quit_if_no_data:
                         logging.info("Shuffled data train.json file does not exist, there seems to be no data or not enough data yet, qutting: %s" % trainjsonpath)
-                        sys.exit(0)
+                        safe_exit(barrier,0)
                     logging.info("Shuffled data train.json file does not exist, there seems to be no shuffled data yet, waiting and trying again later: %s" % trainjsonpath)
                     time.sleep(30)
                     continue
@@ -826,7 +844,7 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
                 if len(train_files) <= 0 or (no_repeat_files and len(epoch0_train_files) <= 0):
                     if quit_if_no_data:
                         logging.info(f"No new training files found in: {tdatadir}, quitting")
-                        sys.exit(0)
+                        safe_exit(barrier,0)
                     logging.info(f"No new training files found in: {tdatadir}, waiting 30s and trying again")
                     time.sleep(30)
                     continue
@@ -955,8 +973,7 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
         logging.info("Training in FP32.")
 
     # All ddp threads should be lined up at this point before continuing
-    if barrier is not None:
-        barrier.wait()
+    safe_barrier(barrier,rank)
 
     while True:
         if max_epochs_this_instance is not None and max_epochs_this_instance >= 0 and num_epochs_this_instance >= max_epochs_this_instance:
@@ -991,8 +1008,7 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
                         continue
 
         # DDP need to wait on the main process after reloading data and/or training bucket waiting
-        if barrier is not None:
-            barrier.wait()
+        safe_barrier(barrier,rank)
 
         logging.info("GC collect")
         gc.collect()
@@ -1026,26 +1042,23 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
                 while train_files_to_use is None or len(train_files_to_use) <= 0:
                     if quit_if_no_data:
                         logging.info("Not enough data files to fill a subepoch! Quitting.")
-                        sys.exit(0)
+                        safe_exit(barrier,0)
                     logging.info("Not enough data files to fill a subepoch! Waiting 5m before retrying.")
                     time.sleep(300)
                     maybe_reload_training_data()
                     train_files_to_use = get_files_for_subepoch()
 
-                if barrier is not None:
-                    barrier.wait()
+                safe_barrier(barrier,rank)
                 for wpipe in writepipes:
                     wpipe.send(train_files_to_use)
                 # Wait briefly just in case to reduce chance of races with filesystem or anything else
                 time.sleep(5)
             else:
-                if barrier is not None:
-                    barrier.wait()
+                safe_barrier(barrier,rank)
                 train_files_to_use = readpipes[rank-1].recv()
 
             # DDP need to wait on the main process after reloading data and sending files to train with
-            if barrier is not None:
-                barrier.wait()
+            safe_barrier(barrier,rank)
 
             logging.info("Beginning training subepoch!")
             logging.info("This subepoch, using files: " + str(train_files_to_use))
@@ -1359,6 +1372,8 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
 
     train_metrics_out.close()
     val_metrics_out.close()
+
+    safe_exit(barrier,0)
 
 
 if __name__ == "__main__":
