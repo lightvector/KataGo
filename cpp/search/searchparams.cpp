@@ -112,6 +112,7 @@ SearchParams::SearchParams()
    humanSLPlaExploreProbWeightful(0.0),
    humanSLOppExploreProbWeightless(0.0),
    humanSLOppExploreProbWeightful(0.0),
+   humanSLValueProportion(0.0),
    humanSLChosenMoveProp(0.0),
    humanSLChosenMoveIgnorePass(false),
    humanSLChosenMovePiklLambda(1000000000.0)
@@ -252,6 +253,7 @@ bool SearchParams::operator==(const SearchParams& other) const {
     humanSLOppExploreProbWeightless == other.humanSLOppExploreProbWeightless &&
     humanSLOppExploreProbWeightful == other.humanSLOppExploreProbWeightful &&
 
+    humanSLValueProportion == other.humanSLValueProportion &&
     humanSLChosenMoveProp == other.humanSLChosenMoveProp &&
     humanSLChosenMoveIgnorePass == other.humanSLChosenMoveIgnorePass &&
     humanSLChosenMovePiklLambda == other.humanSLChosenMovePiklLambda
@@ -499,6 +501,7 @@ json SearchParams::changeableParametersToJson() const {
   ret["humanSLOppExploreProbWeightless"] = humanSLOppExploreProbWeightless;
   ret["humanSLOppExploreProbWeightful"] = humanSLOppExploreProbWeightful;
 
+  ret["humanSLValueProportion"] = humanSLValueProportion;
   ret["humanSLChosenMoveProp"] = humanSLChosenMoveProp;
   ret["humanSLChosenMoveIgnorePass"] = humanSLChosenMoveIgnorePass;
   ret["humanSLChosenMovePiklLambda"] = humanSLChosenMovePiklLambda;
@@ -650,6 +653,7 @@ void SearchParams::printParams(std::ostream& out) const {
   PRINTPARAM(humanSLPlaExploreProbWeightful);
   PRINTPARAM(humanSLOppExploreProbWeightless);
   PRINTPARAM(humanSLOppExploreProbWeightful);
+  PRINTPARAM(humanSLValueProportion);
   PRINTPARAM(humanSLChosenMoveProp);
   PRINTPARAM(humanSLChosenMoveIgnorePass);
   PRINTPARAM(humanSLChosenMovePiklLambda);

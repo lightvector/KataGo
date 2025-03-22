@@ -6,7 +6,7 @@
 #include "../core/using.h"
 //------------------------
 
-void Search::computeRootNNEvaluation(NNResultBuf& nnResultBuf, bool includeOwnerMap) {
+void Search::computeRootNNEvaluation(NNResultBuf& nnResultBuf, NNResultBuf& humanResultBuf, bool includeOwnerMap, bool includeHumanResult) {
   Board board = rootBoard;
   const BoardHistory& hist = rootHistory;
   Player pla = rootPla;
@@ -32,6 +32,15 @@ void Search::computeRootNNEvaluation(NNResultBuf& nnResultBuf, bool includeOwner
     nnInputParams,
     nnResultBuf, skipCache, includeOwnerMap
   );
+
+  if(includeHumanResult) {
+    assert(humanEvaluator != NULL);
+    humanEvaluator->evaluate(
+      board, hist, pla, &searchParams.humanSLProfile,
+      nnInputParams,
+      humanResultBuf, skipCache, includeOwnerMap
+    );
+  }
 }
 
 bool Search::needsHumanOutputAtRoot() const {
@@ -42,7 +51,8 @@ bool Search::needsHumanOutputInTree() const {
     searchParams.humanSLPlaExploreProbWeightless > 0 ||
     searchParams.humanSLPlaExploreProbWeightful > 0 ||
     searchParams.humanSLOppExploreProbWeightless > 0 ||
-    searchParams.humanSLOppExploreProbWeightful > 0
+    searchParams.humanSLOppExploreProbWeightful > 0 ||
+    searchParams.humanSLValueProportion > 0
   );
 }
 
