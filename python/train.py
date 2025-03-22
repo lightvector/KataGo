@@ -952,6 +952,25 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
     # TRAIN! -----------------------------------------------------------------------------------
 
     last_longterm_checkpoint_save_time = datetime.datetime.now()
+    try:
+        longterm_checkpoint_files = glob.glob(os.path.join(longterm_checkpoints_dir, "*.ckpt"))
+        if longterm_checkpoint_files:
+            checkpoint_mtimes = []
+            for checkpoint_file in longterm_checkpoint_files:
+                try:
+                    mtime = datetime.datetime.fromtimestamp(os.path.getmtime(checkpoint_file))
+                    checkpoint_mtimes.append(mtime)
+                except:
+                    # If there's any error getting the modification time for a file, ignore it
+                    pass
+
+            if checkpoint_mtimes:
+                most_recent_checkpoint_time = max(checkpoint_mtimes)
+                last_longterm_checkpoint_save_time = min(last_longterm_checkpoint_save_time, most_recent_checkpoint_time)
+                logging.info(f"Found existing longterm checkpoints. Setting last_longterm_checkpoint_save_time to: {last_longterm_checkpoint_save_time}")
+    except Exception as e:
+        logging.warning(f"Error checking longterm checkpoints: {str(e)}. Using current time as default.")
+
     num_epochs_this_instance = 0
     print_train_loss_every_batches = 100 if not gnorm_stats_debug else 1000
 
