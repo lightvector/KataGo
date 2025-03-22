@@ -1248,8 +1248,6 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
         if rank == 0:
             train_state["export_cycle_counter"] += 1
 
-        save(ddp_model, swa_model, optimizer, metrics_obj, running_metrics, train_state, last_val_metrics)
-
         num_epochs_this_instance += 1
 
         # Validate
@@ -1357,6 +1355,8 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
                     time.sleep(2)
                     os.rename(savepathtmp,savepath)
 
+        # Finally save, now after validation and exports are done
+        save(ddp_model, swa_model, optimizer, metrics_obj, running_metrics, train_state, last_val_metrics)
 
         if sleep_seconds_per_epoch is None:
             time.sleep(1)
