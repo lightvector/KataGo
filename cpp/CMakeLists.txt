@@ -1,5 +1,9 @@
 cmake_minimum_required(VERSION 3.18.2)
-project(katago LANGUAGES CXX Swift)
+if(USE_BACKEND STREQUAL "METAL")
+  project(katago LANGUAGES CXX Swift)
+else()
+  project(katago)
+endif()
 
 set(CMAKE_CXX_STANDARD 14)
 
