@@ -79,7 +79,7 @@ void processOwnership(const InputBuffers* inputBuffers,
                       const size_t row);
 
 void
-processScoreValues(const InputBuffers* inputBuffers, NNOutput* currentOutput, const int version, const size_t row);
+processScoreValues(const InputBuffers* inputBuffers, NNOutput* currentOutput, const int modelVersion, const size_t row);
 
 void processRow(size_t row,
                 const ComputeHandle* gpuHandle,
@@ -320,8 +320,6 @@ struct InputBuffers {
   size_t singleModelOwnershipResultElts;
   size_t singleOwnerMapElts;
   size_t singleScoreValuesResultElts;
-  size_t singleNnScoreValuesResultElts;
-  size_t singleMoreMiscValuesResultElts;
 
   size_t rowSpatialBufferElts;
   size_t userInputBufferElts;
@@ -335,7 +333,6 @@ struct InputBuffers {
   size_t ownershipResultBufferElts;
   size_t ownerMapBufferElts;
   size_t scoreValuesResultBufferElts;
-  size_t moreMiscValuesResultsBufferElts;
 
   float* rowSpatialBuffer;
   float* userInputBuffer;
@@ -349,7 +346,6 @@ struct InputBuffers {
   float* ownershipResults;
   float* ownerMapBuffer;
   float* scoreValuesResults;
-  float* moreMiscValuesResults;
 
   InputBuffers(const LoadedModel* loadedModel, int maxBatchSz, int nnXLen, int nnYLen);
   ~InputBuffers();
