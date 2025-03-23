@@ -233,6 +233,8 @@ string Version::getKataGoVersionFullInfo() {
 #endif
 #elif defined(USE_TENSORRT_BACKEND)
   out << "Using TensorRT backend" << endl;
+#elif defined(USE_METAL_BACKEND)
+  out << "Using Metal backend" << endl;
 #elif defined(USE_OPENCL_BACKEND)
   out << "Using OpenCL backend" << endl;
 #elif defined(USE_EIGEN_BACKEND)
@@ -267,6 +269,8 @@ string Version::getGitRevisionWithBackend() {
   s += "-cuda";
 #elif defined(USE_TENSORRT_BACKEND)
   s += "-trt";
+#elif defined(USE_METAL_BACKEND)
+  s += "-metal";
 #elif defined(USE_OPENCL_BACKEND)
   s += "-opencl";
 #elif defined(USE_EIGEN_BACKEND)
