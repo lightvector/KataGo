@@ -480,6 +480,7 @@ ComputeContext* NeuralNet::createComputeContext(
   enabled_t useNHWCMode,
   const LoadedModel* loadedModel) {
 
+  (void)gpuIdxs;
   (void)logger;
   (void)openCLTunerFile;
   (void)homeDataDirOverride;
@@ -636,9 +637,7 @@ InputBuffers::InputBuffers(const LoadedModel* loadedModel, int maxBatchSz, int n
   singleNnOwnershipResultElts = (size_t)m.numOwnershipChannels * nnXLen * nnYLen;
   singleModelOwnershipResultElts = (size_t)m.numOwnershipChannels * modelXLen * modelYLen;
   singleOwnerMapElts = (size_t)m.numOwnershipChannels * nnXLen * nnYLen;
-  singleScoreValuesResultElts = 10;
-  singleNnScoreValuesResultElts = 6;
-  singleMoreMiscValuesResultElts = 8;
+  singleScoreValuesResultElts = (size_t)m.numScoreValueChannels;
 
   assert(NNModelVersion::getNumSpatialFeatures(m.modelVersion) == m.numInputChannels);
   assert(NNModelVersion::getNumGlobalFeatures(m.modelVersion) == m.numInputGlobalChannels);
@@ -656,7 +655,6 @@ InputBuffers::InputBuffers(const LoadedModel* loadedModel, int maxBatchSz, int n
   ownershipResultBufferElts = (size_t)maxBatchSize * singleModelOwnershipResultElts;
   ownerMapBufferElts = (size_t)maxBatchSz * singleOwnerMapElts;
   scoreValuesResultBufferElts = (size_t)maxBatchSize * singleScoreValuesResultElts;
-  moreMiscValuesResultsBufferElts = (size_t)maxBatchSz * singleMoreMiscValuesResultElts;
 
   rowSpatialBuffer = new float[rowSpatialBufferElts];
   userInputBuffer = new float[userInputBufferElts];
@@ -673,7 +671,6 @@ InputBuffers::InputBuffers(const LoadedModel* loadedModel, int maxBatchSz, int n
   ownershipResults = new float[ownershipResultBufferElts];
   ownerMapBuffer = new float[ownerMapBufferElts];
   scoreValuesResults = new float[scoreValuesResultBufferElts];
-  moreMiscValuesResults = new float[moreMiscValuesResultsBufferElts];
 }
 
 /**
@@ -693,7 +690,6 @@ InputBuffers::~InputBuffers() {
   delete[] ownershipResults;
   delete[] ownerMapBuffer;
   delete[] scoreValuesResults;
-  delete[] moreMiscValuesResults;
 }
 
 /**
@@ -835,26 +831,52 @@ void MetalProcess::processOwnership(
 void MetalProcess::processScoreValues(
   const InputBuffers* inputBuffers,
   NNOutput* currentOutput,
-  const int version,
+  const int modelVersion,
   const size_t row) {
-  const size_t scoreValuesOutputBufOffset = row * inputBuffers->singleNnScoreValuesResultElts;
-  const float* scoreValuesOutputBuf = &inputBuffers->scoreValuesResults[scoreValuesOutputBufOffset];
+  const size_t offset = row * inputBuffers->singleScoreValuesResultElts;
+  const float* currentScoreValueData = &inputBuffers->scoreValuesResults[offset];
 
-  currentOutput->whiteScoreMean = scoreValuesOutputBuf[0];
-  currentOutput->whiteScoreMeanSq = currentOutput->whiteScoreMean * currentOutput->whiteScoreMean;
-  currentOutput->whiteLead = currentOutput->whiteScoreMean;
-  currentOutput->varTimeLeft = 0.0f;
-  currentOutput->shorttermWinlossError = 0.0f;
-  currentOutput->shorttermScoreError = 0.0f;
-
-  if(version >= 4) {
-    currentOutput->whiteScoreMean = scoreValuesOutputBuf[0];
-    currentOutput->whiteScoreMeanSq = scoreValuesOutputBuf[1];
-    currentOutput->whiteLead = (version >= 8) ? scoreValuesOutputBuf[2] : currentOutput->whiteScoreMean;
-    currentOutput->varTimeLeft = (version >= 9) ? scoreValuesOutputBuf[3] : currentOutput->varTimeLeft;
-    currentOutput->shorttermWinlossError =
-      (version >= 9) ? scoreValuesOutputBuf[4] : currentOutput->shorttermWinlossError;
-    currentOutput->shorttermScoreError = (version >= 9) ? scoreValuesOutputBuf[5] : currentOutput->shorttermScoreError;
+  if(modelVersion >= 9) {
+    int numScoreValueChannels = inputBuffers->singleScoreValuesResultElts;
+    assert(numScoreValueChannels == 6);
+    currentOutput->whiteScoreMean = currentScoreValueData[0];
+    currentOutput->whiteScoreMeanSq = currentScoreValueData[1];
+    currentOutput->whiteLead = currentScoreValueData[2];
+    currentOutput->varTimeLeft = currentScoreValueData[3];
+    currentOutput->shorttermWinlossError = currentScoreValueData[4];
+    currentOutput->shorttermScoreError = currentScoreValueData[5];
+  }
+  else if(modelVersion >= 8) {
+    int numScoreValueChannels = inputBuffers->singleScoreValuesResultElts;
+    assert(numScoreValueChannels == 4);
+    currentOutput->whiteScoreMean = currentScoreValueData[0];
+    currentOutput->whiteScoreMeanSq = currentScoreValueData[1];
+    currentOutput->whiteLead = currentScoreValueData[2];
+    currentOutput->varTimeLeft = currentScoreValueData[3];
+    currentOutput->shorttermWinlossError = 0;
+    currentOutput->shorttermScoreError = 0;
+  }
+  else if(modelVersion >= 4) {
+    int numScoreValueChannels = inputBuffers->singleScoreValuesResultElts;
+    assert(numScoreValueChannels == 2);
+    currentOutput->whiteScoreMean = currentScoreValueData[0];
+    currentOutput->whiteScoreMeanSq = currentScoreValueData[1];
+    currentOutput->whiteLead = currentOutput->whiteScoreMean;
+    currentOutput->varTimeLeft = 0;
+    currentOutput->shorttermWinlossError = 0;
+    currentOutput->shorttermScoreError = 0;
+  }
+  else {
+    assert(modelVersion >= 3);
+    int numScoreValueChannels = inputBuffers->singleScoreValuesResultElts;
+    assert(numScoreValueChannels == 1);
+    currentOutput->whiteScoreMean = currentScoreValueData[0];
+    //Version 3 neural nets don't have any second moment currentOutput, implicitly already folding it in, so we just use the mean squared
+    currentOutput->whiteScoreMeanSq = currentOutput->whiteScoreMean * currentOutput->whiteScoreMean;
+    currentOutput->whiteLead = currentOutput->whiteScoreMean;
+    currentOutput->varTimeLeft = 0;
+    currentOutput->shorttermWinlossError = 0;
+    currentOutput->shorttermScoreError = 0;
   }
 }
 
@@ -898,7 +920,6 @@ void MetalProcess::getMetalOutput(
   assert(NNModelVersion::getNumGlobalFeatures(gpuHandle->version) == inputBuffers->singleInputGlobalElts);
   assert(NNModelVersion::getNumInputMetaChannels(gpuHandle->metaEncoderVersion) == inputBuffers->singleInputMetaElts);
   assert(inputBuffers->singleValueResultElts == 3);
-  assert(inputBuffers->singleScoreValuesResultElts == 10);
 
   for(size_t row = 0; row < batchSize; row++) {
     MetalProcess::processRowData(row, gpuHandle, inputBuffers, inputBufs);
