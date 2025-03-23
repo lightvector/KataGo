@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.18.2)
-project(katago)
+project(katago LANGUAGES CXX Swift)
 
 set(CMAKE_CXX_STANDARD 14)
 
@@ -86,6 +86,36 @@ elseif(USE_BACKEND STREQUAL "TENSORRT")
   elseif(USE_CACHE_TENSORRT_PLAN AND BUILD_DISTRIBUTED)
     message(FATAL_ERROR "Combining USE_CACHE_TENSORRT_PLAN with BUILD_DISTRIBUTED is not supported - it would consume excessive disk space and might worsen performance every time models are updated. Use only one at a time in a given build of KataGo.")
   endif()
+elseif(USE_BACKEND STREQUAL "METAL")
+  message(STATUS "-DUSE_BACKEND=METAL, using Metal backend.")
+  if(NOT "${CMAKE_GENERATOR}" STREQUAL "Ninja")
+    message(FATAL_ERROR "Bidirectional C++ Interop requires Ninja generator. Have ${CMAKE_GENERATOR}")
+  endif()
+  if("${CMAKE_Swift_COMPILER_VERSION}" VERSION_LESS 5.9)
+    message(FATAL_ERROR "Bidirectional C++ Interop requires Swift 5.9 or greater. Have ${CMAKE_Swift_COMPILER_VERSION}")
+  endif()
+  if(NOT "${CMAKE_CXX_COMPILER_ID}" STREQUAL "AppleClang")
+    message(FATAL_ERROR "Project requires building with AppleClang. Have ${CMAKE_CXX_COMPILER_ID}")
+  endif()
+  list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/macos/cmake/modules")
+  include(InitializeSwift)
+  include(AddSwift)
+  set(CMAKE_OSX_DEPLOYMENT_TARGET 13.0)
+  set(NEURALNET_BACKEND_SOURCES
+    neuralnet/metalbackend.cpp
+    )
+  _swift_generate_cxx_header_target(
+    KataGoSwift_Swift_h
+    KataGoSwift
+    "${CMAKE_CURRENT_BINARY_DIR}/include/KataGoSwift/KataGoSwift-swift.h"
+    SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/neuralnet/metalbackend.swift")
+  add_library(KataGoSwift STATIC
+    neuralnet/metalbackend.swift)
+  add_dependencies(KataGoSwift KataGoSwift_Swift_h)
+  target_include_directories(KataGoSwift PUBLIC "${CMAKE_CURRENT_BINARY_DIR}/include")
+  set_target_properties(KataGoSwift PROPERTIES Swift_MODULE_NAME "KataGoSwift")
+  target_compile_options(KataGoSwift PUBLIC
+    "$<$<COMPILE_LANGUAGE:Swift>:-cxx-interoperability-mode=default>")
 elseif(USE_BACKEND STREQUAL "OPENCL")
   message(STATUS "-DUSE_BACKEND=OPENCL, using OpenCL backend.")
   set(NEURALNET_BACKEND_SOURCES
@@ -318,6 +348,12 @@ elseif(USE_BACKEND STREQUAL "TENSORRT")
   endif()
   include_directories(SYSTEM ${CUDAToolkit_INCLUDE_DIRS} ${TENSORRT_INCLUDE_DIR}) #SYSTEM is for suppressing some compiler warnings in thrust libraries
   target_link_libraries(katago CUDA::cudart_static ${TENSORRT_LIBRARY})
+elseif(USE_BACKEND STREQUAL "METAL")
+  target_compile_definitions(katago PRIVATE USE_METAL_BACKEND)
+  target_link_libraries(katago KataGoSwift)
+  if("${CMAKE_SYSTEM_PROCESSOR}" STREQUAL "x86_64")
+    message(WARNING "You are currently running cmake on an Intel-based processor. It is known that running KataGo in this configuration may encounter performance issues. It is recommended to switch to a cmake version designed for ARM64 architecture for optimal performance.")
+  endif()
 elseif(USE_BACKEND STREQUAL "OPENCL")
   target_compile_definitions(katago PRIVATE USE_OPENCL_BACKEND)
   find_package(OpenCL)
@@ -461,7 +497,7 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" OR CMAKE_CXX_COMPILER_ID STREQUAL "Clang
     endif()
   elseif(CMAKE_CXX_COMPILER_ID STREQUAL "AppleClang")
     message(STATUS "Enabling AppleClang-specific build options.")
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wnull-dereference -Wdangling-else")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wnull-dereference -Wdangling-else -Wno-deprecated-declarations -Wno-nullability-extension")
   else()
     message(STATUS "Enabling Clang-specific build options.")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wnull-dereference -Wdangling-else")
