@@ -84,7 +84,7 @@ namespace Tests {
     NNEvaluator* nnEval,
     NNEvaluator* nnEval32,
     Logger& logger,
-    int boardSize,
+    const std::string& boardSizeDataset,
     int maxBatchSizeCap,
     bool verbose,
     bool quickTest,
@@ -120,6 +120,8 @@ namespace TestCommon {
   std::vector<std::string> getMultiGameSize9Data();
   std::vector<std::string> getMultiGameSize13Data();
   std::vector<std::string> getMultiGameSize19Data();
+  std::vector<std::string> getMultiGameSize10x14Data();
+  std::vector<std::string> getMultiGameRectangleData();
 
   void overrideForBackends(bool& inputsNHWC, bool& useNHWC);
 }

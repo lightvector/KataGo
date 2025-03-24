@@ -527,7 +527,7 @@ bool Tests::runBackendErrorTest(
   NNEvaluator* nnEval,
   NNEvaluator* nnEval32,
   Logger& logger,
-  int boardSize,
+  const string& boardSizeDataset,
   int maxBatchSizeCap,
   bool verbose,
   bool quickTest,
@@ -573,12 +573,18 @@ bool Tests::runBackendErrorTest(
   };
 
   std::vector<BoardHistory> hists;
-  if(boardSize == 9)
+  if(boardSizeDataset == "9")
     hists = loadHists(TestCommon::getMultiGameSize9Data());
-  if(boardSize == 13)
+  else if(boardSizeDataset == "13")
     hists = loadHists(TestCommon::getMultiGameSize13Data());
-  if(boardSize == 19)
+  else if(boardSizeDataset == "19")
     hists = loadHists(TestCommon::getMultiGameSize19Data());
+  else if(boardSizeDataset == "10x14")
+    hists = loadHists(TestCommon::getMultiGameSize10x14Data());
+  else if(boardSizeDataset == "rectangle")
+    hists = loadHists(TestCommon::getMultiGameRectangleData());
+  else
+    throw StringError("Unknown dataset to test gpu error on: " + boardSizeDataset);
 
   auto evalBoard = [&](NNEvaluator* nnE, const BoardHistory& hist) {
     Board board = hist.getRecentBoard(0);
