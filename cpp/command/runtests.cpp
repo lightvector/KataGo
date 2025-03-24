@@ -439,7 +439,13 @@ int MainCmds::runnnevalcanarytests(const vector<string>& args) {
   }
 
   bool print = true;
-  Tests::runCanaryTests(nnEval,symmetry,print);
+  if(symmetry == -1) {
+    for(int sym = 0; sym < 8; sym++)
+      Tests::runCanaryTests(nnEval,sym,print);
+  }
+  else {
+    Tests::runCanaryTests(nnEval,symmetry,print);
+  }
   delete nnEval;
 
   ScoreValue::freeTables();

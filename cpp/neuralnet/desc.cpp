@@ -168,6 +168,14 @@ ConvLayerDesc& ConvLayerDesc::operator=(ConvLayerDesc&& other) {
   return *this;
 }
 
+double ConvLayerDesc::getSpatialConvDepth() const {
+  // 1x1 = 0
+  // 3x3 = 1
+  // 5x5 = 2
+  // ...
+  return (convYSize + convXSize - 2) / 4.0;
+}
+
 //-----------------------------------------------------------------------------
 
 BatchNormLayerDesc::BatchNormLayerDesc() : numChannels(0), epsilon(0.001f), hasScale(false), hasBias(false) {}
@@ -403,6 +411,11 @@ void ResidualBlockDesc::iterConvLayers(std::function<void(const ConvLayerDesc& d
   f(finalConv);
 }
 
+double ResidualBlockDesc::getSpatialConvDepth() const {
+  return regularConv.getSpatialConvDepth() + finalConv.getSpatialConvDepth();
+}
+
+
 
 //-----------------------------------------------------------------------------
 
@@ -485,6 +498,10 @@ void GlobalPoolingResidualBlockDesc::iterConvLayers(std::function<void(const Con
   f(finalConv);
 }
 
+double GlobalPoolingResidualBlockDesc::getSpatialConvDepth() const {
+  return regularConv.getSpatialConvDepth() + finalConv.getSpatialConvDepth();
+}
+
 //-----------------------------------------------------------------------------
 
 NestedBottleneckResidualBlockDesc::NestedBottleneckResidualBlockDesc() {}
@@ -547,19 +564,41 @@ void NestedBottleneckResidualBlockDesc::iterConvLayers(std::function<void(const 
   f(preConv);
   for(int i = 0; i < blocks.size(); i++) {
     if(blocks[i].first == ORDINARY_BLOCK_KIND) {
-      ResidualBlockDesc* desc = (ResidualBlockDesc*)blocks[i].second.get();
+      const ResidualBlockDesc* desc = (const ResidualBlockDesc*)blocks[i].second.get();
       desc->iterConvLayers(f);
     }
     else if(blocks[i].first == GLOBAL_POOLING_BLOCK_KIND) {
-      GlobalPoolingResidualBlockDesc* desc = (GlobalPoolingResidualBlockDesc*)blocks[i].second.get();
+      const GlobalPoolingResidualBlockDesc* desc = (const GlobalPoolingResidualBlockDesc*)blocks[i].second.get();
       desc->iterConvLayers(f);
     }
     else if(blocks[i].first == NESTED_BOTTLENECK_BLOCK_KIND) {
-      NestedBottleneckResidualBlockDesc* desc = (NestedBottleneckResidualBlockDesc*)blocks[i].second.get();
+      const NestedBottleneckResidualBlockDesc* desc = (const NestedBottleneckResidualBlockDesc*)blocks[i].second.get();
       desc->iterConvLayers(f);
     }
   }
   f(postConv);
+}
+
+double NestedBottleneckResidualBlockDesc::getSpatialConvDepth() const {
+  double depth = 0;
+  depth += preConv.getSpatialConvDepth();
+
+  for(int i = 0; i < blocks.size(); i++) {
+    if(blocks[i].first == ORDINARY_BLOCK_KIND) {
+      const ResidualBlockDesc* desc = (const ResidualBlockDesc*)blocks[i].second.get();
+      depth += desc->getSpatialConvDepth();
+    }
+    else if(blocks[i].first == GLOBAL_POOLING_BLOCK_KIND) {
+      const GlobalPoolingResidualBlockDesc* desc = (const GlobalPoolingResidualBlockDesc*)blocks[i].second.get();
+      depth += desc->getSpatialConvDepth();
+    }
+    else if(blocks[i].first == NESTED_BOTTLENECK_BLOCK_KIND) {
+      const NestedBottleneckResidualBlockDesc* desc = (const NestedBottleneckResidualBlockDesc*)blocks[i].second.get();
+      depth += desc->getSpatialConvDepth();
+    }
+  }
+  depth += postConv.getSpatialConvDepth();
+  return depth;
 }
 
 //-----------------------------------------------------------------------------
@@ -875,6 +914,27 @@ void TrunkDesc::iterConvLayers(std::function<void(const ConvLayerDesc& desc)> f)
       desc->iterConvLayers(f);
     }
   }
+}
+
+double TrunkDesc::getSpatialConvDepth() const {
+  double depth = 0;
+  depth += initialConv.getSpatialConvDepth();
+
+  for(int i = 0; i < blocks.size(); i++) {
+    if(blocks[i].first == ORDINARY_BLOCK_KIND) {
+      const ResidualBlockDesc* desc = (const ResidualBlockDesc*)blocks[i].second.get();
+      depth += desc->getSpatialConvDepth();
+    }
+    else if(blocks[i].first == GLOBAL_POOLING_BLOCK_KIND) {
+      const GlobalPoolingResidualBlockDesc* desc = (const GlobalPoolingResidualBlockDesc*)blocks[i].second.get();
+      depth += desc->getSpatialConvDepth();
+    }
+    else if(blocks[i].first == NESTED_BOTTLENECK_BLOCK_KIND) {
+      const NestedBottleneckResidualBlockDesc* desc = (const NestedBottleneckResidualBlockDesc*)blocks[i].second.get();
+      depth += desc->getSpatialConvDepth();
+    }
+  }
+  return depth;
 }
 
 //-----------------------------------------------------------------------------
@@ -1330,6 +1390,10 @@ int ModelDesc::maxConvChannels(int convXSize, int convYSize) const {
   };
   iterConvLayers(f);
   return c;
+}
+
+double ModelDesc::getTrunkSpatialConvDepth() const {
+  return trunk.getSpatialConvDepth();
 }
 
 struct NonCopyingStreamBuf : public std::streambuf

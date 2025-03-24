@@ -12,6 +12,34 @@
 using json = nlohmann::json;
 
 void Tests::runCanaryTests(NNEvaluator* nnEval, int symmetry, bool print) {
+  // Be lenient on smaller models or special runs
+  double policyLenience = 0;
+  double winrateLenience = 0;
+  double leadLenience = 0;
+  double scoreLenience = 0;
+
+  const string& internalModelName = nnEval->getInternalModelName();
+  if(print) {
+    cout << "nnEval->getTrunkSpatialConvDepth() " << nnEval->getTrunkSpatialConvDepth() << endl;
+    cout << "internalModelName " << internalModelName << endl;
+  }
+
+  if(nnEval->getTrunkSpatialConvDepth() <= 21) {
+    policyLenience = 0.05;
+    winrateLenience = 0.12;
+    leadLenience = 2.0;
+    scoreLenience = 3.0;
+  }
+  else if(nnEval->getTrunkSpatialConvDepth() <= 31 ||
+          Global::isPrefix(internalModelName,"rect15") ||
+          Global::isPrefix(internalModelName,"special")
+  ) {
+    policyLenience = 0.15;
+    winrateLenience = 0.05;
+    leadLenience = 1.0;
+    scoreLenience = 1.5;
+  }
+
   {
     string sgfStr = "(;GM[1]FF[4]CA[UTF-8]AP[CGoban:3]ST[2]RU[Chinese]SZ[19]KM[7]PW[White]PB[Black];B[pd];W[pp];B[dd];W[dp];B[qn];W[nq];B[cq];W[dq];B[cp];W[do];B[bn];W[cc];B[cd];W[dc];B[ec];W[eb];B[fb];W[fc];B[ed];W[gb];B[db];W[fa];B[cb];W[qo];B[pn];W[nc];B[qj];W[qc];B[qd];W[pc];B[od];W[nd];B[ne];W[me];B[mf];W[nf])";
     CompactSgf* sgf = CompactSgf::parse(sgfStr);
@@ -37,10 +65,14 @@ void Tests::runCanaryTests(NNEvaluator* nnEval, int symmetry, bool print) {
     }
 
     testAssert(buf.result->policyProbs[buf.result->getPos(Location::ofString("E16",board),board)] >= 0.95);
-    testAssert(buf.result->whiteWinProb > 0.30);
-    testAssert(buf.result->whiteWinProb < 0.70);
-    testAssert(buf.result->whiteLead > -2.5);
-    testAssert(buf.result->whiteLead < 2.5);
+    testAssert(buf.result->policyProbs[buf.result->getPos(Location::ofString("Pass",board),board)] <= 0.005);
+    testAssert(buf.result->whiteWinProb > 0.30 - winrateLenience);
+    testAssert(buf.result->whiteWinProb < 0.70 + winrateLenience);
+    testAssert(buf.result->whiteNoResultProb < 0.03);
+    testAssert(buf.result->whiteLead > -2.5 - leadLenience);
+    testAssert(buf.result->whiteLead < 2.5 + leadLenience);
+    testAssert(buf.result->whiteScoreMean > -3.5 - scoreLenience);
+    testAssert(buf.result->whiteScoreMean < 3.5 + scoreLenience);
 
     delete sgf;
   }
@@ -69,11 +101,15 @@ void Tests::runCanaryTests(NNEvaluator* nnEval, int symmetry, bool print) {
       buf.result->debugPrint(cout,board);
     }
 
-    testAssert(buf.result->policyProbs[buf.result->getPos(Location::ofString("P15",board),board)] >= 0.80);
-    testAssert(buf.result->whiteWinProb > 0.30);
-    testAssert(buf.result->whiteWinProb < 0.70);
-    testAssert(buf.result->whiteLead > -2.5);
-    testAssert(buf.result->whiteLead < 2.5);
+    testAssert(buf.result->policyProbs[buf.result->getPos(Location::ofString("P15",board),board)] >= 0.85 - policyLenience);
+    testAssert(buf.result->policyProbs[buf.result->getPos(Location::ofString("Pass",board),board)] <= 0.005);
+    testAssert(buf.result->whiteWinProb > 0.30 - winrateLenience);
+    testAssert(buf.result->whiteWinProb < 0.70 + winrateLenience);
+    testAssert(buf.result->whiteNoResultProb < 0.03);
+    testAssert(buf.result->whiteLead > -2.5 - leadLenience);
+    testAssert(buf.result->whiteLead < 2.5 + leadLenience);
+    testAssert(buf.result->whiteScoreMean > -3.5 - scoreLenience);
+    testAssert(buf.result->whiteScoreMean < 3.5 + scoreLenience);
 
     delete sgf;
   }
@@ -102,10 +138,14 @@ void Tests::runCanaryTests(NNEvaluator* nnEval, int symmetry, bool print) {
     }
 
     testAssert(buf.result->policyProbs[buf.result->getPos(Location::ofString("Q2",board),board)] >= 0.95);
-    testAssert(buf.result->whiteWinProb > 0.30);
-    testAssert(buf.result->whiteWinProb < 0.70);
-    testAssert(buf.result->whiteLead > -2.5);
-    testAssert(buf.result->whiteLead < 2.5);
+    testAssert(buf.result->policyProbs[buf.result->getPos(Location::ofString("Pass",board),board)] <= 0.005);
+    testAssert(buf.result->whiteWinProb > 0.30 - winrateLenience);
+    testAssert(buf.result->whiteWinProb < 0.70 + winrateLenience);
+    testAssert(buf.result->whiteNoResultProb < 0.03);
+    testAssert(buf.result->whiteLead > -2.5 - leadLenience);
+    testAssert(buf.result->whiteLead < 2.5 + leadLenience);
+    testAssert(buf.result->whiteScoreMean > -3.5 - scoreLenience);
+    testAssert(buf.result->whiteScoreMean < 3.5 + scoreLenience);
 
     delete sgf;
   }
@@ -135,8 +175,11 @@ void Tests::runCanaryTests(NNEvaluator* nnEval, int symmetry, bool print) {
       buf.result->debugPrint(cout,board);
     }
 
-    testAssert(buf.result->whiteWinProb < 0.1);
-    testAssert(buf.result->whiteLead < -5.0);
+    testAssert(buf.result->whiteWinProb < 0.1 + winrateLenience);
+    testAssert(buf.result->whiteLead < -9.0 + leadLenience);
+    testAssert(buf.result->whiteLead > -19.0 - leadLenience);
+    testAssert(buf.result->whiteScoreMean < -8.0 + scoreLenience);
+    testAssert(buf.result->whiteScoreMean > -22.0 - scoreLenience);
 
     delete sgf;
   }
@@ -166,8 +209,47 @@ void Tests::runCanaryTests(NNEvaluator* nnEval, int symmetry, bool print) {
       buf.result->debugPrint(cout,board);
     }
 
-    testAssert(buf.result->whiteWinProb > 0.9);
-    testAssert(buf.result->whiteLead > 5.0);
+    testAssert(buf.result->whiteWinProb > 0.9 - winrateLenience);
+    testAssert(buf.result->whiteLead > 9.0 - leadLenience);
+    testAssert(buf.result->whiteLead < 19.0 + leadLenience);
+    testAssert(buf.result->whiteScoreMean > 8.0 - scoreLenience);
+    testAssert(buf.result->whiteScoreMean < 22.0 + scoreLenience);
+
+    delete sgf;
+  }
+
+  {
+    string sgfStr = "(;FF[4]GM[1]CA[UTF-8]RU[Japanese]KM[6]SZ[16:11];B[md];W[nh];B[dh];W[cd];B[lh];W[li];B[ki])";
+    CompactSgf* sgf = CompactSgf::parse(sgfStr);
+
+    Board board;
+    Player nextPla;
+    BoardHistory hist;
+    Rules initialRules = sgf->getRulesOrFail();
+    int turnIdx = 7;
+    sgf->setupBoardAndHistAssumeLegal(initialRules, board, nextPla, hist, turnIdx);
+
+    MiscNNInputParams nnInputParams;
+    NNResultBuf buf;
+    bool skipCache = true;
+    bool includeOwnerMap = true;
+    nnInputParams.symmetry = symmetry;
+    nnEval->evaluate(board,hist,nextPla,nnInputParams,buf,skipCache,includeOwnerMap);
+
+    if(print) {
+      cout << board << endl;
+      cout << endl;
+      buf.result->debugPrint(cout,board);
+    }
+
+    testAssert(buf.result->policyProbs[buf.result->getPos(Location::ofString("N3",board),board)] >= 0.80 - policyLenience);
+    testAssert(buf.result->whiteWinProb > 0.20 - winrateLenience);
+    testAssert(buf.result->whiteWinProb < 0.80 + winrateLenience);
+    testAssert(buf.result->whiteNoResultProb < 0.06);
+    testAssert(buf.result->whiteLead > -2.5 - leadLenience);
+    testAssert(buf.result->whiteLead < 2.5 + leadLenience);
+    testAssert(buf.result->whiteScoreMean > -3.5 - scoreLenience);
+    testAssert(buf.result->whiteScoreMean < 3.5 + scoreLenience);
 
     delete sgf;
   }
