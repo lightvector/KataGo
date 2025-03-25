@@ -364,71 +364,19 @@ void NeuralNet::freeLoadedModel(LoadedModel* loadedModel) {
 }
 
 /**
- * @brief Gets the name of the loaded model.
- * This function returns the name of the loaded model contained in the LoadedModel object specified
- * by the `loadedModel` parameter.
- * @param loadedModel A pointer to the LoadedModel object to get the model name from.
- * @return The name of the loaded model.
+ * @brief Retrieves the model description associated with the loaded model.
+ * 
+ * This function accesses the model description from a given LoadedModel instance.
+ * It returns a constant reference to the ModelDesc, which contains details 
+ * about the structure and parameters of the neural network model.
+ * 
+ * @param loadedModel Pointer to the LoadedModel instance from which to retrieve
+ *                    the model description. This should not be null.
+ * @return const ModelDesc& A constant reference to the model description of 
+ *                          the loaded model.
  */
-string NeuralNet::getModelName(const LoadedModel* loadedModel) {
-  return loadedModel->modelDesc.name;
-}
-
-/**
- * @brief Gets the version of the loaded model.
- * This function returns the version of the loaded model contained in the LoadedModel object specified
- * by the `loadedModel` parameter.
- * @param loadedModel A pointer to the LoadedModel object to get the model version from.
- * @return The version of the loaded model.
- */
-int NeuralNet::getModelVersion(const LoadedModel* loadedModel) {
-  return loadedModel->modelDesc.modelVersion;
-}
-
-/**
- * @brief Retrieves the number of input meta channels from a loaded model.
- *
- * This function returns the number of input meta channels that are
- * contained in the neural network model described by the specified LoadedModel object.
- * Input meta channels refer to the channels in the model that are used for pre-processing
- * or auxiliary information which is not part of the main input data.
- *
- * @param loadedModel A pointer to the LoadedModel object containing the
- *        neural network model description from which to retrieve the number of input meta channels.
- * @return An integer representing the number of input meta channels in the loaded model.
- */
-int NeuralNet::getNumInputMetaChannels(const LoadedModel* loadedModel) {
-  return loadedModel->modelDesc.numInputMetaChannels;
-}
-
-/**
- * @brief Gets the rules supported by the loaded model.
- * This function returns a Rules object that describes the rules supported by the loaded model contained
- * in the LoadedModel object specified by the `loadedModel` parameter. The desired rules are specified by
- * the `desiredRules` parameter. The `supported` output parameter is set to true if the desired rules are
- * supported by the loaded model, and false otherwise.
- * @param loadedModel A pointer to the LoadedModel object to get the supported rules from.
- * @param desiredRules The desired rules to check support for.
- * @param supported Set to true if the desired rules are supported by the loaded model, false otherwise.
- * @return A Rules object that describes the rules supported by the loaded model.
- */
-Rules NeuralNet::getSupportedRules(const LoadedModel* loadedModel, const Rules& desiredRules, bool& supported) {
-  return loadedModel->modelDesc.getSupportedRules(desiredRules, supported);
-}
-
-/**
- * @brief Retrieves the post-processing parameters of a loaded model.
- *
- * This function returns the post-processing parameters of a loaded model, which define the parameters used
- * for post-processing the model's output. The post-processing parameters include values such as
- * `tdScoreMultiplier`, `scoreMeanMultiplier`, `scoreStdevMultiplier`, `leadMultiplier`,
- * `varianceTimeMultiplier`, `shorttermValueErrorMultiplier`, and `shorttermScoreErrorMultiplier`.
- *
- * @param loadedModel A pointer to the LoadedModel object containing the loaded model.
- * @return A ModelPostProcessParams object that contains the post-processing parameters of the loaded model.
- */
-ModelPostProcessParams NeuralNet::getPostProcessParams(const LoadedModel* loadedModel) {
-  return loadedModel->modelDesc.postProcessParams;
+const ModelDesc& NeuralNet::getModelDesc(const LoadedModel* loadedModel) {
+  return loadedModel->modelDesc;
 }
 
 //------------------------------------------------------------------------------
@@ -918,7 +866,11 @@ void MetalProcess::getMetalOutput(
   assert(batchSize <= inputBuffers->maxBatchSize);
   assert((NNModelVersion::getNumSpatialFeatures(gpuHandle->version) * gpuHandle->nnXLen * gpuHandle->nnYLen) <= inputBuffers->singleInputElts);
   assert(NNModelVersion::getNumGlobalFeatures(gpuHandle->version) == inputBuffers->singleInputGlobalElts);
-  assert(NNModelVersion::getNumInputMetaChannels(gpuHandle->metaEncoderVersion) == inputBuffers->singleInputMetaElts);
+
+  if(gpuHandle->metaEncoderVersion > 0) {
+    assert(SGFMetadata::METADATA_INPUT_NUM_CHANNELS == inputBuffers->singleInputMetaElts);
+  }
+
   assert(inputBuffers->singleValueResultElts == 3);
 
   for(size_t row = 0; row < batchSize; row++) {
