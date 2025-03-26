@@ -967,10 +967,12 @@ struct GlobalPoolingLayer {
     /// - Parameters:
     ///   - graph: The graph
     ///   - sourceTensor: The source tensor to be pooled
+    ///   - maskTensor: The mask tensor
     ///   - maskSumTensor: The sum of the mask
     ///   - maskSumSqrtS14M01Tensor: The multiplication of subtraction of square root of the sum of the mask
     init(graph: MPSGraph,
          sourceTensor: MPSGraphTensor,
+         maskTensor: MPSGraphTensor,
          maskSumTensor: MPSGraphTensor,
          maskSumSqrtS14M01Tensor: MPSGraphTensor) {
         let hwAxes = InputShape.getHWAxes()
@@ -986,7 +988,11 @@ struct GlobalPoolingLayer {
                                                   maskSumSqrtS14M01Tensor,
                                                   name: nil)
 
-        let maxTensor = graph.reductionMaximum(with: sourceTensor,
+        let oneTensor = graph.constant(1.0, dataType: sourceTensor.dataType)
+        let maskM1Tensor = graph.subtraction(maskTensor, oneTensor, name: nil)
+        let addition = graph.addition(sourceTensor, maskM1Tensor, name: nil)
+
+        let maxTensor = graph.reductionMaximum(with: addition,
                                                axes: hwAxes,
                                                name: nil)
 
@@ -1407,6 +1413,7 @@ class GlobalPoolingResidualBlock {
 
         let gpoolConcat = GlobalPoolingLayer(graph: graph,
                                              sourceTensor: gpoolActivation.resultTensor,
+                                             maskTensor: maskTensor,
                                              maskSumTensor: maskSum.tensor,
                                              maskSumSqrtS14M01Tensor: maskSumSqrtS14M01.tensor)
 
@@ -2271,6 +2278,7 @@ struct PolicyHead {
 
         let g1Concat = GlobalPoolingLayer(graph: graph,
                                           sourceTensor: g1Activation.resultTensor,
+                                          maskTensor: maskTensor,
                                           maskSumTensor: maskSumTensor,
                                           maskSumSqrtS14M01Tensor: maskSumSqrtS14M01Tensor)
 
