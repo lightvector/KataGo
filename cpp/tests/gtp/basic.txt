@@ -6,3 +6,7 @@ genmove_debug w
 boardsize 9
 genmove_debug b
 showboard
+kata-search w
+kata-search b
+kata-search_debug w
+kata-search_debug b

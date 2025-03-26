@@ -33,8 +33,10 @@ from torch.cuda.amp import GradScaler, autocast
 import modelconfigs
 from model_pytorch import Model, ExtraOutputs, MetadataEncoder
 from metrics_pytorch import Metrics
+from push_back_generator import PushBackGenerator
 import load_model
 import data_processing_pytorch
+from metrics_logging import accumulate_metrics, log_metrics, clear_metric_nonfinite
 
 # HANDLE COMMAND AND ARGS -------------------------------------------------------------------
 
@@ -418,7 +420,7 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
 
             if initial_checkpoint is not None:
                 if os.path.exists(initial_checkpoint):
-                    logging.info("Using initial checkpoint: {initial_checkpoint}")
+                    logging.info(f"Using initial checkpoint: {initial_checkpoint}")
                     path_to_load_from = initial_checkpoint
                 else:
                     raise Exception("No preexisting checkpoint found, initial checkpoint provided is invalid: {initial_checkpoint}")
@@ -541,6 +543,8 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
         train_state["train_steps_since_last_reload"] = 0
     if "export_cycle_counter" not in train_state:
         train_state["export_cycle_counter"] = 0
+    if "window_start_data_row_idx" not in train_state:
+        train_state["window_start_data_row_idx"] = 0
     if "total_num_data_rows" not in train_state:
         train_state["total_num_data_rows"] = 0
     if "old_train_data_dirs" not in train_state:
@@ -661,15 +665,21 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
             else:
                 assert False
 
+            changed = False
+
             # For lookahead optimizer, use weight decay appropriate for lr scale,
             # but tell optimizer to take larger steps so as to maintain the same
             # effective learning rate after lookahead averaging.
             if lookahead_alpha is not None:
-                param_group["lr"] = per_sample_lr * warmup_scale * group_scale / lookahead_alpha
+                new_lr_this_group = per_sample_lr * warmup_scale * group_scale / lookahead_alpha
             else:
-                param_group["lr"] = per_sample_lr * warmup_scale * group_scale
+                new_lr_this_group = per_sample_lr * warmup_scale * group_scale
 
-            param_group["weight_decay"] = get_weight_decay(
+            if param_group["lr"] != new_lr_this_group:
+                param_group["lr"] = new_lr_this_group
+                changed = True
+
+            new_weight_decay_this_group = get_weight_decay(
                 raw_model,
                 lr_scale,
                 warmup_scale=warmup_scale,
@@ -677,10 +687,15 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
                 running_metrics=running_metrics,
                 group_name=group_name,
             )
+            if param_group["weight_decay"] != new_weight_decay_this_group:
+                param_group["weight_decay"] = new_weight_decay_this_group
+                changed = True
+
             if group_name == "normal":
                 normal_weight_decay = param_group["weight_decay"]
 
-            logging.info(f"Param group {param_group['group_name']} lr {param_group['lr']} weight_decay {param_group['weight_decay']}")
+            if changed:
+                logging.info(f"Param group {param_group['group_name']} lr {param_group['lr']} weight_decay {param_group['weight_decay']}")
 
         return per_sample_lr * warmup_scale, normal_weight_decay
 
@@ -723,7 +738,7 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
             if curdatadir != last_curdatadir:
                 if not os.path.exists(curdatadir):
                     if quit_if_no_data:
-                        logging.info("Shuffled data path does not exist, there seems to be no data or not enough data yet, qutting: %s" % curdatadir)
+                        logging.info("Shuffled data path does not exist, there seems to be no data or not enough data yet, quitting: %s" % curdatadir)
                         sys.exit(0)
                     logging.info("Shuffled data path does not exist, there seems to be no shuffled data yet, waiting and trying again later: %s" % curdatadir)
                     time.sleep(30)
@@ -732,7 +747,7 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
                 trainjsonpath = os.path.join(curdatadir,"train.json")
                 if not os.path.exists(trainjsonpath):
                     if quit_if_no_data:
-                        logging.info("Shuffled data train.json file does not exist, there seems to be no data or not enough data yet, qutting: %s" % trainjsonpath)
+                        logging.info("Shuffled data train.json file does not exist, there seems to be no data or not enough data yet, quitting: %s" % trainjsonpath)
                         sys.exit(0)
                     logging.info("Shuffled data train.json file does not exist, there seems to be no shuffled data yet, waiting and trying again later: %s" % trainjsonpath)
                     time.sleep(30)
@@ -743,6 +758,7 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
 
                 with open(trainjsonpath) as f:
                     datainfo = json.load(f)
+                    train_state["window_start_data_row_idx"] = datainfo["range"][0]
                     train_state["total_num_data_rows"] = datainfo["range"][1]
 
                 # Fill the buckets
@@ -815,7 +831,7 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
                             train_files_shuffled = train_files.copy()
                             train_state["data_files_used"] = set()
 
-                trainfilegenerator = train_files_gen()
+                trainfilegenerator = PushBackGenerator(train_files_gen())
                 vdatadir = os.path.join(curdatadir,"val")
 
             # Same directory as before, no new shuffle
@@ -856,7 +872,8 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
             if batches_to_use_so_far + num_batches_this_file > num_batches_per_subepoch:
                 # If we're going over the desired amount, randomly skip the file with probability equal to the
                 # proportion of batches over - this makes it so that in expectation, we have the desired number of batches
-                if batches_to_use_so_far > 0 and random.random() >= (batches_to_use_so_far + num_batches_this_file - num_batches_per_subepoch) / num_batches_this_file:
+                if batches_to_use_so_far > 0 and random.random() <= (batches_to_use_so_far + num_batches_this_file - num_batches_per_subepoch) / num_batches_this_file:
+                    trainfilegenerator.push_back(filename)
                     found_enough = True
                     break
 
@@ -881,56 +898,6 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
             else:
                 ret[key] = metrics[key]
         return ret
-
-    # _sum metrics dict entries will get reported as a moving average of their values
-    # _batch metrics dict entries will reported as the average per-batch value over the time since the last log
-    # All other values will get reported as a total sum across the entire run so far.
-
-    def accumulate_metrics(metric_sums, metric_weights, metrics, batch_size, decay, new_weight):
-        if decay != 1.0:
-            for metric in metric_sums:
-                if metric.endswith("_sum"):
-                    metric_sums[metric] *= decay
-                    metric_weights[metric] *= decay
-
-        for metric in metrics:
-            if metric.endswith("_sum"):
-                metric_sums[metric] += metrics[metric] * new_weight
-                metric_weights[metric] += batch_size * new_weight
-            elif metric.endswith("_batch"):
-                metric_sums[metric] += metrics[metric] * new_weight
-                metric_weights[metric] += 1 * new_weight
-            else:
-                metric_sums[metric] += metrics[metric]
-                metric_weights[metric] += batch_size
-
-    def log_metrics(metric_sums, metric_weights, metrics, metrics_out):
-        metrics_to_print = {}
-        for metric in metric_sums:
-            if metric.endswith("_sum"):
-                metrics_to_print[metric[:-4]] = metric_sums[metric] / metric_weights[metric]
-            elif metric.endswith("_batch"):
-                metrics_to_print[metric] = metric_sums[metric] / metric_weights[metric]
-                metric_sums[metric] *= 0.001
-                metric_weights[metric] *= 0.001
-            else:
-                metrics_to_print[metric] = metric_sums[metric]
-        for metric in metrics:
-            if metric not in metric_sums:
-                metrics_to_print[metric] = metrics[metric]
-
-        logging.info(", ".join(["%s = %f" % (metric, metrics_to_print[metric]) for metric in metrics_to_print]))
-        if metrics_out:
-            metrics_out.write(json.dumps(metrics_to_print) + "\n")
-            metrics_out.flush()
-
-    def clear_metric_nonfinite(metric_sums, metric_weights):
-        for metric in metric_sums:
-            if not math.isfinite(metric_sums[metric]):
-                logging.warning(f"NONFINITE VALUE OF METRIC {metric}, CLEARING IT BACK TO EMPTY")
-                metric_sums[metric] = 0.0
-                metric_weights[metric] = 0.0
-
 
     if rank == 0:
         train_metrics_out = open(os.path.join(traindir,"metrics_train.json"),"a")
@@ -1150,6 +1117,8 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
                 metrics["pslr_batch"] = lr_right_now
                 metrics["wdnormal_batch"] = normal_weight_decay_right_now
                 metrics["gnorm_cap_batch"] = gnorm_cap
+                metrics["window_start_batch"] = train_state["window_start_data_row_idx"]
+                metrics["window_end_batch"] = train_state["total_num_data_rows"]
 
                 if use_fp16:
                     scaler.step(optimizer)
@@ -1194,7 +1163,7 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
                     log_metrics(running_metrics["sums"], running_metrics["weights"], metrics, train_metrics_out)
 
                 # Update LR more frequently at the start for smoother warmup ramp and wd adjustment
-                if train_state["global_step_samples"] <= 50000000 and batch_count_this_epoch % 10 == 0:
+                if train_state["global_step_samples"] <= 50000000 and batch_count_this_epoch % 50 == 0:
                     lr_right_now, normal_weight_decay_right_now = update_and_return_lr_and_wd()
 
                 # Update batch renorm parameters

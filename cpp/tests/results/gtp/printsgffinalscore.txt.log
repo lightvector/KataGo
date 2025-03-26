@@ -1,0 +1,142 @@
+: Running with following config:
+allowResignation = true
+cudaUseFP16 = false
+cudaUseNHWC = false
+forDeterministicTesting = true
+lagBuffer = 1.0
+logAllGTPCommunication = true
+logFile = tests/results/gtp/printsgffinalscore.txt.log
+logSearchInfo = true
+logSearchInfoForChosenMove = false
+logTimeStamp = false
+logToStderr = false
+maxPlayouts = 10000
+maxTimePondering = 60.0
+maxVisits = 100
+nnRandSeed = forTesting
+nnRandomize = false
+numSearchThreads = 1
+openclUseFP16 = false
+ponderingEnabled = false
+resignConsecTurns = 3
+resignThreshold = -0.90
+rootSymmetryPruning = false
+rules = tromp-taylor
+searchFactorAfterOnePass = 0.50
+searchFactorAfterTwoPass = 0.25
+searchFactorWhenWinning = 0.40
+searchFactorWhenWinningThreshold = 0.95
+searchRandSeed = forTesting
+trtUseFP16 = false
+
+: GTP Engine starting...
+: KataGo v1.15.3
+: Using TrompTaylor rules initially, unless GTP/GUI overrides this
+: Using 1 CPU thread(s) for search
+: nnRandSeed0 = forTesting
+: After dedups: nnModelFile0 = tests/models/g170-b6c96-s175395328-d26788732.bin.gz useFP16 false useNHWC false
+: Initializing neural net buffer to be size 19 * 19 exactly
+: Cuda backend thread 0: Found GPU NVIDIA RTX A5000 memory 25425608704 compute capability major 8 minor 6
+: Cuda backend thread 0: Model version 8 useFP16 = false useNHWC = false
+: Cuda backend thread 0: Model name: g170-b6c96-s175395328-d26788732
+: Loaded neural net with nnXLen 19 nnYLen 19
+: Initializing board with boardXSize 19 boardYSize 19
+: Loaded config configs/gtp_example.cfg and/or command-line and query overrides
+: Loaded model tests/models/g170-b6c96-s175395328-d26788732.bin.gz
+: Config override: cudaUseFP16 = false
+: Config override: cudaUseNHWC = false
+: Config override: forDeterministicTesting = true
+: Config override: logDir = 
+: Config override: logFile = tests/results/gtp/printsgffinalscore.txt.log
+: Config override: logTimeStamp = false
+: Config override: maxPlayouts = 10000
+: Config override: maxVisits = 100
+: Config override: nnRandSeed = forTesting
+: Config override: nnRandomize = false
+: Config override: numSearchThreads = 1
+: Config override: openclUseFP16 = false
+: Config override: rootSymmetryPruning = false
+: Config override: searchRandSeed = forTesting
+: Config override: trtUseFP16 = false
+: Model name: g170-b6c96-s175395328-d26788732
+: GTP ready, beginning main protocol loop
+: Controller: printsgf
+: = (;FF[4]GM[1]SZ[19]PB[]PW[]HA[0]KM[7.5]RU[TrompTaylor])
+: Controller: boardsize 7
+: GPU -1 finishing, processed 0 rows 0 batches
+: Cleaned up old neural net and bot
+: nnRandSeed0 = forTesting
+: After dedups: nnModelFile0 = tests/models/g170-b6c96-s175395328-d26788732.bin.gz useFP16 false useNHWC false
+: Initializing neural net buffer to be size 7 * 7 exactly
+: Cuda backend thread 0: Found GPU NVIDIA RTX A5000 memory 25425608704 compute capability major 8 minor 6
+: Cuda backend thread 0: Model version 8 useFP16 = false useNHWC = false
+: Cuda backend thread 0: Model name: g170-b6c96-s175395328-d26788732
+: Loaded neural net with nnXLen 7 nnYLen 7
+: Initializing board with boardXSize 7 boardYSize 7
+: = 
+: Controller: komi 0
+: = 
+: Controller: play b d7
+: = 
+: Controller: play w e7
+: = 
+: Controller: play b d6
+: = 
+: Controller: play w e6
+: = 
+: Controller: play b d5
+: = 
+: Controller: play w e5
+: = 
+: Controller: play b d4
+: = 
+: Controller: play w e4
+: = 
+: Controller: play b d3
+: = 
+: Controller: play w e3
+: = 
+: Controller: play b d2
+: = 
+: Controller: play w e2
+: = 
+: Controller: play b d1
+: = 
+: Controller: play w e1
+: = 
+: Controller: play b b3
+: = 
+: Controller: play w f4
+: = 
+: Controller: play b f5
+: = 
+: Controller: play w f6
+: = 
+: Controller: play b b5
+: = 
+: Controller: play w pass
+: = 
+: Controller: kata-set-rules tromp-taylor
+: Changed rules to TrompTaylor
+: = 
+: Controller: printsgf -
+: = (;FF[4]GM[1]SZ[7]PB[]PW[]HA[0]KM[0]RU[TrompTaylor];B[da];W[ea];B[db];W[eb];B[dc];W[ec];B[dd];W[ed];B[de];W[ee];B[df];W[ef];B[dg];W[eg];B[be];W[fd];B[fc];W[fb];B[bc];W[])
+: Controller: kata-set-rules chinese
+: Changed rules to Chinese
+: = 
+: Controller: printsgf -
+: = (;FF[4]GM[1]SZ[7]PB[]PW[]HA[0]KM[0]RU[Chinese];B[da];W[ea];B[db];W[eb];B[dc];W[ec];B[dd];W[ed];B[de];W[ee];B[df];W[ef];B[dg];W[eg];B[be];W[fd];B[fc];W[fb];B[bc];W[])
+: Controller: play b pass
+: = 
+: Controller: kata-set-rules tromp-taylor
+: Changed rules to TrompTaylor
+: = 
+: Controller: printsgf -
+: = (;FF[4]GM[1]SZ[7]PB[]PW[]HA[0]KM[0]RU[TrompTaylor]RE[B+20];B[da];W[ea];B[db];W[eb];B[dc];W[ec];B[dd];W[ed];B[de];W[ee];B[df];W[ef];B[dg];W[eg];B[be];W[fd];B[fc];W[fb];B[bc];W[];B[]C[result=B+20])
+: Controller: kata-set-rules chinese
+: Changed rules to Chinese
+: = 
+: Controller: printsgf -
+: = (;FF[4]GM[1]SZ[7]PB[]PW[]HA[0]KM[0]RU[Chinese]RE[B+7];B[da];W[ea];B[db];W[eb];B[dc];W[ec];B[dd];W[ed];B[de];W[ee];B[df];W[ef];B[dg];W[eg];B[be];W[fd];B[fc];W[fb];B[bc];W[];B[]C[result=B+7])
+: GPU -1 finishing, processed 328 rows 328 batches
+: All cleaned up, quitting

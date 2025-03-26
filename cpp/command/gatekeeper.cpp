@@ -60,6 +60,7 @@ namespace {
     int numGamesTallied;
     double numBaselineWinPoints;
     double numCandidateWinPoints;
+    double requiredCandidateWinProp;
 
     ofstream* sgfOut;
 
@@ -74,6 +75,7 @@ namespace {
       const string& tModelDir,
       NNEvaluator* nevalB,
       NNEvaluator* nevalC,
+      double reqWinProp,
       ofstream* sOut
     )
       :modelNameBaseline(nameB),
@@ -91,6 +93,7 @@ namespace {
        numGamesTallied(0),
        numBaselineWinPoints(0.0),
        numCandidateWinPoints(0.0),
+       requiredCandidateWinProp(reqWinProp),
        sgfOut(sOut),
        terminated(false)
     {
@@ -173,14 +176,15 @@ namespace {
         delete data;
 
         //Terminate games if one side has won enough to guarantee the victory.
-        int64_t numGamesRemaining = matchPairer->getNumGamesTotalToGenerate() - numGamesTallied;
+        int64_t numTotalGames = matchPairer->getNumGamesTotalToGenerate();
+        int64_t numGamesRemaining = numTotalGames - numGamesTallied;
         assert(numGamesRemaining >= 0);
         if(numGamesRemaining > 0) {
-          if(numCandidateWinPoints >= (numBaselineWinPoints + numGamesRemaining)) {
+          if(numCandidateWinPoints >= numTotalGames * requiredCandidateWinProp) {
             logger.write("Candidate has already won enough games, terminating remaning games");
             terminated.store(true);
           }
-          else if(numBaselineWinPoints > numCandidateWinPoints + numGamesRemaining + 1e-10) {
+          else if(numCandidateWinPoints + numGamesRemaining + 1e-10 < numTotalGames * requiredCandidateWinProp) {
             logger.write("Candidate has already lost too many games, terminating remaning games");
             terminated.store(true);
           }
@@ -250,6 +254,7 @@ int MainCmds::gatekeeper(const vector<string>& args) {
   string rejectedModelsDir;
   string sgfOutputDir;
   string selfplayDir;
+  double requiredCandidateWinProp;
   bool noAutoRejectOldModels;
   bool quitIfNoNetsToTest;
   try {
@@ -262,6 +267,7 @@ int MainCmds::gatekeeper(const vector<string>& args) {
     TCLAP::ValueArg<string> acceptedModelsDirArg("","accepted-models-dir","Dir to write good models to",true,string(),"DIR");
     TCLAP::ValueArg<string> rejectedModelsDirArg("","rejected-models-dir","Dir to write bad models to",true,string(),"DIR");
     TCLAP::ValueArg<string> selfplayDirArg("","selfplay-dir","Dir where selfplay data will be produced if a model passes",false,string(),"DIR");
+    TCLAP::ValueArg<double> requiredCandidateWinPropArg("","required-candidate-win-prop","Required win prop to accept",false,0.5,"PROP");
     TCLAP::SwitchArg noAutoRejectOldModelsArg("","no-autoreject-old-models","Test older models than the latest accepted model");
     TCLAP::SwitchArg quitIfNoNetsToTestArg("","quit-if-no-nets-to-test","Terminate instead of waiting for a new net to test");
     cmd.add(testModelsDirArg);
@@ -269,6 +275,7 @@ int MainCmds::gatekeeper(const vector<string>& args) {
     cmd.add(acceptedModelsDirArg);
     cmd.add(rejectedModelsDirArg);
     cmd.add(selfplayDirArg);
+    cmd.add(requiredCandidateWinPropArg);
     cmd.setShortUsageArgLimit();
     cmd.add(noAutoRejectOldModelsArg);
     cmd.add(quitIfNoNetsToTestArg);
@@ -279,6 +286,7 @@ int MainCmds::gatekeeper(const vector<string>& args) {
     acceptedModelsDir = acceptedModelsDirArg.getValue();
     rejectedModelsDir = rejectedModelsDirArg.getValue();
     selfplayDir = selfplayDirArg.getValue();
+    requiredCandidateWinProp = requiredCandidateWinPropArg.getValue();
     noAutoRejectOldModels = noAutoRejectOldModelsArg.getValue();
     quitIfNoNetsToTest = quitIfNoNetsToTestArg.getValue();
 
@@ -314,6 +322,7 @@ int MainCmds::gatekeeper(const vector<string>& args) {
 
   logger.write("Gatekeeper Engine starting...");
   logger.write(string("Git revision: ") + Version::getGitRevision());
+  logger.write(string("Required candidate win prop: ") + Global::doubleToString(requiredCandidateWinProp));
 
   //Load runner settings
   const int numGameThreads = cfg.getInt("numGameThreads",1,16384);
@@ -365,6 +374,7 @@ int MainCmds::gatekeeper(const vector<string>& args) {
 
   auto loadLatestNeuralNet =
     [&testModelsDir,&rejectedModelsDir,&acceptedModelsDir,&sgfOutputDir,&logger,&cfg,numGameThreads,noAutoRejectOldModels,
+     requiredCandidateWinProp,
      minBoardXSizeUsed,maxBoardXSizeUsed,minBoardYSizeUsed,maxBoardYSizeUsed]() -> NetAndStuff* {
     Rand rand;
 
@@ -438,6 +448,7 @@ int MainCmds::gatekeeper(const vector<string>& args) {
       testModelDir,
       acceptedNNEval,
       testNNEval,
+      requiredCandidateWinProp,
       sgfOut
     );
 
@@ -565,7 +576,7 @@ int MainCmds::gatekeeper(const vector<string>& args) {
     }
 
     //Candidate wins ties
-    if(netAndStuff->numBaselineWinPoints > netAndStuff->numCandidateWinPoints + 1e-10) {
+    if(netAndStuff->numCandidateWinPoints + 1e-10 < requiredCandidateWinProp * netAndStuff->numGamesTallied) {
       logger.write(
         Global::strprintf(
           "Candidate lost match, score %.3f to %.3f in %d games, rejecting candidate %s",

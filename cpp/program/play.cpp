@@ -553,6 +553,8 @@ void GameInitializer::createGameSharedUnsynchronized(
     testAssert(startPos.moves.size() < 0xFFFFFF);
     for(size_t i = 0; i<startPos.moves.size(); i++) {
       bool isLegal = hist.isLegal(board,startPos.moves[i].loc,startPos.moves[i].pla);
+      //Makes a best effort to still use the position, stopping if we hit an illegal move. It's possible
+      //we hit this because of rules differences making a superko move or self-capture illegal, for example.
       if(!isLegal) {
         //If we stop due to illegality, it doesn't make sense to still use the hintLoc
         hintLoc = Board::NULL_LOC;
@@ -812,7 +814,7 @@ void Play::extractPolicyTarget(
   assert(!toMoveBot->searchParams.rootSymmetryPruning);
   bool allowDirectPolicyMoves = false;
   bool success = toMoveBot->getPlaySelectionValues(*node,locsBuf,playSelectionValuesBuf,NULL,scaleMaxToAtLeast,allowDirectPolicyMoves);
-  assert(success);
+  testAssert(success);
   (void)success; //Avoid warning when asserts are disabled
 
   assert(locsBuf.size() == playSelectionValuesBuf.size());
@@ -822,7 +824,7 @@ void Play::extractPolicyTarget(
   double maxValue = 0.0;
   for(int moveIdx = 0; moveIdx<locsBuf.size(); moveIdx++) {
     double value = playSelectionValuesBuf[moveIdx];
-    assert(value >= 0.0);
+    testAssert(value >= 0.0);
     if(value > maxValue)
       maxValue = value;
   }
@@ -841,7 +843,7 @@ void Play::extractPolicyTarget(
 static void extractValueTargets(ValueTargets& buf, const Search* toMoveBot, const SearchNode* node) {
   ReportedSearchValues values;
   bool success = toMoveBot->getNodeValues(node,values);
-  assert(success);
+  testAssert(success);
   (void)success; //Avoid warning when asserts are disabled
 
   buf.win = (float)values.winValue;
@@ -901,7 +903,7 @@ static void recordTreePositionsRec(
 
     double policySurprise = 0.0, policyEntropy = 0.0, searchEntropy = 0.0;
     bool success = toMoveBot->getPolicySurpriseAndEntropy(policySurprise, searchEntropy, policyEntropy, node);
-    assert(success);
+    testAssert(success);
     (void)success; //Avoid warning when asserts are disabled
     sp->policySurprise = policySurprise;
     sp->policyEntropy = policyEntropy;
@@ -1541,7 +1543,7 @@ FinishedGameData* Play::runGame(
 
       double policySurprise = 0.0, policyEntropy = 0.0, searchEntropy = 0.0;
       bool success = toMoveBot->getPolicySurpriseAndEntropy(policySurprise, searchEntropy, policyEntropy);
-      assert(success);
+      testAssert(success);
       (void)success; //Avoid warning when asserts are disabled
       gameData->policySurpriseByTurn.push_back(policySurprise);
       gameData->policyEntropyByTurn.push_back(policyEntropy);
@@ -1596,15 +1598,15 @@ FinishedGameData* Play::runGame(
     //Finally, make the move on the bots
     bool suc;
     suc = botB->makeMove(loc,pla);
-    assert(suc);
+    testAssert(suc);
     if(botB != botW) {
       suc = botW->makeMove(loc,pla);
-      assert(suc);
+      testAssert(suc);
     }
     (void)suc; //Avoid warning when asserts disabled
 
     //And make the move on our copy of the board
-    assert(hist.isLegal(board,loc,pla));
+    testAssert(hist.isLegal(board,loc,pla));
     hist.makeBoardMoveAssumeLegal(board,loc,pla,NULL);
 
     //Check for resignation
@@ -1854,7 +1856,7 @@ FinishedGameData* Play::runGame(
 
       double policySurprise = 0.0, policyEntropy = 0.0, searchEntropy = 0.0;
       bool success = toMoveBot->getPolicySurpriseAndEntropy(policySurprise, searchEntropy, policyEntropy);
-      assert(success);
+      testAssert(success);
       (void)success; //Avoid warning when asserts are disabled
       sp->policySurprise = policySurprise;
       sp->policyEntropy = policyEntropy;
@@ -2151,7 +2153,7 @@ void Play::maybeForkGame(
   }
 
   //Make that move
-  assert(hist.isLegal(board,bestMove,pla));
+  testAssert(hist.isLegal(board,bestMove,pla));
   hist.makeBoardMoveAssumeLegal(board,bestMove,pla,NULL);
   pla = getOpp(pla);
 
@@ -2233,6 +2235,7 @@ void Play::maybeHintForkGame(
   if(hist.isGameFinished)
     return;
 
+  testAssert(pla == hist.presumedNextMovePla);
   if(!hist.isLegal(board,otherGameProps.hintLoc,pla))
     return;
 

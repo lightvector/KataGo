@@ -1,1 +1,2 @@
 {"id":"badoverride","initialStones":[],"moves":[],"rules":"tromp-taylor","komi":7.5,"boardXSize":19,"boardYSize":19,"overrideSettings":{"sldjfslkjf":1234}}
+{"id":"badfield","initialStones":[],"moves":[],"rules":"tromp-taylor","komi":7.5,"boardXSize":19,"boardYSize":19,"overrideSettings":{},"myUnusedField":3,"boardxsize":13}

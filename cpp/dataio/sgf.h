@@ -32,6 +32,7 @@ struct SgfNode {
   const std::vector<std::string> getProperties(const std::string& key) const;
 
   void addProperty(const std::string& key, const std::string& value);
+  void appendComment(const std::string& value);
 
   bool hasPlacements() const;
   void accumPlacements(std::vector<Move>& moves, int xSize, int ySize) const;
@@ -42,6 +43,8 @@ struct SgfNode {
   Player getSgfWinner() const;
   float getKomiOrFail() const;
   float getKomiOrDefault(float defaultKomi) const;
+
+  std::string getPlayerName(Player pla) const;
 };
 
 struct Sgf {
@@ -63,6 +66,8 @@ struct Sgf {
   static std::vector<Sgf*> loadFiles(const std::vector<std::string>& files);
   static std::vector<Sgf*> loadSgfsFile(const std::string& file);
   static std::vector<Sgf*> loadSgfsFiles(const std::vector<std::string>& files);
+
+  static std::vector<Sgf*> loadSgfOrSgfsLogAndIgnoreErrors(const std::string& file, Logger& logger);
 
   XYSize getXYSize() const;
   float getKomiOrFail() const;
@@ -119,6 +124,8 @@ struct Sgf {
     //Return a copy of this sample except one move earlier
     Sgf::PositionSample previousPosition(double newWeight) const;
     bool hasPreviousPositions(int numPrevious) const;
+
+    bool tryGetCurrentBoardHistory(const Rules& rules, Player& nextPlaToMove, BoardHistory& hist) const;
 
     int64_t getCurrentTurnNumber() const;
 

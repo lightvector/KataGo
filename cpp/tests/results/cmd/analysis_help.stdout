@@ -5,7 +5,8 @@ DESCRIPTION:
 
 USAGE: 
 
-   analysis  -config <FILE> ...  [-model <FILE>] [...other flags...]
+   analysis  -config <FILE> ...  [-model <FILE>] [-human-model <FILE>]
+             [...other flags...]
 
 
 Where: 
@@ -17,6 +18,9 @@ Where:
    -model <FILE>
      Neural net model file. Defaults to: (dir containing katago.exe, or
      else ~/.katago)/default_model.bin.gz
+
+   -human-model <FILE>
+     Human SL neural net model file
 
    -override-config <KEYVALUEPAIRS>  (accepted multiple times)
      Override config parameters. Format: "key=value, key=value,..."

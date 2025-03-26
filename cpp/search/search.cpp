@@ -41,6 +41,7 @@ SearchThread::SearchThread(int tIdx, const Search& search)
    history(search.rootHistory),
    graphHash(search.rootGraphHash),
    graphPath(),
+   shouldCountPlayout(false),
    rand(makeSeed(search,tIdx)),
    nnResultBuf(),
    statsBuf(),
@@ -65,6 +66,9 @@ SearchThread::~SearchThread() {
 static const double VALUE_WEIGHT_DEGREES_OF_FREEDOM = 3.0;
 
 Search::Search(SearchParams params, NNEvaluator* nnEval, Logger* lg, const string& rSeed)
+  :Search(params,nnEval,NULL,lg,rSeed)
+{}
+Search::Search(SearchParams params, NNEvaluator* nnEval, NNEvaluator* humanEval, Logger* lg, const string& rSeed)
   :rootPla(P_BLACK),
    rootBoard(),
    rootHistory(),
@@ -91,6 +95,7 @@ Search::Search(SearchParams params, NNEvaluator* nnEval, Logger* lg, const strin
    nonSearchRand(rSeed + string("$nonSearchRand")),
    logger(lg),
    nnEvaluator(nnEval),
+   humanEvaluator(humanEval),
    nnXLen(),
    nnYLen(),
    policySize(),
@@ -111,6 +116,12 @@ Search::Search(SearchParams params, NNEvaluator* nnEval, Logger* lg, const strin
   assert(nnXLen > 0 && nnXLen <= NNPos::MAX_BOARD_LEN);
   assert(nnYLen > 0 && nnYLen <= NNPos::MAX_BOARD_LEN);
   policySize = NNPos::getPolicySize(nnXLen,nnYLen);
+
+  if(humanEvaluator != NULL) {
+    if(humanEvaluator->getNNXLen() != nnXLen || humanEvaluator->getNNYLen() != nnYLen)
+      throw StringError("Search::init - humanEval has different nnXLen or nnYLen");
+  }
+
   rootKoHashTable = new KoHashTable();
 
   rootSafeArea = new Color[Board::MAX_ARR_SIZE];
@@ -270,6 +281,11 @@ void Search::setNNEval(NNEvaluator* nnEval) {
   assert(nnXLen > 0 && nnXLen <= NNPos::MAX_BOARD_LEN);
   assert(nnYLen > 0 && nnYLen <= NNPos::MAX_BOARD_LEN);
   policySize = NNPos::getPolicySize(nnXLen,nnYLen);
+
+  if(humanEvaluator != NULL) {
+    if(humanEvaluator->getNNXLen() != nnXLen || humanEvaluator->getNNYLen() != nnYLen)
+      throw StringError("Search::setNNEval - humanEval has different nnXLen or nnYLen");
+  }
 }
 
 void Search::clearSearch() {
@@ -287,19 +303,7 @@ void Search::clearSearch() {
 }
 
 bool Search::isLegalTolerant(Loc moveLoc, Player movePla) const {
-  //Tolerate sgf files or GTP reporting suicide moves, even if somehow the rules are set to disallow them.
-  bool multiStoneSuicideLegal = true;
-
-  //If we somehow have the same player making multiple moves in a row (possible in GTP or an sgf file),
-  //clear the ko loc - the simple ko loc of a player should not prohibit the opponent playing there!
-  if(movePla != rootPla) {
-    Board copy = rootBoard;
-    copy.clearSimpleKoLoc();
-    return copy.isLegal(moveLoc,movePla,multiStoneSuicideLegal);
-  }
-  else {
-    return rootHistory.isLegalTolerant(rootBoard,moveLoc,movePla);
-  }
+  return rootHistory.isLegalTolerant(rootBoard,moveLoc,movePla);
 }
 
 bool Search::isLegalStrict(Loc moveLoc, Player movePla) const {
@@ -316,6 +320,15 @@ bool Search::makeMove(Loc moveLoc, Player movePla, bool preventEncore) {
 
   if(movePla != rootPla)
     setPlayerAndClearHistory(movePla);
+
+  //If the white handicap bonus changes due to the move, we will also need to recompute everything since this is
+  //basically like a change to the komi.
+  float oldWhiteHandicapBonusScore = rootHistory.whiteHandicapBonusScore;
+
+  //Compute these first so we can know if we need to set forceNonTerminal below.
+  rootHistory.makeBoardMoveAssumeLegal(rootBoard,moveLoc,rootPla,rootKoHashTable,preventEncore);
+  rootPla = getOpp(rootPla);
+  rootKoHashTable->recompute(rootHistory);
 
   if(rootNode != NULL) {
     SearchNode* child = NULL;
@@ -357,7 +370,7 @@ bool Search::makeMove(Loc moveLoc, Player movePla, bool preventEncore) {
 
       //Okay, this is now our new root! Create a copy so as to keep the root out of the node table.
       const bool copySubtreeValueBias = false;
-      const bool forceNonTerminal = true;
+      const bool forceNonTerminal = rootHistory.isGameFinished; // Make sure the root isn't considered terminal if game would be finished.
       rootNode = new SearchNode(*child, forceNonTerminal, copySubtreeValueBias);
       //Sweep over the new root marking it as good (calling NULL function), and then delete anything unmarked.
       //This will include the old copy of the child that we promoted to root.
@@ -371,14 +384,6 @@ bool Search::makeMove(Loc moveLoc, Player movePla, bool preventEncore) {
       clearSearch();
     }
   }
-
-  //If the white handicap bonus changes due to the move, we will also need to recompute everything since this is
-  //basically like a change to the komi.
-  float oldWhiteHandicapBonusScore = rootHistory.whiteHandicapBonusScore;
-
-  rootHistory.makeBoardMoveAssumeLegal(rootBoard,moveLoc,rootPla,rootKoHashTable,preventEncore);
-  rootPla = getOpp(rootPla);
-  rootKoHashTable->recompute(rootHistory);
 
   //Explicitly clear avoid move arrays when we play a move - user needs to respecify them if they want them.
   avoidMoveUntilByLocBlack.clear();
@@ -631,6 +636,14 @@ void Search::beginSearch(bool pondering) {
     //old probabilities without a lot of new search, so clearing ensures a better distribution.
     if(searchParams.avoidRepeatedPatternUtility != 0 || externalPatternBonusTable != nullptr)
       clearSearch();
+    //If we have a human SL net and the parameters are different for the different sides, clear the search.
+    if(humanEvaluator != NULL) {
+      if((searchParams.humanSLPlaExploreProbWeightless != searchParams.humanSLOppExploreProbWeightless) ||
+         (searchParams.humanSLPlaExploreProbWeightful != searchParams.humanSLOppExploreProbWeightful) ||
+         (searchParams.humanSLPlaExploreProbWeightless != searchParams.humanSLRootExploreProbWeightless) ||
+         (searchParams.humanSLPlaExploreProbWeightful != searchParams.humanSLRootExploreProbWeightful))
+        clearSearch();
+    }
   }
   plaThatSearchIsForLastSearch = plaThatSearchIsFor;
   //cout << "BEGINSEARCH " << PlayerIO::playerToString(rootPla) << " " << PlayerIO::playerToString(plaThatSearchIsFor) << endl;
@@ -680,7 +693,7 @@ void Search::beginSearch(bool pondering) {
   if(rootNode == NULL) {
     //Avoid storing the root node in the nodeTable, guarantee that it never is part of a cycle, allocate it directly.
     //Also force that it is non-terminal.
-    const bool forceNonTerminal = true;
+    const bool forceNonTerminal = rootHistory.isGameFinished; // Make sure the root isn't considered terminal if game would be finished.
     rootNode = new SearchNode(rootPla, forceNonTerminal, createMutexIdxForNode(dummyThread));
   }
   else {
@@ -1079,7 +1092,11 @@ bool Search::runSinglePlayout(SearchThread& thread, double upperBoundVisitsLeft)
   //Store this value, used for futile-visit pruning this thread's root children selections.
   thread.upperBoundVisitsLeft = upperBoundVisitsLeft;
 
+  //Prep this value, playoutDescend will set it to true if we do have a playout
+  thread.shouldCountPlayout = false;
+
   bool finishedPlayout = playoutDescend(thread,*rootNode,true);
+  (void)finishedPlayout;
 
   //Restore thread state back to the root state
   thread.pla = rootPla;
@@ -1088,7 +1105,7 @@ bool Search::runSinglePlayout(SearchThread& thread, double upperBoundVisitsLeft)
   thread.graphHash = rootGraphHash;
   thread.graphPath.clear();
 
-  return finishedPlayout;
+  return thread.shouldCountPlayout;
 }
 
 bool Search::playoutDescend(
@@ -1096,9 +1113,10 @@ bool Search::playoutDescend(
   bool isRoot
 ) {
   //Hit terminal node, finish
-  //forceNonTerminal marks special nodes where we cannot end the game. This includes the root, since if we are searching a position
+  //forceNonTerminal marks special nodes where we cannot end the game, and is set IF they would normally be finished.
+  //This includes the root if the root would be game-ended, since if we are searching a position
   //we presumably want to actually explore deeper and get a result. Also it includes the node following a pass from the root in
-  //the case where we are conservativePass. For friendlyPassOk rules, it may include deeper nodes.
+  //the case where we are conservativePass and the game would be ended. For friendlyPassOk rules, it may include deeper nodes.
   //Note that we also carefully clear the search when a pass from the root would be terminal, so nodes should never need to switch
   //status after tree reuse in the latter case.
   if(thread.history.isGameFinished && !node.forceNonTerminal) {
@@ -1113,6 +1131,7 @@ bool Search::playoutDescend(
       double lead = 0.0;
       double weight = (searchParams.useUncertainty && nnEvaluator->supportsShorttermError()) ? searchParams.uncertaintyMaxWeight : 1.0;
       addLeafValue(node, winLossValue, noResultValue, scoreMean, scoreMeanSq, lead, weight, true, false);
+      thread.shouldCountPlayout = true;
       return true;
     }
     else {
@@ -1123,6 +1142,7 @@ bool Search::playoutDescend(
       double lead = scoreMean;
       double weight = (searchParams.useUncertainty && nnEvaluator->supportsShorttermError()) ? searchParams.uncertaintyMaxWeight : 1.0;
       addLeafValue(node, winLossValue, noResultValue, scoreMean, scoreMeanSq, lead, weight, true, false);
+      thread.shouldCountPlayout = true;
       return true;
     }
   }
@@ -1148,6 +1168,7 @@ bool Search::playoutDescend(
       //Perform the nn evaluation and finish!
       node.initializeChildren();
       node.state.store(SearchNode::STATE_EXPANDED0, std::memory_order_seq_cst);
+      thread.shouldCountPlayout = true;
       return true;
     }
   }
@@ -1163,10 +1184,11 @@ bool Search::playoutDescend(
   int numChildrenFound;
   int bestChildIdx;
   Loc bestChildMoveLoc;
+  bool countEdgeVisit;
 
   SearchNode* child = NULL;
   while(true) {
-    selectBestChildToDescend(thread,node,nodeState,numChildrenFound,bestChildIdx,bestChildMoveLoc,isRoot);
+    selectBestChildToDescend(thread,node,nodeState,numChildrenFound,bestChildIdx,bestChildMoveLoc,countEdgeVisit,isRoot);
 
     //The absurdly rare case that the move chosen is not legal
     //(this should only happen either on a bug or where the nnHash doesn't have full legality information or when there's an actual hash collision).
@@ -1193,37 +1215,19 @@ bool Search::playoutDescend(
         }
       }
 
-      //As isReInit is true, we don't return, just keep going, since we didn't count this as a true visit in the node stats
-      nodeState = node.state.load(std::memory_order_acquire);
-      selectBestChildToDescend(thread,node,nodeState,numChildrenFound,bestChildIdx,bestChildMoveLoc,isRoot);
-
-      if(bestChildIdx >= 0) {
-        //New child
-        if(bestChildIdx >= numChildrenFound) {
-          //In THEORY it might still be illegal this time! This would be the case if when we initialized the NN output, we raced
-          //against someone reInitializing the output to add dirichlet noise or something, who was doing so based on an older cached
-          //nnOutput that still had the illegal move. If so, then just fail this playout and try again.
-          if(!thread.history.isLegal(thread.board,bestChildMoveLoc,thread.pla))
-            return false;
-        }
-        //Existing child
-        else {
-          //An illegal move should make it into the tree only in case of cycle or bad transposition
-          //We want the search to continue as best it can, so we increment visits so other search branches will still make progress.
-          SearchNodeChildrenReference children = node.getChildren(nodeState);
-          int childrenCapacity = children.getCapacity();
-          assert(childrenCapacity > bestChildIdx);
-          (void)childrenCapacity;
-          children[bestChildIdx].addEdgeVisits(1);
-          return true;
-        }
-      }
+      //Give up on this playout now that we've forced the nn output to be consistent legality of this path.
+      //Return TRUE though, so that the parent path we traversed increments its edge visits.
+      //We want the search to continue as best it can, so we increment visits so search will still make progress
+      //even if this keeps happening in some really bad transposition or something.
+      thread.shouldCountPlayout = true;
+      return true;
     }
 
     if(bestChildIdx <= -1) {
       //This might happen if all moves have been forbidden. The node will just get stuck counting visits without expanding
       //and we won't do any search.
       addCurrentNNOutputAsLeafValue(node,false);
+      thread.shouldCountPlayout = true;
       return true;
     }
 
@@ -1245,8 +1249,9 @@ bool Search::playoutDescend(
       (void)childrenCapacity;
 
       //We can only test this before we make the move, so do it now.
-      const bool forceNonTerminalDueToFriendlyPass =
-        bestChildMoveLoc == Board::PASS_LOC && thread.history.shouldSuppressEndGameFromFriendlyPass(thread.board, thread.pla);
+      const bool canForceNonTerminalDueToFriendlyPass =
+        bestChildMoveLoc == Board::PASS_LOC &&
+        thread.history.shouldSuppressEndGameFromFriendlyPass(thread.board, thread.pla);
 
       //Make the move! We need to make the move before we create the node so we can see the new state and get the right graphHash.
       thread.history.makeBoardMoveAssumeLegal(thread.board,bestChildMoveLoc,thread.pla,rootKoHashTable);
@@ -1258,9 +1263,9 @@ bool Search::playoutDescend(
 
       //If conservative pass, passing from the root is always non-terminal
       //If friendly passing rules, we might also be non-terminal
-      const bool forceNonTerminal = bestChildMoveLoc == Board::PASS_LOC && (
+      const bool forceNonTerminal = bestChildMoveLoc == Board::PASS_LOC && thread.history.isGameFinished && (
         (searchParams.conservativePass && (&node == rootNode)) ||
-        forceNonTerminalDueToFriendlyPass
+        canForceNonTerminalDueToFriendlyPass
       );
       child = allocateOrFindNode(thread, thread.pla, bestChildMoveLoc, forceNonTerminal, thread.graphHash);
       child->virtualLosses.fetch_add(1,std::memory_order_release);
@@ -1287,9 +1292,11 @@ bool Search::playoutDescend(
 
       //If edge visits is too much smaller than the child's visits, we can avoid descending.
       //Instead just add edge visits and treat that as a visit.
-      if(maybeCatchUpEdgeVisits(thread, node, child, nodeState, bestChildIdx)) {
+      //If we're not counting edge visits, then we're deliberately trying to add child visits beyond edge visits, skip
+      if(countEdgeVisit && maybeCatchUpEdgeVisits(thread, node, child, nodeState, bestChildIdx)) {
         updateStatsAfterPlayout(node,thread,isRoot);
         child->virtualLosses.fetch_add(-1,std::memory_order_release);
+        thread.shouldCountPlayout = true;
         return true;
       }
     }
@@ -1303,9 +1310,11 @@ bool Search::playoutDescend(
 
       //If edge visits is too much smaller than the child's visits, we can avoid descending.
       //Instead just add edge visits and treat that as a visit.
-      if(maybeCatchUpEdgeVisits(thread, node, child, nodeState, bestChildIdx)) {
+      //If we're not counting edge visits, then we're deliberately trying to add child visits beyond edge visits, skip
+      if(countEdgeVisit && maybeCatchUpEdgeVisits(thread, node, child, nodeState, bestChildIdx)) {
         updateStatsAfterPlayout(node,thread,isRoot);
         child->virtualLosses.fetch_add(-1,std::memory_order_release);
+        thread.shouldCountPlayout = true;
         return true;
       }
 
@@ -1324,22 +1333,29 @@ bool Search::playoutDescend(
   //If somehow we find ourselves in a cycle, increment edge visits and terminate the playout.
   //Basically if the search likes a cycle... just reinforce playing around the cycle and hope we return something
   //reasonable in the end of the search.
+  //Note that this means that child visits >= edge visits is NOT an invariant.
   {
     std::pair<std::unordered_set<SearchNode*>::iterator,bool> result = thread.graphPath.insert(child);
     //No insertion, child was already there
     if(!result.second) {
-      SearchNodeChildrenReference children = node.getChildren(nodeState);
-      children[bestChildIdx].addEdgeVisits(1);
-      updateStatsAfterPlayout(node,thread,isRoot);
+      if(countEdgeVisit) {
+        SearchNodeChildrenReference children = node.getChildren(nodeState);
+        children[bestChildIdx].addEdgeVisits(1);
+        updateStatsAfterPlayout(node,thread,isRoot);
+        thread.shouldCountPlayout = true;
+      }
       child->virtualLosses.fetch_add(-1,std::memory_order_release);
-      return true;
+      // If we didn't count an edge visit, none of the parents need to update either.
+      return countEdgeVisit;
     }
   }
 
   //Recurse!
-  bool finishedPlayout = playoutDescend(thread,*child,false);
+  bool shouldUpdateChildAncestors = playoutDescend(thread,*child,false);
+
   //Update this node stats
-  if(finishedPlayout) {
+  shouldUpdateChildAncestors = shouldUpdateChildAncestors && countEdgeVisit;
+  if(shouldUpdateChildAncestors) {
     nodeState = node.state.load(std::memory_order_acquire);
     SearchNodeChildrenReference children = node.getChildren(nodeState);
     children[bestChildIdx].addEdgeVisits(1);
@@ -1347,7 +1363,7 @@ bool Search::playoutDescend(
   }
   child->virtualLosses.fetch_add(-1,std::memory_order_release);
 
-  return finishedPlayout;
+  return shouldUpdateChildAncestors;
 }
 
 

@@ -30,6 +30,8 @@ struct ConvLayerDesc {
   ConvLayerDesc& operator=(const ConvLayerDesc&) = delete;
 
   ConvLayerDesc& operator=(ConvLayerDesc&& other);
+
+  double getSpatialConvDepth() const;
 };
 
 struct BatchNormLayerDesc {
@@ -117,6 +119,7 @@ struct ResidualBlockDesc {
   ResidualBlockDesc& operator=(ResidualBlockDesc&& other);
 
   void iterConvLayers(std::function<void(const ConvLayerDesc& dest)> f) const;
+  double getSpatialConvDepth() const;
 };
 
 struct GlobalPoolingResidualBlockDesc {
@@ -143,6 +146,7 @@ struct GlobalPoolingResidualBlockDesc {
   GlobalPoolingResidualBlockDesc& operator=(GlobalPoolingResidualBlockDesc&& other);
 
   void iterConvLayers(std::function<void(const ConvLayerDesc& dest)> f) const;
+  double getSpatialConvDepth() const;
 };
 
 struct NestedBottleneckResidualBlockDesc {
@@ -169,7 +173,32 @@ struct NestedBottleneckResidualBlockDesc {
   NestedBottleneckResidualBlockDesc& operator=(NestedBottleneckResidualBlockDesc&& other);
 
   void iterConvLayers(std::function<void(const ConvLayerDesc& dest)> f) const;
+  double getSpatialConvDepth() const;
 };
+
+struct SGFMetadataEncoderDesc {
+  std::string name;
+  int metaEncoderVersion;
+  int numInputMetaChannels;
+  MatMulLayerDesc mul1;
+  MatBiasLayerDesc bias1;
+  ActivationLayerDesc act1;
+  MatMulLayerDesc mul2;
+  MatBiasLayerDesc bias2;
+  ActivationLayerDesc act2;
+  MatMulLayerDesc mul3;
+
+  SGFMetadataEncoderDesc();
+  ~SGFMetadataEncoderDesc();
+  SGFMetadataEncoderDesc(std::istream& in, int modelVersion, int metaEncoderVersion, bool binaryFloats);
+  SGFMetadataEncoderDesc(SGFMetadataEncoderDesc&& other);
+
+  SGFMetadataEncoderDesc(const SGFMetadataEncoderDesc&) = delete;
+  SGFMetadataEncoderDesc& operator=(const SGFMetadataEncoderDesc&) = delete;
+
+  SGFMetadataEncoderDesc& operator=(SGFMetadataEncoderDesc&& other);
+};
+
 
 constexpr int ORDINARY_BLOCK_KIND = 0;
 constexpr int GLOBAL_POOLING_BLOCK_KIND = 2;
@@ -183,15 +212,19 @@ struct TrunkDesc {
   int midNumChannels;      // Currently every plain residual block must have the same number of mid conv channels
   int regularNumChannels;  // Currently every gpool residual block must have the same number of regular conv hannels
   int gpoolNumChannels;    // Currently every gpooling residual block must have the same number of gpooling conv channels
+
+  int metaEncoderVersion;
+
   ConvLayerDesc initialConv;
   MatMulLayerDesc initialMatMul;
+  SGFMetadataEncoderDesc sgfMetadataEncoder;
   std::vector<std::pair<int, unique_ptr_void>> blocks;
   BatchNormLayerDesc trunkTipBN;
   ActivationLayerDesc trunkTipActivation;
 
   TrunkDesc();
   ~TrunkDesc();
-  TrunkDesc(std::istream& in, int modelVersion, bool binaryFloats);
+  TrunkDesc(std::istream& in, int modelVersion, bool binaryFloats, int metaEncoderVersion);
   TrunkDesc(TrunkDesc&& other);
 
   TrunkDesc(const TrunkDesc&) = delete;
@@ -200,6 +233,7 @@ struct TrunkDesc {
   TrunkDesc& operator=(TrunkDesc&& other);
 
   void iterConvLayers(std::function<void(const ConvLayerDesc& dest)> f) const;
+  double getSpatialConvDepth() const;
 };
 
 struct PolicyHeadDesc {
@@ -279,10 +313,13 @@ struct ModelDesc {
   int modelVersion;
   int numInputChannels;
   int numInputGlobalChannels;
+  int numInputMetaChannels;
   int numPolicyChannels;
   int numValueChannels;
   int numScoreValueChannels;
   int numOwnershipChannels;
+
+  int metaEncoderVersion;
 
   ModelPostProcessParams postProcessParams;
 
@@ -302,6 +339,7 @@ struct ModelDesc {
 
   void iterConvLayers(std::function<void(const ConvLayerDesc& dest)> f) const;
   int maxConvChannels(int convXSize, int convYSize) const;
+  double getTrunkSpatialConvDepth() const;
 
   //Loads a model from a file that may or may not be gzipped, storing it in descBuf
   //If expectedSha256 is nonempty, will also verify sha256 of the loaded data.

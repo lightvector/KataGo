@@ -1,0 +1,25 @@
+: Command: samplesgfs
+: Command: -sgfdir
+: Command: tests/data/sampletest2/
+: Command: -outdir
+: Command: tests/results/sampletest2-basic/
+: Command: -sample-prob
+: Command: 1
+: Command: -force-sample-weight
+: Command: 10.0
+: Command: -hash-comments
+: Command: -training-weight
+: Command: 0.36
+: Command: -min-weight
+: Command: 0.01
+: Command: -turn-weight-lambda
+: Command: 0.01
+: Command: -flip-if-pass
+: Command: -for-testing
+: Found 1 sgf files!
+: Found 0 sgfs files!
+: Loaded 0 excludes
+: Kept 32 start positions
+: Excluded 0/1 sgf files
+: Filtered 0/1 sgf files
+: All done

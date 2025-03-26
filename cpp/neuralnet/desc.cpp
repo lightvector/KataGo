@@ -7,6 +7,7 @@
 #include "../core/global.h"
 #include "../core/fileutils.h"
 #include "../neuralnet/modelversion.h"
+#include "../neuralnet/sgfmetadata.h"
 #include "../neuralnet/nninterface.h"
 
 using namespace std;
@@ -165,6 +166,14 @@ ConvLayerDesc& ConvLayerDesc::operator=(ConvLayerDesc&& other) {
   dilationX = other.dilationX;
   weights = std::move(other.weights);
   return *this;
+}
+
+double ConvLayerDesc::getSpatialConvDepth() const {
+  // 1x1 = 0
+  // 3x3 = 1
+  // 5x5 = 2
+  // ...
+  return (convYSize + convXSize - 2) / 4.0;
 }
 
 //-----------------------------------------------------------------------------
@@ -402,6 +411,11 @@ void ResidualBlockDesc::iterConvLayers(std::function<void(const ConvLayerDesc& d
   f(finalConv);
 }
 
+double ResidualBlockDesc::getSpatialConvDepth() const {
+  return regularConv.getSpatialConvDepth() + finalConv.getSpatialConvDepth();
+}
+
+
 
 //-----------------------------------------------------------------------------
 
@@ -484,6 +498,10 @@ void GlobalPoolingResidualBlockDesc::iterConvLayers(std::function<void(const Con
   f(finalConv);
 }
 
+double GlobalPoolingResidualBlockDesc::getSpatialConvDepth() const {
+  return regularConv.getSpatialConvDepth() + finalConv.getSpatialConvDepth();
+}
+
 //-----------------------------------------------------------------------------
 
 NestedBottleneckResidualBlockDesc::NestedBottleneckResidualBlockDesc() {}
@@ -546,19 +564,41 @@ void NestedBottleneckResidualBlockDesc::iterConvLayers(std::function<void(const 
   f(preConv);
   for(int i = 0; i < blocks.size(); i++) {
     if(blocks[i].first == ORDINARY_BLOCK_KIND) {
-      ResidualBlockDesc* desc = (ResidualBlockDesc*)blocks[i].second.get();
+      const ResidualBlockDesc* desc = (const ResidualBlockDesc*)blocks[i].second.get();
       desc->iterConvLayers(f);
     }
     else if(blocks[i].first == GLOBAL_POOLING_BLOCK_KIND) {
-      GlobalPoolingResidualBlockDesc* desc = (GlobalPoolingResidualBlockDesc*)blocks[i].second.get();
+      const GlobalPoolingResidualBlockDesc* desc = (const GlobalPoolingResidualBlockDesc*)blocks[i].second.get();
       desc->iterConvLayers(f);
     }
     else if(blocks[i].first == NESTED_BOTTLENECK_BLOCK_KIND) {
-      NestedBottleneckResidualBlockDesc* desc = (NestedBottleneckResidualBlockDesc*)blocks[i].second.get();
+      const NestedBottleneckResidualBlockDesc* desc = (const NestedBottleneckResidualBlockDesc*)blocks[i].second.get();
       desc->iterConvLayers(f);
     }
   }
   f(postConv);
+}
+
+double NestedBottleneckResidualBlockDesc::getSpatialConvDepth() const {
+  double depth = 0;
+  depth += preConv.getSpatialConvDepth();
+
+  for(int i = 0; i < blocks.size(); i++) {
+    if(blocks[i].first == ORDINARY_BLOCK_KIND) {
+      const ResidualBlockDesc* desc = (const ResidualBlockDesc*)blocks[i].second.get();
+      depth += desc->getSpatialConvDepth();
+    }
+    else if(blocks[i].first == GLOBAL_POOLING_BLOCK_KIND) {
+      const GlobalPoolingResidualBlockDesc* desc = (const GlobalPoolingResidualBlockDesc*)blocks[i].second.get();
+      depth += desc->getSpatialConvDepth();
+    }
+    else if(blocks[i].first == NESTED_BOTTLENECK_BLOCK_KIND) {
+      const NestedBottleneckResidualBlockDesc* desc = (const NestedBottleneckResidualBlockDesc*)blocks[i].second.get();
+      depth += desc->getSpatialConvDepth();
+    }
+  }
+  depth += postConv.getSpatialConvDepth();
+  return depth;
 }
 
 //-----------------------------------------------------------------------------
@@ -650,6 +690,80 @@ static void parseResidualBlockStack(
 
 //-----------------------------------------------------------------------------
 
+SGFMetadataEncoderDesc::SGFMetadataEncoderDesc()
+  : metaEncoderVersion(0),
+    numInputMetaChannels(0)
+{}
+
+SGFMetadataEncoderDesc::SGFMetadataEncoderDesc(istream& in, int modelVersion, int metaEncVersion, bool binaryFloats) {
+  in >> name;
+
+  if(in.fail())
+    throw StringError(name + ": sgf metadata encoder failed to parse name");
+
+  metaEncoderVersion = metaEncVersion;
+  in >> numInputMetaChannels;
+
+  if(in.fail())
+    throw StringError(name + ": sgf metadata encoder failed to parse num input channels");
+  int expectedNumInputMetaChannels = NNModelVersion::getNumInputMetaChannels(metaEncoderVersion);
+  if(numInputMetaChannels != expectedNumInputMetaChannels)
+    throw StringError(
+      name + Global::strprintf(": number of in channels (%d) did not match expected (%d)", numInputMetaChannels, expectedNumInputMetaChannels)
+    );
+
+  mul1 = MatMulLayerDesc(in,binaryFloats);
+  bias1 = MatBiasLayerDesc(in,binaryFloats);
+  act1 = ActivationLayerDesc(in,modelVersion);
+  mul2 = MatMulLayerDesc(in,binaryFloats);
+  bias2 = MatBiasLayerDesc(in,binaryFloats);
+  act2 = ActivationLayerDesc(in,modelVersion);
+  mul3 = MatMulLayerDesc(in,binaryFloats);
+
+  if(in.fail())
+    throw StringError(name + ": sgf metadata encoder istream fail after parsing layers");
+
+  if(mul1.outChannels != bias1.numChannels)
+    throw StringError(
+      name +
+      Global::strprintf(": mul1.outChannels (%d) != bias1.numChannels (%d)", mul1.outChannels, bias1.numChannels));
+
+  if(mul2.inChannels != mul1.outChannels)
+    throw StringError(
+      name + Global::strprintf(
+               ": mul2.inChannels (%d) != mul1.outChannels (%d)", mul2.inChannels, mul1.outChannels));
+
+  if(mul2.outChannels != bias2.numChannels)
+    throw StringError(
+      name +
+      Global::strprintf(": mul2.outChannels (%d) != bias2.numChannels (%d)", mul2.outChannels, bias2.numChannels));
+  if(mul2.outChannels != mul3.inChannels)
+    throw StringError(
+      name +
+      Global::strprintf(": mul2.outChannels (%d) != mul3.inChannels (%d)", mul2.outChannels, mul3.inChannels));
+}
+
+SGFMetadataEncoderDesc::~SGFMetadataEncoderDesc() {}
+
+SGFMetadataEncoderDesc::SGFMetadataEncoderDesc(SGFMetadataEncoderDesc&& other) {
+  *this = std::move(other);
+}
+
+SGFMetadataEncoderDesc& SGFMetadataEncoderDesc::operator=(SGFMetadataEncoderDesc&& other) {
+  name = std::move(other.name);
+  metaEncoderVersion = other.metaEncoderVersion;
+  numInputMetaChannels = other.numInputMetaChannels;
+  mul1 = std::move(other.mul1);
+  bias1 = std::move(other.bias1);
+  act1 = std::move(other.act1);
+  mul2 = std::move(other.mul2);
+  bias2 = std::move(other.bias2);
+  act2 = std::move(other.act2);
+  mul3 = std::move(other.mul3);
+  return *this;
+}
+
+//-----------------------------------------------------------------------------
 
 TrunkDesc::TrunkDesc()
   : modelVersion(-1),
@@ -657,9 +771,11 @@ TrunkDesc::TrunkDesc()
     trunkNumChannels(0),
     midNumChannels(0),
     regularNumChannels(0),
-    gpoolNumChannels(0) {}
+    gpoolNumChannels(0),
+    metaEncoderVersion(0)
+{}
 
-TrunkDesc::TrunkDesc(istream& in, int vrsn, bool binaryFloats) {
+TrunkDesc::TrunkDesc(istream& in, int vrsn, bool binaryFloats, int metaEncVersion) {
   in >> name;
   modelVersion = vrsn;
   in >> numBlocks;
@@ -669,6 +785,8 @@ TrunkDesc::TrunkDesc(istream& in, int vrsn, bool binaryFloats) {
   int dilatedNumChannels; //unused
   in >> dilatedNumChannels;
   in >> gpoolNumChannels;
+
+  metaEncoderVersion = metaEncVersion;
 
   if(modelVersion >= 15) {
     int unused;
@@ -709,6 +827,25 @@ TrunkDesc::TrunkDesc(istream& in, int vrsn, bool binaryFloats) {
                initialMatMul.outChannels,
                trunkNumChannels));
 
+  if(metaEncoderVersion > 0) {
+    sgfMetadataEncoder = SGFMetadataEncoderDesc(in,modelVersion,metaEncoderVersion,binaryFloats);
+    int numInputMetaChannels = NNModelVersion::getNumInputMetaChannels(metaEncoderVersion);
+    if(numInputMetaChannels != sgfMetadataEncoder.mul1.inChannels)
+      throw StringError(
+        name + Global::strprintf(
+               ": %s sgfMetadataEncoder.mul1.inChannels (%d) != numInputMetaChannels (%d)",
+               sgfMetadataEncoder.name.c_str(),
+               sgfMetadataEncoder.mul1.inChannels,
+               numInputMetaChannels));
+    if(sgfMetadataEncoder.mul3.outChannels != trunkNumChannels)
+      throw StringError(
+        name + Global::strprintf(
+               ": %s sgfMetadataEncoder.mul3.outChannels (%d) != trunkNumChannels (%d)",
+               sgfMetadataEncoder.name.c_str(),
+               sgfMetadataEncoder.mul3.outChannels,
+               trunkNumChannels));
+  }
+
   parseResidualBlockStack(in, modelVersion, binaryFloats, name, numBlocks, trunkNumChannels, blocks);
 
   trunkTipBN = BatchNormLayerDesc(in,binaryFloats);
@@ -734,8 +871,10 @@ TrunkDesc::TrunkDesc(TrunkDesc&& other) {
   midNumChannels = other.midNumChannels;
   regularNumChannels = other.regularNumChannels;
   gpoolNumChannels = other.gpoolNumChannels;
+  metaEncoderVersion = other.metaEncoderVersion;
   initialConv = std::move(other.initialConv);
   initialMatMul = std::move(other.initialMatMul);
+  sgfMetadataEncoder = std::move(other.sgfMetadataEncoder);
   blocks = std::move(other.blocks);
   trunkTipBN = std::move(other.trunkTipBN);
   trunkTipActivation = std::move(other.trunkTipActivation);
@@ -749,8 +888,10 @@ TrunkDesc& TrunkDesc::operator=(TrunkDesc&& other) {
   midNumChannels = other.midNumChannels;
   regularNumChannels = other.regularNumChannels;
   gpoolNumChannels = other.gpoolNumChannels;
+  metaEncoderVersion = other.metaEncoderVersion;
   initialConv = std::move(other.initialConv);
   initialMatMul = std::move(other.initialMatMul);
+  sgfMetadataEncoder = std::move(other.sgfMetadataEncoder);
   blocks = std::move(other.blocks);
   trunkTipBN = std::move(other.trunkTipBN);
   trunkTipActivation = std::move(other.trunkTipActivation);
@@ -773,6 +914,27 @@ void TrunkDesc::iterConvLayers(std::function<void(const ConvLayerDesc& desc)> f)
       desc->iterConvLayers(f);
     }
   }
+}
+
+double TrunkDesc::getSpatialConvDepth() const {
+  double depth = 0;
+  depth += initialConv.getSpatialConvDepth();
+
+  for(int i = 0; i < blocks.size(); i++) {
+    if(blocks[i].first == ORDINARY_BLOCK_KIND) {
+      const ResidualBlockDesc* desc = (const ResidualBlockDesc*)blocks[i].second.get();
+      depth += desc->getSpatialConvDepth();
+    }
+    else if(blocks[i].first == GLOBAL_POOLING_BLOCK_KIND) {
+      const GlobalPoolingResidualBlockDesc* desc = (const GlobalPoolingResidualBlockDesc*)blocks[i].second.get();
+      depth += desc->getSpatialConvDepth();
+    }
+    else if(blocks[i].first == NESTED_BOTTLENECK_BLOCK_KIND) {
+      const NestedBottleneckResidualBlockDesc* desc = (const NestedBottleneckResidualBlockDesc*)blocks[i].second.get();
+      depth += desc->getSpatialConvDepth();
+    }
+  }
+  return depth;
 }
 
 //-----------------------------------------------------------------------------
@@ -1028,10 +1190,12 @@ ModelDesc::ModelDesc()
   : modelVersion(-1),
     numInputChannels(0),
     numInputGlobalChannels(0),
+    numInputMetaChannels(0),
     numPolicyChannels(0),
     numValueChannels(0),
     numScoreValueChannels(0),
     numOwnershipChannels(0),
+    metaEncoderVersion(0),
     postProcessParams()
 {}
 
@@ -1103,8 +1267,26 @@ ModelDesc::ModelDesc(istream& in, const string& sha256_, bool binaryFloats) {
   }
 
   if(modelVersion >= 15) {
+    in >> metaEncoderVersion;
+    if(in.fail())
+      throw StringError(name + ": model failed to parse metaEncoderVersion");
+    if(metaEncoderVersion < 0)
+      throw StringError(name + ": model metaEncoderVersion unexpected value: " + Global::intToString(metaEncoderVersion));
+    if(metaEncoderVersion > 1)
+      throw StringError(
+        name + ": model metaEncoderVersion not implemented, you may need a newer KataGo version, value was: " +
+        Global::intToString(metaEncoderVersion)
+      );
+    numInputMetaChannels = NNModelVersion::getNumInputMetaChannels(metaEncoderVersion);
+    if(metaEncoderVersion > 0 && numInputMetaChannels != SGFMetadata::METADATA_INPUT_NUM_CHANNELS) {
+      throw StringError(
+        name + Global::strprintf(
+          ": numInputMetaChannels (%d) != METADATA_INPUT_NUM_CHANNELS (%d)",
+          numInputMetaChannels,
+          SGFMetadata::METADATA_INPUT_NUM_CHANNELS));
+    }
+
     int unused;
-    in >> unused;
     in >> unused;
     in >> unused;
     in >> unused;
@@ -1115,8 +1297,12 @@ ModelDesc::ModelDesc(istream& in, const string& sha256_, bool binaryFloats) {
     if(in.fail())
       throw StringError(name + ": model failed to parse unused params");
   }
+  else {
+    metaEncoderVersion = 0;
+    numInputMetaChannels = 0;
+  }
 
-  trunk = TrunkDesc(in, modelVersion, binaryFloats);
+  trunk = TrunkDesc(in, modelVersion, binaryFloats, metaEncoderVersion);
   policyHead = PolicyHeadDesc(in, modelVersion, binaryFloats);
   valueHead = ValueHeadDesc(in, modelVersion, binaryFloats);
 
@@ -1173,10 +1359,12 @@ ModelDesc& ModelDesc::operator=(ModelDesc&& other) {
   modelVersion = other.modelVersion;
   numInputChannels = other.numInputChannels;
   numInputGlobalChannels = other.numInputGlobalChannels;
+  numInputMetaChannels = other.numInputMetaChannels;
   numPolicyChannels = other.numPolicyChannels;
   numValueChannels = other.numValueChannels;
   numScoreValueChannels = other.numScoreValueChannels;
   numOwnershipChannels = other.numOwnershipChannels;
+  metaEncoderVersion = other.metaEncoderVersion;
   postProcessParams = other.postProcessParams;
   trunk = std::move(other.trunk);
   policyHead = std::move(other.policyHead);
@@ -1202,6 +1390,10 @@ int ModelDesc::maxConvChannels(int convXSize, int convYSize) const {
   };
   iterConvLayers(f);
   return c;
+}
+
+double ModelDesc::getTrunkSpatialConvDepth() const {
+  return trunk.getSpatialConvDepth();
 }
 
 struct NonCopyingStreamBuf : public std::streambuf

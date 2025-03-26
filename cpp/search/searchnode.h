@@ -198,6 +198,7 @@ struct SearchNode {
   //After this is non-NULL, might rarely change mid-search, but it is guaranteed that old values remain
   //valid to access for the duration of the search and will not be deallocated.
   std::atomic<std::shared_ptr<NNOutput>*> nnOutput;
+  std::atomic<std::shared_ptr<NNOutput>*> humanOutput;
 
   //Used to coordinate various multithreaded updates.
   //During search, for updating nnOutput when it needs recomputation at the root if it wasn't updated yet.
@@ -246,12 +247,16 @@ struct SearchNode {
   //any time up until a new operation is peformed (such as starting a new search, or making a move, or setting params).
   NNOutput* getNNOutput();
   const NNOutput* getNNOutput() const;
+  NNOutput* getHumanOutput();
+  const NNOutput* getHumanOutput() const;
 
   //Always replaces the current nnoutput, and stores the existing one in the thread for later deletion.
   //Returns true if there was NOT already an nnOutput
   bool storeNNOutput(std::shared_ptr<NNOutput>* newNNOutput, SearchThread& thread);
+  bool storeHumanOutput(std::shared_ptr<NNOutput>* newHumanOutput, SearchThread& thread);
   //Only stores if there isn't an nnOutput already. Returns true if it was stored.
   bool storeNNOutputIfNull(std::shared_ptr<NNOutput>* newNNOutput);
+  bool storeHumanOutputIfNull(std::shared_ptr<NNOutput>* newHumanOutput);
 
   //Used within search to update state and allocate children arrays
   void initializeChildren();

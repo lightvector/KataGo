@@ -164,12 +164,13 @@ class KataHelpOutput : public TCLAP::StdOutput
 
 KataGoCommandLine::KataGoCommandLine(const string& message)
   :TCLAP::CmdLine(message, ' ', Version::getKataGoVersionFullInfo(),true),
-  modelFileArg(NULL),
-  configFileArg(NULL),
-  overrideConfigArg(NULL),
-  defaultConfigFileName(),
-  numBuiltInArgs((int)_argList.size()),
-  helpOutput(NULL)
+   modelFileArg(NULL),
+   humanModelFileArg(NULL),
+   configFileArg(NULL),
+   overrideConfigArg(NULL),
+   defaultConfigFileName(),
+   numBuiltInArgs((int)_argList.size()),
+   helpOutput(NULL)
 {
   helpOutput = new KataHelpOutput(numBuiltInArgs, -1);
   setOutput(helpOutput);
@@ -177,6 +178,7 @@ KataGoCommandLine::KataGoCommandLine(const string& message)
 
 KataGoCommandLine::~KataGoCommandLine() {
   delete modelFileArg;
+  delete humanModelFileArg;
   delete configFileArg;
   delete overrideConfigArg;
   delete helpOutput;
@@ -207,6 +209,15 @@ void KataGoCommandLine::addModelFileArg() {
   string defaultPath = "";
   modelFileArg = new TCLAP::ValueArg<string>("","model",helpDesc,required,defaultPath,"FILE");
   this->add(*modelFileArg);
+}
+
+void KataGoCommandLine::addHumanModelFileArg() {
+  assert(humanModelFileArg == NULL);
+  string helpDesc = "Human SL neural net model file";
+  bool required = false;
+  string defaultPath = "";
+  humanModelFileArg = new TCLAP::ValueArg<string>("","human-model",helpDesc,required,defaultPath,"FILE");
+  this->add(*humanModelFileArg);
 }
 
 //Empty string indicates no default
@@ -269,6 +280,12 @@ string KataGoCommandLine::getModelFile() const {
 
 bool KataGoCommandLine::modelFileIsDefault() const {
   return modelFileArg->getValue().empty();
+}
+
+
+string KataGoCommandLine::getHumanModelFile() const {
+  assert(humanModelFileArg != NULL);
+  return humanModelFileArg->getValue();
 }
 
 vector<string> KataGoCommandLine::getConfigFiles() const {

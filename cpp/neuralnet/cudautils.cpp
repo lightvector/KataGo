@@ -98,14 +98,22 @@ void CudaUtils::debugPrint4D(const string& name, const void* deviceBuf, int batc
   cout << name << endl;
   cout << std::setprecision(8);
   int i = 0;
+  double total1 = 0;
+  double total2 = 0;
+  double total3 = 0;
   for(int n = 0; n<batchSize; n++) {
     cout << "-(n=" << n << ")--------------------" << endl;
     if(useNHWC) {
       for(int y = 0; y<ySize; y++) {
         cout << "(y=" << y << ")" << endl;
         for(int x = 0; x<xSize; x++) {
-          for(int c = 0; c<cSize; c++)
-            cout << values[i++] << " ";
+          for(int c = 0; c<cSize; c++) {
+            float value = values[i++];
+            total1 += (((c + y / 2 + x / 3 + n / 4) % 2)*2-1) * value;
+            total2 += (((c + y / 3 + x / 1 + n / 3) % 2)*2-1) * value;
+            total3 += (((c + y / 5 + x / 2 + n / 2) % 2)*2-1) * value;
+            cout << value << " ";
+          }
           cout << endl;
         }
         cout << endl;
@@ -115,14 +123,20 @@ void CudaUtils::debugPrint4D(const string& name, const void* deviceBuf, int batc
       for(int c = 0; c<cSize; c++) {
         cout << "(c=" << c << ")" << endl;
         for(int y = 0; y<ySize; y++) {
-          for(int x = 0; x<xSize; x++)
-            cout << values[i++] << " ";
+          for(int x = 0; x<xSize; x++) {
+            float value = values[i++];
+            total1 += (((c + y / 2 + x / 3 + n / 4) % 2)*2-1) * value;
+            total2 += (((c + y / 3 + x / 1 + n / 3) % 2)*2-1) * value;
+            total3 += (((c + y / 5 + x / 2 + n / 2) % 2)*2-1) * value;
+            cout << value << " ";
+          }
           cout << endl;
         }
         cout << endl;
       }
     }
   }
+  cout << "TOTAL " << total1 << " " << total2 << " " << total3 << endl;
   cout << "=========================================================" << endl;
 }
 

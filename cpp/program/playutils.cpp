@@ -109,6 +109,7 @@ void PlayUtils::setKomiWithNoise(const ExtraBlackAndKomi& extraBlackAndKomi, Boa
 Loc PlayUtils::chooseRandomLegalMove(const Board& board, const BoardHistory& hist, Player pla, Rand& gameRand, Loc banMove) {
   int numLegalMoves = 0;
   Loc locs[Board::MAX_ARR_SIZE];
+  testAssert(pla == hist.presumedNextMovePla);
   for(Loc loc = 0; loc < Board::MAX_ARR_SIZE; loc++) {
     if(hist.isLegal(board,loc,pla) && loc != banMove) {
       locs[numLegalMoves] = loc;
@@ -125,6 +126,7 @@ Loc PlayUtils::chooseRandomLegalMove(const Board& board, const BoardHistory& his
 int PlayUtils::chooseRandomLegalMoves(const Board& board, const BoardHistory& hist, Player pla, Rand& gameRand, Loc* buf, int len) {
   int numLegalMoves = 0;
   Loc locs[Board::MAX_ARR_SIZE];
+  testAssert(pla == hist.presumedNextMovePla);
   for(Loc loc = 0; loc < Board::MAX_ARR_SIZE; loc++) {
     if(hist.isLegal(board,loc,pla)) {
       locs[numLegalMoves] = loc;
@@ -151,6 +153,7 @@ Loc PlayUtils::chooseRandomPolicyMove(
   int numLegalMoves = 0;
   double relProbs[NNPos::MAX_NN_POLICY_SIZE];
   int locs[NNPos::MAX_NN_POLICY_SIZE];
+  testAssert(pla == hist.presumedNextMovePla);
   for(int pos = 0; pos<NNPos::MAX_NN_POLICY_SIZE; pos++) {
     Loc loc = NNPos::posToLoc(pos,board.x_size,board.y_size,nnXLen,nnYLen);
     if((loc == Board::PASS_LOC && !allowPass) || loc == banMove)
@@ -165,7 +168,8 @@ Loc PlayUtils::chooseRandomPolicyMove(
 
   //Just in case the policy map is somehow not consistent with the board position
   if(numLegalMoves > 0) {
-    uint32_t n = Search::chooseIndexWithTemperature(gameRand, relProbs, numLegalMoves, temperature);
+    double onlyBelowProb = 1.0;
+    uint32_t n = Search::chooseIndexWithTemperature(gameRand, relProbs, numLegalMoves, temperature, onlyBelowProb, NULL);
     return locs[n];
   }
   return Board::NULL_LOC;
@@ -191,6 +195,7 @@ Loc PlayUtils::getGameInitializationMove(
   testAssert(nnXLen > 0 && nnXLen < 100); //Just a sanity check to make sure no other crazy values have snuck in
   testAssert(nnYLen > 0 && nnYLen < 100); //Just a sanity check to make sure no other crazy values have snuck in
   int policySize = NNPos::getPolicySize(nnXLen,nnYLen);
+  testAssert(pla == hist.presumedNextMovePla);
   for(int movePos = 0; movePos<policySize; movePos++) {
     Loc moveLoc = NNPos::posToLoc(movePos,board.x_size,board.y_size,nnXLen,nnYLen);
     double policyProb = nnOutput->policyProbs[movePos];
@@ -988,17 +993,16 @@ PlayUtils::BenchmarkResults PlayUtils::benchmarkSearchOnPositionsAndPrint(
 
 void PlayUtils::printGenmoveLog(
   ostream& out,
-  const AsyncBot* bot,
+  const Search* search,
   const NNEvaluator* nnEval,
   Loc moveLoc,
   double timeTaken,
   Player perspective,
   bool logSearchInfoForChosenMove
 ) {
-  const Search* search = bot->getSearch();
-  const Board& board = bot->getRootBoard();
-  Board::printBoard(out, board, moveLoc, &(bot->getRootHist().moveHistory));
-  out << bot->getRootHist().rules << "\n";
+  const Board& board = search->getRootBoard();
+  Board::printBoard(out, board, moveLoc, &(search->getRootHist().moveHistory));
+  out << search->getRootHist().rules << "\n";
   if(!std::isnan(timeTaken))
     out << "Time taken: " << timeTaken << "\n";
   out << "Root visits: " << search->getRootVisits() << "\n";
@@ -1048,6 +1052,7 @@ Loc PlayUtils::maybeCleanupBeforePass(
   if(friendlyPass == enabled_t::True)
     return moveLoc;
   const BoardHistory& hist = bot->getRootHist();
+  testAssert(pla == hist.presumedNextMovePla);
   const Rules& rules = hist.rules;
   const bool doCleanupBeforePass =
     cleanupBeforePass == enabled_t::True ? true :

@@ -268,6 +268,9 @@ static void parseSGFRank(
     if(rankStr == "") {
       isUnknown = true;
     }
+    else if(rankStr == "?") {
+      isUnknown = true;
+    }
     else if(rankStr == "-") {
       isUnranked = true;
     }
@@ -556,6 +559,7 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
   string nnModelFile;
   vector<string> sgfDirs;
   string noTrainUsersFile;
+  string onlyTrainUsersFile;
   string noGameUsersFile;
   string isBotUsersFile;
   string excludeGamesFile;
@@ -582,6 +586,7 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
 
     TCLAP::MultiArg<string> sgfDirArg("","sgfdir","Directory of sgf files",false,"DIR");
     TCLAP::ValueArg<string> noTrainUsersArg("","no-train-users-file","Avoid training on these player's moves",true,string(),"TXTFILE");
+    TCLAP::ValueArg<string> onlyTrainUsersArg("","only-train-users-file","Only train on these player's moves",false,string(),"TXTFILE");
     TCLAP::ValueArg<string> noGameUsersArg("","no-game-users-file","Avoid training on games with these players",true,string(),"TXTFILE");
     TCLAP::ValueArg<string> isBotUsersArg("","is-bot-users-file","Mark these usernames as bots",true,string(),"TXTFILE");
     TCLAP::ValueArg<string> excludeGamesArg("","exclude-games-file","Exclude games whose paths contain these strings",false,string(),"TXTFILE");
@@ -602,6 +607,7 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
 
     cmd.add(sgfDirArg);
     cmd.add(noTrainUsersArg);
+    cmd.add(onlyTrainUsersArg);
     cmd.add(noGameUsersArg);
     cmd.add(isBotUsersArg);
     cmd.add(excludeGamesArg);
@@ -625,6 +631,7 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
     nnModelFile = cmd.getModelFile();
     sgfDirs = sgfDirArg.getValue();
     noTrainUsersFile = noTrainUsersArg.getValue();
+    onlyTrainUsersFile = onlyTrainUsersArg.getValue();
     noGameUsersFile = noGameUsersArg.getValue();
     isBotUsersFile = isBotUsersArg.getValue();
     excludeGamesFile = excludeGamesArg.getValue();
@@ -688,6 +695,8 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
   const int numGlobalChannels = NNInputs::NUM_FEATURES_GLOBAL_V7;
 
   const std::set<string> noTrainUsers = loadStrippedTxtFileLines(noTrainUsersFile);
+  const std::set<string> onlyTrainUsers =
+    (onlyTrainUsersFile != "") ? loadStrippedTxtFileLines(onlyTrainUsersFile) : std::set<string>();
   const std::set<string> noGameUsers = loadStrippedTxtFileLines(noGameUsersFile);
   const std::set<string> isBotUsers = loadStrippedTxtFileLines(isBotUsersFile);
   const std::set<string> excludeFiles =
@@ -871,7 +880,7 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
     }
     {
       bool foundBoardSize = false;
-      for(const std::pair<int,int> p: allowedBoardSizes) {
+      for(const std::pair<int,int>& p: allowedBoardSizes) {
         if(p.first == xySize.x && p.second == xySize.y)
           foundBoardSize = true;
         if(p.first == xySize.y && p.second == xySize.x)
@@ -1073,8 +1082,14 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
       isBotW = isBotW || isLikelyBot(sgfWUsername,whatDataSource);
     }
 
-    const bool shouldTrainB = noTrainUsers.find(sgfBUsername) == noTrainUsers.end() && !(noTrainOnBots && isBotB);
-    const bool shouldTrainW = noTrainUsers.find(sgfWUsername) == noTrainUsers.end() && !(noTrainOnBots && isBotW);
+    const bool shouldTrainB =
+      noTrainUsers.find(sgfBUsername) == noTrainUsers.end()
+      && !(noTrainOnBots && isBotB)
+      && !(onlyTrainUsers.size() > 0 && onlyTrainUsers.find(sgfBUsername) == onlyTrainUsers.end());
+    const bool shouldTrainW =
+      noTrainUsers.find(sgfWUsername) == noTrainUsers.end()
+      && !(noTrainOnBots && isBotW)
+      && !(onlyTrainUsers.size() > 0 && onlyTrainUsers.find(sgfWUsername) == onlyTrainUsers.end());
 
     if(!shouldTrainB && !shouldTrainW) {
       if(verbosity >= 2)
@@ -1807,10 +1822,10 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
     sgfMeta.byoYomiPeriods = byoYomiPeriods;
     sgfMeta.canadianMoves = canadianMoves;
 
-    sgfMeta.boardArea = boardArea;
     sgfMeta.gameDate = gameDate;
 
     sgfMeta.source = sgfSource;
+    sgfMeta.initialized = true;
 
     const int consecBlackMovesTurns = 6 + boardArea / 40;
     const int skipEarlyPassesTurns = 12 + boardArea / 20;

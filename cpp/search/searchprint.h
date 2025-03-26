@@ -34,7 +34,7 @@ struct PrintTreeOptions {
 inline PrintTreeOptions::PrintTreeOptions()
   :maxDepth_(1),
    maxChildrenToShow_(100000),
-   minVisitsToShow_(1),
+   minVisitsToShow_(0),
    minVisitsToExpand_(1),
    minVisitsPropToShow_(0.0),
    minVisitsPropToExpand_(0.0),

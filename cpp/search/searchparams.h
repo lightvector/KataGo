@@ -3,6 +3,9 @@
 
 #include "../core/global.h"
 #include "../game/board.h"
+#include "../neuralnet/sgfmetadata.h"
+
+#include "../external/nlohmann_json/json.hpp"
 
 struct SearchParams {
   //Utility function parameters
@@ -70,6 +73,7 @@ struct SearchParams {
   double chosenMoveTemperature; //Make move roughly proportional to visit count ** (1/chosenMoveTemperature)
   double chosenMoveTemperatureEarly; //Temperature at start of game
   double chosenMoveTemperatureHalflife; //Halflife of decay from early temperature to temperature for the rest of the game, scales for board sizes other than 19.
+  double chosenMoveTemperatureOnlyBelowProb; //chosenMoveTemperature only begins dampening moves that pre-temperature are less likely than this.
   double chosenMoveSubtract; //Try to subtract this many visits from every move prior to applying temperature
   double chosenMovePrune; //Outright prune moves that have fewer than this many visits
 
@@ -86,6 +90,7 @@ struct SearchParams {
   Player avoidMYTDaggerHackPla; //Hacky hack to avoid a particular pattern that gives some KG nets some trouble. Should become unnecessary in the future.
   double wideRootNoise; //Explore at the root more widely
   bool enablePassingHacks; //Enable some hacks that mitigate rare instances when passing messes up deeper searches.
+  bool enableMorePassingHacks; //Always weightless search passing and non passing moves when a pass would end the phase after a few visits.
 
   double playoutDoublingAdvantage; //Play as if we have this many doublings of playouts vs the opponent
   Player playoutDoublingAdvantagePla; //Negate playoutDoublingAdvantage when making a move for the opponent of this player. If empty, opponent of the root player.
@@ -142,11 +147,34 @@ struct SearchParams {
 
   double futileVisitsThreshold; //If a move would not be able to match this proportion of the max visits move in the time or visit or playout cap remaining, prune it.
 
+  //Human SL network
+  SGFMetadata humanSLProfile;  //For any human SL model, make the net predict this rank / source / profile of player.
+  double humanSLCpuctExploration;  //Use this cpuct for -human-model. This divided by sqrt(visits) is the utility diff to majorly affect the posterior.
+  double humanSLCpuctPermanent;    //Same, but multiplied by sqrt(visits). This is the utility diff to majorly affect the posterior.
+
+  //Probability that a playout selects a move using the human SL net instead of the main net.
+  //Weightless - search the move to better judge it but do NOT weight that playout for the parent's value.
+  //Weightful - search the move and DO weight that playout for the parent's value. (Note: consider disabling useNoisePruning, which uses katago's policy).
+  double humanSLRootExploreProbWeightless;
+  double humanSLRootExploreProbWeightful;
+  double humanSLPlaExploreProbWeightless;
+  double humanSLPlaExploreProbWeightful;
+  double humanSLOppExploreProbWeightless;
+  double humanSLOppExploreProbWeightful;
+
+  //These three are PRIOR to the normal chosenMoveTemperature.
+  double humanSLChosenMoveProp; //Proportion of final move selection probability using human SL policy
+  bool humanSLChosenMoveIgnorePass; //If true, ignore human SL pass probability and use KataGo's passing logic
+  double humanSLChosenMovePiklLambda; //Shift the final move selection significantly in response to utility differences this large.
 
   SearchParams();
   ~SearchParams();
 
-  void printParams(std::ostream& out);
+  bool operator==(const SearchParams& other) const;
+  bool operator!=(const SearchParams& other) const;
+
+  nlohmann::json changeableParametersToJson() const;
+  void printParams(std::ostream& out) const;
 
   //Params to use for testing, with some more recent values representative of more real use (as of Jan 2019)
   static SearchParams forTestsV1();

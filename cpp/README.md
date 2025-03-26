@@ -8,13 +8,15 @@ Summary of source folders, in approximate dependency order, from lowest level to
   * `rules.{cpp,h}` - Lightweight struct representing all the combinations of rules KataGo supports.
   * `board.{cpp,h}` - Raw board implementation, without move history. Helper functions for Benson's algorithm and ladder search.
   * `boardhistory.{cpp,h}` - Datastructure that does include move history - handles superko, passing, game end, final scoring, komi, handicap detection, etc.
-* `neuralnet` - Neural net GPU implementation and interface. Contains both OpenCL and CUDA backends them.
-  * `desc.{cpp.h}` - Data structure holding neural net structure and weights.
+  * `graphhash.{cpp,h}` - History-sensitive hash used for [monte-carlo graph search](https://github.com/lightvector/KataGo/blob/master/docs/GraphSearch.md).
+* `neuralnet` - Neural net GPU implementation and interface. Contains OpenCL, CUDA, Eigen, TensorRT backends along with common interfaces and model data structures.
+  * `desc.{cpp,h}` - Data structure holding neural net structure and weights.
   * `modelversion.{cpp,h}` - Enumerates the various versions of neural net features and models.
-  * `nninputs.{cpp.h}` - Implements the input features for the neural net.
+  * `nninputs.{cpp,h}` - Implements the input features for the neural net.
+  * `sgfmetadata.{cpp,h}` - Implements the input features for the [HumanSL neural net](https://github.com/lightvector/KataGo/blob/master/docs/Analysis_Engine.md#human-sl-analysis-guide), for conditioning on various SGF metadata about human players from training data.
   * `nninterface.h` - Common interface that is implemented by every low-level neural net backend.
-  * `{cuda,opencl,dummy}backend.cpp` - Various backends.
-  * `nneval.{cpp.h}` - Top-level handle to the neural net used by the rest of the engine, implements thread-safe batching of queries.
+  * `{cuda,opencl,eigen,trt,dummy}backend.cpp` - Various backends.
+  * `nneval.{cpp,h}` - Top-level handle to the neural net used by the rest of the engine, implements thread-safe batching of queries.
 * `search` - The main search engine.
   * `timecontrols.cpp` - Basic handling of a few possible time controls.
   * `searchparams.{cpp,h}` - Configurable coefficients and parameters for the search.
@@ -22,8 +24,10 @@ Summary of source folders, in approximate dependency order, from lowest level to
   * `searchresults.cpp` - Functions to inspect the results of finished searches, select moves, etc.
   * `asyncbot.{cpp,h}` - Simple thread-safe layer on top of main engine to implement pondering.
 * `dataio` - SGF reading and writing, writing of self-play training data.
-  * `sgf.{cpp.h}` - SGF reading and writing.
+  * `sgf.{cpp,h}` - SGF reading and writing.
+  * `loadmodel.{cpp,h}` - Loading the neural net.
   * `trainingwrite.{cpp,h}` - Writing of self-play training data.
+* `book` - Utilities for generating opening books (such as the ones hosted at [https://katagobooks.org/](https://katagobooks.org/))
 * `program` - Top-level helper functions.  neural net, running matches and selfplay games, handicap placement, computing stats to report, etc.
   * `setup.{cpp,h}` - Functions for parsing configs for search parameters, parsing parameters for initializing the neural net.
   * `playutils.{cpp,h}` - Miscellaneous: handicap placement, ownership and final stone status, computing high-level stats to report, benchmarking.

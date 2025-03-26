@@ -1,0 +1,96 @@
+: Running with following config:
+allowResignation = true
+bSizeRelProbs = 1
+bSizes = 9
+cudaUseFP16 = false
+cudaUseNHWC = false
+forDeterministicTesting = true
+hasButtons = false
+koRules = SIMPLE
+komiAuto = true
+lagBuffer = 1.0
+logAllGTPCommunication = true
+logDir = gtp_logs
+logSearchInfo = true
+logSearchInfoForChosenMove = false
+logTimeStamp = false
+logToStderr = false
+maxTimePondering = 60.0
+maxVisits = 50
+multiStoneSuicideLegals = false
+nnRandSeed = forTesting
+nnRandomize = false
+numSearchThreads = 1
+openclUseFP16 = false
+ponderingEnabled = false
+resignConsecTurns = 3
+resignThreshold = -0.90
+rootSymmetryPruning = false
+rules = tromp-taylor
+scoringRules = AREA
+searchFactorAfterOnePass = 0.50
+searchFactorAfterTwoPass = 0.25
+searchFactorWhenWinning = 0.40
+searchFactorWhenWinningThreshold = 0.95
+searchRandSeed = forTesting
+taxRules = NONE
+trtUseFP16 = false
+
+: Command: dataminesgfs
+: Command: -config
+: Command: configs/gtp_example.cfg
+: Command: -override-config
+: Command: logTimeStamp=false, maxVisits=50, numSearchThreads=1, nnRandomize=false, rootSymmetryPruning=false, nnRandSeed=forTesting, searchRandSeed=forTesting, forDeterministicTesting=true, cudaUseFP16 = false, trtUseFP16 = false, openclUseFP16 = false, cudaUseNHWC = false, koRules=SIMPLE, scoringRules=AREA, taxRules=NONE, hasButtons=false, multiStoneSuicideLegals=false, bSizes=9, bSizeRelProbs=1, komiAuto=true
+: Command: -sgfdir
+: Command: tests/data/sampletest2/
+: Command: -outdir
+: Command: tests/results/sampletest2-hint/
+: Command: -threads
+: Command: 1
+: Command: -tree-mode
+: Command: -min-hint-weight
+: Command: 0.25
+: Command: -model
+: Command: tests/models/g170-b6c96-s175395328-d26788732.bin.gz
+: Command: -auto-komi
+: Command: -flip-if-pass
+: Command: -for-testing
+: nnRandSeed0 = forTesting
+: After dedups: nnModelFile0 = tests/models/g170-b6c96-s175395328-d26788732.bin.gz useFP16 false useNHWC false
+: Initializing neural net buffer to be size 19 * 19 allowing smaller boards
+: Cuda backend thread 0: Found GPU NVIDIA RTX A5000 memory 25425608704 compute capability major 8 minor 6
+: Cuda backend thread 0: Model version 8 useFP16 = false useNHWC = false
+: Cuda backend thread 0: Model name: g170-b6c96-s175395328-d26788732
+: Loaded neural net
+: --------------
+: WARNING: Config had unused keys! You may have a typo, an option you specified is being unused from configs/gtp_example.cfg and/or command-line and query overrides
+: WARNING: Unused key 'allowResignation' in configs/gtp_example.cfg and/or command-line and query overrides
+: WARNING: Unused key 'forDeterministicTesting' in configs/gtp_example.cfg and/or command-line and query overrides
+: WARNING: Unused key 'logAllGTPCommunication' in configs/gtp_example.cfg and/or command-line and query overrides
+: WARNING: Unused key 'logSearchInfo' in configs/gtp_example.cfg and/or command-line and query overrides
+: WARNING: Unused key 'logSearchInfoForChosenMove' in configs/gtp_example.cfg and/or command-line and query overrides
+: WARNING: Unused key 'ponderingEnabled' in configs/gtp_example.cfg and/or command-line and query overrides
+: WARNING: Unused key 'resignConsecTurns' in configs/gtp_example.cfg and/or command-line and query overrides
+: WARNING: Unused key 'resignThreshold' in configs/gtp_example.cfg and/or command-line and query overrides
+: WARNING: Unused key 'rules' in configs/gtp_example.cfg and/or command-line and query overrides
+: WARNING: Unused key 'searchFactorWhenWinning' in configs/gtp_example.cfg and/or command-line and query overrides
+: WARNING: Unused key 'searchFactorWhenWinningThreshold' in configs/gtp_example.cfg and/or command-line and query overrides
+: WARNING: Unused key 'searchRandSeed' in configs/gtp_example.cfg and/or command-line and query overrides
+: --------------
+: Found 1 sgf(s) files!
+: Loaded 0 excludes
+: Begun 1 / 1 sgfs, done 0 sgfs, skipped 0 sgfs, filtered 0 sgfs, filtered 0 individual poses
+: Starting tests/data/sampletest2/messy.sgf
+: Begun 1 / 1 sgfs, done 1 sgfs, skipped 0 sgfs, filtered 0 sgfs, filtered 0 individual poses
+: All sgfs loaded, waiting for finishing analysis
+: 0 sgfs still enqueued
+: Begun 20/28 poses
+: Done 20/28 poses
+: Begun 1 / 1 sgfs, done 1 sgfs, skipped 0 sgfs, filtered 0 sgfs, filtered 0 individual poses
+: Waiting for final writing and cleanup
+: tests/models/g170-b6c96-s175395328-d26788732.bin.gz
+: NN rows: 2326
+: NN batches: 2326
+: NN avg batch size: 1
+: All done
+: GPU -1 finishing, processed 2326 rows 2326 batches

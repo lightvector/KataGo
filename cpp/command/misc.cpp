@@ -427,6 +427,7 @@ int MainCmds::demoplay(const vector<string>& args) {
 
   //Check for unused config keys
   cfg.warnUnusedKeys(cerr,&logger);
+  Setup::maybeWarnHumanSLParams(params,nnEval,NULL,cerr,&logger);
 
   AsyncBot* bot = new AsyncBot(params, nnEval, &logger, searchRandSeed);
   bot->setAlwaysIncludeOwnerMap(true);
@@ -574,6 +575,47 @@ int MainCmds::printclockinfo(const vector<string>& args) {
   return 0;
 }
 
+static void handleStartAnnotations(Sgf* rootSgf) {
+  std::function<bool(Sgf*)> hasStartNode = [&hasStartNode](Sgf* sgf) {
+    for(SgfNode* node : sgf->nodes) {
+      if(node->hasProperty("C")) {
+        std::string comment = node->getSingleProperty("C");
+        if(comment.find("%START%") != std::string::npos) {
+          return true;
+        }
+      }
+    }
+    for(Sgf* child : sgf->children) {
+      if(hasStartNode(child)) {
+        return true;
+      }
+    }
+    return false;
+  };
+
+  std::function<void(Sgf*)> markNodes = [&markNodes](Sgf* sgf) {
+    bool isInStartSubtree = false;
+    for(SgfNode* node : sgf->nodes) {
+      if(node->hasProperty("C")) {
+        std::string comment = node->getSingleProperty("C");
+        if(comment.find("%START%") != std::string::npos) {
+          isInStartSubtree = true;
+          break;
+        }
+      }
+      node->appendComment("%NOSAMPLE%");
+      node->appendComment("%NOHINT%");
+    }
+    if(!isInStartSubtree) {
+      for(Sgf* child : sgf->children)
+        markNodes(child);
+    }
+  };
+
+  if(hasStartNode(rootSgf)) {
+    markNodes(rootSgf);
+  }
+}
 
 int MainCmds::samplesgfs(const vector<string>& args) {
   Board::initHash();
@@ -601,9 +643,11 @@ int MainCmds::samplesgfs(const vector<string>& args) {
   bool hashComments;
   double trainingWeight;
   int verbosity;
+  bool tolerateIllegalMoves;
 
   string valueFluctuationModelFile;
   double valueFluctuationTurnScale;
+  double valueFluctuationForwardTurnScale;
   double valueFluctuationMaxWeight;
   bool valueFluctuationMakeKomiFair;
   double valueFluctuationWeightBySurprise;
@@ -645,9 +689,11 @@ int MainCmds::samplesgfs(const vector<string>& args) {
     TCLAP::SwitchArg hashCommentsArg("","hash-comments","Hash comments in sgf");
     TCLAP::ValueArg<double> trainingWeightArg("","training-weight","Scale the loss function weight from data from games that originate from this position",false,1.0,"WEIGHT");
     TCLAP::ValueArg<int> verbosityArg("","verbosity","Print more stuff",false,0,"INT");
+    TCLAP::SwitchArg tolerateIllegalMovesArg("","tolerate-illegal-moves","Tolerate illegal moves");
 
     TCLAP::ValueArg<string> valueFluctuationModelFileArg("","value-fluctuation-model","Upweight positions prior to value fluctuations",false,string(),"MODELFILE");
     TCLAP::ValueArg<double> valueFluctuationTurnScaleArg("","value-fluctuation-turn-scale","How much prior on average",false,1.0,"AVGTURNS");
+    TCLAP::ValueArg<double> valueFluctuationForwardTurnScaleArg("","value-fluctuation-forward-turn-scale","How much prior on average",false,1.0,"AVGTURNS");
     TCLAP::ValueArg<double> valueFluctuationMaxWeightArg("","value-fluctuation-max-weight","",false,10.0,"MAXWEIGHT");
     TCLAP::SwitchArg valueFluctuationMakeKomiFairArg("","value-fluctuation-make-komi-fair","");
     TCLAP::ValueArg<double> valueFluctuationWeightBySurpriseArg("","value-fluctuation-weight-by-surprise","",false,0.0,"SCALE");
@@ -685,8 +731,10 @@ int MainCmds::samplesgfs(const vector<string>& args) {
     cmd.add(hashCommentsArg);
     cmd.add(trainingWeightArg);
     cmd.add(verbosityArg);
+    cmd.add(tolerateIllegalMovesArg);
     cmd.add(valueFluctuationModelFileArg);
     cmd.add(valueFluctuationTurnScaleArg);
+    cmd.add(valueFluctuationForwardTurnScaleArg);
     cmd.add(valueFluctuationMaxWeightArg);
     cmd.add(valueFluctuationMakeKomiFairArg);
     cmd.add(valueFluctuationWeightBySurpriseArg);
@@ -722,8 +770,10 @@ int MainCmds::samplesgfs(const vector<string>& args) {
     hashComments = hashCommentsArg.getValue();
     trainingWeight = trainingWeightArg.getValue();
     verbosity = verbosityArg.getValue();
+    tolerateIllegalMoves = tolerateIllegalMovesArg.getValue();
     valueFluctuationModelFile = valueFluctuationModelFileArg.getValue();
     valueFluctuationTurnScale = valueFluctuationTurnScaleArg.getValue();
+    valueFluctuationForwardTurnScale = valueFluctuationForwardTurnScaleArg.getValue();
     valueFluctuationMaxWeight = valueFluctuationMaxWeightArg.getValue();
     valueFluctuationMakeKomiFair = valueFluctuationMakeKomiFairArg.getValue();
     valueFluctuationWeightBySurprise = valueFluctuationWeightBySurpriseArg.getValue();
@@ -774,8 +824,10 @@ int MainCmds::samplesgfs(const vector<string>& args) {
 
   NNEvaluator* valueFluctuationNNEval = NULL;
   if(valueFluctuationModelFile != "") {
-    if(valueFluctuationTurnScale <= 0.0 || valueFluctuationTurnScale > 100000000.0)
+    if(valueFluctuationTurnScale < 1.0 || valueFluctuationTurnScale > 100000000.0)
       throw StringError("Invalid valueFluctuationTurnScale");
+    if(valueFluctuationForwardTurnScale < 1.0 || valueFluctuationForwardTurnScale > 100000000.0)
+      throw StringError("Invalid valueFluctuationForwardTurnScale");
     if(valueFluctuationMaxWeight <= 0.0 || valueFluctuationMaxWeight > 100000000.0)
       throw StringError("Invalid valueFluctuationMaxWeight");
     ConfigParser cfg;
@@ -806,23 +858,23 @@ int MainCmds::samplesgfs(const vector<string>& args) {
     return true;
   };
 
-  auto isSgfOkay = [&](const Sgf* sgf) {
+  auto isSgfOkay = [&](const Sgf* sgf, string& reasonBuf) {
     if(maxHandicap < 100 && sgf->getHandicapValue() > maxHandicap)
-      return false;
+    {reasonBuf = "handicap"; return false;}
     if(sgf->depth() > maxDepth)
-      return false;
+    {reasonBuf = "depth" + Global::intToString(sgf->depth()); return false;}
     if(std::fabs(sgf->getKomiOrDefault(7.5f)) > maxKomi)
-      return false;
+    {reasonBuf = "komi"; return false;}
     if(minMinRank != Sgf::RANK_UNKNOWN) {
       if(sgf->getRank(P_BLACK) < minMinRank || sgf->getRank(P_WHITE) < minMinRank)
-        return false;
+      {reasonBuf = "rank"; return false;}
     }
     if(minMinRating > -10000000) {
       if(sgf->getRating(P_BLACK) < minMinRating || sgf->getRating(P_WHITE) < minMinRating)
-        return false;
+      {reasonBuf = "rating"; return false;}
     }
     if(!isPlayerOkay(sgf,P_BLACK) && !isPlayerOkay(sgf,P_WHITE))
-      return false;
+    {reasonBuf = "player " + sgf->getPlayerName(P_BLACK) + " " + sgf->getPlayerName(P_WHITE); return false;}
     return true;
   };
 
@@ -899,9 +951,10 @@ int MainCmds::samplesgfs(const vector<string>& args) {
     }
 
     try {
-      if(!isSgfOkay(sgf)) {
+      string reasonBuf;
+      if(!isSgfOkay(sgf,reasonBuf)) {
         if(verbosity >= 2)
-          logger.write("Filtering due to not okay: " + sgf->fileName);
+          logger.write("Filtering due to not okay (" + reasonBuf + "): " + sgf->fileName);
         numSgfsFilteredTopLevel += 1;
         return;
       }
@@ -911,6 +964,8 @@ int MainCmds::samplesgfs(const vector<string>& args) {
       numSgfsFilteredTopLevel += 1;
       return;
     }
+
+    handleStartAnnotations(sgf);
 
     if(valueFluctuationNNEval == NULL) {
       bool hashParent = false;
@@ -1026,18 +1081,41 @@ int MainCmds::samplesgfs(const vector<string>& args) {
 
       //Apply exponential blur
       vector<double> winrateVarianceBlurred(winrateVariance.size());
-      double blurSum = 0.0;
+      {
+        double blurSum = 0.0;
+        for(size_t i = winrateVariance.size(); i--;) {
+          blurSum *= 1.0 - 1.0 / valueFluctuationTurnScale;
+          blurSum += winrateVariance[i];
+          winrateVarianceBlurred[i] = blurSum / valueFluctuationTurnScale; // Normalize so blur only sums to 1
+        }
+      }
+
+      //Apply exponential forward blur
+      if(valueFluctuationForwardTurnScale > 1.0) {
+        vector<double> winrateVarianceMoreBlurred(winrateVariance.size());
+        double blurSum = 0.0;
+        for(size_t i = 0; i < winrateVariance.size(); i++) {
+          blurSum *= 1.0 - 1.0 / valueFluctuationForwardTurnScale;
+          blurSum += winrateVarianceBlurred[i];
+          winrateVarianceMoreBlurred[i] = blurSum / valueFluctuationForwardTurnScale; // Normalize so blur only sums to 1
+        }
+        winrateVarianceBlurred = winrateVarianceMoreBlurred;
+      }
+
       double totalWeight = 0.0;
       int totalCount = 0;
-      for(size_t i = winrateVariance.size(); i--;) {
-        blurSum *= 1.0 - 1.0 / valueFluctuationTurnScale;
-        blurSum += winrateVariance[i];
+      for(size_t i = 0; i < winrateVariance.size(); i++) {
         if(i >= minTurnNumber && i <= maxTurnNumber) {
-          winrateVarianceBlurred[i] = blurSum;
+          // Rescale so the blur has total weight valueFluctuationTurnScale + valueFluctuationForwardTurnScale
+          winrateVarianceBlurred[i] *= valueFluctuationTurnScale + valueFluctuationForwardTurnScale;
           totalWeight += winrateVarianceBlurred[i];
           totalCount += 1;
         }
+        else {
+          winrateVarianceBlurred[i] = 0;
+        }
       }
+
       if(totalCount <= 0 || totalWeight <= 0)
         return;
 
@@ -1148,7 +1226,10 @@ int MainCmds::samplesgfs(const vector<string>& args) {
         trySgf(sgf);
       }
       catch(const StringError& e) {
-        logger.write("Invalid SGF " + sgfFiles[index] + ": " + e.what());
+        if(tolerateIllegalMoves)
+          logger.write("Invalid SGF " + sgfFiles[index] + ": " + e.what());
+        else
+          throw;
       }
       if(sgf != NULL) {
         delete sgf;
@@ -1168,7 +1249,10 @@ int MainCmds::samplesgfs(const vector<string>& args) {
       sgfs = Sgf::loadSgfsFile(sgfsFiles[i]);
     }
     catch(const StringError& e) {
-      logger.write("Invalid SGFS " + sgfsFiles[i] + ": " + e.what());
+      if(tolerateIllegalMoves)
+        logger.write("Invalid SGFS " + sgfsFiles[i] + ": " + e.what());
+      else
+        throw;
       continue;
     }
 
@@ -1178,7 +1262,10 @@ int MainCmds::samplesgfs(const vector<string>& args) {
         trySgf(sgfs[index]);
       }
       catch(const StringError& e) {
-        logger.write("Bad sgf in SGFS" + sgfsFiles[index] + ": " + e.what());
+        if(tolerateIllegalMoves)
+          logger.write("Bad sgf in SGFS" + sgfsFiles[index] + ": " + e.what());
+        else
+          throw;
       }
     };
     Parallel::iterRange(
@@ -1287,6 +1374,7 @@ static double surpriseWeight(double policyProb, Rand& rand, bool alwaysAddWeight
 struct PosQueueEntry {
   BoardHistory* hist;
   bool markedAsHintPos;
+  bool markedAsHintPosLight;
 };
 
 int MainCmds::dataminesgfs(const vector<string>& args) {
@@ -1311,11 +1399,14 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
   int64_t maxDepth;
   double turnWeightLambda;
   int maxPosesPerOutFile;
+  double utilityThreshold;
   double gameModeFastThreshold;
   bool flipIfPassOrWFirst;
   bool allowGameOver;
+  bool manualHintOnly;
   double trainingWeight;
 
+  int minTurn;
   int minRank;
   int minMinRank;
   string requiredPlayerName;
@@ -1325,6 +1416,8 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
   double maxPolicy;
   double minHintWeight;
   double hintScale;
+  double moreUtilityWeight;
+  int startPosesBeforeHintsLen;
 
   bool forTesting;
 
@@ -1349,10 +1442,13 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
     TCLAP::ValueArg<int> maxDepthArg("","max-depth","Max depth allowed for sgf",false,1000000,"INT");
     TCLAP::ValueArg<double> turnWeightLambdaArg("","turn-weight-lambda","Adjust weight for writing down each position",false,0.0,"LAMBDA");
     TCLAP::ValueArg<int> maxPosesPerOutFileArg("","max-poses-per-out-file","Number of hintposes per output file",false,100000,"INT");
+    TCLAP::ValueArg<double> utilityThresholdArg("","utility-threshold","Utility threshold for expensive pass",false,0.01,"UTILS");
     TCLAP::ValueArg<double> gameModeFastThresholdArg("","game-mode-fast-threshold","Utility threshold for game mode fast pass",false,0.005,"UTILS");
     TCLAP::SwitchArg flipIfPassOrWFirstArg("","flip-if-pass","Try to heuristically find cases where an sgf passes to simulate white<->black");
     TCLAP::SwitchArg allowGameOverArg("","allow-game-over","Allow sampling game over positions in sgf");
+    TCLAP::SwitchArg manualHintOnlyArg("","manual-hint-only","Allow only positions marked for hint in the sgf");
     TCLAP::ValueArg<double> trainingWeightArg("","training-weight","Scale the loss function weight from data from games that originate from this position",false,1.0,"WEIGHT");
+    TCLAP::ValueArg<int> minTurnArg("","min-turn","Only get hints for the given turn or later",false,0,"TURNIDX");
     TCLAP::ValueArg<int> minRankArg("","min-rank","Require player making the move to have rank at least this",false,Sgf::RANK_UNKNOWN,"INT");
     TCLAP::ValueArg<int> minMinRankArg("","min-min-rank","Require both players in a game to have rank at least this",false,Sgf::RANK_UNKNOWN,"INT");
     TCLAP::ValueArg<string> requiredPlayerNameArg("","required-player-name","Require player making the move to have this name",false,string(),"NAME");
@@ -1362,6 +1458,8 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
     TCLAP::ValueArg<double> maxPolicyArg("","max-policy","Chop off moves with raw policy more than this",false,1000,"POLICY");
     TCLAP::ValueArg<double> minHintWeightArg("","min-hint-weight","Hinted moves get at least this weight",false,0.0,"WEIGHT");
     TCLAP::ValueArg<double> hintScaleArg("","hint-scale","Manually hinted moves get weight scaled by this",false,1.0,"FACTOR");
+    TCLAP::ValueArg<double> moreUtilityWeightArg("","more-utility-weight","Increase weight when hint move is uniquely better than other moves",false,0.0,"WEIGHTSCALE");
+    TCLAP::ValueArg<int> startPosesBeforeHintsLenArg("","start-poses-before-hints","Add weight for startposes before hints in game mode",false,0,"NMOVES");
 
     TCLAP::SwitchArg forTestingArg("","for-testing","For testing");
 
@@ -1380,10 +1478,13 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
     cmd.add(maxDepthArg);
     cmd.add(turnWeightLambdaArg);
     cmd.add(maxPosesPerOutFileArg);
+    cmd.add(utilityThresholdArg);
     cmd.add(gameModeFastThresholdArg);
     cmd.add(flipIfPassOrWFirstArg);
     cmd.add(allowGameOverArg);
+    cmd.add(manualHintOnlyArg);
     cmd.add(trainingWeightArg);
+    cmd.add(minTurnArg);
     cmd.add(minRankArg);
     cmd.add(minMinRankArg);
     cmd.add(requiredPlayerNameArg);
@@ -1393,6 +1494,8 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
     cmd.add(maxPolicyArg);
     cmd.add(minHintWeightArg);
     cmd.add(hintScaleArg);
+    cmd.add(moreUtilityWeightArg);
+    cmd.add(startPosesBeforeHintsLenArg);
     cmd.add(forTestingArg);
     cmd.parseArgs(args);
 
@@ -1412,10 +1515,13 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
     maxDepth = maxDepthArg.getValue();
     turnWeightLambda = turnWeightLambdaArg.getValue();
     maxPosesPerOutFile = maxPosesPerOutFileArg.getValue();
+    utilityThreshold = utilityThresholdArg.getValue();
     gameModeFastThreshold = gameModeFastThresholdArg.getValue();
     flipIfPassOrWFirst = flipIfPassOrWFirstArg.getValue();
     allowGameOver = allowGameOverArg.getValue();
+    manualHintOnly = manualHintOnlyArg.getValue();
     trainingWeight = trainingWeightArg.getValue();
+    minTurn = minTurnArg.getValue();
     minRank = minRankArg.getValue();
     minMinRank = minMinRankArg.getValue();
     requiredPlayerName = requiredPlayerNameArg.getValue();
@@ -1425,10 +1531,14 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
     maxPolicy = maxPolicyArg.getValue();
     minHintWeight = minHintWeightArg.getValue();
     hintScale = hintScaleArg.getValue();
+    moreUtilityWeight = moreUtilityWeightArg.getValue();
+    startPosesBeforeHintsLen = startPosesBeforeHintsLenArg.getValue();
     forTesting = forTestingArg.getValue();
 
     if((int)gameMode + (int)treeMode + (int)surpriseMode != 1)
       throw StringError("Must specify either -game-mode or -tree-mode or -surprise-mode");
+    if(startPosesBeforeHintsLen != 0 && gameMode != 1)
+      throw StringError("startPosesBeforeHintsLen only works with -game-mode");
 
     cmd.getConfig(cfg);
   }
@@ -1479,33 +1589,17 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
 
   GameInitializer* gameInit = new GameInitializer(cfg,logger);
   cfg.warnUnusedKeys(cerr,&logger);
+  Setup::maybeWarnHumanSLParams(params,nnEval,NULL,cerr,&logger);
 
   vector<string> sgfFiles;
   FileHelpers::collectSgfsFromDirsOrFiles(sgfDirs,sgfFiles);
-  logger.write("Found " + Global::int64ToString((int64_t)sgfFiles.size()) + " sgf files!");
-
-  std::set<string> sgfsSet;
-  {
-    vector<string> sgfsFiles;
-    FileHelpers::collectMultiSgfsFromDirsOrFiles(sgfsDirs,sgfsFiles);
-    logger.write("Found " + Global::int64ToString((int64_t)sgfsFiles.size()) + " sgfs files!");
-    for(const string& s: sgfsFiles) {
-      sgfFiles.push_back(s);
-      sgfsSet.insert(s);
-    }
-  }
+  FileHelpers::collectMultiSgfsFromDirsOrFiles(sgfsDirs,sgfFiles);
+  logger.write("Found " + Global::int64ToString((int64_t)sgfFiles.size()) + " sgf(s) files!");
 
   if(forTesting)
     std::sort(sgfFiles.begin(),sgfFiles.end());
-
-  vector<size_t> permutation(sgfFiles.size());
-  for(size_t i = 0; i<sgfFiles.size(); i++)
-    permutation[i] = i;
-  if(!forTesting) {
-    for(size_t i = 1; i<sgfFiles.size(); i++) {
-      size_t r = (size_t)seedRand.nextUInt64(i+1);
-      std::swap(permutation[i],permutation[r]);
-    }
+  else {
+    seedRand.shuffle(sgfFiles);
   }
 
   set<Hash128> excludeHashes = Sgf::readExcludes(excludeHashesFiles);
@@ -1537,38 +1631,41 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
     return true;
   };
 
-  auto isSgfOkay = [&](const Sgf* sgf) {
+
+  auto isSgfOkay = [&](const Sgf* sgf, string& reasonBuf) {
     if(maxHandicap < 100 && sgf->getHandicapValue() > maxHandicap)
-      return false;
+    {reasonBuf = "handicap"; return false;}
     if(sgf->depth() > maxDepth)
-      return false;
+    {reasonBuf = "depth" + Global::intToString(sgf->depth()); return false;}
     if(std::fabs(sgf->getKomiOrDefault(7.5f)) > maxKomi)
-      return false;
+    {reasonBuf = "komi"; return false;}
     if(minMinRank != Sgf::RANK_UNKNOWN) {
-      if(sgf->getRank(P_BLACK) < minMinRank && sgf->getRank(P_WHITE) < minMinRank)
-        return false;
+      if(sgf->getRank(P_BLACK) < minMinRank || sgf->getRank(P_WHITE) < minMinRank)
+      {reasonBuf = "rank"; return false;}
     }
     if(!isPlayerOkay(sgf,P_BLACK) && !isPlayerOkay(sgf,P_WHITE))
-      return false;
+    {reasonBuf = "player " + sgf->getPlayerName(P_BLACK) + " " + sgf->getPlayerName(P_WHITE); return false;}
     return true;
   };
 
-  auto expensiveEvaluateMove = [&posWriter,&turnWeightLambda,&maxAutoKomi,&maxHandicap,&numFilteredIndivdualPoses,&surpriseMode,&minHintWeight,&hintScale,&logger,trainingWeight](
+  auto expensiveEvaluateMove = [&posWriter,&turnWeightLambda,&maxAutoKomi,&maxHandicap,&numFilteredIndivdualPoses,&surpriseMode,&minHintWeight,&hintScale,&logger,trainingWeight,moreUtilityWeight,utilityThreshold,minTurn](
     Search* search, Loc missedLoc,
     Player nextPla, const Board& board, const BoardHistory& hist,
-    const Sgf::PositionSample& sample, bool markedAsHintPos
+    const Sgf::PositionSample& sample, bool markedAsHintPos, bool markedAsHintPosLight
   ) {
     if(shouldStop.load(std::memory_order_acquire))
-      return;
+      return 0.0;
 
     if(std::fabs(hist.rules.komi) > maxAutoKomi) {
       numFilteredIndivdualPoses.fetch_add(1);
-      return;
+      return 0.0;
     }
     if(hist.computeNumHandicapStones() > maxHandicap) {
       numFilteredIndivdualPoses.fetch_add(1);
-      return;
+      return 0.0;
     }
+    if(minTurn > 0 && (size_t)(sample.initialTurnNumber + sample.moves.size()) < minTurn)
+      return 0.0;
 
     {
       int numStonesOnBoard = 0;
@@ -1580,7 +1677,7 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
         }
       }
       if(numStonesOnBoard < 6)
-        return;
+        return 0.0;
     }
 
     if(surpriseMode) {
@@ -1592,14 +1689,14 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
       {
         bool suc = maybeGetValuesAfterMove(search,Board::NULL_LOC,nextPla,board,hist,1.0/50.0,veryQuickValues);
         if(!suc)
-          return;
+          return 0.0;
       }
       Loc veryQuickMoveLoc = search->getChosenMoveLoc();
       ReportedSearchValues baseValues;
       {
         bool suc = maybeGetValuesAfterMove(search,Board::NULL_LOC,nextPla,board,hist,1.0,baseValues);
         if(!suc)
-          return;
+          return 0.0;
       }
       Loc moveLoc = search->getChosenMoveLoc();
 
@@ -1608,13 +1705,13 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
         {
           bool suc = maybeGetValuesAfterMove(search,veryQuickMoveLoc,nextPla,board,hist,1.0/2.0,veryQuickAfterMoveValues);
           if(!suc)
-            return;
+            return 0.0;
         }
         ReportedSearchValues baseAfterMoveValues;
         {
           bool suc = maybeGetValuesAfterMove(search,moveLoc,nextPla,board,hist,1.0/2.0,baseAfterMoveValues);
           if(!suc)
-            return;
+            return 0.0;
         }
         if(
           (nextPla == P_WHITE && baseAfterMoveValues.utility - veryQuickAfterMoveValues.utility > 0.2) ||
@@ -1630,7 +1727,7 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
           if(sampleToWrite.hasPreviousPositions(2))
             posWriter.writePos(sampleToWrite.previousPosition(sampleToWrite.weight * 0.25).previousPosition(sampleToWrite.weight * 0.25));
           logger.write("Surprising good " + Global::doubleToString(sampleToWrite.weight));
-          return;
+          return sampleToWrite.weight;
         }
       }
 
@@ -1648,7 +1745,7 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
         if(sampleToWrite.hasPreviousPositions(2))
           posWriter.writePos(sampleToWrite.previousPosition(sampleToWrite.weight * 0.25).previousPosition(sampleToWrite.weight * 0.25));
         logger.write("Inevitable bad " + Global::doubleToString(sampleToWrite.weight));
-        return;
+        return sampleToWrite.weight;
       }
       if(
         (nextPla == P_WHITE && baseValues.utility - veryQuickValues.utility > 0.2) ||
@@ -1664,16 +1761,16 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
         if(sampleToWrite.hasPreviousPositions(2))
           posWriter.writePos(sampleToWrite.previousPosition(sampleToWrite.weight * 0.25).previousPosition(sampleToWrite.weight * 0.25));
         logger.write("Inevitable good " + Global::doubleToString(sampleToWrite.weight));
-        return;
+        return sampleToWrite.weight;
       }
-      return;
+      return 0.0;
     }
 
     ReportedSearchValues veryQuickValues;
     {
       bool suc = maybeGetValuesAfterMove(search,Board::NULL_LOC,nextPla,board,hist,1.0/25.0,veryQuickValues);
       if(!suc)
-        return;
+        return 0.0;
     }
     Loc veryQuickMoveLoc = search->getChosenMoveLoc();
 
@@ -1681,7 +1778,7 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
     {
       bool suc = maybeGetValuesAfterMove(search,Board::NULL_LOC,nextPla,board,hist,1.0/5.0,quickValues);
       if(!suc)
-        return;
+        return 0.0;
     }
     Loc quickMoveLoc = search->getChosenMoveLoc();
 
@@ -1689,7 +1786,7 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
     {
       bool suc = maybeGetValuesAfterMove(search,Board::NULL_LOC,nextPla,board,hist,1.0,baseValues);
       if(!suc)
-        return;
+        return 0.0;
     }
     Loc moveLoc = search->getChosenMoveLoc();
 
@@ -1707,8 +1804,30 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
     sampleToWrite.weight += std::fabs(baseValues.utility - quickValues.utility);
     sampleToWrite.weight += std::fabs(baseValues.utility - veryQuickValues.utility);
 
+    constexpr double NULL_UTILITY = -1e10; // Placeholder if no utility is found
+    double selfUtilityOfHintMove = NULL_UTILITY;
+    double selfUtilityOfBestOtherMove = NULL_UTILITY;
+    if(moreUtilityWeight > 0.0) {
+      vector<AnalysisData> analysisData;
+      const int minMovesToTryToGet = 0;
+      const bool includeWeightFactors = false;
+      const int maxPVDepth = 0;
+      const bool duplicateForSymmetries = true;
+      search->getAnalysisData(analysisData, minMovesToTryToGet, includeWeightFactors, maxPVDepth, duplicateForSymmetries);
+      for(const AnalysisData& data: analysisData) {
+        if(data.move == missedLoc)
+          selfUtilityOfHintMove = (nextPla == P_WHITE ? data.utility : -data.utility);
+        else
+          selfUtilityOfBestOtherMove = std::max(selfUtilityOfBestOtherMove, (nextPla == P_WHITE ? data.utility : -data.utility));
+      }
+    }
+
     //Bot DOES see the move?
     if(moveLoc == missedLoc) {
+      if(moreUtilityWeight > 0.0 && selfUtilityOfHintMove > NULL_UTILITY && selfUtilityOfBestOtherMove > NULL_UTILITY) {
+        sampleToWrite.weight += moreUtilityWeight * (-0.3 + sqrt(0.09 + std::max(0.0, selfUtilityOfHintMove - selfUtilityOfBestOtherMove)));
+      }
+
       if(quickMoveLoc == moveLoc)
         sampleToWrite.weight = sampleToWrite.weight * 0.75 - 0.1;
       if(veryQuickMoveLoc == moveLoc)
@@ -1718,32 +1837,43 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
 
       if(markedAsHintPos)
         sampleToWrite.weight *= hintScale;
+
       if(sampleToWrite.weight < minHintWeight && markedAsHintPos)
         sampleToWrite.weight = minHintWeight;
+      if(sampleToWrite.weight < minHintWeight / 2 && markedAsHintPosLight)
+        sampleToWrite.weight = minHintWeight / 2;
+
       if(sampleToWrite.weight > 0.1) {
         //Still good to learn from given that policy was really low
         posWriter.writePos(sampleToWrite);
+        return sampleToWrite.weight;
       }
     }
 
     //Bot doesn't see the move?
     else if(moveLoc != missedLoc) {
 
-      //If marked as a hint pos, always trust that it should be better and add it.
-      bool shouldWriteMove = markedAsHintPos;
-
-      if(!shouldWriteMove) {
-        ReportedSearchValues moveValues;
+      ReportedSearchValues moveValues;
+      ReportedSearchValues missedValues;
+      // If marked as hint pos and no utility bonus, then we don't need these values
+      if(markedAsHintPos && moreUtilityWeight <= 0.0) {}
+      else {
         if(!maybeGetValuesAfterMove(search,moveLoc,nextPla,board,hist,1.0,moveValues))
-          return;
-        // ostringstream out0;
-        // out0 << "BOT MOVE " << Location::toString(moveLoc,board) << endl;
-        // search->printTree(out0, search->rootNode, PrintTreeOptions().maxDepth(0),perspective);
-        // cout << out0.str() << endl;
-
-        ReportedSearchValues missedValues;
+          return 0.0;
         if(!maybeGetValuesAfterMove(search,missedLoc,nextPla,board,hist,1.0,missedValues))
-          return;
+          return 0.0;
+      }
+      if(moreUtilityWeight > 0.0) {
+        selfUtilityOfBestOtherMove = std::max(selfUtilityOfBestOtherMove, (nextPla == P_WHITE ? moveValues.utility : -moveValues.utility));
+        selfUtilityOfHintMove = std::max(selfUtilityOfHintMove, (nextPla == P_WHITE ? missedValues.utility : -missedValues.utility));
+      }
+
+      bool shouldWriteMove = false;
+      if(markedAsHintPos) {
+        //If marked as a hint pos, always trust that it should be better and add it.
+        shouldWriteMove = true;
+      }
+      else {
         // ostringstream out0;
         // out0 << "SGF MOVE " << Location::toString(missedLoc,board) << endl;
         // search->printTree(out0, search->rootNode, PrintTreeOptions().maxDepth(0),perspective);
@@ -1751,7 +1881,6 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
 
         //If the move is this minimum amount better, then record this position as a hint
         //Otherwise the bot actually thinks the move isn't better, so we reject it as an invalid hint.
-        const double utilityThreshold = 0.01;
         ReportedSearchValues postValues = search->getRootValuesRequireSuccess();
         if((nextPla == P_WHITE && missedValues.utility > moveValues.utility + utilityThreshold) ||
            (nextPla == P_BLACK && missedValues.utility < moveValues.utility - utilityThreshold)) {
@@ -1759,25 +1888,41 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
         }
       }
 
+      double lightFactor = 1.0;
+      if(!shouldWriteMove && markedAsHintPosLight) {
+        shouldWriteMove = true;
+        lightFactor = 1.0/3.0;
+      }
+
       if(shouldWriteMove) {
         //Moves that the bot didn't see get written out more
-        sampleToWrite.weight = sampleToWrite.weight * 1.5 + 1.0;
+        sampleToWrite.weight = (sampleToWrite.weight * 1.5 + 1.0) * lightFactor;
+
+        if(moreUtilityWeight > 0.0 && selfUtilityOfHintMove > NULL_UTILITY && selfUtilityOfBestOtherMove > NULL_UTILITY) {
+          sampleToWrite.weight += moreUtilityWeight * (-0.3 + sqrt(0.09 + std::max(0.0, selfUtilityOfHintMove - selfUtilityOfBestOtherMove)));
+        }
+
         sampleToWrite.weight *= exp(-sampleToWrite.initialTurnNumber * turnWeightLambda);
         if(markedAsHintPos)
           sampleToWrite.weight *= hintScale;
         if(sampleToWrite.weight < minHintWeight && markedAsHintPos)
           sampleToWrite.weight = minHintWeight;
+        if(sampleToWrite.weight < minHintWeight / 2 && markedAsHintPosLight)
+          sampleToWrite.weight = minHintWeight / 2;
         if(sampleToWrite.weight > 0.1) {
           posWriter.writePos(sampleToWrite);
+          return sampleToWrite.weight;
         }
       }
     }
+
+    return 0.0;
   };
 
   // ---------------------------------------------------------------------------------------------------
-  //SGF MODE
+  //GAME MODE
 
-  auto processSgfGame = [&logger,&gameInit,&nnEval,&expensiveEvaluateMove,autoKomi,&gameModeFastThreshold,&maxDepth,&numFilteredSgfs,&maxHandicap,&maxPolicy,allowGameOver,trainingWeight](
+  auto processSgfGame = [&posWriter,&logger,&gameInit,&nnEval,&expensiveEvaluateMove,autoKomi,&gameModeFastThreshold,&maxDepth,&numFilteredSgfs,&maxHandicap,&maxPolicy,allowGameOver,manualHintOnly,trainingWeight,startPosesBeforeHintsLen,minTurn](
     Search* search, Rand& rand, const string& fileName, CompactSgf* sgf, bool blackOkay, bool whiteOkay
   ) {
     //Don't use the SGF rules - randomize them for a bit more entropy
@@ -1827,7 +1972,7 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
 
       ReportedSearchValues superQuickValues;
       {
-        bool suc = maybeGetValuesAfterMove(search,Board::NULL_LOC,nextPla,board,hist,1.0/80.0,superQuickValues);
+        bool suc = maybeGetValuesAfterMove(search,Board::NULL_LOC,nextPla,board,hist,1.0/60.0,superQuickValues);
         if(!suc)
           break;
       }
@@ -1886,7 +2031,7 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
     vector<double> pastValue(winLossValues.size());
     vector<double> pastLead(winLossValues.size());
     futureValue[winLossValues.size()] = winLossValues[winLossValues.size()-1];
-    futureLead[winLossValues.size()] = scoreLeads[winLossValues.size()];
+    futureLead[winLossValues.size()] = scoreLeads[winLossValues.size()-1];
     for(int i = (int)winLossValues.size()-1; i >= 0; i--) {
       futureValue[i] = 0.10 * winLossValues[i] + 0.90 * futureValue[i+1];
       futureLead[i] = 0.10 * scoreLeads[i] + 0.90 * futureLead[i+1];
@@ -1894,20 +2039,24 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
     pastValue[0] = winLossValues[0];
     pastLead[0] = scoreLeads[0];
     for(int i = 1; i<(int)winLossValues.size(); i++) {
-      pastValue[i] = 0.5 * winLossValues[i] + 0.5 * pastValue[i+1];
-      pastLead[i] = 0.5 * scoreLeads[i] + 0.5 * pastLead[i+1];
+      pastValue[i] = 0.5 * winLossValues[i] + 0.5 * pastValue[i-1];
+      pastLead[i] = 0.5 * scoreLeads[i] + 0.5 * pastLead[i-1];
     }
 
     const double scoreLeadWeight = 0.01;
     const double sumThreshold = gameModeFastThreshold;
 
     //cout << fileName << endl;
+    std::map<int,double> startPosesBeforeHintsWeights;
     for(int m = 0; m<moves.size(); m++) {
 
       if(shouldStop.load(std::memory_order_acquire))
         break;
 
       if((nextPlas[m] == P_BLACK && !blackOkay) || (nextPlas[m] == P_WHITE && !whiteOkay))
+        continue;
+
+      if(m < minTurn)
         continue;
 
       //cout << m << endl;
@@ -1946,14 +2095,40 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
         PlayUtils::adjustKomiToEven(search,NULL,boards[m],hists[m],nextPlas[m],numVisits,props,rand);
       }
 
-      expensiveEvaluateMove(
+      double wroteHintPosWeight = expensiveEvaluateMove(
         search, moves[m].loc, nextPlas[m], boards[m], hists[m],
-        sample, false
+        sample, false, false
       );
+
+      if(wroteHintPosWeight > 0 && startPosesBeforeHintsLen > 0) {
+        for(int i = std::max(0,m-startPosesBeforeHintsLen); i <= m+1; i++) {
+          double newWeight = std::max(startPosesBeforeHintsWeights[i], wroteHintPosWeight / sqrt(startPosesBeforeHintsLen));
+          startPosesBeforeHintsWeights[i] = newWeight;
+        }
+      }
     }
+
+    for(int m = 0; m<moves.size(); m++) {
+      if(startPosesBeforeHintsWeights[m] > 0) {
+        Sgf::PositionSample sample;
+        const int numMovesToRecord = 8;
+        int startIdx = std::max(0,m-numMovesToRecord);
+        sample.board = boards[startIdx];
+        sample.nextPla = nextPlas[startIdx];
+        for(int j = startIdx; j<m; j++)
+          sample.moves.push_back(moves[j]);
+        sample.initialTurnNumber = hists[m].initialTurnNumber + startIdx;
+        sample.hintLoc = Board::NULL_LOC;
+        sample.weight = startPosesBeforeHintsWeights[m];
+        sample.trainingWeight = trainingWeight;
+        posWriter.writePos(sample);
+      }
+    }
+
+    logger.write("Sgf processed: " + fileName);
   };
 
-  const int maxSgfQueueSize = 1024;
+  const int maxSgfQueueSize = 128;
   ThreadSafeQueue<Sgf*> sgfQueue(maxSgfQueueSize);
   auto processSgfLoop = [&logger,&processSgfGame,&sgfQueue,&params,&nnEval,&numSgfsDone,&isPlayerOkay,&tolerateIllegalMoves]() {
     Rand rand;
@@ -1999,7 +2174,7 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
   //TREE MODE
 
   auto treePosHandler = [&gameInit,&nnEval,&expensiveEvaluateMove,&autoKomi,&maxPolicy,&flipIfPassOrWFirst,&surpriseMode,trainingWeight](
-    Search* search, Rand& rand, const BoardHistory& treeHist, bool markedAsHintPos
+    Search* search, Rand& rand, const BoardHistory& treeHist, bool markedAsHintPos, bool markedAsHintPosLight
   ) {
     if(shouldStop.load(std::memory_order_acquire))
       return;
@@ -2062,14 +2237,10 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
       pla = getOpp(pla);
     }
 
-    //Make sure the hinted move is legal too
+    //Make sure the hinted move is legal too under our randomized rules.
     int hintIdx = (int)treeHist.moveHistory.size()-1;
-    if(!treeHist.isLegal(board,treeHist.moveHistory[hintIdx].loc,treeHist.moveHistory[hintIdx].pla))
-      return;
     assert(treeHist.moveHistory[hintIdx].pla == pla);
     assert(treeHist.moveHistory[hintIdx].loc == sample.hintLoc);
-
-    //And make sure it's legal under our randomized rules.
     if(!hist.isLegal(board,sample.hintLoc,pla))
       return;
 
@@ -2104,7 +2275,7 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
 
     if(policyProb > maxPolicy)
       return;
-    bool alwaysAddWeight = markedAsHintPos || surpriseMode;
+    bool alwaysAddWeight = markedAsHintPos || markedAsHintPosLight || surpriseMode;
     double weight = surpriseWeight(policyProb,rand,alwaysAddWeight);
     if(weight <= 0)
       return;
@@ -2117,12 +2288,12 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
 
     expensiveEvaluateMove(
       search, sample.hintLoc, pla, board, hist,
-      sample, markedAsHintPos
+      sample, markedAsHintPos, markedAsHintPosLight
     );
   };
 
 
-  const int64_t maxPosQueueSize = 16384;
+  const int64_t maxPosQueueSize = 1024;
   ThreadSafeQueue<PosQueueEntry> posQueue(maxPosQueueSize);
   std::atomic<int64_t> numPosesBegun(0);
   std::atomic<int64_t> numPosesDone(0);
@@ -2143,13 +2314,14 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
         break;
       BoardHistory* hist = p.hist;
       bool markedAsHintPos = p.markedAsHintPos;
+      bool markedAsHintPosLight = p.markedAsHintPosLight;
 
       int64_t numEnqueued = numPosesEnqueued.load();
       int64_t numBegun = 1+numPosesBegun.fetch_add(1);
       if(numBegun % 20 == 0)
         logger.write("Begun " + Global::int64ToString(numBegun) + "/" + Global::int64ToString(numEnqueued) + " poses");
 
-      treePosHandler(search, rand, *hist, markedAsHintPos);
+      treePosHandler(search, rand, *hist, markedAsHintPos, markedAsHintPosLight);
 
       int64_t numDone = 1+numPosesDone.fetch_add(1);
       if(numDone % 20 == 0)
@@ -2200,42 +2372,14 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
     if(numSgfsBegun % std::min((size_t)20, 1 + sgfFiles.size() / 60) == 0)
       logSgfProgress();
 
-    const string& fileName = sgfFiles[permutation[i]];
+    const string& fileName = sgfFiles[i];
 
-    std::vector<Sgf*> sgfs;
-    if(sgfsSet.find(fileName) != sgfsSet.end()) {
-      try {
-        sgfs = Sgf::loadSgfsFile(fileName);
-      }
-      catch(const StringError& e) {
-        logger.write("Invalid SGFS " + fileName + ": " + e.what());
-        continue;
-      }
-    }
-    else {
-      Sgf* sgf = NULL;
-      try {
-        sgf = Sgf::loadFile(fileName);
-      }
-      catch(const StringError& e) {
-        logger.write("Invalid SGF " + fileName + ": " + e.what());
-        continue;
-      }
-      sgfs.push_back(sgf);
-    }
-
-    vector<size_t> subPermutation(sgfs.size());
-    for(size_t j = 0; j<sgfs.size(); j++)
-      subPermutation[j] = j;
-    if(!forTesting) {
-      for(size_t j = 1; j<sgfs.size(); j++) {
-        size_t r = (size_t)seedRand.nextUInt64(j+1);
-        std::swap(subPermutation[j],subPermutation[r]);
-      }
-    }
+    std::vector<Sgf*> sgfs = Sgf::loadSgfOrSgfsLogAndIgnoreErrors(fileName,logger);
+    if(!forTesting)
+      seedRand.shuffle(sgfs);
 
     for(size_t j = 0; j<sgfs.size(); j++) {
-      Sgf* sgf = sgfs[subPermutation[j]];
+      Sgf* sgf = sgfs[j];
 
       if(contains(excludeHashes,sgf->hash)) {
         logger.write("Filtering due to exclude: " + fileName);
@@ -2244,8 +2388,9 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
         continue;
       }
       try {
-        if(!isSgfOkay(sgf)) {
-          logger.write("Filtering due to not okay: " + fileName);
+        string reasonBuf;
+        if(!isSgfOkay(sgf,reasonBuf)) {
+          logger.write("Filtering due to not okay (" + reasonBuf + "): " + fileName);
           numSgfsFilteredTopLevel += 1;
           delete sgf;
           continue;
@@ -2264,6 +2409,7 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
       }
 
       logger.write("Starting " + fileName);
+      handleStartAnnotations(sgf);
 
       if(gameMode) {
         sgfQueue.waitPush(sgf);
@@ -2285,6 +2431,11 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
               if((hist.moveHistory[hintIdx].pla == P_BLACK && !blackOkay) || (hist.moveHistory[hintIdx].pla == P_WHITE && !whiteOkay))
                 return;
 
+              bool markedAsHintPos = (comments.size() > 0 && comments.find("%HINT%") != string::npos);
+              bool markedAsHintPosLight = (comments.size() > 0 && comments.find("%HINTLIGHT%") != string::npos);
+              if(manualHintOnly && !markedAsHintPos && !markedAsHintPosLight)
+                return;
+
               //unusedSample doesn't have enough history, doesn't have hintloc the way we want it
               int64_t numEnqueued = 1+numPosesEnqueued.fetch_add(1);
               if(numEnqueued % 500 == 0)
@@ -2292,7 +2443,8 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
               PosQueueEntry entry;
               entry.hist = new BoardHistory(hist);
               assert(hist.getCurrentTurnNumber() == unusedSample.getCurrentTurnNumber());
-              entry.markedAsHintPos = (comments.size() > 0 && comments.find("%HINT%") != string::npos);
+              entry.markedAsHintPos = markedAsHintPos;
+              entry.markedAsHintPosLight = markedAsHintPosLight;
               posQueue.waitPush(entry);
             }
           );
@@ -2310,7 +2462,6 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
   }
   logSgfProgress();
   logger.write("All sgfs loaded, waiting for finishing analysis");
-  logger.write(Global::uint64ToString(sgfQueue.size()) + " sgfs still enqueued");
   logger.write(Global::uint64ToString(sgfQueue.size()) + " sgfs still enqueued");
 
   sgfQueue.setReadOnly();
@@ -2351,6 +2502,8 @@ int MainCmds::trystartposes(const vector<string>& args) {
   string nnModelFile;
   vector<string> startPosesFiles;
   double minWeight;
+  bool autoKomi;
+  bool randomSample;
   try {
     KataGoCommandLine cmd("Try running searches starting from startposes");
     cmd.addConfigFileArg("","");
@@ -2359,12 +2512,19 @@ int MainCmds::trystartposes(const vector<string>& args) {
 
     TCLAP::MultiArg<string> startPosesFileArg("","startposes","Startposes file",true,"DIR");
     TCLAP::ValueArg<double> minWeightArg("","min-weight","Minimum weight of startpos to try",false,0.0,"WEIGHT");
+    TCLAP::SwitchArg autoKomiArg("","auto-komi","Auto komi");
+    TCLAP::SwitchArg randomSampleArg("","random-sample","Weighted random sample");
+
     cmd.add(startPosesFileArg);
     cmd.add(minWeightArg);
+    cmd.add(autoKomiArg);
+    cmd.add(randomSampleArg);
     cmd.parseArgs(args);
     nnModelFile = cmd.getModelFile();
     startPosesFiles = startPosesFileArg.getValue();
     minWeight = minWeightArg.getValue();
+    autoKomi = autoKomiArg.getValue();
+    randomSample = randomSampleArg.getValue();
     cmd.getConfig(cfg);
   }
   catch (TCLAP::ArgException &e) {
@@ -2425,10 +2585,23 @@ int MainCmds::trystartposes(const vector<string>& args) {
   string searchRandSeed = Global::uint64ToString(seedRand.nextUInt64());
   Search* search = new Search(params,nnEval,&logger,searchRandSeed);
 
+  std::vector<double> startPosCumProbs;
+  double cumProb = 0;
+  for(size_t i = 0; i<startPoses.size(); i++) {
+    cumProb += startPoses[i].weight;
+    startPosCumProbs.push_back(cumProb);
+  }
+
   // ---------------------------------------------------------------------------------------------------
 
   for(size_t s = 0; s<startPoses.size(); s++) {
-    const Sgf::PositionSample& startPos = startPoses[s];
+    size_t r;
+    if(randomSample)
+      r = seedRand.nextIndexCumulative(startPosCumProbs.data(),startPosCumProbs.size());
+    else
+      r = s;
+
+    const Sgf::PositionSample& startPos = startPoses[r];
     if(startPos.weight < minWeight)
       continue;
 
@@ -2451,7 +2624,7 @@ int MainCmds::trystartposes(const vector<string>& args) {
       throw StringError("Illegal move in startpos: " + Sgf::PositionSample::toJsonLine(startPos));
     }
 
-    {
+    if(autoKomi) {
       const int64_t numVisits = 10;
       OtherGameProperties props;
       PlayUtils::adjustKomiToEven(search,NULL,board,hist,pla,numVisits,props,seedRand);
@@ -2509,6 +2682,7 @@ int MainCmds::viewstartposes(const vector<string>& args) {
   double minWeight;
   int idxToView;
   bool checkLegality;
+  bool autoKomi;
   try {
     KataGoCommandLine cmd("View startposes");
     cmd.addConfigFileArg("","",false);
@@ -2519,15 +2693,18 @@ int MainCmds::viewstartposes(const vector<string>& args) {
     TCLAP::ValueArg<double> minWeightArg("","min-weight","Min weight of startpos to view",false,0.0,"WEIGHT");
     TCLAP::ValueArg<int> idxArg("","idx","Index of startpos to view in file",false,-1,"IDX");
     TCLAP::SwitchArg checkLegalityArg("","check-legality","Print startposes that are illegal or that have illegal hints");
+    TCLAP::SwitchArg autoKomiArg("","auto-komi","Auto komi");
     cmd.add(startPosesFileArg);
     cmd.add(minWeightArg);
     cmd.add(idxArg);
     cmd.add(checkLegalityArg);
+    cmd.add(autoKomiArg);
     cmd.parseArgs(args);
     startPosesFiles = startPosesFileArg.getValue();
     minWeight = minWeightArg.getValue();
     idxToView = idxArg.getValue();
     checkLegality = checkLegalityArg.getValue();
+    autoKomi = autoKomiArg.getValue();
 
     cmd.getConfigAllowEmpty(cfg);
     if(cfg.getFileName() != "")
@@ -2632,7 +2809,6 @@ int MainCmds::viewstartposes(const vector<string>& args) {
       }
     }
 
-    bool autoKomi = true;
     if(autoKomi && bot != NULL) {
       const int64_t numVisits = 10;
       OtherGameProperties props;
@@ -2798,6 +2974,226 @@ int MainCmds::sampleinitializations(const vector<string>& args) {
   }
 
   delete gameRunner;
+  delete evalBot;
+  if(nnEval != NULL)
+    delete nnEval;
+
+  ScoreValue::freeTables();
+  return 0;
+}
+
+
+int MainCmds::checksgfhintpolicy(const vector<string>& args) {
+  Board::initHash();
+  ScoreValue::initTables();
+  Rand seedRand;
+
+  ConfigParser cfg;
+  string nnModelFile;
+  vector<string> sgfDirs;
+  try {
+    KataGoCommandLine cmd("Check policy for hint positions in sgfs");
+    cmd.addConfigFileArg("","");
+    cmd.addModelFileArg();
+    cmd.addOverrideConfigArg();
+
+    TCLAP::MultiArg<string> sgfDirArg("","sgfdir","Directory of sgf files",true,"DIR");
+    cmd.add(sgfDirArg);
+    cmd.parseArgs(args);
+
+    nnModelFile = cmd.getModelFile();
+    sgfDirs = sgfDirArg.getValue();
+
+    cmd.getConfig(cfg);
+  }
+  catch (TCLAP::ArgException &e) {
+    cerr << "Error: " << e.error() << " for argument " << e.argId() << endl;
+    return 1;
+  }
+
+  const bool logToStdoutDefault = true;
+  Logger logger(&cfg, logToStdoutDefault);
+
+  NNEvaluator* nnEval;
+  {
+    Setup::initializeSession(cfg);
+    const int expectedConcurrentEvals = 1;
+    const int defaultMaxBatchSize = 8;
+    const bool defaultRequireExactNNLen = false;
+    const bool disableFP16 = false;
+    const string expectedSha256 = "";
+    nnEval = Setup::initializeNNEvaluator(
+      nnModelFile,nnModelFile,expectedSha256,cfg,logger,seedRand,expectedConcurrentEvals,
+      NNPos::MAX_BOARD_LEN,NNPos::MAX_BOARD_LEN,defaultMaxBatchSize,defaultRequireExactNNLen,disableFP16,
+      Setup::SETUP_FOR_ANALYSIS
+    );
+  }
+  logger.write("Loaded neural net");
+
+  vector<string> sgfFiles;
+  FileHelpers::collectSgfsFromDirs(sgfDirs, sgfFiles);
+  logger.write("Found " + Global::int64ToString((int64_t)sgfFiles.size()) + " sgf files!");
+
+  int64_t numHintPositions = 0;
+  double logPolicySum = 0.0;
+  double logPolicyWeight = 0.0;
+
+  for(size_t i = 0; i<sgfFiles.size(); i++) {
+    Sgf* sgf = NULL;
+    try {
+      sgf = Sgf::loadFile(sgfFiles[i]);
+    }
+    catch(const StringError& e) {
+      logger.write("Invalid SGF " + sgfFiles[i] + ": " + e.what());
+      continue;
+    }
+
+    std::set<Hash128> uniqueHashes;
+    bool hashComments = true;
+    bool hashParent = true;
+    bool flipIfPassOrWFirst = false;
+    bool allowGameOver = false;
+    Rand rand;
+
+    const std::vector<Rules> rulesToUse = {
+      Rules::parseRules("chinese"),
+      Rules::parseRules("japanese")
+    };
+
+    logger.write("Processing sgf: " + sgfFiles[i] + " hint positions " + Global::int64ToString(numHintPositions));
+    sgf->iterAllUniquePositions(
+      uniqueHashes, hashComments, hashParent, flipIfPassOrWFirst, allowGameOver, &rand,
+      [&](Sgf::PositionSample& posSample, const BoardHistory& hist, const string& comments) {
+        if(comments.find("%HINT%") == string::npos)
+          return;
+        (void)hist; // Ignore, we want the position before the hint move
+
+        if(!posSample.hasPreviousPositions(1))
+          return;
+        numHintPositions++;
+        Sgf::PositionSample priorPosSample = posSample.previousPosition(1.0);
+
+        for(const Rules& rules: rulesToUse) {
+          Player nextPla;
+          BoardHistory histBefore;
+          bool suc = priorPosSample.tryGetCurrentBoardHistory(rules,nextPla,histBefore);
+          testAssert(suc);
+          Board board = histBefore.getRecentBoard(0);
+
+          for(int symmetry = 0; symmetry < 8; symmetry++) {
+            MiscNNInputParams nnInputParams;
+            NNResultBuf buf;
+            bool skipCache = true;
+            bool includeOwnerMap = false;
+            nnEval->evaluate(board,histBefore,nextPla,nnInputParams,buf,skipCache,includeOwnerMap);
+
+            shared_ptr<NNOutput> nnOutput = std::move(buf.result);
+            int pos = NNPos::locToPos(posSample.moves[posSample.moves.size()-1].loc, board.x_size, nnOutput->nnXLen, nnOutput->nnYLen);
+            double policy = nnOutput->policyProbs[pos];
+            logPolicySum += log(policy + 1e-30);
+            logPolicyWeight += 1.0;
+          }
+        }
+      }
+    );
+
+    delete sgf;
+  }
+
+  double averageLogPolicy = logPolicySum / logPolicyWeight;
+
+  cout << "Total number of hint positions: " << numHintPositions << endl;
+  cout << "Average log policy across all hints: " << averageLogPolicy << endl;
+
+  delete nnEval;
+  NeuralNet::globalCleanup();
+  ScoreValue::freeTables();
+
+  return 0;
+}
+
+int MainCmds::evalrandominits(const vector<string>& args) {
+  Board::initHash();
+  ScoreValue::initTables();
+
+  ConfigParser cfg;
+  string modelFile;
+  try {
+    KataGoCommandLine cmd("View startposes");
+    cmd.addConfigFileArg("","");
+    cmd.addModelFileArg();
+    cmd.addOverrideConfigArg();
+
+    cmd.parseArgs(args);
+
+    cmd.getConfigAllowEmpty(cfg);
+    if(cfg.getFileName() != "")
+      modelFile = cmd.getModelFile();
+  }
+  catch (TCLAP::ArgException &e) {
+    cerr << "Error: " << e.error() << " for argument " << e.argId() << endl;
+    return 1;
+  }
+
+  Rand rand;
+
+  const bool logToStdoutDefault = true;
+  Logger logger(&cfg, logToStdoutDefault);
+
+  NNEvaluator* nnEval = NULL;
+  if(cfg.getFileName() != "") {
+    SearchParams params = Setup::loadSingleParams(cfg,Setup::SETUP_FOR_GTP);
+    {
+      Setup::initializeSession(cfg);
+      const int expectedConcurrentEvals = params.numThreads;
+      const int defaultMaxBatchSize = std::max(8,((params.numThreads+3)/4)*4);
+      const bool defaultRequireExactNNLen = false;
+      const bool disableFP16 = false;
+      const string expectedSha256 = "";
+      nnEval = Setup::initializeNNEvaluator(
+        modelFile,modelFile,expectedSha256,cfg,logger,rand,expectedConcurrentEvals,
+        Board::MAX_LEN,Board::MAX_LEN,defaultMaxBatchSize,defaultRequireExactNNLen,disableFP16,
+        Setup::SETUP_FOR_GTP
+      );
+    }
+    logger.write("Loaded neural net");
+  }
+
+  Search* evalBot;
+  {
+    SearchParams params = Setup::loadSingleParams(cfg,Setup::SETUP_FOR_DISTRIBUTED);
+    params.maxVisits = 40;
+    params.numThreads = 1;
+    string seed = Global::uint64ToString(rand.nextUInt64());
+    evalBot = new Search(params, nnEval, &logger, seed);
+  }
+
+  Rand gameRand;
+  while(true) {
+    Board board(19,19);
+    Player pla = P_BLACK;
+    Rules rules = Rules::parseRules("japanese");
+    BoardHistory hist(board,pla,rules,0);
+    int numInitialMovesToPlay = (int)gameRand.nextUInt(200);
+    double temperature = 1.0;
+    for(int i = 0; i<numInitialMovesToPlay; i++) {
+      NNResultBuf buf;
+      Loc loc = PlayUtils::getGameInitializationMove(evalBot, evalBot, board, hist, pla, buf, gameRand, temperature);
+
+      assert(hist.isLegal(board,loc,pla));
+      hist.makeBoardMoveAssumeLegal(board,loc,pla,NULL);
+      pla = getOpp(pla);
+
+      hist.endGameIfAllPassAlive(board);
+      if(hist.isGameFinished)
+        break;
+    }
+
+    evalBot->setPosition(pla,board,hist);
+    evalBot->runWholeSearch(pla);
+    ReportedSearchValues values = evalBot->getRootValuesRequireSuccess();
+    cout << numInitialMovesToPlay << "," << values.winLossValue << "," << values.lead << endl;
+  }
   delete evalBot;
   if(nnEval != NULL)
     delete nnEval;

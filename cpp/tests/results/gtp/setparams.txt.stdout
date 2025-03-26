@@ -1,0 +1,119 @@
+= Q3
+
+= 
+
+= Q17
+
+= 
+
+= 
+
+= 1
+
+= 0.0
+
+= Q17
+
+= 
+
+= 
+
+= 0.9
+
+= 0.6
+
+= Q17
+
+= 
+
+= 
+
+= 
+
+= {"allowResignation":"true","analysisIgnorePreRootHistory":"true","analysisWideRootNoise":"0.9","antiMirror":"false","chosenMovePrune":1.0,"chosenMoveSubtract":0.0,"chosenMoveTemperature":0.1,"chosenMoveTemperatureEarly":0.5,"chosenMoveTemperatureHalflife":19.0,"chosenMoveTemperatureOnlyBelowProb":1.0,"conservativePass":true,"cpuctExploration":1.0,"cpuctExplorationBase":500.0,"cpuctExplorationLog":0.45,"cpuctUtilityStdevPrior":0.4,"cpuctUtilityStdevPriorWeight":2.0,"cpuctUtilityStdevScale":0.85,"delayMoveMax":"1e+06","delayMoveScale":"0","drawEquivalentWinsForWhite":0.5,"dynamicScoreCenterScale":0.75,"dynamicScoreCenterZeroWeight":0.2,"dynamicScoreUtilityFactor":0.3,"enableMorePassingHacks":false,"enablePassingHacks":true,"endgameTurnTimeDecay":100.0,"fillDameBeforePass":true,"fpuLossProp":0.0,"fpuParentWeight":0.0,"fpuParentWeightByVisitedPolicy":true,"fpuParentWeightByVisitedPolicyPow":2.0,"fpuReductionMax":0.2,"futileVisitsThreshold":0.0,"genmoveAntiMirror":"true","graphSearchCatchUpLeakProb":0.0,"graphSearchRepBound":11,"humanSLChosenMoveIgnorePass":false,"humanSLChosenMovePiklLambda":1000000000.0,"humanSLChosenMoveProp":0.0,"humanSLCpuctExploration":1.0,"humanSLCpuctPermanent":0.0,"humanSLOppExploreProbWeightful":0.0,"humanSLOppExploreProbWeightless":0.0,"humanSLPlaExploreProbWeightful":0.0,"humanSLPlaExploreProbWeightless":0.0,"humanSLProfile":"","humanSLRootExploreProbWeightful":0.0,"humanSLRootExploreProbWeightless":0.0,"ignoreAllHistory":false,"ignorePreRootHistory":false,"lagBuffer":1.0,"lcbStdevs":5.0,"maxPlayouts":10000,"maxPlayoutsPondering":1125899906842624,"maxTime":1e+20,"maxTimePondering":60.0,"maxVisits":100,"maxVisitsPondering":1125899906842624,"midgameTimeFactor":1.0,"midgameTurnPeakTime":130.0,"minPlayoutsPerThread":8.0,"minVisitPropForLCB":0.15,"nnPolicyTemperature":1.0,"noResultUtilityForWhite":0.0,"noisePruneUtilityScale":0.15,"noisePruningCap":1e+50,"numSearchThreads":1,"numVirtualLossesPerThread":1.0,"obviousMovesPolicyEntropyTolerance":0.3,"obviousMovesPolicySurpriseTolerance":0.15,"obviousMovesTimeFactor":1.0,"overallocateTimeFactor":1.0,"playoutDoublingAdvantage":1.0,"playoutDoublingAdvantagePla":"E","policyOptimism":1.0,"ponderingEnabled":"false","rootDesiredPerChildVisitsCoeff":0.0,"rootDirichletNoiseTotalConcentration":10.83,"rootDirichletNoiseWeight":0.25,"rootEndingBonusPoints":0.5,"rootFpuLossProp":0.0,"rootFpuReductionMax":0.1,"rootNoiseEnabled":false,"rootNumSymmetriesToSample":1,"rootPolicyOptimism":0.2,"rootPolicyTemperature":1.0,"rootPolicyTemperatureEarly":1.0,"rootPruneUselessMoves":true,"rootSymmetryPruning":false,"searchFactorAfterOnePass":0.5,"searchFactorAfterTwoPass":0.25,"staticScoreUtilityFactor":0.1,"subtreeValueBiasFactor":0.45,"subtreeValueBiasFreeProp":0.8,"subtreeValueBiasTableNumShards":65536,"subtreeValueBiasWeightExponent":0.85,"treeReuseCarryOverTimeFactor":0.0,"uncertaintyCoeff":0.25,"uncertaintyExponent":1.0,"uncertaintyMaxWeight":8.0,"useGraphSearch":true,"useLcbForSelection":true,"useNoisePruning":true,"useNonBuggyLcb":true,"useUncertainty":true,"valueWeightExponent":0.25,"wideRootNoise":0.0,"winLossUtilityFactor":1.0}
+
+= D3
+
+= 
+
+? Could not set params: Cannot be overridden in kata-set-param: dynamicPlayoutDoublingAdvantageCapPerOppLead
+
+= {"allowResignation":"true","analysisIgnorePreRootHistory":"true","analysisWideRootNoise":"0.9","antiMirror":"false","chosenMovePrune":1.0,"chosenMoveSubtract":0.0,"chosenMoveTemperature":0.1,"chosenMoveTemperatureEarly":0.5,"chosenMoveTemperatureHalflife":19.0,"chosenMoveTemperatureOnlyBelowProb":1.0,"conservativePass":true,"cpuctExploration":1.0,"cpuctExplorationBase":500.0,"cpuctExplorationLog":0.45,"cpuctUtilityStdevPrior":0.4,"cpuctUtilityStdevPriorWeight":2.0,"cpuctUtilityStdevScale":0.85,"delayMoveMax":"1e+06","delayMoveScale":"0","drawEquivalentWinsForWhite":0.5,"dynamicScoreCenterScale":0.75,"dynamicScoreCenterZeroWeight":0.2,"dynamicScoreUtilityFactor":0.3,"enableMorePassingHacks":false,"enablePassingHacks":true,"endgameTurnTimeDecay":100.0,"fillDameBeforePass":true,"fpuLossProp":0.0,"fpuParentWeight":0.0,"fpuParentWeightByVisitedPolicy":true,"fpuParentWeightByVisitedPolicyPow":2.0,"fpuReductionMax":0.2,"futileVisitsThreshold":0.0,"genmoveAntiMirror":"true","graphSearchCatchUpLeakProb":0.0,"graphSearchRepBound":11,"humanSLChosenMoveIgnorePass":false,"humanSLChosenMovePiklLambda":1000000000.0,"humanSLChosenMoveProp":0.0,"humanSLCpuctExploration":1.0,"humanSLCpuctPermanent":0.0,"humanSLOppExploreProbWeightful":0.0,"humanSLOppExploreProbWeightless":0.0,"humanSLPlaExploreProbWeightful":0.0,"humanSLPlaExploreProbWeightless":0.0,"humanSLProfile":"","humanSLRootExploreProbWeightful":0.0,"humanSLRootExploreProbWeightless":0.0,"ignoreAllHistory":false,"ignorePreRootHistory":false,"lagBuffer":1.0,"lcbStdevs":5.0,"maxPlayouts":10000,"maxPlayoutsPondering":1125899906842624,"maxTime":1e+20,"maxTimePondering":60.0,"maxVisits":100,"maxVisitsPondering":1125899906842624,"midgameTimeFactor":1.0,"midgameTurnPeakTime":130.0,"minPlayoutsPerThread":8.0,"minVisitPropForLCB":0.15,"nnPolicyTemperature":1.0,"noResultUtilityForWhite":0.0,"noisePruneUtilityScale":0.15,"noisePruningCap":1e+50,"numSearchThreads":1,"numVirtualLossesPerThread":1.0,"obviousMovesPolicyEntropyTolerance":0.3,"obviousMovesPolicySurpriseTolerance":0.15,"obviousMovesTimeFactor":1.0,"overallocateTimeFactor":1.0,"playoutDoublingAdvantage":1.0,"playoutDoublingAdvantagePla":"E","policyOptimism":1.0,"ponderingEnabled":"false","rootDesiredPerChildVisitsCoeff":0.0,"rootDirichletNoiseTotalConcentration":10.83,"rootDirichletNoiseWeight":0.25,"rootEndingBonusPoints":0.5,"rootFpuLossProp":0.0,"rootFpuReductionMax":0.1,"rootNoiseEnabled":false,"rootNumSymmetriesToSample":1,"rootPolicyOptimism":0.2,"rootPolicyTemperature":1.0,"rootPolicyTemperatureEarly":1.0,"rootPruneUselessMoves":true,"rootSymmetryPruning":false,"searchFactorAfterOnePass":0.5,"searchFactorAfterTwoPass":0.25,"staticScoreUtilityFactor":0.1,"subtreeValueBiasFactor":0.45,"subtreeValueBiasFreeProp":0.8,"subtreeValueBiasTableNumShards":65536,"subtreeValueBiasWeightExponent":0.85,"treeReuseCarryOverTimeFactor":0.0,"uncertaintyCoeff":0.25,"uncertaintyExponent":1.0,"uncertaintyMaxWeight":8.0,"useGraphSearch":true,"useLcbForSelection":true,"useNoisePruning":true,"useNonBuggyLcb":true,"useUncertainty":true,"valueWeightExponent":0.25,"wideRootNoise":0.0,"winLossUtilityFactor":1.0}
+
+= D3
+
+= 
+
+= D3
+
+= 
+
+= MoveNum: 1 HASH: 87712726FD65E13B89C878D9CA82BF83
+   A B C D E F G H J K L M N O P Q R S T
+19 . . . . . . . . . . . . . . . . . . .
+18 . . . . . . . . . . . . . . . . . . .
+17 . . . . . . . . . . . . . . . . . . .
+16 . . . . . . . . . . . . . . . . . . .
+15 . . . . . . . . . . . . . . . . . . .
+14 . . . . . . . . . . . . . . . . . . .
+13 . . . . . . . . . . . . . . . . . . .
+12 . . . . . . . . . . . . . . . . . . .
+11 . . . . . . . . . . . . . . . . . . .
+10 . . . . . . . . . . . . . . . . . . .
+ 9 . . . . . . . . . . . . . . . . . . .
+ 8 . . . . . . . . . . . . . . . . . . .
+ 7 . . . . . . . . . . . . . . . . . . .
+ 6 . . . . . . . . . . . . . . . . . . .
+ 5 . . . . . . . . . . . . . . . . . . .
+ 4 . . . . . . . . . . . . . . . . . . .
+ 3 . . . . . . . . . . . . . . . X1. . .
+ 2 . . . . . . . . . . . . . . . . . . .
+ 1 . . . . . . . . . . . . . . . . . . .
+: T  49.40c W  46.52c S   2.61c (+11.7 L +10.9) N     100  --  D3 C16 Q17 E16 Q15 Q5
+---White(^)---
+D3  : T  51.80c W  48.05c S   2.81c (+12.0 L +11.2) LCB   49.44c P 12.40% WF  50.5 PSV      50 N      50  --  D3 C16 Q17 E16 Q15 Q5
+R16 : T  48.11c W  45.37c S   2.40c (+11.4 L +10.4) LCB   39.32c P 12.96% WF  11.9 PSV      10 N      12  --  R16 D3 D17 Q5
+D17 : T  47.12c W  45.37c S   2.43c (+11.4 L +10.4) LCB   32.73c P 13.23% WF   7.9 PSV       8 N       8  --  D17 C4 Q17 E4
+C16 : T  48.42c W  46.48c S   2.57c (+11.6 L +10.7) LCB   35.03c P  9.33% WF   7.9 PSV       8 N       8  --  C16 C4 Q17 E4
+C4  : T  49.00c W  45.76c S   2.50c (+11.5 L +10.8) LCB   35.61c P  7.98% WF   8.0 PSV       7 N       8  --  C4 D17 Q17 D15
+Q17 : T  47.11c W  44.45c S   2.26c (+11.2 L +10.3) LCB   34.44c P 11.44% WF   6.9 PSV       7 N       7  --  Q17 C16 D3 E16 Q15 Q5
+Q4  : T  36.24c W  37.70c S   2.09c (+10.9 L  +9.5) LCB -113.34c P  9.19% WF   1.9 PSV       2 N       2  --  Q4 R4
+D16 : T  41.61c W  43.82c S   2.17c (+11.0 L +10.0) LCB -108.30c P  5.13% WF   2.0 PSV       1 N       2  --  D16 C4
+D4  : T  42.34c W  44.11c S   2.22c (+11.1 L +10.1) LCB -107.42c P  4.14% WF   2.0 PSV       1 N       2  --  D4 C16
+
+
+= 
+
+= MoveNum: 1 HASH: 87712726FD65E13B89C878D9CA82BF83
+   A B C D E F G H J K L M N O P Q R S T
+19 . . . . . . . . . . . . . . . . . . .
+18 . . . . . . . . . . . . . . . . . . .
+17 . . . . . . . . . . . . . . . . . . .
+16 . . . . . . . . . . . . . . . . . . .
+15 . . . . . . . . . . . . . . . . . . .
+14 . . . . . . . . . . . . . . . . . . .
+13 . . . . . . . . . . . . . . . . . . .
+12 . . . . . . . . . . . . . . . . . . .
+11 . . . . . . . . . . . . . . . . . . .
+10 . . . . . . . . . . . . . . . . . . .
+ 9 . . . . . . . . . . . . . . . . . . .
+ 8 . . . . . . . . . . . . . . . . . . .
+ 7 . . . . . . . . . . . . . . . . . . .
+ 6 . . . . . . . . . . . . . . . . . . .
+ 5 . . . . . . . . . . . . . . . . . . .
+ 4 . . . . . . . . . . . . . . . . . . .
+ 3 . . . . . . . . . . . . . . . X1. . .
+ 2 . . . . . . . . . . . . . . . . . . .
+ 1 . . . . . . . . . . . . . . . . . . .
+
+
+= 3.0
+
+= Q17
+
+= 1
+
+= 
+
+= 2
+

@@ -517,7 +517,7 @@ if __name__ == '__main__':
                     break
                 time.sleep(1)
             if not success:
-                raise RuntimeError("Could not load summary file")
+                raise RuntimeError("Could not load exclude file")
 
     # If excluding basenames, also add them to the set
     if exclude_basename:
@@ -695,7 +695,6 @@ if __name__ == '__main__':
                 start_row = end_row - num_rows
                 min_start_row = min(start_row, min_start_row)
                 num_rows_used += num_rows
-                end_row -= num_rows
             else:
                 start_row = end_row
 
@@ -703,6 +702,9 @@ if __name__ == '__main__':
                 print("Using: %s (%d-%d) (%d/%d desired rows)" % (filename,start_row,end_row,num_rows_used,desired_num_rows), flush=True)
             if num_rows_used >= desired_num_rows:
                 break
+
+            # Update end row for next loop
+            end_row = start_row
 
     print("Finally, using: (%d-%d) (%d/%d desired rows)" % (min_start_row,max_end_row,num_rows_used,desired_num_rows), flush=True)
 
@@ -737,7 +739,7 @@ if __name__ == '__main__':
 
     clean_tmp_dirs()
     for tmp_dir in out_tmp_dirs:
-        os.mkdir(tmp_dir)
+        os.makedirs(tmp_dir,exist_ok=True)
 
     num_rows_in_desired_files = 0
     if only_include_md5_path_prop_lbound is not None or only_include_md5_path_prop_ubound is not None:

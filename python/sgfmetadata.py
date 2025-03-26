@@ -8,6 +8,7 @@ import math
 import numpy as np
 import random
 from board import Board
+import modelconfigs
 
 @dataclass
 class SGFMetadata:
@@ -36,8 +37,6 @@ class SGFMetadata:
     byoYomiPeriods: int = 0
     canadianMoves: int = 0
 
-    boardArea: int = 361
-
     gameDate: datetime.date = datetime.date(1970, 1, 1)
 
     source: int = 0
@@ -62,7 +61,7 @@ class SGFMetadata:
         return data
 
     @classmethod
-    def get_katago_selfplay_metadata(cls, board_area: int, rand: random.Random) -> "SGFMetadata":
+    def get_katago_selfplay_metadata(cls, rand: random.Random) -> "SGFMetadata":
         return SGFMetadata(
             inverseBRank = 0,
             inverseWRank = 0,
@@ -89,18 +88,21 @@ class SGFMetadata:
             byoYomiPeriods = 5,
             canadianMoves = 0,
 
-            boardArea = board_area,
             gameDate = datetime.date(2022, 1, 1) + datetime.timedelta(days=rand.randint(0,722)),
             source = 0,
         )
 
 
-    def get_metadata_row(self, nextPlayer) -> np.ndarray:
+    def get_metadata_row(self, nextPlayer, boardArea) -> np.ndarray:
         if isinstance(nextPlayer,str):
             if nextPlayer.lower() == "w":
                 nextPlayer = Board.WHITE
             elif nextPlayer.lower() == "b":
                 nextPlayer = Board.BLACK
+
+        # This class implements "version 1" of sgf metadata encoding, make sure channel dims match up.
+        meta_encoder_version = 1
+        assert modelconfigs.get_num_meta_encoder_input_features(meta_encoder_version) == self.METADATA_INPUT_NUM_CHANNELS
 
         rowMetadata = np.zeros(self.METADATA_INPUT_NUM_CHANNELS, dtype=np.float32)
 
@@ -160,7 +162,7 @@ class SGFMetadata:
         rowMetadata[84] = 0.5 * (math.log(byoYomiPeriodsCapped + 2.0) - 1.5)
         rowMetadata[85] = 0.25 * (math.log(canadianMovesCapped + 2.0) - 1.5)
 
-        rowMetadata[86] = 0.5 * math.log(self.boardArea / 361.0)
+        rowMetadata[86] = 0.5 * math.log(boardArea / 361.0)
 
         daysDifference = (self.gameDate - datetime.date(1970, 1, 1)).days
         DATE_START_IDX = 87
