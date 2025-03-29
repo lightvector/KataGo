@@ -458,6 +458,11 @@ metalhandle(maybeCreateMetalComputeHandle((gpuIdx < 100),
                                           serverThreadIdx,
                                           MetalProcess::modelDescToSwift(&loadedModel->modelDesc),
                                           context->metalComputeContext)) {
+
+  if(inputsUseNHWC != false) {
+    throw StringError("Metal backend: inputsUseNHWC = false required, other configurations not supported");
+  }
+  
   const ModelDesc* modelDesc = &loadedModel->modelDesc;
   auto metalContext = context->metalComputeContext;
 
