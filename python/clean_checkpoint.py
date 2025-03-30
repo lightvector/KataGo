@@ -6,6 +6,8 @@ import math
 import torch
 import json
 
+import load_model
+
 description = """
 Utility for cleaning torch checkpoints for release.
 """

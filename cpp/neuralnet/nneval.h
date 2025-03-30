@@ -124,6 +124,7 @@ class NNEvaluator {
   int getNNXLen() const;
   int getNNYLen() const;
   int getModelVersion() const;
+  double getTrunkSpatialConvDepth() const;
   enabled_t getUsingFP16Mode() const;
   enabled_t getUsingNHWCMode() const;
 
@@ -226,6 +227,7 @@ class NNEvaluator {
   NNCacheTable* nnCacheTable;
   Logger* logger;
 
+  std::string internalModelName;
   int modelVersion;
   int inputsVersion;
   int numInputMetaChannels;

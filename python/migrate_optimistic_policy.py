@@ -5,6 +5,8 @@ import argparse
 import math
 import torch
 
+import load_model
+
 description = """
 Hacky script to migrate v11 model to v12 with optimistic policy.
 Run on a torch checkpoint.ckpt file. Replace the old one with the new one after a backup.

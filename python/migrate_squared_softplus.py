@@ -5,6 +5,8 @@ import argparse
 import math
 import torch
 
+import load_model
+
 description = """
 Hacky script to partially migrate v13 to v14 new squared softplus activation for error preds.
 Run on a torch checkpoint.ckpt file. Replace the old one with the new one after a backup.

@@ -913,12 +913,17 @@ int MainCmds::contribute(const vector<string>& args) {
 
       const bool verbose = false;
       const bool quickTest = true;
-      const int boardSizeTest = 19;
       // Cap test to avoid spawning too many threads when many selfplay games are running
       const int maxBatchSizeCap = std::min(4, 1 + nnEval->getMaxBatchSize()/2);
       bool fp32BatchSuccessBuf = true;
-      string referenceFileName = "";
-      bool success = Tests::runBackendErrorTest(nnEval,nnEval32,logger,boardSizeTest,maxBatchSizeCap,verbose,quickTest,fp32BatchSuccessBuf,referenceFileName);
+      bool fp32BatchSuccessBufRect = true;
+      const string referenceFileName = "";
+      bool success = Tests::runBackendErrorTest(nnEval,nnEval32,logger,"19",maxBatchSizeCap,verbose,quickTest,fp32BatchSuccessBuf,referenceFileName);
+      bool successRect = Tests::runBackendErrorTest(nnEval,nnEval32,logger,"rectangle",maxBatchSizeCap,verbose,quickTest,fp32BatchSuccessBufRect,referenceFileName);
+
+      fp32BatchSuccessBuf = fp32BatchSuccessBuf && fp32BatchSuccessBufRect;
+      success = success && successRect;
+
       if(!fp32BatchSuccessBuf) {
         logger.write("Error: large GPU numerical errors, unable to continue");
         shouldStop.store(true);
