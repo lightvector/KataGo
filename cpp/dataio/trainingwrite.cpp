@@ -807,6 +807,7 @@ void TrainingWriteBuffers::addRow(
 
   //Q values
   {
+    assert(whiteValueTargetsIdx < whiteQValueTargets.size());
     int16_t* rowQValues = qValueTargetsNCMove.data + curRows * QVALUE_SPATIAL_TARGET_NUM_CHANNELS * policySize;
     fillQValueTarget(whiteQValueTargets[whiteValueTargetsIdx].targets, nextPlayer, policySize, dataXLen, dataYLen, board.x_size, rowQValues, rand);
   }
@@ -1072,7 +1073,7 @@ void TrainingDataWriter::writeGame(const FinishedGameData& data) {
   assert(data.policyEntropyByTurn.size() == numMoves);
   assert(data.searchEntropyByTurn.size() == numMoves);
   assert(data.whiteValueTargetsByTurn.size() == numMoves+1);
-  assert(data.whiteQValueTargetsByTurn.size() == numMoves+1);
+  assert(data.whiteQValueTargetsByTurn.size() == numMoves);
   assert(data.nnRawStatsByTurn.size() == numMoves);
 
   //Some sanity checks

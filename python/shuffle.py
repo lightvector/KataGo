@@ -477,7 +477,7 @@ if __name__ == '__main__':
     optional_args.add_argument('-only-include-md5-path-prop-ubound', type=float, required=False, help='Just before sharding, include only filepaths hashing to float < this')
     optional_args.add_argument('-output-npz', action="store_true", required=False, help='Output results as npz files')
     optional_args.add_argument('-include-meta', action="store_true", required=False, help='Include sgf metadata inputs')
-    optional_args.add_argument('-include-qvalues', action="store_true", required=False, help='Include Q-value targets')
+    optional_args.add_argument('-exclude-qvalues', action="store_true", required=False, help='Exclude Q-value targets (for backwards compatibility with pre-v1.16)')
 
     args = parser.parse_args()
     dirs = args.dirs
@@ -513,7 +513,7 @@ if __name__ == '__main__':
     only_include_md5_path_prop_ubound = args.only_include_md5_path_prop_ubound
     output_npz = args.output_npz
     include_meta = args.include_meta
-    include_qvalues = args.include_qvalues
+    include_qvalues = not args.exclude_qvalues
 
     if min_rows is None:
         print("NOTE: -min-rows was not specified, defaulting to requiring 250K rows before shuffling.")

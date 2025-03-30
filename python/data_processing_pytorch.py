@@ -18,13 +18,14 @@ def read_npz_training_data(
     device,
     randomize_symmetries: bool,
     include_meta: bool,
-    include_qvalues: bool,
     model_config: modelconfigs.ModelConfig,
 ):
     rand = np.random.default_rng(seed=list(os.urandom(12)))
     num_bin_features = modelconfigs.get_num_bin_input_features(model_config)
     num_global_features = modelconfigs.get_num_global_input_features(model_config)
     (h_base,h_builder) = build_history_matrices(model_config, device)
+
+    include_qvalues = model_config["version"] >= 16
 
     def load_npz_file(npz_file):
         with np.load(npz_file) as npz:
