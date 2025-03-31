@@ -305,19 +305,16 @@ struct ComputeHandle {
 struct InputBuffers {
   int maxBatchSize;
   size_t policyResultChannels;
-  size_t modelPolicyResultChannels;
 
   size_t singleSpatialElts;
   size_t singleInputElts;
   size_t singleInputGlobalElts;
   size_t singleInputMetaElts;
-  size_t singleNnPolicyResultElts;
-  size_t singleModelPolicyResultElts;
+  size_t singlePolicyResultElts;
   size_t singlePolicyPassResultElts;
   size_t singlePolicyProbsElts;
   size_t singleValueResultElts;
-  size_t singleNnOwnershipResultElts;
-  size_t singleModelOwnershipResultElts;
+  size_t singleOwnershipResultElts;
   size_t singleOwnerMapElts;
   size_t singleScoreValuesResultElts;
 
@@ -328,7 +325,6 @@ struct InputBuffers {
   size_t policyResultBufferElts;
   size_t policyPassResultBufferElts;
   size_t policyProbsBufferElts;
-  size_t modelPolicyResultBufferElts;
   size_t valueResultBufferElts;
   size_t ownershipResultBufferElts;
   size_t ownerMapBufferElts;
@@ -341,7 +337,6 @@ struct InputBuffers {
   float* policyResults;
   float* policyPassResults;
   float* policyProbsBuffer;
-  float* modelPolicyResults;
   float* valueResults;
   float* ownershipResults;
   float* ownerMapBuffer;
