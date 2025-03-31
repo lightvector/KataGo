@@ -68,7 +68,7 @@ static void runV9Positions(NNEvaluator* nnEval, Logger& logger)
 
     delete bot;
   }
-  
+
   {
     cout << "Pruned root values test ==========================================================================" << endl;
     cout << endl;
@@ -606,6 +606,145 @@ oo...ooo
       delete bot;
     }
   }
+
+  {
+    cout << "More passing hack ==========================================================================" << endl;
+    cout << endl;
+
+    Board board = Board::parseBoard(9,9,R"%%(
+.o....xo.
+.ooooooo.
+.xo....ox
+ooooooooo
+xxxxxxxxx
+.o..x....
+..ooxxxxx
+.oxxxo.oo
+.x.......
+)%%");
+    {
+      Rules rules = Rules::parseRules("Chinese");
+      rules.friendlyPassOk = false;
+      rules.komi = 7.5;
+      BoardHistory hist(board,P_WHITE,rules,0);
+
+      hist.makeBoardMoveAssumeLegal(board,Location::ofString("pass",board),P_WHITE,NULL);
+      Player nextPla = P_BLACK;
+
+      SearchParams params = SearchParams::forTestsV2();
+
+      TestSearchOptions opts;
+      opts.printMoreMoreMore = true;
+
+      AsyncBot* bot = new AsyncBot(params, nnEval, &logger, getSearchRandSeed());
+      params.enableMorePassingHacks = false;
+      cout << "params.enableMorePassingHacks = false" << endl;
+      {
+        params.maxVisits = 5;
+        bot->setParams(params);
+        runBotOnPosition(bot, board, nextPla, hist, opts);
+      }
+      {
+        params.maxVisits = 20;
+        bot->setParams(params);
+        runBotOnPosition(bot, board, nextPla, hist, opts);
+      }
+      {
+        params.maxVisits = 100;
+        bot->setParams(params);
+        runBotOnPosition(bot, board, nextPla, hist, opts);
+      }
+      params.enableMorePassingHacks = true;
+      cout << "params.enableMorePassingHacks = true" << endl;
+      {
+        params.maxVisits = 5;
+        bot->setParams(params);
+        runBotOnPosition(bot, board, nextPla, hist, opts);
+      }
+      {
+        params.maxVisits = 20;
+        bot->setParams(params);
+        runBotOnPosition(bot, board, nextPla, hist, opts);
+      }
+      {
+        params.maxVisits = 100;
+        bot->setParams(params);
+        runBotOnPosition(bot, board, nextPla, hist, opts);
+      }
+      delete bot;
+    }
+  }
+
+  {
+    cout << "More passing hack 2 ==========================================================================" << endl;
+    cout << endl;
+
+    Board board = Board::parseBoard(9,9,R"%%(
+.o....xo.
+.ooooooo.
+.x.....ox
+ooooooooo
+xxxxxxxxx
+xo..x....
+x.ooxxxxx
+.oxxxo.ox
+.xx.xx..x
+)%%");
+    {
+      Rules rules = Rules::parseRules("Chinese");
+      rules.friendlyPassOk = false;
+      rules.komi = 7.5;
+      BoardHistory hist(board,P_BLACK,rules,0);
+
+      hist.makeBoardMoveAssumeLegal(board,Location::ofString("pass",board),P_BLACK,NULL);
+      Player nextPla = P_WHITE;
+
+      SearchParams params = SearchParams::forTestsV2();
+
+      TestSearchOptions opts;
+      opts.printMoreMoreMore = true;
+
+      AsyncBot* bot = new AsyncBot(params, nnEval, &logger, getSearchRandSeed());
+
+      params.enableMorePassingHacks = false;
+      cout << "params.enableMorePassingHacks = false" << endl;
+      {
+        params.maxVisits = 5;
+        bot->setParams(params);
+        runBotOnPosition(bot, board, nextPla, hist, opts);
+      }
+      {
+        params.maxVisits = 20;
+        bot->setParams(params);
+        runBotOnPosition(bot, board, nextPla, hist, opts);
+      }
+      {
+        params.maxVisits = 100;
+        bot->setParams(params);
+        runBotOnPosition(bot, board, nextPla, hist, opts);
+      }
+      params.enableMorePassingHacks = true;
+      cout << "params.enableMorePassingHacks = true" << endl;
+      {
+        params.maxVisits = 5;
+        bot->setParams(params);
+        runBotOnPosition(bot, board, nextPla, hist, opts);
+      }
+      {
+        params.maxVisits = 20;
+        bot->setParams(params);
+        runBotOnPosition(bot, board, nextPla, hist, opts);
+      }
+      {
+        params.maxVisits = 100;
+        bot->setParams(params);
+        runBotOnPosition(bot, board, nextPla, hist, opts);
+      }
+      delete bot;
+    }
+  }
+
+
 }
 
 void Tests::runSearchTestsV9(const string& modelFile, bool inputsNHWC, bool useNHWC, bool useFP16) {

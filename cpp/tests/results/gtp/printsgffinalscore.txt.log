@@ -138,5 +138,5 @@ trtUseFP16 = false
 : = 
 : Controller: printsgf -
 : = (;FF[4]GM[1]SZ[7]PB[]PW[]HA[0]KM[0]RU[Chinese]RE[B+7];B[da];W[ea];B[db];W[eb];B[dc];W[ec];B[dd];W[ed];B[de];W[ee];B[df];W[ef];B[dg];W[eg];B[be];W[fd];B[fc];W[fb];B[bc];W[];B[]C[result=B+7])
-: GPU -1 finishing, processed 328 rows 328 batches
+: GPU -1 finishing, processed 358 rows 358 batches
 : All cleaned up, quitting
