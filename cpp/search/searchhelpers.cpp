@@ -313,7 +313,8 @@ bool Search::isAllowedRootMove(Loc moveLoc) const {
   //A bad situation that can happen that unnecessarily prolongs training games is where one player
   //repeatedly passes and the other side repeatedly fills the opponent's space and/or suicides over and over.
   //To mitigate some of this and save computation, we make it so that at the root, if the last four moves by the opponent
-  //were passes, we will never play a move in either player's pass-alive area. In theory this could prune
+  //were passes, we will never play a move in either player's pass-alive area. We make an exception for playing in
+  //own territory next to opponent's stones, since that is needed for cleanup. In theory this could prune
   //a good move in situations like https://senseis.xmp.net/?1EyeFlaw, but this should be extraordinarly rare,
   if(searchParams.rootPruneUselessMoves &&
      rootHistory.moveHistory.size() > 0 &&
@@ -330,7 +331,9 @@ bool Search::isAllowedRootMove(Loc moveLoc) const {
        rootHistory.moveHistory[lastIdx-2].pla == opp &&
        rootHistory.moveHistory[lastIdx-4].pla == opp &&
        rootHistory.moveHistory[lastIdx-6].pla == opp &&
-       (rootSafeArea[moveLoc] == opp || rootSafeArea[moveLoc] == rootPla))
+       (rootSafeArea[moveLoc] == opp ||
+         (rootSafeArea[moveLoc] == rootPla && !rootBoard.isAdjacentToPla(moveLoc, opp))
+       ))
       return false;
   }
 
