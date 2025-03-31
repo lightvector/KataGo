@@ -1,0 +1,5 @@
+matplotlib==3.9.0
+numpy==2.0.1
+torch==2.4.0
+wxPython==4.2.1
+flask_cors==4.0.1
