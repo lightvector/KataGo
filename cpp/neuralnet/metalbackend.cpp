@@ -571,24 +571,18 @@ void NeuralNet::printDevices() {
 InputBuffers::InputBuffers(const LoadedModel* loadedModel, int maxBatchSz, int nnXLen, int nnYLen) {
   const ModelDesc& m = loadedModel->modelDesc;
 
-  int modelXLen = COMPILE_MAX_BOARD_LEN;
-  int modelYLen = COMPILE_MAX_BOARD_LEN;
-
   maxBatchSize = maxBatchSz;
   policyResultChannels = m.policyHead.p2Conv.outChannels;
   assert((m.modelVersion >= 12) ? (policyResultChannels == 2) : (policyResultChannels == 1));
-  modelPolicyResultChannels = (m.modelVersion >= 12) ? 6 : 4;
   singleSpatialElts = (size_t)m.numInputChannels * nnXLen * nnYLen;
-  singleInputElts = (size_t)m.numInputChannels * modelXLen * modelYLen;
+  singleInputElts = (size_t)m.numInputChannels * nnXLen * nnYLen;
   singleInputGlobalElts = (size_t)m.numInputGlobalChannels;
   singleInputMetaElts = (size_t)m.numInputMetaChannels;
-  singleNnPolicyResultElts = (size_t)(nnXLen * nnYLen);
-  singleModelPolicyResultElts = (size_t)((modelXLen * modelYLen) + 1);
+  singlePolicyResultElts = (size_t)(nnXLen * nnYLen);
   singlePolicyPassResultElts = 1;
   singlePolicyProbsElts = (size_t)((nnXLen * nnYLen) + 1);
   singleValueResultElts = (size_t)m.numValueChannels;
-  singleNnOwnershipResultElts = (size_t)m.numOwnershipChannels * nnXLen * nnYLen;
-  singleModelOwnershipResultElts = (size_t)m.numOwnershipChannels * modelXLen * modelYLen;
+  singleOwnershipResultElts = (size_t)m.numOwnershipChannels * nnXLen * nnYLen;
   singleOwnerMapElts = (size_t)m.numOwnershipChannels * nnXLen * nnYLen;
   singleScoreValuesResultElts = (size_t)m.numScoreValueChannels;
 
@@ -600,12 +594,11 @@ InputBuffers::InputBuffers(const LoadedModel* loadedModel, int maxBatchSz, int n
   userInputBufferElts = (size_t)maxBatchSize * singleInputElts;
   userInputGlobalBufferElts = (size_t)maxBatchSize * singleInputGlobalElts;
   userInputMetaBufferElts = (size_t)maxBatchSize * singleInputMetaElts;
-  policyResultBufferElts = (size_t)maxBatchSize * singleModelPolicyResultElts * policyResultChannels;
+  policyResultBufferElts = (size_t)maxBatchSize * singlePolicyResultElts * policyResultChannels;
   policyPassResultBufferElts = (size_t)maxBatchSize * singlePolicyPassResultElts * policyResultChannels;
   policyProbsBufferElts = (size_t)maxBatchSize * singlePolicyProbsElts * policyResultChannels;
-  modelPolicyResultBufferElts = (size_t)maxBatchSize * singleModelPolicyResultElts * modelPolicyResultChannels;
   valueResultBufferElts = (size_t)maxBatchSize * singleValueResultElts;
-  ownershipResultBufferElts = (size_t)maxBatchSize * singleModelOwnershipResultElts;
+  ownershipResultBufferElts = (size_t)maxBatchSize * singleOwnershipResultElts;
   ownerMapBufferElts = (size_t)maxBatchSz * singleOwnerMapElts;
   scoreValuesResultBufferElts = (size_t)maxBatchSize * singleScoreValuesResultElts;
 
@@ -619,7 +612,6 @@ InputBuffers::InputBuffers(const LoadedModel* loadedModel, int maxBatchSz, int n
   policyResults = new float[policyResultBufferElts];
   policyPassResults = new float[policyPassResultBufferElts];
   policyProbsBuffer = new float[policyProbsBufferElts];
-  modelPolicyResults = new float[modelPolicyResultBufferElts];
   valueResults = new float[valueResultBufferElts];
   ownershipResults = new float[ownershipResultBufferElts];
   ownerMapBuffer = new float[ownerMapBufferElts];
@@ -712,7 +704,7 @@ void MetalProcess::processOptimism(
   const double policyOptimism,
   size_t row) {
   auto& buffers = *inputBuffers;
-  const auto singlePolicyResultElts = buffers.singleNnPolicyResultElts;
+  const auto singlePolicyResultElts = buffers.singlePolicyResultElts;
   float* targetBuffer = &buffers.policyProbsBuffer[row * singlePolicyResultElts];
   float* policyOutputBuf = &buffers.policyResults[row * singlePolicyResultElts * buffers.policyResultChannels];
 
@@ -734,7 +726,7 @@ void MetalProcess::processPolicy(
   NNResultBuf* inputBuf,
   size_t row) {
   auto& buffers = *inputBuffers;
-  float* targetBuffer = &buffers.policyResults[row * buffers.singleNnPolicyResultElts * buffers.policyResultChannels];
+  float* targetBuffer = &buffers.policyResults[row * buffers.singlePolicyResultElts * buffers.policyResultChannels];
   const auto symmetry = inputBuf->symmetry;
   const auto policyOptimism = inputBuf->policyOptimism;
 
@@ -743,7 +735,7 @@ void MetalProcess::processPolicy(
       buffers.policyPassResults[row * buffers.policyResultChannels];
   } else {
     MetalProcess::processOptimism(inputBuffers, currentOutput, policyOptimism, row);
-    targetBuffer = &buffers.policyProbsBuffer[row * buffers.singleNnPolicyResultElts];
+    targetBuffer = &buffers.policyProbsBuffer[row * buffers.singlePolicyResultElts];
   }
 
   SymmetryHelpers::copyOutputsWithSymmetry(
@@ -770,7 +762,7 @@ void MetalProcess::processOwnership(
   const size_t row) {
   const int nnXLen = gpuHandle->nnXLen;
   const int nnYLen = gpuHandle->nnYLen;
-  const size_t singleOwnershipResultElts = inputBuffers->singleNnOwnershipResultElts;
+  const size_t singleOwnershipResultElts = inputBuffers->singleOwnershipResultElts;
   const size_t ownershipOutputBufOffset = row * singleOwnershipResultElts;
 
   // Copy ownership results with symmetry if available
