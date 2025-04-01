@@ -135,17 +135,19 @@ struct InputLayer {
     ///   - nnXLen: X length
     ///   - nnYLen: Y length
     ///   - numChannels: Number of channels
+    ///   - dataType: Data type
     init(graph: MPSGraph,
          nnXLen: NSNumber,
          nnYLen: NSNumber,
-         numChannels: NSNumber) {
+         numChannels: NSNumber,
+         dataType: MPSDataType = .float32) {
         shape = InputShape.create(batchSize: -1,
                                   numChannels: numChannels,
                                   nnYLen: nnYLen,
                                   nnXLen: nnXLen)
 
         self.tensor = graph.placeholder(shape: shape,
-                                        dataType: MPSDataType.float32,
+                                        dataType: dataType,
                                         name: nil)
 
         assert(self.tensor.shape?.count == 4)
@@ -161,15 +163,17 @@ struct InputGlobalLayer {
     /// - Parameters:
     ///   - graph: The graph.
     ///   - numGlobalFeatures: The number of global features.
+    ///   - dataType: The data type.
     init(graph: MPSGraph,
-         numGlobalFeatures: NSNumber) {
+         numGlobalFeatures: NSNumber,
+         dataType: MPSDataType = .float32) {
         shape = InputShape.create(batchSize: -1,
                                   numChannels: numGlobalFeatures,
                                   nnYLen: 1,
                                   nnXLen: 1)
 
         self.tensor = graph.placeholder(shape: shape,
-                                        dataType: MPSDataType.float32,
+                                        dataType: dataType,
                                         name: nil)
 
         assert(self.tensor.shape?.count == 4)
@@ -188,11 +192,14 @@ struct InputMetaLayer {
     /// - Parameters:
     ///   - graph: The `MPSGraph` instance where the placeholder tensor will be created.
     ///   - numMetaFeatures: The number of meta features (channels) for the input tensor.
+    ///   - dataType: The data type
     ///
     /// This initializer sets the shape of the input tensor using a helper function `InputShape.create` with
     /// a dynamic batch size (-1), the specified number of channels, and a spatial size of 1x1 (nnYLen and nnXLen).
     /// It also creates a placeholder tensor in the MPS graph with the specified shape and data type `float32`.
-    init(graph: MPSGraph, numMetaFeatures: NSNumber) {
+    init(graph: MPSGraph,
+         numMetaFeatures: NSNumber,
+         dataType: MPSDataType = .float32) {
         // Define the shape of the input tensor with dynamic batch size, specified number of channels, and spatial dimensions 1x1.
         shape = InputShape.create(batchSize: -1,
                                   numChannels: numMetaFeatures,
@@ -201,7 +208,7 @@ struct InputMetaLayer {
 
         // Create a placeholder tensor in the graph with the above-defined shape and data type float32.
         self.tensor = graph.placeholder(shape: shape,
-                                        dataType: MPSDataType.float32,
+                                        dataType: dataType,
                                         name: nil)
     }
 }
@@ -216,16 +223,18 @@ struct MaskLayer {
     ///   - graph: The graph.
     ///   - nnXLen: The length of the x-axis.
     ///   - nnYLen: The length of the y-axis.
+    ///   - dataType: The data type.
     init(graph: MPSGraph,
          nnXLen: NSNumber,
-         nnYLen: NSNumber) {
+         nnYLen: NSNumber,
+         dataType: MPSDataType = .float32) {
         shape = InputShape.create(batchSize: -1,
                                   numChannels: 1,
                                   nnYLen: nnYLen,
                                   nnXLen: nnXLen)
 
         self.tensor = graph.placeholder(shape: shape,
-                                        dataType: MPSDataType.float32,
+                                        dataType: dataType,
                                         name: nil)
 
         assert(self.tensor.shape?.count == 4)
@@ -280,13 +289,13 @@ struct MaskSumSqrtS14M01Layer {
 
         let fourTeen = graph.constant(14.0,
                                       shape: [1],
-                                      dataType: MPSDataType.float32)
+                                      dataType: maskSum.tensor.dataType)
 
         let subtracted = graph.subtraction(sqrtMaskSum, fourTeen, name: nil)
 
         let zeroPointone = graph.constant(0.1,
                                           shape: [1],
-                                          dataType: MPSDataType.float32)
+                                          dataType: maskSum.tensor.dataType)
 
         self.tensor = graph.multiplication(subtracted,
                                            zeroPointone,
@@ -317,7 +326,7 @@ struct MaskSumSqrtS14M01SquareS01Layer {
 
         let zeroPointone = graph.constant(0.1,
                                           shape: [1],
-                                          dataType: MPSDataType.float32)
+                                          dataType: maskSumSqrtS14M01.tensor.dataType)
 
         self.tensor = graph.subtraction(squared,
                                         zeroPointone,
@@ -552,7 +561,7 @@ class ConvLayer {
 
         let weightsTensor = graph.constant(weightsData,
                                            shape: weightsShape,
-                                           dataType: MPSDataType.float32)
+                                           dataType: sourceTensor.dataType)
 
         resultTensor = graph.convolution2D(sourceTensor,
                                            weights: weightsTensor,
@@ -708,19 +717,19 @@ class BatchNormLayer {
 
         let meanTensor = graph.constant(meanData,
                                         shape: meanShape,
-                                        dataType: MPSDataType.float32)
+                                        dataType: sourceTensor.dataType)
 
         let varianceTensor = graph.constant(varianceData,
                                             shape: meanShape,
-                                            dataType: MPSDataType.float32)
+                                            dataType: sourceTensor.dataType)
 
         let scaleTensor = graph.constant(scaleData,
                                          shape: meanShape,
-                                         dataType: MPSDataType.float32)
+                                         dataType: sourceTensor.dataType)
 
         let biasTensor = graph.constant(biasData,
                                         shape: meanShape,
-                                        dataType: MPSDataType.float32)
+                                        dataType: sourceTensor.dataType)
 
         let normalized = graph.normalize(sourceTensor,
                                          mean: meanTensor,
@@ -1109,7 +1118,7 @@ struct MatMulLayer {
 
         let weightsTensor = graph.constant(weightsData,
                                            shape: weightsShape,
-                                           dataType: MPSDataType.float32)
+                                           dataType: sourceTensor.dataType)
 
         let shape = [-1, descriptor.inChannels]
 
@@ -1172,7 +1181,7 @@ struct MatBiasLayer {
 
         let weightsTensor = graph.constant(weightsData,
                                            shape: weightsShape,
-                                           dataType: MPSDataType.float32)
+                                           dataType: sourceTensor.dataType)
 
         resultTensor = graph.addition(sourceTensor,
                                       weightsTensor,
