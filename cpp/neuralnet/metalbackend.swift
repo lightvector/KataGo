@@ -74,18 +74,16 @@ extension MPSGraph {
     /// - Parameter tensor: The input tensor of mish activation function
     /// - Returns: The output tensor of mish activation function
     func mish(tensor: MPSGraphTensor) -> MPSGraphTensor {
-        let threshold = 10.39
-        let thresholdTensor = constant(threshold, dataType: tensor.dataType)
-        let minimumTensor = minimum(tensor, thresholdTensor, name: nil)
-        let expTensor = exponent(with: minimumTensor, name: nil)
+        assert(tensor.dataType == .float32)
+
         let one = 1.0
         let oneTensor = constant(one, dataType: tensor.dataType)
+        let expTensor = exponent(with: tensor, name: nil)
         let addTensor = addition(expTensor, oneTensor, name: nil)
         let logTensor = logarithm(with: addTensor, name: nil)
-        let lessTensor = lessThan(tensor, thresholdTensor, name: nil)
-        let selectTensor = select(predicate: lessTensor, trueTensor: logTensor, falseTensor: tensor, name: nil)
-        let tanhTensor = tanh(with: selectTensor, name: nil)
+        let tanhTensor = tanh(with: logTensor, name: nil)
         let mulTensor = multiplication(tensor, tanhTensor, name: nil)
+
         return mulTensor
     }
 }
