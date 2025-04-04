@@ -25,11 +25,14 @@ extension Data {
     /// - Parameters:
     ///   - floatsNoCopy: An UnsafeMutablePointer<Float32> containing the float data.
     ///   - shape: An array of NSNumber objects representing the shape of the data.
-    init(floatsNoCopy: UnsafeMutablePointer<Float32>,
-         shape: [NSNumber]) {
-        self.init(bytesNoCopy: floatsNoCopy,
-                  count: shape.countBytesOfFloat32(),
-                  deallocator: .none)
+    init(
+        floatsNoCopy: UnsafeMutablePointer<Float32>,
+        shape: [NSNumber]
+    ) {
+        self.init(
+            bytesNoCopy: floatsNoCopy,
+            count: shape.countBytesOfFloat32(),
+            deallocator: .none)
     }
 }
 
@@ -97,14 +100,18 @@ struct InputShape {
     ///   - nnYLen: Y length
     ///   - nnXLen: X length
     /// - Returns: The shape
-    static func create(batchSize: NSNumber,
-                       numChannels: NSNumber,
-                       nnYLen: NSNumber,
-                       nnXLen: NSNumber) -> [NSNumber] {
-        let shape = [batchSize,
-                     numChannels,
-                     nnYLen,
-                     nnXLen]
+    static func create(
+        batchSize: NSNumber,
+        numChannels: NSNumber,
+        nnYLen: NSNumber,
+        nnXLen: NSNumber
+    ) -> [NSNumber] {
+        let shape = [
+            batchSize,
+            numChannels,
+            nnYLen,
+            nnXLen,
+        ]
         return shape
     }
 
@@ -134,19 +141,23 @@ struct InputLayer {
     ///   - nnYLen: Y length
     ///   - numChannels: Number of channels
     ///   - dataType: Data type
-    init(graph: MPSGraph,
-         nnXLen: NSNumber,
-         nnYLen: NSNumber,
-         numChannels: NSNumber,
-         dataType: MPSDataType = .float32) {
-        shape = InputShape.create(batchSize: -1,
-                                  numChannels: numChannels,
-                                  nnYLen: nnYLen,
-                                  nnXLen: nnXLen)
+    init(
+        graph: MPSGraph,
+        nnXLen: NSNumber,
+        nnYLen: NSNumber,
+        numChannels: NSNumber,
+        dataType: MPSDataType = .float32
+    ) {
+        shape = InputShape.create(
+            batchSize: -1,
+            numChannels: numChannels,
+            nnYLen: nnYLen,
+            nnXLen: nnXLen)
 
-        self.tensor = graph.placeholder(shape: shape,
-                                        dataType: dataType,
-                                        name: nil)
+        self.tensor = graph.placeholder(
+            shape: shape,
+            dataType: dataType,
+            name: nil)
 
         assert(self.tensor.shape?.count == 4)
     }
@@ -162,17 +173,21 @@ struct InputGlobalLayer {
     ///   - graph: The graph.
     ///   - numGlobalFeatures: The number of global features.
     ///   - dataType: The data type.
-    init(graph: MPSGraph,
-         numGlobalFeatures: NSNumber,
-         dataType: MPSDataType = .float32) {
-        shape = InputShape.create(batchSize: -1,
-                                  numChannels: numGlobalFeatures,
-                                  nnYLen: 1,
-                                  nnXLen: 1)
+    init(
+        graph: MPSGraph,
+        numGlobalFeatures: NSNumber,
+        dataType: MPSDataType = .float32
+    ) {
+        shape = InputShape.create(
+            batchSize: -1,
+            numChannels: numGlobalFeatures,
+            nnYLen: 1,
+            nnXLen: 1)
 
-        self.tensor = graph.placeholder(shape: shape,
-                                        dataType: dataType,
-                                        name: nil)
+        self.tensor = graph.placeholder(
+            shape: shape,
+            dataType: dataType,
+            name: nil)
 
         assert(self.tensor.shape?.count == 4)
     }
@@ -195,19 +210,23 @@ struct InputMetaLayer {
     /// This initializer sets the shape of the input tensor using a helper function `InputShape.create` with
     /// a dynamic batch size (-1), the specified number of channels, and a spatial size of 1x1 (nnYLen and nnXLen).
     /// It also creates a placeholder tensor in the MPS graph with the specified shape and data type `float32`.
-    init(graph: MPSGraph,
-         numMetaFeatures: NSNumber,
-         dataType: MPSDataType = .float32) {
+    init(
+        graph: MPSGraph,
+        numMetaFeatures: NSNumber,
+        dataType: MPSDataType = .float32
+    ) {
         // Define the shape of the input tensor with dynamic batch size, specified number of channels, and spatial dimensions 1x1.
-        shape = InputShape.create(batchSize: -1,
-                                  numChannels: numMetaFeatures,
-                                  nnYLen: 1,
-                                  nnXLen: 1)
+        shape = InputShape.create(
+            batchSize: -1,
+            numChannels: numMetaFeatures,
+            nnYLen: 1,
+            nnXLen: 1)
 
         // Create a placeholder tensor in the graph with the above-defined shape and data type float32.
-        self.tensor = graph.placeholder(shape: shape,
-                                        dataType: dataType,
-                                        name: nil)
+        self.tensor = graph.placeholder(
+            shape: shape,
+            dataType: dataType,
+            name: nil)
     }
 }
 
@@ -222,18 +241,22 @@ struct MaskLayer {
     ///   - nnXLen: The length of the x-axis.
     ///   - nnYLen: The length of the y-axis.
     ///   - dataType: The data type.
-    init(graph: MPSGraph,
-         nnXLen: NSNumber,
-         nnYLen: NSNumber,
-         dataType: MPSDataType = .float32) {
-        shape = InputShape.create(batchSize: -1,
-                                  numChannels: 1,
-                                  nnYLen: nnYLen,
-                                  nnXLen: nnXLen)
+    init(
+        graph: MPSGraph,
+        nnXLen: NSNumber,
+        nnYLen: NSNumber,
+        dataType: MPSDataType = .float32
+    ) {
+        shape = InputShape.create(
+            batchSize: -1,
+            numChannels: 1,
+            nnYLen: nnYLen,
+            nnXLen: nnXLen)
 
-        self.tensor = graph.placeholder(shape: shape,
-                                        dataType: dataType,
-                                        name: nil)
+        self.tensor = graph.placeholder(
+            shape: shape,
+            dataType: dataType,
+            name: nil)
 
         assert(self.tensor.shape?.count == 4)
     }
@@ -254,13 +277,16 @@ struct MaskSumLayer {
     /// - Parameters:
     ///   - graph: The graph.
     ///   - maskTensor: The mask tensor.
-    init(graph: MPSGraph,
-         maskTensor: MPSGraphTensor) {
+    init(
+        graph: MPSGraph,
+        maskTensor: MPSGraphTensor
+    ) {
         let hwAxes = InputShape.getHWAxes()
 
-        self.tensor = graph.reductionSum(with: maskTensor,
-                                         axes: hwAxes,
-                                         name: nil)
+        self.tensor = graph.reductionSum(
+            with: maskTensor,
+            axes: hwAxes,
+            name: nil)
 
         assert(self.tensor.shape?.count == 4)
     }
@@ -281,23 +307,28 @@ struct MaskSumSqrtS14M01Layer {
     /// - Parameters:
     ///   - graph: The graph.
     ///   - maskSum: The MaskSumLayer object.
-    init(graph: MPSGraph,
-         maskSum: MaskSumLayer) {
+    init(
+        graph: MPSGraph,
+        maskSum: MaskSumLayer
+    ) {
         let sqrtMaskSum = graph.squareRoot(with: maskSum.tensor, name: nil)
 
-        let fourTeen = graph.constant(14.0,
-                                      shape: [1],
-                                      dataType: maskSum.tensor.dataType)
+        let fourTeen = graph.constant(
+            14.0,
+            shape: [1],
+            dataType: maskSum.tensor.dataType)
 
         let subtracted = graph.subtraction(sqrtMaskSum, fourTeen, name: nil)
 
-        let zeroPointone = graph.constant(0.1,
-                                          shape: [1],
-                                          dataType: maskSum.tensor.dataType)
+        let zeroPointone = graph.constant(
+            0.1,
+            shape: [1],
+            dataType: maskSum.tensor.dataType)
 
-        self.tensor = graph.multiplication(subtracted,
-                                           zeroPointone,
-                                           name: nil)
+        self.tensor = graph.multiplication(
+            subtracted,
+            zeroPointone,
+            name: nil)
 
         assert(self.tensor.shape?.count == 4)
     }
@@ -318,17 +349,21 @@ struct MaskSumSqrtS14M01SquareS01Layer {
     /// - Parameters:
     ///   - graph: The graph.
     ///   - maskSumSqrtS14M01: The MaskSumSqrtS14M01Layer object.
-    init(graph: MPSGraph,
-         maskSumSqrtS14M01: MaskSumSqrtS14M01Layer) {
+    init(
+        graph: MPSGraph,
+        maskSumSqrtS14M01: MaskSumSqrtS14M01Layer
+    ) {
         let squared = graph.square(with: maskSumSqrtS14M01.tensor, name: nil)
 
-        let zeroPointone = graph.constant(0.1,
-                                          shape: [1],
-                                          dataType: maskSumSqrtS14M01.tensor.dataType)
+        let zeroPointone = graph.constant(
+            0.1,
+            shape: [1],
+            dataType: maskSumSqrtS14M01.tensor.dataType)
 
-        self.tensor = graph.subtraction(squared,
-                                        zeroPointone,
-                                        name: nil)
+        self.tensor = graph.subtraction(
+            squared,
+            zeroPointone,
+            name: nil)
 
         assert(self.tensor.shape?.count == 4)
     }
@@ -347,14 +382,16 @@ struct NetworkTester {
     ///   - mask: A pointer to the mask data.
     ///   - output: A pointer to the output data.
     ///   - networkBuilder: A closure that takes an MPSGraph, InputLayer, and MaskLayer, and returns an MPSGraphTensor representing the custom network configuration.
-    static func test(batchSize: NSNumber,
-                     nnXLen: NSNumber,
-                     nnYLen: NSNumber,
-                     numChannels: NSNumber,
-                     input: UnsafeMutablePointer<Float32>,
-                     mask: UnsafeMutablePointer<Float32>,
-                     output: UnsafeMutablePointer<Float32>,
-                     networkBuilder: (MPSGraph, InputLayer, MaskLayer) -> MPSGraphTensor) {
+    static func test(
+        batchSize: NSNumber,
+        nnXLen: NSNumber,
+        nnYLen: NSNumber,
+        numChannels: NSNumber,
+        input: UnsafeMutablePointer<Float32>,
+        mask: UnsafeMutablePointer<Float32>,
+        output: UnsafeMutablePointer<Float32>,
+        networkBuilder: (MPSGraph, InputLayer, MaskLayer) -> MPSGraphTensor
+    ) {
 
         // Create a Metal device.
         let device = MTLCreateSystemDefaultDevice()!
@@ -363,45 +400,53 @@ struct NetworkTester {
         let graph = MPSGraph()
 
         // Create the input and mask layers.
-        let inputLayer = InputLayer(graph: graph,
-                                    nnXLen: nnXLen,
-                                    nnYLen: nnYLen,
-                                    numChannels: numChannels)
+        let inputLayer = InputLayer(
+            graph: graph,
+            nnXLen: nnXLen,
+            nnYLen: nnYLen,
+            numChannels: numChannels)
 
-        let maskLayer = MaskLayer(graph: graph,
-                                  nnXLen: nnXLen,
-                                  nnYLen: nnYLen)
+        let maskLayer = MaskLayer(
+            graph: graph,
+            nnXLen: nnXLen,
+            nnYLen: nnYLen)
 
         // Build the custom network configuration using the provided networkBuilder closure.
         let resultTensor = networkBuilder(graph, inputLayer, maskLayer)
 
         // Create input shape
-        let inputShape = InputShape.create(batchSize: batchSize,
-                                           numChannels: numChannels,
-                                           nnYLen: nnYLen,
-                                           nnXLen: nnXLen)
+        let inputShape = InputShape.create(
+            batchSize: batchSize,
+            numChannels: numChannels,
+            nnYLen: nnYLen,
+            nnXLen: nnXLen)
 
         // Create MPSNDArrayDescriptors from the input shape.
-        let sourceDescriptor = MPSNDArrayDescriptor(dataType: inputLayer.tensor.dataType,
-                                                    shape: inputShape)
+        let sourceDescriptor = MPSNDArrayDescriptor(
+            dataType: inputLayer.tensor.dataType,
+            shape: inputShape)
 
         // Create MPSNDArray from the source descriptor.
-        let sourceArray = MPSNDArray(device: device,
-                                     descriptor: sourceDescriptor)
+        let sourceArray = MPSNDArray(
+            device: device,
+            descriptor: sourceDescriptor)
 
         // Create a mask shape
-        let maskShape = InputShape.create(batchSize: batchSize,
-                                          numChannels: 1,
-                                          nnYLen: nnYLen,
-                                          nnXLen: nnXLen)
+        let maskShape = InputShape.create(
+            batchSize: batchSize,
+            numChannels: 1,
+            nnYLen: nnYLen,
+            nnXLen: nnXLen)
 
         // Create MPSNDArrayDescriptors from the mask shape.
-        let maskDescriptor = MPSNDArrayDescriptor(dataType: maskLayer.tensor.dataType,
-                                                  shape: maskShape)
+        let maskDescriptor = MPSNDArrayDescriptor(
+            dataType: maskLayer.tensor.dataType,
+            shape: maskShape)
 
         // Create MPSNDArray from the mask descriptor.
-        let maskArray = MPSNDArray(device: device,
-                                   descriptor: maskDescriptor)
+        let maskArray = MPSNDArray(
+            device: device,
+            descriptor: maskDescriptor)
 
         // Write input and mask data to their respective MPSNDArrays, converting to FP16 if necessary.
         sourceArray.writeBytes(input)
@@ -412,10 +457,13 @@ struct NetworkTester {
         let maskTensorData = MPSGraphTensorData(maskArray)
 
         // Execute the graph and fetch the result.
-        let fetch = graph.run(feeds: [inputLayer.tensor: sourceTensorData,
-                                      maskLayer.tensor: maskTensorData],
-                              targetTensors: [resultTensor],
-                              targetOperations: nil)
+        let fetch = graph.run(
+            feeds: [
+                inputLayer.tensor: sourceTensorData,
+                maskLayer.tensor: maskTensorData,
+            ],
+            targetTensors: [resultTensor],
+            targetOperations: nil)
 
         // Read the output data from the result tensor, converting from FP16 to FP32 if necessary.
         fetch[resultTensor]?.mpsndarray().readBytes(output)
@@ -441,13 +489,15 @@ public struct SWConvLayerDesc {
     ///   - dilationY: The dilation in the Y direction.
     ///   - dilationX: The dilation in the X direction.
     ///   - weights: A pointer to the weights.
-    init(convYSize: NSNumber,
-         convXSize: NSNumber,
-         inChannels: NSNumber,
-         outChannels: NSNumber,
-         dilationY: Int,
-         dilationX: Int,
-         weights: UnsafeMutablePointer<Float32>) {
+    init(
+        convYSize: NSNumber,
+        convXSize: NSNumber,
+        inChannels: NSNumber,
+        outChannels: NSNumber,
+        dilationY: Int,
+        dilationX: Int,
+        weights: UnsafeMutablePointer<Float32>
+    ) {
         self.convYSize = convYSize
         self.convXSize = convXSize
         self.inChannels = inChannels
@@ -458,20 +508,23 @@ public struct SWConvLayerDesc {
     }
 }
 
-public func createSWConvLayerDesc(convYSize: Int32,
-                                  convXSize: Int32,
-                                  inChannels: Int32,
-                                  outChannels: Int32,
-                                  dilationY: Int32,
-                                  dilationX: Int32,
-                                  weights: UnsafeMutablePointer<Float32>) -> SWConvLayerDesc {
-    return SWConvLayerDesc(convYSize: convYSize as NSNumber,
-                           convXSize: convXSize as NSNumber,
-                           inChannels: inChannels as NSNumber,
-                           outChannels: outChannels as NSNumber,
-                           dilationY: Int(dilationY),
-                           dilationX: Int(dilationX),
-                           weights: weights)
+public func createSWConvLayerDesc(
+    convYSize: Int32,
+    convXSize: Int32,
+    inChannels: Int32,
+    outChannels: Int32,
+    dilationY: Int32,
+    dilationX: Int32,
+    weights: UnsafeMutablePointer<Float32>
+) -> SWConvLayerDesc {
+    return SWConvLayerDesc(
+        convYSize: convYSize as NSNumber,
+        convXSize: convXSize as NSNumber,
+        inChannels: inChannels as NSNumber,
+        outChannels: outChannels as NSNumber,
+        dilationY: Int(dilationY),
+        dilationX: Int(dilationX),
+        weights: weights)
 }
 
 /// A class that represents a convolutional layer using MPSGraph
@@ -479,14 +532,15 @@ class ConvLayer {
     /// The result tensor of the convolutional operation
     let resultTensor: MPSGraphTensor
     /// The convolution 2D operation descriptor
-    let convDescriptor = MPSGraphConvolution2DOpDescriptor(strideInX: 1,
-                                                           strideInY: 1,
-                                                           dilationRateInX: 1,
-                                                           dilationRateInY: 1,
-                                                           groups: 1,
-                                                           paddingStyle: .TF_SAME,
-                                                           dataLayout: .NCHW,
-                                                           weightsLayout: .OIHW)!
+    let convDescriptor = MPSGraphConvolution2DOpDescriptor(
+        strideInX: 1,
+        strideInY: 1,
+        dilationRateInX: 1,
+        dilationRateInY: 1,
+        groups: 1,
+        paddingStyle: .TF_SAME,
+        dataLayout: .NCHW,
+        weightsLayout: .OIHW)!
 
     /// Class method that tests the convolutional layer by running a forward pass
     /// - Parameters:
@@ -496,43 +550,51 @@ class ConvLayer {
     ///   - batchSize: The batch size of the input tensor
     ///   - input: A pointer to the input tensor data
     ///   - output: A pointer to the output tensor data
-    class func test(descriptor: SWConvLayerDesc,
-                    nnXLen: NSNumber,
-                    nnYLen: NSNumber,
-                    batchSize: NSNumber,
-                    input: UnsafeMutablePointer<Float32>,
-                    output: UnsafeMutablePointer<Float32>) {
+    class func test(
+        descriptor: SWConvLayerDesc,
+        nnXLen: NSNumber,
+        nnYLen: NSNumber,
+        batchSize: NSNumber,
+        input: UnsafeMutablePointer<Float32>,
+        output: UnsafeMutablePointer<Float32>
+    ) {
         let device = MTLCreateSystemDefaultDevice()!
         let graph = MPSGraph()
 
-        let source = InputLayer(graph: graph,
-                                nnXLen: nnXLen,
-                                nnYLen: nnYLen,
-                                numChannels: descriptor.inChannels)
+        let source = InputLayer(
+            graph: graph,
+            nnXLen: nnXLen,
+            nnYLen: nnYLen,
+            numChannels: descriptor.inChannels)
 
-        let conv = ConvLayer(graph: graph,
-                             sourceTensor: source.tensor,
-                             descriptor: descriptor,
-                             nnXLen: nnXLen,
-                             nnYLen: nnYLen)
+        let conv = ConvLayer(
+            graph: graph,
+            sourceTensor: source.tensor,
+            descriptor: descriptor,
+            nnXLen: nnXLen,
+            nnYLen: nnYLen)
 
-        let inputShape = InputShape.create(batchSize: batchSize,
-                                           numChannels: descriptor.inChannels,
-                                           nnYLen: nnYLen,
-                                           nnXLen: nnXLen)
+        let inputShape = InputShape.create(
+            batchSize: batchSize,
+            numChannels: descriptor.inChannels,
+            nnYLen: nnYLen,
+            nnXLen: nnXLen)
 
-        let sourceDescriptor = MPSNDArrayDescriptor(dataType: source.tensor.dataType,
-                                                    shape: inputShape)
+        let sourceDescriptor = MPSNDArrayDescriptor(
+            dataType: source.tensor.dataType,
+            shape: inputShape)
 
-        let sourceArray = MPSNDArray(device: device,
-                                     descriptor: sourceDescriptor)
+        let sourceArray = MPSNDArray(
+            device: device,
+            descriptor: sourceDescriptor)
 
         sourceArray.writeBytes(input)
         let sourceTensorData = MPSGraphTensorData(sourceArray)
 
-        let fetch = graph.run(feeds: [source.tensor: sourceTensorData],
-                              targetTensors: [conv.resultTensor],
-                              targetOperations: nil)
+        let fetch = graph.run(
+            feeds: [source.tensor: sourceTensorData],
+            targetTensors: [conv.resultTensor],
+            targetOperations: nil)
 
         fetch[conv.resultTensor]?.mpsndarray().readBytes(output)
     }
@@ -544,44 +606,54 @@ class ConvLayer {
     ///   - descriptor: A descriptor for the convolutional layer
     ///   - nnXLen: The width of the input tensor
     ///   - nnYLen: The height of the input tensor
-    init(graph: MPSGraph,
-         sourceTensor: MPSGraphTensor,
-         descriptor: SWConvLayerDesc,
-         nnXLen: NSNumber,
-         nnYLen: NSNumber) {
-        let weightsShape = [descriptor.outChannels,
-                            descriptor.inChannels,
-                            descriptor.convYSize,
-                            descriptor.convXSize]
+    init(
+        graph: MPSGraph,
+        sourceTensor: MPSGraphTensor,
+        descriptor: SWConvLayerDesc,
+        nnXLen: NSNumber,
+        nnYLen: NSNumber
+    ) {
+        let weightsShape = [
+            descriptor.outChannels,
+            descriptor.inChannels,
+            descriptor.convYSize,
+            descriptor.convXSize,
+        ]
 
-        let weightsData = Data(floatsNoCopy: descriptor.weights,
-                               shape: weightsShape)
+        let weightsData = Data(
+            floatsNoCopy: descriptor.weights,
+            shape: weightsShape)
 
-        let weightsTensor = graph.constant(weightsData,
-                                           shape: weightsShape,
-                                           dataType: sourceTensor.dataType)
+        let weightsTensor = graph.constant(
+            weightsData,
+            shape: weightsShape,
+            dataType: sourceTensor.dataType)
 
-        resultTensor = graph.convolution2D(sourceTensor,
-                                           weights: weightsTensor,
-                                           descriptor: convDescriptor,
-                                           name: nil)
+        resultTensor = graph.convolution2D(
+            sourceTensor,
+            weights: weightsTensor,
+            descriptor: convDescriptor,
+            name: nil)
 
         assert(resultTensor.shape?.count == 4)
     }
 }
 
-public func testConvLayer(descriptor: SWConvLayerDesc,
-                          nnXLen: Int32,
-                          nnYLen: Int32,
-                          batchSize: Int32,
-                          input: UnsafeMutablePointer<Float32>,
-                          output: UnsafeMutablePointer<Float32>) {
-    ConvLayer.test(descriptor: descriptor,
-                   nnXLen: nnXLen as NSNumber,
-                   nnYLen: nnYLen as NSNumber,
-                   batchSize: batchSize as NSNumber,
-                   input: input,
-                   output: output)
+public func testConvLayer(
+    descriptor: SWConvLayerDesc,
+    nnXLen: Int32,
+    nnYLen: Int32,
+    batchSize: Int32,
+    input: UnsafeMutablePointer<Float32>,
+    output: UnsafeMutablePointer<Float32>
+) {
+    ConvLayer.test(
+        descriptor: descriptor,
+        nnXLen: nnXLen as NSNumber,
+        nnYLen: nnYLen as NSNumber,
+        batchSize: batchSize as NSNumber,
+        input: input,
+        output: output)
 }
 
 /// A struct that represents a description of a batch normalization layer.
@@ -605,14 +677,16 @@ public struct SWBatchNormLayerDesc {
     ///   - variance: A pointer to the variance.
     ///   - scale: A pointer to the scale.
     ///   - bias: A pointer to the bias.
-    init(numChannels: NSNumber,
-         epsilon: Float32,
-         hasScale: NSNumber,
-         hasBias: NSNumber,
-         mean: UnsafeMutablePointer<Float32>,
-         variance: UnsafeMutablePointer<Float32>,
-         scale: UnsafeMutablePointer<Float32>,
-         bias: UnsafeMutablePointer<Float32>) {
+    init(
+        numChannels: NSNumber,
+        epsilon: Float32,
+        hasScale: NSNumber,
+        hasBias: NSNumber,
+        mean: UnsafeMutablePointer<Float32>,
+        variance: UnsafeMutablePointer<Float32>,
+        scale: UnsafeMutablePointer<Float32>,
+        bias: UnsafeMutablePointer<Float32>
+    ) {
         self.numChannels = numChannels
         self.epsilon = epsilon
         self.hasScale = hasScale
@@ -624,22 +698,25 @@ public struct SWBatchNormLayerDesc {
     }
 }
 
-public func createSWBatchNormLayerDesc(numChannels: Int32,
-                                       epsilon: Float32,
-                                       hasScale: Bool,
-                                       hasBias: Bool,
-                                       mean: UnsafeMutablePointer<Float32>,
-                                       variance: UnsafeMutablePointer<Float32>,
-                                       scale: UnsafeMutablePointer<Float32>,
-                                       bias: UnsafeMutablePointer<Float32>) -> SWBatchNormLayerDesc {
-    return SWBatchNormLayerDesc(numChannels: numChannels as NSNumber,
-                                epsilon: epsilon,
-                                hasScale: hasScale as NSNumber,
-                                hasBias: hasBias as NSNumber,
-                                mean: mean,
-                                variance: variance,
-                                scale: scale,
-                                bias: bias)
+public func createSWBatchNormLayerDesc(
+    numChannels: Int32,
+    epsilon: Float32,
+    hasScale: Bool,
+    hasBias: Bool,
+    mean: UnsafeMutablePointer<Float32>,
+    variance: UnsafeMutablePointer<Float32>,
+    scale: UnsafeMutablePointer<Float32>,
+    bias: UnsafeMutablePointer<Float32>
+) -> SWBatchNormLayerDesc {
+    return SWBatchNormLayerDesc(
+        numChannels: numChannels as NSNumber,
+        epsilon: epsilon,
+        hasScale: hasScale as NSNumber,
+        hasBias: hasBias as NSNumber,
+        mean: mean,
+        variance: variance,
+        scale: scale,
+        bias: bias)
 }
 
 /// A class that represents a batch normalization layer.
@@ -655,28 +732,33 @@ class BatchNormLayer {
     ///   - input: A pointer to the input data.
     ///   - mask: A pointer to the mask data.
     ///   - output: A pointer to the output data.
-    class func test(descriptor: SWBatchNormLayerDesc,
-                    nnXLen: NSNumber,
-                    nnYLen: NSNumber,
-                    batchSize: NSNumber,
-                    input: UnsafeMutablePointer<Float32>,
-                    mask: UnsafeMutablePointer<Float32>,
-                    output: UnsafeMutablePointer<Float32>) {
+    class func test(
+        descriptor: SWBatchNormLayerDesc,
+        nnXLen: NSNumber,
+        nnYLen: NSNumber,
+        batchSize: NSNumber,
+        input: UnsafeMutablePointer<Float32>,
+        mask: UnsafeMutablePointer<Float32>,
+        output: UnsafeMutablePointer<Float32>
+    ) {
 
-        NetworkTester.test(batchSize: batchSize,
-                           nnXLen: nnXLen,
-                           nnYLen: nnYLen,
-                           numChannels: descriptor.numChannels,
-                           input: input,
-                           mask: mask,
-                           output: output) { graph, inputLayer, maskLayer in
+        NetworkTester.test(
+            batchSize: batchSize,
+            nnXLen: nnXLen,
+            nnYLen: nnYLen,
+            numChannels: descriptor.numChannels,
+            input: input,
+            mask: mask,
+            output: output
+        ) { graph, inputLayer, maskLayer in
 
-            let batchNorm = BatchNormLayer(graph: graph,
-                                           sourceTensor: inputLayer.tensor,
-                                           maskTensor: maskLayer.tensor,
-                                           descriptor: descriptor,
-                                           nnXLen: nnXLen,
-                                           nnYLen: nnYLen)
+            let batchNorm = BatchNormLayer(
+                graph: graph,
+                sourceTensor: inputLayer.tensor,
+                maskTensor: maskLayer.tensor,
+                descriptor: descriptor,
+                nnXLen: nnXLen,
+                nnYLen: nnYLen)
 
             return batchNorm.resultTensor
         }
@@ -690,75 +772,91 @@ class BatchNormLayer {
     ///   - descriptor: The BatchNormLayer descriptor containing parameters such as the number of channels, mean, variance, scale, and bias.
     ///   - nnXLen: The length of the input tensor in the X direction.
     ///   - nnYLen: The length of the input tensor in the Y direction.
-    init(graph: MPSGraph,
-         sourceTensor: MPSGraphTensor,
-         maskTensor: MPSGraphTensor,
-         descriptor: SWBatchNormLayerDesc,
-         nnXLen: NSNumber,
-         nnYLen: NSNumber) {
-        let meanShape = InputShape.create(batchSize: 1,
-                                          numChannels: descriptor.numChannels,
-                                          nnYLen: 1,
-                                          nnXLen: 1)
+    init(
+        graph: MPSGraph,
+        sourceTensor: MPSGraphTensor,
+        maskTensor: MPSGraphTensor,
+        descriptor: SWBatchNormLayerDesc,
+        nnXLen: NSNumber,
+        nnYLen: NSNumber
+    ) {
+        let meanShape = InputShape.create(
+            batchSize: 1,
+            numChannels: descriptor.numChannels,
+            nnYLen: 1,
+            nnXLen: 1)
 
-        let meanData = Data(floatsNoCopy: descriptor.mean,
-                            shape: meanShape)
+        let meanData = Data(
+            floatsNoCopy: descriptor.mean,
+            shape: meanShape)
 
-        let varianceData = Data(floatsNoCopy: descriptor.variance,
-                                shape: meanShape)
+        let varianceData = Data(
+            floatsNoCopy: descriptor.variance,
+            shape: meanShape)
 
-        let scaleData = Data(floatsNoCopy: descriptor.scale,
-                             shape: meanShape)
+        let scaleData = Data(
+            floatsNoCopy: descriptor.scale,
+            shape: meanShape)
 
-        let biasData = Data(floatsNoCopy: descriptor.bias,
-                            shape: meanShape)
+        let biasData = Data(
+            floatsNoCopy: descriptor.bias,
+            shape: meanShape)
 
-        let meanTensor = graph.constant(meanData,
-                                        shape: meanShape,
-                                        dataType: sourceTensor.dataType)
+        let meanTensor = graph.constant(
+            meanData,
+            shape: meanShape,
+            dataType: sourceTensor.dataType)
 
-        let varianceTensor = graph.constant(varianceData,
-                                            shape: meanShape,
-                                            dataType: sourceTensor.dataType)
+        let varianceTensor = graph.constant(
+            varianceData,
+            shape: meanShape,
+            dataType: sourceTensor.dataType)
 
-        let scaleTensor = graph.constant(scaleData,
-                                         shape: meanShape,
-                                         dataType: sourceTensor.dataType)
+        let scaleTensor = graph.constant(
+            scaleData,
+            shape: meanShape,
+            dataType: sourceTensor.dataType)
 
-        let biasTensor = graph.constant(biasData,
-                                        shape: meanShape,
-                                        dataType: sourceTensor.dataType)
+        let biasTensor = graph.constant(
+            biasData,
+            shape: meanShape,
+            dataType: sourceTensor.dataType)
 
-        let normalized = graph.normalize(sourceTensor,
-                                         mean: meanTensor,
-                                         variance: varianceTensor,
-                                         gamma: scaleTensor,
-                                         beta: biasTensor,
-                                         epsilon: descriptor.epsilon,
-                                         name: nil)
+        let normalized = graph.normalize(
+            sourceTensor,
+            mean: meanTensor,
+            variance: varianceTensor,
+            gamma: scaleTensor,
+            beta: biasTensor,
+            epsilon: descriptor.epsilon,
+            name: nil)
 
-        resultTensor = graph.multiplication(normalized,
-                                            maskTensor,
-                                            name: nil)
+        resultTensor = graph.multiplication(
+            normalized,
+            maskTensor,
+            name: nil)
 
         assert(resultTensor.shape?.count == 4)
     }
 }
 
-public func testBatchNormLayer(descriptor: SWBatchNormLayerDesc,
-                               nnXLen: Int32,
-                               nnYLen: Int32,
-                               batchSize: Int32,
-                               input: UnsafeMutablePointer<Float32>,
-                               mask: UnsafeMutablePointer<Float32>,
-                               output: UnsafeMutablePointer<Float32>) {
-    BatchNormLayer.test(descriptor: descriptor,
-                        nnXLen: nnXLen as NSNumber,
-                        nnYLen: nnYLen as NSNumber,
-                        batchSize: batchSize as NSNumber,
-                        input: input,
-                        mask: mask,
-                        output: output)
+public func testBatchNormLayer(
+    descriptor: SWBatchNormLayerDesc,
+    nnXLen: Int32,
+    nnYLen: Int32,
+    batchSize: Int32,
+    input: UnsafeMutablePointer<Float32>,
+    mask: UnsafeMutablePointer<Float32>,
+    output: UnsafeMutablePointer<Float32>
+) {
+    BatchNormLayer.test(
+        descriptor: descriptor,
+        nnXLen: nnXLen as NSNumber,
+        nnYLen: nnYLen as NSNumber,
+        batchSize: batchSize as NSNumber,
+        input: input,
+        mask: mask,
+        output: output)
 }
 
 /// An enumeration of the different kinds of activation function.
@@ -777,9 +875,11 @@ struct ActivationLayer {
     ///   - graph: The MPSGraph
     ///   - sourceTensor: The input tensor
     ///   - activationKind: The activation kind
-    init(graph: MPSGraph,
-         sourceTensor: MPSGraphTensor,
-         activationKind: ActivationKind) {
+    init(
+        graph: MPSGraph,
+        sourceTensor: MPSGraphTensor,
+        activationKind: ActivationKind
+    ) {
 
         switch activationKind {
         case .relu:
@@ -822,12 +922,14 @@ public class SWResidualBlockDesc: BlockDescriptor {
     ///   - midBN: A description of the batch normalization layer that is applied after the middle convolutional layer.
     ///   - midActivation: The type of activation function that is applied after the middle convolutional layer.
     ///   - finalConv: A description of the convolutional layer that is applied at the end of the residual block.
-    init(preBN: SWBatchNormLayerDesc,
-         preActivation: ActivationKind,
-         regularConv: SWConvLayerDesc,
-         midBN: SWBatchNormLayerDesc,
-         midActivation: ActivationKind,
-         finalConv: SWConvLayerDesc) {
+    init(
+        preBN: SWBatchNormLayerDesc,
+        preActivation: ActivationKind,
+        regularConv: SWConvLayerDesc,
+        midBN: SWBatchNormLayerDesc,
+        midActivation: ActivationKind,
+        finalConv: SWConvLayerDesc
+    ) {
         self.preBN = preBN
         self.preActivation = preActivation
         self.regularConv = regularConv
@@ -837,18 +939,21 @@ public class SWResidualBlockDesc: BlockDescriptor {
     }
 }
 
-public func createSWResidualBlockDesc(preBN: SWBatchNormLayerDesc,
-                                      preActivation: ActivationKind,
-                                      regularConv: SWConvLayerDesc,
-                                      midBN: SWBatchNormLayerDesc,
-                                      midActivation: ActivationKind,
-                                      finalConv: SWConvLayerDesc) -> SWResidualBlockDesc {
-    return SWResidualBlockDesc(preBN: preBN,
-                               preActivation: preActivation,
-                               regularConv: regularConv,
-                               midBN: midBN,
-                               midActivation: midActivation,
-                               finalConv: finalConv)
+public func createSWResidualBlockDesc(
+    preBN: SWBatchNormLayerDesc,
+    preActivation: ActivationKind,
+    regularConv: SWConvLayerDesc,
+    midBN: SWBatchNormLayerDesc,
+    midActivation: ActivationKind,
+    finalConv: SWConvLayerDesc
+) -> SWResidualBlockDesc {
+    return SWResidualBlockDesc(
+        preBN: preBN,
+        preActivation: preActivation,
+        regularConv: regularConv,
+        midBN: midBN,
+        midActivation: midActivation,
+        finalConv: finalConv)
 }
 
 /// A class that represents a Residual Block layer
@@ -865,28 +970,33 @@ class ResidualBlock {
     ///   - input: The input float32 pointer
     ///   - mask: The mask float32 pointer
     ///   - output: The output float32 pointer
-    class func test(descriptor: SWResidualBlockDesc,
-                    batchSize: NSNumber,
-                    nnXLen: NSNumber,
-                    nnYLen: NSNumber,
-                    input: UnsafeMutablePointer<Float32>,
-                    mask: UnsafeMutablePointer<Float32>,
-                    output: UnsafeMutablePointer<Float32>) {
+    class func test(
+        descriptor: SWResidualBlockDesc,
+        batchSize: NSNumber,
+        nnXLen: NSNumber,
+        nnYLen: NSNumber,
+        input: UnsafeMutablePointer<Float32>,
+        mask: UnsafeMutablePointer<Float32>,
+        output: UnsafeMutablePointer<Float32>
+    ) {
 
-        NetworkTester.test(batchSize: batchSize,
-                           nnXLen: nnXLen,
-                           nnYLen: nnYLen,
-                           numChannels: descriptor.preBN.numChannels,
-                           input: input,
-                           mask: mask,
-                           output: output) { graph, inputLayer, maskLayer in
+        NetworkTester.test(
+            batchSize: batchSize,
+            nnXLen: nnXLen,
+            nnYLen: nnYLen,
+            numChannels: descriptor.preBN.numChannels,
+            input: input,
+            mask: mask,
+            output: output
+        ) { graph, inputLayer, maskLayer in
 
-            let block = ResidualBlock(graph: graph,
-                                      sourceTensor: inputLayer.tensor,
-                                      maskTensor: maskLayer.tensor,
-                                      descriptor: descriptor,
-                                      nnXLen: nnXLen,
-                                      nnYLen: nnYLen)
+            let block = ResidualBlock(
+                graph: graph,
+                sourceTensor: inputLayer.tensor,
+                maskTensor: maskLayer.tensor,
+                descriptor: descriptor,
+                nnXLen: nnXLen,
+                nnYLen: nnYLen)
 
             return block.resultTensor
         }
@@ -901,68 +1011,80 @@ class ResidualBlock {
     ///   - descriptor: The Residual Block descriptor
     ///   - nnXLen: X length
     ///   - nnYLen: Y length
-    init(graph: MPSGraph,
-         sourceTensor: MPSGraphTensor,
-         maskTensor: MPSGraphTensor,
-         descriptor: SWResidualBlockDesc,
-         nnXLen: NSNumber,
-         nnYLen: NSNumber) {
-        let preBN = BatchNormLayer(graph: graph,
-                                   sourceTensor: sourceTensor,
-                                   maskTensor: maskTensor,
-                                   descriptor: descriptor.preBN,
-                                   nnXLen: nnXLen,
-                                   nnYLen: nnYLen)
+    init(
+        graph: MPSGraph,
+        sourceTensor: MPSGraphTensor,
+        maskTensor: MPSGraphTensor,
+        descriptor: SWResidualBlockDesc,
+        nnXLen: NSNumber,
+        nnYLen: NSNumber
+    ) {
+        let preBN = BatchNormLayer(
+            graph: graph,
+            sourceTensor: sourceTensor,
+            maskTensor: maskTensor,
+            descriptor: descriptor.preBN,
+            nnXLen: nnXLen,
+            nnYLen: nnYLen)
 
-        let preActivation = ActivationLayer(graph: graph,
-                                            sourceTensor: preBN.resultTensor,
-                                            activationKind: descriptor.preActivation)
+        let preActivation = ActivationLayer(
+            graph: graph,
+            sourceTensor: preBN.resultTensor,
+            activationKind: descriptor.preActivation)
 
-        let regularConv = ConvLayer(graph: graph,
-                                    sourceTensor: preActivation.resultTensor,
-                                    descriptor: descriptor.regularConv,
-                                    nnXLen: nnXLen,
-                                    nnYLen: nnYLen)
+        let regularConv = ConvLayer(
+            graph: graph,
+            sourceTensor: preActivation.resultTensor,
+            descriptor: descriptor.regularConv,
+            nnXLen: nnXLen,
+            nnYLen: nnYLen)
 
-        let midBN = BatchNormLayer(graph: graph,
-                                   sourceTensor: regularConv.resultTensor,
-                                   maskTensor: maskTensor,
-                                   descriptor: descriptor.midBN,
-                                   nnXLen: nnXLen,
-                                   nnYLen: nnYLen)
+        let midBN = BatchNormLayer(
+            graph: graph,
+            sourceTensor: regularConv.resultTensor,
+            maskTensor: maskTensor,
+            descriptor: descriptor.midBN,
+            nnXLen: nnXLen,
+            nnYLen: nnYLen)
 
-        let midActivation = ActivationLayer(graph: graph,
-                                            sourceTensor: midBN.resultTensor,
-                                            activationKind: descriptor.midActivation)
+        let midActivation = ActivationLayer(
+            graph: graph,
+            sourceTensor: midBN.resultTensor,
+            activationKind: descriptor.midActivation)
 
-        let finalConv = ConvLayer(graph: graph,
-                                  sourceTensor: midActivation.resultTensor,
-                                  descriptor: descriptor.finalConv,
-                                  nnXLen: nnXLen,
-                                  nnYLen: nnYLen)
+        let finalConv = ConvLayer(
+            graph: graph,
+            sourceTensor: midActivation.resultTensor,
+            descriptor: descriptor.finalConv,
+            nnXLen: nnXLen,
+            nnYLen: nnYLen)
 
-        resultTensor = graph.addition(sourceTensor,
-                                      finalConv.resultTensor,
-                                      name: nil)
+        resultTensor = graph.addition(
+            sourceTensor,
+            finalConv.resultTensor,
+            name: nil)
 
         assert(resultTensor.shape?.count == 4)
     }
 }
 
-public func testResidualBlock(descriptor: SWResidualBlockDesc,
-                              batchSize: Int32,
-                              nnXLen: Int32,
-                              nnYLen: Int32,
-                              input: UnsafeMutablePointer<Float32>,
-                              mask: UnsafeMutablePointer<Float32>,
-                              output: UnsafeMutablePointer<Float32>) {
-    ResidualBlock.test(descriptor: descriptor,
-                       batchSize: batchSize as NSNumber,
-                       nnXLen: nnXLen as NSNumber,
-                       nnYLen: nnYLen as NSNumber,
-                       input: input,
-                       mask: mask,
-                       output: output)
+public func testResidualBlock(
+    descriptor: SWResidualBlockDesc,
+    batchSize: Int32,
+    nnXLen: Int32,
+    nnYLen: Int32,
+    input: UnsafeMutablePointer<Float32>,
+    mask: UnsafeMutablePointer<Float32>,
+    output: UnsafeMutablePointer<Float32>
+) {
+    ResidualBlock.test(
+        descriptor: descriptor,
+        batchSize: batchSize as NSNumber,
+        nnXLen: nnXLen as NSNumber,
+        nnYLen: nnYLen as NSNumber,
+        input: input,
+        mask: mask,
+        output: output)
 }
 
 /// A structure that represents a global pooling layer
@@ -977,37 +1099,45 @@ struct GlobalPoolingLayer {
     ///   - maskTensor: The mask tensor
     ///   - maskSumTensor: The sum of the mask
     ///   - maskSumSqrtS14M01Tensor: The multiplication of subtraction of square root of the sum of the mask
-    init(graph: MPSGraph,
-         sourceTensor: MPSGraphTensor,
-         maskTensor: MPSGraphTensor,
-         maskSumTensor: MPSGraphTensor,
-         maskSumSqrtS14M01Tensor: MPSGraphTensor) {
+    init(
+        graph: MPSGraph,
+        sourceTensor: MPSGraphTensor,
+        maskTensor: MPSGraphTensor,
+        maskSumTensor: MPSGraphTensor,
+        maskSumSqrtS14M01Tensor: MPSGraphTensor
+    ) {
         let hwAxes = InputShape.getHWAxes()
         let channelAxis = InputShape.getChannelAxis()
 
-        let sumTensor = graph.reductionSum(with: sourceTensor,
-                                           axes: hwAxes,
-                                           name: nil)
+        let sumTensor = graph.reductionSum(
+            with: sourceTensor,
+            axes: hwAxes,
+            name: nil)
 
         let meanTensor = graph.division(sumTensor, maskSumTensor, name: nil)
 
-        let meanMaskTensor = graph.multiplication(meanTensor,
-                                                  maskSumSqrtS14M01Tensor,
-                                                  name: nil)
+        let meanMaskTensor = graph.multiplication(
+            meanTensor,
+            maskSumSqrtS14M01Tensor,
+            name: nil)
 
         let oneTensor = graph.constant(1.0, dataType: sourceTensor.dataType)
         let maskM1Tensor = graph.subtraction(maskTensor, oneTensor, name: nil)
         let addition = graph.addition(sourceTensor, maskM1Tensor, name: nil)
 
-        let maxTensor = graph.reductionMaximum(with: addition,
-                                               axes: hwAxes,
-                                               name: nil)
+        let maxTensor = graph.reductionMaximum(
+            with: addition,
+            axes: hwAxes,
+            name: nil)
 
-        resultTensor = graph.concatTensors([meanTensor,
-                                            meanMaskTensor,
-                                            maxTensor],
-                                           dimension: channelAxis,
-                                           name: nil)
+        resultTensor = graph.concatTensors(
+            [
+                meanTensor,
+                meanMaskTensor,
+                maxTensor,
+            ],
+            dimension: channelAxis,
+            name: nil)
 
         assert(resultTensor.shape?.count == 4)
         assert(resultTensor.shape?[2] == 1)
@@ -1026,33 +1156,41 @@ struct GlobalPoolingValueLayer {
     ///   - maskSumTensor: The sum of the mask
     ///   - maskSumSqrtS14M01Tensor: The multiplication of subtraction of square root of the sum of the mask
     ///   - maskSumSqrtS14M01SquareS01Tensor: The subtraction of square of multiplication of subtraction of square root of the sum of the mask
-    init(graph: MPSGraph,
-         sourceTensor: MPSGraphTensor,
-         maskSumTensor: MPSGraphTensor,
-         maskSumSqrtS14M01Tensor: MPSGraphTensor,
-         maskSumSqrtS14M01SquareS01Tensor: MPSGraphTensor) {
+    init(
+        graph: MPSGraph,
+        sourceTensor: MPSGraphTensor,
+        maskSumTensor: MPSGraphTensor,
+        maskSumSqrtS14M01Tensor: MPSGraphTensor,
+        maskSumSqrtS14M01SquareS01Tensor: MPSGraphTensor
+    ) {
         let hwAxes = InputShape.getHWAxes()
         let channelAxis = InputShape.getChannelAxis()
 
-        let sumTensor = graph.reductionSum(with: sourceTensor,
-                                           axes: hwAxes,
-                                           name: nil)
+        let sumTensor = graph.reductionSum(
+            with: sourceTensor,
+            axes: hwAxes,
+            name: nil)
 
         let meanTensor = graph.division(sumTensor, maskSumTensor, name: nil)
 
-        let meanMaskTensor = graph.multiplication(meanTensor,
-                                                  maskSumSqrtS14M01Tensor,
-                                                  name: nil)
+        let meanMaskTensor = graph.multiplication(
+            meanTensor,
+            maskSumSqrtS14M01Tensor,
+            name: nil)
 
-        let meanMaskSquareTensor = graph.multiplication(meanTensor,
-                                                        maskSumSqrtS14M01SquareS01Tensor,
-                                                        name: nil)
+        let meanMaskSquareTensor = graph.multiplication(
+            meanTensor,
+            maskSumSqrtS14M01SquareS01Tensor,
+            name: nil)
 
-        resultTensor = graph.concatTensors([meanTensor,
-                                            meanMaskTensor,
-                                            meanMaskSquareTensor],
-                                           dimension: channelAxis,
-                                           name: nil)
+        resultTensor = graph.concatTensors(
+            [
+                meanTensor,
+                meanMaskTensor,
+                meanMaskSquareTensor,
+            ],
+            dimension: channelAxis,
+            name: nil)
 
         assert(resultTensor.shape?.count == 4)
         assert(resultTensor.shape?[2] == 1)
@@ -1074,21 +1212,26 @@ public struct SWMatMulLayerDesc {
     ///   - inChannels: The number of input channels
     ///   - outChannels: The number of output channels
     ///   - weights: The weights used for the matrix multiplication
-    init(inChannels: NSNumber,
-         outChannels: NSNumber,
-         weights: UnsafeMutablePointer<Float32>) {
+    init(
+        inChannels: NSNumber,
+        outChannels: NSNumber,
+        weights: UnsafeMutablePointer<Float32>
+    ) {
         self.inChannels = inChannels
         self.outChannels = outChannels
         self.weights = weights
     }
 }
 
-public func createSWMatMulLayerDesc(inChannels: Int32,
-                                    outChannels: Int32,
-                                    weights: UnsafeMutablePointer<Float32>) -> SWMatMulLayerDesc {
-    return SWMatMulLayerDesc(inChannels: inChannels as NSNumber,
-                             outChannels: outChannels as NSNumber,
-                             weights: weights)
+public func createSWMatMulLayerDesc(
+    inChannels: Int32,
+    outChannels: Int32,
+    weights: UnsafeMutablePointer<Float32>
+) -> SWMatMulLayerDesc {
+    return SWMatMulLayerDesc(
+        inChannels: inChannels as NSNumber,
+        outChannels: outChannels as NSNumber,
+        weights: weights)
 }
 
 /// A structure representing a matrix multiplication layer.
@@ -1101,32 +1244,42 @@ struct MatMulLayer {
     ///   - graph: The graph.
     ///   - descriptor: The matrix multiplication layer descriptor.
     ///   - sourceTensor: The input tensor to the layer.
-    init(graph: MPSGraph,
-         descriptor: SWMatMulLayerDesc,
-         sourceTensor: MPSGraphTensor) {
+    init(
+        graph: MPSGraph,
+        descriptor: SWMatMulLayerDesc,
+        sourceTensor: MPSGraphTensor
+    ) {
 
-        assert((sourceTensor.shape?.count == 4) || (sourceTensor.shape?[1] == descriptor.inChannels))
-        assert((sourceTensor.shape?.count == 2) || (sourceTensor.shape?[1] == descriptor.inChannels))
+        assert(
+            (sourceTensor.shape?.count == 4) || (sourceTensor.shape?[1] == descriptor.inChannels))
+        assert(
+            (sourceTensor.shape?.count == 2) || (sourceTensor.shape?[1] == descriptor.inChannels))
 
-        let weightsShape = [descriptor.inChannels,
-                            descriptor.outChannels]
+        let weightsShape = [
+            descriptor.inChannels,
+            descriptor.outChannels,
+        ]
 
-        let weightsData = Data(floatsNoCopy: descriptor.weights,
-                               shape: weightsShape)
+        let weightsData = Data(
+            floatsNoCopy: descriptor.weights,
+            shape: weightsShape)
 
-        let weightsTensor = graph.constant(weightsData,
-                                           shape: weightsShape,
-                                           dataType: sourceTensor.dataType)
+        let weightsTensor = graph.constant(
+            weightsData,
+            shape: weightsShape,
+            dataType: sourceTensor.dataType)
 
         let shape = [-1, descriptor.inChannels]
 
-        let reshapedSource = graph.reshape(sourceTensor,
-                                           shape: shape,
-                                           name: nil)
+        let reshapedSource = graph.reshape(
+            sourceTensor,
+            shape: shape,
+            name: nil)
 
-        resultTensor = graph.matrixMultiplication(primary: reshapedSource,
-                                                  secondary: weightsTensor,
-                                                  name: nil)
+        resultTensor = graph.matrixMultiplication(
+            primary: reshapedSource,
+            secondary: weightsTensor,
+            name: nil)
 
         assert(resultTensor.shape?.count == 2)
     }
@@ -1143,17 +1296,22 @@ public struct SWMatBiasLayerDesc {
     /// - Parameters:
     ///   - numChannels: The number of channels.
     ///   - weights: The pointer to the weights.
-    init(numChannels: NSNumber,
-         weights: UnsafeMutablePointer<Float32>) {
+    init(
+        numChannels: NSNumber,
+        weights: UnsafeMutablePointer<Float32>
+    ) {
         self.numChannels = numChannels
         self.weights = weights
     }
 }
 
-public func createSWMatBiasLayerDesc(numChannels: Int32,
-                                     weights: UnsafeMutablePointer<Float32>) -> SWMatBiasLayerDesc {
-    return SWMatBiasLayerDesc(numChannels: numChannels as NSNumber,
-                              weights: weights)
+public func createSWMatBiasLayerDesc(
+    numChannels: Int32,
+    weights: UnsafeMutablePointer<Float32>
+) -> SWMatBiasLayerDesc {
+    return SWMatBiasLayerDesc(
+        numChannels: numChannels as NSNumber,
+        weights: weights)
 }
 
 /// A structure that performs matrix bias operations
@@ -1166,24 +1324,30 @@ struct MatBiasLayer {
     ///   - graph: The graph.
     ///   - descriptor: The descriptor that contains information about the layer
     ///   - sourceTensor: The input tensor to the layer.
-    init(graph: MPSGraph,
-         descriptor: SWMatBiasLayerDesc,
-         sourceTensor: MPSGraphTensor) {
+    init(
+        graph: MPSGraph,
+        descriptor: SWMatBiasLayerDesc,
+        sourceTensor: MPSGraphTensor
+    ) {
 
-        assert((sourceTensor.shape?.count == 2) && (sourceTensor.shape?[1] == descriptor.numChannels))
+        assert(
+            (sourceTensor.shape?.count == 2) && (sourceTensor.shape?[1] == descriptor.numChannels))
 
         let weightsShape = [1, descriptor.numChannels]
 
-        let weightsData = Data(floatsNoCopy: descriptor.weights,
-                               shape: weightsShape)
+        let weightsData = Data(
+            floatsNoCopy: descriptor.weights,
+            shape: weightsShape)
 
-        let weightsTensor = graph.constant(weightsData,
-                                           shape: weightsShape,
-                                           dataType: sourceTensor.dataType)
+        let weightsTensor = graph.constant(
+            weightsData,
+            shape: weightsShape,
+            dataType: sourceTensor.dataType)
 
-        resultTensor = graph.addition(sourceTensor,
-                                      weightsTensor,
-                                      name: nil)
+        resultTensor = graph.addition(
+            sourceTensor,
+            weightsTensor,
+            name: nil)
     }
 }
 
@@ -1200,16 +1364,19 @@ struct AddNCBiasLayer {
     ///   - nnXLen: The x length.
     ///   - nnYLen: The y length.
     ///   - numChannels: The number of channels.
-    init(graph: MPSGraph,
-         sourceTensor: MPSGraphTensor,
-         biasTensor: MPSGraphTensor,
-         nnXLen: NSNumber,
-         nnYLen: NSNumber,
-         numChannels: NSNumber) {
-        let shape = InputShape.create(batchSize: -1,
-                                      numChannels: numChannels,
-                                      nnYLen: 1,
-                                      nnXLen: 1)
+    init(
+        graph: MPSGraph,
+        sourceTensor: MPSGraphTensor,
+        biasTensor: MPSGraphTensor,
+        nnXLen: NSNumber,
+        nnYLen: NSNumber,
+        numChannels: NSNumber
+    ) {
+        let shape = InputShape.create(
+            batchSize: -1,
+            numChannels: numChannels,
+            nnYLen: 1,
+            nnXLen: 1)
 
         assert(biasTensor.shape?[1] == shape[1])
 
@@ -1266,16 +1433,18 @@ public class SWGlobalPoolingResidualBlockDesc: BlockDescriptor {
     ///   - midBN: The batch normalization layer after the matrix multiplication layer.
     ///   - midActivation: The activation function after the mid batch normalization layer.
     ///   - finalConv: The final convolutional layer in the residual block.
-    init(preBN: SWBatchNormLayerDesc,
-         preActivation: ActivationKind,
-         regularConv: SWConvLayerDesc,
-         gpoolConv: SWConvLayerDesc,
-         gpoolBN: SWBatchNormLayerDesc,
-         gpoolActivation: ActivationKind,
-         gpoolToBiasMul: SWMatMulLayerDesc,
-         midBN: SWBatchNormLayerDesc,
-         midActivation: ActivationKind,
-         finalConv: SWConvLayerDesc) {
+    init(
+        preBN: SWBatchNormLayerDesc,
+        preActivation: ActivationKind,
+        regularConv: SWConvLayerDesc,
+        gpoolConv: SWConvLayerDesc,
+        gpoolBN: SWBatchNormLayerDesc,
+        gpoolActivation: ActivationKind,
+        gpoolToBiasMul: SWMatMulLayerDesc,
+        midBN: SWBatchNormLayerDesc,
+        midActivation: ActivationKind,
+        finalConv: SWConvLayerDesc
+    ) {
         self.preBN = preBN
         self.preActivation = preActivation
         self.regularConv = regularConv
@@ -1289,27 +1458,30 @@ public class SWGlobalPoolingResidualBlockDesc: BlockDescriptor {
     }
 }
 
-public func createSWGlobalPoolingResidualBlockDesc(preBN: SWBatchNormLayerDesc,
-                                                   preActivation: ActivationKind,
-                                                   regularConv: SWConvLayerDesc,
-                                                   gpoolConv: SWConvLayerDesc,
-                                                   gpoolBN: SWBatchNormLayerDesc,
-                                                   gpoolActivation: ActivationKind,
-                                                   gpoolToBiasMul: SWMatMulLayerDesc,
-                                                   midBN: SWBatchNormLayerDesc,
-                                                   midActivation: ActivationKind,
-                                                   finalConv: SWConvLayerDesc) -> SWGlobalPoolingResidualBlockDesc {
+public func createSWGlobalPoolingResidualBlockDesc(
+    preBN: SWBatchNormLayerDesc,
+    preActivation: ActivationKind,
+    regularConv: SWConvLayerDesc,
+    gpoolConv: SWConvLayerDesc,
+    gpoolBN: SWBatchNormLayerDesc,
+    gpoolActivation: ActivationKind,
+    gpoolToBiasMul: SWMatMulLayerDesc,
+    midBN: SWBatchNormLayerDesc,
+    midActivation: ActivationKind,
+    finalConv: SWConvLayerDesc
+) -> SWGlobalPoolingResidualBlockDesc {
 
-    return SWGlobalPoolingResidualBlockDesc(preBN: preBN,
-                                            preActivation: preActivation,
-                                            regularConv: regularConv,
-                                            gpoolConv: gpoolConv,
-                                            gpoolBN: gpoolBN,
-                                            gpoolActivation: gpoolActivation,
-                                            gpoolToBiasMul: gpoolToBiasMul,
-                                            midBN: midBN,
-                                            midActivation: midActivation,
-                                            finalConv: finalConv)
+    return SWGlobalPoolingResidualBlockDesc(
+        preBN: preBN,
+        preActivation: preActivation,
+        regularConv: regularConv,
+        gpoolConv: gpoolConv,
+        gpoolBN: gpoolBN,
+        gpoolActivation: gpoolActivation,
+        gpoolToBiasMul: gpoolToBiasMul,
+        midBN: midBN,
+        midActivation: midActivation,
+        finalConv: finalConv)
 }
 
 /// A class representing a residual block with global pooling
@@ -1326,37 +1498,44 @@ class GlobalPoolingResidualBlock {
     ///   - input: The input pointer
     ///   - mask: The mask pointer
     ///   - output: The output pointer
-    class func test(descriptor: SWGlobalPoolingResidualBlockDesc,
-                    batchSize: NSNumber,
-                    nnXLen: NSNumber,
-                    nnYLen: NSNumber,
-                    input: UnsafeMutablePointer<Float32>,
-                    mask: UnsafeMutablePointer<Float32>,
-                    output: UnsafeMutablePointer<Float32>) {
+    class func test(
+        descriptor: SWGlobalPoolingResidualBlockDesc,
+        batchSize: NSNumber,
+        nnXLen: NSNumber,
+        nnYLen: NSNumber,
+        input: UnsafeMutablePointer<Float32>,
+        mask: UnsafeMutablePointer<Float32>,
+        output: UnsafeMutablePointer<Float32>
+    ) {
 
-        NetworkTester.test(batchSize: batchSize,
-                           nnXLen: nnXLen,
-                           nnYLen: nnYLen,
-                           numChannels: descriptor.preBN.numChannels,
-                           input: input,
-                           mask: mask,
-                           output: output) { graph, inputLayer, maskLayer in
+        NetworkTester.test(
+            batchSize: batchSize,
+            nnXLen: nnXLen,
+            nnYLen: nnYLen,
+            numChannels: descriptor.preBN.numChannels,
+            input: input,
+            mask: mask,
+            output: output
+        ) { graph, inputLayer, maskLayer in
 
-            let maskSum = MaskSumLayer(graph: graph,
-                                       maskTensor: maskLayer.tensor)
+            let maskSum = MaskSumLayer(
+                graph: graph,
+                maskTensor: maskLayer.tensor)
 
-            let maskSumSqrtS14M01 = MaskSumSqrtS14M01Layer(graph: graph,
-                                                           maskSum: maskSum)
+            let maskSumSqrtS14M01 = MaskSumSqrtS14M01Layer(
+                graph: graph,
+                maskSum: maskSum)
 
             let block =
-            GlobalPoolingResidualBlock(graph: graph,
-                                       sourceTensor: inputLayer.tensor,
-                                       maskTensor: maskLayer.tensor,
-                                       maskSumTensor: maskSum.tensor,
-                                       maskSumSqrtS14M01Tensor: maskSumSqrtS14M01.tensor,
-                                       descriptor: descriptor,
-                                       nnXLen: nnXLen,
-                                       nnYLen: nnYLen)
+                GlobalPoolingResidualBlock(
+                    graph: graph,
+                    sourceTensor: inputLayer.tensor,
+                    maskTensor: maskLayer.tensor,
+                    maskSumTensor: maskSum.tensor,
+                    maskSumSqrtS14M01Tensor: maskSumSqrtS14M01.tensor,
+                    descriptor: descriptor,
+                    nnXLen: nnXLen,
+                    nnYLen: nnYLen)
 
             return block.resultTensor
         }
@@ -1373,109 +1552,127 @@ class GlobalPoolingResidualBlock {
     ///   - descriptor: The descriptor of the global pooling residual block
     ///   - nnXLen: The X length
     ///   - nnYLen: The Y length
-    init(graph: MPSGraph,
-         sourceTensor: MPSGraphTensor,
-         maskTensor: MPSGraphTensor,
-         maskSumTensor: MPSGraphTensor,
-         maskSumSqrtS14M01Tensor: MPSGraphTensor,
-         descriptor: SWGlobalPoolingResidualBlockDesc,
-         nnXLen: NSNumber,
-         nnYLen: NSNumber) {
+    init(
+        graph: MPSGraph,
+        sourceTensor: MPSGraphTensor,
+        maskTensor: MPSGraphTensor,
+        maskSumTensor: MPSGraphTensor,
+        maskSumSqrtS14M01Tensor: MPSGraphTensor,
+        descriptor: SWGlobalPoolingResidualBlockDesc,
+        nnXLen: NSNumber,
+        nnYLen: NSNumber
+    ) {
         let maskSum = MaskSumLayer(tensor: maskSumTensor)
         let maskSumSqrtS14M01 = MaskSumSqrtS14M01Layer(tensor: maskSumSqrtS14M01Tensor)
 
-        let preBN = BatchNormLayer(graph: graph,
-                                   sourceTensor: sourceTensor,
-                                   maskTensor: maskTensor,
-                                   descriptor: descriptor.preBN,
-                                   nnXLen: nnXLen,
-                                   nnYLen: nnYLen)
+        let preBN = BatchNormLayer(
+            graph: graph,
+            sourceTensor: sourceTensor,
+            maskTensor: maskTensor,
+            descriptor: descriptor.preBN,
+            nnXLen: nnXLen,
+            nnYLen: nnYLen)
 
-        let preActivation = ActivationLayer(graph: graph,
-                                            sourceTensor: preBN.resultTensor,
-                                            activationKind: descriptor.preActivation)
+        let preActivation = ActivationLayer(
+            graph: graph,
+            sourceTensor: preBN.resultTensor,
+            activationKind: descriptor.preActivation)
 
-        let regularConv = ConvLayer(graph: graph,
-                                    sourceTensor: preActivation.resultTensor,
-                                    descriptor: descriptor.regularConv,
-                                    nnXLen: nnXLen,
-                                    nnYLen: nnYLen)
+        let regularConv = ConvLayer(
+            graph: graph,
+            sourceTensor: preActivation.resultTensor,
+            descriptor: descriptor.regularConv,
+            nnXLen: nnXLen,
+            nnYLen: nnYLen)
 
-        let gpoolConv = ConvLayer(graph: graph,
-                                  sourceTensor: preActivation.resultTensor,
-                                  descriptor: descriptor.gpoolConv,
-                                  nnXLen: nnXLen,
-                                  nnYLen: nnYLen)
+        let gpoolConv = ConvLayer(
+            graph: graph,
+            sourceTensor: preActivation.resultTensor,
+            descriptor: descriptor.gpoolConv,
+            nnXLen: nnXLen,
+            nnYLen: nnYLen)
 
-        let gpoolBN = BatchNormLayer(graph: graph,
-                                     sourceTensor: gpoolConv.resultTensor,
-                                     maskTensor: maskTensor,
-                                     descriptor: descriptor.gpoolBN,
-                                     nnXLen: nnXLen,
-                                     nnYLen: nnYLen)
+        let gpoolBN = BatchNormLayer(
+            graph: graph,
+            sourceTensor: gpoolConv.resultTensor,
+            maskTensor: maskTensor,
+            descriptor: descriptor.gpoolBN,
+            nnXLen: nnXLen,
+            nnYLen: nnYLen)
 
-        let gpoolActivation = ActivationLayer(graph: graph,
-                                              sourceTensor: gpoolBN.resultTensor,
-                                              activationKind: descriptor.gpoolActivation)
+        let gpoolActivation = ActivationLayer(
+            graph: graph,
+            sourceTensor: gpoolBN.resultTensor,
+            activationKind: descriptor.gpoolActivation)
 
-        let gpoolConcat = GlobalPoolingLayer(graph: graph,
-                                             sourceTensor: gpoolActivation.resultTensor,
-                                             maskTensor: maskTensor,
-                                             maskSumTensor: maskSum.tensor,
-                                             maskSumSqrtS14M01Tensor: maskSumSqrtS14M01.tensor)
+        let gpoolConcat = GlobalPoolingLayer(
+            graph: graph,
+            sourceTensor: gpoolActivation.resultTensor,
+            maskTensor: maskTensor,
+            maskSumTensor: maskSum.tensor,
+            maskSumSqrtS14M01Tensor: maskSumSqrtS14M01.tensor)
 
         assert(gpoolConcat.resultTensor.shape?[1] == descriptor.gpoolToBiasMul.inChannels)
 
-        let gpoolToBiasMul = MatMulLayer(graph: graph,
-                                         descriptor: descriptor.gpoolToBiasMul,
-                                         sourceTensor: gpoolConcat.resultTensor)
+        let gpoolToBiasMul = MatMulLayer(
+            graph: graph,
+            descriptor: descriptor.gpoolToBiasMul,
+            sourceTensor: gpoolConcat.resultTensor)
 
-        let added = AddNCBiasLayer(graph: graph,
-                                   sourceTensor: regularConv.resultTensor,
-                                   biasTensor: gpoolToBiasMul.resultTensor,
-                                   nnXLen: nnXLen,
-                                   nnYLen: nnYLen,
-                                   numChannels: descriptor.gpoolToBiasMul.outChannels)
+        let added = AddNCBiasLayer(
+            graph: graph,
+            sourceTensor: regularConv.resultTensor,
+            biasTensor: gpoolToBiasMul.resultTensor,
+            nnXLen: nnXLen,
+            nnYLen: nnYLen,
+            numChannels: descriptor.gpoolToBiasMul.outChannels)
 
-        let midBN = BatchNormLayer(graph: graph,
-                                   sourceTensor: added.resultTensor,
-                                   maskTensor: maskTensor,
-                                   descriptor: descriptor.midBN,
-                                   nnXLen: nnXLen,
-                                   nnYLen: nnYLen)
+        let midBN = BatchNormLayer(
+            graph: graph,
+            sourceTensor: added.resultTensor,
+            maskTensor: maskTensor,
+            descriptor: descriptor.midBN,
+            nnXLen: nnXLen,
+            nnYLen: nnYLen)
 
-        let midActivation = ActivationLayer(graph: graph,
-                                            sourceTensor: midBN.resultTensor,
-                                            activationKind: descriptor.midActivation)
+        let midActivation = ActivationLayer(
+            graph: graph,
+            sourceTensor: midBN.resultTensor,
+            activationKind: descriptor.midActivation)
 
-        let finalConv = ConvLayer(graph: graph,
-                                  sourceTensor: midActivation.resultTensor,
-                                  descriptor: descriptor.finalConv,
-                                  nnXLen: nnXLen,
-                                  nnYLen: nnYLen)
+        let finalConv = ConvLayer(
+            graph: graph,
+            sourceTensor: midActivation.resultTensor,
+            descriptor: descriptor.finalConv,
+            nnXLen: nnXLen,
+            nnYLen: nnYLen)
 
-        resultTensor = graph.addition(sourceTensor,
-                                      finalConv.resultTensor,
-                                      name: nil)
+        resultTensor = graph.addition(
+            sourceTensor,
+            finalConv.resultTensor,
+            name: nil)
 
         assert(resultTensor.shape?.count == 4)
     }
 }
 
-public func testGlobalPoolingResidualBlock(descriptor: SWGlobalPoolingResidualBlockDesc,
-                                           batchSize: Int32,
-                                           nnXLen: Int32,
-                                           nnYLen: Int32,
-                                           input: UnsafeMutablePointer<Float32>,
-                                           mask: UnsafeMutablePointer<Float32>,
-                                           output: UnsafeMutablePointer<Float32>) {
-    GlobalPoolingResidualBlock.test(descriptor: descriptor,
-                                    batchSize: batchSize as NSNumber,
-                                    nnXLen: nnXLen as NSNumber,
-                                    nnYLen: nnYLen as NSNumber,
-                                    input: input,
-                                    mask: mask,
-                                    output: output)
+public func testGlobalPoolingResidualBlock(
+    descriptor: SWGlobalPoolingResidualBlockDesc,
+    batchSize: Int32,
+    nnXLen: Int32,
+    nnYLen: Int32,
+    input: UnsafeMutablePointer<Float32>,
+    mask: UnsafeMutablePointer<Float32>,
+    output: UnsafeMutablePointer<Float32>
+) {
+    GlobalPoolingResidualBlock.test(
+        descriptor: descriptor,
+        batchSize: batchSize as NSNumber,
+        nnXLen: nnXLen as NSNumber,
+        nnYLen: nnYLen as NSNumber,
+        input: input,
+        mask: mask,
+        output: output)
 }
 
 /// A class that represents a nested bottleneck residual block
@@ -1509,13 +1706,15 @@ public class SWNestedBottleneckResidualBlockDesc: BlockDescriptor {
     ///   - postBN: The batch normalization layer after the residual block.
     ///   - postActivation: The activation function after the post batch normalization layer.
     ///   - postConv: The convolutional layer after the post activation layer.
-    init(preBN: SWBatchNormLayerDesc,
-         preActivation: ActivationKind,
-         preConv: SWConvLayerDesc,
-         blockDescriptors: [BlockDescriptor],
-         postBN: SWBatchNormLayerDesc,
-         postActivation: ActivationKind,
-         postConv: SWConvLayerDesc) {
+    init(
+        preBN: SWBatchNormLayerDesc,
+        preActivation: ActivationKind,
+        preConv: SWConvLayerDesc,
+        blockDescriptors: [BlockDescriptor],
+        postBN: SWBatchNormLayerDesc,
+        postActivation: ActivationKind,
+        postConv: SWConvLayerDesc
+    ) {
         self.preBN = preBN
         self.preActivation = preActivation
         self.preConv = preConv
@@ -1526,20 +1725,23 @@ public class SWNestedBottleneckResidualBlockDesc: BlockDescriptor {
     }
 }
 
-public func createSWNestedBottleneckResidualBlockDesc(preBN: SWBatchNormLayerDesc,
-                                                      preActivation: ActivationKind,
-                                                      preConv: SWConvLayerDesc,
-                                                      blockDescriptors: [BlockDescriptor],
-                                                      postBN: SWBatchNormLayerDesc,
-                                                      postActivation: ActivationKind,
-                                                      postConv: SWConvLayerDesc) -> SWNestedBottleneckResidualBlockDesc {
-    return SWNestedBottleneckResidualBlockDesc(preBN: preBN,
-                                               preActivation: preActivation,
-                                               preConv: preConv,
-                                               blockDescriptors: blockDescriptors,
-                                               postBN: postBN,
-                                               postActivation: postActivation,
-                                               postConv: postConv)
+public func createSWNestedBottleneckResidualBlockDesc(
+    preBN: SWBatchNormLayerDesc,
+    preActivation: ActivationKind,
+    preConv: SWConvLayerDesc,
+    blockDescriptors: [BlockDescriptor],
+    postBN: SWBatchNormLayerDesc,
+    postActivation: ActivationKind,
+    postConv: SWConvLayerDesc
+) -> SWNestedBottleneckResidualBlockDesc {
+    return SWNestedBottleneckResidualBlockDesc(
+        preBN: preBN,
+        preActivation: preActivation,
+        preConv: preConv,
+        blockDescriptors: blockDescriptors,
+        postBN: postBN,
+        postActivation: postActivation,
+        postConv: postConv)
 }
 
 public class BlockDescriptor {
@@ -1574,15 +1776,17 @@ struct BlockStack {
     ///   - nnXLen: X length
     ///   - nnYLen: Y length
     /// - Returns: The result tensor
-    static func processBlockDescriptors(_ graph: MPSGraph,
-                                        _ sourceTensor: MPSGraphTensor,
-                                        _ maskTensor: MPSGraphTensor,
-                                        _ maskSumTensor: MPSGraphTensor,
-                                        _ maskSumSqrtS14M01Tensor: MPSGraphTensor,
-                                        _ blockDescriptors: [BlockDescriptor],
-                                        _ index: Int,
-                                        _ nnXLen: NSNumber,
-                                        _ nnYLen: NSNumber) -> MPSGraphTensor {
+    static func processBlockDescriptors(
+        _ graph: MPSGraph,
+        _ sourceTensor: MPSGraphTensor,
+        _ maskTensor: MPSGraphTensor,
+        _ maskSumTensor: MPSGraphTensor,
+        _ maskSumSqrtS14M01Tensor: MPSGraphTensor,
+        _ blockDescriptors: [BlockDescriptor],
+        _ index: Int,
+        _ nnXLen: NSNumber,
+        _ nnYLen: NSNumber
+    ) -> MPSGraphTensor {
         guard index < blockDescriptors.count else {
             return sourceTensor
         }
@@ -1592,49 +1796,53 @@ struct BlockStack {
 
         switch blockDescriptor {
         case let globalPoolingDescriptor as SWGlobalPoolingResidualBlockDesc:
-            let globalPooling = GlobalPoolingResidualBlock(graph: graph,
-                                                           sourceTensor: sourceTensor,
-                                                           maskTensor: maskTensor,
-                                                           maskSumTensor: maskSumTensor,
-                                                           maskSumSqrtS14M01Tensor: maskSumSqrtS14M01Tensor,
-                                                           descriptor: globalPoolingDescriptor,
-                                                           nnXLen: nnXLen,
-                                                           nnYLen: nnYLen)
+            let globalPooling = GlobalPoolingResidualBlock(
+                graph: graph,
+                sourceTensor: sourceTensor,
+                maskTensor: maskTensor,
+                maskSumTensor: maskSumTensor,
+                maskSumSqrtS14M01Tensor: maskSumSqrtS14M01Tensor,
+                descriptor: globalPoolingDescriptor,
+                nnXLen: nnXLen,
+                nnYLen: nnYLen)
 
             blockInput = globalPooling.resultTensor
         case let nestedBottleneckDescriptor as SWNestedBottleneckResidualBlockDesc:
-            let nestedBottleneck = NestedBottleneckResidualBlock(graph: graph,
-                                                                 sourceTensor: sourceTensor,
-                                                                 maskTensor: maskTensor,
-                                                                 maskSumTensor: maskSumTensor,
-                                                                 maskSumSqrtS14M01Tensor: maskSumSqrtS14M01Tensor,
-                                                                 descriptor: nestedBottleneckDescriptor,
-                                                                 nnXLen: nnXLen,
-                                                                 nnYLen: nnYLen)
+            let nestedBottleneck = NestedBottleneckResidualBlock(
+                graph: graph,
+                sourceTensor: sourceTensor,
+                maskTensor: maskTensor,
+                maskSumTensor: maskSumTensor,
+                maskSumSqrtS14M01Tensor: maskSumSqrtS14M01Tensor,
+                descriptor: nestedBottleneckDescriptor,
+                nnXLen: nnXLen,
+                nnYLen: nnYLen)
 
             blockInput = nestedBottleneck.resultTensor
         case let residualBlockDescriptor as SWResidualBlockDesc:
-            let ordinary = ResidualBlock(graph: graph,
-                                         sourceTensor: sourceTensor,
-                                         maskTensor: maskTensor,
-                                         descriptor: residualBlockDescriptor,
-                                         nnXLen: nnXLen,
-                                         nnYLen: nnYLen)
+            let ordinary = ResidualBlock(
+                graph: graph,
+                sourceTensor: sourceTensor,
+                maskTensor: maskTensor,
+                descriptor: residualBlockDescriptor,
+                nnXLen: nnXLen,
+                nnYLen: nnYLen)
 
             blockInput = ordinary.resultTensor
         default:
             blockInput = sourceTensor
         }
 
-        return processBlockDescriptors(graph,
-                                       blockInput,
-                                       maskTensor,
-                                       maskSumTensor,
-                                       maskSumSqrtS14M01Tensor,
-                                       blockDescriptors,
-                                       index + 1,
-                                       nnXLen,
-                                       nnYLen)
+        return processBlockDescriptors(
+            graph,
+            blockInput,
+            maskTensor,
+            maskSumTensor,
+            maskSumSqrtS14M01Tensor,
+            blockDescriptors,
+            index + 1,
+            nnXLen,
+            nnYLen)
     }
 
     /// Initialize a BlockStack object
@@ -1647,23 +1855,26 @@ struct BlockStack {
     ///   - blockDescriptors: The block descriptors
     ///   - nnXLen: X length
     ///   - nnYLen: Y length
-    init(graph: MPSGraph,
-         sourceTensor: MPSGraphTensor,
-         maskTensor: MPSGraphTensor,
-         maskSumTensor: MPSGraphTensor,
-         maskSumSqrtS14M01Tensor: MPSGraphTensor,
-         blockDescriptors: [BlockDescriptor],
-         nnXLen: NSNumber,
-         nnYLen: NSNumber) {
-        resultTensor = BlockStack.processBlockDescriptors(graph,
-                                                          sourceTensor,
-                                                          maskTensor,
-                                                          maskSumTensor,
-                                                          maskSumSqrtS14M01Tensor,
-                                                          blockDescriptors,
-                                                          0,
-                                                          nnXLen,
-                                                          nnYLen)
+    init(
+        graph: MPSGraph,
+        sourceTensor: MPSGraphTensor,
+        maskTensor: MPSGraphTensor,
+        maskSumTensor: MPSGraphTensor,
+        maskSumSqrtS14M01Tensor: MPSGraphTensor,
+        blockDescriptors: [BlockDescriptor],
+        nnXLen: NSNumber,
+        nnYLen: NSNumber
+    ) {
+        resultTensor = BlockStack.processBlockDescriptors(
+            graph,
+            sourceTensor,
+            maskTensor,
+            maskSumTensor,
+            maskSumSqrtS14M01Tensor,
+            blockDescriptors,
+            0,
+            nnXLen,
+            nnYLen)
     }
 }
 
@@ -1683,61 +1894,71 @@ struct NestedBottleneckResidualBlock {
     ///   - descriptor: The nested bottleneck residual block descriptor
     ///   - nnXLen: X length
     ///   - nnYLen: Y length
-    init(graph: MPSGraph,
-         sourceTensor: MPSGraphTensor,
-         maskTensor: MPSGraphTensor,
-         maskSumTensor: MPSGraphTensor,
-         maskSumSqrtS14M01Tensor: MPSGraphTensor,
-         descriptor: SWNestedBottleneckResidualBlockDesc,
-         nnXLen: NSNumber,
-         nnYLen: NSNumber) {
+    init(
+        graph: MPSGraph,
+        sourceTensor: MPSGraphTensor,
+        maskTensor: MPSGraphTensor,
+        maskSumTensor: MPSGraphTensor,
+        maskSumSqrtS14M01Tensor: MPSGraphTensor,
+        descriptor: SWNestedBottleneckResidualBlockDesc,
+        nnXLen: NSNumber,
+        nnYLen: NSNumber
+    ) {
 
-        let preBN = BatchNormLayer(graph: graph,
-                                   sourceTensor: sourceTensor,
-                                   maskTensor: maskTensor,
-                                   descriptor: descriptor.preBN,
-                                   nnXLen: nnXLen,
-                                   nnYLen: nnYLen)
+        let preBN = BatchNormLayer(
+            graph: graph,
+            sourceTensor: sourceTensor,
+            maskTensor: maskTensor,
+            descriptor: descriptor.preBN,
+            nnXLen: nnXLen,
+            nnYLen: nnYLen)
 
-        let preActivation = ActivationLayer(graph: graph,
-                                            sourceTensor: preBN.resultTensor,
-                                            activationKind: descriptor.preActivation)
+        let preActivation = ActivationLayer(
+            graph: graph,
+            sourceTensor: preBN.resultTensor,
+            activationKind: descriptor.preActivation)
 
-        let preConv = ConvLayer(graph: graph,
-                                sourceTensor: preActivation.resultTensor,
-                                descriptor: descriptor.preConv,
-                                nnXLen: nnXLen,
-                                nnYLen: nnYLen)
+        let preConv = ConvLayer(
+            graph: graph,
+            sourceTensor: preActivation.resultTensor,
+            descriptor: descriptor.preConv,
+            nnXLen: nnXLen,
+            nnYLen: nnYLen)
 
-        let blocks = BlockStack(graph: graph,
-                                sourceTensor: preConv.resultTensor,
-                                maskTensor: maskTensor,
-                                maskSumTensor: maskSumTensor,
-                                maskSumSqrtS14M01Tensor: maskSumSqrtS14M01Tensor,
-                                blockDescriptors: descriptor.blockDescriptors,
-                                nnXLen: nnXLen,
-                                nnYLen: nnYLen)
+        let blocks = BlockStack(
+            graph: graph,
+            sourceTensor: preConv.resultTensor,
+            maskTensor: maskTensor,
+            maskSumTensor: maskSumTensor,
+            maskSumSqrtS14M01Tensor: maskSumSqrtS14M01Tensor,
+            blockDescriptors: descriptor.blockDescriptors,
+            nnXLen: nnXLen,
+            nnYLen: nnYLen)
 
-        let postBN = BatchNormLayer(graph: graph,
-                                    sourceTensor: blocks.resultTensor,
-                                    maskTensor: maskTensor,
-                                    descriptor: descriptor.postBN,
-                                    nnXLen: nnXLen,
-                                    nnYLen: nnYLen)
+        let postBN = BatchNormLayer(
+            graph: graph,
+            sourceTensor: blocks.resultTensor,
+            maskTensor: maskTensor,
+            descriptor: descriptor.postBN,
+            nnXLen: nnXLen,
+            nnYLen: nnYLen)
 
-        let postActivation = ActivationLayer(graph: graph,
-                                             sourceTensor: postBN.resultTensor,
-                                             activationKind: descriptor.postActivation)
+        let postActivation = ActivationLayer(
+            graph: graph,
+            sourceTensor: postBN.resultTensor,
+            activationKind: descriptor.postActivation)
 
-        let postConv = ConvLayer(graph: graph,
-                                 sourceTensor: postActivation.resultTensor,
-                                 descriptor: descriptor.postConv,
-                                 nnXLen: nnXLen,
-                                 nnYLen: nnYLen)
+        let postConv = ConvLayer(
+            graph: graph,
+            sourceTensor: postActivation.resultTensor,
+            descriptor: descriptor.postConv,
+            nnXLen: nnXLen,
+            nnYLen: nnYLen)
 
-        resultTensor = graph.addition(sourceTensor,
-                                      postConv.resultTensor,
-                                      name: nil)
+        resultTensor = graph.addition(
+            sourceTensor,
+            postConv.resultTensor,
+            name: nil)
 
         assert(resultTensor.shape?.count == 4)
     }
@@ -1786,15 +2007,17 @@ public class SWSGFMetadataEncoderDesc {
     ///   - bias2: Description of the bias for the second layer.
     ///   - act2: Activation kind for the second layer.
     ///   - mul3: Description of the third multiplication layer.
-    init(version: Int,
-         numInputMetaChannels: Int,
-         mul1: SWMatMulLayerDesc,
-         bias1: SWMatBiasLayerDesc,
-         act1: ActivationKind,
-         mul2: SWMatMulLayerDesc,
-         bias2: SWMatBiasLayerDesc,
-         act2: ActivationKind,
-         mul3: SWMatMulLayerDesc) {
+    init(
+        version: Int,
+        numInputMetaChannels: Int,
+        mul1: SWMatMulLayerDesc,
+        bias1: SWMatBiasLayerDesc,
+        act1: ActivationKind,
+        mul2: SWMatMulLayerDesc,
+        bias2: SWMatBiasLayerDesc,
+        act2: ActivationKind,
+        mul3: SWMatMulLayerDesc
+    ) {
         self.version = version
         self.numInputMetaChannels = numInputMetaChannels
         self.mul1 = mul1
@@ -1822,24 +2045,27 @@ public class SWSGFMetadataEncoderDesc {
 ///
 /// - Returns:
 ///   An instance of `SWSGFMetadataEncoderDesc` initialized with the provided parameters.
-public func createSWSGFMetadataEncoderDesc(version: Int32,
-                                           numInputMetaChannels: Int32,
-                                           mul1: SWMatMulLayerDesc,
-                                           bias1: SWMatBiasLayerDesc,
-                                           act1: ActivationKind,
-                                           mul2: SWMatMulLayerDesc,
-                                           bias2: SWMatBiasLayerDesc,
-                                           act2: ActivationKind,
-                                           mul3: SWMatMulLayerDesc) -> SWSGFMetadataEncoderDesc? {
-    return SWSGFMetadataEncoderDesc(version: Int(version),
-                                    numInputMetaChannels: Int(numInputMetaChannels),
-                                    mul1: mul1,
-                                    bias1: bias1,
-                                    act1: act1,
-                                    mul2: mul2,
-                                    bias2: bias2,
-                                    act2: act2,
-                                    mul3: mul3)
+public func createSWSGFMetadataEncoderDesc(
+    version: Int32,
+    numInputMetaChannels: Int32,
+    mul1: SWMatMulLayerDesc,
+    bias1: SWMatBiasLayerDesc,
+    act1: ActivationKind,
+    mul2: SWMatMulLayerDesc,
+    bias2: SWMatBiasLayerDesc,
+    act2: ActivationKind,
+    mul3: SWMatMulLayerDesc
+) -> SWSGFMetadataEncoderDesc? {
+    return SWSGFMetadataEncoderDesc(
+        version: Int(version),
+        numInputMetaChannels: Int(numInputMetaChannels),
+        mul1: mul1,
+        bias1: bias1,
+        act1: act1,
+        mul2: mul2,
+        bias2: bias2,
+        act2: act2,
+        mul3: mul3)
 }
 
 /// A class that describes SGF metadata encoder.
@@ -1857,44 +2083,53 @@ class SGFMetadataEncoder {
     ///   - descriptor: An object holding all the required parameters, including matrix multiplication, biases,
     ///                 and activation functions for each layer.
     ///   - sourceTensor: The initial input tensor containing the metadata to be encoded.
-    init(graph: MPSGraph,
-         descriptor: SWSGFMetadataEncoderDesc,
-         sourceTensor: MPSGraphTensor) {
+    init(
+        graph: MPSGraph,
+        descriptor: SWSGFMetadataEncoderDesc,
+        sourceTensor: MPSGraphTensor
+    ) {
 
         // First matrix multiplication layer.
-        let mul1 = MatMulLayer(graph: graph,
-                               descriptor: descriptor.mul1,
-                               sourceTensor: sourceTensor)
+        let mul1 = MatMulLayer(
+            graph: graph,
+            descriptor: descriptor.mul1,
+            sourceTensor: sourceTensor)
 
         // Adding bias to the result of the first matrix multiplication.
-        let bias1 = MatBiasLayer(graph: graph,
-                                 descriptor: descriptor.bias1,
-                                 sourceTensor: mul1.resultTensor)
+        let bias1 = MatBiasLayer(
+            graph: graph,
+            descriptor: descriptor.bias1,
+            sourceTensor: mul1.resultTensor)
 
         // Applying the first activation function to the biased tensor.
-        let act1 = ActivationLayer(graph: graph,
-                                   sourceTensor: bias1.resultTensor,
-                                   activationKind: descriptor.act1)
+        let act1 = ActivationLayer(
+            graph: graph,
+            sourceTensor: bias1.resultTensor,
+            activationKind: descriptor.act1)
 
         // Second matrix multiplication layer taking the output of the first activation layer.
-        let mul2 = MatMulLayer(graph: graph,
-                               descriptor: descriptor.mul2,
-                               sourceTensor: act1.resultTensor)
+        let mul2 = MatMulLayer(
+            graph: graph,
+            descriptor: descriptor.mul2,
+            sourceTensor: act1.resultTensor)
 
         // Adding bias to the result of the second matrix multiplication.
-        let bias2 = MatBiasLayer(graph: graph,
-                                 descriptor: descriptor.bias2,
-                                 sourceTensor: mul2.resultTensor)
+        let bias2 = MatBiasLayer(
+            graph: graph,
+            descriptor: descriptor.bias2,
+            sourceTensor: mul2.resultTensor)
 
         // Applying the second activation function to the biased tensor.
-        let act2 = ActivationLayer(graph: graph,
-                                   sourceTensor: bias2.resultTensor,
-                                   activationKind: descriptor.act2)
+        let act2 = ActivationLayer(
+            graph: graph,
+            sourceTensor: bias2.resultTensor,
+            activationKind: descriptor.act2)
 
         // Third and final matrix multiplication layer taking the output of the second activation layer.
-        let mul3 = MatMulLayer(graph: graph,
-                               descriptor: descriptor.mul3,
-                               sourceTensor: act2.resultTensor)
+        let mul3 = MatMulLayer(
+            graph: graph,
+            descriptor: descriptor.mul3,
+            sourceTensor: act2.resultTensor)
 
         // Setting the final result tensor to the output of the last matrix multiplication layer.
         resultTensor = mul3.resultTensor
@@ -1941,17 +2176,19 @@ public class SWTrunkDesc {
     ///   - blockDescriptors: The list of blocks that make up the trunk
     ///   - trunkTipBN: The description of the batch normalization layer that is applied at the end of the trunk
     ///   - trunkTipActivation: The activation function that is applied at the end of the trunk
-    init(version: Int,
-         trunkNumChannels: NSNumber,
-         midNumChannels: NSNumber,
-         regularNumChannels: NSNumber,
-         gpoolNumChannels: NSNumber,
-         initialConv: SWConvLayerDesc,
-         initialMatMul: SWMatMulLayerDesc,
-         sgfMetadataEncoder: SWSGFMetadataEncoderDesc?,
-         blockDescriptors: [BlockDescriptor],
-         trunkTipBN: SWBatchNormLayerDesc,
-         trunkTipActivation: ActivationKind) {
+    init(
+        version: Int,
+        trunkNumChannels: NSNumber,
+        midNumChannels: NSNumber,
+        regularNumChannels: NSNumber,
+        gpoolNumChannels: NSNumber,
+        initialConv: SWConvLayerDesc,
+        initialMatMul: SWMatMulLayerDesc,
+        sgfMetadataEncoder: SWSGFMetadataEncoderDesc?,
+        blockDescriptors: [BlockDescriptor],
+        trunkTipBN: SWBatchNormLayerDesc,
+        trunkTipActivation: ActivationKind
+    ) {
         self.version = version
         self.trunkNumChannels = trunkNumChannels
         self.midNumChannels = midNumChannels
@@ -1966,28 +2203,31 @@ public class SWTrunkDesc {
     }
 }
 
-public func createSWTrunkDesc(version: Int32,
-                              trunkNumChannels: Int32,
-                              midNumChannels: Int32,
-                              regularNumChannels: Int32,
-                              gpoolNumChannels: Int32,
-                              initialConv: SWConvLayerDesc,
-                              initialMatMul: SWMatMulLayerDesc,
-                              sgfMetadataEncoder: SWSGFMetadataEncoderDesc?,
-                              blockDescriptors: [BlockDescriptor],
-                              trunkTipBN: SWBatchNormLayerDesc,
-                              trunkTipActivation: ActivationKind) -> SWTrunkDesc {
-    return SWTrunkDesc(version: Int(version),
-                       trunkNumChannels: trunkNumChannels as NSNumber,
-                       midNumChannels: midNumChannels as NSNumber,
-                       regularNumChannels: regularNumChannels as NSNumber,
-                       gpoolNumChannels: gpoolNumChannels as NSNumber,
-                       initialConv: initialConv,
-                       initialMatMul: initialMatMul,
-                       sgfMetadataEncoder: sgfMetadataEncoder,
-                       blockDescriptors: blockDescriptors,
-                       trunkTipBN: trunkTipBN,
-                       trunkTipActivation: trunkTipActivation)
+public func createSWTrunkDesc(
+    version: Int32,
+    trunkNumChannels: Int32,
+    midNumChannels: Int32,
+    regularNumChannels: Int32,
+    gpoolNumChannels: Int32,
+    initialConv: SWConvLayerDesc,
+    initialMatMul: SWMatMulLayerDesc,
+    sgfMetadataEncoder: SWSGFMetadataEncoderDesc?,
+    blockDescriptors: [BlockDescriptor],
+    trunkTipBN: SWBatchNormLayerDesc,
+    trunkTipActivation: ActivationKind
+) -> SWTrunkDesc {
+    return SWTrunkDesc(
+        version: Int(version),
+        trunkNumChannels: trunkNumChannels as NSNumber,
+        midNumChannels: midNumChannels as NSNumber,
+        regularNumChannels: regularNumChannels as NSNumber,
+        gpoolNumChannels: gpoolNumChannels as NSNumber,
+        initialConv: initialConv,
+        initialMatMul: initialMatMul,
+        sgfMetadataEncoder: sgfMetadataEncoder,
+        blockDescriptors: blockDescriptors,
+        trunkTipBN: trunkTipBN,
+        trunkTipActivation: trunkTipActivation)
 }
 
 /// A structure representing a ResNet trunk for a neural network
@@ -2012,27 +2252,32 @@ struct Trunk {
     /// This function is used to get the block source tensor by processing the input meta tensor, if available.
     /// If the input meta tensor is not available, it returns the result tensor from the initial add operation.
     /// The function uses SGF metadata encoder and AddNCBiasLayer to process the input meta tensor.
-    static func getBlockSourceTensor(graph: MPSGraph,
-                                     descriptor: SWSGFMetadataEncoderDesc?,
-                                     initialAdd: AddNCBiasLayer,
-                                     inputMetaTensor: MPSGraphTensor?,
-                                     nnXLen: NSNumber,
-                                     nnYLen: NSNumber,
-                                     numChannels: NSNumber) -> MPSGraphTensor {
+    static func getBlockSourceTensor(
+        graph: MPSGraph,
+        descriptor: SWSGFMetadataEncoderDesc?,
+        initialAdd: AddNCBiasLayer,
+        inputMetaTensor: MPSGraphTensor?,
+        nnXLen: NSNumber,
+        nnYLen: NSNumber,
+        numChannels: NSNumber
+    ) -> MPSGraphTensor {
         var blockSourceTensor: MPSGraphTensor
 
         if let inputMetaTensor,
-           let descriptor, descriptor.numInputMetaChannels > 0 {
-            let encoded = SGFMetadataEncoder(graph: graph,
-                                            descriptor: descriptor,
-                                            sourceTensor: inputMetaTensor)
+            let descriptor, descriptor.numInputMetaChannels > 0
+        {
+            let encoded = SGFMetadataEncoder(
+                graph: graph,
+                descriptor: descriptor,
+                sourceTensor: inputMetaTensor)
 
-            let encodedAdd = AddNCBiasLayer(graph: graph,
-                                            sourceTensor: initialAdd.resultTensor,
-                                            biasTensor: encoded.resultTensor,
-                                            nnXLen: nnXLen,
-                                            nnYLen: nnYLen,
-                                            numChannels: numChannels)
+            let encodedAdd = AddNCBiasLayer(
+                graph: graph,
+                sourceTensor: initialAdd.resultTensor,
+                biasTensor: encoded.resultTensor,
+                nnXLen: nnXLen,
+                nnYLen: nnYLen,
+                numChannels: numChannels)
 
             blockSourceTensor = encodedAdd.resultTensor
         } else {
@@ -2054,61 +2299,70 @@ struct Trunk {
     ///   - maskSumSqrtS14M01Tensor: The square root of the sum of the mask tensor
     ///   - nnXLen: The length of the X dimension of the input tensor
     ///   - nnYLen: The length of the Y dimension of the input tensor
-    init(graph: MPSGraph,
-         descriptor: SWTrunkDesc,
-         inputTensor: MPSGraphTensor,
-         inputGlobalTensor: MPSGraphTensor,
-         inputMetaTensor: MPSGraphTensor?,
-         maskTensor: MPSGraphTensor,
-         maskSumTensor: MPSGraphTensor,
-         maskSumSqrtS14M01Tensor: MPSGraphTensor,
-         nnXLen: NSNumber,
-         nnYLen: NSNumber) {
+    init(
+        graph: MPSGraph,
+        descriptor: SWTrunkDesc,
+        inputTensor: MPSGraphTensor,
+        inputGlobalTensor: MPSGraphTensor,
+        inputMetaTensor: MPSGraphTensor?,
+        maskTensor: MPSGraphTensor,
+        maskSumTensor: MPSGraphTensor,
+        maskSumSqrtS14M01Tensor: MPSGraphTensor,
+        nnXLen: NSNumber,
+        nnYLen: NSNumber
+    ) {
 
-        let initialConv = ConvLayer(graph: graph,
-                                    sourceTensor: inputTensor,
-                                    descriptor: descriptor.initialConv,
-                                    nnXLen: nnXLen,
-                                    nnYLen: nnYLen)
+        let initialConv = ConvLayer(
+            graph: graph,
+            sourceTensor: inputTensor,
+            descriptor: descriptor.initialConv,
+            nnXLen: nnXLen,
+            nnYLen: nnYLen)
 
-        let initialMatMul = MatMulLayer(graph: graph,
-                                        descriptor: descriptor.initialMatMul,
-                                        sourceTensor: inputGlobalTensor)
+        let initialMatMul = MatMulLayer(
+            graph: graph,
+            descriptor: descriptor.initialMatMul,
+            sourceTensor: inputGlobalTensor)
 
-        let initialAdd = AddNCBiasLayer(graph: graph,
-                                        sourceTensor: initialConv.resultTensor,
-                                        biasTensor: initialMatMul.resultTensor,
-                                        nnXLen: nnXLen,
-                                        nnYLen: nnYLen,
-                                        numChannels: descriptor.initialMatMul.outChannels)
+        let initialAdd = AddNCBiasLayer(
+            graph: graph,
+            sourceTensor: initialConv.resultTensor,
+            biasTensor: initialMatMul.resultTensor,
+            nnXLen: nnXLen,
+            nnYLen: nnYLen,
+            numChannels: descriptor.initialMatMul.outChannels)
 
-        let blockSourceTensor = Trunk.getBlockSourceTensor(graph: graph,
-                                                           descriptor: descriptor.sgfMetadataEncoder,
-                                                           initialAdd: initialAdd,
-                                                           inputMetaTensor: inputMetaTensor,
-                                                           nnXLen: nnXLen,
-                                                           nnYLen: nnYLen,
-                                                           numChannels: descriptor.initialMatMul.outChannels)
+        let blockSourceTensor = Trunk.getBlockSourceTensor(
+            graph: graph,
+            descriptor: descriptor.sgfMetadataEncoder,
+            initialAdd: initialAdd,
+            inputMetaTensor: inputMetaTensor,
+            nnXLen: nnXLen,
+            nnYLen: nnYLen,
+            numChannels: descriptor.initialMatMul.outChannels)
 
-        let blocks = BlockStack(graph: graph,
-                                sourceTensor: blockSourceTensor,
-                                maskTensor: maskTensor,
-                                maskSumTensor: maskSumTensor,
-                                maskSumSqrtS14M01Tensor: maskSumSqrtS14M01Tensor,
-                                blockDescriptors: descriptor.blockDescriptors,
-                                nnXLen: nnXLen,
-                                nnYLen: nnYLen)
+        let blocks = BlockStack(
+            graph: graph,
+            sourceTensor: blockSourceTensor,
+            maskTensor: maskTensor,
+            maskSumTensor: maskSumTensor,
+            maskSumSqrtS14M01Tensor: maskSumSqrtS14M01Tensor,
+            blockDescriptors: descriptor.blockDescriptors,
+            nnXLen: nnXLen,
+            nnYLen: nnYLen)
 
-        let trunkTipBN = BatchNormLayer(graph: graph,
-                                        sourceTensor: blocks.resultTensor,
-                                        maskTensor: maskTensor,
-                                        descriptor: descriptor.trunkTipBN,
-                                        nnXLen: nnXLen,
-                                        nnYLen: nnYLen)
+        let trunkTipBN = BatchNormLayer(
+            graph: graph,
+            sourceTensor: blocks.resultTensor,
+            maskTensor: maskTensor,
+            descriptor: descriptor.trunkTipBN,
+            nnXLen: nnXLen,
+            nnYLen: nnYLen)
 
-        let trunkTipActivation = ActivationLayer(graph: graph,
-                                                 sourceTensor: trunkTipBN.resultTensor,
-                                                 activationKind: descriptor.trunkTipActivation)
+        let trunkTipActivation = ActivationLayer(
+            graph: graph,
+            sourceTensor: trunkTipBN.resultTensor,
+            activationKind: descriptor.trunkTipActivation)
 
         resultTensor = trunkTipActivation.resultTensor
 
@@ -2158,19 +2412,21 @@ public struct SWPolicyHeadDesc {
     ///   - p1Activation: The activation function for P
     ///   - p2Conv: The 1x1 convolution layer with 2 channels for outputting two policy distributions
     ///   - gpoolToPassMul: The fully connected linear layer for outputting logits for the pass move
-    init(version: Int,
-         p1Conv: SWConvLayerDesc,
-         g1Conv: SWConvLayerDesc,
-         g1BN: SWBatchNormLayerDesc,
-         g1Activation: ActivationKind,
-         gpoolToBiasMul: SWMatMulLayerDesc,
-         p1BN: SWBatchNormLayerDesc,
-         p1Activation: ActivationKind,
-         p2Conv: SWConvLayerDesc,
-         gpoolToPassMul: SWMatMulLayerDesc,
-         gpoolToPassBias: SWMatBiasLayerDesc?,
-         passActivation: ActivationKind?,
-         gpoolToPassMul2: SWMatMulLayerDesc?) {
+    init(
+        version: Int,
+        p1Conv: SWConvLayerDesc,
+        g1Conv: SWConvLayerDesc,
+        g1BN: SWBatchNormLayerDesc,
+        g1Activation: ActivationKind,
+        gpoolToBiasMul: SWMatMulLayerDesc,
+        p1BN: SWBatchNormLayerDesc,
+        p1Activation: ActivationKind,
+        p2Conv: SWConvLayerDesc,
+        gpoolToPassMul: SWMatMulLayerDesc,
+        gpoolToPassBias: SWMatBiasLayerDesc?,
+        passActivation: ActivationKind?,
+        gpoolToPassMul2: SWMatMulLayerDesc?
+    ) {
         self.version = version
         self.p1Conv = p1Conv
         self.g1Conv = g1Conv
@@ -2185,52 +2441,62 @@ public struct SWPolicyHeadDesc {
         self.passActivation = passActivation
         self.gpoolToPassMul2 = gpoolToPassMul2
 
-        assert((version >= 15) || ((gpoolToPassBias == nil) && (passActivation == nil) && (gpoolToPassMul2 == nil)))
-        assert((version < 15) || ((gpoolToPassBias != nil) && (passActivation != nil) && (gpoolToPassMul2 != nil)))
+        assert(
+            (version >= 15)
+                || ((gpoolToPassBias == nil) && (passActivation == nil) && (gpoolToPassMul2 == nil))
+        )
+        assert(
+            (version < 15)
+                || ((gpoolToPassBias != nil) && (passActivation != nil) && (gpoolToPassMul2 != nil))
+        )
     }
 }
 
-public func createSWPolicyHeadDesc(version: Int32,
-                                   p1Conv: SWConvLayerDesc,
-                                   g1Conv: SWConvLayerDesc,
-                                   g1BN: SWBatchNormLayerDesc,
-                                   g1Activation: ActivationKind,
-                                   gpoolToBiasMul: SWMatMulLayerDesc,
-                                   p1BN: SWBatchNormLayerDesc,
-                                   p1Activation: ActivationKind,
-                                   p2Conv: SWConvLayerDesc,
-                                   gpoolToPassMul: SWMatMulLayerDesc,
-                                   gpoolToPassBias: SWMatBiasLayerDesc,
-                                   passActivation: ActivationKind,
-                                   gpoolToPassMul2: SWMatMulLayerDesc) -> SWPolicyHeadDesc {
+public func createSWPolicyHeadDesc(
+    version: Int32,
+    p1Conv: SWConvLayerDesc,
+    g1Conv: SWConvLayerDesc,
+    g1BN: SWBatchNormLayerDesc,
+    g1Activation: ActivationKind,
+    gpoolToBiasMul: SWMatMulLayerDesc,
+    p1BN: SWBatchNormLayerDesc,
+    p1Activation: ActivationKind,
+    p2Conv: SWConvLayerDesc,
+    gpoolToPassMul: SWMatMulLayerDesc,
+    gpoolToPassBias: SWMatBiasLayerDesc,
+    passActivation: ActivationKind,
+    gpoolToPassMul2: SWMatMulLayerDesc
+) -> SWPolicyHeadDesc {
     if version >= 15 {
-        return SWPolicyHeadDesc(version: Int(version),
-                                p1Conv: p1Conv,
-                                g1Conv: g1Conv,
-                                g1BN: g1BN,
-                                g1Activation: g1Activation,
-                                gpoolToBiasMul: gpoolToBiasMul,
-                                p1BN: p1BN,
-                                p1Activation: p1Activation,
-                                p2Conv: p2Conv,
-                                gpoolToPassMul: gpoolToPassMul,
-                                gpoolToPassBias: gpoolToPassBias,
-                                passActivation: passActivation,
-                                gpoolToPassMul2: gpoolToPassMul2)
+        return SWPolicyHeadDesc(
+            version: Int(version),
+            p1Conv: p1Conv,
+            g1Conv: g1Conv,
+            g1BN: g1BN,
+            g1Activation: g1Activation,
+            gpoolToBiasMul: gpoolToBiasMul,
+            p1BN: p1BN,
+            p1Activation: p1Activation,
+            p2Conv: p2Conv,
+            gpoolToPassMul: gpoolToPassMul,
+            gpoolToPassBias: gpoolToPassBias,
+            passActivation: passActivation,
+            gpoolToPassMul2: gpoolToPassMul2)
     } else {
-        return SWPolicyHeadDesc(version: Int(version),
-                                p1Conv: p1Conv,
-                                g1Conv: g1Conv,
-                                g1BN: g1BN,
-                                g1Activation: g1Activation,
-                                gpoolToBiasMul: gpoolToBiasMul,
-                                p1BN: p1BN,
-                                p1Activation: p1Activation,
-                                p2Conv: p2Conv,
-                                gpoolToPassMul: gpoolToPassMul,
-                                gpoolToPassBias: nil,
-                                passActivation: nil,
-                                gpoolToPassMul2: nil)
+        return SWPolicyHeadDesc(
+            version: Int(version),
+            p1Conv: p1Conv,
+            g1Conv: g1Conv,
+            g1BN: g1BN,
+            g1Activation: g1Activation,
+            gpoolToBiasMul: gpoolToBiasMul,
+            p1BN: p1BN,
+            p1Activation: p1Activation,
+            p2Conv: p2Conv,
+            gpoolToPassMul: gpoolToPassMul,
+            gpoolToPassBias: nil,
+            passActivation: nil,
+            gpoolToPassMul2: nil)
     }
 }
 
@@ -2251,98 +2517,115 @@ struct PolicyHead {
     ///   - maskSumSqrtS14M01Tensor: The square root of the sum of the mask tensor and a small epsilon
     ///   - nnXLen: The number of X pixels in the input tensor
     ///   - nnYLen: The number of Y pixels in the input tensor
-    init(graph: MPSGraph,
-         descriptor: SWPolicyHeadDesc,
-         sourceTensor: MPSGraphTensor,
-         maskTensor: MPSGraphTensor,
-         maskSumTensor: MPSGraphTensor,
-         maskSumSqrtS14M01Tensor: MPSGraphTensor,
-         nnXLen: NSNumber,
-         nnYLen: NSNumber) {
+    init(
+        graph: MPSGraph,
+        descriptor: SWPolicyHeadDesc,
+        sourceTensor: MPSGraphTensor,
+        maskTensor: MPSGraphTensor,
+        maskSumTensor: MPSGraphTensor,
+        maskSumSqrtS14M01Tensor: MPSGraphTensor,
+        nnXLen: NSNumber,
+        nnYLen: NSNumber
+    ) {
 
-        let p1Conv = ConvLayer(graph: graph,
-                               sourceTensor: sourceTensor,
-                               descriptor: descriptor.p1Conv,
-                               nnXLen: nnXLen,
-                               nnYLen: nnYLen)
+        let p1Conv = ConvLayer(
+            graph: graph,
+            sourceTensor: sourceTensor,
+            descriptor: descriptor.p1Conv,
+            nnXLen: nnXLen,
+            nnYLen: nnYLen)
 
-        let g1Conv = ConvLayer(graph: graph,
-                               sourceTensor: sourceTensor,
-                               descriptor: descriptor.g1Conv,
-                               nnXLen: nnXLen,
-                               nnYLen: nnYLen)
+        let g1Conv = ConvLayer(
+            graph: graph,
+            sourceTensor: sourceTensor,
+            descriptor: descriptor.g1Conv,
+            nnXLen: nnXLen,
+            nnYLen: nnYLen)
 
-        let g1BN = BatchNormLayer(graph: graph,
-                                  sourceTensor: g1Conv.resultTensor,
-                                  maskTensor: maskTensor,
-                                  descriptor: descriptor.g1BN,
-                                  nnXLen: nnXLen,
-                                  nnYLen: nnYLen)
+        let g1BN = BatchNormLayer(
+            graph: graph,
+            sourceTensor: g1Conv.resultTensor,
+            maskTensor: maskTensor,
+            descriptor: descriptor.g1BN,
+            nnXLen: nnXLen,
+            nnYLen: nnYLen)
 
-        let g1Activation = ActivationLayer(graph: graph,
-                                           sourceTensor: g1BN.resultTensor,
-                                           activationKind: descriptor.g1Activation)
+        let g1Activation = ActivationLayer(
+            graph: graph,
+            sourceTensor: g1BN.resultTensor,
+            activationKind: descriptor.g1Activation)
 
-        let g1Concat = GlobalPoolingLayer(graph: graph,
-                                          sourceTensor: g1Activation.resultTensor,
-                                          maskTensor: maskTensor,
-                                          maskSumTensor: maskSumTensor,
-                                          maskSumSqrtS14M01Tensor: maskSumSqrtS14M01Tensor)
+        let g1Concat = GlobalPoolingLayer(
+            graph: graph,
+            sourceTensor: g1Activation.resultTensor,
+            maskTensor: maskTensor,
+            maskSumTensor: maskSumTensor,
+            maskSumSqrtS14M01Tensor: maskSumSqrtS14M01Tensor)
 
         assert(g1Concat.resultTensor.shape?[1] == descriptor.gpoolToBiasMul.inChannels)
 
-        let gpoolToBiasMul = MatMulLayer(graph: graph,
-                                         descriptor: descriptor.gpoolToBiasMul,
-                                         sourceTensor: g1Concat.resultTensor)
+        let gpoolToBiasMul = MatMulLayer(
+            graph: graph,
+            descriptor: descriptor.gpoolToBiasMul,
+            sourceTensor: g1Concat.resultTensor)
 
-        let added = AddNCBiasLayer(graph: graph,
-                                   sourceTensor: p1Conv.resultTensor,
-                                   biasTensor: gpoolToBiasMul.resultTensor,
-                                   nnXLen: nnXLen,
-                                   nnYLen: nnYLen,
-                                   numChannels: descriptor.gpoolToBiasMul.outChannels)
+        let added = AddNCBiasLayer(
+            graph: graph,
+            sourceTensor: p1Conv.resultTensor,
+            biasTensor: gpoolToBiasMul.resultTensor,
+            nnXLen: nnXLen,
+            nnYLen: nnYLen,
+            numChannels: descriptor.gpoolToBiasMul.outChannels)
 
-        let p1BN = BatchNormLayer(graph: graph,
-                                  sourceTensor: added.resultTensor,
-                                  maskTensor: maskTensor,
-                                  descriptor: descriptor.p1BN,
-                                  nnXLen: nnXLen,
-                                  nnYLen: nnYLen)
+        let p1BN = BatchNormLayer(
+            graph: graph,
+            sourceTensor: added.resultTensor,
+            maskTensor: maskTensor,
+            descriptor: descriptor.p1BN,
+            nnXLen: nnXLen,
+            nnYLen: nnYLen)
 
-        let p1Activation = ActivationLayer(graph: graph,
-                                           sourceTensor: p1BN.resultTensor,
-                                           activationKind: descriptor.p1Activation)
+        let p1Activation = ActivationLayer(
+            graph: graph,
+            sourceTensor: p1BN.resultTensor,
+            activationKind: descriptor.p1Activation)
 
-        let p2Conv = ConvLayer(graph: graph,
-                               sourceTensor: p1Activation.resultTensor,
-                               descriptor: descriptor.p2Conv,
-                               nnXLen: nnXLen,
-                               nnYLen: nnYLen)
+        let p2Conv = ConvLayer(
+            graph: graph,
+            sourceTensor: p1Activation.resultTensor,
+            descriptor: descriptor.p2Conv,
+            nnXLen: nnXLen,
+            nnYLen: nnYLen)
 
         policyTensor = p2Conv.resultTensor
 
         assert(g1Concat.resultTensor.shape?[1] == descriptor.gpoolToPassMul.inChannels)
 
-        let gpoolToPassMul = MatMulLayer(graph: graph,
-                                         descriptor: descriptor.gpoolToPassMul,
-                                         sourceTensor: g1Concat.resultTensor)
+        let gpoolToPassMul = MatMulLayer(
+            graph: graph,
+            descriptor: descriptor.gpoolToPassMul,
+            sourceTensor: g1Concat.resultTensor)
 
         if let gpoolToPassBias = descriptor.gpoolToPassBias,
-           let passActivation = descriptor.passActivation,
-           let gpoolToPassMul2 = descriptor.gpoolToPassMul2 {
+            let passActivation = descriptor.passActivation,
+            let gpoolToPassMul2 = descriptor.gpoolToPassMul2
+        {
             assert(descriptor.version >= 15)
 
-            let gpoolToPassBiasLayer = MatBiasLayer(graph: graph,
-                                                    descriptor: gpoolToPassBias,
-                                                    sourceTensor: gpoolToPassMul.resultTensor)
+            let gpoolToPassBiasLayer = MatBiasLayer(
+                graph: graph,
+                descriptor: gpoolToPassBias,
+                sourceTensor: gpoolToPassMul.resultTensor)
 
-            let passActivationLayer = ActivationLayer(graph: graph,
-                                                      sourceTensor: gpoolToPassBiasLayer.resultTensor,
-                                                      activationKind: passActivation)
+            let passActivationLayer = ActivationLayer(
+                graph: graph,
+                sourceTensor: gpoolToPassBiasLayer.resultTensor,
+                activationKind: passActivation)
 
-            let gpoolToPassMul2Layer = MatMulLayer(graph: graph,
-                                                   descriptor: gpoolToPassMul2,
-                                                   sourceTensor: passActivationLayer.resultTensor)
+            let gpoolToPassMul2Layer = MatMulLayer(
+                graph: graph,
+                descriptor: gpoolToPassMul2,
+                sourceTensor: passActivationLayer.resultTensor)
 
             policyPassTensor = gpoolToPassMul2Layer.resultTensor
         } else {
@@ -2396,18 +2679,20 @@ public struct SWValueHeadDesc {
     ///   - sv3Mul: The description of the matrix multiplication layer that is applied to the output of the third bias layer in the value head
     ///   - sv3Bias: The description of the bias layer that is applied to the output of the matrix multiplication layer in the value head
     ///   - vOwnershipConv: The description of the convolutional layer that is applied to the board ownership map in the value head
-    init(version: Int,
-         v1Conv: SWConvLayerDesc,
-         v1BN: SWBatchNormLayerDesc,
-         v1Activation: ActivationKind,
-         v2Mul: SWMatMulLayerDesc,
-         v2Bias: SWMatBiasLayerDesc,
-         v2Activation: ActivationKind,
-         v3Mul: SWMatMulLayerDesc,
-         v3Bias: SWMatBiasLayerDesc,
-         sv3Mul: SWMatMulLayerDesc,
-         sv3Bias: SWMatBiasLayerDesc,
-         vOwnershipConv: SWConvLayerDesc) {
+    init(
+        version: Int,
+        v1Conv: SWConvLayerDesc,
+        v1BN: SWBatchNormLayerDesc,
+        v1Activation: ActivationKind,
+        v2Mul: SWMatMulLayerDesc,
+        v2Bias: SWMatBiasLayerDesc,
+        v2Activation: ActivationKind,
+        v3Mul: SWMatMulLayerDesc,
+        v3Bias: SWMatBiasLayerDesc,
+        sv3Mul: SWMatMulLayerDesc,
+        sv3Bias: SWMatBiasLayerDesc,
+        vOwnershipConv: SWConvLayerDesc
+    ) {
         self.version = version
         self.v1Conv = v1Conv
         self.v1BN = v1BN
@@ -2423,30 +2708,33 @@ public struct SWValueHeadDesc {
     }
 }
 
-public func createSWValueHeadDesc(version: Int32,
-                                  v1Conv: SWConvLayerDesc,
-                                  v1BN: SWBatchNormLayerDesc,
-                                  v1Activation: ActivationKind,
-                                  v2Mul: SWMatMulLayerDesc,
-                                  v2Bias: SWMatBiasLayerDesc,
-                                  v2Activation: ActivationKind,
-                                  v3Mul: SWMatMulLayerDesc,
-                                  v3Bias: SWMatBiasLayerDesc,
-                                  sv3Mul: SWMatMulLayerDesc,
-                                  sv3Bias: SWMatBiasLayerDesc,
-                                  vOwnershipConv: SWConvLayerDesc) -> SWValueHeadDesc {
-    return SWValueHeadDesc(version: Int(version),
-                           v1Conv: v1Conv,
-                           v1BN: v1BN,
-                           v1Activation: v1Activation,
-                           v2Mul: v2Mul,
-                           v2Bias: v2Bias,
-                           v2Activation: v2Activation,
-                           v3Mul: v3Mul,
-                           v3Bias: v3Bias,
-                           sv3Mul: sv3Mul,
-                           sv3Bias: sv3Bias,
-                           vOwnershipConv: vOwnershipConv)
+public func createSWValueHeadDesc(
+    version: Int32,
+    v1Conv: SWConvLayerDesc,
+    v1BN: SWBatchNormLayerDesc,
+    v1Activation: ActivationKind,
+    v2Mul: SWMatMulLayerDesc,
+    v2Bias: SWMatBiasLayerDesc,
+    v2Activation: ActivationKind,
+    v3Mul: SWMatMulLayerDesc,
+    v3Bias: SWMatBiasLayerDesc,
+    sv3Mul: SWMatMulLayerDesc,
+    sv3Bias: SWMatBiasLayerDesc,
+    vOwnershipConv: SWConvLayerDesc
+) -> SWValueHeadDesc {
+    return SWValueHeadDesc(
+        version: Int(version),
+        v1Conv: v1Conv,
+        v1BN: v1BN,
+        v1Activation: v1Activation,
+        v2Mul: v2Mul,
+        v2Bias: v2Bias,
+        v2Activation: v2Activation,
+        v3Mul: v3Mul,
+        v3Bias: v3Bias,
+        sv3Mul: sv3Mul,
+        sv3Bias: sv3Bias,
+        vOwnershipConv: vOwnershipConv)
 }
 
 /// A structure that creates a value head for the neural network, which produces the value, score value, and ownership tensors.
@@ -2469,75 +2757,89 @@ struct ValueHead {
     ///   - maskSumSqrtS14M01SquareS01Tensor: The tensor used to calculate a square value
     ///   - nnXLen: The x-axis length of the neural network
     ///   - nnYLen: The y-axis length of the neural network
-    init(graph: MPSGraph,
-         descriptor: SWValueHeadDesc,
-         sourceTensor: MPSGraphTensor,
-         maskTensor: MPSGraphTensor,
-         maskSumTensor: MPSGraphTensor,
-         maskSumSqrtS14M01Tensor: MPSGraphTensor,
-         maskSumSqrtS14M01SquareS01Tensor: MPSGraphTensor,
-         nnXLen: NSNumber,
-         nnYLen: NSNumber) {
+    init(
+        graph: MPSGraph,
+        descriptor: SWValueHeadDesc,
+        sourceTensor: MPSGraphTensor,
+        maskTensor: MPSGraphTensor,
+        maskSumTensor: MPSGraphTensor,
+        maskSumSqrtS14M01Tensor: MPSGraphTensor,
+        maskSumSqrtS14M01SquareS01Tensor: MPSGraphTensor,
+        nnXLen: NSNumber,
+        nnYLen: NSNumber
+    ) {
 
-        let v1Conv = ConvLayer(graph: graph,
-                               sourceTensor: sourceTensor,
-                               descriptor: descriptor.v1Conv,
-                               nnXLen: nnXLen,
-                               nnYLen: nnYLen)
+        let v1Conv = ConvLayer(
+            graph: graph,
+            sourceTensor: sourceTensor,
+            descriptor: descriptor.v1Conv,
+            nnXLen: nnXLen,
+            nnYLen: nnYLen)
 
-        let v1BN = BatchNormLayer(graph: graph,
-                                  sourceTensor: v1Conv.resultTensor,
-                                  maskTensor: maskTensor,
-                                  descriptor: descriptor.v1BN,
-                                  nnXLen: nnXLen,
-                                  nnYLen: nnYLen)
+        let v1BN = BatchNormLayer(
+            graph: graph,
+            sourceTensor: v1Conv.resultTensor,
+            maskTensor: maskTensor,
+            descriptor: descriptor.v1BN,
+            nnXLen: nnXLen,
+            nnYLen: nnYLen)
 
-        let v1Activation = ActivationLayer(graph: graph,
-                                           sourceTensor: v1BN.resultTensor,
-                                           activationKind: descriptor.v1Activation)
+        let v1Activation = ActivationLayer(
+            graph: graph,
+            sourceTensor: v1BN.resultTensor,
+            activationKind: descriptor.v1Activation)
 
         let v1Mean =
-        GlobalPoolingValueLayer(graph: graph,
-                                sourceTensor: v1Activation.resultTensor,
-                                maskSumTensor: maskSumTensor,
-                                maskSumSqrtS14M01Tensor: maskSumSqrtS14M01Tensor,
-                                maskSumSqrtS14M01SquareS01Tensor: maskSumSqrtS14M01SquareS01Tensor)
+            GlobalPoolingValueLayer(
+                graph: graph,
+                sourceTensor: v1Activation.resultTensor,
+                maskSumTensor: maskSumTensor,
+                maskSumSqrtS14M01Tensor: maskSumSqrtS14M01Tensor,
+                maskSumSqrtS14M01SquareS01Tensor: maskSumSqrtS14M01SquareS01Tensor)
 
         assert(v1Mean.resultTensor.shape?[1] == descriptor.v2Mul.inChannels)
 
-        let v2Mul = MatMulLayer(graph: graph,
-                                descriptor: descriptor.v2Mul,
-                                sourceTensor: v1Mean.resultTensor)
+        let v2Mul = MatMulLayer(
+            graph: graph,
+            descriptor: descriptor.v2Mul,
+            sourceTensor: v1Mean.resultTensor)
 
-        let v2Bias = MatBiasLayer(graph: graph,
-                                  descriptor: descriptor.v2Bias,
-                                  sourceTensor: v2Mul.resultTensor)
+        let v2Bias = MatBiasLayer(
+            graph: graph,
+            descriptor: descriptor.v2Bias,
+            sourceTensor: v2Mul.resultTensor)
 
-        let v2Activation = ActivationLayer(graph: graph,
-                                           sourceTensor: v2Bias.resultTensor,
-                                           activationKind: descriptor.v2Activation)
+        let v2Activation = ActivationLayer(
+            graph: graph,
+            sourceTensor: v2Bias.resultTensor,
+            activationKind: descriptor.v2Activation)
 
-        let v3Mul = MatMulLayer(graph: graph,
-                                descriptor: descriptor.v3Mul,
-                                sourceTensor: v2Activation.resultTensor)
+        let v3Mul = MatMulLayer(
+            graph: graph,
+            descriptor: descriptor.v3Mul,
+            sourceTensor: v2Activation.resultTensor)
 
-        let v3Bias = MatBiasLayer(graph: graph,
-                                  descriptor: descriptor.v3Bias,
-                                  sourceTensor: v3Mul.resultTensor)
+        let v3Bias = MatBiasLayer(
+            graph: graph,
+            descriptor: descriptor.v3Bias,
+            sourceTensor: v3Mul.resultTensor)
 
-        let sv3Mul = MatMulLayer(graph: graph,
-                                 descriptor: descriptor.sv3Mul,
-                                 sourceTensor: v2Activation.resultTensor)
+        let sv3Mul = MatMulLayer(
+            graph: graph,
+            descriptor: descriptor.sv3Mul,
+            sourceTensor: v2Activation.resultTensor)
 
-        let sv3Bias = MatBiasLayer(graph: graph,
-                                   descriptor: descriptor.sv3Bias,
-                                   sourceTensor: sv3Mul.resultTensor)
+        let sv3Bias = MatBiasLayer(
+            graph: graph,
+            descriptor: descriptor.sv3Bias,
+            sourceTensor: sv3Mul.resultTensor)
 
-        let vOwnershipConv = ConvLayer(graph: graph,
-                                       sourceTensor: v1Activation.resultTensor,
-                                       descriptor: descriptor.vOwnershipConv,
-                                       nnXLen: nnXLen,
-                                       nnYLen: nnYLen)
+        let vOwnershipConv = ConvLayer(
+            graph: graph,
+            sourceTensor: v1Activation.resultTensor,
+            descriptor: descriptor.vOwnershipConv,
+            nnXLen: nnXLen,
+            nnYLen: nnYLen)
 
         valueTensor = v3Bias.resultTensor
         scoreValueTensor = sv3Bias.resultTensor
@@ -2548,7 +2850,6 @@ struct ValueHead {
         assert(ownershipTensor.shape?.count == 4)
     }
 }
-
 
 /// A struct that describes a neural network model used for playing the game of Go.
 public struct SWModelDesc {
@@ -2588,17 +2889,19 @@ public struct SWModelDesc {
     ///   - trunk: The description of the trunk that makes up the backbone of the model.
     ///   - policyHead: The description of the policy head that predicts the probability of playing at a particular position.
     ///   - valueHead: The description of the value head that predicts the expected outcome of a game state.
-    init(version: Int,
-         name: String,
-         numInputChannels: NSNumber,
-         numInputGlobalChannels: NSNumber,
-         numInputMetaChannels: NSNumber,
-         numValueChannels: NSNumber,
-         numScoreValueChannels: NSNumber,
-         numOwnershipChannels: NSNumber,
-         trunk: SWTrunkDesc,
-         policyHead: SWPolicyHeadDesc,
-         valueHead: SWValueHeadDesc) {
+    init(
+        version: Int,
+        name: String,
+        numInputChannels: NSNumber,
+        numInputGlobalChannels: NSNumber,
+        numInputMetaChannels: NSNumber,
+        numValueChannels: NSNumber,
+        numScoreValueChannels: NSNumber,
+        numOwnershipChannels: NSNumber,
+        trunk: SWTrunkDesc,
+        policyHead: SWPolicyHeadDesc,
+        valueHead: SWValueHeadDesc
+    ) {
         self.version = version
         self.name = name
         self.numInputChannels = numInputChannels
@@ -2613,28 +2916,31 @@ public struct SWModelDesc {
     }
 }
 
-public func createSWModelDesc(version: Int32,
-                              name: String,
-                              numInputChannels: Int32,
-                              numInputGlobalChannels: Int32,
-                              numInputMetaChannels: Int32,
-                              numValueChannels: Int32,
-                              numScoreValueChannels: Int32,
-                              numOwnershipChannels: Int32,
-                              trunk: SWTrunkDesc,
-                              policyHead: SWPolicyHeadDesc,
-                              valueHead: SWValueHeadDesc) -> SWModelDesc {
-    return SWModelDesc(version: Int(version),
-                       name: name,
-                       numInputChannels: numInputChannels as NSNumber,
-                       numInputGlobalChannels: numInputGlobalChannels as NSNumber,
-                       numInputMetaChannels: numInputMetaChannels as NSNumber,
-                       numValueChannels: numValueChannels as NSNumber,
-                       numScoreValueChannels: numScoreValueChannels as NSNumber,
-                       numOwnershipChannels: numOwnershipChannels as NSNumber,
-                       trunk: trunk,
-                       policyHead: policyHead,
-                       valueHead: valueHead)
+public func createSWModelDesc(
+    version: Int32,
+    name: String,
+    numInputChannels: Int32,
+    numInputGlobalChannels: Int32,
+    numInputMetaChannels: Int32,
+    numValueChannels: Int32,
+    numScoreValueChannels: Int32,
+    numOwnershipChannels: Int32,
+    trunk: SWTrunkDesc,
+    policyHead: SWPolicyHeadDesc,
+    valueHead: SWValueHeadDesc
+) -> SWModelDesc {
+    return SWModelDesc(
+        version: Int(version),
+        name: name,
+        numInputChannels: numInputChannels as NSNumber,
+        numInputGlobalChannels: numInputGlobalChannels as NSNumber,
+        numInputMetaChannels: numInputMetaChannels as NSNumber,
+        numValueChannels: numValueChannels as NSNumber,
+        numScoreValueChannels: numScoreValueChannels as NSNumber,
+        numOwnershipChannels: numOwnershipChannels as NSNumber,
+        trunk: trunk,
+        policyHead: policyHead,
+        valueHead: valueHead)
 }
 
 /// A structure representing a neural network model for processing Go game states.
@@ -2681,11 +2987,13 @@ struct Model {
     ///   - descriptor: The description of the model.
     ///   - nnXLen: The length of the neural network input in the x dimension.
     ///   - nnYLen: The length of the neural network input in the y dimension.
-    init(device: MTLDevice,
-         graph: MPSGraph,
-         descriptor: SWModelDesc,
-         nnXLen: NSNumber,
-         nnYLen: NSNumber) {
+    init(
+        device: MTLDevice,
+        graph: MPSGraph,
+        descriptor: SWModelDesc,
+        nnXLen: NSNumber,
+        nnYLen: NSNumber
+    ) {
         self.device = device
         self.commandQueue = device.makeCommandQueue()!
         self.graph = graph
@@ -2696,65 +3004,77 @@ struct Model {
         self.numScoreValueChannels = descriptor.numScoreValueChannels
         self.numOwnershipChannels = descriptor.numOwnershipChannels
 
-        input = InputLayer(graph: graph,
-                           nnXLen: nnXLen,
-                           nnYLen: nnYLen,
-                           numChannels: descriptor.numInputChannels)
+        input = InputLayer(
+            graph: graph,
+            nnXLen: nnXLen,
+            nnYLen: nnYLen,
+            numChannels: descriptor.numInputChannels)
 
-        inputGlobal = InputGlobalLayer(graph: graph,
-                                       numGlobalFeatures: descriptor.numInputGlobalChannels)
+        inputGlobal = InputGlobalLayer(
+            graph: graph,
+            numGlobalFeatures: descriptor.numInputGlobalChannels)
 
-        inputMeta = InputMetaLayer(graph: graph,
-                                   numMetaFeatures: descriptor.numInputMetaChannels)
+        inputMeta = InputMetaLayer(
+            graph: graph,
+            numMetaFeatures: descriptor.numInputMetaChannels)
 
-        mask = MaskLayer(graph: graph,
-                         nnXLen: nnXLen,
-                         nnYLen: nnYLen)
+        mask = MaskLayer(
+            graph: graph,
+            nnXLen: nnXLen,
+            nnYLen: nnYLen)
 
-        let maskSum = MaskSumLayer(graph: graph,
-                                   maskTensor: mask.tensor)
+        let maskSum = MaskSumLayer(
+            graph: graph,
+            maskTensor: mask.tensor)
 
-        let maskSumSqrtS14M01 = MaskSumSqrtS14M01Layer(graph: graph,
-                                                       maskSum: maskSum)
+        let maskSumSqrtS14M01 = MaskSumSqrtS14M01Layer(
+            graph: graph,
+            maskSum: maskSum)
 
-        let maskSumSqrtS14M01SquareS01 = MaskSumSqrtS14M01SquareS01Layer(graph: graph,
-                                                                         maskSumSqrtS14M01: maskSumSqrtS14M01)
+        let maskSumSqrtS14M01SquareS01 = MaskSumSqrtS14M01SquareS01Layer(
+            graph: graph,
+            maskSumSqrtS14M01: maskSumSqrtS14M01)
 
-        trunk = Trunk(graph: graph,
-                      descriptor: descriptor.trunk,
-                      inputTensor: input.tensor,
-                      inputGlobalTensor: inputGlobal.tensor,
-                      inputMetaTensor: inputMeta.tensor,
-                      maskTensor: mask.tensor,
-                      maskSumTensor: maskSum.tensor,
-                      maskSumSqrtS14M01Tensor: maskSumSqrtS14M01.tensor,
-                      nnXLen: nnXLen,
-                      nnYLen: nnYLen)
+        trunk = Trunk(
+            graph: graph,
+            descriptor: descriptor.trunk,
+            inputTensor: input.tensor,
+            inputGlobalTensor: inputGlobal.tensor,
+            inputMetaTensor: inputMeta.tensor,
+            maskTensor: mask.tensor,
+            maskSumTensor: maskSum.tensor,
+            maskSumSqrtS14M01Tensor: maskSumSqrtS14M01.tensor,
+            nnXLen: nnXLen,
+            nnYLen: nnYLen)
 
-        policyHead = PolicyHead(graph: graph,
-                                descriptor: descriptor.policyHead,
-                                sourceTensor: trunk.resultTensor,
-                                maskTensor: mask.tensor,
-                                maskSumTensor: maskSum.tensor,
-                                maskSumSqrtS14M01Tensor: maskSumSqrtS14M01.tensor,
-                                nnXLen: nnXLen,
-                                nnYLen: nnYLen)
+        policyHead = PolicyHead(
+            graph: graph,
+            descriptor: descriptor.policyHead,
+            sourceTensor: trunk.resultTensor,
+            maskTensor: mask.tensor,
+            maskSumTensor: maskSum.tensor,
+            maskSumSqrtS14M01Tensor: maskSumSqrtS14M01.tensor,
+            nnXLen: nnXLen,
+            nnYLen: nnYLen)
 
-        valueHead = ValueHead(graph: graph,
-                              descriptor: descriptor.valueHead,
-                              sourceTensor: trunk.resultTensor,
-                              maskTensor: mask.tensor,
-                              maskSumTensor: maskSum.tensor,
-                              maskSumSqrtS14M01Tensor: maskSumSqrtS14M01.tensor,
-                              maskSumSqrtS14M01SquareS01Tensor: maskSumSqrtS14M01SquareS01.tensor,
-                              nnXLen: nnXLen,
-                              nnYLen: nnYLen)
+        valueHead = ValueHead(
+            graph: graph,
+            descriptor: descriptor.valueHead,
+            sourceTensor: trunk.resultTensor,
+            maskTensor: mask.tensor,
+            maskSumTensor: maskSum.tensor,
+            maskSumSqrtS14M01Tensor: maskSumSqrtS14M01.tensor,
+            maskSumSqrtS14M01SquareS01Tensor: maskSumSqrtS14M01SquareS01.tensor,
+            nnXLen: nnXLen,
+            nnYLen: nnYLen)
 
-        targetTensors = [policyHead.policyTensor,
-                         policyHead.policyPassTensor,
-                         valueHead.valueTensor,
-                         valueHead.scoreValueTensor,
-                         valueHead.ownershipTensor]
+        targetTensors = [
+            policyHead.policyTensor,
+            policyHead.policyPassTensor,
+            valueHead.valueTensor,
+            valueHead.scoreValueTensor,
+            valueHead.ownershipTensor,
+        ]
     }
 
     /// Applies the model to the given input data, and generates predictions for policy, value and ownership
@@ -2768,89 +3088,109 @@ struct Model {
     ///   - scoreValue: UnsafeMutablePointer to a flattened array of floats representing predicted score value
     ///   - ownership: UnsafeMutablePointer to a flattened 2D array of floats representing predicted ownership
     ///   - batchSize: The batch size
-    func apply(input inputPointer: UnsafeMutablePointer<Float32>,
-               inputGlobal inputGlobalPointer: UnsafeMutablePointer<Float32>,
-               inputMeta inputMetaPointer: UnsafeMutablePointer<Float32>,
-               policy: UnsafeMutablePointer<Float32>,
-               policyPass: UnsafeMutablePointer<Float32>,
-               value: UnsafeMutablePointer<Float32>,
-               scoreValue: UnsafeMutablePointer<Float32>,
-               ownership: UnsafeMutablePointer<Float32>,
-               batchSize: Int) {
+    func apply(
+        input inputPointer: UnsafeMutablePointer<Float32>,
+        inputGlobal inputGlobalPointer: UnsafeMutablePointer<Float32>,
+        inputMeta inputMetaPointer: UnsafeMutablePointer<Float32>,
+        policy: UnsafeMutablePointer<Float32>,
+        policyPass: UnsafeMutablePointer<Float32>,
+        value: UnsafeMutablePointer<Float32>,
+        scoreValue: UnsafeMutablePointer<Float32>,
+        ownership: UnsafeMutablePointer<Float32>,
+        batchSize: Int
+    ) {
 
         let channelAxis = InputShape.getChannelAxis()
         let numInputChannels = input.shape[channelAxis]
 
-        let inputShape = InputShape.create(batchSize: batchSize as NSNumber,
-                                           numChannels: numInputChannels,
-                                           nnYLen: nnYLen,
-                                           nnXLen: nnXLen)
+        let inputShape = InputShape.create(
+            batchSize: batchSize as NSNumber,
+            numChannels: numInputChannels,
+            nnYLen: nnYLen,
+            nnXLen: nnXLen)
 
-        let inputDescriptor = MPSNDArrayDescriptor(dataType: input.tensor.dataType,
-                                                   shape: inputShape)
+        let inputDescriptor = MPSNDArrayDescriptor(
+            dataType: input.tensor.dataType,
+            shape: inputShape)
 
-        let inputArray = MPSNDArray(device: device,
-                                    descriptor: inputDescriptor)
+        let inputArray = MPSNDArray(
+            device: device,
+            descriptor: inputDescriptor)
 
         inputArray.writeBytes(inputPointer)
 
         let numInputGlobalChannels = inputGlobal.shape[channelAxis]
 
-        let inputGlobalShape = InputShape.create(batchSize: batchSize as NSNumber,
-                                                 numChannels: numInputGlobalChannels,
-                                                 nnYLen: 1,
-                                                 nnXLen: 1)
+        let inputGlobalShape = InputShape.create(
+            batchSize: batchSize as NSNumber,
+            numChannels: numInputGlobalChannels,
+            nnYLen: 1,
+            nnXLen: 1)
 
-        let inputGlobalDescriptor = MPSNDArrayDescriptor(dataType: inputGlobal.tensor.dataType,
-                                                         shape: inputGlobalShape)
+        let inputGlobalDescriptor = MPSNDArrayDescriptor(
+            dataType: inputGlobal.tensor.dataType,
+            shape: inputGlobalShape)
 
-        let inputGlobalArray = MPSNDArray(device: device,
-                                          descriptor: inputGlobalDescriptor)
+        let inputGlobalArray = MPSNDArray(
+            device: device,
+            descriptor: inputGlobalDescriptor)
 
         inputGlobalArray.writeBytes(inputGlobalPointer)
 
         let numInputMetaChannels = inputMeta.shape[channelAxis]
 
-        let inputMetaShape = InputShape.create(batchSize: batchSize as NSNumber,
-                                               numChannels: numInputMetaChannels,
-                                               nnYLen: 1,
-                                               nnXLen: 1)
+        let inputMetaShape = InputShape.create(
+            batchSize: batchSize as NSNumber,
+            numChannels: numInputMetaChannels,
+            nnYLen: 1,
+            nnXLen: 1)
 
-        let inputMetaDescriptor = MPSNDArrayDescriptor(dataType: inputMeta.tensor.dataType,
-                                                       shape: inputMetaShape)
+        let inputMetaDescriptor = MPSNDArrayDescriptor(
+            dataType: inputMeta.tensor.dataType,
+            shape: inputMetaShape)
 
-        let inputMetaArray = MPSNDArray(device: device,
-                                        descriptor: inputMetaDescriptor)
+        let inputMetaArray = MPSNDArray(
+            device: device,
+            descriptor: inputMetaDescriptor)
 
         inputMetaArray.writeBytes(inputMetaPointer)
 
-        let maskShape = InputShape.create(batchSize: batchSize as NSNumber,
-                                          numChannels: 1,
-                                          nnYLen: nnYLen,
-                                          nnXLen: nnXLen)
+        let maskShape = InputShape.create(
+            batchSize: batchSize as NSNumber,
+            numChannels: 1,
+            nnYLen: nnYLen,
+            nnXLen: nnXLen)
 
-        let maskDescriptor = MPSNDArrayDescriptor(dataType: mask.tensor.dataType,
-                                                  shape: maskShape)
+        let maskDescriptor = MPSNDArrayDescriptor(
+            dataType: mask.tensor.dataType,
+            shape: maskShape)
 
-        let maskArray = MPSNDArray(device: device,
-                                   descriptor: maskDescriptor)
+        let maskArray = MPSNDArray(
+            device: device,
+            descriptor: maskDescriptor)
 
-        var maskStrideArray = [MemoryLayout<Float32>.size,
-                               nnXLen.intValue * MemoryLayout<Float32>.size,
-                               nnYLen.intValue * nnXLen.intValue * MemoryLayout<Float32>.size,
-                               numInputChannels.intValue * nnYLen.intValue * nnXLen.intValue * MemoryLayout<Float32>.size]
+        var maskStrideArray = [
+            MemoryLayout<Float32>.size,
+            nnXLen.intValue * MemoryLayout<Float32>.size,
+            nnYLen.intValue * nnXLen.intValue * MemoryLayout<Float32>.size,
+            numInputChannels.intValue * nnYLen.intValue * nnXLen.intValue
+                * MemoryLayout<Float32>.size,
+        ]
 
         maskArray.writeBytes(inputPointer, strideBytes: &maskStrideArray)
 
-        let feeds = [input.tensor: MPSGraphTensorData(inputArray),
-                     inputGlobal.tensor: MPSGraphTensorData(inputGlobalArray),
-                     inputMeta.tensor: MPSGraphTensorData(inputMetaArray),
-                     mask.tensor: MPSGraphTensorData(maskArray)]
+        let feeds = [
+            input.tensor: MPSGraphTensorData(inputArray),
+            inputGlobal.tensor: MPSGraphTensorData(inputGlobalArray),
+            inputMeta.tensor: MPSGraphTensorData(inputMetaArray),
+            mask.tensor: MPSGraphTensorData(maskArray),
+        ]
 
-        let fetch = graph.run(with: commandQueue,
-                              feeds: feeds,
-                              targetTensors: targetTensors,
-                              targetOperations: nil)
+        let fetch = graph.run(
+            with: commandQueue,
+            feeds: feeds,
+            targetTensors: targetTensors,
+            targetOperations: nil)
 
         assert(fetch[policyHead.policyTensor] != nil)
         assert(fetch[policyHead.policyPassTensor] != nil)
@@ -2882,17 +3222,22 @@ public class MetalComputeContext {
     /// - Parameters:
     ///   - nnXLen: The width of the input tensor.
     ///   - nnYLen: The height of the input tensor.
-    init(nnXLen: Int32,
-         nnYLen: Int32) {
+    init(
+        nnXLen: Int32,
+        nnYLen: Int32
+    ) {
         self.nnXLen = nnXLen
         self.nnYLen = nnYLen
     }
 }
 
-public func createMetalComputeContext(nnXLen: Int32,
-                                      nnYLen: Int32) -> MetalComputeContext {
-    return MetalComputeContext(nnXLen: nnXLen,
-                               nnYLen: nnYLen)
+public func createMetalComputeContext(
+    nnXLen: Int32,
+    nnYLen: Int32
+) -> MetalComputeContext {
+    return MetalComputeContext(
+        nnXLen: nnXLen,
+        nnYLen: nnYLen)
 }
 
 /// A class that represents a handle of GPU device.
@@ -2903,46 +3248,54 @@ public class MetalComputeHandle {
         self.model = model
     }
 
-    public func apply(input inputPointer: UnsafeMutablePointer<Float32>,
-                      inputGlobal inputGlobalPointer: UnsafeMutablePointer<Float32>,
-                      inputMeta inputMetaPointer: UnsafeMutablePointer<Float32>,
-                      policy: UnsafeMutablePointer<Float32>,
-                      policyPass: UnsafeMutablePointer<Float32>,
-                      value: UnsafeMutablePointer<Float32>,
-                      scoreValue: UnsafeMutablePointer<Float32>,
-                      ownership: UnsafeMutablePointer<Float32>,
-                      batchSize: Int) {
+    public func apply(
+        input inputPointer: UnsafeMutablePointer<Float32>,
+        inputGlobal inputGlobalPointer: UnsafeMutablePointer<Float32>,
+        inputMeta inputMetaPointer: UnsafeMutablePointer<Float32>,
+        policy: UnsafeMutablePointer<Float32>,
+        policyPass: UnsafeMutablePointer<Float32>,
+        value: UnsafeMutablePointer<Float32>,
+        scoreValue: UnsafeMutablePointer<Float32>,
+        ownership: UnsafeMutablePointer<Float32>,
+        batchSize: Int
+    ) {
         autoreleasepool {
-            model.apply(input: inputPointer,
-                        inputGlobal: inputGlobalPointer,
-                        inputMeta: inputMetaPointer,
-                        policy: policy,
-                        policyPass: policyPass,
-                        value: value,
-                        scoreValue: scoreValue,
-                        ownership: ownership,
-                        batchSize: batchSize)
+            model.apply(
+                input: inputPointer,
+                inputGlobal: inputGlobalPointer,
+                inputMeta: inputMetaPointer,
+                policy: policy,
+                policyPass: policyPass,
+                value: value,
+                scoreValue: scoreValue,
+                ownership: ownership,
+                batchSize: batchSize)
         }
     }
 }
 
-public func maybeCreateMetalComputeHandle(condition: Bool,
-                                          serverThreadIdx: Int = 0,
-                                          descriptor: SWModelDesc,
-                                          context: MetalComputeContext) -> MetalComputeHandle? {
+public func maybeCreateMetalComputeHandle(
+    condition: Bool,
+    serverThreadIdx: Int = 0,
+    descriptor: SWModelDesc,
+    context: MetalComputeContext
+) -> MetalComputeHandle? {
     guard condition else { return nil }
 
     let device = MTLCreateSystemDefaultDevice()!
 
-    let model = Model(device: device,
-                      graph: MPSGraph(),
-                      descriptor: descriptor,
-                      nnXLen: context.nnXLen as NSNumber,
-                      nnYLen: context.nnYLen as NSNumber)
+    let model = Model(
+        device: device,
+        graph: MPSGraph(),
+        descriptor: descriptor,
+        nnXLen: context.nnXLen as NSNumber,
+        nnYLen: context.nnYLen as NSNumber)
 
     let handle = MetalComputeHandle(model: model)
 
-    printError("Metal backend \(serverThreadIdx): \(device.name), Model version \(descriptor.version) \(descriptor.name), \(context.nnXLen)x\(context.nnYLen)")
+    printError(
+        "Metal backend \(serverThreadIdx): \(device.name), Model version \(descriptor.version) \(descriptor.name), \(context.nnXLen)x\(context.nnYLen)"
+    )
 
     return handle
 }
