@@ -1384,6 +1384,7 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
 
   ConfigParser cfg;
   string nnModelFile;
+  vector<string> sgfFilesFromCmdline;
   vector<string> sgfDirs;
   vector<string> sgfsDirs;
   string outDir;
@@ -1427,6 +1428,7 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
     cmd.addModelFileArg();
     cmd.addOverrideConfigArg();
 
+    TCLAP::MultiArg<string> sgfArg("","sgf","Sgf file",false,"SGF");
     TCLAP::MultiArg<string> sgfDirArg("","sgfdir","Directory of sgf files",false,"DIR");
     TCLAP::MultiArg<string> sgfsDirArg("","sgfsdir","Directory of sgfs files",false,"DIR");
     TCLAP::ValueArg<string> outDirArg("","outdir","Directory to write results",true,string(),"DIR");
@@ -1463,6 +1465,7 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
 
     TCLAP::SwitchArg forTestingArg("","for-testing","For testing");
 
+    cmd.add(sgfArg);
     cmd.add(sgfDirArg);
     cmd.add(sgfsDirArg);
     cmd.add(outDirArg);
@@ -1500,6 +1503,7 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
     cmd.parseArgs(args);
 
     nnModelFile = cmd.getModelFile();
+    sgfFilesFromCmdline = sgfArg.getValue();
     sgfDirs = sgfDirArg.getValue();
     sgfsDirs = sgfsDirArg.getValue();
     outDir = outDirArg.getValue();
@@ -1594,6 +1598,10 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
   vector<string> sgfFiles;
   FileHelpers::collectSgfsFromDirsOrFiles(sgfDirs,sgfFiles);
   FileHelpers::collectMultiSgfsFromDirsOrFiles(sgfsDirs,sgfFiles);
+
+  for(const string& s: sgfFilesFromCmdline)
+    sgfFiles.push_back(s);
+
   logger.write("Found " + Global::int64ToString((int64_t)sgfFiles.size()) + " sgf(s) files!");
 
   if(forTesting)
