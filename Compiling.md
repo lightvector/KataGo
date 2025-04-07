@@ -64,7 +64,13 @@ As also mentioned in the instructions below but repeated here for visibility, if
       * If using the CUDA backend, CUDA 11 or later and a compatible version of CUDNN based on your CUDA version (https://developer.nvidia.com/cuda-toolkit) (https://developer.nvidia.com/cudnn) and a GPU capable of supporting them. I'm unsure how version compatibility works with CUDA, there's a good chance that later versions than these work just as well, but they have not been tested.
       * If using the TensorRT backend, in addition to a compatible CUDA Toolkit (https://developer.nvidia.com/cuda-toolkit), you also need TensorRT (https://developer.nvidia.com/tensorrt) that is at least version 8.5.
       * If using the Eigen backend, Eigen3, version 3.3.x. (http://eigen.tuxfamily.org/index.php?title=Main_Page#Download).
-      * zlib. The following package might work, https://www.nuget.org/packages/zlib-vc140-static-64/, or alternatively you can build it yourself via something like: https://github.com/kiyolee/zlib-win-build
+      * zlib. Easy way to build zlib on Windows is to use vcpkg. Run in Powershell:
+         * git clone https://github.com/microsoft/vcpkg.git
+         * cd .\vcpkg\
+         * .\bootstrap-vcpkg.bat
+         * .\vcpkg.exe install zlib:x64-windows
+         * Set CMake ZLIB_LIBRARY to vcpkg\installed\x64-windows\lib\zlib.lib and ZLIB_INCLUDE_DIRECTORY to vcpkg\installed\x64-windows\include.
+         * Copy zlib1.dll from vcpkg\installed\x64-windows\bin to Katago folder after you've built Katago executable.
       * libzip (optional, needed only for self-play training) - for example https://github.com/kiyolee/libzip-win-build
       * If compiling to contribute to public distributed training runs, OpenSSL is required (https://www.openssl.org/, https://wiki.openssl.org/index.php/Compilation_and_Installation).
    * Download/clone this repo to some folder `KataGo`.
