@@ -11,6 +11,7 @@ wget --no-clobber -P models/ https://media.katagotraining.org/uploaded/networks/
 wget --no-clobber -P models/ https://media.katagotraining.org/uploaded/networks/models/kata1/kata1-b18c384nbt-s9996604416-d4316597426.bin.gz
 wget --no-clobber -P models/ https://media.katagotraining.org/uploaded/networks/models/kata1/kata1-b28c512nbt-s8326494464-d4628051565.bin.gz
 wget --no-clobber -P models/ https://github.com/lightvector/KataGo/releases/download/v1.15.0/b18c384nbt-humanv0.bin.gz
+wget --no-clobber -P models/ https://media.katagotraining.org/uploaded/networks/models_extra/b5c192nbt-v16test.bin.gz
 
 MODEL1=tests/models/run4-s67105280-d24430742-b6c96.txt.gz  # version 3
 MODEL2=tests/models/grun50-b6c96-s156348160-d118286860.txt.gz  # version 4
@@ -20,6 +21,7 @@ MODEL5=models/kata1-b18c384nbt-s5832081920-d3223508649.bin.gz  # version 11
 MODEL6=models/kata1-b18c384nbt-s9996604416-d4316597426.bin.gz  # version 14
 MODEL7=models/kata1-b28c512nbt-s8326494464-d4628051565.bin.gz  # version 15
 MODEL8=models/b18c384nbt-humanv0.bin.gz # human SL model
+MODEL9=models/b5c192nbt-v16test.bin.gz  # version 16 model very slightly trained
 
 MODELBASE1=$(basename "$MODEL1")
 MODELBASE2=$(basename "$MODEL2")
@@ -29,6 +31,7 @@ MODELBASE5=$(basename "$MODEL5")
 MODELBASE6=$(basename "$MODEL6")
 MODELBASE7=$(basename "$MODEL7")
 MODELBASE8=$(basename "$MODEL8")
+MODELBASE9=$(basename "$MODEL9")
 
 ./katago testgpuerror -model "$MODEL1" -config configs/gtp_example.cfg -boardsize 9 \
          -override-config "requireMaxBoardSize=True" \
@@ -120,5 +123,12 @@ MODELBASE8=$(basename "$MODEL8")
 ./katago testgpuerror -model "$MODEL8" -config configs/gtp_example.cfg -boardsize 19 \
          -override-config "requireMaxBoardSize=True" \
          -reference-file "$REFERENCEDIR"/"$MODELBASE8"_size19.txt | tee "$RESULTSDIR"/"$MODELBASE8"_size19.txt
+
+./katago testgpuerror -model "$MODEL9" -config configs/gtp_example.cfg -boardsize rectangle \
+         -override-config "requireMaxBoardSize=False, maxBatchSize=11" \
+         -reference-file "$REFERENCEDIR"/"$MODELBASE9"_sizerect.txt | tee "$RESULTSDIR"/"$MODELBASE9"_sizerect.txt
+./katago testgpuerror -model "$MODEL9" -config configs/gtp_example.cfg -boardsize 19 \
+         -override-config "requireMaxBoardSize=True" \
+         -reference-file "$REFERENCEDIR"/"$MODELBASE9"_size19.txt | tee "$RESULTSDIR"/"$MODELBASE9"_size19.txt
 
 

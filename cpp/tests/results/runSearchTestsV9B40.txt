@@ -8041,6 +8041,25 @@ A4  : T -102.87c W -99.89c S  -2.98c ( -1.3 L  -1.3) LCB  247.13c P  8.19% WF   
 C1  : T -102.44c W -99.83c S  -2.61c ( -1.2 L  -1.3) LCB  247.56c P 14.05% WF   3.8 PSV       4 N       1  --  C1
 F1  : T -102.52c W -99.86c S  -2.65c ( -1.2 L  -1.2) LCB  247.48c P  9.54% WF   4.0 PSV       3 N       1  --  F1
 H1  : T -102.78c W -99.88c S  -2.89c ( -1.3 L  -1.2) LCB  247.22c P  8.56% WF   4.1 PSV       3 N       1  --  H1
+  99.7  100.0   99.9   99.9   99.9   99.9   99.4  100.0   99.7 
+  99.9  100.0  100.0  100.0  100.0  100.0  100.0  100.0   99.9 
+  99.9   99.6   99.9   99.9   99.9  100.0   99.9  100.0   99.6 
+ 100.0  100.0  100.0  100.0  100.0  100.0  100.0  100.0  100.0 
+-100.0 -100.0 -100.0 -100.0 -100.0 -100.0 -100.0  -99.9  -99.9 
+ -99.8  -99.5  -99.8  -99.7 -100.0  -99.9  -99.9  -99.9  -99.9 
+ -99.7  -99.7  -99.5  -99.3 -100.0 -100.0 -100.0 -100.0 -100.0 
+ -99.7  -99.5  -99.9 -100.0 -100.0  -99.6  -99.9  -99.5  -99.6 
+ -99.8  -99.9  -99.8  -99.9  -99.8  -99.7  -99.8  -99.8  -99.7 
+
+C1 visits 1 edgeVisits 1 utilityNoBonus -102.44c utilityWithBonus -102.44c endingScoreBonus -0.00
+F1 visits 1 edgeVisits 1 utilityNoBonus -102.52c utilityWithBonus -102.52c endingScoreBonus -0.00
+H1 visits 1 edgeVisits 1 utilityNoBonus -102.78c utilityWithBonus -102.78c endingScoreBonus -0.00
+A4 visits 1 edgeVisits 1 utilityNoBonus -102.87c utilityWithBonus -102.87c endingScoreBonus -0.00
+Play selection values
+C1 9.9805
+F1 7.8554
+H1 7.8554
+A4 10
 MoveNum: 1 HASH: 7135F647A10B2E3F96CBC220C17216F6
    A B C D E F G H J
  9 . O . . . . X O .
@@ -8082,6 +8101,37 @@ C4  : T -101.26c W -99.79c S  -1.92c ( -1.0 L  -1.1) LCB   47.81c P  6.45% WF   
 C4  pss : T -100.70c W -99.71c S  -0.99c ( -0.7 L  -0.9) LCB -450.70c P 44.46% WF   4.2 PSV       4 N       1  --  pass
 B3  : T -102.56c W -99.86c S  -2.70c ( -1.2 L  -1.2) LCB  247.44c P  4.32% WF   4.0 PSV       5 N       1  --  B3
 J1  : T -102.13c W -99.83c S  -2.30c ( -1.1 L  -1.2) LCB  247.87c P  3.83% WF   3.8 PSV       4 N       1  --  J1
+  99.7  100.0   99.9   99.9   99.9   99.9   99.4  100.0   99.7 
+  99.9  100.0  100.0  100.0  100.0  100.0  100.0  100.0   99.9 
+  99.9   99.6   99.9   99.9   99.9  100.0   99.9  100.0   99.6 
+ 100.0  100.0  100.0  100.0  100.0  100.0  100.0  100.0  100.0 
+-100.0 -100.0 -100.0 -100.0 -100.0 -100.0 -100.0  -99.9  -99.9 
+ -99.8  -99.5  -99.8  -99.7 -100.0  -99.9  -99.9  -99.9  -99.9 
+ -99.7  -99.7  -99.5  -99.3 -100.0 -100.0 -100.0 -100.0 -100.0 
+ -99.7  -99.5  -99.9 -100.0 -100.0  -99.6  -99.9  -99.5  -99.6 
+ -99.8  -99.9  -99.8  -99.9  -99.8  -99.7  -99.8  -99.8  -99.7 
+
+C1 visits 3 edgeVisits 3 utilityNoBonus -101.41c utilityWithBonus -101.41c endingScoreBonus -0.00
+F1 visits 2 edgeVisits 2 utilityNoBonus -100.79c utilityWithBonus -100.79c endingScoreBonus -0.00
+H1 visits 2 edgeVisits 2 utilityNoBonus -100.89c utilityWithBonus -100.89c endingScoreBonus -0.00
+A4 visits 2 edgeVisits 2 utilityNoBonus -101.03c utilityWithBonus -101.03c endingScoreBonus -0.00
+G2 visits 2 edgeVisits 2 utilityNoBonus -101.22c utilityWithBonus -101.22c endingScoreBonus -0.00
+D4 visits 2 edgeVisits 2 utilityNoBonus -100.82c utilityWithBonus -100.82c endingScoreBonus -0.00
+A2 visits 2 edgeVisits 2 utilityNoBonus -101.01c utilityWithBonus -101.01c endingScoreBonus -0.00
+C4 visits 2 edgeVisits 2 utilityNoBonus -101.26c utilityWithBonus -101.26c endingScoreBonus -0.00
+B3 visits 1 edgeVisits 1 utilityNoBonus -102.56c utilityWithBonus -102.56c endingScoreBonus -0.00
+J1 visits 1 edgeVisits 1 utilityNoBonus -102.13c utilityWithBonus -102.13c endingScoreBonus -0.00
+Play selection values
+C1 13.1292
+F1 7
+H1 6
+A4 6
+G2 6
+D4 6
+A2 6
+C4 5
+B3 5
+J1 4
 MoveNum: 1 HASH: 7135F647A10B2E3F96CBC220C17216F6
    A B C D E F G H J
  9 . O . . . . X O .
@@ -8204,6 +8254,41 @@ J1  pss : T -99.79c W -99.66c S  -0.13c ( -0.4 L  -0.6) LCB -449.79c P 44.19% WF
 H4  : T -102.73c W -99.88c S  -2.85c ( -1.3 L  -1.3) LCB  248.81c P  1.70% WF   4.1 PSV       5 N       1  --  H4
 J4  : T -100.64c W -99.78c S  -1.46c ( -0.8 L  -1.0) LCB   49.99c P  2.19% WF   8.2 PSV       3 N       2  --  J4 pass
 J4  pss : T -99.90c W -99.70c S  -0.21c ( -0.4 L  -0.7) LCB -449.90c P 44.32% WF   4.2 PSV       4 N       1  --  pass
+  99.7  100.0   99.9   99.9   99.9   99.9   99.4  100.0   99.7 
+  99.9  100.0  100.0  100.0  100.0  100.0  100.0  100.0   99.9 
+  99.9   99.6   99.9   99.9   99.9  100.0   99.9  100.0   99.6 
+ 100.0  100.0  100.0  100.0  100.0  100.0  100.0  100.0  100.0 
+-100.0 -100.0 -100.0 -100.0 -100.0 -100.0 -100.0  -99.9  -99.9 
+ -99.8  -99.5  -99.8  -99.7 -100.0  -99.9  -99.9  -99.9  -99.9 
+ -99.7  -99.7  -99.5  -99.3 -100.0 -100.0 -100.0 -100.0 -100.0 
+ -99.7  -99.5  -99.9 -100.0 -100.0  -99.6  -99.9  -99.5  -99.6 
+ -99.8  -99.9  -99.8  -99.9  -99.8  -99.7  -99.8  -99.8  -99.7 
+
+C1 visits 18 edgeVisits 18 utilityNoBonus -101.94c utilityWithBonus -101.94c endingScoreBonus -0.00
+F1 visits 13 edgeVisits 13 utilityNoBonus -101.90c utilityWithBonus -101.90c endingScoreBonus -0.00
+H1 visits 6 edgeVisits 6 utilityNoBonus -101.10c utilityWithBonus -101.10c endingScoreBonus -0.00
+A4 visits 14 edgeVisits 14 utilityNoBonus -102.31c utilityWithBonus -102.31c endingScoreBonus -0.00
+G2 visits 12 edgeVisits 12 utilityNoBonus -102.13c utilityWithBonus -102.13c endingScoreBonus -0.00
+D4 visits 7 edgeVisits 7 utilityNoBonus -101.40c utilityWithBonus -101.40c endingScoreBonus -0.00
+A2 visits 12 edgeVisits 12 utilityNoBonus -102.39c utilityWithBonus -102.39c endingScoreBonus -0.00
+C4 visits 7 edgeVisits 7 utilityNoBonus -101.78c utilityWithBonus -101.78c endingScoreBonus -0.00
+B3 visits 5 edgeVisits 5 utilityNoBonus -101.59c utilityWithBonus -101.59c endingScoreBonus -0.00
+J1 visits 2 edgeVisits 2 utilityNoBonus -100.41c utilityWithBonus -100.41c endingScoreBonus -0.00
+J4 visits 2 edgeVisits 2 utilityNoBonus -100.64c utilityWithBonus -99.11c endingScoreBonus 0.49
+H4 visits 1 edgeVisits 1 utilityNoBonus -102.73c utilityWithBonus -101.19c endingScoreBonus 0.49
+Play selection values
+C1 90.6237
+F1 49
+H1 26
+A4 59
+G2 49
+D4 28
+A2 51
+C4 30
+B3 17
+J1 8
+J4 3
+H4 5
 params.enableMorePassingHacks = true
 MoveNum: 1 HASH: 7135F647A10B2E3F96CBC220C17216F6
    A B C D E F G H J
@@ -8232,6 +8317,27 @@ C1  : T -102.44c W -99.83c S  -2.61c ( -1.2 L  -1.3) LCB  247.56c P 14.05% WF   
 F1  : T -102.52c W -99.86c S  -2.65c ( -1.2 L  -1.2) LCB  247.48c P  9.54% WF   4.0 PSV       3 N       1  --  F1
 H1  : T -102.78c W -99.88c S  -2.89c ( -1.3 L  -1.2) LCB  247.22c P  8.56% WF   4.1 PSV       3 N       1  --  H1
 pss : T 128.59c W  99.93c S  28.66c (+18.9 L +20.1) LCB 1400.00c P  0.02% WF   0.0 PSV       0 N       1  --  pass
+  99.7  100.0   99.9   99.9   99.9   99.9   99.4  100.0   99.7 
+  99.9  100.0  100.0  100.0  100.0  100.0  100.0  100.0   99.9 
+  99.9   99.6   99.9   99.9   99.9  100.0   99.9  100.0   99.6 
+ 100.0  100.0  100.0  100.0  100.0  100.0  100.0  100.0  100.0 
+-100.0 -100.0 -100.0 -100.0 -100.0 -100.0 -100.0  -99.9  -99.9 
+ -99.8  -99.5  -99.8  -99.7 -100.0  -99.9  -99.9  -99.9  -99.9 
+ -99.7  -99.7  -99.5  -99.3 -100.0 -100.0 -100.0 -100.0 -100.0 
+ -99.7  -99.5  -99.9 -100.0 -100.0  -99.6  -99.9  -99.5  -99.6 
+ -99.8  -99.9  -99.8  -99.9  -99.8  -99.7  -99.8  -99.8  -99.7 
+
+C1 visits 1 edgeVisits 1 utilityNoBonus -102.44c utilityWithBonus -102.44c endingScoreBonus -0.00
+F1 visits 1 edgeVisits 1 utilityNoBonus -102.52c utilityWithBonus -102.52c endingScoreBonus -0.00
+pass visits 1 edgeVisits 0 utilityNoBonus 128.59c utilityWithBonus 128.59c endingScoreBonus -0.00
+H1 visits 1 edgeVisits 1 utilityNoBonus -102.78c utilityWithBonus -102.78c endingScoreBonus -0.00
+A4 visits 1 edgeVisits 1 utilityNoBonus -102.87c utilityWithBonus -102.87c endingScoreBonus -0.00
+Play selection values
+C1 9.9805
+F1 7.8554
+pass 0
+H1 7.8554
+A4 10
 MoveNum: 1 HASH: 7135F647A10B2E3F96CBC220C17216F6
    A B C D E F G H J
  9 . O . . . . X O .
@@ -8274,6 +8380,39 @@ C4  pss : T -100.70c W -99.71c S  -0.99c ( -0.7 L  -0.9) LCB -450.70c P 44.46% W
 B3  : T -102.56c W -99.86c S  -2.70c ( -1.2 L  -1.2) LCB  247.44c P  4.32% WF   4.0 PSV       5 N       1  --  B3
 J1  : T -102.13c W -99.83c S  -2.30c ( -1.1 L  -1.2) LCB  247.87c P  3.83% WF   3.8 PSV       4 N       1  --  J1
 pss : T 128.59c W  99.93c S  28.66c (+18.9 L +20.1) LCB 1400.00c P  0.02% WF   0.0 PSV       0 N       1  --  pass
+  99.7  100.0   99.9   99.9   99.9   99.9   99.4  100.0   99.7 
+  99.9  100.0  100.0  100.0  100.0  100.0  100.0  100.0   99.9 
+  99.9   99.6   99.9   99.9   99.9  100.0   99.9  100.0   99.6 
+ 100.0  100.0  100.0  100.0  100.0  100.0  100.0  100.0  100.0 
+-100.0 -100.0 -100.0 -100.0 -100.0 -100.0 -100.0  -99.9  -99.9 
+ -99.8  -99.5  -99.8  -99.7 -100.0  -99.9  -99.9  -99.9  -99.9 
+ -99.7  -99.7  -99.5  -99.3 -100.0 -100.0 -100.0 -100.0 -100.0 
+ -99.7  -99.5  -99.9 -100.0 -100.0  -99.6  -99.9  -99.5  -99.6 
+ -99.8  -99.9  -99.8  -99.9  -99.8  -99.7  -99.8  -99.8  -99.7 
+
+C1 visits 3 edgeVisits 3 utilityNoBonus -101.41c utilityWithBonus -101.41c endingScoreBonus -0.00
+F1 visits 2 edgeVisits 2 utilityNoBonus -100.79c utilityWithBonus -100.79c endingScoreBonus -0.00
+pass visits 1 edgeVisits 0 utilityNoBonus 128.59c utilityWithBonus 128.59c endingScoreBonus -0.00
+H1 visits 2 edgeVisits 2 utilityNoBonus -100.89c utilityWithBonus -100.89c endingScoreBonus -0.00
+A4 visits 2 edgeVisits 2 utilityNoBonus -101.03c utilityWithBonus -101.03c endingScoreBonus -0.00
+G2 visits 2 edgeVisits 2 utilityNoBonus -101.22c utilityWithBonus -101.22c endingScoreBonus -0.00
+D4 visits 2 edgeVisits 2 utilityNoBonus -100.82c utilityWithBonus -100.82c endingScoreBonus -0.00
+A2 visits 2 edgeVisits 2 utilityNoBonus -101.01c utilityWithBonus -101.01c endingScoreBonus -0.00
+C4 visits 2 edgeVisits 2 utilityNoBonus -101.26c utilityWithBonus -101.26c endingScoreBonus -0.00
+B3 visits 1 edgeVisits 1 utilityNoBonus -102.56c utilityWithBonus -102.56c endingScoreBonus -0.00
+J1 visits 1 edgeVisits 1 utilityNoBonus -102.13c utilityWithBonus -102.13c endingScoreBonus -0.00
+Play selection values
+C1 13.1292
+F1 7
+pass 0
+H1 6
+A4 6
+G2 6
+D4 6
+A2 6
+C4 5
+B3 5
+J1 4
 MoveNum: 1 HASH: 7135F647A10B2E3F96CBC220C17216F6
    A B C D E F G H J
  9 . O . . . . X O .
@@ -8402,6 +8541,43 @@ H4  : T -102.73c W -99.88c S  -2.85c ( -1.3 L  -1.3) LCB  248.81c P  1.70% WF   
 J4  : T -100.64c W -99.78c S  -1.46c ( -0.8 L  -1.0) LCB   49.99c P  2.19% WF   8.2 PSV       3 N       2  --  J4 pass
 J4  pss : T -99.90c W -99.70c S  -0.21c ( -0.4 L  -0.7) LCB -449.90c P 44.32% WF   4.2 PSV       4 N       1  --  pass
 pss : T 128.59c W  99.93c S  28.66c (+18.9 L +20.1) LCB 1400.00c P  0.02% WF   0.0 PSV       0 N       1  --  pass
+  99.7  100.0   99.9   99.9   99.9   99.9   99.4  100.0   99.7 
+  99.9  100.0  100.0  100.0  100.0  100.0  100.0  100.0   99.9 
+  99.9   99.6   99.9   99.9   99.9  100.0   99.9  100.0   99.6 
+ 100.0  100.0  100.0  100.0  100.0  100.0  100.0  100.0  100.0 
+-100.0 -100.0 -100.0 -100.0 -100.0 -100.0 -100.0  -99.9  -99.9 
+ -99.8  -99.5  -99.8  -99.7 -100.0  -99.9  -99.9  -99.9  -99.9 
+ -99.7  -99.7  -99.5  -99.3 -100.0 -100.0 -100.0 -100.0 -100.0 
+ -99.7  -99.5  -99.9 -100.0 -100.0  -99.6  -99.9  -99.5  -99.6 
+ -99.8  -99.9  -99.8  -99.9  -99.8  -99.7  -99.8  -99.8  -99.7 
+
+C1 visits 18 edgeVisits 18 utilityNoBonus -101.94c utilityWithBonus -101.94c endingScoreBonus -0.00
+F1 visits 13 edgeVisits 13 utilityNoBonus -101.90c utilityWithBonus -101.90c endingScoreBonus -0.00
+pass visits 1 edgeVisits 0 utilityNoBonus 128.59c utilityWithBonus 128.59c endingScoreBonus -0.00
+H1 visits 6 edgeVisits 6 utilityNoBonus -101.10c utilityWithBonus -101.10c endingScoreBonus -0.00
+A4 visits 14 edgeVisits 14 utilityNoBonus -102.31c utilityWithBonus -102.31c endingScoreBonus -0.00
+G2 visits 12 edgeVisits 12 utilityNoBonus -102.13c utilityWithBonus -102.13c endingScoreBonus -0.00
+D4 visits 7 edgeVisits 7 utilityNoBonus -101.40c utilityWithBonus -101.40c endingScoreBonus -0.00
+A2 visits 12 edgeVisits 12 utilityNoBonus -102.39c utilityWithBonus -102.39c endingScoreBonus -0.00
+C4 visits 7 edgeVisits 7 utilityNoBonus -101.78c utilityWithBonus -101.78c endingScoreBonus -0.00
+B3 visits 5 edgeVisits 5 utilityNoBonus -101.59c utilityWithBonus -101.59c endingScoreBonus -0.00
+J1 visits 2 edgeVisits 2 utilityNoBonus -100.41c utilityWithBonus -100.41c endingScoreBonus -0.00
+J4 visits 2 edgeVisits 2 utilityNoBonus -100.64c utilityWithBonus -99.11c endingScoreBonus 0.49
+H4 visits 1 edgeVisits 1 utilityNoBonus -102.73c utilityWithBonus -101.19c endingScoreBonus 0.49
+Play selection values
+C1 90.6237
+F1 49
+pass 0
+H1 26
+A4 59
+G2 49
+D4 28
+A2 51
+C4 30
+B3 17
+J1 8
+J4 3
+H4 5
 More passing hack 2 ==========================================================================
 
 params.enableMorePassingHacks = false
@@ -8431,6 +8607,25 @@ pss : T -94.28c W -99.78c S   5.50c ( +0.7 L  -1.4) LCB -444.28c P 27.44% WF   4
 J8  : T -95.55c W -99.84c S   4.29c ( +0.3 L  -1.6) LCB -445.55c P 12.65% WF   4.2 PSV       2 N       1  --  J8
 A7  : T -95.16c W -99.79c S   4.63c ( +0.5 L  -1.4) LCB -445.16c P 12.24% WF   4.1 PSV       2 N       1  --  A7
 F9  : T -95.50c W -99.83c S   4.33c ( +0.4 L  -1.5) LCB -445.50c P 11.33% WF   4.2 PSV       1 N       1  --  F9
+  99.9  100.0   99.9   99.9   99.9   99.7   99.9  100.0   99.9 
+  99.9  100.0  100.0  100.0  100.0  100.0  100.0  100.0   99.7 
+  99.6   99.9   99.8  100.0   99.9  100.0   99.9  100.0   99.9 
+ 100.0  100.0  100.0  100.0  100.0  100.0  100.0  100.0  100.0 
+-100.0 -100.0 -100.0 -100.0 -100.0 -100.0 -100.0 -100.0 -100.0 
+-100.0  -98.4  -99.9 -100.0 -100.0  -99.9 -100.0  -99.9  -99.9 
+ -99.9  -99.9  -98.5  -98.1 -100.0 -100.0 -100.0 -100.0  -99.9 
+ -99.9  -99.2  -99.9 -100.0 -100.0  -98.7 -100.0  -98.4  -99.9 
+ -99.8 -100.0 -100.0  -99.9  -99.9  -99.9  -99.9  -99.9  -99.9 
+
+pass visits 1 edgeVisits 1 utilityNoBonus -94.28c utilityWithBonus -94.28c endingScoreBonus 0.00
+J8 visits 1 edgeVisits 1 utilityNoBonus -95.55c utilityWithBonus -95.55c endingScoreBonus 0.00
+A7 visits 1 edgeVisits 1 utilityNoBonus -95.16c utilityWithBonus -95.16c endingScoreBonus 0.00
+F9 visits 1 edgeVisits 1 utilityNoBonus -95.50c utilityWithBonus -95.50c endingScoreBonus 0.00
+Play selection values
+pass 10
+J8 4.79991
+A7 4.79991
+F9 2.39996
 MoveNum: 1 HASH: 1BB1D766222B96A34619FF83859C8B3A
    A B C D E F G H J
  9 . O . . . . X O .
@@ -8469,6 +8664,27 @@ F9  pss pss : T -101.47c W -100.00c S  -1.47c ( -1.5 L  -1.5) LCB -451.47c P 42.
 C7  : T -100.74c W -99.93c S  -0.18c ( -1.1 L  -1.4) LCB -186.63c P  8.99% WF  17.0 PSV      13 N       3  --  C7 pass pass
 C7  pss : T -101.55c W -99.97c S  -1.64c ( -1.6 L  -1.4) LCB   61.12c P 39.01% WF  12.9 PSV      13 N       2  --  pass pass
 C7  pss pss : T -101.47c W -100.00c S  -1.47c ( -1.5 L  -1.5) LCB -451.47c P 41.43% WF   8.0 PSV       8 N       1  --  pass
+  99.9  100.0   99.9   99.9   99.9   99.7   99.9  100.0   99.9 
+  99.9  100.0  100.0  100.0  100.0  100.0  100.0  100.0   99.7 
+  99.6   99.9   99.8  100.0   99.9  100.0   99.9  100.0   99.9 
+ 100.0  100.0  100.0  100.0  100.0  100.0  100.0  100.0  100.0 
+-100.0 -100.0 -100.0 -100.0 -100.0 -100.0 -100.0 -100.0 -100.0 
+-100.0  -98.4  -99.9 -100.0 -100.0  -99.9 -100.0  -99.9  -99.9 
+ -99.9  -99.9  -98.5  -98.1 -100.0 -100.0 -100.0 -100.0  -99.9 
+ -99.9  -99.2  -99.9 -100.0 -100.0  -98.7 -100.0  -98.4  -99.9 
+ -99.8 -100.0 -100.0  -99.9  -99.9  -99.9  -99.9  -99.9  -99.9 
+
+pass visits 5 edgeVisits 5 utilityNoBonus -101.02c utilityWithBonus -101.02c endingScoreBonus 0.00
+J8 visits 5 edgeVisits 5 utilityNoBonus -99.64c utilityWithBonus -99.64c endingScoreBonus 0.00
+A7 visits 3 edgeVisits 3 utilityNoBonus -100.67c utilityWithBonus -100.67c endingScoreBonus 0.00
+F9 visits 3 edgeVisits 3 utilityNoBonus -100.70c utilityWithBonus -100.70c endingScoreBonus 0.00
+C7 visits 3 edgeVisits 3 utilityNoBonus -100.74c utilityWithBonus -100.74c endingScoreBonus 0.00
+Play selection values
+pass 36.1667
+J8 26
+A7 17
+F9 17
+C7 13
 MoveNum: 1 HASH: 1BB1D766222B96A34619FF83859C8B3A
    A B C D E F G H J
  9 . O . . . . X O .
@@ -8581,6 +8797,41 @@ A9  : T -100.31c W -99.87c S   0.79c ( -0.8 L  -1.4) LCB -251.67c P  1.52% WF   
 A9  pss : T -101.81c W -99.92c S  -1.89c ( -1.6 L  -1.3) LCB  248.19c P 39.63% WF   4.7 PSV       5 N       1  --  pass
 E9  : T -100.16c W -99.86c S   1.01c ( -0.7 L  -1.4) LCB -251.51c P  1.48% WF   8.9 PSV       3 N       2  --  E9 pass
 E9  pss : T -101.75c W -99.92c S  -1.84c ( -1.6 L  -1.3) LCB  248.25c P 40.92% WF   4.7 PSV       5 N       1  --  pass
+  99.9  100.0   99.9   99.9   99.9   99.7   99.9  100.0   99.9 
+  99.9  100.0  100.0  100.0  100.0  100.0  100.0  100.0   99.7 
+  99.6   99.9   99.8  100.0   99.9  100.0   99.9  100.0   99.9 
+ 100.0  100.0  100.0  100.0  100.0  100.0  100.0  100.0  100.0 
+-100.0 -100.0 -100.0 -100.0 -100.0 -100.0 -100.0 -100.0 -100.0 
+-100.0  -98.4  -99.9 -100.0 -100.0  -99.9 -100.0  -99.9  -99.9 
+ -99.9  -99.9  -98.5  -98.1 -100.0 -100.0 -100.0 -100.0  -99.9 
+ -99.9  -99.2  -99.9 -100.0 -100.0  -98.7 -100.0  -98.4  -99.9 
+ -99.8 -100.0 -100.0  -99.9  -99.9  -99.9  -99.9  -99.9  -99.9 
+
+pass visits 15 edgeVisits 15 utilityNoBonus -100.45c utilityWithBonus -100.45c endingScoreBonus 0.00
+J8 visits 19 edgeVisits 19 utilityNoBonus -99.25c utilityWithBonus -99.25c endingScoreBonus 0.00
+A7 visits 23 edgeVisits 23 utilityNoBonus -99.20c utilityWithBonus -99.20c endingScoreBonus 0.00
+F9 visits 23 edgeVisits 23 utilityNoBonus -99.27c utilityWithBonus -99.27c endingScoreBonus 0.00
+C7 visits 5 edgeVisits 5 utilityNoBonus -100.68c utilityWithBonus -100.68c endingScoreBonus 0.00
+F7 visits 2 edgeVisits 2 utilityNoBonus -100.58c utilityWithBonus -102.12c endingScoreBonus -0.50
+D7 visits 2 edgeVisits 2 utilityNoBonus -100.72c utilityWithBonus -102.26c endingScoreBonus -0.50
+G7 visits 2 edgeVisits 2 utilityNoBonus -100.52c utilityWithBonus -102.05c endingScoreBonus -0.49
+E7 visits 2 edgeVisits 2 utilityNoBonus -100.64c utilityWithBonus -102.17c endingScoreBonus -0.49
+J9 visits 2 edgeVisits 2 utilityNoBonus -100.13c utilityWithBonus -101.66c endingScoreBonus -0.49
+A9 visits 2 edgeVisits 2 utilityNoBonus -100.31c utilityWithBonus -101.83c endingScoreBonus -0.49
+E9 visits 2 edgeVisits 2 utilityNoBonus -100.16c utilityWithBonus -101.69c endingScoreBonus -0.49
+Play selection values
+pass 96
+J8 97
+A7 118
+F9 187.752
+C7 27
+F7 3
+D7 3
+G7 3
+E7 3
+J9 3
+A9 3
+E9 3
 params.enableMorePassingHacks = true
 MoveNum: 1 HASH: 1BB1D766222B96A34619FF83859C8B3A
    A B C D E F G H J
@@ -8608,6 +8859,25 @@ pss : T -94.28c W -99.78c S   5.50c ( +0.7 L  -1.4) LCB -444.28c P 27.44% WF   4
 J8  : T -95.55c W -99.84c S   4.29c ( +0.3 L  -1.6) LCB -445.55c P 12.65% WF   4.2 PSV       2 N       1  --  J8
 A7  : T -95.16c W -99.79c S   4.63c ( +0.5 L  -1.4) LCB -445.16c P 12.24% WF   4.1 PSV       2 N       1  --  A7
 F9  : T -95.50c W -99.83c S   4.33c ( +0.4 L  -1.5) LCB -445.50c P 11.33% WF   4.2 PSV       1 N       1  --  F9
+  99.9  100.0   99.9   99.9   99.9   99.7   99.9  100.0   99.9 
+  99.9  100.0  100.0  100.0  100.0  100.0  100.0  100.0   99.7 
+  99.6   99.9   99.8  100.0   99.9  100.0   99.9  100.0   99.9 
+ 100.0  100.0  100.0  100.0  100.0  100.0  100.0  100.0  100.0 
+-100.0 -100.0 -100.0 -100.0 -100.0 -100.0 -100.0 -100.0 -100.0 
+-100.0  -98.4  -99.9 -100.0 -100.0  -99.9 -100.0  -99.9  -99.9 
+ -99.9  -99.9  -98.5  -98.1 -100.0 -100.0 -100.0 -100.0  -99.9 
+ -99.9  -99.2  -99.9 -100.0 -100.0  -98.7 -100.0  -98.4  -99.9 
+ -99.8 -100.0 -100.0  -99.9  -99.9  -99.9  -99.9  -99.9  -99.9 
+
+pass visits 1 edgeVisits 1 utilityNoBonus -94.28c utilityWithBonus -94.28c endingScoreBonus 0.00
+J8 visits 1 edgeVisits 1 utilityNoBonus -95.55c utilityWithBonus -95.55c endingScoreBonus 0.00
+A7 visits 1 edgeVisits 1 utilityNoBonus -95.16c utilityWithBonus -95.16c endingScoreBonus 0.00
+F9 visits 1 edgeVisits 1 utilityNoBonus -95.50c utilityWithBonus -95.50c endingScoreBonus 0.00
+Play selection values
+pass 10
+J8 4.79991
+A7 4.79991
+F9 2.39996
 MoveNum: 1 HASH: 1BB1D766222B96A34619FF83859C8B3A
    A B C D E F G H J
  9 . O . . . . X O .
@@ -8647,6 +8917,27 @@ F9  pss pss : T -101.47c W -100.00c S  -1.47c ( -1.5 L  -1.5) LCB -451.47c P 42.
 C7  : T -100.74c W -99.93c S  -0.18c ( -1.1 L  -1.4) LCB -186.63c P  8.99% WF  17.0 PSV      13 N       3  --  C7 pass pass
 C7  pss : T -101.55c W -99.97c S  -1.64c ( -1.6 L  -1.4) LCB   61.12c P 39.01% WF  12.9 PSV      13 N       2  --  pass pass
 C7  pss pss : T -101.47c W -100.00c S  -1.47c ( -1.5 L  -1.5) LCB -451.47c P 41.43% WF   8.0 PSV       8 N       1  --  pass
+  99.9  100.0   99.9   99.9   99.9   99.7   99.9  100.0   99.9 
+  99.9  100.0  100.0  100.0  100.0  100.0  100.0  100.0   99.7 
+  99.6   99.9   99.8  100.0   99.9  100.0   99.9  100.0   99.9 
+ 100.0  100.0  100.0  100.0  100.0  100.0  100.0  100.0  100.0 
+-100.0 -100.0 -100.0 -100.0 -100.0 -100.0 -100.0 -100.0 -100.0 
+-100.0  -98.4  -99.9 -100.0 -100.0  -99.9 -100.0  -99.9  -99.9 
+ -99.9  -99.9  -98.5  -98.1 -100.0 -100.0 -100.0 -100.0  -99.9 
+ -99.9  -99.2  -99.9 -100.0 -100.0  -98.7 -100.0  -98.4  -99.9 
+ -99.8 -100.0 -100.0  -99.9  -99.9  -99.9  -99.9  -99.9  -99.9 
+
+pass visits 5 edgeVisits 5 utilityNoBonus -101.02c utilityWithBonus -101.02c endingScoreBonus 0.00
+J8 visits 5 edgeVisits 5 utilityNoBonus -99.64c utilityWithBonus -99.64c endingScoreBonus 0.00
+A7 visits 3 edgeVisits 3 utilityNoBonus -100.67c utilityWithBonus -100.67c endingScoreBonus 0.00
+F9 visits 3 edgeVisits 3 utilityNoBonus -100.70c utilityWithBonus -100.70c endingScoreBonus 0.00
+C7 visits 3 edgeVisits 3 utilityNoBonus -100.74c utilityWithBonus -100.74c endingScoreBonus 0.00
+Play selection values
+pass 36.1667
+J8 26
+A7 17
+F9 17
+C7 13
 MoveNum: 1 HASH: 1BB1D766222B96A34619FF83859C8B3A
    A B C D E F G H J
  9 . O . . . . X O .
@@ -8759,5 +9050,40 @@ A9  : T -100.31c W -99.87c S   0.79c ( -0.8 L  -1.4) LCB -251.67c P  1.52% WF   
 A9  pss : T -101.81c W -99.92c S  -1.89c ( -1.6 L  -1.3) LCB  248.19c P 39.63% WF   4.7 PSV       5 N       1  --  pass
 E9  : T -100.16c W -99.86c S   1.01c ( -0.7 L  -1.4) LCB -251.51c P  1.48% WF   8.9 PSV       3 N       2  --  E9 pass
 E9  pss : T -101.75c W -99.92c S  -1.84c ( -1.6 L  -1.3) LCB  248.25c P 40.92% WF   4.7 PSV       5 N       1  --  pass
+  99.9  100.0   99.9   99.9   99.9   99.7   99.9  100.0   99.9 
+  99.9  100.0  100.0  100.0  100.0  100.0  100.0  100.0   99.7 
+  99.6   99.9   99.8  100.0   99.9  100.0   99.9  100.0   99.9 
+ 100.0  100.0  100.0  100.0  100.0  100.0  100.0  100.0  100.0 
+-100.0 -100.0 -100.0 -100.0 -100.0 -100.0 -100.0 -100.0 -100.0 
+-100.0  -98.4  -99.9 -100.0 -100.0  -99.9 -100.0  -99.9  -99.9 
+ -99.9  -99.9  -98.5  -98.1 -100.0 -100.0 -100.0 -100.0  -99.9 
+ -99.9  -99.2  -99.9 -100.0 -100.0  -98.7 -100.0  -98.4  -99.9 
+ -99.8 -100.0 -100.0  -99.9  -99.9  -99.9  -99.9  -99.9  -99.9 
+
+pass visits 15 edgeVisits 15 utilityNoBonus -100.45c utilityWithBonus -100.45c endingScoreBonus 0.00
+J8 visits 19 edgeVisits 19 utilityNoBonus -99.25c utilityWithBonus -99.25c endingScoreBonus 0.00
+A7 visits 23 edgeVisits 23 utilityNoBonus -99.20c utilityWithBonus -99.20c endingScoreBonus 0.00
+F9 visits 23 edgeVisits 23 utilityNoBonus -99.27c utilityWithBonus -99.27c endingScoreBonus 0.00
+C7 visits 5 edgeVisits 5 utilityNoBonus -100.68c utilityWithBonus -100.68c endingScoreBonus 0.00
+F7 visits 2 edgeVisits 2 utilityNoBonus -100.58c utilityWithBonus -102.12c endingScoreBonus -0.50
+D7 visits 2 edgeVisits 2 utilityNoBonus -100.72c utilityWithBonus -102.26c endingScoreBonus -0.50
+G7 visits 2 edgeVisits 2 utilityNoBonus -100.52c utilityWithBonus -102.05c endingScoreBonus -0.49
+E7 visits 2 edgeVisits 2 utilityNoBonus -100.64c utilityWithBonus -102.17c endingScoreBonus -0.49
+J9 visits 2 edgeVisits 2 utilityNoBonus -100.13c utilityWithBonus -101.66c endingScoreBonus -0.49
+A9 visits 2 edgeVisits 2 utilityNoBonus -100.31c utilityWithBonus -101.83c endingScoreBonus -0.49
+E9 visits 2 edgeVisits 2 utilityNoBonus -100.16c utilityWithBonus -101.69c endingScoreBonus -0.49
+Play selection values
+pass 96
+J8 97
+A7 118
+F9 187.752
+C7 27
+F7 3
+D7 3
+G7 3
+E7 3
+J9 3
+A9 3
+E9 3
 : GPU 0 finishing, processed 11573 rows 11573 batches
 Done

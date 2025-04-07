@@ -635,6 +635,8 @@ xxxxxxxxx
 
       TestSearchOptions opts;
       opts.printMoreMoreMore = true;
+      opts.printEndingScoreValueBonus = true;
+      opts.printPlaySelectionValues = true;
 
       AsyncBot* bot = new AsyncBot(params, nnEval, &logger, getSearchRandSeed());
       params.enableMorePassingHacks = false;
@@ -703,6 +705,8 @@ x.ooxxxxx
 
       TestSearchOptions opts;
       opts.printMoreMoreMore = true;
+      opts.printEndingScoreValueBonus = true;
+      opts.printPlaySelectionValues = true;
 
       AsyncBot* bot = new AsyncBot(params, nnEval, &logger, getSearchRandSeed());
 
