@@ -88,6 +88,9 @@ namespace Tests {
     int maxBatchSizeCap,
     bool verbose,
     bool quickTest,
+    double policyOptimismForTest,
+    double pdaForTest,
+    double nnPolicyTemperatureForTest,
     bool& fp32BatchSuccessBuf,
     //Values on disk to compare correctness. We consider the pure-cpu float32 Eigen implementation of the neural network
     //to be the source of truth, since it is more likely to be stable and doesn't depend special hardware or drivers like

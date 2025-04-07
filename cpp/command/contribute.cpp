@@ -918,8 +918,20 @@ int MainCmds::contribute(const vector<string>& args) {
       bool fp32BatchSuccessBuf = true;
       bool fp32BatchSuccessBufRect = true;
       const string referenceFileName = "";
-      bool success = Tests::runBackendErrorTest(nnEval,nnEval32,logger,"19",maxBatchSizeCap,verbose,quickTest,fp32BatchSuccessBuf,referenceFileName);
-      bool successRect = Tests::runBackendErrorTest(nnEval,nnEval32,logger,"rectangle",maxBatchSizeCap,verbose,quickTest,fp32BatchSuccessBufRect,referenceFileName);
+      const double policyOptimismForTest = 0.25;
+      const double pdaForTest = 0.0;
+      const double nnPolicyTemperatureForTest = 1.0;
+
+      bool success = Tests::runBackendErrorTest(
+        nnEval,nnEval32,logger,"19",maxBatchSizeCap,verbose,quickTest,
+        policyOptimismForTest,pdaForTest,nnPolicyTemperatureForTest,
+        fp32BatchSuccessBuf,referenceFileName
+      );
+      bool successRect = Tests::runBackendErrorTest(
+        nnEval,nnEval32,logger,"rectangle",maxBatchSizeCap,verbose,quickTest,
+        policyOptimismForTest,pdaForTest,nnPolicyTemperatureForTest,
+        fp32BatchSuccessBufRect,referenceFileName
+      );
 
       fp32BatchSuccessBuf = fp32BatchSuccessBuf && fp32BatchSuccessBufRect;
       success = success && successRect;

@@ -133,10 +133,23 @@ int MainCmds::testgpuerror(const vector<string>& args) {
     }
   }
 
+  const double policyOptimismForTest = cfg.contains("policyOptimism") ? cfg.getDouble("policyOptimism") : 0.0;
+  const double pdaForTest = cfg.contains("playoutDoublingAdvantage") ? cfg.getDouble("playoutDoublingAdvantage") : 0.0;
+  const double nnPolicyTemperatureForTest = cfg.contains("rootPolicyTemperature") ? cfg.getDouble("rootPolicyTemperature") : 1.0;
+  if(policyOptimismForTest != 0.0 || pdaForTest != 0.0 || nnPolicyTemperatureForTest != 1.0) {
+    logger.write("Using policyOptimismForTest " + Global::doubleToString(policyOptimismForTest));
+    logger.write("Using pdaForTest " + Global::doubleToString(pdaForTest));
+    logger.write("Using nnPolicyTemperatureForTest " + Global::doubleToString(nnPolicyTemperatureForTest));
+  }
+
   const int maxBatchSizeCap = -1;
   const bool verbose = true;
   bool fp32BatchSuccessBuf = true;
-  bool success = Tests::runBackendErrorTest(nnEval,nnEval32,logger,boardSizeDataset,maxBatchSizeCap,verbose,quickTest,fp32BatchSuccessBuf,referenceFileName);
+  bool success = Tests::runBackendErrorTest(
+    nnEval,nnEval32,logger,boardSizeDataset,maxBatchSizeCap,verbose,quickTest,
+    policyOptimismForTest,pdaForTest,nnPolicyTemperatureForTest,
+    fp32BatchSuccessBuf,referenceFileName
+  );
   (void)success;
   // cout << success << endl;
 

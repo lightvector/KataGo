@@ -124,6 +124,11 @@ MODELBASE9=$(basename "$MODEL9")
          -override-config "requireMaxBoardSize=True" \
          -reference-file "$REFERENCEDIR"/"$MODELBASE8"_size19.txt | tee "$RESULTSDIR"/"$MODELBASE8"_size19.txt
 
+
+./katago testgpuerror -model "$MODEL7" -config configs/gtp_example.cfg -boardsize rectangle \
+         -override-config "requireMaxBoardSize=False,policyOptimism=0.65,playoutDoublingAdvantage=0.3,nnPolicyTemperature=1.1" \
+         -reference-file "$REFERENCEDIR"/"$MODELBASE7"_sizerect_weirdsettings.txt | tee "$RESULTSDIR"/"$MODELBASE7"_sizerect_weirdsettings.txt
+
 ./katago testgpuerror -model "$MODEL9" -config configs/gtp_example.cfg -boardsize rectangle \
          -override-config "requireMaxBoardSize=False, maxBatchSize=11" \
          -reference-file "$REFERENCEDIR"/"$MODELBASE9"_sizerect.txt | tee "$RESULTSDIR"/"$MODELBASE9"_sizerect.txt

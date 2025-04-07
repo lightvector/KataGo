@@ -531,6 +531,9 @@ bool Tests::runBackendErrorTest(
   int maxBatchSizeCap,
   bool verbose,
   bool quickTest,
+  double policyOptimismForTest,
+  double pdaForTest,
+  double nnPolicyTemperatureForTest,
   bool& fp32BatchSuccessBuf,
   const string& referenceFileName
 ) {
@@ -590,6 +593,10 @@ bool Tests::runBackendErrorTest(
     Board board = hist.getRecentBoard(0);
     MiscNNInputParams nnInputParams;
     nnInputParams.symmetry = (int)(BoardHistory::getSituationRulesAndKoHash(board,hist,hist.presumedNextMovePla,0.5).hash0 & 7);
+    nnInputParams.policyOptimism = policyOptimismForTest;
+    nnInputParams.playoutDoublingAdvantage = pdaForTest;
+    nnInputParams.nnPolicyTemperature = (float)nnPolicyTemperatureForTest;
+
     NNResultBuf buf;
     bool skipCache = true;
     bool includeOwnerMap = true;
