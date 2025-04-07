@@ -458,10 +458,6 @@ metalhandle(maybeCreateMetalComputeHandle((gpuIdx < 100),
                                           serverThreadIdx,
                                           MetalProcess::modelDescToSwift(&loadedModel->modelDesc),
                                           context->metalComputeContext)) {
-
-  if(inputsUseNHWC != false) {
-    throw StringError("Metal backend: inputsUseNHWC = false required, other configurations not supported");
-  }
   
   const ModelDesc* modelDesc = &loadedModel->modelDesc;
   auto metalContext = context->metalComputeContext;
@@ -672,6 +668,71 @@ void MetalProcess::copyRowData(float* dest, const float* src, size_t numElements
   copy(src, src + numElements, dest);
 }
 
+/**
+ * @brief Convert input data from NHWC format to NCHW format in-place if necessary.
+ *
+ * @param data Pointer to the input data (single batch element assumed).
+ * @param C Number of channels.
+ * @param H Height.
+ * @param W Width.
+ * @param inputsUseNHWC Flag indicating if the input data is currently in NHWC format.
+ */
+void MetalProcess::convertNCHW(
+    float* rowSpatialInput,
+    const int C,
+    const int H,
+    const int W,
+    const bool inputsUseNHWC) {
+
+  if ((!inputsUseNHWC) || (C <= 0) || (H <= 0) || (W <= 0)) {
+    return;
+  }
+
+  const int totalSize = H * W * C;
+
+  if (totalSize <= 1)
+    return;
+
+  const int HW = H * W;
+
+  auto get_nchw_target_index = [C, W, HW](int nhwc_index) -> int {
+    int c = nhwc_index % C;
+    int temp = nhwc_index / C;
+    int x = temp % W;
+    int y = temp / W;
+    return (c * HW) + (y * W) + x;
+  };
+
+  std::vector<bool> processed(totalSize, false);
+
+  for (int i = 0; i < totalSize; ++i) {
+    if (processed[i])
+      continue;
+
+    int target_i = get_nchw_target_index(i);
+
+    if (target_i == i) {
+      processed[i] = true;
+      continue;
+    }
+
+    int current_idx = i;
+    float value_in_hand = rowSpatialInput[i];
+
+    while (true) {
+      int target_idx = get_nchw_target_index(current_idx);
+      float value_at_target = rowSpatialInput[target_idx];
+      rowSpatialInput[target_idx] = value_in_hand;
+      processed[target_idx] = true;
+      value_in_hand = value_at_target;
+      current_idx = target_idx;
+      
+      if (current_idx == i)
+        break;
+    }
+  }
+}
+
 void MetalProcess::processRowData(size_t row, ComputeHandle* gpuHandle, InputBuffers* inputBuffers, NNResultBuf** inputBufs) {
   int nnXLen = gpuHandle->nnXLen;
   int nnYLen = gpuHandle->nnYLen;
@@ -696,6 +757,13 @@ void MetalProcess::processRowData(size_t row, ComputeHandle* gpuHandle, InputBuf
     numSpatialFeatures,
     gpuHandle->inputsUseNHWC,
     inputBufs[row]->symmetry);
+
+  MetalProcess::convertNCHW(
+    rowSpatialInput,
+    numSpatialFeatures,
+    nnYLen,
+    nnXLen,
+    gpuHandle->inputsUseNHWC);
 }
 
 float MetalProcess::policyOptimismCalc(const double policyOptimism, const float p, const float pOpt) {

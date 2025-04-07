@@ -60,6 +60,7 @@ bool testEvaluateGlobalPoolingResidualBlock(const GlobalPoolingResidualBlockDesc
                                             vector<float>& outputBuffer);
 
 void copyRowData(float* dest, const float* src, size_t numElements);
+void convertNCHW(float* rowSpatialInput, int C, int H, int W, bool inputsUseNHWC);
 void processRowData(size_t row, ComputeHandle* gpuHandle, InputBuffers* inputBuffers, NNResultBuf** inputBufs);
 float policyOptimismCalc(const double policyOptimism, const float p, const float pOpt);
 void processOptimism(InputBuffers* inputBuffers, NNOutput* currentOutput, const double policyOptimism, size_t row);
