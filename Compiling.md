@@ -96,3 +96,38 @@ As also mentioned in the instructions below but repeated here for visibility, if
    * Pre-trained neural nets are available at [the main training website](https://katagotraining.org/).
    * You will probably want to edit `configs/gtp_example.cfg` (see "Tuning for Performance" above).
    * If using OpenCL, you will want to verify that KataGo is picking up the correct device (e.g. some systems may have both an Intel CPU OpenCL and GPU OpenCL, if KataGo appears to pick the wrong one, you can correct this by specifying `openclGpuToUse` in `configs/gtp_example.cfg`).
+
+## MacOS
+   * TLDR:
+     ```
+     git clone https://github.com/lightvector/KataGo.git
+     cd KataGo/cpp
+     # If you get missing library errors, install the appropriate packages using your system package manager and try again.
+     # -DBUILD_DISTRIBUTED=1 is only needed if you want to contribute back to public training.
+     cmake -G Ninja -DUSE_BACKEND=METAL -DBUILD_DISTRIBUTED=1
+     ninja
+     ```
+   * Requirements
+      * [Homebrew](https://brew.sh): `/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"`
+      * CMake with a minimum version of 3.18.2: `brew install cmake`.
+      * AppleClang and Swift compilers: `xcode-select --install`.
+      * If using the Metal backend, [Ninja](https://ninja-build.org): `brew install ninja`
+      * libzip: `brew install libzip`.
+      * If you want to do self-play training and research, probably Google perftools `brew install gperftools` for TCMalloc or some other better malloc implementation. For unknown reasons, the allocation pattern in self-play with large numbers of threads and parallel games causes a lot of memory fragmentation under glibc malloc that will eventually run your machine out of memory, but better mallocs handle it fine.
+      * If compiling to contribute to public distributed training runs, OpenSSL is required (`brew install openssl`).
+   * Clone this repo:
+      * `git clone https://github.com/lightvector/KataGo.git`
+   * Compile using CMake and make in the cpp directory:
+      * `cd KataGo/cpp`
+      * `cmake . -G Ninja -DUSE_BACKEND=METAL` or `cmake . -DUSE_BACKEND=OPENCL` or `cmake . -DUSE_BACKEND=EIGEN` depending on which backend you want.
+         * Specify also `-DUSE_TCMALLOC=1` if using TCMalloc.
+         * Compiling will also call git commands to embed the git hash into the compiled executable, specify also `-DNO_GIT_REVISION=1` to disable it if this is causing issues for you.
+         * Specify `-DUSE_AVX2=1` to also compile Eigen with AVX2 and FMA support, which will make it incompatible with old CPUs but much faster. Intel-based Macs with new processors support AVX2, but Apple Silicon Macs do not support AVX2 natively. (If you want to go further, you can also add `-DCMAKE_CXX_FLAGS='-march=native'` which will specialize to precisely your machine's CPU, but the exe might not run on other machines at all).
+         * Specify `-DBUILD_DISTRIBUTED=1` to compile with support for contributing data to public distributed training runs.
+            * If building distributed, you will also need to build with Git revision support, including building within a clone of the repo, as opposed to merely an unzipped copy of its source.
+            * Only builds from specific tagged versions or branches can contribute, in particular, instead of the `master` branch, use either the latest [release](https://github.com/lightvector/KataGo/releases) tag or the tip of the `stable` branch. To minimize the chance of any data incompatibilities or bugs, please do NOT attempt to contribute with custom changes or circumvent these limitations.
+      * `ninja` for Metal backend, or `make` for other backends.
+   * Done! You should now have a compiled `katago` executable in your working directory.
+   * Pre-trained neural nets are available at [the main training website](https://katagotraining.org/).
+   * You will probably want to edit `configs/gtp_example.cfg` (see "Tuning for Performance" above).
+   * If using OpenCL, you will want to verify that KataGo is picking up the correct device when you run it (e.g. some systems may have both an Intel CPU OpenCL and GPU OpenCL, if KataGo appears to pick the wrong one, you can correct this by specifying `openclGpuToUse` in `configs/gtp_example.cfg`).
