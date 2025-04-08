@@ -241,26 +241,6 @@ struct ComputeHandle {
   bool useFP16;
 
   /**
-   * @brief The x length of the CoreML model.
-   */
-  int modelXLen = COMPILE_MAX_BOARD_LEN;
-
-  /**
-   * @brief The y length of the CoreML model.
-   */
-  int modelYLen = COMPILE_MAX_BOARD_LEN;
-
-  /**
-   * @brief The version of the CoreML model.
-   */
-  int modelVersion;
-
-  /**
-   * @brief The index of the CoreML model.
-   */
-  int modelIndex;
-
-  /**
    * @brief The Metal handle instance.
    */
   swift::Optional<MetalComputeHandle> metalhandle;
