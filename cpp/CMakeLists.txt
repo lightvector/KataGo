@@ -37,7 +37,7 @@ set_property(CACHE USE_BACKEND PROPERTY STRINGS "" CUDA TENSORRT OPENCL EIGEN)
 set(USE_TCMALLOC 0 CACHE BOOL "Use TCMalloc")
 set(NO_GIT_REVISION 0 CACHE BOOL "Disable embedding the git revision into the compiled exe")
 set(USE_AVX2 0 CACHE BOOL "Compile with AVX2")
-set(USE_BIGGER_BOARDS_EXPENSIVE 0 CACHE BOOL "Allow boards up to size 29. Compiling with this will use more memory and slow down KataGo, even when playing on boards of size 19.")
+set(USE_BIGGER_BOARDS_EXPENSIVE 0 CACHE BOOL "Allow boards up to size 39. Compiling with this will use more memory and slow down KataGo, even when playing on boards of size 19.")
 
 set(USE_CACHE_TENSORRT_PLAN 0 CACHE BOOL "Use TENSORRT plan cache. May use a lot of disk space. Only applies when USE_BACKEND is TENSORRT.")
 mark_as_advanced(USE_CACHE_TENSORRT_PLAN)
@@ -401,7 +401,7 @@ elseif(USE_BACKEND STREQUAL "EIGEN")
 endif()
 
 if(USE_BIGGER_BOARDS_EXPENSIVE)
-  target_compile_definitions(katago PRIVATE COMPILE_MAX_BOARD_LEN=29)
+  target_compile_definitions(katago PRIVATE COMPILE_MAX_BOARD_LEN=39)
 endif()
 
 if(NO_GIT_REVISION AND (NOT BUILD_DISTRIBUTED))
