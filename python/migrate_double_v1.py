@@ -5,6 +5,8 @@ import argparse
 import math
 import torch
 
+import load_model
+
 description = """
 Hacky script to double number of v1 channels.
 Run on a torch checkpoint.ckpt file. Replace the old one with the new one after a backup.

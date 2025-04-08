@@ -85,6 +85,7 @@ NNEvaluator::NNEvaluator(
    loadedModel(NULL),
    nnCacheTable(NULL),
    logger(lg),
+   internalModelName(),
    modelVersion(-1),
    inputsVersion(-1),
    numInputMetaChannels(0),
@@ -133,10 +134,12 @@ NNEvaluator::NNEvaluator(
     auto last = std::unique(gpuIdxs.begin(), gpuIdxs.end());
     gpuIdxs.erase(last,gpuIdxs.end());
     loadedModel = NeuralNet::loadModelFile(modelFileName,expectedSha256);
-    modelVersion = NeuralNet::getModelVersion(loadedModel);
+    const ModelDesc& desc = NeuralNet::getModelDesc(loadedModel);
+    internalModelName = desc.name;
+    modelVersion = desc.modelVersion;
     inputsVersion = NNModelVersion::getInputsVersion(modelVersion);
-    numInputMetaChannels = NeuralNet::getNumInputMetaChannels(loadedModel);
-    postProcessParams = NeuralNet::getPostProcessParams(loadedModel);
+    numInputMetaChannels = desc.numInputMetaChannels;
+    postProcessParams = desc.postProcessParams;
     computeContext = NeuralNet::createComputeContext(
       gpuIdxs,logger,nnXLen,nnYLen,
       openCLTunerFile,homeDataDirOverride,openCLReTunePerBoardSize,
@@ -144,6 +147,7 @@ NNEvaluator::NNEvaluator(
     );
   }
   else {
+    internalModelName = "random";
     modelVersion = NNModelVersion::defaultModelVersion;
     inputsVersion = NNModelVersion::getInputsVersion(modelVersion);
   }
@@ -175,10 +179,7 @@ string NNEvaluator::getModelFileName() const {
   return modelFileName;
 }
 string NNEvaluator::getInternalModelName() const {
-  if(loadedModel == NULL)
-    return "random";
-  else
-    return NeuralNet::getModelName(loadedModel);
+  return internalModelName;
 }
 
 static bool tryAbbreviateStepString(const string& input, string& buf) {
@@ -283,6 +284,10 @@ int NNEvaluator::getNNYLen() const {
 int NNEvaluator::getModelVersion() const {
   return modelVersion;
 }
+double NNEvaluator::getTrunkSpatialConvDepth() const {
+  return NeuralNet::getModelDesc(loadedModel).getTrunkSpatialConvDepth();
+}
+
 enabled_t NNEvaluator::getUsingFP16Mode() const {
   return usingFP16Mode;
 }
@@ -312,7 +317,7 @@ Rules NNEvaluator::getSupportedRules(const Rules& desiredRules, bool& supported)
     supported = true;
     return desiredRules;
   }
-  return NeuralNet::getSupportedRules(loadedModel, desiredRules, supported);
+  return NeuralNet::getModelDesc(loadedModel).getSupportedRules(desiredRules, supported);
 }
 
 uint64_t NNEvaluator::numRowsProcessed() const {

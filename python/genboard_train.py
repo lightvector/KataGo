@@ -18,6 +18,8 @@ import data
 from board import Board, IllegalMoveError
 from genboard_common import Model
 
+import load_model
+
 class ShuffledDataset(torch.utils.data.IterableDataset):
     def __init__(self, dataset, shuffle_buffer_size):
         super().__init__()

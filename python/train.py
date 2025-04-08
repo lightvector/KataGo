@@ -781,7 +781,7 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
             if curdatadir != last_curdatadir:
                 if not os.path.exists(curdatadir):
                     if quit_if_no_data:
-                        logging.info("Shuffled data path does not exist, there seems to be no data or not enough data yet, qutting: %s" % curdatadir)
+                        logging.info("Shuffled data path does not exist, there seems to be no data or not enough data yet, quitting: %s" % curdatadir)
                         safe_exit(barrier,0)
                     logging.info("Shuffled data path does not exist, there seems to be no shuffled data yet, waiting and trying again later: %s" % curdatadir)
                     time.sleep(30)
@@ -790,7 +790,7 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
                 trainjsonpath = os.path.join(curdatadir,"train.json")
                 if not os.path.exists(trainjsonpath):
                     if quit_if_no_data:
-                        logging.info("Shuffled data train.json file does not exist, there seems to be no data or not enough data yet, qutting: %s" % trainjsonpath)
+                        logging.info("Shuffled data train.json file does not exist, there seems to be no data or not enough data yet, quitting: %s" % trainjsonpath)
                         safe_exit(barrier,0)
                     logging.info("Shuffled data train.json file does not exist, there seems to be no shuffled data yet, waiting and trying again later: %s" % trainjsonpath)
                     time.sleep(30)
