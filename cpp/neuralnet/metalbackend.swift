@@ -80,7 +80,7 @@ extension MPSGraph {
         assert(tensor.dataType == .float32)
 
         let one = 1.0
-        let threshold = 10.39
+        let threshold = 20.0
         let thresholdTensor = constant(threshold, dataType: tensor.dataType)
         let minimumTensor = minimum(tensor, thresholdTensor, name: nil)
         let expTensor = exponent(with: minimumTensor, name: nil)
