@@ -432,6 +432,8 @@ class Book {
   int64_t getIdx(BookHash hash) const;
   BookNode* get(BookHash hash);
   const BookNode* get(BookHash hash) const;
+  BookNode* getAssertNotNull(BookHash hash);
+  const BookNode* getAssertNotNull(BookHash hash) const;
   bool add(BookHash hash, BookNode* node);
 
   enum class DFSAction {
