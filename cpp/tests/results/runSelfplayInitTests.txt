@@ -84,6 +84,7 @@ policyEntropyByTurn 0 1.64652
 searchEntropyByTurn 0 1.04598
 whiteValueTargetsByTurn 0 0.520958 0.479042 0 1.3531 - 
 whiteValueTargetsByTurn 1 1 0 0 7.5 7.5 
+whiteQValueTargetsByTurn 0 H9 0.044459 1.25631 9 H8 0.0133247 0.936689 6 J8 0.0654252 2.07194 4 
 Raw Stats 0.0912261 1.7453 1.64652
 ...........
 ...........
@@ -243,6 +244,7 @@ policyEntropyByTurn 0 2.45473
 searchEntropyByTurn 0 1.98117
 whiteValueTargetsByTurn 0 0.522784 0.477216 0 1.30921 - 
 whiteValueTargetsByTurn 1 1 0 0 7.5 7.5 
+whiteQValueTargetsByTurn 0 C8 0.0650855 1.73407 22 D9 0.0675516 1.80455 20 J4 0.0225414 0.802997 11 J8 0.0405629 1.18817 11 H9 0.0268547 0.822069 10 H8 0.0516285 1.32943 11 D8 0.0159217 0.871508 9 H4 -0.00407096 0.252719 4 H3 -0.0558828 -0.338415 1 
 Raw Stats 0.124078 2.4346 2.45473
 ...........
 ...........
@@ -371,6 +373,7 @@ policyEntropyByTurn 0 2.44762
 searchEntropyByTurn 0 2.06933
 whiteValueTargetsByTurn 0 0.51142 0.48858 0 0.922787 - 
 whiteValueTargetsByTurn 1 1 0 0 7.5 7.5 
+whiteQValueTargetsByTurn 0 D3 0.000155918 0.606477 15 H9 0.0488206 1.42919 21 H3 0.00193111 0.410675 10 J8 0.0415725 1.30119 13 J4 0.00873327 0.680133 9 H4 -0.00133479 0.309621 9 H8 0.0379642 1.29869 13 D4 -0.0198779 -0.0242527 4 C4 0.0113721 0.589509 5 
 Raw Stats 0.113391 2.56886 2.44762
 ...........
 ...........
@@ -499,6 +502,7 @@ policyEntropyByTurn 0 1.31526
 searchEntropyByTurn 0 0.83927
 whiteValueTargetsByTurn 0 0.481806 0.518194 0 -0.0246183 - 
 whiteValueTargetsByTurn 1 1 0 0 6.5 6.5 
+whiteQValueTargetsByTurn 0 G4 -0.0563495 -0.326878 11 H5 -0.00881133 0.308427 7 H3 0.158152 3.7144 1 
 Raw Stats -0.17662 -2.2811 1.31526
 ...........
 ...........
@@ -575,6 +579,9 @@ Presumed next pla White
 Past normal phase end 0
 Game result 0 Empty 0 0 0 0
 Last moves C8 J8 J4 F9 C4 G3 E3 J6 H2 
+Side position policyTarget unreducedNumVisits 100 G5 36 G2 14 H3 8 H4 14 C5 6 D9 7 D4 6 H5 4 C9 2 
+Side position whiteValueTargets 0.510925 0.489075 0 1.04008 - 
+Side position whiteQValueTargets G5 0.0437256 1.32413 36 G2 -0.0235057 0.126304 16 H3 -0.0196559 0.187345 8 H4 0.0625586 1.98204 14 C5 -0.0278226 0.168085 6 D9 0.019527 1.13949 7 D4 0.00818046 1.0005 6 H5 0.00273906 0.950218 4 C9 -0.0190994 0.201381 2 
 
 ====================================================================================================
 ====================================================================================================
@@ -657,6 +664,7 @@ policyEntropyByTurn 0 0.236754
 searchEntropyByTurn 0 0
 whiteValueTargetsByTurn 0 0.54658 0.45342 0 1.9483 - 
 whiteValueTargetsByTurn 1 1 0 0 7.5 7.5 
+whiteQValueTargetsByTurn 0 C8 0.0930982 1.94525 99 
 Raw Stats 0.0992641 2.24987 0.236754
 ...........
 ...........
@@ -816,6 +824,7 @@ policyEntropyByTurn 0 2.55427
 searchEntropyByTurn 0 2.14118
 whiteValueTargetsByTurn 0 0.51628 0.48372 0 1.08526 - 
 whiteValueTargetsByTurn 1 1 0 0 7.5 7.5 
+whiteQValueTargetsByTurn 0 C4 0.0216001 0.789871 14 C8 0.0245875 0.996043 14 J8 0.0226563 0.824041 10 D3 0.0398599 1.21407 12 H9 0.0229248 0.935922 9 D9 0.0427216 1.32763 12 D4 -0.0071404 0.226789 7 H8 -0.00912989 0.275462 5 D8 0.0703313 1.8767 16 
 Raw Stats 0.11148 2.43797 2.55427
 ...........
 ...........
@@ -944,6 +953,7 @@ policyEntropyByTurn 0 2.10919
 searchEntropyByTurn 0 1.70612
 whiteValueTargetsByTurn 0 0.529182 0.470818 0 1.47872 - 
 whiteValueTargetsByTurn 1 1 0 0 6.5 6.5 
+whiteQValueTargetsByTurn 0 H9 0.0612748 1.62997 24 H8 0.0579815 1.34422 20 H4 0.0945925 2.16902 12 J4 0.0791669 1.94784 12 J8 0.0246145 0.8186 24 H3 0.0870048 1.98746 7 
 Raw Stats -0.0240991 -0.0156075 2.10919
 ...........
 ...........
@@ -1072,6 +1082,7 @@ policyEntropyByTurn 0 2.91842
 searchEntropyByTurn 0 2.43182
 whiteValueTargetsByTurn 0 0.511854 0.488146 0 0.875522 - 
 whiteValueTargetsByTurn 1 0 1 0 -113.5 -113.5 
+whiteQValueTargetsByTurn 0 C8 0.0156455 0.712117 13 D4 0.00877442 0.591195 12 C4 0.0416369 1.26195 7 D3 0.0702487 1.80004 5 D9 0.0525059 1.3875 6 D8 0.0100707 0.585088 12 H8 0.015418 0.714577 9 H9 0.015722 0.625459 9 J8 0.027091 0.911157 8 H3 0.014273 0.765101 8 J4 0.0388957 1.22385 5 H4 0.0426531 1.28814 5 
 Raw Stats -0.0120813 0.456089 2.91842
 XXXXXXXXXXX
 XXXXXXXXXXX
@@ -1148,6 +1159,9 @@ Presumed next pla White
 Past normal phase end 0
 Game result 0 Empty 0 0 0 0
 Last moves B4 
+Side position policyTarget unreducedNumVisits 100 H3 25 H4 13 D9 16 J4 15 H9 6 H8 9 J8 8 D8 3 
+Side position whiteValueTargets 0.589899 0.410101 0 4.10381 - 
+Side position whiteQValueTargets H3 0.183413 4.03949 25 H4 0.160655 3.6306 14 D9 0.19021 4.43401 16 J4 0.201753 4.577 15 H9 0.132062 3.16991 6 H8 0.18034 4.17335 10 J8 0.166763 3.95869 8 D8 0.179694 4.14214 5 
 Side position 1
 targetWeight 1 unrounded 1
 HASH: 4786C19936C66D93FCAEABE687F644A5
@@ -1178,6 +1192,9 @@ Presumed next pla White
 Past normal phase end 0
 Game result 0 Empty 0 0 0 0
 Last moves B4 H3 J8 
+Side position policyTarget unreducedNumVisits 100 D9 70 C8 13 D8 12 D3 3 J6 1 
+Side position whiteValueTargets 0.592915 0.407085 0 3.93871 - 
+Side position whiteQValueTargets D9 0.198267 4.12808 70 C8 0.164155 3.52749 13 D8 0.160616 3.54022 12 D3 0.0987728 2.71611 3 J6 0.067635 2.13859 1 
 Side position 2
 targetWeight 1 unrounded 1
 HASH: 8A58F2DB0012E744B257D952E512F14E
@@ -1208,6 +1225,9 @@ Presumed next pla White
 Past normal phase end 0
 Game result 0 Empty 0 0 0 0
 Last moves B4 H3 J8 D9 E3 
+Side position policyTarget unreducedNumVisits 100 J5 66 J6 21 G9 11 
+Side position whiteValueTargets 0.608942 0.391058 0 4.25363 - 
+Side position whiteQValueTargets J5 0.234574 4.48832 66 J6 0.1558 3.2022 21 G9 0.215972 4.41507 12 
 Forking to initial position O
 Pre-fair komi 7.5
 Lead: 1.32347
@@ -1321,6 +1341,7 @@ policyEntropyByTurn 0 2.91842
 searchEntropyByTurn 0 2.43182
 whiteValueTargetsByTurn 0 0.511854 0.488146 0 0.875522 - 
 whiteValueTargetsByTurn 1 0 1 0 -113.5 -113.5 
+whiteQValueTargetsByTurn 0 C8 0.0156455 0.712117 13 D4 0.00877442 0.591195 12 C4 0.0416369 1.26195 7 D3 0.0702487 1.80004 5 D9 0.0525059 1.3875 6 D8 0.0100707 0.585088 12 H8 0.015418 0.714577 9 H9 0.015722 0.625459 9 J8 0.027091 0.911157 8 H3 0.014273 0.765101 8 J4 0.0388957 1.22385 5 H4 0.0426531 1.28814 5 
 Raw Stats -0.0120813 0.456089 2.91842
 XXXXXXXXXXX
 XXXXXXXXXXX
@@ -1397,6 +1418,9 @@ Presumed next pla White
 Past normal phase end 0
 Game result 0 Empty 0 0 0 0
 Last moves J4 
+Side position policyTarget unreducedNumVisits 100 D3 18 C4 15 C8 20 D4 7 D9 14 J8 5 D8 9 H9 4 H8 2 
+Side position whiteValueTargets 0.516482 0.483518 0 1.19613 - 
+Side position whiteQValueTargets D3 0.012609 0.947804 18 C4 0.017798 0.869184 15 C8 0.0580694 1.56674 20 D4 -0.0267488 0.0784901 7 D9 0.072147 2.06831 14 J8 -0.00295578 0.511926 5 D8 0.0526591 1.49327 12 H9 0.0188403 0.863472 5 H8 -0.0226402 0.141145 3 
 Forking to initial position O
 Pre-fair komi 7.5
 Lead: 2.68756
@@ -1510,6 +1534,7 @@ policyEntropyByTurn 0 2.91842
 searchEntropyByTurn 0 1.8128
 whiteValueTargetsByTurn 0 0.523691 0.476309 0 1.28047 - 
 whiteValueTargetsByTurn 1 0 1 0 -113.5 -113.5 
+whiteQValueTargetsByTurn 0 C8 0.0286346 0.993342 6 D4 0.127888 2.57232 1 C4 0.125532 2.58167 1 D3 0.124078 2.4346 1 D9 0.115241 2.37637 1 D8 0.00389125 0.462105 6 H8 0.104119 2.4393 1 H9 0.106499 2.43775 1 J8 0.0877142 2.04151 1 
 Raw Stats -0.0120813 0.456089 2.91842
 XXXXXXXXXXX
 XXXXXXXXXXX
@@ -1586,6 +1611,9 @@ Presumed next pla White
 Past normal phase end 0
 Game result 0 Empty 0 0 0 0
 Last moves D4 
+Side position policyTarget unreducedNumVisits 100 D9 24 J4 10 H4 9 H3 12 H9 9 J8 10 C8 7 H8 9 D8 7 
+Side position whiteValueTargets 0.517116 0.482884 0 1.06674 - 
+Side position whiteQValueTargets D9 0.0623362 1.75477 24 J4 0.0202007 0.810863 10 H4 0.0130479 0.513131 10 H3 0.0402681 1.12398 12 H9 0.0236799 0.819183 9 J8 0.0345895 1.05829 11 C8 -0.00161712 0.420997 7 H8 0.0310229 0.897033 9 D8 0.0118777 0.620239 7 
 Forking to initial position O
 Pre-fair komi 7.5
 Lead: 2.03092
@@ -1699,6 +1727,7 @@ policyEntropyByTurn 0 2.11491
 searchEntropyByTurn 0 1.21876
 whiteValueTargetsByTurn 0 0.473322 0.526678 0 -0.190759 - 
 whiteValueTargetsByTurn 1 1 0 0 16.5 16.5 
+whiteQValueTargetsByTurn 0 J7 -0.0511483 -0.055737 7 C4 -0.0760677 -0.581587 7 D9 -0.00809638 0.346743 4 J8 0.0302483 0.813646 1 
 Raw Stats -0.162617 -1.39632 2.11491
 ...........
 ...........
@@ -1858,6 +1887,7 @@ policyEntropyByTurn 0 2.15368
 searchEntropyByTurn 0 1.68327
 whiteValueTargetsByTurn 0 0.478383 0.521617 0 0.12755 - 
 whiteValueTargetsByTurn 1 1 0 0 20 20 
+whiteQValueTargetsByTurn 0 D3 -0.0376813 0.270178 30 H3 -0.0820171 -0.79325 13 J4 -0.0182371 0.370419 21 H4 -0.0850667 -0.430685 11 D4 -0.0848295 -0.435912 8 C4 -0.0208263 0.667167 16 
 Raw Stats 0.133189 3.53587 2.15368
 ...........
 ...........
@@ -1934,6 +1964,9 @@ Presumed next pla Black
 Past normal phase end 0
 Game result 0 Empty 0 0 0 0
 Last moves H8 C4 
+Side position policyTarget unreducedNumVisits 100 H3 58 E3 18 H4 15 J4 6 
+Side position whiteValueTargets 0.493379 0.506621 0 0.642548 - 
+Side position whiteQValueTargets H3 -0.0247814 0.421112 58 E3 -6.90431e-05 0.924356 19 H4 0.00831264 0.958699 15 J4 0.0251676 1.38368 7 
 Forking to initial position X
 Pre-fair komi 21
 Lead: -9.01257
@@ -2047,6 +2080,7 @@ policyEntropyByTurn 0 0.717604
 searchEntropyByTurn 0 0.230324
 whiteValueTargetsByTurn 0 0.594116 0.405884 0 4.03695 - 
 whiteValueTargetsByTurn 1 1 0 0 12 12 
+whiteQValueTargetsByTurn 0 B9 0.182382 3.94787 92 E7 0.33023 6.44264 7 
 Raw Stats -0.142438 -2.49506 0.717604
 ...........
 .X.........
@@ -2123,6 +2157,9 @@ Presumed next pla White
 Past normal phase end 0
 Game result 0 Empty 0 0 0 0
 Last moves J8 D9 D3 C6 C4 G9 D8 C9 H7 J3 H3 J4 J5 K5 B10 J6 C8 E8 E7 
+Side position policyTarget unreducedNumVisits 100 B9 13 B8 82 D7 1 F7 1 F8 1 H5 0 
+Side position whiteValueTargets 0.75884 0.24116 0 9.3141 - 
+Side position whiteQValueTargets B9 0.284653 5.92382 13 B8 0.565005 10.0496 82 D7 -0.075702 -1.45528 1 F7 -0.134046 -2.14911 1 F8 -0.127232 -1.70386 1 H5 0.0643862 1.43402 1 
 Forking to initial position O
 Pre-fair komi 14
 Lead: -2.99326
@@ -2236,6 +2273,7 @@ policyEntropyByTurn 0 1.70899
 searchEntropyByTurn 0 0.689954
 whiteValueTargetsByTurn 0 0.507163 0.492837 0 1.32574 - 
 whiteValueTargetsByTurn 1 1 0 0 20.5 20.5 
+whiteQValueTargetsByTurn 0 J4 0.000354258 1.03386 74 H4 0.0457079 1.98929 20 F9 0.114642 3.0755 4 H3 0.218787 5.93938 1 
 Raw Stats -0.089875 -0.0332284 1.70899
 ...........
 ...........
@@ -2312,6 +2350,9 @@ Presumed next pla White
 Past normal phase end 0
 Game result 0 Empty 0 0 0 0
 Last moves C8 H8 H9 
+Side position policyTarget unreducedNumVisits 100 J9 36 G9 42 J8 7 G8 11 H4 2 
+Side position whiteValueTargets 0.515149 0.484851 0 1.51469 - 
+Side position whiteQValueTargets J9 0.00996444 1.08467 36 G9 0.042204 1.71094 42 J8 0.00255335 1.05818 7 G8 0.0606696 2.33307 11 H4 0.00452713 1.07628 3 
 
 ====================================================================================================
 ====================================================================================================
@@ -2394,6 +2435,7 @@ policyEntropyByTurn 0 1.68369
 searchEntropyByTurn 0 0.536665
 whiteValueTargetsByTurn 0 0.485603 0.514397 0 0.0586551 - 
 whiteValueTargetsByTurn 1 1 0 0 28 28 
+whiteQValueTargetsByTurn 0 B7 -0.0204541 0.254521 16 D7 -0.0837266 -1.22139 2 J4 -0.215996 -3.02365 1 
 Raw Stats 0.111471 2.14624 1.68369
 .....O.....
 ...........
@@ -2522,6 +2564,7 @@ policyEntropyByTurn 0 1.82051
 searchEntropyByTurn 0 0.75507
 whiteValueTargetsByTurn 0 0.472793 0.527207 0 -0.311166 - 
 whiteValueTargetsByTurn 1 1 0 0 20 20 
+whiteQValueTargetsByTurn 0 J4 -0.0368669 0.0302732 78 J7 -0.11249 -1.38567 9 J6 -0.132411 -1.85269 6 H7 -0.266515 -3.30345 1 J5 -0.111847 -1.6847 4 H6 -0.263885 -4.04508 1 
 Raw Stats 0.0689614 1.41736 1.82051
 ...........
 ...........
@@ -2681,6 +2724,7 @@ policyEntropyByTurn 0 0.702543
 searchEntropyByTurn 0 0
 whiteValueTargetsByTurn 0 0.479216 0.520784 0 -0.0114678 - 
 whiteValueTargetsByTurn 1 1 0 0 20.5 20.5 
+whiteQValueTargetsByTurn 0 H5 -0.0377888 0.0388441 19 
 Raw Stats -0.113379 -0.967393 0.702543
 ...........
 ...........
@@ -2809,6 +2853,7 @@ policyEntropyByTurn 0 2.04932
 searchEntropyByTurn 0 1.05067
 whiteValueTargetsByTurn 0 0.505044 0.494956 0 1.32028 - 
 whiteValueTargetsByTurn 1 1 0 0 20.5 20.5 
+whiteQValueTargetsByTurn 0 D9 0.0430921 1.80392 12 H3 -0.0679631 -0.117828 4 H4 -0.0868401 0.175627 1 D8 -0.0822597 0.195906 1 C8 -0.0894913 -0.179267 1 
 Raw Stats 0.170992 4.34806 2.04932
 ...........
 ...........
@@ -2968,6 +3013,7 @@ policyEntropyByTurn 0 2.1195
 searchEntropyByTurn 0 1.31266
 whiteValueTargetsByTurn 0 0.496431 0.503569 0 0.658565 - 
 whiteValueTargetsByTurn 1 1 0 0 18.5 18.5 
+whiteQValueTargetsByTurn 0 E8 -0.0495525 0.0567833 10 C8 0.0615364 1.40581 3 E4 0.053016 1.32801 3 D3 0.0251521 1.28775 2 H8 0.0697266 1.51153 1 
 Raw Stats -0.074921 0.769758 2.1195
 ...........
 ...........
@@ -3044,6 +3090,9 @@ Presumed next pla White
 Past normal phase end 0
 Game result 0 Empty 0 0 0 0
 Last moves D5 J8 J4 D4 C4 D9 C9 E9 D3 
+Side position policyTarget unreducedNumVisits 100 E4 76 C8 10 E8 9 C10 1 
+Side position whiteValueTargets 0.467151 0.532849 0 -0.452865 - 
+Side position whiteQValueTargets E4 -0.0522927 -0.160943 76 C8 -0.163777 -2.69385 11 E8 -0.0658872 -0.371784 11 C10 -0.274354 -3.68336 1 
 
 ====================================================================================================
 ====================================================================================================
@@ -3126,6 +3175,7 @@ policyEntropyByTurn 0 2.22729
 searchEntropyByTurn 0 1.44956
 whiteValueTargetsByTurn 0 0.465629 0.534371 0 -0.697375 - 
 whiteValueTargetsByTurn 1 1 0 0 15 15 
+whiteQValueTargetsByTurn 0 F9 -0.0632171 -0.548227 39 J6 -0.0710647 -0.774379 22 J3 -0.0884582 -1.02802 18 C8 -0.0763775 -0.95285 17 C7 0.108927 2.71575 1 H2 0.112777 2.57494 1 H6 0.0975944 1.82868 1 
 Raw Stats -0.216528 -2.70056 2.22729
 ...........
 ...........
@@ -3254,6 +3304,7 @@ policyEntropyByTurn 0 1.97723
 searchEntropyByTurn 0 0.993268
 whiteValueTargetsByTurn 0 0.47713 0.52287 0 -0.274375 - 
 whiteValueTargetsByTurn 1 1 0 0 31 31 
+whiteQValueTargetsByTurn 0 H3 -0.0387138 -0.333898 10 J4 -0.0819111 -0.604095 6 H4 -0.011554 0.523718 3 
 Raw Stats -0.0100182 -0.198977 1.97723
 ...........
 ...........
@@ -3330,6 +3381,9 @@ Presumed next pla Black
 Past normal phase end 0
 Game result 0 Empty 0 0 0 0
 Last moves C4 F2 
+Side position policyTarget unreducedNumVisits 100 H3 63 J3 27 J4 9 
+Side position whiteValueTargets 0.375706 0.624294 0 -4.27164 - 
+Side position whiteQValueTargets H3 -0.258348 -4.47468 63 J3 -0.237742 -4.12328 27 J4 -0.204977 -3.26492 9 
 Forking to initial position X
 Pre-fair komi 33
 Lead: -6.34772
@@ -3443,6 +3497,7 @@ policyEntropyByTurn 0 1.85992
 searchEntropyByTurn 0 0.529706
 whiteValueTargetsByTurn 0 0.495223 0.504777 0 1.13506 - 
 whiteValueTargetsByTurn 1 1 0 0 32.5 32.5 
+whiteQValueTargetsByTurn 0 G7 -0.0266084 0.58409 14 F8 0.0396009 2.64644 4 G9 0.23692 6.56261 1 
 Raw Stats -0.169468 -1.53463 1.85992
 ...........
 ...........
@@ -3571,6 +3626,7 @@ policyEntropyByTurn 0 1.77962
 searchEntropyByTurn 0 1.26548
 whiteValueTargetsByTurn 0 0.461796 0.538204 0 -1.01042 - 
 whiteValueTargetsByTurn 1 1 0 0 27 27 
+whiteQValueTargetsByTurn 0 D3 -0.0645333 -0.699731 51 E3 -0.214277 -3.96642 6 D5 -0.151128 -2.47567 6 F9 -0.140158 -2.72899 7 B3 -0.0455343 -0.398769 28 G9 -0.222396 -3.06919 1 
 Raw Stats 0.122066 2.35992 1.77962
 ...........
 ...........
@@ -3647,6 +3703,9 @@ Presumed next pla Black
 Past normal phase end 0
 Game result 0 Empty 0 0 0 0
 Last moves J3 D4 H9 C8 B8 C9 C4 C3 C5 D5 
+Side position policyTarget unreducedNumVisits 100 D6 72 B3 22 D3 4 C7 0 
+Side position whiteValueTargets 0.410536 0.589464 0 -3.31749 - 
+Side position whiteQValueTargets D6 -0.207407 -4.04579 72 B3 -0.109196 -1.48561 22 D3 -0.02238 0.424228 4 C7 0.165403 3.38619 1 
 Side position 1
 targetWeight 1 unrounded 1
 HASH: A08EC21F7D6FE8BBC9379FFB2CDAFE4D
@@ -3677,6 +3736,9 @@ Presumed next pla Black
 Past normal phase end 0
 Game result 0 Empty 0 0 0 0
 Last moves J3 D4 H9 C8 B8 C9 C4 C3 C5 D5 D6 E6 
+Side position policyTarget unreducedNumVisits 100 D7 99 
+Side position whiteValueTargets 0.340613 0.659387 0 -6.49762 - 
+Side position whiteQValueTargets D7 -0.31885 -6.51242 99 
 
 ====================================================================================================
 ====================================================================================================
@@ -3759,6 +3821,7 @@ policyEntropyByTurn 0 1.69068
 searchEntropyByTurn 0 0
 whiteValueTargetsByTurn 0 0.522198 0.477802 0 0.952418 - 
 whiteValueTargetsByTurn 1 1 0 0 33.5 33.5 
+whiteQValueTargetsByTurn 0 H6 0.06394 1.48792 18 C4 -0.398502 -10.0389 1 
 Raw Stats 0.0223916 -0.51484 1.69068
 ...........
 ...........
@@ -3835,6 +3898,9 @@ Presumed next pla Black
 Past normal phase end 0
 Game result 0 Empty 0 0 0 0
 Last moves J8 H4 E8 J6 F4 G3 F3 G8 G9 G6 H8 E5 H5 G5 J4 G4 J3 H2 J5 F8 
+Side position policyTarget unreducedNumVisits 100 F9 57 H6 29 E9 1 
+Side position whiteValueTargets 0.428969 0.571031 0 -3.61626 - 
+Side position whiteQValueTargets F9 -0.0964622 -2.80727 57 H6 -0.197214 -4.58249 41 E9 0.135547 2.30816 1 
 
 ====================================================================================================
 ====================================================================================================
@@ -3917,6 +3983,7 @@ policyEntropyByTurn 0 0.238474
 searchEntropyByTurn 0 0
 whiteValueTargetsByTurn 0 0.510124 0.489876 0 1.2168 - 
 whiteValueTargetsByTurn 1 1 0 0 38.5 38.5 
+whiteQValueTargetsByTurn 0 F10 0.0262398 1.28548 19 
 Raw Stats -0.0936035 -0.088073 0.238474
 ...........
 .....XO....
@@ -4076,6 +4143,7 @@ policyEntropyByTurn 0 1.44912
 searchEntropyByTurn 0 0.514653
 whiteValueTargetsByTurn 0 0.504645 0.495355 0 0.822734 - 
 whiteValueTargetsByTurn 1 1 0 0 38 38 
+whiteQValueTargetsByTurn 0 K5 -0.00451723 0.430903 15 J4 0.103379 3.20026 4 
 Raw Stats -0.130611 -2.05631 1.44912
 ...........
 ...........
@@ -4152,6 +4220,9 @@ Presumed next pla White
 Past normal phase end 0
 Game result 0 Empty 0 0 0 0
 Last moves C8 C9 D9 H4 J6 J5 H6 J9 J3 H3 J4 
+Side position policyTarget unreducedNumVisits 100 H5 14 K5 84 D8 1 
+Side position whiteValueTargets 0.628495 0.371505 0 6.36631 - 
+Side position whiteQValueTargets H5 -0.00144955 0.483403 14 K5 0.29024 7.09525 84 D8 -0.191531 -2.53382 1 
 
 ====================================================================================================
 ====================================================================================================
@@ -4234,6 +4305,7 @@ policyEntropyByTurn 0 1.60984
 searchEntropyByTurn 0 0.909708
 whiteValueTargetsByTurn 0 0.490278 0.509722 0 0.351571 - 
 whiteValueTargetsByTurn 1 1 0 0 33 33 
+whiteQValueTargetsByTurn 0 D9 -0.00677012 0.490261 12 D8 -0.0775754 -0.237031 3 C8 -0.0423746 -0.0340736 4 
 Raw Stats 0.0848867 1.88675 1.60984
 ...........
 ...........
@@ -4393,6 +4465,7 @@ policyEntropyByTurn 0 1.54252
 searchEntropyByTurn 0 0.623655
 whiteValueTargetsByTurn 0 0.488028 0.511972 0 0.405809 - 
 whiteValueTargetsByTurn 1 1 0 0 30 30 
+whiteQValueTargetsByTurn 0 E8 0.00110595 0.89631 13 E9 -0.0535596 -0.177237 6 
 Raw Stats -0.161657 -2.27088 1.54252
 ...........
 ...........
@@ -4552,6 +4625,7 @@ policyEntropyByTurn 0 3.12168
 searchEntropyByTurn 0 1.81412
 whiteValueTargetsByTurn 0 0.494179 0.505821 0 0.559195 - 
 whiteValueTargetsByTurn 1 0 1 0 -84.5 -84.5 
+whiteQValueTargetsByTurn 0 J3 -0.0108208 0.515739 30 H3 -0.00230037 0.64946 19 J4 0.0111892 1.20384 12 D8 0.00113979 1.20641 6 D9 -0.035348 0.0536382 15 H4 0.0715879 2.41511 3 C8 -0.00614089 1.06143 6 C9 -0.0245607 0.283448 8 
 Raw Stats -0.356534 -9.51357 3.12168
 XXXXXXXXXXX
 XXXXXXXXXXX
@@ -4680,6 +4754,7 @@ policyEntropyByTurn 0 1.91017
 searchEntropyByTurn 0 1.4141
 whiteValueTargetsByTurn 0 0.480228 0.519772 0 -0.463673 - 
 whiteValueTargetsByTurn 1 1 0 0 35 35 
+whiteQValueTargetsByTurn 0 F4 -0.0635732 -0.983392 40 F2 -0.038827 -0.534095 22 D2 -0.0592098 -0.7346 10 G5 0.016645 0.753264 23 C7 -0.139082 -2.62672 3 E6 -0.243198 -5.22663 1 
 Raw Stats 0.159904 4.53352 1.91017
 ...........
 ...........
@@ -4839,6 +4914,7 @@ policyEntropyByTurn 0 2.57703
 searchEntropyByTurn 0 2.11716
 whiteValueTargetsByTurn 0 0.480494 0.519506 0 -0.189697 - 
 whiteValueTargetsByTurn 1 1 0 0 6.5 6.5 
+whiteQValueTargetsByTurn 0 C8 -0.0332379 -0.176602 15 J8 -0.0605251 -0.68831 12 C4 -0.0513 -0.42846 11 H8 -0.029136 0.123291 16 H9 -0.0138016 0.288956 15 D9 -0.0324607 -0.030765 12 D8 -0.0435916 -0.193559 8 D4 -0.101758 -1.36207 4 D3 -0.070013 -0.791101 6 
 Raw Stats 0.0917019 1.76197 2.57703
 ...........
 ...........
@@ -4998,6 +5074,7 @@ policyEntropyByTurn 0 2.55161
 searchEntropyByTurn 0 1.9653
 whiteValueTargetsByTurn 0 0.166935 0.833065 0 -13.854 - 
 whiteValueTargetsByTurn 1 1 0 0 5 5 
+whiteQValueTargetsByTurn 0 C5 -0.673728 -14.6782 33 C7 -0.674963 -14.2666 17 D8 -0.654095 -12.4635 10 D5 -0.653962 -13.7429 9 F3 -0.651336 -13.7601 8 J8 -0.654541 -12.1843 7 C4 -0.66513 -13.3035 5 D7 -0.667959 -13.7155 4 D4 -0.670516 -13.1422 3 J6 -0.677163 -14.0303 3 
 Raw Stats -0.656115 -12.6781 2.55161
 ...........
 ...........
@@ -5157,6 +5234,7 @@ policyEntropyByTurn 0 2.99905
 searchEntropyByTurn 0 0.733542
 whiteValueTargetsByTurn 0 0.0820583 0.917942 0 -23.911 - 
 whiteValueTargetsByTurn 1 0 1 0 -115 -115 
+whiteQValueTargetsByTurn 0 J8 -0.867429 -24.1728 15 J3 -0.757313 -20.5661 2 J9 -0.729116 -18.2364 1 J4 -0.720554 -16.9514 1 
 Raw Stats -0.70692 -37.8687 2.99905
 XXXXXXXXXXX
 XXXXXXXXXXX
@@ -5233,6 +5311,9 @@ Presumed next pla White
 Past normal phase end 0
 Game result 0 Empty 0 0 0 0
 Last moves J9 
+Side position policyTarget unreducedNumVisits 100 H4 35 J4 34 H3 30 
+Side position whiteValueTargets 0.0554451 0.944555 0 -23.4412 - 
+Side position whiteQValueTargets H4 -0.897924 -23.1536 35 J4 -0.896493 -23.3762 34 H3 -0.876106 -24.0126 30 
 
 ====================================================================================================
 ====================================================================================================
@@ -5315,6 +5396,7 @@ policyEntropyByTurn 0 1.99532
 searchEntropyByTurn 0 1.39245
 whiteValueTargetsByTurn 0 0.529822 0.470178 0 1.67595 - 
 whiteValueTargetsByTurn 1 1 0 0 7 7 
+whiteQValueTargetsByTurn 0 G3 0.0789832 2.13902 31 E9 0.0441705 1.33662 33 F9 0.0537412 1.52135 23 H3 0.05407 1.5983 10 G4 0.212081 4.59961 1 E8 0.197093 4.05055 1 
 Raw Stats -0.0810126 -1.47482 1.99532
 ...........
 ...........
@@ -5443,6 +5525,7 @@ policyEntropyByTurn 0 1.97446
 searchEntropyByTurn 0 0.809205
 whiteValueTargetsByTurn 0 0.565322 0.434678 0 2.1625 - 
 whiteValueTargetsByTurn 1 1 0 0 7 7 
+whiteQValueTargetsByTurn 0 J6 0.111871 1.88545 12 J7 0.162959 2.65542 6 H5 0.249175 3.53195 1 
 Raw Stats 0.0593016 1.37323 1.97446
 ...........
 ...........
@@ -5602,6 +5685,7 @@ policyEntropyByTurn 0 1.9626
 searchEntropyByTurn 0 1.14072
 whiteValueTargetsByTurn 0 0.479418 0.520582 0 0.108705 - 
 whiteValueTargetsByTurn 1 1 0 0 15.5 15.5 
+whiteQValueTargetsByTurn 0 H9 -0.020664 0.42076 8 H8 -0.0452539 0.118031 7 C6 -0.0756208 -0.557895 3 C7 -0.155875 -1.11421 1 
 Raw Stats 0.0297828 0.611707 1.9626
 ...........
 ...........
@@ -5678,6 +5762,9 @@ Presumed next pla Black
 Past normal phase end 0
 Game result 0 Empty 0 0 0 0
 Last moves K8 D9 H3 C6 
+Side position policyTarget unreducedNumVisits 100 E4 32 G9 55 H8 1 D8 9 G8 1 H9 1 
+Side position whiteValueTargets 0.446401 0.553599 0 -1.35982 - 
+Side position whiteQValueTargets E4 -0.0493783 -0.182524 32 G9 -0.140638 -2.04823 55 H8 0.0863381 1.52 1 D8 -0.137178 -1.67774 9 G8 0.058422 0.817045 1 H9 0.0818621 1.39526 1 
 Forking to initial position X
 Pre-fair komi 17
 Lead: -1.98884
@@ -5791,6 +5878,7 @@ policyEntropyByTurn 0 2.15368
 searchEntropyByTurn 0 1.58874
 whiteValueTargetsByTurn 0 0.475866 0.524134 0 0.196045 - 
 whiteValueTargetsByTurn 1 1 0 0 19.5 19.5 
+whiteQValueTargetsByTurn 0 D3 -0.0417101 0.301171 7 H3 -0.0480158 -0.183996 4 J4 -0.0358273 0.376957 3 H4 -0.0632206 0.0491466 3 D4 -0.175184 -1.1852 1 C4 -0.156406 -1.2474 1 
 Raw Stats 0.133189 3.53587 2.15368
 ...........
 ...........
@@ -5950,6 +6038,7 @@ policyEntropyByTurn 0 2.10712
 searchEntropyByTurn 0 1.14992
 whiteValueTargetsByTurn 0 0.524457 0.475543 0 2.27743 - 
 whiteValueTargetsByTurn 1 1 0 0 32 32 
+whiteQValueTargetsByTurn 0 H3 0.0830429 3.02476 9 J4 -0.00516592 1.13887 3 H4 0.0314449 1.95061 6 D9 -0.145883 -1.17018 1 
 Raw Stats 0.16736 3.67328 2.10712
 ...........
 ...........
@@ -6109,6 +6198,7 @@ policyEntropyByTurn 0 2.79438
 searchEntropyByTurn 0 1.43833
 whiteValueTargetsByTurn 0 0.538006 0.461994 0 2.59721 - 
 whiteValueTargetsByTurn 1 0 1 0 -79 -79 
+whiteQValueTargetsByTurn 0 C4 0.07358 2.56833 9 D3 0.117649 3.90605 4 C3 0.0317333 1.4244 3 D4 0.190126 4.20911 1 J3 0.269316 7.19424 1 H3 0.263143 6.92424 1 
 Raw Stats -0.381573 -8.26696 2.79438
 XXXXXXXXXXX
 XXXXXXXXXXX
@@ -6185,6 +6275,9 @@ Presumed next pla White
 Past normal phase end 0
 Game result 0 Empty 0 0 0 0
 Last moves C5 
+Side position policyTarget unreducedNumVisits 100 H3 56 H4 31 J4 12 
+Side position whiteValueTargets 0.592297 0.407703 0 5.76392 - 
+Side position whiteQValueTargets H3 0.193403 5.99499 56 H4 0.185271 5.92774 31 J4 0.137747 4.27247 12 
 Forking to initial position O
 Pre-fair komi 41.5
 Lead: 4.71626
@@ -6388,6 +6481,21 @@ whiteValueTargetsByTurn 12 0.531468 0.468532 0 1.54757 -
 whiteValueTargetsByTurn 13 0.545948 0.454052 0 2.01186 - 
 whiteValueTargetsByTurn 14 0.518227 0.481773 0 0.941121 - 
 whiteValueTargetsByTurn 15 1 0 0 7.5 7.5 
+whiteQValueTargetsByTurn 0 J8 0.0539143 1.10054 68 H9 0.0592211 1.20685 43 H8 0.0366347 0.981343 26 C6 -0.0325418 -0.470053 4 J9 0.0633534 1.55865 7 C5 -0.0956196 -0.517585 1 
+whiteQValueTargetsByTurn 1 G9 0.041222 0.809202 13 C5 0.0536678 1.15203 10 H9 0.114978 2.40171 1 
+whiteQValueTargetsByTurn 2 H9 0.0793866 1.41531 55 C6 -0.0233301 -0.36386 8 C5 0.0466637 0.943861 10 J6 -0.0978276 -1.54213 1 
+whiteQValueTargetsByTurn 3 G8 0.0713089 1.22488 40 C5 0.10854 2.05525 5 H8 0.152572 3.11471 4 
+whiteQValueTargetsByTurn 4 C5 0.0835367 1.5167 55 J6 0.085055 1.69814 60 C6 0.0503567 1.01555 27 C8 0.0512133 1.0907 7 
+whiteQValueTargetsByTurn 5 C5 0.047113 1.01945 15 J5 0.0757525 1.67938 5 C4 0.0709001 1.43746 4 
+whiteQValueTargetsByTurn 6 C4 0.105136 2.16284 135 F3 -0.0215975 -0.0870618 13 G3 -0.0667938 -0.60685 1 
+whiteQValueTargetsByTurn 7 D5 0.0833276 1.74193 22 B5 0.153005 3.04753 1 D4 0.132441 2.30865 1 
+whiteQValueTargetsByTurn 8 F3 0.109054 2.26472 148 G3 -0.043224 -0.254536 1 
+whiteQValueTargetsByTurn 9 J5 0.0796288 1.69316 15 G3 0.112481 2.38824 7 G2 0.120184 2.145 2 
+whiteQValueTargetsByTurn 10 H6 0.0837284 1.81309 73 J3 -0.113263 -1.2862 1 
+whiteQValueTargetsByTurn 11 G3 0.112987 2.35099 20 G2 0.0470601 1.18382 22 H2 0.143507 2.76077 7 
+whiteQValueTargetsByTurn 12 G3 0.017727 0.831027 16 C9 0.0962982 2.13732 37 F2 0.0668226 1.53193 12 D9 0.0143136 0.611863 5 G4 -0.148405 -1.63884 1 J3 -0.106432 -1.07172 1 C8 0.0250491 0.712191 2 
+whiteQValueTargetsByTurn 13 D9 0.126641 2.67648 21 C8 0.0694517 1.58406 28 
+whiteQValueTargetsByTurn 14 D9 0.040945 1.03687 60 E10 0.0356454 0.739754 12 B8 -0.111059 -1.03451 1 G3 -0.15967 -1.62619 1 
 Raw Stats 0.0968123 2.15711 1.66067
 Raw Stats -0.0574731 -0.600066 1.56872
 Raw Stats 0.149388 3.38829 1.59464
@@ -6704,6 +6812,36 @@ whiteValueTargetsByTurn 27 0.640159 0.359841 0 5.05372 4.52748
 whiteValueTargetsByTurn 28 0.650959 0.349041 0 5.38687 2.94341 
 whiteValueTargetsByTurn 29 0.663366 0.336634 0 5.56349 2.68582 
 whiteValueTargetsByTurn 30 1 0 0 9.5 9.5 
+whiteQValueTargetsByTurn 0 D9 0.0521752 1.57453 21 H9 0.0440782 1.39617 23 D8 0.0344792 1.10108 23 C8 0.0390052 1.36678 18 E3 0.0650088 1.91432 7 H8 0.0483556 1.43444 7 
+whiteQValueTargetsByTurn 1 J8 0.0460595 1.32596 19 H9 0.0526341 1.41288 18 G3 -0.0375915 -0.3405 4 H8 0.0188322 0.882028 6 F3 -0.121977 -1.04145 1 C7 -0.11714 -1.26386 1 
+whiteQValueTargetsByTurn 2 E3 0.0366757 1.02561 21 J7 0.120036 2.49539 5 F3 0.0387698 0.93855 7 C6 0.0202309 0.718699 7 J8 0.040796 1.04385 5 C7 0.0616243 1.58302 4 
+whiteQValueTargetsByTurn 3 C7 0.0242182 0.792399 34 D3 0.0302596 0.93846 7 C8 0.0396175 0.917528 6 H4 -0.0277894 -0.0625017 1 J7 -0.0232581 -0.148762 1 
+whiteQValueTargetsByTurn 4 C8 0.0394754 0.961483 41 J7 0.103633 2.08392 6 F9 0.207653 5.00498 1 J8 0.157872 3.78924 1 
+whiteQValueTargetsByTurn 5 J8 0.126685 2.36409 33 F9 0.102547 2.21505 11 H4 0.0632336 1.37651 5 
+whiteQValueTargetsByTurn 6 H7 0.142736 2.56891 36 C8 0.121697 2.40489 13 
+whiteQValueTargetsByTurn 7 F9 0.152435 2.82514 96 D3 0.0408872 0.655067 3 
+whiteQValueTargetsByTurn 8 C8 0.157914 2.99317 68 E8 0.170228 2.98535 11 D7 0.130316 2.28859 16 C3 0.146127 2.68456 4 
+whiteQValueTargetsByTurn 9 D7 0.146449 2.71287 48 B7 -0.121429 -1.6804 1 
+whiteQValueTargetsByTurn 10 E8 0.226057 3.86381 32 B7 0.155183 3.0316 34 C3 0.123832 2.41236 29 E9 0.213073 4.22938 4 
+whiteQValueTargetsByTurn 11 F8 0.243731 4.64321 47 H4 0.0313238 0.419898 1 G3 -0.0126162 -0.374391 1 
+whiteQValueTargetsByTurn 12 B7 0.279658 5.35753 24 C3 0.229272 4.47623 26 G4 0.232927 3.76161 23 F10 0.268436 5.37393 8 B8 0.326871 6.79137 2 F4 0.20704 3.79383 10 G3 0.2369 3.77864 6 
+whiteQValueTargetsByTurn 13 B3 0.22454 4.43914 48 D4 -0.0230008 -0.0595728 1 
+whiteQValueTargetsByTurn 14 D4 0.260053 4.87489 29 D3 0.24812 4.94655 27 C2 0.198221 4.02796 30 B2 0.243931 4.64603 6 B7 0.23766 4.66022 7 
+whiteQValueTargetsByTurn 15 H4 0.287132 5.55982 30 G4 0.240277 4.77805 9 B7 0.212304 4.21281 7 G3 0.0830021 1.92913 1 C10 0.0984485 2.24861 1 B8 0.152183 2.53576 1 
+whiteQValueTargetsByTurn 16 J3 0.285381 5.7284 46 H3 0.255126 4.79202 41 H5 0.349003 6.66966 10 J5 0.411291 8.69949 2 
+whiteQValueTargetsByTurn 17 G3 0.276067 5.27501 25 J5 0.246876 4.65703 17 J3 0.340318 6.12851 6 B7 0.0875053 1.19181 1 
+whiteQValueTargetsByTurn 18 J3 0.257232 4.94223 34 G4 0.345778 6.6159 14 H2 0.404271 7.4794 1 
+whiteQValueTargetsByTurn 19 H5 0.36951 6.56473 98 F4 -0.0105649 0.105714 1 
+whiteQValueTargetsByTurn 20 G5 0.462878 9.10659 24 J3 0.335509 5.32056 42 J5 0.345821 6.32474 31 G2 0.511324 9.36958 2 
+whiteQValueTargetsByTurn 21 F4 0.354931 5.55407 46 B7 0.156251 2.34507 1 J5 0.299666 5.8448 2 
+whiteQValueTargetsByTurn 22 G2 0.35064 5.53857 48 F3 0.663392 10.3764 1 
+whiteQValueTargetsByTurn 23 G5 0.344859 5.43499 41 F3 0.304481 4.85936 4 J5 0.507651 8.67176 4 
+whiteQValueTargetsByTurn 24 K7 0.28975 4.94118 30 J5 0.386735 5.25482 10 B7 0.447026 7.0518 4 K8 0.477275 7.42047 1 F3 0.590997 7.56214 1 B2 0.521716 7.35095 1 E5 0.331767 5.572 2 
+whiteQValueTargetsByTurn 25 B7 0.278643 3.94312 16 C10 0.310195 5.57229 14 F2 0.217469 4.30314 4 B8 0.313651 4.79925 6 J5 0.307571 5.90379 7 K8 0.119131 1.62797 1 H2 0.165734 3.21785 1 
+whiteQValueTargetsByTurn 26 B9 0.364219 5.4373 17 B8 0.294464 5.74617 21 B10 0.285631 5.4333 17 B7 0.240743 4.40642 35 C9 0.347149 6.52009 9 
+whiteQValueTargetsByTurn 27 B6 0.297615 5.31285 88 B9 0.083595 1.90999 7 C9 0.122437 2.6242 4 
+whiteQValueTargetsByTurn 28 B9 0.322576 5.49441 63 B8 0.265123 5.16106 36 
+whiteQValueTargetsByTurn 29 A7 0.353656 5.96831 41 B10 0.149354 2.96403 5 F10 0.266525 4.56354 3 
 Raw Stats -0.0600117 -0.545824 2.13972
 Raw Stats 0.114018 2.51203 2.05501
 Raw Stats -0.0930291 -1.45374 1.99447
@@ -7035,6 +7173,36 @@ whiteValueTargetsByTurn 27 0.287545 0.712455 0 -7.79327 -8.13263
 whiteValueTargetsByTurn 28 0.273874 0.726126 0 -8.324 - 
 whiteValueTargetsByTurn 29 0.281899 0.718101 0 -8.08285 -7.39835 
 whiteValueTargetsByTurn 30 1 0 0 5 5 
+whiteQValueTargetsByTurn 0 D3 0.05925 1.56609 23 D4 0.0080988 0.511405 14 C4 0.0293751 0.947549 12 
+whiteQValueTargetsByTurn 1 C5 0.0554178 1.32329 37 G4 0.0837303 2.09254 12 C4 0.0806512 1.89392 11 G3 0.09705 2.36897 7 H4 0.00610948 0.659674 25 E8 0.0470151 1.18134 6 J6 0.146583 3.32957 1 
+whiteQValueTargetsByTurn 2 J5 0.00219382 0.637847 15 J3 0.0246772 1.04034 16 H3 0.029128 1.08621 12 H5 -0.0770809 -0.898985 6 
+whiteQValueTargetsByTurn 3 J5 0.0105774 0.812118 73 G3 0.0240002 0.99492 19 H5 0.0322252 0.978265 5 J3 0.143607 2.83591 1 G4 0.142177 3.00502 1 
+whiteQValueTargetsByTurn 4 J3 0.0424003 1.48979 35 K4 -0.121723 -2.08985 5 H5 -0.0569319 -0.362913 6 G4 -0.0822017 -0.774859 3 
+whiteQValueTargetsByTurn 5 G4 -0.0458981 -0.336232 49 
+whiteQValueTargetsByTurn 6 J6 -0.00310523 0.278266 63 J3 -0.129264 -1.63064 16 G3 -0.0747816 -1.10349 20 
+whiteQValueTargetsByTurn 7 H6 -0.215437 -3.59788 69 J6 -0.152029 -2.4491 29 K5 0.102746 2.11754 1 
+whiteQValueTargetsByTurn 8 K5 -0.215616 -3.59358 99 
+whiteQValueTargetsByTurn 9 G5 -0.228027 -3.94431 46 J6 -0.0985399 -1.20726 3 
+whiteQValueTargetsByTurn 10 C6 -0.0731368 -0.882459 17 C5 -0.0767047 -0.982218 16 G3 -0.108612 -1.17456 7 K6 -0.0696358 -0.429069 6 D8 -0.159342 -1.52416 1 D5 -0.185607 -2.54844 1 E9 -0.150814 -2.2767 1 
+whiteQValueTargetsByTurn 11 G3 -0.0628908 -1.06163 33 E8 -0.0991797 -1.12564 36 C4 -0.108157 -1.32933 20 K6 -0.0536365 -0.274992 5 E9 0.0189583 0.484951 2 D4 -0.0405126 -0.324473 3 
+whiteQValueTargetsByTurn 12 G3 -0.121783 -1.21307 36 E9 -0.0285065 -0.18267 37 D9 -0.0337391 -0.267218 17 F3 -0.142007 -1.53607 4 D8 -0.156293 -1.99757 4 G9 -0.204089 -2.98714 1 
+whiteQValueTargetsByTurn 13 C9 -0.116793 -1.79581 41 D8 0.0567676 0.773675 7 G3 0.109378 1.48773 1 
+whiteQValueTargetsByTurn 14 D8 -0.148795 -2.37814 75 E7 -0.165357 -2.65566 6 G9 -0.128855 -1.98395 9 G3 -0.196451 -2.47201 2 F9 -0.113134 -1.86681 5 C10 -0.101325 -1.74125 2 
+whiteQValueTargetsByTurn 15 C7 -0.179418 -2.91417 85 D7 -0.0022872 0.134115 9 G3 0.0761364 1.53605 3 D10 0.0483526 1.25635 1 B6 0.111909 1.94914 1 
+whiteQValueTargetsByTurn 16 D7 -0.180601 -2.82784 33 D6 -0.165887 -2.8591 16 
+whiteQValueTargetsByTurn 17 B6 -0.204162 -3.22476 96 D6 0.114954 2.457 3 
+whiteQValueTargetsByTurn 18 C5 -0.193996 -3.09414 35 B5 -0.203293 -3.06099 14 
+whiteQValueTargetsByTurn 19 B5 -0.206429 -3.22068 97 G3 0.0393561 1.04494 2 
+whiteQValueTargetsByTurn 20 B4 -0.217059 -3.76983 35 C4 -0.356839 -6.01326 9 H10 -0.295284 -5.08148 5 G3 -0.160725 -1.93824 31 G5 -0.159042 -2.78308 8 H9 -0.235604 -4.24949 4 C10 -0.191449 -2.74261 7 
+whiteQValueTargetsByTurn 21 G3 -0.233876 -4.0388 75 C4 -0.176923 -2.76747 20 D6 -0.119448 -1.68974 3 F9 0.0281329 1.03405 1 
+whiteQValueTargetsByTurn 22 A5 -0.232748 -4.12334 29 G2 -0.324313 -5.86409 8 G5 -0.341907 -6.99808 3 C10 -0.206494 -2.97987 9 
+whiteQValueTargetsByTurn 23 B7 -0.255589 -4.52675 39 A7 -0.134206 -1.95192 7 C4 0.0356021 0.751678 2 D10 -0.0741379 -1.17659 1 
+whiteQValueTargetsByTurn 24 G2 -0.294998 -5.61799 10 D10 -0.297316 -5.08221 9 G5 -0.368959 -7.93997 5 H10 -0.406199 -6.81663 4 C10 -0.20235 -3.1116 18 G9 -0.293993 -4.65253 3 
+whiteQValueTargetsByTurn 25 G2 -0.409531 -7.16409 76 H2 -0.242103 -4.08487 8 C4 -0.387838 -7.94342 10 D6 -0.262372 -4.87277 3 G9 -0.192491 -4.22545 1 D10 -0.18864 -4.09621 1 
+whiteQValueTargetsByTurn 26 H2 -0.440281 -7.67664 11 L4 -0.558764 -9.86807 4 D10 -0.414251 -7.11073 10 K2 -0.50893 -9.05722 4 L5 -0.406443 -7.63247 8 K4 -0.590387 -10.4846 2 C10 -0.358568 -5.45455 10 
+whiteQValueTargetsByTurn 27 K2 -0.417791 -7.52693 37 K4 -0.445986 -8.12492 51 D6 -0.335362 -6.78391 6 C4 -0.395503 -8.17493 4 G9 -0.24278 -5.49743 1 
+whiteQValueTargetsByTurn 28 K3 -0.446258 -8.28484 90 D10 -0.484611 -7.98767 4 K2 -0.568167 -9.82291 2 C10 -0.507714 -9.05838 3 
+whiteQValueTargetsByTurn 29 L5 -0.444882 -8.23825 95 L4 -0.285644 -4.51119 2 D6 -0.124677 -3.3041 1 C4 -0.265454 -6.38788 1 
 Raw Stats 0.0387954 1.0302 1.47453
 Raw Stats -0.0555626 -0.219974 2.17441
 Raw Stats 0.108538 2.3534 1.62954
@@ -8239,6 +8407,36 @@ whiteValueTargetsByTurn 27 0.429524 0.570476 0 -1.15456 -
 whiteValueTargetsByTurn 28 0.449344 0.550656 0 -0.896894 - 
 whiteValueTargetsByTurn 29 0.440825 0.559175 0 -1.17 - 
 whiteValueTargetsByTurn 30 1 0 0 9.5 9.5 
+whiteQValueTargetsByTurn 0 C8 0.0286346 0.993342 6 D4 0.037282 1.18736 4 C4 0.0306995 1.03695 4 D3 0.05589 1.5069 4 D9 0.0135586 0.686774 4 D8 0.00389125 0.462105 6 H8 0.00738393 0.510971 5 H9 0.0136513 0.5962 5 J8 0.0147735 0.653466 5 H3 0.126415 2.65766 1 J4 0.0182739 0.870351 4 H4 0.11148 2.43797 1 
+whiteQValueTargetsByTurn 1 D3 0.00779569 0.690644 10 H9 0.00168929 0.354333 7 H3 -0.022794 -0.00471409 5 J8 0.0445663 1.2778 7 J4 0.0319412 1.02405 7 H4 0.00669193 0.458659 6 H8 0.0153117 0.781107 6 D4 -0.075533 -0.995556 1 
+whiteQValueTargetsByTurn 2 J8 0.00695469 0.711742 29 J4 0.05441 1.71541 14 H9 0.0264638 1.17608 18 H8 0.0542697 1.66412 13 H4 0.0371249 1.22279 16 H3 0.0511563 1.67023 9 
+whiteQValueTargetsByTurn 3 H4 -0.00313453 0.505502 37 J4 0.0325227 1.08107 54 H3 0.0173151 1.10684 8 
+whiteQValueTargetsByTurn 4 C5 0.0236211 0.871251 16 F8 0.0160801 0.767851 13 G8 0.0572784 1.42647 5 E8 0.042382 1.31669 5 G3 0.0788022 2.16684 3 G4 0.050539 1.46424 4 C4 0.0907032 2.2904 3 
+whiteQValueTargetsByTurn 5 C4 -0.00427361 0.139525 15 G9 0.0244653 0.830334 11 G4 0.0308189 0.999986 11 F4 0.028599 1.10646 8 D8 0.0330939 0.878502 4 
+whiteQValueTargetsByTurn 6 D5 0.0382503 0.935623 49 
+whiteQValueTargetsByTurn 7 F4 0.0676133 1.37571 29 F3 -0.0146488 0.313497 6 G4 -0.0499802 -0.796765 4 G9 0.00857978 0.549141 6 H9 0.00306576 0.487436 4 
+whiteQValueTargetsByTurn 8 G8 0.0418006 1.16375 35 E3 0.123662 2.50205 10 G9 0.083488 1.49997 12 F9 0.0809342 1.26427 8 D4 0.0655589 1.54467 7 H4 0.00708088 0.47136 21 J6 0.14007 3.095 4 J5 0.153047 3.24746 1 F8 0.111698 1.83701 1 
+whiteQValueTargetsByTurn 9 J6 0.0396236 1.17473 80 C9 -0.0476237 -0.375783 5 E9 -0.0111768 0.310439 6 D9 -0.0230708 0.122837 4 D8 -0.0294644 -0.144257 3 J7 -0.103338 -1.12722 1 
+whiteQValueTargetsByTurn 10 H5 0.0187467 0.956495 18 E3 0.0910019 1.63448 8 K7 0.137074 2.98881 4 D4 0.0534352 1.36269 7 G5 0.017807 1.03592 8 F5 0.0507948 1.26769 4 
+whiteQValueTargetsByTurn 11 H4 0.0246965 1.12013 48 H6 -0.116888 -1.79796 1 
+whiteQValueTargetsByTurn 12 G5 0.0410535 1.31318 39 F5 0.0163666 1.12199 39 D4 0.0409462 1.31508 10 J5 0.0808567 1.60649 6 H6 0.0836914 1.94929 3 E4 0.173624 2.92056 1 E3 0.113164 1.87171 1 
+whiteQValueTargetsByTurn 13 F5 0.0873699 1.95871 66 G4 0.0135062 1.1609 23 H7 -0.00910753 0.522917 5 J5 -0.11245 -1.05224 2 C9 -0.0535886 0.0883506 3 
+whiteQValueTargetsByTurn 14 F6 0.0626011 1.6756 53 G4 0.127478 2.48721 17 J5 0.10308 2.11065 21 D4 0.101609 2.15901 8 
+whiteQValueTargetsByTurn 15 E6 0.0779199 1.88815 28 G4 0.0715266 1.88042 16 H7 -0.000335733 0.662751 3 C9 -0.0382205 0.26826 2 
+whiteQValueTargetsByTurn 16 F7 0.0710525 1.78276 25 G4 0.115269 2.4054 7 E5 0.0133065 1.07382 14 J5 0.164938 3.30506 3 
+whiteQValueTargetsByTurn 17 E5 -0.0387086 -0.112269 11 D8 0.131046 2.69208 47 G4 0.110493 2.44747 27 C9 0.0461647 1.36212 5 K8 0.0331234 1.05336 5 C7 -0.0283349 0.406116 3 D7 -0.00204051 0.757776 1 
+whiteQValueTargetsByTurn 18 D7 0.177068 3.60245 11 C7 0.0991581 2.38012 16 C9 0.120216 2.06595 12 G4 0.144893 2.96989 7 E5 0.185584 3.74212 2 D9 0.26718 4.72719 1 
+whiteQValueTargetsByTurn 19 D9 0.11754 2.55042 39 C9 0.0663531 1.59101 8 E7 -0.11997 -1.16062 1 E5 0.0136968 0.949354 1 
+whiteQValueTargetsByTurn 20 C9 0.111156 2.33576 29 E7 0.221794 4.8194 7 E5 0.16404 3.80936 8 G4 0.0146028 0.826441 51 D7 0.189126 3.8096 3 F9 0.329513 6.12362 1 
+whiteQValueTargetsByTurn 21 G3 -0.0037338 0.709838 97 F3 -0.303173 -5.27223 1 C9 -0.117188 -1.62397 1 
+whiteQValueTargetsByTurn 22 F3 0.0165494 1.11251 25 E5 -0.00972265 0.144672 21 C9 0.411343 7.38336 1 J5 0.236913 4.55674 1 H3 0.31811 6.54103 1 
+whiteQValueTargetsByTurn 23 E3 -0.00720146 0.665149 30 F2 -0.0369196 0.231629 18 E4 -0.252447 -3.77117 1 
+whiteQValueTargetsByTurn 24 E5 -0.0835598 -0.407441 77 F2 0.0441631 1.39121 15 H3 0.262921 5.17572 3 J5 0.277858 5.65799 2 C9 0.477722 7.89957 1 E7 0.258058 4.89042 1 
+whiteQValueTargetsByTurn 25 F2 -0.0457816 0.301026 45 E4 -0.221803 -3.98391 4 
+whiteQValueTargetsByTurn 26 F9 -0.0449952 0.360213 15 C9 -0.0816792 -0.318234 28 J5 0.258472 5.5317 3 F10 0.0633336 2.7238 3 
+whiteQValueTargetsByTurn 27 H9 -0.109934 -1.02305 54 G10 -0.235633 -2.57729 10 H7 -0.3846 -2.64763 4 K8 -0.1688 -0.511623 14 C10 -0.180384 -1.82265 8 H10 -0.0842116 -0.531305 9 
+whiteQValueTargetsByTurn 28 J9 -0.136321 -1.43908 40 G9 0.0645825 1.56559 8 H8 0.148466 3.62845 1 
+whiteQValueTargetsByTurn 29 G9 -0.0535565 -0.301968 32 H8 -0.276679 -3.35414 4 J10 -0.17299 -2.03998 7 F9 -0.312848 -3.75703 2 G10 -0.340274 -4.0588 2 C10 -0.338933 -3.79485 2 
 Raw Stats -0.0120813 0.456089 2.91842
 Raw Stats 0.113391 2.56886 2.44762
 Raw Stats -0.0914912 -0.945204 2.07656
@@ -8570,6 +8768,36 @@ whiteValueTargetsByTurn 27 0.420974 0.579026 0 -1.54658 -
 whiteValueTargetsByTurn 28 0.432403 0.567597 0 -1.1243 - 
 whiteValueTargetsByTurn 29 0.43607 0.56393 0 -1.10786 - 
 whiteValueTargetsByTurn 30 1 0 0 11.5 11.5 
+whiteQValueTargetsByTurn 0 C8 0.0156455 0.712117 13 D4 0.00877442 0.591195 12 C4 0.0416369 1.26195 7 D3 0.0702487 1.80004 5 D9 0.0525059 1.3875 6 D8 0.0100707 0.585088 12 H8 0.015418 0.714577 9 H9 0.015722 0.625459 9 J8 0.027091 0.911157 8 H3 0.014273 0.765101 8 J4 0.0388957 1.22385 5 H4 0.0426531 1.28814 5 
+whiteQValueTargetsByTurn 1 D3 0.00779569 0.690644 10 H9 0.00168929 0.354333 7 H3 -0.022794 -0.00471409 5 J8 0.0445663 1.2778 7 J4 0.0319412 1.02405 7 H4 0.00669193 0.458659 6 H8 0.0153117 0.781107 6 D4 -0.075533 -0.995556 1 
+whiteQValueTargetsByTurn 2 J8 0.02499 1.09144 12 J4 0.0313246 1.23328 9 H9 0.0501748 1.64722 7 H8 0.0509234 1.71189 7 H4 0.0399988 1.35433 8 H3 0.0313128 1.34981 6 
+whiteQValueTargetsByTurn 3 H4 -0.00313453 0.505502 37 J4 0.0325227 1.08107 54 H3 0.0173151 1.10684 8 
+whiteQValueTargetsByTurn 4 C5 0.0194324 0.742673 42 F8 0.0388786 1.18663 20 G8 0.0739078 1.69808 9 E8 0.0567799 1.50973 10 G3 0.097283 2.4554 4 G4 0.0556549 1.52818 6 C4 0.0464115 1.43353 7 F9 0.098154 2.10056 1 
+whiteQValueTargetsByTurn 5 C4 -0.00427361 0.139525 15 G9 0.0244653 0.830334 11 G4 0.0308189 0.999986 11 F4 0.028599 1.10646 8 D8 0.0330939 0.878502 4 
+whiteQValueTargetsByTurn 6 D5 0.0338968 0.910013 99 
+whiteQValueTargetsByTurn 7 F4 0.0604783 1.35132 59 F3 0.0113423 0.641978 14 G4 -0.0453636 -0.512852 7 G9 -0.00620341 0.202334 10 H9 -0.00186927 0.328169 7 D9 -0.14741 -2.13196 1 E4 -0.163676 -2.51115 1 
+whiteQValueTargetsByTurn 8 G8 0.0418006 1.16375 35 E3 0.123662 2.50205 10 G9 0.083488 1.49997 12 F9 0.0809342 1.26427 8 D4 0.0655589 1.54467 7 H4 0.00708088 0.47136 21 J6 0.14007 3.095 4 J5 0.153047 3.24746 1 F8 0.111698 1.83701 1 
+whiteQValueTargetsByTurn 9 J6 0.0419024 1.18759 41 C9 -0.0617797 -0.435826 2 E9 0.0246078 0.985532 4 D9 -0.0990375 -0.87437 1 D8 -0.0382136 0.3136 1 
+whiteQValueTargetsByTurn 10 H5 0.0187467 0.956495 18 E3 0.0910019 1.63448 8 K7 0.137074 2.98881 4 D4 0.0534352 1.36269 7 G5 0.017807 1.03592 8 F5 0.0507948 1.26769 4 
+whiteQValueTargetsByTurn 11 H4 0.0243377 1.11254 48 H6 -0.116888 -1.79796 1 
+whiteQValueTargetsByTurn 12 G5 0.0439039 1.31598 19 F5 -0.0131033 0.69797 23 D4 0.0877449 1.84936 3 J5 0.0911569 1.64869 3 H6 0.171235 3.28796 1 
+whiteQValueTargetsByTurn 13 G5 -0.00842741 0.736376 33 E4 -0.0143503 0.631526 18 G4 -0.0242847 0.561251 6 C9 -0.046393 0.15857 5 H9 0.0906112 1.90928 37 
+whiteQValueTargetsByTurn 14 H8 0.0913061 1.89554 23 J9 0.154089 3.17123 6 G9 -0.111264 -1.22731 68 E4 0.310632 5.17528 1 G4 0.313041 5.29432 1 
+whiteQValueTargetsByTurn 15 H8 -0.143525 -1.74205 39 J9 -0.0574467 -0.557772 10 
+whiteQValueTargetsByTurn 16 H7 -0.174014 -2.18873 47 J9 0.449891 7.57938 1 J5 0.351199 6.37679 1 
+whiteQValueTargetsByTurn 17 J7 -0.189995 -1.84414 44 J9 -0.148167 -2.47083 46 H10 -0.192662 -2.97671 4 H6 -0.162679 -2.23932 5 
+whiteQValueTargetsByTurn 18 J7 -0.154628 -2.58164 49 
+whiteQValueTargetsByTurn 19 G10 -0.157027 -2.71994 26 K9 -0.26907 -4.56189 7 G7 -0.0979251 -1.51274 14 K8 -0.203896 -3.06414 2 
+whiteQValueTargetsByTurn 20 F10 -0.188977 -3.35081 49 
+whiteQValueTargetsByTurn 21 H10 -0.172866 -3.12154 32 G11 -0.196025 -3.39456 17 
+whiteQValueTargetsByTurn 22 E4 -0.0938819 -1.35052 61 J5 0.0256467 0.533651 10 F9 0.0767755 0.96077 5 G4 -0.0114868 -0.0321769 8 E9 -0.00150066 -0.170506 7 K10 0.128923 3.04397 3 G5 -0.0395591 -0.339168 4 K9 0.0674189 2.17555 1 
+whiteQValueTargetsByTurn 23 E3 -0.361225 -6.42522 14 F3 -0.150622 -2.73586 11 G7 -0.161542 -2.87899 7 F9 -0.0427213 -0.157258 67 
+whiteQValueTargetsByTurn 24 E10 0.189599 4.16942 14 E3 -0.0991777 -1.21092 28 F8 0.0395201 0.530943 3 E9 0.0386383 0.3618 4 
+whiteQValueTargetsByTurn 25 G7 -0.0905221 -0.726442 34 E10 -0.1803 -2.53616 13 E2 -0.254526 -4.28225 1 B5 -0.347953 -6.53059 1 
+whiteQValueTargetsByTurn 26 F8 -0.0695663 -0.640792 33 H6 -0.158053 -1.54658 50 J5 -0.0681437 -0.299525 13 G6 -0.0313092 0.7327 3 
+whiteQValueTargetsByTurn 27 F8 -0.159595 -1.47667 46 E2 -0.206416 -3.69324 3 
+whiteQValueTargetsByTurn 28 G2 0.0128389 1.82402 8 H2 -0.14318 -1.58672 30 E2 -0.188753 -1.86784 47 J5 0.154177 3.13632 3 F2 -0.0260882 0.65469 6 D2 -0.0193499 0.722567 4 G4 0.202537 4.87671 1 
+whiteQValueTargetsByTurn 29 G2 -0.0757216 -0.282594 61 G3 -0.170025 -1.65908 21 G4 -0.267223 -3.2168 7 B5 -0.281594 -4.2037 5 K6 -0.520321 -6.62533 1 J5 -0.465996 -5.38051 1 G5 -0.335969 -4.86456 3 
 Raw Stats -0.0120813 0.456089 2.91842
 Raw Stats 0.113391 2.56886 2.44762
 Raw Stats -0.0914912 -0.945204 2.07656
@@ -9242,6 +9470,21 @@ whiteValueTargetsByTurn 12 0.438557 0.561443 0 -1.88275 -
 whiteValueTargetsByTurn 13 0.442701 0.557299 0 -1.87145 - 
 whiteValueTargetsByTurn 14 0.450297 0.549703 0 -1.57185 - 
 whiteValueTargetsByTurn 15 1 0 0 4.5 4.5 
+whiteQValueTargetsByTurn 0 F3 -0.0557715 -0.310854 220 G4 0.181718 4.13099 3 K4 0.204183 4.78141 1 A1 0.827796 17.4425 175 
+whiteQValueTargetsByTurn 1 G4 -0.0587424 -0.345288 99 
+whiteQValueTargetsByTurn 2 E2 -0.0585416 -0.360096 49 
+whiteQValueTargetsByTurn 3 H2 -0.0649415 -0.492306 49 
+whiteQValueTargetsByTurn 4 F1 -0.0579764 -0.335887 99 
+whiteQValueTargetsByTurn 5 J2 -0.0588955 -0.346632 99 
+whiteQValueTargetsByTurn 6 K3 -0.0682972 -0.669981 17 D5 -0.0998745 -1.08441 22 C4 -0.0634872 -0.326953 6 C5 0.0514995 1.12668 1 J9 0.123742 3.33312 1 E5 0.0391974 0.977499 1 H8 0.132699 3.13531 1 
+whiteQValueTargetsByTurn 7 D3 -0.0577564 -0.372915 12 D9 -0.112269 -1.12954 6 D8 -0.0973841 -1.19312 7 H9 -0.186309 -2.72721 4 E9 -0.0905143 -0.933216 5 E8 -0.128605 -1.39762 3 E4 -0.1303 -1.1459 3 C4 -0.134665 -1.81428 2 C3 -0.0454931 -0.54579 5 C7 -0.195026 -2.15665 1 C8 -0.186178 -1.49797 1 
+whiteQValueTargetsByTurn 8 E4 -0.14554 -2.01692 33 F4 -0.0304908 -0.283206 11 C3 -0.051764 0.143583 3 D2 0.0561185 1.16934 1 K3 -0.0120317 -0.0351256 1 
+whiteQValueTargetsByTurn 9 C5 -0.175044 -2.54361 15 B5 -0.112066 -1.32374 19 C4 -0.16645 -2.52314 11 D8 -0.148623 -2.13942 4 
+whiteQValueTargetsByTurn 10 C4 -0.0940722 -1.32226 30 B3 -0.062752 -0.513566 9 C6 0.0640527 2.00581 3 C7 -0.0265397 0.365762 4 K3 -0.082183 -1.42966 3 
+whiteQValueTargetsByTurn 11 C8 -0.129011 -1.73354 18 B4 -0.117747 -1.72988 19 C7 -0.0978875 -1.23431 12 
+whiteQValueTargetsByTurn 12 C3 -0.130569 -2.04855 45 B3 8.71558e-05 0.324295 4 
+whiteQValueTargetsByTurn 13 C8 -0.104217 -1.59173 55 C7 -0.17787 -3.36093 17 B7 -0.17559 -3.08688 8 B3 -0.0614873 -0.887959 18 B8 -0.399559 -6.16103 1 
+whiteQValueTargetsByTurn 14 D9 -0.0165417 -0.158768 22 D8 -0.127762 -2.0213 55 B8 -0.10018 -1.72415 21 K3 0.0476824 0.992921 1 
 Raw Stats 0.0724761 1.62158 0.583597
 Raw Stats 0.0526159 1.20994 0.0809493
 Raw Stats -0.0810362 -1.22066 0.0983408
@@ -9531,6 +9774,83 @@ whiteValueTargetsByTurn 73 0.0157601 0.98424 0 -51.0835 -
 whiteValueTargetsByTurn 74 0.00156711 0.998433 0 -53.7101 - 
 whiteValueTargetsByTurn 75 0.000817475 0.999183 0 -51.9017 - 
 whiteValueTargetsByTurn 76 0.000889858 0.99911 0 -53.7609 - 
+whiteQValueTargetsByTurn 0 G3 -0.0261432 -0.258565 7 J7 -0.203375 -2.6237 1 J6 -0.201124 -2.86833 1 
+whiteQValueTargetsByTurn 1 J7 0.00244789 0.218673 5 J8 -0.011444 -0.0204867 4 
+whiteQValueTargetsByTurn 2 J8 -0.0215846 -0.27089 4 
+whiteQValueTargetsByTurn 3 H7 0.0582746 1.1994 9 
+whiteQValueTargetsByTurn 4 F9 0.0518693 1.11467 9 
+whiteQValueTargetsByTurn 5 E9 0.0640175 1.34621 4 
+whiteQValueTargetsByTurn 6 F8 0.0529707 1.27904 9 
+whiteQValueTargetsByTurn 7 D6 0.0359272 0.872959 7 J3 0.137581 2.95747 2 
+whiteQValueTargetsByTurn 8 C9 0.067623 1.52053 4 
+whiteQValueTargetsByTurn 9 F10 0.15995 2.84458 1 E10 -0.0144214 0.139354 2 D10 0.0614692 1.4024 1 
+whiteQValueTargetsByTurn 10 B7 0.0207124 0.747142 7 C8 0.0146835 0.788639 2 
+whiteQValueTargetsByTurn 11 C8 0.0030835 0.29889 9 
+whiteQValueTargetsByTurn 12 B8 0.0327339 1.00949 4 
+whiteQValueTargetsByTurn 13 C10 0.0488093 1.23508 2 B10 0.108243 2.62887 2 
+whiteQValueTargetsByTurn 14 B10 -0.0363249 -0.573562 4 
+whiteQValueTargetsByTurn 15 D9 -0.121807 -2.51539 9 
+whiteQValueTargetsByTurn 16 B9 -0.152882 -3.16826 4 
+whiteQValueTargetsByTurn 17 B11 -0.156774 -3.22617 2 B6 -0.160631 -3.48316 2 
+whiteQValueTargetsByTurn 18 B5 -0.253658 -5.29464 4 
+whiteQValueTargetsByTurn 19 C5 -0.208114 -4.32367 5 C6 -0.280803 -5.60254 4 
+whiteQValueTargetsByTurn 20 C6 -0.217556 -4.45564 3 B4 -0.195812 -4.56886 1 
+whiteQValueTargetsByTurn 21 C7 -0.145421 -2.63036 7 B4 -0.127391 -2.20942 2 
+whiteQValueTargetsByTurn 22 B6 -0.0946827 -1.65274 9 
+whiteQValueTargetsByTurn 23 E5 0.0151318 0.364561 3 B4 -0.158549 -2.83228 5 E4 0.0161434 0.412419 1 
+whiteQValueTargetsByTurn 24 D5 -0.173991 -3.46832 9 
+whiteQValueTargetsByTurn 25 E6 -0.115574 -2.01882 3 D4 -0.198795 -4.1777 1 
+whiteQValueTargetsByTurn 26 D4 -0.1674 -3.33058 9 
+whiteQValueTargetsByTurn 27 D2 -0.252815 -5.49465 7 B2 -0.0241206 0.257095 2 
+whiteQValueTargetsByTurn 28 E2 -0.263876 -5.888 4 
+whiteQValueTargetsByTurn 29 C2 -0.34781 -7.35509 5 B2 -0.297882 -6.246 4 
+whiteQValueTargetsByTurn 30 G6 -0.327798 -7.72817 2 F4 -0.369314 -6.71054 2 
+whiteQValueTargetsByTurn 31 G7 -0.19053 -4.18741 5 E3 -0.177887 -3.17917 2 F4 -0.0880824 -1.16168 2 
+whiteQValueTargetsByTurn 32 F7 -0.155314 -2.80122 9 
+whiteQValueTargetsByTurn 33 F6 -0.165528 -2.94533 9 
+whiteQValueTargetsByTurn 34 G5 -0.113576 -1.88946 4 
+whiteQValueTargetsByTurn 35 F4 -0.15239 -2.3988 7 K7 0.0355647 1.28346 1 G10 0.00398171 0.390312 1 
+whiteQValueTargetsByTurn 36 G4 -0.202318 -3.335 4 
+whiteQValueTargetsByTurn 37 E3 -0.302082 -5.50378 9 
+whiteQValueTargetsByTurn 38 F3 -0.307323 -5.52836 4 
+whiteQValueTargetsByTurn 39 E4 -0.352593 -6.07378 4 
+whiteQValueTargetsByTurn 40 K7 -0.365358 -7.43394 3 J5 -0.461189 -7.77184 1 
+whiteQValueTargetsByTurn 41 K6 -0.394107 -8.1904 4 
+whiteQValueTargetsByTurn 42 K8 -0.40184 -8.98693 4 
+whiteQValueTargetsByTurn 43 K2 -0.469674 -10.054 4 
+whiteQValueTargetsByTurn 44 J3 -0.497063 -10.6354 4 
+whiteQValueTargetsByTurn 45 K3 -0.494381 -12.8684 9 
+whiteQValueTargetsByTurn 46 K5 -0.753799 -20.2207 2 J5 -0.538389 -12.3269 3 K1 -0.352475 -10.6861 4 
+whiteQValueTargetsByTurn 47 J5 -0.383984 -12.0009 6 K4 -0.353802 -10.5213 2 K5 -0.284839 -7.31342 1 
+whiteQValueTargetsByTurn 48 H6 -0.355111 -11.0852 2 L2 -0.473927 -14.7545 2 
+whiteQValueTargetsByTurn 49 J6 -0.362862 -10.9762 4 
+whiteQValueTargetsByTurn 50 L2 -0.331744 -10.7437 8 E1 -0.431928 -16.4075 1 
+whiteQValueTargetsByTurn 51 L3 -0.362886 -10.3057 2 K4 -0.372657 -12.8714 2 
+whiteQValueTargetsByTurn 52 K4 -0.14858 -4.59154 6 J1 -0.317289 -10.1484 1 L5 -0.428931 -14.5809 2 
+whiteQValueTargetsByTurn 53 L1 -0.236642 -7.90449 9 
+whiteQValueTargetsByTurn 54 J1 -0.0391827 -1.71039 4 
+whiteQValueTargetsByTurn 55 L4 0.033685 1.05554 1 K5 -0.200264 -6.36818 3 
+whiteQValueTargetsByTurn 56 L4 -0.299205 -10.8031 3 L2 -0.573756 -16.751 1 
+whiteQValueTargetsByTurn 57 L5 -0.323331 -12.2226 9 
+whiteQValueTargetsByTurn 58 L2 -0.552312 -21.1845 2 G2 -0.220145 -11.0736 2 
+whiteQValueTargetsByTurn 59 F2 -0.654516 -26.732 3 H4 -0.557196 -21.6744 1 
+whiteQValueTargetsByTurn 60 G2 -0.649454 -28.9789 9 
+whiteQValueTargetsByTurn 61 E1 -0.669578 -30.0495 9 
+whiteQValueTargetsByTurn 62 H4 -0.641994 -29.8503 4 
+whiteQValueTargetsByTurn 63 H2 -0.681998 -31.9094 3 G1 -0.729125 -28.5161 1 
+whiteQValueTargetsByTurn 64 K4 -0.583827 -26.0446 5 L1 -0.750402 -37.0465 1 H1 -0.620316 -27.732 2 H3 -0.650077 -30.3138 1 
+whiteQValueTargetsByTurn 65 L1 -0.453063 -19.032 2 L4 -0.639109 -28.817 2 
+whiteQValueTargetsByTurn 66 G1 -0.598799 -27.438 3 H3 -0.52401 -23.0505 4 G8 -0.635739 -27.7705 2 
+whiteQValueTargetsByTurn 67 G1 -0.61583 -25.8733 7 H1 -0.362218 -18.5792 1 F5 -0.759261 -31.6194 1 
+whiteQValueTargetsByTurn 68 H1 -0.518204 -22.3532 3 L2 -0.621765 -26.2889 1 
+whiteQValueTargetsByTurn 69 F1 -0.856477 -42.2286 7 F5 -0.681342 -31.4199 2 
+whiteQValueTargetsByTurn 70 L2 -0.879237 -43.4344 9 
+whiteQValueTargetsByTurn 71 L4 -0.923302 -46.053 4 
+whiteQValueTargetsByTurn 72 L1 -0.96848 -51.0835 5 L6 -0.765772 -35.7347 4 
+whiteQValueTargetsByTurn 73 F5 -0.996926 -54.353 4 
+whiteQValueTargetsByTurn 74 F10 -0.998312 -53.638 3 A5 -0.996627 -51.1448 1 
+whiteQValueTargetsByTurn 75 F11 -0.997838 -54.2949 2 H5 -0.999074 -48.5921 2 
+whiteQValueTargetsByTurn 76 G11 -0.99828 -53.6414 9 
 trainingWeight 1
 (;FF[4]GM[1]SZ[11]PB[Black]PW[White]HA[0]KM[7.5]RU[koPOSITIONALscoreAREAtaxNONEsui1]RE[B+R]C[startTurnIdx=7,initTurnNum=0,gameHash=F7A17051D50449D2028AEF337C814460,gtype=normal];B[ch];W[hc];B[dd];W[ij];B[ih];W[di];B[ci];W[gi]C[0.47 0.53 0.00 -0.6 v=10];B[ie]C[0.49 0.51 0.00 -0.2 v=10];W[id]C[0.50 0.50 0.00 0.2 v=5];B[he]C[0.52 0.48 0.00 0.8 v=10];W[fc]C[0.53 0.47 0.00 1.2 v=10];B[ec]C[0.51 0.49 0.00 0.6 v=5];W[fd]C[0.53 0.47 0.00 1.3 v=10];B[df]C[0.52 0.48 0.00 1.1 v=10];W[cc]C[0.54 0.46 0.00 1.6 v=5];B[eb]C[0.52 0.48 0.00 0.9 v=5];W[be]C[0.51 0.49 0.00 0.8 v=10];B[cd]C[0.50 0.50 0.00 0.1 v=10];W[bd]C[0.51 0.49 0.00 0.7 v=5];B[cb]C[0.53 0.47 0.00 1.4 v=5];W[bb]C[0.49 0.51 0.00 -0.2 v=5];B[dc]C[0.45 0.55 0.00 -2.1 v=10];W[bc]C[0.45 0.55 0.00 -2.2 v=5];B[ba]C[0.42 0.58 0.00 -3.2 v=5];W[bg]C[0.38 0.62 0.00 -4.8 v=5];B[cg]C[0.38 0.62 0.00 -4.8 v=10];W[cf]C[0.40 0.60 0.00 -4.3 v=5];B[ce]C[0.42 0.58 0.00 -2.8 v=10];W[bf]C[0.45 0.55 0.00 -1.8 v=10];B[bh]C[0.45 0.55 0.00 -1.8 v=10];W[dg]C[0.41 0.59 0.00 -3.6 v=10];B[ef]C[0.43 0.57 0.00 -2.7 v=5];W[dh]C[0.41 0.59 0.00 -3.4 v=10];B[dj]C[0.41 0.59 0.00 -3.8 v=10];W[ej]C[0.38 0.62 0.00 -5.3 v=5];B[cj]C[0.35 0.65 0.00 -6.4 v=10];W[gf]C[0.33 0.67 0.00 -7.4 v=5];B[ge]C[0.41 0.59 0.00 -3.7 v=10];W[fe]C[0.41 0.59 0.00 -3.3 v=10];B[ff]C[0.41 0.59 0.00 -3.2 v=10];W[gg]C[0.43 0.57 0.00 -2.3 v=5];B[fh]C[0.44 0.56 0.00 -1.8 v=10];W[gh]C[0.41 0.59 0.00 -2.9 v=5];B[ei]C[0.36 0.64 0.00 -5.2 v=10];W[fi]C[0.36 0.64 0.00 -4.7 v=5];B[eh]C[0.33 0.67 0.00 -6.0 v=5];W[je]C[0.32 0.68 0.00 -6.8 v=5];B[jf]C[0.31 0.69 0.00 -7.9 v=5];W[jd]C[0.30 0.70 0.00 -8.4 v=5];B[jj]C[0.27 0.73 0.00 -9.9 v=5];W[ii]C[0.26 0.74 0.00 -10.3 v=5];B[ji]C[0.26 0.74 0.00 -12.4 v=10];W[jk]C[0.26 0.74 0.00 -12.6 v=10];B[ig]C[0.32 0.68 0.00 -11.3 v=10];W[hf]C[0.30 0.70 0.00 -12.5 v=5];B[if]C[0.33 0.67 0.00 -10.5 v=5];W[kj]C[0.32 0.68 0.00 -11.5 v=10];B[ki]C[0.32 0.68 0.00 -11.3 v=5];W[jh]C[0.38 0.62 0.00 -7.8 v=10];B[kk]C[0.38 0.62 0.00 -7.7 v=10];W[ik]C[0.44 0.56 0.00 -4.3 v=5];B[jg]C[0.44 0.56 0.00 -4.1 v=5];W[kh]C[0.35 0.65 0.00 -10.0 v=5];B[kg]C[0.35 0.65 0.00 -11.5 v=10];W[kj]C[0.31 0.69 0.00 -15.1 v=5];B[fj]C[0.21 0.79 0.00 -23.4 v=5];W[gj]C[0.17 0.83 0.00 -28.8 v=10];B[ek]C[0.18 0.82 0.00 -28.4 v=10];W[hh]C[0.15 0.85 0.00 -31.6 v=5];B[hj]C[0.17 0.83 0.00 -29.6 v=5];W[jh]C[0.19 0.81 0.00 -27.7 v=10];B[kk]C[0.21 0.79 0.00 -26.0 v=5];W[hi]C[0.22 0.78 0.00 -24.8 v=10];B[gk]C[0.20 0.80 0.00 -25.3 v=10];W[hk]C[0.23 0.77 0.00 -23.1 v=5];B[fk]C[0.12 0.88 0.00 -37.1 v=10];W[kj]C[0.06 0.94 0.00 -43.0 v=10];B[kh]C[0.09 0.91 0.00 -40.4 v=5];W[kk]C[0.07 0.93 0.00 -42.8 v=10];B[fg]C[0.02 0.98 0.00 -51.1 v=5];W[fb]C[0.00 1.00 0.00 -53.7 v=5];B[fa]C[0.00 1.00 0.00 -51.9 v=5];W[ga]C[0.00 1.00 0.00 -53.8 v=10 result=B+R])
 (;FF[4]GM[1]SZ[11]PB[Black]PW[White]HA[0]KM[7.5]RU[koPOSITIONALscoreAREAtaxNONEsui1]RE[B+R]C[startTurnIdx=7,initTurnNum=0,gameHash=F7A17051D50449D2028AEF337C814460,gtype=normal];B[ch];W[hc];B[dd];W[ij];B[ih];W[di];B[ci];W[gi]C[0.47 0.53 0.00 -0.6 v=10];B[ie]C[0.49 0.51 0.00 -0.2 v=10];W[id]C[0.50 0.50 0.00 0.2 v=5];B[he]C[0.52 0.48 0.00 0.8 v=10];W[fc]C[0.53 0.47 0.00 1.2 v=10];B[ec]C[0.51 0.49 0.00 0.6 v=5];W[fd]C[0.53 0.47 0.00 1.3 v=10];B[df]C[0.52 0.48 0.00 1.1 v=10];W[cc]C[0.54 0.46 0.00 1.6 v=5];B[eb]C[0.52 0.48 0.00 0.9 v=5];W[be]C[0.51 0.49 0.00 0.8 v=10];B[cd]C[0.50 0.50 0.00 0.1 v=10];W[bd]C[0.51 0.49 0.00 0.7 v=5];B[cb]C[0.53 0.47 0.00 1.4 v=5];W[bb]C[0.49 0.51 0.00 -0.2 v=5];B[dc]C[0.45 0.55 0.00 -2.1 v=10];W[bc]C[0.45 0.55 0.00 -2.2 v=5];B[ba]C[0.42 0.58 0.00 -3.2 v=5];W[bg]C[0.38 0.62 0.00 -4.8 v=5];B[cg]C[0.38 0.62 0.00 -4.8 v=10];W[cf]C[0.40 0.60 0.00 -4.3 v=5];B[ce]C[0.42 0.58 0.00 -2.8 v=10];W[bf]C[0.45 0.55 0.00 -1.8 v=10];B[bh]C[0.45 0.55 0.00 -1.8 v=10];W[dg]C[0.41 0.59 0.00 -3.6 v=10];B[ef]C[0.43 0.57 0.00 -2.7 v=5];W[dh]C[0.41 0.59 0.00 -3.4 v=10];B[dj]C[0.41 0.59 0.00 -3.8 v=10];W[ej]C[0.38 0.62 0.00 -5.3 v=5];B[cj]C[0.35 0.65 0.00 -6.4 v=10];W[gf]C[0.33 0.67 0.00 -7.4 v=5];B[ge]C[0.41 0.59 0.00 -3.7 v=10];W[fe]C[0.41 0.59 0.00 -3.3 v=10];B[ff]C[0.41 0.59 0.00 -3.2 v=10];W[gg]C[0.43 0.57 0.00 -2.3 v=5];B[fh]C[0.44 0.56 0.00 -1.8 v=10];W[gh]C[0.41 0.59 0.00 -2.9 v=5];B[ei]C[0.36 0.64 0.00 -5.2 v=10];W[fi]C[0.36 0.64 0.00 -4.7 v=5];B[eh]C[0.33 0.67 0.00 -6.0 v=5];W[je]C[0.32 0.68 0.00 -6.8 v=5];B[jf]C[0.31 0.69 0.00 -7.9 v=5];W[jd]C[0.30 0.70 0.00 -8.4 v=5];B[jj]C[0.27 0.73 0.00 -9.9 v=5];W[ii]C[0.26 0.74 0.00 -10.3 v=5];B[ji]C[0.26 0.74 0.00 -12.4 v=10];W[jk]C[0.26 0.74 0.00 -12.6 v=10];B[ig]C[0.32 0.68 0.00 -11.3 v=10];W[hf]C[0.30 0.70 0.00 -12.5 v=5];B[if]C[0.33 0.67 0.00 -10.5 v=5];W[kj]C[0.32 0.68 0.00 -11.5 v=10];B[ki]C[0.32 0.68 0.00 -11.3 v=5];W[jh]C[0.38 0.62 0.00 -7.8 v=10];B[kk]C[0.38 0.62 0.00 -7.7 v=10];W[ik]C[0.44 0.56 0.00 -4.3 v=5];B[jg]C[0.44 0.56 0.00 -4.1 v=5];W[kh]C[0.35 0.65 0.00 -10.0 v=5];B[kg]C[0.35 0.65 0.00 -11.5 v=10];W[kj]C[0.31 0.69 0.00 -15.1 v=5];B[fj]C[0.21 0.79 0.00 -23.4 v=5];W[gj]C[0.17 0.83 0.00 -28.8 v=10];B[ek]C[0.18 0.82 0.00 -28.4 v=10];W[hh]C[0.15 0.85 0.00 -31.6 v=5];B[hj]C[0.17 0.83 0.00 -29.6 v=5];W[jh]C[0.19 0.81 0.00 -27.7 v=10];B[kk]C[0.21 0.79 0.00 -26.0 v=5];W[hi]C[0.22 0.78 0.00 -24.8 v=10];B[gk]C[0.20 0.80 0.00 -25.3 v=10];W[hk]C[0.23 0.77 0.00 -23.1 v=5];B[fk]C[0.12 0.88 0.00 -37.1 v=10];W[kj]C[0.06 0.94 0.00 -43.0 v=10];B[kh]C[0.09 0.91 0.00 -40.4 v=5];W[kk]C[0.07 0.93 0.00 -42.8 v=10];B[fg]C[0.02 0.98 0.00 -51.1 v=5];W[fb]C[0.00 1.00 0.00 -53.7 v=5];B[fa]C[0.00 1.00 0.00 -51.9 v=5];C[0.00 1.00 0.00 -53.8 v=10 result=B+R])
@@ -9700,6 +10020,21 @@ whiteValueTargetsByTurn 12 0.561156 0.438844 0 2.06852 -
 whiteValueTargetsByTurn 13 0.561716 0.438284 0 2.08632 - 
 whiteValueTargetsByTurn 14 0.562767 0.437233 0 2.10936 - 
 whiteValueTargetsByTurn 15 1 0 0 4.5 4.5 
+whiteQValueTargetsByTurn 0 F4 0.0485254 1.38565 98 G2 0.284842 5.05241 1 
+whiteQValueTargetsByTurn 1 G2 0.051552 1.4289 96 F3 -0.0801301 -0.673713 3 
+whiteQValueTargetsByTurn 2 F3 0.0739398 2.2879 33 G5 0.082054 1.21636 13 C6 0.15772 3.79001 3 
+whiteQValueTargetsByTurn 3 F2 0.0721061 2.20885 49 
+whiteQValueTargetsByTurn 4 E4 0.0522755 1.90355 39 C6 0.103976 2.74743 8 C7 0.28634 6.00443 1 C5 0.250522 4.83957 1 
+whiteQValueTargetsByTurn 5 D4 0.101486 2.83594 37 D3 -0.0737236 -0.176165 10 C9 -0.0512811 -0.437258 2 
+whiteQValueTargetsByTurn 6 C6 0.0924617 2.54338 49 C7 0.0914038 2.60198 32 D6 0.121169 2.89388 12 D3 0.233906 4.6889 3 C8 0.354449 7.36646 1 C9 0.402599 7.35585 1 D5 0.397539 7.05785 1 
+whiteQValueTargetsByTurn 7 D6 0.0575578 2.00045 10 C9 0.07013 1.93219 8 E5 0.099589 2.24285 10 D5 0.0546341 2.22798 5 D9 0.106075 3.04863 6 G5 -0.159492 -1.35418 1 H9 0.138901 3.40411 9 
+whiteQValueTargetsByTurn 8 D7 0.0664122 1.69395 68 C7 0.113694 2.64302 30 D3 0.226689 4.16533 1 
+whiteQValueTargetsByTurn 9 E5 0.109628 2.05114 63 E6 0.0270129 1.27592 12 J9 -0.0688299 -0.169327 6 G5 -0.149269 -1.73133 5 C9 -0.0652238 0.0389683 4 H9 0.0392888 1.69668 7 D5 -0.216362 -2.80172 1 F5 -0.197904 -1.08487 1 
+whiteQValueTargetsByTurn 10 F5 0.0996202 1.72421 40 G5 0.243919 5.32204 9 
+whiteQValueTargetsByTurn 11 F6 0.0981745 1.63119 48 C9 -0.163356 -1.53908 1 
+whiteQValueTargetsByTurn 12 G5 0.123004 2.07397 99 
+whiteQValueTargetsByTurn 13 F8 0.166594 2.83612 57 C5 -0.00969435 -0.153589 7 H9 0.0892721 1.54097 11 C9 0.00950463 0.321603 6 B6 0.0576599 0.777659 7 D10 0.0859264 1.31086 4 E9 0.0762413 1.23376 4 J9 0.0972842 1.49288 3 
+whiteQValueTargetsByTurn 14 D3 0.210124 3.57371 15 E7 0.14434 2.40955 30 E9 0.0559017 1.02981 42 F9 0.232263 3.28896 6 C5 0.257095 4.31097 4 F7 0.467976 7.32414 1 G9 0.379967 6.06582 1 
 Raw Stats -0.105089 -0.762874 0.710211
 Raw Stats 0.216407 3.95398 0.454139
 Raw Stats -0.0195521 0.24771 1.36268
@@ -9790,6 +10125,9 @@ Presumed next pla White
 Past normal phase end 0
 Game result 0 Empty 0 0 0 0
 Last moves H8 J4 D8 C4 G3 E3 J6 G4 H4 H3 H5 J3 F4 G2 F3 F2 E4 D4 C8 
+Side position policyTarget unreducedNumVisits 100 G5 9 J9 35 H9 21 E5 11 C6 11 H10 4 B7 8 
+Side position whiteValueTargets 0.51962 0.48038 0 1.31526 - 
+Side position whiteQValueTargets G5 -0.131809 -1.54018 9 J9 0.0462028 1.26625 35 H9 0.0420985 1.53238 21 E5 0.0329857 1.11911 11 C6 0.0510083 1.54449 11 H10 -0.0054504 0.916607 4 B7 0.131829 2.95057 8 
 Side position 1
 targetWeight 4 unrounded 4
 HASH: CE9FF494E292E7030ECE1571F00E2843
@@ -9820,6 +10158,9 @@ Presumed next pla Black
 Past normal phase end 0
 Game result 0 Empty 0 0 0 0
 Last moves H8 J4 D8 C4 G3 E3 J6 G4 H4 H3 H5 J3 F4 G2 F3 F2 E4 D4 C6 D6 D7 A1 
+Side position policyTarget unreducedNumVisits 100 E6 76 D5 12 D3 11 
+Side position whiteValueTargets 0.182325 0.817675 0 -10.8845 - 
+Side position whiteQValueTargets E6 -0.66039 -11.3172 76 D5 -0.493796 -8.21241 12 D3 -0.58463 -10.1723 11 
 Side position 2
 targetWeight 4 unrounded 4
 HASH: C9CE448CA9744CA361C7ECEA0825E2FB
@@ -9850,6 +10191,9 @@ Presumed next pla White
 Past normal phase end 0
 Game result 0 Empty 0 0 0 0
 Last moves H8 J4 D8 C4 G3 E3 J6 G4 H4 H3 H5 J3 F4 G2 F3 F2 E4 D4 C8 J9 H10 
+Side position policyTarget unreducedNumVisits 100 H9 90 K7 6 G5 1 E5 0 
+Side position whiteValueTargets 0.654777 0.345223 0 5.21898 - 
+Side position whiteQValueTargets H9 0.319177 5.28996 90 K7 0.248067 4.98152 7 G5 -0.032146 0.424831 1 E5 -0.056565 0.325138 1 
 
 ====================================================================================================
 ====================================================================================================
@@ -10046,6 +10390,26 @@ whiteValueTargetsByTurn 17 0.547546 0.452454 0 2.13414 -
 whiteValueTargetsByTurn 18 0.571011 0.428989 0 2.81554 - 
 whiteValueTargetsByTurn 19 0.590014 0.409986 0 2.8977 - 
 whiteValueTargetsByTurn 20 1 0 0 7.5 7.5 
+whiteQValueTargetsByTurn 0 C8 0.0286346 0.993342 6 D4 0.037282 1.18736 4 C4 0.0306995 1.03695 4 D3 0.05589 1.5069 4 D9 0.0135586 0.686774 4 D8 0.00389125 0.462105 6 H8 0.00738393 0.510971 5 H9 0.0136513 0.5962 5 J8 0.0147735 0.653466 5 H3 0.126415 2.65766 1 J4 0.0182739 0.870351 4 H4 0.11148 2.43797 1 
+whiteQValueTargetsByTurn 1 D3 0.00779569 0.690644 10 H9 0.00168929 0.354333 7 H3 -0.022794 -0.00471409 5 J8 0.0445663 1.2778 7 J4 0.0319412 1.02405 7 H4 0.00669193 0.458659 6 H8 0.0153117 0.781107 6 D4 -0.075533 -0.995556 1 
+whiteQValueTargetsByTurn 2 J8 0.00695469 0.711742 29 J4 0.05441 1.71541 14 H9 0.0264638 1.17608 18 H8 0.0542697 1.66412 13 H4 0.0371249 1.22279 16 H3 0.0511563 1.67023 9 
+whiteQValueTargetsByTurn 3 H4 -0.00313453 0.505502 37 J4 0.0325227 1.08107 54 H3 0.0173151 1.10684 8 
+whiteQValueTargetsByTurn 4 C5 0.0194324 0.742673 42 F8 0.0388786 1.18663 20 G8 0.0739078 1.69808 9 E8 0.0567799 1.50973 10 G3 0.097283 2.4554 4 G4 0.0556549 1.52818 6 C4 0.0464115 1.43353 7 F9 0.098154 2.10056 1 
+whiteQValueTargetsByTurn 5 C4 0.026063 0.71471 36 G9 0.0077042 0.519908 18 G4 -0.000904565 0.457434 16 F4 0.0167006 0.877816 16 D8 0.0130205 0.534885 8 H9 0.0223907 0.728121 4 E9 -0.107762 -1.37002 1 
+whiteQValueTargetsByTurn 6 D5 0.0338434 0.914708 99 
+whiteQValueTargetsByTurn 7 F4 0.0612969 1.35488 60 F3 0.0113423 0.641978 14 G4 -0.0463789 -0.532152 7 G9 0.00204249 0.357928 9 H9 -0.00186927 0.328169 7 D9 -0.14741 -2.13196 1 E4 -0.163676 -2.51115 1 
+whiteQValueTargetsByTurn 8 G8 0.0502502 1.2568 22 E3 0.0923969 1.85605 8 G9 0.0662188 1.29629 10 F9 0.0775099 1.20196 6 D4 0.0708176 1.64307 5 H4 0.0289041 0.980414 7 J6 0.261584 5.47124 1 
+whiteQValueTargetsByTurn 9 J6 0.0396236 1.17473 80 C9 -0.0476237 -0.375783 5 E9 -0.0111768 0.310439 6 D9 -0.0230708 0.122837 4 D8 -0.0294644 -0.144257 3 J7 -0.103338 -1.12722 1 
+whiteQValueTargetsByTurn 10 H5 0.0134279 0.833009 32 E3 0.113316 2.02599 10 K7 0.110127 2.56964 5 D4 0.0652707 1.51784 8 G5 0.0273839 1.14161 9 F5 0.0535396 1.30066 5 G6 -0.00478134 0.372894 9 J3 0.203662 3.55087 1 
+whiteQValueTargetsByTurn 11 H4 0.0281372 1.16714 95 H6 -0.0807935 -0.999743 4 
+whiteQValueTargetsByTurn 12 G5 0.0410535 1.31318 39 F5 0.0163666 1.12199 39 D4 0.0409462 1.31508 10 J5 0.0808567 1.60649 6 H6 0.0836914 1.94929 3 E4 0.173624 2.92056 1 E3 0.113164 1.87171 1 
+whiteQValueTargetsByTurn 13 F5 0.0800614 1.8155 31 G4 0.0184255 1.14318 13 H7 0.000275811 0.677488 3 J5 -0.152072 -1.4447 1 C9 -0.0867625 -0.178536 1 
+whiteQValueTargetsByTurn 14 F6 0.0624013 1.67516 53 G4 0.127478 2.48721 17 J5 0.10308 2.11065 21 D4 0.101609 2.15901 8 
+whiteQValueTargetsByTurn 15 E6 0.0652453 1.74957 55 G4 0.0680509 1.75173 35 H7 -0.013884 0.439022 5 C9 -0.0783894 -0.355189 4 
+whiteQValueTargetsByTurn 16 F7 0.0654801 1.70069 28 G4 0.115269 2.4054 7 E5 0.0146091 1.0906 15 J5 0.164938 3.30506 3 D4 0.232281 4.79958 1 
+whiteQValueTargetsByTurn 17 E5 -0.0387086 -0.112269 11 D8 0.131046 2.69208 47 G4 0.110493 2.44747 27 C9 0.0461647 1.36212 5 K8 0.0331234 1.05336 5 C7 -0.0283349 0.406116 3 D7 -0.00204051 0.757776 1 
+whiteQValueTargetsByTurn 18 D7 0.187948 3.75547 19 C7 0.121575 2.62149 28 C9 0.110415 2.01555 31 G4 0.183342 3.67197 9 E5 0.23647 4.89329 3 D9 0.173149 3.11914 9 
+whiteQValueTargetsByTurn 19 E5 0.216228 3.36582 72 D7 0.100141 1.94518 13 E7 -0.108063 -1.36869 4 C7 0.0871268 1.64022 8 K8 0.0263855 1.21069 1 G4 0.0367558 1.46875 1 
 Raw Stats -0.0120813 0.456089 2.91842
 Raw Stats 0.113391 2.56886 2.44762
 Raw Stats -0.0914912 -0.945204 2.07656
@@ -10141,6 +10505,9 @@ Presumed next pla Black
 Past normal phase end 0
 Game result 0 Empty 0 0 0 0
 Last moves C8 D3 J8 G9 
+Side position policyTarget unreducedNumVisits 100 H4 35 J4 28 H3 26 E9 8 H9 1 C5 1 
+Side position whiteValueTargets 0.475771 0.524229 0 -0.30322 - 
+Side position whiteQValueTargets H4 -0.0614519 -0.580931 35 J4 -0.0505657 -0.351468 28 H3 -0.0586973 -0.472341 26 E9 0.0252528 1.154 8 H9 0.162341 3.83634 1 C5 0.0929418 2.20789 1 
 Side position 1
 targetWeight 1 unrounded 1.5
 HASH: 9F0445E2560F664EBD45ACCCBF529FE5
@@ -10171,6 +10538,9 @@ Presumed next pla White
 Past normal phase end 0
 Game result 0 Empty 0 0 0 0
 Last moves C8 D3 J8 J4 C5 C4 D5 F4 G8 J6 G4 
+Side position policyTarget unreducedNumVisits 100 G5 66 F5 23 F3 3 G3 4 
+Side position whiteValueTargets 0.557357 0.442643 0 2.29695 - 
+Side position whiteQValueTargets G5 0.138035 2.71534 66 F5 0.0897054 1.76717 26 F3 -0.0694656 -0.423229 3 G3 -0.0124942 0.337125 4 
 Side position 2
 targetWeight 1 unrounded 1.5
 HASH: A00D9BF82721897496C1EF7A37C3105B
@@ -10201,6 +10571,9 @@ Presumed next pla White
 Past normal phase end 0
 Game result 0 Empty 0 0 0 0
 Last moves C8 D3 J8 J4 C5 C4 D5 F4 G8 J6 H5 H4 G5 F5 F7 
+Side position policyTarget unreducedNumVisits 100 H7 66 C9 10 G4 10 K8 8 E6 2 F6 2 J5 1 
+Side position whiteValueTargets 0.570509 0.429491 0 2.3431 - 
+Side position whiteQValueTargets H7 0.176497 2.6975 66 C9 0.059351 1.54572 10 G4 0.0656366 1.75331 10 K8 0.0930528 1.83339 8 E6 -0.00929224 0.314237 2 F6 0.0323909 1.14645 2 J5 -0.0120329 0.976187 1 
 Side position 3
 targetWeight 2 unrounded 1.5
 HASH: 3FF8394D926FD4396CE67872FD488D57
@@ -10231,6 +10604,9 @@ Presumed next pla White
 Past normal phase end 0
 Game result 0 Empty 0 0 0 0
 Last moves C8 D3 J8 J4 C5 C4 D5 F4 G8 J6 H5 H4 G5 F5 F6 E6 F7 D8 G4 
+Side position policyTarget unreducedNumVisits 100 G3 96 C9 1 C7 1 F3 0 
+Side position whiteValueTargets 0.557369 0.442631 0 2.42498 - 
+Side position whiteQValueTargets G3 0.123555 2.57793 96 C9 -0.206982 -3.13709 1 C7 -0.185856 -2.69844 1 F3 -0.240655 -3.59203 1 
 Side position 4
 targetWeight 2 unrounded 1.5
 HASH: 472B3727345C3CC22D4E504289972216
@@ -10261,6 +10637,9 @@ Presumed next pla Black
 Past normal phase end 0
 Game result 0 Empty 0 0 0 0
 Last moves C8 D3 J8 J4 C5 C4 D5 F4 G8 J6 H5 H4 G5 F5 F6 E6 F7 D8 C9 K8 
+Side position policyTarget unreducedNumVisits 100 K9 46 K7 23 G4 13 J5 12 D4 2 J9 1 E5 1 
+Side position whiteValueTargets 0.56952 0.43048 0 2.2734 - 
+Side position whiteQValueTargets K9 0.120056 1.78827 46 K7 0.140611 2.49212 23 G4 0.177771 3.0228 13 J5 0.128314 2.27417 12 D4 0.282222 4.66308 3 J9 0.287082 4.04259 1 E5 0.236979 3.78833 1 
 Side position 5
 targetWeight 2 unrounded 1.5
 HASH: 81ABC9E96586519114EF10F2D7D74B4C
@@ -10291,6 +10670,9 @@ Presumed next pla White
 Past normal phase end 0
 Game result 0 Empty 0 0 0 0
 Last moves C8 D3 J8 J4 C5 C4 D5 F4 G8 J6 G4 G5 F5 
+Side position policyTarget unreducedNumVisits 100 E4 17 G3 8 F3 54 F6 15 G6 5 
+Side position whiteValueTargets 0.530969 0.469031 0 1.28522 - 
+Side position whiteQValueTargets E4 -0.0542032 -1.03584 17 G3 -0.0793483 -0.363098 8 F3 0.108077 1.95955 54 F6 0.0726331 1.84627 15 G6 -0.000820518 0.323079 5 
 Side position 6
 targetWeight 1 unrounded 1.5
 HASH: 62BAC5134AEFBCAB2A83FFB3A4CC4A0B
@@ -10321,6 +10703,9 @@ Presumed next pla White
 Past normal phase end 0
 Game result 0 Empty 0 0 0 0
 Last moves C8 D3 J8 J4 C5 C4 D5 F4 G8 J6 G4 G5 F5 F3 H5 
+Side position policyTarget unreducedNumVisits 100 G6 99 
+Side position whiteValueTargets 0.448739 0.551261 0 -2.65442 - 
+Side position whiteQValueTargets G6 -0.105683 -2.7208 99 
 
 ====================================================================================================
 ====================================================================================================
@@ -10517,6 +10902,26 @@ whiteValueTargetsByTurn 17 0.574572 0.425428 0 2.95769 -
 whiteValueTargetsByTurn 18 0.564738 0.435262 0 2.58635 - 
 whiteValueTargetsByTurn 19 0.581236 0.418764 0 3.22959 - 
 whiteValueTargetsByTurn 20 1 0 0 7.5 7.5 
+whiteQValueTargetsByTurn 0 C8 0.0156455 0.712117 13 D4 0.00877442 0.591195 12 C4 0.0416369 1.26195 7 D3 0.0702487 1.80004 5 D9 0.0525059 1.3875 6 D8 0.0100707 0.585088 12 H8 0.015418 0.714577 9 H9 0.015722 0.625459 9 J8 0.027091 0.911157 8 H3 0.014273 0.765101 8 J4 0.0388957 1.22385 5 H4 0.0426531 1.28814 5 
+whiteQValueTargetsByTurn 1 D3 0.000803124 0.642138 15 H9 0.0488206 1.42919 21 H3 0.00193111 0.410675 10 J8 0.0415725 1.30119 13 J4 0.00873327 0.680133 9 H4 -0.00133479 0.309621 9 H8 0.0379642 1.29869 13 D4 -0.0198779 -0.0242527 4 C4 0.0113721 0.589509 5 
+whiteQValueTargetsByTurn 2 J4 0.0693851 1.92105 28 D3 0.0694239 1.7198 28 H4 0.0713807 1.83617 21 H3 0.0697437 1.97283 17 D4 0.0386141 1.1086 5 
+whiteQValueTargetsByTurn 3 D3 0.0820847 2.03335 66 C4 0.0298461 1.03185 18 D4 0.0416413 1.41108 14 C3 -0.128809 -2.15938 1 
+whiteQValueTargetsByTurn 4 F3 0.122749 2.86026 16 C5 0.0661237 1.70186 23 G3 0.101217 2.2964 12 J7 0.11724 2.72544 7 E9 0.0598138 1.52354 12 F9 0.0730105 1.8375 9 C4 0.0574659 1.60097 9 J8 0.000957155 0.51393 11 
+whiteQValueTargetsByTurn 5 G3 0.0552476 1.39729 32 C4 0.127178 2.62759 53 H3 0.0724214 1.63399 10 J7 0.0346749 1.25433 3 J6 -0.0663339 -0.976432 1 
+whiteQValueTargetsByTurn 6 D5 0.11727 2.37012 42 F3 0.178352 3.97873 3 F9 0.205987 4.62039 1 J8 0.243039 5.32655 1 G3 0.222002 4.39944 1 D4 0.144409 3.0908 3 J7 0.303305 6.54442 1 
+whiteQValueTargetsByTurn 7 G3 0.136929 2.69073 38 F3 0.142266 2.57123 40 J7 0.107081 2.39226 11 E9 0.0969353 2.03788 4 D9 0.113528 2.35132 4 J6 -0.0274234 -0.288966 1 H3 -0.037318 -0.827085 1 
+whiteQValueTargetsByTurn 8 F9 0.167981 3.04557 26 J8 0.113631 2.15508 52 J7 0.208853 3.73281 11 E9 0.186932 3.20598 9 H3 0.329985 6.45993 1 
+whiteQValueTargetsByTurn 9 J9 0.114581 2.18045 44 H8 -0.0900798 -1.43083 1 D9 0.136394 2.42001 5 E9 0.0174245 0.166354 1 
+whiteQValueTargetsByTurn 10 F9 0.119576 2.30373 35 E9 0.163162 2.92729 14 
+whiteQValueTargetsByTurn 11 J6 0.0218291 0.827418 14 J7 0.104059 1.94149 16 K8 0.243846 4.12975 62 H8 -0.0318747 0.0216835 3 D9 0.191775 3.52056 4 
+whiteQValueTargetsByTurn 12 K7 0.383031 6.4483 25 H3 0.208571 3.6817 35 J7 0.26337 4.06591 12 G3 0.182693 3.01875 27 
+whiteQValueTargetsByTurn 13 J6 0.230431 4.07895 24 D9 0.246881 4.39305 15 K6 0.178271 3.20783 8 K5 -0.0740523 -0.721353 1 G2 0.000358462 0.127683 1 
+whiteQValueTargetsByTurn 14 G2 0.295382 5.27664 11 B5 0.21437 3.5466 21 G10 0.303613 5.41312 5 H8 0.334983 6.25971 3 B4 0.247259 4.12981 5 H6 0.247962 4.02953 4 
+whiteQValueTargetsByTurn 15 G2 0.195986 3.11702 23 B4 0.119309 2.17165 5 D9 0.29857 5.1006 21 
+whiteQValueTargetsByTurn 16 H2 0.279499 4.48809 45 B3 0.149143 2.95769 53 H6 0.271788 4.55592 1 
+whiteQValueTargetsByTurn 17 H2 0.0677669 1.5937 12 J2 0.12918 2.22666 8 B4 0.171877 3.27599 15 G4 -0.070567 -0.906232 1 F5 0.0710163 1.50625 3 G5 -0.0281042 -0.138647 1 D9 0.236001 4.80035 12 
+whiteQValueTargetsByTurn 18 A4 0.119229 2.41643 46 C3 0.364572 6.60627 3 
+whiteQValueTargetsByTurn 19 H2 0.0725889 1.636 15 D9 0.205699 4.02977 61 F5 0.0769003 1.82338 7 J2 0.142066 2.58858 11 G4 -0.111464 -1.45616 1 B2 -0.0490607 -0.575098 1 G5 -0.0608411 -0.602262 1 C3 -0.110759 -1.26565 1 E9 0.0551872 1.22404 1 
 Raw Stats -0.0120813 0.456089 2.91842
 Raw Stats 0.113391 2.56886 2.44762
 Raw Stats -0.0293671 -0.288087 1.92501
@@ -10612,6 +11017,9 @@ Presumed next pla Black
 Past normal phase end 0
 Game result 0 Empty 0 0 0 0
 Last moves C8 D8 
+Side position policyTarget unreducedNumVisits 100 D9 61 C9 22 D7 8 C7 8 
+Side position whiteValueTargets 0.521686 0.478314 0 1.2633 - 
+Side position whiteQValueTargets D9 0.0380487 1.0838 61 C9 0.028591 1.11659 22 D7 0.101584 2.44818 8 C7 0.0734853 1.95143 8 
 Side position 1
 targetWeight 1 unrounded 1.5
 HASH: 59206297F106453F27E23876D0738470
@@ -10642,6 +11050,9 @@ Presumed next pla White
 Past normal phase end 0
 Game result 0 Empty 0 0 0 0
 Last moves C8 H9 H4 
+Side position policyTarget unreducedNumVisits 100 D3 61 C4 26 D4 10 C3 1 
+Side position whiteValueTargets 0.541974 0.458026 0 1.94086 - 
+Side position whiteQValueTargets D3 0.0919472 2.03737 61 C4 0.0913331 2.18165 27 D4 0.0255225 0.893933 10 C3 -0.109068 -1.85634 1 
 Side position 2
 targetWeight 1 unrounded 1.5
 HASH: 66A6F57B8A63885F4A24902267A564EA
@@ -10672,6 +11083,9 @@ Presumed next pla Black
 Past normal phase end 0
 Game result 0 Empty 0 0 0 0
 Last moves C8 H9 J4 D3 C5 C4 D5 F3 J8 J6 
+Side position policyTarget unreducedNumVisits 100 H8 81 J9 18 
+Side position whiteValueTargets 0.501754 0.498246 0 0.269229 - 
+Side position whiteQValueTargets H8 -0.00321322 0.096719 81 J9 0.0422054 1.18756 18 
 Side position 3
 targetWeight 1 unrounded 1.5
 HASH: 725927CD7F27F4E2DBE8AE752728B204
@@ -10702,6 +11116,9 @@ Presumed next pla White
 Past normal phase end 0
 Game result 0 Empty 0 0 0 0
 Last moves C8 H9 J4 D3 C5 C4 D5 F3 J8 J9 E9 
+Side position policyTarget unreducedNumVisits 100 J6 60 F9 8 J7 11 K8 20 
+Side position whiteValueTargets 0.576178 0.423822 0 2.65026 - 
+Side position whiteQValueTargets J6 0.151371 2.76214 60 F9 0.0480141 0.990378 8 J7 0.0986577 1.74822 11 K8 0.216396 3.34475 20 
 Side position 4
 targetWeight 1 unrounded 1.5
 HASH: BD7009E15AE72C4718DA252D82ED8116
@@ -10732,6 +11149,9 @@ Presumed next pla Black
 Past normal phase end 0
 Game result 0 Empty 0 0 0 0
 Last moves C8 H9 J4 D3 C5 C4 D5 F3 J8 J9 F9 F10 
+Side position policyTarget unreducedNumVisits 100 E10 76 G10 22 E9 1 
+Side position whiteValueTargets 0.528408 0.471592 0 1.10901 - 
+Side position whiteQValueTargets E10 0.0543287 1.07003 76 G10 0.0584829 1.15625 22 E9 0.247801 4.02578 1 
 Side position 5
 targetWeight 2 unrounded 1.5
 HASH: A239018056C82D1B861F9B06487FAA1E
@@ -10762,6 +11182,9 @@ Presumed next pla Black
 Past normal phase end 0
 Game result 0 Empty 0 0 0 0
 Last moves C8 H9 J4 D3 C5 C4 D5 F3 J8 J9 F9 K8 H3 J6 B5 D9 
+Side position policyTarget unreducedNumVisits 100 C9 31 D8 38 E8 24 B3 6 
+Side position whiteValueTargets 0.625492 0.374508 0 4.59175 - 
+Side position whiteQValueTargets C9 0.30282 4.53003 31 D8 0.233108 4.61024 38 E8 0.22674 4.5882 24 B3 0.235262 5.13091 6 
 Side position 6
 targetWeight 1 unrounded 1.5
 HASH: 4D75B98EB5208329932EC7F804E06807
@@ -10792,6 +11215,9 @@ Presumed next pla White
 Past normal phase end 0
 Game result 0 Empty 0 0 0 0
 Last moves C8 H9 J4 D3 C5 C4 D5 F3 J8 J9 F9 K8 H3 J6 B5 G2 B3 B4 E5 
+Side position policyTarget unreducedNumVisits 100 A4 91 C3 2 H2 0 A3 0 A5 1 G4 0 B2 0 
+Side position whiteValueTargets 0.831973 0.168027 0 10.3754 - 
+Side position whiteQValueTargets A4 0.689122 10.7936 91 C3 0.32087 4.28113 3 H2 0.111341 1.71641 1 A3 0.282884 3.70447 1 A5 0.376386 6.22177 1 G4 0.143196 2.61354 1 B2 0.285014 3.41167 1 
 Side position 7
 targetWeight 2 unrounded 1.5
 HASH: 54BFE2D6B929F490A77E51892C67F918
@@ -10822,6 +11248,9 @@ Presumed next pla Black
 Past normal phase end 0
 Game result 0 Empty 0 0 0 0
 Last moves C8 H9 J4 D3 C5 C4 D5 F3 J8 J9 F9 K8 H3 J6 B5 G2 B3 B4 A4 H2 
+Side position policyTarget unreducedNumVisits 100 J2 96 H6 3 
+Side position whiteValueTargets 0.582882 0.417118 0 3.14408 - 
+Side position whiteQValueTargets J2 0.166729 3.17921 96 H6 0.227138 3.57495 3 
 Side position 8
 targetWeight 1 unrounded 1.5
 HASH: B4CF885E5D4A8391CDDA197CC85A4D76
@@ -10852,6 +11281,9 @@ Presumed next pla Black
 Past normal phase end 0
 Game result 0 Empty 0 0 0 0
 Last moves C8 H9 J4 D3 C5 C4 D5 F3 J8 J6 H8 H6 
+Side position policyTarget unreducedNumVisits 100 G9 80 G4 14 G8 4 F8 0 
+Side position whiteValueTargets 0.350187 0.649813 0 -6.27824 - 
+Side position whiteQValueTargets G9 -0.329775 -6.99872 80 G4 -0.139326 -2.39313 14 G8 -0.167243 -3.41171 4 F8 -0.0823581 -1.75741 1 
 Side position 9
 targetWeight 1 unrounded 1.5
 HASH: 08617CD990BE4865F8BB56CF10B40F09
@@ -10882,6 +11314,9 @@ Presumed next pla White
 Past normal phase end 0
 Game result 0 Empty 0 0 0 0
 Last moves C8 H9 J4 D3 C5 C4 D5 F3 J8 J9 E9 J6 H3 
+Side position policyTarget unreducedNumVisits 100 H8 60 K5 8 H7 27 F9 3 G7 1 
+Side position whiteValueTargets 0.650425 0.349575 0 4.67145 - 
+Side position whiteQValueTargets H8 0.318068 4.78339 60 K5 0.0807437 1.49425 8 H7 0.334715 5.41972 27 F9 0.149682 2.59022 3 G7 0.15444 2.90314 1 
 
 ====================================================================================================
 ====================================================================================================
@@ -11078,6 +11513,26 @@ whiteValueTargetsByTurn 17 0.705906 0.294094 0 6.78018 -
 whiteValueTargetsByTurn 18 0.717081 0.282919 0 7.11283 - 
 whiteValueTargetsByTurn 19 0.712076 0.287924 0 7.13261 - 
 whiteValueTargetsByTurn 20 1 0 0 9.5 9.5 
+whiteQValueTargetsByTurn 0 C8 0.0156455 0.712117 13 D4 0.00877442 0.591195 12 C4 0.0416369 1.26195 7 D3 0.0702487 1.80004 5 D9 0.0525059 1.3875 6 D8 0.0100707 0.585088 12 H8 0.015418 0.714577 9 H9 0.015722 0.625459 9 J8 0.027091 0.911157 8 H3 0.014273 0.765101 8 J4 0.0388957 1.22385 5 H4 0.0426531 1.28814 5 
+whiteQValueTargetsByTurn 1 D3 0.000803124 0.642138 15 H9 0.0488206 1.42919 21 H3 0.00193111 0.410675 10 J8 0.0415725 1.30119 13 J4 0.00873327 0.680133 9 H4 -0.00133479 0.309621 9 H8 0.0379642 1.29869 13 D4 -0.0198779 -0.0242527 4 C4 0.0113721 0.589509 5 
+whiteQValueTargetsByTurn 2 J4 0.0693851 1.92105 28 D3 0.0694239 1.7198 28 H4 0.0713807 1.83617 21 H3 0.0697437 1.97283 17 D4 0.0386141 1.1086 5 
+whiteQValueTargetsByTurn 3 D3 0.0820847 2.03335 66 C4 0.0298461 1.03185 18 D4 0.0416413 1.41108 14 C3 -0.128809 -2.15938 1 
+whiteQValueTargetsByTurn 4 F3 0.122749 2.86026 16 C5 0.0661237 1.70186 23 G3 0.101217 2.2964 12 J7 0.11724 2.72544 7 E9 0.0598138 1.52354 12 F9 0.0730105 1.8375 9 C4 0.0574659 1.60097 9 J8 0.000957155 0.51393 11 
+whiteQValueTargetsByTurn 5 G3 0.0552476 1.39729 32 C4 0.127178 2.62759 53 H3 0.0724214 1.63399 10 J7 0.0346749 1.25433 3 J6 -0.0663339 -0.976432 1 
+whiteQValueTargetsByTurn 6 D5 0.133405 2.5663 66 F3 0.154013 3.32802 7 F9 0.112332 2.27381 7 J8 0.160093 3.25658 5 G3 0.114058 2.42556 8 D4 0.18307 3.88721 4 J7 0.303305 6.54442 1 E9 0.212831 4.17852 1 
+whiteQValueTargetsByTurn 7 G3 0.136929 2.69073 38 F3 0.142266 2.57123 40 J7 0.107081 2.39226 11 E9 0.0969353 2.03788 4 D9 0.113528 2.35132 4 J6 -0.0274234 -0.288966 1 H3 -0.037318 -0.827085 1 
+whiteQValueTargetsByTurn 8 F9 0.155196 2.795 14 J8 0.0916139 1.75184 25 J7 0.273864 5.12039 4 E9 0.169111 2.88363 6 
+whiteQValueTargetsByTurn 9 J9 0.10974 2.10773 42 H8 -0.0900798 -1.43083 1 D9 0.136394 2.42001 5 E9 0.0174245 0.166354 1 
+whiteQValueTargetsByTurn 10 F9 0.119576 2.30373 35 E9 0.163162 2.92729 14 
+whiteQValueTargetsByTurn 11 J6 0.0199114 0.727106 8 J7 0.108706 2.02997 15 K8 0.260278 4.50736 25 H8 -0.120436 -1.42776 1 
+whiteQValueTargetsByTurn 12 K7 0.339684 5.74818 19 H3 0.219675 3.89946 14 J7 0.235056 3.70477 10 G3 0.211379 3.58471 6 
+whiteQValueTargetsByTurn 13 J7 0.409185 6.8213 99 
+whiteQValueTargetsByTurn 14 K6 0.438332 7.19056 43 H8 0.378949 6.48261 38 J6 0.427293 7.03935 17 
+whiteQValueTargetsByTurn 15 H8 0.410459 6.77274 79 J6 0.390703 6.72875 18 D9 0.139252 2.44769 1 J3 0.0137578 0.136216 1 
+whiteQValueTargetsByTurn 16 H3 0.411813 6.78018 76 H2 0.520945 8.91473 7 G3 0.466089 7.35664 8 G2 0.43958 7.93869 8 
+whiteQValueTargetsByTurn 17 D9 0.434162 7.11283 59 G2 0.357552 6.09954 13 B5 0.126563 1.68434 1 J6 0.167214 2.84236 1 B4 0.118144 1.74034 1 
+whiteQValueTargetsByTurn 18 C9 0.411992 6.89692 47 D8 0.550524 8.28734 11 
+whiteQValueTargetsByTurn 19 D8 0.451783 7.63503 76 E8 0.316383 5.11971 9 G2 0.325702 5.65769 8 B5 0.199558 2.99068 1 E9 0.3598 5.73132 2 C10 0.346592 5.65277 1 J6 0.213597 3.10728 1 B4 0.202357 2.76832 1 
 Raw Stats -0.0120813 0.456089 2.91842
 Raw Stats 0.113391 2.56886 2.44762
 Raw Stats -0.0293671 -0.288087 1.92501
@@ -11173,6 +11628,9 @@ Presumed next pla Black
 Past normal phase end 0
 Game result 0 Empty 0 0 0 0
 Last moves C8 D3 
+Side position policyTarget unreducedNumVisits 100 J8 30 J4 14 H9 18 H8 13 H4 15 H3 9 
+Side position whiteValueTargets 0.514492 0.485508 0 1.17096 - 
+Side position whiteQValueTargets J8 0.0120973 0.799968 30 J4 0.0545055 1.76765 14 H9 0.0264638 1.17608 18 H8 0.0429661 1.43926 13 H4 0.0265882 1.01084 15 H3 0.0506303 1.64689 9 
 Side position 1
 targetWeight 2 unrounded 1.5
 HASH: F82A27E67A4D81EF84F2DABCFEE41466
@@ -11203,6 +11661,9 @@ Presumed next pla Black
 Past normal phase end 0
 Game result 0 Empty 0 0 0 0
 Last moves C8 H9 J4 D3 C5 C4 D5 E9 
+Side position policyTarget unreducedNumVisits 100 F3 55 E3 16 G3 6 D9 9 J8 11 
+Side position whiteValueTargets 0.551242 0.448758 0 2.23015 - 
+Side position whiteQValueTargets F3 0.0781906 1.92897 55 E3 0.201205 3.63254 16 G3 0.16675 3.27327 7 D9 0.090496 2.02877 10 J8 0.0803318 1.71794 11 
 Side position 2
 targetWeight 1 unrounded 1.5
 HASH: A762784B2103D8C1FE34056A119A44D1
@@ -11233,6 +11694,9 @@ Presumed next pla Black
 Past normal phase end 0
 Game result 0 Empty 0 0 0 0
 Last moves C8 H9 J4 D3 C5 C4 D5 F3 J8 J9 F9 J6 
+Side position policyTarget unreducedNumVisits 100 H8 60 K8 16 H3 5 G4 2 J7 7 G3 3 K7 1 K6 1 
+Side position whiteValueTargets 0.552479 0.447521 0 1.95875 - 
+Side position whiteQValueTargets H8 0.0863701 1.56512 60 K8 0.112582 2.2016 19 H3 0.181346 3.28422 5 G4 0.270465 4.92446 2 J7 0.10353 2.11319 7 G3 0.176931 3.39517 4 K7 0.226895 4.31885 1 K6 0.188418 3.15463 1 
 Side position 3
 targetWeight 1 unrounded 1.5
 HASH: FA4382F1ABFE85B610F1FAA895B56607
@@ -11263,6 +11727,9 @@ Presumed next pla Black
 Past normal phase end 0
 Game result 0 Empty 0 0 0 0
 Last moves C8 H9 J4 D3 C5 C4 D5 F3 J8 J9 F9 K8 K7 K9 
+Side position policyTarget unreducedNumVisits 100 H3 91 G3 6 J7 1 H2 1 
+Side position whiteValueTargets 0.445131 0.554869 0 -1.48478 - 
+Side position whiteQValueTargets H3 -0.113731 -1.53366 91 G3 -0.0715072 -1.08663 6 J7 0.0423098 0.875126 1 H2 0.0129168 0.223365 1 
 Side position 4
 targetWeight 2 unrounded 1.5
 HASH: 38026E61380FE696FA32649FC965A852
@@ -11293,6 +11760,9 @@ Presumed next pla Black
 Past normal phase end 0
 Game result 0 Empty 0 0 0 0
 Last moves C8 H9 J4 D3 C5 C4 D5 F3 J8 J9 F9 K8 K7 J7 K6 H8 H3 G2 
+Side position policyTarget unreducedNumVisits 100 H2 28 G10 59 B4 4 B5 1 G7 3 
+Side position whiteValueTargets 0.696289 0.303711 0 6.38684 - 
+Side position whiteQValueTargets H2 0.488541 7.39685 29 G10 0.354064 6.0227 59 B4 0.41483 6.77935 5 B5 0.457627 7.23879 1 G7 0.387894 5.94153 5 
 Side position 5
 targetWeight 1 unrounded 1.5
 HASH: EDB726DEEE68966A40FDBEFC78731F8D
@@ -11323,6 +11793,9 @@ Presumed next pla White
 Past normal phase end 0
 Game result 0 Empty 0 0 0 0
 Last moves C8 H9 J4 D3 C5 C4 D5 F3 J8 J9 F9 K8 K7 J7 K6 H8 H3 D9 D8 
+Side position policyTarget unreducedNumVisits 100 E9 97 C9 2 
+Side position whiteValueTargets 0.732898 0.267102 0 8.39413 - 
+Side position whiteQValueTargets E9 0.468167 8.44096 97 C9 0.268786 5.32671 2 
 Side position 6
 targetWeight 2 unrounded 1.5
 HASH: 414154AE51569AD0CCE5E251DBDB5B77
@@ -11353,6 +11826,9 @@ Presumed next pla White
 Past normal phase end 0
 Game result 0 Empty 0 0 0 0
 Last moves C8 H9 J4 D3 C5 C4 D5 F3 J8 J9 F9 K8 K7 J7 K6 H8 H3 D9 D8 E9 C2 
+Side position policyTarget unreducedNumVisits 100 B3 36 B4 28 B5 12 C3 22 E8 1 
+Side position whiteValueTargets 0.798337 0.201663 0 11.136 - 
+Side position whiteQValueTargets B3 0.603075 11.2889 36 B4 0.595054 11.2745 28 B5 0.552239 11.0845 12 C3 0.61419 10.7412 22 E8 0.441199 8.47689 1 
 Side position 7
 targetWeight 2 unrounded 1.5
 HASH: 2D27DEE4386FD4C22F429E6DFAE78CEB
@@ -11383,6 +11859,9 @@ Presumed next pla White
 Past normal phase end 0
 Game result 0 Empty 0 0 0 0
 Last moves C8 H9 J4 D3 C5 C4 D5 F3 J8 J9 F9 K8 K7 J7 K6 H8 H3 D9 D8 E9 C2 B3 A10 
+Side position policyTarget unreducedNumVisits 100 E8 86 F8 6 B5 5 C9 2 
+Side position whiteValueTargets 0.96429 0.0357098 0 19.034 - 
+Side position whiteQValueTargets E8 0.93542 19.3626 86 F8 0.901976 15.7924 6 B5 0.880754 17.4011 5 C9 0.851185 18.3444 2 
 Side position 8
 targetWeight 1 unrounded 1.5
 HASH: 4F18564B21A73E2A4BD9DE6C0B75C712
@@ -11413,6 +11892,9 @@ Presumed next pla White
 Past normal phase end 0
 Game result 0 Empty 0 0 0 0
 Last moves C8 H9 J4 D3 C5 C4 D5 F3 J8 J9 F9 K8 K7 J7 K6 H8 H3 D9 D8 E9 C2 B3 A10 E8 D2 
+Side position policyTarget unreducedNumVisits 100 E2 67 E3 17 B5 6 D4 5 E4 3 
+Side position whiteValueTargets 0.967927 0.032073 0 22.3489 - 
+Side position whiteQValueTargets E2 0.952586 23.4677 67 E3 0.92817 20.9095 17 B5 0.876316 19.5033 6 D4 0.872851 18.0569 5 E4 0.842921 17.913 4 
 (;FF[4]GM[1]SZ[11]PB[Black]PW[White]HA[0]KM[7.5]RU[koPOSITIONALscoreAREAtaxNONEsui1]C[startTurnIdx=0,initTurnNum=0,gameHash=BAC8F02481E984322E16CC885D8A7525,gtype=normal];B[cd]C[0.51 0.49 0.00 0.9 v=100 weight=1.18];W[hc]C[0.51 0.49 0.00 0.9 v=100 weight=1.04];B[ih]C[0.53 0.47 0.00 1.8 v=100 weight=1.05];W[di]C[0.53 0.47 0.00 1.7 v=100 weight=1.15];B[cg]C[0.54 0.46 0.00 1.8 v=100 weight=1.23];W[ch]C[0.55 0.45 0.00 2.1 v=100 weight=1.49];B[dg]C[0.57 0.43 0.00 2.7 v=100 weight=1.21];W[fi]C[0.57 0.43 0.00 2.6 v=100 weight=0.94];B[id]C[0.56 0.44 0.00 2.4 v=50 weight=0.06];W[ic]C[0.55 0.45 0.00 2.1 v=50 weight=0.00];B[fc]C[0.56 0.44 0.00 2.4 v=50 weight=0.00];W[jd]C[0.59 0.41 0.00 3.1 v=50 weight=1.73];B[je]C[0.63 0.37 0.00 4.4 v=50 weight=0.00];W[ie]C[0.70 0.30 0.00 6.8 v=100 weight=1.32];B[jf]C[0.70 0.30 0.00 6.8 v=99 weight=0.00];W[hd]C[0.70 0.30 0.00 6.7 v=100 weight=1.18];B[hi]C[0.71 0.29 0.00 7.0 v=100 weight=1.57];W[dc]C[0.71 0.29 0.00 6.8 v=76 weight=0.22];B[cc]C[0.72 0.28 0.00 7.1 v=59 weight=0.00];W[dd]C[0.71 0.29 0.00 7.1 v=100 weight=2.64])
 
 HASH: 54579E0A87F182BA544C02BE0164C001
@@ -11934,6 +12416,11 @@ whiteValueTargetsByTurn 2 0.519157 0.480772 7.15397e-05 1.31584 -
 whiteValueTargetsByTurn 3 0.52248 0.477449 7.11147e-05 1.37566 - 
 whiteValueTargetsByTurn 4 0.523123 0.476805 7.13566e-05 1.44112 - 
 whiteValueTargetsByTurn 5 1 0 0 6.5 6.5 
+whiteQValueTargetsByTurn 0 C10 0.00737303 0.401414 77 K10 0.0106916 0.466748 66 C4 0.0176072 0.598277 52 L10 -0.00144621 0.156541 119 D10 0.00985934 0.409581 62 D11 0.00393862 0.186991 82 D4 0.0265711 0.765399 34 K11 0.00784912 0.328918 59 K3 0.016013 0.556546 44 D3 0.0267547 0.738317 31 C8 0.0664355 2.1265 14 L4 0.0201005 0.65954 31 K4 0.0249909 0.779909 25 N4 0.283016 7.38425 8 N13 0.486325 11.8682 6 C3 0.0499 1.33262 7 C11 0.0100809 0.480955 13 K13 0.255695 7.00988 5 L3 0.0264348 0.732688 7 G1 0.311644 8.48748 5 L11 0.0118039 0.356533 12 H10 0.0689718 1.95261 4 N6 0.293181 7.74965 4 E6 0.113356 3.1961 4 C9 0.0424032 1.2456 4 H5 0.0778745 2.44014 3 L12 0.087 2.53263 3 K12 0.0903074 2.48495 3 L5 0.0267134 1.17369 3 F13 0.243311 6.75843 3 A12 0.356018 9.13385 3 J8 0.0779608 2.19016 3 L6 0.0362628 1.4106 3 
+whiteQValueTargetsByTurn 1 C4 0.00727271 0.444184 31 L4 -0.00047045 0.211751 24 D11 0.0386061 1.34853 44 C10 -0.00319623 0.167073 22 D3 -0.00665259 0.0106658 19 D10 0.00856332 0.425801 20 D4 -0.0327092 -0.749085 10 K3 -0.00421806 0.0939925 15 K4 -0.00318154 0.126054 14 
+whiteQValueTargetsByTurn 2 K3 0.0407724 1.45558 43 C4 0.033638 1.13486 46 D3 0.0303093 1.06953 48 D4 0.039826 1.26916 25 K4 0.0579116 1.95179 17 L4 0.0491779 1.63629 20 
+whiteQValueTargetsByTurn 3 L4 0.0520002 1.60296 77 K3 0.0458379 1.42435 62 K4 0.0385739 1.11443 53 C5 0.00359397 0.163062 4 L3 0.0153372 0.787289 3 
+whiteQValueTargetsByTurn 4 C9 0.0426924 1.29684 97 J3 0.0477159 1.53591 76 K3 0.0445635 1.36472 8 H11 0.0813349 2.2812 4 J4 0.147904 4.2208 1 C6 0.0577774 1.78063 4 D9 0.0548111 1.71265 4 C10 0.050613 1.60565 5 
 Raw Stats -0.0251152 0.422996 2.9886
 Raw Stats 0.0681656 1.39818 2.55795
 Raw Stats -0.0248503 -0.0340348 2.10911
@@ -12097,6 +12584,11 @@ whiteValueTargetsByTurn 2 0.492461 0.507467 7.13777e-05 -0.3151 -
 whiteValueTargetsByTurn 3 0.489978 0.509951 7.11142e-05 -0.445495 -0.632999 
 whiteValueTargetsByTurn 4 0.495649 0.50428 7.0779e-05 -0.182198 - 
 whiteValueTargetsByTurn 5 1 0 0 6.5 6.5 
+whiteQValueTargetsByTurn 0 C10 -0.021579 -0.478783 420 L10 0.0541524 1.40059 42 J11 0.113141 2.8884 23 J10 0.0713429 1.93342 26 E10 -0.0131628 -0.228859 147 L11 0.0798853 2.14255 17 C9 -0.000848252 0.140928 42 B9 0.10255 2.2977 9 G7 0.12139 2.86464 7 A12 0.419772 9.40348 6 E4 0.0658492 1.52775 6 B1 0.391779 9.02493 6 J4 0.149965 3.5931 5 C12 0.0297896 0.628395 6 C6 0.0421601 0.924837 5 A7 0.345949 7.66632 4 C3 0.0095414 0.229998 6 H11 0.0681116 1.46244 4 J1 0.340174 7.61857 4 D7 0.0614796 1.43795 4 D2 0.0864923 2.0934 4 B13 0.351696 8.22276 3 B6 0.124551 2.9185 3 
+whiteQValueTargetsByTurn 1 J11 -0.0150062 -0.315103 375 L11 -0.0839616 -2.02511 44 
+whiteQValueTargetsByTurn 2 L11 -0.0155775 -0.320607 362 L10 0.0027668 -0.138131 12 
+whiteQValueTargetsByTurn 3 L10 -0.0403408 -0.829115 157 J10 -0.00863204 -0.182229 249 J12 0.00148006 0.0230867 126 H6 -0.204431 -4.25388 8 H10 0.0188659 0.383387 195 K12 -0.184214 -4.26894 7 K7 -0.141198 -3.18613 6 J9 -0.149362 -3.43695 5 A9 -0.467184 -10.5048 5 K3 -0.0483672 -1.15703 5 M6 -0.219649 -5.28882 5 N9 -0.392919 -8.99844 4 A7 -0.408282 -9.28596 4 K5 -0.0953355 -2.20629 4 G11 -0.0765401 -1.8535 4 D8 -0.107369 -2.56823 3 A3 -0.489705 -11.0643 3 L5 -0.114468 -2.71027 3 E5 -0.221356 -4.63171 3 C5 -0.166985 -3.60608 3 
+whiteQValueTargetsByTurn 4 L10 -0.0224286 -0.51422 195 M9 0.0381959 0.992935 35 L9 0.0564689 1.33485 15 E10 0.110921 2.26889 3 
 Raw Stats -0.0358475 -0.838031 2.10277
 Raw Stats -0.0311268 -1.0017 0.88216
 Raw Stats -0.0176255 -0.407254 0.570916
@@ -12260,6 +12752,11 @@ whiteValueTargetsByTurn 2 0.529199 0.470733 6.7552e-05 1.20522 -
 whiteValueTargetsByTurn 3 0.511489 0.488444 6.74379e-05 0.464206 0.646004 
 whiteValueTargetsByTurn 4 0.527642 0.47229 6.7567e-05 1.18716 - 
 whiteValueTargetsByTurn 5 1 0 0 6.5 6.5 
+whiteQValueTargetsByTurn 0 J10 0.0263245 0.604698 613 L12 0.187195 4.43746 27 L10 0.212502 5.04943 13 D3 0.0779969 1.95414 36 A1 0.604008 14.5528 9 G3 0.139956 3.30364 9 F3 0.151119 3.7167 7 D6 0.154978 3.61055 7 H12 0.088581 2.07914 9 J9 0.267242 6.0049 6 B5 0.227004 5.26497 6 E3 0.164655 3.98057 5 C3 0.147197 3.64633 5 L9 0.0803777 1.8481 7 F2 0.221905 5.30927 5 N1 0.63556 15.7813 4 A4 0.442255 10.8597 4 H3 0.159744 3.76266 4 J8 0.258657 5.93658 4 D2 0.148725 3.67691 4 C9 0.17492 3.62045 4 B6 0.19328 4.47745 4 C7 0.1393 3.26793 4 K8 0.209023 4.94606 3 
+whiteQValueTargetsByTurn 1 L12 -0.0712176 -1.20909 165 K13 -0.0594045 -0.999101 18 J9 0.058467 1.20525 427 H10 -0.0563353 -1.33481 1 C12 -0.302988 -6.69825 1 
+whiteQValueTargetsByTurn 2 H10 0.0587659 1.2115 426 
+whiteQValueTargetsByTurn 3 L12 0.0553594 1.1873 696 K9 -0.446837 -9.59718 11 K3 -0.327718 -7.44345 10 K13 -0.0136835 -0.064512 15 G5 -0.4954 -10.5852 9 C12 -0.314247 -6.92477 8 C10 -0.312345 -6.86318 5 L6 -0.394618 -8.87831 5 pass -0.77443 -20.4185 5 A7 -0.701044 -16.7386 5 N4 -0.656281 -15.9673 4 L9 -0.416642 -8.87357 4 J5 -0.476092 -10.5318 4 F13 -0.633184 -15.4559 4 G1 -0.659534 -15.5689 4 B11 -0.294262 -6.3873 4 L10 -0.325934 -6.55461 3 K2 -0.453998 -10.2575 3 
+whiteQValueTargetsByTurn 4 K9 0.0518726 1.09842 635 H12 0.11319 2.7012 27 D3 0.0772964 1.73436 32 F3 0.225195 4.9866 1 
 Raw Stats -0.00596523 -0.168811 1.80104
 Raw Stats 0.0249303 0.749066 0.690998
 Raw Stats -0.0695207 -1.46873 0.310363
@@ -12423,6 +12920,11 @@ whiteValueTargetsByTurn 2 0.526464 0.473467 6.8771e-05 1.25245 0.817167
 whiteValueTargetsByTurn 3 0.50588 0.49405 6.99098e-05 0.485077 - 
 whiteValueTargetsByTurn 4 0.505254 0.494676 7.02248e-05 0.433255 - 
 whiteValueTargetsByTurn 5 1 0 0 9.5 9.5 
+whiteQValueTargetsByTurn 0 K5 0.0512929 1.08769 178 D3 0.0554876 1.60886 21 
+whiteQValueTargetsByTurn 1 J5 0.0610106 1.27967 141 G3 0.0440566 0.874742 24 L2 0.0271431 0.667365 12 G4 0.0479574 0.98701 13 H4 0.044683 0.989609 8 L5 -0.0693973 -0.932703 1 
+whiteQValueTargetsByTurn 2 K6 0.0639029 1.22578 224 J4 0.0666518 1.59256 71 D3 0.0357954 0.979296 106 H3 0.0669728 1.65718 43 J6 0.127566 2.91985 13 D2 0.145165 3.49997 8 E3 0.172987 4.02837 8 K2 0.164521 3.44879 6 D6 0.110449 2.51048 7 N9 0.466086 10.3877 5 F3 0.0714424 1.82616 6 D12 0.327216 6.34943 5 N11 0.483864 11.0964 5 F4 0.0118302 0.485059 266 C3 0.128638 3.19324 5 C10 0.242422 5.03791 4 E4 0.143231 3.42415 4 G5 0.120063 2.75146 4 L5 0.166319 3.09886 3 G3 0.113021 2.88739 3 H5 0.219443 5.04133 3 
+whiteQValueTargetsByTurn 3 K6 0.0189172 0.628717 142 L2 -0.0205748 -0.333352 44 L5 -0.0631151 -1.13784 8 E3 -0.0281715 -0.414009 8 F3 0.0149466 0.556019 14 C12 0.0255769 0.738321 14 J6 0.0566622 1.66485 26 C10 -0.0260868 -0.375111 4 D3 -0.0328476 -0.186787 5 
+whiteQValueTargetsByTurn 4 L5 0.0106467 0.434725 199 
 Raw Stats 0.0515825 1.45733 0.863991
 Raw Stats 0.109212 2.3497 1.56453
 Raw Stats 0.0688886 1.76383 1.52619
@@ -12586,6 +13088,11 @@ whiteValueTargetsByTurn 2 0.589279 0.410655 6.63152e-05 3.96333 -
 whiteValueTargetsByTurn 3 0.568225 0.431711 6.41305e-05 2.14379 4.68076 
 whiteValueTargetsByTurn 4 0.585776 0.41416 6.3338e-05 2.67645 2.88748 
 whiteValueTargetsByTurn 5 1 0 0 9.5 9.5 
+whiteQValueTargetsByTurn 0 J4 0.209665 5.14542 30 K6 0.139983 3.70972 42 J8 0.131432 3.19149 64 J6 0.149459 3.67862 35 L7 0.202508 5.02701 14 J7 0.222964 5.89055 7 L5 0.166432 4.05269 7 
+whiteQValueTargetsByTurn 1 L5 0.132974 3.18702 144 K2 0.0830093 1.91711 33 G4 0.17862 3.96322 272 G5 0.143651 3.49767 100 J6 0.118508 2.71476 28 J4 -0.182904 -4.03369 10 H6 0.157866 3.4706 86 J7 0.128144 3.04489 26 H4 0.160941 3.98617 26 H2 0.0729602 1.85341 9 E7 0.0337219 1.47698 8 N8 -0.215925 -4.31087 7 K6 -0.0248769 -0.213293 6 C12 0.0979647 2.62422 10 K1 -0.146679 -2.60819 6 B3 -0.259292 -4.62035 6 C10 0.0470137 1.50732 5 G2 -0.0393119 -0.64536 5 G12 0.00738474 0.649121 5 G7 -0.0330454 -0.142309 4 G6 0.0460521 1.60992 3 
+whiteQValueTargetsByTurn 2 J4 0.162088 3.29007 119 H4 0.195991 4.24542 59 F4 0.177548 4.07298 59 H2 0.20589 5.78874 29 G3 0.263915 6.12093 5 
+whiteQValueTargetsByTurn 3 G3 0.177498 2.6706 595 L5 0.122986 3.27061 75 H5 -0.110924 -1.82663 12 H4 -0.209474 -3.89797 10 C4 -0.455778 -8.42437 9 J6 -0.0242872 -0.20794 8 C12 0.0397874 1.12043 8 B12 -0.149278 -2.76388 7 K2 0.0377561 1.3036 7 C10 0.0272712 0.837377 6 D7 -0.272091 -4.40371 5 H2 -0.096154 -1.66494 5 A5 -0.437034 -8.91186 5 F5 -0.19024 -3.39559 5 L6 -0.0259772 -0.222638 5 M4 -0.276037 -5.23002 5 D1 -0.504875 -10.0668 5 J3 -0.20934 -4.07297 4 G12 0.0108524 0.584822 4 E2 -0.152618 -2.52599 4 G5 -0.178701 -3.34143 4 N12 -0.412226 -8.81806 4 F4 -0.145531 -2.31782 4 K6 0.042765 1.19304 3 
+whiteQValueTargetsByTurn 4 H2 0.144361 2.07932 624 H5 0.243583 3.88885 86 H4 0.50281 9.62153 9 J6 0.307837 5.21794 9 K2 0.365668 6.32379 9 J3 0.169229 3.5971 28 L6 0.655476 10.9358 5 B8 0.50092 10.4341 5 B3 0.523258 11.4074 5 B9 0.573809 11.2868 4 A2 0.70097 16.4767 4 C7 0.384031 7.8861 4 D5 0.348706 6.66394 4 A3 0.740534 17.3659 3 
 Raw Stats 0.151021 4.68789 1.95418
 Raw Stats 0.201863 4.833 2.194
 Raw Stats 0.126204 3.42481 1.71912
@@ -12749,6 +13256,11 @@ whiteValueTargetsByTurn 2 0.478717 0.521217 6.65845e-05 -0.817008 -0.812082
 whiteValueTargetsByTurn 3 0.455353 0.54458 6.64567e-05 -1.76541 -1.97039 
 whiteValueTargetsByTurn 4 0.474177 0.525756 6.65915e-05 -1.0689 -2.03233 
 whiteValueTargetsByTurn 5 1 0 0 9.5 9.5 
+whiteQValueTargetsByTurn 0 H5 -0.0837265 -1.40239 115 J6 0.168533 3.80946 7 L8 0.248276 5.71417 3 G5 -0.0939324 -1.7162 72 J4 0.222741 4.66379 1 G2 0.184219 3.55027 1 
+whiteQValueTargetsByTurn 1 H6 -0.0875634 -1.56363 78 L8 -0.228151 -4.28782 10 L9 -0.316395 -6.54783 4 M5 -0.0326521 -0.278819 61 G2 -0.0572783 -0.836499 29 J6 -0.0881274 -1.42141 9 J7 -0.0995948 -1.60609 6 C12 -0.286906 -5.36874 1 M9 -0.262948 -4.20602 1 
+whiteQValueTargetsByTurn 2 J4 -0.0791197 -1.59833 610 G6 0.0755764 1.83363 37 G5 0.00182319 0.113853 70 E5 0.301477 7.03858 8 L8 0.225839 5.11015 7 N3 0.552983 11.5467 6 C5 0.104886 2.21078 6 H7 0.148984 3.22149 6 B11 0.356953 6.99813 6 G2 0.0669353 1.44954 6 G13 0.300157 6.2271 6 H12 0.299489 6.2231 4 A7 0.433167 9.51687 4 D8 0.23423 5.19088 4 K2 0.0842582 1.2758 4 N10 0.470331 10.938 3 C10 0.235136 4.84666 3 N4 0.492692 10.3923 3 C9 0.176986 3.71854 3 A12 0.506079 11.5792 3 
+whiteQValueTargetsByTurn 3 L8 -0.223505 -4.41921 23 C12 -0.103057 -2.17535 59 G12 -0.0408371 -0.948985 436 G2 -0.179893 -3.26339 16 L9 -0.329176 -6.27042 10 J6 -0.378827 -7.24525 10 G7 -0.213488 -3.58673 10 G6 -0.208681 -3.66936 10 C10 -0.151147 -2.72414 15 J7 -0.277162 -4.95763 9 H7 -0.123799 -2.12865 17 E6 -0.281747 -4.99215 8 G5 -0.167956 -2.87201 7 A6 -0.502235 -9.36822 7 H9 -0.192578 -3.76403 7 K2 -0.587819 -11.9765 6 F8 -0.335886 -6.26036 5 M9 -0.0711088 -1.20351 108 H8 -0.252836 -4.63587 5 D8 -0.203989 -3.70323 5 D6 -0.318045 -5.49616 5 K1 -0.358724 -7.00891 5 G13 -0.154762 -2.84592 4 M5 -0.222977 -3.85843 4 D2 -0.478688 -8.69722 4 C8 -0.132532 -2.20727 4 
+whiteQValueTargetsByTurn 4 H12 -0.0850875 -1.73513 585 D9 0.328131 6.51031 11 L8 0.0392161 0.955192 14 J6 -0.018512 -0.619446 102 F12 0.129877 2.5529 9 D12 0.0843987 1.67903 8 H7 0.0576928 0.927059 8 N13 0.631976 14.374 7 N6 0.340908 7.03655 6 C12 0.194795 4.10474 6 C7 0.0449909 1.17052 6 G5 0.0493377 1.03244 6 G6 0.00542741 0.0364053 5 M8 0.0813152 1.85608 5 H13 0.661472 14.912 5 M9 0.029358 0.774845 4 G10 0.376019 7.28139 4 J7 0.432218 9.16518 4 D5 0.0738532 1.43091 4 
 Raw Stats 0.00951079 0.717713 1.67615
 Raw Stats 0.17321 3.88093 2.06603
 Raw Stats -0.00618708 -0.0855588 1.30748
@@ -12912,6 +13424,11 @@ whiteValueTargetsByTurn 2 0.49775 0.502186 6.41197e-05 -0.705084 -
 whiteValueTargetsByTurn 3 0.479 0.520937 6.33031e-05 -1.13189 -1.6782 
 whiteValueTargetsByTurn 4 0.502845 0.497092 6.32471e-05 -0.337944 - 
 whiteValueTargetsByTurn 5 1 0 0 7.5 7.5 
+whiteQValueTargetsByTurn 0 H12 0.0372681 -0.0787334 179 D6 -0.026467 -1.03957 459 D12 0.061529 0.624808 44 C12 0.25988 3.23096 11 L8 0.0744114 0.985563 14 N12 0.652693 12.1076 8 F12 0.209759 2.73344 8 D2 0.0767301 0.984806 11 E2 0.138142 2.15718 8 A6 0.0818652 0.889904 6 M10 0.356294 5.86879 6 F4 0.210189 2.16511 6 H13 0.547881 9.14795 6 B4 0.155337 2.54402 5 C4 0.196457 3.34574 5 L9 0.114618 1.53771 5 F13 0.494546 7.39027 4 C5 0.224777 3.52877 4 M1 0.701291 12.5356 3 K1 0.696301 12.1465 3 B5 0.107109 1.56035 4 
+whiteQValueTargetsByTurn 1 C12 -0.0044309 -0.704966 386 E7 -0.208918 -4.02679 31 F4 -0.149429 -2.8988 25 D5 -0.152184 -2.52837 14 G2 -0.382551 -6.72429 1 A7 -0.574994 -10.5879 1 
+whiteQValueTargetsByTurn 2 B4 0.108515 0.632341 44 C5 0.303381 4.37016 14 B12 -0.042493 -1.13435 172 H12 -0.0101225 -0.922578 148 D5 0.129667 1.81206 4 B11 0.309048 4.12147 1 E2 0.250809 4.21623 1 F12 0.164 2.56992 1 
+whiteQValueTargetsByTurn 3 B11 -0.0956267 -2.36034 81 D12 -0.202131 -3.89013 18 D5 -0.0922078 -1.7023 46 F4 0.00573835 -0.338293 548 A6 -0.241097 -3.87674 11 E7 -0.279549 -4.82835 11 F5 -0.257221 -4.50118 8 E12 -0.270467 -4.70588 8 G2 -0.425883 -7.92742 7 A7 -0.299398 -5.69149 6 E2 -0.271498 -4.55283 5 H12 -0.221339 -3.89159 5 J6 -0.46856 -8.1786 5 D13 -0.334419 -6.02164 5 H7 -0.234968 -4.40007 5 C5 -0.242116 -3.3687 5 C10 -0.342926 -6.18853 4 H5 -0.38826 -6.89736 4 H6 -0.278394 -5.17289 4 B13 -0.623041 -11.1219 4 E5 -0.519261 -8.85398 3 J7 -0.218226 -3.86049 3 F2 -0.0938695 -1.72612 3 
+whiteQValueTargetsByTurn 4 C5 0.0540882 0.478049 53 F5 -0.0124308 -0.479191 175 D12 0.103719 0.985056 34 G2 -0.0172792 -0.803646 240 H12 0.128495 1.46931 26 D5 0.143915 2.04246 7 B4 0.121429 1.71561 4 F2 0.0196327 0.398687 8 
 Raw Stats -0.206779 -3.68283 1.77774
 Raw Stats 0.109983 1.83136 1.69097
 Raw Stats -0.374458 -6.95213 1.87912
@@ -13075,6 +13592,11 @@ whiteValueTargetsByTurn 2 0.375007 0.624933 6.01129e-05 -4.21703 -6.84864
 whiteValueTargetsByTurn 3 0.326859 0.673083 5.84408e-05 -5.625 -8 
 whiteValueTargetsByTurn 4 0.354504 0.645437 5.92762e-05 -4.80722 - 
 whiteValueTargetsByTurn 5 1 0 0 5.5 5.5 
+whiteQValueTargetsByTurn 0 C2 -0.415002 -7.30312 161 B2 -0.201675 -4.01319 16 H12 -0.302142 -6.52126 13 C4 -0.249442 -5.6853 4 E5 0.107951 0.894486 1 E2 0.00325134 -0.533528 1 B3 -0.122315 -3.0116 1 L8 -0.147416 -3.17496 1 M10 0.116494 1.12057 1 
+whiteQValueTargetsByTurn 1 B3 -0.396907 -6.43767 180 D2 -0.560787 -14.7631 16 C3 -0.752188 -18.9199 1 B2 -0.717624 -17.8754 1 F4 -0.694406 -17.847 1 
+whiteQValueTargetsByTurn 2 D2 -0.286844 -4.66705 508 B2 -0.272908 -4.59606 121 C3 0.189462 2.19185 14 H12 -0.21602 -4.44105 35 C4 0.138276 1.27603 10 E2 -0.199651 -3.37125 16 F4 -0.0999236 -1.96944 8 L8 -0.249415 -4.35933 19 N8 0.188627 1.75473 6 N4 0.38296 4.69608 6 E12 0.356156 4.30853 6 F2 0.0490064 -0.222036 6 M10 0.0871659 0.405544 5 L9 -0.251568 -4.46541 11 G2 0.0310931 -0.418024 4 A7 0.131908 0.829203 4 J7 0.0978149 0.256516 4 J6 0.16731 1.37238 4 F12 0.0103725 -0.725138 4 E5 -0.027051 -1.2048 4 A3 0.157781 1.44501 4 
+whiteQValueTargetsByTurn 3 B2 -0.291057 -4.80913 332 F4 -0.41746 -7.43291 29 C4 -0.335897 -4.49887 321 E2 -0.455487 -7.34896 24 C3 -0.625246 -14.5886 14 E3 -0.495313 -8.50794 11 G10 -0.740936 -17.3946 7 E13 -0.836706 -18.5003 7 N12 -0.867501 -21.8161 5 F2 -0.393144 -7.94042 5 A3 -0.672818 -11.731 5 E8 -0.832088 -21.6505 5 H7 -0.509508 -12.1757 5 F9 -0.808817 -21.0656 5 B11 -0.620898 -14.6395 4 D13 -0.870784 -24.4828 4 G2 -0.753663 -16.5714 4 E6 -0.562249 -12.0692 4 F5 -0.756908 -16.8225 4 D9 -0.833909 -23.5001 4 
+whiteQValueTargetsByTurn 4 E3 -0.337424 -5.14698 179 E2 -0.13097 -3.26696 26 H12 -0.236571 -4.8052 63 F4 -0.243153 -3.87286 23 E5 0.0743853 0.367397 1 C3 -0.0902519 -2.11347 3 F2 -0.200302 -4.11126 5 L8 -0.253733 -4.44507 22 L9 -0.315021 -4.99664 9 
 Raw Stats -0.582476 -10.2017 2.04342
 Raw Stats -0.394457 -8.36666 1.25622
 Raw Stats -0.53957 -9.02542 1.76572
@@ -13238,6 +13760,11 @@ whiteValueTargetsByTurn 2 0.374228 0.625707 6.44453e-05 -7.94495 -
 whiteValueTargetsByTurn 3 0.388595 0.611339 6.52192e-05 -7.3826 -15.25 
 whiteValueTargetsByTurn 4 0.422959 0.576975 6.60815e-05 -5.19418 - 
 whiteValueTargetsByTurn 5 1 0 0 5.5 5.5 
+whiteQValueTargetsByTurn 0 H5 -0.293156 -7.48549 685 A3 0.041871 0.0787857 15 H12 -0.0467356 -1.81606 14 C10 0.314877 3.51368 9 A2 -0.0249921 -0.367921 9 L9 -0.136283 -2.33269 8 G7 0.0860449 0.66649 7 F12 0.0629531 -1.08131 7 L8 -0.138744 -4.14693 7 K1 0.586924 7.49989 6 M10 0.319648 3.56516 6 A7 0.46208 5.72535 6 H1 0.487415 6.65481 5 F6 0.299038 3.56189 4 C5 0.65963 8.057 4 H8 0.056564 -0.270772 4 J3 0.436425 5.29398 3 
+whiteQValueTargetsByTurn 1 E6 -0.443695 -7.24856 45 H6 -0.362818 -6.47452 94 J6 -0.580501 -15.6036 15 E3 -0.315718 -8.80258 159 G2 -0.251668 -7.95375 414 A2 -0.606222 -14.9081 8 F6 -0.404885 -7.81406 9 J7 -0.705505 -21.7823 7 A3 -0.62931 -15.3337 7 F7 -0.494927 -12.7519 6 A10 -0.696477 -18.725 6 B11 -0.380412 -11.214 6 N12 -0.762579 -22.155 5 H9 -0.626402 -17.6294 5 H7 -0.714074 -20.6353 5 E5 -0.584634 -13.6716 4 B10 -0.710723 -15.856 4 
+whiteQValueTargetsByTurn 2 G1 -0.142644 -4.14529 99 A2 0.0654153 1.91892 5 A3 -0.283595 -9.03288 306 F1 0.210083 5.10825 1 H6 0.477979 12.0151 1 H12 0.204209 4.08685 1 
+whiteQValueTargetsByTurn 3 C5 -0.436426 -14.6607 23 F1 -0.350724 -13.2853 29 A2 -0.270731 -8.23507 209 E2 -0.527077 -21.0066 12 E6 -0.663089 -18.4301 11 H1 -0.405971 -16.7104 10 H6 -0.454758 -7.00142 9 E3 -0.663887 -24.7222 8 F12 -0.859394 -31.0588 7 D9 -0.788271 -28.8445 7 G1 -0.154277 -5.20461 452 A13 -0.830922 -32.0829 5 F7 -0.593789 -23.7496 5 E1 -0.526041 -18.4795 4 N9 -0.858639 -30.7816 4 F8 -0.638035 -27.3283 4 
+whiteQValueTargetsByTurn 4 F1 -0.189 -6.012 291 E3 -0.0996988 -4.09951 86 E2 -0.0657219 -2.6722 30 H6 0.340308 7.35012 4 A2 -0.0761824 -3.34692 35 F6 0.124252 1.52762 2 J6 0.173133 5.50602 1 E1 0.0820207 3.09932 1 H12 0.021457 0.39309 1 
 Raw Stats -0.388314 -5.92412 1.28822
 Raw Stats -0.107069 -2.73224 2.0125
 Raw Stats -0.387412 -11.0705 1.0946
@@ -13401,6 +13928,11 @@ whiteValueTargetsByTurn 2 0.195923 0.804026 5.08065e-05 -4.01793 -
 whiteValueTargetsByTurn 3 0.187429 0.812521 4.99092e-05 -4.00015 - 
 whiteValueTargetsByTurn 4 0.192568 0.807383 4.91577e-05 -3.64711 -3.20355 
 whiteValueTargetsByTurn 5 1 0 0 8.5 8.5 
+whiteQValueTargetsByTurn 0 L9 -0.354592 -3.08846 32 H12 -0.245466 -3.46572 18 B11 -0.526107 -3.93633 175 C13 0.748102 4.97534 11 B13 -0.615314 -5.30104 466 D7 0.66076 3.82831 9 M4 0.44222 2.16055 8 B10 -0.508596 -4.11798 14 M10 0.118911 -0.0739843 7 F12 0.404565 2.91836 7 A7 0.607477 3.51294 7 G8 0.647656 4.04775 6 E9 0.695802 5.06872 5 F1 0.737181 4.73171 5 C10 -0.105954 -1.40237 5 F9 0.738292 5.04007 4 G2 0.593433 2.84828 4 G7 0.380091 1.95889 4 A6 0.252945 1.36477 4 A11 0.0343137 -0.390849 4 M3 0.690208 4.53426 4 
+whiteQValueTargetsByTurn 1 G2 -0.638862 -5.42306 138 B11 -0.671311 -5.19774 65 M4 -0.609822 -7.73859 68 H12 -0.615135 -4.04513 169 D7 -0.640195 -7.79289 37 L9 -0.636707 -7.54998 34 A7 -0.670517 -7.58837 16 G7 -0.565228 -3.98995 78 G9 -0.622563 -5.25591 38 C10 -0.731868 -6.41259 7 C9 -0.739245 -6.05527 5 A8 -0.692335 -6.19694 5 M6 -0.874048 -10.7672 5 H6 -0.813784 -8.96999 5 N11 -0.885758 -11.1476 5 L7 -0.90351 -11.9275 5 H9 -0.601717 -4.42802 98 E1 -0.88127 -9.10118 4 A3 -0.859408 -9.81787 4 C5 -0.874967 -10.412 4 C13 -0.829133 -8.3918 3 H13 -0.840171 -6.38908 3 E8 -0.695302 -6.69994 3 
+whiteQValueTargetsByTurn 2 L9 -0.632873 -4.16372 176 M4 -0.450233 -3.06446 17 G7 -0.165727 -1.15208 2 D7 0.0391354 -0.588953 1 A7 0.106842 -0.37617 1 G2 0.0643719 -0.0597146 1 C13 0.36903 1.89619 1 
+whiteQValueTargetsByTurn 3 M10 -0.627917 -3.97719 148 H9 -0.635837 -4.24595 24 G2 -0.625218 -3.87592 17 B11 -0.604576 -4.21678 10 
+whiteQValueTargetsByTurn 4 M4 -0.363785 -2.22871 33 G7 -0.675316 -3.98665 629 A7 -0.264779 -1.8365 10 D7 -0.291055 -2.03388 9 G2 -0.445862 -2.3786 9 C13 -0.167053 -1.55168 9 N1 0.289473 1.24999 8 B10 -0.276826 -1.69147 8 M6 -0.414412 -2.44419 8 H8 -0.32153 -1.39939 8 H9 -0.196937 -0.910034 7 N10 0.441561 2.17146 7 M8 -0.240081 -1.58901 6 G13 0.42572 2.17971 6 N5 0.0346487 -0.249493 5 B1 -0.0413821 -0.899954 5 N9 0.4122 2.22289 5 C10 -0.14839 -0.802725 5 B11 -0.143113 -0.855452 5 A3 -0.0882411 -0.682275 5 A6 0.0498528 -0.227282 4 C5 0.30799 1.07462 4 A1 -0.135409 -1.37756 4 
 Raw Stats -0.734016 -6.49973 2.04719
 Raw Stats -0.278937 -1.65256 2.2193
 Raw Stats -0.762306 -5.11581 2.02062
@@ -13564,6 +14096,11 @@ whiteValueTargetsByTurn 2 0.143619 0.856334 4.74249e-05 -3.75023 -4.21673
 whiteValueTargetsByTurn 3 0.122396 0.877558 4.54887e-05 -4.01178 -4.08249 
 whiteValueTargetsByTurn 4 0.137828 0.862125 4.69569e-05 -3.52255 -3.83261 
 whiteValueTargetsByTurn 5 1 0 0 9.5 9.5 
+whiteQValueTargetsByTurn 0 C10 -0.753364 -4.07965 722 A11 0.779836 4.23859 10 F8 0.963659 12.7353 7 C5 0.254977 2.01228 7 B10 0.689839 3.97941 6 M6 0.141339 0.460118 6 D7 0.929891 10.8773 6 M4 0.933393 9.4564 6 B1 0.953294 11.2463 6 J1 0.959589 12.8743 5 E9 0.959796 12.7625 5 N5 0.927529 9.57852 5 M13 0.96152 13.2837 4 A1 0.460223 3.36479 4 
+whiteQValueTargetsByTurn 1 M4 -0.734399 -3.90245 556 B10 -0.837058 -4.76534 34 A12 -0.799883 -4.07534 41 A10 -0.873948 -5.6506 14 H6 -0.811558 -5.61379 15 H9 -0.865792 -5.0489 9 C13 -0.803464 -3.92999 19 A11 -0.803454 -4.34458 17 D7 -0.795351 -4.32702 20 F1 -0.860704 -5.54145 8 B1 -0.877424 -6.60988 8 N12 -0.953338 -8.94483 8 A3 -0.918342 -6.07261 7 H1 -0.838315 -5.28999 7 E1 -0.817491 -5.24165 5 A8 -0.902738 -8.03893 5 M3 -0.922923 -8.63075 5 C9 -0.929202 -8.28009 4 N2 -0.905465 -7.65627 4 M6 -0.945393 -7.7917 4 G10 -0.903368 -5.80348 3 E2 -0.870577 -6.12057 3 B9 -0.865934 -7.09303 3 
+whiteQValueTargetsByTurn 2 M3 -0.748885 -3.93341 689 C13 -0.321164 -1.51296 15 D7 -0.267435 -1.24128 14 A8 -0.476038 -2.24096 11 N7 0.28751 0.717974 8 A3 -0.294413 -3.53737 8 D13 0.128428 0.070383 7 C9 0.280145 0.803339 7 N3 -0.55737 -2.63067 6 B1 -0.18167 -0.897089 6 G10 0.186908 0.565451 5 B10 -0.0356834 -0.131167 5 H6 -0.308448 -1.19635 5 N2 -0.467069 -2.02576 4 M6 -0.68318 -3.33958 6 M8 -0.611931 -2.96604 3 
+whiteQValueTargetsByTurn 3 C13 -0.747768 -3.70269 135 H6 -0.725433 -3.83767 300 D7 -0.773754 -3.62369 74 J1 -0.902536 -6.62656 12 A3 -0.74717 -3.5628 100 B1 -0.740196 -4.30712 71 A8 -0.885327 -6.36028 9 B10 -0.872251 -4.98955 8 H9 -0.859822 -4.90605 8 H1 -0.832649 -4.83012 8 N3 -0.844257 -5.1289 7 A12 -0.799981 -3.96816 10 L7 -0.93432 -7.34868 7 E2 -0.882548 -5.47453 6 E1 -0.795168 -5.02368 5 C5 -0.841865 -4.59131 5 F1 -0.804605 -4.96646 5 N4 -0.882181 -5.53586 5 A11 -0.766002 -4.07712 8 G10 -0.890544 -5.16902 4 A10 -0.915898 -6.08104 3 B9 -0.912878 -7.499 3 A6 -0.89493 -5.97884 3 A9 -0.925719 -7.77418 3 
+whiteQValueTargetsByTurn 4 H7 -0.763516 -3.67812 574 N4 -0.637504 -3.36904 47 C13 -0.646842 -3.1692 37 A8 -0.517765 -2.35752 19 D7 -0.658049 -3.99852 25 H8 -0.702012 -3.0607 29 M1 -0.369674 -1.72441 8 J1 -0.426812 -1.89651 8 N9 -0.240638 -1.18415 7 F1 -0.448556 -2.0391 7 B1 -0.638653 -3.44661 7 N3 -0.578288 -3.36817 5 B10 -0.480852 -1.94106 5 N6 -0.472604 -2.76717 5 H9 -0.653597 -2.71272 5 A1 -0.491544 -2.96763 4 D13 -0.208438 -1.23922 4 J4 -0.603046 -2.71604 3 
 Raw Stats -0.484416 -3.42381 0.246816
 Raw Stats -0.710151 -3.93018 2.42147
 Raw Stats -0.878103 -5.45055 1.4092
@@ -13727,6 +14264,11 @@ whiteValueTargetsByTurn 2 0.146031 0.853924 4.52512e-05 -2.684 -2.88616
 whiteValueTargetsByTurn 3 0.118965 0.880993 4.2277e-05 -3.10196 -2.94094 
 whiteValueTargetsByTurn 4 0.12797 0.871987 4.30683e-05 -2.70043 - 
 whiteValueTargetsByTurn 5 1 0 0 25.5 25.5 
+whiteQValueTargetsByTurn 0 D7 -0.762635 -3.04555 170 A8 -0.533943 -1.7294 17 B1 -0.56247 -1.64864 12 
+whiteQValueTargetsByTurn 1 A3 -0.845305 -3.22544 28 B1 -0.720434 -2.9039 109 C5 -0.764535 -2.65724 48 A8 -0.924031 -5.77887 5 H1 -0.809095 -3.8831 4 H9 -0.880291 -5.67196 1 F1 -0.77493 -3.61216 4 
+whiteQValueTargetsByTurn 2 C1 -0.751796 -2.86719 615 A8 -0.677434 -2.46538 70 F1 -0.430432 -1.25591 11 M8 -0.576621 -2.14562 10 E1 -0.547072 -1.67463 9 H1 -0.289032 -0.863981 8 N5 -0.606092 -2.49345 8 E2 -0.374834 -1.10935 7 F12 -0.467945 -1.87377 6 M6 -0.671376 -2.85685 5 L13 0.253872 0.91164 5 K1 -0.0176209 0.209002 5 A10 0.112888 0.435019 5 N6 -0.559941 -2.33513 5 N9 0.0876125 0.214315 4 A11 -0.0216912 -0.123913 4 E13 0.121105 0.585488 4 E9 0.0792615 0.212241 4 F13 0.122543 0.586073 4 A12 -0.0087335 -0.0290024 4 A3 -0.215102 -0.718969 3 J13 0.357708 1.359 3 
+whiteQValueTargetsByTurn 3 A3 -0.743993 -2.70017 551 E1 -0.80848 -3.80499 56 C5 -0.760031 -2.62397 58 H1 -0.78936 -4.03867 22 K1 -0.77063 -4.31672 21 A8 -0.813429 -5.30396 8 F1 -0.843041 -4.35257 8 E2 -0.805949 -4.01981 9 F9 -0.888793 -5.85444 7 A13 -0.847116 -4.58129 6 H9 -0.804958 -4.31788 6 E12 -0.898117 -5.80879 6 A11 -0.809676 -4.14035 5 G10 -0.896444 -5.19011 5 A12 -0.822588 -4.45867 5 F12 -0.8945 -5.9446 5 J4 -0.890419 -6.54843 5 F13 -0.881572 -6.3948 4 pass -0.899486 -6.77177 4 D1 -0.853681 -7.42788 4 H13 -0.884261 -6.6326 4 
+whiteQValueTargetsByTurn 4 A1 -0.753575 -2.76624 486 A8 -0.698409 -2.26211 58 E1 -0.141974 -0.219264 1 F1 -0.0399962 0.144771 1 M8 -0.0392939 0.315986 1 M6 -0.548419 -2.18253 1 N5 -0.0395972 0.486321 1 N6 -0.0277159 0.412186 1 
 Raw Stats -0.861847 -3.37388 1.45888
 Raw Stats -0.708202 -2.63065 2.18694
 Raw Stats -0.763098 -3.99647 1.64049
@@ -13890,6 +14432,11 @@ whiteValueTargetsByTurn 2 0.0894359 0.910528 3.59212e-05 -3.35049 -3.38998
 whiteValueTargetsByTurn 3 0.0695707 0.930395 3.44758e-05 -4.49116 -3.19053 
 whiteValueTargetsByTurn 4 0.0772985 0.922666 3.59138e-05 -3.36568 - 
 whiteValueTargetsByTurn 5 1 0 0 16.5 16.5 
+whiteQValueTargetsByTurn 0 A1 -0.852487 -3.57565 642 F12 -0.748304 -2.46235 10 F1 -0.806593 -2.84009 22 N7 -0.342582 -0.770949 9 H1 -0.746478 -2.20916 7 E13 -0.561602 -1.60667 7 J1 -0.510173 -1.20109 7 M8 -0.785277 -2.75731 7 E1 -0.74445 -2.46119 9 B9 -0.490777 -1.28287 6 J4 -0.610167 -1.51793 6 E2 -0.607836 -1.56125 6 J3 -0.62513 -1.57362 6 M6 -0.785464 -2.97018 7 N5 -0.802382 -2.80354 5 N6 -0.776827 -2.6105 5 H9 -0.592917 -1.53988 5 A12 -0.583176 -1.60636 5 F9 -0.496271 -1.30775 4 G9 -0.597941 -1.6185 4 C8 -0.509564 -1.44332 4 G10 -0.581014 -1.54215 4 A9 -0.669221 -1.8145 3 E8 -0.660758 -1.76066 3 L2 -0.724662 -2.07051 3 N8 -0.738497 -2.31313 3 
+whiteQValueTargetsByTurn 1 A3 -0.909861 -3.67475 189 H1 -0.838119 -3.31082 189 N1 -0.958507 -11.6995 10 H9 -0.787573 -4.38146 20 E1 -0.829516 -3.22988 225 F1 -0.862317 -3.66882 25 L13 -0.967894 -13.0263 7 J4 -0.968831 -13.2136 7 G10 -0.838581 -3.55903 64 D1 -0.924847 -13.056 7 M6 -0.967133 -13.7896 6 J3 -0.947948 -15.3905 5 D9 -0.962244 -15.9542 5 E2 -0.860087 -3.74643 12 A12 -0.849294 -9.68403 7 K12 -0.959218 -15.4124 5 N8 -0.955412 -17.2604 4 A13 -0.855126 -3.63883 8 K1 -0.834034 -16.5253 4 
+whiteQValueTargetsByTurn 2 F1 -0.850654 -3.56141 716 E2 -0.19596 0.246143 18 A3 -0.345701 -2.21682 12 N5 0.814768 5.49046 12 A9 0.956536 20.9797 9 H1 -0.549337 -3.16346 7 N1 0.957406 19.852 6 D1 0.695398 10.4469 6 M8 0.782852 10.1566 5 B1 0.991277 21.8355 4 M6 -0.0351439 1.63345 4 
+whiteQValueTargetsByTurn 3 B1 -0.845356 -3.36639 540 A3 -0.923168 -3.67224 54 G8 -0.968341 -11.2402 12 H1 -0.857408 -3.46006 59 K1 -0.898875 -11.1276 8 H9 -0.883641 -3.46379 14 G10 -0.864582 -6.95843 14 E13 -0.966815 -13.9211 6 K12 -0.966945 -14.2217 6 E2 -0.845253 -3.36153 22 J3 -0.959078 -14.3495 6 pass -0.965629 -16.1083 5 C8 -0.967226 -16.362 5 A12 -0.855398 -8.3705 9 A13 -0.858406 -3.47709 10 M8 -0.960163 -17.487 4 B9 -0.961098 -18.4602 4 N8 -0.959906 -17.628 4 E8 -0.962118 -18.5485 4 H13 -0.958861 -17.6674 4 N10 -0.950927 -21.0238 3 J4 -0.957082 -21.9959 3 J1 -0.93191 -21.1835 3 
+whiteQValueTargetsByTurn 4 E2 -0.679548 -2.05071 26 H1 -0.737302 -2.123 18 M8 -0.874895 -3.8655 220 F12 -0.853267 -3.30905 63 J4 -0.685173 -1.93339 8 M6 -0.859481 -3.15116 48 N5 -0.86716 -3.21409 68 N6 -0.854565 -3.31563 49 E13 -0.682445 -2.23871 5 J1 -0.812907 -2.62726 8 J3 -0.671025 -2.33862 6 N7 -0.686197 -2.05458 3 A12 -0.709366 -2.35448 4 H9 -0.716553 -2.38747 4 N8 -0.800875 -2.89952 3 G10 -0.766805 -2.28161 3 G9 -0.77594 -2.38678 3 
 Raw Stats -0.905891 -4.4828 1.89062
 Raw Stats -0.687227 -1.67763 1.17913
 Raw Stats -0.60228 -3.52606 1.09309
@@ -14053,6 +14600,11 @@ whiteValueTargetsByTurn 2 0.0949734 0.904989 3.80399e-05 -2.867 -2.84683
 whiteValueTargetsByTurn 3 0.0732848 0.926682 3.35563e-05 -3.78526 -3.19179 
 whiteValueTargetsByTurn 4 0.076244 0.923722 3.44351e-05 -3.02115 - 
 whiteValueTargetsByTurn 5 1 0 0 24.5 24.5 
+whiteQValueTargetsByTurn 0 A13 -0.837577 -3.04153 196 A3 0.97319 5.86282 2 M6 0.576083 2.61465 1 
+whiteQValueTargetsByTurn 1 B1 -0.833714 -2.96989 167 A3 -0.88626 -3.71561 13 H1 -0.840332 -2.91073 13 H9 -0.90449 -4.20552 3 B11 -0.953962 -5.57191 1 A12 -0.953343 -5.21247 1 G10 -0.951619 -5.43142 1 
+whiteQValueTargetsByTurn 2 E2 -0.447901 -1.1461 17 H1 -0.631181 -1.81183 12 J4 -0.652617 -1.69641 11 N6 -0.829995 -3.1165 100 M8 -0.832933 -3.04958 126 E13 -0.714348 -2.37153 11 H9 -0.584327 -1.67816 9 A9 -0.567632 -1.55553 8 F12 -0.862437 -3.15134 272 J1 -0.750391 -2.24826 8 M6 -0.849052 -3.13838 89 N5 -0.789058 -2.73126 11 G9 -0.715959 -2.11087 6 C8 -0.646804 -1.82489 6 D1 0.991398 13.209 6 J3 -0.671515 -2.34403 6 B4 -0.523881 -1.38401 6 G10 -0.745795 -2.12531 5 D9 -0.705854 -2.0315 5 L2 -0.728977 -2.21285 5 N7 -0.69763 -2.21659 5 N13 -0.550828 -1.48278 5 K1 -0.751554 -2.47012 4 A11 -0.73856 -2.40212 4 N8 -0.760683 -2.74065 8 E9 -0.698981 -2.1591 4 M11 -0.643326 -1.91963 4 B11 -0.715862 -2.17111 4 H8 -0.75034 -2.36317 4 B9 -0.703715 -2.18721 4 F13 -0.806937 -2.6784 4 E12 -0.78989 -2.40316 3 F8 -0.738906 -2.03425 3 pass -0.750044 -2.04665 3 F9 -0.744037 -2.07057 3 C9 -0.790635 -2.36341 3 G8 -0.744217 -2.01019 3 E8 -0.753851 -2.14732 3 M13 -0.635896 -1.70344 3 N9 -0.681899 -1.91033 3 M1 -0.771592 -2.3091 3 
+whiteQValueTargetsByTurn 3 F13 -0.847485 -3.02125 362 E12 -0.845372 -3.02645 238 E13 -0.852139 -3.04892 115 B4 -0.996547 -22.2027 13 K12 -0.996675 -22.2796 8 H1 -0.902161 -4.85551 10 F9 -0.996276 -22.8704 6 H9 -0.893844 -3.82955 5 B11 -0.887632 -3.78774 4 E2 -0.816039 -4.37901 20 A3 -0.992125 -20.177 3 K1 -0.975237 -20.2701 3 M1 -0.993312 -22.9745 3 H8 -0.993952 -22.6476 3 D1 -0.93425 -10.3195 3 G10 -0.909819 -4.08776 3 
+whiteQValueTargetsByTurn 4 A1 -0.852747 -3.06437 340 E13 -0.726783 -2.34712 7 E2 -0.729045 -1.97615 3 H9 -0.722248 -2.02022 3 H1 -0.793259 -2.20599 3 J4 -0.766873 -2.17123 2 M8 -0.812073 -2.62079 3 
 Raw Stats -0.908231 -4.9128 1.03416
 Raw Stats -0.718846 -1.75311 1.46024
 Raw Stats -0.854768 -2.99398 2.97998
@@ -14216,6 +14768,11 @@ whiteValueTargetsByTurn 2 0.166167 0.833791 4.22356e-05 -2.29789 -2.5
 whiteValueTargetsByTurn 3 0.127831 0.87213 3.89816e-05 -2.64776 -2.5 
 whiteValueTargetsByTurn 4 0.136365 0.863595 4.01055e-05 -2.54887 -2.5 
 whiteValueTargetsByTurn 5 1 0 0 7.5 7.5 
+whiteQValueTargetsByTurn 0 A1 -0.717413 -2.44916 701 J4 0.333422 1.11358 13 E2 0.426089 1.1118 8 E13 -0.629948 -2.00441 9 N7 0.495576 1.44792 6 M8 -0.666717 -1.99457 8 F8 0.413651 1.25315 5 M6 -0.681667 -2.14986 10 J3 0.341493 1.23987 5 H13 0.531955 1.54942 5 G9 0.248693 0.888158 4 H9 0.31607 0.960341 4 N5 -0.595866 -1.54921 4 D13 -0.558586 -1.50881 4 N6 -0.630934 -2.10053 4 L2 0.0843667 0.404398 3 A12 0.176483 0.621015 3 G10 0.186464 0.789993 3 
+whiteQValueTargetsByTurn 1 E2 -0.701101 -2.35985 434 pass -0.951676 -4.06297 11 H9 -0.820662 -2.93482 19 M6 -0.94952 -4.27703 9 E12 -0.948963 -4.06718 9 G10 -0.762602 -2.62737 22 B11 -0.74873 -2.40747 30 E13 -0.938686 -3.96309 8 N9 -0.953553 -4.16955 8 B4 -0.932667 -3.70252 7 A12 -0.743021 -2.3465 29 C8 -0.951909 -3.99679 7 N6 -0.946321 -4.17089 6 E1 -0.735363 -2.39735 37 K1 -0.84262 -2.94148 6 E8 -0.955284 -4.13552 6 M8 -0.953601 -4.21569 6 K12 -0.945253 -4.04376 6 J3 -0.95773 -4.22178 6 N7 -0.948089 -4.14049 6 G8 -0.954087 -4.38664 6 A11 -0.957067 -4.28006 6 J1 -0.959135 -4.30152 5 M11 -0.939908 -3.96028 5 M12 -0.943189 -3.97792 5 A9 -0.951522 -4.04711 5 G9 -0.784654 -2.32378 6 L7 -0.941929 -3.95818 5 G13 -0.9458 -4.09107 5 L13 -0.939547 -3.91969 5 N10 -0.942953 -3.9197 5 H8 -0.953479 -4.00112 5 J13 -0.94265 -3.95316 5 H13 -0.946112 -4.022 5 N11 -0.932079 -3.65723 4 J4 -0.927591 -3.58477 4 N8 -0.937735 -3.7517 4 M13 -0.940607 -3.84643 4 N12 -0.934138 -3.70479 4 F9 -0.943341 -3.80765 4 D13 -0.94317 -3.84753 4 N13 -0.94059 -3.79015 4 N1 -0.941293 -3.89502 4 F8 -0.948716 -3.85686 4 N5 -0.93816 -3.73641 4 M1 -0.949683 -4.13265 4 C9 -0.949107 -3.95825 3 B9 -0.9483 -3.96114 3 
+whiteQValueTargetsByTurn 2 E1 -0.728155 -2.54861 636 H9 0.0943326 0.239195 11 F8 0.195569 0.550899 10 J4 0.192076 0.778147 9 J1 0.0841473 0.435787 9 D13 -0.34435 -0.873694 8 G10 0.0956109 0.569871 7 M8 -0.398943 -0.904589 7 J13 0.277056 0.869149 7 E13 -0.314457 -0.697732 7 N5 -0.472303 -1.19439 7 B1 0.883458 6.45336 7 M6 -0.388322 -1.0841 7 J3 -0.0367121 0.175391 6 B11 0.0318333 0.264297 6 G13 -0.642853 -1.84965 5 B4 0.0509892 0.303533 5 N6 -0.524342 -1.44996 5 C4 0.168922 0.494054 5 G9 -0.165329 -0.223819 5 L2 -0.381453 -0.881729 4 E12 -0.484093 -0.992651 4 E8 -0.259886 -0.632669 4 M1 -0.321104 -0.751733 4 N7 -0.231546 -0.6019 4 A11 -0.391666 -0.877436 4 K1 -0.457159 -0.949873 3 C8 -0.224436 -0.469985 3 
+whiteQValueTargetsByTurn 3 B1 -0.727243 -2.549 657 G8 -0.962165 -4.33727 10 G10 -0.767994 -2.6494 21 A11 -0.964631 -4.37052 7 B11 -0.728009 -2.34114 30 H9 -0.77955 -2.62708 10 M12 -0.955891 -4.24554 6 E12 -0.956422 -4.18947 6 J13 -0.955372 -4.23526 6 N10 -0.951736 -4.07549 5 pass -0.95253 -4.08857 5 M6 -0.953051 -4.34515 5 A12 -0.731004 -2.33764 12 E13 -0.941964 -3.9702 4 G9 -0.855628 -2.74969 4 N12 -0.945422 -3.9172 4 H13 -0.950827 -4.02002 4 H8 -0.955937 -4.09058 3 
+whiteQValueTargetsByTurn 4 J4 0.216277 0.827652 4 H9 0.16785 0.541108 3 M8 -0.760386 -2.69838 368 E13 -0.721597 -2.4927 89 N5 -0.740539 -2.61432 73 G10 -0.156572 -0.193896 2 M6 -0.723553 -2.50208 84 N6 -0.645173 -2.15281 10 D13 -0.200996 0.100619 1 J1 -0.00247911 0.348792 1 J3 -0.0301837 0.488803 1 N7 0.0950844 0.261165 1 E12 -0.61735 -1.44272 3 G9 -0.17789 0.0690501 1 G13 -0.224608 -0.218596 1 N8 -0.225415 -0.471915 1 B11 0.0187964 0.374561 1 K1 -0.188611 -0.0724658 1 E2 -0.103266 0.0683766 1 H8 -0.117757 0.152881 1 L2 -0.00584149 0.292221 1 C8 0.123829 0.536104 1 A11 -0.193043 -0.105549 1 B4 0.11851 0.554371 1 M11 0.0721051 0.186581 1 C4 0.31305 0.91701 1 F8 0.025263 0.302943 1 B9 -0.024975 0.228339 1 C9 -0.116432 0.0318969 1 
 Raw Stats -0.901438 -3.34336 0.737212
 Raw Stats -0.766294 -1.96378 3.49587
 Raw Stats -0.843333 -2.9116 2.27892
@@ -15046,6 +15603,26 @@ whiteValueTargetsByTurn 17 0.556957 0.442971 7.12782e-05 1.10391 1.37476
 whiteValueTargetsByTurn 18 0.583069 0.416858 7.30347e-05 1.75814 - 
 whiteValueTargetsByTurn 19 0.589143 0.410783 7.46769e-05 2.24629 - 
 whiteValueTargetsByTurn 20 1 0 0 5.5 5.5 
+whiteQValueTargetsByTurn 0 F6 -0.0116585 0.972224 8 E6 -0.0397212 0.534006 10 C5 0.0458725 1.37093 3 G7 0.0981912 2.23862 3 B5 0.23575 4.2666 1 D4 -0.0456573 0.35374 5 D6 -0.0637419 0.639756 4 F3 0.167161 2.97775 1 F4 0.129297 2.49398 1 C6 0.109563 2.05631 1 D3 0.170207 2.93947 1 G6 0.0925777 1.88476 1 D7 0.125183 2.26538 1 C4 0.108797 2.04877 1 F7 0.129903 2.52983 1 G4 0.15078 2.82115 1 E4 0.145154 2.5102 1 E3 0.204965 3.55587 1 E8 0.236196 4.1539 1 E7 0.124688 2.27854 1 D5 0.0944695 1.50977 1 G5 0.108531 2.07658 1 
+whiteQValueTargetsByTurn 1 D7 -0.0435993 0.409604 5 F4 0.0154215 0.840654 6 E5 -0.017684 0.210003 4 F3 0.0723908 1.3693 7 C4 -0.00491168 0.699517 4 D4 -0.0313783 0.690816 3 E8 -0.156948 -0.993083 1 D3 -0.132939 -0.0740355 1 G6 0.0283022 0.623763 3 G4 -0.112273 -0.192693 1 C6 -0.108698 -0.409607 1 E3 -0.208595 -1.04706 1 E4 -0.162367 -0.156799 1 A1 -0.566837 -7.14168 1 E7 -0.104145 0.531012 1 G5 -0.0890021 0.393316 1 B4 -0.311163 -2.67032 1 C5 -0.155731 -1.16342 1 D6 -0.132702 0.228189 1 F6 -0.114484 0.698172 1 D1 -0.443583 -5.02044 1 G7 -0.0433956 1.12619 1 F5 -0.179974 -0.681548 1 D5 -0.133831 0.0329919 1 
+whiteQValueTargetsByTurn 2 D6 -0.0819407 -0.239168 11 C5 -0.00424546 0.5048 5 E7 -0.0456709 0.401658 3 
+whiteQValueTargetsByTurn 3 E7 -0.0385338 0.223504 8 F7 0.0274371 0.624658 9 G6 -0.123241 0.0204984 1 G7 -0.150115 -0.835606 1 
+whiteQValueTargetsByTurn 4 E7 0.0510029 0.897096 12 F6 0.0376549 0.75424 4 G5 0.0540133 0.943456 3 
+whiteQValueTargetsByTurn 5 G7 0.0121885 0.399035 18 E7 -0.00587302 0.228329 11 G6 -0.166865 -1.72508 3 G8 -0.221527 -2.81094 2 C4 -0.160953 -1.41159 2 B4 -0.376318 -3.35439 1 J3 -0.581308 -6.86939 1 D3 -0.230121 -1.76508 1 G4 -0.25121 -2.64114 2 C7 -0.305331 -1.29694 1 G2 -0.290959 -1.8903 1 G3 -0.131349 -0.12335 1 C6 -0.155346 -0.173471 1 C1 -0.587949 -7.32252 1 H3 -0.331744 -2.7928 1 F3 -0.134657 -0.48059 1 D6 -0.147245 -0.521254 1 
+whiteQValueTargetsByTurn 6 G6 -0.0511574 -0.562511 15 F3 0.0523012 1.28223 7 G3 0.0824972 1.5534 5 E7 0.0237327 0.405338 6 C7 0.300033 4.60273 2 G4 0.173654 2.92338 2 F4 0.230068 3.61016 1 H9 0.634764 10.2451 1 E3 0.15123 2.19375 1 H5 0.252628 4.14534 1 A6 0.584712 9.17473 1 H4 0.250466 4.60755 1 E2 0.259871 3.7889 1 D1 0.57211 8.64219 1 G2 0.283585 4.69251 1 G5 0.273892 4.52519 1 D6 0.176003 3.08854 1 D4 0.280618 3.96743 1 
+whiteQValueTargetsByTurn 7 C3 0.0698708 1.14333 11 C6 0.0250086 0.692005 3 D3 0.121055 1.88314 2 C4 0.0798534 1.53665 2 G5 0.0678997 2.28825 1 
+whiteQValueTargetsByTurn 8 G6 0.138592 1.70125 6 B3 0.108001 2.24352 7 E7 0.128424 1.77828 5 C3 0.0551274 1.21161 11 C6 0.291796 4.08411 2 C4 0.194804 3.19643 2 H9 0.643068 11.7075 1 E2 0.153481 2.84318 2 F3 0.232592 3.03144 1 D4 0.333435 5.58449 1 E4 0.232967 3.55342 1 C7 0.240702 3.32383 1 B5 0.245288 3.93537 1 B4 0.117307 2.06975 2 E3 0.144305 2.26176 1 H6 0.34118 5.15374 1 F2 0.180258 2.60497 1 F4 0.240418 3.59575 1 H5 0.325418 5.01162 1 D2 0.22011 3.50797 1 
+whiteQValueTargetsByTurn 9 E8 0.212252 3.19377 19 
+whiteQValueTargetsByTurn 10 G6 0.228501 3.11675 6 F8 0.180541 3.21677 9 D4 0.404611 6.51727 3 D8 0.222888 3.32935 4 B3 0.1913 3.49826 5 A8 0.688388 14.0643 1 C7 0.0581076 1.16998 9 D6 0.245971 4.57947 3 C3 0.157327 2.72364 3 F4 0.280347 4.89316 1 B4 0.178175 3.11392 2 B7 0.445789 7.88815 1 E2 0.167965 3.11416 1 E3 0.171802 3.13058 1 
+whiteQValueTargetsByTurn 11 C8 -0.02536 -0.0896582 11 D6 0.0520835 1.07301 9 G6 -0.141873 -1.70477 2 G4 0.0410941 1.23101 4 D8 0.201231 2.68572 12 B5 -0.344879 -3.39696 1 E4 -0.287554 -4.02644 2 F3 -0.0853669 -1.37841 2 C4 -0.0579317 -0.94638 2 G9 -0.644952 -9.01577 1 G5 -0.217963 -1.42838 1 F4 -0.16984 -1.25315 1 H5 -0.285204 -2.23303 1 
+whiteQValueTargetsByTurn 12 D8 -0.334476 -4.44664 13 G6 -0.108965 -1.82208 6 
+whiteQValueTargetsByTurn 13 G4 -0.304039 -4.19148 20 G5 -0.316953 -4.71135 11 D9 -0.45183 -7.12139 5 C8 -0.477935 -6.58168 3 G6 -0.456543 -6.88217 3 H5 -0.523773 -7.9944 3 E9 -0.632025 -9.43494 2 C4 -0.558853 -6.51459 1 B7 -0.696869 -11.3477 1 
+whiteQValueTargetsByTurn 14 G6 -0.299853 -4.48278 15 E2 -0.368533 -4.63959 10 F5 -0.29047 -4.34762 7 F4 -0.251586 -3.53599 6 F3 -0.0830218 -1.40951 3 A8 0.589199 8.72442 1 D6 0.284735 2.07187 1 J3 0.204933 2.61959 1 H5 -0.120233 -2.42218 1 B4 0.122334 0.863849 1 G4 -0.112082 -2.77556 1 C1 0.350886 5.22379 1 F2 -0.127725 -2.63932 1 
+whiteQValueTargetsByTurn 15 G4 0.216423 2.49658 18 G6 -0.0510778 -1.39691 5 F3 0.148246 1.18581 5 H4 0.48533 5.79502 14 F5 0.109112 1.11261 2 G8 -0.302169 -3.36385 1 F4 0.232004 2.72671 2 C3 -0.104863 -0.424121 1 H5 0.194887 2.19247 1 
+whiteQValueTargetsByTurn 16 F3 0.221285 2.5484 35 G6 0.385102 4.04472 4 E2 0.654265 8.13585 2 C2 0.748431 7.64955 2 D2 0.581728 5.83597 1 G8 0.676543 8.27829 1 H5 0.709326 9.33116 1 B5 0.777194 11.9504 1 C3 0.63211 8.02192 1 H4 0.662848 8.00579 1 
+whiteQValueTargetsByTurn 17 F4 0.237294 2.84229 28 E2 0.0147223 -0.491688 6 H3 0.0265347 -0.28089 4 E3 -0.101094 -2.13232 2 C4 0.0081242 -0.54884 2 H4 -0.158916 -3.11026 2 B9 -0.662527 -10.7441 1 J5 -0.298895 -3.742 1 C2 -0.225674 -2.05034 1 F5 -0.185761 -1.98052 1 G6 -0.150284 -1.64894 1 
+whiteQValueTargetsByTurn 18 H2 0.173161 1.99665 13 F4 0.145709 1.28434 5 G6 0.203078 1.34572 1 
+whiteQValueTargetsByTurn 19 H4 0.187153 2.36857 19 
 Raw Stats -0.00778344 1.38502 2.818
 Raw Stats 0.148266 2.57121 2.42786
 Raw Stats -0.111378 0.0544975 1.21246
@@ -15174,9 +15751,9 @@ globalTargetsNC
 0 1 0 -5.5 0.262902 0.737059 3.94304e-05 -2.84477 0.425542 0.574394 6.39984e-05 -1.39564 0.437345 0.562585 6.94699e-05 -2.0389 0.423858 0.576074 6.84713e-05 -2.49147 -5.5 -1.38492 10.8092 0 0 0.35 1 1 1 1 0.556531 3.70726 2.42992 1 1 0 1 1 1 1 1 1.27284e+06 2.43486e+06 358623 991157 3.47659e+06 329611 -7.5 0 0 0 8 1 0 0 4 0 -0.0686032 -1.71085 1.73809 50 0 0 2 
 0 1 0 -5.5 0.262902 0.737059 3.94304e-05 -2.84477 0.425542 0.574394 6.39984e-05 -1.39564 0.437345 0.562585 6.94699e-05 -2.0389 0.423858 0.576074 6.84713e-05 -2.49147 -5.5 -1.38492 10.8092 0 0 0.35 1 1 1 1 0.556531 3.70726 2.42992 1 1 0 1 1 1 1 1 1.27284e+06 2.43486e+06 358623 991157 3.47659e+06 329611 -7.5 0 0 0 8 1 0 0 4 0 -0.0686032 -1.71085 1.73809 50 0 0 2 
 0 1 0 -5.5 0.241315 0.75865 3.51701e-05 -2.85856 0.431979 0.567959 6.1673e-05 -0.741314 0.485833 0.514096 7.11303e-05 -0.658387 0.402095 0.597835 7.054e-05 -3.34978 -5.5 -3.09829 8.59302 0 0 0.35 1 1 1 1 0.540402 3.55471 2.29148 1 1 0 1 1 1 1 1 1.27284e+06 2.43486e+06 358623 991157 3.47659e+06 329611 -7.5 0 0 0 10 1 0 0 4 0 -0.108677 -1.56351 1.79534 50 0 0 2 
-1 0 0 5.5 0.769931 0.230037 3.26891e-05 2.8241 0.561373 0.438567 5.97182e-05 0.166255 0.449482 0.550446 7.15858e-05 -1.41831 0.507326 0.492602 7.2222e-05 0.464648 5.5 0.672738 7.48627 0 0 0.35 1 1 1 1 0.582009 3.26693 1.87197 1 1 0 1 1 1 0 0 1.27284e+06 2.43486e+06 358623 991157 3.47659e+06 329611 8.5 0 0 0 11 1 0 0 4 0 0.26265 4.23092 0.880201 50 -1 0 2 
+1 0 0 5.5 0.769931 0.230037 3.26891e-05 2.8241 0.561373 0.438567 5.97182e-05 0.166255 0.449482 0.550446 7.15858e-05 -1.41831 0.507326 0.492602 7.2222e-05 0.464648 5.5 0.672738 7.48627 0 0 0.35 1 1 1 1 0.582009 3.26693 1.87197 1 1 0 1 1 1 1 1 1.27284e+06 2.43486e+06 358623 991157 3.47659e+06 329611 8.5 0 0 0 11 1 0 0 4 0 0.26265 4.23092 0.880201 50 -1 0 2 
 1 0 0 5.5 0.817913 0.18206 2.69402e-05 3.45166 0.618784 0.381162 5.35716e-05 0.915691 0.434117 0.565813 7.01348e-05 -2.3109 0.311703 0.688226 7.16416e-05 -5.487 5.5 -5.7593 5.41717 0 0 0.35 1 1 1 1 0.472466 3.17714 1.62862 1 1 0 1 1 1 1 1 1.27284e+06 2.43486e+06 358623 991157 3.47659e+06 329611 8.5 0 0 0 13 1 0 0 4 0 -0.336369 -5.78755 1.49613 50 -1 0 2 
-1 0 0 5.5 0.817913 0.18206 2.69402e-05 3.45166 0.618784 0.381162 5.35716e-05 0.915691 0.434117 0.565813 7.01348e-05 -2.3109 0.311703 0.688226 7.16416e-05 -5.487 5.5 -5.7593 5.41717 0 0 0.35 1 1 1 1 0.472466 3.17714 1.62862 1 1 0 1 1 1 1 1 1.27284e+06 2.43486e+06 358623 991157 3.47659e+06 329611 8.5 0 0 0 13 1 0 0 4 0 -0.336369 -5.78755 1.49613 50 -1 0 2 
+1 0 0 5.5 0.817913 0.18206 2.69402e-05 3.45166 0.618784 0.381162 5.35716e-05 0.915691 0.434117 0.565813 7.01348e-05 -2.3109 0.311703 0.688226 7.16416e-05 -5.487 5.5 -5.7593 5.41717 0 0 0.35 1 1 1 1 0.472466 3.17714 1.62862 1 1 0 1 1 0 0 0 1.27284e+06 2.43486e+06 358623 991157 3.47659e+06 329611 8.5 0 0 0 13 1 0 0 4 0 -0.336369 -5.78755 1.49613 50 -1 0 2 
 0 1 0 -5.5 0.146554 0.853422 2.38046e-05 -4.07867 0.313467 0.686483 4.95879e-05 -2.32722 0.471359 0.528572 6.89722e-05 -0.139805 0.617551 0.382375 7.35378e-05 3.38677 -5.5 4.90085 4.43425 0 0 0.35 1 1 1 1 0.428534 3.09925 1.77745 1 1 0 1 1 1 1 1 1.27284e+06 2.43486e+06 358623 991157 3.47659e+06 329611 -7.5 0 0 0 14 1 0 0 4 0 0.331245 3.01535 1.14813 50 0 0 2 
 1 0 0 5.5 0.886464 0.113516 2.0316e-05 4.60234 0.753526 0.24643 4.4308e-05 3.58692 0.641378 0.358556 6.54494e-05 2.86093 0.627033 0.372898 6.97406e-05 2.86151 5.5 2.08073 3.4713 0 0 0.35 1 1 1 1 0.468256 2.72214 1.62452 1 1 0 1 1 1 1 1 1.27284e+06 2.43486e+06 358623 991157 3.47659e+06 329611 8.5 0 0 0 15 1 0 0 4 0 0.284735 2.07187 0.752177 50 -1 0 2 
 0 1 0 -5.5 0.0953214 0.904662 1.68491e-05 -4.72445 0.218549 0.781413 3.87011e-05 -3.74684 0.34749 0.652447 6.21383e-05 -2.86047 0.341104 0.658831 6.57357e-05 -3.69844 -5.5 -1.39511 2.74778 0 0 0.35 1 1 1 1 0.571812 2.80566 0.706115 1 1 0 1 1 1 1 1 1.27284e+06 2.43486e+06 358623 991157 3.47659e+06 329611 -7.5 0 0 0 16 1 0 0 4 0 -0.432197 -4.81508 0.35025 50 0 0 2 
@@ -15222,6 +15799,26 @@ valueTargetsNCHW
 0 0 0 0 0 0 0 0 0 0 0 0 1 -1 0 0 0 0 0 0 1 1 1 -1 -1 0 0 0 0 0 1 1 1 0 0 0 0 0 1 0 0 0 -1 0 0 0 0 0 0 -1 0 -1 -1 0 0 0 0 -1 0 1 1 -1 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 -1 0 0 0 0 0 0 1 0 1 -1 -1 0 0 0 0 0 1 1 1 0 0 0 0 0 1 0 0 0 -1 0 0 0 0 0 0 -1 0 -1 -1 0 0 0 0 -1 0 1 1 -1 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 -1 0 0 0 0 0 0 1 0 1 -1 -1 0 0 0 0 0 1 1 1 0 0 0 0 0 1 0 0 0 -1 0 0 0 0 0 0 -1 0 -1 -1 0 0 0 0 -1 0 1 1 -1 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 120 -120 0 0 0 0 0 0 120 120 120 -120 -120 0 0 0 0 0 120 120 120 0 0 0 0 0 120 0 0 0 -120 0 0 0 0 0 0 -120 0 -120 -120 0 0 0 0 -120 0 120 120 -120 0 0 0 0 0 0 0 0 120 0 0 0 0 0 0 0 0 0 0 
 0 0 0 0 0 0 0 0 0 0 0 0 1 -1 0 0 0 0 0 0 1 1 1 -1 -1 0 0 0 0 0 1 1 1 0 0 0 0 0 1 0 0 0 -1 0 0 0 0 0 0 -1 0 -1 -1 0 0 0 0 -1 0 1 1 -1 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 -1 0 0 0 0 0 0 1 0 1 -1 -1 0 0 0 0 0 1 1 1 0 0 0 0 0 1 0 0 0 -1 0 0 0 0 0 0 -1 0 -1 -1 0 0 0 0 -1 0 1 1 -1 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 -1 0 0 0 0 0 0 1 0 1 -1 -1 0 0 0 0 0 1 1 1 0 0 0 0 0 1 0 0 0 -1 0 0 0 0 0 0 -1 0 -1 -1 0 0 0 0 -1 0 1 1 -1 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 120 -120 0 0 0 0 0 0 120 120 120 -120 -120 0 0 0 0 0 120 120 120 0 0 0 0 0 120 0 0 0 -120 0 0 0 0 0 0 -120 0 -120 -120 0 0 0 0 -120 0 120 120 -120 0 0 0 0 0 0 0 0 120 0 0 0 0 0 0 0 0 0 0 
 0 0 0 0 0 0 0 0 0 0 0 0 -1 1 0 0 0 0 0 0 -1 -1 -1 1 1 0 0 0 0 0 -1 -1 -1 0 0 0 0 0 -1 0 0 0 1 0 0 0 0 0 0 1 0 1 1 0 0 0 0 1 0 -1 -1 1 0 0 0 0 0 0 0 0 -1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -1 1 0 0 0 0 0 0 -1 0 -1 1 1 0 0 0 0 0 -1 -1 -1 0 0 0 0 0 -1 0 0 0 1 0 0 0 0 0 0 1 0 1 1 0 0 0 0 1 0 -1 -1 1 0 0 0 0 0 0 0 0 -1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -1 1 0 0 0 0 0 0 -1 0 -1 1 1 0 0 0 0 0 -1 -1 -1 0 0 0 0 0 -1 0 0 0 1 0 0 0 0 0 0 1 0 1 1 0 0 0 0 1 0 -1 -1 1 0 0 0 0 0 0 0 0 -1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -120 120 0 0 0 0 0 0 -120 -120 -120 120 120 0 0 0 0 0 -120 -120 -120 0 0 0 0 0 -120 0 0 0 120 0 0 0 0 0 0 120 0 120 120 0 0 0 0 120 0 -120 -120 120 0 0 0 0 0 0 0 0 -120 0 0 0 0 0 0 0 0 0 0 
+
+qValueTargetsNCMove
+-109 78 85 77 80 89 1 0 -10 0 {'descr':'<i2','fortran_order':False,'shape':(17,3,82)}                                                               
+0 0 0 0 0 0 0 0 0 0 0 0 0 -7558 0 0 0 0 0 0 0 -4006 -3990 -4156 -3142 0 0 0 0 -3506 2040 1271 373 -2963 0 0 0 -7544 -1467 -3023 0 0 -3473 0 0 0 0 -3481 1461 -4645 -4138 -4825 0 0 0 0 0 -5447 -6558 -5349 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -249 0 0 0 0 0 0 0 -136 -137 -152 -134 0 0 0 0 -123 -39 -32 -59 -113 0 0 0 -256 -83 -90 0 0 -125 0 0 0 0 -123 -22 -150 -150 -169 0 0 0 0 0 -176 -213 -179 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 1 1 1 3 0 0 0 0 1 4 10 8 1 0 0 0 1 3 1 0 0 1 0 0 0 0 1 5 1 1 1 0 0 0 0 0 1 1 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
+0 0 0 0 0 0 0 0 0 0 0 0 0 -5022 0 0 0 0 0 0 0 -1396 -3333 0 -1389 0 0 0 0 -3479 -4246 0 -3664 905 0 0 0 0 -4983 -4283 -566 -5759 -2848 0 0 0 -9957 -157 -1004 -5196 494 -3593 0 0 0 0 0 -4254 -6675 2317 0 0 0 0 0 0 0 0 0 0 0 0 -18139 0 0 -14195 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -60 0 0 0 0 0 0 0 24 32 0 68 0 0 0 0 -25 13 0 41 37 0 0 0 0 -69 2 12 -41 24 0 0 0 -161 42 42 -10 50 -12 0 0 0 0 0 -4 -63 82 0 0 0 0 0 0 0 0 0 0 0 0 -429 0 0 -301 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 5 1 0 1 0 0 0 0 1 1 0 1 3 0 0 0 0 1 1 4 1 1 0 0 0 1 4 3 1 6 1 0 0 0 0 0 1 1 7 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 1 0 0 0 0 0 0 
+0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -7088 0 0 0 0 -9771 0 -188 0 390 0 0 0 0 -4971 -4712 0 0 -5340 0 0 0 0 0 0 0 0 0 0 0 0 -12042 -5151 0 0 0 -8038 0 0 0 0 0 -7364 0 -4309 -4203 -10616 -18602 0 0 0 0 0 0 -9311 0 0 0 0 -18814 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -169 0 0 0 0 -77 0 14 0 24 0 0 0 0 -10 -31 0 0 -103 0 0 0 0 0 0 0 0 0 0 0 0 -201 -85 0 0 0 -158 0 0 0 0 0 -106 0 -29 -7 -168 -412 0 0 0 0 0 0 -113 0 0 0 0 -440 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 2 0 0 0 0 1 0 11 0 18 0 0 0 0 1 1 0 0 3 0 0 0 0 0 0 0 0 0 0 0 0 1 2 0 0 0 2 0 0 0 0 0 1 0 1 1 1 1 0 0 0 0 0 0 1 0 0 0 0 1 0 0 0 0 0 0 0 
+0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -7089 0 0 0 0 -9770 0 -188 0 390 0 0 0 0 -4971 -4711 0 0 -5340 0 0 0 0 0 0 0 0 0 0 0 0 -12042 -5150 0 0 0 -8039 0 0 0 0 0 -7364 0 -4309 -4203 -10616 -18602 0 0 0 0 0 0 -9311 0 0 0 0 -18814 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -168 0 0 0 0 -77 0 13 0 24 0 0 0 0 -10 -31 0 0 -103 0 0 0 0 0 0 0 0 0 0 0 0 -201 -85 0 0 0 -158 0 0 0 0 0 -105 0 -29 -8 -167 -412 0 0 0 0 0 0 -114 0 0 0 0 -439 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 2 0 0 0 0 1 0 11 0 18 0 0 0 0 1 1 0 0 3 0 0 0 0 0 0 0 0 0 0 0 0 1 2 0 0 0 2 0 0 0 0 0 1 0 1 1 1 1 0 0 0 0 0 0 1 0 0 0 0 1 0 0 0 0 0 0 0 
+0 0 0 0 0 0 0 -20313 0 0 0 0 0 0 0 0 0 0 0 0 -9601 0 -759 0 0 0 0 -18711 0 0 -5632 0 0 1637 0 0 0 0 0 0 0 0 -8764 -8085 0 0 0 0 -8979 0 -7362 -5557 -8015 0 0 0 0 0 -4840 -1674 -2640 0 0 0 0 0 0 -8316 0 -9075 0 0 0 0 0 -18307 0 0 0 0 0 0 0 0 0 0 0 0 0 -615 0 0 0 0 0 0 0 0 0 0 0 0 -276 0 -24 0 0 0 0 -550 0 0 -185 0 0 33 0 0 0 0 0 0 0 0 -271 -249 0 0 0 0 -238 0 -216 -176 -276 0 0 0 0 0 -132 -77 -94 0 0 0 0 0 0 -228 0 -281 0 0 0 0 0 -518 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 2 0 6 0 0 0 0 1 0 0 1 0 0 15 0 0 0 0 0 0 0 0 1 1 0 0 0 0 1 0 1 2 1 0 0 0 0 0 1 7 5 0 0 0 0 0 0 1 0 1 0 0 0 0 0 1 0 0 0 0 0 0 
+0 0 0 0 0 0 0 -20313 0 0 0 0 0 0 0 0 0 0 0 0 -9601 0 -759 0 0 0 0 -18710 0 0 -5632 0 0 1637 0 0 0 0 0 0 0 0 -8764 -8084 0 0 0 0 -8980 0 -7362 -5557 -8015 0 0 0 0 0 -4840 -1674 -2640 0 0 0 0 0 0 -8316 0 -9075 0 0 0 0 0 -18308 0 0 0 0 0 0 0 0 0 0 0 0 0 -615 0 0 0 0 0 0 0 0 0 0 0 0 -276 0 -24 0 0 0 0 -550 0 0 -185 0 0 34 0 0 0 0 0 0 0 0 -271 -249 0 0 0 0 -238 0 -216 -175 -276 0 0 0 0 0 -132 -77 -93 0 0 0 0 0 0 -227 0 -281 0 0 0 0 0 -518 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 2 0 6 0 0 0 0 1 0 0 1 0 0 15 0 0 0 0 0 0 0 0 1 1 0 0 0 0 1 0 1 2 1 0 0 0 0 0 1 7 5 0 0 0 0 0 0 1 0 1 0 0 0 0 0 1 0 0 0 0 0 0 
+0 0 0 0 0 0 0 -20578 0 0 0 0 0 0 0 0 0 0 0 0 -7702 0 -4109 0 0 0 0 0 0 -9338 0 0 0 -4435 -10917 0 0 -7849 0 0 0 0 0 -10414 0 0 -3754 -6234 -10670 -7455 -7694 0 0 0 0 -3456 -1765 0 -4618 -7443 0 0 0 0 0 0 -7043 -4911 -5768 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -702 0 0 0 0 0 0 0 0 0 0 0 0 -199 0 -107 0 0 0 0 0 0 -245 0 0 0 -102 -309 0 0 -236 0 0 0 0 0 -301 0 0 -124 -191 -335 -213 -215 0 0 0 0 -135 -72 0 -136 -182 0 0 0 0 0 0 -211 -170 -156 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 1 0 5 0 0 0 0 0 0 2 0 0 0 6 1 0 0 1 0 0 0 0 0 1 0 0 2 2 1 1 1 0 0 0 0 7 11 0 1 1 0 0 0 0 0 0 1 2 1 0 0 0 0 0 0 0 0 0 0 0 0 0 
+0 0 0 0 0 0 0 -20579 0 0 0 0 0 0 0 0 0 0 0 0 -7703 0 -4110 0 0 0 0 0 0 -9338 0 0 0 -4435 -10917 0 0 -7849 0 0 0 0 0 -10414 0 0 -3754 -6234 -10670 -7455 -7693 0 0 0 0 -3456 -1764 0 -4618 -7443 0 0 0 0 0 0 -7044 -4912 -5768 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -702 0 0 0 0 0 0 0 0 0 0 0 0 -200 0 -107 0 0 0 0 0 0 -245 0 0 0 -102 -309 0 0 -236 0 0 0 0 0 -301 0 0 -124 -192 -335 -213 -216 0 0 0 0 -135 -72 0 -135 -181 0 0 0 0 0 0 -211 -171 -156 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 1 0 5 0 0 0 0 0 0 2 0 0 0 6 1 0 0 1 0 0 0 0 0 1 0 0 2 2 1 1 1 0 0 0 0 7 11 0 1 1 0 0 0 0 0 0 1 2 1 0 0 0 0 0 0 0 0 0 0 0 0 0 
+0 0 0 0 0 0 0 0 0 -22029 0 0 -7132 0 -5777 0 0 0 0 -14266 -1860 0 0 0 0 0 0 0 0 0 -7871 0 0 -7312 0 0 0 0 0 0 0 0 0 0 0 0 -5701 0 -12948 0 -8971 0 0 0 0 -6121 -5035 0 -5498 0 0 0 0 0 0 0 0 -5375 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -844 0 0 -200 0 -193 0 0 0 0 -473 -70 0 0 0 0 0 0 0 0 0 -274 0 0 -187 0 0 0 0 0 0 0 0 0 0 0 0 -187 0 -391 0 -294 0 0 0 0 -209 -163 0 -188 0 0 0 0 0 0 0 0 -187 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 4 0 9 0 0 0 0 1 9 0 0 0 0 0 0 0 0 0 3 0 0 6 0 0 0 0 0 0 0 0 0 0 0 0 2 0 3 0 1 0 0 0 0 5 3 0 1 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
+0 0 0 0 0 0 -20639 0 0 0 0 -812 6439 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1667 0 0 -4540 0 0 0 -11036 0 0 0 0 -6975 -9127 0 0 0 -1854 0 -9202 -5435 1315 0 0 0 0 0 0 0 -2731 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -541 0 0 0 0 -5 161 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 64 0 0 -102 0 0 0 -204 0 0 0 0 -86 -134 0 0 0 -56 0 -242 -75 74 0 0 0 0 0 0 0 -83 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 11 12 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 9 0 0 2 0 0 0 1 0 0 0 0 1 1 0 0 0 2 0 2 1 4 0 0 0 0 0 0 0 2 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
+0 0 0 -14459 -20225 0 0 0 0 0 0 -15294 0 0 0 0 0 0 0 -22300 0 0 0 0 0 0 0 0 0 0 0 0 0 -14609 0 0 0 0 0 0 0 0 -10143 -16761 0 0 0 -17883 0 0 0 -9729 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -428 -566 0 0 0 0 0 0 -395 0 0 0 0 0 0 0 -680 0 0 0 0 0 0 0 0 0 0 0 0 0 -413 0 0 0 0 0 0 0 0 -282 -480 0 0 0 -391 0 0 0 -252 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 5 2 0 0 0 0 0 0 3 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 3 0 0 0 0 0 0 0 0 11 3 0 0 0 1 0 0 0 20 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
+0 0 0 -14459 -20225 0 0 0 0 0 0 -15294 0 0 0 0 0 0 0 -22299 0 0 0 0 0 0 0 0 0 0 0 0 0 -14610 0 0 0 0 0 0 0 0 -10143 -16761 0 0 0 -17884 0 0 0 -9729 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -428 -566 0 0 0 0 0 0 -395 0 0 0 0 0 0 0 -681 0 0 0 0 0 0 0 0 0 0 0 0 0 -413 0 0 0 0 0 0 0 0 -282 -480 0 0 0 -391 0 0 0 -252 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 5 2 0 0 0 0 0 0 3 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 3 0 0 0 0 0 0 0 0 11 3 0 0 0 1 0 0 0 20 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
+0 0 0 0 0 0 0 0 0 -18855 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -9112 0 0 9595 0 0 0 0 0 0 0 9295 0 3848 0 0 -3915 0 0 0 8051 3587 0 0 0 0 0 0 0 2656 0 0 -6558 0 0 0 0 11793 4087 0 0 0 0 0 -11229 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -523 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -125 0 0 269 0 0 0 0 0 0 0 261 0 145 0 0 -52 0 0 0 212 166 0 0 0 0 0 0 0 85 0 0 -157 0 0 0 0 279 158 0 0 0 0 0 -314 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 15 0 0 0 0 0 0 0 7 0 1 0 0 1 0 0 0 6 1 0 0 0 0 0 0 0 3 0 0 1 0 0 0 0 10 1 0 0 0 0 0 1 0 0 0 0 0 0 0 
+0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -9669 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -1635 0 0 0 0 0 0 0 3491 0 6236 0 0 0 0 0 0 7424 6926 15531 0 0 0 -3356 0 0 4744 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -202 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -84 0 0 0 0 0 0 0 67 0 131 0 0 0 0 0 0 163 150 347 0 0 0 -25 0 0 71 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 5 0 0 0 0 0 0 0 2 0 1 0 0 0 0 0 0 2 18 14 0 0 0 1 0 0 5 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
+0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -21649 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -12323 0 0 0 -24870 0 0 0 0 0 -22698 0 0 0 0 0 0 0 0 -21212 0 0 0 -20228 0 0 -7082 0 0 0 0 0 -23950 -18616 -20937 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -497 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -243 0 0 0 -717 0 0 0 0 0 -559 0 0 0 0 0 0 0 0 -481 0 0 0 -481 0 0 -153 0 0 0 0 0 -459 -351 -488 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 4 0 0 0 1 0 0 0 0 0 1 0 0 0 0 0 0 0 0 1 0 0 0 1 0 0 35 0 0 0 0 0 2 1 2 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
+0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -21650 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -12323 0 0 0 -24870 0 0 0 0 0 -22698 0 0 0 0 0 0 0 0 -21211 0 0 0 -20227 0 0 -7081 0 0 0 0 0 -23950 -18615 -20937 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -496 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -243 0 0 0 -717 0 0 0 0 0 -560 0 0 0 0 0 0 0 0 -481 0 0 0 -482 0 0 -153 0 0 0 0 0 -459 -350 -488 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 4 0 0 0 1 0 0 0 0 0 1 0 0 0 0 0 0 0 0 1 0 0 0 1 0 0 35 0 0 0 0 0 2 1 2 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
+0 -21201 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -4809 0 0 0 0 0 0 0 -5945 0 0 -9564 0 0 260 0 0 7593 0 -5085 0 0 0 0 0 -3235 0 0 849 0 0 0 -7222 0 471 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -645 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -99 0 0 0 0 0 0 0 -119 0 0 -225 0 0 -33 0 0 170 0 -186 0 0 0 0 0 -128 0 0 -17 0 0 0 -123 0 -29 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 1 0 0 1 0 0 2 0 0 28 0 2 0 0 0 0 0 2 0 0 4 0 0 0 1 0 6 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
 
 Turn number initial 40 selfplay with high early temperatures
 : MoveNum: 0 HASH: 9F0B2D702FC8448C75410E097F089AEB
@@ -15980,6 +16577,26 @@ whiteValueTargetsByTurn 17 0.317324 0.68259 8.64546e-05 -6.97647 -10.823
 whiteValueTargetsByTurn 18 0.370722 0.629188 8.99351e-05 -5.30413 - 
 whiteValueTargetsByTurn 19 0.366533 0.633382 8.48646e-05 -5.03077 - 
 whiteValueTargetsByTurn 20 1 0 0 7.5 7.5 
+whiteQValueTargetsByTurn 0 F6 -0.0299478 0.835908 7 D4 -0.00485839 0.709489 7 D6 -0.0343353 0.696969 5 F4 -0.0449168 1.15343 5 D3 0.0380478 1.41505 4 E6 -0.0278321 0.77563 5 F3 0.0718533 2.28195 2 C6 -0.0117742 1.09585 3 C5 0.0458725 1.37093 3 C4 0.029595 1.17447 3 D7 0.125183 2.26538 1 F7 0.129903 2.52983 1 G7 0.102209 1.98632 1 G6 0.0925777 1.88476 1 G4 0.15078 2.82115 1 
+whiteQValueTargetsByTurn 1 F4 -2.93785e-05 1.26042 10 D4 0.0349104 1.4036 9 D6 0.0175673 1.28878 7 G4 -0.0266209 0.775428 5 F3 0.0016229 1.05985 5 C6 0.02094 1.01455 4 D3 -0.0590921 0.344594 3 C4 -0.14233 -0.624551 1 D7 -0.115232 0.294926 1 E3 -0.186535 -0.62548 1 F8 -0.168733 -0.870342 1 C5 -0.154344 -1.03319 1 C1 -0.459712 -4.19576 1 
+whiteQValueTargetsByTurn 2 D3 0.047269 1.86164 8 D4 8.23075e-05 1.04396 7 D6 0.0155422 1.2027 3 C4 0.077091 0.813702 1 
+whiteQValueTargetsByTurn 3 D6 -0.020524 0.60315 6 D7 -0.0500162 0.260624 5 C6 -0.0208942 0.538492 5 E5 -0.0256182 1.00654 3 
+whiteQValueTargetsByTurn 4 E5 -0.0308859 0.111863 19 
+whiteQValueTargetsByTurn 5 D3 -0.0496986 0.138878 10 G6 -0.0407245 -0.277876 10 C4 -0.019971 -0.392809 7 F7 -0.0070692 0.123782 8 D2 -0.115943 -1.37351 2 E8 -0.100765 -1.03699 2 E3 -0.0897713 -0.515383 3 B5 -0.158171 -0.572072 1 F8 -0.121365 -0.173173 1 C3 -0.0697851 -0.359115 1 H5 -0.100795 0.40231 1 B4 -0.154665 -0.597697 1 G5 -0.0604926 0.563987 1 H6 -0.0798132 0.76756 1 
+whiteQValueTargetsByTurn 6 C3 -0.0471183 -0.0675598 32 C4 0.0283481 0.95795 10 E3 -0.0135565 0.259672 3 C8 0.341118 4.09292 1 H6 0.296057 3.29388 1 A4 0.553631 7.33276 1 G3 0.152454 2.02111 1 
+whiteQValueTargetsByTurn 7 E3 -0.0474062 -0.0274772 31 
+whiteQValueTargetsByTurn 8 C4 -0.0667992 -0.730599 25 C5 -0.0715269 0.0301163 18 J8 0.644828 10.7637 1 G4 0.311394 4.29353 1 B5 0.188473 2.44774 1 G5 0.13924 2.20532 1 E1 0.514944 9.40602 1 B4 0.078086 0.463367 1 
+whiteQValueTargetsByTurn 9 G6 -0.11679 -0.809486 5 H5 -0.0472993 -0.561763 5 F7 -0.0124801 -0.502087 6 F8 -0.119302 -1.43899 3 G5 -0.108082 -0.345104 3 E8 -0.0539966 -0.788566 2 
+whiteQValueTargetsByTurn 10 G7 -0.0776452 -0.968485 15 H6 -0.0565758 -0.300643 10 E7 0.00406061 0.339876 7 F7 -0.117214 -1.14202 8 G3 0.117169 1.7835 2 G5 -0.0373239 -0.0878285 2 F8 -0.0685866 -0.513413 2 C7 0.1157 0.606626 1 C6 0.168548 1.58788 1 E8 -0.0746684 -1.99537 1 
+whiteQValueTargetsByTurn 11 E7 0.0770119 1.25959 21 C7 -0.146015 -2.13753 9 B6 -0.23092 -4.00355 6 D8 -0.126547 -1.88491 5 F5 -0.319078 -4.86889 2 C6 -0.148669 -2.008 2 B5 -0.105011 0.243276 1 H6 -0.341148 -5.44784 1 B7 0.00169063 0.945093 1 A5 -0.459972 -6.96776 1 
+whiteQValueTargetsByTurn 12 C7 0.0851118 1.2871 20 
+whiteQValueTargetsByTurn 13 C6 0.024933 0.486675 44 H7 -0.39879 -6.38761 2 G8 -0.347428 -4.18833 1 B6 -0.379189 -6.41638 1 F7 -0.313718 -3.72359 1 
+whiteQValueTargetsByTurn 14 B7 0.232164 3.9869 15 B8 0.0931356 1.97289 9 D7 0.362935 5.36469 4 B6 -0.342172 -6.38998 14 C8 0.00133943 0.479055 4 E8 0.189681 2.41939 1 C5 0.537057 7.95428 1 F8 0.199285 2.25696 1 
+whiteQValueTargetsByTurn 15 B5 -0.315211 -5.82007 34 B7 -0.406046 -6.88246 5 H7 -0.302878 -5.28195 3 G8 -0.272757 -4.51033 2 F7 -0.250002 -4.06431 2 F9 -0.532471 -8.15745 1 E4 -0.336916 -4.86874 1 D7 -0.31378 -4.87524 1 
+whiteQValueTargetsByTurn 16 B7 -0.350286 -6.63758 43 G9 0.694662 12.442 1 J8 0.724784 13.7025 1 D7 0.50456 6.56209 1 B8 -0.225533 -5.28879 1 J5 0.568041 8.93044 1 F3 0.512573 8.53877 1 
+whiteQValueTargetsByTurn 17 C5 -0.258506 -5.30476 28 D7 -0.640356 -10.6469 4 F7 -0.467087 -9.80038 4 G8 -0.427793 -8.80621 6 C2 -0.590974 -9.66018 2 H7 -0.565874 -8.99346 2 D8 -0.614437 -9.73612 2 G6 -0.518519 -6.7411 1 
+whiteQValueTargetsByTurn 18 E8 -0.255758 -4.89731 11 D8 -0.240376 -5.43209 6 D7 -0.273025 -5.08291 4 E6 -0.0336322 -0.989899 2 G5 -0.224938 -4.8325 1 B4 -0.431737 -9.04746 2 F7 -0.337962 -8.95423 1 
+whiteQValueTargetsByTurn 19 D8 -0.165166 -3.07452 12 F8 -0.391202 -7.93322 4 F7 -0.545153 -9.74433 2 C2 -0.634448 -9.29957 1 
 Raw Stats -0.00778344 1.38502 2.818
 Raw Stats 0.108482 2.19412 2.34318
 Raw Stats -0.108406 0.615024 1.64648
@@ -16108,7 +16725,7 @@ globalTargetsNC
 0 1 0 -7.5 0.309294 0.690662 4.45085e-05 -2.25976 0.488417 0.511512 7.05853e-05 0.329135 0.52075 0.479176 7.36515e-05 0.275552 0.513951 0.485978 7.11394e-05 -0.161211 -7.5 0.913241 20.3099 0 0 0.35 1 1 1 1 0.342479 2.04391 0.772858 1 1 0 1 1 1 1 1 1.27284e+06 2.43486e+06 358623 991157 3.47659e+06 329611 -7.5 0 0 0 8 1 0 0 4 40 -0.0155519 -1.30733 0.974647 50 0 0 2 
 0 1 0 -7.5 0.309294 0.690662 4.45085e-05 -2.25976 0.488417 0.511512 7.05853e-05 0.329135 0.52075 0.479176 7.36515e-05 0.275552 0.513951 0.485978 7.11394e-05 -0.161211 -7.5 0.913241 20.3099 0 0 0.35 1 1 1 1 0.342479 2.04391 0.772858 1 1 0 1 1 1 1 1 1.27284e+06 2.43486e+06 358623 991157 3.47659e+06 329611 -7.5 0 0 0 8 1 0 0 4 40 -0.0155519 -1.30733 0.974647 50 0 0 2 
 0 1 0 -7.5 0.278214 0.721746 4.05832e-05 -2.62705 0.471638 0.528292 7.01314e-05 0.372564 0.520313 0.479609 7.83849e-05 0.521489 0.526436 0.473489 7.48875e-05 0.445204 -7.5 0.831273 16.7926 0 0 0.35 1 1 1 1 0.149056 2.41439 1.86238 1 1 0 1 1 1 1 1 1.27284e+06 2.43486e+06 358623 991157 3.47659e+06 329611 -7.5 0 0 0 10 1 0 0 4 40 0.158519 -0.438055 1.87798 50 0 0 2 
-1 0 0 7.5 0.73916 0.260802 3.81769e-05 2.84256 0.540373 0.459558 6.90829e-05 -0.35655 0.484331 0.515588 8.10834e-05 -0.58035 0.470734 0.529186 7.96572e-05 -0.844424 7.5 -2.43934 15.0349 0 0 0.35 1 1 1 1 0.292093 2.48152 1.57008 1 1 0 1 1 1 0 0 1.27284e+06 2.43486e+06 358623 991157 3.47659e+06 329611 8.5 0 0 0 11 1 0 0 4 40 0.113618 0.765882 1.78149 50 -1 0 2 
+1 0 0 7.5 0.73916 0.260802 3.81769e-05 2.84256 0.540373 0.459558 6.90829e-05 -0.35655 0.484331 0.515588 8.10834e-05 -0.58035 0.470734 0.529186 7.96572e-05 -0.844424 7.5 -2.43934 15.0349 0 0 0.35 1 1 1 1 0.292093 2.48152 1.57008 1 1 0 1 1 1 1 1 1.27284e+06 2.43486e+06 358623 991157 3.47659e+06 329611 8.5 0 0 0 11 1 0 0 4 40 0.113618 0.765882 1.78149 50 -1 0 2 
 1 0 0 7.5 0.773388 0.22658 3.18946e-05 3.23036 0.559532 0.440405 6.3093e-05 -0.581595 0.461149 0.53877 8.12861e-05 -1.63914 0.493433 0.506485 8.20926e-05 -0.118677 7.5 0.185177 11.5379 0 0 0.35 1 1 1 1 0.324256 1.96393 0.465481 1 1 0 1 1 1 1 1 1.27284e+06 2.43486e+06 358623 991157 3.47659e+06 329611 8.5 0 0 0 13 1 0 0 4 40 -0.167706 -4.15481 0.688613 50 -1 0 2 
 1 0 0 7.5 0.773388 0.22658 3.18946e-05 3.23036 0.559532 0.440405 6.3093e-05 -0.581595 0.461149 0.53877 8.12861e-05 -1.63914 0.493433 0.506485 8.20926e-05 -0.118677 7.5 0.185177 11.5379 0 0 0.35 1 1 1 1 0.324256 1.96393 0.465481 1 1 0 1 1 1 1 1 1.27284e+06 2.43486e+06 358623 991157 3.47659e+06 329611 8.5 0 0 0 13 1 0 0 4 40 -0.167706 -4.15481 0.688613 50 -1 0 2 
 0 1 0 -7.5 0.206946 0.793026 2.83734e-05 -3.46528 0.425837 0.574104 5.89044e-05 0.683649 0.563681 0.436238 8.06639e-05 2.81235 0.496127 0.503791 8.1789e-05 0.0316886 -7.5 -1.17038 9.80664 0 0 0.35 1 1 1 1 0.307355 2.19114 1.6789 1 1 0 1 1 1 1 1 1.27284e+06 2.43486e+06 358623 991157 3.47659e+06 329611 -7.5 0 0 0 14 1 0 0 4 40 -0.0383652 -1.78455 1.48859 50 0 0 2 
@@ -16156,6 +16773,26 @@ valueTargetsNCHW
 0 0 0 0 0 0 0 0 0 0 0 0 -1 1 0 0 0 0 0 1 1 0 -1 0 1 0 0 0 1 -1 -1 0 1 0 0 0 0 -1 -1 0 1 0 0 -1 0 0 0 1 1 0 -1 0 0 0 0 0 1 -1 -1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -1 1 0 0 0 0 0 1 1 0 -1 0 1 0 0 0 1 -1 -1 0 1 0 0 0 0 -1 -1 0 1 0 0 -1 0 0 0 1 1 0 -1 0 0 0 0 0 1 -1 -1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -1 1 0 0 0 0 0 1 1 0 -1 0 1 0 0 0 1 -1 -1 0 1 0 0 0 0 -1 -1 0 1 0 0 -1 0 0 0 1 1 0 -1 0 0 0 0 0 1 -1 -1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -120 120 0 0 0 0 0 120 120 0 -120 0 120 0 0 0 120 -120 -120 0 120 0 0 0 0 -120 -120 0 120 0 0 -120 0 0 0 120 120 0 -120 0 0 0 0 0 120 -120 -120 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
 0 0 0 0 0 0 0 0 0 0 0 0 -1 1 0 0 0 0 0 1 1 0 -1 0 1 0 0 0 1 -1 -1 0 1 0 0 0 0 -1 -1 0 1 0 0 -1 0 0 0 1 1 0 -1 0 0 0 0 0 1 -1 -1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -1 1 0 0 0 0 0 1 1 0 -1 0 1 0 0 0 1 -1 -1 0 1 0 0 0 0 -1 -1 0 1 0 0 -1 0 0 0 1 1 0 -1 0 0 0 0 0 1 -1 -1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -1 1 0 0 0 0 0 1 1 0 -1 0 1 0 0 0 1 -1 -1 0 1 0 0 0 0 -1 -1 0 1 0 0 -1 0 0 0 1 1 0 -1 0 0 0 0 0 1 -1 -1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -120 120 0 0 0 0 0 120 120 0 -120 0 120 0 0 0 120 -120 -120 0 120 0 0 0 0 -120 -120 0 120 0 0 -120 0 0 0 120 120 0 -120 0 0 0 0 0 120 -120 -120 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
 0 0 0 0 0 0 0 0 0 0 0 0 1 -1 0 0 0 0 0 -1 -1 0 1 0 -1 0 0 0 -1 1 1 0 -1 0 0 0 0 1 1 0 -1 0 0 1 0 0 0 -1 -1 0 1 0 0 0 0 0 -1 1 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 -1 0 0 0 0 0 -1 -1 0 1 0 -1 0 0 0 -1 1 1 0 -1 0 0 0 0 1 1 0 -1 0 0 1 0 0 0 -1 -1 0 1 0 0 0 0 0 -1 1 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 -1 0 0 0 0 0 -1 -1 0 1 0 -1 0 0 0 -1 1 1 0 -1 0 0 0 0 1 1 0 -1 0 0 1 0 0 0 -1 -1 0 1 0 0 0 0 0 -1 1 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 120 -120 0 0 0 0 0 -120 -120 0 120 0 -120 0 0 0 -120 120 120 0 -120 0 0 0 0 120 120 0 -120 0 0 120 0 0 0 -120 -120 0 120 0 0 0 0 0 -120 120 120 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
+
+qValueTargetsNCMove
+-109 78 85 77 80 89 1 0 -10 0 {'descr':'<i2','fortran_order':False,'shape':(17,3,82)}                                                               
+0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -4006 0 -4157 -3271 0 0 0 0 377 1099 890 958 -2962 0 0 0 0 -1468 0 0 0 0 0 0 0 0 -947 155 0 1438 -4825 0 0 0 0 0 -1218 0 -2299 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -136 0 -152 -119 0 0 0 0 -66 -42 -47 -51 -113 0 0 0 0 -83 0 0 0 0 0 0 0 0 -70 -43 0 -69 -169 0 0 0 0 0 -85 0 -137 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 1 1 0 0 0 0 3 5 5 7 1 0 0 0 0 3 0 0 0 0 0 0 0 0 3 7 0 5 1 0 0 0 0 0 4 0 2 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
+0 0 0 0 0 0 0 0 0 0 0 0 0 0 -5399 0 0 0 0 0 0 -3687 0 0 0 0 0 0 0 670 562 0 0 0 0 0 0 0 -4939 0 0 0 0 0 0 0 0 -4555 1117 0 -1 -851 0 0 0 0 0 -1891 -5969 51 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -14711 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -52 0 0 0 0 0 0 18 0 0 0 0 0 0 0 61 78 0 0 0 0 0 0 0 -62 0 0 0 0 0 0 0 0 -38 84 0 76 47 0 0 0 0 0 21 -38 63 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -252 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 1 0 0 0 0 0 0 0 4 7 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 1 9 0 10 5 0 0 0 0 0 3 1 5 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 
+0 0 0 0 0 0 0 0 0 0 0 0 0 -3225 -3884 0 0 0 0 0 0 0 0 -226 0 0 0 0 0 0 0 0 0 -1304 -2554 0 0 -5062 0 0 0 0 -1936 -3225 0 0 -4950 -639 0 0 0 0 0 0 0 0 -2233 -1591 -2873 0 0 0 0 0 0 0 -3710 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -63 -11 0 0 0 0 0 0 0 0 7 0 0 0 0 0 0 0 0 0 -17 46 0 0 -34 0 0 0 0 34 24 0 0 -36 -24 0 0 0 0 0 0 0 0 -21 8 -31 0 0 0 0 0 0 0 -83 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 2 1 0 0 0 0 0 0 0 0 8 0 0 0 0 0 0 0 0 0 10 1 0 0 1 0 0 0 0 1 1 0 0 1 7 0 0 0 0 0 0 0 0 1 10 3 0 0 0 0 0 0 0 2 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
+0 0 0 0 0 0 0 0 0 0 0 0 0 -3224 -3884 0 0 0 0 0 0 0 0 -227 0 0 0 0 0 0 0 0 0 -1303 -2554 0 0 -5062 0 0 0 0 -1936 -3225 0 0 -4949 -639 0 0 0 0 0 0 0 0 -2233 -1590 -2873 0 0 0 0 0 0 0 -3710 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -62 -10 0 0 0 0 0 0 0 0 7 0 0 0 0 0 0 0 0 0 -17 46 0 0 -34 0 0 0 0 34 24 0 0 -36 -24 0 0 0 0 0 0 0 0 -21 9 -31 0 0 0 0 0 0 0 -82 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 2 1 0 0 0 0 0 0 0 0 8 0 0 0 0 0 0 0 0 0 10 1 0 0 1 0 0 0 0 1 1 0 0 1 7 0 0 0 0 0 0 0 0 1 10 3 0 0 0 0 0 0 0 2 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
+0 0 0 0 0 0 0 0 0 0 0 -10916 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -9474 0 0 0 0 0 0 0 0 0 0 -17716 0 -907 0 0 0 0 0 0 0 0 1507 0 434 0 -4879 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -246 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -198 0 0 0 0 0 0 0 0 0 0 -440 0 -57 0 0 0 0 0 0 0 0 4 0 -15 0 -122 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 1 0 10 0 0 0 0 0 0 0 0 32 0 3 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
+0 0 0 0 0 0 0 0 0 0 0 -10915 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -9474 0 0 0 0 0 0 0 0 0 0 -17716 0 -907 0 0 0 0 0 0 0 0 1507 0 434 0 -4879 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -246 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -197 0 0 0 0 0 0 0 0 0 0 -440 0 -58 0 0 0 0 0 0 0 0 4 0 -16 0 -122 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 1 0 10 0 0 0 0 0 0 0 0 32 0 3 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
+0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -20634 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -6032 2289 0 0 0 -4455 0 0 0 -2499 2138 0 0 0 -9964 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -16478 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -646 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -147 -2 0 0 0 -132 0 0 0 -28 44 0 0 0 -258 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -565 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 18 0 0 0 1 0 0 0 1 25 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 
+0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -20635 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -6032 2289 0 0 0 -4456 0 0 0 -2499 2138 0 0 0 -9965 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -16478 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -646 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -147 -1 0 0 0 -132 0 0 0 -28 44 0 0 0 -258 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -564 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 18 0 0 0 1 0 0 0 1 25 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 
+0 0 0 0 0 0 0 0 0 0 0 0 0 2389 2194 0 0 0 0 0 -3702 0 -130 3751 2485 0 0 0 0 -5393 0 0 0 0 1811 0 0 0 0 0 0 0 1195 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -3749 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 120 30 0 0 0 0 0 -36 0 -21 68 58 0 0 0 0 -95 0 0 0 0 18 0 0 0 0 0 0 0 5 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -107 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 2 0 0 0 0 0 1 0 7 8 15 0 0 0 0 1 0 0 0 0 10 0 0 0 0 0 0 0 2 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 2 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
+0 0 0 0 0 0 0 0 0 0 0 0 -4049 0 0 0 0 0 0 54 -4673 0 2464 0 0 0 0 0 -7389 -4757 0 0 0 0 -10917 0 -14719 -3360 0 0 0 -10210 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -113 0 0 0 0 0 0 57 -129 0 75 0 0 0 0 0 -240 -121 0 0 0 0 -327 0 -418 14 0 0 0 -292 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 5 0 0 0 0 0 0 1 9 0 21 0 0 0 0 0 6 2 0 0 0 0 1 0 1 1 0 0 0 2 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
+0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -11118 0 0 0 0 0 0 0 -10039 0 -12761 0 0 -12134 798 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -251 0 0 0 0 0 0 0 -224 0 -383 0 0 -385 29 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 1 0 2 0 0 1 44 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
+0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -11118 0 0 0 0 0 0 0 -10039 0 -12761 0 0 -12134 798 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -251 0 0 0 0 0 0 0 -223 0 -383 0 0 -385 30 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 1 0 2 0 0 1 44 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
+0 0 0 0 0 0 0 0 0 0 -2981 -43 0 -6070 -6377 0 0 0 0 -7430 0 -11614 0 0 0 0 0 0 10950 0 0 0 0 0 0 0 0 0 -17186 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -118 -29 0 -146 -135 0 0 0 0 -239 0 -322 0 0 0 0 0 0 383 0 0 0 0 0 0 0 0 0 -477 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 9 4 0 1 1 0 0 0 0 15 0 4 0 0 0 0 0 0 14 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
+0 0 0 0 0 -17039 0 0 0 0 0 0 0 0 0 -8728 0 0 0 -12993 0 -10041 0 -8000 0 -9692 0 0 0 0 0 0 0 0 0 0 0 -10087 0 0 0 0 0 0 0 0 0 0 0 -10781 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -490 0 0 0 0 0 0 0 0 0 -271 0 0 0 -413 0 -292 0 -244 0 -317 0 0 0 0 0 0 0 0 0 0 0 -350 0 0 0 0 0 0 0 0 0 0 0 -292 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 2 0 0 0 5 0 1 0 2 0 3 0 0 0 0 0 0 0 0 0 0 0 34 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
+0 0 0 0 0 0 -22229 0 0 0 7217 0 0 0 0 0 0 -23193 0 11209 0 -16146 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -18178 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -16403 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -746 0 0 0 317 0 0 0 0 0 0 -822 0 398 0 -393 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -536 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -513 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 1 0 0 0 0 0 0 1 0 43 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
+0 0 0 0 0 0 -22229 0 0 0 7217 0 0 0 0 0 0 -23193 0 11209 0 -16146 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -18177 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -16403 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -746 0 0 0 318 0 0 0 0 0 0 -822 0 398 0 -394 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -536 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -512 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 1 0 0 0 0 0 0 1 0 43 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
+0 0 0 0 0 0 0 0 0 0 0 0 -19662 0 0 -13689 0 0 0 0 0 -20491 0 -14947 0 -18108 0 0 0 0 0 0 0 -16593 0 0 0 0 -8273 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -18911 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -584 0 0 -528 0 0 0 0 0 -639 0 -588 0 -539 0 0 0 0 0 0 0 -405 0 0 0 0 -318 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -580 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 2 0 0 6 0 0 0 0 0 4 0 4 0 2 0 0 0 0 0 0 0 1 0 0 0 0 28 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 2 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
 
 ====================================================================================================
 ====================================================================================================
@@ -16620,6 +17257,19 @@ whiteValueTargetsByTurn 10 0.0156527 0.0146474 0.9697 -0.00257594 -
 whiteValueTargetsByTurn 11 0.0113275 0.00907879 0.979594 0.0340324 - 
 whiteValueTargetsByTurn 12 0.00470828 0.0343171 0.960975 -0.623821 - 
 whiteValueTargetsByTurn 13 0 0 1 0 - 
+whiteQValueTargetsByTurn 0 A2 0.0379495 0.286092 23 A4 0.0303149 -0.383198 16 
+whiteQValueTargetsByTurn 1 C5 0.0057543 0.0349199 94 E5 0.120812 1.60133 4 J9 0.981344 22.4826 1 
+whiteQValueTargetsByTurn 2 A4 0.00842952 0.121314 96 J5 -0.977626 -18.4859 1 J6 -0.96666 -19.6019 1 H7 -0.970165 -20.4664 1 
+whiteQValueTargetsByTurn 3 E5 0.00501674 0.0390679 95 
+whiteQValueTargetsByTurn 4 C4 0.00635577 0.077677 94 
+whiteQValueTargetsByTurn 5 A5 0.00262037 0.00353989 99 
+whiteQValueTargetsByTurn 6 E4 0.00396913 0.0417523 95 E8 -0.979686 -21.7942 1 J6 -0.966989 -19.6162 1 J5 -0.978381 -18.398 1 J4 -0.986108 -19.8589 1 
+whiteQValueTargetsByTurn 7 C5 0.00165492 -0.00690907 99 
+whiteQValueTargetsByTurn 8 A4 0.00436532 0.0775728 99 
+whiteQValueTargetsByTurn 9 E5 0.00100528 -0.00257594 99 
+whiteQValueTargetsByTurn 10 C4 0.00224873 0.0340324 98 
+whiteQValueTargetsByTurn 11 A5 -0.0012129 -0.0372785 97 
+whiteQValueTargetsByTurn 12 E4 0 0 95 H7 -0.973011 -20.3974 1 J4 -0.986108 -19.8589 1 J5 -0.978381 -18.398 1 H8 -0.98061 -22.3425 1 
 Raw Stats -0.625518 -14.3387 1.81477
 Raw Stats -0.110826 -2.4747 0.659957
 Raw Stats -0.26833 -8.36371 0.709195
@@ -16698,6 +17348,9 @@ Presumed next pla White
 Past normal phase end 0
 Game result 0 Empty 0 0 0 0
 Last moves A2 E5 
+Side position policyTarget unreducedNumVisits 100 A4 97 B8 0 H7 0 
+Side position whiteValueTargets 0.061179 0.0636612 0.87516 -0.159202 - 
+Side position whiteQValueTargets A4 0.0135171 0.216806 97 B8 -0.982546 -22.3771 1 H7 -0.973011 -20.3974 1 
 Side position 1
 targetWeight 2 unrounded 1.5
 HASH: C45C9A3B0D3928178D90F4CB1A83037D
@@ -16726,6 +17379,9 @@ Presumed next pla Black
 Past normal phase end 0
 Game result 0 Empty 0 0 0 0
 Last moves A2 C5 A4 E5 C4 A5 E4 C5 J5 
+Side position policyTarget unreducedNumVisits 100 E5 93 J6 1 F8 0 J4 0 pass 0 C4 0 H7 0 
+Side position whiteValueTargets 0.0221797 0.977812 8.44182e-06 -16.04 - 
+Side position whiteQValueTargets E5 -0.997444 -16.7096 93 J6 -0.297469 -8.27673 1 F8 -0.0321866 -0.825363 1 J4 -0.181026 -5.0648 1 pass 0.132003 3.76173 1 C4 0.945702 24.0896 1 H7 -0.172572 -5.31823 1 
 Side position 2
 targetWeight 1 unrounded 1.5
 HASH: 581CF70DE4EC6276F5A164FA795D23FE
@@ -16754,6 +17410,9 @@ Presumed next pla Black
 Past normal phase end 0
 Game result 0 Empty 0 0 0 0
 Last moves A2 C5 A4 E5 C4 A5 E4 C5 A4 E5 C4 A5 pass 
+Side position policyTarget unreducedNumVisits 100 C5 94 J4 0 B8 0 E4 0 D8 0 J5 0 
+Side position whiteValueTargets 0.0168319 0.983163 4.95286e-06 -23.4084 - 
+Side position whiteQValueTargets C5 -0.999857 -24.1163 94 J4 -0.221954 -9.49088 1 B8 -0.10756 -4.55364 1 E4 0.947493 19.348 1 D8 -0.112214 -4.73465 1 J5 -0.231687 -10.4358 1 
 binaryInputNCHWPacked
 -109 78 85 77 80 89 1 0 -10 0 {'descr':'|u1','fortran_order':False,'shape':(18,22,11)}                                                              
 FFFFFFFFFFFFFFFFFFFF8000003F804832A3F00200000001001F85415809FC0000000000000803E3F00000000000001F85400000000000000100000000000002000000000000000000000000000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000800000000000000000000080140000000000000000008014000000000000000000000000000000000003F804832A3F00200000001001F85415809FC000000000000000000000000000000000000000000000000
@@ -16823,12 +17482,12 @@ globalTargetsNC
 0 0 1 0 0.0189594 0.0205736 0.960467 -0.0553176 0.0377879 0.0403037 0.921908 -0.0951278 0.0526758 0.0571664 0.890158 -0.151716 0.0584841 0.0738912 0.867625 -0.385794 0 0 0.02892 0 0 0.72 1 0 1 0 0.432848 1.65225 0 1 0 0 1 1 1 1 1 1.27284e+06 2.43486e+06 358623 991157 3.47659e+06 329611 8.5 1 0 0 2 0 0 0 4 0 -0.26833 -8.36371 0.709195 100 0 1 2 
 0 0 1 0 0.0189594 0.0205736 0.960467 -0.0553176 0.0377879 0.0403037 0.921908 -0.0951278 0.0526758 0.0571664 0.890158 -0.151716 0.0584841 0.0738912 0.867625 -0.385794 0 0 0.02892 0 0 0.72 1 0 1 0 0.432848 1.65225 0 1 0 0 1 1 1 1 1 1.27284e+06 2.43486e+06 358623 991157 3.47659e+06 329611 8.5 1 0 0 2 0 0 0 4 0 -0.26833 -8.36371 0.709195 100 0 1 2 
 0 0 1 0 0.0125387 0.0108134 0.976648 0.0486496 0.0262367 0.0233485 0.950415 0.0875002 0.0388789 0.0358277 0.925293 0.105273 0.0370091 0.0429835 0.920007 -0.0730164 0 0 0.0169641 0 0 0.72 1 0 1 0 0.384937 1.39297 0 1 0 0 1 1 1 1 1 1.27284e+06 2.43486e+06 358623 991157 3.47659e+06 329611 -8.5 1 0 0 5 0 0 0 4 0 -0.338027 -6.95119 0.333824 100 0 1 2 
-0 0 1 0 0.0125387 0.0108134 0.976648 0.0486496 0.0262367 0.0233485 0.950415 0.0875002 0.0388789 0.0358277 0.925293 0.105273 0.0370091 0.0429835 0.920007 -0.0730164 0 0 0.0169641 0 0 0.72 1 0 1 0 0.384937 1.39297 0 1 0 0 1 1 1 1 1 1.27284e+06 2.43486e+06 358623 991157 3.47659e+06 329611 -8.5 1 0 0 5 0 0 0 4 0 -0.338027 -6.95119 0.333824 100 0 1 2 
+0 0 1 0 0.0125387 0.0108134 0.976648 0.0486496 0.0262367 0.0233485 0.950415 0.0875002 0.0388789 0.0358277 0.925293 0.105273 0.0370091 0.0429835 0.920007 -0.0730164 0 0 0.0169641 0 0 0.72 1 0 1 0 0.384937 1.39297 0 1 0 0 1 1 1 1 0 1.27284e+06 2.43486e+06 358623 991157 3.47659e+06 329611 -8.5 1 0 0 5 0 0 0 4 0 -0.338027 -6.95119 0.333824 100 0 1 2 
 0 0 1 0 0.00855682 0.0108222 0.980621 -0.057184 0.0190198 0.0238618 0.957118 -0.122887 0.0303062 0.0403217 0.929372 -0.242843 0.0369856 0.0626819 0.900333 -0.5731 0 0 0.0131769 0 0 0.72 1 0 1 0 0.446299 1.6621 0 1 0 0 1 1 1 1 1 1.27284e+06 2.43486e+06 358623 991157 3.47659e+06 329611 8.5 1 0 0 6 0 0 0 4 0 -0.117651 -3.61602 0.491555 100 0 1 2 
 0 0 1 0 0.00855682 0.0108222 0.980621 -0.057184 0.0190198 0.0238618 0.957118 -0.122887 0.0303062 0.0403217 0.929372 -0.242843 0.0369856 0.0626819 0.900333 -0.5731 0 0 0.0131769 0 0 0.72 1 0 1 0 0.446299 1.6621 0 1 0 0 1 1 1 1 1 1.27284e+06 2.43486e+06 358623 991157 3.47659e+06 329611 8.5 1 0 0 6 0 0 0 4 0 -0.117651 -3.61602 0.491555 100 0 1 2 
 0 0 1 0 0.00718446 0.00656267 0.986253 0.0209946 0.0153036 0.0150591 0.969637 0.0236343 0.0230685 0.0251525 0.951779 -0.0119853 0.0281119 0.0318825 0.940006 -0.0396647 0 0 0.0103927 0 0 0.72 1 0 1 0 0.178942 0.870677 0 1 0 0 1 1 1 1 1 1.27284e+06 2.43486e+06 358623 991157 3.47659e+06 329611 -8.5 1 0 0 7 0 0 0 4 0 -0.213231 -4.65046 0.145819 100 0 1 2 
 0 0 1 0 0.00478658 0.00571649 0.989497 -0.0252496 0.0113502 0.0124799 0.97617 -0.0375891 0.0199595 0.0191769 0.960864 -0.0093723 0.0258168 0.0241784 0.950005 -0.00683998 0 0 0.00847685 0 0 0.72 1 0 1 0 0.486038 1.83417 0 1 0 0 1 1 1 1 1 1.27284e+06 2.43486e+06 358623 991157 3.47659e+06 329611 8.5 1 0 0 8 0 0 0 4 0 -0.26833 -8.36371 0.709195 100 0 1 2 
-0 0 1 0 0.00442146 0.0033114 0.992267 0.0265409 0.0099009 0.00816095 0.981938 0.044368 0.0153178 0.01544 0.969242 0.0113262 0.0178373 0.022159 0.960004 -0.0767971 0 0 0.00656552 0 0 0.72 1 0 1 0 0.398492 1.50156 0 1 0 0 1 1 1 0 0 1.27284e+06 2.43486e+06 358623 991157 3.47659e+06 329611 -8.5 1 0 0 9 0 0 0 4 0 -0.332644 -7.93473 0.454396 100 0 1 2 
+0 0 1 0 0.00442146 0.0033114 0.992267 0.0265409 0.0099009 0.00816095 0.981938 0.044368 0.0153178 0.01544 0.969242 0.0113262 0.0178373 0.022159 0.960004 -0.0767971 0 0 0.00656552 0 0 0.72 1 0 1 0 0.398492 1.50156 0 1 0 0 1 1 1 1 1 1.27284e+06 2.43486e+06 358623 991157 3.47659e+06 329611 -8.5 1 0 0 9 0 0 0 4 0 -0.332644 -7.93473 0.454396 100 0 1 2 
 0 0 1 0 0.00442146 0.0033114 0.992267 0.0265409 0.0099009 0.00816095 0.981938 0.044368 0.0153178 0.01544 0.969242 0.0113262 0.0178373 0.022159 0.960004 -0.0767971 0 0 0.00656552 0 0 0.72 1 0 1 0 0.398492 1.50156 0 1 0 0 1 1 1 1 1 1.27284e+06 2.43486e+06 358623 991157 3.47659e+06 329611 -8.5 1 0 0 9 0 0 0 4 0 -0.332644 -7.93473 0.454396 100 0 1 2 
 0 0 1 0 0.000308618 0.00224942 0.997442 -0.0408902 0.000850483 0.0061989 0.992951 -0.112684 0.00205064 0.0149465 0.983003 -0.271699 0.00470828 0.0343171 0.960975 -0.623821 0 0 0.000876682 0 0 0.72 1 0 0 0 0.421507 1.58296 0 1 0 0 1 1 1 1 1 1.27284e+06 2.43486e+06 358623 991157 3.47659e+06 329611 8.5 1 0 0 12 0 0 0 4 0 -0.117651 -3.61602 0.491555 100 0 1 2 
 0 0 1 0 0.000308618 0.00224942 0.997442 -0.0408902 0.000850483 0.0061989 0.992951 -0.112684 0.00205064 0.0149465 0.983003 -0.271699 0.00470828 0.0343171 0.960975 -0.623821 0 0 0.000876682 0 0 0.72 1 0 0 0 0.421507 1.58296 0 1 0 0 1 1 1 1 1 1.27284e+06 2.43486e+06 358623 991157 3.47659e+06 329611 8.5 1 0 0 12 0 0 0 4 0 -0.117651 -3.61602 0.491555 100 0 1 2 
@@ -16879,5 +17538,26 @@ valueTargetsNCHW
 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
+
+qValueTargetsNCMove
+-109 78 85 77 80 89 1 0 -10 0 {'descr':'<i2','fortran_order':False,'shape':(18,3,82)}                                                               
+0 0 0 0 0 0 0 0 -31403 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -184 0 -3866 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -1349 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -2 0 -96 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 94 0 4 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
+0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -31046 0 0 0 0 0 0 0 0 0 -30933 0 0 0 0 0 0 0 0 -31284 269 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -1228 0 0 0 0 0 0 0 0 0 -1176 0 0 0 0 0 0 0 0 -1109 8 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 1 96 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
+0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -31046 0 0 0 0 0 0 0 0 0 -30933 0 0 0 0 0 0 0 0 -31284 270 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -1228 0 0 0 0 0 0 0 0 0 -1176 0 0 0 0 0 0 0 0 -1109 7 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 1 96 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
+0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -84 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 99 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
+0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -84 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 99 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
+0 0 0 0 0 0 0 0 0 0 0 0 0 -31350 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -30944 0 0 0 0 0 0 0 0 -31308 0 0 0 0 127 0 0 0 -31555 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -1308 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -1177 0 0 0 0 0 0 0 0 -1104 0 0 0 0 2 0 0 0 -1191 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 1 0 0 0 0 95 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
+0 0 0 0 0 0 0 0 0 0 0 0 0 -31350 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -30944 0 0 0 0 0 0 0 0 -31309 0 0 0 0 127 0 0 0 -31556 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -1308 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -1177 0 0 0 0 0 0 0 0 -1104 0 0 0 0 2 0 0 0 -1192 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 1 0 0 0 0 95 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
+0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -53 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 99 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
+0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 139 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 4 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 99 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
+0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -33 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 99 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
+0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -32 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 99 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
+0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -31379 0 0 0 0 0 0 0 0 -31137 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -31308 0 0 0 0 0 0 0 0 -31556 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -1340 0 0 0 0 0 0 0 0 -1224 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -1104 0 0 0 0 0 0 0 0 -1192 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 95 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
+0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -31379 0 0 0 0 0 0 0 0 -31136 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -31308 0 0 0 0 0 0 0 0 -31556 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -1341 0 0 0 0 0 0 0 0 -1224 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -1104 0 0 0 0 0 0 0 0 -1191 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 95 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
+0 0 0 0 0 0 0 0 0 0 -31442 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -31136 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 433 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -1343 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -1224 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 13 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 97 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
+0 0 0 0 0 0 0 0 0 0 -31441 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -31137 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 433 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -1342 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -1224 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 13 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 97 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
+0 0 0 0 0 0 0 0 0 0 0 0 0 0 1030 0 0 0 0 0 0 0 0 0 0 5523 0 0 0 0 0 0 0 0 0 9519 0 0 0 0 31918 0 0 0 0 0 0 -30262 0 0 0 0 0 5793 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -4224 0 0 0 0 0 0 0 0 0 0 0 0 0 0 49 0 0 0 0 0 0 0 0 0 0 319 0 0 0 0 0 0 0 0 0 497 0 0 0 0 1003 0 0 0 0 0 0 -1445 0 0 0 0 0 304 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -226 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 1 0 0 0 0 93 0 0 0 0 0 0 1 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 
+0 0 0 0 0 0 0 0 0 0 0 0 0 0 1030 0 0 0 0 0 0 0 0 0 0 5522 0 0 0 0 0 0 0 0 0 9519 0 0 0 0 31918 0 0 0 0 0 0 -30262 0 0 0 0 0 5792 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -4225 0 0 0 0 0 0 0 0 0 0 0 0 0 0 49 0 0 0 0 0 0 0 0 0 0 320 0 0 0 0 0 0 0 0 0 497 0 0 0 0 1002 0 0 0 0 0 0 -1445 0 0 0 0 0 304 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -226 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 1 0 0 0 0 93 0 0 0 0 0 0 1 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 
+0 0 0 0 0 0 0 0 0 0 3442 0 3591 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 31995 0 0 0 0 0 7414 0 0 0 0 -30320 0 0 0 7102 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 273 0 284 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1447 0 0 0 0 0 626 0 0 0 0 -1161 0 0 0 569 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 94 0 0 0 0 0 1 0 0 0 0 1 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
 
 : GPU 0 finishing, processed 49196 rows 49196 batches

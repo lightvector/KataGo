@@ -39,20 +39,21 @@ ModelConfig = Dict[str,Any]
 # version = 13 # V7 features, Adjusted scaling on shortterm score variance, and made C++ side read in scalings.
 # version = 14 # V7 features, Squared softplus for error variance predictions
 # version = 15 # V7 features, Extra nonlinearity for pass output
+# version = 16 # V7 features, Q value predictions in the policy head
 
 def get_version(config: ModelConfig):
     return config["version"]
 
 def get_num_bin_input_features(config: ModelConfig):
     version = get_version(config)
-    if version == 10 or version == 11 or version == 12 or version == 13 or version == 14 or version == 15:
+    if version == 10 or version == 11 or version == 12 or version == 13 or version == 14 or version == 15 or version == 16:
         return 22
     else:
         assert(False)
 
 def get_num_global_input_features(config: ModelConfig):
     version = get_version(config)
-    if version == 10 or version == 11 or version == 12 or version == 13 or version == 14 or version == 15:
+    if version == 10 or version == 11 or version == 12 or version == 13 or version == 14 or version == 15 or version == 16:
         return 19
     else:
         assert(False)

@@ -992,7 +992,7 @@ vector<SymBookNode> Book::getAllLeaves(double minVisits) {
     if(node->recursiveValues.visits >= minVisits) {
       bool allChildrenLess = true;
       for(auto iter = node->moves.begin(); iter != node->moves.end(); ++iter) {
-        const BookNode* child = get(iter->second.hash);
+        const BookNode* child = getAssertNotNull(iter->second.hash);
         if(child->recursiveValues.visits >= minVisits) {
           allChildrenLess = false;
           break;
@@ -1036,6 +1036,22 @@ const BookNode* Book::get(BookHash hash) const {
   return nodes[iter->second];
 }
 
+
+BookNode* Book::getAssertNotNull(BookHash hash) {
+  BookNode* node = get(hash);
+  if(node == nullptr)
+    throw StringError("getAssertNotNull: No book node found for the given hash " + hash.toString());
+  return node;
+}
+
+const BookNode* Book::getAssertNotNull(BookHash hash) const {
+  const BookNode* node = get(hash);
+  if(node == nullptr)
+    throw StringError("getAssertNotNull: No book node found for the given hash " + hash.toString());
+  return node;
+}
+
+
 SymBookNode Book::getByHash(BookHash hash) {
   BookNode* node = get(hash);
   if(node == nullptr)
@@ -1048,7 +1064,6 @@ ConstSymBookNode Book::getByHash(BookHash hash) const {
     return ConstSymBookNode(nullptr);
   return ConstSymBookNode(node,0);
 }
-
 
 bool Book::add(BookHash hash, BookNode* node) {
   std::map<BookHash,int64_t>& nodeIdxMap = nodeIdxMapsByHash[hash.stateHash.hash0 % NUM_HASH_BUCKETS];
@@ -1303,7 +1318,7 @@ void Book::recomputeAdjustedVisits(
   {
     int i = 0;
     for(auto iter = node->moves.begin(); iter != node->moves.end(); ++iter) {
-      const BookNode* child = get(iter->second.hash);
+      const BookNode* child = getAssertNotNull(iter->second.hash);
       const RecursiveBookValues& vals = child->recursiveValues;
       sortIdxBuf.push_back(i);
       sortValuesBuf.push_back(
@@ -1423,7 +1438,7 @@ void Book::recomputeNodeValues(BookNode* node) {
   );
 
   for(auto iter = node->moves.begin(); iter != node->moves.end(); ++iter) {
-    const BookNode* child = get(iter->second.hash);
+    const BookNode* child = getAssertNotNull(iter->second.hash);
     // cout << "pulling values from child " << child << " hash " << child->hash << endl;
     const RecursiveBookValues& values = child->recursiveValues;
     if(node->pla == P_WHITE) {
@@ -1493,7 +1508,7 @@ void Book::recomputeNodeCost(BookNode* node) {
     size_t bestParentIdx = 0;
     for(size_t parentIdx = 0; parentIdx<node->parents.size(); parentIdx++) {
       std::pair<BookHash,Loc>& parentInfo = node->parents[parentIdx];
-      const BookNode* parent = get(parentInfo.first);
+      const BookNode* parent = getAssertNotNull(parentInfo.first);
       auto parentLocAndBookMove = parent->moves.find(parentInfo.second);
       assert(parentLocAndBookMove != parent->moves.end());
       int depth = parent->minDepthFromRoot + 1;
@@ -1548,7 +1563,7 @@ void Book::recomputeNodeCost(BookNode* node) {
   {
     for(auto& locAndBookMove: node->moves) {
       locAndBookMove.second.isWLPV = false;
-      const BookNode* child = get(locAndBookMove.second.hash);
+      const BookNode* child = getAssertNotNull(locAndBookMove.second.hash);
       double winLossThisPerspective = (node->pla == P_WHITE ? child->recursiveValues.winLossValue : -child->recursiveValues.winLossValue);
       if(winLossThisPerspective > bestWinLossThisPerspective) {
         bestWinLossThisPerspective = winLossThisPerspective;
@@ -1580,7 +1595,7 @@ void Book::recomputeNodeCost(BookNode* node) {
     for(auto& otherLocAndBookMove: node->moves) {
       if(otherLocAndBookMove.second.rawPolicy <= rawPolicy)
         continue;
-      const BookNode* otherChild = get(otherLocAndBookMove.second.hash);
+      const BookNode* otherChild = getAssertNotNull(otherLocAndBookMove.second.hash);
       double otherChildUtility = getUtility(otherChild->recursiveValues);
       double gainOverOtherChild =
         (node->pla == P_WHITE) ?
@@ -1606,13 +1621,13 @@ void Book::recomputeNodeCost(BookNode* node) {
   const Loc passLoc = Board::PASS_LOC;
   if(node->moves.find(passLoc) != node->moves.end()) {
     passPolicy = node->moves[passLoc].rawPolicy;
-    passUtility = getUtility(get(node->moves[passLoc].hash)->recursiveValues);
+    passUtility = getUtility(getAssertNotNull(node->moves[passLoc].hash)->recursiveValues);
   }
 
   // Update cost for moves for children to reference.
   double smallestCostFromUCB = 1e100;
   for(auto& locAndBookMove: node->moves) {
-    const BookNode* child = get(locAndBookMove.second.hash);
+    const BookNode* child = getAssertNotNull(locAndBookMove.second.hash);
     double ucbWinLossLoss =
       (node->pla == P_WHITE) ?
       node->recursiveValues.winLossUCB - child->recursiveValues.winLossUCB :
@@ -1719,7 +1734,7 @@ void Book::recomputeNodeCost(BookNode* node) {
     for(auto& otherLocAndBookMove: node->moves) {
       if(movesExpandedCap >= movesExpanded)
         break;
-      const BookNode* otherChild = get(otherLocAndBookMove.second.hash);
+      const BookNode* otherChild = getAssertNotNull(otherLocAndBookMove.second.hash);
       double otherChildUtility = getUtility(otherChild->recursiveValues);
       double gainOverOtherChild =
         (node->pla == P_WHITE) ?
@@ -1739,7 +1754,7 @@ void Book::recomputeNodeCost(BookNode* node) {
     if(movesExpanded > movesExpandedCap) {
       // cout << "Capping movesExpanded " << movesExpanded << " to " << movesExpandedCap << endl;
       // for(auto& otherLocAndBookMove: node->moves) {
-      //   const BookNode* otherChild = get(otherLocAndBookMove.second.hash);
+      //   const BookNode* otherChild = getAssertNotNull(otherLocAndBookMove.second.hash);
       //   double otherChildUtility = getUtility(otherChild->recursiveValues);
       //   double gainOverOtherChild =
       //     (node->pla == P_WHITE) ?
@@ -1824,12 +1839,12 @@ void Book::recomputeNodeCost(BookNode* node) {
 
   // For each move, in order, if its plain winrate is a lot better than the winrate of other moves, then its cost can't be too much worse.
   for(auto& locAndBookMove: node->moves) {
-    const BookNode* child = get(locAndBookMove.second.hash);
+    const BookNode* child = getAssertNotNull(locAndBookMove.second.hash);
     double winLoss = (node->pla == P_WHITE) ? child->recursiveValues.winLossValue : -child->recursiveValues.winLossValue;
     double bestOtherCostFromRoot = locAndBookMove.second.costFromRoot;
     for(auto& locAndBookMoveOther: node->moves) {
       if(locAndBookMoveOther.second.costFromRoot < bestOtherCostFromRoot) {
-        const BookNode* otherChild = get(locAndBookMoveOther.second.hash);
+        const BookNode* otherChild = getAssertNotNull(locAndBookMoveOther.second.hash);
         double winLossOther = (node->pla == P_WHITE) ? otherChild->recursiveValues.winLossValue : -otherChild->recursiveValues.winLossValue;
         // At least 1.5% better
         if(winLoss > winLossOther + 0.03)
@@ -1850,7 +1865,7 @@ void Book::recomputeNodeCost(BookNode* node) {
     double bestOtherCostFromRoot = node->thisNodeExpansionCost + node->minCostFromRoot;
     for(auto& locAndBookMoveOther: node->moves) {
       if(locAndBookMoveOther.second.costFromRoot < bestOtherCostFromRoot) {
-        const BookNode* otherChild = get(locAndBookMoveOther.second.hash);
+        const BookNode* otherChild = getAssertNotNull(locAndBookMoveOther.second.hash);
         double winLossOther = (node->pla == P_WHITE) ? otherChild->recursiveValues.winLossValue : -otherChild->recursiveValues.winLossValue;
         // At least 1.5% better
         if(winLoss > winLossOther + 0.03)
@@ -1868,7 +1883,7 @@ void Book::recomputeNodeCost(BookNode* node) {
 
   // Apply bonuses to moves now. Apply fully up to 0.75 of the cost.
   for(auto& locAndBookMove: node->moves) {
-    const BookNode* child = get(locAndBookMove.second.hash);
+    const BookNode* child = getAssertNotNull(locAndBookMove.second.hash);
     double winLossError = std::fabs(child->recursiveValues.winLossUCB - child->recursiveValues.winLossLCB) / params.errorFactor / 2.0;
     double scoreError = std::fabs(child->recursiveValues.scoreUCB - child->recursiveValues.scoreLCB) / params.errorFactor / 2.0;
     double sharpScoreDiscrepancy = std::fabs(child->recursiveValues.sharpScoreMean - child->recursiveValues.scoreMean);
@@ -1939,7 +1954,7 @@ void Book::recomputeNodeCost(BookNode* node) {
       double bestOtherVisits = 0.0;
       double totalOtherVisits = 0.0;
       for(auto& locAndBookMoveOther: node->moves) {
-        const BookNode* otherChild = get(locAndBookMoveOther.second.hash);
+        const BookNode* otherChild = getAssertNotNull(locAndBookMoveOther.second.hash);
         double winLossOther = (node->pla == P_WHITE) ? otherChild->recursiveValues.winLossValue : -otherChild->recursiveValues.winLossValue;
         if(!anyOtherWinLossFound || winLossOther > bestOtherWinLoss) {
           bestOtherWinLoss = winLossOther;
@@ -1965,7 +1980,7 @@ void Book::recomputeNodeCost(BookNode* node) {
         double bestOtherVisits = 0.0;
         double totalOtherVisits = 0.0;
         for(auto& locAndBookMoveOther: node->moves) {
-          const BookNode* otherChild = get(locAndBookMoveOther.second.hash);
+          const BookNode* otherChild = getAssertNotNull(locAndBookMoveOther.second.hash);
           if(otherChild != bestWinLossChild) {
             double winLossOtherThisPerspective =
               (node->pla == P_WHITE) ? otherChild->recursiveValues.winLossValue : -otherChild->recursiveValues.winLossValue;
@@ -1991,7 +2006,7 @@ void Book::recomputeNodeCost(BookNode* node) {
           visitsFactor -= std::min(1.0, sqrt(bestWinLossChild->recursiveValues.visits / std::max(1.0, params.visitsScale)));
 
           for(auto& locAndBookMove: node->moves) {
-            const BookNode* child = get(locAndBookMove.second.hash);
+            const BookNode* child = getAssertNotNull(locAndBookMove.second.hash);
             if(child == bestWinLossChild) {
               locAndBookMove.second.costFromRoot -=
                 0.75 * params.bonusPerUnexpandedBestWinLoss * (bestWinLossThisPerspective - bestOtherWinLossThisPerspective + BEST_WINLOSS_OFFSET) * visitsFactor;
@@ -2005,7 +2020,7 @@ void Book::recomputeNodeCost(BookNode* node) {
       auto behindInVisitsBonus = [&](double childWinLoss, double adjustedVisits) {
         double maxBonus = 0.0;
         for(auto& otherLocAndBookMove: node->moves) {
-          const BookNode* otherChild = get(otherLocAndBookMove.second.hash);
+          const BookNode* otherChild = getAssertNotNull(otherLocAndBookMove.second.hash);
           double otherVisits = otherChild->recursiveValues.adjustedVisits;
           if(otherVisits <= 30.0 * adjustedVisits)
             continue;
@@ -2041,7 +2056,7 @@ void Book::recomputeNodeCost(BookNode* node) {
 
       // double anyBehindInVisits = false;
       for(auto& locAndBookMove: node->moves) {
-        const BookNode* child = get(locAndBookMove.second.hash);
+        const BookNode* child = getAssertNotNull(locAndBookMove.second.hash);
         double childWinLoss = child->recursiveValues.winLossValue;
         double adjustedVisits = child->recursiveValues.adjustedVisits;
         double childBonus = behindInVisitsBonus(childWinLoss,adjustedVisits);
@@ -2061,7 +2076,7 @@ void Book::recomputeNodeCost(BookNode* node) {
       // if(anyBehindInVisits) {
       //   cout << "ANY BEHINDINVISITS" << endl;
       //   for(auto& locAndBookMove: node->moves) {
-      //     const BookNode* child = get(locAndBookMove.second.hash);
+      //     const BookNode* child = getAssertNotNull(locAndBookMove.second.hash);
       //     double childWinLoss = child->recursiveValues.winLossValue;
       //     double childWinLossPersp = (node->pla == P_WHITE) ? child->recursiveValues.winLossValue : -child->recursiveValues.winLossValue;
       //     double adjustedVisits = child->recursiveValues.adjustedVisits;
@@ -2114,7 +2129,7 @@ void Book::recomputeNodeCost(BookNode* node) {
       // If we require branch, also ensure that branching children have enough visits
       int childEnoughVisitsCount = 0;
       for(auto& locAndBookMove: node->moves) {
-        const BookNode* child = get(locAndBookMove.second.hash);
+        const BookNode* child = getAssertNotNull(locAndBookMove.second.hash);
         double childVisits = child->recursiveValues.visits;
         if(childVisits > params.maxVisitsForReExpansion) {
           childEnoughVisitsCount += 1;
@@ -2126,7 +2141,7 @@ void Book::recomputeNodeCost(BookNode* node) {
         std::vector<Loc> locBuf;
         const double plaFactor = node->pla == P_WHITE ? 1.0 : -1.0;
         for(auto& locAndBookMove: node->moves) {
-          const BookNode* child = get(locAndBookMove.second.hash);
+          const BookNode* child = getAssertNotNull(locAndBookMove.second.hash);
           const RecursiveBookValues& vals = child->recursiveValues;
           sortIdxBuf.push_back((int)sortIdxBuf.size());
           sortValuesBuf.push_back(
@@ -2149,7 +2164,7 @@ void Book::recomputeNodeCost(BookNode* node) {
             break;
           Loc loc = locBuf[idx];
           BookMove& bookMove = node->moves[loc];
-          const BookNode* child = get(bookMove.hash);
+          const BookNode* child = getAssertNotNull(bookMove.hash);
           double childVisits = child->recursiveValues.visits;
           if(childVisits <= params.maxVisitsForReExpansion) {
             numBonused += 1;

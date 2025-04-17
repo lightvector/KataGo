@@ -1092,8 +1092,8 @@ bool Search::runSinglePlayout(SearchThread& thread, double upperBoundVisitsLeft)
   //Store this value, used for futile-visit pruning this thread's root children selections.
   thread.upperBoundVisitsLeft = upperBoundVisitsLeft;
 
-  //Prep this value, playoutDescend will set it to true if we do have a playout
-  thread.shouldCountPlayout = false;
+  //Prep this value, playoutDescend will set it to false if the playout shouldn't count
+  thread.shouldCountPlayout = true;
 
   bool finishedPlayout = playoutDescend(thread,*rootNode,true);
   (void)finishedPlayout;
@@ -1131,7 +1131,6 @@ bool Search::playoutDescend(
       double lead = 0.0;
       double weight = (searchParams.useUncertainty && nnEvaluator->supportsShorttermError()) ? searchParams.uncertaintyMaxWeight : 1.0;
       addLeafValue(node, winLossValue, noResultValue, scoreMean, scoreMeanSq, lead, weight, true, false);
-      thread.shouldCountPlayout = true;
       return true;
     }
     else {
@@ -1142,7 +1141,6 @@ bool Search::playoutDescend(
       double lead = scoreMean;
       double weight = (searchParams.useUncertainty && nnEvaluator->supportsShorttermError()) ? searchParams.uncertaintyMaxWeight : 1.0;
       addLeafValue(node, winLossValue, noResultValue, scoreMean, scoreMeanSq, lead, weight, true, false);
-      thread.shouldCountPlayout = true;
       return true;
     }
   }
@@ -1154,26 +1152,29 @@ bool Search::playoutDescend(
       bool suc = initNodeNNOutput(thread,node,isRoot,false,false);
       //Leave the node as unevaluated - only the thread that first actually set the nnOutput into the node
       //gets to update the state, to avoid races where we update the state while the node stats aren't updated yet.
-      if(!suc)
+      if(!suc) {
+        thread.shouldCountPlayout = false;
         return false;
+      }
     }
 
     bool suc = node.state.compare_exchange_strong(nodeState, SearchNode::STATE_EVALUATING, std::memory_order_seq_cst);
     if(!suc) {
       //Presumably someone else got there first.
       //Just give up on this playout and try again from the start.
+      thread.shouldCountPlayout = false;
       return false;
     }
     else {
       //Perform the nn evaluation and finish!
       node.initializeChildren();
       node.state.store(SearchNode::STATE_EXPANDED0, std::memory_order_seq_cst);
-      thread.shouldCountPlayout = true;
       return true;
     }
   }
   else if(nodeState == SearchNode::STATE_EVALUATING) {
     //Just give up on this playout and try again from the start.
+    thread.shouldCountPlayout = false;
     return false;
   }
 
@@ -1219,7 +1220,6 @@ bool Search::playoutDescend(
       //Return TRUE though, so that the parent path we traversed increments its edge visits.
       //We want the search to continue as best it can, so we increment visits so search will still make progress
       //even if this keeps happening in some really bad transposition or something.
-      thread.shouldCountPlayout = true;
       return true;
     }
 
@@ -1227,7 +1227,6 @@ bool Search::playoutDescend(
       //This might happen if all moves have been forbidden. The node will just get stuck counting visits without expanding
       //and we won't do any search.
       addCurrentNNOutputAsLeafValue(node,false);
-      thread.shouldCountPlayout = true;
       return true;
     }
 
@@ -1286,17 +1285,17 @@ bool Search::playoutDescend(
           //Even if the node was newly allocated, no need to delete the node, it will get cleaned up next time we mark and sweep the node table later.
           //Clean up virtual losses in case the node is a transposition and is being used.
           child->virtualLosses.fetch_add(-1,std::memory_order_release);
+          thread.shouldCountPlayout = false;
           return false;
         }
       }
 
       //If edge visits is too much smaller than the child's visits, we can avoid descending.
       //Instead just add edge visits and treat that as a visit.
-      //If we're not counting edge visits, then we're deliberately trying to add child visits beyond edge visits, skip
+      //If we're not counting edge visits, then we're deliberately trying to add child visits beyond edge visits, don't return early
       if(countEdgeVisit && maybeCatchUpEdgeVisits(thread, node, child, nodeState, bestChildIdx)) {
         updateStatsAfterPlayout(node,thread,isRoot);
         child->virtualLosses.fetch_add(-1,std::memory_order_release);
-        thread.shouldCountPlayout = true;
         return true;
       }
     }
@@ -1310,11 +1309,10 @@ bool Search::playoutDescend(
 
       //If edge visits is too much smaller than the child's visits, we can avoid descending.
       //Instead just add edge visits and treat that as a visit.
-      //If we're not counting edge visits, then we're deliberately trying to add child visits beyond edge visits, skip
+      //If we're not counting edge visits, then we're deliberately trying to add child visits beyond edge visits, don't return early
       if(countEdgeVisit && maybeCatchUpEdgeVisits(thread, node, child, nodeState, bestChildIdx)) {
         updateStatsAfterPlayout(node,thread,isRoot);
         child->virtualLosses.fetch_add(-1,std::memory_order_release);
-        thread.shouldCountPlayout = true;
         return true;
       }
 
@@ -1342,8 +1340,11 @@ bool Search::playoutDescend(
         SearchNodeChildrenReference children = node.getChildren(nodeState);
         children[bestChildIdx].addEdgeVisits(1);
         updateStatsAfterPlayout(node,thread,isRoot);
-        thread.shouldCountPlayout = true;
       }
+      // Regardless of whether we count an edge visit or not here, we
+      // leave thread.shouldCountPlayout as true so that if we repeatedly are stuck searching a cycle
+      // we don't go forever, and eventually hit a visits/playouts limit.
+
       child->virtualLosses.fetch_add(-1,std::memory_order_release);
       // If we didn't count an edge visit, none of the parents need to update either.
       return countEdgeVisit;

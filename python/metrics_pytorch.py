@@ -34,6 +34,8 @@ class Metrics:
         self.num_seki_logits = 4
         self.scorebelief_len = 2 * (self.pos_len*self.pos_len + EXTRA_SCORE_DISTR_RADIUS)
 
+        self.scoremean_multiplier = raw_model.scoremean_multiplier
+
         self.score_belief_offset_vector = raw_model.value_head.score_belief_offset_vector
         self.moving_unowned_proportion_sum = 0.0
         self.moving_unowned_proportion_weight = 0.0
@@ -61,6 +63,35 @@ class Metrics:
         assert target_probs.shape == (self.n, self.policy_len)
         loss = cross_entropy(pred_logits, target_probs, dim=1)
         return 0.15 * global_weight * weight * loss
+
+    def loss_qvalues_samplewise(self, pred_wl_pretanh, pred_score_prescaled, target_wl, target_score, target_visits, global_weight):
+        assert pred_wl_pretanh.shape == (self.n, self.policy_len)
+        assert pred_score_prescaled.shape == (self.n, self.policy_len)
+        assert target_wl.shape == (self.n, self.policy_len)
+        assert target_score.shape == (self.n, self.policy_len)
+        assert target_visits.shape == (self.n, self.policy_len)
+
+        mask = (target_visits != 0).float()
+        sqrtvisits = torch.sqrt(target_visits)
+        sum_sqrtvisits = torch.sum(sqrtvisits, dim=1)
+
+        pred_wl_logits = pred_wl_pretanh * mask * 2.0
+        target_wl_probs = (1.0 + target_wl) / 2.0
+
+        loss_qvalues_winloss_by_move = torch.nn.functional.binary_cross_entropy_with_logits(pred_wl_logits, target_wl_probs, reduction="none")
+        loss_qvalues_winloss = torch.sum(
+            loss_qvalues_winloss_by_move * sqrtvisits,
+            dim=1,
+        ) / (sum_sqrtvisits + 1.0)  # Add 1.0 to sum of sqrt visits so that we don't divide by 0 if we have no such data.
+
+        pred_score = pred_score_prescaled * mask * self.scoremean_multiplier
+        loss_qvalues_score_by_move = huber_loss(pred_score, target_score, delta = 12.0) * sqrtvisits
+        loss_qvalues_score = torch.sum(
+            loss_qvalues_score_by_move * sqrtvisits,
+            dim=1,
+        ) / (sum_sqrtvisits + 1.0)  # Add 1.0 to sum of sqrt visits so that we don't divide by 0 if we have no such data.
+
+        return 0.4 * global_weight * loss_qvalues_winloss, 0.0015 * global_weight * loss_qvalues_score
 
 
     def loss_value_samplewise(self, pred_logits, target_probs, weight, global_weight):
@@ -93,9 +124,12 @@ class Metrics:
         assert target.shape == (self.n, self.pos_len, self.pos_len)
         assert mask.shape == (self.n, self.pos_len, self.pos_len)
         assert mask_sum_hw.shape == (self.n,)
-        pred_logits = torch.cat((pred_pretanh, -pred_pretanh), dim=1).view(self.n,2,self.pos_area)
-        target_probs = torch.stack(((1.0 + target) / 2.0, (1.0 - target) / 2.0), dim=1).view(self.n,2,self.pos_area)
-        loss = torch.sum(cross_entropy(pred_logits, target_probs, dim=1) * mask.view(self.n,self.pos_area), dim=1) / mask_sum_hw
+        pred_logits = pred_pretanh.view(self.n,self.pos_area) * 2.0
+        target_probs = (1.0 + target.view(self.n,self.pos_area)) / 2.0
+        loss = torch.sum(
+            torch.nn.functional.binary_cross_entropy_with_logits(pred_logits, target_probs, reduction="none") * mask.view(self.n,self.pos_area),
+            dim=1,
+        ) / mask_sum_hw
         return 1.5 * global_weight * weight * loss
 
 
@@ -515,8 +549,13 @@ class Metrics:
             policy_opt_loss_scale = 1.000
             long_policy_opt_loss_scale = 0.0
             short_policy_opt_loss_scale = 0.0
-        else:
+        elif raw_model.config["version"] <= 15:
             assert raw_model.policy_head.num_policy_outputs == 6
+            policy_opt_loss_scale = 0.930
+            long_policy_opt_loss_scale = 0.100
+            short_policy_opt_loss_scale = 0.200
+        else:
+            assert raw_model.policy_head.num_policy_outputs == 8
             policy_opt_loss_scale = 0.930
             long_policy_opt_loss_scale = 0.100
             short_policy_opt_loss_scale = 0.200
@@ -747,6 +786,24 @@ class Metrics:
             global_weight,
         ).sum()
 
+        if raw_model.config["version"] <= 15:
+            target_weight_qvalues = torch.zeros_like(global_weight)
+            loss_qvalues_winloss = torch.zeros_like(loss_policy_player)
+            loss_qvalues_score = torch.zeros_like(loss_policy_player)
+        else:
+            target_qvalue_ncmove = batch["qValueTargetsNCMove"]
+            target_weight_qvalues = torch.zeros_like(global_weight)
+            loss_qvalues_winloss, loss_qvalues_score = self.loss_qvalues_samplewise(
+                policy_logits[:, 6, :],
+                policy_logits[:, 7, :],
+                target_qvalue_ncmove[:, 0, :] / 32000.0,
+                target_qvalue_ncmove[:, 1, :] / 60.0,
+                target_qvalue_ncmove[:, 2, :],
+                global_weight
+            )
+            loss_qvalues_winloss = loss_qvalues_winloss.sum()
+            loss_qvalues_score = loss_qvalues_score.sum()
+
         loss_sum = (
             loss_policy_player * policy_opt_loss_scale
             + loss_policy_opponent
@@ -771,6 +828,8 @@ class Metrics:
             + loss_variance_time * variance_time_loss_scale
             + loss_shortterm_value_error
             + loss_shortterm_score_error
+            + loss_qvalues_winloss
+            + loss_qvalues_score
         )
 
         policy_acc1 = self.accuracy1(
@@ -807,6 +866,8 @@ class Metrics:
             "vtimeloss_sum": loss_variance_time,
             "evstloss_sum": loss_shortterm_value_error,
             "esstloss_sum": loss_shortterm_score_error,
+            "qwlloss_sum": loss_qvalues_winloss,
+            "qscloss_sum": loss_qvalues_score,
             "loss_sum": loss_sum,
             "pacc1_sum": policy_acc1,
             "vsquare_sum": square_value,

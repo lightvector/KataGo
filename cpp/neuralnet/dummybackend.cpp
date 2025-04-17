@@ -53,31 +53,9 @@ void NeuralNet::freeLoadedModel(LoadedModel* loadedModel) {
   throw StringError("Dummy neural net backend: NeuralNet::freeLoadedModel unimplemented");
 }
 
-string NeuralNet::getModelName(const LoadedModel* loadedModel) {
+const ModelDesc& NeuralNet::getModelDesc(const LoadedModel* loadedModel) {
   (void)loadedModel;
-  throw StringError("Dummy neural net backend: NeuralNet::getModelName unimplemented");
-}
-
-int NeuralNet::getModelVersion(const LoadedModel* loadedModel) {
-  (void)loadedModel;
-  throw StringError("Dummy neural net backend: NeuralNet::getModelVersion unimplemented");
-}
-
-int NeuralNet::getNumInputMetaChannels(const LoadedModel* loadedModel) {
-  (void)loadedModel;
-  throw StringError("Dummy neural net backend: NeuralNet::getNumInputMetaChannels unimplemented");
-}
-
-Rules NeuralNet::getSupportedRules(const LoadedModel* loadedModel, const Rules& desiredRules, bool& supported) {
-  (void)loadedModel;
-  (void)desiredRules;
-  (void)supported;
-  throw StringError("Dummy neural net backend: NeuralNet::getSupportedRules unimplemented");
-}
-
-ModelPostProcessParams NeuralNet::getPostProcessParams(const LoadedModel* loadedModel) {
-  (void)loadedModel;
-  return ModelPostProcessParams();
+  throw StringError("Dummy neural net backend: NeuralNet::getModelDesc unimplemented");
 }
 
 ComputeHandle* NeuralNet::createComputeHandle(
