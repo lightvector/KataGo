@@ -48,7 +48,7 @@ def main():
 
     # 检查点文件路径、保存路径及待导出路径
     train_path = os.path.join(args.base_dir, "train", args.training_name)
-    checkpoint_path = os.path.join(train_path, "checkpoint.ckpt")
+    checkpoint_path = os.path.join(train_path, "checkpoint.ckpt") # '_' ************************************************************************
     export_dir = os.path.join(train_path, "noise")
     for_export_dir = os.path.join(args.base_dir, "torchmodels_toexport")
     if not os.path.exists(export_dir):
@@ -71,7 +71,7 @@ def main():
     
     # 加载模型权重
     model_state_dict = load_model.load_model_state_dict(state_dict)
-    raw_model.load_state_dict(model_state_dict)  #, strict=False 使用 strict=False 以避免不必要的错误
+    raw_model.load_state_dict(model_state_dict)
 
     # # 添加噪声
     # with torch.no_grad():
@@ -80,21 +80,69 @@ def main():
     #         param.data += noise
     #         logging.info(f"Added noise to parameter {param.shape} with scale {args.noise_scale}")
 
-    # 添加噪声，跳过规范化层参数
+    # 添加噪声，跳过某些层
     with torch.no_grad():
         for name, param in raw_model.named_parameters():
-            if 'conv_spatial' in name or 'linear_global' in name:
-                continue  # 跳过空间卷积层/全局线性层/中间层 or 'intermediate' in name
-            # if any(s in name for s in ['value_head.linear_valuehead', 'value_head.conv_ownership', 'value_head.conv_scoring']):
-            #     continue  # 跳过价值头的敏感输出权重
+            if 'conv_spatial' in name or 'linear_global' in name or 'norm.' in name or 'norm_trunkfinal' in name:
+                continue  # 跳过空间卷积层/全局线性层/归一化层
 
-            # if 'weight' in name:
             noise_scale = args.noise_scale
             if 'blocks' in name:
                 noise_scale *= 0.1  # 对 blocks 的噪声尺度降低1个数量级
+                # 0.01: p0loss = 2.270849, ..., pacc1 = 0.424151, ..., Ipacc1 = 0.502950, Ivsquare = 0.293716, gnorm_batch = 554.173043, exgnorm = 18.210687, pslr_batch = 0.000030, wdnormal_batch = 0.000156, gnorm_cap_batch = 2500.000000, window_start_batch = 0.000000, window_end_batch = 383939.000000, time_since_last_print = 815.695766
+                # 0.025: p0loss = 5.324234, ..., pacc1 = 0.276803, ..., Ipacc1 = 0.295525, Ivsquare = 0.331945, gnorm_batch = 3032.039296, exgnorm = 1832.365663, pslr_batch = 0.000060, wdnormal_batch = 0.000263, gnorm_cap_batch = 1767.766953, window_start_batch = 0.000000, window_end_batch = 383939.000000, time_since_last_print = 1775.968424
+                # 0.05: p0loss = 56797324610787.843750, ..., pacc1 = 0.003418, ..., Ipacc1 = 0.001874, Ivsquare = 0.990780, pslr_batch = 0.000060, wdnormal_batch = 0.000263, gnorm_cap_batch = 1767.766953, window_start_batch = 0.000000, window_end_batch = 383939.000000, time_since_last_print = 429.669496
             noise = torch.randn_like(param.data) * noise_scale
             param.data += noise
             logging.info(f"Added noise to parameter {name} with shape {param.shape} and scale {noise_scale}")
+
+            # noise_scale = args.noise_scale
+            # if 'conv_spatial' in name:
+
+            # if 'linear_global' in name:
+
+            # if 'blocks' in name and 'weight' in name:
+
+            # if 'intermediate' in name:
+            #     if 'policy_head' in name:
+            #         # noise = torch.randn_like(param.data) * noise_scale
+            #         # param.data += noise
+            #         # logging.info(f"Added noise to parameter {name} with shape {param.shape} and scale {noise_scale}")
+            #         continue
+            #     elif 'value_head' in name:
+            #         # noise = torch.randn_like(param.data) * noise_scale
+            #         # param.data += noise
+            #         # logging.info(f"Added noise to parameter {name} with shape {param.shape} and scale {noise_scale}")
+            #         continue
+            # else:
+            #     if 'policy_head' in name:
+            #         # noise = torch.randn_like(param.data) * noise_scale
+            #         # param.data += noise
+            #         # logging.info(f"Added noise to parameter {name} with shape {param.shape} and scale {noise_scale}")
+            #         continue
+            #     elif 'value_head' in name:
+            #         # noise = torch.randn_like(param.data) * noise_scale
+            #         # param.data += noise
+            #         # logging.info(f"Added noise to parameter {name} with shape {param.shape} and scale {noise_scale}")
+            #         continue
+
+            # if 'norm_trunkfinal' in name:
+            #     # noise = torch.randn_like(param.data) * noise_scale
+            #     # param.data += noise
+            #     # logging.info(f"Added noise to parameter {name} with shape {param.shape} and scale {noise_scale}")
+            #     continue
+            # elif 'norm.' in name:
+            #     if 'beta' in name:
+            #         # noise = torch.randn_like(param.data) * noise_scale
+            #         # param.data += noise
+            #         # logging.info(f"Added noise to parameter {name} with shape {param.shape} and scale {noise_scale}")
+            #         continue
+            #     elif 'gamma' in name:
+            #         # noise = torch.randn_like(param.data) * noise_scale
+            #         # param.data += noise
+            #         # logging.info(f"Added noise to parameter {name} with shape {param.shape} and scale {noise_scale}")
+            #         continue
+            
 
 
     # 模拟 train.py 的模型设置
@@ -130,7 +178,7 @@ def main():
                     new_swa_state_dict[k] = v  # 保持 module. 前缀
                 else:
                     new_swa_state_dict["module." + k] = v  # 添加 module. 前缀
-            swa_model.load_state_dict(new_swa_state_dict)  #, strict=False 使用 strict=False 以避免不必要的错误
+            swa_model.load_state_dict(new_swa_state_dict)
             logging.info("Loaded swa_model state from checkpoint")
         except Exception as e:
             logging.warning(f"Could not load swa_model state: {e}, using noisy model weights")
@@ -138,31 +186,6 @@ def main():
     else:
         swa_model = None
         logging.info("No swa_model in checkpoint, skipping SWA")
-
-    # # 创建 SWA 模型，复制 train.py
-    # if 'swa_model' in state_dict:
-    #     swa_model = AveragedModel(raw_model)  # 使用 raw_model
-    #     try:
-    #         swa_state_dict = state_dict['swa_model']
-    #         new_swa_state_dict = {}
-    #         for k, v in swa_state_dict.items():
-    #             # 修正键以匹配 nn.DataParallel 包装
-    #             if k.startswith("module."):
-    #                 new_swa_state_dict[k.replace("module.", "", 1)] = v
-    #             else:
-    #                 new_swa_state_dict[k] = v
-    #         # 单独处理 n_averaged
-    #         if "module.n_averaged" in swa_state_dict:
-    #             new_swa_state_dict["n_averaged"] = swa_state_dict["module.n_averaged"]
-    #         swa_model.load_state_dict(new_swa_state_dict)
-    #         logging.info("Loaded swa_model state from checkpoint")
-    #     except Exception as e:
-    #         logging.warning(f"Could not load swa_model state: {e}, using original model weights without noise")
-    #         swa_model = AveragedModel(raw_model)
-    # else:
-    #     swa_model = None
-    #     logging.info("No swa_model in checkpoint, skipping SWA")
-
 
     # 提取 train_state 和 metrics
     train_state = state_dict.get('train_state', {
