@@ -8,7 +8,7 @@ set -o pipefail
 if [[ $# -lt 4 ]]
 then
     echo "Usage: $0 BASEDIR TRAININGNAME MODEL_KIND NOISE_SCALE"
-    echo "BASEDIR base directory of the training run (e.g. '/g/Projects/KataGo/Training/BaseDir')"
+    echo "BASEDIR base directory of the training run (e.g. '/d/Projects/KataGo/Training/BaseDir')"
     echo "TRAININGNAME name of the training run (e.g. 'kata1-b28c512nbt')"
     echo "NOISE_SCALE amount of noise to add to the model (e.g. 0.1)"
     echo "MODEL_KIND what size model (e.g. 'b28c512nbt')"
@@ -30,11 +30,8 @@ shift
 
 # Make sure paths are properly formatted for the system
 # Convert Windows-style paths to Unix-style if needed
-# CHECKPOINT=$(echo "$CHECKPOINT" | sed 's/\\/\//g')
-# OUTPUT_DIR=$(echo "$OUTPUT_DIR" | sed 's/\\/\//g')
+BASEDIR=$(echo "$BASEDIR" | sed 's/\\/\//g')
 
-# # Get the base directory from the output path (for exporting)
-# BASEDIR=$(dirname "$(dirname "$OUTPUT_DIR")")
 CHECKPOINT="$BASEDIR/train"
 
 # Display what we're about to do
@@ -43,15 +40,13 @@ echo "Training name: $TRAININGNAME"
 echo "Model kind: $MODEL_KIND"
 echo "Adding noise to model with scale $NOISE_SCALE"
 
-# # Change to the proper directory
-# cd "$(dirname "$0")/.."
-
 # Run the noise script to add noise to the model
 time python noise.py \
     --base-dir "$BASEDIR" \
     --training-name "$TRAININGNAME" \
     --model-kind "$MODEL_KIND" \
-    --noise-scale "$NOISE_SCALE"
+    --noise-scale "$NOISE_SCALE" \
+    --export-prefix "noisy"
 
 # Check if noise.py completed successfully
 if [ $? -ne 0 ]; then
