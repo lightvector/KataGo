@@ -8,14 +8,15 @@ set -o pipefail
 if [[ $# -lt 4 ]]
 then
     echo "Usage: $0 BASEDIR TRAININGNAME MODEL_KIND NOISE_SCALE"
-    echo "BASEDIR base directory of the training run (e.g. '/d/Projects/KataGo/Training/BaseDir')"
+    echo "BASEDIR base directory of the training run (e.g. '/d/Projects/KataGo-Noise/Training/BaseDir')"
     echo "TRAININGNAME name of the training run (e.g. 'kata1-b28c512nbt')"
     echo "NOISE_SCALE amount of noise to add to the model (e.g. 0.1)"
     echo "MODEL_KIND what size model (e.g. 'b28c512nbt')"
     exit 0
 fi
 
-# ./selfplay/noise.sh /g/Projects/KataGo/Training/BaseDir kata1-b28c512nbt b28c512nbt 0.1
+# cd /g/Projects/KataGo-Noise/python
+# ./selfplay/noise.sh /g/Projects/KataGo-Noise/Training/BaseDir kata1-b28c512nbt b28c512nbt 0.5
 
 
 BASEDIR="$1"

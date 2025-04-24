@@ -1025,6 +1025,16 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
             logging.info("This subepoch, using files: " + str(train_files_to_use))
             logging.info("Currently up to data row " + str(train_state["total_num_data_rows"]))
             lookahead_counter = 0
+
+            # Dictionaries in Python are created using curly braces {}
+            # They store data as key-value pairs. Keys must be unique and immutable.
+            # Example: Creating a dictionary to hold noise parameters
+            # noise_params = {"flag": 0, "shift": False, "acc1_threshold_low": 0.45, "acc1_threshold_up": 0.47, "rand": 0.0, "prob": 0.25}
+            # 记录更新量
+            param_updates = {}
+            param_abs_update_ratio = defaultdict(list)
+            param_update_ratio = defaultdict(list)
+            
             for batch in data_processing_pytorch.read_npz_training_data(
                 train_files_to_use,
                 batch_size,
@@ -1086,6 +1096,81 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
                 else:
                     loss.backward()
 
+                # # 概率添加噪声
+                # noise_params["rand"] = random.random()
+                # noise_params["prob"] = 0.5
+
+                # if not noise_params["flag"]:
+                #     noise_params["rand"] -= 0.5
+
+                # noise_params["rand"] <= noise_params["prob"] and 
+                # if not noise_params["flag"]:
+                with torch.no_grad():
+                    for param_group in optimizer.param_groups:
+                        lr = param_group['lr']
+                        for param in param_group['params']:
+                            if param.grad is not None:
+                                param_updates[param] = -lr * param.grad
+                    
+                    for name, param in raw_model.named_parameters():
+                        abs_update_ratio = param_updates[param].abs().mean().item() / param.data.abs().mean().item()
+                        update_ratio = param_updates[param].mean().item() / param.data.mean().item()
+                        if 'conv_spatial' in name:
+                            param_abs_update_ratio['conv_spatial'].append(abs_update_ratio)
+                            param_update_ratio['conv_spatial'].append(update_ratio)
+                        elif 'linear_global' in name:
+                            param_abs_update_ratio['linear_global'].append(abs_update_ratio)
+                            param_update_ratio['linear_global'].append(update_ratio)
+                        elif 'norm.' in name or 'norm_trunkfinal' in name or 'norm_intermediate_trunkfinal' in name:
+                            if 'beta' in name:
+                                param_abs_update_ratio['norm_beta'].append(abs_update_ratio)
+                                param_update_ratio['norm_beta'].append(update_ratio)
+                            elif 'gamma' in name:
+                                param_abs_update_ratio['norm_gamma'].append(abs_update_ratio)
+                                param_update_ratio['norm_gamma'].append(update_ratio)
+                            elif 'norm_trunkfinal' in name:
+                                param_abs_update_ratio['norm_trunkfinal'].append(abs_update_ratio)
+                                param_update_ratio['norm_trunkfinal'].append(update_ratio)
+                            else:
+                                param_abs_update_ratio['norm_intermediate_trunkfinal'].append(abs_update_ratio)
+                                param_update_ratio['norm_intermediate_trunkfinal'].append(update_ratio)
+                        elif 'blocks' in name and 'weight' in name:
+                            param_abs_update_ratio['blocks'].append(abs_update_ratio)
+                            param_update_ratio['blocks'].append(update_ratio)
+                        elif 'policy_head' in name:
+                            if 'intermediate' in name:
+                                param_abs_update_ratio['intermediate_policy'].append(abs_update_ratio)
+                                param_update_ratio['intermediate_policy'].append(update_ratio)
+                            else:
+                                param_abs_update_ratio['policy_head'].append(abs_update_ratio)
+                                param_update_ratio['policy_head'].append(update_ratio)
+                        elif 'value_head' in name:
+                            if 'intermediate' in name:
+                                param_abs_update_ratio['intermediate_value'].append(abs_update_ratio)
+                                param_update_ratio['intermediate_value'].append(update_ratio)
+                            else:
+                                param_abs_update_ratio['value_head'].append(abs_update_ratio)
+                                param_update_ratio['value_head'].append(update_ratio)
+                        
+                        # 计算并记录当前批次的平均更新率
+                        logging.info(f"Absolute update ratio: ")
+                        for key, value in param_abs_update_ratio.items():
+                            lenth = len(value)
+                            sums = sum(value)
+                            current_avg = 0.0
+                            if lenth > 0:
+                                current_avg = sums / lenth
+                            logging.info(f"{key} Absolute update ratio: {current_avg}, data lenth: {lenth}")
+                        
+                        logging.info(f"Parameter update ratio: ")
+                        for key, value in param_update_ratio.items():
+                            lenth = len(value)
+                            sums = sum(value)
+                            current_avg = 0.0
+                            if lenth > 0:
+                                current_avg = sums / lenth
+                            logging.info(f"{key} Parameter update ratio: {current_avg}, data lenth: {lenth}")
+
                 if model_config["norm_kind"] == "fixup" or model_config["norm_kind"] == "fixscale" or model_config["norm_kind"] == "fixscaleonenorm":
                     gnorm_cap = 2500.0 * (1.0 if gnorm_clip_scale is None else gnorm_clip_scale)
                 elif model_config["norm_kind"] == "bnorm" or model_config["norm_kind"] == "brenorm" or model_config["norm_kind"] == "fixbrenorm":
@@ -1125,6 +1210,47 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
                     scaler.update()
                 else:
                     optimizer.step()
+                
+                # # 概率添加噪声
+                # # noise_params["rand"] <= noise_params["prob"] and 
+                # if not noise_params["flag"]:
+                #     if noise_params["shift"]:
+                #         noise_params["flag"] = 49
+                    
+                #     # 添加噪声逻辑
+                #     with torch.no_grad():
+                #         for name, param in raw_model.named_parameters():
+                #             if 'norm.' in name or 'norm_trunkfinal' in name:
+                #                 continue  # 跳过归一化层
+
+                #             noise_scale = 5e-3
+                #             noise = torch.randn_like(param.data) * noise_scale
+                #             param.data += noise
+                        
+                #         # for param, update in param_updates.items():
+                #         #     # 计算每个元素的噪声标准差
+                #         #     # abs_update = torch.abs(update)
+                #         #     # 200, 100
+                #         #     # clip_value = abs_update.mean().item() / 5
+                #         #     std_noise = 5e-3
+                #         #     # 生成均值为0的噪声
+                #         #     # noise = torch.normal(mean=0, std=std_noise, size=update.shape, device=update.device, dtype=update.dtype)
+                #         #     noise = torch.randn_like(update) * std_noise
+                #         #     # 添加最值保护
+                #         #     # noise = torch.minimum(noise, torch.tensor(abs_update.mean().item() / 10, device=update.device))
+                #         #     # noise = torch.maximum(noise, torch.tensor(-abs_update.mean().item() / 10, device=update.device))
+                #         #     # noise = torch.clamp(noise, min=-clip_value, max=clip_value)
+
+                #         #     # 添加噪声到参数
+                #         #     param.data += noise
+                            
+                #         #     # logging.info(f"Added noise to parameter with shape {param.shape}, noise mean: {noise.mean().item()}, noise max: {noise.max().item()}, noise min: {noise.min().item()}")
+                #     logging.info(f"Added noise to parameter")
+                # else:
+                #     if noise_params["shift"]:
+                #         noise_params["flag"] -= 1
+                #     logging.info("Skip noise addition")
+                
 
                 batch_count_this_epoch += 1
                 train_state["train_steps_since_last_reload"] += batch_size * world_size
@@ -1140,7 +1266,61 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
                         accumulate_metrics(running_metrics["sums"], running_metrics["weights"], metrics, batch_size, decay=1.0, new_weight=0.0)
                 else:
                     accumulate_metrics(running_metrics["sums"], running_metrics["weights"], metrics, batch_size, decay=0.999, new_weight=1.0)
+                
+                # Calculate pacc1
+                pacc1 = running_metrics["sums"].get("pacc1_sum", 1.0) / running_metrics["weights"].get("pacc1_sum", 1.0)
+                logging.info(f"pacc1: {pacc1:.6f}")
+                # if pacc1 > noise_params["acc1_threshold_up"] and noise_params["shift"]:
+                #     noise_params["flag"] = 0
+                #     noise_params["shift"] = False
+                #     logging.info(f"pacc1 ({pacc1:.6f}) > {noise_params['acc1_threshold_up']}, setting noise_params['flag'] = False")
+                # elif pacc1 <= noise_params["acc1_threshold_low"] and not noise_params["shift"]:
+                #     noise_params["flag"] = 49
+                #     noise_params["shift"] = True
+                #     logging.info(f"pacc1 ({pacc1:.6f}) <= {noise_params['acc1_threshold_low']}, setting noise_params['flag'] = True")
 
+                # logging.info(f"metrics keys: {list(metrics.keys())}")
+                # # if "pacc1_sum" in metrics:
+                # #     logging.info(f"metrics['pacc1_sum']: {metrics['pacc1_sum']}")
+                # # else:
+                # #     logging.info("pacc1 not found in metrics")
+
+                # logging.info(f"running_metrics['sums'] keys: {list(running_metrics['sums'].keys())}")
+                # # if "pacc1_sum" in running_metrics["sums"]:
+                # #     logging.info(f"running_metrics['sums']['pacc1_sum']: {running_metrics['sums']['pacc1_sum']}")
+                # # else:
+                # #     logging.info("pacc1 not found in running_metrics['sums']")
+
+                # logging.info(f"running_metrics['weights'] keys: {list(running_metrics['weights'].keys())}")
+                # # if "pacc1_sum" in running_metrics["weights"]:
+                # #     logging.info(f"running_metrics['weights']['pacc1_sum']: {running_metrics['weights']['pacc1_sum']}")
+                # # else:
+                # #     logging.info("pacc1 not found in running_metrics['weights']")
+
+                # if batch_count_this_epoch % 5 == 0:
+                #     with torch.no_grad():
+                #         for name, param in raw_model.named_parameters():
+                #             abs_data = torch.abs(param.data)
+                #             weight_mean = abs_data.mean().item()
+                #             weight_max = abs_data.max().item()
+                #             weight_min = abs_data.min().item()
+                #             weight_std = abs_data.std().item()
+
+                #             logging.info(f"Parameter {name} ----- mean: {weight_mean:.6f}, max: {weight_max:.6f}, min: {weight_min:.6f}, std: {weight_std:.6f}")
+
+                # if batch_count_this_epoch % (print_train_loss_every_batches * 10) == 0:
+                #     # 添加噪声逻辑
+                #     with torch.no_grad():
+                #         for name, param in raw_model.named_parameters():
+                #             if 'norm.' in name or 'norm_trunkfinal' in name:
+                #                 continue  # 跳过归一化层
+
+                #             noise_std = 0.1
+                #             if 'blocks' in name:
+                #                 noise_std *= 0.1
+                #             noise = torch.randn_like(param.data) * noise_std
+                #             param.data += noise
+                #         logging.info(f"Added big noise to parameter")
 
                 if batch_count_this_epoch % print_train_loss_every_batches == 0:
 
@@ -1195,6 +1375,9 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
                         swa_model.update_parameters(raw_model)
 
             logging.info("Finished training subepoch!")
+        
+        # # Update raw model when sub-epoch ends
+        # raw_model.load_state_dict(swa_model.module.state_dict())
 
         # END SUB EPOCH LOOP ------------
 

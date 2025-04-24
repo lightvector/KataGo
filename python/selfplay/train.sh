@@ -15,6 +15,7 @@ then
     echo "MODELKIND what size model to train, like b10c128, see ../modelconfigs.py"
     echo "BATCHSIZE number of samples to concat together per batch for training, must match shuffle"
     echo "EXPORTMODE 'main': train and export for selfplay. 'extra': train and export extra non-selfplay model. 'trainonly': train without export"
+    echo "LRSCALE learning rate scaler for the model, default 1.0"
     exit 0
 fi
 BASEDIR="$1"
@@ -24,6 +25,8 @@ shift
 MODELKIND="$1"
 shift
 BATCHSIZE="$1"
+shift
+LRSCALE="$1"
 shift
 EXPORTMODE="$1"
 shift
@@ -71,7 +74,7 @@ else
     exit 1
 fi
 
-time python3 ./train.py \
+time python ./train.py \
      -traindir "$BASEDIR"/train/"$TRAININGNAME" \
      -datadir "$BASEDIR"/shuffleddata/current/ \
      -exportdir "$BASEDIR"/"$EXPORT_SUBDIR" \
@@ -79,6 +82,7 @@ time python3 ./train.py \
      -pos-len 19 \
      -batch-size "$BATCHSIZE" \
      -model-kind "$MODELKIND" \
+     -lr-scale "$LRSCALE" \
      $EXTRAFLAG \
      "$@" \
      2>&1 | tee -a "$BASEDIR"/train/"$TRAININGNAME"/stdout.txt
