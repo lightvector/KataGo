@@ -141,13 +141,13 @@ do
     echo "Train"
     time ./train.sh "$BASEDIR" "$TRAININGNAME" "$MODELKIND" "$BATCHSIZE" "$LRSCALE" main -samples-per-epoch "$NUM_TRAIN_SAMPLES_PER_EPOCH" -swa-period-samples "$NUM_TRAIN_SAMPLES_PER_SWA" -quit-if-no-data -stop-when-train-bucket-limited -no-repeat-files -max-train-bucket-per-new-data "$MAX_TRAIN_PER_DATA" -max-train-bucket-size "$MAX_TRAIN_SAMPLES_PER_CYCLE"
 
+    echo "Noise"
+    time ./noise.sh "$BASEDIR" "$TRAININGNAME" "$MODELKIND" "$NOISESCALE/$LRSCALE" "$ITERATIONS" 2>&1 | tee -a "$BASEDIR"/logs/outnoise.txt
+
     echo "Export"
     (
         time ./export_model_for_selfplay.sh "$NAMEPREFIX" "$BASEDIR" "$USEGATING" | tee -a "$BASEDIR"/logs/outexport.txt
     )
-
-    echo "Noise"
-    time ./noise.sh "$BASEDIR" "$TRAININGNAME" "$MODELKIND" "$NOISESCALE" "$ITERATIONS" | tee -a "$BASEDIR"/logs/outnoise.txt
 
     echo "Gatekeeper"
     time ./katago gatekeeper -rejected-models-dir "$BASEDIR"/rejectedmodels -accepted-models-dir "$BASEDIR"/models/ -sgf-output-dir "$BASEDIR"/gatekeepersgf/ -test-models-dir "$BASEDIR"/modelstobetested/ -config "$DATED_ARCHIVE"/gatekeeper.cfg -quit-if-no-nets-to-test | tee -a "$BASEDIR"/gatekeepersgf/stdout.txt
