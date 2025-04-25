@@ -1,7 +1,7 @@
 
 # cd /g/Projects/KataGo-Noise/python
 
-# python merge.py --base-dir "G:\Projects\KataGo\Training\BaseDir" --training-name "kata1-b28c512nbt" --model-kind "b28c512nbt"
+# python merge.py --base-dir "G:\Projects\KataGo-Noise\Training\BaseDir" --training-name "kata1-b28c512nbt" --model-kind "b28c512nbt"
 
 
 import argparse
@@ -73,6 +73,8 @@ def main():
     train_path = os.path.join(args.base_dir, "train", args.training_name)
     source_path = os.path.join(train_path, "sources")
     source_files = [f for f in os.listdir(source_path) if f.endswith('.ckpt')]
+    source_files.sort(key=lambda f: os.path.getmtime(os.path.join(source_path, f)))
+    source_raws = {}
     checkpoint_path = os.path.join(train_path, "checkpoint.ckpt") # '_' ************************************************************************
 
     export_dir = os.path.join(train_path, "merged")
@@ -140,26 +142,31 @@ def main():
         temp_raw_model.load_state_dict(source_model_state_dict)
 
         temp_swa_model = get_swa_model(temp_raw_model, source_state_dict)
-        temp_swa_model.update_parameters(temp_raw_model)
+        for i in range(5):
+            temp_swa_model.update_parameters(temp_raw_model)
 
         # 将 temp_SWA 权重复制到 temp_raw 中
         temp_raw_model.load_state_dict(temp_swa_model.module.state_dict())
 
-        # 用临时模型的权重更新 SWA 模型
-        for i in range(1, 5):
-            swa_model.update_parameters(temp_raw_model)
-        
-        # for name, param in swa_model.named_parameters():
-        #     mean = param.data.mean().item()
-        #     logging.info(f"Parameter {name}: mean={mean}")
-        logging.info(f"Updated SWA model with weights from {source_file}")
+        source_raws[source_file] = temp_raw_model
 
-    logging.info("Final update of SWA model with current model weights")
-    for i in range(1, 3):
+        del temp_raw_model
+        del temp_swa_model
+
+    iterations = 50
+    for i in range(iterations):
+        logging.info(f"Starting iteration {i+1}/{iterations}")
+        logging.info("Update the SWA model with current model weights")
         swa_model.update_parameters(raw_model)
-    raw_model.load_state_dict(swa_model.module.state_dict())
-    logging.info("Finished updating SWA model with source checkpoints.")
 
+        for source_file in source_raws:
+            # 用临时模型的权重更新 SWA 模型
+            swa_model.update_parameters(source_raws[source_file])
+            logging.info(f"Updated SWA model with {source_file}")
+        logging.info(f"Iteration {i+1}/{iterations} completed.")
+    
+    raw_model.load_state_dict(swa_model.module.state_dict())
+    logging.info("Merging completed.")
 
 
     # 提取 train_state 和 metrics

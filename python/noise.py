@@ -1,7 +1,7 @@
 
 # cd /g/Projects/KataGo-Noise/python
 
-# python noise.py --base-dir "G:\Projects\KataGo\Training\BaseDir" --training-name "kata1-b28c512nbt" --model-kind "b28c512nbt" --noise-scale 5.0
+# python noise.py --base-dir "G:\Projects\KataGo-Noise\Training\BaseDir" --training-name "kata1-b28c512nbt" --model-kind "b28c512nbt" --noise-scale 5.0
 
 # ./selfplay/export_model_for_selfplay.sh "noisy-5.0" "/g/Projects/KataGo-Noise/Training/BaseDir" "1"
 
@@ -55,6 +55,215 @@ def get_swa_model(raw_model, state_dict):
         swa_model = None
     return swa_model
 
+def generate_noise(param, group_name, noise_scale, iterations = 1000, i = 0):
+    # 1. 获取两种比率的均值和方差
+    mu_abs = abs_update_ratio_means[group_name]
+    sigma_abs = torch.sqrt(torch.tensor(abs_update_ratio_vars[group_name], device=param.device))
+    
+    mu_rel = update_ratio_means[group_name]
+    mu_rel_t = torch.tensor(mu_rel, device=param.device)
+    sigma_rel = torch.sqrt(torch.tensor(update_ratio_vars[group_name], device=param.device))
+    
+    # 2. 生成幅度噪声 - 使用真正的截断正态分布
+    # 实现截断正态分布采样 (μ, σ, 下限=0, 上限=None)
+    # 为提高效率，使用拒绝采样法
+    # 生成标准正态分布样本
+    z = torch.randn_like(param.data)
+    # 调整 mu 和 sigma 避免生成过多负值
+    adjusted_mu = mu_abs + sigma_abs * noise_scale 
+    adjusted_sigma = sigma_abs * noise_scale
+    
+    # 计算截断边界对应的标准化值
+    alpha = -adjusted_mu / (adjusted_sigma + 1e-10)  # 截断下限(0)对应的标准化值
+    
+    # 使用拒绝采样确保非负
+    # 对于靠近边界的区域，不断重采样直到满足条件
+    rejection_mask = (z < alpha)
+    while rejection_mask.any():
+        # 只对拒绝的位置重新采样
+        z_new = torch.randn(rejection_mask.sum(), device=param.device)
+        z.masked_scatter_(rejection_mask, z_new)
+        # 更新拒绝掩码
+        rejection_mask = (z < alpha)
+    
+    # 将标准正态转换为目标分布
+    magnitude = adjusted_mu + adjusted_sigma * z
+    
+    # 3. 生成方向噪声 - 自适应稳定性阈值
+    # 基于层类型动态调整稳定性阈值
+    base_stability_threshold = 0.5
+    if 'norm' in group_name:
+        stability_threshold = base_stability_threshold * 0.8  # 规范化层更保守
+    elif 'value_head' in group_name:
+        stability_threshold = base_stability_threshold * 1.2  # 价值头更激进
+    else:
+        stability_threshold = base_stability_threshold
+    
+    direction_stability = mu_rel_t / (sigma_rel + 1e-10)
+    
+    if direction_stability > stability_threshold:
+        # 方向相对稳定 - 完全从分布采样
+        direction = torch.randn_like(param.data) * sigma_rel + mu_rel
+    else:
+        # 方向不稳定 - 混合使用符号信息和受限噪声
+        # 计算稳定性比例，越接近阈值，越多地使用分布信息
+        stability_ratio = direction_stability / stability_threshold
+        # 受限噪声比例随稳定性增加
+        noise_scale = 0.1 + 0.3 * stability_ratio
+        sign = 1 if mu_rel >= 0 else -1
+        
+        # 混合均值和符号导向的噪声
+        random_part = torch.randn_like(param.data) * sigma_rel * noise_scale
+        direction = sign * (random_part + mu_rel_t)
+    
+    # 4. 合成噪声 - 将幅度与方向结合
+    noise_sign = torch.sign(direction)
+    noise = magnitude * param.data.abs() * noise_sign
+    
+    # 5. 应用动态衰减因子 - 随迭代递减
+    # 使用指数衰减系数，在高迭代次数时减少噪声影响
+    iteration_fraction = min(i / iterations, 1.0)  # 当前迭代在总迭代中的比例
+    base_decay = 1.0  # 初始因子
+    min_decay = 0.7   # 最低因子
+    
+    # 非线性递减，前期保持较高，后期迅速降低
+    decay_exponent = 2.0
+    decay_factor = base_decay - (base_decay - min_decay) * (iteration_fraction ** decay_exponent)
+    
+    # 为不同层类型应用不同的衰减策略
+    if 'value_head' in group_name or 'policy_head' in group_name:
+        # 输出层应用更强的衰减，保持更多原始信息
+        decay_factor *= 0.9
+    
+    # 6. 返回最终噪声
+    return noise * decay_factor
+
+# 定义各参数组的 abs_update_ratio 和 update_ratio 的均值和方差
+# mean = sum(v if isinstance(v, float) else v[0] for v in values) / len(values)
+# var = sum((v - mean) ** 2 if isinstance(v, float) else (v[0] - mean) ** 2 for v in values) / len(values)
+
+def read_latest_update_ratios(train_dir, num_lines_to_check=1200):
+    """从 stdout.txt 文件中高效读取最新的 update ratio 数据"""
+    file_path = os.path.join(train_dir, "stdout.txt")
+    
+    abs_means = {}
+    abs_vars = {}
+    update_means = {}
+    update_vars = {}
+    
+    current_section = None
+    current_key = None
+    
+    try:
+        with open(file_path, 'r', encoding='utf-8') as f:
+            # 移动到文件末尾
+            f.seek(0, 2)
+            position = f.tell()
+            lines = []
+            
+            # 向前读取指定行数（例如 1000 行）
+            while position > 0 and len(lines) < num_lines_to_check:
+                position -= 1
+                f.seek(position)
+                char = f.read(1)
+                if char == '\n':
+                    lines.append(f.readline().strip())
+            
+            # 反转行列表，按文件顺序解析
+            lines.reverse()
+            
+            for line in lines:
+                # 识别当前部分
+                if line == "abs_update_ratio:":
+                    current_section = "abs"
+                    continue
+                elif line == "update_ratio:":
+                    current_section = "update"
+                    continue
+                elif line in ["weight:", "gradient:", "pacc1:"]:
+                    current_section = None
+                    continue
+                
+                if not current_section:
+                    continue
+                
+                # 获取参数组名称
+                if current_section == "abs" and " abs_update_ratio:" in line:
+                    current_key = line.split(" abs_update_ratio:")[0]
+                elif current_section == "update" and " update_ratio:" in line:
+                    current_key = line.split(" update_ratio:")[0]
+                
+                # 提取数值
+                if line.startswith("mean=") and current_key:
+                    value = float(line.split("=")[1].strip().rstrip(","))
+                    if current_section == "abs":
+                        abs_means[current_key] = value
+                    else:
+                        update_means[current_key] = value
+                
+                if line.startswith("var=") and current_key:
+                    value = float(line.split("=")[1].strip().rstrip(","))
+                    if current_section == "abs":
+                        abs_vars[current_key] = value
+                    else:
+                        update_vars[current_key] = value
+        
+        print(f"成功从 {file_path} 读取最新的 update ratios")
+        return abs_means, abs_vars, update_means, update_vars
+    
+    except Exception as e:
+        print(f"读取 {file_path} 时出错: {e}")
+        return {}, {}, {}, {}
+
+abs_update_ratio_means = {
+    'conv_spatial': 0.00016860119930313147,
+    'linear_global': 0.00018781224798213123,
+    'norm_beta': 1.9531230858301595e-05,
+    'norm_gamma': 1.4373712142061939e-05,
+    'blocks': 0.00011361872836163889,
+    'policy_head': 8.902986346480544e-06,
+    'value_head': 6.042755581183511e-05,
+    'intermediate_policy': 1.2608511123735288e-05,
+    'intermediate_value': 3.6676121624521245e-05,
+}
+
+abs_update_ratio_vars = {
+    'conv_spatial': 2.4825361606404196e-09,
+    'linear_global': 3.090347689371258e-09,
+    'norm_beta': 7.176491128926009e-10,
+    'norm_gamma': 3.126933457492505e-10,
+    'blocks': 1.121679580364991e-09,
+    'policy_head': 1.420171322525905e-10,
+    'value_head': 3.008553955426278e-08,
+    'intermediate_policy': 1.5907402191500531e-10,
+    'intermediate_value': 5.646077578571462e-09,
+}
+
+update_ratio_means = {
+    'conv_spatial': 4.422751798966035e-07,
+    'linear_global': -1.193874497684425e-05,
+    'norm_beta': -8.453670681838206e-09,
+    'norm_gamma': 4.755875243357739e-09,
+    'blocks': -3.4202291084586074e-06,
+    'policy_head': -8.506532525786191e-10,
+    'value_head': -0.0004893960702194334,
+    'intermediate_policy': -1.8701952071983665e-07,
+    'intermediate_value': 4.975334504663584e-05,
+}
+
+update_ratio_vars = {
+    'conv_spatial': 2.185847385536089e-09,
+    'linear_global': 2.8528927561190385e-07,
+    'norm_beta': 5.201187664432502e-10,
+    'norm_gamma': 4.903276613859002e-11,
+    'blocks': 0.0030210504626944404,
+    'policy_head': 1.077941427073591e-10,
+    'value_head': 0.18421801176135222,
+    'intermediate_policy': 7.340983634223755e-10,
+    'intermediate_value': 2.107397687042172e-05,
+}
+
+
 
 
 def main():
@@ -63,6 +272,7 @@ def main():
     parser.add_argument('--base-dir', required=True, help='Base directory for training')
     parser.add_argument('--training-name', required=True, help='Name of the training run')
     parser.add_argument('--noise-scale', type=float, required=True, help='Scale of the noise to add to the weights')
+    parser.add_argument('--iterations', type=int, default=1000, help='Number of iterations to add noise')
     parser.add_argument('--model-kind', required=True, help='Model kind to use')
     parser.add_argument('--pos-len', type=int, default=19, help='Board size (e.g., 19 for 19x19)')
     parser.add_argument('--export-prefix', default='noisy', help='Prefix for exported model names')
@@ -125,6 +335,21 @@ def main():
     swa_model = get_swa_model(raw_model, state_dict)
     logging.info(f"SWA model loaded: {swa_model is not None}")
 
+    new_abs_means, new_abs_vars, new_update_means, new_update_vars = read_latest_update_ratios(train_path)
+    if new_abs_means: abs_update_ratio_means.update(new_abs_means)
+    if new_abs_vars: abs_update_ratio_vars.update(new_abs_vars)
+    if new_update_means: update_ratio_means.update(new_update_means)
+    if new_update_vars: update_ratio_vars.update(new_update_vars)
+    logging.info(f"Loaded update ratios from file: {train_path}/stdout.txt")
+    for key, value in new_abs_means.items():
+        logging.info(f"abs_update_ratio_means[{key}] = {value}")
+    for key, value in new_abs_vars.items():
+        logging.info(f"abs_update_ratio_vars[{key}] = {value}")
+    for key, value in new_update_means.items():
+        logging.info(f"update_ratio_means[{key}] = {value}")
+    for key, value in new_update_vars.items():
+        logging.info(f"update_ratio_vars[{key}] = {value}")
+
     # 添加噪声，跳过某些层
     with torch.no_grad():
         # ~ 0.45s / round
@@ -132,44 +357,45 @@ def main():
         # 10000: 1.25h
         # 50000: 6.25h
         # 100000: 12.5h
-        for i in range(5000):
-            # for name, param in swa_model.named_parameters():
+        iterations = args.iterations  # 迭代次数
+        for i in range(iterations):
+            # 噪声生成循环
             for name, param in raw_model.named_parameters():
                 if 'norm_trunkfinal' in name or 'norm_intermediate_trunkfinal' in name:
                     continue
 
-                abs_data = torch.abs(param.data)
-                abs_data_mean = abs_data.mean().item()
+                # 确定参数组
+                group_name = None
+                if 'conv_spatial' in name:
+                    group_name = 'conv_spatial'
+                elif 'linear_global' in name:
+                    group_name = 'linear_global'
+                elif 'norm.' in name:
+                    if 'beta' in name:
+                        group_name = 'norm_beta'
+                    elif 'gamma' in name:
+                        group_name = 'norm_gamma'
+                elif 'blocks' in name and 'weight' in name:
+                    group_name = 'blocks'
+                elif 'policy_head' in name:
+                    if 'intermediate' in name:
+                        group_name = 'intermediate_policy'
+                    else:
+                        group_name = 'policy_head'
+                elif 'value_head' in name:
+                    if 'intermediate' in name:
+                        group_name = 'intermediate_value'
+                    else:
+                        group_name = 'value_head'
 
-                noise_std = abs_data_mean * 1e-5 * args.noise_scale
-
-                if 'conv_spatial' in name or 'linear_global' in name:
-                    noise_std *= 9
-
-                if 'blocks' in name and 'weight' in name:
-                    noise_std *= 6
-
-                if 'intermediate' in name:
-                    if 'policy_head' in name:
-                        noise_std *= 5e-1
-                    elif 'value_head' in name:
-                        noise_std *= 2
-                else:
-                    if 'policy_head' in name:
-                        noise_std *= 4e-1
-                    elif 'value_head' in name:
-                        noise_std *= 2.5
-
-                if 'norm.' in name:
-                    if 'gamma' in name:
-                        noise_std *= 7e-1
-
-                noise = torch.randn_like(param.data) * noise_std
-                param.data += noise
+                # 改进的噪声生成方案
+                if group_name and group_name in abs_update_ratio_means:
+                    noise = generate_noise(param, group_name, args.noise_scale, iterations, i)
+                    param.data.add_(noise)
+                    
                 # param.data.zero_()
                 # logging.info(f"SWA Parameter {name} - mean: {abs_data_mean}, max: {abs_data.max().item()}, min: {abs_data.min().item()}")
                 # logging.info(f"Added noise to parameter {name} with shape {param.shape}. --- noise scale: {noise_std} --- mean: {abs_data_mean}")
-            
             
             logging.info(f"Accumulating SWA")
             swa_model.update_parameters(raw_model)
@@ -197,7 +423,7 @@ def main():
         logging.info("Loaded metrics from checkpoint")
 
     # 模拟 train.py 的命名方式
-    args.export_prefix += f"-{args.noise_scale}"
+    args.export_prefix += f"-{args.noise_scale}-{iterations}iters"
 
     step_samples = train_state.get('global_step_samples', 0)
     data_rows = train_state.get('total_num_data_rows', 0)

@@ -1032,8 +1032,13 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
             # noise_params = {"flag": 0, "shift": False, "acc1_threshold_low": 0.45, "acc1_threshold_up": 0.47, "rand": 0.0, "prob": 0.25}
             # 记录更新量
             param_updates = {}
-            param_abs_update_ratio = defaultdict(list)
-            param_update_ratio = defaultdict(list)
+            # 新增统计信息存储
+            stats = {
+                'abs_update_ratio': {},
+                'update_ratio': {},
+                'weight': {},
+                'gradient': {}
+            }
             
             for batch in data_processing_pytorch.read_npz_training_data(
                 train_files_to_use,
@@ -1105,6 +1110,8 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
 
                 # noise_params["rand"] <= noise_params["prob"] and 
                 # if not noise_params["flag"]:
+
+                stats['weight'] = {}
                 with torch.no_grad():
                     for param_group in optimizer.param_groups:
                         lr = param_group['lr']
@@ -1113,63 +1120,69 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
                                 param_updates[param] = -lr * param.grad
                     
                     for name, param in raw_model.named_parameters():
-                        abs_update_ratio = param_updates[param].abs().mean().item() / param.data.abs().mean().item()
-                        update_ratio = param_updates[param].mean().item() / param.data.mean().item()
-                        if 'conv_spatial' in name:
-                            param_abs_update_ratio['conv_spatial'].append(abs_update_ratio)
-                            param_update_ratio['conv_spatial'].append(update_ratio)
-                        elif 'linear_global' in name:
-                            param_abs_update_ratio['linear_global'].append(abs_update_ratio)
-                            param_update_ratio['linear_global'].append(update_ratio)
-                        elif 'norm.' in name or 'norm_trunkfinal' in name or 'norm_intermediate_trunkfinal' in name:
-                            if 'beta' in name:
-                                param_abs_update_ratio['norm_beta'].append(abs_update_ratio)
-                                param_update_ratio['norm_beta'].append(update_ratio)
-                            elif 'gamma' in name:
-                                param_abs_update_ratio['norm_gamma'].append(abs_update_ratio)
-                                param_update_ratio['norm_gamma'].append(update_ratio)
-                            elif 'norm_trunkfinal' in name:
-                                param_abs_update_ratio['norm_trunkfinal'].append(abs_update_ratio)
-                                param_update_ratio['norm_trunkfinal'].append(update_ratio)
-                            else:
-                                param_abs_update_ratio['norm_intermediate_trunkfinal'].append(abs_update_ratio)
-                                param_update_ratio['norm_intermediate_trunkfinal'].append(update_ratio)
-                        elif 'blocks' in name and 'weight' in name:
-                            param_abs_update_ratio['blocks'].append(abs_update_ratio)
-                            param_update_ratio['blocks'].append(update_ratio)
-                        elif 'policy_head' in name:
-                            if 'intermediate' in name:
-                                param_abs_update_ratio['intermediate_policy'].append(abs_update_ratio)
-                                param_update_ratio['intermediate_policy'].append(update_ratio)
-                            else:
-                                param_abs_update_ratio['policy_head'].append(abs_update_ratio)
-                                param_update_ratio['policy_head'].append(update_ratio)
-                        elif 'value_head' in name:
-                            if 'intermediate' in name:
-                                param_abs_update_ratio['intermediate_value'].append(abs_update_ratio)
-                                param_update_ratio['intermediate_value'].append(update_ratio)
-                            else:
-                                param_abs_update_ratio['value_head'].append(abs_update_ratio)
-                                param_update_ratio['value_head'].append(update_ratio)
-                        
-                        # 计算并记录当前批次的平均更新率
-                        logging.info(f"Absolute update ratio: ")
-                        for key, value in param_abs_update_ratio.items():
-                            lenth = len(value)
-                            sums = sum(value)
-                            current_avg = 0.0
-                            if lenth > 0:
-                                current_avg = sums / lenth
-                            logging.info(f"{key} Absolute update ratio: {current_avg}, data lenth: {lenth}")
-                        
-                        logging.info(f"Parameter update ratio: ")
-                        for key, value in param_update_ratio.items():
-                            lenth = len(value)
-                            sums = sum(value)
-                            current_avg = 0.0
-                            if lenth > 0:
-                                current_avg = sums / lenth
-                            logging.info(f"{key} Parameter update ratio: {current_avg}, data lenth: {lenth}")
+                        if param in param_updates:
+                            update = param_updates[param]
+                            abs_update_ratio = update.abs().mean().item() / param.data.abs().mean().item()
+                            update_ratio = update.mean().item() / param.data.mean().item()
+                            # weight_mean = param.data.mean().item()
+                            # weight_var = param.data.var().item()
+                            # grad_mean = update.mean().item()
+                            # grad_var = update.var().item()
+
+                            # 分配到参数组
+                            group_name = None
+                            if 'conv_spatial' in name:
+                                group_name = 'conv_spatial'
+                            elif 'linear_global' in name:
+                                group_name = 'linear_global'
+                            elif 'norm.' in name or 'norm_trunkfinal' in name or 'norm_intermediate_trunkfinal' in name:
+                                if 'beta' in name:
+                                    group_name = 'norm_beta'
+                                elif 'gamma' in name:
+                                    group_name = 'norm_gamma'
+                                elif 'norm_trunkfinal' in name:
+                                    group_name = 'norm_trunkfinal'
+                                else:
+                                    group_name = 'norm_intermediate_trunkfinal'
+                            elif 'blocks' in name and 'weight' in name:
+                                group_name = 'blocks'
+                            elif 'policy_head' in name:
+                                if 'intermediate' in name:
+                                    group_name = 'intermediate_policy'
+                                else:
+                                    group_name = 'policy_head'
+                            elif 'value_head' in name:
+                                if 'intermediate' in name:
+                                    group_name = 'intermediate_value'
+                                else:
+                                    group_name = 'value_head'
+
+                            # 
+                            # ,
+                            # ('weight', (weight_mean, weight_var)),
+                            # ('gradient', (grad_mean, grad_var))
+                            if group_name:
+                                for key, value in [('abs_update_ratio', abs_update_ratio), 
+                                                   ('update_ratio', update_ratio)]:
+                                    if group_name not in stats[key]:
+                                        stats[key][group_name] = []
+                                    
+                                    stats[key][group_name].append(value)
+
+                    # 记录统计信息
+                    for stat_name, stat_dict in stats.items():
+                        logging.info(f"{stat_name}:")
+                        for key, values in stat_dict.items():
+                            mean = sum(v if isinstance(v, float) else v[0] for v in values) / len(values)
+                            var = sum((v - mean) ** 2 if isinstance(v, float) else (v[0] - mean) ** 2 for v in values) / len(values)
+                            # if stat_name in ['weight', 'gradient']:
+                            #     mean_val = mean
+                            #     var_val = sum(v[1] for v in values) / len(values)  # 直接取方差平均
+                            #     logging.info(f"{key} {stat_name}: mean={mean_val}, var={var_val}, data length: {len(values)}")
+                            # else:
+                            logging.info(f"{key} {stat_name}: \nmean={mean}, \nvar={var}, \ndata length: {len(values)}")
+                    
+
 
                 if model_config["norm_kind"] == "fixup" or model_config["norm_kind"] == "fixscale" or model_config["norm_kind"] == "fixscaleonenorm":
                     gnorm_cap = 2500.0 * (1.0 if gnorm_clip_scale is None else gnorm_clip_scale)
