@@ -279,10 +279,15 @@ def main():
     args = parser.parse_args()
 
     # 设置日志
+    handlers = [logging.StreamHandler()]
+    log_file = os.path.join(args.base_dir, "logs/outnoise.txt")
+    handlers.append(logging.FileHandler(log_file))
+
     logging.basicConfig(
         format='%(asctime)s - %(levelname)s - %(message)s',
         level=logging.INFO,
-        datefmt='%Y-%m-%d %H-%M-%S%z:'  # 指定日期时间格式和时区
+        handlers=handlers,
+        datefmt='%Y-%m-%d %H-%M-%S%z:'
     )
     # 检查点文件路径、保存路径及待导出路径
     train_path = os.path.join(args.base_dir, "train", args.training_name)
