@@ -5,7 +5,7 @@ else()
   project(katago)
 endif()
 
-set(CMAKE_CXX_STANDARD 14)
+set(CMAKE_CXX_STANDARD 17)
 
 include_directories(external)
 include_directories(external/tclap-1.2.2/include)

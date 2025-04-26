@@ -1386,7 +1386,7 @@ void ModelDesc::iterConvLayers(std::function<void(const ConvLayerDesc& desc)> f)
 
 int ModelDesc::maxConvChannels(int convXSize, int convYSize) const {
   int c = 0;
-  auto f = [&c,convXSize,convYSize](const ConvLayerDesc& desc) {
+  auto f = [&c,convXSize,convYSize](const ConvLayerDesc& desc) noexcept {
     if(desc.convXSize == convXSize && desc.convYSize == convYSize) {
       if(desc.inChannels > c)
         c = desc.inChannels;

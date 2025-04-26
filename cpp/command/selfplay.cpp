@@ -249,7 +249,7 @@ int MainCmds::selfplay(const vector<string>& args) {
     &baseParams,
     &gameSeedBase
   ](int threadIdx) {
-    auto shouldStopFunc = []() {
+    auto shouldStopFunc = []() noexcept {
       return shouldStop.load();
     };
     WaitableFlag* shouldPause = nullptr;
