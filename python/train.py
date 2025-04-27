@@ -37,6 +37,7 @@ from push_back_generator import PushBackGenerator
 import load_model
 import data_processing_pytorch
 from metrics_logging import accumulate_metrics, log_metrics, clear_metric_nonfinite
+from optimizer import CautiousSGD
 
 # HANDLE COMMAND AND ARGS -------------------------------------------------------------------
 
@@ -76,6 +77,7 @@ if __name__ == "__main__":
     optional_args.add_argument('-lookahead-k', help='Use lookahead optimizer', type=int, default=6, required=False)
     optional_args.add_argument('-lookahead-alpha', help='Use lookahead optimizer', type=float, default=0.5, required=False)
     optional_args.add_argument('-lookahead-print', help='Only print on lookahead syncs', required=False, action='store_true')
+    optional_args.add_argument('-cautious-sgd', help='Use cautious SGD optimizer', required=False, action='store_true')
 
     optional_args.add_argument('-multi-gpus', help='Use multiple gpus, comma-separated device ids', required=False)
     optional_args.add_argument('-use-fp16', help='Use fp16 training', required=False, action='store_true')
@@ -163,6 +165,7 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
     lookahead_k = args["lookahead_k"]
     lookahead_alpha = args["lookahead_alpha"]
     lookahead_print = args["lookahead_print"]
+    cautious_sgd = args["cautious_sgd"]
 
     use_fp16 = args["use_fp16"]
 
@@ -462,7 +465,10 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
                 train_state["modelnorm_normal_baseline"] = modelnorm_normal_baseline
                 logging.info(f"Model norm normal baseline computed: {modelnorm_normal_baseline}")
 
-            optimizer = torch.optim.SGD(get_param_groups(raw_model,train_state,running_metrics), lr=1.0, momentum=0.9)
+            if cautious_sgd:
+                optimizer = CautiousSGD(get_param_groups(raw_model,train_state,running_metrics), lr=1.0, momentum=0.9)
+            else:
+                optimiezr = torch.optim.SGD(get_param_groups(raw_model,train_state,running_metrics), lr=1.0, momentum=0.9)
 
             return (model_config, ddp_model, raw_model, swa_model, optimizer, metrics_obj, running_metrics, train_state, last_val_metrics)
         else:
@@ -524,7 +530,11 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
             else:
                 logging.info("WARNING: Running metrics not found in state dict, using fresh last val metrics")
 
-            optimizer = torch.optim.SGD(get_param_groups(raw_model,train_state,running_metrics), lr=1.0, momentum=0.9)
+            if cautious_sgd:
+                optimizer = CautiousSGD(get_param_groups(raw_model,train_state,running_metrics), lr=1.0, momentum=0.9)
+            else:
+                optimizer = torch.optim.SGD(get_param_groups(raw_model,train_state,running_metrics), lr=1.0, momentum=0.9)
+
             if "optimizer" in state_dict:
                 optimizer.load_state_dict(state_dict["optimizer"])
             else:
@@ -586,6 +596,7 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
     logging.info(f"variance_time_loss_scale {variance_time_loss_scale}")
     logging.info(f"main_loss_scale {main_loss_scale}")
     logging.info(f"intermediate_loss_scale {intermediate_loss_scale}")
+    logging.info(f"cautious_sgd {cautious_sgd}")
 
     # Print all model parameters just to get a summary
     total_num_params = 0
