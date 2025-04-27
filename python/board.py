@@ -23,7 +23,7 @@ class Board:
 
     PASS_LOC = 0
 
-    for i in range((19+1)*(19+2)+1):
+    for i in range((50+1)*(50+2)+1):
         ZOBRIST_STONE[BLACK].append(ZOBRIST_RAND.getrandbits(64))
         ZOBRIST_STONE[WHITE].append(ZOBRIST_RAND.getrandbits(64))
     for i in range(4):
@@ -35,9 +35,9 @@ class Board:
             self.y_size = size
         else:
             self.x_size, self.y_size = size
-        if self.x_size < 2 or self.x_size > 39:
+        if self.x_size < 2 or self.x_size > 50:
             raise ValueError("Invalid board size: " + str(size))
-        if self.y_size < 2 or self.y_size > 39:
+        if self.y_size < 2 or self.y_size > 50:
             raise ValueError("Invalid board size: " + str(size))
         self.arrsize = (self.x_size+1)*(self.y_size+2)+1
         self.dy = self.x_size+1
