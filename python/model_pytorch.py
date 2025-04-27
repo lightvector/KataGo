@@ -1274,14 +1274,18 @@ class PolicyHead(torch.nn.Module):
 
         if config["version"] <= 11:
             self.num_policy_outputs = 4
-        else:
+        elif config["version"] <= 15:
             self.num_policy_outputs = 6
+        else:
+            self.num_policy_outputs = 8
         # Output 0: policy prediction
         # Output 1: opponent reply policy prediction
         # Output 2: soft policy prediction
         # Output 3: soft opponent reply policy prediction
         # Output 4: long-term-optimistic policy prediction
         # Output 5: short-term-optimistic policy prediction
+        # Output 6: q value winloss prediction, pre-tanh
+        # Output 7: q value score prediction
 
         self.conv1p = torch.nn.Conv2d(c_in, c_p1, kernel_size=1, padding="same", bias=False)
         self.conv1g = torch.nn.Conv2d(c_in, c_g1, kernel_size=1, padding="same", bias=False)

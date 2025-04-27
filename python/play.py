@@ -421,6 +421,24 @@ def get_board_matrix_str(matrix, scale, formatstr):
         ret += "\n"
     return ret
 
+def get_policy_matrix_str(matrix, gs, scale, formatstr):
+    ret = ""
+    for y in range(gs.board.y_size):
+        for x in range(gs.board.x_size):
+            loc = gs.board.loc(x,y)
+            pos = features.loc_to_tensor_pos(loc,gs.board)
+            if gs.board.would_be_legal(gs.board.pla,loc):
+                ret += formatstr % (scale * matrix[pos])
+            else:
+                ret += "  -" + (" " * (len(formatstr % (0.0)) - 3))
+            ret += " "
+        ret += "\n"
+    loc = Board.PASS_LOC
+    pos = features.loc_to_tensor_pos(loc,gs.board)
+    ret += "Pass: " + (formatstr % (scale * matrix[pos]))
+    return ret
+
+
 
 while True:
     try:
@@ -561,40 +579,12 @@ while True:
         pos = features.loc_to_tensor_pos(loc,gs.board)
         policysum += outputs["policy0"][pos]
 
-        for y in range(gs.board.y_size):
-            for x in range(gs.board.x_size):
-                loc = gs.board.loc(x,y)
-                pos = features.loc_to_tensor_pos(loc,gs.board)
-                if gs.board.would_be_legal(gs.board.pla,loc):
-                    ret += "%6.3f" % (100.0 * outputs["policy0"][pos] / policysum)
-                else:
-                    ret += "  -   "
-                ret += " "
-            ret += "\n"
-        loc = Board.PASS_LOC
-        pos = features.loc_to_tensor_pos(loc,gs.board)
-        ret += "Pass: %6.3f" % (100.0 * outputs["policy0"][pos] / policysum)
-        for key in ["value","scoremean","lead","vtime"]:
-            v = outputs[key]
-            ret += f"\n{key}: {v}"
+        ret += get_policy_matrix_str(outputs["policy0"], gs, 100.0 / policysum, "%6.3f")
 
     elif command[0] == "policy1_raw":
         outputs = gs.get_model_outputs(model)
         ret = "\n"
-
-        for y in range(gs.board.y_size):
-            for x in range(gs.board.x_size):
-                loc = gs.board.loc(x,y)
-                pos = features.loc_to_tensor_pos(loc,gs.board)
-                if gs.board.would_be_legal(gs.board.pla,loc):
-                    ret += "%6.3f" % (100.0 * outputs["policy1"][pos])
-                else:
-                    ret += "  -   "
-                ret += " "
-            ret += "\n"
-        loc = Board.PASS_LOC
-        pos = features.loc_to_tensor_pos(loc,gs.board)
-        ret += "Pass: %6.3f" % (100.0 * outputs["policy1"][pos])
+        ret += get_policy_matrix_str(outputs["policy1"], gs, 100.0, "%6.3f")
 
     elif command[0] == "ownership_raw":
         outputs = gs.get_model_outputs(model)
@@ -614,6 +604,14 @@ while True:
     elif command[0] == "seki2_raw":
         outputs = gs.get_model_outputs(model)
         ret = get_board_matrix_str(outputs["seki2"], 100.0, "%+7.3f")
+    elif command[0] == "qwinloss_raw":
+        outputs = gs.get_model_outputs(model)
+        ret = "\n"
+        ret += get_policy_matrix_str(outputs["qwinloss"], gs, 100.0, "%+7.3fc")
+    elif command[0] == "qscore_raw":
+        outputs = gs.get_model_outputs(model)
+        ret = "\n"
+        ret += get_policy_matrix_str(outputs["qscore"], gs, 1.0, "%+6.2f")
 
     elif command[0] in input_feature_command_lookup:
         (feature_idx,normalization_div) = input_feature_command_lookup[command[0]]

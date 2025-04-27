@@ -30,6 +30,8 @@ struct ConvLayerDesc {
   ConvLayerDesc& operator=(const ConvLayerDesc&) = delete;
 
   ConvLayerDesc& operator=(ConvLayerDesc&& other);
+
+  double getSpatialConvDepth() const;
 };
 
 struct BatchNormLayerDesc {
@@ -117,6 +119,7 @@ struct ResidualBlockDesc {
   ResidualBlockDesc& operator=(ResidualBlockDesc&& other);
 
   void iterConvLayers(std::function<void(const ConvLayerDesc& dest)> f) const;
+  double getSpatialConvDepth() const;
 };
 
 struct GlobalPoolingResidualBlockDesc {
@@ -143,6 +146,7 @@ struct GlobalPoolingResidualBlockDesc {
   GlobalPoolingResidualBlockDesc& operator=(GlobalPoolingResidualBlockDesc&& other);
 
   void iterConvLayers(std::function<void(const ConvLayerDesc& dest)> f) const;
+  double getSpatialConvDepth() const;
 };
 
 struct NestedBottleneckResidualBlockDesc {
@@ -170,6 +174,7 @@ struct NestedBottleneckResidualBlockDesc {
   NestedBottleneckResidualBlockDesc& operator=(NestedBottleneckResidualBlockDesc&& other);
 
   void iterConvLayers(std::function<void(const ConvLayerDesc& dest)> f) const;
+  double getSpatialConvDepth() const;
 };
 
 struct SGFMetadataEncoderDesc {
@@ -229,6 +234,7 @@ struct TrunkDesc {
   TrunkDesc& operator=(TrunkDesc&& other);
 
   void iterConvLayers(std::function<void(const ConvLayerDesc& dest)> f) const;
+  double getSpatialConvDepth() const;
 };
 
 struct PolicyHeadDesc {
@@ -334,6 +340,7 @@ struct ModelDesc {
 
   void iterConvLayers(std::function<void(const ConvLayerDesc& dest)> f) const;
   int maxConvChannels(int convXSize, int convYSize) const;
+  double getTrunkSpatialConvDepth() const;
 
   //Loads a model from a file that may or may not be gzipped, storing it in descBuf
   //If expectedSha256 is nonempty, will also verify sha256 of the loaded data.

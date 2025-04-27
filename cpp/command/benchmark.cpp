@@ -250,6 +250,9 @@ int MainCmds::benchmark(const vector<string>& args) {
   if(nnEval->getUsingFP16Mode() == enabled_t::False)
     cout << "If you have a strong GPU capable of FP16 tensor cores (e.g. RTX2080) setting this to true may give a large performance boost." << endl;
 #endif
+#ifdef USE_METAL_BACKEND
+  cout << "You are currently using the Metal version of KataGo." << endl;
+#endif
 #ifdef USE_OPENCL_BACKEND
   cout << "You are currently using the OpenCL version of KataGo." << endl;
   cout << "If you have a strong GPU capable of FP16 tensor cores (e.g. RTX2080), "
@@ -659,7 +662,7 @@ int MainCmds::genconfig(const vector<string>& args, const string& firstCommand) 
     string prompt =
       "NOTE: No limits configured for KataGo. KataGo will obey time controls provided by the GUI or server or match script\n"
       "but if they don't specify any, when playing games KataGo may think forever without moving. (press enter to continue)\n";
-    promptAndParseInput(prompt, [&](const string& line) {
+    promptAndParseInput(prompt, [&](const string& line) noexcept {
         (void)line;
       });
   }

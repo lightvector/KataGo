@@ -17,6 +17,7 @@ std::vector<std::string> Setup::getBackendPrefixes() {
   std::vector<std::string> prefixes;
   prefixes.push_back("cuda");
   prefixes.push_back("trt");
+  prefixes.push_back("metal");
   prefixes.push_back("opencl");
   prefixes.push_back("eigen");
   prefixes.push_back("dummybackend");
@@ -81,6 +82,8 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
   string backendPrefix = "cuda";
   #elif defined(USE_TENSORRT_BACKEND)
   string backendPrefix = "trt";
+  #elif defined(USE_METAL_BACKEND)
+  string backendPrefix = "metal";
   #elif defined(USE_OPENCL_BACKEND)
   string backendPrefix = "opencl";
   #elif defined(USE_EIGEN_BACKEND)
@@ -138,7 +141,7 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
         requireExactNNLen = cfg.getBool("requireMaxBoardSize");
     }
 
-    bool inputsUseNHWC = backendPrefix == "opencl" || backendPrefix == "trt" ? false : true;
+    bool inputsUseNHWC = backendPrefix == "opencl" || backendPrefix == "trt" || backendPrefix == "metal" ? false : true;
     if(cfg.contains(backendPrefix+"InputsUseNHWC"+idxStr))
       inputsUseNHWC = cfg.getBool(backendPrefix+"InputsUseNHWC"+idxStr);
     else if(cfg.contains("inputsUseNHWC"+idxStr))
@@ -665,7 +668,7 @@ vector<SearchParams> Setup::loadParams(
 
     if(cfg.contains("enableMorePassingHacks"+idxStr)) params.enableMorePassingHacks = cfg.getBool("enableMorePassingHacks"+idxStr);
     else if(cfg.contains("enableMorePassingHacks")) params.enableMorePassingHacks = cfg.getBool("enableMorePassingHacks");
-    else params.enableMorePassingHacks = false;
+    else params.enableMorePassingHacks = (setupFor == SETUP_FOR_GTP || setupFor == SETUP_FOR_ANALYSIS) ? true : false;
 
     if(cfg.contains("playoutDoublingAdvantage"+idxStr)) params.playoutDoublingAdvantage = cfg.getDouble("playoutDoublingAdvantage"+idxStr,-3.0,3.0);
     else if(cfg.contains("playoutDoublingAdvantage"))   params.playoutDoublingAdvantage = cfg.getDouble("playoutDoublingAdvantage",-3.0,3.0);
@@ -1029,24 +1032,24 @@ static string boardSizeToStr(int boardXSize, int boardYSize) {
 }
 
 static int getAutoPatternIntParam(ConfigParser& cfg, const string& param, int boardXSize, int boardYSize, int min, int max) {
-  if(!cfg.contains(param))
-    throw ConfigParsingError(param + " was not specified in the config");
   if(cfg.contains(param + boardSizeToStr(boardXSize,boardYSize)))
     return cfg.getInt(param + boardSizeToStr(boardXSize,boardYSize), min, max);
+  if(!cfg.contains(param))
+    throw ConfigParsingError(param + " was not specified in the config");
   return cfg.getInt(param, min, max);
 }
 static int64_t getAutoPatternInt64Param(ConfigParser& cfg, const string& param, int boardXSize, int boardYSize, int64_t min, int64_t max) {
-  if(!cfg.contains(param))
-    throw ConfigParsingError(param + " was not specified in the config");
   if(cfg.contains(param + boardSizeToStr(boardXSize,boardYSize)))
     return cfg.getInt64(param + boardSizeToStr(boardXSize,boardYSize), min, max);
+  if(!cfg.contains(param))
+    throw ConfigParsingError(param + " was not specified in the config");
   return cfg.getInt64(param, min, max);
 }
 static double getAutoPatternDoubleParam(ConfigParser& cfg, const string& param, int boardXSize, int boardYSize, double min, double max) {
-  if(!cfg.contains(param))
-    throw ConfigParsingError(param + " was not specified in the config");
   if(cfg.contains(param + boardSizeToStr(boardXSize,boardYSize)))
     return cfg.getDouble(param + boardSizeToStr(boardXSize,boardYSize), min, max);
+  if(!cfg.contains(param))
+    throw ConfigParsingError(param + " was not specified in the config");
   return cfg.getDouble(param, min, max);
 }
 
@@ -1124,6 +1127,14 @@ std::unique_ptr<PatternBonusTable> Setup::loadAndPruneAutoPatternBonusTables(Con
       string logSource = dirPath;
       patternBonusTable->avoidRepeatedPosMovesAndDeleteExcessFiles({baseDir + "/" + dirName},penalty,lambda,minTurnNumber,maxTurnNumber,maxPoses,logger,logSource);
     }
+
+
+    cfg.markAllKeysUsedWithPrefix("autoAvoidRepeatUtility");
+    cfg.markAllKeysUsedWithPrefix("autoAvoidRepeatLambda");
+    cfg.markAllKeysUsedWithPrefix("autoAvoidRepeatMinTurnNumber");
+    cfg.markAllKeysUsedWithPrefix("autoAvoidRepeatMaxTurnNumber");
+    cfg.markAllKeysUsedWithPrefix("autoAvoidRepeatMaxPoses");
+    cfg.markAllKeysUsedWithPrefix("autoAvoidRepeatSaveChunkSize");
   }
   return patternBonusTable;
 }

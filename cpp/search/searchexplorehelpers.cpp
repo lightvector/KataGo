@@ -572,11 +572,15 @@ void Search::selectBestChildToDescend(
       bestChildIdx = numChildrenFound;
       bestChildMoveLoc = Board::PASS_LOC;
       countEdgeVisit = false;
+      // Specifically for these special extra-pass search playouts, we don't count them for the purpose of visit/playout limits.
+      thread.shouldCountPlayout = false;
     }
     else if(!hasNonPassMove && bestChildMoveLoc == Board::PASS_LOC && bestNewMoveLoc != Board::PASS_LOC) {
       bestChildIdx = numChildrenFound;
       bestChildMoveLoc = bestNewMoveLoc;
       countEdgeVisit = false;
+      // Specifically for these special extra-pass search playouts, we don't count them for the purpose of visit/playout limits.
+      thread.shouldCountPlayout = false;
     }
   }
 

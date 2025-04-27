@@ -3,6 +3,7 @@
 #include "../core/fileutils.h"
 #include "../core/sha2.h"
 #include "../dataio/files.h"
+#include "../program/playutils.h"
 
 #include "../external/nlohmann_json/json.hpp"
 
@@ -420,7 +421,11 @@ float SgfNode::getKomiOrDefault(float defaultKomi) const {
     //Hack - if the komi is a quarter integer and it looks like a Chinese GoGoD file, then double komi and accept
     if(Rules::komiIsIntOrHalfInt(komi*2.0f) && hasProperty("US") && hasProperty("RU") &&
        Global::isPrefix(getSingleProperty("US"),"GoGoD") &&
-       Global::toLower(getSingleProperty("RU")) == "chinese")
+       (
+         Global::toLower(getSingleProperty("RU")) == "chinese" ||
+         Global::toLower(getSingleProperty("RU")) == "chinese, pair go"
+       )
+    )
       komi *= 2.0f;
     else
       propertyFail("Komi in sgf is not integer or half-integer");
@@ -428,7 +433,7 @@ float SgfNode::getKomiOrDefault(float defaultKomi) const {
 
   //Hack - check for foxwq sgfs with weird komis
   if(hasProperty("AP") && contains(getProperties("AP"),"foxwq")) {
-    if(komi == 550)
+    if(komi == 550 || komi == 275)
       komi = 5.5f;
     else if(komi == 325 || komi == 650)
       komi = 6.5f;
@@ -796,12 +801,14 @@ void Sgf::iterAllPositionsHelper(
       samplePositionHelper(board,hist,nextPla,sampleBuf,uniqueHashes,requireUnique,hashComments,hashParent,flipIfPassOrWFirst,allowGameOver,comments,f);
     }
 
+    Color plColor = nodes[i]->getPLSpecifiedColor();
+
     //Handle placements
-    if(nodes[i]->hasPlacements()) {
+    if(nodes[i]->hasPlacements() || (plColor != C_EMPTY && plColor != nextPla)) {
       buf.clear();
       nodes[i]->accumPlacements(buf,xSize,ySize);
+      int netStonesAdded = 0;
       if(buf.size() > 0) {
-        int netStonesAdded = 0;
         for(size_t j = 0; j<buf.size(); j++) {
           if(board.colors[buf[j].loc] != C_EMPTY && buf[j].pla == C_EMPTY)
             netStonesAdded--;
@@ -821,9 +828,12 @@ void Sgf::iterAllPositionsHelper(
             "Illegal placements in " + fileName + " SGF trace (branches 0-indexed): " + trace.str()
           );
         }
+      }
 
+      if(buf.size() > 0 || (plColor != C_EMPTY && plColor != nextPla)) {
         board.clearSimpleKoLoc();
-        //Clear history any time placements happen, but make sure we track the initial turn number.
+
+        //Clear history any time placements or player change happen, but make sure we track the initial turn number.
         int64_t initialTurnNumber = hist.initialTurnNumber;
         initialTurnNumber += (int64_t)hist.moveHistory.size();
 
@@ -836,6 +846,9 @@ void Sgf::iterAllPositionsHelper(
         if(board.numStonesOnBoard() > initialTurnNumber)
           initialTurnNumber = board.numStonesOnBoard();
 
+        if(plColor != C_EMPTY && plColor != nextPla) {
+          nextPla = plColor;
+        }
         hist.clear(board,nextPla,rules,0);
         hist.setInitialTurnNumber(initialTurnNumber);
       }
@@ -861,7 +874,7 @@ void Sgf::iterAllPositionsHelper(
         // trace << Location::toString(buf[j].loc,board) << endl;
 
         throw StringError(
-          "Illegal move in " + fileName + " effective turn " + Global::int64ToString(j+hist.initialTurnNumber) + " move " +
+          "Illegal move in " + fileName + " effective turn " + Global::int64ToString((int64_t)(hist.moveHistory.size())+hist.initialTurnNumber) + " move " +
           Location::toString(buf[j].loc, board.x_size, board.y_size) + " SGF trace (branches 0-indexed): " + trace.str()
         );
       }
@@ -1125,21 +1138,21 @@ Sgf::PositionSample Sgf::PositionSample::previousPosition(double newWeight) cons
   return other;
 }
 
-BoardHistory Sgf::PositionSample::getCurrentBoardHistory(const Rules& rules, Player& nextPlaToMove) const {
+bool Sgf::PositionSample::tryGetCurrentBoardHistory(const Rules& rules, Player& nextPlaToMove, BoardHistory& hist) const {
   int encorePhase = 0;
   Player pla = nextPla;
   Board boardCopy = board;
-  BoardHistory hist(boardCopy,pla,rules,encorePhase);
+  hist.clear(boardCopy,pla,rules,encorePhase);
   int numSampleMoves = (int)moves.size();
   for(int i = 0; i<numSampleMoves; i++) {
     if(!hist.isLegal(boardCopy,moves[i].loc,moves[i].pla))
-      return hist;
+      return false;
     assert(moves[i].pla == pla);
     hist.makeBoardMoveAssumeLegal(boardCopy,moves[i].loc,moves[i].pla,NULL);
     pla = getOpp(pla);
   }
   nextPlaToMove = pla;
-  return hist;
+  return true;
 }
 
 int64_t Sgf::PositionSample::getCurrentTurnNumber() const {
@@ -1349,6 +1362,55 @@ static Sgf* maybeParseSgf(const string& str, int& pos) {
   catch (...) {
     delete sgf;
     throw;
+  }
+
+  // Hack for missing handicap placements in fox
+  int handicap = 0;
+  if(sgf->nodes.size() > 1
+     && sgf->nodes[0]->hasProperty("AP")
+     && (
+       contains(sgf->nodes[0]->getProperties("AP"),"foxwq")
+       || (
+         contains(sgf->nodes[0]->getProperties("AP"),"GNU Go:3.8") // Some older fox games are labeled as gnugo only
+         && sgf->getRootPropertyWithDefault("GN","-") == "" // But also have this identifying characteristic
+       )
+     )
+     && sgf->getRootPropertyWithDefault("SZ","") == "19"
+     && !sgf->nodes[0]->hasPlacements()
+     && sgf->nodes[0]->move.pla == C_EMPTY
+     && sgf->nodes[1]->move.pla == C_WHITE
+     && Global::tryStringToInt(sgf->getRootPropertyWithDefault("HA",""),handicap)
+     && handicap >= 2
+     && handicap <= 9
+  ) {
+    Board board(19,19);
+    PlayUtils::placeFixedHandicap(board, handicap);
+    // Older fox sgfs used handicaps with side stones on the north and south rather than east and west
+    if(handicap == 6 || handicap == 7) {
+      if(sgf->hasRootProperty("DT")) {
+        bool suc = false;
+        SimpleDate date;
+        try {
+          date = SimpleDate(sgf->getRootPropertyWithDefault("DT",""));
+          suc = true;
+        }
+        catch(const StringError&) {}
+        if(suc && date < SimpleDate(2018,1,1)) {
+          board = SymmetryHelpers::getSymBoard(board,4);
+          }
+      }
+    }
+
+    for(int y = 0; y<board.y_size; y++) {
+      for(int x = 0; x<board.x_size; x++) {
+        Loc loc = Location::getLoc(x,y,board.x_size);
+        if(board.colors[loc] == C_BLACK) {
+          ostringstream out;
+          writeSgfLoc(out, Location::getLoc(x,y,board.x_size), board.x_size, board.y_size);
+          sgf->addRootProperty("AB",out.str());
+        }
+      }
+    }
   }
   return sgf;
 }

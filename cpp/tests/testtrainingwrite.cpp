@@ -108,7 +108,7 @@ void Tests::runTrainingWriteTests() {
     bool doEndGameIfAllPassAlive = cheapLongSgf ? false : true;
     bool clearBotAfterSearch = true;
     int maxMovesPerGame = cheapLongSgf ? 200 : 40;
-    auto shouldStop = []() { return false; };
+    auto shouldStop = []() noexcept { return false; };
     WaitableFlag* shouldPause = nullptr;
     PlaySettings playSettings;
     playSettings.initGamesWithPolicy = true;
@@ -240,7 +240,7 @@ void Tests::runSelfplayInitTestsWithNN(const string& modelFile) {
     bool doEndGameIfAllPassAlive = true;
     bool clearBotAfterSearch = true;
     int maxMovesPerGame = 1;
-    auto shouldStop = []() { return false; };
+    auto shouldStop = []() noexcept { return false; };
     WaitableFlag* shouldPause = nullptr;
     PlaySettings playSettings;
     playSettings.initGamesWithPolicy = true;
@@ -440,7 +440,7 @@ void Tests::runMoreSelfplayTestsWithNN(const string& modelFile) {
     bool doEndGameIfAllPassAlive = true;
     bool clearBotAfterSearch = true;
     int maxMovesPerGame = testResign ? 10000 : (testLead || testPolicySurpriseWeight || testValueSurpriseWeight) ? 30 : 15;
-    auto shouldStop = []() { return false; };
+    auto shouldStop = []() noexcept { return false; };
     WaitableFlag* shouldPause = nullptr;
     PlaySettings playSettings;
     playSettings.initGamesWithPolicy = true;
@@ -601,7 +601,7 @@ void Tests::runMoreSelfplayTestsWithNN(const string& modelFile) {
     bool doEndGameIfAllPassAlive = true;
     bool clearBotAfterSearch = true;
     int maxMovesPerGame = 20;
-    auto shouldStop = []() { return false; };
+    auto shouldStop = []() noexcept { return false; };
     WaitableFlag* shouldPause = nullptr;
     PlaySettings playSettings;
     playSettings.initGamesWithPolicy = true;
@@ -925,7 +925,7 @@ xxxxxxxx.
     ForkData* forkData = new ForkData();
 
     GameRunner* gameRunner = new GameRunner(cfg, "game init test game seed", playSettings, logger);
-    auto shouldStop = []() { return false; };
+    auto shouldStop = []() noexcept { return false; };
     WaitableFlag* shouldPause = nullptr;
     for(int i = 0; i<100; i++) {
       string seed = "game init test search seed:" + Global::int64ToString(i);
@@ -1017,7 +1017,7 @@ xxxxxxxx.
         bool doEndGameIfAllPassAlive = true;
         bool clearBotAfterSearch = true;
         int maxMovesPerGame = 5;
-        auto shouldStop = []() { return false; };
+        auto shouldStop = []() noexcept { return false; };
         WaitableFlag* shouldPause = nullptr;
 
         string searchRandSeed = "target testing" + Global::intToString((int)i);
@@ -1142,7 +1142,7 @@ xxxxxxxx.
       ConfigParser cfg(cfgParams);
       ForkData* forkData = new ForkData();
       GameRunner* gameRunner = new GameRunner(cfg, seed, playSettings, logger);
-      auto shouldStop = []() { return false; };
+      auto shouldStop = []() noexcept { return false; };
       WaitableFlag* shouldPause = nullptr;
       TrainingDataWriter dataWriter(&cout,inputsVersion, maxRows, firstFileMinRandProp, 9, 9, debugOnlyWriteEvery, seed);
 
@@ -1173,7 +1173,7 @@ xxxxxxxx.
       ConfigParser cfg(cfgParams);
       ForkData* forkData = new ForkData();
       GameRunner* gameRunner = new GameRunner(cfg, seed, playSettings, logger);
-      auto shouldStop = []() { return false; };
+      auto shouldStop = []() noexcept { return false; };
       WaitableFlag* shouldPause = nullptr;
       TrainingDataWriter dataWriter(&cout,inputsVersion, maxRows, firstFileMinRandProp, 9, 9, debugOnlyWriteEvery, seed);
 
@@ -1284,7 +1284,7 @@ xxxxxxxx.
       ConfigParser cfg(cfgParams);
       ForkData* forkData = new ForkData();
       GameRunner* gameRunner = new GameRunner(cfg, seed, playSettings, logger);
-      auto shouldStop = []() { return false; };
+      auto shouldStop = []() noexcept { return false; };
       WaitableFlag* shouldPause = nullptr;
       TrainingDataWriter dataWriter(&cout,inputsVersion, maxRows, firstFileMinRandProp, 9, 9, debugOnlyWriteEvery, seed);
 
@@ -1355,7 +1355,7 @@ void Tests::runSelfplayStatTestsWithNN(const string& modelFile) {
     ConfigParser cfg(cfgParams);
     ForkData* forkData = new ForkData();
     GameRunner* gameRunner = new GameRunner(cfg, "game init stattest1", playSettings, logger);
-    auto shouldStop = []() { return false; };
+    auto shouldStop = []() noexcept { return false; };
     WaitableFlag* shouldPause = nullptr;
 
     std::map<float,int> komiDistribution;
@@ -2691,7 +2691,7 @@ void Tests::runSekiTrainWriteTests(const string& modelFile) {
     bool doEndGameIfAllPassAlive = true;
     bool clearBotAfterSearch = true;
     int maxMovesPerGame = 1;
-    auto shouldStop = []() { return false; };
+    auto shouldStop = []() noexcept { return false; };
     WaitableFlag* shouldPause = nullptr;
     PlaySettings playSettings;
     playSettings.initGamesWithPolicy = false;

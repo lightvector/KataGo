@@ -469,7 +469,7 @@ int MainCmds::gatekeeper(const vector<string>& args) {
     netAndStuff->registerGameThread();
     logger.write("Game loop thread " + Global::intToString(threadIdx) + " starting game testing candidate: " + netAndStuff->modelNameCandidate);
 
-    auto shouldStopFunc = [&netAndStuff]() {
+    auto shouldStopFunc = [&netAndStuff]() noexcept {
       return shouldStop.load() || netAndStuff->terminated.load();
     };
     WaitableFlag* shouldPause = nullptr;

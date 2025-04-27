@@ -4,9 +4,9 @@ If you'd also like to run the full self-play loop and train your own neural nets
 
 There are 5 things that need to all run to form a closed self-play training loop.
    * Selfplay engine (C++ - `cpp/katago selfplay`) - continuously plays games using the latest neural net in some directory of accepted models, writing the data to some directory.
-   * Shuffler (python - `python/shuffle.py`) - scans directories of data from selfplay and shuffles it to produce TFRecord files to write to some directory.
-   * Training (python - `python/train.py`) - continuously trains a neural net using TFRecord files from some directory, saving models periodically to some directory.
-   * Exporter (python - `python/export_model.py`) - scans a directory of saved models and converts from Tensorflow's format to the format that all the C++ uses, exporting to some directory.
+   * Shuffler (python - `python/shuffle.py`) - scans directories of data from selfplay and shuffles it to produce npz files to write to some directory.
+   * Training (python - `python/train.py`) - continuously trains a neural net using npz files from some directory, saving models periodically to some directory.
+   * Exporter (python - `python/export_model.py`) - scans a directory of saved models and converts from Pytorch .ckpt format to the format that all the C++ uses, exporting to some directory.
    * Gatekeeper (C++ - `cpp/katago gatekeeper`) - polls a directory of newly exported models, plays games against the latest model in an accepted models directory, and if the new model passes, moves it to the accepted models directory. OPTIONAL, it is also possible to train just accepting every new model.
 
 ### Simple One-Machine Synchronous Training

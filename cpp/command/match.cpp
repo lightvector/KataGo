@@ -262,7 +262,7 @@ int MainCmds::match(const vector<string>& args) {
       sgfOut = new ofstream();
       FileUtils::open(*sgfOut, sgfOutputDir + "/" + Global::uint64ToHexString(threadHash) + ".sgfs");
     }
-    auto shouldStopFunc = []() {
+    auto shouldStopFunc = []() noexcept {
       return shouldStop.load();
     };
     WaitableFlag* shouldPause = nullptr;

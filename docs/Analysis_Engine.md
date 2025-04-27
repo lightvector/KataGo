@@ -249,7 +249,8 @@ Current fields are:
       * `utilityLcb` - The LCB of the move's utility.
       * `weight` - The total weight of the visits that the child node received. The average weight of visits may be lower when less certain, and larger when more certain.
       * `edgeWeight` - The total weight of the visits the parent wants to invest into the move. The average weight of visits may be lower when less certain, and larger when more certain.
-      * `order` - KataGo's ranking of the move. 0 is the best, 1 is the next best, and so on.
+      * `order` - KataGo's ordinal ranking of the move. 0 is the best, 1 is the next best, and so on.
+      * `playSelectionValue` - The value used to compute `order`. KataGo chooses the move with the maximum playSelectionValue, which is based on a combination of winrate, score, and other properties. When playing with randomization (i.e. in GTP, rather than the Analysis Engine), KataGo chooses moves proportional to this value raised to a constant depending on the temperature.
       * `isSymmetryOf` - Another legal move. Possibly present if KataGo is configured to avoid searching some moves due to symmetry (`rootSymmetryPruning=true`). If present, this move was not actually searched, and all of its stats and PV are copied symmetrically from that other move.
       * `pv` - The principal variation ("PV") following this move. May be of variable length or even empty.
       * `pvVisits` - The number of visits used to explore the position resulting from each move in `pv`. Exists only if `includePVVisits` is true.

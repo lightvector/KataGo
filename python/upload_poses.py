@@ -189,6 +189,8 @@ elif weight_factor is not None:
         pos["weight"] *= weight_factor
 
 def postStuff(to_post):
+    if len(to_post) == 0:
+        return
     url = base_server_url + "api/startposes/"
     result = requests.post(url,json=to_post,auth=HTTPBasicAuth(username,password))
     log("Post status code: " + str(result.status_code))

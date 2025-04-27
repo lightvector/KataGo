@@ -2,15 +2,15 @@
 This is a summary of some of the most notable python files here. Some of the less important or minor scripts are left out, but this covers the most notable ones:
 
 ### Main Training Loop
-These are the critical scripts needed for training neural nets.
+These are the most critical scripts needed for training neural nets.
 
-* `tfrecordio.py` - Used by `shuffle.py`, helpers for the TFRecord format for shuffling.
-* `shuffle.py` - Shuffles the data for neural net training and writes it into TFRecords, `used by selfplay/shuffle.sh`.
-* `model.py` - Implementation of the neural net and loss functions in Tensorflow 1.15.
-  * Also contains implementations of the input features, which are NOT used during training because all of it has been computed by the C++ already. But they should work and allong with `board.py` and `data.py` should allow the ability to apply the raw neural net to board positions and SGF files from the python code.
+* `shuffle.py` - Shuffles the data for neural net training and writes it into npz files, `used by selfplay/shuffle.sh`.
+* `data_processing_pytorch.py` - Helpers for loading training data and augmenting it, used by training scripts.
+* `model_pytorch.py` - Implementation of the neural net and all the subcomponents of the neural net architecture.
+* `metrics_pytorch.py` - Implementation of loss functions and other metrics for training.
 * `modelconfigs.py` - Specific channel and block configurations for different-sized nets. These are codes that you can supply to `train.py` as an argument to pick the net size.
 * `train.py` - Trains the neural net using the shuffled data and saves it to a SavedModel periodically, used by `selfplay/train.sh`.
-* `export_model.py` - Exports the trained neural net SavedModel to KataGo's .bin.gz format. Used by `selfplay/export_model_for_selfplay.sh`.
+* `export_model.py` - Exports the trained neural net pytorch checkpoints to KataGo's .bin.gz format. Used by `selfplay/export_model_for_selfplay.sh`.
 
 And:
 
@@ -19,13 +19,13 @@ And:
 ### Auxiliary scripts
 These are some scripts on the side that might be useful for debugging or experimentation. These are more or less NOT used in training, because normally the C++ selfplay code does all of the work in implementing the board, writing out the input features and data produced from selfplay games, etc. These scripts are a bit more likely than the ones above to suffer from code rot and to be stale, since they aren't used a lot.
 
-* `board.py` - Implementation of Go board, analogous to ../cpp/game/board.{cpp,h}. NOT used in training.
+* `board.py`, `gamestate.py` - Implementation of Go board, analogous to ../cpp/game/*. NOT used in training.
+* `features.py` - Implements input features to the neural net, which are NOT used during training because all of it has been computed by the C++ already for training data. But supports other scripts like `play.py` to perform queries to the neural net for board positions and SGF files from the python code.
 * `data.py` - Loads SGF files.
-* `test.py` - Runs a model on some shuffled TFRecord data *without* doing gradient updates - instead just reports the stats.
-* `visualize.py` - Slightly sandboxy script, lets you dump out the raw weight tensors from a model.
+* `test.py` - Runs a model on some shuffled training data *without* doing gradient updates - instead just reports the stats.
 
 And:
-* `play.py` - A working very primitive GTP engine that just uses the raw neural net to make moves. Also implements a ton of GTP extensions to draw colored heatmaps in GoGUI. This or `test.py` are good places to look if you're interested in how to use the raw Tensorflow weights for direct inference in python.
+* `play.py` - A working very primitive GTP engine that just uses the raw neural net to make moves. Also implements a ton of GTP extensions to draw colored heatmaps in GoGUI. This or `test.py` are good places to look if you're interested in how to use the raw pytorch checkpoints for direct inference in python, rather than using the C++ KataGo engine.
 
 
 ### Distributed backend
