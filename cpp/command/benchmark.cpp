@@ -662,7 +662,7 @@ int MainCmds::genconfig(const vector<string>& args, const string& firstCommand) 
     string prompt =
       "NOTE: No limits configured for KataGo. KataGo will obey time controls provided by the GUI or server or match script\n"
       "but if they don't specify any, when playing games KataGo may think forever without moving. (press enter to continue)\n";
-    promptAndParseInput(prompt, [&](const string& line) {
+    promptAndParseInput(prompt, [&](const string& line) noexcept {
         (void)line;
       });
   }

@@ -50,7 +50,7 @@ double FancyMath::evaluateContinuedFraction(const function<double(int)>& numer, 
 
 //Textbook continued fraction term for incomplete beta function
 static double incompleteBetaContinuedFraction(double x, double a, double b) {
-  auto numer = [x,a,b](int n) {
+  auto numer = [x,a,b](int n) noexcept {
     if(n % 2 == 0) {
       double m = n / 2;
       return m * (b-m) * x / (a + 2.0*m - 1.0) / (a + 2.0*m);
@@ -60,7 +60,7 @@ static double incompleteBetaContinuedFraction(double x, double a, double b) {
       return -(a+m) * (a+b+m) * x / (a + 2.0*m) / (a + 2.0*m + 1.0);
     }
   };
-  auto denom = [](int n) { (void)n; return 1.0; };
+  auto denom = [](int n) noexcept { (void)n; return 1.0; };
   return evaluateContinuedFractionHelper(numer, denom, 1e-15, 100000);
 }
 
@@ -174,23 +174,23 @@ void FancyMath::runTests() {
     double y;
 
     x = (1.0 + sqrt(5)) / 2.0;
-    y = evaluateContinuedFraction([](int n) { (void)n; return 1.0; }, [](int n) { (void)n; return 1.0; }, 1e-15, 1000);
+    y = evaluateContinuedFraction([](int n) noexcept { (void)n; return 1.0; }, [](int n) noexcept { (void)n; return 1.0; }, 1e-15, 1000);
     APPROX_EQ(x,y,1e-14);
 
     x = sqrt(2);
-    y = evaluateContinuedFraction([](int n) { (void)n; return 1.0; }, [](int n) { return n == 0 ? 1.0 : 2.0; }, 1e-15, 1000);
+    y = evaluateContinuedFraction([](int n) noexcept { (void)n; return 1.0; }, [](int n) noexcept { return n == 0 ? 1.0 : 2.0; }, 1e-15, 1000);
     APPROX_EQ(x,y,1e-14);
 
     x = exp(1);
-    y = evaluateContinuedFraction([](int n) { (void)n; return 1.0; }, [](int n) { return n == 0 ? 2.0 : n%3 == 2 ? (double)((n+1)/3*2) : 1.0; }, 1e-15, 1000);
+    y = evaluateContinuedFraction([](int n) noexcept { (void)n; return 1.0; }, [](int n) noexcept { return n == 0 ? 2.0 : n%3 == 2 ? (double)((n+1)/3*2) : 1.0; }, 1e-15, 1000);
     APPROX_EQ(x,y,1e-14);
 
     x = PI;
-    y = evaluateContinuedFraction([](int n) { return (n*2-1)*(n*2-1); }, [](int n) { return n == 0 ? 3.0 : 6.0; }, 1e-15, 10000);
+    y = evaluateContinuedFraction([](int n) noexcept { return (n*2-1)*(n*2-1); }, [](int n) noexcept { return n == 0 ? 3.0 : 6.0; }, 1e-15, 10000);
     APPROX_EQ(x,y,1e-10);
-    y = evaluateContinuedFraction([](int n) { return n == 1 ? 4 : ((n-1)*(n-1)*4-1); }, [](int n) { return n == 0 ? 2.0 : n == 1 ? 3.0 : 4.0; }, 1e-15, 10000);
+    y = evaluateContinuedFraction([](int n) noexcept { return n == 1 ? 4 : ((n-1)*(n-1)*4-1); }, [](int n) noexcept { return n == 0 ? 2.0 : n == 1 ? 3.0 : 4.0; }, 1e-15, 10000);
     APPROX_EQ(x,y,1e-8);
-    y = evaluateContinuedFraction([](int n) { return n == 1 ? 2 : n*(n-1); }, [](int n) { return n == 0 ? 2.0 : 1.0; }, 1e-15, 10000);
+    y = evaluateContinuedFraction([](int n) noexcept { return n == 1 ? 2 : n*(n-1); }, [](int n) noexcept { return n == 0 ? 2.0 : 1.0; }, 1e-15, 10000);
     APPROX_EQ(x,y,1e-3);
   }
 
