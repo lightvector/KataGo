@@ -17,7 +17,13 @@ then
 fi
 
 # cd /g/Projects/KataGo-Noise/python
-# ./selfplay/noise.sh /g/Projects/KataGo-Noise/Training/BaseDir kata1-b28c512nbt b28c512nbt 1.0 5000
+# ./selfplay/noise.sh /g/Projects/KataGo-Noise/Training/BaseDir kata1-b28c512nbt b28c512nbt 0.5 150000
+
+# ~ 0.45s / round
+# 1000: 7.5mins
+# 10000: 1.25h
+# 50000: 6.25h
+# 100000: 12.5h
 
 
 BASEDIR="$1"

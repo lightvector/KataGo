@@ -19,6 +19,8 @@ import logging
 import load_model
 import time
 import shutil
+import json
+import traceback
 
 def save(savepath, model, swa_model, optimizer, train_state, metrics, model_config):
     state_dict = {}
@@ -143,25 +145,29 @@ def generate_noise(param, group_name, noise_scale, iterations = 1000, i = 0):
 # var = sum((v - mean) ** 2 if isinstance(v, float) else (v[0] - mean) ** 2 for v in values) / len(values)
 
 def read_latest_update_ratios(train_dir, num_lines_to_check=1200):
-    """从 stdout.txt 文件中高效读取最新的 update ratio 数据"""
-    file_path = os.path.join(train_dir, "stdout.txt")
+    """从 stdout.txt 文件中高效读取最新的 update ratio 数据，并与 ratios.txt 中的数据进行加权平均"""
     
+    stdout_file_path = os.path.join(train_dir, "stdout.txt")
+    ratios_file_path = os.path.join(train_dir, "ratios.txt")
+    
+    # 从 stdout.txt 读取数据
     abs_means = {}
     abs_vars = {}
     update_means = {}
     update_vars = {}
+    data_lengths = {}  # 存储每个参数组的数据长度
     
     current_section = None
     current_key = None
     
     try:
-        with open(file_path, 'r', encoding='utf-8') as f:
+        with open(stdout_file_path, 'r', encoding='utf-8') as f:
             # 移动到文件末尾
             f.seek(0, 2)
             position = f.tell()
             lines = []
             
-            # 向前读取指定行数（例如 1000 行）
+            # 向前读取指定行数
             while position > 0 and len(lines) < num_lines_to_check:
                 position -= 1
                 f.seek(position)
@@ -207,12 +213,115 @@ def read_latest_update_ratios(train_dir, num_lines_to_check=1200):
                         abs_vars[current_key] = value
                     else:
                         update_vars[current_key] = value
+                
+                # 提取数据长度
+                if line.startswith("data length:") and current_key:
+                    length = int(line.split(":")[1].strip())
+                    key_with_section = f"{current_section}_{current_key}"
+                    data_lengths[key_with_section] = length
         
-        print(f"成功从 {file_path} 读取最新的 update ratios")
-        return abs_means, abs_vars, update_means, update_vars
+        # 尝试读取 ratios.txt 文件中的数据
+        old_data = {}
+        try:
+            if os.path.exists(ratios_file_path):
+                with open(ratios_file_path, 'r', encoding='utf-8') as f:
+                    old_data = json.load(f)
+        except Exception as e:
+            print(f"Failed to read {ratios_file_path}: {e}")
+            old_data = {}
+        
+        # 提取旧数据
+        old_abs_means = old_data.get('abs_means', {})
+        old_abs_vars = old_data.get('abs_vars', {})
+        old_update_means = old_data.get('update_means', {})
+        old_update_vars = old_data.get('update_vars', {})
+        old_data_lengths = old_data.get('data_lengths', {})
+        
+        # 合并数据
+        combined_abs_means = {}
+        combined_abs_vars = {}
+        combined_update_means = {}
+        combined_update_vars = {}
+        combined_data_lengths = old_data_lengths.copy()
+        
+        # 处理 abs 数据
+        for key in set(abs_means.keys()) | set(old_abs_means.keys()):
+            old_length = old_data_lengths.get(f"abs_{key}", 0)
+            new_length = data_lengths.get(f"abs_{key}", 0)
+            
+            if key in abs_means and key in old_abs_means and old_length > 0 and new_length > 0:
+                # 两个来源都有数据，做加权平均
+                total_length = old_length + new_length
+                weight_old = old_length / total_length
+                weight_new = new_length / total_length
+                
+                combined_abs_means[key] = old_abs_means[key] * weight_old + abs_means[key] * weight_new
+                combined_abs_vars[key] = old_abs_vars[key] * weight_old + abs_vars[key] * weight_new
+                combined_data_lengths[f"abs_{key}"] = total_length
+            elif key in abs_means:
+                # 只有新数据
+                combined_abs_means[key] = abs_means[key]
+                combined_abs_vars[key] = abs_vars[key]
+                combined_data_lengths[f"abs_{key}"] = new_length
+            else:
+                # 只有旧数据
+                combined_abs_means[key] = old_abs_means[key]
+                combined_abs_vars[key] = old_abs_vars[key]
+                # 数据长度保持不变
+
+            if combined_abs_means[key] == old_abs_means[key] and combined_abs_vars[key] == old_abs_vars[key]:
+                combined_data_lengths[f"abs_{key}"] = old_length
+        
+        # 处理 update 数据
+        for key in set(update_means.keys()) | set(old_update_means.keys()):
+            old_length = old_data_lengths.get(f"update_{key}", 0)
+            new_length = data_lengths.get(f"update_{key}", 0)
+            
+            if key in update_means and key in old_update_means and old_length > 0 and new_length > 0:
+                # 两个来源都有数据，做加权平均
+                total_length = old_length + new_length
+                weight_old = old_length / total_length
+                weight_new = new_length / total_length
+                
+                combined_update_means[key] = old_update_means[key] * weight_old + update_means[key] * weight_new
+                combined_update_vars[key] = old_update_vars[key] * weight_old + update_vars[key] * weight_new
+                combined_data_lengths[f"update_{key}"] = total_length
+            elif key in update_means:
+                # 只有新数据
+                combined_update_means[key] = update_means[key]
+                combined_update_vars[key] = update_vars[key]
+                combined_data_lengths[f"update_{key}"] = new_length
+            else:
+                # 只有旧数据
+                combined_update_means[key] = old_update_means[key]
+                combined_update_vars[key] = old_update_vars[key]
+                # 数据长度保持不变
+
+            if combined_update_means[key] == old_update_means[key] and combined_update_vars[key] == old_update_vars[key]:
+                combined_data_lengths[f"update_{key}"] = old_length
+        
+        # 保存合并后的数据到 ratios.txt
+        combined_data = {
+            'abs_means': combined_abs_means,
+            'abs_vars': combined_abs_vars,
+            'update_means': combined_update_means,
+            'update_vars': combined_update_vars,
+            'data_lengths': combined_data_lengths
+        }
+        
+        try:
+            with open(ratios_file_path, 'w', encoding='utf-8') as f:
+                json.dump(combined_data, f, indent=2)
+            print(f"Successfully wrote combined data to {ratios_file_path}")
+        except Exception as e:
+            print(f"Failed to write combined data to {ratios_file_path}: {e}")
+        
+        # 返回合并后的数据
+        return combined_abs_means, combined_abs_vars, combined_update_means, combined_update_vars
     
     except Exception as e:
-        print(f"读取 {file_path} 时出错: {e}")
+        print(f"Error reading stdout.txt: {e}")
+        traceback.print_exc()
         return {}, {}, {}, {}
 
 abs_update_ratio_means = {
@@ -262,8 +371,6 @@ update_ratio_vars = {
     'intermediate_policy': 7.340983634223755e-10,
     'intermediate_value': 2.107397687042172e-05,
 }
-
-
 
 
 def main():
