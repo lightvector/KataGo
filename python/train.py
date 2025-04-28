@@ -1032,12 +1032,12 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
             # noise_params = {"flag": 0, "shift": False, "acc1_threshold_low": 0.45, "acc1_threshold_up": 0.47, "rand": 0.0, "prob": 0.25}
             # 记录更新量
             param_updates = {}
-            # 新增统计信息存储
+            # 存储统计数据
             stats = {
                 'abs_update_ratio': {},
                 'update_ratio': {},
-                'weight': {},
-                'gradient': {}
+                # 'weight': {},
+                # 'gradient': {},
             }
             
             for batch in data_processing_pytorch.read_npz_training_data(
@@ -1111,7 +1111,7 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
                 # noise_params["rand"] <= noise_params["prob"] and 
                 # if not noise_params["flag"]:
 
-                stats['weight'] = {}
+                # stats['weight'] = {}
                 with torch.no_grad():
                     for param_group in optimizer.param_groups:
                         lr = param_group['lr']
@@ -1124,12 +1124,7 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
                             update = param_updates[param]
                             abs_update_ratio = update.abs().mean().item() / param.data.abs().mean().item()
                             update_ratio = update.mean().item() / param.data.mean().item()
-                            # weight_mean = param.data.mean().item()
-                            # weight_var = param.data.var().item()
-                            # grad_mean = update.mean().item()
-                            # grad_var = update.var().item()
 
-                            # 分配到参数组
                             group_name = None
                             if 'conv_spatial' in name:
                                 group_name = 'conv_spatial'
@@ -1157,30 +1152,25 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
                                 else:
                                     group_name = 'value_head'
 
-                            # 
-                            # ,
-                            # ('weight', (weight_mean, weight_var)),
-                            # ('gradient', (grad_mean, grad_var))
                             if group_name:
                                 for key, value in [('abs_update_ratio', abs_update_ratio), 
                                                    ('update_ratio', update_ratio)]:
                                     if group_name not in stats[key]:
-                                        stats[key][group_name] = []
+                                        stats[key][group_name] = {'sum': 0.0, 'sum_sq': 0.0, 'count': 0}
                                     
-                                    stats[key][group_name].append(value)
+                                    stats[key][group_name]['sum'] += value
+                                    stats[key][group_name]['sum_sq'] += value ** 2
+                                    stats[key][group_name]['count'] += 1
 
                     # 记录统计信息
                     for stat_name, stat_dict in stats.items():
                         logging.info(f"{stat_name}:")
                         for key, values in stat_dict.items():
-                            mean = sum(v if isinstance(v, float) else v[0] for v in values) / len(values)
-                            var = sum((v - mean) ** 2 if isinstance(v, float) else (v[0] - mean) ** 2 for v in values) / len(values)
-                            # if stat_name in ['weight', 'gradient']:
-                            #     mean_val = mean
-                            #     var_val = sum(v[1] for v in values) / len(values)  # 直接取方差平均
-                            #     logging.info(f"{key} {stat_name}: mean={mean_val}, var={var_val}, data length: {len(values)}")
-                            # else:
-                            logging.info(f"{key} {stat_name}: \nmean={mean}, \nvar={var}, \ndata length: {len(values)}")
+                            count = values['count']
+                            if count > 0:
+                                mean = values['sum'] / count
+                                var = (values['sum_sq'] / count) - (mean ** 2)
+                                logging.info(f"{key} {stat_name}: \nmean={mean}, \nvar={var}, \ndata length: {count}")
                     
 
 

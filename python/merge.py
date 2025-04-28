@@ -152,6 +152,9 @@ def main():
 
         del temp_raw_model
         del temp_swa_model
+        del source_model_state_dict
+        del source_state_dict
+        torch.cuda.empty_cache() if torch.cuda.is_available() else None
 
     iterations = 50
     for i in range(iterations):

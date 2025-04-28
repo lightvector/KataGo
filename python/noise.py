@@ -256,8 +256,9 @@ def read_latest_update_ratios(train_dir, num_lines_to_check=1200):
                 weight_new = new_length / total_length
 
                 # 调整权重
-                weight_new += weight_old / 2
-                weight_old -= weight_old / 2
+                weight_old *= 0.5
+                weight_new += weight_old
+                
                 
                 combined_abs_means[key] = old_abs_means[key] * weight_old + abs_means[key] * weight_new
                 combined_abs_vars[key] = old_abs_vars[key] * weight_old + abs_vars[key] * weight_new
@@ -288,8 +289,8 @@ def read_latest_update_ratios(train_dir, num_lines_to_check=1200):
                 weight_new = new_length / total_length
 
                 # 调整权重
-                weight_new += weight_old / 2
-                weight_old -= weight_old / 2
+                weight_old *= 0.5
+                weight_new += weight_old
                 
                 combined_update_means[key] = old_update_means[key] * weight_old + update_means[key] * weight_new
                 combined_update_vars[key] = old_update_vars[key] * weight_old + update_vars[key] * weight_new
