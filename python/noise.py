@@ -22,7 +22,9 @@ import shutil
 import json
 import traceback
 
-def save(savepath, model, swa_model, optimizer, train_state, metrics, model_config):
+NUM_SHORTTERM_CHECKPOINTS_TO_KEEP = 4
+
+def save(savepath, traindir, model, swa_model, optimizer, train_state, metrics, model_config):
     state_dict = {}
     state_dict["model"] = model.state_dict()
     state_dict["config"] = model_config
@@ -32,6 +34,21 @@ def save(savepath, model, swa_model, optimizer, train_state, metrics, model_conf
     state_dict["train_state"] = train_state
     state_dict["metrics"] = metrics
     torch.save(state_dict, savepath + "/model.ckpt")
+
+    logging.info("Saving checkpoint: " + get_checkpoint_path(traindir))
+    for i in reversed(range(NUM_SHORTTERM_CHECKPOINTS_TO_KEEP-1)):
+        if os.path.exists(get_checkpoint_prev_path(i, traindir)):
+            os.replace(get_checkpoint_prev_path(i, traindir), get_checkpoint_prev_path(i+1, traindir))
+    if os.path.exists(get_checkpoint_path(traindir)):
+        shutil.copy(get_checkpoint_path(traindir), get_checkpoint_prev_path(0, traindir))
+    torch.save(state_dict, get_checkpoint_path(traindir) + ".tmp")
+    os.replace(get_checkpoint_path(traindir) + ".tmp", get_checkpoint_path(traindir))
+
+def get_checkpoint_path(traindir = None):
+    return os.path.join(traindir,"checkpoint.ckpt")
+
+def get_checkpoint_prev_path(i, traindir = None):
+    return os.path.join(traindir,f"checkpoint_prev{i}.ckpt")
 
 def get_raw_model(model_config, pos_len):
     # 创建模型实例
@@ -63,17 +80,19 @@ def generate_noise(param, group_name, noise_scale, iterations = 1000, i = 0):
     sigma_abs = torch.sqrt(torch.tensor(abs_update_ratio_vars[group_name], device=param.device))
     
     mu_rel = update_ratio_means[group_name]
-    mu_rel_t = torch.tensor(mu_rel, device=param.device)
     sigma_rel = torch.sqrt(torch.tensor(update_ratio_vars[group_name], device=param.device))
     
-    # 2. 生成幅度噪声 - 使用真正的截断正态分布
+    # 2. 生成幅度噪声 - 截断正态分布
     # 实现截断正态分布采样 (μ, σ, 下限=0, 上限=None)
     # 为提高效率，使用拒绝采样法
     # 生成标准正态分布样本
     z = torch.randn_like(param.data)
-    # 调整 mu 和 sigma 避免生成过多负值
-    adjusted_mu = mu_abs + sigma_abs * noise_scale 
+    # 按 noise_scale 调整 mu 和 sigma
+    adjusted_mu = mu_abs * noise_scale
     adjusted_sigma = sigma_abs * noise_scale
+
+    adjusted_mu_rel = mu_rel * noise_scale
+    adjusted_sigma_rel = sigma_rel * noise_scale
     
     # 计算截断边界对应的标准化值
     alpha = -adjusted_mu / (adjusted_sigma + 1e-10)  # 截断下限(0)对应的标准化值
@@ -91,54 +110,15 @@ def generate_noise(param, group_name, noise_scale, iterations = 1000, i = 0):
     # 将标准正态转换为目标分布
     magnitude = adjusted_mu + adjusted_sigma * z
     
-    # 3. 生成方向噪声 - 自适应稳定性阈值
-    # 基于层类型动态调整稳定性阈值
-    base_stability_threshold = 0.5
-    if 'norm' in group_name:
-        stability_threshold = base_stability_threshold * 0.8  # 规范化层更保守
-    elif 'value_head' in group_name:
-        stability_threshold = base_stability_threshold * 1.2  # 价值头更激进
-    else:
-        stability_threshold = base_stability_threshold
-    
-    direction_stability = mu_rel_t / (sigma_rel + 1e-10)
-    
-    if direction_stability > stability_threshold:
-        # 方向相对稳定 - 完全从分布采样
-        direction = torch.randn_like(param.data) * sigma_rel + mu_rel
-    else:
-        # 方向不稳定 - 混合使用符号信息和受限噪声
-        # 计算稳定性比例，越接近阈值，越多地使用分布信息
-        stability_ratio = direction_stability / stability_threshold
-        # 受限噪声比例随稳定性增加
-        noise_scale = 0.1 + 0.3 * stability_ratio
-        sign = 1 if mu_rel >= 0 else -1
-        
-        # 混合均值和符号导向的噪声
-        random_part = torch.randn_like(param.data) * sigma_rel * noise_scale
-        direction = sign * (random_part + mu_rel_t)
+    # 3. 生成方向噪声
+    direction = torch.randn_like(param.data) * adjusted_sigma_rel + adjusted_mu_rel
     
     # 4. 合成噪声 - 将幅度与方向结合
     noise_sign = torch.sign(direction)
     noise = magnitude * param.data.abs() * noise_sign
     
-    # 5. 应用动态衰减因子 - 随迭代递减
-    # 使用指数衰减系数，在高迭代次数时减少噪声影响
-    iteration_fraction = min(i / iterations, 1.0)  # 当前迭代在总迭代中的比例
-    base_decay = 1.0  # 初始因子
-    min_decay = 0.7   # 最低因子
-    
-    # 非线性递减，前期保持较高，后期迅速降低
-    decay_exponent = 2.0
-    decay_factor = base_decay - (base_decay - min_decay) * (iteration_fraction ** decay_exponent)
-    
-    # 为不同层类型应用不同的衰减策略
-    if 'value_head' in group_name or 'policy_head' in group_name:
-        # 输出层应用更强的衰减，保持更多原始信息
-        decay_factor *= 0.9
-    
-    # 6. 返回最终噪声
-    return noise * decay_factor
+    # 5. 返回最终噪声
+    return noise
 
 # 定义各参数组的 abs_update_ratio 和 update_ratio 的均值和方差
 # mean = sum(v if isinstance(v, float) else v[0] for v in values) / len(values)
@@ -223,6 +203,10 @@ def read_latest_update_ratios(train_dir, num_lines_to_check=1200):
         # 尝试读取 ratios.txt 文件中的数据
         old_data = {}
         try:
+            # 确保目录存在
+            os.makedirs(os.path.dirname(ratios_file_path), exist_ok=True)
+            
+            # 尝试读取文件
             if os.path.exists(ratios_file_path):
                 with open(ratios_file_path, 'r', encoding='utf-8') as f:
                     old_data = json.load(f)
@@ -255,13 +239,13 @@ def read_latest_update_ratios(train_dir, num_lines_to_check=1200):
                 weight_old = old_length / total_length
                 weight_new = new_length / total_length
 
-                # 调整权重
-                weight_old *= 0.5
-                weight_new += weight_old
+                # # 调整权重
+                # weight_old *= 0.5
+                # weight_new += weight_old
                 
                 
                 combined_abs_means[key] = old_abs_means[key] * weight_old + abs_means[key] * weight_new
-                combined_abs_vars[key] = old_abs_vars[key] * weight_old + abs_vars[key] * weight_new
+                combined_abs_vars[key] = old_abs_vars[key] * weight_old + abs_vars[key] * weight_new + weight_old * weight_new * (old_abs_means[key] - abs_means[key]) ** 2
                 combined_data_lengths[f"abs_{key}"] = total_length
             elif key in abs_means:
                 # 只有新数据
@@ -274,7 +258,7 @@ def read_latest_update_ratios(train_dir, num_lines_to_check=1200):
                 combined_abs_vars[key] = old_abs_vars[key]
                 # 数据长度保持不变
 
-            if combined_abs_means[key] == old_abs_means[key] and combined_abs_vars[key] == old_abs_vars[key]:
+            if key in old_abs_means and combined_abs_means[key] == old_abs_means[key] and combined_abs_vars[key] == old_abs_vars[key]:
                 combined_data_lengths[f"abs_{key}"] = old_length
         
         # 处理 update 数据
@@ -288,12 +272,12 @@ def read_latest_update_ratios(train_dir, num_lines_to_check=1200):
                 weight_old = old_length / total_length
                 weight_new = new_length / total_length
 
-                # 调整权重
-                weight_old *= 0.5
-                weight_new += weight_old
+                # # 调整权重
+                # weight_old *= 0.5
+                # weight_new += weight_old
                 
                 combined_update_means[key] = old_update_means[key] * weight_old + update_means[key] * weight_new
-                combined_update_vars[key] = old_update_vars[key] * weight_old + update_vars[key] * weight_new
+                combined_update_vars[key] = old_update_vars[key] * weight_old + update_vars[key] * weight_new + weight_old * weight_new * (old_update_means[key] - update_means[key]) ** 2
                 combined_data_lengths[f"update_{key}"] = total_length
             elif key in update_means:
                 # 只有新数据
@@ -306,7 +290,7 @@ def read_latest_update_ratios(train_dir, num_lines_to_check=1200):
                 combined_update_vars[key] = old_update_vars[key]
                 # 数据长度保持不变
 
-            if combined_update_means[key] == old_update_means[key] and combined_update_vars[key] == old_update_vars[key]:
+            if key in old_update_means and combined_update_means[key] == old_update_means[key] and combined_update_vars[key] == old_update_vars[key]:
                 combined_data_lengths[f"update_{key}"] = old_length
         
         # 保存合并后的数据到 ratios.txt
@@ -407,7 +391,7 @@ def main():
     )
     # 检查点文件路径、保存路径及待导出路径
     train_path = os.path.join(args.base_dir, "train", args.training_name)
-    checkpoint_path = os.path.join(train_path, "checkpoint.ckpt") # '_' ************************************************************************
+    checkpoint_path = os.path.join(train_path, "checkpoint_256.ckpt") # '_' ************************************************************************
     export_dir = os.path.join(train_path, "noise")
     for_export_dir = os.path.join(args.base_dir, "torchmodels_toexport")
     if not os.path.exists(export_dir):
@@ -461,7 +445,7 @@ def main():
     if new_abs_vars: abs_update_ratio_vars.update(new_abs_vars)
     if new_update_means: update_ratio_means.update(new_update_means)
     if new_update_vars: update_ratio_vars.update(new_update_vars)
-    logging.info(f"Loaded update ratios from file: {train_path}/stdout.txt")
+    logging.info(f"Loaded update ratios from file: {train_path}/ratios.txt")
     for key, value in new_abs_means.items():
         logging.info(f"abs_update_ratio_means[{key}] = {value}")
     for key, value in new_abs_vars.items():
@@ -522,12 +506,10 @@ def main():
             swa_model.update_parameters(raw_model)
             if (i+1) % 10 == 0:
                 logging.info(f"SWA iteration {i+1} completed")
-            if (i+1) % 500 == 0:
-                # Update raw_model with the current SWA averaged parameters
-                raw_model.load_state_dict(swa_model.module.state_dict())
-                logging.info(f"Updated raw_model with SWA parameters at iteration {i+1}")
-                # for name, param in raw_model.named_parameters():
-                #     logging.info(f"\nRaw parameter {name} - mean: {param.data.mean().item()}, max: {param.data.max().item()}, min: {param.data.min().item()} \nSWA parameter {name} - mean: {swa_model.module.state_dict()[name].mean().item()}, max: {swa_model.module.state_dict()[name].max().item()}, min: {swa_model.module.state_dict()[name].min().item()}")
+            # if (i+1) % 500 == 0:
+            #     # Update raw_model with the current SWA averaged parameters
+            #     raw_model.load_state_dict(swa_model.module.state_dict())
+            #     logging.info(f"Updated raw_model with SWA parameters at iteration {i+1}")
 
 
     # 提取 train_state 和 metrics
@@ -561,7 +543,7 @@ def main():
         logging.info(f"Model already exists at {save_path}, skipping save")
     else:
         os.makedirs(save_path_tmp)
-        save(save_path_tmp, model, swa_model, optimizer, train_state, metrics, model_config)
+        save(save_path_tmp, train_path, model, swa_model, optimizer, train_state, metrics, model_config)
         time.sleep(5)  # 短暂等待以确保文件写入完成
         os.rename(save_path_tmp, save_path)
         logging.info(f"Saved to {save_path}/model.ckpt, copying ...")

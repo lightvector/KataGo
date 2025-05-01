@@ -1160,18 +1160,7 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
                                     
                                     stats[key][group_name]['sum'] += value
                                     stats[key][group_name]['sum_sq'] += value ** 2
-                                    stats[key][group_name]['count'] += 1
-
-                    # 记录统计信息
-                    for stat_name, stat_dict in stats.items():
-                        logging.info(f"{stat_name}:")
-                        for key, values in stat_dict.items():
-                            count = values['count']
-                            if count > 0:
-                                mean = values['sum'] / count
-                                var = (values['sum_sq'] / count) - (mean ** 2)
-                                logging.info(f"{key} {stat_name}: \nmean={mean}, \nvar={var}, \ndata length: {count}")
-                    
+                                    stats[key][group_name]['count'] += 1                    
 
 
                 if model_config["norm_kind"] == "fixup" or model_config["norm_kind"] == "fixscale" or model_config["norm_kind"] == "fixscaleonenorm":
@@ -1311,19 +1300,17 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
 
                 #             logging.info(f"Parameter {name} ----- mean: {weight_mean:.6f}, max: {weight_max:.6f}, min: {weight_min:.6f}, std: {weight_std:.6f}")
 
-                # if batch_count_this_epoch % (print_train_loss_every_batches * 10) == 0:
-                #     # 添加噪声逻辑
-                #     with torch.no_grad():
-                #         for name, param in raw_model.named_parameters():
-                #             if 'norm.' in name or 'norm_trunkfinal' in name:
-                #                 continue  # 跳过归一化层
-
-                #             noise_std = 0.1
-                #             if 'blocks' in name:
-                #                 noise_std *= 0.1
-                #             noise = torch.randn_like(param.data) * noise_std
-                #             param.data += noise
-                #         logging.info(f"Added big noise to parameter")
+                if batch_count_this_epoch % (print_train_loss_every_batches / 10) == 0:
+                    
+                    # 记录统计信息
+                    for stat_name, stat_dict in stats.items():
+                        logging.info(f"{stat_name}:")
+                        for key, values in stat_dict.items():
+                            count = values['count']
+                            if count > 0:
+                                mean = values['sum'] / count
+                                var = (values['sum_sq'] / count) - (mean ** 2)
+                                logging.info(f"{key} {stat_name}: \nmean={mean}, \nvar={var}, \ndata length: {count}")
 
                 if batch_count_this_epoch % print_train_loss_every_batches == 0:
 
@@ -1376,6 +1363,16 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
                         train_state["swa_sample_accum"] = 0
                         logging.info("Accumulating SWA")
                         swa_model.update_parameters(raw_model)
+
+            # 记录统计信息
+            for stat_name, stat_dict in stats.items():
+                logging.info(f"{stat_name}:")
+                for key, values in stat_dict.items():
+                    count = values['count']
+                    if count > 0:
+                        mean = values['sum'] / count
+                        var = (values['sum_sq'] / count) - (mean ** 2)
+                        logging.info(f"{key} {stat_name}: \nmean={mean}, \nvar={var}, \ndata length: {count}")
 
             logging.info("Finished training subepoch!")
         

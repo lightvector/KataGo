@@ -17,7 +17,9 @@ import load_model
 import time
 import shutil
 
-def save(savepath, model, swa_model, optimizer, train_state, metrics, model_config):
+NUM_SHORTTERM_CHECKPOINTS_TO_KEEP = 4
+
+def save(savepath, traindir, model, swa_model, optimizer, train_state, metrics, model_config):
     state_dict = {}
     state_dict["model"] = model.state_dict()
     state_dict["config"] = model_config
@@ -27,6 +29,21 @@ def save(savepath, model, swa_model, optimizer, train_state, metrics, model_conf
     state_dict["train_state"] = train_state
     state_dict["metrics"] = metrics
     torch.save(state_dict, savepath + "/model.ckpt")
+
+    logging.info("Saving checkpoint: " + get_checkpoint_path(traindir))
+    for i in reversed(range(NUM_SHORTTERM_CHECKPOINTS_TO_KEEP-1)):
+        if os.path.exists(get_checkpoint_prev_path(i, traindir)):
+            os.replace(get_checkpoint_prev_path(i, traindir), get_checkpoint_prev_path(i+1, traindir))
+    if os.path.exists(get_checkpoint_path(traindir)):
+        shutil.copy(get_checkpoint_path(traindir), get_checkpoint_prev_path(0, traindir))
+    torch.save(state_dict, get_checkpoint_path(traindir) + ".tmp")
+    os.replace(get_checkpoint_path(traindir) + ".tmp", get_checkpoint_path(traindir))
+
+def get_checkpoint_path(traindir = None):
+        return os.path.join(traindir,"checkpoint.ckpt")
+
+def get_checkpoint_prev_path(i, traindir = None):
+    return os.path.join(traindir,f"checkpoint_prev{i}.ckpt")
 
 def get_raw_model(model_config, pos_len):
     # 创建模型实例
@@ -203,7 +220,7 @@ def main():
         logging.info(f"Model already exists at {save_path}, skipping save")
     else:
         os.makedirs(save_path_tmp)
-        save(save_path_tmp, model, swa_model, optimizer, train_state, metrics, model_config)
+        save(save_path_tmp, train_path, model, swa_model, optimizer, train_state, metrics, model_config)
         time.sleep(5)  # 短暂等待以确保文件写入完成
         os.rename(save_path_tmp, save_path)
 
