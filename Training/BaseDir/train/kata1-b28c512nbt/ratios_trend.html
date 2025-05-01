@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>参数更新趋势图与收敛分析 (含标准差范围)</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        .chart-container {
+            max-width: 900px;
+            margin: 2rem auto;
+            padding: 1.5rem;
+            background-color: #ffffff;
+            border-radius: 0.75rem;
+            box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.07), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+        }
+        canvas {
+            width: 100%;
+            height: auto;
+            max-height: 450px;
+        }
+        h1, h2 {
+            text-align: center;
+            margin-bottom: 1rem;
+            color: #111827;
+        }
+        p {
+            line-height: 1.6;
+            color: #4b5563;
+            text-align: center;
+            margin-bottom: 2rem;
+            padding: 0 1rem;
+        }
+        @media (min-width: 768px) {
+            .charts-grid {
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                gap: 2rem;
+            }
+            .chart-container {
+                max-width: 1200px;
+            }
+            h1, p {
+                padding: 0 2rem;
+            }
+        }
+        #log-output {
+            font-size: 0.75rem;
+        }
+        #log-content div {
+            padding: 2px 0;
+            border-bottom: 1px solid #eee;
+        }
+        #log-content div:last-child {
+            border-bottom: none;
+        }
+    </style>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+</head>
+<body class="bg-gray-100">
+    <div class="container mx-auto px-4 py-8">
+        <h1 class="text-2xl md:text-3xl font-bold">参数更新趋势图与收敛分析 (含标准差范围)</h1>
+        <p class="text-base md:text-lg">
+            以下图表展示了各模块参数更新比率 (<code>abs_update_ratio</code> 和 <code>update_ratio</code>) 的均值趋势，以及其上下两个标准差范围（浅色区域）。数据来源于 <code>ratios_trend.txt</code> 文件。点击图例可切换显示/隐藏对应模块的均值线和范围区域。
+        </p>
+        <div class="flex justify-center mt-4 mb-6">
+            <button id="toggleStdDevButton" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
+                隐藏所有标准差范围
+            </button>
+        </div>
+        <div class="charts-grid">
+            <div class="chart-container">
+                <h2 class="text-xl font-semibold">1. abs_update_ratio (Mean ± 2 StdDev)</h2>
+                <canvas id="absUpdateRatioChart"></canvas>
+            </div>
+            <div class="chart-container">
+                <h2 class="text-xl font-semibold">2. update_ratio (Mean ± 2 StdDev)</h2>
+                <canvas id="updateRatioChart"></canvas>
+            </div>
+        </div>
+        <div id="log-output" class="mt-8 p-4 bg-white rounded-lg shadow max-w-4xl mx-auto">
+            <h3 class="text-lg font-semibold mb-2 text-center">解析日志</h3>
+            <pre class="text-xs bg-gray-100 p-3 rounded overflow-auto max-h-60" id="log-content">等待数据加载和解析...</pre>
+        </div>
+    </div>
+    <script>
+        const modules = ['conv_spatial', 'linear_global', 'norm_beta', 'norm_gamma', 'blocks', 'policy_head', 'value_head', 'intermediate_policy', 'intermediate_value'];
+        const logContentElement = document.getElementById('log-content');
+        let absRatioChart = null;
+        let updateRatioChart = null;
+        let stdDevVisible = true;
+
+        function log(message, ...optionalParams) {
+            console.log(message, ...optionalParams);
+            const logEntry = document.createElement('div');
+            let paramsString = '';
+            try {
+                paramsString = optionalParams.map(p => JSON.stringify(p, (key, value) => {
+                    if (Array.isArray(value) && value.length > 10) return `[Array(${value.length})]`;
+                    return value;
+                }, 2)).join(' ');
+                if (paramsString.length > 500) paramsString = paramsString.substring(0, 500) + '...';
+            } catch (e) { paramsString = '[无法序列化的参数]'; }
+            logEntry.textContent = `${new Date().toLocaleTimeString()}: ${message} ${paramsString}`;
+            while (logContentElement.children.length > 150) { logContentElement.removeChild(logContentElement.firstChild); }
+            logContentElement.appendChild(logEntry);
+            logContentElement.scrollTop = logContentElement.scrollHeight;
+        }
+
+        function logError(message, error) {
+            console.error(message, error);
+            const logEntry = document.createElement('div');
+            logEntry.className = 'text-red-600 font-semibold';
+            logEntry.textContent = `${new Date().toLocaleTimeString()}: ERROR: ${message} ${error ? error.toString() : ''}`;
+            while (logContentElement.children.length > 150) { logContentElement.removeChild(logContentElement.firstChild); }
+            logContentElement.appendChild(logEntry);
+            logContentElement.scrollTop = logContentElement.scrollHeight;
+        }
+
+        async function loadAndParseData() {
+            log('开始加载 ratios_trend.txt...');
+            try {
+                const response = await fetch('ratios_trend.txt');
+                if (!response.ok) throw new Error(`无法加载 ratios_trend.txt 文件 (状态: ${response.status})`);
+                const text = await response.text();
+                log('ratios_trend.txt 文件加载成功。');
+                if (!text.trim()) {
+                    logError('文件内容为空。');
+                    return { absUpdateRatioData: {}, updateRatioData: {} };
+                }
+                return parseData(text);
+            } catch (error) {
+                logError('加载或解析数据失败:', error);
+                return { absUpdateRatioData: {}, updateRatioData: {} };
+            }
+        }
+
+        function parseData(text) {
+            log('开始解析数据 (多行逻辑, 含 var)...');
+            const absUpdateRatioData = {};
+            const updateRatioData = {};
+            const lines = text.split(/\r?\n/);
+            log(`文件共 ${lines.length} 行。`);
+
+            modules.forEach(module => {
+                absUpdateRatioData[module] = [];
+                updateRatioData[module] = [];
+            });
+
+            let currentSection = null, currentModule = null, currentMean = null, currentVar = null, currentDataLength = null;
+            let linesParsedCount = 0;
+
+            for (let i = 0; i < lines.length; i++) {
+                const line = lines[i].trim();
+                if (!line) continue;
+
+                if (line === 'abs_update_ratio:') { currentSection = 'abs_update_ratio'; currentModule = null; log('进入区域:', currentSection); continue; }
+                if (line === 'update_ratio:') { currentSection = 'update_ratio'; currentModule = null; log('进入区域:', currentSection); continue; }
+                if (!currentSection) continue;
+
+                const moduleMatch = line.match(/^(\w+)\s+(abs_update_ratio|update_ratio):$/);
+                if (moduleMatch) {
+                    currentModule = modules.includes(moduleMatch[1]) ? moduleMatch[1] : null;
+                    if (currentModule) { currentMean = null; currentVar = null; currentDataLength = null; }
+                    continue;
+                }
+
+                if (currentModule) {
+                    const meanMatch = line.match(/^mean=([\d.eE+-]+),?$/);
+                    if (meanMatch) { currentMean = parseFloat(meanMatch[1]); continue; }
+                    const varMatch = line.match(/^var=([\d.eE+-]+),?$/);
+                    if (varMatch) { currentVar = parseFloat(varMatch[1]); continue; }
+                    const lengthMatch = line.match(/^data length:\s*(\d+)$/);
+                    if (lengthMatch) {
+                        currentDataLength = parseInt(lengthMatch[1]);
+                        if (currentMean !== null && currentVar !== null && !isNaN(currentMean) && !isNaN(currentVar) && !isNaN(currentDataLength)) {
+                            const variance = Math.max(0, currentVar);
+                            const stdDev = Math.sqrt(variance);
+                            const dataEntry = { mean: currentMean, variance, stdDev, dataLength: currentDataLength };
+                            if (currentSection === 'abs_update_ratio') absUpdateRatioData[currentModule].push(dataEntry);
+                            else if (currentSection === 'update_ratio') updateRatioData[currentModule].push(dataEntry);
+                            linesParsedCount++;
+                            currentMean = null; currentVar = null; currentDataLength = null;
+                        } else {
+                            logError(`找到 data length 但 mean (${currentMean}) 或 var (${currentVar}) 无效或未找到 for module ${currentModule}`);
+                            currentMean = null; currentVar = null; currentDataLength = null;
+                        }
+                        continue;
+                    }
+                }
+            }
+
+            log(`数据解析完成。共解析 ${linesParsedCount} 条有效数据。`);
+            log('Final absUpdateRatioData counts:', Object.fromEntries(modules.map(m => [m, absUpdateRatioData[m]?.length || 0])));
+            log('Final updateRatioData counts:', Object.fromEntries(modules.map(m => [m, updateRatioData[m]?.length || 0])));
+            let hasData = modules.some(m => (absUpdateRatioData[m]?.length || 0) > 0 || (updateRatioData[m]?.length || 0) > 0);
+            if (!hasData) logError("解析完成，但所有模块的数据数组仍为空。请仔细检查 ratios_trend.txt 文件格式与解析逻辑。");
+            else modules.forEach(m => { if (!absUpdateRatioData[m]?.length && !updateRatioData[m]?.length) log(`警告: 模块 "${m}" 没有解析到任何数据。`); });
+
+            return { absUpdateRatioData, updateRatioData };
+        }
+
+        function createChart(ctx, chartTitle, moduleDataSets) {
+            log(`开始创建图表: ${chartTitle}`);
+            const validModuleDataSets = moduleDataSets.filter(ds => ds.meanData && ds.meanData.length > 0);
+            if (validModuleDataSets.length === 0) {
+                log(`图表 "${chartTitle}" 没有有效数据可供绘制。`);
+                ctx.font = "16px 'Inter', sans-serif"; ctx.fillStyle = "#888"; ctx.textAlign = "center";
+                ctx.fillText("无数据显示", ctx.canvas.width / 2, ctx.canvas.height / 2);
+                return null;
+            }
+
+            const chartJsDatasets = [];
+            validModuleDataSets.forEach(modDs => {
+                chartJsDatasets.push(modDs.lowerBoundDs);
+                chartJsDatasets.push(modDs.upperBoundDs);
+            });
+            validModuleDataSets.forEach(modDs => {
+                chartJsDatasets.push(modDs.meanDs);
+            });
+
+            const newChart = new Chart(ctx, {
+                type: 'line',
+                data: { datasets: chartJsDatasets },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: { type: 'linear', title: { display: true, text: '数据长度 (Data Length)', font: { weight: 'bold' } }, min: 0, ticks: { callback: v => v >= 1000 ? (v / 1000) + 'k' : v } },
+                        y: { type: 'linear', title: { display: true, text: chartTitle, font: { weight: 'bold' } }, beginAtZero: false, ticks: { callback: v => v.toExponential(2) } }
+                    },
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: { usePointStyle: true, padding: 20, filter: (item) => item.text && !item.text.includes('Bound') },
+                            onClick: function(e, legendItem, legend) {
+                                const chart = legend.chart;
+                                const index = legendItem.datasetIndex;
+                                const clickedDataset = chart.data.datasets[index];
+
+                                if (!clickedDataset || typeof clickedDataset.moduleId === 'undefined') {
+                                    return;
+                                }
+
+                                const moduleId = clickedDataset.moduleId;
+                                const meanDataset = chart.data.datasets.find(ds => ds.moduleId === moduleId && ds.id.endsWith('-mean'));
+                                const meanDatasetIndex = chart.data.datasets.indexOf(meanDataset);
+                                const currentMeanMeta = chart.getDatasetMeta(meanDatasetIndex);
+
+                                const isHidden = currentMeanMeta.hidden;
+
+                                chart.data.datasets.forEach((dataset, i) => {
+                                    if (dataset.moduleId === moduleId) {
+                                        const meta = chart.getDatasetMeta(i);
+                                        if (dataset.id.endsWith('-mean')) {
+                                            meta.hidden = !isHidden;
+                                        } else if (dataset.id.endsWith('-lower-bound') || dataset.id.endsWith('-upper-bound')) {
+                                            meta.hidden = isHidden ? !stdDevVisible : true;
+                                            if (dataset.id.endsWith('-upper-bound')) {
+                                                dataset.fill = isHidden && stdDevVisible ? '-1' : false;
+                                            }
+                                        }
+                                    }
+                                });
+
+                                chart.update();
+                                log(`模块 ${moduleId} 的显示状态已切换。均值线: ${isHidden ? '显示' : '隐藏'}, 标准差范围: ${isHidden && stdDevVisible ? '显示' : '隐藏'}`);
+                            }
+                        },
+                        tooltip: {
+                            mode: 'index', intersect: false,
+                            callbacks: {
+                                title: (items) => {
+                                    if (items.length === 0) return '';
+                                    const firstMeanItem = items.find(item => item.dataset.id && item.dataset.id.endsWith('-mean'));
+                                    if (firstMeanItem) {
+                                        return `数据长度 (Data Length): ${firstMeanItem.parsed.x >= 1000 ? (firstMeanItem.parsed.x / 1000) + 'k' : firstMeanItem.parsed.x}`;
+                                    }
+                                    return '';
+                                },
+                                label: (context) => {
+                                    const moduleId = context.dataset.moduleId;
+                                    if (!moduleId || !context.dataset.id.endsWith('-mean')) return '';
+
+                                    const datasets = context.chart.data.datasets;
+                                    const meanDs = context.dataset;
+                                    const lowerDs = datasets.find(ds => ds.moduleId === moduleId && ds.id.endsWith('-lower-bound'));
+                                    const upperDs = datasets.find(ds => ds.moduleId === moduleId && ds.id.endsWith('-upper-bound'));
+                                    const pointIndex = context.dataIndex;
+
+                                    let meanVal = meanDs?.data[pointIndex]?.y;
+                                    let lowerVal = lowerDs?.data[pointIndex]?.y;
+                                    let upperVal = upperDs?.data[pointIndex]?.y;
+
+                                    let output = `${moduleId}: `;
+                                    if (meanVal !== undefined) {
+                                        output += `Mean ${meanVal.toExponential(3)}`;
+                                        if (lowerVal !== undefined && upperVal !== undefined) {
+                                            const averageDeviation = ((upperVal - meanVal) + (meanVal - lowerVal)) / 2;
+                                            output += ` (±${averageDeviation.toExponential(1)})`;
+                                        }
+                                    } else {
+                                        output += `${context.dataset.label}: ${context.parsed.y.toExponential(3)}`;
+                                    }
+                                    return output;
+                                },
+                                filter: (item) => item.dataset.id && item.dataset.id.endsWith('-mean')
+                            }
+                        }
+                    },
+                    interaction: { mode: 'nearest', axis: 'x', intersect: false },
+                    elements: { line: { tension: 0.1 }, point: { radius: 2, hoverRadius: 5 } },
+                    order: (a, b) => {
+                        const order = { '-lower-bound': 1, '-upper-bound': 2, '-mean': 3 };
+                        const aType = Object.keys(order).find(key => a.dataset.id.endsWith(key)) || '';
+                        const bType = Object.keys(order).find(key => b.dataset.id.endsWith(key)) || '';
+                        return (order[aType] || 0) - (order[bType] || 0);
+                    }
+                }
+            });
+
+            return newChart;
+        }
+
+        function toggleAllStdDev() {
+            stdDevVisible = !stdDevVisible;
+            const button = document.getElementById('toggleStdDevButton');
+            if (button) {
+                button.textContent = stdDevVisible ? '隐藏所有标准差范围' : '显示所有标准差范围';
+            }
+
+            const chartsToUpdate = [];
+            if (absRatioChart) chartsToUpdate.push(absRatioChart);
+            if (updateRatioChart) chartsToUpdate.push(updateRatioChart);
+
+            chartsToUpdate.forEach(chart => {
+                chart.data.datasets.forEach((dataset, index) => {
+                    if (dataset.id && (dataset.id.endsWith('-lower-bound') || dataset.id.endsWith('-upper-bound'))) {
+                        const moduleId = dataset.moduleId;
+                        const meanDataset = chart.data.datasets.find(ds => ds.moduleId === moduleId && ds.id.endsWith('-mean'));
+                        const meanMeta = chart.getDatasetMeta(chart.data.datasets.indexOf(meanDataset));
+                        const meta = chart.getDatasetMeta(index);
+                        meta.hidden = !stdDevVisible || meanMeta.hidden;
+                        if (dataset.id.endsWith('-upper-bound')) {
+                            dataset.fill = stdDevVisible && !meanMeta.hidden ? '-1' : false;
+                            if (stdDevVisible && !dataset.backgroundColor) {
+                                logError(`模块 ${dataset.moduleId} 的 upper-bound 背景色缺失，正在重置为默认值`);
+                                dataset.backgroundColor = 'rgba(200, 200, 200, 0.3)';
+                            }
+                        }
+                    }
+                });
+                chart.update();
+            });
+            log(`所有标准差范围已${stdDevVisible ? '显示（仅对可见模块）' : '隐藏'}`);
+        }
+
+        async function initializeCharts() {
+            logContentElement.textContent = '正在加载和解析数据...';
+            const { absUpdateRatioData, updateRatioData } = await loadAndParseData();
+
+            if (!absUpdateRatioData || !updateRatioData || Object.keys(absUpdateRatioData).length === 0) {
+                logError('未能获取有效的解析数据结构，无法生成图表。');
+                logContentElement.textContent += '\n错误：未能获取有效的解析数据结构。请检查 ratios_trend.txt 文件。';
+                return;
+            }
+
+            function createModuleDatasets(ratioData, colors) {
+                return modules.map((module, index) => {
+                    const modulePoints = ratioData[module] ? ratioData[module].sort((a, b) => a.dataLength - b.dataLength) : [];
+                    const baseColor = colors[index];
+
+                    const hslMatch = baseColor.match(/^hsl\((\d+),\s*(\d+)%,\s*(\d+)%\)$/);
+                    let areaColor = 'rgba(200, 200, 200, 0.3)';
+
+                    if (hslMatch) {
+                        const hue = parseInt(hslMatch[1]);
+                        const saturation = parseInt(hslMatch[2]);
+                        const lightness = parseInt(hslMatch[3]);
+                        const targetLightness = 90;
+                        const blendFactor = 0.7;
+                        const lighterLightness = lightness + (targetLightness - lightness) * blendFactor;
+                        const finalLightness = Math.min(100, Math.max(0, lighterLightness));
+                        const alpha = 0.2;
+                        areaColor = `hsla(${hue}, ${saturation}%, ${finalLightness}%, ${alpha})`;
+                        log(`Generated area color for ${module}: ${areaColor}`);
+                    } else {
+                        logError(`Failed to parse HSL color for module ${module}: ${baseColor}. Using default fallback color.`);
+                    }
+
+                    const meanPoints = modulePoints.map(item => ({ x: item.dataLength, y: item.mean }));
+                    const lowerBoundPoints = modulePoints.map(item => ({ x: item.dataLength, y: item.mean - 2 * item.stdDev }));
+                    const upperBoundPoints = modulePoints.map(item => ({ x: item.dataLength, y: item.mean + 2 * item.stdDev }));
+
+                    return {
+                        module: module,
+                        meanData: meanPoints,
+                        lowerBoundDs: {
+                            id: `${module}-lower-bound`, label: `${module} Lower Bound`, moduleId: module,
+                            data: lowerBoundPoints, borderColor: 'transparent', backgroundColor: 'transparent',
+                            pointRadius: 0, fill: false, borderWidth: 0, hidden: !stdDevVisible
+                        },
+                        upperBoundDs: {
+                            id: `${module}-upper-bound`, label: `${module} Upper Bound`, moduleId: module,
+                            data: upperBoundPoints, borderColor: 'transparent', backgroundColor: areaColor,
+                            pointRadius: 0, fill: stdDevVisible ? '-1' : false, borderWidth: 0, hidden: !stdDevVisible
+                        },
+                        meanDs: {
+                            id: `${module}-mean`, label: `${module}`, moduleId: module,
+                            data: meanPoints, borderColor: baseColor, backgroundColor: baseColor,
+                            fill: false, borderWidth: 1.5, hidden: false
+                        }
+                    };
+                });
+            }
+
+            const colors = modules.map((_, index) => `hsl(${(index * (360 / modules.length) + 30) % 360}, 70%, 50%)`);
+            const absRatioModuleDatasets = createModuleDatasets(absUpdateRatioData, colors);
+            const updateRatioModuleDatasets = createModuleDatasets(updateRatioData, colors);
+
+            log('absUpdateRatioDatasets 准备就绪:', absRatioModuleDatasets.map(d => ({label: d.module, count: d.meanData.length})));
+            log('updateRatioDatasets 准备就绪:', updateRatioModuleDatasets.map(d => ({label: d.module, count: d.meanData.length})));
+
+            const absCtx = document.getElementById('absUpdateRatioChart')?.getContext('2d');
+            const updateCtx = document.getElementById('updateRatioChart')?.getContext('2d');
+
+            if (absCtx) absRatioChart = createChart(absCtx, 'abs_update_ratio', absRatioModuleDatasets);
+            else logError('无法找到 absUpdateRatioChart 的 canvas 元素');
+            if (updateCtx) updateRatioChart = createChart(updateCtx, 'update_ratio', updateRatioModuleDatasets);
+            else logError('无法找到 updateRatioChart 的 canvas 元素');
+
+            const toggleButton = document.getElementById('toggleStdDevButton');
+            if (toggleButton) {
+                toggleButton.addEventListener('click', toggleAllStdDev);
+                log('标准差范围切换按钮事件监听器已添加。');
+            } else {
+                logError('无法找到标准差范围切换按钮元素。');
+            }
+
+            const totalPoints = absRatioModuleDatasets.reduce((s, d) => s + (d.meanData?.length || 0), 0) + updateRatioModuleDatasets.reduce((s, d) => s + (d.meanData?.length || 0), 0);
+            if (totalPoints === 0 && Object.keys(absUpdateRatioData).length > 0) {
+                logError('所有模块的数据均为空，无法绘制任何图表。请再次检查 ratios_trend.txt 文件内容和格式，以及解析日志。');
+                logContentElement.textContent += '\n错误：所有模块的数据均为空。请检查 ratios_trend.txt 文件和解析日志。';
+            } else if (totalPoints > 0) {
+                log('图表初始化完成。');
+            }
+        }
+
+        window.addEventListener('load', initializeCharts);
+    </script>
+</body>
+</html>

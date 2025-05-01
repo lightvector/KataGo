@@ -1,0 +1,3950 @@
+abs_update_ratio:
+conv_spatial abs_update_ratio: 
+mean=8.41356878000407e-05, 
+var=4.34417260626086e-10, 
+data length: 10
+linear_global abs_update_ratio: 
+mean=9.077621700221273e-05, 
+var=3.71927302821695e-10, 
+data length: 10
+norm_beta abs_update_ratio: 
+mean=9.455171948607327e-06, 
+var=7.85829322153869e-11, 
+data length: 1700
+norm_gamma abs_update_ratio: 
+mean=7.294125433122791e-06, 
+var=4.7108541647077005e-11, 
+data length: 1690
+blocks abs_update_ratio: 
+mean=5.8530305808705416e-05, 
+var=2.8377394865063243e-10, 
+data length: 1860
+policy_head abs_update_ratio: 
+mean=5.967685854480365e-06, 
+var=4.908546926125704e-11, 
+data length: 90
+value_head abs_update_ratio: 
+mean=3.3198802314166557e-05, 
+var=9.623273938391774e-09, 
+data length: 220
+intermediate_policy abs_update_ratio: 
+mean=8.523960432915723e-06, 
+var=5.710445411494223e-11, 
+data length: 90
+intermediate_value abs_update_ratio: 
+mean=2.161442886407182e-05, 
+var=2.2915027634928604e-09, 
+data length: 220
+update_ratio:
+conv_spatial update_ratio: 
+mean=7.968205494262972e-07, 
+var=4.0615605704951887e-10, 
+data length: 10
+linear_global update_ratio: 
+mean=7.719190990403436e-06, 
+var=3.544425800264014e-08, 
+data length: 10
+norm_beta update_ratio: 
+mean=-1.670562336715202e-07, 
+var=1.2608048158607768e-10, 
+data length: 1700
+norm_gamma update_ratio: 
+mean=5.5918731920225934e-08, 
+var=4.411607586026364e-12, 
+data length: 1690
+blocks update_ratio: 
+mean=-2.591099264104998e-05, 
+var=1.9210658026580687e-06, 
+data length: 1860
+policy_head update_ratio: 
+mean=-2.4232654085171217e-06, 
+var=5.757984887013185e-11, 
+data length: 90
+value_head update_ratio: 
+mean=0.0009048687942148954, 
+var=0.00019793051805234302, 
+data length: 220
+intermediate_policy update_ratio: 
+mean=5.4855760922369945e-06, 
+var=5.853315078938671e-10, 
+data length: 90
+intermediate_value update_ratio: 
+mean=2.27847193145357e-05, 
+var=2.378265279464008e-06, 
+data length: 220
+
+
+
+
+
+abs_update_ratio:
+conv_spatial abs_update_ratio: 
+mean=8.375063564396149e-05, 
+var=2.8048448836225827e-10, 
+data length: 20
+linear_global abs_update_ratio: 
+mean=8.626568540567196e-05, 
+var=3.00382325164408e-10, 
+data length: 20
+norm_beta abs_update_ratio: 
+mean=9.33170132328561e-06, 
+var=7.665572768256149e-11, 
+data length: 3400
+norm_gamma abs_update_ratio: 
+mean=7.1038599815781934e-06, 
+var=4.4330405278727546e-11, 
+data length: 3380
+blocks abs_update_ratio: 
+mean=5.776191702399101e-05, 
+var=2.0023343233893385e-10, 
+data length: 3720
+policy_head abs_update_ratio: 
+mean=5.537559109515751e-06, 
+var=4.678346649648416e-11, 
+data length: 180
+value_head abs_update_ratio: 
+mean=2.960492631258833e-05, 
+var=7.324263213647426e-09, 
+data length: 440
+intermediate_policy abs_update_ratio: 
+mean=7.753598128996539e-06, 
+var=5.339119830047752e-11, 
+data length: 180
+intermediate_value abs_update_ratio: 
+mean=2.0345077868352228e-05, 
+var=1.8192080784981714e-09, 
+data length: 440
+update_ratio:
+conv_spatial update_ratio: 
+mean=-1.0671767294452269e-06, 
+var=3.4228079620529573e-10, 
+data length: 20
+linear_global update_ratio: 
+mean=2.459635857643614e-05, 
+var=2.6059318389735027e-08, 
+data length: 20
+norm_beta update_ratio: 
+mean=-1.264386540582136e-07, 
+var=1.0000893745162583e-10, 
+data length: 3400
+norm_gamma update_ratio: 
+mean=3.563234997129958e-08, 
+var=4.988657525787995e-12, 
+data length: 3380
+blocks update_ratio: 
+mean=-3.8981289914427075e-06, 
+var=2.7967747360680022e-06, 
+data length: 3720
+policy_head update_ratio: 
+mean=-1.284929716502378e-06, 
+var=4.91956289609278e-11, 
+data length: 180
+value_head update_ratio: 
+mean=0.00014578757331769432, 
+var=0.00012789972995337612, 
+data length: 440
+intermediate_policy update_ratio: 
+mean=3.5212630451390537e-06, 
+var=3.813521984377084e-10, 
+data length: 180
+intermediate_value update_ratio: 
+mean=7.283010705323526e-06, 
+var=1.87771787369937e-06, 
+data length: 440
+
+
+
+
+
+abs_update_ratio:
+conv_spatial abs_update_ratio: 
+mean=8.51546583445971e-05, 
+var=3.636021876226092e-10, 
+data length: 30
+linear_global abs_update_ratio: 
+mean=8.734099113280323e-05, 
+var=3.7788639018208445e-10, 
+data length: 30
+norm_beta abs_update_ratio: 
+mean=9.722066050632323e-06, 
+var=1.0260896390115476e-10, 
+data length: 5100
+norm_gamma abs_update_ratio: 
+mean=7.367590253718279e-06, 
+var=5.342326907137975e-11, 
+data length: 5070
+blocks abs_update_ratio: 
+mean=5.914365445228987e-05, 
+var=2.4911403820453085e-10, 
+data length: 5580
+policy_head abs_update_ratio: 
+mean=5.1203524242879085e-06, 
+var=4.222579871052466e-11, 
+data length: 270
+value_head abs_update_ratio: 
+mean=2.9832755924815183e-05, 
+var=7.326428824720564e-09, 
+data length: 660
+intermediate_policy abs_update_ratio: 
+mean=7.200969567384926e-06, 
+var=4.822651857166445e-11, 
+data length: 270
+intermediate_value abs_update_ratio: 
+mean=2.0552675217697766e-05, 
+var=1.7809554592276286e-09, 
+data length: 660
+update_ratio:
+conv_spatial update_ratio: 
+mean=-5.442969911427089e-06, 
+var=4.135846098566886e-10, 
+data length: 30
+linear_global update_ratio: 
+mean=4.9327472771775156e-05, 
+var=2.588908712037971e-08, 
+data length: 30
+norm_beta update_ratio: 
+mean=-1.7937906883103312e-07, 
+var=8.952325315514542e-11, 
+data length: 5100
+norm_gamma update_ratio: 
+mean=-1.758383426799503e-08, 
+var=7.1669329531384385e-12, 
+data length: 5070
+blocks update_ratio: 
+mean=1.4433967878662627e-05, 
+var=3.58615866631284e-06, 
+data length: 5580
+policy_head update_ratio: 
+mean=-9.286838166948987e-07, 
+var=4.0940950569516574e-11, 
+data length: 270
+value_head update_ratio: 
+mean=-6.477537619459867e-06, 
+var=0.0001327781761685931, 
+data length: 660
+intermediate_policy update_ratio: 
+mean=3.0096888786907806e-06, 
+var=3.1703208965012834e-10, 
+data length: 270
+intermediate_value update_ratio: 
+mean=-2.691933734446702e-06, 
+var=2.286647547620565e-06, 
+data length: 660
+
+
+
+
+
+abs_update_ratio:
+conv_spatial abs_update_ratio: 
+mean=9.010689128481742e-05, 
+var=7.049258764317631e-10, 
+data length: 40
+linear_global abs_update_ratio: 
+mean=9.114686152947128e-05, 
+var=5.749377454223058e-10, 
+data length: 40
+norm_beta abs_update_ratio: 
+mean=1.0384019742702543e-05, 
+var=1.2079701917605904e-10, 
+data length: 6800
+norm_gamma abs_update_ratio: 
+mean=7.886497585282538e-06, 
+var=6.909863716036841e-11, 
+data length: 6760
+blocks abs_update_ratio: 
+mean=6.265987437878682e-05, 
+var=4.2861693013188473e-10, 
+data length: 7440
+policy_head abs_update_ratio: 
+mean=5.0845113255938934e-06, 
+var=4.2646012263026996e-11, 
+data length: 360
+value_head abs_update_ratio: 
+mean=3.034639745471613e-05, 
+var=7.6004129144196e-09, 
+data length: 880
+intermediate_policy abs_update_ratio: 
+mean=7.1948798270724155e-06, 
+var=4.841605146418373e-11, 
+data length: 360
+intermediate_value abs_update_ratio: 
+mean=2.0411791095191923e-05, 
+var=1.729093347014337e-09, 
+data length: 880
+update_ratio:
+conv_spatial update_ratio: 
+mean=-6.60913798213607e-06, 
+var=4.2773020635624044e-10, 
+data length: 40
+linear_global update_ratio: 
+mean=5.272009368747028e-05, 
+var=3.143235690236426e-08, 
+data length: 40
+norm_beta update_ratio: 
+mean=-3.4286729218217436e-07, 
+var=9.944475745172614e-11, 
+data length: 6800
+norm_gamma update_ratio: 
+mean=2.0053158129468498e-08, 
+var=7.918219496697174e-12, 
+data length: 6760
+blocks update_ratio: 
+mean=2.1295636214502612e-05, 
+var=3.586367322184371e-06, 
+data length: 7440
+policy_head update_ratio: 
+mean=-6.109206430013657e-07, 
+var=4.35179275320002e-11, 
+data length: 360
+value_head update_ratio: 
+mean=0.000154484971300636, 
+var=0.0002015898869221961, 
+data length: 880
+intermediate_policy update_ratio: 
+mean=1.6840326965432718e-06, 
+var=3.5699274171592846e-10, 
+data length: 360
+intermediate_value update_ratio: 
+mean=-1.0896944434660918e-05, 
+var=2.0991197170692223e-06, 
+data length: 880
+
+
+
+
+
+abs_update_ratio:
+conv_spatial abs_update_ratio: 
+mean=8.815717744280852e-05, 
+var=6.282511850919287e-10, 
+data length: 50
+linear_global abs_update_ratio: 
+mean=8.97574491293049e-05, 
+var=5.252767309576632e-10, 
+data length: 50
+norm_beta abs_update_ratio: 
+mean=1.016806766459697e-05, 
+var=1.112235837416141e-10, 
+data length: 8500
+norm_gamma abs_update_ratio: 
+mean=7.743244263315907e-06, 
+var=6.649475729696581e-11, 
+data length: 8450
+blocks abs_update_ratio: 
+mean=6.167193230664488e-05, 
+var=3.8665073239759153e-10, 
+data length: 9300
+policy_head abs_update_ratio: 
+mean=4.993213641094386e-06, 
+var=4.163705931505691e-11, 
+data length: 450
+value_head abs_update_ratio: 
+mean=3.079031590819473e-05, 
+var=7.72549181780829e-09, 
+data length: 1100
+intermediate_policy abs_update_ratio: 
+mean=7.043599763810622e-06, 
+var=4.7090198086844975e-11, 
+data length: 450
+intermediate_value abs_update_ratio: 
+mean=2.0330256850231446e-05, 
+var=1.723413032116837e-09, 
+data length: 1100
+update_ratio:
+conv_spatial update_ratio: 
+mean=-4.581462158885451e-06, 
+var=4.686854233930397e-10, 
+data length: 50
+linear_global update_ratio: 
+mean=3.3342074112063465e-05, 
+var=3.508249506398547e-08, 
+data length: 50
+norm_beta update_ratio: 
+mean=-2.0786621211655329e-07, 
+var=9.347968495380938e-11, 
+data length: 8500
+norm_gamma update_ratio: 
+mean=6.499665892500287e-09, 
+var=9.200269407382043e-12, 
+data length: 8450
+blocks update_ratio: 
+mean=1.8996305455536577e-06, 
+var=3.4676999081402445e-06, 
+data length: 9300
+policy_head update_ratio: 
+mean=-3.950800970418239e-07, 
+var=4.078949053297793e-11, 
+data length: 450
+value_head update_ratio: 
+mean=0.0004914987820667498, 
+var=0.0002450602551964473, 
+data length: 1100
+intermediate_policy update_ratio: 
+mean=1.414851155349063e-06, 
+var=3.498109558922668e-10, 
+data length: 450
+intermediate_value update_ratio: 
+mean=-1.1974151496080941e-05, 
+var=2.0878363373116155e-06, 
+data length: 1100
+
+
+
+
+
+abs_update_ratio:
+conv_spatial abs_update_ratio: 
+mean=8.617866194631226e-05, 
+var=6.140040877063311e-10, 
+data length: 60
+linear_global abs_update_ratio: 
+mean=8.76250672183741e-05, 
+var=5.345051962941256e-10, 
+data length: 60
+norm_beta abs_update_ratio: 
+mean=9.988194956049022e-06, 
+var=1.278959644889471e-10, 
+data length: 10200
+norm_gamma abs_update_ratio: 
+mean=7.560421953370276e-06, 
+var=6.673182369470911e-11, 
+data length: 10140
+blocks abs_update_ratio: 
+mean=6.0442064818359944e-05, 
+var=3.827637020448198e-10, 
+data length: 11160
+policy_head abs_update_ratio: 
+mean=4.86306343049505e-06, 
+var=4.030380174041108e-11, 
+data length: 540
+value_head abs_update_ratio: 
+mean=3.052300046770598e-05, 
+var=7.552172195294992e-09, 
+data length: 1320
+intermediate_policy abs_update_ratio: 
+mean=6.878945510028598e-06, 
+var=4.549018198962219e-11, 
+data length: 540
+intermediate_value abs_update_ratio: 
+mean=2.017656297123612e-05, 
+var=1.7054050168455498e-09, 
+data length: 1320
+update_ratio:
+conv_spatial update_ratio: 
+mean=-3.2211240089092545e-06, 
+var=4.520434093721166e-10, 
+data length: 60
+linear_global update_ratio: 
+mean=1.8530541575091797e-05, 
+var=3.3927258227067186e-08, 
+data length: 60
+norm_beta update_ratio: 
+mean=-1.85556917668193e-07, 
+var=8.804982655674928e-11, 
+data length: 10200
+norm_gamma update_ratio: 
+mean=1.589756871830242e-08, 
+var=1.0167341366984406e-11, 
+data length: 10140
+blocks update_ratio: 
+mean=-2.2779124368085653e-07, 
+var=3.884733083912987e-06, 
+data length: 11160
+policy_head update_ratio: 
+mean=-3.210090994910433e-07, 
+var=3.874759670132559e-11, 
+data length: 540
+value_head update_ratio: 
+mean=0.00047249301908939195, 
+var=0.00022344528554605158, 
+data length: 1320
+intermediate_policy update_ratio: 
+mean=1.0936043376466552e-06, 
+var=3.355466803148435e-10, 
+data length: 540
+intermediate_value update_ratio: 
+mean=-2.4046047307845456e-05, 
+var=2.182080342947233e-06, 
+data length: 1320
+
+
+
+
+
+abs_update_ratio:
+conv_spatial abs_update_ratio: 
+mean=9.18389136456728e-05, 
+var=1.8991320216007017e-09, 
+data length: 70
+linear_global abs_update_ratio: 
+mean=9.523160163950495e-05, 
+var=2.8462392042201345e-09, 
+data length: 70
+norm_beta abs_update_ratio: 
+mean=1.0931141917990124e-05, 
+var=8.463846693008467e-10, 
+data length: 11900
+norm_gamma abs_update_ratio: 
+mean=8.013174467937294e-06, 
+var=2.1468618908332493e-10, 
+data length: 11830
+blocks abs_update_ratio: 
+mean=6.257953834281672e-05, 
+var=1.2496975319264642e-09, 
+data length: 13020
+policy_head abs_update_ratio: 
+mean=4.980997313575078e-06, 
+var=4.132956669452413e-11, 
+data length: 630
+value_head abs_update_ratio: 
+mean=3.134240606047066e-05, 
+var=7.944519643147116e-09, 
+data length: 1540
+intermediate_policy abs_update_ratio: 
+mean=6.956985906719143e-06, 
+var=4.5656904523518064e-11, 
+data length: 630
+intermediate_value abs_update_ratio: 
+mean=2.0388955463584935e-05, 
+var=1.6896442807540794e-09, 
+data length: 1540
+update_ratio:
+conv_spatial update_ratio: 
+mean=-6.0087008115037595e-06, 
+var=1.402750179306615e-09, 
+data length: 70
+linear_global update_ratio: 
+mean=4.545546604581385e-05, 
+var=1.0130441320422446e-07, 
+data length: 70
+norm_beta update_ratio: 
+mean=-2.2726572312211316e-07, 
+var=1.7257735489547135e-10, 
+data length: 11900
+norm_gamma update_ratio: 
+mean=-8.71133013040961e-08, 
+var=3.784570930044835e-11, 
+data length: 11830
+blocks update_ratio: 
+mean=3.218716094268763e-05, 
+var=1.4772101556613163e-05, 
+data length: 13020
+policy_head update_ratio: 
+mean=-4.975573513501079e-07, 
+var=4.5114918063328465e-11, 
+data length: 630
+value_head update_ratio: 
+mean=0.0004477162742028515, 
+var=0.00020650264632905032, 
+data length: 1540
+intermediate_policy update_ratio: 
+mean=7.261772480823242e-07, 
+var=3.4950551907996554e-10, 
+data length: 630
+intermediate_value update_ratio: 
+mean=-2.0746804733765777e-05, 
+var=2.1929479075780988e-06, 
+data length: 1540
+
+
+
+
+
+abs_update_ratio:
+conv_spatial abs_update_ratio: 
+mean=9.085791643844358e-05, 
+var=1.8062472277735064e-09, 
+data length: 80
+linear_global abs_update_ratio: 
+mean=9.403892948387375e-05, 
+var=2.68070090516252e-09, 
+data length: 80
+norm_beta abs_update_ratio: 
+mean=1.0775361998276955e-05, 
+var=7.545968708940188e-10, 
+data length: 13600
+norm_gamma abs_update_ratio: 
+mean=7.920881681099532e-06, 
+var=1.9772815395557095e-10, 
+data length: 13520
+blocks abs_update_ratio: 
+mean=6.206991686822691e-05, 
+var=1.168239020207035e-09, 
+data length: 14880
+policy_head abs_update_ratio: 
+mean=4.941024951879068e-06, 
+var=4.0787467342429296e-11, 
+data length: 720
+value_head abs_update_ratio: 
+mean=3.114054290944331e-05, 
+var=8.02511551042335e-09, 
+data length: 1760
+intermediate_policy abs_update_ratio: 
+mean=6.913536636750086e-06, 
+var=4.5304987157028954e-11, 
+data length: 720
+intermediate_value abs_update_ratio: 
+mean=2.0434537347751945e-05, 
+var=1.7245762986644171e-09, 
+data length: 1760
+update_ratio:
+conv_spatial update_ratio: 
+mean=-4.6668988245694705e-06, 
+var=1.3094993456379496e-09, 
+data length: 80
+linear_global update_ratio: 
+mean=3.2081538356695825e-05, 
+var=1.0638130673678683e-07, 
+data length: 80
+norm_beta update_ratio: 
+mean=-2.0230118340815493e-07, 
+var=1.6328904149810334e-10, 
+data length: 13600
+norm_gamma update_ratio: 
+mean=-1.0649799548103585e-07, 
+var=3.4351415987990584e-11, 
+data length: 13520
+blocks update_ratio: 
+mean=2.5618406958550617e-05, 
+var=1.2958080213734301e-05, 
+data length: 14880
+policy_head update_ratio: 
+mean=-5.244896695973306e-07, 
+var=4.281854970674652e-11, 
+data length: 720
+value_head update_ratio: 
+mean=0.0003447723327414101, 
+var=0.00018685062602766088, 
+data length: 1760
+intermediate_policy update_ratio: 
+mean=7.73256954676188e-07, 
+var=3.459122814516961e-10, 
+data length: 720
+intermediate_value update_ratio: 
+mean=-1.3108170163517216e-05, 
+var=2.801626956952788e-06, 
+data length: 1760
+
+
+
+
+
+abs_update_ratio:
+conv_spatial abs_update_ratio: 
+mean=9.152919572746181e-05, 
+var=1.7717028450215205e-09, 
+data length: 90
+linear_global abs_update_ratio: 
+mean=9.503235952752163e-05, 
+var=2.5699065265386763e-09, 
+data length: 90
+norm_beta abs_update_ratio: 
+mean=1.0924044342550923e-05, 
+var=7.240723137773257e-10, 
+data length: 15300
+norm_gamma abs_update_ratio: 
+mean=8.000554471666934e-06, 
+var=1.9914088185591488e-10, 
+data length: 15210
+blocks abs_update_ratio: 
+mean=6.202832864912625e-05, 
+var=1.1095128343143973e-09, 
+data length: 16740
+policy_head abs_update_ratio: 
+mean=4.910668957137284e-06, 
+var=4.020909058411297e-11, 
+data length: 810
+value_head abs_update_ratio: 
+mean=3.1596467118217364e-05, 
+var=8.330868081242184e-09, 
+data length: 1980
+intermediate_policy abs_update_ratio: 
+mean=6.877486568238896e-06, 
+var=4.456334418845008e-11, 
+data length: 810
+intermediate_value abs_update_ratio: 
+mean=2.053328099009697e-05, 
+var=1.7516093595407489e-09, 
+data length: 1980
+update_ratio:
+conv_spatial update_ratio: 
+mean=-5.399925266276789e-06, 
+var=1.233167161264825e-09, 
+data length: 90
+linear_global update_ratio: 
+mean=4.227810711920162e-05, 
+var=9.92967752659622e-08, 
+data length: 90
+norm_beta update_ratio: 
+mean=-2.2046206131053275e-07, 
+var=1.8228998722047093e-10, 
+data length: 15300
+norm_gamma update_ratio: 
+mean=-7.164542823073953e-08, 
+var=3.405941467372044e-11, 
+data length: 15210
+blocks update_ratio: 
+mean=2.0674853100455816e-05, 
+var=1.1597423368005525e-05, 
+data length: 16740
+policy_head update_ratio: 
+mean=-2.059673212017876e-07, 
+var=4.202063272634491e-11, 
+data length: 810
+value_head update_ratio: 
+mean=9.994143480100573e-05, 
+var=0.00023188156510919834, 
+data length: 1980
+intermediate_policy update_ratio: 
+mean=7.606583080598185e-07, 
+var=3.258823316527522e-10, 
+data length: 810
+intermediate_value update_ratio: 
+mean=-7.514066262615553e-06, 
+var=2.8545912347484924e-06, 
+data length: 1980
+
+
+
+
+
+abs_update_ratio:
+conv_spatial abs_update_ratio: 
+mean=9.014422665168288e-05, 
+var=1.6449041150929989e-09, 
+data length: 100
+linear_global abs_update_ratio: 
+mean=9.389786393076329e-05, 
+var=2.3792825342642265e-09, 
+data length: 100
+norm_beta abs_update_ratio: 
+mean=1.0776767158867202e-05, 
+var=6.610243182791886e-10, 
+data length: 17000
+norm_gamma abs_update_ratio: 
+mean=7.899971829205526e-06, 
+var=1.8481569465020488e-10, 
+data length: 16900
+blocks abs_update_ratio: 
+mean=6.136539842264156e-05, 
+var=1.0192556584379432e-09, 
+data length: 18600
+policy_head abs_update_ratio: 
+mean=4.902762970520216e-06, 
+var=4.0191498905017026e-11, 
+data length: 900
+value_head abs_update_ratio: 
+mean=3.1826251603047367e-05, 
+var=8.425666903898054e-09, 
+data length: 2200
+intermediate_policy abs_update_ratio: 
+mean=6.8920659673062815e-06, 
+var=4.496303504277451e-11, 
+data length: 900
+intermediate_value abs_update_ratio: 
+mean=2.0578540534797557e-05, 
+var=1.7758244651418153e-09, 
+data length: 2200
+update_ratio:
+conv_spatial update_ratio: 
+mean=-3.3748812666048862e-06, 
+var=1.2295774019620098e-09, 
+data length: 100
+linear_global update_ratio: 
+mean=2.4444946963303767e-05, 
+var=1.0439186491559612e-07, 
+data length: 100
+norm_beta update_ratio: 
+mean=-2.2023191248159282e-07, 
+var=1.709290220286902e-10, 
+data length: 17000
+norm_gamma update_ratio: 
+mean=-5.949951534732435e-08, 
+var=3.129927193903845e-11, 
+data length: 16900
+blocks update_ratio: 
+mean=2.180075948869682e-05, 
+var=1.0522360273781696e-05, 
+data length: 18600
+policy_head update_ratio: 
+mean=-1.105776707515274e-07, 
+var=4.422288990013623e-11, 
+data length: 900
+value_head update_ratio: 
+mean=0.0010223414105016099, 
+var=0.0015903444352851582, 
+data length: 2200
+intermediate_policy update_ratio: 
+mean=5.580485898944193e-07, 
+var=3.3888542197501854e-10, 
+data length: 900
+intermediate_value update_ratio: 
+mean=-2.801972644478956e-06, 
+var=3.1771858110899893e-06, 
+data length: 2200
+
+
+
+
+
+abs_update_ratio:
+conv_spatial abs_update_ratio: 
+mean=8.857525204272032e-05, 
+var=1.5387027771186301e-09, 
+data length: 110
+linear_global abs_update_ratio: 
+mean=9.21904310921183e-05, 
+var=2.2027191805078708e-09, 
+data length: 110
+norm_beta abs_update_ratio: 
+mean=1.0554046541352894e-05, 
+var=6.063853310727979e-10, 
+data length: 18700
+norm_gamma abs_update_ratio: 
+mean=7.754444091632458e-06, 
+var=1.7201827802682613e-10, 
+data length: 18590
+blocks abs_update_ratio: 
+mean=6.054328596677967e-05, 
+var=9.437483083217096e-10, 
+data length: 20460
+policy_head abs_update_ratio: 
+mean=4.827726386541117e-06, 
+var=3.952746125121402e-11, 
+data length: 990
+value_head abs_update_ratio: 
+mean=3.1374694848375474e-05, 
+var=8.157334546452058e-09, 
+data length: 2420
+intermediate_policy abs_update_ratio: 
+mean=6.776046972463893e-06, 
+var=4.416103859916167e-11, 
+data length: 990
+intermediate_value abs_update_ratio: 
+mean=2.033412205032516e-05, 
+var=1.7367243641141277e-09, 
+data length: 2420
+update_ratio:
+conv_spatial update_ratio: 
+mean=-2.990791814875908e-06, 
+var=1.1451004862448854e-09, 
+data length: 110
+linear_global update_ratio: 
+mean=2.271695377699436e-05, 
+var=9.733420752761388e-08, 
+data length: 110
+norm_beta update_ratio: 
+mean=-1.9211167506702435e-07, 
+var=1.625157300536939e-10, 
+data length: 18700
+norm_gamma update_ratio: 
+mean=-5.9533873910958357e-08, 
+var=2.9627341025136935e-11, 
+data length: 18590
+blocks update_ratio: 
+mean=2.157301204217897e-05, 
+var=9.64454246432991e-06, 
+data length: 20460
+policy_head update_ratio: 
+mean=-1.415651899132827e-07, 
+var=4.2251272996558354e-11, 
+data length: 990
+value_head update_ratio: 
+mean=0.0009168199995784037, 
+var=0.0026462183499865012, 
+data length: 2420
+intermediate_policy update_ratio: 
+mean=4.651161735163888e-07, 
+var=3.244776931426567e-10, 
+data length: 990
+intermediate_value update_ratio: 
+mean=-9.924822152826659e-06, 
+var=3.1299306977228395e-06, 
+data length: 2420
+
+
+
+
+
+abs_update_ratio:
+conv_spatial abs_update_ratio: 
+mean=8.707541134110231e-05, 
+var=1.4443186279975973e-09, 
+data length: 120
+linear_global abs_update_ratio: 
+mean=9.075720319468825e-05, 
+var=2.0616620933178468e-09, 
+data length: 120
+norm_beta abs_update_ratio: 
+mean=1.0344695423622613e-05, 
+var=5.597083485630208e-10, 
+data length: 20400
+norm_gamma abs_update_ratio: 
+mean=7.628260589193493e-06, 
+var=1.607963551623405e-10, 
+data length: 20280
+blocks abs_update_ratio: 
+mean=5.991266839805364e-05, 
+var=8.804918376575077e-10, 
+data length: 22320
+policy_head abs_update_ratio: 
+mean=4.745597270479592e-06, 
+var=3.874032222114243e-11, 
+data length: 1080
+value_head abs_update_ratio: 
+mean=3.118655246549414e-05, 
+var=8.02381943372127e-09, 
+data length: 2640
+intermediate_policy abs_update_ratio: 
+mean=6.667033864988255e-06, 
+var=4.3301951882070783e-11, 
+data length: 1080
+intermediate_value abs_update_ratio: 
+mean=2.0221178039478917e-05, 
+var=1.718020093790312e-09, 
+data length: 2640
+update_ratio:
+conv_spatial update_ratio: 
+mean=-2.970377711043686e-06, 
+var=1.0719631635027775e-09, 
+data length: 120
+linear_global update_ratio: 
+mean=2.24104632232414e-05, 
+var=9.094460430820272e-08, 
+data length: 120
+norm_beta update_ratio: 
+mean=-1.6922484299949553e-07, 
+var=1.5429822671338917e-10, 
+data length: 20400
+norm_gamma update_ratio: 
+mean=-4.089596872720238e-08, 
+var=2.792095709762671e-11, 
+data length: 20280
+blocks update_ratio: 
+mean=1.8444929119839095e-05, 
+var=8.872786676802124e-06, 
+data length: 22320
+policy_head update_ratio: 
+mean=-1.3840613004021474e-07, 
+var=4.069118957661776e-11, 
+data length: 1080
+value_head update_ratio: 
+mean=0.0002566667826577755, 
+var=0.005577821068967842, 
+data length: 2640
+intermediate_policy update_ratio: 
+mean=5.010630875602273e-07, 
+var=3.112368690735144e-10, 
+data length: 1080
+intermediate_value update_ratio: 
+mean=-3.874160253802468e-06, 
+var=3.304297051631117e-06, 
+data length: 2640
+
+
+
+
+
+abs_update_ratio:
+conv_spatial abs_update_ratio: 
+mean=8.641759118744513e-05, 
+var=1.3456623449286318e-09, 
+data length: 130
+linear_global abs_update_ratio: 
+mean=9.004954244878853e-05, 
+var=1.919588703936322e-09, 
+data length: 130
+norm_beta abs_update_ratio: 
+mean=1.0240684813438412e-05, 
+var=5.215587556879234e-10, 
+data length: 22100
+norm_gamma abs_update_ratio: 
+mean=7.5813814498637355e-06, 
+var=1.5255147395271207e-10, 
+data length: 21970
+blocks abs_update_ratio: 
+mean=5.9561836186321615e-05, 
+var=8.23672982924253e-10, 
+data length: 24180
+policy_head abs_update_ratio: 
+mean=4.718611532648225e-06, 
+var=3.822112354758781e-11, 
+data length: 1170
+value_head abs_update_ratio: 
+mean=3.1093236343487345e-05, 
+var=7.927125342642981e-09, 
+data length: 2860
+intermediate_policy abs_update_ratio: 
+mean=6.6542344143613835e-06, 
+var=4.294289569361192e-11, 
+data length: 1170
+intermediate_value abs_update_ratio: 
+mean=2.0151560349070578e-05, 
+var=1.7090396159574675e-09, 
+data length: 2860
+update_ratio:
+conv_spatial update_ratio: 
+mean=-2.8445442365298843e-06, 
+var=1.005380219646962e-09, 
+data length: 130
+linear_global update_ratio: 
+mean=2.3801835602027365e-05, 
+var=8.51473102390636e-08, 
+data length: 130
+norm_beta update_ratio: 
+mean=-1.418208881231255e-07, 
+var=1.498797520059619e-10, 
+data length: 22100
+norm_gamma update_ratio: 
+mean=-3.3005919341734035e-08, 
+var=2.658330232878884e-11, 
+data length: 21970
+blocks update_ratio: 
+mean=1.590782785721831e-05, 
+var=8.223158117284517e-06, 
+data length: 24180
+policy_head update_ratio: 
+mean=-1.1142017806888728e-07, 
+var=3.9400485164652546e-11, 
+data length: 1170
+value_head update_ratio: 
+mean=0.0007057499119817622, 
+var=0.006276968743656012, 
+data length: 2860
+intermediate_policy update_ratio: 
+mean=5.432120465364863e-07, 
+var=2.9561085488445565e-10, 
+data length: 1170
+intermediate_value update_ratio: 
+mean=-1.217111559256141e-07, 
+var=3.536781870405021e-06, 
+data length: 2860
+
+
+
+
+
+abs_update_ratio:
+conv_spatial abs_update_ratio: 
+mean=8.723863222178115e-05, 
+var=1.386420857760927e-09, 
+data length: 140
+linear_global abs_update_ratio: 
+mean=9.186956694515732e-05, 
+var=2.2045711083612255e-09, 
+data length: 140
+norm_beta abs_update_ratio: 
+mean=1.0349855735603255e-05, 
+var=5.446286951380822e-10, 
+data length: 23800
+norm_gamma abs_update_ratio: 
+mean=7.620723850816653e-06, 
+var=1.5720253283401276e-10, 
+data length: 23660
+blocks abs_update_ratio: 
+mean=5.9633662710374035e-05, 
+var=8.379268146659847e-10, 
+data length: 26040
+policy_head abs_update_ratio: 
+mean=4.694309775090106e-06, 
+var=3.782357460415165e-11, 
+data length: 1260
+value_head abs_update_ratio: 
+mean=3.1141737198652335e-05, 
+var=7.962887331189494e-09, 
+data length: 3080
+intermediate_policy abs_update_ratio: 
+mean=6.635539497557019e-06, 
+var=4.2434462306563694e-11, 
+data length: 1260
+intermediate_value abs_update_ratio: 
+mean=2.011096814986056e-05, 
+var=1.6981701769343439e-09, 
+data length: 3080
+update_ratio:
+conv_spatial update_ratio: 
+mean=-6.434972852867325e-06, 
+var=1.8165095088742037e-09, 
+data length: 140
+linear_global update_ratio: 
+mean=7.239950142101884e-05, 
+var=2.2923397141964363e-07, 
+data length: 140
+norm_beta update_ratio: 
+mean=-1.874569923256086e-07, 
+var=1.6670925846459918e-10, 
+data length: 23800
+norm_gamma update_ratio: 
+mean=-1.3996232375428487e-08, 
+var=2.6345685788738546e-11, 
+data length: 23660
+blocks update_ratio: 
+mean=1.305475737902329e-05, 
+var=7.728964942625443e-06, 
+data length: 26040
+policy_head update_ratio: 
+mean=-9.108308057461633e-08, 
+var=3.876868087165627e-11, 
+data length: 1260
+value_head update_ratio: 
+mean=0.0008580900808972272, 
+var=0.006938938882062298, 
+data length: 3080
+intermediate_policy update_ratio: 
+mean=5.348933139554874e-07, 
+var=2.869344498274095e-10, 
+data length: 1260
+intermediate_value update_ratio: 
+mean=1.6597341961408581e-06, 
+var=3.427243392045965e-06, 
+data length: 3080
+
+
+
+
+
+abs_update_ratio:
+conv_spatial abs_update_ratio: 
+mean=8.779821715678004e-05, 
+var=1.3222138810868963e-09, 
+data length: 150
+linear_global abs_update_ratio: 
+mean=9.211540116473646e-05, 
+var=2.095140037948368e-09, 
+data length: 150
+norm_beta abs_update_ratio: 
+mean=1.0481461919737276e-05, 
+var=5.313307654877278e-10, 
+data length: 25500
+norm_gamma abs_update_ratio: 
+mean=7.69342774273433e-06, 
+var=1.585369220135066e-10, 
+data length: 25350
+blocks abs_update_ratio: 
+mean=6.001143178952922e-05, 
+var=8.065772871922707e-10, 
+data length: 27900
+policy_head abs_update_ratio: 
+mean=4.821439785566018e-06, 
+var=3.996934184743283e-11, 
+data length: 1350
+value_head abs_update_ratio: 
+mean=3.118760787857533e-05, 
+var=7.885603489379513e-09, 
+data length: 3300
+intermediate_policy abs_update_ratio: 
+mean=6.70014175300588e-06, 
+var=4.346868922188346e-11, 
+data length: 1350
+intermediate_value abs_update_ratio: 
+mean=2.0113416336650314e-05, 
+var=1.6744665074860712e-09, 
+data length: 3300
+update_ratio:
+conv_spatial update_ratio: 
+mean=-6.8025032126406626e-06, 
+var=1.7171302045099454e-09, 
+data length: 150
+linear_global update_ratio: 
+mean=7.693557623757057e-05, 
+var=2.1708497139805132e-07, 
+data length: 150
+norm_beta update_ratio: 
+mean=-1.4106347522258064e-07, 
+var=1.7563563202287592e-10, 
+data length: 25500
+norm_gamma update_ratio: 
+mean=-3.519020398164164e-08, 
+var=2.6715810850247498e-11, 
+data length: 25350
+blocks update_ratio: 
+mean=9.793488303459007e-06, 
+var=7.290728929431567e-06, 
+data length: 27900
+policy_head update_ratio: 
+mean=-2.751068940247931e-07, 
+var=4.166085708617816e-11, 
+data length: 1350
+value_head update_ratio: 
+mean=0.0007016117812972742, 
+var=0.006498479288950403, 
+data length: 3300
+intermediate_policy update_ratio: 
+mean=3.9104340993578815e-07, 
+var=3.0141331967956253e-10, 
+data length: 1350
+intermediate_value update_ratio: 
+mean=2.454977859024271e-06, 
+var=3.4762165016766323e-06, 
+data length: 3300
+
+
+
+
+
+abs_update_ratio:
+conv_spatial abs_update_ratio: 
+mean=8.672438032142251e-05, 
+var=1.2716712263061128e-09, 
+data length: 160
+linear_global abs_update_ratio: 
+mean=9.104878337385515e-05, 
+var=2.001546781693525e-09, 
+data length: 160
+norm_beta abs_update_ratio: 
+mean=1.0367633597224538e-05, 
+var=5.018510420298544e-10, 
+data length: 27200
+norm_gamma abs_update_ratio: 
+mean=7.6272688242413055e-06, 
+var=1.5184218350727445e-10, 
+data length: 27040
+blocks abs_update_ratio: 
+mean=5.954906235171833e-05, 
+var=7.702023903735409e-10, 
+data length: 29760
+policy_head abs_update_ratio: 
+mean=4.773963507628422e-06, 
+var=3.942815498692017e-11, 
+data length: 1440
+value_head abs_update_ratio: 
+mean=3.1129371890649473e-05, 
+var=7.877448238276706e-09, 
+data length: 3520
+intermediate_policy abs_update_ratio: 
+mean=6.65087308925609e-06, 
+var=4.3078189533877085e-11, 
+data length: 1440
+intermediate_value abs_update_ratio: 
+mean=2.0127201158008527e-05, 
+var=1.668501044585084e-09, 
+data length: 3520
+update_ratio:
+conv_spatial update_ratio: 
+mean=-6.418165318621805e-06, 
+var=1.6427122039641767e-09, 
+data length: 160
+linear_global update_ratio: 
+mean=7.232271447024198e-05, 
+var=2.064391063772635e-07, 
+data length: 160
+norm_beta update_ratio: 
+mean=-1.340275084012072e-07, 
+var=1.690772398695686e-10, 
+data length: 27200
+norm_gamma update_ratio: 
+mean=-3.050824416158024e-08, 
+var=2.5456390418307193e-11, 
+data length: 27040
+blocks update_ratio: 
+mean=6.585266126953724e-06, 
+var=6.897303849622141e-06, 
+data length: 29760
+policy_head update_ratio: 
+mean=-2.2080588565376915e-07, 
+var=4.048450232505283e-11, 
+data length: 1440
+value_head update_ratio: 
+mean=0.0005147351805071384, 
+var=0.00645637579587812, 
+data length: 3520
+intermediate_policy update_ratio: 
+mean=5.107704233031798e-07, 
+var=2.982490584313461e-10, 
+data length: 1440
+intermediate_value update_ratio: 
+mean=-9.167475612709465e-07, 
+var=3.4465951991503282e-06, 
+data length: 3520
+
+
+
+
+
+abs_update_ratio:
+conv_spatial abs_update_ratio: 
+mean=8.662172817613005e-05, 
+var=1.2331511988652294e-09, 
+data length: 170
+linear_global abs_update_ratio: 
+mean=9.125381010328372e-05, 
+var=2.0198214896337513e-09, 
+data length: 170
+norm_beta abs_update_ratio: 
+mean=1.0384317980423602e-05, 
+var=4.868049010465921e-10, 
+data length: 28900
+norm_gamma abs_update_ratio: 
+mean=7.635874192794358e-06, 
+var=1.5139522775411888e-10, 
+data length: 28730
+blocks abs_update_ratio: 
+mean=5.9563017912278545e-05, 
+var=7.570345884615295e-10, 
+data length: 31620
+policy_head abs_update_ratio: 
+mean=4.750422429180001e-06, 
+var=3.916021791642678e-11, 
+data length: 1530
+value_head abs_update_ratio: 
+mean=3.0880327806655514e-05, 
+var=7.75989504937168e-09, 
+data length: 3740
+intermediate_policy abs_update_ratio: 
+mean=6.6707726107116425e-06, 
+var=4.328588713087125e-11, 
+data length: 1530
+intermediate_value abs_update_ratio: 
+mean=2.0057994802666487e-05, 
+var=1.6480632241718183e-09, 
+data length: 3740
+update_ratio:
+conv_spatial update_ratio: 
+mean=-5.843424870294301e-06, 
+var=1.588729651724387e-09, 
+data length: 170
+linear_global update_ratio: 
+mean=6.036491217092972e-05, 
+var=2.0530123981294253e-07, 
+data length: 170
+norm_beta update_ratio: 
+mean=-1.0847857027491523e-07, 
+var=1.6938178899809646e-10, 
+data length: 28900
+norm_gamma update_ratio: 
+mean=-1.0720514094999724e-08, 
+var=2.6884767998766672e-11, 
+data length: 28730
+blocks update_ratio: 
+mean=7.096914022262835e-06, 
+var=6.618780427547993e-06, 
+data length: 31620
+policy_head update_ratio: 
+mean=-1.2738419023775879e-07, 
+var=3.9189833021953415e-11, 
+data length: 1530
+value_head update_ratio: 
+mean=0.0004464895685190435, 
+var=0.00608157835645769, 
+data length: 3740
+intermediate_policy update_ratio: 
+mean=3.8212357731035175e-07, 
+var=2.9901789066996106e-10, 
+data length: 1530
+intermediate_value update_ratio: 
+mean=2.9112984349145253e-08, 
+var=3.4905146599452847e-06, 
+data length: 3740
+
+
+
+
+
+abs_update_ratio:
+conv_spatial abs_update_ratio: 
+mean=8.679651995554097e-05, 
+var=1.1823359961521244e-09, 
+data length: 180
+linear_global abs_update_ratio: 
+mean=9.134380038458605e-05, 
+var=1.929490145547062e-09, 
+data length: 180
+norm_beta abs_update_ratio: 
+mean=1.044969786183542e-05, 
+var=4.740989905330377e-10, 
+data length: 30600
+norm_gamma abs_update_ratio: 
+mean=7.662932903474019e-06, 
+var=1.4772200932830173e-10, 
+data length: 30420
+blocks abs_update_ratio: 
+mean=5.982024841909916e-05, 
+var=7.33146807474327e-10, 
+data length: 33480
+policy_head abs_update_ratio: 
+mean=4.737290397084844e-06, 
+var=3.90845973380437e-11, 
+data length: 1620
+value_head abs_update_ratio: 
+mean=3.077964446363615e-05, 
+var=7.680829138813805e-09, 
+data length: 3960
+intermediate_policy abs_update_ratio: 
+mean=6.637632687140135e-06, 
+var=4.3156117693815074e-11, 
+data length: 1620
+intermediate_value abs_update_ratio: 
+mean=1.994006130964013e-05, 
+var=1.6277884473423464e-09, 
+data length: 3960
+update_ratio:
+conv_spatial update_ratio: 
+mean=-5.740956658111907e-06, 
+var=1.5182656550513242e-09, 
+data length: 180
+linear_global update_ratio: 
+mean=5.70044117330954e-05, 
+var=1.9540252333923138e-07, 
+data length: 180
+norm_beta update_ratio: 
+mean=-1.1397212996162392e-07, 
+var=1.6814969674674005e-10, 
+data length: 30600
+norm_gamma update_ratio: 
+mean=-8.412318555462275e-09, 
+var=2.5798941665301522e-11, 
+data length: 30420
+blocks update_ratio: 
+mean=9.701047574583237e-06, 
+var=6.421565607897129e-06, 
+data length: 33480
+policy_head update_ratio: 
+mean=-9.804454216233498e-08, 
+var=3.890248738970628e-11, 
+data length: 1620
+value_head update_ratio: 
+mean=0.0003767107124150592, 
+var=0.005751302700601238, 
+data length: 3960
+intermediate_policy update_ratio: 
+mean=1.5523265881701842e-07, 
+var=2.951779136687138e-10, 
+data length: 1620
+intermediate_value update_ratio: 
+mean=1.4388507070300994e-06, 
+var=3.405113658865364e-06, 
+data length: 3960
+
+
+
+
+
+abs_update_ratio:
+conv_spatial abs_update_ratio: 
+mean=8.599177223513995e-05, 
+var=1.1415384813838178e-09, 
+data length: 190
+linear_global abs_update_ratio: 
+mean=9.053538838478871e-05, 
+var=1.8530874873177941e-09, 
+data length: 190
+norm_beta abs_update_ratio: 
+mean=1.0348318830895592e-05, 
+var=4.552312095292839e-10, 
+data length: 32300
+norm_gamma abs_update_ratio: 
+mean=7.590864791884452e-06, 
+var=1.425846837305957e-10, 
+data length: 32110
+blocks abs_update_ratio: 
+mean=5.9421939576544124e-05, 
+var=7.070165511054239e-10, 
+data length: 35340
+policy_head abs_update_ratio: 
+mean=4.7031718732827464e-06, 
+var=3.873646496657768e-11, 
+data length: 1710
+value_head abs_update_ratio: 
+mean=3.077298160431053e-05, 
+var=7.67419854739235e-09, 
+data length: 4180
+intermediate_policy abs_update_ratio: 
+mean=6.59735450967857e-06, 
+var=4.2860490218347706e-11, 
+data length: 1710
+intermediate_value abs_update_ratio: 
+mean=1.9914445294833646e-05, 
+var=1.6415950376404516e-09, 
+data length: 4180
+update_ratio:
+conv_spatial update_ratio: 
+mean=-5.704497082230869e-06, 
+var=1.458777846792788e-09, 
+data length: 190
+linear_global update_ratio: 
+mean=5.469551268385177e-05, 
+var=1.8651457554930396e-07, 
+data length: 190
+norm_beta update_ratio: 
+mean=-9.426557090418073e-08, 
+var=1.6497066711990733e-10, 
+data length: 32300
+norm_gamma update_ratio: 
+mean=-3.822760342491038e-09, 
+var=2.4814562913446063e-11, 
+data length: 32110
+blocks update_ratio: 
+mean=9.240036519645135e-06, 
+var=6.1764116065118e-06, 
+data length: 35340
+policy_head update_ratio: 
+mean=-7.812940311680606e-08, 
+var=3.880890377388489e-11, 
+data length: 1710
+value_head update_ratio: 
+mean=0.0004060038875670066, 
+var=0.005458248312568453, 
+data length: 4180
+intermediate_policy update_ratio: 
+mean=2.5021399120512744e-07, 
+var=2.926162345227282e-10, 
+data length: 1710
+intermediate_value update_ratio: 
+mean=-3.878480097970189e-06, 
+var=3.3761639226839573e-06, 
+data length: 4180
+
+
+
+
+
+abs_update_ratio:
+conv_spatial abs_update_ratio: 
+mean=8.528869787366812e-05, 
+var=1.0970222569166232e-09, 
+data length: 200
+linear_global abs_update_ratio: 
+mean=8.975779253492174e-05, 
+var=1.7809504880331718e-09, 
+data length: 200
+norm_beta abs_update_ratio: 
+mean=1.0260003571913353e-05, 
+var=4.359065001508948e-10, 
+data length: 34000
+norm_gamma abs_update_ratio: 
+mean=7.534274429461247e-06, 
+var=1.3737819383012742e-10, 
+data length: 33800
+blocks abs_update_ratio: 
+mean=5.902640125777901e-05, 
+var=6.789785213036285e-10, 
+data length: 37200
+policy_head abs_update_ratio: 
+mean=4.683421729733254e-06, 
+var=3.847698770320364e-11, 
+data length: 1800
+value_head abs_update_ratio: 
+mean=3.0919781899730224e-05, 
+var=7.765096352349898e-09, 
+data length: 4400
+intermediate_policy abs_update_ratio: 
+mean=6.571364273712895e-06, 
+var=4.258378923352726e-11, 
+data length: 1800
+intermediate_value abs_update_ratio: 
+mean=1.9844195030186474e-05, 
+var=1.6371728143884464e-09, 
+data length: 4400
+update_ratio:
+conv_spatial update_ratio: 
+mean=-5.197990948683376e-06, 
+var=1.399721185450784e-09, 
+data length: 200
+linear_global update_ratio: 
+mean=4.964373414447065e-05, 
+var=1.7933002361131957e-07, 
+data length: 200
+norm_beta update_ratio: 
+mean=-8.200035456651912e-08, 
+var=1.6057315390109607e-10, 
+data length: 34000
+norm_gamma update_ratio: 
+mean=1.1128445636432046e-09, 
+var=2.3911912639014165e-11, 
+data length: 33800
+blocks update_ratio: 
+mean=7.671745070336802e-06, 
+var=5.9186129166163234e-06, 
+data length: 37200
+policy_head update_ratio: 
+mean=-1.1854580014913161e-07, 
+var=3.821982895964646e-11, 
+data length: 1800
+value_head update_ratio: 
+mean=0.000367213537337182, 
+var=0.005191168655460537, 
+data length: 4400
+intermediate_policy update_ratio: 
+mean=4.1175140559542936e-07, 
+var=2.8714669155589967e-10, 
+data length: 1800
+intermediate_value update_ratio: 
+mean=-3.315567255709282e-06, 
+var=3.319480789798645e-06, 
+data length: 4400
+
+
+
+
+
+abs_update_ratio:
+conv_spatial abs_update_ratio: 
+mean=8.518174921002652e-05, 
+var=1.09708877042872e-09, 
+data length: 210
+linear_global abs_update_ratio: 
+mean=8.962562483322944e-05, 
+var=1.7528975696092466e-09, 
+data length: 210
+norm_beta abs_update_ratio: 
+mean=1.0240803886177833e-05, 
+var=4.22967908023612e-10, 
+data length: 35700
+norm_gamma abs_update_ratio: 
+mean=7.537087783473169e-06, 
+var=1.3587373267403944e-10, 
+data length: 35490
+blocks abs_update_ratio: 
+mean=5.902494357402809e-05, 
+var=6.682555206865035e-10, 
+data length: 39060
+policy_head abs_update_ratio: 
+mean=4.671300326313627e-06, 
+var=3.819406904930594e-11, 
+data length: 1890
+value_head abs_update_ratio: 
+mean=3.101859378164707e-05, 
+var=7.829536804238876e-09, 
+data length: 4620
+intermediate_policy abs_update_ratio: 
+mean=6.576295017025688e-06, 
+var=4.2339419034419993e-11, 
+data length: 1890
+intermediate_value abs_update_ratio: 
+mean=1.9810024718417724e-05, 
+var=1.6284660570812927e-09, 
+data length: 4620
+update_ratio:
+conv_spatial update_ratio: 
+mean=-4.0184120992299486e-06, 
+var=1.3864609202761257e-09, 
+data length: 210
+linear_global update_ratio: 
+mean=3.9450636813183196e-05, 
+var=1.73967638493566e-07, 
+data length: 210
+norm_beta update_ratio: 
+mean=-9.31949434276916e-08, 
+var=1.5802925737433557e-10, 
+data length: 35700
+norm_gamma update_ratio: 
+mean=3.3900185592524604e-10, 
+var=2.4515874296803005e-11, 
+data length: 35490
+blocks update_ratio: 
+mean=4.963518067470927e-06, 
+var=5.804284780941402e-06, 
+data length: 39060
+policy_head update_ratio: 
+mean=-1.2902708323786558e-07, 
+var=3.716322630871504e-11, 
+data length: 1890
+value_head update_ratio: 
+mean=0.00014947552618937168, 
+var=0.005332047761094654, 
+data length: 4620
+intermediate_policy update_ratio: 
+mean=4.2868878658027437e-07, 
+var=2.7842618073779447e-10, 
+data length: 1890
+intermediate_value update_ratio: 
+mean=-1.917976324890339e-06, 
+var=3.2329297926153344e-06, 
+data length: 4620
+
+
+
+
+
+abs_update_ratio:
+conv_spatial abs_update_ratio: 
+mean=8.485014296105162e-05, 
+var=1.0967732952750653e-09, 
+data length: 220
+linear_global abs_update_ratio: 
+mean=8.917630987502996e-05, 
+var=1.712219848993689e-09, 
+data length: 220
+norm_beta abs_update_ratio: 
+mean=1.022785755047166e-05, 
+var=4.1018914027345014e-10, 
+data length: 37400
+norm_gamma abs_update_ratio: 
+mean=7.526940018408896e-06, 
+var=1.3264799187821413e-10, 
+data length: 37180
+blocks abs_update_ratio: 
+mean=5.886564295786623e-05, 
+var=6.602060070996719e-10, 
+data length: 40920
+policy_head abs_update_ratio: 
+mean=4.648436674238639e-06, 
+var=3.7805508409270176e-11, 
+data length: 1980
+value_head abs_update_ratio: 
+mean=3.118964536176977e-05, 
+var=7.928564262437117e-09, 
+data length: 4840
+intermediate_policy abs_update_ratio: 
+mean=6.549487777227292e-06, 
+var=4.1980622436834033e-11, 
+data length: 1980
+intermediate_value abs_update_ratio: 
+mean=1.985478566032175e-05, 
+var=1.6471468223661075e-09, 
+data length: 4840
+update_ratio:
+conv_spatial update_ratio: 
+mean=-3.741672791946612e-06, 
+var=1.3453267264123939e-09, 
+data length: 220
+linear_global update_ratio: 
+mean=3.8402302158356146e-05, 
+var=1.6737401827043304e-07, 
+data length: 220
+norm_beta update_ratio: 
+mean=-8.519776634805786e-08, 
+var=1.548824954718569e-10, 
+data length: 37400
+norm_gamma update_ratio: 
+mean=-2.201407171879946e-09, 
+var=2.3659163876862683e-11, 
+data length: 37180
+blocks update_ratio: 
+mean=6.3711313811182976e-06, 
+var=5.627585166554518e-06, 
+data length: 40920
+policy_head update_ratio: 
+mean=-1.0398505081977104e-07, 
+var=3.621176341447499e-11, 
+data length: 1980
+value_head update_ratio: 
+mean=-0.004259300742024561, 
+var=0.12938681456581536, 
+data length: 4840
+intermediate_policy update_ratio: 
+mean=5.228399884649677e-07, 
+var=2.707868580641719e-10, 
+data length: 1980
+intermediate_value update_ratio: 
+mean=1.6690362173394173e-06, 
+var=3.241472483319234e-06, 
+data length: 4840
+
+
+
+
+
+abs_update_ratio:
+conv_spatial abs_update_ratio: 
+mean=8.422909034824539e-05, 
+var=1.0633730175891445e-09, 
+data length: 230
+linear_global abs_update_ratio: 
+mean=8.835334914662548e-05, 
+var=1.6604755111740411e-09, 
+data length: 230
+norm_beta abs_update_ratio: 
+mean=1.0190908519589344e-05, 
+var=3.9690451059617727e-10, 
+data length: 39100
+norm_gamma abs_update_ratio: 
+mean=7.4929564106137424e-06, 
+var=1.2911357077018442e-10, 
+data length: 38870
+blocks abs_update_ratio: 
+mean=5.85351079294836e-05, 
+var=6.390026264519443e-10, 
+data length: 42780
+policy_head abs_update_ratio: 
+mean=4.613840879432955e-06, 
+var=3.7425344498225767e-11, 
+data length: 2070
+value_head abs_update_ratio: 
+mean=3.111541741610939e-05, 
+var=7.870727492058501e-09, 
+data length: 5060
+intermediate_policy abs_update_ratio: 
+mean=6.4935929847823644e-06, 
+var=4.159862215174167e-11, 
+data length: 2070
+intermediate_value abs_update_ratio: 
+mean=1.9767348984888936e-05, 
+var=1.633691527913899e-09, 
+data length: 5060
+update_ratio:
+conv_spatial update_ratio: 
+mean=-3.7401564154101924e-06, 
+var=1.3033991845575854e-09, 
+data length: 230
+linear_global update_ratio: 
+mean=3.6819632230988355e-05, 
+var=1.6138660349687178e-07, 
+data length: 230
+norm_beta update_ratio: 
+mean=-8.80715159429658e-08, 
+var=1.5157367782696782e-10, 
+data length: 39100
+norm_gamma update_ratio: 
+mean=-2.809820619906207e-09, 
+var=2.2908219823562102e-11, 
+data length: 38870
+blocks update_ratio: 
+mean=6.321738629937615e-06, 
+var=5.446305504711176e-06, 
+data length: 42780
+policy_head update_ratio: 
+mean=-4.9904823414172816e-08, 
+var=3.551346169753901e-11, 
+data length: 2070
+value_head update_ratio: 
+mean=-0.004063623073812901, 
+var=0.12399636573941372, 
+data length: 5060
+intermediate_policy update_ratio: 
+mean=5.421247330996426e-07, 
+var=2.6346170183184886e-10, 
+data length: 2070
+intermediate_value update_ratio: 
+mean=3.4521962652540583e-06, 
+var=3.1998008768574998e-06, 
+data length: 5060
+
+
+
+
+
+abs_update_ratio:
+conv_spatial abs_update_ratio: 
+mean=8.400834263722359e-05, 
+var=1.025235305890448e-09, 
+data length: 240
+linear_global abs_update_ratio: 
+mean=8.811908159852208e-05, 
+var=1.5965422330142678e-09, 
+data length: 240
+norm_beta abs_update_ratio: 
+mean=1.0165158171144097e-05, 
+var=3.849379089678706e-10, 
+data length: 40800
+norm_gamma abs_update_ratio: 
+mean=7.474545344605901e-06, 
+var=1.2568084103040772e-10, 
+data length: 40560
+blocks abs_update_ratio: 
+mean=5.8432555017013765e-05, 
+var=6.187863519506376e-10, 
+data length: 44640
+policy_head abs_update_ratio: 
+mean=4.585279733043842e-06, 
+var=3.717719979408856e-11, 
+data length: 2160
+value_head abs_update_ratio: 
+mean=3.106528477887144e-05, 
+var=7.850930637118363e-09, 
+data length: 5280
+intermediate_policy abs_update_ratio: 
+mean=6.4560526219545205e-06, 
+var=4.1388631967968126e-11, 
+data length: 2160
+intermediate_value abs_update_ratio: 
+mean=1.9721350003417518e-05, 
+var=1.6311157589787378e-09, 
+data length: 5280
+update_ratio:
+conv_spatial update_ratio: 
+mean=-3.893188544420563e-06, 
+var=1.2530426356447977e-09, 
+data length: 240
+linear_global update_ratio: 
+mean=3.767848846330837e-05, 
+var=1.5543073401481675e-07, 
+data length: 240
+norm_beta update_ratio: 
+mean=-7.199774369204545e-08, 
+var=1.4976556147467998e-10, 
+data length: 40800
+norm_gamma update_ratio: 
+mean=-4.527064572133021e-09, 
+var=2.2243884237575405e-11, 
+data length: 40560
+blocks update_ratio: 
+mean=8.678431697207091e-06, 
+var=5.312229142113647e-06, 
+data length: 44640
+policy_head update_ratio: 
+mean=-4.4145565931181515e-08, 
+var=3.4966567572713695e-11, 
+data length: 2160
+value_head update_ratio: 
+mean=-0.0036266726035568586, 
+var=0.11922481766564884, 
+data length: 5280
+intermediate_policy update_ratio: 
+mean=4.746207517339438e-07, 
+var=2.605781617149182e-10, 
+data length: 2160
+intermediate_value update_ratio: 
+mean=3.85336051685847e-06, 
+var=3.1644115990122777e-06, 
+data length: 5280
+
+
+
+
+
+abs_update_ratio:
+conv_spatial abs_update_ratio: 
+mean=8.397285897440753e-05, 
+var=1.0060299373762417e-09, 
+data length: 250
+linear_global abs_update_ratio: 
+mean=8.806112366936417e-05, 
+var=1.572384202036106e-09, 
+data length: 250
+norm_beta abs_update_ratio: 
+mean=1.0145049633840134e-05, 
+var=3.7758348193856466e-10, 
+data length: 42500
+norm_gamma abs_update_ratio: 
+mean=7.457374813189733e-06, 
+var=1.2383925934552686e-10, 
+data length: 42250
+blocks abs_update_ratio: 
+mean=5.829002755580356e-05, 
+var=6.038887969339137e-10, 
+data length: 46500
+policy_head abs_update_ratio: 
+mean=4.5605437072363595e-06, 
+var=3.695346772209717e-11, 
+data length: 2250
+value_head abs_update_ratio: 
+mean=3.113303463129588e-05, 
+var=7.905805204990621e-09, 
+data length: 5500
+intermediate_policy abs_update_ratio: 
+mean=6.423148545948049e-06, 
+var=4.120256260783214e-11, 
+data length: 2250
+intermediate_value abs_update_ratio: 
+mean=1.9681037416758118e-05, 
+var=1.6250298222640522e-09, 
+data length: 5500
+update_ratio:
+conv_spatial update_ratio: 
+mean=-3.595712433006216e-06, 
+var=1.237028370888974e-09, 
+data length: 250
+linear_global update_ratio: 
+mean=3.440606165463469e-05, 
+var=1.5415523514952114e-07, 
+data length: 250
+norm_beta update_ratio: 
+mean=-8.727738604660044e-08, 
+var=1.4916066468537627e-10, 
+data length: 42500
+norm_gamma update_ratio: 
+mean=-9.744831012892576e-09, 
+var=2.2314556197000706e-11, 
+data length: 42250
+blocks update_ratio: 
+mean=1.1015064846948883e-05, 
+var=5.1502090778390014e-06, 
+data length: 46500
+policy_head update_ratio: 
+mean=-2.17434218358563e-08, 
+var=3.412587278000759e-11, 
+data length: 2250
+value_head update_ratio: 
+mean=-0.003446936098125597, 
+var=0.11446218389348818, 
+data length: 5500
+intermediate_policy update_ratio: 
+mean=4.137405200578399e-07, 
+var=2.5487342946890925e-10, 
+data length: 2250
+intermediate_value update_ratio: 
+mean=4.120803824304367e-06, 
+var=3.079928357898316e-06, 
+data length: 5500
+
+
+
+
+
+abs_update_ratio:
+conv_spatial abs_update_ratio: 
+mean=8.397726656079848e-05, 
+var=9.764590696787375e-10, 
+data length: 260
+linear_global abs_update_ratio: 
+mean=8.805849518394325e-05, 
+var=1.5244985188237979e-09, 
+data length: 260
+norm_beta abs_update_ratio: 
+mean=1.0133471651922685e-05, 
+var=3.68586527696752e-10, 
+data length: 44200
+norm_gamma abs_update_ratio: 
+mean=7.442919233964738e-06, 
+var=1.2118098536778666e-10, 
+data length: 43940
+blocks abs_update_ratio: 
+mean=5.8254523808185034e-05, 
+var=5.88046006506284e-10, 
+data length: 48360
+policy_head abs_update_ratio: 
+mean=4.542253829306438e-06, 
+var=3.678426161672922e-11, 
+data length: 2340
+value_head abs_update_ratio: 
+mean=3.091040011247386e-05, 
+var=7.800853222479458e-09, 
+data length: 5720
+intermediate_policy abs_update_ratio: 
+mean=6.396806843046945e-06, 
+var=4.1059638988231957e-11, 
+data length: 2340
+intermediate_value abs_update_ratio: 
+mean=1.9560466618256908e-05, 
+var=1.6092023294684904e-09, 
+data length: 5720
+update_ratio:
+conv_spatial update_ratio: 
+mean=-3.5914369077636533e-06, 
+var=1.2055323329537366e-09, 
+data length: 260
+linear_global update_ratio: 
+mean=3.421811030102169e-05, 
+var=1.4878773429748206e-07, 
+data length: 260
+norm_beta update_ratio: 
+mean=-7.920130612509702e-08, 
+var=1.4552956640105067e-10, 
+data length: 44200
+norm_gamma update_ratio: 
+mean=-7.682677617200397e-09, 
+var=2.1651427126671748e-11, 
+data length: 43940
+blocks update_ratio: 
+mean=1.0184701556813674e-05, 
+var=4.982760574763107e-06, 
+data length: 48360
+policy_head update_ratio: 
+mean=-5.121287404438676e-08, 
+var=3.355934257791884e-11, 
+data length: 2340
+value_head update_ratio: 
+mean=-0.0033652914256073058, 
+var=0.11006294551139809, 
+data length: 5720
+intermediate_policy update_ratio: 
+mean=3.818265109280657e-07, 
+var=2.508874755250888e-10, 
+data length: 2340
+intermediate_value update_ratio: 
+mean=4.2312882762562654e-06, 
+var=3.019066312714816e-06, 
+data length: 5720
+
+
+
+
+
+abs_update_ratio:
+conv_spatial abs_update_ratio: 
+mean=8.340083141783652e-05, 
+var=9.51442934204429e-10, 
+data length: 270
+linear_global abs_update_ratio: 
+mean=8.735531465392224e-05, 
+var=1.4853786140332263e-09, 
+data length: 270
+norm_beta abs_update_ratio: 
+mean=1.0048162626015337e-05, 
+var=3.5712146376106626e-10, 
+data length: 45900
+norm_gamma abs_update_ratio: 
+mean=7.387867058317605e-06, 
+var=1.179536341758617e-10, 
+data length: 45630
+blocks abs_update_ratio: 
+mean=5.797078378025608e-05, 
+var=5.715739125740365e-10, 
+data length: 50220
+policy_head abs_update_ratio: 
+mean=4.522437678187196e-06, 
+var=3.652135507719798e-11, 
+data length: 2430
+value_head abs_update_ratio: 
+mean=3.070179186418347e-05, 
+var=7.679141561121781e-09, 
+data length: 5940
+intermediate_policy abs_update_ratio: 
+mean=6.3671200890674026e-06, 
+var=4.0732457410343766e-11, 
+data length: 2430
+intermediate_value abs_update_ratio: 
+mean=1.949330019880283e-05, 
+var=1.5968743644062394e-09, 
+data length: 5940
+update_ratio:
+conv_spatial update_ratio: 
+mean=-3.312030504268654e-06, 
+var=1.1701914960547196e-09, 
+data length: 270
+linear_global update_ratio: 
+mean=3.1053818022301544e-05, 
+var=1.4402986059306684e-07, 
+data length: 270
+norm_beta update_ratio: 
+mean=-8.293196204540291e-08, 
+var=1.4236464374220981e-10, 
+data length: 45900
+norm_gamma update_ratio: 
+mean=-7.749591671637876e-09, 
+var=2.0978658946587335e-11, 
+data length: 45630
+blocks update_ratio: 
+mean=8.26327273681759e-06, 
+var=4.820603344774489e-06, 
+data length: 50220
+policy_head update_ratio: 
+mean=-5.319285041708947e-08, 
+var=3.3029975802066957e-11, 
+data length: 2430
+value_head update_ratio: 
+mean=-0.003354158112050285, 
+var=0.10601071879730552, 
+data length: 5940
+intermediate_policy update_ratio: 
+mean=3.46468390902696e-07, 
+var=2.4522110048698743e-10, 
+data length: 2430
+intermediate_value update_ratio: 
+mean=4.111785237011395e-06, 
+var=2.967296576278714e-06, 
+data length: 5940
+
+
+
+
+
+abs_update_ratio:
+conv_spatial abs_update_ratio: 
+mean=8.285361783587033e-05, 
+var=9.291253525588558e-10, 
+data length: 280
+linear_global abs_update_ratio: 
+mean=8.680931563231004e-05, 
+var=1.4459697252433839e-09, 
+data length: 280
+norm_beta abs_update_ratio: 
+mean=9.989273834422274e-06, 
+var=3.4688495770868723e-10, 
+data length: 47600
+norm_gamma abs_update_ratio: 
+mean=7.348685418270951e-06, 
+var=1.1508346298947328e-10, 
+data length: 47320
+blocks abs_update_ratio: 
+mean=5.773202082252956e-05, 
+var=5.563106289093514e-10, 
+data length: 52080
+policy_head abs_update_ratio: 
+mean=4.513355545879131e-06, 
+var=3.647439861746163e-11, 
+data length: 2520
+value_head abs_update_ratio: 
+mean=3.0733200309672954e-05, 
+var=7.694295651022807e-09, 
+data length: 6160
+intermediate_policy abs_update_ratio: 
+mean=6.348512636936259e-06, 
+var=4.0674726734094096e-11, 
+data length: 2520
+intermediate_value abs_update_ratio: 
+mean=1.9470538935045193e-05, 
+var=1.5997933967800904e-09, 
+data length: 6160
+update_ratio:
+conv_spatial update_ratio: 
+mean=-3.0826968664564237e-06, 
+var=1.1306434304168338e-09, 
+data length: 280
+linear_global update_ratio: 
+mean=2.9148801972782128e-05, 
+var=1.3913419993768976e-07, 
+data length: 280
+norm_beta update_ratio: 
+mean=-6.664482741654672e-08, 
+var=1.3967531094520455e-10, 
+data length: 47600
+norm_gamma update_ratio: 
+mean=-3.947303978920674e-09, 
+var=2.0398692598140857e-11, 
+data length: 47320
+blocks update_ratio: 
+mean=6.850321421260306e-06, 
+var=4.668041285294198e-06, 
+data length: 52080
+policy_head update_ratio: 
+mean=-3.445477599721979e-08, 
+var=3.3062670593712384e-11, 
+data length: 2520
+value_head update_ratio: 
+mean=-0.0058119639194230055, 
+var=0.12878155020831072, 
+data length: 6160
+intermediate_policy update_ratio: 
+mean=3.024398696217406e-07, 
+var=2.4902158332579447e-10, 
+data length: 2520
+intermediate_value update_ratio: 
+mean=3.7301000156384738e-06, 
+var=2.890100703922727e-06, 
+data length: 6160
+
+
+
+
+
+abs_update_ratio:
+conv_spatial abs_update_ratio: 
+mean=8.251323137702548e-05, 
+var=9.033269367179641e-10, 
+data length: 290
+linear_global abs_update_ratio: 
+mean=8.631826768588e-05, 
+var=1.4086548720397522e-09, 
+data length: 290
+norm_beta abs_update_ratio: 
+mean=9.969091525838246e-06, 
+var=3.384571741101943e-10, 
+data length: 49300
+norm_gamma abs_update_ratio: 
+mean=7.3305777872836685e-06, 
+var=1.1273769461384043e-10, 
+data length: 49010
+blocks abs_update_ratio: 
+mean=5.757909199967342e-05, 
+var=5.409613111124243e-10, 
+data length: 53940
+policy_head abs_update_ratio: 
+mean=4.510073024384806e-06, 
+var=3.642478920125729e-11, 
+data length: 2610
+value_head abs_update_ratio: 
+mean=3.086163390584084e-05, 
+var=7.841414394138014e-09, 
+data length: 6380
+intermediate_policy abs_update_ratio: 
+mean=6.346429760267351e-06, 
+var=4.0676839936289166e-11, 
+data length: 2610
+intermediate_value abs_update_ratio: 
+mean=1.9479863589175486e-05, 
+var=1.6129598773103119e-09, 
+data length: 6380
+update_ratio:
+conv_spatial update_ratio: 
+mean=-3.022081755486058e-06, 
+var=1.1004627177520249e-09, 
+data length: 290
+linear_global update_ratio: 
+mean=2.6781197063730212e-05, 
+var=1.350009852552661e-07, 
+data length: 290
+norm_beta update_ratio: 
+mean=-6.59380268752605e-08, 
+var=1.375900166629769e-10, 
+data length: 49300
+norm_gamma update_ratio: 
+mean=-3.706798258278847e-09, 
+var=1.9923890787335756e-11, 
+data length: 49010
+blocks update_ratio: 
+mean=5.8693474674156765e-06, 
+var=4.526362329276424e-06, 
+data length: 53940
+policy_head update_ratio: 
+mean=-3.307174833309651e-08, 
+var=3.249037438350973e-11, 
+data length: 2610
+value_head update_ratio: 
+mean=-0.005423416651043152, 
+var=0.12445928780740982, 
+data length: 6380
+intermediate_policy update_ratio: 
+mean=2.9667458615875286e-07, 
+var=2.418202494659594e-10, 
+data length: 2610
+intermediate_value update_ratio: 
+mean=2.8055847508628405e-06, 
+var=2.862138506900549e-06, 
+data length: 6380
+
+
+
+
+
+abs_update_ratio:
+conv_spatial abs_update_ratio: 
+mean=8.291654917180123e-05, 
+var=8.836707477264899e-10, 
+data length: 300
+linear_global abs_update_ratio: 
+mean=8.670949786522921e-05, 
+var=1.3790247869667917e-09, 
+data length: 300
+norm_beta abs_update_ratio: 
+mean=1.0038441851001862e-05, 
+var=3.356974765022329e-10, 
+data length: 51000
+norm_gamma abs_update_ratio: 
+mean=7.365469965667609e-06, 
+var=1.1152700525418358e-10, 
+data length: 50700
+blocks abs_update_ratio: 
+mean=5.7733433986133534e-05, 
+var=5.296714210518073e-10, 
+data length: 55800
+policy_head abs_update_ratio: 
+mean=4.509165715673327e-06, 
+var=3.6388726292031195e-11, 
+data length: 2700
+value_head abs_update_ratio: 
+mean=3.080953968022101e-05, 
+var=7.775918412632282e-09, 
+data length: 6600
+intermediate_policy abs_update_ratio: 
+mean=6.3564625992316385e-06, 
+var=4.068112058557085e-11, 
+data length: 2700
+intermediate_value abs_update_ratio: 
+mean=1.9468674574828116e-05, 
+var=1.607025058477061e-09, 
+data length: 6600
+update_ratio:
+conv_spatial update_ratio: 
+mean=-2.7170620723672234e-06, 
+var=1.0735926954492783e-09, 
+data length: 300
+linear_global update_ratio: 
+mean=2.370577971889954e-05, 
+var=1.3153920722349097e-07, 
+data length: 300
+norm_beta update_ratio: 
+mean=-5.8345202173455184e-08, 
+var=1.3814852441302432e-10, 
+data length: 51000
+norm_gamma update_ratio: 
+mean=-2.1697195757573303e-09, 
+var=1.9542985323632336e-11, 
+data length: 50700
+blocks update_ratio: 
+mean=2.674133120895341e-06, 
+var=4.481840686318664e-06, 
+data length: 55800
+policy_head update_ratio: 
+mean=-5.1667973614735886e-08, 
+var=3.203475495471488e-11, 
+data length: 2700
+value_head update_ratio: 
+mean=-0.005262658427183389, 
+var=0.12032810163787382, 
+data length: 6600
+intermediate_policy update_ratio: 
+mean=2.6102432742811276e-07, 
+var=2.415666603512807e-10, 
+data length: 2700
+intermediate_value update_ratio: 
+mean=2.052951761465318e-06, 
+var=2.8551184905139105e-06, 
+data length: 6600
+
+
+
+
+
+abs_update_ratio:
+conv_spatial abs_update_ratio: 
+mean=8.296943323346502e-05, 
+var=8.679321400258518e-10, 
+data length: 310
+linear_global abs_update_ratio: 
+mean=8.700309783678302e-05, 
+var=1.3947248927381006e-09, 
+data length: 310
+norm_beta abs_update_ratio: 
+mean=1.0056346976850489e-05, 
+var=3.311219691685701e-10, 
+data length: 52700
+norm_gamma abs_update_ratio: 
+mean=7.369565862687127e-06, 
+var=1.1011246410169852e-10, 
+data length: 52390
+blocks abs_update_ratio: 
+mean=5.76607220021894e-05, 
+var=5.186358373071924e-10, 
+data length: 57660
+policy_head abs_update_ratio: 
+mean=4.494938727500025e-06, 
+var=3.621408343360533e-11, 
+data length: 2790
+value_head abs_update_ratio: 
+mean=3.081734930669252e-05, 
+var=7.766317689321203e-09, 
+data length: 6820
+intermediate_policy abs_update_ratio: 
+mean=6.33481852561325e-06, 
+var=4.047574860509979e-11, 
+data length: 2790
+intermediate_value abs_update_ratio: 
+mean=1.9470900398602582e-05, 
+var=1.6119618478866787e-09, 
+data length: 6820
+update_ratio:
+conv_spatial update_ratio: 
+mean=-1.7571931845921221e-06, 
+var=1.178938690921401e-09, 
+data length: 310
+linear_global update_ratio: 
+mean=1.391204006598706e-05, 
+var=1.5279876001850383e-07, 
+data length: 310
+norm_beta update_ratio: 
+mean=-5.8871148372885283e-08, 
+var=1.3764706938075461e-10, 
+data length: 52700
+norm_gamma update_ratio: 
+mean=-1.6783411028766696e-09, 
+var=1.917351132497548e-11, 
+data length: 52390
+blocks update_ratio: 
+mean=-2.1799964603428242e-07, 
+var=4.763840696241344e-06, 
+data length: 57660
+policy_head update_ratio: 
+mean=-1.812219424839288e-08, 
+var=3.1851186688970505e-11, 
+data length: 2790
+value_head update_ratio: 
+mean=-0.003600147517114575, 
+var=0.15296601759603143, 
+data length: 6820
+intermediate_policy update_ratio: 
+mean=2.968760218700211e-07, 
+var=2.383789365254942e-10, 
+data length: 2790
+intermediate_value update_ratio: 
+mean=2.1464471690357285e-06, 
+var=2.8892217692582094e-06, 
+data length: 6820
+
+
+
+
+
+abs_update_ratio:
+conv_spatial abs_update_ratio: 
+mean=8.301311680171293e-05, 
+var=8.457120182140007e-10, 
+data length: 320
+linear_global abs_update_ratio: 
+mean=8.695394578580913e-05, 
+var=1.3567816360591852e-09, 
+data length: 320
+norm_beta abs_update_ratio: 
+mean=1.0056274136376138e-05, 
+var=3.238173061700478e-10, 
+data length: 54400
+norm_gamma abs_update_ratio: 
+mean=7.372747448833856e-06, 
+var=1.082647825937252e-10, 
+data length: 54080
+blocks abs_update_ratio: 
+mean=5.768330630862103e-05, 
+var=5.068535958767475e-10, 
+data length: 59520
+policy_head abs_update_ratio: 
+mean=4.488492316329306e-06, 
+var=3.6108649092345216e-11, 
+data length: 2880
+value_head abs_update_ratio: 
+mean=3.0714932432462904e-05, 
+var=7.711818094252787e-09, 
+data length: 7040
+intermediate_policy abs_update_ratio: 
+mean=6.3344858913249174e-06, 
+var=4.036288813274001e-11, 
+data length: 2880
+intermediate_value abs_update_ratio: 
+mean=1.9434542271684368e-05, 
+var=1.6102203415527838e-09, 
+data length: 7040
+update_ratio:
+conv_spatial update_ratio: 
+mean=-2.101395032574747e-06, 
+var=1.155643435990398e-09, 
+data length: 320
+linear_global update_ratio: 
+mean=1.6582566887027407e-05, 
+var=1.49103030645698e-07, 
+data length: 320
+norm_beta update_ratio: 
+mean=-5.505200979830162e-08, 
+var=1.3440054080871217e-10, 
+data length: 54400
+norm_gamma update_ratio: 
+mean=1.6679067480124648e-09, 
+var=1.8728660453673574e-11, 
+data length: 54080
+blocks update_ratio: 
+mean=3.212081816781163e-06, 
+var=5.210411020977795e-06, 
+data length: 59520
+policy_head update_ratio: 
+mean=-6.60824168031415e-09, 
+var=3.1394328167517146e-11, 
+data length: 2880
+value_head update_ratio: 
+mean=-0.0035009548183353063, 
+var=0.14819064625741596, 
+data length: 7040
+intermediate_policy update_ratio: 
+mean=2.8798381351821e-07, 
+var=2.332243730828854e-10, 
+data length: 2880
+intermediate_value update_ratio: 
+mean=1.346435953638957e-06, 
+var=2.86375382765219e-06, 
+data length: 7040
+
+
+
+
+
+abs_update_ratio:
+conv_spatial abs_update_ratio: 
+mean=8.257034577242002e-05, 
+var=8.300330183537585e-10, 
+data length: 330
+linear_global abs_update_ratio: 
+mean=8.640615113025058e-05, 
+var=1.3288783300479106e-09, 
+data length: 330
+norm_beta abs_update_ratio: 
+mean=1.0021722756768908e-05, 
+var=3.178582117759705e-10, 
+data length: 56100
+norm_gamma abs_update_ratio: 
+mean=7.340674194829578e-06, 
+var=1.061686433739379e-10, 
+data length: 55770
+blocks abs_update_ratio: 
+mean=5.7478814309500304e-05, 
+var=4.971019863453467e-10, 
+data length: 61380
+policy_head abs_update_ratio: 
+mean=4.479626622281008e-06, 
+var=3.6014294844666174e-11, 
+data length: 2970
+value_head abs_update_ratio: 
+mean=3.0650949164731824e-05, 
+var=7.690032390077277e-09, 
+data length: 7260
+intermediate_policy abs_update_ratio: 
+mean=6.325850390892986e-06, 
+var=4.032344885125658e-11, 
+data length: 2970
+intermediate_value abs_update_ratio: 
+mean=1.9382743713908073e-05, 
+var=1.6044491014881921e-09, 
+data length: 7260
+update_ratio:
+conv_spatial update_ratio: 
+mean=-2.065504753677092e-06, 
+var=1.1268745662497421e-09, 
+data length: 330
+linear_global update_ratio: 
+mean=1.6262899559876862e-05, 
+var=1.4525825321098384e-07, 
+data length: 330
+norm_beta update_ratio: 
+mean=-5.334042808674061e-08, 
+var=1.3404736829253793e-10, 
+data length: 56100
+norm_gamma update_ratio: 
+mean=2.678099415990883e-09, 
+var=1.8264065719277126e-11, 
+data length: 55770
+blocks update_ratio: 
+mean=9.514698358352169e-06, 
+var=6.2832556566193155e-06, 
+data length: 61380
+policy_head update_ratio: 
+mean=-1.1505849287512624e-08, 
+var=3.1081034504054106e-11, 
+data length: 2970
+value_head update_ratio: 
+mean=-0.003722682041224811, 
+var=0.1444844356765105, 
+data length: 7260
+intermediate_policy update_ratio: 
+mean=2.5045056745784155e-07, 
+var=2.2923195389486927e-10, 
+data length: 2970
+intermediate_value update_ratio: 
+mean=3.819174750913381e-06, 
+var=2.898990332532656e-06, 
+data length: 7260
+
+
+
+
+
+abs_update_ratio:
+conv_spatial abs_update_ratio: 
+mean=8.224081475645569e-05, 
+var=8.177586902185523e-10, 
+data length: 340
+linear_global abs_update_ratio: 
+mean=8.604701141861834e-05, 
+var=1.3088848668932805e-09, 
+data length: 340
+norm_beta abs_update_ratio: 
+mean=9.985180172308544e-06, 
+var=3.106413444719014e-10, 
+data length: 57800
+norm_gamma abs_update_ratio: 
+mean=7.314796576005526e-06, 
+var=1.040473540781497e-10, 
+data length: 57460
+blocks abs_update_ratio: 
+mean=5.731533762703294e-05, 
+var=4.876235252925352e-10, 
+data length: 63240
+policy_head abs_update_ratio: 
+mean=4.46045949169182e-06, 
+var=3.5783398701006464e-11, 
+data length: 3060
+value_head abs_update_ratio: 
+mean=3.075338974792301e-05, 
+var=7.767216034675129e-09, 
+data length: 7480
+intermediate_policy abs_update_ratio: 
+mean=6.302127124578382e-06, 
+var=4.0049665686665956e-11, 
+data length: 3060
+intermediate_value abs_update_ratio: 
+mean=1.9398483841228594e-05, 
+var=1.6118026369193732e-09, 
+data length: 7480
+update_ratio:
+conv_spatial update_ratio: 
+mean=-1.9248363415055658e-06, 
+var=1.100946422131996e-09, 
+data length: 340
+linear_global update_ratio: 
+mean=1.4552647140707852e-05, 
+var=1.4163485279063922e-07, 
+data length: 340
+norm_beta update_ratio: 
+mean=-4.1668265559886444e-08, 
+var=1.3183264866226342e-10, 
+data length: 57800
+norm_gamma update_ratio: 
+mean=2.167905493165604e-10, 
+var=1.7813081982950056e-11, 
+data length: 57460
+blocks update_ratio: 
+mean=3.5662643907727904e-06, 
+var=6.5732106513235384e-06, 
+data length: 63240
+policy_head update_ratio: 
+mean=-4.6457703105151785e-10, 
+var=3.078435562709737e-11, 
+data length: 3060
+value_head update_ratio: 
+mean=-0.003495301752891723, 
+var=0.14039064322089725, 
+data length: 7480
+intermediate_policy update_ratio: 
+mean=2.6486109011687073e-07, 
+var=2.2612262385505992e-10, 
+data length: 3060
+intermediate_value update_ratio: 
+mean=1.839911469792393e-06, 
+var=2.922818219908899e-06, 
+data length: 7480
+
+
+
+
+
+abs_update_ratio:
+conv_spatial abs_update_ratio: 
+mean=8.215271874133784e-05, 
+var=7.982035205358732e-10, 
+data length: 350
+linear_global abs_update_ratio: 
+mean=8.590135290842219e-05, 
+var=1.2770847355331746e-09, 
+data length: 350
+norm_beta abs_update_ratio: 
+mean=9.985927624310703e-06, 
+var=3.060286467818541e-10, 
+data length: 59500
+norm_gamma abs_update_ratio: 
+mean=7.306660181344641e-06, 
+var=1.0255540872169723e-10, 
+data length: 59150
+blocks abs_update_ratio: 
+mean=5.728717644451668e-05, 
+var=4.779397704985382e-10, 
+data length: 65100
+policy_head abs_update_ratio: 
+mean=4.459500198010593e-06, 
+var=3.576793444753309e-11, 
+data length: 3150
+value_head abs_update_ratio: 
+mean=3.0779427488023304e-05, 
+var=7.770308639220711e-09, 
+data length: 7700
+intermediate_policy abs_update_ratio: 
+mean=6.296356370521395e-06, 
+var=4.001879905132854e-11, 
+data length: 3150
+intermediate_value abs_update_ratio: 
+mean=1.9387871220536885e-05, 
+var=1.6112662158783367e-09, 
+data length: 7700
+update_ratio:
+conv_spatial update_ratio: 
+mean=-2.15840245395568e-06, 
+var=1.0792876403559223e-09, 
+data length: 350
+linear_global update_ratio: 
+mean=1.7792405693162727e-05, 
+var=1.3948987606601834e-07, 
+data length: 350
+norm_beta update_ratio: 
+mean=-4.576976698489708e-08, 
+var=1.3120192924293684e-10, 
+data length: 59500
+norm_gamma update_ratio: 
+mean=1.1921592906713448e-09, 
+var=1.7503692544965176e-11, 
+data length: 59150
+blocks update_ratio: 
+mean=2.256190863736676e-05, 
+var=2.5000347339622723e-05, 
+data length: 65100
+policy_head update_ratio: 
+mean=2.036247318212263e-08, 
+var=3.073851000336947e-11, 
+data length: 3150
+value_head update_ratio: 
+mean=-0.003389304621751303, 
+var=0.13641922134721957, 
+data length: 7700
+intermediate_policy update_ratio: 
+mean=2.0858097621503977e-07, 
+var=2.2388720772389384e-10, 
+data length: 3150
+intermediate_value update_ratio: 
+mean=3.3014528902149965e-06, 
+var=2.9687872242687027e-06, 
+data length: 7700
+
+
+
+
+
+abs_update_ratio:
+conv_spatial abs_update_ratio: 
+mean=8.200155867883926e-05, 
+var=7.863676686566221e-10, 
+data length: 360
+linear_global abs_update_ratio: 
+mean=8.570327817555239e-05, 
+var=1.2482527140334112e-09, 
+data length: 360
+norm_beta abs_update_ratio: 
+mean=9.960229716712926e-06, 
+var=2.9962033048535176e-10, 
+data length: 61200
+norm_gamma abs_update_ratio: 
+mean=7.293741150317617e-06, 
+var=1.0093780057785522e-10, 
+data length: 60840
+blocks abs_update_ratio: 
+mean=5.7213391934468844e-05, 
+var=4.70156689014255e-10, 
+data length: 66960
+policy_head abs_update_ratio: 
+mean=4.452090275157407e-06, 
+var=3.570018794652039e-11, 
+data length: 3240
+value_head abs_update_ratio: 
+mean=3.066451497459643e-05, 
+var=7.705337041977356e-09, 
+data length: 7920
+intermediate_policy abs_update_ratio: 
+mean=6.285251829068867e-06, 
+var=3.991295225574046e-11, 
+data length: 3240
+intermediate_value abs_update_ratio: 
+mean=1.931874637993604e-05, 
+var=1.5991259878788e-09, 
+data length: 7920
+update_ratio:
+conv_spatial update_ratio: 
+mean=-1.948019149982423e-06, 
+var=1.0557345530739556e-09, 
+data length: 360
+linear_global update_ratio: 
+mean=1.6265812674695724e-05, 
+var=1.3595831280348227e-07, 
+data length: 360
+norm_beta update_ratio: 
+mean=-4.7010281407525625e-08, 
+var=1.288166252064341e-10, 
+data length: 61200
+norm_gamma update_ratio: 
+mean=3.6250261201444203e-09, 
+var=1.7247877095516672e-11, 
+data length: 60840
+blocks update_ratio: 
+mean=3.7123096896053616e-05, 
+var=3.4145961450860684e-05, 
+data length: 66960
+policy_head update_ratio: 
+mean=1.4053106862130877e-08, 
+var=3.0428133887500613e-11, 
+data length: 3240
+value_head update_ratio: 
+mean=-0.0033436458448708574, 
+var=0.1327899437261947, 
+data length: 7920
+intermediate_policy update_ratio: 
+mean=1.8401574790351732e-07, 
+var=2.2293860988104346e-10, 
+data length: 3240
+intermediate_value update_ratio: 
+mean=1.2031630991206614e-06, 
+var=2.9609932757752447e-06, 
+data length: 7920
+
+
+
+
+
+abs_update_ratio:
+conv_spatial abs_update_ratio: 
+mean=8.154659229562248e-05, 
+var=7.748979939718668e-10, 
+data length: 370
+linear_global abs_update_ratio: 
+mean=8.52384731003727e-05, 
+var=1.2246849397171365e-09, 
+data length: 370
+norm_beta abs_update_ratio: 
+mean=9.892502338117151e-06, 
+var=2.9274207633226604e-10, 
+data length: 62900
+norm_gamma abs_update_ratio: 
+mean=7.250777067188291e-06, 
+var=9.899812512622207e-11, 
+data length: 62530
+blocks abs_update_ratio: 
+mean=5.694025828199722e-05, 
+var=4.619581170341156e-10, 
+data length: 68820
+policy_head abs_update_ratio: 
+mean=4.438176036562461e-06, 
+var=3.5537130937288135e-11, 
+data length: 3330
+value_head abs_update_ratio: 
+mean=3.056278108766796e-05, 
+var=7.638300084780727e-09, 
+data length: 8140
+intermediate_policy abs_update_ratio: 
+mean=6.2639018065440224e-06, 
+var=3.972904088575663e-11, 
+data length: 3330
+intermediate_value abs_update_ratio: 
+mean=1.926099906590456e-05, 
+var=1.589151884649741e-09, 
+data length: 8140
+update_ratio:
+conv_spatial update_ratio: 
+mean=-1.7109198305635847e-06, 
+var=1.0329935347410719e-09, 
+data length: 370
+linear_global update_ratio: 
+mean=1.4818972652267279e-05, 
+var=1.3255324263322369e-07, 
+data length: 370
+norm_beta update_ratio: 
+mean=-5.007425930290407e-08, 
+var=1.267501417252673e-10, 
+data length: 62900
+norm_gamma update_ratio: 
+mean=2.102812680268797e-09, 
+var=1.6897230814823014e-11, 
+data length: 62530
+blocks update_ratio: 
+mean=3.209577316279318e-05, 
+var=3.382803319451734e-05, 
+data length: 68820
+policy_head update_ratio: 
+mean=4.33901337733337e-09, 
+var=2.9963396906588596e-11, 
+data length: 3330
+value_head update_ratio: 
+mean=-0.0030543191136864463, 
+var=0.13046669051117726, 
+data length: 8140
+intermediate_policy update_ratio: 
+mean=2.214053478288384e-07, 
+var=2.1966681829680196e-10, 
+data length: 3330
+intermediate_value update_ratio: 
+mean=2.4349969336432993e-06, 
+var=2.959642778664355e-06, 
+data length: 8140
+
+
+
+
+
+abs_update_ratio:
+conv_spatial abs_update_ratio: 
+mean=8.195378792397575e-05, 
+var=8.14422602160268e-10, 
+data length: 380
+linear_global abs_update_ratio: 
+mean=8.541717607225472e-05, 
+var=1.227054755219533e-09, 
+data length: 380
+norm_beta abs_update_ratio: 
+mean=9.937392805283117e-06, 
+var=3.1150002700949914e-10, 
+data length: 64600
+norm_gamma abs_update_ratio: 
+mean=7.280095786126949e-06, 
+var=1.0299467353625999e-10, 
+data length: 64220
+blocks abs_update_ratio: 
+mean=5.7172545466200996e-05, 
+var=5.01660770576293e-10, 
+data length: 70680
+policy_head abs_update_ratio: 
+mean=4.4372335006479925e-06, 
+var=3.5539770447558333e-11, 
+data length: 3420
+value_head abs_update_ratio: 
+mean=3.049210781428681e-05, 
+var=7.599201258851754e-09, 
+data length: 8360
+intermediate_policy abs_update_ratio: 
+mean=6.267423425543315e-06, 
+var=3.972507268131492e-11, 
+data length: 3420
+intermediate_value abs_update_ratio: 
+mean=1.9227303080764506e-05, 
+var=1.5824249023481506e-09, 
+data length: 8360
+update_ratio:
+conv_spatial update_ratio: 
+mean=-1.7384043273314134e-06, 
+var=1.0404022351410556e-09, 
+data length: 380
+linear_global update_ratio: 
+mean=1.5153544330056529e-05, 
+var=1.3147107208232728e-07, 
+data length: 380
+norm_beta update_ratio: 
+mean=-4.5981667888395225e-08, 
+var=1.2775736095157419e-10, 
+data length: 64600
+norm_gamma update_ratio: 
+mean=8.236781153155257e-09, 
+var=1.700661134233475e-11, 
+data length: 64220
+blocks update_ratio: 
+mean=3.9921673844804885e-05, 
+var=3.9127249530395634e-05, 
+data length: 70680
+policy_head update_ratio: 
+mean=-1.385370606426553e-08, 
+var=2.971189776434567e-11, 
+data length: 3420
+value_head update_ratio: 
+mean=-0.0030286533057164726, 
+var=0.12704151891544654, 
+data length: 8360
+intermediate_policy update_ratio: 
+mean=1.8576490076404522e-07, 
+var=2.1873883842720087e-10, 
+data length: 3420
+intermediate_value update_ratio: 
+mean=1.917975314695368e-06, 
+var=2.9423377754666733e-06, 
+data length: 8360
+
+
+
+
+
+abs_update_ratio:
+conv_spatial abs_update_ratio: 
+mean=8.2425648905154e-05, 
+var=9.286894950661297e-10, 
+data length: 390
+linear_global abs_update_ratio: 
+mean=8.590456717296096e-05, 
+var=1.369804575680477e-09, 
+data length: 390
+norm_beta abs_update_ratio: 
+mean=9.993923315796387e-06, 
+var=3.367128771941962e-10, 
+data length: 66300
+norm_gamma abs_update_ratio: 
+mean=7.3002137361681e-06, 
+var=1.0822190362232272e-10, 
+data length: 65910
+blocks abs_update_ratio: 
+mean=5.7251628058167124e-05, 
+var=5.306125236053045e-10, 
+data length: 72540
+policy_head abs_update_ratio: 
+mean=4.435162045783716e-06, 
+var=3.5515351298448673e-11, 
+data length: 3510
+value_head abs_update_ratio: 
+mean=3.0428343475501602e-05, 
+var=7.568021827744532e-09, 
+data length: 8580
+intermediate_policy abs_update_ratio: 
+mean=6.265681924429923e-06, 
+var=3.972508546769905e-11, 
+data length: 3510
+intermediate_value abs_update_ratio: 
+mean=1.9183889129648216e-05, 
+var=1.5717517179980352e-09, 
+data length: 8580
+update_ratio:
+conv_spatial update_ratio: 
+mean=-1.4651068312533669e-06, 
+var=1.0402953989623826e-09, 
+data length: 390
+linear_global update_ratio: 
+mean=1.3224717703043454e-05, 
+var=1.2979221307332873e-07, 
+data length: 390
+norm_beta update_ratio: 
+mean=-1.229627216968472e-08, 
+var=1.3892741269940996e-10, 
+data length: 66300
+norm_gamma update_ratio: 
+mean=7.3404514775424565e-09, 
+var=1.746544306299536e-11, 
+data length: 65910
+blocks update_ratio: 
+mean=4.266310441091391e-05, 
+var=3.8892171364891074e-05, 
+data length: 72540
+policy_head update_ratio: 
+mean=5.05988882018281e-09, 
+var=2.948972738689601e-11, 
+data length: 3510
+value_head update_ratio: 
+mean=-0.002838765822970397, 
+var=0.12435236340736977, 
+data length: 8580
+intermediate_policy update_ratio: 
+mean=1.6934684986442518e-07, 
+var=2.164368878298351e-10, 
+data length: 3510
+intermediate_value update_ratio: 
+mean=3.0682890372928043e-06, 
+var=2.8994883102006965e-06, 
+data length: 8580
+
+
+
+
+
+abs_update_ratio:
+conv_spatial abs_update_ratio: 
+mean=8.245123905561081e-05, 
+var=9.229475819662434e-10, 
+data length: 400
+linear_global abs_update_ratio: 
+mean=8.589647306121393e-05, 
+var=1.3504624946105873e-09, 
+data length: 400
+norm_beta abs_update_ratio: 
+mean=1.0041235510775882e-05, 
+var=3.5325069675432925e-10, 
+data length: 68000
+norm_gamma abs_update_ratio: 
+mean=7.3145694066098786e-06, 
+var=1.1117282512769992e-10, 
+data length: 67600
+blocks abs_update_ratio: 
+mean=5.724364400866797e-05, 
+var=5.408770469951665e-10, 
+data length: 74400
+policy_head abs_update_ratio: 
+mean=4.432108801561704e-06, 
+var=3.545436620389113e-11, 
+data length: 3600
+value_head abs_update_ratio: 
+mean=3.031669546102233e-05, 
+var=7.49795035713644e-09, 
+data length: 8800
+intermediate_policy abs_update_ratio: 
+mean=6.264496357116413e-06, 
+var=3.9741499960592744e-11, 
+data length: 3600
+intermediate_value abs_update_ratio: 
+mean=1.914466440594211e-05, 
+var=1.5621820626955787e-09, 
+data length: 8800
+update_ratio:
+conv_spatial update_ratio: 
+mean=-1.2732300740219972e-06, 
+var=1.0402049061373585e-09, 
+data length: 400
+linear_global update_ratio: 
+mean=1.2119098347480708e-05, 
+var=1.2867031806356237e-07, 
+data length: 400
+norm_beta update_ratio: 
+mean=-2.3087792072347183e-08, 
+var=1.4086414160861814e-10, 
+data length: 68000
+norm_gamma update_ratio: 
+mean=8.2902828680644e-09, 
+var=1.75662522796066e-11, 
+data length: 67600
+blocks update_ratio: 
+mean=4.3828737595513944e-05, 
+var=3.8171387981143975e-05, 
+data length: 74400
+policy_head update_ratio: 
+mean=1.966403522833838e-09, 
+var=2.927241479696365e-11, 
+data length: 3600
+value_head update_ratio: 
+mean=-0.0032089085223417665, 
+var=0.12215849185655556, 
+data length: 8800
+intermediate_policy update_ratio: 
+mean=1.6127223661376248e-07, 
+var=2.1391262622670874e-10, 
+data length: 3600
+intermediate_value update_ratio: 
+mean=4.797011345778996e-06, 
+var=2.909436028633751e-06, 
+data length: 8800
+
+
+
+
+
+abs_update_ratio:
+conv_spatial abs_update_ratio: 
+mean=8.218984577624291e-05, 
+var=9.051590855310907e-10, 
+data length: 410
+linear_global abs_update_ratio: 
+mean=8.55657363877984e-05, 
+var=1.3234671691076005e-09, 
+data length: 410
+norm_beta abs_update_ratio: 
+mean=1.0010808303616098e-05, 
+var=3.4624504925596933e-10, 
+data length: 69700
+norm_gamma abs_update_ratio: 
+mean=7.294877948003492e-06, 
+var=1.0929440429688898e-10, 
+data length: 69290
+blocks abs_update_ratio: 
+mean=5.714671944828873e-05, 
+var=5.302875939613999e-10, 
+data length: 76260
+policy_head abs_update_ratio: 
+mean=4.422590027626492e-06, 
+var=3.538458316845961e-11, 
+data length: 3690
+value_head abs_update_ratio: 
+mean=3.019318244752951e-05, 
+var=7.4285804442498144e-09, 
+data length: 9020
+intermediate_policy abs_update_ratio: 
+mean=6.24883568886296e-06, 
+var=3.964425749101127e-11, 
+data length: 3690
+intermediate_value abs_update_ratio: 
+mean=1.9116300014687218e-05, 
+var=1.5587010638749968e-09, 
+data length: 9020
+update_ratio:
+conv_spatial update_ratio: 
+mean=-1.2261753150953282e-06, 
+var=1.018451547617686e-09, 
+data length: 410
+linear_global update_ratio: 
+mean=1.1554571997329843e-05, 
+var=1.259900093517692e-07, 
+data length: 410
+norm_beta update_ratio: 
+mean=-2.6633954409501755e-08, 
+var=1.3807042808524508e-10, 
+data length: 69700
+norm_gamma update_ratio: 
+mean=7.784364575814444e-09, 
+var=1.723924560304108e-11, 
+data length: 69290
+blocks update_ratio: 
+mean=4.2318284757948534e-05, 
+var=3.726856678396898e-05, 
+data length: 76260
+policy_head update_ratio: 
+mean=-2.836062272226656e-10, 
+var=2.9024568401426684e-11, 
+data length: 3690
+value_head update_ratio: 
+mean=-0.0030431526454353115, 
+var=0.11919491341725301, 
+data length: 9020
+intermediate_policy update_ratio: 
+mean=1.9978552736880613e-07, 
+var=2.1112409390373762e-10, 
+data length: 3690
+intermediate_value update_ratio: 
+mean=5.638426344049523e-06, 
+var=2.909976269032075e-06, 
+data length: 9020
+
+
+
+
+
+abs_update_ratio:
+conv_spatial abs_update_ratio: 
+mean=8.248279017781282e-05, 
+var=9.421543261271397e-10, 
+data length: 420
+linear_global abs_update_ratio: 
+mean=8.636759370766325e-05, 
+var=1.4952018648341791e-09, 
+data length: 420
+norm_beta abs_update_ratio: 
+mean=1.0083680152828408e-05, 
+var=3.7222375622245033e-10, 
+data length: 71400
+norm_gamma abs_update_ratio: 
+mean=7.3235682226609455e-06, 
+var=1.1554017591792835e-10, 
+data length: 70980
+blocks abs_update_ratio: 
+mean=5.7283457804353644e-05, 
+var=5.58623791355912e-10, 
+data length: 78120
+policy_head abs_update_ratio: 
+mean=4.429800561360721e-06, 
+var=3.54181323188869e-11, 
+data length: 3780
+value_head abs_update_ratio: 
+mean=3.0213894212186425e-05, 
+var=7.433812595603538e-09, 
+data length: 9240
+intermediate_policy abs_update_ratio: 
+mean=6.256174616987822e-06, 
+var=3.9641549010030115e-11, 
+data length: 3780
+intermediate_value abs_update_ratio: 
+mean=1.9108349912099415e-05, 
+var=1.556619673664387e-09, 
+data length: 9240
+update_ratio:
+conv_spatial update_ratio: 
+mean=-1.0751208048415145e-06, 
+var=1.0089297777369228e-09, 
+data length: 420
+linear_global update_ratio: 
+mean=7.1117766655010545e-06, 
+var=1.3058035570024506e-07, 
+data length: 420
+norm_beta update_ratio: 
+mean=-3.650009692150568e-08, 
+var=1.430036007719951e-10, 
+data length: 71400
+norm_gamma update_ratio: 
+mean=4.258596792244423e-09, 
+var=1.8135104155442504e-11, 
+data length: 70980
+blocks update_ratio: 
+mean=4.1235014031861096e-05, 
+var=3.671231644190154e-05, 
+data length: 78120
+policy_head update_ratio: 
+mean=-5.888347749346062e-09, 
+var=2.9697698775886575e-11, 
+data length: 3780
+value_head update_ratio: 
+mean=-0.003018446460393524, 
+var=0.11636237681683775, 
+data length: 9240
+intermediate_policy update_ratio: 
+mean=1.1636632525949445e-07, 
+var=2.1620084701130887e-10, 
+data length: 3780
+intermediate_value update_ratio: 
+mean=5.0256762371009605e-06, 
+var=2.917057201561944e-06, 
+data length: 9240
+
+
+
+
+
+abs_update_ratio:
+conv_spatial abs_update_ratio: 
+mean=8.244704437428965e-05, 
+var=9.35176426051681e-10, 
+data length: 430
+linear_global abs_update_ratio: 
+mean=8.640217992185476e-05, 
+var=1.502476711473166e-09, 
+data length: 430
+norm_beta abs_update_ratio: 
+mean=1.009467991754756e-05, 
+var=3.678677777076321e-10, 
+data length: 73100
+norm_gamma abs_update_ratio: 
+mean=7.325223167252797e-06, 
+var=1.1513873655393581e-10, 
+data length: 72670
+blocks abs_update_ratio: 
+mean=5.726054815060833e-05, 
+var=5.533850203660701e-10, 
+data length: 79980
+policy_head abs_update_ratio: 
+mean=4.431588612072677e-06, 
+var=3.5425508684620925e-11, 
+data length: 3870
+value_head abs_update_ratio: 
+mean=3.0204053235845878e-05, 
+var=7.433197761517126e-09, 
+data length: 9460
+intermediate_policy abs_update_ratio: 
+mean=6.24967457626531e-06, 
+var=3.960604048709057e-11, 
+data length: 3870
+intermediate_value abs_update_ratio: 
+mean=1.9091272088633888e-05, 
+var=1.5527218646245443e-09, 
+data length: 9460
+update_ratio:
+conv_spatial update_ratio: 
+mean=-1.1823012598996122e-06, 
+var=9.911948573583932e-10, 
+data length: 430
+linear_global update_ratio: 
+mean=7.96825802281017e-06, 
+var=1.2803444114142057e-07, 
+data length: 430
+norm_beta update_ratio: 
+mean=-4.508432538596572e-08, 
+var=1.4186027920654907e-10, 
+data length: 73100
+norm_gamma update_ratio: 
+mean=1.3177234444970879e-09, 
+var=1.834226128121461e-11, 
+data length: 72670
+blocks update_ratio: 
+mean=3.897608755665031e-05, 
+var=3.6065097719122644e-05, 
+data length: 79980
+policy_head update_ratio: 
+mean=1.185836856273448e-08, 
+var=2.9953222915275893e-11, 
+data length: 3870
+value_head update_ratio: 
+mean=-0.001896755311042186, 
+var=0.11876565040823922, 
+data length: 9460
+intermediate_policy update_ratio: 
+mean=1.2477496476356754e-07, 
+var=2.17372191837718e-10, 
+data length: 3870
+intermediate_value update_ratio: 
+mean=5.486458399866689e-06, 
+var=2.881152343432112e-06, 
+data length: 9460
+
+
+
+
+
+abs_update_ratio:
+conv_spatial abs_update_ratio: 
+mean=8.22508547862926e-05, 
+var=9.297238346843386e-10, 
+data length: 440
+linear_global abs_update_ratio: 
+mean=8.612392640174227e-05, 
+var=1.4796830693336252e-09, 
+data length: 440
+norm_beta abs_update_ratio: 
+mean=1.0062846159177823e-05, 
+var=3.6171636048352624e-10, 
+data length: 74800
+norm_gamma abs_update_ratio: 
+mean=7.305367641244007e-06, 
+var=1.1385183916259413e-10, 
+data length: 74360
+blocks abs_update_ratio: 
+mean=5.711467228926027e-05, 
+var=5.460825046306454e-10, 
+data length: 81840
+policy_head abs_update_ratio: 
+mean=4.428542139266772e-06, 
+var=3.5307663828730226e-11, 
+data length: 3960
+value_head abs_update_ratio: 
+mean=3.015429217799104e-05, 
+var=7.400143122540683e-09, 
+data length: 9680
+intermediate_policy abs_update_ratio: 
+mean=6.247511574274959e-06, 
+var=3.947003657537434e-11, 
+data length: 3960
+intermediate_value abs_update_ratio: 
+mean=1.909107959046686e-05, 
+var=1.547919037107945e-09, 
+data length: 9680
+update_ratio:
+conv_spatial update_ratio: 
+mean=-1.020684122406779e-06, 
+var=9.76375268949433e-10, 
+data length: 440
+linear_global update_ratio: 
+mean=6.705900033704882e-06, 
+var=1.2579862125289723e-07, 
+data length: 440
+norm_beta update_ratio: 
+mean=-5.042860336011906e-08, 
+var=1.412813231456215e-10, 
+data length: 74800
+norm_gamma update_ratio: 
+mean=2.120006737531414e-09, 
+var=1.810302471624132e-11, 
+data length: 74360
+blocks update_ratio: 
+mean=3.711919397365996e-05, 
+var=3.572878099315617e-05, 
+data length: 81840
+policy_head update_ratio: 
+mean=1.565465393045751e-08, 
+var=2.975959096046035e-11, 
+data length: 3960
+value_head update_ratio: 
+mean=-0.0017688970458373927, 
+var=0.1161595400447627, 
+data length: 9680
+intermediate_policy update_ratio: 
+mean=1.2268541313279955e-07, 
+var=2.1637764212774466e-10, 
+data length: 3960
+intermediate_value update_ratio: 
+mean=3.817521098912591e-06, 
+var=2.887494050336175e-06, 
+data length: 9680
+
+
+
+
+
+abs_update_ratio:
+conv_spatial abs_update_ratio: 
+mean=8.210391233100795e-05, 
+var=9.129338953099183e-10, 
+data length: 450
+linear_global abs_update_ratio: 
+mean=8.614638358732019e-05, 
+var=1.4659381040621887e-09, 
+data length: 450
+norm_beta abs_update_ratio: 
+mean=1.0039796403845012e-05, 
+var=3.5690069605707915e-10, 
+data length: 76500
+norm_gamma abs_update_ratio: 
+mean=7.289132199822709e-06, 
+var=1.1275507544524709e-10, 
+data length: 76050
+blocks abs_update_ratio: 
+mean=5.702205885723264e-05, 
+var=5.380093024493406e-10, 
+data length: 83700
+policy_head abs_update_ratio: 
+mean=4.43305498586378e-06, 
+var=3.530718829295502e-11, 
+data length: 4050
+value_head abs_update_ratio: 
+mean=3.007913591898801e-05, 
+var=7.374984837239967e-09, 
+data length: 9900
+intermediate_policy abs_update_ratio: 
+mean=6.25384641388204e-06, 
+var=3.943930289686865e-11, 
+data length: 4050
+intermediate_value abs_update_ratio: 
+mean=1.902408044254429e-05, 
+var=1.5401357424387945e-09, 
+data length: 9900
+update_ratio:
+conv_spatial update_ratio: 
+mean=-9.019168130445743e-07, 
+var=9.786923074685784e-10, 
+data length: 450
+linear_global update_ratio: 
+mean=4.8674554640258224e-06, 
+var=1.2578168591956983e-07, 
+data length: 450
+norm_beta update_ratio: 
+mean=-3.858952939314647e-08, 
+var=1.4182606888925206e-10, 
+data length: 76500
+norm_gamma update_ratio: 
+mean=1.157974619209736e-09, 
+var=1.7888292642316814e-11, 
+data length: 76050
+blocks update_ratio: 
+mean=4.947063469171196e-05, 
+var=5.0515479866831384e-05, 
+data length: 83700
+policy_head update_ratio: 
+mean=1.8351225017221284e-08, 
+var=2.965400848307019e-11, 
+data length: 4050
+value_head update_ratio: 
+mean=-0.0017156903200672537, 
+var=0.11358621853418878, 
+data length: 9900
+intermediate_policy update_ratio: 
+mean=7.77551273108936e-08, 
+var=2.181213324608149e-10, 
+data length: 4050
+intermediate_value update_ratio: 
+mean=3.935942335698703e-06, 
+var=2.8389424656086286e-06, 
+data length: 9900
+
+
+
+
+
+abs_update_ratio:
+conv_spatial abs_update_ratio: 
+mean=8.219217631846616e-05, 
+var=9.055773201079882e-10, 
+data length: 460
+linear_global abs_update_ratio: 
+mean=8.625973146495951e-05, 
+var=1.4586627554435342e-09, 
+data length: 460
+norm_beta abs_update_ratio: 
+mean=1.0056122657035363e-05, 
+var=3.5359329494318237e-10, 
+data length: 78200
+norm_gamma abs_update_ratio: 
+mean=7.3022598554702525e-06, 
+var=1.1238544882587259e-10, 
+data length: 77740
+blocks abs_update_ratio: 
+mean=5.713219686209835e-05, 
+var=5.35439629160576e-10, 
+data length: 85560
+policy_head abs_update_ratio: 
+mean=4.433934145807144e-06, 
+var=3.5316360787062165e-11, 
+data length: 4140
+value_head abs_update_ratio: 
+mean=3.0007889443239854e-05, 
+var=7.333173436215875e-09, 
+data length: 10120
+intermediate_policy abs_update_ratio: 
+mean=6.252721827308563e-06, 
+var=3.944414153418475e-11, 
+data length: 4140
+intermediate_value abs_update_ratio: 
+mean=1.9005137509486462e-05, 
+var=1.538694822540267e-09, 
+data length: 10120
+update_ratio:
+conv_spatial update_ratio: 
+mean=-8.918853494126037e-07, 
+var=9.722686314642762e-10, 
+data length: 460
+linear_global update_ratio: 
+mean=4.885530511904994e-06, 
+var=1.2415698038008192e-07, 
+data length: 460
+norm_beta update_ratio: 
+mean=-4.548456528096875e-08, 
+var=1.441871184300813e-10, 
+data length: 78200
+norm_gamma update_ratio: 
+mean=4.968508601323218e-09, 
+var=1.7935780237373127e-11, 
+data length: 77740
+blocks update_ratio: 
+mean=5.1327589447537924e-05, 
+var=5.017910237971984e-05, 
+data length: 85560
+policy_head update_ratio: 
+mean=1.6310170301981526e-08, 
+var=2.9998982601001264e-11, 
+data length: 4140
+value_head update_ratio: 
+mean=-0.0016597727234785196, 
+var=0.11114054833229789, 
+data length: 10120
+intermediate_policy update_ratio: 
+mean=4.464231522260925e-08, 
+var=2.18394649962179e-10, 
+data length: 4140
+intermediate_value update_ratio: 
+mean=3.507349139632333e-06, 
+var=2.8151447036460778e-06, 
+data length: 10120
+
+
+
+
+
+abs_update_ratio:
+conv_spatial abs_update_ratio: 
+mean=8.219156989272095e-05, 
+var=8.995636208355386e-10, 
+data length: 470
+linear_global abs_update_ratio: 
+mean=8.614712834111149e-05, 
+var=1.4394709703341038e-09, 
+data length: 470
+norm_beta abs_update_ratio: 
+mean=1.006575008538891e-05, 
+var=3.571877385153003e-10, 
+data length: 79900
+norm_gamma abs_update_ratio: 
+mean=7.301593299937305e-06, 
+var=1.1416535152405644e-10, 
+data length: 79430
+blocks abs_update_ratio: 
+mean=5.709028388087616e-05, 
+var=5.362683444330109e-10, 
+data length: 87420
+policy_head abs_update_ratio: 
+mean=4.433531239381661e-06, 
+var=3.5279035177080705e-11, 
+data length: 4230
+value_head abs_update_ratio: 
+mean=2.9920401728996787e-05, 
+var=7.281202794480459e-09, 
+data length: 10340
+intermediate_policy abs_update_ratio: 
+mean=6.25094437105755e-06, 
+var=3.940343830174663e-11, 
+data length: 4230
+intermediate_value abs_update_ratio: 
+mean=1.8964651791938737e-05, 
+var=1.5303270852868242e-09, 
+data length: 10340
+update_ratio:
+conv_spatial update_ratio: 
+mean=-6.831144518095664e-07, 
+var=9.767614628015606e-10, 
+data length: 470
+linear_global update_ratio: 
+mean=2.7329137733430496e-06, 
+var=1.2345739698569044e-07, 
+data length: 470
+norm_beta update_ratio: 
+mean=-3.4126401290593555e-08, 
+var=1.5312995651808032e-10, 
+data length: 79900
+norm_gamma update_ratio: 
+mean=4.707604300542898e-09, 
+var=1.7998362578149663e-11, 
+data length: 79430
+blocks update_ratio: 
+mean=5.084388106934641e-05, 
+var=5.041138731786537e-05, 
+data length: 87420
+policy_head update_ratio: 
+mean=1.980811661192273e-08, 
+var=2.993285705233788e-11, 
+data length: 4230
+value_head update_ratio: 
+mean=-0.0016346056195031022, 
+var=0.10880213140344391, 
+data length: 10340
+intermediate_policy update_ratio: 
+mean=7.249757274371145e-08, 
+var=2.1821413250595365e-10, 
+data length: 4230
+intermediate_value update_ratio: 
+mean=2.037474486232514e-06, 
+var=2.8295145695906877e-06, 
+data length: 10340
+
+
+
+
+
+abs_update_ratio:
+conv_spatial abs_update_ratio: 
+mean=8.192150669780977e-05, 
+var=8.877362844200033e-10, 
+data length: 480
+linear_global abs_update_ratio: 
+mean=8.581605557159887e-05, 
+var=1.4179058418857127e-09, 
+data length: 480
+norm_beta abs_update_ratio: 
+mean=1.0029603669991973e-05, 
+var=3.511467934489686e-10, 
+data length: 81600
+norm_gamma abs_update_ratio: 
+mean=7.278986039424822e-06, 
+var=1.1255600187479228e-10, 
+data length: 81120
+blocks abs_update_ratio: 
+mean=5.6963888800577546e-05, 
+var=5.287323862487022e-10, 
+data length: 89280
+policy_head abs_update_ratio: 
+mean=4.430176267253765e-06, 
+var=3.5208751211906234e-11, 
+data length: 4320
+value_head abs_update_ratio: 
+mean=2.9858484998521363e-05, 
+var=7.2423003901375365e-09, 
+data length: 10560
+intermediate_policy abs_update_ratio: 
+mean=6.245115286286085e-06, 
+var=3.9307770395810295e-11, 
+data length: 4320
+intermediate_value abs_update_ratio: 
+mean=1.8927898844339986e-05, 
+var=1.523600137243686e-09, 
+data length: 10560
+update_ratio:
+conv_spatial update_ratio: 
+mean=-6.019525515488451e-07, 
+var=9.65431764444669e-10, 
+data length: 480
+linear_global update_ratio: 
+mean=1.09468591287645e-06, 
+var=1.2202038949753472e-07, 
+data length: 480
+norm_beta update_ratio: 
+mean=-3.844304020061464e-08, 
+var=1.5159394500834415e-10, 
+data length: 81600
+norm_gamma update_ratio: 
+mean=5.792289561353972e-09, 
+var=1.7711433520054273e-11, 
+data length: 81120
+blocks update_ratio: 
+mean=5.058149675634731e-05, 
+var=4.9396209173448174e-05, 
+data length: 89280
+policy_head update_ratio: 
+mean=6.205629128823987e-09, 
+var=2.979123139968104e-11, 
+data length: 4320
+value_head update_ratio: 
+mean=-0.0015537764225862162, 
+var=0.10665359205885631, 
+data length: 10560
+intermediate_policy update_ratio: 
+mean=1.138783767598208e-07, 
+var=2.1739629613002902e-10, 
+data length: 4320
+intermediate_value update_ratio: 
+mean=3.0904172445486507e-06, 
+var=2.785494072155362e-06, 
+data length: 10560
+
+
+
+
+
+abs_update_ratio:
+conv_spatial abs_update_ratio: 
+mean=8.182145745128775e-05, 
+var=8.73572257696776e-10, 
+data length: 490
+linear_global abs_update_ratio: 
+mean=8.5697591125947e-05, 
+var=1.3939909953296874e-09, 
+data length: 490
+norm_beta abs_update_ratio: 
+mean=1.0026690657543174e-05, 
+var=3.469858620341839e-10, 
+data length: 83300
+norm_gamma abs_update_ratio: 
+mean=7.274486660403511e-06, 
+var=1.1150372928776091e-10, 
+data length: 82810
+blocks abs_update_ratio: 
+mean=5.6917090916594725e-05, 
+var=5.215802507909309e-10, 
+data length: 91140
+policy_head abs_update_ratio: 
+mean=4.430537597429688e-06, 
+var=3.515782563787476e-11, 
+data length: 4410
+value_head abs_update_ratio: 
+mean=2.9837063539039565e-05, 
+var=7.217984605065801e-09, 
+data length: 10780
+intermediate_policy abs_update_ratio: 
+mean=6.2458347459419105e-06, 
+var=3.924479039851709e-11, 
+data length: 4410
+intermediate_value abs_update_ratio: 
+mean=1.8907639936852557e-05, 
+var=1.5182847746832756e-09, 
+data length: 10780
+update_ratio:
+conv_spatial update_ratio: 
+mean=-7.622518537859724e-07, 
+var=9.577568230319022e-10, 
+data length: 490
+linear_global update_ratio: 
+mean=2.1353148335284143e-06, 
+var=1.2046820762925583e-07, 
+data length: 490
+norm_beta update_ratio: 
+mean=-3.8015168422834864e-08, 
+var=1.5119884695850678e-10, 
+data length: 83300
+norm_gamma update_ratio: 
+mean=4.2516843685389415e-09, 
+var=1.7480919595581597e-11, 
+data length: 82810
+blocks update_ratio: 
+mean=4.852896233910465e-05, 
+var=4.847975823310396e-05, 
+data length: 91140
+policy_head update_ratio: 
+mean=2.4457761456355037e-08, 
+var=2.968664785730904e-11, 
+data length: 4410
+value_head update_ratio: 
+mean=-0.0014566235999503257, 
+var=0.10473061615008616, 
+data length: 10780
+intermediate_policy update_ratio: 
+mean=9.011989434028535e-08, 
+var=2.1675171131225312e-10, 
+data length: 4410
+intermediate_value update_ratio: 
+mean=3.2150689130800926e-06, 
+var=2.7695404024712406e-06, 
+data length: 10780
+
+
+
+
+
+abs_update_ratio:
+conv_spatial abs_update_ratio: 
+mean=8.189674644877309e-05, 
+var=8.656420842126312e-10, 
+data length: 500
+linear_global abs_update_ratio: 
+mean=8.579157409844715e-05, 
+var=1.380770451176267e-09, 
+data length: 500
+norm_beta abs_update_ratio: 
+mean=1.0040742603188433e-05, 
+var=3.448303648352301e-10, 
+data length: 85000
+norm_gamma abs_update_ratio: 
+mean=7.2826670676433595e-06, 
+var=1.1102008108532317e-10, 
+data length: 84500
+blocks abs_update_ratio: 
+mean=5.69557927925317e-05, 
+var=5.189952611676171e-10, 
+data length: 93000
+policy_head abs_update_ratio: 
+mean=4.42762306382124e-06, 
+var=3.511868711695247e-11, 
+data length: 4500
+value_head abs_update_ratio: 
+mean=2.9779028414672115e-05, 
+var=7.179231949595795e-09, 
+data length: 11000
+intermediate_policy abs_update_ratio: 
+mean=6.245336369115272e-06, 
+var=3.923023969496928e-11, 
+data length: 4500
+intermediate_value abs_update_ratio: 
+mean=1.888398061375066e-05, 
+var=1.5114026426471981e-09, 
+data length: 11000
+update_ratio:
+conv_spatial update_ratio: 
+mean=-1.0658380703250121e-06, 
+var=9.59267352586881e-10, 
+data length: 500
+linear_global update_ratio: 
+mean=4.848024010905844e-06, 
+var=1.1963559713225826e-07, 
+data length: 500
+norm_beta update_ratio: 
+mean=-4.1634803229543846e-08, 
+var=1.510043810486086e-10, 
+data length: 85000
+norm_gamma update_ratio: 
+mean=4.345261174026749e-09, 
+var=1.7396862627565307e-11, 
+data length: 84500
+blocks update_ratio: 
+mean=4.723278323365065e-05, 
+var=4.786531408210147e-05, 
+data length: 93000
+policy_head update_ratio: 
+mean=1.747125599079713e-08, 
+var=2.959711676874418e-11, 
+data length: 4500
+value_head update_ratio: 
+mean=-0.0007305506835865389, 
+var=0.10680748031823846, 
+data length: 11000
+intermediate_policy update_ratio: 
+mean=5.2233779380494084e-08, 
+var=2.1698741768852094e-10, 
+data length: 4500
+intermediate_value update_ratio: 
+mean=4.527830655412547e-06, 
+var=2.759715342260365e-06, 
+data length: 11000
+
+
+
+
+
