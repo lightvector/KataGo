@@ -109,9 +109,6 @@ class GameState:
             features = Features(model.config, model.pos_len)
 
             bin_input_data, global_input_data = self.get_input_features(features)
-            # Currently we don't actually do any symmetries
-            # symmetry = 0
-            # model_outputs = model(apply_symmetry(batch["binaryInputNCHW"],symmetry),batch["globalInputNC"])
 
             input_meta = None
             if sgfmeta is not None:
@@ -280,7 +277,38 @@ class GameState:
         for name in list(extra_outputs.returned.keys()):
             if name.endswith(".attention"):
                 extra_outputs.returned[name] = torch.transpose(extra_outputs.returned[name],1,2)
-
+        print({
+            "policy0": policy0,
+            "policy1": policy1,
+            "moves_and_probs0": moves_and_probs0,
+            "moves_and_probs1": moves_and_probs1,
+            "value": value,
+            "td_value": td_value,
+            "td_value2": td_value2,
+            "td_value3": td_value3,
+            "scoremean": scoremean,
+            "td_score": td_score,
+            "scorestdev": scorestdev,
+            "lead": lead,
+            "vtime": vtime,
+            "estv": estv,
+            "ests": ests,
+            "ownership": ownership,
+            "ownership_by_loc": ownership_by_loc,
+            "scoring": scoring,
+            "scoring_by_loc": scoring_by_loc,
+            "futurepos": futurepos,
+            "futurepos0_by_loc": futurepos0_by_loc,
+            "futurepos1_by_loc": futurepos1_by_loc,
+            "seki": seki,
+            "seki_by_loc": seki_by_loc,
+            "seki2": seki2,
+            "seki_by_loc2": seki_by_loc2,
+            "scorebelief": scorebelief,
+            "genmove_result": genmove_result,
+            **{ name:activation[0].numpy() for name, activation in extra_outputs.returned.items() },
+            "available_extra_outputs": available_extra_outputs,
+        })
         return {
             "policy0": policy0,
             "policy1": policy1,
@@ -315,4 +343,52 @@ class GameState:
             **{ name:activation[0].numpy() for name, activation in extra_outputs.returned.items() },
             "available_extra_outputs": available_extra_outputs,
         }
+    
+    def run_monte_carlo_tree_search(self, model, sgfmeta, max_visits=20):
+        self.children = []
+        model_outputs = self.get_model_outputs(model, sgfmeta)
+        self.move_probabilities = model_outputs["moves_and_probs0"]
+        for _ in range(max_visits):
+            self.do_visit(model, sgfmeta)
+        self.visits = 0
+
+    def choose_move(self):
+        cumulative_probabilities = np.cumsum([self.moves_and_probs0[:][1]])
+        random_number = np.random.rand()
+        for i in range(len(cumulative_probabilities)):
+            if cumulative_probabilities[i] >= random_number:
+                return self.moves_and_probs0[i]
+    
+    def get_best_move(self):
+        best_move_index = np.argmax([self.moves_and_probs0[:][1]])
+        return self.moves_and_probs0[best_move_index]
+
+    def do_visit(self, model, sgfmeta):
+        move = move = self.choose_move()
+
+        if not hasattr(self.children, move[0]):
+            child = self.clone()
+            child.play(move)
+            self.children[move[0]] = child 
+        else:
+            self.children[move[0]].do_visit(model, sgfmeta)
+
+        if self.parent is not None:
+            self.parent.backpropagate(self)
+
+    def backpropagate(self, child_node):
+        if(child_node.best_move_win_chance > self.best_move_win_chance):
+            self.best_move = child_node.move
+            self.best_move_win_chance = child_node.best_move_win_chance
+        self.visits += child_node.visits
+        self.forward_propagate_visits()
+
+    def clone(self):
+        game_state = GameState(self.board_size, self.rules)
+        game_state.redo_stack = self.redo_stack[:]
+        game_state.moves = self.moves[:]
+        game_state.boards = self.boards[:]
+        game_state.board = self.board
+        game_state.parent = self
+        return game_state
 
