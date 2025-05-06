@@ -20636,6 +20636,8 @@ subtreeValueBiasFactor: 0
 subtreeValueBiasTableNumShards: 65536
 subtreeValueBiasFreeProp: 0.8
 subtreeValueBiasWeightExponent: 0.5
+useEvalCache: 0
+evalCacheMinVisits: 100
 nodeTableShardsPowerOfTwo: 16
 numVirtualLossesPerThread: 3
 numThreads: 1
@@ -20743,6 +20745,8 @@ subtreeValueBiasFactor: 0
 subtreeValueBiasTableNumShards: 65536
 subtreeValueBiasFreeProp: 0.8
 subtreeValueBiasWeightExponent: 0.5
+useEvalCache: 0
+evalCacheMinVisits: 100
 nodeTableShardsPowerOfTwo: 16
 numVirtualLossesPerThread: 3
 numThreads: 1
@@ -20850,6 +20854,8 @@ subtreeValueBiasFactor: 0.45
 subtreeValueBiasTableNumShards: 65536
 subtreeValueBiasFreeProp: 0.8
 subtreeValueBiasWeightExponent: 0.85
+useEvalCache: 0
+evalCacheMinVisits: 100
 nodeTableShardsPowerOfTwo: 16
 numVirtualLossesPerThread: 1
 numThreads: 1
@@ -20957,6 +20963,8 @@ subtreeValueBiasFactor: 0.45
 subtreeValueBiasTableNumShards: 65536
 subtreeValueBiasFreeProp: 0.8
 subtreeValueBiasWeightExponent: 0.85
+useEvalCache: 0
+evalCacheMinVisits: 100
 nodeTableShardsPowerOfTwo: 16
 numVirtualLossesPerThread: 1
 numThreads: 1
@@ -21064,6 +21072,8 @@ subtreeValueBiasFactor: 0.45
 subtreeValueBiasTableNumShards: 65536
 subtreeValueBiasFreeProp: 0.8
 subtreeValueBiasWeightExponent: 0.85
+useEvalCache: 0
+evalCacheMinVisits: 100
 nodeTableShardsPowerOfTwo: 16
 numVirtualLossesPerThread: 1
 numThreads: 1
@@ -21171,6 +21181,8 @@ subtreeValueBiasFactor: 0.45
 subtreeValueBiasTableNumShards: 65536
 subtreeValueBiasFreeProp: 0.8
 subtreeValueBiasWeightExponent: 0.85
+useEvalCache: 0
+evalCacheMinVisits: 100
 nodeTableShardsPowerOfTwo: 16
 numVirtualLossesPerThread: 1
 numThreads: 1
@@ -21278,6 +21290,8 @@ subtreeValueBiasFactor: 0.45
 subtreeValueBiasTableNumShards: 65536
 subtreeValueBiasFreeProp: 0.8
 subtreeValueBiasWeightExponent: 0.85
+useEvalCache: 0
+evalCacheMinVisits: 100
 nodeTableShardsPowerOfTwo: 16
 numVirtualLossesPerThread: 1
 numThreads: 1
@@ -21385,6 +21399,8 @@ subtreeValueBiasFactor: 0.45
 subtreeValueBiasTableNumShards: 65536
 subtreeValueBiasFreeProp: 0.8
 subtreeValueBiasWeightExponent: 0.85
+useEvalCache: 0
+evalCacheMinVisits: 100
 nodeTableShardsPowerOfTwo: 16
 numVirtualLossesPerThread: 1
 numThreads: 1
