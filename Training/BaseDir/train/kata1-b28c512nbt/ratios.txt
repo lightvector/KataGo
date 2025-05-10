@@ -1,0 +1,88 @@
+{
+  "abs_means": {
+    "conv_spatial": 8.145273019223806e-05,
+    "linear_global": 8.74016358367778e-05,
+    "norm_beta": 9.955477930605284e-06,
+    "norm_gamma": 7.23631370969493e-06,
+    "blocks": 5.740434094560952e-05,
+    "policy_head": 4.368532621354251e-06,
+    "value_head": 2.8861290734215183e-05,
+    "intermediate_policy": 6.102051992561779e-06,
+    "intermediate_value": 1.7931970593460016e-05
+  },
+  "abs_vars": {
+    "conv_spatial": 7.221585155846378e-10,
+    "linear_global": 9.859728364083308e-10,
+    "norm_beta": 2.5599522293788337e-10,
+    "norm_gamma": 8.763605428346337e-11,
+    "blocks": 3.822993035666455e-10,
+    "policy_head": 3.489224529785987e-11,
+    "value_head": 6.784808585455951e-09,
+    "intermediate_policy": 3.833669290588553e-11,
+    "intermediate_value": 1.3559312357626313e-09
+  },
+  "skewness": {
+    "conv_spatial": 7.239513189530228,
+    "linear_global": 7.249645471270137,
+    "norm_beta": 26.19686278870866,
+    "norm_gamma": 19.7068228425603,
+    "blocks": 15.821781790161484,
+    "policy_head": 1.959340488630384,
+    "value_head": 3.8688307064733114,
+    "intermediate_policy": 1.4102079659399822,
+    "intermediate_value": 2.855669662163069
+  },
+  "kurtosis": {
+    "conv_spatial": 144.99615704346166,
+    "linear_global": 133.5905467805304,
+    "norm_beta": 1774.1208013344174,
+    "norm_gamma": 1202.5153460841316,
+    "blocks": 874.9798597187469,
+    "policy_head": -2.2216497116792104,
+    "value_head": 20.286326152342397,
+    "intermediate_policy": -13.94808613197653,
+    "intermediate_value": 11.436602066903108
+  },
+  "update_means": {
+    "conv_spatial": -5.840831066995035e-08,
+    "linear_global": -2.437944454632686e-06,
+    "norm_beta": -1.4647636695185526e-08,
+    "norm_gamma": 5.734391473985949e-09,
+    "blocks": 4.167601625653255e-05,
+    "policy_head": 6.688917838994826e-09,
+    "value_head": -0.0019138795971901297,
+    "intermediate_policy": 3.866170790560555e-09,
+    "intermediate_value": 5.364892452177198e-06
+  },
+  "update_vars": {
+    "conv_spatial": 5.902268252338783e-10,
+    "linear_global": 6.92459213770916e-08,
+    "norm_beta": 1.1319673909756379e-10,
+    "norm_gamma": 1.159102869004349e-11,
+    "blocks": 0.005948325100829204,
+    "policy_head": 2.5515619430195815e-11,
+    "value_head": 0.2748336243791396,
+    "intermediate_policy": 1.6083457840868548e-10,
+    "intermediate_value": 3.3738857270194703e-06
+  },
+  "data_lengths": {
+    "abs_conv_spatial": 6649,
+    "update_conv_spatial": 6649,
+    "abs_linear_global": 6649,
+    "update_linear_global": 6649,
+    "abs_norm_beta": 1130330,
+    "update_norm_beta": 1130330,
+    "abs_norm_gamma": 1123681,
+    "update_norm_gamma": 1123681,
+    "abs_blocks": 1236714,
+    "update_blocks": 1236714,
+    "abs_policy_head": 59841,
+    "update_policy_head": 59841,
+    "abs_value_head": 146278,
+    "update_value_head": 146278,
+    "abs_intermediate_policy": 59841,
+    "update_intermediate_policy": 59841,
+    "abs_intermediate_value": 146278,
+    "update_intermediate_value": 146278
+  }
+}

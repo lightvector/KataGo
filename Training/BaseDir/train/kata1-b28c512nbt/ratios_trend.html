@@ -67,7 +67,7 @@
     <div class="container mx-auto px-4 py-8">
         <h1 class="text-2xl md:text-3xl font-bold">参数更新趋势图与收敛分析 (含标准差范围)</h1>
         <p class="text-base md:text-lg">
-            以下图表展示了各模块参数更新比率 (<code>abs_update_ratio</code> 和 <code>update_ratio</code>) 的均值趋势，以及其上下两个标准差范围（浅色区域）。数据来源于 <code>ratios_trend.txt</code> 文件。点击图例可切换显示/隐藏对应模块的均值线和范围区域。
+            以下图表展示了各模块参数更新比率 (<code>abs_update_ratio</code> 和 <code>update_ratio</code>) 的均值趋势，以及其上下两个标准差范围（浅色区域）。<code>abs_update_ratio</code> 的范围根据偏度调整，<code>update_ratio</code> 使用对称标准差。数据来源于 <code>ratios_trend.txt</code> 文件。点击图例可切换显示/隐藏对应模块的均值线和范围区域。
         </p>
         <div class="flex justify-center mt-4 mb-6">
             <button id="toggleStdDevButton" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
@@ -76,7 +76,7 @@
         </div>
         <div class="charts-grid">
             <div class="chart-container">
-                <h2 class="text-xl font-semibold">1. abs_update_ratio (Mean ± 2 StdDev)</h2>
+                <h2 class="text-xl font-semibold">1. abs_update_ratio (Mean ± Adjusted StdDev)</h2>
                 <canvas id="absUpdateRatioChart"></canvas>
             </div>
             <div class="chart-container">
@@ -142,7 +142,7 @@
         }
 
         function parseData(text) {
-            log('开始解析数据 (多行逻辑, 含 var)...');
+            log('开始解析数据 (多行逻辑, 含 var, skewness, kurtosis)...');
             const absUpdateRatioData = {};
             const updateRatioData = {};
             const lines = text.split(/\r?\n/);
@@ -153,7 +153,7 @@
                 updateRatioData[module] = [];
             });
 
-            let currentSection = null, currentModule = null, currentMean = null, currentVar = null, currentDataLength = null;
+            let currentSection = null, currentModule = null, currentMean = null, currentVar = null, currentSkewness = null, currentKurtosis = null, currentDataLength = null;
             let linesParsedCount = 0;
 
             for (let i = 0; i < lines.length; i++) {
@@ -167,7 +167,7 @@
                 const moduleMatch = line.match(/^(\w+)\s+(abs_update_ratio|update_ratio):$/);
                 if (moduleMatch) {
                     currentModule = modules.includes(moduleMatch[1]) ? moduleMatch[1] : null;
-                    if (currentModule) { currentMean = null; currentVar = null; currentDataLength = null; }
+                    if (currentModule) { currentMean = null; currentVar = null; currentSkewness = null; currentKurtosis = null; currentDataLength = null; }
                     continue;
                 }
 
@@ -176,20 +176,42 @@
                     if (meanMatch) { currentMean = parseFloat(meanMatch[1]); continue; }
                     const varMatch = line.match(/^var=([\d.eE+-]+),?$/);
                     if (varMatch) { currentVar = parseFloat(varMatch[1]); continue; }
+                    const skewMatch = line.match(/^skewness=([\d.eE+-]+),?$/);
+                    if (skewMatch) { currentSkewness = parseFloat(skewMatch[1]); continue; }
+                    const kurtMatch = line.match(/^kurtosis=([\d.eE+-]+),?$/);
+                    if (kurtMatch) { currentKurtosis = parseFloat(kurtMatch[1]); continue; }
                     const lengthMatch = line.match(/^data length:\s*(\d+)$/);
                     if (lengthMatch) {
                         currentDataLength = parseInt(lengthMatch[1]);
                         if (currentMean !== null && currentVar !== null && !isNaN(currentMean) && !isNaN(currentVar) && !isNaN(currentDataLength)) {
                             const variance = Math.max(0, currentVar);
-                            const stdDev = Math.sqrt(variance);
-                            const dataEntry = { mean: currentMean, variance, stdDev, dataLength: currentDataLength };
-                            if (currentSection === 'abs_update_ratio') absUpdateRatioData[currentModule].push(dataEntry);
-                            else if (currentSection === 'update_ratio') updateRatioData[currentModule].push(dataEntry);
+                            const stdDev = Math.sqrt(variance) * 1;
+                            const dataEntry = { 
+                                mean: currentMean, 
+                                variance, 
+                                stdDev, 
+                                dataLength: currentDataLength,
+                                skewness: currentSkewness !== null ? currentSkewness : 0, // 默认 0 如果未提供
+                                kurtosis: currentKurtosis !== null ? currentKurtosis : 0 // 默认 0 如果未提供
+                            };
+                            if (currentSection === 'abs_update_ratio') {
+                                absUpdateRatioData[currentModule].push(dataEntry);
+                            } else if (currentSection === 'update_ratio') {
+                                updateRatioData[currentModule].push(dataEntry);
+                            }
                             linesParsedCount++;
-                            currentMean = null; currentVar = null; currentDataLength = null;
+                            currentMean = null; 
+                            currentVar = null; 
+                            currentSkewness = null; 
+                            currentKurtosis = null; 
+                            currentDataLength = null;
                         } else {
                             logError(`找到 data length 但 mean (${currentMean}) 或 var (${currentVar}) 无效或未找到 for module ${currentModule}`);
-                            currentMean = null; currentVar = null; currentDataLength = null;
+                            currentMean = null; 
+                            currentVar = null; 
+                            currentSkewness = null; 
+                            currentKurtosis = null; 
+                            currentDataLength = null;
                         }
                         continue;
                     }
@@ -371,49 +393,152 @@
                 return;
             }
 
-            function createModuleDatasets(ratioData, colors) {
+            function createModuleDatasets(ratioData, colors, isAbsUpdateRatio) {
                 return modules.map((module, index) => {
                     const modulePoints = ratioData[module] ? ratioData[module].sort((a, b) => a.dataLength - b.dataLength) : [];
-                    const baseColor = colors[index];
-
-                    const hslMatch = baseColor.match(/^hsl\((\d+),\s*(\d+)%,\s*(\d+)%\)$/);
-                    let areaColor = 'rgba(200, 200, 200, 0.3)';
-
-                    if (hslMatch) {
-                        const hue = parseInt(hslMatch[1]);
-                        const saturation = parseInt(hslMatch[2]);
-                        const lightness = parseInt(hslMatch[3]);
-                        const targetLightness = 90;
-                        const blendFactor = 0.7;
-                        const lighterLightness = lightness + (targetLightness - lightness) * blendFactor;
-                        const finalLightness = Math.min(100, Math.max(0, lighterLightness));
-                        const alpha = 0.2;
-                        areaColor = `hsla(${hue}, ${saturation}%, ${finalLightness}%, ${alpha})`;
-                        log(`Generated area color for ${module}: ${areaColor}`);
-                    } else {
-                        logError(`Failed to parse HSL color for module ${module}: ${baseColor}. Using default fallback color.`);
+                    if (modulePoints.length === 0) {
+                        // 如果没有数据点则返回空数据集
+                        log(`模块 ${module} 没有数据点。`);
+                        return {
+                            module: module, meanData: [],
+                            lowerBoundDs: { id: `${module}-lower-bound`, data: [] },
+                            upperBoundDs: { id: `${module}-upper-bound`, data: [] },
+                            meanDs: { id: `${module}-mean`, data: [] }
+                        };
                     }
 
+                    const baseColor = colors[index];
+                    let areaColor = 'rgba(200, 200, 200, 0.2)'; // 默认备用颜色
+
+                    const hslMatch = baseColor.match(/^hsl\((\d+),\s*(\d+)%,\s*(\d+)%\)$/);
+                    let hue = 200, saturation = 50, lightness = 80; // HSL解析失败时的区域颜色默认基础值
+
+                    if (hslMatch) {
+                        hue = parseInt(hslMatch[1]);
+                        saturation = parseInt(hslMatch[2]);
+                        const baseLightness = parseInt(hslMatch[3]);
+                        // 使背景比线条颜色更亮
+                        const targetLightness = 90;
+                        const blendFactor = 0.7;
+                        lightness = Math.min(100, Math.max(0, baseLightness + (targetLightness - baseLightness) * blendFactor));
+                        // 初始简单区域颜色（如果适用将被渐变覆盖）
+                        areaColor = `hsla(${hue}, ${saturation}%, ${lightness}%, 0.2)`;
+                    } else {
+                        logError(`未能解析模块 ${module} 的 HSL 颜色: ${baseColor}。使用默认灰色背景。`);
+                    }
+
+                    let lowerBoundPoints, upperBoundPoints;
                     const meanPoints = modulePoints.map(item => ({ x: item.dataLength, y: item.mean }));
-                    const lowerBoundPoints = modulePoints.map(item => ({ x: item.dataLength, y: item.mean - 2 * item.stdDev }));
-                    const upperBoundPoints = modulePoints.map(item => ({ x: item.dataLength, y: item.mean + 2 * item.stdDev }));
+
+                    if (isAbsUpdateRatio) {
+                        // 使用偏度调整*边界*
+                        lowerBoundPoints = modulePoints.map(item => {
+                            const skewness = item.skewness || 0;
+                            const skewFactor = skewness / (1 + Math.abs(skewness)); // Normalized skewness (-1 to 1)
+                            const kLower = 2 * (1 - skewFactor); // 正偏度时下边界距离更小
+                            return { x: item.dataLength, y: item.mean - kLower * item.stdDev };
+                        });
+                        upperBoundPoints = modulePoints.map(item => {
+                            const skewness = item.skewness || 0;
+                            const skewFactor = skewness / (1 + Math.abs(skewness)); // Normalized skewness (-1 to 1)
+                            const kUpper = 2 * (1 + skewFactor); // 正偏度时上边界距离更大
+                            return { x: item.dataLength, y: item.mean + kUpper * item.stdDev };
+                        });
+
+                        // --- 峰度渐变逻辑 ---
+                        // 计算模块的平均峰度以设置渐变强度
+                        const avgKurtosis = modulePoints.reduce((sum, item) => sum + (item.kurtosis || 0), 0) / modulePoints.length;
+                        // 标准化峰度效果（例如，将峰度从0-10映射到0-1范围用于alpha控制）
+                        // 正态分布的峰度为3（若为超额峰度则为0）。较高值表示更尖锐的峰值/更肥的尾部。
+                        // 当峰度增加到超过（比如说）1时，让它更强烈（更高alpha值）。
+                        const minKurt = 1; // 低于此峰度值的有最小效果
+                        const maxKurt = 10; // 高于此峰度值的有最大效果
+                        const normalizedKurt = Math.max(0, Math.min(1, (avgKurtosis - minKurt) / (maxKurt - minKurt)));
+
+                        const minAlpha = 0.05; // +/- 2*标准差边界处的Alpha值（更透明）
+                        const maxAlpha = 0.5;  // 均值附近的最大Alpha值（更不透明）
+                        const centerAlpha = minAlpha + (maxAlpha - minAlpha) * normalizedKurt; // 均值附近的Alpha值取决于峰度
+
+                        log(`模块 ${module}: AvgKurtosis=${avgKurtosis.toFixed(2)}, NormKurt=${normalizedKurt.toFixed(2)}, CenterAlpha=${centerAlpha.toFixed(2)}`);
+
+                        areaColor = (ctx) => {
+                            const chart = ctx.chart;
+                            const chartArea = chart.chartArea;
+                            const yScale = chart.scales.y;
+
+                            if (!chartArea) {
+                                // 如果chartArea尚未准备好时的后备方案
+                                return `hsla(${hue}, ${saturation}%, ${lightness}%, ${minAlpha + (centerAlpha-minAlpha)/2})`; // 平均Alpha值
+                            }
+
+                            // 查找此数据集填充区域的近似Y像素范围
+                            const yValues = upperBoundPoints.map(p => p.y).concat(lowerBoundPoints.map(p => p.y));
+                            let yMin = Math.min(...yValues);
+                            let yMax = Math.max(...yValues);
+
+                            // 估计平均的Y均值
+                            const avgMeanY = meanPoints.reduce((sum, p) => sum + p.y, 0) / meanPoints.length;
+
+                            // 获取像素坐标（限制在图表区域内）
+                            const yPixelMin = Math.max(chartArea.top, Math.min(chartArea.bottom, yScale.getPixelForValue(yMax))); // 区域顶部
+                            const yPixelMax = Math.max(chartArea.top, Math.min(chartArea.bottom, yScale.getPixelForValue(yMin))); // 区域底部
+                            const yPixelMean = Math.max(chartArea.top, Math.min(chartArea.bottom, yScale.getPixelForValue(avgMeanY))); // 均值线位置
+
+                            // 创建相对于填充区域而非整个图表的渐变
+                            // 如果区域是平的，防止除以零
+                            if (yPixelMax <= yPixelMin) return `hsla(${hue}, ${saturation}%, ${lightness}%, ${centerAlpha})`;
+
+                            const gradient = chart.ctx.createLinearGradient(0, yPixelMin, 0, yPixelMax);
+
+                            // 将均值位置映射到填充区域像素范围内的0-1值
+                            const meanStopPosition = (yPixelMean - yPixelMin) / (yPixelMax - yPixelMin);
+
+                            // 添加渐变点：最亮的在顶部/底部边缘，最暗的在均值周围
+                            gradient.addColorStop(0, `hsla(${hue}, ${saturation}%, ${lightness}%, ${minAlpha})`); // 顶部边缘（最大Y值）
+                            // 在均值位置周围稍微扩散添加最暗的渐变点
+                            gradient.addColorStop(Math.max(0, meanStopPosition - 0.1), `hsla(${hue}, ${saturation}%, ${lightness}%, ${centerAlpha})`);
+                            gradient.addColorStop(Math.min(1, meanStopPosition + 0.1), `hsla(${hue}, ${saturation}%, ${lightness}%, ${centerAlpha})`);
+                            gradient.addColorStop(1, `hsla(${hue}, ${saturation}%, ${lightness}%, ${minAlpha})`);  // 底部边缘（最小Y值）
+
+                            return gradient;
+                        };
+                        // --- 峰度渐变逻辑结束 ---
+
+                    } else {
+                        // update_ratio保持对称标准差和简单背景
+                        lowerBoundPoints = modulePoints.map(item => ({
+                            x: item.dataLength,
+                            y: item.mean - 2 * item.stdDev
+                        }));
+                        upperBoundPoints = modulePoints.map(item => ({
+                            x: item.dataLength,
+                            y: item.mean + 2 * item.stdDev
+                        }));
+                        // areaColor保持之前计算的默认简单hsla颜色
+                        if (hslMatch) { // 确保areaColor尽可能使用HSL
+                            areaColor = `hsla(${hue}, ${saturation}%, ${lightness}%, 0.2)`;
+                        }
+                    }
+
+                    // 确保所有点都是有效数字后再添加到图表
+                    const filterInvalid = (p) => Number.isFinite(p.x) && Number.isFinite(p.y);
 
                     return {
                         module: module,
-                        meanData: meanPoints,
+                        meanData: meanPoints.filter(filterInvalid),
                         lowerBoundDs: {
                             id: `${module}-lower-bound`, label: `${module} Lower Bound`, moduleId: module,
-                            data: lowerBoundPoints, borderColor: 'transparent', backgroundColor: 'transparent',
+                            data: lowerBoundPoints.filter(filterInvalid), borderColor: 'transparent', backgroundColor: 'transparent',
                             pointRadius: 0, fill: false, borderWidth: 0, hidden: !stdDevVisible
                         },
                         upperBoundDs: {
                             id: `${module}-upper-bound`, label: `${module} Upper Bound`, moduleId: module,
-                            data: upperBoundPoints, borderColor: 'transparent', backgroundColor: areaColor,
+                            data: upperBoundPoints.filter(filterInvalid), borderColor: 'transparent', backgroundColor: areaColor, // 应用渐变或简单颜色
                             pointRadius: 0, fill: stdDevVisible ? '-1' : false, borderWidth: 0, hidden: !stdDevVisible
                         },
                         meanDs: {
                             id: `${module}-mean`, label: `${module}`, moduleId: module,
-                            data: meanPoints, borderColor: baseColor, backgroundColor: baseColor,
+                            data: meanPoints.filter(filterInvalid), borderColor: baseColor, backgroundColor: baseColor,
                             fill: false, borderWidth: 1.5, hidden: false
                         }
                     };
@@ -421,8 +546,8 @@
             }
 
             const colors = modules.map((_, index) => `hsl(${(index * (360 / modules.length) + 30) % 360}, 70%, 50%)`);
-            const absRatioModuleDatasets = createModuleDatasets(absUpdateRatioData, colors);
-            const updateRatioModuleDatasets = createModuleDatasets(updateRatioData, colors);
+            const absRatioModuleDatasets = createModuleDatasets(absUpdateRatioData, colors, true);
+            const updateRatioModuleDatasets = createModuleDatasets(updateRatioData, colors, false);
 
             log('absUpdateRatioDatasets 准备就绪:', absRatioModuleDatasets.map(d => ({label: d.module, count: d.meanData.length})));
             log('updateRatioDatasets 准备就绪:', updateRatioModuleDatasets.map(d => ({label: d.module, count: d.meanData.length})));
