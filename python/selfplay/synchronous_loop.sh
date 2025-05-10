@@ -63,40 +63,54 @@ mkdir -p "$BASEDIR"/gatekeepersgf
 # you have strong hardware or are later into a run you may want to reduce the overhead by scaling
 # these numbers up and doing more games and training per cycle, exporting models less frequently, etc.
 
-# 标准 128 盘本地自对弈参数设置
-NUM_GAMES_PER_CYCLE=128 # 每周期自对弈游戏数; Every cycle, play this many games
-NUM_THREADS_FOR_SHUFFLING=8 # 混洗线程数
-NUM_TRAIN_SAMPLES_PER_EPOCH=25000  # 每训练周期样本数. Training will proceed in chunks of this many rows, subject to MAX_TRAIN_PER_DATA.
-MAX_TRAIN_PER_DATA=8 # 每数据行最大训练次数（8，避免过拟合）; On average, train only this many times on each data row. Larger numbers may cause overfitting.
-NUM_TRAIN_SAMPLES_PER_SWA=80000  # 随机权重平均频率; Stochastic weight averaging frequency.
-BATCHSIZE=32 # 训练批次大小; For lower-end GPUs 64 or smaller may be needed to avoid running out of GPU memory.
-SHUFFLE_MINROWS=25000 # 开始训练前的最小数据行数; Require this many rows at the very start before beginning training.
-MAX_TRAIN_SAMPLES_PER_CYCLE=1280000  # 每周期最大训练步数; Each cycle will do at most this many training steps.
-TAPER_WINDOW_SCALE=10000 # 混洗窗口增长的缩放因子; Parameter setting the scale at which the shuffler will make the training window grow sublinearly.
-SHUFFLE_KEEPROWS=2560000 # 混洗保留的行数（需大于最大训练步数）; Needs to be larger than MAX_TRAIN_SAMPLES_PER_CYCLE, so the shuffler samples enough rows each cycle for the training to use.
 
-# # 标准 256 盘本地自对弈参数设置
-# NUM_GAMES_PER_CYCLE=256 # 每周期自对弈游戏数; Every cycle, play this many games
+# # 标准 32 盘本地自对弈参数设置 - 为测试 PTSNI (Post-Training Statistical Noise Injection) 处理后模型用
+# NUM_GAMES_PER_CYCLE=32 # 每周期自对弈游戏数; Every cycle, play this many games
 # NUM_THREADS_FOR_SHUFFLING=8 # 混洗线程数
-# NUM_TRAIN_SAMPLES_PER_EPOCH=52000  # 每训练周期样本数. Training will proceed in chunks of this many rows, subject to MAX_TRAIN_PER_DATA.
+# NUM_TRAIN_SAMPLES_PER_EPOCH=8100  # 每训练周期样本数. Training will proceed in chunks of this many rows, subject to MAX_TRAIN_PER_DATA.
 # MAX_TRAIN_PER_DATA=8 # 每数据行最大训练次数（8，避免过拟合）; On average, train only this many times on each data row. Larger numbers may cause overfitting.
 # NUM_TRAIN_SAMPLES_PER_SWA=80000  # 随机权重平均频率; Stochastic weight averaging frequency.
 # BATCHSIZE=32 # 训练批次大小; For lower-end GPUs 64 or smaller may be needed to avoid running out of GPU memory.
-# SHUFFLE_MINROWS=52000 # 开始训练前的最小数据行数; Require this many rows at the very start before beginning training.
+# SHUFFLE_MINROWS=8100 # 开始训练前的最小数据行数; Require this many rows at the very start before beginning training.
+# MAX_TRAIN_SAMPLES_PER_CYCLE=1280000  # 每周期最大训练步数; Each cycle will do at most this many training steps.
+# TAPER_WINDOW_SCALE=1000 # 混洗窗口增长的缩放因子; Parameter setting the scale at which the shuffler will make the training window grow sublinearly.
+# SHUFFLE_KEEPROWS=2560000 # 混洗保留的行数（需大于最大训练步数）; Needs to be larger than MAX_TRAIN_SAMPLES_PER_CYCLE, so the shuffler samples enough rows each cycle for the training to use.
+
+# # 标准 128 盘本地自对弈参数设置
+# NUM_GAMES_PER_CYCLE=128 # 每周期自对弈游戏数; Every cycle, play this many games
+# NUM_THREADS_FOR_SHUFFLING=8 # 混洗线程数
+# NUM_TRAIN_SAMPLES_PER_EPOCH=25000  # 每训练周期样本数. Training will proceed in chunks of this many rows, subject to MAX_TRAIN_PER_DATA.
+# MAX_TRAIN_PER_DATA=8 # 每数据行最大训练次数（8，避免过拟合）; On average, train only this many times on each data row. Larger numbers may cause overfitting.
+# NUM_TRAIN_SAMPLES_PER_SWA=80000  # 随机权重平均频率; Stochastic weight averaging frequency.
+# BATCHSIZE=32 # 训练批次大小; For lower-end GPUs 64 or smaller may be needed to avoid running out of GPU memory.
+# SHUFFLE_MINROWS=25000 # 开始训练前的最小数据行数; Require this many rows at the very start before beginning training.
 # MAX_TRAIN_SAMPLES_PER_CYCLE=1280000  # 每周期最大训练步数; Each cycle will do at most this many training steps.
 # TAPER_WINDOW_SCALE=10000 # 混洗窗口增长的缩放因子; Parameter setting the scale at which the shuffler will make the training window grow sublinearly.
 # SHUFFLE_KEEPROWS=2560000 # 混洗保留的行数（需大于最大训练步数）; Needs to be larger than MAX_TRAIN_SAMPLES_PER_CYCLE, so the shuffler samples enough rows each cycle for the training to use.
 
-# NUM_GAMES_PER_CYCLE=500 # 每周期自对弈游戏数; Every cycle, play this many games
+# # 标准 256 盘本地自对弈参数设置
+# NUM_GAMES_PER_CYCLE=256 # 每周期自对弈游戏数; Every cycle, play this many games
 # NUM_THREADS_FOR_SHUFFLING=8 # 混洗线程数
-# NUM_TRAIN_SAMPLES_PER_EPOCH=270000  # 每训练周期样本数. Training will proceed in chunks of this many rows, subject to MAX_TRAIN_PER_DATA.
+# NUM_TRAIN_SAMPLES_PER_EPOCH=50000  # 每训练周期样本数. Training will proceed in chunks of this many rows, subject to MAX_TRAIN_PER_DATA.
 # MAX_TRAIN_PER_DATA=8 # 每数据行最大训练次数（8，避免过拟合）; On average, train only this many times on each data row. Larger numbers may cause overfitting.
 # NUM_TRAIN_SAMPLES_PER_SWA=80000  # 随机权重平均频率; Stochastic weight averaging frequency.
 # BATCHSIZE=32 # 训练批次大小; For lower-end GPUs 64 or smaller may be needed to avoid running out of GPU memory.
-# SHUFFLE_MINROWS=270000 # 开始训练前的最小数据行数; Require this many rows at the very start before beginning training.
-# MAX_TRAIN_SAMPLES_PER_CYCLE=128000000  # 每周期最大训练步数; Each cycle will do at most this many training steps.
-# TAPER_WINDOW_SCALE=50000 # 混洗窗口增长的缩放因子; Parameter setting the scale at which the shuffler will make the training window grow sublinearly.
-# SHUFFLE_KEEPROWS=256000000 # 混洗保留的行数（需大于最大训练步数）; Needs to be larger than MAX_TRAIN_SAMPLES_PER_CYCLE, so the shuffler samples enough rows each cycle for the training to use.
+# SHUFFLE_MINROWS=50000 # 开始训练前的最小数据行数; Require this many rows at the very start before beginning training.
+# MAX_TRAIN_SAMPLES_PER_CYCLE=1280000  # 每周期最大训练步数; Each cycle will do at most this many training steps.
+# TAPER_WINDOW_SCALE=100000 # 混洗窗口增长的缩放因子; Parameter setting the scale at which the shuffler will make the training window grow sublinearly.
+# SHUFFLE_KEEPROWS=2560000 # 混洗保留的行数（需大于最大训练步数）; Needs to be larger than MAX_TRAIN_SAMPLES_PER_CYCLE, so the shuffler samples enough rows each cycle for the training to use.
+
+# 标准 512 盘本地自对弈参数设置
+NUM_GAMES_PER_CYCLE=512 # 每周期自对弈游戏数; Every cycle, play this many games
+NUM_THREADS_FOR_SHUFFLING=8 # 混洗线程数
+NUM_TRAIN_SAMPLES_PER_EPOCH=100000  # 每训练周期样本数. Training will proceed in chunks of this many rows, subject to MAX_TRAIN_PER_DATA.
+MAX_TRAIN_PER_DATA=8 # 每数据行最大训练次数（8，避免过拟合）; On average, train only this many times on each data row. Larger numbers may cause overfitting.
+NUM_TRAIN_SAMPLES_PER_SWA=80000  # 随机权重平均频率; Stochastic weight averaging frequency.
+BATCHSIZE=32 # 训练批次大小; For lower-end GPUs 64 or smaller may be needed to avoid running out of GPU memory.
+SHUFFLE_MINROWS=100000 # 开始训练前的最小数据行数; Require this many rows at the very start before beginning training.
+MAX_TRAIN_SAMPLES_PER_CYCLE=128000000  # 每周期最大训练步数; Each cycle will do at most this many training steps.
+TAPER_WINDOW_SCALE=20000 # 混洗窗口增长的缩放因子; Parameter setting the scale at which the shuffler will make the training window grow sublinearly.
+SHUFFLE_KEEPROWS=256000000 # 混洗保留的行数（需大于最大训练步数）; Needs to be larger than MAX_TRAIN_SAMPLES_PER_CYCLE, so the shuffler samples enough rows each cycle for the training to use.
 
 # # 其它参数设置较大，因使用社区数据集进行训练
 # NUM_GAMES_PER_CYCLE=500 # 每周期自对弈游戏数; Every cycle, play this many games

@@ -1,18 +1,12 @@
-
-# cd /g/Projects/KataGo-Noise/python
-
-# python noise.py --base-dir "G:\Projects\KataGo-Noise\Training\BaseDir" --training-name "kata1-b28c512nbt" --model-kind "b28c512nbt" --noise-scale 5.0
-
-# ./selfplay/export_model_for_selfplay.sh "noisy-5.0" "/g/Projects/KataGo-Noise/Training/BaseDir" "1"
-
-
-
 import argparse
+import math
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 import torch.optim as optim
 from torch.optim.swa_utils import AveragedModel
 from model_pytorch import Model
+import numpy as np
 import modelconfigs
 import os
 import logging
@@ -21,6 +15,8 @@ import time
 import shutil
 import json
 import traceback
+import re
+import torch
 
 NUM_SHORTTERM_CHECKPOINTS_TO_KEEP = 4
 
@@ -30,9 +26,22 @@ def save(savepath, traindir, model, swa_model, optimizer, train_state, metrics, 
     state_dict["config"] = model_config
     if swa_model is not None:
         state_dict["swa_model"] = swa_model.state_dict()
-    state_dict["optimizer"] = optimizer.state_dict()
+    
+    # Skip optimizer state to avoid parameter group mismatches
+    # state_dict["optimizer"] = optimizer.state_dict()
+    
     state_dict["train_state"] = train_state
-    state_dict["metrics"] = metrics
+    
+    # Remove metrics to reduce file size and avoid compatibility issues
+    # state_dict["metrics"] = metrics
+    
+    # Clean up train_state similar to clean_checkpoint.py
+    if "old_train_data_dirs" in train_state:
+        train_state_copy = train_state.copy()
+        train_state_copy.pop("old_train_data_dirs", None)
+        train_state_copy.pop("data_files_used", None)
+        state_dict["train_state"] = train_state_copy
+    
     torch.save(state_dict, savepath + "/model.ckpt")
 
     logging.info("Saving checkpoint: " + get_checkpoint_path(traindir))
@@ -51,15 +60,19 @@ def get_checkpoint_prev_path(i, traindir = None):
     return os.path.join(traindir,f"checkpoint_prev{i}.ckpt")
 
 def get_raw_model(model_config, pos_len):
-    # 创建模型实例
+    """创建模型实例"""
     raw_model = Model(model_config, pos_len)
     raw_model.initialize()
     return raw_model
 
-def get_swa_model(raw_model, state_dict):
-    # 创建 SWA 模型实例
+def get_swa_model(raw_model, state_dict, swa_scale=None):
+    """创建 SWA 模型实例"""
+    if swa_scale is None:
+        swa_scale = 4
     if 'swa_model' in state_dict:
-        swa_model = AveragedModel(raw_model)  # 使用原始模型，避免额外的 module 包装
+        new_factor = 1.0 / swa_scale
+        ema_avg = lambda avg_param, cur_param, num_averaged: avg_param + new_factor * (cur_param - avg_param)
+        swa_model = AveragedModel(raw_model, avg_fn=ema_avg)
 
         # 调整 checkpoint 中的 swa_model 键以匹配
         swa_state_dict = state_dict['swa_model']
@@ -74,297 +87,426 @@ def get_swa_model(raw_model, state_dict):
         swa_model = None
     return swa_model
 
-def generate_noise(param, group_name, noise_scale, iterations = 1000, i = 0):
-    # 1. 获取两种比率的均值和方差
-    mu_abs = abs_update_ratio_means[group_name]
-    sigma_abs = torch.sqrt(torch.tensor(abs_update_ratio_vars[group_name], device=param.device))
+# # 全局参数缓存
+delta_cache = {}
+
+def generate_skew_normal(shape, skewness, loc, scale, device, dtype, group_name):
+    """使用 PyTorch 生成 Skew-Normal 分布样本。
     
-    mu_rel = update_ratio_means[group_name]
-    sigma_rel = torch.sqrt(torch.tensor(update_ratio_vars[group_name], device=param.device))
+    参数:
+        shape: 输出张量形状
+        skewness: 偏度参数
+        loc: 均值
+        scale: 标准差
+        device: 目标设备（如 'cuda' 或 'cpu'）
+        dtype: 数据类型（如 torch.float32）
+        group_name: 参数组名称
     
-    # 2. 生成幅度噪声 - 截断正态分布
-    # 实现截断正态分布采样 (μ, σ, 下限=0, 上限=None)
-    # 为提高效率，使用拒绝采样法
-    # 生成标准正态分布样本
-    z = torch.randn_like(param.data)
-    # 按 noise_scale 调整 mu 和 sigma
+    返回:
+        Skew-Normal 分布的样本张量
+    """
+    # 计算 delta
+    cache_key = (skewness, device, dtype)
+    if cache_key not in delta_cache:
+        alpha = torch.tensor(skewness, device=device, dtype=dtype)
+        delta_cache[cache_key] = alpha / torch.sqrt(1 + alpha**2)
+
+        logging.info(f"Calculated delta for group {group_name}: {delta_cache[cache_key].item()}")
+
+    delta = delta_cache[cache_key]
+    
+    # 生成两个独立的标准正态样本
+    U1 = torch.randn(shape, device=device, dtype=dtype)
+    U2 = torch.randn(shape, device=device, dtype=dtype)
+    
+    # 计算 Skew-Normal 样本
+    Z = delta * torch.abs(U1) + torch.sqrt(1 - delta**2) * U2
+    
+    # 缩放和平移
+    X = loc + scale * Z
+    
+    return X
+
+def generate_noise(param, group_name, noise_scale):
+    """生成模拟权重更新经验分布的噪声。
+    
+    参数:
+        param: 需要生成噪声的参数
+        group_name: 参数组名称
+        noise_scale: 噪声强度的缩放因子
+    
+    返回:
+        具有适当统计特性的噪声张量
+    """
+    # global param_cache
+    # cache_key = (group_name)
+    
+    # 从ratio_data获取详细的统计信息
+    mu_abs = ratio_data['abs_means'].get(group_name, 1e-6)
+    var_abs = ratio_data['abs_vars'].get(group_name, 1e-11)
+    sigma_abs = math.sqrt(var_abs)
+    skewness = ratio_data['skewness'].get(group_name, 3.0)
+    mu_rel = ratio_data['update_means'].get(group_name, 0.0)
+    var_rel = ratio_data['update_vars'].get(group_name, 0.01)
+    sigma_rel = math.sqrt(var_rel)
+    
+    # 应用噪声缩放
+    noise_scale = float(noise_scale)
     adjusted_mu = mu_abs * noise_scale
     adjusted_sigma = sigma_abs * noise_scale
+    bound = adjusted_sigma * 10
 
-    adjusted_mu_rel = mu_rel * noise_scale
-    adjusted_sigma_rel = sigma_rel * noise_scale
+    # 使用 PyTorch 生成 Skew-Normal 噪声
+    X = generate_skew_normal(
+        shape=param.data.shape,
+        skewness=skewness,
+        loc=adjusted_mu,
+        scale=adjusted_sigma,
+        device=param.device,
+        dtype=param.dtype,
+        group_name=group_name
+    )
+
+    # 裁剪噪声范围
+    X = torch.clamp(X, adjusted_mu - bound, adjusted_mu + bound)
     
-    # 计算截断边界对应的标准化值
-    alpha = -adjusted_mu / (adjusted_sigma + 1e-10)  # 截断下限(0)对应的标准化值
+    # 生成方向噪声
+    direction = torch.randn_like(param.data) * sigma_rel + mu_rel
     
-    # 使用拒绝采样确保非负
-    # 对于靠近边界的区域，不断重采样直到满足条件
-    rejection_mask = (z < alpha)
-    while rejection_mask.any():
-        # 只对拒绝的位置重新采样
-        z_new = torch.randn(rejection_mask.sum(), device=param.device)
-        z.masked_scatter_(rejection_mask, z_new)
-        # 更新拒绝掩码
-        rejection_mask = (z < alpha)
-    
-    # 将标准正态转换为目标分布
-    magnitude = adjusted_mu + adjusted_sigma * z
-    
-    # 3. 生成方向噪声
-    direction = torch.randn_like(param.data) * adjusted_sigma_rel + adjusted_mu_rel
-    
-    # 4. 合成噪声 - 将幅度与方向结合
+    # 组合幅度和方向
     noise_sign = torch.sign(direction)
-    noise = magnitude * param.data.abs() * noise_sign
+    noise = X * param.data.abs() * noise_sign
     
-    # 5. 返回最终噪声
+    # raw_mean = X.mean().item()
+    # raw_std = X.std().item()
+    # noise_mean = noise.mean().item()
+    # noise_std = noise.std().item()
+
+    # # # if abs(raw_mean) > 1e-5 and abs(raw_std) > 1e-4:
+    # logging.info(f"Noise generated for {group_name}: \nraw_mean={raw_mean}, \nraw_std={raw_std}, \nnoise_mean={noise_mean}, \nnoise_std={noise_std}")
+
     return noise
 
-# 定义各参数组的 abs_update_ratio 和 update_ratio 的均值和方差
-# mean = sum(v if isinstance(v, float) else v[0] for v in values) / len(values)
-# var = sum((v - mean) ** 2 if isinstance(v, float) else (v[0] - mean) ** 2 for v in values) / len(values)
-
-def read_latest_update_ratios(train_dir, num_lines_to_check=1200):
-    """从 stdout.txt 文件中高效读取最新的 update ratio 数据，并与 ratios.txt 中的数据进行加权平均"""
+def parse_statistics_block(block):
+    """解析统计信息块，提取模块数据"""
+    stats_data = {
+        "abs_means": {},
+        "abs_vars": {},
+        "skewness": {},
+        "kurtosis": {},
+        "update_means": {},
+        "update_vars": {},
+        "data_lengths": {}
+    }
     
+    # 首先清理数据块，移除可能干扰解析的内容
+    clean_block = re.sub(r'\n(?:pacc1:|p0loss|vloss|tdvloss|oloss|sloss|fploss|gnorm|loss)\s+.*?\n', '\n', block)
+    
+    # 解析模块特定的 abs_update_ratio 数据
+    abs_pattern = r'(conv_spatial|linear_global|norm_beta|norm_gamma|blocks|policy_head|value_head|intermediate_policy|intermediate_value)\s+abs_update_ratio:.*?mean=([\d\.eE\-\+]+).*?var=([\d\.eE\-\+]+)(?:.*?skewness=([\d\.eE\-\+]+))?(?:.*?kurtosis=([\d\.eE\-\+]+))?.*?data length:\s*(\d+)'
+    for match in re.finditer(abs_pattern, clean_block, re.DOTALL):
+        groups = match.groups()
+        module = groups[0]
+        mean = groups[1]
+        var = groups[2]
+        skewness = groups[3] if len(groups) > 3 and groups[3] is not None else None
+        kurtosis = groups[4] if len(groups) > 4 and groups[4] is not None else None
+        length = groups[5]
+        
+        if mean and var and length:  # 确保必需字段存在
+            stats_data["abs_means"][module] = float(mean)
+            stats_data["abs_vars"][module] = float(var)
+            stats_data["data_lengths"][f"abs_{module}"] = int(length)
+            if skewness:
+                stats_data["skewness"][module] = float(skewness)
+            if kurtosis:
+                stats_data["kurtosis"][module] = float(kurtosis)
+    
+    # 解析 update_ratio 数据
+    update_pattern = r'(conv_spatial|linear_global|norm_beta|norm_gamma|blocks|policy_head|value_head|intermediate_policy|intermediate_value)\s+update_ratio:.*?mean=([\d\.eE\-\+]+).*?var=([\d\.eE\-\+]+).*?data length:\s*(\d+)'
+    for match in re.finditer(update_pattern, clean_block, re.DOTALL):
+        groups = match.groups()
+        module = groups[0]
+        mean = groups[1]
+        var = groups[2]
+        length = groups[3]
+        
+        if mean and var and length:  # 确保必需字段存在
+            stats_data["update_means"][module] = float(mean)
+            stats_data["update_vars"][module] = float(var)
+            stats_data["data_lengths"][f"update_{module}"] = int(length)
+    
+    logging.info(f"Parsed stats block: {len(stats_data['abs_means'])} abs modules, {len(stats_data['update_means'])} update modules")
+    if len(stats_data['abs_means']) == 0:
+        logging.debug(f"Failed to parse abs_update_ratio in block: {clean_block[:500].replace('\n', '\\n')}...")
+    if len(stats_data['update_means']) == 0:
+        logging.debug(f"Failed to parse update_ratio in block: {clean_block[:500].replace('\n', '\\n')}...")
+    return stats_data
+
+def extract_stats_from_stdout(file_path, num_lines_to_check=2000):
+    """从 stdout.txt 中提取最新的统计信息"""
+    logging.info(f"Attempting to extract stats from {file_path}")
+    try:
+        with open(file_path, 'r', encoding='utf-8') as f:
+            # 读取文件末尾的内容
+            lines = f.readlines()[-num_lines_to_check:]  # 直接读取最后 2000 行
+            content = ''.join(lines)
+            
+            logging.debug(f"Read {len(lines)} lines from {file_path}, total {len(content)} characters")
+            
+            # 预处理 - 移除干扰项，类似trend_update.py的方法
+            cleaned_content = re.sub(r'\n(?:pacc1:|p0loss|vloss|tdvloss|oloss|sloss|fploss|skloss|smloss|'
+                           r'norm_normal|gnorm_batch|exgnorm|loss|time_since_last_print|Accumulating SWA).*?\n', 
+                           '\n\n\n', content)
+            
+            # 按多个连续换行分割，找到包含完整数据的块
+            blocks = re.split(r'\n{3,}', cleaned_content)
+            valid_blocks = []
+            
+            for block in blocks:
+                if 'abs_update_ratio:' in block and 'update_ratio:' in block:
+                    valid_blocks.append(block)
+            
+            if not valid_blocks:
+                logging.warning("No valid data blocks found")
+                return {
+                    "abs_means": {}, "abs_vars": {}, "skewness": {}, "kurtosis": {},
+                    "update_means": {}, "update_vars": {}, "data_lengths": {}
+                }
+            
+            # 使用最后一个有效块
+            stats_block = valid_blocks[-1]
+            logging.debug(f"Using last valid block: {stats_block[:500].replace('\n', '\\n')}...")
+            
+            stats_data = parse_statistics_block(stats_block)
+            logging.info(f"Extracted stats: {len(stats_data['abs_means'])} abs modules, {len(stats_data['update_means'])} update modules")
+            return stats_data
+    
+    except Exception as e:
+        logging.error(f"Error reading {file_path}: {e}")
+        traceback.print_exc()
+    
+    logging.warning("Failed to extract stats, returning empty data")
+    return {
+        "abs_means": {}, "abs_vars": {}, "skewness": {}, "kurtosis": {},
+        "update_means": {}, "update_vars": {}, "data_lengths": {}
+    }
+
+def read_old_ratios_data(file_path):
+    """读取旧的 ratios.txt 数据"""
+    logging.info(f"Reading old ratios from {file_path}")
+    try:
+        if os.path.exists(file_path):
+            with open(file_path, 'r', encoding='utf-8') as f:
+                old_data = json.load(f)
+                logging.info(f"Loaded old ratios with {len(old_data.get('abs_means', {}))} abs modules")
+                return old_data
+        else:
+            logging.info(f"{file_path} does not exist, returning empty data")
+    except Exception as e:
+        logging.error(f"Failed to read {file_path}: {e}")
+    
+    return {
+        "abs_means": {}, "abs_vars": {}, "skewness": {}, "kurtosis": {},
+        "update_means": {}, "update_vars": {}, "data_lengths": {}
+    }
+
+def combine_ratio_data(old_data, new_data):
+    """合并旧数据和新数据"""
+    logging.info("Combining old and new ratio data")
+    combined_data = {
+        'abs_means': {},
+        'abs_vars': {},
+        'skewness': {},
+        'kurtosis': {},
+        'update_means': {},
+        'update_vars': {},
+        'data_lengths': old_data.get('data_lengths', {}).copy()
+    }
+    
+    # 处理 abs 数据
+    for key in set(new_data['abs_means'].keys()) | set(old_data.get('abs_means', {}).keys()):
+        old_length = old_data.get('data_lengths', {}).get(f"abs_{key}", 0)
+        new_length = new_data['data_lengths'].get(f"abs_{key}", 0)
+        
+        if key in new_data['abs_means'] and key in old_data.get('abs_means', {}) and old_length > 0 and new_length > 0:
+            logging.info(f"Combining data for {key}: old length {old_length}, new length {new_length}")
+            # 合并旧数据和新数据
+            total_length = old_length + new_length
+            weight_old = old_length / total_length
+            weight_new = new_length / total_length
+            
+            combined_data['abs_means'][key] = (
+                old_data['abs_means'][key] * weight_old + 
+                new_data['abs_means'][key] * weight_new
+                )
+            combined_data['abs_vars'][key] = (
+                old_data['abs_vars'][key] * weight_old + 
+                new_data['abs_vars'][key] * weight_new + 
+                weight_old * weight_new * (
+                    old_data['abs_means'][key] - 
+                    new_data['abs_means'][key]
+                    ) ** 2
+                )
+            
+            if combined_data['abs_means'][key] == old_data['abs_means'][key] and combined_data['abs_vars'][key] == old_data['abs_vars'][key]:
+                logging.info(f"Abs data for {key} unchanged, keeping old data")
+                combined_data['data_lengths'][f"abs_{key}"] = old_length
+                combined_data['skewness'][key] = old_data['skewness'][key]
+                combined_data['kurtosis'][key] = old_data['kurtosis'][key]
+                continue
+
+            combined_data['data_lengths'][f"abs_{key}"] = total_length
+            
+            # 处理偏度和峰度
+            old_third_moment = old_data['skewness'][key] * (old_data['abs_vars'][key] ** 1.5)
+            new_third_moment = new_data['skewness'][key] * (new_data['abs_vars'][key] ** 1.5)
+            delta = new_data['abs_means'][key] - old_data['abs_means'][key]
+            combined_third_moment = (
+                weight_old * old_third_moment + 
+                weight_new * new_third_moment +
+                3 * weight_old * weight_new * delta * (
+                    weight_new * old_data['abs_vars'][key] - 
+                    weight_old * new_data['abs_vars'][key]
+                ) +
+                weight_old * weight_new * (weight_old - weight_new) * (delta ** 3)
+            )
+            combined_data['skewness'][key] = combined_third_moment / (combined_data['abs_vars'][key] ** 1.5)
+        
+            old_fourth_moment = old_data['kurtosis'][key] * (old_data['abs_vars'][key] ** 2)
+            new_fourth_moment = new_data['kurtosis'][key] * (new_data['abs_vars'][key] ** 2)
+            delta = new_data['abs_means'][key] - old_data['abs_means'][key]
+            combined_fourth_moment = (
+                weight_old * old_fourth_moment + 
+                weight_new * new_fourth_moment +
+                6 * weight_old * weight_new * (
+                    weight_new * old_data['abs_vars'][key] - 
+                    weight_old * new_data['abs_vars'][key]
+                ) * (delta ** 2) +
+                4 * weight_old * weight_new * (weight_new - weight_old) * (delta ** 3) +
+                weight_old * weight_new * (weight_old ** 2 + weight_new ** 2) * (delta ** 4)
+            )
+            combined_data['kurtosis'][key] = combined_fourth_moment / (combined_data['abs_vars'][key] ** 2)
+        elif key in new_data['abs_means']:
+            logging.info(f"New data for {key}: length {new_length}")
+            # 仅有新数据
+            combined_data['abs_means'][key] = new_data['abs_means'][key]
+            combined_data['abs_vars'][key] = new_data['abs_vars'][key]
+            combined_data['data_lengths'][f"abs_{key}"] = new_length
+            combined_data['skewness'][key] = new_data['skewness'][key]
+            combined_data['kurtosis'][key] = new_data['kurtosis'][key]
+        elif key in old_data.get('abs_means', {}):
+            logging.info(f"Old data for {key}: length {old_length}")
+            # 仅有旧数据 - 保留旧数据
+            combined_data['abs_means'][key] = old_data['abs_means'][key]
+            combined_data['abs_vars'][key] = old_data['abs_vars'][key]
+            combined_data['data_lengths'][f"abs_{key}"] = old_length
+            combined_data['skewness'][key] = old_data['skewness'][key]
+            combined_data['kurtosis'][key] = old_data['kurtosis'][key]
+    
+    # 处理 update 数据
+    for key in set(new_data['update_means'].keys()) | set(old_data.get('update_means', {}).keys()):
+        old_length = old_data.get('data_lengths', {}).get(f"update_{key}", 0)
+        new_length = new_data['data_lengths'].get(f"update_{key}", 0)
+        
+        if key in new_data['update_means'] and key in old_data.get('update_means', {}) and old_length > 0 and new_length > 0:
+            logging.info(f"Combining data for {key}: old length {old_length}, new length {new_length}")
+            total_length = old_length + new_length
+            weight_old = old_length / total_length
+            weight_new = new_length / total_length
+            
+            combined_data['update_means'][key] = (
+                old_data['update_means'][key] * weight_old + 
+                new_data['update_means'][key] * weight_new
+                )
+            combined_data['update_vars'][key] = (
+                old_data['update_vars'][key] * weight_old + 
+                new_data['update_vars'][key] * weight_new + 
+                weight_old * weight_new * (
+                    old_data['update_means'][key] - 
+                    new_data['update_means'][key]
+                    ) ** 2)
+            
+            if combined_data['update_means'][key] == old_data['update_means'][key] and combined_data['update_vars'][key] == old_data['update_vars'][key]:
+                logging.info(f"Relative data for {key} unchanged, keeping old data")
+                combined_data['data_lengths'][f"update_{key}"] = old_length
+                continue
+
+            combined_data['data_lengths'][f"update_{key}"] = total_length
+        elif key in new_data['update_means']:
+            logging.info(f"New data for {key}: length {new_length}")
+            combined_data['update_means'][key] = new_data['update_means'][key]
+            combined_data['update_vars'][key] = new_data['update_vars'][key]
+            combined_data['data_lengths'][f"update_{key}"] = new_length
+        elif key in old_data.get('update_means', {}):
+            logging.info(f"Old data for {key}: length {old_length}")
+            # 仅有旧数据 - 保留旧数据
+            combined_data['update_means'][key] = old_data['update_means'][key]
+            combined_data['update_vars'][key] = old_data['update_vars'][key]
+            combined_data['data_lengths'][f"update_{key}"] = old_length
+    
+    logging.info(f"Combined data: {len(combined_data['abs_means'])} abs modules, {len(combined_data['update_means'])} update modules")
+    return combined_data
+
+def sort_ratio_data(data):
+    """按模块顺序排序统计数据"""
+    module_order = ['conv_spatial', 'linear_global', 'norm_beta', 'norm_gamma', 'blocks', 
+                    'policy_head', 'value_head', 'intermediate_policy', 'intermediate_value']
+    sorted_data = {
+        'abs_means': {}, 'abs_vars': {}, 'skewness': {}, 'kurtosis': {},
+        'update_means': {}, 'update_vars': {}, 'data_lengths': {}
+    }
+    
+    for module in module_order:
+        if module in data['abs_means']:
+            sorted_data['abs_means'][module] = data['abs_means'][module]
+            sorted_data['abs_vars'][module] = data['abs_vars'][module]
+            sorted_data['data_lengths'][f"abs_{module}"] = data['data_lengths'].get(f"abs_{module}", 0)
+            if module in data['skewness']:
+                sorted_data['skewness'][module] = data['skewness'][module]
+            if module in data['kurtosis']:
+                sorted_data['kurtosis'][module] = data['kurtosis'][module]
+        
+        if module in data['update_means']:
+            sorted_data['update_means'][module] = data['update_means'][module]
+            sorted_data['update_vars'][module] = data['update_vars'][module]
+            sorted_data['data_lengths'][f"update_{module}"] = data['data_lengths'].get(f"update_{module}", 0)
+    
+    logging.info(f"Sorted data: {len(sorted_data['abs_means'])} abs modules, {len(sorted_data['update_means'])} update modules")
+    return sorted_data
+
+def save_ratio_data(data, file_path):
+    """保存统计数据到文件"""
+    logging.info(f"Saving data to {file_path}")
+    try:
+        with open(file_path, 'w', encoding='utf-8') as f:
+            json.dump(data, f, indent=2, ensure_ascii=False)
+        logging.info(f"Successfully saved data to {file_path}")
+        return True
+    except Exception as e:
+        logging.error(f"Failed to save data to {file_path}: {e}")
+        return False
+
+def read_latest_update_ratios(train_dir, num_lines_to_check=2000):
+    """从 stdout.txt 文件中高效读取最新的 update ratio 数据，并与 ratios.txt 中的数据进行加权平均"""
     stdout_file_path = os.path.join(train_dir, "stdout.txt")
     ratios_file_path = os.path.join(train_dir, "ratios.txt")
     
-    # 从 stdout.txt 读取数据
-    abs_means = {}
-    abs_vars = {}
-    update_means = {}
-    update_vars = {}
-    data_lengths = {}  # 存储每个参数组的数据长度
+    logging.info(f"Starting process with train_dir: {train_dir}")
+    new_data = extract_stats_from_stdout(stdout_file_path, num_lines_to_check)
+    if not any(new_data.values()):
+        logging.warning("No new stats extracted from stdout.txt")
     
-    current_section = None
-    current_key = None
+    old_data = read_old_ratios_data(ratios_file_path)
+    combined_data = combine_ratio_data(old_data, new_data)
+    sorted_data = sort_ratio_data(combined_data)
+    save_ratio_data(sorted_data, ratios_file_path)
     
-    try:
-        with open(stdout_file_path, 'r', encoding='utf-8') as f:
-            # 移动到文件末尾
-            f.seek(0, 2)
-            position = f.tell()
-            lines = []
-            
-            # 向前读取指定行数
-            while position > 0 and len(lines) < num_lines_to_check:
-                position -= 1
-                f.seek(position)
-                char = f.read(1)
-                if char == '\n':
-                    lines.append(f.readline().strip())
-            
-            # 反转行列表，按文件顺序解析
-            lines.reverse()
-            
-            for line in lines:
-                # 识别当前部分
-                if line == "abs_update_ratio:":
-                    current_section = "abs"
-                    continue
-                elif line == "update_ratio:":
-                    current_section = "update"
-                    continue
-                elif line in ["weight:", "gradient:", "pacc1:"]:
-                    current_section = None
-                    continue
-                
-                if not current_section:
-                    continue
-                
-                # 获取参数组名称
-                if current_section == "abs" and " abs_update_ratio:" in line:
-                    current_key = line.split(" abs_update_ratio:")[0]
-                elif current_section == "update" and " update_ratio:" in line:
-                    current_key = line.split(" update_ratio:")[0]
-                
-                # 提取数值
-                if line.startswith("mean=") and current_key:
-                    value = float(line.split("=")[1].strip().rstrip(","))
-                    if current_section == "abs":
-                        abs_means[current_key] = value
-                    else:
-                        update_means[current_key] = value
-                
-                if line.startswith("var=") and current_key:
-                    value = float(line.split("=")[1].strip().rstrip(","))
-                    if current_section == "abs":
-                        abs_vars[current_key] = value
-                    else:
-                        update_vars[current_key] = value
-                
-                # 提取数据长度
-                if line.startswith("data length:") and current_key:
-                    length = int(line.split(":")[1].strip())
-                    key_with_section = f"{current_section}_{current_key}"
-                    data_lengths[key_with_section] = length
-        
-        # 尝试读取 ratios.txt 文件中的数据
-        old_data = {}
-        try:
-            # 确保目录存在
-            os.makedirs(os.path.dirname(ratios_file_path), exist_ok=True)
-            
-            # 尝试读取文件
-            if os.path.exists(ratios_file_path):
-                with open(ratios_file_path, 'r', encoding='utf-8') as f:
-                    old_data = json.load(f)
-        except Exception as e:
-            print(f"Failed to read {ratios_file_path}: {e}")
-            old_data = {}
-        
-        # 提取旧数据
-        old_abs_means = old_data.get('abs_means', {})
-        old_abs_vars = old_data.get('abs_vars', {})
-        old_update_means = old_data.get('update_means', {})
-        old_update_vars = old_data.get('update_vars', {})
-        old_data_lengths = old_data.get('data_lengths', {})
-        
-        # 合并数据
-        combined_abs_means = {}
-        combined_abs_vars = {}
-        combined_update_means = {}
-        combined_update_vars = {}
-        combined_data_lengths = old_data_lengths.copy()
-        
-        # 处理 abs 数据
-        for key in set(abs_means.keys()) | set(old_abs_means.keys()):
-            old_length = old_data_lengths.get(f"abs_{key}", 0)
-            new_length = data_lengths.get(f"abs_{key}", 0)
-            
-            if key in abs_means and key in old_abs_means and old_length > 0 and new_length > 0:
-                # 两个来源都有数据，做加权平均
-                total_length = old_length + new_length
-                weight_old = old_length / total_length
-                weight_new = new_length / total_length
+    logging.info("Process completed")
+    return sorted_data
 
-                # # 调整权重
-                # weight_old *= 0.5
-                # weight_new += weight_old
-                
-                
-                combined_abs_means[key] = old_abs_means[key] * weight_old + abs_means[key] * weight_new
-                combined_abs_vars[key] = old_abs_vars[key] * weight_old + abs_vars[key] * weight_new + weight_old * weight_new * (old_abs_means[key] - abs_means[key]) ** 2
-                combined_data_lengths[f"abs_{key}"] = total_length
-            elif key in abs_means:
-                # 只有新数据
-                combined_abs_means[key] = abs_means[key]
-                combined_abs_vars[key] = abs_vars[key]
-                combined_data_lengths[f"abs_{key}"] = new_length
-            else:
-                # 只有旧数据
-                combined_abs_means[key] = old_abs_means[key]
-                combined_abs_vars[key] = old_abs_vars[key]
-                # 数据长度保持不变
-
-            if key in old_abs_means and combined_abs_means[key] == old_abs_means[key] and combined_abs_vars[key] == old_abs_vars[key]:
-                combined_data_lengths[f"abs_{key}"] = old_length
-        
-        # 处理 update 数据
-        for key in set(update_means.keys()) | set(old_update_means.keys()):
-            old_length = old_data_lengths.get(f"update_{key}", 0)
-            new_length = data_lengths.get(f"update_{key}", 0)
-            
-            if key in update_means and key in old_update_means and old_length > 0 and new_length > 0:
-                # 两个来源都有数据，做加权平均
-                total_length = old_length + new_length
-                weight_old = old_length / total_length
-                weight_new = new_length / total_length
-
-                # # 调整权重
-                # weight_old *= 0.5
-                # weight_new += weight_old
-                
-                combined_update_means[key] = old_update_means[key] * weight_old + update_means[key] * weight_new
-                combined_update_vars[key] = old_update_vars[key] * weight_old + update_vars[key] * weight_new + weight_old * weight_new * (old_update_means[key] - update_means[key]) ** 2
-                combined_data_lengths[f"update_{key}"] = total_length
-            elif key in update_means:
-                # 只有新数据
-                combined_update_means[key] = update_means[key]
-                combined_update_vars[key] = update_vars[key]
-                combined_data_lengths[f"update_{key}"] = new_length
-            else:
-                # 只有旧数据
-                combined_update_means[key] = old_update_means[key]
-                combined_update_vars[key] = old_update_vars[key]
-                # 数据长度保持不变
-
-            if key in old_update_means and combined_update_means[key] == old_update_means[key] and combined_update_vars[key] == old_update_vars[key]:
-                combined_data_lengths[f"update_{key}"] = old_length
-        
-        # 保存合并后的数据到 ratios.txt
-        combined_data = {
-            'abs_means': combined_abs_means,
-            'abs_vars': combined_abs_vars,
-            'update_means': combined_update_means,
-            'update_vars': combined_update_vars,
-            'data_lengths': combined_data_lengths
-        }
-        
-        try:
-            with open(ratios_file_path, 'w', encoding='utf-8') as f:
-                json.dump(combined_data, f, indent=2)
-            print(f"Successfully wrote combined data to {ratios_file_path}")
-        except Exception as e:
-            print(f"Failed to write combined data to {ratios_file_path}: {e}")
-        
-        # 返回合并后的数据
-        return combined_abs_means, combined_abs_vars, combined_update_means, combined_update_vars
-    
-    except Exception as e:
-        print(f"Error reading stdout.txt: {e}")
-        traceback.print_exc()
-        return {}, {}, {}, {}
-
-abs_update_ratio_means = {
-    'conv_spatial': 0.00016860119930313147,
-    'linear_global': 0.00018781224798213123,
-    'norm_beta': 1.9531230858301595e-05,
-    'norm_gamma': 1.4373712142061939e-05,
-    'blocks': 0.00011361872836163889,
-    'policy_head': 8.902986346480544e-06,
-    'value_head': 6.042755581183511e-05,
-    'intermediate_policy': 1.2608511123735288e-05,
-    'intermediate_value': 3.6676121624521245e-05,
-}
-
-abs_update_ratio_vars = {
-    'conv_spatial': 2.4825361606404196e-09,
-    'linear_global': 3.090347689371258e-09,
-    'norm_beta': 7.176491128926009e-10,
-    'norm_gamma': 3.126933457492505e-10,
-    'blocks': 1.121679580364991e-09,
-    'policy_head': 1.420171322525905e-10,
-    'value_head': 3.008553955426278e-08,
-    'intermediate_policy': 1.5907402191500531e-10,
-    'intermediate_value': 5.646077578571462e-09,
-}
-
-update_ratio_means = {
-    'conv_spatial': 4.422751798966035e-07,
-    'linear_global': -1.193874497684425e-05,
-    'norm_beta': -8.453670681838206e-09,
-    'norm_gamma': 4.755875243357739e-09,
-    'blocks': -3.4202291084586074e-06,
-    'policy_head': -8.506532525786191e-10,
-    'value_head': -0.0004893960702194334,
-    'intermediate_policy': -1.8701952071983665e-07,
-    'intermediate_value': 4.975334504663584e-05,
-}
-
-update_ratio_vars = {
-    'conv_spatial': 2.185847385536089e-09,
-    'linear_global': 2.8528927561190385e-07,
-    'norm_beta': 5.201187664432502e-10,
-    'norm_gamma': 4.903276613859002e-11,
-    'blocks': 0.0030210504626944404,
-    'policy_head': 1.077941427073591e-10,
-    'value_head': 0.18421801176135222,
-    'intermediate_policy': 7.340983634223755e-10,
-    'intermediate_value': 2.107397687042172e-05,
-}
-
+# 定义全局变量以存储参数组的 abs_update_ratio 和 update_ratio 的统计数据
+ratio_data = {}
 
 def main():
     # 参数解析
@@ -385,13 +527,13 @@ def main():
 
     logging.basicConfig(
         format='%(asctime)s - %(levelname)s - %(message)s',
-        level=logging.INFO,
+        level=logging.DEBUG,
         handlers=handlers,
         datefmt='%Y-%m-%d %H-%M-%S%z:'
     )
     # 检查点文件路径、保存路径及待导出路径
     train_path = os.path.join(args.base_dir, "train", args.training_name)
-    checkpoint_path = os.path.join(train_path, "checkpoint_256.ckpt") # '_' ************************************************************************
+    checkpoint_path = os.path.join(train_path, "checkpoint.ckpt") # '_' ************************************************************************
     export_dir = os.path.join(train_path, "noise")
     for_export_dir = os.path.join(args.base_dir, "torchmodels_toexport")
     if not os.path.exists(export_dir):
@@ -415,7 +557,6 @@ def main():
     model_state_dict = load_model.load_model_state_dict(state_dict)
     raw_model.load_state_dict(model_state_dict)
 
-
     # 模拟 train.py 的模型设置
     model = nn.DataParallel(raw_model)  # 复制 train.py 的 DataParallel 包装
 
@@ -438,32 +579,43 @@ def main():
         logging.warning("No optimizer state in checkpoint, using default")
 
     swa_model = get_swa_model(raw_model, state_dict)
+    swa_backup = None
+    # swa_backup_flag = False
     logging.info(f"SWA model loaded: {swa_model is not None}")
 
-    new_abs_means, new_abs_vars, new_update_means, new_update_vars = read_latest_update_ratios(train_path)
-    if new_abs_means: abs_update_ratio_means.update(new_abs_means)
-    if new_abs_vars: abs_update_ratio_vars.update(new_abs_vars)
-    if new_update_means: update_ratio_means.update(new_update_means)
-    if new_update_vars: update_ratio_vars.update(new_update_vars)
-    logging.info(f"Loaded update ratios from file: {train_path}/ratios.txt")
-    for key, value in new_abs_means.items():
-        logging.info(f"abs_update_ratio_means[{key}] = {value}")
-    for key, value in new_abs_vars.items():
-        logging.info(f"abs_update_ratio_vars[{key}] = {value}")
-    for key, value in new_update_means.items():
-        logging.info(f"update_ratio_means[{key}] = {value}")
-    for key, value in new_update_vars.items():
-        logging.info(f"update_ratio_vars[{key}] = {value}")
+    # 读取最新的 update ratio 数据
+    global ratio_data
+    ratio_data = read_latest_update_ratios(train_path)
 
-    # 添加噪声，跳过某些层
+    # 打印 ratio_data 的详细信息
+    logging.info(f"Loaded ratio_data with {len(ratio_data)} sections")
+    for section, data in ratio_data.items():
+        if isinstance(data, dict):
+            logging.info(f"  Section '{section}' has {len(data)} parameter groups")
+        else:
+            logging.info(f"  Section '{section}': {data}")
+
+    logging.info("Detailed ratio_data:")
+    for section, data in ratio_data.items():
+        if isinstance(data, dict):
+            logging.info(f"Section: {section}")
+            for group_name, value in data.items():
+                logging.info(f"  {group_name}: {value}")
+
     with torch.no_grad():
-        # ~ 0.45s / round
-        # 1000: 7.5mins
-        # 10000: 1.25h
-        # 50000: 6.25h
-        # 100000: 12.5h
         iterations = args.iterations  # 迭代次数
-        for i in range(iterations):
+        noise_scale = args.noise_scale  # 噪声缩放因子
+
+        update_interval = 500 if iterations > 1000 else iterations // 2
+
+        for j in range(1, iterations + 1):
+            if j == 1:
+                raw_backup = raw_model
+                raw_model.load_state_dict(swa_model.module.state_dict())
+                swa_model.update_parameters(raw_backup)
+                swa_backup = raw_model
+                logging.info(f"Backup SWA as raw & Accumulating SWA")
+
             # 噪声生成循环
             for name, param in raw_model.named_parameters():
                 if 'norm_trunkfinal' in name or 'norm_intermediate_trunkfinal' in name:
@@ -493,24 +645,25 @@ def main():
                     else:
                         group_name = 'value_head'
 
-                # 改进的噪声生成方案
-                if group_name and group_name in abs_update_ratio_means:
-                    noise = generate_noise(param, group_name, args.noise_scale, iterations, i)
+                if group_name and group_name in ratio_data['abs_means']:
+                    noise = generate_noise(param, group_name, noise_scale)
                     param.data.add_(noise)
-                    
-                # param.data.zero_()
-                # logging.info(f"SWA Parameter {name} - mean: {abs_data_mean}, max: {abs_data.max().item()}, min: {abs_data.min().item()}")
-                # logging.info(f"Added noise to parameter {name} with shape {param.shape}. --- noise scale: {noise_std} --- mean: {abs_data_mean}")
-            
-            logging.info(f"Accumulating SWA")
-            swa_model.update_parameters(raw_model)
-            if (i+1) % 10 == 0:
-                logging.info(f"SWA iteration {i+1} completed")
-            # if (i+1) % 500 == 0:
-            #     # Update raw_model with the current SWA averaged parameters
-            #     raw_model.load_state_dict(swa_model.module.state_dict())
-            #     logging.info(f"Updated raw_model with SWA parameters at iteration {i+1}")
 
+            if j % update_interval == 0:
+                # swa_backup_flag = False
+                swa_model.update_parameters(raw_model)
+                swa_model.update_parameters(swa_backup)
+                raw_model.load_state_dict(swa_model.module.state_dict())
+                logging.info(f"Accumulating/Restoring SWA & Replace raw")
+            
+            # if (j % (update_interval * 2) == 0 or j == iterations) and not swa_backup_flag:
+            #     swa_backup_flag = True
+            #     swa_model.update_parameters(swa_backup)
+            #     raw_model.load_state_dict(swa_model.module.state_dict())
+            #     logging.info(f"Restoring SWA & Replace raw")
+
+            if j % 100 == 0:
+                logging.info(f"Iteration {j} completed")
 
     # 提取 train_state 和 metrics
     train_state = state_dict.get('train_state', {

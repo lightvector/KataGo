@@ -51,10 +51,14 @@ def get_raw_model(model_config, pos_len):
     raw_model.initialize()
     return raw_model
 
-def get_swa_model(raw_model, state_dict):
-    # 创建 SWA 模型实例
+def get_swa_model(raw_model, state_dict, swa_scale=None):
+    """创建 SWA 模型实例"""
+    if swa_scale is None:
+        swa_scale = 8
     if 'swa_model' in state_dict:
-        swa_model = AveragedModel(raw_model)  # 使用原始模型，避免额外的 module 包装
+        new_factor = 1.0 / swa_scale
+        ema_avg = lambda avg_param, cur_param, num_averaged: avg_param + new_factor * (cur_param - avg_param)
+        swa_model = AveragedModel(raw_model, avg_fn=ema_avg)
 
         # 调整 checkpoint 中的 swa_model 键以匹配
         swa_state_dict = state_dict['swa_model']
@@ -159,7 +163,7 @@ def main():
         temp_raw_model.load_state_dict(source_model_state_dict)
 
         temp_swa_model = get_swa_model(temp_raw_model, source_state_dict)
-        for i in range(5):
+        for i in range(2):
             temp_swa_model.update_parameters(temp_raw_model)
 
         # 将 temp_SWA 权重复制到 temp_raw 中

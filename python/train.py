@@ -1032,12 +1032,14 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
             # noise_params = {"flag": 0, "shift": False, "acc1_threshold_low": 0.45, "acc1_threshold_up": 0.47, "rand": 0.0, "prob": 0.25}
             # 记录更新量
             param_updates = {}
-            # 存储统计数据
+            # 存储统计数据 - 存全部绝对更新率以计算中位数
             stats = {
-                'abs_update_ratio': {},
-                'update_ratio': {},
-                # 'weight': {},
-                # 'gradient': {},
+                'abs_update_ratio': defaultdict(lambda: {
+                    'sum': 0.0, 'sum_sq': 0.0, 'sum_cube': 0.0, 'sum_four': 0.0, 'count': 0
+                }),
+                'update_ratio': defaultdict(lambda: {
+                    'sum': 0.0, 'sum_sq': 0.0, 'count': 0
+                }),
             }
             
             for batch in data_processing_pytorch.read_npz_training_data(
@@ -1153,15 +1155,25 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
                                     group_name = 'value_head'
 
                             if group_name:
-                                for key, value in [('abs_update_ratio', abs_update_ratio), 
-                                                   ('update_ratio', update_ratio)]:
-                                    if group_name not in stats[key]:
-                                        stats[key][group_name] = {'sum': 0.0, 'sum_sq': 0.0, 'count': 0}
-                                    
-                                    stats[key][group_name]['sum'] += value
-                                    stats[key][group_name]['sum_sq'] += value ** 2
-                                    stats[key][group_name]['count'] += 1                    
+                                # 更新 abs_update_ratio 统计数据
+                                abs_stat = stats['abs_update_ratio'][group_name]
+                                abs_stat['count'] += 1
+                                abs_stat['sum'] += abs_update_ratio
 
+                                delta_abs = abs_update_ratio - (abs_stat['sum'] / abs_stat['count'] if abs_stat['count'] > 1 else abs_update_ratio)
+                                
+                                abs_stat['sum_sq'] += delta_abs ** 2
+                                abs_stat['sum_cube'] += delta_abs ** 3
+                                abs_stat['sum_four'] += delta_abs ** 4
+
+                                # 更新 update_ratio 统计数据（仅均值和方差）
+                                update_stat = stats['update_ratio'][group_name]
+                                update_stat['count'] += 1
+                                update_stat['sum'] += update_ratio
+
+                                delta_update = update_ratio - (update_stat['sum'] / update_stat['count'] if update_stat['count'] > 1 else update_ratio)
+                                
+                                update_stat['sum_sq'] += delta_update ** 2
 
                 if model_config["norm_kind"] == "fixup" or model_config["norm_kind"] == "fixscale" or model_config["norm_kind"] == "fixscaleonenorm":
                     gnorm_cap = 2500.0 * (1.0 if gnorm_clip_scale is None else gnorm_clip_scale)
@@ -1203,46 +1215,6 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
                 else:
                     optimizer.step()
                 
-                # # 概率添加噪声
-                # # noise_params["rand"] <= noise_params["prob"] and 
-                # if not noise_params["flag"]:
-                #     if noise_params["shift"]:
-                #         noise_params["flag"] = 49
-                    
-                #     # 添加噪声逻辑
-                #     with torch.no_grad():
-                #         for name, param in raw_model.named_parameters():
-                #             if 'norm.' in name or 'norm_trunkfinal' in name:
-                #                 continue  # 跳过归一化层
-
-                #             noise_scale = 5e-3
-                #             noise = torch.randn_like(param.data) * noise_scale
-                #             param.data += noise
-                        
-                #         # for param, update in param_updates.items():
-                #         #     # 计算每个元素的噪声标准差
-                #         #     # abs_update = torch.abs(update)
-                #         #     # 200, 100
-                #         #     # clip_value = abs_update.mean().item() / 5
-                #         #     std_noise = 5e-3
-                #         #     # 生成均值为0的噪声
-                #         #     # noise = torch.normal(mean=0, std=std_noise, size=update.shape, device=update.device, dtype=update.dtype)
-                #         #     noise = torch.randn_like(update) * std_noise
-                #         #     # 添加最值保护
-                #         #     # noise = torch.minimum(noise, torch.tensor(abs_update.mean().item() / 10, device=update.device))
-                #         #     # noise = torch.maximum(noise, torch.tensor(-abs_update.mean().item() / 10, device=update.device))
-                #         #     # noise = torch.clamp(noise, min=-clip_value, max=clip_value)
-
-                #         #     # 添加噪声到参数
-                #         #     param.data += noise
-                            
-                #         #     # logging.info(f"Added noise to parameter with shape {param.shape}, noise mean: {noise.mean().item()}, noise max: {noise.max().item()}, noise min: {noise.min().item()}")
-                #     logging.info(f"Added noise to parameter")
-                # else:
-                #     if noise_params["shift"]:
-                #         noise_params["flag"] -= 1
-                #     logging.info("Skip noise addition")
-                
 
                 batch_count_this_epoch += 1
                 train_state["train_steps_since_last_reload"] += batch_size * world_size
@@ -1262,46 +1234,9 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
                 # Calculate pacc1
                 pacc1 = running_metrics["sums"].get("pacc1_sum", 1.0) / running_metrics["weights"].get("pacc1_sum", 1.0)
                 logging.info(f"pacc1: {pacc1:.6f}")
-                # if pacc1 > noise_params["acc1_threshold_up"] and noise_params["shift"]:
-                #     noise_params["flag"] = 0
-                #     noise_params["shift"] = False
-                #     logging.info(f"pacc1 ({pacc1:.6f}) > {noise_params['acc1_threshold_up']}, setting noise_params['flag'] = False")
-                # elif pacc1 <= noise_params["acc1_threshold_low"] and not noise_params["shift"]:
-                #     noise_params["flag"] = 49
-                #     noise_params["shift"] = True
-                #     logging.info(f"pacc1 ({pacc1:.6f}) <= {noise_params['acc1_threshold_low']}, setting noise_params['flag'] = True")
 
-                # logging.info(f"metrics keys: {list(metrics.keys())}")
-                # # if "pacc1_sum" in metrics:
-                # #     logging.info(f"metrics['pacc1_sum']: {metrics['pacc1_sum']}")
-                # # else:
-                # #     logging.info("pacc1 not found in metrics")
-
-                # logging.info(f"running_metrics['sums'] keys: {list(running_metrics['sums'].keys())}")
-                # # if "pacc1_sum" in running_metrics["sums"]:
-                # #     logging.info(f"running_metrics['sums']['pacc1_sum']: {running_metrics['sums']['pacc1_sum']}")
-                # # else:
-                # #     logging.info("pacc1 not found in running_metrics['sums']")
-
-                # logging.info(f"running_metrics['weights'] keys: {list(running_metrics['weights'].keys())}")
-                # # if "pacc1_sum" in running_metrics["weights"]:
-                # #     logging.info(f"running_metrics['weights']['pacc1_sum']: {running_metrics['weights']['pacc1_sum']}")
-                # # else:
-                # #     logging.info("pacc1 not found in running_metrics['weights']")
-
-                # if batch_count_this_epoch % 5 == 0:
-                #     with torch.no_grad():
-                #         for name, param in raw_model.named_parameters():
-                #             abs_data = torch.abs(param.data)
-                #             weight_mean = abs_data.mean().item()
-                #             weight_max = abs_data.max().item()
-                #             weight_min = abs_data.min().item()
-                #             weight_std = abs_data.std().item()
-
-                #             logging.info(f"Parameter {name} ----- mean: {weight_mean:.6f}, max: {weight_max:.6f}, min: {weight_min:.6f}, std: {weight_std:.6f}")
 
                 if batch_count_this_epoch % (print_train_loss_every_batches / 10) == 0:
-                    
                     # 记录统计信息
                     for stat_name, stat_dict in stats.items():
                         logging.info(f"{stat_name}:")
@@ -1309,8 +1244,21 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
                             count = values['count']
                             if count > 0:
                                 mean = values['sum'] / count
-                                var = (values['sum_sq'] / count) - (mean ** 2)
-                                logging.info(f"{key} {stat_name}: \nmean={mean}, \nvar={var}, \ndata length: {count}")
+                                var = values['sum_sq'] / count if count > 1 else 0.0
+
+                                if stat_name == 'abs_update_ratio':
+                                    # 为 abs_update_ratio 计算偏度、峰度
+                                    skewness = 0.0
+                                    kurtosis = 0.0
+                                    if count > 1 and var > 0:
+                                        std = np.sqrt(var)
+                                        skewness = (values['sum_cube'] / count) / (std ** 3)
+                                        kurtosis = (values['sum_four'] / count) / (var ** 2) # Raw kurtosis
+
+                                    logging.info(f"{key} {stat_name}: \nmean={mean}, \nvar={var}, \nskewness={skewness}, \nkurtosis={kurtosis}, \ndata length: {count}")
+                                else:
+                                    # update_ratio
+                                    logging.info(f"{key} {stat_name}: \nmean={mean}, \nvar={var}, \ndata length: {count}")
 
                 if batch_count_this_epoch % print_train_loss_every_batches == 0:
 
@@ -1364,6 +1312,14 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
                         logging.info("Accumulating SWA")
                         swa_model.update_parameters(raw_model)
 
+            # for stat_name, stat_dict in stats.items():
+            #     logging.info(f"{stat_name}:")
+            #     for key, values in stat_dict.items():
+            #         count = values['count']
+            #         if count > 0:
+            #             mean = values['sum'] / count
+            #             var = (values['sum_sq'] / count) - (mean ** 2)
+            #             logging.info(f"{key} {stat_name}: \nmean={mean}, \nvar={var}, \ndata length: {count}")
             # 记录统计信息
             for stat_name, stat_dict in stats.items():
                 logging.info(f"{stat_name}:")
@@ -1371,8 +1327,21 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
                     count = values['count']
                     if count > 0:
                         mean = values['sum'] / count
-                        var = (values['sum_sq'] / count) - (mean ** 2)
-                        logging.info(f"{key} {stat_name}: \nmean={mean}, \nvar={var}, \ndata length: {count}")
+                        var = values['sum_sq'] / count if count > 1 else 0.0
+
+                        if stat_name == 'abs_update_ratio':
+                            # 为 abs_update_ratio 计算偏度、峰度
+                            skewness = 0.0
+                            kurtosis = 0.0
+                            if count > 1 and var > 0:
+                                std = np.sqrt(var)
+                                skewness = (values['sum_cube'] / count) / (std ** 3)
+                                kurtosis = (values['sum_four'] / count) / (var ** 2) # Raw kurtosis
+
+                            logging.info(f"{key} {stat_name}: \nmean={mean}, \nvar={var}, \nskewness={skewness}, \nkurtosis={kurtosis}, \ndata length: {count}")
+                        else:
+                            # update_ratio
+                            logging.info(f"{key} {stat_name}: \nmean={mean}, \nvar={var}, \ndata length: {count}")
 
             logging.info("Finished training subepoch!")
         
