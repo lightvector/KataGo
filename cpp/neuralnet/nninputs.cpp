@@ -649,7 +649,7 @@ void NNOutput::debugPrint(ostream& out, const Board& board) {
   }
 
   if(whiteQScore != NULL) {
-    out << "QWinloss" << endl;
+    out << "QScore" << endl;
     out << "Pass" << Global::strprintf("%6.1f ", whiteQScore[NNPos::getPassPos(nnXLen,nnYLen)]) << endl;
     for(int y = 0; y<board.y_size; y++) {
       for(int x = 0; x<board.x_size; x++) {
