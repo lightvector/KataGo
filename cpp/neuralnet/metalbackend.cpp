@@ -812,6 +812,17 @@ void MetalProcess::processPolicy(
 
   SymmetryHelpers::copyOutputsWithSymmetry(
     targetBuffer, currentOutput->policyProbs, 1, gpuHandle->nnYLen, gpuHandle->nnXLen, symmetry);
+
+  if(currentOutput->whiteQWinloss != NULL || currentOutput->whiteQScore != NULL) {
+    const int nnXLen = gpuHandle->nnXLen;
+    const int nnYLen = gpuHandle->nnYLen;
+    SymmetryHelpers::copyOutputsWithSymmetry(
+      targetBuffer + (nnXLen * nnYLen * 2), currentOutput->whiteQWinloss, 1, nnYLen, nnXLen, symmetry);
+    SymmetryHelpers::copyOutputsWithSymmetry(
+      targetBuffer + (nnXLen * nnYLen * 3), currentOutput->whiteQScore, 1, nnYLen, nnXLen, symmetry);
+    currentOutput->whiteQWinloss[nnXLen * nnYLen] = buffers.policyProbsBuffer[row * buffers.singlePolicyResultElts + 2];
+    currentOutput->whiteQScore[nnXLen * nnYLen] = buffers.policyProbsBuffer[row * buffers.singlePolicyResultElts + 3];
+  }
 }
 
 void MetalProcess::processValue(
