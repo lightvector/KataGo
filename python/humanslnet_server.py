@@ -44,9 +44,10 @@ def main():
         data = json.loads(line)
 
         if data["command"] == "start":
-            board_size = data["board_size"]
+            board_x_size = data["board_x_size"]
+            board_y_size = data["board_y_size"]
             rules = data["rules"]
-            game_state = GameState(board_size, rules)
+            game_state = GameState((board_x_size,board_y_size), rules)
             write(dict(outputs=""))
 
         elif data["command"] == "play":

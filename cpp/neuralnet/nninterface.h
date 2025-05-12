@@ -45,17 +45,7 @@ namespace NeuralNet {
     const std::string& dir);
   void freeLoadedModel(LoadedModel* loadedModel);
 
-  std::string getModelName(const LoadedModel* loadedModel);
-  int getModelVersion(const LoadedModel* loadedModel);
-
-  //Return the "nearest" supported ruleset to desiredRules by this model.
-  //Fills supported with true if desiredRules itself was exactly supported, false if some modifications had to be made.
-  Rules getSupportedRules(const LoadedModel* loadedModel, const Rules& desiredRules, bool& supported);
-
-  //Expected number of sgfmetadata input features. 0 if doesn't use sgf metadata.
-  int getNumInputMetaChannels(const LoadedModel* loadedModel);
-
-  ModelPostProcessParams getPostProcessParams(const LoadedModel* loadedModel);
+  const ModelDesc& getModelDesc(const LoadedModel* loadedModel);
 
   // Context -------------------------------------------------------------------
 

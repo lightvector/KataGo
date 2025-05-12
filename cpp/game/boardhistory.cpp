@@ -761,6 +761,9 @@ void BoardHistory::setKoRecapBlocked(Loc loc, bool b) {
 }
 
 bool BoardHistory::isLegal(const Board& board, Loc moveLoc, Player movePla) const {
+  if(movePla != presumedNextMovePla)
+    return false;
+
   //Ko-moves in the encore that are recapture blocked are interpreted as pass-for-ko, so they are legal
   if(encorePhase > 0) {
     if(moveLoc >= 0 && moveLoc < Board::MAX_ARR_SIZE && moveLoc != Board::PASS_LOC) {
@@ -874,16 +877,22 @@ bool BoardHistory::isFinalPhase() const {
 }
 
 bool BoardHistory::isLegalTolerant(const Board& board, Loc moveLoc, Player movePla) const {
-  bool multiStoneSuicideLegal = true; //Tolerate suicide regardless of rules
-  if(encorePhase <= 0 && board.isKoBanned(moveLoc))
+  // Allow either side to move during tolerant play, but still check that a player is specified
+  if(movePla != P_BLACK && movePla != P_WHITE)
+    return false;
+  bool multiStoneSuicideLegal = true; // Tolerate suicide regardless of rules
+  if(encorePhase <= 0 && movePla == presumedNextMovePla && board.isKoBanned(moveLoc))
     return false;
   if(!isPassForKo(board, moveLoc, movePla) && !board.isLegalIgnoringKo(moveLoc,movePla,multiStoneSuicideLegal))
     return false;
   return true;
 }
 bool BoardHistory::makeBoardMoveTolerant(Board& board, Loc moveLoc, Player movePla) {
-  bool multiStoneSuicideLegal = true; //Tolerate suicide regardless of rules
-  if(encorePhase <= 0 && board.isKoBanned(moveLoc))
+  // Allow either side to move during tolerant play, but still check that a player is specified
+  if(movePla != P_BLACK && movePla != P_WHITE)
+    return false;
+  bool multiStoneSuicideLegal = true; // Tolerate suicide regardless of rules
+  if(encorePhase <= 0 && movePla == presumedNextMovePla && board.isKoBanned(moveLoc))
     return false;
   if(!isPassForKo(board, moveLoc, movePla) && !board.isLegalIgnoringKo(moveLoc,movePla,multiStoneSuicideLegal))
     return false;
@@ -891,7 +900,10 @@ bool BoardHistory::makeBoardMoveTolerant(Board& board, Loc moveLoc, Player moveP
   return true;
 }
 bool BoardHistory::makeBoardMoveTolerant(Board& board, Loc moveLoc, Player movePla, bool preventEncore) {
-  bool multiStoneSuicideLegal = true; //Tolerate suicide regardless of rules
+  // Allow either side to move during tolerant play, but still check that a player is specified
+  if(movePla != P_BLACK && movePla == presumedNextMovePla && movePla != P_WHITE)
+    return false;
+  bool multiStoneSuicideLegal = true; // Tolerate suicide regardless of rules
   if(encorePhase <= 0 && board.isKoBanned(moveLoc))
     return false;
   if(!isPassForKo(board, moveLoc, movePla) && !board.isLegalIgnoringKo(moveLoc,movePla,multiStoneSuicideLegal))
@@ -1239,6 +1251,8 @@ Hash128 BoardHistory::getSituationRulesAndKoHash(const Board& board, const Board
     hash ^= Rules::ZOBRIST_MULTI_STONE_SUICIDE_HASH;
   if(hist.hasButton)
     hash ^= Rules::ZOBRIST_BUTTON_HASH;
+  if(hist.rules.friendlyPassOk)
+    hash ^= Rules::ZOBRIST_FRIENDLY_PASS_OK_HASH;
 
   return hash;
 }

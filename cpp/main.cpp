@@ -143,12 +143,16 @@ static int handleSubcommand(const string& subcommand, const vector<string>& args
     return MainCmds::trystartposes(subArgs);
   else if(subcommand == "viewstartposes")
     return MainCmds::viewstartposes(subArgs);
+  else if(subcommand == "checksgfhintpolicy")
+    return MainCmds::checksgfhintpolicy(subArgs);
   else if(subcommand == "demoplay")
     return MainCmds::demoplay(subArgs);
   else if(subcommand == "writetrainingdata")
     return MainCmds::writetrainingdata(subArgs);
   else if(subcommand == "sampleinitializations")
     return MainCmds::sampleinitializations(subArgs);
+  else if(subcommand == "evalrandominits")
+    return MainCmds::evalrandominits(subArgs);
   else if(subcommand == "runbeginsearchspeedtest")
     return MainCmds::runbeginsearchspeedtest(subArgs);
   else if(subcommand == "runownershipspeedtest")
@@ -210,11 +214,11 @@ int main(int argc, const char* const* argv) {
 
 
 string Version::getKataGoVersion() {
-  return string("1.15.3");
+  return string("1.16.0");
 }
 
 string Version::getKataGoVersionForHelp() {
-  return string("KataGo v1.15.3");
+  return string("KataGo v1.16.0");
 }
 
 string Version::getKataGoVersionFullInfo() {
@@ -231,6 +235,8 @@ string Version::getKataGoVersionFullInfo() {
 #endif
 #elif defined(USE_TENSORRT_BACKEND)
   out << "Using TensorRT backend" << endl;
+#elif defined(USE_METAL_BACKEND)
+  out << "Using Metal backend" << endl;
 #elif defined(USE_OPENCL_BACKEND)
   out << "Using OpenCL backend" << endl;
 #elif defined(USE_EIGEN_BACKEND)
@@ -267,6 +273,8 @@ string Version::getGitRevisionWithBackend() {
   s += "-cuda";
 #elif defined(USE_TENSORRT_BACKEND)
   s += "-trt";
+#elif defined(USE_METAL_BACKEND)
+  s += "-metal";
 #elif defined(USE_OPENCL_BACKEND)
   s += "-opencl";
 #elif defined(USE_EIGEN_BACKEND)

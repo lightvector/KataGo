@@ -72,8 +72,8 @@ features = Features(model_config, pos_len)
 def get_input_feature(gs, feature_idx):
     bin_input_data, global_input_data = gs.get_input_features(features)
     locs_and_values = []
-    for y in range(gs.board.size):
-        for x in range(gs.board.size):
+    for y in range(gs.board.y_size):
+        for x in range(gs.board.x_size):
             loc = board.loc(x,y)
             locs_and_values.append((loc,bin_input_data[0,feature_idx,y,x]))
     return locs_and_values
@@ -90,8 +90,8 @@ def get_pass_alive(gs):
     board.calculateArea(area,nonPassAliveStones,safeBigTerritories,unsafeBigTerritories,rules["multiStoneSuicideLegal"])
 
     locs_and_values = []
-    for y in range(board.size):
-        for x in range(board.size):
+    for y in range(board.y_size):
+        for x in range(board.x_size):
             loc = board.loc(x,y)
             locs_and_values.append((loc,area[loc]))
     return locs_and_values
@@ -325,14 +325,14 @@ colstr = 'ABCDEFGHJKLMNOPQRST'
 def parse_coord(s,board):
     if s == 'pass':
         return Board.PASS_LOC
-    return board.loc(colstr.index(s[0].upper()), board.size - int(s[1:]))
+    return board.loc(colstr.index(s[0].upper()), board.y_size - int(s[1:]))
 
 def str_coord(loc,board):
     if loc == Board.PASS_LOC:
         return 'pass'
     x = board.loc_x(loc)
     y = board.loc_y(loc)
-    return '%c%d' % (colstr[x], board.size - y)
+    return '%c%d' % (colstr[x], board.y_size - y)
 
 
 # GTP Implementation -----------------------------------------------------
@@ -406,7 +406,6 @@ def add_attention_visualizations(extra_output_name, extra_output):
 with torch.no_grad():
     dummy_outputs = gs.get_model_outputs(model)
     extra_attention_output_names = [name for name in dummy_outputs["available_extra_outputs"] if name.endswith(".attention") or name.endswith(".reverse_attention")]
-    dummy_outputs = gs.get_model_outputs(model)
     for name in extra_attention_output_names:
         add_attention_visualizations(name,dummy_outputs[name])
     del dummy_outputs
@@ -421,6 +420,24 @@ def get_board_matrix_str(matrix, scale, formatstr):
             ret += " "
         ret += "\n"
     return ret
+
+def get_policy_matrix_str(matrix, gs, scale, formatstr):
+    ret = ""
+    for y in range(gs.board.y_size):
+        for x in range(gs.board.x_size):
+            loc = gs.board.loc(x,y)
+            pos = features.loc_to_tensor_pos(loc,gs.board)
+            if gs.board.would_be_legal(gs.board.pla,loc):
+                ret += formatstr % (scale * matrix[pos])
+            else:
+                ret += "  -" + (" " * (len(formatstr % (0.0)) - 3))
+            ret += " "
+        ret += "\n"
+    loc = Board.PASS_LOC
+    pos = features.loc_to_tensor_pos(loc,gs.board)
+    ret += "Pass: " + (formatstr % (scale * matrix[pos]))
+    return ret
+
 
 
 while True:
@@ -443,9 +460,13 @@ while True:
             print("Warning: Trying to set incompatible boardsize %s (!= %d)" % (command[1], N), file=sys.stderr)
             ret = None
         board_size = int(command[1])
-        gs = GameState(board_size)
+        if len(command) >= 3:
+            x_size = board_size
+            y_size = int(command[2])
+            board_size = (x_size,y_size)
+        gs = GameState(board_size, gs.rules)
     elif command[0] == "clear_board":
-        gs = GameState(board_size)
+        gs = GameState(board_size, gs.rules)
     elif command[0] == "showboard":
         ret = "\n" + gs.board.to_string().strip()
     elif command[0] == "komi":
@@ -474,6 +495,15 @@ while True:
         ret = 'true' if command[1] in known_commands else 'false'
     elif command[0] == "gogui-analyze_commands":
         ret = '\n'.join(known_analyze_commands)
+    elif command[0] == "setrules":
+        if command[1].lower() == "chinese":
+            gs.rules = GameState.RULES_CHINESE.copy()
+        elif command[1].lower() == "japanese":
+            gs.rules = GameState.RULES_JAPANESE.copy()
+        elif command[1].lower() == "tromp_taylor":
+            gs.rules = GameState.RULES_TT.copy()
+        else:
+            ret = "Unknown rules"
     elif command[0] == "setrule":
         ret = ""
         if command[1] == "korule":
@@ -539,8 +569,8 @@ while True:
         ret = "\n"
 
         policysum = 0.0
-        for y in range(gs.board.size):
-            for x in range(gs.board.size):
+        for y in range(gs.board.y_size):
+            for x in range(gs.board.x_size):
                 loc = gs.board.loc(x,y)
                 pos = features.loc_to_tensor_pos(loc,gs.board)
                 gs.board.would_be_legal(gs.board.pla,loc)
@@ -549,37 +579,12 @@ while True:
         pos = features.loc_to_tensor_pos(loc,gs.board)
         policysum += outputs["policy0"][pos]
 
-        for y in range(gs.board.size):
-            for x in range(gs.board.size):
-                loc = gs.board.loc(x,y)
-                pos = features.loc_to_tensor_pos(loc,gs.board)
-                if gs.board.would_be_legal(gs.board.pla,loc):
-                    ret += "%6.3f" % (100.0 * outputs["policy0"][pos] / policysum)
-                else:
-                    ret += "  -   "
-                ret += " "
-            ret += "\n"
-        loc = Board.PASS_LOC
-        pos = features.loc_to_tensor_pos(loc,gs.board)
-        ret += "Pass: %6.3f" % (100.0 * outputs["policy0"][pos] / policysum)
+        ret += get_policy_matrix_str(outputs["policy0"], gs, 100.0 / policysum, "%6.3f")
 
     elif command[0] == "policy1_raw":
         outputs = gs.get_model_outputs(model)
         ret = "\n"
-
-        for y in range(gs.board.size):
-            for x in range(gs.board.size):
-                loc = gs.board.loc(x,y)
-                pos = features.loc_to_tensor_pos(loc,gs.board)
-                if gs.board.would_be_legal(gs.board.pla,loc):
-                    ret += "%6.3f" % (100.0 * outputs["policy1"][pos])
-                else:
-                    ret += "  -   "
-                ret += " "
-            ret += "\n"
-        loc = Board.PASS_LOC
-        pos = features.loc_to_tensor_pos(loc,gs.board)
-        ret += "Pass: %6.3f" % (100.0 * outputs["policy1"][pos])
+        ret += get_policy_matrix_str(outputs["policy1"], gs, 100.0, "%6.3f")
 
     elif command[0] == "ownership_raw":
         outputs = gs.get_model_outputs(model)
@@ -599,6 +604,14 @@ while True:
     elif command[0] == "seki2_raw":
         outputs = gs.get_model_outputs(model)
         ret = get_board_matrix_str(outputs["seki2"], 100.0, "%+7.3f")
+    elif command[0] == "qwinloss_raw":
+        outputs = gs.get_model_outputs(model)
+        ret = "\n"
+        ret += get_policy_matrix_str(outputs["qwinloss"], gs, 100.0, "%+7.3fc")
+    elif command[0] == "qscore_raw":
+        outputs = gs.get_model_outputs(model)
+        ret = "\n"
+        ret += get_policy_matrix_str(outputs["qscore"], gs, 1.0, "%+6.2f")
 
     elif command[0] in input_feature_command_lookup:
         (feature_idx,normalization_div) = input_feature_command_lookup[command[0]]
@@ -613,8 +626,8 @@ while True:
         output = output[channel_idx]
         locs_and_values = []
         board = gs.board
-        for y in range(board.size):
-            for x in range(board.size):
+        for y in range(board.y_size):
+            for x in range(board.x_size):
                 loc = board.loc(x,y)
                 pos = features.loc_to_tensor_pos(loc,board)
                 locs_and_values.append((loc,output[pos]))

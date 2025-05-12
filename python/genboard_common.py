@@ -5,6 +5,8 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+import load_model
+
 class ResBlock(nn.Module):
     def __init__(self,num_channels,scale_init):
         super(ResBlock, self).__init__()

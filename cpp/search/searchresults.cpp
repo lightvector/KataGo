@@ -2057,6 +2057,7 @@ bool Search::getAnalysisJson(
       moveInfo["isSymmetryOf"] = Location::toString(data.isSymmetryOf, board);
     moveInfo["edgeVisits"] = data.numVisits;
     moveInfo["edgeWeight"] = Global::roundDynamic(data.weightSum,OUTPUT_PRECISION);
+    moveInfo["playSelectionValue"] = Global::roundDynamic(data.playSelectionValue,OUTPUT_PRECISION);
 
     json pv = json::array();
     int pvLen =

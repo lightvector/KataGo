@@ -598,7 +598,7 @@ Illegal: (0,0) X
 
       makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_WHITE, __LINE__);
       out << "After pass" << endl;
-      printIllegalMoves(out,board,hist,P_WHITE);
+      printIllegalMoves(out,board,hist,P_BLACK);
       testAssert(hist.encorePhase == 0);
       testAssert(hist.isGameFinished == false);
 
@@ -1228,7 +1228,7 @@ x.oxxxx
       rules.komi = 0.5f;
       rules.multiStoneSuicideLegal = false;
       rules.taxRule = taxRules[whichTaxRule];
-      BoardHistory hist(board,P_WHITE,rules,0);
+      BoardHistory hist(board,P_BLACK,rules,0);
 
       out << "Score: " << finalScoreIfGameEndedNow(hist,board) << endl;
       makeMoveAssertLegal(hist, board, Location::getLoc(5,3,board.x_size), P_BLACK, __LINE__);
@@ -1297,7 +1297,7 @@ x.oxxxx
       rules.komi = 0.5f;
       rules.multiStoneSuicideLegal = false;
       rules.taxRule = taxRules[whichTaxRule];
-      BoardHistory hist(board,P_WHITE,rules,0);
+      BoardHistory hist(board,P_BLACK,rules,0);
 
       out << "Score: " << finalScoreIfGameEndedNow(hist,board) << endl;
       makeMoveAssertLegal(hist, board, Location::getLoc(5,3,board.x_size), P_BLACK, __LINE__);
@@ -1366,7 +1366,7 @@ x.oxxxx
       rules.komi = 0.5f;
       rules.multiStoneSuicideLegal = false;
       rules.taxRule = taxRules[whichTaxRule];
-      BoardHistory hist(board,P_WHITE,rules,0);
+      BoardHistory hist(board,P_BLACK,rules,0);
 
       out << "Score: " << finalScoreIfGameEndedNow(hist,board) << endl;
       makeMoveAssertLegal(hist, board, Location::getLoc(5,3,board.x_size), P_BLACK, __LINE__);
@@ -1438,7 +1438,7 @@ x.oxxxx
       rules.komi = 0.5f;
       rules.multiStoneSuicideLegal = false;
       rules.taxRule = taxRules[whichTaxRule];
-      BoardHistory hist(board,P_WHITE,rules,0);
+      BoardHistory hist(board,P_BLACK,rules,0);
 
       out << "Score: " << finalScoreIfGameEndedNow(hist,board) << endl;
       makeMoveAssertLegal(hist, board, Location::getLoc(5,3,board.x_size), P_BLACK, __LINE__);
@@ -1886,10 +1886,12 @@ ooo....
     printIllegalMoves(out,board,hist,P_BLACK);
     makeMoveAssertLegal(hist, board, Location::getLoc(0,0,board.x_size), P_BLACK, __LINE__);
     out << "Just after black pass for ko" << endl;
-    printIllegalMoves(out,board,hist,P_BLACK);
+    printIllegalMoves(out,board,hist,P_WHITE);
     out << board << endl;
 
     makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_WHITE, __LINE__);
+    out << "After another white pass" << endl;
+    printIllegalMoves(out,board,hist,P_BLACK);
     makeMoveAssertLegal(hist, board, Location::getLoc(0,0,board.x_size), P_BLACK, __LINE__);
     out <<"After first cap" << endl;
     printIllegalMoves(out,board,hist,P_WHITE);
@@ -1927,6 +1929,8 @@ HASH: 2057B7FA441F035BBDC6D7A1145BEDDF
  1 . . . . . . .
 
 
+After another white pass
+Ko-recap-blocked: (0,1)
 After first cap
 Ko-recap-blocked: (0,0)
 Ko-recap-blocked: (0,1)

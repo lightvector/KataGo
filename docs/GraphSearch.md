@@ -350,7 +350,7 @@ We can rephrase this in the language of policy optimization: whenever one upweig
 
 However, when transpositions occur, it's common to encounter a child node already having **more** visits than the edge that leads to it. Can we say that the child node already has "enough" visits in this case and cut short the playout, to improve the efficiency of the search?
 
-Yes! We can just increment the edge visits and immediately skip to the step of updating the parent and it's ancestors without giving the child another visit. The child already has enough visits to "support" the upweighted edge visits that the parent wants to assign it.
+Yes! We can just increment the edge visits and immediately skip to the step of updating the parent and its ancestors without giving the child another visit. The child already has enough visits to "support" the upweighted edge visits that the parent wants to assign it.
 
 However, it's not obvious that this is a good idea. Speculatively, there might be some competing considerations:
 * If the edge visit count is low, while the child visit count is high, then the marginal extra visit to that child is probably less informative and less likely to be worth the compute cost given that it's already high enough for that parent, favoring stopping.

@@ -39,20 +39,21 @@ ModelConfig = Dict[str,Any]
 # version = 13 # V7 features, Adjusted scaling on shortterm score variance, and made C++ side read in scalings.
 # version = 14 # V7 features, Squared softplus for error variance predictions
 # version = 15 # V7 features, Extra nonlinearity for pass output
+# version = 16 # V7 features, Q value predictions in the policy head
 
 def get_version(config: ModelConfig):
     return config["version"]
 
 def get_num_bin_input_features(config: ModelConfig):
     version = get_version(config)
-    if version == 10 or version == 11 or version == 12 or version == 13 or version == 14 or version == 15:
+    if version == 10 or version == 11 or version == 12 or version == 13 or version == 14 or version == 15 or version == 16:
         return 22
     else:
         assert(False)
 
 def get_num_global_input_features(config: ModelConfig):
     version = get_version(config)
-    if version == 10 or version == 11 or version == 12 or version == 13 or version == 14 or version == 15:
+    if version == 10 or version == 11 or version == 12 or version == 13 or version == 14 or version == 15 or version == 16:
         return 19
     else:
         assert(False)
@@ -937,6 +938,84 @@ b18c384nbt = {
     "v2_size":128,
 }
 
+b18c384dnbt1 = {
+    "version":15,
+    "norm_kind":"fixup",
+    "bnorm_epsilon": 1e-4,
+    "bnorm_running_avg_momentum": 0.001,
+    "initial_conv_1x1": False,
+    "trunk_num_channels":384,
+    "mid_num_channels":192,
+    "gpool_num_channels":64,
+    "use_attention_pool":False,
+    "num_attention_pool_heads":4,
+    "block_kind": [
+        ["rconv1","bottlenest2"],
+        ["rconv2","bottlenest2"],
+        ["rconv3","bottlenest2gpool"],
+        ["rconv4","bottlenest2"],
+        ["rconv5","bottlenest2"],
+        ["rconv6","bottlenest2gpool"],
+        ["rconv7","bottlenest2"],
+        ["rconv8","bottlenest2"],
+        ["rconv9","bottlenest2gpool"],
+        ["rconv10","dilatedbottlenest2"],
+        ["rconv11","bottlenest2"],
+        ["rconv12","bottlenest2gpool"],
+        ["rconv13","bottlenest2"],
+        ["rconv14","bottlenest2"],
+        ["rconv15","bottlenest2gpool"],
+        ["rconv16","bottlenest2"],
+        ["rconv17","bottlenest2"],
+        ["rconv18","bottlenest2"],
+    ],
+    "p1_num_channels":48,
+    "g1_num_channels":48,
+    "v1_num_channels":96,
+    "sbv2_num_channels":112,
+    "num_scorebeliefs":8,
+    "v2_size":128,
+}
+
+b18c384dnbt2 = {
+    "version":15,
+    "norm_kind":"fixup",
+    "bnorm_epsilon": 1e-4,
+    "bnorm_running_avg_momentum": 0.001,
+    "initial_conv_1x1": False,
+    "trunk_num_channels":384,
+    "mid_num_channels":192,
+    "gpool_num_channels":64,
+    "use_attention_pool":False,
+    "num_attention_pool_heads":4,
+    "block_kind": [
+        ["rconv1","bottlenest2"],
+        ["rconv2","bottlenest2"],
+        ["rconv3","bottlenest2gpool"],
+        ["rconv4","bottlenest2"],
+        ["rconv5","dilatedbottlenest2"],
+        ["rconv6","bottlenest2gpool"],
+        ["rconv7","bottlenest2"],
+        ["rconv8","bottlenest2"],
+        ["rconv9","bottlenest2gpool"],
+        ["rconv10","bottlenest2"],
+        ["rconv11","bottlenest2"],
+        ["rconv12","bottlenest2gpool"],
+        ["rconv13","dilatedbottlenest2"],
+        ["rconv14","bottlenest2"],
+        ["rconv15","bottlenest2gpool"],
+        ["rconv16","bottlenest2"],
+        ["rconv17","bottlenest2"],
+        ["rconv18","bottlenest2"],
+    ],
+    "p1_num_channels":48,
+    "g1_num_channels":48,
+    "v1_num_channels":96,
+    "sbv2_num_channels":112,
+    "num_scorebeliefs":8,
+    "v2_size":128,
+}
+
 b14c448nbt = {
     "version":15,
     "norm_kind":"fixup",
@@ -1399,6 +1478,8 @@ base_config_of_name = {
     "b40c256": b40c256,
     "b18c384nbt": b18c384nbt,  # Recommended best config for this cost
     "b14c448nbt": b14c448nbt,
+    "b18c384dnbt1": b18c384dnbt1,
+    "b18c384dnbt2": b18c384dnbt2,
 
     # Large model configs, not too different in inference cost from b60c320
     "b40c384": b40c384,

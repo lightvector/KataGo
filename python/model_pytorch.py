@@ -12,6 +12,29 @@ import modelconfigs
 
 EXTRA_SCORE_DISTR_RADIUS = 60
 
+def enumerate_tensor(tensor):
+    """Iterate over (idx_tuple, value) for all values in a tensor"""
+    from itertools import product
+
+    shape = tensor.shape
+    indices = [range(s) for s in shape]
+    for idx in product(*indices):
+        value = tensor[idx]
+        yield idx, value
+
+def debug_print_tensor(tensor):
+    torch.set_printoptions(threshold=10000000,sci_mode=False)
+    print(tensor)
+    total1 = 0
+    total2 = 0
+    total3 = 0
+    for (nn,cc,hh,ww), value in enumerate_tensor(tensor):
+        total1 += (((cc + hh // 2 + ww // 3 + nn // 4) % 2)*2-1) * value
+        total2 += (((cc + hh // 3 + ww // 1 + nn // 3) % 2)*2-1) * value
+        total3 += (((cc + hh // 5 + ww // 2 + nn // 2) % 2)*2-1) * value
+    print(f"TOTAL {out.shape} {total1} {total2} {total3}")
+
+
 class ExtraOutputs:
     def __init__(self, requested: List[str]):
         self.requested: Set[str] = set(requested)
@@ -1104,6 +1127,144 @@ class NestedNestedBottleneckResBlock(torch.nn.Module):
             extra_outputs.report(self.name+".out", result)
         return result
 
+class DilationNestedBottleneckResBlock(torch.nn.Module):
+    def __init__(
+        self,
+        name: str,
+        internal_length: int,
+        c_main: int,
+        c_mid: int,
+        config: modelconfigs.ModelConfig,
+        activation: str,
+    ):
+        super(DilationNestedBottleneckResBlock, self).__init__()
+        self.name = name
+        self.norm_kind = config["norm_kind"]
+        self.internal_length = internal_length
+        assert internal_length >= 1
+
+        self.normactconvp = NormActConv(
+            name=name+".normactconvp",
+            c_in=c_main,
+            c_out=c_mid,
+            c_gpool=None,
+            config=config,
+            activation=activation,
+            kernel_size=1,
+            fixup_use_gamma=False,
+        )
+
+        self.blockstack = torch.nn.ModuleList()
+        for i in range(self.internal_length):
+            self.blockstack.append(ResBlock(
+                name=name+".blockstack."+str(i),
+                c_main=c_mid,
+                c_mid=c_mid,
+                c_gpool=None,
+                config=config,
+                activation=activation,
+            ))
+
+        self.normactconvq = NormActConv(
+            name=name+".normactconvq",
+            c_in=c_mid,
+            c_out=c_main,
+            c_gpool=None,
+            config=config,
+            activation=activation,
+            kernel_size=1,
+            fixup_use_gamma=True,
+        )
+
+    def initialize(self, fixup_scale):
+        if self.norm_kind == "fixup":
+            self.normactconvp.initialize(scale=math.pow(fixup_scale, 1.0 / (1.0 + self.internal_length)))
+            for i in range(self.internal_length):
+                self.blockstack[i].initialize(fixup_scale=math.pow(fixup_scale, 1.0 / (1.0 + self.internal_length)))
+            self.normactconvq.initialize(scale=0.0)
+        elif self.norm_kind == "fixscale" or self.norm_kind == "fixbrenorm" or self.norm_kind == "fixscaleonenorm":
+            self.normactconvp.initialize(scale=1.0, norm_scale=fixup_scale)
+            for i in range(self.internal_length):
+                self.blockstack[i].initialize(fixup_scale=1.0 / math.sqrt(i+1.0))
+            self.normactconvq.initialize(scale=1.0, norm_scale=1.0 / math.sqrt(self.internal_length+1.0))
+        else:
+            self.normactconvp.initialize(scale=1.0)
+            for i in range(self.internal_length):
+                self.blockstack[i].initialize(fixup_scale=1.0)
+            self.normactconvq.initialize(scale=1.0)
+
+    def add_reg_dict(self, reg_dict:Dict[str,List]):
+        self.normactconvp.add_reg_dict(reg_dict)
+        for i in range(self.internal_length):
+            self.blockstack[i].add_reg_dict(reg_dict)
+        self.normactconvq.add_reg_dict(reg_dict)
+
+    def set_brenorm_params(self, renorm_avg_momentum: float, rmax: float, dmax: float):
+        self.normactconvp.set_brenorm_params(renorm_avg_momentum, rmax, dmax)
+        for i in range(self.internal_length):
+            self.blockstack[i].set_brenorm_params(renorm_avg_momentum, rmax, dmax)
+        self.normactconvq.set_brenorm_params(renorm_avg_momentum, rmax, dmax)
+
+    def add_brenorm_clippage(self, upper_rclippage, lower_rclippage, dclippage):
+        self.normactconvp.add_brenorm_clippage(upper_rclippage, lower_rclippage, dclippage)
+        for i in range(self.internal_length):
+            self.blockstack[i].add_brenorm_clippage(upper_rclippage, lower_rclippage, dclippage)
+        self.normactconvq.add_brenorm_clippage(upper_rclippage, lower_rclippage, dclippage)
+
+    def forward(self, x, mask, mask_sum_hw, mask_sum: float, extra_outputs: Optional[ExtraOutputs]):
+        """
+        Parameters:
+        x: NCHW
+        mask: N1HW
+        mask_sum_hw: N111
+        mask_sum: scalar
+
+        Returns: NCHW
+        """
+        out = x
+        out = self.normactconvp(out, mask=mask, mask_sum_hw=None, mask_sum=None, extra_outputs=extra_outputs)
+
+        assert len(out.shape) == 4
+        assert len(mask.shape) == 4
+        n,c,h,w = out.shape
+        # pad to multiple of 3
+        padding_h = (3 - h % 3) % 3
+        padding_w = (3 - w % 3) % 3
+        if padding_w != 0 or padding_h != 0:
+            out = torch.nn.functional.pad(out, (0, padding_w, 0, padding_h))
+            mask_t = torch.nn.functional.pad(mask, (0, padding_w, 0, padding_h))
+        else:
+            mask_t = mask
+        padded_h = h + padding_h
+        padded_w = w + padding_w
+        padded_h_div3 = padded_h // 3
+        padded_w_div3 = padded_w // 3
+        # transpose!
+        out = out.reshape((n,c,padded_h_div3,3,padded_w_div3,3))
+        out = out.permute(0,3,5,1,2,4)
+        assert tuple(out.shape) == (n,3,3,c,padded_h_div3,padded_w_div3), f"{tuple(out.shape)=}"
+        out = out.reshape((n*3*3,c,padded_h_div3,padded_w_div3))
+        mask_t = mask_t.reshape((n,1,padded_h_div3,3,padded_w_div3,3))
+        mask_t = mask_t.permute(0,3,5,1,2,4)
+        mask_t = mask_t.reshape((n*3*3,1,padded_h_div3,padded_w_div3))
+        mask_t = mask_t.detach()
+
+        for i in range(self.internal_length):
+            out = self.blockstack[i](out, mask=mask_t, mask_sum_hw=None, mask_sum=None, extra_outputs=extra_outputs)
+
+        # untranspose!
+        out = out.reshape((n,3,3,c,padded_h_div3,padded_w_div3))
+        out = out.permute(0,3,4,1,5,2)
+        assert tuple(out.shape) == (n,c,padded_h_div3,3,padded_w_div3,3), f"{tuple(out.shape)=}"
+        out = out.reshape((n,c,padded_h,padded_w))
+        out = out[:,:,:h,:w].contiguous()
+
+        out = self.normactconvq(out, mask=mask, mask_sum_hw=None, mask_sum=None, extra_outputs=extra_outputs)
+        result = x + out
+        if extra_outputs is not None:
+            extra_outputs.report(self.name+".out", result)
+        return result
+
 
 class PolicyHead(torch.nn.Module):
     def __init__(self, c_in, c_p1, c_g1, config, activation):
@@ -1113,14 +1274,18 @@ class PolicyHead(torch.nn.Module):
 
         if config["version"] <= 11:
             self.num_policy_outputs = 4
-        else:
+        elif config["version"] <= 15:
             self.num_policy_outputs = 6
+        else:
+            self.num_policy_outputs = 8
         # Output 0: policy prediction
         # Output 1: opponent reply policy prediction
         # Output 2: soft policy prediction
         # Output 3: soft opponent reply policy prediction
         # Output 4: long-term-optimistic policy prediction
         # Output 5: short-term-optimistic policy prediction
+        # Output 6: q value winloss prediction, pre-tanh
+        # Output 7: q value score prediction
 
         self.conv1p = torch.nn.Conv2d(c_in, c_p1, kernel_size=1, padding="same", bias=False)
         self.conv1g = torch.nn.Conv2d(c_in, c_g1, kernel_size=1, padding="same", bias=False)
@@ -1553,6 +1718,16 @@ class Model(torch.nn.Module):
                     c_main=self.c_trunk,
                     c_mid=self.c_mid,
                     c_gpool=(self.c_gpool if use_gpool_this_block else None),
+                    config=self.config,
+                    activation=self.activation,
+                ))
+            elif block_kind == "dilatedbottlenest2":
+                assert not use_gpool_this_block
+                self.blocks.append(DilationNestedBottleneckResBlock(
+                    name=block_name,
+                    internal_length=2,
+                    c_main=self.c_trunk,
+                    c_mid=self.c_mid,
                     config=self.config,
                     activation=self.activation,
                 ))

@@ -108,6 +108,7 @@ countSides tests/results/matchsgfs/games.sgfs
 countSides tests/results/matchsgfs2/games.sgfs
 
 rm -f tests/results/sampletest-vf/*.log
+rm -f tests/results/sampletest-vf/*.txt
 ./katago samplesgfs \
          -sgfdir tests/data/sampletest/ \
          -outdir tests/results/sampletest-vf/ \
@@ -123,6 +124,7 @@ rm -f tests/results/sampletest-vf/*.log
          -for-testing
 
 rm -f tests/results/sampletest-basic/*.log
+rm -f tests/results/sampletest-basic/*.txt
 ./katago samplesgfs \
          -sgfdir tests/data/sampletest/ \
          -outdir tests/results/sampletest-basic/ \
@@ -135,7 +137,22 @@ rm -f tests/results/sampletest-basic/*.log
          -turn-weight-lambda 0.01 \
          -for-testing
 
+rm -f tests/results/sampletest2-basic/*.log
+rm -f tests/results/sampletest2-basic/*.txt
+./katago samplesgfs \
+         -sgfdir tests/data/sampletest2/ \
+         -outdir tests/results/sampletest2-basic/ \
+         -sample-prob 1 \
+         -force-sample-weight 10.0 \
+         -hash-comments \
+         -training-weight 0.36 \
+         -min-weight 0.01 \
+         -turn-weight-lambda 0.01 \
+         -flip-if-pass \
+         -for-testing
+
 rm -f tests/results/sampletest-hint/*.log
+rm -f tests/results/sampletest-hint/*.txt
 ./katago dataminesgfs \
          -config configs/gtp_example.cfg \
          -override-config "logTimeStamp=false, maxVisits=50, numSearchThreads=1, nnRandomize=false, rootSymmetryPruning=false, nnRandSeed=forTesting, searchRandSeed=forTesting, forDeterministicTesting=true, cudaUseFP16 = false, trtUseFP16 = false, openclUseFP16 = false, cudaUseNHWC = false, koRules=SIMPLE, scoringRules=AREA, taxRules=NONE, hasButtons=false, multiStoneSuicideLegals=false, bSizes=9, bSizeRelProbs=1, komiAuto=true" \
@@ -146,6 +163,21 @@ rm -f tests/results/sampletest-hint/*.log
          -min-hint-weight 0.25 \
          -model tests/models/g170-b6c96-s175395328-d26788732.bin.gz \
          -auto-komi \
+         -for-testing
+
+rm -f tests/results/sampletest2-hint/*.log
+rm -f tests/results/sampletest2-hint/*.txt
+./katago dataminesgfs \
+         -config configs/gtp_example.cfg \
+         -override-config "logTimeStamp=false, maxVisits=50, numSearchThreads=1, nnRandomize=false, rootSymmetryPruning=false, nnRandSeed=forTesting, searchRandSeed=forTesting, forDeterministicTesting=true, cudaUseFP16 = false, trtUseFP16 = false, openclUseFP16 = false, cudaUseNHWC = false, koRules=SIMPLE, scoringRules=AREA, taxRules=NONE, hasButtons=false, multiStoneSuicideLegals=false, bSizes=9, bSizeRelProbs=1, komiAuto=true" \
+         -sgfdir tests/data/sampletest2/ \
+         -outdir tests/results/sampletest2-hint/ \
+         -threads 1 \
+         -tree-mode \
+         -min-hint-weight 0.25 \
+         -model tests/models/g170-b6c96-s175395328-d26788732.bin.gz \
+         -auto-komi \
+         -flip-if-pass \
          -for-testing
 
 echo "Done"

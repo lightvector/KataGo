@@ -3,10 +3,16 @@ import logging
 import os
 
 import torch
-from torch.optim.swa_utils import AveragedModel
 
-import modelconfigs
-from model_pytorch import Model, ResBlock, NestedBottleneckResBlock
+import packaging
+import packaging.version
+
+from collections import defaultdict
+
+# defaultdict and float constructor are used in the ckpt for running metrics
+if packaging.version.parse(torch.__version__) > packaging.version.parse("2.4.0"):
+    torch.serialization.add_safe_globals([defaultdict])
+    torch.serialization.add_safe_globals([float])
 
 def load_model_state_dict(state_dict):
     # Strip off any "module." from when the model was saved with DDP or other things
@@ -34,6 +40,9 @@ def load_swa_model_state_dict(state_dict):
 
 
 def load_model(checkpoint_file, use_swa, device, pos_len=19, for_coreml=False, verbose=False):
+    from model_pytorch import Model
+    from torch.optim.swa_utils import AveragedModel
+
     state_dict = torch.load(checkpoint_file,map_location="cpu")
 
     if "config" in state_dict:
