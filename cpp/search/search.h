@@ -401,8 +401,15 @@ struct Search {
   //Fill json with analysis engine format information about search results
   bool getAnalysisJson(
     const Player perspective,
-    int analysisPVLen, bool preventEncore, bool includePolicy,
-    bool includeOwnership, bool includeOwnershipStdev, bool includeMovesOwnership, bool includeMovesOwnershipStdev, bool includePVVisits,
+    int analysisPVLen,
+    bool preventEncore,
+    bool includePolicy,
+    bool includeOwnership,
+    bool includeOwnershipStdev,
+    bool includeMovesOwnership,
+    bool includeMovesOwnershipStdev,
+    bool includePVVisits,
+    bool includeQValues,
     nlohmann::json& ret
   ) const;
 

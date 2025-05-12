@@ -317,7 +317,7 @@ void NNInputs::fillScoring(
 
 
 NNOutput::NNOutput()
-  :whiteOwnerMap(NULL),noisedPolicyProbs(NULL)
+  :whiteQWinloss(NULL),whiteQScore(NULL),whiteOwnerMap(NULL),noisedPolicyProbs(NULL)
 {}
 NNOutput::NNOutput(const NNOutput& other) {
   nnHash = other.nnHash;
@@ -333,6 +333,20 @@ NNOutput::NNOutput(const NNOutput& other) {
 
   nnXLen = other.nnXLen;
   nnYLen = other.nnYLen;
+
+  if(other.whiteQWinloss != NULL) {
+    whiteQWinloss = new float[nnXLen * nnYLen];
+    std::copy(other.whiteQWinloss, other.whiteQWinloss + nnXLen * nnYLen, whiteQWinloss);
+  }
+  else
+    whiteQWinloss = NULL;
+  if(other.whiteQScore != NULL) {
+    whiteQScore = new float[nnXLen * nnYLen];
+    std::copy(other.whiteQScore, other.whiteQScore + nnXLen * nnYLen, whiteQScore);
+  }
+  else
+    whiteQScore = NULL;
+
   if(other.whiteOwnerMap != NULL) {
     whiteOwnerMap = new float[nnXLen * nnYLen];
     std::copy(other.whiteOwnerMap, other.whiteOwnerMap + nnXLen * nnYLen, whiteOwnerMap);
@@ -394,6 +408,50 @@ NNOutput::NNOutput(const vector<shared_ptr<NNOutput>>& others) {
 
   nnXLen = others[0]->nnXLen;
   nnYLen = others[0]->nnYLen;
+
+  {
+    float whiteQWinlossCount = 0.0f;
+    whiteQWinloss = NULL;
+    for(int i = 0; i<len; i++) {
+      const NNOutput& other = *(others[i]);
+      if(other.whiteQWinloss != NULL) {
+        if(whiteQWinloss == NULL) {
+          whiteQWinloss = new float[nnXLen * nnYLen];
+          std::fill(whiteQWinloss, whiteQWinloss + nnXLen * nnYLen, 0.0f);
+        }
+        whiteQWinlossCount += 1.0f;
+        for(int pos = 0; pos<nnXLen*nnYLen; pos++)
+          whiteQWinloss[pos] += other.whiteQWinloss[pos];
+      }
+    }
+    if(whiteQWinloss != NULL) {
+      assert(whiteQWinlossCount > 0);
+      for(int pos = 0; pos<nnXLen*nnYLen; pos++)
+        whiteQWinloss[pos] /= whiteQWinlossCount;
+    }
+  }
+
+  {
+    float whiteQScoreCount = 0.0f;
+    whiteQScore = NULL;
+    for(int i = 0; i<len; i++) {
+      const NNOutput& other = *(others[i]);
+      if(other.whiteQScore != NULL) {
+        if(whiteQScore == NULL) {
+          whiteQScore = new float[nnXLen * nnYLen];
+          std::fill(whiteQScore, whiteQScore + nnXLen * nnYLen, 0.0f);
+        }
+        whiteQScoreCount += 1.0f;
+        for(int pos = 0; pos<nnXLen*nnYLen; pos++)
+          whiteQScore[pos] += other.whiteQScore[pos];
+      }
+    }
+    if(whiteQScore != NULL) {
+      assert(whiteQScoreCount > 0);
+      for(int pos = 0; pos<nnXLen*nnYLen; pos++)
+        whiteQScore[pos] /= whiteQScoreCount;
+    }
+  }
 
   {
     float whiteOwnerMapCount = 0.0f;
@@ -479,6 +537,20 @@ NNOutput& NNOutput::operator=(const NNOutput& other) {
 
   nnXLen = other.nnXLen;
   nnYLen = other.nnYLen;
+
+  if(other.whiteQWinloss != NULL) {
+    whiteQWinloss = new float[nnXLen * nnYLen];
+    std::copy(other.whiteQWinloss, other.whiteQWinloss + nnXLen * nnYLen, whiteQWinloss);
+  }
+  else
+    whiteQWinloss = NULL;
+  if(other.whiteQScore != NULL) {
+    whiteQScore = new float[nnXLen * nnYLen];
+    std::copy(other.whiteQScore, other.whiteQScore + nnXLen * nnYLen, whiteQScore);
+  }
+  else
+    whiteQScore = NULL;
+
   if(whiteOwnerMap != NULL)
     delete[] whiteOwnerMap;
   if(other.whiteOwnerMap != NULL) {
@@ -504,6 +576,14 @@ NNOutput& NNOutput::operator=(const NNOutput& other) {
 
 
 NNOutput::~NNOutput() {
+  if(whiteQWinloss != NULL) {
+    delete[] whiteQWinloss;
+    whiteQWinloss = NULL;
+  }
+  if(whiteQScore != NULL) {
+    delete[] whiteQScore;
+    whiteQScore = NULL;
+  }
   if(whiteOwnerMap != NULL) {
     delete[] whiteOwnerMap;
     whiteOwnerMap = NULL;
@@ -552,6 +632,37 @@ void NNOutput::debugPrint(ostream& out, const Board& board) {
     }
     out << endl;
   }
+
+  if(whiteQWinloss != NULL) {
+    out << "QWinloss" << endl;
+    out << "Pass" << Global::strprintf("%6.2fc ", whiteQWinloss[NNPos::getPassPos(nnXLen,nnYLen)] * 100) << endl;
+    for(int y = 0; y<board.y_size; y++) {
+      for(int x = 0; x<board.x_size; x++) {
+        int pos = NNPos::xyToPos(x,y,nnXLen);
+        if(policyProbs[pos] < 0)
+          out << "   -    ";
+        else
+          out << Global::strprintf("%6.2fc ", whiteQWinloss[pos] * 100);
+      }
+      out << endl;
+    }
+  }
+
+  if(whiteQScore != NULL) {
+    out << "QWinloss" << endl;
+    out << "Pass" << Global::strprintf("%6.1f ", whiteQScore[NNPos::getPassPos(nnXLen,nnYLen)]) << endl;
+    for(int y = 0; y<board.y_size; y++) {
+      for(int x = 0; x<board.x_size; x++) {
+        int pos = NNPos::xyToPos(x,y,nnXLen);
+        if(policyProbs[pos] < 0)
+          out << "   -   ";
+        else
+          out << Global::strprintf("%6.1f ", whiteQScore[pos]);
+      }
+      out << endl;
+    }
+  }
+
 }
 
 //-------------------------------------------------------------------------------------------------------------

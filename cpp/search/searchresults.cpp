@@ -1998,6 +1998,7 @@ bool Search::getAnalysisJson(
   bool includeMovesOwnership,
   bool includeMovesOwnershipStdev,
   bool includePVVisits,
+  bool includeQValues,
   json& ret
 ) const {
   vector<AnalysisData> buf;
@@ -2129,6 +2130,33 @@ bool Search::getAnalysisJson(
       rootInfo["rawStWrError"] = Global::roundDynamic(nnOutput->shorttermWinlossError * 0.5,OUTPUT_PRECISION);
       rootInfo["rawStScoreError"] = Global::roundDynamic(nnOutput->shorttermScoreError,OUTPUT_PRECISION);
       rootInfo["rawVarTimeLeft"] = Global::roundDynamic(nnOutput->varTimeLeft,OUTPUT_PRECISION);
+
+      if(includeQValues && nnOutput->whiteQWinloss != NULL) {
+        json thisSideQWinloss = json::array();
+        json thisSideQScore = json::array();
+        for(int y = 0; y < board.y_size; y++) {
+          for(int x = 0; x < board.x_size; x++) {
+            int pos = NNPos::xyToPos(x, y, nnXLen);
+            if(nnOutput->policyProbs[pos] < 0) {
+              thisSideQWinloss.push_back(nullptr);
+              thisSideQScore.push_back(nullptr);
+            }
+            else {
+              thisSideQWinloss.push_back(Global::roundDynamic(nnOutput->whiteQWinloss[pos]*flipFactor,OUTPUT_PRECISION));
+              thisSideQScore.push_back(Global::roundDynamic(nnOutput->whiteQScore[pos]*flipFactor,OUTPUT_PRECISION));
+            }
+          }
+        }
+        int pos = NNPos::locToPos(Board::PASS_LOC, board.x_size, nnXLen, nnYLen);
+        if(nnOutput->policyProbs[pos] < 0) {
+          thisSideQWinloss.push_back(nullptr);
+          thisSideQScore.push_back(nullptr);
+        }
+        else{
+          thisSideQWinloss.push_back(Global::roundDynamic(nnOutput->whiteQWinloss[pos]*flipFactor,OUTPUT_PRECISION));
+          thisSideQScore.push_back(Global::roundDynamic(nnOutput->whiteQScore[pos]*flipFactor,OUTPUT_PRECISION));
+        }
+      }
     }
     if(humanOutput != NULL) {
       rootInfo["humanWinrate"] = Global::roundDynamic(0.5 + 0.5*(humanOutput->whiteWinProb - humanOutput->whiteLossProb)*flipFactor,OUTPUT_PRECISION);
@@ -2175,8 +2203,8 @@ bool Search::getAnalysisJson(
         }
       }
 
-      int passPos = NNPos::locToPos(Board::PASS_LOC, board.x_size, nnXLen, nnYLen);
-      policy.push_back(Global::roundDynamic(policyProbs[passPos],OUTPUT_PRECISION));
+      int pos = NNPos::locToPos(Board::PASS_LOC, board.x_size, nnXLen, nnYLen);
+      policy.push_back(Global::roundDynamic(policyProbs[pos],OUTPUT_PRECISION));
       ret["policy"] = policy;
     }
 
@@ -2189,8 +2217,8 @@ bool Search::getAnalysisJson(
           policy.push_back(Global::roundDynamic(policyProbs[pos],OUTPUT_PRECISION));
         }
       }
-      int passPos = NNPos::locToPos(Board::PASS_LOC, board.x_size, nnXLen, nnYLen);
-      policy.push_back(Global::roundDynamic(policyProbs[passPos],OUTPUT_PRECISION));
+      int pos = NNPos::locToPos(Board::PASS_LOC, board.x_size, nnXLen, nnYLen);
+      policy.push_back(Global::roundDynamic(policyProbs[pos],OUTPUT_PRECISION));
       ret["humanPolicy"] = policy;
     }
   }

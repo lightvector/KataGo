@@ -66,6 +66,7 @@ NNEvaluator::NNEvaluator(
   const vector<int>& gpuIdxByServerThr,
   const string& rSeed,
   bool doRandomize,
+  bool useQValues,
   int defaultSymmetry
 )
   :modelName(mName),
@@ -77,6 +78,7 @@ NNEvaluator::NNEvaluator(
    inputsUseNHWC(iUseNHWC),
    usingFP16Mode(useFP16Mode),
    usingNHWCMode(useNHWCMode),
+   usingQValues(useQValues),
    numThreads(numThr),
    gpuIdxByServerThread(gpuIdxByServerThr),
    randSeed(rSeed),
@@ -122,6 +124,9 @@ NNEvaluator::NNEvaluator(
       "Initializing neural net buffer to be size " +
       Global::intToString(nnXLen) + " * " + Global::intToString(nnYLen) +
       (requireExactNNLen ? " exactly" : " allowing smaller boards")
+    );
+    logger->write(
+      "Enable raw NN Q values: " + Global::boolToString(usingQValues)
     );
   }
 
@@ -518,6 +523,16 @@ void NNEvaluator::serve(
         else {
           resultBuf->result->whiteOwnerMap = NULL;
         }
+        if(usingQValues && modelVersion >= 16) {
+          float* whiteQWinloss = new float[nnXLen*nnYLen+1];
+          float* whiteQScore = new float[nnXLen*nnYLen+1];
+          for(int i = 0; i<nnXLen*nnYLen+1; i++) {
+            whiteQWinloss[i] = 0.0;
+            whiteQScore[i] = 0.0;
+          }
+          resultBuf->result->whiteQWinloss = whiteQWinloss;
+          resultBuf->result->whiteQScore = whiteQScore;
+        }
 
         //These aren't really probabilities. Win/Loss/NoResult will get softmaxed later
         double whiteWinProb = 0.0 + rand.nextGaussian() * 0.20;
@@ -552,6 +567,15 @@ void NNEvaluator::serve(
           emptyOutput->whiteOwnerMap = new float[nnXLen*nnYLen];
         else
           emptyOutput->whiteOwnerMap = NULL;
+
+        if(usingQValues && modelVersion >= 16) {
+          emptyOutput->whiteQWinloss = new float[nnXLen*nnYLen+1];
+          emptyOutput->whiteQScore = new float[nnXLen*nnYLen+1];
+        }
+        else {
+          emptyOutput->whiteQWinloss = NULL;
+          emptyOutput->whiteQScore = NULL;
+        }
         outputBuf.push_back(emptyOutput);
       }
 
@@ -852,6 +876,18 @@ void NNEvaluator::evaluate(
     buf.result->policyOptimismUsed = (float)resultWithoutOwnerMap->policyOptimismUsed;
     buf.result->nnXLen = resultWithoutOwnerMap->nnXLen;
     buf.result->nnYLen = resultWithoutOwnerMap->nnYLen;
+    if(resultWithoutOwnerMap->whiteQWinloss != NULL) {
+      assert(buf.result->whiteQWinloss != NULL);
+      assert(resultWithoutOwnerMap->nnXLen == nnXLen);
+      assert(resultWithoutOwnerMap->nnYLen == nnYLen);
+      std::copy(resultWithoutOwnerMap->whiteQWinloss, resultWithoutOwnerMap->whiteQWinloss + (nnXLen*nnYLen+1), buf.result->whiteQWinloss);
+    }
+    if(resultWithoutOwnerMap->whiteQScore != NULL) {
+      assert(buf.result->whiteQScore != NULL);
+      assert(resultWithoutOwnerMap->nnXLen == nnXLen);
+      assert(resultWithoutOwnerMap->nnYLen == nnYLen);
+      std::copy(resultWithoutOwnerMap->whiteQScore, resultWithoutOwnerMap->whiteQScore + (nnXLen*nnYLen+1), buf.result->whiteQScore);
+    }
     assert(buf.result->whiteOwnerMap != NULL);
   }
   else {
@@ -1126,6 +1162,31 @@ void NNEvaluator::evaluate(
     else {
       throw StringError("NNEval value postprocessing not implemented for model version");
     }
+
+    //Postprocess q values
+    if(buf.result->whiteQWinloss != NULL || buf.result->whiteQScore != NULL) {
+      if(!(buf.result->whiteQWinloss != NULL && buf.result->whiteQScore != NULL)) {
+        throw StringError("NNEval qvalue postprocessing found ony one of winloss and score");
+      }
+      for(int pos = 0; pos<nnXLen*nnYLen+1; pos++) {
+        if(!isLegal[pos]) {
+          buf.result->whiteQWinloss[pos] = 0.0f;
+          buf.result->whiteQScore[pos] = 0.0f;
+        }
+        else {
+          //Similarly as mentioned above, the result we get back from the net is actually not from white's perspective,
+          //but from the player to move, so we need to flip it to make it white at the same time as we tanh it.
+          if(nextPlayer == P_WHITE) {
+            buf.result->whiteQWinloss[pos] = tanh(buf.result->whiteQWinloss[pos]);
+            buf.result->whiteQScore[pos] = (float)(buf.result->whiteQScore[pos] * postProcessParams.scoreMeanMultiplier);
+          }
+          else {
+            buf.result->whiteQWinloss[pos] = -tanh(buf.result->whiteQWinloss[pos]);
+            buf.result->whiteQScore[pos] = -(float)(buf.result->whiteQScore[pos] * postProcessParams.scoreMeanMultiplier);
+          }
+        }
+      }
+    }
   }
 
   //Postprocess ownermap
@@ -1150,7 +1211,6 @@ void NNEvaluator::evaluate(
       throw StringError("NNEval value postprocessing not implemented for model version");
     }
   }
-
 
   //And record the nnHash in the result and put it into the table
   buf.result->nnHash = nnHash;
