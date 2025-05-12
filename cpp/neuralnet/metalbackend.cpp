@@ -671,7 +671,7 @@ void MetalProcess::copyRowData(float* dest, const float* src, size_t numElements
 /**
  * @brief Convert input data from NHWC format to NCHW format in-place if necessary.
  *
- * @param data Pointer to the input data (single batch element assumed).
+ * @param rowSpatialInput Pointer to the input data (single batch element assumed).
  * @param C Number of channels.
  * @param H Height.
  * @param W Width.
