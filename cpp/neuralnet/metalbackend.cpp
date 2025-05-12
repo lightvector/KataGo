@@ -616,7 +616,7 @@ InputBuffers::InputBuffers(const LoadedModel* loadedModel, int maxBatchSz, int n
   singleModelOwnershipResultElts = (size_t)m.numOwnershipChannels * modelXLen * modelYLen;
   singleOwnerMapElts = (size_t)m.numOwnershipChannels * nnXLen * nnYLen;
   singleScoreValuesResultElts = 10;
-  singleNnScoreValuesResultElts = 6;
+  singleNnScoreValuesResultElts = (size_t)m.numScoreValueChannels;
   singleMoreMiscValuesResultElts = 8;
 
   assert(NNModelVersion::getNumSpatialFeatures(m.modelVersion) == m.numInputChannels);
@@ -888,11 +888,11 @@ void MetalProcess::processScoreValues(
   NNOutput* currentOutput,
   const int modelVersion,
   const size_t row) {
-  const size_t offset = row * inputBuffers->singleScoreValuesResultElts;
+  const size_t offset = row * inputBuffers->singleNnScoreValuesResultElts;
   const float* currentScoreValueData = &inputBuffers->scoreValuesResults[offset];
 
   if(modelVersion >= 9) {
-    int numScoreValueChannels = inputBuffers->singleScoreValuesResultElts;
+    int numScoreValueChannels = inputBuffers->singleNnScoreValuesResultElts;
     assert(numScoreValueChannels == 6);
     currentOutput->whiteScoreMean = currentScoreValueData[0];
     currentOutput->whiteScoreMeanSq = currentScoreValueData[1];
@@ -902,7 +902,7 @@ void MetalProcess::processScoreValues(
     currentOutput->shorttermScoreError = currentScoreValueData[5];
   }
   else if(modelVersion >= 8) {
-    int numScoreValueChannels = inputBuffers->singleScoreValuesResultElts;
+    int numScoreValueChannels = inputBuffers->singleNnScoreValuesResultElts;
     assert(numScoreValueChannels == 4);
     currentOutput->whiteScoreMean = currentScoreValueData[0];
     currentOutput->whiteScoreMeanSq = currentScoreValueData[1];
@@ -912,7 +912,7 @@ void MetalProcess::processScoreValues(
     currentOutput->shorttermScoreError = 0;
   }
   else if(modelVersion >= 4) {
-    int numScoreValueChannels = inputBuffers->singleScoreValuesResultElts;
+    int numScoreValueChannels = inputBuffers->singleNnScoreValuesResultElts;
     assert(numScoreValueChannels == 2);
     currentOutput->whiteScoreMean = currentScoreValueData[0];
     currentOutput->whiteScoreMeanSq = currentScoreValueData[1];
@@ -923,7 +923,7 @@ void MetalProcess::processScoreValues(
   }
   else {
     assert(modelVersion >= 3);
-    int numScoreValueChannels = inputBuffers->singleScoreValuesResultElts;
+    int numScoreValueChannels = inputBuffers->singleNnScoreValuesResultElts;
     assert(numScoreValueChannels == 1);
     currentOutput->whiteScoreMean = currentScoreValueData[0];
     //Version 3 neural nets don't have any second moment currentOutput, implicitly already folding it in, so we just use the mean squared
