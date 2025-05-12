@@ -35,6 +35,7 @@ parser.add_argument('-model-name', help='name to record in model file', required
 parser.add_argument('-filename-prefix', help='filename prefix to save to within dir', required=True)
 parser.add_argument('-use-swa', help='Use SWA model', action="store_true", required=False)
 parser.add_argument('-export-14-as-15', help='Export model version 14 as 15', action="store_true", required=False)
+parser.add_argument('-prune-to-zero', help='Prune all weights to zero to create a null model', action="store_true", required=False)
 args = vars(parser.parse_args())
 
 
@@ -45,6 +46,7 @@ def main(args):
     filename_prefix = args["filename_prefix"]
     use_swa = args["use_swa"]
     export_14_as_15 = args["export_14_as_15"]
+    prune_to_zero = args["prune_to_zero"]
 
     os.makedirs(export_dir,exist_ok=True)
 
@@ -121,8 +123,13 @@ def main(args):
 
 
     def write_weights(weights):
+        if prune_to_zero:
+            weights_to_write = torch.zeros_like(weights)
+        else:
+            weights_to_write = weights
+
         # Little endian
-        reshaped = np.reshape(weights.detach().numpy(),[-1])
+        reshaped = np.reshape(weights_to_write.detach().numpy(), [-1])
         num_weights = len(reshaped)
         writestr("@BIN@")
         f.write(struct.pack(f'<{num_weights}f',*reshaped))

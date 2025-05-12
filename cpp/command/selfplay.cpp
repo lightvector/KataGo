@@ -162,8 +162,8 @@ int MainCmds::selfplay(const vector<string>& args) {
     const string expectedSha256 = "";
 
     Rand rand;
-     NNEvaluator* nnEval = Setup::initializeNNEvaluator(
-      modelName,modelFile,expectedSha256,cfg,logger,rand,expectedConcurrentEvals,
+     NNEvaluator* nnEval = Setup::initializeCoreMLEvaluator(
+      modelName,modelFile,modelDir,expectedSha256,cfg,logger,rand,expectedConcurrentEvals,
       maxBoardXSizeUsed,maxBoardYSizeUsed,defaultMaxBatchSize,defaultRequireExactNNLen,disableFP16,
       Setup::SETUP_FOR_OTHER
     );
