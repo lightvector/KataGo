@@ -68,7 +68,7 @@ def get_raw_model(model_config, pos_len):
 def get_swa_model(raw_model, state_dict, swa_scale=None):
     """创建 SWA 模型实例"""
     if swa_scale is None:
-        swa_scale = 4
+        swa_scale = 8
     if 'swa_model' in state_dict:
         new_factor = 1.0 / swa_scale
         ema_avg = lambda avg_param, cur_param, num_averaged: avg_param + new_factor * (cur_param - avg_param)
@@ -643,6 +643,7 @@ def main():
                     if 'intermediate' in name:
                         group_name = 'intermediate_value'
                     else:
+                        continue
                         group_name = 'value_head'
 
                 if group_name and group_name in ratio_data['abs_means']:
@@ -652,9 +653,9 @@ def main():
             if j % update_interval == 0:
                 # swa_backup_flag = False
                 swa_model.update_parameters(raw_model)
-                swa_model.update_parameters(swa_backup)
+                # swa_model.update_parameters(swa_backup)
                 raw_model.load_state_dict(swa_model.module.state_dict())
-                logging.info(f"Accumulating/Restoring SWA & Replace raw")
+                logging.info(f"Accumulating SWA & Replace raw")
             
             # if (j % (update_interval * 2) == 0 or j == iterations) and not swa_backup_flag:
             #     swa_backup_flag = True
@@ -664,6 +665,10 @@ def main():
 
             if j % 100 == 0:
                 logging.info(f"Iteration {j} completed")
+        
+        swa_model.update_parameters(swa_backup)
+        raw_model.load_state_dict(swa_model.module.state_dict())
+        logging.info(f"Restoring SWA & Replace raw")
 
     # 提取 train_state 和 metrics
     train_state = state_dict.get('train_state', {
@@ -692,14 +697,15 @@ def main():
     export_model_path = os.path.join(export_model_dir, "model.ckpt")
 
     # 创建临时目录并保存模型
+    os.makedirs(save_path_tmp)
+    save(save_path_tmp, train_path, model, swa_model, optimizer, train_state, metrics, model_config)
+    time.sleep(5)  # 短暂等待以确保文件写入完成
     if os.path.exists(save_path):
         logging.info(f"Model already exists at {save_path}, skipping save")
+        os.remove(save_path_tmp)
     else:
-        os.makedirs(save_path_tmp)
-        save(save_path_tmp, train_path, model, swa_model, optimizer, train_state, metrics, model_config)
-        time.sleep(5)  # 短暂等待以确保文件写入完成
         os.rename(save_path_tmp, save_path)
-        logging.info(f"Saved to {save_path}/model.ckpt, copying ...")
+    logging.info(f"Saved to {save_path}/model.ckpt, copying ...")
 
     # 复制到 for_export_dir
     if os.path.exists(export_model_path):
