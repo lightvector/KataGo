@@ -99,11 +99,10 @@ fi
 #Just in case, give a little time for nfs
 sleep 10
 
-#rm if it already exists
-rm -f "$BASEDIR"/shuffleddata/current_tmp
-
-ln -s $OUTDIR "$BASEDIR"/shuffleddata/current_tmp
-mv -Tf "$BASEDIR"/shuffleddata/current_tmp "$BASEDIR"/shuffleddata/current
+# Shuffle no longer maintains a "current" directory, instead training script searches for latest dir
+# rm -f "$BASEDIR"/shuffleddata/current_tmp
+# ln -s $OUTDIR "$BASEDIR"/shuffleddata/current_tmp
+# mv -Tf "$BASEDIR"/shuffleddata/current_tmp "$BASEDIR"/shuffleddata/current
 
 # CLEANUP ---------------------------------------------------------------
 
