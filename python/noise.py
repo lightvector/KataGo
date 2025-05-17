@@ -188,7 +188,7 @@ def generate_noise(param, group_name, noise_scale):
     return noise
 
 def parse_statistics_block(block):
-    """解析统计信息块，提取模块数据"""
+    """解析统计信息块, 提取模块数据"""
     stats_data = {
         "abs_means": {},
         "abs_vars": {},
@@ -199,7 +199,7 @@ def parse_statistics_block(block):
         "data_lengths": {}
     }
     
-    # 首先清理数据块，移除可能干扰解析的内容
+    # 首先清理数据块, 移除可能干扰解析的内容
     clean_block = re.sub(r'\n(?:pacc1:|p0loss|vloss|tdvloss|oloss|sloss|fploss|gnorm|loss)\s+.*?\n', '\n', block)
     
     # 解析模块特定的 abs_update_ratio 数据
@@ -254,12 +254,12 @@ def extract_stats_from_stdout(file_path, num_lines_to_check=2000):
             
             logging.debug(f"Read {len(lines)} lines from {file_path}, total {len(content)} characters")
             
-            # 预处理 - 移除干扰项，类似trend_update.py的方法
+            # 预处理 - 移除干扰项, 类似trend_update.py的方法
             cleaned_content = re.sub(r'\n(?:pacc1:|p0loss|vloss|tdvloss|oloss|sloss|fploss|skloss|smloss|'
                            r'norm_normal|gnorm_batch|exgnorm|loss|time_since_last_print|Accumulating SWA).*?\n', 
                            '\n\n\n', content)
             
-            # 按多个连续换行分割，找到包含完整数据的块
+            # 按多个连续换行分割, 找到包含完整数据的块
             blocks = re.split(r'\n{3,}', cleaned_content)
             valid_blocks = []
             
@@ -488,7 +488,7 @@ def save_ratio_data(data, file_path):
         return False
 
 def read_latest_update_ratios(train_dir, num_lines_to_check=2000):
-    """从 stdout.txt 文件中高效读取最新的 update ratio 数据，并与 ratios.txt 中的数据进行加权平均"""
+    """从 stdout.txt 文件中高效读取最新的 update ratio 数据, 并与 ratios.txt 中的数据进行加权平均"""
     stdout_file_path = os.path.join(train_dir, "stdout.txt")
     ratios_file_path = os.path.join(train_dir, "ratios.txt")
     
@@ -557,31 +557,19 @@ def main():
     model_state_dict = load_model.load_model_state_dict(state_dict)
     raw_model.load_state_dict(model_state_dict)
 
-    # 模拟 train.py 的模型设置
-    model = nn.DataParallel(raw_model)  # 复制 train.py 的 DataParallel 包装
-
-    # 创建优化器，复制 train.py 的设置
-    optimizer = optim.Adam(
-        model.parameters(),
-        lr=1e-4,  # train.py 使用配置文件中的 lr，这里使用默认值
-        betas=(0.9, 0.999),  # train.py 默认值
-        weight_decay=1e-4  # train.py 常用值
-    )
-
-    # 尝试加载输入 checkpoint 的优化器状态
-    if 'optimizer' in state_dict:
-        try:
-            optimizer.load_state_dict(state_dict['optimizer'])
-            logging.info("Loaded optimizer state from checkpoint")
-        except Exception as e:
-            logging.warning(f"Could not load optimizer state: {e}, using default")
-    else:
-        logging.warning("No optimizer state in checkpoint, using default")
-
     swa_model = get_swa_model(raw_model, state_dict)
     swa_backup = None
     # swa_backup_flag = False
     logging.info(f"SWA model loaded: {swa_model is not None}")
+
+    model = nn.DataParallel(raw_model)
+    
+    optimizer = optim.Adam(
+        model.parameters(),
+        lr=1e-4,  # train.py 使用配置文件中的 lr, 这里使用默认值
+        betas=(0.9, 0.999),  # train.py 默认值
+        weight_decay=1e-4  # train.py 常用值
+    )
 
     # 读取最新的 update ratio 数据
     global ratio_data
@@ -669,6 +657,27 @@ def main():
         swa_model.update_parameters(swa_backup)
         raw_model.load_state_dict(swa_model.module.state_dict())
         logging.info(f"Restoring SWA & Replace raw")
+
+    # 完成 raw_model 的加噪修饰后, 更新模型实例, 以正常保存 (save 函数调用 model 而非 raw_model); 参考 train.py 的 DataParallel 包装
+    model = nn.DataParallel(raw_model)
+
+    # 更新优化器
+    optimizer = optim.Adam(
+        model.parameters(),
+        lr=1e-4,  # train.py 使用配置文件中的 lr, 这里使用默认值
+        betas=(0.9, 0.999),  # train.py 默认值
+        weight_decay=1e-4  # train.py 常用值
+    )
+
+    # # 尝试加载输入 checkpoint 的优化器状态
+    # if 'optimizer' in state_dict:
+    #     try:
+    #         optimizer.load_state_dict(state_dict['optimizer'])
+    #         logging.info("Loaded optimizer state from checkpoint")
+    #     except Exception as e:
+    #         logging.warning(f"Could not load optimizer state: {e}, using default")
+    # else:
+    #     logging.warning("No optimizer state in checkpoint, using default")
 
     # 提取 train_state 和 metrics
     train_state = state_dict.get('train_state', {
