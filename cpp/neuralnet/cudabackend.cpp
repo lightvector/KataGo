@@ -2787,6 +2787,26 @@ void NeuralNet::getOutput(
       SymmetryHelpers::copyOutputsWithSymmetry(ownershipSrcBuf, output->whiteOwnerMap, 1, nnYLen, nnXLen, inputBufs[row]->symmetry);
     }
 
+    if(output->whiteQWinloss != NULL || output->whiteQScore != NULL) {
+      testAssert(numPolicyChannels == 4 && modelVersion >= 16 && output->whiteQWinloss != NULL && output->whiteQScore != NULL);
+      if(gpuHandle->usingNHWC) {
+        for(int i = 0; i<nnXLen*nnYLen; i++)
+          policyProbsTmp[i] = policySrcBuf[i*numPolicyChannels+2];
+        SymmetryHelpers::copyOutputsWithSymmetry(policyProbsTmp, output->whiteQWinloss, 1, nnYLen, nnXLen, inputBufs[row]->symmetry);
+        for(int i = 0; i<nnXLen*nnYLen; i++)
+          policyProbsTmp[i] = policySrcBuf[i*numPolicyChannels+3];
+        SymmetryHelpers::copyOutputsWithSymmetry(policyProbsTmp, output->whiteQScore, 1, nnYLen, nnXLen, inputBufs[row]->symmetry);
+        output->whiteQWinloss[nnXLen*nnYLen] = policyPassSrcBuf[2];
+        output->whiteQScore[nnXLen*nnYLen] = policyPassSrcBuf[3];
+      }
+      else {
+        SymmetryHelpers::copyOutputsWithSymmetry(policySrcBuf+nnXLen*nnYLen*2, output->whiteQWinloss, 1, nnYLen, nnXLen, inputBufs[row]->symmetry);
+        SymmetryHelpers::copyOutputsWithSymmetry(policySrcBuf+nnXLen*nnYLen*3, output->whiteQScore, 1, nnYLen, nnXLen, inputBufs[row]->symmetry);
+        output->whiteQWinloss[nnXLen*nnYLen] = policyPassSrcBuf[2];
+        output->whiteQScore[nnXLen*nnYLen] = policyPassSrcBuf[3];
+      }
+    }
+
     if(modelVersion >= 9) {
       int numScoreValueChannels = gpuHandle->model->numScoreValueChannels;
       assert(numScoreValueChannels == 6);
