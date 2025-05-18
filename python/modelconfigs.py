@@ -78,7 +78,7 @@ b1c6nbt = {
     "bnorm_running_avg_momentum": 0.001,
     "initial_conv_1x1": False,
     "trunk_num_channels":6,
-    "mid_num_channels":4,
+    "mid_num_channels":6,
     "gpool_num_channels":4,
     "use_attention_pool":False,
     "num_attention_pool_heads":2,
