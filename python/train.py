@@ -1235,8 +1235,26 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
                 pacc1 = running_metrics["sums"].get("pacc1_sum", 1.0) / running_metrics["weights"].get("pacc1_sum", 1.0)
                 logging.info(f"pacc1: {pacc1:.6f}")
 
+                if batch_count_this_epoch % print_train_loss_every_batches == 0:
 
-                if batch_count_this_epoch % (print_train_loss_every_batches / 10) == 0:
+                    if model_config["norm_kind"] == "brenorm" or model_config["norm_kind"] == "fixbrenorm":
+                        metrics["brn_rmax"] = train_state["brenorm_rmax"]
+                        metrics["brn_dmax"] = train_state["brenorm_dmax"]
+                        metrics["brn_mmnt"] = brenorm_avg_momentum
+                        upper_rclippage = []
+                        lower_rclippage = []
+                        dclippage = []
+                        raw_model.add_brenorm_clippage(upper_rclippage, lower_rclippage, dclippage)
+                        metrics["brn_ruclip"] = sum(upper_rclippage) / max(len(upper_rclippage),1.0)
+                        metrics["brn_rlclip"] = sum(lower_rclippage) / max(len(lower_rclippage),1.0)
+                        metrics["brn_dclip"] = sum(dclippage) / max(len(dclippage),1.0)
+
+                    t1 = time.perf_counter()
+                    timediff = t1 - last_train_stats_time
+                    last_train_stats_time = t1
+                    metrics["time_since_last_print"] = timediff
+                    log_metrics(running_metrics["sums"], running_metrics["weights"], metrics, train_metrics_out)
+
                     # 记录统计信息
                     for stat_name, stat_dict in stats.items():
                         logging.info(f"{stat_name}:")
@@ -1259,26 +1277,6 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
                                 else:
                                     # update_ratio
                                     logging.info(f"{key} {stat_name}: \nmean={mean}, \nvar={var}, \ndata length: {count}")
-
-                if batch_count_this_epoch % print_train_loss_every_batches == 0:
-
-                    if model_config["norm_kind"] == "brenorm" or model_config["norm_kind"] == "fixbrenorm":
-                        metrics["brn_rmax"] = train_state["brenorm_rmax"]
-                        metrics["brn_dmax"] = train_state["brenorm_dmax"]
-                        metrics["brn_mmnt"] = brenorm_avg_momentum
-                        upper_rclippage = []
-                        lower_rclippage = []
-                        dclippage = []
-                        raw_model.add_brenorm_clippage(upper_rclippage, lower_rclippage, dclippage)
-                        metrics["brn_ruclip"] = sum(upper_rclippage) / max(len(upper_rclippage),1.0)
-                        metrics["brn_rlclip"] = sum(lower_rclippage) / max(len(lower_rclippage),1.0)
-                        metrics["brn_dclip"] = sum(dclippage) / max(len(dclippage),1.0)
-
-                    t1 = time.perf_counter()
-                    timediff = t1 - last_train_stats_time
-                    last_train_stats_time = t1
-                    metrics["time_since_last_print"] = timediff
-                    log_metrics(running_metrics["sums"], running_metrics["weights"], metrics, train_metrics_out)
 
                 # Update LR more frequently at the start for smoother warmup ramp and wd adjustment
                 if train_state["global_step_samples"] <= 50000000 and batch_count_this_epoch % 50 == 0:
@@ -1309,8 +1307,9 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
                     # Only snap SWA when lookahead slow params are in sync.
                     if train_state["swa_sample_accum"] >= swa_period_samples and not in_between_lookaheads:
                         train_state["swa_sample_accum"] = 0
-                        logging.info("Accumulating SWA")
+                        logging.info("Accumulating SWA & Replacing raw")
                         swa_model.update_parameters(raw_model)
+                        raw_model.load_state_dict(swa_model.module.state_dict())
 
             # for stat_name, stat_dict in stats.items():
             #     logging.info(f"{stat_name}:")
