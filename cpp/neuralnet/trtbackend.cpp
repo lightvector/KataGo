@@ -19,7 +19,7 @@ using namespace std;
 using namespace nvinfer1;
 
 // Define this to print out some of the intermediate values of the neural net
-//#define DEBUG_INTERMEDIATE_VALUES
+// #define DEBUG_INTERMEDIATE_VALUES
 
 static void checkCudaError(const cudaError_t status, const char* opName, const char* file, const char* func, int line) {
   if(status != cudaSuccess)
@@ -111,7 +111,8 @@ struct TRTModel {
 
   // TensorRT keeps only reference to weights before engine is built
   const LoadedModel* rawModel;
-  vector<unique_ptr<float[]>> extraWeights;
+  vector<unique_ptr<float[]>> rawWeights;
+  unordered_map<string, Weights> namedWeights;
 
   int modelVersion;
   uint8_t tuneHash[32];
@@ -326,64 +327,88 @@ struct ModelParser {
       maskWidthLayer->setName("InputMask/width");
       maskWidthLayer->setPrecision(DataType::kFLOAT);
 
-      auto maskScaleWeightsShift = make_unique<float[]>(1);
-      auto maskScaleWeightsScale = make_unique<float[]>(1);
-      maskScaleWeightsShift[0] = -1.4f;
-      maskScaleWeightsScale[0] = 0.1f;
+      auto maskScaleRawWeightsShift = make_unique<float[]>(1);
+      auto maskScaleRawWeightsScale = make_unique<float[]>(1);
+      Weights maskScaleNamedWeightsShift = {DataType::kFLOAT, maskScaleRawWeightsShift.get(), 1};
+      Weights maskScaleNamedWeightsScale = {DataType::kFLOAT, maskScaleRawWeightsScale.get(), 1};
+      maskScaleRawWeightsShift[0] = -1.4f;
+      maskScaleRawWeightsScale[0] = 0.1f;
       maskScaleLayer = network->addScale(
         *maskWidthLayer->getOutput(0),
         ScaleMode::kUNIFORM,
-        {DataType::kFLOAT, maskScaleWeightsShift.get(), 1},
-        {DataType::kFLOAT, maskScaleWeightsScale.get(), 1},
+        maskScaleNamedWeightsShift,
+        maskScaleNamedWeightsScale,
         {DataType::kFLOAT, nullptr, 0});
       maskScaleLayer->setName("InputMask/scale");
       maskScaleLayer->setPrecision(DataType::kFLOAT);
-      model->extraWeights.push_back(move(maskScaleWeightsShift));
-      model->extraWeights.push_back(move(maskScaleWeightsScale));
+      network->setWeightsName(maskScaleNamedWeightsShift, "InputMask/scale/shift");
+      network->setWeightsName(maskScaleNamedWeightsScale, "InputMask/scale/scale");
+      model->rawWeights.push_back(move(maskScaleRawWeightsShift));
+      model->rawWeights.push_back(move(maskScaleRawWeightsScale));
+      model->namedWeights["InputMask/scale/shift"] = maskScaleNamedWeightsShift;
+      model->namedWeights["InputMask/scale/scale"] = maskScaleNamedWeightsScale;
 
-      auto maskCenterSquareWeightsShift = make_unique<float[]>(1);
-      auto maskCenterSquareWeightsPower = make_unique<float[]>(1);
-      maskCenterSquareWeightsShift[0] = -14.0f;
-      maskCenterSquareWeightsPower[0] = 2.0f;
+      auto maskCenterSquareRawWeightsShift = make_unique<float[]>(1);
+      auto maskCenterSquareRawWeightsPower = make_unique<float[]>(1);
+      Weights maskCenterSquareNamedWeightsShift = {DataType::kFLOAT, maskCenterSquareRawWeightsShift.get(), 1};
+      Weights maskCenterSquareNamedWeightsPower = {DataType::kFLOAT, maskCenterSquareRawWeightsPower.get(), 1};
+      maskCenterSquareRawWeightsShift[0] = -14.0f;
+      maskCenterSquareRawWeightsPower[0] = 2.0f;
       auto maskCenterSquareLayer = network->addScale(
         *maskWidthLayer->getOutput(0),
         ScaleMode::kUNIFORM,
-        {DataType::kFLOAT, maskCenterSquareWeightsShift.get(), 1},
+        maskCenterSquareNamedWeightsShift,
         {DataType::kFLOAT, nullptr, 0},
-        {DataType::kFLOAT, maskCenterSquareWeightsPower.get(), 1});
+        maskCenterSquareNamedWeightsPower);
       maskCenterSquareLayer->setName("InputMask/centersquare");
       maskCenterSquareLayer->setPrecision(DataType::kFLOAT);
-      model->extraWeights.push_back(move(maskCenterSquareWeightsShift));
-      model->extraWeights.push_back(move(maskCenterSquareWeightsPower));
+      network->setWeightsName(maskCenterSquareNamedWeightsShift, "InputMask/centersquare/shift");
+      network->setWeightsName(maskCenterSquareNamedWeightsPower, "InputMask/centersquare/power");
+      model->rawWeights.push_back(move(maskCenterSquareRawWeightsShift));
+      model->rawWeights.push_back(move(maskCenterSquareRawWeightsPower));
+      model->namedWeights["InputMask/centersquare/shift"] = maskCenterSquareNamedWeightsShift;
+      model->namedWeights["InputMask/centersquare/power"] = maskCenterSquareNamedWeightsPower;
 
-      auto maskQuadWeightsShift = make_unique<float[]>(1);
-      auto maskQuadWeightsScale = make_unique<float[]>(1);
-      maskQuadWeightsShift[0] = -0.1f;
-      maskQuadWeightsScale[0] = 0.01f;
+      auto maskQuadRawWeightsShift = make_unique<float[]>(1);
+      auto maskQuadRawWeightsScale = make_unique<float[]>(1);
+      Weights maskQuadNamedWeightsShift = {DataType::kFLOAT, maskQuadRawWeightsShift.get(), 1};
+      Weights maskQuadNamedWeightsScale = {DataType::kFLOAT, maskQuadRawWeightsScale.get(), 1};
+      maskQuadRawWeightsShift[0] = -0.1f;
+      maskQuadRawWeightsScale[0] = 0.01f;
       maskQuadLayer = network->addScale(
         *maskCenterSquareLayer->getOutput(0),
         ScaleMode::kUNIFORM,
-        {DataType::kFLOAT, maskQuadWeightsShift.get(), 1},
-        {DataType::kFLOAT, maskQuadWeightsScale.get(), 1},
+        maskQuadNamedWeightsShift,
+        maskQuadNamedWeightsScale,
         {DataType::kFLOAT, nullptr, 0});
       maskQuadLayer->setName("InputMask/quad");
       maskQuadLayer->setPrecision(DataType::kFLOAT);
-      model->extraWeights.push_back(move(maskQuadWeightsShift));
-      model->extraWeights.push_back(move(maskQuadWeightsScale));
+      network->setWeightsName(maskQuadNamedWeightsShift, "InputMask/quad/shift");
+      network->setWeightsName(maskQuadNamedWeightsScale, "InputMask/quad/scale");
+      model->rawWeights.push_back(move(maskQuadRawWeightsShift));
+      model->rawWeights.push_back(move(maskQuadRawWeightsScale));
+      model->namedWeights["InputMask/quad/shift"] = maskQuadNamedWeightsShift;
+      model->namedWeights["InputMask/quad/scale"] = maskQuadNamedWeightsScale;
     } else {
       float maskWidth = sqrtf(nnXLen * nnYLen);
 
-      auto maskScaleLayerWeights = make_unique<float[]>(1);
-      maskScaleLayerWeights[0] = maskWidth * 0.1f - 1.4f;
-      maskScaleLayer = network->addConstant({4, {1, 1, 1, 1}}, {DataType::kFLOAT, maskScaleLayerWeights.get(), 1});
+      auto maskScaleLayerRawWeights = make_unique<float[]>(1);
+      Weights maskScaleLayerNamedWeights = {DataType::kFLOAT, maskScaleLayerRawWeights.get(), 1};
+      maskScaleLayerRawWeights[0] = maskWidth * 0.1f - 1.4f;
+      maskScaleLayer = network->addConstant({4, {1, 1, 1, 1}}, maskScaleLayerNamedWeights);
       maskScaleLayer->setName("InputMask/scale");
-      model->extraWeights.push_back(move(maskScaleLayerWeights));
+      network->setWeightsName(maskScaleLayerNamedWeights, "InputMask/scale");
+      model->rawWeights.push_back(move(maskScaleLayerRawWeights));
+      model->namedWeights["InputMask/scale"] = maskScaleLayerNamedWeights;
 
-      auto maskQuadLayerWeights = make_unique<float[]>(1);
-      maskQuadLayerWeights[0] = (maskWidth - 14.0f) * (maskWidth - 14.0f) * 0.01f - 0.1f;
-      maskQuadLayer = network->addConstant({4, {1, 1, 1, 1}}, {DataType::kFLOAT, maskQuadLayerWeights.get(), 1});
+      auto maskQuadLayerRawWeights = make_unique<float[]>(1);
+      Weights maskQuadLayerNamedWeights = {DataType::kFLOAT, maskQuadLayerRawWeights.get(), 1};
+      maskQuadLayerRawWeights[0] = (maskWidth - 14.0f) * (maskWidth - 14.0f) * 0.01f - 0.1f;
+      maskQuadLayer = network->addConstant({4, {1, 1, 1, 1}}, maskQuadLayerNamedWeights);
       maskQuadLayer->setName("InputMask/quad");
-      model->extraWeights.push_back(move(maskQuadLayerWeights));
+      network->setWeightsName(maskQuadLayerNamedWeights, "InputMask/quad");
+      model->rawWeights.push_back(move(maskQuadLayerRawWeights));
+      model->namedWeights["InputMask/quad"] = maskQuadLayerNamedWeights;
     }
   }
 
@@ -683,28 +708,29 @@ struct ModelParser {
     assert(input->getDimensions().d[1] == numInChannels);
 
     // Transpose from model's CK to TensorRT's KC
-    auto transposedWeights = make_unique<float[]>(desc->weights.size());
+    auto layerRawWeights = make_unique<float[]>(desc->weights.size());
     for(int ic = 0; ic < numInChannels; ic++) {
       for(int oc = 0; oc < numOutChannels; oc++) {
-        transposedWeights[oc * numInChannels + ic] = desc->weights[ic * numOutChannels + oc];
+        layerRawWeights[oc * numInChannels + ic] = desc->weights[ic * numOutChannels + oc];
       }
     }
+
+    Weights layerNamedWeights = {DataType::kFLOAT, layerRawWeights.get(), static_cast<int64_t>(desc->weights.size())};
 
     // For convenience, both I/O tensors have 3 dimentions (in addition to batch), so that
     // matmul is mathmatically equivalent to a 2D convolution of 1x1 features and 1x1 kernels.
     auto matMulLayer = model->network->addConvolutionNd(
-      *input,
-      desc->outChannels,
-      {2, {1, 1}},
-      {DataType::kFLOAT, transposedWeights.get(), static_cast<int64_t>(desc->weights.size())},
-      {DataType::kFLOAT, nullptr, 0});
+      *input, desc->outChannels, {2, {1, 1}}, layerNamedWeights, {DataType::kFLOAT, nullptr, 0});
     matMulLayer->setName(desc->name.c_str());
 
     if(forceFP32) {
       matMulLayer->setPrecision(DataType::kFLOAT);
     }
 
-    model->extraWeights.push_back(move(transposedWeights));
+    model->network->setWeightsName(layerNamedWeights, desc->name.c_str());
+
+    model->rawWeights.push_back(move(layerRawWeights));
+    model->namedWeights[desc->name] = layerNamedWeights;
 
     return matMulLayer;
   }
@@ -717,17 +743,19 @@ struct ModelParser {
     assert(desc->weights.size() == numChannels);
     assert(input->getDimensions().d[1] == numChannels);
 
+    Weights layerNamedWeights = {DataType::kFLOAT, desc->weights.data(), static_cast<int64_t>(numChannels)};
+
     auto matBiasLayer = model->network->addScale(
-      *input,
-      ScaleMode::kCHANNEL,
-      {DataType::kFLOAT, desc->weights.data(), static_cast<int64_t>(numChannels)},
-      {DataType::kFLOAT, nullptr, 0},
-      {DataType::kFLOAT, nullptr, 0});
+      *input, ScaleMode::kCHANNEL, layerNamedWeights, {DataType::kFLOAT, nullptr, 0}, {DataType::kFLOAT, nullptr, 0});
     matBiasLayer->setName(desc->name.c_str());
 
     if(forceFP32) {
       matBiasLayer->setPrecision(DataType::kFLOAT);
     }
+
+    model->network->setWeightsName(layerNamedWeights, desc->name.c_str());
+
+    model->namedWeights[desc->name] = layerNamedWeights;
 
     return matBiasLayer;
   }
@@ -753,12 +781,10 @@ struct ModelParser {
     assert(desc->weights.size() == convYSize * convXSize * numInChannels * numOutChannels);
     assert(input->getDimensions().d[1] == numInChannels);
 
+    Weights layerNamedWeights = {DataType::kFLOAT, desc->weights.data(), static_cast<int64_t>(desc->weights.size())};
+
     auto convLayer = model->network->addConvolutionNd(
-      *input,
-      desc->outChannels,
-      {2, {convYSize, convXSize}},
-      {DataType::kFLOAT, desc->weights.data(), static_cast<int64_t>(desc->weights.size())},
-      {DataType::kFLOAT, nullptr, 0});
+      *input, desc->outChannels, {2, {convYSize, convXSize}}, layerNamedWeights, {DataType::kFLOAT, nullptr, 0});
     convLayer->setDilationNd({2, {dilationY, dilationX}});
     convLayer->setPaddingMode(PaddingMode::kSAME_UPPER);
     convLayer->setName(desc->name.c_str());
@@ -766,6 +792,10 @@ struct ModelParser {
     if(forceFP32) {
       convLayer->setPrecision(DataType::kFLOAT);
     }
+
+    model->network->setWeightsName(layerNamedWeights, desc->name.c_str());
+
+    model->namedWeights[desc->name] = layerNamedWeights;
 
     return convLayer;
   }
@@ -782,27 +812,34 @@ struct ModelParser {
     assert(desc->bias.size() == numChannels);
     assert(input->getDimensions().d[1] == numChannels);
 
-    auto mergedScale = make_unique<float[]>(numChannels);
-    auto mergedBias = make_unique<float[]>(numChannels);
+    auto layerRawWeightsBias = make_unique<float[]>(numChannels);
+    auto layerRawWeightsScale = make_unique<float[]>(numChannels);
+    Weights layerNamedWeightsBias = {DataType::kFLOAT, layerRawWeightsBias.get(), static_cast<int64_t>(numChannels)};
+    Weights layerNamedWeightsScale = {DataType::kFLOAT, layerRawWeightsScale.get(), static_cast<int64_t>(numChannels)};
+
     for(int i = 0; i < numChannels; i++) {
-      mergedScale[i] = desc->scale[i] / sqrtf(desc->variance[i] + epsilon);
-      mergedBias[i] = desc->bias[i] - mergedScale[i] * desc->mean[i];
+      layerRawWeightsScale[i] = desc->scale[i] / sqrtf(desc->variance[i] + epsilon);
+      layerRawWeightsBias[i] = desc->bias[i] - layerRawWeightsScale[i] * desc->mean[i];
     }
 
     auto bnLayer = model->network->addScale(
-      *input,
-      ScaleMode::kCHANNEL,
-      {DataType::kFLOAT, mergedBias.get(), static_cast<int64_t>(numChannels)},
-      {DataType::kFLOAT, mergedScale.get(), static_cast<int64_t>(numChannels)},
-      {DataType::kFLOAT, nullptr, 0});
+      *input, ScaleMode::kCHANNEL, layerNamedWeightsBias, layerNamedWeightsScale, {DataType::kFLOAT, nullptr, 0});
     bnLayer->setName(desc->name.c_str());
+
+    auto layerWeightsBiasName = desc->name + "/bias";
+    auto layerWeightsScaleName = desc->name + "/scale";
 
     if(forceFP32) {
       bnLayer->setPrecision(DataType::kFLOAT);
     }
 
-    model->extraWeights.push_back(move(mergedScale));
-    model->extraWeights.push_back(move(mergedBias));
+    model->network->setWeightsName(layerNamedWeightsBias, layerWeightsBiasName.c_str());
+    model->network->setWeightsName(layerNamedWeightsScale, layerWeightsScaleName.c_str());
+
+    model->rawWeights.push_back(move(layerRawWeightsBias));
+    model->rawWeights.push_back(move(layerRawWeightsScale));
+    model->namedWeights[layerWeightsBiasName] = layerNamedWeightsBias;
+    model->namedWeights[layerWeightsScaleName] = layerNamedWeightsScale;
 
     return bnLayer;
   }
@@ -878,17 +915,20 @@ struct ModelParser {
     } else if(!model->requireExactNNLen) {
       // All activation functions we use right now are always greater than -1.0, and map 0 -> 0.
       // So off-board areas will equal 0, and then this max is mask-safe if we assign -1.0 to off-board areas.
-      auto gpoolMaskShiftWeights = make_unique<float[]>(1);
-      gpoolMaskShiftWeights[0] = -1.0f;
+      auto gpoolMaskShiftRawWeights = make_unique<float[]>(1);
+      Weights gpoolMaskShiftNamedWeights = {DataType::kFLOAT, gpoolMaskShiftRawWeights.get(), 1};
+      gpoolMaskShiftRawWeights[0] = -1.0f;
       gpoolMaskShiftLayer = network->addScale(
         *inputMask,
         ScaleMode::kUNIFORM,
-        {DataType::kFLOAT, gpoolMaskShiftWeights.get(), 1},
+        gpoolMaskShiftNamedWeights,
         {DataType::kFLOAT, nullptr, 0},
         {DataType::kFLOAT, nullptr, 0});
       auto gpoolMaskShiftLayerName = name + "/gpmaskshift";
       gpoolMaskShiftLayer->setName(gpoolMaskShiftLayerName.c_str());
-      model->extraWeights.push_back(move(gpoolMaskShiftWeights));
+      network->setWeightsName(gpoolMaskShiftNamedWeights, gpoolMaskShiftLayerName.c_str());
+      model->rawWeights.push_back(move(gpoolMaskShiftRawWeights));
+      model->namedWeights[gpoolMaskShiftLayerName] = gpoolMaskShiftNamedWeights;
       gpoolMaskAddLayer = network->addElementWise(
         *inputLayer->getOutput(0), *gpoolMaskShiftLayer->getOutput(0), ElementWiseOperation::kSUM);
       auto gpoolMaskAddLayerName = name + "/gpmaskadd";
@@ -948,12 +988,7 @@ struct ModelParser {
   }
 
   ILayer* applyCastLayer(ILayer* inputLayer, DataType dataType) {
-#if NV_TENSORRT_MAJOR == 8 && NV_TENSORRT_MINOR == 5
-    auto castLayer = model->network->addIdentity(*inputLayer->getOutput(0));
-    castLayer->setOutputType(0, dataType);
-#else
     auto castLayer = model->network->addCast(*inputLayer->getOutput(0), dataType);
-#endif
     auto castLayerName = string(inputLayer->getName()) + "/cast";
     castLayer->setName(castLayerName.c_str());
     return castLayer;
@@ -1117,8 +1152,12 @@ struct ComputeHandle {
     }
     config->setFlag(BuilderFlag::kPREFER_PRECISION_CONSTRAINTS);
 
-    auto network = unique_ptr<INetworkDefinition>(
-      builder->createNetworkV2(1U << static_cast<int>(NetworkDefinitionCreationFlag::kEXPLICIT_BATCH)));
+#ifdef CACHE_TENSORRT_PLAN
+    config->setFlag(BuilderFlag::kSTRIP_PLAN);
+    config->setFlag(BuilderFlag::kREFIT_IDENTICAL);
+#endif
+
+    auto network = unique_ptr<INetworkDefinition>(builder->createNetworkV2(0));
     if(!network) {
       throw StringError("TensorRT backend: failed to create network definition");
     }
@@ -1132,22 +1171,11 @@ struct ComputeHandle {
     debugOutputs = model->debugOutputs;
     config->addOptimizationProfile(profile);
 
-#if NV_TENSORRT_MAJOR == 8 && NV_TENSORRT_MINOR == 5
-    // This is to avoid external tactic sources and tactics that have shape switching overhead
-    if(prop->major < 8) {
-      config->setTacticSources(
-        1U << static_cast<uint32_t>(TacticSource::kJIT_CONVOLUTIONS) |
-        1U << static_cast<uint32_t>(TacticSource::kEDGE_MASK_CONVOLUTIONS));
-    } else {
-      config->setTacticSources(1U << static_cast<uint32_t>(TacticSource::kJIT_CONVOLUTIONS));
-    }
-#else
     if(prop->major >= 8) {
       // This is to avoid tactics that have shape switching overhead
       config->setTacticSources(1U << static_cast<uint32_t>(TacticSource::kJIT_CONVOLUTIONS));
       config->setBuilderOptimizationLevel(2);
     }
-#endif
 
     // So that there are no concurrent kernel executions probably from other parts of code while profiling
     // See CUDA Runtime API document for more details related to NULL stream and synchronization behaviors
@@ -1327,6 +1355,22 @@ struct ComputeHandle {
     if(!engine) {
       throw StringError("TensorRT backend: failed to create cuda engine");
     }
+
+#ifdef CACHE_TENSORRT_PLAN
+    {
+      auto refitter = unique_ptr<IRefitter>(createInferRefitter(*engine, trtLogger));
+      auto numWeights = refitter->getAllWeights(0, nullptr);
+      std::vector<const char*> weightsNames(numWeights);
+      refitter->getAllWeights(numWeights, weightsNames.data());
+      for(int32_t i = 0; i < numWeights; i++) {
+        refitter->setNamedWeights(weightsNames[i], model->namedWeights[weightsNames[i]]);
+      }
+      if(!refitter->refitCudaEngineAsync(cudaStreamPerThread)) {
+        throw StringError("TensorRT backend: failed to refit cuda engine");
+      }
+    }
+#endif
+
     exec.reset(engine->createExecutionContext());
     if(!exec) {
       throw StringError("TensorRT backend: failed to create execution context");
