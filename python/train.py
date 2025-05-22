@@ -1307,9 +1307,9 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
                     # Only snap SWA when lookahead slow params are in sync.
                     if train_state["swa_sample_accum"] >= swa_period_samples and not in_between_lookaheads:
                         train_state["swa_sample_accum"] = 0
-                        logging.info("Accumulating SWA & Replacing raw")
+                        logging.info("Accumulating SWA")
                         swa_model.update_parameters(raw_model)
-                        raw_model.load_state_dict(swa_model.module.state_dict())
+                        # raw_model.load_state_dict(swa_model.module.state_dict()) & Replacing raw
 
             # for stat_name, stat_dict in stats.items():
             #     logging.info(f"{stat_name}:")
@@ -1341,6 +1341,11 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
                         else:
                             # update_ratio
                             logging.info(f"{key} {stat_name}: \nmean={mean}, \nvar={var}, \ndata length: {count}")
+            
+            # # Update SWA & raw model when sub-epoch ends
+            # logging.info("Accumulating SWA & Replacing raw")
+            # swa_model.update_parameters(raw_model)
+            # raw_model.load_state_dict(swa_model.module.state_dict())
 
             logging.info("Finished training subepoch!")
         
