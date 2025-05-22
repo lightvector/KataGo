@@ -329,67 +329,68 @@ def combine_ratio_data(old_data, new_data):
         old_length = old_data.get('data_lengths', {}).get(f"abs_{key}", 0)
         new_length = new_data['data_lengths'].get(f"abs_{key}", 0)
         
-        if key in new_data['abs_means'] and key in old_data.get('abs_means', {}) and old_length > 0 and new_length > 0:
-            logging.info(f"Combining data for {key}: old length {old_length}, new length {new_length}")
-            # 合并旧数据和新数据
-            total_length = old_length + new_length
-            weight_old = old_length / total_length
-            weight_new = new_length / total_length
+        # if key in new_data['abs_means'] and key in old_data.get('abs_means', {}) and old_length > 0 and new_length > 0:
+        #     logging.info(f"Combining data for {key}: old length {old_length}, new length {new_length}")
+        #     # 合并旧数据和新数据
+        #     total_length = old_length + new_length
+        #     weight_old = old_length / total_length
+        #     weight_new = new_length / total_length
             
-            combined_data['abs_means'][key] = (
-                old_data['abs_means'][key] * weight_old + 
-                new_data['abs_means'][key] * weight_new
-                )
-            combined_data['abs_vars'][key] = (
-                old_data['abs_vars'][key] * weight_old + 
-                new_data['abs_vars'][key] * weight_new + 
-                weight_old * weight_new * (
-                    old_data['abs_means'][key] - 
-                    new_data['abs_means'][key]
-                    ) ** 2
-                )
+        #     combined_data['abs_means'][key] = (
+        #         old_data['abs_means'][key] * weight_old + 
+        #         new_data['abs_means'][key] * weight_new
+        #         )
+        #     combined_data['abs_vars'][key] = (
+        #         old_data['abs_vars'][key] * weight_old + 
+        #         new_data['abs_vars'][key] * weight_new + 
+        #         weight_old * weight_new * (
+        #             old_data['abs_means'][key] - 
+        #             new_data['abs_means'][key]
+        #             ) ** 2
+        #         )
             
-            if combined_data['abs_means'][key] == old_data['abs_means'][key] and combined_data['abs_vars'][key] == old_data['abs_vars'][key]:
-                logging.info(f"Abs data for {key} unchanged, keeping old data")
-                combined_data['data_lengths'][f"abs_{key}"] = old_length
-                combined_data['skewness'][key] = old_data['skewness'][key]
-                combined_data['kurtosis'][key] = old_data['kurtosis'][key]
-                continue
+        #     if combined_data['abs_means'][key] == old_data['abs_means'][key] and combined_data['abs_vars'][key] == old_data['abs_vars'][key]:
+        #         logging.info(f"Abs data for {key} unchanged, keeping old data")
+        #         combined_data['data_lengths'][f"abs_{key}"] = old_length
+        #         combined_data['skewness'][key] = old_data['skewness'][key]
+        #         combined_data['kurtosis'][key] = old_data['kurtosis'][key]
+        #         continue
 
-            combined_data['data_lengths'][f"abs_{key}"] = total_length
+        #     combined_data['data_lengths'][f"abs_{key}"] = total_length
             
-            # 处理偏度和峰度
-            old_third_moment = old_data['skewness'][key] * (old_data['abs_vars'][key] ** 1.5)
-            new_third_moment = new_data['skewness'][key] * (new_data['abs_vars'][key] ** 1.5)
-            delta = new_data['abs_means'][key] - old_data['abs_means'][key]
-            combined_third_moment = (
-                weight_old * old_third_moment + 
-                weight_new * new_third_moment +
-                3 * weight_old * weight_new * delta * (
-                    weight_new * old_data['abs_vars'][key] - 
-                    weight_old * new_data['abs_vars'][key]
-                ) +
-                weight_old * weight_new * (weight_old - weight_new) * (delta ** 3)
-            )
-            combined_data['skewness'][key] = combined_third_moment / (combined_data['abs_vars'][key] ** 1.5)
+        #     # 处理偏度和峰度
+        #     old_third_moment = old_data['skewness'][key] * (old_data['abs_vars'][key] ** 1.5)
+        #     new_third_moment = new_data['skewness'][key] * (new_data['abs_vars'][key] ** 1.5)
+        #     delta = new_data['abs_means'][key] - old_data['abs_means'][key]
+        #     combined_third_moment = (
+        #         weight_old * old_third_moment + 
+        #         weight_new * new_third_moment +
+        #         3 * weight_old * weight_new * delta * (
+        #             weight_new * old_data['abs_vars'][key] - 
+        #             weight_old * new_data['abs_vars'][key]
+        #         ) +
+        #         weight_old * weight_new * (weight_old - weight_new) * (delta ** 3)
+        #     )
+        #     combined_data['skewness'][key] = combined_third_moment / (combined_data['abs_vars'][key] ** 1.5)
         
-            old_fourth_moment = old_data['kurtosis'][key] * (old_data['abs_vars'][key] ** 2)
-            new_fourth_moment = new_data['kurtosis'][key] * (new_data['abs_vars'][key] ** 2)
-            delta = new_data['abs_means'][key] - old_data['abs_means'][key]
-            combined_fourth_moment = (
-                weight_old * old_fourth_moment + 
-                weight_new * new_fourth_moment +
-                6 * weight_old * weight_new * (
-                    weight_new * old_data['abs_vars'][key] - 
-                    weight_old * new_data['abs_vars'][key]
-                ) * (delta ** 2) +
-                4 * weight_old * weight_new * (weight_new - weight_old) * (delta ** 3) +
-                weight_old * weight_new * (weight_old ** 2 + weight_new ** 2) * (delta ** 4)
-            )
-            combined_data['kurtosis'][key] = combined_fourth_moment / (combined_data['abs_vars'][key] ** 2)
-        elif key in new_data['abs_means']:
+        #     old_fourth_moment = old_data['kurtosis'][key] * (old_data['abs_vars'][key] ** 2)
+        #     new_fourth_moment = new_data['kurtosis'][key] * (new_data['abs_vars'][key] ** 2)
+        #     delta = new_data['abs_means'][key] - old_data['abs_means'][key]
+        #     combined_fourth_moment = (
+        #         weight_old * old_fourth_moment + 
+        #         weight_new * new_fourth_moment +
+        #         6 * weight_old * weight_new * (
+        #             weight_new * old_data['abs_vars'][key] - 
+        #             weight_old * new_data['abs_vars'][key]
+        #         ) * (delta ** 2) +
+        #         4 * weight_old * weight_new * (weight_new - weight_old) * (delta ** 3) +
+        #         weight_old * weight_new * (weight_old ** 2 + weight_new ** 2) * (delta ** 4)
+        #     )
+        #     combined_data['kurtosis'][key] = combined_fourth_moment / (combined_data['abs_vars'][key] ** 2)
+        # el
+        if key in new_data['abs_means']:
             logging.info(f"New data for {key}: length {new_length}")
-            # 仅有新数据
+            # 若有新数据, 则使用新数据
             combined_data['abs_means'][key] = new_data['abs_means'][key]
             combined_data['abs_vars'][key] = new_data['abs_vars'][key]
             combined_data['data_lengths'][f"abs_{key}"] = new_length
@@ -409,31 +410,32 @@ def combine_ratio_data(old_data, new_data):
         old_length = old_data.get('data_lengths', {}).get(f"update_{key}", 0)
         new_length = new_data['data_lengths'].get(f"update_{key}", 0)
         
-        if key in new_data['update_means'] and key in old_data.get('update_means', {}) and old_length > 0 and new_length > 0:
-            logging.info(f"Combining data for {key}: old length {old_length}, new length {new_length}")
-            total_length = old_length + new_length
-            weight_old = old_length / total_length
-            weight_new = new_length / total_length
+        # if key in new_data['update_means'] and key in old_data.get('update_means', {}) and old_length > 0 and new_length > 0:
+        #     logging.info(f"Combining data for {key}: old length {old_length}, new length {new_length}")
+        #     total_length = old_length + new_length
+        #     weight_old = old_length / total_length
+        #     weight_new = new_length / total_length
             
-            combined_data['update_means'][key] = (
-                old_data['update_means'][key] * weight_old + 
-                new_data['update_means'][key] * weight_new
-                )
-            combined_data['update_vars'][key] = (
-                old_data['update_vars'][key] * weight_old + 
-                new_data['update_vars'][key] * weight_new + 
-                weight_old * weight_new * (
-                    old_data['update_means'][key] - 
-                    new_data['update_means'][key]
-                    ) ** 2)
+        #     combined_data['update_means'][key] = (
+        #         old_data['update_means'][key] * weight_old + 
+        #         new_data['update_means'][key] * weight_new
+        #         )
+        #     combined_data['update_vars'][key] = (
+        #         old_data['update_vars'][key] * weight_old + 
+        #         new_data['update_vars'][key] * weight_new + 
+        #         weight_old * weight_new * (
+        #             old_data['update_means'][key] - 
+        #             new_data['update_means'][key]
+        #             ) ** 2)
             
-            if combined_data['update_means'][key] == old_data['update_means'][key] and combined_data['update_vars'][key] == old_data['update_vars'][key]:
-                logging.info(f"Relative data for {key} unchanged, keeping old data")
-                combined_data['data_lengths'][f"update_{key}"] = old_length
-                continue
+        #     if combined_data['update_means'][key] == old_data['update_means'][key] and combined_data['update_vars'][key] == old_data['update_vars'][key]:
+        #         logging.info(f"Relative data for {key} unchanged, keeping old data")
+        #         combined_data['data_lengths'][f"update_{key}"] = old_length
+        #         continue
 
-            combined_data['data_lengths'][f"update_{key}"] = total_length
-        elif key in new_data['update_means']:
+        #     combined_data['data_lengths'][f"update_{key}"] = total_length
+        # el
+        if key in new_data['update_means']:
             logging.info(f"New data for {key}: length {new_length}")
             combined_data['update_means'][key] = new_data['update_means'][key]
             combined_data['update_vars'][key] = new_data['update_vars'][key]
@@ -533,7 +535,7 @@ def main():
     )
     # 检查点文件路径、保存路径及待导出路径
     train_path = os.path.join(args.base_dir, "train", args.training_name)
-    checkpoint_path = os.path.join(train_path, "checkpoint.ckpt") # '_' ************************************************************************
+    checkpoint_path = os.path.join(train_path, "checkpoint_T.ckpt") # '_' ************************************************************************
     export_dir = os.path.join(train_path, "noise")
     for_export_dir = os.path.join(args.base_dir, "torchmodels_toexport")
     if not os.path.exists(export_dir):
@@ -594,15 +596,18 @@ def main():
         iterations = args.iterations  # 迭代次数
         noise_scale = args.noise_scale  # 噪声缩放因子
 
+        noise_scale *= 2e-3
+
         update_interval = 500 if iterations > 1000 else iterations // 2
 
         for j in range(1, iterations + 1):
             if j == 1:
                 raw_backup = raw_model
                 raw_model.load_state_dict(swa_model.module.state_dict())
-                swa_model.update_parameters(raw_backup)
                 swa_backup = raw_model
-                logging.info(f"Backup SWA as raw & Accumulating SWA")
+                # raw_model = raw_backup
+                swa_model.update_parameters(raw_backup)
+                logging.info(f"Backup & Accumulating SWA")
 
             # 噪声生成循环
             for name, param in raw_model.named_parameters():
@@ -638,46 +643,30 @@ def main():
                     noise = generate_noise(param, group_name, noise_scale)
                     param.data.add_(noise)
 
-            if j % update_interval == 0:
-                # swa_backup_flag = False
+                    # mean = noise.mean().item()
+                    # std = noise.std().item()
+                    # logging.info(f"Noise added to {name}: mean={mean}, std={std}")
+
+            if update_interval and j % update_interval == 0:
                 swa_model.update_parameters(raw_model)
-                # swa_model.update_parameters(swa_backup)
                 raw_model.load_state_dict(swa_model.module.state_dict())
-                logging.info(f"Accumulating SWA & Replace raw")
-            
-            # if (j % (update_interval * 2) == 0 or j == iterations) and not swa_backup_flag:
-            #     swa_backup_flag = True
-            #     swa_model.update_parameters(swa_backup)
-            #     raw_model.load_state_dict(swa_model.module.state_dict())
-            #     logging.info(f"Restoring SWA & Replace raw")
+                logging.info(f"Accumulating SWA & Replacing raw")
 
             if j % 100 == 0:
                 logging.info(f"Iteration {j} completed")
         
         swa_model.update_parameters(swa_backup)
         raw_model.load_state_dict(swa_model.module.state_dict())
-        logging.info(f"Restoring SWA & Replace raw")
+        logging.info(f"Restoring SWA")
 
-    # 完成 raw_model 的加噪修饰后, 更新模型实例, 以正常保存 (save 函数调用 model 而非 raw_model); 参考 train.py 的 DataParallel 包装
     model = nn.DataParallel(raw_model)
-
-    # 更新优化器
+    
     optimizer = optim.Adam(
         model.parameters(),
         lr=1e-4,  # train.py 使用配置文件中的 lr, 这里使用默认值
         betas=(0.9, 0.999),  # train.py 默认值
         weight_decay=1e-4  # train.py 常用值
     )
-
-    # # 尝试加载输入 checkpoint 的优化器状态
-    # if 'optimizer' in state_dict:
-    #     try:
-    #         optimizer.load_state_dict(state_dict['optimizer'])
-    #         logging.info("Loaded optimizer state from checkpoint")
-    #     except Exception as e:
-    #         logging.warning(f"Could not load optimizer state: {e}, using default")
-    # else:
-    #     logging.warning("No optimizer state in checkpoint, using default")
 
     # 提取 train_state 和 metrics
     train_state = state_dict.get('train_state', {
@@ -722,7 +711,7 @@ def main():
     else:
         os.makedirs(export_model_dir, exist_ok=True)
         shutil.copy(os.path.join(save_path, "model.ckpt"), export_model_path)
-        logging.info(f"Copied model to {export_model_path}")
+        logging.info(f"Copied to {export_model_path}")
 
     logging.info(f"Added noise with scale {args.noise_scale} to the model")
     logging.info(f"Model name: {model_name}")
