@@ -535,7 +535,7 @@ def main():
     )
     # 检查点文件路径、保存路径及待导出路径
     train_path = os.path.join(args.base_dir, "train", args.training_name)
-    checkpoint_path = os.path.join(train_path, "checkpoint_T.ckpt") # '_' ************************************************************************
+    checkpoint_path = os.path.join(train_path, "checkpoint.ckpt") # '_' ************************************************************************
     export_dir = os.path.join(train_path, "noise")
     for_export_dir = os.path.join(args.base_dir, "torchmodels_toexport")
     if not os.path.exists(export_dir):
@@ -695,26 +695,33 @@ def main():
     export_model_path = os.path.join(export_model_dir, "model.ckpt")
 
     # 创建临时目录并保存模型
-    os.makedirs(save_path_tmp)
-    save(save_path_tmp, train_path, model, swa_model, optimizer, train_state, metrics, model_config)
-    time.sleep(5)  # 短暂等待以确保文件写入完成
-    if os.path.exists(save_path):
-        logging.info(f"Model already exists at {save_path}, skipping save")
-        os.remove(save_path_tmp)
-    else:
-        os.rename(save_path_tmp, save_path)
-    logging.info(f"Saved to {save_path}/model.ckpt, copying ...")
+    try:
+        os.makedirs(save_path_tmp)
+        save(save_path_tmp, train_path, model, swa_model, optimizer, train_state, metrics, model_config)
+        time.sleep(5)  # 短暂等待以确保文件写入完成
+        if os.path.exists(save_path):
+            logging.info(f"Model already exists at {save_path}, skipping save")
+            os.remove(save_path_tmp)
+        else:
+            os.rename(save_path_tmp, save_path)
+        logging.info(f"Saved to {save_path}/model.ckpt, copying ...")
 
-    # 复制到 for_export_dir
-    if os.path.exists(export_model_path):
-        logging.info(f"Model already exists at {export_model_path}, skipping copy")
-    else:
-        os.makedirs(export_model_dir, exist_ok=True)
-        shutil.copy(os.path.join(save_path, "model.ckpt"), export_model_path)
-        logging.info(f"Copied to {export_model_path}")
+        # 复制到 for_export_dir
+        if os.path.exists(export_model_path):
+            logging.info(f"Model already exists at {export_model_path}, skipping copy")
+        else:
+            os.makedirs(export_model_dir, exist_ok=True)
+            shutil.copy(os.path.join(save_path, "model.ckpt"), export_model_path)
+            logging.info(f"Copied to {export_model_path}")
 
-    logging.info(f"Added noise with scale {args.noise_scale} to the model")
-    logging.info(f"Model name: {model_name}")
+        logging.info(f"Added noise with scale {args.noise_scale} to the model")
+        logging.info(f"Model name: {model_name}")
+    except Exception as e:
+        logging.error(f"Error during saving: {e}")
+        traceback.print_exc()
+        if os.path.exists(save_path_tmp):
+            os.remove(save_path_tmp)
+            logging.info(f"Removed temporary file: {save_path_tmp}")
 
 if __name__ == '__main__':
     main()
