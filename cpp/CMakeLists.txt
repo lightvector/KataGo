@@ -492,17 +492,32 @@ endif()
 
 # add_compile_definitions(NDEBUG)
 
-if(MSVC)
-  message(STATUS "Setting up build for MSVC.")
+if (WIN32) # handles both x86 and x64
+  message(STATUS "Setting up build for Windows.")
   # Suppress min and max macros on windows
-  # Also define a few other things for windows
+  # Also define a few other things
   target_compile_definitions(katago PRIVATE NOMINMAX)
   target_compile_definitions(katago PRIVATE BYTE_ORDER=1234)
   target_compile_definitions(katago PRIVATE LITTLE_ENDIAN=1234)
   target_compile_definitions(katago PRIVATE BIG_ENDIAN=4321)
   # core/rand.cpp uses winsock for a gethostname
   target_link_libraries(katago ws2_32)
+  if (MINGW)
+    # It's needed for linking `PathRemoveFileSpecW` and probably other Windows API functions
+    target_link_libraries(katago shlwapi)
 
+    # For some reason MINGW doesn't define `HAVE_LONG_LONG` directive on his own unlike MSVC
+    # Define it because TCLAP library needs it. Actually it's part of standard and should be supported everywhere
+    include(CheckTypeSize)
+    check_type_size("long long" HAVE_LONG_LONG)
+    if(HAVE_LONG_LONG)
+      target_compile_definitions(katago PRIVATE HAVE_LONG_LONG)
+    endif()
+  endif()
+endif()
+
+if(MSVC)
+  message(STATUS "Setting up build for MSVC.")
   # Go ahead and suppress some MSVC warnings about sprintf and similar
   # things. They might be useful in some cases, but also are noisy.
   target_compile_definitions(katago PRIVATE _CRT_SECURE_NO_WARNINGS)
@@ -513,10 +528,8 @@ if(MSVC)
   endif()
 
   set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /STACK:8388608")
-endif()
-
-if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" OR CMAKE_CXX_COMPILER_ID STREQUAL "Clang" OR CMAKE_CXX_COMPILER_ID STREQUAL "AppleClang")
-  message(STATUS "Setting up build for GNU or Clang.")
+elseif(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" OR CMAKE_CXX_COMPILER_ID STREQUAL "Clang" OR CMAKE_CXX_COMPILER_ID STREQUAL "AppleClang")
+  message(STATUS "Setting up build for GNU, Clang or MinGW.")
   if(NOT (${CMAKE_SYSTEM_PROCESSOR} MATCHES "(arm|aarch32|aarch64)"))
     set(CMAKE_CXX_FLAGS  "${CMAKE_CXX_FLAGS} -mfpmath=sse")
   else()
