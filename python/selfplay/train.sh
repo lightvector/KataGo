@@ -74,7 +74,7 @@ fi
 # Find latest shuffle dir
 LATEST_DATA=$(ls -td1 "$BASEDIR"/shuffleddata/* | head -n 1)
 
-time python3 ./train.py \
+time python ./train.py \
      -traindir "$BASEDIR"/train/"$TRAININGNAME" \
      -datadir "$LATEST_DATA" \
      -exportdir "$BASEDIR"/"$EXPORT_SUBDIR" \
