@@ -91,7 +91,7 @@ class Metrics:
             dim=1,
         ) / (sum_sqrtvisits + 1.0)  # Add 1.0 to sum of sqrt visits so that we don't divide by 0 if we have no such data.
 
-        return 0.4 * global_weight * loss_qvalues_winloss, 0.0015 * global_weight * loss_qvalues_score
+        return 1.5 * global_weight * loss_qvalues_winloss, 0.0008 * global_weight * loss_qvalues_score
 
 
     def loss_value_samplewise(self, pred_logits, target_probs, weight, global_weight):
