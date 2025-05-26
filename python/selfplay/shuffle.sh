@@ -26,10 +26,8 @@ shift
 #------------------------------------------------------------------------------
 
 OUTDIR=$(date "+%Y%m%d-%H%M%S")
-OUTDIRTRAIN=$OUTDIR/train
-OUTDIRVAL=$OUTDIR/val
 
-mkdir -p "$BASEDIR"/shuffleddata/$OUTDIR
+mkdir -p "$BASEDIR"/shuffleddata/"$OUTDIR".tmp
 mkdir -p "$TMPDIR"/train
 mkdir -p "$TMPDIR"/val
 
@@ -42,7 +40,7 @@ then
            "$BASEDIR"/selfplay/ \
            -expand-window-per-row 0.4 \
            -taper-window-exponent 0.65 \
-           -out-dir "$BASEDIR"/shuffleddata/$OUTDIRTRAIN \
+           -out-dir "$BASEDIR"/shuffleddata/"$OUTDIR".tmp/train \
            -out-tmp-dir "$TMPDIR"/train \
            -approx-rows-per-out-file 70000 \
            -num-processes "$NTHREADS" \
@@ -51,7 +49,7 @@ then
            -only-include-md5-path-prop-ubound 1.00 \
            -output-npz \
            "$@" \
-           2>&1 | tee "$BASEDIR"/shuffleddata/$OUTDIR/outtrain.txt &
+           2>&1 | tee "$BASEDIR"/shuffleddata/"$OUTDIR".tmp/outtrain.txt &
 
       wait
   )
@@ -62,7 +60,7 @@ else
            "$BASEDIR"/selfplay/ \
            -expand-window-per-row 0.4 \
            -taper-window-exponent 0.65 \
-           -out-dir "$BASEDIR"/shuffleddata/$OUTDIRVAL \
+           -out-dir "$BASEDIR"/shuffleddata/"$OUTDIR".tmp/val \
            -out-tmp-dir "$TMPDIR"/val \
            -approx-rows-per-out-file 70000 \
            -num-processes "$NTHREADS" \
@@ -71,7 +69,7 @@ else
            -only-include-md5-path-prop-ubound 1.00 \
            -output-npz \
            "$@" \
-           2>&1 | tee "$BASEDIR"/shuffleddata/$OUTDIR/outval.txt &
+           2>&1 | tee "$BASEDIR"/shuffleddata/"$OUTDIR".tmp/outval.txt &
 
       wait
   )
@@ -80,7 +78,7 @@ else
            "$BASEDIR"/selfplay/ \
            -expand-window-per-row 0.4 \
            -taper-window-exponent 0.65 \
-           -out-dir "$BASEDIR"/shuffleddata/$OUTDIRTRAIN \
+           -out-dir "$BASEDIR"/shuffleddata/"$OUTDIR".tmp/train \
            -out-tmp-dir "$TMPDIR"/train \
            -approx-rows-per-out-file 70000 \
            -num-processes "$NTHREADS" \
@@ -89,7 +87,7 @@ else
            -only-include-md5-path-prop-ubound 0.95 \
            -output-npz \
            "$@" \
-           2>&1 | tee "$BASEDIR"/shuffleddata/$OUTDIR/outtrain.txt &
+           2>&1 | tee "$BASEDIR"/shuffleddata/"$OUTDIR".tmp/outtrain.txt &
 
       wait
   )
@@ -103,6 +101,8 @@ sleep 10
 # rm -f "$BASEDIR"/shuffleddata/current_tmp
 # ln -s $OUTDIR "$BASEDIR"/shuffleddata/current_tmp
 # mv -Tf "$BASEDIR"/shuffleddata/current_tmp "$BASEDIR"/shuffleddata/current
+
+mv "$BASEDIR"/shuffleddata/"$OUTDIR".tmp "$BASEDIR"/shuffleddata/"$OUTDIR"
 
 # CLEANUP ---------------------------------------------------------------
 
