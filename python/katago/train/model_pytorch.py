@@ -8,7 +8,7 @@ import packaging
 import packaging.version
 from typing import List, Dict, Optional, Set
 
-import modelconfigs
+from ..train import modelconfigs
 
 EXTRA_SCORE_DISTR_RADIUS = 60
 

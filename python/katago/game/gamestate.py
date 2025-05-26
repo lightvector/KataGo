@@ -4,12 +4,12 @@ import math
 
 import numpy as np
 
-from board import Board
-from features import Features
-from sgfmetadata import SGFMetadata
+from ..game.board import Board
+from ..game.features import Features
+from ..game.sgfmetadata import SGFMetadata
 
 if TYPE_CHECKING:
-    from model_pytorch import Model
+    from ..train.model_pytorch import Model
 
 class GameState:
     RULES_TT = {
@@ -103,7 +103,7 @@ class GameState:
 
     def get_model_outputs(self, model: "Model", sgfmeta: Optional[SGFMetadata] = None, extra_output_names: List[str] = []):
         import torch
-        from model_pytorch import Model, ExtraOutputs
+        from ..train.model_pytorch import Model, ExtraOutputs
         with torch.no_grad():
             model.eval()
             features = Features(model.config, model.pos_len)

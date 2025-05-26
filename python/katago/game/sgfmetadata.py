@@ -7,8 +7,8 @@ import datetime
 import math
 import numpy as np
 import random
-from board import Board
-import modelconfigs
+from ..game.board import Board
+from ..train import modelconfigs
 
 @dataclass
 class SGFMetadata:

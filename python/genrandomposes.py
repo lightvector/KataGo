@@ -14,7 +14,7 @@ import sgfmill
 import sgfmill.sgf
 import sgfmill.sgf_moves
 from query_analysis_engine_example import KataGo, sgfmill_to_str
-from board import Board
+from katago.game.board import Board
 
 def is_fair_enough_pos(board: Board, katago: KataGo, initial_player: int, score_rejection_pickiness: float) -> bool:
     query = {}

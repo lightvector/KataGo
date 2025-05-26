@@ -3,7 +3,7 @@ import sys
 import random
 import numpy as np
 
-from sgfmetadata import SGFMetadata
+from katago.game.sgfmetadata import SGFMetadata
 
 expected_keys = [
     "binaryInputNCHWPacked",

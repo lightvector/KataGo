@@ -30,13 +30,13 @@ from torch.nn.parallel import DistributedDataParallel
 from torch.optim.swa_utils import AveragedModel
 from torch.cuda.amp import GradScaler, autocast
 
-import modelconfigs
-from model_pytorch import Model, ExtraOutputs, MetadataEncoder
-from metrics_pytorch import Metrics
-from push_back_generator import PushBackGenerator
-import load_model
-import data_processing_pytorch
-from metrics_logging import accumulate_metrics, log_metrics, clear_metric_nonfinite
+from katago.train import modelconfigs
+from katago.train.model_pytorch import Model, ExtraOutputs, MetadataEncoder
+from katago.train.metrics_pytorch import Metrics
+from katago.utils.push_back_generator import PushBackGenerator
+from katago.train import load_model
+from katago.train import data_processing_pytorch
+from katago.train.metrics_logging import accumulate_metrics, log_metrics, clear_metric_nonfinite
 
 # HANDLE COMMAND AND ARGS -------------------------------------------------------------------
 
