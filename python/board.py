@@ -1441,3 +1441,40 @@ class Board:
                                 result[adj] = basicArea[adj]
                                 queue[queueTail] = adj
                                 queueTail += 1
+
+    def to_sgfpos_str(self):
+        out = ""
+        for y in range(self.y_size):
+            for x in range(self.x_size):
+                loc = self.loc(x,y)
+                if self.board[loc] == 1:
+                    out += "X"
+                elif self.board[loc] == 2:
+                    out += "O"
+                else:
+                    out += "."
+            out += "/"
+        return out
+
+    def num_stones(self):
+        num_stones = 0
+        for y in range(self.y_size):
+            for x in range(self.x_size):
+                loc = self.loc(x,y)
+                if self.board[loc] == 1:
+                    num_stones += 1
+                elif self.board[loc] == 2:
+                    num_stones += 1
+        return num_stones
+
+
+    def pla_to_char(self,pla):
+        return "EBW#"[pla]
+
+    def loc_to_str(self,loc):
+        colstr = 'ABCDEFGHJKLMNOPQRST'
+        if loc == Board.PASS_LOC:
+            return 'pass'
+        x = self.loc_x(loc)
+        y = self.loc_y(loc)
+        return '%c%d' % (colstr[x], self.y_size - y)
