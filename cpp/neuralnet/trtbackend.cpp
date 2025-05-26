@@ -145,7 +145,7 @@ struct ModelParser {
   ModelParser& operator=(const ModelParser&) = delete;
 
   // Bump this when between katago versions we want to forcibly drop old timing caches and plan caches.
-  static constexpr int tuneSalt = 5;
+  static constexpr int tuneSalt = 6;
 
   unique_ptr<TRTModel> build(
     unique_ptr<INetworkDefinition> net,
@@ -439,9 +439,10 @@ struct ModelParser {
       buildActivationLayer(trunkTipBatchNormLayer->getOutput(0), &desc->trunkTipActivation);
     auto trunkTipMaskLayer = applyMaskLayer(trunkTipActivationLayer);
 
-    markDebugOutput(trunkTipMaskLayer->getOutput(0), "Trunk tip");
+    auto trunkTipCastLayer = applyCastLayer(trunkTipMaskLayer, DataType::kFLOAT);
+    markDebugOutput(trunkTipCastLayer->getOutput(0), "Trunk tip");
 
-    return trunkTipMaskLayer;
+    return trunkTipCastLayer;
   }
 
   ILayer* buildResidualBlockStack(
@@ -475,11 +476,11 @@ struct ModelParser {
     auto& network = model->network;
     string name = desc->name;
 
-    auto p1ConvLayer = buildConvLayer(input, &desc->p1Conv);
-    auto g1ConvLayer = buildConvLayer(input, &desc->g1Conv);
-    auto g1BatchNormLayer = buildBatchNormLayer(g1ConvLayer->getOutput(0), &desc->g1BN);
-    auto g1ActivationLayer = buildActivationLayer(g1BatchNormLayer->getOutput(0), &desc->g1Activation);
-    auto g1MaskLayer = applyMaskLayer(g1ActivationLayer);
+    auto p1ConvLayer = buildConvLayer(input, &desc->p1Conv, true);
+    auto g1ConvLayer = buildConvLayer(input, &desc->g1Conv, true);
+    auto g1BatchNormLayer = buildBatchNormLayer(g1ConvLayer->getOutput(0), &desc->g1BN, true);
+    auto g1ActivationLayer = buildActivationLayer(g1BatchNormLayer->getOutput(0), &desc->g1Activation, true);
+    auto g1MaskLayer = applyMaskLayer(g1ActivationLayer, true);
     auto g1CastLayer = applyCastLayer(g1MaskLayer, DataType::kFLOAT);
     auto gpoolLayer = applyGPoolLayer(g1CastLayer, true);
     auto gpoolToBiasMulLayer = buildMatMulLayer(gpoolLayer->getOutput(0), &desc->gpoolToBiasMul, true);
@@ -539,10 +540,10 @@ struct ModelParser {
   void buildValueHead(ITensor* input, const ValueHeadDesc* desc) {
     auto& network = model->network;
 
-    auto v1ConvLayer = buildConvLayer(input, &desc->v1Conv);
-    auto v1BatchNormLayer = buildBatchNormLayer(v1ConvLayer->getOutput(0), &desc->v1BN);
-    auto v1ActivationLayer = buildActivationLayer(v1BatchNormLayer->getOutput(0), &desc->v1Activation);
-    auto v1MaskLayer = applyMaskLayer(v1ActivationLayer);
+    auto v1ConvLayer = buildConvLayer(input, &desc->v1Conv, true);
+    auto v1BatchNormLayer = buildBatchNormLayer(v1ConvLayer->getOutput(0), &desc->v1BN, true);
+    auto v1ActivationLayer = buildActivationLayer(v1BatchNormLayer->getOutput(0), &desc->v1Activation, true);
+    auto v1MaskLayer = applyMaskLayer(v1ActivationLayer, true);
     auto v1CastLayer = applyCastLayer(v1MaskLayer, DataType::kFLOAT);
 
     markDebugOutput(v1ConvLayer->getOutput(0), "v1");
@@ -565,7 +566,7 @@ struct ModelParser {
     assert(desc->vOwnershipConv.convXSize == 1);
     assert(desc->vOwnershipConv.convYSize == 1);
 
-    auto vOwnershipConvLayer = buildConvLayer(v1MaskLayer->getOutput(0), &desc->vOwnershipConv);
+    auto vOwnershipConvLayer = buildConvLayer(v1MaskLayer->getOutput(0), &desc->vOwnershipConv, true);
     auto vOwnershipCastLayer = applyCastLayer(vOwnershipConvLayer, DataType::kFLOAT);
 
     auto outputValue = v3BiasLayer->getOutput(0);
