@@ -1454,7 +1454,7 @@ class Board:
                 else:
                     out += "."
             out += "/"
-        return out
+        return out[:-1]
 
     def num_stones(self):
         num_stones = 0
