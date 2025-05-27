@@ -1390,7 +1390,6 @@ struct SGFMetadataEncoder {
 
 //----------------------------------------------------------------------------
 
-
 struct Trunk {
   const string name;
   const int modelVersion;
@@ -1558,6 +1557,7 @@ struct Trunk {
 
     //And now with the final BN port it from trunkScratch.buf to trunkBuf.
     trunkTipBN->apply(cudaHandles,batchSize,trunkScratch.buf,maskBuf,trunkBuf);
+
     #ifdef DEBUG_INTERMEDIATE_VALUES
     CudaUtils::debugPrint4D(string("Trunk tip"), trunkBuf, batchSize, trunkNumChannels, nnXLen, nnYLen, usingNHWC, usingFP16);
     #endif
@@ -1716,8 +1716,8 @@ struct PolicyHead {
     #ifdef DEBUG_INTERMEDIATE_VALUES
     CudaUtils::debugPrint4D(string("p1 pre-gpool-sum"), p1Out.buf, batchSize, p1Channels, nnXLen, nnYLen, usingNHWC, usingFP16);
     CudaUtils::debugPrint4D(string("g1 pre-gpool"), g1Out.buf, batchSize, g1Channels, nnXLen, nnYLen, usingNHWC, usingFP16);
-    CudaUtils::debugPrint2D(string("g1 pooled"), g1Concat.buf, batchSize, g1Channels*3, usingFP16);
-    CudaUtils::debugPrint2D(string("g1 biases"), g1Bias.buf, batchSize, p1Channels, usingFP16);
+    CudaUtils::debugPrint2D(string("g1 pooled"), g1Concat.buf, batchSize, g1Channels*3, false);
+    CudaUtils::debugPrint2D(string("g1 biases"), g1Bias.buf, batchSize, p1Channels, false);
     #endif
 
     float* p1OutBufA;
@@ -1752,9 +1752,9 @@ struct PolicyHead {
     }
 
     #ifdef DEBUG_INTERMEDIATE_VALUES
-    CudaUtils::debugPrint4D(string("p1 after-gpool-sum"), p1Out.buf, batchSize, p1Channels, nnXLen, nnYLen, usingNHWC, usingFP16);
-    CudaUtils::debugPrint2D(string("policypass"), policyPassBuf, batchSize, 1, usingFP16);
-    CudaUtils::debugPrint4D(string("policy"), policyBuf, batchSize, p2Channels, nnXLen, nnYLen, usingNHWC, usingFP16);
+    CudaUtils::debugPrint4D(string("p1 after-gpool-sum"), p1OutBufA, batchSize, p1Channels, nnXLen, nnYLen, usingNHWC, false);
+    CudaUtils::debugPrint2D(string("policypass"), policyPassBuf, batchSize, 1, false);
+    CudaUtils::debugPrint4D(string("policy"), policyBuf, batchSize, p2Channels, nnXLen, nnYLen, usingNHWC, false);
     #endif
 
   }
@@ -1898,8 +1898,8 @@ struct ValueHead {
 
     #ifdef DEBUG_INTERMEDIATE_VALUES
     CudaUtils::debugPrint4D(string("v1"), v1Out.buf, batchSize, v1Channels, nnXLen, nnYLen, usingNHWC, usingFP16);
-    CudaUtils::debugPrint2D(string("v1 pooled"), v1Mean.buf, batchSize, v1Channels, usingFP16);
-    CudaUtils::debugPrint2D(string("v2"), v2Out.buf, batchSize, v1Channels, usingFP16);
+    CudaUtils::debugPrint2D(string("v1 pooled"), v1Mean.buf, batchSize, v1Channels, false);
+    CudaUtils::debugPrint2D(string("v2"), v2Out.buf, batchSize, v1Channels, false);
     #endif
 
     if(!usingFP16) {
