@@ -731,8 +731,10 @@ struct BatchNormLayer {
       output->chip(c, 0) = (*mask == 1.0f).select(x.cwiseMax(0.0f), z);
     else if(activation == ACTIVATION_MISH)
       output->chip(c, 0) = (*mask == 1.0f).select(x * (x.cwiseMin(20.0f).exp().log1p() + (x.cwiseMax(20.0f) - 20.0f)).tanh(), z);
+    else if(activation == ACTIVATION_MISH_SCALE8)
+      testAssert(false); // Eigen does not use scaled mish activations due to no fp16
     else
-      assert(false);
+      testAssert(false);
     }
   }
 };
@@ -760,6 +762,10 @@ struct ActivationLayer {
       *output = input->cwiseMax(0.0f);
     else if(activation == ACTIVATION_MISH)
       *output = (*input) * ((input->cwiseMin(20.0f)).exp().log1p() + (input->cwiseMax(20.0f) - 20.0f)).tanh();
+    else if(activation == ACTIVATION_MISH_SCALE8)
+      testAssert(false); // Eigen does not use scaled mish activations due to no fp16
+    else
+      testAssert(false);
   }
   template <int N>
   void apply(const TensorMap<Tensor<SCALAR, N>>* input, TensorMap<Tensor<SCALAR, N>>* output) const {
@@ -769,6 +775,10 @@ struct ActivationLayer {
       *output = input->cwiseMax(0.0f);
     else if(activation == ACTIVATION_MISH)
       *output = (*input) * ((input->cwiseMin(20.0f)).exp().log1p() + (input->cwiseMax(20.0f) - 20.0f)).tanh();
+    else if(activation == ACTIVATION_MISH_SCALE8)
+      testAssert(false); // Eigen does not use scaled mish activations due to no fp16
+    else
+      testAssert(false);
   }
 };
 

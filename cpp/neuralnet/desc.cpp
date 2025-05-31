@@ -10,6 +10,8 @@
 #include "../neuralnet/sgfmetadata.h"
 #include "../neuralnet/nninterface.h"
 
+#include "../core/test.h"
+
 using namespace std;
 
 #if !defined(BYTE_ORDER) || (BYTE_ORDER != LITTLE_ENDIAN && BYTE_ORDER != BIG_ENDIAN)
@@ -326,6 +328,12 @@ void BatchNormLayerDesc::extractChannelFactorsAbsLtOneWithInverses(std::vector<f
   }
 }
 
+void BatchNormLayerDesc::applyScale8ToReduceActivations() {
+  for(int c = 0; c < numChannels; c++) {
+    mergedBias[c] *= 0.125f;
+  }
+}
+
 
 //-----------------------------------------------------------------------------
 
@@ -360,6 +368,24 @@ ActivationLayerDesc& ActivationLayerDesc::operator=(ActivationLayerDesc&& other)
   name = std::move(other.name);
   activation = other.activation;
   return *this;
+}
+
+void ActivationLayerDesc::applyScale8ToReduceActivations() {
+  if(activation == ACTIVATION_IDENTITY) {
+    // pass
+  }
+  else if(activation == ACTIVATION_RELU) {
+    // pass
+  }
+  else if(activation == ACTIVATION_MISH) {
+    activation = ACTIVATION_MISH_SCALE8;
+  }
+  else if(activation == ACTIVATION_MISH_SCALE8) {
+    throw StringError("Cannot applyScale8ToReduceActivations twice, already applied");
+  }
+  else {
+    testAssert(false);
+  }
 }
 
 //-----------------------------------------------------------------------------
@@ -455,6 +481,12 @@ MatBiasLayerDesc& MatBiasLayerDesc::operator=(MatBiasLayerDesc&& other) {
   return *this;
 }
 
+void MatBiasLayerDesc::applyScale8ToReduceActivations() {
+  for(int c = 0; c < numChannels; c++) {
+    weights[c] *= 0.125f;
+  }
+}
+
 //-----------------------------------------------------------------------------
 
 ResidualBlockDesc::ResidualBlockDesc() {}
@@ -519,6 +551,12 @@ void ResidualBlockDesc::transformToReduceActivations() {
   regularConv.scaleOutputChannels(channelFactors);
 }
 
+void ResidualBlockDesc::applyScale8ToReduceActivations() {
+  preBN.applyScale8ToReduceActivations();
+  preActivation.applyScale8ToReduceActivations();
+  midBN.applyScale8ToReduceActivations();
+  midActivation.applyScale8ToReduceActivations();
+}
 
 //-----------------------------------------------------------------------------
 
@@ -621,6 +659,15 @@ void GlobalPoolingResidualBlockDesc::transformToReduceActivations() {
   }
 }
 
+void GlobalPoolingResidualBlockDesc::applyScale8ToReduceActivations() {
+  preBN.applyScale8ToReduceActivations();
+  preActivation.applyScale8ToReduceActivations();
+  gpoolBN.applyScale8ToReduceActivations();
+  gpoolActivation.applyScale8ToReduceActivations();
+  midBN.applyScale8ToReduceActivations();
+  midActivation.applyScale8ToReduceActivations();
+}
+
 //-----------------------------------------------------------------------------
 
 NestedBottleneckResidualBlockDesc::NestedBottleneckResidualBlockDesc() {}
@@ -694,6 +741,9 @@ void NestedBottleneckResidualBlockDesc::iterConvLayers(std::function<void(const 
       const NestedBottleneckResidualBlockDesc* desc = (const NestedBottleneckResidualBlockDesc*)blocks[i].second.get();
       desc->iterConvLayers(f);
     }
+    else {
+      testAssert(false);
+    }
   }
   f(postConv);
 }
@@ -714,6 +764,9 @@ double NestedBottleneckResidualBlockDesc::getSpatialConvDepth() const {
     else if(blocks[i].first == NESTED_BOTTLENECK_BLOCK_KIND) {
       const NestedBottleneckResidualBlockDesc* desc = (const NestedBottleneckResidualBlockDesc*)blocks[i].second.get();
       depth += desc->getSpatialConvDepth();
+    }
+    else {
+      testAssert(false);
     }
   }
   depth += postConv.getSpatialConvDepth();
@@ -746,7 +799,35 @@ void NestedBottleneckResidualBlockDesc::transformToReduceActivations() {
       desc->postConv.scaleOutputChannels(channelFactors);
       desc->transformToReduceActivations();
     }
+    else {
+      testAssert(false);
+    }
   }
+}
+
+void NestedBottleneckResidualBlockDesc::applyScale8ToReduceActivations() {
+  preBN.applyScale8ToReduceActivations();
+  preActivation.applyScale8ToReduceActivations();
+
+  for(int i = 0; i < blocks.size(); i++) {
+    if(blocks[i].first == ORDINARY_BLOCK_KIND) {
+      ResidualBlockDesc* desc = (ResidualBlockDesc*)blocks[i].second.get();
+      desc->applyScale8ToReduceActivations();
+    }
+    else if(blocks[i].first == GLOBAL_POOLING_BLOCK_KIND) {
+      GlobalPoolingResidualBlockDesc* desc = (GlobalPoolingResidualBlockDesc*)blocks[i].second.get();
+      desc->applyScale8ToReduceActivations();
+    }
+    else if(blocks[i].first == NESTED_BOTTLENECK_BLOCK_KIND) {
+      NestedBottleneckResidualBlockDesc* desc = (NestedBottleneckResidualBlockDesc*)blocks[i].second.get();
+      desc->applyScale8ToReduceActivations();
+    }
+    else {
+      testAssert(false);
+    }
+  }
+  postBN.applyScale8ToReduceActivations();
+  postActivation.applyScale8ToReduceActivations();
 }
 
 //-----------------------------------------------------------------------------
@@ -1061,6 +1142,9 @@ void TrunkDesc::iterConvLayers(std::function<void(const ConvLayerDesc& desc)> f)
       NestedBottleneckResidualBlockDesc* desc = (NestedBottleneckResidualBlockDesc*)blocks[i].second.get();
       desc->iterConvLayers(f);
     }
+    else {
+      testAssert(false);
+    }
   }
 }
 
@@ -1080,6 +1164,9 @@ double TrunkDesc::getSpatialConvDepth() const {
     else if(blocks[i].first == NESTED_BOTTLENECK_BLOCK_KIND) {
       const NestedBottleneckResidualBlockDesc* desc = (const NestedBottleneckResidualBlockDesc*)blocks[i].second.get();
       depth += desc->getSpatialConvDepth();
+    }
+    else {
+      testAssert(false);
     }
   }
   return depth;
@@ -1116,8 +1203,45 @@ void TrunkDesc::transformToReduceActivations() {
       desc->postConv.scaleOutputChannels(channelFactors);
       desc->transformToReduceActivations();
     }
+    else {
+      testAssert(false);
+    }
   }
 }
+
+void TrunkDesc::applyScale8ToReduceActivations() {
+  std::vector<float> channelFactors(trunkNumChannels);
+  for(int i = 0; i<trunkNumChannels; i++)
+    channelFactors[i] = 0.125f;
+
+  initialConv.scaleOutputChannels(channelFactors);
+  initialMatMul.scaleOutputChannels(channelFactors);
+  if(metaEncoderVersion > 0) {
+    sgfMetadataEncoder.mul3.scaleOutputChannels(channelFactors);
+  }
+
+  trunkTipBN.applyScale8ToReduceActivations();
+  trunkTipActivation.applyScale8ToReduceActivations();
+
+  for(int i = 0; i < blocks.size(); i++) {
+    if(blocks[i].first == ORDINARY_BLOCK_KIND) {
+      ResidualBlockDesc* desc = (ResidualBlockDesc*)blocks[i].second.get();
+      desc->applyScale8ToReduceActivations();
+    }
+    else if(blocks[i].first == GLOBAL_POOLING_BLOCK_KIND) {
+      GlobalPoolingResidualBlockDesc* desc = (GlobalPoolingResidualBlockDesc*)blocks[i].second.get();
+      desc->applyScale8ToReduceActivations();
+    }
+    else if(blocks[i].first == NESTED_BOTTLENECK_BLOCK_KIND) {
+      NestedBottleneckResidualBlockDesc* desc = (NestedBottleneckResidualBlockDesc*)blocks[i].second.get();
+      desc->applyScale8ToReduceActivations();
+    }
+    else {
+      testAssert(false);
+    }
+  }
+}
+
 
 //-----------------------------------------------------------------------------
 
@@ -1256,6 +1380,14 @@ void PolicyHeadDesc::transformToReduceActivations() {
   }
 }
 
+void PolicyHeadDesc::applyScale8ToReduceActivations() {
+  g1BN.applyScale8ToReduceActivations();
+  g1Activation.applyScale8ToReduceActivations();
+  p1BN.applyScale8ToReduceActivations();
+  p1Activation.applyScale8ToReduceActivations();
+  gpoolToPassBias.applyScale8ToReduceActivations();
+  passActivation.applyScale8ToReduceActivations();
+}
 
 //-----------------------------------------------------------------------------
 
@@ -1393,6 +1525,16 @@ void ValueHeadDesc::transformToReduceActivations() {
 }
 
 
+void ValueHeadDesc::applyScale8ToReduceActivations() {
+  v1BN.applyScale8ToReduceActivations();
+  v1Activation.applyScale8ToReduceActivations();
+  v2Bias.applyScale8ToReduceActivations();
+  v2Activation.applyScale8ToReduceActivations();
+  v3Bias.applyScale8ToReduceActivations();
+  sv3Bias.applyScale8ToReduceActivations();
+}
+
+
 //-----------------------------------------------------------------------------
 
 ModelPostProcessParams::ModelPostProcessParams()
@@ -1402,7 +1544,8 @@ ModelPostProcessParams::ModelPostProcessParams()
     leadMultiplier(20.0),
     varianceTimeMultiplier(40.0),
     shorttermValueErrorMultiplier(0.25),
-    shorttermScoreErrorMultiplier(30.0)
+    shorttermScoreErrorMultiplier(30.0),
+    outputScaleMultiplier(1.0f)
 {}
 ModelPostProcessParams::~ModelPostProcessParams()
 {}
@@ -1625,6 +1768,13 @@ void ModelDesc::transformToReduceActivations() {
   valueHead.transformToReduceActivations();
 }
 
+void ModelDesc::applyScale8ToReduceActivations() {
+  trunk.applyScale8ToReduceActivations();
+  policyHead.applyScale8ToReduceActivations();
+  valueHead.applyScale8ToReduceActivations();
+
+  postProcessParams.outputScaleMultiplier *= 8.0f;
+}
 
 struct NonCopyingStreamBuf : public std::streambuf
 {
