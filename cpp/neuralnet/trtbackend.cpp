@@ -774,7 +774,6 @@ struct ModelParser {
 
   ILayer* buildBatchNormLayer(ITensor* input, const BatchNormLayerDesc* desc, bool forceFP32 = false) {
     int numChannels = desc->numChannels;
-    float epsilon = desc->epsilon;
 
     tuneDesc += Global::strprintf(R"|("%s"(%d))|", desc->name.c_str(), desc->numChannels);
 

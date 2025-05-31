@@ -246,7 +246,7 @@ struct ScratchBuffers {
     std::function<float*(size_t)> allocateFunc = [this](size_t size) {
       return new float[size/sizeof(float)];
     };
-    std::function<void(float*)> releaseFunc = [this](float* buf) {
+    std::function<void(float*)> releaseFunc = [this](float* buf) noexcept {
       delete[] buf;
     };
 
@@ -701,7 +701,6 @@ struct BatchNormLayer {
     activation(actDesc.activation)
   {
     int numChannels = desc.numChannels;
-    float epsilon = desc.epsilon;
 
     assert(desc.mergedScale.size() == numChannels);
     assert(desc.mergedBias.size() == numChannels);
