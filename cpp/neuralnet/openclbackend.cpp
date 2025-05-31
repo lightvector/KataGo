@@ -419,7 +419,7 @@ static ComputeContext* createComputeContextForTesting(
   enabled_t useNHWCMode = useNHWC ? enabled_t::True : enabled_t::False;
 
   std::function<OpenCLTuneParams(const string&,int)> getParamsForDeviceName =
-    [](const string& name, int gpuIdxForTuning) {
+    [](const string& name, int gpuIdxForTuning) noexcept {
     (void)name;
     (void)gpuIdxForTuning;
     //Just use default values
