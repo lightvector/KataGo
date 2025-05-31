@@ -45,6 +45,9 @@ struct BatchNormLayerDesc {
   std::vector<float> scale;
   std::vector<float> bias;
 
+  std::vector<float> mergedScale;
+  std::vector<float> mergedBias;
+
   BatchNormLayerDesc();
   BatchNormLayerDesc(std::istream& in, bool binaryFloats);
   BatchNormLayerDesc(BatchNormLayerDesc&& other);

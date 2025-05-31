@@ -781,29 +781,21 @@ struct ModelParser {
     assert(desc->variance.size() == numChannels);
     assert(desc->scale.size() == numChannels);
     assert(desc->bias.size() == numChannels);
+    assert(desc->mergedScale.size() == numChannels);
+    assert(desc->mergedBias.size() == numChannels);
     assert(input->getDimensions().d[1] == numChannels);
-
-    auto mergedScale = make_unique<float[]>(numChannels);
-    auto mergedBias = make_unique<float[]>(numChannels);
-    for(int i = 0; i < numChannels; i++) {
-      mergedScale[i] = desc->scale[i] / sqrtf(desc->variance[i] + epsilon);
-      mergedBias[i] = desc->bias[i] - mergedScale[i] * desc->mean[i];
-    }
 
     auto bnLayer = model->network->addScale(
       *input,
       ScaleMode::kCHANNEL,
-      {DataType::kFLOAT, mergedBias.get(), static_cast<int64_t>(numChannels)},
-      {DataType::kFLOAT, mergedScale.get(), static_cast<int64_t>(numChannels)},
+      {DataType::kFLOAT, desc->mergedBias.data(), static_cast<int64_t>(numChannels)},
+      {DataType::kFLOAT, desc->mergedScale.data(), static_cast<int64_t>(numChannels)},
       {DataType::kFLOAT, nullptr, 0});
     bnLayer->setName(desc->name.c_str());
 
     if(forceFP32) {
       bnLayer->setPrecision(DataType::kFLOAT);
     }
-
-    model->extraWeights.push_back(move(mergedScale));
-    model->extraWeights.push_back(move(mergedBias));
 
     return bnLayer;
   }

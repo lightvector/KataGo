@@ -506,11 +506,6 @@ struct BatchNormLayer {
   const bool usingFP16;
   const bool usingNHWC;
 
-  void* meanBuf;
-  void* varianceBuf;
-  void* scaleBuf;
-  void* biasBuf;
-
   void* mergedScaleBuf;
   void* mergedBiasBuf;
 
@@ -539,31 +534,15 @@ struct BatchNormLayer {
     (void)cudaHandles;
 
     assert(desc->mean.size() == numChannels);
-    CudaUtils::mallocAndCopyToDevice(name,desc->mean,meanBuf,useFP16);
-
     assert(desc->variance.size() == numChannels);
-    CudaUtils::mallocAndCopyToDevice(name,desc->variance,varianceBuf,useFP16);
-
     assert(desc->scale.size() == numChannels);
-    CudaUtils::mallocAndCopyToDevice(name,desc->scale,scaleBuf,useFP16);
-
     assert(desc->bias.size() == numChannels);
-    CudaUtils::mallocAndCopyToDevice(name,desc->bias,biasBuf,useFP16);
-
-    vector<float> mergedScale(numChannels);
-    vector<float> mergedBias(numChannels);
-    for(int i = 0; i<numChannels; i++) {
-      mergedScale[i] = desc->scale[i] / sqrt(desc->variance[i] + epsilon);
-      mergedBias[i] = desc->bias[i] - mergedScale[i] * desc->mean[i];
-    }
-    CudaUtils::mallocAndCopyToDevice(name,mergedScale,mergedScaleBuf,useFP16);
-    CudaUtils::mallocAndCopyToDevice(name,mergedBias,mergedBiasBuf,useFP16);
+    assert(desc->mergedScale.size() == numChannels);
+    assert(desc->mergedBias.size() == numChannels);
+    CudaUtils::mallocAndCopyToDevice(name,desc->mergedScale,mergedScaleBuf,useFP16);
+    CudaUtils::mallocAndCopyToDevice(name,desc->mergedBias,mergedBiasBuf,useFP16);
   }
   ~BatchNormLayer() {
-    cudaFree(meanBuf);
-    cudaFree(varianceBuf);
-    cudaFree(scaleBuf);
-    cudaFree(biasBuf);
     cudaFree(mergedScaleBuf);
     cudaFree(mergedBiasBuf);
   }

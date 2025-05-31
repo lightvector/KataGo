@@ -224,6 +224,13 @@ BatchNormLayerDesc::BatchNormLayerDesc(istream& in, bool binaryFloats) {
   if(in.fail())
     throw StringError(
       name + ": bnlayer failed to parse expected number of batch norm mean, variance, bias, scale values");
+
+  mergedScale.resize(numChannels);
+  mergedBias.resize(numChannels);
+  for(int c = 0; c < numChannels; c++) {
+    mergedScale[c] = scale[c] / sqrt(variance[c] + epsilon);
+    mergedBias[c] = bias[c] - mergedScale[c] * mean[c];
+  }
 }
 
 BatchNormLayerDesc::BatchNormLayerDesc(BatchNormLayerDesc&& other) {
@@ -240,6 +247,8 @@ BatchNormLayerDesc& BatchNormLayerDesc::operator=(BatchNormLayerDesc&& other) {
   variance = std::move(other.variance);
   scale = std::move(other.scale);
   bias = std::move(other.bias);
+  mergedScale = std::move(other.mergedScale);
+  mergedBias = std::move(other.mergedBias);
   return *this;
 }
 
