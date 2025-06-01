@@ -10,7 +10,7 @@ from collections import defaultdict
 
 from PIL import Image, ImageDraw
 
-from board import Board
+from katago.game.board import Board
 
 # . stone or rest of board
 # e empty

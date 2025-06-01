@@ -18,9 +18,9 @@ import torch
 import torch.nn
 from torch.optim.swa_utils import AveragedModel
 
-import modelconfigs
-from model_pytorch import Model, ResBlock, NestedBottleneckResBlock
-from load_model import load_model
+from katago.train import modelconfigs
+from katago.train.model_pytorch import Model, ResBlock, NestedBottleneckResBlock
+from katago.train.load_model import load_model
 
 #Command and args-------------------------------------------------------------------
 

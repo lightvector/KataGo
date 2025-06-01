@@ -419,7 +419,7 @@ static ComputeContext* createComputeContextForTesting(
   enabled_t useNHWCMode = useNHWC ? enabled_t::True : enabled_t::False;
 
   std::function<OpenCLTuneParams(const string&,int)> getParamsForDeviceName =
-    [](const string& name, int gpuIdxForTuning) {
+    [](const string& name, int gpuIdxForTuning) noexcept {
     (void)name;
     (void)gpuIdxForTuning;
     //Just use default values
@@ -869,14 +869,11 @@ struct BatchNormLayer {
     assert(desc->variance.size() == numChannels);
     assert(desc->scale.size() == numChannels);
     assert(desc->bias.size() == numChannels);
+    assert(desc->mergedScale.size() == numChannels);
+    assert(desc->mergedBias.size() == numChannels);
 
-    vector<float> mergedScale(numChannels);
-    vector<float> mergedBias(numChannels);
-    for(int i = 0; i<numChannels; i++) {
-      mergedScale[i] = desc->scale[i] / std::sqrt(desc->variance[i] + epsilon);
-      mergedBias[i] = desc->bias[i] - mergedScale[i] * desc->mean[i];
-    }
-
+    std::vector<float> mergedScale = desc->mergedScale;
+    std::vector<float> mergedBias = desc->mergedBias;
     mergedScaleBuf = createReadOnlyBuffer(handle,mergedScale,useFP16);
     mergedBiasBuf = createReadOnlyBuffer(handle,mergedBias,useFP16);
 

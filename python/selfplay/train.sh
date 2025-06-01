@@ -73,7 +73,7 @@ fi
 
 time python3 ./train.py \
      -traindir "$BASEDIR"/train/"$TRAININGNAME" \
-     -datadir "$BASEDIR"/shuffleddata/current/ \
+     -latestdatadir "$BASEDIR"/shuffleddata/ \
      -exportdir "$BASEDIR"/"$EXPORT_SUBDIR" \
      -exportprefix "$TRAININGNAME" \
      -pos-len 19 \

@@ -1013,7 +1013,7 @@ struct GTPEngine {
   ) {
     bool onMoveWasCalled = false;
     Loc genmoveMoveLoc = Board::NULL_LOC;
-    auto onMove = [&genmoveMoveLoc,&onMoveWasCalled,this](Loc moveLoc, int searchId, Search* search) {
+    auto onMove = [&genmoveMoveLoc,&onMoveWasCalled,this](Loc moveLoc, int searchId, Search* search) noexcept {
       (void)searchId;
       (void)search;
       onMoveWasCalled = true;

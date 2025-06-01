@@ -703,11 +703,14 @@ struct BatchNormLayer {
     int numChannels = desc.numChannels;
     float epsilon = desc.epsilon;
 
+    assert(desc.mergedScale.size() == numChannels);
+    assert(desc.mergedBias.size() == numChannels);
+
     mergedScale.resize(numChannels);
     mergedBias.resize(numChannels);
     for(int c = 0; c < numChannels; c++) {
-      mergedScale[c] = desc.scale[c] / sqrt(desc.variance[c] + epsilon);
-      mergedBias[c] = desc.bias[c] - mergedScale[c] * desc.mean[c];
+      mergedScale[c] = desc.mergedScale[c];
+      mergedBias[c] = desc.mergedBias[c];
     }
   }
 

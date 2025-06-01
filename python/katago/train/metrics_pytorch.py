@@ -1,7 +1,7 @@
 from typing import Any, Dict, List
 import math
 
-from model_pytorch import EXTRA_SCORE_DISTR_RADIUS, Model, compute_gain, ExtraOutputs, MetadataEncoder
+from ..train.model_pytorch import EXTRA_SCORE_DISTR_RADIUS, Model, compute_gain, ExtraOutputs, MetadataEncoder
 
 import torch
 import torch.nn
@@ -817,7 +817,7 @@ class Metrics:
             + loss_td_value3 * td_value_loss_scales[2]
             + loss_td_score
             + loss_ownership
-            + loss_scoring * 0.5
+            + loss_scoring * 0.25
             + loss_futurepos
             + loss_seki * seki_loss_scale
             + loss_scoremean
