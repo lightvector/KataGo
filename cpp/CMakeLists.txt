@@ -503,6 +503,11 @@ if (WIN32) # handles both x86 and x64
   # core/rand.cpp uses winsock for a gethostname
   target_link_libraries(katago ws2_32)
   if (MINGW)
+    if(CMAKE_BUILD_TYPE STREQUAL "Release")
+      # Strip symbols. It significantly reduces binary size (makes it 20x smaller)
+      set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -s")
+    endif()
+
     # It's needed for linking `PathRemoveFileSpecW` and probably other Windows API functions
     target_link_libraries(katago shlwapi)
 
