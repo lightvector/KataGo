@@ -133,10 +133,10 @@ PV: F4 G10 C9 D9 B10 C11 C8 C6 B11 B12
 Tree:
 : T -83.20c W -77.86c S  -4.03c (-10.3 L -10.4) N     100  --  F4 G10 C9 D9 B10 C11 C8
 ---White(^)---
-F4  : T -82.96c W -77.25c S  -4.17c (-10.4 L -10.5) LCB  -89.43c P 55.49% WF  59.1 PSV      59 N      59  --  F4 G10 C9 D9 B10 C11 C8 C6
-F10 : T -84.27c W -79.36c S  -3.61c ( -9.9 L -10.3) LCB  -91.96c P 14.66% WF  13.9 PSV      12 N      14  --  F10 F11 G11 E11 F4 F9
-E4  : T -85.57c W -79.26c S  -4.18c (-10.4 L -10.6) LCB  -94.29c P 14.42% WF  12.9 PSV       9 N      13  --  E4 E3 F3 D3 F4 D6
-F3  : T -81.41c W -78.13c S  -3.65c (-10.0 L -10.3) LCB  -91.77c P  4.75% WF  13.1 PSV       8 N      13  --  F3 F4 G4 F5 E3 G5
+F4  : T -82.96c W -77.25c S  -4.17c (-10.4 L -10.5) LCB  -89.44c P 55.50% WF  59.1 PSV      59 N      59  --  F4 G10 C9 D9 B10 C11 C8 C6
+F10 : T -84.28c W -79.36c S  -3.62c ( -9.9 L -10.3) LCB  -91.97c P 14.68% WF  13.9 PSV      12 N      14  --  F10 F11 G11 E11 F4 F9
+E4  : T -85.56c W -79.25c S  -4.18c (-10.4 L -10.6) LCB  -94.28c P 14.41% WF  12.9 PSV       9 N      13  --  E4 E3 F3 D3 F4 D6
+F3  : T -81.41c W -78.12c S  -3.65c (-10.0 L -10.3) LCB  -91.77c P  4.73% WF  13.1 PSV       8 N      13  --  F3 F4 G4 F5 E3 G5
 
 : = F4
 : Controller: printsgf
