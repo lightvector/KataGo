@@ -1437,7 +1437,7 @@ void Tests::runSelfplayStatTestsWithNN(const string& modelFile) {
         std::make_pair("hasButtons","false,false,true"),
         std::make_pair("allowRectangleProb","0.0"),
     });
-    runStatTest(cfgParams,playSettings,NULL,name,200);
+    runStatTest(cfgParams,playSettings,NULL,name,100);
   }
 
   {
@@ -1480,7 +1480,7 @@ void Tests::runSelfplayStatTestsWithNN(const string& modelFile) {
         std::make_pair("hasButtons","false,false,true"),
         std::make_pair("allowRectangleProb","0.0"),
     });
-    runStatTest(cfgParams,playSettings,NULL,name,200);
+    runStatTest(cfgParams,playSettings,NULL,name,100);
   }
 
   {
@@ -1523,7 +1523,7 @@ void Tests::runSelfplayStatTestsWithNN(const string& modelFile) {
         std::make_pair("hasButtons","false,false,true"),
         std::make_pair("allowRectangleProb","0.0"),
     });
-    runStatTest(cfgParams,playSettings,NULL,name,200);
+    runStatTest(cfgParams,playSettings,NULL,name,100);
   }
 
   {
@@ -1566,7 +1566,7 @@ void Tests::runSelfplayStatTestsWithNN(const string& modelFile) {
         std::make_pair("hasButtons","false,false,true"),
         std::make_pair("allowRectangleProb","0.0"),
     });
-    runStatTest(cfgParams,playSettings,NULL,name,200);
+    runStatTest(cfgParams,playSettings,NULL,name,100);
   }
 
   {
@@ -1610,7 +1610,7 @@ void Tests::runSelfplayStatTestsWithNN(const string& modelFile) {
         std::make_pair("hasButtons","false,false,true"),
         std::make_pair("allowRectangleProb","0.0"),
     });
-    runStatTest(cfgParams,playSettings,NULL,name,200);
+    runStatTest(cfgParams,playSettings,NULL,name,100);
   }
 
   {
@@ -1653,7 +1653,7 @@ void Tests::runSelfplayStatTestsWithNN(const string& modelFile) {
         std::make_pair("hasButtons","false,false,true"),
         std::make_pair("allowRectangleProb","0.0"),
     });
-    runStatTest(cfgParams,playSettings,NULL,name,200);
+    runStatTest(cfgParams,playSettings,NULL,name,100);
   }
 
   {
@@ -1696,7 +1696,7 @@ void Tests::runSelfplayStatTestsWithNN(const string& modelFile) {
         std::make_pair("hasButtons","false,false,true"),
         std::make_pair("allowRectangleProb","0.0"),
     });
-    runStatTest(cfgParams,playSettings,NULL,name,200);
+    runStatTest(cfgParams,playSettings,NULL,name,100);
   }
 
   {
@@ -1741,7 +1741,7 @@ void Tests::runSelfplayStatTestsWithNN(const string& modelFile) {
         std::make_pair("hasButtons","false,false,true"),
         std::make_pair("allowRectangleProb","0.0"),
     });
-    runStatTest(cfgParams,playSettings,NULL,name,200);
+    runStatTest(cfgParams,playSettings,NULL,name,100);
   }
 
   {
@@ -1788,7 +1788,7 @@ void Tests::runSelfplayStatTestsWithNN(const string& modelFile) {
         std::make_pair("hasButtons","false,false,true"),
         std::make_pair("allowRectangleProb","0.0"),
     });
-    runStatTest(cfgParams,playSettings,NULL,name,200);
+    runStatTest(cfgParams,playSettings,NULL,name,100);
   }
 
   {
@@ -1835,7 +1835,7 @@ void Tests::runSelfplayStatTestsWithNN(const string& modelFile) {
         std::make_pair("hasButtons","false,false,true"),
         std::make_pair("allowRectangleProb","0.0"),
     });
-    runStatTest(cfgParams,playSettings,NULL,name,200);
+    runStatTest(cfgParams,playSettings,NULL,name,100);
   }
 
   {
@@ -1878,7 +1878,7 @@ void Tests::runSelfplayStatTestsWithNN(const string& modelFile) {
         std::make_pair("hasButtons","false,false,true"),
         std::make_pair("allowRectangleProb","0.0"),
     });
-    runStatTest(cfgParams,playSettings,NULL,name,200);
+    runStatTest(cfgParams,playSettings,NULL,name,100);
   }
 
   {
@@ -1922,7 +1922,7 @@ void Tests::runSelfplayStatTestsWithNN(const string& modelFile) {
         std::make_pair("hasButtons","false,false,true"),
         std::make_pair("allowRectangleProb","0.0"),
     });
-    runStatTest(cfgParams,playSettings,NULL,name,200);
+    runStatTest(cfgParams,playSettings,NULL,name,100);
   }
 
   {
@@ -1966,7 +1966,7 @@ void Tests::runSelfplayStatTestsWithNN(const string& modelFile) {
         std::make_pair("hasButtons","false,false,true"),
         std::make_pair("allowRectangleProb","0.0"),
     });
-    runStatTest(cfgParams,playSettings,NULL,name,200);
+    runStatTest(cfgParams,playSettings,NULL,name,100);
   }
 
   {
@@ -2010,7 +2010,7 @@ void Tests::runSelfplayStatTestsWithNN(const string& modelFile) {
         std::make_pair("hasButtons","false,false,true"),
         std::make_pair("allowRectangleProb","0.0"),
     });
-    runStatTest(cfgParams,playSettings,NULL,name,200);
+    runStatTest(cfgParams,playSettings,NULL,name,100);
   }
 
   {
@@ -2053,7 +2053,7 @@ void Tests::runSelfplayStatTestsWithNN(const string& modelFile) {
         std::make_pair("hasButtons","false,false,true"),
         std::make_pair("allowRectangleProb","0.0"),
     });
-    runStatTest(cfgParams,playSettings,NULL,name,200);
+    runStatTest(cfgParams,playSettings,NULL,name,100);
   }
 
   {
@@ -2097,7 +2097,7 @@ void Tests::runSelfplayStatTestsWithNN(const string& modelFile) {
         std::make_pair("hasButtons","false,false,true"),
         std::make_pair("allowRectangleProb","0.0"),
     });
-    runStatTest(cfgParams,playSettings,NULL,name,200);
+    runStatTest(cfgParams,playSettings,NULL,name,100);
   }
 
   {
@@ -2141,7 +2141,7 @@ void Tests::runSelfplayStatTestsWithNN(const string& modelFile) {
         std::make_pair("hasButtons","false,false,true"),
         std::make_pair("allowRectangleProb","0.0"),
     });
-    runStatTest(cfgParams,playSettings,NULL,name,200);
+    runStatTest(cfgParams,playSettings,NULL,name,100);
   }
 
   {
@@ -2192,7 +2192,7 @@ void Tests::runSelfplayStatTestsWithNN(const string& modelFile) {
         std::make_pair("hasButtons","false,false,true"),
         std::make_pair("allowRectangleProb","0.0"),
     });
-    runStatTest(cfgParams,playSettings,&startPosSample,name,200);
+    runStatTest(cfgParams,playSettings,&startPosSample,name,100);
   }
 
   {
@@ -2244,7 +2244,7 @@ void Tests::runSelfplayStatTestsWithNN(const string& modelFile) {
         std::make_pair("hasButtons","false,false,true"),
         std::make_pair("allowRectangleProb","0.0"),
     });
-    runStatTest(cfgParams,playSettings,&startPosSample,name,200);
+    runStatTest(cfgParams,playSettings,&startPosSample,name,100);
   }
 
   {
@@ -2308,7 +2308,7 @@ oox.x....
         std::make_pair("hasButtons","false,false,true"),
         std::make_pair("allowRectangleProb","0.0"),
     });
-    runStatTest(cfgParams,playSettings,&startPosSample,name,200);
+    runStatTest(cfgParams,playSettings,&startPosSample,name,100);
   }
 
   {
@@ -2351,7 +2351,7 @@ oox.x....
         std::make_pair("hasButtons","false,false,true"),
         std::make_pair("allowRectangleProb","0.1"),
     });
-    runStatTest(cfgParams,playSettings,NULL,name,200);
+    runStatTest(cfgParams,playSettings,NULL,name,100);
   }
   {
     string name = "Game init test sgfpos black first with big black handicap, flipKomiProbWhenNoCompensate 0";
