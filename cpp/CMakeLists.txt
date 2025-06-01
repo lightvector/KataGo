@@ -338,7 +338,7 @@ elseif(USE_BACKEND STREQUAL "TENSORRT")
     message(FATAL_ERROR "${ColorBoldRed} NvInfer.h was NOT found, specify TENSORRT_INCLUDE_DIR to indicate where it is. ${ColorReset}")
   endif()
   find_library(TENSORRT_LIBRARY nvinfer HINTS ${TENSORRT_ROOT_DIR} PATH_SUFFIXES lib)
-  file(READ "${TENSORRT_INCLUDE_DIR}/NvInferVersion.h" tensorrt_version_header)
+  file(STRINGS "${TENSORRT_INCLUDE_DIR}/NvInferVersion.h" tensorrt_version_header NEWLINE_CONSUME)
   string(REGEX MATCH "#define NV_TENSORRT_MAJOR ([0-9]+)" tensorrt_version_macro ${tensorrt_version_header})
   set(TENSORRT_VERSION_MAJOR ${CMAKE_MATCH_1})
   string(REGEX MATCH "#define NV_TENSORRT_MINOR ([0-9]+)" tensorrt_version_macro ${tensorrt_version_header})
@@ -349,9 +349,10 @@ elseif(USE_BACKEND STREQUAL "TENSORRT")
   # Version 8 is required for serializing the builder timing cache.
   # Version 8.2 is required for eliminating the global logger for Builder and Runtime.
   # Version 8.5 is required for eliminating many deprecated APIs and adopting new features.
-  # Version 8.6 is for CUDA 12 support and further reduction in initialization time.
-  if(TENSORRT_VERSION VERSION_LESS 8.5)
-    message(FATAL_ERROR "TensorRT 8.5 or greater is required but ${TENSORRT_VERSION} was found.")
+  # Version 8.6 is required for CUDA 12 support and further reduction in initialization time.
+  # Version 10.0 is required for better CUDA 12 support and drastic reduction in plan cache size.
+  if(TENSORRT_VERSION VERSION_LESS 10.0)
+    message(FATAL_ERROR "TensorRT 10.0 or greater is required but ${TENSORRT_VERSION} was found.")
   endif()
   include_directories(SYSTEM ${CUDAToolkit_INCLUDE_DIRS} ${TENSORRT_INCLUDE_DIR}) #SYSTEM is for suppressing some compiler warnings in thrust libraries
   target_link_libraries(katago CUDA::cudart_static ${TENSORRT_LIBRARY})
