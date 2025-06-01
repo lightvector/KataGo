@@ -503,6 +503,9 @@ if (WIN32) # handles both x86 and x64
   # core/rand.cpp uses winsock for a gethostname
   target_link_libraries(katago ws2_32)
   if (MINGW)
+    # Make the build independent of MinGW dynamic libraries
+    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -static")
+
     if(CMAKE_BUILD_TYPE STREQUAL "Release")
       # Strip symbols. It significantly reduces binary size (makes it 20x smaller)
       set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -s")
