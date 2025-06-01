@@ -34,11 +34,18 @@ void splitThreadsAcrossDim01(int dim0Size, int dim1Size, int& threads0, int& blo
 __forceinline__ __device__ float mishf(float a) {
   return a * tanhf(a < 20.0f ? log1pf(expf(a)) : a);
 }
+__forceinline__ __device__ float mishf_scale8(float a) {
+  return a < 2.5f ? a * tanhf(log1pf(expf(a*8.0f))) : a;
+}
 
 #ifdef CUDA_SUPPORTS_FP16
 __forceinline__ __device__ half mishh(half h) {
   float a = __half2float(h);
   return __float2half(a * tanhf(a < 20.0f ? log1pf(expf(a)) : a));
+}
+__forceinline__ __device__ half mishh_scale8(half h) {
+  float a = __half2float(h);
+  return __float2half(a < 2.5f ? a * tanhf(log1pf(expf(a*8.0f))) : a);
 }
 #endif
 
@@ -1100,6 +1107,31 @@ void addCBiasInplaceNCHalfKernelMish(half *buf, const half* biases, int nSize, i
   //Do nothing, FP16 not supported
 #endif
 }
+__global__
+void addCBiasInplaceNCKernelMishScale8(float *buf, const float* biases, int nSize, int cSize)
+{
+  int cIdx = blockIdx.x * blockDim.x + threadIdx.x;
+  int nIdx = blockIdx.y * blockDim.y + threadIdx.y;
+  if(cIdx < cSize && nIdx < nSize) {
+    int idx = nIdx * cSize + cIdx;
+    buf[idx] = mishf_scale8(buf[idx] + biases[cIdx]);
+  }
+}
+__global__
+void addCBiasInplaceNCHalfKernelMishScale8(half *buf, const half* biases, int nSize, int cSize)
+{
+#ifdef CUDA_SUPPORTS_FP16
+  int cIdx = blockIdx.x * blockDim.x + threadIdx.x;
+  int nIdx = blockIdx.y * blockDim.y + threadIdx.y;
+  if(cIdx < cSize && nIdx < nSize) {
+    int idx = nIdx * cSize + cIdx;
+    half a = __hadd(buf[idx],biases[cIdx]);
+    buf[idx] = mishh_scale8(a);
+  }
+#else
+  //Do nothing, FP16 not supported
+#endif
+}
 
 void sharedAddCBiasInplaceNC(void* buf, const void* biases, int nSize, int cSize, bool isHalf, int activation) {
   int cThreads;
@@ -1131,6 +1163,12 @@ void sharedAddCBiasInplaceNC(void* buf, const void* biases, int nSize, int cSize
       addCBiasInplaceNCHalfKernelMish<<<grid,threads>>>((half*)buf,(const half*)biases,nSize,cSize);
     else
       addCBiasInplaceNCKernelMish<<<grid,threads>>>((float*)buf,(const float*)biases,nSize,cSize);
+  }
+  else if(activation == ACTIVATION_MISH_SCALE8) {
+    if(isHalf)
+      addCBiasInplaceNCHalfKernelMishScale8<<<grid,threads>>>((half*)buf,(const half*)biases,nSize,cSize);
+    else
+      addCBiasInplaceNCKernelMishScale8<<<grid,threads>>>((float*)buf,(const float*)biases,nSize,cSize);
   }
   else {
     throw std::runtime_error("customCudaAddCBiasInplaceNC: unsupported activation");
@@ -1298,6 +1336,17 @@ void applyCScaleBiasNCHWMishKernel(const float *in, float* out, const float* sca
   }
 }
 __global__
+void applyCScaleBiasNCHWMishScale8Kernel(const float *in, float* out, const float* scale, const float* biases, int cSize, int sSize)
+{
+  int sIdx = blockIdx.x * blockDim.x + threadIdx.x;
+  int cIdx = blockIdx.y * blockDim.y + threadIdx.y;
+  int nIdx = blockIdx.z;
+  if(cIdx < cSize && sIdx < sSize) {
+    int idx = (nIdx * cSize + cIdx) * sSize + sIdx;
+    out[idx] = mishf_scale8(in[idx] * scale[cIdx] + biases[cIdx]);
+  }
+}
+__global__
 void applyCScaleBiasNCHWMaskKernel(const float *in, float* out, const float* scale, const float* biases, const float* mask, int cSize, int sSize)
 {
   int sIdx = blockIdx.x * blockDim.x + threadIdx.x;
@@ -1328,6 +1377,17 @@ void applyCScaleBiasNCHWMishMaskKernel(const float *in, float* out, const float*
   if(cIdx < cSize && sIdx < sSize) {
     int idx = (nIdx * cSize + cIdx) * sSize + sIdx;
     out[idx] = mishf(in[idx] * scale[cIdx] + biases[cIdx]) * mask[nIdx*sSize+sIdx];
+  }
+}
+__global__
+void applyCScaleBiasNCHWMishScale8MaskKernel(const float *in, float* out, const float* scale, const float* biases, const float* mask, int cSize, int sSize)
+{
+  int sIdx = blockIdx.x * blockDim.x + threadIdx.x;
+  int cIdx = blockIdx.y * blockDim.y + threadIdx.y;
+  int nIdx = blockIdx.z;
+  if(cIdx < cSize && sIdx < sSize) {
+    int idx = (nIdx * cSize + cIdx) * sSize + sIdx;
+    out[idx] = mishf_scale8(in[idx] * scale[cIdx] + biases[cIdx]) * mask[nIdx*sSize+sIdx];
   }
 }
 __global__
@@ -1373,6 +1433,22 @@ void applyCScaleBiasNCHWMishHalfKernel(const half *in, half* out, const half* sc
     int idx = (nIdx * cSize + cIdx) * sSize + sIdx;
     half a = __hfma(in[idx],scale[cIdx],biases[cIdx]);
     out[idx] = mishh(a);
+  }
+#else
+  //Do nothing, FP16 not supported
+#endif
+}
+__global__
+void applyCScaleBiasNCHWMishScale8HalfKernel(const half *in, half* out, const half* scale, const half* biases, int cSize, int sSize)
+{
+#ifdef CUDA_SUPPORTS_FP16
+  int sIdx = blockIdx.x * blockDim.x + threadIdx.x;
+  int cIdx = blockIdx.y * blockDim.y + threadIdx.y;
+  int nIdx = blockIdx.z;
+  if(cIdx < cSize && sIdx < sSize) {
+    int idx = (nIdx * cSize + cIdx) * sSize + sIdx;
+    half a = __hfma(in[idx],scale[cIdx],biases[cIdx]);
+    out[idx] = mishh_scale8(a);
   }
 #else
   //Do nothing, FP16 not supported
@@ -1426,6 +1502,22 @@ void applyCScaleBiasNCHWMishMaskHalfKernel(const half *in, half* out, const half
   //Do nothing, FP16 not supported
 #endif
 }
+__global__
+void applyCScaleBiasNCHWMishScale8MaskHalfKernel(const half *in, half* out, const half* scale, const half* biases, const half* mask, int cSize, int sSize)
+{
+#ifdef CUDA_SUPPORTS_FP16
+  int sIdx = blockIdx.x * blockDim.x + threadIdx.x;
+  int cIdx = blockIdx.y * blockDim.y + threadIdx.y;
+  int nIdx = blockIdx.z;
+  if(cIdx < cSize && sIdx < sSize) {
+    int idx = (nIdx * cSize + cIdx) * sSize + sIdx;
+    half a = __hmul(__hfma(in[idx],scale[cIdx],biases[cIdx]),mask[nIdx*sSize+sIdx]);
+    out[idx] = mishh_scale8(a);
+  }
+#else
+  //Do nothing, FP16 not supported
+#endif
+}
 
 void sharedApplyCScaleBiasNCHW(const void* in, void* out, const void* scale, const void* biases, const void* mask, int nSize, int cSize, int xySize, bool isHalf, int activation) {
   if(nSize > 65536)
@@ -1461,6 +1553,12 @@ void sharedApplyCScaleBiasNCHW(const void* in, void* out, const void* scale, con
       else
         applyCScaleBiasNCHWMishKernel<<<grid,threads>>>((const float*)in,(float*)out,(const float*)scale,(const float*)biases,cSize,sSize);
     }
+    else if(activation == ACTIVATION_MISH_SCALE8) {
+      if(isHalf)
+        applyCScaleBiasNCHWMishScale8HalfKernel<<<grid,threads>>>((const half*)in,(half*)out,(const half*)scale,(const half*)biases,cSize,sSize);
+      else
+        applyCScaleBiasNCHWMishScale8Kernel<<<grid,threads>>>((const float*)in,(float*)out,(const float*)scale,(const float*)biases,cSize,sSize);
+    }
     else {
       throw std::runtime_error("customCudaApplyCScaleBiasNCHW: unsupported activation");
     }
@@ -1483,6 +1581,12 @@ void sharedApplyCScaleBiasNCHW(const void* in, void* out, const void* scale, con
         applyCScaleBiasNCHWMishMaskHalfKernel<<<grid,threads>>>((const half*)in,(half*)out,(const half*)scale,(const half*)biases,(const half*)mask,cSize,sSize);
       else
         applyCScaleBiasNCHWMishMaskKernel<<<grid,threads>>>((const float*)in,(float*)out,(const float*)scale,(const float*)biases,(const float*)mask,cSize,sSize);
+    }
+    else if(activation == ACTIVATION_MISH_SCALE8) {
+      if(isHalf)
+        applyCScaleBiasNCHWMishScale8MaskHalfKernel<<<grid,threads>>>((const half*)in,(half*)out,(const half*)scale,(const half*)biases,(const half*)mask,cSize,sSize);
+      else
+        applyCScaleBiasNCHWMishScale8MaskKernel<<<grid,threads>>>((const float*)in,(float*)out,(const float*)scale,(const float*)biases,(const float*)mask,cSize,sSize);
     }
     else {
       throw std::runtime_error("customCudaApplyCScaleBiasNCHW: unsupported activation");
@@ -1534,6 +1638,17 @@ void applyCScaleBiasNHWCMishKernel(const float* in, float* out, const float* sca
   }
 }
 __global__
+void applyCScaleBiasNHWCMishScale8Kernel(const float* in, float* out, const float* scale, const float* biases, int sSize, int cSize)
+{
+  int cIdx = blockIdx.x * blockDim.x + threadIdx.x;
+  int sIdx = blockIdx.y * blockDim.y + threadIdx.y;
+  int nIdx = blockIdx.z;
+  if(cIdx < cSize && sIdx < sSize) {
+    int idx = (nIdx * sSize + sIdx) * cSize + cIdx;
+    out[idx] = mishf_scale8(in[idx] * scale[cIdx] + biases[cIdx]);
+  }
+}
+__global__
 void applyCScaleBiasNHWCMaskKernel(const float* in, float* out, const float* scale, const float* biases, const float* mask, int sSize, int cSize)
 {
   int cIdx = blockIdx.x * blockDim.x + threadIdx.x;
@@ -1564,6 +1679,17 @@ void applyCScaleBiasNHWCMishMaskKernel(const float* in, float* out, const float*
   if(cIdx < cSize && sIdx < sSize) {
     int idx = (nIdx * sSize + sIdx) * cSize + cIdx;
     out[idx] = mishf(in[idx] * scale[cIdx] + biases[cIdx]) * mask[nIdx*sSize+sIdx];
+  }
+}
+__global__
+void applyCScaleBiasNHWCMishScale8MaskKernel(const float* in, float* out, const float* scale, const float* biases, const float* mask, int sSize, int cSize)
+{
+  int cIdx = blockIdx.x * blockDim.x + threadIdx.x;
+  int sIdx = blockIdx.y * blockDim.y + threadIdx.y;
+  int nIdx = blockIdx.z;
+  if(cIdx < cSize && sIdx < sSize) {
+    int idx = (nIdx * sSize + sIdx) * cSize + cIdx;
+    out[idx] = mishf_scale8(in[idx] * scale[cIdx] + biases[cIdx]) * mask[nIdx*sSize+sIdx];
   }
 }
 __global__
@@ -1609,6 +1735,22 @@ void applyCScaleBiasNHWCMishHalfKernel(const half* in, half* out, const half* sc
     int idx = (nIdx * sSize + sIdx) * cSize + cIdx;
     half a = __hfma(in[idx],scale[cIdx],biases[cIdx]);
     out[idx] = mishh(a);
+  }
+#else
+  //Do nothing, FP16 not supported
+#endif
+}
+__global__
+void applyCScaleBiasNHWCMishScale8HalfKernel(const half* in, half* out, const half* scale, const half* biases, int sSize, int cSize)
+{
+#ifdef CUDA_SUPPORTS_FP16
+  int cIdx = blockIdx.x * blockDim.x + threadIdx.x;
+  int sIdx = blockIdx.y * blockDim.y + threadIdx.y;
+  int nIdx = blockIdx.z;
+  if(cIdx < cSize && sIdx < sSize) {
+    int idx = (nIdx * sSize + sIdx) * cSize + cIdx;
+    half a = __hfma(in[idx],scale[cIdx],biases[cIdx]);
+    out[idx] = mishh_scale8(a);
   }
 #else
   //Do nothing, FP16 not supported
@@ -1662,6 +1804,22 @@ void applyCScaleBiasNHWCMishMaskHalfKernel(const half* in, half* out, const half
   //Do nothing, FP16 not supported
 #endif
 }
+__global__
+void applyCScaleBiasNHWCMishScale8MaskHalfKernel(const half* in, half* out, const half* scale, const half* biases, const half* mask, int sSize, int cSize)
+{
+#ifdef CUDA_SUPPORTS_FP16
+  int cIdx = blockIdx.x * blockDim.x + threadIdx.x;
+  int sIdx = blockIdx.y * blockDim.y + threadIdx.y;
+  int nIdx = blockIdx.z;
+  if(cIdx < cSize && sIdx < sSize) {
+    int idx = (nIdx * sSize + sIdx) * cSize + cIdx;
+    half a = __hmul(__hfma(in[idx],scale[cIdx],biases[cIdx]),mask[nIdx*sSize+sIdx]);
+    out[idx] = mishh_scale8(a);
+  }
+#else
+  //Do nothing, FP16 not supported
+#endif
+}
 
 void sharedApplyCScaleBiasNHWC(const void* in, void* out, const void* scale, const void* biases, const void* mask, int nSize, int xySize, int cSize, bool isHalf, int activation) {
   if(nSize > 65536)
@@ -1697,6 +1855,12 @@ void sharedApplyCScaleBiasNHWC(const void* in, void* out, const void* scale, con
       else
         applyCScaleBiasNHWCMishKernel<<<grid,threads>>>((const float*)in,(float*)out,(const float*)scale,(const float*)biases,sSize,cSize);
     }
+    else if(activation == ACTIVATION_MISH_SCALE8) {
+      if(isHalf)
+        applyCScaleBiasNHWCMishScale8HalfKernel<<<grid,threads>>>((const half*)in,(half*)out,(const half*)scale,(const half*)biases,sSize,cSize);
+      else
+        applyCScaleBiasNHWCMishScale8Kernel<<<grid,threads>>>((const float*)in,(float*)out,(const float*)scale,(const float*)biases,sSize,cSize);
+    }
     else {
       throw std::runtime_error("customCudaApplyCScaleBiasNHWC: unsupported activation");
     }
@@ -1719,6 +1883,12 @@ void sharedApplyCScaleBiasNHWC(const void* in, void* out, const void* scale, con
         applyCScaleBiasNHWCMishMaskHalfKernel<<<grid,threads>>>((const half*)in,(half*)out,(const half*)scale,(const half*)biases,(const half*)mask,sSize,cSize);
       else
         applyCScaleBiasNHWCMishMaskKernel<<<grid,threads>>>((const float*)in,(float*)out,(const float*)scale,(const float*)biases,(const float*)mask,sSize,cSize);
+    }
+    else if(activation == ACTIVATION_MISH_SCALE8) {
+      if(isHalf)
+        applyCScaleBiasNHWCMishScale8MaskHalfKernel<<<grid,threads>>>((const half*)in,(half*)out,(const half*)scale,(const half*)biases,(const half*)mask,sSize,cSize);
+      else
+        applyCScaleBiasNHWCMishScale8MaskKernel<<<grid,threads>>>((const float*)in,(float*)out,(const float*)scale,(const float*)biases,(const float*)mask,sSize,cSize);
     }
     else {
       throw std::runtime_error("customCudaApplyCScaleBiasNHWC: unsupported activation");

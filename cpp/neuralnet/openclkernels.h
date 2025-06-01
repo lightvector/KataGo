@@ -9,6 +9,7 @@ namespace OpenCLKernels {
   extern std::string actIdenDefine;
   extern std::string actReluDefine;
   extern std::string actMishDefine;
+  extern std::string actMishScale8Define;
 
   extern std::string common;
   extern std::string conv2dNCHW;

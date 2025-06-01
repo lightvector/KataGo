@@ -83,6 +83,7 @@ struct LoadedModel {
 
   LoadedModel(const string& fileName, const string& expectedSha256) {
     ModelDesc::loadFromFileMaybeGZipped(fileName, modelDesc, expectedSha256);
+    modelDesc.applyScale8ToReduceActivations();
   }
 
   LoadedModel() = delete;
@@ -145,7 +146,7 @@ struct ModelParser {
   ModelParser& operator=(const ModelParser&) = delete;
 
   // Bump this when between katago versions we want to forcibly drop old timing caches and plan caches.
-  static constexpr int tuneSalt = 6;
+  static constexpr int tuneSalt = 7;
 
   unique_ptr<TRTModel> build(
     unique_ptr<INetworkDefinition> net,
@@ -773,7 +774,6 @@ struct ModelParser {
 
   ILayer* buildBatchNormLayer(ITensor* input, const BatchNormLayerDesc* desc, bool forceFP32 = false) {
     int numChannels = desc->numChannels;
-    float epsilon = desc->epsilon;
 
     tuneDesc += Global::strprintf(R"|("%s"(%d))|", desc->name.c_str(), desc->numChannels);
 
@@ -809,14 +809,16 @@ struct ModelParser {
         activationLayer->setPrecision(DataType::kFLOAT);
       }
       return activationLayer;
-    } else if(desc->activation == ACTIVATION_RELU) {
+    }
+    else if(desc->activation == ACTIVATION_RELU) {
       auto activationLayer = model->network->addActivation(*input, ActivationType::kRELU);
       activationLayer->setName(desc->name.c_str());
       if(forceFP32) {
         activationLayer->setPrecision(DataType::kFLOAT);
       }
       return activationLayer;
-    } else if(desc->activation == ACTIVATION_MISH) {
+    }
+    else if(desc->activation == ACTIVATION_MISH) {
       auto softplusLayer = model->network->addActivation(*input, ActivationType::kSOFTPLUS);
       auto softplusLayerName = desc->name + "/softplus";
       softplusLayer->setName(softplusLayerName.c_str());
@@ -831,7 +833,26 @@ struct ModelParser {
         mergeLayer->setPrecision(DataType::kFLOAT);
       }
       return mergeLayer;
-    } else {
+    }
+    else if(desc->activation == ACTIVATION_MISH_SCALE8) {
+      auto softplusLayer = model->network->addActivation(*input, ActivationType::kSOFTPLUS);
+      softplusLayer->setAlpha(1.0f);
+      softplusLayer->setBeta(8.0f);
+      auto softplusLayerName = desc->name + "/softplus";
+      softplusLayer->setName(softplusLayerName.c_str());
+      auto tanhLayer = model->network->addActivation(*softplusLayer->getOutput(0), ActivationType::kTANH);
+      auto tanhLayerName = desc->name + "/tanh";
+      tanhLayer->setName(tanhLayerName.c_str());
+      auto mergeLayer = model->network->addElementWise(*input, *tanhLayer->getOutput(0), ElementWiseOperation::kPROD);
+      mergeLayer->setName(desc->name.c_str());
+      if(forceFP32) {
+        softplusLayer->setPrecision(DataType::kFLOAT);
+        tanhLayer->setPrecision(DataType::kFLOAT);
+        mergeLayer->setPrecision(DataType::kFLOAT);
+      }
+      return mergeLayer;
+    }
+    else {
       ASSERT_UNREACHABLE;
     }
   }
