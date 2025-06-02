@@ -2066,9 +2066,10 @@ void NNInputs::fillRowV6(
     const vector<Move>& moveHistory = hist.moveHistory;
     size_t moveHistoryLen = moveHistory.size();
     assert(moveHistoryLen >= hist.numApproxValidTurnsThisPhase);
+    assert(moveHistoryLen >= hist.numConsecValidTurnsThisGame);
 
-    //Effectively wipe history as we change phase by also capping it
-    int amountOfHistoryToTryToUse = std::min(maxTurnsOfHistoryToInclude, hist.numApproxValidTurnsThisPhase);
+    //Effectively wipe history as we change phase by also capping it, and also on any historical rules violations
+    int amountOfHistoryToTryToUse = std::min(maxTurnsOfHistoryToInclude, std::min(hist.numApproxValidTurnsThisPhase,hist.numConsecValidTurnsThisGame));
 
     if(amountOfHistoryToTryToUse >= 1 && moveHistory[moveHistoryLen-1].pla == opp) {
       Loc prev1Loc = moveHistory[moveHistoryLen-1].loc;

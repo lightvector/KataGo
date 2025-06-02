@@ -1687,6 +1687,17 @@ FinishedGameData* Play::runGame(
   else
     gameData->hitTurnLimit = true;
 
+  // In self-play or match play, it should ALWAYS be the case that the entire game history is legal.
+  if(hist.numConsecValidTurnsThisGame != hist.moveHistory.size()) {
+    ostringstream sout;
+    sout << "Selfplay got history with not entire game legal!?!" << "\n";
+    sout << "hist.numConsecValidTurnsThisGame " << hist.numConsecValidTurnsThisGame << "\n";
+    sout << "hist.moveHistory.size() " << hist.moveHistory.size() << "\n";
+    hist.printBasicInfo(sout,board);
+    hist.printDebugInfo(sout,board);
+    testAssert(false);
+  }
+
   {
     BoardHistory histCopy(hist);
     //Always use true for computing the handicap value that goes into an sgf
