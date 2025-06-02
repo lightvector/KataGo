@@ -22,7 +22,7 @@ trtUseFP16 = false
 useGraphSearch = false
 
 : Analysis Engine starting...
-: KataGo v1.16.0
+: KataGo v1.16.1
 : nnRandSeed0 = analysisTest
 : After dedups: nnModelFile0 = tests/models/g170-b6c96-s175395328-d26788732.bin.gz useFP16 false useNHWC false
 : Initializing neural net buffer to be size 19 * 19 allowing smaller boards
