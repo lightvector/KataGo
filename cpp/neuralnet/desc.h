@@ -85,7 +85,7 @@ struct MatMulLayerDesc {
   std::string name;
   int inChannels;
   int outChannels;
-  // outC x inC
+  // inC x outC
   std::vector<float> weights;
 
   MatMulLayerDesc();
