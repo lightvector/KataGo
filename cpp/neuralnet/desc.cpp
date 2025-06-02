@@ -1509,19 +1509,9 @@ void ValueHeadDesc::iterConvLayers(std::function<void(const ConvLayerDesc& desc)
 
 void ValueHeadDesc::transformToReduceActivations() {
   // Merge in any multiplications by values less than 1.0 to happen earlier.
-  {
-    std::vector<float> channelFactors(v1BN.numChannels);
-    for(int i = 0; i < v1BN.numChannels; i++) {
-      if(abs(v1BN.mergedScale[i]) < 1.0f) {
-        channelFactors[i] = v1BN.mergedScale[i];
-        v1BN.mergedScale[i] = 1.0f;
-      }
-      else {
-        channelFactors[i] = 1.0f;
-      }
-    }
-    v1Conv.scaleOutputChannels(channelFactors);
-  }
+  std::vector<float> channelFactors;
+  v1BN.extractChannelFactorsAbsLtOne(channelFactors);
+  v1Conv.scaleOutputChannels(channelFactors);
 }
 
 
