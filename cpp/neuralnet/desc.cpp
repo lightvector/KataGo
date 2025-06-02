@@ -331,6 +331,11 @@ void BatchNormLayerDesc::extractChannelFactorsAbsLtOneWithInverses(std::vector<f
 void BatchNormLayerDesc::applyScale8ToReduceActivations() {
   for(int c = 0; c < numChannels; c++) {
     mergedBias[c] *= 0.125f;
+
+    mean[c] = 0.0f;
+    variance[c] = 1.0f - epsilon;
+    scale[c] = mergedScale[c];
+    bias[c] = mergedBias[c];
   }
 }
 
