@@ -3,6 +3,7 @@
 #define CUDA_API_PER_THREAD_DEFAULT_STREAM
 #include <NvInfer.h>
 #include <cuda_runtime_api.h>
+#include <fstream>
 
 #include "../core/fileutils.h"
 #include "../core/makedir.h"
@@ -43,6 +44,7 @@ struct ComputeContext {
   int nnYLen;
   enabled_t useFP16Mode;
   enabled_t useINT8Mode;
+  string int8CalibrationCacheFile;
   string homeDataDirOverride;
 };
 
@@ -58,6 +60,7 @@ ComputeContext* NeuralNet::createComputeContext(
   enabled_t useNHWCMode,
   enabled_t useINT8Mode,
   enabled_t useFP8Mode,
+  const string& int8CalibrationCacheFile,
   const LoadedModel* loadedModel) {
   (void)gpuIdxs;
   (void)logger;
@@ -65,6 +68,7 @@ ComputeContext* NeuralNet::createComputeContext(
   (void)openCLReTunePerBoardSize;
   (void)loadedModel;
   (void)useFP8Mode;
+  (void)int8CalibrationCacheFile;
 
   if(useNHWCMode == enabled_t::True) {
     throw StringError("TensorRT backend: useNHWC = false required, other configurations not supported");
@@ -75,9 +79,50 @@ ComputeContext* NeuralNet::createComputeContext(
   context->nnYLen = nnYLen;
   context->useFP16Mode = useFP16Mode;
   context->useINT8Mode = useINT8Mode;
+  context->int8CalibrationCacheFile = int8CalibrationCacheFile;
   context->homeDataDirOverride = homeDataDirOverride;
   return context;
 }
+
+// Simple calibrator that loads and saves calibration cache only
+class Int8CacheCalibrator : public IInt8EntropyCalibrator2 {
+ public:
+  string cacheFile;
+  vector<char> cache;
+
+  Int8CacheCalibrator(const string& file) : cacheFile(file) {
+    try {
+      cache = FileUtils::readFileBinary(cacheFile);
+    } catch(const StringError& e) {
+      (void)e;
+    }
+  }
+
+  int getBatchSize() const noexcept override { return 0; }
+
+  bool getBatch(void* bindings[], const char* names[], int nbBindings) noexcept override {
+    return false;
+  }
+
+  const void* readCalibrationCache(size_t& length) noexcept override {
+    length = cache.size();
+    if(cache.empty())
+      return nullptr;
+    return cache.data();
+  }
+
+  void writeCalibrationCache(const void* ptr, size_t length) noexcept override {
+    cache.assign((const char*)ptr, (const char*)ptr + length);
+    ofstream ofs;
+    try {
+      FileUtils::open(ofs, cacheFile, ios::out | ios::binary);
+      ofs.write(cache.data(), cache.size());
+      ofs.close();
+    } catch(const StringError& e) {
+      (void)e;
+    }
+  }
+};
 
 void NeuralNet::freeComputeContext(ComputeContext* computeContext) {
   delete computeContext;
@@ -1092,6 +1137,7 @@ struct ComputeHandle {
   TRTLogger trtLogger;
   TRTErrorRecorder trtErrorRecorder;
   map<string, void*> buffers;
+  unique_ptr<IInt8Calibrator> calibrator;
   unique_ptr<IRuntime> runtime;
   unique_ptr<ICudaEngine> engine;
   unique_ptr<IExecutionContext> exec;
@@ -1141,6 +1187,8 @@ struct ComputeHandle {
       if(ctx->useINT8Mode == enabled_t::True || ctx->useINT8Mode == enabled_t::Auto) {
         config->setFlag(BuilderFlag::kINT8);
         usingINT8 = true;
+        calibrator.reset(new Int8CacheCalibrator(ctx->int8CalibrationCacheFile));
+        config->setInt8Calibrator(calibrator.get());
       }
     } else if(ctx->useINT8Mode == enabled_t::True) {
       throw StringError("CUDA device does not support useINT8=true");

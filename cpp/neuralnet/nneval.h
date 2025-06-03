@@ -98,6 +98,7 @@ class NNEvaluator {
     enabled_t useNHWCMode,
     enabled_t useINT8Mode,
     enabled_t useFP8Mode,
+    const std::string& int8CalibrationCacheFile,
     int numThreads,
     const std::vector<int>& gpuIdxByServerThread,
     const std::string& randSeed,
@@ -224,6 +225,7 @@ class NNEvaluator {
   const enabled_t usingNHWCMode;
   const enabled_t usingINT8Mode;
   const enabled_t usingFP8Mode;
+  const std::string int8CalibrationCacheFile;
   int numThreads;
   std::vector<int> gpuIdxByServerThread;
   const std::string randSeed;

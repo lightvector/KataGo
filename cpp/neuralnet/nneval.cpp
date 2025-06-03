@@ -64,6 +64,7 @@ NNEvaluator::NNEvaluator(
   enabled_t useNHWCMode,
   enabled_t useINT8Mode,
   enabled_t useFP8Mode,
+  const string& int8CalibrationCacheFile,
   int numThr,
   const vector<int>& gpuIdxByServerThr,
   const string& rSeed,
@@ -81,6 +82,7 @@ NNEvaluator::NNEvaluator(
   usingNHWCMode(useNHWCMode),
   usingINT8Mode(useINT8Mode),
   usingFP8Mode(useFP8Mode),
+  int8CalibrationCacheFile(int8CalibrationCacheFile),
   numThreads(numThr),
    gpuIdxByServerThread(gpuIdxByServerThr),
    randSeed(rSeed),
@@ -149,6 +151,7 @@ NNEvaluator::NNEvaluator(
       openCLTunerFile,homeDataDirOverride,openCLReTunePerBoardSize,
       usingFP16Mode,usingNHWCMode,
       usingINT8Mode,usingFP8Mode,
+      int8CalibrationCacheFile,
       loadedModel
     );
   }

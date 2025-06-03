@@ -1699,6 +1699,7 @@ ComputeContext* NeuralNet::createComputeContext(
   enabled_t useNHWCMode,
   enabled_t useINT8Mode,
   enabled_t useFP8Mode,
+  const string& int8CalibrationCacheFile,
   const LoadedModel* loadedModel
 ) {
   (void)gpuIdxs;
@@ -1708,6 +1709,7 @@ ComputeContext* NeuralNet::createComputeContext(
   (void)openCLReTunePerBoardSize;
   (void)useINT8Mode;
   (void)useFP8Mode;
+  (void)int8CalibrationCacheFile;
   (void)loadedModel;
 
   bool useFP16 = useFP16Mode == enabled_t::True ? true : false;

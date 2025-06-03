@@ -234,6 +234,7 @@ NNEvaluator* TestSearchCommon::startNNEval(
     useNHWC ? enabled_t::True : enabled_t::False,
     enabled_t::Auto,
     enabled_t::Auto,
+    string(),
     numNNServerThreadsPerModel,
     gpuIdxByServerThread,
     nnRandSeed,

@@ -257,6 +257,12 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
     else if(cfg.contains("useINT8"))
       useINT8Mode = cfg.getEnabled("useINT8");
 
+    string int8CalibrationCacheFile;
+    if(cfg.contains("int8CalibrationCacheFile"+idxStr))
+      int8CalibrationCacheFile = cfg.getString("int8CalibrationCacheFile"+idxStr);
+    else if(cfg.contains("int8CalibrationCacheFile"))
+      int8CalibrationCacheFile = cfg.getString("int8CalibrationCacheFile");
+
     enabled_t useFP8Mode = enabled_t::Auto;
     if(cfg.contains(backendPrefix+"UseFP8"+idxStr))
       useFP8Mode = cfg.getEnabled(backendPrefix+"UseFP8"+idxStr);
@@ -277,6 +283,7 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
       + " useNHWC " + useNHWCMode.toString()
       + " useINT8 " + useINT8Mode.toString()
       + " useFP8 " + useFP8Mode.toString()
+      + " int8Calib " + int8CalibrationCacheFile
     );
 
     int nnCacheSizePowerOfTwo =
@@ -344,6 +351,7 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
       useNHWCMode,
       useINT8Mode,
       useFP8Mode,
+      int8CalibrationCacheFile,
       numNNServerThreadsPerModel,
       gpuIdxByServerThread,
       nnRandSeed,

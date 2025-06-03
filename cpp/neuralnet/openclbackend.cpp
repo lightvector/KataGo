@@ -463,13 +463,14 @@ ComputeContext* NeuralNet::createComputeContext(
   enabled_t useNHWCMode,
   enabled_t useINT8Mode,
   enabled_t useFP8Mode,
+  const string& int8CalibrationCacheFile,
   const LoadedModel* loadedModel
 ) {
   if(gpuIdxs.size() <= 0)
     throw StringError("NeuralNet::createComputeContext - specified no gpus to use");
 
   std::function<OpenCLTuneParams(const string&,int)> getParamsForDeviceName =
-    [&openCLTunerFile,&homeDataDirOverride,openCLReTunePerBoardSize,logger,nnXLen,nnYLen,useFP16Mode,useINT8Mode,useFP8Mode,loadedModel](const string& name, int gpuIdxForTuning) {
+    [&openCLTunerFile,&homeDataDirOverride,openCLReTunePerBoardSize,logger,nnXLen,nnYLen,useFP16Mode,useINT8Mode,useFP8Mode,int8CalibrationCacheFile,loadedModel](const string& name, int gpuIdxForTuning) {
     bool full = false;
     enabled_t testFP16Mode = useFP16Mode;
     enabled_t testFP16StorageMode = useFP16Mode;

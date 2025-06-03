@@ -60,6 +60,7 @@ namespace NeuralNet {
     enabled_t useNHWCMode,
     enabled_t useINT8Mode,
     enabled_t useFP8Mode,
+    const std::string& int8CalibrationCacheFile,
     const LoadedModel* loadedModel
   );
   //A ComputeContext should NOT be freed until all ComputeHandles created using it have also been freed.
