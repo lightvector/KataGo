@@ -23,6 +23,8 @@ ComputeContext* NeuralNet::createComputeContext(
   bool openCLReTunePerBoardSize,
   enabled_t useFP16Mode,
   enabled_t useNHWCMode,
+  enabled_t useINT8Mode,
+  enabled_t useFP8Mode,
   const LoadedModel* loadedModel
 ) {
   (void)gpuIdxs;
@@ -34,6 +36,8 @@ ComputeContext* NeuralNet::createComputeContext(
   (void)openCLReTunePerBoardSize;
   (void)useFP16Mode;
   (void)useNHWCMode;
+  (void)useINT8Mode;
+  (void)useFP8Mode;
   (void)loadedModel;
   throw StringError("Dummy neural net backend: NeuralNet::createComputeContext unimplemented");
 }
@@ -85,6 +89,11 @@ void NeuralNet::freeComputeHandle(ComputeHandle* gpuHandle) {
 }
 
 bool NeuralNet::isUsingFP16(const ComputeHandle* handle) {
+  (void)handle;
+  return false;
+}
+
+bool NeuralNet::isUsingINT8(const ComputeHandle* handle) {
   (void)handle;
   return false;
 }

@@ -232,6 +232,8 @@ NNEvaluator* TestSearchCommon::startNNEval(
     openCLReTunePerBoardSize,
     useFP16 ? enabled_t::True : enabled_t::False,
     useNHWC ? enabled_t::True : enabled_t::False,
+    enabled_t::Auto,
+    enabled_t::Auto,
     numNNServerThreadsPerModel,
     gpuIdxByServerThread,
     nnRandSeed,

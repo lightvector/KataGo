@@ -431,6 +431,8 @@ ComputeContext* NeuralNet::createComputeContext(
   bool openCLReTunePerBoardSize,
   enabled_t useFP16Mode,
   enabled_t useNHWCMode,
+  enabled_t useINT8Mode,
+  enabled_t useFP8Mode,
   const LoadedModel* loadedModel) {
 
   (void)gpuIdxs;
@@ -438,6 +440,8 @@ ComputeContext* NeuralNet::createComputeContext(
   (void)openCLTunerFile;
   (void)homeDataDirOverride;
   (void)openCLReTunePerBoardSize;
+  (void)useINT8Mode;
+  (void)useFP8Mode;
   (void)loadedModel;
 
   return new ComputeContext(nnXLen, nnYLen, useFP16Mode, useNHWCMode);
@@ -547,6 +551,11 @@ void NeuralNet::freeComputeHandle(ComputeHandle* handle) {
  */
 bool NeuralNet::isUsingFP16(const ComputeHandle* handle) {
   return handle->useFP16;
+}
+
+bool NeuralNet::isUsingINT8(const ComputeHandle* handle) {
+  (void)handle;
+  return false;
 }
 
 //------------------------------------------------------------------------------

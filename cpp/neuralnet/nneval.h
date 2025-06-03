@@ -96,6 +96,8 @@ class NNEvaluator {
     bool openCLReTunePerBoardSize,
     enabled_t useFP16Mode,
     enabled_t useNHWCMode,
+    enabled_t useINT8Mode,
+    enabled_t useFP8Mode,
     int numThreads,
     const std::vector<int>& gpuIdxByServerThread,
     const std::string& randSeed,
@@ -127,6 +129,8 @@ class NNEvaluator {
   double getTrunkSpatialConvDepth() const;
   enabled_t getUsingFP16Mode() const;
   enabled_t getUsingNHWCMode() const;
+  enabled_t getUsingINT8Mode() const;
+  enabled_t getUsingFP8Mode() const;
 
   //Check if the loaded neural net supports shorttermError fields
   bool supportsShorttermError() const;
@@ -192,6 +196,7 @@ class NNEvaluator {
 
   //After spawnServerThreads has returned, check if is was using FP16.
   bool isAnyThreadUsingFP16() const;
+  bool isAnyThreadUsingINT8() const;
 
   //These are thread-safe. Setting them in the middle of operation might only affect future
   //neural net evals, rather than any in-flight.
@@ -217,6 +222,8 @@ class NNEvaluator {
   const bool inputsUseNHWC;
   const enabled_t usingFP16Mode;
   const enabled_t usingNHWCMode;
+  const enabled_t usingINT8Mode;
+  const enabled_t usingFP8Mode;
   int numThreads;
   std::vector<int> gpuIdxByServerThread;
   const std::string randSeed;
@@ -252,6 +259,7 @@ class NNEvaluator {
   std::condition_variable mainThreadWaitingForSpawn; //Condvar for waiting until server threads are spawned
 
   std::vector<int> serverThreadsIsUsingFP16;
+  std::vector<int> serverThreadsIsUsingINT8;
 
   int numOngoingEvals; //Current number of ongoing evals.
   int numWaitingEvals; //Current number of things waiting for finish.
