@@ -9,6 +9,39 @@
 #include "../core/rand.h"
 #include "../core/test.h"
 
+#ifdef __MINGW32__
+#include <timezoneapi.h>
+#endif
+
+/* MinGW doesn't support date specifier arguments correctly.
+ * It skips `%F`, `%T` and prints `W. Europe Summer Time` instead of `+0200` for the timezone `%z` specifier.
+ * The function also handles DST (Daylight saving time).
+ * So, create the necessary format manually.
+ */
+const char* DateTime::getTimeFormat() {
+#ifdef __MINGW32__
+  // Get current time to check if we're in DST
+  std::time_t now = std::time(nullptr);
+  std::tm local_tm = *std::localtime(&now);
+
+  // Windows bias is opposite of what we want (negative for east, positive for west)
+  // We invert it to match the conventional format (positive for east, negative for west)
+  TIME_ZONE_INFORMATION tzi;
+  GetTimeZoneInformation(&tzi);
+  int total_bias = -(tzi.Bias + (local_tm.tm_isdst > 0 ? tzi.DaylightBias : tzi.StandardBias));
+
+  int hours = abs(total_bias) / 60;
+  int minutes = abs(total_bias) % 60;
+
+  static char buffer[28];
+  snprintf(buffer, sizeof(buffer), "%%Y-%%m-%%d %%H:%%M:%%S%c%02d%02d: ",
+           total_bias >= 0 ? '+' : '-', hours, minutes);
+  return buffer;
+#else
+  return "%F %T%z: ";
+#endif
+}
+
 time_t DateTime::getNow() {
   time_t time = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
   return time;

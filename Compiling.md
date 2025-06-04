@@ -1,6 +1,6 @@
 
 # Compiling KataGo
-KataGo is written in C++. It should compile on Linux or OSX via g++ that supports at least C++14, or on Windows via MSVC 15 (2017) and later. Other compilers and systems have not been tested yet. This is recommended if you want to run the full KataGo self-play training loop on your own and/or do your own research and experimentation, or if you want to run KataGo on an operating system for which there is no precompiled executable available.
+KataGo is written in C++. It should compile on Linux or OSX via g++ that supports at least C++14, or on Windows via MSVC 15 (2017) and later or MinGW. Other compilers and systems have not been tested yet. This is recommended if you want to run the full KataGo self-play training loop on your own and/or do your own research and experimentation, or if you want to run KataGo on an operating system for which there is no precompiled executable available.
 
 ### Building for Distributed
 As also mentioned in the instructions below but repeated here for visibility, if you also are building KataGo with the intent to use it in distributed training on https://katagotraining.org, then keep in mind:
@@ -59,7 +59,7 @@ As also mentioned in the instructions below but repeated here for visibility, if
       * Building from source on Windows is actually a bit tricky, depending on what version you're building, there's not necessarily a super-fast way.
    * Requirements
       * CMake with a minimum version of 3.18.2, GUI version strongly recommended (https://cmake.org/download/)
-      * Microsoft Visual Studio for C++. Version 15 (2017) has been tested and should work, other versions might work as well.
+      * Microsoft Visual Studio for C++. Version 15 (2017) has been tested and should work, MinGW version also should work but only with Eigen and OpenCL backends (CUDA and TensorRT MinGW backends are [not supported by NVIDIA](https://forums.developer.nvidia.com/t/cuda-with-mingw-how-to-get-cuda-running-under-mingw)).
       * If using the OpenCL backend, a modern GPU that supports OpenCL 1.2 or greater, or else something like [this](https://software.intel.com/en-us/opencl-sdk) for CPU. But if using CPU, Eigen should be better.
       * If using the CUDA backend, CUDA 11 or later and a compatible version of CUDNN based on your CUDA version (https://developer.nvidia.com/cuda-toolkit) (https://developer.nvidia.com/cudnn) and a GPU capable of supporting them. I'm unsure how version compatibility works with CUDA, there's a good chance that later versions than these work just as well, but they have not been tested.
       * If using the TensorRT backend, in addition to a compatible CUDA Toolkit (https://developer.nvidia.com/cuda-toolkit), you also need TensorRT (https://developer.nvidia.com/tensorrt) that is at least version 8.5.
@@ -72,15 +72,31 @@ As also mentioned in the instructions below but repeated here for visibility, if
          * Set CMake ZLIB_LIBRARY to vcpkg\installed\x64-windows\lib\zlib.lib and ZLIB_INCLUDE_DIRECTORY to vcpkg\installed\x64-windows\include.
          * Copy zlib1.dll from vcpkg\installed\x64-windows\bin to Katago folder after you've built Katago executable.
       * libzip (optional, needed only for self-play training) - for example https://github.com/kiyolee/libzip-win-build
+      * For MinGW it's recommended to use [MSYS2](https://www.msys2.org/) building platform to get necessary zlib and libzip dependencies:
+        * Install MSYS2 according to the instruction on the official site
+        * Run `mingw64.exe` app from Console
+        * Install zlib/libzip dependencies using pacman package manager:
+          * `pacman -S mingw-w64-x86_64-libzip`
+          * `pacman -S mingw-w64-x86_64-xz`
+          * `pacman -S mingw-w64-x86_64-bzip2`
+          * `pacman -S mingw-w64-x86_64-zstd`
       * If compiling to contribute to public distributed training runs, OpenSSL is required (https://www.openssl.org/, https://wiki.openssl.org/index.php/Compilation_and_Installation).
    * Download/clone this repo to some folder `KataGo`.
-   * Configure using CMake GUI and compile in MSVC:
+   * Configure using CMake GUI and compile in an IDE:
       * Select `KataGo/cpp` as the source code directory in [CMake GUI](https://cmake.org/runningcmake/).
       * Set the build directory to wherever you would like the built executable to be produced.
-      * Click "Configure". For the generator select your MSVC version, and also select "x64" for the optional platform if you're on 64-bit windows, don't use win32.
+      * Click "Configure". For the generator select your generator (MSVC or MinGW), and also select "x64" for the optional platform if you're on 64-bit windows, don't use win32.
       * If you get errors where CMake has not automatically found ZLib, point it to the appropriate places according to the error messages:
         * `ZLIB_INCLUDE_DIR` - point this to the directory containing `zlib.h` and other headers
-        * `ZLIB_LIBRARY` - point this to the `libz.lib` resulting from building zlib. Note that "*_LIBRARY" expects to be pointed to the ".lib" file, whereas the ".dll" file is the file that needs to be included with KataGo at runtime.
+        * `ZLIB_LIBRARY` - point this to the `libz.lib` (`libz.a` for MinGW) resulting from building zlib. Note that "*_LIBRARY" expects to be pointed to the ".lib" file, whereas the ".dll" file is the file that needs to be included with KataGo at runtime.
+        * For MinGW zlib/libzip CMake options should look like the following way:
+          ```
+          -DZLIB_INCLUDE_DIR="C:/msys64/mingw64/include"
+          -DZLIB_LIBRARY="C:/msys64/mingw64/lib/libz.a"
+          -DLIBZIP_INCLUDE_DIR_ZIP:PATH="C:/msys64/mingw64/include"
+          -DLIBZIP_INCLUDE_DIR_ZIPCONF:PATH="C:/msys64/mingw64/include"
+          -DLIBZIP_LIBRARY:FILEPATH="C:/msys64/mingw64/lib/libzip.dll.a"
+          ```
       * Also set `USE_BACKEND` to `OPENCL`, or `CUDA`, or `TENSORRT`, or `EIGEN` depending on what backend you want to use.
       * Set any other options you want and re-run "Configure" again as needed after setting them. Such as:
          * `NO_GIT_REVISION` if you don't have Git or if cmake is not finding it.
@@ -89,9 +105,13 @@ As also mentioned in the instructions below but repeated here for visibility, if
          * `BUILD_DISTRIBUTED` to compile with support for contributing data to public distributed training runs.
             * If building distributed, you will also need to build with Git revision support, including building within a clone of the repo, as opposed to merely an unzipped copy of its source.
             * Only builds from specific tagged versions or branches can contribute, in particular, instead of the `master` branch, use either the latest [release](https://github.com/lightvector/KataGo/releases) tag or the tip of the `stable` branch. To minimize the chance of any data incompatibilities or bugs, please do NOT attempt to contribute with custom changes or circumvent these limitations.
-      * Once running "Configure" looks good, run "Generate" and then open MSVC and build as normal in MSVC.
+      * Once running "Configure" looks good, run "Generate" and then open the project in Visual Studio or CLion and build it as usual.
+   * For MinGW it's recommended to configure the project in the following ways:
+     * Use the default MinGW toolchain in [CLion IDE](https://www.jetbrains.com/clion/) (free for Non-Commercial use)
+     * Use [MSYS2](https://www.msys2.org/) MinGW toolchain. Befor configuring, install gcc compiler using pacman package manager: `pacman -S mingw-w64-x86_64-gcc`
    * Done! You should now have a compiled `katago.exe` executable in your working directory.
-   * Note: You may need to copy the ".dll" files corresponding to the various ".lib" files you compiled with into the directory containing katago.exe.
+   * Note: You may need to copy the ".dll" files corresponding to the various ".lib" (".a") files you compiled with into the directory containing katago.exe.
+     * MinGW has different dlls. If you use pacman, the necessary dlls (`libbz2-1.dll`, `libzip.dll`, `libzstd.dll`, `liblzma-5.dll`) should be copied from MinGW bin directory (like `C:\msys64\mingw64\bin`).
    * Note: If you had to update or install CUDA or GPU drivers, you will likely need to reboot before they will work.
    * Pre-trained neural nets are available at [the main training website](https://katagotraining.org/).
    * You will probably want to edit `configs/gtp_example.cfg` (see "Tuning for Performance" above).
