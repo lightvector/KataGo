@@ -666,64 +666,34 @@ public func testConvLayer(
 /// A struct that represents a description of a batch normalization layer.
 public struct SWBatchNormLayerDesc {
     let numChannels: NSNumber
-    let epsilon: Float32
-    let hasScale: NSNumber
-    let hasBias: NSNumber
-    let mean: UnsafeMutablePointer<Float32>
-    let variance: UnsafeMutablePointer<Float32>
-    let scale: UnsafeMutablePointer<Float32>
-    let bias: UnsafeMutablePointer<Float32>
+    let mergedScale: UnsafeMutablePointer<Float32>
+    let mergedBias: UnsafeMutablePointer<Float32>
 
     /// Initializes a SWBatchNormLayerDesc object.
     /// - Parameters:
     ///   - numChannels: The number of channels in the input tensor.
-    ///   - epsilon: A small value added to the variance to avoid division by zero.
-    ///   - hasScale: A flag indicating whether scaling is applied.
-    ///   - hasBias: A flag indicating whether bias is applied.
-    ///   - mean: A pointer to the mean.
-    ///   - variance: A pointer to the variance.
-    ///   - scale: A pointer to the scale.
-    ///   - bias: A pointer to the bias.
+    ///   - mergedScale: A pointer to the merged scale.
+    ///   - mergedBias: A pointer to the merged bias.
     init(
         numChannels: NSNumber,
-        epsilon: Float32,
-        hasScale: NSNumber,
-        hasBias: NSNumber,
-        mean: UnsafeMutablePointer<Float32>,
-        variance: UnsafeMutablePointer<Float32>,
-        scale: UnsafeMutablePointer<Float32>,
-        bias: UnsafeMutablePointer<Float32>
+        mergedScale: UnsafeMutablePointer<Float32>,
+        mergedBias: UnsafeMutablePointer<Float32>
     ) {
         self.numChannels = numChannels
-        self.epsilon = epsilon
-        self.hasScale = hasScale
-        self.hasBias = hasBias
-        self.mean = mean
-        self.variance = variance
-        self.scale = scale
-        self.bias = bias
+        self.mergedScale = mergedScale
+        self.mergedBias = mergedBias
     }
 }
 
 public func createSWBatchNormLayerDesc(
     numChannels: Int32,
-    epsilon: Float32,
-    hasScale: Bool,
-    hasBias: Bool,
-    mean: UnsafeMutablePointer<Float32>,
-    variance: UnsafeMutablePointer<Float32>,
-    scale: UnsafeMutablePointer<Float32>,
-    bias: UnsafeMutablePointer<Float32>
+    mergedScale: UnsafeMutablePointer<Float32>,
+    mergedBias: UnsafeMutablePointer<Float32>
 ) -> SWBatchNormLayerDesc {
     return SWBatchNormLayerDesc(
         numChannels: numChannels as NSNumber,
-        epsilon: epsilon,
-        hasScale: hasScale as NSNumber,
-        hasBias: hasBias as NSNumber,
-        mean: mean,
-        variance: variance,
-        scale: scale,
-        bias: bias)
+        mergedScale: mergedScale,
+        mergedBias: mergedBias)
 }
 
 /// A class that represents a batch normalization layer.
@@ -787,55 +757,38 @@ class BatchNormLayer {
         nnXLen: NSNumber,
         nnYLen: NSNumber
     ) {
-        let meanShape = InputShape.create(
+        let scaleBiasShape = InputShape.create(
             batchSize: 1,
             numChannels: descriptor.numChannels,
             nnYLen: 1,
             nnXLen: 1)
 
-        let meanData = Data(
-            floatsNoCopy: descriptor.mean,
-            shape: meanShape)
+        let mergedScaleData = Data(
+            floatsNoCopy: descriptor.mergedScale,
+            shape: scaleBiasShape)
 
-        let varianceData = Data(
-            floatsNoCopy: descriptor.variance,
-            shape: meanShape)
-
-        let scaleData = Data(
-            floatsNoCopy: descriptor.scale,
-            shape: meanShape)
-
-        let biasData = Data(
-            floatsNoCopy: descriptor.bias,
-            shape: meanShape)
-
-        let meanTensor = graph.constant(
-            meanData,
-            shape: meanShape,
-            dataType: sourceTensor.dataType)
-
-        let varianceTensor = graph.constant(
-            varianceData,
-            shape: meanShape,
-            dataType: sourceTensor.dataType)
+        let mergedBiasData = Data(
+            floatsNoCopy: descriptor.mergedBias,
+            shape: scaleBiasShape)
 
         let scaleTensor = graph.constant(
-            scaleData,
-            shape: meanShape,
+            mergedScaleData,
+            shape: scaleBiasShape,
             dataType: sourceTensor.dataType)
 
         let biasTensor = graph.constant(
-            biasData,
-            shape: meanShape,
+            mergedBiasData,
+            shape: scaleBiasShape,
             dataType: sourceTensor.dataType)
 
-        let normalized = graph.normalize(
+        let scaled = graph.multiplication(
             sourceTensor,
-            mean: meanTensor,
-            variance: varianceTensor,
-            gamma: scaleTensor,
-            beta: biasTensor,
-            epsilon: descriptor.epsilon,
+            scaleTensor,
+            name: nil)
+
+        let normalized = graph.addition(
+            scaled,
+            biasTensor,
             name: nil)
 
         resultTensor = graph.multiplication(

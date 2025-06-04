@@ -30,13 +30,8 @@ SWBatchNormLayerDesc MetalProcess::batchNormLayerDescToSwift(const BatchNormLaye
 
   SWBatchNormLayerDesc swDesc =
   createSWBatchNormLayerDesc(desc->numChannels,
-                             desc->epsilon,
-                             desc->hasScale,
-                             desc->hasBias,
-                             (float*)desc->mean.data(),
-                             (float*)desc->variance.data(),
-                             (float*)desc->scale.data(),
-                             (float*)desc->bias.data());
+                             (float*)desc->mergedScale.data(),
+                             (float*)desc->mergedBias.data());
 
   return swDesc;
 }
@@ -676,7 +671,7 @@ void MetalProcess::copyRowData(float* dest, const float* src, size_t numElements
 /**
  * @brief Convert input data from NHWC format to NCHW format in-place if necessary.
  *
- * @param data Pointer to the input data (single batch element assumed).
+ * @param rowSpatialInput Pointer to the input data (single batch element assumed).
  * @param C Number of channels.
  * @param H Height.
  * @param W Width.
