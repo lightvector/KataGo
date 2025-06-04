@@ -135,6 +135,9 @@ struct NNOutput {
   //The optimism value used for this neural net evaluation.
   float policyOptimismUsed;
 
+  float* whiteQWinloss;
+  float* whiteQScore;
+
   int nnXLen;
   int nnYLen;
   //If not NULL, then this contains a nnXLen*nnYLen-sized map of expected ownership on the board.
