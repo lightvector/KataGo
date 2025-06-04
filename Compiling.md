@@ -131,3 +131,7 @@ As also mentioned in the instructions below but repeated here for visibility, if
    * Pre-trained neural nets are available at [the main training website](https://katagotraining.org/).
    * You will probably want to edit `configs/gtp_example.cfg` (see "Tuning for Performance" above).
    * If using OpenCL, you will want to verify that KataGo is picking up the correct device when you run it (e.g. some systems may have both an Intel CPU OpenCL and GPU OpenCL, if KataGo appears to pick the wrong one, you can correct this by specifying `openclGpuToUse` in `configs/gtp_example.cfg`).
+   * If you want to run `synchronous_loop.sh` on macOS, do the following steps:
+      * Install GNU coreutils `brew install coreutils` to support a `head` tool that can take negative numbers (`head -n -5` in `train.sh`)
+      * Install GNU findutils `brew install findutils` to support a `find` tool that supports `-printf` option, that's used by `export_model_for_selfplay.sh`. After that, fix `find` with `gfind` in the script.
+        Note: you can try to avoid fixing `export_model_for_selfplay.sh` by adjusting `PATH` with the installed findutils: `export PATH="/opt/homebrew/opt/findutils/libexec/gnubin:$PATH"` or by using the alias `alias find="gfind"`. However, it works not always.
