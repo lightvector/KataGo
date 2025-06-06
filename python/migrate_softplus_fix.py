@@ -5,7 +5,7 @@ import argparse
 import math
 import torch
 
-import load_model
+import katago.train.load_model
 
 description = """
 Hacky script to partially migrate v12 optimistic policy to v13 changing score error.

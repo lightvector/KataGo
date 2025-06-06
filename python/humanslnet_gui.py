@@ -7,9 +7,9 @@ from threading import Thread
 import atexit
 import datetime
 
-from gamestate import GameState
-from board import Board
-from sgfmetadata import SGFMetadata
+from katago.game.gamestate import GameState
+from katago.game.board import Board
+from katago.game.sgfmetadata import SGFMetadata
 
 from sgfmill import sgf, sgf_moves
 

@@ -56,7 +56,7 @@ mkdir -p "$BASEDIR"/gatekeepersgf
 # NOTE: You may want to adjust the below numbers.
 # NOTE: You probably want to edit settings in cpp/configs/training/selfplay1.cfg
 # NOTE: You probably want to edit settings in cpp/configs/training/gatekeeper1.cfg
-# Such as what board sizes and rules, you want to learn, number of visits to use, etc.
+# Such as what board sizes and rules you want to learn, number of visits to use, etc.
 
 # Also, the parameters below are relatively small, and probably
 # good for less powerful hardware and tighter turnaround during very early training, but if
@@ -76,17 +76,17 @@ mkdir -p "$BASEDIR"/gatekeepersgf
 # TAPER_WINDOW_SCALE=1000 # 混洗窗口增长的缩放因子; Parameter setting the scale at which the shuffler will make the training window grow sublinearly.
 # SHUFFLE_KEEPROWS=2560000 # 混洗保留的行数（需大于最大训练步数）; Needs to be larger than MAX_TRAIN_SAMPLES_PER_CYCLE, so the shuffler samples enough rows each cycle for the training to use.
 
-# # 标准 128 盘本地自对弈参数设置
-# NUM_GAMES_PER_CYCLE=128 # 每周期自对弈游戏数; Every cycle, play this many games
-# NUM_THREADS_FOR_SHUFFLING=8 # 混洗线程数
-# NUM_TRAIN_SAMPLES_PER_EPOCH=25000  # 每训练周期样本数. Training will proceed in chunks of this many rows, subject to MAX_TRAIN_PER_DATA.
-# MAX_TRAIN_PER_DATA=8 # 每数据行最大训练次数（8，避免过拟合）; On average, train only this many times on each data row. Larger numbers may cause overfitting.
-# NUM_TRAIN_SAMPLES_PER_SWA=80000  # 随机权重平均频率; Stochastic weight averaging frequency.
-# BATCHSIZE=32 # 训练批次大小; For lower-end GPUs 64 or smaller may be needed to avoid running out of GPU memory.
-# SHUFFLE_MINROWS=25000 # 开始训练前的最小数据行数; Require this many rows at the very start before beginning training.
-# MAX_TRAIN_SAMPLES_PER_CYCLE=1280000  # 每周期最大训练步数; Each cycle will do at most this many training steps.
-# TAPER_WINDOW_SCALE=10000 # 混洗窗口增长的缩放因子; Parameter setting the scale at which the shuffler will make the training window grow sublinearly.
-# SHUFFLE_KEEPROWS=2560000 # 混洗保留的行数（需大于最大训练步数）; Needs to be larger than MAX_TRAIN_SAMPLES_PER_CYCLE, so the shuffler samples enough rows each cycle for the training to use.
+# 标准 128 盘本地自对弈参数设置
+NUM_GAMES_PER_CYCLE=128 # 每周期自对弈游戏数; Every cycle, play this many games
+NUM_THREADS_FOR_SHUFFLING=8 # 混洗线程数
+NUM_TRAIN_SAMPLES_PER_EPOCH=30000  # 每训练周期样本数. Training will proceed in chunks of this many rows, subject to MAX_TRAIN_PER_DATA.
+MAX_TRAIN_PER_DATA=8 # 每数据行最大训练次数（8，避免过拟合）; On average, train only this many times on each data row. Larger numbers may cause overfitting.
+NUM_TRAIN_SAMPLES_PER_SWA=80000  # 随机权重平均频率; Stochastic weight averaging frequency.
+BATCHSIZE=32 # 训练批次大小; For lower-end GPUs 64 or smaller may be needed to avoid running out of GPU memory.
+SHUFFLE_MINROWS=30000 # 开始训练前的最小数据行数; Require this many rows at the very start before beginning training.
+MAX_TRAIN_SAMPLES_PER_CYCLE=1280000  # 每周期最大训练步数; Each cycle will do at most this many training steps.
+TAPER_WINDOW_SCALE=10 # 混洗窗口增长的缩放因子; Parameter setting the scale at which the shuffler will make the training window grow sublinearly.
+SHUFFLE_KEEPROWS=2560000 # 混洗保留的行数（需大于最大训练步数）; Needs to be larger than MAX_TRAIN_SAMPLES_PER_CYCLE, so the shuffler samples enough rows each cycle for the training to use.
 
 # # 标准 256 盘本地自对弈参数设置
 # NUM_GAMES_PER_CYCLE=256 # 每周期自对弈游戏数; Every cycle, play this many games
@@ -100,17 +100,17 @@ mkdir -p "$BASEDIR"/gatekeepersgf
 # TAPER_WINDOW_SCALE=100000 # 混洗窗口增长的缩放因子; Parameter setting the scale at which the shuffler will make the training window grow sublinearly.
 # SHUFFLE_KEEPROWS=2560000 # 混洗保留的行数（需大于最大训练步数）; Needs to be larger than MAX_TRAIN_SAMPLES_PER_CYCLE, so the shuffler samples enough rows each cycle for the training to use.
 
-# 标准 512 盘本地自对弈参数设置
-NUM_GAMES_PER_CYCLE=512 # 每周期自对弈游戏数; Every cycle, play this many games
-NUM_THREADS_FOR_SHUFFLING=8 # 混洗线程数
-NUM_TRAIN_SAMPLES_PER_EPOCH=100000  # 每训练周期样本数. Training will proceed in chunks of this many rows, subject to MAX_TRAIN_PER_DATA.
-MAX_TRAIN_PER_DATA=8 # 每数据行最大训练次数（8，避免过拟合）; On average, train only this many times on each data row. Larger numbers may cause overfitting.
-NUM_TRAIN_SAMPLES_PER_SWA=80000  # 随机权重平均频率; Stochastic weight averaging frequency.
-BATCHSIZE=32 # 训练批次大小; For lower-end GPUs 64 or smaller may be needed to avoid running out of GPU memory.
-SHUFFLE_MINROWS=100000 # 开始训练前的最小数据行数; Require this many rows at the very start before beginning training.
-MAX_TRAIN_SAMPLES_PER_CYCLE=128000000  # 每周期最大训练步数; Each cycle will do at most this many training steps.
-TAPER_WINDOW_SCALE=20000 # 混洗窗口增长的缩放因子; Parameter setting the scale at which the shuffler will make the training window grow sublinearly.
-SHUFFLE_KEEPROWS=256000000 # 混洗保留的行数（需大于最大训练步数）; Needs to be larger than MAX_TRAIN_SAMPLES_PER_CYCLE, so the shuffler samples enough rows each cycle for the training to use.
+# # 标准 512 盘本地自对弈参数设置
+# NUM_GAMES_PER_CYCLE=512 # 每周期自对弈游戏数; Every cycle, play this many games
+# NUM_THREADS_FOR_SHUFFLING=8 # 混洗线程数
+# NUM_TRAIN_SAMPLES_PER_EPOCH=120000  # 每训练周期样本数. Training will proceed in chunks of this many rows, subject to MAX_TRAIN_PER_DATA.
+# MAX_TRAIN_PER_DATA=8 # 每数据行最大训练次数（8，避免过拟合）; On average, train only this many times on each data row. Larger numbers may cause overfitting.
+# NUM_TRAIN_SAMPLES_PER_SWA=80000  # 随机权重平均频率; Stochastic weight averaging frequency.
+# BATCHSIZE=32 # 训练批次大小; For lower-end GPUs 64 or smaller may be needed to avoid running out of GPU memory.
+# SHUFFLE_MINROWS=120000 # 开始训练前的最小数据行数; Require this many rows at the very start before beginning training.
+# MAX_TRAIN_SAMPLES_PER_CYCLE=12800000  # 每周期最大训练步数; Each cycle will do at most this many training steps.
+# TAPER_WINDOW_SCALE=10 # 混洗窗口增长的缩放因子; Parameter setting the scale at which the shuffler will make the training window grow sublinearly.
+# SHUFFLE_KEEPROWS=25600000 # 混洗保留的行数（需大于最大训练步数）; Needs to be larger than MAX_TRAIN_SAMPLES_PER_CYCLE, so the shuffler samples enough rows each cycle for the training to use.
 
 # # 其它参数设置较大，因使用社区数据集进行训练
 # NUM_GAMES_PER_CYCLE=500 # 每周期自对弈游戏数; Every cycle, play this many games
@@ -134,9 +134,10 @@ GATING_CONFIG="$GITROOTDIR"/cpp/configs/training/gatekeeper1.cfg
 # For archival and logging purposes - you can look back and see exactly the python code on a particular date
 DATE_FOR_FILENAME=$(date "+%Y%m%d-%H%M%S")
 DATED_ARCHIVE="$BASEDIR"/scripts/dated/"$DATE_FOR_FILENAME"
-mkdir -p "$DATED_ARCHIVE"
+mkdir -p "$DATED_ARCHIVE"/bin
 cp "$GITROOTDIR"/python/*.py "$GITROOTDIR"/python/selfplay/*.sh "$DATED_ARCHIVE"
-cp "$GITROOTDIR"/cpp/katago "$DATED_ARCHIVE"
+cp -r "$GITROOTDIR"/python/katago "$DATED_ARCHIVE"
+cp "$GITROOTDIR"/cpp/katago "$DATED_ARCHIVE"/bin
 cp "$GITROOTDIR"/cpp/*.dll "$DATED_ARCHIVE"
 
 cp "$SELFPLAY_CONFIG" "$DATED_ARCHIVE"/selfplay.cfg
@@ -155,7 +156,7 @@ set -x
 while [ "$i" -le 1 ] 
 do
     echo "Selfplay"
-    time ./katago selfplay -max-games-total "$NUM_GAMES_PER_CYCLE" -output-dir "$BASEDIR"/selfplay -models-dir "$BASEDIR"/models -config "$DATED_ARCHIVE"/selfplay.cfg | tee -a "$BASEDIR"/selfplay/stdout.txt
+    time ./bin/katago selfplay -max-games-total "$NUM_GAMES_PER_CYCLE" -output-dir "$BASEDIR"/selfplay -models-dir "$BASEDIR"/models -config "$DATED_ARCHIVE"/selfplay.cfg | tee -a "$BASEDIR"/selfplay/stdout.txt
 
     echo "Shuffle"
     (
@@ -176,7 +177,7 @@ do
     time ./noise.sh "$BASEDIR" "$TRAININGNAME" "$MODELKIND" "$NOISESCALE" "$ITERATIONS" 2>&1 | tee -a "$BASEDIR"/logs/outnoise.txt
 
     echo "Gatekeeper"
-    time ./katago gatekeeper -rejected-models-dir "$BASEDIR"/rejectedmodels -accepted-models-dir "$BASEDIR"/models/ -sgf-output-dir "$BASEDIR"/gatekeepersgf/ -test-models-dir "$BASEDIR"/modelstobetested/ -config "$DATED_ARCHIVE"/gatekeeper.cfg -quit-if-no-nets-to-test | tee -a "$BASEDIR"/gatekeepersgf/stdout.txt
+    time ./bin/katago gatekeeper -required-candidate-win-prop 0.53 -rejected-models-dir "$BASEDIR"/rejectedmodels -accepted-models-dir "$BASEDIR"/models/ -sgf-output-dir "$BASEDIR"/gatekeepersgf/ -test-models-dir "$BASEDIR"/modelstobetested/ -config "$DATED_ARCHIVE"/gatekeeper.cfg -quit-if-no-nets-to-test | tee -a "$BASEDIR"/gatekeepersgf/stdout.txt
 
     i=$((i + 1))  # 递增循环计数器; Increment the loop counter
 done

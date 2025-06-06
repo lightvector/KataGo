@@ -32,6 +32,8 @@ struct ConvLayerDesc {
   ConvLayerDesc& operator=(ConvLayerDesc&& other);
 
   double getSpatialConvDepth() const;
+
+  void scaleOutputChannels(const std::vector<float>& scaling);
 };
 
 struct BatchNormLayerDesc {
@@ -45,6 +47,9 @@ struct BatchNormLayerDesc {
   std::vector<float> scale;
   std::vector<float> bias;
 
+  std::vector<float> mergedScale;
+  std::vector<float> mergedBias;
+
   BatchNormLayerDesc();
   BatchNormLayerDesc(std::istream& in, bool binaryFloats);
   BatchNormLayerDesc(BatchNormLayerDesc&& other);
@@ -53,6 +58,11 @@ struct BatchNormLayerDesc {
   BatchNormLayerDesc& operator=(const BatchNormLayerDesc&) = delete;
 
   BatchNormLayerDesc& operator=(BatchNormLayerDesc&& other);
+
+  void scaleInputChannels(const std::vector<float>& scaling);
+  void extractChannelFactorsAbsLtOne(std::vector<float>& channelFactors);
+  void extractChannelFactorsAbsLtOneWithInverses(std::vector<float>& channelFactors, std::vector<float>& invChannelFactors);
+  void applyScale8ToReduceActivations();
 };
 
 struct ActivationLayerDesc {
@@ -67,12 +77,15 @@ struct ActivationLayerDesc {
   ActivationLayerDesc& operator=(const ActivationLayerDesc&) = delete;
 
   ActivationLayerDesc& operator=(ActivationLayerDesc&& other);
+
+  void applyScale8ToReduceActivations();
 };
 
 struct MatMulLayerDesc {
   std::string name;
   int inChannels;
   int outChannels;
+  // inC x outC
   std::vector<float> weights;
 
   MatMulLayerDesc();
@@ -83,6 +96,8 @@ struct MatMulLayerDesc {
   MatMulLayerDesc& operator=(const MatMulLayerDesc&) = delete;
 
   MatMulLayerDesc& operator=(MatMulLayerDesc&& other);
+
+  void scaleOutputChannels(const std::vector<float>& scaling);
 };
 
 struct MatBiasLayerDesc {
@@ -98,6 +113,7 @@ struct MatBiasLayerDesc {
   MatBiasLayerDesc& operator=(const MatBiasLayerDesc&) = delete;
 
   MatBiasLayerDesc& operator=(MatBiasLayerDesc&& other);
+  void applyScale8ToReduceActivations();
 };
 
 struct ResidualBlockDesc {
@@ -120,6 +136,9 @@ struct ResidualBlockDesc {
 
   void iterConvLayers(std::function<void(const ConvLayerDesc& dest)> f) const;
   double getSpatialConvDepth() const;
+
+  void transformToReduceActivations();
+  void applyScale8ToReduceActivations();
 };
 
 struct GlobalPoolingResidualBlockDesc {
@@ -147,6 +166,9 @@ struct GlobalPoolingResidualBlockDesc {
 
   void iterConvLayers(std::function<void(const ConvLayerDesc& dest)> f) const;
   double getSpatialConvDepth() const;
+
+  void transformToReduceActivations();
+  void applyScale8ToReduceActivations();
 };
 
 struct NestedBottleneckResidualBlockDesc {
@@ -174,6 +196,9 @@ struct NestedBottleneckResidualBlockDesc {
 
   void iterConvLayers(std::function<void(const ConvLayerDesc& dest)> f) const;
   double getSpatialConvDepth() const;
+
+  void transformToReduceActivations();
+  void applyScale8ToReduceActivations();
 };
 
 struct SGFMetadataEncoderDesc {
@@ -234,6 +259,9 @@ struct TrunkDesc {
 
   void iterConvLayers(std::function<void(const ConvLayerDesc& dest)> f) const;
   double getSpatialConvDepth() const;
+
+  void transformToReduceActivations();
+  void applyScale8ToReduceActivations();
 };
 
 struct PolicyHeadDesc {
@@ -264,6 +292,9 @@ struct PolicyHeadDesc {
   PolicyHeadDesc& operator=(PolicyHeadDesc&& other);
 
   void iterConvLayers(std::function<void(const ConvLayerDesc& dest)> f) const;
+
+  void transformToReduceActivations();
+  void applyScale8ToReduceActivations();
 };
 
 struct ValueHeadDesc {
@@ -292,6 +323,9 @@ struct ValueHeadDesc {
   ValueHeadDesc& operator=(ValueHeadDesc&& other);
 
   void iterConvLayers(std::function<void(const ConvLayerDesc& dest)> f) const;
+
+  void transformToReduceActivations();
+  void applyScale8ToReduceActivations();
 };
 
 struct ModelPostProcessParams {
@@ -302,6 +336,8 @@ struct ModelPostProcessParams {
   double varianceTimeMultiplier;
   double shorttermValueErrorMultiplier;
   double shorttermScoreErrorMultiplier;
+
+  float outputScaleMultiplier;
 
   ModelPostProcessParams();
   ~ModelPostProcessParams();
@@ -341,6 +377,9 @@ struct ModelDesc {
   int maxConvChannels(int convXSize, int convYSize) const;
   double getTrunkSpatialConvDepth() const;
 
+  void transformToReduceActivations();
+  void applyScale8ToReduceActivations();
+
   //Loads a model from a file that may or may not be gzipped, storing it in descBuf
   //If expectedSha256 is nonempty, will also verify sha256 of the loaded data.
   static void loadFromFileMaybeGZipped(const std::string& fileName, ModelDesc& descBuf, const std::string& expectedSha256);
@@ -348,6 +387,7 @@ struct ModelDesc {
   //Return the "nearest" supported ruleset to desiredRules by this model.
   //Fills supported with true if desiredRules itself was exactly supported, false if some modifications had to be made.
   Rules getSupportedRules(const Rules& desiredRules, bool& supported) const;
+
 };
 
 #endif  // #ifndef DESC_H

@@ -5,6 +5,7 @@
 #include "../neuralnet/nninputs.h"
 #include "../neuralnet/nninterface.h"
 #include "../neuralnet/metalbackend.h"
+#include "../core/test.h"
 
 /// Converts a ConvLayerDesc instance from C++ to Swift by creating a new SWConvLayerDesc instance with the same properties.
 /// - Parameter desc: The ConvLayerDesc instance to convert.
@@ -29,13 +30,8 @@ SWBatchNormLayerDesc MetalProcess::batchNormLayerDescToSwift(const BatchNormLaye
 
   SWBatchNormLayerDesc swDesc =
   createSWBatchNormLayerDesc(desc->numChannels,
-                             desc->epsilon,
-                             desc->hasScale,
-                             desc->hasBias,
-                             (float*)desc->mean.data(),
-                             (float*)desc->variance.data(),
-                             (float*)desc->scale.data(),
-                             (float*)desc->bias.data());
+                             (float*)desc->mergedScale.data(),
+                             (float*)desc->mergedBias.data());
 
   return swDesc;
 }
@@ -49,8 +45,12 @@ ActivationKind MetalProcess::activationLayerDescToSwift(const ActivationLayerDes
       return ActivationKind::relu();
     case ACTIVATION_MISH:
       return ActivationKind::mish();
-    default:
+    case ACTIVATION_MISH_SCALE8:
+      testAssert(false); // Metal does not use scaled mish activations due to no fp16
+    case ACTIVATION_IDENTITY:
       return ActivationKind::identity();
+    default:
+      testAssert(false);
   }
 }
 
@@ -365,14 +365,14 @@ void NeuralNet::freeLoadedModel(LoadedModel* loadedModel) {
 
 /**
  * @brief Retrieves the model description associated with the loaded model.
- * 
+ *
  * This function accesses the model description from a given LoadedModel instance.
- * It returns a constant reference to the ModelDesc, which contains details 
+ * It returns a constant reference to the ModelDesc, which contains details
  * about the structure and parameters of the neural network model.
- * 
+ *
  * @param loadedModel Pointer to the LoadedModel instance from which to retrieve
  *                    the model description. This should not be null.
- * @return const ModelDesc& A constant reference to the model description of 
+ * @return const ModelDesc& A constant reference to the model description of
  *                          the loaded model.
  */
 const ModelDesc& NeuralNet::getModelDesc(const LoadedModel* loadedModel) {
@@ -458,7 +458,7 @@ metalhandle(maybeCreateMetalComputeHandle((gpuIdx < 100),
                                           serverThreadIdx,
                                           MetalProcess::modelDescToSwift(&loadedModel->modelDesc),
                                           context->metalComputeContext)) {
-  
+
   const ModelDesc* modelDesc = &loadedModel->modelDesc;
   auto metalContext = context->metalComputeContext;
 
@@ -671,7 +671,7 @@ void MetalProcess::copyRowData(float* dest, const float* src, size_t numElements
 /**
  * @brief Convert input data from NHWC format to NCHW format in-place if necessary.
  *
- * @param data Pointer to the input data (single batch element assumed).
+ * @param rowSpatialInput Pointer to the input data (single batch element assumed).
  * @param C Number of channels.
  * @param H Height.
  * @param W Width.
@@ -726,7 +726,7 @@ void MetalProcess::convertNCHW(
       processed[target_idx] = true;
       value_in_hand = value_at_target;
       current_idx = target_idx;
-      
+
       if (current_idx == i)
         break;
     }

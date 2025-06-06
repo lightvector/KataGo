@@ -206,7 +206,14 @@ int MainCmds::benchmark(const vector<string>& args) {
   auto reallocateNNEvalWithEnoughBatchSize = [&](int maxNumThreads) {
     if(nnEval != NULL)
       delete nnEval;
-    nnEval = createNNEval(std::max(maxNumThreads,fixedBatchSize), sgf, modelFile, logger, cfg, params);
+    int batchSizeLimit;
+    if(fixedBatchSize != -1)
+      batchSizeLimit = fixedBatchSize;
+    else if (useHalfBatchSize)
+      batchSizeLimit = (maxNumThreads+1)/2;
+    else
+      batchSizeLimit = maxNumThreads;
+    nnEval = createNNEval(batchSizeLimit, sgf, modelFile, logger, cfg, params);
   };
   auto getDesiredBatchSize = [&](int currentNumThreads) {
     assert(nnEval != NULL);

@@ -860,7 +860,8 @@ void Sgf::iterAllPositionsHelper(
     nodes[i]->accumMoves(buf,xSize,ySize);
 
     for(size_t j = 0; j<buf.size(); j++) {
-      bool suc = hist.makeBoardMoveTolerant(board,buf[j].loc,buf[j].pla);
+      // For this we disallow simple ko violations because those will lead to weird positional histories
+      bool suc = !board.isKoBanned(buf[j].loc) && hist.makeBoardMoveTolerant(board,buf[j].loc,buf[j].pla);
       if(!suc) {
         ostringstream trace;
         for(size_t s = 0; s < variationTraceNodesBranch.size(); s++) {

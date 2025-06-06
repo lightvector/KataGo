@@ -12,19 +12,19 @@ import colorsys
 import json
 import numpy as np
 
-from board import Board
-from features import Features
-from gamestate import GameState
+from katago.game.board import Board
+from katago.game.features import Features
+from katago.game.gamestate import GameState
 
 from typing import Dict, Any, List
 
 import torch
 import torch.nn
 
-import modelconfigs
-from model_pytorch import Model, EXTRA_SCORE_DISTR_RADIUS, ExtraOutputs
-from data_processing_pytorch import apply_symmetry
-from load_model import load_model
+from katago.train import modelconfigs
+from katago.train.model_pytorch import Model, EXTRA_SCORE_DISTR_RADIUS, ExtraOutputs
+from katago.train.data_processing_pytorch import apply_symmetry
+from katago.train.load_model import load_model
 
 description = """
 Play go with a trained neural net!

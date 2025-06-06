@@ -728,7 +728,7 @@ bool ConstSymBookNode::getBoardHistoryReachingHere(BoardHistory& ret, vector<Loc
     moveHistoryRet.push_back(symMove);
 
     // Use tolerant rules so that if something weird happens regarding superko in cycles, we just plow through.
-    if(!hist.isLegalTolerant(board, symMove, pathFromRoot[i]->pla)) {
+    if(board.isKoBanned(symMove) || !hist.isLegalTolerant(board, symMove, pathFromRoot[i]->pla)) {
       // Something is very wrong, probably a corrupted book data structure.
       return false;
     }

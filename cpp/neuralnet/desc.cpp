@@ -10,6 +10,8 @@
 #include "../neuralnet/sgfmetadata.h"
 #include "../neuralnet/nninterface.h"
 
+#include "../core/test.h"
+
 using namespace std;
 
 #if !defined(BYTE_ORDER) || (BYTE_ORDER != LITTLE_ENDIAN && BYTE_ORDER != BIG_ENDIAN)
@@ -176,6 +178,21 @@ double ConvLayerDesc::getSpatialConvDepth() const {
   return (convYSize + convXSize - 2) / 4.0;
 }
 
+void ConvLayerDesc::scaleOutputChannels(const std::vector<float>& scaling) {
+  assert(weights.size() == convYSize * convXSize * inChannels * outChannels);
+  assert(scaling.size() == outChannels);
+  size_t idx = 0;
+  for(int oc = 0; oc < outChannels; oc++) {
+    for(int ic = 0; ic < inChannels; ic++) {
+      for(int y = 0; y < convYSize; y++) {
+        for(int x = 0; x < convXSize; x++) {
+          weights[idx++] *= scaling[oc];
+        }
+      }
+    }
+  }
+}
+
 //-----------------------------------------------------------------------------
 
 BatchNormLayerDesc::BatchNormLayerDesc() : numChannels(0), epsilon(0.001f), hasScale(false), hasBias(false) {}
@@ -224,6 +241,13 @@ BatchNormLayerDesc::BatchNormLayerDesc(istream& in, bool binaryFloats) {
   if(in.fail())
     throw StringError(
       name + ": bnlayer failed to parse expected number of batch norm mean, variance, bias, scale values");
+
+  mergedScale.resize(numChannels);
+  mergedBias.resize(numChannels);
+  for(int c = 0; c < numChannels; c++) {
+    mergedScale[c] = scale[c] / sqrt(variance[c] + epsilon);
+    mergedBias[c] = bias[c] - mergedScale[c] * mean[c];
+  }
 }
 
 BatchNormLayerDesc::BatchNormLayerDesc(BatchNormLayerDesc&& other) {
@@ -240,8 +264,89 @@ BatchNormLayerDesc& BatchNormLayerDesc::operator=(BatchNormLayerDesc&& other) {
   variance = std::move(other.variance);
   scale = std::move(other.scale);
   bias = std::move(other.bias);
+  mergedScale = std::move(other.mergedScale);
+  mergedBias = std::move(other.mergedBias);
   return *this;
 }
+
+
+void BatchNormLayerDesc::scaleInputChannels(const std::vector<float>& scaling) {
+  assert(mergedScale.size() == numChannels);
+  assert(scaling.size() == numChannels);
+  epsilon = (float)(1e-20);
+  for(int c = 0; c < numChannels; c++) {
+    mergedScale[c] *= scaling[c];
+
+    mean[c] = 0.0f;
+    variance[c] = 1.0f - epsilon;
+    scale[c] = mergedScale[c];
+    bias[c] = mergedBias[c];
+  }
+}
+
+// Purpose of this is to grab any factors that downscale the values, and instead of applying
+// them at this layer, return those values so they can be folded in to a different layer.
+void BatchNormLayerDesc::extractChannelFactorsAbsLtOne(std::vector<float>& channelFactors) {
+  epsilon = (float)(1e-20);
+
+  channelFactors = std::vector<float>(numChannels);
+  for(int i = 0; i < numChannels; i++) {
+    if(abs(mergedScale[i]) < 1.0f) {
+      channelFactors[i] = mergedScale[i];
+      mergedScale[i] = 1.0f;
+    }
+    else {
+      channelFactors[i] = 1.0f;
+    }
+
+    mean[i] = 0.0f;
+    variance[i] = 1.0f - epsilon;
+    scale[i] = mergedScale[i];
+    bias[i] = mergedBias[i];
+  }
+}
+void BatchNormLayerDesc::extractChannelFactorsAbsLtOneWithInverses(std::vector<float>& channelFactors, std::vector<float>& invChannelFactors) {
+  epsilon = (float)(1e-20);
+
+  channelFactors = std::vector<float>(numChannels);
+  invChannelFactors = std::vector<float>(numChannels);
+  for(int i = 0; i < numChannels; i++) {
+    // Much more gentle, since if we want the inverse channels, then there might be places that still upscale.
+    if(abs(mergedScale[i]) < 1.0f / 2.0f) {
+      channelFactors[i] = 1.0f / 2.0f;
+      invChannelFactors[i] = 2.0f;
+      mergedScale[i] *= 2.0f;
+    }
+    else if(abs(mergedScale[i]) < 1.0f) {
+      channelFactors[i] = mergedScale[i];
+      invChannelFactors[i] = 1.0f / mergedScale[i];
+      mergedScale[i] = 1.0f;
+    }
+    else {
+      channelFactors[i] = 1.0f;
+      invChannelFactors[i] = 1.0f;
+    }
+
+    mean[i] = 0.0f;
+    variance[i] = 1.0f - epsilon;
+    scale[i] = mergedScale[i];
+    bias[i] = mergedBias[i];
+  }
+}
+
+void BatchNormLayerDesc::applyScale8ToReduceActivations() {
+  epsilon = (float)(1e-20);
+
+  for(int c = 0; c < numChannels; c++) {
+    mergedBias[c] *= 0.125f;
+
+    mean[c] = 0.0f;
+    variance[c] = 1.0f - epsilon;
+    scale[c] = mergedScale[c];
+    bias[c] = mergedBias[c];
+  }
+}
+
 
 //-----------------------------------------------------------------------------
 
@@ -276,6 +381,24 @@ ActivationLayerDesc& ActivationLayerDesc::operator=(ActivationLayerDesc&& other)
   name = std::move(other.name);
   activation = other.activation;
   return *this;
+}
+
+void ActivationLayerDesc::applyScale8ToReduceActivations() {
+  if(activation == ACTIVATION_IDENTITY) {
+    // pass
+  }
+  else if(activation == ACTIVATION_RELU) {
+    // pass
+  }
+  else if(activation == ACTIVATION_MISH) {
+    activation = ACTIVATION_MISH_SCALE8;
+  }
+  else if(activation == ACTIVATION_MISH_SCALE8) {
+    throw StringError("Cannot applyScale8ToReduceActivations twice, already applied");
+  }
+  else {
+    testAssert(false);
+  }
 }
 
 //-----------------------------------------------------------------------------
@@ -324,6 +447,19 @@ MatMulLayerDesc& MatMulLayerDesc::operator=(MatMulLayerDesc&& other) {
   return *this;
 }
 
+
+void MatMulLayerDesc::scaleOutputChannels(const std::vector<float>& scaling) {
+  assert(weights.size() == inChannels * outChannels);
+  assert(scaling.size() == outChannels);
+  size_t idx = 0;
+  for(int ic = 0; ic < inChannels; ic++) {
+    for(int oc = 0; oc < outChannels; oc++) {
+      weights[idx++] *= scaling[oc];
+    }
+  }
+}
+
+
 //-----------------------------------------------------------------------------
 
 MatBiasLayerDesc::MatBiasLayerDesc() : name(), numChannels(0), weights() {}
@@ -356,6 +492,12 @@ MatBiasLayerDesc& MatBiasLayerDesc::operator=(MatBiasLayerDesc&& other) {
   numChannels = other.numChannels;
   weights = std::move(other.weights);
   return *this;
+}
+
+void MatBiasLayerDesc::applyScale8ToReduceActivations() {
+  for(int c = 0; c < numChannels; c++) {
+    weights[c] *= 0.125f;
+  }
 }
 
 //-----------------------------------------------------------------------------
@@ -415,7 +557,19 @@ double ResidualBlockDesc::getSpatialConvDepth() const {
   return regularConv.getSpatialConvDepth() + finalConv.getSpatialConvDepth();
 }
 
+void ResidualBlockDesc::transformToReduceActivations() {
+  // Merge in any multiplications by values less than 1.0 to happen earlier.
+  std::vector<float> channelFactors;
+  midBN.extractChannelFactorsAbsLtOne(channelFactors);
+  regularConv.scaleOutputChannels(channelFactors);
+}
 
+void ResidualBlockDesc::applyScale8ToReduceActivations() {
+  preBN.applyScale8ToReduceActivations();
+  preActivation.applyScale8ToReduceActivations();
+  midBN.applyScale8ToReduceActivations();
+  midActivation.applyScale8ToReduceActivations();
+}
 
 //-----------------------------------------------------------------------------
 
@@ -502,6 +656,31 @@ double GlobalPoolingResidualBlockDesc::getSpatialConvDepth() const {
   return regularConv.getSpatialConvDepth() + finalConv.getSpatialConvDepth();
 }
 
+
+void GlobalPoolingResidualBlockDesc::transformToReduceActivations() {
+  // Merge in any multiplications by values less than 1.0 to happen earlier.
+  {
+    std::vector<float> channelFactors;
+    midBN.extractChannelFactorsAbsLtOne(channelFactors);
+    regularConv.scaleOutputChannels(channelFactors);
+    gpoolToBiasMul.scaleOutputChannels(channelFactors);
+  }
+  {
+    std::vector<float> channelFactors;
+    gpoolBN.extractChannelFactorsAbsLtOne(channelFactors);
+    gpoolConv.scaleOutputChannels(channelFactors);
+  }
+}
+
+void GlobalPoolingResidualBlockDesc::applyScale8ToReduceActivations() {
+  preBN.applyScale8ToReduceActivations();
+  preActivation.applyScale8ToReduceActivations();
+  gpoolBN.applyScale8ToReduceActivations();
+  gpoolActivation.applyScale8ToReduceActivations();
+  midBN.applyScale8ToReduceActivations();
+  midActivation.applyScale8ToReduceActivations();
+}
+
 //-----------------------------------------------------------------------------
 
 NestedBottleneckResidualBlockDesc::NestedBottleneckResidualBlockDesc() {}
@@ -575,6 +754,9 @@ void NestedBottleneckResidualBlockDesc::iterConvLayers(std::function<void(const 
       const NestedBottleneckResidualBlockDesc* desc = (const NestedBottleneckResidualBlockDesc*)blocks[i].second.get();
       desc->iterConvLayers(f);
     }
+    else {
+      testAssert(false);
+    }
   }
   f(postConv);
 }
@@ -596,9 +778,69 @@ double NestedBottleneckResidualBlockDesc::getSpatialConvDepth() const {
       const NestedBottleneckResidualBlockDesc* desc = (const NestedBottleneckResidualBlockDesc*)blocks[i].second.get();
       depth += desc->getSpatialConvDepth();
     }
+    else {
+      testAssert(false);
+    }
   }
   depth += postConv.getSpatialConvDepth();
   return depth;
+}
+
+void NestedBottleneckResidualBlockDesc::transformToReduceActivations() {
+  // Merge in any multiplications by values less than 1.0 to happen earlier.
+  std::vector<float> channelFactors;
+  std::vector<float> invChannelFactors;
+  postBN.extractChannelFactorsAbsLtOneWithInverses(channelFactors,invChannelFactors);
+  preConv.scaleOutputChannels(channelFactors);
+
+  for(int i = 0; i < blocks.size(); i++) {
+    if(blocks[i].first == ORDINARY_BLOCK_KIND) {
+      ResidualBlockDesc* desc = (ResidualBlockDesc*)blocks[i].second.get();
+      desc->preBN.scaleInputChannels(invChannelFactors);
+      desc->finalConv.scaleOutputChannels(channelFactors);
+      desc->transformToReduceActivations();
+    }
+    else if(blocks[i].first == GLOBAL_POOLING_BLOCK_KIND) {
+      GlobalPoolingResidualBlockDesc* desc = (GlobalPoolingResidualBlockDesc*)blocks[i].second.get();
+      desc->preBN.scaleInputChannels(invChannelFactors);
+      desc->finalConv.scaleOutputChannels(channelFactors);
+      desc->transformToReduceActivations();
+    }
+    else if(blocks[i].first == NESTED_BOTTLENECK_BLOCK_KIND) {
+      NestedBottleneckResidualBlockDesc* desc = (NestedBottleneckResidualBlockDesc*)blocks[i].second.get();
+      desc->preBN.scaleInputChannels(invChannelFactors);
+      desc->postConv.scaleOutputChannels(channelFactors);
+      desc->transformToReduceActivations();
+    }
+    else {
+      testAssert(false);
+    }
+  }
+}
+
+void NestedBottleneckResidualBlockDesc::applyScale8ToReduceActivations() {
+  preBN.applyScale8ToReduceActivations();
+  preActivation.applyScale8ToReduceActivations();
+
+  for(int i = 0; i < blocks.size(); i++) {
+    if(blocks[i].first == ORDINARY_BLOCK_KIND) {
+      ResidualBlockDesc* desc = (ResidualBlockDesc*)blocks[i].second.get();
+      desc->applyScale8ToReduceActivations();
+    }
+    else if(blocks[i].first == GLOBAL_POOLING_BLOCK_KIND) {
+      GlobalPoolingResidualBlockDesc* desc = (GlobalPoolingResidualBlockDesc*)blocks[i].second.get();
+      desc->applyScale8ToReduceActivations();
+    }
+    else if(blocks[i].first == NESTED_BOTTLENECK_BLOCK_KIND) {
+      NestedBottleneckResidualBlockDesc* desc = (NestedBottleneckResidualBlockDesc*)blocks[i].second.get();
+      desc->applyScale8ToReduceActivations();
+    }
+    else {
+      testAssert(false);
+    }
+  }
+  postBN.applyScale8ToReduceActivations();
+  postActivation.applyScale8ToReduceActivations();
 }
 
 //-----------------------------------------------------------------------------
@@ -913,6 +1155,9 @@ void TrunkDesc::iterConvLayers(std::function<void(const ConvLayerDesc& desc)> f)
       NestedBottleneckResidualBlockDesc* desc = (NestedBottleneckResidualBlockDesc*)blocks[i].second.get();
       desc->iterConvLayers(f);
     }
+    else {
+      testAssert(false);
+    }
   }
 }
 
@@ -933,9 +1178,83 @@ double TrunkDesc::getSpatialConvDepth() const {
       const NestedBottleneckResidualBlockDesc* desc = (const NestedBottleneckResidualBlockDesc*)blocks[i].second.get();
       depth += desc->getSpatialConvDepth();
     }
+    else {
+      testAssert(false);
+    }
   }
   return depth;
 }
+
+void TrunkDesc::transformToReduceActivations() {
+  // Merge in any multiplications by values less than 1.0 to happen earlier.
+  std::vector<float> channelFactors;
+  std::vector<float> invChannelFactors;
+  trunkTipBN.extractChannelFactorsAbsLtOneWithInverses(channelFactors,invChannelFactors);
+
+  initialConv.scaleOutputChannels(channelFactors);
+  initialMatMul.scaleOutputChannels(channelFactors);
+  if(metaEncoderVersion > 0) {
+    sgfMetadataEncoder.mul3.scaleOutputChannels(channelFactors);
+  }
+
+  for(int i = 0; i < blocks.size(); i++) {
+    if(blocks[i].first == ORDINARY_BLOCK_KIND) {
+      ResidualBlockDesc* desc = (ResidualBlockDesc*)blocks[i].second.get();
+      desc->preBN.scaleInputChannels(invChannelFactors);
+      desc->finalConv.scaleOutputChannels(channelFactors);
+      desc->transformToReduceActivations();
+    }
+    else if(blocks[i].first == GLOBAL_POOLING_BLOCK_KIND) {
+      GlobalPoolingResidualBlockDesc* desc = (GlobalPoolingResidualBlockDesc*)blocks[i].second.get();
+      desc->preBN.scaleInputChannels(invChannelFactors);
+      desc->finalConv.scaleOutputChannels(channelFactors);
+      desc->transformToReduceActivations();
+    }
+    else if(blocks[i].first == NESTED_BOTTLENECK_BLOCK_KIND) {
+      NestedBottleneckResidualBlockDesc* desc = (NestedBottleneckResidualBlockDesc*)blocks[i].second.get();
+      desc->preBN.scaleInputChannels(invChannelFactors);
+      desc->postConv.scaleOutputChannels(channelFactors);
+      desc->transformToReduceActivations();
+    }
+    else {
+      testAssert(false);
+    }
+  }
+}
+
+void TrunkDesc::applyScale8ToReduceActivations() {
+  std::vector<float> channelFactors(trunkNumChannels);
+  for(int i = 0; i<trunkNumChannels; i++)
+    channelFactors[i] = 0.125f;
+
+  initialConv.scaleOutputChannels(channelFactors);
+  initialMatMul.scaleOutputChannels(channelFactors);
+  if(metaEncoderVersion > 0) {
+    sgfMetadataEncoder.mul3.scaleOutputChannels(channelFactors);
+  }
+
+  trunkTipBN.applyScale8ToReduceActivations();
+  trunkTipActivation.applyScale8ToReduceActivations();
+
+  for(int i = 0; i < blocks.size(); i++) {
+    if(blocks[i].first == ORDINARY_BLOCK_KIND) {
+      ResidualBlockDesc* desc = (ResidualBlockDesc*)blocks[i].second.get();
+      desc->applyScale8ToReduceActivations();
+    }
+    else if(blocks[i].first == GLOBAL_POOLING_BLOCK_KIND) {
+      GlobalPoolingResidualBlockDesc* desc = (GlobalPoolingResidualBlockDesc*)blocks[i].second.get();
+      desc->applyScale8ToReduceActivations();
+    }
+    else if(blocks[i].first == NESTED_BOTTLENECK_BLOCK_KIND) {
+      NestedBottleneckResidualBlockDesc* desc = (NestedBottleneckResidualBlockDesc*)blocks[i].second.get();
+      desc->applyScale8ToReduceActivations();
+    }
+    else {
+      testAssert(false);
+    }
+  }
+}
+
 
 //-----------------------------------------------------------------------------
 
@@ -1058,6 +1377,31 @@ void PolicyHeadDesc::iterConvLayers(std::function<void(const ConvLayerDesc& desc
   f(p2Conv);
 }
 
+
+void PolicyHeadDesc::transformToReduceActivations() {
+  // Merge in any multiplications by values less than 1.0 to happen earlier.
+  {
+    std::vector<float> channelFactors;
+    p1BN.extractChannelFactorsAbsLtOne(channelFactors);
+    p1Conv.scaleOutputChannels(channelFactors);
+    gpoolToBiasMul.scaleOutputChannels(channelFactors);
+  }
+  {
+    std::vector<float> channelFactors;
+    g1BN.extractChannelFactorsAbsLtOne(channelFactors);
+    g1Conv.scaleOutputChannels(channelFactors);
+  }
+}
+
+void PolicyHeadDesc::applyScale8ToReduceActivations() {
+  g1BN.applyScale8ToReduceActivations();
+  g1Activation.applyScale8ToReduceActivations();
+  p1BN.applyScale8ToReduceActivations();
+  p1Activation.applyScale8ToReduceActivations();
+  gpoolToPassBias.applyScale8ToReduceActivations();
+  passActivation.applyScale8ToReduceActivations();
+}
+
 //-----------------------------------------------------------------------------
 
 ValueHeadDesc::ValueHeadDesc() : modelVersion(-1) {}
@@ -1176,6 +1520,24 @@ void ValueHeadDesc::iterConvLayers(std::function<void(const ConvLayerDesc& desc)
   f(vOwnershipConv);
 }
 
+void ValueHeadDesc::transformToReduceActivations() {
+  // Merge in any multiplications by values less than 1.0 to happen earlier.
+  std::vector<float> channelFactors;
+  v1BN.extractChannelFactorsAbsLtOne(channelFactors);
+  v1Conv.scaleOutputChannels(channelFactors);
+}
+
+
+void ValueHeadDesc::applyScale8ToReduceActivations() {
+  v1BN.applyScale8ToReduceActivations();
+  v1Activation.applyScale8ToReduceActivations();
+  v2Bias.applyScale8ToReduceActivations();
+  v2Activation.applyScale8ToReduceActivations();
+  v3Bias.applyScale8ToReduceActivations();
+  sv3Bias.applyScale8ToReduceActivations();
+}
+
+
 //-----------------------------------------------------------------------------
 
 ModelPostProcessParams::ModelPostProcessParams()
@@ -1185,7 +1547,8 @@ ModelPostProcessParams::ModelPostProcessParams()
     leadMultiplier(20.0),
     varianceTimeMultiplier(40.0),
     shorttermValueErrorMultiplier(0.25),
-    shorttermScoreErrorMultiplier(30.0)
+    shorttermScoreErrorMultiplier(30.0),
+    outputScaleMultiplier(1.0f)
 {}
 ModelPostProcessParams::~ModelPostProcessParams()
 {}
@@ -1402,6 +1765,20 @@ double ModelDesc::getTrunkSpatialConvDepth() const {
   return trunk.getSpatialConvDepth();
 }
 
+void ModelDesc::transformToReduceActivations() {
+  trunk.transformToReduceActivations();
+  policyHead.transformToReduceActivations();
+  valueHead.transformToReduceActivations();
+}
+
+void ModelDesc::applyScale8ToReduceActivations() {
+  trunk.applyScale8ToReduceActivations();
+  policyHead.applyScale8ToReduceActivations();
+  valueHead.applyScale8ToReduceActivations();
+
+  postProcessParams.outputScaleMultiplier *= 8.0f;
+}
+
 struct NonCopyingStreamBuf : public std::streambuf
 {
   NonCopyingStreamBuf(string& str) {
@@ -1467,6 +1844,8 @@ void ModelDesc::loadFromFileMaybeGZipped(const string& fileName, ModelDesc& desc
     else {
       throw StringError("Model file should end with .txt, .bin, .txt.gz, .bin.gz, or possibly just .gz. (If it doesn't have one of these extensions already, it's probably the wrong file, renaming will probably NOT help).");
     }
+
+    descBuf.transformToReduceActivations();
   }
   catch(const StringError& e) {
     throw StringError("Error loading or parsing model file " + fileName + ": " + e.what());

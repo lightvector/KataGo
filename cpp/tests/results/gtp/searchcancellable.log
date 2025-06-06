@@ -1,5 +1,5 @@
 : GTP Engine starting...
-: KataGo v1.16.0
+: KataGo v1.16.2
 : Using TrompTaylor rules initially, unless GTP/GUI overrides this
 : Using 1 CPU thread(s) for search
 : nnRandSeed0 = forTesting
@@ -48,16 +48,16 @@ koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Time taken: ###
 Root visits: 500
 New playouts: 500
-NN rows: 496
-NN batches: 496
+NN rows: 495
+NN batches: 495
 NN avg batch size: 1
 PV: E5 E3 C4 D7 F7 C6 F3 F2 G3 E4 F5 D5 D2 E2 D4 D3 C3 C2 B2 D1 B1 B5 C1 C5 B3
 Tree:
-: T -79.65c W -78.58c S  -1.20c ( -1.9 L  -0.8) N     500  --  E5 E3 C4 D7 F7 C6 F3
+: T -79.66c W -78.62c S  -1.20c ( -1.9 L  -0.8) N     500  --  E5 E3 C4 D7 F7 C6 F3
 ---Black(^)---
-E5  : T -79.52c W -78.50c S  -1.21c ( -1.9 L  -0.8) LCB  -81.00c P 58.12% WF 794.1 PSV     793 N     477  --  E5 E3 C4 D7 F7 C6 F3 F2
-F5  : T -82.11c W -80.07c S  -0.97c ( -1.7 L  -0.6) LCB  -86.00c P  8.61% WF  38.6 PSV      30 N      21  --  F5 D5 E7 D3 C6 C5 B6 H5
-F6  : T -83.01c W -82.41c S  -0.60c ( -1.6 L  -0.3) LCB -433.01c P  0.73% WF   2.3 PSV       2 N       1  --  F6
+E5  : T -79.53c W -78.55c S  -1.21c ( -1.9 L  -0.8) LCB  -81.02c P 58.17% WF 794.0 PSV     793 N     477  --  E5 E3 C4 D7 F7 C6 F3 F2
+F5  : T -82.12c W -80.07c S  -0.97c ( -1.7 L  -0.6) LCB  -86.01c P  8.62% WF  38.6 PSV      30 N      21  --  F5 D5 E7 D3 C6 C5 B6 H5
+F6  : T -83.02c W -82.42c S  -0.60c ( -1.5 L  -0.3) LCB -433.02c P  0.72% WF   2.3 PSV       2 N       1  --  F6
 
 : play E5
 : Controller: kata-genmove_analyze b
@@ -81,13 +81,13 @@ New playouts: 0
 NN rows: 0
 NN batches: 0
 NN avg batch size: -nan
-PV: E5 E7 C6 D3 F3 C4 F7 F8 G7 E6 F5 D5 D8 E8 D6
+PV: E5 E3 C4 D7 F7 C6 F3 F2 G3 E4 F5 D5 D2 E2 D4 D3 C3 C2 B2 D1 B1 B5 C1 C5 B3
 Tree:
-: T -79.62c W -78.58c S  -1.23c ( -1.9 L  -0.8) N     500  --  E5 E7 C6 D3 F3 C4 F7
+: T -79.63c W -78.63c S  -1.23c ( -1.9 L  -0.8) N     500  --  E5 E3 C4 D7 F7 C6 F3
 ---Black(^)---
-E5  : T -79.49c W -78.50c S  -1.24c ( -1.9 L  -0.8) LCB  -80.96c P 58.12% WF 794.1 PSV     793 N     477  --  E5 E7 C6 D3 F3 C4 F7 F8
-F5  : T -82.14c W -80.07c S  -1.00c ( -1.7 L  -0.6) LCB  -86.03c P  8.61% WF  38.6 PSV      30 N      21  --  F5 D5 E7 D3 C6 C5 B6 H5
-F6  : T -83.04c W -82.41c S  -0.63c ( -1.6 L  -0.3) LCB -433.04c P  0.73% WF   2.3 PSV       2 N       1  --  F6
+E5  : T -79.50c W -78.55c S  -1.24c ( -1.9 L  -0.8) LCB  -80.98c P 58.17% WF 794.0 PSV     793 N     477  --  E5 E3 C4 D7 F7 C6 F3 F2
+F5  : T -82.15c W -80.07c S  -1.00c ( -1.7 L  -0.6) LCB  -86.04c P  8.62% WF  38.6 PSV      30 N      21  --  F5 D5 E7 D3 C6 C5 B6 H5
+F6  : T -83.05c W -82.42c S  -0.63c ( -1.5 L  -0.3) LCB -433.05c P  0.72% WF   2.3 PSV       2 N       1  --  F6
 
 : play E5
 : Controller: komi 5
@@ -97,5 +97,5 @@ F6  : T -83.04c W -82.41c S  -0.63c ( -1.6 L  -0.3) LCB -433.04c P  0.73% WF   2
 : play cancelled
 : Controller: kata-search_cancellable w
 : = cancelled
-: GPU -1 finishing, processed 497 rows 497 batches
+: GPU -1 finishing, processed 496 rows 496 batches
 : All cleaned up, quitting

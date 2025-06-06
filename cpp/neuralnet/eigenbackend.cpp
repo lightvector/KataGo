@@ -246,7 +246,7 @@ struct ScratchBuffers {
     std::function<float*(size_t)> allocateFunc = [this](size_t size) {
       return new float[size/sizeof(float)];
     };
-    std::function<void(float*)> releaseFunc = [this](float* buf) {
+    std::function<void(float*)> releaseFunc = [this](float* buf) noexcept {
       delete[] buf;
     };
 
@@ -701,13 +701,15 @@ struct BatchNormLayer {
     activation(actDesc.activation)
   {
     int numChannels = desc.numChannels;
-    float epsilon = desc.epsilon;
+
+    assert(desc.mergedScale.size() == numChannels);
+    assert(desc.mergedBias.size() == numChannels);
 
     mergedScale.resize(numChannels);
     mergedBias.resize(numChannels);
     for(int c = 0; c < numChannels; c++) {
-      mergedScale[c] = desc.scale[c] / sqrt(desc.variance[c] + epsilon);
-      mergedBias[c] = desc.bias[c] - mergedScale[c] * desc.mean[c];
+      mergedScale[c] = desc.mergedScale[c];
+      mergedBias[c] = desc.mergedBias[c];
     }
   }
 
@@ -728,8 +730,10 @@ struct BatchNormLayer {
       output->chip(c, 0) = (*mask == 1.0f).select(x.cwiseMax(0.0f), z);
     else if(activation == ACTIVATION_MISH)
       output->chip(c, 0) = (*mask == 1.0f).select(x * (x.cwiseMin(20.0f).exp().log1p() + (x.cwiseMax(20.0f) - 20.0f)).tanh(), z);
+    else if(activation == ACTIVATION_MISH_SCALE8)
+      testAssert(false); // Eigen does not use scaled mish activations due to no fp16
     else
-      assert(false);
+      testAssert(false);
     }
   }
 };
@@ -757,6 +761,10 @@ struct ActivationLayer {
       *output = input->cwiseMax(0.0f);
     else if(activation == ACTIVATION_MISH)
       *output = (*input) * ((input->cwiseMin(20.0f)).exp().log1p() + (input->cwiseMax(20.0f) - 20.0f)).tanh();
+    else if(activation == ACTIVATION_MISH_SCALE8)
+      testAssert(false); // Eigen does not use scaled mish activations due to no fp16
+    else
+      testAssert(false);
   }
   template <int N>
   void apply(const TensorMap<Tensor<SCALAR, N>>* input, TensorMap<Tensor<SCALAR, N>>* output) const {
@@ -766,6 +774,10 @@ struct ActivationLayer {
       *output = input->cwiseMax(0.0f);
     else if(activation == ACTIVATION_MISH)
       *output = (*input) * ((input->cwiseMin(20.0f)).exp().log1p() + (input->cwiseMax(20.0f) - 20.0f)).tanh();
+    else if(activation == ACTIVATION_MISH_SCALE8)
+      testAssert(false); // Eigen does not use scaled mish activations due to no fp16
+    else
+      testAssert(false);
   }
 };
 

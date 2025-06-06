@@ -857,7 +857,7 @@ void NNEvaluator::evaluate(
   else {
     float* policy = buf.result->policyProbs;
 
-    float nnPolicyInvTemperature = 1.0f / nnInputParams.nnPolicyTemperature;
+    float policyOutputScaling = postProcessParams.outputScaleMultiplier / nnInputParams.nnPolicyTemperature;
 
     int xSize = board.x_size;
     int ySize = board.y_size;
@@ -886,7 +886,7 @@ void NNEvaluator::evaluate(
       float policyValue;
       if(isLegal[i]) {
         legalCount += 1;
-        policyValue = policy[i] * nnPolicyInvTemperature;
+        policyValue = policy[i] * policyOutputScaling;
       }
       else
         policyValue = -1e30f;
@@ -959,11 +959,11 @@ void NNEvaluator::evaluate(
       double lossProb;
       double noResultProb;
       //Version 3 neural nets just pack the pre-arctanned scoreValue into the whiteScoreMean field
-      double scoreValue = atan(buf.result->whiteScoreMean) * twoOverPi;
+      double scoreValue = atan(buf.result->whiteScoreMean * postProcessParams.outputScaleMultiplier) * twoOverPi;
       {
-        double winLogits = buf.result->whiteWinProb;
-        double lossLogits = buf.result->whiteLossProb;
-        double noResultLogits = buf.result->whiteNoResultProb;
+        double winLogits = buf.result->whiteWinProb * postProcessParams.outputScaleMultiplier;
+        double lossLogits = buf.result->whiteLossProb * postProcessParams.outputScaleMultiplier;
+        double noResultLogits = buf.result->whiteNoResultProb * postProcessParams.outputScaleMultiplier;
 
         //Softmax
         double maxLogits = std::max(std::max(winLogits,lossLogits),noResultLogits);
@@ -1018,15 +1018,15 @@ void NNEvaluator::evaluate(
       double shorttermWinlossError;
       double shorttermScoreError;
       {
-        double winLogits = buf.result->whiteWinProb;
-        double lossLogits = buf.result->whiteLossProb;
-        double noResultLogits = buf.result->whiteNoResultProb;
-        double scoreMeanPreScaled = buf.result->whiteScoreMean;
-        double scoreStdevPreSoftplus = buf.result->whiteScoreMeanSq;
-        double leadPreScaled = buf.result->whiteLead;
-        double varTimeLeftPreSoftplus = buf.result->varTimeLeft;
-        double shorttermWinlossErrorPreSoftplus = buf.result->shorttermWinlossError;
-        double shorttermScoreErrorPreSoftplus = buf.result->shorttermScoreError;
+        double winLogits = buf.result->whiteWinProb * postProcessParams.outputScaleMultiplier;
+        double lossLogits = buf.result->whiteLossProb * postProcessParams.outputScaleMultiplier;
+        double noResultLogits = buf.result->whiteNoResultProb * postProcessParams.outputScaleMultiplier;
+        double scoreMeanPreScaled = buf.result->whiteScoreMean * postProcessParams.outputScaleMultiplier;
+        double scoreStdevPreSoftplus = buf.result->whiteScoreMeanSq * postProcessParams.outputScaleMultiplier;
+        double leadPreScaled = buf.result->whiteLead * postProcessParams.outputScaleMultiplier;
+        double varTimeLeftPreSoftplus = buf.result->varTimeLeft * postProcessParams.outputScaleMultiplier;
+        double shorttermWinlossErrorPreSoftplus = buf.result->shorttermWinlossError * postProcessParams.outputScaleMultiplier;
+        double shorttermScoreErrorPreSoftplus = buf.result->shorttermScoreError * postProcessParams.outputScaleMultiplier;
 
         if(history.rules.koRule != Rules::KO_SIMPLE && history.rules.scoringRule != Rules::SCORING_TERRITORY)
           noResultLogits -= 100000.0;
@@ -1140,9 +1140,9 @@ void NNEvaluator::evaluate(
           //Similarly as mentioned above, the result we get back from the net is actually not from white's perspective,
           //but from the player to move, so we need to flip it to make it white at the same time as we tanh it.
           if(nextPlayer == P_WHITE)
-            buf.result->whiteOwnerMap[pos] = tanh(buf.result->whiteOwnerMap[pos]);
+            buf.result->whiteOwnerMap[pos] = tanh(buf.result->whiteOwnerMap[pos] * postProcessParams.outputScaleMultiplier);
           else
-            buf.result->whiteOwnerMap[pos] = -tanh(buf.result->whiteOwnerMap[pos]);
+            buf.result->whiteOwnerMap[pos] = -tanh(buf.result->whiteOwnerMap[pos] * postProcessParams.outputScaleMultiplier);
         }
       }
     }
