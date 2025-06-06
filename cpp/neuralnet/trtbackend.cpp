@@ -1761,35 +1761,35 @@ void NeuralNet::getOutput(
 
     CUDA_ERR(
       "getOutput",
-      cudaMemcpy(
+      cudaMemcpyAsync(
         inputBuffers->policyPassResults,
         gpuHandle->getBuffer("OutputPolicyPass"),
         inputBuffers->singlePolicyPassResultBytes * batchSize,
         cudaMemcpyDeviceToHost));
     CUDA_ERR(
       "getOutput",
-      cudaMemcpy(
+      cudaMemcpyAsync(
         inputBuffers->policyResults,
         gpuHandle->getBuffer("OutputPolicy"),
         inputBuffers->singlePolicyResultBytes * batchSize,
         cudaMemcpyDeviceToHost));
     CUDA_ERR(
       "getOutput",
-      cudaMemcpy(
+      cudaMemcpyAsync(
         inputBuffers->valueResults,
         gpuHandle->getBuffer("OutputValue"),
         inputBuffers->singleValueResultBytes * batchSize,
         cudaMemcpyDeviceToHost));
     CUDA_ERR(
       "getOutput",
-      cudaMemcpy(
+      cudaMemcpyAsync(
         inputBuffers->scoreValueResults,
         gpuHandle->getBuffer("OutputScoreValue"),
         inputBuffers->singleScoreValueResultBytes * batchSize,
         cudaMemcpyDeviceToHost));
     CUDA_ERR(
       "getOutput",
-      cudaMemcpy(
+      cudaMemcpyAsync(
         inputBuffers->ownershipResults,
         gpuHandle->getBuffer("OutputOwnership"),
         inputBuffers->singleOwnershipResultBytes * batchSize,
