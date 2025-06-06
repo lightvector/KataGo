@@ -1762,35 +1762,35 @@ void NeuralNet::getOutput(
     CUDA_ERR(
       "getOutput",
       cudaMemcpy(
-        inputBuffers->policyPassResults.get(),
+        inputBuffers->policyPassResults,
         gpuHandle->getBuffer("OutputPolicyPass"),
         inputBuffers->singlePolicyPassResultBytes * batchSize,
         cudaMemcpyDeviceToHost));
     CUDA_ERR(
       "getOutput",
       cudaMemcpy(
-        inputBuffers->policyResults.get(),
+        inputBuffers->policyResults,
         gpuHandle->getBuffer("OutputPolicy"),
         inputBuffers->singlePolicyResultBytes * batchSize,
         cudaMemcpyDeviceToHost));
     CUDA_ERR(
       "getOutput",
       cudaMemcpy(
-        inputBuffers->valueResults.get(),
+        inputBuffers->valueResults,
         gpuHandle->getBuffer("OutputValue"),
         inputBuffers->singleValueResultBytes * batchSize,
         cudaMemcpyDeviceToHost));
     CUDA_ERR(
       "getOutput",
       cudaMemcpy(
-        inputBuffers->scoreValueResults.get(),
+        inputBuffers->scoreValueResults,
         gpuHandle->getBuffer("OutputScoreValue"),
         inputBuffers->singleScoreValueResultBytes * batchSize,
         cudaMemcpyDeviceToHost));
     CUDA_ERR(
       "getOutput",
       cudaMemcpy(
-        inputBuffers->ownershipResults.get(),
+        inputBuffers->ownershipResults,
         gpuHandle->getBuffer("OutputOwnership"),
         inputBuffers->singleOwnershipResultBytes * batchSize,
         cudaMemcpyDeviceToHost));
