@@ -1793,7 +1793,7 @@ void NeuralNet::getOutput(
         inputBuffers->scoreValueResults,
         gpuHandle->getBuffer("OutputScoreValue"),
         inputBuffers->singleScoreValueResultBytes * batchSize,
-        cudaMemcpyDeviceToHos,
+        cudaMemcpyDeviceToHost,
         cudaStreamPerThread));
     CUDA_ERR(
       "getOutput",
