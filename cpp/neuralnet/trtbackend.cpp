@@ -1732,21 +1732,24 @@ void NeuralNet::getOutput(
         gpuHandle->getBuffer("InputMask"),
         inputBuffers->maskInputs,
         inputBuffers->singleMaskBytes * batchSize,
-        cudaMemcpyHostToDevice));
+        cudaMemcpyHostToDevice,
+        cudaStreamPerThread));
     CUDA_ERR(
       "getOutput",
       cudaMemcpyAsync(
         gpuHandle->getBuffer("InputSpatial"),
         inputBuffers->spatialInputs,
         inputBuffers->singleInputBytes * batchSize,
-        cudaMemcpyHostToDevice));
+        cudaMemcpyHostToDevice,
+        cudaStreamPerThread));
     CUDA_ERR(
       "getOutput",
       cudaMemcpyAsync(
         gpuHandle->getBuffer("InputGlobal"),
         inputBuffers->globalInputs,
         inputBuffers->singleInputGlobalBytes * batchSize,
-        cudaMemcpyHostToDevice));
+        cudaMemcpyHostToDevice,
+        cudaStreamPerThread));
     if(numMetaFeatures > 0) {
       CUDA_ERR(
         "getOutput",
@@ -1754,7 +1757,8 @@ void NeuralNet::getOutput(
           gpuHandle->getBuffer("InputMeta"),
           inputBuffers->metaInputs,
           inputBuffers->singleInputMetaBytes * batchSize,
-          cudaMemcpyHostToDevice));
+          cudaMemcpyHostToDevice,
+          cudaStreamPerThread));
     }
 
     gpuHandle->exec->enqueueV3(cudaStreamPerThread);
@@ -1765,35 +1769,40 @@ void NeuralNet::getOutput(
         inputBuffers->policyPassResults,
         gpuHandle->getBuffer("OutputPolicyPass"),
         inputBuffers->singlePolicyPassResultBytes * batchSize,
-        cudaMemcpyDeviceToHost));
+        cudaMemcpyDeviceToHost,
+        cudaStreamPerThread));
     CUDA_ERR(
       "getOutput",
       cudaMemcpyAsync(
         inputBuffers->policyResults,
         gpuHandle->getBuffer("OutputPolicy"),
         inputBuffers->singlePolicyResultBytes * batchSize,
-        cudaMemcpyDeviceToHost));
+        cudaMemcpyDeviceToHost,
+        cudaStreamPerThread));
     CUDA_ERR(
       "getOutput",
       cudaMemcpyAsync(
         inputBuffers->valueResults,
         gpuHandle->getBuffer("OutputValue"),
         inputBuffers->singleValueResultBytes * batchSize,
-        cudaMemcpyDeviceToHost));
+        cudaMemcpyDeviceToHost,
+        cudaStreamPerThread));
     CUDA_ERR(
       "getOutput",
       cudaMemcpyAsync(
         inputBuffers->scoreValueResults,
         gpuHandle->getBuffer("OutputScoreValue"),
         inputBuffers->singleScoreValueResultBytes * batchSize,
-        cudaMemcpyDeviceToHost));
+        cudaMemcpyDeviceToHos,
+        cudaStreamPerThread));
     CUDA_ERR(
       "getOutput",
       cudaMemcpyAsync(
         inputBuffers->ownershipResults,
         gpuHandle->getBuffer("OutputOwnership"),
         inputBuffers->singleOwnershipResultBytes * batchSize,
-        cudaMemcpyDeviceToHost));
+        cudaMemcpyDeviceToHost,
+        cudaStreamPerThread));
 #ifdef TENSORRT_CUDA_GRAPH
     cudaStreamEndCapture(cudaStreamPerThread, &graph);
     cudaGraphInstantiate(&instance, graph, 0);
