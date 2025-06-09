@@ -1092,6 +1092,7 @@ struct ComputeHandle {
 #ifdef TENSORRT_CUDA_GRAPH
   vector<cudaGraph_t> cudaGraphs;
   vector<cudaGraphExec_t> cudaGraphExecs;
+  inline static unordered_map<int, mutex> serializeLockPerGpu;
 #endif
   ComputeHandle(
     Logger* logger,
@@ -1101,7 +1102,7 @@ struct ComputeHandle {
     int maxBatchSz,
     bool requireExactNNLen) {
     ctx = context;
-
+    
     maxBatchSize = maxBatchSz;
     modelVersion = loadedModel->modelDesc.modelVersion;
 
@@ -1111,7 +1112,7 @@ struct ComputeHandle {
     if(getInferLibVersion() / 100 != NV_TENSORRT_VERSION / 100) {
       throw StringError("TensorRT backend: detected incompatible version of TensorRT library");
     }
-
+    
     trtLogger.setLogger(logger);
 
     auto builder = unique_ptr<IBuilder>(createInferBuilder(trtLogger));
@@ -1321,7 +1322,15 @@ struct ComputeHandle {
         tuneMutex.unlock();
       } else {
         tuneMutex.unlock();
-        planBuffer.reset(builder->buildSerializedNetwork(*model->network, *config));
+        {
+          int gpuId;
+          cudaGetDevice(&gpuId);
+          auto& serializeMutex = serializeLockPerGpu[gpuId];
+          serializeMutex.lock();
+          planBuffer.reset(builder->buildSerializedNetwork(*model->network, *config));
+          serializeMutex.unlock();
+        }
+
         if(!planBuffer) {
           throw StringError("TensorRT backend: failed to create plan");
         }
