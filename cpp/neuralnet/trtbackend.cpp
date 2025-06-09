@@ -1092,7 +1092,7 @@ struct ComputeHandle {
 #ifdef TENSORRT_CUDA_GRAPH
   vector<cudaGraph_t> cudaGraphs;
   vector<cudaGraphExec_t> cudaGraphExecs;
-  inline static unordered_map<int, mutex> serializeLockPerGpu;
+  inline static unordered_map<int, mutex> mutexPerGpu;
 #endif
   ComputeHandle(
     Logger* logger,
@@ -1325,10 +1325,10 @@ struct ComputeHandle {
         {
           int gpuId;
           cudaGetDevice(&gpuId);
-          auto& serializeMutex = serializeLockPerGpu[gpuId];
-          serializeMutex.lock();
+          auto& mutex = mutexPerGpu[gpuId];
+          mutex.lock();
           planBuffer.reset(builder->buildSerializedNetwork(*model->network, *config));
-          serializeMutex.unlock();
+          mutex.unlock();
         }
 
         if(!planBuffer) {
@@ -1715,6 +1715,10 @@ void NeuralNet::getOutput(
   auto& graph = gpuHandle->cudaGraphs[batchSize];
   auto& instance = gpuHandle->cudaGraphExecs[batchSize];
   if(instance == nullptr) {  // First evaluation with current batchsize. Initialize cuda graph
+    int gpuId;
+    cudaGetDevice(&gpuId);
+    auto& mutex = gpuHandle->mutexPerGpu[gpuId];
+    mutex.lock();
 #endif
 
     auto maskInputDims = gpuHandle->getBufferDynamicShape("InputMask", batchSize);
@@ -1815,6 +1819,7 @@ void NeuralNet::getOutput(
 #ifdef TENSORRT_CUDA_GRAPH
     cudaStreamEndCapture(cudaStreamPerThread, &graph);
     cudaGraphInstantiate(&instance, graph, 0);
+    mutex.unlock();
   }  // if (instance == nullptr)
   cudaGraphLaunch(instance, cudaStreamPerThread);
 #endif
