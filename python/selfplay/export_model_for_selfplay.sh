@@ -64,14 +64,14 @@ function exportStuff() {
                 mkdir "$TMPDST"
 
                 set -x
-                python ./export_model_pytorch.py \
+                python3 ./export_model_pytorch.py \
                         -checkpoint "$SRC"/model.ckpt \
                         -export-dir "$TMPDST" \
                         -model-name "$NAMEPREFIX""-""$NAME" \
                         -filename-prefix model \
                         -use-swa
 
-                python ./clean_checkpoint.py \
+                python3 ./clean_checkpoint.py \
                         -checkpoint "$SRC"/model.ckpt \
                         -output "$TMPDST"/model.ckpt
                 set +x
