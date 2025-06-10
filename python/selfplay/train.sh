@@ -7,14 +7,13 @@ set -o pipefail
 # Or, to torchmodels_toexport_extra/ (EXPORTMODE == "extra").
 # Or just trains without exporting (EXPORTMODE == "trainonly").
 
-if [[ $# -lt 6 ]]
+if [[ $# -lt 5 ]]
 then
     echo "Usage: $0 BASEDIR TRAININGNAME MODELKIND BATCHSIZE EXPORTMODE OTHERARGS"
     echo "BASEDIR containing selfplay data and models and related directories"
     echo "TRAININGNAME name to prefix models with, specific to this training daemon"
     echo "MODELKIND what size model to train, like b10c128, see ../modelconfigs.py"
     echo "BATCHSIZE number of samples to concat together per batch for training, must match shuffle"
-    echo "LRSCALE scale factor for learning rate, 1.0 is default, 0.5 is half, etc"
     echo "EXPORTMODE 'main': train and export for selfplay. 'extra': train and export extra non-selfplay model. 'trainonly': train without export"
     exit 0
 fi
@@ -25,8 +24,6 @@ shift
 MODELKIND="$1"
 shift
 BATCHSIZE="$1"
-shift
-LRSCALE="$1"
 shift
 EXPORTMODE="$1"
 shift
@@ -75,14 +72,13 @@ else
     exit 1
 fi
 
-time python ./train.py \
+time python3 ./train.py \
      -traindir "$BASEDIR"/train/"$TRAININGNAME" \
      -latestdatadir "$BASEDIR"/shuffleddata/ \
      -exportdir "$BASEDIR"/"$EXPORT_SUBDIR" \
      -exportprefix "$TRAININGNAME" \
      -pos-len 19 \
      -batch-size "$BATCHSIZE" \
-     -lr-scale "$LRSCALE" \
      -model-kind "$MODELKIND" \
      $EXTRAFLAG \
      "$@" \
