@@ -1,9 +1,4 @@
-
-# cd /g/Projects/KataGo-Noise/python
-
-# python merge.py --base-dir "G:\Projects\KataGo-Noise\Training\BaseDir" --training-name "kata1-b28c512nbt" --model-kind "b28c512nbt"
-
-
+import gc
 import argparse
 import torch
 import torch.nn as nn
@@ -16,6 +11,7 @@ import logging
 import load_model
 import time
 import shutil
+import psutil
 
 NUM_SHORTTERM_CHECKPOINTS_TO_KEEP = 4
 
@@ -73,6 +69,11 @@ def get_swa_model(raw_model, state_dict, swa_scale=None):
         swa_model = None
     return swa_model
 
+def log_memory_usage():
+    process = psutil.Process()
+    mem_info = process.memory_info()
+    logging.info(f"Memory usage: RSS={mem_info.rss / 1024**2:.2f}MB")
+
 def main():
     # 参数解析
     parser = argparse.ArgumentParser(description="Merge and export models")
@@ -84,6 +85,10 @@ def main():
     args = parser.parse_args()
 
     # 设置日志
+    handlers = [logging.StreamHandler()]
+    log_file = os.path.join(args.base_dir, "logs/outmerge.txt")
+    handlers.append(logging.FileHandler(log_file))
+
     logging.basicConfig(
         format='%(asctime)s - %(levelname)s - %(message)s',
         level=logging.INFO,
@@ -163,8 +168,8 @@ def main():
         temp_raw_model.load_state_dict(source_model_state_dict)
 
         temp_swa_model = get_swa_model(temp_raw_model, source_state_dict)
-        for i in range(2):
-            temp_swa_model.update_parameters(temp_raw_model)
+        # for i in range(2):
+        temp_swa_model.update_parameters(temp_raw_model)
 
         # 将 temp_SWA 权重复制到 temp_raw 中
         temp_raw_model.load_state_dict(temp_swa_model.module.state_dict())
@@ -175,6 +180,8 @@ def main():
         del temp_swa_model
         del source_model_state_dict
         del source_state_dict
+        # gc.collect()
+        log_memory_usage()  # 监控内存
         torch.cuda.empty_cache() if torch.cuda.is_available() else None
 
     iterations = 50
