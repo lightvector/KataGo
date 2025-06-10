@@ -1,4 +1,4 @@
-# KataGo - Noisy
+# KataGo
 
 * [Overview](#overview)
 * [Training History and Research](#training-history-and-research)
