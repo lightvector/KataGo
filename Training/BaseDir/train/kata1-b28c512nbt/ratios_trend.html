@@ -431,78 +431,85 @@
                     const meanPoints = modulePoints.map(item => ({ x: item.dataLength, y: item.mean }));
 
                     if (isAbsUpdateRatio) {
-                        // 使用偏度调整*边界*
+                        // // 使用偏度调整*边界*
+                        // lowerBoundPoints = modulePoints.map(item => {
+                        //     const skewness = item.skewness || 0;
+                        //     const skewFactor = skewness / (1 + Math.abs(skewness)); // Normalized skewness (-1 to 1)
+                        //     const kLower = 2 * (1 - skewFactor); // 正偏度时下边界距离更小
+                        //     return { x: item.dataLength, y: item.mean - kLower * item.stdDev };
+                        // });
+                        // upperBoundPoints = modulePoints.map(item => {
+                        //     const skewness = item.skewness || 0;
+                        //     const skewFactor = skewness / (1 + Math.abs(skewness)); // Normalized skewness (-1 to 1)
+                        //     const kUpper = 2 * (1 + skewFactor); // 正偏度时上边界距离更大
+                        //     return { x: item.dataLength, y: item.mean + kUpper * item.stdDev };
+                        // });
+
                         lowerBoundPoints = modulePoints.map(item => {
-                            const skewness = item.skewness || 0;
-                            const skewFactor = skewness / (1 + Math.abs(skewness)); // Normalized skewness (-1 to 1)
-                            const kLower = 2 * (1 - skewFactor); // 正偏度时下边界距离更小
-                            return { x: item.dataLength, y: item.mean - kLower * item.stdDev };
+                            return { x: item.dataLength, y: item.mean - item.stdDev };
                         });
                         upperBoundPoints = modulePoints.map(item => {
-                            const skewness = item.skewness || 0;
-                            const skewFactor = skewness / (1 + Math.abs(skewness)); // Normalized skewness (-1 to 1)
-                            const kUpper = 2 * (1 + skewFactor); // 正偏度时上边界距离更大
-                            return { x: item.dataLength, y: item.mean + kUpper * item.stdDev };
+                            return { x: item.dataLength, y: item.mean + item.stdDev };
                         });
 
-                        // --- 峰度渐变逻辑 ---
-                        // 计算模块的平均峰度以设置渐变强度
-                        const avgKurtosis = modulePoints.reduce((sum, item) => sum + (item.kurtosis || 0), 0) / modulePoints.length;
-                        // 标准化峰度效果（例如，将峰度从0-10映射到0-1范围用于alpha控制）
-                        // 正态分布的峰度为3（若为超额峰度则为0）。较高值表示更尖锐的峰值/更肥的尾部。
-                        // 当峰度增加到超过（比如说）1时，让它更强烈（更高alpha值）。
-                        const minKurt = 1; // 低于此峰度值的有最小效果
-                        const maxKurt = 10; // 高于此峰度值的有最大效果
-                        const normalizedKurt = Math.max(0, Math.min(1, (avgKurtosis - minKurt) / (maxKurt - minKurt)));
+                        // // --- 峰度渐变逻辑 ---
+                        // // 计算模块的平均峰度以设置渐变强度
+                        // const avgKurtosis = modulePoints.reduce((sum, item) => sum + (item.kurtosis || 0), 0) / modulePoints.length;
+                        // // 标准化峰度效果（例如，将峰度从0-10映射到0-1范围用于alpha控制）
+                        // // 正态分布的峰度为3（若为超额峰度则为0）。较高值表示更尖锐的峰值/更肥的尾部。
+                        // // 当峰度增加到超过（比如说）1时，让它更强烈（更高alpha值）。
+                        // const minKurt = 1; // 低于此峰度值的有最小效果
+                        // const maxKurt = 10; // 高于此峰度值的有最大效果
+                        // const normalizedKurt = Math.max(0, Math.min(1, (avgKurtosis - minKurt) / (maxKurt - minKurt)));
 
-                        const minAlpha = 0.05; // +/- 2*标准差边界处的Alpha值（更透明）
-                        const maxAlpha = 0.5;  // 均值附近的最大Alpha值（更不透明）
-                        const centerAlpha = minAlpha + (maxAlpha - minAlpha) * normalizedKurt; // 均值附近的Alpha值取决于峰度
+                        // const minAlpha = 0.05; // +/- 2*标准差边界处的Alpha值（更透明）
+                        // const maxAlpha = 0.5;  // 均值附近的最大Alpha值（更不透明）
+                        // const centerAlpha = minAlpha + (maxAlpha - minAlpha) * normalizedKurt; // 均值附近的Alpha值取决于峰度
 
-                        log(`模块 ${module}: AvgKurtosis=${avgKurtosis.toFixed(2)}, NormKurt=${normalizedKurt.toFixed(2)}, CenterAlpha=${centerAlpha.toFixed(2)}`);
+                        // log(`模块 ${module}: AvgKurtosis=${avgKurtosis.toFixed(2)}, NormKurt=${normalizedKurt.toFixed(2)}, CenterAlpha=${centerAlpha.toFixed(2)}`);
 
-                        areaColor = (ctx) => {
-                            const chart = ctx.chart;
-                            const chartArea = chart.chartArea;
-                            const yScale = chart.scales.y;
+                        // areaColor = (ctx) => {
+                        //     const chart = ctx.chart;
+                        //     const chartArea = chart.chartArea;
+                        //     const yScale = chart.scales.y;
 
-                            if (!chartArea) {
-                                // 如果chartArea尚未准备好时的后备方案
-                                return `hsla(${hue}, ${saturation}%, ${lightness}%, ${minAlpha + (centerAlpha-minAlpha)/2})`; // 平均Alpha值
-                            }
+                        //     if (!chartArea) {
+                        //         // 如果chartArea尚未准备好时的后备方案
+                        //         return `hsla(${hue}, ${saturation}%, ${lightness}%, ${minAlpha + (centerAlpha-minAlpha)/2})`; // 平均Alpha值
+                        //     }
 
-                            // 查找此数据集填充区域的近似Y像素范围
-                            const yValues = upperBoundPoints.map(p => p.y).concat(lowerBoundPoints.map(p => p.y));
-                            let yMin = Math.min(...yValues);
-                            let yMax = Math.max(...yValues);
+                        //     // 查找此数据集填充区域的近似Y像素范围
+                        //     const yValues = upperBoundPoints.map(p => p.y).concat(lowerBoundPoints.map(p => p.y));
+                        //     let yMin = Math.min(...yValues);
+                        //     let yMax = Math.max(...yValues);
 
-                            // 估计平均的Y均值
-                            const avgMeanY = meanPoints.reduce((sum, p) => sum + p.y, 0) / meanPoints.length;
+                        //     // 估计平均的Y均值
+                        //     const avgMeanY = meanPoints.reduce((sum, p) => sum + p.y, 0) / meanPoints.length;
 
-                            // 获取像素坐标（限制在图表区域内）
-                            const yPixelMin = Math.max(chartArea.top, Math.min(chartArea.bottom, yScale.getPixelForValue(yMax))); // 区域顶部
-                            const yPixelMax = Math.max(chartArea.top, Math.min(chartArea.bottom, yScale.getPixelForValue(yMin))); // 区域底部
-                            const yPixelMean = Math.max(chartArea.top, Math.min(chartArea.bottom, yScale.getPixelForValue(avgMeanY))); // 均值线位置
+                        //     // 获取像素坐标（限制在图表区域内）
+                        //     const yPixelMin = Math.max(chartArea.top, Math.min(chartArea.bottom, yScale.getPixelForValue(yMax))); // 区域顶部
+                        //     const yPixelMax = Math.max(chartArea.top, Math.min(chartArea.bottom, yScale.getPixelForValue(yMin))); // 区域底部
+                        //     const yPixelMean = Math.max(chartArea.top, Math.min(chartArea.bottom, yScale.getPixelForValue(avgMeanY))); // 均值线位置
 
-                            // 创建相对于填充区域而非整个图表的渐变
-                            // 如果区域是平的，防止除以零
-                            if (yPixelMax <= yPixelMin) return `hsla(${hue}, ${saturation}%, ${lightness}%, ${centerAlpha})`;
+                        //     // 创建相对于填充区域而非整个图表的渐变
+                        //     // 如果区域是平的，防止除以零
+                        //     if (yPixelMax <= yPixelMin) return `hsla(${hue}, ${saturation}%, ${lightness}%, ${centerAlpha})`;
 
-                            const gradient = chart.ctx.createLinearGradient(0, yPixelMin, 0, yPixelMax);
+                        //     const gradient = chart.ctx.createLinearGradient(0, yPixelMin, 0, yPixelMax);
 
-                            // 将均值位置映射到填充区域像素范围内的0-1值
-                            const meanStopPosition = (yPixelMean - yPixelMin) / (yPixelMax - yPixelMin);
+                        //     // 将均值位置映射到填充区域像素范围内的0-1值
+                        //     const meanStopPosition = (yPixelMean - yPixelMin) / (yPixelMax - yPixelMin);
 
-                            // 添加渐变点：最亮的在顶部/底部边缘，最暗的在均值周围
-                            gradient.addColorStop(0, `hsla(${hue}, ${saturation}%, ${lightness}%, ${minAlpha})`); // 顶部边缘（最大Y值）
-                            // 在均值位置周围稍微扩散添加最暗的渐变点
-                            gradient.addColorStop(Math.max(0, meanStopPosition - 0.1), `hsla(${hue}, ${saturation}%, ${lightness}%, ${centerAlpha})`);
-                            gradient.addColorStop(Math.min(1, meanStopPosition + 0.1), `hsla(${hue}, ${saturation}%, ${lightness}%, ${centerAlpha})`);
-                            gradient.addColorStop(1, `hsla(${hue}, ${saturation}%, ${lightness}%, ${minAlpha})`);  // 底部边缘（最小Y值）
+                        //     // 添加渐变点：最亮的在顶部/底部边缘，最暗的在均值周围
+                        //     gradient.addColorStop(0, `hsla(${hue}, ${saturation}%, ${lightness}%, ${minAlpha})`); // 顶部边缘（最大Y值）
+                        //     // 在均值位置周围稍微扩散添加最暗的渐变点
+                        //     gradient.addColorStop(Math.max(0, meanStopPosition - 0.1), `hsla(${hue}, ${saturation}%, ${lightness}%, ${centerAlpha})`);
+                        //     gradient.addColorStop(Math.min(1, meanStopPosition + 0.1), `hsla(${hue}, ${saturation}%, ${lightness}%, ${centerAlpha})`);
+                        //     gradient.addColorStop(1, `hsla(${hue}, ${saturation}%, ${lightness}%, ${minAlpha})`);  // 底部边缘（最小Y值）
 
-                            return gradient;
-                        };
-                        // --- 峰度渐变逻辑结束 ---
+                        //     return gradient;
+                        // };
+                        // // --- 峰度渐变逻辑结束 ---
 
                     } else {
                         // update_ratio保持对称标准差和简单背景
