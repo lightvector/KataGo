@@ -1227,7 +1227,9 @@ Loc PlayUtils::maybeFriendlyPass(
 }
 
 
-std::shared_ptr<NNOutput> PlayUtils::getFullSymmetryNNOutput(const Board& board, const BoardHistory& hist, Player pla, bool includeOwnerMap, NNEvaluator* nnEval) {
+std::shared_ptr<NNOutput> PlayUtils::getFullSymmetryNNOutput(
+  const Board& board, const BoardHistory& hist, Player pla, bool includeOwnerMap, const SGFMetadata* sgfMeta, NNEvaluator* nnEval
+) {
   vector<std::shared_ptr<NNOutput>> ptrs;
   Board b = board;
   for(int sym = 0; sym<SymmetryHelpers::NUM_SYMMETRIES; sym++) {
@@ -1235,7 +1237,7 @@ std::shared_ptr<NNOutput> PlayUtils::getFullSymmetryNNOutput(const Board& board,
     nnInputParams.symmetry = sym;
     NNResultBuf buf;
     bool skipCache = true; //Always ignore cache so that we use the desired symmetry
-    nnEval->evaluate(b,hist,pla,nnInputParams,buf,skipCache,includeOwnerMap);
+    nnEval->evaluate(b,hist,pla,sgfMeta,nnInputParams,buf,skipCache,includeOwnerMap);
     ptrs.push_back(std::move(buf.result));
   }
   std::shared_ptr<NNOutput> result(new NNOutput(ptrs));

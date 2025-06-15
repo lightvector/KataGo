@@ -488,7 +488,7 @@ o.....oo
       buf.result->debugPrint(cout, board);
     }
 
-    std::shared_ptr<NNOutput> nnOutput = PlayUtils::getFullSymmetryNNOutput(board, hist, nextPla, includeOwnerMap, nnEval);
+    std::shared_ptr<NNOutput> nnOutput = PlayUtils::getFullSymmetryNNOutput(board, hist, nextPla, includeOwnerMap, NULL, nnEval);
     cout << "Symmetry all" << endl;
     nnOutput->debugPrint(cout, board);
   }
@@ -547,7 +547,7 @@ oo...ooo
       buf.result->debugPrint(cout, board);
     }
 
-    std::shared_ptr<NNOutput> nnOutput = PlayUtils::getFullSymmetryNNOutput(board, hist, nextPla, includeOwnerMap, nnEval);
+    std::shared_ptr<NNOutput> nnOutput = PlayUtils::getFullSymmetryNNOutput(board, hist, nextPla, includeOwnerMap, NULL, nnEval);
     cout << "Symmetry all" << endl;
     nnOutput->debugPrint(cout, board);
   }
@@ -568,7 +568,7 @@ oo...ooo
 
     bool includeOwnerMap = true;
     cout << board << endl;
-    std::shared_ptr<NNOutput> nnOutput = PlayUtils::getFullSymmetryNNOutput(board, hist, nextPla, includeOwnerMap, nnEval);
+    std::shared_ptr<NNOutput> nnOutput = PlayUtils::getFullSymmetryNNOutput(board, hist, nextPla, includeOwnerMap, NULL, nnEval);
     cout << "Symmetry all" << endl;
     nnOutput->debugPrint(cout, board);
   }
