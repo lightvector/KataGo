@@ -14,6 +14,7 @@
 #include "../program/playutils.h"
 #include "../program/play.h"
 #include "../command/commandline.h"
+#include "../core/test.h"
 #include "../main.h"
 
 #include <chrono>
@@ -1869,7 +1870,8 @@ int MainCmds::booktoposes(const vector<string>& args) {
       for(int i = std::max(0,(int)hist.moveHistory.size()-5); i<hist.moveHistory.size(); i++)
         sample.moves.push_back(hist.moveHistory[i]);
       sample.nextPla = sample.moves.size() > 0 ? sample.moves[0].pla : pla;
-      sample.initialTurnNumber = depth;
+      sample.initialTurnNumber = depth - (int)sample.moves.size();
+      testAssert(sample.initialTurnNumber >= 0);
       sample.hintLoc = Board::NULL_LOC;
 
       std::vector<double> sortingValue;
