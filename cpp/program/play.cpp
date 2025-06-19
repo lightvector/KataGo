@@ -1695,6 +1695,8 @@ FinishedGameData* Play::runGame(
     sout << "hist.moveHistory.size() " << hist.moveHistory.size() << "\n";
     hist.printBasicInfo(sout,board);
     hist.printDebugInfo(sout,board);
+    logger.write(sout.str());
+    cerr << sout.str() << endl;
     testAssert(false);
   }
 
