@@ -48,6 +48,7 @@ else
     DATED_ARCHIVE="$BASEDIR"/scripts/train/dated/"$DATE_FOR_FILENAME"
     mkdir -p "$DATED_ARCHIVE"
     cp "$GITROOTDIR"/python/*.py "$GITROOTDIR"/python/selfplay/train.sh "$DATED_ARCHIVE"
+    cp -r "$GITROOTDIR"/python/katago "$DATED_ARCHIVE"
     git show --no-patch --no-color > "$DATED_ARCHIVE"/version.txt
     git diff --no-color > "$DATED_ARCHIVE"/diff.txt
     git diff --staged --no-color > "$DATED_ARCHIVE"/diffstaged.txt
@@ -73,7 +74,7 @@ fi
 
 time python ./train.py \
      -traindir "$BASEDIR"/train/"$TRAININGNAME" \
-     -datadir "$BASEDIR"/shuffleddata/current/ \
+     -latestdatadir "$BASEDIR"/shuffleddata/ \
      -exportdir "$BASEDIR"/"$EXPORT_SUBDIR" \
      -exportprefix "$TRAININGNAME" \
      -pos-len 19 \

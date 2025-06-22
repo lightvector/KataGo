@@ -45,6 +45,7 @@ BoardHistory::BoardHistory()
    encorePhase(0),
    numTurnsThisPhase(0),
    numApproxValidTurnsThisPhase(0),
+   numConsecValidTurnsThisGame(0),
    koRecapBlockHash(),
    koCapturesInEncore(),
    whiteBonusScore(0.0f),
@@ -84,6 +85,7 @@ BoardHistory::BoardHistory(const Board& board, Player pla, const Rules& r, int e
    encorePhase(0),
    numTurnsThisPhase(0),
    numApproxValidTurnsThisPhase(0),
+   numConsecValidTurnsThisGame(0),
    koRecapBlockHash(),
    koCapturesInEncore(),
    whiteBonusScore(0.0f),
@@ -122,6 +124,7 @@ BoardHistory::BoardHistory(const BoardHistory& other)
    encorePhase(other.encorePhase),
    numTurnsThisPhase(other.numTurnsThisPhase),
    numApproxValidTurnsThisPhase(other.numApproxValidTurnsThisPhase),
+   numConsecValidTurnsThisGame(other.numConsecValidTurnsThisGame),
    koRecapBlockHash(other.koRecapBlockHash),
    koCapturesInEncore(other.koCapturesInEncore),
    whiteBonusScore(other.whiteBonusScore),
@@ -166,6 +169,7 @@ BoardHistory& BoardHistory::operator=(const BoardHistory& other)
   encorePhase = other.encorePhase;
   numTurnsThisPhase = other.numTurnsThisPhase;
   numApproxValidTurnsThisPhase = other.numApproxValidTurnsThisPhase;
+  numConsecValidTurnsThisGame = other.numConsecValidTurnsThisGame;
   std::copy(other.koRecapBlocked, other.koRecapBlocked+Board::MAX_ARR_SIZE, koRecapBlocked);
   koRecapBlockHash = other.koRecapBlockHash;
   koCapturesInEncore = other.koCapturesInEncore;
@@ -205,6 +209,7 @@ BoardHistory::BoardHistory(BoardHistory&& other) noexcept
   encorePhase(other.encorePhase),
   numTurnsThisPhase(other.numTurnsThisPhase),
   numApproxValidTurnsThisPhase(other.numApproxValidTurnsThisPhase),
+  numConsecValidTurnsThisGame(other.numConsecValidTurnsThisGame),
   koRecapBlockHash(other.koRecapBlockHash),
   koCapturesInEncore(std::move(other.koCapturesInEncore)),
   whiteBonusScore(other.whiteBonusScore),
@@ -246,6 +251,7 @@ BoardHistory& BoardHistory::operator=(BoardHistory&& other) noexcept
   encorePhase = other.encorePhase;
   numTurnsThisPhase = other.numTurnsThisPhase;
   numApproxValidTurnsThisPhase = other.numApproxValidTurnsThisPhase;
+  numConsecValidTurnsThisGame = other.numConsecValidTurnsThisGame;
   std::copy(other.koRecapBlocked, other.koRecapBlocked+Board::MAX_ARR_SIZE, koRecapBlocked);
   koRecapBlockHash = other.koRecapBlockHash;
   koCapturesInEncore = std::move(other.koCapturesInEncore);
@@ -300,6 +306,7 @@ void BoardHistory::clear(const Board& board, Player pla, const Rules& r, int ePh
   hashesBeforeWhitePass.clear();
   numTurnsThisPhase = 0;
   numApproxValidTurnsThisPhase = 0;
+  numConsecValidTurnsThisGame = 0;
   std::fill(koRecapBlocked, koRecapBlocked+Board::MAX_ARR_SIZE, false);
   koRecapBlockHash = Hash128();
   koCapturesInEncore.clear();
@@ -465,6 +472,7 @@ void BoardHistory::printDebugInfo(ostream& out, const Board& board) const {
   out << "Encore phase " << encorePhase << endl;
   out << "Turns this phase " << numTurnsThisPhase << endl;
   out << "Approx valid turns this phase " << numApproxValidTurnsThisPhase << endl;
+  out << "Approx consec valid turns this game " << numConsecValidTurnsThisGame << endl;
   out << "Rules " << rules << endl;
   out << "Ko recap block hash " << koRecapBlockHash << endl;
   out << "White bonus score " << whiteBonusScore << endl;
@@ -881,8 +889,6 @@ bool BoardHistory::isLegalTolerant(const Board& board, Loc moveLoc, Player moveP
   if(movePla != P_BLACK && movePla != P_WHITE)
     return false;
   bool multiStoneSuicideLegal = true; // Tolerate suicide regardless of rules
-  if(encorePhase <= 0 && movePla == presumedNextMovePla && board.isKoBanned(moveLoc))
-    return false;
   if(!isPassForKo(board, moveLoc, movePla) && !board.isLegalIgnoringKo(moveLoc,movePla,multiStoneSuicideLegal))
     return false;
   return true;
@@ -892,8 +898,6 @@ bool BoardHistory::makeBoardMoveTolerant(Board& board, Loc moveLoc, Player moveP
   if(movePla != P_BLACK && movePla != P_WHITE)
     return false;
   bool multiStoneSuicideLegal = true; // Tolerate suicide regardless of rules
-  if(encorePhase <= 0 && movePla == presumedNextMovePla && board.isKoBanned(moveLoc))
-    return false;
   if(!isPassForKo(board, moveLoc, movePla) && !board.isLegalIgnoringKo(moveLoc,movePla,multiStoneSuicideLegal))
     return false;
   makeBoardMoveAssumeLegal(board,moveLoc,movePla,NULL);
@@ -904,8 +908,6 @@ bool BoardHistory::makeBoardMoveTolerant(Board& board, Loc moveLoc, Player moveP
   if(movePla != P_BLACK && movePla == presumedNextMovePla && movePla != P_WHITE)
     return false;
   bool multiStoneSuicideLegal = true; // Tolerate suicide regardless of rules
-  if(encorePhase <= 0 && board.isKoBanned(moveLoc))
-    return false;
   if(!isPassForKo(board, moveLoc, movePla) && !board.isLegalIgnoringKo(moveLoc,movePla,multiStoneSuicideLegal))
     return false;
   makeBoardMoveAssumeLegal(board,moveLoc,movePla,NULL,preventEncore);
@@ -924,7 +926,10 @@ void BoardHistory::makeBoardMoveAssumeLegal(Board& board, Loc moveLoc, Player mo
     //Cap at 1 - do include the latest move that likely ended the game by itself since by itself
     //absent any history of passes it should be valid still.
     numApproxValidTurnsThisPhase = std::min(numApproxValidTurnsThisPhase,1);
+    numConsecValidTurnsThisGame = std::min(numConsecValidTurnsThisGame,1);
   }
+
+  bool moveIsIllegal = !isLegal(board,moveLoc,movePla);
 
   //And if somehow we're making a move after the game was ended, just clear those values and continue.
   isGameFinished = false;
@@ -1033,7 +1038,11 @@ void BoardHistory::makeBoardMoveAssumeLegal(Board& board, Loc moveLoc, Player mo
   preventEncoreHistory.push_back(preventEncore);
   numTurnsThisPhase += 1;
   numApproxValidTurnsThisPhase += 1;
+  numConsecValidTurnsThisGame += 1;
   presumedNextMovePla = getOpp(movePla);
+
+  if(moveIsIllegal)
+    numConsecValidTurnsThisGame = 0;
 
   if(moveLoc != Board::PASS_LOC)
     wasEverOccupiedOrPlayed[moveLoc] = true;
@@ -1102,6 +1111,7 @@ void BoardHistory::makeBoardMoveAssumeLegal(Board& board, Loc moveLoc, Player mo
           //Cap at 1 - do include just the single pass here by itself since the single pass by itself
           //absent any history of passes before that should be valid still.
           numApproxValidTurnsThisPhase = std::min(numApproxValidTurnsThisPhase,1);
+          numConsecValidTurnsThisGame = std::min(numConsecValidTurnsThisGame,1);
         }
         else {
           encorePhase += 1;

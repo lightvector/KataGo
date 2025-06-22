@@ -47,6 +47,7 @@ tmpdir="$(realpath "$TMPDIRRAW")"
 mkdir -p "$basedir"/scripts
 mkdir -p "$basedir"/logs
 cp "$GITROOTDIR"/python/*.py "$GITROOTDIR"/python/selfplay/*.sh "$GITROOTDIR"/python/selfplay/distributed/*.sh "$basedir"/scripts
+cp -r "$GITROOTDIR"/python/katago "$basedir"/scripts
 cp "$DOWNLOAD_SCRIPT" "$basedir"/scripts/download.sh
 cp "$CONNECTION_CONFIG" "$basedir"/scripts/connection.cfg
 
@@ -55,6 +56,7 @@ DATE_FOR_FILENAME=$(date "+%Y%m%d-%H%M%S")
 DATED_ARCHIVE="$basedir"/scripts/dated/"$DATE_FOR_FILENAME"
 mkdir -p "$DATED_ARCHIVE"
 cp "$GITROOTDIR"/python/*.py "$DATED_ARCHIVE"
+cp -r "$GITROOTDIR"/python/katago "$DATED_ARCHIVE"
 cp -r "$GITROOTDIR"/python/selfplay "$DATED_ARCHIVE"
 
 (

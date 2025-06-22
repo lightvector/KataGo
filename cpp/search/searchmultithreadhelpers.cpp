@@ -250,7 +250,7 @@ void Search::applyRecursivelyAnyOrderMulithreadedHelper(
 //Mainly for testing
 std::vector<SearchNode*> Search::enumerateTreePostOrder() {
   std::atomic<int64_t> sizeCounter(0);
-  std::function<void(SearchNode*,int)> f = [&](SearchNode* node, int threadIdx) {
+  std::function<void(SearchNode*,int)> f = [&](SearchNode* node, int threadIdx) noexcept {
     (void)node;
     (void)threadIdx;
     sizeCounter.fetch_add(1,std::memory_order_relaxed);
@@ -260,7 +260,7 @@ std::vector<SearchNode*> Search::enumerateTreePostOrder() {
   int64_t size = sizeCounter.load(std::memory_order_relaxed);
   std::vector<SearchNode*> nodes(size,NULL);
   std::atomic<int64_t> indexCounter(0);
-  std::function<void(SearchNode*,int)> g = [&](SearchNode* node, int threadIdx) {
+  std::function<void(SearchNode*,int)> g = [&](SearchNode* node, int threadIdx) noexcept {
     (void)threadIdx;
     int64_t index = indexCounter.fetch_add(1,std::memory_order_relaxed);
     assert(index >= 0 && index < size);

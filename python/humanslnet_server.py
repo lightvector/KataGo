@@ -1,10 +1,10 @@
 import sys
 import json
 import numpy as np
-from load_model import load_model
-from gamestate import GameState
-from features import Features
-from sgfmetadata import SGFMetadata
+from katago.train.load_model import load_model
+from katago.game.gamestate import GameState
+from katago.game.features import Features
+from katago.game.sgfmetadata import SGFMetadata
 import argparse
 
 def numpy_array_encoder(obj):

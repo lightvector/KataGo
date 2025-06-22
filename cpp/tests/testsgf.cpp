@@ -121,6 +121,7 @@ Initial pla White
 Encore phase 0
 Turns this phase 0
 Approx valid turns this phase 0
+Approx consec valid turns this game 0
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
@@ -159,6 +160,7 @@ Initial pla White
 Encore phase 0
 Turns this phase 7
 Approx valid turns this phase 7
+Approx consec valid turns this game 5
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
@@ -224,6 +226,7 @@ Initial pla White
 Encore phase 0
 Turns this phase 0
 Approx valid turns this phase 0
+Approx consec valid turns this game 0
 Rules koSIMPLEscoreTERRITORYtaxSEKIsui0komi5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 4
@@ -262,6 +265,7 @@ Initial pla White
 Encore phase 1
 Turns this phase 0
 Approx valid turns this phase 0
+Approx consec valid turns this game 5
 Rules koSIMPLEscoreTERRITORYtaxSEKIsui0komi5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 3
@@ -327,6 +331,7 @@ Initial pla White
 Encore phase 0
 Turns this phase 0
 Approx valid turns this phase 0
+Approx consec valid turns this game 0
 Rules koSIMPLEscoreAREAtaxNONEsui0whbNfpok1komi5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
@@ -365,6 +370,7 @@ Initial pla White
 Encore phase 0
 Turns this phase 7
 Approx valid turns this phase 7
+Approx consec valid turns this game 5
 Rules koSIMPLEscoreAREAtaxNONEsui0whbNfpok1komi5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
@@ -430,6 +436,7 @@ Initial pla White
 Encore phase 0
 Turns this phase 0
 Approx valid turns this phase 0
+Approx consec valid turns this game 0
 Rules koSITUATIONALscoreAREAtaxNONEsui0whbN-1fpok1komi5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
@@ -468,6 +475,7 @@ Initial pla White
 Encore phase 0
 Turns this phase 7
 Approx valid turns this phase 7
+Approx consec valid turns this game 5
 Rules koSITUATIONALscoreAREAtaxNONEsui0whbN-1fpok1komi5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
@@ -510,6 +518,7 @@ Initial pla Black
 Encore phase 0
 Turns this phase 0
 Approx valid turns this phase 0
+Approx consec valid turns this game 0
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi-6.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
@@ -532,6 +541,7 @@ Initial pla Black
 Encore phase 0
 Turns this phase 3
 Approx valid turns this phase 3
+Approx consec valid turns this game 3
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi-6.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
@@ -594,6 +604,7 @@ Initial pla White
 Encore phase 0
 Turns this phase 0
 Approx valid turns this phase 0
+Approx consec valid turns this game 0
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
@@ -622,6 +633,7 @@ Initial pla White
 Encore phase 0
 Turns this phase 0
 Approx valid turns this phase 0
+Approx consec valid turns this game 0
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
@@ -684,6 +696,7 @@ Initial pla Black
 Encore phase 0
 Turns this phase 0
 Approx valid turns this phase 0
+Approx consec valid turns this game 0
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi24
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
@@ -708,6 +721,7 @@ Initial pla Black
 Encore phase 0
 Turns this phase 7
 Approx valid turns this phase 7
+Approx consec valid turns this game 7
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi24
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
@@ -778,6 +792,7 @@ Initial pla Black
 Encore phase 0
 Turns this phase 0
 Approx valid turns this phase 0
+Approx consec valid turns this game 0
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi24
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
@@ -802,6 +817,7 @@ Initial pla Black
 Encore phase 0
 Turns this phase 7
 Approx valid turns this phase 7
+Approx consec valid turns this game 1
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi24
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
@@ -897,6 +913,7 @@ Initial pla Black
 Encore phase 0
 Turns this phase 0
 Approx valid turns this phase 0
+Approx consec valid turns this game 0
 Rules koSIMPLEscoreAREAtaxNONEsui0whbNkomi0
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
@@ -953,6 +970,7 @@ Initial pla Black
 Encore phase 0
 Turns this phase 13
 Approx valid turns this phase 13
+Approx consec valid turns this game 13
 Rules koSIMPLEscoreAREAtaxNONEsui0whbNkomi0
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0

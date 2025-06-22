@@ -5,7 +5,7 @@ import argparse
 import math
 import torch
 
-import load_model
+import katago.train.load_model
 
 description = """
 Hacky script to migrate v11 model to v12 with optimistic policy.

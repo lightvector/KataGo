@@ -921,7 +921,7 @@ void Search::deleteAllOldOrAllNewTableNodesAndSubtreeValueBiasMulithreaded(bool 
 void Search::deleteAllTableNodesMulithreaded() {
   int numAdditionalThreads = numAdditionalThreadsToUseForTasks();
   assert(numAdditionalThreads >= 0);
-  std::function<void(int)> g = [&](int threadIdx) {
+  std::function<void(int)> g = [&](int threadIdx) noexcept {
     size_t idx0 = (size_t)((uint64_t)(threadIdx) * nodeTable->entries.size() / (numAdditionalThreads+1));
     size_t idx1 = (size_t)((uint64_t)(threadIdx+1) * nodeTable->entries.size() / (numAdditionalThreads+1));
     for(size_t i = idx0; i<idx1; i++) {

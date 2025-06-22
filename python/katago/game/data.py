@@ -2,7 +2,7 @@
 from sgfmill import sgf as Sgf
 from sgfmill import sgf_properties as Sgf_properties
 
-from board import Board
+from ..game.board import Board
 
 class Metadata:
     def __init__(self, size, bname, wname, brank, wrank, komi, handicap):

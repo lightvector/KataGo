@@ -366,7 +366,7 @@ void Connection::testConnection() {
       throw StringError("Server did not give status 200 for initial query, response was:\n" + out.str());
     }
   };
-  std::function<bool()> shouldStop = []() { return false; };
+  std::function<bool()> shouldStop = []() noexcept { return false; };
   const int maxTries = 5;
   retryLoop("Initial connection", maxTries, shouldStop, f);
 }
@@ -600,7 +600,7 @@ RunParameters Connection::getRunParameters() {
       throw StringError(string("Error when requesting initial run parameters from server: ") + e.what());
     }
   };
-  std::function<bool()> shouldStop = []() { return false; };
+  std::function<bool()> shouldStop = []() noexcept { return false; };
   const int maxTries = 5;
   retryLoop("Getting run parameters", maxTries, shouldStop, f);
   if(!gotRunParams)

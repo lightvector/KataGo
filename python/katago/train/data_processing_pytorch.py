@@ -7,7 +7,7 @@ from concurrent.futures import ThreadPoolExecutor
 import torch
 import torch.nn.functional
 
-import modelconfigs
+from ..train import modelconfigs
 
 def read_npz_training_data(
     npz_files,

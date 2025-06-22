@@ -951,9 +951,9 @@ static bool testAllConfigs(
   return true;
 }
 
-#define SETTER(field) std::function<void(OpenCLTuneParams&, int value)>([](OpenCLTuneParams& p, int value){ p.field = value; })
-#define ISVALID(field) std::function<bool(const OpenCLTuneParams&)>([](const OpenCLTuneParams& p){ return p.field.isValid(); })
-#define ISSIMPLE(field) std::function<bool(const OpenCLTuneParams&)>([](const OpenCLTuneParams& p){ return p.field.isSimple(); })
+#define SETTER(field) std::function<void(OpenCLTuneParams&, int value)>([](OpenCLTuneParams& p, int value) noexcept { p.field = value; })
+#define ISVALID(field) std::function<bool(const OpenCLTuneParams&)>([](const OpenCLTuneParams& p) noexcept { return p.field.isValid(); })
+#define ISSIMPLE(field) std::function<bool(const OpenCLTuneParams&)>([](const OpenCLTuneParams& p) noexcept { return p.field.isSimple(); })
 
 OpenCLTuner::ModelInfoForTuning OpenCLTuner::ModelInfoForTuning::ofDesc(const ModelDesc* desc) {
   OpenCLTuner::ModelInfoForTuning modelInfo;

@@ -23,7 +23,7 @@ class Board:
 
     PASS_LOC = 0
 
-    for i in range((19+1)*(19+2)+1):
+    for i in range((50+1)*(50+2)+1):
         ZOBRIST_STONE[BLACK].append(ZOBRIST_RAND.getrandbits(64))
         ZOBRIST_STONE[WHITE].append(ZOBRIST_RAND.getrandbits(64))
     for i in range(4):
@@ -35,9 +35,9 @@ class Board:
             self.y_size = size
         else:
             self.x_size, self.y_size = size
-        if self.x_size < 2 or self.x_size > 39:
+        if self.x_size < 2 or self.x_size > 50:
             raise ValueError("Invalid board size: " + str(size))
-        if self.y_size < 2 or self.y_size > 39:
+        if self.y_size < 2 or self.y_size > 50:
             raise ValueError("Invalid board size: " + str(size))
         self.arrsize = (self.x_size+1)*(self.y_size+2)+1
         self.dy = self.x_size+1
@@ -1441,3 +1441,40 @@ class Board:
                                 result[adj] = basicArea[adj]
                                 queue[queueTail] = adj
                                 queueTail += 1
+
+    def to_sgfpos_str(self):
+        out = ""
+        for y in range(self.y_size):
+            for x in range(self.x_size):
+                loc = self.loc(x,y)
+                if self.board[loc] == 1:
+                    out += "X"
+                elif self.board[loc] == 2:
+                    out += "O"
+                else:
+                    out += "."
+            out += "/"
+        return out[:-1]
+
+    def num_stones(self):
+        num_stones = 0
+        for y in range(self.y_size):
+            for x in range(self.x_size):
+                loc = self.loc(x,y)
+                if self.board[loc] == 1:
+                    num_stones += 1
+                elif self.board[loc] == 2:
+                    num_stones += 1
+        return num_stones
+
+
+    def pla_to_char(self,pla):
+        return "EBW#"[pla]
+
+    def loc_to_str(self,loc):
+        colstr = 'ABCDEFGHJKLMNOPQRST'
+        if loc == Board.PASS_LOC:
+            return 'pass'
+        x = self.loc_x(loc)
+        y = self.loc_y(loc)
+        return '%c%d' % (colstr[x], self.y_size - y)

@@ -27,11 +27,10 @@ import torch.optim
 import torch.distributed
 import torch.multiprocessing
 
-import modelconfigs
-from model_pytorch import Model
-from metrics_pytorch import Metrics
-import load_model
-import data_processing_pytorch
+from katago.train import modelconfigs
+from katago.train.model_pytorch import Model
+from katago.train.metrics_pytorch import Metrics
+import katago.train.load_model
 
 # HANDLE COMMAND AND ARGS -------------------------------------------------------------------
 

@@ -6,7 +6,7 @@ import math
 import torch
 import json
 
-import load_model
+import katago.train.load_model
 
 description = """
 Utility for dumping or modifying torch checkpoint file contents

@@ -5,6 +5,8 @@ import argparse
 import math
 import torch
 
+import katago.train.load_model
+
 description = """
 Hacky script to migrate v15 model to v16 with q prediction head.
 Run on a torch checkpoint.ckpt file. Replace the old one with the new one after a backup.
