@@ -144,6 +144,8 @@ static int handleSubcommand(const string& subcommand, const vector<string>& args
     return MainCmds::viewstartposes(subArgs);
   else if(subcommand == "checksgfhintpolicy")
     return MainCmds::checksgfhintpolicy(subArgs);
+  else if(subcommand == "genposesfromselfplayinit")
+    return MainCmds::genposesfromselfplayinit(subArgs);
   else if(subcommand == "demoplay")
     return MainCmds::demoplay(subArgs);
   else if(subcommand == "writetrainingdata")
