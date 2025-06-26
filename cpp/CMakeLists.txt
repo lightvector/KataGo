@@ -507,6 +507,7 @@ if (WIN32) # handles both x86 and x64
   # core/rand.cpp uses winsock for a gethostname
   target_link_libraries(katago ws2_32)
   if (MINGW)
+    message(STATUS "Setting up build for mingw.")
     if(USE_BACKEND STREQUAL "CUDA" OR USE_BACKEND STREQUAL "TENSORRT")
       message(SEND_ERROR "CUDA and TENSORRT MinGW backends are not supported by NVIDIA, see https://forums.developer.nvidia.com/t/cuda-with-mingw-how-to-get-cuda-running-under-mingw")
     endif()
