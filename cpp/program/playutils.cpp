@@ -231,6 +231,9 @@ void PlayUtils::initializeGameUsingPolicy(
 ) {
   NNResultBuf buf;
 
+  if(hist.isGameFinished)
+    return;
+
   //This gives us about 15 moves on average for 19x19.
   int numInitialMovesToPlay = (int)floor(gameRand.nextExponential() * (board.x_size * board.y_size * proportionOfBoardArea));
   assert(numInitialMovesToPlay >= 0);
@@ -263,22 +266,24 @@ void PlayUtils::playExtraBlack(
 ) {
   Player pla = P_BLACK;
 
-  NNResultBuf buf;
-  for(int i = 0; i<numExtraBlack; i++) {
-    MiscNNInputParams nnInputParams;
-    nnInputParams.drawEquivalentWinsForWhite = bot->searchParams.drawEquivalentWinsForWhite;
-    bot->nnEvaluator->evaluate(board,hist,pla,nnInputParams,buf,false,false);
-    std::shared_ptr<NNOutput> nnOutput = std::move(buf.result);
+  if(!hist.isGameFinished) {
+    NNResultBuf buf;
+    for(int i = 0; i<numExtraBlack; i++) {
+      MiscNNInputParams nnInputParams;
+      nnInputParams.drawEquivalentWinsForWhite = bot->searchParams.drawEquivalentWinsForWhite;
+      bot->nnEvaluator->evaluate(board,hist,pla,nnInputParams,buf,false,false);
+      std::shared_ptr<NNOutput> nnOutput = std::move(buf.result);
 
-    bool allowPass = false;
-    Loc banMove = Board::NULL_LOC;
-    Loc loc = chooseRandomPolicyMove(nnOutput.get(), board, hist, pla, gameRand, temperature, allowPass, banMove);
-    if(loc == Board::NULL_LOC)
-      break;
+      bool allowPass = false;
+      Loc banMove = Board::NULL_LOC;
+      Loc loc = chooseRandomPolicyMove(nnOutput.get(), board, hist, pla, gameRand, temperature, allowPass, banMove);
+      if(loc == Board::NULL_LOC)
+        break;
 
-    assert(hist.isLegal(board,loc,pla));
-    hist.makeBoardMoveAssumeLegal(board,loc,pla,NULL);
-    hist.clear(board,pla,hist.rules,0);
+      assert(hist.isLegal(board,loc,pla));
+      hist.makeBoardMoveAssumeLegal(board,loc,pla,NULL);
+      hist.clear(board,pla,hist.rules,0);
+    }
   }
 
   bot->setPosition(pla,board,hist);
