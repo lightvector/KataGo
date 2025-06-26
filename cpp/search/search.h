@@ -723,6 +723,7 @@ private:
     Func& averaging
   ) const;
 
+  void debugPrintChildrenSummary(std::ostream& out, const SearchNode& node, NNOutput* nnOutput);
 
 };
 

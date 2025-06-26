@@ -273,8 +273,14 @@ BatchNormLayerDesc& BatchNormLayerDesc::operator=(BatchNormLayerDesc&& other) {
 void BatchNormLayerDesc::scaleInputChannels(const std::vector<float>& scaling) {
   assert(mergedScale.size() == numChannels);
   assert(scaling.size() == numChannels);
+  epsilon = (float)(1e-20);
   for(int c = 0; c < numChannels; c++) {
     mergedScale[c] *= scaling[c];
+
+    mean[c] = 0.0f;
+    variance[c] = 1.0f - epsilon;
+    scale[c] = mergedScale[c];
+    bias[c] = mergedBias[c];
   }
 }
 
@@ -329,6 +335,8 @@ void BatchNormLayerDesc::extractChannelFactorsAbsLtOneWithInverses(std::vector<f
 }
 
 void BatchNormLayerDesc::applyScale8ToReduceActivations() {
+  epsilon = (float)(1e-20);
+
   for(int c = 0; c < numChannels; c++) {
     mergedBias[c] *= 0.125f;
 

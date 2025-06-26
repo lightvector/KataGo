@@ -2314,3 +2314,26 @@ bool Search::getPrunedNodeValues(const SearchNode* nodePtr, ReportedSearchValues
   );
   return true;
 }
+
+void Search::debugPrintChildrenSummary(std::ostream& out, const SearchNode& node, NNOutput* nnOutput) {
+  SearchNodeState nodeState = node.state.load(std::memory_order_acquire);
+  int numChildren = 0;
+  ConstSearchNodeChildrenReference children = node.getChildren(nodeState);
+  int childrenCapacity = children.getCapacity();
+  out << "childrenCapacity " << childrenCapacity << endl;
+  const float* policyProbs = nnOutput->getPolicyProbsMaybeNoised();
+  for(int i = 0; i<childrenCapacity; i++) {
+    const SearchChildPointer& childPointer = children[i];
+    const SearchNode* child = childPointer.getIfAllocated();
+    if(child == NULL)
+      break;
+    numChildren += 1;
+    Loc moveLoc = childPointer.getMoveLocRelaxed();
+    int movePos = getPos(moveLoc);
+    float nnPolicyProb = policyProbs[movePos];
+    int64_t edgeVisits = childPointer.getEdgeVisits();
+    double childWeight = child->stats.getChildWeight(edgeVisits);
+    out << i << " " << Location::toString(moveLoc,rootBoard) << " " << nnPolicyProb << " " << edgeVisits << " " << childWeight << endl;
+  }
+  out << "numChildren " << numChildren << endl;
+}

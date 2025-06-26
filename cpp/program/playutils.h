@@ -187,7 +187,9 @@ namespace PlayUtils {
     int64_t numVisits
   );
 
-  std::shared_ptr<NNOutput> getFullSymmetryNNOutput(const Board& board, const BoardHistory& hist, Player pla, bool includeOwnerMap, NNEvaluator* nnEval);
+  std::shared_ptr<NNOutput> getFullSymmetryNNOutput(
+    const Board& board, const BoardHistory& hist, Player pla, bool includeOwnerMap, const SGFMetadata* sgfMeta, NNEvaluator* nnEval
+  );
 
 }
 
