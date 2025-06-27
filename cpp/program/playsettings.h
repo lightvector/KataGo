@@ -9,6 +9,7 @@ struct PlaySettings {
   double policyInitAreaProp; //Avg number of moves is this * board area
   double startPosesPolicyInitAreaProp; //Avg number of moves when using a starting position from sgf
   double compensateAfterPolicyInitProb; //Chance to adjust komi to cancel the effect of imbalanced init
+  double policyInitGammaShape; //Controls the shape of policy init
   //Occasionally try some alternative moves and search the responses to them.
   double sidePositionProb;
 

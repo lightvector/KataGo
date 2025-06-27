@@ -1612,6 +1612,94 @@ void Tests::runSelfplayStatTestsWithNN(const string& modelFile) {
     });
     runStatTest(cfgParams,playSettings,NULL,name,100);
   }
+  {
+    string name = "Game init test 19x19 policy init and make fair low temp gamma shape 2";
+    //Statistical test of game initialization
+    PlaySettings playSettings;
+    playSettings.initGamesWithPolicy = true;
+    playSettings.policyInitAreaProp = 0.05;
+    playSettings.policyInitAreaTemperature = 0.3;
+    playSettings.policyInitGammaShape = 2.0;
+    playSettings.compensateAfterPolicyInitProb = 1.0;
+    playSettings.sidePositionProb = 0;
+    playSettings.compensateKomiVisits = 4;
+    playSettings.estimateLeadProb = 0.0;
+    playSettings.fancyKomiVarying = true;
+    playSettings.sekiForkHackProb = 0.0;
+    playSettings.earlyForkGameProb = 0.0;
+    playSettings.forkGameMinChoices = 2;
+    playSettings.earlyForkGameMaxChoices = 3;
+    playSettings.forSelfPlay = true;
+
+    std::map<string,string> cfgParams({
+        std::make_pair("maxMovesPerGame","0"),
+        std::make_pair("logSearchInfo","false"),
+        std::make_pair("logMoves","false"),
+        std::make_pair("komiAuto","true"),
+        std::make_pair("komiStdev","2.0"),
+        std::make_pair("handicapProb","0.0"),
+        std::make_pair("handicapCompensateKomiProb","1.0"),
+        std::make_pair("forkCompensateKomiProb","1.0"),
+        std::make_pair("komiBigStdevProb","0.0"),
+        std::make_pair("komiBigStdev","20.0"),
+        std::make_pair("drawRandRadius","0.5"),
+        std::make_pair("noResultStdev","0.16"),
+
+        std::make_pair("bSizes","19"),
+        std::make_pair("bSizeRelProbs","1"),
+        std::make_pair("koRules","SIMPLE,POSITIONAL,SITUATIONAL"),
+        std::make_pair("scoringRules","AREA"),
+        std::make_pair("taxRules","NONE,NONE,SEKI,SEKI,ALL"),
+        std::make_pair("multiStoneSuicideLegals","false,true"),
+        std::make_pair("hasButtons","false,false,true"),
+        std::make_pair("allowRectangleProb","0.0"),
+    });
+    runStatTest(cfgParams,playSettings,NULL,name,100);
+  }
+  {
+    string name = "Game init test 19x19 policy init and make fair low temp gamma shape 30";
+    //Statistical test of game initialization
+    PlaySettings playSettings;
+    playSettings.initGamesWithPolicy = true;
+    playSettings.policyInitAreaProp = 0.05;
+    playSettings.policyInitGammaShape = 30.0;
+    playSettings.policyInitAreaTemperature = 0.3;
+    playSettings.compensateAfterPolicyInitProb = 1.0;
+    playSettings.sidePositionProb = 0;
+    playSettings.compensateKomiVisits = 4;
+    playSettings.estimateLeadProb = 0.0;
+    playSettings.fancyKomiVarying = true;
+    playSettings.sekiForkHackProb = 0.0;
+    playSettings.earlyForkGameProb = 0.0;
+    playSettings.forkGameMinChoices = 2;
+    playSettings.earlyForkGameMaxChoices = 3;
+    playSettings.forSelfPlay = true;
+
+    std::map<string,string> cfgParams({
+        std::make_pair("maxMovesPerGame","0"),
+        std::make_pair("logSearchInfo","false"),
+        std::make_pair("logMoves","false"),
+        std::make_pair("komiAuto","true"),
+        std::make_pair("komiStdev","2.0"),
+        std::make_pair("handicapProb","0.0"),
+        std::make_pair("handicapCompensateKomiProb","1.0"),
+        std::make_pair("forkCompensateKomiProb","1.0"),
+        std::make_pair("komiBigStdevProb","0.0"),
+        std::make_pair("komiBigStdev","20.0"),
+        std::make_pair("drawRandRadius","0.5"),
+        std::make_pair("noResultStdev","0.16"),
+
+        std::make_pair("bSizes","19"),
+        std::make_pair("bSizeRelProbs","1"),
+        std::make_pair("koRules","SIMPLE,POSITIONAL,SITUATIONAL"),
+        std::make_pair("scoringRules","AREA"),
+        std::make_pair("taxRules","NONE,NONE,SEKI,SEKI,ALL"),
+        std::make_pair("multiStoneSuicideLegals","false,true"),
+        std::make_pair("hasButtons","false,false,true"),
+        std::make_pair("allowRectangleProb","0.0"),
+    });
+    runStatTest(cfgParams,playSettings,NULL,name,100);
+  }
 
   {
     string name = "Game init test 19x19 policy init and make fair";

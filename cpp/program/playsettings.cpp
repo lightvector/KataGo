@@ -2,7 +2,7 @@
 
 PlaySettings::PlaySettings()
   :initGamesWithPolicy(false),policyInitAreaProp(0.0),startPosesPolicyInitAreaProp(0.0),
-   compensateAfterPolicyInitProb(0.0),sidePositionProb(0.0),
+   compensateAfterPolicyInitProb(0.0),policyInitGammaShape(1.0),sidePositionProb(0.0),
    policyInitAreaTemperature(1.0),handicapTemperature(1.0),
    compensateKomiVisits(20),flipKomiProbWhenNoCompensate(0.0),
    estimateLeadVisits(10),estimateLeadProb(0.0),
@@ -36,6 +36,7 @@ PlaySettings PlaySettings::loadForMatch(ConfigParser& cfg) {
     playSettings.policyInitAreaProp = cfg.getDouble("policyInitAreaProp",0.0,1.0);
     playSettings.startPosesPolicyInitAreaProp = cfg.contains("startPosesPolicyInitAreaProp") ? cfg.getDouble("startPosesPolicyInitAreaProp",0.0,1.0) : 0.0;
     playSettings.compensateAfterPolicyInitProb = cfg.contains("compensateAfterPolicyInitProb") ? cfg.getDouble("compensateAfterPolicyInitProb",0.0,1.0) : 1.0;
+    playSettings.policyInitGammaShape = cfg.contains("policyInitGammaShape") ? cfg.getDouble("policyInitGammaShape",0.5,100.0) : 1.0;
     playSettings.policyInitAreaTemperature = cfg.contains("policyInitAreaTemperature") ? cfg.getDouble("policyInitAreaTemperature",0.1,5.0) : 1.0;
   }
   playSettings.dynamicSelfKomiBonusMin = cfg.contains("dynamicSelfKomiBonusMin") ? cfg.getDouble("dynamicSelfKomiBonusMin",-100.0,100.0) : 0.0;
@@ -66,6 +67,7 @@ PlaySettings PlaySettings::loadForSelfplay(ConfigParser& cfg, bool isDistributed
   playSettings.policyInitAreaProp = cfg.contains("policyInitAreaProp") ? cfg.getDouble("policyInitAreaProp",0.0,1.0) : 0.04;
   playSettings.startPosesPolicyInitAreaProp = cfg.contains("startPosesPolicyInitAreaProp") ? cfg.getDouble("startPosesPolicyInitAreaProp",0.0,1.0) : 0.0;
   playSettings.compensateAfterPolicyInitProb = cfg.getDouble("compensateAfterPolicyInitProb",0.0,1.0);
+  playSettings.policyInitGammaShape = cfg.contains("policyInitGammaShape") ? cfg.getDouble("policyInitGammaShape",0.5,10.0) : 1.0;
   playSettings.sidePositionProb =
     //forkSidePositionProb is the legacy name, included for backward compatibility
     (cfg.contains("forkSidePositionProb") && !cfg.contains("sidePositionProb")) ?

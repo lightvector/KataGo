@@ -1431,9 +1431,10 @@ FinishedGameData* Play::runGame(
       {
         float oldKomi = hist.rules.komi;
         PlayUtils::setKomiWithNoise(extraBlackAndKomi,hist,gameRand);
+        double policyInitGammaShape = playSettings.policyInitGammaShape;
         double temperature = playSettings.policyInitAreaTemperature;
         assert(temperature > 0.0 && temperature < 10.0);
-        PlayUtils::initializeGameUsingPolicy(botB, botW, board, hist, pla, gameRand, doEndGameIfAllPassAlive, proportionOfBoardArea, temperature);
+        PlayUtils::initializeGameUsingPolicy(botB, botW, board, hist, pla, gameRand, doEndGameIfAllPassAlive, proportionOfBoardArea, policyInitGammaShape, temperature);
         hist.setKomi(oldKomi);
       }
       bool shouldCompensate =
@@ -1459,8 +1460,9 @@ FinishedGameData* Play::runGame(
   ) {
     //Play out to go a quite a bit later in the game.
     double proportionOfBoardArea = 0.25;
+    double policyInitGammaShape = 1.0 * 0.8 + playSettings.policyInitGammaShape * 0.2;
     double temperature = 2.0/3.0;
-    PlayUtils::initializeGameUsingPolicy(botB, botW, board, hist, pla, gameRand, doEndGameIfAllPassAlive, proportionOfBoardArea, temperature);
+    PlayUtils::initializeGameUsingPolicy(botB, botW, board, hist, pla, gameRand, doEndGameIfAllPassAlive, proportionOfBoardArea, policyInitGammaShape, temperature);
 
     if(!hist.isGameFinished) {
       //Even out the game

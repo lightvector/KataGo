@@ -227,15 +227,23 @@ Loc PlayUtils::getGameInitializationMove(
 void PlayUtils::initializeGameUsingPolicy(
   Search* botB, Search* botW, Board& board, BoardHistory& hist, Player& pla,
   Rand& gameRand, bool doEndGameIfAllPassAlive,
-  double proportionOfBoardArea, double temperature
+  double proportionOfBoardArea, double policyInitGammaShape, double temperature
 ) {
   NNResultBuf buf;
 
   if(hist.isGameFinished)
     return;
 
-  //This gives us about 15 moves on average for 19x19.
-  int numInitialMovesToPlay = (int)floor(gameRand.nextExponential() * (board.x_size * board.y_size * proportionOfBoardArea));
+  double mean = board.x_size * board.y_size * proportionOfBoardArea;
+  int numInitialMovesToPlay;
+
+  if(policyInitGammaShape != 1.0) {
+    numInitialMovesToPlay = (int)floor(gameRand.nextGamma(policyInitGammaShape) * (mean/policyInitGammaShape));
+  }
+  else {
+    numInitialMovesToPlay = (int)floor(gameRand.nextExponential() * mean);
+  }
+
   assert(numInitialMovesToPlay >= 0);
   for(int i = 0; i<numInitialMovesToPlay; i++) {
     Loc loc = getGameInitializationMove(botB, botW, board, hist, pla, buf, gameRand, temperature);
