@@ -3328,6 +3328,16 @@ int MainCmds::genposesfromselfplayinit(const vector<string>& args) {
 
       Sgf::PositionSample sampleToWrite;
       Sgf::PositionSample::writePosOfHist(sampleToWrite, data->startHist, data->startPla);
+
+      // Random symmetry
+      int symmetry = (int)rand.nextInt(0,7);
+      Board symBoard = SymmetryHelpers::getSymBoard(sampleToWrite.board, symmetry);
+      sampleToWrite.board = symBoard;
+      for(size_t i = 0; i<sampleToWrite.moves.size(); i++) {
+        sampleToWrite.moves[i].loc = SymmetryHelpers::getSymLoc(sampleToWrite.moves[i].loc, sampleToWrite.board, symmetry);
+      }
+      sampleToWrite.hintLoc = SymmetryHelpers::getSymLoc(sampleToWrite.hintLoc, sampleToWrite.board, symmetry);
+
       posWriter.writePos(sampleToWrite);
 
       delete data;
