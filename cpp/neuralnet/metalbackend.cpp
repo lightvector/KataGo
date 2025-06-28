@@ -47,10 +47,12 @@ ActivationKind MetalProcess::activationLayerDescToSwift(const ActivationLayerDes
       return ActivationKind::mish();
     case ACTIVATION_MISH_SCALE8:
       testAssert(false); // Metal does not use scaled mish activations due to no fp16
+      return ActivationKind::identity(); // Placeholder for compilation
     case ACTIVATION_IDENTITY:
       return ActivationKind::identity();
     default:
       testAssert(false);
+      return ActivationKind::identity(); // Placeholder for compilation
   }
 }
 
