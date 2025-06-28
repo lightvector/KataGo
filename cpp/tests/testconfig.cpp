@@ -382,6 +382,7 @@ void Tests::runParseAllConfigsTest() {
 }
 
 void Tests::runTaskParsingTests() {
+#ifdef BUILD_DISTRIBUTED
   {
     std::string jsonResponse = R"({
         "kind": "selfplay",
@@ -495,4 +496,5 @@ void Tests::runTaskParsingTests() {
 
     std::cout << "All task parsing tests passed!" << std::endl;
   }
+#endif // BUILD_DISTRIBUTED
 }
