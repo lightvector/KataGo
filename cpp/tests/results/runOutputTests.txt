@@ -23636,6 +23636,7 @@ def tests/models/findLatestModelTest4/def/model.bin.gz tests/models/findLatestMo
 tests/models/findLatestModelTest4
 ghi.bin.gz tests/models/findLatestModelTest4/def/ghi.bin.gz tests/models/findLatestModelTest4/def
 testloadmodel okay
+All task parsing tests passed!
 Running book tests
 Book size 1
 Book size 37

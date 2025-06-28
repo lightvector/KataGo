@@ -142,6 +142,18 @@ static void runAndUploadSingleGame(
 
   istringstream taskCfgIn(gameTask.task.config);
   ConfigParser taskCfg(taskCfgIn);
+  const std::string overrides = gameTask.repIdx < gameTask.task.overrides.size() ? gameTask.task.overrides[gameTask.repIdx] : std::string();
+  try {
+    if(overrides.size() > 0) {
+      map<string,string> newkvs = ConfigParser::parseCommaSeparated(overrides);
+      taskCfg.overrideKeys(newkvs);
+    }
+  }
+  catch(StringError& e) {
+    cerr << "Error applying overrides " << overrides << endl;
+    cerr << e.what() << endl;
+    throw;
+  }
 
   NNEvaluator* nnEvalBlack = gameTask.nnEvalBlack;
   NNEvaluator* nnEvalWhite = gameTask.nnEvalWhite;

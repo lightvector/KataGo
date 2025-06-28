@@ -103,6 +103,7 @@ namespace Tests {
   void runInlineConfigTests();
   void runConfigTests(const std::vector<std::string>& args);
   void runParseAllConfigsTest();
+  void runTaskParsingTests();
 
   //testmisc.cpp
   void runCollectFilesTests();
