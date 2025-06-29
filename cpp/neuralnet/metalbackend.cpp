@@ -799,6 +799,8 @@ void MetalProcess::processPolicy(
   const ComputeHandle* gpuHandle,
   NNResultBuf* inputBuf,
   size_t row) {
+  const int nnXLen = gpuHandle->nnXLen;
+  const int nnYLen = gpuHandle->nnYLen;
   auto& buffers = *inputBuffers;
   float* targetBuffer = &buffers.policyResults[row * buffers.singlePolicyResultElts * buffers.policyResultChannels];
   const auto symmetry = inputBuf->symmetry;
@@ -812,8 +814,19 @@ void MetalProcess::processPolicy(
     targetBuffer = &buffers.policyProbsBuffer[row * buffers.singlePolicyResultElts];
   }
 
-  SymmetryHelpers::copyOutputsWithSymmetry(
-    targetBuffer, currentOutput->policyProbs, 1, gpuHandle->nnYLen, gpuHandle->nnXLen, symmetry);
+  SymmetryHelpers::copyOutputsWithSymmetry(targetBuffer, currentOutput->policyProbs, 1, nnYLen, nnXLen, symmetry);
+
+  if(currentOutput->whiteQWinloss != NULL || currentOutput->whiteQScore != NULL) {
+    targetBuffer = &buffers.policyResults[row * buffers.singlePolicyResultElts * buffers.policyResultChannels];
+
+    SymmetryHelpers::copyOutputsWithSymmetry(
+      targetBuffer + (buffers.singlePolicyResultElts * 2), currentOutput->whiteQWinloss, 1, nnYLen, nnXLen, symmetry);
+    SymmetryHelpers::copyOutputsWithSymmetry(
+      targetBuffer + (buffers.singlePolicyResultElts * 3), currentOutput->whiteQScore, 1, nnYLen, nnXLen, symmetry);
+
+    currentOutput->whiteQWinloss[nnXLen * nnYLen] = buffers.policyPassResults[row * buffers.policyResultChannels + 2];
+    currentOutput->whiteQScore[nnXLen * nnYLen] = buffers.policyPassResults[row * buffers.policyResultChannels + 3];
+  }
 }
 
 void MetalProcess::processValue(

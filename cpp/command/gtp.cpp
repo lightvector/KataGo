@@ -1656,6 +1656,47 @@ struct GTPEngine {
           out << endl;
         }
         out << endl;
+
+
+        if(nnOutput->whiteQWinloss != NULL) {
+          out << "whiteQWinloss" << endl;
+          for(int y = 0; y<board.y_size; y++) {
+            for(int x = 0; x<board.x_size; x++) {
+              int pos = NNPos::xyToPos(x,y,nnOutput->nnXLen);
+              if(nnOutput->policyProbs[pos] < 0)
+                out << "    NAN ";
+              else
+                out << Global::strprintf("%7.4f ", nnOutput->whiteQWinloss[pos]);
+            }
+            out << endl;
+          }
+          int pos = NNPos::locToPos(Board::PASS_LOC,board.x_size,nnOutput->nnXLen,nnOutput->nnYLen);
+          if(nnOutput->policyProbs[pos] < 0)
+            out << "    NAN ";
+          else
+            out << Global::strprintf("%7.4f ", nnOutput->whiteQWinloss[pos]);
+          out << endl;
+        }
+        if(nnOutput->whiteQScore != NULL) {
+          out << "whiteQScore" << endl;
+          for(int y = 0; y<board.y_size; y++) {
+            for(int x = 0; x<board.x_size; x++) {
+              int pos = NNPos::xyToPos(x,y,nnOutput->nnXLen);
+              if(nnOutput->policyProbs[pos] < 0)
+                out << "    NAN ";
+              else
+                out << Global::strprintf("%6.1f ", nnOutput->whiteQScore[pos]);
+            }
+            out << endl;
+          }
+          int pos = NNPos::locToPos(Board::PASS_LOC,board.x_size,nnOutput->nnXLen,nnOutput->nnYLen);
+          if(nnOutput->policyProbs[pos] < 0)
+            out << "    NAN ";
+          else
+            out << Global::strprintf("%6.1f ", nnOutput->whiteQScore[pos]);
+          out << endl;
+        }
+
       }
     }
 
