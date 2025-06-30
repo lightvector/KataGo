@@ -336,7 +336,9 @@ struct GTPEngine {
   GTPEngine& operator=(const GTPEngine&) = delete;
 
   const string nnModelFile;
+  const string coreMLModelFile;
   const string humanModelFile;
+  const string humanCoreMLModelFile;
   const bool assumeMultipleStartingBlackMovesAreHandicap;
   const int analysisPVLen;
   const bool preventEncore;
@@ -386,7 +388,8 @@ struct GTPEngine {
   std::vector<Sgf::PositionSample> genmoveSamples;
 
   GTPEngine(
-    const string& modelFile, const string& hModelFile,
+    const string& modelFile, const string& coreMLModelFile,
+    const string& hModelFile, const string& hCoreMLModelFile,
     SearchParams initialGenmoveParams, SearchParams initialAnalysisParams,
     Rules initialRules,
     bool assumeMultiBlackHandicap, bool prevtEncore, bool autoPattern,
@@ -397,7 +400,9 @@ struct GTPEngine {
     std::unique_ptr<PatternBonusTable>&& pbTable
   )
     :nnModelFile(modelFile),
+     coreMLModelFile(coreMLModelFile),
      humanModelFile(hModelFile),
+     humanCoreMLModelFile(hCoreMLModelFile),
      assumeMultipleStartingBlackMovesAreHandicap(assumeMultiBlackHandicap),
      analysisPVLen(pvLen),
      preventEncore(prevtEncore),
@@ -492,15 +497,15 @@ struct GTPEngine {
       const int defaultMaxBatchSize = std::max(8,((expectedConcurrentEvals+3)/4)*4);
       const bool disableFP16 = false;
       const string expectedSha256 = "";
-      nnEval = Setup::initializeNNEvaluator(
-        nnModelFile,nnModelFile,expectedSha256,cfg,logger,seedRand,expectedConcurrentEvals,
+      nnEval = Setup::initializeCoreMLEvaluator(
+        nnModelFile,nnModelFile,coreMLModelFile,expectedSha256,cfg,logger,seedRand,expectedConcurrentEvals,
         nnXLen,nnYLen,defaultMaxBatchSize,defaultRequireExactNNLen,disableFP16,
         Setup::SETUP_FOR_GTP
       );
       logger.write("Loaded neural net with nnXLen " + Global::intToString(nnEval->getNNXLen()) + " nnYLen " + Global::intToString(nnEval->getNNYLen()));
       if(humanModelFile != "") {
-        humanEval = Setup::initializeNNEvaluator(
-          humanModelFile,humanModelFile,expectedSha256,cfg,logger,seedRand,expectedConcurrentEvals,
+        humanEval = Setup::initializeCoreMLEvaluator(
+          humanModelFile,humanModelFile,humanCoreMLModelFile,expectedSha256,cfg,logger,seedRand,expectedConcurrentEvals,
           nnXLen,nnYLen,defaultMaxBatchSize,defaultRequireExactNNLen,disableFP16,
           Setup::SETUP_FOR_GTP
         );
@@ -1883,13 +1888,17 @@ int MainCmds::gtp(const vector<string>& args) {
 
   ConfigParser cfg;
   string nnModelFile;
+  string coreMLModelFile;
   string humanModelFile;
+  string humanCoreMLModelFile;
   string overrideVersion;
   KataGoCommandLine cmd("Run KataGo main GTP engine for playing games or casual analysis.");
   try {
     cmd.addConfigFileArg(KataGoCommandLine::defaultGtpConfigFileName(),"gtp_example.cfg");
     cmd.addModelFileArg();
+    cmd.addCoreMLModelFileArg();
     cmd.addHumanModelFileArg();
+    cmd.addHumanCoreMLModelFileArg();
     cmd.setShortUsageArgLimit();
     cmd.addOverrideConfigArg();
 
@@ -1897,7 +1906,9 @@ int MainCmds::gtp(const vector<string>& args) {
     cmd.add(overrideVersionArg);
     cmd.parseArgs(args);
     nnModelFile = cmd.getModelFile();
+    coreMLModelFile = cmd.getCoreMLModelFile();
     humanModelFile = cmd.getHumanModelFile();
+    humanCoreMLModelFile = cmd.getHumanCoreMLModelFile();
     overrideVersion = overrideVersionArg.getValue();
 
     cmd.getConfig(cfg);
@@ -2033,7 +2044,7 @@ int MainCmds::gtp(const vector<string>& args) {
   Player perspective = Setup::parseReportAnalysisWinrates(cfg,C_EMPTY);
 
   GTPEngine* engine = new GTPEngine(
-    nnModelFile,humanModelFile,
+    nnModelFile,coreMLModelFile,humanModelFile,humanCoreMLModelFile,
     initialGenmoveParams,initialAnalysisParams,
     initialRules,
     assumeMultipleStartingBlackMovesAreHandicap,preventEncore,autoAvoidPatterns,

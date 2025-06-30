@@ -1,10 +1,11 @@
-#ifdef USE_METAL_BACKEND
+#ifdef USE_COREML_BACKEND
 
 #include "../neuralnet/modelversion.h"
 #include "../neuralnet/nneval.h"
 #include "../neuralnet/nninputs.h"
 #include "../neuralnet/nninterface.h"
 #include "../neuralnet/metalbackend.h"
+#include "../neuralnet/coremlbackend.h"
 #include "../core/test.h"
 
 /// Converts a ConvLayerDesc instance from C++ to Swift by creating a new SWConvLayerDesc instance with the same properties.
@@ -349,10 +350,11 @@ void NeuralNet::globalCleanup() {
  * object is returned as a pointer.
  * @param file The name of the file containing the neural network model.
  * @param expectedSha256 The expected SHA-256 hash of the model file.
+ * @param dir The name of the directory containing the neural network model.
  * @return A pointer to the LoadedModel object created by loading the model file.
  */
-LoadedModel* NeuralNet::loadModelFile(const string& file, const string& expectedSha256) {
-  LoadedModel* loadedModel = new LoadedModel(file, expectedSha256);
+LoadedModel* NeuralNet::loadModelFile(const string& file, const string& expectedSha256, const string& dir) {
+  LoadedModel* loadedModel = new LoadedModel(file, expectedSha256, dir);
   return loadedModel;
 }
 
@@ -383,9 +385,10 @@ const ModelDesc& NeuralNet::getModelDesc(const LoadedModel* loadedModel) {
 
 //------------------------------------------------------------------------------
 
-ComputeContext::ComputeContext(int nnX, int nnY, enabled_t useFP16Mode, enabled_t useNHWCMode):
+ComputeContext::ComputeContext(int nnX, int nnY, enabled_t useFP16Mode, enabled_t useNHWCMode, bool useCpuAndNeuralEngine):
 metalComputeContext(createMetalComputeContext(nnX, nnY)) {
   this->useFP16Mode = useFP16Mode;
+  this->useCpuAndNeuralEngine = useCpuAndNeuralEngine;
 
   SWEnable swUseFP16Mode =
   (useFP16Mode == enabled_t::False) ? SWEnable::False() :
@@ -430,14 +433,26 @@ ComputeContext* NeuralNet::createComputeContext(
   enabled_t useNHWCMode,
   const LoadedModel* loadedModel) {
 
-  (void)gpuIdxs;
+  bool useCpuAndNeuralEngine = false;
+
+  // If Metal is enabled for GPU computation, CoreML uses CPU and Neural Engine.
+  // If Metal is disabled, CoreML uses all computation units, including CPU, GPU, and Neural Engine.
+  // This ensures that Metal and CoreML do not use GPU in the same computation context.
+  for (auto it = gpuIdxs.begin(); it != gpuIdxs.end(); it++) {
+    auto gpuIdx = *it;
+    if (gpuIdx < 100) {
+      useCpuAndNeuralEngine = true;
+      break;
+    }
+  }
+
   (void)logger;
   (void)openCLTunerFile;
   (void)homeDataDirOverride;
   (void)openCLReTunePerBoardSize;
   (void)loadedModel;
 
-  return new ComputeContext(nnXLen, nnYLen, useFP16Mode, useNHWCMode);
+  return new ComputeContext(nnXLen, nnYLen, useFP16Mode, useNHWCMode, useCpuAndNeuralEngine);
 }
 
 /**
@@ -459,8 +474,15 @@ ComputeHandle::ComputeHandle(ComputeContext* context,
 metalhandle(maybeCreateMetalComputeHandle((gpuIdx < 100),
                                           serverThreadIdx,
                                           MetalProcess::modelDescToSwift(&loadedModel->modelDesc),
-                                          context->metalComputeContext)) {
-
+                                          context->metalComputeContext)),
+coremlbackend(maybeCreateCoreMLBackend((gpuIdx >= 100),
+                                       serverThreadIdx,
+                                       modelXLen,
+                                       modelYLen,
+                                       (context->useFP16Mode != enabled_t::False),
+                                       loadedModel->modelDesc.metaEncoderVersion,
+                                       context->useCpuAndNeuralEngine,
+                                       loadedModel->modelDirectory)) {
   const ModelDesc* modelDesc = &loadedModel->modelDesc;
   auto metalContext = context->metalComputeContext;
 
@@ -474,6 +496,13 @@ metalhandle(maybeCreateMetalComputeHandle((gpuIdx < 100),
   /* Use FP16 mode if the model supports it and the user has not explicitly
    * disabled it. */
   useFP16 = (context->useFP16Mode != enabled_t::False);
+
+  if(coremlbackend) {
+    // Get the model version
+    modelVersion = coremlbackend.get().getVersion();
+    // Due to a design limition, the versions of Metal and CoreML models must match
+    assert(version == modelVersion);
+  }
 
   (void)serverThreadIdx;
 }
@@ -569,6 +598,9 @@ void NeuralNet::printDevices() {
 InputBuffers::InputBuffers(const LoadedModel* loadedModel, int maxBatchSz, int nnXLen, int nnYLen) {
   const ModelDesc& m = loadedModel->modelDesc;
 
+  int modelXLen = COMPILE_MAX_BOARD_LEN;
+  int modelYLen = COMPILE_MAX_BOARD_LEN;
+
   maxBatchSize = maxBatchSz;
   policyResultChannels = m.policyHead.p2Conv.outChannels;
 
@@ -576,17 +608,22 @@ InputBuffers::InputBuffers(const LoadedModel* loadedModel, int maxBatchSz, int n
          ((m.modelVersion >= 16) || (m.modelVersion < 12) || (policyResultChannels == 2)) &&
          ((m.modelVersion >= 12) || (policyResultChannels == 1)));
 
+  modelPolicyResultChannels = (m.modelVersion >= 12) ? 6 : 4;
   singleSpatialElts = (size_t)m.numInputChannels * nnXLen * nnYLen;
-  singleInputElts = (size_t)m.numInputChannels * nnXLen * nnYLen;
+  singleInputElts = (size_t)m.numInputChannels * modelXLen * modelYLen;
   singleInputGlobalElts = (size_t)m.numInputGlobalChannels;
   singleInputMetaElts = (size_t)m.numInputMetaChannels;
-  singlePolicyResultElts = (size_t)(nnXLen * nnYLen);
+  singleNnPolicyResultElts = (size_t)(nnXLen * nnYLen);
+  singleModelPolicyResultElts = (size_t)((modelXLen * modelYLen) + 1);
   singlePolicyPassResultElts = 1;
   singlePolicyProbsElts = (size_t)((nnXLen * nnYLen) + 1);
   singleValueResultElts = (size_t)m.numValueChannels;
-  singleOwnershipResultElts = (size_t)m.numOwnershipChannels * nnXLen * nnYLen;
+  singleNnOwnershipResultElts = (size_t)m.numOwnershipChannels * nnXLen * nnYLen;
+  singleModelOwnershipResultElts = (size_t)m.numOwnershipChannels * modelXLen * modelYLen;
   singleOwnerMapElts = (size_t)m.numOwnershipChannels * nnXLen * nnYLen;
-  singleScoreValuesResultElts = (size_t)m.numScoreValueChannels;
+  singleScoreValuesResultElts = 10;
+  singleNnScoreValuesResultElts = (size_t)m.numScoreValueChannels;
+  singleMoreMiscValuesResultElts = 8;
 
   assert(NNModelVersion::getNumSpatialFeatures(m.modelVersion) == m.numInputChannels);
   assert(NNModelVersion::getNumGlobalFeatures(m.modelVersion) == m.numInputGlobalChannels);
@@ -596,13 +633,15 @@ InputBuffers::InputBuffers(const LoadedModel* loadedModel, int maxBatchSz, int n
   userInputBufferElts = (size_t)maxBatchSize * singleInputElts;
   userInputGlobalBufferElts = (size_t)maxBatchSize * singleInputGlobalElts;
   userInputMetaBufferElts = (size_t)maxBatchSize * singleInputMetaElts;
-  policyResultBufferElts = (size_t)maxBatchSize * singlePolicyResultElts * policyResultChannels;
+  policyResultBufferElts = (size_t)maxBatchSize * singleModelPolicyResultElts * policyResultChannels;
   policyPassResultBufferElts = (size_t)maxBatchSize * singlePolicyPassResultElts * policyResultChannels;
   policyProbsBufferElts = (size_t)maxBatchSize * singlePolicyProbsElts * policyResultChannels;
+  modelPolicyResultBufferElts = (size_t)maxBatchSize * singleModelPolicyResultElts * modelPolicyResultChannels;
   valueResultBufferElts = (size_t)maxBatchSize * singleValueResultElts;
-  ownershipResultBufferElts = (size_t)maxBatchSize * singleOwnershipResultElts;
+  ownershipResultBufferElts = (size_t)maxBatchSize * singleModelOwnershipResultElts;
   ownerMapBufferElts = (size_t)maxBatchSz * singleOwnerMapElts;
   scoreValuesResultBufferElts = (size_t)maxBatchSize * singleScoreValuesResultElts;
+  moreMiscValuesResultsBufferElts = (size_t)maxBatchSz * singleMoreMiscValuesResultElts;
 
   rowSpatialBuffer = new float[rowSpatialBufferElts];
   userInputBuffer = new float[userInputBufferElts];
@@ -614,10 +653,12 @@ InputBuffers::InputBuffers(const LoadedModel* loadedModel, int maxBatchSz, int n
   policyResults = new float[policyResultBufferElts];
   policyPassResults = new float[policyPassResultBufferElts];
   policyProbsBuffer = new float[policyProbsBufferElts];
+  modelPolicyResults = new float[modelPolicyResultBufferElts];
   valueResults = new float[valueResultBufferElts];
   ownershipResults = new float[ownershipResultBufferElts];
   ownerMapBuffer = new float[ownerMapBufferElts];
   scoreValuesResults = new float[scoreValuesResultBufferElts];
+  moreMiscValuesResults = new float[moreMiscValuesResultsBufferElts];
 }
 
 /**
@@ -637,6 +678,7 @@ InputBuffers::~InputBuffers() {
   delete[] ownershipResults;
   delete[] ownerMapBuffer;
   delete[] scoreValuesResults;
+  delete[] moreMiscValuesResults;
 }
 
 /**
@@ -778,7 +820,7 @@ void MetalProcess::processOptimism(
   const double policyOptimism,
   size_t row) {
   auto& buffers = *inputBuffers;
-  const auto singlePolicyResultElts = buffers.singlePolicyResultElts;
+  const auto singlePolicyResultElts = buffers.singleNnPolicyResultElts;
   float* targetBuffer = &buffers.policyProbsBuffer[row * singlePolicyResultElts];
   float* policyOutputBuf = &buffers.policyResults[row * singlePolicyResultElts * buffers.policyResultChannels];
 
@@ -800,7 +842,7 @@ void MetalProcess::processPolicy(
   NNResultBuf* inputBuf,
   size_t row) {
   auto& buffers = *inputBuffers;
-  float* targetBuffer = &buffers.policyResults[row * buffers.singlePolicyResultElts * buffers.policyResultChannels];
+  float* targetBuffer = &buffers.policyResults[row * buffers.singleNnPolicyResultElts * buffers.policyResultChannels];
   const auto symmetry = inputBuf->symmetry;
   const auto policyOptimism = inputBuf->policyOptimism;
 
@@ -809,7 +851,7 @@ void MetalProcess::processPolicy(
       buffers.policyPassResults[row * buffers.policyResultChannels];
   } else {
     MetalProcess::processOptimism(inputBuffers, currentOutput, policyOptimism, row);
-    targetBuffer = &buffers.policyProbsBuffer[row * buffers.singlePolicyResultElts];
+    targetBuffer = &buffers.policyProbsBuffer[row * buffers.singleNnPolicyResultElts];
   }
 
   SymmetryHelpers::copyOutputsWithSymmetry(
@@ -836,7 +878,7 @@ void MetalProcess::processOwnership(
   const size_t row) {
   const int nnXLen = gpuHandle->nnXLen;
   const int nnYLen = gpuHandle->nnYLen;
-  const size_t singleOwnershipResultElts = inputBuffers->singleOwnershipResultElts;
+  const size_t singleOwnershipResultElts = inputBuffers->singleNnOwnershipResultElts;
   const size_t ownershipOutputBufOffset = row * singleOwnershipResultElts;
 
   // Copy ownership results with symmetry if available
@@ -852,11 +894,11 @@ void MetalProcess::processScoreValues(
   NNOutput* currentOutput,
   const int modelVersion,
   const size_t row) {
-  const size_t offset = row * inputBuffers->singleScoreValuesResultElts;
+  const size_t offset = row * inputBuffers->singleNnScoreValuesResultElts;
   const float* currentScoreValueData = &inputBuffers->scoreValuesResults[offset];
 
   if(modelVersion >= 9) {
-    int numScoreValueChannels = inputBuffers->singleScoreValuesResultElts;
+    size_t numScoreValueChannels = inputBuffers->singleNnScoreValuesResultElts;
     assert(numScoreValueChannels == 6);
     currentOutput->whiteScoreMean = currentScoreValueData[0];
     currentOutput->whiteScoreMeanSq = currentScoreValueData[1];
@@ -866,7 +908,7 @@ void MetalProcess::processScoreValues(
     currentOutput->shorttermScoreError = currentScoreValueData[5];
   }
   else if(modelVersion >= 8) {
-    int numScoreValueChannels = inputBuffers->singleScoreValuesResultElts;
+    size_t numScoreValueChannels = inputBuffers->singleNnScoreValuesResultElts;
     assert(numScoreValueChannels == 4);
     currentOutput->whiteScoreMean = currentScoreValueData[0];
     currentOutput->whiteScoreMeanSq = currentScoreValueData[1];
@@ -876,7 +918,7 @@ void MetalProcess::processScoreValues(
     currentOutput->shorttermScoreError = 0;
   }
   else if(modelVersion >= 4) {
-    int numScoreValueChannels = inputBuffers->singleScoreValuesResultElts;
+    size_t numScoreValueChannels = inputBuffers->singleNnScoreValuesResultElts;
     assert(numScoreValueChannels == 2);
     currentOutput->whiteScoreMean = currentScoreValueData[0];
     currentOutput->whiteScoreMeanSq = currentScoreValueData[1];
@@ -887,7 +929,7 @@ void MetalProcess::processScoreValues(
   }
   else {
     assert(modelVersion >= 3);
-    int numScoreValueChannels = inputBuffers->singleScoreValuesResultElts;
+    size_t numScoreValueChannels = inputBuffers->singleNnScoreValuesResultElts;
     assert(numScoreValueChannels == 1);
     currentOutput->whiteScoreMean = currentScoreValueData[0];
     //Version 3 neural nets don't have any second moment currentOutput, implicitly already folding it in, so we just use the mean squared
@@ -983,7 +1025,11 @@ void NeuralNet::getOutput(
   NNResultBuf** inputBufs,
   vector<NNOutput*>& outputs) {
 
-  MetalProcess::getMetalOutput(gpuHandle, inputBuffers, numBatchEltsFilled, inputBufs, outputs);
+  if (gpuHandle->metalhandle) {
+    MetalProcess::getMetalOutput(gpuHandle, inputBuffers, numBatchEltsFilled, inputBufs, outputs);
+  } else {
+    CoreMLProcess::getCoreMLOutput(gpuHandle, inputBuffers, numBatchEltsFilled, inputBufs, outputs);
+  }
 }
 
 bool MetalProcess::testEvaluateConv(const ConvLayerDesc* desc,
@@ -1199,4 +1245,4 @@ bool NeuralNet::testEvaluateGlobalPoolingResidualBlock(
   return MetalProcess::testEvaluateGlobalPoolingResidualBlock(desc, batchSize, nnXLen, nnYLen, inputBuffer, maskBuffer, outputBuffer);
 }
 
-#endif  // USE_METAL_BACKEND
+#endif  // USE_COREML_BACKEND

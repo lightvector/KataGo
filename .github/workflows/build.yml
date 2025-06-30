@@ -1,0 +1,197 @@
+name: Build
+on:
+  push:
+    paths:
+      - 'cpp/**'
+      - '.github/workflows/build.yml'
+
+jobs:
+  xcodebuild:
+    runs-on: macos-13
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Run Xcode build
+      run: |
+        cd cpp/xcode
+        /Applications/Xcode_15.0.1.app/Contents/Developer/usr/bin/xcodebuild -derivedDataPath DerivedData -scheme katago -configuration Debug build
+
+    - name: Setup configuration
+      run: |
+        ln -s ../../../../../configs/misc/coreml_example.cfg cpp/xcode/DerivedData/Build/Products/Debug/gtp.cfg
+        ln -s ../../../../../configs/misc/metal_gtp.cfg cpp/xcode/DerivedData/Build/Products/Debug/metal_gtp.cfg
+
+    - name: Setup network
+      run: |
+        mkdir -p models
+        cd models
+        wget https://github.com/ChinChangYang/KataGo/releases/download/v1.15.1-coreml2/kata1-b18c384nbt-s9996604416-d4316597426.bin.gz
+        ln -s ../../../../../../models/kata1-b18c384nbt-s9996604416-d4316597426.bin.gz ../cpp/xcode/DerivedData/Build/Products/Debug/model.bin.gz
+
+    - name: Setup network of version 8
+      run: |
+        mkdir -p models
+        cd models
+        wget https://github.com/lightvector/KataGo/releases/download/v1.4.5/g170-b40c256x2-s5095420928-d1229425124.bin.gz
+        ln -s ../../../../../../models/g170-b40c256x2-s5095420928-d1229425124.bin.gz ../cpp/xcode/DerivedData/Build/Products/Debug/modelv8.bin.gz
+
+    - name: Setup CoreML model FP16
+      run: |
+        mkdir -p models
+        cd models
+        wget https://github.com/ChinChangYang/KataGo/releases/download/v1.15.1-coreml2/KataGoModel19x19fp16v14s9996604416.mlpackage.zip
+        unzip KataGoModel19x19fp16v14s9996604416.mlpackage.zip
+        ln -s ../../../../../../models/KataGoModel19x19fp16v14s9996604416.mlpackage ../cpp/xcode/DerivedData/Build/Products/Debug/KataGoModel19x19fp16.mlpackage
+
+    - name: Setup CoreML model FP32
+      run: |
+        mkdir -p models
+        cd models
+        wget https://github.com/ChinChangYang/KataGo/releases/download/v1.15.1-coreml2/KataGoModel19x19fp32v14s9996604416.mlpackage.zip
+        unzip KataGoModel19x19fp32v14s9996604416.mlpackage.zip
+        ln -s ../../../../../../models/KataGoModel19x19fp32v14s9996604416.mlpackage ../cpp/xcode/DerivedData/Build/Products/Debug/KataGoModel19x19fp32.mlpackage
+
+    - name: Setup CoreML model FP32 meta
+      run: |
+        mkdir -p models
+        cd models
+        wget https://github.com/ChinChangYang/KataGo/releases/download/v1.15.1-coreml2/KataGoModel19x19fp32v15m1humanv0.mlpackage.zip
+        unzip KataGoModel19x19fp32v15m1humanv0.mlpackage.zip
+        ln -s ../../../../../../models/KataGoModel19x19fp32v15m1humanv0.mlpackage ../cpp/xcode/DerivedData/Build/Products/Debug/KataGoModel19x19fp32m1.mlpackage
+
+    - name: Setup test data
+      run: |
+        ln -s ../../../../../tests cpp/xcode/DerivedData/Build/Products/Debug/tests
+
+    - name: Run Xcode test
+      run: |
+        cd cpp/xcode
+        /Applications/Xcode_15.0.1.app/Contents/Developer/usr/bin/xcodebuild -derivedDataPath DerivedData -scheme katago -configuration Debug test
+
+    - name: Run KataGo tests
+      run: |
+        cd cpp/xcode/DerivedData/Build/Products/Debug
+        ./katago runnnlayertests
+        ./katago runoutputtests
+        ./katago runnnontinyboardtest model.bin.gz false false 0 false
+        ./katago runnnsymmetriestest model.bin.gz false false false
+        ./katago runownershiptests gtp.cfg model.bin.gz
+  
+  cmake-macos:
+    runs-on: macos-13
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup ninja
+      run: |
+        brew install ninja
+
+    - name: Setup Eigen
+      run: |
+        brew install eigen
+
+    - name: Setup Xcode
+      run: |
+        xcode-select -p
+        sudo xcode-select -s /Applications/Xcode_15.0.1.app/Contents/Developer
+
+    - name: Build KataGo with Eigen backend
+      run: |
+        mkdir -p cpp/build
+        cd cpp/build
+        cmake -G Ninja -DUSE_BACKEND=EIGEN ../
+        ninja
+
+    - name: Setup network
+      run: |
+        mkdir -p models
+        cd models
+        wget https://github.com/ChinChangYang/KataGo/releases/download/v1.15.1-coreml2/kata1-b18c384nbt-s9996604416-d4316597426.bin.gz
+        ln -s ../../models/kata1-b18c384nbt-s9996604416-d4316597426.bin.gz ../cpp/build/model.bin.gz
+
+    - name: Run KataGo GPU error test with Eigen backend
+      run: |
+        cd cpp/build
+        ./katago testgpuerror -config ../configs/gtp_example.cfg -model model.bin.gz -boardsize 9 -reference-file base.bin
+
+    - name: Setup human SL network
+      run: |
+        mkdir -p models
+        cd models
+        wget https://github.com/lightvector/KataGo/releases/download/v1.15.0/b18c384nbt-humanv0.bin.gz
+        ln -s ../../models/b18c384nbt-humanv0.bin.gz ../cpp/build/b18c384nbt-humanv0.bin.gz
+
+    - name: Run KataGo GPU error test of human SL network with Eigen backend
+      run: |
+        cd cpp/build
+        ./katago testgpuerror -config ../configs/misc/gtp_human5k_coreml.cfg -model b18c384nbt-humanv0.bin.gz -boardsize 9 -reference-file base-humanv0.bin
+
+    - name: Build KataGo with CoreML backend
+      run: |
+        cd cpp
+        mv CMakeLists.txt-macos CMakeLists.txt
+        mkdir -p build
+        cd build
+        cmake -G Ninja ../
+        ninja
+
+    - name: Setup configuration
+      run: |
+        ln -s ../configs/misc/coreml_example.cfg cpp/build/gtp.cfg
+
+    - name: Setup CoreML model FP16
+      run: |
+        mkdir -p models
+        cd models
+        wget https://github.com/ChinChangYang/KataGo/releases/download/v1.15.1-coreml2/KataGoModel19x19fp16v14s9996604416.mlpackage.zip
+        unzip KataGoModel19x19fp16v14s9996604416.mlpackage.zip
+        ln -s ../../models/KataGoModel19x19fp16v14s9996604416.mlpackage ../cpp/build/KataGoModel19x19fp16.mlpackage
+
+    - name: Setup CoreML model FP32
+      run: |
+        mkdir -p models
+        cd models
+        wget https://github.com/ChinChangYang/KataGo/releases/download/v1.15.1-coreml2/KataGoModel19x19fp32v14s9996604416.mlpackage.zip
+        unzip KataGoModel19x19fp32v14s9996604416.mlpackage.zip
+        ln -s ../../models/KataGoModel19x19fp32v14s9996604416.mlpackage ../cpp/build/KataGoModel19x19fp32.mlpackage
+
+    - name: Run KataGo GPU error test with CoreML backend
+      run: |
+        cd cpp/build
+        ./katago testgpuerror -config gtp.cfg -model model.bin.gz -boardsize 9 -reference-file base.bin
+
+    - name: Setup CoreML model FP16 of human SL network
+      run: |
+        mkdir -p models
+        cd models
+        wget https://github.com/ChinChangYang/KataGo/releases/download/v1.15.1-coreml2/KataGoModel19x19fp16v15m1humanv0.mlpackage.zip
+        unzip KataGoModel19x19fp16v15m1humanv0.mlpackage.zip
+        ln -s ../../models/KataGoModel19x19fp16v15m1humanv0.mlpackage ../cpp/build/KataGoModel19x19fp16m1.mlpackage
+  
+    - name: Setup CoreML model FP32 of human SL network
+      run: |
+        mkdir -p models
+        cd models
+        wget https://github.com/ChinChangYang/KataGo/releases/download/v1.15.1-coreml2/KataGoModel19x19fp32v15m1humanv0.mlpackage.zip
+        unzip KataGoModel19x19fp32v15m1humanv0.mlpackage.zip
+        ln -s ../../models/KataGoModel19x19fp32v15m1humanv0.mlpackage ../cpp/build/KataGoModel19x19fp32m1.mlpackage
+  
+    - name: Run KataGo GPU error test of human SL network with CoreML backend
+      run: |
+        cd cpp/build
+        ./katago testgpuerror -config ../configs/misc/gtp_human5k_coreml.cfg -model b18c384nbt-humanv0.bin.gz -boardsize 9 -reference-file base-humanv0.bin
+
+    - name: Setup test data
+      run: |
+        ln -s ../tests cpp/build/tests
+
+    - name: Run KataGo tests
+      run: |
+        cd cpp/build
+        ./katago runnnlayertests
+        ./katago runoutputtests
+        ./katago runnnontinyboardtest model.bin.gz false false 0 false
+        ./katago runnnsymmetriestest model.bin.gz false false false
+        ./katago runownershiptests gtp.cfg model.bin.gz
