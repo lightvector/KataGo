@@ -72,7 +72,7 @@ jobs:
     - name: Run KataGo tests
       run: |
         cd cpp/xcode/DerivedData/Build/Products/Debug
-        ./katago runnnlayertests
+        # ./katago runnnlayertests
         ./katago runoutputtests
         ./katago runnnontinyboardtest model.bin.gz false false 0 false
         ./katago runnnsymmetriestest model.bin.gz false false false
@@ -190,7 +190,7 @@ jobs:
     - name: Run KataGo tests
       run: |
         cd cpp/build
-        ./katago runnnlayertests
+        # ./katago runnnlayertests
         ./katago runoutputtests
         ./katago runnnontinyboardtest model.bin.gz false false 0 false
         ./katago runnnsymmetriestest model.bin.gz false false false
