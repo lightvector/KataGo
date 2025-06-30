@@ -9,6 +9,10 @@ namespace DateTime {
   //Get the current time
   time_t getNow();
 
+  const char* getTimeFormat();
+
+  static inline const char* timeFormat = getTimeFormat();
+
   //Return a tm struct expressing the gm time or local time
   std::tm gmTime(time_t time);
   std::tm localTime(time_t time);

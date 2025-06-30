@@ -84,6 +84,7 @@ int MainCmds::runoutputtests(const vector<string>& args) {
   Tests::runSgfFileTests();
   Tests::runCollectFilesTests();
   Tests::runLoadModelTests();
+  Tests::runTaskParsingTests();
   Tests::runBookTests();
 
   ScoreValue::freeTables();

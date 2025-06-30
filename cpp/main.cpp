@@ -145,6 +145,8 @@ static int handleSubcommand(const string& subcommand, const vector<string>& args
     return MainCmds::viewstartposes(subArgs);
   else if(subcommand == "checksgfhintpolicy")
     return MainCmds::checksgfhintpolicy(subArgs);
+  else if(subcommand == "genposesfromselfplayinit")
+    return MainCmds::genposesfromselfplayinit(subArgs);
   else if(subcommand == "demoplay")
     return MainCmds::demoplay(subArgs);
   else if(subcommand == "writetrainingdata")
@@ -214,11 +216,11 @@ int main(int argc, const char* const* argv) {
 
 
 string Version::getKataGoVersion() {
-  return string("1.16.2");
+  return string("1.16.3");
 }
 
 string Version::getKataGoVersionForHelp() {
-  return string("KataGo v1.16.2");
+  return string("KataGo v1.16.3");
 }
 
 string Version::getKataGoVersionFullInfo() {

@@ -62,7 +62,7 @@ namespace PlayUtils {
   void initializeGameUsingPolicy(
     Search* botB, Search* botW, Board& board, BoardHistory& hist, Player& pla,
     Rand& gameRand, bool doEndGameIfAllPassAlive,
-    double proportionOfBoardArea, double temperature
+    double proportionOfBoardArea, double policyInitGammaShape, double temperature
   );
 
   float roundAndClipKomi(double unrounded, const Board& board);
@@ -187,7 +187,9 @@ namespace PlayUtils {
     int64_t numVisits
   );
 
-  std::shared_ptr<NNOutput> getFullSymmetryNNOutput(const Board& board, const BoardHistory& hist, Player pla, bool includeOwnerMap, NNEvaluator* nnEval);
+  std::shared_ptr<NNOutput> getFullSymmetryNNOutput(
+    const Board& board, const BoardHistory& hist, Player pla, bool includeOwnerMap, const SGFMetadata* sgfMeta, NNEvaluator* nnEval
+  );
 
 }
 
