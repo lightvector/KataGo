@@ -856,7 +856,7 @@ void MetalProcess::processScoreValues(
   const float* currentScoreValueData = &inputBuffers->scoreValuesResults[offset];
 
   if(modelVersion >= 9) {
-    int numScoreValueChannels = inputBuffers->singleScoreValuesResultElts;
+    size_t numScoreValueChannels = inputBuffers->singleScoreValuesResultElts;
     assert(numScoreValueChannels == 6);
     currentOutput->whiteScoreMean = currentScoreValueData[0];
     currentOutput->whiteScoreMeanSq = currentScoreValueData[1];
@@ -866,7 +866,7 @@ void MetalProcess::processScoreValues(
     currentOutput->shorttermScoreError = currentScoreValueData[5];
   }
   else if(modelVersion >= 8) {
-    int numScoreValueChannels = inputBuffers->singleScoreValuesResultElts;
+    size_t numScoreValueChannels = inputBuffers->singleScoreValuesResultElts;
     assert(numScoreValueChannels == 4);
     currentOutput->whiteScoreMean = currentScoreValueData[0];
     currentOutput->whiteScoreMeanSq = currentScoreValueData[1];
@@ -876,7 +876,7 @@ void MetalProcess::processScoreValues(
     currentOutput->shorttermScoreError = 0;
   }
   else if(modelVersion >= 4) {
-    int numScoreValueChannels = inputBuffers->singleScoreValuesResultElts;
+    size_t numScoreValueChannels = inputBuffers->singleScoreValuesResultElts;
     assert(numScoreValueChannels == 2);
     currentOutput->whiteScoreMean = currentScoreValueData[0];
     currentOutput->whiteScoreMeanSq = currentScoreValueData[1];
@@ -887,7 +887,7 @@ void MetalProcess::processScoreValues(
   }
   else {
     assert(modelVersion >= 3);
-    int numScoreValueChannels = inputBuffers->singleScoreValuesResultElts;
+    size_t numScoreValueChannels = inputBuffers->singleScoreValuesResultElts;
     assert(numScoreValueChannels == 1);
     currentOutput->whiteScoreMean = currentScoreValueData[0];
     //Version 3 neural nets don't have any second moment currentOutput, implicitly already folding it in, so we just use the mean squared
