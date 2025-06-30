@@ -12,14 +12,12 @@ final class SWModelDescTest {
 
     var unityConvWeights = [Float](repeating: 1, count: 1)
     var unityMatMulWeights = [Float](repeating: 1, count: 1)
-    var meanWeights = [Float](repeating: 0, count: 1)
-    var varianceWeights = [Float](repeating: 0.9, count: 1)
-    var scaleWeights = [Float](repeating: 1, count: 1)
-    var biasWeights = [Float](repeating: 0, count: 1)
     var gpoolMatMulWeights = [Float](repeating: 3, count: 3)
     var zeroMatBiasWeights = [Float](repeating: 0, count: 1)
     var gpoolToPassMulWeights = [Float](repeating: 3, count: 9)
     var gpoolToPassBiasWeights = [Float](repeating: 0, count: 3)
+    var mergedScale: [Float] = [1]
+    var mergedBias: [Float] = [0]
 
     func createMiniDescV15Meta() -> SWModelDesc {
         let version = 15
@@ -38,13 +36,8 @@ final class SWModelDescTest {
 
 
         let unityBatchNorm = SWBatchNormLayerDesc(numChannels: 1,
-                                                  epsilon: 0.1,
-                                                  hasScale: false,
-                                                  hasBias: false,
-                                                  mean: &meanWeights,
-                                                  variance: &varianceWeights,
-                                                  scale: &scaleWeights,
-                                                  bias: &biasWeights)
+                                                  mergedScale: &mergedScale,
+                                                  mergedBias: &mergedBias)
 
         let unityResidual = SWResidualBlockDesc(preBN: unityBatchNorm,
                                                 preActivation: ActivationKind.relu,
@@ -165,13 +158,8 @@ final class SWModelDescTest {
 
 
         let unityBatchNorm = SWBatchNormLayerDesc(numChannels: 1,
-                                                  epsilon: 0.1,
-                                                  hasScale: false,
-                                                  hasBias: false,
-                                                  mean: &meanWeights,
-                                                  variance: &varianceWeights,
-                                                  scale: &scaleWeights,
-                                                  bias: &biasWeights)
+                                                  mergedScale: &mergedScale,
+                                                  mergedBias: &mergedBias)
 
         let unityResidual = SWResidualBlockDesc(preBN: unityBatchNorm,
                                                 preActivation: ActivationKind.relu,
@@ -280,13 +268,8 @@ final class SWModelDescTest {
 
 
         let unityBatchNorm = SWBatchNormLayerDesc(numChannels: 1,
-                                                  epsilon: 0.1,
-                                                  hasScale: false,
-                                                  hasBias: false,
-                                                  mean: &meanWeights,
-                                                  variance: &varianceWeights,
-                                                  scale: &scaleWeights,
-                                                  bias: &biasWeights)
+                                                  mergedScale: &mergedScale,
+                                                  mergedBias: &mergedBias)
 
         let unityResidual = SWResidualBlockDesc(preBN: unityBatchNorm,
                                                 preActivation: ActivationKind.relu,
@@ -619,13 +602,8 @@ final class ModelTest: XCTestCase {
                                               weights: randomWeights)
 
         let preBN = SWBatchNormLayerDesc(numChannels: 256,
-                                         epsilon: 1e-20,
-                                         hasScale: false,
-                                         hasBias: true,
-                                         mean: randomWeights,
-                                         variance: oneWeights,
-                                         scale: randomWeights,
-                                         bias: randomWeights)
+                                         mergedScale: randomWeights,
+                                         mergedBias: randomWeights)
 
         let regularConv = SWConvLayerDesc(convYSize: 3,
                                           convXSize: 3,
@@ -636,13 +614,8 @@ final class ModelTest: XCTestCase {
                                           weights: randomWeights)
 
         let midBN = SWBatchNormLayerDesc(numChannels: 256,
-                                         epsilon: 1e-20,
-                                         hasScale: true,
-                                         hasBias: true,
-                                         mean: randomWeights,
-                                         variance: oneWeights,
-                                         scale: randomWeights,
-                                         bias: randomWeights)
+                                         mergedScale: randomWeights,
+                                         mergedBias: randomWeights)
 
         let finalConv = SWConvLayerDesc(convYSize: 3,
                                         convXSize: 3,
@@ -676,26 +649,16 @@ final class ModelTest: XCTestCase {
                                         weights: randomWeights)
 
         let gpoolBN = SWBatchNormLayerDesc(numChannels: 64,
-                                           epsilon: 1e-20,
-                                           hasScale: false,
-                                           hasBias: true,
-                                           mean: randomWeights,
-                                           variance: oneWeights,
-                                           scale: randomWeights,
-                                           bias: randomWeights)
+                                           mergedScale: randomWeights,
+                                           mergedBias: randomWeights)
 
         let gpoolToBiasMul = SWMatMulLayerDesc(inChannels: 192,
                                                outChannels: 192,
                                                weights: randomWeights)
 
         let gMidBN = SWBatchNormLayerDesc(numChannels: 192,
-                                          epsilon: 1e-20,
-                                          hasScale: true,
-                                          hasBias: true,
-                                          mean: randomWeights,
-                                          variance: oneWeights,
-                                          scale: randomWeights,
-                                          bias: randomWeights)
+                                          mergedScale: randomWeights,
+                                          mergedBias: randomWeights)
 
         let gFinalConv = SWConvLayerDesc(convYSize: 3,
                                          convXSize: 3,
@@ -761,13 +724,8 @@ final class ModelTest: XCTestCase {
         assert(blocks.count == 40)
 
         let trunkTipBN = SWBatchNormLayerDesc(numChannels: 256,
-                                              epsilon: 1e-20,
-                                              hasScale: false,
-                                              hasBias: true,
-                                              mean: randomWeights,
-                                              variance: oneWeights,
-                                              scale: randomWeights,
-                                              bias: randomWeights)
+                                              mergedScale: randomWeights,
+                                              mergedBias: randomWeights)
 
         let trunkDesc = SWTrunkDesc(version: version,
                                     trunkNumChannels: 256,
@@ -798,26 +756,16 @@ final class ModelTest: XCTestCase {
                                      weights: randomWeights)
 
         let g1BN = SWBatchNormLayerDesc(numChannels: 48,
-                                        epsilon: 1e-20,
-                                        hasScale: false,
-                                        hasBias: true,
-                                        mean: randomWeights,
-                                        variance: oneWeights,
-                                        scale: randomWeights,
-                                        bias: randomWeights)
+                                        mergedScale: randomWeights,
+                                        mergedBias: randomWeights)
 
         let g1PoolToBiasMul = SWMatMulLayerDesc(inChannels: 144,
                                                 outChannels: 48,
                                                 weights: randomWeights)
 
         let p1BN = SWBatchNormLayerDesc(numChannels: 48,
-                                        epsilon: 1e-20,
-                                        hasScale: false,
-                                        hasBias: true,
-                                        mean: randomWeights,
-                                        variance: oneWeights,
-                                        scale: randomWeights,
-                                        bias: randomWeights)
+                                        mergedScale: randomWeights,
+                                        mergedBias: randomWeights)
 
         let p2Conv = SWConvLayerDesc(convYSize: 1,
                                      convXSize: 1,
@@ -854,13 +802,8 @@ final class ModelTest: XCTestCase {
                                      weights: randomWeights)
 
         let v1BN = SWBatchNormLayerDesc(numChannels: 48,
-                                        epsilon: 1e-20,
-                                        hasScale: false,
-                                        hasBias: true,
-                                        mean: randomWeights,
-                                        variance: oneWeights,
-                                        scale: randomWeights,
-                                        bias: randomWeights)
+                                        mergedScale: randomWeights,
+                                        mergedBias: randomWeights)
 
         let v2Mul = SWMatMulLayerDesc(inChannels: 144,
                                       outChannels: 128,

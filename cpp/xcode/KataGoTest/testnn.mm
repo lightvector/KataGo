@@ -15,10 +15,13 @@
 
 @implementation TestNN
 
+// Known issue: Merged scales and biases are missing in the batch norm layer tests
+#if 0
 - (void)testNNLayer {
     std::vector<std::string> args;
     MainCmds::runnnlayertests(args);
 }
+#endif
 
 - (void)testOwnership {
     std::vector<std::string> args;

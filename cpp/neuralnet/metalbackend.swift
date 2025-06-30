@@ -669,6 +669,24 @@ public struct SWBatchNormLayerDesc {
     let mergedScale: UnsafeMutablePointer<Float32>
     let mergedBias: UnsafeMutablePointer<Float32>
 
+    static func mergeScales(scaleWeights: [Float], varianceWeights: [Float], epsilon: Float) -> [Float] {
+        assert(scaleWeights.count == varianceWeights.count)
+
+        return zip(scaleWeights, varianceWeights).map { scale, variance in
+            scale / sqrt(variance + epsilon)
+        }
+    }
+
+    static func mergedBiases(biasWeights: [Float], meanWeights: [Float], mergedScales: [Float]) -> [Float] {
+        assert(biasWeights.count == meanWeights.count)
+        assert(biasWeights.count == mergedScales.count)
+
+        return zip(zip(biasWeights, meanWeights), mergedScales).map { (biasMean, scale) in
+            let (bias, mean) = biasMean
+            return bias - (mean * scale)
+        }
+    }
+
     /// Initializes a SWBatchNormLayerDesc object.
     /// - Parameters:
     ///   - numChannels: The number of channels in the input tensor.

@@ -346,35 +346,23 @@ final class BatchNormLayerTest: XCTestCase {
 
     func testBase() {
         let numChannels: NSNumber = 2
-        let length = numChannels.intValue
-        let mean = UnsafeMutablePointer<Float32>.allocate(capacity: length)
+        let mean: [Float] = [0, 2]
+        let variance: [Float] = [3.9, 0.15]
+        let epsilon: Float = 0.1
+        let scale: [Float] = [0.1, 1]
+        let bias: [Float] = [10, 0]
 
-        mean[0] = 0
-        mean[1] = 2
+        var mergedScale = SWBatchNormLayerDesc.mergeScales(scaleWeights: scale,
+                                                           varianceWeights: variance,
+                                                           epsilon: epsilon)
 
-        let variance = UnsafeMutablePointer<Float32>.allocate(capacity: length)
+        var mergedBias = SWBatchNormLayerDesc.mergedBiases(biasWeights: bias,
+                                                           meanWeights: mean,
+                                                           mergedScales: mergedScale)
 
-        variance[0] = 3.9
-        variance[1] = 0.15
-
-        let scale = UnsafeMutablePointer<Float32>.allocate(capacity: length)
-
-        scale[0] = 0.1
-        scale[1] = 1
-
-        let bias = UnsafeMutablePointer<Float32>.allocate(capacity: length)
-
-        bias[0] = 10
-        bias[1] = 0
-
-        let descriptor = createSWBatchNormLayerDesc(numChannels: Int32(truncating: numChannels),
-                                                    epsilon: 0.1,
-                                                    hasScale: true,
-                                                    hasBias: true,
-                                                    mean: mean,
-                                                    variance: variance,
-                                                    scale: scale,
-                                                    bias: bias)
+        let descriptor = createSWBatchNormLayerDesc(numChannels: numChannels.int32Value,
+                                                    mergedScale: &mergedScale,
+                                                    mergedBias: &mergedBias)
 
         let batchSize: NSNumber = 2
         let nnXLen: NSNumber = 5
@@ -557,20 +545,23 @@ final class ResidualBlockTest: XCTestCase {
         m[16] = 1; m[17] = 1; m[18] = 1; m[19] = 0
         m[20] = 1; m[21] = 1; m[22] = 1; m[23] = 1
 
-        let preBN =
-        SWBatchNormLayerDesc(numChannels: trunkChannels,
-                             epsilon: 0.1,
-                             hasScale: true,
-                             hasBias: true,
-                             mean: UnsafeMutablePointer<Float32>.allocate(capacity: trunkChannels.intValue),
-                             variance: UnsafeMutablePointer<Float32>.allocate(capacity: trunkChannels.intValue),
-                             scale: UnsafeMutablePointer<Float32>.allocate(capacity: trunkChannels.intValue),
-                             bias: UnsafeMutablePointer<Float32>.allocate(capacity: trunkChannels.intValue))
+        let preBN_mean: [Float] = [0]
+        let preBN_variance: [Float] = [0.9]
+        let preBN_epsilon: Float = 0.1
+        let preBN_scale: [Float] = [2]
+        let preBN_bias: [Float] = [0]
 
-        preBN.mean[0] = 0
-        preBN.variance[0] = 0.9
-        preBN.scale[0] = 2
-        preBN.bias[0] = 0
+        var preBN_mergedScale = SWBatchNormLayerDesc.mergeScales(scaleWeights: preBN_scale,
+                                                                 varianceWeights: preBN_variance,
+                                                                 epsilon: preBN_epsilon)
+
+        var preBN_mergedBias = SWBatchNormLayerDesc.mergedBiases(biasWeights: preBN_bias,
+                                                                 meanWeights: preBN_mean,
+                                                                 mergedScales: preBN_mergedScale)
+
+        let preBN = SWBatchNormLayerDesc(numChannels: trunkChannels,
+                                         mergedScale: &preBN_mergedScale,
+                                         mergedBias: &preBN_mergedBias)
 
         let convYSize: NSNumber = 3
         let convXSize: NSNumber = 3
@@ -594,20 +585,23 @@ final class ResidualBlockTest: XCTestCase {
         w[12] = 0; w[13] = 0; w[14] = 0
         w[15] = 0; w[16] = 1; w[17] = 0
 
-        let midBN =
-        SWBatchNormLayerDesc(numChannels: midChannels,
-                             epsilon: 0.1,
-                             hasScale: false,
-                             hasBias: false,
-                             mean: UnsafeMutablePointer<Float32>.allocate(capacity: midChannels.intValue),
-                             variance: UnsafeMutablePointer<Float32>.allocate(capacity: midChannels.intValue),
-                             scale: UnsafeMutablePointer<Float32>.allocate(capacity: midChannels.intValue),
-                             bias: UnsafeMutablePointer<Float32>.allocate(capacity: midChannels.intValue))
+        let midBN_mean: [Float] = [3, 0]
+        let midBN_variance: [Float] = [0.9, 0.9]
+        let midBN_epsilon: Float = 0.1
+        let midBN_scale: [Float] = [1, 1]
+        let midBN_bias: [Float] = [0, 0]
 
-        midBN.mean[0] = 3; midBN.mean[1] = 0
-        midBN.variance[0] = 0.9; midBN.variance[1] = 0.9
-        midBN.scale[0] = 1; midBN.scale[1] = 1
-        midBN.bias[0] = 0; midBN.bias[1] = 0
+        var midBN_mergedScale = SWBatchNormLayerDesc.mergeScales(scaleWeights: midBN_scale,
+                                                                 varianceWeights: midBN_variance,
+                                                                 epsilon: midBN_epsilon)
+        
+        var midBN_mergedBias = SWBatchNormLayerDesc.mergedBiases(biasWeights: midBN_bias,
+                                                                 meanWeights: midBN_mean,
+                                                                 mergedScales: midBN_mergedScale)
+
+        let midBN = SWBatchNormLayerDesc(numChannels: midChannels,
+                                         mergedScale: &midBN_mergedScale,
+                                         mergedBias: &midBN_mergedBias)
 
         let finalConv = SWConvLayerDesc(convYSize: 1,
                                         convXSize: 1,
@@ -668,34 +662,23 @@ final class ResidualBlockTest: XCTestCase {
                                         dilationX: 1,
                                         weights: unityConvWeights)
 
-        let mean = UnsafeMutablePointer<Float32>.allocate(capacity: numChannels)
+        let unityBN_mean: [Float] = [0, 0]
+        let unityBN_variance: [Float] = [0.9, 0.9]
+        let unityBN_epsilon: Float = 0.1
+        let unityBN_scale: [Float] = [1, 1]
+        let unityBN_bias: [Float] = [0, 0]
 
-        mean[0] = 0
-        mean[1] = 0
+        var unityBN_mergedScale = SWBatchNormLayerDesc.mergeScales(scaleWeights: unityBN_scale,
+                                                                   varianceWeights: unityBN_variance,
+                                                                   epsilon: unityBN_epsilon)
 
-        let variance = UnsafeMutablePointer<Float32>.allocate(capacity: numChannels)
-
-        variance[0] = 0.9
-        variance[1] = 0.9
-
-        let scale = UnsafeMutablePointer<Float32>.allocate(capacity: numChannels)
-
-        scale[0] = 1
-        scale[1] = 1
-
-        let bias = UnsafeMutablePointer<Float32>.allocate(capacity: numChannels)
-
-        bias[0] = 0
-        bias[1] = 0
+        var unityBN_mergedBias = SWBatchNormLayerDesc.mergedBiases(biasWeights: unityBN_bias,
+                                                                   meanWeights: unityBN_mean,
+                                                                   mergedScales: unityBN_mergedScale)
 
         let unityBN = SWBatchNormLayerDesc(numChannels: numChannels as NSNumber,
-                                           epsilon: 0.1,
-                                           hasScale: false,
-                                           hasBias: false,
-                                           mean: mean,
-                                           variance: variance,
-                                           scale: scale,
-                                           bias: bias)
+                                           mergedScale: &unityBN_mergedScale,
+                                           mergedBias: &unityBN_mergedBias)
 
         let residualBlock = SWResidualBlockDesc(preBN: unityBN,
                                                 preActivation: ActivationKind.relu,
@@ -808,20 +791,23 @@ final class GlobalPoolingResidualBlockTest: XCTestCase {
         m[16] = 0; m[17] = 1; m[18] = 1; m[19] = 1
         m[20] = 0; m[21] = 1; m[22] = 1; m[23] = 1
 
-        let preBN =
-        SWBatchNormLayerDesc(numChannels: trunkChannels,
-                             epsilon: 0.1,
-                             hasScale: true,
-                             hasBias: true,
-                             mean: UnsafeMutablePointer<Float32>.allocate(capacity: 1),
-                             variance: UnsafeMutablePointer<Float32>.allocate(capacity: 1),
-                             scale: UnsafeMutablePointer<Float32>.allocate(capacity: 1),
-                             bias: UnsafeMutablePointer<Float32>.allocate(capacity: 1))
+        let preBN_mean: [Float] = [0]
+        let preBN_variance: [Float] = [0.9]
+        let preBN_epsilon: Float = 0.1
+        let preBN_scale: [Float] = [1]
+        let preBN_bias: [Float] = [0]
 
-        preBN.mean[0] = 0
-        preBN.variance[0] = 0.9
-        preBN.scale[0] = 1
-        preBN.bias[0] = 0
+        var preBN_mergedScale = SWBatchNormLayerDesc.mergeScales(scaleWeights: preBN_scale,
+                                                                 varianceWeights: preBN_variance,
+                                                                 epsilon: preBN_epsilon)
+
+        var preBN_mergedBias = SWBatchNormLayerDesc.mergedBiases(biasWeights: preBN_bias,
+                                                                 meanWeights: preBN_mean,
+                                                                 mergedScales: preBN_mergedScale)
+
+        let preBN = SWBatchNormLayerDesc(numChannels: trunkChannels,
+                                         mergedScale: &preBN_mergedScale,
+                                         mergedBias: &preBN_mergedBias)
 
         let regularConv =
         SWConvLayerDesc(convYSize: 1,
@@ -857,20 +843,23 @@ final class GlobalPoolingResidualBlockTest: XCTestCase {
         w[12] = 1; w[13] = 0; w[14] = 0
         w[15] = 0; w[16] = 0; w[17] = 0
 
-        let gpoolBN =
-        SWBatchNormLayerDesc(numChannels: gpoolChannels,
-                             epsilon: 0.1,
-                             hasScale: false,
-                             hasBias: false,
-                             mean: UnsafeMutablePointer<Float32>.allocate(capacity: 2),
-                             variance: UnsafeMutablePointer<Float32>.allocate(capacity: 2),
-                             scale: UnsafeMutablePointer<Float32>.allocate(capacity: 2),
-                             bias: UnsafeMutablePointer<Float32>.allocate(capacity: 2))
+        let gpoolBN_mean: [Float] = [0, 0]
+        let gpoolBN_variance: [Float] = [0.9, 0.9]
+        let gpoolBN_epsilon: Float = 0.1
+        let gpoolBN_scale: [Float] = [1, 1]
+        let gpoolBN_bias: [Float] = [0, -2]
 
-        gpoolBN.mean[0] = 0; gpoolBN.mean[1] = 0
-        gpoolBN.variance[0] = 0.9; gpoolBN.variance[1] = 0.9
-        gpoolBN.scale[0] = 1; gpoolBN.scale[1] = 1
-        gpoolBN.bias[0] = 0; gpoolBN.bias[1] = -2
+        var gpoolBN_mergedScale = SWBatchNormLayerDesc.mergeScales(scaleWeights: gpoolBN_scale,
+                                                                   varianceWeights: gpoolBN_variance,
+                                                                   epsilon: gpoolBN_epsilon)
+
+        var gpoolBN_mergedBias = SWBatchNormLayerDesc.mergedBiases(biasWeights: gpoolBN_bias,
+                                                                   meanWeights: gpoolBN_mean,
+                                                                   mergedScales: gpoolBN_mergedScale)
+
+        let gpoolBN = SWBatchNormLayerDesc(numChannels: gpoolChannels,
+                                           mergedScale: &gpoolBN_mergedScale,
+                                           mergedBias: &gpoolBN_mergedBias)
 
         let gpoolToBiasMul =
         createSWMatMulLayerDesc(inChannels: 6,
@@ -884,20 +873,23 @@ final class GlobalPoolingResidualBlockTest: XCTestCase {
         gpoolToBiasMul.weights[4] = 1
         gpoolToBiasMul.weights[5] = 1
 
-        let midBN =
-        SWBatchNormLayerDesc(numChannels: 1,
-                             epsilon: 0.1,
-                             hasScale: false,
-                             hasBias: false,
-                             mean: UnsafeMutablePointer<Float32>.allocate(capacity: 1),
-                             variance: UnsafeMutablePointer<Float32>.allocate(capacity: 1),
-                             scale: UnsafeMutablePointer<Float32>.allocate(capacity: 1),
-                             bias: UnsafeMutablePointer<Float32>.allocate(capacity: 1))
+        let midBN_mean: [Float] = [0]
+        let midBN_variance: [Float] = [0.9]
+        let midBN_epsilon: Float = 0.1
+        let midBN_scale: [Float] = [1]
+        let midBN_bias: [Float] = [0]
 
-        midBN.mean[0] = 0
-        midBN.variance[0] = 0.9
-        midBN.scale[0] = 1
-        midBN.bias[0] = 0
+        var midBN_mergedScale = SWBatchNormLayerDesc.mergeScales(scaleWeights: midBN_scale,
+                                                                 varianceWeights: midBN_variance,
+                                                                 epsilon: midBN_epsilon)
+
+        var midBN_mergedBias = SWBatchNormLayerDesc.mergedBiases(biasWeights: midBN_bias,
+                                                                 meanWeights: midBN_mean,
+                                                                 mergedScales: midBN_mergedScale)
+
+        let midBN = SWBatchNormLayerDesc(numChannels: 1,
+                                         mergedScale: &midBN_mergedScale,
+                                         mergedBias: &midBN_mergedBias)
 
         let finalConv =
         SWConvLayerDesc(convYSize: 1,
@@ -972,8 +964,6 @@ final class NestedBottleneckResidualBlockTest: XCTestCase {
         let nnXLen = 1
         let nnYLen = 1
         let numChannels = 1
-        let hasScale = true
-        let hasBias = true
 
         let graph = MPSGraph()
 
@@ -992,19 +982,23 @@ final class NestedBottleneckResidualBlockTest: XCTestCase {
         let maskSumSqrtS14M01 = MaskSumSqrtS14M01Layer(graph: graph,
                                                        maskSum: maskSum)
 
-        let preBN = SWBatchNormLayerDesc(numChannels: numChannels as NSNumber,
-                                         epsilon: 0.1,
-                                         hasScale: hasScale as NSNumber,
-                                         hasBias: hasBias as NSNumber,
-                                         mean: UnsafeMutablePointer<Float32>.allocate(capacity: 1),
-                                         variance: UnsafeMutablePointer<Float32>.allocate(capacity: 1),
-                                         scale: UnsafeMutablePointer<Float32>.allocate(capacity: 1),
-                                         bias: UnsafeMutablePointer<Float32>.allocate(capacity: 1))
+        let preBN_mean: [Float] = [0]
+        let preBN_variance: [Float] = [0.9]
+        let preBN_epsilon: Float = 0.1
+        let preBN_scale: [Float] = [1]
+        let preBN_bias: [Float] = [0]
 
-        preBN.mean[0] = 0
-        preBN.variance[0] = 0.9
-        preBN.scale[0] = 1
-        preBN.bias[0] = 0
+        var preBN_mergedScale = SWBatchNormLayerDesc.mergeScales(scaleWeights: preBN_scale,
+                                                                 varianceWeights: preBN_variance,
+                                                                 epsilon: preBN_epsilon)
+
+        var preBN_mergedBias = SWBatchNormLayerDesc.mergedBiases(biasWeights: preBN_bias,
+                                                                 meanWeights: preBN_mean,
+                                                                 mergedScales: preBN_mergedScale)
+
+        let preBN = SWBatchNormLayerDesc(numChannels: numChannels as NSNumber,
+                                         mergedScale: &preBN_mergedScale,
+                                         mergedBias: &preBN_mergedBias)
 
         let preActivation = ActivationKind.mish
 
@@ -1493,34 +1487,23 @@ final class TrunkTest: XCTestCase {
                                               outChannels: numChannels as NSNumber,
                                               weights: initialMatMulWeights)
 
-        let mean = UnsafeMutablePointer<Float32>.allocate(capacity: numChannels)
+        let unityBN_mean: [Float] = [0, 0]
+        let unityBN_variance: [Float] = [0.9, 0.9]
+        let unityBN_epsilon: Float = 0.1
+        let unityBN_scale: [Float] = [1, 1]
+        let unityBN_bias: [Float] = [0, 0]
 
-        mean[0] = 0
-        mean[1] = 0
+        var unityBN_mergedScale = SWBatchNormLayerDesc.mergeScales(scaleWeights: unityBN_scale,
+                                                                   varianceWeights: unityBN_variance,
+                                                                   epsilon: unityBN_epsilon)
 
-        let variance = UnsafeMutablePointer<Float32>.allocate(capacity: numChannels)
-
-        variance[0] = 0.9
-        variance[1] = 0.9
-
-        let scale = UnsafeMutablePointer<Float32>.allocate(capacity: numChannels)
-
-        scale[0] = 1
-        scale[1] = 1
-
-        let bias = UnsafeMutablePointer<Float32>.allocate(capacity: numChannels)
-
-        bias[0] = 0
-        bias[1] = 0
+        var unityBN_mergedBias = SWBatchNormLayerDesc.mergedBiases(biasWeights: unityBN_bias,
+                                                                   meanWeights: unityBN_mean,
+                                                                   mergedScales: unityBN_mergedScale)
 
         let unityBN = SWBatchNormLayerDesc(numChannels: numChannels as NSNumber,
-                                           epsilon: 0.1,
-                                           hasScale: false,
-                                           hasBias: false,
-                                           mean: mean,
-                                           variance: variance,
-                                           scale: scale,
-                                           bias: bias)
+                                           mergedScale: &unityBN_mergedScale,
+                                           mergedBias: &unityBN_mergedBias)
 
         let residualBlock = SWResidualBlockDesc(preBN: unityBN,
                                                 preActivation: ActivationKind.relu,
@@ -1707,34 +1690,23 @@ final class PolicyHeadTest: XCTestCase {
                                         dilationX: 1,
                                         weights: unityConvWeights)
 
-        let mean = UnsafeMutablePointer<Float32>.allocate(capacity: inChannels)
+        let unityBN_mean: [Float] = [0, 0]
+        let unityBN_variance: [Float] = [0.9, 0.9]
+        let unityBN_epsilon: Float = 0.1
+        let unityBN_scale: [Float] = [1, 1]
+        let unityBN_bias: [Float] = [0, 0]
 
-        mean[0] = 0
-        mean[1] = 0
+        var unityBN_mergedScale = SWBatchNormLayerDesc.mergeScales(scaleWeights: unityBN_scale,
+                                                                   varianceWeights: unityBN_variance,
+                                                                   epsilon: unityBN_epsilon)
 
-        let variance = UnsafeMutablePointer<Float32>.allocate(capacity: inChannels)
-
-        variance[0] = 0.9
-        variance[1] = 0.9
-
-        let scale = UnsafeMutablePointer<Float32>.allocate(capacity: inChannels)
-
-        scale[0] = 1
-        scale[1] = 1
-
-        let bias = UnsafeMutablePointer<Float32>.allocate(capacity: inChannels)
-
-        bias[0] = 0
-        bias[1] = 0
+        var unityBN_mergedBias = SWBatchNormLayerDesc.mergedBiases(biasWeights: unityBN_bias,
+                                                                   meanWeights: unityBN_mean,
+                                                                   mergedScales: unityBN_mergedScale)
 
         let unityBN = SWBatchNormLayerDesc(numChannels: inChannels as NSNumber,
-                                           epsilon: 0.1,
-                                           hasScale: false,
-                                           hasBias: false,
-                                           mean: mean,
-                                           variance: variance,
-                                           scale: scale,
-                                           bias: bias)
+                                           mergedScale: &unityBN_mergedScale,
+                                           mergedBias: &unityBN_mergedBias)
 
         let gpoolToBiasCount = 3 * inChannels * inChannels
         let gpoolToBiasMulWeights =
@@ -1950,34 +1922,23 @@ final class ValueHeadTest: XCTestCase {
                                      dilationX: 1,
                                      weights: v1ConvWeights)
 
-        let mean = UnsafeMutablePointer<Float32>.allocate(capacity: v1OutChannels)
+        let v1BN_mean: [Float] = [0, 0]
+        let v1BN_variance: [Float] = [0.9, 0.9]
+        let v1BN_epsilon: Float = 0.1
+        let v1BN_scale: [Float] = [1, 1]
+        let v1BN_bias: [Float] = [0, 0]
 
-        mean[0] = 0
-        mean[1] = 0
+        var v1BN_mergedScale = SWBatchNormLayerDesc.mergeScales(scaleWeights: v1BN_scale,
+                                                                varianceWeights: v1BN_variance,
+                                                                epsilon: v1BN_epsilon)
 
-        let variance = UnsafeMutablePointer<Float32>.allocate(capacity: v1OutChannels)
-
-        variance[0] = 0.9
-        variance[1] = 0.9
-
-        let scale = UnsafeMutablePointer<Float32>.allocate(capacity: v1OutChannels)
-
-        scale[0] = 1
-        scale[1] = 1
-
-        let bias = UnsafeMutablePointer<Float32>.allocate(capacity: v1OutChannels)
-
-        bias[0] = 0
-        bias[1] = 0
+        var v1BN_mergedBias = SWBatchNormLayerDesc.mergedBiases(biasWeights: v1BN_bias,
+                                                                meanWeights: v1BN_mean,
+                                                                mergedScales: v1BN_mergedScale)
 
         let v1BN = SWBatchNormLayerDesc(numChannels: v1OutChannels as NSNumber,
-                                        epsilon: 0.1,
-                                        hasScale: false,
-                                        hasBias: false,
-                                        mean: mean,
-                                        variance: variance,
-                                        scale: scale,
-                                        bias: bias)
+                                        mergedScale: &v1BN_mergedScale,
+                                        mergedBias: &v1BN_mergedBias)
 
         let v2MulCount = 3 * v1OutChannels * v2OutChannels
         let v2MulWeights =
