@@ -172,6 +172,8 @@ class KataGoModel {
                     printError("Saved digest: \(savedDigest)")
                     printError("New digest: \(digest)")
                     printError("Compiling CoreML model because the digest has changed");
+                } else {
+                    printError("Digests match: \(digest)")
                 }
             } else {
                 printError("Compiling CoreML model because the saved digest URL is not reachable: \(savedDigestURL)")
@@ -187,6 +189,8 @@ class KataGoModel {
                 // resources. For other URL types, `false` is returned.
                 shouldCompile = try (!permanentURL.checkResourceIsReachable())
                 assert(!shouldCompile)
+
+                printError("Compiled CoreML model is reachable: \(permanentURL)")
             } catch {
                 shouldCompile = true
 
@@ -253,13 +257,33 @@ class KataGoModel {
         return savedDigestURL
     }
 
-    class func compileMLModel(modelName: String, modelURL: URL, computeUnits: MLComputeUnits, mustCompile: Bool) throws -> MLModel {
-        printError("Compiling CoreML model at \(modelURL)");
+    class func compileMLModel(modelName: String,
+                              modelURL: URL,
+                              computeUnits: MLComputeUnits,
+                              mustCompile: Bool) throws -> MLModel {
 
-        // Compile the model
-        let compiledURL = try MLModel.compileModel(at: modelURL)
+        let permanentURL = try getMLModelCPermanentURL(modelName: modelName)
+        let savedDigestURL = try getSavedDigestURL(modelName: modelName)
+        let digest = try getDigest(modelURL: modelURL)
 
-        return try loadModel(permanentURL: compiledURL,
+        var shouldCompile: Bool
+
+        if mustCompile {
+            shouldCompile = true
+        } else {
+            shouldCompile = checkShouldCompileModel(permanentURL: permanentURL,
+                                                    savedDigestURL: savedDigestURL,
+                                                    digest: digest)
+        }
+
+        if shouldCompile {
+            try compileAndSaveModel(permanentURL: permanentURL,
+                                    savedDigestURL: savedDigestURL,
+                                    modelURL: modelURL,
+                                    digest: digest)
+        }
+
+        return try loadModel(permanentURL: permanentURL,
                              modelName: modelName,
                              computeUnits: computeUnits);
     }
