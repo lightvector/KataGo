@@ -72,7 +72,7 @@ else
     exit 1
 fi
 
-time python3 ./train.py \
+time python ./train.py \
      -traindir "$BASEDIR"/train/"$TRAININGNAME" \
      -latestdatadir "$BASEDIR"/shuffleddata/ \
      -exportdir "$BASEDIR"/"$EXPORT_SUBDIR" \
