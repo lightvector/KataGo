@@ -14,7 +14,7 @@ import torch
 import coremltools as ct
 import coremlmish
 
-from load_model import load_model
+from katago.train.load_model import load_model
 from coremltools.optimize.coreml import (
     OptimizationConfig,
     OpMagnitudePrunerConfig,
