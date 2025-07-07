@@ -19,6 +19,24 @@ extension MLModel {
         let description = modelDescription.metadata[MLModelMetadataKey.description] as! String
         return description
     }
+
+    var nnXLen: Int? {
+        if let match = metaDescription.firstMatch(of: #/KataGo\s+(\d+)x(\d+)/#) {
+            let nnXLen = Int(match.1)
+            return nnXLen
+        } else {
+            return nil
+        }
+    }
+
+    var nnYLen: Int? {
+        if let match = metaDescription.firstMatch(of: #/KataGo\s+(\d+)x(\d+)/#) {
+            let nnYLen = Int(match.2)
+            return nnYLen
+        } else {
+            return nil
+        }
+    }
 }
 
 public class CoreMLBackend {
@@ -47,13 +65,20 @@ public class CoreMLBackend {
         numSpatialFeatures * yLen * xLen
     }
 
-    init(model: MLModel, xLen: Int, yLen: Int, metaEncoderVersion: Int, modelName: String, modelDirectory: String) {
+    public var modelXLen: Int32 { Int32(xLen) }
+    public var modelYLen: Int32 { Int32(yLen) }
+
+    init(model: MLModel, metaEncoderVersion: Int, modelName: String, modelDirectory: String) {
         self.model = KataGoModel(model: model)
-        self.xLen = xLen
-        self.yLen = yLen
         self.metaEncoderVersion = metaEncoderVersion
         self.modelName = modelName
         self.modelDirectory = modelDirectory
+
+        self.xLen = model.nnXLen ?? 19
+        assert(self.xLen >= 2)
+
+        self.yLen = model.nnYLen ?? 19
+        assert(self.yLen >= 2)
 
         // The model version must be at least 8.
         self.version = model.version
@@ -208,13 +233,11 @@ public func maybeCreateCoreMLBackend(condition: Bool = true,
                                                    modelDirectory: modelDirectory)
 
     if let mlmodel {
-        printError("CoreML backend \(serverThreadIdx): \(xLen)x\(yLen) useFP16 \(useFP16) metaEncoderVersion \(metaEncoderVersion) useCpuAndNeuralEngine \(useCpuAndNeuralEngine)");
+        printError("CoreML backend \(serverThreadIdx): useFP16 \(useFP16) metaEncoderVersion \(metaEncoderVersion) useCpuAndNeuralEngine \(useCpuAndNeuralEngine)");
         printError("CoreML backend \(serverThreadIdx): \(mlmodel.metaDescription)");
 
         // The CoreMLBackend object is created.
         return CoreMLBackend(model: mlmodel,
-                             xLen: xLen,
-                             yLen: yLen,
                              metaEncoderVersion: metaEncoderVersion,
                              modelName: modelName,
                              modelDirectory: modelDirectory)

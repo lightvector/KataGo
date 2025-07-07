@@ -46,9 +46,11 @@ void CoreMLProcess::processPolicy(
   const int gpuHandleXLen = gpuHandle->nnXLen;
   const int gpuHandleYLen = gpuHandle->nnYLen;
   const int modelXLen = gpuHandle->modelXLen;
+  const int modelYLen = gpuHandle->modelYLen;
+  const int singleModelPolicyResultElts = (modelXLen * modelYLen) + 1;
   auto& inputBuffersRef = *inputBuffers;
   const size_t targetBufferOffset =
-    calculateBufferOffset(row, inputBuffersRef.singleModelPolicyResultElts, inputBuffersRef.modelPolicyResultChannels);
+    calculateBufferOffset(row, singleModelPolicyResultElts, inputBuffersRef.modelPolicyResultChannels);
   const size_t currentBufferOffset =
     calculateBufferOffset(row, inputBuffersRef.singlePolicyProbsElts, inputBuffersRef.policyResultChannels);
   float* targetBuffer = &inputBuffersRef.modelPolicyResults[targetBufferOffset];
@@ -65,7 +67,7 @@ void CoreMLProcess::processPolicy(
       policyOptimism,
       targetBuffer,
       outputIdx,
-      inputBuffersRef.singleModelPolicyResultElts);
+      singleModelPolicyResultElts);
   };
 
   for(int y = 0; y < gpuHandleYLen; y++) {
@@ -74,9 +76,9 @@ void CoreMLProcess::processPolicy(
     }
   }
 
-  assert(inputBuffersRef.singleModelPolicyResultElts > 0);
+  assert(singleModelPolicyResultElts > 0);
   assert(inputBuffersRef.singlePolicyProbsElts > 0);
-  size_t endOfModelPolicyIdx = inputBuffersRef.singleModelPolicyResultElts - 1;
+  size_t endOfModelPolicyIdx = singleModelPolicyResultElts - 1;
   size_t endOfPolicyProbsIdx = inputBuffersRef.singlePolicyProbsElts - 1;
 
   currentOutput->policyProbs[endOfPolicyProbsIdx] = assignPolicyValue(
@@ -84,7 +86,7 @@ void CoreMLProcess::processPolicy(
     policyOptimism,
     targetBuffer,
     endOfModelPolicyIdx,
-    inputBuffersRef.singleModelPolicyResultElts);
+    singleModelPolicyResultElts);
 
   SymmetryHelpers::copyOutputsWithSymmetry(
     currentBuffer, currentOutput->policyProbs, 1, gpuHandleYLen, gpuHandleXLen, symmetry);
@@ -112,9 +114,10 @@ void CoreMLProcess::processOwnership(
   const int nnXLen = gpuHandle->nnXLen;
   const int nnYLen = gpuHandle->nnYLen;
   const int modelXLen = gpuHandle->modelXLen;
+  const int modelYLen = gpuHandle->modelYLen;
 
   // CoreML model and NN ownership result elements differ 
-  const size_t singleOwnershipResultElts = inputBuffers->singleModelOwnershipResultElts;
+  const size_t singleOwnershipResultElts = modelXLen * modelYLen;
   const size_t singleOwnerMapElts = inputBuffers->singleOwnerMapElts;
 
   // Calculate starting points in the buffers
@@ -179,21 +182,21 @@ void CoreMLProcess::getCoreMLOutput(
   int version = gpuHandle->modelVersion;
   int numSpatialFeatures = NNModelVersion::getNumSpatialFeatures(version);
   size_t singleSpatialElts = inputBuffers->singleSpatialElts;
-  size_t singleInputElts = inputBuffers->singleInputElts;
+  size_t singleInputElts = numSpatialFeatures * modelXLen * modelYLen;
   size_t singleInputGlobalElts = inputBuffers->singleInputGlobalElts;
   size_t singleInputMetaElts = inputBuffers->singleInputMetaElts;
 
   assert(batchSize <= inputBuffers->maxBatchSize);
   assert(batchSize > 0);
   assert(coremlbackend);
-  assert((numSpatialFeatures * modelXLen * modelYLen) == inputBuffers->singleInputElts);
+  // Model board length must be not larger than the maximum board length
+  assert(singleInputElts <= inputBuffers->singleInputElts);
   assert(NNModelVersion::getNumGlobalFeatures(version) == inputBuffers->singleInputGlobalElts);
   assert(version == coremlbackend.get().getVersion());
-  assert(singleInputElts == (modelXLen * modelYLen * 22));
   assert(singleInputGlobalElts == 19);
-  assert(inputBuffers->singleModelPolicyResultElts == ((modelXLen * modelYLen) + 1));
+  assert(inputBuffers->singleModelPolicyResultElts >= ((modelXLen * modelYLen) + 1));
   assert(inputBuffers->singleValueResultElts == 3);
-  assert(inputBuffers->singleModelOwnershipResultElts == (modelXLen * modelYLen));
+  assert(inputBuffers->singleModelOwnershipResultElts >= (modelXLen * modelYLen));
   assert(inputBuffers->singleScoreValuesResultElts == 10);
   assert(inputBuffers->singleMoreMiscValuesResultElts == 8);
   assert(gpuHandle->inputsUseNHWC == false);

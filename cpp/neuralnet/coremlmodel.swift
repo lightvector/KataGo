@@ -100,7 +100,7 @@ class KataGoModel {
         // Fallback to create a default model path
         let modelPath = Bundle.main.path(forResource: modelName, ofType: typeName) ?? "\(modelName).\(typeName)"
         // If modelDirectory is not empty, prepend it to the modelPath
-        let finalPath = modelDirectory.isEmpty ? modelPath : "\(modelDirectory)/\(modelName).\(typeName)" 
+        let finalPath = modelDirectory.isEmpty ? modelPath : modelDirectory 
         let bundleModelURL = URL(filePath: finalPath)
 
         return bundleModelURL

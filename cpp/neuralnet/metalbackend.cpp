@@ -477,8 +477,8 @@ metalhandle(maybeCreateMetalComputeHandle((gpuIdx < 100),
                                           context->metalComputeContext)),
 coremlbackend(maybeCreateCoreMLBackend((gpuIdx >= 100),
                                        serverThreadIdx,
-                                       modelXLen,
-                                       modelYLen,
+                                       COMPILE_MAX_BOARD_LEN,
+                                       COMPILE_MAX_BOARD_LEN,
                                        (context->useFP16Mode != enabled_t::False),
                                        loadedModel->modelDesc.metaEncoderVersion,
                                        context->useCpuAndNeuralEngine,
@@ -502,6 +502,12 @@ coremlbackend(maybeCreateCoreMLBackend((gpuIdx >= 100),
     modelVersion = coremlbackend.get().getVersion();
     // Due to a design limition, the versions of Metal and CoreML models must match
     assert(version == modelVersion);
+
+    // Model board length must be not smaller than net board length
+    modelXLen = coremlbackend.get().getModelXLen();
+    modelYLen = coremlbackend.get().getModelYLen();
+    assert(nnXLen <= modelXLen);
+    assert(nnYLen <= modelYLen);
   }
 
   (void)serverThreadIdx;
@@ -598,8 +604,8 @@ void NeuralNet::printDevices() {
 InputBuffers::InputBuffers(const LoadedModel* loadedModel, int maxBatchSz, int nnXLen, int nnYLen) {
   const ModelDesc& m = loadedModel->modelDesc;
 
-  int modelXLen = COMPILE_MAX_BOARD_LEN;
-  int modelYLen = COMPILE_MAX_BOARD_LEN;
+  int maxModelXLen = COMPILE_MAX_BOARD_LEN;
+  int maxModelYLen = COMPILE_MAX_BOARD_LEN;
 
   maxBatchSize = maxBatchSz;
   policyResultChannels = m.policyHead.p2Conv.outChannels;
@@ -610,16 +616,16 @@ InputBuffers::InputBuffers(const LoadedModel* loadedModel, int maxBatchSz, int n
 
   modelPolicyResultChannels = (m.modelVersion >= 12) ? 6 : 4;
   singleSpatialElts = (size_t)m.numInputChannels * nnXLen * nnYLen;
-  singleInputElts = (size_t)m.numInputChannels * modelXLen * modelYLen;
+  singleInputElts = (size_t)m.numInputChannels * maxModelXLen * maxModelYLen;
   singleInputGlobalElts = (size_t)m.numInputGlobalChannels;
   singleInputMetaElts = (size_t)m.numInputMetaChannels;
   singleNnPolicyResultElts = (size_t)(nnXLen * nnYLen);
-  singleModelPolicyResultElts = (size_t)((modelXLen * modelYLen) + 1);
+  singleModelPolicyResultElts = (size_t)((maxModelXLen * maxModelYLen) + 1);
   singlePolicyPassResultElts = 1;
   singlePolicyProbsElts = (size_t)((nnXLen * nnYLen) + 1);
   singleValueResultElts = (size_t)m.numValueChannels;
   singleNnOwnershipResultElts = (size_t)m.numOwnershipChannels * nnXLen * nnYLen;
-  singleModelOwnershipResultElts = (size_t)m.numOwnershipChannels * modelXLen * modelYLen;
+  singleModelOwnershipResultElts = (size_t)m.numOwnershipChannels * maxModelXLen * maxModelYLen;
   singleOwnerMapElts = (size_t)m.numOwnershipChannels * nnXLen * nnYLen;
   singleScoreValuesResultElts = 10;
   singleNnScoreValuesResultElts = (size_t)m.numScoreValueChannels;

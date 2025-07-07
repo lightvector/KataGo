@@ -255,12 +255,12 @@ struct ComputeHandle {
   /**
    * @brief The x length of the CoreML model.
    */
-  int modelXLen = COMPILE_MAX_BOARD_LEN;
+  int modelXLen;
 
   /**
    * @brief The y length of the CoreML model.
    */
-  int modelYLen = COMPILE_MAX_BOARD_LEN;
+  int modelYLen;
 
   /**
    * @brief The version of the CoreML model.
