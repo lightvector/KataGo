@@ -434,11 +434,9 @@ private:
   // searchhelpers.cpp
   //----------------------------------------------------------------------------------------
   double getResultUtility(double winlossValue, double noResultValue) const;
-  double getResultUtilityFromNN(const NNOutput& nnOutput) const;
   double getScoreUtility(double scoreMeanAvg, double scoreMeanSqAvg) const;
   double getScoreUtilityDiff(double scoreMeanAvg, double scoreMeanSqAvg, double delta) const;
   double getApproxScoreUtilityDerivative(double scoreMean) const;
-  double getUtilityFromNN(const NNOutput& nnOutput) const;
 
   //----------------------------------------------------------------------------------------
   // Miscellaneous search biasing helpers, root move selection, etc.
@@ -517,7 +515,7 @@ private:
   // Neural net queries
   // searchnnhelpers.cpp
   //----------------------------------------------------------------------------------------
-  void computeRootNNEvaluation(NNResultBuf& nnResultBuf, bool includeOwnerMap);
+  void computeRootNNEvaluation(NNResultBuf& nnResultBuf, NNResultBuf& humanResultBuf, bool includeOwnerMap, bool includeHumanResult);
   bool initNodeNNOutput(
     SearchThread& thread, SearchNode& node,
     bool isRoot, bool skipCache, bool isReInit
@@ -610,6 +608,7 @@ private:
     bool assumeNoExistingWeight
   );
   void addCurrentNNOutputAsLeafValue(SearchNode& node, bool assumeNoExistingWeight);
+  double getThisNodeNNUtility(const SearchNode& node) const;
 
   double computeWeightFromNNOutput(const NNOutput* nnOutput) const;
 

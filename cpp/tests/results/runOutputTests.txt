@@ -20782,6 +20782,7 @@ humanSLPlaExploreProbWeightless: 0
 humanSLPlaExploreProbWeightful: 0
 humanSLOppExploreProbWeightless: 0
 humanSLOppExploreProbWeightful: 0
+humanSLValueProportion: 0
 humanSLChosenMoveProp: 0
 humanSLChosenMoveIgnorePass: 0
 humanSLChosenMovePiklLambda: 1e+09
@@ -20889,6 +20890,7 @@ humanSLPlaExploreProbWeightless: 0
 humanSLPlaExploreProbWeightful: 0
 humanSLOppExploreProbWeightless: 0
 humanSLOppExploreProbWeightful: 0
+humanSLValueProportion: 0
 humanSLChosenMoveProp: 0
 humanSLChosenMoveIgnorePass: 0
 humanSLChosenMovePiklLambda: 1e+09
@@ -20996,6 +20998,7 @@ humanSLPlaExploreProbWeightless: 0
 humanSLPlaExploreProbWeightful: 0
 humanSLOppExploreProbWeightless: 0
 humanSLOppExploreProbWeightful: 0
+humanSLValueProportion: 0
 humanSLChosenMoveProp: 0
 humanSLChosenMoveIgnorePass: 0
 humanSLChosenMovePiklLambda: 1e+09
@@ -21103,6 +21106,7 @@ humanSLPlaExploreProbWeightless: 0
 humanSLPlaExploreProbWeightful: 0
 humanSLOppExploreProbWeightless: 0
 humanSLOppExploreProbWeightful: 0
+humanSLValueProportion: 0
 humanSLChosenMoveProp: 0
 humanSLChosenMoveIgnorePass: 0
 humanSLChosenMovePiklLambda: 1e+09
@@ -21210,6 +21214,7 @@ humanSLPlaExploreProbWeightless: 0
 humanSLPlaExploreProbWeightful: 0
 humanSLOppExploreProbWeightless: 0
 humanSLOppExploreProbWeightful: 0
+humanSLValueProportion: 0
 humanSLChosenMoveProp: 0
 humanSLChosenMoveIgnorePass: 0
 humanSLChosenMovePiklLambda: 1e+09
@@ -21317,6 +21322,7 @@ humanSLPlaExploreProbWeightless: 0
 humanSLPlaExploreProbWeightful: 0
 humanSLOppExploreProbWeightless: 0
 humanSLOppExploreProbWeightful: 0
+humanSLValueProportion: 0
 humanSLChosenMoveProp: 0
 humanSLChosenMoveIgnorePass: 0
 humanSLChosenMovePiklLambda: 1e+09
@@ -21424,6 +21430,7 @@ humanSLPlaExploreProbWeightless: 0
 humanSLPlaExploreProbWeightful: 0
 humanSLOppExploreProbWeightless: 0
 humanSLOppExploreProbWeightful: 0
+humanSLValueProportion: 0
 humanSLChosenMoveProp: 0
 humanSLChosenMoveIgnorePass: 0
 humanSLChosenMovePiklLambda: 1e+09
@@ -21531,6 +21538,7 @@ humanSLPlaExploreProbWeightless: 0
 humanSLPlaExploreProbWeightful: 0
 humanSLOppExploreProbWeightless: 0
 humanSLOppExploreProbWeightful: 0
+humanSLValueProportion: 0
 humanSLChosenMoveProp: 0
 humanSLChosenMoveIgnorePass: 0
 humanSLChosenMovePiklLambda: 1e+09
