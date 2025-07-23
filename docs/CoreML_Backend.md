@@ -2,7 +2,7 @@
 KataGo harnesses the advanced capabilities of Apple Silicon through the integration of the [Metal Performance Shaders Graph](https://developer.apple.com/documentation/metalperformanceshadersgraph) and [CoreML](https://developer.apple.com/documentation/coreml). This integration empowers KataGo with GPU acceleration and compatibility with the [Neural Engine](https://machinelearning.apple.com/research/neural-engine-transformers), ensuring exceptional performance levels.
 
 ## Essential Software Installation
-Before proceeding, ensure that the indispensable build tool, [Ninja](https://ninja-build.org) is installed. Execute the following command to install Ninja:
+Before proceeding, ensure that the indispensable build tool, [Ninja](https://ninja-build.org) and [Xcode](https://developer.apple.com/xcode/) are installed. Execute the following command to install Ninja:
 ```
 brew install ninja
 ```
