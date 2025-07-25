@@ -17,6 +17,7 @@ std::vector<std::string> Setup::getBackendPrefixes() {
   std::vector<std::string> prefixes;
   prefixes.push_back("cuda");
   prefixes.push_back("trt");
+  prefixes.push_back("metal");
   prefixes.push_back("opencl");
   prefixes.push_back("eigen");
   prefixes.push_back("dummybackend");
@@ -81,6 +82,8 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
   string backendPrefix = "cuda";
   #elif defined(USE_TENSORRT_BACKEND)
   string backendPrefix = "trt";
+  #elif defined(USE_METAL_BACKEND)
+  string backendPrefix = "metal";
   #elif defined(USE_OPENCL_BACKEND)
   string backendPrefix = "opencl";
   #elif defined(USE_EIGEN_BACKEND)
@@ -138,7 +141,7 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
         requireExactNNLen = cfg.getBool("requireMaxBoardSize");
     }
 
-    bool inputsUseNHWC = backendPrefix == "opencl" || backendPrefix == "trt" ? false : true;
+    bool inputsUseNHWC = backendPrefix == "opencl" || backendPrefix == "trt" || backendPrefix == "metal" ? false : true;
     if(cfg.contains(backendPrefix+"InputsUseNHWC"+idxStr))
       inputsUseNHWC = cfg.getBool(backendPrefix+"InputsUseNHWC"+idxStr);
     else if(cfg.contains("inputsUseNHWC"+idxStr))

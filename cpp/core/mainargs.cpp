@@ -2,6 +2,11 @@
 
 #include "../core/os.h"
 
+#if __MINGW32__
+// `std::wstring_convert` needs explicit including in case of MINGW
+#include <locale>
+#endif
+
 #ifdef OS_IS_WINDOWS
 #include <codecvt>
 #include <windows.h>

@@ -5,7 +5,7 @@ import argparse
 import math
 import torch
 
-import load_model
+import katago.train.load_model
 
 description = """
 Hacky script to partially migrate v13 to v14 new squared softplus activation for error preds.

@@ -3209,3 +3209,169 @@ int MainCmds::evalrandominits(const vector<string>& args) {
   ScoreValue::freeTables();
   return 0;
 }
+
+
+int MainCmds::genposesfromselfplayinit(const vector<string>& args) {
+  Board::initHash();
+  ScoreValue::initTables();
+  Rand seedRand;
+
+  ConfigParser cfg;
+  string nnModelFile;
+  string outDir;
+  int numPosesToWrite;
+  int numProcessThreads;
+  int maxPosesPerOutFile;
+
+  try {
+    KataGoCommandLine cmd("Search for suprising good moves in sgfs");
+    cmd.addConfigFileArg("","");
+    cmd.addModelFileArg();
+    cmd.addOverrideConfigArg();
+
+    TCLAP::ValueArg<string> outDirArg("","outdir","Directory to write results",true,string(),"DIR");
+    TCLAP::ValueArg<int> numPosesToWriteArg("","poses","Number of poses to write",true,100,"N");
+    TCLAP::ValueArg<int> numProcessThreadsArg("","threads","Number of threads",true,1,"THREADS");
+    TCLAP::ValueArg<int> maxPosesPerOutFileArg("","max-poses-per-out-file","Number of hintposes per output file",false,100000,"INT");
+
+    cmd.add(outDirArg);
+    cmd.add(numPosesToWriteArg);
+    cmd.add(numProcessThreadsArg);
+    cmd.add(maxPosesPerOutFileArg);
+    cmd.parseArgs(args);
+
+    nnModelFile = cmd.getModelFile();
+    outDir = outDirArg.getValue();
+    numPosesToWrite = numPosesToWriteArg.getValue();
+    numProcessThreads = numProcessThreadsArg.getValue();
+    maxPosesPerOutFile = maxPosesPerOutFileArg.getValue();
+
+    cmd.getConfig(cfg);
+  }
+  catch (TCLAP::ArgException &e) {
+    cerr << "Error: " << e.error() << " for argument " << e.argId() << endl;
+    return 1;
+  }
+
+  MakeDir::make(outDir);
+
+  const bool logToStdoutDefault = true;
+  Logger logger(&cfg, logToStdoutDefault);
+  logger.addFile(outDir + "/" + "log.log");
+  for(const string& arg: args)
+    logger.write(string("Command: ") + arg);
+  logger.write("Git revision " + Version::getGitRevision());
+
+  SearchParams params = Setup::loadSingleParams(cfg,Setup::SETUP_FOR_ANALYSIS);
+
+  NNEvaluator* nnEval;
+  {
+    Setup::initializeSession(cfg);
+    const int expectedConcurrentEvals = params.numThreads;
+    const int defaultMaxBatchSize = std::max(8,((params.numThreads+3)/4)*4);
+    const bool defaultRequireExactNNLen = false;
+    const bool disableFP16 = false;
+    const string expectedSha256 = "";
+    nnEval = Setup::initializeNNEvaluator(
+      nnModelFile,nnModelFile,expectedSha256,cfg,logger,seedRand,expectedConcurrentEvals,
+      NNPos::MAX_BOARD_LEN,NNPos::MAX_BOARD_LEN,defaultMaxBatchSize,defaultRequireExactNNLen,disableFP16,
+      Setup::SETUP_FOR_ANALYSIS
+    );
+  }
+  logger.write("Loaded neural net");
+
+  const bool isDistributed = false;
+  PlaySettings playSettings = PlaySettings::loadForSelfplay(cfg, isDistributed);
+  {
+    GameRunner* gameRunner = new GameRunner(cfg, playSettings, logger);
+    cfg.warnUnusedKeys(cerr,&logger);
+    Setup::maybeWarnHumanSLParams(params,nnEval,NULL,cerr,&logger);
+    delete gameRunner;
+  }
+
+  if(!std::atomic_is_lock_free(&shouldStop))
+    throw StringError("shouldStop is not lock free, signal-quitting mechanism for terminating matches will NOT work!");
+  std::signal(SIGINT, signalHandler);
+  std::signal(SIGTERM, signalHandler);
+
+  // ---------------------------------------------------------------------------------------------------
+  const int sgfSplitIdx = 0;
+    const int sgfSplitCount = 1;
+  PosWriter posWriter("outposes.txt", outDir, sgfSplitCount, sgfSplitIdx, maxPosesPerOutFile);
+
+  std::atomic<int64_t> nextPosIdx(0);
+  auto genPosLoop = [&]() {
+    Rand rand;
+    MatchPairer::BotSpec botSpec;
+    botSpec.botIdx = 0;
+    botSpec.botName = nnModelFile;
+    botSpec.nnEval = nnEval;
+    botSpec.baseParams = SearchParams();
+    botSpec.baseParams.maxVisits = 5;
+
+    GameRunner* gameRunner = new GameRunner(cfg, Global::uint64ToString(rand.nextUInt64()), playSettings, logger);
+    auto shouldStopFunc = []() noexcept {
+      return shouldStop.load();
+    };
+    WaitableFlag* shouldPause = nullptr;
+
+    while(true) {
+      if(shouldStop.load(std::memory_order_acquire))
+        break;
+      int64_t posIdx = nextPosIdx.fetch_add(1, std::memory_order_acq_rel);
+      if(posIdx >= numPosesToWrite)
+        break;
+
+      string seed = Global::uint64ToString(rand.nextUInt64());
+      ForkData* forkData = new ForkData();
+      FinishedGameData* data = gameRunner->runGame(seed, botSpec, botSpec, forkData, NULL, logger, shouldStopFunc, shouldPause, nullptr, nullptr, nullptr);
+
+      Sgf::PositionSample sampleToWrite;
+      Sgf::PositionSample::writePosOfHist(sampleToWrite, data->startHist, data->startPla);
+
+      // Random symmetry
+      int symmetry = (int)rand.nextInt(0,7);
+      Board symBoard = SymmetryHelpers::getSymBoard(sampleToWrite.board, symmetry);
+      sampleToWrite.board = symBoard;
+      for(size_t i = 0; i<sampleToWrite.moves.size(); i++) {
+        sampleToWrite.moves[i].loc = SymmetryHelpers::getSymLoc(sampleToWrite.moves[i].loc, sampleToWrite.board, symmetry);
+      }
+      sampleToWrite.hintLoc = SymmetryHelpers::getSymLoc(sampleToWrite.hintLoc, sampleToWrite.board, symmetry);
+
+      posWriter.writePos(sampleToWrite);
+
+      delete data;
+      delete forkData;
+    }
+
+    delete gameRunner;
+  };
+
+  // ---------------------------------------------------------------------------------------------------
+
+  //Begin writing
+  posWriter.start();
+
+  vector<std::thread> threads;
+  for(int i = 0; i<numProcessThreads; i++) {
+    threads.push_back(std::thread(genPosLoop));
+  }
+
+  for(size_t i = 0; i<threads.size(); i++)
+    threads[i].join();
+
+  logger.write("Waiting for final writing and cleanup");
+  posWriter.flushAndStop();
+
+  logger.write(nnEval->getModelFileName());
+  logger.write("NN rows: " + Global::int64ToString(nnEval->numRowsProcessed()));
+  logger.write("NN batches: " + Global::int64ToString(nnEval->numBatchesProcessed()));
+  logger.write("NN avg batch size: " + Global::doubleToString(nnEval->averageProcessedBatchSize()));
+
+  logger.write("All done");
+
+  delete nnEval;
+  NeuralNet::globalCleanup();
+  ScoreValue::freeTables();
+  return 0;
+}

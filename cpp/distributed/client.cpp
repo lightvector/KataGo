@@ -35,6 +35,7 @@ static constexpr int MAX_NETWORK_NAME_LEN = 128;
 static constexpr int MAX_URL_LEN = 4096;
 static constexpr int MAX_TIME_LEN = 128;
 static constexpr int MAX_CONFIG_NAME_LEN = 32768;
+static constexpr int MAX_OVERRIDES_LEN = 1024;
 
 static void debugPrintResponse(ostream& out, const httplib::Result& response) {
   out << "---RESPONSE---------------------" << endl;
@@ -366,7 +367,7 @@ void Connection::testConnection() {
       throw StringError("Server did not give status 200 for initial query, response was:\n" + out.str());
     }
   };
-  std::function<bool()> shouldStop = []() { return false; };
+  std::function<bool()> shouldStop = []() noexcept { return false; };
   const int maxTries = 5;
   retryLoop("Initial connection", maxTries, shouldStop, f);
 }
@@ -521,6 +522,20 @@ static string parseString(const json& response, const char* field, size_t maxLen
   throw StringError("BUG, should not reach here");
 }
 
+static string parseStringElt(const json& responseElt, const char* field, size_t maxLen) {
+  try {
+    string x = responseElt.get<string>();
+    if(x.size() > maxLen)
+      throw StringError(string("Field ") + " had Invalid response, length too long: " + Global::uint64ToString(x.size()));
+    return x;
+  }
+  catch(nlohmann::detail::exception& e) {
+    (void)e;
+    throwInvalidValue(responseElt,field);
+  }
+  throw StringError("BUG, should not reach here");
+}
+
 static string parseStringOrNull(const json& response, const char* field, size_t maxLen) {
   if(response.find(field) == response.end())
     throwFieldNotFound(response,field);
@@ -600,7 +615,7 @@ RunParameters Connection::getRunParameters() {
       throw StringError(string("Error when requesting initial run parameters from server: ") + e.what());
     }
   };
-  std::function<bool()> shouldStop = []() { return false; };
+  std::function<bool()> shouldStop = []() noexcept { return false; };
   const int maxTries = 5;
   retryLoop("Getting run parameters", maxTries, shouldStop, f);
   if(!gotRunParams)
@@ -686,6 +701,98 @@ static Client::ModelInfo parseModelInfo(const json& networkProperties) {
   return model;
 }
 
+void Connection::parseTask(
+  Task& task,
+  const json& response
+) {
+  std::vector<Sgf::PositionSample> startPosesList;
+  if(response.find("start_poses") != response.end()) {
+    json startPoses = parse<json>(response,"start_poses");
+    if(!startPoses.is_array())
+      throw StringError("start_poses was not array in response: " + response.dump());
+    for(auto& elt : startPoses) {
+      startPosesList.push_back(Sgf::PositionSample::ofJsonLine(elt.dump()));
+    }
+  }
+
+  std::vector<std::string> overridesList;
+  if(response.find("overrides") != response.end()) {
+    json overrides = parse<json>(response,"overrides");
+    if(!overrides.is_array())
+      throw StringError("overrides was not array in response: " + response.dump());
+    for(auto& elt : overrides) {
+      overridesList.push_back(parseStringElt(elt,"overrides",MAX_OVERRIDES_LEN));
+    }
+  }
+
+  string kind = parseString(response,"kind",32);
+  if(kind == "selfplay") {
+    json networkProperties = parse<json>(response,"network");
+    json runProperties = parse<json>(response,"run");
+
+    task.taskId = ""; //Not currently used by server
+    task.taskGroup = parseString(networkProperties,"name",MAX_NETWORK_NAME_LEN);
+    task.runName = parseString(runProperties,"name",MAX_RUN_NAME_LEN);
+    task.runInfoUrl = parseString(runProperties,"url",MAX_URL_LEN);
+    task.config = parseString(response,"config",MAX_CONFIG_NAME_LEN);
+    task.modelBlack = parseModelInfo(networkProperties);
+    task.modelWhite = task.modelBlack;
+    task.startPoses = startPosesList;
+    task.overrides = overridesList;
+    task.doWriteTrainingData = true;
+    task.isRatingGame = false;
+  }
+  else if(kind == "rating") {
+    json blackNetworkProperties = parse<json>(response,"black_network");
+    json whiteNetworkProperties = parse<json>(response,"white_network");
+    json runProperties = parse<json>(response,"run");
+
+    string blackCreatedAt = parseString(blackNetworkProperties,"created_at",MAX_TIME_LEN);
+    string whiteCreatedAt = parseString(whiteNetworkProperties,"created_at",MAX_TIME_LEN);
+    //A bit hacky - we rely on the fact that the server reports these in ISO 8601 and therefore
+    //lexicographic compare is correct to determine recency
+    string mostRecentName;
+    if(std::lexicographical_compare(blackCreatedAt.begin(),blackCreatedAt.end(),whiteCreatedAt.begin(),whiteCreatedAt.end()))
+      mostRecentName = parseString(whiteNetworkProperties,"name",MAX_NETWORK_NAME_LEN);
+    else
+      mostRecentName = parseString(blackNetworkProperties,"name",MAX_NETWORK_NAME_LEN);
+
+    task.taskId = ""; //Not currently used by server
+
+    task.taskGroup = "rating_" + mostRecentName;
+    task.runName = parseString(runProperties,"name",MAX_RUN_NAME_LEN);
+    task.runInfoUrl = parseString(runProperties,"url",MAX_URL_LEN);
+    task.config = parseString(response,"config",MAX_CONFIG_NAME_LEN);
+    task.modelBlack = parseModelInfo(blackNetworkProperties);
+    task.modelWhite = parseModelInfo(whiteNetworkProperties);
+    task.startPoses = startPosesList;
+    task.overrides = overridesList;
+    task.doWriteTrainingData = false;
+    task.isRatingGame = true;
+  }
+  else {
+    throw StringError("kind was neither 'selfplay' or 'rating' in json response: " + response.dump());
+  }
+
+  //Go ahead and try to parse most of the normal fields out of the task config, so as to catch errors early
+  try {
+    istringstream taskCfgIn(task.config);
+    ConfigParser taskCfg(taskCfgIn);
+    SearchParams baseParams = Setup::loadSingleParams(taskCfg,Setup::SETUP_FOR_DISTRIBUTED);
+    PlaySettings playSettings;
+    const bool isDistributed = true;
+    if(task.isRatingGame)
+      playSettings = PlaySettings::loadForGatekeeper(taskCfg);
+    else
+      playSettings = PlaySettings::loadForSelfplay(taskCfg, isDistributed);
+    (void)baseParams;
+    (void)playSettings;
+  }
+  catch(StringError& e) {
+    throw StringError(string("Error parsing task config from server: ") + e.what() + "\nConfig was:\n" + task.config);
+  }
+}
+
 bool Connection::getNextTask(
   Task& task,
   const string& baseDir,
@@ -724,81 +831,7 @@ bool Connection::getNextTask(
       }
       break;
     }
-
-    std::vector<Sgf::PositionSample> startPosesList;
-    if(response.find("start_poses") != response.end()) {
-      json startPoses = parse<json>(response,"start_poses");
-      if(!startPoses.is_array())
-        throw StringError("start_poses was not array in response: " + response.dump());
-      for(auto& elt : startPoses) {
-        startPosesList.push_back(Sgf::PositionSample::ofJsonLine(elt.dump()));
-      }
-    }
-
-    string kind = parseString(response,"kind",32);
-    if(kind == "selfplay") {
-      json networkProperties = parse<json>(response,"network");
-      json runProperties = parse<json>(response,"run");
-
-      task.taskId = ""; //Not currently used by server
-      task.taskGroup = parseString(networkProperties,"name",MAX_NETWORK_NAME_LEN);
-      task.runName = parseString(runProperties,"name",MAX_RUN_NAME_LEN);
-      task.runInfoUrl = parseString(runProperties,"url",MAX_URL_LEN);
-      task.config = parseString(response,"config",MAX_CONFIG_NAME_LEN);
-      task.modelBlack = parseModelInfo(networkProperties);
-      task.modelWhite = task.modelBlack;
-      task.startPoses = startPosesList;
-      task.doWriteTrainingData = true;
-      task.isRatingGame = false;
-    }
-    else if(kind == "rating") {
-      json blackNetworkProperties = parse<json>(response,"black_network");
-      json whiteNetworkProperties = parse<json>(response,"white_network");
-      json runProperties = parse<json>(response,"run");
-
-      string blackCreatedAt = parseString(blackNetworkProperties,"created_at",MAX_TIME_LEN);
-      string whiteCreatedAt = parseString(whiteNetworkProperties,"created_at",MAX_TIME_LEN);
-      //A bit hacky - we rely on the fact that the server reports these in ISO 8601 and therefore
-      //lexicographic compare is correct to determine recency
-      string mostRecentName;
-      if(std::lexicographical_compare(blackCreatedAt.begin(),blackCreatedAt.end(),whiteCreatedAt.begin(),whiteCreatedAt.end()))
-        mostRecentName = parseString(whiteNetworkProperties,"name",MAX_NETWORK_NAME_LEN);
-      else
-        mostRecentName = parseString(blackNetworkProperties,"name",MAX_NETWORK_NAME_LEN);
-
-      task.taskId = ""; //Not currently used by server
-
-      task.taskGroup = "rating_" + mostRecentName;
-      task.runName = parseString(runProperties,"name",MAX_RUN_NAME_LEN);
-      task.runInfoUrl = parseString(runProperties,"url",MAX_URL_LEN);
-      task.config = parseString(response,"config",MAX_CONFIG_NAME_LEN);
-      task.modelBlack = parseModelInfo(blackNetworkProperties);
-      task.modelWhite = parseModelInfo(whiteNetworkProperties);
-      task.startPoses = startPosesList;
-      task.doWriteTrainingData = false;
-      task.isRatingGame = true;
-    }
-    else {
-      throw StringError("kind was neither 'selfplay' or 'rating' in json response: " + response.dump());
-    }
-
-    //Go ahead and try to parse most of the normal fields out of the task config, so as to catch errors early
-    try {
-      istringstream taskCfgIn(task.config);
-      ConfigParser taskCfg(taskCfgIn);
-      SearchParams baseParams = Setup::loadSingleParams(taskCfg,Setup::SETUP_FOR_DISTRIBUTED);
-      PlaySettings playSettings;
-      const bool isDistributed = true;
-      if(task.isRatingGame)
-        playSettings = PlaySettings::loadForGatekeeper(taskCfg);
-      else
-        playSettings = PlaySettings::loadForSelfplay(taskCfg, isDistributed);
-      (void)baseParams;
-      (void)playSettings;
-    }
-    catch(StringError& e) {
-      throw StringError(string("Error parsing task config from server: ") + e.what() + "\nConfig was:\n" + task.config);
-    }
+    parseTask(task,response);
   };
   return retryLoop("getNextTask",(retryOnFailure ? DEFAULT_MAX_TRIES : 1),shouldStop,f);
 }

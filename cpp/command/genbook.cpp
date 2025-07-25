@@ -14,6 +14,7 @@
 #include "../program/playutils.h"
 #include "../program/play.h"
 #include "../command/commandline.h"
+#include "../core/test.h"
 #include "../main.h"
 
 #include <chrono>
@@ -247,6 +248,7 @@ int MainCmds::genbook(const vector<string>& args) {
 
   ConfigParser cfg;
   string modelFile;
+  string humanModelFile;
   string htmlDir;
   string bookFile;
   string traceBookFile;
@@ -263,6 +265,7 @@ int MainCmds::genbook(const vector<string>& args) {
     KataGoCommandLine cmd("Generate opening book");
     cmd.addConfigFileArg("","",true);
     cmd.addModelFileArg();
+    cmd.addHumanModelFileArg();
     cmd.addOverrideConfigArg();
 
     TCLAP::ValueArg<string> htmlDirArg("","html-dir","HTML directory to export to, at the end of -num-iters",false,string(),"DIR");
@@ -294,6 +297,7 @@ int MainCmds::genbook(const vector<string>& args) {
 
     cmd.getConfig(cfg);
     modelFile = cmd.getModelFile();
+    humanModelFile = cmd.getHumanModelFile();
     htmlDir = htmlDirArg.getValue();
     bookFile = bookFileArg.getValue();
     traceBookFile = traceBookFileArg.getValue();
@@ -320,7 +324,8 @@ int MainCmds::genbook(const vector<string>& args) {
   const bool loadKomiFromCfg = true;
   Rules rules = Setup::loadSingleRules(cfg,loadKomiFromCfg);
 
-  const SearchParams params = Setup::loadSingleParams(cfg,Setup::SETUP_FOR_GTP);
+  const bool hasHumanModel = humanModelFile != "";
+  const SearchParams params = Setup::loadSingleParams(cfg,Setup::SETUP_FOR_GTP,hasHumanModel);
 
   const int boardSizeX = cfg.getInt("boardSizeX",2,Board::MAX_LEN);
   const int boardSizeY = cfg.getInt("boardSizeY",2,Board::MAX_LEN);
@@ -372,6 +377,7 @@ int MainCmds::genbook(const vector<string>& args) {
   const double wideRootNoiseBookExplore = cfg.contains("wideRootNoiseBookExplore") ? cfg.getDouble("wideRootNoiseBookExplore",0.0,5.0) : params.wideRootNoise;
   const double cpuctExplorationLogBookExplore = cfg.contains("cpuctExplorationLogBookExplore") ? cfg.getDouble("cpuctExplorationLogBookExplore",0.0,10.0) : params.cpuctExplorationLog;
   NNEvaluator* nnEval;
+  NNEvaluator* humanEval = NULL;
   {
     Setup::initializeSession(cfg);
     const int expectedConcurrentEvals = numGameThreads * params.numThreads;
@@ -384,8 +390,19 @@ int MainCmds::genbook(const vector<string>& args) {
       boardSizeX,boardSizeY,defaultMaxBatchSize,defaultRequireExactNNLen,disableFP16,
       Setup::SETUP_FOR_ANALYSIS
     );
+    logger.write("Loaded neural net");
+    if(humanModelFile != "") {
+      humanEval = Setup::initializeNNEvaluator(
+        humanModelFile,humanModelFile,expectedSha256,cfg,logger,rand,expectedConcurrentEvals,
+        boardSizeX,boardSizeY,defaultMaxBatchSize,defaultRequireExactNNLen,disableFP16,
+        Setup::SETUP_FOR_ANALYSIS
+      );
+      logger.write("Loaded human SL net with nnXLen " + Global::intToString(humanEval->getNNXLen()) + " nnYLen " + Global::intToString(humanEval->getNNYLen()));
+    }
   }
-  logger.write("Loaded neural net");
+  NNEvaluator* policyEvaluator = nnEval;
+  if(humanEval != NULL)
+    policyEvaluator = humanEval;
 
   vector<Search*> searches;
   for(int i = 0; i<numGameThreads; i++) {
@@ -396,6 +413,7 @@ int MainCmds::genbook(const vector<string>& args) {
   // Check for unused config keys
   cfg.warnUnusedKeys(cerr,&logger);
   Setup::maybeWarnHumanSLParams(params,nnEval,NULL,cerr,&logger);
+  Setup::maybeWarnHumanSLParams(params,humanEval,NULL,cerr,&logger);
 
   if(htmlDir != "")
     MakeDir::make(htmlDir);
@@ -654,7 +672,7 @@ int MainCmds::genbook(const vector<string>& args) {
     // Use full symmetry for the policy for nodes we record for the book
     bool includeOwnerMap = false;
     // cout << "Calling full nn " << timer.getSeconds() << endl;
-    std::shared_ptr<NNOutput> fullSymNNOutput = PlayUtils::getFullSymmetryNNOutput(board, hist, node.pla(), includeOwnerMap, search->nnEvaluator);
+    std::shared_ptr<NNOutput> fullSymNNOutput = PlayUtils::getFullSymmetryNNOutput(board, hist, node.pla(), includeOwnerMap, &params.humanSLProfile, policyEvaluator);
     float policyProbs[NNPos::MAX_NN_POLICY_SIZE];
     std::copy(fullSymNNOutput->policyProbs, fullSymNNOutput->policyProbs+NNPos::MAX_NN_POLICY_SIZE, policyProbs);
     // cout << "Done full nn " << timer.getSeconds() << endl;
@@ -814,7 +832,7 @@ int MainCmds::genbook(const vector<string>& args) {
         // To avoid oddities in positions where the rules mismatch, expand every move with a noticeably higher raw policy
         // Average all 8 symmetries
         const bool includeOwnerMap = false;
-        std::shared_ptr<NNOutput> result = PlayUtils::getFullSymmetryNNOutput(board, hist, pla, includeOwnerMap, nnEval);
+        std::shared_ptr<NNOutput> result = PlayUtils::getFullSymmetryNNOutput(board, hist, pla, includeOwnerMap, &params.humanSLProfile, policyEvaluator);
         const float* policyProbs = result->policyProbs;
         float moveLocPolicy = policyProbs[search->getPos(moveLoc)];
         assert(moveLocPolicy >= 0);
@@ -925,7 +943,7 @@ int MainCmds::genbook(const vector<string>& args) {
 
     // Use full symmetry for the policy for nodes we record for the book
     bool includeOwnerMap = false;
-    std::shared_ptr<NNOutput> fullSymNNOutput = PlayUtils::getFullSymmetryNNOutput(board, hist, node.pla(), includeOwnerMap, search->nnEvaluator);
+    std::shared_ptr<NNOutput> fullSymNNOutput = PlayUtils::getFullSymmetryNNOutput(board, hist, node.pla(), includeOwnerMap, &params.humanSLProfile, policyEvaluator);
     const float* policyProbs = fullSymNNOutput->policyProbs;
 
     bool anyRecursion = false;
@@ -1434,6 +1452,8 @@ int MainCmds::genbook(const vector<string>& args) {
   for(int i = 0; i<numGameThreads; i++)
     delete searches[i];
   delete nnEval;
+  if(humanEval != NULL)
+    delete humanEval;
   delete book;
   delete traceBook;
   ScoreValue::freeTables();
@@ -1850,7 +1870,8 @@ int MainCmds::booktoposes(const vector<string>& args) {
       for(int i = std::max(0,(int)hist.moveHistory.size()-5); i<hist.moveHistory.size(); i++)
         sample.moves.push_back(hist.moveHistory[i]);
       sample.nextPla = sample.moves.size() > 0 ? sample.moves[0].pla : pla;
-      sample.initialTurnNumber = depth;
+      sample.initialTurnNumber = depth - (int)sample.moves.size();
+      testAssert(sample.initialTurnNumber >= 0);
       sample.hintLoc = Board::NULL_LOC;
 
       std::vector<double> sortingValue;

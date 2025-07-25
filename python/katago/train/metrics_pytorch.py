@@ -1,7 +1,7 @@
 from typing import Any, Dict, List
 import math
 
-from model_pytorch import EXTRA_SCORE_DISTR_RADIUS, Model, compute_gain, ExtraOutputs, MetadataEncoder
+from ..train.model_pytorch import EXTRA_SCORE_DISTR_RADIUS, Model, compute_gain, ExtraOutputs, MetadataEncoder
 
 import torch
 import torch.nn

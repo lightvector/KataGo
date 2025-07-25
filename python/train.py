@@ -32,13 +32,13 @@ from torch.nn.parallel import DistributedDataParallel
 from torch.optim.swa_utils import AveragedModel
 from torch.cuda.amp import GradScaler, autocast
 
-import modelconfigs
-from model_pytorch import Model, ExtraOutputs, MetadataEncoder
-from metrics_pytorch import Metrics
-from push_back_generator import PushBackGenerator
-import load_model
-import data_processing_pytorch
-from metrics_logging import accumulate_metrics, log_metrics, clear_metric_nonfinite
+from katago.train import modelconfigs
+from katago.train.model_pytorch import Model, ExtraOutputs, MetadataEncoder
+from katago.train.metrics_pytorch import Metrics
+from katago.utils.push_back_generator import PushBackGenerator
+from katago.train import load_model
+from katago.train import data_processing_pytorch
+from katago.train.metrics_logging import accumulate_metrics, log_metrics, clear_metric_nonfinite
 
 # HANDLE COMMAND AND ARGS -------------------------------------------------------------------
 
@@ -60,7 +60,8 @@ if __name__ == "__main__":
     )
 
     required_args.add_argument('-traindir', help='Dir to write to for recording training results', required=True)
-    required_args.add_argument('-datadir', help='Directory with a train and val subdir of npz data, output by shuffle.py', required=True)
+    required_args.add_argument('-datadir', help='Directory with a train and val subdir of npz data, output by shuffle.py', required=False)
+    required_args.add_argument('-latestdatadir', help='Use the latest subdirectory within this dir as the datadir, periodically checking for most recent', required=False)
     optional_args.add_argument('-exportdir', help='Directory to export models periodically', required=False)
     optional_args.add_argument('-exportprefix', help='Prefix to append to names of models', required=False)
     optional_args.add_argument('-initial-checkpoint', help='If no training checkpoint exists, initialize from this checkpoint', required=False)
@@ -168,6 +169,7 @@ def safe_exit(barrier, exit_code):
 def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writepipes, barrier):
     traindir = args["traindir"]
     datadir = args["datadir"]
+    latestdatadir = args["latestdatadir"]
     exportdir = args["exportdir"]
     exportprefix = args["exportprefix"]
     initial_checkpoint = args["initial_checkpoint"]
@@ -229,6 +231,9 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
     if lr_scale_auto:
         assert lr_scale == 1.0, "Cannot specify both lr_scale and lr_scale_auto"
 
+    assert not (not datadir and not latestdatadir), "Must specify one of -datadir and -latestdatadir"
+    assert not (datadir and latestdatadir), "Must specify only one of -datadir and -latestdatadir"
+
     if samples_per_epoch is None:
         samples_per_epoch = 1000000
     if max_train_bucket_size is None:
@@ -280,11 +285,15 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
         atexit.register(multiprocessing_cleanup)
         assert torch.cuda.is_available()
 
-    if True or torch.cuda.is_available():
+    if torch.cuda.is_available():
         my_gpu_id = multi_gpu_device_ids[rank]
         torch.cuda.set_device(my_gpu_id)
         logging.info("Using GPU device: " + torch.cuda.get_device_name())
         device = torch.device("cuda", my_gpu_id)
+    elif torch.backends.mps.is_available(): # Check for Apple Metal Performance Shaders
+        my_gpu_id = multi_gpu_device_ids[rank]
+        logging.info("Using MPS device")
+        device = torch.device("mps", my_gpu_id)
     else:
         logging.warning("WARNING: No GPU, using CPU")
         device = torch.device("cpu")
@@ -778,7 +787,18 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
         assert rank == 0, "Helper ddp training processes should not call maybe_reload_training_data"
 
         while True:
-            curdatadir = os.path.realpath(datadir)
+            if datadir:
+                curdatadir = os.path.realpath(datadir)
+            elif latestdatadir:
+                curdatadir = max(
+                    (
+                        os.path.realpath(os.path.join(latestdatadir,item)) for item in os.listdir(latestdatadir)
+                        if os.path.isdir(os.path.join(latestdatadir,item)) and not item.endswith('.tmp')
+                    ),
+                    key=os.path.getmtime,
+                    default=os.path.join(os.path.realpath(latestdatadir),"*")
+                )
+
 
             # Different directory - new shuffle
             if curdatadir != last_curdatadir:

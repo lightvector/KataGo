@@ -555,7 +555,7 @@ void GameInitializer::createGameSharedUnsynchronized(
       bool isLegal = hist.isLegal(board,startPos.moves[i].loc,startPos.moves[i].pla);
       //Makes a best effort to still use the position, stopping if we hit an illegal move. It's possible
       //we hit this because of rules differences making a superko move or self-capture illegal, for example.
-      if(!isLegal) {
+      if(!isLegal || hist.isGameFinished) {
         //If we stop due to illegality, it doesn't make sense to still use the hintLoc
         hintLoc = Board::NULL_LOC;
         break;
@@ -1329,7 +1329,7 @@ FinishedGameData* Play::runGame(
     extraBlackAndKomi.komiMean = h.rules.komi;
     PlayUtils::setKomiWithNoise(extraBlackAndKomi,hist,gameRand);
   }
-  if(extraBlackAndKomi.extraBlack > 0) {
+  if(extraBlackAndKomi.extraBlack > 0 && !hist.isGameFinished) {
     double extraBlackTemperature = playSettings.handicapTemperature;
     assert(extraBlackTemperature > 0.0 && extraBlackTemperature < 10.0);
     PlayUtils::playExtraBlack(botB,extraBlackAndKomi.extraBlack,board,hist,extraBlackTemperature,gameRand);
@@ -1424,16 +1424,17 @@ FinishedGameData* Play::runGame(
     }
   };
 
-  if(playSettings.initGamesWithPolicy && otherGameProps.allowPolicyInit) {
+  if(playSettings.initGamesWithPolicy && otherGameProps.allowPolicyInit && !hist.isGameFinished) {
     double proportionOfBoardArea = otherGameProps.isSgfPos ? playSettings.startPosesPolicyInitAreaProp : playSettings.policyInitAreaProp;
     if(proportionOfBoardArea > 0) {
       //Perform the initialization using a different noised komi, to get a bit of opening policy mixing across komi
       {
         float oldKomi = hist.rules.komi;
         PlayUtils::setKomiWithNoise(extraBlackAndKomi,hist,gameRand);
+        double policyInitGammaShape = playSettings.policyInitGammaShape;
         double temperature = playSettings.policyInitAreaTemperature;
         assert(temperature > 0.0 && temperature < 10.0);
-        PlayUtils::initializeGameUsingPolicy(botB, botW, board, hist, pla, gameRand, doEndGameIfAllPassAlive, proportionOfBoardArea, temperature);
+        PlayUtils::initializeGameUsingPolicy(botB, botW, board, hist, pla, gameRand, doEndGameIfAllPassAlive, proportionOfBoardArea, policyInitGammaShape, temperature);
         hist.setKomi(oldKomi);
       }
       bool shouldCompensate =
@@ -1449,11 +1450,19 @@ FinishedGameData* Play::runGame(
   }
 
   //Make sure there's some minimum tiny amount of data about how the encore phases work
-  if(playSettings.forSelfPlay && !otherGameProps.isHintPos && hist.rules.scoringRule == Rules::SCORING_TERRITORY && hist.encorePhase == 0 && gameRand.nextBool(0.04)) {
+  if(
+    playSettings.forSelfPlay &&
+    !otherGameProps.isHintPos &&
+    hist.rules.scoringRule == Rules::SCORING_TERRITORY &&
+    hist.encorePhase == 0 &&
+    gameRand.nextBool(0.04) &&
+    !hist.isGameFinished
+  ) {
     //Play out to go a quite a bit later in the game.
     double proportionOfBoardArea = 0.25;
+    double policyInitGammaShape = 1.0 * 0.8 + playSettings.policyInitGammaShape * 0.2;
     double temperature = 2.0/3.0;
-    PlayUtils::initializeGameUsingPolicy(botB, botW, board, hist, pla, gameRand, doEndGameIfAllPassAlive, proportionOfBoardArea, temperature);
+    PlayUtils::initializeGameUsingPolicy(botB, botW, board, hist, pla, gameRand, doEndGameIfAllPassAlive, proportionOfBoardArea, policyInitGammaShape, temperature);
 
     if(!hist.isGameFinished) {
       //Even out the game
@@ -1686,6 +1695,19 @@ FinishedGameData* Play::runGame(
     gameData->hitTurnLimit = false;
   else
     gameData->hitTurnLimit = true;
+
+  // In self-play or match play, it should ALWAYS be the case that the entire game history is legal.
+  if(hist.numConsecValidTurnsThisGame != hist.moveHistory.size()) {
+    ostringstream sout;
+    sout << "Selfplay got history with not entire game legal!?!" << "\n";
+    sout << "hist.numConsecValidTurnsThisGame " << hist.numConsecValidTurnsThisGame << "\n";
+    sout << "hist.moveHistory.size() " << hist.moveHistory.size() << "\n";
+    hist.printBasicInfo(sout,board);
+    hist.printDebugInfo(sout,board);
+    logger.write(sout.str());
+    cerr << sout.str() << endl;
+    testAssert(false);
+  }
 
   {
     BoardHistory histCopy(hist);

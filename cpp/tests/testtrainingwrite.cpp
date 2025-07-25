@@ -108,7 +108,7 @@ void Tests::runTrainingWriteTests() {
     bool doEndGameIfAllPassAlive = cheapLongSgf ? false : true;
     bool clearBotAfterSearch = true;
     int maxMovesPerGame = cheapLongSgf ? 200 : 40;
-    auto shouldStop = []() { return false; };
+    auto shouldStop = []() noexcept { return false; };
     WaitableFlag* shouldPause = nullptr;
     PlaySettings playSettings;
     playSettings.initGamesWithPolicy = true;
@@ -240,7 +240,7 @@ void Tests::runSelfplayInitTestsWithNN(const string& modelFile) {
     bool doEndGameIfAllPassAlive = true;
     bool clearBotAfterSearch = true;
     int maxMovesPerGame = 1;
-    auto shouldStop = []() { return false; };
+    auto shouldStop = []() noexcept { return false; };
     WaitableFlag* shouldPause = nullptr;
     PlaySettings playSettings;
     playSettings.initGamesWithPolicy = true;
@@ -440,7 +440,7 @@ void Tests::runMoreSelfplayTestsWithNN(const string& modelFile) {
     bool doEndGameIfAllPassAlive = true;
     bool clearBotAfterSearch = true;
     int maxMovesPerGame = testResign ? 10000 : (testLead || testPolicySurpriseWeight || testValueSurpriseWeight) ? 30 : 15;
-    auto shouldStop = []() { return false; };
+    auto shouldStop = []() noexcept { return false; };
     WaitableFlag* shouldPause = nullptr;
     PlaySettings playSettings;
     playSettings.initGamesWithPolicy = true;
@@ -601,7 +601,7 @@ void Tests::runMoreSelfplayTestsWithNN(const string& modelFile) {
     bool doEndGameIfAllPassAlive = true;
     bool clearBotAfterSearch = true;
     int maxMovesPerGame = 20;
-    auto shouldStop = []() { return false; };
+    auto shouldStop = []() noexcept { return false; };
     WaitableFlag* shouldPause = nullptr;
     PlaySettings playSettings;
     playSettings.initGamesWithPolicy = true;
@@ -925,7 +925,7 @@ xxxxxxxx.
     ForkData* forkData = new ForkData();
 
     GameRunner* gameRunner = new GameRunner(cfg, "game init test game seed", playSettings, logger);
-    auto shouldStop = []() { return false; };
+    auto shouldStop = []() noexcept { return false; };
     WaitableFlag* shouldPause = nullptr;
     for(int i = 0; i<100; i++) {
       string seed = "game init test search seed:" + Global::int64ToString(i);
@@ -1017,7 +1017,7 @@ xxxxxxxx.
         bool doEndGameIfAllPassAlive = true;
         bool clearBotAfterSearch = true;
         int maxMovesPerGame = 5;
-        auto shouldStop = []() { return false; };
+        auto shouldStop = []() noexcept { return false; };
         WaitableFlag* shouldPause = nullptr;
 
         string searchRandSeed = "target testing" + Global::intToString((int)i);
@@ -1142,7 +1142,7 @@ xxxxxxxx.
       ConfigParser cfg(cfgParams);
       ForkData* forkData = new ForkData();
       GameRunner* gameRunner = new GameRunner(cfg, seed, playSettings, logger);
-      auto shouldStop = []() { return false; };
+      auto shouldStop = []() noexcept { return false; };
       WaitableFlag* shouldPause = nullptr;
       TrainingDataWriter dataWriter(&cout,inputsVersion, maxRows, firstFileMinRandProp, 9, 9, debugOnlyWriteEvery, seed);
 
@@ -1173,7 +1173,7 @@ xxxxxxxx.
       ConfigParser cfg(cfgParams);
       ForkData* forkData = new ForkData();
       GameRunner* gameRunner = new GameRunner(cfg, seed, playSettings, logger);
-      auto shouldStop = []() { return false; };
+      auto shouldStop = []() noexcept { return false; };
       WaitableFlag* shouldPause = nullptr;
       TrainingDataWriter dataWriter(&cout,inputsVersion, maxRows, firstFileMinRandProp, 9, 9, debugOnlyWriteEvery, seed);
 
@@ -1284,7 +1284,7 @@ xxxxxxxx.
       ConfigParser cfg(cfgParams);
       ForkData* forkData = new ForkData();
       GameRunner* gameRunner = new GameRunner(cfg, seed, playSettings, logger);
-      auto shouldStop = []() { return false; };
+      auto shouldStop = []() noexcept { return false; };
       WaitableFlag* shouldPause = nullptr;
       TrainingDataWriter dataWriter(&cout,inputsVersion, maxRows, firstFileMinRandProp, 9, 9, debugOnlyWriteEvery, seed);
 
@@ -1355,7 +1355,7 @@ void Tests::runSelfplayStatTestsWithNN(const string& modelFile) {
     ConfigParser cfg(cfgParams);
     ForkData* forkData = new ForkData();
     GameRunner* gameRunner = new GameRunner(cfg, "game init stattest1", playSettings, logger);
-    auto shouldStop = []() { return false; };
+    auto shouldStop = []() noexcept { return false; };
     WaitableFlag* shouldPause = nullptr;
 
     std::map<float,int> komiDistribution;
@@ -1437,7 +1437,7 @@ void Tests::runSelfplayStatTestsWithNN(const string& modelFile) {
         std::make_pair("hasButtons","false,false,true"),
         std::make_pair("allowRectangleProb","0.0"),
     });
-    runStatTest(cfgParams,playSettings,NULL,name,200);
+    runStatTest(cfgParams,playSettings,NULL,name,100);
   }
 
   {
@@ -1480,7 +1480,7 @@ void Tests::runSelfplayStatTestsWithNN(const string& modelFile) {
         std::make_pair("hasButtons","false,false,true"),
         std::make_pair("allowRectangleProb","0.0"),
     });
-    runStatTest(cfgParams,playSettings,NULL,name,200);
+    runStatTest(cfgParams,playSettings,NULL,name,100);
   }
 
   {
@@ -1523,7 +1523,7 @@ void Tests::runSelfplayStatTestsWithNN(const string& modelFile) {
         std::make_pair("hasButtons","false,false,true"),
         std::make_pair("allowRectangleProb","0.0"),
     });
-    runStatTest(cfgParams,playSettings,NULL,name,200);
+    runStatTest(cfgParams,playSettings,NULL,name,100);
   }
 
   {
@@ -1566,7 +1566,7 @@ void Tests::runSelfplayStatTestsWithNN(const string& modelFile) {
         std::make_pair("hasButtons","false,false,true"),
         std::make_pair("allowRectangleProb","0.0"),
     });
-    runStatTest(cfgParams,playSettings,NULL,name,200);
+    runStatTest(cfgParams,playSettings,NULL,name,100);
   }
 
   {
@@ -1610,7 +1610,95 @@ void Tests::runSelfplayStatTestsWithNN(const string& modelFile) {
         std::make_pair("hasButtons","false,false,true"),
         std::make_pair("allowRectangleProb","0.0"),
     });
-    runStatTest(cfgParams,playSettings,NULL,name,200);
+    runStatTest(cfgParams,playSettings,NULL,name,100);
+  }
+  {
+    string name = "Game init test 19x19 policy init and make fair low temp gamma shape 2";
+    //Statistical test of game initialization
+    PlaySettings playSettings;
+    playSettings.initGamesWithPolicy = true;
+    playSettings.policyInitAreaProp = 0.05;
+    playSettings.policyInitAreaTemperature = 0.3;
+    playSettings.policyInitGammaShape = 2.0;
+    playSettings.compensateAfterPolicyInitProb = 1.0;
+    playSettings.sidePositionProb = 0;
+    playSettings.compensateKomiVisits = 4;
+    playSettings.estimateLeadProb = 0.0;
+    playSettings.fancyKomiVarying = true;
+    playSettings.sekiForkHackProb = 0.0;
+    playSettings.earlyForkGameProb = 0.0;
+    playSettings.forkGameMinChoices = 2;
+    playSettings.earlyForkGameMaxChoices = 3;
+    playSettings.forSelfPlay = true;
+
+    std::map<string,string> cfgParams({
+        std::make_pair("maxMovesPerGame","0"),
+        std::make_pair("logSearchInfo","false"),
+        std::make_pair("logMoves","false"),
+        std::make_pair("komiAuto","true"),
+        std::make_pair("komiStdev","2.0"),
+        std::make_pair("handicapProb","0.0"),
+        std::make_pair("handicapCompensateKomiProb","1.0"),
+        std::make_pair("forkCompensateKomiProb","1.0"),
+        std::make_pair("komiBigStdevProb","0.0"),
+        std::make_pair("komiBigStdev","20.0"),
+        std::make_pair("drawRandRadius","0.5"),
+        std::make_pair("noResultStdev","0.16"),
+
+        std::make_pair("bSizes","19"),
+        std::make_pair("bSizeRelProbs","1"),
+        std::make_pair("koRules","SIMPLE,POSITIONAL,SITUATIONAL"),
+        std::make_pair("scoringRules","AREA"),
+        std::make_pair("taxRules","NONE,NONE,SEKI,SEKI,ALL"),
+        std::make_pair("multiStoneSuicideLegals","false,true"),
+        std::make_pair("hasButtons","false,false,true"),
+        std::make_pair("allowRectangleProb","0.0"),
+    });
+    runStatTest(cfgParams,playSettings,NULL,name,100);
+  }
+  {
+    string name = "Game init test 19x19 policy init and make fair low temp gamma shape 30";
+    //Statistical test of game initialization
+    PlaySettings playSettings;
+    playSettings.initGamesWithPolicy = true;
+    playSettings.policyInitAreaProp = 0.05;
+    playSettings.policyInitGammaShape = 30.0;
+    playSettings.policyInitAreaTemperature = 0.3;
+    playSettings.compensateAfterPolicyInitProb = 1.0;
+    playSettings.sidePositionProb = 0;
+    playSettings.compensateKomiVisits = 4;
+    playSettings.estimateLeadProb = 0.0;
+    playSettings.fancyKomiVarying = true;
+    playSettings.sekiForkHackProb = 0.0;
+    playSettings.earlyForkGameProb = 0.0;
+    playSettings.forkGameMinChoices = 2;
+    playSettings.earlyForkGameMaxChoices = 3;
+    playSettings.forSelfPlay = true;
+
+    std::map<string,string> cfgParams({
+        std::make_pair("maxMovesPerGame","0"),
+        std::make_pair("logSearchInfo","false"),
+        std::make_pair("logMoves","false"),
+        std::make_pair("komiAuto","true"),
+        std::make_pair("komiStdev","2.0"),
+        std::make_pair("handicapProb","0.0"),
+        std::make_pair("handicapCompensateKomiProb","1.0"),
+        std::make_pair("forkCompensateKomiProb","1.0"),
+        std::make_pair("komiBigStdevProb","0.0"),
+        std::make_pair("komiBigStdev","20.0"),
+        std::make_pair("drawRandRadius","0.5"),
+        std::make_pair("noResultStdev","0.16"),
+
+        std::make_pair("bSizes","19"),
+        std::make_pair("bSizeRelProbs","1"),
+        std::make_pair("koRules","SIMPLE,POSITIONAL,SITUATIONAL"),
+        std::make_pair("scoringRules","AREA"),
+        std::make_pair("taxRules","NONE,NONE,SEKI,SEKI,ALL"),
+        std::make_pair("multiStoneSuicideLegals","false,true"),
+        std::make_pair("hasButtons","false,false,true"),
+        std::make_pair("allowRectangleProb","0.0"),
+    });
+    runStatTest(cfgParams,playSettings,NULL,name,100);
   }
 
   {
@@ -1653,7 +1741,7 @@ void Tests::runSelfplayStatTestsWithNN(const string& modelFile) {
         std::make_pair("hasButtons","false,false,true"),
         std::make_pair("allowRectangleProb","0.0"),
     });
-    runStatTest(cfgParams,playSettings,NULL,name,200);
+    runStatTest(cfgParams,playSettings,NULL,name,100);
   }
 
   {
@@ -1696,7 +1784,7 @@ void Tests::runSelfplayStatTestsWithNN(const string& modelFile) {
         std::make_pair("hasButtons","false,false,true"),
         std::make_pair("allowRectangleProb","0.0"),
     });
-    runStatTest(cfgParams,playSettings,NULL,name,200);
+    runStatTest(cfgParams,playSettings,NULL,name,100);
   }
 
   {
@@ -1741,7 +1829,7 @@ void Tests::runSelfplayStatTestsWithNN(const string& modelFile) {
         std::make_pair("hasButtons","false,false,true"),
         std::make_pair("allowRectangleProb","0.0"),
     });
-    runStatTest(cfgParams,playSettings,NULL,name,200);
+    runStatTest(cfgParams,playSettings,NULL,name,100);
   }
 
   {
@@ -1788,7 +1876,7 @@ void Tests::runSelfplayStatTestsWithNN(const string& modelFile) {
         std::make_pair("hasButtons","false,false,true"),
         std::make_pair("allowRectangleProb","0.0"),
     });
-    runStatTest(cfgParams,playSettings,NULL,name,200);
+    runStatTest(cfgParams,playSettings,NULL,name,100);
   }
 
   {
@@ -1835,7 +1923,7 @@ void Tests::runSelfplayStatTestsWithNN(const string& modelFile) {
         std::make_pair("hasButtons","false,false,true"),
         std::make_pair("allowRectangleProb","0.0"),
     });
-    runStatTest(cfgParams,playSettings,NULL,name,200);
+    runStatTest(cfgParams,playSettings,NULL,name,100);
   }
 
   {
@@ -1878,7 +1966,7 @@ void Tests::runSelfplayStatTestsWithNN(const string& modelFile) {
         std::make_pair("hasButtons","false,false,true"),
         std::make_pair("allowRectangleProb","0.0"),
     });
-    runStatTest(cfgParams,playSettings,NULL,name,200);
+    runStatTest(cfgParams,playSettings,NULL,name,100);
   }
 
   {
@@ -1922,7 +2010,7 @@ void Tests::runSelfplayStatTestsWithNN(const string& modelFile) {
         std::make_pair("hasButtons","false,false,true"),
         std::make_pair("allowRectangleProb","0.0"),
     });
-    runStatTest(cfgParams,playSettings,NULL,name,200);
+    runStatTest(cfgParams,playSettings,NULL,name,100);
   }
 
   {
@@ -1966,7 +2054,7 @@ void Tests::runSelfplayStatTestsWithNN(const string& modelFile) {
         std::make_pair("hasButtons","false,false,true"),
         std::make_pair("allowRectangleProb","0.0"),
     });
-    runStatTest(cfgParams,playSettings,NULL,name,200);
+    runStatTest(cfgParams,playSettings,NULL,name,100);
   }
 
   {
@@ -2010,7 +2098,7 @@ void Tests::runSelfplayStatTestsWithNN(const string& modelFile) {
         std::make_pair("hasButtons","false,false,true"),
         std::make_pair("allowRectangleProb","0.0"),
     });
-    runStatTest(cfgParams,playSettings,NULL,name,200);
+    runStatTest(cfgParams,playSettings,NULL,name,100);
   }
 
   {
@@ -2053,7 +2141,7 @@ void Tests::runSelfplayStatTestsWithNN(const string& modelFile) {
         std::make_pair("hasButtons","false,false,true"),
         std::make_pair("allowRectangleProb","0.0"),
     });
-    runStatTest(cfgParams,playSettings,NULL,name,200);
+    runStatTest(cfgParams,playSettings,NULL,name,100);
   }
 
   {
@@ -2097,7 +2185,7 @@ void Tests::runSelfplayStatTestsWithNN(const string& modelFile) {
         std::make_pair("hasButtons","false,false,true"),
         std::make_pair("allowRectangleProb","0.0"),
     });
-    runStatTest(cfgParams,playSettings,NULL,name,200);
+    runStatTest(cfgParams,playSettings,NULL,name,100);
   }
 
   {
@@ -2141,7 +2229,7 @@ void Tests::runSelfplayStatTestsWithNN(const string& modelFile) {
         std::make_pair("hasButtons","false,false,true"),
         std::make_pair("allowRectangleProb","0.0"),
     });
-    runStatTest(cfgParams,playSettings,NULL,name,200);
+    runStatTest(cfgParams,playSettings,NULL,name,100);
   }
 
   {
@@ -2192,7 +2280,7 @@ void Tests::runSelfplayStatTestsWithNN(const string& modelFile) {
         std::make_pair("hasButtons","false,false,true"),
         std::make_pair("allowRectangleProb","0.0"),
     });
-    runStatTest(cfgParams,playSettings,&startPosSample,name,200);
+    runStatTest(cfgParams,playSettings,&startPosSample,name,100);
   }
 
   {
@@ -2244,7 +2332,7 @@ void Tests::runSelfplayStatTestsWithNN(const string& modelFile) {
         std::make_pair("hasButtons","false,false,true"),
         std::make_pair("allowRectangleProb","0.0"),
     });
-    runStatTest(cfgParams,playSettings,&startPosSample,name,200);
+    runStatTest(cfgParams,playSettings,&startPosSample,name,100);
   }
 
   {
@@ -2308,7 +2396,7 @@ oox.x....
         std::make_pair("hasButtons","false,false,true"),
         std::make_pair("allowRectangleProb","0.0"),
     });
-    runStatTest(cfgParams,playSettings,&startPosSample,name,200);
+    runStatTest(cfgParams,playSettings,&startPosSample,name,100);
   }
 
   {
@@ -2351,7 +2439,7 @@ oox.x....
         std::make_pair("hasButtons","false,false,true"),
         std::make_pair("allowRectangleProb","0.1"),
     });
-    runStatTest(cfgParams,playSettings,NULL,name,200);
+    runStatTest(cfgParams,playSettings,NULL,name,100);
   }
   {
     string name = "Game init test sgfpos black first with big black handicap, flipKomiProbWhenNoCompensate 0";
@@ -2691,7 +2779,7 @@ void Tests::runSekiTrainWriteTests(const string& modelFile) {
     bool doEndGameIfAllPassAlive = true;
     bool clearBotAfterSearch = true;
     int maxMovesPerGame = 1;
-    auto shouldStop = []() { return false; };
+    auto shouldStop = []() noexcept { return false; };
     WaitableFlag* shouldPause = nullptr;
     PlaySettings playSettings;
     playSettings.initGamesWithPolicy = false;

@@ -92,7 +92,7 @@ int MainCmds::selfplay(const vector<string>& args) {
   const string gameSeedBase = Global::uint64ToHexString(seedRand.nextUInt64());
 
   //Width and height of the board to use when writing data, typically 19
-  const int dataBoardLen = cfg.getInt("dataBoardLen",3,37);
+  const int dataBoardLen = cfg.getInt("dataBoardLen",3,Board::MAX_LEN);
   const int inputsVersion =
     cfg.contains("inputsVersion") ?
     cfg.getInt("inputsVersion",0,10000) :
@@ -249,7 +249,7 @@ int MainCmds::selfplay(const vector<string>& args) {
     &baseParams,
     &gameSeedBase
   ](int threadIdx) {
-    auto shouldStopFunc = []() {
+    auto shouldStopFunc = []() noexcept {
       return shouldStop.load();
     };
     WaitableFlag* shouldPause = nullptr;

@@ -83,6 +83,7 @@ struct LoadedModel {
 
   LoadedModel(const string& fileName, const string& expectedSha256) {
     ModelDesc::loadFromFileMaybeGZipped(fileName, modelDesc, expectedSha256);
+    modelDesc.applyScale8ToReduceActivations();
   }
 
   LoadedModel() = delete;
@@ -145,7 +146,7 @@ struct ModelParser {
   ModelParser& operator=(const ModelParser&) = delete;
 
   // Bump this when between katago versions we want to forcibly drop old timing caches and plan caches.
-  static constexpr int tuneSalt = 5;
+  static constexpr int tuneSalt = 7;
 
   unique_ptr<TRTModel> build(
     unique_ptr<INetworkDefinition> net,
@@ -439,9 +440,10 @@ struct ModelParser {
       buildActivationLayer(trunkTipBatchNormLayer->getOutput(0), &desc->trunkTipActivation);
     auto trunkTipMaskLayer = applyMaskLayer(trunkTipActivationLayer);
 
-    markDebugOutput(trunkTipMaskLayer->getOutput(0), "Trunk tip");
+    auto trunkTipCastLayer = applyCastLayer(trunkTipMaskLayer, DataType::kFLOAT);
+    markDebugOutput(trunkTipCastLayer->getOutput(0), "Trunk tip");
 
-    return trunkTipMaskLayer;
+    return trunkTipCastLayer;
   }
 
   ILayer* buildResidualBlockStack(
@@ -475,11 +477,11 @@ struct ModelParser {
     auto& network = model->network;
     string name = desc->name;
 
-    auto p1ConvLayer = buildConvLayer(input, &desc->p1Conv);
-    auto g1ConvLayer = buildConvLayer(input, &desc->g1Conv);
-    auto g1BatchNormLayer = buildBatchNormLayer(g1ConvLayer->getOutput(0), &desc->g1BN);
-    auto g1ActivationLayer = buildActivationLayer(g1BatchNormLayer->getOutput(0), &desc->g1Activation);
-    auto g1MaskLayer = applyMaskLayer(g1ActivationLayer);
+    auto p1ConvLayer = buildConvLayer(input, &desc->p1Conv, true);
+    auto g1ConvLayer = buildConvLayer(input, &desc->g1Conv, true);
+    auto g1BatchNormLayer = buildBatchNormLayer(g1ConvLayer->getOutput(0), &desc->g1BN, true);
+    auto g1ActivationLayer = buildActivationLayer(g1BatchNormLayer->getOutput(0), &desc->g1Activation, true);
+    auto g1MaskLayer = applyMaskLayer(g1ActivationLayer, true);
     auto g1CastLayer = applyCastLayer(g1MaskLayer, DataType::kFLOAT);
     auto gpoolLayer = applyGPoolLayer(g1CastLayer, true);
     auto gpoolToBiasMulLayer = buildMatMulLayer(gpoolLayer->getOutput(0), &desc->gpoolToBiasMul, true);
@@ -539,10 +541,10 @@ struct ModelParser {
   void buildValueHead(ITensor* input, const ValueHeadDesc* desc) {
     auto& network = model->network;
 
-    auto v1ConvLayer = buildConvLayer(input, &desc->v1Conv);
-    auto v1BatchNormLayer = buildBatchNormLayer(v1ConvLayer->getOutput(0), &desc->v1BN);
-    auto v1ActivationLayer = buildActivationLayer(v1BatchNormLayer->getOutput(0), &desc->v1Activation);
-    auto v1MaskLayer = applyMaskLayer(v1ActivationLayer);
+    auto v1ConvLayer = buildConvLayer(input, &desc->v1Conv, true);
+    auto v1BatchNormLayer = buildBatchNormLayer(v1ConvLayer->getOutput(0), &desc->v1BN, true);
+    auto v1ActivationLayer = buildActivationLayer(v1BatchNormLayer->getOutput(0), &desc->v1Activation, true);
+    auto v1MaskLayer = applyMaskLayer(v1ActivationLayer, true);
     auto v1CastLayer = applyCastLayer(v1MaskLayer, DataType::kFLOAT);
 
     markDebugOutput(v1ConvLayer->getOutput(0), "v1");
@@ -565,7 +567,7 @@ struct ModelParser {
     assert(desc->vOwnershipConv.convXSize == 1);
     assert(desc->vOwnershipConv.convYSize == 1);
 
-    auto vOwnershipConvLayer = buildConvLayer(v1MaskLayer->getOutput(0), &desc->vOwnershipConv);
+    auto vOwnershipConvLayer = buildConvLayer(v1MaskLayer->getOutput(0), &desc->vOwnershipConv, true);
     auto vOwnershipCastLayer = applyCastLayer(vOwnershipConvLayer, DataType::kFLOAT);
 
     auto outputValue = v3BiasLayer->getOutput(0);
@@ -772,7 +774,6 @@ struct ModelParser {
 
   ILayer* buildBatchNormLayer(ITensor* input, const BatchNormLayerDesc* desc, bool forceFP32 = false) {
     int numChannels = desc->numChannels;
-    float epsilon = desc->epsilon;
 
     tuneDesc += Global::strprintf(R"|("%s"(%d))|", desc->name.c_str(), desc->numChannels);
 
@@ -780,29 +781,21 @@ struct ModelParser {
     assert(desc->variance.size() == numChannels);
     assert(desc->scale.size() == numChannels);
     assert(desc->bias.size() == numChannels);
+    assert(desc->mergedScale.size() == numChannels);
+    assert(desc->mergedBias.size() == numChannels);
     assert(input->getDimensions().d[1] == numChannels);
-
-    auto mergedScale = make_unique<float[]>(numChannels);
-    auto mergedBias = make_unique<float[]>(numChannels);
-    for(int i = 0; i < numChannels; i++) {
-      mergedScale[i] = desc->scale[i] / sqrtf(desc->variance[i] + epsilon);
-      mergedBias[i] = desc->bias[i] - mergedScale[i] * desc->mean[i];
-    }
 
     auto bnLayer = model->network->addScale(
       *input,
       ScaleMode::kCHANNEL,
-      {DataType::kFLOAT, mergedBias.get(), static_cast<int64_t>(numChannels)},
-      {DataType::kFLOAT, mergedScale.get(), static_cast<int64_t>(numChannels)},
+      {DataType::kFLOAT, desc->mergedBias.data(), static_cast<int64_t>(numChannels)},
+      {DataType::kFLOAT, desc->mergedScale.data(), static_cast<int64_t>(numChannels)},
       {DataType::kFLOAT, nullptr, 0});
     bnLayer->setName(desc->name.c_str());
 
     if(forceFP32) {
       bnLayer->setPrecision(DataType::kFLOAT);
     }
-
-    model->extraWeights.push_back(move(mergedScale));
-    model->extraWeights.push_back(move(mergedBias));
 
     return bnLayer;
   }
@@ -816,14 +809,16 @@ struct ModelParser {
         activationLayer->setPrecision(DataType::kFLOAT);
       }
       return activationLayer;
-    } else if(desc->activation == ACTIVATION_RELU) {
+    }
+    else if(desc->activation == ACTIVATION_RELU) {
       auto activationLayer = model->network->addActivation(*input, ActivationType::kRELU);
       activationLayer->setName(desc->name.c_str());
       if(forceFP32) {
         activationLayer->setPrecision(DataType::kFLOAT);
       }
       return activationLayer;
-    } else if(desc->activation == ACTIVATION_MISH) {
+    }
+    else if(desc->activation == ACTIVATION_MISH) {
       auto softplusLayer = model->network->addActivation(*input, ActivationType::kSOFTPLUS);
       auto softplusLayerName = desc->name + "/softplus";
       softplusLayer->setName(softplusLayerName.c_str());
@@ -838,7 +833,26 @@ struct ModelParser {
         mergeLayer->setPrecision(DataType::kFLOAT);
       }
       return mergeLayer;
-    } else {
+    }
+    else if(desc->activation == ACTIVATION_MISH_SCALE8) {
+      auto softplusLayer = model->network->addActivation(*input, ActivationType::kSOFTPLUS);
+      softplusLayer->setAlpha(1.0f);
+      softplusLayer->setBeta(8.0f);
+      auto softplusLayerName = desc->name + "/softplus";
+      softplusLayer->setName(softplusLayerName.c_str());
+      auto tanhLayer = model->network->addActivation(*softplusLayer->getOutput(0), ActivationType::kTANH);
+      auto tanhLayerName = desc->name + "/tanh";
+      tanhLayer->setName(tanhLayerName.c_str());
+      auto mergeLayer = model->network->addElementWise(*input, *tanhLayer->getOutput(0), ElementWiseOperation::kPROD);
+      mergeLayer->setName(desc->name.c_str());
+      if(forceFP32) {
+        softplusLayer->setPrecision(DataType::kFLOAT);
+        tanhLayer->setPrecision(DataType::kFLOAT);
+        mergeLayer->setPrecision(DataType::kFLOAT);
+      }
+      return mergeLayer;
+    }
+    else {
       ASSERT_UNREACHABLE;
     }
   }
@@ -1278,7 +1292,7 @@ struct ComputeHandle {
       if(timingCacheBlob.size() > 0)
         logger->write("Using existing timing cache at " + timingCacheFile);
       else
-        logger->write("Creating new timing cache");
+        logger->write("Creating new timing cache (usingFP16=" + Global::boolToString(usingFP16) + " " + Global::intToString(ctx->nnXLen) + "x" + Global::intToString(ctx->nnYLen) + " maxBatchSizeLimit=" + Global::intToString(maxBatchSize) + ")");
 
       auto timingCache =
         unique_ptr<ITimingCache>(config->createTimingCache(timingCacheBlob.data(), timingCacheBlob.size()));

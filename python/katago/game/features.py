@@ -2,8 +2,8 @@ import math
 import numpy as np
 from typing import Callable, List
 
-from board import Board, Loc, Pos, Player
-import modelconfigs
+from ..game.board import Board, Loc, Pos, Player
+from ..train import modelconfigs
 
 class Features:
     def __init__(self, config: modelconfigs.ModelConfig, pos_len: int):

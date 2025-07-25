@@ -4,12 +4,12 @@ import math
 
 import numpy as np
 
-from board import Board
-from features import Features
-from sgfmetadata import SGFMetadata
+from ..game.board import Board
+from ..game.features import Features
+from ..game.sgfmetadata import SGFMetadata
 
 if TYPE_CHECKING:
-    from model_pytorch import Model
+    from ..train.model_pytorch import Model
 
 class GameState:
     RULES_TT = {
@@ -103,7 +103,7 @@ class GameState:
 
     def get_model_outputs(self, model: "Model", sgfmeta: Optional[SGFMetadata] = None, extra_output_names: List[str] = []):
         import torch
-        from model_pytorch import Model, ExtraOutputs
+        from ..train.model_pytorch import Model, ExtraOutputs
         with torch.no_grad():
             model.eval()
             features = Features(model.config, model.pos_len)
@@ -169,6 +169,8 @@ class GameState:
             seki = seki_probs[1] - seki_probs[2]
             seki2 = torch.sigmoid(seki_logits[3,:,:]).cpu().numpy()
             scorebelief = torch.nn.functional.softmax(scorebelief_logits,dim=0).cpu().numpy()
+            qwinloss = torch.tanh(policy_logits[6,:]).cpu().numpy()
+            qscore = (policy_logits[7,:] * model.scoremean_multiplier).cpu().numpy()
 
         board = self.board
 
@@ -307,6 +309,8 @@ class GameState:
             "seki2": seki2,
             "seki_by_loc2": seki_by_loc2,
             "scorebelief": scorebelief,
+            "qwinloss": qwinloss,
+            "qscore": qscore,
             "genmove_result": genmove_result,
             **{ name:activation[0].numpy() for name, activation in extra_outputs.returned.items() },
             "available_extra_outputs": available_extra_outputs,

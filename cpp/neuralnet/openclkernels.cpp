@@ -10,6 +10,7 @@ string OpenCLKernels::fp16ComputeDefine = " -DPRECISION=16";
 string OpenCLKernels::actIdenDefine = " -DACTIVATION=0";
 string OpenCLKernels::actReluDefine = " -DACTIVATION=1";
 string OpenCLKernels::actMishDefine = " -DACTIVATION=2";
+string OpenCLKernels::actMishScale8Define = " -DACTIVATION=12";
 
 string OpenCLKernels::common = R"%%(
 #ifndef PRECISION
@@ -459,6 +460,9 @@ __kernel void bnActTransform(
 #elif ACTIVATION == 2
         float a = INPUT(nic,xy) * LOAD(scale,ic) + LOAD(bias,ic);
         value = floatToReal(a * tanh(a < LOG1PEXPTHRESHOLD ? log1p(exp(a)) : a)) * LOAD(mask, n * xySize + xy);
+#elif ACTIVATION == 12
+        float a = INPUT(nic,xy) * LOAD(scale,ic) + LOAD(bias,ic);
+        value = floatToReal(a < (LOG1PEXPTHRESHOLD*0.125f) ? a * tanh(log1p(exp(a*8.0f))) : a) * LOAD(mask, n * xySize + xy);
 #endif
       }
       WTILE(subY,subX) = value;
@@ -762,6 +766,9 @@ __kernel void scaleBiasMaskActNCHW(
 #elif ACTIVATION == 2
       float a = LOAD(input,idx) * LOAD(scale,c) + LOAD(bias,c);
       real result = floatToReal(a * tanh(a < LOG1PEXPTHRESHOLD ? log1p(exp(a)) : a)) * LOAD(mask,n * xySize + xy);
+#elif ACTIVATION == 12
+      float a = LOAD(input,idx) * LOAD(scale,c) + LOAD(bias,c);
+      real result = floatToReal(a < (LOG1PEXPTHRESHOLD*0.125f) ? a * tanh(log1p(exp(a*8.0f))) : a) * LOAD(mask,n * xySize + xy);
 #endif
       STORE(output,idx,result);
     }
@@ -1015,6 +1022,9 @@ __kernel void addCBiasesNCAct(
 #elif ACTIVATION == 2
     float a = accum[n * cSize + c] + biases[c];
     accum[n * cSize + c] = floatToReal(a * tanh(a < LOG1PEXPTHRESHOLD ? log1p(exp(a)) : a));
+#elif ACTIVATION == 12
+    float a = accum[n * cSize + c] + biases[c];
+    accum[n * cSize + c] = floatToReal(a < (LOG1PEXPTHRESHOLD*0.125f) ? a * tanh(log1p(exp(a*8.0f))) : a);
 #endif
   }
 }

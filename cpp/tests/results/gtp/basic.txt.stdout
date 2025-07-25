@@ -10,15 +10,15 @@
 
 = 
 
-= E6
+= E5
 
-= MoveNum: 1 HASH: F6947E54F53D680912E6585605F8EFAC
+= MoveNum: 1 HASH: 38E71B648B5DE3A43B414F57C285AD76
    A B C D E F G H J
  9 . . . . . . . . .
  8 . . . . . . . . .
  7 . . . . . . . . .
- 6 . . . . X1. . . .
- 5 . . . . . . . . .
+ 6 . . . . . . . . .
+ 5 . . . . X1. . . .
  4 . . . . . . . . .
  3 . . . . . . . . .
  2 . . . . . . . . .
@@ -28,11 +28,11 @@ Rules: {"friendlyPassOk":false,"hasButton":false,"ko":"POSITIONAL","komi":7.5,"s
 B stones captured: 0
 W stones captured: 0
 
-= E4
+= G5
 
-= E4
+= C4
 
-= E4
+= G5
 
-= D4
+= C5
 

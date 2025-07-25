@@ -206,7 +206,14 @@ int MainCmds::benchmark(const vector<string>& args) {
   auto reallocateNNEvalWithEnoughBatchSize = [&](int maxNumThreads) {
     if(nnEval != NULL)
       delete nnEval;
-    nnEval = createNNEval(std::max(maxNumThreads,fixedBatchSize), sgf, modelFile, logger, cfg, params);
+    int batchSizeLimit;
+    if(fixedBatchSize != -1)
+      batchSizeLimit = fixedBatchSize;
+    else if (useHalfBatchSize)
+      batchSizeLimit = (maxNumThreads+1)/2;
+    else
+      batchSizeLimit = maxNumThreads;
+    nnEval = createNNEval(batchSizeLimit, sgf, modelFile, logger, cfg, params);
   };
   auto getDesiredBatchSize = [&](int currentNumThreads) {
     assert(nnEval != NULL);
@@ -249,6 +256,9 @@ int MainCmds::benchmark(const vector<string>& args) {
   cout << "Your GTP config is currently set to trtUseFP16 = " << nnEval->getUsingFP16Mode().toString() << endl;
   if(nnEval->getUsingFP16Mode() == enabled_t::False)
     cout << "If you have a strong GPU capable of FP16 tensor cores (e.g. RTX2080) setting this to true may give a large performance boost." << endl;
+#endif
+#ifdef USE_METAL_BACKEND
+  cout << "You are currently using the Metal version of KataGo." << endl;
 #endif
 #ifdef USE_OPENCL_BACKEND
   cout << "You are currently using the OpenCL version of KataGo." << endl;
@@ -659,7 +669,7 @@ int MainCmds::genconfig(const vector<string>& args, const string& firstCommand) 
     string prompt =
       "NOTE: No limits configured for KataGo. KataGo will obey time controls provided by the GUI or server or match script\n"
       "but if they don't specify any, when playing games KataGo may think forever without moving. (press enter to continue)\n";
-    promptAndParseInput(prompt, [&](const string& line) {
+    promptAndParseInput(prompt, [&](const string& line) noexcept {
         (void)line;
       });
   }

@@ -64,6 +64,8 @@ struct BoardHistory {
   //but does not check self-capture rules or ko/superko violations
   //that were tolerated in a game record.
   int numApproxValidTurnsThisPhase;
+  //Similar to numApproxValidTurnsThisPhase but resets to 0 upon a rules violation rather than game phase change.
+  int numConsecValidTurnsThisGame;
 
   //Ko-recapture-block locations for territory scoring in encore
   bool koRecapBlocked[Board::MAX_ARR_SIZE];

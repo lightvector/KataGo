@@ -11,6 +11,8 @@
 #include "../dataio/sgf.h"
 #include "../dataio/trainingwrite.h"
 
+#include "../external/nlohmann_json/json.hpp"
+
 struct Url {
   std::string originalString;
   bool isSSL = true;
@@ -64,6 +66,7 @@ namespace Client {
 
     std::string config;
     std::vector<Sgf::PositionSample> startPoses;
+    std::vector<std::string> overrides;
     bool doWriteTrainingData;
     bool isRatingGame;
   };
@@ -89,7 +92,7 @@ namespace Client {
 
     void testConnection();
     RunParameters getRunParameters();
-    
+
     //Returns true if a task was obtained. Returns false if no task was obtained, but not due to an error (e.g. shouldStop).
     //Raises an exception upon a repeated error that persists long enough.
     bool getNextTask(
@@ -100,6 +103,11 @@ namespace Client {
       bool allowRatingTask,
       int taskRepFactor,
       std::function<bool()> shouldStop
+    );
+
+    static void parseTask(
+      Task& task,
+      const nlohmann::json& response
     );
 
     static std::string getModelPath(const Client::ModelInfo& modelInfo, const std::string& modelDir);

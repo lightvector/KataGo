@@ -6,8 +6,12 @@
 #include "../core/test.h"
 #include "../command/commandline.h"
 
+#include "../distributed/client.h"
+
 using namespace std;
 using namespace TestCommon;
+
+using json = nlohmann::json;
 
 void Tests::runInlineConfigTests() {
   {
@@ -375,4 +379,122 @@ void Tests::runParseAllConfigsTest() {
       cout << cfg.getAllKeyVals() << endl;
     }
   }
+}
+
+void Tests::runTaskParsingTests() {
+#ifdef BUILD_DISTRIBUTED
+  {
+    std::string jsonResponse = R"({
+        "kind": "selfplay",
+        "network": {
+            "name": "test_network",
+            "url": "https://example.com/network/info",
+            "model_file": "https://example.com/network/download",
+            "model_file_bytes": 1024000,
+            "model_file_sha256": "abcdefg",
+            "is_random": false
+        },
+        "run": {
+            "name": "katatest",
+            "url": "https://example.com/run/info"
+        },
+        "config": "maxVisits = 800\nstartPosesPolicyInitAreaProp=0.0\nkoRules = SIMPLE,POSITIONAL,SITUATIONAL\nscoringRules = AREA,TERRITORY\nnumSearchThreads=1\nearlyForkGameProb = 0.04\nearlyForkGameExpectedMoveProp = 0.025\nforkGameProb = 0.01\nforkGameMinChoices = 3\nearlyForkGameMaxChoices = 12\nforkGameMaxChoices = 36\nsekiForkHackProb = 0.02\n\ninitGamesWithPolicy = true\npolicyInitAreaProp = 0.04\ncompensateAfterPolicyInitProb = 0.2\nsidePositionProb = 0.020\n\ncheapSearchProb = 0.75\ncheapSearchVisits = 100\ncheapSearchTargetWeight = 0.0\n\nreduceVisits = true\nreduceVisitsThreshold = 0.9\nreduceVisitsThresholdLookback = 3\nreducedVisitsMin = 100\nreducedVisitsWeight = 0.1\n\nhandicapAsymmetricPlayoutProb = 0.5\nnormalAsymmetricPlayoutProb = 0.01\nmaxAsymmetricRatio = 8.0\nminAsymmetricCompensateKomiProb = 0.4\n\npolicySurpriseDataWeight = 0.5\nvalueSurpriseDataWeight = 0.1\n\nestimateLeadProb = 0.05\nswitchNetsMidGame = true\nfancyKomiVarying = true\n\n",
+        "start_poses": [
+            {
+                "board": "........./.XX....../..OO.X.O./.O...XX../X.XXXOXX./.XXOOOOO./.OOXXO.../...O...../........./",
+                "hintLoc": "null",
+                "initialTurnNumber": 29,
+                "moveLocs": ["B7", "E7", "D8", "E9", "E6"],
+                "movePlas": ["W", "B", "W", "B", "W"],
+                "nextPla": "W",
+                "weight": 4.5,
+                "xSize": 9,
+                "ySize": 9
+            }
+        ],
+        "overrides": [
+            "startPosesPolicyInitAreaProp=0.25,rules=Japanese",
+            ""
+        ]
+    })";
+
+    json response = json::parse(jsonResponse);
+
+    Client::Task task;
+    Client::Connection::parseTask(task, response);
+
+    testAssert(task.taskId == "");
+    testAssert(task.taskGroup == "test_network");
+    testAssert(task.runName == "katatest");
+    testAssert(task.runInfoUrl == "https://example.com/run/info");
+    testAssert(task.config == "maxVisits = 800\nstartPosesPolicyInitAreaProp=0.0\nkoRules = SIMPLE,POSITIONAL,SITUATIONAL\nscoringRules = AREA,TERRITORY\nnumSearchThreads=1\nearlyForkGameProb = 0.04\nearlyForkGameExpectedMoveProp = 0.025\nforkGameProb = 0.01\nforkGameMinChoices = 3\nearlyForkGameMaxChoices = 12\nforkGameMaxChoices = 36\nsekiForkHackProb = 0.02\n\ninitGamesWithPolicy = true\npolicyInitAreaProp = 0.04\ncompensateAfterPolicyInitProb = 0.2\nsidePositionProb = 0.020\n\ncheapSearchProb = 0.75\ncheapSearchVisits = 100\ncheapSearchTargetWeight = 0.0\n\nreduceVisits = true\nreduceVisitsThreshold = 0.9\nreduceVisitsThresholdLookback = 3\nreducedVisitsMin = 100\nreducedVisitsWeight = 0.1\n\nhandicapAsymmetricPlayoutProb = 0.5\nnormalAsymmetricPlayoutProb = 0.01\nmaxAsymmetricRatio = 8.0\nminAsymmetricCompensateKomiProb = 0.4\n\npolicySurpriseDataWeight = 0.5\nvalueSurpriseDataWeight = 0.1\n\nestimateLeadProb = 0.05\nswitchNetsMidGame = true\nfancyKomiVarying = true\n\n");
+
+    testAssert(task.modelBlack.name == "test_network");
+    testAssert(task.modelBlack.infoUrl == "https://example.com/network/info");
+    testAssert(task.modelBlack.downloadUrl == "https://example.com/network/download");
+    testAssert(task.modelBlack.bytes == 1024000);
+    testAssert(task.modelBlack.sha256 == "abcdefg");
+    testAssert(task.modelBlack.isRandom == false);
+
+    testAssert(task.modelWhite.name == task.modelBlack.name);
+    testAssert(task.modelWhite.infoUrl == task.modelBlack.infoUrl);
+    testAssert(task.modelWhite.downloadUrl == task.modelBlack.downloadUrl);
+    testAssert(task.modelWhite.bytes == task.modelBlack.bytes);
+    testAssert(task.modelWhite.sha256 == task.modelBlack.sha256);
+    testAssert(task.modelWhite.isRandom == task.modelBlack.isRandom);
+
+    testAssert(task.startPoses.size() == 1);
+
+    testAssert(task.overrides.size() == 2);
+    testAssert(task.overrides[0] == "startPosesPolicyInitAreaProp=0.25,rules=Japanese");
+    testAssert(task.overrides[1] == "");
+
+    testAssert(task.doWriteTrainingData == true);
+    testAssert(task.isRatingGame == false);
+
+    {
+      istringstream taskCfgIn(task.config);
+      ConfigParser taskCfg(taskCfgIn);
+      const std::string overrides = task.overrides[0];
+      try {
+        if(overrides.size() > 0) {
+          map<string,string> newkvs = ConfigParser::parseCommaSeparated(overrides);
+          taskCfg.overrideKeys(newkvs);
+        }
+      }
+      catch(StringError& e) {
+        cerr << "Error applying overrides " << overrides << endl;
+        cerr << e.what() << endl;
+        throw;
+      }
+      testAssert(taskCfg.getString("scoringRules") == "AREA,TERRITORY");
+      testAssert(taskCfg.getDouble("startPosesPolicyInitAreaProp") == 0.25);
+      testAssert(taskCfg.getString("rules") == "Japanese");
+      testAssert(taskCfg.getInt("maxVisits") == 800);
+    }
+
+
+    {
+      istringstream taskCfgIn(task.config);
+      ConfigParser taskCfg(taskCfgIn);
+      const std::string overrides = task.overrides[1];
+      try {
+        if(overrides.size() > 0) {
+          map<string,string> newkvs = ConfigParser::parseCommaSeparated(overrides);
+          taskCfg.overrideKeys(newkvs);
+        }
+      }
+      catch(StringError& e) {
+        cerr << "Error applying overrides " << overrides << endl;
+        cerr << e.what() << endl;
+        throw;
+      }
+      testAssert(taskCfg.getString("scoringRules") == "AREA,TERRITORY");
+      testAssert(taskCfg.getDouble("startPosesPolicyInitAreaProp") == 0.0);
+      testAssert(taskCfg.getInt("maxVisits") == 800);
+    }
+
+    std::cout << "All task parsing tests passed!" << std::endl;
+  }
+#endif // BUILD_DISTRIBUTED
 }

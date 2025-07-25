@@ -1,7 +1,11 @@
 cmake_minimum_required(VERSION 3.18.2)
-project(katago)
+if(USE_BACKEND STREQUAL "METAL")
+  project(katago LANGUAGES CXX Swift)
+else()
+  project(katago)
+endif()
 
-set(CMAKE_CXX_STANDARD 14)
+set(CMAKE_CXX_STANDARD 17)
 
 include_directories(external)
 include_directories(external/tclap-1.2.2/include)
@@ -33,7 +37,7 @@ set_property(CACHE USE_BACKEND PROPERTY STRINGS "" CUDA TENSORRT OPENCL EIGEN)
 set(USE_TCMALLOC 0 CACHE BOOL "Use TCMalloc")
 set(NO_GIT_REVISION 0 CACHE BOOL "Disable embedding the git revision into the compiled exe")
 set(USE_AVX2 0 CACHE BOOL "Compile with AVX2")
-set(USE_BIGGER_BOARDS_EXPENSIVE 0 CACHE BOOL "Allow boards up to size 29. Compiling with this will use more memory and slow down KataGo, even when playing on boards of size 19.")
+set(USE_BIGGER_BOARDS_EXPENSIVE 0 CACHE BOOL "Allow boards up to size 50. Compiling with this will use more memory and slow down KataGo, even when playing on boards of size 19.")
 
 set(USE_CACHE_TENSORRT_PLAN 0 CACHE BOOL "Use TENSORRT plan cache. May use a lot of disk space. Only applies when USE_BACKEND is TENSORRT.")
 mark_as_advanced(USE_CACHE_TENSORRT_PLAN)
@@ -53,7 +57,10 @@ if(USE_BACKEND STREQUAL "CUDA")
     neuralnet/cudahelpers.cu
   )
 # https://en.wikipedia.org/wiki/CUDA#GPUs_supported
-  if(CMAKE_CUDA_COMPILER_VERSION VERSION_GREATER_EQUAL 12.0)
+  if(CMAKE_CUDA_COMPILER_VERSION VERSION_GREATER_EQUAL 12.8)
+    set(CMAKE_CUDA_ARCHITECTURES 50 52 53 60 61 62 70 72 75 80 86 87 90 120)
+    set(CMAKE_CUDA_FLAGS "-Wno-deprecated-gpu-targets")
+  elseif(CMAKE_CUDA_COMPILER_VERSION VERSION_GREATER_EQUAL 12.0)
     set(CMAKE_CUDA_ARCHITECTURES 50 52 53 60 61 62 70 72 75 80 86 87 90)
     set(CMAKE_CUDA_FLAGS "-Wno-deprecated-gpu-targets")
   elseif(CMAKE_CUDA_COMPILER_VERSION VERSION_GREATER_EQUAL 11.8)
@@ -86,6 +93,36 @@ elseif(USE_BACKEND STREQUAL "TENSORRT")
   elseif(USE_CACHE_TENSORRT_PLAN AND BUILD_DISTRIBUTED)
     message(FATAL_ERROR "Combining USE_CACHE_TENSORRT_PLAN with BUILD_DISTRIBUTED is not supported - it would consume excessive disk space and might worsen performance every time models are updated. Use only one at a time in a given build of KataGo.")
   endif()
+elseif(USE_BACKEND STREQUAL "METAL")
+  message(STATUS "-DUSE_BACKEND=METAL, using Metal backend.")
+  if(NOT "${CMAKE_GENERATOR}" STREQUAL "Ninja")
+    message(FATAL_ERROR "Bidirectional C++ Interop requires Ninja generator. Have ${CMAKE_GENERATOR}")
+  endif()
+  if("${CMAKE_Swift_COMPILER_VERSION}" VERSION_LESS 5.9)
+    message(FATAL_ERROR "Bidirectional C++ Interop requires Swift 5.9 or greater. Have ${CMAKE_Swift_COMPILER_VERSION}")
+  endif()
+  if(NOT "${CMAKE_CXX_COMPILER_ID}" STREQUAL "AppleClang")
+    message(FATAL_ERROR "Project requires building with AppleClang. Have ${CMAKE_CXX_COMPILER_ID}")
+  endif()
+  list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/external/macos/cmake/modules")
+  include(InitializeSwift)
+  include(AddSwift)
+  set(CMAKE_OSX_DEPLOYMENT_TARGET 13.0)
+  set(NEURALNET_BACKEND_SOURCES
+    neuralnet/metalbackend.cpp
+    )
+  _swift_generate_cxx_header_target(
+    KataGoSwift_Swift_h
+    KataGoSwift
+    "${CMAKE_CURRENT_BINARY_DIR}/include/KataGoSwift/KataGoSwift-swift.h"
+    SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/neuralnet/metalbackend.swift")
+  add_library(KataGoSwift STATIC
+    neuralnet/metalbackend.swift)
+  add_dependencies(KataGoSwift KataGoSwift_Swift_h)
+  target_include_directories(KataGoSwift PUBLIC "${CMAKE_CURRENT_BINARY_DIR}/include")
+  set_target_properties(KataGoSwift PROPERTIES Swift_MODULE_NAME "KataGoSwift")
+  target_compile_options(KataGoSwift PUBLIC
+    "$<$<COMPILE_LANGUAGE:Swift>:-cxx-interoperability-mode=default>")
 elseif(USE_BACKEND STREQUAL "OPENCL")
   message(STATUS "-DUSE_BACKEND=OPENCL, using OpenCL backend.")
   set(NEURALNET_BACKEND_SOURCES
@@ -301,14 +338,52 @@ elseif(USE_BACKEND STREQUAL "TENSORRT")
     message(FATAL_ERROR "${ColorBoldRed} NvInfer.h was NOT found, specify TENSORRT_INCLUDE_DIR to indicate where it is. ${ColorReset}")
   endif()
   find_library(TENSORRT_LIBRARY nvinfer HINTS ${TENSORRT_ROOT_DIR} PATH_SUFFIXES lib)
+
+  # Hackily extract out the version from the TensorRT header
+  # In each case, try the old format and on failure try the new format.
   file(READ "${TENSORRT_INCLUDE_DIR}/NvInferVersion.h" tensorrt_version_header)
-  string(REGEX MATCH "#define NV_TENSORRT_MAJOR ([0-9]+)" tensorrt_version_macro ${tensorrt_version_header})
-  set(TENSORRT_VERSION_MAJOR ${CMAKE_MATCH_1})
-  string(REGEX MATCH "#define NV_TENSORRT_MINOR ([0-9]+)" tensorrt_version_macro ${tensorrt_version_header})
-  set(TENSORRT_VERSION_MINOR ${CMAKE_MATCH_1})
-  string(REGEX MATCH "#define NV_TENSORRT_PATCH ([0-9]+)" tensorrt_version_macro ${tensorrt_version_header})
-  set(TENSORRT_VERSION_PATCH ${CMAKE_MATCH_1})
+
+  set(TENSORRT_VERSION_MAJOR "")
+  set(TENSORRT_VERSION_MINOR "")
+  set(TENSORRT_VERSION_PATCH "")
+
+  string(REGEX MATCH "#define NV_TENSORRT_MAJOR +([0-9]+)" tensorrt_version_macro ${tensorrt_version_header})
+  if(DEFINED CMAKE_MATCH_1 AND NOT "${CMAKE_MATCH_1}" STREQUAL "")
+    set(TENSORRT_VERSION_MAJOR ${CMAKE_MATCH_1})
+  else()
+    string(REGEX MATCH "#define TRT_MAJOR_ENTERPRISE +([0-9]+)" tensorrt_major_enterprise ${tensorrt_version_header})
+    if(DEFINED CMAKE_MATCH_1 AND NOT "${CMAKE_MATCH_1}" STREQUAL "")
+      set(TENSORRT_VERSION_MAJOR ${CMAKE_MATCH_1})
+    endif()
+  endif()
+
+  string(REGEX MATCH "#define NV_TENSORRT_MINOR +([0-9]+)" tensorrt_version_macro ${tensorrt_version_header})
+  if(DEFINED CMAKE_MATCH_1 AND NOT "${CMAKE_MATCH_1}" STREQUAL "")
+    set(TENSORRT_VERSION_MINOR ${CMAKE_MATCH_1})
+  else()
+    string(REGEX MATCH "#define TRT_MINOR_ENTERPRISE +([0-9]+)" tensorrt_minor_enterprise ${tensorrt_version_header})
+    if(DEFINED CMAKE_MATCH_1 AND NOT "${CMAKE_MATCH_1}" STREQUAL "")
+      set(TENSORRT_VERSION_MINOR ${CMAKE_MATCH_1})
+    endif()
+  endif()
+
+  string(REGEX MATCH "#define NV_TENSORRT_PATCH +([0-9]+)" tensorrt_version_macro ${tensorrt_version_header})
+  if(DEFINED CMAKE_MATCH_1 AND NOT "${CMAKE_MATCH_1}" STREQUAL "")
+    set(TENSORRT_VERSION_PATCH ${CMAKE_MATCH_1})
+  else()
+    string(REGEX MATCH "#define TRT_PATCH_ENTERPRISE +([0-9]+)" tensorrt_patch_enterprise ${tensorrt_version_header})
+    if(DEFINED CMAKE_MATCH_1 AND NOT "${CMAKE_MATCH_1}" STREQUAL "")
+      set(TENSORRT_VERSION_PATCH ${CMAKE_MATCH_1})
+    endif()
+  endif()
+
   set(TENSORRT_VERSION "${TENSORRT_VERSION_MAJOR}.${TENSORRT_VERSION_MINOR}.${TENSORRT_VERSION_PATCH}")
+  message(STATUS "Detected TensorRT version: ${TENSORRT_VERSION}")
+
+  if("${TENSORRT_VERSION_MAJOR}" STREQUAL "" OR "${TENSORRT_VERSION_MINOR}" STREQUAL "" OR "${TENSORRT_VERSION_PATCH}" STREQUAL "")
+    message(FATAL_ERROR "Could not determine TensorRT version from header file")
+  endif()
+
   # Version 8 is required for serializing the builder timing cache.
   # Version 8.2 is required for eliminating the global logger for Builder and Runtime.
   # Version 8.5 is required for eliminating many deprecated APIs and adopting new features.
@@ -318,6 +393,12 @@ elseif(USE_BACKEND STREQUAL "TENSORRT")
   endif()
   include_directories(SYSTEM ${CUDAToolkit_INCLUDE_DIRS} ${TENSORRT_INCLUDE_DIR}) #SYSTEM is for suppressing some compiler warnings in thrust libraries
   target_link_libraries(katago CUDA::cudart_static ${TENSORRT_LIBRARY})
+elseif(USE_BACKEND STREQUAL "METAL")
+  target_compile_definitions(katago PRIVATE USE_METAL_BACKEND)
+  target_link_libraries(katago KataGoSwift)
+  if("${CMAKE_SYSTEM_PROCESSOR}" STREQUAL "x86_64")
+    message(WARNING "You are currently running cmake on an Intel-based processor. It is known that running KataGo in this configuration may encounter performance issues. It is recommended to switch to a cmake version designed for ARM64 architecture for optimal performance.")
+  endif()
 elseif(USE_BACKEND STREQUAL "OPENCL")
   target_compile_definitions(katago PRIVATE USE_OPENCL_BACKEND)
   find_package(OpenCL)
@@ -339,7 +420,7 @@ elseif(USE_BACKEND STREQUAL "OPENCL")
   endif()
 elseif(USE_BACKEND STREQUAL "EIGEN")
   target_compile_definitions(katago PRIVATE USE_EIGEN_BACKEND)
-  if(NOT (MSVC OR MINGW))
+  if(NOT (MSVC))
     find_package(Eigen3 REQUIRED)
     include_directories(SYSTEM ${EIGEN3_INCLUDE_DIRS})
     message(STATUS "Found Eigen3 at ${EIGEN3_INCLUDE_DIRS}")
@@ -361,7 +442,7 @@ elseif(USE_BACKEND STREQUAL "EIGEN")
 endif()
 
 if(USE_BIGGER_BOARDS_EXPENSIVE)
-  target_compile_definitions(katago PRIVATE COMPILE_MAX_BOARD_LEN=29)
+  target_compile_definitions(katago PRIVATE COMPILE_MAX_BOARD_LEN=50)
 endif()
 
 if(NO_GIT_REVISION AND (NOT BUILD_DISTRIBUTED))
@@ -415,17 +496,45 @@ endif()
 
 # add_compile_definitions(NDEBUG)
 
-if(MSVC)
-  message(STATUS "Setting up build for MSVC.")
+if (WIN32) # handles both x86 and x64
+  message(STATUS "Setting up build for Windows.")
   # Suppress min and max macros on windows
-  # Also define a few other things for windows
+  # Also define a few other things
   target_compile_definitions(katago PRIVATE NOMINMAX)
   target_compile_definitions(katago PRIVATE BYTE_ORDER=1234)
   target_compile_definitions(katago PRIVATE LITTLE_ENDIAN=1234)
   target_compile_definitions(katago PRIVATE BIG_ENDIAN=4321)
   # core/rand.cpp uses winsock for a gethostname
   target_link_libraries(katago ws2_32)
+  if (MINGW)
+    message(STATUS "Setting up build for mingw.")
+    if(USE_BACKEND STREQUAL "CUDA" OR USE_BACKEND STREQUAL "TENSORRT")
+      message(SEND_ERROR "CUDA and TENSORRT MinGW backends are not supported by NVIDIA, see https://forums.developer.nvidia.com/t/cuda-with-mingw-how-to-get-cuda-running-under-mingw")
+    endif()
 
+    # Make the build independent of MinGW dynamic libraries
+    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -static")
+
+    if(CMAKE_BUILD_TYPE STREQUAL "Release")
+      # Strip symbols. It significantly reduces binary size (makes it 20x smaller)
+      set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -s")
+    endif()
+
+    # It's needed for linking `PathRemoveFileSpecW` and probably other Windows API functions
+    target_link_libraries(katago shlwapi)
+
+    # For some reason MINGW doesn't define `HAVE_LONG_LONG` directive on his own unlike MSVC
+    # Define it because TCLAP library needs it. Actually it's part of standard and should be supported everywhere
+    include(CheckTypeSize)
+    check_type_size("long long" HAVE_LONG_LONG)
+    if(HAVE_LONG_LONG)
+      target_compile_definitions(katago PRIVATE HAVE_LONG_LONG)
+    endif()
+  endif()
+endif()
+
+if(MSVC)
+  message(STATUS "Setting up build for MSVC.")
   # Go ahead and suppress some MSVC warnings about sprintf and similar
   # things. They might be useful in some cases, but also are noisy.
   target_compile_definitions(katago PRIVATE _CRT_SECURE_NO_WARNINGS)
@@ -436,12 +545,14 @@ if(MSVC)
   endif()
 
   set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /STACK:8388608")
-endif()
-
-if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" OR CMAKE_CXX_COMPILER_ID STREQUAL "Clang" OR CMAKE_CXX_COMPILER_ID STREQUAL "AppleClang")
-  message(STATUS "Setting up build for GNU or Clang.")
+elseif(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" OR CMAKE_CXX_COMPILER_ID STREQUAL "Clang" OR CMAKE_CXX_COMPILER_ID STREQUAL "AppleClang")
+  message(STATUS "Setting up build for GNU, Clang or MinGW.")
   if(NOT (${CMAKE_SYSTEM_PROCESSOR} MATCHES "(arm|aarch32|aarch64)"))
     set(CMAKE_CXX_FLAGS  "${CMAKE_CXX_FLAGS} -mfpmath=sse")
+  else()
+    # For ARM architecture, as a hack, ensure that char is signed
+    message(STATUS "ARM architecture detected: adding -fsigned-char flag")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsigned-char")
   endif()
   if(USE_AVX2)
     set(CMAKE_CXX_FLAGS  "${CMAKE_CXX_FLAGS} -mavx2 -mfma")
@@ -461,7 +572,7 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" OR CMAKE_CXX_COMPILER_ID STREQUAL "Clang
     endif()
   elseif(CMAKE_CXX_COMPILER_ID STREQUAL "AppleClang")
     message(STATUS "Enabling AppleClang-specific build options.")
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wnull-dereference -Wdangling-else")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wnull-dereference -Wdangling-else -Wno-deprecated-declarations -Wno-nullability-extension -Wno-cast-qual -Wno-c11-extensions")
   else()
     message(STATUS "Enabling Clang-specific build options.")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wnull-dereference -Wdangling-else")

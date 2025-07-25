@@ -921,7 +921,7 @@ void Search::deleteAllOldOrAllNewTableNodesAndSubtreeValueBiasMulithreaded(bool 
 void Search::deleteAllTableNodesMulithreaded() {
   int numAdditionalThreads = numAdditionalThreadsToUseForTasks();
   assert(numAdditionalThreads >= 0);
-  std::function<void(int)> g = [&](int threadIdx) {
+  std::function<void(int)> g = [&](int threadIdx) noexcept {
     size_t idx0 = (size_t)((uint64_t)(threadIdx) * nodeTable->entries.size() / (numAdditionalThreads+1));
     size_t idx1 = (size_t)((uint64_t)(threadIdx+1) * nodeTable->entries.size() / (numAdditionalThreads+1));
     for(size_t i = idx0; i<idx1; i++) {
@@ -1197,6 +1197,20 @@ bool Search::playoutDescend(
     //Could also be true if we have an illegal move due to graph search and we had a cycle and superko interaction, or a true collision
     //on an older path that results in bad transposition between positions that don't transpose.
     if(bestChildIdx >= 0 && !thread.history.isLegal(thread.board,bestChildMoveLoc,thread.pla)) {
+      {
+        NNOutput* nnOutput = node.getNNOutput();
+        assert(nnOutput != NULL);
+        Hash128 nnHash = nnOutput->nnHash;
+        //In case of a cycle or bad transposition, this will fire a lot, so limit it to once per thread per search.
+        if(thread.illegalMoveHashes.find(nnHash) == thread.illegalMoveHashes.end()) {
+          logger->write("WARNING: Chosen move not legal so about to regenerate nn output, nnhash=" + nnHash.toString());
+          ostringstream out;
+          nnOutput->debugPrint(out,thread.board);
+          debugPrintChildrenSummary(out,node,nnOutput);
+          logger->write(out.str());
+        }
+      }
+
       bool isReInit = true;
       initNodeNNOutput(thread,node,isRoot,true,isReInit);
 
@@ -1211,7 +1225,10 @@ bool Search::playoutDescend(
           ostringstream out;
           thread.history.printBasicInfo(out,thread.board);
           thread.history.printDebugInfo(out,thread.board);
+          out << bestChildIdx << endl;
           out << Location::toString(bestChildMoveLoc,thread.board) << endl;
+          nnOutput->debugPrint(out,thread.board);
+          debugPrintChildrenSummary(out,node,nnOutput);
           logger->write(out.str());
         }
       }

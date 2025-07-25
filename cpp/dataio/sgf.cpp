@@ -860,7 +860,8 @@ void Sgf::iterAllPositionsHelper(
     nodes[i]->accumMoves(buf,xSize,ySize);
 
     for(size_t j = 0; j<buf.size(); j++) {
-      bool suc = hist.makeBoardMoveTolerant(board,buf[j].loc,buf[j].pla);
+      // For this we disallow simple ko violations because those will lead to weird positional histories
+      bool suc = !board.isKoBanned(buf[j].loc) && hist.makeBoardMoveTolerant(board,buf[j].loc,buf[j].pla);
       if(!suc) {
         ostringstream trace;
         for(size_t s = 0; s < variationTraceNodesBranch.size(); s++) {
@@ -904,6 +905,38 @@ void Sgf::iterAllPositionsHelper(
     assert(variationTraceNodesBranch.size() > 0);
     variationTraceNodesBranch.erase(variationTraceNodesBranch.begin()+(variationTraceNodesBranch.size()-1));
   }
+}
+
+void Sgf::PositionSample::writePosOfHist(PositionSample& sampleBuf, const BoardHistory& hist, Player nextPla) {
+  //Snap the position 5 turns ago so as to include 5 moves of history.
+  assert(BoardHistory::NUM_RECENT_BOARDS > 5);
+  int turnsAgoToSnap = 0;
+  while(turnsAgoToSnap < 5) {
+    if(turnsAgoToSnap >= hist.moveHistory.size())
+      break;
+    //If a player played twice in a row, then instead snap so as not to have a move history
+    //with a double move by the same player.
+    if(turnsAgoToSnap > 0 && hist.moveHistory[hist.moveHistory.size() - turnsAgoToSnap - 1].pla == hist.moveHistory[hist.moveHistory.size() - turnsAgoToSnap].pla)
+      break;
+    if(turnsAgoToSnap == 0 && hist.moveHistory[hist.moveHistory.size() - turnsAgoToSnap - 1].pla == nextPla)
+      break;
+    turnsAgoToSnap++;
+  }
+  if(hist.moveHistory.size() > 0x3FFFFFFF)
+    throw StringError("hist has too many moves");
+  int64_t startTurnIdx = (int64_t)hist.moveHistory.size() - turnsAgoToSnap;
+
+  sampleBuf.board = hist.getRecentBoard(turnsAgoToSnap);
+  if(startTurnIdx < hist.moveHistory.size())
+    sampleBuf.nextPla = hist.moveHistory[startTurnIdx].pla;
+  else
+    sampleBuf.nextPla = nextPla;
+  sampleBuf.moves.clear();
+  for(int64_t i = startTurnIdx; i<(int64_t)hist.moveHistory.size(); i++)
+    sampleBuf.moves.push_back(hist.moveHistory[i]);
+  sampleBuf.initialTurnNumber = hist.initialTurnNumber + startTurnIdx;
+  sampleBuf.hintLoc = Board::NULL_LOC;
+  sampleBuf.weight = 1.0;
 }
 
 void Sgf::samplePositionHelper(
@@ -955,35 +988,7 @@ void Sgf::samplePositionHelper(
     return;
   uniqueHashes.insert(situationHash);
 
-  //Snap the position 5 turns ago so as to include 5 moves of history.
-  assert(BoardHistory::NUM_RECENT_BOARDS > 5);
-  int turnsAgoToSnap = 0;
-  while(turnsAgoToSnap < 5) {
-    if(turnsAgoToSnap >= hist.moveHistory.size())
-      break;
-    //If a player played twice in a row, then instead snap so as not to have a move history
-    //with a double move by the same player.
-    if(turnsAgoToSnap > 0 && hist.moveHistory[hist.moveHistory.size() - turnsAgoToSnap - 1].pla == hist.moveHistory[hist.moveHistory.size() - turnsAgoToSnap].pla)
-      break;
-    if(turnsAgoToSnap == 0 && hist.moveHistory[hist.moveHistory.size() - turnsAgoToSnap - 1].pla == nextPla)
-      break;
-    turnsAgoToSnap++;
-  }
-  if(hist.moveHistory.size() > 0x3FFFFFFF)
-    throw StringError("hist has too many moves");
-  int64_t startTurnIdx = (int64_t)hist.moveHistory.size() - turnsAgoToSnap;
-
-  sampleBuf.board = hist.getRecentBoard(turnsAgoToSnap);
-  if(startTurnIdx < hist.moveHistory.size())
-    sampleBuf.nextPla = hist.moveHistory[startTurnIdx].pla;
-  else
-    sampleBuf.nextPla = nextPla;
-  sampleBuf.moves.clear();
-  for(int64_t i = startTurnIdx; i<(int64_t)hist.moveHistory.size(); i++)
-    sampleBuf.moves.push_back(hist.moveHistory[i]);
-  sampleBuf.initialTurnNumber = hist.initialTurnNumber + startTurnIdx;
-  sampleBuf.hintLoc = Board::NULL_LOC;
-  sampleBuf.weight = 1.0;
+  Sgf::PositionSample::writePosOfHist(sampleBuf, hist, nextPla);
 
   if(flipIfPassOrWFirst) {
     if(hist.hasBlackPassOrWhiteFirst())
