@@ -74,6 +74,7 @@ if __name__ == "__main__":
     optional_args.add_argument('-model-kind', help='String name for what model config to use', required=False)
     optional_args.add_argument('-lr-scale', help='LR multiplier on the hardcoded schedule', type=float, required=False)
     optional_args.add_argument('-lr-scale-auto', help='LR auto scaling', required=False, action='store_true')
+    optional_args.add_argument('-head-lr-factor', help='LR factor for output head weights', type=float, required=False, default=0.5)
     optional_args.add_argument('-gnorm-clip-scale', help='Multiplier on gradient clipping threshold', type=float, required=False)
     optional_args.add_argument('-sub-epochs', help='Reload training data up to this many times per epoch', type=int, default=1, required=False)
     optional_args.add_argument('-swa-period-samples', help='How frequently to average an SWA sample, in samples', type=float, required=False)
@@ -179,6 +180,7 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
     model_kind = args["model_kind"]
     lr_scale = args["lr_scale"]
     lr_scale_auto = args["lr_scale_auto"]
+    head_lr_factor = args["head_lr_factor"]
     gnorm_clip_scale = args["gnorm_clip_scale"]
     sub_epochs = args["sub_epochs"]
     swa_period_samples = args["swa_period_samples"]
@@ -629,6 +631,7 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
     logging.info(f"variance_time_loss_scale {variance_time_loss_scale}")
     logging.info(f"main_loss_scale {main_loss_scale}")
     logging.info(f"intermediate_loss_scale {intermediate_loss_scale}")
+    logging.info(f"head_lr_factor {head_lr_factor}")
 
     # Print all model parameters just to get a summary
     total_num_params = 0
@@ -700,11 +703,11 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
             elif group_name == "normal_gamma":
                 group_scale = 1.0
             elif group_name == "output":
-                group_scale = 0.5
+                group_scale = head_lr_factor
             elif group_name == "noreg":
                 group_scale = 1.0
             elif group_name == "output_noreg":
-                group_scale = 0.5
+                group_scale = head_lr_factor
             else:
                 assert False
 
