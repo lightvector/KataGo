@@ -32,7 +32,6 @@ endif()
 set(BUILD_DISTRIBUTED 0 CACHE BOOL "Build with http support for contributing to distributed training")
 set(USE_BACKEND CACHE STRING "Neural net backend")
 string(TOUPPER "${USE_BACKEND}" USE_BACKEND)
-# set_property(CACHE USE_BACKEND PROPERTY STRINGS "" CUDA TENSORRT OPENCL EIGEN)
 set_property(CACHE USE_BACKEND PROPERTY STRINGS "" CUDA TENSORRT OPENCL EIGEN ROCM)
 
 set(USE_TCMALLOC 0 CACHE BOOL "Use TCMalloc")
@@ -140,40 +139,39 @@ elseif(USE_BACKEND STREQUAL "EIGEN")
   set(NEURALNET_BACKEND_SOURCES
     neuralnet/eigenbackend.cpp
     )
-# --------------------------- ROCM 后端（AMD GPU / HIP  MIOpen） ---------------------------
+# --------------------------- ROCM backend（AMD GPU / HIP  MIOpen） ---------------------------
 elseif(USE_BACKEND STREQUAL "ROCM")
   message(STATUS "-DUSE_BACKEND=ROCM, using AMD ROCm backend.")
 
-  # 1) 启用 HIP 语言（.hip / .cpp 均可）并指定 C++17
   enable_language(HIP)
   set(CMAKE_HIP_STANDARD 17)
 
   if(CMAKE_PREFIX_PATH STREQUAL "" OR NOT DEFINED CMAKE_PREFIX_PATH)
     if(DEFINED ENV{HIP_PATH})
-      # Windows HIP‑SDK 或自定义安装
+      # Windows HIP‑SDK
       list(APPEND CMAKE_PREFIX_PATH $ENV{HIP_PATH})
       message(STATUS "Auto‑detected HIP_PATH=$ENV{HIP_PATH} → CMAKE_PREFIX_PATH")
     elseif(EXISTS "/opt/rocm")
-      # Linux 默认路径
+      # Linux
       list(APPEND CMAKE_PREFIX_PATH "/opt/rocm")
       message(STATUS "CMAKE_PREFIX_PATH not given; defaulting to /opt/rocm")
     endif()
   endif()
 
-  # 可让用户用 -DCMAKE_HIP_ARCHITECTURES=gfx90a;gfx942 手动指定 GFX 架构
+  # Users can -DCMAKE_HIP_ARCHITECTURES=gfx90a;gfx942 manually specify GFX architectures
   if(NOT DEFINED CMAKE_HIP_ARCHITECTURES)
-    # 默认同时编译常见 MI200 / RDNA3 卡，可按需精简
+    # Default compile MI200 / RDNA3 cards, can be simplified as needed
     set(CMAKE_HIP_ARCHITECTURES 90a 942 908 1100 1101 1200 1201 CACHE STRING "AMD GPU targets")
   endif()
 
-  # 2) 指定后端源码。rocmhelpers.hip 里是 GPU‑kernel，别漏了
+  # 2) Specify backend source code. rocmhelpers.hip contains GPU kernels, don't forget it
   set(NEURALNET_BACKEND_SOURCES
     neuralnet/rocmbackend.cpp
     neuralnet/rocmutils.cpp
     neuralnet/rocmhelpers.hip
   )
 
-  # 可选：启用 model-size‑based autotuning等额外宏
+  # Optional: Enable model-size‑based autotuning and other macros
   # add_compile_definitions(HIP_SUPPORTS_FP16)
 
 elseif(USE_BACKEND STREQUAL "")
@@ -455,9 +453,9 @@ elseif(USE_BACKEND STREQUAL "OPENCL")
     link_directories(${OpenCL_LIBRARY})
     target_link_libraries(katago ${OpenCL_LIBRARY})
   endif()
-# --------------------------- ROCM 链接阶段 ---------------------------
+# --------------------------- ROCM linking stage ---------------------------
 elseif(USE_BACKEND STREQUAL "ROCM")
-  # 宏：源代码里用 #ifdef USE_ROCM_BACKEND 判断
+  # Macro: used in source code with #ifdef USE_ROCM_BACKEND
   target_compile_definitions(katago PRIVATE USE_ROCM_BACKEND)
   target_compile_definitions(katago PRIVATE HIP_TARGET_VERSION=${CMAKE_HIP_COMPILER_VERSION})
 
@@ -467,12 +465,11 @@ elseif(USE_BACKEND STREQUAL "ROCM")
     message(STATUS "Detected FP16‑capable GFX arch (${CMAKE_HIP_ARCHITECTURES}); defining HIP_SUPPORTS_FP16")
   endif()
 
-  # 3) 找到 ROCm 运行时 & 库。自 ROCm 6.x 起都带 CMake config‑mode 包
-  #    如若找不到，加 -DCMAKE_PREFIX_PATH=/opt/rocm
-  find_package(hip        QUIET CONFIG)   # 导出 hip::device / hip::host
-  find_package(hipblas    QUIET CONFIG)   # 导出 roc::hipblas
-  find_package(miopen     QUIET CONFIG)   # 导出 roc::miopen
-  # ---------- fallback：HIP 运行时 ----------
+  # 3) Find ROCm runtime & libraries. Since ROCm 6.x, CMake config-mode packages are included. If not found, add -DCMAKE_PREFIX_PATH=/opt/rocm
+  find_package(hip        QUIET CONFIG)   # Export hip::device / hip::host
+  find_package(hipblas    QUIET CONFIG)   # Export roc::hipblas
+  find_package(miopen     QUIET CONFIG)   # Export roc::miopen
+  # ---------- fallback：HIP Runtime ----------
   if(NOT hip_FOUND)
     find_path(HIP_INCLUDE_DIR hip/hip_runtime.h
               HINTS ${CMAKE_PREFIX_PATH} /opt/rocm
@@ -507,7 +504,7 @@ elseif(USE_BACKEND STREQUAL "ROCM")
     endif()
   endforeach()
 
-  # 4) 头文件路径已由 config‑mode target 解决，无需硬编码
+  # 4) Header file paths are resolved by config-mode targets, no need to hard-code
   target_link_libraries(katago
     hip::device          # HIP runtime & kernel offload
     roc::hipblas         # BLAS

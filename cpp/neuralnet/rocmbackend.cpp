@@ -1,5 +1,5 @@
 #include "hip/hip_runtime.h"
-// #ifdef USE_ROCM_BACKEND
+#ifdef USE_ROCM_BACKEND
 #include <map>
 #include <string>
 #include <vector>
