@@ -1,5 +1,5 @@
-#include "hip/hip_runtime.h"
 #ifdef USE_ROCM_BACKEND
+#include "hip/hip_runtime.h"
 #include <map>
 #include <string>
 #include <vector>
@@ -41,7 +41,7 @@ void NeuralNet::globalCleanup() {
 
 struct CudaHandles {
   hipblasHandle_t cublas;
-  miopenStatus_t cudnn;
+  miopenHandle_t cudnn;
   const int majorComputeCapability;
   const int minorComputeCapability;
 
@@ -142,38 +142,38 @@ struct ByBatchSizeView {
 //channels, useFP16, useNHWC
 typedef std::tuple<int, bool, bool> CudnnTensorDesc4DKey;
 
-struct CudnnTensorDesc4DKey {
-  int channels;
-  bool useFP16;
-  bool useNHWC;
-  bool operator<(const CudnnTensorDesc4DKey& other) const {
-    return std::tie(channels, useFP16, useNHWC) <
-           std::tie(other.channels, other.useFP16, other.useNHWC);
-  }
-};
+// struct CudnnTensorDesc4DKey {
+//   int channels;
+//   bool useFP16;
+//   bool useNHWC;
+//   bool operator<(const CudnnTensorDesc4DKey& other) const {
+//     return std::tie(channels, useFP16, useNHWC) <
+//            std::tie(other.channels, other.useFP16, other.useNHWC);
+//   }
+// };
 
-template <typename T>
-struct ByBatchSize {
-  explicit ByBatchSize(int max)
-      : data(max + 1), destroyFunc(nullptr) {}
-  ~ByBatchSize() {
-    if (destroyFunc) {
-      for (auto& d : data) {
-        if (d) destroyFunc(d);
-      }
-    }
-  }
-  T& operator[](int idx) { return data[idx]; }
-  std::vector<T> data;
-  miopenStatus_t (*destroyFunc)(T) = nullptr;
-};
+// template <typename T>
+// struct ByBatchSize {
+//   explicit ByBatchSize(int max)
+//       : data(max + 1), destroyFunc(nullptr) {}
+//   ~ByBatchSize() {
+//     if (destroyFunc) {
+//       for (auto& d : data) {
+//         if (d) destroyFunc(d);
+//       }
+//     }
+//   }
+//   T& operator[](int idx) { return data[idx]; }
+//   std::vector<T> data;
+//   miopenStatus_t (*destroyFunc)(T) = nullptr;
+// };
 
-template <typename T>
-struct ByBatchSizeView {
-  explicit ByBatchSizeView(ByBatchSize<T>& ref) : ref(ref) {}
-  T& operator[](int idx) { return ref[idx]; }
-  ByBatchSize<T>& ref;
-};
+// template <typename T>
+// struct ByBatchSizeView {
+//   explicit ByBatchSizeView(ByBatchSize<T>& ref) : ref(ref) {}
+//   T& operator[](int idx) { return ref[idx]; }
+//   ByBatchSize<T>& ref;
+// };
 
 // -----------------------------------------------------------------------------
 //                                CudnnManager
@@ -356,14 +356,28 @@ struct ConvLayer {
     bool filterNHWC = useNHWCOut && dilationY == 1 && dilationX == 1;
 
     CUDNN_ERR(name.c_str(),miopenCreateTensorDescriptor(&filterDescriptor));
-    CUDNN_ERR(name.c_str(),miopenSet4dTensorDescriptor(
-      filterDescriptor,
-      (useFP16 ? miopenHalf : miopenFloat),
-      outChannels,
-      inChannels,
-      convYSize,
-      convXSize
-    ));
+    int lens[4];
+    if (filterNHWC) {          // cuDNN 的 OHWI
+        lens[0] = outChannels; // O
+        lens[1] = convYSize;   // H
+        lens[2] = convXSize;   // W
+        lens[3] = inChannels;  // I
+        CUDNN_ERR(name.c_str(),miopenSetNdTensorDescriptorWithLayout(
+            filterDescriptor,
+            useFP16 ? miopenHalf : miopenFloat,
+            miopenTensorNHWC,               // 指定布局
+            lens,
+            4));
+    } else {
+        CUDNN_ERR(name.c_str(),miopenSet4dTensorDescriptor(
+          filterDescriptor,
+          (useFP16 ? miopenHalf : miopenFloat),
+          outChannels,
+          inChannels,
+          convYSize,
+          convXSize
+        )); // cuDNN 的 OIHW
+    }// cuDNN 的 OIHW
 
     int yStride = 1;
     int xStride = 1;
@@ -383,21 +397,38 @@ struct ConvLayer {
     ));
     if(useFP16) {
       int alt = 1; // non‑zero enables alt‑impl on MI2xx+ GPUs
-      miopenSetConvolutionAttribute(convolutionDescriptor,
+      CUDNN_ERR(name.c_str(),miopenSetConvolutionAttribute(convolutionDescriptor,
                                     MIOPEN_CONVOLUTION_ATTRIB_FP16_ALT_IMPL,
-                                    alt);
+                                    alt));
     }
 
     convolutionAlgorithms = new ByBatchSize<miopenConvFwdAlgorithm_t >(maxBatchSize);
 
         for(int batchSize = 1; batchSize <= maxBatchSize; ++batchSize) {
       if(useFP16 && dilationX <= 1 && dilationY <= 1) {
-        (*convolutionAlgorithms)[batchSize] = miopenConvolutionFwdAlgoImplicitGEMM;
+        // 手动填充最简单的 Perf 结构体
+        miopenConvAlgoPerf_t perf = {};
+        perf.fwd_algo      = miopenConvolutionFwdAlgoImplicitGEMM;   // 固定算法
+        perf.memory        = 0;     // 需 0 workspace
+        perf.time          = 0.0f;  // 不做基准
+        (*convolutionAlgorithms)[batchSize] = perf;
+        continue;
       }
       else {
-        (*convolutionAlgorithms)[batchSize] = miopenConvolutionFwdAlgoDirect;
-        // If desired, call miopenFindConvolutionForwardAlgorithm() here once you
-        // have real device buffers to auto‑tune. See porting notes.
+        miopenConvAlgoPerf_t perfResults[4];
+        int returnedAlgoCount = 0;
+        CUDNN_ERR(name.c_str(),miopenFindConvolutionForwardAlgorithm(
+            handle,
+            xDesc,  inputBuf,
+            wDesc,  filterBuf,
+            convDesc,
+            yDesc,  outputBuf,
+            /*requestAlgoCount=*/1,              // 只要最快
+            &returnedAlgoCount,
+            perfResults,
+            workspaceBuf,
+            wsSize,
+            /*exhaustiveSearch=*/true));
       }
     }
 
@@ -643,21 +674,34 @@ struct MatMulLayer {
       ));
     }
     else {
-      const half* alpha = (const half*)scratch->oneBuf;
-      const half* beta = (const half*)scratch->zeroBuf;
-      CUBLAS_ERR(name.c_str(),hipblasHgemm(
+      // const half* alpha = (const half*)scratch->oneBuf;
+      // const half* beta = (const half*)scratch->zeroBuf;
+      // CUBLAS_ERR(name.c_str(),hipblasHgemm(
+      //   cudaHandles->cublas,
+      //   HIPBLAS_OP_N,
+      //   HIPBLAS_OP_N,
+      //   outChannels,
+      //   batchSize,
+      //   inChannels,
+      //   alpha,
+      //   (const half*)matBuf,outChannels,
+      //   (const half*)inputBuf,inChannels,
+      //   beta,
+      //   (half*)outputBuf,outChannels
+      // ));
+      static const half alpha_h = half(1.0f);
+      static const half beta_h  = half(0.0f);
+      CUBLAS_ERR(name.c_str(), hipblasGemmEx(
         cudaHandles->cublas,
-        HIPBLAS_OP_N,
-        HIPBLAS_OP_N,
-        outChannels,
-        batchSize,
-        inChannels,
-        alpha,
-        (const half*)matBuf,outChannels,
-        (const half*)inputBuf,inChannels,
-        beta,
-        (half*)outputBuf,outChannels
-      ));
+        HIPBLAS_OP_N, HIPBLAS_OP_N,
+        outChannels, batchSize, inChannels,
+        &alpha_h,
+        (const half*)matBuf,   HIPBLAS_R_16F, outChannels,
+        (const half*)inputBuf, HIPBLAS_R_16F, inChannels,
+        &beta_h,
+        (half*)outputBuf,      HIPBLAS_R_16F, outChannels,
+        HIPBLAS_R_16F,               /* compute_type */
+        HIPBLAS_GEMM_DEFAULT));      /* algo */
     }
 
   }
@@ -2365,7 +2409,7 @@ ComputeHandle* NeuralNet::createComputeHandle(
   //Old GPUs - use FP32 and explicitly fail if FP16 enabled
   if(prop.major < 5 || (prop.major == 5 && prop.minor < 3)) {
     if(context->useFP16Mode == enabled_t::True)
-      throw StringError("Cuda device versions below 5.3 do not support useFP16=true");
+      throw StringError("ROCm device versions below 6.0 do not support useFP16=true");
     if(context->useNHWCMode == enabled_t::True)
       useNHWC = true;
   }
@@ -2395,18 +2439,18 @@ ComputeHandle* NeuralNet::createComputeHandle(
 
   if(logger != NULL) {
     logger->write(
-      "Cuda backend thread " + Global::intToString(serverThreadIdx) + ": Found GPU " + string(prop.name)
+      "ROCm backend thread " + Global::intToString(serverThreadIdx) + ": Found GPU " + string(prop.name)
       + " memory " + Global::uint64ToString(prop.totalGlobalMem)
       + " compute capability major " + Global::intToString(prop.major)
       + " minor " + Global::intToString(prop.minor)
     );
     logger->write(
-      "Cuda backend thread " + Global::intToString(serverThreadIdx) + ": Model version " + Global::intToString(loadedModel->modelDesc.modelVersion) +
+      "ROCm backend thread " + Global::intToString(serverThreadIdx) + ": Model version " + Global::intToString(loadedModel->modelDesc.modelVersion) +
       " useFP16 = " + Global::boolToString(useFP16) +
       " useNHWC = " + Global::boolToString(useNHWC)
     );
     logger->write(
-      "Cuda backend thread " + Global::intToString(serverThreadIdx) + ": Model name: " + loadedModel->modelDesc.name
+      "ROCm backend thread " + Global::intToString(serverThreadIdx) + ": Model name: " + loadedModel->modelDesc.name
     );
   }
 
@@ -2432,7 +2476,7 @@ void NeuralNet::printDevices() {
   for(int i = 0; i<numDevices; i++) {
     hipDeviceProp_t prop;
     hipGetDeviceProperties(&prop, i);
-    cout << "Found CUDA device " << i << ": " << prop.name << endl;
+    cout << "Found ROCm device " << i << ": " << prop.name << endl;
   }
 }
 

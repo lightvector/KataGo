@@ -4,7 +4,7 @@
 
 #include <stdexcept>
 
-#if defined(__HIP_ARCH_HAS_FP16__) || (defined(__HIP_DEVICE_COMPILE__) && (__HIP_ARCH_GFX803__ || __HIP_ARCH_GFX900__ || ...))
+#if defined(__HIP_ARCH_HAS_FP16__) || (defined(__HIP_DEVICE_COMPILE__) && (__HIP_ARCH_GFX803__ || __HIP_ARCH_GFX900__))
 #define HIP_SUPPORTS_FP16
 #endif
 

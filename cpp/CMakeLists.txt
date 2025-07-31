@@ -1,6 +1,10 @@
 cmake_minimum_required(VERSION 3.18.2)
 if(USE_BACKEND STREQUAL "METAL")
   project(katago LANGUAGES CXX Swift)
+elseif(USE_BACKEND STREQUAL "ROCM")
+  set(CMAKE_C_COMPILER  /opt/rocm/bin/hipcc CACHE FILEPATH "" FORCE)
+  set(CMAKE_CXX_COMPILER /opt/rocm/bin/hipcc CACHE FILEPATH "" FORCE)
+  project(katago LANGUAGES C CXX HIP)
 else()
   project(katago)
 endif()
@@ -509,7 +513,7 @@ elseif(USE_BACKEND STREQUAL "ROCM")
     hip::device          # HIP runtime & kernel offload
     roc::hipblas         # BLAS
     MIOpen
-    roc::miopen          # DNN primitives
+    # roc::miopen          # DNN primitives
   )
 elseif(USE_BACKEND STREQUAL "EIGEN")
   target_compile_definitions(katago PRIVATE USE_EIGEN_BACKEND)
@@ -640,7 +644,7 @@ if(MSVC)
   set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /STACK:8388608")
 elseif(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" OR CMAKE_CXX_COMPILER_ID STREQUAL "Clang" OR CMAKE_CXX_COMPILER_ID STREQUAL "AppleClang")
   message(STATUS "Setting up build for GNU, Clang or MinGW.")
-  if(NOT (${CMAKE_SYSTEM_PROCESSOR} MATCHES "(arm|aarch32|aarch64)"))
+  if(NOT (${CMAKE_SYSTEM_PROCESSOR} MATCHES "(arm|aarch32|aarch64)") AND NOT USE_BACKEND STREQUAL "ROCM")
     set(CMAKE_CXX_FLAGS  "${CMAKE_CXX_FLAGS} -mfpmath=sse")
   else()
     # For ARM architecture, as a hack, ensure that char is signed

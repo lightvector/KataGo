@@ -13,7 +13,7 @@ static inline void checkCudaError(hipError_t status,
   if(status != hipSuccess)
     throw StringError(std::string("HIP Error @") + opName + " " +
                       file + ":" + func + ":" + Global::intToString(line) +
-                      " : " + cudaGetErrorString(status));
+                      " : " + hipGetErrorString(status));
 }
 #define CUDA_ERR(opName,x)   checkCudaError((x),opName,__FILE__,#x,__LINE__)
 
@@ -52,7 +52,7 @@ static inline void checkCudnnError(miopenStatus_t status,
   if(status != miopenStatusSuccess)
     throw StringError(std::string("MIOpen Error @") + opName + " " +
                       file + ":" + func + ":" + Global::intToString(line) +
-                      " : " + cudnnGetErrorString(status));
+                      " : " + miopenGetErrorString(status));
 }
 #define CUDNN_ERR(opName,x) checkCudnnError((x),opName,__FILE__,#x,__LINE__)
 
