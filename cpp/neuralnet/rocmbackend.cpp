@@ -255,7 +255,7 @@ struct ConvLayer {
   ByBatchSizeView<miopenTensorDescriptor_t> outputDescriptors;
   miopenTensorDescriptor_t filterDescriptor;
   miopenConvolutionDescriptor_t convolutionDescriptor;
-  ByBatchSize<miopenConvAlgoPerf_t>* convolutionAlgorithms; //array of one for each batch size
+  ByBatchSize<miopenConvSolution_t>* convolutionAlgorithms; //array of one for each batch size
   void* filterBuf;
 
   ConvLayer() = delete;
@@ -329,19 +329,18 @@ struct ConvLayer {
       CUDNN_ERR(name.c_str(),miopenSetConvolutionAttribute(convolutionDescriptor,MIOPEN_CONVOLUTION_ATTRIB_FP16_ALT_IMPL,alt));
     }
 
-    convolutionAlgorithms = new ByBatchSize<miopenConvAlgoPerf_t >(maxBatchSize);
+    convolutionAlgorithms = new ByBatchSize<miopenConvSolution_t>(maxBatchSize);
 
     for(int batchSize = 1; batchSize <= maxBatchSize; batchSize++) {
-      if(useFP16 && dilationX <= 1 && dilationY <= 1) {
-        (*convolutionAlgorithms)[batchSize].fwd_algo = miopenConvolutionFwdAlgoImplicitGEMM;
-        continue;
-      }
-      else {
+      // if(useFP16 && dilationX <= 1 && dilationY <= 1) {
+      //   (*convolutionAlgorithms)[batchSize].solution_id = 0;
+      //   continue;
+      // }
+      // else {
         const miopenTensorDescriptor_t& inputDescriptor = inputDescriptors[batchSize];
         const miopenTensorDescriptor_t& outputDescriptor = outputDescriptors[batchSize];
         size_t requestedAlgoCount = 8;
         size_t returnedAlgoCount = -1;
-        miopenConvFwdAlgorithm_t results[2 * requestedAlgoCount];
         miopenConvSolution_t solutions[2 * requestedAlgoCount];
         CUDNN_ERR(name.c_str(),miopenConvolutionForwardGetSolutionCount(
           cudaHandles->cudnn,
@@ -363,28 +362,16 @@ struct ConvLayer {
           ));
         if(returnedAlgoCount <= 0)
           throw StringError("miopenConvolutionForwardGetSolution returned no algorithms?");
-        for (size_t i = 0; i < returnedAlgoCount; i++) {
-          if(solutions[i].algorithm == miopenConvolutionAlgoGEMM) {
-            results[i] = miopenConvolutionFwdAlgoGEMM;
-          }
-          else if(solutions[i].algorithm == miopenConvolutionAlgoDirect) {
-            results[i] = miopenConvolutionFwdAlgoDirect;
-          }
-          else if(solutions[i].algorithm == miopenConvolutionAlgoFFT) {
-            results[i] = miopenConvolutionFwdAlgoFFT;
-          }
-          else if(solutions[i].algorithm == miopenConvolutionAlgoWinograd) {
-            results[i] = miopenConvolutionFwdAlgoWinograd;
-          }
-          else if(solutions[i].algorithm == miopenConvolutionAlgoImplicitGEMM) {
-            results[i] = miopenConvolutionFwdAlgoImplicitGEMM;
-          }
-          else{
-            throw StringError("Unknown miopenConvolutionFwdAlgo: " + std::to_string(solutions[i].algorithm));
-          }
-        }
-        (*convolutionAlgorithms)[batchSize].fwd_algo = results[0];
-      }
+        (*convolutionAlgorithms)[batchSize] = solutions[0];
+        CUDNN_ERR(name.c_str(),miopenConvolutionForwardCompileSolution(
+          cudaHandles->cudnn,
+          filterDescriptor,
+          inputDescriptor,
+          convolutionDescriptor,
+          outputDescriptor,
+          (*convolutionAlgorithms)[batchSize].solution_id
+        ));
+      // }
     }
 
     assert(desc->weights.size() == convYSize * convXSize * inChannels * outChannels);
@@ -420,12 +407,13 @@ struct ConvLayer {
     int batchSize
   ) const {
     size_t workspaceBytes = 0;
-    CUDNN_ERR(name.c_str(),miopenConvolutionForwardGetWorkSpaceSize(
+    CUDNN_ERR(name.c_str(),miopenConvolutionForwardGetSolutionWorkspaceSize(
       cudaHandles->cudnn,
       filterDescriptor,
       inputDescriptors[batchSize],
       convolutionDescriptor,
       outputDescriptors[batchSize],
+      (*convolutionAlgorithms)[batchSize].solution_id,
       &workspaceBytes
     ));
     return workspaceBytes;
@@ -442,20 +430,18 @@ struct ConvLayer {
   ) const {
     const float alpha = 1.0f;
     const float beta = accumulate ? 1.0f : 0.0f;
-    CUDNN_ERR(name.c_str(), miopenConvolutionForward(
+    CUDNN_ERR(name.c_str(), miopenConvolutionForwardImmediate(
       cudaHandles->cudnn,
-      &alpha,
-      inputDescriptors[batchSize],
-      inputBuf,
       filterDescriptor,
       filterBuf,
+      inputDescriptors[batchSize],
+      inputBuf,
       convolutionDescriptor,
-      (*convolutionAlgorithms)[batchSize].fwd_algo,
-      &beta,
       outputDescriptors[batchSize],
       outputBuf,
       workspaceBuf,
-      workspaceBytes
+      workspaceBytes,
+      (*convolutionAlgorithms)[batchSize].solution_id
     ));
   }
 
