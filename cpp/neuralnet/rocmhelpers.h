@@ -1,4 +1,3 @@
-#include "hip/hip_runtime.h"
 #ifndef NEURALNET_ROCMHELPERS_H_
 #define NEURALNET_ROCMHELPERS_H_
 
