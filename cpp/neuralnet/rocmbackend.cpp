@@ -7,9 +7,9 @@
 
 #include "../neuralnet/rocmerrorcheck.h"
 #include "../neuralnet/rocmincludes.h"
+
 #include "../neuralnet/rocmhelpers.h"
 #include "../neuralnet/rocmutils.h"
-
 #include "../neuralnet/modelversion.h"
 #include "../neuralnet/nninterface.h"
 #include "../neuralnet/nninputs.h"
@@ -142,104 +142,53 @@ struct ByBatchSizeView {
 //channels, useFP16, useNHWC
 typedef std::tuple<int, bool, bool> CudnnTensorDesc4DKey;
 
-// struct CudnnTensorDesc4DKey {
-//   int channels;
-//   bool useFP16;
-//   bool useNHWC;
-//   bool operator<(const CudnnTensorDesc4DKey& other) const {
-//     return std::tie(channels, useFP16, useNHWC) <
-//            std::tie(other.channels, other.useFP16, other.useNHWC);
-//   }
-// };
-
-// template <typename T>
-// struct ByBatchSize {
-//   explicit ByBatchSize(int max)
-//       : data(max + 1), destroyFunc(nullptr) {}
-//   ~ByBatchSize() {
-//     if (destroyFunc) {
-//       for (auto& d : data) {
-//         if (d) destroyFunc(d);
-//       }
-//     }
-//   }
-//   T& operator[](int idx) { return data[idx]; }
-//   std::vector<T> data;
-//   miopenStatus_t (*destroyFunc)(T) = nullptr;
-// };
-
-// template <typename T>
-// struct ByBatchSizeView {
-//   explicit ByBatchSizeView(ByBatchSize<T>& ref) : ref(ref) {}
-//   T& operator[](int idx) { return ref[idx]; }
-//   ByBatchSize<T>& ref;
-// };
-
-// -----------------------------------------------------------------------------
-//                                CudnnManager
-// -----------------------------------------------------------------------------
 struct CudnnManager {
-  const std::string name;
+  const string name;
   const int maxBatchSize;
   const int nnXLen;
   const int nnYLen;
-  std::map<CudnnTensorDesc4DKey, ByBatchSize<miopenTensorDescriptor_t>*>
-      tensorDesc4DByBatchSizeByKey;
+  std::map<CudnnTensorDesc4DKey, ByBatchSize<miopenTensorDescriptor_t>*> tensorDesc4DByBatchSizeByKey;
 
-  CudnnManager(std::string name_, int maxBatchSize_, int nnXLen_, int nnYLen_)
-      : name(std::move(name_)),
-        maxBatchSize(maxBatchSize_),
-        nnXLen(nnXLen_),
-        nnYLen(nnYLen_),
-        tensorDesc4DByBatchSizeByKey() {}
+  CudnnManager(string name_, int maxBatchSize_, int nnXLen_, int nnYLen_)
+    :name(name_),
+     maxBatchSize(maxBatchSize_),
+     nnXLen(nnXLen_),
+     nnYLen(nnYLen_),
+     tensorDesc4DByBatchSizeByKey()
+  {
+  }
 
   ~CudnnManager() {
-    for (auto& iter : tensorDesc4DByBatchSizeByKey) {
+    for(auto& iter: tensorDesc4DByBatchSizeByKey) {
       delete iter.second;
     }
   }
 
   ByBatchSizeView<miopenTensorDescriptor_t> getTensorDesc4DByBatchSize(
-      int channels, bool useFP16, bool useNHWC) {
+    int channels, bool useFP16, bool useNHWC
+  ) {
     auto iter = tensorDesc4DByBatchSizeByKey.find({channels, useFP16, useNHWC});
-    if (iter != tensorDesc4DByBatchSizeByKey.end()) {
+    if(iter != tensorDesc4DByBatchSizeByKey.end()) {
       return ByBatchSizeView<miopenTensorDescriptor_t>(*(iter->second));
     }
-
-    auto* descs = new ByBatchSize<miopenTensorDescriptor_t>(maxBatchSize);
-
-    for (int batchSize = 1; batchSize <= maxBatchSize; batchSize++) {
+    ByBatchSize<miopenTensorDescriptor_t>* descs = new ByBatchSize<miopenTensorDescriptor_t>(maxBatchSize);
+    for(int batchSize = 1; batchSize <= maxBatchSize; batchSize++) {
       miopenTensorDescriptor_t& desc = (*descs)[batchSize];
-      // Create descriptor
-      CUDNN_ERR(name.c_str(), miopenCreateTensorDescriptor(&desc));
-
-      const miopenDataType_t dtype = useFP16 ? miopenHalf : miopenFloat;
-
-      if (!useNHWC) {
-        // Fully‑supported NCHW fast‑path
-        CUDNN_ERR(name.c_str(),
-                  miopenSet4dTensorDescriptor(desc, dtype, batchSize, channels,
-                                              nnYLen, nnXLen));
-      } else {
-        // NHWC path via generic Nd descriptor + explicit strides
-        int dims[4] = {batchSize, nnYLen, nnXLen, channels};  // N H W C
-        int strides[4];
-        strides[3] = 1;                             // C stride
-        strides[2] = strides[3] * channels;         // W stride
-        strides[1] = strides[2] * nnXLen;           // H stride
-        strides[0] = strides[1] * nnYLen;           // N stride
-
-        CUDNN_ERR(name.c_str(),
-                  miopenSetTensorDescriptor(desc, dtype, 4, dims, strides));
-      }
+      CUDNN_ERR(name.c_str(),miopenCreateTensorDescriptor(&desc));
+      CUDNN_ERR(name.c_str(),miopenSet4dTensorDescriptor(
+                  desc,
+                  (useFP16 ? miopenHalf : miopenFloat),
+                  batchSize,
+                  channels,
+                  nnYLen,
+                  nnXLen
+                ));
     }
-
     descs->destroyFunc = miopenDestroyTensorDescriptor;
     tensorDesc4DByBatchSizeByKey[{channels, useFP16, useNHWC}] = descs;
     return ByBatchSizeView<miopenTensorDescriptor_t>(*descs);
   }
 };
-
 
 //---------------------------------------------------------------------------------
 
@@ -311,7 +260,7 @@ struct ConvLayer {
   ByBatchSizeView<miopenTensorDescriptor_t> outputDescriptors;
   miopenTensorDescriptor_t filterDescriptor;
   miopenConvolutionDescriptor_t convolutionDescriptor;
-  ByBatchSize<miopenConvFwdAlgorithm_t >* convolutionAlgorithms; //array of one for each batch size
+  ByBatchSize<miopenConvAlgoPerf_t>* convolutionAlgorithms; //array of one for each batch size
   void* filterBuf;
 
   ConvLayer() = delete;
@@ -356,33 +305,18 @@ struct ConvLayer {
     bool filterNHWC = useNHWCOut && dilationY == 1 && dilationX == 1;
 
     CUDNN_ERR(name.c_str(),miopenCreateTensorDescriptor(&filterDescriptor));
-    int lens[4];
-    if (filterNHWC) {          // cuDNN 的 OHWI
-        lens[0] = outChannels; // O
-        lens[1] = convYSize;   // H
-        lens[2] = convXSize;   // W
-        lens[3] = inChannels;  // I
-        CUDNN_ERR(name.c_str(),miopenSetNdTensorDescriptorWithLayout(
-            filterDescriptor,
-            useFP16 ? miopenHalf : miopenFloat,
-            miopenTensorNHWC,               // 指定布局
-            lens,
-            4));
-    } else {
-        CUDNN_ERR(name.c_str(),miopenSet4dTensorDescriptor(
-          filterDescriptor,
-          (useFP16 ? miopenHalf : miopenFloat),
-          outChannels,
-          inChannels,
-          convYSize,
-          convXSize
-        )); // cuDNN 的 OIHW
-    }// cuDNN 的 OIHW
+    CUDNN_ERR(name.c_str(),miopenSet4dTensorDescriptor(
+      filterDescriptor,
+      (useFP16 ? miopenHalf : miopenFloat),
+      outChannels,
+      inChannels,
+      convYSize,
+      convXSize
+    ));
 
     int yStride = 1;
     int xStride = 1;
 
-    bool tensorCoresSupported = true;
 
     CUDNN_ERR(name.c_str(),miopenCreateConvolutionDescriptor(&convolutionDescriptor));
     CUDNN_ERR(name.c_str(),miopenInitConvolutionDescriptor(
@@ -397,38 +331,64 @@ struct ConvLayer {
     ));
     if(useFP16) {
       int alt = 1; // non‑zero enables alt‑impl on MI2xx+ GPUs
-      CUDNN_ERR(name.c_str(),miopenSetConvolutionAttribute(convolutionDescriptor,
-                                    MIOPEN_CONVOLUTION_ATTRIB_FP16_ALT_IMPL,
-                                    alt));
+      CUDNN_ERR(name.c_str(),miopenSetConvolutionAttribute(convolutionDescriptor,MIOPEN_CONVOLUTION_ATTRIB_FP16_ALT_IMPL,alt));
     }
 
-    convolutionAlgorithms = new ByBatchSize<miopenConvFwdAlgorithm_t >(maxBatchSize);
+    convolutionAlgorithms = new ByBatchSize<miopenConvAlgoPerf_t >(maxBatchSize);
 
-        for(int batchSize = 1; batchSize <= maxBatchSize; ++batchSize) {
+    for(int batchSize = 1; batchSize <= maxBatchSize; batchSize++) {
       if(useFP16 && dilationX <= 1 && dilationY <= 1) {
-        // 手动填充最简单的 Perf 结构体
-        miopenConvAlgoPerf_t perf = {};
-        perf.fwd_algo      = miopenConvolutionFwdAlgoImplicitGEMM;   // 固定算法
-        perf.memory        = 0;     // 需 0 workspace
-        perf.time          = 0.0f;  // 不做基准
-        (*convolutionAlgorithms)[batchSize] = perf;
+        (*convolutionAlgorithms)[batchSize].fwd_algo = miopenConvolutionFwdAlgoImplicitGEMM;
         continue;
       }
       else {
-        miopenConvAlgoPerf_t perfResults[4];
-        int returnedAlgoCount = 0;
-        CUDNN_ERR(name.c_str(),miopenFindConvolutionForwardAlgorithm(
-            handle,
-            xDesc,  inputBuf,
-            wDesc,  filterBuf,
-            convDesc,
-            yDesc,  outputBuf,
-            /*requestAlgoCount=*/1,              // 只要最快
+        const miopenTensorDescriptor_t& inputDescriptor = inputDescriptors[batchSize];
+        const miopenTensorDescriptor_t& outputDescriptor = outputDescriptors[batchSize];
+        int requestedAlgoCount = 8;
+        int returnedAlgoCount = -1;
+        miopenConvFwdAlgorithm_t results[2 * requestedAlgoCount];
+        miopenConvSolution_t solutions[2 * requestedAlgoCount];
+        CUDNN_ERR(name.c_str(),miopenConvolutionForwardGetSolutionCount(
+          cudaHandles->cudnn,
+          filterDescriptor,
+          inputDescriptor,
+          convolutionDescriptor,
+          outputDescriptor,
+          &requestedAlgoCount
+        ));
+        CUDNN_ERR(name.c_str(),miopenConvolutionForwardGetSolution(
+            cudaHandles->cudnn,
+            filterDescriptor,
+            inputDescriptor,
+            convolutionDescriptor,
+            outputDescriptor,
+            requestedAlgoCount,
             &returnedAlgoCount,
-            perfResults,
-            workspaceBuf,
-            wsSize,
-            /*exhaustiveSearch=*/true));
+            solutions
+          ));
+        if(returnedAlgoCount <= 0)
+          throw StringError("miopenConvolutionForwardGetSolution returned no algorithms?");
+        for (size_t i = 0; i < returnedAlgoCount; i++) {
+          if(solutions[i].algorithm == miopenConvolutionAlgoGEMM) {
+            results[i] = miopenConvolutionFwdAlgoGEMM;
+          }
+          else if(solutions[i].algorithm == miopenConvolutionAlgoDirect) {
+            results[i] = miopenConvolutionFwdAlgoDirect;
+          }
+          else if(solutions[i].algorithm == miopenConvolutionAlgoFFT) {
+            results[i] = miopenConvolutionFwdAlgoFFT;
+          }
+          else if(solutions[i].algorithm == miopenConvolutionAlgoWinograd) {
+            results[i] = miopenConvolutionFwdAlgoWinograd;
+          }
+          else if(solutions[i].algorithm == miopenConvolutionAlgoImplicitGEMM) {
+            results[i] = miopenConvolutionFwdAlgoImplicitGEMM;
+          }
+          else{
+            throw StringError("Unknown miopenConvolutionFwdAlgo: " + std::to_string(solutions[i].algorithm));
+          }
+        }
+        (*convolutionAlgorithms)[batchSize].fwd_algo = results[0];
       }
     }
 
@@ -465,43 +425,42 @@ struct ConvLayer {
     int batchSize
   ) const {
     size_t workspaceBytes = 0;
-    CUDNN_ERR(name.c_str(), miopenConvolutionForwardGetWorkSpaceSize(
-                              cudaHandles->cudnn,
-                              filterDescriptor,
-                              inputDescriptors[batchSize],
-                              convolutionDescriptor,
-                              outputDescriptors[batchSize],
-                              &workspaceBytes));
+    CUDNN_ERR(name.c_str(),miopenConvolutionForwardGetWorkSpaceSize(
+      cudaHandles->cudnn,
+      filterDescriptor,
+      inputDescriptors[batchSize],
+      convolutionDescriptor,
+      outputDescriptors[batchSize],
+      &workspaceBytes
+    ));
     return workspaceBytes;
   }
 
   void apply(
     CudaHandles* cudaHandles,
-    int          batchSize,
-    bool         accumulate,        // if true, beta = 1 (unsupported by MIOpen fwd)
-    void*        inputBuf,
-    void*        outputBuf,
-    void*        workspaceBuf,
-    size_t       workspaceBytes) const
-{
-  const float alpha = 1.0f;
-  const float beta  = accumulate ? 1.0f : 0.0f;
-
-  // New MIOpen API order: ... algo, beta, yDesc, y, workSpace, workSpaceSize
-  CUDNN_ERR(name.c_str(), miopenConvolutionForward(
-                cudaHandles->cudnn,
-                &alpha,
-                inputDescriptors[batchSize],
-                inputBuf,
-                filterDescriptor,
-                filterBuf,
-                convolutionDescriptor,
-                (*convolutionAlgorithms)[batchSize],
-                &beta,
-                outputDescriptors[batchSize],
-                outputBuf,
-                workspaceBuf,
-                workspaceBytes));
+    int batchSize,
+    bool accumulate,
+    void* inputBuf,
+    void* outputBuf,
+    void* workspaceBuf,
+    size_t workspaceBytes
+  ) const {
+    const float alpha = 1.0f;
+    const float beta = accumulate ? 1.0f : 0.0f;
+    CUDNN_ERR(name.c_str(), miopenConvolutionForward(
+      cudaHandles->cudnn,
+      &alpha,
+      inputDescriptors[batchSize],
+      inputBuf,
+      filterDescriptor,
+      filterBuf,
+      convolutionDescriptor,
+      (*convolutionAlgorithms)[batchSize].fwd_algo,
+      &beta,
+      outputDescriptors[batchSize],
+      outputBuf,
+      workspaceBuf,
+      workspaceBytes));
   }
 
 };
@@ -674,34 +633,21 @@ struct MatMulLayer {
       ));
     }
     else {
-      // const half* alpha = (const half*)scratch->oneBuf;
-      // const half* beta = (const half*)scratch->zeroBuf;
-      // CUBLAS_ERR(name.c_str(),hipblasHgemm(
-      //   cudaHandles->cublas,
-      //   HIPBLAS_OP_N,
-      //   HIPBLAS_OP_N,
-      //   outChannels,
-      //   batchSize,
-      //   inChannels,
-      //   alpha,
-      //   (const half*)matBuf,outChannels,
-      //   (const half*)inputBuf,inChannels,
-      //   beta,
-      //   (half*)outputBuf,outChannels
-      // ));
-      static const half alpha_h = half(1.0f);
-      static const half beta_h  = half(0.0f);
-      CUBLAS_ERR(name.c_str(), hipblasGemmEx(
+      const hipblasHalf* alpha = (const hipblasHalf*)scratch->oneBuf;
+      const hipblasHalf* beta = (const hipblasHalf*)scratch->zeroBuf;
+      CUBLAS_ERR(name.c_str(),hipblasHgemm(
         cudaHandles->cublas,
-        HIPBLAS_OP_N, HIPBLAS_OP_N,
-        outChannels, batchSize, inChannels,
-        &alpha_h,
-        (const half*)matBuf,   HIPBLAS_R_16F, outChannels,
-        (const half*)inputBuf, HIPBLAS_R_16F, inChannels,
-        &beta_h,
-        (half*)outputBuf,      HIPBLAS_R_16F, outChannels,
-        HIPBLAS_R_16F,               /* compute_type */
-        HIPBLAS_GEMM_DEFAULT));      /* algo */
+        CUBLAS_OP_N,
+        CUBLAS_OP_N,
+        outChannels,
+        batchSize,
+        inChannels,
+        alpha,
+        (const hipblasHalf*)matBuf,outChannels,
+        (const hipblasHalf*)inputBuf,inChannels,
+        beta,
+        (hipblasHalf*)outputBuf,outChannels
+      ));
     }
 
   }
@@ -2406,36 +2352,8 @@ ComputeHandle* NeuralNet::createComputeHandle(
 
   bool useFP16 = false;
   bool useNHWC = false;
-  //Old GPUs - use FP32 and explicitly fail if FP16 enabled
-  if(prop.major < 5 || (prop.major == 5 && prop.minor < 3)) {
-    if(context->useFP16Mode == enabled_t::True)
-      throw StringError("ROCm device versions below 6.0 do not support useFP16=true");
-    if(context->useNHWCMode == enabled_t::True)
-      useNHWC = true;
-  }
-  //In theory these GPUs support FP16, so allow if the user wants.
-  else if(prop.major < 6) {
-    if(context->useFP16Mode == enabled_t::True)
-      useFP16 = true;
-    if(context->useNHWCMode == enabled_t::True)
-      useNHWC = true;
-  }
-  //On Pascal architecture, default to using FP16 operations
-  //Actually, just use FP32 - there's a risk that on certain cards this might just be a lot worse.
-  //A user manually fine-tuning for performance can just enable it themselves if they know how.
-  else if(prop.major < 7) {
-    if(context->useFP16Mode == enabled_t::True)
-      useFP16 = true;
-    if(context->useNHWCMode == enabled_t::True)
-      useNHWC = true;
-  }
-  //On Volta and higher, use FP16 and NHWC together because we have tensor cores.
-  else {
-    if(context->useFP16Mode == enabled_t::True || context->useFP16Mode == enabled_t::Auto)
-      useFP16 = true;
-    if(context->useNHWCMode == enabled_t::True || (context->useNHWCMode == enabled_t::Auto && useFP16))
-      useNHWC = true;
-  }
+  if(context->useFP16Mode == enabled_t::True || context->useFP16Mode == enabled_t::Auto)
+    useFP16 = true;
 
   if(logger != NULL) {
     logger->write(
