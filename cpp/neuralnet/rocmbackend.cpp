@@ -1,9 +1,4 @@
 #ifdef USE_ROCM_BACKEND
-#include "hip/hip_runtime.h"
-#include <map>
-#include <string>
-#include <vector>
-#include <cassert>
 
 #include "../neuralnet/rocmerrorcheck.h"
 #include "../neuralnet/rocmincludes.h"
@@ -344,8 +339,8 @@ struct ConvLayer {
       else {
         const miopenTensorDescriptor_t& inputDescriptor = inputDescriptors[batchSize];
         const miopenTensorDescriptor_t& outputDescriptor = outputDescriptors[batchSize];
-        int requestedAlgoCount = 8;
-        int returnedAlgoCount = -1;
+        size_t requestedAlgoCount = 8;
+        size_t returnedAlgoCount = -1;
         miopenConvFwdAlgorithm_t results[2 * requestedAlgoCount];
         miopenConvSolution_t solutions[2 * requestedAlgoCount];
         CUDNN_ERR(name.c_str(),miopenConvolutionForwardGetSolutionCount(
@@ -460,7 +455,8 @@ struct ConvLayer {
       outputDescriptors[batchSize],
       outputBuf,
       workspaceBuf,
-      workspaceBytes));
+      workspaceBytes
+    ));
   }
 
 };
@@ -637,8 +633,8 @@ struct MatMulLayer {
       const hipblasHalf* beta = (const hipblasHalf*)scratch->zeroBuf;
       CUBLAS_ERR(name.c_str(),hipblasHgemm(
         cudaHandles->cublas,
-        CUBLAS_OP_N,
-        CUBLAS_OP_N,
+        HIPBLAS_OP_N,
+        HIPBLAS_OP_N,
         outChannels,
         batchSize,
         inChannels,
