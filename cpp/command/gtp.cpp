@@ -35,6 +35,9 @@ static const vector<string> knownCommands = {
 
   "clear_board",
   "set_position",
+  //GTP extension - set walls at arbitrary locations
+  "set_walls",
+
   "komi",
   //GTP extension - get KataGo's current komi setting
   "get_komi",
@@ -593,6 +596,31 @@ struct GTPEngine {
     setPositionAndRules(pla,board,hist,board,pla,newMoveHistory);
     clearStatsForNewGame();
   }
+
+    bool setWalls(const vector<Loc>& wallLocations) {
+        assert(bot->getRootHist().rules == currentRules);
+        int newXSize = bot->getRootBoard().x_size;
+        int newYSize = bot->getRootBoard().y_size;
+        Board board(newXSize,newYSize);
+        bool suc = board.setWallsFailIfNoLibs(wallLocations);
+        if(!suc)
+            return false;
+
+        //Sanity check
+        for(int i = 0; i<wallLocations.size(); i++) {
+            if(board.colors[wallLocations[i]] != C_WALL) {
+                assert(false);
+                return false;
+            }
+        }
+        Player pla = P_BLACK;
+        BoardHistory hist(board,pla,currentRules,0);
+        hist.setInitialTurnNumber(board.numStonesOnBoard()); //Heuristic to guess at what turn this is
+        vector<Move> newMoveHistory;
+        setPositionAndRules(pla,board,hist,board,pla,newMoveHistory);
+        clearStatsForNewGame();
+        return true;
+    }
 
   bool setPosition(const vector<Move>& initialStones) {
     assert(bot->getRootHist().rules == currentRules);
@@ -2930,6 +2958,34 @@ int MainCmds::gtp(const vector<string>& args) {
         }
         maybeStartPondering = true;
       }
+    }
+    else if(command == "set_walls") {
+        vector<Loc> wallLocations;
+        for(int i = 0; i<pieces.size(); i++) {
+            Loc loc;
+            if (!tryParseLoc(pieces[i],engine->bot->getRootBoard(),loc)) {
+                responseIsError = true;
+                response = "Expected a space-separated sequence of <VERTEX> but got '" + Global::concat(pieces," ") + "'";
+                response += "could not parse vertex: '" + pieces[i] + "'";
+                break;
+            }
+            else if(loc == Board::PASS_LOC) {
+                responseIsError = true;
+                response = "Expected a space-separated sequence of <VERTEX> but got '" + Global::concat(pieces," ") + "'";
+                response += "could not parse vertex: '" + pieces[i] + "'";
+                break;
+            }
+            wallLocations.push_back(loc);
+        }
+        if(!responseIsError) {
+            maybeSaveAvoidPatterns(false);
+            bool suc = engine->setWalls(wallLocations);
+            if(!suc) {
+                responseIsError = true;
+                response = "Illegal wall locations - outside board bounds?";
+            }
+            maybeStartPondering = false;
+        }
     }
 
     else if(command == "set_position") {
