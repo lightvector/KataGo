@@ -15,7 +15,7 @@ Summary of source folders, in approximate dependency order, from lowest level to
   * `nninputs.{cpp,h}` - Implements the input features for the neural net.
   * `sgfmetadata.{cpp,h}` - Implements the input features for the [HumanSL neural net](https://github.com/lightvector/KataGo/blob/master/docs/Analysis_Engine.md#human-sl-analysis-guide), for conditioning on various SGF metadata about human players from training data.
   * `nninterface.h` - Common interface that is implemented by every low-level neural net backend.
-  * `{cuda,opencl,eigen,trt,dummy}backend.cpp` - Various backends.
+  * `{cuda,opencl,eigen,trt,rocm,metal,dummy}backend.cpp` - Various backends.
   * `nneval.{cpp,h}` - Top-level handle to the neural net used by the rest of the engine, implements thread-safe batching of queries.
 * `search` - The main search engine.
   * `timecontrols.cpp` - Basic handling of a few possible time controls.
