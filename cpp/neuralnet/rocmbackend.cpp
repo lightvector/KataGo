@@ -336,9 +336,9 @@ struct ConvLayer {
 
     convolutionAlgorithms = new ByBatchSize<miopenConvAlgoPerf_t>(maxBatchSize);
 
-    size_t inBytes  = maxBatchSize * inChannels  * xLen * yLen;
-    size_t outBytes = maxBatchSize * outChannels * xLen * yLen;
-    size_t workspaceBytes = requiredWorkspaceBytes(cudaHandles, maxBatchSize) + 10305856; //1661440; 
+    size_t inBytes  = maxBatchSize * inChannels  * xLen * yLen + 3324928;
+    size_t outBytes = maxBatchSize * outChannels * xLen * yLen + 3324928;
+    size_t workspaceBytes = requiredWorkspaceBytes(cudaHandles, maxBatchSize) + 3324928;
     
     CudaUtils::mallocOnDevice(name, inBytes, inputTmp, useFP16);
     CudaUtils::mallocOnDevice(name, outBytes, outputTmp, useFP16);
