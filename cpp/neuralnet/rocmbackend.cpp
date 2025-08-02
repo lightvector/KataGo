@@ -255,8 +255,11 @@ struct ConvLayer {
   ByBatchSizeView<miopenTensorDescriptor_t> outputDescriptors;
   miopenTensorDescriptor_t filterDescriptor;
   miopenConvolutionDescriptor_t convolutionDescriptor;
-  ByBatchSize<miopenConvSolution_t>* convolutionAlgorithms; //array of one for each batch size
+  ByBatchSize<miopenConvAlgoPerf_t>* convolutionAlgorithms; //array of one for each batch size
   void* filterBuf;
+  void* inputTmp;
+  void* outputTmp;
+  void* workspaceTmp;
 
   ConvLayer() = delete;
   ConvLayer(const ConvLayer&) = delete;
@@ -296,6 +299,8 @@ struct ConvLayer {
     inputDescriptors = manager->getTensorDesc4DByBatchSize(inChannels,useFP16,useNHWCIn);
     outputDescriptors = manager->getTensorDesc4DByBatchSize(outChannels,useFP16,useNHWCOut);
     int maxBatchSize = manager->maxBatchSize;
+    int xLen = manager->nnXLen;
+    int yLen = manager->nnYLen;
 
     bool filterNHWC = useNHWCOut && dilationY == 1 && dilationX == 1;
 
@@ -329,74 +334,54 @@ struct ConvLayer {
       CUDNN_ERR(name.c_str(),miopenSetConvolutionAttribute(convolutionDescriptor,MIOPEN_CONVOLUTION_ATTRIB_FP16_ALT_IMPL,alt));
     }
 
-    convolutionAlgorithms = new ByBatchSize<miopenConvSolution_t>(maxBatchSize);
+    convolutionAlgorithms = new ByBatchSize<miopenConvAlgoPerf_t>(maxBatchSize);
+
+    size_t inBytes  = maxBatchSize * inChannels  * xLen * yLen;
+    size_t outBytes = maxBatchSize * outChannels * xLen * yLen;
+    size_t workspaceBytes = requiredWorkspaceBytes(cudaHandles, maxBatchSize) + 10305856; //1661440; 
+    
+    CudaUtils::mallocOnDevice(name, inBytes, inputTmp, useFP16);
+    CudaUtils::mallocOnDevice(name, outBytes, outputTmp, useFP16);
+    CudaUtils::mallocOnDevice(name, workspaceBytes, workspaceTmp, useFP16);
+    CudaUtils::mallocAndCopyToDevice(name,desc->weights,filterBuf,useFP16);
 
     for(int batchSize = 1; batchSize <= maxBatchSize; batchSize++) {
-      // if(useFP16 && dilationX <= 1 && dilationY <= 1) {
-      //   (*convolutionAlgorithms)[batchSize].solution_id = 0;
-      //   continue;
-      // }
-      // else {
-        const miopenTensorDescriptor_t& inputDescriptor = inputDescriptors[batchSize];
-        const miopenTensorDescriptor_t& outputDescriptor = outputDescriptors[batchSize];
-        size_t requestedAlgoCount = 8;
-        size_t returnedAlgoCount = -1;
-        miopenConvSolution_t solutions[2 * requestedAlgoCount];
-        CUDNN_ERR(name.c_str(),miopenConvolutionForwardGetSolutionCount(
+      const miopenTensorDescriptor_t& inputDescriptor = inputDescriptors[batchSize];
+      const miopenTensorDescriptor_t& outputDescriptor = outputDescriptors[batchSize];
+      const int requestedAlgoCount = 8;
+      int returnedAlgoCount = -1;
+      miopenConvAlgoPerf_t results[2 * requestedAlgoCount];
+      CUDNN_ERR(name.c_str(),miopenFindConvolutionForwardAlgorithm(
           cudaHandles->cudnn,
-          filterDescriptor,
           inputDescriptor,
+          inputTmp,
+          filterDescriptor,
+          filterBuf,
           convolutionDescriptor,
           outputDescriptor,
-          &requestedAlgoCount
+          outputTmp,
+          requestedAlgoCount,
+          &returnedAlgoCount,
+          results,
+          workspaceTmp,
+          workspaceBytes,
+          false
         ));
-        CUDNN_ERR(name.c_str(),miopenConvolutionForwardGetSolution(
-            cudaHandles->cudnn,
-            filterDescriptor,
-            inputDescriptor,
-            convolutionDescriptor,
-            outputDescriptor,
-            requestedAlgoCount,
-            &returnedAlgoCount,
-            solutions
-          ));
-        if(returnedAlgoCount <= 0)
-          throw StringError("miopenConvolutionForwardGetSolution returned no algorithms?");
-        (*convolutionAlgorithms)[batchSize] = solutions[0];
-        CUDNN_ERR(name.c_str(),miopenConvolutionForwardCompileSolution(
-          cudaHandles->cudnn,
-          filterDescriptor,
-          inputDescriptor,
-          convolutionDescriptor,
-          outputDescriptor,
-          (*convolutionAlgorithms)[batchSize].solution_id
-        ));
-      // }
+      if(returnedAlgoCount <= 0)
+        throw StringError("miopenFindConvolutionForwardAlgorithm returned no algorithms?");
+      (*convolutionAlgorithms)[batchSize] = results[0];
     }
 
     assert(desc->weights.size() == convYSize * convXSize * inChannels * outChannels);
 
-    if(filterNHWC) {
-      vector<float> weightsTransposed(desc->weights.size());
-      for(int y = 0; y < convYSize; y++) {
-        for(int x = 0; x < convXSize; x++) {
-          for(int ic = 0; ic < inChannels; ic++) {
-            for(int oc = 0; oc < outChannels; oc++) {
-              weightsTransposed[((oc*convYSize + y)*convXSize + x)*inChannels + ic] =
-                desc->weights[((oc*inChannels + ic)*convYSize + y)*convXSize + x];
-            }
-          }
-        }
-      }
-      CudaUtils::mallocAndCopyToDevice(name,weightsTransposed,filterBuf,useFP16);
-      hipDeviceSynchronize();
-    }
-    else
-      CudaUtils::mallocAndCopyToDevice(name,desc->weights,filterBuf,useFP16);
+    CudaUtils::mallocAndCopyToDevice(name,desc->weights,filterBuf,useFP16);
   }
 
   ~ConvLayer() {
     hipFree(filterBuf);
+    hipFree(inputTmp);
+    hipFree(outputTmp);
+    hipFree(workspaceTmp);
     miopenDestroyTensorDescriptor(filterDescriptor);
     miopenDestroyConvolutionDescriptor(convolutionDescriptor);
     delete convolutionAlgorithms;
@@ -407,13 +392,12 @@ struct ConvLayer {
     int batchSize
   ) const {
     size_t workspaceBytes = 0;
-    CUDNN_ERR(name.c_str(),miopenConvolutionForwardGetSolutionWorkspaceSize(
+    CUDNN_ERR(name.c_str(),miopenConvolutionForwardGetWorkSpaceSize(
       cudaHandles->cudnn,
       filterDescriptor,
       inputDescriptors[batchSize],
       convolutionDescriptor,
       outputDescriptors[batchSize],
-      (*convolutionAlgorithms)[batchSize].solution_id,
       &workspaceBytes
     ));
     return workspaceBytes;
@@ -428,25 +412,223 @@ struct ConvLayer {
     void* workspaceBuf,
     size_t workspaceBytes
   ) const {
+    accumulate = false;
     const float alpha = 1.0f;
     const float beta = accumulate ? 1.0f : 0.0f;
-    CUDNN_ERR(name.c_str(), miopenConvolutionForwardImmediate(
+    CUDNN_ERR(name.c_str(), miopenConvolutionForward(
       cudaHandles->cudnn,
-      filterDescriptor,
-      filterBuf,
+      &alpha,
       inputDescriptors[batchSize],
       inputBuf,
+      filterDescriptor,
+      filterBuf,
       convolutionDescriptor,
+      (*convolutionAlgorithms)[batchSize].fwd_algo,
+      &beta,
       outputDescriptors[batchSize],
       outputBuf,
       workspaceBuf,
-      workspaceBytes,
-      (*convolutionAlgorithms)[batchSize].solution_id
+      workspaceBytes
     ));
   }
 
 };
 
+// New ConvLayer structure with MIOpen API
+
+// struct ConvLayer {
+//   const string name;
+//   const int inChannels;
+//   const int outChannels;
+//   ByBatchSizeView<miopenTensorDescriptor_t> inputDescriptors;
+//   ByBatchSizeView<miopenTensorDescriptor_t> outputDescriptors;
+//   miopenTensorDescriptor_t filterDescriptor;
+//   miopenConvolutionDescriptor_t convolutionDescriptor;
+//   ByBatchSize<miopenConvSolution_t>* convolutionAlgorithms; //array of one for each batch size
+//   void* filterBuf;
+
+//   ConvLayer() = delete;
+//   ConvLayer(const ConvLayer&) = delete;
+//   ConvLayer& operator=(const ConvLayer&) = delete;
+
+//   ConvLayer(
+//     CudaHandles* cudaHandles,
+//     CudnnManager* manager,
+//     const ConvLayerDesc* desc,
+//     bool useFP16,
+//     bool useNHWC
+//   ) : ConvLayer(cudaHandles, manager, desc, useFP16, useNHWC, useNHWC)
+//   {}
+
+//   ConvLayer(
+//     CudaHandles* cudaHandles,
+//     CudnnManager* manager,
+//     const ConvLayerDesc* desc,
+//     bool useFP16,
+//     bool useNHWCIn,
+//     bool useNHWCOut
+//   ) :
+//     name(desc->name),
+//     inChannels(desc->inChannels),
+//     outChannels(desc->outChannels)
+//   {
+//     int convYSize = desc->convYSize;
+//     int convXSize = desc->convXSize;
+//     int dilationY = desc->dilationY;
+//     int dilationX = desc->dilationX;
+//     int paddingX = (convXSize / 2) * dilationX;
+//     int paddingY = (convYSize / 2) * dilationY;
+
+//     assert(convXSize % 2 == 1);
+//     assert(convYSize % 2 == 1);
+
+//     inputDescriptors = manager->getTensorDesc4DByBatchSize(inChannels,useFP16,useNHWCIn);
+//     outputDescriptors = manager->getTensorDesc4DByBatchSize(outChannels,useFP16,useNHWCOut);
+//     int maxBatchSize = manager->maxBatchSize;
+
+//     bool filterNHWC = useNHWCOut && dilationY == 1 && dilationX == 1;
+
+//     CUDNN_ERR(name.c_str(),miopenCreateTensorDescriptor(&filterDescriptor));
+//     CUDNN_ERR(name.c_str(),miopenSet4dTensorDescriptor(
+//       filterDescriptor,
+//       (useFP16 ? miopenHalf : miopenFloat),
+//       outChannels,
+//       inChannels,
+//       convYSize,
+//       convXSize
+//     ));
+
+//     int yStride = 1;
+//     int xStride = 1;
+
+
+//     CUDNN_ERR(name.c_str(),miopenCreateConvolutionDescriptor(&convolutionDescriptor));
+//     CUDNN_ERR(name.c_str(),miopenInitConvolutionDescriptor(
+//       convolutionDescriptor,
+//       miopenConvolution,
+//       paddingY,
+//       paddingX,
+//       yStride,
+//       xStride,
+//       dilationY,
+//       dilationX
+//     ));
+//     if(useFP16) {
+//       int alt = 1; // non‑zero enables alt‑impl on MI2xx+ GPUs
+//       CUDNN_ERR(name.c_str(),miopenSetConvolutionAttribute(convolutionDescriptor,MIOPEN_CONVOLUTION_ATTRIB_FP16_ALT_IMPL,alt));
+//     }
+
+//     convolutionAlgorithms = new ByBatchSize<miopenConvSolution_t>(maxBatchSize);
+
+//     for(int batchSize = 1; batchSize <= maxBatchSize; batchSize++) {
+//       const miopenTensorDescriptor_t& inputDescriptor = inputDescriptors[batchSize];
+//       const miopenTensorDescriptor_t& outputDescriptor = outputDescriptors[batchSize];
+//       size_t requestedAlgoCount = 8;
+//       size_t returnedAlgoCount = -1;
+//       miopenConvSolution_t solutions[2 * requestedAlgoCount];
+//       CUDNN_ERR(name.c_str(),miopenConvolutionForwardGetSolutionCount(
+//         cudaHandles->cudnn,
+//         filterDescriptor,
+//         inputDescriptor,
+//         convolutionDescriptor,
+//         outputDescriptor,
+//         &requestedAlgoCount
+//       ));
+//       CUDNN_ERR(name.c_str(),miopenConvolutionForwardGetSolution(
+//           cudaHandles->cudnn,
+//           filterDescriptor,
+//           inputDescriptor,
+//           convolutionDescriptor,
+//           outputDescriptor,
+//           requestedAlgoCount,
+//           &returnedAlgoCount,
+//           solutions
+//         ));
+//       if(returnedAlgoCount <= 0)
+//         throw StringError("miopenConvolutionForwardGetSolution returned no algorithms?");
+//       (*convolutionAlgorithms)[batchSize] = solutions[0];
+//       CUDNN_ERR(name.c_str(),miopenConvolutionForwardCompileSolution(
+//         cudaHandles->cudnn,
+//         filterDescriptor,
+//         inputDescriptor,
+//         convolutionDescriptor,
+//         outputDescriptor,
+//         (*convolutionAlgorithms)[batchSize].solution_id
+//       ));
+//     }
+
+//     assert(desc->weights.size() == convYSize * convXSize * inChannels * outChannels);
+
+//     if(filterNHWC) {
+//       vector<float> weightsTransposed(desc->weights.size());
+//       for(int y = 0; y < convYSize; y++) {
+//         for(int x = 0; x < convXSize; x++) {
+//           for(int ic = 0; ic < inChannels; ic++) {
+//             for(int oc = 0; oc < outChannels; oc++) {
+//               weightsTransposed[((oc*convYSize + y)*convXSize + x)*inChannels + ic] =
+//                 desc->weights[((oc*inChannels + ic)*convYSize + y)*convXSize + x];
+//             }
+//           }
+//         }
+//       }
+//       CudaUtils::mallocAndCopyToDevice(name,weightsTransposed,filterBuf,useFP16);
+//       hipDeviceSynchronize();
+//     }
+//     else
+//       CudaUtils::mallocAndCopyToDevice(name,desc->weights,filterBuf,useFP16);
+//   }
+
+//   ~ConvLayer() {
+//     hipFree(filterBuf);
+//     miopenDestroyTensorDescriptor(filterDescriptor);
+//     miopenDestroyConvolutionDescriptor(convolutionDescriptor);
+//     delete convolutionAlgorithms;
+//   }
+
+//   size_t requiredWorkspaceBytes(
+//     CudaHandles* cudaHandles,
+//     int batchSize
+//   ) const {
+//     size_t workspaceBytes = 0;
+//     CUDNN_ERR(name.c_str(),miopenConvolutionForwardGetSolutionWorkspaceSize(
+//       cudaHandles->cudnn,
+//       filterDescriptor,
+//       inputDescriptors[batchSize],
+//       convolutionDescriptor,
+//       outputDescriptors[batchSize],
+//       (*convolutionAlgorithms)[batchSize].solution_id,
+//       &workspaceBytes
+//     ));
+//     return workspaceBytes;
+//   }
+
+//   void apply(
+//     CudaHandles* cudaHandles,
+//     int batchSize,
+//     bool accumulate,
+//     void* inputBuf,
+//     void* outputBuf,
+//     void* workspaceBuf,
+//     size_t workspaceBytes
+//   ) const {
+//     const float alpha = 1.0f;
+//     const float beta = accumulate ? 1.0f : 0.0f;
+//     CUDNN_ERR(name.c_str(), miopenConvolutionForwardImmediate(
+//       cudaHandles->cudnn,
+//       filterDescriptor,
+//       filterBuf,
+//       inputDescriptors[batchSize],
+//       inputBuf,
+//       convolutionDescriptor,
+//       outputDescriptors[batchSize],
+//       outputBuf,
+//       workspaceBuf,
+//       workspaceBytes,
+//       (*convolutionAlgorithms)[batchSize].solution_id
+//     ));
+//   }
+
+// };
 
 //---------------------------------------------------------------------------------
 
@@ -2351,6 +2533,9 @@ ComputeHandle* NeuralNet::createComputeHandle(
     );
     logger->write(
       "ROCm backend thread " + Global::intToString(serverThreadIdx) + ": Model name: " + loadedModel->modelDesc.name
+    );
+    logger->write(
+      "MIOpen finding convolution algorithms for GPU " + string(prop.name) + ". This may take a while, please wait......"
     );
   }
 
