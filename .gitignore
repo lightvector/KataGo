@@ -21,7 +21,7 @@ cpp/main
 cpp/maincuda
 cpp/mainopencl
 cpp/katago
-# cpp/configs
+cpp/configs
 cpp/evalsgf
 cpp/run*.sh
 cpp/tests/scratch
