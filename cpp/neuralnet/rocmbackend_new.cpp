@@ -346,36 +346,30 @@ struct ConvLayer {
     CudaUtils::mallocAndCopyToDevice(name,desc->weights,filterBuf,useFP16);
 
     for(int batchSize = 1; batchSize <= maxBatchSize; batchSize++) {
-      // if(useFP16 && dilationX <= 1 && dilationY <= 1) {
-      //   (*convolutionAlgorithms)[batchSize].fwd_algo = miopenConvolutionFwdAlgoGEMM;
-      // }
-      // else {
-        const miopenTensorDescriptor_t& inputDescriptor = inputDescriptors[batchSize];
-        const miopenTensorDescriptor_t& outputDescriptor = outputDescriptors[batchSize];
-        const int requestedAlgoCount = 8;
-        int returnedAlgoCount = -1;
-        miopenConvAlgoPerf_t results[2 * requestedAlgoCount];
-        CUDNN_ERR(name.c_str(),miopenFindConvolutionForwardAlgorithm(
-            cudaHandles->cudnn,
-            inputDescriptor,
-            inputTmp,
-            filterDescriptor,
-            filterBuf,
-            convolutionDescriptor,
-            outputDescriptor,
-            outputTmp,
-            requestedAlgoCount,
-            &returnedAlgoCount,
-            results,
-            workspaceTmp,
-            workspaceBytes,
-            true
-          ));
-        if(returnedAlgoCount <= 0)
-          throw StringError("miopenFindConvolutionForwardAlgorithm returned no algorithms?");
-        (*convolutionAlgorithms)[batchSize] = results[0];
-        printf("%d / %d\n", batchSize, maxBatchSize);
-      // }
+      const miopenTensorDescriptor_t& inputDescriptor = inputDescriptors[batchSize];
+      const miopenTensorDescriptor_t& outputDescriptor = outputDescriptors[batchSize];
+      const int requestedAlgoCount = 8;
+      int returnedAlgoCount = -1;
+      miopenConvAlgoPerf_t results[2 * requestedAlgoCount];
+      CUDNN_ERR(name.c_str(),miopenFindConvolutionForwardAlgorithm(
+          cudaHandles->cudnn,
+          inputDescriptor,
+          inputTmp,
+          filterDescriptor,
+          filterBuf,
+          convolutionDescriptor,
+          outputDescriptor,
+          outputTmp,
+          requestedAlgoCount,
+          &returnedAlgoCount,
+          results,
+          workspaceTmp,
+          workspaceBytes,
+          false
+        ));
+      if(returnedAlgoCount <= 0)
+        throw StringError("miopenFindConvolutionForwardAlgorithm returned no algorithms?");
+      (*convolutionAlgorithms)[batchSize] = results[0];
     }
 
     assert(desc->weights.size() == convYSize * convXSize * inChannels * outChannels);
@@ -418,6 +412,7 @@ struct ConvLayer {
     void* workspaceBuf,
     size_t workspaceBytes
   ) const {
+    accumulate = false;
     const float alpha = 1.0f;
     const float beta = accumulate ? 1.0f : 0.0f;
     CUDNN_ERR(name.c_str(), miopenConvolutionForward(
