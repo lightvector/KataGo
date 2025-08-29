@@ -106,6 +106,10 @@ namespace Location
 //Simple ko rule only.
 //Does not enforce player turn order.
 
+constexpr static int getMaxArrSize(const int x_size, const int y_size) {
+  return (x_size+1)*(y_size+2)+1;
+}
+
 struct Board
 {
   //Initialization------------------------------
@@ -131,7 +135,7 @@ struct Board
   static constexpr int DEFAULT_LEN_X = std::min(MAX_LEN_X,19); //Default x edge length for board if unspecified
   static constexpr int DEFAULT_LEN_Y = std::min(MAX_LEN_Y,19); //Default y edge length for board if unspecified
   static constexpr int MAX_PLAY_SIZE = MAX_LEN_X * MAX_LEN_Y;  //Maximum number of playable spaces
-  static constexpr int MAX_ARR_SIZE = (MAX_LEN_X+1)*(MAX_LEN_Y+2)+1; //Maximum size of arrays needed
+  static constexpr int MAX_ARR_SIZE = getMaxArrSize(MAX_LEN_X, MAX_LEN_Y); //Maximum size of arrays needed
 
   //Location used to indicate an invalid spot on the board.
   static constexpr Loc NULL_LOC = 0;
@@ -424,6 +428,7 @@ struct Board
   mutable std::vector<Loc> closureOrInvalidateLocsBuffer = std::vector<Loc>();
   mutable std::vector<Loc> territoryLocationsBuffer = std::vector<Loc>();
   mutable std::vector<Loc> walkStack = std::vector<Loc>();
+  mutable std::vector<bool> visited_data = std::vector<bool>();
 
   // Dots game functions
   [[nodiscard]] bool wouldBeCaptureDots(Loc loc, Player pla) const;
@@ -444,10 +449,12 @@ struct Board
   void invalidateAdjacentEmptyTerritoryIfNeeded(Loc loc);
   void makeMoveAndCalculateCapturesAndBases(Player pla, Loc loc, bool isSuicideLegal,
     std::vector<signed char>& captures, std::vector<signed char>& bases) const;
-  void setVisited(Loc loc);
-  void clearVisited(Loc loc);
-  void clearVisited(const std::vector<short>& locations);
   int calculateGroundingWhiteScore(Player pla, std::unordered_set<short>& nonGroundedLocs) const;
+
+  bool isVisited(Loc loc) const;
+  void setVisited(Loc loc) const;
+  void clearVisited(Loc loc) const;
+  void clearVisited(const std::vector<short>& locations) const;
 
   void init(int xS, int yS, const Rules& initRules);
   int countHeuristicConnectionLibertiesX2(Loc loc, Player pla) const;

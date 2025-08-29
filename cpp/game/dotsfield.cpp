@@ -8,12 +8,9 @@ using namespace std;
 static constexpr int PLACED_PLAYER_SHIFT = PLAYER_BITS_COUNT;
 static constexpr int EMPTY_TERRITORY_SHIFT = PLACED_PLAYER_SHIFT + PLAYER_BITS_COUNT;
 static constexpr int TERRITORY_FLAG_SHIFT = EMPTY_TERRITORY_SHIFT + PLAYER_BITS_COUNT;
-static constexpr int VISITED_FLAG_SHIFT = TERRITORY_FLAG_SHIFT + 1;
 
 static constexpr State TERRITORY_FLAG = 1 << TERRITORY_FLAG_SHIFT;
-static constexpr State VISITED_FLAG = static_cast<State>(1 << VISITED_FLAG_SHIFT);
 static constexpr State INVALIDATE_TERRITORY_MASK = ~(ACTIVE_MASK | ACTIVE_MASK << EMPTY_TERRITORY_SHIFT);
-static constexpr State INVALIDATE_VISITED_MASK = ~VISITED_FLAG;
 
 Loc Location::xm1y(Loc loc) {
   return loc - 1;
@@ -91,10 +88,6 @@ Color getActiveColor(const State state) {
   return static_cast<Color>(state & ACTIVE_MASK);
 }
 
-bool isVisited(const State s) {
-  return (s & VISITED_FLAG) == VISITED_FLAG;
-}
-
 bool isTerritory(const State s) {
   return (s & TERRITORY_FLAG) == TERRITORY_FLAG;
 }
@@ -135,15 +128,19 @@ bool Board::isDots() const {
   return rules.isDots;
 }
 
-void Board::setVisited(const Loc loc) {
-  colors[loc] = static_cast<Color>(colors[loc] | VISITED_FLAG);
+bool Board::isVisited(const Loc loc) const {
+  return visited_data[loc];
 }
 
-void Board::clearVisited(const Loc loc) {
-  colors[loc] = static_cast<Color>(colors[loc] & INVALIDATE_VISITED_MASK);
+void Board::setVisited(const Loc loc) const {
+  visited_data[loc] = true;
 }
 
-void Board::clearVisited(const vector<Loc>& locations) {
+void Board::clearVisited(const Loc loc) const {
+  visited_data[loc] = false;
+}
+
+void Board::clearVisited(const vector<Loc>& locations) const {
   for (const Loc& loc : locations) {
     clearVisited(loc);
   }
@@ -382,8 +379,9 @@ vector<Board::Base> Board::ground(const Player pla, vector<Loc>& emptyBaseInvali
   for (int y = 0; y < y_size; y++) {
     for (int x = 0; x < x_size; x++) {
       const Loc loc = Location::getLoc(x, y, x_size);
+      if (isVisited(loc)) continue;
 
-      if (const State state = getState(loc); !isVisited(state) && isActive(state, pla)) {
+      if (const State state = getState(loc); isActive(state, pla)) {
         bool createRealBase = false;
         bool grounded = false;
         getTerritoryLocations(pla, loc, true, createRealBase, grounded);
@@ -471,7 +469,7 @@ void Board::tryGetCounterClockwiseClosure(const Loc initialLoc, const Loc startL
           break;
         }
 
-        if(isVisited(state)) {
+        if(isVisited(loc)) {
           // Remove trailing dots
           Loc lastLoc;
           do {
@@ -576,8 +574,8 @@ void Board::getTerritoryLocations(const Player pla, const Loc firstLoc, const bo
     FOREACHADJ(
       Loc adj = loc + ADJOFFSET;
 
-      state = getState(adj);
-      if (!isVisited(state)) {
+      if (!isVisited(adj)) {
+        state = getState(adj);
         const Color activeColor = getActiveColor(state);
         if (activeColor == C_WALL) {
           assert(grounding);
@@ -696,8 +694,7 @@ void Board::invalidateAdjacentEmptyTerritoryIfNeeded(const Loc loc) {
     FOREACHADJ(
       Loc adj = lastLoc + ADJOFFSET;
 
-      State state = getState(adj);
-      if (getEmptyTerritoryColor(state) != C_EMPTY && !isVisited(state)) {
+      if (!isVisited(adj) && getEmptyTerritoryColor(getState(adj)) != C_EMPTY) {
         closureOrInvalidateLocsBuffer.push_back(adj);
         setState(adj, C_EMPTY);
         setVisited(adj);

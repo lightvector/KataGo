@@ -153,6 +153,7 @@ Board::Board(const Board& other) {
   numWhiteCaptures = other.numWhiteCaptures;
   numLegalMoves = other.numLegalMoves;
   memcpy(adj_offsets, other.adj_offsets, sizeof(short)*8);
+  visited_data.resize(other.visited_data.size(), false);
 }
 
 void Board::init(const int xS, const int yS, const Rules& initRules)
@@ -188,6 +189,8 @@ void Board::init(const int xS, const int yS, const Rules& initRules)
     chain_data.resize(MAX_ARR_SIZE);
     chain_head.resize(MAX_ARR_SIZE);
     next_in_chain.resize(MAX_ARR_SIZE);
+  } else {
+    visited_data.resize(getMaxArrSize(x_size, y_size), false);
   }
 
   Location::getAdjacentOffsets(adj_offsets, x_size, isDots());
@@ -2464,6 +2467,12 @@ void Board::checkConsistency() const {
   for(int i = 0; i < 8; i++)
     if(tmpAdjOffsets[i] != adj_offsets[i])
       throw StringError(errLabel + "Corrupted adj_offsets array");
+
+  for (const bool visited : visited_data) {
+    if (visited) {
+      throw StringError("Visited data always should be invalidated");
+    }
+  }
 }
 
 bool Board::isEqualForTesting(const Board& other, bool checkNumCaptures, bool checkSimpleKo) const {
