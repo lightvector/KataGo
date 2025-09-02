@@ -545,7 +545,7 @@ int MainCmds::contribute(const vector<string>& args) {
     maxSimultaneousGames = 16;
   }
   else {
-    maxSimultaneousGames = userCfg->getInt("maxSimultaneousGames", 1, 4000);
+    maxSimultaneousGames = userCfg->getInt("maxSimultaneousGames", 1, 16000);
   }
   bool onlyPlayRatingMatches = false;
   if(userCfg->contains("onlyPlayRatingMatches")) {
