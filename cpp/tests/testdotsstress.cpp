@@ -233,13 +233,18 @@ void runDotsStressTestsInternal(
 
     int tryGroundingAfterMove = (groundingStartCoef + rand.nextDouble() * (groundingEndCoef - groundingStartCoef)) * initialBoard.numLegalMoves;
     Player pla = P_BLACK;
+    int currentGameMovesCount = 0;
     for(short randomMove : randomMoves) {
-      lastLoc = moveRecords.size() >= tryGroundingAfterMove ? Board::PASS_LOC : randomMove;
+      lastLoc = currentGameMovesCount >= tryGroundingAfterMove ? Board::PASS_LOC : randomMove;
 
       if (board.isLegal(lastLoc, pla, suicideAllowed, false)) {
-        Board::MoveRecord moveRecord = board.playMoveRecorded(lastLoc, pla);
-        movesCount++;
-        moveRecords.push_back(moveRecord);
+        if (performExtraChecks) {
+          Board::MoveRecord moveRecord = board.playMoveRecorded(lastLoc, pla);
+          moveRecords.push_back(moveRecord);
+        } else {
+          board.playMoveAssumeLegal(lastLoc, pla);
+        }
+        currentGameMovesCount++;
         pla = getOpp(pla);
       }
 
@@ -247,8 +252,7 @@ void runDotsStressTestsInternal(
         groundingCount++;
         int scoreDiff;
         int oppScoreIfGrounding;
-        Player lastPla = moveRecords.back().pla;
-        if (lastPla == P_BLACK) {
+        if (Player lastPla = getOpp(pla); lastPla == P_BLACK) {
           scoreDiff = board.numBlackCaptures - board.numWhiteCaptures;
           oppScoreIfGrounding = board.whiteScoreIfBlackGrounds;
         } else {
@@ -276,6 +280,7 @@ void runDotsStressTestsInternal(
       testAssert(0 == board.numLegalMoves);
     }
 
+    movesCount += currentGameMovesCount;
     if (float whiteScore = board.numBlackCaptures - board.numWhiteCaptures + komi; whiteScore > 0.0f) {
       whiteWinsCount++;
     } else if (whiteScore < 0) {

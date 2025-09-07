@@ -826,7 +826,7 @@ bool Board::playMove(Loc loc, Player pla, bool isMultiStoneSuicideLegal)
 //Plays the specified move, assuming it is legal, and returns a MoveRecord for the move
 Board::MoveRecord Board::playMoveRecorded(const Loc loc, const Player pla) {
   if (rules.isDots) {
-    return playMoveAssumeLegalDots(loc, pla);
+    return playMoveRecordedDots(loc, pla);
   }
 
   uint8_t capDirs = 0;

@@ -249,7 +249,7 @@ bool Board::isSuicideDots(const Loc loc, const Player pla) const {
 
 bool Board::wouldBeCaptureDots(const Loc loc, const Player pla) const {
   // TODO: optimize and get rid of `const_cast`
-  auto moveRecord = const_cast<Board*>(this)->tryPlayMove(loc, pla, false);
+  auto moveRecord = const_cast<Board*>(this)->tryPlayMoveRecordedDots(loc, pla, false);
 
   bool result = false;
 
@@ -267,22 +267,19 @@ bool Board::wouldBeCaptureDots(const Loc loc, const Player pla) const {
   return result;
 }
 
-Board::MoveRecord Board::playMoveAssumeLegalDots(const Loc loc, const Player pla) {
-  MoveRecord result = tryPlayMove(loc, pla, true);
+Board::MoveRecord Board::playMoveRecordedDots(const Loc loc, const Player pla) {
+  const MoveRecord& result = tryPlayMoveRecordedDots(loc, pla, true);
   assert(result.pla == pla);
-  return std::move(result);
+  return result;
 }
 
-Board::MoveRecord Board::tryPlayMove(Loc loc, Player pla, const bool isSuicideLegal) {
-  State originalState = getState(loc);
-
-  vector<Base> bases;
-  vector<Loc> initEmptyBaseInvalidateLocations;
-  vector<Loc> newGroundingLocations;
+void Board::playMoveAssumeLegalDots(const Loc loc, const Player pla) {
+  const State originalState = getState(loc);
 
   if (loc == PASS_LOC) {
-    initEmptyBaseInvalidateLocations = vector<Loc>();
-    bases = ground(pla, initEmptyBaseInvalidateLocations);
+    auto initEmptyBaseInvalidateLocations = vector<Loc>();
+    auto bases = vector<Base>();
+    ground(pla, initEmptyBaseInvalidateLocations, bases);
   } else {
     colors[loc] = static_cast<Color>(pla | pla << PLACED_PLAYER_SHIFT);
     const Hash128 hashValue = ZOBRIST_BOARD_HASH[loc][pla];
@@ -290,13 +287,72 @@ Board::MoveRecord Board::tryPlayMove(Loc loc, Player pla, const bool isSuicideLe
     numLegalMoves--;
 
     bool atLeastOneRealBaseIsGrounded = false;
-    bases = tryCapture(loc, pla, false, atLeastOneRealBaseIsGrounded);
+    int unconnectedLocationsSize = 0;
+    const std::array<Loc, 4> unconnectedLocations = getUnconnectedLocations(loc, pla, unconnectedLocationsSize);
+    bool capturing = false;
+    if (unconnectedLocationsSize >= 2) {
+      auto bases = vector<Base>();
+      tryCapture(loc, pla, unconnectedLocations, unconnectedLocationsSize, atLeastOneRealBaseIsGrounded, bases);
+      capturing = !bases.empty();
+    }
+
+    const Color opp = getOpp(pla);
+    if (!capturing) {
+      if (getEmptyTerritoryColor(originalState) == opp) {
+        vector<Base> oppBases;
+        captureWhenEmptyTerritoryBecomesRealBase(loc, opp, oppBases, atLeastOneRealBaseIsGrounded);
+      }
+    } else if (isWithinEmptyTerritory(originalState, opp)) {
+      invalidateAdjacentEmptyTerritoryIfNeeded(loc);
+    }
+
+    if (pla == P_BLACK) {
+      whiteScoreIfBlackGrounds++;
+    } else if (pla == P_WHITE) {
+      blackScoreIfWhiteGrounds++;
+    }
+
+    if (atLeastOneRealBaseIsGrounded) {
+      fillGrounding(loc);
+    } else if(
+        const Player locActivePlayer = getColor(loc); // Can't use pla because of a possible suicidal move
+        isGroundedOrWall(getState(Location::xm1y(loc)), locActivePlayer) ||
+        isGroundedOrWall(getState(Location::xym1(loc, x_size)), locActivePlayer) ||
+        isGroundedOrWall(getState(Location::xp1y(loc)), locActivePlayer) ||
+        isGroundedOrWall(getState(Location::xyp1(loc, x_size)), locActivePlayer)
+    ) {
+      fillGrounding(loc);
+    }
+  }
+}
+
+Board::MoveRecord Board::tryPlayMoveRecordedDots(Loc loc, Player pla, const bool isSuicideLegal) {
+  State originalState = getState(loc);
+
+  vector<Base> bases;
+  vector<Loc> initEmptyBaseInvalidateLocations;
+  vector<Loc> newGroundingLocations;
+
+  if (loc == PASS_LOC) {
+    ground(pla, initEmptyBaseInvalidateLocations, bases);
+  } else {
+    colors[loc] = static_cast<Color>(pla | pla << PLACED_PLAYER_SHIFT);
+    const Hash128 hashValue = ZOBRIST_BOARD_HASH[loc][pla];
+    pos_hash ^= hashValue;
+    numLegalMoves--;
+
+    bool atLeastOneRealBaseIsGrounded = false;
+    int unconnectedLocationsSize = 0;
+    const std::array<Loc, 4> unconnectedLocations = getUnconnectedLocations(loc, pla, unconnectedLocationsSize);
+    if (unconnectedLocationsSize >= 2) {
+       tryCapture(loc, pla, unconnectedLocations, unconnectedLocationsSize, atLeastOneRealBaseIsGrounded, bases);
+    }
 
     const Color opp = getOpp(pla);
     if (bases.empty()) {
       if (getEmptyTerritoryColor(originalState) == opp) {
         if (isSuicideLegal) {
-          bases.push_back(captureWhenEmptyTerritoryBecomesRealBase(loc, opp, atLeastOneRealBaseIsGrounded));
+          captureWhenEmptyTerritoryBecomesRealBase(loc, opp, bases, atLeastOneRealBaseIsGrounded);
         } else {
           colors[loc] = originalState;
           pos_hash ^= hashValue;
@@ -304,11 +360,9 @@ Board::MoveRecord Board::tryPlayMove(Loc loc, Player pla, const bool isSuicideLe
           return {};
         }
       }
-    } else {
-      if (isWithinEmptyTerritory(originalState, opp)) {
-        invalidateAdjacentEmptyTerritoryIfNeeded(loc);
-        initEmptyBaseInvalidateLocations = vector(closureOrInvalidateLocsBuffer);
-      }
+    } else if (isWithinEmptyTerritory(originalState, opp)) {
+      invalidateAdjacentEmptyTerritoryIfNeeded(loc);
+      initEmptyBaseInvalidateLocations = vector(closureOrInvalidateLocsBuffer);
     }
 
     if (pla == P_BLACK) {
@@ -419,7 +473,11 @@ vector<Loc> Board::fillGrounding(const Loc loc) {
   return groundedLocs;
 }
 
-Board::Base Board::captureWhenEmptyTerritoryBecomesRealBase(const Loc initLoc, const Player opp, bool& isGrounded) {
+void Board::captureWhenEmptyTerritoryBecomesRealBase(
+  const Loc initLoc,
+  const Player opp,
+  vector<Base>& bases,
+  bool& isGrounded) {
   Loc loc = initLoc;
 
   // Searching for an opponent dot that makes a closure that contains the `initialPosition`.
@@ -430,34 +488,40 @@ Board::Base Board::captureWhenEmptyTerritoryBecomesRealBase(const Loc initLoc, c
     // Try to peek an active opposite player dot
     if (getColor(loc) != opp) continue;
 
-    vector<Base> oppBases = tryCapture(loc, opp, true, isGrounded);
-    // The found base always should be real and include the `iniLoc`
-    for (const Base& oppBase : oppBases) {
-      if (oppBase.is_real) {
-        return oppBase;
+    int unconnectedLocationsSize = 0;
+    const std::array<Loc, 4> unconnectedLocations = getUnconnectedLocations(loc, opp, unconnectedLocationsSize);
+    if (unconnectedLocationsSize >= 1) {
+      bases.clear();
+      tryCapture(loc, opp, unconnectedLocations, unconnectedLocationsSize, isGrounded, bases);
+      // The found base always should be real and include the `iniLoc`
+      for (const Base& oppBase : bases) {
+        if (oppBase.is_real) {
+          return;
+        }
       }
     }
   }
 
   assert(false && "Opp empty territory should be enclosed by an outer closure");
-  return {};
 }
 
-vector<Board::Base> Board::tryCapture(const Loc loc, const Player pla, const bool emptyBaseCapturing, bool& atLeastOneRealBaseIsGrounded) {
-  getUnconnectedLocations(loc, pla);
+void Board::tryCapture(
+  const Loc loc,
+  const Player pla,
+  const std::array<Loc, 4>& unconnectedLocations,
+  const int unconnectedLocationsSize,
+  bool& atLeastOneRealBaseIsGrounded,
+  std::vector<Base>& bases) {
   auto currentClosures = vector<vector<Loc>>();
 
-  if (const int minNumberOfConnections = emptyBaseCapturing ? 1 : 2;
-     unconnectedLocationsBufferSize < minNumberOfConnections) return {};
-
-  for (int index = 0; index < unconnectedLocationsBufferSize; index++) {
-    const Loc unconnectedLoc = unconnectedLocationsBuffer[index];
+  for (int index = 0; index < unconnectedLocationsSize; index++) {
+    const Loc unconnectedLoc = unconnectedLocations[index];
 
     // Optimization: it doesn't make sense to check the latest unconnected dot
     // when all previous connections form minimal bases
     // because the latest always forms a base with maximal square that should be dropped
     if (const size_t closuresSize = currentClosures.size();
-       closuresSize > 0 && closuresSize == unconnectedLocationsBuffer.size() - 1) {
+       closuresSize > 0 && closuresSize == unconnectedLocations.size() - 1) {
       break;
     }
 
@@ -483,11 +547,10 @@ vector<Board::Base> Board::tryCapture(const Loc loc, const Player pla, const boo
     }
   }
 
-  auto resultBases = vector<Base>();
   atLeastOneRealBaseIsGrounded = false;
   for (const vector<Loc>& currentClosure: currentClosures) {
     Base base = buildBase(currentClosure, pla);
-    resultBases.push_back(base);
+    bases.push_back(base);
 
     if (!atLeastOneRealBaseIsGrounded && base.is_real) {
       for (const Loc& closureLoc : currentClosure) {
@@ -500,13 +563,10 @@ vector<Board::Base> Board::tryCapture(const Loc loc, const Player pla, const boo
       }
     }
   }
-
-  return std::move(resultBases);
 }
 
-vector<Board::Base> Board::ground(const Player pla, vector<Loc>& emptyBaseInvalidatePositions) {
+void Board::ground(const Player pla, vector<Loc>& emptyBaseInvalidatePositions, vector<Base>& bases) {
   const Color opp = getOpp(pla);
-  auto resultBases = vector<Base>();
 
   for (int y = 0; y < y_size; y++) {
     for (int x = 0; x < x_size; x++) {
@@ -523,33 +583,34 @@ vector<Board::Base> Board::ground(const Player pla, vector<Loc>& emptyBaseInvali
           }
         }
 
-        resultBases.push_back(createBaseAndUpdateStates(opp, true));
+        bases.push_back(createBaseAndUpdateStates(opp, true));
       }
     }
   }
-
-  return resultBases;
 }
 
-void Board::getUnconnectedLocations(const Loc loc, const Player pla) const {
-  const Loc xm1y = loc + adj_offsets[LEFT_INDEX];
-  const Loc xym1 = loc + adj_offsets[TOP_INDEX];
-  const Loc xp1y = loc + adj_offsets[RIGHT_INDEX];
-  const Loc xyp1 = loc + adj_offsets[BOTTOM_INDEX];
+std::array<Loc, 4> Board::getUnconnectedLocations(const Loc loc, const Player pla, int& size) const {
+  const Loc xm1y = Location::xm1y(loc);
+  const Loc xym1 = Location::xym1(loc, x_size);
+  const Loc xp1y = Location::xp1y(loc);
+  const Loc xyp1 = Location::xyp1(loc, x_size);
 
-  unconnectedLocationsBufferSize = 0;
-  checkAndAddUnconnectedLocation(getColor(xp1y), pla, loc + adj_offsets[RIGHT_BOTTOM_INDEX], xyp1);
-  checkAndAddUnconnectedLocation(getColor(xyp1), pla, loc + adj_offsets[LEFT_BOTTOM_INDEX], xm1y);
-  checkAndAddUnconnectedLocation(getColor(xm1y), pla, loc + adj_offsets[LEFT_TOP_INDEX], xym1);
-  checkAndAddUnconnectedLocation(getColor(xym1), pla, loc + adj_offsets[RIGHT_TOP_INDEX], xp1y);
+  std::array<Loc, 4> unconnectedLocationsBuffer;
+  size = 0;
+  checkAndAddUnconnectedLocation(unconnectedLocationsBuffer, size, getColor(xp1y), pla, Location::xp1yp1(loc, x_size), xyp1);
+  checkAndAddUnconnectedLocation(unconnectedLocationsBuffer, size, getColor(xyp1), pla, Location::xm1yp1(loc, x_size), xm1y);
+  checkAndAddUnconnectedLocation(unconnectedLocationsBuffer, size, getColor(xm1y), pla, Location::xm1ym1(loc, x_size), xym1);
+  checkAndAddUnconnectedLocation(unconnectedLocationsBuffer, size, getColor(xym1), pla, Location::xp1ym1(loc, x_size), xp1y);
+
+  return unconnectedLocationsBuffer;
 }
 
-void Board::checkAndAddUnconnectedLocation(const Player checkPla, const Player currentPla, const Loc addLoc1, const Loc addLoc2) const {
+void Board::checkAndAddUnconnectedLocation(std::array<Loc, 4>& unconnectedLocationsBuffer, int& size, const Player checkPla, const Player currentPla, const Loc addLoc1, const Loc addLoc2) const {
   if (checkPla != currentPla) {
     if (getColor(addLoc1) == currentPla) {
-      unconnectedLocationsBuffer[unconnectedLocationsBufferSize++] = addLoc1;
+      unconnectedLocationsBuffer[size++] = addLoc1;
     } else if (getColor(addLoc2) == currentPla) {
-      unconnectedLocationsBuffer[unconnectedLocationsBufferSize++] = addLoc2;
+      unconnectedLocationsBuffer[size++] = addLoc2;
     }
   }
 }
@@ -830,7 +891,7 @@ void Board::makeMoveAndCalculateCapturesAndBases(
   vector<Color>& bases
   ) const {
   if(isLegal(loc, pla, isSuicideLegal, false)) {
-    MoveRecord moveRecord = const_cast<Board*>(this)->playMoveAssumeLegalDots(loc, pla);
+    MoveRecord moveRecord = const_cast<Board*>(this)->playMoveRecordedDots(loc, pla);
 
     if(!moveRecord.bases.empty()) {
       if(moveRecord.bases[0].pla == pla) {

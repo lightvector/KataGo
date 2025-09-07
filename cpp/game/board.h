@@ -429,8 +429,6 @@ struct Board
   private:
 
   // Dots game data
-  mutable std::array<Loc, 4> unconnectedLocationsBuffer = std::array<Loc, 4>();
-  mutable int unconnectedLocationsBufferSize = 0;
   mutable std::vector<Loc> closureOrInvalidateLocsBuffer = std::vector<Loc>();
   mutable std::vector<Loc> territoryLocationsBuffer = std::vector<Loc>();
   mutable std::vector<Loc> walkStack = std::vector<Loc>();
@@ -439,15 +437,28 @@ struct Board
   // Dots game functions
   [[nodiscard]] bool wouldBeCaptureDots(Loc loc, Player pla) const;
   [[nodiscard]] bool isSuicideDots(Loc loc, Player pla) const;
-  MoveRecord playMoveAssumeLegalDots(Loc loc, Player pla);
-  MoveRecord tryPlayMove(Loc loc, Player pla, bool isSuicideLegal);
+  void playMoveAssumeLegalDots(Loc loc, Player pla);
+  MoveRecord playMoveRecordedDots(Loc loc, Player pla);
+  MoveRecord tryPlayMoveRecordedDots(Loc loc, Player pla, bool isSuicideLegal);
   void undoDots(MoveRecord& moveRecord);
   std::vector<short> fillGrounding(Loc loc);
-  Base captureWhenEmptyTerritoryBecomesRealBase(Loc initLoc, Player opp, bool& isGrounded);
-  std::vector<Base> tryCapture(Loc loc, Player pla, bool emptyBaseCapturing, bool& atLeastOneRealBaseIsGrounded);
-  std::vector<Base> ground(Player pla, std::vector<Loc>& emptyBaseInvalidatePositions);
-  void getUnconnectedLocations(Loc loc, Player pla) const;
-  void checkAndAddUnconnectedLocation(Player checkPla,Player currentPla,Loc addLoc1,Loc addLoc2) const;
+  void captureWhenEmptyTerritoryBecomesRealBase(Loc initLoc, Player opp, std::vector<Base>& bases, bool& isGrounded);
+  void tryCapture(
+    Loc loc,
+    Player pla,
+    const std::array<Loc, 4>& unconnectedLocations,
+    int unconnectedLocationsSize,
+    bool& atLeastOneRealBaseIsGrounded,
+    std::vector<Base>& bases);
+  void ground(Player pla, std::vector<Loc>& emptyBaseInvalidatePositions, std::vector<Base>& bases);
+  std::array<Loc, 4> getUnconnectedLocations(Loc loc, Player pla, int& size) const;
+  void checkAndAddUnconnectedLocation(
+    std::array<Loc, 4>& unconnectedLocationsBuffer,
+    int& size,
+    Player checkPla,
+    Player currentPla,
+    Loc addLoc1,
+    Loc addLoc2) const;
   void tryGetCounterClockwiseClosure(Loc initialLoc, Loc startLoc, Player pla) const;
   Base buildBase(const std::vector<short>& closure, Player pla);
   void getTerritoryLocations(Player pla, Loc firstLoc, bool grounding, bool& createRealBase) const;
