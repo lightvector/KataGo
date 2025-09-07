@@ -2816,19 +2816,11 @@ string Board::toStringSimple(const Board& board, char lineDelimiter) {
   return s;
 }
 
-Board Board::parseBoard(int xSize, int ySize, const string& s) {
-  return parseBoard(xSize, ySize, s, '\n', Rules());
-}
-
 Board Board::parseBoard(int xSize, int ySize, const std::string& s, char lineDelimiter) {
-  return parseBoard(xSize, ySize, s, lineDelimiter, Rules());
+  return parseBoard(xSize, ySize, s, Rules::DEFAULT_GO, lineDelimiter);
 }
 
-Board Board::parseBoard(int xSize, int ySize, const std::string& s, const Rules& rules) {
-  return parseBoard(xSize, ySize, s, '\n', rules);
-}
-
-Board Board::parseBoard(int xSize, int ySize, const string& s, char lineDelimiter, const Rules& rules) {
+Board Board::parseBoard(int xSize, int ySize, const string& s, const Rules& rules, char lineDelimiter) {
   Board board(xSize,ySize,rules);
   vector<string> lines = Global::split(Global::trim(s),lineDelimiter);
 
@@ -2908,7 +2900,7 @@ Board Board::ofJson(const nlohmann::json& data) {
   bool dots = data.value(DOTS_KEY, false);
   int xSize = data["xSize"].get<int>();
   int ySize = data["ySize"].get<int>();
-  Board board = parseBoard(xSize, ySize, data["stones"].get<string>(), '|', Rules(dots));
+  Board board = parseBoard(xSize, ySize, data["stones"].get<string>(), Rules(dots), '|');
   board.setSimpleKoLoc(Location::ofStringAllowNull(data.value("koLoc", "null"),board));
   board.numBlackCaptures = data["numBlackCaptures"].get<int>();
   board.numWhiteCaptures = data["numWhiteCaptures"].get<int>();

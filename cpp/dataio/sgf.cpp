@@ -1162,7 +1162,7 @@ Sgf::PositionSample Sgf::PositionSample::ofJsonLine(const string& s) {
     bool isDots = data.value(DOTS_KEY, false);
     int xSize = data["xSize"].get<int>();
     int ySize = data["ySize"].get<int>();
-    sample.board = Board::parseBoard(xSize, ySize, data["board"].get<string>(), '/', Rules(isDots));
+    sample.board = Board::parseBoard(xSize, ySize, data["board"].get<string>(), Rules(isDots), '/');
     sample.nextPla = PlayerIO::parsePlayer(data["nextPla"].get<string>());
     vector<string> moveLocs = data["moveLocs"].get<vector<string>>();
     vector<string> movePlas = data["movePlas"].get<vector<string>>();

@@ -388,10 +388,8 @@ struct Board
   bool isEqualForTesting(const Board& other, bool checkNumCaptures, bool checkSimpleKo) const;
   bool isEqualForTesting(const Board& other, bool checkNumCaptures, bool checkSimpleKo, bool checkRules) const;
 
-  static Board parseBoard(int xSize, int ySize, const std::string& s);
-  static Board parseBoard(int xSize, int ySize, const std::string& s, char lineDelimiter);
-  static Board parseBoard(int xSize, int ySize, const std::string& s, const Rules& rules);
-  static Board parseBoard(int xSize, int ySize, const std::string& s, char lineDelimiter, const Rules& rules);
+  static Board parseBoard(int xSize, int ySize, const std::string& s, char lineDelimiter = '\n');
+  static Board parseBoard(int xSize, int ySize, const std::string& s, const Rules& rules, char lineDelimiter = '\n');
   std::string toString() const;
   static void printBoard(std::ostream& out, const Board& board, Loc markLoc, const std::vector<Move>* hist);
   static std::string toStringSimple(const Board& board, char lineDelimiter);

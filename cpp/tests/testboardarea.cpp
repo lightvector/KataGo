@@ -19,7 +19,7 @@ void Tests::runBoardAreaTests() {
       bool safeBigTerritories = safeBigTerritoriesBuf[mode/2];
       bool unsafeBigTerritories = unsafeBigTerritoriesBuf[mode/2];
       bool nonPassAliveStones = nonPassAliveStonesBuf[mode/2];
-      Board copy(board);
+      const Board& copy(board);
       copy.calculateArea(result,nonPassAliveStones,safeBigTerritories,unsafeBigTerritories,multiStoneSuicideLegal);
       out << "Safe big territories " << safeBigTerritories << " "
       << "Unsafe big territories " << unsafeBigTerritories << " "
