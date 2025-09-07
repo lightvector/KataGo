@@ -858,7 +858,17 @@ void NNEvaluator::evaluate(
     assert(nextPlayer == history.presumedNextMovePla);
     for(int i = 0; i<policySize; i++) {
       Loc loc = NNPos::posToLoc(i,xSize,ySize,nnXLen,nnYLen);
-      isLegal[i] = history.isLegal(board,loc,nextPlayer);
+      bool legal;
+      if (loc == Board::PASS_LOC && history.rules.isDots) {
+        // We need at least one legal loc, so choose grounding if it wins the game or there are no legal pos moves.
+        legal = legalCount == 0 || history.doesGroundingWinGame(board, nextPlayer);
+      } else {
+        legal = history.isLegal(board,loc,nextPlayer);
+      }
+      isLegal[i] = legal;
+      if (legal) {
+        legalCount++;
+      }
     }
 
     if(nnInputParams.avoidMYTDaggerHack && xSize >= 13 && ySize >= 13) {
@@ -872,6 +882,7 @@ void NNEvaluator::evaluate(
       }
     }
 
+    legalCount = 0;
     for(int i = 0; i<policySize; i++) {
       float policyValue;
       if(isLegal[i]) {
