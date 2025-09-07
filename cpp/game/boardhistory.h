@@ -104,6 +104,7 @@ struct BoardHistory {
   BoardHistory();
   explicit BoardHistory(const Rules& rules);
   ~BoardHistory();
+  BoardHistory(const Board& board);
 
   BoardHistory(const Board& board, Player pla, const Rules& rules, int encorePhase);
 
@@ -173,9 +174,10 @@ struct BoardHistory {
   void endGameIfAllPassAlive(const Board& board);
   //Score the board as-is. If the game is already finished, and is NOT a no-result, then this should be idempotent.
   void endAndScoreGameNow(const Board& board);
-  bool isGroundingWinsGame(const Board& board, Player pla, float& whiteScore) const;
+  bool doesGroundingWinGame(const Board& board, Player pla) const;
+  bool doesGroundingWinGame(const Board& board, Player pla, float& whiteScore) const;
+  float whiteScoreIfGroundingAlive(const Board& board) const;
   void endAndScoreGameNow(const Board& board, Color area[Board::MAX_ARR_SIZE]);
-  void getAreaNow(const Board& board, Color area[Board::MAX_ARR_SIZE]) const;
 
   void setWinnerByResignation(Player pla);
 
@@ -203,7 +205,7 @@ struct BoardHistory {
 private:
   bool koHashOccursInHistory(Hash128 koHash, const KoHashTable* rootKoHashTable) const;
   void setKoRecapBlocked(Loc loc, bool b);
-  static int countGroundingScoreWhiteMinusBlack(const Board& board, Color area[Board::MAX_ARR_SIZE]);
+  int countDotsScoreWhiteMinusBlack(const Board& board, Color area[Board::MAX_ARR_SIZE]) const;
   int countAreaScoreWhiteMinusBlack(const Board& board, Color area[Board::MAX_ARR_SIZE]) const;
   int countTerritoryAreaScoreWhiteMinusBlack(const Board& board, Color area[Board::MAX_ARR_SIZE]) const;
   void setFinalScoreAndWinner(float score);

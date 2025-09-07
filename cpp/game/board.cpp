@@ -1892,7 +1892,7 @@ void Board::calculateArea(
   bool isMultiStoneSuicideLegal
 ) const {
   if (rules.isDots) {
-    calculateGroundingWhiteScore(result);
+    calculateOwnershipAndWhiteScore(result, C_EMPTY);
     return;
   }
 

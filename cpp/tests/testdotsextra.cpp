@@ -106,41 +106,47 @@ xo..
 SymmetryHelpers::SYMMETRY_TRANSPOSE_FLIP_Y_X);
 }
 
-string getGroundedTerritory(const string& boardData, const int expectedGroundingWhiteScore, const vector<XYMove>& extraMoves) {
-  Board board = parseDotsFieldDefault(boardData, extraMoves);
+string getOwnership(const string& boardData, const Color groundingPlayer, const int expectedWhiteScore, const vector<XYMove>& extraMoves) {
+  const Board board = parseDotsFieldDefault(boardData, extraMoves);
 
-  Board copy(board);
   Color result[Board::MAX_ARR_SIZE];
-  int whiteScore = copy.calculateGroundingWhiteScore(result);
-  testAssert(expectedGroundingWhiteScore == whiteScore);
+  const int whiteScore = board.calculateOwnershipAndWhiteScore(result, groundingPlayer);
+  testAssert(expectedWhiteScore == whiteScore);
 
   std::ostringstream oss;
 
-  for (int y = 0; y < copy.y_size; y++) {
-    for (int x = 0; x < copy.x_size; x++) {
-      Loc loc = Location::getLoc(x, y, copy.x_size);
+  for (int y = 0; y < board.y_size; y++) {
+    for (int x = 0; x < board.x_size; x++) {
+      const Loc loc = Location::getLoc(x, y, board.x_size);
       oss << PlayerIO::colorToChar(result[loc]);
     }
     oss << endl;
   }
 
-  testAssert(board.isEqualForTesting(copy, true, true));
   return oss.str();
 }
 
-string getGroundedTerritory(const string& boardData, const int expectedGroundingWhiteScore) {
-  return getGroundedTerritory(boardData, expectedGroundingWhiteScore, vector<XYMove>());
+void expect(
+  const char* name,
+  const Color groundingPlayer,
+  const std::string& actualField,
+  const std::string& expectedOwnership,
+  const int expectedWhiteScore,
+  const vector<XYMove>& extraMoves = {}
+) {
+  cout << "    " << name << ", Grounding Player: " << PlayerIO::colorToChar(groundingPlayer) << endl;
+  expect(name, getOwnership(actualField, groundingPlayer, expectedWhiteScore, extraMoves), expectedOwnership);
 }
 
-void Tests::runDotsTerritoryTests() {
-  expect("Cross",   getGroundedTerritory(R"(
+void Tests::runDotsOwnershipTests() {
+  expect("Start Cross", C_EMPTY, R"(
 ......
 ......
 ..ox..
 ..xo..
 ......
 ......
-)", 0),
+)",
   R"(
 ......
 ......
@@ -148,92 +154,75 @@ void Tests::runDotsTerritoryTests() {
 ......
 ......
 ......
-)");
+)", 0);
 
-  expect("Grounded white",   getGroundedTerritory(R"(
-..o...
-..o...
-..ox..
-..xo..
-...o..
-...o..
-)", 2),
-  R"(
-..O...
-..O...
-..O...
-...O..
-...O..
-...O..
-)");
-
-  expect("Grounded black",   getGroundedTerritory(R"(
-...x..
-...x..
-..ox..
-..xo..
-..x...
-..x...
-)", -2),
-  R"(
-...X..
-...X..
-...X..
-..X...
-..X...
-..X...
-)");
-
-  expect("Grounded white and black",   getGroundedTerritory(R"(
-..ox..
-..ox..
-..ox..
-..xo..
-..xo..
-..xo..
-)", 0),
-R"(
-..OX..
-..OX..
-..OX..
-..XO..
-..XO..
-..XO..
-)");
-
-  expect("Ungrounded white base",   getGroundedTerritory(R"(
+  expect("Wins by a base", C_EMPTY, R"(
 ......
 ......
 ..ox..
 .oxo..
 ......
 ......
-)", -2, {XYMove(2, 4, P_WHITE)}),
+)",
 R"(
 ......
 ......
 ......
+..O...
 ......
 ......
-......
-)");
+)", 1, {XYMove(2, 4, P_WHITE)});
 
-  expect("Grounded white base",   getGroundedTerritory(R"(
-......
-......
+  expect("Loss by grounding", C_BLACK, R"(
+..o...
+..o...
 ..ox..
-.oxo..
-......
-......
-)", 3, {XYMove(2, 4, P_WHITE), XYMove(2, 5, P_WHITE)}),
+..xo..
+...o..
+...o..
+)",
 R"(
 ......
 ......
+...O..
 ..O...
-.OOO..
-..O...
-..O...
-)");
+......
+......
+)", 2);
+
+  expect("Loss by grounding", C_WHITE, R"(
+...x..
+...x..
+..ox..
+..xo..
+..x...
+..x...
+)",
+R"(
+......
+......
+..X...
+...X..
+......
+......
+)", -2);
+
+  expect("Wins by grounding with an ungrounded dot", C_WHITE, R"(
+......
+.oox..
+.xxo..
+.oo...
+....o.
+......
+)",
+R"(
+......
+......
+.OO...
+......
+....X.
+......
+)", 1, {XYMove(0, 2, P_WHITE)});
 }
 
 std::pair<string, string> getCapturingAndBases(
@@ -243,7 +232,7 @@ std::pair<string, string> getCapturingAndBases(
 ) {
   Board board = parseDotsFieldDefault(boardData, extraMoves);
 
-  Board copy(board);
+  const Board& copy(board);
 
   vector<Player> captures;
   vector<Player> bases;
@@ -281,7 +270,7 @@ std::pair<string, string> getCapturingAndBases(
   // Make sure we didn't change an internal state during calculating
   testAssert(board.isEqualForTesting(copy, true, true));
 
-  return std::pair(capturesStringStream.str(), basesStringStream.str());
+  return {capturesStringStream.str(), basesStringStream.str()};
 }
 
 void checkCapturingAndBase(

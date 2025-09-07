@@ -308,6 +308,11 @@ double Search::getUtilityFromNN(const NNOutput& nnOutput) const {
 
 
 bool Search::isAllowedRootMove(Loc moveLoc) const {
+  if (rootHistory.rules.isDots) {
+    // Not actual for Dots because Pass (aka Grounding) in the latest possible move in the game
+    // Maybe it makes sense to allow Grounding if only it wins the game?
+    return true;
+  }
   assert(moveLoc == Board::PASS_LOC || rootBoard.isOnBoard(moveLoc));
 
   //A bad situation that can happen that unnecessarily prolongs training games is where one player

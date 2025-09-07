@@ -2,10 +2,6 @@
 
 using namespace std;
 
-Board parseDotsFieldDefault(const string& input) {
-  return parseDotsField(input, Rules::DEFAULT_DOTS.dotsCaptureEmptyBases, Rules::DEFAULT_DOTS.dotsFreeCapturedDots, vector<XYMove>());
-}
-
 Board parseDotsFieldDefault(const string& input, const vector<XYMove>& extraMoves) {
   return parseDotsField(input, Rules::DEFAULT_DOTS.dotsCaptureEmptyBases, Rules::DEFAULT_DOTS.dotsFreeCapturedDots, extraMoves);
 }

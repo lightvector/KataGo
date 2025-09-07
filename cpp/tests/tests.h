@@ -20,11 +20,12 @@ namespace Tests {
 
   void runDotsFieldTests();
   void runDotsGroundingTests();
+  void runDotsBoardHistoryGroundingTests();
   void runDotsPosHashTests();
   void runDotsStartPosTests();
   void runDotsStressTests();
 
-  void runDotsTerritoryTests();
+  void runDotsOwnershipTests();
   void runDotsSymmetryTests();
   void runDotsCapturingTests();
 

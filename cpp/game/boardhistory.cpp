@@ -73,6 +73,8 @@ BoardHistory::BoardHistory(const Rules& rules)
 BoardHistory::~BoardHistory()
 {}
 
+BoardHistory::BoardHistory(const Board& board) : BoardHistory(board, P_BLACK, board.rules, 0) {}
+
 BoardHistory::BoardHistory(const Board& board, Player pla, const Rules& r, int ePhase)
   :rules(r),
    moveHistory(),
@@ -608,10 +610,6 @@ float BoardHistory::currentSelfKomi(Player pla, double drawEquivalentWinsForWhit
   }
 }
 
-int BoardHistory::countGroundingScoreWhiteMinusBlack(const Board& board, Color area[Board::MAX_ARR_SIZE]) {
-  return board.calculateGroundingWhiteScore(area);
-}
-
 int BoardHistory::countAreaScoreWhiteMinusBlack(const Board& board, Color area[Board::MAX_ARR_SIZE]) const {
   assert(rules.isDots == board.isDots() && !rules.isDots);
 
@@ -717,23 +715,12 @@ void BoardHistory::setFinalScoreAndWinner(float score) {
     winner = C_EMPTY;
 }
 
-void BoardHistory::getAreaNow(const Board& board, Color area[Board::MAX_ARR_SIZE]) const {
-  if(rules.isDots)
-    countGroundingScoreWhiteMinusBlack(board,area);
-  else if(rules.scoringRule == Rules::SCORING_AREA)
-    countAreaScoreWhiteMinusBlack(board,area);
-  else if(rules.scoringRule == Rules::SCORING_TERRITORY)
-    countTerritoryAreaScoreWhiteMinusBlack(board,area);
-  else
-    ASSERT_UNREACHABLE;
-}
-
 void BoardHistory::endAndScoreGameNow(const Board& board, Color area[Board::MAX_ARR_SIZE]) {
   assert(rules.isDots == board.isDots());
 
   int boardScore = 0;
   if(rules.isDots)
-    boardScore = countGroundingScoreWhiteMinusBlack(board,area);
+    boardScore = countDotsScoreWhiteMinusBlack(board,area);
   else if(rules.scoringRule == Rules::SCORING_AREA)
     boardScore = countAreaScoreWhiteMinusBlack(board,area);
   else if(rules.scoringRule == Rules::SCORING_TERRITORY)
@@ -747,9 +734,7 @@ void BoardHistory::endAndScoreGameNow(const Board& board, Color area[Board::MAX_
     whiteBonusScore += (presumedNextMovePla == P_WHITE ? 0.5f : -0.5f);
   }
 
-  if (!rules.isDots || !isGameFinished) {
-    setFinalScoreAndWinner(static_cast<float>(boardScore) + whiteBonusScore + whiteHandicapBonusScore + rules.komi);
-  }
+  setFinalScoreAndWinner(static_cast<float>(boardScore) + whiteBonusScore + whiteHandicapBonusScore + rules.komi);
   isScored = true;
   isNoResult = false;
   isResignation = false;
@@ -762,39 +747,12 @@ void BoardHistory::endAndScoreGameNow(const Board& board) {
   endAndScoreGameNow(board,area);
 }
 
-bool BoardHistory::isGroundingWinsGame(const Board& board, const Player pla, float& whiteScore) const {
-  assert(rules.isDots);
-
-  if (pla == P_BLACK && board.whiteScoreIfBlackGrounds + rules.komi < 0) {
-    whiteScore = board.whiteScoreIfBlackGrounds + rules.komi;
-    return true;
-  }
-
-  if (pla == P_WHITE && board.blackScoreIfWhiteGrounds - rules.komi < 0) {
-    whiteScore = -board.blackScoreIfWhiteGrounds + rules.komi;
-    return true;
-  }
-
-  return false;
-}
-
 void BoardHistory::endGameIfAllPassAlive(const Board& board) {
   assert(rules.isDots == board.isDots());
 
   if (rules.isDots) {
-    bool gameOver = false;
-    float normalizedWhiteScoreIfGroundingAlive = 0.0f;
-
-    if (board.numLegalMoves == 0) {
-      // No legal locs to place a dot -> game is over.
-      gameOver = true;
-      normalizedWhiteScoreIfGroundingAlive = static_cast<float>(board.numBlackCaptures - board.numWhiteCaptures) + rules.komi;
-    } else {
-      gameOver = isGroundingWinsGame(board, presumedNextMovePla, normalizedWhiteScoreIfGroundingAlive);
-    }
-
-    if (gameOver) {
-      setFinalScoreAndWinner(normalizedWhiteScoreIfGroundingAlive);
+    if (const float whiteScoreAfterGrounding = whiteScoreIfGroundingAlive(board); whiteScoreAfterGrounding != 0.0) {
+      setFinalScoreAndWinner(whiteScoreAfterGrounding);
       isScored = true;
       isNoResult = false;
       isResignation = false;

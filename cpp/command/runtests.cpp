@@ -32,13 +32,14 @@ int MainCmds::runtests(const vector<string>& args) {
 
   Tests::runDotsFieldTests();
   Tests::runDotsGroundingTests();
+  Tests::runDotsBoardHistoryGroundingTests();
   Tests::runDotsPosHashTests();
   Tests::runDotsStartPosTests();
 
   Tests::runDotsStressTests();
 
   Tests::runDotsSymmetryTests();
-  Tests::runDotsTerritoryTests();
+  Tests::runDotsOwnershipTests();
   Tests::runDotsCapturingTests();
 
   BSearch::runTests();

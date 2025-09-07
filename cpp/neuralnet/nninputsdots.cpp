@@ -34,9 +34,6 @@ void NNInputs::fillRowVDots(
   vector<Color> bases;
   board.calculateOneMoveCaptureAndBasePositionsForDots(hist.rules.multiStoneSuicideLegal, captures, bases);
 
-  Color grounding[Board::MAX_ARR_SIZE];
-  board.calculateGroundingWhiteScore(grounding);
-
   for(int y = 0; y<ySize; y++) {
     for(int x = 0; x<xSize; x++) {
       const int pos = NNPos::xyToPos(x,y,nnXLen);
@@ -46,11 +43,26 @@ void NNInputs::fillRowVDots(
 
       const State state = board.getState(loc);
       const Color activeColor = getActiveColor(state);
+      const Color placedColor = getPlacedDotColor(state);
 
       if(activeColor == pla)
-        setRowBin(rowBin,pos,DOTS_FEATURE_SPATIAL_PLAYER, 1.0f, posStride, featureStride);
+        setRowBin(rowBin,pos,DOTS_FEATURE_SPATIAL_PLAYER_ACTIVE, 1.0f, posStride, featureStride);
       else if(activeColor == opp)
-        setRowBin(rowBin,pos,DOTS_FEATURE_SPATIAL_PLAYER_OPP, 1.0f, posStride, featureStride);
+        setRowBin(rowBin,pos,DOTS_FEATURE_SPATIAL_PLAYER_OPP_ACTIVE, 1.0f, posStride, featureStride);
+
+      if(placedColor == pla)
+        setRowBin(rowBin,pos,DOTS_FEATURE_SPATIAL_PLAYER_PLACED, 1.0f, posStride, featureStride);
+      else if(placedColor == opp)
+        setRowBin(rowBin,pos,DOTS_FEATURE_SPATIAL_PLAYER_OPP_PLACED, 1.0f, posStride, featureStride);
+
+      if (activeColor != C_EMPTY && placedColor != C_EMPTY && placedColor != activeColor) {
+        // Needed for more correct score calculation, but probably it's redundant considering placed dots
+        setRowBin(rowBin,pos,DOTS_FEATURE_SPATIAL_DEAD_DOTS, 1.0f, posStride, featureStride);
+      }
+
+      if (isGrounded(state)) {
+        setRowBin(rowBin,pos,DOTS_FEATURE_SPATIAL_GROUNDED, 1.0f, posStride, featureStride);
+      }
 
       const Color captureColor = captures[loc];
       if ((pla & captureColor) != 0) {
@@ -66,15 +78,6 @@ void NNInputs::fillRowVDots(
       }
       if ((opp & baseColor) != 0) {
         setRowBin(rowBin,pos,DOTS_FEATURE_SPATIAL_PLAYER_OPP_SURROUNDINGS, 1.0f, posStride, featureStride);
-      }
-
-      const Color placedColor = getPlacedDotColor(state);
-      if (placedColor != C_EMPTY && placedColor != activeColor) {
-        setRowBin(rowBin,pos,DOTS_FEATURE_SPATIAL_DEAD_DOTS, 1.0f, posStride, featureStride);
-      }
-
-      if (grounding[loc] != C_EMPTY) {
-        setRowBin(rowBin,pos,DOTS_FEATURE_SPATIAL_GROUNDED, 1.0f, posStride, featureStride);
       }
     }
   }

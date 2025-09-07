@@ -682,6 +682,75 @@ x.x
 );
 }
 
+void Tests::runDotsBoardHistoryGroundingTests() {
+  {
+    const Board board = parseDotsFieldDefault(R"(
+....
+.xo.
+.ox.
+....
+)");
+    const auto boardHistory = BoardHistory(board);
+    float whiteScoreAfterGrounding;
+    testAssert(!boardHistory.doesGroundingWinGame(board, P_BLACK, whiteScoreAfterGrounding));
+    testAssert(!boardHistory.doesGroundingWinGame(board, P_WHITE, whiteScoreAfterGrounding));
+    testAssert(0.0f == whiteScoreAfterGrounding);
+    testAssert(0.0f == boardHistory.whiteScoreIfGroundingAlive(board));
+  }
+
+  {
+    Board board = parseDotsFieldDefault(R"(
+.....
+..o..
+.oxo.
+.....
+)");
+    board.playMoveAssumeLegal(Location::getLoc(2, 3, board.x_size), P_WHITE);
+    testAssert(1 == board.numBlackCaptures);
+    const auto boardHistory = BoardHistory(board);
+    float whiteScoreAfterGrounding;
+    testAssert(!boardHistory.doesGroundingWinGame(board, P_BLACK, whiteScoreAfterGrounding));
+    testAssert(boardHistory.doesGroundingWinGame(board, P_WHITE, whiteScoreAfterGrounding));
+    testAssert(1.0f == whiteScoreAfterGrounding);
+    testAssert(1.0f == boardHistory.whiteScoreIfGroundingAlive(board));
+  }
+
+  {
+    Board board = parseDotsFieldDefault(R"(
+.....
+..x..
+.xox.
+.....
+)");
+    board.playMoveAssumeLegal(Location::getLoc(2, 3, board.x_size), P_BLACK);
+    testAssert(1 == board.numWhiteCaptures);
+    const auto boardHistory = BoardHistory(board);
+    float whiteScoreAfterGrounding;
+    testAssert(boardHistory.doesGroundingWinGame(board, P_BLACK, whiteScoreAfterGrounding));
+    testAssert(!boardHistory.doesGroundingWinGame(board, P_WHITE, whiteScoreAfterGrounding));
+    testAssert(-1.0f == whiteScoreAfterGrounding);
+    testAssert(-1.0f == boardHistory.whiteScoreIfGroundingAlive(board));
+  }
+
+  {
+    Board board = parseDotsFieldDefault(R"(
+.....
+..x..
+.xox.
+.....
+.....
+)");
+    board.playMoveAssumeLegal(Location::getLoc(2, 3, board.x_size), P_BLACK);
+    testAssert(1 == board.numWhiteCaptures);
+    const auto boardHistory = BoardHistory(board);
+    float whiteScoreAfterGrounding;
+    testAssert(!boardHistory.doesGroundingWinGame(board, P_BLACK, whiteScoreAfterGrounding));
+    testAssert(!boardHistory.doesGroundingWinGame(board, P_WHITE, whiteScoreAfterGrounding));
+    testAssert(0.0f == whiteScoreAfterGrounding);
+    testAssert(0.0f == boardHistory.whiteScoreIfGroundingAlive(board));
+  }
+}
+
 void Tests::runDotsPosHashTests() {
    cout << "Running dots pos hash tests" << endl;
 

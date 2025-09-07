@@ -235,6 +235,7 @@ add_executable(katago
   game/dotsfield.cpp
   game/rules.cpp
   game/boardhistory.cpp
+  game/dotsboardhistory.cpp
   game/graphhash.cpp
   dataio/sgf.cpp
   dataio/numpywrite.cpp
