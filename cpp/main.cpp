@@ -45,6 +45,7 @@ gatekeeper : Poll directory for new nets and match them against the latest net s
 
 ---Testing/debugging subcommands-------------
 evalsgf : Utility/debug tool, analyze a single position of a game from an SGF file.
+searchentropyanalysis : Analyze search entropy across test datasets.
 
 testgpuerror : Print the average error of the neural net between current config and fp32 config.
 
@@ -154,6 +155,8 @@ static int handleSubcommand(const string& subcommand, const vector<string>& args
     return MainCmds::sampleinitializations(subArgs);
   else if(subcommand == "evalrandominits")
     return MainCmds::evalrandominits(subArgs);
+  else if(subcommand == "searchentropyanalysis")
+    return MainCmds::searchentropyanalysis(subArgs);
   else if(subcommand == "runbeginsearchspeedtest")
     return MainCmds::runbeginsearchspeedtest(subArgs);
   else if(subcommand == "runownershipspeedtest")
