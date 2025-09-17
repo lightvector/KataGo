@@ -734,8 +734,8 @@ std::vector<Move> Rules::generateStartPos(const int startPos, const int x_size, 
           offsetY = (y_size - 3) / 3;
         }
         // Consider the index and size of the cross
-        const int sideOffsetX = (x_size - 1) - (offsetX + 1);
-        const int sideOffsetY = (y_size - 1) - (offsetY + 1);
+        const int sideOffsetX = x_size - 1 - (offsetX + 1);
+        const int sideOffsetY = y_size - 1 - (offsetY + 1);
         addCross(offsetX, offsetY, x_size, false, moves);
         addCross(sideOffsetX, offsetY, x_size, false, moves);
         addCross(sideOffsetX, sideOffsetY, x_size, false, moves);
@@ -792,13 +792,14 @@ int Rules::tryRecognizeStartPos(int size_x, int size_y, vector<Move>& placementM
   auto generateStartPosSortAndCompare = [&](const int startPos) -> bool {
     auto startPosMoves = generateStartPos(startPos, size_x, size_y);
 
-    if(startPosMoves.size() != placementMoves.size()) {
+    // Detect start pos properly in case of a handicap (the placement has more stones than expected start pos)
+    if (startPosMoves.size() > placementMoves.size()) {
       return false;
     }
 
     sortByLoc(startPosMoves);
 
-    for(size_t i = 0; i < placementMoves.size(); i++) {
+    for(size_t i = 0; i < startPosMoves.size(); i++) {
       if(placementMoves[i].loc != startPosMoves[i].loc || placementMoves[i].pla != startPosMoves[i].pla)
         return false;
     }

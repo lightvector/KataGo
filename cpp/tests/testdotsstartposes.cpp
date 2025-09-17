@@ -22,10 +22,13 @@ void writeToSgfAndCheckStartPosFromSgfProp(const int startPos, const Board& boar
   testAssert(startPos == newRules.startPos);
 }
 
-void checkStartPos(const string& description, const int startPos, const int x_size, const int y_size, const string& expectedBoard) {
+void checkStartPos(const string& description, const int startPos, const int x_size, const int y_size, const string& expectedBoard, const vector<XYMove>& extraMoves = {}) {
   cout << "  " << description << " (" << to_string(x_size) << "," << to_string(y_size) << ")";
 
   auto board = Board(x_size, y_size, Rules(true, startPos, Rules::DEFAULT_DOTS.dotsCaptureEmptyBases, Rules::DEFAULT_DOTS.dotsFreeCapturedDots));
+  for (const XYMove& extraMove : extraMoves) {
+    board.playMoveAssumeLegal(Location::getLoc(extraMove.x, extraMove.y, board.x_size), extraMove.player);
+  }
 
   std::ostringstream oss;
   Board::printBoard(oss, board, Board::NULL_LOC, nullptr);
@@ -53,18 +56,20 @@ HASH: EC100709447890A116AFC8952423E3DD
  1 O  X
 )");
 
+  checkStartPos("Extra dots with cross (for instance, a handicap game)", Rules::START_POS_CROSS, 4, 4, R"(
+HASH: A130436FBD93FF473AB4F3B84DD304DB
+   1  2  3  4
+ 4 .  .  .  .
+ 3 .  X  O  .
+ 2 .  O  X  .
+ 1 .  .  X  .
+)", {XYMove(2, 3, P_BLACK)});
+
   checkStartPosNotRecognized("Not enough dots for cross", R"(
 ....
 .xo.
 .o..
 ....
-)");
-
-  checkStartPosNotRecognized("Extra dots with cross", R"(
-....
-.xo.
-.ox.
-..o.
 )");
 
   checkStartPosNotRecognized("Reversed cross shouldn't be recognized", R"(

@@ -1990,16 +1990,18 @@ void WriteSgf::writeSgf(
   out << "PB[" << bName << "]";
   out << "PW[" << wName << "]";
 
-  if (!rules.isDots) {
-    if(gameData != NULL) {
-      out << "HA[" << gameData->handicapForSgf << "]";
-    }
-    else {
-      BoardHistory histCopy(endHist);
-      //Always use true for computing the handicap value that goes into an sgf
-      histCopy.setAssumeMultipleStartingBlackMovesAreHandicap(true);
-      out << "HA[" << histCopy.computeNumHandicapStones() << "]";
-    }
+  int handicap = 0;
+  if(gameData != nullptr) {
+    handicap = gameData->handicapForSgf;
+  }
+  else {
+    BoardHistory histCopy(endHist);
+    //Always use true for computing the handicap value that goes into an sgf
+    histCopy.setAssumeMultipleStartingBlackMovesAreHandicap(true);
+    handicap = histCopy.computeNumHandicapStones();
+  }
+  if (!rules.isDots || handicap != 0) { // Preserve backward compatibility and always fill `HA` for Go Game
+    out << "HA[" << handicap << "]";
   }
 
   out << "KM[" << rules.komi << "]";

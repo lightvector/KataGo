@@ -395,18 +395,28 @@ void BoardHistory::setOverrideNumHandicapStones(int n) {
   whiteHandicapBonusScore = (float)computeWhiteHandicapBonus();
 }
 
-static int numHandicapStonesOnBoardHelper(const Board& board, int blackNonPassTurnsToStart) {
+static int numHandicapStonesOnBoardHelper(const Board& board, const int blackNonPassTurnsToStart) {
   int startBoardNumBlackStones = 0;
   int startBoardNumWhiteStones = 0;
+
+  // Ignore start pos that is generated according to rules
+  const auto startPos = board.rules.generateStartPos(board.rules.startPos, board.x_size, board.y_size);
+  set<Loc> startLocs;
+  for (auto move : startPos) {
+    startLocs.insert(move.loc);
+  }
+
   for(int y = 0; y<board.y_size; y++) {
     for(int x = 0; x<board.x_size; x++) {
-      Loc loc = Location::getLoc(x,y,board.x_size);
-      if(board.colors[loc] == C_BLACK)
-        startBoardNumBlackStones += 1;
-      else if(board.colors[loc] == C_WHITE)
-        startBoardNumWhiteStones += 1;
+      if (const Loc loc = Location::getLoc(x, y, board.x_size); startLocs.count(loc) == 0) {
+        if (const Color color = board.getColor(loc); color == C_BLACK)
+          startBoardNumBlackStones += 1;
+        else if (color == C_WHITE)
+          startBoardNumWhiteStones += 1;
+      }
     }
   }
+
   //If we set up in a nontrivial position, then consider it a non-handicap game.
   if(startBoardNumWhiteStones != 0)
     return 0;
