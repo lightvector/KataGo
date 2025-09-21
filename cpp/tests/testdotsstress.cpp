@@ -166,13 +166,13 @@ void runDotsStressTestsInternal(
   int gamesCount,
   bool dotsGame,
   int startPos,
+  bool startPosIsRandom,
   bool dotsCaptureEmptyBase,
   float komi,
   bool suicideAllowed,
   float groundingStartCoef,
   float groundingEndCoef,
-  bool performExtraChecks
-  ) {
+  bool performExtraChecks) {
   assert(groundingStartCoef >= 0 && groundingStartCoef <= 1);
   assert(groundingEndCoef >= 0 && groundingEndCoef <= 1);
   assert(groundingEndCoef >= groundingStartCoef);
@@ -180,6 +180,7 @@ void runDotsStressTestsInternal(
   cout << "  Random games" <<  endl;
   cout << "    Game type: " << (dotsGame ? "Dots" : "Go") << endl;
   cout << "    Start position: " << Rules::writeStartPosRule(startPos) << endl;
+  cout << "    Start position is random: " << boolalpha << startPosIsRandom << endl;
   if (dotsGame) {
     cout << "    Capture empty bases: " << boolalpha << dotsCaptureEmptyBase << endl;
   }
@@ -198,22 +199,17 @@ void runDotsStressTestsInternal(
 
   Rand rand("runDotsStressTests");
 
-  Rules rules = dotsGame ? Rules(dotsGame, startPos, dotsCaptureEmptyBase, Rules::DEFAULT_DOTS.dotsFreeCapturedDots) : Rules();
-  auto initialBoard = Board(x_size, y_size, rules);
+  Rules rules = dotsGame ? Rules(dotsGame, startPos, startPosIsRandom, dotsCaptureEmptyBase, Rules::DEFAULT_DOTS.dotsFreeCapturedDots) : Rules();
+  int numLegalMoves = x_size * y_size - rules.getNumOfStartPosStones();
 
   vector<Loc> randomMoves = vector<Loc>();
-  randomMoves.reserve(initialBoard.numLegalMoves);
+  randomMoves.reserve(numLegalMoves);
 
-  for(int y = 0; y < initialBoard.y_size; y++) {
-    for(int x = 0; x < initialBoard.x_size; x++) {
-      Loc loc = Location::getLoc(x, y, initialBoard.x_size);
-      if (initialBoard.getColor(loc) == C_EMPTY) { // Filter out initial poses
-        randomMoves.push_back(Location::getLoc(x, y, initialBoard.x_size));
-      }
+  for(int y = 0; y < y_size; y++) {
+    for(int x = 0; x < x_size; x++) {
+      randomMoves.push_back(Location::getLoc(x, y, x_size));
     }
   }
-
-  assert(randomMoves.size() == initialBoard.numLegalMoves);
 
   int movesCount = 0;
   int blackWinsCount = 0;
@@ -227,11 +223,13 @@ void runDotsStressTestsInternal(
     rand.shuffle(randomMoves);
     moveRecords.clear();
 
-    auto board = Board(initialBoard.x_size, initialBoard.y_size, rules);
+    auto initialBoard = Board(x_size, y_size, rules);
+    initialBoard.setStartPos(DOTS_RANDOM);
+    auto board = initialBoard;
 
     Loc lastLoc = Board::NULL_LOC;
 
-    int tryGroundingAfterMove = (groundingStartCoef + rand.nextDouble() * (groundingEndCoef - groundingStartCoef)) * initialBoard.numLegalMoves;
+    int tryGroundingAfterMove = (groundingStartCoef + rand.nextDouble() * (groundingEndCoef - groundingStartCoef)) * numLegalMoves;
     Player pla = P_BLACK;
     int currentGameMovesCount = 0;
     for(short randomMove : randomMoves) {
@@ -318,7 +316,7 @@ void Tests::runDotsStressTests() {
   cout << "Running dots stress tests" << endl;
 
   cout << "  Max territory" << endl;
-  Board board = Board(39, 32, Rules::DEFAULT_DOTS);
+  auto board = Board(39, 32, Rules(true, Rules::START_POS_EMPTY, Rules::DEFAULT_DOTS.startPosIsRandom, Rules::DEFAULT_DOTS.dotsCaptureEmptyBases, Rules::DEFAULT_DOTS.dotsFreeCapturedDots));
   for(int y = 0; y < board.y_size; y++) {
     for(int x = 0; x < board.x_size; x++) {
       const Player pla = y == 0 || y == board.y_size - 1 || x == 0 || x == board.x_size - 1 ? P_BLACK : P_WHITE;
@@ -328,8 +326,9 @@ void Tests::runDotsStressTests() {
   testAssert((board.x_size - 2) * (board.y_size - 2) == board.numWhiteCaptures);
   testAssert(0 == board.numLegalMoves);
 
-  runDotsStressTestsInternal(39, 32, 3000, true, Rules::START_POS_CROSS, false, 0.0f, true, 0.8f, 1.0f, true);
-  runDotsStressTestsInternal(39, 32, 3000, true, Rules::START_POS_CROSS_4, true, 0.5f, false, 0.8f, 1.0f, true);
+  runDotsStressTestsInternal(39, 32, 3000, true, Rules::START_POS_CROSS, false, false, 0.0f, true, 0.8f, 1.0f, true);
+  runDotsStressTestsInternal(39, 32, 3000, true, Rules::START_POS_CROSS_4, true, true, 0.5f, false, 0.8f, 1.0f, true);
 
-  runDotsStressTestsInternal(39, 32, 100000, true, Rules::START_POS_CROSS, false, 0.0f, true, 0.8f, 1.0f, false);
+  runDotsStressTestsInternal(39, 32, 50000, true, Rules::START_POS_CROSS, false, false, 0.0f, true, 0.8f, 1.0f, false);
+  runDotsStressTestsInternal(39, 32, 50000, true, Rules::START_POS_CROSS_4, true, false, 0.0f, true, 0.8f, 1.0f, false);
 }

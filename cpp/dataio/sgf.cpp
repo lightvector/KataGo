@@ -151,7 +151,11 @@ static Rules getRulesFromSgf(const SgfNode& rootNode, const int xSize, const int
 
   vector<Move> placementMoves;
   rootNode.accumPlacements(placementMoves, xSize, ySize);
-  rules.startPos = Rules::tryRecognizeStartPos(xSize, ySize, placementMoves, true);
+  bool randomized;
+  rules.startPos = Rules::tryRecognizeStartPos(placementMoves, xSize, ySize, true, randomized);
+  if (randomized && !rules.startPosIsRandom) {
+    propertyFail("Defined start pos is randomized but RU says it shouldn't");
+  }
 
   return rules;
 }
@@ -1769,7 +1773,11 @@ Rules CompactSgf::getRulesOrWarn(const Rules& defaultRules, std::function<void(c
 
   vector<Move> placementMoves;
   rootNode.accumPlacements(placementMoves, xSize, ySize);
-  rules.startPos = Rules::tryRecognizeStartPos(xSize, ySize, placementMoves, true);
+  bool randomized;
+  rules.startPos = Rules::tryRecognizeStartPos(placementMoves, xSize, ySize, true, randomized);
+  if (randomized && !rules.startPosIsRandom) {
+    f("Defined start pos is randomized but RU says it shouldn't");
+  }
 
   return rules;
 }
@@ -1798,13 +1806,14 @@ BoardHistory CompactSgf::setupInitialBoardAndHist(const Rules& initialRules, Pla
     nextPla = moves[0].pla;
 
   auto board = Board(xSize,ySize,initialRules);
-  if (initialRules.startPos == Rules::START_POS_EMPTY) {
-    bool suc = board.setStonesFailIfNoLibs(placements);
-    if(!suc)
+  const int numOfStartPosStones = initialRules.getNumOfStartPosStones();
+  for (int i = 0; i < placements.size(); i++) {
+    const Move placement = placements[i];
+    if(const bool suc = board.setStoneFailIfNoLibs(placement.loc, placement.pla, i < numOfStartPosStones); !suc)
       throw StringError("setupInitialBoardAndHist: initial board position contains invalid stones or zero-liberty stones");
   }
-  BoardHistory hist = BoardHistory(board,nextPla,initialRules,0);
-  if (int numStonesOnBoard = board.numStonesOnBoard(); hist.initialTurnNumber < numStonesOnBoard)
+  auto hist = BoardHistory(board,nextPla,initialRules,0);
+  if (const int numStonesOnBoard = board.numStonesOnBoard(); hist.initialTurnNumber < numStonesOnBoard)
     hist.initialTurnNumber = numStonesOnBoard;
   return hist;
 }

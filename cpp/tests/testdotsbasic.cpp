@@ -12,7 +12,7 @@ void checkDotsField(const string& description, const string& input, bool capture
 
   auto moveRecords = vector<Board::MoveRecord>();
 
-  Board initialBoard = parseDotsField(input, captureEmptyBases, freeCapturedDots, {});
+  Board initialBoard = parseDotsField(input, false, captureEmptyBases, freeCapturedDots, {});
 
   Board board = Board(initialBoard);
 

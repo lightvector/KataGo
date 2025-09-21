@@ -4,6 +4,7 @@
 #include "common.h"
 #include "../core/global.h"
 #include "../core/hash.h"
+#include "../core/rand.h"
 
 #include "../external/nlohmann_json/json.hpp"
 
@@ -15,7 +16,11 @@ struct Rules {
   static constexpr int START_POS_CROSS = 1;
   static constexpr int START_POS_CROSS_2 = 2;
   static constexpr int START_POS_CROSS_4 = 3;
+  static constexpr int START_POS_CUSTOM = 4;
   int startPos;
+
+  // Enables random shuffling of start pos. Currently, it works only for CROSS_4
+  bool startPosIsRandom;
 
   static const int KO_SIMPLE = 0;
   static const int KO_POSITIONAL = 1;
@@ -54,7 +59,7 @@ struct Rules {
   bool friendlyPassOk;
 
   Rules();
-  Rules(bool initIsDots, int startPos, bool dotsCaptureEmptyBases, bool dotsFreeCapturedDots);
+  Rules(bool initIsDots, int startPos, bool startPosIsRandom, bool dotsCaptureEmptyBases, bool dotsFreeCapturedDots);
   explicit Rules(bool initIsDots);
   Rules(
     int koRule,
@@ -108,15 +113,20 @@ struct Rules {
 
   static Rules updateRules(const std::string& key, const std::string& value, Rules priorRules);
 
-  static std::vector<Move> generateStartPos(int startPos, int x_size, int y_size);
+  static std::vector<Move> generateStartPos(int startPos, Rand* rand, int x_size, int y_size);
   /**
-   * @param size_x size of field
-   * @param size_y size of field
-   * @param placementMoves initial placement moves, they can be sorted, that's why it's not const
-   * @param emptyIfFailed
-   * @return -1 if the recognition is failed
+   * @param placementMoves placement moves that we are trying to recognize.
+   * @param x_size size of field
+   * @param y_size size of field
+   * @param emptyIfFailed returns empty start pos if recognition is failed. It's useful for detecting start pos from SGF when handicap stones are placed
+   * @param randomized if we recognize a start pos, but it doesn't match the strict position, set it up to `true`
    */
-  static int tryRecognizeStartPos(int size_x, int size_y, std::vector<Move>& placementMoves, bool emptyIfFailed);
+  static int tryRecognizeStartPos(
+    const std::vector<Move>& placementMoves,
+    int x_size,
+    int y_size,
+    bool emptyIfFailed,
+    bool& randomized);
 
   friend std::ostream& operator<<(std::ostream& out, const Rules& rules);
   std::string toString() const;
@@ -143,6 +153,7 @@ private:
   Rules(
     bool isDots,
     int startPosRule,
+    bool startPosIsRandom,
     int kRule,
     int sRule,
     int tRule,

@@ -4,6 +4,8 @@
 
 using namespace std;
 
+inline Rand DOTS_RANDOM("DOTS_RANDOM");
+
 struct XYMove {
   int x;
   int y;
@@ -62,5 +64,5 @@ struct BoardWithMoveRecords {
 
 Board parseDotsFieldDefault(const string& input, const vector<XYMove>& extraMoves = {});
 
-Board parseDotsField(const string& input, bool captureEmptyBases, bool freeCapturedDots, const vector<XYMove>& extraMoves);
+Board parseDotsField(const string& input, bool startPosIsRandom, bool captureEmptyBases, bool freeCapturedDots, const vector<XYMove>& extraMoves);
 

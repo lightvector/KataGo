@@ -4,6 +4,7 @@
 
 #include <sstream>
 
+#include "../core/rand.h"
 #include "board.h"
 
 using namespace std;
@@ -14,12 +15,13 @@ const Rules Rules::DEFAULT_GO = Rules(false);
 
 Rules::Rules() : Rules(false) {}
 
-Rules::Rules(const bool initIsDots, const int startPos, const bool dotsCaptureEmptyBases, const bool dotsFreeCapturedDots) :
-  Rules(initIsDots, startPos, 0, 0, 0, true, false, 0, false, 0.0f, dotsCaptureEmptyBases, dotsFreeCapturedDots) {}
+Rules::Rules(const bool initIsDots, const int startPos, const bool startPosIsRandom, const bool dotsCaptureEmptyBases, const bool dotsFreeCapturedDots) :
+  Rules(initIsDots, startPos, startPosIsRandom, 0, 0, 0, true, false, 0, false, 0.0f, dotsCaptureEmptyBases, dotsFreeCapturedDots) {}
 
 Rules::Rules(const bool initIsDots) : Rules(
   initIsDots,
-  initIsDots ? START_POS_EMPTY : 0,
+  initIsDots ? START_POS_CROSS : 0,
+  false,
   initIsDots ? 0 : KO_POSITIONAL,
   initIsDots ? 0 : SCORING_AREA,
   initIsDots ? 0 : TAX_NONE,
@@ -42,12 +44,13 @@ Rules::Rules(
   int whbRule,
   bool pOk,
   float km
-) : Rules(false, 0, kRule, sRule, tRule, suic, button, whbRule, pOk, km, false, false) {
+) : Rules(false, 0, false, kRule, sRule, tRule, suic, button, whbRule, pOk, km, false, false) {
 }
 
 Rules::Rules(
   bool isDots,
   int startPosRule,
+  bool startPosIsRandom,
   int kRule,
   int sRule,
   int tRule,
@@ -61,6 +64,7 @@ Rules::Rules(
 )
   : isDots(isDots),
     startPos(startPosRule),
+    startPosIsRandom(startPosIsRandom),
     dotsCaptureEmptyBases(dotsCaptureEmptyBases),
     dotsFreeCapturedDots(dotsFreeCapturedDots),
     koRule(kRule),
@@ -93,6 +97,7 @@ bool Rules::equals(const Rules& other, const bool ignoreSgfDefinedProps) const {
   return
     (ignoreSgfDefinedProps ? true : isDots == other.isDots) &&
     (ignoreSgfDefinedProps ? true : startPos == other.startPos) &&
+    startPosIsRandom == other.startPosIsRandom &&
     koRule == other.koRule &&
     scoringRule == other.scoringRule &&
     taxRule == other.taxRule &&
@@ -160,7 +165,9 @@ set<string> Rules::startPosStrings() {
 
 int Rules::getNumOfStartPosStones() const {
   switch (startPos) {
-    case START_POS_EMPTY: return 0;
+    case START_POS_EMPTY:
+    case START_POS_CUSTOM:
+      return 0;
     case START_POS_CROSS: return 4;
     case START_POS_CROSS_2: return 8;
     case START_POS_CROSS_4: return 16;
@@ -278,6 +285,9 @@ string Rules::toString(const bool includeSgfDefinedProperties) const {
   if (includeSgfDefinedProperties && startPos != START_POS_EMPTY) {
     out << START_POS_KEY << writeStartPosRule(startPos);
   }
+  if (startPosIsRandom) {
+    out << START_POS_RANDOM_KEY << startPosIsRandom;
+  }
   out << "sui" << multiStoneSuicideLegal;
   if (!isDots) {
     if (hasButton != DEFAULT_GO.hasButton)
@@ -315,6 +325,8 @@ json Rules::toJsonHelper(bool omitKomi, bool omitDefaults) const {
   } else {
     if (!omitDefaults || dotsCaptureEmptyBases != DEFAULT_DOTS.dotsCaptureEmptyBases)
       ret[DOTS_CAPTURE_EMPTY_BASE_KEY] = dotsCaptureEmptyBases;
+    if (!omitDefaults || startPosIsRandom != DEFAULT_DOTS.startPosIsRandom)
+      ret[START_POS_RANDOM_KEY] = startPosIsRandom;
   }
   if(!omitKomi)
     ret["komi"] = komi;
@@ -348,7 +360,7 @@ string Rules::toJsonStringNoKomiMaybeOmitStuff() const {
 Rules Rules::updateRules(const string& k, const string& v, Rules oldRules) {
   Rules rules = oldRules;
   string key = Global::trim(k);
-  string value = Global::trim(Global::toUpper(v));
+  const string value = Global::trim(Global::toUpper(v));
   if(key == DOTS_KEY) rules.isDots = Global::stringToBool(value);
   else if(key == "ko") rules.koRule = Rules::parseKoRule(value);
   else if(key == "score") rules.scoringRule = Rules::parseScoringRule(value);
@@ -485,6 +497,8 @@ static Rules parseRulesHelper(const string& sOrig, bool allowKomi, bool isDots) 
         string key = iter.key();
         if (key == START_POS_KEY)
           rules.startPos = Rules::parseStartPos(iter.value().get<string>());
+        else if (key == START_POS_RANDOM_KEY)
+          rules.startPosIsRandom = iter.value().get<bool>();
         else if (key == DOTS_CAPTURE_EMPTY_BASE_KEY)
           rules.dotsCaptureEmptyBases = iter.value().get<bool>();
         else if(key == "ko")
@@ -630,6 +644,12 @@ static Rules parseRulesHelper(const string& sOrig, bool allowKomi, bool isDots) 
         else throw IOError("Could not parse rules: " + sOrig);
         continue;
       }
+      if(startsWithAndStrip(s,START_POS_RANDOM_KEY)) {
+        if(startsWithAndStrip(s,"1")) rules.startPosIsRandom = true;
+        else if(startsWithAndStrip(s,"0")) rules.startPosIsRandom = false;
+        else throw IOError("Could not parse rules: " + sOrig);
+        continue;
+      }
 
       //Unknown rules format
       else throw IOError("Could not parse rules: " + sOrig);
@@ -703,7 +723,19 @@ string Rules::toStringNoSgfDefinedPropertiesMaybeNice() const {
   return toStringNoSgfDefinedProps();
 }
 
-std::vector<Move> Rules::generateStartPos(const int startPos, const int x_size, const int y_size) {
+double nextRandomOffset(Rand& rand) {
+  return rand.nextDouble(4, 7);
+}
+
+int nextRandomOffsetX(Rand& rand, int x_size) {
+  return static_cast<int>(round(nextRandomOffset(rand) / 39.0 * x_size));
+}
+
+int nextRandomOffsetY(Rand& rand, int y_size) {
+  return static_cast<int>(round(nextRandomOffset(rand) / 32.0 * y_size));
+}
+
+std::vector<Move> Rules::generateStartPos(const int startPos, Rand* rand, const int x_size, const int y_size) {
   std::vector<Move> moves;
   switch (startPos) {
     case START_POS_EMPTY:
@@ -724,22 +756,51 @@ std::vector<Move> Rules::generateStartPos(const int startPos, const int x_size, 
       break;
     case START_POS_CROSS_4:
       if (x_size >= 4 && y_size >= 4) {
-        int offsetX;
-        int offsetY;
-        if (x_size == 39 && y_size == 32) {
-          offsetX = 11;
-          offsetY = 10;
+        int offsetX1;
+        int offsetY1;
+        int offsetX2;
+        int offsetY2;
+        int offsetX3;
+        int offsetY3;
+        int offsetX4;
+        int offsetY4;
+
+        if (rand == nullptr) {
+          if (x_size == 39 && y_size == 32) {
+            offsetX1 = 11;
+            offsetY1 = 10;
+          } else {
+            offsetX1 = (x_size - 3) / 3;
+            offsetY1 = (y_size - 3) / 3;
+          }
+          // Consider the index and size of the cross
+          const int sideOffsetX = x_size - 1 - (offsetX1 + 1);
+          const int sideOffsetY = y_size - 1 - (offsetY1 + 1);
+
+          offsetX2 = sideOffsetX;
+          offsetY2 = offsetY1;
+          offsetX3 = sideOffsetX;
+          offsetY3 = sideOffsetY;
+          offsetX4 = offsetX1;
+          offsetY4 = sideOffsetY;
         } else {
-          offsetX = (x_size - 3) / 3;
-          offsetY = (y_size - 3) / 3;
+          const int middleX = x_size / 2 - 1;
+          const int middleY = y_size / 2 - 1;
+
+          offsetX1 = middleX - nextRandomOffsetX(*rand, x_size);
+          offsetY1 = middleY - nextRandomOffsetY(*rand, y_size);
+          offsetX2 = middleX + nextRandomOffsetX(*rand, x_size);
+          offsetY2 = middleY - nextRandomOffsetY(*rand, y_size);
+          offsetX3 = middleX + nextRandomOffsetX(*rand, x_size);
+          offsetY3 = middleY + nextRandomOffsetY(*rand, y_size);
+          offsetX4 = middleX - nextRandomOffsetX(*rand, x_size);
+          offsetY4 = middleY + nextRandomOffsetY(*rand, y_size);
         }
-        // Consider the index and size of the cross
-        const int sideOffsetX = x_size - 1 - (offsetX + 1);
-        const int sideOffsetY = y_size - 1 - (offsetY + 1);
-        addCross(offsetX, offsetY, x_size, false, moves);
-        addCross(sideOffsetX, offsetY, x_size, false, moves);
-        addCross(sideOffsetX, sideOffsetY, x_size, false, moves);
-        addCross(offsetX, sideOffsetY, x_size, false, moves);
+
+        addCross(offsetX1, offsetY1, x_size, false, moves);
+        addCross(offsetX2, offsetY2, x_size, false, moves);
+        addCross(offsetX3, offsetY3, x_size, false, moves);
+        addCross(offsetX4, offsetY4, x_size, false, moves);
       }
       break;
     default:
@@ -777,42 +838,98 @@ void Rules::addCross(const int x, const int y, const int x_size, const bool rota
   }
 }
 
-int Rules::tryRecognizeStartPos(int size_x, int size_y, vector<Move>& placementMoves, const bool emptyIfFailed) {
+int Rules::tryRecognizeStartPos(
+  const vector<Move>& placementMoves,
+  const int x_size,
+  const int y_size,
+  const bool emptyIfFailed,
+  bool& randomized) {
+  randomized = false; // Empty or unknown start pos is static by default
+
   if(placementMoves.empty()) return START_POS_EMPTY;
 
-  int result = emptyIfFailed ? START_POS_EMPTY : -1;
+  int result = emptyIfFailed ? START_POS_EMPTY : START_POS_CUSTOM;
 
-  // Sort locs because initial pos is invariant to moves order
+  const int stride = x_size + 1;
+  auto placement = vector(stride * (y_size + 2), C_EMPTY);
+
+  for (const auto move : placementMoves) {
+    placement[move.loc] = move.pla;
+  }
+
+  auto recognizedCrossesMoves = vector<Move>();
+
+  for (const auto move : placementMoves) {
+    const int x = Location::getX(move.loc, x_size);
+    const int y = Location::getY(move.loc, x_size);
+
+    const int xy = Location::getLoc(x, y, x_size);
+    const Player pla = placement[xy];
+    if (pla == C_EMPTY) continue;
+
+    const Player opp = getOpp(pla);
+    if (opp == C_EMPTY) continue;
+
+    if (x + 1 > x_size) continue;
+    const int xp1y = Location::getLoc(x + 1, y, x_size);
+    if (placement[xp1y] != opp) continue;
+
+    if (y + 1 > y_size) continue;
+    const int xp1yp1 = Location::getLoc(x + 1, y + 1, x_size);
+    if (placement[xp1yp1] != pla) continue;
+
+    const int xyp1 = Location::getLoc(x, y + 1, x_size);
+    if (placement[xyp1] != opp) continue;
+
+    recognizedCrossesMoves.emplace_back(xy, pla);
+    recognizedCrossesMoves.emplace_back(xp1y, opp);
+    recognizedCrossesMoves.emplace_back(xp1yp1, pla);
+    recognizedCrossesMoves.emplace_back(xyp1, opp);
+
+    // Clear the placement because the recognized cross is already stored
+    placement[xy] = C_EMPTY;
+    placement[xp1y] = C_EMPTY;
+    placement[xp1yp1] = C_EMPTY;
+    placement[xyp1] = C_EMPTY;
+  }
+
+  // Sort locs because start pos is invariant to moves order
   auto sortByLoc = [&](vector<Move>& moves) {
     std::sort(moves.begin(), moves.end(), [](const Move& move1, const Move& move2) { return move1.loc < move2.loc; });
   };
 
-  sortByLoc(placementMoves);
+  sortByLoc(recognizedCrossesMoves);
 
-  auto generateStartPosSortAndCompare = [&](const int startPos) -> bool {
-    auto startPosMoves = generateStartPos(startPos, size_x, size_y);
+  // Try to match strictly and set up randomized if failed.
+  auto detectRandomization = [&](const int expectedStartPos) -> void {
+    auto staticStartPosMoves = generateStartPos(expectedStartPos, nullptr, x_size, y_size);
 
-    // Detect start pos properly in case of a handicap (the placement has more stones than expected start pos)
-    if (startPosMoves.size() > placementMoves.size()) {
-      return false;
+    assert(staticStartPosMoves.size() == recognizedCrossesMoves.size());
+
+    sortByLoc(staticStartPosMoves);
+
+    for(size_t i = 0; i < staticStartPosMoves.size(); i++) {
+      if(staticStartPosMoves[i].loc != recognizedCrossesMoves[i].loc || staticStartPosMoves[i].pla != recognizedCrossesMoves[i].pla) {
+        randomized = true;
+        break;
+      }
     }
 
-    sortByLoc(startPosMoves);
-
-    for(size_t i = 0; i < startPosMoves.size(); i++) {
-      if(placementMoves[i].loc != startPosMoves[i].loc || placementMoves[i].pla != startPosMoves[i].pla)
-        return false;
-    }
-
-    return true;
+    result = expectedStartPos;
   };
 
-  if(generateStartPosSortAndCompare(START_POS_CROSS)) {
-    result = START_POS_CROSS;
-  } else if(generateStartPosSortAndCompare(START_POS_CROSS_2)) {
-    result = START_POS_CROSS_2;
-  } else if(generateStartPosSortAndCompare(START_POS_CROSS_4)) {
-    result = START_POS_CROSS_4;
+  switch (recognizedCrossesMoves.size()) {
+    case 4:
+      detectRandomization(START_POS_CROSS);
+      break;
+    case 8:
+      detectRandomization(START_POS_CROSS_2);
+      break;
+    case 16:
+      detectRandomization(START_POS_CROSS_4);
+      break;
+    default:;
+      break;
   }
 
   return result;

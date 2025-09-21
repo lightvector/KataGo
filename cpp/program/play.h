@@ -139,6 +139,7 @@ class GameInitializer {
   bool dotsGame;
   std::vector<bool> allowedCaptureEmtpyBasesRules;
   std::vector<int> allowedStartPosRules;
+  std::vector<bool> allowedStartPosRandomRules;
 
   std::vector<std::string> allowedKoRuleStrs;
   std::vector<std::string> allowedScoringRuleStrs;

@@ -681,34 +681,58 @@ Loc SymmetryHelpers::getSymLoc(Loc loc, int xSize, int ySize, int symmetry) {
   return getSymLoc(Location::getX(loc,xSize), Location::getY(loc,xSize), xSize, ySize, symmetry);
 }
 
-
 Board SymmetryHelpers::getSymBoard(const Board& board, int symmetry) {
-  bool transpose = (symmetry & 0x4) != 0;
-  bool flipX = (symmetry & 0x2) != 0;
-  bool flipY = (symmetry & 0x1) != 0;
-  Board symBoard(
-    transpose ? board.y_size : board.x_size,
-    transpose ? board.x_size : board.y_size,
-    board.rules
-  );
+  const bool transpose = (symmetry & 0x4) != 0;
+  const bool flipX = (symmetry & 0x2) != 0;
+  const bool flipY = (symmetry & 0x1) != 0;
+  const int sym_x_size = transpose ? board.y_size : board.x_size;
+  const int sym_y_size = transpose ? board.x_size : board.y_size;
+
+  auto getSymLoc = [&](const int x, const int y) {
+    int symX = flipX ? board.x_size - x - 1 : x;
+    int symY = flipY ? board.y_size - y - 1 : y;
+    if(transpose)
+      std::swap(symX,symY);
+    return Location::getLoc(symX,symY,sym_x_size);
+  };
+
+  Rules symRules(board.rules);
+  vector<Move> sym_start_pos_moves;
+
+  if (!board.start_pos_moves.empty()) {
+    sym_start_pos_moves.reserve(board.start_pos_moves.size());
+    for (const auto start_pos_move : board.start_pos_moves) {
+      const Loc loc = start_pos_move.loc;
+      const int x = Location::getX(loc, board.x_size);
+      const int y = Location::getY(loc, board.x_size);
+      sym_start_pos_moves.emplace_back(getSymLoc(x, y), start_pos_move.pla);
+    }
+    bool randomized;
+    symRules.startPos = Rules::tryRecognizeStartPos(sym_start_pos_moves, sym_x_size, sym_y_size, false, randomized);
+    symRules.startPosIsRandom = randomized;
+  }
+
+  Board symBoard(sym_x_size, sym_y_size, symRules);
+  symBoard.setStonesFailIfNoLibs(sym_start_pos_moves, true);
+
   Loc symKoLoc = Board::NULL_LOC;
   for(int y = 0; y<board.y_size; y++) {
     for(int x = 0; x<board.x_size; x++) {
-      Loc loc = Location::getLoc(x,y,board.x_size);
-      int symX = flipX ? board.x_size - x - 1 : x;
-      int symY = flipY ? board.y_size - y - 1 : y;
-      if(transpose)
-        std::swap(symX,symY);
-      const Loc symLoc = Location::getLoc(symX,symY,symBoard.x_size);
-      if (!board.isDots()) {
-        const bool suc = symBoard.setStoneFailIfNoLibs(symLoc,board.colors[loc]);
-        assert(suc);
-        (void)suc;
-        if(loc == board.ko_loc)
-          symKoLoc = symLoc;
-      } else {
-        symBoard.setState(symLoc, board.colors[loc]);
-        symBoard.pos_hash ^= Board::ZOBRIST_BOARD_HASH[symLoc][board.getColor(loc)];
+      const Loc symLoc = getSymLoc(x, y);
+
+      const Loc loc = Location::getLoc(x,y,board.x_size);
+      if (symBoard.getColor(symLoc) == C_EMPTY) { // Ignore already initialized start poses
+        const Color color = board.getColor(loc);
+        if (!board.isDots()) {
+          const bool suc = symBoard.setStoneFailIfNoLibs(symLoc, color);
+          assert(suc);
+          (void)suc;
+          if(loc == board.ko_loc)
+            symKoLoc = symLoc;
+        } else {
+          symBoard.setState(symLoc, board.getState(loc));
+          symBoard.pos_hash ^= Board::ZOBRIST_BOARD_HASH[symLoc][color];
+        }
       }
     }
   }

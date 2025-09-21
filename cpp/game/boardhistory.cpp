@@ -399,10 +399,9 @@ static int numHandicapStonesOnBoardHelper(const Board& board, const int blackNon
   int startBoardNumBlackStones = 0;
   int startBoardNumWhiteStones = 0;
 
-  // Ignore start pos that is generated according to rules
-  const auto startPos = board.rules.generateStartPos(board.rules.startPos, board.x_size, board.y_size);
+  // Ignore start pos moves that are generated according to rules
   set<Loc> startLocs;
-  for (auto move : startPos) {
+  for (auto move : board.start_pos_moves) {
     startLocs.insert(move.loc);
   }
 

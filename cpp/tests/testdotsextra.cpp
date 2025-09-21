@@ -8,13 +8,13 @@ using namespace std;
 using namespace TestCommon;
 
 void checkSymmetry(const Board& initBoard, const string& expectedSymmetryBoardInput, const vector<XYMove>& extraMoves, const int symmetry) {
-  Board transformedBoard = SymmetryHelpers::getSymBoard(initBoard, symmetry);
+  const Board transformedBoard = SymmetryHelpers::getSymBoard(initBoard, symmetry);
   Board expectedBoard = parseDotsFieldDefault(expectedSymmetryBoardInput);
   for (const XYMove& extraMove : extraMoves) {
     expectedBoard.playMoveAssumeLegal(SymmetryHelpers::getSymLoc(extraMove.x, extraMove.y, initBoard, symmetry), extraMove.player);
   }
   expect(SymmetryHelpers::symmetryToString(symmetry).c_str(), Board::toStringSimple(transformedBoard, '\n'), Board::toStringSimple(expectedBoard, '\n'));
-  testAssert(transformedBoard.isEqualForTesting(expectedBoard, true, true));
+  testAssert(transformedBoard.isEqualForTesting(expectedBoard, true, true, true));
 }
 
 void Tests::runDotsSymmetryTests() {
@@ -104,6 +104,26 @@ xo..
 )",
 { XYMove(4, 1, P_WHITE)},
 SymmetryHelpers::SYMMETRY_TRANSPOSE_FLIP_Y_X);
+
+  cout << "Check dots symmetry with start pos" << endl;
+  auto board = Board(5, 4, Rules(true, Rules::START_POS_CROSS, false, Rules::DEFAULT_DOTS.dotsCaptureEmptyBases, Rules::DEFAULT_DOTS.dotsFreeCapturedDots));
+  board.setStartPos(DOTS_RANDOM);
+  board.playMoveAssumeLegal(Location::getLoc(1, 2, board.x_size), P_BLACK);
+
+  const auto rotatedBoard = SymmetryHelpers::getSymBoard(board, SymmetryHelpers::SYMMETRY_TRANSPOSE_FLIP_X);
+
+  auto expectedBoard = Board(4, 5, Rules(true, Rules::START_POS_CROSS, true, Rules::DEFAULT_DOTS.dotsCaptureEmptyBases, Rules::DEFAULT_DOTS.dotsFreeCapturedDots));
+  expectedBoard.setStoneFailIfNoLibs(Location::getLoc(1, 2,  expectedBoard.x_size), P_WHITE, true);
+  expectedBoard.setStoneFailIfNoLibs(Location::getLoc(1, 3,  expectedBoard.x_size), P_BLACK, true);
+  expectedBoard.setStoneFailIfNoLibs(Location::getLoc(2, 3,  expectedBoard.x_size), P_WHITE, true);
+  expectedBoard.setStoneFailIfNoLibs(Location::getLoc(2, 2,  expectedBoard.x_size), P_BLACK, true);
+  expectedBoard.playMoveAssumeLegal(Location::getLoc(1, 1, expectedBoard.x_size), P_BLACK);
+
+  expect("Dots symmetry with start pos", Board::toStringSimple(rotatedBoard, '\n'), Board::toStringSimple(expectedBoard, '\n'));
+  testAssert(rotatedBoard.isEqualForTesting(expectedBoard, true, true, true));
+
+  const auto unrotatedBoard = SymmetryHelpers::getSymBoard(rotatedBoard, SymmetryHelpers::SYMMETRY_TRANSPOSE_FLIP_Y);
+  testAssert(board.isEqualForTesting(unrotatedBoard, true, true, true));
 }
 
 string getOwnership(const string& boardData, const Color groundingPlayer, const int expectedWhiteScore, const vector<XYMove>& extraMoves) {

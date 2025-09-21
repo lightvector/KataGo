@@ -7,7 +7,9 @@ const std::string DOTS_KEY = "dots";
 const std::string DOTS_CAPTURE_EMPTY_BASE_KEY = "dotsCaptureEmptyBase";
 const std::string DOTS_CAPTURE_EMPTY_BASES_KEY = "dotsCaptureEmptyBases";
 const std::string START_POS_KEY = "startPos";
+const std::string START_POS_RANDOM_KEY = "startPosIsRandom";
 const std::string START_POSES_KEY = "startPoses";
+const std::string START_POSES_ARE_RANDOM_KEY = "startPosesAreRandom";
 
 const std::string BLACK_SCORE_IF_WHITE_GROUNDS_KEY = "blackScoreIfWhiteGrounds";
 const std::string WHITE_SCORE_IF_BLACK_GROUNDS_KEY = "whiteScoreIfBlackGrounds";

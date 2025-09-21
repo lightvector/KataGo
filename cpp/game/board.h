@@ -7,12 +7,11 @@
 #ifndef GAME_BOARD_H_
 #define GAME_BOARD_H_
 
-#include <unordered_set>
-
 #include "../core/global.h"
 #include "../core/hash.h"
 #include "../external/nlohmann_json/json.hpp"
 #include "rules.h"
+#include "../core/rand.h"
 
 #ifndef COMPILE_MAX_BOARD_LEN
 #define COMPILE_MAX_BOARD_LEN 39
@@ -307,15 +306,20 @@ struct Board
   //Returns false if location or color were out of range.
   bool setStone(Loc loc, Color color);
 
+  // Set the start pos and use the provided random in case of randomization is used
+  // It should be called strictly before handicap placement
+  void setStartPos(Rand& rand);
   //Sets the specified stone, including overwriting existing stones, but only if doing so will
   //not result in any captures or zero liberty groups.
   //Returns false if location or color were out of range, or if would cause a zero liberty group.
   //In case of failure, will restore the position, but may result in chain ids or ordering in the board changing.
-  bool setStoneFailIfNoLibs(Loc loc, Color color);
+  //If startPos is true, adds the move to start pos moves to distinguish between start pos and handicap stones
+  bool setStoneFailIfNoLibs(Loc loc, Color color, bool startPos = false);
   //Same, but sets multiple stones, and only requires that the final configuration contain no zero-liberty groups.
   //If it does contain a zero liberty group, fails and returns false and leaves the board in an arbitrarily changed but valid state.
   //Also returns false if any location is specified more than once.
-  bool setStonesFailIfNoLibs(std::vector<Move> placements);
+  //If startPos is true, adds the placements to start pos moves to distinguish between start pos and handicap stones
+  bool setStonesFailIfNoLibs(const std::vector<Move>& placements, bool startPos = false);
 
   //Attempts to play the specified move. Returns true if successful, returns false if the move was illegal.
   bool playMove(Loc loc, Player pla, bool isMultiStoneSuicideLegal);
@@ -425,6 +429,7 @@ struct Board
   std::vector<ChainData> chain_data; //For each head stone, the chaindata for the chain under that head. Undefined otherwise.
   std::vector<Loc> chain_head;       //Where is the head of this chain? Undefined if EMPTY or WALL
   std::vector<Loc> next_in_chain;    //Location of next stone in chain. Circular linked list. Undefined if EMPTY or WALL
+  std::vector<Move> start_pos_moves; //Moves that are played at the very beginning of the game
 
   private:
 

@@ -149,6 +149,12 @@ void GameInitializer::initShared(ConfigParser& cfg, Logger& logger) {
       throw IOError(START_POSES_KEY + " must have at least one value in " + cfg.getFileName());
   }
 
+  if (cfg.contains(START_POSES_ARE_RANDOM_KEY) || dotsGame) {
+    allowedStartPosRandomRules = cfg.getBools(START_POSES_ARE_RANDOM_KEY);
+    if(allowedStartPosRandomRules.size() <= 0)
+      throw IOError(START_POSES_ARE_RANDOM_KEY + " must have at least one value in " + cfg.getFileName());
+  }
+
   if(cfg.contains("bSizes") == cfg.contains("bSizesXY"))
     throw IOError("Must specify exactly one of bSizes or bSizesXY");
 
@@ -497,6 +503,9 @@ Rules GameInitializer::createRulesUnsynchronized() {
   if (!allowedStartPosRules.empty()) {
     rules.startPos = allowedStartPosRules[rand.nextUInt(static_cast<uint32_t>(allowedStartPosRules.size()))];
   }
+  if (!allowedStartPosRandomRules.empty()) {
+    rules.startPosIsRandom = allowedStartPosRandomRules[rand.nextUInt(static_cast<uint32_t>(allowedStartPosRandomRules.size()))];
+  }
 
   if (dotsGame) {
      rules.dotsCaptureEmptyBases = allowedCaptureEmtpyBasesRules[rand.nextUInt(static_cast<uint32_t>(allowedCaptureEmtpyBasesRules.size()))];
@@ -621,6 +630,8 @@ void GameInitializer::createGameSharedUnsynchronized(
     int xSize = allowedBSizes[bSizeIdx].first;
     int ySize = allowedBSizes[bSizeIdx].second;
     board = Board(xSize,ySize,rules);
+    board.setStartPos(rand);
+
     pla = P_BLACK;
     hist.clear(board,pla,rules,0);
     hist.setInitialTurnNumber(rules.getNumOfStartPosStones());

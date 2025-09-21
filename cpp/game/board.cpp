@@ -12,8 +12,6 @@
 #include <sstream>
 #include <vector>
 
-#include "../core/rand.h"
-
 using namespace std;
 
 //STATIC VARS-----------------------------------------------------------------------------
@@ -137,11 +135,9 @@ Board::Board(const Board& other) {
   memcpy(colors, other.colors, sizeof(Color)*MAX_ARR_SIZE);
   ko_loc = other.ko_loc;
 
-  if (!other.rules.isDots) {
-    chain_data = other.chain_data;
-    chain_head = other.chain_head;
-    next_in_chain = other.next_in_chain;
-  }
+  chain_data = other.chain_data;
+  chain_head = other.chain_head;
+  next_in_chain = other.next_in_chain;
 
   // empty_list = other.empty_list;
   pos_hash = other.pos_hash;
@@ -150,6 +146,7 @@ Board::Board(const Board& other) {
   blackScoreIfWhiteGrounds = other.blackScoreIfWhiteGrounds;
   whiteScoreIfBlackGrounds = other.whiteScoreIfBlackGrounds;
   numLegalMoves = other.numLegalMoves;
+  start_pos_moves = other.start_pos_moves;
   memcpy(adj_offsets, other.adj_offsets, sizeof(short)*8);
   visited_data.resize(other.visited_data.size(), false);
 }
@@ -198,11 +195,6 @@ void Board::init(const int xS, const int yS, const Rules& initRules)
   }
 
   Location::getAdjacentOffsets(adj_offsets, x_size, isDots());
-
-  const vector<Move> placement = Rules::generateStartPos(rules.startPos, x_size, y_size);
-  for (const Move& move : placement) {
-    playMoveAssumeLegal(move.loc, move.pla);
-  }
 }
 
 void Board::initHash()
@@ -757,7 +749,7 @@ bool Board::setStone(Loc loc, Color color)
   return true;
 }
 
-bool Board::setStoneFailIfNoLibs(Loc loc, Color color) {
+bool Board::setStoneFailIfNoLibs(Loc loc, Color color, const bool startPos) {
   Color colorAtLoc = getColor(loc);
   if(loc < 0 || loc >= MAX_ARR_SIZE || colorAtLoc == C_WALL)
     return false;
@@ -771,12 +763,18 @@ bool Board::setStoneFailIfNoLibs(Loc loc, Color color) {
     if(isSuicide(loc,color) || wouldBeCapture(loc,color))
       return false;
     playMoveAssumeLegal(loc,color);
+    if (startPos) {
+      start_pos_moves.emplace_back(loc, color);
+    }
   }
   else if(color == C_EMPTY)
     removeSingleStone(loc);
   else {
     assert(colorAtLoc == getOpp(color));
     removeSingleStone(loc);
+    if (startPos) {
+      start_pos_moves.emplace_back(loc, color);
+    }
     if(isSuicide(loc,color) || wouldBeCapture(loc,color)) {
       playMoveAssumeLegal(loc,getOpp(color));
       ko_loc = oldKoLoc;
@@ -789,25 +787,31 @@ bool Board::setStoneFailIfNoLibs(Loc loc, Color color) {
   return true;
 }
 
-bool Board::setStonesFailIfNoLibs(std::vector<Move> placements) {
+void Board::setStartPos(Rand& rand) {
+  const vector<Move> startPos = Rules::generateStartPos(rules.startPos, rules.startPosIsRandom ? &rand : nullptr, x_size, y_size);
+  bool success = setStonesFailIfNoLibs(startPos, true);
+  assert(success);
+}
+
+bool Board::setStonesFailIfNoLibs(const std::vector<Move>& placements, const bool startPos) {
   std::set<Loc> locs;
   for(const Move& placement: placements) {
     if(locs.find(placement.loc) != locs.end())
       return false;
     locs.insert(placement.loc);
   }
+
   //First empty out all locations that we plan to set.
   //This guarantees avoiding any intermediate liberty issues.
   for(const Move& placement: placements) {
-    bool suc = setStoneFailIfNoLibs(placement.loc, C_EMPTY);
-    if(!suc)
+    if(bool suc = setStoneFailIfNoLibs(placement.loc, C_EMPTY, startPos); !suc)
       return false;
   }
   //Now set all the stones we wanted.
   for(const Move& placement: placements) {
-    bool suc = setStoneFailIfNoLibs(placement.loc, placement.pla);
-    if(!suc)
+    if(bool suc = setStoneFailIfNoLibs(placement.loc, placement.pla, startPos); !suc) {
       return false;
+    }
   }
   return true;
 }
@@ -2508,6 +2512,16 @@ bool Board::isEqualForTesting(const Board& other, bool checkNumCaptures, bool ch
   }
   if (numLegalMoves != other.numLegalMoves) {
     return false;
+  }
+  if (start_pos_moves.size() != other.start_pos_moves.size()) {
+    return false;
+  }
+  for (int i = 0; i < start_pos_moves.size(); i++) {
+    const Move start_pose_move = start_pos_moves[i];
+    const Move other_start_pos_move = other.start_pos_moves[i];
+    if (start_pose_move.loc != other_start_pos_move.loc || start_pose_move.pla != other_start_pos_move.pla) {
+      return false;
+    }
   }
   if (checkRules && rules != other.rules) {
     return false;
