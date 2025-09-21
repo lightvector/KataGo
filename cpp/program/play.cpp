@@ -2447,10 +2447,15 @@ FinishedGameData* GameRunner::runGame(
     clearBotBeforeSearchThisGame = true;
   }
 
-  //In 2% of games, don't autoterminate the game upon all pass alive, to just provide a tiny bit of training data on positions that occur
-  //as both players must wrap things up manually, because within the search we don't autoterminate games, meaning that the NN will get
-  //called on positions that occur after the game would have been autoterminated.
-  bool doEndGameIfAllPassAlive = playSettings.forSelfPlay ? gameRand.nextBool(0.98) : true;
+  bool doEndGameIfAllPassAlive;
+  if (rules.isDots) {
+    doEndGameIfAllPassAlive = false;
+  } else {
+    //In 2% of games, don't autoterminate the game upon all pass alive, to just provide a tiny bit of training data on positions that occur
+    //as both players must wrap things up manually, because within the search we don't autoterminate games, meaning that the NN will get
+    //called on positions that occur after the game would have been autoterminated.
+    doEndGameIfAllPassAlive = playSettings.forSelfPlay ? gameRand.nextBool(0.98) : true;
+  }
 
   Search* botB;
   Search* botW;
