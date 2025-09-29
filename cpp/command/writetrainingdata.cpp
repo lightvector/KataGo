@@ -681,6 +681,8 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
   const int numTotalThreads = numWorkerThreads * numSearchThreads;
 
   const int dataBoardLen = cfg.getInt("dataBoardLen",3,Board::MAX_LEN);
+  const int dataBoardLenX = cfg.contains(DATA_LEN_X_KEY) ? cfg.getInt(DATA_LEN_X_KEY,3,Board::MAX_LEN_X) : dataBoardLen;
+  const int dataBoardLenY = cfg.contains(DATA_LEN_Y_KEY) ? cfg.getInt(DATA_LEN_Y_KEY,3,Board::MAX_LEN_Y) : dataBoardLen;
   const int maxApproxRowsPerTrainFile = cfg.getInt("maxApproxRowsPerTrainFile",1,100000000);
 
   const std::vector<std::pair<int,int>> allowedBoardSizes =
@@ -814,8 +816,8 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
         (maxApproxRowsPerTrainFile * 4/3 + Board::MAX_PLAY_SIZE * 2 + 100),
         numBinaryChannels,
         numGlobalChannels,
-        dataBoardLen,
-        dataBoardLen,
+        dataBoardLenX,
+        dataBoardLenY,
         hasMetadataInput
       )
     );
@@ -868,12 +870,13 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
       return;
     }
 
-    if(xySize.x > dataBoardLen || xySize.y > dataBoardLen) {
+    if(xySize.x > dataBoardLenX || xySize.y > dataBoardLenY) {
       logger.write(
-        "SGF board size > dataBoardLen in " + fileName + ":"
+        "SGF board sizeX > dataBoardLenX or sizeY > dataBoardLenY in " + fileName + ":"
         + " " + Global::intToString(xySize.x)
         + " " + Global::intToString(xySize.y)
-        + " " + Global::intToString(dataBoardLen)
+        + " " + Global::intToString(dataBoardLenX)
+        + " " + Global::intToString(dataBoardLenY)
       );
       reportSgfDone(false,"SGFGreaterThanDataBoardLen");
       return;

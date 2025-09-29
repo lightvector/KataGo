@@ -93,6 +93,8 @@ int MainCmds::selfplay(const vector<string>& args) {
 
   //Width and height of the board to use when writing data, typically 19
   const int dataBoardLen = cfg.getInt("dataBoardLen",3,Board::MAX_LEN);
+  const int dataBoardLenX = cfg.contains(DATA_LEN_X_KEY) ? cfg.getInt(DATA_LEN_X_KEY,3,Board::MAX_LEN_X) : dataBoardLen;
+  const int dataBoardLenY = cfg.contains(DATA_LEN_Y_KEY) ? cfg.getInt(DATA_LEN_Y_KEY,3,Board::MAX_LEN_Y) : dataBoardLen;
 
   const bool dotsGame = cfg.getBoolOrDefault(DOTS_KEY, false);
   const int inputsVersion =
@@ -137,7 +139,7 @@ int MainCmds::selfplay(const vector<string>& args) {
 
   //Returns true if a new net was loaded.
   auto loadLatestNeuralNetIntoManager =
-    [inputsVersion,&manager,maxRowsPerTrainFile,firstFileRandMinProp,dataBoardLen,
+    [inputsVersion,&manager,maxRowsPerTrainFile,firstFileRandMinProp,dataBoardLenX,dataBoardLenY,
      &modelsDir,&outputDir,&logger,&cfg,numGameThreads,
      minBoardXSizeUsed,maxBoardXSizeUsed,minBoardYSizeUsed,maxBoardYSizeUsed](const string* lastNetName) -> bool {
 
@@ -215,7 +217,7 @@ int MainCmds::selfplay(const vector<string>& args) {
     //Note that this inputsVersion passed here is NOT necessarily the same as the one used in the neural net self play, it
     //simply controls the input feature version for the written data
     auto tdataWriter = new TrainingDataWriter(
-      tdataOutputDir, nullptr, inputsVersion, maxRowsPerTrainFile, firstFileRandMinProp, dataBoardLen, dataBoardLen, Global::uint64ToHexString(rand.nextUInt64()));
+      tdataOutputDir, nullptr, inputsVersion, maxRowsPerTrainFile, firstFileRandMinProp, dataBoardLenX, dataBoardLenY, Global::uint64ToHexString(rand.nextUInt64()));
     ofstream* sgfOut = nullptr;
     if(sgfOutputDir.length() > 0) {
       sgfOut = new ofstream();

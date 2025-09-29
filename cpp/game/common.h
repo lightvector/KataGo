@@ -4,6 +4,8 @@
 #include "../core/global.h"
 
 const std::string DOTS_KEY = "dots";
+const std::string DATA_LEN_X_KEY = "dataBoardLenX";
+const std::string DATA_LEN_Y_KEY = "dataBoardLenY";
 const std::string DOTS_CAPTURE_EMPTY_BASE_KEY = "dotsCaptureEmptyBase";
 const std::string DOTS_CAPTURE_EMPTY_BASES_KEY = "dotsCaptureEmptyBases";
 const std::string START_POS_KEY = "startPos";
