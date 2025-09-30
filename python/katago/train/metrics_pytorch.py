@@ -25,14 +25,15 @@ class Metrics:
     def __init__(self, batch_size: int, world_size: int, raw_model: Model):
         self.n = batch_size
         self.world_size = world_size
-        self.pos_len = raw_model.pos_len
-        self.pos_area = raw_model.pos_len * raw_model.pos_len
-        self.policy_len = raw_model.pos_len * raw_model.pos_len + 1
+        self.pos_len_x = raw_model.pos_len_x
+        self.pos_len_y = raw_model.pos_len_y
+        self.pos_area = raw_model.pos_len_x * raw_model.pos_len_y
+        self.policy_len = raw_model.pos_len_x * raw_model.pos_len_y + 1
         self.value_len = 3
         self.num_td_values = 3
         self.num_futurepos_values = 2
         self.num_seki_logits = 4
-        self.scorebelief_len = 2 * (self.pos_len*self.pos_len + EXTRA_SCORE_DISTR_RADIUS)
+        self.scorebelief_len = 2 * (self.pos_len_x * self.pos_len_y + EXTRA_SCORE_DISTR_RADIUS)
 
         self.scoremean_multiplier = raw_model.scoremean_multiplier
 
@@ -120,9 +121,9 @@ class Metrics:
         # This uses a formulation where each batch element cares about its average loss.
         # In particular this means that ownership loss predictions on small boards "count more" per spot.
         # Not unlike the way that policy and value loss are also equal-weighted by batch element.
-        assert pred_pretanh.shape == (self.n, 1, self.pos_len, self.pos_len)
-        assert target.shape == (self.n, self.pos_len, self.pos_len)
-        assert mask.shape == (self.n, self.pos_len, self.pos_len)
+        assert pred_pretanh.shape == (self.n, 1, self.pos_len_x, self.pos_len_y)
+        assert target.shape == (self.n, self.pos_len_x, self.pos_len_y)
+        assert mask.shape == (self.n, self.pos_len_x, self.pos_len_y)
         assert mask_sum_hw.shape == (self.n,)
         pred_logits = pred_pretanh.view(self.n,self.pos_area) * 2.0
         target_probs = (1.0 + target.view(self.n,self.pos_area)) / 2.0
@@ -134,9 +135,9 @@ class Metrics:
 
 
     def loss_scoring_samplewise(self, pred_scoring, target, weight, mask, mask_sum_hw, global_weight):
-        assert pred_scoring.shape == (self.n, 1, self.pos_len, self.pos_len)
-        assert target.shape == (self.n, self.pos_len, self.pos_len)
-        assert mask.shape == (self.n, self.pos_len, self.pos_len)
+        assert pred_scoring.shape == (self.n, 1, self.pos_len_x, self.pos_len_y)
+        assert target.shape == (self.n, self.pos_len_x, self.pos_len_y)
+        assert mask.shape == (self.n, self.pos_len_x, self.pos_len_y)
         assert mask_sum_hw.shape == (self.n,)
 
         loss = torch.sum(torch.square(pred_scoring.squeeze(1) - target) * mask, dim=(1,2)) / mask_sum_hw
@@ -154,9 +155,9 @@ class Metrics:
         # causing some scaling with board size. So, I dunno, let's compromise and scale by sqrt(boardarea).
         # Also, the further out targets should be weighted a little less due to them being higher entropy
         # due to simply being farther in the future, so multiply by [1,0.25].
-        assert pred_pretanh.shape == (self.n, self.num_futurepos_values, self.pos_len, self.pos_len)
-        assert target.shape == (self.n, self.num_futurepos_values, self.pos_len, self.pos_len)
-        assert mask.shape == (self.n, self.pos_len, self.pos_len)
+        assert pred_pretanh.shape == (self.n, self.num_futurepos_values, self.pos_len_x, self.pos_len_y)
+        assert target.shape == (self.n, self.num_futurepos_values, self.pos_len_x, self.pos_len_y)
+        assert mask.shape == (self.n, self.pos_len_x, self.pos_len_y)
         assert mask_sum_hw.shape == (self.n,)
         loss = torch.square(torch.tanh(pred_pretanh) - target) * mask.unsqueeze(1)
         loss = loss * constant_like([1.0,0.25], loss).view(1,2,1,1)
@@ -166,10 +167,10 @@ class Metrics:
 
     def loss_seki_samplewise(self, pred_logits, target, target_ownership, weight, mask, mask_sum_hw, global_weight, is_training, skip_moving_update):
         assert self.num_seki_logits == 4
-        assert pred_logits.shape == (self.n, self.num_seki_logits, self.pos_len, self.pos_len)
-        assert target.shape == (self.n, self.pos_len, self.pos_len)
-        assert target_ownership.shape == (self.n, self.pos_len, self.pos_len)
-        assert mask.shape == (self.n, self.pos_len, self.pos_len)
+        assert pred_logits.shape == (self.n, self.num_seki_logits, self.pos_len_x, self.pos_len_y)
+        assert target.shape == (self.n, self.pos_len_x, self.pos_len_y)
+        assert target_ownership.shape == (self.n, self.pos_len_x, self.pos_len_y)
+        assert mask.shape == (self.n, self.pos_len_x, self.pos_len_y)
         assert mask_sum_hw.shape == (self.n,)
 
         owned_target = torch.square(target_ownership)

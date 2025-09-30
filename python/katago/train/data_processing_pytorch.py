@@ -9,17 +9,8 @@ import torch.nn.functional
 
 from ..train import modelconfigs
 
-def read_npz_training_data(
-    npz_files,
-    batch_size: int,
-    world_size: int,
-    rank: int,
-    pos_len: int,
-    device,
-    randomize_symmetries: bool,
-    include_meta: bool,
-    model_config: modelconfigs.ModelConfig,
-):
+def read_npz_training_data(npz_files, batch_size: int, world_size: int, rank: int, pos_len_x: int, pos_len_y: int, device,
+                           randomize_symmetries: bool, include_meta: bool, model_config: modelconfigs.ModelConfig):
     rand = np.random.default_rng(seed=list(os.urandom(12)))
     num_bin_features = modelconfigs.get_num_bin_input_features(model_config)
     num_global_features = modelconfigs.get_num_global_input_features(model_config)
@@ -47,10 +38,10 @@ def read_npz_training_data(
 
         binaryInputNCHW = np.unpackbits(binaryInputNCHWPacked,axis=2)
         assert len(binaryInputNCHW.shape) == 3
-        assert binaryInputNCHW.shape[2] == ((pos_len * pos_len + 7) // 8) * 8
-        binaryInputNCHW = binaryInputNCHW[:,:,:pos_len*pos_len]
+        assert binaryInputNCHW.shape[2] == ((pos_len_x * pos_len_y + 7) // 8) * 8
+        binaryInputNCHW = binaryInputNCHW[:,:, :pos_len_x * pos_len_y]
         binaryInputNCHW = np.reshape(binaryInputNCHW, (
-            binaryInputNCHW.shape[0], binaryInputNCHW.shape[1], pos_len, pos_len
+            binaryInputNCHW.shape[0], binaryInputNCHW.shape[1], pos_len_x, pos_len_y
         )).astype(np.float32)
 
         assert binaryInputNCHW.shape[1] == num_bin_features
@@ -98,10 +89,10 @@ def read_npz_training_data(
                 if randomize_symmetries:
                     symm = int(rand.integers(0,8))
                     batch_binaryInputNCHW = apply_symmetry(batch_binaryInputNCHW, symm)
-                    batch_policyTargetsNCMove = apply_symmetry_policy(batch_policyTargetsNCMove, symm, pos_len)
+                    batch_policyTargetsNCMove = apply_symmetry_policy(batch_policyTargetsNCMove, symm, pos_len_x, pos_len_y)
                     batch_valueTargetsNCHW = apply_symmetry(batch_valueTargetsNCHW, symm)
                     if include_qvalues:
-                        batch_qValueTargetsNCMove = apply_symmetry_policy(batch_qValueTargetsNCMove, symm, pos_len)
+                        batch_qValueTargetsNCMove = apply_symmetry_policy(batch_qValueTargetsNCMove, symm, pos_len_x, pos_len_y)
 
                 batch_binaryInputNCHW = batch_binaryInputNCHW.contiguous()
                 batch_policyTargetsNCMove = batch_policyTargetsNCMove.contiguous()
@@ -125,14 +116,14 @@ def read_npz_training_data(
                 yield batch
 
 
-def apply_symmetry_policy(tensor, symm, pos_len):
+def apply_symmetry_policy(tensor, symm, pos_len_x, pos_len_y):
     """Same as apply_symmetry but also handles the pass index"""
     batch_size = tensor.shape[0]
     channels = tensor.shape[1]
-    tensor_without_pass = tensor[:,:,:-1].view((batch_size, channels, pos_len, pos_len))
+    tensor_without_pass = tensor[:,:,:-1].view((batch_size, channels, pos_len_x, pos_len_y))
     tensor_transformed = apply_symmetry(tensor_without_pass, symm)
     return torch.cat((
-        tensor_transformed.reshape(batch_size, channels, pos_len*pos_len),
+        tensor_transformed.reshape(batch_size, channels, pos_len_x * pos_len_y),
         tensor[:,:,-1:]
     ), dim=2)
 

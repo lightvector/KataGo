@@ -39,7 +39,7 @@ def load_swa_model_state_dict(state_dict):
     return swa_model_state_dict
 
 
-def load_model(checkpoint_file, use_swa, device, pos_len=19, verbose=False):
+def load_model(checkpoint_file, use_swa, device, pos_len_x=19, pos_len_y=19, verbose=False):
     from ..train.model_pytorch import Model
     from torch.optim.swa_utils import AveragedModel
 
@@ -54,7 +54,7 @@ def load_model(checkpoint_file, use_swa, device, pos_len=19, verbose=False):
             model_config = json.load(f)
 
     logging.info(str(model_config))
-    model = Model(model_config,pos_len)
+    model = Model(model_config, pos_len_x, pos_len_y)
     model.initialize()
 
     # Strip off any "module." from when the model was saved with DDP or other things

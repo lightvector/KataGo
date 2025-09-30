@@ -58,13 +58,13 @@ logging.basicConfig(
 np.set_printoptions(linewidth=150)
 torch.set_printoptions(precision=7,sci_mode=False,linewidth=100000,edgeitems=1000,threshold=1000000)
 
-model, swa_model, _ = load_model(checkpoint_file, use_swa, device=device, pos_len=pos_len, verbose=True)
+model, swa_model, _ = load_model(checkpoint_file, use_swa, device=device, pos_len_x=pos_len, pos_len_y=pos_len, verbose=True)
 if swa_model is not None:
     model = swa_model
 model_config = model.config
 model.eval()
 
-features = Features(model_config, pos_len)
+features = Features(model_config, pos_len_x, pos_len_y)
 
 
 # Moves ----------------------------------------------------------------
@@ -413,9 +413,9 @@ with torch.no_grad():
 
 def get_board_matrix_str(matrix, scale, formatstr):
     ret = ""
-    matrix = matrix.reshape([features.pos_len,features.pos_len])
-    for y in range(features.pos_len):
-        for x in range(features.pos_len):
+    matrix = matrix.reshape([features.pos_len_x, features.pos_len_y])
+    for y in range(features.pos_len_y):
+        for x in range(features.pos_len_x):
             ret += formatstr % (scale * matrix[y,x])
             ret += " "
         ret += "\n"
@@ -456,7 +456,7 @@ while True:
 
     ret = ''
     if command[0] == "boardsize":
-        if int(command[1]) > features.pos_len:
+        if int(command[1]) > features.pos_len_x:
             print("Warning: Trying to set incompatible boardsize %s (!= %d)" % (command[1], N), file=sys.stderr)
             ret = None
         board_size = int(command[1])

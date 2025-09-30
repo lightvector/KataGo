@@ -64,8 +64,10 @@ if __name__ == "__main__":
     optional_args.add_argument('-exportprefix', help='Prefix to append to names of models', required=False)
     optional_args.add_argument('-initial-checkpoint', help='If no training checkpoint exists, initialize from this checkpoint', required=False)
 
-    required_args.add_argument('-pos-len', help='Spatial edge length of expected training data, e.g. 19 for 19x19 Go', type=int, required=True)
     required_args.add_argument('-batch-size', help='Per-GPU batch size to use for training', type=int, required=True)
+    required_args.add_argument('-pos-len', help='Spatial edge length of expected training data, e.g. 19 for 19x19 Go', type=int, required=True)
+    optional_args.add_argument('-pos-len-x', help='Spatial width of expected training data. If undefined, `-pos-len` is used', type=int, required=False)
+    optional_args.add_argument('-pos-len-y', help='Spatial height of expected training data. If undefined, `-pos-len` is used', type=int, required=False)
     optional_args.add_argument('-samples-per-epoch', help='Number of data samples to consider as one epoch', type=int, required=False)
     optional_args.add_argument('-model-kind', help='String name for what model config to use', required=False)
     optional_args.add_argument('-lr-scale', help='LR multiplier on the hardcoded schedule', type=float, required=False)
@@ -153,6 +155,8 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
     initial_checkpoint = args["initial_checkpoint"]
 
     pos_len = args["pos_len"]
+    pos_len_x = args["pos_len_x"] or pos_len
+    pos_len_y = args["pos_len_y"] or pos_len
     batch_size = args["batch_size"]
     samples_per_epoch = args["samples_per_epoch"]
     model_kind = args["model_kind"]
@@ -443,7 +447,7 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
             assert model_kind is not None, "Model kind is none or unspecified but the model is being created fresh"
             model_config = modelconfigs.config_of_name[model_kind]
             logging.info(str(model_config))
-            raw_model = Model(model_config,pos_len)
+            raw_model = Model(model_config,pos_len_x,pos_len_y)
             raw_model.initialize()
 
             raw_model.to(device)
@@ -478,7 +482,7 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
             state_dict = torch.load(path_to_load_from, map_location=device)
             model_config = state_dict["config"] if "config" in state_dict else modelconfigs.config_of_name[model_kind]
             logging.info(str(model_config))
-            raw_model = Model(model_config,pos_len)
+            raw_model = Model(model_config,pos_len_x,pos_len_y)
             raw_model.initialize()
 
             train_state = {}
@@ -1045,17 +1049,11 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
             logging.info("This subepoch, using files: " + str(train_files_to_use))
             logging.info("Currently up to data row " + str(train_state["total_num_data_rows"]))
             lookahead_counter = 0
-            for batch in data_processing_pytorch.read_npz_training_data(
-                train_files_to_use,
-                batch_size,
-                world_size,
-                rank,
-                pos_len=pos_len,
-                device=device,
-                randomize_symmetries=True,
-                include_meta=raw_model.get_has_metadata_encoder(),
-                model_config=model_config
-            ):
+            for batch in data_processing_pytorch.read_npz_training_data(train_files_to_use, batch_size, world_size,
+                                                                        rank, pos_len_x, pos_len_y,
+                                                                        device=device, randomize_symmetries=True,
+                                                                        include_meta=raw_model.get_has_metadata_encoder(),
+                                                                        model_config=model_config):
                 optimizer.zero_grad(set_to_none=True)
                 extra_outputs = None
                 # if raw_model.get_has_metadata_encoder():
@@ -1253,17 +1251,12 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
                     val_metric_weights = defaultdict(float)
                     val_samples = 0
                     t0 = time.perf_counter()
-                    for batch in data_processing_pytorch.read_npz_training_data(
-                        val_files,
-                        batch_size,
-                        world_size=1,  # Only the main process validates
-                        rank=0,        # Only the main process validates
-                        pos_len=pos_len,
-                        device=device,
-                        randomize_symmetries=True,
-                        include_meta=raw_model.get_has_metadata_encoder(),
-                        model_config=model_config
-                    ):
+                    for batch in data_processing_pytorch.read_npz_training_data(val_files, batch_size, world_size=1, rank=0,
+                                                                                pos_len_x=pos_len_x, pos_len_y=pos_len_y,
+                                                                                device=device,
+                                                                                randomize_symmetries=True,
+                                                                                include_meta=raw_model.get_has_metadata_encoder(),
+                                                                                model_config=model_config):
                         model_outputs = ddp_model(
                             batch["binaryInputNCHW"],
                             batch["globalInputNC"],

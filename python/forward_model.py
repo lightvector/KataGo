@@ -33,6 +33,8 @@ if __name__ == "__main__":
     parser.add_argument('-npz', help='NPZ file to evaluate', required=True)
     parser.add_argument('-checkpoint', help='Checkpoint to test', required=False)
     parser.add_argument('-pos-len', help='Spatial length of expected training data', type=int, required=True)
+    parser.add_argument('-pos-len-x', help='Spatial width of expected training data (-pos-len if undefined)', type=int, required=False)
+    parser.add_argument('-pos-len-y', help='Spatial height of expected training data (-pos-len if undefined)', type=int, required=False)
     parser.add_argument('-use-swa', help='Use SWA model', action="store_true", required=False)
     parser.add_argument('-gpu-idx', help='GPU idx', type=int, required=False)
 
@@ -42,6 +44,8 @@ def main(args):
     npz_file = args["npz"]
     checkpoint_file = args["checkpoint"]
     pos_len = args["pos_len"]
+    pos_len_x = args["pos_len_x"] or pos_len
+    pos_len_y = args["pos_len_y"] or pos_len
     use_swa = args["use_swa"]
     gpu_idx = args["gpu_idx"]
 
@@ -74,7 +78,7 @@ def main(args):
 
     # LOAD MODEL ---------------------------------------------------------------------
 
-    model, swa_model, _ = load_model(checkpoint_file, use_swa, device=device, pos_len=pos_len, verbose=False)
+    model, swa_model, _ = load_model(checkpoint_file, use_swa, device=device, pos_len_x=pos_len_x, pos_len_y=pos_len_y, verbose=False)
     model_config = model.config
 
     batch = np.load(npz_file)

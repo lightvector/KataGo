@@ -21,7 +21,7 @@ def main():
     parser.add_argument('-device', help='Device to use, such as cpu or cuda:0', required=True)
     args = parser.parse_args()
 
-    model, swa_model, _ = load_model(args.checkpoint, use_swa=args.use_swa, device=args.device, pos_len=19, verbose=False)
+    model, swa_model, _ = load_model(args.checkpoint, use_swa=args.use_swa, device=args.device,verbose=False)
     if swa_model is not None:
         model = swa_model
     game_state = None

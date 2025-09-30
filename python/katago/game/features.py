@@ -6,29 +6,30 @@ from ..game.board import Board, Loc, Pos, Player
 from ..train import modelconfigs
 
 class Features:
-    def __init__(self, config: modelconfigs.ModelConfig, pos_len: int):
+    def __init__(self, config: modelconfigs.ModelConfig, pos_len_x: int, pos_len_y: int):
         self.config = config
-        self.pos_len = pos_len
+        self.pos_len_x = pos_len_x
+        self.pos_len_y = pos_len_y
         self.version = modelconfigs.get_version(config)
-        self.pass_pos = self.pos_len * self.pos_len
-        self.bin_input_shape = [modelconfigs.get_num_bin_input_features(config), pos_len, pos_len]
+        self.pass_pos = self.pos_len_x * self.pos_len_y
+        self.bin_input_shape = [modelconfigs.get_num_bin_input_features(config), pos_len_x, pos_len_y]
         self.global_input_shape = [modelconfigs.get_num_global_input_features(config)]
 
     def xy_to_tensor_pos(self,x,y):
-        return y * self.pos_len + x
+        return y * self.pos_len_x + x
     def loc_to_tensor_pos(self,loc,board):
         if loc == Board.PASS_LOC:
             return self.pass_pos
-        return board.loc_y(loc) * self.pos_len + board.loc_x(loc)
+        return board.loc_y(loc) * self.pos_len_x + board.loc_x(loc)
 
     def tensor_pos_to_loc(self,pos,board):
         if pos == self.pass_pos:
             return None
-        pos_len = self.pos_len
+        pos_len = self.pos_len_x
         x_size = board.x_size
         y_size = board.y_size
-        assert(self.pos_len >= x_size)
-        assert(self.pos_len >= y_size)
+        assert(self.pos_len_x >= x_size)
+        assert(self.pos_len_y >= y_size)
         x = pos % pos_len
         y = pos // pos_len
         if x < 0 or x >= x_size or y < 0 or y >= y_size:
@@ -38,7 +39,7 @@ class Features:
     def sym_tensor_pos(self,pos,symmetry):
         if pos == self.pass_pos:
             return pos
-        pos_len = self.pos_len
+        pos_len = self.pos_len_x
         x = pos % pos_len
         y = pos // pos_len
         if symmetry >= 4:
@@ -61,8 +62,8 @@ class Features:
 
         x_size = board.x_size
         y_size = board.y_size
-        assert(self.pos_len >= x_size)
-        assert(self.pos_len >= y_size)
+        assert(self.pos_len_x >= x_size)
+        assert(self.pos_len_y >= y_size)
 
         for y in range(y_size):
             for x in range(x_size):
@@ -98,8 +99,8 @@ class Features:
 
         x_size = board.x_size
         y_size = board.y_size
-        assert(self.pos_len >= x_size)
-        assert(self.pos_len >= y_size)
+        assert(self.pos_len_x >= x_size)
+        assert(self.pos_len_y >= y_size)
         assert(len(boards) > 0)
         assert(board.zobrist == boards[move_idx].zobrist)
 

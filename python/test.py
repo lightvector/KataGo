@@ -51,6 +51,8 @@ def main(args):
     config_file = args["config"]
     checkpoint_file = args["checkpoint"]
     pos_len = args["pos_len"]
+    pos_len_x = args["pos_len_x"] or pos_len
+    pos_len_y = args["pos_len_y"] or pos_len
     batch_size = args["batch_size"]
     use_swa = args["use_swa"]
     max_batches = args["max_batches"]
@@ -109,11 +111,11 @@ def main(args):
                 model_config = json.load(f)
         logging.info(str(model_config))
 
-        model = Model(model_config,pos_len)
+        model = Model(model_config,pos_len_x,pos_len_y)
         model.initialize()
         model.to(device)
     else:
-        model, swa_model, _ = load_model(checkpoint_file, use_swa, device=device, pos_len=pos_len, verbose=True)
+        model, swa_model, _ = load_model(checkpoint_file, use_swa, device=device, pos_len_x=pos_len_x, pos_len_y=pos_len_y, verbose=True)
         model_config = model.config
 
     metrics_obj = Metrics(batch_size,world_size,model)
@@ -188,17 +190,11 @@ def main(args):
         num_samples_tested = 0
         total_inference_time = 0.0
         is_first_batch = True
-        for batch in data_processing_pytorch.read_npz_training_data(
-            val_files,
-            batch_size,
-            world_size,
-            rank,
-            pos_len,
-            device,
-            randomize_symmetries=True,
-            include_meta=model.get_has_metadata_encoder(),
-            model_config=model_config,
-        ):
+        for batch in data_processing_pytorch.read_npz_training_data(val_files, batch_size, world_size, rank,
+                                                                    pos_len_x, pos_len_y,
+                                                                    device, randomize_symmetries=True,
+                                                                    include_meta=model.get_has_metadata_encoder(),
+                                                                    model_config=model_config):
             if max_batches is not None and num_batches_tested >= max_batches:
                 break
 

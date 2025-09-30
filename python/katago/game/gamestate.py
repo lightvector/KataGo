@@ -89,15 +89,16 @@ class GameState:
     def get_input_features(self, features: Features):
         bin_input_data = np.zeros(shape=[1]+features.bin_input_shape, dtype=np.float32)
         global_input_data = np.zeros(shape=[1]+features.global_input_shape, dtype=np.float32)
-        pos_len = features.pos_len
+        pos_len_x = features.pos_len_x
+        pos_len_y = features.pos_len_y
         pla = self.board.pla
         opp = Board.get_opp(pla)
         move_idx = len(self.moves)
         # fill_row_features assumes N(HW)C order but we actually use NCHW order in the model, so work with it and revert
         bin_input_data = np.transpose(bin_input_data,axes=(0,2,3,1))
-        bin_input_data = bin_input_data.reshape([1,pos_len*pos_len,-1])
+        bin_input_data = bin_input_data.reshape([1,pos_len_x*pos_len_y,-1])
         features.fill_row_features(self.board,pla,opp,self.boards,self.moves,move_idx,self.rules,bin_input_data,global_input_data,idx=0)
-        bin_input_data = bin_input_data.reshape([1,pos_len,pos_len,-1])
+        bin_input_data = bin_input_data.reshape([1,pos_len_x,pos_len_y,-1])
         bin_input_data = np.transpose(bin_input_data,axes=(0,3,1,2))
         return bin_input_data, global_input_data
 
@@ -106,7 +107,7 @@ class GameState:
         from ..train.model_pytorch import Model, ExtraOutputs
         with torch.no_grad():
             model.eval()
-            features = Features(model.config, model.pos_len)
+            features = Features(model.config, model.pos_len_x, model.pos_len_y)
 
             bin_input_data, global_input_data = self.get_input_features(features)
             # Currently we don't actually do any symmetries
@@ -195,7 +196,7 @@ class GameState:
             elif board.would_be_legal(board.pla,move):
                 moves_and_probs1.append((move,policy1[i]))
 
-        ownership_flat = ownership.reshape([features.pos_len * features.pos_len])
+        ownership_flat = ownership.reshape([features.pos_len_x * features.pos_len_y])
         ownership_by_loc = []
         board = self.board
         for y in range(board.y_size):
@@ -207,7 +208,7 @@ class GameState:
                 else:
                     ownership_by_loc.append((loc,-ownership_flat[pos]))
 
-        scoring_flat = scoring.reshape([features.pos_len * features.pos_len])
+        scoring_flat = scoring.reshape([features.pos_len_x * features.pos_len_y])
         scoring_by_loc = []
         board = self.board
         for y in range(board.y_size):
@@ -219,7 +220,7 @@ class GameState:
                 else:
                     scoring_by_loc.append((loc,-scoring_flat[pos]))
 
-        futurepos0_flat = futurepos[0,:,:].reshape([features.pos_len * features.pos_len])
+        futurepos0_flat = futurepos[0,:,:].reshape([features.pos_len_x * features.pos_len_y])
         futurepos0_by_loc = []
         board = self.board
         for y in range(board.y_size):
@@ -231,7 +232,7 @@ class GameState:
                 else:
                     futurepos0_by_loc.append((loc,-futurepos0_flat[pos]))
 
-        futurepos1_flat = futurepos[1,:,:].reshape([features.pos_len * features.pos_len])
+        futurepos1_flat = futurepos[1,:,:].reshape([features.pos_len_x * features.pos_len_y])
         futurepos1_by_loc = []
         board = self.board
         for y in range(board.y_size):
@@ -243,7 +244,7 @@ class GameState:
                 else:
                     futurepos1_by_loc.append((loc,-futurepos1_flat[pos]))
 
-        seki_flat = seki.reshape([features.pos_len * features.pos_len])
+        seki_flat = seki.reshape([features.pos_len_x * features.pos_len_y])
         seki_by_loc = []
         board = self.board
         for y in range(board.y_size):
@@ -255,7 +256,7 @@ class GameState:
                 else:
                     seki_by_loc.append((loc,-seki_flat[pos]))
 
-        seki_flat2 = seki2.reshape([features.pos_len * features.pos_len])
+        seki_flat2 = seki2.reshape([features.pos_len_x * features.pos_len_y])
         seki_by_loc2 = []
         board = self.board
         for y in range(board.y_size):
