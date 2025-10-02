@@ -2744,10 +2744,12 @@ vector<Loc> Location::parseSequence(const string& str, const Board& board) {
   return locs;
 }
 
-void Board::printBoard(ostream& out, const Board& board, Loc markLoc, const vector<Move>* hist) {
-  if(hist != NULL)
+void Board::printBoard(ostream& out, const Board& board, const Loc markLoc, const vector<Move>* hist, bool printHash) {
+  if(hist != nullptr)
     out << "MoveNum: " << hist->size() << " ";
-  out << "HASH: " << board.pos_hash << "\n";
+  if (printHash) {
+    out << "HASH: " << board.pos_hash << "\n";
+  }
   bool showCoords = board.isDots() || (board.x_size <= 50 && board.y_size <= 50);
   if(showCoords) {
     if (board.isDots()) {

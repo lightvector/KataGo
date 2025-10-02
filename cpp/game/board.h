@@ -393,7 +393,7 @@ struct Board
 
   static Board parseBoard(int xSize, int ySize, const std::string& s, const Rules& rules = Rules::DEFAULT_GO, char lineDelimiter = '\n');
   std::string toString() const;
-  static void printBoard(std::ostream& out, const Board& board, Loc markLoc, const std::vector<Move>* hist);
+  static void printBoard(std::ostream& out, const Board& board, Loc markLoc, const std::vector<Move>* hist, bool printHash = true);
   static std::string toStringSimple(const Board& board, char lineDelimiter = '\n');
   static nlohmann::json toJson(const Board& board);
   static Board ofJson(const nlohmann::json& data);
