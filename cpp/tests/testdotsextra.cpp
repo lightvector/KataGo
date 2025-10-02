@@ -106,13 +106,16 @@ xo..
 SymmetryHelpers::SYMMETRY_TRANSPOSE_FLIP_Y_X);
 
   cout << "Check dots symmetry with start pos" << endl;
-  auto board = Board(5, 4, Rules(true, Rules::START_POS_CROSS, false, Rules::DEFAULT_DOTS.dotsCaptureEmptyBases, Rules::DEFAULT_DOTS.dotsFreeCapturedDots));
+  const auto originalRules = Rules(Rules::DEFAULT_DOTS.startPos, false, Rules::DEFAULT_DOTS.multiStoneSuicideLegal, Rules::DEFAULT_DOTS.dotsCaptureEmptyBases, Rules::DEFAULT_DOTS.dotsFreeCapturedDots);
+  auto board = Board(5, 4, originalRules);
   board.setStartPos(DOTS_RANDOM);
   board.playMoveAssumeLegal(Location::getLoc(1, 2, board.x_size), P_BLACK);
 
   const auto rotatedBoard = SymmetryHelpers::getSymBoard(board, SymmetryHelpers::SYMMETRY_TRANSPOSE_FLIP_X);
 
-  auto expectedBoard = Board(4, 5, Rules(true, Rules::START_POS_CROSS, true, Rules::DEFAULT_DOTS.dotsCaptureEmptyBases, Rules::DEFAULT_DOTS.dotsFreeCapturedDots));
+  auto rulesAfterTransformation = originalRules;
+  rulesAfterTransformation.startPosIsRandom = true;
+  auto expectedBoard = Board(4, 5, rulesAfterTransformation);
   expectedBoard.setStoneFailIfNoLibs(Location::getLoc(1, 2,  expectedBoard.x_size), P_WHITE, true);
   expectedBoard.setStoneFailIfNoLibs(Location::getLoc(1, 3,  expectedBoard.x_size), P_BLACK, true);
   expectedBoard.setStoneFailIfNoLibs(Location::getLoc(2, 3,  expectedBoard.x_size), P_WHITE, true);
@@ -247,24 +250,25 @@ R"(
 
 std::pair<string, string> getCapturingAndBases(
   const string& boardData,
-  const bool suicideLegal,
+  const bool suicide,
+  const bool captureEmptyBases,
   const vector<XYMove>& extraMoves
 ) {
-  Board board = parseDotsFieldDefault(boardData, extraMoves);
+  const Board board = parseDotsField(boardData, false, suicide, captureEmptyBases, Rules::DEFAULT_DOTS.dotsFreeCapturedDots, extraMoves);
 
   const Board& copy(board);
 
   vector<Player> captures;
   vector<Player> bases;
-  copy.calculateOneMoveCaptureAndBasePositionsForDots(suicideLegal, captures, bases);
+  copy.calculateOneMoveCaptureAndBasePositionsForDots(captures, bases);
 
   std::ostringstream capturesStringStream;
   std::ostringstream basesStringStream;
 
   for (int y = 0; y < copy.y_size; y++) {
     for (int x = 0; x < copy.x_size; x++) {
-      Loc loc = Location::getLoc(x, y, copy.x_size);
-      Color captureColor = captures[loc];
+      const Loc loc = Location::getLoc(x, y, copy.x_size);
+      const Color captureColor = captures[loc];
       if (captureColor == C_WALL) {
         capturesStringStream << PlayerIO::colorToChar(P_BLACK) << PlayerIO::colorToChar(P_WHITE);
       } else {
@@ -296,12 +300,13 @@ std::pair<string, string> getCapturingAndBases(
 void checkCapturingAndBase(
   const string& title,
   const string& boardData,
-  const bool suicideLegal,
-  const vector<XYMove>& extraMoves,
   const string& expectedCaptures,
-  const string& expectedBases
+  const string& expectedBases,
+  const bool suicide = Rules::DEFAULT_DOTS.multiStoneSuicideLegal,
+  const bool captureEmptyBases = Rules::DEFAULT_DOTS.dotsCaptureEmptyBases,
+  const vector<XYMove>& extraMoves = {}
 ) {
-  auto [capturing, bases] = getCapturingAndBases(boardData, suicideLegal, extraMoves);
+  auto [capturing, bases] = getCapturingAndBases(boardData, suicide, captureEmptyBases, extraMoves);
   cout << ("  " + title + ": capturing").c_str() << endl;
   expect("", capturing, expectedCaptures);
   cout << ("  " + title + ": bases").c_str() << endl;
@@ -317,7 +322,7 @@ void Tests::runDotsCapturingTests() {
 .x...o.
 xox.oxo
 .......
-)", true, {}, R"(
+)", R"(
 .  .  .  .  .  .  .
 .  .  .  .  .  .  .
 .  X  .  .  .  O  .
@@ -337,7 +342,7 @@ xox
 ...
 oxo
 .o.
-)", true, {}, R"(
+)", R"(
 .  .  .
 .  .  .
 .  XO .
@@ -359,7 +364,7 @@ oxo
 .x.
 x.x
 .x.
-)", true, {}, R"(
+)", R"(
 .  .  .
 .  .  .
 .  .  .
@@ -372,21 +377,45 @@ R"(
 );
 
   checkCapturingAndBase(
-"Empty base no suicide",
+"Empty base can be broken",
+R"(
+.xx.
+x..x
+x.x.
+oxo.
+.o..
+)", R"(
+.  .  .  .
+.  .  .  .
+.  O  .  .
+.  .  .  .
+.  .  .  .
+)",
+R"(
+.  .  .  .
+.  X  X  .
+.  X  .  .
+.  O  .  .
+.  .  .  .
+)"
+);
+
+  checkCapturingAndBase(
+"No empty base capturing",
 R"(
 .x.
 x.x
-.x.
-)", false, {}, R"(
+...
+)", R"(
 .  .  .
 .  .  .
 .  .  .
 )",
 R"(
 .  .  .
-.  X  .
 .  .  .
-)"
+.  .  .
+)", Rules::DEFAULT_DOTS.multiStoneSuicideLegal, false
 );
 
   checkCapturingAndBase(
@@ -395,7 +424,7 @@ R"(
 .x.
 x.x
 ...
-)", true, {}, R"(
+)", R"(
 .  .  .
 .  .  .
 .  X  .
@@ -404,7 +433,7 @@ R"(
 .  .  .
 .  X  .
 .  .  .
-)"
+)", Rules::DEFAULT_DOTS.multiStoneSuicideLegal, true
 );
 
   checkCapturingAndBase(
@@ -415,7 +444,7 @@ o.xo.x
 ox.ox.
 ox.ox.
 .o.x..
-)", true, {}, R"(
+)", R"(
 .  .  .  .  .  .
 .  .  .  .  .  .
 .  .  .  .  .  .

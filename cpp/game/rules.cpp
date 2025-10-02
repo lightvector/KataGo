@@ -15,25 +15,8 @@ const Rules Rules::DEFAULT_GO = Rules(false);
 
 Rules::Rules() : Rules(false) {}
 
-Rules::Rules(const bool initIsDots, const int startPos, const bool startPosIsRandom, const bool dotsCaptureEmptyBases, const bool dotsFreeCapturedDots) :
-  Rules(initIsDots, startPos, startPosIsRandom, 0, 0, 0, true, false, 0, false, 0.0f, dotsCaptureEmptyBases, dotsFreeCapturedDots) {}
-
-Rules::Rules(const bool initIsDots) : Rules(
-  initIsDots,
-  initIsDots ? START_POS_CROSS : 0,
-  false,
-  initIsDots ? 0 : KO_POSITIONAL,
-  initIsDots ? 0 : SCORING_AREA,
-  initIsDots ? 0 : TAX_NONE,
-  true,
-  false,
-  initIsDots ? 0 : WHB_ZERO,
-  false,
-  initIsDots ? 0.0f : 7.5f,
-  false,
-  initIsDots
-  ) {
-}
+Rules::Rules(const int startPos, const bool startPosIsRandom, const bool suicide, const bool dotsCaptureEmptyBases, const bool dotsFreeCapturedDots) :
+  Rules(true, startPos, startPosIsRandom, 0, 0, 0, suicide, false, 0, false, 0.0f, dotsCaptureEmptyBases, dotsFreeCapturedDots) {}
 
 Rules::Rules(
   int kRule,
@@ -45,6 +28,23 @@ Rules::Rules(
   bool pOk,
   float km
 ) : Rules(false, 0, false, kRule, sRule, tRule, suic, button, whbRule, pOk, km, false, false) {
+}
+
+Rules::Rules(const bool initIsDots) : Rules(
+  initIsDots,
+  initIsDots ? START_POS_CROSS : 0,
+  false,
+  initIsDots ? 0 : KO_POSITIONAL,
+  initIsDots ? 0 : SCORING_AREA,
+  initIsDots ? 0 : TAX_NONE,
+  initIsDots,
+  false,
+  initIsDots ? 0 : WHB_ZERO,
+  false,
+  initIsDots ? 0.0f : 7.5f,
+  false,
+  initIsDots
+  ) {
 }
 
 Rules::Rules(

@@ -886,24 +886,22 @@ void Board::invalidateAdjacentEmptyTerritoryIfNeeded(const Loc loc) {
 void Board::makeMoveAndCalculateCapturesAndBases(
   const Player pla,
   const Loc loc,
-  const bool isSuicideLegal,
   vector<Color>& captures,
-  vector<Color>& bases
-  ) const {
-  if(isLegal(loc, pla, isSuicideLegal, false)) {
+  vector<Color>& bases) const {
+  if(isLegal(loc, pla, rules.multiStoneSuicideLegal, false)) {
     MoveRecord moveRecord = const_cast<Board*>(this)->playMoveRecordedDots(loc, pla);
 
-    if(!moveRecord.bases.empty()) {
-      if(moveRecord.bases[0].pla == pla) {
-        // Better handling of empty bases?
-        captures[loc] = captures[loc] | moveRecord.bases[0].pla;
-      }
-    }
-
     for(Base& base: moveRecord.bases) {
-      for(const Loc& rollbackLoc: base.rollback_locations) {
-        // Consider empty bases as one move bases as well
-        bases[rollbackLoc] = bases[rollbackLoc] | base.pla;
+      if (base.is_real) {
+        const bool suicide = base.pla != pla;
+        if (!suicide) {
+          captures[loc] = static_cast<Color>(captures[loc] | base.pla);
+        }
+
+        for(const Loc& rollbackLoc: base.rollback_locations) {
+          // Consider empty bases as well
+          bases[rollbackLoc] = static_cast<Color>(bases[rollbackLoc] | base.pla);
+        }
       }
     }
 
@@ -911,7 +909,7 @@ void Board::makeMoveAndCalculateCapturesAndBases(
   }
 }
 
-void Board::calculateOneMoveCaptureAndBasePositionsForDots(const bool isSuicideLegal, vector<Color>& captures, vector<Color>& bases) const {
+void Board::calculateOneMoveCaptureAndBasePositionsForDots(vector<Color>& captures, vector<Color>& bases) const {
   const int fieldSize = (x_size + 1) * (y_size + 1);
   captures.resize(fieldSize);
   bases.resize(fieldSize);
@@ -922,17 +920,14 @@ void Board::calculateOneMoveCaptureAndBasePositionsForDots(const bool isSuicideL
 
       const State state = getState(loc);
       const Color emptyTerritoryColor = getEmptyTerritoryColor(state);
-      if (emptyTerritoryColor != C_EMPTY) {
-        bases[loc] = bases[loc] | emptyTerritoryColor;
-      }
 
       // It doesn't make sense to calculate capturing when dot placed into own empty territory
       if (emptyTerritoryColor != P_BLACK) {
-        makeMoveAndCalculateCapturesAndBases(P_BLACK, loc, isSuicideLegal, captures, bases);
+        makeMoveAndCalculateCapturesAndBases(P_BLACK, loc, captures, bases);
       }
 
       if (emptyTerritoryColor != P_WHITE) {
-        makeMoveAndCalculateCapturesAndBases(P_WHITE, loc, isSuicideLegal, captures, bases);
+        makeMoveAndCalculateCapturesAndBases(P_WHITE, loc, captures, bases);
       }
     }
   }

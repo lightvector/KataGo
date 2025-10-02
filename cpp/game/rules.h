@@ -59,8 +59,9 @@ struct Rules {
   bool friendlyPassOk;
 
   Rules();
-  Rules(bool initIsDots, int startPos, bool startPosIsRandom, bool dotsCaptureEmptyBases, bool dotsFreeCapturedDots);
-  explicit Rules(bool initIsDots);
+  // Constructor for Dots
+  Rules(int startPos, bool startPosIsRandom, bool suicide, bool dotsCaptureEmptyBases, bool dotsFreeCapturedDots);
+  // Constructor for Go
   Rules(
     int koRule,
     int scoringRule,
@@ -71,6 +72,7 @@ struct Rules {
     bool friendlyPassOk,
     float komi
   );
+  explicit Rules(bool initIsDots);
   ~Rules();
 
   bool operator==(const Rules& other) const;
@@ -147,6 +149,7 @@ struct Rules {
   static const Hash128 ZOBRIST_DOTS_CAPTURE_EMPTY_BASES_HASH;
 
 private:
+  // General constructor
   Rules(
     bool isDots,
     int startPosRule,

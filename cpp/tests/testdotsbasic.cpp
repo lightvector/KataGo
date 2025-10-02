@@ -7,12 +7,16 @@
 using namespace std;
 using namespace TestCommon;
 
-void checkDotsField(const string& description, const string& input, bool captureEmptyBases, bool freeCapturedDots, const std::function<void(BoardWithMoveRecords&)>& check) {
+void checkDotsField(const string& description, const string& input,
+  const std::function<void(BoardWithMoveRecords&)>& check,
+  const bool suicide = Rules::DEFAULT_DOTS.multiStoneSuicideLegal,
+  const bool captureEmptyBases = Rules::DEFAULT_DOTS.dotsCaptureEmptyBases,
+  const bool freeCapturedDots = Rules::DEFAULT_DOTS.dotsFreeCapturedDots) {
   cout << "  " << description << endl;
 
   auto moveRecords = vector<Board::MoveRecord>();
 
-  Board initialBoard = parseDotsField(input, false, captureEmptyBases, freeCapturedDots, {});
+  Board initialBoard = parseDotsField(input, false, suicide, captureEmptyBases, freeCapturedDots, {});
 
   Board board = Board(initialBoard);
 
@@ -26,14 +30,10 @@ void checkDotsField(const string& description, const string& input, bool capture
   testAssert(initialBoard.isEqualForTesting(board));
 }
 
-void checkDotsFieldDefault(const string& description, const string& input, const std::function<void(BoardWithMoveRecords&)>& check) {
-  checkDotsField(description, input, Rules::DEFAULT_DOTS.dotsCaptureEmptyBases, Rules::DEFAULT_DOTS.dotsFreeCapturedDots, check);
-}
-
 void Tests::runDotsFieldTests() {
   cout << "Running dots basic tests: " << endl;
 
-  checkDotsFieldDefault("Simple capturing",
+  checkDotsField("Simple capturing",
     R"(
 .x.
 xox
@@ -43,7 +43,7 @@ xox
   testAssert(1 == boardWithMoveRecords.board.numWhiteCaptures);
 });
 
-  checkDotsFieldDefault("Capturing with empty loc inside",
+  checkDotsField("Capturing with empty loc inside",
     R"(
 .oo.
 ox..
@@ -58,7 +58,7 @@ ox..
     testAssert(!boardWithMoveRecords.isLegal(2, 1, P_WHITE));
 });
 
-  checkDotsFieldDefault("Triple capture",
+  checkDotsField("Triple capture",
     R"(
 .x.x.
 xo.ox
@@ -69,7 +69,7 @@ xo.ox
   testAssert(3 == boardWithMoveRecords.board.numWhiteCaptures);
 });
 
-  checkDotsFieldDefault("Base inside base inside base",
+  checkDotsField("Base inside base inside base",
     R"(
 .xxxxxxx.
 x..ooo..x
@@ -116,7 +116,7 @@ testAssert(21 == boardWithMoveRecords.board.numWhiteCaptures); // Don't count al
 testAssert(6 == boardWithMoveRecords.board.numBlackCaptures);  // Don't free the captured dot
 });*/
 
-  checkDotsFieldDefault("Empty bases and suicide",
+  checkDotsField("Empty bases and suicide",
     R"(
 .x..o.
 x.xo.o
@@ -144,7 +144,7 @@ x.xo.o
 .x..o.
 x.xo.o
 ......
-)", true, true, [](const BoardWithMoveRecords& boardWithMoveRecords) {
+)", [](const BoardWithMoveRecords& boardWithMoveRecords) {
   boardWithMoveRecords.playMove(1, 2, P_BLACK);
   boardWithMoveRecords.playMove(4, 2, P_WHITE);
 
@@ -156,9 +156,9 @@ x.xo.o
 
   testAssert(0 == boardWithMoveRecords.board.numWhiteCaptures);
   testAssert(0 == boardWithMoveRecords.board.numBlackCaptures);
-});
+}, Rules::DEFAULT_DOTS.multiStoneSuicideLegal, true, Rules::DEFAULT_DOTS.dotsFreeCapturedDots);
 
-  checkDotsFieldDefault("Capture wins suicide",
+  checkDotsField("Capture wins suicide",
     R"(
 .xo.
 xo.o
@@ -169,7 +169,7 @@ xo.o
     testAssert(1 == boardWithMoveRecords.board.numWhiteCaptures);
 });
 
-  checkDotsFieldDefault("Single dot doesn't break searching inside empty base",
+  checkDotsField("Single dot doesn't break searching inside empty base",
     R"(
 .oooo.
 o....o
@@ -181,7 +181,7 @@ o....o
     testAssert(1 == boardWithMoveRecords.board.numBlackCaptures);
   });
 
-  checkDotsFieldDefault("Ignored already surrounded territory",
+  checkDotsField("Ignored already surrounded territory",
     R"(
 ..xxx...
 .x...x..
@@ -198,7 +198,7 @@ x..x..x.
     testAssert(2 == boardWithMoveRecords.board.numWhiteCaptures);
 });
 
-  checkDotsFieldDefault("Invalidation of empty base locations",
+  checkDotsField("Invalidation of empty base locations",
     R"(
 .oox.
 o..ox
@@ -209,7 +209,7 @@ o..ox
     testAssert(1 == boardWithMoveRecords.board.numWhiteCaptures);
   });
 
-  checkDotsFieldDefault("Invalidation of empty base locations ignoring borders",
+  checkDotsField("Invalidation of empty base locations ignoring borders",
     R"(
 ..xxx....
 .x...x...
@@ -229,7 +229,7 @@ x..x..xo.
     testAssert(1 == boardWithMoveRecords.board.numWhiteCaptures);
   });
 
-  checkDotsFieldDefault("Dangling dots removing",
+  checkDotsField("Dangling dots removing",
     R"(
 .xx.xx.
 x..xo.x
@@ -245,7 +245,7 @@ x..x..x
       testAssert(!boardWithMoveRecords.isLegal(3, 2, P_WHITE));
     });
 
-  checkDotsFieldDefault("Recalculate square during dangling dots removing",
+  checkDotsField("Recalculate square during dangling dots removing",
     R"(
 .ooo..
 o...o.
@@ -262,7 +262,7 @@ o...o.
       testAssert(2 == boardWithMoveRecords.board.numBlackCaptures);
     });
 
-  checkDotsFieldDefault("Base sorting by size",
+  checkDotsField("Base sorting by size",
     R"(
 ..xxx..
 .x...x.
@@ -278,7 +278,7 @@ x.....x
       testAssert(2 == boardWithMoveRecords.board.numWhiteCaptures);
     });
 
-  checkDotsFieldDefault("Number of legal moves",
+  checkDotsField("Number of legal moves",
   R"(
 ....
 ....
@@ -287,7 +287,7 @@ x.....x
 testAssert(12 == boardWithMoveRecords.board.numLegalMoves);
 });
 
-  checkDotsFieldDefault("Game over because of absence of legal moves",
+  checkDotsField("Game over because of absence of legal moves",
     R"(
 xxxx
 xo.x
@@ -302,7 +302,7 @@ xx.x
 void Tests::runDotsGroundingTests() {
   cout << "Running dots grounding tests:" << endl;
 
-    checkDotsFieldDefault("Grounding propagation",
+    checkDotsField("Grounding propagation",
 R"(
 .x..
 o.o.
@@ -345,7 +345,7 @@ o.o.
 }
   );
 
-  checkDotsFieldDefault("Grounding propagation with empty base",
+  checkDotsField("Grounding propagation with empty base",
   R"(
 ..x..
 .x.x.
@@ -373,7 +373,7 @@ o.o.
     testAssert(isGrounded(boardWithMoveRecords.getState(2, 3)));
   });
 
-  checkDotsFieldDefault("Grounding score with grounded base",
+  checkDotsField("Grounding score with grounded base",
 R"(
 .x.
 xox
@@ -386,7 +386,7 @@ xox
 }
 );
 
-  checkDotsFieldDefault("Grounding score with ungrounded base",
+  checkDotsField("Grounding score with ungrounded base",
 R"(
 .....
 ..o..
@@ -401,7 +401,7 @@ R"(
 }
 );
 
-  checkDotsFieldDefault("Grounding score with grounded and ungrounded bases",
+  checkDotsField("Grounding score with grounded and ungrounded bases",
 R"(
 .x.....
 xox.o..
@@ -417,7 +417,7 @@ xox.o..
 }
 );
 
-  checkDotsFieldDefault("Grounding draw with ungrounded bases",
+  checkDotsField("Grounding draw with ungrounded bases",
 R"(
 .........
 ..x...o..
@@ -436,7 +436,7 @@ R"(
 );
 
 
-  checkDotsFieldDefault("Grounding of real and empty adjacent bases",
+  checkDotsField("Grounding of real and empty adjacent bases",
 R"(
 ..x..
 ..x..
@@ -468,7 +468,7 @@ R"(
 }
 );
 
-  checkDotsFieldDefault("Grounding of real base when it touches grounded",
+  checkDotsField("Grounding of real base when it touches grounded",
 R"(
 ..x..
 ..x..
@@ -493,7 +493,7 @@ R"(
 }
 );
 
-  checkDotsFieldDefault("Base inside base inside base and grounding score",
+  checkDotsField("Base inside base inside base and grounding score",
 R"(
 .......
 ..ooo..
@@ -522,7 +522,7 @@ R"(
   testAssert(4 == boardWithMoveRecords.board.whiteScoreIfBlackGrounds);
 });
 
-  checkDotsFieldDefault("Ground empty territory in case of dangling dots removing",
+  checkDotsField("Ground empty territory in case of dangling dots removing",
 R"(
 .........
 ..xxx....
@@ -542,7 +542,7 @@ R"(
     //testAssert(isGrounded(boardWithMoveRecords.getState(4, 4)));
 });
 
-  checkDotsFieldDefault("Simple",
+  checkDotsField("Simple",
   R"(
 .....
 .xxo.
@@ -568,7 +568,7 @@ R"(
   }
 );
 
-  checkDotsFieldDefault("Draw",
+  checkDotsField("Draw",
 R"(
 .x...
 .xxo.
@@ -586,7 +586,7 @@ R"(
 }
 );
 
-  checkDotsFieldDefault("Bases",
+  checkDotsField("Bases",
 R"(
 .........
 ..xx...x.
@@ -605,7 +605,7 @@ R"(
 }
 );
 
-  checkDotsFieldDefault("Multiple groups",
+  checkDotsField("Multiple groups",
 R"(
 ......
 xxo..o
@@ -628,7 +628,7 @@ x...oo
 }
 );
 
-  checkDotsFieldDefault("Invalidate empty territory",
+  checkDotsField("Invalidate empty territory",
 R"(
 ......
 ..oo..
@@ -657,13 +657,13 @@ R"(
 }
 );
 
-  checkDotsFieldDefault("Don't invalidate empty territory for strong connection",
+  checkDotsField("Don't invalidate empty territory for strong connection",
 R"(
 .x.
 x.x
 .x.
 )", [](const BoardWithMoveRecords& boardWithMoveRecords) {
-    Board board = boardWithMoveRecords.board;
+    const Board board = boardWithMoveRecords.board;
 
     boardWithMoveRecords.playGroundingMove(P_BLACK);
     testAssert(0 == boardWithMoveRecords.board.numBlackCaptures);

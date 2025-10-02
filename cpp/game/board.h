@@ -383,7 +383,7 @@ struct Board
     bool isMultiStoneSuicideLegal
   ) const;
 
-  void calculateOneMoveCaptureAndBasePositionsForDots(bool isSuicideLegal, std::vector<Color>& captures, std::vector<Color>& bases) const;
+  void calculateOneMoveCaptureAndBasePositionsForDots(std::vector<Color>& captures, std::vector<Color>& bases) const;
 
   //Run some basic sanity checks on the board state, throws an exception if not consistent, for testing/debugging
   void checkConsistency() const;
@@ -468,8 +468,11 @@ struct Board
   Base createBaseAndUpdateStates(Player basePla, bool isReal);
   void updateScoreAndHashForTerritory(Loc loc, State state, Player basePla, bool rollback);
   void invalidateAdjacentEmptyTerritoryIfNeeded(Loc loc);
-  void makeMoveAndCalculateCapturesAndBases(Player pla, Loc loc, bool isSuicideLegal,
-    std::vector<signed char>& captures, std::vector<signed char>& bases) const;
+  void makeMoveAndCalculateCapturesAndBases(
+    Player pla,
+    Loc loc,
+    std::vector<Color>& captures,
+    std::vector<Color>& bases) const;
 
   void setGrounded(Loc loc);
   void clearGrounded(Loc loc);

@@ -64,5 +64,5 @@ struct BoardWithMoveRecords {
 
 Board parseDotsFieldDefault(const string& input, const vector<XYMove>& extraMoves = {});
 
-Board parseDotsField(const string& input, bool startPosIsRandom, bool captureEmptyBases, bool freeCapturedDots, const vector<XYMove>& extraMoves);
+Board parseDotsField(const string& input, bool startPosIsRandom, bool suicide, bool captureEmptyBases, bool freeCapturedDots, const vector<XYMove>& extraMoves);
 

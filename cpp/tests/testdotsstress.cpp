@@ -199,7 +199,9 @@ void runDotsStressTestsInternal(
 
   Rand rand("runDotsStressTests");
 
-  Rules rules = dotsGame ? Rules(dotsGame, startPos, startPosIsRandom, dotsCaptureEmptyBase, Rules::DEFAULT_DOTS.dotsFreeCapturedDots) : Rules();
+  Rules rules = dotsGame
+    ? Rules(startPos, startPosIsRandom, suicideAllowed, dotsCaptureEmptyBase, Rules::DEFAULT_DOTS.dotsFreeCapturedDots)
+    : Rules();
   int numLegalMoves = x_size * y_size - rules.getNumOfStartPosStones();
 
   vector<Loc> randomMoves = vector<Loc>();
@@ -316,7 +318,7 @@ void Tests::runDotsStressTests() {
   cout << "Running dots stress tests" << endl;
 
   cout << "  Max territory" << endl;
-  auto board = Board(39, 32, Rules(true, Rules::START_POS_EMPTY, Rules::DEFAULT_DOTS.startPosIsRandom, Rules::DEFAULT_DOTS.dotsCaptureEmptyBases, Rules::DEFAULT_DOTS.dotsFreeCapturedDots));
+  auto board = Board(39, 32, Rules(Rules::START_POS_EMPTY, false, Rules::DEFAULT_DOTS.multiStoneSuicideLegal, Rules::DEFAULT_DOTS.dotsCaptureEmptyBases, Rules::DEFAULT_DOTS.dotsFreeCapturedDots));
   for(int y = 0; y < board.y_size; y++) {
     for(int x = 0; x < board.x_size; x++) {
       const Player pla = y == 0 || y == board.y_size - 1 || x == 0 || x == board.x_size - 1 ? P_BLACK : P_WHITE;
