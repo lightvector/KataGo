@@ -175,8 +175,10 @@ struct BoardHistory {
   void endGameIfAllPassAlive(const Board& board);
   //Score the board as-is. If the game is already finished, and is NOT a no-result, then this should be idempotent.
   void endAndScoreGameNow(const Board& board);
-  bool doesGroundingWinGame(const Board& board, Player pla) const;
-  bool doesGroundingWinGame(const Board& board, Player pla, float& whiteScore) const;
+  // Effective draw is when there are no ungrounded dots on the field (disregarding Komi)
+  // We can consider grounding in this case because the further game typically doesn't make sense.
+  bool winOrEffectiveDrawByGrounding(const Board& board, Player pla, bool considerDraw = true) const;
+  // Return > 0 if white wins by grounding, < 0 if black wins by grounding, 0 if there are no ungrounded dots and Nan otherwise
   float whiteScoreIfGroundingAlive(const Board& board) const;
   void endAndScoreGameNow(const Board& board, Color area[Board::MAX_ARR_SIZE]);
 

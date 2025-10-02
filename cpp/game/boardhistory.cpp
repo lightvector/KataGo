@@ -768,7 +768,7 @@ void BoardHistory::endGameIfAllPassAlive(const Board& board) {
   assert(rules.isDots == board.isDots());
 
   if (rules.isDots) {
-    if (const float whiteScoreAfterGrounding = whiteScoreIfGroundingAlive(board); whiteScoreAfterGrounding != 0.0) {
+    if (const float whiteScoreAfterGrounding = whiteScoreIfGroundingAlive(board); whiteScoreAfterGrounding != std::numeric_limits<float>::quiet_NaN()) {
       setFinalScoreAndWinner(whiteScoreAfterGrounding);
       isScored = true;
       isNoResult = false;

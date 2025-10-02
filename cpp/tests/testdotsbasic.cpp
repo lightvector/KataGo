@@ -688,11 +688,59 @@ void Tests::runDotsBoardHistoryGroundingTests() {
 ....
 )");
     const auto boardHistory = BoardHistory(board);
-    float whiteScoreAfterGrounding;
-    testAssert(!boardHistory.doesGroundingWinGame(board, P_BLACK, whiteScoreAfterGrounding));
-    testAssert(!boardHistory.doesGroundingWinGame(board, P_WHITE, whiteScoreAfterGrounding));
-    testAssert(0.0f == whiteScoreAfterGrounding);
-    testAssert(0.0f == boardHistory.whiteScoreIfGroundingAlive(board));
+    testAssert(!boardHistory.winOrEffectiveDrawByGrounding(board, P_BLACK, false));
+    testAssert(!boardHistory.winOrEffectiveDrawByGrounding(board, P_WHITE, false));
+
+    // No draw because there are some ungrounded dots
+    testAssert(!boardHistory.winOrEffectiveDrawByGrounding(board, P_BLACK, true));
+    testAssert(!boardHistory.winOrEffectiveDrawByGrounding(board, P_WHITE, true));
+  }
+
+  {
+    const Board board = parseDotsFieldDefault(R"(
+.xo.
+.xo.
+.ox.
+.ox.
+)");
+    const auto boardHistory = BoardHistory(board);
+    testAssert(!boardHistory.winOrEffectiveDrawByGrounding(board, P_BLACK, false));
+    testAssert(!boardHistory.winOrEffectiveDrawByGrounding(board, P_WHITE, false));
+
+    // Effective draw because all dots are grounded
+    testAssert(boardHistory.winOrEffectiveDrawByGrounding(board, P_BLACK, true));
+    testAssert(boardHistory.winOrEffectiveDrawByGrounding(board, P_WHITE, true));
+  }
+
+  {
+    const Board board = parseDotsFieldDefault(R"(
+.x....
+xox...
+....o.
+...oxo
+......
+)", {XYMove(1, 2, P_BLACK), XYMove(4, 4, P_WHITE)});
+    const auto boardHistory = BoardHistory(board);
+
+    // Also effective draw because all bases are grounded
+    testAssert(boardHistory.winOrEffectiveDrawByGrounding(board, P_BLACK, true));
+    testAssert(boardHistory.winOrEffectiveDrawByGrounding(board, P_WHITE, true));
+  }
+
+  {
+    const Board board = parseDotsFieldDefault(R"(
+.x....
+xox.x.
+......
+....o.
+.o.oxo
+......
+)", {XYMove(1, 2, P_BLACK), XYMove(4, 5, P_WHITE)});
+    const auto boardHistory = BoardHistory(board);
+
+    // No effective draw because there are ungrounded dots
+    testAssert(!boardHistory.winOrEffectiveDrawByGrounding(board, P_BLACK, true));
+    testAssert(!boardHistory.winOrEffectiveDrawByGrounding(board, P_WHITE, true));
   }
 
   {
@@ -705,10 +753,8 @@ void Tests::runDotsBoardHistoryGroundingTests() {
     board.playMoveAssumeLegal(Location::getLoc(2, 3, board.x_size), P_WHITE);
     testAssert(1 == board.numBlackCaptures);
     const auto boardHistory = BoardHistory(board);
-    float whiteScoreAfterGrounding;
-    testAssert(!boardHistory.doesGroundingWinGame(board, P_BLACK, whiteScoreAfterGrounding));
-    testAssert(boardHistory.doesGroundingWinGame(board, P_WHITE, whiteScoreAfterGrounding));
-    testAssert(1.0f == whiteScoreAfterGrounding);
+    testAssert(!boardHistory.winOrEffectiveDrawByGrounding(board, P_BLACK));
+    testAssert(boardHistory.winOrEffectiveDrawByGrounding(board, P_WHITE));
     testAssert(1.0f == boardHistory.whiteScoreIfGroundingAlive(board));
   }
 
@@ -722,10 +768,8 @@ void Tests::runDotsBoardHistoryGroundingTests() {
     board.playMoveAssumeLegal(Location::getLoc(2, 3, board.x_size), P_BLACK);
     testAssert(1 == board.numWhiteCaptures);
     const auto boardHistory = BoardHistory(board);
-    float whiteScoreAfterGrounding;
-    testAssert(boardHistory.doesGroundingWinGame(board, P_BLACK, whiteScoreAfterGrounding));
-    testAssert(!boardHistory.doesGroundingWinGame(board, P_WHITE, whiteScoreAfterGrounding));
-    testAssert(-1.0f == whiteScoreAfterGrounding);
+    testAssert(boardHistory.winOrEffectiveDrawByGrounding(board, P_BLACK));
+    testAssert(!boardHistory.winOrEffectiveDrawByGrounding(board, P_WHITE));
     testAssert(-1.0f == boardHistory.whiteScoreIfGroundingAlive(board));
   }
 
@@ -740,11 +784,9 @@ void Tests::runDotsBoardHistoryGroundingTests() {
     board.playMoveAssumeLegal(Location::getLoc(2, 3, board.x_size), P_BLACK);
     testAssert(1 == board.numWhiteCaptures);
     const auto boardHistory = BoardHistory(board);
-    float whiteScoreAfterGrounding;
-    testAssert(!boardHistory.doesGroundingWinGame(board, P_BLACK, whiteScoreAfterGrounding));
-    testAssert(!boardHistory.doesGroundingWinGame(board, P_WHITE, whiteScoreAfterGrounding));
-    testAssert(0.0f == whiteScoreAfterGrounding);
-    testAssert(0.0f == boardHistory.whiteScoreIfGroundingAlive(board));
+    testAssert(!boardHistory.winOrEffectiveDrawByGrounding(board, P_BLACK));
+    testAssert(!boardHistory.winOrEffectiveDrawByGrounding(board, P_WHITE));
+    testAssert(std::isnan(boardHistory.whiteScoreIfGroundingAlive(board)));
   }
 }
 

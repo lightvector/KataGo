@@ -831,7 +831,7 @@ static void logSearch(Search* bot, Logger& logger, Loc loc, OtherGameProperties 
 
 static Loc chooseRandomForkingMove(const NNOutput* nnOutput, const Board& board, const BoardHistory& hist, Player pla, Rand& gameRand, Loc banMove) {
   double r = gameRand.nextDouble();
-  bool allowPass = !hist.rules.isDots || hist.doesGroundingWinGame(board, pla);
+  bool allowPass = !hist.rules.isDots || hist.winOrEffectiveDrawByGrounding(board, pla);
   //70% of the time, do a random temperature 1 policy move
   if(r < 0.70)
     return PlayUtils::chooseRandomPolicyMove(nnOutput, board, hist, pla, gameRand, 1.0, allowPass, banMove);
