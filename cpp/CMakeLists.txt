@@ -165,7 +165,8 @@ elseif(USE_BACKEND STREQUAL "ROCM")
   # Users can -DCMAKE_HIP_ARCHITECTURES=gfx90a;gfx942 manually specify GFX architectures
   if(NOT DEFINED CMAKE_HIP_ARCHITECTURES)
     # Default compile MI200 / RDNA3 cards, can be simplified as needed
-    set(CMAKE_HIP_ARCHITECTURES 90a 942 908 1100 1101 1200 1201 CACHE STRING "AMD GPU targets")
+    # set(CMAKE_HIP_ARCHITECTURES gfx950 gfx942 gfx90a gfx908 gfx1100 gfx1101 gfx1151 gfx1201 gfx1030 CACHE STRING "AMD GPU targets")
+    add_compile_definitions(-DGPU_TARGETS=gfx950,gfx942,gfx90a,gfx908,gfx1100,gfx1101,gfx1151,gfx1201,gfx1030)
   endif()
 
   # 2) Specify backend source code. rocmhelpers.hip contains GPU kernels, don't forget it
@@ -464,7 +465,7 @@ elseif(USE_BACKEND STREQUAL "ROCM")
   target_compile_definitions(katago PRIVATE HIP_TARGET_VERSION=${CMAKE_HIP_COMPILER_VERSION})
 
   string(TOLOWER "${CMAKE_HIP_ARCHITECTURES}" _gfxlist)  # e.g. "90a;942"
-  if(_gfxlist MATCHES "803|900|90a|94[0-9]|110[0-9]|120[0-9]")
+  if(_gfxlist MATCHES "803|900|90a|94[0-9]|110[0-9]|120[0-9]|115[0-9]|1030")
     target_compile_definitions(katago PRIVATE HIP_SUPPORTS_FP16)
     message(STATUS "Detected FP16‑capable GFX arch (${CMAKE_HIP_ARCHITECTURES}); defining HIP_SUPPORTS_FP16")
   endif()
