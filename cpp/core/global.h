@@ -159,7 +159,11 @@ namespace Global
   //Round x to this many decimal digits of precision
   double roundDynamic(double x, int precision);
 
-}
+  // Float comparison
+  constexpr float FLOAT_EPS = std::numeric_limits<float>::epsilon();
+  bool isEqual(float f1, float f2);
+  bool isZero(float f);
+}  // namespace Global
 
 struct StringError : public std::exception {
   std::string message;

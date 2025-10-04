@@ -111,7 +111,7 @@ bool Rules::equals(const Rules& other, const bool ignoreSgfDefinedProps) const {
 }
 
 bool Rules::gameResultWillBeInteger() const {
-  bool komiIsInteger = ((int)komi) == komi;
+  const bool komiIsInteger = Global::isEqual(std::floor(komi), komi);
   return komiIsInteger != hasButton;
 }
 

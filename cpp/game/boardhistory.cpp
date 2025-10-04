@@ -722,11 +722,11 @@ int BoardHistory::countTerritoryAreaScoreWhiteMinusBlack(const Board& board, Col
   return score;
 }
 
-void BoardHistory::setFinalScoreAndWinner(float score) {
+void BoardHistory::setFinalScoreAndWinner(const float score) {
   finalWhiteMinusBlackScore = score;
-  if(finalWhiteMinusBlackScore > 0.0f)
+  if(finalWhiteMinusBlackScore > Global::FLOAT_EPS)
     winner = C_WHITE;
-  else if(finalWhiteMinusBlackScore < 0.0f)
+  else if(finalWhiteMinusBlackScore < -Global::FLOAT_EPS)
     winner = C_BLACK;
   else
     winner = C_EMPTY;

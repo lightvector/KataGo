@@ -281,9 +281,9 @@ void runDotsStressTestsInternal(
     }
 
     movesCount += currentGameMovesCount;
-    if (float whiteScore = board.numBlackCaptures - board.numWhiteCaptures + komi; whiteScore > 0.0f) {
+    if (float whiteScore = board.numBlackCaptures - board.numWhiteCaptures + komi; whiteScore > Global::FLOAT_EPS) {
       whiteWinsCount++;
-    } else if (whiteScore < 0) {
+    } else if (whiteScore < -Global::FLOAT_EPS) {
       blackWinsCount++;
     } else {
       drawsCount++;

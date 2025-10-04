@@ -706,3 +706,11 @@ double Global::roundDynamic(double x, int precision) {
   double inverseScale = pow(10.0,-roundingMagnitude);
   return roundStatic(x, inverseScale);
 }
+
+bool Global::isEqual(const float f1, const float f2) {
+  return std::fabs(f1 - f2) <= FLOAT_EPS;
+}
+
+bool Global::isZero(const float f) {
+  return std::fabs(f) <= FLOAT_EPS;
+}

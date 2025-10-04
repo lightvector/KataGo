@@ -7,7 +7,7 @@ int BoardHistory::countDotsScoreWhiteMinusBlack(const Board& board, Color area[B
 
   const float whiteScore = whiteScoreIfGroundingAlive(board);
   Color groundingPlayer = C_EMPTY;
-  if (whiteScore >= 0.0f) {
+  if (whiteScore >= 0.0f) { // Don't use EPS comparison because in case of zero result, there is a draw and any player can ground
     groundingPlayer = C_WHITE;
   } else if (whiteScore < 0.0f) {
     groundingPlayer = C_BLACK;
@@ -19,7 +19,9 @@ bool BoardHistory::winOrEffectiveDrawByGrounding(const Board& board, const Playe
   assert(rules.isDots);
 
   const float whiteScore = whiteScoreIfGroundingAlive(board);
-  return considerDraw && whiteScore == 0.0f || pla == P_WHITE && whiteScore > 0.0f || pla == P_BLACK && whiteScore < 0.0f;
+  return considerDraw && Global::isZero(whiteScore) ||
+    pla == P_WHITE && whiteScore > Global::FLOAT_EPS ||
+      pla == P_BLACK && whiteScore < -Global::FLOAT_EPS;
 }
 
 float BoardHistory::whiteScoreIfGroundingAlive(const Board& board) const {
@@ -27,19 +29,19 @@ float BoardHistory::whiteScoreIfGroundingAlive(const Board& board) const {
 
   const float fullWhiteScoreIfBlackGrounds =
        static_cast<float>(board.whiteScoreIfBlackGrounds) + whiteBonusScore + whiteHandicapBonusScore + rules.komi;
-  if (fullWhiteScoreIfBlackGrounds < 0.0f) {
+  if (fullWhiteScoreIfBlackGrounds < -Global::FLOAT_EPS) {
     // Black already won the game
     return fullWhiteScoreIfBlackGrounds;
   }
 
   const float fullBlackScoreIfWhiteGrounds =
        static_cast<float>(board.blackScoreIfWhiteGrounds) - whiteBonusScore - whiteHandicapBonusScore - rules.komi;
-  if (fullBlackScoreIfWhiteGrounds < 0.0f) {
+  if (fullBlackScoreIfWhiteGrounds < -Global::FLOAT_EPS) {
     // White already won the game
     return -fullBlackScoreIfWhiteGrounds;
   }
 
-  if (fullWhiteScoreIfBlackGrounds == 0.0f && fullBlackScoreIfWhiteGrounds == 0.0f) {
+  if (Global::isZero(fullWhiteScoreIfBlackGrounds) && Global::isZero(fullBlackScoreIfWhiteGrounds)) {
     // Draw by grounding
     return 0.0f;
   }
