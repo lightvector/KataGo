@@ -34,7 +34,7 @@ static_assert(NNModelVersion::latestModelVersionImplemented == 17, "");
 static_assert(NNModelVersion::latestInputsVersionImplemented == 8, "");
 
 int NNModelVersion::getInputsVersion(int modelVersion) {
-  if (modelVersion == 17)
+  if (modelVersion == defaultModelVersionForDots)
     return dotsInputsVersion;
   if(modelVersion >= 8 && modelVersion <= 16)
     return 7;
@@ -52,7 +52,7 @@ int NNModelVersion::getInputsVersion(int modelVersion) {
 }
 
 int NNModelVersion::getNumSpatialFeatures(int modelVersion) {
-  if(modelVersion == 17)
+  if(modelVersion == defaultModelVersionForDots)
     return NNInputs::NUM_FEATURES_SPATIAL_V_DOTS;
   if(modelVersion >= 8 && modelVersion <= 16)
     return NNInputs::NUM_FEATURES_SPATIAL_V7;
@@ -70,6 +70,8 @@ int NNModelVersion::getNumSpatialFeatures(int modelVersion) {
 }
 
 int NNModelVersion::getNumGlobalFeatures(int modelVersion) {
+  if(modelVersion == defaultModelVersionForDots)
+    return NNInputs::NUM_FEATURES_GLOBAL_V_DOTS;
   if(modelVersion >= 8 && modelVersion <= 16)
     return NNInputs::NUM_FEATURES_GLOBAL_V7;
   else if(modelVersion == 7)

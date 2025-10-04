@@ -239,16 +239,38 @@ void NNInputs::fillScoring(
 ) {
   std::fill_n(scoring, Board::MAX_ARR_SIZE, 0.0f);
 
-  if(!groupTax || board.isDots()) {
-    // TODO: probably it makes sense to implement more accurate scoring for Dots
-    // That includes dead, empty locations and empty base locations:
-    //
-    // Captured enemy's dot: 1.0f
-    // Captured enemy's empty loc: 0.75f
-    // Empty base loc: 0.5f
-    // Empty: 0.0f
-    //
-    // Also consider grounding dots?
+  if (board.isDots()) {
+    for(int y = 0; y<board.y_size; y++) {
+      for(int x = 0; x<board.x_size; x++) {
+        const Loc loc = Location::getLoc(x,y,board.x_size);
+        const State state = board.getState(loc);
+        const Color activeColor = getActiveColor(state);
+        const Color placedColor = getPlacedDotColor(state);
+
+        float scoringAtLoc;
+        float normCoef = 0.0f;
+        if (activeColor != C_EMPTY) {
+          assert(activeColor == C_BLACK || activeColor == C_WHITE);
+          normCoef = activeColor == C_WHITE ? 1.0f : -1.0f;
+
+          if (placedColor == C_EMPTY) {
+            scoringAtLoc = 0.5f; // Hopefully it encourages creating more bigger bases
+          }
+          else if (placedColor == activeColor) {
+            scoringAtLoc = !isTerritory(state) ? 0.25f : 0.0f; // Own dot inside own territory doesn't count at all
+          } else  {
+            assert(placedColor != C_WALL);
+            scoringAtLoc = 1.0f;  // placedColor != activeColor: actual scoring, encourage it with the max value
+          }
+        } else {
+          scoringAtLoc = 0.0f;
+        }
+        const float groundingPenalty = isGrounded(state) ? 1.0f : 0.5f; // Discourage ungrounded dots
+        scoring[loc] = scoringAtLoc * normCoef * groundingPenalty;
+      }
+    }
+  }
+  else if(!groupTax) {
     for(int y = 0; y<board.y_size; y++) {
       for(int x = 0; x<board.x_size; x++) {
         Loc loc = Location::getLoc(x,y,board.x_size);
@@ -903,7 +925,9 @@ std::string SymmetryHelpers::symmetryToString(int symmetry) {
 
 //-------------------------------------------------------------------------------------------------------------
 
-void setRowBin(float* rowBin, int pos, int feature, float value, int posStride, int featureStride) {
+void setRowBin(float* rowBin, const int pos, const int feature, const float value,
+  const int posStride,
+  const int featureStride) {
   rowBin[pos * posStride + feature * featureStride] = value;
 }
 

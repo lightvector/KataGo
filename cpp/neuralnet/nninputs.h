@@ -75,37 +75,46 @@ namespace NNInputs {
   const int NUM_FEATURES_SPATIAL_V7 = 22;
   const int NUM_FEATURES_GLOBAL_V7 = 19;
 
-  constexpr int NUM_FEATURES_SPATIAL_V_DOTS = 18;
-  constexpr int NUM_FEATURES_GLOBAL_V_DOTS = 22;
+  // TODO: normalize with Go spatial and global features (e.g. 22 and 19)
+  enum class DotsSpatialFeature  {
+    OnBoard, // 0
+    PlayerActive, // 1
+    PlayerOppActive, // 2
+    PlayerPlaced, // 1
+    PlayerOppPlaced, // 2
+    DeadDots, // Actual scoring
+    Grounded, // Analogue of territory (18,19)
+    PlayerCaptures, // (3,4,5)
+    PlayerOppCaptures, // (3,4,5)
+    PlayerSurroundings, // (3,4,5)
+    PlayerOppSurroundings, // (3,4,5)
+    Prev1Loc, // 9
+    Prev2Loc, // 10
+    Prev3Loc, // 11
+    Prev4Loc, // 12
+    Prev5Loc, // 13
+    LadderCaptured, // 14,
+    LadderCapturedPrevious, // 15,
+    LadderCapturedPrevious2, // 16,
+    LadderWorkingMoves, // 17,
+    COUNT, // = 20
+  };
 
-  constexpr int DOTS_FEATURE_SPATIAL_ON_BOARD = 0; // 0
-  constexpr int DOTS_FEATURE_SPATIAL_PLAYER_ACTIVE = 1; // 1
-  constexpr int DOTS_FEATURE_SPATIAL_PLAYER_OPP_ACTIVE = 2; // 2
-  constexpr int DOTS_FEATURE_SPATIAL_PLAYER_PLACED = 3; // 1
-  constexpr int DOTS_FEATURE_SPATIAL_PLAYER_OPP_PLACED = 4; // 2
-  constexpr int DOTS_FEATURE_SPATIAL_DEAD_DOTS = 5; // Actually scoring
-  constexpr int DOTS_FEATURE_SPATIAL_GROUNDED = 6; // Analogue of territory (18,19)
-  constexpr int DOTS_FEATURE_SPATIAL_PLAYER_CAPTURES = 7; // (3,4,5)
-  constexpr int DOTS_FEATURE_SPATIAL_PLAYER_SURROUNDINGS = 8; // (3,4,5)
-  constexpr int DOTS_FEATURE_SPATIAL_PLAYER_OPP_CAPTURES = 9; // (3,4,5)
-  constexpr int DOTS_FEATURE_SPATIAL_PLAYER_OPP_SURROUNDINGS = 10; // (3,4,5)
-  constexpr int DOTS_FEATURE_SPATIAL_LAST_MOVE_0 = 10; // 9
-  constexpr int DOTS_FEATURE_SPATIAL_LAST_MOVE_1 = 11; // 10
-  constexpr int DOTS_FEATURE_SPATIAL_LAST_MOVE_2 = 12; // 11
-  constexpr int DOTS_FEATURE_SPATIAL_LAST_MOVE_3 = 13; // 12
-  constexpr int DOTS_FEATURE_SPATIAL_LAST_MOVE_4 = 14; // 13
-  constexpr int DOTS_FEATURE_SPATIAL_LADDER_CAPTURED = 15; // 14, TODO: implement later
-  constexpr int DOTS_FEATURE_SPATIAL_LADDER_CAPTURED_PREVIOUS = 16; // 15, TODO: implement later
-  constexpr int DOTS_FEATURE_SPATIAL_LADDER_CAPTURED_PREVIOUS_2 = 17; // 16, TODO: implement later
-  constexpr int DOTS_FEATURE_SPATIAL_LADDER_WORKING_MOVES = 18; // 17, TODO: implement later
+  enum class DotsGlobalFeature  {
+    Komi, // 5
+    Suicide, // 8
+    CaptureEmpty, // 9, 10, 11
+    StartPosCross, // (15)
+    StartPosCross2, // (15)
+    StartPosCross4, // (15)
+    StartPosIsRandom, // (15)
+    WinByGrounding, // Train grounding
+    FieldSizeKomiParity, // Not sure what this is (18)
+    COUNT, // = 9
+  };
 
-  constexpr int DOTS_FEATURE_GLOBAL_KOMI = 0; // 5
-  constexpr int DOTS_FEATURE_GLOBAL_SUICIDE = 1; // 8
-  constexpr int DOTS_FEATURE_GLOBAL_CAPTURE_EMPTY = 2; // 9, 10, 11
-  constexpr int DOTS_FEATURE_GLOBAL_OPENING_ENABLED = 3; // Not sure if it's necessary (15)
-  constexpr int DOTS_FEATURE_GLOBAL_OPENING_DOTS = 4; // Not sure if it's necessary, number of opening dots? (16)
-  constexpr int DOTS_FEATURE_GLOBAL_GROUNDING_WINS_GAME = 5;
-  constexpr int DOTS_FEATURE_GLOBAL_FIELD_SIZE_KOMI_PARITY = 6; // Not sure what this is (18)
+  constexpr int NUM_FEATURES_SPATIAL_V_DOTS = static_cast<int>(DotsSpatialFeature::COUNT);
+  constexpr int NUM_FEATURES_GLOBAL_V_DOTS = static_cast<int>(DotsGlobalFeature::COUNT);
 
   Hash128 getHash(
     const Board& board, const BoardHistory& boardHistory, Player nextPlayer,
