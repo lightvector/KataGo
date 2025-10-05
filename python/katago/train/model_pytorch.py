@@ -8,6 +8,7 @@ import packaging
 import packaging.version
 from typing import List, Dict, Optional, Set
 
+from .modelconfigs import get_num_bin_input_features, get_num_global_input_features
 from ..train import modelconfigs
 
 EXTRA_SCORE_DISTR_RADIUS = 60
@@ -1652,19 +1653,22 @@ class Model(torch.nn.Module):
 
         self.activation = "relu" if "activation" not in config else config["activation"]
 
+        spatial_features = get_num_bin_input_features(config)
+        global_features = get_num_global_input_features(config)
+
         if config["initial_conv_1x1"]:
-            self.conv_spatial = torch.nn.Conv2d(22, self.c_trunk, kernel_size=1, padding="same", bias=False)
+            self.conv_spatial = torch.nn.Conv2d(spatial_features, self.c_trunk, kernel_size=1, padding="same", bias=False)
         else:
-            self.conv_spatial = torch.nn.Conv2d(22, self.c_trunk, kernel_size=3, padding="same", bias=False)
-        self.linear_global = torch.nn.Linear(19, self.c_trunk, bias=False)
+            self.conv_spatial = torch.nn.Conv2d(spatial_features, self.c_trunk, kernel_size=3, padding="same", bias=False)
+        self.linear_global = torch.nn.Linear(global_features, self.c_trunk, bias=False)
 
         if "metadata_encoder" in config and config["metadata_encoder"] is not None:
             self.metadata_encoder = MetadataEncoder(config)
         else:
             self.metadata_encoder = None
 
-        self.bin_input_shape = [22, pos_len_x, pos_len_y]
-        self.global_input_shape = [19]
+        self.bin_input_shape = [spatial_features, pos_len_x, pos_len_y]
+        self.global_input_shape = [global_features]
 
         self.blocks = torch.nn.ModuleList()
         for block_config in self.block_kind:
