@@ -30,18 +30,7 @@ int MainCmds::runtests(const vector<string>& args) {
   Board::initHash();
   ScoreValue::initTables();
 
-  Tests::runDotsFieldTests();
-  Tests::runDotsGroundingTests();
-  Tests::runDotsBoardHistoryGroundingTests();
-  Tests::runDotsPosHashTests();
-  Tests::runDotsStartPosTests();
-
-  Tests::runDotsStressTests();
-
-  Tests::runDotsSymmetryTests();
-  Tests::runDotsOwnershipTests();
-  Tests::runDotsCapturingTests();
-
+  Global::runTests();
   BSearch::runTests();
   Rand::runTests();
   DateTime::runTests();
@@ -49,6 +38,16 @@ int MainCmds::runtests(const vector<string>& args) {
   ComputeElos::runTests();
   Base64::runTests();
   ThreadTest::runTests();
+
+  Tests::runDotsFieldTests();
+  Tests::runDotsGroundingTests();
+  Tests::runDotsBoardHistoryGroundingTests();
+  Tests::runDotsPosHashTests();
+  Tests::runDotsStartPosTests();
+
+  Tests::runDotsSymmetryTests();
+  Tests::runDotsOwnershipTests();
+  Tests::runDotsCapturingTests();
 
   Tests::runBoardIOTests();
   Tests::runBoardBasicTests();
@@ -59,13 +58,15 @@ int MainCmds::runtests(const vector<string>& args) {
 
   Tests::runBoardUndoTest();
   Tests::runBoardHandicapTest();
-  Tests::runBoardStressTest();
 
   Tests::runSgfTests();
   Tests::runBasicSymmetryTests();
   Tests::runBoardSymmetryTests();
   Tests::runSymmetryDifferenceTests();
   Tests::runBoardReplayTest();
+
+  Tests::runDotsStressTests();
+  Tests::runBoardStressTest();
 
   ScoreValue::freeTables();
 
