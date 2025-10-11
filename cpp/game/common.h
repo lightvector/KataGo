@@ -38,4 +38,8 @@ typedef short Loc;
 //Simple structure for storing moves. This is a convenient place to define it.
 STRUCT_NAMED_PAIR(Loc,loc,Player,pla,Move);
 
+inline bool movesEqual(const Move& m1, const Move& m2) {
+  return m1.loc == m2.loc && m1.pla == m2.pla;
+}
+
 #endif

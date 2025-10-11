@@ -116,10 +116,12 @@ SymmetryHelpers::SYMMETRY_TRANSPOSE_FLIP_Y_X);
   auto rulesAfterTransformation = originalRules;
   rulesAfterTransformation.startPosIsRandom = true;
   auto expectedBoard = Board(4, 5, rulesAfterTransformation);
-  expectedBoard.setStoneFailIfNoLibs(Location::getLoc(1, 2,  expectedBoard.x_size), P_WHITE, true);
-  expectedBoard.setStoneFailIfNoLibs(Location::getLoc(1, 3,  expectedBoard.x_size), P_BLACK, true);
-  expectedBoard.setStoneFailIfNoLibs(Location::getLoc(2, 3,  expectedBoard.x_size), P_WHITE, true);
-  expectedBoard.setStoneFailIfNoLibs(Location::getLoc(2, 2,  expectedBoard.x_size), P_BLACK, true);
+  expectedBoard.setStonesFailIfNoLibs({
+    Move(Location::getLoc(2, 2,  expectedBoard.x_size), P_BLACK),
+    Move(Location::getLoc(2, 3,  expectedBoard.x_size), P_WHITE),
+    Move(Location::getLoc(1, 3,  expectedBoard.x_size), P_BLACK),
+    Move(Location::getLoc(1, 2,  expectedBoard.x_size), P_WHITE),
+  }, true);
   expectedBoard.playMoveAssumeLegal(Location::getLoc(1, 1, expectedBoard.x_size), P_BLACK);
 
   expect("Dots symmetry with start pos", Board::toStringSimple(rotatedBoard), Board::toStringSimple(expectedBoard));

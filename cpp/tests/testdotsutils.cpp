@@ -2,6 +2,10 @@
 
 using namespace std;
 
+Move XYMove::toMove(const int x_size) const {
+  return Move(Location::getLoc(x, y, x_size), player);
+}
+
 Board parseDotsFieldDefault(const string& input, const vector<XYMove>& extraMoves) {
   return parseDotsField(input, Rules::DEFAULT_DOTS.startPosIsRandom, Rules::DEFAULT_DOTS.multiStoneSuicideLegal, Rules::DEFAULT_DOTS.dotsCaptureEmptyBases, Rules::DEFAULT_DOTS.dotsFreeCapturedDots, extraMoves);
 }
@@ -28,8 +32,12 @@ Board parseDotsField(const string& input, const bool startPosIsRandom, const boo
   }
 
   Board result = Board::parseBoard(xSize, ySize, input, Rules(Rules::START_POS_EMPTY, startPosIsRandom, suicide, captureEmptyBases, freeCapturedDots));
-  for(const XYMove& extraMove : extraMoves) {
-    result.playMoveAssumeLegal(Location::getLoc(extraMove.x, extraMove.y, result.x_size), extraMove.player);
-  }
+  playXYMovesAssumeLegal(result, extraMoves);
   return result;
+}
+
+void playXYMovesAssumeLegal(Board& board, const vector<XYMove>& moves) {
+  for(const XYMove& move : moves) {
+    board.playMoveAssumeLegal(Location::getLoc(move.x, move.y, board.x_size), move.player);
+  }
 }

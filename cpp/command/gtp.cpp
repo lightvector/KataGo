@@ -1,21 +1,22 @@
-#include "../core/global.h"
+#include <optional>
+
+#include "../command/commandline.h"
 #include "../core/commandloop.h"
 #include "../core/config_parser.h"
-#include "../core/fileutils.h"
-#include "../core/timer.h"
 #include "../core/datetime.h"
-#include "../core/makedir.h"
+#include "../core/fileutils.h"
+#include "../core/global.h"
 #include "../core/test.h"
+#include "../core/timer.h"
 #include "../dataio/sgf.h"
-#include "../search/searchnode.h"
+#include "../main.h"
+#include "../program/play.h"
+#include "../program/playutils.h"
+#include "../program/setup.h"
 #include "../search/asyncbot.h"
 #include "../search/patternbonustable.h"
-#include "../program/setup.h"
-#include "../program/playutils.h"
-#include "../program/play.h"
+#include "../search/searchnode.h"
 #include "../tests/tests.h"
-#include "../command/commandline.h"
-#include "../main.h"
 
 using namespace std;
 
@@ -603,9 +604,19 @@ struct GTPEngine {
     assert(bot->getRootHist().rules == currentRules);
     const int newXSize = bot->getRootBoard().x_size;
     const int newYSize = bot->getRootBoard().y_size;
+
+    vector<Move> startPosMoves;
+    bool startPosIsRandom;
+    vector<Move> remainingPlacementMoves;
+    const int startPos =
+      Rules::recognizeStartPos(initialStones, newXSize, newYSize, startPosMoves, startPosIsRandom, &remainingPlacementMoves);
+
+    currentRules.startPos = startPos;
+    currentRules.startPosIsRandom = startPosIsRandom;
+
     Board board(newXSize,newYSize,currentRules);
-    board.setStartPos(gtpRand);
-    if(!board.setStonesFailIfNoLibs(initialStones)) return false;
+    if (!board.setStonesFailIfNoLibs(startPosMoves, true)) return false;
+    if (!board.setStonesFailIfNoLibs(remainingPlacementMoves)) return false;
 
     //Sanity check
     for (const auto initialStone : initialStones) {
@@ -614,7 +625,7 @@ struct GTPEngine {
         return false;
       }
     }
-    const Player pla = P_BLACK;
+    constexpr Player pla = P_BLACK;
     BoardHistory hist(board,pla,currentRules,0);
     hist.setInitialTurnNumber(board.numStonesOnBoard()); // Heuristic to guess at what turn this is
     const vector<Move> newMoveHistory;
@@ -1876,6 +1887,43 @@ static GTPEngine::AnalyzeArgs parseAnalyzeCommand(
   return args;
 }
 
+optional<std::string> parseMovesSequence(const vector<string>& pieces, const Board& board, bool passIsAllowed, vector<Move>& movesToPlay) {
+  optional<std::string> response = std::nullopt;
+
+  auto renderPieces = [pieces](const int& index) {
+    const vector subvector(pieces.begin(), pieces.begin() + index + 1);
+    return " (" + Global::concat(subvector, " ") + ")";
+  };
+
+  for (int pieceInd = 0; pieceInd < pieces.size(); pieceInd += 2) {
+    Player pla;
+    Loc loc;
+    if(!PlayerIO::tryParsePlayer(pieces[pieceInd], pla)) {
+      response = "Could not parse color: '" + pieces[pieceInd] + "'" + renderPieces(pieceInd);
+      break;
+    }
+
+    const int locIndex = pieceInd + 1;
+    if (locIndex >= pieces.size()) {
+      response = "Expected location after color: '" + pieces[pieceInd] + "'" + renderPieces(pieceInd);
+      break;
+    }
+
+    if (!tryParseLoc(pieces[locIndex], board, loc)) {
+      response = "Could not parse location: '" + pieces[locIndex] + "'" + renderPieces(locIndex);
+      break;
+    }
+
+    if (loc == Board::PASS_LOC && !passIsAllowed) {
+      response = Location::toString(loc, board) + " is disallowed" + renderPieces(locIndex);
+      break;
+    }
+
+    movesToPlay.emplace_back(loc, pla);
+  }
+
+  return response;
+}
 
 int MainCmds::gtp(const vector<string>& args) {
   Board::initHash();
@@ -2915,69 +2963,44 @@ int MainCmds::gtp(const vector<string>& args) {
     }
 
     else if(command == "play") {
-      Player pla;
-      Loc loc;
-      if(pieces.size() != 2) {
-        responseIsError = true;
-        response = "Expected two arguments for play but got '" + Global::concat(pieces," ") + "'";
-      }
-      else if(!PlayerIO::tryParsePlayer(pieces[0],pla)) {
-        responseIsError = true;
-        response = "Could not parse color: '" + pieces[0] + "'";
-      }
-      else if(!tryParseLoc(pieces[1],engine->bot->getRootBoard(),loc)) {
-        responseIsError = true;
-        response = "Could not parse vertex: '" + pieces[1] + "'";
-      }
-      else {
-        bool suc = engine->play(loc,pla);
-        if(!suc) {
-          responseIsError = true;
-          response = "illegal move";
+      vector<Move> movesToPlay;
+      const Board& rootBoard = engine->bot->getRootBoard();
+
+      if (auto parseError = parseMovesSequence(pieces, rootBoard, true, movesToPlay); parseError == std::nullopt) {
+        for (int moveInd = 0; moveInd < movesToPlay.size(); moveInd++) {
+          if (Move move = movesToPlay[moveInd]; !engine->play(move.loc, move.pla)) {
+            responseIsError = true;
+            response = "Illegal move " + PlayerIO::playerToString(move.pla, rootBoard.isDots()) + " " + Location::toString(move.loc, rootBoard);
+            for (int rollbackMoveInd = 0; rollbackMoveInd < moveInd; rollbackMoveInd++) {
+              assert(engine->undo()); // Rollback already placed moves
+            }
+            break;
+          }
         }
-        maybeStartPondering = true;
+
+        if (!responseIsError) {
+          maybeStartPondering = true;
+        }
+      } else {
+        responseIsError = true;
+        response = parseError.value();
       }
     }
 
     else if(command == "set_position") {
-      if(pieces.size() % 2 != 0) {
+      vector<Move> initialStones;
+      const Board& rootBoard = engine->bot->getRootBoard();
+
+      if (auto parseError = parseMovesSequence(pieces, rootBoard, false, initialStones); parseError == std::nullopt) {
+        maybeSaveAvoidPatterns(false);
+        if(!engine->setPosition(initialStones)) {
+          responseIsError = true;
+          response = "Illegal stone placements - overlapping stones or stones with no liberties?";
+        }
+        maybeStartPondering = false;
+      } else {
         responseIsError = true;
-        response = "Expected a space-separated sequence of <COLOR> <VERTEX> pairs but got '" + Global::concat(pieces," ") + "'";
-      }
-      else {
-        vector<Move> initialStones;
-        for(int i = 0; i<pieces.size(); i += 2) {
-          Player pla;
-          Loc loc;
-          if(!PlayerIO::tryParsePlayer(pieces[i],pla)) {
-            responseIsError = true;
-            response = "Expected a space-separated sequence of <COLOR> <VERTEX> pairs but got '" + Global::concat(pieces," ") + "': ";
-            response += "could not parse color: '" + pieces[i] + "'";
-            break;
-          }
-          else if(!tryParseLoc(pieces[i+1],engine->bot->getRootBoard(),loc)) {
-            responseIsError = true;
-            response = "Expected a space-separated sequence of <COLOR> <VERTEX> pairs but got '" + Global::concat(pieces," ") + "': ";
-            response += "could not parse vertex: '" + pieces[i+1] + "'";
-            break;
-          }
-          else if(loc == Board::PASS_LOC) {
-            responseIsError = true;
-            response = "Expected a space-separated sequence of <COLOR> <VERTEX> pairs but got '" + Global::concat(pieces," ") + "': ";
-            response += "could not parse vertex: '" + pieces[i+1] + "'";
-            break;
-          }
-          initialStones.emplace_back(loc,pla);
-        }
-        if(!responseIsError) {
-          maybeSaveAvoidPatterns(false);
-          bool suc = engine->setPosition(initialStones);
-          if(!suc) {
-            responseIsError = true;
-            response = "Illegal stone placements - overlapping stones or stones with no liberties?";
-          }
-          maybeStartPondering = false;
-        }
+        response = parseError.value();
       }
     }
 

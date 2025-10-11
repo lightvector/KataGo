@@ -799,7 +799,7 @@ bool Board::setStoneFailIfNoLibs(Loc loc, Color color, const bool startPos) {
 
 void Board::setStartPos(Rand& rand) {
   const vector<Move> startPos = Rules::generateStartPos(rules.startPos, rules.startPosIsRandom ? &rand : nullptr, x_size, y_size);
-  bool success = setStonesFailIfNoLibs(startPos, true);
+  const bool success = setStonesFailIfNoLibs(startPos, true);
   assert(success);
 }
 
@@ -2525,9 +2525,7 @@ bool Board::isEqualForTesting(const Board& other, const bool checkNumCaptures,
     return false;
   }
   for (int i = 0; i < start_pos_moves.size(); i++) {
-    const Move start_pose_move = start_pos_moves[i];
-    const Move other_start_pos_move = other.start_pos_moves[i];
-    if (start_pose_move.loc != other_start_pos_move.loc || start_pose_move.pla != other_start_pos_move.pla) {
+    if (!movesEqual(start_pos_moves[i], other.start_pos_moves[i])) {
       return false;
     }
   }
@@ -2615,11 +2613,11 @@ string Location::toStringMach(const Loc loc, const int x_size, const bool isDots
   return string(buf);
 }
 
-string Location::toString(const Loc loc, int x_size, int y_size, bool isDots) {
+string Location::toString(const Loc loc, const int x_size, const int y_size, const bool isDots) {
   if(loc == Board::PASS_LOC)
     return isDots ? "ground" : "pass";
   if(loc == Board::NULL_LOC)
-    return string("null");
+    return "null";
   const int x = getX(loc, x_size);
   const int y = getY(loc, x_size);
   if(x >= x_size || x < 0 || y < 0 || y >= y_size)

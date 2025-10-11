@@ -16,6 +16,8 @@ struct XYMove {
   [[nodiscard]] std::string toString() const {
     return "(" + to_string(x) + "," + to_string(y) + "," + PlayerIO::colorToChar(player) + ")";
   }
+
+  Move toMove(int x_size) const;
 };
 
 struct BoardWithMoveRecords {
@@ -65,4 +67,6 @@ struct BoardWithMoveRecords {
 Board parseDotsFieldDefault(const string& input, const vector<XYMove>& extraMoves = {});
 
 Board parseDotsField(const string& input, bool startPosIsRandom, bool suicide, bool captureEmptyBases, bool freeCapturedDots, const vector<XYMove>& extraMoves);
+
+void playXYMovesAssumeLegal(Board& board, const vector<XYMove>& moves);
 

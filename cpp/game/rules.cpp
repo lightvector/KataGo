@@ -160,14 +160,12 @@ set<string> Rules::startPosStrings() {
     startPosIdToName[START_POS_CROSS],
     startPosIdToName[START_POS_CROSS_2],
     startPosIdToName[START_POS_CROSS_4],
-    startPosIdToName[START_POS_CUSTOM]
   };
 }
 
 int Rules::getNumOfStartPosStones() const {
   switch (startPos) {
     case START_POS_EMPTY:
-    case START_POS_CUSTOM:
       return 0;
     case START_POS_CROSS: return 4;
     case START_POS_CROSS_2: return 8;
@@ -820,53 +818,46 @@ void Rules::addCross(const int x, const int y, const int x_size, const bool rota
   Player pla;
   Player opp;
 
-  // The end move should always be P_WHITE
+  // The end move should always be P_WHITE to keep a consistent moves order
   if (!rotate90) {
-    pla = P_WHITE;
-    opp = P_BLACK;
-  } else {
     pla = P_BLACK;
     opp = P_WHITE;
+  } else {
+    pla = P_WHITE;
+    opp = P_BLACK;
   }
 
-  const auto tailMove = Move(Location::getLoc(x, y + 1, x_size), pla);
+  const auto tailMove = Move(Location::getLoc(x, y, x_size), pla);
 
   if (!rotate90) {
     moves.push_back(tailMove);
   }
 
-  moves.emplace_back(Location::getLoc(x + 1, y + 1, x_size), opp);
-  moves.emplace_back(Location::getLoc(x + 1, y, x_size), pla);
-  moves.emplace_back(Location::getLoc(x, y, x_size), opp);
+  moves.emplace_back(Location::getLoc(x + 1, y, x_size), opp);
+  moves.emplace_back(Location::getLoc(x + 1, y + 1, x_size), pla);
+  moves.emplace_back(Location::getLoc(x, y + 1, x_size), opp);
 
   if (rotate90) {
     moves.push_back(tailMove);
   }
 }
 
-int Rules::tryRecognizeStartPos(
+int Rules::recognizeStartPos(
   const vector<Move>& placementMoves,
   const int x_size,
   const int y_size,
+  vector<Move>& startPosMoves,
   bool& randomized,
   vector<Move>* remainingMoves) {
+
+  startPosMoves = vector<Move>();
   randomized = false; // Empty or unknown start pos is static by default
   if (remainingMoves != nullptr) {
     *remainingMoves = placementMoves;
   }
-  int result = START_POS_EMPTY;
+  int resultStartPos = START_POS_EMPTY;
 
-  if(placementMoves.empty()) return result;
-
-  // If all placement moves are black, then it's a handicap game and the start pos is empty
-  for (const auto placementMove : placementMoves) {
-    if (placementMove.pla != C_BLACK) {
-      result = START_POS_CUSTOM;
-      break;
-    }
-  }
-
-  if (result == START_POS_EMPTY) return result;
+  if(placementMoves.empty()) return resultStartPos;
 
   const int stride = x_size + 1;
   auto placement = vector(stride * (y_size + 2), C_EMPTY);
@@ -874,8 +865,6 @@ int Rules::tryRecognizeStartPos(
   for (const auto move : placementMoves) {
     placement[move.loc] = move.pla;
   }
-
-  auto recognizedCrossesMoves = vector<Move>();
 
   for (const auto move : placementMoves) {
     const int x = Location::getX(move.loc, x_size);
@@ -899,10 +888,18 @@ int Rules::tryRecognizeStartPos(
     const int xyp1 = Location::getLoc(x, y + 1, x_size);
     if (placement[xyp1] != opp) continue;
 
-    recognizedCrossesMoves.emplace_back(xy, pla);
-    recognizedCrossesMoves.emplace_back(xp1y, opp);
-    recognizedCrossesMoves.emplace_back(xp1yp1, pla);
-    recognizedCrossesMoves.emplace_back(xyp1, opp);
+    // Match order of generator (white move is always last)
+    if (pla == P_BLACK) {
+      startPosMoves.emplace_back(xy, pla);
+    }
+
+    startPosMoves.emplace_back(xp1y, opp);
+    startPosMoves.emplace_back(xp1yp1, pla);
+    startPosMoves.emplace_back(xyp1, opp);
+
+    if (pla != P_BLACK) {
+      startPosMoves.emplace_back(xy, pla);
+    }
 
     // Clear the placement because the recognized cross is already stored
     placement[xy] = C_EMPTY;
@@ -911,61 +908,80 @@ int Rules::tryRecognizeStartPos(
     placement[xyp1] = C_EMPTY;
   }
 
-  // Sort locs because start pos is invariant to moves order
-  auto sortByLoc = [&](vector<Move>& moves) {
-    std::sort(moves.begin(), moves.end(), [](const Move& move1, const Move& move2) { return move1.loc < move2.loc; });
-  };
-
-  sortByLoc(recognizedCrossesMoves);
-
   // Try to match strictly and set up randomized if failed.
-  auto detectRandomization = [&](const int expectedStartPos) -> void {
+  // Also, refine start pos and remaining moves.
+  auto finishRecognition = [&](const int expectedStartPos) -> void {
     auto staticStartPosMoves = generateStartPos(expectedStartPos, nullptr, x_size, y_size);
 
-    assert(remainingMoves != nullptr || placementMoves.size() == recognizedCrossesMoves.size());
-    assert(staticStartPosMoves.size() == recognizedCrossesMoves.size());
+    assert(remainingMoves != nullptr || placementMoves.size() == startPosMoves.size());
+    const auto startPosMovesSize = staticStartPosMoves.size();
+    assert(startPosMovesSize <= startPosMoves.size());
 
-    sortByLoc(staticStartPosMoves);
+    vector<Move> refinedStartPosMoves;
 
-    for(size_t i = 0; i < staticStartPosMoves.size(); i++) {
-      if(staticStartPosMoves[i].loc != recognizedCrossesMoves[i].loc || staticStartPosMoves[i].pla != recognizedCrossesMoves[i].pla) {
-        randomized = true;
+    // TODO: generalize (currently it works only for crosses)
+    for(int startPosInd = 0; startPosInd < startPosMoves.size(); startPosInd += 4) {
+      if (startPosInd + 3 >= startPosMoves.size()) continue;
+      for (int staticStartPosInd = 0; staticStartPosInd < staticStartPosMoves.size(); staticStartPosInd += 4) {
+        if (staticStartPosInd + 3 >= staticStartPosMoves.size()) continue;
+
+        if (!movesEqual(startPosMoves[startPosInd], staticStartPosMoves[staticStartPosInd])) continue;
+        if (!movesEqual(startPosMoves[startPosInd + 1], staticStartPosMoves[staticStartPosInd + 1])) continue;
+        if (!movesEqual(startPosMoves[startPosInd + 2], staticStartPosMoves[staticStartPosInd + 2])) continue;
+        if (!movesEqual(startPosMoves[startPosInd + 3], staticStartPosMoves[staticStartPosInd + 3])) continue;
+
+        refinedStartPosMoves.emplace_back(startPosMoves[startPosInd]);
+        refinedStartPosMoves.emplace_back(startPosMoves[startPosInd + 1]);
+        refinedStartPosMoves.emplace_back(startPosMoves[startPosInd + 2]);
+        refinedStartPosMoves.emplace_back(startPosMoves[startPosInd + 3]);
+
+        staticStartPosMoves.erase(staticStartPosMoves.begin() + staticStartPosInd, staticStartPosMoves.begin() + staticStartPosInd + 4);
         break;
       }
     }
 
-    if (remainingMoves != nullptr) {
-      for (const auto recognizedMove : recognizedCrossesMoves) {
-        bool removed = false;
-        for(auto it = remainingMoves->begin(); it != remainingMoves->end(); ++it) {
-          if (it->loc == recognizedMove.loc && it->pla == recognizedMove.pla) {
-            remainingMoves->erase(it);
-            removed = true;
-            break;
-          }
-        }
-        assert(removed);
+    for (const auto recognizedMove : startPosMoves) {
+      if (refinedStartPosMoves.size() == startPosMovesSize) {
+        break;
+      }
+      if (!std::any_of(refinedStartPosMoves.begin(), refinedStartPosMoves.end(), [&](const Move& m) {
+        return movesEqual(m, recognizedMove);
+      })) {
+        refinedStartPosMoves.emplace_back(recognizedMove);
       }
     }
 
-    result = expectedStartPos;
+    startPosMoves = refinedStartPosMoves;
+
+    if (remainingMoves != nullptr) {
+        for (const auto recognizedMove : startPosMoves) {
+        bool remainingMoveIsRemoved = false;
+        for(auto it = remainingMoves->begin(); it != remainingMoves->end(); ++it) {
+          if (movesEqual(*it, recognizedMove)) {
+            remainingMoves->erase(it);
+            remainingMoveIsRemoved = true;
+            break;
+          }
+        }
+        assert(remainingMoveIsRemoved);
+      }
+    }
+
+    randomized = !staticStartPosMoves.empty();
+    resultStartPos = expectedStartPos;
   };
 
-  switch (recognizedCrossesMoves.size()) {
-    case 4:
-      detectRandomization(START_POS_CROSS);
-      break;
-    case 8:
-      detectRandomization(START_POS_CROSS_2);
-      break;
-    case 16:
-      detectRandomization(START_POS_CROSS_4);
-      break;
-    default:;
-      break;
+  if (const auto recognizedCrossesMovesSize = startPosMoves.size(); recognizedCrossesMovesSize < 4) {
+    finishRecognition(START_POS_EMPTY);
+  } else if (recognizedCrossesMovesSize < 8) {
+    finishRecognition(START_POS_CROSS);
+  } else if (recognizedCrossesMovesSize < 16) {
+    finishRecognition(START_POS_CROSS_2);
+  } else {
+    finishRecognition(START_POS_CROSS_4);
   }
 
-  return result;
+  return resultStartPos;
 }
 
 const Hash128 Rules::ZOBRIST_KO_RULE_HASH[4] = {

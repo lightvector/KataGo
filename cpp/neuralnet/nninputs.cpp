@@ -729,8 +729,9 @@ Board SymmetryHelpers::getSymBoard(const Board& board, int symmetry) {
       const int y = Location::getY(loc, board.x_size);
       sym_start_pos_moves.emplace_back(getSymLoc(x, y), start_pos_move.pla);
     }
+    vector<Move> startPosMoves;
     bool randomized;
-    symRules.startPos = Rules::tryRecognizeStartPos(sym_start_pos_moves, sym_x_size, sym_y_size, randomized);
+    symRules.startPos = Rules::recognizeStartPos(sym_start_pos_moves, sym_x_size, sym_y_size, startPosMoves, randomized);
     symRules.startPosIsRandom = randomized;
   }
 

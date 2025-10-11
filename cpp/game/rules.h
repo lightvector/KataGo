@@ -16,7 +16,6 @@ struct Rules {
   static constexpr int START_POS_CROSS = 1;
   static constexpr int START_POS_CROSS_2 = 2;
   static constexpr int START_POS_CROSS_4 = 3;
-  static constexpr int START_POS_CUSTOM = 4;
   int startPos;
 
   // Enables random shuffling of start pos. Currently, it works only for CROSS_4
@@ -118,14 +117,18 @@ struct Rules {
    * @param placementMoves placement moves that we are trying to recognize.
    * @param x_size size of field
    * @param y_size size of field
+   * @param startPosMoves moves for a recognized pattern. It's empty if recognition is failed.
    * @param randomized if we recognize a start pos, but it doesn't match the strict position, set it up to `true`
-   * @param remainingMoves Holds moves that remain after start pos recognition, useful for SGF handling.
+   * @param remainingMoves represents moves that remain after start pos recognition (@param placementMoves - @param startPosMoves),
    *  If it's null (default), then it's assumed that all placement moves are used in the recognized start pos.
+   * @return recognized type of start pos. If the @param placementMoves don't match any known patter, then
+   * it returns empty pos with @param remainingMoves == @param placementMoves
    */
-  static int tryRecognizeStartPos(
+  static int recognizeStartPos(
     const std::vector<Move>& placementMoves,
     int x_size,
     int y_size,
+    std::vector<Move>& startPosMoves,
     bool& randomized,
     std::vector<Move>* remainingMoves = nullptr);
 
@@ -175,12 +178,10 @@ private:
       startPosIdToName[START_POS_CROSS] = "CROSS";
       startPosIdToName[START_POS_CROSS_2] = "CROSS_2";
       startPosIdToName[START_POS_CROSS_4] = "CROSS_4";
-      startPosIdToName[START_POS_CUSTOM] = "CUSTOM";
       startPosNameToId["EMPTY"] = START_POS_EMPTY;
       startPosNameToId["CROSS"] = START_POS_CROSS;
       startPosNameToId["CROSS_2"] = START_POS_CROSS_2;
       startPosNameToId["CROSS_4"] = START_POS_CROSS_4;
-      startPosNameToId["CUSTOM"] = START_POS_CUSTOM;
     }
   }
 

@@ -28,9 +28,7 @@ void checkStartPos(const string& description, const int startPos, const bool sta
 
   auto board = Board(x_size, y_size, Rules(startPos, startPosIsRandom, Rules::DEFAULT_DOTS.multiStoneSuicideLegal, Rules::DEFAULT_DOTS.dotsCaptureEmptyBases, Rules::DEFAULT_DOTS.dotsFreeCapturedDots));
   board.setStartPos(DOTS_RANDOM);
-  for (const XYMove& extraMove : extraMoves) {
-    board.playMoveAssumeLegal(Location::getLoc(extraMove.x, extraMove.y, board.x_size), extraMove.player);
-  }
+  playXYMovesAssumeLegal(board, extraMoves);
 
   std::ostringstream oss;
   Board::printBoard(oss, board, Board::NULL_LOC, nullptr, false);
@@ -42,7 +40,38 @@ void checkStartPos(const string& description, const int startPos, const bool sta
   writeToSgfAndCheckStartPosFromSgfProp(startPos, startPosIsRandom, board);
 }
 
-void checkStartPosRecognition(const string& description, const int expectedStartPos, const int startPosIsRandom, const string& inputBoard) {
+void checkRecognition(const vector<XYMove>& xyMoves, const int x_size, const int y_size,
+  const int expectedStartPos,
+  const vector<XYMove>& expectedStartMoves,
+  const bool expectedRandomized,
+  const vector<XYMove>& expectedRemainingMoves) {
+
+  auto moves = vector<Move>();
+  moves.reserve(xyMoves.size());
+  for (const auto xyMove : xyMoves) {
+    moves.push_back(xyMove.toMove(x_size));
+  }
+
+  vector<Move> actualStartPosMoves;
+  bool actualRandomized;
+  vector<Move> actualRemainingMoves;
+
+  testAssert(expectedStartPos == Rules::recognizeStartPos(moves, x_size, y_size, actualStartPosMoves, actualRandomized, &actualRemainingMoves));
+
+  testAssert(expectedStartMoves.size() == actualStartPosMoves.size());
+  for (size_t i = 0; i < expectedStartMoves.size(); ++i) {
+    testAssert(movesEqual(expectedStartMoves[i].toMove(x_size), actualStartPosMoves[i]));
+  }
+
+  testAssert(expectedRandomized == actualRandomized);
+
+  testAssert(expectedRemainingMoves.size() == actualRemainingMoves.size());
+  for (size_t i = 0; i < expectedRemainingMoves.size(); ++i) {
+    testAssert(movesEqual(expectedRemainingMoves[i].toMove(x_size), actualRemainingMoves[i]));
+  }
+}
+
+void checkStartPosRecognition(const string& description, const int expectedStartPos, const bool startPosIsRandom, const string& inputBoard) {
   const Board board = parseDotsField(inputBoard, startPosIsRandom, Rules::DEFAULT_DOTS.multiStoneSuicideLegal, Rules::DEFAULT_DOTS.dotsCaptureEmptyBases, Rules::DEFAULT_DOTS.dotsFreeCapturedDots, {});
 
   cout << "  " << description << " (" << to_string(board.x_size) << "," << to_string(board.y_size) << ")";
@@ -52,8 +81,9 @@ void checkStartPosRecognition(const string& description, const int expectedStart
 
 void checkGenerationAndRecognition(const int startPos, const int startPosIsRandom) {
   const auto generatedMoves = Rules::generateStartPos(startPos, startPosIsRandom ? &DOTS_RANDOM : nullptr, 39, 32);
+  vector<Move> actualStartPosMoves;
   bool actualRandomized;
-  testAssert(startPos == Rules::tryRecognizeStartPos(generatedMoves, 39, 32, actualRandomized));
+  testAssert(startPos == Rules::recognizeStartPos(generatedMoves, 39, 32, actualStartPosMoves, actualRandomized));
   // We can't reliably check in case of randomization is not detected because random generator can
   // generate static poses in rare cases.
   if (actualRandomized) {
@@ -80,7 +110,7 @@ void Tests::runDotsStartPosTests() {
  1 .  .  X  .
 )", {XYMove(2, 3, P_BLACK)});
 
-  checkStartPosRecognition("Not enough dots for cross", Rules::START_POS_CUSTOM, false, R"(
+  checkStartPosRecognition("Empty start pos with three extra moves", Rules::START_POS_EMPTY, false, R"(
 ....
 .xo.
 .o..
@@ -165,6 +195,107 @@ void Tests::runDotsStartPosTests() {
  2 .  .  O  X  X  O  .
  1 .  .  .  .  .  .  .
 )");
+
+  checkStartPos("Double rand cross on triple cross", Rules::START_POS_CROSS_2, false, 10, 4, R"(
+   1  2  3  4  5  6  7  8  9  10
+ 4 .  .  .  .  .  .  .  .  .  .
+ 3 .  .  .  X  O  O  X  .  X  O
+ 2 .  .  .  O  X  X  O  .  O  X
+ 1 .  .  .  .  .  .  .  .  .  .
+)", {XYMove(8, 1, P_BLACK), XYMove(9, 1, P_WHITE), XYMove(9, 2, P_BLACK), XYMove(8, 2, P_WHITE)});
+
+  const vector expectedRemainingMovesForDoubleCross = {
+    XYMove(8, 1, P_BLACK),
+    XYMove(9, 1, P_WHITE),
+    XYMove(9, 2, P_BLACK),
+    XYMove(8, 2, P_WHITE)
+  };
+
+  // Double cross exactly matches static double cross (not randomized)
+  checkRecognition({
+    XYMove(3, 1, P_BLACK),
+    XYMove(4, 1, P_WHITE),
+    XYMove(4, 2, P_BLACK),
+    XYMove(3, 2, P_WHITE),
+
+    XYMove(5, 1, P_WHITE),
+    XYMove(6, 1, P_BLACK),
+    XYMove(6, 2, P_WHITE),
+    XYMove(5, 2, P_BLACK),
+
+    XYMove(8, 1, P_BLACK),
+    XYMove(9, 1, P_WHITE),
+    XYMove(9, 2, P_BLACK),
+    XYMove(8, 2, P_WHITE)
+  }, 10, 4, Rules::START_POS_CROSS_2, {
+    XYMove(3, 1, P_BLACK),
+    XYMove(4, 1, P_WHITE),
+    XYMove(4, 2, P_BLACK),
+    XYMove(3, 2, P_WHITE),
+
+    XYMove(6, 1, P_BLACK),
+    XYMove(6, 2, P_WHITE),
+    XYMove(5, 2, P_BLACK),
+    XYMove(5, 1, P_WHITE),
+  }, false, expectedRemainingMovesForDoubleCross
+);
+
+  // Double cross partially matches static double cross (randomized)
+  checkRecognition({
+    XYMove(2, 1, P_BLACK),
+    XYMove(3, 1, P_WHITE),
+    XYMove(3, 2, P_BLACK),
+    XYMove(2, 2, P_WHITE),
+
+    XYMove(5, 1, P_WHITE),
+    XYMove(6, 1, P_BLACK),
+    XYMove(6, 2, P_WHITE),
+    XYMove(5, 2, P_BLACK),
+
+    XYMove(8, 1, P_BLACK),
+    XYMove(9, 1, P_WHITE),
+    XYMove(9, 2, P_BLACK),
+    XYMove(8, 2, P_WHITE)
+}, 10, 4, Rules::START_POS_CROSS_2,
+{
+    XYMove(6, 1, P_BLACK),
+    XYMove(6, 2, P_WHITE),
+    XYMove(5, 2, P_BLACK),
+    XYMove(5, 1, P_WHITE),
+
+    XYMove(2, 1, P_BLACK),
+    XYMove(3, 1, P_WHITE),
+    XYMove(3, 2, P_BLACK),
+    XYMove(2, 2, P_WHITE),
+}, true, expectedRemainingMovesForDoubleCross);
+
+  // Double cross do not match static cross completely (randomized)
+  checkRecognition({
+    XYMove(2, 1, P_BLACK),
+    XYMove(3, 1, P_WHITE),
+    XYMove(3, 2, P_BLACK),
+    XYMove(2, 2, P_WHITE),
+
+    XYMove(4, 1, P_WHITE),
+    XYMove(5, 1, P_BLACK),
+    XYMove(5, 2, P_WHITE),
+    XYMove(4, 2, P_BLACK),
+
+    XYMove(8, 1, P_BLACK),
+    XYMove(9, 1, P_WHITE),
+    XYMove(9, 2, P_BLACK),
+    XYMove(8, 2, P_WHITE)
+  }, 10, 4, Rules::START_POS_CROSS_2, {
+    XYMove(2, 1, P_BLACK),
+    XYMove(3, 1, P_WHITE),
+    XYMove(3, 2, P_BLACK),
+    XYMove(2, 2, P_WHITE),
+
+    XYMove(5, 1, P_BLACK),
+    XYMove(5, 2, P_WHITE),
+    XYMove(4, 2, P_BLACK),
+    XYMove(4, 1, P_WHITE)
+  }, true, expectedRemainingMovesForDoubleCross);
 
     checkStartPos("Double cross on standard size", Rules::START_POS_CROSS_2, false, 39, 32, R"(
    1  2  3  4  5  6  7  8  9  10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 32 33 34 35 36 37 38 39

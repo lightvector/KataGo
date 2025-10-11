@@ -151,9 +151,10 @@ static Rules getRulesFromSgf(const SgfNode& rootNode, const int xSize, const int
 
   vector<Move> placementMoves;
   rootNode.accumPlacements(placementMoves, xSize, ySize);
+  vector<Move> startPosMoves;
   bool randomized;
   vector<Move> remainingMoves;
-  rules.startPos = Rules::tryRecognizeStartPos(placementMoves, xSize, ySize, randomized, &remainingMoves);
+  rules.startPos = Rules::recognizeStartPos(placementMoves, xSize, ySize, startPosMoves, randomized, &remainingMoves);
   if (randomized && !rules.startPosIsRandom) {
     propertyFail("Defined start pos is randomized but RU says it shouldn't");
   }
@@ -1772,9 +1773,10 @@ Rules CompactSgf::getRulesOrWarn(const Rules& defaultRules, std::function<void(c
 
   vector<Move> placementMoves;
   rootNode.accumPlacements(placementMoves, xSize, ySize);
+  vector<Move> startPosMoves;
   bool randomized;
   vector<Move> remainingMoves;
-  rules.startPos = Rules::tryRecognizeStartPos(placementMoves, xSize, ySize, randomized, &remainingMoves);
+  rules.startPos = Rules::recognizeStartPos(placementMoves, xSize, ySize, startPosMoves, randomized, &remainingMoves);
   if (randomized && !rules.startPosIsRandom) {
     f("Defined start pos is randomized but RU says it shouldn't");
   }

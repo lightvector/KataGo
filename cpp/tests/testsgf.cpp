@@ -30,8 +30,9 @@ void Tests::runSgfTests() {
     const Board& board = hist.initialBoard;
 
     bool randomized;
+    vector<Move> startPosMoves;
     vector<Move> remainingPlacementMoves;
-    const int recognizedStartPos = Rules::tryRecognizeStartPos(sgf->placements, board.x_size, board.y_size, randomized, &remainingPlacementMoves);
+    const int recognizedStartPos = Rules::recognizeStartPos(sgf->placements, board.x_size, board.y_size, startPosMoves, randomized, &remainingPlacementMoves);
     testAssert(recognizedStartPos == rules.startPos);
     testAssert(randomized == rules.startPosIsRandom);
 
@@ -745,7 +746,6 @@ xSize 9
 ySize 9
 depth 2
 komi 7.5
-startPos CUSTOM
 placements
 X B7
 X D7
@@ -774,7 +774,7 @@ Encore phase 0
 Turns this phase 0
 Approx valid turns this phase 0
 Approx consec valid turns this game 0
-Rules koPOSITIONALscoreAREAtaxNONEstartPosCUSTOMsui1komi7.5
+Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
 White handicap bonus score 0
@@ -803,7 +803,7 @@ Encore phase 0
 Turns this phase 0
 Approx valid turns this phase 0
 Approx consec valid turns this game 0
-Rules koPOSITIONALscoreAREAtaxNONEstartPosCUSTOMsui1komi7.5
+Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
 White handicap bonus score 0
@@ -1179,7 +1179,7 @@ xSize 5
 ySize 5
 komi 12.5
 hasRules true
-rules koSIMPLEscoreTERRITORYtaxSEKIstartPosCUSTOMsui0komi12.5
+rules koSIMPLEscoreTERRITORYtaxSEKIsui0komi12.5
 handicapValue 5
 sgfWinner Black
 firstPlayerColor X
