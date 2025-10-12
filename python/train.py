@@ -84,6 +84,8 @@ if __name__ == "__main__":
     optional_args.add_argument('-lookahead-alpha', help='Use lookahead optimizer', type=float, default=0.5, required=False)
     optional_args.add_argument('-lookahead-print', help='Only print on lookahead syncs', required=False, action='store_true')
 
+    optional_args.add_argument('-use-adamw', help='Use adamw optimizer', required=False, action='store_true')
+
     optional_args.add_argument('-multi-gpus', help='Use multiple gpus, comma-separated device ids', required=False)
     optional_args.add_argument('-use-fp16', help='Use fp16 training', required=False, action='store_true')
 
@@ -191,6 +193,7 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
     lookahead_alpha = args["lookahead_alpha"]
     lookahead_print = args["lookahead_print"]
 
+    use_adamw = args["use_adamw"]
     use_fp16 = args["use_fp16"]
 
     epochs_per_export = args["epochs_per_export"]
@@ -402,7 +405,10 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
                 # than expected.
                 # So we scale sublinearly with lr_scale so as to slightly preadjust to this effect.
                 # Adaptive scale should then help keep us there thereafter.
-                return 0.00125 * world_size * batch_size / 256.0 * math.pow(lr_scale_with_auto * warmup_scale,0.75) * adaptive_scale * gamma_scale
+                if use_adamw:
+                    return 0.00900 * math.sqrt(world_size * batch_size / 256.0) * math.pow(lr_scale_with_auto * warmup_scale,0.75) * adaptive_scale * gamma_scale
+                else:
+                    return 0.00125 * world_size * batch_size / 256.0 * math.pow(lr_scale_with_auto * warmup_scale,0.75) * adaptive_scale * gamma_scale
             elif group_name == "output":
                 return 0.000001 * world_size * batch_size / 256.0
             elif group_name == "noreg":
@@ -501,7 +507,10 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
                 train_state["modelnorm_normal_baseline"] = modelnorm_normal_baseline
                 logging.info(f"Model norm normal baseline computed: {modelnorm_normal_baseline}")
 
-            optimizer = torch.optim.SGD(get_param_groups(raw_model,train_state,running_metrics), lr=1.0, momentum=0.9)
+            if use_adamw:
+                optimizer = torch.optim.AdamW(get_param_groups(raw_model,train_state,running_metrics), lr=1.0)
+            else:
+                optimizer = torch.optim.SGD(get_param_groups(raw_model,train_state,running_metrics), lr=1.0, momentum=0.9)
 
             return (model_config, ddp_model, raw_model, swa_model, optimizer, metrics_obj, running_metrics, train_state, last_val_metrics)
         else:
@@ -575,9 +584,24 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
             else:
                 logging.info("WARNING: Running metrics not found in state dict, using fresh last val metrics")
 
-            optimizer = torch.optim.SGD(get_param_groups(raw_model,train_state,running_metrics), lr=1.0, momentum=0.9)
+            if use_adamw:
+                optimizer_name = "AdamW"
+            else:
+                optimizer_name = "SGD"
+
+            if use_adamw:
+                optimizer = torch.optim.AdamW(get_param_groups(raw_model,train_state,running_metrics), lr=1.0)
+            else:
+                optimizer = torch.optim.SGD(get_param_groups(raw_model,train_state,running_metrics), lr=1.0, momentum=0.9)
             if "optimizer" in state_dict:
-                optimizer.load_state_dict(state_dict["optimizer"])
+                old_optimizer_name = train_state.get("optimizer_name","SGD")
+                if old_optimizer_name == optimizer_name:
+                    optimizer.load_state_dict(state_dict["optimizer"])
+                    train_state["optimizer_name"] = optimizer_name
+                else:
+                    train_state["optimizer_name"] = optimizer_name
+                    logging.info(f"WARNING: Optimizer name {old_optimizer_name} in checkpoint but we are set to use {optimizer_name} now, dropping old optimizer state")
+
             else:
                 logging.info("WARNING: Optimizer not found in state dict, using fresh optimizer")
 
@@ -642,6 +666,8 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
     logging.info(f"intermediate_loss_scale {intermediate_loss_scale}")
     logging.info(f"head_lr_factor {head_lr_factor}")
 
+    logging.info(f"Model norm normal baseline: " + str(train_state["modelnorm_normal_baseline"]))
+
     # Print all model parameters just to get a summary
     total_num_params = 0
     total_trainable_params = 0
@@ -668,7 +694,12 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
     # EPOCHS AND LR ---------------------------------------------------------------------
 
     def update_and_return_lr_and_wd():
-        per_sample_lr = 0.00003 * lr_scale * lr_scale_auto_factor(train_state)
+        if use_adamw:
+            # 1.3 is empirical scaling factor meant to try to match the step size scales between SGD and AdamW
+            # for a mature net, as learning rate means something different.
+            per_sample_lr = 1.33 * 0.00003 * lr_scale * lr_scale_auto_factor(train_state)
+        else:
+            per_sample_lr = 0.00003 * lr_scale * lr_scale_auto_factor(train_state)
 
         # Warmup for initial training
         warmup_scale = 1.0
@@ -729,6 +760,11 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
                 new_lr_this_group = per_sample_lr * warmup_scale * group_scale / lookahead_alpha
             else:
                 new_lr_this_group = per_sample_lr * warmup_scale * group_scale
+
+            # When using adamw, the actual scale of the grads doesn't matter and we instead need to scale
+            # by sqrt(batch_size)
+            if use_adamw:
+                new_lr_this_group *= math.sqrt(batch_size * world_size / 256.0)
 
             if param_group["lr"] != new_lr_this_group:
                 param_group["lr"] = new_lr_this_group
@@ -1201,11 +1237,28 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
                 metrics["window_start_batch"] = train_state["window_start_data_row_idx"]
                 metrics["window_end_batch"] = train_state["total_num_data_rows"]
 
+                # Store parameters to later calculate empirical step vector length
+                old_params = {}
+                for name, param in ddp_model.named_parameters():
+                    if param.requires_grad:
+                        old_params[name] = param.data.detach().clone()
+
                 if use_fp16:
                     scaler.step(optimizer)
                     scaler.update()
                 else:
                     optimizer.step()
+
+                # Empirical step vector length
+                with torch.no_grad():
+                    step_norm_squared = 0.0
+                    param_idx = 0
+                    for name, param in ddp_model.named_parameters():
+                        if param.requires_grad:
+                            step_norm_squared += torch.sum(torch.square(param.data - old_params[name])).cpu().item()
+                            param_idx += 1
+                step_norm = math.sqrt(step_norm_squared)
+                metrics["step_norm_batch"] = step_norm
 
                 batch_count_this_epoch += 1
                 train_state["train_steps_since_last_reload"] += batch_size * world_size
