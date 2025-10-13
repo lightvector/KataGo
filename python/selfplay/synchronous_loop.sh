@@ -54,21 +54,21 @@ mkdir -p "$BASEDIR"/gatekeepersgf
 # you have strong hardware or are later into a run you may want to reduce the overhead by scaling
 # these numbers up and doing more games and training per cycle, exporting models less frequently, etc.
 
-NUM_GAMES_PER_CYCLE=500 # Every cycle, play this many games
-NUM_THREADS_FOR_SHUFFLING=8
-NUM_TRAIN_SAMPLES_PER_EPOCH=100000  # Training will proceed in chunks of this many rows, subject to MAX_TRAIN_PER_DATA.
+NUM_GAMES_PER_CYCLE=400 # Every cycle, play this many games
+NUM_THREADS_FOR_SHUFFLING=16
+NUM_TRAIN_SAMPLES_PER_EPOCH=50000  # Training will proceed in chunks of this many rows, subject to MAX_TRAIN_PER_DATA.
 MAX_TRAIN_PER_DATA=8 # On average, train only this many times on each data row. Larger numbers may cause overfitting.
 NUM_TRAIN_SAMPLES_PER_SWA=80000  # Stochastic weight averaging frequency.
 BATCHSIZE=128 # For lower-end GPUs 64 or smaller may be needed to avoid running out of GPU memory.
-SHUFFLE_MINROWS=100000 # Require this many rows at the very start before beginning training.
+SHUFFLE_MINROWS=50000 # Require this many rows at the very start before beginning training.
 MAX_TRAIN_SAMPLES_PER_CYCLE=500000  # Each cycle will do at most this many training steps.
-TAPER_WINDOW_SCALE=50000 # Parameter setting the scale at which the shuffler will make the training window grow sublinearly.
+TAPER_WINDOW_SCALE=25000 # Parameter setting the scale at which the shuffler will make the training window grow sublinearly.
 SHUFFLE_KEEPROWS=600000 # Needs to be larger than MAX_TRAIN_SAMPLES_PER_CYCLE, so the shuffler samples enough rows each cycle for the training to use.
 
 # Paths to the selfplay and gatekeeper configs that contain board sizes, rules, search parameters, etc.
 # See cpp/configs/training/README.md for some notes on other selfplay configs.
-SELFPLAY_CONFIG="$GITROOTDIR"/cpp/configs/training/selfplay1.cfg
-GATING_CONFIG="$GITROOTDIR"/cpp/configs/training/gatekeeper1.cfg
+SELFPLAY_CONFIG="$GITROOTDIR"/cpp/configs/training/selfplay1_dots.cfg
+GATING_CONFIG="$GITROOTDIR"/cpp/configs/training/gatekeeper1_dots.cfg
 
 # Copy all the relevant scripts and configs and the katago executable to a dated directory.
 # For archival and logging purposes - you can look back and see exactly the python code on a particular date
