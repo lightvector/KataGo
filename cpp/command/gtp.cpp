@@ -22,6 +22,7 @@ using namespace std;
 
 const string GET_MOVES_COMMAND = "get_moves";
 const string GET_POSITION_COMMAND = "get_position";
+const string GET_BOARDSIZE = "get_boardsize";
 
 static const vector<string> knownCommands = {
   //Basic GTP commands
@@ -35,6 +36,7 @@ static const vector<string> knownCommands = {
   //GTP extension - specify "boardsize X:Y" or "boardsize X Y" for non-square sizes
   //rectangular_boardsize is an alias for boardsize, intended to make it more evident that we have such support
   "boardsize",
+  GET_BOARDSIZE,
   "rectangular_boardsize",
 
   "clear_board",
@@ -2375,6 +2377,13 @@ int MainCmds::gtp(const vector<string>& args) {
       }
     }
 
+    else if (command == GET_BOARDSIZE) {
+      const auto& rootBoard = engine->bot->getRootBoard();
+      response = Global::intToString(rootBoard.x_size) + (rootBoard.x_size == rootBoard.y_size
+        ? ""
+        : ":" + Global::intToString(rootBoard.y_size));
+    }
+
     else if(command == "clear_board") {
       maybeSaveAvoidPatterns(false);
       if(autoAvoidPatterns && shouldReloadAutoAvoidPatterns) {
@@ -3029,10 +3038,22 @@ int MainCmds::gtp(const vector<string>& args) {
     }
 
     else if(command == "undo") {
-      bool suc = engine->undo();
-      if(!suc) {
-        responseIsError = true;
-        response = "cannot undo";
+      int undoCount = 1;
+      if (pieces.size() > 0) {
+        if (!Global::tryStringToInt(pieces[0], undoCount) || undoCount < 0) {
+          responseIsError = true;
+          response = "Expected nonnegative integer for undo count";
+        }
+      }
+
+      if (!responseIsError) {
+        for (int i = 0; i < undoCount; i++) {
+          if(!engine->undo()) {
+            responseIsError = true;
+            response = "cannot undo";
+            break;
+          }
+        }
       }
     }
 
