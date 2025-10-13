@@ -52,10 +52,11 @@ Hash128 LocalPatternHasher::getHash(const Board& board, Loc loc, Player pla) con
   Hash128 hash = zobristPla[pla];
 
   if(loc != Board::PASS_LOC && loc != Board::NULL_LOC) {
-    vector<Color> captures;
     vector<Color> bases;
     if (board.isDots()) {
-      // TODO: implement more faster version of `board.calculateOneMoveCaptureAndBasePositionsForDots(true, captures, bases);`
+      vector<Color> captures;
+      // TODO: implement fast version for Dots
+      // board.calculateOneMoveCaptureAndBasePositionsForDots(captures, bases);
     }
 
     const int dxi = 1;
@@ -91,10 +92,11 @@ Hash128 LocalPatternHasher::getHashWithSym(const Board& board, Loc loc, Player p
   Hash128 hash = zobristPla[symPla];
 
   if(loc != Board::PASS_LOC && loc != Board::NULL_LOC) {
-    vector<Color> captures;
     vector<Color> bases;
     if (board.isDots()) {
-      board.calculateOneMoveCaptureAndBasePositionsForDots(captures, bases);
+      vector<Color> captures;
+      // TODO: implement fast version for Dots
+      // board.calculateOneMoveCaptureAndBasePositionsForDots(captures, bases);
     }
 
     const int dxi = 1;
@@ -158,8 +160,7 @@ void LocalPatternHasher::updateHash(
 
   bool addAtariHash = false;
   if(board.isDots()) {
-    //addAtariHash = bases[loc] != C_EMPTY;
-    addAtariHash = false; // TODO: implement for Dots
+    addAtariHash = !bases.empty() && bases[loc] != C_EMPTY;
   } else {
     addAtariHash = (colorAtLoc == P_BLACK || colorAtLoc == P_WHITE) && board.getNumLiberties(loc) == 1;
   }
