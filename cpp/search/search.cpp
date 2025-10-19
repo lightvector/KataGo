@@ -867,7 +867,8 @@ SearchNode* Search::allocateOrFindNode(SearchThread& thread, Player nextPla, Loc
         //TODO can we make subtree value bias not depend on prev move loc?
         if(thread.history.moveHistory.size() >= 2) {
           Loc prevMoveLoc = thread.history.moveHistory[thread.history.moveHistory.size()-2].loc;
-          if(prevMoveLoc != Board::NULL_LOC) {
+          //Avoid subtree value bias application when bestChildMoveLoc is a pass
+          if(prevMoveLoc != Board::NULL_LOC && bestChildMoveLoc != Board::PASS_LOC) {
             child->subtreeValueBiasTableEntry = subtreeValueBiasTable->get(getOpp(thread.pla), prevMoveLoc, bestChildMoveLoc, thread.history.getRecentBoard(1));
           }
         }
