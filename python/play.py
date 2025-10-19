@@ -74,7 +74,7 @@ def get_input_feature(gs, feature_idx):
     locs_and_values = []
     for y in range(gs.board.y_size):
         for x in range(gs.board.x_size):
-            loc = board.loc(x,y)
+            loc = gs.board.loc(x,y)
             locs_and_values.append((loc,bin_input_data[0,feature_idx,y,x]))
     return locs_and_values
 
