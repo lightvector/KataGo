@@ -366,6 +366,14 @@ void SearchParams::failIfParamsDifferOnUnchangeableParameter(const SearchParams&
   if(dynamic.nodeTableShardsPowerOfTwo != initial.nodeTableShardsPowerOfTwo) {
     throw StringError("Cannot change nodeTableShardsPowerOfTwo after initialization");
   }
+
+  // Analysis engine shares eval cache across multiple analysis threads, so changing/overriding it is awkward.
+  if(dynamic.useEvalCache != initial.useEvalCache) {
+    throw StringError("Cannot change useEvalCache after initialization");
+  }
+  if(dynamic.evalCacheMinVisits != initial.evalCacheMinVisits) {
+    throw StringError("Cannot change evalCacheMinVisits after initialization");
+  }
 }
 
 json SearchParams::changeableParametersToJson() const {
@@ -465,8 +473,8 @@ json SearchParams::changeableParametersToJson() const {
   ret["subtreeValueBiasFreeProp"] = subtreeValueBiasFreeProp;
   ret["subtreeValueBiasWeightExponent"] = subtreeValueBiasWeightExponent;
 
-  ret["useEvalCache"] = useEvalCache;
-  ret["evalCacheMinVisits"] = evalCacheMinVisits;
+  // ret["useEvalCache"] = useEvalCache;
+  // ret["evalCacheMinVisits"] = evalCacheMinVisits;
 
   // ret["nodeTableShardsPowerOfTwo"] = nodeTableShardsPowerOfTwo;
   ret["numVirtualLossesPerThread"] = numVirtualLossesPerThread;

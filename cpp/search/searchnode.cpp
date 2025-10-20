@@ -170,7 +170,7 @@ SearchNode::SearchNode(Player pla, bool fnt, uint32_t mIdx, Hash128 gh)
    lastSubtreeValueBiasWeight(0.0),
    subtreeValueBiasTableEntry(),
    graphHash(gh),
-   evalCacheEntry(NULL),
+   evalCacheEntry(nullptr),
    dirtyCounter(0)
 {
 }

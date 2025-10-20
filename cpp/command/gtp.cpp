@@ -1294,6 +1294,7 @@ struct GTPEngine {
 
   void clearCache() {
     bot->clearSearch();
+    bot->clearEvalCache();
     nnEval->clearCache();
     if(humanEval != NULL)
       humanEval->clearCache();

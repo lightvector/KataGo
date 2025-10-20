@@ -138,7 +138,7 @@ struct Search {
   PatternBonusTable* patternBonusTable;
   std::unique_ptr<PatternBonusTable> externalPatternBonusTable;
 
-  EvalCacheTable* evalCache;
+  std::shared_ptr<EvalCacheTable> evalCache;
 
   Rand nonSearchRand; //only for use not in search, since rand isn't threadsafe
 
@@ -232,6 +232,7 @@ struct Search {
   void setParamsNoClearing(SearchParams params); //Does not clear search
   void setExternalPatternBonusTable(std::unique_ptr<PatternBonusTable>&& table);
   void setCopyOfExternalPatternBonusTable(const std::unique_ptr<PatternBonusTable>& table);
+  void setExternalEvalCache(std::shared_ptr<EvalCacheTable> cache);
   void setNNEval(NNEvaluator* nnEval);
 
   //If the number of threads is reduced, this can free up some excess threads in the thread pool.
@@ -620,7 +621,7 @@ private:
   void recomputeNodeStats(SearchNode& node, SearchThread& thread, int32_t numVisitsToAdd, bool isRoot);
 
   void adjustEvalsFromCacheHelper(
-    EvalCacheEntry* evalCacheEntry,
+    const std::shared_ptr<EvalCacheEntry>& evalCacheEntry,
     int64_t thisNodeVisits,
     double& winLossValueAvg,
     double& noResultValueAvg,

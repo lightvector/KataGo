@@ -32,30 +32,45 @@ EvalCacheTable::EvalCacheTable(int32_t numShards) {
   entries.resize(numShards);
 }
 EvalCacheTable::~EvalCacheTable() {
-  for(const std::map<Hash128,EvalCacheEntry*>& map: entries) {
-    for(const auto& pair: map) {
-      delete pair.second;
-    }
-  }
   delete mutexPool;
 }
 
-EvalCacheEntry* EvalCacheTable::find(Hash128 graphHash) {
+std::shared_ptr<EvalCacheEntry> EvalCacheTable::find(Hash128 graphHash) {
   uint32_t subMapIdx = (uint32_t)(graphHash.hash0 % entries.size());
+  std::mutex& mutex = mutexPool->getMutex(subMapIdx);
+  std::lock_guard<std::mutex> lock(mutex);
+
   auto iter = entries[subMapIdx].find(graphHash);
   if(iter == entries[subMapIdx].end())
-    return NULL;
+    return nullptr;
   return iter->second;
 }
 
 void EvalCacheTable::update(Hash128 graphHash, const SearchNode* node, int64_t evalCacheMinVisits, bool isRootNode) {
   uint32_t subMapIdx = (uint32_t)(graphHash.hash0 % entries.size());
   std::mutex& mutex = mutexPool->getMutex(subMapIdx);
-  std::lock_guard<std::mutex> lock(mutex);
 
-  EvalCacheEntry*& entry = entries[subMapIdx][graphHash];
-  if(entry == NULL)
-    entry = new EvalCacheEntry();
+  std::shared_ptr<EvalCacheEntry> oldEntry;
+
+  {
+    std::lock_guard<std::mutex> lock(mutex);
+    oldEntry = entries[subMapIdx][graphHash];
+  }
+
+  float newCacheWeight = (float)(node->stats.visits.load(std::memory_order_acquire));
+  if(oldEntry != nullptr && newCacheWeight < oldEntry->cacheWeight * 0.75f)
+    return;
+
+  // Create a new entry, copying from old if it exists
+  std::shared_ptr<EvalCacheEntry> newEntry = std::make_shared<EvalCacheEntry>();
+  if(oldEntry != nullptr) {
+    newEntry->cacheWeight = oldEntry->cacheWeight;
+    newEntry->avgWinLoss = oldEntry->avgWinLoss;
+    newEntry->avgNoResult = oldEntry->avgNoResult;
+    newEntry->avgScoreMean = oldEntry->avgScoreMean;
+    newEntry->avgLead = oldEntry->avgLead;
+    newEntry->firstExploreEvals = oldEntry->firstExploreEvals;
+  }
 
   ConstSearchNodeChildrenReference children = node->getChildren();
   int childrenCapacity = children.getCapacity();
@@ -70,23 +85,19 @@ void EvalCacheTable::update(Hash128 graphHash, const SearchNode* node, int64_t e
     Loc moveLoc = children[i].getMoveLocRelaxed();
     if(childNumVisits >= evalCacheMinVisits) {
       float childCacheWeight = (float)childNumVisits;
-      FirstExploreEval& eval = entry->firstExploreEvals[moveLoc];
+      FirstExploreEval& eval = newEntry->firstExploreEvals[moveLoc];
       if(childCacheWeight >= eval.cacheWeight) {
         eval = FirstExploreEval(childWinLossAvg,childScoreMeanAvg,childCacheWeight);
       }
     }
   }
 
-  float newCacheWeight = (float)(node->stats.visits.load(std::memory_order_acquire));
-  if(newCacheWeight < entry->cacheWeight * 0.75f)
-    return;
-
-  //Should we record this node's aggregate evals in the cache?
-  //Or should we only leave it at recording initial first-play evals for exploring children?
+  // Should we record this node's aggregate evals in the cache?
+  // Or should we only leave it at recording initial first-play evals for exploring children?
   bool shouldRecordEvals = true;
   if(isRootNode) {
-    //On the root node, due to it handling passing differently than other nodes, we do NOT record it if passing
-    //is near the highest utility move or is a decent fraction of the visits.
+    // On the root node, due to it handling passing differently than other nodes, we do NOT record it if passing
+    // is near the highest utility move or is a decent fraction of the visits.
     int64_t totalEdgeVisits = 0;
     int64_t passEdgeVisits = 0;
     double maxSelfUtility = -1e50;
@@ -112,10 +123,22 @@ void EvalCacheTable::update(Hash128 graphHash, const SearchNode* node, int64_t e
   }
 
   if(shouldRecordEvals) {
-    entry->cacheWeight = newCacheWeight;
-    entry->avgWinLoss = (float)(node->stats.winLossValueAvg.load(std::memory_order_acquire));
-    entry->avgNoResult = (float)(node->stats.noResultValueAvg.load(std::memory_order_acquire));
-    entry->avgScoreMean = (float)(node->stats.scoreMeanAvg.load(std::memory_order_acquire));
-    entry->avgLead = (float)(node->stats.leadAvg.load(std::memory_order_acquire));
+    newEntry->cacheWeight = newCacheWeight;
+    newEntry->avgWinLoss = (float)(node->stats.winLossValueAvg.load(std::memory_order_acquire));
+    newEntry->avgNoResult = (float)(node->stats.noResultValueAvg.load(std::memory_order_acquire));
+    newEntry->avgScoreMean = (float)(node->stats.scoreMeanAvg.load(std::memory_order_acquire));
+    newEntry->avgLead = (float)(node->stats.leadAvg.load(std::memory_order_acquire));
+  }
+
+  // Replace the old entry with the new one
+  std::lock_guard<std::mutex> lock(mutex);
+  entries[subMapIdx][graphHash] = newEntry;
+}
+
+void EvalCacheTable::clear() {
+  for(size_t i = 0; i < entries.size(); i++) {
+    std::mutex& mutex = mutexPool->getMutex(i);
+    std::lock_guard<std::mutex> lock(mutex);
+    entries[i].clear();
   }
 }

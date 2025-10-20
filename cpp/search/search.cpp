@@ -92,7 +92,7 @@ Search::Search(SearchParams params, NNEvaluator* nnEval, NNEvaluator* humanEval,
    valueWeightDistribution(NULL),
    patternBonusTable(NULL),
    externalPatternBonusTable(nullptr),
-   evalCache(NULL),
+   evalCache(nullptr),
    nonSearchRand(rSeed + string("$nonSearchRand")),
    logger(lg),
    nnEvaluator(nnEval),
@@ -154,7 +154,6 @@ Search::~Search() {
   delete mutexPool;
   delete subtreeValueBiasTable;
   delete patternBonusTable;
-  delete evalCache;
   killThreads();
 }
 
@@ -273,6 +272,13 @@ void Search::setExternalPatternBonusTable(std::unique_ptr<PatternBonusTable>&& t
 
 void Search::setCopyOfExternalPatternBonusTable(const std::unique_ptr<PatternBonusTable>& table) {
   setExternalPatternBonusTable(table == nullptr ? nullptr : std::make_unique<PatternBonusTable>(*table));
+}
+
+void Search::setExternalEvalCache(std::shared_ptr<EvalCacheTable> cache) {
+  if(cache == evalCache)
+    return;
+  clearSearch();
+  evalCache = cache;
 }
 
 void Search::setNNEval(NNEvaluator* nnEval) {
@@ -601,7 +607,7 @@ void Search::runWholeSearch(
     }
   }
 
-  if(searchParams.useEvalCache && searchParams.useGraphSearch && evalCache != NULL && rootNode != NULL && mirroringPla == C_EMPTY) {
+  if(searchParams.useEvalCache && searchParams.useGraphSearch && evalCache != nullptr && rootNode != NULL && mirroringPla == C_EMPTY) {
     recursivelyRecordEvalCache(*rootNode);
   }
 
@@ -662,8 +668,8 @@ void Search::beginSearch(bool pondering) {
     subtreeValueBiasTable = new SubtreeValueBiasTable(searchParams.subtreeValueBiasTableNumShards);
 
   //Prepare eval cache if we need it
-  if(searchParams.useEvalCache && searchParams.useGraphSearch && evalCache == NULL && mirroringPla == C_EMPTY) {
-    evalCache = new EvalCacheTable(searchParams.subtreeValueBiasTableNumShards);
+  if(searchParams.useEvalCache && searchParams.useGraphSearch && evalCache == nullptr && mirroringPla == C_EMPTY) {
+    evalCache = std::make_shared<EvalCacheTable>(searchParams.subtreeValueBiasTableNumShards);
   }
 
   //Refresh pattern bonuses if needed
@@ -712,7 +718,7 @@ void Search::beginSearch(bool pondering) {
     //Also force that it is non-terminal.
     const bool forceNonTerminal = rootHistory.isGameFinished; // Make sure the root isn't considered terminal if game would be finished.
     rootNode = new SearchNode(rootPla, forceNonTerminal, createMutexIdxForNode(dummyThread), rootGraphHash);
-    if(searchParams.useEvalCache && searchParams.useGraphSearch && evalCache != NULL && mirroringPla == C_EMPTY)
+    if(searchParams.useEvalCache && searchParams.useGraphSearch && evalCache != nullptr && mirroringPla == C_EMPTY)
       rootNode->evalCacheEntry = evalCache->find(rootNode->graphHash);
   }
   else {
@@ -874,7 +880,7 @@ SearchNode* Search::allocateOrFindNode(SearchThread& thread, Player nextPla, Loc
         }
       }
 
-      if(searchParams.useEvalCache && searchParams.useGraphSearch && evalCache != NULL && mirroringPla == C_EMPTY)
+      if(searchParams.useEvalCache && searchParams.useGraphSearch && evalCache != nullptr && mirroringPla == C_EMPTY)
         child->evalCacheEntry = evalCache->find(child->graphHash);
 
       if(patternBonusTable != NULL)

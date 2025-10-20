@@ -500,7 +500,7 @@ void Search::selectBestChildToDescend(
   //Try all the things in the eval cache that are moves we haven't visited yet.
   //Use the normal new explore selection value for them but with their eval cache utility instead of FPU.
   //Might explore things out of descending policy order!
-  if(searchParams.useEvalCache && searchParams.useGraphSearch && node.evalCacheEntry != NULL && mirroringPla == C_EMPTY && !node.forceNonTerminal) {
+  if(searchParams.useEvalCache && searchParams.useGraphSearch && node.evalCacheEntry != nullptr && mirroringPla == C_EMPTY && !node.forceNonTerminal) {
     for(const auto& pair: node.evalCacheEntry->firstExploreEvals) {
       Loc moveLoc = pair.first;
       int movePos = getPos(moveLoc);

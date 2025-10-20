@@ -331,6 +331,12 @@ int MainCmds::analysis(const vector<string>& args) {
     return success;
   };
 
+  // Common eval cache for all analysis threads
+  std::shared_ptr<EvalCacheTable> evalCache = nullptr;
+  if(defaultParams.useEvalCache) {
+    evalCache = std::make_shared<EvalCacheTable>(defaultParams.subtreeValueBiasTableNumShards);
+  }
+
   auto analysisLoop = [
     &logger,&toAnalyzeQueue,&reportAnalysis,&reportNoAnalysis,&logSearchInfo,&nnEval,&openRequestsMutex,&openRequests
   ](AsyncBot* bot, int threadIdx) {
@@ -426,6 +432,7 @@ int MainCmds::analysis(const vector<string>& args) {
     string searchRandSeed = Global::uint64ToHexString(seedRand.nextUInt64()) + Global::uint64ToHexString(seedRand.nextUInt64());
     AsyncBot* bot = new AsyncBot(defaultParams, nnEval, humanEval, &logger, searchRandSeed);
     bot->setCopyOfExternalPatternBonusTable(patternBonusTable);
+    bot->setExternalEvalCache(evalCache);
     threads.push_back(std::thread(analysisLoopProtected,bot,threadIdx));
     bots.push_back(bot);
   }
@@ -529,6 +536,7 @@ int MainCmds::analysis(const vector<string>& args) {
           nnEval->clearCache();
           if(humanEval != NULL)
             humanEval->clearCache();
+          evalCache->clear();
           pushToWrite(new string(input.dump()));
         }
         else if(action == "terminate") {

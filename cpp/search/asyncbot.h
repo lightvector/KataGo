@@ -52,7 +52,9 @@ class AsyncBot {
   void setParamsNoClearing(SearchParams params);
   void setExternalPatternBonusTable(std::unique_ptr<PatternBonusTable>&& table);
   void setCopyOfExternalPatternBonusTable(const std::unique_ptr<PatternBonusTable>& table);
+  void setExternalEvalCache(std::shared_ptr<EvalCacheTable> cache);
   void clearSearch();
+  void clearEvalCache();
 
   //Updates position and preserves the relevant subtree of search
   //Will stop any ongoing search, waiting for a full stop.

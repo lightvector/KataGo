@@ -28,14 +28,17 @@ struct EvalCacheEntry {
 };
 
 struct EvalCacheTable {
-  std::vector<std::map<Hash128,EvalCacheEntry*>> entries;
+  std::vector<std::map<Hash128,std::shared_ptr<EvalCacheEntry>>> entries;
   MutexPool* mutexPool;
 
   EvalCacheTable(int32_t numShards);
   ~EvalCacheTable();
 
-  EvalCacheEntry* find(Hash128 graphHash);
+  // These are all thread-safe, and EvalCacheEntry is only ever updated via replacement, not mutation
+  // similar to nnevals.
+  std::shared_ptr<EvalCacheEntry> find(Hash128 graphHash);
   void update(Hash128 graphHash, const SearchNode* node, int64_t evalCacheMinVisits, bool isRootNode);
+  void clear();
 };
 
 
