@@ -79,7 +79,7 @@ jobs:
         ./katago runownershiptests gtp.cfg model.bin.gz
   
   cmake-macos:
-    runs-on: macos-13
+    runs-on: macos-15-intel
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
@@ -95,7 +95,7 @@ jobs:
     - name: Setup Xcode
       run: |
         xcode-select -p
-        sudo xcode-select -s /Applications/Xcode_15.0.1.app/Contents/Developer
+        sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
 
     - name: Build KataGo with Eigen backend
       run: |
