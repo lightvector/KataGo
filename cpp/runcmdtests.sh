@@ -63,6 +63,15 @@ cat tests/analysis/pvvisits.txt | ./katago analysis -config configs/analysis_exa
 
 cat tests/analysis/humansl.txt.noauto | ./katago analysis -config configs/analysis_example.cfg -model tests/models/g170-b6c96-s175395328-d26788732.bin.gz -human-model models/b18c384nbt-humanv0.bin.gz -override-config "logFile=tests/results/analysis/humansl_sidetomove.txt.log, logDir=, logTimeStamp=false, logAllRequests=true, logAllResponses=true, logSearchInfo=true, maxVisits=100, maxPlayouts=10000, numAnalysisThreads=1, numSearchThreadsPerAnalysisThread=1, nnRandomize=false, rootSymmetryPruning=false, nnRandSeed=analysisTest, forDeterministicTesting=true, cudaUseFP16 = false, trtUseFP16 = false, openclUseFP16 = false, cudaUseNHWC = false, reportAnalysisWinratesAs=SIDETOMOVE, humanSLProfile = preaz_18k" 1> tests/results/analysis/humansl_sidetomove.stdout 2> tests/results/analysis/humansl_sidetomove.stderr
 
+(
+    rm -rf tmp/evalcachecmdtest/
+    mkdir -p tmp/evalcachecmdtest/
+    mkfifo tmp/evalcachecmdtest/input
+    mkfifo tmp/evalcachecmdtest/feedback
+    ./katago analysis -config configs/analysis_example.cfg -model tests/models/g170e-b10c128-s1141046784-d204142634.bin.gz -override-config "logFile=tests/results/analysis/eval_cache.txt.log, logDir=, logTimeStamp=false, logAllRequests=true, logAllResponses=true, logSearchInfo=true, numAnalysisThreads=1, numSearchThreadsPerAnalysisThread=1, nnRandomize=false, rootSymmetryPruning=false, nnRandSeed=analysisTest, forDeterministicTesting=true, cudaUseFP16 = false, trtUseFP16 = false, openclUseFP16 = false, cudaUseNHWC = false, useGraphSearch=true, useEvalCache=true, evalCacheMinVisits=10" < tmp/evalcachecmdtest/input > tmp/evalcachecmdtest/feedback &
+    { head -1 tests/analysis/evalcache.txt; tail -n +2 tests/analysis/evalcache.txt | while read -r L; do read -r _ < tmp/evalcachecmdtest/feedback; echo "$L"; done; } > tmp/evalcachecmdtest/input
+    rm -r tmp/evalcachecmdtest/
+) > /dev/null 2> /dev/null
 
 echo "checkbook"
 ./katago checkbook -book-file tests/data/test.katabook > tests/results/checkbook.txt

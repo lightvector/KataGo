@@ -152,10 +152,12 @@ for poses_file_or_dir in poses_files_or_dirs:
             dirnames.sort()
             filenames = sorted(filenames)
             for filename in filenames:
-                if filename.endswith(".startposes.txt") or filename.endswith(".hintposes.txt") or filename.endswith(".bookposes.txt") or filename.endswith(".poses.txt"):
+                if filename.endswith("poses.txt"):
                     handle_file(poses_by_key, os.path.join(path,filename))
     else:
         handle_file(poses_by_key, poses_file_or_dir)
+
+csvlines = []
 
 if separate_summaries:
     for key, poses_by_key_this_key in poses_by_key_by_separate_files.items():
@@ -167,7 +169,7 @@ if separate_summaries:
             log("Found %f ess" % (sumweight * sumweight / sumweightsq))
             if extra_stats:
                 print_extra_stats(poses_by_key_this_key.values())
-            log("%d %f %f" % (len(poses_by_key_this_key.values()), sumweight, (sumweight * sumweight / sumweightsq)))
+            csvlines.append("%s %d %f %f" % (os.path.basename(key), len(poses_by_key_this_key.values()), sumweight, (sumweight * sumweight / sumweightsq)))
 
 poses = poses_by_key.values()
 sumweight,sumweightsq = compute_sum_sumsq(poses)
@@ -176,7 +178,11 @@ log("Found %f total weight" % sumweight)
 log("Found %f ess" % (sumweight * sumweight / sumweightsq))
 if extra_stats:
     print_extra_stats(poses)
-log("%d %f %f" % (len(poses), sumweight, (sumweight * sumweight / sumweightsq)))
+csvlines.append("%s %d %f %f" % ("ALL", len(poses), sumweight, (sumweight * sumweight / sumweightsq)))
+
+for line in csvlines:
+    log(line)
+
 
 if set_total_weight is not None:
     log("Setting total weight of data to " + str(set_total_weight))

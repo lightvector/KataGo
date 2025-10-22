@@ -14,7 +14,7 @@ In game-tree search or other applications of tree search, often we can find mult
 <tr><td><sub>Example of transposition: `1. d4 d5 2. Nf3` leads to the same position as `1. Nf3 d5 2. d4`.</sub></td></tr>
 </table>
 
-When transpositions are possible in a game, usually the number of them will grow exponentially with the search depth, making deep search much more costly than needed. Ideally, we would like to these branches of the search to share their computation.
+When transpositions are possible in a game, usually the number of them will grow exponentially with the search depth, making deep search much more costly than needed. Ideally, we would like these branches of the search to share their computation.
 
 However, standard implementations of Monte-Carlo Tree Search (MCTS) usually do not do this. They treat the game as a branching tree and inefficiently re-search every instance of each duplicated position within the tree. Various low-level optimizations (for example, caching and re-using neural net evaluations for repeated positions) can greatly reduce the cost of the repeated work, but there are still major downsides. For example if MCTS discovers a critical tactic in one of the instances, the corrected evaluation of the position will not propagate to other instances.
 
@@ -32,7 +32,7 @@ Note that for this document we will mostly be disregarding what to do when actua
 
 Let's start by reviewing MCTS on trees.
 
-MCTS is often formulated an algorithm that tracks the running statistics of playouts that traverse a tree of nodes. The portion of the game explored so far is explicitly stored as a tree of nodes in memory. Each node represents a single state of the game, and additionally tracks:
+MCTS is often formulated as an algorithm that tracks the running statistics of playouts that traverse a tree of nodes. The portion of the game explored so far is explicitly stored as a tree of nodes in memory. Each node represents a single state of the game, and additionally tracks:
 * N - the number of visits so far to this node, i.e. playouts that ended on or passed through this node.
 * Q - the running average of the utility values sampled by those playouts.<sup name="footnotesrc1">[1](#footnote1)</sup>
 
@@ -91,7 +91,7 @@ where:
 * $P(a)$ is the prior probability that the action is best, e.g. the raw policy prediction for $a$ from querying a neural net.
 * $c_{\text{PUCT}}$ is a tunable constant.
 
-As an aside, "PUCT" originated as an abbreviation for "Predictor Upper Confidence Bounds" for trees, a variant of the "UCT" or "UCB1" algorithms from the multi-armed-bandit literature that used a predictor, i.e. a prior, along with a exploration term that involves a log scaling (see [Kocsis and Szepesvári, 2006](http://old.sztaki.hu/~szcsaba/papers/ecml06.pdf) and [Rosin, 2011](https://link.springer.com/article/10.1007/s10472-011-9258-6)). AlphaZero's variant has a noticeably different functional form than the original and nowadays "PUCT" is somewhat ambiguous regarding the particular functional form and in game-playing/machine-learning circles often refers to AlphaZero's particular variant of the formula, which is also what we focus on here.
+As an aside, "PUCT" originated as an abbreviation for "Predictor Upper Confidence Bounds" for trees, a variant of the "UCT" or "UCB1" algorithms from the multi-armed-bandit literature that used a predictor, i.e. a prior, along with an exploration term that involves a log scaling (see [Kocsis and Szepesvári, 2006](http://old.sztaki.hu/~szcsaba/papers/ecml06.pdf) and [Rosin, 2011](https://link.springer.com/article/10.1007/s10472-011-9258-6)). AlphaZero's variant has a noticeably different functional form than the original and nowadays "PUCT" is somewhat ambiguous regarding the particular functional form and in game-playing/machine-learning circles often refers to AlphaZero's particular variant of the formula, which is also what we focus on here.
 
 Also, as far as the name "Monte-Carlo Tree Search" itself, readers might note that there is nothing "Monte-Carlo" in the above algorithm - that it's completely deterministic! The name comes from the fact that originally, randomized rollouts to the end of the game were used for utility estimates, instead of querying a neural net. In hindsight, the name was a poor historical choice - it would be more accurate to call the algorithm something like "Bandit-based Tree Search", but for years now pretty much universally everyone has continued to use "MCTS" to refer to the modern deterministic versions.
 
@@ -128,7 +128,7 @@ Consider the following initial situation. Square nodes are where the player to m
 <tr><td><sub>Initial situation</sub></td></tr>
 </table>
 
-We have 3 nodes, with Q values around 0.38 or 0.39. Currently, at node A the player prefers the action that goes to node C, and node A's Q value is dominated the roughly 30 playouts it has received, almost all of which went to exploring node C. Node C also was visited by about 40 other playouts from a transposing path.
+We have 3 nodes, with Q values around 0.38 or 0.39. Currently, at node A the player prefers the action that goes to node C, and node A's Q value is dominated by the roughly 30 playouts it has received, almost all of which went to exploring node C. Node C also was visited by about 40 other playouts from a transposing path.
 
 Now, suppose node C receives a lot more playouts from transposing paths, in the process, deeper below node C a new tactic is discovered that causes node C's utility to rise a lot, to 0.51:
 <table class="image">
@@ -136,7 +136,7 @@ Now, suppose node C receives a lot more playouts from transposing paths, in the 
 <tr><td><sub>Suppose C gets more playouts and its utility rises 0.39 -> 0.51</sub></td></tr>
 </table>
 
-Now we have a strange situation. Initially, node A's Q value was 0.39 almost entirely because the player could play the action that led to move node C with a Q value of 0.39. Now, we've revised our estimate of node C and believe its utility is around 0.51. It's still the case that node C is the most-visited and most-preferred move at node A, therefore node A's utility estimate should also be around 0.51. But because the playouts updating node C did NOT go through node A, we did not revise our utility estimate for node A!
+Now we have a strange situation. Initially, node A's Q value was 0.39 almost entirely because the player could play the action that led to move node C with a Q value of 0.39. Now, we've revised our estimate of node C and believe its utility is around 0.51. It's still the case that node C is the most-visited and most-preferred move at node A. Therefore, node A's utility estimate should also be around 0.51. But because the playouts updating node C did NOT go through node A, we did not revise our utility estimate for node A!
 
 Moreover, suppose node A receives some playouts next. It's quite possible that following PUCT or similar move exploration formulas, node A would spend them exploring nodes *other* than node C:
 <table class="image">
@@ -398,7 +398,7 @@ Here though, we have a reversed KL divergence, $D_{\text{KL}}(P || \pi)$ where $
 
 Both KL divergences behave very similarly in the common case. But in the edge cases where they differ, the reversed KL divergence is arguably the better one for exploration (by making sure it considers ALL moves in the Prior) and for recovering from partial overfitting/overconfidence of the neural net (by tolerating when it considers moves that Prior thinks are entirely impossible), and this turns out to be the one MCTS implicitly uses.
 
-<a name="footnote3" href="#footnotesrc3">3</a>: A big challenge in practice with using the exact solution seems to be that using the direct solution to $\text{argmax}_{\pi} \sum_a \pi(a) Q(a) - \lambda_N KL(P || \pi)$ can sometimes put a large policy weight on a move with relatively few visits if its Q appears good enough. However, moves with high Q values but low visits are often erroneous, such as when a shallow search blunders by overlooking a key tactic. This problem maybe manifests more often at larger amounts of search the very shallow 50-visit searches tested in the paper.
+<a name="footnote3" href="#footnotesrc3">3</a>: A big challenge in practice with using the exact solution seems to be that using the direct solution to $\text{argmax}_{\pi} \sum_a \pi(a) Q(a) - \lambda_N KL(P || \pi)$ can sometimes put a large policy weight on a move with relatively few visits if its Q appears good enough. However, moves with high Q values but low visits are often erroneous, such as when a shallow search blunders by overlooking a key tactic. This problem maybe manifests more often at larger amounts of search than the very shallow 50-visit searches tested in the paper.
 
 From a theory perspective, we could say perhaps this is because the optimization problem doesn't account for differing _uncertainty_ based on the number of visits. There can also be problems due to correlations or adverse selection in the uncertainty in utilities, e.g. the same tactic occurs in many possible branches and throughout the search all the seemingly-highest-Q branches are *precisely* the branches overlooking that tactic and blundering. Using the visit distribution as the posterior policy is far more robust to this, because the only way to increase the weight of a move in the visit distribution is to actually search the move extensively. This means that a move cannot get a high weight until a deeper analysis of that move confirms the high Q value and cannot find any flaws in it.
 
