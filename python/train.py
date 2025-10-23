@@ -1045,6 +1045,23 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
             logging.info("This subepoch, using files: " + str(train_files_to_use))
             logging.info("Currently up to data row " + str(train_state["total_num_data_rows"]))
             lookahead_counter = 0
+
+            # Dictionaries in Python are created using curly braces {}
+            # They store data as key-value pairs. Keys must be unique and immutable.
+            # Example: Creating a dictionary to hold noise parameters
+            # noise_params = {"flag": 0, "shift": False, "acc1_threshold_low": 0.45, "acc1_threshold_up": 0.47, "rand": 0.0, "prob": 0.25}
+            # 记录更新量
+            param_updates = {}
+            # 存储统计数据 - 存全部绝对更新率以计算中位数
+            stats = {
+                'abs_update_ratio': defaultdict(lambda: {
+                    'sum': 0.0, 'sum_sq': 0.0, 'sum_cube': 0.0, 'sum_four': 0.0, 'count': 0
+                }),
+                'update_ratio': defaultdict(lambda: {
+                    'sum': 0.0, 'sum_sq': 0.0, 'count': 0
+                }),
+            }
+            
             for batch in data_processing_pytorch.read_npz_training_data(
                 train_files_to_use,
                 batch_size,
@@ -1106,6 +1123,68 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
                 else:
                     loss.backward()
 
+                # stats['weight'] = {}
+                with torch.no_grad():
+                    for param_group in optimizer.param_groups:
+                        lr = param_group['lr']
+                        for param in param_group['params']:
+                            if param.grad is not None:
+                                param_updates[param] = -lr * param.grad
+                    
+                    for name, param in raw_model.named_parameters():
+                        if param in param_updates:
+                            update = param_updates[param]
+                            abs_update_ratio = update.abs().mean().item() / param.data.abs().mean().item()
+                            update_ratio = update.mean().item() / param.data.mean().item()
+
+                            group_name = None
+                            if 'conv_spatial' in name:
+                                group_name = 'conv_spatial'
+                            elif 'linear_global' in name:
+                                group_name = 'linear_global'
+                            elif 'norm.' in name or 'norm_trunkfinal' in name or 'norm_intermediate_trunkfinal' in name:
+                                if 'beta' in name:
+                                    group_name = 'norm_beta'
+                                elif 'gamma' in name:
+                                    group_name = 'norm_gamma'
+                                elif 'norm_trunkfinal' in name:
+                                    group_name = 'norm_trunkfinal'
+                                else:
+                                    group_name = 'norm_intermediate_trunkfinal'
+                            elif 'blocks' in name and 'weight' in name:
+                                group_name = 'blocks'
+                            elif 'policy_head' in name:
+                                if 'intermediate' in name:
+                                    group_name = 'intermediate_policy'
+                                else:
+                                    group_name = 'policy_head'
+                            elif 'value_head' in name:
+                                if 'intermediate' in name:
+                                    group_name = 'intermediate_value'
+                                else:
+                                    group_name = 'value_head'
+
+                            if group_name:
+                                # 更新 abs_update_ratio 统计数据
+                                abs_stat = stats['abs_update_ratio'][group_name]
+                                abs_stat['count'] += 1
+                                abs_stat['sum'] += abs_update_ratio
+
+                                delta_abs = abs_update_ratio - (abs_stat['sum'] / abs_stat['count'] if abs_stat['count'] > 1 else abs_update_ratio)
+                                
+                                abs_stat['sum_sq'] += delta_abs ** 2
+                                abs_stat['sum_cube'] += delta_abs ** 3
+                                abs_stat['sum_four'] += delta_abs ** 4
+
+                                # 更新 update_ratio 统计数据（仅均值和方差）
+                                update_stat = stats['update_ratio'][group_name]
+                                update_stat['count'] += 1
+                                update_stat['sum'] += update_ratio
+
+                                delta_update = update_ratio - (update_stat['sum'] / update_stat['count'] if update_stat['count'] > 1 else update_ratio)
+                                
+                                update_stat['sum_sq'] += delta_update ** 2
+
                 if model_config["norm_kind"] == "fixup" or model_config["norm_kind"] == "fixscale" or model_config["norm_kind"] == "fixscaleonenorm":
                     gnorm_cap = 2500.0 * (1.0 if gnorm_clip_scale is None else gnorm_clip_scale)
                 elif model_config["norm_kind"] == "bnorm" or model_config["norm_kind"] == "brenorm" or model_config["norm_kind"] == "fixbrenorm":
@@ -1160,7 +1239,10 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
                         accumulate_metrics(running_metrics["sums"], running_metrics["weights"], metrics, batch_size, decay=1.0, new_weight=0.0)
                 else:
                     accumulate_metrics(running_metrics["sums"], running_metrics["weights"], metrics, batch_size, decay=0.999, new_weight=1.0)
-
+                
+                # Calculate & log pacc1
+                pacc1 = running_metrics["sums"].get("pacc1_sum", 1.0) / running_metrics["weights"].get("pacc1_sum", 1.0)
+                logging.info(f"pacc1: {pacc1:.6f}")
 
                 if batch_count_this_epoch % print_train_loss_every_batches == 0:
 
@@ -1181,6 +1263,29 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
                     last_train_stats_time = t1
                     metrics["time_since_last_print"] = timediff
                     log_metrics(running_metrics["sums"], running_metrics["weights"], metrics, train_metrics_out)
+
+                    # 记录统计信息
+                    for stat_name, stat_dict in stats.items():
+                        logging.info(f"{stat_name}:")
+                        for key, values in stat_dict.items():
+                            count = values['count']
+                            if count > 0:
+                                mean = values['sum'] / count
+                                var = values['sum_sq'] / count if count > 1 else 0.0
+
+                                if stat_name == 'abs_update_ratio':
+                                    # 为 abs_update_ratio 计算偏度、峰度
+                                    skewness = 0.0
+                                    kurtosis = 0.0
+                                    if count > 1 and var > 0:
+                                        std = np.sqrt(var)
+                                        skewness = (values['sum_cube'] / count) / (std ** 3)
+                                        kurtosis = (values['sum_four'] / count) / (var ** 2) # Raw kurtosis
+
+                                    logging.info(f"{key} {stat_name}: \nmean={mean}, \nvar={var}, \nskewness={skewness}, \nkurtosis={kurtosis}, \ndata length: {count}")
+                                else:
+                                    # update_ratio
+                                    logging.info(f"{key} {stat_name}: \nmean={mean}, \nvar={var}, \ndata length: {count}")
 
                 # Update LR more frequently at the start for smoother warmup ramp and wd adjustment
                 if train_state["global_step_samples"] <= 50000000 and batch_count_this_epoch % 50 == 0:
@@ -1213,6 +1318,35 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
                         train_state["swa_sample_accum"] = 0
                         logging.info("Accumulating SWA")
                         swa_model.update_parameters(raw_model)
+                        # raw_model.load_state_dict(swa_model.module.state_dict()) & Replacing raw
+
+            # 记录统计信息
+            for stat_name, stat_dict in stats.items():
+                logging.info(f"{stat_name}:")
+                for key, values in stat_dict.items():
+                    count = values['count']
+                    if count > 0:
+                        mean = values['sum'] / count
+                        var = values['sum_sq'] / count if count > 1 else 0.0
+
+                        if stat_name == 'abs_update_ratio':
+                            # 为 abs_update_ratio 计算偏度、峰度
+                            skewness = 0.0
+                            kurtosis = 0.0
+                            if count > 1 and var > 0:
+                                std = np.sqrt(var)
+                                skewness = (values['sum_cube'] / count) / (std ** 3)
+                                kurtosis = (values['sum_four'] / count) / (var ** 2) # Raw kurtosis
+
+                            logging.info(f"{key} {stat_name}: \nmean={mean}, \nvar={var}, \nskewness={skewness}, \nkurtosis={kurtosis}, \ndata length: {count}")
+                        else:
+                            # update_ratio
+                            logging.info(f"{key} {stat_name}: \nmean={mean}, \nvar={var}, \ndata length: {count}")
+            
+            # # Update SWA & raw model when sub-epoch ends
+            # logging.info("Accumulating SWA & Replacing raw")
+            # swa_model.update_parameters(raw_model)
+            # raw_model.load_state_dict(swa_model.module.state_dict())
 
             logging.info("Finished training subepoch!")
 
