@@ -265,6 +265,11 @@ int MainCmds::benchmark(const vector<string>& args) {
   cout << "If you have a strong GPU capable of FP16 tensor cores (e.g. RTX2080), "
        << "using the Cuda version of KataGo instead may give a mild performance boost." << endl;
 #endif
+#ifdef USE_ROCM_BACKEND
+  cout << "You are currently using the ROCm version of KataGo." << endl;
+  cout << "If you have a strong GPU capable of FP16 tensor cores (e.g. RX6900XT), "
+       << "using the ROCm version of KataGo instead may give a mild performance boost." << endl;
+#endif
 #ifdef USE_EIGEN_BACKEND
   cout << "You are currently using the Eigen (CPU) version of KataGo. Due to having no GPU, it may be slow." << endl;
 #endif
