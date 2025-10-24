@@ -111,14 +111,12 @@ elseif(USE_BACKEND STREQUAL "METAL")
   set(NEURALNET_BACKEND_SOURCES
     neuralnet/metalbackend.cpp
     )
-  _swift_generate_cxx_header_target(
-    KataGoSwift_Swift_h
+  add_library(KataGoSwift STATIC
+    neuralnet/metalbackend.swift)
+  _swift_generate_cxx_header(
     KataGoSwift
     "${CMAKE_CURRENT_BINARY_DIR}/include/KataGoSwift/KataGoSwift-swift.h"
     SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/neuralnet/metalbackend.swift")
-  add_library(KataGoSwift STATIC
-    neuralnet/metalbackend.swift)
-  add_dependencies(KataGoSwift KataGoSwift_Swift_h)
   target_include_directories(KataGoSwift PUBLIC "${CMAKE_CURRENT_BINARY_DIR}/include")
   set_target_properties(KataGoSwift PROPERTIES Swift_MODULE_NAME "KataGoSwift")
   target_compile_options(KataGoSwift PUBLIC
