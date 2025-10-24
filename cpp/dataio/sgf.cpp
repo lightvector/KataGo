@@ -1336,35 +1336,62 @@ static SgfNode* maybeParseNode(const string& str, int& pos) {
 }
 
 static Sgf* maybeParseSgf(const string& str, int& pos) {
-  if(pos >= str.length())
+  if (pos >= (int)str.length())
     return NULL;
-  int newPos;
-  char c = peekSgfChar(str,pos,newPos);
-  if(c != '(')
-    return NULL;
-  consume(str,pos,newPos);
 
-  int entryPos = pos;
+  int newPos;
+  char c = peekSgfChar(str, pos, newPos);
+  if (c != '(')
+    return NULL;
+  consume(str, pos, newPos);
+
+  // Root Sgf
   Sgf* sgf = new Sgf();
+  std::vector<Sgf*> stack;
+  stack.push_back(sgf);
+
   try {
-    while(true) {
-      SgfNode* node = maybeParseNode(str,pos);
-      if(node == NULL)
+    while (!stack.empty()) {
+      Sgf* current = stack.back();
+      int entryPos = pos;
+
+      // Parse nodes
+      while (true) {
+        SgfNode* node = maybeParseNode(str, pos);
+        if (node == NULL)
+          break;
+        current->nodes.push_back(node);
+      }
+
+      // Look ahead
+      c = peekSgfChar(str, pos, newPos);
+
+      // Case 1: Start of a new child subtree
+      if (c == '(') {
+        consume(str, pos, newPos);
+        Sgf* child = new Sgf();
+        current->children.push_back(child);
+        stack.push_back(child);
+      }
+      // Case 2: End of this subtree
+      else if (c == ')') {
+        consume(str, pos, newPos);
+        stack.pop_back(); // backtrack
+      }
+      // Case 3: Whitespace or unexpected char, skip or error
+      else if (isspace(c)) {
+        consume(str, pos, newPos);
+      }
+      else if (c == '\0' || pos >= (int)str.length()) {
         break;
-      sgf->nodes.push_back(node);
+      }
+      else {
+        sgfFail("Unexpected character while parsing SGF", str, entryPos, pos);
+      }
     }
-    while(true) {
-      Sgf* child = maybeParseSgf(str,pos);
-      if(child == NULL)
-        break;
-      sgf->children.push_back(child);
-    }
-    c = peekSgfChar(str,pos,newPos);
-    if(c != ')')
-      sgfFail("Expected closing paren for sgf tree",str,entryPos,pos);
-    consume(str,pos,newPos);
   }
   catch (...) {
+    // Clean up partially built tree
     delete sgf;
     throw;
   }
