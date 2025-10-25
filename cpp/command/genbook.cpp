@@ -573,6 +573,7 @@ int MainCmds::genbook(const vector<string>& args) {
   };
 
   auto setParamsAndAvoidMoves = [&](Search* search, SearchParams thisParams, const std::vector<int>& avoidMoveUntilByLoc) {
+    thisParams.enableMorePassingHacks = false;
     search->setParams(thisParams);
     search->setAvoidMoveUntilByLoc(avoidMoveUntilByLoc, avoidMoveUntilByLoc);
     search->setAvoidMoveUntilRescaleRoot(true);

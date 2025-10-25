@@ -606,7 +606,11 @@ void Search::selectBestChildToDescend(
     }
   }
 
-  if(totalChildEdgeVisits >= 2 && searchParams.enableMorePassingHacks && thread.history.passWouldEndPhase(thread.board,thread.pla)) {
+  if(totalChildEdgeVisits >= 2 &&
+     searchParams.enableMorePassingHacks &&
+     thread.history.passWouldEndPhase(thread.board,thread.pla) &&
+     avoidMoveUntilByLoc.size() == 0 // Don't force playouts if there's any chance we're specifying specific moves since we don't want to force an avoided move
+  ) {
     bool hasPassMove = false;
     bool hasNonPassMove = false;
     for(int i = 0; i<childrenCapacity; i++) {
