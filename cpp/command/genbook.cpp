@@ -1994,3 +1994,142 @@ int MainCmds::booktoposes(const vector<string>& args) {
   return 0;
 }
 
+int MainCmds::comparebooks(const vector<string>& args) {
+  Board::initHash();
+  ScoreValue::initTables();
+
+  string bookFile1;
+  string bookFile2;
+  double winLossThreshold;
+  double scoreThreshold;
+  try {
+    KataGoCommandLine cmd("Compare two books and find positions with significant value differences");
+
+    TCLAP::ValueArg<string> bookFile1Arg("","book1","First book file to compare",true,string(),"FILE");
+    TCLAP::ValueArg<string> bookFile2Arg("","book2","Second book file to compare",true,string(),"FILE");
+    TCLAP::ValueArg<double> winLossThresholdArg("","winloss-threshold","Minimum winLossValue difference to report",false,0.1,"THRESHOLD");
+    TCLAP::ValueArg<double> scoreThresholdArg("","score-threshold","Minimum scoreMean difference to report",false,1.0,"THRESHOLD");
+    cmd.add(bookFile1Arg);
+    cmd.add(bookFile2Arg);
+    cmd.add(winLossThresholdArg);
+    cmd.add(scoreThresholdArg);
+
+    cmd.parseArgs(args);
+
+    bookFile1 = bookFile1Arg.getValue();
+    bookFile2 = bookFile2Arg.getValue();
+    winLossThreshold = winLossThresholdArg.getValue();
+    scoreThreshold = scoreThresholdArg.getValue();
+  }
+  catch (TCLAP::ArgException &e) {
+    cerr << "Error: " << e.error() << " for argument " << e.argId() << endl;
+    return 1;
+  }
+
+  const bool logToStdout = false;
+  const bool logToStderr = true;
+  const bool logTime = false;
+  Logger logger(nullptr, logToStdout, logToStderr, logTime);
+
+  Book* book1;
+  Book* book2;
+  {
+    logger.write("Loading first book");
+    book1 = Book::loadFromFile(bookFile1);
+    logger.write("Loaded first book with " + Global::uint64ToString(book1->size()) + " nodes from " + bookFile1);
+    logger.write("Book1 version = " + Global::intToString(book1->bookVersion));
+
+    logger.write("Loading second book");
+    book2 = Book::loadFromFile(bookFile2);
+    logger.write("Loaded second book with " + Global::uint64ToString(book2->size()) + " nodes from " + bookFile2);
+    logger.write("Book2 version = " + Global::intToString(book2->bookVersion));
+  }
+
+  if(
+    book1->initialBoard.x_size != book2->initialBoard.x_size ||
+    book1->initialBoard.y_size != book2->initialBoard.y_size ||
+    book1->repBound != book2->repBound ||
+    book1->initialRules != book2->initialRules
+  ) {
+    logger.write("ERROR: Books have different board sizes, rep bounds, or rules");
+    delete book1;
+    delete book2;
+    return 1;
+  }
+
+  book1->recomputeEverything();
+  book2->recomputeEverything();
+
+  if(book1->size() > book2->size()) {
+    std::swap(book1,book2);
+  }
+
+
+  // CSV header
+  cout << "hash,winLossDelta,scoreDelta,winLoss1,winLoss2,score1,score2,moveDepth,moveHistory" << endl;
+
+  std::vector<SymBookNode> allNodes1 = book1->getAllNodes();
+  logger.write("Comparing positions...");
+  int64_t numCommonPositions = 0;
+  int64_t numReported = 0;
+
+  for(SymBookNode node1: allNodes1) {
+    ConstSymBookNode constNode1(node1);
+    BookHash hash = constNode1.hash();
+
+    ConstSymBookNode constNode2 = book2->getByHash(hash);
+    if(constNode2.isNull()) {
+      continue;
+    }
+
+    numCommonPositions++;
+
+    const RecursiveBookValues& values1 = constNode1.recursiveValues();
+    const RecursiveBookValues& values2 = constNode2.recursiveValues();
+
+    double winLossDelta = std::abs(values1.winLossValue - values2.winLossValue);
+    double scoreDelta = std::abs(values1.scoreMean - values2.scoreMean);
+
+    if(winLossDelta >= winLossThreshold || scoreDelta >= scoreThreshold) {
+      BoardHistory hist;
+      std::vector<Loc> moveHistory;
+      bool suc = constNode1.getBoardHistoryReachingHere(hist, moveHistory);
+
+      if(!suc) {
+        logger.write("WARNING: Failed to get board history for hash " + hash.toString());
+        continue;
+      }
+
+      std::ostringstream moveHistoryStream;
+      for(size_t i = 0; i < moveHistory.size(); i++) {
+        if(i > 0) moveHistoryStream << " ";
+        moveHistoryStream << Location::toString(moveHistory[i], book1->initialBoard);
+      }
+
+      cout << hash.toString() << ","
+           << winLossDelta << ","
+           << scoreDelta << ","
+           << values1.winLossValue << ","
+           << values2.winLossValue << ","
+           << values1.scoreMean << ","
+           << values2.scoreMean << ","
+           << hist.moveHistory.size() << ","
+           << moveHistoryStream.str() << endl;
+
+      numReported++;
+    }
+
+    if(numCommonPositions % 10000 == 0) {
+      logger.write("Processed " + Global::int64ToString(numCommonPositions) + " common positions, reported " + Global::int64ToString(numReported));
+    }
+  }
+
+  logger.write("Total common positions: " + Global::int64ToString(numCommonPositions));
+  logger.write("Positions reported: " + Global::int64ToString(numReported));
+
+  delete book1;
+  delete book2;
+  ScoreValue::freeTables();
+  logger.write("DONE");
+  return 0;
+}
