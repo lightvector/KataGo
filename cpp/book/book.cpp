@@ -8,6 +8,7 @@
 #include "../core/fileutils.h"
 #include "../game/graphhash.h"
 #include "../neuralnet/nninputs.h"
+#include "../search/mutexpool.h"
 #include "../external/nlohmann_json/json.hpp"
 
 //------------------------
@@ -302,10 +303,38 @@ BookNode::BookNode(BookHash h, Book* b, Player p, const vector<int>& syms)
    thisNodeExpansionCost(0),
    minCostFromRootWLPV(0),
    expansionIsWLPV(false),
-   biggestWLCostFromRoot(0)
+   biggestWLCostFromRoot(0),
+   visitedFlag(0)
 {}
 
 BookNode::~BookNode() {
+}
+
+void BookNode::corruptRecursiveValuesOnlyForTesting(Rand& rand) {
+  recursiveValues.winLossValue = rand.nextDouble(-1, 1);
+  recursiveValues.scoreMean = rand.nextGaussian() * 10.0;
+  recursiveValues.sharpScoreMean = rand.nextGaussian() * 10.0;
+  recursiveValues.winLossLCB = rand.nextDouble(-1, 1);
+  recursiveValues.scoreLCB = rand.nextGaussian() * 10.0;
+  recursiveValues.scoreFinalLCB = rand.nextGaussian() * 10.0;
+  recursiveValues.winLossUCB = rand.nextDouble(-1, 1);
+  recursiveValues.scoreUCB = rand.nextGaussian() * 10.0;
+  recursiveValues.scoreFinalUCB = rand.nextGaussian() * 10.0;
+  recursiveValues.weight = rand.nextDouble(1, 100);
+  recursiveValues.visits = rand.nextDouble(1, 100);
+  recursiveValues.adjustedVisits = rand.nextDouble(1, 100);
+}
+
+void BookNode::corruptNodeCostsOnlyForTesting(Rand& rand) {
+  minCostFromRoot = rand.nextDouble(0, 1000);
+  thisNodeExpansionCost = rand.nextDouble(0, 1000);
+  minCostFromRootWLPV = rand.nextDouble(0, 1000);
+  biggestWLCostFromRoot = rand.nextDouble(0, 100);
+
+  for(auto& movePair : moves) {
+    movePair.second.costFromRoot = rand.nextDouble(0, 1000);
+    movePair.second.biggestWLCostFromRoot = rand.nextDouble(0, 100);
+  }
 }
 
 // -----------------------------------------------------------------------------------------------------------
@@ -839,7 +868,8 @@ Book::Book(
     initialSymmetry(0),
     root(nullptr),
     nodes(),
-    nodeIdxMapsByHash(nullptr)
+    nodeIdxMapsByHash(nullptr),
+    nextVisitedDoneValue(1)
 {
   nodeIdxMapsByHash = new std::map<BookHash,int64_t>[NUM_HASH_BUCKETS];
 
@@ -925,7 +955,7 @@ void Book::recompute(const vector<SymBookNode>& newAndChangedNodes) {
     return DFSAction::recurse;
   };
   for(SymBookNode node: newAndChangedNodes) {
-    reverseDepthFirstSearchWithPostF(node.node, markDirty, std::function<void(BookNode*)>(nullptr));
+    reverseDepthFirstSearchWithPostF(node.node, markDirty, std::function<void(BookNode*)>(nullptr), nextVisitedDoneValue++);
   }
 
   // Walk down through all dirty nodes recomputing values
@@ -935,14 +965,18 @@ void Book::recompute(const vector<SymBookNode>& newAndChangedNodes) {
     allDirty,
     [this](BookNode* node) {
       recomputeNodeValues(node);
-    }
+    },
+    NULL,
+    nextVisitedDoneValue++
   );
 
   // Walk down through entire book, recomputing costs.
   iterateEntireBookPreOrder(
     [this](BookNode* node) {
       recomputeNodeCost(node);
-    }
+    },
+    NULL,
+    nextVisitedDoneValue++
   );
 }
 
@@ -954,15 +988,259 @@ void Book::recomputeEverything() {
     allDirty,
     [this](BookNode* node) {
       recomputeNodeValues(node);
-    }
+    },
+    NULL,
+    nextVisitedDoneValue++
   );
 
   // Walk down through entire book, recomputing costs.
   iterateEntireBookPreOrder(
     [this](BookNode* node) {
       recomputeNodeCost(node);
-    }
+    },
+    NULL,
+    nextVisitedDoneValue++
   );
+}
+
+void Book::recomputeMultiThreaded(const std::vector<SymBookNode>& newAndChangedNodes, MutexPool& mutexPool, int numThreads) {
+  // Mark all dirty nodes
+  std::set<BookHash> dirtyNodes;
+  std::function<DFSAction(BookNode*)> markDirty = [&dirtyNodes](BookNode* node) {
+    if(contains(dirtyNodes, node->hash))
+      return DFSAction::skip;
+    dirtyNodes.insert(node->hash);
+    return DFSAction::recurse;
+  };
+  for(SymBookNode node: newAndChangedNodes) {
+    reverseDepthFirstSearchWithPostF(node.node, markDirty, std::function<void(BookNode*)>(nullptr), nextVisitedDoneValue++);
+  }
+
+  // Get the visitedDoneValue once before spawning threads
+  int visitedDoneValue = nextVisitedDoneValue;
+
+  // Spawn threads
+  std::vector<std::thread> threads;
+  for(int i = 0; i < numThreads; i++) {
+    threads.push_back(std::thread([this, &dirtyNodes, &mutexPool, visitedDoneValue, i]() {
+      Rand rand;
+      bool allDirty = false;
+      iterateDirtyNodesPostOrder(
+        dirtyNodes,
+        allDirty,
+        [this, &mutexPool](BookNode* node) {
+          // Compute all mutex indices
+          std::vector<uint32_t> mutexIndices;
+
+          // Add index for this node
+          Hash128 nodeHashXor = node->hash.historyHash ^ node->hash.stateHash;
+          uint32_t nodeIdx = (uint32_t)((nodeHashXor.hash0 ^ nodeHashXor.hash1) % mutexPool.getNumMutexes());
+          mutexIndices.push_back(nodeIdx);
+
+          // Add indices for all children
+          for(auto iter = node->moves.begin(); iter != node->moves.end(); ++iter) {
+            Hash128 childHashXor = iter->second.hash.historyHash ^ iter->second.hash.stateHash;
+            uint32_t childIdx = (uint32_t)((childHashXor.hash0 ^ childHashXor.hash1) % mutexPool.getNumMutexes());
+            mutexIndices.push_back(childIdx);
+          }
+
+          // Sort and remove duplicates to avoid deadlock
+          std::sort(mutexIndices.begin(), mutexIndices.end());
+          auto newLast = std::unique(mutexIndices.begin(), mutexIndices.end());
+          mutexIndices.erase(newLast, mutexIndices.end());
+
+          // Acquire locks in sorted order
+          std::vector<std::unique_lock<std::mutex>> locks;
+          for(uint32_t idx : mutexIndices) {
+            locks.push_back(std::unique_lock<std::mutex>(mutexPool.getMutex(idx)));
+          }
+
+          // Now safe to recompute
+          recomputeNodeValues(node);
+
+          // Locks released automatically when locks vector goes out of scope
+        },
+        &rand,
+        visitedDoneValue
+      );
+    }));
+  }
+
+  // Join all threads
+  for(size_t i = 0; i < threads.size(); i++) {
+    threads[i].join();
+  }
+
+  // Increment visitedDoneValue after all threads are done
+  nextVisitedDoneValue++;
+
+  // Walk down through entire book, recomputing costs (multithreaded).
+  int visitedDoneValueForCosts = nextVisitedDoneValue;
+
+  threads.clear();
+  for(int i = 0; i < numThreads; i++) {
+    threads.push_back(std::thread([this, &mutexPool, visitedDoneValueForCosts, i]() {
+      Rand rand;
+      iterateEntireBookPreOrder(
+        [this, &mutexPool](BookNode* node) {
+          // Compute all mutex indices
+          std::vector<uint32_t> mutexIndices;
+
+          // Add index for this node
+          Hash128 nodeHashXor = node->hash.historyHash ^ node->hash.stateHash;
+          uint32_t nodeIdx = (uint32_t)((nodeHashXor.hash0 ^ nodeHashXor.hash1) % mutexPool.getNumMutexes());
+          mutexIndices.push_back(nodeIdx);
+
+          // Add indices for all parents
+          for(size_t j = 0; j < node->parents.size(); j++) {
+            Hash128 parentHashXor = node->parents[j].first.historyHash ^ node->parents[j].first.stateHash;
+            uint32_t parentIdx = (uint32_t)((parentHashXor.hash0 ^ parentHashXor.hash1) % mutexPool.getNumMutexes());
+            mutexIndices.push_back(parentIdx);
+          }
+
+          // Sort and remove duplicates to avoid deadlock
+          std::sort(mutexIndices.begin(), mutexIndices.end());
+          auto newLast = std::unique(mutexIndices.begin(), mutexIndices.end());
+          mutexIndices.erase(newLast, mutexIndices.end());
+
+          // Acquire locks in sorted order
+          std::vector<std::unique_lock<std::mutex>> locks;
+          for(uint32_t idx : mutexIndices) {
+            locks.push_back(std::unique_lock<std::mutex>(mutexPool.getMutex(idx)));
+          }
+
+          // Now safe to recompute costs
+          recomputeNodeCost(node);
+
+          // Locks released automatically when locks vector goes out of scope
+        },
+        &rand,
+        visitedDoneValueForCosts
+      );
+    }));
+  }
+
+  // Join all threads
+  for(size_t i = 0; i < threads.size(); i++) {
+    threads[i].join();
+  }
+
+  // Increment visitedDoneValue after all threads are done
+  nextVisitedDoneValue++;
+}
+
+void Book::recomputeEverythingMultiThreaded(MutexPool& mutexPool, int numThreads) {
+  // Get the visitedDoneValue once before spawning threads
+  int visitedDoneValue = nextVisitedDoneValue;
+
+  // Spawn threads
+  std::vector<std::thread> threads;
+  for(int i = 0; i < numThreads; i++) {
+    threads.push_back(std::thread([this, &mutexPool, visitedDoneValue, i]() {
+      Rand rand;
+      bool allDirty = true;
+      iterateDirtyNodesPostOrder(
+        std::set<BookHash>(),
+        allDirty,
+        [this, &mutexPool](BookNode* node) {
+          // Compute all mutex indices
+          std::vector<uint32_t> mutexIndices;
+
+          // Add index for this node
+          Hash128 nodeHashXor = node->hash.historyHash ^ node->hash.stateHash;
+          uint32_t nodeIdx = (uint32_t)((nodeHashXor.hash0 ^ nodeHashXor.hash1) % mutexPool.getNumMutexes());
+          mutexIndices.push_back(nodeIdx);
+
+          // Add indices for all children
+          for(auto iter = node->moves.begin(); iter != node->moves.end(); ++iter) {
+            Hash128 childHashXor = iter->second.hash.historyHash ^ iter->second.hash.stateHash;
+            uint32_t childIdx = (uint32_t)((childHashXor.hash0 ^ childHashXor.hash1) % mutexPool.getNumMutexes());
+            mutexIndices.push_back(childIdx);
+          }
+
+          // Sort and remove duplicates to avoid deadlock
+          std::sort(mutexIndices.begin(), mutexIndices.end());
+          auto newLast = std::unique(mutexIndices.begin(), mutexIndices.end());
+          mutexIndices.erase(newLast, mutexIndices.end());
+
+          // Acquire locks in sorted order
+          std::vector<std::unique_lock<std::mutex>> locks;
+          for(uint32_t idx : mutexIndices) {
+            locks.push_back(std::unique_lock<std::mutex>(mutexPool.getMutex(idx)));
+          }
+
+          // Now safe to recompute
+          recomputeNodeValues(node);
+
+          // Locks released automatically when locks vector goes out of scope
+        },
+        &rand,
+        visitedDoneValue
+      );
+    }));
+  }
+
+  // Join all threads
+  for(size_t i = 0; i < threads.size(); i++) {
+    threads[i].join();
+  }
+
+  // Increment visitedDoneValue after all threads are done
+  nextVisitedDoneValue++;
+
+  // Walk down through entire book, recomputing costs (multithreaded).
+  int visitedDoneValueForCosts = nextVisitedDoneValue;
+
+  threads.clear();
+  for(int i = 0; i < numThreads; i++) {
+    threads.push_back(std::thread([this, &mutexPool, visitedDoneValueForCosts, i]() {
+      Rand rand;
+      iterateEntireBookPreOrder(
+        [this, &mutexPool](BookNode* node) {
+          // Compute all mutex indices
+          std::vector<uint32_t> mutexIndices;
+
+          // Add index for this node
+          Hash128 nodeHashXor = node->hash.historyHash ^ node->hash.stateHash;
+          uint32_t nodeIdx = (uint32_t)((nodeHashXor.hash0 ^ nodeHashXor.hash1) % mutexPool.getNumMutexes());
+          mutexIndices.push_back(nodeIdx);
+
+          // Add indices for all parents
+          for(size_t j = 0; j < node->parents.size(); j++) {
+            Hash128 parentHashXor = node->parents[j].first.historyHash ^ node->parents[j].first.stateHash;
+            uint32_t parentIdx = (uint32_t)((parentHashXor.hash0 ^ parentHashXor.hash1) % mutexPool.getNumMutexes());
+            mutexIndices.push_back(parentIdx);
+          }
+
+          // Sort and remove duplicates to avoid deadlock
+          std::sort(mutexIndices.begin(), mutexIndices.end());
+          auto newLast = std::unique(mutexIndices.begin(), mutexIndices.end());
+          mutexIndices.erase(newLast, mutexIndices.end());
+
+          // Acquire locks in sorted order
+          std::vector<std::unique_lock<std::mutex>> locks;
+          for(uint32_t idx : mutexIndices) {
+            locks.push_back(std::unique_lock<std::mutex>(mutexPool.getMutex(idx)));
+          }
+
+          // Now safe to recompute costs
+          recomputeNodeCost(node);
+
+          // Locks released automatically when locks vector goes out of scope
+        },
+        &rand,
+        visitedDoneValueForCosts
+      );
+    }));
+  }
+
+  // Join all threads
+  for(size_t i = 0; i < threads.size(); i++) {
+    threads[i].join();
+  }
+
+  // Increment visitedDoneValue after all threads are done
+  nextVisitedDoneValue++;
 }
 
 vector<SymBookNode> Book::getNextNToExpand(int n) {
@@ -1160,7 +1438,8 @@ bool Book::reverseDepthFirstSearchWithMoves(
 bool Book::reverseDepthFirstSearchWithPostF(
   BookNode* initialNode,
   const std::function<Book::DFSAction(BookNode*)>& f,
-  const std::function<void(BookNode*)>& postF
+  const std::function<void(BookNode*)>& postF,
+  int visitedDoneValue
 ) {
   vector<BookNode*> stack;
   vector<size_t> nextParentIdxToTry;
@@ -1188,6 +1467,10 @@ bool Book::reverseDepthFirstSearchWithPostF(
         nextParentIdxToTry.back() += 1;
         if(!contains(visitedHashes, nextParentHash)) {
           BookNode* nextParent = get(nextParentHash);
+          // Skip if already visited by another thread
+          if(nextParent->visitedFlag.load(std::memory_order_acquire) == visitedDoneValue) {
+            continue;
+          }
           stack.push_back(nextParent);
           nextParentIdxToTry.push_back(0);
           visitedHashes.insert(nextParentHash);
@@ -1202,6 +1485,8 @@ bool Book::reverseDepthFirstSearchWithPostF(
       else {
         if(postF)
           postF(stack.back());
+        // Mark as visited for other threads
+        stack.back()->visitedFlag.store(visitedDoneValue, std::memory_order_release);
 
         // Exhausted all parents at this node, go up one level.
         stack.pop_back();
@@ -1221,18 +1506,33 @@ bool Book::reverseDepthFirstSearchWithPostF(
 void Book::iterateDirtyNodesPostOrder(
   const std::set<BookHash>& dirtyNodes,
   bool allDirty,
-  const std::function<void(BookNode* node)>& f
+  const std::function<void(BookNode* node)>& f,
+  Rand* randToShuffle,
+  int visitedDoneValue
 ) {
   vector<BookNode*> stack;
-  vector<std::map<Loc,BookMove>::iterator> nextChildToTry;
+  vector<vector<Loc>> nextChildrenToTry;
   std::set<BookHash> visitedHashes;
 
   if(!allDirty && dirtyNodes.size() <= 0)
     return;
   assert(allDirty || contains(dirtyNodes, root->hash));
 
+  auto fillChildren = [&nextChildrenToTry,randToShuffle](const BookNode* node, size_t stackDepth) {
+    if(nextChildrenToTry.size() <= stackDepth) {
+      nextChildrenToTry.push_back(std::vector<Loc>());
+    }
+    assert(nextChildrenToTry[stackDepth].size() == 0);
+    for(auto iter = node->moves.rbegin(); iter != node->moves.rend(); ++iter) {
+      nextChildrenToTry[stackDepth].push_back(iter->first);
+    }
+    if(randToShuffle != NULL) {
+      randToShuffle->shuffle(nextChildrenToTry[stackDepth]);
+    }
+  };
+
   stack.push_back(root);
-  nextChildToTry.push_back(root->moves.begin());
+  fillChildren(root,stack.size()-1);
   visitedHashes.insert(root->hash);
 
   while(true) {
@@ -1240,15 +1540,19 @@ void Book::iterateDirtyNodesPostOrder(
     while(true) {
       // Try walk to next parent
       BookNode* node = stack.back();
-      std::map<Loc,BookMove>::iterator iter = nextChildToTry.back();
+      size_t stackDepth = stack.size()-1;
 
-      if(iter != node->moves.end()) {
-        BookHash nextChildHash = iter->second.hash;
-        ++nextChildToTry.back();
+      if(nextChildrenToTry[stackDepth].size() > 0) {
+        BookHash nextChildHash = node->moves.find(nextChildrenToTry[stackDepth].back())->second.hash;
+        nextChildrenToTry[stackDepth].pop_back();
         if(!contains(visitedHashes,nextChildHash) && (allDirty || contains(dirtyNodes,nextChildHash))) {
           BookNode* nextChild = get(nextChildHash);
+          // Skip if already visited by another thread
+          if(nextChild->visitedFlag.load(std::memory_order_acquire) == visitedDoneValue) {
+            continue;
+          }
           stack.push_back(nextChild);
-          nextChildToTry.push_back(nextChild->moves.begin());
+          fillChildren(nextChild,stack.size()-1);
           visitedHashes.insert(nextChildHash);
           // Found next node, break out of attempt to find the next node.
           break;
@@ -1261,10 +1565,11 @@ void Book::iterateDirtyNodesPostOrder(
       else {
         // Exhausted all childs at this node. Call f since postorder is done.
         f(node);
+        // Mark as visited for other threads
+        node->visitedFlag.store(visitedDoneValue, std::memory_order_release);
 
         //Then pop up a level.
         stack.pop_back();
-        nextChildToTry.pop_back();
         // If we go up a level and there's nothing, we're done.
         if(stack.size() <= 0)
           return;
@@ -1274,11 +1579,28 @@ void Book::iterateDirtyNodesPostOrder(
 }
 
 void Book::iterateEntireBookPreOrder(
-  const std::function<void(BookNode*)>& f
+  const std::function<void(BookNode*)>& f,
+  Rand* randToShuffle,
+  int visitedDoneValue
 ) {
   std::set<BookHash> visitedHashes;
-  for(BookNode* initialNode: nodes) {
+
+  // Make a shallow copy and shuffle if rand is provided
+  std::vector<BookNode*> buf;
+  std::vector<BookNode*>* nodesToIterate;
+  if(randToShuffle != NULL) {
+    buf = nodes;
+    randToShuffle->shuffle(buf);
+    nodesToIterate = &buf;
+  } else {
+    nodesToIterate = &nodes;
+  }
+
+  for(BookNode* initialNode: *nodesToIterate) {
     if(contains(visitedHashes, initialNode->hash))
+      continue;
+    // Skip if already visited by another thread
+    if(initialNode->visitedFlag.load(std::memory_order_acquire) == visitedDoneValue)
       continue;
     reverseDepthFirstSearchWithPostF(
       initialNode,
@@ -1292,7 +1614,8 @@ void Book::iterateEntireBookPreOrder(
           return;
         visitedHashes.insert(node->hash);
         f(node);
-      }
+      },
+      visitedDoneValue
     );
   }
 }
@@ -2526,7 +2849,7 @@ int64_t Book::exportToHtmlDir(
     out.close();
     numFilesWritten += 1;
   };
-  iterateEntireBookPreOrder(f);
+  iterateEntireBookPreOrder(f, NULL, nextVisitedDoneValue++);
   return numFilesWritten;
 }
 
@@ -2682,7 +3005,7 @@ void Book::saveToFile(const string& fileName) const {
   FileUtils::rename(tmpFileName,fileName);
 }
 
-Book* Book::loadFromFile(const std::string& fileName) {
+Book* Book::loadFromFile(const std::string& fileName, int numThreadsForRecompute) {
   std::ifstream in;
   FileUtils::open(in, fileName);
   std::string line;
@@ -2882,7 +3205,9 @@ Book* Book::loadFromFile(const std::string& fileName) {
         }
       }
     }
-    book->recomputeEverything();
+
+    MutexPool mutexPool(1 << 16);
+    book->recomputeEverythingMultiThreaded(mutexPool, numThreadsForRecompute);
     ret = book.release();
   }
   catch(const std::exception& e) {

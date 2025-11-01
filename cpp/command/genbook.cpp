@@ -124,8 +124,6 @@ static void maybeParseBonusFile(
   Board& bonusInitialBoard,
   Player& bonusInitialPla
 ) {
-  bonusInitialBoard = Board(boardSizeX,boardSizeY);
-  bonusInitialPla = P_BLACK;
   if(bonusFile != "") {
     Sgf* sgf = Sgf::loadFile(bonusFile);
     bool flipIfPassOrWFirst = false;
@@ -254,13 +252,15 @@ int MainCmds::genbook(const vector<string>& args) {
   string traceBookFile;
   string traceSgfFile;
   string logFile;
-  string bonusFile;
+  std::vector<string> bonusFiles;
   int numIterations;
   int saveEveryIterations;
   double traceBookMinVisits;
   bool allowChangingBookParams;
   bool htmlDevMode;
   double htmlMinVisits;
+  int numBookThreads;
+
   try {
     KataGoCommandLine cmd("Generate opening book");
     cmd.addConfigFileArg("","",true);
@@ -273,13 +273,14 @@ int MainCmds::genbook(const vector<string>& args) {
     TCLAP::ValueArg<string> traceBookFileArg("","trace-book-file","Other book file we should copy all the lines from",false,string(),"FILE");
     TCLAP::ValueArg<string> traceSgfFileArg("","trace-sgf-file","Other sgf file we should copy all the lines from",false,string(),"FILE");
     TCLAP::ValueArg<string> logFileArg("","log-file","Log file to write to",true,string(),"DIR");
-    TCLAP::ValueArg<string> bonusFileArg("","bonus-file","SGF of bonuses marked",false,string(),"DIR");
+    TCLAP::MultiArg<string> bonusFileArg("","bonus-file","SGF of bonuses marked",false,"DIR");
     TCLAP::ValueArg<int> numIterationsArg("","num-iters","Number of iterations to expand book",true,0,"N");
     TCLAP::ValueArg<int> saveEveryIterationsArg("","save-every","Number of iterations per save to book file",true,0,"N");
     TCLAP::ValueArg<double> traceBookMinVisitsArg("","trace-book-min-visits","Require >= this many visits for copying from traceBookFile",false,0.0,"N");
     TCLAP::SwitchArg allowChangingBookParamsArg("","allow-changing-book-params","Allow changing book params");
     TCLAP::SwitchArg htmlDevModeArg("","html-dev-mode","Denser debug output for html");
     TCLAP::ValueArg<double> htmlMinVisitsArg("","html-min-visits","Require >= this many visits to export a position to html",false,0.0,"N");
+    TCLAP::ValueArg<int> numBookThreadsArg("","num-book-threads","Use this many threads to parallelize book operations",false,1,"N");
     cmd.add(htmlDirArg);
     cmd.add(bookFileArg);
     cmd.add(traceBookFileArg);
@@ -292,6 +293,7 @@ int MainCmds::genbook(const vector<string>& args) {
     cmd.add(allowChangingBookParamsArg);
     cmd.add(htmlDevModeArg);
     cmd.add(htmlMinVisitsArg);
+    cmd.add(numBookThreadsArg);
 
     cmd.parseArgs(args);
 
@@ -303,13 +305,14 @@ int MainCmds::genbook(const vector<string>& args) {
     traceBookFile = traceBookFileArg.getValue();
     traceSgfFile = traceSgfFileArg.getValue();
     logFile = logFileArg.getValue();
-    bonusFile = bonusFileArg.getValue();
+    bonusFiles = bonusFileArg.getValue();
     numIterations = numIterationsArg.getValue();
     saveEveryIterations = saveEveryIterationsArg.getValue();
     traceBookMinVisits = traceBookMinVisitsArg.getValue();
     allowChangingBookParams = allowChangingBookParamsArg.getValue();
     htmlDevMode = htmlDevModeArg.getValue();
     htmlMinVisits = htmlMinVisitsArg.getValue();
+    numBookThreads = numBookThreadsArg.getValue();
   }
   catch (TCLAP::ArgException &e) {
     cerr << "Error: " << e.error() << " for argument " << e.argId() << endl;
@@ -357,22 +360,26 @@ int MainCmds::genbook(const vector<string>& args) {
   std::map<BookHash,int> branchRequiredByHash;
   Board bonusInitialBoard;
   Player bonusInitialPla;
+  bonusInitialBoard = Board(boardSizeX,boardSizeY);
+  bonusInitialPla = P_BLACK;
 
-  maybeParseBonusFile(
-    bonusFile,
-    boardSizeX,
-    boardSizeY,
-    rules,
-    repBound,
-    bonusFileScale,
-    logger,
-    bonusByHash,
-    expandBonusByHash,
-    visitsRequiredByHash,
-    branchRequiredByHash,
-    bonusInitialBoard,
-    bonusInitialPla
-  );
+  for(const std::string& bonusFile: bonusFiles) {
+    maybeParseBonusFile(
+      bonusFile,
+      boardSizeX,
+      boardSizeY,
+      rules,
+      repBound,
+      bonusFileScale,
+      logger,
+      bonusByHash,
+      expandBonusByHash,
+      visitsRequiredByHash,
+      branchRequiredByHash,
+      bonusInitialBoard,
+      bonusInitialPla
+    );
+  }
 
   const double wideRootNoiseBookExplore = cfg.contains("wideRootNoiseBookExplore") ? cfg.getDouble("wideRootNoiseBookExplore",0.0,5.0) : params.wideRootNoise;
   const double cpuctExplorationLogBookExplore = cfg.contains("cpuctExplorationLogBookExplore") ? cfg.getDouble("cpuctExplorationLogBookExplore",0.0,10.0) : params.cpuctExplorationLog;
@@ -425,7 +432,7 @@ int MainCmds::genbook(const vector<string>& args) {
     bookFileExists = FileUtils::tryOpen(infile,bookFile);
   }
   if(bookFileExists) {
-    book = Book::loadFromFile(bookFile);
+    book = Book::loadFromFile(bookFile,numBookThreads);
     if(
       boardSizeX != book->getInitialHist().getRecentBoard(0).x_size ||
       boardSizeY != book->getInitialHist().getRecentBoard(0).y_size ||
@@ -434,7 +441,7 @@ int MainCmds::genbook(const vector<string>& args) {
     ) {
       throw StringError("Book parameters do not match");
     }
-    if(bonusFile != "") {
+    if(bonusFiles.size() > 0) {
       if(!bonusInitialBoard.isEqualForTesting(book->getInitialHist().getRecentBoard(0), false, false))
         throw StringError(
           "Book initial board and initial board in bonus sgf file do not match\n" +
@@ -518,12 +525,14 @@ int MainCmds::genbook(const vector<string>& args) {
   if(traceBookFile.size() > 0 && traceSgfFile.size() > 0)
     throw StringError("Cannot trace book and sgf at the same time");
 
+  MutexPool mutexPool(1 << 17);
+
   Book* traceBook = NULL;
   if(traceBookFile.size() > 0) {
     if(numIterations > 0)
       throw StringError("Cannot specify iterations and trace book at the same time");
     traceBook = Book::loadFromFile(traceBookFile);
-    traceBook->recomputeEverything();
+    traceBook->recomputeEverythingMultiThreaded(mutexPool, numBookThreads);
     logger.write("Loaded trace book with " + Global::uint64ToString(traceBook->size()) + " nodes from " + traceBookFile);
     logger.write("traceBookMinVisits = " + Global::doubleToString(traceBookMinVisits));
   }
@@ -532,7 +541,7 @@ int MainCmds::genbook(const vector<string>& args) {
   book->setExpandBonusByHash(expandBonusByHash);
   book->setVisitsRequiredByHash(visitsRequiredByHash);
   book->setBranchRequiredByHash(branchRequiredByHash);
-  book->recomputeEverything();
+  book->recomputeEverythingMultiThreaded(mutexPool, numBookThreads);
 
   if(!std::atomic_is_lock_free(&shouldStop))
     throw StringError("shouldStop is not lock free, signal-quitting mechanism for terminating matches will NOT work!");
@@ -1361,7 +1370,7 @@ int MainCmds::genbook(const vector<string>& args) {
     }
 
     logger.write("Recomputing recursive values for entire book");
-    book->recomputeEverything();
+    book->recomputeEverythingMultiThreaded(mutexPool, numBookThreads);
   }
   else {
     ThreadSafeQueue<SymBookNode> positionsToSearch;
@@ -1386,7 +1395,7 @@ int MainCmds::genbook(const vector<string>& args) {
         BookParams paramsCopy = cfgParams;
         paramsCopy.randomizeParams(rand, randomizeParamsStdev);
         book->setParams(paramsCopy);
-        book->recomputeEverything();
+        book->recomputeEverythingMultiThreaded(mutexPool, numBookThreads);
         logger.write("Randomized params and recomputed costs");
       }
 
@@ -1428,7 +1437,7 @@ int MainCmds::genbook(const vector<string>& args) {
         threads[gameThreadIdx].join();
       }
 
-      book->recompute(newAndChangedNodes);
+      book->recomputeMultiThreaded(newAndChangedNodes, mutexPool, numBookThreads);
       if(shouldStop.load(std::memory_order_acquire))
         break;
     }

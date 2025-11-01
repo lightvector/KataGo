@@ -2,6 +2,8 @@
 #ifndef BOOK_BOOK_H_
 #define BOOK_BOOK_H_
 
+#include <atomic>
+
 #include "../core/global.h"
 #include "../core/hash.h"
 #include "../core/rand.h"
@@ -111,6 +113,7 @@ struct RecursiveBookValues {
 class SymBookNode;
 class ConstSymBookNode;
 class Book;
+class MutexPool;
 
 class BookNode {
   const BookHash hash;
@@ -140,6 +143,8 @@ class BookNode {
   bool expansionIsWLPV; // True if the winloss PV for this node is to expand it, rather than an existing child.
   double biggestWLCostFromRoot; // Largest single cost due to winloss during path from root
 
+  std::atomic<int> visitedFlag; // Used for multithreaded coordination
+
   BookNode(BookHash hash, Book* book, Player pla, const std::vector<int>& symmetries);
   ~BookNode();
   BookNode(const BookNode&) = delete;
@@ -150,6 +155,10 @@ class BookNode {
   friend class ConstSymBookNode;
   friend class SymBookNode;
   friend class Book;
+
+public:
+  void corruptRecursiveValuesOnlyForTesting(Rand& rand);
+  void corruptNodeCostsOnlyForTesting(Rand& rand);
 };
 
 class SymBookNode {
@@ -183,6 +192,9 @@ class SymBookNode {
   int minDepthFromRoot();
   double minCostFromRoot();
   double totalExpansionCost();
+
+  // For testing purposes only - allows direct access to internal node
+  BookNode* getNodeForTesting() { return node; }
 
   // Returns NULL for the root or if somehow a parent is not found
   SymBookNode canonicalParent();
@@ -351,6 +363,7 @@ class Book {
   BookNode* root;
   std::vector<BookNode*> nodes;
   std::map<BookHash,int64_t>* nodeIdxMapsByHash;
+  int64_t nextVisitedDoneValue; // Next value to use for visitedFlag coordination in multithreaded operations
  public:
   Book(
     int bookVersion,
@@ -400,6 +413,8 @@ class Book {
 
   void recompute(const std::vector<SymBookNode>& newAndChangedNodes);
   void recomputeEverything();
+  void recomputeMultiThreaded(const std::vector<SymBookNode>& newAndChangedNodes, MutexPool& mutexPool, int numThreads);
+  void recomputeEverythingMultiThreaded(MutexPool& mutexPool, int numThreads);
 
   std::vector<SymBookNode> getNextNToExpand(int n);
   std::vector<SymBookNode> getAllLeaves(double minVisits);
@@ -426,7 +441,7 @@ class Book {
   );
 
   void saveToFile(const std::string& fileName) const;
-  static Book* loadFromFile(const std::string& fileName);
+  static Book* loadFromFile(const std::string& fileName, int numThreadsForRecompute=1);
 
  private:
   int64_t getIdx(BookHash hash) const;
@@ -451,17 +466,22 @@ class Book {
   bool reverseDepthFirstSearchWithPostF(
     BookNode* initialNode,
     const std::function<DFSAction(BookNode*)>& f,
-    const std::function<void(BookNode*)>& postF
+    const std::function<void(BookNode*)>& postF,
+    int visitedDoneValue
   );
 
   void iterateDirtyNodesPostOrder(
     const std::set<BookHash>& dirtyNodes,
     bool allDirty,
-    const std::function<void(BookNode* node)>& f
+    const std::function<void(BookNode* node)>& f,
+    Rand* randToShuffle,
+    int visitedDoneValue
   );
 
   void iterateEntireBookPreOrder(
-    const std::function<void(BookNode*)>& f
+    const std::function<void(BookNode*)>& f,
+    Rand* randToShuffle,
+    int visitedDoneValue
   );
 
   void recomputeAdjustedVisits(
