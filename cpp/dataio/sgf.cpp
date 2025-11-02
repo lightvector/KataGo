@@ -431,22 +431,25 @@ float SgfNode::getKomiOrDefault(float defaultKomi) const {
       propertyFail("Komi in sgf is not integer or half-integer");
   }
 
-  //Hack - check for foxwq sgfs with weird komis
-  if(hasProperty("AP") && contains(getProperties("AP"),"foxwq")) {
-    if(komi == 550 || komi == 275)
-      komi = 5.5f;
-    else if(komi == 325 || komi == 650)
-      komi = 6.5f;
-    else if(komi == 375 || komi == 750)
-      komi = 7.5f;
-    else if(komi == 350 || komi == 700)
-      komi = 7.0f;
-    else if(komi == 0)
-      komi = 0.0f;
-    else if(komi == 6.5 || komi == 7.5 || komi == 7)
-    {}
-    else
-      propertyFail("Currently no case implemented for foxwq komi: " + Global::floatToString(komi));
+  //Hack - check for foxwq or SGFC sgfs with weird komis
+  if(hasProperty("AP")) {
+    auto ap = getProperties("AP");
+    if (contains(ap,"foxwq") || contains(ap, "SGFC:2.0")) {
+      if(komi == 550 || komi == 275)
+        komi = 5.5f;
+      else if(komi == 325 || komi == 650)
+        komi = 6.5f;
+      else if(komi == 375 || komi == 750)
+        komi = 7.5f;
+      else if(komi == 350 || komi == 700)
+        komi = 7.0f;
+      else if(komi == 0)
+        komi = 0.0f;
+      else if(komi == 6.5 || komi == 7.5 || komi == 7)
+      {}
+      else
+        propertyFail("Currently no case implemented for foxwq or SGFC komi: " + Global::floatToString(komi));
+    }
   }
 
   return komi;
