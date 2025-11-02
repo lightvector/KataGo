@@ -552,6 +552,7 @@ struct GTPEngine {
 
       bot = new AsyncBot(genmoveParams, nnEval, humanEval, &logger, searchRandSeed);
       bot->setCopyOfExternalPatternBonusTable(patternBonusTable);
+      isGenmoveParams = true;
 
       Board board(boardXSize,boardYSize);
       Player pla = P_BLACK;
