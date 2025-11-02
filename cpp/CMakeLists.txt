@@ -8,7 +8,7 @@ endif()
 set(CMAKE_CXX_STANDARD 17)
 
 include_directories(external)
-include_directories(external/tclap-1.2.2/include)
+include_directories(SYSTEM external/tclap-1.2.5/include) #SYSTEM suppresses warnings from external library
 include_directories(SYSTEM external/filesystem-1.5.8/include) #SYSTEM suppresses a few warnings
 
 #--------------------------- PLATFORM SPECIFIC -------------------------------------------------------------------------
