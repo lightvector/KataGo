@@ -4,6 +4,7 @@
 #include "../core/fileutils.h"
 #include "../core/timer.h"
 #include "../core/threadsafequeue.h"
+#include "../core/parallel.h"
 #include "../dataio/poswriter.h"
 #include "../dataio/sgf.h"
 #include "../dataio/files.h"
@@ -16,6 +17,7 @@
 #include "../command/commandline.h"
 #include "../core/test.h"
 #include "../main.h"
+#include "../external/nlohmann_json/json.hpp"
 
 #include <chrono>
 #include <csignal>
@@ -2136,6 +2138,372 @@ int MainCmds::comparebooks(const vector<string>& args) {
 
   delete book1;
   delete book2;
+  ScoreValue::freeTables();
+  logger.write("DONE");
+  return 0;
+}
+
+int MainCmds::findbookbottlenecks(const vector<string>& args) {
+  Board::initHash();
+  ScoreValue::initTables();
+
+  string bookFile;
+  string outputJsonlFile;
+  double maxDepth;
+  double minVisits;
+  double addWLChangeToDepthFactor;
+  double winLossDelta;
+  double discretizationIncrement;
+  int numThreads;
+
+  try {
+    KataGoCommandLine cmd("Find points where book values depend on few leaves");
+
+    TCLAP::ValueArg<string> bookFileArg("","book-file","Book file to analyze",true,string(),"FILE");
+    TCLAP::ValueArg<string> outputJsonlFileArg("","output-jsonl","Output JSONL file path",true,string(),"FILE");
+    TCLAP::ValueArg<double> maxDepthArg("","max-depth","Maximum depth from root to analyze",true,0.0,"N");
+    TCLAP::ValueArg<double> minVisitsArg("","min-visits","Min visits for nodes to analyze",true,0.0,"N");
+    TCLAP::ValueArg<double> addWLChangeToDepthFactorArg("","add-wlchange-to-depth-factor","Count a change of this much WL (double for two-sided mistakes) as this much depth",true,0.0,"N");
+    TCLAP::ValueArg<double> winLossDeltaArg("","winloss-delta","Winloss delta to analyze",true,0.0,"DELTA");
+    TCLAP::ValueArg<double> discretizationIncrementArg("","discretization-increment","Discretization increment for thresholds",true,0.0,"INCREMENT");
+    TCLAP::ValueArg<int> numThreadsArg("","num-threads","Number of threads to use",false,1,"N");
+
+    cmd.add(bookFileArg);
+    cmd.add(outputJsonlFileArg);
+    cmd.add(maxDepthArg);
+    cmd.add(minVisitsArg);
+    cmd.add(addWLChangeToDepthFactorArg);
+    cmd.add(winLossDeltaArg);
+    cmd.add(discretizationIncrementArg);
+    cmd.add(numThreadsArg);
+
+    cmd.parseArgs(args);
+
+    bookFile = bookFileArg.getValue();
+    outputJsonlFile = outputJsonlFileArg.getValue();
+    maxDepth = maxDepthArg.getValue();
+    minVisits = minVisitsArg.getValue();
+    addWLChangeToDepthFactor = addWLChangeToDepthFactorArg.getValue();
+    winLossDelta = winLossDeltaArg.getValue();
+    discretizationIncrement = discretizationIncrementArg.getValue();
+    numThreads = numThreadsArg.getValue();
+  }
+  catch (TCLAP::ArgException &e) {
+    cerr << "Error: " << e.error() << " for argument " << e.argId() << endl;
+    return 1;
+  }
+
+  const bool logToStdout = true;
+  const bool logToStderr = false;
+  const bool logTime = false;
+  Logger logger(nullptr, logToStdout, logToStderr, logTime);
+
+  MutexPool mutexPool(1 << 17);
+
+  Book* book;
+  {
+    logger.write("Loading book");
+    book = Book::loadFromFile(bookFile, numThreads);
+    logger.write("Loaded book with " + Global::uint64ToString(book->size()) + " nodes from " + bookFile);
+    logger.write("Book version = " + Global::intToString(book->bookVersion));
+  }
+
+  book->recomputeEverythingMultiThreaded(mutexPool,numThreads);
+
+  struct NodeAndDepthInfo {
+    ConstSymBookNode node;
+    int depth;
+    double wlIncrease;
+    double wlDecrease;
+    NodeAndDepthInfo() = default;
+    NodeAndDepthInfo(ConstSymBookNode n, int d, double wli, double wld): node(n), depth(d), wlIncrease(wli), wlDecrease(wld) {}
+  };
+
+  struct ThresholdGroup {
+    double threshold;
+    bool increasing;
+    std::vector<BookHash> nodeHashes;
+    ThresholdGroup() = default;
+    ThresholdGroup(double t, bool inc): threshold(t), increasing(inc) {}
+  };
+
+  logger.write("Collecting nodes up to depth " + Global::doubleToString(maxDepth));
+
+  std::map<double, ThresholdGroup> groupsByThresholdIncreasing;
+  std::map<double, ThresholdGroup> groupsByThresholdDecreasing;
+
+  int64_t numNodesCollected = 0;
+  {
+    std::vector<NodeAndDepthInfo> nodesToExplore;
+    std::set<BookHash> visited;
+    nodesToExplore.push_back(NodeAndDepthInfo(book->getRoot(), 0, 0.0, 0.0));
+
+    for(size_t i = 0; i<nodesToExplore.size(); i++) {
+      NodeAndDepthInfo info = nodesToExplore[i];
+
+      if(info.depth + addWLChangeToDepthFactor * (info.wlIncrease + info.wlDecrease + std::min(info.wlIncrease, info.wlDecrease)) > maxDepth)
+        continue;
+
+      ConstSymBookNode node = info.node;
+      if(node.recursiveValues().visits < minVisits)
+        continue;
+
+      BookHash hash = node.hash();
+      if(contains(visited,hash))
+        continue;
+      visited.insert(hash);
+
+      // Calculate thresholds for this node, rounding to nearest increment
+      double currentWinLoss = node.recursiveValues().winLossValue;
+      double targetIncreasing = currentWinLoss + winLossDelta;
+      double roundedIncreasing = std::ceil(targetIncreasing / discretizationIncrement) * discretizationIncrement;
+      double targetDecreasing = currentWinLoss - winLossDelta;
+      double roundedDecreasing = std::floor(targetDecreasing / discretizationIncrement) * discretizationIncrement;
+      // Accumulate for processing
+      if(roundedIncreasing < 1.0) {
+        auto iter = groupsByThresholdIncreasing.find(roundedIncreasing);
+        if(iter == groupsByThresholdIncreasing.end()) {
+          groupsByThresholdIncreasing[roundedIncreasing] = ThresholdGroup(roundedIncreasing, true);
+          iter = groupsByThresholdIncreasing.find(roundedIncreasing);
+        }
+        iter->second.nodeHashes.push_back(hash);
+      }
+      if(roundedDecreasing > -1.0) {
+        auto iter = groupsByThresholdDecreasing.find(roundedDecreasing);
+        if(iter == groupsByThresholdDecreasing.end()) {
+          groupsByThresholdDecreasing[roundedDecreasing] = ThresholdGroup(roundedDecreasing, false);
+          iter = groupsByThresholdDecreasing.find(roundedDecreasing);
+        }
+        iter->second.nodeHashes.push_back(hash);
+      }
+
+      std::vector<BookMove> moves = node.getUniqueMovesInBook();
+      for(size_t j = 0; j < moves.size(); j++) {
+        NodeAndDepthInfo newInfo;
+        newInfo.node = node.follow(moves[j].move);
+        newInfo.depth = info.depth+1;
+        newInfo.wlIncrease = info.wlIncrease;
+        newInfo.wlDecrease = info.wlDecrease;
+        double newWinLoss = newInfo.node.recursiveValues().winLossValue;
+        if(newWinLoss > currentWinLoss)
+          newInfo.wlIncrease += newWinLoss - currentWinLoss;
+        else
+          newInfo.wlDecrease += currentWinLoss - newWinLoss;
+
+        nodesToExplore.push_back(newInfo);
+      }
+
+      numNodesCollected += 1;
+      if(numNodesCollected % 10000 == 0)
+        logger.write("Num nodes collected: " + Global::intToString(numNodesCollected));
+    }
+  }
+
+  logger.write("Collected " + Global::int64ToString(numNodesCollected) + " book nodes");
+  logger.write("Created " + Global::intToString(groupsByThresholdIncreasing.size()) + " increasing threshold groups");
+  logger.write("Created " + Global::intToString(groupsByThresholdDecreasing.size()) + " decreasing threshold groups");
+
+  // Combine all groups into a single vector
+  std::vector<ThresholdGroup> allGroups;
+  for(auto& pair : groupsByThresholdIncreasing) {
+    allGroups.push_back(pair.second);
+  }
+  for(auto& pair : groupsByThresholdDecreasing) {
+    allGroups.push_back(pair.second);
+  }
+
+  // Open output file
+  std::ofstream outputFile;
+  FileUtils::open(outputFile, outputJsonlFile);
+  std::mutex outputMutex;
+  std::atomic<int64_t> entriesWritten(0);
+
+  // Processes a whole group
+  auto processGroup = [&](int threadIdx, size_t groupIdx) {
+    (void)threadIdx;
+
+    const ThresholdGroup& group = allGroups[groupIdx];
+
+    // Sharing caches for this entire group is safe because the whole group has the same threshold and
+    // is all increasing or all decreasing.
+    std::map<BookHash, double> costCache;
+    std::map<BookHash, Book::MinCostResult> resultCache;
+
+    // Ignore if the total cost to prove the new value is more than this.
+    const double pruneOverCost = 500.0;
+    auto costFunc = [&book,&group](ConstSymBookNode node, const BookValues& values) -> double {
+
+      double thisWL = values.winLossValue;
+
+      // Iterate over all moves and add if thisValuesNotInBook does not beat the child
+      int numMovesNotBeaten = 0;
+      for(const BookMove& bookMove : node.getUniqueMovesInBook()) {
+        ConstSymBookNode child = book->getByHash(bookMove.hash);
+        double childWL = child.recursiveValues().winLossValue;
+
+        if((node.pla() == P_WHITE && thisWL < childWL) || (node.pla() == P_BLACK && thisWL > childWL)) {
+          numMovesNotBeaten += 1;
+        }
+      }
+
+      // Basic cost component based on the unexplored policy
+      double cost = 1.0 / std::sqrt(values.maxPolicy + 1e-5);
+
+      auto transformWL = [](double wl) {
+        return wl * wl * wl * wl * wl + wl;
+      };
+
+      // Augment the cost based on how far the value is away from the threshold, in transformed space.
+      double transformedWLDifference;
+      if(group.increasing)
+        transformedWLDifference = transformWL(group.threshold) - transformWL(thisWL);
+      else
+        transformedWLDifference = transformWL(thisWL) - transformWL(group.threshold);
+      cost *= exp(transformedWLDifference - 0.6);
+
+      // Add additional flat cost component just based on the number of moves not beaten
+      cost += 5 * numMovesNotBeaten;
+
+      return cost;
+    };
+    auto edgeCost = [&book,&group](ConstSymBookNode node, const BookMove& edgeMove) -> double {
+
+      ConstSymBookNode edgeChild = book->getByHash(edgeMove.hash);
+      double thisWL = edgeChild.recursiveValues().winLossValue;
+
+      // Iterate over all moves and add if the given edge does not beat the child
+      int numMovesNotBeaten = 0;
+      for(const BookMove& bookMove : node.getUniqueMovesInBook()) {
+        ConstSymBookNode child = book->getByHash(bookMove.hash);
+        double childWL = child.recursiveValues().winLossValue;
+
+        if((node.pla() == P_WHITE && thisWL < childWL) || (node.pla() == P_BLACK && thisWL > childWL)) {
+          numMovesNotBeaten += 1;
+        }
+      }
+
+      // Basic cost component based on the edge's policy
+      double cost = 1.0 / std::sqrt(edgeMove.rawPolicy + 1e-5);
+
+      auto transformWL = [](double wl) {
+        return wl * wl * wl * wl * wl + wl;
+      };
+
+      // Augment the cost based on how far the value is away from the threshold, in transformed space.
+      double transformedWLDifference;
+      if(group.increasing)
+        transformedWLDifference = transformWL(group.threshold) - transformWL(thisWL);
+      else
+        transformedWLDifference = transformWL(thisWL) - transformWL(group.threshold);
+      cost *= exp(transformedWLDifference - 0.6);
+
+      // Add additional flat cost component just based on the number of moves not beaten
+      cost += 5 * numMovesNotBeaten;
+
+      // Reduce edge cost based on the number of visits at the edge, once we start building a decent subtree we just care more about the leaves
+      double visitsScale = book->getParams().visitsScale;
+      cost *= visitsScale / (visitsScale + edgeChild.recursiveValues().visits);
+
+      return cost;
+    };
+
+    for(const BookHash& nodeHash : group.nodeHashes) {
+      ConstSymBookNode node = book->getByHash(nodeHash);
+      testAssert(!node.isNull());
+
+      Book::MinCostResult result = book->computeMinCostToChangeWinLoss(
+        node,
+        costFunc,
+        edgeCost,
+        group.threshold,
+        group.increasing,
+        pruneOverCost,
+        costCache,
+        resultCache
+      );
+      if(result.totalCost > pruneOverCost) {
+        logger.write("Not writing node with cost " + Global::doubleToString(result.totalCost));
+        continue;
+      }
+
+      BoardHistory hist;
+      std::vector<Loc> moveHistory;
+      bool suc = node.getBoardHistoryReachingHere(hist, moveHistory);
+      testAssert(suc);
+
+      nlohmann::json jsonEntry;
+      jsonEntry["hash"] = nodeHash.toString();
+      jsonEntry["bookCost"] = node.minCostFromRoot();
+      jsonEntry["visits"] = node.recursiveValues().visits;
+      jsonEntry["adjustedVisits"] = node.recursiveValues().adjustedVisits;
+      jsonEntry["minCost"] = result.totalCost;
+      jsonEntry["currentWL"] = node.recursiveValues().winLossValue;
+      jsonEntry["threshold"] = group.threshold;
+      jsonEntry["increasing"] = group.increasing;
+
+      std::vector<std::string> nodesToChangeList;
+      for(const BookHash& h: result.nodes)
+        nodesToChangeList.push_back(h.toString());
+      jsonEntry["minSetToChange"] = nodesToChangeList;
+
+      std::vector<std::string> moveHistoryStrings;
+      for(Loc move: moveHistory)
+        moveHistoryStrings.push_back(Location::toString(move, book->initialBoard));
+      jsonEntry["moveHistory"] = moveHistoryStrings;
+
+      {
+        std::lock_guard<std::mutex> lock(outputMutex);
+        outputFile << jsonEntry.dump() << "\n";
+      }
+
+      // Logging output
+      {
+        std::ostringstream out;
+
+        out << ("\n========================================") << endl;
+        out << "Node: " << nodeHash.toString() << endl;
+        out << "BookCost: " << node.minCostFromRoot() << endl;
+        out << "Visits: " << node.recursiveValues().visits << endl;
+        out << "AdjustedVisits: " << node.recursiveValues().adjustedVisits << endl;
+        out << "Current WinLoss: " << node.recursiveValues().winLossValue << endl;
+        out << ("Threshold: " + Global::doubleToString(group.threshold) + " (" + (group.increasing ? "increasing" : "decreasing") + ")") << endl;
+        out << "Min Cost: " << result.totalCost << endl;
+        for(Loc move : moveHistory)
+          out << Location::toString(move, book->initialBoard) << " ";
+        out << "\n";
+
+        Board board = hist.getRecentBoard(0);
+        Board::printBoard(out, board, Board::NULL_LOC, &(hist.moveHistory));
+
+        out << ("Num nodes to change: " + Global::intToString((int)result.nodes.size())) << endl;
+        for(const BookHash& hashToChange: result.nodes) {
+          BoardHistory histToChange;
+          std::vector<Loc> moveHistoryToChange;
+          bool suc2 = book->getByHash(hashToChange).getBoardHistoryReachingHere(histToChange, moveHistoryToChange);
+          testAssert(suc2);
+
+          for(Loc move : moveHistoryToChange)
+            out << Location::toString(move, book->initialBoard) << " ";
+          out << "\n";
+        }
+
+        logger.write(out.str());
+      }
+
+      int64_t currentEntries = entriesWritten.fetch_add(1) + 1;
+      if(currentEntries % 100 == 0) {
+        logger.write("Entries written: " + Global::int64ToString(currentEntries));
+      }
+    }
+  };
+
+  logger.write("Starting parallel processing with " + Global::intToString(numThreads) + " threads");
+  Parallel::iterRange(numThreads, allGroups.size(), logger, processGroup);
+
+  outputFile.close();
+  logger.write("Total entries written: " + Global::int64ToString(entriesWritten.load()));
+
+  delete book;
   ScoreValue::freeTables();
   logger.write("DONE");
   return 0;

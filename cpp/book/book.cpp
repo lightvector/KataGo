@@ -266,7 +266,7 @@ BookMove::BookMove(Loc mv, int s, BookHash h, double rp)
    biggestWLCostFromRoot(0.0)
 {}
 
-BookMove BookMove::getSymBookMove(int symmetry, int xSize, int ySize) {
+BookMove BookMove::getSymBookMove(int symmetry, int xSize, int ySize) const {
   BookMove ret(
     SymmetryHelpers::getSymLoc(move,xSize,ySize,symmetry),
     // This needs to be the symmetry that transform's retspace -> childspace
@@ -905,7 +905,7 @@ size_t Book::size() const {
   return nodes.size();
 }
 
-BookParams Book::getParams() const { return params; }
+const BookParams& Book::getParams() const { return params; }
 void Book::setParams(const BookParams& p) { params = p; }
 std::map<BookHash,double> Book::getBonusByHash() const { return bonusByHash; }
 void Book::setBonusByHash(const std::map<BookHash,double>& d) { bonusByHash = d; }
@@ -1812,6 +1812,116 @@ void Book::recomputeNodeValues(BookNode* node) {
 
 double Book::getUtility(const RecursiveBookValues& values) const {
   return values.winLossValue + values.scoreMean * params.utilityPerScore;
+}
+
+Book::MinCostResult Book::computeMinCostToChangeWinLoss(
+  ConstSymBookNode node,
+  const std::function<double(ConstSymBookNode, const BookValues&)>& costFunc,
+  const std::function<double(ConstSymBookNode, const BookMove&)>& edgeCost,
+  double winLossValueThreshold,
+  bool increasing,
+  double pruneOverCost,
+  std::map<BookHash,double>& costCache,
+  std::map<BookHash,MinCostResult>& resultCache
+) const {
+  if(node.isNull())
+    return MinCostResult{0.0, {}};
+  std::set<BookHash> visited;
+  return computeMinCostToChangeWinLossHelper(node.node, costFunc, edgeCost, winLossValueThreshold, increasing, pruneOverCost, costCache, resultCache, visited);
+}
+
+Book::MinCostResult Book::computeMinCostToChangeWinLossHelper(
+  const BookNode* node,
+  const std::function<double(ConstSymBookNode, const BookValues&)>& costFunc,
+  const std::function<double(ConstSymBookNode, const BookMove&)>& edgeCost,
+  double winLossValueThreshold,
+  bool increasing,
+  double pruneOverCost,
+  std::map<BookHash,double>& costCache,
+  std::map<BookHash,MinCostResult>& resultCache,
+  std::set<BookHash>& visited
+) const {
+  // Base case
+  double currentWinLoss = node->recursiveValues.winLossValue;
+  if(increasing && currentWinLoss >= winLossValueThreshold)
+    return MinCostResult{0.0, {}};
+  if(!increasing && currentWinLoss <= winLossValueThreshold)
+    return MinCostResult{0.0, {}};
+
+  // Check if we already computed this result
+  std::map<BookHash,MinCostResult>::iterator resultIter = resultCache.find(node->hash);
+  if(resultIter != resultCache.end())
+    return resultIter->second;
+
+  // Cycle detection: if already visiting this node, return 0 to avoid infinite loop
+  if(contains(visited, node->hash))
+    return MinCostResult{0.0, {}};
+  visited.insert(node->hash);
+
+  // Evaluate cost of changing this node's thisValuesNotInBook
+  double thisNodeWL = node->thisValuesNotInBook.winLossValue;
+  MinCostResult thisNodeResult;
+  if((increasing && thisNodeWL >= winLossValueThreshold) || (!increasing && thisNodeWL <= winLossValueThreshold)) {
+    thisNodeResult = MinCostResult{0.0, {}};
+  }
+  else {
+    std::map<BookHash,double>::iterator cacheIter = costCache.find(node->hash);
+    if(cacheIter != costCache.end()) {
+      thisNodeResult.totalCost = cacheIter->second;
+    }
+    else {
+      double cost = costFunc(ConstSymBookNode(node,0), node->thisValuesNotInBook);
+      costCache[node->hash] = cost;
+      thisNodeResult.totalCost = cost;
+    }
+    thisNodeResult.nodes.insert(node->hash);
+  }
+
+  MinCostResult result = thisNodeResult;
+  if((node->pla == P_WHITE && increasing) || (node->pla == P_BLACK && !increasing)) {
+    // White maximizing, increasing, OR Black minimizing, decreasing: need only ONE child (or this node) to meet threshold
+    for(auto iter = node->moves.begin(); iter != node->moves.end(); ++iter) {
+      const BookNode* child = get(iter->second.hash);
+      MinCostResult childResult = computeMinCostToChangeWinLossHelper(child, costFunc, edgeCost, winLossValueThreshold, increasing, pruneOverCost, costCache, resultCache, visited);
+
+      childResult.totalCost += edgeCost(ConstSymBookNode(node,0), iter->second);
+      if(childResult.totalCost < result.totalCost)
+        result = childResult;
+    }
+
+    if(result.totalCost > pruneOverCost)
+      // Quit without caching if over cost
+      return result;
+  }
+  else {
+    if(thisNodeResult.totalCost > pruneOverCost)
+      // Quit early without caching if over cost
+      return thisNodeResult;
+
+    // White maximizing, decreasing: OR Black minimizing, increasing: need ALL children AND this node to meet threshold
+    for(auto iter = node->moves.begin(); iter != node->moves.end(); ++iter) {
+      const BookNode* child = get(iter->second.hash);
+      MinCostResult childResult = computeMinCostToChangeWinLossHelper(child, costFunc, edgeCost, winLossValueThreshold, increasing, pruneOverCost, costCache, resultCache, visited);
+      childResult.totalCost += edgeCost(ConstSymBookNode(node,0), iter->second.getSymBookMove(0, node->book->initialBoard.x_size, node->book->initialBoard.y_size));
+      result.totalCost += childResult.totalCost;
+      for(const BookHash& hash: childResult.nodes) {
+        auto [_,inserted] = result.nodes.insert(hash);
+        if(!inserted) {
+          // Avoid double counting. Cache is guaranteed to be populated by recursive calls
+          std::map<BookHash,double>::const_iterator cacheIter = costCache.find(hash);
+          assert(cacheIter != costCache.end());
+          result.totalCost -= cacheIter->second;
+        }
+      }
+
+      if(result.totalCost > pruneOverCost)
+        // Quit without caching if over cost
+        return result;
+    }
+  }
+
+  resultCache[node->hash] = result;
+  return result;
 }
 
 void Book::recomputeNodeCost(BookNode* node) {
