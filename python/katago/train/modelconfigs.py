@@ -81,6 +81,7 @@ b1c6nbt = {
     "mid_num_channels":4,
     "gpool_num_channels":4,
     "use_attention_pool":False,
+    "gamma_weight_decay_center_1":True,
     "num_attention_pool_heads":2,
     "block_kind": [
         ["rconv1","bottlenest2"],
@@ -103,6 +104,7 @@ b2c16 = {
     "mid_num_channels":16,
     "gpool_num_channels":8,
     "use_attention_pool":False,
+    "gamma_weight_decay_center_1":True,
     "num_attention_pool_heads":2,
     "block_kind": [
         ["rconv1","regular"],
@@ -126,6 +128,7 @@ b4c32 = {
     "mid_num_channels":32,
     "gpool_num_channels":16,
     "use_attention_pool":False,
+    "gamma_weight_decay_center_1":True,
     "num_attention_pool_heads":2,
     "block_kind": [
         ["rconv1","regular"],
@@ -151,6 +154,7 @@ b6c96 = {
     "mid_num_channels":96,
     "gpool_num_channels":32,
     "use_attention_pool":False,
+    "gamma_weight_decay_center_1":True,
     "num_attention_pool_heads":4,
     "block_kind": [
         ["rconv1","regular"],
@@ -178,6 +182,7 @@ b10c128 = {
     "mid_num_channels":128,
     "gpool_num_channels":32,
     "use_attention_pool":False,
+    "gamma_weight_decay_center_1":True,
     "num_attention_pool_heads":4,
     "block_kind": [
         ["rconv1","regular"],
@@ -209,6 +214,7 @@ b5c192nbt = {
     "mid_num_channels":96,
     "gpool_num_channels":32,
     "use_attention_pool":False,
+    "gamma_weight_decay_center_1":True,
     "num_attention_pool_heads":4,
     "block_kind": [
         ["rconv1","bottlenest2"],
@@ -235,6 +241,7 @@ b15c192 = {
     "mid_num_channels":192,
     "gpool_num_channels":64,
     "use_attention_pool":False,
+    "gamma_weight_decay_center_1":True,
     "num_attention_pool_heads":4,
     "block_kind": [
         ["rconv1","regular"],
@@ -271,6 +278,7 @@ b20c256 = {
     "mid_num_channels":256,
     "gpool_num_channels":64,
     "use_attention_pool":False,
+    "gamma_weight_decay_center_1":True,
     "num_attention_pool_heads":4,
     "block_kind": [
         ["rconv1","regular"],
@@ -312,6 +320,7 @@ b30c256bt = {
     "mid_num_channels":128,
     "gpool_num_channels":64,
     "use_attention_pool":False,
+    "gamma_weight_decay_center_1":True,
     "num_attention_pool_heads":4,
     "block_kind": [
         ["rconv0","bottle"],
@@ -363,6 +372,7 @@ b24c320bt = {
     "mid_num_channels":160,
     "gpool_num_channels":64,
     "use_attention_pool":False,
+    "gamma_weight_decay_center_1":True,
     "num_attention_pool_heads":4,
     "block_kind": [
         ["rconv1","bottle"],
@@ -408,6 +418,7 @@ b20c384bt = {
     "mid_num_channels":192,
     "gpool_num_channels":64,
     "use_attention_pool":False,
+    "gamma_weight_decay_center_1":True,
     "num_attention_pool_heads":4,
     "block_kind": [
         ["rconv1","bottle"],
@@ -450,6 +461,7 @@ b10c512lbt = {
     "mid_num_channels":256,
     "gpool_num_channels":128,
     "use_attention_pool":False,
+    "gamma_weight_decay_center_1":True,
     "num_attention_pool_heads":4,
     "block_kind": [
         ["rconv1","bottle2"],
@@ -482,6 +494,7 @@ b15c384lbt = {
     "mid_num_channels":192,
     "gpool_num_channels":64,
     "use_attention_pool":False,
+    "gamma_weight_decay_center_1":True,
     "num_attention_pool_heads":4,
     "block_kind": [
         ["rconv1","bottle2"],
@@ -518,6 +531,7 @@ b18c320lbt = {
     "mid_num_channels":160,
     "gpool_num_channels":64,
     "use_attention_pool":False,
+    "gamma_weight_decay_center_1":True,
     "num_attention_pool_heads":4,
     "block_kind": [
         ["rconv1","bottle2"],
@@ -557,6 +571,7 @@ b23c256lbt = {
     "mid_num_channels":128,
     "gpool_num_channels":64,
     "use_attention_pool":False,
+    "gamma_weight_decay_center_1":True,
     "num_attention_pool_heads":4,
     "block_kind": [
         ["rconv1","bottle2"],
@@ -601,6 +616,7 @@ b12c384llbt = {
     "mid_num_channels":192,
     "gpool_num_channels":64,
     "use_attention_pool":False,
+    "gamma_weight_decay_center_1":True,
     "num_attention_pool_heads":4,
     "block_kind": [
         ["rconv1","bottle3"],
@@ -635,6 +651,7 @@ b10c384nbt = {
     "mid_num_channels":192,
     "gpool_num_channels":64,
     "use_attention_pool":False,
+    "gamma_weight_decay_center_1":True,
     "num_attention_pool_heads":4,
     "block_kind": [
         ["rconv1","bottlenest2"],
@@ -667,6 +684,7 @@ b10c480nb3t = {
     "mid_num_channels":160,
     "gpool_num_channels":64,
     "use_attention_pool":False,
+    "gamma_weight_decay_center_1":True,
     "num_attention_pool_heads":4,
     "block_kind": [
         ["rconv1","bottlenest2"],
@@ -699,6 +717,7 @@ b7c384lnbt = {
     "mid_num_channels":192,
     "gpool_num_channels":64,
     "use_attention_pool":False,
+    "gamma_weight_decay_center_1":True,
     "num_attention_pool_heads":4,
     "block_kind": [
         ["rconv1","bottlenest3"],
@@ -728,6 +747,7 @@ b5c512nnbt = {
     "mid_num_channels":128,
     "gpool_num_channels":64,
     "use_attention_pool":False,
+    "gamma_weight_decay_center_1":True,
     "num_attention_pool_heads":4,
     "block_kind": [
         ["rconv1","bottlenest2bottlenest2"],
@@ -755,6 +775,7 @@ b20c384lbt = {
     "mid_num_channels":192,
     "gpool_num_channels":64,
     "use_attention_pool":False,
+    "gamma_weight_decay_center_1":True,
     "num_attention_pool_heads":4,
     "block_kind": [
         ["rconv1","bottle2"],
@@ -797,6 +818,7 @@ b30c320 = {
     "mid_num_channels":320,
     "gpool_num_channels":96,
     "use_attention_pool":False,
+    "gamma_weight_decay_center_1":True,
     "num_attention_pool_heads":4,
     "block_kind": [
         ["rconv1","regular"],
@@ -848,6 +870,7 @@ b40c256 = {
     "mid_num_channels":256,
     "gpool_num_channels":64,
     "use_attention_pool":False,
+    "gamma_weight_decay_center_1":True,
     "num_attention_pool_heads":4,
     "block_kind": [
         ["rconv1","regular"],
@@ -909,6 +932,7 @@ b18c384nbt = {
     "mid_num_channels":192,
     "gpool_num_channels":64,
     "use_attention_pool":False,
+    "gamma_weight_decay_center_1":True,
     "num_attention_pool_heads":4,
     "block_kind": [
         ["rconv1","bottlenest2"],
@@ -948,6 +972,7 @@ b18c384dnbt1 = {
     "mid_num_channels":192,
     "gpool_num_channels":64,
     "use_attention_pool":False,
+    "gamma_weight_decay_center_1":True,
     "num_attention_pool_heads":4,
     "block_kind": [
         ["rconv1","bottlenest2"],
@@ -987,6 +1012,7 @@ b18c384dnbt2 = {
     "mid_num_channels":192,
     "gpool_num_channels":64,
     "use_attention_pool":False,
+    "gamma_weight_decay_center_1":True,
     "num_attention_pool_heads":4,
     "block_kind": [
         ["rconv1","bottlenest2"],
@@ -1026,6 +1052,7 @@ b14c448nbt = {
     "mid_num_channels":224,
     "gpool_num_channels":64,
     "use_attention_pool":False,
+    "gamma_weight_decay_center_1":True,
     "num_attention_pool_heads":4,
     "block_kind": [
         ["rconv1","bottlenest2"],
@@ -1061,6 +1088,7 @@ b40c384 = {
     "mid_num_channels":384,
     "gpool_num_channels":128,
     "use_attention_pool":False,
+    "gamma_weight_decay_center_1":True,
     "num_attention_pool_heads":4,
     "block_kind": [
         ["rconv1","regular"],
@@ -1123,6 +1151,7 @@ b60c320 = {
     "mid_num_channels":320,
     "gpool_num_channels":96,
     "use_attention_pool":False,
+    "gamma_weight_decay_center_1":True,
     "num_attention_pool_heads":4,
     "block_kind": [
         ["rconv1","regular"],
@@ -1205,6 +1234,7 @@ b41c384nbt = {
     "mid_num_channels":192,
     "gpool_num_channels":64,
     "use_attention_pool":False,
+    "gamma_weight_decay_center_1":True,
     "num_attention_pool_heads":4,
     "block_kind": [
         ["rconv1","bottlenest2"],
@@ -1267,6 +1297,7 @@ b32c448nbt = {
     "mid_num_channels":224,
     "gpool_num_channels":64,
     "use_attention_pool":False,
+    "gamma_weight_decay_center_1":True,
     "num_attention_pool_heads":4,
     "block_kind": [
         ["rconv1","bottlenest2"],
@@ -1321,6 +1352,7 @@ b28c512nbt = {
     "mid_num_channels":256,
     "gpool_num_channels":64,
     "use_attention_pool":False,
+    "gamma_weight_decay_center_1":True,
     "num_attention_pool_heads":4,
     "block_kind": [
         ["rconv1","bottlenest2"],
@@ -1370,6 +1402,7 @@ b20c640nbt = {
     "mid_num_channels":320,
     "gpool_num_channels":96,
     "use_attention_pool":False,
+    "gamma_weight_decay_center_1":True,
     "num_attention_pool_heads":4,
     "block_kind": [
         ["rconv1","bottlenest2"],
@@ -1411,6 +1444,7 @@ sandbox = {
     "mid_num_channels":256,
     "gpool_num_channels":64,
     "use_attention_pool":False,
+    "gamma_weight_decay_center_1":True,
     "num_attention_pool_heads":4,
     "block_kind": [
         ["rconv1","regular"],
