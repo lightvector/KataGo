@@ -22,7 +22,7 @@ class ThreadSafeContainer
   std::condition_variable notFullCondVar;
 
   // Abstract methods to be implemented in derived classes
-  virtual void pushUnsynchronized(T elt) = 0;
+  virtual void pushUnsynchronized(T&& elt) = 0;
   virtual T popUnsynchronized() = 0;
   virtual void clearUnsynchronized() = 0;
   virtual size_t sizeUnsynchronized() = 0;
@@ -90,30 +90,44 @@ class ThreadSafeContainer
 
   // Wait until the queue is not full or is closed or is readonly, and then push an element into the queue.
   // Returns true if the push was successful, false if the queue was closed or readonly.
-  inline bool waitPush(T elt)
+  inline bool waitPush(T&& elt)
   {
     std::unique_lock<std::mutex> lock(mutex);
     while(!closed && !readOnly && sizeUnsynchronized() >= maxSize)
       notFullCondVar.wait(lock);
     if(closed || readOnly)
       return false;
-    pushUnsynchronized(elt);
+    pushUnsynchronized(std::forward<T>(elt));
     if(sizeUnsynchronized() == 1)
       notEmptyCondVar.notify_all();
     return true;
   }
 
+  template<typename U = T>
+  inline std::enable_if_t<std::is_copy_constructible<U>::value, bool>
+  waitPush(const T& elt)
+  {
+    return waitPush(T(elt));
+  }
+
   // Push an element without blocking, but can exceed maxSize of the queue.
   // Returns true if the push was successful, false if the queue was closed or readonly.
-  inline bool forcePush(T elt)
+  inline bool forcePush(T&& elt)
   {
     std::unique_lock<std::mutex> lock(mutex);
     if(closed || readOnly)
       return false;
-    pushUnsynchronized(elt);
+    pushUnsynchronized(std::forward<T>(elt));
     if(sizeUnsynchronized() == 1)
       notEmptyCondVar.notify_all();
     return true;
+  }
+
+  template<typename U = T>
+  inline std::enable_if_t<std::is_copy_constructible<U>::value, bool>
+  forcePush(const T& elt)
+  {
+    return forcePush(T(elt));
   }
 
   // Attempt to pop an element into buf without blocking.
@@ -194,8 +208,8 @@ class ThreadSafeQueue final : public ThreadSafeContainer<T>
     eltsEnqueue.reserve(sz);
   }
 
-  inline void pushUnsynchronized(T elt) override {
-    eltsEnqueue.push_back(elt);
+  inline void pushUnsynchronized(T&& elt) override {
+    eltsEnqueue.push_back(std::forward<T>(elt));
   }
   inline T popUnsynchronized() override {
     if(headIdx >= eltsDequeue.size()) {
@@ -204,7 +218,7 @@ class ThreadSafeQueue final : public ThreadSafeContainer<T>
       eltsDequeue.swap(eltsEnqueue);
       headIdx = 0;
     }
-    return eltsDequeue[headIdx++];
+    return std::move(eltsDequeue[headIdx++]);
   }
 
   inline void clearUnsynchronized() override {
@@ -239,11 +253,11 @@ class ThreadSafePriorityQueue final : public ThreadSafeContainer<std::pair<KT,VT
     ThreadSafeContainer<T>(maxSz), headIdx(0), queue()
   {}
 
-  inline void pushUnsynchronized(T elt) override {
-    queue.push(elt);
+  inline void pushUnsynchronized(T&& elt) override {
+    queue.push(std::forward<T>(elt));
   }
   inline T popUnsynchronized() override {
-    T item = queue.top();
+    T item = std::move(queue.top());
     queue.pop();
     return item;
   }

@@ -319,7 +319,7 @@ int MainCmds::searchentropyanalysis(const vector<string>& args) {
   int numPositions = 0;
 
   for(const string& sgf : sgfData) {
-    CompactSgf* sgfObj = CompactSgf::parse(sgf);
+    std::unique_ptr<CompactSgf> sgfObj = CompactSgf::parse(sgf);
 
     for(int turnIdx = 0; turnIdx < sgfObj->moves.size(); turnIdx++) {
       Board board;
@@ -350,7 +350,6 @@ int MainCmds::searchentropyanalysis(const vector<string>& args) {
         }
       }
     }
-    delete sgfObj;
   }
 
   cout << modelFile << endl;

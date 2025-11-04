@@ -178,7 +178,7 @@ void TestSearchCommon::runBotOnPosition(AsyncBot* bot, Board board, Player nextP
 }
 
 void TestSearchCommon::runBotOnSgf(AsyncBot* bot, const string& sgfStr, const Rules& defaultRules, int turnIdx, float overrideKomi, TestSearchOptions opts) {
-  CompactSgf* sgf = CompactSgf::parse(sgfStr);
+  std::unique_ptr<CompactSgf> sgf = CompactSgf::parse(sgfStr);
 
   Board board;
   Player nextPla;
@@ -187,7 +187,6 @@ void TestSearchCommon::runBotOnSgf(AsyncBot* bot, const string& sgfStr, const Ru
   sgf->setupBoardAndHistAssumeLegal(initialRules, board, nextPla, hist, turnIdx);
   hist.setKomi(overrideKomi);
   runBotOnPosition(bot,board,nextPla,hist,opts);
-  delete sgf;
 }
 
 NNEvaluator* TestSearchCommon::startNNEval(

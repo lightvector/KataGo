@@ -125,7 +125,7 @@ static void maybeParseBonusFile(
   Player& bonusInitialPla
 ) {
   if(bonusFile != "") {
-    Sgf* sgf = Sgf::loadFile(bonusFile);
+    std::unique_ptr<Sgf> sgf = Sgf::loadFile(bonusFile);
     bool flipIfPassOrWFirst = false;
     bool allowGameOver = false;
     Rand seedRand("bonusByHash");
@@ -235,7 +235,6 @@ static void maybeParseBonusFile(
     if(!suc)
       throw StringError("Invalid placements in sgf");
     bonusInitialPla = sgf->getFirstPlayerColor();
-    delete sgf;
   }
 }
 
@@ -1292,7 +1291,7 @@ int MainCmds::genbook(const vector<string>& args) {
     }
     else {
       assert(traceSgfFile.size() > 0);
-      Sgf* sgf = Sgf::loadFile(traceSgfFile);
+      std::unique_ptr<Sgf> sgf = Sgf::loadFile(traceSgfFile);
       bool flipIfPassOrWFirst = false;
       bool allowGameOver = false;
       Rand seedRand("bonusByHash");
@@ -1316,7 +1315,6 @@ int MainCmds::genbook(const vector<string>& args) {
         "Tracing sgf, variationsAdded " +
         Global::int64ToString(variationsAdded)
       );
-      delete sgf;
     }
 
     {

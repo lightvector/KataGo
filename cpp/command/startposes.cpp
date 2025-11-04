@@ -31,9 +31,9 @@ static void signalHandler(int signal)
   }
 }
 
-static void handleStartAnnotations(Sgf* rootSgf) {
-  std::function<bool(Sgf*)> hasStartNode = [&hasStartNode](Sgf* sgf) {
-    for(SgfNode* node : sgf->nodes) {
+static void handleStartAnnotations(Sgf& rootSgf) {
+  std::function<bool(Sgf&)> hasStartNode = [&hasStartNode](Sgf& sgf) {
+    for(std::unique_ptr<SgfNode>& node : sgf.nodes) {
       if(node->hasProperty("C")) {
         std::string comment = node->getSingleProperty("C");
         if(comment.find("%START%") != std::string::npos) {
@@ -41,17 +41,17 @@ static void handleStartAnnotations(Sgf* rootSgf) {
         }
       }
     }
-    for(Sgf* child : sgf->children) {
-      if(hasStartNode(child)) {
+    for(std::unique_ptr<Sgf>& child : sgf.children) {
+      if(hasStartNode(*child)) {
         return true;
       }
     }
     return false;
   };
 
-  std::function<void(Sgf*)> markNodes = [&markNodes](Sgf* sgf) {
+  std::function<void(Sgf&)> markNodes = [&markNodes](Sgf& sgf) {
     bool isInStartSubtree = false;
-    for(SgfNode* node : sgf->nodes) {
+    for(std::unique_ptr<SgfNode>& node : sgf.nodes) {
       if(node->hasProperty("C")) {
         std::string comment = node->getSingleProperty("C");
         if(comment.find("%START%") != std::string::npos) {
@@ -63,8 +63,8 @@ static void handleStartAnnotations(Sgf* rootSgf) {
       node->appendComment("%NOHINT%");
     }
     if(!isInStartSubtree) {
-      for(Sgf* child : sgf->children)
-        markNodes(child);
+      for(std::unique_ptr<Sgf>& child : sgf.children)
+        markNodes(*child);
     }
   };
 
@@ -306,31 +306,31 @@ int MainCmds::samplesgfs(const vector<string>& args) {
 
   // ---------------------------------------------------------------------------------------------------
 
-  auto isPlayerOkay = [&](const Sgf* sgf, Player pla) {
+  auto isPlayerOkay = [&](const Sgf& sgf, Player pla) {
     if(requiredPlayerName != "") {
-      if(sgf->getPlayerName(pla) != requiredPlayerName)
+      if(sgf.getPlayerName(pla) != requiredPlayerName)
         return false;
     }
     return true;
   };
 
-  auto isSgfOkay = [&](const Sgf* sgf, string& reasonBuf) {
-    if(maxHandicap < 100 && sgf->getHandicapValue() > maxHandicap)
+  auto isSgfOkay = [&](const Sgf& sgf, string& reasonBuf) {
+    if(maxHandicap < 100 && sgf.getHandicapValue() > maxHandicap)
     {reasonBuf = "handicap"; return false;}
-    if(sgf->depth() > maxDepth)
-    {reasonBuf = "depth" + Global::intToString(sgf->depth()); return false;}
-    if(std::fabs(sgf->getKomiOrDefault(7.5f)) > maxKomi)
+    if(sgf.depth() > maxDepth)
+    {reasonBuf = "depth" + Global::intToString(sgf.depth()); return false;}
+    if(std::fabs(sgf.getKomiOrDefault(7.5f)) > maxKomi)
     {reasonBuf = "komi"; return false;}
     if(minMinRank != Sgf::RANK_UNKNOWN) {
-      if(sgf->getRank(P_BLACK) < minMinRank || sgf->getRank(P_WHITE) < minMinRank)
+      if(sgf.getRank(P_BLACK) < minMinRank || sgf.getRank(P_WHITE) < minMinRank)
       {reasonBuf = "rank"; return false;}
     }
     if(minMinRating > -10000000) {
-      if(sgf->getRating(P_BLACK) < minMinRating || sgf->getRating(P_WHITE) < minMinRating)
+      if(sgf.getRating(P_BLACK) < minMinRating || sgf.getRating(P_WHITE) < minMinRating)
       {reasonBuf = "rating"; return false;}
     }
     if(!isPlayerOkay(sgf,P_BLACK) && !isPlayerOkay(sgf,P_WHITE))
-    {reasonBuf = "player " + sgf->getPlayerName(P_BLACK) + " " + sgf->getPlayerName(P_WHITE); return false;}
+    {reasonBuf = "player " + sgf.getPlayerName(P_BLACK) + " " + sgf.getPlayerName(P_WHITE); return false;}
     return true;
   };
 
@@ -384,23 +384,23 @@ int MainCmds::samplesgfs(const vector<string>& args) {
   double totalWeightFromUncertainty = 0.0;
   int64_t numExcluded = 0;
   int64_t numSgfsFilteredTopLevel = 0;
-  auto trySgf = [&](Sgf* sgf) {
+  auto trySgf = [&](Sgf& sgf) {
     std::unique_lock<std::mutex> lock(mutex);
 
-    if(contains(excludeHashes,sgf->hash)) {
+    if(contains(excludeHashes,sgf.hash)) {
       numExcluded += 1;
       return;
     }
 
-    int64_t depth = sgf->depth();
-    int64_t nodeCount = sgf->nodeCount();
-    int64_t branchCount = sgf->branchCount();
+    int64_t depth = sgf.depth();
+    int64_t nodeCount = sgf.nodeCount();
+    int64_t branchCount = sgf.branchCount();
     if(depth > maxDepth || nodeCount > maxNodeCount || branchCount > maxBranchCount) {
       logger.write(
         "Skipping due to violating limits depth " + Global::int64ToString(depth) +
         " nodes " + Global::int64ToString(nodeCount) +
         " branches " + Global::int64ToString(branchCount) +
-        " " + sgf->fileName
+        " " + sgf.fileName
       );
       numSgfsFilteredTopLevel += 1;
       return;
@@ -410,13 +410,13 @@ int MainCmds::samplesgfs(const vector<string>& args) {
       string reasonBuf;
       if(!isSgfOkay(sgf,reasonBuf)) {
         if(verbosity >= 2)
-          logger.write("Filtering due to not okay (" + reasonBuf + "): " + sgf->fileName);
+          logger.write("Filtering due to not okay (" + reasonBuf + "): " + sgf.fileName);
         numSgfsFilteredTopLevel += 1;
         return;
       }
     }
     catch(const StringError& e) {
-      logger.write("Filtering due to error checking okay: " + sgf->fileName + ": " + e.what());
+      logger.write("Filtering due to error checking okay: " + sgf.fileName + ": " + e.what());
       numSgfsFilteredTopLevel += 1;
       return;
     }
@@ -426,15 +426,15 @@ int MainCmds::samplesgfs(const vector<string>& args) {
     if(valueFluctuationNNEval == NULL) {
       bool hashParent = false;
       Rand iterRand;
-      sgf->iterAllUniquePositions(uniqueHashes, hashComments, hashParent, flipIfPassOrWFirst, allowGameOver, forTesting ? NULL : &iterRand, posHandler);
+      sgf.iterAllUniquePositions(uniqueHashes, hashComments, hashParent, flipIfPassOrWFirst, allowGameOver, forTesting ? NULL : &iterRand, posHandler);
       if(verbosity >= 2)
-        logger.write("Handled " + sgf->fileName + " kept weight " + Global::doubleToString(weightKept));
-      sgfCountUsedByPlayerName[sgf->getPlayerName(P_BLACK)] += 1;
-      sgfCountUsedByPlayerName[sgf->getPlayerName(P_WHITE)] += 1;
-      sgfCountUsedByResult[sgf->getRootPropertyWithDefault("RE","")] += 1;
+        logger.write("Handled " + sgf.fileName + " kept weight " + Global::doubleToString(weightKept));
+      sgfCountUsedByPlayerName[sgf.getPlayerName(P_BLACK)] += 1;
+      sgfCountUsedByPlayerName[sgf.getPlayerName(P_WHITE)] += 1;
+      sgfCountUsedByResult[sgf.getRootPropertyWithDefault("RE","")] += 1;
     }
     else {
-      string fileName = sgf->fileName;
+      string fileName = sgf.fileName;
       CompactSgf compactSgf(sgf);
       Board board;
       Player nextPla;
@@ -663,32 +663,29 @@ int MainCmds::samplesgfs(const vector<string>& args) {
 
       bool hashParent = false;
       Rand iterRand;
-      sgf->iterAllUniquePositions(uniqueHashes, hashComments, hashParent, flipIfPassOrWFirst, allowGameOver, forTesting ? NULL : &iterRand, posHandler2);
+      sgf.iterAllUniquePositions(uniqueHashes, hashComments, hashParent, flipIfPassOrWFirst, allowGameOver, forTesting ? NULL : &iterRand, posHandler2);
 
       if(verbosity >= 2)
         cout << "Handled " << fileName << " kept weight " << weightKept << endl;
-      sgfCountUsedByPlayerName[sgf->getPlayerName(P_BLACK)] += 1;
-      sgfCountUsedByPlayerName[sgf->getPlayerName(P_WHITE)] += 1;
-      sgfCountUsedByResult[sgf->getRootPropertyWithDefault("RE","")] += 1;
+      sgfCountUsedByPlayerName[sgf.getPlayerName(P_BLACK)] += 1;
+      sgfCountUsedByPlayerName[sgf.getPlayerName(P_WHITE)] += 1;
+      sgfCountUsedByResult[sgf.getRootPropertyWithDefault("RE","")] += 1;
     }
   };
 
   {
     auto processSgfFile = [&](int threadIdx, size_t index) {
       (void)threadIdx;
-      Sgf* sgf = NULL;
+      std::unique_ptr<Sgf> sgf = nullptr;
       try {
         sgf = Sgf::loadFile(sgfFiles[index]);
-        trySgf(sgf);
+        trySgf(*sgf);
       }
       catch(const StringError& e) {
         if(tolerateIllegalMoves)
           logger.write("Invalid SGF " + sgfFiles[index] + ": " + e.what());
         else
           throw;
-      }
-      if(sgf != NULL) {
-        delete sgf;
       }
     };
     Parallel::iterRange(
@@ -700,7 +697,7 @@ int MainCmds::samplesgfs(const vector<string>& args) {
   };
 
   for(size_t i = 0; i<sgfsFiles.size(); i++) {
-    std::vector<Sgf*> sgfs;
+    std::vector<std::unique_ptr<Sgf>> sgfs;
     try {
       sgfs = Sgf::loadSgfsFile(sgfsFiles[i]);
     }
@@ -715,7 +712,7 @@ int MainCmds::samplesgfs(const vector<string>& args) {
     auto processSgf = [&](int threadIdx, size_t index) {
       (void)threadIdx;
       try {
-        trySgf(sgfs[index]);
+        trySgf(*(sgfs[index]));
       }
       catch(const StringError& e) {
         if(tolerateIllegalMoves)
@@ -730,9 +727,6 @@ int MainCmds::samplesgfs(const vector<string>& args) {
       logger,
       std::function<void(int,size_t)>(processSgf)
     );
-    for(size_t j = 0; j<sgfs.size(); j++) {
-      delete sgfs[j];
-    }
   }
 
   logger.write("Kept " + Global::int64ToString(numKept) + " start positions");
@@ -1083,32 +1077,32 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
   std::atomic<int64_t> numFilteredIndivdualPoses(0);
   std::atomic<int64_t> numFilteredSgfs(0);
 
-  auto isPlayerOkay = [&](const Sgf* sgf, Player pla) {
+  auto isPlayerOkay = [&](const Sgf& sgf, Player pla) {
     if(minRank != Sgf::RANK_UNKNOWN) {
-      if(sgf->getRank(pla) < minRank)
+      if(sgf.getRank(pla) < minRank)
         return false;
     }
     if(requiredPlayerName != "") {
-      if(sgf->getPlayerName(pla) != requiredPlayerName)
+      if(sgf.getPlayerName(pla) != requiredPlayerName)
         return false;
     }
     return true;
   };
 
 
-  auto isSgfOkay = [&](const Sgf* sgf, string& reasonBuf) {
-    if(maxHandicap < 100 && sgf->getHandicapValue() > maxHandicap)
+  auto isSgfOkay = [&](const Sgf& sgf, string& reasonBuf) {
+    if(maxHandicap < 100 && sgf.getHandicapValue() > maxHandicap)
     {reasonBuf = "handicap"; return false;}
-    if(sgf->depth() > maxDepth)
-    {reasonBuf = "depth" + Global::intToString(sgf->depth()); return false;}
-    if(std::fabs(sgf->getKomiOrDefault(7.5f)) > maxKomi)
+    if(sgf.depth() > maxDepth)
+    {reasonBuf = "depth" + Global::intToString(sgf.depth()); return false;}
+    if(std::fabs(sgf.getKomiOrDefault(7.5f)) > maxKomi)
     {reasonBuf = "komi"; return false;}
     if(minMinRank != Sgf::RANK_UNKNOWN) {
-      if(sgf->getRank(P_BLACK) < minMinRank || sgf->getRank(P_WHITE) < minMinRank)
+      if(sgf.getRank(P_BLACK) < minMinRank || sgf.getRank(P_WHITE) < minMinRank)
       {reasonBuf = "rank"; return false;}
     }
     if(!isPlayerOkay(sgf,P_BLACK) && !isPlayerOkay(sgf,P_WHITE))
-    {reasonBuf = "player " + sgf->getPlayerName(P_BLACK) + " " + sgf->getPlayerName(P_WHITE); return false;}
+    {reasonBuf = "player " + sgf.getPlayerName(P_BLACK) + " " + sgf.getPlayerName(P_WHITE); return false;}
     return true;
   };
 
@@ -1387,7 +1381,7 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
   //GAME MODE
 
   auto processSgfGame = [&posWriter,&logger,&gameInit,&nnEval,&expensiveEvaluateMove,autoKomi,&gameModeFastThreshold,&maxDepth,&numFilteredSgfs,&maxHandicap,&maxPolicy,allowGameOver,manualHintOnly,trainingWeight,startPosesBeforeHintsLen,minTurn](
-    Search* search, Rand& rand, const string& fileName, CompactSgf* sgf, bool blackOkay, bool whiteOkay
+    Search* search, Rand& rand, const string& fileName, CompactSgf& sgf, bool blackOkay, bool whiteOkay
   ) {
     //Don't use the SGF rules - randomize them for a bit more entropy
     Rules rules = gameInit->createRules();
@@ -1395,7 +1389,7 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
     Board board;
     Player nextPla;
     BoardHistory hist;
-    sgf->setupInitialBoardAndHist(rules, board, nextPla, hist);
+    sgf.setupInitialBoardAndHist(rules, board, nextPla, hist);
     if(!gameInit->isAllowedBSize(board.x_size,board.y_size)) {
       numFilteredSgfs.fetch_add(1);
       return;
@@ -1406,7 +1400,7 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
     }
 
     const bool preventEncore = true;
-    const vector<Move>& sgfMoves = sgf->moves;
+    const vector<Move>& sgfMoves = sgf.moves;
 
     if((int64_t)sgfMoves.size() > maxDepth) {
       numFilteredSgfs.fetch_add(1);
@@ -1593,7 +1587,7 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
   };
 
   const int maxSgfQueueSize = 128;
-  ThreadSafeQueue<Sgf*> sgfQueue(maxSgfQueueSize);
+  ThreadSafeQueue<std::unique_ptr<Sgf>> sgfQueue(maxSgfQueueSize);
   auto processSgfLoop = [&logger,&processSgfGame,&sgfQueue,&params,&nnEval,&numSgfsDone,&isPlayerOkay,&tolerateIllegalMoves]() {
     Rand rand;
     string searchRandSeed = Global::uint64ToString(rand.nextUInt64());
@@ -1603,17 +1597,17 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
       if(shouldStop.load(std::memory_order_acquire))
         break;
 
-      Sgf* sgfRaw;
+      std::unique_ptr<Sgf> sgfRaw;
       bool success = sgfQueue.waitPop(sgfRaw);
       if(!success)
         break;
 
-      bool blackOkay = isPlayerOkay(sgfRaw,P_BLACK);
-      bool whiteOkay = isPlayerOkay(sgfRaw,P_WHITE);
+      bool blackOkay = isPlayerOkay(*sgfRaw,P_BLACK);
+      bool whiteOkay = isPlayerOkay(*sgfRaw,P_WHITE);
 
-      CompactSgf* sgf = NULL;
+      std::unique_ptr<CompactSgf> sgf = nullptr;
       try {
-        sgf = new CompactSgf(sgfRaw);
+        sgf = std::make_unique<CompactSgf>(*sgfRaw);
       }
       catch(const StringError& e) {
         if(!tolerateIllegalMoves)
@@ -1622,12 +1616,10 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
           logger.write(e.what());
         }
       }
-      if(sgf != NULL)
-        processSgfGame(search,rand,sgf->fileName,sgf,blackOkay,whiteOkay);
+      if(sgf != nullptr)
+        processSgfGame(search,rand,sgf->fileName,*sgf,blackOkay,whiteOkay);
 
       numSgfsDone.fetch_add(1);
-      delete sgf;
-      delete sgfRaw;
     }
     delete search;
   };
@@ -1838,50 +1830,46 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
 
     const string& fileName = sgfFiles[i];
 
-    std::vector<Sgf*> sgfs = Sgf::loadSgfOrSgfsLogAndIgnoreErrors(fileName,logger);
+    std::vector<std::unique_ptr<Sgf>> sgfs = Sgf::loadSgfOrSgfsLogAndIgnoreErrors(fileName,logger);
     if(!forTesting)
       seedRand.shuffle(sgfs);
 
     for(size_t j = 0; j<sgfs.size(); j++) {
-      Sgf* sgf = sgfs[j];
+      std::unique_ptr<Sgf> sgf = std::move(sgfs[j]);
 
       if(contains(excludeHashes,sgf->hash)) {
         logger.write("Filtering due to exclude: " + fileName);
         numSgfsFilteredTopLevel += 1;
-        delete sgf;
         continue;
       }
       try {
         string reasonBuf;
-        if(!isSgfOkay(sgf,reasonBuf)) {
+        if(!isSgfOkay(*sgf,reasonBuf)) {
           logger.write("Filtering due to not okay (" + reasonBuf + "): " + fileName);
           numSgfsFilteredTopLevel += 1;
-          delete sgf;
           continue;
         }
       }
       catch(const StringError& e) {
         logger.write("Filtering due to error checking okay: " + fileName + ": " + e.what());
         numSgfsFilteredTopLevel += 1;
-        delete sgf;
         continue;
       }
       if(sgfSplitCount > 1 && ((int)(sgf->hash.hash0 & 0x7FFFFFFF) % sgfSplitCount) != sgfSplitIdx) {
         numSgfsSkipped += 1;
-        delete sgf;
         continue;
       }
 
       logger.write("Starting " + fileName);
-      handleStartAnnotations(sgf);
+      handleStartAnnotations(*sgf);
 
       if(gameMode) {
-        sgfQueue.waitPush(sgf);
+        sgfQueue.waitPush(std::move(sgf));
       }
       else {
         bool hashComments = true; //Hash comments so that if we see a position without %HINT% and one with, we make sure to re-load it.
-        bool blackOkay = isPlayerOkay(sgf,P_BLACK);
-        bool whiteOkay = isPlayerOkay(sgf,P_WHITE);
+        bool blackOkay = isPlayerOkay(*sgf,P_BLACK);
+        bool whiteOkay = isPlayerOkay(*sgf,P_WHITE);
         try {
           bool hashParent = true; //Hash parent so that we distinguish hint moves that reach the same position but were different moves from different starting states.
           sgf->iterAllUniquePositions(
@@ -1920,7 +1908,6 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
             logger.write(e.what());
         }
         numSgfsDone.fetch_add(1);
-        delete sgf;
       }
     }
   }
@@ -2386,7 +2373,7 @@ int MainCmds::checksgfhintpolicy(const vector<string>& args) {
   double logPolicyWeight = 0.0;
 
   for(size_t i = 0; i<sgfFiles.size(); i++) {
-    Sgf* sgf = NULL;
+    std::unique_ptr<Sgf> sgf = nullptr;
     try {
       sgf = Sgf::loadFile(sgfFiles[i]);
     }
@@ -2443,8 +2430,6 @@ int MainCmds::checksgfhintpolicy(const vector<string>& args) {
         }
       }
     );
-
-    delete sgf;
   }
 
   double averageLogPolicy = logPolicySum / logPolicyWeight;

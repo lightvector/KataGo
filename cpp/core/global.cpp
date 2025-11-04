@@ -117,6 +117,13 @@ string Global::uint64ToHexString(uint64_t x)
   return s;
 }
 
+string Global::sizeToString(size_t x)
+{
+  stringstream ss;
+  ss << x;
+  return ss.str();
+}
+
 bool Global::tryStringToInt(const string& str, int& x)
 {
   int val = 0;

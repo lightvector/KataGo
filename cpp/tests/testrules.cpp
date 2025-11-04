@@ -3461,7 +3461,7 @@ HASH: 5C26A060FA78FD93FFF559C72BD7C6A4
 
     string sgfStr = "(;FF[4]GM[1]SZ[12]PB[b6c96-s49543680-d12165287]PW[b6c96-s50529536-d12424600]HA[0]KM[7.5]RU[koSIMPLEscoreTERRITORYtaxSEKIsui1]RE[B+1.5];B[di];W[ii];B[dd];W[id];B[gj];W[fc];B[jg];W[hh];B[jj];W[ji];B[ij];W[if];B[ec];W[fd];B[cf];W[cj];B[ci];W[dj];B[ej];W[ek];B[fk];W[ei];B[fj];W[bi];B[bh];W[bj];B[dk];W[cc];B[fb];W[ck];B[cd];W[gb];B[el];W[eb];B[db];W[fa];B[ki];W[kh];B[kj];W[kg];B[jf];W[je];B[eg];W[cb];B[dc];W[da];B[bc];W[bb];B[bd];W[ef];B[fg];W[dg];B[cg];W[df];B[dh];W[ff];B[gg];W[eh];B[ch];W[gf];B[gh];W[gi];B[fi];W[hi];B[jh];W[kf];B[hg];W[ig];B[ab];W[hf];B[fh];W[ca];B[de];W[li];B[lj];W[lh];B[ee];W[fe];B[hj];W[ih];B[aa];W[ed];B[ac];W[];B[ba];W[ea];B[];W[];B[];W[];B[ai];W[];B[cl];W[bl];B[ak];W[];B[aj];W[];B[bk];W[];B[cj];W[jb];B[];W[])";
 
-    CompactSgf* sgf = CompactSgf::parse(sgfStr);
+    std::unique_ptr<CompactSgf> sgf = CompactSgf::parse(sgfStr);
 
     Board board;
     BoardHistory hist;
@@ -3528,8 +3528,6 @@ XXXXXXXXXXXX
     out << endl;
 
     expect(name,out,expected);
-
-    delete sgf;
   }
 
   {
