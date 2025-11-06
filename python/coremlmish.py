@@ -7,7 +7,7 @@ if "mish" in _TORCH_OPS_REGISTRY:
     del _TORCH_OPS_REGISTRY["mish"]
 
 # Set the function to use
-__function__ = "mish_torch_sigmoid"
+__function__ = "mish_torch_branch_free"
 
 # Torch Mish Operator with Sigmoid Approximation that can run on Neural Engine
 #
@@ -83,12 +83,33 @@ def mish_torch_ne(context, node):
     res = mb.mul(x=x, y=tanh_softplus, name=node.name)
     context.add(res)
 
+# Torch Mish Operator with branch-free implementation that can run on Neural Engine
+#
+# Algorithm:
+# e = exp(x)
+# mish = x / (1 + 2 / (e * (e + 2)))
+#
+# Reference:
+# https://cs.stackexchange.com/questions/125002/fast-and-stable-x-tanhlog1pexpx-computation/127135#127135
+def mish_torch_branch_free(context, node):
+    inputs = _get_inputs(context, node, expected=1)
+    x = inputs[0]
+    e = mb.exp(x=x)
+    ep2 = mb.add(x=e, y=2.0)
+    emep2 = mb.mul(x=e, y=ep2)
+    tdemep2 = mb.real_div(x=2.0, y=emep2)
+    optdemep2 = mb.add(x=1.0, y=tdemep2)
+    res = mb.real_div(x=x, y=optdemep2, name=node.name)
+
+    context.add(res)
 
 # Register the function
 @register_torch_op
 def mish(context, node):
     if __function__ == "mish_torch_sigmoid":
         mish_torch_sigmoid(context, node)
+    elif __function__ == "mish_torch_branch_free":
+        mish_torch_branch_free(context, node)
     else:
         mish_torch_ne(context, node)
     
