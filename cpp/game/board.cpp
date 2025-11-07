@@ -2483,11 +2483,9 @@ void Board::checkConsistency() const {
   }
 }
 
-bool Board::isEqualForTesting(const Board& other, bool checkNumCaptures, bool checkSimpleKo) const {
-  return isEqualForTesting(other, checkNumCaptures, checkSimpleKo, true);
-}
-
-bool Board::isEqualForTesting(const Board& other, bool checkNumCaptures, bool checkSimpleKo, bool checkRules) const {
+bool Board::isEqualForTesting(const Board& other, const bool checkNumCaptures,
+  const bool checkSimpleKo,
+  const bool checkRules) const {
   checkConsistency();
   other.checkConsistency();
   if(x_size != other.x_size)
@@ -2830,11 +2828,8 @@ string Board::toStringSimple(const Board& board, char lineDelimiter) {
   return s;
 }
 
-Board Board::parseBoard(int xSize, int ySize, const std::string& s, char lineDelimiter) {
-  return parseBoard(xSize, ySize, s, Rules::DEFAULT_GO, lineDelimiter);
-}
-
-Board Board::parseBoard(int xSize, int ySize, const string& s, const Rules& rules, char lineDelimiter) {
+Board Board::parseBoard(const int xSize,
+  const int ySize, const string& s, const Rules& rules, const char lineDelimiter) {
   Board board(xSize,ySize,rules);
   vector<string> lines = Global::split(Global::trim(s),lineDelimiter);
 

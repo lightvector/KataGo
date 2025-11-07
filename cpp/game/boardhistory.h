@@ -162,8 +162,7 @@ struct BoardHistory {
   //even if the move violates superko or encore ko recapture prohibitions, or is past when the game is ended.
   //This allows for robustness when this code is being used for analysis or with external data sources.
   //preventEncore artifically prevents any move from entering or advancing the encore phase when using territory scoring.
-  void makeBoardMoveAssumeLegal(Board& board, Loc moveLoc, Player movePla, const KoHashTable* rootKoHashTable);
-  void makeBoardMoveAssumeLegal(Board& board, Loc moveLoc, Player movePla, const KoHashTable* rootKoHashTable, bool preventEncore);
+  void makeBoardMoveAssumeLegal(Board& board, Loc moveLoc, Player movePla, const KoHashTable* rootKoHashTable, bool preventEncore = false);
   //Make a move with legality checking, but be mostly tolerant and allow moves that can still be handled but that may not technically
   //be legal. This is intended for reading moves from SGFs and such where maybe we're getting moves that were played in a different
   //ruleset than ours. Returns true if successful, false if was illegal even unter tolerant rules.

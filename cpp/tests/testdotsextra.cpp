@@ -13,8 +13,8 @@ void checkSymmetry(const Board& initBoard, const string& expectedSymmetryBoardIn
   for (const XYMove& extraMove : extraMoves) {
     expectedBoard.playMoveAssumeLegal(SymmetryHelpers::getSymLoc(extraMove.x, extraMove.y, initBoard, symmetry), extraMove.player);
   }
-  expect(SymmetryHelpers::symmetryToString(symmetry).c_str(), Board::toStringSimple(transformedBoard, '\n'), Board::toStringSimple(expectedBoard, '\n'));
-  testAssert(transformedBoard.isEqualForTesting(expectedBoard, true, true, true));
+  expect(SymmetryHelpers::symmetryToString(symmetry).c_str(), Board::toStringSimple(transformedBoard), Board::toStringSimple(expectedBoard));
+  testAssert(transformedBoard.isEqualForTesting(expectedBoard));
 }
 
 void Tests::runDotsSymmetryTests() {
@@ -119,11 +119,11 @@ SymmetryHelpers::SYMMETRY_TRANSPOSE_FLIP_Y_X);
   expectedBoard.setStoneFailIfNoLibs(Location::getLoc(2, 2,  expectedBoard.x_size), P_BLACK, true);
   expectedBoard.playMoveAssumeLegal(Location::getLoc(1, 1, expectedBoard.x_size), P_BLACK);
 
-  expect("Dots symmetry with start pos", Board::toStringSimple(rotatedBoard, '\n'), Board::toStringSimple(expectedBoard, '\n'));
-  testAssert(rotatedBoard.isEqualForTesting(expectedBoard, true, true, true));
+  expect("Dots symmetry with start pos", Board::toStringSimple(rotatedBoard), Board::toStringSimple(expectedBoard));
+  testAssert(rotatedBoard.isEqualForTesting(expectedBoard));
 
   const auto unrotatedBoard = SymmetryHelpers::getSymBoard(rotatedBoard, SymmetryHelpers::SYMMETRY_TRANSPOSE_FLIP_Y);
-  testAssert(board.isEqualForTesting(unrotatedBoard, true, true, true));
+  testAssert(board.isEqualForTesting(unrotatedBoard));
 }
 
 string getOwnership(const string& boardData, const Color groundingPlayer, const int expectedWhiteScore, const vector<XYMove>& extraMoves) {
@@ -288,7 +288,7 @@ std::pair<string, string> getCapturingAndBases(
   }
 
   // Make sure we didn't change an internal state during calculating
-  testAssert(board.isEqualForTesting(copy, true, true));
+  testAssert(board.isEqualForTesting(copy));
 
   return {capturesStringStream.str(), basesStringStream.str()};
 }

@@ -104,10 +104,8 @@ struct Rules {
   static std::set<std::string> startPosStrings();
   int getNumOfStartPosStones() const;
 
-  static Rules parseRules(const std::string& sOrig);
-  static Rules parseRules(const std::string& sOrig, bool isDots);
-  static Rules parseRulesWithoutKomi(const std::string& sOrig, float komi);
-  static Rules parseRulesWithoutKomi(const std::string& sOrig, float komi, bool isDots);
+  static Rules parseRules(const std::string& sOrig, bool isDots = false);
+  static Rules parseRulesWithoutKomi(const std::string& sOrig, float komi, bool isDots = false);
   static bool tryParseRules(const std::string& sOrig, Rules& buf, bool isDots);
   static bool tryParseRulesWithoutKomi(const std::string& sOrig, Rules& buf, float komi, bool isDots);
 
@@ -129,9 +127,7 @@ struct Rules {
     bool& randomized);
 
   friend std::ostream& operator<<(std::ostream& out, const Rules& rules);
-  std::string toString() const;
-  std::string toStringNoSgfDefinedProps() const;
-  std::string toString(bool includeSgfDefinedProperties) const;
+  std::string toString(bool includeSgfDefinedProperties = true) const;
   std::string toStringNoSgfDefinedPropertiesMaybeNice() const;
   std::string toJsonString() const;
   std::string toJsonStringNoKomi() const;

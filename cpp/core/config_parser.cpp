@@ -2,7 +2,6 @@
 
 #include "../core/fileutils.h"
 
-#include <cmath>
 #include <fstream>
 #include <sstream>
 
@@ -112,8 +111,6 @@ void ConfigParser::processIncludedFile(const std::string &fname) {
   if(!baseDir.empty())
     baseDirs.pop_back();
 }
-
-
 
 bool ConfigParser::parseKeyValue(const std::string& trimmedLine, std::string& key, std::string& value) {
   // Parse trimmed line, taking into account comments and quoting.
@@ -569,7 +566,7 @@ vector<string> ConfigParser::getStrings(const string& key, const set<string>& po
   return values;
 }
 
-bool ConfigParser::getBoolOrDefault(const std::string& key, bool defaultValue) {
+bool ConfigParser::getBoolOrDefault(const std::string& key, const bool defaultValue) {
   if (contains(key)) {
     return getBool(key);
   }
@@ -606,14 +603,7 @@ enabled_t ConfigParser::getEnabled(const string& key) {
   return x;
 }
 
-int ConfigParser::getInt(const string& key) {
-  string value = getString(key);
-  int x;
-  if(!Global::tryStringToInt(value,x))
-    throw IOError("Could not parse '" + value + "' as int for key '" + key + "' in config file " + fileName);
-  return x;
-}
-int ConfigParser::getInt(const string& key, int min, int max) {
+int ConfigParser::getInt(const string& key, const int min, const int max) {
   assert(min <= max);
   string value = getString(key);
   int x;
@@ -623,19 +613,8 @@ int ConfigParser::getInt(const string& key, int min, int max) {
     throw IOError("Key '" + key + "' must be in the range " + Global::intToString(min) + " to " + Global::intToString(max) + " in config file " + fileName);
   return x;
 }
-vector<int> ConfigParser::getInts(const string& key) {
-  vector<string> values = getStrings(key);
-  vector<int> ret;
-  for(size_t i = 0; i<values.size(); i++) {
-    const string& value = values[i];
-    int x;
-    if(!Global::tryStringToInt(value,x))
-      throw IOError("Could not parse '" + value + "' as int for key '" + key + "' in config file " + fileName);
-    ret.push_back(x);
-  }
-  return ret;
-}
-vector<int> ConfigParser::getInts(const string& key, int min, int max) {
+
+vector<int> ConfigParser::getInts(const string& key, const int min, const int max) {
   vector<string> values = getStrings(key);
   vector<int> ret;
   for(size_t i = 0; i<values.size(); i++) {
@@ -649,7 +628,8 @@ vector<int> ConfigParser::getInts(const string& key, int min, int max) {
   }
   return ret;
 }
-vector<std::pair<int,int>> ConfigParser::getNonNegativeIntDashedPairs(const string& key, int min, int max1, int max2) {
+
+vector<std::pair<int,int>> ConfigParser::getNonNegativeIntDashedPairs(const string& key, const int min, const int max1, const int max2) {
   std::vector<string> pairStrs = getStrings(key);
   std::vector<std::pair<int,int>> ret;
   for(const string& pairStr: pairStrs) {
@@ -678,15 +658,7 @@ vector<std::pair<int,int>> ConfigParser::getNonNegativeIntDashedPairs(const stri
   return ret;
 }
 
-
-int64_t ConfigParser::getInt64(const string& key) {
-  string value = getString(key);
-  int64_t x;
-  if(!Global::tryStringToInt64(value,x))
-    throw IOError("Could not parse '" + value + "' as int64_t for key '" + key + "' in config file " + fileName);
-  return x;
-}
-int64_t ConfigParser::getInt64(const string& key, int64_t min, int64_t max) {
+int64_t ConfigParser::getInt64(const string& key, const int64_t min, const int64_t max) {
   assert(min <= max);
   string value = getString(key);
   int64_t x;
@@ -696,19 +668,8 @@ int64_t ConfigParser::getInt64(const string& key, int64_t min, int64_t max) {
     throw IOError("Key '" + key + "' must be in the range " + Global::int64ToString(min) + " to " + Global::int64ToString(max) + " in config file " + fileName);
   return x;
 }
-vector<int64_t> ConfigParser::getInt64s(const string& key) {
-  vector<string> values = getStrings(key);
-  vector<int64_t> ret;
-  for(size_t i = 0; i<values.size(); i++) {
-    const string& value = values[i];
-    int64_t x;
-    if(!Global::tryStringToInt64(value,x))
-      throw IOError("Could not parse '" + value + "' as int64_t for key '" + key + "' in config file " + fileName);
-    ret.push_back(x);
-  }
-  return ret;
-}
-vector<int64_t> ConfigParser::getInt64s(const string& key, int64_t min, int64_t max) {
+
+vector<int64_t> ConfigParser::getInt64s(const string& key, const int64_t min, const int64_t max) {
   vector<string> values = getStrings(key);
   vector<int64_t> ret;
   for(size_t i = 0; i<values.size(); i++) {
@@ -723,15 +684,7 @@ vector<int64_t> ConfigParser::getInt64s(const string& key, int64_t min, int64_t 
   return ret;
 }
 
-
-uint64_t ConfigParser::getUInt64(const string& key) {
-  string value = getString(key);
-  uint64_t x;
-  if(!Global::tryStringToUInt64(value,x))
-    throw IOError("Could not parse '" + value + "' as uint64_t for key '" + key + "' in config file " + fileName);
-  return x;
-}
-uint64_t ConfigParser::getUInt64(const string& key, uint64_t min, uint64_t max) {
+uint64_t ConfigParser::getUInt64(const string& key, const uint64_t min, const uint64_t max) {
   assert(min <= max);
   string value = getString(key);
   uint64_t x;
@@ -741,19 +694,8 @@ uint64_t ConfigParser::getUInt64(const string& key, uint64_t min, uint64_t max) 
     throw IOError("Key '" + key + "' must be in the range " + Global::uint64ToString(min) + " to " + Global::uint64ToString(max) + " in config file " + fileName);
   return x;
 }
-vector<uint64_t> ConfigParser::getUInt64s(const string& key) {
-  vector<string> values = getStrings(key);
-  vector<uint64_t> ret;
-  for(size_t i = 0; i<values.size(); i++) {
-    const string& value = values[i];
-    uint64_t x;
-    if(!Global::tryStringToUInt64(value,x))
-      throw IOError("Could not parse '" + value + "' as uint64_t for key '" + key + "' in config file " + fileName);
-    ret.push_back(x);
-  }
-  return ret;
-}
-vector<uint64_t> ConfigParser::getUInt64s(const string& key, uint64_t min, uint64_t max) {
+
+vector<uint64_t> ConfigParser::getUInt64s(const string& key, const uint64_t min, const uint64_t max) {
   vector<string> values = getStrings(key);
   vector<uint64_t> ret;
   for(size_t i = 0; i<values.size(); i++) {
@@ -768,15 +710,7 @@ vector<uint64_t> ConfigParser::getUInt64s(const string& key, uint64_t min, uint6
   return ret;
 }
 
-
-float ConfigParser::getFloat(const string& key) {
-  string value = getString(key);
-  float x;
-  if(!Global::tryStringToFloat(value,x))
-    throw IOError("Could not parse '" + value + "' as float for key '" + key + "' in config file " + fileName);
-  return x;
-}
-float ConfigParser::getFloat(const string& key, float min, float max) {
+float ConfigParser::getFloat(const string& key, const float min, const float max) {
   assert(min <= max);
   string value = getString(key);
   float x;
@@ -788,19 +722,8 @@ float ConfigParser::getFloat(const string& key, float min, float max) {
     throw IOError("Key '" + key + "' must be in the range " + Global::floatToString(min) + " to " + Global::floatToString(max) + " in config file " + fileName);
   return x;
 }
-vector<float> ConfigParser::getFloats(const string& key) {
-  vector<string> values = getStrings(key);
-  vector<float> ret;
-  for(size_t i = 0; i<values.size(); i++) {
-    const string& value = values[i];
-    float x;
-    if(!Global::tryStringToFloat(value,x))
-      throw IOError("Could not parse '" + value + "' as float for key '" + key + "' in config file " + fileName);
-    ret.push_back(x);
-  }
-  return ret;
-}
-vector<float> ConfigParser::getFloats(const string& key, float min, float max) {
+
+vector<float> ConfigParser::getFloats(const string& key, const float min, const float max) {
   vector<string> values = getStrings(key);
   vector<float> ret;
   for(size_t i = 0; i<values.size(); i++) {
@@ -817,15 +740,7 @@ vector<float> ConfigParser::getFloats(const string& key, float min, float max) {
   return ret;
 }
 
-
-double ConfigParser::getDouble(const string& key) {
-  string value = getString(key);
-  double x;
-  if(!Global::tryStringToDouble(value,x))
-    throw IOError("Could not parse '" + value + "' as double for key '" + key + "' in config file " + fileName);
-  return x;
-}
-double ConfigParser::getDouble(const string& key, double min, double max) {
+double ConfigParser::getDouble(const string& key, const double min, const double max) {
   assert(min <= max);
   string value = getString(key);
   double x;
@@ -837,19 +752,8 @@ double ConfigParser::getDouble(const string& key, double min, double max) {
     throw IOError("Key '" + key + "' must be in the range " + Global::doubleToString(min) + " to " + Global::doubleToString(max) + " in config file " + fileName);
   return x;
 }
-vector<double> ConfigParser::getDoubles(const string& key) {
-  vector<string> values = getStrings(key);
-  vector<double> ret;
-  for(size_t i = 0; i<values.size(); i++) {
-    const string& value = values[i];
-    double x;
-    if(!Global::tryStringToDouble(value,x))
-      throw IOError("Could not parse '" + value + "' as double for key '" + key + "' in config file " + fileName);
-    ret.push_back(x);
-  }
-  return ret;
-}
-vector<double> ConfigParser::getDoubles(const string& key, double min, double max) {
+
+vector<double> ConfigParser::getDoubles(const string& key, const double min, const double max) {
   vector<string> values = getStrings(key);
   vector<double> ret;
   for(size_t i = 0; i<values.size(); i++) {

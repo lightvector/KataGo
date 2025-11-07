@@ -36,7 +36,7 @@ SidePosition::SidePosition(const Rules& rules)
    playoutDoublingAdvantage(0.0)
 {}
 
-SidePosition::SidePosition(const Board& b, const BoardHistory& h, Player p, int numNNChangesSoFar)
+SidePosition::SidePosition(const Board& b, const BoardHistory& h, const Player p, const int numNNChangesSoFar)
   :board(b),
    hist(h),
    pla(p),
@@ -265,7 +265,9 @@ static const int GLOBAL_TARGET_NUM_CHANNELS = 64;
 static const int VALUE_SPATIAL_TARGET_NUM_CHANNELS = 5;
 static const int QVALUE_SPATIAL_TARGET_NUM_CHANNELS = 3;
 
-TrainingWriteBuffers::TrainingWriteBuffers(int iVersion, int maxRws, int numBChannels, int numFChannels, int xLen, int yLen, bool includeMetadata)
+TrainingWriteBuffers::TrainingWriteBuffers(
+  const int iVersion, int maxRws, int numBChannels, int numFChannels, int xLen, int yLen,
+  const bool includeMetadata)
   :inputsVersion(iVersion),
    maxRows(maxRws),
    numBinaryChannels(numBChannels),
@@ -298,7 +300,7 @@ void TrainingWriteBuffers::clear() {
 }
 
 //Copy floats that are all 0-1 into bits, packing 8 to a byte, big-endian-style within each byte.
-static void packBits(const float* binaryFloats, int len, uint8_t* bits) {
+static void packBits(const float* binaryFloats, const int len, uint8_t* bits) {
   for(int i = 0; i < len; i += 8) {
     if(i + 8 <= len) {
       bits[i >> 3] =
@@ -320,18 +322,22 @@ static void packBits(const float* binaryFloats, int len, uint8_t* bits) {
   }
 }
 
-static void zeroPolicyTarget(int policySize, int16_t* target) {
+static void zeroPolicyTarget(const int policySize, int16_t* target) {
   for(int pos = 0; pos<policySize; pos++)
     target[pos] = 0;
 }
 
-static void uniformPolicyTarget(int policySize, int16_t* target) {
+static void uniformPolicyTarget(const int policySize, int16_t* target) {
   for(int pos = 0; pos<policySize; pos++)
     target[pos] = 1;
 }
 
 //Copy playouts into target, expanding out the sparse representation into a full plane.
-static void fillPolicyTarget(const vector<PolicyTargetMove>& policyTargetMoves, int policySize, int dataXLen, int dataYLen, int boardXSize, int16_t* target) {
+static void fillPolicyTarget(const vector<PolicyTargetMove>& policyTargetMoves,
+  const int policySize,
+  const int dataXLen,
+  const int dataYLen,
+  const int boardXSize, int16_t* target) {
   zeroPolicyTarget(policySize,target);
   size_t size = policyTargetMoves.size();
   for(size_t i = 0; i<size; i++) {
@@ -344,7 +350,7 @@ static void fillPolicyTarget(const vector<PolicyTargetMove>& policyTargetMoves, 
 
 //Clamps a value to integer in [-120,120] to pack down to 8 bits.
 //Randomizes to make sure the expectation is exactly correct.
-static int8_t clampToRadius120(float x, Rand& rand) {
+static int8_t clampToRadius120(const float x, Rand& rand) {
   //We need to pack this down to 8 bits, so map into [-120,120].
   //Randomize to ensure the expectation is exactly correct.
   int low = (int)floor(x);
@@ -356,7 +362,7 @@ static int8_t clampToRadius120(float x, Rand& rand) {
   if(lambda == 0.0f) return (int8_t)low;
   else return (int8_t)(rand.nextBool(lambda) ? high : low);
 }
-static int16_t clampToRadius32000(float x, Rand& rand) {
+static int16_t clampToRadius32000(const float x, Rand& rand) {
   //We need to pack this down to 16 bits, so clamp into an integer [-32000,32000].
   //Randomize to ensure the expectation is exactly correct.
   int low = (int)floor(x);
@@ -369,7 +375,12 @@ static int16_t clampToRadius32000(float x, Rand& rand) {
   else return (int16_t)(rand.nextBool(lambda) ? high : low);
 }
 
-static void fillQValueTarget(const vector<QValueTargetMove>& whiteQValueTargets, Player nextPlayer, int policySize, int dataXLen, int dataYLen, int boardXSize, int16_t* cPosTarget, Rand& rand) {
+static void fillQValueTarget(const vector<QValueTargetMove>& whiteQValueTargets,
+  const Player nextPlayer,
+  const int policySize,
+  const int dataXLen,
+  const int dataYLen,
+  const int boardXSize, int16_t* cPosTarget, Rand& rand) {
   for(int i = 0; i < QVALUE_SPATIAL_TARGET_NUM_CHANNELS * policySize; i++) {
     cPosTarget[i] = 0;
   }
@@ -395,7 +406,10 @@ static void fillQValueTarget(const vector<QValueTargetMove>& whiteQValueTargets,
   }
 }
 
-static void fillValueTDTargets(const vector<ValueTargets>& whiteValueTargetsByTurn, int idx, Player nextPlayer, double nowFactor, float* buf) {
+static void fillValueTDTargets(const vector<ValueTargets>& whiteValueTargetsByTurn,
+  const int idx,
+  const Player nextPlayer,
+  const double nowFactor, float* buf) {
   double winValue = 0.0;
   double lossValue = 0.0;
   double noResultValue = 0.0;
@@ -939,22 +953,22 @@ void TrainingWriteBuffers::writeToTextOstream(ostream& out) {
 
 //-------------------------------------------------------------------------------------
 
-TrainingDataWriter::TrainingDataWriter(const string& outDir, int iVersion, int maxRowsPerFile, double firstFileMinRandProp, int dataXLen, int dataYLen, const string& randSeed)
-  : TrainingDataWriter(outDir,NULL,iVersion,maxRowsPerFile,firstFileMinRandProp,dataXLen,dataYLen,1,randSeed)
-{}
-TrainingDataWriter::TrainingDataWriter(ostream* dbgOut, int iVersion, int maxRowsPerFile, double firstFileMinRandProp, int dataXLen, int dataYLen, int onlyEvery, const string& randSeed)
-  : TrainingDataWriter(string(),dbgOut,iVersion,maxRowsPerFile,firstFileMinRandProp,dataXLen,dataYLen,onlyEvery,randSeed)
-{}
-
-TrainingDataWriter::TrainingDataWriter(const string& outDir, ostream* dbgOut, int iVersion, int maxRowsPerFile, double firstFileMinRandProp, int dataXLen, int dataYLen, int onlyEvery, const string& randSeed)
-  :outputDir(outDir),inputsVersion(iVersion),rand(randSeed),writeBuffers(NULL),debugOut(dbgOut),debugOnlyWriteEvery(onlyEvery),rowCount(0)
+TrainingDataWriter::TrainingDataWriter(const string& outputDir, ostream* debugOut,
+  const int inputsVersion,
+  const int maxRowsPerFile,
+  const double firstFileMinRandProp,
+  const int dataXLen,
+  const int dataYLen,
+  const string& randSeed,
+  const int onlyWriteEvery)
+  :outputDir(outputDir),inputsVersion(inputsVersion),rand(randSeed),writeBuffers(nullptr),debugOut(debugOut),debugOnlyWriteEvery(onlyWriteEvery),rowCount(0)
 {
   //Note that this inputsVersion is for data writing, it might be different than the inputsVersion used
   // to feed into a model during selfplay
   const int numBinaryChannels = NNInputs::getNumberOfSpatialFeatures(inputsVersion);
   const int numGlobalChannels = NNInputs::getNumberOfGlobalFeatures(inputsVersion);
 
-  const bool hasMetadataInput = false;
+  constexpr bool hasMetadataInput = false;
   writeBuffers = new TrainingWriteBuffers(
     inputsVersion,
     maxRowsPerFile,

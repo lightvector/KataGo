@@ -2471,12 +2471,12 @@ FinishedGameData* GameRunner::runGame(
   Search* botB;
   Search* botW;
   if(botSpecB.botIdx == botSpecW.botIdx) {
-    botB = new Search(botSpecB.baseParams, botSpecB.nnEval, &logger, seed, hist.rules);
+    botB = new Search(botSpecB.baseParams, botSpecB.nnEval, &logger, seed, nullptr, hist.rules);
     botW = botB;
   }
   else {
-    botB = new Search(botSpecB.baseParams, botSpecB.nnEval, &logger, seed + "@B", hist.rules);
-    botW = new Search(botSpecW.baseParams, botSpecW.nnEval, &logger, seed + "@W", hist.rules);
+    botB = new Search(botSpecB.baseParams, botSpecB.nnEval, &logger, seed + "@B", nullptr, hist.rules);
+    botW = new Search(botSpecW.baseParams, botSpecW.nnEval, &logger, seed + "@W", nullptr, hist.rules);
   }
   if(afterInitialization != nullptr) {
     if(botSpecB.botIdx == botSpecW.botIdx) {

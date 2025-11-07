@@ -389,14 +389,12 @@ struct Board
   void checkConsistency() const;
   //For the moment, only used in testing since it does extra consistency checks.
   //If we need a version to be used in "prod", we could make an efficient version maybe as operator==.
-  bool isEqualForTesting(const Board& other, bool checkNumCaptures, bool checkSimpleKo) const;
-  bool isEqualForTesting(const Board& other, bool checkNumCaptures, bool checkSimpleKo, bool checkRules) const;
+  bool isEqualForTesting(const Board& other, bool checkNumCaptures = true, bool checkSimpleKo = true, bool checkRules = true) const;
 
-  static Board parseBoard(int xSize, int ySize, const std::string& s, char lineDelimiter = '\n');
-  static Board parseBoard(int xSize, int ySize, const std::string& s, const Rules& rules, char lineDelimiter = '\n');
+  static Board parseBoard(int xSize, int ySize, const std::string& s, const Rules& rules = Rules::DEFAULT_GO, char lineDelimiter = '\n');
   std::string toString() const;
   static void printBoard(std::ostream& out, const Board& board, Loc markLoc, const std::vector<Move>* hist);
-  static std::string toStringSimple(const Board& board, char lineDelimiter);
+  static std::string toStringSimple(const Board& board, char lineDelimiter = '\n');
   static nlohmann::json toJson(const Board& board);
   static Board ofJson(const nlohmann::json& data);
 

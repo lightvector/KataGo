@@ -2014,7 +2014,7 @@ void WriteSgf::writeSgf(
   }
 
   out << "KM[" << rules.komi << "]";
-  out << "RU[" << (tryNicerRulesString ? rules.toStringNoSgfDefinedPropertiesMaybeNice() : rules.toStringNoSgfDefinedProps()) << "]";
+  out << "RU[" << (tryNicerRulesString ? rules.toStringNoSgfDefinedPropertiesMaybeNice() : rules.toString(false)) << "]";
   printGameResult(out,endHist,overrideFinishedWhiteScore);
 
   bool hasAB = false;

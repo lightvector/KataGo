@@ -23,7 +23,7 @@ void checkDotsField(const string& description, const string& input, bool capture
     board.undo(moveRecords.back());
     moveRecords.pop_back();
   }
-  testAssert(initialBoard.isEqualForTesting(board, true, true));
+  testAssert(initialBoard.isEqualForTesting(board));
 }
 
 void checkDotsFieldDefault(const string& description, const string& input, const std::function<void(BoardWithMoveRecords&)>& check) {

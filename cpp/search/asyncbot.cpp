@@ -55,7 +55,7 @@ AsyncBot::AsyncBot(
    analyzeCallback(),
    searchBegunCallback()
 {
-  search = new Search(params,nnEval,humanEval,l,randSeed,rules);
+  search = new Search(params,nnEval,l,randSeed,humanEval,rules);
   searchThread = std::thread(searchThreadLoop,this,l);
 }
 

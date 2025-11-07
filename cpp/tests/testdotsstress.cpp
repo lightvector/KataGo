@@ -293,7 +293,7 @@ void runDotsStressTestsInternal(
         moveRecords.pop_back();
       }
 
-      testAssert(initialBoard.isEqualForTesting(board, true, false));
+      testAssert(initialBoard.isEqualForTesting(board));
     }
   }
 

@@ -65,55 +65,49 @@ SearchThread::~SearchThread() {
 
 static const double VALUE_WEIGHT_DEGREES_OF_FREEDOM = 3.0;
 
-Search::Search(SearchParams params, NNEvaluator* nnEval, Logger* lg, const string& rSeed)
-  :Search(params,nnEval,NULL,lg,rSeed,Rules::DEFAULT_GO)
-{}
-Search::Search(SearchParams params, NNEvaluator* nnEval, Logger* lg, const string& rSeed, const Rules& rules)
-  :Search(params,nnEval,NULL,lg,rSeed,rules)
-{}
-Search::Search(SearchParams params, NNEvaluator* nnEval, NNEvaluator* humanEval, Logger* lg, const string& rSeed, const Rules& rules)
-  :rootPla(P_BLACK),
-   rootBoard(rules),
-   rootHistory(rules),
-   rootGraphHash(),
-   rootHintLoc(Board::NULL_LOC),
-   avoidMoveUntilByLocBlack(),avoidMoveUntilByLocWhite(),avoidMoveUntilRescaleRoot(false),
-   rootSymmetries(),
-   rootPruneOnlySymmetries(),
-   rootSafeArea(NULL),
-   recentScoreCenter(0.0),
-   mirroringPla(C_EMPTY),
-   mirrorAdvantage(0.0),
-   mirrorCenterSymmetryError(1e10),
-   alwaysIncludeOwnerMap(false),
-   searchParams(params),numSearchesBegun(0),searchNodeAge(0),
-   plaThatSearchIsFor(C_EMPTY),plaThatSearchIsForLastSearch(C_EMPTY),
-   lastSearchNumPlayouts(0),
-   effectiveSearchTimeCarriedOver(0.0),
-   randSeed(rSeed),
-   rootKoHashTable(NULL),
-   valueWeightDistribution(NULL),
-   patternBonusTable(NULL),
-   externalPatternBonusTable(nullptr),
-   evalCache(nullptr),
-   nonSearchRand(rSeed + string("$nonSearchRand")),
-   logger(lg),
-   nnEvaluator(nnEval),
-   humanEvaluator(humanEval),
-   nnXLen(),
-   nnYLen(),
-   policySize(),
-   rootNode(NULL),
-   nodeTable(NULL),
-   mutexPool(NULL),
-   subtreeValueBiasTable(NULL),
-   numThreadsSpawned(0),
-   threads(NULL),
-   threadTasks(NULL),
-   threadTasksRemaining(NULL),
-   oldNNOutputsToCleanUpMutex(),
-   oldNNOutputsToCleanUp()
-{
+Search::Search(const SearchParams &params, NNEvaluator* nnEval, Logger* lg, const string& randSeed, NNEvaluator* humanEval, const Rules& rules)
+  : rootPla(P_BLACK),
+    rootBoard(rules),
+    rootHistory(rules),
+    rootGraphHash(),
+    rootHintLoc(Board::NULL_LOC),
+    avoidMoveUntilByLocBlack(), avoidMoveUntilByLocWhite(), avoidMoveUntilRescaleRoot(false),
+    rootSymmetries(),
+    rootPruneOnlySymmetries(),
+    rootSafeArea(NULL),
+    recentScoreCenter(0.0),
+    mirroringPla(C_EMPTY),
+    mirrorAdvantage(0.0),
+    mirrorCenterSymmetryError(1e10),
+    alwaysIncludeOwnerMap(false),
+    searchParams(params), numSearchesBegun(0), searchNodeAge(0),
+    plaThatSearchIsFor(C_EMPTY), plaThatSearchIsForLastSearch(C_EMPTY),
+    lastSearchNumPlayouts(0),
+    effectiveSearchTimeCarriedOver(0.0),
+    randSeed(randSeed),
+    rootKoHashTable(NULL),
+    valueWeightDistribution(NULL),
+    normToTApproxZ(0),
+    patternBonusTable(NULL),
+    externalPatternBonusTable(nullptr),
+    evalCache(nullptr),
+    nonSearchRand(randSeed + string("$nonSearchRand")),
+    logger(lg),
+    nnEvaluator(nnEval),
+    humanEvaluator(humanEval),
+    nnXLen(),
+    nnYLen(),
+    policySize(),
+    rootNode(NULL),
+    nodeTable(NULL),
+    mutexPool(NULL),
+    subtreeValueBiasTable(NULL),
+    numThreadsSpawned(0),
+    threads(NULL),
+    threadTasks(NULL),
+    threadTasksRemaining(NULL),
+    oldNNOutputsToCleanUpMutex(),
+    oldNNOutputsToCleanUp() {
   assert(logger != NULL);
   nnXLen = nnEval->getNNXLen();
   nnYLen = nnEval->getNNYLen();
@@ -121,13 +115,13 @@ Search::Search(SearchParams params, NNEvaluator* nnEval, NNEvaluator* humanEval,
   assert(nnYLen > 0 && nnYLen <= NNPos::MAX_BOARD_LEN_Y);
   policySize = NNPos::getPolicySize(nnXLen, nnYLen);
 
-  if(humanEvaluator != NULL) {
-    if(humanEvaluator->getNNXLen() != nnXLen || humanEvaluator->getNNYLen() != nnYLen)
+  if (humanEvaluator != NULL) {
+    if (humanEvaluator->getNNXLen() != nnXLen || humanEvaluator->getNNYLen() != nnYLen)
       throw StringError("Search::init - humanEval has different nnXLen or nnYLen");
   }
 
   assert(rootHistory.rules.isDots == rootBoard.isDots());
-  rootHistory.clear(rootBoard,rootPla,rules,0);
+  rootHistory.clear(rootBoard, rootPla, rules, 0);
   if (!rules.isDots) {
     rootKoHashTable = new KoHashTable();
     rootKoHashTable->recompute(rootHistory);
@@ -136,8 +130,8 @@ Search::Search(SearchParams params, NNEvaluator* nnEval, NNEvaluator* humanEval,
   rootSafeArea = new Color[Board::MAX_ARR_SIZE];
 
   valueWeightDistribution = new DistributionTable(
-    [](double z) { return FancyMath::tdistpdf(z,VALUE_WEIGHT_DEGREES_OF_FREEDOM); },
-    [](double z) { return FancyMath::tdistcdf(z,VALUE_WEIGHT_DEGREES_OF_FREEDOM); },
+    [](double z) { return FancyMath::tdistpdf(z, VALUE_WEIGHT_DEGREES_OF_FREEDOM); },
+    [](double z) { return FancyMath::tdistcdf(z, VALUE_WEIGHT_DEGREES_OF_FREEDOM); },
     -50.0,
     50.0,
     2000

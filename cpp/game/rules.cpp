@@ -265,14 +265,6 @@ ostream& operator<<(ostream& out, const Rules& rules) {
   return out;
 }
 
-string Rules::toString() const {
-  return toString(true);
-}
-
-string Rules::toStringNoSgfDefinedProps() const {
-  return toString(false);
-}
-
 string Rules::toString(const bool includeSgfDefinedProperties) const {
   ostringstream out;
   if (!isDots) {
@@ -668,19 +660,11 @@ static Rules parseRulesHelper(const string& sOrig, bool allowKomi, bool isDots) 
   return rules;
 }
 
-Rules Rules::parseRules(const string& sOrig) {
-  return parseRules(sOrig,false);
-}
-
-Rules Rules::parseRules(const string& sOrig, bool isDots) {
+Rules Rules::parseRules(const string& sOrig, const bool isDots) {
   return parseRulesHelper(sOrig,true,isDots);
 }
 
-Rules Rules::parseRulesWithoutKomi(const string& sOrig, float komi) {
-  return parseRulesWithoutKomi(sOrig,komi,false);
-}
-
-Rules Rules::parseRulesWithoutKomi(const string& sOrig, float komi, bool isDots) {
+Rules Rules::parseRulesWithoutKomi(const string& sOrig, const float komi, const bool isDots) {
   Rules rules = parseRulesHelper(sOrig,false,isDots);
   rules.komi = komi;
   return rules;
@@ -720,7 +704,7 @@ string Rules::toStringNoSgfDefinedPropertiesMaybeNice() const {
     return "StoneScoring";
   if(equalsIgnoringSgfDefinedProps(parseRulesHelper("NewZealand",false, isDots)))
     return "NewZealand";
-  return toStringNoSgfDefinedProps();
+  return toString(false);
 }
 
 double nextRandomOffset(Rand& rand) {

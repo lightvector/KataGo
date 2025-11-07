@@ -444,8 +444,8 @@ int MainCmds::genbook(const vector<string>& args) {
       if(!bonusInitialBoard.isEqualForTesting(book->getInitialHist().getRecentBoard(0), false, false))
         throw StringError(
           "Book initial board and initial board in bonus sgf file do not match\n" +
-          Board::toStringSimple(book->getInitialHist().getRecentBoard(0),'\n') + "\n" +
-          Board::toStringSimple(bonusInitialBoard,'\n')
+          Board::toStringSimple(book->getInitialHist().getRecentBoard(0)) + "\n" +
+          Board::toStringSimple(bonusInitialBoard)
         );
       if(bonusInitialPla != book->initialPla)
         throw StringError(

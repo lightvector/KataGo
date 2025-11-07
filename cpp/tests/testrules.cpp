@@ -5401,7 +5401,7 @@ Last moves pass pass pass pass H7 G9 F9 H7
       testAssert(rules[i] == parsed);
 
       Rules parsed2;
-      suc = Rules::tryParseRulesWithoutKomi(rules[i].toStringNoSgfDefinedProps(), parsed2, rules[i].komi, rules[i].isDots);
+      suc = Rules::tryParseRulesWithoutKomi(rules[i].toString(false), parsed2, rules[i].komi, rules[i].isDots);
       testAssert(suc);
       testAssert(rules[i] == parsed2);
 
