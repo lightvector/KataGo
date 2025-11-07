@@ -58,7 +58,8 @@ BoardHistory::BoardHistory(const Rules& rules)
     finalWhiteMinusBlackScore(0.0f),
     isScored(false),
     isNoResult(false),
-    isResignation(false) {
+    isResignation(false),
+    isPassAliveFinished(false) {
   for(int i = 0; i < NUM_RECENT_BOARDS; i++) {
     recentBoards.emplace_back(rules);
   }
@@ -104,7 +105,7 @@ BoardHistory::BoardHistory(const Board& board, Player pla, const Rules& r, int e
    hasButton(false),
    isPastNormalPhaseEnd(false),
    isGameFinished(false),winner(C_EMPTY),finalWhiteMinusBlackScore(0.0f),
-   isScored(false),isNoResult(false),isResignation(false)
+   isScored(false),isNoResult(false),isResignation(false),isPassAliveFinished(false)
 {
   for(int i = 0; i < NUM_RECENT_BOARDS; i++) {
     recentBoards.emplace_back(rules);
@@ -147,7 +148,7 @@ BoardHistory::BoardHistory(const BoardHistory& other)
    hasButton(other.hasButton),
    isPastNormalPhaseEnd(other.isPastNormalPhaseEnd),
    isGameFinished(other.isGameFinished),winner(other.winner),finalWhiteMinusBlackScore(other.finalWhiteMinusBlackScore),
-   isScored(other.isScored),isNoResult(other.isNoResult),isResignation(other.isResignation)
+   isScored(other.isScored),isNoResult(other.isNoResult),isResignation(other.isResignation),isPassAliveFinished(other.isPassAliveFinished)
 {
   recentBoards = other.recentBoards;
   wasEverOccupiedOrPlayed = other.wasEverOccupiedOrPlayed;
@@ -199,6 +200,7 @@ BoardHistory& BoardHistory::operator=(const BoardHistory& other)
   isScored = other.isScored;
   isNoResult = other.isNoResult;
   isResignation = other.isResignation;
+  isPassAliveFinished = other.isPassAliveFinished;
 
   return *this;
 }
@@ -231,7 +233,7 @@ BoardHistory::BoardHistory(BoardHistory&& other) noexcept
   hasButton(other.hasButton),
   isPastNormalPhaseEnd(other.isPastNormalPhaseEnd),
   isGameFinished(other.isGameFinished),winner(other.winner),finalWhiteMinusBlackScore(other.finalWhiteMinusBlackScore),
-  isScored(other.isScored),isNoResult(other.isNoResult),isResignation(other.isResignation)
+  isScored(other.isScored),isNoResult(other.isNoResult),isResignation(other.isResignation),isPassAliveFinished(other.isPassAliveFinished)
 {
   recentBoards = other.recentBoards;
   wasEverOccupiedOrPlayed = other.wasEverOccupiedOrPlayed;
@@ -280,6 +282,7 @@ BoardHistory& BoardHistory::operator=(BoardHistory&& other) noexcept
   isScored = other.isScored;
   isNoResult = other.isNoResult;
   isResignation = other.isResignation;
+  isPassAliveFinished = other.isPassAliveFinished;
 
   return *this;
 }
@@ -324,6 +327,7 @@ void BoardHistory::clear(const Board& board, Player pla, const Rules& r, int ePh
   isScored = false;
   isNoResult = false;
   isResignation = false;
+  isPassAliveFinished = false;
 
   if (!rules.isDots) {
     for(int y = 0; y<board.y_size; y++) {
@@ -514,7 +518,11 @@ void BoardHistory::printDebugInfo(ostream& out, const Board& board) const {
     assert(0 == isPastNormalPhaseEnd);
   }
   out << "Game result " << isGameFinished << " " << PlayerIO::playerToString(winner) << " "
-      << finalWhiteMinusBlackScore << " " << isScored << " " << isNoResult << " " << isResignation << endl;
+      << finalWhiteMinusBlackScore << " " << isScored << " " << isNoResult << " " << isResignation;
+  if (isPassAliveFinished) {
+    out << " " << isPassAliveFinished;
+  }
+  out << endl;
   out << "Last moves ";
   for(int i = 0; i<moveHistory.size(); i++)
     out << Location::toString(moveHistory[i].loc,board) << " ";
@@ -758,6 +766,7 @@ void BoardHistory::endGameIfAllPassAlive(const Board& board) {
       isResignation = false;
       isGameFinished = true;
       isPastNormalPhaseEnd = false;
+      isPassAliveFinished = true;
     }
   } else {
     Color area[Board::MAX_ARR_SIZE];
@@ -797,6 +806,7 @@ void BoardHistory::endGameIfAllPassAlive(const Board& board) {
       isResignation = false;
       isGameFinished = true;
       isPastNormalPhaseEnd = false;
+      isPassAliveFinished = true;
     }
   }
 }
@@ -807,6 +817,7 @@ void BoardHistory::setWinnerByResignation(Player pla) {
   isScored = false;
   isNoResult = false;
   isResignation = true;
+  isPassAliveFinished = false;
   winner = pla;
   finalWhiteMinusBlackScore = 0.0f;
 }
@@ -1012,6 +1023,7 @@ void BoardHistory::makeBoardMoveAssumeLegal(Board& board, Loc moveLoc, Player mo
   isScored = false;
   isNoResult = false;
   isResignation = false;
+  isPassAliveFinished = false;
 
   //Update consecutiveEndingPasses and button
   bool isSpightlikeEndingPass = false;

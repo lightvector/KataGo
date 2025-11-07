@@ -100,6 +100,8 @@ struct BoardHistory {
   bool isNoResult;
   //True if this game is supposed to be ended but it was by resignation rather than an actual end position
   bool isResignation;
+  //True if this game is supposed to be ended early
+  bool isPassAliveFinished;
 
   BoardHistory();
   explicit BoardHistory(const Rules& rules);
