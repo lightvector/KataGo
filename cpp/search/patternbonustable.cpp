@@ -52,7 +52,7 @@ Hash128 PatternBonusTable::getHash(Player pla, Loc moveLoc, const Board& board) 
   //We don't want to over-trigger this on a ko that repeats the same pattern over and over
   //So we just disallow this on ko fight
   //Also no bonuses for passing.
-  if(moveLoc == Board::NULL_LOC || moveLoc == Board::PASS_LOC || board.wouldBeKoCapture(moveLoc,pla))
+  if(moveLoc == Board::NULL_LOC || moveLoc == Board::PASS_LOC || moveLoc == Board::RESIGN_LOC || board.wouldBeKoCapture(moveLoc,pla))
     return Hash128();
 
   Hash128 hash = patternHasher.getHash(board,moveLoc,pla);
@@ -87,7 +87,7 @@ void PatternBonusTable::addBonus(Player pla, Loc moveLoc, const Board& board, do
   //We don't want to over-trigger this on a ko that repeats the same pattern over and over
   //So we just disallow this on ko fight
   //Also no bonuses for passing.
-  if(moveLoc == Board::NULL_LOC || moveLoc == Board::PASS_LOC || board.wouldBeKoCapture(moveLoc,pla))
+  if(moveLoc == Board::NULL_LOC || moveLoc == Board::PASS_LOC || moveLoc == Board::RESIGN_LOC || board.wouldBeKoCapture(moveLoc,pla))
     return;
 
   Hash128 hash = patternHasher.getHashWithSym(board,moveLoc,pla,symmetry,flipColors);

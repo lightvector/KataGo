@@ -8,7 +8,7 @@ int NNPos::xyToPos(int x, int y, int nnXLen) {
 int NNPos::locToPos(Loc loc, int boardXSize, int nnXLen, int nnYLen) {
   if(loc == Board::PASS_LOC)
     return nnXLen * nnYLen;
-  else if(loc == Board::NULL_LOC)
+  if(loc == Board::NULL_LOC || loc == Board::RESIGN_LOC) // NN normally shouldn't return a resigning move
     return nnXLen * (nnYLen + 1);
   return Location::getY(loc,boardXSize) * nnXLen + Location::getX(loc,boardXSize);
 }
@@ -692,13 +692,13 @@ Loc SymmetryHelpers::getSymLoc(int x, int y, const Board& board, int symmetry) {
 }
 
 Loc SymmetryHelpers::getSymLoc(Loc loc, const Board& board, int symmetry) {
-  if(loc == Board::NULL_LOC || loc == Board::PASS_LOC)
+  if(loc == Board::NULL_LOC || loc == Board::PASS_LOC || loc == Board::RESIGN_LOC)
     return loc;
   return getSymLoc(Location::getX(loc,board.x_size), Location::getY(loc,board.x_size), board, symmetry);
 }
 
 Loc SymmetryHelpers::getSymLoc(Loc loc, int xSize, int ySize, int symmetry) {
-  if(loc == Board::NULL_LOC || loc == Board::PASS_LOC)
+  if(loc == Board::NULL_LOC || loc == Board::PASS_LOC || loc == Board::RESIGN_LOC)
     return loc;
   return getSymLoc(Location::getX(loc,xSize), Location::getY(loc,xSize), xSize, ySize, symmetry);
 }

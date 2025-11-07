@@ -51,7 +51,7 @@ LocalPatternHasher::~LocalPatternHasher() {
 Hash128 LocalPatternHasher::getHash(const Board& board, Loc loc, Player pla) const {
   Hash128 hash = zobristPla[pla];
 
-  if(loc != Board::PASS_LOC && loc != Board::NULL_LOC) {
+  if(loc != Board::PASS_LOC && loc != Board::NULL_LOC && loc != Board::RESIGN_LOC) {
     vector<Color> bases;
     if (board.isDots()) {
       vector<Color> captures;
@@ -91,7 +91,7 @@ Hash128 LocalPatternHasher::getHashWithSym(const Board& board, Loc loc, Player p
   Player symPla = flipColors ? getOpp(pla) : pla;
   Hash128 hash = zobristPla[symPla];
 
-  if(loc != Board::PASS_LOC && loc != Board::NULL_LOC) {
+  if(loc != Board::PASS_LOC && loc != Board::NULL_LOC && loc != Board::RESIGN_LOC) {
     vector<Color> bases;
     if (board.isDots()) {
       vector<Color> captures;

@@ -1912,6 +1912,7 @@ void Tests::runBoardUndoTest() {
   int suicideCount = 0;
   int koCaptureCount = 0;
   int passCount = 0;
+  int resignCount = 0;
   int regularMoveCount = 0;
   auto run = [&](const Board& startBoard, bool multiStoneSuicideLegal) {
     static const int steps = 1000;
@@ -1936,6 +1937,8 @@ void Tests::runBoardUndoTest() {
 
       if(loc == Board::PASS_LOC)
         passCount++;
+      else if(loc == Board::RESIGN_LOC)
+        resignCount++;
       else if(boards[n-1].isSuicide(loc,pla))
         suicideCount++;
       else {
@@ -1961,15 +1964,17 @@ void Tests::runBoardUndoTest() {
   out << endl;
   out << "regularMoveCount " << regularMoveCount << endl;
   out << "passCount " << passCount << endl;
+  out << "resignCount " << resignCount << endl;
   out << "koCaptureCount " << koCaptureCount << endl;
   out << "suicideCount " << suicideCount << endl;
 
   string expected = R"%%(
 
-regularMoveCount 2446
-passCount 475
-koCaptureCount 24
-suicideCount 79
+regularMoveCount 2116
+passCount 376
+resignCount 443
+koCaptureCount 19
+suicideCount 65
 
 )%%";
   expect("Board undo test move counts",out,expected);
@@ -2106,10 +2111,10 @@ void Tests::runBoardStressTest() {
     static const int numBoards = 4;
     vector<Board> boards;
     Rules rules = Rules::DEFAULT_GO;
-    boards.push_back(Board(Board::DEFAULT_LEN_X, Board::DEFAULT_LEN_Y, rules));
-    boards.push_back(Board(9,16,rules));
-    boards.push_back(Board(13,7,rules));
-    boards.push_back(Board(4,4,rules));
+    boards.emplace_back(Board::DEFAULT_LEN_X, Board::DEFAULT_LEN_Y, rules);
+    boards.emplace_back(9,16,rules);
+    boards.emplace_back(13,7,rules);
+    boards.emplace_back(4,4,rules);
     bool multiStoneSuicideLegal[4] = {false,false,true,false};
     vector<Board> copies;
     Player pla = C_BLACK;
@@ -2117,6 +2122,7 @@ void Tests::runBoardStressTest() {
     int koBanCount = 0;
     int koCaptureCount = 0;
     int passCount = 0;
+    int resignCount = 0;
     int regularMoveCount = 0;
     for(int n = 0; n < 20000; n++) {
       Loc locs[numBoards];
@@ -2179,10 +2185,13 @@ void Tests::runBoardStressTest() {
           }
         }
         else {
-          if(loc == Board::PASS_LOC) {
+          if (loc == Board::PASS_LOC || loc == Board::RESIGN_LOC) {
             testAssert(boardsSeemEqual(copy,board));
             testAssert(board.ko_loc == Board::NULL_LOC);
-            passCount++;
+            if (loc == Board::PASS_LOC)
+              passCount++;
+            else
+              resignCount++;
           }
           else if(copy.isSuicide(loc,pla)) {
             testAssert(board.colors[loc] == C_EMPTY);
@@ -2220,6 +2229,7 @@ void Tests::runBoardStressTest() {
     out << endl;
     out << "regularMoveCount " << regularMoveCount << endl;
     out << "passCount " << passCount << endl;
+    out << "resignCount " << resignCount << endl;
     out << "koCaptureCount " << koCaptureCount << endl;
     out << "koBanCount " << koBanCount << endl;
     out << "suicideCount " << suicideCount << endl;
@@ -2230,8 +2240,9 @@ void Tests::runBoardStressTest() {
 
 regularMoveCount 38017
 passCount 273
+resignCount 289
 koCaptureCount 212
-koBanCount 45
+koBanCount 44
 suicideCount 440
 Caps 4753 5024
 Caps 4821 4733
@@ -2250,7 +2261,7 @@ Caps 4420 4335
       for(int y = 0; y<b.y_size; y++) {
         for(int x = 0; x<b.x_size; x++) {
           Loc loc = Location::getLoc(x,y,b.x_size);
-          placements.push_back(Move(loc,b.colors[loc]));
+          placements.emplace_back(loc,b.colors[loc]);
         }
       }
       for(int i = 1; i<placements.size(); i++)
@@ -2263,7 +2274,7 @@ Caps 4420 4335
         for(int x = 0; x<b.x_size; x++) {
           Loc loc = Location::getLoc(x,y,b.x_size);
           if(b.colors[loc] != C_EMPTY)
-            placements.push_back(Move(loc,b.colors[loc]));
+            placements.emplace_back(loc,b.colors[loc]);
         }
       }
       for(int i = 1; i<placements.size(); i++)

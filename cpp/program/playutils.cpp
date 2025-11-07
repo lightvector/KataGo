@@ -111,7 +111,7 @@ Loc PlayUtils::chooseRandomLegalMove(const Board& board, const BoardHistory& his
   Loc locs[Board::MAX_ARR_SIZE];
   testAssert(pla == hist.presumedNextMovePla);
   for(Loc loc = 0; loc < Board::MAX_ARR_SIZE; loc++) {
-    if(hist.isLegal(board,loc,pla) && loc != banMove) {
+    if(loc != Board::RESIGN_LOC && hist.isLegal(board,loc,pla) && loc != banMove) {
       locs[numLegalMoves] = loc;
       numLegalMoves += 1;
     }
@@ -128,7 +128,7 @@ int PlayUtils::chooseRandomLegalMoves(const Board& board, const BoardHistory& hi
   Loc locs[Board::MAX_ARR_SIZE];
   testAssert(pla == hist.presumedNextMovePla);
   for(Loc loc = 0; loc < Board::MAX_ARR_SIZE; loc++) {
-    if(hist.isLegal(board,loc,pla)) {
+    if(loc != Board::RESIGN_LOC && hist.isLegal(board,loc,pla)) {
       locs[numLegalMoves] = loc;
       numLegalMoves += 1;
     }

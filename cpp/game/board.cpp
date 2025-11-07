@@ -72,7 +72,7 @@ bool Location::isAdjacent(Loc loc0, Loc loc1, int x_size)
 }
 
 Loc Location::getMirrorLoc(Loc loc, int x_size, int y_size) {
-  if(loc == Board::NULL_LOC || loc == Board::PASS_LOC)
+  if(loc == Board::NULL_LOC || loc == Board::PASS_LOC || loc == Board::RESIGN_LOC)
     return loc;
   return getLoc(x_size-1-getX(loc,x_size),y_size-1-getY(loc,x_size),x_size);
 }
@@ -314,8 +314,10 @@ int Board::getNumLiberties(Loc loc) const
 //Check if moving here would be a self-capture
 bool Board::isSuicide(Loc loc, Player pla) const
 {
-  if(loc == PASS_LOC)
+  if (loc == PASS_LOC)
     return false;
+  if (loc == RESIGN_LOC)
+    return true; // It's seems reasonable to treat resigning as suicide
 
   if (rules.isDots) {
     return isSuicideDots(loc, pla);
@@ -511,7 +513,10 @@ bool Board::isLegal(Loc loc, Player pla, bool isMultiStoneSuicideLegal, const bo
 {
   if(pla != P_BLACK && pla != P_WHITE)
     return false;
-  return loc == PASS_LOC || (
+  if (loc == RESIGN_LOC) {
+    return true;
+  }
+  return loc == PASS_LOC || loc == RESIGN_LOC || (
     loc >= 0 &&
     loc < MAX_ARR_SIZE &&
     getColor(loc) == C_EMPTY &&
@@ -864,7 +869,7 @@ Board::MoveRecord Board::playMoveRecorded(const Loc loc, const Player pla) {
 
   uint8_t capDirs = 0;
 
-  if(loc != PASS_LOC) {
+  if(loc != PASS_LOC && loc != RESIGN_LOC) {
     Player opp = getOpp(pla);
 
     { int adj = loc + ADJ0;
@@ -904,7 +909,7 @@ void Board::undo(MoveRecord& record)
   ko_loc = record.ko_loc;
 
   Loc loc = record.loc;
-  if(loc == PASS_LOC)
+  if(loc == PASS_LOC || loc == RESIGN_LOC)
     return;
 
   //Re-fill stones in all captured directions
@@ -1020,7 +1025,7 @@ void Board::undo(MoveRecord& record)
 }
 
 Hash128 Board::getPosHashAfterMove(Loc loc, Player pla) const {
-  if(loc == PASS_LOC)
+  if(loc == PASS_LOC || loc == RESIGN_LOC)
     return pos_hash;
   assert(loc != NULL_LOC);
 
@@ -1106,8 +1111,8 @@ void Board::playMoveAssumeLegal(Loc loc, Player pla) {
     return;
   }
 
-  //Pass?
-  if(loc == PASS_LOC)
+  // Pass or resign?
+  if(loc == PASS_LOC || loc == RESIGN_LOC)
   {
     ko_loc = NULL_LOC;
     return;
@@ -2625,6 +2630,8 @@ Player PlayerIO::parsePlayer(const string& s) {
 string Location::toStringMach(const Loc loc, const int x_size, const bool isDots) {
   if(loc == Board::PASS_LOC)
     return isDots ? "ground" : "pass";
+  if (loc == Board::RESIGN_LOC)
+    return RESIGN_STR;
   if(loc == Board::NULL_LOC)
     return string("null");
   char buf[128];
@@ -2633,9 +2640,11 @@ string Location::toStringMach(const Loc loc, const int x_size, const bool isDots
 }
 
 string Location::toString(const Loc loc, const int x_size, const int y_size, const bool isDots) {
-  if(loc == Board::PASS_LOC)
+  if (loc == Board::PASS_LOC)
     return isDots ? "ground" : "pass";
-  if(loc == Board::NULL_LOC)
+  if (loc == Board::RESIGN_LOC)
+    return RESIGN_STR;
+  if (loc == Board::NULL_LOC)
     return "null";
   const int x = getX(loc, x_size);
   const int y = getY(loc, x_size);
@@ -2663,6 +2672,12 @@ bool Location::tryOfString(const string& str, const int x_size, const int y_size
     result = Board::PASS_LOC;
     return true;
   }
+
+  if (Global::isEqualCaseInsensitive(s, RESIGN_STR)) {
+    result = Board::RESIGN_LOC;
+    return true;
+  }
+
   if(s[0] == '(') {
     if(s[s.length() - 1] != ')')
       return false;
@@ -2984,7 +2999,7 @@ bool Board::countEmptyHelper(bool* emptyCounted, Loc initialLoc, int& count, int
 }
 
 bool Board::simpleRepetitionBoundGt(Loc loc, int bound) const {
-  if(loc == NULL_LOC || loc == PASS_LOC)
+  if(loc == NULL_LOC || loc == PASS_LOC || loc == RESIGN_LOC)
     return false;
 
   if (rules.isDots) {

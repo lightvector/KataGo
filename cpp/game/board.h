@@ -144,10 +144,12 @@ struct Board
   static constexpr int MAX_PLAY_SIZE = MAX_LEN_X * MAX_LEN_Y;  //Maximum number of playable spaces
   static constexpr int MAX_ARR_SIZE = getMaxArrSize(MAX_LEN_X, MAX_LEN_Y); //Maximum size of arrays needed
 
-  //Location used to indicate an invalid spot on the board.
+  // Location used to indicate an invalid spot on the board.
   static constexpr Loc NULL_LOC = 0;
-  //Location used to indicate a pass or grounding (Dots game) move is desired.
+  // Location used to indicate a pass or grounding (Dots game) move is desired.
   static constexpr Loc PASS_LOC = 1;
+  // Location used to indicate resigning move.
+  static constexpr Loc RESIGN_LOC = 2;
 
   //Zobrist Hashing------------------------------
   static bool IS_ZOBRIST_INITALIZED;

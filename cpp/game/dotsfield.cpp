@@ -276,7 +276,8 @@ Board::MoveRecord Board::playMoveRecordedDots(const Loc loc, const Player pla) {
 void Board::playMoveAssumeLegalDots(const Loc loc, const Player pla) {
   const State originalState = getState(loc);
 
-  if (loc == PASS_LOC) {
+  if (loc == RESIGN_LOC) {
+  } else if (loc == PASS_LOC) {
     auto initEmptyBaseInvalidateLocations = vector<Loc>();
     auto bases = vector<Base>();
     ground(pla, initEmptyBaseInvalidateLocations, bases);
@@ -335,7 +336,8 @@ Board::MoveRecord Board::tryPlayMoveRecordedDots(Loc loc, Player pla, const bool
   vector<Loc> initEmptyBaseInvalidateLocations;
   vector<Loc> newGroundingLocations;
 
-  if (loc == PASS_LOC) {
+  if (loc == RESIGN_LOC) {
+  } else if (loc == PASS_LOC) {
     ground(pla, initEmptyBaseInvalidateLocations, bases);
   } else {
     colors[loc] = static_cast<Color>(pla | pla << PLACED_PLAYER_SHIFT);
@@ -394,6 +396,10 @@ Board::MoveRecord Board::tryPlayMoveRecordedDots(Loc loc, Player pla, const bool
 }
 
 void Board::undoDots(MoveRecord& moveRecord) {
+  if (moveRecord.loc == RESIGN_LOC) {
+    return; // Resin doesn't really change the state
+  }
+
   const bool isGroundingMove = moveRecord.loc == PASS_LOC;
 
   for (const Loc& loc : moveRecord.groundingLocations) {

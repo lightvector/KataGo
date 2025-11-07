@@ -441,10 +441,12 @@ int BoardHistory::computeNumHandicapStones() const {
         //moves are interleaved with white passes. Ignore it and continue.
         if(moveLoc == Board::PASS_LOC)
           continue;
+        if (moveLoc == Board::RESIGN_LOC)
+          continue; // Actually shouldn't be here
         //Otherwise quit out, we have a normal white move.
         break;
       }
-      if(moveLoc != Board::PASS_LOC && moveLoc != Board::NULL_LOC)
+      if(moveLoc != Board::PASS_LOC && moveLoc != Board::NULL_LOC && moveLoc != Board::RESIGN_LOC)
         blackNonPassTurnsToStart += 1;
     }
   }
@@ -485,6 +487,9 @@ void BoardHistory::printBasicInfo(ostream& out, const Board& board) const {
   } else {
     out << firstPlayerName << " score: " << board.numWhiteCaptures << endl;
     out << secondPlayerName << " score: " << board.numBlackCaptures << endl;
+  }
+  if (isGameFinished) {
+    out << "Game is finished, winner: " << PlayerIO::playerToString(winner, isDots) << ", score: " << finalWhiteMinusBlackScore << ", resign: " << boolalpha << isResignation << endl;
   }
 }
 
@@ -860,7 +865,7 @@ bool BoardHistory::isLegal(const Board& board, Loc moveLoc, Player movePla) cons
 
   //Ko-moves in the encore that are recapture blocked are interpreted as pass-for-ko, so they are legal
   if(encorePhase > 0) {
-    if(moveLoc >= 0 && moveLoc < Board::MAX_ARR_SIZE && moveLoc != Board::PASS_LOC) {
+    if(moveLoc >= 0 && moveLoc < Board::MAX_ARR_SIZE && moveLoc != Board::PASS_LOC && moveLoc != Board::RESIGN_LOC) {
       if(board.colors[moveLoc] == getOpp(movePla) && koRecapBlocked[moveLoc] && board.getChainSize(moveLoc) == 1 && board.getNumLiberties(moveLoc) == 1)
         return true;
       Loc koCaptureLoc = board.getKoCaptureLoc(moveLoc,movePla);
@@ -886,7 +891,7 @@ bool BoardHistory::isPassForKo(const Board& board, Loc moveLoc, Player movePla) 
   assert(rules.isDots == board.isDots());
   if (rules.isDots) return false;
 
-  if(encorePhase > 0 && moveLoc >= 0 && moveLoc < Board::MAX_ARR_SIZE && moveLoc != Board::PASS_LOC) {
+  if(encorePhase > 0 && moveLoc >= 0 && moveLoc < Board::MAX_ARR_SIZE && moveLoc != Board::PASS_LOC && moveLoc != Board::RESIGN_LOC) {
     if(board.colors[moveLoc] == getOpp(movePla) && koRecapBlocked[moveLoc] && board.getChainSize(moveLoc) == 1 && board.getNumLiberties(moveLoc) == 1)
       return true;
 
@@ -985,7 +990,7 @@ bool BoardHistory::isLegalTolerant(const Board& board, Loc moveLoc, Player moveP
   // Allow either side to move during tolerant play, but still check that a player is specified
   if(movePla != P_BLACK && movePla != P_WHITE)
     return false;
-  bool multiStoneSuicideLegal = true; // Tolerate suicide and ko regardless of rules
+  constexpr bool multiStoneSuicideLegal = true; // Tolerate suicide and ko regardless of rules
   constexpr bool ignoreKo = true;
   if(!isPassForKo(board, moveLoc, movePla) && !board.isLegal(moveLoc,movePla,multiStoneSuicideLegal,ignoreKo))
     return false;
@@ -1041,7 +1046,9 @@ void BoardHistory::makeBoardMoveAssumeLegal(Board& board, Loc moveLoc, Player mo
   bool isSpightlikeEndingPass = false;
   bool wasPassForKo = false;
 
-  if (rules.isDots) {
+  if (moveLoc == Board::RESIGN_LOC) {
+    setWinnerByResignation(getOpp(movePla));
+  } else if (rules.isDots) {
     //Dots game
     board.playMoveAssumeLegal(moveLoc, movePla);
     if (moveLoc == Board::PASS_LOC) {
@@ -1195,7 +1202,7 @@ void BoardHistory::makeBoardMoveAssumeLegal(Board& board, Loc moveLoc, Player mo
 
 
     //Territory scoring - chill 1 point per move in main phase and first encore
-    if(rules.scoringRule == Rules::SCORING_TERRITORY && encorePhase <= 1 && moveLoc != Board::PASS_LOC && !wasPassForKo) {
+    if(rules.scoringRule == Rules::SCORING_TERRITORY && encorePhase <= 1 && moveLoc != Board::PASS_LOC && moveLoc != Board::RESIGN_LOC && !wasPassForKo) {
       if(movePla == P_BLACK)
         whiteBonusScore += 1.0f;
       else if(movePla == P_WHITE)
@@ -1205,7 +1212,7 @@ void BoardHistory::makeBoardMoveAssumeLegal(Board& board, Loc moveLoc, Player mo
     }
 
     //Handicap bonus score
-    if(movePla == P_WHITE && moveLoc != Board::PASS_LOC)
+    if(movePla == P_WHITE && moveLoc != Board::PASS_LOC && moveLoc != Board::RESIGN_LOC)
       whiteHasMoved = true;
     if(assumeMultipleStartingBlackMovesAreHandicap && !whiteHasMoved && movePla == P_BLACK && rules.whiteHandicapBonusRule != Rules::WHB_ZERO) {
       whiteHandicapBonusScore = (float)computeWhiteHandicapBonus();
@@ -1255,7 +1262,7 @@ void BoardHistory::makeBoardMoveAssumeLegal(Board& board, Loc moveLoc, Player mo
     }
 
     //Break long cycles with no-result
-    if(moveLoc != Board::PASS_LOC && (encorePhase > 0 || rules.koRule == Rules::KO_SIMPLE)) {
+    if(moveLoc != Board::PASS_LOC && moveLoc != Board::RESIGN_LOC && (encorePhase > 0 || rules.koRule == Rules::KO_SIMPLE)) {
       if(numberOfKoHashOccurrencesInHistory(koHashHistory[koHashHistory.size()-1], rootKoHashTable) >= 3) {
         isNoResult = true;
         isGameFinished = true;

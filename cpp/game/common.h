@@ -21,6 +21,8 @@ const std::string PLAYER2 = "Player2";
 const std::string PLAYER1_SHORT = "P1";
 const std::string PLAYER2_SHORT = "P2";
 
+const std::string RESIGN_STR = "resign";
+
 // Player
 typedef int8_t Player;
 static constexpr Player P_BLACK = 1;

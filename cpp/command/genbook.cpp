@@ -570,7 +570,7 @@ int MainCmds::genbook(const vector<string>& args) {
     Board board = hist.getRecentBoard(0);
     bool hasAtLeastOneLegalNewMove = false;
     for(Loc moveLoc = 0; moveLoc < Board::MAX_ARR_SIZE; moveLoc++) {
-      if(hist.isLegal(board,moveLoc,pla)) {
+      if(moveLoc != Board::RESIGN_LOC && hist.isLegal(board,moveLoc,pla)) {
         if(!isReExpansion && constNode.isMoveInBook(moveLoc))
           avoidMoveUntilByLoc[moveLoc] = 1;
         else
