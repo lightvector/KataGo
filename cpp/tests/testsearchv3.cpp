@@ -524,9 +524,9 @@ void Tests::runSearchTestsV3(const string& modelFile, bool inputsNHWC, bool useN
   const bool logTime = false;
   Logger logger(nullptr, logToStdout, logToStderr, logTime);
 
-  NNEvaluator* nnEval = startNNEval(modelFile,logger,"",NNPos::MAX_BOARD_LEN,NNPos::MAX_BOARD_LEN,symmetry,inputsNHWC,useNHWC,useFP16,false,false);
+  NNEvaluator* nnEval = startNNEval(modelFile,logger,"",NNPos::MAX_BOARD_LEN_X,NNPos::MAX_BOARD_LEN_Y,symmetry,inputsNHWC,useNHWC,useFP16,false,false);
   NNEvaluator* nnEval11 = startNNEval(modelFile,logger,"",11,11,symmetry,inputsNHWC,useNHWC,useFP16,false,false);
-  NNEvaluator* nnEvalPTemp = startNNEval(modelFile,logger,"",NNPos::MAX_BOARD_LEN,NNPos::MAX_BOARD_LEN,symmetry,inputsNHWC,useNHWC,useFP16,false,false);
+  NNEvaluator* nnEvalPTemp = startNNEval(modelFile,logger,"",NNPos::MAX_BOARD_LEN_X,NNPos::MAX_BOARD_LEN_Y,symmetry,inputsNHWC,useNHWC,useFP16,false,false);
   runOwnershipAndMisc(nnEval,nnEval11,nnEvalPTemp,logger);
   delete nnEval;
   delete nnEval11;

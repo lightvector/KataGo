@@ -649,7 +649,7 @@ vector<int> ConfigParser::getInts(const string& key, int min, int max) {
   }
   return ret;
 }
-vector<std::pair<int,int>> ConfigParser::getNonNegativeIntDashedPairs(const string& key, int min, int max) {
+vector<std::pair<int,int>> ConfigParser::getNonNegativeIntDashedPairs(const string& key, int min, int max1, int max2) {
   std::vector<string> pairStrs = getStrings(key);
   std::vector<std::pair<int,int>> ret;
   for(const string& pairStr: pairStrs) {
@@ -670,8 +670,8 @@ vector<std::pair<int,int>> ConfigParser::getNonNegativeIntDashedPairs(const stri
     if(!suc)
       throw IOError("Could not parse '" + pairStr + "' as a pair of integers separated by a dash for key '" + key + "' in config file " + fileName);
 
-    if(p0 < min || p0 > max || p1 < min || p1 > max)
-      throw IOError("Expected key '" + key + "' to have all values range " + Global::intToString(min) + " to " + Global::intToString(max) + " in config file " + fileName);
+    if(p0 < min || p0 > max1 || p1 < min || p1 > max2)
+      throw IOError("Expected key '" + key + "' to have all values range " + Global::intToString(min) + " to (" + Global::intToString(max1) + ", " + Global::intToString(max2) + ") in config file " + fileName);
 
     ret.push_back(std::make_pair(p0,p1));
   }

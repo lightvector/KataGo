@@ -115,10 +115,23 @@ struct Board
 
   //Board parameters and Constants----------------------------------------
 
-  static constexpr int MAX_LEN = COMPILE_MAX_BOARD_LEN;  //Maximum edge length allowed for the board
-  static constexpr int DEFAULT_LEN = std::min(MAX_LEN,19); //Default edge length for board if unspecified
-  static constexpr int MAX_PLAY_SIZE = MAX_LEN * MAX_LEN;  //Maximum number of playable spaces
-  static constexpr int MAX_ARR_SIZE = (MAX_LEN+1)*(MAX_LEN+2)+1; //Maximum size of arrays needed
+  static constexpr int MAX_LEN_X = //Maximum x edge length allowed for the board
+#ifdef COMPILE_MAX_BOARD_LEN_X
+    COMPILE_MAX_BOARD_LEN_X;
+#else
+    COMPILE_MAX_BOARD_LEN;
+#endif
+  static constexpr int MAX_LEN_Y = //Maximum y edge length allowed for the board
+#ifdef COMPILE_MAX_BOARD_LEN_Y
+    COMPILE_MAX_BOARD_LEN_Y;
+#else
+    COMPILE_MAX_BOARD_LEN;
+#endif
+  static constexpr int MAX_LEN = std::max(MAX_LEN_X, MAX_LEN_Y);  //Maximum edge length allowed for the board
+  static constexpr int DEFAULT_LEN_X = std::min(MAX_LEN_X,19); //Default x edge length for board if unspecified
+  static constexpr int DEFAULT_LEN_Y = std::min(MAX_LEN_Y,19); //Default y edge length for board if unspecified
+  static constexpr int MAX_PLAY_SIZE = MAX_LEN_X * MAX_LEN_Y;  //Maximum number of playable spaces
+  static constexpr int MAX_ARR_SIZE = (MAX_LEN_X+1)*(MAX_LEN_Y+2)+1; //Maximum size of arrays needed
 
   //Location used to indicate an invalid spot on the board.
   static constexpr Loc NULL_LOC = 0;
@@ -127,8 +140,8 @@ struct Board
 
   //Zobrist Hashing------------------------------
   static bool IS_ZOBRIST_INITALIZED;
-  static Hash128 ZOBRIST_SIZE_X_HASH[MAX_LEN+1];
-  static Hash128 ZOBRIST_SIZE_Y_HASH[MAX_LEN+1];
+  static Hash128 ZOBRIST_SIZE_X_HASH[MAX_LEN_X+1];
+  static Hash128 ZOBRIST_SIZE_Y_HASH[MAX_LEN_Y+1];
   static Hash128 ZOBRIST_BOARD_HASH[MAX_ARR_SIZE][4];
   static Hash128 ZOBRIST_BOARD_HASH2[MAX_ARR_SIZE][4];
   static Hash128 ZOBRIST_PLAYER_HASH[4];

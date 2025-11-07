@@ -115,22 +115,22 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
     int nnYLen = std::max(defaultNNYLen,2);
     if(setupFor != SETUP_FOR_DISTRIBUTED) {
       if(cfg.contains("maxBoardXSizeForNNBuffer" + idxStr))
-        nnXLen = cfg.getInt("maxBoardXSizeForNNBuffer" + idxStr, 2, NNPos::MAX_BOARD_LEN);
+        nnXLen = cfg.getInt("maxBoardXSizeForNNBuffer" + idxStr, 2, NNPos::MAX_BOARD_LEN_X);
       else if(cfg.contains("maxBoardXSizeForNNBuffer"))
-        nnXLen = cfg.getInt("maxBoardXSizeForNNBuffer", 2, NNPos::MAX_BOARD_LEN);
+        nnXLen = cfg.getInt("maxBoardXSizeForNNBuffer", 2, NNPos::MAX_BOARD_LEN_X);
       else if(cfg.contains("maxBoardSizeForNNBuffer" + idxStr))
-        nnXLen = cfg.getInt("maxBoardSizeForNNBuffer" + idxStr, 2, NNPos::MAX_BOARD_LEN);
+        nnXLen = cfg.getInt("maxBoardSizeForNNBuffer" + idxStr, 2, NNPos::MAX_BOARD_LEN_X);
       else if(cfg.contains("maxBoardSizeForNNBuffer"))
-        nnXLen = cfg.getInt("maxBoardSizeForNNBuffer", 2, NNPos::MAX_BOARD_LEN);
+        nnXLen = cfg.getInt("maxBoardSizeForNNBuffer", 2, NNPos::MAX_BOARD_LEN_X);
 
       if(cfg.contains("maxBoardYSizeForNNBuffer" + idxStr))
-        nnYLen = cfg.getInt("maxBoardYSizeForNNBuffer" + idxStr, 2, NNPos::MAX_BOARD_LEN);
+        nnYLen = cfg.getInt("maxBoardYSizeForNNBuffer" + idxStr, 2, NNPos::MAX_BOARD_LEN_Y);
       else if(cfg.contains("maxBoardYSizeForNNBuffer"))
-        nnYLen = cfg.getInt("maxBoardYSizeForNNBuffer", 2, NNPos::MAX_BOARD_LEN);
+        nnYLen = cfg.getInt("maxBoardYSizeForNNBuffer", 2, NNPos::MAX_BOARD_LEN_Y);
       else if(cfg.contains("maxBoardSizeForNNBuffer" + idxStr))
-        nnYLen = cfg.getInt("maxBoardSizeForNNBuffer" + idxStr, 2, NNPos::MAX_BOARD_LEN);
+        nnYLen = cfg.getInt("maxBoardSizeForNNBuffer" + idxStr, 2, NNPos::MAX_BOARD_LEN_Y);
       else if(cfg.contains("maxBoardSizeForNNBuffer"))
-        nnYLen = cfg.getInt("maxBoardSizeForNNBuffer", 2, NNPos::MAX_BOARD_LEN);
+        nnYLen = cfg.getInt("maxBoardSizeForNNBuffer", 2, NNPos::MAX_BOARD_LEN_Y);
     }
 
     bool requireExactNNLen = defaultRequireExactNNLen;
@@ -967,12 +967,12 @@ bool Setup::loadDefaultBoardXYSize(
   int& defaultBoardYSizeRet
 ) {
   const int defaultBoardXSize =
-    cfg.contains("defaultBoardXSize") ? cfg.getInt("defaultBoardXSize",2,Board::MAX_LEN) :
-    cfg.contains("defaultBoardSize") ? cfg.getInt("defaultBoardSize",2,Board::MAX_LEN) :
+    cfg.contains("defaultBoardXSize") ? cfg.getInt("defaultBoardXSize",2,Board::MAX_LEN_X) :
+    cfg.contains("defaultBoardSize") ? cfg.getInt("defaultBoardSize",2,Board::MAX_LEN_X) :
     -1;
   const int defaultBoardYSize =
-    cfg.contains("defaultBoardYSize") ? cfg.getInt("defaultBoardYSize",2,Board::MAX_LEN) :
-    cfg.contains("defaultBoardSize") ? cfg.getInt("defaultBoardSize",2,Board::MAX_LEN) :
+    cfg.contains("defaultBoardYSize") ? cfg.getInt("defaultBoardYSize",2,Board::MAX_LEN_Y) :
+    cfg.contains("defaultBoardSize") ? cfg.getInt("defaultBoardSize",2,Board::MAX_LEN_Y) :
     -1;
   if((defaultBoardXSize == -1) != (defaultBoardYSize == -1))
     logger.write("Warning: Config specified only one of defaultBoardXSize or defaultBoardYSize and no other board size parameter, ignoring it");
@@ -1121,7 +1121,7 @@ std::unique_ptr<PatternBonusTable> Setup::loadAndPruneAutoPatternBonusTables(Con
       bool suc = Global::tryStringToInt(pieces[0],boardXSize) && Global::tryStringToInt(pieces[1],boardYSize);
       if(!suc)
         continue;
-      if(boardXSize < 2 || boardXSize > Board::MAX_LEN || boardYSize < 2 || boardYSize > Board::MAX_LEN)
+      if(boardXSize < 2 || boardXSize > Board::MAX_LEN_X || boardYSize < 2 || boardYSize > Board::MAX_LEN_Y)
         continue;
 
       string dirPath = baseDir + "/" + dirName;

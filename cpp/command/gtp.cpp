@@ -458,8 +458,8 @@ struct GTPEngine {
   void setOrResetBoardSize(ConfigParser& cfg, Logger& logger, Rand& seedRand, int boardXSize, int boardYSize, bool loggingToStderr) {
     bool wasDefault = false;
     if(boardXSize == -1 || boardYSize == -1) {
-      boardXSize = Board::DEFAULT_LEN;
-      boardYSize = Board::DEFAULT_LEN;
+      boardXSize = Board::DEFAULT_LEN_X;
+      boardYSize = Board::DEFAULT_LEN_Y;
       wasDefault = true;
     }
 
@@ -469,8 +469,8 @@ struct GTPEngine {
 
     if(cfg.contains("gtpForceMaxNNSize") && cfg.getBool("gtpForceMaxNNSize")) {
       defaultRequireExactNNLen = false;
-      nnXLen = Board::MAX_LEN;
-      nnYLen = Board::MAX_LEN;
+      nnXLen = Board::MAX_LEN_X;
+      nnYLen = Board::MAX_LEN_Y;
     }
 
     //If the neural net is wrongly sized, we need to create or recreate it
@@ -2301,9 +2301,13 @@ int MainCmds::gtp(const vector<string>& args) {
         responseIsError = true;
         response = "unacceptable size";
       }
-      else if(newXSize > Board::MAX_LEN || newYSize > Board::MAX_LEN) {
+      else if(newXSize > Board::MAX_LEN_X) {
         responseIsError = true;
-        response = Global::strprintf("unacceptable size (Board::MAX_LEN is %d, consider increasing and recompiling)",(int)Board::MAX_LEN);
+        response = Global::strprintf("unacceptable size (Board::MAX_LEN_X is %d, consider increasing and recompiling)",(int)Board::MAX_LEN_X);
+      }
+      else if(newYSize > Board::MAX_LEN_Y) {
+        responseIsError = true;
+        response = Global::strprintf("unacceptable size (Board::MAX_LEN_Y is %d, consider increasing and recompiling)",(int)Board::MAX_LEN_Y);
       }
       else {
         engine->setOrResetBoardSize(cfg,logger,seedRand,newXSize,newYSize,logger.isLoggingToStderr());

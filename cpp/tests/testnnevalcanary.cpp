@@ -470,8 +470,8 @@ static std::shared_ptr<NNOutput> nnOutputOfJson(const std::string& s) {
   nnOutput->policyOptimismUsed = input["policyOptimismUsed"].get<float>();
   nnOutput->nnXLen = input["nnXLen"].get<int>();
   nnOutput->nnYLen = input["nnYLen"].get<int>();
-  testAssert(nnOutput->nnXLen >= 2 && nnOutput->nnXLen <= NNPos::MAX_BOARD_LEN);
-  testAssert(nnOutput->nnYLen >= 2 && nnOutput->nnYLen <= NNPos::MAX_BOARD_LEN);
+  testAssert(nnOutput->nnXLen >= 2 && nnOutput->nnXLen <= NNPos::MAX_BOARD_LEN_X);
+  testAssert(nnOutput->nnYLen >= 2 && nnOutput->nnYLen <= NNPos::MAX_BOARD_LEN_Y);
   std::vector<float> whiteOwnerMap = input["whiteOwnerMap"].get<std::vector<float>>();
   testAssert(whiteOwnerMap.size() == nnOutput->nnXLen*nnOutput->nnYLen);
   nnOutput->whiteOwnerMap = new float[nnOutput->nnXLen*nnOutput->nnYLen];

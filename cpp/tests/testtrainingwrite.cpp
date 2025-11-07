@@ -16,8 +16,8 @@ static NNEvaluator* startNNEval(
   const string& modelName = modelFile;
   vector<int> gpuIdxByServerThread = {0};
   int maxBatchSize = 16;
-  int nnXLen = NNPos::MAX_BOARD_LEN;
-  int nnYLen = NNPos::MAX_BOARD_LEN;
+  int nnXLen = NNPos::MAX_BOARD_LEN_X;
+  int nnYLen = NNPos::MAX_BOARD_LEN_Y;
   bool requireExactNNLen = false;
   int nnCacheSizePowerOfTwo = 16;
   int nnMutexPoolSizePowerOfTwo = 12;

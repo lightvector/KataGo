@@ -110,10 +110,10 @@ NNEvaluator::NNEvaluator(
    queryQueue(),
    dotsGame(dotsGame)
 {
-  if(nnXLen > NNPos::MAX_BOARD_LEN)
-    throw StringError("Maximum supported nnEval board size is " + Global::intToString(NNPos::MAX_BOARD_LEN));
-  if(nnYLen > NNPos::MAX_BOARD_LEN)
-    throw StringError("Maximum supported nnEval board size is " + Global::intToString(NNPos::MAX_BOARD_LEN));
+  if(nnXLen > NNPos::MAX_BOARD_LEN_X)
+    throw StringError("Maximum supported nnEval board size x is " + Global::intToString(NNPos::MAX_BOARD_LEN_X));
+  if(nnYLen > NNPos::MAX_BOARD_LEN_Y)
+    throw StringError("Maximum supported nnEval board size y is " + Global::intToString(NNPos::MAX_BOARD_LEN_Y));
   if(maxBatchSize <= 0)
     throw StringError("maxBatchSize is negative: " + Global::intToString(maxBatchSize));
   if(gpuIdxByServerThread.size() != numThreads)

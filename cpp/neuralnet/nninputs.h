@@ -13,8 +13,10 @@
 void setRowBin(float* rowBin, int pos, int feature, float value, int posStride, int featureStride);
 
 namespace NNPos {
+  constexpr int MAX_BOARD_LEN_X = Board::MAX_LEN_X;
+  constexpr int MAX_BOARD_LEN_Y = Board::MAX_LEN_Y;
   constexpr int MAX_BOARD_LEN = Board::MAX_LEN;
-  constexpr int MAX_BOARD_AREA = MAX_BOARD_LEN * MAX_BOARD_LEN;
+  constexpr int MAX_BOARD_AREA = MAX_BOARD_LEN_X * MAX_BOARD_LEN_Y;
   //Policy output adds +1 for the pass move
   constexpr int MAX_NN_POLICY_SIZE = MAX_BOARD_AREA + 1;
   //Extra score distribution radius, used for writing score in data rows and for the neural net score belief output

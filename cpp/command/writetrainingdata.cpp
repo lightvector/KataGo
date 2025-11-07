@@ -684,7 +684,7 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
   const int maxApproxRowsPerTrainFile = cfg.getInt("maxApproxRowsPerTrainFile",1,100000000);
 
   const std::vector<std::pair<int,int>> allowedBoardSizes =
-    cfg.getNonNegativeIntDashedPairs("allowedBoardSizes", 2, Board::MAX_LEN);
+    cfg.getNonNegativeIntDashedPairs("allowedBoardSizes", 2, Board::MAX_LEN_X, Board::MAX_LEN_Y);
 
   if(dataBoardLen > Board::MAX_LEN)
     throw StringError("dataBoardLen > maximum board len, must recompile to increase");
@@ -712,7 +712,7 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
     const string expectedSha256 = "";
     nnEval = Setup::initializeNNEvaluator(
       nnModelFile,nnModelFile,expectedSha256,cfg,logger,seedRand,expectedConcurrentEvals,
-      NNPos::MAX_BOARD_LEN,NNPos::MAX_BOARD_LEN,defaultMaxBatchSize,defaultRequireExactNNLen,disableFP16,
+      NNPos::MAX_BOARD_LEN_X,NNPos::MAX_BOARD_LEN_Y,defaultMaxBatchSize,defaultRequireExactNNLen,disableFP16,
       Setup::SETUP_FOR_ANALYSIS
     );
   }

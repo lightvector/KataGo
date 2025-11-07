@@ -329,8 +329,8 @@ int MainCmds::genbook(const vector<string>& args) {
   const bool hasHumanModel = humanModelFile != "";
   const SearchParams params = Setup::loadSingleParams(cfg,Setup::SETUP_FOR_GTP,hasHumanModel);
 
-  const int boardSizeX = cfg.getInt("boardSizeX",2,Board::MAX_LEN);
-  const int boardSizeY = cfg.getInt("boardSizeY",2,Board::MAX_LEN);
+  const int boardSizeX = cfg.getInt("boardSizeX",2,Board::MAX_LEN_X);
+  const int boardSizeY = cfg.getInt("boardSizeY",2,Board::MAX_LEN_Y);
   const int repBound = cfg.getInt("repBound",3,1000);
 
   const double bonusFileScale = cfg.contains("bonusFileScale") ? cfg.getDouble("bonusFileScale",0.0,1000000.0) : 1.0;
@@ -1526,8 +1526,8 @@ int MainCmds::writebook(const vector<string>& args) {
 
   const bool loadKomiFromCfg = true;
   Rules rules = Setup::loadSingleRules(cfg,loadKomiFromCfg);
-  const int boardSizeX = cfg.getInt("boardSizeX",2,Board::MAX_LEN);
-  const int boardSizeY = cfg.getInt("boardSizeY",2,Board::MAX_LEN);
+  const int boardSizeX = cfg.getInt("boardSizeX",2,Board::MAX_LEN_X);
+  const int boardSizeY = cfg.getInt("boardSizeY",2,Board::MAX_LEN_Y);
   const int repBound = cfg.getInt("repBound",3,1000);
 
   std::map<BookHash,double> bonusByHash;

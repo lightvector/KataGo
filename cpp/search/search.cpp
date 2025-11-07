@@ -117,9 +117,9 @@ Search::Search(SearchParams params, NNEvaluator* nnEval, NNEvaluator* humanEval,
   assert(logger != NULL);
   nnXLen = nnEval->getNNXLen();
   nnYLen = nnEval->getNNYLen();
-  assert(nnXLen > 0 && nnXLen <= NNPos::MAX_BOARD_LEN);
-  assert(nnYLen > 0 && nnYLen <= NNPos::MAX_BOARD_LEN);
-  policySize = NNPos::getPolicySize(nnXLen,nnYLen);
+  assert(nnXLen > 0 && nnXLen <= NNPos::MAX_BOARD_LEN_X);
+  assert(nnYLen > 0 && nnYLen <= NNPos::MAX_BOARD_LEN_Y);
+  policySize = NNPos::getPolicySize(nnXLen, nnYLen);
 
   if(humanEvaluator != NULL) {
     if(humanEvaluator->getNNXLen() != nnXLen || humanEvaluator->getNNYLen() != nnYLen)

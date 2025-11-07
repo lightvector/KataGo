@@ -36,7 +36,7 @@ void Tests::runNNLessSearchTests() {
     cout << "Basic search with debugSkipNeuralNet and chosen move randomization" << endl;
     cout << "===================================================================" << endl;
 
-    NNEvaluator* nnEval = startNNEval(modelFile,logger,"",NNPos::MAX_BOARD_LEN,NNPos::MAX_BOARD_LEN,0,true,false,false,true,false);
+    NNEvaluator* nnEval = startNNEval(modelFile,logger,"",NNPos::MAX_BOARD_LEN_X,NNPos::MAX_BOARD_LEN_Y,0,true,false,false,true,false);
     SearchParams params;
     params.maxVisits = 100;
     Search* search = new Search(params, nnEval, &logger, "autoSearchRandSeed");
@@ -119,7 +119,7 @@ void Tests::runNNLessSearchTests() {
     cout << "Testing preservation of search tree across moves" << endl;
     cout << "===================================================================" << endl;
 
-    NNEvaluator* nnEval = startNNEval(modelFile,logger,"",NNPos::MAX_BOARD_LEN,NNPos::MAX_BOARD_LEN,0,true,false,false,true,false);
+    NNEvaluator* nnEval = startNNEval(modelFile,logger,"",NNPos::MAX_BOARD_LEN_X,NNPos::MAX_BOARD_LEN_Y,0,true,false,false,true,false);
     SearchParams params;
     params.maxVisits = 100;
     params.cpuctExploration *= 2;
@@ -251,7 +251,7 @@ o..oo.x
 
     {
       cout << "First with no pruning" << endl;
-      NNEvaluator* nnEval = startNNEval(modelFile,logger,"seed1",NNPos::MAX_BOARD_LEN,NNPos::MAX_BOARD_LEN,0,true,false,false,true,false);
+      NNEvaluator* nnEval = startNNEval(modelFile,logger,"seed1",NNPos::MAX_BOARD_LEN_X,NNPos::MAX_BOARD_LEN_Y,0,true,false,false,true,false);
       SearchParams params;
       params.maxVisits = 400;
       Search* search = new Search(params, nnEval, &logger, "autoSearchRandSeed3");
@@ -274,7 +274,7 @@ o..oo.x
 
     {
       cout << "Next, with rootPruneUselessMoves" << endl;
-      NNEvaluator* nnEval = startNNEval(modelFile,logger,"seed1",NNPos::MAX_BOARD_LEN,NNPos::MAX_BOARD_LEN,0,true,false,false,true,false);
+      NNEvaluator* nnEval = startNNEval(modelFile,logger,"seed1",NNPos::MAX_BOARD_LEN_X,NNPos::MAX_BOARD_LEN_Y,0,true,false,false,true,false);
       SearchParams params;
       params.maxVisits = 400;
       params.rootPruneUselessMoves = true;
@@ -310,7 +310,7 @@ o..oo.x
 
     {
       cout << "Searching on the opponent, the move before" << endl;
-      NNEvaluator* nnEval = startNNEval(modelFile,logger,"seed1b",NNPos::MAX_BOARD_LEN,NNPos::MAX_BOARD_LEN,0,true,false,false,true,false);
+      NNEvaluator* nnEval = startNNEval(modelFile,logger,"seed1b",NNPos::MAX_BOARD_LEN_X,NNPos::MAX_BOARD_LEN_Y,0,true,false,false,true,false);
       SearchParams params;
       params.maxVisits = 400;
       params.rootPruneUselessMoves = true;
@@ -382,7 +382,7 @@ o..o.oo
 
     {
       cout << "First with no pruning" << endl;
-      NNEvaluator* nnEval = startNNEval(modelFile,logger,"seed1",NNPos::MAX_BOARD_LEN,NNPos::MAX_BOARD_LEN,0,true,false,false,true,false);
+      NNEvaluator* nnEval = startNNEval(modelFile,logger,"seed1",NNPos::MAX_BOARD_LEN_X,NNPos::MAX_BOARD_LEN_Y,0,true,false,false,true,false);
       SearchParams params;
       params.maxVisits = 400;
       params.dynamicScoreUtilityFactor = 0.5;
@@ -1601,7 +1601,7 @@ xxxxxxxxx
     cout << "Testing coherence of search tree recursive walking" << endl;
     cout << "===================================================================" << endl;
 
-    NNEvaluator* nnEval = startNNEval(modelFile,logger,"",NNPos::MAX_BOARD_LEN,NNPos::MAX_BOARD_LEN,0,true,false,false,true,false);
+    NNEvaluator* nnEval = startNNEval(modelFile,logger,"",NNPos::MAX_BOARD_LEN_X,NNPos::MAX_BOARD_LEN_Y,0,true,false,false,true,false);
     SearchParams params;
     params.maxVisits = 1000;
     params.dynamicScoreUtilityFactor = 3.0;

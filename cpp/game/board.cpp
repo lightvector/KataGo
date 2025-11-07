@@ -18,8 +18,8 @@ using namespace std;
 
 //STATIC VARS-----------------------------------------------------------------------------
 bool Board::IS_ZOBRIST_INITALIZED = false;
-Hash128 Board::ZOBRIST_SIZE_X_HASH[MAX_LEN+1];
-Hash128 Board::ZOBRIST_SIZE_Y_HASH[MAX_LEN+1];
+Hash128 Board::ZOBRIST_SIZE_X_HASH[MAX_LEN_X+1];
+Hash128 Board::ZOBRIST_SIZE_Y_HASH[MAX_LEN_Y+1];
 Hash128 Board::ZOBRIST_BOARD_HASH[MAX_ARR_SIZE][4];
 Hash128 Board::ZOBRIST_PLAYER_HASH[4];
 Hash128 Board::ZOBRIST_KO_LOC_HASH[MAX_ARR_SIZE];
@@ -121,7 +121,7 @@ Board::Base::Base(Player newPla,
 
 Board::Board()
 {
-  init(DEFAULT_LEN, DEFAULT_LEN, Rules());
+  init(DEFAULT_LEN_X, DEFAULT_LEN_Y, Rules());
 }
 
 Board::Board(int x, int y)
@@ -158,7 +158,7 @@ Board::Board(const Board& other) {
 void Board::init(const int xS, const int yS, const Rules& initRules)
 {
   assert(IS_ZOBRIST_INITALIZED);
-  if(xS < 0 || yS < 0 || xS > MAX_LEN || yS > MAX_LEN)
+  if(xS < 0 || yS < 0 || xS > MAX_LEN_X || yS > MAX_LEN_Y)
     throw StringError("Board::init - invalid board size");
 
   x_size = xS;
@@ -247,9 +247,11 @@ void Board::initHash()
   //Reseed the random number generator so that these size hashes are also
   //not affected by the size of the board we compile with
   rand.init("Board::initHash() for ZOBRIST_SIZE hashes");
-  for(int i = 0; i<MAX_LEN+1; i++) {
-    ZOBRIST_SIZE_X_HASH[i] = nextHash();
-    ZOBRIST_SIZE_Y_HASH[i] = nextHash();
+  for(int i = 0; i < MAX_LEN + 1; i++) {
+    if (i <= MAX_LEN_X)
+      ZOBRIST_SIZE_X_HASH[i] = nextHash();
+    if (i <= MAX_LEN_Y)
+      ZOBRIST_SIZE_Y_HASH[i] = nextHash();
   }
 
   //Reseed and compute one more set of zobrist hashes, mixed a bit differently
@@ -1996,7 +1998,7 @@ void Board::calculateAreaForPla(
   //A region is vital for a pla group if all its spaces are adjacent to that pla group.
   //All lists are concatenated together, the most we can have is bounded by (MAX_LEN * MAX_LEN+1) / 2
   //independent regions, each one vital for at most 4 pla groups, add some extra just in case.
-  static constexpr int maxRegions = (MAX_LEN * MAX_LEN + 1)/2 + 1;
+  static constexpr int maxRegions = (MAX_LEN_X * MAX_LEN_Y + 1)/2 + 1;
   static constexpr int vitalForPlaHeadsListsMaxLen = maxRegions * 4;
   Loc vitalForPlaHeadsLists[vitalForPlaHeadsListsMaxLen];
   int vitalForPlaHeadsListsTotal = 0;

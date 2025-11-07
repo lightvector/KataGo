@@ -108,7 +108,7 @@ int MainCmds::match(const vector<string>& args) {
     }
 
     if(cfg.contains("extraPairs")) {
-      std::vector<std::pair<int,int>> pairs = cfg.getNonNegativeIntDashedPairs("extraPairs",0,numBots-1);
+      std::vector<std::pair<int,int>> pairs = cfg.getNonNegativeIntDashedPairs("extraPairs", 0, numBots - 1, numBots - 1);
       for(const std::pair<int,int>& pair: pairs) {
         int p0 = pair.first;
         int p1 = pair.second;

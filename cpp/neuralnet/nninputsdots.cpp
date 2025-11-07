@@ -7,8 +7,8 @@ void NNInputs::fillRowVDots(
   const MiscNNInputParams& nnInputParams,
   int nnXLen, int nnYLen, bool useNHWC, float* rowBin, float* rowGlobal
 ) {
-  assert(nnXLen <= NNPos::MAX_BOARD_LEN);
-  assert(nnYLen <= NNPos::MAX_BOARD_LEN);
+  assert(nnXLen <= NNPos::MAX_BOARD_LEN_X);
+  assert(nnYLen <= NNPos::MAX_BOARD_LEN_Y);
   assert(board.x_size <= nnXLen);
   assert(board.y_size <= nnYLen);
   std::fill_n(rowBin, NUM_FEATURES_SPATIAL_V_DOTS * nnXLen * nnYLen,false);

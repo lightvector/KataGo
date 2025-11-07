@@ -90,7 +90,7 @@ class ConfigParser {
   std::vector<float> getFloats(const std::string& key, float min, float max);
   std::vector<double> getDoubles(const std::string& key, double min, double max);
 
-  std::vector<std::pair<int,int>> getNonNegativeIntDashedPairs(const std::string& key, int min, int max);
+  std::vector<std::pair<int,int>> getNonNegativeIntDashedPairs(const std::string& key, int min, int max1, int max2);
 
 private:
   bool initialized;

@@ -184,7 +184,7 @@ void Tests::runSearchTests(const string& modelFile, bool inputsNHWC, bool useNHW
   const bool logTime = false;
   Logger logger(nullptr, logToStdout, logToStderr, logTime);
 
-  NNEvaluator* nnEval = startNNEval(modelFile,logger,"",NNPos::MAX_BOARD_LEN,NNPos::MAX_BOARD_LEN,symmetry,inputsNHWC,useNHWC,useFP16,false,false);
+  NNEvaluator* nnEval = startNNEval(modelFile,logger,"",NNPos::MAX_BOARD_LEN_X,NNPos::MAX_BOARD_LEN_Y,symmetry,inputsNHWC,useNHWC,useFP16,false,false);
   runBasicPositions(nnEval, logger);
   delete nnEval;
 

@@ -3244,8 +3244,8 @@ OpenCLTuneParams OpenCLTuner::loadOrAutoTune(
   //If not re-tuning per board size, then check if the tune config for the full size is there
   //And set the nnXLen and nnYLen we'll use for tuning to the full size
   if(!openCLReTunePerBoardSize) {
-    nnXLen = NNPos::MAX_BOARD_LEN;
-    nnYLen = NNPos::MAX_BOARD_LEN;
+    nnXLen = NNPos::MAX_BOARD_LEN_X;
+    nnYLen = NNPos::MAX_BOARD_LEN_Y;
     openCLTunerFile = dir + "/" + OpenCLTuner::defaultFileName(gpuName, nnXLen, nnYLen, modelInfo);
     try {
       OpenCLTuneParams loadedParams = loadFromTunerFile(openCLTunerFile,logger);
@@ -3464,8 +3464,8 @@ void OpenCLTuner::autoTuneEverything(
   }
 
   for(ModelInfoForTuning modelInfo : modelInfos) {
-    int nnXLen = NNPos::MAX_BOARD_LEN;
-    int nnYLen = NNPos::MAX_BOARD_LEN;
+    int nnXLen = NNPos::MAX_BOARD_LEN_X;
+    int nnYLen = NNPos::MAX_BOARD_LEN_Y;
     string dir = OpenCLTuner::defaultDirectory(true,homeDataDirOverride);
     string openCLTunerFile = dir + "/" + OpenCLTuner::defaultFileName(gpuName, nnXLen, nnYLen, modelInfo);
     try {

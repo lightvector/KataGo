@@ -998,7 +998,7 @@ Last moves C3 B4 C4 D4 D3 C2 B3
 
 
   //============================================================================
-  if(Board::MAX_LEN >= 37)
+  if constexpr(std::min(Board::MAX_LEN_X, Board::MAX_LEN_Y) >= 37)
   {
     const char* name = "Giant Sgf parse test";
     string sgfStr = "(;GM[1]FF[4]CA[UTF-8]ST[2]RU[Chinese]SZ[37]KM[0.00];B[dd];W[Hd];B[HH];W[dH];B[dG];W[eG];B[eF];W[Gd];B[Ge];W[He];B[ee];W[GG];B[ss])";

@@ -762,7 +762,7 @@ void Tests::runSearchTestsV9(const string& modelFile, bool inputsNHWC, bool useN
   Logger logger(nullptr, logToStdout, logToStderr, logTime);
 
   int symmetry = 4;
-  NNEvaluator* nnEval = startNNEval(modelFile,logger,"",NNPos::MAX_BOARD_LEN,NNPos::MAX_BOARD_LEN,symmetry,inputsNHWC,useNHWC,useFP16,false,false);
+  NNEvaluator* nnEval = startNNEval(modelFile,logger,"",NNPos::MAX_BOARD_LEN_X,NNPos::MAX_BOARD_LEN_Y,symmetry,inputsNHWC,useNHWC,useFP16,false,false);
   runV9Positions(nnEval, logger);
   delete nnEval;
 

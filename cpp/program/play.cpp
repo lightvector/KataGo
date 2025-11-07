@@ -194,7 +194,7 @@ void GameInitializer::initShared(ConfigParser& cfg, Logger& logger) {
   else if(cfg.contains("bSizesXY")) {
     if(cfg.contains("allowRectangleProb"))
       throw IOError("Cannot specify allowRectangleProb when specifying bSizesXY, please adjust the relative frequency of rectangles yourself");
-    allowedBSizes = cfg.getNonNegativeIntDashedPairs("bSizesXY", 2, Board::MAX_LEN);
+    allowedBSizes = cfg.getNonNegativeIntDashedPairs("bSizesXY", 2, Board::MAX_LEN_X, Board::MAX_LEN_Y);
     allowedBSizeRelProbs = cfg.getDoubles("bSizeRelProbs",0.0,1e100);
 
     double relProbSum = 0.0;

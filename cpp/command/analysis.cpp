@@ -161,13 +161,13 @@ int MainCmds::analysis(const vector<string>& args) {
     const string expectedSha256 = "";
     nnEval = Setup::initializeNNEvaluator(
       modelFile,modelFile,expectedSha256,cfg,logger,seedRand,expectedConcurrentEvals,
-      NNPos::MAX_BOARD_LEN,NNPos::MAX_BOARD_LEN,defaultMaxBatchSize,defaultRequireExactNNLen,disableFP16,
+      NNPos::MAX_BOARD_LEN_X,NNPos::MAX_BOARD_LEN_Y,defaultMaxBatchSize,defaultRequireExactNNLen,disableFP16,
       Setup::SETUP_FOR_ANALYSIS
     );
     if(humanModelFile != "") {
       humanEval = Setup::initializeNNEvaluator(
         humanModelFile,humanModelFile,expectedSha256,cfg,logger,seedRand,expectedConcurrentEvals,
-        NNPos::MAX_BOARD_LEN,NNPos::MAX_BOARD_LEN,defaultMaxBatchSize,defaultRequireExactNNLen,disableFP16,
+        NNPos::MAX_BOARD_LEN_X,NNPos::MAX_BOARD_LEN_Y,defaultMaxBatchSize,defaultRequireExactNNLen,disableFP16,
         Setup::SETUP_FOR_ANALYSIS
       );
       if(!humanEval->requiresSGFMetadata()) {
@@ -702,19 +702,20 @@ int MainCmds::analysis(const vector<string>& args) {
       {
         int64_t xBuf;
         int64_t yBuf;
-        static const string boardSizeError = string("Must provide an integer from 2 to ") + Global::intToString(Board::MAX_LEN);
+        static const string boardSizeXError = string("Must provide an integer from 2 to ") + Global::intToString(Board::MAX_LEN_X);
+        static const string boardSizeYError = string("Must provide an integer from 2 to ") + Global::intToString(Board::MAX_LEN_Y);
         if(input.find("boardXSize") == input.end()) {
-          reportErrorForId(rbase.id, "boardXSize", boardSizeError.c_str());
+          reportErrorForId(rbase.id, "boardXSize", boardSizeXError);
           continue;
         }
         if(input.find("boardYSize") == input.end()) {
-          reportErrorForId(rbase.id, "boardYSize", boardSizeError.c_str());
+          reportErrorForId(rbase.id, "boardYSize", boardSizeYError);
           continue;
         }
-        if(!parseInteger(input, "boardXSize", xBuf, 2, Board::MAX_LEN, boardSizeError.c_str())) {
+        if(!parseInteger(input, "boardXSize", xBuf, 2, Board::MAX_LEN_X, boardSizeXError.c_str())) {
           continue;
         }
-        if(!parseInteger(input, "boardYSize", yBuf, 2, Board::MAX_LEN, boardSizeError.c_str())) {
+        if(!parseInteger(input, "boardYSize", yBuf, 2, Board::MAX_LEN_Y, boardSizeYError.c_str())) {
           continue;
         }
         boardXSize = (int)xBuf;
