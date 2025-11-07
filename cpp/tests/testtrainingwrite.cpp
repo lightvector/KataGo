@@ -9,6 +9,15 @@
 using namespace std;
 using namespace TestCommon;
 
+static TrainingDataWriter createTestTrainingDataWriter(
+  const int inputVersion,
+  const int nnXLen,
+  const int nnYLen,
+  const string& seed,
+  const int onlyWriteEvery) {
+  return TrainingDataWriter(string(), &cout, inputVersion, 256, 1.0f, nnXLen, nnYLen, seed, onlyWriteEvery);
+}
+
 static NNEvaluator* startNNEval(
   const string& modelFile, const string& seed, Logger& logger,
   int defaultSymmetry, bool inputsUseNHWC, bool useNHWC, bool useFP16
@@ -66,13 +75,9 @@ void Tests::runTrainingWriteTests() {
   cout << "Running training write tests" << endl;
   NeuralNet::globalInitialize();
 
-  int maxRows = 256;
-  double firstFileMinRandProp = 1.0;
-  int debugOnlyWriteEvery = 5;
-
-  const bool logToStdout = true;
-  const bool logToStderr = false;
-  const bool logTime = false;
+  constexpr bool logToStdout = true;
+  constexpr bool logToStderr = false;
+  constexpr bool logTime = false;
   Logger logger(nullptr, logToStdout, logToStderr, logTime);
 
   auto run = [&](
@@ -82,7 +87,7 @@ void Tests::runTrainingWriteTests() {
     int boardXLen, int boardYLen,
     bool cheapLongSgf
   ) {
-    TrainingDataWriter dataWriter(&cout,inputsVersion, maxRows, firstFileMinRandProp, nnXLen, nnYLen, debugOnlyWriteEvery, seedBase+"dwriter");
+    TrainingDataWriter dataWriter = createTestTrainingDataWriter(inputsVersion, nnXLen, nnYLen, seedBase + "dwriter", 5);
 
     NNEvaluator* nnEval = startNNEval("/dev/null",seedBase+"nneval",logger,0,inputsNHWC,useNHWC,false);
 
@@ -1056,8 +1061,6 @@ xxxxxxxx.
     cout << "====================================================================================================" << endl;
     cout << "Testing turnnumber and early temperatures" << endl;
 
-    int maxRows = 256;
-    double firstFileMinRandProp = 1.0;
     int debugOnlyWriteEvery = 1;
     int inputsVersion = 7;
 
@@ -1142,7 +1145,7 @@ xxxxxxxx.
       GameRunner* gameRunner = new GameRunner(cfg, seed, playSettings, logger);
       auto shouldStop = []() noexcept { return false; };
       WaitableFlag* shouldPause = nullptr;
-      TrainingDataWriter dataWriter(&cout,inputsVersion, maxRows, firstFileMinRandProp, 9, 9, debugOnlyWriteEvery, seed);
+      TrainingDataWriter dataWriter = createTestTrainingDataWriter(inputsVersion, 9, 9, seed, debugOnlyWriteEvery);
 
       Sgf::PositionSample startPosSample;
       startPosSample.board = Board(9,9);
@@ -1173,7 +1176,7 @@ xxxxxxxx.
       GameRunner* gameRunner = new GameRunner(cfg, seed, playSettings, logger);
       auto shouldStop = []() noexcept { return false; };
       WaitableFlag* shouldPause = nullptr;
-      TrainingDataWriter dataWriter(&cout,inputsVersion, maxRows, firstFileMinRandProp, 9, 9, debugOnlyWriteEvery, seed);
+      TrainingDataWriter dataWriter = createTestTrainingDataWriter(inputsVersion, 9, 9, seed, debugOnlyWriteEvery);
 
       Sgf::PositionSample startPosSample;
       startPosSample.board = Board(9,9);
@@ -1203,9 +1206,6 @@ xxxxxxxx.
     cout << "====================================================================================================" << endl;
     cout << "Testing no result" << endl;
 
-    int maxRows = 256;
-    double firstFileMinRandProp = 1.0;
-    int debugOnlyWriteEvery = 1;
     int inputsVersion = 7;
 
     SearchParams params = SearchParams::forTestsV2();
@@ -1272,9 +1272,9 @@ xxxxxxxx.
     botSpec.nnEval = nnEval;
     botSpec.baseParams = params;
 
-    string seed = "seed-testing-temperature";
-
     {
+      string seed = "seed-testing-temperature";
+      int debugOnlyWriteEvery = 1;
       cout << "Turn number initial 0 selfplay with high temperatures" << endl;
       nnEval->clearCache();
       nnEval->clearStats();
@@ -1284,7 +1284,7 @@ xxxxxxxx.
       GameRunner* gameRunner = new GameRunner(cfg, seed, playSettings, logger);
       auto shouldStop = []() noexcept { return false; };
       WaitableFlag* shouldPause = nullptr;
-      TrainingDataWriter dataWriter(&cout,inputsVersion, maxRows, firstFileMinRandProp, 9, 9, debugOnlyWriteEvery, seed);
+      TrainingDataWriter dataWriter = createTestTrainingDataWriter(inputsVersion, 9, 9, seed, debugOnlyWriteEvery);
 
       Sgf::PositionSample startPosSample;
       startPosSample.board = Board::parseBoard(9,9,R"%%(
@@ -2732,9 +2732,6 @@ void Tests::runSekiTrainWriteTests(const string& modelFile) {
   cout << "Running test for how a seki gets recorded" << endl;
   NeuralNet::globalInitialize();
 
-  int nnXLen = 13;
-  int nnYLen = 13;
-
   const bool logToStdout = true;
   const bool logToStderr = false;
   const bool logTime = false;
@@ -2744,10 +2741,8 @@ void Tests::runSekiTrainWriteTests(const string& modelFile) {
 
   auto run = [&](const string& sgfStr, const string& seedBase, const Rules& rules) {
     int inputsVersion = 6;
-    int maxRows = 256;
-    double firstFileMinRandProp = 1.0;
     int debugOnlyWriteEvery = 1000;
-    TrainingDataWriter dataWriter(&cout,inputsVersion, maxRows, firstFileMinRandProp, nnXLen, nnYLen, debugOnlyWriteEvery, seedBase+"dwriter");
+    TrainingDataWriter dataWriter = createTestTrainingDataWriter(inputsVersion, 13, 13, seedBase + "dwriter", debugOnlyWriteEvery);
 
     nnEval->clearCache();
     nnEval->clearStats();
