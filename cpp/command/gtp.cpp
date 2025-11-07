@@ -656,30 +656,46 @@ struct GTPEngine {
   }
 
   bool play(Loc loc, Player pla) {
-    assert(bot->getRootHist().rules == currentRules);
-    bool suc = bot->makeMove(loc,pla,preventEncore);
-    if(suc)
-      moveHistory.push_back(Move(loc,pla));
-    return suc;
+    auto& hist = bot->getRootHist();
+    assert(hist.rules == currentRules);
+    if (hist.isGameFinished) {
+      return false;
+    }
+
+    if(bot->makeMove(loc,pla,preventEncore)) {
+      moveHistory.emplace_back(loc,pla);
+      return true;
+    }
+    return false;
   }
 
-  bool undo() {
-    if(moveHistory.size() <= 0)
+  bool undo(const int movesCount) {
+    auto& hist = bot->getRootHist();
+    assert(hist.rules == currentRules);
+
+    if (movesCount == 0) {
+      return true;
+    }
+
+    const int newMovesCount = static_cast<int>(moveHistory.size() - movesCount);
+    if (newMovesCount < 0) {
       return false;
-    assert(bot->getRootHist().rules == currentRules);
+    }
 
-    vector<Move> moveHistoryCopy = moveHistory;
+    if(moveHistory.empty())
+      return false;
 
-    Board undoneBoard = initialBoard;
+    const vector<Move> moveHistoryCopy = moveHistory;
+
+    const Board undoneBoard = initialBoard;
     BoardHistory undoneHist(undoneBoard,initialPla,currentRules,0);
-    undoneHist.setInitialTurnNumber(bot->getRootHist().initialTurnNumber);
-    vector<Move> emptyMoveHistory;
+    undoneHist.setInitialTurnNumber(hist.initialTurnNumber);
+    const vector<Move> emptyMoveHistory;
     setPositionAndRules(initialPla,undoneBoard,undoneHist,initialBoard,initialPla,emptyMoveHistory);
 
-    for(int i = 0; i<moveHistoryCopy.size()-1; i++) {
-      Loc moveLoc = moveHistoryCopy[i].loc;
-      Player movePla = moveHistoryCopy[i].pla;
-      bool suc = play(moveLoc,movePla);
+    for(int i = 0; i < newMovesCount; i++) {
+      const Move newMove = moveHistoryCopy[i];
+      const bool suc = play(newMove.loc, newMove.pla);
       assert(suc);
       (void)suc; //Avoid warning when asserts are off
     }
@@ -2993,9 +3009,7 @@ int MainCmds::gtp(const vector<string>& args) {
           if (Move move = movesToPlay[moveInd]; !engine->play(move.loc, move.pla)) {
             responseIsError = true;
             response = "Illegal move " + PlayerIO::playerToString(move.pla, rootBoard.isDots()) + " " + Location::toString(move.loc, rootBoard);
-            for (int rollbackMoveInd = 0; rollbackMoveInd < moveInd; rollbackMoveInd++) {
-              assert(engine->undo()); // Rollback already placed moves
-            }
+            assert(engine->undo(moveInd)); // Rollback already placed moves
             break;
           }
         }
@@ -3039,7 +3053,7 @@ int MainCmds::gtp(const vector<string>& args) {
 
     else if(command == "undo") {
       int undoCount = 1;
-      if (pieces.size() > 0) {
+      if (!pieces.empty()) {
         if (!Global::tryStringToInt(pieces[0], undoCount) || undoCount < 0) {
           responseIsError = true;
           response = "Expected nonnegative integer for undo count";
@@ -3047,12 +3061,10 @@ int MainCmds::gtp(const vector<string>& args) {
       }
 
       if (!responseIsError) {
-        for (int i = 0; i < undoCount; i++) {
-          if(!engine->undo()) {
-            responseIsError = true;
-            response = "cannot undo";
-            break;
-          }
+        if (!engine->undo(undoCount)) {
+          responseIsError = true;
+          response = "cannot undo";
+          break;
         }
       }
     }
@@ -3280,12 +3292,12 @@ int MainCmds::gtp(const vector<string>& args) {
       double finalWhiteMinusBlackScore = 0.0;
       engine->computeAnticipatedWinnerAndScore(winner,finalWhiteMinusBlackScore);
 
-      if(winner == C_EMPTY)
+      if (winner == C_EMPTY)
         response = "0";
-      else if(winner == C_BLACK)
-        response = "B+" + Global::strprintf("%.1f",-finalWhiteMinusBlackScore);
-      else if(winner == C_WHITE)
-        response = "W+" + Global::strprintf("%.1f",finalWhiteMinusBlackScore);
+      else if (winner == C_BLACK || winner == C_WHITE) {
+        double finalScore = winner == C_BLACK ? -finalWhiteMinusBlackScore : finalWhiteMinusBlackScore;
+        response = PlayerIO::playerToStringShort(winner, engine->currentRules.isDots) + "+" + Global::strprintf("%.1f", finalScore);
+      }
       else
         ASSERT_UNREACHABLE;
     }
