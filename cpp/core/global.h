@@ -76,6 +76,10 @@ namespace Global
   std::string uint32ToHexString(uint32_t x);
   std::string uint64ToHexString(uint64_t x);
   std::string sizeToString(size_t x);
+  // Convert numbers to letters that are used on real Go board
+  // It matches the English alphabet except missing I that is ignored to avoid confusion with J
+  std::string intToCoord(int x);
+  bool tryCoordToInt(const std::string& coord, int& x);
 
   //String to conversions using the standard library parsing
   int stringToInt(const std::string& str);
@@ -163,6 +167,8 @@ namespace Global
   constexpr float FLOAT_EPS = std::numeric_limits<float>::epsilon();
   bool isEqual(float f1, float f2);
   bool isZero(float f);
+
+  void runTests();
 }  // namespace Global
 
 struct StringError : public std::exception {

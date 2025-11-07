@@ -2280,10 +2280,10 @@ int MainCmds::viewstartposes(const vector<string>& args) {
 
     if(bot != NULL || !checkLegality) {
       cout << "StartPos: " << s << "/" << startPoses.size() << "\n";
-      cout << "Next pla: " << PlayerIO::playerToString(pla) << "\n";
+      cout << "Next pla: " << PlayerIO::playerToString(pla, board.isDots()) << "\n";
       cout << "Weight: " << startPos.weight << "\n";
       cout << "TrainingWeight: " << startPos.trainingWeight << "\n";
-      cout << "StartPosInitialNextPla: " << PlayerIO::playerToString(startPos.nextPla) << "\n";
+      cout << "StartPosInitialNextPla: " << PlayerIO::playerToString(startPos.nextPla, board.isDots()) << "\n";
       cout << "StartPosMoves: ";
       for(int i = 0; i<(int)startPos.moves.size(); i++)
         cout << (startPos.moves[i].pla == P_WHITE ? "w" : "b") << Location::toString(startPos.moves[i].loc,board) << " ";

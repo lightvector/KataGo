@@ -120,7 +120,7 @@ Board::Base::Base(Player newPla,
 Board::Board() : Board(Rules::DEFAULT_GO) {}
 
 Board::Board(const Rules& rules) {
-  init(DEFAULT_LEN_X, DEFAULT_LEN_Y, rules);
+  init(rules.isDots ? DEFAULT_LEN_X_DOTS : DEFAULT_LEN_X, rules.isDots ? DEFAULT_LEN_Y_DOTS : DEFAULT_LEN_Y, rules);
 }
 
 Board::Board(const int x, const int y, const Rules& rules) {
@@ -283,6 +283,11 @@ void Board::setSimpleKoLoc(const Loc loc) {
 
 Color Board::getColor(const Loc loc) const {
   return static_cast<Color>(colors[loc] & ACTIVE_MASK);
+}
+
+Color Board::getPlacedColor(const Loc loc) const {
+  const State state = getState(loc);
+  return rules.isDots ? getPlacedDotColor(state) : state;
 }
 
 double Board::sqrtBoardArea() const {
@@ -686,42 +691,47 @@ bool Board::isNonPassAliveSelfConnection(Loc loc, Player pla, Color* passAliveAr
   return false;
 }
 
-bool Board::isEmpty() const {
-  for(int y = 0; y < y_size; y++) {
-    for(int x = 0; x < x_size; x++) {
-      Loc loc = Location::getLoc(x,y,x_size);
-      if(colors[loc] != C_EMPTY)
-        return false;
-    }
-  }
-  return true;
+bool Board::isStartPos() const {
+  int startBoardNumBlackStones, startBoardNumWhiteStones;
+  numStartBlackWhiteStones(startBoardNumBlackStones, startBoardNumWhiteStones, false);
+  return startBoardNumBlackStones == 0 && startBoardNumWhiteStones == 0;
 }
 
 int Board::numStonesOnBoard() const {
-  int num = 0;
-  for(int y = 0; y < y_size; y++) {
-    for(int x = 0; x < x_size; x++) {
-      const Loc loc = Location::getLoc(x,y,x_size);
-      if(const Color color = rules.isDots ? getPlacedDotColor(getState(loc)) : colors[loc];
-         color == C_BLACK || color == C_WHITE) {
-        num += 1;
-      }
-    }
-  }
-  return num;
+  int startBoardNumBlackStones, startBoardNumWhiteStones;
+  numStartBlackWhiteStones(startBoardNumBlackStones, startBoardNumWhiteStones, true);
+  return startBoardNumBlackStones + startBoardNumWhiteStones;
 }
 
 int Board::numPlaStonesOnBoard(Player pla) const {
-  int num = 0;
+  int startBoardNumBlackStones, startBoardNumWhiteStones;
+  numStartBlackWhiteStones(startBoardNumBlackStones, startBoardNumWhiteStones, true);
+  return pla == C_BLACK ? startBoardNumBlackStones : startBoardNumWhiteStones;
+}
+
+void Board::numStartBlackWhiteStones(int& startBoardNumBlackStones, int& startBoardNumWhiteStones,
+  const bool includeStartLocs) const {
+  startBoardNumBlackStones = 0;
+  startBoardNumWhiteStones = 0;
+
+  // Ignore start pos moves that are generated according to rules
+  set<Loc> startLocs;
+  for(auto move: start_pos_moves) {
+    startLocs.insert(move.loc);
+  }
+
   for(int y = 0; y < y_size; y++) {
     for(int x = 0; x < x_size; x++) {
-      const Loc loc = Location::getLoc(x,y,x_size);
-      if(const Color color = rules.isDots ? getPlacedDotColor(getState(loc)) : colors[loc]; color == pla) {
-        num += 1;
+      if(const Loc loc = Location::getLoc(x, y, x_size)) {
+        if (includeStartLocs || startLocs.count(loc) == 0) {
+          if(const Color color = getPlacedColor(loc); color == C_BLACK)
+            startBoardNumBlackStones += 1;
+          else if(color == C_WHITE)
+            startBoardNumWhiteStones += 1;
+        }
       }
     }
   }
-  return num;
 }
 
 bool Board::setStone(Loc loc, Color color)
@@ -750,7 +760,7 @@ bool Board::setStone(Loc loc, Color color)
 }
 
 bool Board::setStoneFailIfNoLibs(Loc loc, Color color, const bool startPos) {
-  Color colorAtLoc = getColor(loc);
+  const Color colorAtLoc = getColor(loc);
   if(loc < 0 || loc >= MAX_ARR_SIZE || colorAtLoc == C_WALL)
     return false;
   if(color != C_BLACK && color != C_WHITE && color != C_EMPTY)
@@ -2543,13 +2553,28 @@ char PlayerIO::colorToChar(Color c)
   }
 }
 
-string PlayerIO::playerToString(Color c)
+char PlayerIO::stateToChar(const State s, const bool isDots) {
+  if (!isDots) return colorToChar(s);
+
+  const Color activeColor = getActiveColor(s);
+  const Color placedColor = getPlacedDotColor(s);
+  const bool captured = activeColor != placedColor;
+
+  switch (placedColor) {
+    case C_BLACK: return captured ? 'x' : 'X';
+    case C_WHITE: return captured ? 'o' : 'O';
+    case C_EMPTY: return captured ? '\'' : '.';
+    default: return '#';
+  }
+}
+
+string PlayerIO::playerToString(const Color c, const bool isDots)
 {
   switch(c) {
-  case C_BLACK: return "Black";
-  case C_WHITE: return "White";
+  case C_BLACK: return !isDots ? "Black" : "Player1";
+  case C_WHITE: return !isDots ? "White" : "Player2";
   case C_EMPTY: return "Empty";
-  default:  return "Wall";
+  default: return "Wall";
   }
 }
 
@@ -2559,17 +2584,15 @@ string PlayerIO::playerToStringShort(Color c)
   case C_BLACK: return "B";
   case C_WHITE: return "W";
   case C_EMPTY: return "E";
-  default:  return "";
+  default: return "Wall";
   }
 }
 
 bool PlayerIO::tryParsePlayer(const string& s, Player& pla) {
-  string str = Global::toLower(s);
-  if(str == "black" || str == "b") {
+  if(const string str = Global::toLower(s); str == "black" || str == "b" || str == "blue" || str == "p1") {
     pla = P_BLACK;
     return true;
-  }
-  else if(str == "white" || str == "w") {
+  } else if(str == "white" || str == "w" || str == "red" || str == "r" || str == "p2") {
     pla = P_WHITE;
     return true;
   }
@@ -2578,119 +2601,102 @@ bool PlayerIO::tryParsePlayer(const string& s, Player& pla) {
 
 Player PlayerIO::parsePlayer(const string& s) {
   Player pla = C_EMPTY;
-  bool suc = tryParsePlayer(s,pla);
-  if(!suc)
-    throw StringError("Could not parse player: " + s);
+  if (!tryParsePlayer(s, pla)) throw StringError("Could not parse player: " + s);
   return pla;
 }
 
-string Location::toStringMach(Loc loc, int x_size, bool isDots)
-{
+string Location::toStringMach(const Loc loc, const int x_size, const bool isDots) {
   if(loc == Board::PASS_LOC)
     return isDots ? "ground" : "pass";
   if(loc == Board::NULL_LOC)
     return string("null");
   char buf[128];
-  sprintf(buf,"(%d,%d)",getX(loc,x_size),getY(loc,x_size));
+  sprintf(buf, "(%d,%d)", getX(loc, x_size), getY(loc, x_size));
   return string(buf);
 }
 
-string Location::toString(Loc loc, int x_size, int y_size, bool isDots)
-{
-  if(x_size > 25*25)
-    return toStringMach(loc, x_size, isDots);
+string Location::toString(const Loc loc, int x_size, int y_size, bool isDots) {
   if(loc == Board::PASS_LOC)
     return isDots ? "ground" : "pass";
   if(loc == Board::NULL_LOC)
     return string("null");
-  const char* xChar = "ABCDEFGHJKLMNOPQRSTUVWXYZ";
-  int x = getX(loc,x_size);
-  int y = getY(loc,x_size);
+  const int x = getX(loc, x_size);
+  const int y = getY(loc, x_size);
   if(x >= x_size || x < 0 || y < 0 || y >= y_size)
     return toStringMach(loc, x_size, isDots);
 
-  char buf[128];
-  if(x <= 24)
-    sprintf(buf,"%c%d",xChar[x],y_size-y);
-  else
-    sprintf(buf,"%c%c%d",xChar[x/25-1],xChar[x%25],y_size-y);
-  return string(buf);
+  return (isDots ? (std::to_string(x + 1) + "-") : Global::intToCoord(x)) + std::to_string(y_size - y);
 }
 
-string Location::toString(Loc loc, const Board& b) {
+string Location::toString(const Loc loc, const Board& b) {
   return toString(loc, b.x_size, b.y_size, b.rules.isDots);
 }
 
-string Location::toStringMach(Loc loc, const Board& b) {
+string Location::toStringMach(const Loc loc, const Board& b) {
   return toStringMach(loc, b.x_size, b.isDots());
 }
 
-static bool tryParseLetterCoordinate(char c, int& x) {
-  if(c >= 'A' && c <= 'H')
-    x = c-'A';
-  else if(c >= 'a' && c <= 'h')
-    x = c-'a';
-  else if(c >= 'J' && c <= 'Z')
-    x = c-'A'-1;
-  else if(c >= 'j' && c <= 'z')
-    x = c-'a'-1;
-  else
-    return false;
-  return true;
-}
-
-bool Location::tryOfString(const string& str, int x_size, int y_size, Loc& result) {
+bool Location::tryOfString(const string& str, const int x_size, const int y_size, Loc& result) {
   string s = Global::trim(str);
   if(s.length() < 2)
     return false;
-  if(Global::isEqualCaseInsensitive(s,string("pass")) || Global::isEqualCaseInsensitive(s,string("pss")) ||
-    Global::isEqualCaseInsensitive(s,string("ground"))) {
+  if(
+    Global::isEqualCaseInsensitive(s, string("pass")) || Global::isEqualCaseInsensitive(s, string("pss")) ||
+    Global::isEqualCaseInsensitive(s, string("ground"))) {
     result = Board::PASS_LOC;
     return true;
   }
   if(s[0] == '(') {
-    if(s[s.length()-1] != ')')
-      return false;
-    s = s.substr(1,s.length()-2);
-    vector<string> pieces = Global::split(s,',');
-    if(pieces.size() != 2)
-      return false;
-    int x;
-    int y;
-    bool sucX = Global::tryStringToInt(pieces[0],x);
-    bool sucY = Global::tryStringToInt(pieces[1],y);
-    if(!sucX || !sucY)
-      return false;
-    result = Location::getLoc(x,y,x_size);
-    return true;
-  }
-  else {
-    int x;
-    if(!tryParseLetterCoordinate(s[0],x))
+    if(s[s.length() - 1] != ')')
       return false;
 
-    //Extended format
-    if((s[1] >= 'A' && s[1] <= 'Z') || (s[1] >= 'a' && s[1] <= 'z')) {
-      int x1;
-      if(!tryParseLetterCoordinate(s[1],x1))
-        return false;
-      x = (x+1) * 25 + x1;
-      s = s.substr(2,s.length()-2);
-    }
-    else {
-      s = s.substr(1,s.length()-1);
-    }
+    s = s.substr(1, s.length() - 2);
+    const int commaIndex = s.find(',');
+    if(commaIndex == std::string::npos)
+      return false;
+
+    int x;
+    if(!Global::tryStringToInt(s.substr(0, commaIndex), x))
+      return false;
 
     int y;
-    bool sucY = Global::tryStringToInt(s,y);
-    if(!sucY)
+    if(!Global::tryStringToInt(s.substr(commaIndex + 1), y))
       return false;
-    y = y_size - y;
-    if(x < 0 || y < 0 || x >= x_size || y >= y_size)
-      return false;
-    result = Location::getLoc(x,y,x_size);
+
+    result = getLoc(x, y, x_size);
     return true;
   }
+
+  if(const auto dashPos = s.find('-'); dashPos != std::string::npos) {
+    int x;
+    if(!Global::tryStringToInt(s.substr(0, dashPos), x))
+      return false;
+    int y;
+    if(!Global::tryStringToInt(s.substr(dashPos + 1), y))
+      return false;
+
+    result = getLoc(x - 1, y_size - y, x_size);
+    return true;
+  }
+
+  const auto firstDigitIndex = s.find_first_of("0123456789");
+  if(firstDigitIndex == std::string::npos)
+    return false;
+
+  int x;
+  if(!Global::tryCoordToInt(s.substr(0, firstDigitIndex), x))
+    return false;
+
+  int y;
+  if(!Global::tryStringToInt(s.substr(firstDigitIndex), y))
+    return false;
+  y = y_size - y;
+
+  if(x < 0 || y < 0 || x >= x_size || y >= y_size)
+    return false;
+
+  result = getLoc(x, y, x_size);
+  return true;
 }
 
 bool Location::tryOfStringAllowNull(const string& str, int x_size, int y_size, Loc& result) {
@@ -2744,67 +2750,66 @@ vector<Loc> Location::parseSequence(const string& str, const Board& board) {
   return locs;
 }
 
-void Board::printBoard(ostream& out, const Board& board, const Loc markLoc, const vector<Move>* hist, bool printHash) {
+void Board::printBoard(
+  ostream& out,
+  const Board& board,
+  const Loc markLoc,
+  const vector<Move>* hist,
+  const bool printHash) {
   if(hist != nullptr)
     out << "MoveNum: " << hist->size() << " ";
-  if (printHash) {
-    out << "HASH: " << board.pos_hash << "\n";
+  if(printHash) {
+    out << "HASH: " << board.pos_hash;
   }
-  bool showCoords = board.isDots() || (board.x_size <= 50 && board.y_size <= 50);
+  if(hist != nullptr || printHash) {
+    out << endl;
+  }
+  const bool showCoords = board.isDots() || (board.x_size <= 50 && board.y_size <= 50);
   if(showCoords) {
-    if (board.isDots()) {
+    if(board.isDots()) {
       out << "   ";
       for(int x = 0; x < board.x_size; x++) {
-        out << std::left << std::setw(2) << (x + 1) << ' ';
+        out << std::left << std::setw(2) << std::to_string(x + 1) << ' ';
       }
     } else {
-      auto xChar = "ABCDEFGHJKLMNOPQRSTUVWXYZ";
       out << "  ";
       for(int x = 0; x < board.x_size; x++) {
-        if(x <= 24) {
-          out << " ";
-          out << xChar[x];
-        }
-        else {
-          out << "A" << xChar[x-25];
-        }
+        out << std::right << std::setw(2) << Global::intToCoord(x);
       }
     }
     out << "\n";
   }
 
-  for(int y = 0; y < board.y_size; y++)
-  {
+  for(int y = 0; y < board.y_size; y++) {
     if(showCoords) {
-      out << std::right << std::setw(2) << board.y_size-y << ' ';
+      out << std::right << std::setw(2) << board.y_size - y << ' ';
     }
-    for(int x = 0; x < board.x_size; x++)
-    {
-      Loc loc = Location::getLoc(x, y , board.x_size);
-      const Color color = board.getColor(loc); // TODO: probably it makes sense to implement debug printing for Dots game
-      char s = PlayerIO::colorToChar(color);
-      if(color == C_EMPTY && markLoc == loc)
+    for(int x = 0; x < board.x_size; x++) {
+      const Loc loc = Location::getLoc(x, y, board.x_size);
+      const State state = board.getState(loc);
+      const char s = PlayerIO::stateToChar(state, board.rules.isDots);
+      if(getActiveColor(state) == C_EMPTY && markLoc == loc)
         out << '@';
       else
         out << s;
 
       bool histMarked = false;
-      if(hist != NULL) {
-        size_t start = hist->size() >= 3 ? hist->size()-3 : 0;
-        for(size_t i = 0; start+i < hist->size(); i++) {
-          if((*hist)[start+i].loc == loc) {
-            out << (1+i);
+      if(hist != nullptr) {
+        size_t start = hist->size() >= 3 ? hist->size() - 3 : 0;
+        for(size_t i = 0; start + i < hist->size(); i++) {
+          if((*hist)[start + i].loc == loc) {
+            out << (1 + i);
             histMarked = true;
             break;
           }
         }
       }
 
-      if (!histMarked && board.isDots()) {
+      if(!histMarked && board.isDots()) {
         out << ' ';
       }
 
-      if(x < board.x_size-1 && (!histMarked || board.isDots()))
+      if(x < board.x_size - 1 && (!histMarked || board.isDots()))
         out << ' ';
     }
     out << "\n";

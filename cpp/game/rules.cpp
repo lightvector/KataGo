@@ -350,20 +350,39 @@ string Rules::toJsonStringNoKomiMaybeOmitStuff() const {
   return toJsonHelper(true,true).dump();
 }
 
-Rules Rules::updateRules(const string& k, const string& v, Rules oldRules) {
+Rules Rules::updateRules(const string& k, const string& v, const Rules& oldRules) {
   Rules rules = oldRules;
-  string key = Global::trim(k);
+  const string key = Global::trim(k);
   const string value = Global::trim(Global::toUpper(v));
-  if(key == DOTS_KEY) rules.isDots = Global::stringToBool(value);
-  else if(key == "ko") rules.koRule = Rules::parseKoRule(value);
-  else if(key == "score") rules.scoringRule = Rules::parseScoringRule(value);
-  else if(key == "scoring") rules.scoringRule = Rules::parseScoringRule(value);
-  else if(key == "tax") rules.taxRule = Rules::parseTaxRule(value);
-  else if(key == "suicide") rules.multiStoneSuicideLegal = Global::stringToBool(value);
-  else if(key == "hasButton") rules.hasButton = Global::stringToBool(value);
-  else if(key == "whiteHandicapBonus") rules.whiteHandicapBonusRule = Rules::parseWhiteHandicapBonusRule(value);
-  else if(key == "friendlyPassOk") rules.friendlyPassOk = Global::stringToBool(value);
-  else throw IOError("Unknown rules option: " + key);
+
+  bool parsed = true;
+
+  if (key == DOTS_KEY) rules.isDots = Global::stringToBool(value);
+  else if (key == "suicide") rules.multiStoneSuicideLegal = Global::stringToBool(value);
+  else if (key == START_POS_KEY) rules.startPos = parseStartPos(value);
+  else if (key == START_POS_RANDOM_KEY) rules.startPosIsRandom = Global::stringToBool(value);
+  else parsed = false;
+
+  if (!parsed) {
+    parsed = true;
+    if (!rules.isDots) {
+      if(key == "ko") rules.koRule = parseKoRule(value);
+      else if(key == "score" || key == "scoring") rules.scoringRule = parseScoringRule(value);
+      else if(key == "tax") rules.taxRule = parseTaxRule(value);
+      else if(key == "hasButton") rules.hasButton = Global::stringToBool(value);
+      else if(key == "whiteHandicapBonus") rules.whiteHandicapBonusRule = parseWhiteHandicapBonusRule(value);
+      else if(key == "friendlyPassOk") rules.friendlyPassOk = Global::stringToBool(value);
+      else parsed = false;
+    } else {
+      if (key == DOTS_CAPTURE_EMPTY_BASE_KEY) rules.dotsCaptureEmptyBases = Global::stringToBool(value);
+      else parsed = false;
+    }
+  }
+
+  if (!parsed) {
+    throw IOError("Unknown rules option: " + key);
+  }
+
   return rules;
 }
 
@@ -478,7 +497,7 @@ static Rules parseRulesHelper(const string& sOrig, bool allowKomi, bool isDots) 
     rules.friendlyPassOk = true;
     rules.komi = 7.5;
   }
-  else if(sOrig.length() > 0 && sOrig[0] == '{') {
+  else if(!sOrig.empty() && sOrig[0] == '{') {
     //Default if not specified
     rules = Rules::getDefaultOrTrompTaylorish(isDots);
     bool komiSpecified = false;
@@ -487,8 +506,10 @@ static Rules parseRulesHelper(const string& sOrig, bool allowKomi, bool isDots) 
       json input = json::parse(sOrig);
       string s;
       for(json::iterator iter = input.begin(); iter != input.end(); ++iter) {
-        string key = iter.key();
-        if (key == START_POS_KEY)
+        const string& key = iter.key();
+        if (key == DOTS_KEY)
+          rules.isDots = iter.value().get<bool>();
+        else if (key == START_POS_KEY)
           rules.startPos = Rules::parseStartPos(iter.value().get<string>());
         else if (key == START_POS_RANDOM_KEY)
           rules.startPosIsRandom = iter.value().get<bool>();

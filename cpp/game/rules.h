@@ -111,7 +111,7 @@ struct Rules {
   static bool tryParseRules(const std::string& sOrig, Rules& buf, bool isDots);
   static bool tryParseRulesWithoutKomi(const std::string& sOrig, Rules& buf, float komi, bool isDots);
 
-  static Rules updateRules(const std::string& key, const std::string& value, Rules priorRules);
+  static Rules updateRules(const std::string& key, const std::string& value, const Rules& oldRules);
 
   static std::vector<Move> generateStartPos(int startPos, Rand* rand, int x_size, int y_size);
   /**

@@ -16,6 +16,8 @@
 #include <iomanip>
 #include <sstream>
 
+#include "test.h"
+
 using namespace std;
 
 //ERRORS----------------------------------
@@ -115,6 +117,41 @@ string Global::uint64ToHexString(uint64_t x)
   for(size_t i = 0; i < hex_len; i++)
     s[hex_len-i-1] = digits[(x >> (i*4)) & 0x0f];
   return s;
+}
+
+static const std::string CoordAlphabet = "ABCDEFGHJKLMNOPQRSTUVWXYZ";
+static const int CoordAlphabetLength = CoordAlphabet.length();
+
+std::string Global::intToCoord(const int x) {
+  assert(x >= 0);
+
+  int v = x + 1;
+  std::string out;
+  while (v > 0) {
+    out.push_back(CoordAlphabet[(v - 1) % CoordAlphabetLength]);
+    v = (v - 1) / CoordAlphabetLength;
+  }
+  std::reverse(out.begin(), out.end());
+  return out;
+}
+
+bool Global::tryCoordToInt(const std::string& coord, int& x) {
+  if (coord.empty()) return false;
+
+  long long v = 0;
+  for (const char c : coord) {
+    const auto pos = CoordAlphabet.find(std::toupper(c));
+    if (pos == std::string::npos) return false;
+    v = v * CoordAlphabetLength + (static_cast<int>(pos) + 1);
+    if (v > static_cast<long long>(std::numeric_limits<int>::max()) + 1LL) {
+      return false;
+    }
+  }
+
+  // convert from 1-based bijective value back to 0-based index
+  x = static_cast<int>(v - 1);
+  assert(x >= 0);
+  return true;
 }
 
 string Global::sizeToString(size_t x)
@@ -713,4 +750,37 @@ bool Global::isEqual(const float f1, const float f2) {
 
 bool Global::isZero(const float f) {
   return std::fabs(f) <= FLOAT_EPS;
+}
+
+void Global::runTests() {
+  testAssert(isEqual(0.0f, 0.0f));
+  testAssert(isEqual(FLOAT_EPS, FLOAT_EPS));
+  testAssert(isZero(FLOAT_EPS));
+  testAssert(isZero(-FLOAT_EPS));
+  testAssert(!isEqual(42, 42 + 0.0001f));
+  testAssert(!isEqual(-FLOAT_EPS, FLOAT_EPS));
+
+  auto checkCoordConversion = [](const string& coord, const int value) {
+    testAssert(toUpper(coord) == intToCoord(value));
+    int newValue;
+    testAssert(tryCoordToInt(coord, newValue));
+    testAssert(value == newValue);
+  };
+
+  checkCoordConversion("A", 0);
+  checkCoordConversion("B", 1);
+  checkCoordConversion("Z", 24);
+  checkCoordConversion("AA", 25);
+  checkCoordConversion("AB", 26);
+  checkCoordConversion("AZ", 49);
+  checkCoordConversion("az", 49);
+  checkCoordConversion("BA", 50);
+  checkCoordConversion("ZZ", 649);
+  checkCoordConversion("AAA", 650);
+
+  int newValue;
+  testAssert(!tryCoordToInt("", newValue));
+  testAssert(!tryCoordToInt("!", newValue));
+  testAssert(tryCoordToInt("ABCDEFG", newValue));
+  testAssert(!tryCoordToInt("ABCDEFGH", newValue)); // Too big number -> overflow
 }

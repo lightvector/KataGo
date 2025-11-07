@@ -53,10 +53,12 @@ bool isTerritory(State s);
 //Conversions for players and colors
 namespace PlayerIO {
   char colorToChar(Color c);
+  char stateToChar(State s, bool isDots);
   std::string playerToStringShort(Player p);
-  std::string playerToString(Player p);
+  std::string playerToString(Player p, bool isDots);
   bool tryParsePlayer(const std::string& s, Player& pla);
   Player parsePlayer(const std::string& s);
+  char stateToChar(State s, bool isDots);
 }
 
 namespace Location
@@ -137,6 +139,8 @@ struct Board
   static constexpr int MAX_LEN = std::max(MAX_LEN_X, MAX_LEN_Y);  //Maximum edge length allowed for the board
   static constexpr int DEFAULT_LEN_X = std::min(MAX_LEN_X,19); //Default x edge length for board if unspecified
   static constexpr int DEFAULT_LEN_Y = std::min(MAX_LEN_Y,19); //Default y edge length for board if unspecified
+  static constexpr int DEFAULT_LEN_X_DOTS = std::min(MAX_LEN_X, 39);
+  static constexpr int DEFAULT_LEN_Y_DOTS = std::min(MAX_LEN_Y, 32);
   static constexpr int MAX_PLAY_SIZE = MAX_LEN_X * MAX_LEN_Y;  //Maximum number of playable spaces
   static constexpr int MAX_ARR_SIZE = getMaxArrSize(MAX_LEN_X, MAX_LEN_Y); //Maximum size of arrays needed
 
@@ -239,6 +243,7 @@ struct Board
   //Functions------------------------------------
 
   [[nodiscard]] Color getColor(Loc loc) const;
+  [[nodiscard]] Color getPlacedColor(Loc loc) const;
   [[nodiscard]] State getState(Loc loc) const;
   void setState(Loc loc, State state);
   bool isDots() const;
@@ -288,11 +293,12 @@ struct Board
   bool isAdjacentToChain(Loc loc, Loc chain) const;
   //Does this connect two pla distinct groups that are not both pass-alive and not within opponent pass-alive area either?
   bool isNonPassAliveSelfConnection(Loc loc, Player pla, Color* passAliveArea) const;
-  //Is this board empty?
-  bool isEmpty() const;
+  // Is this board empty?
+  bool isStartPos() const;
   //Count the number of stones on the board
   int numStonesOnBoard() const;
   int numPlaStonesOnBoard(Player pla) const;
+  void numStartBlackWhiteStones(int& startBoardNumBlackStones, int& startBoardNumWhiteStones, bool includeStartLocs) const;
 
   //Get a hash that combines the position of the board with simple ko prohibition and a player to move.
   Hash128 getSitHashWithSimpleKo(Player pla) const;

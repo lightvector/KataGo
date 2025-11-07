@@ -450,8 +450,8 @@ int MainCmds::genbook(const vector<string>& args) {
       if(bonusInitialPla != book->initialPla)
         throw StringError(
           "Book initial player and initial player in bonus sgf file do not match\n" +
-          PlayerIO::playerToString(book->initialPla) + " book \n" +
-          PlayerIO::playerToString(bonusInitialPla) + " bonus"
+          PlayerIO::playerToString(book->initialPla,book->initialRules.isDots) + " book \n" +
+          PlayerIO::playerToString(bonusInitialPla,book->initialRules.isDots) + " bonus"
         );
     }
 

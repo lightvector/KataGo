@@ -57,12 +57,12 @@ void Tests::runSgfTests() {
     }
 
     out << "Initial board hist " << endl;
-    out << "pla " << PlayerIO::playerToString(pla) << endl;
+    out << "pla " << PlayerIO::playerToString(pla,rules.isDots) << endl;
     hist.printDebugInfo(out,board);
 
     auto [finalHist, finalBoard] = sgf->setupBoardAndHistAssumeLegal(rules, pla, sgf->moves.size());
     out << "Final board hist " << endl;
-    out << "pla " << PlayerIO::playerToString(pla) << endl;
+    out << "pla " << PlayerIO::playerToString(pla,rules.isDots) << endl;
     finalHist.printDebugInfo(out,finalBoard);
 
     {
@@ -99,7 +99,7 @@ void Tests::runSgfTests() {
     }
 
     out << "handicapValue " << sgf->getHandicapValue() << endl;
-    out << "sgfWinner " << PlayerIO::playerToString(sgf->getSgfWinner()) << endl;
+    out << "sgfWinner " << PlayerIO::playerToString(sgf->getSgfWinner(), sgf->isDotsGame()) << endl;
     out << "firstPlayerColor " << PlayerIO::colorToChar(sgf->getFirstPlayerColor()) << endl;
 
     out << "black rank " << sgf->getRank(P_BLACK) << endl;
@@ -133,7 +133,7 @@ void Tests::runSgfTests() {
     sgf->getPlacements(placements, xySize.x, xySize.y);
     out << "placements " << placements.size() << endl;
     for(const Move& move: placements) {
-      out << PlayerIO::playerToString(move.pla) << " " << Location::toString(move.loc, xySize.x, xySize.y, sgf->isDotsGame()) << " ";
+      out << PlayerIO::playerToString(move.pla, sgf->isDotsGame()) << " " << Location::toString(move.loc, xySize.x, xySize.y, sgf->isDotsGame()) << " ";
     }
     out << endl;
 
@@ -141,7 +141,7 @@ void Tests::runSgfTests() {
     sgf->getMoves(moves, xySize.x, xySize.y);
     out << "moves " << moves.size() << endl;
     for(const Move& move: moves) {
-      out << PlayerIO::playerToString(move.pla) << " " << Location::toString(move.loc, xySize.x, xySize.y, sgf->isDotsGame()) << " ";
+      out << PlayerIO::playerToString(move.pla, sgf->isDotsGame()) << " " << Location::toString(move.loc, xySize.x, xySize.y, sgf->isDotsGame()) << " ";
     }
     out << endl;
 
@@ -178,26 +178,26 @@ depth 17
 komi 0
 startPos CROSS
 placements
-X E3
+X 5-3
 moves
-O D4
-X D3
-O H5
-X C4
-O H3
-X C5
-O F3
-X D6
-O C3
-X H7
-O J6
-X D7
-O G2
-X D8
-O B2
+O 4-4
+X 4-3
+O 8-5
+X 3-4
+O 8-3
+X 3-5
+O 6-3
+X 4-6
+O 3-3
+X 8-7
+O 9-6
+X 4-7
+O 7-2
+X 4-8
+O 2-2
 X ground
 Initial board hist
-pla White
+pla Player2
 HASH: 42AC4303D65557034CC3593CB26EA615
    1  2  3  4  5  6  7  8  9  10
  8 .  .  .  .  .  .  .  .  .  .
@@ -212,18 +212,18 @@ HASH: 42AC4303D65557034CC3593CB26EA615
 
 Rules dotsCaptureEmptyBase0startPosCROSSsui1komi0
 White bonus score 0
-Presumed next pla White
+Presumed next pla Player2
 Game result 0 Empty 0 0 0 0
 Last moves
 Final board hist
-pla White
+pla Player2
 HASH: AB87C4395AA2D7E5D7B069ACBFA701D5
    1  2  3  4  5  6  7  8  9  10
  8 .  .  .  X  .  .  .  .  .  .
- 7 .  .  .  X  .  .  .  O  .  .
+ 7 .  .  .  X  .  .  .  x  .  .
  6 .  .  .  X  .  .  .  .  O  .
- 5 .  .  X  X  X  O  .  O  .  .
- 4 .  .  X  X  X  X  .  .  .  .
+ 5 .  .  X  '  X  O  .  O  .  .
+ 4 .  .  X  o  o  X  .  .  .  .
  3 .  .  O  X  X  O  .  O  .  .
  2 .  O  .  .  .  .  O  .  .  .
  1 .  .  .  .  .  .  .  .  .  .
@@ -231,9 +231,9 @@ HASH: AB87C4395AA2D7E5D7B069ACBFA701D5
 
 Rules dotsCaptureEmptyBase0startPosCROSSsui1komi0
 White bonus score 0
-Presumed next pla White
-Game result 1 Black -1 1 0 0
-Last moves D4 D3 H5 C4 H3 C5 F3 D6 C3 H7 J6 D7 G2 D8 B2 ground
+Presumed next pla Player2
+Game result 1 Player1 -1 1 0 0
+Last moves 4-4 4-3 8-5 3-4 8-3 3-5 6-3 4-6 3-3 8-7 9-6 4-7 7-2 4-8 2-2 ground
 )";
     expect(name,out,expected);
   }

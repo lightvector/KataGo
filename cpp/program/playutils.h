@@ -10,17 +10,10 @@
 namespace PlayUtils {
   //Use the given bot to play free handicap stones, modifying the board and hist in the process and setting the bot's position to it.
   //Does NOT switch the initial player of the board history to white
-  void playExtraBlack(
-    Search* bot,
-    int numExtraBlack,
-    Board& board,
-    BoardHistory& hist,
-    double temperature,
-    Rand& gameRand
-  );
+  std::vector<short> playExtraBlack(Search* bot, int numExtraBlack, Board& board, BoardHistory& hist, double temperature, Rand& gameRand);
 
-  //Set board to empty and place fixed handicap stones, raising an exception if invalid
-  void placeFixedHandicap(Board& board, int n);
+  // Generate fixed handicap stones, raising an exception if invalid
+  std::vector<short> generateFixedHandicap(const Board& board, int n);
 
   ExtraBlackAndKomi chooseExtraBlackAndKomi(
     float base, float stdev, double allowIntegerProb,

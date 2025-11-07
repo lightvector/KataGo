@@ -2869,7 +2869,7 @@ void Book::saveToFile(const string& fileName) const {
     paramsDump["version"] = bookVersion;
     paramsDump["initialBoard"] = Board::toJson(initialBoard);
     paramsDump["initialRules"] = initialRules.toJson();
-    paramsDump["initialPla"] = PlayerIO::playerToString(initialPla);
+    paramsDump["initialPla"] = PlayerIO::playerToString(initialPla, initialRules.isDots);
     paramsDump["repBound"] = repBound;
     paramsDump["errorFactor"] = params.errorFactor;
     paramsDump["costPerMove"] = params.costPerMove;
@@ -2939,7 +2939,7 @@ void Book::saveToFile(const string& fileName) const {
     }
     else {
       nodeData["hash"] = node->hash.toString();
-      nodeData["pla"] = PlayerIO::playerToString(node->pla);
+      nodeData["pla"] = PlayerIO::playerToString(node->pla, initialRules.isDots);
       nodeData["symmetries"] = node->symmetries;
       nodeData["winLossValue"] = node->thisValuesNotInBook.winLossValue;
       nodeData["scoreMean"] = node->thisValuesNotInBook.scoreMean;

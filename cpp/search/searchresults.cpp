@@ -1335,7 +1335,7 @@ void Search::printTreeHelper(
       return;
   }
   if((options.alsoBranch_ && depth == 0) || (!options.alsoBranch_ && depth == options.branch_.size())) {
-    out << "---" << PlayerIO::playerToString(node.nextPla) << "(" << (node.nextPla == perspectiveToUse ? "^" : "v") << ")---" << endl;
+    out << "---" << PlayerIO::playerToString(node.nextPla,rootBoard.isDots()) << "(" << (node.nextPla == perspectiveToUse ? "^" : "v") << ")---" << endl;
   }
 
   vector<AnalysisData> analysisData;

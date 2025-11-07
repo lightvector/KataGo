@@ -938,9 +938,9 @@ xxxxxxxx.
       FinishedGameData* data = gameRunner->runGame(seed, botSpec, botSpec, forkData, NULL, logger, shouldStop, shouldPause, nullptr, nullptr, nullptr);
       cout << data->startHist.rules << endl;
       cout << "Start moves size " << data->startHist.moveHistory.size()
-           << " Start pla " << PlayerIO::playerToString(data->startPla)
+           << " Start pla " << PlayerIO::playerToString(data->startPla,data->startHist.rules.isDots)
            << " XY " << data->startBoard.x_size << " " << data->startBoard.y_size
-           << " Extra black " << data->numExtraBlack
+           << " Extra " << PlayerIO::playerToString(P_BLACK, data->startHist.rules.isDots) << " " << data->numExtraBlack
            << " Draw equiv " << data->drawEquivalentWinsForWhite
            << " Mode " << data->mode
            << " BeganInEncorePhase " << data->beganInEncorePhase
@@ -2846,7 +2846,7 @@ void Tests::runSekiTrainWriteTests(const string& modelFile) {
       vector<double> buf;
       vector<bool> isAlive = PlayUtils::computeAnticipatedStatusesWithOwnership(bot,board,hist,pla,numVisits,buf);
       testAssert(bot->alwaysIncludeOwnerMap == false);
-      cout << "Search assumes " << PlayerIO::playerToString(pla) << " first" << endl;
+      cout << "Search assumes " << PlayerIO::playerToString(pla,hist.rules.isDots) << " first" << endl;
       cout << "Rules " << hist.rules << endl;
       cout << board << endl;
       for(int y = 0; y<board.y_size; y++) {

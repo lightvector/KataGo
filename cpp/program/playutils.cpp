@@ -264,17 +264,17 @@ void PlayUtils::initializeGameUsingPolicy(
 
 
 //Place black handicap stones, free placement
-//Does NOT switch the initial player of the board history to white
-void PlayUtils::playExtraBlack(
+// Does NOT switch the initial player of the board history to white
+vector<Loc> PlayUtils::playExtraBlack(
   Search* bot,
   int numExtraBlack,
   Board& board,
   BoardHistory& hist,
   double temperature,
-  Rand& gameRand
-) {
+  Rand& gameRand) {
   Player pla = P_BLACK;
 
+  std::vector<Loc> handicapLocs;
   if(!hist.isGameFinished) {
     NNResultBuf buf;
     for(int i = 0; i<numExtraBlack; i++) {
@@ -290,17 +290,19 @@ void PlayUtils::playExtraBlack(
         break;
 
       assert(hist.isLegal(board,loc,pla));
-      hist.makeBoardMoveAssumeLegal(board,loc,pla,NULL);
+      handicapLocs.push_back(loc);
+      hist.makeBoardMoveAssumeLegal(board,loc,pla,nullptr);
       hist.clear(board,pla,hist.rules,0);
     }
   }
 
   bot->setPosition(pla,board,hist);
+  return handicapLocs;
 }
 
-void PlayUtils::placeFixedHandicap(Board& board, int n) {
-  int xSize = board.x_size;
-  int ySize = board.y_size;
+vector<Loc> PlayUtils::generateFixedHandicap(const Board& board, const int n) {
+  const int xSize = board.x_size;
+  const int ySize = board.y_size;
   if(xSize < 7 || ySize < 7)
     throw StringError("Board is too small for fixed handicap");
   if((xSize % 2 == 0 || ySize % 2 == 0) && n > 4)
@@ -312,8 +314,6 @@ void PlayUtils::placeFixedHandicap(Board& board, int n) {
   if(n > 9)
     throw StringError("Fixed handicap > 9 is not allowed");
 
-  board = Board(xSize,ySize,board.rules);
-
   int xCoords[3]; //Corner, corner, side
   int yCoords[3]; //Corner, corner, side
   if(xSize <= 12) { xCoords[0] = 2; xCoords[1] = xSize-3; xCoords[2] = xSize/2; }
@@ -321,8 +321,10 @@ void PlayUtils::placeFixedHandicap(Board& board, int n) {
   if(ySize <= 12) { yCoords[0] = 2; yCoords[1] = ySize-3; yCoords[2] = ySize/2; }
   else            { yCoords[0] = 3; yCoords[1] = ySize-4; yCoords[2] = ySize/2; }
 
-  auto s = [&](int xi, int yi) {
-    board.setStone(Location::getLoc(xCoords[xi],yCoords[yi],board.x_size),P_BLACK);
+  vector<Loc> locs;
+
+  auto s = [&](const int xi, const int yi) {
+    locs.push_back(Location::getLoc(xCoords[xi],yCoords[yi],board.x_size));
   };
   if(n == 2) { s(0,1); s(1,0); }
   else if(n == 3) { s(0,1); s(1,0); s(0,0); }
@@ -333,6 +335,8 @@ void PlayUtils::placeFixedHandicap(Board& board, int n) {
   else if(n == 8) { s(0,1); s(1,0); s(0,0); s(1,1); s(0,2); s(1,2); s(2,0); s(2,1); }
   else if(n == 9) { s(0,1); s(1,0); s(0,0); s(1,1); s(0,2); s(1,2); s(2,0); s(2,1); s(2,2); }
   else { ASSERT_UNREACHABLE; }
+
+  return locs;
 }
 
 double PlayUtils::getHackedLCBForWinrate(const Search* search, const AnalysisData& data, Player pla) {

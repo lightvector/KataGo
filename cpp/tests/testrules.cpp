@@ -109,7 +109,7 @@ void Tests::runRulesTests() {
     if(!hist.isGameFinished)
       o << "Game is not over" << endl;
     else {
-      o << "Winner: " << PlayerIO::playerToString(hist.winner) << endl;
+      o << "Winner: " << PlayerIO::playerToString(hist.winner,hist.rules.isDots) << endl;
       o << "W-B Score: " << hist.finalWhiteMinusBlackScore << endl;
       o << "isNoResult: " << hist.isNoResult << endl;
       o << "isResignation: " << hist.isResignation << endl;

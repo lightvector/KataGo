@@ -387,40 +387,24 @@ void BoardHistory::setInitialTurnNumber(int64_t n) {
 
 void BoardHistory::setAssumeMultipleStartingBlackMovesAreHandicap(bool b) {
   assumeMultipleStartingBlackMovesAreHandicap = b;
-  whiteHandicapBonusScore = (float)computeWhiteHandicapBonus();
+  whiteHandicapBonusScore = static_cast<float>(computeWhiteHandicapBonus());
 }
 
 void BoardHistory::setOverrideNumHandicapStones(int n) {
   overrideNumHandicapStones = n;
-  whiteHandicapBonusScore = (float)computeWhiteHandicapBonus();
+  whiteHandicapBonusScore = static_cast<float>(computeWhiteHandicapBonus());
 }
 
+
 static int numHandicapStonesOnBoardHelper(const Board& board, const int blackNonPassTurnsToStart) {
-  int startBoardNumBlackStones = 0;
-  int startBoardNumWhiteStones = 0;
-
-  // Ignore start pos moves that are generated according to rules
-  set<Loc> startLocs;
-  for (auto move : board.start_pos_moves) {
-    startLocs.insert(move.loc);
-  }
-
-  for(int y = 0; y<board.y_size; y++) {
-    for(int x = 0; x<board.x_size; x++) {
-      if (const Loc loc = Location::getLoc(x, y, board.x_size); startLocs.count(loc) == 0) {
-        if (const Color color = board.getColor(loc); color == C_BLACK)
-          startBoardNumBlackStones += 1;
-        else if (color == C_WHITE)
-          startBoardNumWhiteStones += 1;
-      }
-    }
-  }
+  int startBoardNumBlackStones, startBoardNumWhiteStones;
+  board.numStartBlackWhiteStones(startBoardNumBlackStones, startBoardNumWhiteStones, false);
 
   //If we set up in a nontrivial position, then consider it a non-handicap game.
   if(startBoardNumWhiteStones != 0)
     return 0;
-  //Add in additional counted stones
-  int blackTurnAdvantage = startBoardNumBlackStones + blackNonPassTurnsToStart;
+  // Add in additional counted stones
+  const int blackTurnAdvantage = startBoardNumBlackStones + blackNonPassTurnsToStart;
 
   //If there was only one black move/stone to start, then it was a regular game
   if(blackTurnAdvantage <= 1)
@@ -483,22 +467,32 @@ int BoardHistory::computeWhiteHandicapBonus() const {
 }
 
 void BoardHistory::printBasicInfo(ostream& out, const Board& board) const {
-  Board::printBoard(out, board, Board::NULL_LOC, &moveHistory);
-  out << "Next player: " << PlayerIO::playerToString(presumedNextMovePla) << endl;
+  Board::printBoard(out, board, Board::NULL_LOC, &moveHistory, false);
+  const bool isDots = rules.isDots;
+  assert(isDots == board.rules.isDots);
+  out << "Next player: " << PlayerIO::playerToString(presumedNextMovePla, isDots) << endl;
   if(encorePhase > 0)
     out << "Game phase: " << encorePhase << endl;
   out << "Rules: " << rules.toJsonString() << endl;
   if(whiteHandicapBonusScore != 0)
     out << "Handicap bonus score: " << whiteHandicapBonusScore << endl;
-  out << "B stones captured: " << board.numBlackCaptures << endl;
-  out << "W stones captured: " << board.numWhiteCaptures << endl;
+
+  const auto firstPlayerName = PlayerIO::playerToString(P_BLACK, isDots);
+  const auto secondPlayerName = PlayerIO::playerToString(P_WHITE, isDots);
+  if (!isDots) {
+    out << firstPlayerName << " stones captured: " << board.numBlackCaptures << endl;
+    out << secondPlayerName << " stones captured: " << board.numWhiteCaptures << endl;
+  } else {
+    out << firstPlayerName << " score: " << board.numWhiteCaptures << endl;
+    out << secondPlayerName << " score: " << board.numBlackCaptures << endl;
+  }
 }
 
 void BoardHistory::printDebugInfo(ostream& out, const Board& board) const {
   out << board << endl;
-  bool isDots = board.rules.isDots;
+  const bool isDots = board.rules.isDots;
   if (!isDots) {
-    out << "Initial pla " << PlayerIO::playerToString(initialPla) << endl;
+    out << "Initial pla " << PlayerIO::playerToString(initialPla, rules.isDots) << endl;
     out << "Encore phase " << encorePhase << endl;
     out << "Turns this phase " << numTurnsThisPhase << endl;
     out << "Approx valid turns this phase " << numApproxValidTurnsThisPhase << endl;
@@ -520,21 +514,21 @@ void BoardHistory::printDebugInfo(ostream& out, const Board& board) const {
     assert(0.0f == whiteHandicapBonusScore);
     assert(!hasButton);
   }
-  out << "Presumed next pla " << PlayerIO::playerToString(presumedNextMovePla) << endl;
+  out << "Presumed next pla " << PlayerIO::playerToString(presumedNextMovePla, rules.isDots) << endl;
   if (!isDots) {
     out << "Past normal phase end " << isPastNormalPhaseEnd << endl;
   } else {
     assert(0 == isPastNormalPhaseEnd);
   }
-  out << "Game result " << isGameFinished << " " << PlayerIO::playerToString(winner) << " "
+  out << "Game result " << isGameFinished << " " << PlayerIO::playerToString(winner, rules.isDots) << " "
       << finalWhiteMinusBlackScore << " " << isScored << " " << isNoResult << " " << isResignation;
   if (isPassAliveFinished) {
     out << " " << isPassAliveFinished;
   }
   out << endl;
   out << "Last moves ";
-  for(int i = 0; i<moveHistory.size(); i++)
-    out << Location::toString(moveHistory[i].loc,board) << " ";
+  for (const auto i : moveHistory)
+    out << Location::toString(i.loc,board) << " ";
   out << endl;
   if (!isDots) {
     assert(firstTurnIdxWithKoHistory + koHashHistory.size() == moveHistory.size() + 1);
@@ -1273,7 +1267,7 @@ void BoardHistory::makeBoardMoveAssumeLegal(Board& board, Loc moveLoc, Player mo
 
 bool BoardHistory::hasBlackPassOrWhiteFirst() const {
   //First move was made by white this game, on an empty board.
-  if(initialBoard.isEmpty() && moveHistory.size() > 0 && moveHistory[0].pla == P_WHITE)
+  if(initialBoard.isStartPos() && moveHistory.size() > 0 && moveHistory[0].pla == P_WHITE)
     return true;
   //Black passed exactly once or white doublemoved
   int numBlackPasses = 0;

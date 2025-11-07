@@ -218,7 +218,7 @@ static void runAndUploadSingleGame(
         out << "Match: " << botSpecB.botName << " (black) vs " << botSpecW.botName << " (white)" << "\n";
       }
       out << "Rules: " << hist.rules.toJsonString() << "\n";
-      out << "Player: " << PlayerIO::playerToString(pla) << "\n";
+      out << "Player: " << PlayerIO::playerToString(pla,hist.rules.isDots) << "\n";
       out << "Move: " << Location::toString(moveLoc,board) << "\n";
       out << "Num Visits: " << search->getRootVisits() << "\n";
       if(winLossHist.size() > 0)

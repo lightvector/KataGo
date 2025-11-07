@@ -795,12 +795,12 @@ pair<int,int> MatchPairer::getMatchupPairUnsynchronized() {
 
 //----------------------------------------------------------------------------------------------------------
 
-static void failIllegalMove(Search* bot, Logger& logger, Board board, Loc loc) {
+static void failIllegalMove(const Search* bot, Logger& logger, const Board& board, Loc loc) {
   ostringstream sout;
   sout << "Bot returned null location or illegal move!?!" << "\n";
   sout << board << "\n";
   sout << bot->getRootBoard() << "\n";
-  sout << "Pla: " << PlayerIO::playerToString(bot->getRootPla()) << "\n";
+  sout << "Pla: " << PlayerIO::playerToString(bot->getRootPla(),board.isDots()) << "\n";
   sout << "Loc: " << Location::toString(loc,bot->getRootBoard()) << "\n";
   logger.write(sout.str());
   bot->getRootBoard().checkConsistency();
