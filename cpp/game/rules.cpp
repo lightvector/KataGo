@@ -159,7 +159,8 @@ set<string> Rules::startPosStrings() {
     startPosIdToName[START_POS_EMPTY],
     startPosIdToName[START_POS_CROSS],
     startPosIdToName[START_POS_CROSS_2],
-    startPosIdToName[START_POS_CROSS_4]
+    startPosIdToName[START_POS_CROSS_4],
+    startPosIdToName[START_POS_CUSTOM]
   };
 }
 
@@ -826,13 +827,25 @@ int Rules::tryRecognizeStartPos(
   const vector<Move>& placementMoves,
   const int x_size,
   const int y_size,
-  const bool emptyIfFailed,
-  bool& randomized) {
+  bool& randomized,
+  vector<Move>* remainingMoves) {
   randomized = false; // Empty or unknown start pos is static by default
+  if (remainingMoves != nullptr) {
+    *remainingMoves = placementMoves;
+  }
+  int result = START_POS_EMPTY;
 
-  if(placementMoves.empty()) return START_POS_EMPTY;
+  if(placementMoves.empty()) return result;
 
-  int result = emptyIfFailed ? START_POS_EMPTY : START_POS_CUSTOM;
+  // If all placement moves are black, then it's a handicap game and the start pos is empty
+  for (const auto placementMove : placementMoves) {
+    if (placementMove.pla != C_BLACK) {
+      result = START_POS_CUSTOM;
+      break;
+    }
+  }
+
+  if (result == START_POS_EMPTY) return result;
 
   const int stride = x_size + 1;
   auto placement = vector(stride * (y_size + 2), C_EMPTY);
@@ -888,6 +901,7 @@ int Rules::tryRecognizeStartPos(
   auto detectRandomization = [&](const int expectedStartPos) -> void {
     auto staticStartPosMoves = generateStartPos(expectedStartPos, nullptr, x_size, y_size);
 
+    assert(remainingMoves != nullptr || placementMoves.size() == recognizedCrossesMoves.size());
     assert(staticStartPosMoves.size() == recognizedCrossesMoves.size());
 
     sortByLoc(staticStartPosMoves);
@@ -896,6 +910,20 @@ int Rules::tryRecognizeStartPos(
       if(staticStartPosMoves[i].loc != recognizedCrossesMoves[i].loc || staticStartPosMoves[i].pla != recognizedCrossesMoves[i].pla) {
         randomized = true;
         break;
+      }
+    }
+
+    if (remainingMoves != nullptr) {
+      for (const auto recognizedMove : recognizedCrossesMoves) {
+        bool removed = false;
+        for(auto it = remainingMoves->begin(); it != remainingMoves->end(); ++it) {
+          if (it->loc == recognizedMove.loc && it->pla == recognizedMove.pla) {
+            remainingMoves->erase(it);
+            removed = true;
+            break;
+          }
+        }
+        assert(removed);
       }
     }
 

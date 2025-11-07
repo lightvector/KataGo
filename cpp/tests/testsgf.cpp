@@ -29,15 +29,27 @@ void Tests::runSgfTests() {
     const BoardHistory hist = sgf->setupInitialBoardAndHist(rules, pla);
     const Board& board = hist.initialBoard;
 
-    if (rules.startPos == Rules::START_POS_EMPTY) {
-      out << "placements" << endl;
-      for(int i = 0; i < sgf->placements.size(); i++) {
-        Move move = sgf->placements[i];
-        out << PlayerIO::colorToChar(move.pla) << " " << Location::toString(move.loc,board) << endl;
+    bool randomized;
+    vector<Move> remainingPlacementMoves;
+    const int recognizedStartPos = Rules::tryRecognizeStartPos(sgf->placements, board.x_size, board.y_size, randomized, &remainingPlacementMoves);
+    testAssert(recognizedStartPos == rules.startPos);
+    testAssert(randomized == rules.startPosIsRandom);
+
+    if (recognizedStartPos != Rules::START_POS_EMPTY) {
+      out << "startPos " << Rules::writeStartPosRule(recognizedStartPos);
+      if (randomized) {
+        out << " (randomized)";
       }
-    } else {
-      out << "startPos " << Rules::writeStartPosRule(rules.startPos) << endl;
+      out << endl;
     }
+
+    if (!remainingPlacementMoves.empty()) {
+      out << "placements" << endl;
+      for (const auto placementMove : remainingPlacementMoves) {
+        out << PlayerIO::colorToChar(placementMove.pla) << " " << Location::toString(placementMove.loc, board) << endl;
+      }
+    }
+
     out << "moves" << endl;
     for(int i = 0; i < sgf->moves.size(); i++) {
       Move move = sgf->moves[i];
@@ -155,18 +167,19 @@ void Tests::runSgfTests() {
 
   {
     const char* name = "Basic Dots Sgf parse test";
-    string sgfStr = "(;FF[4]GM[40]CA[UTF-8]AP[katago]SZ[10:8]AB[ed][fe]AW[ee][fd];B[ef];W[de];B[df];W[hd];B[ce];W[hf];B[cd];W[ff];B[dc];W[cf];B[hb];W[ic];B[db];W[gg];B[da];W[bg];B[])";
+    string sgfStr = "(;FF[4]GM[40]CA[UTF-8]AP[katago]SZ[10:8]AB[ed][fe][ef]AW[ee][fd];W[de];B[df];W[hd];B[ce];W[hf];B[cd];W[ff];B[dc];W[cf];B[hb];W[ic];B[db];W[gg];B[da];W[bg];B[])";
 
     parseAndPrintSgfLinear(sgfStr);
     string expected = R"(
 Dots game
 xSize 10
 ySize 8
-depth 18
+depth 17
 komi 0
 startPos CROSS
-moves
+placements
 X E3
+moves
 O D4
 X D3
 O H5
@@ -184,22 +197,22 @@ X D8
 O B2
 X ground
 Initial board hist
-pla Black
-HASH: BA8A444F3D6E9FC94A3F4A16C7D2DBA0
+pla White
+HASH: 42AC4303D65557034CC3593CB26EA615
    1  2  3  4  5  6  7  8  9  10
  8 .  .  .  .  .  .  .  .  .  .
  7 .  .  .  .  .  .  .  .  .  .
  6 .  .  .  .  .  .  .  .  .  .
  5 .  .  .  .  X  O  .  .  .  .
  4 .  .  .  .  O  X  .  .  .  .
- 3 .  .  .  .  .  .  .  .  .  .
+ 3 .  .  .  .  X  .  .  .  .  .
  2 .  .  .  .  .  .  .  .  .  .
  1 .  .  .  .  .  .  .  .  .  .
 
 
 Rules dotsCaptureEmptyBase0startPosCROSSsui1komi0
 White bonus score 0
-Presumed next pla Black
+Presumed next pla White
 Game result 0 Empty 0 0 0 0
 Last moves
 Final board hist
@@ -220,7 +233,7 @@ Rules dotsCaptureEmptyBase0startPosCROSSsui1komi0
 White bonus score 0
 Presumed next pla White
 Game result 1 Black -1 1 0 0
-Last moves E3 D4 D3 H5 C4 H3 C5 F3 D6 C3 H7 J6 D7 G2 D8 B2 ground
+Last moves D4 D3 H5 C4 H3 C5 F3 D6 C3 H7 J6 D7 G2 D8 B2 ground
 )";
     expect(name,out,expected);
   }
@@ -656,7 +669,6 @@ xSize 17
 ySize 3
 depth 5
 komi -6.5
-placements
 moves
 X F1
 O C1
@@ -733,6 +745,7 @@ xSize 9
 ySize 9
 depth 2
 komi 7.5
+startPos CUSTOM
 placements
 X B7
 X D7
@@ -761,7 +774,7 @@ Encore phase 0
 Turns this phase 0
 Approx valid turns this phase 0
 Approx consec valid turns this game 0
-Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
+Rules koPOSITIONALscoreAREAtaxNONEstartPosCUSTOMsui1komi7.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
 White handicap bonus score 0
@@ -790,7 +803,7 @@ Encore phase 0
 Turns this phase 0
 Approx valid turns this phase 0
 Approx consec valid turns this game 0
-Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
+Rules koPOSITIONALscoreAREAtaxNONEstartPosCUSTOMsui1komi7.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
 White handicap bonus score 0
@@ -827,7 +840,6 @@ xSize 5
 ySize 5
 depth 13
 komi 24
-placements
 moves
 X C3
 O C4
@@ -922,7 +934,6 @@ xSize 5
 ySize 5
 depth 7
 komi 24
-placements
 moves
 X C3
 X B4
@@ -1005,7 +1016,6 @@ xSize 37
 ySize 37
 depth 14
 komi 0
-placements
 moves
 X D34
 O AJ34
@@ -1169,7 +1179,7 @@ xSize 5
 ySize 5
 komi 12.5
 hasRules true
-rules koSIMPLEscoreTERRITORYtaxSEKIsui0komi12.5
+rules koSIMPLEscoreTERRITORYtaxSEKIstartPosCUSTOMsui0komi12.5
 handicapValue 5
 sgfWinner Black
 firstPlayerColor X

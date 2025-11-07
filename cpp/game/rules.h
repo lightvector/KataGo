@@ -116,15 +116,16 @@ struct Rules {
    * @param placementMoves placement moves that we are trying to recognize.
    * @param x_size size of field
    * @param y_size size of field
-   * @param emptyIfFailed returns empty start pos if recognition is failed. It's useful for detecting start pos from SGF when handicap stones are placed
    * @param randomized if we recognize a start pos, but it doesn't match the strict position, set it up to `true`
+   * @param remainingMoves Holds moves that remain after start pos recognition, useful for SGF handling.
+   *  If it's null (default), then it's assumed that all placement moves are used in the recognized start pos.
    */
   static int tryRecognizeStartPos(
     const std::vector<Move>& placementMoves,
     int x_size,
     int y_size,
-    bool emptyIfFailed,
-    bool& randomized);
+    bool& randomized,
+    std::vector<Move>* remainingMoves = nullptr);
 
   friend std::ostream& operator<<(std::ostream& out, const Rules& rules);
   std::string toString(bool includeSgfDefinedProperties = true) const;
@@ -171,10 +172,12 @@ private:
       startPosIdToName[START_POS_CROSS] = "CROSS";
       startPosIdToName[START_POS_CROSS_2] = "CROSS_2";
       startPosIdToName[START_POS_CROSS_4] = "CROSS_4";
+      startPosIdToName[START_POS_CUSTOM] = "CUSTOM";
       startPosNameToId["EMPTY"] = START_POS_EMPTY;
       startPosNameToId["CROSS"] = START_POS_CROSS;
       startPosNameToId["CROSS_2"] = START_POS_CROSS_2;
       startPosNameToId["CROSS_4"] = START_POS_CROSS_4;
+      startPosNameToId["CUSTOM"] = START_POS_CUSTOM;
     }
   }
 

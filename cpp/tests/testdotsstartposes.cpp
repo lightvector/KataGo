@@ -53,7 +53,7 @@ void checkStartPosRecognition(const string& description, const int expectedStart
 void checkGenerationAndRecognition(const int startPos, const int startPosIsRandom) {
   const auto generatedMoves = Rules::generateStartPos(startPos, startPosIsRandom ? &DOTS_RANDOM : nullptr, 39, 32);
   bool actualRandomized;
-  testAssert(startPos == Rules::tryRecognizeStartPos(generatedMoves, 39, 32, false, actualRandomized));
+  testAssert(startPos == Rules::tryRecognizeStartPos(generatedMoves, 39, 32, actualRandomized));
   // We can't reliably check in case of randomization is not detected because random generator can
   // generate static poses in rare cases.
   if (actualRandomized) {
@@ -82,7 +82,7 @@ HASH: A130436FBD93FF473AB4F3B84DD304DB
  1 .  .  X  .
 )", {XYMove(2, 3, P_BLACK)});
 
-  checkStartPosRecognition("Not enough dots for cross", 0, false, R"(
+  checkStartPosRecognition("Not enough dots for cross", Rules::START_POS_CUSTOM, false, R"(
 ....
 .xo.
 .o..
