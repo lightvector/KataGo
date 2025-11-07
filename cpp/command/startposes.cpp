@@ -502,7 +502,7 @@ int MainCmds::samplesgfs(const vector<string>& args) {
           //Only log on errors that aren't simply due to ko rules, but quit out regardless
           suc = hist.makeBoardMoveTolerant(board,sgfMoves[m].loc,sgfMoves[m].pla,preventEncore);
           if(!suc)
-            logger.write("Illegal move in " + fileName + " turn " + Global::intToString(m) + " move " + Location::toString(sgfMoves[m].loc, board.x_size, board.y_size));
+            logger.write("Illegal move in " + fileName + " turn " + Global::intToString(m) + " move " + Location::toString(sgfMoves[m].loc, board.x_size, board.y_size, board.isDots()));
           break;
         }
         hist.makeBoardMoveAssumeLegal(board,sgfMoves[m].loc,sgfMoves[m].pla,NULL,preventEncore);
@@ -1469,7 +1469,7 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
         //Only log on errors that aren't simply due to ko rules, but quit out regardless
         suc = hist.makeBoardMoveTolerant(board,sgfMoves[m].loc,sgfMoves[m].pla,preventEncore);
         if(!suc)
-          logger.write("Illegal move in " + fileName + " turn " + Global::intToString(m) + " move " + Location::toString(sgfMoves[m].loc, board.x_size, board.y_size));
+          logger.write("Illegal move in " + fileName + " turn " + Global::intToString(m) + " move " + Location::toString(sgfMoves[m].loc, board.x_size, board.y_size, board.isDots()));
         break;
       }
       hist.makeBoardMoveAssumeLegal(board,sgfMoves[m].loc,sgfMoves[m].pla,NULL,preventEncore);
@@ -1662,7 +1662,7 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
     for(int i = 0; i<startTurn; i++) {
       bool multiStoneSuicideLegal = true;
       //Just in case
-      if(!board.isLegal(treeHist.moveHistory[i].loc,treeHist.moveHistory[i].pla,multiStoneSuicideLegal))
+      if(!board.isLegal(treeHist.moveHistory[i].loc, treeHist.moveHistory[i].pla, multiStoneSuicideLegal, false))
         return;
       board.playMoveAssumeLegal(treeHist.moveHistory[i].loc,treeHist.moveHistory[i].pla);
     }

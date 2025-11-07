@@ -13,10 +13,10 @@ void Tests::runBoardIOTests() {
   //============================================================================
   {
     const char* name = "Location parse test";
-    auto testLoc = [&out](const char* s, int xSize, int ySize) {
+    auto testLoc = [&out](const char* s, int xSize, int ySize, bool isDots) {
       try {
         Loc loc = Location::ofString(s,xSize,ySize);
-        out << s << " " << Location::toString(loc,xSize,ySize) << " x " << Location::getX(loc,xSize) << " y " << Location::getY(loc,xSize) << endl;
+        out << s << " " << Location::toString(loc, xSize, ySize, isDots) << " x " << Location::getX(loc,xSize) << " y " << Location::getY(loc,xSize) << endl;
       }
       catch(const StringError& e) {
         out << e.what() << endl;
@@ -34,27 +34,28 @@ void Tests::runBoardIOTests() {
         out << "----------------------------------" << endl;
         out << xSize << " " << ySize << endl;
 
-        testLoc("A1",xSize,ySize);
-        testLoc("A0",xSize,ySize);
-        testLoc("B2",xSize,ySize);
-        testLoc("b2",xSize,ySize);
-        testLoc("A",xSize,ySize);
-        testLoc("B",xSize,ySize);
-        testLoc("1",xSize,ySize);
-        testLoc("pass",xSize,ySize);
-        testLoc("H9",xSize,ySize);
-        testLoc("I9",xSize,ySize);
-        testLoc("J9",xSize,ySize);
-        testLoc("J10",xSize,ySize);
-        testLoc("K8",xSize,ySize);
-        testLoc("k19",xSize,ySize);
-        testLoc("a22",xSize,ySize);
-        testLoc("y1",xSize,ySize);
-        testLoc("z1",xSize,ySize);
-        testLoc("aa1",xSize,ySize);
-        testLoc("AA26",xSize,ySize);
-        testLoc("AZ26",xSize,ySize);
-        testLoc("BC50",xSize,ySize);
+        testLoc("A1",xSize,ySize,false);
+        testLoc("A0",xSize,ySize,false);
+        testLoc("B2",xSize,ySize,false);
+        testLoc("b2",xSize,ySize,false);
+        testLoc("A",xSize,ySize,false);
+        testLoc("B",xSize,ySize,false);
+        testLoc("1",xSize,ySize,false);
+        testLoc("pass",xSize,ySize,false);
+        testLoc("ground",xSize,ySize,true);
+        testLoc("H9",xSize,ySize,false);
+        testLoc("I9",xSize,ySize,false);
+        testLoc("J9",xSize,ySize,false);
+        testLoc("J10",xSize,ySize,false);
+        testLoc("K8",xSize,ySize,false);
+        testLoc("k19",xSize,ySize,false);
+        testLoc("a22",xSize,ySize,false);
+        testLoc("y1",xSize,ySize,false);
+        testLoc("z1",xSize,ySize,false);
+        testLoc("aa1",xSize,ySize,false);
+        testLoc("AA26",xSize,ySize,false);
+        testLoc("AZ26",xSize,ySize,false);
+        testLoc("BC50",xSize,ySize,false);
       }
     }
 
@@ -69,6 +70,7 @@ Could not parse board location: A
 Could not parse board location: B
 Could not parse board location: 1
 pass pass x 0 y -1
+ground ground x 0 y -1
 H9 H9 x 7 y 0
 Could not parse board location: I9
 J9 J9 x 8 y 0
@@ -92,6 +94,7 @@ Could not parse board location: A
 Could not parse board location: B
 Could not parse board location: 1
 pass pass x 0 y -1
+ground ground x 0 y -1
 H9 H9 x 7 y 10
 Could not parse board location: I9
 J9 J9 x 8 y 10
@@ -115,6 +118,7 @@ Could not parse board location: A
 Could not parse board location: B
 Could not parse board location: 1
 pass pass x 0 y -1
+ground ground x 0 y -1
 H9 H9 x 7 y 0
 Could not parse board location: I9
 J9 J9 x 8 y 0
@@ -138,6 +142,7 @@ Could not parse board location: A
 Could not parse board location: B
 Could not parse board location: 1
 pass pass x 0 y -1
+ground ground x 0 y -1
 H9 H9 x 7 y 10
 Could not parse board location: I9
 J9 J9 x 8 y 10
@@ -161,6 +166,7 @@ Could not parse board location: A
 Could not parse board location: B
 Could not parse board location: 1
 pass pass x 0 y -1
+ground ground x 0 y -1
 H9 H9 x 7 y 17
 Could not parse board location: I9
 J9 J9 x 8 y 17
@@ -184,6 +190,7 @@ Could not parse board location: A
 Could not parse board location: B
 Could not parse board location: 1
 pass pass x 0 y -1
+ground ground x 0 y -1
 H9 H9 x 7 y 10
 Could not parse board location: I9
 J9 J9 x 8 y 10
@@ -207,6 +214,7 @@ Could not parse board location: A
 Could not parse board location: B
 Could not parse board location: 1
 pass pass x 0 y -1
+ground ground x 0 y -1
 H9 H9 x 7 y 17
 Could not parse board location: I9
 J9 J9 x 8 y 17
@@ -230,6 +238,7 @@ Could not parse board location: A
 Could not parse board location: B
 Could not parse board location: 1
 pass pass x 0 y -1
+ground ground x 0 y -1
 H9 H9 x 7 y 61
 Could not parse board location: I9
 J9 J9 x 8 y 61
@@ -253,6 +262,7 @@ Could not parse board location: A
 Could not parse board location: B
 Could not parse board location: 1
 pass pass x 0 y -1
+ground ground x 0 y -1
 H9 H9 x 7 y 17
 Could not parse board location: I9
 J9 J9 x 8 y 17
@@ -276,6 +286,7 @@ Could not parse board location: A
 Could not parse board location: B
 Could not parse board location: 1
 pass pass x 0 y -1
+ground ground x 0 y -1
 H9 H9 x 7 y 61
 Could not parse board location: I9
 J9 J9 x 8 y 61
@@ -1917,7 +1928,7 @@ void Tests::runBoardUndoTest() {
         //Maximum range of board location values when 19x19:
         int numLocs = (19+1)*(19+2)+1;
         loc = (Loc)rand.nextUInt(numLocs);
-        if(boards[n].isLegal(loc,pla,multiStoneSuicideLegal))
+        if(boards[n].isLegal(loc, pla, multiStoneSuicideLegal, false))
           break;
       }
 
@@ -2138,7 +2149,7 @@ void Tests::runBoardStressTest() {
       bool isLegal[numBoards];
       bool suc[numBoards];
       for(int i = 0; i<numBoards; i++) {
-        isLegal[i] = boards[i].isLegal(locs[i],pla,multiStoneSuicideLegal[i]);
+        isLegal[i] = boards[i].isLegal(locs[i], pla, multiStoneSuicideLegal[i], false);
         testAssert(boardsSeemEqual(copies[i],boards[i]));
         suc[i] = boards[i].playMove(locs[i],pla,multiStoneSuicideLegal[i]);
       }
@@ -2174,7 +2185,7 @@ void Tests::runBoardStressTest() {
           }
           else if(copy.isSuicide(loc,pla)) {
             testAssert(board.colors[loc] == C_EMPTY);
-            testAssert(board.isLegal(loc,pla,multiStoneSuicideLegal[i]));
+            testAssert(board.isLegal(loc, pla, multiStoneSuicideLegal[i], false));
             testAssert(multiStoneSuicideLegal[i]);
             testAssert(!copy.wouldBeCapture(loc,pla));
             suicideCount++;
@@ -2272,7 +2283,7 @@ Caps 4420 4335
       for(int i = 0; i<numMoves1; i++) {
         Loc loc = Location::getLoc(rand.nextUInt(board1.x_size),rand.nextUInt(board1.y_size),board1.x_size);
         Player pla = rand.nextBool(0.5) ? P_BLACK : P_WHITE;
-        if(board1.isLegal(loc,pla,true)) {
+        if(board1.isLegal(loc, pla, true, false)) {
           bool suc4 = board4.setStoneFailIfNoLibs(loc,pla);
           testAssert(suc4 == !(board1.wouldBeCapture(loc,pla) || board1.isSuicide(loc,pla)));
           if(!suc4) {
@@ -2350,7 +2361,7 @@ Caps 4420 4335
       for(int i = 0; i<1000; i++) {
         Loc loc = Location::getLoc(rand.nextUInt(board.x_size),rand.nextUInt(board.y_size),board.x_size);
         Player pla = rand.nextBool(0.5) ? P_BLACK : P_WHITE;
-        if(board.isLegal(loc,pla,true)) {
+        if(board.isLegal(loc, pla, true, false)) {
           placements.push_back(Move(loc,pla));
           bool anyCaps = board.wouldBeCapture(loc,pla) || board.isSuicide(loc,pla);
           board.playMoveAssumeLegal(loc,pla);

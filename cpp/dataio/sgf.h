@@ -39,7 +39,7 @@ struct SgfNode {
   void accumMoves(std::vector<Move>& moves, int xSize, int ySize) const;
 
   Color getPLSpecifiedColor() const;
-  Rules getRulesFromRUTagOrFail() const;
+  Rules getRulesFromRUTagOrFail(bool isDots) const;
   Player getSgfWinner() const;
   float getKomiOrFail() const;
   float getKomiOrDefault(float defaultKomi) const;
@@ -69,6 +69,7 @@ struct Sgf {
 
   static std::vector<std::unique_ptr<Sgf>> loadSgfOrSgfsLogAndIgnoreErrors(const std::string& file, Logger& logger);
 
+  bool isDotsGame() const;
   XYSize getXYSize() const;
   float getKomiOrFail() const;
   float getKomiOrDefault(float defaultKomi) const;
@@ -216,6 +217,7 @@ struct Sgf {
 
 struct CompactSgf {
   std::string fileName;
+  bool isDots;
   SgfNode rootNode;
   std::vector<Move> placements;
   std::vector<Move> moves;

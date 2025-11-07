@@ -23,6 +23,15 @@ struct LocalPatternHasher {
   //Returns the hash that would occur if symmetry were applied to both board and loc.
   //So basically, the only thing that changes is the zobrist indexing.
   Hash128 getHashWithSym(const Board& board, Loc loc, Player pla, int symmetry, bool flipColors) const;
+
+private:
+  void updateHash(
+   Hash128& hash,
+   const Board& board,
+   const std::vector<signed char>& bases,
+   Loc loc,
+   int patternXY,
+   bool flipColors) const;
 };
 
 #endif //SEARCH_LOCALPATTERN_H

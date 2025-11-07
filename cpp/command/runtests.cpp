@@ -30,6 +30,17 @@ int MainCmds::runtests(const vector<string>& args) {
   Board::initHash();
   ScoreValue::initTables();
 
+  Tests::runDotsFieldTests();
+  Tests::runDotsGroundingTests();
+  Tests::runDotsPosHashTests();
+  Tests::runDotsStartPosTests();
+
+  Tests::runDotsStressTests();
+
+  Tests::runDotsSymmetryTests();
+  Tests::runDotsTerritoryTests();
+  Tests::runDotsCapturingTests();
+
   BSearch::runTests();
   Rand::runTests();
   DateTime::runTests();

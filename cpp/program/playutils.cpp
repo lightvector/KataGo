@@ -311,7 +311,7 @@ void PlayUtils::placeFixedHandicap(Board& board, int n) {
   if(n > 9)
     throw StringError("Fixed handicap > 9 is not allowed");
 
-  board = Board(xSize,ySize);
+  board = Board(xSize,ySize,board.rules);
 
   int xCoords[3]; //Corner, corner, side
   int yCoords[3]; //Corner, corner, side
@@ -948,8 +948,8 @@ PlayUtils::BenchmarkResults PlayUtils::benchmarkSearchOnPositionsAndPrint(
   Rand seedRand;
   Search* bot = new Search(params,nnEval,nnEval->getLogger(),Global::uint64ToString(seedRand.nextUInt64()));
 
-  //Ignore the SGF rules, except for komi. Just use Tromp-taylor.
-  Rules initialRules = Rules::getTrompTaylorish();
+  //Ignore the SGF rules, except for Dots and komi. Just use Tromp-taylor in case of Go.
+  Rules initialRules = Rules::getDefaultOrTrompTaylorish(sgf.isDots);
   //Take the komi from the sgf, otherwise ignore the rules in the sgf
   initialRules.komi = sgf.getRulesOrFailAllowUnspecified(initialRules).komi;
 

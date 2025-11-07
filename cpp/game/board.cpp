@@ -8,8 +8,8 @@
 
 #include <algorithm>
 #include <cassert>
-#include <cstring>
-#include <iostream>
+#include <iomanip>
+#include <sstream>
 #include <vector>
 
 #include "../core/rand.h"
@@ -45,16 +45,27 @@ int Location::getY(Loc loc, int x_size)
 {
   return (loc / (x_size+1)) - 1;
 }
-void Location::getAdjacentOffsets(short adj_offsets[8], int x_size)
-{
-  adj_offsets[0] = -(x_size+1);
-  adj_offsets[1] = -1;
-  adj_offsets[2] = 1;
-  adj_offsets[3] = (x_size+1);
-  adj_offsets[4] = -(x_size+1)-1;
-  adj_offsets[5] = -(x_size+1)+1;
-  adj_offsets[6] = (x_size+1)-1;
-  adj_offsets[7] = (x_size+1)+1;
+void Location::getAdjacentOffsets(short adj_offsets[8], int x_size, bool isDots) {
+  int stride = x_size + 1;
+  if (isDots) {
+    adj_offsets[LEFT_TOP_INDEX] = -stride - 1;
+    adj_offsets[TOP_INDEX] = -stride;
+    adj_offsets[RIGHT_TOP_INDEX] = -stride + 1;
+    adj_offsets[RIGHT_INDEX] = +1;
+    adj_offsets[RIGHT_BOTTOM_INDEX] = +stride + 1;
+    adj_offsets[BOTTOM_INDEX] = +stride;
+    adj_offsets[LEFT_BOTTOM_INDEX] = +stride - 1;
+    adj_offsets[LEFT_INDEX] = -1;
+  } else {
+    adj_offsets[0] = -stride;
+    adj_offsets[1] = -1;
+    adj_offsets[2] = 1;
+    adj_offsets[3] = stride;
+    adj_offsets[4] = -stride-1;
+    adj_offsets[5] = -stride+1;
+    adj_offsets[6] = stride-1;
+    adj_offsets[7] = stride+1;
+  }
 }
 
 bool Location::isAdjacent(Loc loc0, Loc loc1, int x_size)
@@ -90,46 +101,61 @@ bool Location::isNearCentral(Loc loc, int x_size, int y_size) {
   return x >= (x_size-1)/2-1 && x <= x_size/2+1 && y >= (y_size-1)/2-1 && y <= y_size/2+1;
 }
 
-
-#define FOREACHADJ(BLOCK) {int ADJOFFSET = -(x_size+1); {BLOCK}; ADJOFFSET = -1; {BLOCK}; ADJOFFSET = 1; {BLOCK}; ADJOFFSET = x_size+1; {BLOCK}};
 #define ADJ0 (-(x_size+1))
 #define ADJ1 (-1)
 #define ADJ2 (1)
 #define ADJ3 (x_size+1)
 
-//CONSTRUCTORS AND INITIALIZATION----------------------------------------------------------
+// CONSTRUCTORS AND INITIALIZATION----------------------------------------------------------
+
+Board::Base::Base(Player newPla,
+  const std::vector<Loc>& rollbackLocations,
+  const std::vector<State>& rollbackStates,
+  bool isReal
+) {
+  pla = newPla;
+  rollback_locations = rollbackLocations;
+  rollback_states = rollbackStates;
+  is_real = isReal;
+}
 
 Board::Board()
 {
-  init(DEFAULT_LEN,DEFAULT_LEN);
+  init(DEFAULT_LEN, DEFAULT_LEN, Rules());
 }
 
 Board::Board(int x, int y)
 {
-  init(x,y);
+  init(x, y, Rules());
 }
 
+Board::Board(int x, int y, const Rules& rules) {
+  init(x, y, rules);
+}
 
-Board::Board(const Board& other)
-{
+Board::Board(const Board& other) {
   x_size = other.x_size;
   y_size = other.y_size;
+  rules = other.rules;
 
   memcpy(colors, other.colors, sizeof(Color)*MAX_ARR_SIZE);
-  memcpy(chain_data, other.chain_data, sizeof(ChainData)*MAX_ARR_SIZE);
-  memcpy(chain_head, other.chain_head, sizeof(Loc)*MAX_ARR_SIZE);
-  memcpy(next_in_chain, other.next_in_chain, sizeof(Loc)*MAX_ARR_SIZE);
-
   ko_loc = other.ko_loc;
+
+  if (!other.rules.isDots) {
+    chain_data = other.chain_data;
+    chain_head = other.chain_head;
+    next_in_chain = other.next_in_chain;
+  }
+
   // empty_list = other.empty_list;
   pos_hash = other.pos_hash;
   numBlackCaptures = other.numBlackCaptures;
   numWhiteCaptures = other.numWhiteCaptures;
-
+  numLegalMoves = other.numLegalMoves;
   memcpy(adj_offsets, other.adj_offsets, sizeof(short)*8);
 }
 
-void Board::init(int xS, int yS)
+void Board::init(const int xS, const int yS, const Rules& initRules)
 {
   assert(IS_ZOBRIST_INITALIZED);
   if(xS < 0 || yS < 0 || xS > MAX_LEN || yS > MAX_LEN)
@@ -137,6 +163,7 @@ void Board::init(int xS, int yS)
 
   x_size = xS;
   y_size = yS;
+  rules = initRules;
 
   for(int i = 0; i < MAX_ARR_SIZE; i++)
     colors[i] = C_WALL;
@@ -155,8 +182,20 @@ void Board::init(int xS, int yS)
   pos_hash = ZOBRIST_SIZE_X_HASH[x_size] ^ ZOBRIST_SIZE_Y_HASH[y_size];
   numBlackCaptures = 0;
   numWhiteCaptures = 0;
+  numLegalMoves = xS * yS;
 
-  Location::getAdjacentOffsets(adj_offsets,x_size);
+  if (!rules.isDots) {
+    chain_data.resize(MAX_ARR_SIZE);
+    chain_head.resize(MAX_ARR_SIZE);
+    next_in_chain.resize(MAX_ARR_SIZE);
+  }
+
+  Location::getAdjacentOffsets(adj_offsets, x_size, isDots());
+
+  const vector<Move> placement = Rules::generateStartPos(rules.startPos, x_size, y_size);
+  for (const Move& move : placement) {
+    playMoveAssumeLegal(move.loc, move.pla);
+  }
 }
 
 void Board::initHash()
@@ -237,10 +276,13 @@ Hash128 Board::getSitHashWithSimpleKo(Player pla) const {
 void Board::clearSimpleKoLoc() {
   ko_loc = NULL_LOC;
 }
-void Board::setSimpleKoLoc(Loc loc) {
+void Board::setSimpleKoLoc(const Loc loc) {
   ko_loc = loc;
 }
 
+Color Board::getColor(const Loc loc) const {
+  return static_cast<Color>(colors[loc] & ACTIVE_MASK);
+}
 
 double Board::sqrtBoardArea() const {
     if (x_size == y_size) {
@@ -269,6 +311,10 @@ bool Board::isSuicide(Loc loc, Player pla) const
   if(loc == PASS_LOC)
     return false;
 
+  if (rules.isDots) {
+    return isSuicideDots(loc, pla);
+  }
+
   Player opp = getOpp(pla);
   FOREACHADJ(
     Loc adj = loc + ADJOFFSET;
@@ -293,6 +339,10 @@ bool Board::isSuicide(Loc loc, Player pla) const
 //Check if moving here is would be an illegal self-capture
 bool Board::isIllegalSuicide(Loc loc, Player pla, bool isMultiStoneSuicideLegal) const
 {
+  if (rules.isDots) {
+    return !isMultiStoneSuicideLegal && isSuicideDots(loc, pla);
+  }
+
   Player opp = getOpp(pla);
   FOREACHADJ(
     Loc adj = loc + ADJOFFSET;
@@ -317,6 +367,7 @@ bool Board::isIllegalSuicide(Loc loc, Player pla, bool isMultiStoneSuicideLegal)
 //Returns a fast lower bound on the number of liberties a new stone placed here would have
 void Board::getBoundNumLibertiesAfterPlay(Loc loc, Player pla, int& lowerBound, int& upperBound) const
 {
+  assert(!isDots());
   Player opp = getOpp(pla);
 
   int numImmediateLibs = 0; //empty spaces adjacent
@@ -354,6 +405,7 @@ void Board::getBoundNumLibertiesAfterPlay(Loc loc, Player pla, int& lowerBound, 
 //Returns the number of liberties a new stone placed here would have, or max if it would be >= max.
 int Board::getNumLibertiesAfterPlay(Loc loc, Player pla, int max) const
 {
+  assert(!isDots());
   Player opp = getOpp(pla);
 
   int numLibs = 0;
@@ -445,32 +497,19 @@ bool Board::isKoBanned(Loc loc) const
 }
 
 bool Board::isOnBoard(Loc loc) const {
-  return loc >= 0 && loc < MAX_ARR_SIZE && colors[loc] != C_WALL;
+  return loc >= 0 && loc < MAX_ARR_SIZE && getColor(loc) != C_WALL;
 }
 
 //Check if moving here is illegal.
-bool Board::isLegal(Loc loc, Player pla, bool isMultiStoneSuicideLegal) const
+bool Board::isLegal(Loc loc, Player pla, bool isMultiStoneSuicideLegal, const bool ignoreKo) const
 {
   if(pla != P_BLACK && pla != P_WHITE)
     return false;
   return loc == PASS_LOC || (
     loc >= 0 &&
     loc < MAX_ARR_SIZE &&
-    (colors[loc] == C_EMPTY) &&
-    !isKoBanned(loc) &&
-    !isIllegalSuicide(loc, pla, isMultiStoneSuicideLegal)
-  );
-}
-
-//Check if moving here is illegal, ignoring simple ko
-bool Board::isLegalIgnoringKo(Loc loc, Player pla, bool isMultiStoneSuicideLegal) const
-{
-  if(pla != P_BLACK && pla != P_WHITE)
-    return false;
-  return loc == PASS_LOC || (
-    loc >= 0 &&
-    loc < MAX_ARR_SIZE &&
-    (colors[loc] == C_EMPTY) &&
+    getColor(loc) == C_EMPTY &&
+    (rules.isDots || ignoreKo || !isKoBanned(loc)) &&
     !isIllegalSuicide(loc, pla, isMultiStoneSuicideLegal)
   );
 }
@@ -478,6 +517,8 @@ bool Board::isLegalIgnoringKo(Loc loc, Player pla, bool isMultiStoneSuicideLegal
 //Check if this location contains a simple eye for the specified player.
 bool Board::isSimpleEye(Loc loc, Player pla) const
 {
+  assert(!rules.isDots);
+
   if(colors[loc] != C_EMPTY)
     return false;
 
@@ -509,9 +550,14 @@ bool Board::isSimpleEye(Loc loc, Player pla) const
   return true;
 }
 
-bool Board::wouldBeCapture(Loc loc, Player pla) const {
-  if(colors[loc] != C_EMPTY)
+bool Board::wouldBeCapture(const Loc loc, const Player pla) const {
+  if(getColor(loc) != C_EMPTY)
     return false;
+
+  if (rules.isDots) {
+    return wouldBeCaptureDots(loc, pla);
+  }
+
   Player opp = getOpp(pla);
   FOREACHADJ(
     Loc adj = loc + ADJOFFSET;
@@ -525,8 +571,11 @@ bool Board::wouldBeCapture(Loc loc, Player pla) const {
   return false;
 }
 
-
 bool Board::wouldBeKoCapture(Loc loc, Player pla) const {
+  if (isDots()) {
+    return false; // Ko is not relevant for Dots
+  }
+
   if(colors[loc] != C_EMPTY)
     return false;
   //Check that surounding points are are all opponent owned and exactly one of them is capturable
@@ -581,16 +630,16 @@ Loc Board::getKoCaptureLoc(Loc loc, Player pla) const {
 bool Board::isAdjacentToPla(Loc loc, Player pla) const {
   FOREACHADJ(
     Loc adj = loc + ADJOFFSET;
-    if(colors[adj] == pla)
+    if(getColor(adj) == pla)
       return true;
   );
   return false;
 }
 
 bool Board::isAdjacentOrDiagonalToPla(Loc loc, Player pla) const {
-  for(int i = 0; i<8; i++) {
+  for(int i = 0; i < 8; i++) {
     Loc adj = loc + adj_offsets[i];
-    if(colors[adj] == pla)
+    if(getColor(adj) == pla)
       return true;
   }
   return false;
@@ -651,9 +700,11 @@ int Board::numStonesOnBoard() const {
   int num = 0;
   for(int y = 0; y < y_size; y++) {
     for(int x = 0; x < x_size; x++) {
-      Loc loc = Location::getLoc(x,y,x_size);
-      if(colors[loc] == C_BLACK || colors[loc] == C_WHITE)
+      const Loc loc = Location::getLoc(x,y,x_size);
+      if(const Color color = rules.isDots ? getPlacedDotColor(getState(loc)) : colors[loc];
+         color == C_BLACK || color == C_WHITE) {
         num += 1;
+      }
     }
   }
   return num;
@@ -663,9 +714,10 @@ int Board::numPlaStonesOnBoard(Player pla) const {
   int num = 0;
   for(int y = 0; y < y_size; y++) {
     for(int x = 0; x < x_size; x++) {
-      Loc loc = Location::getLoc(x,y,x_size);
-      if(colors[loc] == pla)
+      const Loc loc = Location::getLoc(x,y,x_size);
+      if(const Color color = rules.isDots ? getPlacedDotColor(getState(loc)) : colors[loc]; color == pla) {
         num += 1;
+      }
     }
   }
   return num;
@@ -697,15 +749,16 @@ bool Board::setStone(Loc loc, Color color)
 }
 
 bool Board::setStoneFailIfNoLibs(Loc loc, Color color) {
-  if(loc < 0 || loc >= MAX_ARR_SIZE || colors[loc] == C_WALL)
+  Color colorAtLoc = getColor(loc);
+  if(loc < 0 || loc >= MAX_ARR_SIZE || colorAtLoc == C_WALL)
     return false;
   if(color != C_BLACK && color != C_WHITE && color != C_EMPTY)
     return false;
 
   Loc oldKoLoc = ko_loc;
-  if(colors[loc] == color)
+  if(colorAtLoc == color)
   {}
-  else if(colors[loc] == C_EMPTY) {
+  else if(colorAtLoc == C_EMPTY) {
     if(isSuicide(loc,color) || wouldBeCapture(loc,color))
       return false;
     playMoveAssumeLegal(loc,color);
@@ -713,7 +766,7 @@ bool Board::setStoneFailIfNoLibs(Loc loc, Color color) {
   else if(color == C_EMPTY)
     removeSingleStone(loc);
   else {
-    assert(colors[loc] == getOpp(color));
+    assert(colorAtLoc == getOpp(color));
     removeSingleStone(loc);
     if(isSuicide(loc,color) || wouldBeCapture(loc,color)) {
       playMoveAssumeLegal(loc,getOpp(color));
@@ -753,7 +806,7 @@ bool Board::setStonesFailIfNoLibs(std::vector<Move> placements) {
 //Attempts to play the specified move. Returns true if successful, returns false if the move was illegal.
 bool Board::playMove(Loc loc, Player pla, bool isMultiStoneSuicideLegal)
 {
-  if(isLegal(loc,pla,isMultiStoneSuicideLegal))
+  if(isLegal(loc, pla, isMultiStoneSuicideLegal, false))
   {
     playMoveAssumeLegal(loc,pla);
     return true;
@@ -762,43 +815,50 @@ bool Board::playMove(Loc loc, Player pla, bool isMultiStoneSuicideLegal)
 }
 
 //Plays the specified move, assuming it is legal, and returns a MoveRecord for the move
-Board::MoveRecord Board::playMoveRecorded(Loc loc, Player pla)
-{
-  MoveRecord record;
-  record.loc = loc;
-  record.pla = pla;
-  record.ko_loc = ko_loc;
-  record.capDirs = 0;
+Board::MoveRecord Board::playMoveRecorded(const Loc loc, const Player pla) {
+  if (rules.isDots) {
+    return playMoveAssumeLegalDots(loc, pla);
+  }
+
+  uint8_t capDirs = 0;
 
   if(loc != PASS_LOC) {
     Player opp = getOpp(pla);
 
     { int adj = loc + ADJ0;
       if(colors[adj] == opp && getNumLiberties(adj) == 1)
-        record.capDirs |= (((uint8_t)1) << 0); }
+        capDirs |= (((uint8_t)1) << 0); }
     { int adj = loc + ADJ1;
       if(colors[adj] == opp && getNumLiberties(adj) == 1)
-        record.capDirs |= (((uint8_t)1) << 1); }
+        capDirs |= (((uint8_t)1) << 1); }
     { int adj = loc + ADJ2;
       if(colors[adj] == opp && getNumLiberties(adj) == 1)
-        record.capDirs |= (((uint8_t)1) << 2); }
+        capDirs |= (((uint8_t)1) << 2); }
     { int adj = loc + ADJ3;
       if(colors[adj] == opp && getNumLiberties(adj) == 1)
-        record.capDirs |= (((uint8_t)1) << 3); }
+        capDirs |= (((uint8_t)1) << 3); }
 
-    if(record.capDirs == 0 && isSuicide(loc,pla))
-      record.capDirs = 0x10;
+    if(capDirs == 0 && isSuicide(loc,pla))
+      capDirs = 0x10;
   }
 
+  const Loc rollback_ko_loc = ko_loc;
+
   playMoveAssumeLegal(loc, pla);
-  return record;
+
+  return MoveRecord(loc, pla, rollback_ko_loc, capDirs);
 }
 
 //Undo the move given by record. Moves MUST be undone in the order they were made.
 //Undos will NOT typically restore the precise representation in the board to the way it was. The heads of chains
 //might change, the order of the circular lists might change, etc.
-void Board::undo(Board::MoveRecord record)
+void Board::undo(MoveRecord& record)
 {
+  if (rules.isDots) {
+    undoDots(record);
+    return;
+  }
+
   ko_loc = record.ko_loc;
 
   Loc loc = record.loc;
@@ -998,8 +1058,12 @@ Hash128 Board::getPosHashAfterMove(Loc loc, Player pla) const {
 }
 
 //Plays the specified move, assuming it is legal.
-void Board::playMoveAssumeLegal(Loc loc, Player pla)
-{
+void Board::playMoveAssumeLegal(Loc loc, Player pla) {
+  if (rules.isDots) {
+    playMoveAssumeLegalDots(loc, pla);
+    return;
+  }
+
   //Pass?
   if(loc == PASS_LOC)
   {
@@ -1218,6 +1282,9 @@ int Board::removeChain(Loc loc)
 //Remove a single stone, even a stone part of a larger group.
 void Board::removeSingleStone(Loc loc)
 {
+  if (isDots()) {
+    assert(false && "Not yet implemented for Dots game");
+  }
   Player pla = colors[loc];
 
   //Save the entire chain's stone locations
@@ -1432,7 +1499,7 @@ int Location::euclideanDistanceSquared(Loc loc0, Loc loc1, int x_size) {
   return dx*dx + dy*dy;
 }
 
-//TACTICAL STUFF--------------------------------------------------------------------
+// TACTICAL STUFF--------------------------------------------------------------------
 
 //Helper, find liberties of group at loc. Fills in buf, returns the number of liberties.
 //bufStart is where to start checking to avoid duplicates. bufIdx is where to start actually writing.
@@ -1529,6 +1596,10 @@ bool Board::hasLibertyGainingCaptures(Loc loc) const {
 }
 
 bool Board::searchIsLadderCapturedAttackerFirst2Libs(Loc loc, vector<Loc>& buf, vector<Loc>& workingMoves) {
+  if (isDots()) {
+    assert(false && "Not yet implemented for Dots game");
+  }
+
   if(loc < 0 || loc >= MAX_ARR_SIZE)
     return false;
   if(colors[loc] != C_BLACK && colors[loc] != C_WHITE)
@@ -1553,12 +1624,12 @@ bool Board::searchIsLadderCapturedAttackerFirst2Libs(Loc loc, vector<Loc>& buf, 
   //Attacker: A suicide move cannot reduce the defender's liberties
   //Defender: A suicide move cannot gain liberties
   bool isMultiStoneSuicideLegal = false;
-  if(isLegal(move0,opp,isMultiStoneSuicideLegal)) {
+  if(isLegal(move0, opp, isMultiStoneSuicideLegal, false)) {
     MoveRecord record = playMoveRecorded(move0,opp);
     move0Works = searchIsLadderCaptured(loc,true,buf);
     undo(record);
   }
-  if(isLegal(move1,opp,isMultiStoneSuicideLegal)) {
+  if(isLegal(move1, opp, isMultiStoneSuicideLegal, false)) {
     MoveRecord record = playMoveRecorded(move1,opp);
     move1Works = searchIsLadderCaptured(loc,true,buf);
     undo(record);
@@ -1576,6 +1647,10 @@ bool Board::searchIsLadderCapturedAttackerFirst2Libs(Loc loc, vector<Loc>& buf, 
 }
 
 bool Board::searchIsLadderCaptured(Loc loc, bool defenderFirst, vector<Loc>& buf) {
+  if (isDots()) {
+    assert(false && "Not yet implemented for Dots game");
+  }
+
   if(loc < 0 || loc >= MAX_ARR_SIZE)
     return false;
   if(colors[loc] != C_BLACK && colors[loc] != C_WHITE)
@@ -1780,7 +1855,7 @@ bool Board::searchIsLadderCaptured(Loc loc, bool defenderFirst, vector<Loc>& buf
     //Illegal move - treat it the same as a failed move, but don't return up a level so that we
     //loop again and just try the next move.
     bool isMultiStoneSuicideLegal = false;
-    if(!isLegal(move,p,isMultiStoneSuicideLegal)) {
+    if(!isLegal(move, p, isMultiStoneSuicideLegal, false)) {
       returnValue = isDefender;
       returnedFromDeeper = false;
       // if(print) cout << "illegal " << endl;
@@ -1807,6 +1882,11 @@ void Board::calculateArea(
   bool unsafeBigTerritories,
   bool isMultiStoneSuicideLegal
 ) const {
+  if (rules.isDots) {
+    calculateGroundingWhiteScore(result);
+    return;
+  }
+
   std::fill(result,result+MAX_ARR_SIZE,C_EMPTY);
   calculateAreaForPla(P_BLACK,safeBigTerritories,unsafeBigTerritories,isMultiStoneSuicideLegal,result);
   calculateAreaForPla(P_WHITE,safeBigTerritories,unsafeBigTerritories,isMultiStoneSuicideLegal,result);
@@ -1830,6 +1910,8 @@ void Board::calculateIndependentLifeArea(
   bool keepStones,
   bool isMultiStoneSuicideLegal
 ) const {
+  assert(!isDots());
+
   //First, just compute basic area.
   Color basicArea[MAX_ARR_SIZE];
   std::fill(result,result+MAX_ARR_SIZE,C_EMPTY);
@@ -1886,6 +1968,7 @@ void Board::calculateAreaForPla(
   bool isMultiStoneSuicideLegal,
   Color* result
 ) const {
+  assert(!isDots());
   Color opp = getOpp(pla);
 
   //https://senseis.xmp.net/?BensonsAlgorithm
@@ -2319,23 +2402,26 @@ void Board::checkConsistency() const {
   Hash128 tmp_pos_hash = ZOBRIST_SIZE_X_HASH[x_size] ^ ZOBRIST_SIZE_Y_HASH[y_size];
   int emptyCount = 0;
   for(Loc loc = 0; loc < MAX_ARR_SIZE; loc++) {
+    const Color color = getColor(loc);
     int x = Location::getX(loc,x_size);
     int y = Location::getY(loc,x_size);
     if(x < 0 || x >= x_size || y < 0 || y >= y_size) {
-      if(colors[loc] != C_WALL)
+      if(color != C_WALL)
         throw StringError(errLabel + "Non-WALL value outside of board legal area");
     }
     else {
-      if(colors[loc] == C_BLACK || colors[loc] == C_WHITE) {
-        if(!chainLocChecked[loc])
-          checkChainConsistency(loc);
-        // if(empty_list.contains(loc))
-        //   throw StringError(errLabel + "Empty list contains filled location");
+      if(color == C_BLACK || color == C_WHITE) {
+        if (!rules.isDots) {
+          if(!chainLocChecked[loc])
+            checkChainConsistency(loc);
+          // if(empty_list.contains(loc))
+          //   throw StringError(errLabel + "Empty list contains filled location");
+        }
 
-        tmp_pos_hash ^= ZOBRIST_BOARD_HASH[loc][colors[loc]];
+        tmp_pos_hash ^= ZOBRIST_BOARD_HASH[loc][color];
         tmp_pos_hash ^= ZOBRIST_BOARD_HASH[loc][C_EMPTY];
       }
-      else if(colors[loc] == C_EMPTY) {
+      else if(color== C_EMPTY) {
         // if(!empty_list.contains(loc))
         //   throw StringError(errLabel + "Empty list doesn't contain empty location");
         emptyCount += 1;
@@ -2360,23 +2446,29 @@ void Board::checkConsistency() const {
   //     throw StringError(errLabel + "Empty list index for loc in index i is not i");
   // }
 
-  if(ko_loc != NULL_LOC) {
-    int x = Location::getX(ko_loc,x_size);
-    int y = Location::getY(ko_loc,x_size);
-    if(x < 0 || x >= x_size || y < 0 || y >= y_size)
-      throw StringError(errLabel + "Invalid simple ko loc");
-    if(getNumImmediateLiberties(ko_loc) != 0)
-      throw StringError(errLabel + "Simple ko loc has immediate liberties");
+  if (!rules.isDots) {
+    if(ko_loc != NULL_LOC) {
+      int x = Location::getX(ko_loc,x_size);
+      int y = Location::getY(ko_loc,x_size);
+      if(x < 0 || x >= x_size || y < 0 || y >= y_size)
+        throw StringError(errLabel + "Invalid simple ko loc");
+      if(getNumImmediateLiberties(ko_loc) != 0)
+        throw StringError(errLabel + "Simple ko loc has immediate liberties");
+    }
   }
 
   short tmpAdjOffsets[8];
-  Location::getAdjacentOffsets(tmpAdjOffsets,x_size);
-  for(int i = 0; i<8; i++)
+  Location::getAdjacentOffsets(tmpAdjOffsets, x_size, isDots());
+  for(int i = 0; i < 8; i++)
     if(tmpAdjOffsets[i] != adj_offsets[i])
       throw StringError(errLabel + "Corrupted adj_offsets array");
 }
 
 bool Board::isEqualForTesting(const Board& other, bool checkNumCaptures, bool checkSimpleKo) const {
+  return isEqualForTesting(other, checkNumCaptures, checkSimpleKo, true);
+}
+
+bool Board::isEqualForTesting(const Board& other, bool checkNumCaptures, bool checkSimpleKo, bool checkRules) const {
   checkConsistency();
   other.checkConsistency();
   if(x_size != other.x_size)
@@ -2394,6 +2486,12 @@ bool Board::isEqualForTesting(const Board& other, bool checkNumCaptures, bool ch
   for(int i = 0; i<MAX_ARR_SIZE; i++) {
     if(colors[i] != other.colors[i])
       return false;
+  }
+  if (numLegalMoves != other.numLegalMoves) {
+    return false;
+  }
+  if (checkRules && rules != other.rules) {
+    return false;
   }
   //We don't require that the chain linked lists are in the same order.
   //Consistency check ensures that all the linked lists are consistent with colors array, which we checked.
@@ -2455,10 +2553,10 @@ Player PlayerIO::parsePlayer(const string& s) {
   return pla;
 }
 
-string Location::toStringMach(Loc loc, int x_size)
+string Location::toStringMach(Loc loc, int x_size, bool isDots)
 {
   if(loc == Board::PASS_LOC)
-    return string("pass");
+    return isDots ? "ground" : "pass";
   if(loc == Board::NULL_LOC)
     return string("null");
   char buf[128];
@@ -2466,19 +2564,19 @@ string Location::toStringMach(Loc loc, int x_size)
   return string(buf);
 }
 
-string Location::toString(Loc loc, int x_size, int y_size)
+string Location::toString(Loc loc, int x_size, int y_size, bool isDots)
 {
   if(x_size > 25*25)
-    return toStringMach(loc,x_size);
+    return toStringMach(loc, x_size, isDots);
   if(loc == Board::PASS_LOC)
-    return string("pass");
+    return isDots ? "ground" : "pass";
   if(loc == Board::NULL_LOC)
     return string("null");
   const char* xChar = "ABCDEFGHJKLMNOPQRSTUVWXYZ";
   int x = getX(loc,x_size);
   int y = getY(loc,x_size);
   if(x >= x_size || x < 0 || y < 0 || y >= y_size)
-    return toStringMach(loc,x_size);
+    return toStringMach(loc, x_size, isDots);
 
   char buf[128];
   if(x <= 24)
@@ -2489,11 +2587,11 @@ string Location::toString(Loc loc, int x_size, int y_size)
 }
 
 string Location::toString(Loc loc, const Board& b) {
-  return toString(loc,b.x_size,b.y_size);
+  return toString(loc, b.x_size, b.y_size, b.rules.isDots);
 }
 
 string Location::toStringMach(Loc loc, const Board& b) {
-  return toStringMach(loc,b.x_size);
+  return toStringMach(loc, b.x_size, b.isDots());
 }
 
 static bool tryParseLetterCoordinate(char c, int& x) {
@@ -2514,7 +2612,8 @@ bool Location::tryOfString(const string& str, int x_size, int y_size, Loc& resul
   string s = Global::trim(str);
   if(s.length() < 2)
     return false;
-  if(Global::isEqualCaseInsensitive(s,string("pass")) || Global::isEqualCaseInsensitive(s,string("pss"))) {
+  if(Global::isEqualCaseInsensitive(s,string("pass")) || Global::isEqualCaseInsensitive(s,string("pss")) ||
+    Global::isEqualCaseInsensitive(s,string("ground"))) {
     result = Board::PASS_LOC;
     return true;
   }
@@ -2618,17 +2717,24 @@ void Board::printBoard(ostream& out, const Board& board, Loc markLoc, const vect
   if(hist != NULL)
     out << "MoveNum: " << hist->size() << " ";
   out << "HASH: " << board.pos_hash << "\n";
-  bool showCoords = board.x_size <= 50 && board.y_size <= 50;
+  bool showCoords = board.isDots() || (board.x_size <= 50 && board.y_size <= 50);
   if(showCoords) {
-    const char* xChar = "ABCDEFGHJKLMNOPQRSTUVWXYZ";
-    out << "  ";
-    for(int x = 0; x < board.x_size; x++) {
-      if(x <= 24) {
-        out << " ";
-        out << xChar[x];
+    if (board.isDots()) {
+      out << "   ";
+      for(int x = 0; x < board.x_size; x++) {
+        out << std::left << std::setw(2) << (x + 1) << ' ';
       }
-      else {
-        out << "A" << xChar[x-25];
+    } else {
+      auto xChar = "ABCDEFGHJKLMNOPQRSTUVWXYZ";
+      out << "  ";
+      for(int x = 0; x < board.x_size; x++) {
+        if(x <= 24) {
+          out << " ";
+          out << xChar[x];
+        }
+        else {
+          out << "A" << xChar[x-25];
+        }
       }
     }
     out << "\n";
@@ -2637,15 +2743,14 @@ void Board::printBoard(ostream& out, const Board& board, Loc markLoc, const vect
   for(int y = 0; y < board.y_size; y++)
   {
     if(showCoords) {
-      char buf[16];
-      sprintf(buf,"%2d",board.y_size-y);
-      out << buf << ' ';
+      out << std::right << std::setw(2) << board.y_size-y << ' ';
     }
     for(int x = 0; x < board.x_size; x++)
     {
-      Loc loc = Location::getLoc(x,y,board.x_size);
-      char s = PlayerIO::colorToChar(board.colors[loc]);
-      if(board.colors[loc] == C_EMPTY && markLoc == loc)
+      Loc loc = Location::getLoc(x, y , board.x_size);
+      const Color color = board.getColor(loc); // TODO: probably it makes sense to implement debug printing for Dots game
+      char s = PlayerIO::colorToChar(color);
+      if(color == C_EMPTY && markLoc == loc)
         out << '@';
       else
         out << s;
@@ -2662,7 +2767,11 @@ void Board::printBoard(ostream& out, const Board& board, Loc markLoc, const vect
         }
       }
 
-      if(x < board.x_size-1 && !histMarked)
+      if (!histMarked && board.isDots()) {
+        out << ' ';
+      }
+
+      if(x < board.x_size-1 && (!histMarked || board.isDots()))
         out << ' ';
     }
     out << "\n";
@@ -2681,7 +2790,7 @@ string Board::toStringSimple(const Board& board, char lineDelimiter) {
   for(int y = 0; y < board.y_size; y++) {
     for(int x = 0; x < board.x_size; x++) {
       Loc loc = Location::getLoc(x,y,board.x_size);
-      s += PlayerIO::colorToChar(board.colors[loc]);
+      s += PlayerIO::colorToChar(board.getColor(loc));
     }
     s += lineDelimiter;
   }
@@ -2689,11 +2798,19 @@ string Board::toStringSimple(const Board& board, char lineDelimiter) {
 }
 
 Board Board::parseBoard(int xSize, int ySize, const string& s) {
-  return parseBoard(xSize,ySize,s,'\n');
+  return parseBoard(xSize, ySize, s, '\n', Rules());
 }
 
-Board Board::parseBoard(int xSize, int ySize, const string& s, char lineDelimiter) {
-  Board board(xSize,ySize);
+Board Board::parseBoard(int xSize, int ySize, const std::string& s, char lineDelimiter) {
+  return parseBoard(xSize, ySize, s, lineDelimiter, Rules());
+}
+
+Board Board::parseBoard(int xSize, int ySize, const std::string& s, const Rules& rules) {
+  return parseBoard(xSize, ySize, s, '\n', rules);
+}
+
+Board Board::parseBoard(int xSize, int ySize, const string& s, char lineDelimiter, const Rules& rules) {
+  Board board(xSize,ySize,rules);
   vector<string> lines = Global::split(Global::trim(s),lineDelimiter);
 
   //Throw away coordinate labels line if it exists
@@ -2742,22 +2859,34 @@ Board Board::parseBoard(int xSize, int ySize, const string& s, char lineDelimite
   return board;
 }
 
+std::string Board::toString() const {
+  std::ostringstream oss;
+  printBoard(oss, *this, NULL_LOC, nullptr);
+  return oss.str();
+}
+
 nlohmann::json Board::toJson(const Board& board) {
   nlohmann::json data;
+  if (board.rules.isDots) {
+    data[DOTS_KEY] = true;
+  }
   data["xSize"] = board.x_size;
   data["ySize"] = board.y_size;
-  data["stones"] = Board::toStringSimple(board,'|');
-  data["koLoc"] = Location::toString(board.ko_loc,board);
+  data["stones"] = toStringSimple(board,'|');
+  if (!board.isDots()) {
+    data["koLoc"] = Location::toString(board.ko_loc,board);
+  }
   data["numBlackCaptures"] = board.numBlackCaptures;
   data["numWhiteCaptures"] = board.numWhiteCaptures;
   return data;
 }
 
 Board Board::ofJson(const nlohmann::json& data) {
+  bool dots = data.value(DOTS_KEY, false);
   int xSize = data["xSize"].get<int>();
   int ySize = data["ySize"].get<int>();
-  Board board = Board::parseBoard(xSize,ySize,data["stones"].get<string>(),'|');
-  board.setSimpleKoLoc(Location::ofStringAllowNull(data["koLoc"].get<string>(),board));
+  Board board = parseBoard(xSize, ySize, data["stones"].get<string>(), '|', Rules(dots));
+  board.setSimpleKoLoc(Location::ofStringAllowNull(data.value("koLoc", "null"),board));
   board.numBlackCaptures = data["numBlackCaptures"].get<int>();
   board.numWhiteCaptures = data["numWhiteCaptures"].get<int>();
   return board;
@@ -2808,6 +2937,10 @@ bool Board::simpleRepetitionBoundGt(Loc loc, int bound) const {
   if(loc == NULL_LOC || loc == PASS_LOC)
     return false;
 
+  if (rules.isDots) {
+    return false; // TODO: implement for Dots?
+  }
+
   int count = 0;
 
   if(colors[loc] != C_EMPTY) {
@@ -2839,4 +2972,15 @@ bool Board::simpleRepetitionBoundGt(Loc loc, int bound) const {
   }
 
   return false;
+}
+
+Board::MoveRecord::MoveRecord(const Loc initLoc, const Player initPla, const Loc init_ko_loc, const uint8_t initCapDirs) {
+  loc = initLoc;
+  pla = initPla;
+  ko_loc = init_ko_loc;
+  capDirs = initCapDirs;
+
+  previousState = C_EMPTY;
+  bases = {};
+  emptyBaseInvalidateLocations = {};
 }

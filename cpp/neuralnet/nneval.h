@@ -100,7 +100,8 @@ class NNEvaluator {
     const std::vector<int>& gpuIdxByServerThread,
     const std::string& randSeed,
     bool doRandomize,
-    int defaultSymmetry
+    int defaultSymmetry,
+    bool dotsGame
   );
   ~NNEvaluator();
 
@@ -268,6 +269,8 @@ class NNEvaluator {
 
   //Queued up requests
   ThreadSafeQueue<NNResultBuf*> queryQueue;
+
+  bool dotsGame;
 
  public:
   //Helper, for internal use only

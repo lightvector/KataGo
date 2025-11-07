@@ -469,8 +469,8 @@ void TrainingWriteBuffers::addRow(
   SGFMetadata* sgfMeta,
   Rand& rand
 ) {
-  static_assert(NNModelVersion::latestInputsVersionImplemented == 7, "");
-  if(inputsVersion < 3 || inputsVersion > 7)
+  static_assert(NNModelVersion::latestInputsVersionImplemented == 8, "");
+  if(inputsVersion < 3 || inputsVersion > 8)
     throw StringError("Training write buffers: Does not support input version: " + Global::intToString(inputsVersion));
 
   int posArea = dataXLen*dataYLen;
@@ -490,36 +490,13 @@ void TrainingWriteBuffers::addRow(
     bool inputsUseNHWC = false;
     float* rowBin = binaryInputNCHWUnpacked;
     float* rowGlobal = globalInputNC.data + curRows * numGlobalChannels;
-    static_assert(NNModelVersion::latestInputsVersionImplemented == 7, "");
-    if(inputsVersion == 3) {
-      assert(NNInputs::NUM_FEATURES_SPATIAL_V3 == numBinaryChannels);
-      assert(NNInputs::NUM_FEATURES_GLOBAL_V3 == numGlobalChannels);
-      NNInputs::fillRowV3(board, hist, nextPlayer, nnInputParams, dataXLen, dataYLen, inputsUseNHWC, rowBin, rowGlobal);
-    }
-    else if(inputsVersion == 4) {
-      assert(NNInputs::NUM_FEATURES_SPATIAL_V4 == numBinaryChannels);
-      assert(NNInputs::NUM_FEATURES_GLOBAL_V4 == numGlobalChannels);
-      NNInputs::fillRowV4(board, hist, nextPlayer, nnInputParams, dataXLen, dataYLen, inputsUseNHWC, rowBin, rowGlobal);
-    }
-    else if(inputsVersion == 5) {
-      assert(NNInputs::NUM_FEATURES_SPATIAL_V5 == numBinaryChannels);
-      assert(NNInputs::NUM_FEATURES_GLOBAL_V5 == numGlobalChannels);
-      NNInputs::fillRowV5(board, hist, nextPlayer, nnInputParams, dataXLen, dataYLen, inputsUseNHWC, rowBin, rowGlobal);
-    }
-    else if(inputsVersion == 6) {
-      assert(NNInputs::NUM_FEATURES_SPATIAL_V6 == numBinaryChannels);
-      assert(NNInputs::NUM_FEATURES_GLOBAL_V6 == numGlobalChannels);
-      NNInputs::fillRowV6(board, hist, nextPlayer, nnInputParams, dataXLen, dataYLen, inputsUseNHWC, rowBin, rowGlobal);
-    }
-    else if(inputsVersion == 7) {
-      assert(NNInputs::NUM_FEATURES_SPATIAL_V7 == numBinaryChannels);
-      assert(NNInputs::NUM_FEATURES_GLOBAL_V7 == numGlobalChannels);
-      NNInputs::fillRowV7(board, hist, nextPlayer, nnInputParams, dataXLen, dataYLen, inputsUseNHWC, rowBin, rowGlobal);
-    }
-    else
-      ASSERT_UNREACHABLE;
 
-    //Pack bools bitwise into uint8_t
+    assert(NNInputs::getNumberOfSpatialFeatures(inputsVersion) == numBinaryChannels);
+    assert(NNInputs::getNumberOfGlobalFeatures(inputsVersion) == numGlobalChannels);
+
+    NNInputs::fillRowVN(inputsVersion, board, hist, nextPlayer, nnInputParams, dataXLen, dataYLen, inputsUseNHWC, rowBin, rowGlobal);
+
+    // Pack bools bitwise into uint8_t
     uint8_t* rowBinPacked = binaryInputNCHWPacked.data + curRows * numBinaryChannels * packedBoardArea;
     for(int c = 0; c<numBinaryChannels; c++)
       packBits(rowBin + c * posArea, posArea, rowBinPacked + c * packedBoardArea);
@@ -694,7 +671,11 @@ void TrainingWriteBuffers::addRow(
     rowScoreDistr[scoreDistrMid] = 50;
   }
   else {
-    assert(finalFullArea != NULL);
+    if (!hist.rules.isDots) {
+      assert(finalFullArea != NULL);
+    } else {
+      assert(finalFullArea == NULL);
+    }
     assert(finalBoard != NULL);
 
     //Ownership weight scales by value weight
@@ -716,9 +697,11 @@ void TrainingWriteBuffers::addRow(
         Loc loc = Location::getLoc(x,y,board.x_size);
         if(finalOwnership[loc] == nextPlayer) rowOwnership[pos] = 1;
         else if(finalOwnership[loc] == opp) rowOwnership[pos] = -1;
-        //Mark full area points that ended up not being owned
-        if(finalFullArea[loc] != C_EMPTY && finalOwnership[loc] == C_EMPTY)
-          rowOwnership[pos+posArea] = (finalFullArea[loc] == nextPlayer ? 1 : -1);
+        if (!hist.rules.isDots) {
+          //Mark full area points that ended up not being owned
+          if(finalFullArea[loc] != C_EMPTY && finalOwnership[loc] == C_EMPTY)
+            rowOwnership[pos+posArea] = (finalFullArea[loc] == nextPlayer ? 1 : -1);
+        }
       }
     }
 
@@ -770,10 +753,12 @@ void TrainingWriteBuffers::addRow(
       for(int x = 0; x<board.x_size; x++) {
         int pos = NNPos::xyToPos(x,y,dataXLen);
         Loc loc = Location::getLoc(x,y,board.x_size);
-        if(board2.colors[loc] == pla) rowOwnership[pos+posArea*2] = 1;
-        else if(board2.colors[loc] == opp) rowOwnership[pos+posArea*2] = -1;
-        if(board3.colors[loc] == pla) rowOwnership[pos+posArea*3] = 1;
-        else if(board3.colors[loc] == opp) rowOwnership[pos+posArea*3] = -1;
+        Color board2Color = board2.getColor(loc);
+        Color board3Color = board3.getColor(loc);
+        if(board2Color == pla) rowOwnership[pos+posArea*2] = 1;
+        else if(board2Color == opp) rowOwnership[pos+posArea*2] = -1;
+        if(board3Color == pla) rowOwnership[pos+posArea*3] = 1;
+        else if(board3Color == opp) rowOwnership[pos+posArea*3] = -1;
       }
     }
   }
@@ -964,34 +949,10 @@ TrainingDataWriter::TrainingDataWriter(ostream* dbgOut, int iVersion, int maxRow
 TrainingDataWriter::TrainingDataWriter(const string& outDir, ostream* dbgOut, int iVersion, int maxRowsPerFile, double firstFileMinRandProp, int dataXLen, int dataYLen, int onlyEvery, const string& randSeed)
   :outputDir(outDir),inputsVersion(iVersion),rand(randSeed),writeBuffers(NULL),debugOut(dbgOut),debugOnlyWriteEvery(onlyEvery),rowCount(0)
 {
-  int numBinaryChannels;
-  int numGlobalChannels;
   //Note that this inputsVersion is for data writing, it might be different than the inputsVersion used
-  //to feed into a model during selfplay
-  static_assert(NNModelVersion::latestInputsVersionImplemented == 7, "");
-  if(inputsVersion == 3) {
-    numBinaryChannels = NNInputs::NUM_FEATURES_SPATIAL_V3;
-    numGlobalChannels = NNInputs::NUM_FEATURES_GLOBAL_V3;
-  }
-  else if(inputsVersion == 4) {
-    numBinaryChannels = NNInputs::NUM_FEATURES_SPATIAL_V4;
-    numGlobalChannels = NNInputs::NUM_FEATURES_GLOBAL_V4;
-  }
-  else if(inputsVersion == 5) {
-    numBinaryChannels = NNInputs::NUM_FEATURES_SPATIAL_V5;
-    numGlobalChannels = NNInputs::NUM_FEATURES_GLOBAL_V5;
-  }
-  else if(inputsVersion == 6) {
-    numBinaryChannels = NNInputs::NUM_FEATURES_SPATIAL_V6;
-    numGlobalChannels = NNInputs::NUM_FEATURES_GLOBAL_V6;
-  }
-  else if(inputsVersion == 7) {
-    numBinaryChannels = NNInputs::NUM_FEATURES_SPATIAL_V7;
-    numGlobalChannels = NNInputs::NUM_FEATURES_GLOBAL_V7;
-  }
-  else {
-    throw StringError("TrainingDataWriter: Unsupported inputs version: " + Global::intToString(inputsVersion));
-  }
+  // to feed into a model during selfplay
+  const int numBinaryChannels = NNInputs::getNumberOfSpatialFeatures(inputsVersion);
+  const int numGlobalChannels = NNInputs::getNumberOfGlobalFeatures(inputsVersion);
 
   const bool hasMetadataInput = false;
   writeBuffers = new TrainingWriteBuffers(
@@ -1091,9 +1052,14 @@ void TrainingDataWriter::writeGame(const FinishedGameData& data) {
     else
       assert(lastTargets.noResult == 0.0f);
 
-    assert(data.finalFullArea != NULL);
     assert(data.finalOwnership != NULL);
-    assert(data.finalSekiAreas != NULL);
+    if (data.endHist.rules.isDots) {
+      assert(data.finalSekiAreas == NULL);
+      assert(data.finalFullArea == NULL);
+    } else {
+      assert(data.finalSekiAreas != NULL);
+      assert(data.finalFullArea != NULL);
+    }
     assert(data.finalWhiteScoring != NULL);
     assert(!data.endHist.isResignation);
   }

@@ -643,7 +643,7 @@ int MainCmds::genconfig(const vector<string>& args, const string& firstCommand) 
     string prompt =
       "What rules should KataGo use by default for play and analysis?\n"
       "(chinese, japanese, korean, tromp-taylor, aga, chinese-ogs, new-zealand, bga, stone-scoring, aga-button):\n";
-    promptAndParseInput(prompt, [&](const string& line) { configRules = Rules::parseRules(line); });
+    promptAndParseInput(prompt, [&](const string& line) { configRules = Rules::parseRules(line, sgf->isDots); }); // TODO: probably incorrect for Dots game?
   }
 
   cout << endl;

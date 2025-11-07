@@ -258,7 +258,7 @@ void PatternBonusTable::avoidRepeatedPosMovesAndDeleteExcessFiles(
           turnNumber < minTurnNumber ||
           turnNumber > maxTurnNumber ||
           posSample.moves.size() != 0 || // Right now auto pattern avoid expects moveless records
-          !posSample.board.isLegal(posSample.hintLoc, posSample.nextPla, isMultiStoneSuicideLegal)
+          !posSample.board.isLegal(posSample.hintLoc, posSample.nextPla, isMultiStoneSuicideLegal, false)
         ) {
           numPosesInvalid += 1;
           continue;

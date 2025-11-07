@@ -689,7 +689,7 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
   if(dataBoardLen > Board::MAX_LEN)
     throw StringError("dataBoardLen > maximum board len, must recompile to increase");
 
-  static_assert(NNModelVersion::latestInputsVersionImplemented == 7, "");
+  static_assert(NNModelVersion::latestInputsVersionImplemented == 8, "");
   const int inputsVersion = 7;
   const int numBinaryChannels = NNInputs::NUM_FEATURES_SPATIAL_V7;
   const int numGlobalChannels = NNInputs::NUM_FEATURES_GLOBAL_V7;
@@ -1878,7 +1878,7 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
       }
       bool suc = hist.isLegal(board,move.loc,move.pla);
       if(!suc) {
-        logger.write("Illegal move near start in " + fileName + " move " + Location::toString(move.loc, board.x_size, board.y_size) + sizeStr);
+        logger.write("Illegal move near start in " + fileName + " move " + Location::toString(move.loc, board) + sizeStr);
         reportSgfDone(false,"MovesIllegalMoveNearStart");
         return;
       }
@@ -1943,7 +1943,7 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
       }
       bool suc = hist.isLegal(board,move.loc,move.pla);
       if(!suc) {
-        logger.write("Illegal move in " + fileName + " turn " + Global::intToString(m) + " move " + Location::toString(move.loc, board.x_size, board.y_size));
+        logger.write("Illegal move in " + fileName + " turn " + Global::intToString(m) + " move " + Location::toString(move.loc, board));
         reportSgfDone(false,"MovesIllegal");
         return;
       }

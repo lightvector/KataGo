@@ -2,6 +2,7 @@
 
 Hash128 GraphHash::getStateHash(const BoardHistory& hist, Player nextPlayer, double drawEquivalentWinsForWhite) {
   const Board& board = hist.getRecentBoard(0);
+  assert(hist.rules.isDots == board.isDots());
   Hash128 hash = BoardHistory::getSituationRulesAndKoHash(board, hist, nextPlayer, drawEquivalentWinsForWhite);
 
   // Fold in whether a pass ends this phase
@@ -12,11 +13,13 @@ Hash128 GraphHash::getStateHash(const BoardHistory& hist, Player nextPlayer, dou
   if(hist.isGameFinished)
     hash ^= Board::ZOBRIST_GAME_IS_OVER;
 
-  // Fold in consecutive pass count. Probably usually redundant with history tracking. Use some standard LCG constants.
-  static constexpr uint64_t CONSECPASS_MULT0 = 2862933555777941757ULL;
-  static constexpr uint64_t CONSECPASS_MULT1 = 3202034522624059733ULL;
-  hash.hash0 += CONSECPASS_MULT0 * (uint64_t)hist.consecutiveEndingPasses;
-  hash.hash1 += CONSECPASS_MULT1 * (uint64_t)hist.consecutiveEndingPasses;
+  if (!hist.rules.isDots) {
+    // Fold in consecutive pass count. Probably usually redundant with history tracking. Use some standard LCG constants.
+    static constexpr uint64_t CONSECPASS_MULT0 = 2862933555777941757ULL;
+    static constexpr uint64_t CONSECPASS_MULT1 = 3202034522624059733ULL;
+    hash.hash0 += CONSECPASS_MULT0 * (uint64_t)hist.consecutiveEndingPasses;
+    hash.hash1 += CONSECPASS_MULT1 * (uint64_t)hist.consecutiveEndingPasses;
+  }
   return hash;
 }
 
@@ -43,8 +46,10 @@ Hash128 GraphHash::getGraphHashFromScratch(const BoardHistory& histOrig, Player 
   Hash128 graphHash = Hash128();
 
   for(size_t i = 0; i<histOrig.moveHistory.size(); i++) {
-    graphHash = getGraphHash(graphHash, hist, histOrig.moveHistory[i].pla, repBound, drawEquivalentWinsForWhite);
-    bool suc = hist.makeBoardMoveTolerant(board, histOrig.moveHistory[i].loc, histOrig.moveHistory[i].pla, histOrig.preventEncoreHistory[i]);
+    const Move move = histOrig.moveHistory[i];
+    graphHash = getGraphHash(graphHash, hist, move.pla, repBound, drawEquivalentWinsForWhite);
+    const bool preventEncoreHistory = hist.rules.isDots ? false : histOrig.preventEncoreHistory[i];
+    const bool suc = hist.makeBoardMoveTolerant(board, move.loc, move.pla, preventEncoreHistory);
     assert(suc);
   }
   assert(

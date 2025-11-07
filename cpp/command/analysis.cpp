@@ -882,14 +882,14 @@ int MainCmds::analysis(const vector<string>& args) {
       if(input.find("rules") != input.end()) {
         if(input["rules"].is_string()) {
           string s = input["rules"].get<string>();
-          if(!Rules::tryParseRules(s,rules)) {
+          if(!Rules::tryParseRules(s, rules, input.value("dots", false))) {
             reportErrorForId(rbase.id, "rules", "Could not parse rules: " + s);
             continue;
           }
         }
         else if(input["rules"].is_object()) {
           string s = input["rules"].dump();
-          if(!Rules::tryParseRules(s,rules)) {
+          if(!Rules::tryParseRules(s, rules, input.value("dots", false))) {
             reportErrorForId(rbase.id, "rules", "Could not parse rules: " + s);
             continue;
           }

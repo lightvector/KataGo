@@ -639,5 +639,4 @@ void Search::selectBestChildToDescend(
       thread.shouldCountPlayout = false;
     }
   }
-
 }

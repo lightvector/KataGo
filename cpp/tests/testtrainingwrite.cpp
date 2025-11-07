@@ -51,7 +51,8 @@ static NNEvaluator* startNNEval(
     gpuIdxByServerThread,
     seed,
     nnRandomize,
-    defaultSymmetry
+    defaultSymmetry,
+    false // TODO: Fix for Dots Game
   );
 
   nnEval->spawnServerThreads();

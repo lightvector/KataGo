@@ -172,13 +172,13 @@ int MainCmds::evalsgf(const vector<string>& args) {
     return 1;
   }
 
-  //Parse rules -------------------------------------------------------------------
-  Rules defaultRules = Rules::getTrompTaylorish();
-  Player perspective = Setup::parseReportAnalysisWinrates(cfg,P_BLACK);
-
   //Parse sgf file and board ------------------------------------------------------------------
 
   std::unique_ptr<CompactSgf> sgf = CompactSgf::loadFile(sgfFile);
+
+  //Parse rules -------------------------------------------------------------------
+  Rules defaultRules = Rules::getDefaultOrTrompTaylorish(sgf->isDots);
+  Player perspective = Setup::parseReportAnalysisWinrates(cfg,P_BLACK);
 
   Board board;
   Player nextPla;
@@ -219,7 +219,7 @@ int MainCmds::evalsgf(const vector<string>& args) {
     [](const string& msg) { cout << msg << endl; }
   );
   if(overrideRules != "") {
-    initialRules = Rules::parseRules(overrideRules);
+    initialRules = Rules::parseRules(overrideRules, initialRules.isDots);
   }
 
   // Set up once now for error catcihng

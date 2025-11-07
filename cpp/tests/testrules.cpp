@@ -86,10 +86,10 @@ void Tests::runRulesTests() {
       for(int x = 0; x<board.x_size; x++) {
         Loc loc = Location::getLoc(x,y,board.x_size);
         if(board.colors[loc] == C_EMPTY && !board.isIllegalSuicide(loc,pla,hist.rules.multiStoneSuicideLegal) && !hist.isLegal(board,loc,pla)) {
-          o << "Illegal: " << Location::toStringMach(loc,board.x_size) << " " << PlayerIO::colorToChar(pla) << endl;
+          o << "Illegal: " << Location::toStringMach(loc, board.x_size, board.isDots()) << " " << PlayerIO::colorToChar(pla) << endl;
         }
         if(hist.koRecapBlocked[loc]) {
-          o << "Ko-recap-blocked: " << Location::toStringMach(loc,board.x_size) << endl;
+          o << "Ko-recap-blocked: " << Location::toStringMach(loc, board.x_size, board.isDots()) << endl;
         }
       }
     }
@@ -5369,27 +5369,30 @@ Last moves pass pass pass pass H7 G9 F9 H7
       bool suc;
 
       Rules parsed;
-      suc = Rules::tryParseRules(rules[i].toString(),parsed);
+      suc = Rules::tryParseRules(rules[i].toString(), parsed, rules[i].isDots);
       testAssert(suc);
       testAssert(rules[i] == parsed);
 
       Rules parsed2;
-      suc = Rules::tryParseRulesWithoutKomi(rules[i].toStringNoKomi(),parsed2,rules[i].komi);
+      suc = Rules::tryParseRulesWithoutKomi(rules[i].toStringNoSgfDefinedProps(), parsed2, rules[i].komi, rules[i].isDots);
       testAssert(suc);
       testAssert(rules[i] == parsed2);
 
       Rules parsed3;
-      suc = Rules::tryParseRules(rules[i].toJsonString(),parsed3);
+      suc = Rules::tryParseRules(rules[i].toJsonString(), parsed3, rules[i].isDots);
+      if (!suc) {
+        cout << "Failed to parse rules: " << rules[i].toJsonString() << endl;
+      }
       testAssert(suc);
       testAssert(rules[i] == parsed3);
 
       Rules parsed4;
-      suc = Rules::tryParseRulesWithoutKomi(rules[i].toJsonStringNoKomi(),parsed4,rules[i].komi);
+      suc = Rules::tryParseRulesWithoutKomi(rules[i].toJsonStringNoKomi(), parsed4, rules[i].komi, rules[i].isDots);
       testAssert(suc);
       testAssert(rules[i] == parsed4);
 
       Rules parsed5;
-      suc = Rules::tryParseRulesWithoutKomi(rules[i].toJsonStringNoKomiMaybeOmitStuff(),parsed5,rules[i].komi);
+      suc = Rules::tryParseRulesWithoutKomi(rules[i].toJsonStringNoKomiMaybeOmitStuff(), parsed5, rules[i].komi, rules[i].isDots);
       testAssert(suc);
       testAssert(rules[i] == parsed5);
     }

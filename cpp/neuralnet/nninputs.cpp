@@ -237,8 +237,18 @@ void NNInputs::fillScoring(
   bool groupTax,
   float* scoring
 ) {
-  if(!groupTax) {
-    std::fill(scoring, scoring + Board::MAX_ARR_SIZE, 0.0f);
+  std::fill_n(scoring, Board::MAX_ARR_SIZE, 0.0f);
+
+  if(!groupTax || board.isDots()) {
+    // TODO: probably it makes sense to implement more accurate scoring for Dots
+    // That includes dead, empty locations and empty base locations:
+    //
+    // Captured enemy's dot: 1.0f
+    // Captured enemy's empty loc: 0.75f
+    // Empty base loc: 0.5f
+    // Empty: 0.0f
+    //
+    // Also consider grounding dots?
     for(int y = 0; y<board.y_size; y++) {
       for(int x = 0; x<board.x_size; x++) {
         Loc loc = Location::getLoc(x,y,board.x_size);
@@ -258,8 +268,7 @@ void NNInputs::fillScoring(
     bool visited[Board::MAX_ARR_SIZE];
     Loc queue[Board::MAX_ARR_SIZE];
 
-    std::fill(visited, visited + Board::MAX_ARR_SIZE, false);
-    std::fill(scoring, scoring + Board::MAX_ARR_SIZE, 0.0f);
+    std::fill_n(visited, Board::MAX_ARR_SIZE, false);
     for(int y = 0; y<board.y_size; y++) {
       for(int x = 0; x<board.x_size; x++) {
         Loc loc = Location::getLoc(x,y,board.x_size);
@@ -679,7 +688,8 @@ Board SymmetryHelpers::getSymBoard(const Board& board, int symmetry) {
   bool flipY = (symmetry & 0x1) != 0;
   Board symBoard(
     transpose ? board.y_size : board.x_size,
-    transpose ? board.x_size : board.y_size
+    transpose ? board.x_size : board.y_size,
+    board.rules
   );
   Loc symKoLoc = Board::NULL_LOC;
   for(int y = 0; y<board.y_size; y++) {
@@ -689,17 +699,28 @@ Board SymmetryHelpers::getSymBoard(const Board& board, int symmetry) {
       int symY = flipY ? board.y_size - y - 1 : y;
       if(transpose)
         std::swap(symX,symY);
-      Loc symLoc = Location::getLoc(symX,symY,symBoard.x_size);
-      bool suc = symBoard.setStoneFailIfNoLibs(symLoc,board.colors[loc]);
-      assert(suc);
-      (void)suc;
-      if(loc == board.ko_loc)
-        symKoLoc = symLoc;
+      const Loc symLoc = Location::getLoc(symX,symY,symBoard.x_size);
+      if (!board.isDots()) {
+        const bool suc = symBoard.setStoneFailIfNoLibs(symLoc,board.colors[loc]);
+        assert(suc);
+        (void)suc;
+        if(loc == board.ko_loc)
+          symKoLoc = symLoc;
+      } else {
+        symBoard.setState(symLoc, board.colors[loc]);
+        symBoard.pos_hash ^= Board::ZOBRIST_BOARD_HASH[symLoc][board.getColor(loc)];
+      }
     }
   }
-  //Set only at the end because otherwise setStoneFailIfNoLibs clears it.
-  if(symKoLoc != Board::NULL_LOC)
-    symBoard.setSimpleKoLoc(symKoLoc);
+  if (!board.isDots()) {
+    //Set only at the end because otherwise setStoneFailIfNoLibs clears it.
+    if(symKoLoc != Board::NULL_LOC)
+      symBoard.setSimpleKoLoc(symKoLoc);
+  } else {
+    symBoard.numBlackCaptures = board.numBlackCaptures;
+    symBoard.numWhiteCaptures = board.numWhiteCaptures;
+    symBoard.numLegalMoves = board.numLegalMoves;
+  }
   return symBoard;
 }
 
@@ -716,13 +737,15 @@ void SymmetryHelpers::markDuplicateMoveLocs(
   validSymmetries.reserve(SymmetryHelpers::NUM_SYMMETRIES);
   validSymmetries.push_back(0);
 
-  //The board should never be considered symmetric if any moves are banned by ko or superko
-  if(board.ko_loc != Board::NULL_LOC)
-    return;
-  for(int y = 0; y < board.y_size; y++) {
-    for(int x = 0; x < board.x_size; x++) {
-      if(hist.superKoBanned[Location::getLoc(x, y, board.x_size)])
-        return;
+  if (!hist.rules.isDots) {
+    //The board should never be considered symmetric if any moves are banned by ko or superko
+    if(board.ko_loc != Board::NULL_LOC)
+      return;
+    for(int y = 0; y < board.y_size; y++) {
+      for(int x = 0; x < board.x_size; x++) {
+        if(hist.superKoBanned[Location::getLoc(x, y, board.x_size)])
+          return;
+      }
     }
   }
 
@@ -794,12 +817,14 @@ static double getSymmetryDifference(const Board& board, const Board& other, int 
   double thisDifference = 0.0;
   for(int y = 0; y<board.y_size; y++) {
     for(int x = 0; x<board.x_size; x++) {
-      Loc loc = Location::getLoc(x, y, board.x_size);
-      Loc symLoc = SymmetryHelpers::getSymLoc(x, y, board, symmetry);
+      const Loc loc = Location::getLoc(x, y, board.x_size);
+      const Loc symLoc = SymmetryHelpers::getSymLoc(x, y, board, symmetry);
       // Difference!
-      if(board.colors[loc] != other.colors[symLoc]) {
+      const Color boardColor = board.getColor(loc);
+      const Color otherColor = other.getColor(symLoc);
+      if(boardColor != otherColor) {
         // One of them was empty, the other was a stone
-        if(board.colors[loc] == C_EMPTY || other.colors[symLoc] == C_EMPTY)
+        if(boardColor == C_EMPTY || otherColor == C_EMPTY)
           thisDifference += 1.0;
         // Differing stones - triple the penalty
         else
@@ -835,10 +860,24 @@ void SymmetryHelpers::getSymmetryDifferences(
   }
 }
 
+std::string SymmetryHelpers::symmetryToString(int symmetry) {
+  switch (symmetry) {
+    case SYMMETRY_NONE: return "SYMMETRY_NONE";
+    case SYMMETRY_FLIP_Y: return "SYMMETRY_FLIP_Y";
+    case SYMMETRY_FLIP_X: return "SYMMETRY_FLIP_X";
+    case SYMMETRY_FLIP_Y_X: return "SYMMETRY_FLIP_Y_X";
+    case SYMMETRY_TRANSPOSE: return "SYMMETRY_TRANSPOSE";
+    case SYMMETRY_TRANSPOSE_FLIP_X: return "SYMMETRY_TRANSPOSE_FLIP_X";
+    case SYMMETRY_TRANSPOSE_FLIP_Y: return "SYMMETRY_TRANSPOSE_FLIP_Y";
+    case SYMMETRY_TRANSPOSE_FLIP_Y_X: return "SYMMETRY_TRANSPOSE_FLIP_Y_X";
+    default: throw std::range_error("Invalid symmetry");
+  }
+}
+
 
 //-------------------------------------------------------------------------------------------------------------
 
-static void setRowBin(float* rowBin, int pos, int feature, float value, int posStride, int featureStride) {
+void setRowBin(float* rowBin, int pos, int feature, float value, int posStride, int featureStride) {
   rowBin[pos * posStride + feature * featureStride] = value;
 }
 
@@ -904,24 +943,27 @@ Hash128 NNInputs::getHash(
   Hash128 hash = BoardHistory::getSituationRulesAndKoHash(board, hist, nextPlayer, nnInputParams.drawEquivalentWinsForWhite);
 
   //Fold in whether a pass ends this phase.
-  if(hist.passWouldEndPhase(board,nextPlayer)) {
-    hash ^= Board::ZOBRIST_PASS_ENDS_PHASE;
-    //Technically some of the below only apply when passing ends the game, but it's pretty harmless to use the more
-    //conservative hashing including them when the phase would end too.
+  if (!hist.rules.isDots) {
+    if(hist.passWouldEndPhase(board,nextPlayer)) {
+      hash ^= Board::ZOBRIST_PASS_ENDS_PHASE;
+      //Technically some of the below only apply when passing ends the game, but it's pretty harmless to use the more
+      //conservative hashing including them when the phase would end too.
 
-    //And in the case that a pass ends the phase, conservativePass also affects the result for the root node
-    if(nnInputParams.conservativePassAndIsRoot)
-      hash ^= MiscNNInputParams::ZOBRIST_CONSERVATIVE_PASS;
+      //And in the case that a pass ends the phase, conservativePass also affects the result for the root node
+      if(nnInputParams.conservativePassAndIsRoot)
+        hash ^= MiscNNInputParams::ZOBRIST_CONSERVATIVE_PASS;
 
-    //If we're in a ruleset where passing without capturing all the stones is okay, and as a result are suppressing
-    //the game end effect of a pass during search, hash this in.
-    if(hist.shouldSuppressEndGameFromFriendlyPass(board,nextPlayer))
-      hash ^= MiscNNInputParams::ZOBRIST_FRIENDLY_PASS;
+      //If we're in a ruleset where passing without capturing all the stones is okay, and as a result are suppressing
+      //the game end effect of a pass during search, hash this in.
+      if(hist.shouldSuppressEndGameFromFriendlyPass(board,nextPlayer))
+        hash ^= MiscNNInputParams::ZOBRIST_FRIENDLY_PASS;
 
-    //Passing hacks can also affect things at game or phase end.
-    if(nnInputParams.enablePassingHacks)
-      hash ^= MiscNNInputParams::ZOBRIST_PASSING_HACKS;
+      //Passing hacks can also affect things at game or phase end.
+      if(nnInputParams.enablePassingHacks)
+        hash ^= MiscNNInputParams::ZOBRIST_PASSING_HACKS;
+    }
   }
+
   //Fold in whether the game is over or not, since this affects how we compute input features
   //but is not a function necessarily of previous hashed values.
   //If the history is in a weird prolonged state, also treat it similarly.
@@ -966,6 +1008,63 @@ Hash128 NNInputs::getHash(
   }
 
   return hash;
+}
+
+int NNInputs::getNumberOfSpatialFeatures(int version) {
+  switch(version) {
+    case 3: return NUM_FEATURES_SPATIAL_V3;
+    case 4: return NUM_FEATURES_SPATIAL_V4;
+    case 5: return NUM_FEATURES_SPATIAL_V5;
+    case 6: return NUM_FEATURES_SPATIAL_V6;
+    case 7: return NUM_FEATURES_SPATIAL_V7;
+    case 8: return NUM_FEATURES_SPATIAL_V_DOTS;
+    default: throw std::range_error("Invalid input version: " + to_string(version));
+  }
+}
+
+int NNInputs::getNumberOfGlobalFeatures(int version) {
+  switch(version) {
+    case 3: return NUM_FEATURES_GLOBAL_V3;
+    case 4: return NUM_FEATURES_GLOBAL_V4;
+    case 5: return NUM_FEATURES_GLOBAL_V5;
+    case 6: return NUM_FEATURES_GLOBAL_V6;
+    case 7: return NUM_FEATURES_GLOBAL_V7;
+    case 8: return NUM_FEATURES_GLOBAL_V_DOTS;
+    default: throw std::range_error("Invalid input version: " + to_string(version));
+  }
+}
+
+// Generic filler
+
+void NNInputs::fillRowVN(
+  int version,
+  const Board& board, const BoardHistory& hist, Player nextPlayer,
+  const MiscNNInputParams& nnInputParams,
+  int nnXLen, int nnYLen, bool useNHWC, float* rowBin, float* rowGlobal
+) {
+  switch(version) {
+    case 3:
+      fillRowV3(board, hist, nextPlayer, nnInputParams, nnXLen, nnYLen, useNHWC, rowBin, rowGlobal);
+      break;
+    case 4:
+      fillRowV4(board, hist, nextPlayer, nnInputParams, nnXLen, nnYLen, useNHWC, rowBin, rowGlobal);
+      break;
+    case 5:
+      fillRowV5(board, hist, nextPlayer, nnInputParams, nnXLen, nnYLen, useNHWC, rowBin, rowGlobal);
+      break;
+    case 6:
+      fillRowV6(board, hist, nextPlayer, nnInputParams, nnXLen, nnYLen, useNHWC, rowBin, rowGlobal);
+      break;
+    case 7:
+      fillRowV7(board, hist, nextPlayer, nnInputParams, nnXLen, nnYLen, useNHWC, rowBin, rowGlobal);
+      break;
+    case 8:
+      fillRowVDots(board, hist, nextPlayer, nnInputParams, nnXLen, nnYLen, useNHWC,rowBin,rowGlobal);
+      break;
+    default:
+      throw std::range_error("Invalid input version: " + to_string(version));
+      break;
+  }
 }
 
 //===========================================================================================

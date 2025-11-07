@@ -134,6 +134,10 @@ class GameInitializer {
   std::mutex createGameMutex;
   Rand rand;
 
+  bool dotsGame;
+  std::vector<bool> allowedCaptureEmtpyBasesRules;
+  std::vector<int> allowedStartPosRules;
+
   std::vector<std::string> allowedKoRuleStrs;
   std::vector<std::string> allowedScoringRuleStrs;
   std::vector<std::string> allowedTaxRuleStrs;

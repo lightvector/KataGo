@@ -569,6 +569,13 @@ vector<string> ConfigParser::getStrings(const string& key, const set<string>& po
   return values;
 }
 
+bool ConfigParser::getBoolOrDefault(const std::string& key, bool defaultValue) {
+  if (contains(key)) {
+    return getBool(key);
+  }
+
+  return defaultValue;
+}
 
 bool ConfigParser::getBool(const string& key) {
   string value = getString(key);
@@ -577,6 +584,7 @@ bool ConfigParser::getBool(const string& key) {
     throw IOError("Could not parse '" + value + "' as bool for key '" + key + "' in config file " + fileName);
   return x;
 }
+
 vector<bool> ConfigParser::getBools(const string& key) {
   vector<string> values = getStrings(key);
   vector<bool> ret;

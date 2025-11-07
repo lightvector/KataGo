@@ -58,6 +58,7 @@ class ConfigParser {
   std::string firstFoundOrEmpty(const std::vector<std::string>& possibleKeys) const;
 
   std::string getString(const std::string& key);
+  bool getBoolOrDefault(const std::string& key, bool defaultValue);
   bool getBool(const std::string& key);
   enabled_t getEnabled(const std::string& key);
   int getInt(const std::string& key);

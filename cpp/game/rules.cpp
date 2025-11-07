@@ -4,19 +4,33 @@
 
 #include <sstream>
 
+#include "board.h"
+
 using namespace std;
 using json = nlohmann::json;
 
-Rules::Rules() {
-  //Defaults if not set - closest match to TT rules
-  koRule = KO_POSITIONAL;
-  scoringRule = SCORING_AREA;
-  taxRule = TAX_NONE;
-  multiStoneSuicideLegal = true;
-  hasButton = false;
-  whiteHandicapBonusRule = WHB_ZERO;
-  friendlyPassOk = false;
-  komi = 7.5f;
+const Rules Rules::DEFAULT_DOTS = Rules(true);
+const Rules Rules::DEFAULT_GO = Rules(false);
+
+Rules::Rules() : Rules(false) {}
+
+Rules::Rules(const bool initIsDots, const int startPos, const bool dotsCaptureEmptyBases, const bool dotsFreeCapturedDots) :
+  Rules(initIsDots, startPos, 0, 0, 0, true, false, 0, false, 0.0f, dotsCaptureEmptyBases, dotsFreeCapturedDots) {}
+
+Rules::Rules(const bool initIsDots) : Rules(
+  initIsDots,
+  initIsDots ? START_POS_EMPTY : 0,
+  initIsDots ? 0 : KO_POSITIONAL,
+  initIsDots ? 0 : SCORING_AREA,
+  initIsDots ? 0 : TAX_NONE,
+  true,
+  false,
+  initIsDots ? 0 : WHB_ZERO,
+  false,
+  initIsDots ? 0.0f : 7.5f,
+  false,
+  initIsDots
+  ) {
 }
 
 Rules::Rules(
@@ -28,22 +42,57 @@ Rules::Rules(
   int whbRule,
   bool pOk,
   float km
-)
-  :koRule(kRule),
-   scoringRule(sRule),
-   taxRule(tRule),
-   multiStoneSuicideLegal(suic),
-   hasButton(button),
-   whiteHandicapBonusRule(whbRule),
-   friendlyPassOk(pOk),
-   komi(km)
-{}
-
-Rules::~Rules() {
+) : Rules(false, 0, kRule, sRule, tRule, suic, button, whbRule, pOk, km, false, false) {
 }
 
+Rules::Rules(
+  bool isDots,
+  int startPosRule,
+  int kRule,
+  int sRule,
+  int tRule,
+  bool suic,
+  bool button,
+  int whbRule,
+  bool pOk,
+  float km,
+  bool dotsCaptureEmptyBases,
+  bool dotsFreeCapturedDots
+)
+  : isDots(isDots),
+    startPos(startPosRule),
+    dotsCaptureEmptyBases(dotsCaptureEmptyBases),
+    dotsFreeCapturedDots(dotsFreeCapturedDots),
+    koRule(kRule),
+    scoringRule(sRule),
+    taxRule(tRule),
+    multiStoneSuicideLegal(suic),
+    hasButton(button),
+    whiteHandicapBonusRule(whbRule),
+    friendlyPassOk(pOk),
+    komi(km)
+{
+  initializeIfNeeded();
+}
+
+Rules::~Rules() = default;
+
 bool Rules::operator==(const Rules& other) const {
+  return equals(other, false);
+}
+
+bool Rules::operator!=(const Rules& other) const {
+  return !equals(other, false);
+}
+
+bool Rules::equalsIgnoringSgfDefinedProps(const Rules& other) const {
+  return equals(other, true);
+}
+
+bool Rules::equals(const Rules& other, const bool ignoreSgfDefinedProps) const {
   return
+    (ignoreSgfDefinedProps ? true : isDots == other.isDots) &&
+    (ignoreSgfDefinedProps ? true : startPos == other.startPos) &&
     koRule == other.koRule &&
     scoringRule == other.scoringRule &&
     taxRule == other.taxRule &&
@@ -51,35 +100,22 @@ bool Rules::operator==(const Rules& other) const {
     hasButton == other.hasButton &&
     whiteHandicapBonusRule == other.whiteHandicapBonusRule &&
     friendlyPassOk == other.friendlyPassOk &&
-    komi == other.komi;
-}
-
-bool Rules::operator!=(const Rules& other) const {
-  return
-    koRule != other.koRule ||
-    scoringRule != other.scoringRule ||
-    taxRule != other.taxRule ||
-    multiStoneSuicideLegal != other.multiStoneSuicideLegal ||
-    hasButton != other.hasButton ||
-    whiteHandicapBonusRule != other.whiteHandicapBonusRule ||
-    friendlyPassOk != other.friendlyPassOk ||
-    komi != other.komi;
-}
-
-bool Rules::equalsIgnoringKomi(const Rules& other) const {
-  return
-    koRule == other.koRule &&
-    scoringRule == other.scoringRule &&
-    taxRule == other.taxRule &&
-    multiStoneSuicideLegal == other.multiStoneSuicideLegal &&
-    hasButton == other.hasButton &&
-    whiteHandicapBonusRule == other.whiteHandicapBonusRule &&
-    friendlyPassOk == other.friendlyPassOk;
+    (ignoreSgfDefinedProps ? true : komi == other.komi) &&
+    dotsCaptureEmptyBases == other.dotsCaptureEmptyBases &&
+    dotsFreeCapturedDots == other.dotsFreeCapturedDots;
 }
 
 bool Rules::gameResultWillBeInteger() const {
   bool komiIsInteger = ((int)komi) == komi;
   return komiIsInteger != hasButton;
+}
+
+Rules Rules::getDefault(const bool isDots) {
+  return isDots ? DEFAULT_DOTS : DEFAULT_GO;
+}
+
+Rules Rules::getDefaultOrTrompTaylorish(const bool isDots) {
+  return isDots ? DEFAULT_DOTS : getTrompTaylorish();
 }
 
 Rules Rules::getTrompTaylorish() {
@@ -112,6 +148,26 @@ bool Rules::komiIsIntOrHalfInt(float komi) {
   return std::isfinite(komi) && komi * 2 == (int)(komi * 2);
 }
 
+set<string> Rules::startPosStrings() {
+  initializeIfNeeded();
+  return {
+    startPosIdToName[START_POS_EMPTY],
+    startPosIdToName[START_POS_CROSS],
+    startPosIdToName[START_POS_CROSS_2],
+    startPosIdToName[START_POS_CROSS_4]
+  };
+}
+
+int Rules::getNumOfStartPosStones() const {
+  switch (startPos) {
+    case START_POS_EMPTY: return 0;
+    case START_POS_CROSS: return 4;
+    case START_POS_CROSS_2: return 8;
+    case START_POS_CROSS_4: return 16;
+    default: throw std::range_error("Invalid start pos: " + std::to_string(startPos));
+  }
+}
+
 set<string> Rules::koRuleStrings() {
   return {"SIMPLE","POSITIONAL","SITUATIONAL","SPIGHT"};
 }
@@ -125,6 +181,15 @@ set<string> Rules::whiteHandicapBonusRuleStrings() {
   return {"0","N","N-1"};
 }
 
+int Rules::parseStartPos(const string& s) {
+  initializeIfNeeded();
+  if (const auto it = startPosNameToId.find(s); it != startPosNameToId.end()) {
+    return it->second;
+  }
+
+  throw IOError("Rules::parseStartPos: Invalid dots start pos rule: " + s);
+}
+
 int Rules::parseKoRule(const string& s) {
   if(s == "SIMPLE") return Rules::KO_SIMPLE;
   else if(s == "POSITIONAL") return Rules::KO_POSITIONAL;
@@ -132,22 +197,34 @@ int Rules::parseKoRule(const string& s) {
   else if(s == "SPIGHT") return Rules::KO_SPIGHT;
   else throw IOError("Rules::parseKoRule: Invalid ko rule: " + s);
 }
+
 int Rules::parseScoringRule(const string& s) {
   if(s == "AREA") return Rules::SCORING_AREA;
   else if(s == "TERRITORY") return Rules::SCORING_TERRITORY;
   else throw IOError("Rules::parseScoringRule: Invalid scoring rule: " + s);
 }
+
 int Rules::parseTaxRule(const string& s) {
   if(s == "NONE") return Rules::TAX_NONE;
   else if(s == "SEKI") return Rules::TAX_SEKI;
   else if(s == "ALL") return Rules::TAX_ALL;
   else throw IOError("Rules::parseTaxRule: Invalid tax rule: " + s);
 }
+
 int Rules::parseWhiteHandicapBonusRule(const string& s) {
   if(s == "0") return Rules::WHB_ZERO;
   else if(s == "N") return Rules::WHB_N;
   else if(s == "N-1") return Rules::WHB_N_MINUS_ONE;
   else throw IOError("Rules::parseWhiteHandicapBonusRule: Invalid whiteHandicapBonus rule: " + s);
+}
+
+string Rules::writeStartPosRule(int startPosRule) {
+  initializeIfNeeded();
+  if (const auto it = startPosIdToName.find(startPosRule); it != startPosIdToName.end()) {
+    return it->second;
+  }
+
+  return "UNKNOWN";
 }
 
 string Rules::writeKoRule(int koRule) {
@@ -157,6 +234,7 @@ string Rules::writeKoRule(int koRule) {
   if(koRule == Rules::KO_SPIGHT) return string("SPIGHT");
   return string("UNKNOWN");
 }
+
 string Rules::writeScoringRule(int scoringRule) {
   if(scoringRule == Rules::SCORING_AREA) return string("AREA");
   if(scoringRule == Rules::SCORING_TERRITORY) return string("TERRITORY");
@@ -176,38 +254,42 @@ string Rules::writeWhiteHandicapBonusRule(int whiteHandicapBonusRule) {
 }
 
 ostream& operator<<(ostream& out, const Rules& rules) {
-  out << "ko" << Rules::writeKoRule(rules.koRule)
-      << "score" << Rules::writeScoringRule(rules.scoringRule)
-      << "tax" << Rules::writeTaxRule(rules.taxRule)
-      << "sui" << rules.multiStoneSuicideLegal;
-  if(rules.hasButton)
-    out << "button" << rules.hasButton;
-  if(rules.whiteHandicapBonusRule != Rules::WHB_ZERO)
-    out << "whb" << Rules::writeWhiteHandicapBonusRule(rules.whiteHandicapBonusRule);
-  if(rules.friendlyPassOk)
-    out << "fpok" << rules.friendlyPassOk;
-  out << "komi" << rules.komi;
+  out << rules.toString();
   return out;
 }
 
-string Rules::toStringNoKomi() const {
-  ostringstream out;
-  out << "ko" << Rules::writeKoRule(koRule)
-      << "score" << Rules::writeScoringRule(scoringRule)
-      << "tax" << Rules::writeTaxRule(taxRule)
-      << "sui" << multiStoneSuicideLegal;
-  if(hasButton)
-    out << "button" << hasButton;
-  if(whiteHandicapBonusRule != WHB_ZERO)
-    out << "whb" << Rules::writeWhiteHandicapBonusRule(whiteHandicapBonusRule);
-  if(friendlyPassOk)
-    out << "fpok" << friendlyPassOk;
-  return out.str();
+string Rules::toString() const {
+  return toString(true);
 }
 
-string Rules::toString() const {
+string Rules::toStringNoSgfDefinedProps() const {
+  return toString(false);
+}
+
+string Rules::toString(const bool includeSgfDefinedProperties) const {
   ostringstream out;
-  out << (*this);
+  if (!isDots) {
+    out << "ko" << writeKoRule(koRule)
+      << "score" << writeScoringRule(scoringRule)
+      << "tax" << writeTaxRule(taxRule);
+  } else {
+    out << DOTS_CAPTURE_EMPTY_BASE_KEY << dotsCaptureEmptyBases;
+  }
+  if (includeSgfDefinedProperties && startPos != START_POS_EMPTY) {
+    out << START_POS_KEY << writeStartPosRule(startPos);
+  }
+  out << "sui" << multiStoneSuicideLegal;
+  if (!isDots) {
+    if (hasButton != DEFAULT_GO.hasButton)
+      out << "button" << hasButton;
+    if (whiteHandicapBonusRule != DEFAULT_GO.whiteHandicapBonusRule)
+      out << "whb" << writeWhiteHandicapBonusRule(whiteHandicapBonusRule);
+    if (friendlyPassOk != DEFAULT_GO.friendlyPassOk)
+      out << "fpok" << friendlyPassOk;
+  }
+  if (includeSgfDefinedProperties) {
+    out << "komi" << komi;
+  }
   return out.str();
 }
 
@@ -215,16 +297,25 @@ string Rules::toString() const {
 //which is the default for parsing and if not otherwise specified
 json Rules::toJsonHelper(bool omitKomi, bool omitDefaults) const {
   json ret;
-  ret["ko"] = writeKoRule(koRule);
-  ret["scoring"] = writeScoringRule(scoringRule);
-  ret["tax"] = writeTaxRule(taxRule);
+  if (isDots)
+    ret[DOTS_KEY] = true;
+  if (!omitDefaults || startPos != START_POS_EMPTY)
+    ret[START_POS_KEY] = writeStartPosRule(startPos);
   ret["suicide"] = multiStoneSuicideLegal;
-  if(!omitDefaults || hasButton)
-    ret["hasButton"] = hasButton;
-  if(!omitDefaults || whiteHandicapBonusRule != WHB_ZERO)
-    ret["whiteHandicapBonus"] = writeWhiteHandicapBonusRule(whiteHandicapBonusRule);
-  if(!omitDefaults || friendlyPassOk != false)
-    ret["friendlyPassOk"] = friendlyPassOk;
+  if (!isDots) {
+    ret["ko"] = writeKoRule(koRule);
+    ret["scoring"] = writeScoringRule(scoringRule);
+    ret["tax"] = writeTaxRule(taxRule);
+    if(!omitDefaults || hasButton != DEFAULT_GO.hasButton)
+      ret["hasButton"] = hasButton;
+    if(!omitDefaults || whiteHandicapBonusRule != DEFAULT_GO.whiteHandicapBonusRule)
+      ret["whiteHandicapBonus"] = writeWhiteHandicapBonusRule(whiteHandicapBonusRule);
+    if(!omitDefaults || friendlyPassOk != DEFAULT_GO.friendlyPassOk)
+      ret["friendlyPassOk"] = friendlyPassOk;
+  } else {
+    if (!omitDefaults || dotsCaptureEmptyBases != DEFAULT_DOTS.dotsCaptureEmptyBases)
+      ret[DOTS_CAPTURE_EMPTY_BASE_KEY] = dotsCaptureEmptyBases;
+  }
   if(!omitKomi)
     ret["komi"] = komi;
   return ret;
@@ -258,7 +349,8 @@ Rules Rules::updateRules(const string& k, const string& v, Rules oldRules) {
   Rules rules = oldRules;
   string key = Global::trim(k);
   string value = Global::trim(Global::toUpper(v));
-  if(key == "ko") rules.koRule = Rules::parseKoRule(value);
+  if(key == DOTS_KEY) rules.isDots = Global::stringToBool(value);
+  else if(key == "ko") rules.koRule = Rules::parseKoRule(value);
   else if(key == "score") rules.scoringRule = Rules::parseScoringRule(value);
   else if(key == "scoring") rules.scoringRule = Rules::parseScoringRule(value);
   else if(key == "tax") rules.taxRule = Rules::parseTaxRule(value);
@@ -270,10 +362,12 @@ Rules Rules::updateRules(const string& k, const string& v, Rules oldRules) {
   return rules;
 }
 
-static Rules parseRulesHelper(const string& sOrig, bool allowKomi) {
-  Rules rules;
+static Rules parseRulesHelper(const string& sOrig, bool allowKomi, bool isDots) {
+  auto rules = Rules(isDots);
   string lowercased = Global::trim(Global::toLower(sOrig));
-  if(lowercased == "japanese" || lowercased == "korean") {
+  if(lowercased == DOTS_KEY) {
+    rules = Rules::DEFAULT_DOTS;
+  } else if(lowercased == "japanese" || lowercased == "korean") {
     rules.scoringRule = Rules::SCORING_TERRITORY;
     rules.koRule = Rules::KO_SIMPLE;
     rules.taxRule = Rules::TAX_SEKI;
@@ -381,7 +475,7 @@ static Rules parseRulesHelper(const string& sOrig, bool allowKomi) {
   }
   else if(sOrig.length() > 0 && sOrig[0] == '{') {
     //Default if not specified
-    rules = Rules::getTrompTaylorish();
+    rules = Rules::getDefaultOrTrompTaylorish(isDots);
     bool komiSpecified = false;
     bool taxSpecified = false;
     try {
@@ -389,11 +483,13 @@ static Rules parseRulesHelper(const string& sOrig, bool allowKomi) {
       string s;
       for(json::iterator iter = input.begin(); iter != input.end(); ++iter) {
         string key = iter.key();
-        if(key == "ko")
+        if (key == START_POS_KEY)
+          rules.startPos = Rules::parseStartPos(iter.value().get<string>());
+        else if (key == DOTS_CAPTURE_EMPTY_BASE_KEY)
+          rules.dotsCaptureEmptyBases = iter.value().get<bool>();
+        else if(key == "ko")
           rules.koRule = Rules::parseKoRule(iter.value().get<string>());
-        else if(key == "score")
-          rules.scoringRule = Rules::parseScoringRule(iter.value().get<string>());
-        else if(key == "scoring")
+        else if(key == "score" || key == "scoring")
           rules.scoringRule = Rules::parseScoringRule(iter.value().get<string>());
         else if(key == "tax") {
           rules.taxRule = Rules::parseTaxRule(iter.value().get<string>()); taxSpecified = true;
@@ -443,7 +539,7 @@ static Rules parseRulesHelper(const string& sOrig, bool allowKomi) {
     };
 
     //Default if not specified
-    rules = Rules::getTrompTaylorish();
+    rules = Rules::getDefaultOrTrompTaylorish(isDots);
 
     string s = sOrig;
     s = Global::trim(s);
@@ -528,6 +624,12 @@ static Rules parseRulesHelper(const string& sOrig, bool allowKomi) {
         else throw IOError("Could not parse rules: " + sOrig);
         continue;
       }
+      if(startsWithAndStrip(s,DOTS_CAPTURE_EMPTY_BASE_KEY)) {
+        if(startsWithAndStrip(s,"1")) rules.dotsCaptureEmptyBases = true;
+        else if(startsWithAndStrip(s,"0")) rules.dotsCaptureEmptyBases = false;
+        else throw IOError("Could not parse rules: " + sOrig);
+        continue;
+      }
 
       //Unknown rules format
       else throw IOError("Could not parse rules: " + sOrig);
@@ -547,48 +649,173 @@ static Rules parseRulesHelper(const string& sOrig, bool allowKomi) {
 }
 
 Rules Rules::parseRules(const string& sOrig) {
-  return parseRulesHelper(sOrig,true);
+  return parseRules(sOrig,false);
 }
+
+Rules Rules::parseRules(const string& sOrig, bool isDots) {
+  return parseRulesHelper(sOrig,true,isDots);
+}
+
 Rules Rules::parseRulesWithoutKomi(const string& sOrig, float komi) {
-  Rules rules = parseRulesHelper(sOrig,false);
+  return parseRulesWithoutKomi(sOrig,komi,false);
+}
+
+Rules Rules::parseRulesWithoutKomi(const string& sOrig, float komi, bool isDots) {
+  Rules rules = parseRulesHelper(sOrig,false,isDots);
   rules.komi = komi;
   return rules;
 }
 
-bool Rules::tryParseRules(const string& sOrig, Rules& buf) {
+bool Rules::tryParseRules(const string& sOrig, Rules& buf, bool isDots) {
   Rules rules;
-  try { rules = parseRulesHelper(sOrig,true); }
+  try { rules = parseRulesHelper(sOrig,true,isDots); }
   catch(const StringError&) { return false; }
   buf = rules;
   return true;
 }
-bool Rules::tryParseRulesWithoutKomi(const string& sOrig, Rules& buf, float komi) {
+
+bool Rules::tryParseRulesWithoutKomi(const string& sOrig, Rules& buf, float komi, bool isDots) {
   Rules rules;
-  try { rules = parseRulesHelper(sOrig,false); }
+  try { rules = parseRulesHelper(sOrig,false,isDots); }
   catch(const StringError&) { return false; }
   rules.komi = komi;
   buf = rules;
   return true;
 }
 
-string Rules::toStringNoKomiMaybeNice() const {
-  if(equalsIgnoringKomi(parseRulesHelper("TrompTaylor",false)))
+string Rules::toStringNoSgfDefinedPropertiesMaybeNice() const {
+  if(equalsIgnoringSgfDefinedProps(parseRulesHelper(DOTS_KEY, false, isDots)))
+    return "Dots";
+  if(equalsIgnoringSgfDefinedProps(parseRulesHelper("TrompTaylor",false, isDots)))
     return "TrompTaylor";
-  if(equalsIgnoringKomi(parseRulesHelper("Japanese",false)))
+  if(equalsIgnoringSgfDefinedProps(parseRulesHelper("Japanese",false, isDots)))
     return "Japanese";
-  if(equalsIgnoringKomi(parseRulesHelper("Chinese",false)))
+  if(equalsIgnoringSgfDefinedProps(parseRulesHelper("Chinese",false, isDots)))
     return "Chinese";
-  if(equalsIgnoringKomi(parseRulesHelper("Chinese-OGS",false)))
+  if(equalsIgnoringSgfDefinedProps(parseRulesHelper("Chinese-OGS",false, isDots)))
     return "Chinese-OGS";
-  if(equalsIgnoringKomi(parseRulesHelper("AGA",false)))
+  if(equalsIgnoringSgfDefinedProps(parseRulesHelper("AGA",false, isDots)))
     return "AGA";
-  if(equalsIgnoringKomi(parseRulesHelper("StoneScoring",false)))
+  if(equalsIgnoringSgfDefinedProps(parseRulesHelper("StoneScoring",false, isDots)))
     return "StoneScoring";
-  if(equalsIgnoringKomi(parseRulesHelper("NewZealand",false)))
+  if(equalsIgnoringSgfDefinedProps(parseRulesHelper("NewZealand",false, isDots)))
     return "NewZealand";
-  return toStringNoKomi();
+  return toStringNoSgfDefinedProps();
 }
 
+std::vector<Move> Rules::generateStartPos(const int startPos, const int x_size, const int y_size) {
+  std::vector<Move> moves;
+  switch (startPos) {
+    case START_POS_EMPTY:
+      break;
+    case START_POS_CROSS:
+      if (x_size >= 2 && y_size >= 2) {
+        // Obey notago implementation for odd height
+        addCross((x_size + 1) / 2 - 1, y_size / 2 - 1, x_size, false, moves);
+      }
+      break;
+    case START_POS_CROSS_2:
+      if (x_size >= 4 && y_size >= 2) {
+        const int middleX = (x_size + 1) / 2;
+        const int middleY = y_size / 2 - 1; // Obey notago implementation for odd height
+        addCross(middleX - 2, middleY, x_size, false, moves);
+        addCross(middleX, middleY, x_size, true, moves);
+      }
+      break;
+    case START_POS_CROSS_4:
+      if (x_size >= 4 && y_size >= 4) {
+        int offsetX;
+        int offsetY;
+        if (x_size == 39 && y_size == 32) {
+          offsetX = 11;
+          offsetY = 10;
+        } else {
+          offsetX = (x_size - 3) / 3;
+          offsetY = (y_size - 3) / 3;
+        }
+        // Consider the index and size of the cross
+        const int sideOffsetX = (x_size - 1) - (offsetX + 1);
+        const int sideOffsetY = (y_size - 1) - (offsetY + 1);
+        addCross(offsetX, offsetY, x_size, false, moves);
+        addCross(sideOffsetX, offsetY, x_size, false, moves);
+        addCross(sideOffsetX, sideOffsetY, x_size, false, moves);
+        addCross(offsetX, sideOffsetY, x_size, false, moves);
+      }
+      break;
+    default:
+      throw std::range_error("Unsupported " + START_POS_KEY + ": " + to_string(startPos));
+  }
+
+  return moves;
+}
+
+void Rules::addCross(const int x, const int y, const int x_size, const bool rotate90, std::vector<Move>& moves) {
+  Player pla;
+  Player opp;
+
+  // The end move should always be P_WHITE
+  if (!rotate90) {
+    pla = P_WHITE;
+    opp = P_BLACK;
+  } else {
+    pla = P_BLACK;
+    opp = P_WHITE;
+  }
+
+  const auto tailMove = Move(Location::getLoc(x, y + 1, x_size), pla);
+
+  if (!rotate90) {
+    moves.push_back(tailMove);
+  }
+
+  moves.emplace_back(Location::getLoc(x + 1, y + 1, x_size), opp);
+  moves.emplace_back(Location::getLoc(x + 1, y, x_size), pla);
+  moves.emplace_back(Location::getLoc(x, y, x_size), opp);
+
+  if (rotate90) {
+    moves.push_back(tailMove);
+  }
+}
+
+int Rules::tryRecognizeStartPos(int size_x, int size_y, vector<Move>& placementMoves, const bool emptyIfFailed) {
+  if(placementMoves.empty()) return START_POS_EMPTY;
+
+  int result = emptyIfFailed ? START_POS_EMPTY : -1;
+
+  // Sort locs because initial pos is invariant to moves order
+  auto sortByLoc = [&](vector<Move>& moves) {
+    std::sort(moves.begin(), moves.end(), [](const Move& move1, const Move& move2) { return move1.loc < move2.loc; });
+  };
+
+  sortByLoc(placementMoves);
+
+  auto generateStartPosSortAndCompare = [&](const int startPos) -> bool {
+    auto startPosMoves = generateStartPos(startPos, size_x, size_y);
+
+    if(startPosMoves.size() != placementMoves.size()) {
+      return false;
+    }
+
+    sortByLoc(startPosMoves);
+
+    for(size_t i = 0; i < placementMoves.size(); i++) {
+      if(placementMoves[i].loc != startPosMoves[i].loc || placementMoves[i].pla != startPosMoves[i].pla)
+        return false;
+    }
+
+    return true;
+  };
+
+  if(generateStartPosSortAndCompare(START_POS_CROSS)) {
+    result = START_POS_CROSS;
+  } else if(generateStartPosSortAndCompare(START_POS_CROSS_2)) {
+    result = START_POS_CROSS_2;
+  } else if(generateStartPosSortAndCompare(START_POS_CROSS_4)) {
+    result = START_POS_CROSS_4;
+  }
+
+  return result;
+}
 
 const Hash128 Rules::ZOBRIST_KO_RULE_HASH[4] = {
   Hash128(0x3cc7e0bf846820f6ULL, 0x1fb7fbde5fc6ba4eULL),  //Based on sha256 hash of Rules::KO_SIMPLE
@@ -617,4 +844,10 @@ const Hash128 Rules::ZOBRIST_BUTTON_HASH =   //Based on sha256 hash of Rules::ZO
 
 const Hash128 Rules::ZOBRIST_FRIENDLY_PASS_OK_HASH =   //Based on sha256 hash of Rules::ZOBRIST_FRIENDLY_PASS_OK_HASH
   Hash128(0x0113655998ef0a25ULL, 0x99c9d04ecd964874ULL);
+
+const Hash128 Rules::ZOBRIST_DOTS_GAME_HASH =
+  Hash128(0xcdbfab9c91da83a9ULL, 0x6c2f198b2742181full);
+
+const Hash128 Rules::ZOBRIST_DOTS_CAPTURE_EMPTY_BASES_HASH =
+  Hash128(0x469afde424e960deull, 0x59f6138cebc753afull);
 

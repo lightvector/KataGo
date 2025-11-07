@@ -1,7 +1,6 @@
 #include "../tests/tests.h"
 
 #include <algorithm>
-#include <iterator>
 
 #include "../dataio/sgf.h"
 #include "../search/asyncbot.h"
@@ -16,22 +15,29 @@ void Tests::runSgfTests() {
   auto parseAndPrintSgfLinear = [&out](const string& sgfStr) {
     std::unique_ptr<CompactSgf> sgf = CompactSgf::parse(sgfStr);
 
+    if (sgf->isDots) {
+      out << "Dots game" << endl;
+    }
     out << "xSize " << sgf->xSize << endl;
     out << "ySize " << sgf->ySize << endl;
     out << "depth " << sgf->depth << endl;
-    out << "komi " << sgf->getRulesOrFailAllowUnspecified(Rules()).komi << endl;
+    Rules rules = sgf->getRulesOrFailAllowUnspecified(Rules::getDefaultOrTrompTaylorish(sgf->isDots));
+    out << "komi " << rules.komi << endl;
 
     Board board;
     BoardHistory hist;
-    Rules rules;
     Player pla;
-    rules = sgf->getRulesOrFailAllowUnspecified(rules);
+
     sgf->setupInitialBoardAndHist(rules,board,pla,hist);
 
-    out << "placements" << endl;
-    for(int i = 0; i < sgf->placements.size(); i++) {
-      Move move = sgf->placements[i];
-      out << PlayerIO::colorToChar(move.pla) << " " << Location::toString(move.loc,board) << endl;
+    if (rules.startPos == Rules::START_POS_EMPTY) {
+      out << "placements" << endl;
+      for(int i = 0; i < sgf->placements.size(); i++) {
+        Move move = sgf->placements[i];
+        out << PlayerIO::colorToChar(move.pla) << " " << Location::toString(move.loc,board) << endl;
+      }
+    } else {
+      out << "startPos " << Rules::writeStartPosRule(rules.startPos) << endl;
     }
     out << "moves" << endl;
     for(int i = 0; i < sgf->moves.size(); i++) {
@@ -119,7 +125,7 @@ void Tests::runSgfTests() {
     sgf->getPlacements(placements, xySize.x, xySize.y);
     out << "placements " << placements.size() << endl;
     for(const Move& move: placements) {
-      out << PlayerIO::playerToString(move.pla) << " " << Location::toString(move.loc, xySize.x, xySize.y) << " ";
+      out << PlayerIO::playerToString(move.pla) << " " << Location::toString(move.loc, xySize.x, xySize.y, sgf->isDotsGame()) << " ";
     }
     out << endl;
 
@@ -127,7 +133,7 @@ void Tests::runSgfTests() {
     sgf->getMoves(moves, xySize.x, xySize.y);
     out << "moves " << moves.size() << endl;
     for(const Move& move: moves) {
-      out << PlayerIO::playerToString(move.pla) << " " << Location::toString(move.loc, xySize.x, xySize.y) << " ";
+      out << PlayerIO::playerToString(move.pla) << " " << Location::toString(move.loc, xySize.x, xySize.y, sgf->isDotsGame()) << " ";
     }
     out << endl;
 
@@ -150,6 +156,78 @@ void Tests::runSgfTests() {
       }
     );
   };
+
+  {
+    const char* name = "Basic Dots Sgf parse test";
+    string sgfStr = "(;FF[4]GM[40]CA[UTF-8]AP[katago]SZ[10:8]AB[ed][fe]AW[ee][fd];B[ef];W[de];B[df];W[hd];B[ce];W[hf];B[cd];W[ff];B[dc];W[cf];B[hb];W[ic];B[db];W[gg];B[da];W[bg];B[])";
+
+    parseAndPrintSgfLinear(sgfStr);
+    string expected = R"(
+Dots game
+xSize 10
+ySize 8
+depth 18
+komi 0
+startPos CROSS
+moves
+X E3
+O D4
+X D3
+O H5
+X C4
+O H3
+X C5
+O F3
+X D6
+O C3
+X H7
+O J6
+X D7
+O G2
+X D8
+O B2
+X ground
+Initial board hist
+pla Black
+HASH: BA8A444F3D6E9FC94A3F4A16C7D2DBA0
+   1  2  3  4  5  6  7  8  9  10
+ 8 .  .  .  .  .  .  .  .  .  .
+ 7 .  .  .  .  .  .  .  .  .  .
+ 6 .  .  .  .  .  .  .  .  .  .
+ 5 .  .  .  .  X  O  .  .  .  .
+ 4 .  .  .  .  O  X  .  .  .  .
+ 3 .  .  .  .  .  .  .  .  .  .
+ 2 .  .  .  .  .  .  .  .  .  .
+ 1 .  .  .  .  .  .  .  .  .  .
+
+
+Rules dotsCaptureEmptyBase0startPosCROSSsui1komi0
+White bonus score 0
+Presumed next pla Black
+Game result 0 Empty 0 0 0 0
+Last moves
+Final board hist
+pla White
+HASH: AB87C4395AA2D7E5D7B069ACBFA701D5
+   1  2  3  4  5  6  7  8  9  10
+ 8 .  .  .  X  .  .  .  .  .  .
+ 7 .  .  .  X  .  .  .  O  .  .
+ 6 .  .  .  X  .  .  .  .  O  .
+ 5 .  .  X  X  X  O  .  O  .  .
+ 4 .  .  X  X  X  X  .  .  .  .
+ 3 .  .  O  X  X  O  .  O  .  .
+ 2 .  O  .  .  .  .  O  .  .  .
+ 1 .  .  .  .  .  .  .  .  .  .
+
+
+Rules dotsCaptureEmptyBase0startPosCROSSsui1komi0
+White bonus score 0
+Presumed next pla White
+Game result 1 Black -1 1 0 0
+Last moves E3 D4 D3 H5 C4 H3 C5 F3 D6 C3 H7 J6 D7 G2 D8 B2 ground
+)";
+    expect(name,out,expected);
+  }
 
   //============================================================================
   {
@@ -994,7 +1072,7 @@ Encore phase 0
 Turns this phase 0
 Approx valid turns this phase 0
 Approx consec valid turns this game 0
-Rules koSIMPLEscoreAREAtaxNONEsui0whbNkomi0
+Rules koSIMPLEscoreAREAtaxNONEsui0whbNfpok1komi0
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
 White handicap bonus score 0
@@ -1051,7 +1129,7 @@ Encore phase 0
 Turns this phase 13
 Approx valid turns this phase 13
 Approx consec valid turns this game 13
-Rules koSIMPLEscoreAREAtaxNONEsui0whbNkomi0
+Rules koSIMPLEscoreAREAtaxNONEsui0whbNfpok1komi0
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
 White handicap bonus score 0
@@ -1421,7 +1499,7 @@ void Tests::runSgfFileTests() {
   testAssert(sgf->getXYSize().y == 19);
   testAssert(sgf->getKomiOrFail() == 6.5f);
   testAssert(sgf->hasRules() == true);
-  testAssert(sgf->getRulesOrFail().equalsIgnoringKomi(Rules::parseRules("chinese")));
+  testAssert(sgf->getRulesOrFail().equalsIgnoringSgfDefinedProps(Rules::parseRules("chinese")));
   testAssert(sgf->getHandicapValue() == 2);
   testAssert(sgf->getSgfWinner() == C_EMPTY);
   testAssert(sgf->getPlayerName(P_BLACK) == "testname1");

@@ -198,7 +198,7 @@ static bool noWhiteStonesOnBoard(const Board& board) {
   for(int y = 0; y < board.y_size; y++) {
     for(int x = 0; x < board.x_size; x++) {
       Loc loc = Location::getLoc(x,y,board.x_size);
-      if(board.colors[loc] == P_WHITE)
+      if(board.getColor(loc) == P_WHITE)
         return false;
     }
   }
@@ -1328,7 +1328,7 @@ struct GTPEngine {
     for(int y = 0; y<board.y_size; y++) {
       for(int x = 0; x<board.x_size; x++) {
         Loc loc = Location::getLoc(x,y,board.x_size);
-        if(board.colors[loc] != C_EMPTY) {
+        if(board.getColor(loc) != C_EMPTY) {
           response += " " + Location::toString(loc,board);
         }
       }
@@ -1370,7 +1370,7 @@ struct GTPEngine {
     for(int y = 0; y<board.y_size; y++) {
       for(int x = 0; x<board.x_size; x++) {
         Loc loc = Location::getLoc(x,y,board.x_size);
-        if(board.colors[loc] != C_EMPTY) {
+        if(board.getColor(loc) != C_EMPTY) {
           response += " " + Location::toString(loc,board);
         }
       }
@@ -1929,9 +1929,9 @@ int MainCmds::gtp(const vector<string>& args) {
   //Defaults to 7.5 komi, gtp will generally override this
   const bool loadKomiFromCfg = false;
   Rules initialRules = Setup::loadSingleRules(cfg,loadKomiFromCfg);
-  logger.write("Using " + initialRules.toStringNoKomiMaybeNice() + " rules initially, unless GTP/GUI overrides this");
+  logger.write("Using " + initialRules.toStringNoSgfDefinedPropertiesMaybeNice() + " rules initially, unless GTP/GUI overrides this");
   if(startupPrintMessageToStderr && !logger.isLoggingToStderr()) {
-    cerr << "Using " + initialRules.toStringNoKomiMaybeNice() + " rules initially, unless GTP/GUI overrides this" << endl;
+    cerr << "Using " + initialRules.toStringNoSgfDefinedPropertiesMaybeNice() + " rules initially, unless GTP/GUI overrides this" << endl;
   }
   bool isForcingKomi = false;
   float forcedKomi = 0;
@@ -2362,7 +2362,8 @@ int MainCmds::gtp(const vector<string>& args) {
       bool parseSuccess = false;
       Rules newRules;
       try {
-        newRules = Rules::parseRulesWithoutKomi(rest,engine->getCurrentRules().komi);
+        Rules currentRules = engine->getCurrentRules();
+        newRules = Rules::parseRulesWithoutKomi(rest, currentRules.komi, currentRules.isDots);
         parseSuccess = true;
       }
       catch(const StringError& err) {
@@ -2376,9 +2377,9 @@ int MainCmds::gtp(const vector<string>& args) {
           responseIsError = true;
           response = error;
         }
-        logger.write("Changed rules to " + newRules.toStringNoKomiMaybeNice());
+        logger.write("Changed rules to " + newRules.toStringNoSgfDefinedPropertiesMaybeNice());
         if(!logger.isLoggingToStderr())
-          cerr << "Changed rules to " + newRules.toStringNoKomiMaybeNice() << endl;
+          cerr << "Changed rules to " + newRules.toStringNoSgfDefinedPropertiesMaybeNice() << endl;
       }
     }
 
@@ -2406,9 +2407,9 @@ int MainCmds::gtp(const vector<string>& args) {
             responseIsError = true;
             response = error;
           }
-          logger.write("Changed rules to " + newRules.toStringNoKomiMaybeNice());
+          logger.write("Changed rules to " + newRules.toStringNoSgfDefinedPropertiesMaybeNice());
           if(!logger.isLoggingToStderr())
-            cerr << "Changed rules to " + newRules.toStringNoKomiMaybeNice() << endl;
+            cerr << "Changed rules to " + newRules.toStringNoSgfDefinedPropertiesMaybeNice() << endl;
         }
       }
     }
@@ -2423,19 +2424,19 @@ int MainCmds::gtp(const vector<string>& args) {
       else {
         string s = Global::toLower(Global::trim(pieces[0]));
         if(s == "chinese") {
-          newRules = Rules::parseRulesWithoutKomi("chinese-kgs",engine->getCurrentRules().komi);
+          newRules = Rules::parseRulesWithoutKomi("chinese-kgs", engine->getCurrentRules().komi);
           parseSuccess = true;
         }
         else if(s == "aga") {
-          newRules = Rules::parseRulesWithoutKomi("aga",engine->getCurrentRules().komi);
+          newRules = Rules::parseRulesWithoutKomi("aga", engine->getCurrentRules().komi);
           parseSuccess = true;
         }
         else if(s == "new_zealand") {
-          newRules = Rules::parseRulesWithoutKomi("new_zealand",engine->getCurrentRules().komi);
+          newRules = Rules::parseRulesWithoutKomi("new_zealand", engine->getCurrentRules().komi);
           parseSuccess = true;
         }
         else if(s == "japanese") {
-          newRules = Rules::parseRulesWithoutKomi("japanese",engine->getCurrentRules().komi);
+          newRules = Rules::parseRulesWithoutKomi("japanese", engine->getCurrentRules().komi);
           parseSuccess = true;
         }
         else {
@@ -2450,9 +2451,9 @@ int MainCmds::gtp(const vector<string>& args) {
           responseIsError = true;
           response = error;
         }
-        logger.write("Changed rules to " + newRules.toStringNoKomiMaybeNice());
+        logger.write("Changed rules to " + newRules.toStringNoSgfDefinedPropertiesMaybeNice());
         if(!logger.isLoggingToStderr())
-          cerr << "Changed rules to " + newRules.toStringNoKomiMaybeNice() << endl;
+          cerr << "Changed rules to " + newRules.toStringNoSgfDefinedPropertiesMaybeNice() << endl;
       }
     }
 
@@ -3243,7 +3244,7 @@ int MainCmds::gtp(const vector<string>& args) {
             for(int y = 0; y<board.y_size; y++) {
               for(int x = 0; x<board.x_size; x++) {
                 Loc loc = Location::getLoc(x,y,board.x_size);
-                if(board.colors[loc] != C_EMPTY && isAlive[loc])
+                if(board.getColor(loc) != C_EMPTY && isAlive[loc])
                   locsToReport.push_back(loc);
               }
             }
@@ -3252,7 +3253,7 @@ int MainCmds::gtp(const vector<string>& args) {
             for(int y = 0; y<board.y_size; y++) {
               for(int x = 0; x<board.x_size; x++) {
                 Loc loc = Location::getLoc(x,y,board.x_size);
-                if(board.colors[loc] != C_EMPTY && !isAlive[loc])
+                if(board.getColor(loc) != C_EMPTY && !isAlive[loc])
                   locsToReport.push_back(loc);
               }
             }

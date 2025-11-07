@@ -235,7 +235,8 @@ NNEvaluator* TestSearchCommon::startNNEval(
     gpuIdxByServerThread,
     nnRandSeed,
     nnRandomize,
-    defaultSymmetry
+    defaultSymmetry,
+    false // TODO: Fix for Dots game
   );
 
   nnEval->spawnServerThreads();

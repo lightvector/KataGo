@@ -17,6 +17,17 @@ namespace Tests {
   //testboardbasic.cpp
   void runBoardIOTests();
   void runBoardBasicTests();
+
+  void runDotsFieldTests();
+  void runDotsGroundingTests();
+  void runDotsPosHashTests();
+  void runDotsStartPosTests();
+  void runDotsStressTests();
+
+  void runDotsTerritoryTests();
+  void runDotsSymmetryTests();
+  void runDotsCapturingTests();
+
   void runBoardUndoTest();
   void runBoardHandicapTest();
   void runBoardStressTest();

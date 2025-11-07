@@ -45,9 +45,9 @@ struct BoardHistory {
 
   //Did this board location ever have a stone there before, or was it ever played?
   //(Also includes locations of suicides)
-  bool wasEverOccupiedOrPlayed[Board::MAX_ARR_SIZE];
+  std::vector<bool> wasEverOccupiedOrPlayed;
   //Locations where the next player is not allowed to play due to superko
-  bool superKoBanned[Board::MAX_ARR_SIZE];
+  std::vector<bool> superKoBanned;
 
   //Number of consecutive passes made that count for ending the game or phase
   int consecutiveEndingPasses;
@@ -68,7 +68,7 @@ struct BoardHistory {
   int numConsecValidTurnsThisGame;
 
   //Ko-recapture-block locations for territory scoring in encore
-  bool koRecapBlocked[Board::MAX_ARR_SIZE];
+  std::vector<bool> koRecapBlocked;
   Hash128 koRecapBlockHash; //Hash contribution from ko-recap-block locations in encore.
 
   //Used to implement once-only rules for ko captures in encore
@@ -76,7 +76,7 @@ struct BoardHistory {
   std::vector<EncoreKoCapture> koCapturesInEncore;
 
   //State of the grid as of the start of encore phase 2 for territory scoring
-  Color secondEncoreStartColors[Board::MAX_ARR_SIZE];
+  std::vector<Color> secondEncoreStartColors;
 
   //Amount that should be added to komi
   float whiteBonusScore;
@@ -168,6 +168,7 @@ struct BoardHistory {
   bool isLegalTolerant(const Board& board, Loc moveLoc, Player movePla) const;
 
   //Slightly expensive, check if the entire game is all pass-alive-territory, and if so, declare the game finished
+  // For Dots game it's Grounding alive
   void endGameIfAllPassAlive(const Board& board);
   //Score the board as-is. If the game is already finished, and is NOT a no-result, then this should be idempotent.
   void endAndScoreGameNow(const Board& board);
@@ -200,6 +201,7 @@ struct BoardHistory {
 private:
   bool koHashOccursInHistory(Hash128 koHash, const KoHashTable* rootKoHashTable) const;
   void setKoRecapBlocked(Loc loc, bool b);
+  static int countGroundingScoreWhiteMinusBlack(const Board& board, Color area[Board::MAX_ARR_SIZE]);
   int countAreaScoreWhiteMinusBlack(const Board& board, Color area[Board::MAX_ARR_SIZE]) const;
   int countTerritoryAreaScoreWhiteMinusBlack(const Board& board, Color area[Board::MAX_ARR_SIZE]) const;
   void setFinalScoreAndWinner(float score);

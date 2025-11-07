@@ -302,6 +302,7 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
     if(disableFP16)
       useFP16Mode = enabled_t::False;
 
+    bool dotsGame = cfg.getBoolOrDefault(DOTS_KEY, false);
     NNEvaluator* nnEval = new NNEvaluator(
       nnModelName,
       nnModelFile,
@@ -324,7 +325,8 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
       gpuIdxByServerThread,
       nnRandSeed,
       (forcedSymmetry >= 0 ? false : nnRandomize),
-      defaultSymmetry
+      defaultSymmetry,
+      dotsGame
     );
 
     nnEval->spawnServerThreads();
@@ -899,7 +901,7 @@ Rules Setup::loadSingleRules(
     if(cfg.contains("friendlyPassOk")) throw StringError("Cannot both specify 'rules' and individual rules like friendlyPassOk");
     if(cfg.contains("whiteBonusPerHandicapStone")) throw StringError("Cannot both specify 'rules' and individual rules like whiteBonusPerHandicapStone");
 
-    rules = Rules::parseRules(cfg.getString("rules"));
+    rules = Rules::parseRules(cfg.getString("rules"), cfg.getBoolOrDefault(DOTS_KEY, false));
   }
   else {
     string koRule = cfg.getString("koRule", Rules::koRuleStrings());

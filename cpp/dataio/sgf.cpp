@@ -136,6 +136,25 @@ static void writeSgfLoc(ostream& out, Loc loc, int xSize, int ySize) {
   out << chars[y];
 }
 
+static Rules getRulesFromSgf(const bool dotsGame, const SgfNode& rootNode, const int xSize, const int ySize, const Rules* defaultRules) {
+  Rules rules;
+  if (defaultRules == nullptr || rootNode.hasProperty("RU")) {
+    rules = rootNode.getRulesFromRUTagOrFail(dotsGame);
+  } else {
+    rules = *defaultRules;
+  }
+
+  if (defaultRules == nullptr || rootNode.hasProperty("KM")) {
+    rules.komi = rootNode.getKomiOrFail();
+  }
+
+  vector<Move> placementMoves;
+  rootNode.accumPlacements(placementMoves, xSize, ySize);
+  rules.startPos = Rules::tryRecognizeStartPos(xSize, ySize, placementMoves, true);
+
+  return rules;
+}
+
 bool SgfNode::hasProperty(const char* key) const {
   if(props == nullptr)
     return false;
@@ -273,13 +292,13 @@ Color SgfNode::getPLSpecifiedColor() const {
   return C_EMPTY;
 }
 
-Rules SgfNode::getRulesFromRUTagOrFail() const {
+Rules SgfNode::getRulesFromRUTagOrFail(const bool isDots) const {
   if(!hasProperty("RU"))
     throw StringError("SGF file does not specify rules");
   string s = getSingleProperty("RU");
 
   Rules parsed;
-  bool suc = Rules::tryParseRules(s,parsed);
+  bool suc = Rules::tryParseRules(s, parsed, isDots);
   if(!suc)
     throw StringError("Could not parse rules in sgf: " + s);
   return parsed;
@@ -399,6 +418,13 @@ static void checkNonEmpty(const vector<std::unique_ptr<SgfNode>>& nodes) {
     throw StringError("Empty sgf");
 }
 
+bool Sgf::isDotsGame() const {
+  if(!nodes[0]->hasProperty("GM"))
+    return false;
+  const string& s = nodes[0]->getSingleProperty("GM");
+  return s == "40";
+}
+
 XYSize Sgf::getXYSize() const {
   checkNonEmpty(nodes);
   int xSize = 0; //Initialize to 0 to suppress spurious clang compiler warning.
@@ -515,9 +541,9 @@ bool Sgf::hasRules() const {
 
 Rules Sgf::getRulesOrFail() const {
   checkNonEmpty(nodes);
-  Rules rules = nodes[0]->getRulesFromRUTagOrFail();
-  rules.komi = getKomiOrFail();
-  return rules;
+
+  const XYSize size = getXYSize();
+  return getRulesFromSgf(isDotsGame(), *nodes[0], size.x, size.y, nullptr);
 }
 
 Player Sgf::getSgfWinner() const {
@@ -755,7 +781,7 @@ void Sgf::loadAllUniquePositions(
   Rand* rand,
   vector<PositionSample>& samples
 ) const {
-  std::function<void(PositionSample&, const BoardHistory&, const string&)> f = [&samples](PositionSample& sample, const BoardHistory& hist, const string& comments) {
+  std::function f = [&samples](PositionSample& sample, const BoardHistory& hist, const string& comments) {
     (void)hist;
     (void)comments;
     samples.push_back(sample);
@@ -773,17 +799,20 @@ void Sgf::iterAllUniquePositions(
   Rand* rand,
   std::function<void(PositionSample&,const BoardHistory&,const std::string&)> f
 ) const {
+  bool isDots = isDotsGame();
   XYSize size = getXYSize();
   int xSize = size.x;
   int ySize = size.y;
 
-  Board board(xSize,ySize);
+  Rules rules = Rules::getDefaultOrTrompTaylorish(isDots);
   Player nextPla = nodes.size() > 0 ? nodes[0]->getPLSpecifiedColor() : C_EMPTY;
   if(nextPla == C_EMPTY)
     nextPla = C_BLACK;
-  Rules rules = Rules::getTrompTaylorish();
-  rules.koRule = Rules::KO_SITUATIONAL;
-  rules.multiStoneSuicideLegal = true;
+  if (!isDots) {
+    rules.koRule = Rules::KO_SITUATIONAL;
+    rules.multiStoneSuicideLegal = true;
+  }
+  Board board(xSize,ySize,rules);
   BoardHistory hist(board,nextPla,rules,0);
 
   PositionSample sampleBuf;
@@ -800,17 +829,20 @@ void Sgf::iterAllPositions(
   Rand* rand,
   std::function<void(PositionSample&,const BoardHistory&,const std::string&)> f
 ) const {
+  bool isDots = isDotsGame();
   XYSize size = getXYSize();
   int xSize = size.x;
   int ySize = size.y;
 
-  Board board(xSize,ySize);
   Player nextPla = nodes.size() > 0 ? nodes[0]->getPLSpecifiedColor() : C_EMPTY;
   if(nextPla == C_EMPTY)
     nextPla = C_BLACK;
-  Rules rules = Rules::getTrompTaylorish();
-  rules.koRule = Rules::KO_SITUATIONAL;
-  rules.multiStoneSuicideLegal = true;
+  Rules rules = Rules::getDefaultOrTrompTaylorish(isDots);
+  if (!isDots) {
+    rules.koRule = Rules::KO_SITUATIONAL;
+    rules.multiStoneSuicideLegal = true;
+  }
+  Board board(xSize,ySize,rules);
   BoardHistory hist(board,nextPla,rules,0);
 
   PositionSample sampleBuf;
@@ -860,9 +892,9 @@ void Sgf::iterAllPositionsHelper(
       int netStonesAdded = 0;
       if(buf.size() > 0) {
         for(size_t j = 0; j<buf.size(); j++) {
-          if(board.colors[buf[j].loc] != C_EMPTY && buf[j].pla == C_EMPTY)
+          if(board.getColor(buf[j].loc) != C_EMPTY && buf[j].pla == C_EMPTY)
             netStonesAdded--;
-          if(board.colors[buf[j].loc] == C_EMPTY && buf[j].pla != C_EMPTY)
+          if(board.getColor(buf[j].loc) == C_EMPTY && buf[j].pla != C_EMPTY)
             netStonesAdded++;
         }
         bool suc = board.setStonesFailIfNoLibs(buf);
@@ -926,7 +958,7 @@ void Sgf::iterAllPositionsHelper(
 
         throw StringError(
           "Illegal move in " + fileName + " effective turn " + Global::int64ToString((int64_t)(hist.moveHistory.size())+hist.initialTurnNumber) + " move " +
-          Location::toString(buf[j].loc, board.x_size, board.y_size) + " SGF trace (branches 0-indexed): " + trace.str()
+          Location::toString(buf[j].loc, board) + " SGF trace (branches 0-indexed): " + trace.str()
         );
       }
       if(hist.moveHistory.size() > 0x3FFFFFFF)
@@ -1089,6 +1121,9 @@ std::set<Hash128> Sgf::readExcludes(const vector<string>& files) {
 
 string Sgf::PositionSample::toJsonLine(const Sgf::PositionSample& sample) {
   json data;
+  if (sample.board.rules.isDots) {
+    data[DOTS_KEY] = "true";
+  }
   data["xSize"] = sample.board.x_size;
   data["ySize"] = sample.board.y_size;
   data["board"] = Board::toStringSimple(sample.board,'/');
@@ -1116,9 +1151,10 @@ Sgf::PositionSample Sgf::PositionSample::ofJsonLine(const string& s) {
   json data = json::parse(s);
   PositionSample sample;
   try {
+    bool isDots = data.value(DOTS_KEY, false);
     int xSize = data["xSize"].get<int>();
     int ySize = data["ySize"].get<int>();
-    sample.board = Board::parseBoard(xSize,ySize,data["board"].get<string>(),'/');
+    sample.board = Board::parseBoard(xSize, ySize, data["board"].get<string>(), '/', Rules(isDots));
     sample.nextPla = PlayerIO::parsePlayer(data["nextPla"].get<string>());
     vector<string> moveLocs = data["moveLocs"].get<vector<string>>();
     vector<string> movePlas = data["movePlas"].get<vector<string>>();
@@ -1160,7 +1196,7 @@ Sgf::PositionSample Sgf::PositionSample::ofJsonLine(const string& s) {
 
 Sgf::PositionSample Sgf::PositionSample::getColorFlipped() const {
   Sgf::PositionSample other = *this;
-  Board newBoard(other.board.x_size,other.board.y_size);
+  Board newBoard(other.board.x_size, other.board.y_size, other.board.rules);
   for(int y = 0; y < other.board.y_size; y++) {
     for(int x = 0; x < other.board.x_size; x++) {
       Loc loc = Location::getLoc(x,y,other.board.x_size);
@@ -1215,7 +1251,9 @@ int64_t Sgf::PositionSample::getCurrentTurnNumber() const {
 }
 
 bool Sgf::PositionSample::isEqualForTesting(const Sgf::PositionSample& other, bool checkNumCaptures, bool checkSimpleKo) const {
-  if(!board.isEqualForTesting(other.board,checkNumCaptures,checkSimpleKo))
+  // Skips the rules check because default `koRule` value `KO_POSITIONAL` differs in `Rules` constructor and in `Sgf::iterAllPositions` (`KO_SITUATIONAL`)
+  // TODO: fix it
+  if(!board.isEqualForTesting(other.board,checkNumCaptures,checkSimpleKo,false))
     return false;
   if(nextPla != other.nextPla)
     return false;
@@ -1583,6 +1621,7 @@ std::vector<std::unique_ptr<Sgf>> Sgf::loadSgfOrSgfsLogAndIgnoreErrors(const str
 CompactSgf::CompactSgf(const Sgf& sgf)
   :fileName(sgf.fileName),
    rootNode(),
+   isDots(),
    placements(),
    moves(),
    xSize(),
@@ -1591,6 +1630,7 @@ CompactSgf::CompactSgf(const Sgf& sgf)
    sgfWinner(),
    hash(sgf.hash)
 {
+  isDots = sgf.isDotsGame();
   XYSize size = sgf.getXYSize();
   xSize = size.x;
   ySize = size.y;
@@ -1616,6 +1656,7 @@ CompactSgf::CompactSgf(Sgf&& sgf)
    sgfWinner(),
    hash(sgf.hash)
 {
+  isDots = sgf.isDotsGame();
   XYSize size = sgf.getXYSize();
   xSize = size.x;
   ySize = size.y;
@@ -1666,21 +1707,11 @@ bool CompactSgf::hasRules() const {
 }
 
 Rules CompactSgf::getRulesOrFail() const {
-  Rules rules = rootNode.getRulesFromRUTagOrFail();
-  rules.komi = rootNode.getKomiOrFail();
-  return rules;
+  return getRulesFromSgf(isDots, rootNode, xSize, ySize, nullptr);
 }
 
 Rules CompactSgf::getRulesOrFailAllowUnspecified(const Rules& defaultRules) const {
-  Rules rules;
-  if(!hasRules())
-    rules = defaultRules;
-  else
-    rules = rootNode.getRulesFromRUTagOrFail();
-
-  if(rootNode.hasProperty("KM"))
-    rules.komi = rootNode.getKomiOrFail();
-  return rules;
+  return getRulesFromSgf(isDots, rootNode, xSize, ySize, &defaultRules);
 }
 
 Rules CompactSgf::getRulesOrWarn(const Rules& defaultRules, std::function<void(const string& msg)> f) const {
@@ -1705,7 +1736,7 @@ Rules CompactSgf::getRulesOrWarn(const Rules& defaultRules, std::function<void(c
 
   Rules rules;
   try {
-    rules = rootNode.getRulesFromRUTagOrFail();
+    rules = rootNode.getRulesFromRUTagOrFail(isDots);
   }
   catch(const std::exception& e) {
     rules = defaultRules;
@@ -1727,6 +1758,11 @@ Rules CompactSgf::getRulesOrWarn(const Rules& defaultRules, std::function<void(c
       f("There was an error parsing komi, using default komi with rules: " + rules.toString());
     }
   }
+
+  vector<Move> placementMoves;
+  rootNode.accumPlacements(placementMoves, xSize, ySize);
+  rules.startPos = Rules::tryRecognizeStartPos(xSize, ySize, placementMoves, true);
+
   return rules;
 }
 
@@ -1754,13 +1790,15 @@ void CompactSgf::setupInitialBoardAndHist(const Rules& initialRules, Board& boar
   if(moves.size() > 0)
     nextPla = moves[0].pla;
 
-  board = Board(xSize,ySize);
-  bool suc = board.setStonesFailIfNoLibs(placements);
-  if(!suc)
-    throw StringError("setupInitialBoardAndHist: initial board position contains invalid stones or zero-liberty stones");
+  board = Board(xSize,ySize,initialRules);
+  if (initialRules.startPos == Rules::START_POS_EMPTY) {
+    bool suc = board.setStonesFailIfNoLibs(placements);
+    if(!suc)
+      throw StringError("setupInitialBoardAndHist: initial board position contains invalid stones or zero-liberty stones");
+  }
   hist = BoardHistory(board,nextPla,initialRules,0);
-  if(hist.initialTurnNumber < board.numStonesOnBoard())
-    hist.initialTurnNumber = board.numStonesOnBoard();
+  if (int numStonesOnBoard = board.numStonesOnBoard(); hist.initialTurnNumber < numStonesOnBoard)
+    hist.initialTurnNumber = numStonesOnBoard;
 }
 
 void CompactSgf::playMovesAssumeLegal(Board& board, Player& nextPla, BoardHistory& hist, int64_t turnIdx) const {
@@ -1790,7 +1828,7 @@ void CompactSgf::playMovesTolerant(Board& board, Player& nextPla, BoardHistory& 
   for(int64_t i = 0; i<turnIdx; i++) {
     bool suc = hist.makeBoardMoveTolerant(board,moves[i].loc,moves[i].pla,preventEncore);
     if(!suc)
-      throw StringError("Illegal move in " + fileName + " turn " + Global::int64ToString(i) + " move " + Location::toString(moves[i].loc, board.x_size, board.y_size));
+      throw StringError("Illegal move in " + fileName + " turn " + Global::int64ToString(i) + " move " + Location::toString(moves[i].loc, board));
     nextPla = getOpp(moves[i].pla);
   }
 }
@@ -1924,7 +1962,8 @@ void WriteSgf::writeSgf(
 
   int xSize = initialBoard.x_size;
   int ySize = initialBoard.y_size;
-  out << "(;FF[4]GM[1]";
+  out << "(;FF[4]";
+  out << "GM[" << (initialBoard.rules.isDots ? "40" : "1") << "]";
   if(xSize == ySize)
     out << "SZ[" << xSize << "]";
   else
@@ -1932,25 +1971,27 @@ void WriteSgf::writeSgf(
   out << "PB[" << bName << "]";
   out << "PW[" << wName << "]";
 
-  if(gameData != NULL) {
-    out << "HA[" << gameData->handicapForSgf << "]";
-  }
-  else {
-    BoardHistory histCopy(endHist);
-    //Always use true for computing the handicap value that goes into an sgf
-    histCopy.setAssumeMultipleStartingBlackMovesAreHandicap(true);
-    out << "HA[" << histCopy.computeNumHandicapStones() << "]";
+  if (!initialBoard.rules.isDots) {
+    if(gameData != NULL) {
+      out << "HA[" << gameData->handicapForSgf << "]";
+    }
+    else {
+      BoardHistory histCopy(endHist);
+      //Always use true for computing the handicap value that goes into an sgf
+      histCopy.setAssumeMultipleStartingBlackMovesAreHandicap(true);
+      out << "HA[" << histCopy.computeNumHandicapStones() << "]";
+    }
   }
 
   out << "KM[" << rules.komi << "]";
-  out << "RU[" << (tryNicerRulesString ? rules.toStringNoKomiMaybeNice() : rules.toStringNoKomi()) << "]";
+  out << "RU[" << (tryNicerRulesString ? rules.toStringNoSgfDefinedPropertiesMaybeNice() : rules.toStringNoSgfDefinedProps()) << "]";
   printGameResult(out,endHist,overrideFinishedWhiteScore);
 
   bool hasAB = false;
   for(int y = 0; y<ySize; y++) {
     for(int x = 0; x<xSize; x++) {
       Loc loc = Location::getLoc(x,y,xSize);
-      if(initialBoard.colors[loc] == C_BLACK) {
+      if(initialBoard.getColor(loc) == C_BLACK) {
         if(!hasAB) {
           out << "AB";
           hasAB = true;
@@ -1966,7 +2007,7 @@ void WriteSgf::writeSgf(
   for(int y = 0; y<ySize; y++) {
     for(int x = 0; x<xSize; x++) {
       Loc loc = Location::getLoc(x,y,xSize);
-      if(initialBoard.colors[loc] == C_WHITE) {
+      if(initialBoard.getColor(loc) == C_WHITE) {
         if(!hasAW) {
           out << "AW";
           hasAW = true;
