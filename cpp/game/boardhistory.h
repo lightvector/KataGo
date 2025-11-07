@@ -173,6 +173,7 @@ struct BoardHistory {
   //Slightly expensive, check if the entire game is all pass-alive-territory, and if so, declare the game finished
   // For Dots game it's Grounding alive
   void endGameIfAllPassAlive(const Board& board);
+  void endGameIfNoLegalMoves(const Board& board);
   //Score the board as-is. If the game is already finished, and is NOT a no-result, then this should be idempotent.
   void endAndScoreGameNow(const Board& board);
   // Effective draw is when there are no ungrounded dots on the field (disregarding Komi)

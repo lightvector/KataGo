@@ -820,6 +820,19 @@ void BoardHistory::endGameIfAllPassAlive(const Board& board) {
   }
 }
 
+void BoardHistory::endGameIfNoLegalMoves(const Board& board) {
+  if (board.numLegalMovesIfSuiAllowed == 0) {
+    for(int y = 0; y < board.y_size; y++) {
+      for(int x = 0; x < board.x_size; x++) {
+        const Loc loc = Location::getLoc(x, y, board.x_size);
+        assert(!board.isLegal(loc, P_BLACK, rules.multiStoneSuicideLegal, true));
+        assert(!board.isLegal(loc, P_WHITE, rules.multiStoneSuicideLegal, true));
+      }
+    }
+    endAndScoreGameNow(board);
+  }
+}
+
 void BoardHistory::setWinnerByResignation(Player pla) {
   isGameFinished = true;
   isPastNormalPhaseEnd = false;

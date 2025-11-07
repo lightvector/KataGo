@@ -284,7 +284,9 @@ void Board::playMoveAssumeLegalDots(const Loc loc, const Player pla) {
     colors[loc] = static_cast<Color>(pla | pla << PLACED_PLAYER_SHIFT);
     const Hash128 hashValue = ZOBRIST_BOARD_HASH[loc][pla];
     pos_hash ^= hashValue;
-    numLegalMoves--;
+    if (rules.multiStoneSuicideLegal) {
+      numLegalMovesIfSuiAllowed--;
+    }
 
     bool atLeastOneRealBaseIsGrounded = false;
     int unconnectedLocationsSize = 0;
@@ -339,7 +341,9 @@ Board::MoveRecord Board::tryPlayMoveRecordedDots(Loc loc, Player pla, const bool
     colors[loc] = static_cast<Color>(pla | pla << PLACED_PLAYER_SHIFT);
     const Hash128 hashValue = ZOBRIST_BOARD_HASH[loc][pla];
     pos_hash ^= hashValue;
-    numLegalMoves--;
+    if (rules.multiStoneSuicideLegal) {
+      numLegalMovesIfSuiAllowed--;
+    }
 
     bool atLeastOneRealBaseIsGrounded = false;
     int unconnectedLocationsSize = 0;
@@ -356,7 +360,9 @@ Board::MoveRecord Board::tryPlayMoveRecordedDots(Loc loc, Player pla, const bool
         } else {
           colors[loc] = originalState;
           pos_hash ^= hashValue;
-          numLegalMoves++;
+          if (rules.multiStoneSuicideLegal) {
+            numLegalMovesIfSuiAllowed++;
+          }
           return {};
         }
       }
@@ -431,7 +437,9 @@ void Board::undoDots(MoveRecord& moveRecord) {
   if (!isGroundingMove) {
     setState(moveRecord.loc, moveRecord.previousState);
     pos_hash ^= ZOBRIST_BOARD_HASH[moveRecord.loc][moveRecord.pla];
-    numLegalMoves++;
+    if (rules.multiStoneSuicideLegal) {
+      numLegalMovesIfSuiAllowed++;
+    }
   }
 }
 
@@ -844,10 +852,12 @@ void Board::updateScoreAndHashForTerritory(const Loc loc, const State state, con
   }
 
   if (currentColor == C_EMPTY) {
-    if (!rollback) {
-      numLegalMoves--;
-    } else {
-      numLegalMoves++;
+    if (rules.multiStoneSuicideLegal) {
+      if (!rollback) {
+        numLegalMovesIfSuiAllowed--;
+      } else {
+        numLegalMovesIfSuiAllowed++;
+      }
     }
     pos_hash ^= ZOBRIST_BOARD_HASH[loc][basePla];
   } else if (currentColor == baseOppPla) {

@@ -145,7 +145,7 @@ Board::Board(const Board& other) {
   numWhiteCaptures = other.numWhiteCaptures;
   blackScoreIfWhiteGrounds = other.blackScoreIfWhiteGrounds;
   whiteScoreIfBlackGrounds = other.whiteScoreIfBlackGrounds;
-  numLegalMoves = other.numLegalMoves;
+  numLegalMovesIfSuiAllowed = other.numLegalMovesIfSuiAllowed;
   start_pos_moves = other.start_pos_moves;
   memcpy(adj_offsets, other.adj_offsets, sizeof(short)*8);
   visited_data.resize(other.visited_data.size(), false);
@@ -184,7 +184,7 @@ void Board::init(const int xS, const int yS, const Rules& initRules)
   numWhiteCaptures = 0;
   blackScoreIfWhiteGrounds = 0;
   whiteScoreIfBlackGrounds = 0;
-  numLegalMoves = xS * yS;
+  numLegalMovesIfSuiAllowed = xS * yS;
 
   if (!rules.isDots) {
     chain_data.resize(MAX_ARR_SIZE);
@@ -2508,7 +2508,7 @@ bool Board::isEqualForTesting(const Board& other, const bool checkNumCaptures,
     if(colors[i] != other.colors[i])
       return false;
   }
-  if (numLegalMoves != other.numLegalMoves) {
+  if (numLegalMovesIfSuiAllowed != other.numLegalMovesIfSuiAllowed) {
     return false;
   }
   if (start_pos_moves.size() != other.start_pos_moves.size()) {

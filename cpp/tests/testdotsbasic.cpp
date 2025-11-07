@@ -284,10 +284,10 @@ x.....x
 ....
 ....
 )", [](const BoardWithMoveRecords& boardWithMoveRecords) {
-testAssert(12 == boardWithMoveRecords.board.numLegalMoves);
+testAssert(12 == boardWithMoveRecords.board.numLegalMovesIfSuiAllowed);
 });
 
-  checkDotsField("Game over because of absence of legal moves",
+  checkDotsField("No legal moves",
     R"(
 xxxx
 xo.x
@@ -295,8 +295,32 @@ xx.x
 )", [](const BoardWithMoveRecords& boardWithMoveRecords) {
     boardWithMoveRecords.playMove(2, 2, P_BLACK);
     testAssert(1 == boardWithMoveRecords.board.numWhiteCaptures);
-    testAssert(0 == boardWithMoveRecords.board.numLegalMoves);
-  });
+    testAssert(0 == boardWithMoveRecords.board.numLegalMovesIfSuiAllowed);
+  }, true);
+
+  checkDotsField("Don't rely on legal moves number if suicide is enabled",
+  R"(
+xxxx
+xo.x
+xx.x
+)", [](const BoardWithMoveRecords& boardWithMoveRecords) {
+  boardWithMoveRecords.playMove(2, 2, P_BLACK);
+  testAssert(1 == boardWithMoveRecords.board.numWhiteCaptures);
+  // However, if suicide is disallowed, the value can be easily calculated iteratively
+  // So, it should be initialized by max number of moves
+  testAssert(12 == boardWithMoveRecords.board.numLegalMovesIfSuiAllowed);
+}, false);
+
+  checkDotsField("Suicidal move is also legal move",
+R"(
+xxx
+x.x
+xxx
+)", [](const BoardWithMoveRecords& boardWithMoveRecords) {
+  testAssert(1 == boardWithMoveRecords.board.numLegalMovesIfSuiAllowed);
+  boardWithMoveRecords.playMove(1, 1, P_WHITE);
+  testAssert(0 == boardWithMoveRecords.board.numLegalMovesIfSuiAllowed);
+}, true);
 }
 
 void Tests::runDotsGroundingTests() {

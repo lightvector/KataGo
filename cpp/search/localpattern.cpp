@@ -94,7 +94,7 @@ Hash128 LocalPatternHasher::getHashWithSym(const Board& board, Loc loc, Player p
     vector<Color> captures;
     vector<Color> bases;
     if (board.isDots()) {
-      board.calculateOneMoveCaptureAndBasePositionsForDots(true, captures, bases);
+      board.calculateOneMoveCaptureAndBasePositionsForDots(captures, bases);
     }
 
     const int dxi = 1;

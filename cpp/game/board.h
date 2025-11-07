@@ -48,6 +48,8 @@ Color getEmptyTerritoryColor(State s);
 
 bool isGrounded(State state);
 
+bool isTerritory(State s);
+
 //Conversions for players and colors
 namespace PlayerIO {
   char colorToChar(Color c);
@@ -421,7 +423,7 @@ struct Board
   // Offsets to add to get clockwise traverse
   short adj_offsets[8];
 
-  int numLegalMoves;
+  int numLegalMovesIfSuiAllowed;
 
   //Every chain of stones has one of its stones arbitrarily designated as the head.
   std::vector<ChainData> chain_data; //For each head stone, the chaindata for the chain under that head. Undefined otherwise.
