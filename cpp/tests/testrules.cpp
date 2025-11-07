@@ -3463,13 +3463,11 @@ HASH: 5C26A060FA78FD93FFF559C72BD7C6A4
 
     std::unique_ptr<CompactSgf> sgf = CompactSgf::parse(sgfStr);
 
-    Board board;
-    BoardHistory hist;
     Player nextPla = P_BLACK;
     int turnIdxToSetup = (int)sgf->moves.size();
     Rules initialRules = sgf->getRulesOrFailAllowUnspecified(Rules());
 
-    sgf->setupBoardAndHistAssumeLegal(initialRules, board, nextPla, hist, turnIdxToSetup);
+    auto [hist, board] = sgf->setupBoardAndHistAssumeLegal(initialRules, nextPla, turnIdxToSetup);
     string expected = R"%%(
 HASH: EB867913318513FD9DE98EDE86AE8CE0
    A B C D E F G H J K L M
@@ -5272,20 +5270,49 @@ Last moves pass pass pass pass H7 G9 F9 H7
     Rand baseRand(name);
 
     constexpr int numBoards = 6;
-    Board boards[numBoards] = {
-      Board(2,2),
-      Board(5,1),
-      Board(6,1),
-      Board(2,3),
-      Board(4,2),
-    };
     for(int i = 0; i<numBoards; i++) {
       for(int j = 0; j<rules.size(); j++) {
         Player nextPla = P_BLACK;
-        Board board = boards[i];
-        BoardHistory hist(board,nextPla,rules[j],0);
-        Board board2 = boards[i];
-        BoardHistory hist2(board2,nextPla,rules[j],0);
+        const Rules& currentRules = rules[j];
+
+        int x_size;
+        int y_size;
+        switch(i) {
+          case 0:
+            x_size = 2;
+            y_size = 2;
+            break;
+          case 1:
+            x_size = 5;
+            y_size = 1;
+            break;
+          case 2:
+            x_size = 6;
+            y_size = 1;
+            break;
+          case 3:
+            x_size = 2;
+            y_size = 3;
+            break;
+          case 4:
+            x_size = 4;
+            y_size = 2;
+            break;
+          case 5:
+            x_size = Board::DEFAULT_LEN_X;
+            y_size = Board::DEFAULT_LEN_Y;
+            break;
+          default:
+            throw std::runtime_error("Invalid board index");
+            break;
+        }
+
+        Board board = Board(x_size,y_size,currentRules);
+        Board board2 = Board(x_size,y_size,currentRules);
+
+        BoardHistory hist(board,nextPla,currentRules,0);
+        BoardHistory hist2(board2,nextPla,currentRules,0);
+
         KoHashTable* table = new KoHashTable();
 
         Rand rand(baseRand.nextUInt64());

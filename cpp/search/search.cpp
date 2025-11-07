@@ -66,15 +66,15 @@ SearchThread::~SearchThread() {
 static const double VALUE_WEIGHT_DEGREES_OF_FREEDOM = 3.0;
 
 Search::Search(SearchParams params, NNEvaluator* nnEval, Logger* lg, const string& rSeed)
-  :Search(params,nnEval,NULL,lg,rSeed,false)
+  :Search(params,nnEval,NULL,lg,rSeed,Rules::DEFAULT_GO)
 {}
-Search::Search(SearchParams params, NNEvaluator* nnEval, Logger* lg, const string& rSeed, const bool isDots)
-  :Search(params,nnEval,NULL,lg,rSeed,isDots)
+Search::Search(SearchParams params, NNEvaluator* nnEval, Logger* lg, const string& rSeed, const Rules& rules)
+  :Search(params,nnEval,NULL,lg,rSeed,rules)
 {}
-Search::Search(SearchParams params, NNEvaluator* nnEval, NNEvaluator* humanEval, Logger* lg, const string& rSeed, const bool isDots)
+Search::Search(SearchParams params, NNEvaluator* nnEval, NNEvaluator* humanEval, Logger* lg, const string& rSeed, const Rules& rules)
   :rootPla(P_BLACK),
-   rootBoard(),
-   rootHistory(),
+   rootBoard(rules),
+   rootHistory(rules),
    rootGraphHash(),
    rootHintLoc(Board::NULL_LOC),
    avoidMoveUntilByLocBlack(),avoidMoveUntilByLocWhite(),avoidMoveUntilRescaleRoot(false),
@@ -127,8 +127,8 @@ Search::Search(SearchParams params, NNEvaluator* nnEval, NNEvaluator* humanEval,
   }
 
   assert(rootHistory.rules.isDots == rootBoard.isDots());
-  rootHistory.clear(rootBoard,rootPla,Rules::getDefault(isDots),0);
-  if (!isDots) {
+  rootHistory.clear(rootBoard,rootPla,rules,0);
+  if (!rules.isDots) {
     rootKoHashTable = new KoHashTable();
     rootKoHashTable->recompute(rootHistory);
   }

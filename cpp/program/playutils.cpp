@@ -955,8 +955,7 @@ PlayUtils::BenchmarkResults PlayUtils::benchmarkSearchOnPositionsAndPrint(
 
   Board board;
   Player nextPla;
-  BoardHistory hist;
-  sgf.setupInitialBoardAndHist(initialRules, board, nextPla, hist);
+  BoardHistory hist = sgf.setupInitialBoardAndHist(initialRules, nextPla);
 
   int moveNum = 0;
 

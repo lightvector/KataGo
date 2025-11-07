@@ -23,39 +23,46 @@ static Hash128 getKoHashAfterMoveNonEncore(const Rules& rules, Hash128 posHashAf
 //     return posHashAfterMove ^ koRecapBlockHashAfterMove;
 // }
 
+BoardHistory::BoardHistory() : BoardHistory(Rules::DEFAULT_GO) {}
 
-BoardHistory::BoardHistory()
-  :rules(),
-   moveHistory(),
-   preventEncoreHistory(),
-   koHashHistory(),
-   firstTurnIdxWithKoHistory(0),
-   initialBoard(),
-   initialPla(P_BLACK),
-   initialEncorePhase(0),
-   initialTurnNumber(0),
-   assumeMultipleStartingBlackMovesAreHandicap(false),
-   whiteHasMoved(false),
-   overrideNumHandicapStones(-1),
-   recentBoards(),
-   currentRecentBoardIdx(0),
-   presumedNextMovePla(P_BLACK),
-   consecutiveEndingPasses(0),
-   hashesBeforeBlackPass(),hashesBeforeWhitePass(),
-   encorePhase(0),
-   numTurnsThisPhase(0),
-   numApproxValidTurnsThisPhase(0),
-   numConsecValidTurnsThisGame(0),
-   koRecapBlockHash(),
-   koCapturesInEncore(),
-   whiteBonusScore(0.0f),
-   whiteHandicapBonusScore(0.0f),
-   hasButton(false),
-   isPastNormalPhaseEnd(false),
-   isGameFinished(false),winner(C_EMPTY),finalWhiteMinusBlackScore(0.0f),
-   isScored(false),isNoResult(false),isResignation(false)
-{
-  if (!rules.isDots) {
+BoardHistory::BoardHistory(const Rules& rules)
+  : rules(rules),
+    moveHistory(),
+    preventEncoreHistory(),
+    koHashHistory(),
+    firstTurnIdxWithKoHistory(0),
+    initialBoard(rules),
+    initialPla(P_BLACK),
+    initialEncorePhase(0),
+    initialTurnNumber(0),
+    assumeMultipleStartingBlackMovesAreHandicap(false),
+    whiteHasMoved(false),
+    overrideNumHandicapStones(-1),
+    currentRecentBoardIdx(0),
+    presumedNextMovePla(P_BLACK),
+    consecutiveEndingPasses(0),
+    hashesBeforeBlackPass(),
+    hashesBeforeWhitePass(),
+    encorePhase(0),
+    numTurnsThisPhase(0),
+    numApproxValidTurnsThisPhase(0),
+    numConsecValidTurnsThisGame(0),
+    koRecapBlockHash(),
+    koCapturesInEncore(),
+    whiteBonusScore(0.0f),
+    whiteHandicapBonusScore(0.0f),
+    hasButton(false),
+    isPastNormalPhaseEnd(false),
+    isGameFinished(false),
+    winner(C_EMPTY),
+    finalWhiteMinusBlackScore(0.0f),
+    isScored(false),
+    isNoResult(false),
+    isResignation(false) {
+  for(int i = 0; i < NUM_RECENT_BOARDS; i++) {
+    recentBoards.emplace_back(rules);
+  }
+  if(!rules.isDots) {
     wasEverOccupiedOrPlayed.resize(Board::MAX_ARR_SIZE, false);
     superKoBanned.resize(Board::MAX_ARR_SIZE, false);
     koRecapBlocked.resize(Board::MAX_ARR_SIZE, false);
@@ -72,7 +79,7 @@ BoardHistory::BoardHistory(const Board& board, Player pla, const Rules& r, int e
    preventEncoreHistory(),
    koHashHistory(),
    firstTurnIdxWithKoHistory(0),
-   initialBoard(),
+   initialBoard(rules),
    initialPla(),
    initialEncorePhase(0),
    initialTurnNumber(0),
@@ -97,6 +104,9 @@ BoardHistory::BoardHistory(const Board& board, Player pla, const Rules& r, int e
    isGameFinished(false),winner(C_EMPTY),finalWhiteMinusBlackScore(0.0f),
    isScored(false),isNoResult(false),isResignation(false)
 {
+  for(int i = 0; i < NUM_RECENT_BOARDS; i++) {
+    recentBoards.emplace_back(rules);
+  }
   if (!rules.isDots) {
     wasEverOccupiedOrPlayed.resize(Board::MAX_ARR_SIZE, false);
     superKoBanned.resize(Board::MAX_ARR_SIZE, false);
@@ -120,7 +130,6 @@ BoardHistory::BoardHistory(const BoardHistory& other)
    assumeMultipleStartingBlackMovesAreHandicap(other.assumeMultipleStartingBlackMovesAreHandicap),
    whiteHasMoved(other.whiteHasMoved),
    overrideNumHandicapStones(other.overrideNumHandicapStones),
-   recentBoards(),
    currentRecentBoardIdx(other.currentRecentBoardIdx),
    presumedNextMovePla(other.presumedNextMovePla),
    consecutiveEndingPasses(other.consecutiveEndingPasses),
@@ -138,7 +147,7 @@ BoardHistory::BoardHistory(const BoardHistory& other)
    isGameFinished(other.isGameFinished),winner(other.winner),finalWhiteMinusBlackScore(other.finalWhiteMinusBlackScore),
    isScored(other.isScored),isNoResult(other.isNoResult),isResignation(other.isResignation)
 {
-  std::copy_n(other.recentBoards, NUM_RECENT_BOARDS, recentBoards);
+  recentBoards = other.recentBoards;
   wasEverOccupiedOrPlayed = other.wasEverOccupiedOrPlayed;
   superKoBanned = other.superKoBanned;
   koRecapBlocked = other.koRecapBlocked;
@@ -162,7 +171,7 @@ BoardHistory& BoardHistory::operator=(const BoardHistory& other)
   assumeMultipleStartingBlackMovesAreHandicap = other.assumeMultipleStartingBlackMovesAreHandicap;
   whiteHasMoved = other.whiteHasMoved;
   overrideNumHandicapStones = other.overrideNumHandicapStones;
-  std::copy_n(other.recentBoards, NUM_RECENT_BOARDS, recentBoards);
+  recentBoards = other.recentBoards;
   currentRecentBoardIdx = other.currentRecentBoardIdx;
   presumedNextMovePla = other.presumedNextMovePla;
   wasEverOccupiedOrPlayed = other.wasEverOccupiedOrPlayed;
@@ -205,7 +214,6 @@ BoardHistory::BoardHistory(BoardHistory&& other) noexcept
   assumeMultipleStartingBlackMovesAreHandicap(other.assumeMultipleStartingBlackMovesAreHandicap),
   whiteHasMoved(other.whiteHasMoved),
   overrideNumHandicapStones(other.overrideNumHandicapStones),
-  recentBoards(),
   currentRecentBoardIdx(other.currentRecentBoardIdx),
   presumedNextMovePla(other.presumedNextMovePla),
   consecutiveEndingPasses(other.consecutiveEndingPasses),
@@ -223,7 +231,7 @@ BoardHistory::BoardHistory(BoardHistory&& other) noexcept
   isGameFinished(other.isGameFinished),winner(other.winner),finalWhiteMinusBlackScore(other.finalWhiteMinusBlackScore),
   isScored(other.isScored),isNoResult(other.isNoResult),isResignation(other.isResignation)
 {
-  std::copy_n(other.recentBoards, NUM_RECENT_BOARDS, recentBoards);
+  recentBoards = other.recentBoards;
   wasEverOccupiedOrPlayed = other.wasEverOccupiedOrPlayed;
   superKoBanned = other.superKoBanned;
   koRecapBlocked = other.koRecapBlocked;
@@ -244,7 +252,7 @@ BoardHistory& BoardHistory::operator=(BoardHistory&& other) noexcept
   assumeMultipleStartingBlackMovesAreHandicap = other.assumeMultipleStartingBlackMovesAreHandicap;
   whiteHasMoved = other.whiteHasMoved;
   overrideNumHandicapStones = other.overrideNumHandicapStones;
-  std::copy_n(other.recentBoards, NUM_RECENT_BOARDS, recentBoards);
+  recentBoards = other.recentBoards;
   currentRecentBoardIdx = other.currentRecentBoardIdx;
   presumedNextMovePla = other.presumedNextMovePla;
   wasEverOccupiedOrPlayed = other.wasEverOccupiedOrPlayed;

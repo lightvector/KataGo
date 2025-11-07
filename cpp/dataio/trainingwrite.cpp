@@ -18,9 +18,9 @@ ValueTargets::~ValueTargets()
 
 //-------------------------------------------------------------------------------------
 
-SidePosition::SidePosition()
+SidePosition::SidePosition(const Rules& rules)
   :board(),
-   hist(),
+   hist(rules),
    pla(P_BLACK),
    unreducedNumVisits(),
    policyTarget(),
@@ -59,15 +59,15 @@ SidePosition::~SidePosition()
 
 //-------------------------------------------------------------------------------------
 
-FinishedGameData::FinishedGameData()
+FinishedGameData::FinishedGameData(const Rules& rules)
   :bName(),
    wName(),
    bIdx(0),
    wIdx(0),
 
-   startBoard(),
-   startHist(),
-   endHist(),
+   startBoard(rules),
+   startHist(rules),
+   endHist(rules),
    startPla(P_BLACK),
    gameHash(),
 

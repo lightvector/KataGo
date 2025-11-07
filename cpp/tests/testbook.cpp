@@ -27,8 +27,8 @@ static void corruptNodes(Book* book, std::vector<SymBookNode>& newAndChangedNode
 void Tests::runBookTests() {
   cout << "Running book tests" << endl;
 
-  Board initialBoard(4,4);
   Rules rules = Rules::parseRules("japanese");
+  Board initialBoard(4,4,rules);
   Player initialPla = P_BLACK;
 
   int repBound = 9;

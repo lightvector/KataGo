@@ -898,7 +898,7 @@ xx......x
     Rand rand("noiseVisualize");
 
     auto run = [&](int xSize, int ySize) {
-      Board board(xSize,ySize);
+      const Board board(xSize,ySize,Rules::DEFAULT_GO);
       int nnXLen = 19;
       int nnYLen = 19;
       float sum = 0.0;
@@ -2534,9 +2534,10 @@ x.x.x
 
     std::map<std::pair<int,int>,int> boardSizeDistribution;
     for(int i = 0; i<100000; i++) {
-      Board board;
+      Rules rules = Rules::DEFAULT_GO;
+      Board board(rules);
       Player pla;
-      BoardHistory hist;
+      BoardHistory hist(rules);
       ExtraBlackAndKomi extraBlackAndKomi;
       OtherGameProperties otherGameProps;
       gameInit.createGame(board,pla,hist,extraBlackAndKomi,NULL,PlaySettings(),otherGameProps,NULL);

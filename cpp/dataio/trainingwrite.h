@@ -57,7 +57,7 @@ struct SidePosition {
   Player playoutDoublingAdvantagePla;
   double playoutDoublingAdvantage;
 
-  SidePosition();
+  explicit SidePosition(const Rules& rules);
   SidePosition(const Board& board, const BoardHistory& hist, Player pla, int numNeuralNetChangesSoFar);
   ~SidePosition();
 };
@@ -128,7 +128,7 @@ struct FinishedGameData {
   static constexpr int MODE_HINTFORK = 6;
   static constexpr int MODE_ASYM = 7;
 
-  FinishedGameData();
+  explicit FinishedGameData(const Rules& rules);
   ~FinishedGameData();
 
   void printDebug(std::ostream& out) const;

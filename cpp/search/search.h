@@ -192,14 +192,14 @@ struct Search {
     NNEvaluator* nnEval,
     Logger* logger,
     const std::string& randSeed,
-    bool isDots);
+    const Rules& rules);
   Search(
     SearchParams params,
     NNEvaluator* nnEval,
     NNEvaluator* humanEval,
     Logger* lg,
     const std::string& rSeed,
-    bool isDots);
+    const Rules& rules);
   ~Search();
 
   Search(const Search&) = delete;

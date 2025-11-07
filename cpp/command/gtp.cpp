@@ -415,7 +415,7 @@ struct GTPEngine {
      isGenmoveParams(true),
      bTimeControls(),
      wTimeControls(),
-     initialBoard(),
+     initialBoard(initialRules),
      initialPla(P_BLACK),
      moveHistory(),
      recentWinLossValues(),
@@ -550,11 +550,11 @@ struct GTPEngine {
       else
         searchRandSeed = Global::uint64ToString(seedRand.nextUInt64());
 
-      bot = new AsyncBot(genmoveParams, nnEval, humanEval, &logger, searchRandSeed);
+      bot = new AsyncBot(genmoveParams, nnEval, humanEval, &logger, searchRandSeed, currentRules);
       bot->setCopyOfExternalPatternBonusTable(patternBonusTable);
       isGenmoveParams = true;
 
-      Board board(boardXSize,boardYSize);
+      Board board(boardXSize,boardYSize,currentRules);
       Player pla = P_BLACK;
       BoardHistory hist(board,pla,currentRules,0);
       vector<Move> newMoveHistory;
@@ -587,7 +587,7 @@ struct GTPEngine {
     assert(bot->getRootHist().rules == currentRules);
     int newXSize = bot->getRootBoard().x_size;
     int newYSize = bot->getRootBoard().y_size;
-    Board board(newXSize,newYSize);
+    Board board(newXSize,newYSize,currentRules);
     Player pla = P_BLACK;
     BoardHistory hist(board,pla,currentRules,0);
     vector<Move> newMoveHistory;
@@ -599,7 +599,7 @@ struct GTPEngine {
     assert(bot->getRootHist().rules == currentRules);
     int newXSize = bot->getRootBoard().x_size;
     int newYSize = bot->getRootBoard().y_size;
-    Board board(newXSize,newYSize);
+    Board board(newXSize,newYSize,currentRules);
     bool suc = board.setStonesFailIfNoLibs(initialStones);
     if(!suc)
       return false;
@@ -1304,7 +1304,7 @@ struct GTPEngine {
   void placeFixedHandicap(int n, string& response, bool& responseIsError) {
     int xSize = bot->getRootBoard().x_size;
     int ySize = bot->getRootBoard().y_size;
-    Board board(xSize,ySize);
+    Board board(xSize,ySize,currentRules);
     try {
       PlayUtils::placeFixedHandicap(board,n);
     }
@@ -1355,7 +1355,7 @@ struct GTPEngine {
 
     assert(bot->getRootHist().rules == currentRules);
 
-    Board board(xSize,ySize);
+    Board board(xSize,ySize,currentRules);
     Player pla = P_BLACK;
     BoardHistory hist(board,pla,currentRules,0);
     double extraBlackTemperature = 0.25;
@@ -3175,9 +3175,10 @@ int MainCmds::gtp(const vector<string>& args) {
       }
       else {
         vector<Move> locs;
-        int xSize = engine->bot->getRootBoard().x_size;
-        int ySize = engine->bot->getRootBoard().y_size;
-        Board board(xSize,ySize);
+        const Board* rootBoard = &engine->bot->getRootBoard();
+        int xSize = rootBoard->x_size;
+        int ySize = rootBoard->y_size;
+        Board board(xSize,ySize,rootBoard->rules);
         for(int i = 0; i<pieces.size(); i++) {
           Loc loc;
           bool suc = tryParseLoc(pieces[i],board,loc);
@@ -3300,7 +3301,6 @@ int MainCmds::gtp(const vector<string>& args) {
         else {
           Board sgfInitialBoard;
           Player sgfInitialNextPla;
-          BoardHistory sgfInitialHist;
           Rules sgfRules;
           Board sgfBoard;
           Player sgfNextPla;
@@ -3350,7 +3350,8 @@ int MainCmds::gtp(const vector<string>& args) {
               }
             }
 
-            sgf->setupInitialBoardAndHist(sgfRules, sgfInitialBoard, sgfInitialNextPla, sgfInitialHist);
+            BoardHistory sgfInitialHist = sgf->setupInitialBoardAndHist(sgfRules, sgfInitialNextPla);
+            sgfInitialBoard = sgfInitialHist.initialBoard;
             sgfInitialHist.setInitialTurnNumber(sgfInitialBoard.numStonesOnBoard()); //Should give more accurate temperaure and time control behavior
             sgfBoard = sgfInitialBoard;
             sgfNextPla = sgfInitialNextPla;

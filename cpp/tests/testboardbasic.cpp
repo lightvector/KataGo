@@ -739,7 +739,7 @@ After white
   //============================================================================
   {
     const char* name = "Distance";
-    Board board(17,12);
+    Board board(17,12,Rules::DEFAULT_GO);
 
     auto testDistance = [&](int x0, int y0, int x1, int y1) {
       out << "distance (" << x0 << "," << y0 << ") (" << x1 << "," << y1 << ") = " <<
@@ -1915,12 +1915,12 @@ void Tests::runBoardUndoTest() {
   int regularMoveCount = 0;
   auto run = [&](const Board& startBoard, bool multiStoneSuicideLegal) {
     static const int steps = 1000;
-    Board* boards = new Board[steps+1];
+    vector<Board> boards;
     Board::MoveRecord records[steps];
 
-    boards[0] = startBoard;
+    boards.push_back(startBoard);
     for(int n = 1; n <= steps; n++) {
-      boards[n] = boards[n-1];
+      boards.push_back(boards[n-1]);
       Loc loc;
       Player pla;
       while(true) {
@@ -1951,12 +1951,11 @@ void Tests::runBoardUndoTest() {
       testAssert(boardsSeemEqual(boards[n],board));
       board.checkConsistency();
     }
-    delete[] boards;
   };
 
-  run(Board(19,19),true);
-  run(Board(4,4),true);
-  run(Board(4,4),false);
+  run(Board(19,19,Rules::DEFAULT_GO),true);
+  run(Board(4,4,Rules::DEFAULT_GO),true);
+  run(Board(4,4,Rules::DEFAULT_GO),false);
 
   ostringstream out;
   out << endl;
@@ -1979,7 +1978,7 @@ suicideCount 79
 void Tests::runBoardHandicapTest() {
   cout << "Running board handicap test" << endl;
   {
-    Board board = Board(19,19);
+    Board board = Board(19,19,Rules::DEFAULT_GO);
     Player nextPla = P_BLACK;
     Rules rules = Rules::parseRules("chinese");
     BoardHistory hist(board,nextPla,rules,0);
@@ -2001,9 +2000,9 @@ void Tests::runBoardHandicapTest() {
   }
 
   {
-    Board board = Board(19,19);
     Player nextPla = P_BLACK;
-    Rules rules = Rules::parseRules("chinese");
+    const Rules rules = Rules::parseRules("chinese");
+    Board board = Board(19,19,rules);
     BoardHistory hist(board,nextPla,rules,0);
 
     hist.setAssumeMultipleStartingBlackMovesAreHandicap(true);
@@ -2020,9 +2019,9 @@ void Tests::runBoardHandicapTest() {
   }
 
   {
-    Board board = Board(19,19);
     Player nextPla = P_BLACK;
-    Rules rules = Rules::parseRules("aga");
+    const Rules rules = Rules::parseRules("aga");
+    Board board = Board(19,19,rules);
     BoardHistory hist(board,nextPla,rules,0);
 
     hist.setAssumeMultipleStartingBlackMovesAreHandicap(true);
@@ -2039,9 +2038,9 @@ void Tests::runBoardHandicapTest() {
   }
 
   {
-    Board board = Board(19,19);
     Player nextPla = P_BLACK;
-    Rules rules = Rules::parseRules("aga");
+    const Rules rules = Rules::parseRules("aga");
+    Board board = Board(19,19,rules);
     BoardHistory hist(board,nextPla,rules,0);
 
     hist.setAssumeMultipleStartingBlackMovesAreHandicap(true);
@@ -2070,9 +2069,9 @@ void Tests::runBoardHandicapTest() {
   }
 
   {
-    Board board = Board(19,19);
     Player nextPla = P_BLACK;
-    Rules rules = Rules::parseRules("chinese");
+    const Rules rules = Rules::parseRules("chinese");
+    Board board = Board(19,19,rules);
     BoardHistory hist(board,nextPla,rules,0);
 
     hist.setAssumeMultipleStartingBlackMovesAreHandicap(true);
@@ -2105,13 +2104,14 @@ void Tests::runBoardStressTest() {
   {
     Rand rand("runBoardStressTests");
     static const int numBoards = 4;
-    Board boards[numBoards];
-    boards[0] = Board();
-    boards[1] = Board(9,16);
-    boards[2] = Board(13,7);
-    boards[3] = Board(4,4);
+    vector<Board> boards;
+    Rules rules = Rules::DEFAULT_GO;
+    boards.push_back(Board(Board::DEFAULT_LEN_X, Board::DEFAULT_LEN_Y, rules));
+    boards.push_back(Board(9,16,rules));
+    boards.push_back(Board(13,7,rules));
+    boards.push_back(Board(4,4,rules));
     bool multiStoneSuicideLegal[4] = {false,false,true,false};
-    Board copies[numBoards];
+    vector<Board> copies;
     Player pla = C_BLACK;
     int suicideCount = 0;
     int koBanCount = 0;
@@ -2143,8 +2143,9 @@ void Tests::runBoardStressTest() {
         }
       }
 
+      copies.clear();
       for(int i = 0; i<numBoards; i++)
-        copies[i] = boards[i];
+        copies.push_back(boards[i]);
 
       bool isLegal[numBoards];
       bool suc[numBoards];
@@ -2271,7 +2272,7 @@ Caps 4420 4335
     };
 
     for(int rep = 0; rep<1000; rep++) {
-      Board board0(5 + rand.nextUInt(14), 5 + rand.nextUInt(14));
+      Board board0(5 + rand.nextUInt(14), 5 + rand.nextUInt(14),Rules::DEFAULT_GO);
       Board board1 = board0;
       Board board2 = board0;
       Board board3 = board0;
@@ -2356,7 +2357,7 @@ Caps 4420 4335
   {
     Rand rand("runBoardSetStoneTests2");
     for(int rep = 0; rep<1000; rep++) {
-      Board board(1 + rand.nextUInt(18), 1 + rand.nextUInt(18));
+      Board board(1 + rand.nextUInt(18), 1 + rand.nextUInt(18),Rules::DEFAULT_GO);
       std::vector<Move> placements;
       for(int i = 0; i<1000; i++) {
         Loc loc = Location::getLoc(rand.nextUInt(board.x_size),rand.nextUInt(board.y_size),board.x_size);
@@ -2365,7 +2366,7 @@ Caps 4420 4335
           placements.push_back(Move(loc,pla));
           bool anyCaps = board.wouldBeCapture(loc,pla) || board.isSuicide(loc,pla);
           board.playMoveAssumeLegal(loc,pla);
-          Board copy(board.x_size,board.y_size);
+          Board copy(board.x_size,board.y_size,board.rules);
           bool suc = copy.setStonesFailIfNoLibs(placements);
           testAssert(suc == !anyCaps);
           copy.checkConsistency();
@@ -2379,7 +2380,7 @@ Caps 4420 4335
   {
     Rand rand("runBoardSetStoneTests3");
     for(int rep = 0; rep<1000; rep++) {
-      Board board(1 + rand.nextUInt(18), 1 + rand.nextUInt(18));
+      Board board(1 + rand.nextUInt(18), 1 + rand.nextUInt(18),Rules::DEFAULT_GO);
       for(int i = 0; i<300; i++) {
         Loc loc = Location::getLoc(rand.nextUInt(board.x_size),rand.nextUInt(board.y_size),board.x_size);
         Color color = rand.nextBool(0.25) ? C_EMPTY : rand.nextBool(0.5) ? P_BLACK : P_WHITE;
@@ -2395,7 +2396,7 @@ Caps 4420 4335
 
         placements.push_back(Move(loc,color));
         if(prevPlacedLocs.find(loc) != prevPlacedLocs.end()) {
-          Board copy(board.x_size,board.y_size);
+          Board copy(board.x_size,board.y_size,board.rules);
           bool suc = copy.setStonesFailIfNoLibs(placements);
           testAssert(!suc);
           placements.pop_back();

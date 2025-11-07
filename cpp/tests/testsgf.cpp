@@ -21,14 +21,13 @@ void Tests::runSgfTests() {
     out << "xSize " << sgf->xSize << endl;
     out << "ySize " << sgf->ySize << endl;
     out << "depth " << sgf->depth << endl;
-    Rules rules = sgf->getRulesOrFailAllowUnspecified(Rules::getDefaultOrTrompTaylorish(sgf->isDots));
+    const Rules rules = sgf->getRulesOrFailAllowUnspecified(Rules::getDefaultOrTrompTaylorish(sgf->isDots));
     out << "komi " << rules.komi << endl;
 
-    Board board;
-    BoardHistory hist;
     Player pla;
 
-    sgf->setupInitialBoardAndHist(rules,board,pla,hist);
+    const BoardHistory hist = sgf->setupInitialBoardAndHist(rules, pla);
+    const Board& board = hist.initialBoard;
 
     if (rules.startPos == Rules::START_POS_EMPTY) {
       out << "placements" << endl;
@@ -49,26 +48,23 @@ void Tests::runSgfTests() {
     out << "pla " << PlayerIO::playerToString(pla) << endl;
     hist.printDebugInfo(out,board);
 
-    sgf->setupBoardAndHistAssumeLegal(rules,board,pla,hist,sgf->moves.size());
+    auto [finalHist, finalBoard] = sgf->setupBoardAndHistAssumeLegal(rules, pla, sgf->moves.size());
     out << "Final board hist " << endl;
     out << "pla " << PlayerIO::playerToString(pla) << endl;
-    hist.printDebugInfo(out,board);
+    finalHist.printDebugInfo(out,finalBoard);
 
     {
       //Test SGF writing roundtrip.
       //This is not exactly holding if there is pass for ko, but should be good in all other cases
       ostringstream out2;
-      WriteSgf::writeSgf(out2,"foo","bar",hist,NULL,false,false);
+      WriteSgf::writeSgf(out2,"foo","bar",finalHist,NULL,false,false);
       std::unique_ptr<CompactSgf> sgf2 = CompactSgf::parse(out2.str());
-      Board board2;
-      BoardHistory hist2;
-      Rules rules2;
       Player pla2;
-      rules2 = sgf2->getRulesOrFail();
-      sgf->setupBoardAndHistAssumeLegal(rules2,board2,pla2,hist2,sgf2->moves.size());
+      const Rules rules2 = sgf2->getRulesOrFail();
+      auto [hist2, board2] = sgf->setupBoardAndHistAssumeLegal(rules2, pla2, sgf2->moves.size());
       testAssert(rules2 == rules);
-      testAssert(board2.pos_hash == board.pos_hash);
-      testAssert(hist2.moveHistory.size() == hist.moveHistory.size());
+      testAssert(board2.pos_hash == finalBoard.pos_hash);
+      testAssert(hist2.moveHistory.size() == finalHist.moveHistory.size());
     }
   };
 

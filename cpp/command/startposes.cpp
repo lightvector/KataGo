@@ -436,11 +436,11 @@ int MainCmds::samplesgfs(const vector<string>& args) {
     else {
       string fileName = sgf.fileName;
       CompactSgf compactSgf(sgf);
-      Board board;
+
       Player nextPla;
-      BoardHistory hist;
       Rules rules = compactSgf.getRulesOrFailAllowUnspecified(Rules::getSimpleTerritory());
-      compactSgf.setupInitialBoardAndHist(rules, board, nextPla, hist);
+      BoardHistory hist = compactSgf.setupInitialBoardAndHist(rules, nextPla);
+      Board& board = hist.initialBoard;
 
       if(valueFluctuationMakeKomiFair) {
         Rand rand;
@@ -1386,10 +1386,10 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
     //Don't use the SGF rules - randomize them for a bit more entropy
     Rules rules = gameInit->createRules();
 
-    Board board;
     Player nextPla;
-    BoardHistory hist;
-    sgf.setupInitialBoardAndHist(rules, board, nextPla, hist);
+    BoardHistory hist = sgf.setupInitialBoardAndHist(rules, nextPla);
+    Board& board = hist.initialBoard;
+
     if(!gameInit->isAllowedBSize(board.x_size,board.y_size)) {
       numFilteredSgfs.fetch_add(1);
       return;

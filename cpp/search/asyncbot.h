@@ -16,7 +16,8 @@ class AsyncBot {
     NNEvaluator* nnEval,
     NNEvaluator* humanEval,
     Logger* logger,
-    const std::string& randSeed
+    const std::string& randSeed,
+    const Rules& rules
   );
   ~AsyncBot();
 

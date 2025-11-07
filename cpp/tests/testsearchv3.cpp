@@ -24,11 +24,9 @@ static void runOwnershipAndMisc(NNEvaluator* nnEval, NNEvaluator* nnEval11, NNEv
     string sgfStr = "(;FF[4]CA[UTF-8]KM[7.5];B[pp];W[pc];B[cd];W[dq];B[ed];W[pe];B[co];W[cp];B[do];W[fq];B[ck];W[qn];B[qo];W[pn];B[np];W[qj];B[jc];W[lc];B[je];W[lq];B[mq];W[lp];B[ek];W[qq];B[pq];W[ro];B[rp];W[qp];B[po];W[rq];B[rn];W[sp];B[rm];W[ql];B[on];W[om];B[nn];W[nm];B[mn];W[ip];B[mm])";
     std::unique_ptr<CompactSgf> sgf = CompactSgf::parse(sgfStr);
 
-    Board board;
     Player nextPla;
-    BoardHistory hist;
     Rules initialRules = sgf->getRulesOrFailAllowUnspecified(Rules::getTrompTaylorish());
-    sgf->setupBoardAndHistAssumeLegal(initialRules, board, nextPla, hist, 40);
+    auto [hist, board] = sgf->setupBoardAndHistAssumeLegal(initialRules, nextPla, 40);
 
     MiscNNInputParams nnInputParams;
     NNResultBuf buf;
@@ -68,11 +66,9 @@ static void runOwnershipAndMisc(NNEvaluator* nnEval, NNEvaluator* nnEval11, NNEv
     string sgfStr = "(;FF[4]CA[UTF-8]SZ[11]KM[7.5];B[ci];W[ic];B[ih];W[hi];B[ii];W[ij];B[jj];W[gj];B[ik];W[di];B[hh];W[ch];B[dc];W[cc];B[cb];W[cd];B[eb];W[dd];B[ed];W[ee];B[fd];W[bb];B[ba];W[ab];B[gb];W[je];B[ib];W[jb];B[jc];W[jd];B[hc];W[id];B[dh];W[cg];B[dj];W[ei];B[bi];W[ia];B[hb];W[fg];B[hj];W[eh];B[ej])";
     std::unique_ptr<CompactSgf> sgf = CompactSgf::parse(sgfStr);
 
-    Board board;
     Player nextPla;
-    BoardHistory hist;
     Rules initialRules = sgf->getRulesOrFailAllowUnspecified(Rules::getTrompTaylorish());
-    sgf->setupBoardAndHistAssumeLegal(initialRules, board, nextPla, hist, 43);
+    auto [hist, board] = sgf->setupBoardAndHistAssumeLegal(initialRules, nextPla, 43);
 
     MiscNNInputParams nnInputParams;
     NNResultBuf buf;

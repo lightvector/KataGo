@@ -1372,11 +1372,13 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
     // No friendly pass since we want to complete consistent with strict rules
     rules.friendlyPassOk = false;
 
-    Board board;
+    // TODO: Fix construction of board and hist
+    Board board(Rules::DEFAULT_GO);
     Player nextPla;
-    BoardHistory hist;
+    BoardHistory hist(Rules::DEFAULT_GO);
     try {
-      sgf->setupInitialBoardAndHist(rules, board, nextPla, hist);
+      hist = sgf->setupInitialBoardAndHist(rules, nextPla);
+      board = hist.initialBoard;
     }
     catch(const StringError& e) {
       logger.write("Bad initial setup in sgf " + fileName + " " + e.what());

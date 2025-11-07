@@ -180,11 +180,9 @@ void TestSearchCommon::runBotOnPosition(AsyncBot* bot, Board board, Player nextP
 void TestSearchCommon::runBotOnSgf(AsyncBot* bot, const string& sgfStr, const Rules& defaultRules, int turnIdx, float overrideKomi, TestSearchOptions opts) {
   std::unique_ptr<CompactSgf> sgf = CompactSgf::parse(sgfStr);
 
-  Board board;
   Player nextPla;
-  BoardHistory hist;
   Rules initialRules = sgf->getRulesOrFailAllowUnspecified(defaultRules);
-  sgf->setupBoardAndHistAssumeLegal(initialRules, board, nextPla, hist, turnIdx);
+  auto [hist, board] = sgf->setupBoardAndHistAssumeLegal(initialRules, nextPla, turnIdx);;
   hist.setKomi(overrideKomi);
   runBotOnPosition(bot,board,nextPla,hist,opts);
 }

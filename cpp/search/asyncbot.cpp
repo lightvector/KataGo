@@ -43,7 +43,8 @@ AsyncBot::AsyncBot(
   NNEvaluator* nnEval,
   NNEvaluator* humanEval,
   Logger* l,
-  const string& randSeed
+  const string& randSeed,
+  const Rules& rules
 )
   :search(NULL),
    controlMutex(),threadWaitingToSearch(),userWaitingForStop(),searchThread(),
@@ -54,7 +55,7 @@ AsyncBot::AsyncBot(
    analyzeCallback(),
    searchBegunCallback()
 {
-  search = new Search(params,nnEval,humanEval,l,randSeed,false);
+  search = new Search(params,nnEval,humanEval,l,randSeed,rules);
   searchThread = std::thread(searchThreadLoop,this,l);
 }
 

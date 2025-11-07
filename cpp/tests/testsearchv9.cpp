@@ -554,9 +554,9 @@ oo...ooo
 
   {
     cout << "Single symmetry and full symmetry raw nets" << endl;
-    Board board(19,19);
     Player nextPla = P_BLACK;
     Rules rules = Rules::parseRules("Japanese");
+    Board board(19,19,rules);
     rules.komi = -4;
     BoardHistory hist(board,nextPla,rules,0);
     hist.makeBoardMoveAssumeLegal(board,Location::ofString("A1",board),P_BLACK,NULL);

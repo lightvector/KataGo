@@ -38,8 +38,8 @@ struct BoardHistory {
   bool whiteHasMoved;
   int overrideNumHandicapStones;
 
-  static const int NUM_RECENT_BOARDS = 6;
-  Board recentBoards[NUM_RECENT_BOARDS];
+  static constexpr int NUM_RECENT_BOARDS = 6;
+  std::vector<Board> recentBoards;
   int currentRecentBoardIdx;
   Player presumedNextMovePla;
 
@@ -102,6 +102,7 @@ struct BoardHistory {
   bool isResignation;
 
   BoardHistory();
+  explicit BoardHistory(const Rules& rules);
   ~BoardHistory();
 
   BoardHistory(const Board& board, Player pla, const Rules& rules, int encorePhase);

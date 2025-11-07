@@ -229,8 +229,8 @@ struct Board
 
   //Constructors---------------------------------
   Board();  //Create Board of size (DEFAULT_LEN,DEFAULT_LEN)
-  Board(int x, int y); // Create Board of size (x,y)
-  Board(int x, int y, const Rules& rules);
+  explicit Board(const Rules& rules);
+  Board(int x, int y, const Rules& rules); // Create Board of size (x,y) with the specified Rules
   Board(const Board& other);
 
   Board& operator=(const Board&) = default;

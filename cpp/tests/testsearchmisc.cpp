@@ -128,11 +128,9 @@ void Tests::runNNOnManyPoses(const string& modelFile, bool inputsNHWC, bool useN
   vector<float> policyProbs;
 
   for(int turnIdx = 0; turnIdx<sgf->moves.size(); turnIdx++) {
-    Board board;
     Player nextPla;
-    BoardHistory hist;
     Rules initialRules = sgf->getRulesOrFailAllowUnspecified(Rules());
-    sgf->setupBoardAndHistAssumeLegal(initialRules, board, nextPla, hist, turnIdx);
+    auto [hist, board] = sgf->setupBoardAndHistAssumeLegal(initialRules, nextPla, turnIdx);
     nnEval->evaluate(board,hist,nextPla,nnInputParams,buf,skipCache,includeOwnerMap);
 
     winProbs.push_back(buf.result->whiteWinProb);
@@ -204,9 +202,7 @@ void Tests::runNNBatchingTest(const string& modelFile, bool inputsNHWC, bool use
     Rand rand("runNNBatchingTest");
     std::unique_ptr<CompactSgf> sgf = CompactSgf::parse(sgfStr);
     for(int turnIdx = 0; turnIdx<sgf->moves.size(); turnIdx++) {
-      Board board;
       Player nextPla;
-      BoardHistory hist;
       Rules initialRules;
       initialRules.koRule = rand.nextBool(0.5) ? Rules::KO_SIMPLE : rand.nextBool(0.5) ? Rules::KO_POSITIONAL : Rules::KO_SITUATIONAL;
       initialRules.scoringRule = rand.nextBool(0.5) ? Rules::SCORING_AREA : Rules::SCORING_TERRITORY;
@@ -215,7 +211,7 @@ void Tests::runNNBatchingTest(const string& modelFile, bool inputsNHWC, bool use
       initialRules.hasButton = initialRules.scoringRule == Rules::SCORING_AREA && rand.nextBool(0.5);
       initialRules.whiteHandicapBonusRule = rand.nextBool(0.5) ? Rules::WHB_ZERO : rand.nextBool(0.5) ? Rules::WHB_N : Rules::WHB_N_MINUS_ONE;
       initialRules.komi = 7.5f + rand.nextInt(-10,10) * 0.5f;
-      sgf->setupBoardAndHistAssumeLegal(initialRules, board, nextPla, hist, turnIdx);
+      auto [hist, board] = sgf->setupBoardAndHistAssumeLegal(initialRules, nextPla, turnIdx);
       items.push_back(NNBatchingTestItem(board,hist,nextPla));
     }
   };

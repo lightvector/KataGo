@@ -180,12 +180,13 @@ int MainCmds::evalsgf(const vector<string>& args) {
   Rules defaultRules = Rules::getDefaultOrTrompTaylorish(sgf->isDots);
   Player perspective = Setup::parseReportAnalysisWinrates(cfg,P_BLACK);
 
-  Board board;
+  Board board(defaultRules);
   Player nextPla;
-  BoardHistory hist;
+  BoardHistory hist(defaultRules);
 
   auto setUpBoardUsingRules = [&board,&nextPla,&hist,overrideKomi,&sgf,&extraMoves](const Rules& initialRules, int moveNum) {
-    sgf->setupInitialBoardAndHist(initialRules, board, nextPla, hist);
+    hist = sgf->setupInitialBoardAndHist(initialRules, nextPla);
+    board = hist.initialBoard;
     vector<Move>& moves = sgf->moves;
 
     if(!isnan(overrideKomi)) {
@@ -379,7 +380,7 @@ int MainCmds::evalsgf(const vector<string>& args) {
       continue;
     }
 
-    AsyncBot* bot = new AsyncBot(params, nnEval, humanEval, &logger, searchRandSeed);
+    AsyncBot* bot = new AsyncBot(params, nnEval, humanEval, &logger, searchRandSeed, initialRules);
 
     bot->setPosition(nextPla,board,hist);
     if(hintLoc != "") {

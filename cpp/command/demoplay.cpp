@@ -110,7 +110,7 @@ static void initializeDemoGame(Board& board, BoardHistory& hist, Player& pla, Ra
 
   const int size = sizes[rand.nextUInt(sizeFreqs,numSizes)];
 
-  board = Board(size,size);
+  board = Board(size,size, Rules::DEFAULT_GO);
   pla = P_BLACK;
   hist.clear(board,pla,Rules::getTrompTaylorish(),0);
   bot->setPosition(pla,board,hist);

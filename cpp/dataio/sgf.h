@@ -42,6 +42,7 @@ struct SgfNode {
   Rules getRulesFromRUTagOrFail(bool isDots) const;
   Player getSgfWinner() const;
   float getKomiOrFail() const;
+  bool getIsDotsGame() const;
   float getKomiOrDefault(float defaultKomi) const;
 
   std::string getPlayerName(Player pla) const;
@@ -243,12 +244,12 @@ struct CompactSgf {
   Rules getRulesOrFailAllowUnspecified(const Rules& defaultRules) const;
   Rules getRulesOrWarn(const Rules& defaultRules, std::function<void(const std::string& msg)> f) const;
 
-  void setupInitialBoardAndHist(const Rules& initialRules, Board& board, Player& nextPla, BoardHistory& hist) const;
+  BoardHistory setupInitialBoardAndHist(const Rules& initialRules, Player& nextPla) const;
   void playMovesAssumeLegal(Board& board, Player& nextPla, BoardHistory& hist, int64_t turnIdx) const;
-  void setupBoardAndHistAssumeLegal(const Rules& initialRules, Board& board, Player& nextPla, BoardHistory& hist, int64_t turnIdx) const;
+  std::pair<BoardHistory, Board> setupBoardAndHistAssumeLegal(const Rules& initialRules, Player& nextPla, int64_t turnIdx) const;
   //These throw a StringError upon illegal move.
   void playMovesTolerant(Board& board, Player& nextPla, BoardHistory& hist, int64_t turnIdx, bool preventEncore) const;
-  void setupBoardAndHistTolerant(const Rules& initialRules, Board& board, Player& nextPla, BoardHistory& hist, int64_t turnIdx, bool preventEncore) const;
+  std::pair<BoardHistory, Board> setupBoardAndHistTolerant(const Rules& initialRules, Player& nextPla, int64_t turnIdx, bool preventEncore) const;
 };
 
 namespace WriteSgf {

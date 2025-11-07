@@ -136,8 +136,9 @@ static void writeSgfLoc(ostream& out, Loc loc, int xSize, int ySize) {
   out << chars[y];
 }
 
-static Rules getRulesFromSgf(const bool dotsGame, const SgfNode& rootNode, const int xSize, const int ySize, const Rules* defaultRules) {
+static Rules getRulesFromSgf(const SgfNode& rootNode, const int xSize, const int ySize, const Rules* defaultRules) {
   Rules rules;
+  const bool dotsGame = rootNode.getIsDotsGame();
   if (defaultRules == nullptr || rootNode.hasProperty("RU")) {
     rules = rootNode.getRulesFromRUTagOrFail(dotsGame);
   } else {
@@ -419,10 +420,7 @@ static void checkNonEmpty(const vector<std::unique_ptr<SgfNode>>& nodes) {
 }
 
 bool Sgf::isDotsGame() const {
-  if(!nodes[0]->hasProperty("GM"))
-    return false;
-  const string& s = nodes[0]->getSingleProperty("GM");
-  return s == "40";
+  return nodes[0]->getIsDotsGame();
 }
 
 XYSize Sgf::getXYSize() const {
@@ -476,6 +474,11 @@ float SgfNode::getKomiOrFail() const {
   if(!hasProperty("KM"))
     propertyFail("Sgf does not specify komi");
   return getKomiOrDefault(0.0f);
+}
+
+bool SgfNode::getIsDotsGame() const {
+  if(!hasProperty("GM")) return false;
+  return getSingleProperty("GM") == "40";
 }
 
 float SgfNode::getKomiOrDefault(float defaultKomi) const {
@@ -548,7 +551,7 @@ Rules Sgf::getRulesOrFail() const {
   checkNonEmpty(nodes);
 
   const XYSize size = getXYSize();
-  return getRulesFromSgf(isDotsGame(), *nodes[0], size.x, size.y, nullptr);
+  return getRulesFromSgf(*nodes[0], size.x, size.y, nullptr);
 }
 
 Player Sgf::getSgfWinner() const {
@@ -1497,7 +1500,7 @@ static std::unique_ptr<Sgf> maybeParseSgf(const string& str, size_t& pos) {
      && handicap >= 2
      && handicap <= 9
   ) {
-    Board board(19,19);
+    Board board(rootSgf->getRulesOrFail());
     PlayUtils::placeFixedHandicap(board, handicap);
     // Older fox sgfs used handicaps with side stones on the north and south rather than east and west
     if(handicap == 6 || handicap == 7) {
@@ -1712,11 +1715,11 @@ bool CompactSgf::hasRules() const {
 }
 
 Rules CompactSgf::getRulesOrFail() const {
-  return getRulesFromSgf(isDots, rootNode, xSize, ySize, nullptr);
+  return getRulesFromSgf(rootNode, xSize, ySize, nullptr);
 }
 
 Rules CompactSgf::getRulesOrFailAllowUnspecified(const Rules& defaultRules) const {
-  return getRulesFromSgf(isDots, rootNode, xSize, ySize, &defaultRules);
+  return getRulesFromSgf(rootNode, xSize, ySize, &defaultRules);
 }
 
 Rules CompactSgf::getRulesOrWarn(const Rules& defaultRules, std::function<void(const string& msg)> f) const {
@@ -1771,8 +1774,7 @@ Rules CompactSgf::getRulesOrWarn(const Rules& defaultRules, std::function<void(c
   return rules;
 }
 
-
-void CompactSgf::setupInitialBoardAndHist(const Rules& initialRules, Board& board, Player& nextPla, BoardHistory& hist) const {
+BoardHistory CompactSgf::setupInitialBoardAndHist(const Rules& initialRules, Player& nextPla) const {
   Color plPlayer = rootNode.getPLSpecifiedColor();
   if(plPlayer == P_BLACK || plPlayer == P_WHITE)
     nextPla = plPlayer;
@@ -1795,15 +1797,16 @@ void CompactSgf::setupInitialBoardAndHist(const Rules& initialRules, Board& boar
   if(moves.size() > 0)
     nextPla = moves[0].pla;
 
-  board = Board(xSize,ySize,initialRules);
+  auto board = Board(xSize,ySize,initialRules);
   if (initialRules.startPos == Rules::START_POS_EMPTY) {
     bool suc = board.setStonesFailIfNoLibs(placements);
     if(!suc)
       throw StringError("setupInitialBoardAndHist: initial board position contains invalid stones or zero-liberty stones");
   }
-  hist = BoardHistory(board,nextPla,initialRules,0);
+  BoardHistory hist = BoardHistory(board,nextPla,initialRules,0);
   if (int numStonesOnBoard = board.numStonesOnBoard(); hist.initialTurnNumber < numStonesOnBoard)
     hist.initialTurnNumber = numStonesOnBoard;
+  return hist;
 }
 
 void CompactSgf::playMovesAssumeLegal(Board& board, Player& nextPla, BoardHistory& hist, int64_t turnIdx) const {
@@ -1838,14 +1841,23 @@ void CompactSgf::playMovesTolerant(Board& board, Player& nextPla, BoardHistory& 
   }
 }
 
-void CompactSgf::setupBoardAndHistAssumeLegal(const Rules& initialRules, Board& board, Player& nextPla, BoardHistory& hist, int64_t turnIdx) const {
-  setupInitialBoardAndHist(initialRules, board, nextPla, hist);
-  playMovesAssumeLegal(board, nextPla, hist, turnIdx);
+std::pair<BoardHistory, Board> CompactSgf::setupBoardAndHistAssumeLegal(const Rules& initialRules, Player& nextPla, int64_t turnIdx)
+  const {
+  BoardHistory hist = setupInitialBoardAndHist(initialRules, nextPla);
+  Board boardWithMoves(hist.initialBoard);
+  playMovesAssumeLegal(boardWithMoves, nextPla, hist, turnIdx);
+  return std::make_pair(hist, boardWithMoves);
 }
 
-void CompactSgf::setupBoardAndHistTolerant(const Rules& initialRules, Board& board, Player& nextPla, BoardHistory& hist, int64_t turnIdx, bool preventEncore) const {
-  setupInitialBoardAndHist(initialRules, board, nextPla, hist);
-  playMovesTolerant(board, nextPla, hist, turnIdx, preventEncore);
+std::pair<BoardHistory, Board> CompactSgf::setupBoardAndHistTolerant(
+  const Rules& initialRules,
+  Player& nextPla,
+  int64_t turnIdx,
+  bool preventEncore) const {
+  BoardHistory hist = setupInitialBoardAndHist(initialRules, nextPla);
+  Board boardWithMoves(hist.initialBoard);
+  playMovesTolerant(boardWithMoves, nextPla, hist, turnIdx, preventEncore);
+  return std::make_pair(hist, boardWithMoves);
 }
 
 
@@ -1968,7 +1980,7 @@ void WriteSgf::writeSgf(
   int xSize = initialBoard.x_size;
   int ySize = initialBoard.y_size;
   out << "(;FF[4]";
-  out << "GM[" << (initialBoard.rules.isDots ? "40" : "1") << "]";
+  out << "GM[" << (rules.isDots ? "40" : "1") << "]";
   if(xSize == ySize)
     out << "SZ[" << xSize << "]";
   else
@@ -1976,7 +1988,7 @@ void WriteSgf::writeSgf(
   out << "PB[" << bName << "]";
   out << "PW[" << wName << "]";
 
-  if (!initialBoard.rules.isDots) {
+  if (!rules.isDots) {
     if(gameData != NULL) {
       out << "HA[" << gameData->handicapForSgf << "]";
     }

@@ -209,9 +209,9 @@ int MainCmds::evalrandominits(const vector<string>& args) {
 
   Rand gameRand;
   while(true) {
-    Board board(19,19);
-    Player pla = P_BLACK;
     Rules rules = Rules::parseRules("japanese");
+    Board board(19,19,rules);
+    Player pla = P_BLACK;
     BoardHistory hist(board,pla,rules,0);
     int numInitialMovesToPlay = (int)gameRand.nextUInt(200);
     double temperature = 1.0;
@@ -322,11 +322,10 @@ int MainCmds::searchentropyanalysis(const vector<string>& args) {
     std::unique_ptr<CompactSgf> sgfObj = CompactSgf::parse(sgf);
 
     for(int turnIdx = 0; turnIdx < sgfObj->moves.size(); turnIdx++) {
-      Board board;
       Player pla;
-      BoardHistory hist;
-      Rules initialRules;
-      sgfObj->setupInitialBoardAndHist(initialRules, board, pla, hist);
+      Rules rules = sgfObj->getRulesOrFailAllowUnspecified(Rules::getSimpleTerritory());
+      BoardHistory hist = sgfObj->setupInitialBoardAndHist(rules, pla);
+      Board& board = hist.initialBoard;
 
       for(int i = 0; i < turnIdx; i++) {
         Loc moveLoc = sgfObj->moves[i].loc;

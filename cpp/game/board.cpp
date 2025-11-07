@@ -119,17 +119,13 @@ Board::Base::Base(Player newPla,
   is_real = isReal;
 }
 
-Board::Board()
-{
-  init(DEFAULT_LEN_X, DEFAULT_LEN_Y, Rules());
+Board::Board() : Board(Rules::DEFAULT_GO) {}
+
+Board::Board(const Rules& rules) {
+  init(DEFAULT_LEN_X, DEFAULT_LEN_Y, rules);
 }
 
-Board::Board(int x, int y)
-{
-  init(x, y, Rules());
-}
-
-Board::Board(int x, int y, const Rules& rules) {
+Board::Board(const int x, const int y, const Rules& rules) {
   init(x, y, rules);
 }
 

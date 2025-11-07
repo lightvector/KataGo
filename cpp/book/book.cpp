@@ -131,8 +131,8 @@ static Hash128 getExtraPosHash(const Board& board) {
 }
 
 void BookHash::getHashAndSymmetry(const BoardHistory& hist, int repBound, BookHash& hashRet, int& symmetryToAlignRet, vector<int>& symmetriesRet, int bookVersion) {
-  Board boardsBySym[SymmetryHelpers::NUM_SYMMETRIES];
-  BoardHistory histsBySym[SymmetryHelpers::NUM_SYMMETRIES];
+  vector<Board> boardsBySym;
+  vector<BoardHistory> histsBySym;
   Hash128 accums[SymmetryHelpers::NUM_SYMMETRIES];
 
   // Make sure the book all matches orientation for rectangular boards.
@@ -143,8 +143,8 @@ void BookHash::getHashAndSymmetry(const BoardHistory& hist, int repBound, BookHa
     SymmetryHelpers::NUM_SYMMETRIES_WITHOUT_TRANSPOSE : SymmetryHelpers::NUM_SYMMETRIES;
 
   for(int symmetry = 0; symmetry < numSymmetries; symmetry++) {
-    boardsBySym[symmetry] = SymmetryHelpers::getSymBoard(hist.initialBoard,symmetry);
-    histsBySym[symmetry] = BoardHistory(boardsBySym[symmetry], hist.initialPla, hist.rules, hist.initialEncorePhase);
+    boardsBySym.emplace_back(SymmetryHelpers::getSymBoard(hist.initialBoard,symmetry));
+    histsBySym.emplace_back(boardsBySym[symmetry], hist.initialPla, hist.rules, hist.initialEncorePhase);
     accums[symmetry] = Hash128();
   }
 
@@ -2621,7 +2621,7 @@ int64_t Book::exportToHtmlDir(
     const int symmetry = 0;
     SymBookNode symNode(node, symmetry);
 
-    BoardHistory hist;
+    BoardHistory hist(Rules::DEFAULT_GO);
     vector<Loc> moveHistory;
     bool suc = symNode.getBoardHistoryReachingHere(hist,moveHistory);
     if(!suc) {

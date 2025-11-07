@@ -44,12 +44,10 @@ void Tests::runCanaryTests(NNEvaluator* nnEval, int symmetry, bool print) {
     string sgfStr = "(;GM[1]FF[4]CA[UTF-8]AP[CGoban:3]ST[2]RU[Chinese]SZ[19]KM[7]PW[White]PB[Black];B[pd];W[pp];B[dd];W[dp];B[qn];W[nq];B[cq];W[dq];B[cp];W[do];B[bn];W[cc];B[cd];W[dc];B[ec];W[eb];B[fb];W[fc];B[ed];W[gb];B[db];W[fa];B[cb];W[qo];B[pn];W[nc];B[qj];W[qc];B[qd];W[pc];B[od];W[nd];B[ne];W[me];B[mf];W[nf])";
     std::unique_ptr<CompactSgf> sgf = CompactSgf::parse(sgfStr);
 
-    Board board;
     Player nextPla;
-    BoardHistory hist;
     Rules initialRules = sgf->getRulesOrFail();
     int turnIdx = 18;
-    sgf->setupBoardAndHistAssumeLegal(initialRules, board, nextPla, hist, turnIdx);
+    auto [hist, board] = sgf->setupBoardAndHistAssumeLegal(initialRules, nextPla, turnIdx);
 
     MiscNNInputParams nnInputParams;
     NNResultBuf buf;
@@ -79,12 +77,10 @@ void Tests::runCanaryTests(NNEvaluator* nnEval, int symmetry, bool print) {
     string sgfStr = "(;GM[1]FF[4]CA[UTF-8]AP[CGoban:3]ST[2]RU[Chinese]SZ[19]KM[7]PW[White]PB[Black];B[pd];W[pp];B[dd];W[dp];B[qn];W[nq];B[cq];W[dq];B[cp];W[do];B[bn];W[cc];B[cd];W[dc];B[ec];W[eb];B[fb];W[fc];B[ed];W[gb];B[db];W[fa];B[cb];W[qo];B[pn];W[nc];B[qj];W[qc];B[qd];W[pc];B[od];W[nd];B[ne];W[me];B[mf];W[nf])";
     std::unique_ptr<CompactSgf> sgf = CompactSgf::parse(sgfStr);
 
-    Board board;
     Player nextPla;
-    BoardHistory hist;
     Rules initialRules = sgf->getRulesOrFail();
     int turnIdx = 36;
-    sgf->setupBoardAndHistAssumeLegal(initialRules, board, nextPla, hist, turnIdx);
+    auto [hist, board] = sgf->setupBoardAndHistAssumeLegal(initialRules, nextPla, turnIdx);
 
     MiscNNInputParams nnInputParams;
     NNResultBuf buf;
@@ -113,12 +109,10 @@ void Tests::runCanaryTests(NNEvaluator* nnEval, int symmetry, bool print) {
     string sgfStr = "(;GM[1]FF[4]CA[UTF-8]AP[CGoban:3]ST[2]RU[Chinese]SZ[19]KM[7]PW[White]PB[Black];B[qd];W[dd];B[pp];W[dp];B[cf];W[fc];B[nd];W[nq];B[cq];W[dq];B[cp];W[cn];B[co];W[do];B[bn];W[cm];B[bm];W[cl];B[qn];W[pq];B[qq];W[qr];B[oq])";
     std::unique_ptr<CompactSgf> sgf = CompactSgf::parse(sgfStr);
 
-    Board board;
     Player nextPla;
-    BoardHistory hist;
     Rules initialRules = sgf->getRulesOrFail();
     int turnIdx = 23;
-    sgf->setupBoardAndHistAssumeLegal(initialRules, board, nextPla, hist, turnIdx);
+    auto [hist, board] = sgf->setupBoardAndHistAssumeLegal(initialRules, nextPla, turnIdx);
 
     MiscNNInputParams nnInputParams;
     NNResultBuf buf;
@@ -148,12 +142,10 @@ void Tests::runCanaryTests(NNEvaluator* nnEval, int symmetry, bool print) {
     string sgfStr = "(;GM[1]FF[4]CA[UTF-8]AP[CGoban:3]ST[2]RU[Chinese]SZ[19]KM[7]PW[White]PB[Black];B[qd];W[dd];B[pp];W[dp];B[cf];W[fc];B[nd];W[nq];B[cq];W[dq];B[cp];W[cn];B[co];W[do];B[bn];W[cm];B[bm];W[cl];B[qn];W[pq];B[qq];W[qr];B[oq])";
     std::unique_ptr<CompactSgf> sgf = CompactSgf::parse(sgfStr);
 
-    Board board;
     Player nextPla;
-    BoardHistory hist;
     Rules initialRules = sgf->getRulesOrFail();
     int turnIdx = 23;
-    sgf->setupBoardAndHistAssumeLegal(initialRules, board, nextPla, hist, turnIdx);
+    auto [hist, board] = sgf->setupBoardAndHistAssumeLegal(initialRules, nextPla, turnIdx);
     hist.setKomi(-7);
 
     MiscNNInputParams nnInputParams;
@@ -180,12 +172,10 @@ void Tests::runCanaryTests(NNEvaluator* nnEval, int symmetry, bool print) {
     string sgfStr = "(;GM[1]FF[4]CA[UTF-8]AP[CGoban:3]ST[2]RU[Chinese]SZ[19]KM[7]PW[White]PB[Black];B[qd];W[dd];B[pp];W[dp];B[cf];W[fc];B[nd];W[nq];B[cq];W[dq];B[cp];W[cn];B[co];W[do];B[bn];W[cm];B[bm];W[cl];B[qn];W[pq];B[qq];W[qr];B[oq])";
     std::unique_ptr<CompactSgf> sgf = CompactSgf::parse(sgfStr);
 
-    Board board;
     Player nextPla;
-    BoardHistory hist;
     Rules initialRules = sgf->getRulesOrFail();
     int turnIdx = 23;
-    sgf->setupBoardAndHistAssumeLegal(initialRules, board, nextPla, hist, turnIdx);
+    auto [hist, board] = sgf->setupBoardAndHistAssumeLegal(initialRules, nextPla, turnIdx);
     hist.setKomi(21);
 
     MiscNNInputParams nnInputParams;
@@ -212,12 +202,10 @@ void Tests::runCanaryTests(NNEvaluator* nnEval, int symmetry, bool print) {
     string sgfStr = "(;FF[4]GM[1]CA[UTF-8]RU[Japanese]KM[6]SZ[16:11];B[md];W[nh];B[dh];W[cd];B[lh];W[li];B[ki])";
     std::unique_ptr<CompactSgf> sgf = CompactSgf::parse(sgfStr);
 
-    Board board;
     Player nextPla;
-    BoardHistory hist;
     Rules initialRules = sgf->getRulesOrFail();
     int turnIdx = 7;
-    sgf->setupBoardAndHistAssumeLegal(initialRules, board, nextPla, hist, turnIdx);
+    auto [hist, board] = sgf->setupBoardAndHistAssumeLegal(initialRules, nextPla, turnIdx);
 
     MiscNNInputParams nnInputParams;
     NNResultBuf buf;

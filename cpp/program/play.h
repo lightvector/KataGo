@@ -24,7 +24,7 @@ struct InitialPosition {
   bool isHintFork;
   double trainingWeight;
 
-  InitialPosition();
+  explicit InitialPosition(const Rules& rules);
   InitialPosition(const Board& board, const BoardHistory& hist, Player pla, bool isPlainFork, bool isSekiFork, bool isHintFork, double trainingWeight);
   ~InitialPosition();
 };
@@ -118,6 +118,8 @@ class GameInitializer {
   int getMinBoardYSize() const;
   int getMaxBoardXSize() const;
   int getMaxBoardYSize() const;
+
+  bool isDotsGame() const;
 
  private:
   void initShared(ConfigParser& cfg, Logger& logger);
