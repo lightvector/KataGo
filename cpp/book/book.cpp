@@ -2922,7 +2922,7 @@ void Book::saveToFile(const string& fileName) const {
     json nodeData = json::object();
     if(bookVersion >= 2) {
       nodeData["id"] = nodeIdx;
-      nodeData["pla"] = PlayerIO::playerToStringShort(node->pla);
+      nodeData["pla"] = PlayerIO::playerToStringShort(node->pla, initialRules.isDots);
       nodeData["syms"] = node->symmetries;
       nodeData["wl"] = roundDouble(node->thisValuesNotInBook.winLossValue, 100000000);
       nodeData["sM"] = roundDouble(node->thisValuesNotInBook.scoreMean, 1000000);

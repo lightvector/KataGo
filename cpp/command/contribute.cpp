@@ -242,7 +242,7 @@ static void runAndUploadSingleGame(
       json ret;
       // unique to this output
       ret["gameId"] = gameIdString;
-      ret["move"] = json::array({PlayerIO::playerToStringShort(pla), Location::toString(moveLoc, board)});
+      ret["move"] = json::array({PlayerIO::playerToStringShort(pla, board.isDots()), Location::toString(moveLoc, board)});
       ret["blackPlayer"] = botSpecB.botName;
       ret["whitePlayer"] = botSpecW.botName;
 
@@ -253,7 +253,7 @@ static void runAndUploadSingleGame(
 
       json moves = json::array();
       for(auto move: hist.moveHistory) {
-        moves.push_back(json::array({PlayerIO::playerToStringShort(move.pla), Location::toString(move.loc, board)}));
+        moves.push_back(json::array({PlayerIO::playerToStringShort(move.pla, board.isDots()), Location::toString(move.loc, board)}));
       }
       ret["moves"] = moves;
 
@@ -264,11 +264,11 @@ static void runAndUploadSingleGame(
           Loc loc = Location::getLoc(x, y, initialBoard.x_size);
           Player locOwner = initialBoard.colors[loc];
           if(locOwner != C_EMPTY)
-            initialStones.push_back(json::array({PlayerIO::playerToStringShort(locOwner), Location::toString(loc, initialBoard)}));
+            initialStones.push_back(json::array({PlayerIO::playerToStringShort(locOwner, board.isDots()), Location::toString(loc, initialBoard)}));
         }
       }
       ret["initialStones"] = initialStones;
-      ret["initialPlayer"] = PlayerIO::playerToStringShort(hist.initialPla);
+      ret["initialPlayer"] = PlayerIO::playerToStringShort(hist.initialPla, board.isDots());
       ret["initialTurnNumber"] = hist.initialTurnNumber;
 
       // Usual analysis response fields

@@ -398,7 +398,7 @@ void BoardHistory::setOverrideNumHandicapStones(int n) {
 
 static int numHandicapStonesOnBoardHelper(const Board& board, const int blackNonPassTurnsToStart) {
   int startBoardNumBlackStones, startBoardNumWhiteStones;
-  board.numStartBlackWhiteStones(startBoardNumBlackStones, startBoardNumWhiteStones, false);
+  board.getCurrentMoves(startBoardNumBlackStones, startBoardNumWhiteStones, false);
 
   //If we set up in a nontrivial position, then consider it a non-handicap game.
   if(startBoardNumWhiteStones != 0)

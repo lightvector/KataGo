@@ -1135,24 +1135,25 @@ std::set<Hash128> Sgf::readExcludes(const vector<string>& files) {
 
 string Sgf::PositionSample::toJsonLine(const Sgf::PositionSample& sample) {
   json data;
-  if (sample.board.rules.isDots) {
+  const Board& board = sample.board;
+  if (board.rules.isDots) {
     data[DOTS_KEY] = "true";
   }
-  data["xSize"] = sample.board.x_size;
-  data["ySize"] = sample.board.y_size;
-  data["board"] = Board::toStringSimple(sample.board,'/');
-  data["nextPla"] = PlayerIO::playerToStringShort(sample.nextPla);
+  data["xSize"] = board.x_size;
+  data["ySize"] = board.y_size;
+  data["board"] = Board::toStringSimple(board,'/');
+  data["nextPla"] = PlayerIO::playerToStringShort(sample.nextPla, board.isDots());
   vector<string> moveLocs;
   vector<string> movePlas;
   for(size_t i = 0; i<sample.moves.size(); i++)
-    moveLocs.push_back(Location::toString(sample.moves[i].loc,sample.board));
+    moveLocs.push_back(Location::toString(sample.moves[i].loc,board));
   for(size_t i = 0; i<sample.moves.size(); i++)
-    movePlas.push_back(PlayerIO::playerToStringShort(sample.moves[i].pla));
+    movePlas.push_back(PlayerIO::playerToStringShort(sample.moves[i].pla, board.isDots()));
 
   data["moveLocs"] = moveLocs;
   data["movePlas"] = movePlas;
   data["initialTurnNumber"] = sample.initialTurnNumber;
-  data["hintLoc"] = Location::toString(sample.hintLoc,sample.board);
+  data["hintLoc"] = Location::toString(sample.hintLoc,board);
   data["weight"] = sample.weight;
   if(sample.metadata.size() > 0)
     data["metadata"] = sample.metadata;

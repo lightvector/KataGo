@@ -693,24 +693,28 @@ bool Board::isNonPassAliveSelfConnection(Loc loc, Player pla, Color* passAliveAr
 
 bool Board::isStartPos() const {
   int startBoardNumBlackStones, startBoardNumWhiteStones;
-  numStartBlackWhiteStones(startBoardNumBlackStones, startBoardNumWhiteStones, false);
+  getCurrentMoves(startBoardNumBlackStones, startBoardNumWhiteStones, false);
   return startBoardNumBlackStones == 0 && startBoardNumWhiteStones == 0;
 }
 
 int Board::numStonesOnBoard() const {
   int startBoardNumBlackStones, startBoardNumWhiteStones;
-  numStartBlackWhiteStones(startBoardNumBlackStones, startBoardNumWhiteStones, true);
+  getCurrentMoves(startBoardNumBlackStones, startBoardNumWhiteStones, true);
   return startBoardNumBlackStones + startBoardNumWhiteStones;
 }
 
 int Board::numPlaStonesOnBoard(Player pla) const {
   int startBoardNumBlackStones, startBoardNumWhiteStones;
-  numStartBlackWhiteStones(startBoardNumBlackStones, startBoardNumWhiteStones, true);
+  getCurrentMoves(startBoardNumBlackStones, startBoardNumWhiteStones, true);
   return pla == C_BLACK ? startBoardNumBlackStones : startBoardNumWhiteStones;
 }
 
-void Board::numStartBlackWhiteStones(int& startBoardNumBlackStones, int& startBoardNumWhiteStones,
+vector<Move> Board::getCurrentMoves(
+  int& startBoardNumBlackStones,
+  int& startBoardNumWhiteStones,
   const bool includeStartLocs) const {
+
+  vector<Move> stones;
   startBoardNumBlackStones = 0;
   startBoardNumWhiteStones = 0;
 
@@ -718,20 +722,35 @@ void Board::numStartBlackWhiteStones(int& startBoardNumBlackStones, int& startBo
   set<Loc> startLocs;
   for(auto move: start_pos_moves) {
     startLocs.insert(move.loc);
+    if (includeStartLocs) {
+      // Fill start pos stones as in priority
+      stones.emplace_back(move);
+    }
   }
 
   for(int y = 0; y < y_size; y++) {
     for(int x = 0; x < x_size; x++) {
       if(const Loc loc = Location::getLoc(x, y, x_size)) {
-        if (includeStartLocs || startLocs.count(loc) == 0) {
-          if(const Color color = getPlacedColor(loc); color == C_BLACK)
+        bool isStartPosLoc = startLocs.count(loc) > 0;
+        if (includeStartLocs || !isStartPosLoc) {
+          if(const Color color = getPlacedColor(loc); color == C_BLACK) {
             startBoardNumBlackStones += 1;
-          else if(color == C_WHITE)
+            if (!isStartPosLoc) {
+              stones.emplace_back(loc, C_BLACK);
+            }
+          }
+          else if(color == C_WHITE) {
             startBoardNumWhiteStones += 1;
+            if (!isStartPosLoc) {
+              stones.emplace_back(loc, C_WHITE);
+            }
+          }
         }
       }
     }
   }
+
+  return stones;
 }
 
 bool Board::setStone(Loc loc, Color color)
@@ -2569,28 +2588,28 @@ char PlayerIO::stateToChar(const State s, const bool isDots) {
 string PlayerIO::playerToString(const Color c, const bool isDots)
 {
   switch(c) {
-  case C_BLACK: return !isDots ? "Black" : "Player1";
-  case C_WHITE: return !isDots ? "White" : "Player2";
+  case C_BLACK: return !isDots ? "Black" : PLAYER1;
+  case C_WHITE: return !isDots ? "White" : PLAYER2;
   case C_EMPTY: return "Empty";
   default: return "Wall";
   }
 }
 
-string PlayerIO::playerToStringShort(Color c)
+string PlayerIO::playerToStringShort(const Color p, const bool isDots)
 {
-  switch(c) {
-  case C_BLACK: return "B";
-  case C_WHITE: return "W";
+  switch(p) {
+  case C_BLACK: return !isDots ? "B" : PLAYER1_SHORT;
+  case C_WHITE: return !isDots ? "W" : PLAYER2_SHORT;
   case C_EMPTY: return "E";
-  default: return "Wall";
+  default: return "";
   }
 }
 
 bool PlayerIO::tryParsePlayer(const string& s, Player& pla) {
-  if(const string str = Global::toLower(s); str == "black" || str == "b" || str == "blue" || str == "p1") {
+  if(const string str = Global::toUpper(s); str == "BLACK" || str == "B" || str == "BLUE" || str == PLAYER1_SHORT) {
     pla = P_BLACK;
     return true;
-  } else if(str == "white" || str == "w" || str == "red" || str == "r" || str == "p2") {
+  } else if(str == "WHITE" || str == "W" || str == "RED" || str == "R" || str == PLAYER2_SHORT) {
     pla = P_WHITE;
     return true;
   }

@@ -2155,7 +2155,7 @@ bool Search::getAnalysisJson(
     }
     rootInfo["thisHash"] = Global::uint64ToHexString(thisHash.hash1) + Global::uint64ToHexString(thisHash.hash0);
     rootInfo["symHash"] = Global::uint64ToHexString(symHash.hash1) + Global::uint64ToHexString(symHash.hash0);
-    rootInfo["currentPlayer"] = PlayerIO::playerToStringShort(rootPla);
+    rootInfo["currentPlayer"] = PlayerIO::playerToStringShort(rootPla, board.isDots());
 
     ret["rootInfo"] = rootInfo;
   }

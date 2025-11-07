@@ -54,7 +54,7 @@ bool isTerritory(State s);
 namespace PlayerIO {
   char colorToChar(Color c);
   char stateToChar(State s, bool isDots);
-  std::string playerToStringShort(Player p);
+  std::string playerToStringShort(Color p, bool isDots = false);
   std::string playerToString(Player p, bool isDots);
   bool tryParsePlayer(const std::string& s, Player& pla);
   Player parsePlayer(const std::string& s);
@@ -298,7 +298,8 @@ struct Board
   //Count the number of stones on the board
   int numStonesOnBoard() const;
   int numPlaStonesOnBoard(Player pla) const;
-  void numStartBlackWhiteStones(int& startBoardNumBlackStones, int& startBoardNumWhiteStones, bool includeStartLocs) const;
+  std::vector<Move>
+  getCurrentMoves(int& startBoardNumBlackStones, int& startBoardNumWhiteStones, bool includeStartLocs) const;
 
   //Get a hash that combines the position of the board with simple ko prohibition and a player to move.
   Hash128 getSitHashWithSimpleKo(Player pla) const;

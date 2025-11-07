@@ -20,6 +20,9 @@
 
 using namespace std;
 
+const string GET_MOVES_COMMAND = "get_moves";
+const string GET_POSITION_COMMAND = "get_position";
+
 static const vector<string> knownCommands = {
   //Basic GTP commands
   "protocol_version",
@@ -36,10 +39,12 @@ static const vector<string> knownCommands = {
 
   "clear_board",
   "set_position",
+  GET_POSITION_COMMAND,
   "komi",
   //GTP extension - get KataGo's current komi setting
   "get_komi",
   "play",
+  GET_MOVES_COMMAND,
   "undo",
 
   //GTP extension - specify rules
@@ -1180,7 +1185,7 @@ struct GTPEngine {
       response = "genmove returned null location or illegal move";
       ostringstream sout;
       sout << "genmove null location or illegal move!?!" << "\n";
-      const auto rootBoard = search->getRootBoard();
+      const auto& rootBoard = search->getRootBoard();
       sout << rootBoard << "\n";
       sout << "Pla: " << PlayerIO::playerToString(pla,rootBoard.isDots()) << "\n";
       sout << "MoveLoc: " << Location::toString(moveLoc,search->getRootBoard()) << "\n";
@@ -1923,6 +1928,14 @@ optional<std::string> parseMovesSequence(const vector<string>& pieces, const Boa
   }
 
   return response;
+}
+
+string printMoves(const vector<Move>& moves, const Board& board) {
+  std::ostringstream builder;
+  for (const auto move : moves) {
+    builder << PlayerIO::playerToStringShort(move.pla, board.isDots()) << " " << Location::toString(move.loc, board) << " ";
+  }
+  return builder.str();
 }
 
 int MainCmds::gtp(const vector<string>& args) {
@@ -3002,6 +3015,17 @@ int MainCmds::gtp(const vector<string>& args) {
         responseIsError = true;
         response = parseError.value();
       }
+    }
+
+    else if (command == GET_MOVES_COMMAND) {
+      const BoardHistory& history = engine->bot->getRootHist();
+      response = printMoves(history.moveHistory, engine->bot->getRootBoard());
+    }
+
+    else if (command == GET_POSITION_COMMAND) {
+      const auto& rootBoard = engine->bot->getRootBoard();
+      // TODO: fix for handicap start moves
+      response = printMoves(rootBoard.start_pos_moves, rootBoard);
     }
 
     else if(command == "undo") {

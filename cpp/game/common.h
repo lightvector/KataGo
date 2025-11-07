@@ -16,6 +16,11 @@ const std::string START_POSES_ARE_RANDOM_KEY = "startPosesAreRandom";
 const std::string BLACK_SCORE_IF_WHITE_GROUNDS_KEY = "blackScoreIfWhiteGrounds";
 const std::string WHITE_SCORE_IF_BLACK_GROUNDS_KEY = "whiteScoreIfBlackGrounds";
 
+const std::string PLAYER1 = "Player1";
+const std::string PLAYER2 = "Player2";
+const std::string PLAYER1_SHORT = "P1";
+const std::string PLAYER2_SHORT = "P2";
+
 // Player
 typedef int8_t Player;
 static constexpr Player P_BLACK = 1;
