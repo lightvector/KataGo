@@ -362,7 +362,11 @@ def get_numpy_npz_headers(filename):
                 wasbad = True
                 print("WARNING: bad file, skipping it: %s (bad array %s)" % (filename,subfilename))
             else:
-                (shape, is_fortran, dtype) = np.lib.format._read_array_header(npyfile,version)
+                if version == (1, 0):
+                    header = np.lib.format.read_array_header_1_0(npyfile)
+                elif version == (2, 0):
+                    header = np.lib.format.read_array_header_2_0(npyfile)
+                (shape, is_fortran, dtype) = header
                 npzheaders[subfilename] = (shape, is_fortran, dtype)
         if wasbad:
             return None
