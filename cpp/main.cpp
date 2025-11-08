@@ -45,6 +45,7 @@ gatekeeper : Poll directory for new nets and match them against the latest net s
 
 ---Testing/debugging subcommands-------------
 evalsgf : Utility/debug tool, analyze a single position of a game from an SGF file.
+searchentropyanalysis : Analyze search entropy across test datasets.
 
 testgpuerror : Print the average error of the neural net between current config and fp32 config.
 
@@ -70,11 +71,11 @@ static int handleSubcommand(const string& subcommand, const vector<string>& args
   vector<string> subArgs(args.begin()+1,args.end());
   if(subcommand == "analysis")
     return MainCmds::analysis(subArgs);
-  if(subcommand == "benchmark")
+  else if(subcommand == "benchmark")
     return MainCmds::benchmark(subArgs);
-  if(subcommand == "contribute")
+  else if(subcommand == "contribute")
     return MainCmds::contribute(subArgs);
-  if(subcommand == "evalsgf")
+  else if(subcommand == "evalsgf")
     return MainCmds::evalsgf(subArgs);
   else if(subcommand == "gatekeeper")
     return MainCmds::gatekeeper(subArgs);
@@ -138,6 +139,8 @@ static int handleSubcommand(const string& subcommand, const vector<string>& args
     return MainCmds::checkbook(subArgs);
   else if(subcommand == "booktoposes")
     return MainCmds::booktoposes(subArgs);
+  else if(subcommand == "comparebooks")
+    return MainCmds::comparebooks(subArgs);
   else if(subcommand == "trystartposes")
     return MainCmds::trystartposes(subArgs);
   else if(subcommand == "viewstartposes")
@@ -154,6 +157,8 @@ static int handleSubcommand(const string& subcommand, const vector<string>& args
     return MainCmds::sampleinitializations(subArgs);
   else if(subcommand == "evalrandominits")
     return MainCmds::evalrandominits(subArgs);
+  else if(subcommand == "searchentropyanalysis")
+    return MainCmds::searchentropyanalysis(subArgs);
   else if(subcommand == "runbeginsearchspeedtest")
     return MainCmds::runbeginsearchspeedtest(subArgs);
   else if(subcommand == "runownershipspeedtest")
@@ -214,11 +219,11 @@ int main(int argc, const char* const* argv) {
 
 
 string Version::getKataGoVersion() {
-  return string("1.16.3");
+  return string("1.16.4");
 }
 
 string Version::getKataGoVersionForHelp() {
-  return string("KataGo v1.16.3");
+  return string("KataGo v1.16.4");
 }
 
 string Version::getKataGoVersionFullInfo() {

@@ -6,7 +6,7 @@ DESCRIPTION:
 
 USAGE: 
 
-   benchmark  [-config <FILE>] ...  [-model <FILE>] [-v <VISITS>] [-t
+   benchmark  [-config <FILE>] ... [-model <FILE>] [-v <VISITS>] [-t
               <THREADS>] [-n <NUM>] [...other flags...]
 
 

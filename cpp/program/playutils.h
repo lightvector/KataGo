@@ -150,7 +150,7 @@ namespace PlayUtils {
   //Run benchmark on sgf positions. ALSO prints to stdout the ongoing result as it benchmarks.
   BenchmarkResults benchmarkSearchOnPositionsAndPrint(
     const SearchParams& params,
-    const CompactSgf* sgf,
+    const CompactSgf& sgf,
     int numPositionsToUse,
     NNEvaluator* nnEval,
     const BenchmarkResults* baseline,

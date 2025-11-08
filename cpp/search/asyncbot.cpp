@@ -143,9 +143,18 @@ void AsyncBot::setCopyOfExternalPatternBonusTable(const std::unique_ptr<PatternB
   stopAndWait();
   search->setCopyOfExternalPatternBonusTable(table);
 }
+void AsyncBot::setExternalEvalCache(std::shared_ptr<EvalCacheTable> cache) {
+  stopAndWait();
+  search->setExternalEvalCache(cache);
+}
 void AsyncBot::clearSearch() {
   stopAndWait();
   search->clearSearch();
+}
+void AsyncBot::clearEvalCache() {
+  stopAndWait();
+  if(search->evalCache != nullptr)
+    search->evalCache->clear();
 }
 
 bool AsyncBot::makeMove(Loc moveLoc, Player movePla) {

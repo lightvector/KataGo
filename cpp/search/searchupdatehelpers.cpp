@@ -8,7 +8,6 @@
 //------------------------
 
 
-
 void Search::addLeafValue(
   SearchNode& node,
   double winLossValue,
@@ -85,14 +84,31 @@ void Search::addCurrentNNOutputAsLeafValue(SearchNode& node, bool assumeNoExisti
   const NNOutput* nnOutput = node.getNNOutput();
   assert(nnOutput != NULL);
   //Values in the search are from the perspective of white positive always
-  double winProb = (double)nnOutput->whiteWinProb;
-  double lossProb = (double)nnOutput->whiteLossProb;
+  double winLossValue = (double)nnOutput->whiteWinProb - (double)nnOutput->whiteLossProb;
   double noResultProb = (double)nnOutput->whiteNoResultProb;
   double scoreMean = (double)nnOutput->whiteScoreMean;
   double scoreMeanSq = (double)nnOutput->whiteScoreMeanSq;
   double lead = (double)nnOutput->whiteLead;
+
+  //Note that root node does not use eval cache for its aggregate values
+  if(searchParams.useEvalCache && searchParams.useGraphSearch && node.evalCacheEntry != nullptr && mirroringPla == C_EMPTY && (&node != rootNode) && !node.forceNonTerminal) {
+    // For raw NN value for purposes of cache weighting, always treat the node as 1 visit since
+    // repeating the same nn eval over and over is only 1 visit of eval info.
+    int64_t thisNodeVisitsForCache = 1;
+    adjustEvalsFromCacheHelper(
+      node.evalCacheEntry,
+      thisNodeVisitsForCache,
+      winLossValue,
+      noResultProb,
+      scoreMean,
+      scoreMeanSq,
+      lead,
+      NULL
+    );
+  }
+
   double weight = computeWeightFromNNOutput(nnOutput);
-  addLeafValue(node,winProb-lossProb,noResultProb,scoreMean,scoreMeanSq,lead,weight,false,assumeNoExistingWeight);
+  addLeafValue(node,winLossValue,noResultProb,scoreMean,scoreMeanSq,lead,weight,false,assumeNoExistingWeight);
 }
 
 double Search::computeWeightFromNNOutput(const NNOutput* nnOutput) const {
@@ -156,6 +172,7 @@ void Search::recomputeNodeStats(SearchNode& node, SearchThread& thread, int numV
   ConstSearchNodeChildrenReference children = node.getChildren();
   int childrenCapacity = children.getCapacity();
   double origTotalChildWeight = 0.0;
+  int64_t thisNodeVisits = 1; // 1 = own visit
   for(int i = 0; i<childrenCapacity; i++) {
     const SearchChildPointer& childPointer = children[i];
     const SearchNode* child = childPointer.getIfAllocated();
@@ -176,6 +193,7 @@ void Search::recomputeNodeStats(SearchNode& node, SearchThread& thread, int numV
     stats.prevMoveLoc = moveLoc;
 
     origTotalChildWeight += stats.weightAdjusted;
+    thisNodeVisits += edgeVisits;
     numGoodChildren++;
   }
 
@@ -311,6 +329,19 @@ void Search::recomputeNodeStats(SearchNode& node, SearchThread& thread, int numV
 
   double oldUtilityAvg = utilityAvg;
   utilityAvg += getPatternBonus(node.patternBonusHash,getOpp(node.nextPla));
+  //Note that root node does not use eval cache for its aggregate values
+  if(searchParams.useEvalCache && searchParams.useGraphSearch && node.evalCacheEntry != nullptr && mirroringPla == C_EMPTY && (&node != rootNode) && !node.forceNonTerminal) {
+    adjustEvalsFromCacheHelper(
+      node.evalCacheEntry,
+      thisNodeVisits,
+      winLossValueAvg,
+      noResultValueAvg,
+      scoreMeanAvg,
+      scoreMeanSqAvg,
+      leadAvg,
+      &utilityAvg
+    );
+  }
   utilitySqAvg = utilitySqAvg + (utilityAvg * utilityAvg - oldUtilityAvg * oldUtilityAvg);
 
   //TODO statslock may be unnecessary now with the dirtyCounter mechanism?
@@ -327,6 +358,46 @@ void Search::recomputeNodeStats(SearchNode& node, SearchThread& thread, int numV
   node.stats.visits.fetch_add(numVisitsToAdd,std::memory_order_release);
   node.statsLock.clear(std::memory_order_release);
 }
+
+void Search::adjustEvalsFromCacheHelper(
+  const std::shared_ptr<EvalCacheEntry>& evalCacheEntry,
+  int64_t thisNodeVisits,
+  double& winLossValueAvg,
+  double& noResultValueAvg,
+  double& scoreMeanAvg,
+  double& scoreMeanSqAvg,
+  double& leadAvg,
+  double* utilityAvg
+) {
+  double cacheAvgWinLoss = evalCacheEntry->avgWinLoss;
+  double cacheAvgNoResult = evalCacheEntry->avgNoResult;
+  double cacheAvgScoreMean = evalCacheEntry->avgScoreMean;
+  double cacheAvgLead = evalCacheEntry->avgLead;
+  double cacheWeight = evalCacheEntry->cacheWeight;
+  // Squish down very heavily-weighted entries that are likely to have cache entries ahead of them, to somewhat
+  // reduce the impact of double-counting since child nodes will also apply their own averaging.
+  if(cacheWeight > searchParams.evalCacheMinVisits)
+    cacheWeight = sqrt(searchParams.evalCacheMinVisits * cacheWeight);
+  double visitsToCacheRatio = thisNodeVisits / cacheWeight;
+  double cacheFrac = 1.0 / (1.0 + 3.0 * visitsToCacheRatio * (1.0 + 2.0 * visitsToCacheRatio * visitsToCacheRatio));
+
+  winLossValueAvg += cacheFrac * (cacheAvgWinLoss - winLossValueAvg);
+  noResultValueAvg += cacheFrac * (cacheAvgNoResult - noResultValueAvg);
+  double oldScoreMeanAvg = scoreMeanAvg;
+  scoreMeanAvg += cacheFrac * (cacheAvgScoreMean - scoreMeanAvg);
+  scoreMeanSqAvg = std::max(0.0, scoreMeanSqAvg - oldScoreMeanAvg * oldScoreMeanAvg + scoreMeanAvg * scoreMeanAvg);
+  leadAvg += cacheFrac * (cacheAvgLead - leadAvg);
+
+  if(utilityAvg != NULL) {
+    double cacheAvgUtility =
+      getResultUtility(cacheAvgWinLoss,cacheAvgNoResult)
+      + getScoreUtility(
+        cacheAvgScoreMean, std::max(0.0, scoreMeanSqAvg - scoreMeanAvg * scoreMeanAvg + cacheAvgScoreMean * cacheAvgScoreMean)
+      );
+    *utilityAvg += cacheFrac * (cacheAvgUtility - *utilityAvg);
+  }
+}
+
 
 void Search::downweightBadChildrenAndNormalizeWeight(
   int numChildren,

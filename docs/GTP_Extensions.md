@@ -198,6 +198,7 @@ In addition to a basic set of [GTP commands](https://www.lysator.liu.se/~gunnar/
      whiteLead (1 float) - predicted number of points that white is ahead by (this is the preferred score value for user display).
      whiteScoreSelfplay (1 float) - predicted mean score that would result from low-playout noisy selfplay (may be biased, Kata isn't fully score-maximizing).
      whiteScoreSelfplaySq (1 float) - predicted mean square of score that would result via low-playout noisy selfplay
+     varTimeLeft (1 float) - guess of how "soon" on average in moves until the game's winner/loser will become clear. This value has not been heavily studied, but could still be meaningful for research.
      shorttermWinlossError (1 float) - predicted square root of the mean squared difference between (whiteWin-whiteLoss) and the MCTS (whiteWin-whiteLoss) in low-playout noisy selfplay after a few turns. Generally unavailable for nets prior to December 2020, in which case this value will always equal -1.
      shorttermScoreError (1 float) - predicted square root of the mean difference between whiteScoreSelfplay and the MCTS score in low-playout noisy selfplay after a few turns.  Generally unavailable for nets prior to December 2020, in which case this value will always equal -1.
      policy (boardXSize * boardYSize floats, including possibly NAN for illegal moves) - policy distribution for next move
@@ -210,6 +211,11 @@ In addition to a basic set of [GTP commands](https://www.lysator.liu.se/~gunnar/
      * Similar to `kata-raw-nn`, but uses the human SL model for evaluation.
      * `SYMMETRY` should be an integer from 0-7 or "all".
      * This command is only available if a human SL model was provided using the `-human-model` command line option. Typically, this should be a model like `b18c384nbt-humanv0.bin.gz`.
+     * **Output format differences from `kata-raw-nn`:**
+        * Reports `whiteScore` instead of `whiteLead`.
+        * Reports `whiteScoreSq` instead of `whiteScoreSelfplaySq`
+        * Does NOT report `whiteScoreSelfplay` or `varTimeLeft`
+        * The reason for these naming differences is that the human SL model was NOT trained report to "lead" (i.e. how many points would need to change hands to make the game fair), and was NOT trained to predict self-play either. Instead, it was trained to predict the average *final* score of the game, inclusive of human biases/tilt, players in the games appearing to be of different skill levels, etc. Note that this score prediction will also be significantly biased in unknown ways due to many human games in training data ending in resignation, timeout, and not providing a reliable score.
 
   * `kata-get-param PARAM`, `kata-set-param PARAM VALUE`
      * Get a parameter or set a parameter to a given value.

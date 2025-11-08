@@ -901,7 +901,7 @@ void PlayUtils::BenchmarkResults::printEloComparison(const vector<BenchmarkResul
 
 PlayUtils::BenchmarkResults PlayUtils::benchmarkSearchOnPositionsAndPrint(
   const SearchParams& params,
-  const CompactSgf* sgf,
+  const CompactSgf& sgf,
   int numPositionsToUse,
   NNEvaluator* nnEval,
   const BenchmarkResults* baseline,
@@ -909,7 +909,7 @@ PlayUtils::BenchmarkResults PlayUtils::benchmarkSearchOnPositionsAndPrint(
   bool printElo
 ) {
   //Pick random positions from the SGF file, but deterministically
-  vector<Move> moves = sgf->moves;
+  vector<Move> moves = sgf.moves;
   if(moves.size() > 0xFFFF)
     moves.resize(0xFFFF);
   string posSeed = "benchmarkPosSeed|";
@@ -951,12 +951,12 @@ PlayUtils::BenchmarkResults PlayUtils::benchmarkSearchOnPositionsAndPrint(
   //Ignore the SGF rules, except for komi. Just use Tromp-taylor.
   Rules initialRules = Rules::getTrompTaylorish();
   //Take the komi from the sgf, otherwise ignore the rules in the sgf
-  initialRules.komi = sgf->getRulesOrFailAllowUnspecified(initialRules).komi;
+  initialRules.komi = sgf.getRulesOrFailAllowUnspecified(initialRules).komi;
 
   Board board;
   Player nextPla;
   BoardHistory hist;
-  sgf->setupInitialBoardAndHist(initialRules, board, nextPla, hist);
+  sgf.setupInitialBoardAndHist(initialRules, board, nextPla, hist);
 
   int moveNum = 0;
 

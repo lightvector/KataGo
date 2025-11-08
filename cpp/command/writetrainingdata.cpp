@@ -856,7 +856,7 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
       }
     }
 
-    std::unique_ptr<Sgf> sgfRaw = NULL;
+    std::unique_ptr<Sgf> sgfRaw = nullptr;
     XYSize xySize;
     try {
       sgfRaw = std::unique_ptr<Sgf>(Sgf::loadFile(fileName));
@@ -907,9 +907,9 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
     const string sizeStr = " (size " + Global::intToString(xySize.x) + "x" + Global::intToString(xySize.y) + ")";
     const string bSizeStr = Global::intToString(xySize.x) + "x" + Global::intToString(xySize.y);
 
-    std::unique_ptr<CompactSgf> sgf = NULL;
+    std::unique_ptr<CompactSgf> sgf = nullptr;
     try {
-      sgf = std::make_unique<CompactSgf>(sgfRaw.get());
+      sgf = std::make_unique<CompactSgf>(*sgfRaw);
     }
     catch(const StringError& e) {
       logger.write("Invalid SGF " + fileName + ": " + e.what());

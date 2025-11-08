@@ -552,6 +552,7 @@ struct GTPEngine {
 
       bot = new AsyncBot(genmoveParams, nnEval, humanEval, &logger, searchRandSeed);
       bot->setCopyOfExternalPatternBonusTable(patternBonusTable);
+      isGenmoveParams = true;
 
       Board board(boardXSize,boardYSize);
       Player pla = P_BLACK;
@@ -1294,6 +1295,7 @@ struct GTPEngine {
 
   void clearCache() {
     bot->clearSearch();
+    bot->clearEvalCache();
     nnEval->clearCache();
     if(humanEval != NULL)
       humanEval->clearCache();
@@ -3300,7 +3302,7 @@ int MainCmds::gtp(const vector<string>& args) {
           BoardHistory sgfHist;
 
           bool sgfParseSuccess = false;
-          CompactSgf* sgf = NULL;
+          std::unique_ptr<CompactSgf> sgf = nullptr;
           try {
             sgf = CompactSgf::loadFile(filename);
 
@@ -3350,19 +3352,16 @@ int MainCmds::gtp(const vector<string>& args) {
             sgfHist = sgfInitialHist;
             sgf->playMovesTolerant(sgfBoard,sgfNextPla,sgfHist,moveNumber,preventEncore);
 
-            delete sgf;
-            sgf = NULL;
+            sgf = nullptr;
             sgfParseSuccess = true;
           }
           catch(const StringError& err) {
-            delete sgf;
-            sgf = NULL;
+            sgf = nullptr;
             responseIsError = true;
             response = "Could not load sgf: " + string(err.what());
           }
           catch(...) {
-            delete sgf;
-            sgf = NULL;
+            sgf = nullptr;
             responseIsError = true;
             response = "Cannot load file";
           }
@@ -3586,7 +3585,7 @@ int MainCmds::gtp(const vector<string>& args) {
             ", no built-in benchmarks for rectangular boards";
         }
         else {
-          CompactSgf* sgf = NULL;
+          std::unique_ptr<CompactSgf> sgf = nullptr;
           try {
             string sgfData = TestCommon::getBenchmarkSGFData(boardSizeX);
             sgf = CompactSgf::parse(sgfData);
@@ -3595,7 +3594,7 @@ int MainCmds::gtp(const vector<string>& args) {
             responseIsError = true;
             response = e.what();
           }
-          if(sgf != NULL) {
+          if(sgf != nullptr) {
             const PlayUtils::BenchmarkResults* baseline = NULL;
             const double secondsPerGameMove = 1.0;
             const bool printElo = false;
@@ -3609,7 +3608,7 @@ int MainCmds::gtp(const vector<string>& args) {
             try {
               PlayUtils::BenchmarkResults results = PlayUtils::benchmarkSearchOnPositionsAndPrint(
                 params,
-                sgf,
+                *sgf,
                 10,
                 engine->nnEval,
                 baseline,
@@ -3621,11 +3620,9 @@ int MainCmds::gtp(const vector<string>& args) {
             catch(const StringError& e) {
               responseIsError = true;
               response = e.what();
-              delete sgf;
-              sgf = NULL;
+              sgf = nullptr;
             }
-            if(sgf != NULL) {
-              delete sgf;
+            if(sgf != nullptr) {
               //Act of benchmarking will write to stdout with a newline at the end, so we just need one more newline ourselves
               //to complete GTP protocol.
               suppressResponse = true;

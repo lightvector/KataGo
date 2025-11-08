@@ -15,6 +15,7 @@
 #include "../game/rules.h"
 #include "../neuralnet/nneval.h"
 #include "../search/analysisdata.h"
+#include "../search/evalcache.h"
 #include "../search/mutexpool.h"
 #include "../search/reportedsearchvalues.h"
 #include "../search/searchparams.h"
@@ -137,6 +138,8 @@ struct Search {
   PatternBonusTable* patternBonusTable;
   std::unique_ptr<PatternBonusTable> externalPatternBonusTable;
 
+  std::shared_ptr<EvalCacheTable> evalCache;
+
   Rand nonSearchRand; //only for use not in search, since rand isn't threadsafe
 
   //================================================================================================================
@@ -229,6 +232,7 @@ struct Search {
   void setParamsNoClearing(SearchParams params); //Does not clear search
   void setExternalPatternBonusTable(std::unique_ptr<PatternBonusTable>&& table);
   void setCopyOfExternalPatternBonusTable(const std::unique_ptr<PatternBonusTable>& table);
+  void setExternalEvalCache(std::shared_ptr<EvalCacheTable> cache);
   void setNNEval(NNEvaluator* nnEval);
 
   //If the number of threads is reduced, this can free up some excess threads in the thread pool.
@@ -616,6 +620,17 @@ private:
   void updateStatsAfterPlayout(SearchNode& node, SearchThread& thread, bool isRoot);
   void recomputeNodeStats(SearchNode& node, SearchThread& thread, int32_t numVisitsToAdd, bool isRoot);
 
+  void adjustEvalsFromCacheHelper(
+    const std::shared_ptr<EvalCacheEntry>& evalCacheEntry,
+    int64_t thisNodeVisits,
+    double& winLossValueAvg,
+    double& noResultValueAvg,
+    double& scoreMeanAvg,
+    double& scoreMeanSqAvg,
+    double& leadAvg,
+    double* utilityAvg
+  );
+
   void downweightBadChildrenAndNormalizeWeight(
     int numChildren,
     double currentTotalWeight,
@@ -645,6 +660,7 @@ private:
   //----------------------------------------------------------------------------------------
   void computeRootValues(); // Helper for begin search
   void recursivelyRecomputeStats(SearchNode& node); // Helper for search initialization
+  void recursivelyRecordEvalCache(SearchNode& n);
 
   bool playoutDescend(
     SearchThread& thread, SearchNode& node,

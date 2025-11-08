@@ -152,7 +152,7 @@ void SearchChildPointer::setMoveLocRelaxed(Loc loc) {
 
 
 //Makes a search node resulting from prevPla playing prevLoc
-SearchNode::SearchNode(Player pla, bool fnt, uint32_t mIdx)
+SearchNode::SearchNode(Player pla, bool fnt, uint32_t mIdx, Hash128 gh)
   :nextPla(pla),
    forceNonTerminal(fnt),
    patternBonusHash(),
@@ -169,6 +169,8 @@ SearchNode::SearchNode(Player pla, bool fnt, uint32_t mIdx)
    lastSubtreeValueBiasDeltaSum(0.0),
    lastSubtreeValueBiasWeight(0.0),
    subtreeValueBiasTableEntry(),
+   graphHash(gh),
+   evalCacheEntry(nullptr),
    dirtyCounter(0)
 {
 }
@@ -190,6 +192,8 @@ SearchNode::SearchNode(const SearchNode& other, bool fnt, bool copySubtreeValueB
    lastSubtreeValueBiasDeltaSum(0.0),
    lastSubtreeValueBiasWeight(0.0),
    subtreeValueBiasTableEntry(),
+   graphHash(other.graphHash),
+   evalCacheEntry(other.evalCacheEntry),
    dirtyCounter(other.dirtyCounter.load(std::memory_order_acquire))
 {
   {

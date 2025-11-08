@@ -75,6 +75,7 @@ namespace Global
   std::string uint64ToString(uint64_t x);
   std::string uint32ToHexString(uint32_t x);
   std::string uint64ToHexString(uint64_t x);
+  std::string sizeToString(size_t x);
 
   //String to conversions using the standard library parsing
   int stringToInt(const std::string& str);

@@ -12,7 +12,7 @@ endif()
 set(CMAKE_CXX_STANDARD 17)
 
 include_directories(external)
-include_directories(external/tclap-1.2.2/include)
+include_directories(SYSTEM external/tclap-1.2.5/include) #SYSTEM suppresses warnings from external library
 include_directories(SYSTEM external/filesystem-1.5.8/include) #SYSTEM suppresses a few warnings
 
 #--------------------------- PLATFORM SPECIFIC -------------------------------------------------------------------------
@@ -304,6 +304,7 @@ add_executable(katago
   search/localpattern.cpp
   search/searchnodetable.cpp
   search/subtreevaluebiastable.cpp
+  search/evalcache.cpp
   search/patternbonustable.cpp
   search/analysisdata.cpp
   search/reportedsearchvalues.cpp
@@ -344,6 +345,7 @@ add_executable(katago
   command/analysis.cpp
   command/benchmark.cpp
   command/contribute.cpp
+  command/demoplay.cpp
   command/evalsgf.cpp
   command/gatekeeper.cpp
   command/genbook.cpp
@@ -354,6 +356,7 @@ add_executable(katago
   command/runtests.cpp
   command/sandbox.cpp
   command/selfplay.cpp
+  command/startposes.cpp
   command/tune.cpp
   command/writetrainingdata.cpp
   main.cpp

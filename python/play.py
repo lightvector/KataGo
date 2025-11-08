@@ -74,7 +74,7 @@ def get_input_feature(gs, feature_idx):
     locs_and_values = []
     for y in range(gs.board.y_size):
         for x in range(gs.board.x_size):
-            loc = board.loc(x,y)
+            loc = gs.board.loc(x,y)
             locs_and_values.append((loc,bin_input_data[0,feature_idx,y,x]))
     return locs_and_values
 
@@ -635,6 +635,24 @@ while True:
         normalization_div = "max"
         gfx_commands = get_gfx_commands_for_heatmap(locs_and_values, gs.board, normalization_div, is_percent=True)
         ret = "\n".join(gfx_commands)
+
+    elif command[0] == "test":
+        outputs = gs.get_model_outputs(model, extra_output_names=[])
+        for name in outputs["available_extra_outputs"]:
+            print(name)
+        ret = "Done"
+    elif command[0] == "test2":
+        extra_output_name = command[1]
+        channel_idx = int(command[2])
+        outputs = gs.get_model_outputs(model, extra_output_names=[extra_output_name])
+        output = outputs[extra_output_name] # shape c, h, w
+        output = output[channel_idx]
+        ret = ""
+        board = gs.board
+        for y in range(board.y_size):
+            for x in range(board.x_size):
+                ret += "%.4f " % output[y,x]
+            ret += "\n"
 
     elif command[0] == "passalive":
         locs_and_values = get_pass_alive(gs)

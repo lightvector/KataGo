@@ -5,7 +5,7 @@ DESCRIPTION:
 
 USAGE: 
 
-   gtp  [-config <FILE>] ...  [-model <FILE>] [-human-model <FILE>]
+   gtp  [-config <FILE>] ... [-model <FILE>] [-human-model <FILE>]
         [...other flags...]
 
 

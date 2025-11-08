@@ -156,7 +156,7 @@ void PatternBonusTable::avoidRepeatedSgfMoves(
   double factor = 1.0;
   for(size_t i = 0; i<sgfFiles.size() && i < maxFiles; i++) {
     const string& fileName = sgfFiles[i];
-    Sgf* sgf = NULL;
+    std::unique_ptr<Sgf> sgf = nullptr;
     try {
       sgf = Sgf::loadFile(fileName);
     }
@@ -208,7 +208,6 @@ void PatternBonusTable::avoidRepeatedSgfMoves(
     sgf->iterAllUniquePositions(uniqueHashes, hashComments, hashParent, flipIfPassOrWFirst, allowGameOver, NULL, posHandler);
     logger.write("Added " + Global::uint64ToString(hashesThisGame.size()) + " shapes to penalize repeats for " + logSource + " from " + fileName);
 
-    delete sgf;
     factor *= decayOlderFilesLambda;
   }
 }

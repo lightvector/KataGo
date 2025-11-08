@@ -268,7 +268,7 @@ void GameInitializer::initShared(ConfigParser& cfg, Logger& logger) {
     };
     int64_t numExcluded = 0;
     for(size_t i = 0; i<files.size(); i++) {
-      Sgf* sgf = NULL;
+      std::unique_ptr<Sgf> sgf = nullptr;
       try {
         sgf = Sgf::loadFile(files[i]);
         if(contains(excludeHashes,sgf->hash))
@@ -284,8 +284,6 @@ void GameInitializer::initShared(ConfigParser& cfg, Logger& logger) {
       catch(const StringError& e) {
         logger.write("Invalid SGF " + files[i] + ": " + e.what());
       }
-      if(sgf != NULL)
-        delete sgf;
     }
     logger.write("Kept " + Global::uint64ToString(startPoses.size()) + " start positions");
     logger.write("Excluded " + Global::int64ToString(numExcluded) + "/" + Global::uint64ToString(files.size()) + " sgf files");

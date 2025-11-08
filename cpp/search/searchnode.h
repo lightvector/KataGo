@@ -7,6 +7,7 @@
 #include "../game/boardhistory.h"
 #include "../neuralnet/nneval.h"
 #include "../search/subtreevaluebiastable.h"
+#include "../search/evalcache.h"
 
 typedef int SearchNodeState; // See SearchNode::STATE_*
 
@@ -225,10 +226,16 @@ struct SearchNode {
   double lastSubtreeValueBiasWeight;
   std::shared_ptr<SubtreeValueBiasEntry> subtreeValueBiasTableEntry;
 
+  //Only valid if useGraphSearch is true.
+  //Graph hash of this node.
+  //Note that this is NOT a unique key for evaluations due to nodes varying by forceNonTerminal.
+  Hash128 graphHash;
+  std::shared_ptr<EvalCacheEntry> evalCacheEntry;
+
   std::atomic<int32_t> dirtyCounter;
 
   //--------------------------------------------------------------------------------
-  SearchNode(Player prevPla, bool forceNonTerminal, uint32_t mutexIdx);
+  SearchNode(Player prevPla, bool forceNonTerminal, uint32_t mutexIdx, Hash128 graphHash);
   SearchNode(const SearchNode&, bool forceNonTerminal, bool copySubtreeValueBias);
   ~SearchNode();
 

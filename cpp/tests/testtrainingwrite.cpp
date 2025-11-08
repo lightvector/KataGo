@@ -958,7 +958,7 @@ xxxxxxxx.
     nnEval->clearStats();
 
     string sgfData = TestCommon::getBenchmarkSGFData(13);
-    CompactSgf* sgf = CompactSgf::parse(sgfData);
+    std::unique_ptr<CompactSgf> sgf = CompactSgf::parse(sgfData);
 
     SearchParams params = SearchParams::forTestsV1();
     params.rootNoiseEnabled = true;
@@ -1048,8 +1048,6 @@ xxxxxxxx.
       testAssert(suc);
       nextPla = getOpp(nextPla);
     }
-
-    delete sgf;
   }
 
   {
@@ -2764,7 +2762,7 @@ void Tests::runSekiTrainWriteTests(const string& modelFile) {
     botSpec.nnEval = nnEval;
     botSpec.baseParams = params;
 
-    CompactSgf* sgf = CompactSgf::parse(sgfStr);
+    std::unique_ptr<CompactSgf> sgf = CompactSgf::parse(sgfStr);
     Board initialBoard;
     Player initialPla;
     BoardHistory initialHist;
@@ -2819,7 +2817,6 @@ void Tests::runSekiTrainWriteTests(const string& modelFile) {
     dataWriter.flushIfNonempty();
     delete gameData;
     delete bot;
-    delete sgf;
     cout << endl;
   };
 

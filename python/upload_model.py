@@ -26,10 +26,12 @@ parser.add_argument('-model-zip', help='zipped model file with tf weights', requ
 parser.add_argument('-upload-log-file', help='log upload data to this file', required=True)
 parser.add_argument('-metadata-file', help='metadata.json file for recording some stats', required=False)
 parser.add_argument('-parents-dir', help='dir with uploaded models dirs for finding parent', required=False)
+parser.add_argument('-parent-network-full-name', help='use this as the parent for loggamma and such', required=False)
 parser.add_argument('-connection-config', help='config with serverUrl and username and password', required=True)
 parser.add_argument('-not-enabled', help='upload model where it is not enabled for train/rating to begin with', required=False, action='store_true')
-parser.add_argument('-rating-only', help='upload for rating only or not', type=int, default=0, required=False)
+parser.add_argument('-rating-only', help='upload for rating only or not', type=int, required=False)
 parser.add_argument('-notes', help='extra notes to record for model', required=False)
+parser.add_argument('-confirm', help='Ask for confirmation before upload', action="store_true", required=False)
 args = vars(parser.parse_args())
 
 run_name = args["run_name"]
@@ -39,10 +41,12 @@ model_zip = args["model_zip"]
 upload_log_file = args["upload_log_file"]
 metadata_file = args["metadata_file"]
 parents_dir = args["parents_dir"]
+parent_network_full_name = args["parent_network_full_name"]
 connection_config_file = args["connection_config"]
 not_enabled = args["not_enabled"]
 rating_only = args["rating_only"]
 notes = args["notes"]
+confirm = args["confirm"]
 
 loglines = []
 def log(s):
@@ -101,9 +105,36 @@ if parents_dir is not None:
             possible_parents.append((fname, datasamples))
     possible_parents.sort(key=(lambda x: x[1]))
 
-parent_network_name_without_run = None
-if len(possible_parents) > 0:
+def check_network_exists(url):
+    try:
+        if sslVerificationHost is not None:
+            sess = requests.Session()
+            sess.mount('https://', host_header_ssl.HostHeaderSSLAdapter())
+            if sslVerifyPemPath is not None:
+                response = sess.get(url, headers={"Host": sslVerificationHost}, verify=sslVerifyPemPath)
+            else:
+                response = sess.get(url, headers={"Host": sslVerificationHost})
+        else:
+            if sslVerifyPemPath is not None:
+                response = requests.get(url, verify=sslVerifyPemPath)
+            else:
+                response = requests.get(url,files=data)
+        response.raise_for_status()  # Raises HTTPError for bad responses
+        return response.json()
+    except (requests.RequestException, json.JSONDecodeError) as e:
+        log(f"Failed to query/parse JSON from {url} when checking if network exists, does it actually exist?")
+        raise
+
+parent_network_url = None
+if parent_network_full_name is None and len(possible_parents) > 0:
     parent_network_name_without_run = possible_parents[-1][0]
+    parent_network_full_name = run_name + "-" + parent_network_name_without_run
+if parent_network_full_name is not None:
+    parent_network_url = base_server_url + "api/networks/" + parent_network_full_name + "/"
+    check_network_exists(parent_network_url)
+
+if not model_name.startswith(run_name+"-"):
+    raise Exception("Model name must start with run name")
 
 metadata = None
 if metadata_file is not None:
@@ -120,7 +151,19 @@ url = base_server_url + "api/networks/"
 
 with open(model_file,"rb") as model_file_handle:
     with open(model_zip,"rb") as model_zip_handle:
-        log_gamma_offset = -1.0 if network_size == "b60c320" else 0.0
+        log_gamma_offset = 0
+        if network_size == "b60c320":
+            log_gamma_offset = -1.5
+            rating_only = rating_only if rating_only is not None else 1
+        elif network_size == "b28c512nbt":
+            log_gamma_offset = -1.1
+            rating_only = rating_only if rating_only is not None else 0
+        elif network_size == "b18c384nbt":
+            log_gamma_offset = 0
+            rating_only = rating_only if rating_only is not None else 1
+        else:
+            rating_only = rating_only if rating_only is not None else 1
+
         data = {
             "run": (None, base_server_url + "api/runs/" + run_name + "/"),
             "name": (None, model_name),
@@ -135,8 +178,8 @@ with open(model_file,"rb") as model_file_handle:
             "model_zip_file": (model_name + ".zip", model_zip_handle, "application/octet-stream"),
         }
 
-        if parent_network_name_without_run is not None:
-            data["parent_network"] = (None, base_server_url + "api/networks/" + run_name + "-" + parent_network_name_without_run + "/")
+        if parent_network_url is not None:
+            data["parent_network"] = (None, parent_network_url)
 
         if notes is not None:
             data["notes"] = (None, notes)
@@ -150,6 +193,12 @@ with open(model_file,"rb") as model_file_handle:
                 data["extra_stats"] = (None, json.dumps(metadata["extra_stats"]))
 
         # print(requests.Request('POST', base_server_url, files=data).prepare().body)
+
+        if confirm:
+            print(json.dumps({key: value for (key,value) in data.items() if key not in ["model_file","model_zip_file"]}, indent=2, sort_keys=True))
+            if input("Are you sure you want to proceed? (y/N): ").lower() != 'y':
+                print("Aborting")
+                exit()
 
         if sslVerificationHost is not None:
             sess = requests.Session()

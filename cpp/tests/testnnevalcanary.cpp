@@ -42,7 +42,7 @@ void Tests::runCanaryTests(NNEvaluator* nnEval, int symmetry, bool print) {
 
   {
     string sgfStr = "(;GM[1]FF[4]CA[UTF-8]AP[CGoban:3]ST[2]RU[Chinese]SZ[19]KM[7]PW[White]PB[Black];B[pd];W[pp];B[dd];W[dp];B[qn];W[nq];B[cq];W[dq];B[cp];W[do];B[bn];W[cc];B[cd];W[dc];B[ec];W[eb];B[fb];W[fc];B[ed];W[gb];B[db];W[fa];B[cb];W[qo];B[pn];W[nc];B[qj];W[qc];B[qd];W[pc];B[od];W[nd];B[ne];W[me];B[mf];W[nf])";
-    CompactSgf* sgf = CompactSgf::parse(sgfStr);
+    std::unique_ptr<CompactSgf> sgf = CompactSgf::parse(sgfStr);
 
     Board board;
     Player nextPla;
@@ -73,13 +73,11 @@ void Tests::runCanaryTests(NNEvaluator* nnEval, int symmetry, bool print) {
     testAssert(buf.result->whiteLead < 2.5 + leadLenience);
     testAssert(buf.result->whiteScoreMean > -3.5 - scoreLenience);
     testAssert(buf.result->whiteScoreMean < 3.5 + scoreLenience);
-
-    delete sgf;
   }
 
   {
     string sgfStr = "(;GM[1]FF[4]CA[UTF-8]AP[CGoban:3]ST[2]RU[Chinese]SZ[19]KM[7]PW[White]PB[Black];B[pd];W[pp];B[dd];W[dp];B[qn];W[nq];B[cq];W[dq];B[cp];W[do];B[bn];W[cc];B[cd];W[dc];B[ec];W[eb];B[fb];W[fc];B[ed];W[gb];B[db];W[fa];B[cb];W[qo];B[pn];W[nc];B[qj];W[qc];B[qd];W[pc];B[od];W[nd];B[ne];W[me];B[mf];W[nf])";
-    CompactSgf* sgf = CompactSgf::parse(sgfStr);
+    std::unique_ptr<CompactSgf> sgf = CompactSgf::parse(sgfStr);
 
     Board board;
     Player nextPla;
@@ -110,12 +108,10 @@ void Tests::runCanaryTests(NNEvaluator* nnEval, int symmetry, bool print) {
     testAssert(buf.result->whiteLead < 2.5 + leadLenience);
     testAssert(buf.result->whiteScoreMean > -3.5 - scoreLenience);
     testAssert(buf.result->whiteScoreMean < 3.5 + scoreLenience);
-
-    delete sgf;
   }
   {
     string sgfStr = "(;GM[1]FF[4]CA[UTF-8]AP[CGoban:3]ST[2]RU[Chinese]SZ[19]KM[7]PW[White]PB[Black];B[qd];W[dd];B[pp];W[dp];B[cf];W[fc];B[nd];W[nq];B[cq];W[dq];B[cp];W[cn];B[co];W[do];B[bn];W[cm];B[bm];W[cl];B[qn];W[pq];B[qq];W[qr];B[oq])";
-    CompactSgf* sgf = CompactSgf::parse(sgfStr);
+    std::unique_ptr<CompactSgf> sgf = CompactSgf::parse(sgfStr);
 
     Board board;
     Player nextPla;
@@ -146,13 +142,11 @@ void Tests::runCanaryTests(NNEvaluator* nnEval, int symmetry, bool print) {
     testAssert(buf.result->whiteLead < 2.5 + leadLenience);
     testAssert(buf.result->whiteScoreMean > -3.5 - scoreLenience);
     testAssert(buf.result->whiteScoreMean < 3.5 + scoreLenience);
-
-    delete sgf;
   }
 
   {
     string sgfStr = "(;GM[1]FF[4]CA[UTF-8]AP[CGoban:3]ST[2]RU[Chinese]SZ[19]KM[7]PW[White]PB[Black];B[qd];W[dd];B[pp];W[dp];B[cf];W[fc];B[nd];W[nq];B[cq];W[dq];B[cp];W[cn];B[co];W[do];B[bn];W[cm];B[bm];W[cl];B[qn];W[pq];B[qq];W[qr];B[oq])";
-    CompactSgf* sgf = CompactSgf::parse(sgfStr);
+    std::unique_ptr<CompactSgf> sgf = CompactSgf::parse(sgfStr);
 
     Board board;
     Player nextPla;
@@ -180,13 +174,11 @@ void Tests::runCanaryTests(NNEvaluator* nnEval, int symmetry, bool print) {
     testAssert(buf.result->whiteLead > -19.0 - leadLenience);
     testAssert(buf.result->whiteScoreMean < -8.0 + scoreLenience);
     testAssert(buf.result->whiteScoreMean > -22.0 - scoreLenience);
-
-    delete sgf;
   }
 
   {
     string sgfStr = "(;GM[1]FF[4]CA[UTF-8]AP[CGoban:3]ST[2]RU[Chinese]SZ[19]KM[7]PW[White]PB[Black];B[qd];W[dd];B[pp];W[dp];B[cf];W[fc];B[nd];W[nq];B[cq];W[dq];B[cp];W[cn];B[co];W[do];B[bn];W[cm];B[bm];W[cl];B[qn];W[pq];B[qq];W[qr];B[oq])";
-    CompactSgf* sgf = CompactSgf::parse(sgfStr);
+    std::unique_ptr<CompactSgf> sgf = CompactSgf::parse(sgfStr);
 
     Board board;
     Player nextPla;
@@ -214,13 +206,11 @@ void Tests::runCanaryTests(NNEvaluator* nnEval, int symmetry, bool print) {
     testAssert(buf.result->whiteLead < 19.0 + leadLenience);
     testAssert(buf.result->whiteScoreMean > 8.0 - scoreLenience);
     testAssert(buf.result->whiteScoreMean < 22.0 + scoreLenience);
-
-    delete sgf;
   }
 
   {
     string sgfStr = "(;FF[4]GM[1]CA[UTF-8]RU[Japanese]KM[6]SZ[16:11];B[md];W[nh];B[dh];W[cd];B[lh];W[li];B[ki])";
-    CompactSgf* sgf = CompactSgf::parse(sgfStr);
+    std::unique_ptr<CompactSgf> sgf = CompactSgf::parse(sgfStr);
 
     Board board;
     Player nextPla;
@@ -250,8 +240,6 @@ void Tests::runCanaryTests(NNEvaluator* nnEval, int symmetry, bool print) {
     testAssert(buf.result->whiteLead < 2.5 + leadLenience);
     testAssert(buf.result->whiteScoreMean > -3.5 - scoreLenience);
     testAssert(buf.result->whiteScoreMean < 3.5 + scoreLenience);
-
-    delete sgf;
   }
 }
 
@@ -550,7 +538,7 @@ bool Tests::runBackendErrorTest(
   auto loadHists = [&](const std::vector<string>& sgfStrs) {
     std::vector<BoardHistory> hists;
     for(const string& sgfStr: sgfStrs) {
-      Sgf* sgf = Sgf::parse(sgfStr);
+      std::unique_ptr<Sgf> sgf = Sgf::parse(sgfStr);
       std::set<Hash128> uniqueHashes;
       const bool hashComments = false;
       const bool hashParent = false;
@@ -570,7 +558,6 @@ bool Tests::runBackendErrorTest(
             hists.push_back(hist);
         }
       );
-      delete sgf;
     }
     return hists;
   };
