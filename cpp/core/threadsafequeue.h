@@ -107,7 +107,8 @@ class ThreadSafeContainer
   inline std::enable_if_t<std::is_copy_constructible<U>::value, bool>
   waitPush(const T& elt)
   {
-    return waitPush(T(elt));
+    T copy(elt);
+    return waitPush(std::move(copy));
   }
 
   // Push an element without blocking, but can exceed maxSize of the queue.
@@ -127,7 +128,8 @@ class ThreadSafeContainer
   inline std::enable_if_t<std::is_copy_constructible<U>::value, bool>
   forcePush(const T& elt)
   {
-    return forcePush(T(elt));
+    T copy(elt);
+    return forcePush(std::move(copy));
   }
 
   // Attempt to pop an element into buf without blocking.
