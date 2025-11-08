@@ -2,8 +2,20 @@ cmake_minimum_required(VERSION 3.18.2)
 if(USE_BACKEND STREQUAL "METAL")
   project(katago LANGUAGES CXX Swift)
 elseif(USE_BACKEND STREQUAL "ROCM")
-  set(CMAKE_C_COMPILER  /opt/rocm/bin/hipcc CACHE FILEPATH "" FORCE)
-  set(CMAKE_CXX_COMPILER /opt/rocm/bin/hipcc CACHE FILEPATH "" FORCE)
+  if(WIN32)
+    # Windows: Use clang++ from HIP SDK (hipcc doesn't work well on Windows)
+    # User can override with -DCMAKE_CXX_COMPILER if needed
+    if(NOT DEFINED CMAKE_CXX_COMPILER)
+      if(DEFINED ENV{HIP_PATH})
+        set(CMAKE_CXX_COMPILER "$ENV{HIP_PATH}/bin/clang++.exe" CACHE FILEPATH "" FORCE)
+        set(CMAKE_C_COMPILER "$ENV{HIP_PATH}/bin/clang.exe" CACHE FILEPATH "" FORCE)
+      endif()
+    endif()
+  else()
+    # Linux: Use hipcc
+    set(CMAKE_C_COMPILER  /opt/rocm/bin/hipcc CACHE FILEPATH "" FORCE)
+    set(CMAKE_CXX_COMPILER /opt/rocm/bin/hipcc CACHE FILEPATH "" FORCE)
+  endif()
   project(katago LANGUAGES C CXX HIP)
 else()
   project(katago)
@@ -151,14 +163,23 @@ elseif(USE_BACKEND STREQUAL "ROCM")
   set(CMAKE_HIP_STANDARD 17)
 
   if(CMAKE_PREFIX_PATH STREQUAL "" OR NOT DEFINED CMAKE_PREFIX_PATH)
-    if(DEFINED ENV{HIP_PATH})
-      # Windows HIP‑SDK
-      list(APPEND CMAKE_PREFIX_PATH $ENV{HIP_PATH})
-      message(STATUS "Auto‑detected HIP_PATH=$ENV{HIP_PATH} → CMAKE_PREFIX_PATH")
-    elseif(EXISTS "/opt/rocm")
-      # Linux
-      list(APPEND CMAKE_PREFIX_PATH "/opt/rocm")
-      message(STATUS "CMAKE_PREFIX_PATH not given; defaulting to /opt/rocm")
+    if(WIN32)
+      # Windows: HIP SDK installed via installer or manually
+      if(DEFINED ENV{HIP_PATH})
+        list(APPEND CMAKE_PREFIX_PATH "$ENV{HIP_PATH}")
+        message(STATUS "Auto-detected HIP_PATH=$ENV{HIP_PATH} → CMAKE_PREFIX_PATH")
+      elseif(DEFINED ENV{ROCM_PATH})
+        list(APPEND CMAKE_PREFIX_PATH "$ENV{ROCM_PATH}")
+        message(STATUS "Auto-detected ROCM_PATH=$ENV{ROCM_PATH} → CMAKE_PREFIX_PATH")
+      else()
+        message(WARNING "HIP_PATH or ROCM_PATH environment variable not set. Please install HIP SDK for Windows.")
+      endif()
+    else()
+      # Linux: Standard ROCm installation path
+      if(EXISTS "/opt/rocm")
+        list(APPEND CMAKE_PREFIX_PATH "/opt/rocm")
+        message(STATUS "CMAKE_PREFIX_PATH not given; defaulting to /opt/rocm")
+      endif()
     endif()
   endif()
 
@@ -473,20 +494,38 @@ elseif(USE_BACKEND STREQUAL "ROCM")
     message(STATUS "Detected FP16‑capable GFX arch (${CMAKE_HIP_ARCHITECTURES}); defining HIP_SUPPORTS_FP16")
   endif()
 
-  # 3) Find ROCm runtime & libraries. Since ROCm 6.x, CMake config-mode packages are included. If not found, add -DCMAKE_PREFIX_PATH=/opt/rocm
+  # 3) Find ROCm runtime & libraries. Since ROCm 6.x, CMake config-mode packages are included. If not found, add -DCMAKE_PREFIX_PATH=/opt/rocm (Linux) or HIP SDK path (Windows)
   find_package(hip        QUIET CONFIG)   # Export hip::device / hip::host
   find_package(hipblas    QUIET CONFIG)   # Export roc::hipblas
-  find_package(miopen     QUIET CONFIG)   # Export roc::miopen
+  find_package(miopen     QUIET CONFIG)   # Export roc::miopen or MIOpen
+  
   # ---------- fallback：HIP Runtime ----------
   if(NOT hip_FOUND)
-    find_path(HIP_INCLUDE_DIR hip/hip_runtime.h
-              HINTS ${CMAKE_PREFIX_PATH} /opt/rocm
-              PATH_SUFFIXES include)
-    find_library(HIP_RUNTIME_LIB amdhip64
-                 HINTS ${CMAKE_PREFIX_PATH} /opt/rocm
-                 PATH_SUFFIXES lib lib64)
+    if(WIN32)
+      # Windows: Search in HIP SDK installation
+      find_path(HIP_INCLUDE_DIR hip/hip_runtime.h
+                HINTS ${CMAKE_PREFIX_PATH} ENV HIP_PATH ENV ROCM_PATH
+                PATH_SUFFIXES include)
+      find_library(HIP_RUNTIME_LIB 
+                   NAMES amdhip64 amdhip64_6
+                   HINTS ${CMAKE_PREFIX_PATH} ENV HIP_PATH ENV ROCM_PATH
+                   PATH_SUFFIXES lib bin)
+    else()
+      # Linux: Search in /opt/rocm
+      find_path(HIP_INCLUDE_DIR hip/hip_runtime.h
+                HINTS ${CMAKE_PREFIX_PATH} /opt/rocm
+                PATH_SUFFIXES include)
+      find_library(HIP_RUNTIME_LIB amdhip64
+                   HINTS ${CMAKE_PREFIX_PATH} /opt/rocm
+                   PATH_SUFFIXES lib lib64)
+    endif()
+    
     if(NOT HIP_INCLUDE_DIR OR NOT HIP_RUNTIME_LIB)
-      message(FATAL_ERROR "HIP headers or runtime NOT found; install ROCm or set CMAKE_PREFIX_PATH.")
+      if(WIN32)
+        message(FATAL_ERROR "HIP headers or runtime NOT found; install HIP SDK for Windows or set CMAKE_PREFIX_PATH to HIP SDK installation path.")
+      else()
+        message(FATAL_ERROR "HIP headers or runtime NOT found; install ROCm or set CMAKE_PREFIX_PATH.")
+      endif()
     endif()
     add_library(hip::device UNKNOWN IMPORTED)
     set_target_properties(hip::device PROPERTIES
@@ -498,26 +537,54 @@ elseif(USE_BACKEND STREQUAL "ROCM")
   # ---------- fallback：hipBLAS / MIOpen ----------
   foreach(_pkg hipblas miopen)
     if(NOT ${_pkg}_FOUND)
-      find_library(${_pkg}_LIB ${_pkg}
-                   HINTS ${CMAKE_PREFIX_PATH} /opt/rocm
-                   PATH_SUFFIXES lib lib64)
+      if(WIN32)
+        # Windows naming conventions
+        if(_pkg STREQUAL "hipblas")
+          set(_lib_names hipblas)
+        else()
+          set(_lib_names MIOpen)
+        endif()
+        find_library(${_pkg}_LIB 
+                     NAMES ${_lib_names}
+                     HINTS ${CMAKE_PREFIX_PATH} ENV HIP_PATH ENV ROCM_PATH
+                     PATH_SUFFIXES lib bin)
+      else()
+        # Linux naming
+        find_library(${_pkg}_LIB ${_pkg}
+                     HINTS ${CMAKE_PREFIX_PATH} /opt/rocm
+                     PATH_SUFFIXES lib lib64)
+      endif()
+      
       if(${_pkg}_LIB)
         add_library(roc::${_pkg} UNKNOWN IMPORTED)
         set_target_properties(roc::${_pkg} PROPERTIES
           IMPORTED_LOCATION "${${_pkg}_LIB}")
         target_include_directories(katago SYSTEM PRIVATE ${HIP_INCLUDE_DIR})
+        message(STATUS "Found ${_pkg} at ${${_pkg}_LIB}")
       else()
-        message(FATAL_ERROR "Required ROCm component ${_pkg} not found – install it or set CMAKE_PREFIX_PATH.")
+        if(WIN32)
+          message(FATAL_ERROR "Required ROCm component ${_pkg} not found – install HIP SDK for Windows or set CMAKE_PREFIX_PATH.")
+        else()
+          message(FATAL_ERROR "Required ROCm component ${_pkg} not found – install it or set CMAKE_PREFIX_PATH.")
+        endif()
       endif()
     endif()
   endforeach()
 
-  # 4) Header file paths are resolved by config-mode targets, no need to hard-code
+  # 4) Link libraries
+  # Note: On Windows, MIOpen might need to be linked as "MIOpen" directly if the target doesn't exist
+  if(TARGET MIOpen)
+    set(_miopen_target MIOpen)
+  elseif(TARGET roc::miopen)
+    set(_miopen_target roc::miopen)
+  else()
+    set(_miopen_target roc::miopen)
+  endif()
+  
   target_link_libraries(katago
     hip::device          # HIP runtime & kernel offload
     roc::hipblas         # BLAS
-    MIOpen
-    # roc::miopen          # DNN primitives
+    ${_miopen_target}    # DNN primitives
   )
 elseif(USE_BACKEND STREQUAL "EIGEN")
   target_compile_definitions(katago PRIVATE USE_EIGEN_BACKEND)
