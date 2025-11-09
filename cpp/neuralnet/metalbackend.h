@@ -109,13 +109,19 @@ struct LoadedModel {
   ModelDesc modelDesc;
 
   /**
+   * @brief The directory of the loaded model.
+   */
+  const string modelDirectory;
+
+  /**
    * @brief Construct a new Loaded Model object
    * This constructor loads a machine learning model from a file and sets the modelDesc field to the
    * characteristics of the loaded model.
    * @param fileName The name of the file containing the machine learning model.
    * @param expectedSha256 The expected SHA-256 hash of the model file.
    */
-  LoadedModel(const string& fileName, const string& expectedSha256)
+  LoadedModel(const string& fileName, const string& expectedSha256, const string& dirName)
+    :modelDirectory(dirName)
   {
     ModelDesc::loadFromFileMaybeGZipped(fileName, modelDesc, expectedSha256);
   }
@@ -154,6 +160,11 @@ struct ComputeContext {
   enabled_t useFP16Mode;
 
   /**
+   * @brief Whether to use CPU and Neural Engine for CoreML computations.
+   */
+  bool useCpuAndNeuralEngine;
+
+  /**
    * @brief ComputeContext ID
    */
   int identifier;
@@ -171,8 +182,9 @@ struct ComputeContext {
    * @param nnY The height of the input tensor.
    * @param useFP16Mode Whether to use half-precision floating-point (FP16) mode for computations.
    * @param useNHWCMode Whether to use the NHWC format for input tensors.
+   * @param useCpuAndNeuralEngine Whether to use CPU and Neural Engine for CoreML computations.
    */
-  ComputeContext(int nnX, int nnY, enabled_t useFP16Mode, enabled_t useNHWCMode);
+  ComputeContext(int nnX, int nnY, enabled_t useFP16Mode, enabled_t useNHWCMode, bool useCpuAndNeuralEngine);
 
   /**
    * @brief Destroys the ComputeContext object.
@@ -241,9 +253,34 @@ struct ComputeHandle {
   bool useFP16;
 
   /**
+   * @brief The x length of the CoreML model.
+   */
+  int modelXLen;
+
+  /**
+   * @brief The y length of the CoreML model.
+   */
+  int modelYLen;
+
+  /**
+   * @brief The version of the CoreML model.
+   */
+  int modelVersion;
+
+  /**
+   * @brief The index of the CoreML model.
+   */
+  int modelIndex;
+
+  /**
    * @brief The Metal handle instance.
    */
   swift::Optional<MetalComputeHandle> metalhandle;
+
+  /**
+   * @brief The CoreML backend instance.
+   */
+  swift::Optional<CoreMLBackend> coremlbackend;
 
   /**
    * @brief Construct a new ComputeHandle object.
@@ -286,18 +323,23 @@ struct ComputeHandle {
 struct InputBuffers {
   int maxBatchSize;
   size_t policyResultChannels;
+  size_t modelPolicyResultChannels;
 
   size_t singleSpatialElts;
   size_t singleInputElts;
   size_t singleInputGlobalElts;
   size_t singleInputMetaElts;
-  size_t singlePolicyResultElts;
+  size_t singleNnPolicyResultElts;
+  size_t singleModelPolicyResultElts;
   size_t singlePolicyPassResultElts;
   size_t singlePolicyProbsElts;
   size_t singleValueResultElts;
-  size_t singleOwnershipResultElts;
+  size_t singleNnOwnershipResultElts;
+  size_t singleModelOwnershipResultElts;
   size_t singleOwnerMapElts;
   size_t singleScoreValuesResultElts;
+  size_t singleNnScoreValuesResultElts;
+  size_t singleMoreMiscValuesResultElts;
 
   size_t rowSpatialBufferElts;
   size_t userInputBufferElts;
@@ -306,10 +348,12 @@ struct InputBuffers {
   size_t policyResultBufferElts;
   size_t policyPassResultBufferElts;
   size_t policyProbsBufferElts;
+  size_t modelPolicyResultBufferElts;
   size_t valueResultBufferElts;
   size_t ownershipResultBufferElts;
   size_t ownerMapBufferElts;
   size_t scoreValuesResultBufferElts;
+  size_t moreMiscValuesResultsBufferElts;
 
   float* rowSpatialBuffer;
   float* userInputBuffer;
@@ -318,10 +362,12 @@ struct InputBuffers {
   float* policyResults;
   float* policyPassResults;
   float* policyProbsBuffer;
+  float* modelPolicyResults;
   float* valueResults;
   float* ownershipResults;
   float* ownerMapBuffer;
   float* scoreValuesResults;
+  float* moreMiscValuesResults;
 
   InputBuffers(const LoadedModel* loadedModel, int maxBatchSz, int nnXLen, int nnYLen);
   ~InputBuffers();

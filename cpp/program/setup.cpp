@@ -21,6 +21,7 @@ std::vector<std::string> Setup::getBackendPrefixes() {
   prefixes.push_back("opencl");
   prefixes.push_back("eigen");
   prefixes.push_back("dummybackend");
+  prefixes.push_back("coreml");
   return prefixes;
 }
 
@@ -39,10 +40,44 @@ NNEvaluator* Setup::initializeNNEvaluator(
   bool disableFP16,
   setup_for_t setupFor
 ) {
+  return initializeCoreMLEvaluator(
+    nnModelName,
+    nnModelFile,
+    "",
+    expectedSha256,
+    cfg,
+    logger,
+    seedRand,
+    expectedConcurrentEvals,
+    defaultNNXLen,
+    defaultNNYLen,
+    defaultMaxBatchSize,
+    defaultRequireExactNNLen,
+    disableFP16,
+    setupFor);
+}
+
+NNEvaluator* Setup::initializeCoreMLEvaluator(
+  const string& nnModelName,
+  const string& nnModelFile,
+  const string& nnModelDir,
+  const string& expectedSha256,
+  ConfigParser& cfg,
+  Logger& logger,
+  Rand& seedRand,
+  int expectedConcurrentEvals,
+  int defaultNNXLen,
+  int defaultNNYLen,
+  int defaultMaxBatchSize,
+  bool defaultRequireExactNNLen,
+  bool disableFP16,
+  setup_for_t setupFor
+) {
   vector<NNEvaluator*> nnEvals =
-    initializeNNEvaluators(
+    initializeCoreMLEvaluators(
       {nnModelName},
       {nnModelFile},
+      {nnModelDir},
       {expectedSha256},
       cfg,
       logger,
@@ -74,8 +109,43 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
   bool disableFP16,
   setup_for_t setupFor
 ) {
+  return initializeCoreMLEvaluators(
+    nnModelNames,
+    nnModelFiles,
+    {""},
+    expectedSha256s,
+    cfg,
+    logger,
+    seedRand,
+    expectedConcurrentEvals,
+    defaultNNXLen,
+    defaultNNYLen,
+    defaultMaxBatchSize,
+    defaultRequireExactNNLen,
+    disableFP16,
+    setupFor
+  );
+}
+
+vector<NNEvaluator*> Setup::initializeCoreMLEvaluators(
+  const vector<string>& nnModelNames,
+  const vector<string>& nnModelFiles,
+  const vector<string>& nnModelDirs,
+  const vector<string>& expectedSha256s,
+  ConfigParser& cfg,
+  Logger& logger,
+  Rand& seedRand,
+  int expectedConcurrentEvals,
+  int defaultNNXLen,
+  int defaultNNYLen,
+  int defaultMaxBatchSize,
+  bool defaultRequireExactNNLen,
+  bool disableFP16,
+  setup_for_t setupFor
+) {
   vector<NNEvaluator*> nnEvals;
   assert(nnModelNames.size() == nnModelFiles.size());
+  assert(nnModelFiles.size() == nnModelDirs.size());
   assert(expectedSha256s.size() == 0 || expectedSha256s.size() == nnModelFiles.size());
 
   #if defined(USE_CUDA_BACKEND)
@@ -88,6 +158,8 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
   string backendPrefix = "opencl";
   #elif defined(USE_EIGEN_BACKEND)
   string backendPrefix = "eigen";
+  #elif defined(USE_COREML_BACKEND)
+  string backendPrefix = "coreml";
   #else
   string backendPrefix = "dummybackend";
   #endif
@@ -103,6 +175,7 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
     string idxStr = Global::uint64ToString(i);
     const string& nnModelName = nnModelNames[i];
     const string& nnModelFile = nnModelFiles[i];
+    const string& nnModelDir = nnModelDirs[i];
     const string& expectedSha256 = expectedSha256s.size() > 0 ? expectedSha256s[i]: "";
 
     bool debugSkipNeuralNetDefault = (nnModelFile == "/dev/null");
@@ -141,7 +214,7 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
         requireExactNNLen = cfg.getBool("requireMaxBoardSize");
     }
 
-    bool inputsUseNHWC = backendPrefix == "opencl" || backendPrefix == "trt" || backendPrefix == "metal" ? false : true;
+    bool inputsUseNHWC = backendPrefix == "opencl" || backendPrefix == "trt" || backendPrefix == "coreml" ? false : true;
     if(cfg.contains(backendPrefix+"InputsUseNHWC"+idxStr))
       inputsUseNHWC = cfg.getBool(backendPrefix+"InputsUseNHWC"+idxStr);
     else if(cfg.contains("inputsUseNHWC"+idxStr))
@@ -305,6 +378,7 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
     NNEvaluator* nnEval = new NNEvaluator(
       nnModelName,
       nnModelFile,
+      nnModelDir,
       expectedSha256,
       &logger,
       nnMaxBatchSize,

@@ -80,6 +80,8 @@ extension MPSGraph {
     func mish(tensor: MPSGraphTensor) -> MPSGraphTensor {
         assert(tensor.dataType == .float32)
 
+#if false
+
         let one = 1.0
         let threshold = 20.0
         let thresholdTensor = constant(threshold, dataType: tensor.dataType)
@@ -95,6 +97,37 @@ extension MPSGraph {
         let mulTensor = multiplication(tensor, tanhTensor, name: nil)
 
         return mulTensor
+
+#else
+
+        // Fast Mish Operator with branch-free implementation
+        //
+        // Algorithm:
+        // e = exp(x)
+        // mish = x / (1 + 2 / (e * (e + 2)))
+        //
+        // Reference:
+        // https://cs.stackexchange.com/questions/125002/fast-and-stable-x-tanhlog1pexpx-computation/127135#127135
+        //
+        // Note:
+        // When the exponential function `exp(x)` approaches zero,
+        // the expression `2 / (e * (e + 2))` results in an overflow,
+        // producing an undefined value (`inf/nan`). However, I didn’t
+        // observe any instances of `nan` values during the actual
+        // execution of the KataGo program.
+
+        let one = constant(1.0, dataType: tensor.dataType)
+        let two = constant(2.0, dataType: tensor.dataType)
+        let e = exponent(with: tensor, name: nil)
+        let ePlusTwo = addition(e, two, name: nil)
+        let eTimesEPlusTwo = multiplication(e, ePlusTwo, name: nil)
+        let twoDivETimesEPlusTwo = division(two, eTimesEPlusTwo, name: nil)
+        let onePlusTwoDivETimesEPlusTwo = addition(one, twoDivETimesEPlusTwo, name: nil)
+        let result = division(tensor, onePlusTwoDivETimesEPlusTwo, name: nil)
+
+        return result
+#endif
+
     }
 }
 
@@ -668,6 +701,24 @@ public struct SWBatchNormLayerDesc {
     let numChannels: NSNumber
     let mergedScale: UnsafeMutablePointer<Float32>
     let mergedBias: UnsafeMutablePointer<Float32>
+
+    static func mergeScales(scaleWeights: [Float], varianceWeights: [Float], epsilon: Float) -> [Float] {
+        assert(scaleWeights.count == varianceWeights.count)
+
+        return zip(scaleWeights, varianceWeights).map { scale, variance in
+            scale / sqrt(variance + epsilon)
+        }
+    }
+
+    static func mergedBiases(biasWeights: [Float], meanWeights: [Float], mergedScales: [Float]) -> [Float] {
+        assert(biasWeights.count == meanWeights.count)
+        assert(biasWeights.count == mergedScales.count)
+
+        return zip(zip(biasWeights, meanWeights), mergedScales).map { (biasMean, scale) in
+            let (bias, mean) = biasMean
+            return bias - (mean * scale)
+        }
+    }
 
     /// Initializes a SWBatchNormLayerDesc object.
     /// - Parameters:
