@@ -100,6 +100,7 @@ class NNEvaluator {
     const std::vector<int>& gpuIdxByServerThread,
     const std::string& randSeed,
     bool doRandomize,
+    bool useQValues,
     int defaultSymmetry
   );
   ~NNEvaluator();
@@ -217,6 +218,8 @@ class NNEvaluator {
   const bool inputsUseNHWC;
   const enabled_t usingFP16Mode;
   const enabled_t usingNHWCMode;
+  const bool usingQValues;
+
   int numThreads;
   std::vector<int> gpuIdxByServerThread;
   const std::string randSeed;

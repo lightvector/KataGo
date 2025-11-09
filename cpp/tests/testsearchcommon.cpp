@@ -205,6 +205,7 @@ NNEvaluator* TestSearchCommon::startNNEval(
   const string homeDataDirOverride = "";
   int numNNServerThreadsPerModel = 1;
   bool nnRandomize = false;
+  bool enableQValues = true;
   string nnRandSeed = "runSearchTestsRandSeed"+seed;
 
   if(defaultSymmetry == -1) {
@@ -235,6 +236,7 @@ NNEvaluator* TestSearchCommon::startNNEval(
     gpuIdxByServerThread,
     nnRandSeed,
     nnRandomize,
+    enableQValues,
     defaultSymmetry
   );
 

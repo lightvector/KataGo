@@ -27,6 +27,7 @@ static NNEvaluator* startNNEval(
   bool openCLReTunePerBoardSize = false;
   int numNNServerThreadsPerModel = 1;
   bool nnRandomize = false;
+  bool enableQValues = true;
 
   string expectedSha256 = "";
   NNEvaluator* nnEval = new NNEvaluator(
@@ -51,6 +52,7 @@ static NNEvaluator* startNNEval(
     gpuIdxByServerThread,
     seed,
     nnRandomize,
+    enableQValues,
     defaultSymmetry
   );
 

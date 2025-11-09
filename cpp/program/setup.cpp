@@ -156,6 +156,8 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
       cfg.contains("nnRandomize") ? cfg.getBool("nnRandomize") :
       true;
 
+    bool enableQValues = cfg.getBool("enableQValues");
+
     string nnRandSeed;
     if(setupFor == SETUP_FOR_DISTRIBUTED)
       nnRandSeed = Global::uint64ToString(seedRand.nextUInt64());
@@ -324,6 +326,7 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
       gpuIdxByServerThread,
       nnRandSeed,
       (forcedSymmetry >= 0 ? false : nnRandomize),
+      enableQValues,
       defaultSymmetry
     );
 
