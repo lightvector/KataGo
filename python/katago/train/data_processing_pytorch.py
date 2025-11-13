@@ -1,6 +1,5 @@
 import logging
 import os
-from enum import Enum, auto
 
 import numpy as np
 from concurrent.futures import ThreadPoolExecutor
@@ -157,133 +156,71 @@ def apply_symmetry(tensor, symm):
     if symm == 7:
         return tensor.flip(-2)
 
-class GoSpatialFeature(Enum):
-    ON_BOARD = 0
-    PLA_STONE = 1
-    OPP_STONE = 2
-    LIBERTIES_1 = 3
-    LIBERTIES_2 = 4
-    LIBERTIES_3 = 5
-    SUPER_KO_BANNED = 6
-    KO_RECAP_BLOCKED = 7
-    KO_EXTRA = 8
-    PREV_1_LOC = 9
-    PREV_2_LOC = 10
-    PREV_3_LOC = 11
-    PREV_4_LOC = 12
-    PREV_5_LOC = 13
-    LADDER_CAPTURED = 14
-    LADDER_CAPTURED_PREVIOUS_1 = 15
-    LADDER_CAPTURED_PREVIOUS_2 = 16
-    LADDER_WORKING_MOVES = 17
-    AREA_PLA = 18
-    AREA_OPP = 19
-    SECOND_ENCORE_PLA = 20
-    SECOND_ENCORE_OPP = 21
-
-class GoGlobalFeature(Enum):
-    PREV_1_LOC_PASS = 0
-    PREV_2_LOC_PASS = 1
-    PREV_3_LOC_PASS = 2
-    PREV_4_LOC_PASS = 3
-    PREV_5_LOC_PASS = 4
-    KOMI = 5
-    KO_RULE_NOT_SIMPLE = 6
-    KO_RULE_EXTRA = 7
-    SUICIDE = 8
-    SCORING_TERRITORY = 9
-    TAX_SEKI = 10
-    TAX_ALL = 11
-    ENCORE_PHASE_1 = 12
-    ENCORE_PHASE_2 = 13
-    PASS_WOULD_END_PHASE = 14
-    PLAYOUT_DOUBLING_ADVANTAGE_FLAG = 15
-    PLAYOUT_DOUBLING_ADVANTAGE_VALUE = 16
-    HAS_BUTTON = 17
-    BOARD_SIZE_KOMI_PARITY = 18
-
-class DotsSpatialFeature(Enum):
-    ON_BOARD = 0
-    PLA_ACTIVE = auto()
-    OPP_ACTIVE = auto()
-    PLA_PLACED = auto()
-    OPP_PLACED = auto()
-    DEAD = auto()
-    GROUNDED = auto()
-    PLA_CAPTURES = auto()
-    OPP_CAPTURES = auto()
-    PLA_SURROUNDINGS = auto()
-    OPP_SURROUNDINGS = auto()
-    PREV_1_LOC = auto()
-    PREV_2_LOC = auto()
-    PREV_3_LOC = auto()
-    PREV_4_LOC = auto()
-    PREV_5_LOC = auto()
-    LADDER_CAPTURED = auto()
-    LADDER_CAPTURED_PREVIOUS_1 = auto()
-    LADDER_CAPTURED_PREVIOUS_2 = auto()
-    LADDER_WORKING_MOVES = auto()
 
 def build_history_matrices(model_config: modelconfigs.ModelConfig, device):
     num_bin_features = modelconfigs.get_num_bin_input_features(model_config)
+    assert num_bin_features == 22, "Currently this code is hardcoded for this many features"
 
-    is_go_game = not modelconfigs.is_dots_game(model_config)
-    
-    prev_1_loc = GoSpatialFeature.PREV_1_LOC.value if is_go_game else DotsSpatialFeature.PREV_1_LOC.value
-    prev_2_loc = GoSpatialFeature.PREV_2_LOC.value if is_go_game else DotsSpatialFeature.PREV_2_LOC.value
-    prev_3_loc = GoSpatialFeature.PREV_3_LOC.value if is_go_game else DotsSpatialFeature.PREV_3_LOC.value
-    prev_4_loc = GoSpatialFeature.PREV_4_LOC.value if is_go_game else DotsSpatialFeature.PREV_4_LOC.value
-    prev_5_loc = GoSpatialFeature.PREV_5_LOC.value if is_go_game else DotsSpatialFeature.PREV_5_LOC.value
-
-    ladder_captured = GoSpatialFeature.LADDER_CAPTURED.value if is_go_game else DotsSpatialFeature.LADDER_CAPTURED.value
-    ladder_captured_previous_1 = GoSpatialFeature.LADDER_CAPTURED_PREVIOUS_1.value if is_go_game else DotsSpatialFeature.LADDER_CAPTURED_PREVIOUS_1.value
-    ladder_captured_previous_2 = GoSpatialFeature.LADDER_CAPTURED_PREVIOUS_2.value if is_go_game else DotsSpatialFeature.LADDER_CAPTURED_PREVIOUS_2.value
-    ladder_working_moves = GoSpatialFeature.LADDER_WORKING_MOVES.value if is_go_game else DotsSpatialFeature.LADDER_WORKING_MOVES.value
-
-    data = [1.0 for _ in range(num_bin_features)]
-
-    data[prev_1_loc] = 0.0
-    data[prev_2_loc] = 0.0
-    data[prev_3_loc] = 0.0
-    data[prev_4_loc] = 0.0
-    data[prev_5_loc] = 0.0
-
-    data[ladder_captured] = 1.0
-    data[ladder_captured_previous_1] = 0.0
-    data[ladder_captured_previous_2] = 0.0
-
-    h_base = torch.diag(torch.tensor(data, device=device, requires_grad=False))
-
+    h_base = torch.diag(
+        torch.tensor(
+            [
+                1.0,  # 0
+                1.0,  # 1
+                1.0,  # 2
+                1.0,  # 3
+                1.0,  # 4
+                1.0,  # 5
+                1.0,  # 6
+                1.0,  # 7
+                1.0,  # 8
+                0.0,  # 9   Location of move 1 turn ago
+                0.0,  # 10  Location of move 2 turns ago
+                0.0,  # 11  Location of move 3 turns ago
+                0.0,  # 12  Location of move 4 turns ago
+                0.0,  # 13  Location of move 5 turns ago
+                1.0,  # 14  Ladder-threatened stone
+                0.0,  # 15  Ladder-threatened stone, 1 turn ago
+                0.0,  # 16  Ladder-threatened stone, 2 turns ago
+                1.0,  # 17
+                1.0,  # 18
+                1.0,  # 19
+                1.0,  # 20
+                1.0,  # 21
+            ],
+            device=device,
+            requires_grad=False,
+        )
+    )
     # Because we have ladder features that express past states rather than past diffs,
     # the most natural encoding when we have no history is that they were always the
     # same, rather than that they were all zero. So rather than zeroing them we have no
     # history, we add entries in the matrix to copy them over.
     # By default, without history, the ladder features 15 and 16 just copy over from 14.
-    h_base[ladder_captured, ladder_captured_previous_1] = 1.0
-    h_base[ladder_captured, ladder_captured_previous_2] = 1.0
+    h_base[14, 15] = 1.0
+    h_base[14, 16] = 1.0
 
     h0 = torch.zeros(num_bin_features, num_bin_features, device=device, requires_grad=False)
     # When have the prev move, we enable feature 9 and 15
-    h0[prev_1_loc, prev_1_loc] = 1.0  # Enable 9 -> 9
-    h0[ladder_captured, ladder_captured_previous_1] = -1.0  # Stop copying 14 -> 15
-    h0[ladder_captured, ladder_captured_previous_2] = -1.0  # Stop copying 14 -> 16
-    h0[ladder_captured_previous_1, ladder_captured_previous_1] = 1.0  # Enable 15 -> 15
-    h0[ladder_captured_previous_1, ladder_captured_previous_2] = 1.0  # Start copying 15 -> 16
+    h0[9, 9] = 1.0  # Enable 9 -> 9
+    h0[14, 15] = -1.0  # Stop copying 14 -> 15
+    h0[14, 16] = -1.0  # Stop copying 14 -> 16
+    h0[15, 15] = 1.0  # Enable 15 -> 15
+    h0[15, 16] = 1.0  # Start copying 15 -> 16
 
     h1 = torch.zeros(num_bin_features, num_bin_features, device=device, requires_grad=False)
     # When have the prevprev move, we enable feature 10 and 16
-    h1[prev_2_loc, prev_2_loc] = 1.0  # Enable 10 -> 10
-    h1[ladder_captured_previous_1, ladder_captured_previous_2] = -1.0  # Stop copying 15 -> 16
-    h1[ladder_captured_previous_2, ladder_captured_previous_2] = 1.0  # Enable 16 -> 16
+    h1[10, 10] = 1.0  # Enable 10 -> 10
+    h1[15, 16] = -1.0  # Stop copying 15 -> 16
+    h1[16, 16] = 1.0  # Enable 16 -> 16
 
     h2 = torch.zeros(num_bin_features, num_bin_features, device=device, requires_grad=False)
-    h2[prev_3_loc, prev_3_loc] = 1.0
+    h2[11, 11] = 1.0
 
     h3 = torch.zeros(num_bin_features, num_bin_features, device=device, requires_grad=False)
-    h3[prev_4_loc, prev_4_loc] = 1.0
+    h3[12, 12] = 1.0
 
     h4 = torch.zeros(num_bin_features, num_bin_features, device=device, requires_grad=False)
-    h4[prev_5_loc, prev_5_loc] = 1.0
+    h4[13, 13] = 1.0
 
     # (1, n_bin, n_bin)
     h_base = h_base.reshape((1, num_bin_features, num_bin_features))
