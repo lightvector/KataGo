@@ -1,0 +1,107 @@
+name: Build and Test
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build-linux:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y cmake build-essential zlib1g-dev libzip-dev opencl-headers ocl-icd-opencl-dev
+
+    - name: Cache CMake build
+      uses: actions/cache@v4
+      with:
+        path: |
+          cpp/CMakeCache.txt
+          cpp/CMakeFiles
+        key: ${{ runner.os }}-cmake-${{ hashFiles('**/CMakeLists.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-cmake-
+
+    - name: Configure CMake
+      working-directory: cpp
+      run: |
+        cmake . -DUSE_BACKEND=OPENCL -DNO_GIT_REVISION=1
+
+    - name: Build
+      working-directory: cpp
+      run: |
+        make -j$(nproc)
+
+    - name: Run tests
+      run: |
+        cpp/katago runtests
+
+    - name: Upload artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: katago-linux-opencl
+        path: cpp/katago
+
+  build-windows:
+    runs-on: windows-latest
+    permissions:
+      contents: read
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup MSVC
+      uses: microsoft/setup-msbuild@v2
+
+    - name: Cache vcpkg packages
+      uses: actions/cache@v4
+      with:
+        path: |
+          ${{ env.VCPKG_INSTALLATION_ROOT }}/installed
+          ${{ env.VCPKG_INSTALLATION_ROOT }}/packages
+        key: ${{ runner.os }}-vcpkg-${{ hashFiles('**/vcpkg.json') }}-opencl
+        restore-keys: |
+          ${{ runner.os }}-vcpkg-
+
+    - name: Install vcpkg dependencies
+      run: |
+        vcpkg install zlib:x64-windows libzip:x64-windows opencl:x64-windows
+
+    - name: Configure CMake
+      working-directory: cpp
+      run: |
+        cmake . -G "Visual Studio 17 2022" -A x64 `
+          -DUSE_BACKEND=OPENCL `
+          -DNO_GIT_REVISION=1 `
+          -DCMAKE_TOOLCHAIN_FILE="$env:VCPKG_INSTALLATION_ROOT/scripts/buildsystems/vcpkg.cmake"
+
+    - name: Build
+      working-directory: cpp
+      run: |
+        cmake --build . --config Release -j 4
+
+    - name: Copy required DLLs
+      working-directory: cpp
+      run: |
+        $vcpkgRoot = $env:VCPKG_INSTALLATION_ROOT
+        Copy-Item "$vcpkgRoot/installed/x64-windows/bin/*.dll" -Destination "Release/" -ErrorAction SilentlyContinue
+
+    - name: Run tests
+      run: |
+        cpp/Release/katago.exe runtests
+
+    - name: Upload artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: katago-windows-opencl
+        path: cpp/Release/katago.exe
