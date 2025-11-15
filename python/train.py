@@ -31,7 +31,7 @@ from torch.optim.swa_utils import AveragedModel
 from torch.cuda.amp import GradScaler, autocast
 
 from katago.train import modelconfigs
-from katago.train.model_pytorch import Model, ExtraOutputs, MetadataEncoder
+from katago.train.model_pytorch import Model, ExtraOutputs, MetadataEncoder, parse_game, Game
 from katago.train.metrics_pytorch import Metrics
 from katago.utils.push_back_generator import PushBackGenerator
 from katago.train import load_model
@@ -68,6 +68,7 @@ if __name__ == "__main__":
     required_args.add_argument('-pos-len', help='Spatial edge length of expected training data, e.g. 19 for 19x19 Go', type=int, required=True)
     optional_args.add_argument('-pos-len-x', help='Spatial width of expected training data. If undefined, `-pos-len` is used', type=int, required=False)
     optional_args.add_argument('-pos-len-y', help='Spatial height of expected training data. If undefined, `-pos-len` is used', type=int, required=False)
+    optional_args.add_argument('-games', help='Games to train: ' + ", ".join(e.name for e in Game) + ' (GO by default)', type=parse_game, nargs="+", required=False)
     optional_args.add_argument('-samples-per-epoch', help='Number of data samples to consider as one epoch', type=int, required=False)
     optional_args.add_argument('-model-kind', help='String name for what model config to use', required=False)
     optional_args.add_argument('-lr-scale', help='LR multiplier on the hardcoded schedule', type=float, required=False)
@@ -157,6 +158,7 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
     pos_len = args["pos_len"]
     pos_len_x = args["pos_len_x"] or pos_len
     pos_len_y = args["pos_len_y"] or pos_len
+    games = args["games"] or [Game.GO]
     batch_size = args["batch_size"]
     samples_per_epoch = args["samples_per_epoch"]
     model_kind = args["model_kind"]
@@ -314,6 +316,9 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
         if rank == 0:
             state_dict = {}
             state_dict["model"] = ddp_model.state_dict()
+            state_dict["pos_len_x"] = getattr(ddp_model, "pos_len_x", 19)
+            state_dict["pos_len_y"] = getattr(ddp_model, "pos_len_y", 19)
+            state_dict["games"] = [g.name for g in getattr(ddp_model, "games", [Game.GO])]
             state_dict["optimizer"] = optimizer.state_dict()
             state_dict["metrics"] = metrics_obj.state_dict()
             state_dict["running_metrics"] = running_metrics
@@ -447,7 +452,7 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
             assert model_kind is not None, "Model kind is none or unspecified but the model is being created fresh"
             model_config = modelconfigs.config_of_name[model_kind]
             logging.info(str(model_config))
-            raw_model = Model(model_config,pos_len_x,pos_len_y)
+            raw_model = Model(model_config,pos_len_x,pos_len_y,games)
             raw_model.initialize()
 
             raw_model.to(device)
@@ -482,7 +487,7 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
             state_dict = torch.load(path_to_load_from, map_location=device)
             model_config = state_dict["config"] if "config" in state_dict else modelconfigs.config_of_name[model_kind]
             logging.info(str(model_config))
-            raw_model = Model(model_config,pos_len_x,pos_len_y)
+            raw_model = Model(model_config,pos_len_x,pos_len_y,games)
             raw_model.initialize()
 
             train_state = {}

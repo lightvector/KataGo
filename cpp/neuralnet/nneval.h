@@ -125,6 +125,7 @@ class NNEvaluator {
   int getNNXLen() const;
   int getNNYLen() const;
   int getModelVersion() const;
+  bool getDotsGame() const;
   double getTrunkSpatialConvDepth() const;
   enabled_t getUsingFP16Mode() const;
   enabled_t getUsingNHWCMode() const;

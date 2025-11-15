@@ -115,6 +115,7 @@ struct TRTModel {
   vector<unique_ptr<float[]>> extraWeights;
 
   int modelVersion;
+  bool dotsGame;
   uint8_t tuneHash[32];
   IOptimizationProfile* profile;
   unique_ptr<INetworkDefinition> network;
@@ -196,6 +197,7 @@ struct ModelParser {
     }
 
     model->modelVersion = modelDesc->modelVersion;
+    model->dotsGame = modelDesc->isDotsGame;
     network->setName(modelDesc->name.c_str());
 
     initInputs();
@@ -247,13 +249,13 @@ struct ModelParser {
     int numInputGlobalChannels = modelDesc->numInputGlobalChannels;
     int numInputMetaChannels = modelDesc->numInputMetaChannels;
 
-    int numFeatures = NNModelVersion::getNumSpatialFeatures(model->modelVersion);
+    int numFeatures = NNModelVersion::getNumSpatialFeatures(model->modelVersion, model->dotsGame);
     if(numInputChannels != numFeatures)
       throw StringError(Global::strprintf(
         "Neural net numInputChannels (%d) was not the expected number based on version (%d)",
         numInputChannels,
         numFeatures));
-    int numGlobalFeatures = NNModelVersion::getNumGlobalFeatures(model->modelVersion);
+    int numGlobalFeatures = NNModelVersion::getNumGlobalFeatures(model->modelVersion, model->dotsGame);
     if(numInputGlobalChannels != numGlobalFeatures)
       throw StringError(Global::strprintf(
         "Neural net numInputGlobalChannels (%d) was not the expected number based on version (%d)",
@@ -1586,8 +1588,8 @@ struct InputBuffers {
     singleOwnershipResultElts = m.numOwnershipChannels * nnXLen * nnYLen;
     singleOwnershipResultBytes = singleOwnershipResultElts * sizeof(float);
 
-    assert(NNModelVersion::getNumSpatialFeatures(m.modelVersion) == m.numInputChannels);
-    assert(NNModelVersion::getNumGlobalFeatures(m.modelVersion) == m.numInputGlobalChannels);
+    assert(NNModelVersion::getNumSpatialFeatures(m.modelVersion, m.isDotsGame) == m.numInputChannels);
+    assert(NNModelVersion::getNumGlobalFeatures(m.modelVersion, m.isDotsGame) == m.numInputGlobalChannels);
     if(m.numInputMetaChannels > 0) {
       assert(SGFMetadata::METADATA_INPUT_NUM_CHANNELS == m.numInputMetaChannels);
     }
@@ -1631,7 +1633,8 @@ void NeuralNet::getOutput(
   InputBuffers* inputBuffers,
   int numBatchEltsFilled,
   NNResultBuf** inputBufs,
-  vector<NNOutput*>& outputs) {
+  const vector<NNOutput*>& outputs,
+  const bool dotsGame) {
   assert(numBatchEltsFilled <= inputBuffers->maxBatchSize);
   assert(numBatchEltsFilled > 0);
 
@@ -1640,8 +1643,8 @@ void NeuralNet::getOutput(
   const int nnYLen = gpuHandle->ctx->nnYLen;
   const int modelVersion = gpuHandle->modelVersion;
 
-  const int numSpatialFeatures = NNModelVersion::getNumSpatialFeatures(modelVersion);
-  const int numGlobalFeatures = NNModelVersion::getNumGlobalFeatures(modelVersion);
+  const int numSpatialFeatures = NNModelVersion::getNumSpatialFeatures(modelVersion, dotsGame);
+  const int numGlobalFeatures = NNModelVersion::getNumGlobalFeatures(modelVersion, dotsGame);
   const int numMetaFeatures = inputBuffers->singleInputMetaElts;
   assert(numSpatialFeatures * nnXLen * nnYLen == inputBuffers->singleInputElts);
   assert(numGlobalFeatures == inputBuffers->singleInputGlobalElts);

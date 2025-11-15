@@ -22,68 +22,115 @@
 //15 = V7 features, Extra nonlinearity for pass output
 //16 = V7 features, Q value predictions in the policy head
 
-//17 = V8 features (Dots game)
-
-static void fail(int modelVersion) {
-  throw StringError("NNModelVersion: Model version not currently implemented or supported: " + Global::intToString(modelVersion));
+static void fail(const int modelVersion, const bool dotsGame) {
+  throw StringError("NNModelVersion: Model version not currently implemented or supported: " + Global::intToString(modelVersion) +
+    (dotsGame ? " (Dots game)" : ""));
 }
 
-static_assert(NNModelVersion::oldestModelVersionImplemented == 3, "");
-static_assert(NNModelVersion::oldestInputsVersionImplemented == 3, "");
-static_assert(NNModelVersion::latestModelVersionImplemented == 17, "");
-static_assert(NNModelVersion::latestInputsVersionImplemented == 8, "");
+static_assert(NNModelVersion::oldestModelVersionImplemented == 3);
+static_assert(NNModelVersion::oldestInputsVersionImplemented == 3);
+static_assert(NNModelVersion::latestModelVersionImplemented == 16);
+static_assert(NNModelVersion::latestInputsVersionImplemented == 7);
 
-int NNModelVersion::getInputsVersion(int modelVersion) {
-  if (modelVersion == defaultModelVersionForDots)
-    return dotsInputsVersion;
-  if(modelVersion >= 8 && modelVersion <= 16)
-    return 7;
-  else if(modelVersion == 7)
-    return 6;
-  else if(modelVersion == 6)
-    return 5;
-  else if(modelVersion == 5)
-    return 4;
-  else if(modelVersion == 3 || modelVersion == 4)
-    return 3;
+int NNModelVersion::getInputsVersion(const int modelVersion, const bool dotsGame) {
+  switch(modelVersion) {
+    case 3:
+    case 4:
+      if (!dotsGame) {
+        return 3;
+      }
+      break;
+    case 5:
+      if (!dotsGame) {
+        return 4;
+      }
+      break;
+    case 6:
+      if (!dotsGame) {
+        return 5;
+      }
+      break;
+    case 7:
+      if (!dotsGame) {
+        return 6;
+      }
+      break;
+    default:
+      if (modelVersion <= latestModelVersionImplemented) {
+        return 7;
+      }
+      break;
+  }
 
-  fail(modelVersion);
+  fail(modelVersion, dotsGame);
   return -1;
 }
 
-int NNModelVersion::getNumSpatialFeatures(int modelVersion) {
-  if(modelVersion == defaultModelVersionForDots)
-    return NNInputs::NUM_FEATURES_SPATIAL_V_DOTS;
-  if(modelVersion >= 8 && modelVersion <= 16)
-    return NNInputs::NUM_FEATURES_SPATIAL_V7;
-  if(modelVersion == 7)
-    return NNInputs::NUM_FEATURES_SPATIAL_V6;
-  if(modelVersion == 6)
-    return NNInputs::NUM_FEATURES_SPATIAL_V5;
-  if(modelVersion == 5)
-    return NNInputs::NUM_FEATURES_SPATIAL_V4;
-  if(modelVersion == 3 || modelVersion == 4)
-    return NNInputs::NUM_FEATURES_SPATIAL_V3;
+int NNModelVersion::getNumSpatialFeatures(const int modelVersion, const bool dotsGame) {
+  switch(modelVersion) {
+    case 3:
+    case 4:
+      if (!dotsGame) {
+        return NNInputs::NUM_FEATURES_SPATIAL_V3;
+      }
+      break;
+    case 5:
+      if (!dotsGame) {
+        return NNInputs::NUM_FEATURES_SPATIAL_V4;
+      }
+      break;
+    case 6:
+      if (!dotsGame) {
+        return NNInputs::NUM_FEATURES_SPATIAL_V5;
+      }
+      break;
+    case 7:
+      if (!dotsGame) {
+        return NNInputs::NUM_FEATURES_SPATIAL_V6;
+      }
+      break;
+    default:
+      if (modelVersion <= latestModelVersionImplemented) {
+        return dotsGame ? NNInputs::NUM_FEATURES_SPATIAL_V7_DOTS : NNInputs::NUM_FEATURES_SPATIAL_V7;
+      }
+      break;
+  }
 
-  fail(modelVersion);
+  fail(modelVersion, dotsGame);
   return -1;
 }
 
-int NNModelVersion::getNumGlobalFeatures(int modelVersion) {
-  if(modelVersion == defaultModelVersionForDots)
-    return NNInputs::NUM_FEATURES_GLOBAL_V_DOTS;
-  if(modelVersion >= 8 && modelVersion <= 16)
-    return NNInputs::NUM_FEATURES_GLOBAL_V7;
-  else if(modelVersion == 7)
-    return NNInputs::NUM_FEATURES_GLOBAL_V6;
-  else if(modelVersion == 6)
-    return NNInputs::NUM_FEATURES_GLOBAL_V5;
-  else if(modelVersion == 5)
-    return NNInputs::NUM_FEATURES_GLOBAL_V4;
-  else if(modelVersion == 3 || modelVersion == 4)
-    return NNInputs::NUM_FEATURES_GLOBAL_V3;
+int NNModelVersion::getNumGlobalFeatures(const int modelVersion, const bool dotsGame) {
+  switch(modelVersion) {
+    case 3:
+    case 4:
+      if (!dotsGame) {
+        return NNInputs::NUM_FEATURES_GLOBAL_V3;
+      }
+      break;
+    case 5:
+      if (!dotsGame) {
+        return NNInputs::NUM_FEATURES_GLOBAL_V4;
+      }
+      break;
+    case 6:
+      if (!dotsGame) {
+        return NNInputs::NUM_FEATURES_GLOBAL_V5;
+      }
+      break;
+    case 7:
+      if (!dotsGame) {
+        return NNInputs::NUM_FEATURES_GLOBAL_V6;
+      }
+      break;
+    default:
+      if (modelVersion <= latestModelVersionImplemented) {
+        return dotsGame ? NNInputs::NUM_FEATURES_GLOBAL_V7_DOTS : NNInputs::NUM_FEATURES_GLOBAL_V7;
+      }
+      break;
+  }
 
-  fail(modelVersion);
+  fail(modelVersion, dotsGame);
   return -1;
 }
 

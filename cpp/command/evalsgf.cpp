@@ -665,8 +665,15 @@ int MainCmds::evalsgf(const vector<string>& args) {
       int nnXLen = nnEval->getNNXLen();
       int nnYLen = nnEval->getNNYLen();
       int modelVersion = nnEval->getModelVersion();
-      int numSpatialFeatures = NNModelVersion::getNumSpatialFeatures(modelVersion);
-      int numGlobalFeatures = NNModelVersion::getNumGlobalFeatures(modelVersion);
+
+      bool nnEvalIsInDotsMode = nnEval->getDotsGame();
+      assert(nnEvalIsInDotsMode == sgf->isDots);
+      if (nnEvalIsInDotsMode != sgf->isDots) {
+        cout << "SGF and model mismatch (Go and Dots games)";
+      }
+
+      int numSpatialFeatures = NNModelVersion::getNumSpatialFeatures(modelVersion, nnEvalIsInDotsMode);
+      int numGlobalFeatures = NNModelVersion::getNumGlobalFeatures(modelVersion, nnEvalIsInDotsMode);
 
       NumpyBuffer<float> binaryInputNCHW(std::vector<int64_t>({1,numSpatialFeatures,nnXLen,nnYLen}));
       NumpyBuffer<float> globalInputNC(std::vector<int64_t>({1,numGlobalFeatures}));

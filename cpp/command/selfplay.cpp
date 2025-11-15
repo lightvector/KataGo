@@ -100,7 +100,7 @@ int MainCmds::selfplay(const vector<string>& args) {
   const int inputsVersion =
     cfg.contains("inputsVersion") ?
     cfg.getInt("inputsVersion",0,10000) :
-    NNModelVersion::getInputsVersion(dotsGame ? NNModelVersion::defaultModelVersionForDots : NNModelVersion::defaultModelVersion);
+    NNModelVersion::getInputsVersion(NNModelVersion::defaultModelVersion, dotsGame);
   //Max number of games that we will allow to be queued up and not written out
   const int maxDataQueueSize = cfg.getInt("maxDataQueueSize",1,1000000);
   const int maxRowsPerTrainFile = cfg.getInt("maxRowsPerTrainFile",1,100000000);
@@ -141,7 +141,7 @@ int MainCmds::selfplay(const vector<string>& args) {
   auto loadLatestNeuralNetIntoManager =
     [inputsVersion,&manager,maxRowsPerTrainFile,firstFileRandMinProp,dataBoardLenX,dataBoardLenY,
      &modelsDir,&outputDir,&logger,&cfg,numGameThreads,
-     minBoardXSizeUsed,maxBoardXSizeUsed,minBoardYSizeUsed,maxBoardYSizeUsed](const string* lastNetName) -> bool {
+     minBoardXSizeUsed,maxBoardXSizeUsed,minBoardYSizeUsed,maxBoardYSizeUsed,dotsGame](const string* lastNetName) -> bool {
 
     string modelName;
     string modelFile;
@@ -217,7 +217,7 @@ int MainCmds::selfplay(const vector<string>& args) {
     //Note that this inputsVersion passed here is NOT necessarily the same as the one used in the neural net self play, it
     //simply controls the input feature version for the written data
     auto tdataWriter = new TrainingDataWriter(
-      tdataOutputDir, nullptr, inputsVersion, maxRowsPerTrainFile, firstFileRandMinProp, dataBoardLenX, dataBoardLenY, Global::uint64ToHexString(rand.nextUInt64()));
+      tdataOutputDir, nullptr, inputsVersion, maxRowsPerTrainFile, firstFileRandMinProp, dataBoardLenX, dataBoardLenY, Global::uint64ToHexString(rand.nextUInt64()), 1, dotsGame);
     ofstream* sgfOut = nullptr;
     if(sgfOutputDir.length() > 0) {
       sgfOut = new ofstream();

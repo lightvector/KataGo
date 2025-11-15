@@ -347,6 +347,9 @@ struct ModelDesc {
   std::string name;
   std::string sha256;
   int modelVersion;
+  int maxLenX; // Currently unused, but initialize it just in case for the future
+  int maxLenY;
+  bool isDotsGame;
   int numInputChannels;
   int numInputGlobalChannels;
   int numInputMetaChannels;
@@ -365,13 +368,13 @@ struct ModelDesc {
 
   ModelDesc();
   ~ModelDesc();
-  ModelDesc(std::istream& in, const std::string& sha256, bool binaryFloats);
+  ModelDesc(std::istream& in, const std::string& sha256_, bool binaryFloats);
   ModelDesc(ModelDesc&& other);
 
   ModelDesc(const ModelDesc&) = delete;
   ModelDesc& operator=(const ModelDesc&) = delete;
 
-  ModelDesc& operator=(ModelDesc&& other);
+  ModelDesc& operator=(ModelDesc&& other) noexcept ;
 
   void iterConvLayers(std::function<void(const ConvLayerDesc& dest)> f) const;
   int maxConvChannels(int convXSize, int convYSize) const;

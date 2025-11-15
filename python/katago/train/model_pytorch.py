@@ -6,6 +6,8 @@ import torch.nn.functional
 import torch.nn.init
 import packaging
 import packaging.version
+from argparse import ArgumentTypeError
+from enum import Enum
 from typing import List, Dict, Optional, Set
 
 from ..train import modelconfigs
@@ -1603,8 +1605,21 @@ class MetadataEncoder(torch.nn.Module):
         return self.out_scale * self.linear_output_to_trunk(x)
 
 
+class Game(Enum):
+    GO = 0
+    DOTS = 1
+
+def parse_game(value: str) -> Game:
+    value = value.upper()
+    if value == "GO":
+        return Game.GO
+    elif value == "DOTS":
+        return Game.DOTS
+    else:
+        raise ArgumentTypeError(f"Game must be 'go' or 'dots', got '{value}'")
+
 class Model(torch.nn.Module):
-    def __init__(self, config: modelconfigs.ModelConfig, pos_len_x: int, pos_len_y: int):
+    def __init__(self, config: modelconfigs.ModelConfig, pos_len_x: int, pos_len_y: int, games=None):
         super(Model, self).__init__()
 
         self.config = config
@@ -1623,6 +1638,7 @@ class Model(torch.nn.Module):
         self.num_total_blocks = len(self.block_kind)
         self.pos_len_x = pos_len_x
         self.pos_len_y = pos_len_y
+        self.games = games or [Game.GO]
 
         if config["version"] <= 12:
             self.td_score_multiplier = 20.0

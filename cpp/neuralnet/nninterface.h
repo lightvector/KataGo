@@ -112,7 +112,8 @@ namespace NeuralNet {
     InputBuffers* buffers,
     int numBatchEltsFilled,
     NNResultBuf** inputBufs,
-    std::vector<NNOutput*>& outputs
+    const std::vector<NNOutput*>& outputs,
+    bool dotsGame
   );
 
 

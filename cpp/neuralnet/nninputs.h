@@ -60,6 +60,60 @@ struct MiscNNInputParams {
 };
 
 namespace NNInputs {
+  enum class DotsSpatialFeature  {
+    OnBoard_0, // 0: On board
+    PlayerActive_1, // 1: Pla stone
+    PlayerOppActive_2, // 2: Opp stone
+    PlayerPlaced_3, // 3: 1 libs
+    PlayerOppPlaced_4, // 4: 2 libs
+    DeadDots_5, // 5: 3 libs
+    Reserved_6, // 6: superKoBanned (in the encore, no-second-ko-capture locations, encore ko prohibitions where we have to pass for ko)
+    Reserved_7, // 7: koRecapBlocked (in the encore, no-second-ko-capture locations, encore ko prohibitions where we have to pass for ko)
+    Grounded_8, // 8: unused? (in the encore, no-second-ko-capture locations, encore ko prohibitions where we have to pass for ko)
+
+    Prev1Loc_9, // 9: prev 1 Loc history
+    Prev2Loc_10, // 10: prev 2 Loc history
+    Prev3Loc_11, // 11: prev 3 Loc history
+    Prev4Loc_12, // 12: prev 4 Loc history
+    Prev5Loc_13, // 13: prev 5 Loc history
+
+    LadderCaptured_14, // 14: ladder captured
+    LadderCapturedPrevious_15, // 15: ladder captured prev
+    LadderCapturedPrevious2_16, // 16: ladder captured prev 2
+    LadderWorkingMoves_17, // 17: ladder working moves
+
+    PlayerCaptures_18, // 18: pla current territory, not counting group tax
+    PlayerOppCaptures_19, // 19: opp current territory, not counting group tax
+    PlayerSurroundings_20, // 20: pla second encore starting stones
+    PlayerOppSurroundings_21, // 21: opp second encore starting stones
+
+    COUNT, // = 22
+  };
+
+  enum class DotsGlobalFeature  {
+    Reserved_0, // 0: prev loc 1 PASS
+    Reserved_1, // 1: prev loc 2 PASS
+    Reserved_2, // 2: prev loc 3 PASS
+    Reserved_3, // 3: prev loc 4 PASS
+    Reserved_4, // 4: prev loc 5 PASS
+    Komi_5, // 5: Komi
+    Reserved_6, // 6: Ko rule (KO_POSITIONAL, KO_SPIGHT)
+    Reserved_7, // 7: Ko rule (KO_SITUATIONAL)
+    Suicide_8, // 8: Suicide
+    Reserved_9, // 9: Scoring
+    TaxIsEnabled_10, // 10: TAX is enabled
+    TaxAll_11, // 11: TAX_ALL
+    Reserved_12, // 12: encore phase > 0
+    Reserved_13, // 13: encore phase > 1
+    WinByGrounding_14, // 14: does a pass end the current phase given the ruleset and history?
+    PlayoutDoublingAdvantageIsEnabled_15, // 15: playoutDoublingAdvantage is enabled (handicap play)
+    PlayoutDoublingAdvantage_16, // 16: playoutDoublingAdvantage
+    CaptureEmpty_17, // 17: button
+    FieldSizeKomiParity_18, // 18: board size komi parity
+
+    COUNT, // = 19
+  };
+
   const int NUM_FEATURES_SPATIAL_V3 = 22;
   const int NUM_FEATURES_GLOBAL_V3 = 14;
 
@@ -75,54 +129,19 @@ namespace NNInputs {
   const int NUM_FEATURES_SPATIAL_V7 = 22;
   const int NUM_FEATURES_GLOBAL_V7 = 19;
 
-  // TODO: normalize with Go spatial and global features (e.g. 22 and 19)
-  enum class DotsSpatialFeature  {
-    OnBoard, // 0
-    PlayerActive, // 1
-    PlayerOppActive, // 2
-    PlayerPlaced, // 1
-    PlayerOppPlaced, // 2
-    DeadDots, // Actual scoring
-    Grounded, // Analogue of territory (18,19)
-    PlayerCaptures, // (3,4,5)
-    PlayerOppCaptures, // (3,4,5)
-    PlayerSurroundings, // (3,4,5)
-    PlayerOppSurroundings, // (3,4,5)
-    Prev1Loc, // 9
-    Prev2Loc, // 10
-    Prev3Loc, // 11
-    Prev4Loc, // 12
-    Prev5Loc, // 13
-    LadderCaptured, // 14,
-    LadderCapturedPrevious, // 15,
-    LadderCapturedPrevious2, // 16,
-    LadderWorkingMoves, // 17,
-    COUNT, // = 20
-  };
+  constexpr int NUM_FEATURES_SPATIAL_V7_DOTS = static_cast<int>(DotsSpatialFeature::COUNT);
+  constexpr int NUM_FEATURES_GLOBAL_V7_DOTS = static_cast<int>(DotsGlobalFeature::COUNT);
 
-  enum class DotsGlobalFeature  {
-    Komi, // 5
-    Suicide, // 8
-    CaptureEmpty, // 9, 10, 11
-    StartPosCross, // (15)
-    StartPosCross2, // (15)
-    StartPosCross4, // (15)
-    StartPosIsRandom, // (15)
-    WinByGrounding, // Train grounding
-    FieldSizeKomiParity, // Not sure what this is (18)
-    COUNT, // = 9
-  };
-
-  constexpr int NUM_FEATURES_SPATIAL_V_DOTS = static_cast<int>(DotsSpatialFeature::COUNT);
-  constexpr int NUM_FEATURES_GLOBAL_V_DOTS = static_cast<int>(DotsGlobalFeature::COUNT);
+  static_assert(NUM_FEATURES_SPATIAL_V7_DOTS == NUM_FEATURES_SPATIAL_V7); // Might be changed later if needed
+  static_assert(NUM_FEATURES_GLOBAL_V7_DOTS == NUM_FEATURES_GLOBAL_V7);
 
   Hash128 getHash(
     const Board& board, const BoardHistory& boardHistory, Player nextPlayer,
     const MiscNNInputParams& nnInputParams
   );
 
-  int getNumberOfSpatialFeatures(int version);
-  int getNumberOfGlobalFeatures(int version);
+  int getNumberOfSpatialFeatures(int version, bool isDots);
+  int getNumberOfGlobalFeatures(int version, bool isDots);
 
   void fillRowVN(
     int version,
@@ -150,7 +169,7 @@ namespace NNInputs {
     const Board& board, const BoardHistory& boardHistory, Player nextPlayer,
     const MiscNNInputParams& nnInputParams, int nnXLen, int nnYLen, bool useNHWC, float* rowBin, float* rowGlobal
   );
-  void fillRowVDots(
+  void fillRowV7Dots(
     const Board& board, const BoardHistory& hist, Player nextPlayer,
     const MiscNNInputParams& nnInputParams,
     int nnXLen, int nnYLen, bool useNHWC, float* rowBin, float* rowGlobal

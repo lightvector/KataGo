@@ -139,7 +139,6 @@ NNEvaluator::NNEvaluator(
     const ModelDesc& desc = NeuralNet::getModelDesc(loadedModel);
     internalModelName = desc.name;
     modelVersion = desc.modelVersion;
-    inputsVersion = NNModelVersion::getInputsVersion(modelVersion);
     numInputMetaChannels = desc.numInputMetaChannels;
     postProcessParams = desc.postProcessParams;
     computeContext = NeuralNet::createComputeContext(
@@ -150,9 +149,9 @@ NNEvaluator::NNEvaluator(
   }
   else {
     internalModelName = "random";
-    modelVersion = dotsGame ? NNModelVersion::defaultModelVersionForDots : NNModelVersion::defaultModelVersion;
-    inputsVersion = NNModelVersion::getInputsVersion(modelVersion);
+    modelVersion = NNModelVersion::defaultModelVersion;
   }
+  inputsVersion = NNModelVersion::getInputsVersion(modelVersion, dotsGame);
 
   //Reserve a decent amount above the batch size so that allocation is unlikely.
   queryQueue.reserve(maxBatchSize * 4 * gpuIdxByServerThread.size());
@@ -285,6 +284,9 @@ int NNEvaluator::getNNYLen() const {
 }
 int NNEvaluator::getModelVersion() const {
   return modelVersion;
+}
+bool NNEvaluator::getDotsGame() const {
+  return dotsGame;
 }
 double NNEvaluator::getTrunkSpatialConvDepth() const {
   return NeuralNet::getModelDesc(loadedModel).getTrunkSpatialConvDepth();
@@ -568,7 +570,7 @@ void NNEvaluator::serve(
         }
       }
 
-      NeuralNet::getOutput(gpuHandle, buf.inputBuffers, numRows, resultBufs.data(), outputBuf);
+      NeuralNet::getOutput(gpuHandle, buf.inputBuffers, numRows, resultBufs.data(), outputBuf, dotsGame);
       assert(outputBuf.size() == numRows);
 
       m_numRowsProcessed.fetch_add(numRows, std::memory_order_relaxed);
@@ -778,10 +780,10 @@ void NNEvaluator::evaluate(
   buf.boardYSizeForServer = board.y_size;
 
   if(!debugSkipNeuralNet) {
-    const int rowSpatialLen = NNModelVersion::getNumSpatialFeatures(modelVersion) * nnXLen * nnYLen;
+    const int rowSpatialLen = NNModelVersion::getNumSpatialFeatures(modelVersion, dotsGame) * nnXLen * nnYLen;
     if(buf.rowSpatialBuf.size() < rowSpatialLen)
       buf.rowSpatialBuf.resize(rowSpatialLen);
-    const int rowGlobalLen = NNModelVersion::getNumGlobalFeatures(modelVersion);
+    const int rowGlobalLen = NNModelVersion::getNumGlobalFeatures(modelVersion, dotsGame);
     if(buf.rowGlobalBuf.size() < rowGlobalLen)
       buf.rowGlobalBuf.resize(rowGlobalLen);
     const int rowMetaLen = numInputMetaChannels;

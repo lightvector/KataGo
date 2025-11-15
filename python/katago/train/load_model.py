@@ -9,6 +9,8 @@ import packaging.version
 
 from collections import defaultdict
 
+from katago.train.model_pytorch import Game, parse_game
+
 # defaultdict and float constructor are used in the ckpt for running metrics
 if packaging.version.parse(torch.__version__) > packaging.version.parse("2.4.0"):
     torch.serialization.add_safe_globals([defaultdict])
@@ -54,7 +56,10 @@ def load_model(checkpoint_file, use_swa, device, pos_len_x=19, pos_len_y=19, ver
             model_config = json.load(f)
 
     logging.info(str(model_config))
-    model = Model(model_config, pos_len_x, pos_len_y)
+    effective_pos_len_x = state_dict.get("pos_len_x", pos_len_x)
+    effective_pos_len_y = state_dict.get("pos_len_y", pos_len_y)
+    games = [parse_game(s) for s in state_dict.get("games", [Game.GO.name])]
+    model = Model(model_config, effective_pos_len_x, effective_pos_len_y, games)
     model.initialize()
 
     # Strip off any "module." from when the model was saved with DDP or other things

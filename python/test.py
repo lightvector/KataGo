@@ -17,7 +17,7 @@ import torch.nn
 from torch.optim.swa_utils import AveragedModel
 
 from katago.train import modelconfigs
-from katago.train.model_pytorch import Model, ExtraOutputs, MetadataEncoder
+from katago.train.model_pytorch import Model, ExtraOutputs, MetadataEncoder, Game, parse_game
 from katago.train.metrics_pytorch import Metrics
 from katago.train import data_processing_pytorch
 from katago.train.load_model import load_model
@@ -36,12 +36,15 @@ if __name__ == "__main__":
     parser.add_argument('-config', help='Path to model.config.json', required=False)
     parser.add_argument('-checkpoint', help='Checkpoint to test', required=False)
     parser.add_argument('-pos-len', help='Spatial length of expected training data', type=int, required=True)
+    parser.add_argument('-pos-len-x', help='Spatial width of expected training data. If undefined, `-pos-len` is used', type=int, required=False)
+    parser.add_argument('-pos-len-y', help='Spatial height of expected training data. If undefined, `-pos-len` is used', type=int, required=False)
     parser.add_argument('-batch-size', help='Batch size to use for testing', type=int, required=True)
     parser.add_argument('-use-swa', help='Use SWA model', action="store_true", required=False)
     parser.add_argument('-max-batches', help='Maximum number of batches for testing', type=int, required=False)
     parser.add_argument('-gpu-idx', help='GPU idx', type=int, required=False)
     parser.add_argument('-print-norm', help='Names of outputs to print norms comma separated', type=str, required=False)
     parser.add_argument('-list-available-outputs', help='Print names of outputs available', action="store_true", required=False)
+    parser.add_argument('-games', help='Games to train: ' + ', '.join(e.name for e in Game) + ' (GO by default)', type=parse_game, nargs="+", required=False)
 
     args = vars(parser.parse_args())
 
@@ -53,6 +56,7 @@ def main(args):
     pos_len = args["pos_len"]
     pos_len_x = args["pos_len_x"] or pos_len
     pos_len_y = args["pos_len_y"] or pos_len
+    games = args["games"] or [Game.GO]
     batch_size = args["batch_size"]
     use_swa = args["use_swa"]
     max_batches = args["max_batches"]
@@ -111,7 +115,7 @@ def main(args):
                 model_config = json.load(f)
         logging.info(str(model_config))
 
-        model = Model(model_config,pos_len_x,pos_len_y)
+        model = Model(model_config,pos_len_x,pos_len_y,games)
         model.initialize()
         model.to(device)
     else:

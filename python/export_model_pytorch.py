@@ -83,7 +83,11 @@ def main(args):
         version = 15
 
     writeln(model_name)
-    writeln(version)
+    writestr(str(version))
+    writestr("," + str(model.pos_len_x))
+    writestr("," + str(model.pos_len_y))
+    writestr("," + ";".join(c.name for c in model.games))
+    writeln("")
     writeln(modelconfigs.get_num_bin_input_features(model_config))
     writeln(modelconfigs.get_num_global_input_features(model_config))
 

@@ -1061,37 +1061,40 @@ Hash128 NNInputs::getHash(
   return hash;
 }
 
-int NNInputs::getNumberOfSpatialFeatures(int version) {
+int NNInputs::getNumberOfSpatialFeatures(const int version, const bool isDots) {
   switch(version) {
-    case 3: return NUM_FEATURES_SPATIAL_V3;
-    case 4: return NUM_FEATURES_SPATIAL_V4;
-    case 5: return NUM_FEATURES_SPATIAL_V5;
-    case 6: return NUM_FEATURES_SPATIAL_V6;
-    case 7: return NUM_FEATURES_SPATIAL_V7;
-    case 8: return NUM_FEATURES_SPATIAL_V_DOTS;
-    default: throw std::range_error("Invalid input version: " + to_string(version));
+    case 3: if (!isDots) return NUM_FEATURES_SPATIAL_V3; break;
+    case 4: if (!isDots) return NUM_FEATURES_SPATIAL_V4; break;
+    case 5: if (!isDots) return NUM_FEATURES_SPATIAL_V5; break;
+    case 6: if (!isDots) return NUM_FEATURES_SPATIAL_V6; break;
+    case 7: return isDots ? NUM_FEATURES_SPATIAL_V7_DOTS : NUM_FEATURES_SPATIAL_V7;
+    default: break;
   }
+  throw std::range_error("Invalid input version: " + to_string(version) + (isDots ? " (Dots game)" : ""));
 }
 
-int NNInputs::getNumberOfGlobalFeatures(int version) {
+int NNInputs::getNumberOfGlobalFeatures(const int version, const bool isDots) {
   switch(version) {
-    case 3: return NUM_FEATURES_GLOBAL_V3;
-    case 4: return NUM_FEATURES_GLOBAL_V4;
-    case 5: return NUM_FEATURES_GLOBAL_V5;
-    case 6: return NUM_FEATURES_GLOBAL_V6;
-    case 7: return NUM_FEATURES_GLOBAL_V7;
-    case 8: return NUM_FEATURES_GLOBAL_V_DOTS;
-    default: throw std::range_error("Invalid input version: " + to_string(version));
+    case 3: if (!isDots) return NUM_FEATURES_GLOBAL_V3; break;
+    case 4: if (!isDots) return NUM_FEATURES_GLOBAL_V4; break;
+    case 5: if (!isDots) return NUM_FEATURES_GLOBAL_V5; break;
+    case 6: if (!isDots) return NUM_FEATURES_GLOBAL_V6; break;
+    case 7: return isDots ? NUM_FEATURES_GLOBAL_V7_DOTS : NUM_FEATURES_GLOBAL_V7;
+    default: break;
   }
+  throw std::range_error("Invalid input version: " + to_string(version) + (isDots ? " (Dots game)" : ""));
 }
 
 // Generic filler
 
 void NNInputs::fillRowVN(
-  int version,
+  const int version,
   const Board& board, const BoardHistory& hist, Player nextPlayer,
   const MiscNNInputParams& nnInputParams,
-  int nnXLen, int nnYLen, bool useNHWC, float* rowBin, float* rowGlobal
+  const int nnXLen,
+  const int nnYLen,
+  const bool useNHWC,
+  float* rowBin, float* rowGlobal
 ) {
   switch(version) {
     case 3:
@@ -1107,10 +1110,11 @@ void NNInputs::fillRowVN(
       fillRowV6(board, hist, nextPlayer, nnInputParams, nnXLen, nnYLen, useNHWC, rowBin, rowGlobal);
       break;
     case 7:
-      fillRowV7(board, hist, nextPlayer, nnInputParams, nnXLen, nnYLen, useNHWC, rowBin, rowGlobal);
-      break;
-    case 8:
-      fillRowVDots(board, hist, nextPlayer, nnInputParams, nnXLen, nnYLen, useNHWC,rowBin,rowGlobal);
+      if (!hist.rules.isDots) {
+        fillRowV7(board, hist, nextPlayer, nnInputParams, nnXLen, nnYLen, useNHWC, rowBin, rowGlobal);
+      } else {
+        fillRowV7Dots(board, hist, nextPlayer, nnInputParams, nnXLen, nnYLen, useNHWC,rowBin,rowGlobal);
+      }
       break;
     default:
       throw std::range_error("Invalid input version: " + to_string(version));

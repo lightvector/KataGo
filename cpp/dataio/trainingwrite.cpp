@@ -483,8 +483,8 @@ void TrainingWriteBuffers::addRow(
   SGFMetadata* sgfMeta,
   Rand& rand
 ) {
-  static_assert(NNModelVersion::latestInputsVersionImplemented == 8, "");
-  if(inputsVersion < 3 || inputsVersion > 8)
+  static_assert(NNModelVersion::latestInputsVersionImplemented == 7, "");
+  if(inputsVersion < 3 || inputsVersion > 7)
     throw StringError("Training write buffers: Does not support input version: " + Global::intToString(inputsVersion));
 
   int posArea = dataXLen*dataYLen;
@@ -505,8 +505,8 @@ void TrainingWriteBuffers::addRow(
     float* rowBin = binaryInputNCHWUnpacked;
     float* rowGlobal = globalInputNC.data + curRows * numGlobalChannels;
 
-    assert(NNInputs::getNumberOfSpatialFeatures(inputsVersion) == numBinaryChannels);
-    assert(NNInputs::getNumberOfGlobalFeatures(inputsVersion) == numGlobalChannels);
+    assert(NNInputs::getNumberOfSpatialFeatures(inputsVersion, hist.rules.isDots) == numBinaryChannels);
+    assert(NNInputs::getNumberOfGlobalFeatures(inputsVersion, hist.rules.isDots) == numGlobalChannels);
 
     NNInputs::fillRowVN(inputsVersion, board, hist, nextPlayer, nnInputParams, dataXLen, dataYLen, inputsUseNHWC, rowBin, rowGlobal);
 
@@ -518,6 +518,8 @@ void TrainingWriteBuffers::addRow(
 
   //Vector for global targets and metadata
   float* rowGlobal = globalTargetsNC.data + curRows * GLOBAL_TARGET_NUM_CHANNELS;
+
+  rowGlobal[23] = hist.rules.isDots ? 1.0f : 0.0f; // Previously unused -> engage for Dots game
 
   //Target weight for the whole row
   rowGlobal[25] = targetWeight;
@@ -592,8 +594,6 @@ void TrainingWriteBuffers::addRow(
     rowGlobal[22] = (float)sum;
   }
 
-  //Unused
-  rowGlobal[23] = 0.0f;
   rowGlobal[24] = (float)(1.0f - tdValueTargetWeight);
   rowGlobal[30] = (float)policySurprise;
   rowGlobal[31] = (float)policyEntropy;
@@ -960,13 +960,14 @@ TrainingDataWriter::TrainingDataWriter(const string& outputDir, ostream* debugOu
   const int dataXLen,
   const int dataYLen,
   const string& randSeed,
-  const int onlyWriteEvery)
+  const int onlyWriteEvery,
+  const bool dotsGame)
   :outputDir(outputDir),inputsVersion(inputsVersion),rand(randSeed),writeBuffers(nullptr),debugOut(debugOut),debugOnlyWriteEvery(onlyWriteEvery),rowCount(0)
 {
   //Note that this inputsVersion is for data writing, it might be different than the inputsVersion used
   // to feed into a model during selfplay
-  const int numBinaryChannels = NNInputs::getNumberOfSpatialFeatures(inputsVersion);
-  const int numGlobalChannels = NNInputs::getNumberOfGlobalFeatures(inputsVersion);
+  const int numBinaryChannels = NNInputs::getNumberOfSpatialFeatures(inputsVersion, dotsGame);
+  const int numGlobalChannels = NNInputs::getNumberOfGlobalFeatures(inputsVersion, dotsGame);
 
   constexpr bool hasMetadataInput = false;
   writeBuffers = new TrainingWriteBuffers(

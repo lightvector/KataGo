@@ -1557,6 +1557,9 @@ ModelPostProcessParams::~ModelPostProcessParams()
 
 ModelDesc::ModelDesc()
   : modelVersion(-1),
+    maxLenX(Board::MAX_LEN_X),
+    maxLenY(Board::MAX_LEN_Y),
+    isDotsGame(false),
     numInputChannels(0),
     numInputGlobalChannels(0),
     numInputMetaChannels(0),
@@ -1564,14 +1567,31 @@ ModelDesc::ModelDesc()
     numValueChannels(0),
     numScoreValueChannels(0),
     numOwnershipChannels(0),
-    metaEncoderVersion(0),
-    postProcessParams()
-{}
+    metaEncoderVersion(0) {}
 
-ModelDesc::ModelDesc(istream& in, const string& sha256_, bool binaryFloats) {
+ModelDesc::ModelDesc(istream& in, const string& sha256_, const bool binaryFloats) {
   in >> name;
   sha256 = sha256_;
-  in >> modelVersion;
+
+  string str;
+  in >> str;
+
+  if (const auto pieces = Global::split(str, ','); pieces.size() > 1) {
+    modelVersion = Global::stringToInt(pieces[0]);
+    maxLenX = Global::stringToInt(pieces[1]);
+    maxLenY = Global::stringToInt(pieces[2]);
+    const auto gamePieces = Global::split(pieces[3], ';');
+    if (gamePieces.size() > 1) {
+      throw StringError("KataGo currently supports only single-game mode. The `" + name + "` is a mixed model for games: " + Global::concat(gamePieces, ", "));
+    }
+    isDotsGame = Global::isEqualCaseInsensitive(gamePieces[0], DOTS_KEY);
+  } else {
+    modelVersion = Global::stringToInt(str);
+    maxLenX = -1; // It's unclear the exact training size of old modules. Typically, it's 19, but not always
+    maxLenY = -1;
+    isDotsGame = false;
+  }
+
   if(in.fail())
     throw StringError("Model failed to parse name or version. Is this a valid model file? You probably specified the wrong file.");
 
@@ -1722,10 +1742,13 @@ ModelDesc::ModelDesc(ModelDesc&& other) {
   *this = std::move(other);
 }
 
-ModelDesc& ModelDesc::operator=(ModelDesc&& other) {
+ModelDesc& ModelDesc::operator=(ModelDesc&& other) noexcept {
   name = std::move(other.name);
   sha256 = std::move(other.sha256);
   modelVersion = other.modelVersion;
+  maxLenX = other.maxLenX;
+  maxLenY = other.maxLenY;
+  isDotsGame = other.isDotsGame;
   numInputChannels = other.numInputChannels;
   numInputGlobalChannels = other.numInputGlobalChannels;
   numInputMetaChannels = other.numInputMetaChannels;

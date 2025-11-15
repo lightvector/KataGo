@@ -14,7 +14,7 @@ static void printNNInputHWAndBoard(
   ostream& out, int inputsVersion, const Board& board, const BoardHistory& hist,
   int nnXLen, int nnYLen, bool inputsUseNHWC, T* row, int c
 ) {
-  const int numFeatures = NNInputs::getNumberOfSpatialFeatures(inputsVersion);
+  const int numFeatures = NNInputs::getNumberOfSpatialFeatures(inputsVersion, false);
 
   out << "Channel: " << c << endl;
 
@@ -54,7 +54,7 @@ static void printNNInputHWAndBoard(
 
 template <typename T>
 static void printNNInputGlobal(ostream& out, int inputsVersion, T* row, int c) {
-  const int numFeatures = NNInputs::getNumberOfGlobalFeatures(inputsVersion);
+  const int numFeatures = NNInputs::getNumberOfGlobalFeatures(inputsVersion, false);
   (void)numFeatures;
 
   out << "Channel: " << c;
@@ -106,13 +106,13 @@ void Tests::runNNInputsV3V4Tests() {
   out << std::setprecision(5);
 
   auto allocateRows = [](int version, int nnXLen, int nnYLen, int& numFeaturesBin, int& numFeaturesGlobal, float*& rowBin, float*& rowGlobal) {
-    numFeaturesBin = NNInputs::getNumberOfSpatialFeatures(version);
-    numFeaturesGlobal = NNInputs::getNumberOfGlobalFeatures(version);
+    numFeaturesBin = NNInputs::getNumberOfSpatialFeatures(version, false);
+    numFeaturesGlobal = NNInputs::getNumberOfGlobalFeatures(version, false);
     rowBin = new float[numFeaturesBin * nnXLen * nnYLen];
     rowGlobal = new float[numFeaturesGlobal];
   };
 
-  static_assert(NNModelVersion::latestInputsVersionImplemented == 8, "");
+  static_assert(NNModelVersion::latestInputsVersionImplemented == 7, "");
   int minVersion = 3;
   int maxVersion = 7;
 
