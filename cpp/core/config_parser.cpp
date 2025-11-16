@@ -3,6 +3,7 @@
 #include "../core/fileutils.h"
 
 #include <fstream>
+#include <optional>
 #include <sstream>
 
 using namespace std;
@@ -516,54 +517,60 @@ std::string ConfigParser::firstFoundOrEmpty(const std::vector<std::string>& poss
     if(contains(key))
       return key;
   }
-  return string();
+  return {};
 }
 
+string ConfigParser::getString(const string& key, const set<string>& possibles) {
+  const auto str = tryGetString(key);
 
-string ConfigParser::getString(const string& key) {
-  auto iter = keyValues.find(key);
-  if(iter == keyValues.end())
+  if (str == std::nullopt)
     throw IOError("Could not find key '" + key + "' in config file " + fileName);
 
+  auto value = str.value();
+
+  if (!possibles.empty()) {
+    if(possibles.find(value) == possibles.end())
+      throw IOError("Key '" + key + "' must be one of (" + Global::concat(possibles,"|") + ") in config file " + fileName);
+  }
+
+  return value;
+}
+
+vector<string> ConfigParser::getStrings(const string& key, const set<string>& possibles, const bool nonEmptyTrim) {
+  vector<string> values = Global::split(getString(key),',');
+
+  if (nonEmptyTrim) {
+    vector<string> trimmedStrings;
+    for(const auto& s : values) {
+      if (string trimmed = Global::trim(s); !trimmed.empty()) {
+        trimmedStrings.push_back(trimmed);
+      }
+    }
+    values = trimmedStrings;
+  }
+
+  if (!possibles.empty()) {
+    for(const auto& value : values) {
+      if(possibles.find(value) == possibles.end())
+        throw IOError("Key '" + key + "' must be one of (" + Global::concat(possibles,"|") + ") in config file " + fileName);
+    }
+  }
+
+  return values;
+}
+
+std::optional<string> ConfigParser::tryGetString(const string& key) {
+  const auto iter = keyValues.find(key);
+  if(iter == keyValues.end()) {
+    return std::nullopt;
+  }
+
   {
-    std::lock_guard<std::mutex> lock(usedKeysMutex);
+    std::lock_guard lock(usedKeysMutex);
     usedKeys.insert(key);
   }
 
   return iter->second;
-}
-
-string ConfigParser::getString(const string& key, const set<string>& possibles) {
-  string value = getString(key);
-  if(possibles.find(value) == possibles.end())
-    throw IOError("Key '" + key + "' must be one of (" + Global::concat(possibles,"|") + ") in config file " + fileName);
-  return value;
-}
-
-vector<string> ConfigParser::getStrings(const string& key) {
-  return Global::split(getString(key),',');
-}
-
-vector<string> ConfigParser::getStringsNonEmptyTrim(const string& key) {
-  vector<string> raw = Global::split(getString(key),',');
-  vector<string> trimmed;
-  for(size_t i = 0; i<raw.size(); i++) {
-    string s = Global::trim(raw[i]);
-    if(s.length() <= 0)
-      continue;
-    trimmed.push_back(s);
-  }
-  return trimmed;
-}
-
-vector<string> ConfigParser::getStrings(const string& key, const set<string>& possibles) {
-  vector<string> values = getStrings(key);
-  for(size_t i = 0; i<values.size(); i++) {
-    const string& value = values[i];
-    if(possibles.find(value) == possibles.end())
-      throw IOError("Key '" + key + "' must be one of (" + Global::concat(possibles,"|") + ") in config file " + fileName);
-  }
-  return values;
 }
 
 bool ConfigParser::getBoolOrDefault(const std::string& key, const bool defaultValue) {

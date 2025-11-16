@@ -1034,7 +1034,7 @@ std::vector<std::unique_ptr<PatternBonusTable>> Setup::loadAvoidSgfPatternBonusT
         double lambda = contains("PatternLambda") ? cfg.getDouble(find("PatternLambda"),0.0,1.0) : 1.0;
         int minTurnNumber = contains("PatternMinTurnNumber") ? cfg.getInt(find("PatternMinTurnNumber"),0,1000000) : 0;
         size_t maxFiles = contains("PatternMaxFiles") ? (size_t)cfg.getInt(find("PatternMaxFiles"),1,1000000) : 1000000;
-        vector<string> allowedPlayerNames = contains("PatternAllowedNames") ? cfg.getStringsNonEmptyTrim(find("PatternAllowedNames")) : vector<string>();
+        vector<string> allowedPlayerNames = contains("PatternAllowedNames") ? cfg.getStrings(find("PatternAllowedNames"), {}, true) : vector<string>();
         vector<string> sgfDirs = cfg.getStrings(find("PatternDirs"));
         if(patternBonusTable == nullptr)
           patternBonusTable = std::make_unique<PatternBonusTable>();
