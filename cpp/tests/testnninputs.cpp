@@ -91,9 +91,16 @@ static double finalScoreIfGameEndedNow(const BoardHistory& baseHist, const Board
 //==================================================================================================================
 //==================================================================================================================
 
-Hash128 fillRowAndGetHash(
-  int version,
-  Board& board, const BoardHistory& hist, Player nextPla, MiscNNInputParams nnInputParams, int nnXLen, int nnYLen, bool inputsUseNHWC,float* rowBin, float* rowGlobal
+static Hash128 fillRowAndGetHash(
+  const int version,
+  const Board& board, const BoardHistory& hist,
+  const Player nextPla,
+  const MiscNNInputParams& nnInputParams,
+  const int nnXLen,
+  const int nnYLen,
+  const bool inputsUseNHWC,
+  float* rowBin,
+  float* rowGlobal
   ) {
   const Hash128 hash = NNInputs::getHash(board,hist,nextPla,nnInputParams);
   NNInputs::fillRowVN(version,board,hist,nextPla,nnInputParams,nnXLen,nnYLen,inputsUseNHWC,rowBin,rowGlobal);
@@ -526,7 +533,7 @@ xxx..xx
               bool inputsUseNHWC = true;
               MiscNNInputParams nnInputParams;
               nnInputParams.drawEquivalentWinsForWhite = drawEquivalentWinsForWhite;
-              const Hash128 hash = fillRowAndGetHash(version,board,hist,nextPla,nnInputParams,nnXLen,nnYLen,inputsUseNHWC,rowBin,rowGlobal);
+              fillRowAndGetHash(version,board,hist,nextPla,nnInputParams,nnXLen,nnYLen,inputsUseNHWC,rowBin,rowGlobal);
               out << rowGlobal[c] << " ";
             }
             out << endl;
@@ -591,7 +598,7 @@ xxx..xx
           bool inputsUseNHWC = true;
           MiscNNInputParams nnInputParams;
           nnInputParams.drawEquivalentWinsForWhite = drawEquivalentWinsForWhite;
-          const Hash128 hash = fillRowAndGetHash(version,board,hist,nextPla,nnInputParams,nnXLen,nnYLen,inputsUseNHWC,rowBin,rowGlobal);
+          fillRowAndGetHash(version,board,hist,nextPla,nnInputParams,nnXLen,nnYLen,inputsUseNHWC,rowBin,rowGlobal);
           out << "Pass Hist Channels: ";
           for(int c = 0; c<5; c++)
             out << rowGlobal[c] << " ";
@@ -660,7 +667,7 @@ xxx..xx
           bool inputsUseNHWC = true;
           MiscNNInputParams nnInputParams;
           nnInputParams.drawEquivalentWinsForWhite = drawEquivalentWinsForWhite;
-          const Hash128 hash = fillRowAndGetHash(version,board,hist,nextPla,nnInputParams,nnXLen,nnYLen,inputsUseNHWC,rowBin,rowGlobal);
+          fillRowAndGetHash(version,board,hist,nextPla,nnInputParams,nnXLen,nnYLen,inputsUseNHWC,rowBin,rowGlobal);
           printNNInputHWAndBoard(out,version,board,hist,nnXLen,nnYLen,inputsUseNHWC,rowBin,18);
           printNNInputHWAndBoard(out,version,board,hist,nnXLen,nnYLen,inputsUseNHWC,rowBin,19);
         }
@@ -816,7 +823,7 @@ o.xoo.x
       auto run = [&](bool inputsUseNHWC) {
         MiscNNInputParams nnInputParams;
         nnInputParams.drawEquivalentWinsForWhite = drawEquivalentWinsForWhite;
-        const Hash128 hash = fillRowAndGetHash(version,board,hist,nextPla,nnInputParams,nnXLen,nnYLen,inputsUseNHWC,rowBin,rowGlobal);
+        fillRowAndGetHash(version,board,hist,nextPla,nnInputParams,nnXLen,nnYLen,inputsUseNHWC,rowBin,rowGlobal);
         printNNInputHWAndBoard(out,version,board,hist,nnXLen,nnYLen,inputsUseNHWC,rowBin,9);
         printNNInputHWAndBoard(out,version,board,hist,nnXLen,nnYLen,inputsUseNHWC,rowBin,10);
         printNNInputHWAndBoard(out,version,board,hist,nnXLen,nnYLen,inputsUseNHWC,rowBin,11);
@@ -883,7 +890,7 @@ o.xoo.x
         Board b = board;
         MiscNNInputParams nnInputParams;
         nnInputParams.drawEquivalentWinsForWhite = drawEquivalentWinsForWhite;
-        const Hash128 hash = fillRowAndGetHash(version,b,hist,nextPla,nnInputParams,nnXLen,nnYLen,inputsUseNHWC,rowBin,rowGlobal);
+        fillRowAndGetHash(version,b,hist,nextPla,nnInputParams,nnXLen,nnYLen,inputsUseNHWC,rowBin,rowGlobal);
         for(int c = 0; c<numFeaturesGlobal; c++)
           cout << rowGlobal[c] << " ";
         cout << endl;

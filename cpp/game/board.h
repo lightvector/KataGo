@@ -37,7 +37,7 @@ typedef int8_t State;
 static constexpr int PLAYER_BITS_COUNT = 2;
 static constexpr State ACTIVE_MASK = (1 << PLAYER_BITS_COUNT) - 1;
 
-static Color getOpp(Color c)
+static inline Color getOpp(Color c)
 {return c ^ 3;}
 
 Color getActiveColor(State state);
@@ -58,7 +58,6 @@ namespace PlayerIO {
   std::string playerToString(Player p, bool isDots);
   bool tryParsePlayer(const std::string& s, Player& pla);
   Player parsePlayer(const std::string& s);
-  char stateToChar(State s, bool isDots);
 }
 
 namespace Location
@@ -236,8 +235,8 @@ struct Board
 
   //Constructors---------------------------------
   Board();  //Create Board of size (DEFAULT_LEN,DEFAULT_LEN)
-  explicit Board(const Rules& rules);
-  Board(int x, int y, const Rules& rules); // Create Board of size (x,y) with the specified Rules
+  explicit Board(const Rules& newRules);
+  Board(int x, int y, const Rules& newRules); // Create Board of size (x,y) with the specified Rules
   Board(const Board& other);
 
   Board& operator=(const Board&) = default;

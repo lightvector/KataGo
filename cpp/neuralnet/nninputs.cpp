@@ -1067,7 +1067,7 @@ int NNInputs::getNumberOfSpatialFeatures(const int version, const bool isDots) {
     case 4: if (!isDots) return NUM_FEATURES_SPATIAL_V4; break;
     case 5: if (!isDots) return NUM_FEATURES_SPATIAL_V5; break;
     case 6: if (!isDots) return NUM_FEATURES_SPATIAL_V6; break;
-    case 7: return isDots ? NUM_FEATURES_SPATIAL_V7_DOTS : NUM_FEATURES_SPATIAL_V7;
+    case 7: return NUM_FEATURES_SPATIAL_V7; // Use NUM_FEATURES_SPATIAL_V7_DOTS if it's value is changed
     default: break;
   }
   throw std::range_error("Invalid input version: " + to_string(version) + (isDots ? " (Dots game)" : ""));
@@ -1079,7 +1079,7 @@ int NNInputs::getNumberOfGlobalFeatures(const int version, const bool isDots) {
     case 4: if (!isDots) return NUM_FEATURES_GLOBAL_V4; break;
     case 5: if (!isDots) return NUM_FEATURES_GLOBAL_V5; break;
     case 6: if (!isDots) return NUM_FEATURES_GLOBAL_V6; break;
-    case 7: return isDots ? NUM_FEATURES_GLOBAL_V7_DOTS : NUM_FEATURES_GLOBAL_V7;
+    case 7: return NUM_FEATURES_GLOBAL_V7;  // Use NUM_FEATURES_GLOBAL_V7_DOTS if it's value is changed
     default: break;
   }
   throw std::range_error("Invalid input version: " + to_string(version) + (isDots ? " (Dots game)" : ""));

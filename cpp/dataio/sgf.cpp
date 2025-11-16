@@ -1636,8 +1636,8 @@ std::vector<std::unique_ptr<Sgf>> Sgf::loadSgfOrSgfsLogAndIgnoreErrors(const str
 
 CompactSgf::CompactSgf(const Sgf& sgf)
   :fileName(sgf.fileName),
-   rootNode(),
    isDots(),
+   rootNode(),
    placements(),
    moves(),
    xSize(),

@@ -185,7 +185,7 @@ struct Search {
     const SearchParams &params,
     NNEvaluator* nnEval,
     Logger* logger,
-    const std::string& randSeed,
+    const std::string& newRandSeed,
     NNEvaluator* humanEval = nullptr,
     const Rules& rules = Rules::DEFAULT_GO);
   ~Search();

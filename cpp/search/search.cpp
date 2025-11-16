@@ -65,7 +65,7 @@ SearchThread::~SearchThread() {
 
 static const double VALUE_WEIGHT_DEGREES_OF_FREEDOM = 3.0;
 
-Search::Search(const SearchParams &params, NNEvaluator* nnEval, Logger* lg, const string& randSeed, NNEvaluator* humanEval, const Rules& rules)
+Search::Search(const SearchParams &params, NNEvaluator* nnEval, Logger* lg, const string& newRandSeed, NNEvaluator* humanEval, const Rules& rules)
   : rootPla(P_BLACK),
     rootBoard(rules),
     rootHistory(rules),
@@ -84,14 +84,14 @@ Search::Search(const SearchParams &params, NNEvaluator* nnEval, Logger* lg, cons
     plaThatSearchIsFor(C_EMPTY), plaThatSearchIsForLastSearch(C_EMPTY),
     lastSearchNumPlayouts(0),
     effectiveSearchTimeCarriedOver(0.0),
-    randSeed(randSeed),
+    randSeed(newRandSeed),
     rootKoHashTable(NULL),
     valueWeightDistribution(NULL),
     normToTApproxZ(0),
     patternBonusTable(NULL),
     externalPatternBonusTable(nullptr),
     evalCache(nullptr),
-    nonSearchRand(randSeed + string("$nonSearchRand")),
+    nonSearchRand(newRandSeed + string("$nonSearchRand")),
     logger(lg),
     nnEvaluator(nnEval),
     humanEvaluator(humanEval),

@@ -67,7 +67,7 @@ NNEvaluator::NNEvaluator(
   const string& rSeed,
   bool doRandomize,
   int defaultSymmetry,
-  bool dotsGame
+  const bool newDotsGame
 )
   :modelName(mName),
    modelFileName(mFileName),
@@ -108,7 +108,7 @@ NNEvaluator::NNEvaluator(
    currentDefaultSymmetry(defaultSymmetry),
    currentBatchSize(maxBatchSz),
    queryQueue(),
-   dotsGame(dotsGame)
+   dotsGame(newDotsGame)
 {
   if(nnXLen > NNPos::MAX_BOARD_LEN_X)
     throw StringError("Maximum supported nnEval board size x is " + Global::intToString(NNPos::MAX_BOARD_LEN_X));
@@ -151,7 +151,7 @@ NNEvaluator::NNEvaluator(
     internalModelName = "random";
     modelVersion = NNModelVersion::defaultModelVersion;
   }
-  inputsVersion = NNModelVersion::getInputsVersion(modelVersion, dotsGame);
+  inputsVersion = NNModelVersion::getInputsVersion(modelVersion, newDotsGame);
 
   //Reserve a decent amount above the batch size so that allocation is unlikely.
   queryQueue.reserve(maxBatchSize * 4 * gpuIdxByServerThread.size());

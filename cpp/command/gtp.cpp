@@ -1910,7 +1910,7 @@ static GTPEngine::AnalyzeArgs parseAnalyzeCommand(
   return args;
 }
 
-optional<std::string> parseMovesSequence(const vector<string>& pieces, const Board& board, bool passIsAllowed, vector<Move>& movesToPlay) {
+static optional<std::string> parseMovesSequence(const vector<string>& pieces, const Board& board, bool passIsAllowed, vector<Move>& movesToPlay) {
   optional<std::string> response = std::nullopt;
 
   auto renderPieces = [pieces](const int& index) {
@@ -1948,7 +1948,7 @@ optional<std::string> parseMovesSequence(const vector<string>& pieces, const Boa
   return response;
 }
 
-string printMoves(const vector<Move>& moves, const Board& board) {
+static string printMoves(const vector<Move>& moves, const Board& board) {
   std::ostringstream builder;
   for (const auto move : moves) {
     builder << PlayerIO::playerToStringShort(move.pla, board.isDots()) << " " << Location::toString(move.loc, board) << " ";

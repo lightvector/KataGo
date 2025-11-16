@@ -7,7 +7,7 @@
 using namespace std;
 using namespace TestCommon;
 
-void checkSymmetry(const Board& initBoard, const string& expectedSymmetryBoardInput, const vector<XYMove>& extraMoves, const int symmetry) {
+static void checkSymmetry(const Board& initBoard, const string& expectedSymmetryBoardInput, const vector<XYMove>& extraMoves, const int symmetry) {
   const Board transformedBoard = SymmetryHelpers::getSymBoard(initBoard, symmetry);
   Board expectedBoard = parseDotsFieldDefault(expectedSymmetryBoardInput);
   for (const XYMove& extraMove : extraMoves) {
@@ -131,7 +131,7 @@ SymmetryHelpers::SYMMETRY_TRANSPOSE_FLIP_Y_X);
   testAssert(board.isEqualForTesting(unrotatedBoard));
 }
 
-string getOwnership(const string& boardData, const Color groundingPlayer, const int expectedWhiteScore, const vector<XYMove>& extraMoves) {
+static string getOwnership(const string& boardData, const Color groundingPlayer, const int expectedWhiteScore, const vector<XYMove>& extraMoves) {
   const Board board = parseDotsFieldDefault(boardData, extraMoves);
 
   Color result[Board::MAX_ARR_SIZE];
@@ -151,7 +151,7 @@ string getOwnership(const string& boardData, const Color groundingPlayer, const 
   return oss.str();
 }
 
-void expect(
+static void expect(
   const char* name,
   const Color groundingPlayer,
   const std::string& actualField,
@@ -250,7 +250,7 @@ R"(
 )", 1, {XYMove(0, 2, P_WHITE)});
 }
 
-std::pair<string, string> getCapturingAndBases(
+static std::pair<string, string> getCapturingAndBases(
   const string& boardData,
   const bool suicide,
   const bool captureEmptyBases,
@@ -299,7 +299,7 @@ std::pair<string, string> getCapturingAndBases(
   return {capturesStringStream.str(), basesStringStream.str()};
 }
 
-void checkCapturingAndBase(
+static void checkCapturingAndBase(
   const string& title,
   const string& boardData,
   const string& expectedCaptures,

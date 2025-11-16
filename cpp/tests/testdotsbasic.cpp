@@ -7,7 +7,7 @@
 using namespace std;
 using namespace TestCommon;
 
-void checkDotsField(const string& description, const string& input,
+static void checkDotsField(const string& description, const string& input,
   const std::function<void(BoardWithMoveRecords&)>& check,
   const bool suicide = Rules::DEFAULT_DOTS.multiStoneSuicideLegal,
   const bool captureEmptyBases = Rules::DEFAULT_DOTS.dotsCaptureEmptyBases,

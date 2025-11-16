@@ -9,7 +9,7 @@
 using namespace std;
 using namespace TestCommon;
 
-TrainingDataWriter createTestTrainingDataWriter(
+static TrainingDataWriter createTestTrainingDataWriter(
   const int inputVersion,
   const int nnXLen,
   const int nnYLen,

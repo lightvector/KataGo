@@ -49,7 +49,7 @@ Hash128 GraphHash::getGraphHashFromScratch(const BoardHistory& histOrig, Player 
     const Move move = histOrig.moveHistory[i];
     graphHash = getGraphHash(graphHash, hist, move.pla, repBound, drawEquivalentWinsForWhite);
     const bool preventEncoreHistory = hist.rules.isDots ? false : histOrig.preventEncoreHistory[i];
-    const bool suc = hist.makeBoardMoveTolerant(board, move.loc, move.pla, preventEncoreHistory);
+    [[maybe_unused]] const bool suc = hist.makeBoardMoveTolerant(board, move.loc, move.pla, preventEncoreHistory);
     assert(suc);
   }
   assert(

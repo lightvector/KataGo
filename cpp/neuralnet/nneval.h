@@ -101,7 +101,7 @@ class NNEvaluator {
     const std::string& randSeed,
     bool doRandomize,
     int defaultSymmetry,
-    bool dotsGame
+    bool newDotsGame
   );
   ~NNEvaluator();
 

@@ -11,13 +11,13 @@ struct XYMove {
   int y;
   Player player;
 
-  XYMove(const int x, const int y, const Player player) : x(x), y(y), player(player) {}
+  XYMove(const int newX, const int newY, const Player newPlayer) : x(newX), y(newY), player(newPlayer) {}
 
   [[nodiscard]] std::string toString() const {
     return "(" + to_string(x) + "," + to_string(y) + "," + PlayerIO::colorToChar(player) + ")";
   }
 
-  Move toMove(int x_size) const;
+  [[nodiscard]] Move toMove(int x_size) const;
 };
 
 struct BoardWithMoveRecords {

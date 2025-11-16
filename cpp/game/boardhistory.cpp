@@ -25,13 +25,13 @@ static Hash128 getKoHashAfterMoveNonEncore(const Rules& rules, Hash128 posHashAf
 
 BoardHistory::BoardHistory() : BoardHistory(Rules::DEFAULT_GO) {}
 
-BoardHistory::BoardHistory(const Rules& rules)
-  : rules(rules),
+BoardHistory::BoardHistory(const Rules& newRules)
+  : rules(newRules),
     moveHistory(),
     preventEncoreHistory(),
     koHashHistory(),
     firstTurnIdxWithKoHistory(0),
-    initialBoard(rules),
+    initialBoard(newRules),
     initialPla(P_BLACK),
     initialEncorePhase(0),
     initialTurnNumber(0),
@@ -61,9 +61,9 @@ BoardHistory::BoardHistory(const Rules& rules)
     isResignation(false),
     isPassAliveFinished(false) {
   for(int i = 0; i < NUM_RECENT_BOARDS; i++) {
-    recentBoards.emplace_back(rules);
+    recentBoards.emplace_back(newRules);
   }
-  if(!rules.isDots) {
+  if(!newRules.isDots) {
     wasEverOccupiedOrPlayed.resize(Board::MAX_ARR_SIZE, false);
     superKoBanned.resize(Board::MAX_ARR_SIZE, false);
     koRecapBlocked.resize(Board::MAX_ARR_SIZE, false);

@@ -98,23 +98,24 @@ Color getPlacedDotColor(const State s) {
   return static_cast<Player>(s >> PLACED_PLAYER_SHIFT & ACTIVE_MASK);
 }
 
-bool isPlaced(const State s, const Player pla) {
+static bool isPlaced(const State s, const Player pla) {
   return (s >> PLACED_PLAYER_SHIFT & ACTIVE_MASK) == pla;
 }
 
-bool isActive(const State s, const Player pla) {
+static bool isActive(const State s, const Player pla) {
   return (s & ACTIVE_MASK) == pla;
 }
 
-State setTerritoryAndActivePlayer(const State s, const Player pla) {
-  return static_cast<State>(TERRITORY_FLAG | (s & INVALIDATE_TERRITORY_MASK | pla));
+static State setTerritoryAndActivePlayer(const State s, const Player pla) {
+  const int invalidateTerritoryValue = s & INVALIDATE_TERRITORY_MASK;
+  return static_cast<State>(TERRITORY_FLAG | invalidateTerritoryValue | pla);
 }
 
 Color getEmptyTerritoryColor(const State s) {
   return static_cast<Player>(s >> EMPTY_TERRITORY_SHIFT & ACTIVE_MASK);
 }
 
-bool isWithinEmptyTerritory(const State s, const Player pla) {
+static bool isWithinEmptyTerritory(const State s, const Player pla) {
   return (s >> EMPTY_TERRITORY_SHIFT & ACTIVE_MASK) == pla;
 }
 
@@ -134,7 +135,7 @@ bool isGrounded(const State state) {
   return (state & GROUNDED_FLAG) == GROUNDED_FLAG;
 }
 
-bool isGroundedOrWall(const State state, const Player pla) {
+static bool isGroundedOrWall(const State state, const Player pla) {
   // Use bit tricks for grounding detecting.
   // If the active player is C_WALL, then the result is also true.
   return (state & GROUNDED_FLAG) == GROUNDED_FLAG && (state & pla) == pla;
@@ -167,8 +168,8 @@ void Board::clearVisited(const vector<Loc>& locations) const {
 }
 
 int Board::calculateOwnershipAndWhiteScore(Color* result, const Color groundingPlayer) const {
-  int whiteCaptures = 0;
-  int blackCaptures = 0;
+  [[maybe_unused]] int whiteCaptures = 0;
+  [[maybe_unused]] int blackCaptures = 0;
 
   for (int y = 0; y < y_size; y++) {
     for (int x = 0; x < x_size; x++) {

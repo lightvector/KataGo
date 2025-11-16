@@ -12,6 +12,8 @@ struct Rules {
   const static Rules DEFAULT_DOTS;
   const static Rules DEFAULT_GO;
 
+  bool isDots;
+
   static constexpr int START_POS_EMPTY = 0;
   static constexpr int START_POS_CROSS = 1;
   static constexpr int START_POS_CROSS_2 = 2;
@@ -21,15 +23,11 @@ struct Rules {
   // Enables random shuffling of start pos. Currently, it works only for CROSS_4
   bool startPosIsRandom;
 
-  static const int KO_SIMPLE = 0;
-  static const int KO_POSITIONAL = 1;
-  static const int KO_SITUATIONAL = 2;
-  static const int KO_SPIGHT = 3;
-  int koRule;
-
-  static const int SCORING_AREA = 0;
-  static const int SCORING_TERRITORY = 1;
-  int scoringRule;
+  float komi;
+  //Min and max acceptable komi in various places involving user input validation
+  static constexpr float MIN_USER_KOMI = -150.0f;
+  static constexpr float MAX_USER_KOMI = 150.0f;
+  bool multiStoneSuicideLegal; // Works as just suicide in Dots Game
 
   static const int TAX_NONE = 0;
   static const int TAX_SEKI = 1;
@@ -41,25 +39,29 @@ struct Rules {
   static const int WHB_N_MINUS_ONE = 2;
   int whiteHandicapBonusRule;
 
-  float komi;
-  //Min and max acceptable komi in various places involving user input validation
-  static constexpr float MIN_USER_KOMI = -150.0f;
-  static constexpr float MAX_USER_KOMI = 150.0f;
+  static const int KO_SIMPLE = 0;
+  static const int KO_POSITIONAL = 1;
+  static const int KO_SITUATIONAL = 2;
+  static const int KO_SPIGHT = 3;
+  int koRule;
 
-  bool isDots;
+  static const int SCORING_AREA = 0;
+  static const int SCORING_TERRITORY = 1;
+  int scoringRule;
 
-  bool dotsCaptureEmptyBases;
-  bool dotsFreeCapturedDots; // TODO: Implement later
-  bool multiStoneSuicideLegal; // Works as just suicide in Dots Game
   bool hasButton;
+
   //Mostly an informational value - doesn't affect the actual implemented rules, but GTP or Analysis may, at a
   //high level, use this info to adjust passing behavior - whether it's okay to pass without capturing dead stones.
   //Only relevant for area scoring.
   bool friendlyPassOk;
 
+  bool dotsCaptureEmptyBases;
+  bool dotsFreeCapturedDots; // TODO: Implement later
+
   Rules();
   // Constructor for Dots
-  Rules(int startPos, bool startPosIsRandom, bool suicide, bool dotsCaptureEmptyBases, bool dotsFreeCapturedDots);
+  Rules(int newStartPos, bool newStartPosIsRandom, bool newSuicide, bool newDotsCaptureEmptyBases, bool newDotsFreeCapturedDots);
   // Constructor for Go
   Rules(
     int koRule,
@@ -154,9 +156,9 @@ struct Rules {
 private:
   // General constructor
   Rules(
-    bool isDots,
+    bool newIsDots,
     int startPosRule,
-    bool startPosIsRandom,
+    bool newStartPosIsRandom,
     int kRule,
     int sRule,
     int tRule,
@@ -165,8 +167,8 @@ private:
     int whbRule,
     bool pOk,
     float km,
-    bool dotsCaptureEmptyBases,
-    bool dotsFreeCapturedDots
+    bool newDotsCaptureEmptyBases,
+    bool newDotsFreeCapturedDots
   );
 
   static inline std::map<int, std::string> startPosIdToName;

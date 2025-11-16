@@ -119,12 +119,12 @@ Board::Base::Base(Player newPla,
 
 Board::Board() : Board(Rules::DEFAULT_GO) {}
 
-Board::Board(const Rules& rules) {
-  init(rules.isDots ? DEFAULT_LEN_X_DOTS : DEFAULT_LEN_X, rules.isDots ? DEFAULT_LEN_Y_DOTS : DEFAULT_LEN_Y, rules);
+Board::Board(const Rules& newRules) {
+  init(newRules.isDots ? DEFAULT_LEN_X_DOTS : DEFAULT_LEN_X, newRules.isDots ? DEFAULT_LEN_Y_DOTS : DEFAULT_LEN_Y, newRules);
 }
 
-Board::Board(const int x, const int y, const Rules& rules) {
-  init(x, y, rules);
+Board::Board(const int x, const int y, const Rules& newRules) {
+  init(x, y, newRules);
 }
 
 Board::Board(const Board& other) {

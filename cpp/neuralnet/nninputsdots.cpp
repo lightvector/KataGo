@@ -35,7 +35,7 @@ void NNInputs::fillRowV7Dots(
   vector<Color> captures;
   vector<Color> bases;
   board.calculateOneMoveCaptureAndBasePositionsForDots(captures, bases);
-  int deadDotsCount = 0;
+  [[maybe_unused]] int deadDotsCount = 0;
 
   auto setSpatial = [&](const int pos, const DotsSpatialFeature spatialFeature) {
     setRowBin(rowBin, pos, static_cast<int>(spatialFeature), 1.0f, posStride, featureStride);

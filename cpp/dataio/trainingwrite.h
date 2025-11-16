@@ -311,7 +311,7 @@ struct TrainingWriteBuffers {
 
 class TrainingDataWriter {
  public:
-  TrainingDataWriter(const std::string& outputDir, std::ostream* debugOut, int inputsVersion, int maxRowsPerFile, double firstFileMinRandProp, int dataXLen, int dataYLen, const std::string& randSeed, int onlyWriteEvery = 1, bool dotsGame = false);
+  TrainingDataWriter(const std::string& newOutputDir, std::ostream* newDebugOut, int newInputsVersion, int maxRowsPerFile, double firstFileMinRandProp, int dataXLen, int dataYLen, const std::string& randSeed, int onlyWriteEvery = 1, bool dotsGame = false);
   ~TrainingDataWriter();
 
   void writeGame(const FinishedGameData& data);

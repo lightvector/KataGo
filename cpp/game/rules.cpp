@@ -15,8 +15,8 @@ const Rules Rules::DEFAULT_GO = Rules(false);
 
 Rules::Rules() : Rules(false) {}
 
-Rules::Rules(const int startPos, const bool startPosIsRandom, const bool suicide, const bool dotsCaptureEmptyBases, const bool dotsFreeCapturedDots) :
-  Rules(true, startPos, startPosIsRandom, 0, 0, 0, suicide, false, 0, false, 0.0f, dotsCaptureEmptyBases, dotsFreeCapturedDots) {}
+Rules::Rules(const int newStartPos, const bool newStartPosIsRandom, const bool newSuicide, const bool newDotsCaptureEmptyBases, const bool newDotsFreeCapturedDots) :
+  Rules(true, newStartPos, newStartPosIsRandom, 0, 0, 0, newSuicide, false, 0, false, 0.0f, newDotsCaptureEmptyBases, newDotsFreeCapturedDots) {}
 
 Rules::Rules(
   int kRule,
@@ -48,9 +48,9 @@ Rules::Rules(const bool initIsDots) : Rules(
 }
 
 Rules::Rules(
-  bool isDots,
+  const bool newIsDots,
   int startPosRule,
-  bool startPosIsRandom,
+  const bool newStartPosIsRandom,
   int kRule,
   int sRule,
   int tRule,
@@ -59,22 +59,25 @@ Rules::Rules(
   int whbRule,
   bool pOk,
   float km,
-  bool dotsCaptureEmptyBases,
-  bool dotsFreeCapturedDots
+  const bool newDotsCaptureEmptyBases,
+  const bool newDotsFreeCapturedDots
 )
-  : isDots(isDots),
+  : isDots(newIsDots),
+
     startPos(startPosRule),
-    startPosIsRandom(startPosIsRandom),
-    dotsCaptureEmptyBases(dotsCaptureEmptyBases),
-    dotsFreeCapturedDots(dotsFreeCapturedDots),
+    startPosIsRandom(newStartPosIsRandom),
+    komi(km),
+    multiStoneSuicideLegal(suic),
+    taxRule(tRule),
+    whiteHandicapBonusRule(whbRule),
+
     koRule(kRule),
     scoringRule(sRule),
-    taxRule(tRule),
-    multiStoneSuicideLegal(suic),
     hasButton(button),
-    whiteHandicapBonusRule(whbRule),
     friendlyPassOk(pOk),
-    komi(km)
+
+    dotsCaptureEmptyBases(newDotsCaptureEmptyBases),
+    dotsFreeCapturedDots(newDotsFreeCapturedDots)
 {
   initializeIfNeeded();
 }
@@ -727,15 +730,15 @@ string Rules::toStringNoSgfDefinedPropertiesMaybeNice() const {
   return toString(false);
 }
 
-double nextRandomOffset(Rand& rand) {
+static double nextRandomOffset(Rand& rand) {
   return rand.nextDouble(4, 7);
 }
 
-int nextRandomOffsetX(Rand& rand, int x_size) {
+static int nextRandomOffsetX(Rand& rand, int x_size) {
   return static_cast<int>(round(nextRandomOffset(rand) / 39.0 * x_size));
 }
 
-int nextRandomOffsetY(Rand& rand, int y_size) {
+static int nextRandomOffsetY(Rand& rand, int y_size) {
   return static_cast<int>(round(nextRandomOffset(rand) / 32.0 * y_size));
 }
 
@@ -955,7 +958,7 @@ int Rules::recognizeStartPos(
 
     if (remainingMoves != nullptr) {
         for (const auto recognizedMove : startPosMoves) {
-        bool remainingMoveIsRemoved = false;
+        [[maybe_unused]] bool remainingMoveIsRemoved = false;
         for(auto it = remainingMoves->begin(); it != remainingMoves->end(); ++it) {
           if (movesEqual(*it, recognizedMove)) {
             remainingMoves->erase(it);

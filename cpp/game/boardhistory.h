@@ -104,7 +104,7 @@ struct BoardHistory {
   bool isPassAliveFinished;
 
   BoardHistory();
-  explicit BoardHistory(const Rules& rules);
+  explicit BoardHistory(const Rules& newRules);
   ~BoardHistory();
   BoardHistory(const Board& board);
 
