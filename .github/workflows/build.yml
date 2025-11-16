@@ -34,7 +34,7 @@ jobs:
     - name: Configure CMake
       working-directory: cpp
       run: |
-        cmake . -DUSE_BACKEND=OPENCL -DNO_GIT_REVISION=1 -DCMAKE_BUILD_TYPE=Release
+        cmake . -DUSE_BACKEND=OPENCL -DNO_GIT_REVISION=1 -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_FLAGS_RELEASE="-s"
 
     - name: Build
       working-directory: cpp
