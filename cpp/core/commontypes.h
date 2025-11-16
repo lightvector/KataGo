@@ -1,6 +1,8 @@
 #ifndef COMMONTYPES_H
 #define COMMONTYPES_H
 
+#include <string>
+
 struct enabled_t {
   enum value { False, True, Auto };
   value x;
@@ -11,7 +13,7 @@ struct enabled_t {
   constexpr bool operator==(enabled_t a) const { return x == a.x; }
   constexpr bool operator!=(enabled_t a) const { return x != a.x; }
 
-  std::string toString() {
+  [[nodiscard]] std::string toString() const {
     return x == True ? "true" : x == False ? "false" : "auto";
   }
 
