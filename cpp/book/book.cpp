@@ -2350,15 +2350,15 @@ void Book::recomputeNodeCost(BookNode* node) {
           double otherChildWinLoss = otherChild->recursiveValues.winLossValue;
           double gainOverOtherChild =
             (node->pla == P_WHITE) ?
-            childWinLoss - otherChildWinLoss :
-            otherChildWinLoss - childWinLoss;
-          if(gainOverOtherChild <= -params.policyBoostSoftUtilityScale)
+            (childWinLoss + pow3(childWinLoss)) - (otherChildWinLoss + pow3(otherChildWinLoss)) :
+            (otherChildWinLoss + pow3(otherChildWinLoss)) - (childWinLoss + pow3(childWinLoss));
+          if(gainOverOtherChild <= -2.0 * params.policyBoostSoftUtilityScale)
             continue;
           double thisBonus =
             log10(otherVisits / (30.0 * adjustedVisits))
-            - 0.5 * log10(std::max(adjustedVisits,params.visitsScaleLeaves) / params.visitsScaleLeaves);
+            - 0.40 * log10(std::max(adjustedVisits,params.visitsScaleLeaves) / params.visitsScaleLeaves);
           if(gainOverOtherChild < 0.0) {
-            double factor = (gainOverOtherChild + params.policyBoostSoftUtilityScale) / (params.policyBoostSoftUtilityScale + 1e-10);
+            double factor = (gainOverOtherChild + 2.0 * params.policyBoostSoftUtilityScale) / (2.0 * params.policyBoostSoftUtilityScale + 1e-10);
             thisBonus = thisBonus * factor * factor;
           }
           maxBonus = std::max(maxBonus, thisBonus);
@@ -2369,12 +2369,12 @@ void Book::recomputeNodeCost(BookNode* node) {
         // Also scale down by how far we are from the best, and scale down by if we are close to losing so nothing matters
         double gainOverBest =
           (node->pla == P_WHITE) ?
-          childWinLoss - bestWinLoss :
-          bestWinLoss - childWinLoss;
+          (childWinLoss + pow3(childWinLoss)) - (bestWinLoss + pow3(bestWinLoss)) :
+          (bestWinLoss + pow3(bestWinLoss)) - (childWinLoss + pow3(childWinLoss));
         // Just in case
         gainOverBest = std::min(gainOverBest, 0.0);
         double losingScale = std::min(1.0, (node->pla == P_WHITE) ? childWinLoss + 1.0 : 1.0 - childWinLoss);
-        return maxBonus * exp(gainOverBest / (2.0 * params.policyBoostSoftUtilityScale)) * losingScale;
+        return maxBonus * exp(gainOverBest / (3.0 * params.policyBoostSoftUtilityScale)) * losingScale;
       };
 
       // double anyBehindInVisits = false;
@@ -2385,7 +2385,7 @@ void Book::recomputeNodeCost(BookNode* node) {
         double childBonus = behindInVisitsBonus(childWinLoss,adjustedVisits);
         // if(childBonus > 0.25)
         //   anyBehindInVisits = true;
-        locAndBookMove.second.costFromRoot -= childBonus;
+        locAndBookMove.second.costFromRoot -= childBonus * params.bonusBehindInVisitsScale;
       }
       {
         double childWinLoss = node->thisValuesNotInBook.winLossValue;
@@ -2393,7 +2393,7 @@ void Book::recomputeNodeCost(BookNode* node) {
         double childBonus = behindInVisitsBonus(childWinLoss,adjustedVisits);
         // if(childBonus > 0.25)
         //   anyBehindInVisits = true;
-        node->thisNodeExpansionCost -= childBonus;
+        node->thisNodeExpansionCost -= childBonus * params.bonusBehindInVisitsScale;
       }
 
       // if(anyBehindInVisits) {
