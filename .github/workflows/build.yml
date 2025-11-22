@@ -46,6 +46,7 @@ jobs:
         cpp/katago runtests
 
     - name: Upload artifact
+      if: github.event_name == 'push' && github.ref == 'refs/heads/master'
       uses: actions/upload-artifact@v4
       with:
         name: katago-linux-opencl
@@ -87,6 +88,7 @@ jobs:
         run: |
           cpp/katago runtests
       - name: Upload artifact
+        if: github.event_name == 'push' && github.ref == 'refs/heads/master'
         uses: actions/upload-artifact@v4
         with:
           name: katago-macos-opencl
@@ -142,6 +144,7 @@ jobs:
         cpp/Release/katago.exe runtests
 
     - name: Upload artifact
+      if: github.event_name == 'push' && github.ref == 'refs/heads/master'
       uses: actions/upload-artifact@v4
       with:
         name: katago-windows-opencl
