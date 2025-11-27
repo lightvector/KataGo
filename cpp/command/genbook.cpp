@@ -111,6 +111,70 @@ static void optimizeSymmetriesInplace(std::vector<SymBookNode>& nodes, Rand* ran
   }
 }
 
+static void maybeParseHashBonusFile(
+  const std::string& hashBonusFile,
+  double bonusFileScale,
+  Logger& logger,
+  std::map<BookHash,double>& bonusByHash,
+  std::map<BookHash,double>& expandBonusByHash,
+  std::map<BookHash,double>& visitsRequiredByHash,
+  std::map<BookHash,int>& branchRequiredByHash
+) {
+  if(hashBonusFile == "")
+    return;
+  std::vector<std::string> lines = FileUtils::readFileLines(hashBonusFile, '\n');
+  for(const std::string& line: lines) {
+    std::vector<std::string> pieces = Global::split(Global::trim(line));
+    if(pieces.size() > 2 && (
+         pieces[1] == "BONUS" ||
+         pieces[1] == "EXPAND" ||
+         pieces[1] == "VISITS" ||
+         pieces[1] == "BRANCH"
+       )
+    ) {
+      double ret = Global::stringToDouble(pieces[2]);
+      BookHash hashRet = BookHash::ofString(pieces[0]);
+      if(pieces[1] == "BONUS") {
+        if(!std::isfinite(ret) || ret < -10000 || ret > 10000)
+          throw StringError("Invalid BONUS: " + Global::doubleToString(ret));
+        if(bonusByHash.find(hashRet) != bonusByHash.end())
+          bonusByHash[hashRet] = std::max(bonusByHash[hashRet], ret * bonusFileScale);
+        else
+          bonusByHash[hashRet] = ret * bonusFileScale;
+        bonusByHash[hashRet] = std::max(bonusByHash[hashRet], ret * bonusFileScale);
+        logger.write("Adding bonus " + Global::doubleToString(ret * bonusFileScale) + " to hash " + hashRet.toString());
+      }
+      else if(pieces[1] == "EXPAND") {
+        if(!std::isfinite(ret) || ret < 0 || ret > 10000)
+          throw StringError("Invalid EXPAND: " + Global::doubleToString(ret));
+        if(expandBonusByHash.find(hashRet) != expandBonusByHash.end())
+          expandBonusByHash[hashRet] = std::max(expandBonusByHash[hashRet], ret * bonusFileScale);
+        else
+          expandBonusByHash[hashRet] = ret * bonusFileScale;
+        logger.write("Adding expand bonus " + Global::doubleToString(ret * bonusFileScale) + " to hash " + hashRet.toString());
+      }
+      else if(pieces[1] == "VISITS") {
+        if(!std::isfinite(ret) || ret < 0)
+          throw StringError("Invalid VISITS: " + Global::doubleToString(ret));
+        if(visitsRequiredByHash.find(hashRet) != visitsRequiredByHash.end())
+          visitsRequiredByHash[hashRet] = std::max(visitsRequiredByHash[hashRet], ret * bonusFileScale);
+        else
+          visitsRequiredByHash[hashRet] = ret * bonusFileScale;
+        logger.write("Adding required visits " + Global::doubleToString(ret * bonusFileScale) + " to hash " + hashRet.toString());
+      }
+      else if(pieces[1] == "BRANCH") {
+        if(!std::isfinite(ret) || ret < 0 || ret > 200)
+          throw StringError("Invalid BRANCH: " + Global::doubleToString(ret));
+        if(branchRequiredByHash.find(hashRet) != branchRequiredByHash.end())
+          branchRequiredByHash[hashRet] = std::max(branchRequiredByHash[hashRet], (int)ret);
+        else
+          branchRequiredByHash[hashRet] = (int)ret;
+        logger.write("Adding required branching factor " + Global::intToString((int)ret) + " to hash " + hashRet.toString());
+      }
+    }
+  }
+}
+
 static void maybeParseBonusFile(
   const std::string& bonusFile,
   int boardSizeX,
@@ -254,6 +318,7 @@ int MainCmds::genbook(const vector<string>& args) {
   string traceSgfFile;
   string logFile;
   std::vector<string> bonusFiles;
+  std::vector<string> hashBonusFiles;
   int numIterations;
   int saveEveryIterations;
   double traceBookMinVisits;
@@ -275,6 +340,7 @@ int MainCmds::genbook(const vector<string>& args) {
     TCLAP::ValueArg<string> traceSgfFileArg("","trace-sgf-file","Other sgf file we should copy all the lines from",false,string(),"FILE");
     TCLAP::ValueArg<string> logFileArg("","log-file","Log file to write to",true,string(),"DIR");
     TCLAP::MultiArg<string> bonusFileArg("","bonus-file","SGF of bonuses marked",false,"DIR");
+    TCLAP::MultiArg<string> hashBonusFileArg("","hash-bonus-file","File of bookhashes and bonuses, one hash per line",false,"DIR");
     TCLAP::ValueArg<int> numIterationsArg("","num-iters","Number of iterations to expand book",true,0,"N");
     TCLAP::ValueArg<int> saveEveryIterationsArg("","save-every","Number of iterations per save to book file",true,0,"N");
     TCLAP::ValueArg<double> traceBookMinVisitsArg("","trace-book-min-visits","Require >= this many visits for copying from traceBookFile",false,0.0,"N");
@@ -288,6 +354,7 @@ int MainCmds::genbook(const vector<string>& args) {
     cmd.add(traceSgfFileArg);
     cmd.add(logFileArg);
     cmd.add(bonusFileArg);
+    cmd.add(hashBonusFileArg);
     cmd.add(numIterationsArg);
     cmd.add(saveEveryIterationsArg);
     cmd.add(traceBookMinVisitsArg);
@@ -307,6 +374,7 @@ int MainCmds::genbook(const vector<string>& args) {
     traceSgfFile = traceSgfFileArg.getValue();
     logFile = logFileArg.getValue();
     bonusFiles = bonusFileArg.getValue();
+    hashBonusFiles = hashBonusFileArg.getValue();
     numIterations = numIterationsArg.getValue();
     saveEveryIterations = saveEveryIterationsArg.getValue();
     traceBookMinVisits = traceBookMinVisitsArg.getValue();
@@ -379,6 +447,17 @@ int MainCmds::genbook(const vector<string>& args) {
       branchRequiredByHash,
       bonusInitialBoard,
       bonusInitialPla
+    );
+  }
+  for(const std::string& hashBonusFile: hashBonusFiles) {
+    maybeParseHashBonusFile(
+      hashBonusFile,
+      bonusFileScale,
+      logger,
+      bonusByHash,
+      expandBonusByHash,
+      visitsRequiredByHash,
+      branchRequiredByHash
     );
   }
 
@@ -2215,14 +2294,15 @@ int MainCmds::findbookbottlenecks(const vector<string>& args) {
     int depth;
     double wlIncrease;
     double wlDecrease;
+    double effectiveDepth;
     NodeAndDepthInfo() = default;
-    NodeAndDepthInfo(ConstSymBookNode n, int d, double wli, double wld): node(n), depth(d), wlIncrease(wli), wlDecrease(wld) {}
+    NodeAndDepthInfo(ConstSymBookNode n, int d, double wli, double wld, double ed): node(n), depth(d), wlIncrease(wli), wlDecrease(wld), effectiveDepth(ed) {}
   };
 
   struct ThresholdGroup {
     double threshold;
     bool increasing;
-    std::vector<BookHash> nodeHashes;
+    std::vector<NodeAndDepthInfo> nodesToCheck;
     ThresholdGroup() = default;
     ThresholdGroup(double t, bool inc): threshold(t), increasing(inc) {}
   };
@@ -2236,12 +2316,11 @@ int MainCmds::findbookbottlenecks(const vector<string>& args) {
   {
     std::vector<NodeAndDepthInfo> nodesToExplore;
     std::set<BookHash> visited;
-    nodesToExplore.push_back(NodeAndDepthInfo(book->getRoot(), 0, 0.0, 0.0));
+    nodesToExplore.push_back(NodeAndDepthInfo(book->getRoot(), 0, 0.0, 0.0, 0.0));
 
     for(size_t i = 0; i<nodesToExplore.size(); i++) {
       NodeAndDepthInfo info = nodesToExplore[i];
-
-      if(info.depth + addWLChangeToDepthFactor * (info.wlIncrease + info.wlDecrease + std::min(info.wlIncrease, info.wlDecrease)) > maxDepth)
+      if(info.effectiveDepth > maxDepth)
         continue;
 
       ConstSymBookNode node = info.node;
@@ -2266,7 +2345,7 @@ int MainCmds::findbookbottlenecks(const vector<string>& args) {
           groupsByThresholdIncreasing[roundedIncreasing] = ThresholdGroup(roundedIncreasing, true);
           iter = groupsByThresholdIncreasing.find(roundedIncreasing);
         }
-        iter->second.nodeHashes.push_back(hash);
+        iter->second.nodesToCheck.push_back(info);
       }
       if(roundedDecreasing > -1.0) {
         auto iter = groupsByThresholdDecreasing.find(roundedDecreasing);
@@ -2274,7 +2353,7 @@ int MainCmds::findbookbottlenecks(const vector<string>& args) {
           groupsByThresholdDecreasing[roundedDecreasing] = ThresholdGroup(roundedDecreasing, false);
           iter = groupsByThresholdDecreasing.find(roundedDecreasing);
         }
-        iter->second.nodeHashes.push_back(hash);
+        iter->second.nodesToCheck.push_back(info);
       }
 
       std::vector<BookMove> moves = node.getUniqueMovesInBook();
@@ -2289,6 +2368,7 @@ int MainCmds::findbookbottlenecks(const vector<string>& args) {
           newInfo.wlIncrease += newWinLoss - currentWinLoss;
         else
           newInfo.wlDecrease += currentWinLoss - newWinLoss;
+        newInfo.effectiveDepth = newInfo.depth + addWLChangeToDepthFactor * (newInfo.wlIncrease + newInfo.wlDecrease + std::min(newInfo.wlIncrease, newInfo.wlDecrease));
 
         nodesToExplore.push_back(newInfo);
       }
@@ -2330,7 +2410,7 @@ int MainCmds::findbookbottlenecks(const vector<string>& args) {
     std::map<BookHash, Book::MinCostResult> resultCache;
 
     // Ignore if the total cost to prove the new value is more than this.
-    const double pruneOverCost = 500.0;
+    const double pruneOverCost = 1000.0;
     auto costFunc = [&book,&group](ConstSymBookNode node, const BookValues& values) -> double {
 
       double thisWL = values.winLossValue;
@@ -2347,7 +2427,7 @@ int MainCmds::findbookbottlenecks(const vector<string>& args) {
       }
 
       // Basic cost component based on the unexplored policy
-      double cost = 1.0 / std::sqrt(values.maxPolicy + 1e-5);
+      double cost = 1.0 / std::pow(values.maxPolicy + 1e-5, 0.75);
 
       auto transformWL = [](double wl) {
         return wl * wl * wl * wl * wl + wl;
@@ -2359,7 +2439,7 @@ int MainCmds::findbookbottlenecks(const vector<string>& args) {
         transformedWLDifference = transformWL(group.threshold) - transformWL(thisWL);
       else
         transformedWLDifference = transformWL(thisWL) - transformWL(group.threshold);
-      cost *= exp(transformedWLDifference - 0.6);
+      cost *= exp(2 * (transformedWLDifference - 0.5));
 
       // Add additional flat cost component just based on the number of moves not beaten
       cost += 5 * numMovesNotBeaten;
@@ -2407,8 +2487,9 @@ int MainCmds::findbookbottlenecks(const vector<string>& args) {
       return cost;
     };
 
-    for(const BookHash& nodeHash : group.nodeHashes) {
-      ConstSymBookNode node = book->getByHash(nodeHash);
+    for(const NodeAndDepthInfo& info : group.nodesToCheck) {
+      ConstSymBookNode node = info.node;
+      BookHash nodeHash = node.hash();
       testAssert(!node.isNull());
 
       Book::MinCostResult result = book->computeMinCostToChangeWinLoss(
@@ -2426,18 +2507,34 @@ int MainCmds::findbookbottlenecks(const vector<string>& args) {
         continue;
       }
 
+      // Optimize symmetries so that the output and logging all ends up using
+      // a symmetry where the node and the nodes to change overlap well.
+      std::vector<SymBookNode> nodesToOptimize;
+      nodesToOptimize.push_back(book->getByHash(nodeHash));
+      for(const BookHash& hashToChange: result.nodes) {
+        nodesToOptimize.push_back(book->getByHash(hashToChange));
+      }
+      optimizeSymmetriesInplace(nodesToOptimize, NULL, logger);
+
+      // Use the optimized node for the rest of the processing
+      SymBookNode optimizedNode = nodesToOptimize[0];
+
       BoardHistory hist;
       std::vector<Loc> moveHistory;
-      bool suc = node.getBoardHistoryReachingHere(hist, moveHistory);
+      bool suc = optimizedNode.getBoardHistoryReachingHere(hist, moveHistory);
       testAssert(suc);
 
       nlohmann::json jsonEntry;
       jsonEntry["hash"] = nodeHash.toString();
-      jsonEntry["bookCost"] = node.minCostFromRoot();
-      jsonEntry["visits"] = node.recursiveValues().visits;
-      jsonEntry["adjustedVisits"] = node.recursiveValues().adjustedVisits;
+      jsonEntry["bookCost"] = optimizedNode.minCostFromRoot();
+      jsonEntry["visits"] = optimizedNode.recursiveValues().visits;
+      jsonEntry["adjustedVisits"] = optimizedNode.recursiveValues().adjustedVisits;
+      jsonEntry["depth"] = info.depth;
+      jsonEntry["effectiveDepth"] = info.effectiveDepth;
+      jsonEntry["wlIncrease"] = info.wlIncrease;
+      jsonEntry["wlDecrease"] = info.wlDecrease;
       jsonEntry["minCost"] = result.totalCost;
-      jsonEntry["currentWL"] = node.recursiveValues().winLossValue;
+      jsonEntry["currentWL"] = optimizedNode.recursiveValues().winLossValue;
       jsonEntry["threshold"] = group.threshold;
       jsonEntry["increasing"] = group.increasing;
 
@@ -2445,11 +2542,31 @@ int MainCmds::findbookbottlenecks(const vector<string>& args) {
       for(const BookHash& h: result.nodes)
         nodesToChangeList.push_back(h.toString());
       jsonEntry["minSetToChange"] = nodesToChangeList;
+      std::vector<int> nodesToChangeBranchCountsList;
+      for(const BookHash& h: result.nodes)
+        nodesToChangeBranchCountsList.push_back(book->getByHash(h).numUniqueMovesInBook());
+      jsonEntry["minSetToChangeBranchCounts"] = nodesToChangeBranchCountsList;
 
       std::vector<std::string> moveHistoryStrings;
       for(Loc move: moveHistory)
         moveHistoryStrings.push_back(Location::toString(move, book->initialBoard));
       jsonEntry["moveHistory"] = moveHistoryStrings;
+
+      std::vector<std::vector<std::string>> moveHistoryToChangeStringss;
+      for(size_t i = 0; i < result.nodes.size(); i++) {
+        // Use the optimized version from nodesToOptimize[i+1] (offset by 1 since [0] is the main node)
+        SymBookNode optimizedNodeToChange = nodesToOptimize[i + 1];
+        BoardHistory histToChange;
+        std::vector<Loc> moveHistoryToChange;
+        bool suc2 = optimizedNodeToChange.getBoardHistoryReachingHere(histToChange, moveHistoryToChange);
+        testAssert(suc2);
+
+        std::vector<std::string> moveHistoryToChangeStrings;
+        for(Loc move : moveHistoryToChange)
+          moveHistoryToChangeStrings.push_back(Location::toString(move, book->initialBoard));
+        moveHistoryToChangeStringss.push_back(moveHistoryToChangeStrings);
+      }
+      jsonEntry["moveHistoryToChangeStrings"] = moveHistoryToChangeStringss;
 
       {
         std::lock_guard<std::mutex> lock(outputMutex);
@@ -2462,10 +2579,10 @@ int MainCmds::findbookbottlenecks(const vector<string>& args) {
 
         out << ("\n========================================") << endl;
         out << "Node: " << nodeHash.toString() << endl;
-        out << "BookCost: " << node.minCostFromRoot() << endl;
-        out << "Visits: " << node.recursiveValues().visits << endl;
-        out << "AdjustedVisits: " << node.recursiveValues().adjustedVisits << endl;
-        out << "Current WinLoss: " << node.recursiveValues().winLossValue << endl;
+        out << "BookCost: " << optimizedNode.minCostFromRoot() << endl;
+        out << "Visits: " << optimizedNode.recursiveValues().visits << endl;
+        out << "AdjustedVisits: " << optimizedNode.recursiveValues().adjustedVisits << endl;
+        out << "Current WinLoss: " << optimizedNode.recursiveValues().winLossValue << endl;
         out << ("Threshold: " + Global::doubleToString(group.threshold) + " (" + (group.increasing ? "increasing" : "decreasing") + ")") << endl;
         out << "Min Cost: " << result.totalCost << endl;
         for(Loc move : moveHistory)
@@ -2476,10 +2593,12 @@ int MainCmds::findbookbottlenecks(const vector<string>& args) {
         Board::printBoard(out, board, Board::NULL_LOC, &(hist.moveHistory));
 
         out << ("Num nodes to change: " + Global::intToString((int)result.nodes.size())) << endl;
-        for(const BookHash& hashToChange: result.nodes) {
+        for(size_t i = 0; i < result.nodes.size(); i++) {
+          // Use the optimized version from nodesToOptimize[i+1] (offset by 1 since [0] is the main node)
+          SymBookNode optimizedNodeToChange = nodesToOptimize[i + 1];
           BoardHistory histToChange;
           std::vector<Loc> moveHistoryToChange;
-          bool suc2 = book->getByHash(hashToChange).getBoardHistoryReachingHere(histToChange, moveHistoryToChange);
+          bool suc2 = optimizedNodeToChange.getBoardHistoryReachingHere(histToChange, moveHistoryToChange);
           testAssert(suc2);
 
           for(Loc move : moveHistoryToChange)
