@@ -1816,7 +1816,7 @@ double Book::getUtility(const RecursiveBookValues& values) const {
 
 Book::MinCostResult Book::computeMinCostToChangeWinLoss(
   ConstSymBookNode node,
-  const std::function<double(ConstSymBookNode, const BookValues&)>& costFunc,
+  const std::function<double(ConstSymBookNode)>& costFunc,
   const std::function<double(ConstSymBookNode, const BookMove&)>& edgeCost,
   double winLossValueThreshold,
   bool increasing,
@@ -1832,7 +1832,7 @@ Book::MinCostResult Book::computeMinCostToChangeWinLoss(
 
 Book::MinCostResult Book::computeMinCostToChangeWinLossHelper(
   const BookNode* node,
-  const std::function<double(ConstSymBookNode, const BookValues&)>& costFunc,
+  const std::function<double(ConstSymBookNode)>& costFunc,
   const std::function<double(ConstSymBookNode, const BookMove&)>& edgeCost,
   double winLossValueThreshold,
   bool increasing,
@@ -1860,6 +1860,10 @@ Book::MinCostResult Book::computeMinCostToChangeWinLossHelper(
 
   // Evaluate cost of changing this node's thisValuesNotInBook
   double thisNodeWL = node->thisValuesNotInBook.winLossValue;
+  if(node->canReExpand && node->recursiveValues.visits <= params.maxVisitsForReExpansion) {
+    thisNodeWL = node->recursiveValues.winLossValue;
+  }
+
   MinCostResult thisNodeResult;
   if((increasing && thisNodeWL >= winLossValueThreshold) || (!increasing && thisNodeWL <= winLossValueThreshold)) {
     thisNodeResult = MinCostResult{0.0, {}};
@@ -1870,7 +1874,7 @@ Book::MinCostResult Book::computeMinCostToChangeWinLossHelper(
       thisNodeResult.totalCost = cacheIter->second;
     }
     else {
-      double cost = costFunc(ConstSymBookNode(node,0), node->thisValuesNotInBook);
+      double cost = costFunc(ConstSymBookNode(node,0));
       costCache[node->hash] = cost;
       thisNodeResult.totalCost = cost;
     }
@@ -1878,6 +1882,12 @@ Book::MinCostResult Book::computeMinCostToChangeWinLossHelper(
   }
 
   MinCostResult result = thisNodeResult;
+
+  if(node->canReExpand && node->recursiveValues.visits <= params.maxVisitsForReExpansion) {
+    resultCache[node->hash] = result;
+    return result;
+  }
+
   if((node->pla == P_WHITE && increasing) || (node->pla == P_BLACK && !increasing)) {
     // White maximizing, increasing, OR Black minimizing, decreasing: need only ONE child (or this node) to meet threshold
     for(auto iter = node->moves.begin(); iter != node->moves.end(); ++iter) {

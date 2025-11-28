@@ -445,7 +445,8 @@ class Book {
 
   // Computes the minimum cost in PN-search-style for potentially proving a node's winLossValue
   // is at or beyond winLossValueThreshold.
-  // costFunc: arbitrary function to compute cost for proving as a function of the thisValuesNotInBook,
+  // costFunc: arbitrary function to compute cost for proving as a function of the
+  //   thisValuesNotInBook OR the recursiveValues in case canReExpand and node.recursiveValues().visits <= params.maxVisitsForReExpansion,
   // edgeCost: also attach costs to edges of the book
   // and also gets passed the node as the first arg so it can depend on the node itself too.
   // increasing: true if we are proving >= threshold, false if we are trying to prove <= threshold
@@ -454,7 +455,7 @@ class Book {
   // pruneOverCost - if the cost is > this, quit early
   MinCostResult computeMinCostToChangeWinLoss(
     ConstSymBookNode node,
-    const std::function<double(ConstSymBookNode, const BookValues&)>& costFunc,
+    const std::function<double(ConstSymBookNode)>& costFunc,
     const std::function<double(ConstSymBookNode, const BookMove&)>& edgeCost,
     double winLossValueThreshold,
     bool increasing,
@@ -545,7 +546,7 @@ class Book {
 
   MinCostResult computeMinCostToChangeWinLossHelper(
     const BookNode* node,
-    const std::function<double(ConstSymBookNode, const BookValues&)>& costFunc,
+    const std::function<double(ConstSymBookNode)>& costFunc,
     const std::function<double(ConstSymBookNode, const BookMove&)>& edgeCost,
     double winLossValueThreshold,
     bool increasing,

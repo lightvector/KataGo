@@ -2411,12 +2411,15 @@ int MainCmds::findbookbottlenecks(const vector<string>& args) {
 
     // Ignore if the total cost to prove the new value is more than this.
     const double pruneOverCost = 1000.0;
-    auto costFunc = [&book,&group,winLossDelta](ConstSymBookNode node, const BookValues& values) -> double {
+    auto costFunc = [&book,&group,winLossDelta](ConstSymBookNode node) -> double {
       double cost = node.totalExpansionCost() * 1.2 - node.minCostFromRoot() * 0.2;
       if(cost > 1.0)
-        cost = std::pow(cost,1.2);
+        cost = std::pow(cost,1.30);
 
-      double thisWL = values.winLossValue;
+      double thisWL = node.thisValuesNotInBook().winLossValue;
+      if(node.canReExpand() && node.recursiveValues().visits <= book->getParams().maxVisitsForReExpansion)
+        thisWL = node.recursiveValues().winLossValue;
+
       auto transformWL = [](double wl) {
         return wl * wl * wl * wl * wl + wl;
       };
