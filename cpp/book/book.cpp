@@ -1888,15 +1888,12 @@ Book::MinCostResult Book::computeMinCostToChangeWinLossHelper(
       if(childResult.totalCost < result.totalCost)
         result = childResult;
     }
-
-    if(result.totalCost > pruneOverCost)
-      // Quit without caching if over cost
-      return result;
   }
   else {
-    if(thisNodeResult.totalCost > pruneOverCost)
-      // Quit early without caching if over cost
+    if(thisNodeResult.totalCost > pruneOverCost) {
+      resultCache[node->hash] = result;
       return thisNodeResult;
+    }
 
     // White maximizing, decreasing: OR Black minimizing, increasing: need ALL children AND this node to meet threshold
     for(auto iter = node->moves.begin(); iter != node->moves.end(); ++iter) {
@@ -1914,9 +1911,10 @@ Book::MinCostResult Book::computeMinCostToChangeWinLossHelper(
         }
       }
 
-      if(result.totalCost > pruneOverCost)
-        // Quit without caching if over cost
+      if(result.totalCost > pruneOverCost) {
+        resultCache[node->hash] = result;
         return result;
+      }
     }
   }
 

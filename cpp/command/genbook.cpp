@@ -1243,7 +1243,7 @@ int MainCmds::genbook(const vector<string>& args) {
     thisParams.wideRootNoise = wideRootNoiseBookExplore;
     thisParams.cpuctExplorationLog = cpuctExplorationLogBookExplore;
     setParamsAndAvoidMoves(search,thisParams,avoidMoveUntilByLoc);
-    search->runWholeSearch(search->rootPla);
+    search->runWholeSearch(shouldStop);
 
 
     if(shouldStop.load(std::memory_order_acquire))
@@ -2411,24 +2411,12 @@ int MainCmds::findbookbottlenecks(const vector<string>& args) {
 
     // Ignore if the total cost to prove the new value is more than this.
     const double pruneOverCost = 1000.0;
-    auto costFunc = [&book,&group](ConstSymBookNode node, const BookValues& values) -> double {
+    auto costFunc = [&book,&group,winLossDelta](ConstSymBookNode node, const BookValues& values) -> double {
+      double cost = node.totalExpansionCost() * 1.2 - node.minCostFromRoot() * 0.2;
+      if(cost > 1.0)
+        cost = std::pow(cost,1.2);
 
       double thisWL = values.winLossValue;
-
-      // Iterate over all moves and add if thisValuesNotInBook does not beat the child
-      int numMovesNotBeaten = 0;
-      for(const BookMove& bookMove : node.getUniqueMovesInBook()) {
-        ConstSymBookNode child = book->getByHash(bookMove.hash);
-        double childWL = child.recursiveValues().winLossValue;
-
-        if((node.pla() == P_WHITE && thisWL < childWL) || (node.pla() == P_BLACK && thisWL > childWL)) {
-          numMovesNotBeaten += 1;
-        }
-      }
-
-      // Basic cost component based on the unexplored policy
-      double cost = 1.0 / std::pow(values.maxPolicy + 1e-5, 0.75);
-
       auto transformWL = [](double wl) {
         return wl * wl * wl * wl * wl + wl;
       };
@@ -2439,52 +2427,14 @@ int MainCmds::findbookbottlenecks(const vector<string>& args) {
         transformedWLDifference = transformWL(group.threshold) - transformWL(thisWL);
       else
         transformedWLDifference = transformWL(thisWL) - transformWL(group.threshold);
-      cost *= exp(2 * (transformedWLDifference - 0.5));
-
-      // Add additional flat cost component just based on the number of moves not beaten
-      cost += 5 * numMovesNotBeaten;
+      cost *= 0.5 + std::max(0.0, 0.5 * transformedWLDifference / winLossDelta);
 
       return cost;
     };
-    auto edgeCost = [&book,&group](ConstSymBookNode node, const BookMove& edgeMove) -> double {
-
-      ConstSymBookNode edgeChild = book->getByHash(edgeMove.hash);
-      double thisWL = edgeChild.recursiveValues().winLossValue;
-
-      // Iterate over all moves and add if the given edge does not beat the child
-      int numMovesNotBeaten = 0;
-      for(const BookMove& bookMove : node.getUniqueMovesInBook()) {
-        ConstSymBookNode child = book->getByHash(bookMove.hash);
-        double childWL = child.recursiveValues().winLossValue;
-
-        if((node.pla() == P_WHITE && thisWL < childWL) || (node.pla() == P_BLACK && thisWL > childWL)) {
-          numMovesNotBeaten += 1;
-        }
-      }
-
-      // Basic cost component based on the edge's policy
-      double cost = 1.0 / std::sqrt(edgeMove.rawPolicy + 1e-5);
-
-      auto transformWL = [](double wl) {
-        return wl * wl * wl * wl * wl + wl;
-      };
-
-      // Augment the cost based on how far the value is away from the threshold, in transformed space.
-      double transformedWLDifference;
-      if(group.increasing)
-        transformedWLDifference = transformWL(group.threshold) - transformWL(thisWL);
-      else
-        transformedWLDifference = transformWL(thisWL) - transformWL(group.threshold);
-      cost *= exp(transformedWLDifference - 0.6);
-
-      // Add additional flat cost component just based on the number of moves not beaten
-      cost += 5 * numMovesNotBeaten;
-
-      // Reduce edge cost based on the number of visits at the edge, once we start building a decent subtree we just care more about the leaves
-      double visitsScale = book->getParams().visitsScale;
-      cost *= visitsScale / (visitsScale + edgeChild.recursiveValues().visits);
-
-      return cost;
+    auto edgeCost = [&book,&group](ConstSymBookNode node, const BookMove& edgeMove) noexcept -> double {
+      (void)node;
+      (void)edgeMove;
+      return 0.0;
     };
 
     for(const NodeAndDepthInfo& info : group.nodesToCheck) {

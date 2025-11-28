@@ -450,7 +450,7 @@ class Book {
   // and also gets passed the node as the first arg so it can depend on the node itself too.
   // increasing: true if we are proving >= threshold, false if we are trying to prove <= threshold
   // costCache can be reused across calls with same costFunc
-  // resultCache can be reused across calls with same threshold/costFunc/increasing
+  // resultCache can be reused across calls with same threshold/costFunc/increasing/pruneOverCost
   // pruneOverCost - if the cost is > this, quit early
   MinCostResult computeMinCostToChangeWinLoss(
     ConstSymBookNode node,
