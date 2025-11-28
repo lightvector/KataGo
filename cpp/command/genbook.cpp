@@ -1243,7 +1243,7 @@ int MainCmds::genbook(const vector<string>& args) {
     thisParams.wideRootNoise = wideRootNoiseBookExplore;
     thisParams.cpuctExplorationLog = cpuctExplorationLogBookExplore;
     setParamsAndAvoidMoves(search,thisParams,avoidMoveUntilByLoc);
-    search->runWholeSearch(shouldStop);
+    search->runWholeSearch(search->rootPla);
 
 
     if(shouldStop.load(std::memory_order_acquire))
