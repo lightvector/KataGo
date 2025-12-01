@@ -256,16 +256,16 @@ struct Search {
   //Run an entire search from start to finish
   Loc runWholeSearchAndGetMove(Player movePla);
   void runWholeSearch(Player movePla);
-  void runWholeSearch(std::atomic<bool>& shouldStopNow);
+  void runWholeSearch(Player movePla, std::function<bool()>* shouldStopEarly);
 
   //Pondering indicates that we are searching "for" the last player that we did a non-ponder search for, and should use ponder search limits.
   Loc runWholeSearchAndGetMove(Player movePla, bool pondering);
   void runWholeSearch(Player movePla, bool pondering);
-  void runWholeSearch(std::atomic<bool>& shouldStopNow, bool pondering);
+  void runWholeSearch(Player movePla, bool pondering, std::function<bool()>* shouldStopEarly);
 
   void runWholeSearch(
-    std::atomic<bool>& shouldStopNow,
     std::function<void()>* searchBegun, //If not null, will be called once search has begun and tree inspection is safe
+    std::function<bool()>* shouldStopEarly, //If not null and returns true, search will stop soon after
     bool pondering,
     const TimeControls& tc,
     double searchFactor

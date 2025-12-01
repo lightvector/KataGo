@@ -475,7 +475,11 @@ void AsyncBot::internalSearchThreadLoop() {
       callbackLoopThread = std::thread(callbackLoop);
     }
 
-    search->runWholeSearch(shouldStopNow,&searchBegun,pondering,tc,searchFactor);
+    std::function<bool()> shouldStopEarly = [this]() noexcept {
+      return shouldStopNow.load(std::memory_order_acquire);
+    };
+
+    search->runWholeSearch(&searchBegun,&shouldStopEarly,pondering,tc,searchFactor);
     Loc moveLoc = search->getChosenMoveLoc();
 
     if(usingCallbackLoop) {

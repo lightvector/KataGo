@@ -781,17 +781,21 @@ static bool maybeGetValuesAfterMove(
 
   search->setPosition(newNextPla,newBoard,newHist);
 
+  std::function<bool()> shouldStopEarly = []() noexcept {
+    return shouldStop.load(std::memory_order_acquire);
+  };
+
   if(quickSearchFactor != 1.0) {
     SearchParams oldSearchParams = search->searchParams;
     SearchParams newSearchParams = oldSearchParams;
     newSearchParams.maxVisits = 1 + (int64_t)(oldSearchParams.maxVisits * quickSearchFactor);
     newSearchParams.maxPlayouts = 1 + (int64_t)(oldSearchParams.maxPlayouts * quickSearchFactor);
     search->setParamsNoClearing(newSearchParams);
-    search->runWholeSearch(newNextPla,shouldStop);
+    search->runWholeSearch(newNextPla,&shouldStopEarly);
     search->setParamsNoClearing(oldSearchParams);
   }
   else {
-    search->runWholeSearch(newNextPla,shouldStop);
+    search->runWholeSearch(newNextPla,&shouldStopEarly);
   }
 
   if(shouldStop.load(std::memory_order_acquire))
