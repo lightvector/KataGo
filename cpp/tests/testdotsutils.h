@@ -46,6 +46,14 @@ struct BoardWithMoveRecords {
     return board.wouldBeCapture(Location::getLoc(x, y, board.x_size), player);
   }
 
+  int getWhiteScore() const {
+    return board.numBlackCaptures - board.numWhiteCaptures;
+  }
+
+  int getBlackScore() const {
+    return -getWhiteScore();
+  }
+
   void undo() const {
     board.undo(moveRecords.back());
     moveRecords.pop_back();

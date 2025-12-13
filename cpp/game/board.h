@@ -47,6 +47,8 @@ Color getPlacedDotColor(State s);
 
 Color getEmptyTerritoryColor(State s);
 
+bool isGrounded(State state);
+
 //Conversions for players and colors
 namespace PlayerIO {
   char colorToChar(Color c);
@@ -182,10 +184,10 @@ struct Board
   /* }; */
 
   struct Base {
-    Player pla{};
-    bool is_real{};
     std::vector<Loc> rollback_locations;
     std::vector<State> rollback_states;
+    Player pla{};
+    bool is_real{};
 
     Base() = default;
     Base(Player newPla, const std::vector<Loc>& rollbackLocations, const std::vector<State>& rollbackStates, bool isReal);
@@ -202,6 +204,7 @@ struct Board
     State previousState;
     std::vector<Base> bases;
     std::vector<Loc> emptyBaseInvalidateLocations;
+    std::vector<Loc> groundingLocations;
 
     MoveRecord() = default;
 
@@ -215,11 +218,12 @@ struct Board
 
     // Constructor for Dots game
     MoveRecord(
-      Loc initLoc,
-      Player initPla,
-      State initPreviousState,
-      const std::vector<Base>& initBases,
-      const std::vector<Loc>& initEmptyBaseInvalidateLocations
+      Loc newLoc,
+      Player newPla,
+      State newPreviousState,
+      const std::vector<Base>& newBases,
+      const std::vector<Loc>& newEmptyBaseInvalidateLocations,
+      const std::vector<Loc>& newGroundingLocations
     );
   };
 
@@ -410,6 +414,10 @@ struct Board
   int numBlackCaptures; //Number of b stones captured, informational and used by board history when clearing pos
   int numWhiteCaptures; //Number of w stones captured, informational and used by board history when clearing pos
 
+  // Useful for fast calculation of the game result and finishing the game
+  int blackScoreIfWhiteGrounds;
+  int whiteScoreIfBlackGrounds;
+
   // Offsets to add to get clockwise traverse
   short adj_offsets[8];
 
@@ -436,21 +444,23 @@ struct Board
   MoveRecord playMoveAssumeLegalDots(Loc loc, Player pla);
   MoveRecord tryPlayMove(Loc loc, Player pla, bool isSuicideLegal);
   void undoDots(MoveRecord& moveRecord);
-  Base captureWhenEmptyTerritoryBecomesRealBase(Loc initLoc, Player opp);
-  std::vector<Base> tryCapture(Loc loc, Player pla, bool emptyBaseCapturing);
+  std::vector<short> fillGrounding(Loc loc);
+  Base captureWhenEmptyTerritoryBecomesRealBase(Loc initLoc, Player opp, bool& isGrounded);
+  std::vector<Base> tryCapture(Loc loc, Player pla, bool emptyBaseCapturing, bool& atLeastOneRealBaseIsGrounded);
   std::vector<Base> ground(Player pla, std::vector<Loc>& emptyBaseInvalidatePositions);
   void getUnconnectedLocations(Loc loc, Player pla) const;
   void checkAndAddUnconnectedLocation(Player checkPla,Player currentPla,Loc addLoc1,Loc addLoc2) const;
-  void tryGetCounterClockwiseClosure(Loc initialLoc, Loc startLoc, Player pla);
+  void tryGetCounterClockwiseClosure(Loc initialLoc, Loc startLoc, Player pla) const;
   Base buildBase(const std::vector<short>& closure, Player pla);
-  void getTerritoryLocations(Player pla, Loc firstLoc, bool grounding, bool& createRealBase, bool& grounded);
+  void getTerritoryLocations(Player pla, Loc firstLoc, bool grounding, bool& createRealBase) const;
   Base createBaseAndUpdateStates(Player basePla, bool isReal);
   void updateScoreAndHashForTerritory(Loc loc, State state, Player basePla, bool rollback);
   void invalidateAdjacentEmptyTerritoryIfNeeded(Loc loc);
   void makeMoveAndCalculateCapturesAndBases(Player pla, Loc loc, bool isSuicideLegal,
     std::vector<signed char>& captures, std::vector<signed char>& bases) const;
-  int calculateGroundingWhiteScore(Player pla, std::unordered_set<short>& nonGroundedLocs) const;
 
+  void setGrounded(Loc loc);
+  void clearGrounded(Loc loc);
   bool isVisited(Loc loc) const;
   void setVisited(Loc loc) const;
   void clearVisited(Loc loc) const;

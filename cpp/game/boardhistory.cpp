@@ -739,7 +739,9 @@ void BoardHistory::endAndScoreGameNow(const Board& board, Color area[Board::MAX_
     whiteBonusScore += (presumedNextMovePla == P_WHITE ? 0.5f : -0.5f);
   }
 
-  setFinalScoreAndWinner(static_cast<float>(boardScore) + whiteBonusScore + whiteHandicapBonusScore + rules.komi);
+  if (!rules.isDots || !isGameFinished) {
+    setFinalScoreAndWinner(static_cast<float>(boardScore) + whiteBonusScore + whiteHandicapBonusScore + rules.komi);
+  }
   isScored = true;
   isNoResult = false;
   isResignation = false;
@@ -750,6 +752,22 @@ void BoardHistory::endAndScoreGameNow(const Board& board, Color area[Board::MAX_
 void BoardHistory::endAndScoreGameNow(const Board& board) {
   Color area[Board::MAX_ARR_SIZE];
   endAndScoreGameNow(board,area);
+}
+
+bool BoardHistory::isGroundingWinsGame(const Board& board, const Player pla, float& whiteScore) const {
+  assert(rules.isDots);
+
+  if (pla == P_BLACK && board.whiteScoreIfBlackGrounds + rules.komi < 0) {
+    whiteScore = board.whiteScoreIfBlackGrounds + rules.komi;
+    return true;
+  }
+
+  if (pla == P_WHITE && board.blackScoreIfWhiteGrounds - rules.komi < 0) {
+    whiteScore = -board.blackScoreIfWhiteGrounds + rules.komi;
+    return true;
+  }
+
+  return false;
 }
 
 void BoardHistory::endGameIfAllPassAlive(const Board& board) {
@@ -764,15 +782,7 @@ void BoardHistory::endGameIfAllPassAlive(const Board& board) {
       gameOver = true;
       normalizedWhiteScoreIfGroundingAlive = static_cast<float>(board.numBlackCaptures - board.numWhiteCaptures) + rules.komi;
     } else {
-      Board::MoveRecord moveRecord = const_cast<Board&>(board).playMoveRecorded(Board::PASS_LOC, presumedNextMovePla);
-      const float whiteScoreAfterNextPlaGrounding = static_cast<float>(board.numBlackCaptures - board.numWhiteCaptures) + rules.komi;
-      const_cast<Board&>(board).undo(moveRecord);
-
-      if (presumedNextMovePla == P_BLACK && whiteScoreAfterNextPlaGrounding < 0.0f ||
-          presumedNextMovePla == P_WHITE && whiteScoreAfterNextPlaGrounding > 0.0f) {
-        gameOver = true;
-        normalizedWhiteScoreIfGroundingAlive = whiteScoreAfterNextPlaGrounding;
-      }
+      gameOver = isGroundingWinsGame(board, presumedNextMovePla, normalizedWhiteScoreIfGroundingAlive);
     }
 
     if (gameOver) {

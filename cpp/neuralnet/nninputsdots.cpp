@@ -37,9 +37,6 @@ void NNInputs::fillRowVDots(
   Color grounding[Board::MAX_ARR_SIZE];
   board.calculateGroundingWhiteScore(grounding);
 
-  auto boardString = board.toString();
-  (void)boardString;
-
   for(int y = 0; y<ySize; y++) {
     for(int x = 0; x<xSize; x++) {
       const int pos = NNPos::xyToPos(x,y,nnXLen);

@@ -720,6 +720,8 @@ Board SymmetryHelpers::getSymBoard(const Board& board, int symmetry) {
     symBoard.numBlackCaptures = board.numBlackCaptures;
     symBoard.numWhiteCaptures = board.numWhiteCaptures;
     symBoard.numLegalMoves = board.numLegalMoves;
+    symBoard.blackScoreIfWhiteGrounds = board.blackScoreIfWhiteGrounds;
+    symBoard.whiteScoreIfBlackGrounds = board.whiteScoreIfBlackGrounds;
   }
   return symBoard;
 }

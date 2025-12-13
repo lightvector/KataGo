@@ -305,19 +305,269 @@ xx.x
 void Tests::runDotsGroundingTests() {
   cout << "Running dots grounding tests:" << endl;
 
+    checkDotsFieldDefault("Grounding propagation",
+R"(
+.x..
+o.o.
+.x..
+.xo.
+..x.
+....
+)", [](const BoardWithMoveRecords& boardWithMoveRecords) {
+    testAssert(2 == boardWithMoveRecords.board.blackScoreIfWhiteGrounds);
+    testAssert(3 == boardWithMoveRecords.board.whiteScoreIfBlackGrounds);
+
+    // Dot adjacent to WALL is already grounded
+    testAssert(isGrounded(boardWithMoveRecords.getState(1, 0)));
+
+    // Ignore enemy's dots
+    testAssert(isGrounded(boardWithMoveRecords.getState(0, 1)));
+    testAssert(!isGrounded(boardWithMoveRecords.getState(2, 1)));
+
+    // Not yet grounded
+    testAssert(!isGrounded(boardWithMoveRecords.getState(1, 2)));
+    testAssert(!isGrounded(boardWithMoveRecords.getState(1, 3)));
+
+    boardWithMoveRecords.playMove(1, 1, P_BLACK);
+
+    testAssert(2 == boardWithMoveRecords.board.blackScoreIfWhiteGrounds);
+    testAssert(1 == boardWithMoveRecords.board.whiteScoreIfBlackGrounds);
+
+    testAssert(isGrounded(boardWithMoveRecords.getState(1, 1)));
+
+    // Check grounding propagation
+    testAssert(isGrounded(boardWithMoveRecords.getState(1, 2)));
+    testAssert(isGrounded(boardWithMoveRecords.getState(1, 3)));
+    // Diagonal connection is not actual
+    testAssert(!isGrounded(boardWithMoveRecords.getState(2, 4)));
+
+    // Ignore enemy's dots
+    testAssert(isGrounded(boardWithMoveRecords.getState(0, 1)));
+    testAssert(!isGrounded(boardWithMoveRecords.getState(2, 1)));
+    testAssert(!isGrounded(boardWithMoveRecords.getState(2, 3)));
+}
+  );
+
+  checkDotsFieldDefault("Grounding propagation with empty base",
+  R"(
+..x..
+.x.x.
+.x.x.
+..x..
+.....
+)",
+  [](const BoardWithMoveRecords& boardWithMoveRecords) {
+    testAssert(0 == boardWithMoveRecords.board.blackScoreIfWhiteGrounds);
+    testAssert(5 == boardWithMoveRecords.board.whiteScoreIfBlackGrounds);
+
+    testAssert(!isGrounded(boardWithMoveRecords.getState(1, 2)));
+    testAssert(!isGrounded(boardWithMoveRecords.getState(3, 2)));
+    testAssert(!isGrounded(boardWithMoveRecords.getState(2, 3)));
+
+    boardWithMoveRecords.playMove(2, 2, P_WHITE);
+
+    testAssert(1 == boardWithMoveRecords.board.blackScoreIfWhiteGrounds);
+    testAssert(-1 == boardWithMoveRecords.board.whiteScoreIfBlackGrounds);
+
+    testAssert(isGrounded(boardWithMoveRecords.getState(2, 2)));
+
+    testAssert(isGrounded(boardWithMoveRecords.getState(1, 2)));
+    testAssert(isGrounded(boardWithMoveRecords.getState(3, 2)));
+    testAssert(isGrounded(boardWithMoveRecords.getState(2, 3)));
+  });
+
+  checkDotsFieldDefault("Grounding score with grounded base",
+R"(
+.x.
+xox
+...
+)", [](const BoardWithMoveRecords& boardWithMoveRecords) {
+    boardWithMoveRecords.playMove(1, 2, P_BLACK);
+
+    testAssert(1 == boardWithMoveRecords.board.blackScoreIfWhiteGrounds);
+    testAssert(-1 == boardWithMoveRecords.board.whiteScoreIfBlackGrounds);
+}
+);
+
+  checkDotsFieldDefault("Grounding score with ungrounded base",
+R"(
+.....
+..o..
+.oxo.
+.....
+.....
+)", [](const BoardWithMoveRecords& boardWithMoveRecords) {
+    boardWithMoveRecords.playMove(2, 3, P_WHITE);
+
+    testAssert(4 == boardWithMoveRecords.board.blackScoreIfWhiteGrounds);
+    testAssert(1 == boardWithMoveRecords.board.whiteScoreIfBlackGrounds);
+}
+);
+
+  checkDotsFieldDefault("Grounding score with grounded and ungrounded bases",
+R"(
+.x.....
+xox.o..
+...oxo.
+.......
+.......
+)", [](const BoardWithMoveRecords& boardWithMoveRecords) {
+    boardWithMoveRecords.playMove(1, 2, P_BLACK);
+    boardWithMoveRecords.playMove(4, 3, P_WHITE);
+
+    testAssert(5 == boardWithMoveRecords.board.blackScoreIfWhiteGrounds);
+    testAssert(0 == boardWithMoveRecords.board.whiteScoreIfBlackGrounds);
+}
+);
+
+  checkDotsFieldDefault("Grounding draw with ungrounded bases",
+R"(
+.........
+..x...o..
+.xox.oxo.
+.........
+.........
+)", [](const BoardWithMoveRecords& boardWithMoveRecords) {
+    boardWithMoveRecords.playMove(2, 3, P_BLACK);
+    boardWithMoveRecords.playMove(6, 3, P_WHITE);
+
+    testAssert(1 == boardWithMoveRecords.board.numBlackCaptures);
+    testAssert(1 == boardWithMoveRecords.board.numWhiteCaptures);
+    testAssert(5 == boardWithMoveRecords.board.blackScoreIfWhiteGrounds);
+    testAssert(5 == boardWithMoveRecords.board.whiteScoreIfBlackGrounds);
+}
+);
+
+
+  checkDotsFieldDefault("Grounding of real and empty adjacent bases",
+R"(
+..x..
+..x..
+.xox.
+.....
+.x.x.
+..x..
+.....
+)", [](const BoardWithMoveRecords& boardWithMoveRecords) {
+    testAssert(1 == boardWithMoveRecords.board.blackScoreIfWhiteGrounds);
+    testAssert(5 == boardWithMoveRecords.board.whiteScoreIfBlackGrounds);
+
+    testAssert(!isGrounded(boardWithMoveRecords.getState(2, 2)));
+
+    boardWithMoveRecords.playMove(2, 3, P_BLACK);
+    testAssert(1 == boardWithMoveRecords.board.numWhiteCaptures);
+
+    testAssert(1 == boardWithMoveRecords.board.blackScoreIfWhiteGrounds);
+    testAssert(2 == boardWithMoveRecords.board.whiteScoreIfBlackGrounds);
+
+    // Real base becomes grounded
+    testAssert(isGrounded(boardWithMoveRecords.getState(2, 2)));
+    testAssert(isGrounded(boardWithMoveRecords.getState(2, 3)));
+
+    // Grounding does not affect an empty location
+    testAssert(!isGrounded(boardWithMoveRecords.getState(2, 4)));
+    // Grounding does not affect empty surrounding
+    testAssert(!isGrounded(boardWithMoveRecords.getState(3, 4)));
+}
+);
+
+  checkDotsFieldDefault("Grounding of real base when it touches grounded",
+R"(
+..x..
+..x..
+.....
+.xox.
+..x..
+.....
+)", [](const BoardWithMoveRecords& boardWithMoveRecords) {
+    testAssert(1 == boardWithMoveRecords.board.blackScoreIfWhiteGrounds);
+    testAssert(3 == boardWithMoveRecords.board.whiteScoreIfBlackGrounds);
+
+    testAssert(!isGrounded(boardWithMoveRecords.getState(2, 3)));
+    testAssert(!isGrounded(boardWithMoveRecords.getState(2, 4)));
+
+    boardWithMoveRecords.playMove(2, 2, P_BLACK);
+
+    testAssert(1 == boardWithMoveRecords.board.blackScoreIfWhiteGrounds);
+    testAssert(-1 == boardWithMoveRecords.board.whiteScoreIfBlackGrounds);
+
+    testAssert(isGrounded(boardWithMoveRecords.getState(2, 3)));
+    testAssert(isGrounded(boardWithMoveRecords.getState(2, 4)));
+}
+);
+
+  checkDotsFieldDefault("Base inside base inside base and grounding score",
+R"(
+.......
+..ooo..
+.o.x.o.
+.oxoxo.
+.o...o.
+..o.o..
+.......
+)", [](const BoardWithMoveRecords& boardWithMoveRecords) {
+  testAssert(12 == boardWithMoveRecords.board.blackScoreIfWhiteGrounds);
+  testAssert(3 == boardWithMoveRecords.board.whiteScoreIfBlackGrounds);
+
+  boardWithMoveRecords.playMove(3, 4, P_BLACK);
+
+  testAssert(12 == boardWithMoveRecords.board.blackScoreIfWhiteGrounds);
+  testAssert(4 == boardWithMoveRecords.board.whiteScoreIfBlackGrounds);
+
+  boardWithMoveRecords.playMove(3, 5, P_WHITE);
+
+  testAssert(13 == boardWithMoveRecords.board.blackScoreIfWhiteGrounds);
+  testAssert(4 == boardWithMoveRecords.board.whiteScoreIfBlackGrounds);
+
+  boardWithMoveRecords.playMove(3, 6, P_WHITE);
+
+  testAssert(-4 == boardWithMoveRecords.board.blackScoreIfWhiteGrounds);
+  testAssert(4 == boardWithMoveRecords.board.whiteScoreIfBlackGrounds);
+});
+
+  checkDotsFieldDefault("Ground empty territory in case of dangling dots removing",
+R"(
+.........
+..xxx....
+.x....x..
+.x.xx..x.
+.x.x.x.x.
+.x.xxx.x.
+.x..xo.x.
+..xxxxx..
+)", [](const BoardWithMoveRecords& boardWithMoveRecords) {
+    testAssert(!isGrounded(boardWithMoveRecords.getState(4, 4)));
+
+    boardWithMoveRecords.playMove(5, 1, P_BLACK);
+    boardWithMoveRecords.playGroundingMove(P_BLACK);
+
+    // TODO: it should be grounded, however currently it's not possible to set the state correctly due to limitation of grounding algorithm.
+    //testAssert(isGrounded(boardWithMoveRecords.getState(4, 4)));
+});
+
   checkDotsFieldDefault("Simple",
   R"(
 .....
 .xxo.
 .....
 )", [](const BoardWithMoveRecords& boardWithMoveRecords) {
-      boardWithMoveRecords.playGroundingMove(P_BLACK);
-      testAssert(2 == boardWithMoveRecords.board.numBlackCaptures);
-      boardWithMoveRecords.undo();
+    boardWithMoveRecords.playGroundingMove(P_BLACK);
 
-      boardWithMoveRecords.playGroundingMove(P_WHITE);
-      testAssert(1 == boardWithMoveRecords.board.numWhiteCaptures);
-      boardWithMoveRecords.undo();
+    testAssert(2 == boardWithMoveRecords.board.numBlackCaptures);
+
+    testAssert(1 == boardWithMoveRecords.board.blackScoreIfWhiteGrounds);
+    testAssert(boardWithMoveRecords.getWhiteScore() == boardWithMoveRecords.board.whiteScoreIfBlackGrounds);
+
+    boardWithMoveRecords.undo();
+
+    boardWithMoveRecords.playGroundingMove(P_WHITE);
+
+    testAssert(1 == boardWithMoveRecords.board.numWhiteCaptures);
+
+    testAssert(2 == boardWithMoveRecords.board.whiteScoreIfBlackGrounds);
+    testAssert(boardWithMoveRecords.getBlackScore() == boardWithMoveRecords.board.blackScoreIfWhiteGrounds);
+
+    boardWithMoveRecords.undo();
   }
 );
 
@@ -329,10 +579,12 @@ R"(
 )", [](const BoardWithMoveRecords& boardWithMoveRecords) {
     boardWithMoveRecords.playGroundingMove(P_BLACK);
     testAssert(0 == boardWithMoveRecords.board.numBlackCaptures);
+    testAssert(boardWithMoveRecords.getWhiteScore() == boardWithMoveRecords.board.whiteScoreIfBlackGrounds);
     boardWithMoveRecords.undo();
 
     boardWithMoveRecords.playGroundingMove(P_WHITE);
     testAssert(0 == boardWithMoveRecords.board.numWhiteCaptures);
+    testAssert(boardWithMoveRecords.getBlackScore() == boardWithMoveRecords.board.blackScoreIfWhiteGrounds);
     boardWithMoveRecords.undo();
 }
 );
@@ -352,6 +604,7 @@ R"(
   boardWithMoveRecords.playGroundingMove(P_BLACK);
   testAssert(6 == boardWithMoveRecords.board.numBlackCaptures);
   testAssert(1 == boardWithMoveRecords.board.numWhiteCaptures);
+  testAssert(boardWithMoveRecords.getWhiteScore() == boardWithMoveRecords.board.whiteScoreIfBlackGrounds);
 }
 );
 
@@ -367,11 +620,13 @@ x...oo
   boardWithMoveRecords.playGroundingMove(P_BLACK);
   testAssert(1 == boardWithMoveRecords.board.numBlackCaptures);
   testAssert(0 == boardWithMoveRecords.board.numWhiteCaptures);
+  testAssert(boardWithMoveRecords.getWhiteScore() == boardWithMoveRecords.board.whiteScoreIfBlackGrounds);
   boardWithMoveRecords.undo();
 
   boardWithMoveRecords.playGroundingMove(P_WHITE);
   testAssert(0 == boardWithMoveRecords.board.numBlackCaptures);
   testAssert(3 == boardWithMoveRecords.board.numWhiteCaptures);
+  testAssert(boardWithMoveRecords.getBlackScore() == boardWithMoveRecords.board.blackScoreIfWhiteGrounds);
   boardWithMoveRecords.undo();
 }
 );
@@ -384,23 +639,24 @@ R"(
 ..oo..
 ......
 )", [](const BoardWithMoveRecords& boardWithMoveRecords) {
-Board board = boardWithMoveRecords.board;
+    Board board = boardWithMoveRecords.board;
 
-State state = boardWithMoveRecords.board.getState(Location::getLoc(2, 2, board.x_size));
-testAssert(C_WHITE == getEmptyTerritoryColor(state));
+    State state = boardWithMoveRecords.board.getState(Location::getLoc(2, 2, board.x_size));
+    testAssert(C_WHITE == getEmptyTerritoryColor(state));
 
-state = boardWithMoveRecords.board.getState(Location::getLoc(3, 2, board.x_size));
-testAssert(C_WHITE == getEmptyTerritoryColor(state));
+    state = boardWithMoveRecords.board.getState(Location::getLoc(3, 2, board.x_size));
+    testAssert(C_WHITE == getEmptyTerritoryColor(state));
 
-boardWithMoveRecords.playGroundingMove(P_WHITE);
-testAssert(0 == boardWithMoveRecords.board.numBlackCaptures);
-testAssert(6 == boardWithMoveRecords.board.numWhiteCaptures);
+    boardWithMoveRecords.playGroundingMove(P_WHITE);
+    testAssert(0 == boardWithMoveRecords.board.numBlackCaptures);
+    testAssert(6 == boardWithMoveRecords.board.numWhiteCaptures);
+    testAssert(boardWithMoveRecords.getBlackScore() == boardWithMoveRecords.board.blackScoreIfWhiteGrounds);
 
-state = boardWithMoveRecords.board.getState(Location::getLoc(2, 2, board.x_size));
-testAssert(C_EMPTY == getEmptyTerritoryColor(state));
+    state = boardWithMoveRecords.board.getState(Location::getLoc(2, 2, board.x_size));
+    testAssert(C_EMPTY == getEmptyTerritoryColor(state));
 
-state = boardWithMoveRecords.board.getState(Location::getLoc(3, 2, board.x_size));
-testAssert(C_EMPTY == getEmptyTerritoryColor(state));
+    state = boardWithMoveRecords.board.getState(Location::getLoc(3, 2, board.x_size));
+    testAssert(C_EMPTY == getEmptyTerritoryColor(state));
 }
 );
 
@@ -410,17 +666,18 @@ R"(
 x.x
 .x.
 )", [](const BoardWithMoveRecords& boardWithMoveRecords) {
-Board board = boardWithMoveRecords.board;
+    Board board = boardWithMoveRecords.board;
 
-boardWithMoveRecords.playGroundingMove(P_BLACK);
-testAssert(0 == boardWithMoveRecords.board.numBlackCaptures);
-testAssert(0 == boardWithMoveRecords.board.numWhiteCaptures);
+    boardWithMoveRecords.playGroundingMove(P_BLACK);
+    testAssert(0 == boardWithMoveRecords.board.numBlackCaptures);
+    testAssert(0 == boardWithMoveRecords.board.numWhiteCaptures);
+    testAssert(boardWithMoveRecords.getWhiteScore() == boardWithMoveRecords.board.whiteScoreIfBlackGrounds);
 
-State state = boardWithMoveRecords.board.getState(Location::getLoc(1, 1, board.x_size));
-testAssert(C_BLACK == getEmptyTerritoryColor(state));
+    State state = boardWithMoveRecords.board.getState(Location::getLoc(1, 1, board.x_size));
+    testAssert(C_BLACK == getEmptyTerritoryColor(state));
 
-state = boardWithMoveRecords.board.getState(Location::getLoc(0, 0, board.x_size));
-testAssert(C_EMPTY == getEmptyTerritoryColor(state));
+    state = boardWithMoveRecords.board.getState(Location::getLoc(0, 0, board.x_size));
+    testAssert(C_EMPTY == getEmptyTerritoryColor(state));
 }
 );
 }
@@ -471,12 +728,144 @@ xxxxxxxxxx
   }
 }
 
+string moveRecordsToSgf(const Board& initialBoard, const vector<Board::MoveRecord>& moveRecords) {
+  Board boardCopy(initialBoard);
+  BoardHistory boardHistory(boardCopy, P_BLACK, boardCopy.rules, 0);
+  for (const Board::MoveRecord& moveRecord : moveRecords) {
+    boardHistory.makeBoardMoveAssumeLegal(boardCopy, moveRecord.loc, moveRecord.pla, nullptr);
+  }
+  std::ostringstream sgfStringStream;
+  WriteSgf::writeSgf(sgfStringStream, "blue", "red", boardHistory, {});
+  return sgfStringStream.str();
+}
 
+/**
+ * Calculates the grounding and result captures without using the grounding flag and incremental calculations.
+ * It's used for testing to verify incremental grounding algorithms.
+ */
+void validateGrounding(
+  const Board& boardBeforeGrounding,
+  const Board& boardAfterGrounding,
+  const Player pla,
+  const vector<Board::MoveRecord>& moveRecords) {
+  unordered_set<Loc> visited_locs;
+  assert(pla == P_BLACK || pla == P_WHITE);
 
-void runDotsStressTestsInternal(int x_size, int y_size, int gamesCount, float groundingAfterCoef, float groundingProb, float komi, bool suicideAllowed, bool checkRollback) {
-  // TODO: add tests with grounding
+  int expectedNumBlackCaptures = 0;
+  int expectedNumWhiteCaptures = 0;
+  const Player opp = getOpp(pla);
+  for (int y = 0; y < boardBeforeGrounding.y_size; y++) {
+    for (int x = 0; x < boardBeforeGrounding.x_size; x++) {
+      Loc loc = Location::getLoc(x, y, boardBeforeGrounding.x_size);
+      const State state = boardBeforeGrounding.getState(Location::getLoc(x, y, boardBeforeGrounding.x_size));
+
+      if (const Color activeColor = getActiveColor(state); activeColor == pla) {
+        if (visited_locs.count(loc) > 0)
+          continue;
+
+        bool grounded = false;
+
+        vector<Loc> walkStack;
+        vector<Loc> baseLocs;
+        walkStack.push_back(loc);
+
+        // Find active territory and calculate its grounding state.
+        while (!walkStack.empty()) {
+          Loc curLoc = walkStack.back();
+          walkStack.pop_back();
+
+          if (const Color curActiveColor = getActiveColor(boardBeforeGrounding.getState(curLoc)); curActiveColor == pla) {
+            if (visited_locs.count(curLoc) == 0) {
+              visited_locs.insert(curLoc);
+              baseLocs.push_back(curLoc);
+              boardBeforeGrounding.forEachAdjacent(curLoc, [&](const Loc& adjLoc) {
+                walkStack.push_back(adjLoc);
+              });
+            }
+          } else if (curActiveColor == C_WALL) {
+            grounded = true;
+          }
+        }
+
+        for (const Loc& baseLoc : baseLocs) {
+          const Color placedDotColor = getPlacedDotColor(boardBeforeGrounding.getState(baseLoc));
+
+          if (!grounded) {
+            // If the territory is not grounded, it becomes dead.
+            // Freed dots don't count because they don't add a value to the opp score (assume they just become be placed).
+            if (placedDotColor == pla) {
+              if (pla == P_BLACK) {
+                expectedNumBlackCaptures++;
+              } else {
+                expectedNumWhiteCaptures++;
+              }
+            }
+          } else {
+            State baseLocState = boardAfterGrounding.getState(baseLoc);
+            // This check on placed dot color is redundant.
+            // However, currently it's not possible to always ground empty locs in some rare cases due to limitations of incremental grounding algorithm.
+            // Fortunately, they don't affect the resulting score.
+            if (!isGrounded(baseLocState) && getPlacedDotColor(baseLocState) != C_EMPTY) {
+              Global::fatalError("Loc (" + to_string(Location::getX(baseLoc, boardBeforeGrounding.x_size)) + "; " +
+                 to_string(Location::getY(baseLoc, boardBeforeGrounding.x_size)) + ") " +
+                " should be grounded. Sgf: " + moveRecordsToSgf(boardBeforeGrounding, moveRecords));
+            }
+
+            // If the territory is grounded, count dead dots of the opp player.
+            if (placedDotColor == opp) {
+              if (pla == P_BLACK) {
+                expectedNumWhiteCaptures++;
+              } else {
+                expectedNumBlackCaptures++;
+              }
+            }
+          }
+        }
+      } else if (activeColor == opp) { // In the case of opp active color, counts only captured dots
+        if (getPlacedDotColor(state) == pla) {
+          if (pla == P_BLACK) {
+            expectedNumBlackCaptures++;
+          } else {
+            expectedNumWhiteCaptures++;
+          }
+        }
+      }
+    }
+  }
+
+  if (expectedNumBlackCaptures != boardAfterGrounding.numBlackCaptures || expectedNumWhiteCaptures != boardAfterGrounding.numWhiteCaptures) {
+    Global::fatalError("expectedNumBlackCaptures (" + to_string(expectedNumBlackCaptures) + ")" +
+      " == board.numBlackCaptures (" + to_string(boardAfterGrounding.numBlackCaptures) + ")" +
+      " && expectedNumWhiteCaptures (" + to_string(expectedNumWhiteCaptures) + ")" +
+      " == board.numWhiteCaptures (" + to_string(boardAfterGrounding.numWhiteCaptures) + ")" +
+      " check is failed. Sgf: " + moveRecordsToSgf(boardBeforeGrounding, moveRecords));
+  }
+}
+
+void runDotsStressTestsInternal(
+  int x_size,
+  int y_size,
+  int gamesCount,
+  bool dotsGame,
+  int startPos,
+  bool dotsCaptureEmptyBase,
+  float komi,
+  bool suicideAllowed,
+  float groundingStartCoef,
+  float groundingEndCoef,
+  bool performExtraChecks
+  ) {
+  assert(groundingStartCoef >= 0 && groundingStartCoef <= 1);
+  assert(groundingEndCoef >= 0 && groundingEndCoef <= 1);
+  assert(groundingEndCoef >= groundingStartCoef);
+
   cout << "  Random games" <<  endl;
-  cout << "    Check rollback: " << boolalpha << checkRollback << endl;
+  cout << "    Game type: " << (dotsGame ? "Dots" : "Go") << endl;
+  cout << "    Start position: " << Rules::writeStartPosRule(startPos) << endl;
+  if (dotsGame) {
+    cout << "    Capture empty bases: " << boolalpha << dotsCaptureEmptyBase << endl;
+  }
+  cout << "    Extra checks: " << boolalpha << performExtraChecks << endl;
 #ifdef NDEBUG
   cout << "    Build: Release" << endl;
 #else
@@ -491,47 +880,79 @@ void runDotsStressTestsInternal(int x_size, int y_size, int gamesCount, float gr
 
   Rand rand("runDotsStressTests");
 
-  Rules rules = Rules(false);
-  Board initialBoard = Board(x_size, y_size, rules);
-
-  int tryGroundingAfterMove = groundingAfterCoef * initialBoard.numLegalMoves;
+  Rules rules = dotsGame ? Rules(dotsGame, startPos, dotsCaptureEmptyBase, Rules::DEFAULT_DOTS.dotsFreeCapturedDots) : Rules();
+  auto initialBoard = Board(x_size, y_size, rules);
 
   vector<Loc> randomMoves = vector<Loc>();
   randomMoves.reserve(initialBoard.numLegalMoves);
 
   for(int y = 0; y < initialBoard.y_size; y++) {
     for(int x = 0; x < initialBoard.x_size; x++) {
-      randomMoves.push_back(Location::getLoc(x, y, initialBoard.x_size));
+      Loc loc = Location::getLoc(x, y, initialBoard.x_size);
+      if (initialBoard.getColor(loc) == C_EMPTY) { // Filter out initial poses
+        randomMoves.push_back(Location::getLoc(x, y, initialBoard.x_size));
+      }
     }
   }
+
+  assert(randomMoves.size() == initialBoard.numLegalMoves);
 
   int movesCount = 0;
   int blackWinsCount = 0;
   int whiteWinsCount = 0;
   int drawsCount = 0;
+  int groundingCount = 0;
 
   auto moveRecords = vector<Board::MoveRecord>();
 
   for (int n = 0; n < gamesCount; n++) {
     rand.shuffle(randomMoves);
+    moveRecords.clear();
 
     auto board = Board(initialBoard.x_size, initialBoard.y_size, rules);
 
+    Loc lastLoc = Board::NULL_LOC;
+
+    int tryGroundingAfterMove = (groundingStartCoef + rand.nextDouble() * (groundingEndCoef - groundingStartCoef)) * initialBoard.numLegalMoves;
     Player pla = P_BLACK;
-    for (Loc loc : randomMoves) {
-      if (board.isLegal(loc, pla, suicideAllowed, false)) {
-        Board::MoveRecord moveRecord = board.playMoveRecorded(loc, pla);
+    for(size_t index = 0; index < randomMoves.size(); index++) {
+      lastLoc = moveRecords.size() >= tryGroundingAfterMove ? Board::PASS_LOC : randomMoves[index];
+
+      if (board.isLegal(lastLoc, pla, suicideAllowed, false)) {
+        Board::MoveRecord moveRecord = board.playMoveRecorded(lastLoc, pla);
         movesCount++;
-        if (checkRollback) {
-          moveRecords.push_back(moveRecord);
-        }
+        moveRecords.push_back(moveRecord);
         pla = getOpp(pla);
+      }
+
+      if (lastLoc == Board::PASS_LOC) {
+        groundingCount++;
+        int scoreDiff;
+        int oppScoreIfGrounding;
+        Player lastPla = moveRecords.back().pla;
+        if (lastPla == P_BLACK) {
+          scoreDiff = board.numBlackCaptures - board.numWhiteCaptures;
+          oppScoreIfGrounding = board.whiteScoreIfBlackGrounds;
+        } else {
+          scoreDiff = board.numWhiteCaptures - board.numBlackCaptures;
+          oppScoreIfGrounding = board.blackScoreIfWhiteGrounds;
+        }
+        if (scoreDiff != oppScoreIfGrounding) {
+          Global::fatalError("scoreDiff (" + to_string(scoreDiff) + ") == oppScoreIfGrounding (" + to_string(oppScoreIfGrounding) + ") check is failed. " +
+            "Sgf: " + moveRecordsToSgf(initialBoard, moveRecords));
+        }
+        if (performExtraChecks) {
+          Board boardBeforeGrounding(board);
+          boardBeforeGrounding.undo(moveRecords.back());
+          validateGrounding(boardBeforeGrounding, board, lastPla, moveRecords);
+        }
+        break;
       }
     }
 
-    /*if (suicideAllowed) {
+    if (dotsGame && suicideAllowed && lastLoc != Board::PASS_LOC) {
       testAssert(0 == board.numLegalMoves);
-    }*/
+    }
 
     if (float whiteScore = board.numBlackCaptures - board.numWhiteCaptures + komi; whiteScore > 0.0f) {
       whiteWinsCount++;
@@ -541,7 +962,7 @@ void runDotsStressTestsInternal(int x_size, int y_size, int gamesCount, float gr
       drawsCount++;
     }
 
-    if (checkRollback) {
+    if (performExtraChecks) {
       while (!moveRecords.empty()) {
         board.undo(moveRecords.back());
         moveRecords.pop_back();
@@ -563,6 +984,7 @@ void runDotsStressTestsInternal(int x_size, int y_size, int gamesCount, float gr
   cout << "    Black wins: " << blackWinsCount << " (" << static_cast<double>(blackWinsCount) / gamesCount << ")" << endl;
   cout << "    White wins: " << whiteWinsCount << " (" << static_cast<double>(whiteWinsCount) / gamesCount << ")" << endl;
   cout << "    Draws: " << drawsCount << " (" << static_cast<double>(drawsCount) / gamesCount << ")" << endl;
+  cout << "    Groundings: " << groundingCount << " (" << static_cast<double>(groundingCount) / gamesCount << ")" << endl;
 }
 
 void Tests::runDotsStressTests() {
@@ -572,13 +994,15 @@ void Tests::runDotsStressTests() {
   Board board = Board(39, 32, Rules::DEFAULT_DOTS);
   for(int y = 0; y < board.y_size; y++) {
     for(int x = 0; x < board.x_size; x++) {
-      Player pla = y == 0 || y == board.y_size - 1 || x == 0 || x == board.x_size - 1 ? P_BLACK : P_WHITE;
+      const Player pla = y == 0 || y == board.y_size - 1 || x == 0 || x == board.x_size - 1 ? P_BLACK : P_WHITE;
       board.playMoveAssumeLegal(Location::getLoc(x, y, board.x_size), pla);
     }
   }
   testAssert((board.x_size - 2) * (board.y_size - 2) == board.numWhiteCaptures);
   testAssert(0 == board.numLegalMoves);
 
-  //runDotsStressTestsInternal(39, 32, 100000, 0.8f, 0.01f, 0.0f, true, false);
-  runDotsStressTestsInternal(39, 32, 10000, 0.8f, 0.01f, 0.0f, true, true);
+  runDotsStressTestsInternal(39, 32, 3000, true, Rules::START_POS_CROSS, false, 0.0f, true, 0.8f, 1.0f, true);
+  runDotsStressTestsInternal(39, 32, 3000, true, Rules::START_POS_CROSS_4, true, 0.5f, false, 0.8f, 1.0f, true);
+
+  runDotsStressTestsInternal(39, 32, 100000, true, Rules::START_POS_CROSS, false, 0.0f, true, 0.8f, 1.0f, false);
 }

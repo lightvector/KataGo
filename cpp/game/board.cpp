@@ -111,7 +111,7 @@ bool Location::isNearCentral(Loc loc, int x_size, int y_size) {
 Board::Base::Base(Player newPla,
   const std::vector<Loc>& rollbackLocations,
   const std::vector<State>& rollbackStates,
-  bool isReal
+  const bool isReal
 ) {
   pla = newPla;
   rollback_locations = rollbackLocations;
@@ -151,6 +151,8 @@ Board::Board(const Board& other) {
   pos_hash = other.pos_hash;
   numBlackCaptures = other.numBlackCaptures;
   numWhiteCaptures = other.numWhiteCaptures;
+  blackScoreIfWhiteGrounds = other.blackScoreIfWhiteGrounds;
+  whiteScoreIfBlackGrounds = other.whiteScoreIfBlackGrounds;
   numLegalMoves = other.numLegalMoves;
   memcpy(adj_offsets, other.adj_offsets, sizeof(short)*8);
   visited_data.resize(other.visited_data.size(), false);
@@ -166,8 +168,12 @@ void Board::init(const int xS, const int yS, const Rules& initRules)
   y_size = yS;
   rules = initRules;
 
-  for(int i = 0; i < MAX_ARR_SIZE; i++)
+  for(int i = 0; i < MAX_ARR_SIZE; i++) {
     colors[i] = C_WALL;
+    if (rules.isDots) {
+      setGrounded(i);
+    }
+  }
 
   for(int y = 0; y < y_size; y++)
   {
@@ -183,6 +189,8 @@ void Board::init(const int xS, const int yS, const Rules& initRules)
   pos_hash = ZOBRIST_SIZE_X_HASH[x_size] ^ ZOBRIST_SIZE_Y_HASH[y_size];
   numBlackCaptures = 0;
   numWhiteCaptures = 0;
+  blackScoreIfWhiteGrounds = 0;
+  whiteScoreIfBlackGrounds = 0;
   numLegalMoves = xS * yS;
 
   if (!rules.isDots) {
@@ -2488,10 +2496,14 @@ bool Board::isEqualForTesting(const Board& other, bool checkNumCaptures, bool ch
     return false;
   if(checkSimpleKo && ko_loc != other.ko_loc)
     return false;
-  if(checkNumCaptures && numBlackCaptures != other.numBlackCaptures)
+  if(checkNumCaptures && (
+    numBlackCaptures != other.numBlackCaptures ||
+    numWhiteCaptures != other.numWhiteCaptures ||
+    blackScoreIfWhiteGrounds != other.blackScoreIfWhiteGrounds ||
+    whiteScoreIfBlackGrounds != other.whiteScoreIfBlackGrounds
+  )) {
     return false;
-  if(checkNumCaptures && numWhiteCaptures != other.numWhiteCaptures)
-    return false;
+  }
   if(pos_hash != other.pos_hash)
     return false;
   for(int i = 0; i<MAX_ARR_SIZE; i++) {
@@ -2889,6 +2901,10 @@ nlohmann::json Board::toJson(const Board& board) {
   }
   data["numBlackCaptures"] = board.numBlackCaptures;
   data["numWhiteCaptures"] = board.numWhiteCaptures;
+  if (board.isDots()) {
+    data[BLACK_SCORE_IF_WHITE_GROUNDS_KEY] = board.blackScoreIfWhiteGrounds;
+    data[WHITE_SCORE_IF_BLACK_GROUNDS_KEY] = board.whiteScoreIfBlackGrounds;
+  }
   return data;
 }
 
@@ -2900,6 +2916,8 @@ Board Board::ofJson(const nlohmann::json& data) {
   board.setSimpleKoLoc(Location::ofStringAllowNull(data.value("koLoc", "null"),board));
   board.numBlackCaptures = data["numBlackCaptures"].get<int>();
   board.numWhiteCaptures = data["numWhiteCaptures"].get<int>();
+  board.blackScoreIfWhiteGrounds = data.value(BLACK_SCORE_IF_WHITE_GROUNDS_KEY, 0);
+  board.whiteScoreIfBlackGrounds = data.value(WHITE_SCORE_IF_BLACK_GROUNDS_KEY, 0);
   return board;
 }
 
