@@ -47,7 +47,7 @@ Loc Location::xm1yp1(Loc loc, int x_size) {
   return loc - 1 + (x_size+1);
 }
 
-inline int Location::getGetBigJumpInitialIndex(const Loc loc0, const Loc loc1, const int x_size) {
+int Location::getGetBigJumpInitialIndex(const Loc loc0, const Loc loc1, const int x_size) {
   const int diff = loc1 - loc0;
   const int stride = x_size + 1;
 
@@ -70,7 +70,7 @@ inline int Location::getGetBigJumpInitialIndex(const Loc loc0, const Loc loc1, c
   return -1;
 }
 
-inline Loc Location::getNextLocCW(const Loc loc0, const Loc loc1, const int x_size) {
+Loc Location::getNextLocCW(const Loc loc0, const Loc loc1, const int x_size) {
   const int diff = loc1 - loc0;
   const int stride = x_size + 1;
 
@@ -91,11 +91,11 @@ Color getActiveColor(const State state) {
   return static_cast<Color>(state & ACTIVE_MASK);
 }
 
-inline bool isVisited(const State s) {
+bool isVisited(const State s) {
   return (s & VISITED_FLAG) == VISITED_FLAG;
 }
 
-inline bool isTerritory(const State s) {
+bool isTerritory(const State s) {
   return (s & TERRITORY_FLAG) == TERRITORY_FLAG;
 }
 
@@ -103,31 +103,31 @@ Color getPlacedDotColor(const State s) {
   return static_cast<Player>(s >> PLACED_PLAYER_SHIFT & ACTIVE_MASK);
 }
 
-inline bool isPlaced(const State s, const Player pla) {
+bool isPlaced(const State s, const Player pla) {
   return (s >> PLACED_PLAYER_SHIFT & ACTIVE_MASK) == pla;
 }
 
-inline bool isActive(const State s, const Player pla) {
+bool isActive(const State s, const Player pla) {
   return (s & ACTIVE_MASK) == pla;
 }
 
-inline State setTerritoryAndActivePlayer(const State s, const Player pla) {
+State setTerritoryAndActivePlayer(const State s, const Player pla) {
   return static_cast<State>(TERRITORY_FLAG | (s & INVALIDATE_TERRITORY_MASK | pla));
 }
 
-inline Color getEmptyTerritoryColor(const State s) {
+Color getEmptyTerritoryColor(const State s) {
   return static_cast<Player>(s >> EMPTY_TERRITORY_SHIFT & ACTIVE_MASK);
 }
 
-inline bool isWithinEmptyTerritory(const State s, const Player pla) {
+bool isWithinEmptyTerritory(const State s, const Player pla) {
   return (s >> EMPTY_TERRITORY_SHIFT & ACTIVE_MASK) == pla;
 }
 
-inline State Board::getState(const Loc loc) const {
+State Board::getState(const Loc loc) const {
   return colors[loc];
 }
 
-inline void Board::setState(const Loc loc, const State state) {
+void Board::setState(const Loc loc, const State state) {
   colors[loc] = state;
 }
 
@@ -135,15 +135,15 @@ bool Board::isDots() const {
   return rules.isDots;
 }
 
-inline void Board::setVisited(const Loc loc) {
+void Board::setVisited(const Loc loc) {
   colors[loc] = static_cast<Color>(colors[loc] | VISITED_FLAG);
 }
 
-inline void Board::clearVisited(const Loc loc) {
+void Board::clearVisited(const Loc loc) {
   colors[loc] = static_cast<Color>(colors[loc] & INVALIDATE_VISITED_MASK);
 }
 
-inline void Board::clearVisited(const vector<Loc>& locations) {
+void Board::clearVisited(const vector<Loc>& locations) {
   for (const Loc& loc : locations) {
     clearVisited(loc);
   }
@@ -426,7 +426,7 @@ void Board::getUnconnectedLocations(const Loc loc, const Player pla) const {
   checkAndAddUnconnectedLocation(getColor(xym1), pla, loc + adj_offsets[RIGHT_TOP_INDEX], xp1y);
 }
 
-inline void Board::checkAndAddUnconnectedLocation(const Player checkPla, const Player currentPla, const Loc addLoc1, const Loc addLoc2) const {
+void Board::checkAndAddUnconnectedLocation(const Player checkPla, const Player currentPla, const Loc addLoc1, const Loc addLoc2) const {
   if (checkPla != currentPla) {
     if (getColor(addLoc1) == currentPla) {
       unconnectedLocationsBuffer[unconnectedLocationsBufferSize++] = addLoc1;
