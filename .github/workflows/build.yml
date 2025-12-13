@@ -35,7 +35,7 @@ jobs:
     - name: Configure CMake
       working-directory: cpp
       run: |
-        cmake . -DUSE_BACKEND=OPENCL -DNO_GIT_REVISION=1 -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_FLAGS_RELEASE="-s"
+        cmake . -DUSE_BACKEND=OPENCL -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_FLAGS_RELEASE="-s"
 
     - name: Build
       working-directory: cpp
@@ -80,7 +80,7 @@ jobs:
       - name: Configure CMake
         working-directory: cpp
         run: |
-          cmake . -G Ninja -DUSE_BACKEND=OPENCL -DNO_GIT_REVISION=1 -DCMAKE_BUILD_TYPE=Release
+          cmake . -G Ninja -DUSE_BACKEND=OPENCL -DCMAKE_BUILD_TYPE=Release
       - name: Build
         working-directory: cpp
         run: |
@@ -126,7 +126,6 @@ jobs:
       run: |
         cmake . -G "Visual Studio 17 2022" -A x64 `
           -DUSE_BACKEND=OPENCL `
-          -DNO_GIT_REVISION=1 `
           -DCMAKE_TOOLCHAIN_FILE="$env:VCPKG_INSTALLATION_ROOT/scripts/buildsystems/vcpkg.cmake"
 
     - name: Build
