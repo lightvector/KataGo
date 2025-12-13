@@ -4,6 +4,7 @@ on:
   push:
     branches: [ master ]
   pull_request:
+    branches: [ master ]
   workflow_dispatch:
 
 jobs:
@@ -137,7 +138,7 @@ jobs:
       working-directory: cpp
       run: |
         $vcpkgRoot = $env:VCPKG_INSTALLATION_ROOT
-        Copy-Item "$vcpkgRoot/installed/x64-windows/bin/*.dll" -Destination "Release/" -ErrorAction SilentlyContinue
+        Copy-Item "$vcpkgRoot/installed/x64-windows/bin/*.dll" -Destination "Release/"
 
     - name: Run tests
       run: |
@@ -148,4 +149,4 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: katago-windows-opencl
-        path: cpp/Release/katago.exe
+        path: cpp/Release/
