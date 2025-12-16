@@ -2382,8 +2382,10 @@ x.x.x
 
     search->setPosition(nextPla,board,hist);
 
-    std::atomic<bool> shouldStopNow(true);
-    search->runWholeSearch(shouldStopNow);
+    std::function<bool()> shouldStopEarly = []() noexcept {
+      return true;
+    };
+    search->runWholeSearch(nextPla,&shouldStopEarly);
     cout << search->rootBoard << endl;
     search->printTree(cout, search->rootNode, options, P_WHITE);
     testAssert(search->rootNode->getNNOutput() == nullptr);

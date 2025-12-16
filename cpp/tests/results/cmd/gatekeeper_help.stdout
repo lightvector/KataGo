@@ -6,7 +6,7 @@ DESCRIPTION:
 
 USAGE: 
 
-   gatekeeper  -config <FILE> ...  [-override-config <KEYVALUEPAIRS>] ... 
+   gatekeeper  -config <FILE> ... [-override-config <KEYVALUEPAIRS>] ...
                -test-models-dir <DIR> -sgf-output-dir <DIR>
                -accepted-models-dir <DIR> -rejected-models-dir <DIR>
                [-selfplay-dir <DIR>] [-required-candidate-win-prop <PROP>]

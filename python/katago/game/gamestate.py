@@ -169,8 +169,13 @@ class GameState:
             seki = seki_probs[1] - seki_probs[2]
             seki2 = torch.sigmoid(seki_logits[3,:,:]).cpu().numpy()
             scorebelief = torch.nn.functional.softmax(scorebelief_logits,dim=0).cpu().numpy()
-            qwinloss = torch.tanh(policy_logits[6,:]).cpu().numpy()
-            qscore = (policy_logits[7,:] * model.scoremean_multiplier).cpu().numpy()
+            if model.config["version"] >= 16:
+                qwinloss = torch.tanh(policy_logits[6,:]).cpu().numpy()
+                qscore = (policy_logits[7,:] * model.scoremean_multiplier).cpu().numpy()
+            else:
+                qwinloss = torch.zeros_like(policy_logits[0,:]).cpu().numpy()
+                qscore = torch.zeros_like(policy_logits[0,:]).cpu().numpy()
+
 
         board = self.board
 
@@ -312,7 +317,7 @@ class GameState:
             "qwinloss": qwinloss,
             "qscore": qscore,
             "genmove_result": genmove_result,
-            **{ name:activation[0].numpy() for name, activation in extra_outputs.returned.items() },
+            **{ name:activation[0].cpu().numpy() for name, activation in extra_outputs.returned.items() },
             "available_extra_outputs": available_extra_outputs,
         }
 

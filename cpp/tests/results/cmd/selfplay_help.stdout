@@ -5,7 +5,7 @@ DESCRIPTION:
 
 USAGE: 
 
-   selfplay  -config <FILE> ...  [-override-config <KEYVALUEPAIRS>] ... 
+   selfplay  -config <FILE> ... [-override-config <KEYVALUEPAIRS>] ...
              -models-dir <DIR> -output-dir <DIR> [-max-games-total
              <NGAMES>]
 

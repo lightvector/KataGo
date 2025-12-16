@@ -2,6 +2,8 @@
 #ifndef BOOK_BOOK_H_
 #define BOOK_BOOK_H_
 
+#include <atomic>
+
 #include "../core/global.h"
 #include "../core/hash.h"
 #include "../core/rand.h"
@@ -40,10 +42,11 @@ struct BookHash {
 };
 
 struct BookMove {
-  // If you play *move* from this position, you should go to the child node with this hash.
+  // If you play *move* from this position, you will reach the child node in some orientation...
   Loc move;
-  // The symmetry you need to apply to a board aligned with this node so that it aligns with the child node. (nodespace -> childnodespace)
+  // The symmetry you need to apply to a board aligned with this node so that it aligns with the child node's orientation. (nodespace -> childnodespace)
   int symmetryToAlign;
+  // The hash of the child node that you reach.
   BookHash hash;
 
   // The policy prior of this move from the neural net.
@@ -58,7 +61,7 @@ struct BookMove {
   BookMove(Loc move, int symmetryToAlign, BookHash hash, double rawPolicy);
 
   // Apply symmetry to this BookMove.
-  BookMove getSymBookMove(int symmetry, int xSize, int ySize);
+  BookMove getSymBookMove(int symmetry, int xSize, int ySize) const;
 };
 
 struct BookValues {
@@ -75,7 +78,6 @@ struct BookValues {
   double scoreStdev = 0.0;
 
   double maxPolicy = 0.0;
-  double sumPolicy = 0.0;
   double weight = 0.0;
   double visits = 0.0;
 
@@ -111,6 +113,7 @@ struct RecursiveBookValues {
 class SymBookNode;
 class ConstSymBookNode;
 class Book;
+class MutexPool;
 
 class BookNode {
   const BookHash hash;
@@ -121,7 +124,16 @@ class BookNode {
   // -----------------------------------------------------------------------------------------------------------
   // Values that the book construction algorithm should set
   // -----------------------------------------------------------------------------------------------------------
-  BookValues thisValuesNotInBook;  // Based on a search of this node alone, excluding all current book nodes.
+
+  // Values based on a search of this node alone, excluding all moves covered by current children.
+  // Basically, the book tries to be comprehensive as to its evaluations - not only does it expand the
+  // most plausible moves as children and compute/store their values (via `recursiveValues`), but all
+  // remaining legal moves that aren't present as children of the node are still "covered" by an explicit
+  // search restricted to that set of remaining moves, whose values are recorded here in `thisValuesNotInBook`.
+  // At leaf nodes, this will of course be just the value of the node and the same as recursiveValues,
+  // since there are no further children to exclude.
+  BookValues thisValuesNotInBook;
+
   bool canExpand; // Set to false to never attempt to add more children to this node.
   bool canReExpand; // Set to false to disable reexpansion on this node for this run (not saved for future loads of book).
 
@@ -132,13 +144,19 @@ class BookNode {
   std::vector<std::pair<BookHash,Loc>> parents; // Locations are in the parent's alignment space
   int64_t bestParentIdx; // Lowest cost parent, updated whenever costs are recomputed.
 
-  RecursiveBookValues recursiveValues;  // Based on minimaxing over the book nodes
+  // RecursiveValues is computed based on minimaxing over the book nodes, i.e. at P_WHITE nodes it maximizes
+  // over the recursiveValues of all children together with thisValuesNotInBook, and at P_BLACK nodes it
+  // minimizes over all of them.
+  RecursiveBookValues recursiveValues;
+
   int minDepthFromRoot;    // Minimum number of moves to reach this node from root
   double minCostFromRoot;  // Minimum sum of BookMove cost to reach this node from root
   double thisNodeExpansionCost;  // The cost for picking this node to expand further.
   double minCostFromRootWLPV;  // minCostFromRoot of the cheapest node that this node is the winLoss pv of.
   bool expansionIsWLPV; // True if the winloss PV for this node is to expand it, rather than an existing child.
   double biggestWLCostFromRoot; // Largest single cost due to winloss during path from root
+
+  std::atomic<int> visitedFlag; // Used for multithreaded coordination
 
   BookNode(BookHash hash, Book* book, Player pla, const std::vector<int>& symmetries);
   ~BookNode();
@@ -150,6 +168,10 @@ class BookNode {
   friend class ConstSymBookNode;
   friend class SymBookNode;
   friend class Book;
+
+public:
+  void corruptRecursiveValuesOnlyForTesting(Rand& rand);
+  void corruptNodeCostsOnlyForTesting(Rand& rand);
 };
 
 class SymBookNode {
@@ -183,6 +205,9 @@ class SymBookNode {
   int minDepthFromRoot();
   double minCostFromRoot();
   double totalExpansionCost();
+
+  // For testing purposes only - allows direct access to internal node
+  BookNode* getNodeForTesting() { return node; }
 
   // Returns NULL for the root or if somehow a parent is not found
   SymBookNode canonicalParent();
@@ -351,6 +376,7 @@ class Book {
   BookNode* root;
   std::vector<BookNode*> nodes;
   std::map<BookHash,int64_t>* nodeIdxMapsByHash;
+  int64_t nextVisitedDoneValue; // Next value to use for visitedFlag coordination in multithreaded operations
  public:
   Book(
     int bookVersion,
@@ -375,7 +401,7 @@ class Book {
 
   size_t size() const;
 
-  BookParams getParams() const;
+  const BookParams& getParams() const;
   void setParams(const BookParams& params);
 
   std::map<BookHash,double> getBonusByHash() const;
@@ -400,10 +426,43 @@ class Book {
 
   void recompute(const std::vector<SymBookNode>& newAndChangedNodes);
   void recomputeEverything();
+  void recomputeMultiThreaded(const std::vector<SymBookNode>& newAndChangedNodes, MutexPool& mutexPool, int numThreads);
+  void recomputeEverythingMultiThreaded(MutexPool& mutexPool, int numThreads);
 
   std::vector<SymBookNode> getNextNToExpand(int n);
   std::vector<SymBookNode> getAllLeaves(double minVisits);
   std::vector<SymBookNode> getAllNodes();
+
+  // Result for computeMinCostToChangeWinLoss
+  struct MinCostResult {
+    // Returns: minimum total cost and set of nodes (BookHashes) that need to change
+    double totalCost;
+    std::set<BookHash> nodes;
+
+    MinCostResult() : totalCost(0.0), nodes() {}
+    MinCostResult(double cost, std::set<BookHash> nodeSet) : totalCost(cost), nodes(nodeSet) {}
+  };
+
+  // Computes the minimum cost in PN-search-style for potentially proving a node's winLossValue
+  // is at or beyond winLossValueThreshold.
+  // costFunc: arbitrary function to compute cost for proving as a function of the
+  //   thisValuesNotInBook OR the recursiveValues in case canReExpand and node.recursiveValues().visits <= params.maxVisitsForReExpansion,
+  // edgeCost: also attach costs to edges of the book
+  // and also gets passed the node as the first arg so it can depend on the node itself too.
+  // increasing: true if we are proving >= threshold, false if we are trying to prove <= threshold
+  // costCache can be reused across calls with same costFunc
+  // resultCache can be reused across calls with same threshold/costFunc/increasing/pruneOverCost
+  // pruneOverCost - if the cost is > this, quit early
+  MinCostResult computeMinCostToChangeWinLoss(
+    ConstSymBookNode node,
+    const std::function<double(ConstSymBookNode)>& costFunc,
+    const std::function<double(ConstSymBookNode, const BookMove&)>& edgeCost,
+    double winLossValueThreshold,
+    bool increasing,
+    double pruneOverCost,
+    std::map<BookHash,double>& costCache,
+    std::map<BookHash,MinCostResult>& resultCache
+  ) const;
 
   double getSortingValue(
     double plaFactor,
@@ -426,7 +485,7 @@ class Book {
   );
 
   void saveToFile(const std::string& fileName) const;
-  static Book* loadFromFile(const std::string& fileName);
+  static Book* loadFromFile(const std::string& fileName, int numThreadsForRecompute=1);
 
  private:
   int64_t getIdx(BookHash hash) const;
@@ -451,17 +510,22 @@ class Book {
   bool reverseDepthFirstSearchWithPostF(
     BookNode* initialNode,
     const std::function<DFSAction(BookNode*)>& f,
-    const std::function<void(BookNode*)>& postF
+    const std::function<void(BookNode*)>& postF,
+    int visitedDoneValue
   );
 
   void iterateDirtyNodesPostOrder(
     const std::set<BookHash>& dirtyNodes,
     bool allDirty,
-    const std::function<void(BookNode* node)>& f
+    const std::function<void(BookNode* node)>& f,
+    Rand* randToShuffle,
+    int visitedDoneValue
   );
 
   void iterateEntireBookPreOrder(
-    const std::function<void(BookNode*)>& f
+    const std::function<void(BookNode*)>& f,
+    Rand* randToShuffle,
+    int visitedDoneValue
   );
 
   void recomputeAdjustedVisits(
@@ -479,6 +543,18 @@ class Book {
   void recomputeNodeCost(BookNode* node);
 
   double getUtility(const RecursiveBookValues& values) const;
+
+  MinCostResult computeMinCostToChangeWinLossHelper(
+    const BookNode* node,
+    const std::function<double(ConstSymBookNode)>& costFunc,
+    const std::function<double(ConstSymBookNode, const BookMove&)>& edgeCost,
+    double winLossValueThreshold,
+    bool increasing,
+    double pruneOverCost,
+    std::map<BookHash,double>& costCache,
+    std::map<BookHash,MinCostResult>& resultCache,
+    std::set<BookHash>& visited
+  ) const;
 
   friend class BookNode;
   friend class SymBookNode;

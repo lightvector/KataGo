@@ -328,38 +328,43 @@ static void runAndUploadSingleGame(
       if(gameTask.task.doWriteTrainingData) {
         //Pre-upload, verify that the GPU is okay.
         Tests::runCanaryTests(nnEvalBlack, NNInputs::SYMMETRY_NOTSPECIFIED, false);
+
+        string resultingFilename;
+        int64_t numDataRows = 0;
+        bool producedFile = false;
         gameTask.blackManager->withDataWriters(
           nnEvalBlack,
-          [gameData,&gameTask,gameIdx,&sgfFile,&connection,&logger,&shouldStopFunc,&posSample](
+          [gameData,&gameTask,gameIdx,&sgfFile,&connection,&logger,&shouldStopFunc,&posSample,&resultingFilename,&numDataRows,&producedFile](
             TrainingDataWriter* tdataWriter, std::ofstream* sgfOut
           ) {
             (void)sgfOut;
             assert(tdataWriter->isEmpty());
             tdataWriter->writeGame(*gameData);
-            string resultingFilename;
-            int64_t numDataRows = tdataWriter->numRowsInBuffer();
-            bool producedFile = tdataWriter->flushIfNonempty(resultingFilename);
-            //It's possible we'll have zero data if the game started in a nearly finished position and cheap search never
-            //gave us a real turn of search, in which case just ignore that game.
-            if(producedFile) {
-              bool suc = false;
-              try {
-                suc = connection->uploadTrainingGameAndData(gameTask.task,gameData,posSample,sgfFile,resultingFilename,numDataRows,retryOnFailure,shouldStopFunc);
-              }
-              catch(StringError& e) {
-                logger.write(string("Giving up uploading training game and data due to error:\n") + e.what());
-                suc = false;
-              }
-              if(suc)
-                logger.write(
-                  "Finished game " + Global::int64ToString(gameIdx)  + " (training), uploaded sgf " + sgfFile + " and training data " + resultingFilename
-                  + " (" + Global::int64ToString(numDataRows) + " rows)"
-                );
-            }
-            else {
-              logger.write("Finished game " + Global::int64ToString(gameIdx) + " (training), skipping uploading sgf " + sgfFile + " since it's an empty game");
-            }
-          });
+            numDataRows = tdataWriter->numRowsInBuffer();
+            producedFile = tdataWriter->flushIfNonempty(resultingFilename);
+          }
+        );
+
+        //It's possible we'll have zero data if the game started in a nearly finished position and cheap search never
+        //gave us a real turn of search, in which case just ignore that game.
+        if(producedFile) {
+          bool suc = false;
+          try {
+            suc = connection->uploadTrainingGameAndData(gameTask.task,gameData,posSample,sgfFile,resultingFilename,numDataRows,retryOnFailure,shouldStopFunc);
+          }
+          catch(StringError& e) {
+            logger.write(string("Giving up uploading training game and data due to error:\n") + e.what());
+            suc = false;
+          }
+          if(suc)
+            logger.write(
+              "Finished game " + Global::int64ToString(gameIdx)  + " (training), uploaded sgf " + sgfFile + " and training data " + resultingFilename
+              + " (" + Global::int64ToString(numDataRows) + " rows)"
+            );
+        }
+        else {
+          logger.write("Finished game " + Global::int64ToString(gameIdx) + " (training), skipping uploading sgf " + sgfFile + " since it's an empty game");
+        }
       }
       else {
         bool suc = false;
@@ -545,7 +550,7 @@ int MainCmds::contribute(const vector<string>& args) {
     maxSimultaneousGames = 16;
   }
   else {
-    maxSimultaneousGames = userCfg->getInt("maxSimultaneousGames", 1, 4000);
+    maxSimultaneousGames = userCfg->getInt("maxSimultaneousGames", 1, 16000);
   }
   bool onlyPlayRatingMatches = false;
   if(userCfg->contains("onlyPlayRatingMatches")) {

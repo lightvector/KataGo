@@ -92,6 +92,7 @@ Search::Search(SearchParams params, NNEvaluator* nnEval, NNEvaluator* humanEval,
    valueWeightDistribution(NULL),
    patternBonusTable(NULL),
    externalPatternBonusTable(nullptr),
+   evalCache(nullptr),
    nonSearchRand(rSeed + string("$nonSearchRand")),
    logger(lg),
    nnEvaluator(nnEval),
@@ -273,6 +274,13 @@ void Search::setCopyOfExternalPatternBonusTable(const std::unique_ptr<PatternBon
   setExternalPatternBonusTable(table == nullptr ? nullptr : std::make_unique<PatternBonusTable>(*table));
 }
 
+void Search::setExternalEvalCache(std::shared_ptr<EvalCacheTable> cache) {
+  if(cache == evalCache)
+    return;
+  clearSearch();
+  evalCache = cache;
+}
+
 void Search::setNNEval(NNEvaluator* nnEval) {
   clearSearch();
   nnEvaluator = nnEval;
@@ -420,26 +428,28 @@ Loc Search::runWholeSearchAndGetMove(Player movePla, bool pondering) {
 void Search::runWholeSearch(Player movePla) {
   runWholeSearch(movePla,false);
 }
+void Search::runWholeSearch(Player movePla, std::function<bool()>* shouldStopEarly) {
+  runWholeSearch(movePla,false,shouldStopEarly);
+}
 
 void Search::runWholeSearch(Player movePla, bool pondering) {
   if(movePla != rootPla)
     setPlayerAndClearHistory(movePla);
-  std::atomic<bool> shouldStopNow(false);
-  runWholeSearch(shouldStopNow,pondering);
-}
-
-void Search::runWholeSearch(std::atomic<bool>& shouldStopNow) {
-  runWholeSearch(shouldStopNow, false);
-}
-
-void Search::runWholeSearch(std::atomic<bool>& shouldStopNow, bool pondering) {
   std::function<void()>* searchBegun = NULL;
-  runWholeSearch(shouldStopNow,searchBegun,pondering,TimeControls(),1.0);
+  std::function<bool()>* shouldStopEarly = NULL;
+  runWholeSearch(searchBegun,shouldStopEarly,pondering,TimeControls(),1.0);
+}
+
+void Search::runWholeSearch(Player movePla, bool pondering, std::function<bool()>* shouldStopEarly) {
+  if(movePla != rootPla)
+    setPlayerAndClearHistory(movePla);
+  std::function<void()>* searchBegun = NULL;
+  runWholeSearch(searchBegun,shouldStopEarly,pondering,TimeControls(),1.0);
 }
 
 void Search::runWholeSearch(
-  std::atomic<bool>& shouldStopNow,
   std::function<void()>* searchBegun,
+  std::function<bool()>* shouldStopEarly,
   bool pondering,
   const TimeControls& tc,
   double searchFactor
@@ -447,6 +457,7 @@ void Search::runWholeSearch(
 
   ClockTimer timer;
   atomic<int64_t> numPlayoutsShared(0);
+  std::atomic<bool> shouldStopNow(false);
 
   if(!std::atomic_is_lock_free(&numPlayoutsShared))
     logger->write("Warning: int64_t atomic numPlayoutsShared is not lock free");
@@ -510,7 +521,7 @@ void Search::runWholeSearch(
   std::function<void(int)> searchLoop = [
     this,&timer,&numPlayoutsShared,numNonPlayoutVisits,&tcMaxTime,&upperBoundVisitsLeftDueToTime,&tc,
     &hasMaxTime,&hasTc,
-    &shouldStopNow,maxVisits,maxPlayouts,maxTime,pondering,searchFactor
+    &shouldStopNow,&shouldStopEarly,maxVisits,maxPlayouts,maxTime,pondering,searchFactor
   ](int threadIdx) {
     SearchThread* stbuf = new SearchThread(threadIdx,*this);
 
@@ -534,6 +545,8 @@ void Search::runWholeSearch(
         if(hasMaxTime && numPlayouts >= 2 && timeUsed >= maxTime)
           shouldStop = true;
         if(hasTc && numPlayouts >= 2 && timeUsed >= tcMaxTimeLimit)
+          shouldStop = true;
+        if(shouldStopEarly != NULL && (*shouldStopEarly)())
           shouldStop = true;
 
         //But an explicit stop signal can stop us from doing any search
@@ -599,6 +612,10 @@ void Search::runWholeSearch(
     }
   }
 
+  if(searchParams.useEvalCache && searchParams.useGraphSearch && evalCache != nullptr && rootNode != NULL && mirroringPla == C_EMPTY) {
+    recursivelyRecordEvalCache(*rootNode);
+  }
+
   //Relaxed load is fine since numPlayoutsShared should be synchronized already due to the joins
   lastSearchNumPlayouts = numPlayoutsShared.load(std::memory_order_relaxed);
   effectiveSearchTimeCarriedOver += timer.getSeconds() - actualSearchStartTime;
@@ -655,6 +672,11 @@ void Search::beginSearch(bool pondering) {
   if(searchParams.subtreeValueBiasFactor != 0 && subtreeValueBiasTable == NULL && !(searchParams.antiMirror && mirroringPla != C_EMPTY))
     subtreeValueBiasTable = new SubtreeValueBiasTable(searchParams.subtreeValueBiasTableNumShards);
 
+  //Prepare eval cache if we need it
+  if(searchParams.useEvalCache && searchParams.useGraphSearch && evalCache == nullptr && mirroringPla == C_EMPTY) {
+    evalCache = std::make_shared<EvalCacheTable>(searchParams.subtreeValueBiasTableNumShards);
+  }
+
   //Refresh pattern bonuses if needed
   if(patternBonusTable != NULL) {
     delete patternBonusTable;
@@ -690,11 +712,19 @@ void Search::beginSearch(bool pondering) {
 
   SearchThread dummyThread(-1, *this);
 
+  //If we're using graph search, we recompute the graph hash from scratch at the start of search.
+  if(searchParams.useGraphSearch)
+    rootGraphHash = GraphHash::getGraphHashFromScratch(rootHistory, rootPla, searchParams.graphSearchRepBound, searchParams.drawEquivalentWinsForWhite);
+  else
+    rootGraphHash = Hash128();
+
   if(rootNode == NULL) {
     //Avoid storing the root node in the nodeTable, guarantee that it never is part of a cycle, allocate it directly.
     //Also force that it is non-terminal.
     const bool forceNonTerminal = rootHistory.isGameFinished; // Make sure the root isn't considered terminal if game would be finished.
-    rootNode = new SearchNode(rootPla, forceNonTerminal, createMutexIdxForNode(dummyThread));
+    rootNode = new SearchNode(rootPla, forceNonTerminal, createMutexIdxForNode(dummyThread), rootGraphHash);
+    if(searchParams.useEvalCache && searchParams.useGraphSearch && evalCache != nullptr && mirroringPla == C_EMPTY)
+      rootNode->evalCacheEntry = evalCache->find(rootNode->graphHash);
   }
   else {
     //If the root node has any existing children, then prune things down if there are moves that should not be allowed at the root.
@@ -838,7 +868,7 @@ SearchNode* Search::allocateOrFindNode(SearchThread& thread, Player nextPla, Loc
       child = insertLoc->second;
     }
     else {
-      child = new SearchNode(nextPla, forceNonTerminal, createMutexIdxForNode(thread));
+      child = new SearchNode(nextPla, forceNonTerminal, createMutexIdxForNode(thread), graphHash);
 
       //Also perform subtree value bias and pattern bonus handling under the mutex. These parameters are no atomic, so
       //if the node is accessed concurrently by other nodes through the table, we need to make sure these parameters are fully
@@ -848,11 +878,15 @@ SearchNode* Search::allocateOrFindNode(SearchThread& thread, Player nextPla, Loc
         //TODO can we make subtree value bias not depend on prev move loc?
         if(thread.history.moveHistory.size() >= 2) {
           Loc prevMoveLoc = thread.history.moveHistory[thread.history.moveHistory.size()-2].loc;
-          if(prevMoveLoc != Board::NULL_LOC) {
+          //Avoid subtree value bias application when bestChildMoveLoc is a pass
+          if(prevMoveLoc != Board::NULL_LOC && bestChildMoveLoc != Board::PASS_LOC) {
             child->subtreeValueBiasTableEntry = subtreeValueBiasTable->get(getOpp(thread.pla), prevMoveLoc, bestChildMoveLoc, thread.history.getRecentBoard(1));
           }
         }
       }
+
+      if(searchParams.useEvalCache && searchParams.useGraphSearch && evalCache != nullptr && mirroringPla == C_EMPTY)
+        child->evalCacheEntry = evalCache->find(child->graphHash);
 
       if(patternBonusTable != NULL)
         child->patternBonusHash = patternBonusTable->getHash(getOpp(thread.pla), bestChildMoveLoc, thread.history.getRecentBoard(1));
@@ -1023,6 +1057,20 @@ void Search::recursivelyRecomputeStats(SearchNode& n) {
     delete dummyThreads[threadIdx];
 }
 
+void Search::recursivelyRecordEvalCache(SearchNode& n) {
+  std::function<void(SearchNode*,int)> f = [&](SearchNode* node, int threadIdx) {
+    (void)threadIdx;
+    int64_t numVisits = node->stats.visits.load(std::memory_order_acquire);
+    if(numVisits >= searchParams.evalCacheMinVisits && !node->forceNonTerminal) {
+      bool isRootNode = (node==rootNode);
+      evalCache->update(node->graphHash, node, searchParams.evalCacheMinVisits, isRootNode);
+    }
+  };
+  vector<SearchNode*> nodes;
+  nodes.push_back(&n);
+  applyRecursivelyPostOrderMulithreaded(nodes,&f);
+}
+
 
 void Search::computeRootValues() {
   //rootSafeArea is strictly pass-alive groups and strictly safe territory.
@@ -1068,12 +1116,6 @@ void Search::computeRootValues() {
     if(recentScoreCenter < expectedScore - cap)
       recentScoreCenter = expectedScore - cap;
   }
-
-  //If we're using graph search, we recompute the graph hash from scratch at the start of search.
-  if(searchParams.useGraphSearch)
-    rootGraphHash = GraphHash::getGraphHashFromScratch(rootHistory, rootPla, searchParams.graphSearchRepBound, searchParams.drawEquivalentWinsForWhite);
-  else
-    rootGraphHash = Hash128();
 
   Player opponentWasMirroringPla = mirroringPla;
   //Update mirroringPla, mirrorAdvantage, mirrorCenterSymmetryError

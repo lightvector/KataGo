@@ -1,0 +1,186 @@
+: Running with following config:
+cudaUseFP16 = false
+cudaUseNHWC = false
+evalCacheMinVisits = 10
+forDeterministicTesting = true
+logAllRequests = true
+logAllResponses = true
+logFile = tests/results/analysis/eval_cache.txt.log
+logSearchInfo = true
+logTimeStamp = false
+maxVisits = 500
+nnCacheSizePowerOfTwo = 23
+nnMaxBatchSize = 64
+nnMutexPoolSizePowerOfTwo = 17
+nnRandSeed = analysisTest
+nnRandomize = false
+numAnalysisThreads = 1
+numSearchThreads = 1
+openclUseFP16 = false
+reportAnalysisWinratesAs = BLACK
+rootSymmetryPruning = false
+trtUseFP16 = false
+useEvalCache = true
+useGraphSearch = true
+
+: Analysis Engine starting...
+: KataGo v1.16.4
+: nnRandSeed0 = analysisTest
+: After dedups: nnModelFile0 = tests/models/g170e-b10c128-s1141046784-d204142634.bin.gz useFP16 false useNHWC false
+: Initializing neural net buffer to be size 19 * 19 allowing smaller boards
+: Cuda backend thread 0: Found GPU NVIDIA RTX A5000 memory 25425608704 compute capability major 8 minor 6
+: Cuda backend thread 0: Model version 8 useFP16 = false useNHWC = false
+: Cuda backend thread 0: Model name: g170-b10c128-s1141046784-d204142634
+: Loaded config configs/analysis_example.cfg and/or command-line and query overrides
+: Loaded model tests/models/g170e-b10c128-s1141046784-d204142634.bin.gz
+: Config override: cudaUseFP16 = false
+: Config override: cudaUseNHWC = false
+: Config override: evalCacheMinVisits = 10
+: Config override: forDeterministicTesting = true
+: Config override: logAllRequests = true
+: Config override: logAllResponses = true
+: Config override: logDir = 
+: Config override: logFile = tests/results/analysis/eval_cache.txt.log
+: Config override: logSearchInfo = true
+: Config override: logTimeStamp = false
+: Config override: nnRandSeed = analysisTest
+: Config override: nnRandomize = false
+: Config override: numAnalysisThreads = 1
+: Config override: numSearchThreadsPerAnalysisThread = 1
+: Config override: openclUseFP16 = false
+: Config override: rootSymmetryPruning = false
+: Config override: trtUseFP16 = false
+: Config override: useEvalCache = true
+: Config override: useGraphSearch = true
+: Analyzing up to 1 positions at a time in parallel
+: Started, ready to begin handling requests
+: Request: {"id":"A","initialStones":[],"moves":[["B","R16"],["W","D16"],["B","Q4"],["W","D4"],["B","O17"],["W","Q16"],["B","R15"],["W","R17"],["B","Q17"],["W","P17"],["B","Q18"],["W","P18"],["B","P16"],["W","Q15"],["B","R18"],["W","R14"],["B","O16"],["W","S17"],["B","Q14"],["W","P15"],["B","S14"],["W","R13"],["B","S15"],["W","S18"],["B","O18"]],"rules":"tromp-taylor","komi":7.5,"boardXSize":19,"boardYSize":19,"overrideSettings":{"maxVisits":50}}
+: MoveNum: 25 HASH: BFCD9713BA48E3678DC79F8FF0488C8D
+   A B C D E F G H J K L M N O P Q R S T
+19 . . . . . . . . . . . . . . . . . . .
+18 . . . . . . . . . . . . . X3O X X O2.
+17 . . . . . . . . . . . . . X O X O O .
+16 . . . O . . . . . . . . . X X O X . .
+15 . . . . . . . . . . . . . . O O X X1.
+14 . . . . . . . . . . . . . . . X O X .
+13 . . . . . . . . . . . . . . . . O . .
+12 . . . . . . . . . . . . . . . . . . .
+11 . . . . . . . . . . . . . . . . . . .
+10 . . . . . . . . . . . . . . . . . . .
+ 9 . . . . . . . . . . . . . . . . . . .
+ 8 . . . . . . . . . . . . . . . . . . .
+ 7 . . . . . . . . . . . . . . . . . . .
+ 6 . . . . . . . . . . . . . . . . . . .
+ 5 . . . . . . . . . . . . . . . . . . .
+ 4 . . . O . . . . . . . . . . . X . . .
+ 3 . . . . . . . . . . . . . . . . . . .
+ 2 . . . . . . . . . . . . . . . . . . .
+ 1 . . . . . . . . . . . . . . . . . . .
+
+koPOSITIONALscoreAREAtaxNONEsui1komi7.5
+Root visits: 50
+New playouts: 50
+NN rows: 50
+NN batches: 50
+NN avg batch size: 1
+PV: S13 Q13 O14 R12 S12 S11 Q12 T12
+Tree:
+: T -40.60c W -35.60c S  -2.27c ( -6.3 L  -5.5) N      50  --  S13 Q13 O14 R12 S12 S11 Q12
+---White(v)---
+S13 : T -48.04c W -41.81c S  -3.05c ( -7.3 L  -6.3) LCB  -24.05c P 55.37% WF  42.4 PSV      41 N      42  --  S13 Q13 O14 R12 S12 S11 Q12 T12
+R19 : T  -3.35c W  -5.38c S   2.03c ( -0.7 L  -0.5) LCB  346.65c P  9.15% WF   0.9 PSV       1 N       1  --  R19
+P14 : T   9.59c W   6.40c S   3.20c ( +0.7 L  +0.5) LCB  359.59c P  8.70% WF   0.9 PSV       0 N       1  --  P14
+R12 : T -10.82c W -11.46c S   0.64c ( -2.5 L  -2.5) LCB  339.18c P  5.72% WF   0.9 PSV       0 N       1  --  R12
+Q13 : T  20.90c W  16.61c S   4.28c ( +2.1 L  +1.3) LCB  370.90c P  5.38% WF   0.8 PSV       0 N       1  --  Q13
+R11 : T  34.54c W  29.01c S   5.52c ( +3.8 L  +2.7) LCB  384.54c P  3.62% WF   0.8 PSV       0 N       1  --  R11
+Q12 : T  20.58c W  16.48c S   4.10c ( +2.0 L  +0.8) LCB  370.58c P  3.54% WF   0.8 PSV       0 N       1  --  Q12
+P19 : T   4.28c W   1.61c S   2.67c ( +0.2 L  -0.0) LCB  354.28c P  2.93% WF   0.9 PSV       0 N       1  --  P19
+
+: Response: {"id":"A","isDuringSearch":false,"moveInfos":[{"edgeVisits":42,"edgeWeight":41.3725086,"lcb":0.376637538,"move":"S13","order":0,"playSelectionValue":41.3725086,"prior":0.553737879,"pv":["S13","Q13","O14","R12","S12","S11","Q12","T12"],"scoreLead":-6.29108472,"scoreMean":-6.29108472,"scoreSelfplay":-7.33899485,"scoreStdev":25.4876774,"utility":-0.480384833,"utilityLcb":-0.240488242,"visits":42,"weight":41.3725086,"winrate":0.290960184},{"edgeVisits":1,"edgeWeight":1.0,"lcb":1.72308392,"move":"R19","order":1,"playSelectionValue":1.0,"prior":0.0914676711,"pv":["R19"],"scoreLead":-0.505615711,"scoreMean":-0.505615711,"scoreSelfplay":-0.687639415,"scoreStdev":24.9207593,"utility":-0.0334875732,"utilityLcb":3.46651244,"visits":1,"weight":1.0,"winrate":0.473083913},{"edgeVisits":1,"edgeWeight":1.0,"lcb":1.78198143,"move":"P14","order":2,"playSelectionValue":0.0,"prior":0.0870448127,"pv":["P14"],"scoreLead":0.490799099,"scoreMean":0.490799099,"scoreSelfplay":0.718516052,"scoreStdev":23.885826,"utility":0.0959223184,"utilityLcb":3.59592234,"visits":1,"weight":1.0,"winrate":0.531981423},{"edgeVisits":1,"edgeWeight":1.0,"lcb":1.69268461,"move":"R12","order":3,"playSelectionValue":0.0,"prior":0.0572279505,"pv":["R12"],"scoreLead":-2.52649164,"scoreMean":-2.52649164,"scoreSelfplay":-2.46417093,"scoreStdev":26.0561704,"utility":-0.108199575,"utilityLcb":3.39180044,"visits":1,"weight":1.0,"winrate":0.442684606},{"edgeVisits":1,"edgeWeight":1.0,"lcb":1.83307006,"move":"Q13","order":4,"playSelectionValue":0.0,"prior":0.0538254268,"pv":["Q13"],"scoreLead":1.34536338,"scoreMean":1.34536338,"scoreSelfplay":2.09319592,"scoreStdev":23.7453493,"utility":0.208986202,"utilityLcb":3.70898622,"visits":1,"weight":1.0,"winrate":0.583070055},{"edgeVisits":1,"edgeWeight":1.0,"lcb":1.89505999,"move":"R11","order":5,"playSelectionValue":0.0,"prior":0.0362498797,"pv":["R11"],"scoreLead":2.7433815,"scoreMean":2.7433815,"scoreSelfplay":3.81664014,"scoreStdev":24.4710404,"utility":0.345354907,"utilityLcb":3.84535493,"visits":1,"weight":1.0,"winrate":0.645059988},{"edgeVisits":1,"edgeWeight":1.0,"lcb":1.83239532,"move":"Q12","order":6,"playSelectionValue":0.0,"prior":0.0353790298,"pv":["Q12"],"scoreLead":0.813452482,"scoreMean":0.813452482,"scoreSelfplay":2.02043676,"scoreStdev":24.998677699999998,"utility":0.205765136,"utilityLcb":3.70576515,"visits":1,"weight":1.0,"winrate":0.582395315},{"edgeVisits":1,"edgeWeight":1.0,"lcb":1.75804587,"move":"P19","order":7,"playSelectionValue":0.0,"prior":0.0293094423,"pv":["P19"],"scoreLead":-0.0420671701,"scoreMean":-0.0420671701,"scoreSelfplay":0.157369226,"scoreStdev":25.0785962,"utility":0.0428152578,"utilityLcb":3.54281528,"visits":1,"weight":1.0,"winrate":0.508045867}],"rootInfo":{"currentPlayer":"W","rawLead":-4.08692932,"rawNoResultProb":0.0,"rawScoreSelfplay":-5.00395727,"rawScoreSelfplayStdev":26.293439,"rawStScoreError":-1.0,"rawStWrError":-0.5,"rawVarTimeLeft":-1.0,"rawWinrate":0.358979687,"scoreLead":-6.10687531,"scoreSelfplay":-7.13180386,"scoreStdev":25.5152422,"symHash":"0F0AEF947C35253A166D0C6CBDE76160","thisHash":"6C0C56215A7C3FD7B4E7DA6A389131FE","utility":-0.465798405,"visits":50,"weight":49.37250862865658,"winrate":0.296727506},"turnNumber":25}
+: Request: {"id":"B","initialStones":[],"moves":[["B","R16"],["W","D16"],["B","Q4"],["W","D4"],["B","O17"],["W","Q16"],["B","R15"],["W","R17"],["B","Q17"],["W","P17"],["B","Q18"],["W","P18"],["B","P16"],["W","Q15"],["B","R18"],["W","R14"],["B","O16"],["W","S17"],["B","Q14"],["W","P15"],["B","S14"],["W","R13"],["B","S15"],["W","S18"],["B","O18"],["W","S13"],["B","P14"]],"rules":"tromp-taylor","komi":7.5,"boardXSize":19,"boardYSize":19,"overrideSettings":{"maxVisits":100}}
+: MoveNum: 27 HASH: E800A7F27B2A5DB37C6F71DD28A27C4C
+   A B C D E F G H J K L M N O P Q R S T
+19 . . . . . . . . . . . . . . . . . . .
+18 . . . . . . . . . . . . . X1O X X O .
+17 . . . . . . . . . . . . . X O X O O .
+16 . . . O . . . . . . . . . X X O X . .
+15 . . . . . . . . . . . . . . O O X X .
+14 . . . . . . . . . . . . . . X3X O X .
+13 . . . . . . . . . . . . . . . . O O2.
+12 . . . . . . . . . . . . . . . . . . .
+11 . . . . . . . . . . . . . . . . . . .
+10 . . . . . . . . . . . . . . . . . . .
+ 9 . . . . . . . . . . . . . . . . . . .
+ 8 . . . . . . . . . . . . . . . . . . .
+ 7 . . . . . . . . . . . . . . . . . . .
+ 6 . . . . . . . . . . . . . . . . . . .
+ 5 . . . . . . . . . . . . . . . . . . .
+ 4 . . . O . . . . . . . . . . . X . . .
+ 3 . . . . . . . . . . . . . . . . . . .
+ 2 . . . . . . . . . . . . . . . . . . .
+ 1 . . . . . . . . . . . . . . . . . . .
+
+koPOSITIONALscoreAREAtaxNONEsui1komi7.5
+Root visits: 100
+New playouts: 100
+NN rows: 136
+NN batches: 136
+NN avg batch size: 1
+PV: O15 N14 N15 M15 N16 M16 N17 N18 M17 L17 M18 L18 M19 O14 P19 L19 R9
+Tree:
+: T  60.35c W  26.38c S  11.16c (+10.5 L +10.0) N     100  --  O15 N14 N15 M15 N16 M16 N17
+---White(v)---
+O15 : T  61.05c W  26.58c S  11.22c (+10.6 L +10.1) LCB   96.03c P 98.64% WF  97.8 PSV      98 N      98  --  O15 N14 N15 M15 N16 M16 N17 N18
+R19 : T 114.53c W  94.52c S  20.00c (+23.1 L +19.6) LCB  464.53c P  1.00% WF   0.9 PSV       0 N       1  --  R19
+
+: Response: {"id":"B","isDuringSearch":false,"moveInfos":[{"edgeVisits":98,"edgeWeight":97.6761926,"lcb":0.757817612,"move":"O15","order":0,"playSelectionValue":97.6761926,"prior":0.986387014,"pv":["O15","N14","N15","M15","N16","M16","N17","N18","M17","L17","M18","L18","M19","O14","P19","L19"],"scoreLead":10.1218014,"scoreMean":10.1218014,"scoreSelfplay":10.6072356,"scoreStdev":34.7107727,"utility":0.610481859,"utilityLcb":0.960289732,"visits":98,"weight":97.6761926,"winrate":0.632886229},{"edgeVisits":1,"edgeWeight":1.0,"lcb":2.22262012,"move":"R19","order":1,"playSelectionValue":0.0,"prior":0.0100468304,"pv":["R19"],"scoreLead":19.6461468,"scoreMean":19.6461468,"scoreSelfplay":23.0514565,"scoreStdev":26.9910464,"utility":1.14528298,"utilityLcb":4.645283,"visits":1,"weight":1.0,"winrate":0.972620116}],"rootInfo":{"currentPlayer":"W","rawLead":-9.66502285,"rawNoResultProb":0.0,"rawScoreSelfplay":-12.2411118,"rawScoreSelfplayStdev":26.7363709,"rawStScoreError":-1.0,"rawStWrError":-0.5,"rawVarTimeLeft":-1.0,"rawWinrate":0.239424765,"scoreLead":9.92127861,"scoreSelfplay":10.3756869,"scoreStdev":34.7146778,"symHash":"02F2D8F091F9E5BF0D62EE69F868C41B","thisHash":"3BC166C09B1E8103454F3438E07BC13F","utility":0.598705947,"visits":100,"weight":99.6761926221672,"winrate":0.628898829},"turnNumber":27}
+: Request: {"id":"C","initialStones":[],"moves":[["B","R16"],["W","D16"],["B","Q4"],["W","D4"],["B","O17"],["W","Q16"],["B","R15"],["W","R17"],["B","Q17"],["W","P17"],["B","Q18"],["W","P18"],["B","P16"],["W","Q15"],["B","R18"],["W","R14"],["B","O16"],["W","S17"],["B","Q14"],["W","P15"],["B","S14"],["W","R13"],["B","S15"],["W","S18"],["B","O18"]],"rules":"tromp-taylor","komi":7.5,"boardXSize":19,"boardYSize":19,"overrideSettings":{"maxVisits":50}}
+: MoveNum: 25 HASH: BFCD9713BA48E3678DC79F8FF0488C8D
+   A B C D E F G H J K L M N O P Q R S T
+19 . . . . . . . . . . . . . . . . . . .
+18 . . . . . . . . . . . . . X3O X X O2.
+17 . . . . . . . . . . . . . X O X O O .
+16 . . . O . . . . . . . . . X X O X . .
+15 . . . . . . . . . . . . . . O O X X1.
+14 . . . . . . . . . . . . . . . X O X .
+13 . . . . . . . . . . . . . . . . O . .
+12 . . . . . . . . . . . . . . . . . . .
+11 . . . . . . . . . . . . . . . . . . .
+10 . . . . . . . . . . . . . . . . . . .
+ 9 . . . . . . . . . . . . . . . . . . .
+ 8 . . . . . . . . . . . . . . . . . . .
+ 7 . . . . . . . . . . . . . . . . . . .
+ 6 . . . . . . . . . . . . . . . . . . .
+ 5 . . . . . . . . . . . . . . . . . . .
+ 4 . . . O . . . . . . . . . . . X . . .
+ 3 . . . . . . . . . . . . . . . . . . .
+ 2 . . . . . . . . . . . . . . . . . . .
+ 1 . . . . . . . . . . . . . . . . . . .
+
+koPOSITIONALscoreAREAtaxNONEsui1komi7.5
+Root visits: 50
+New playouts: 50
+NN rows: 146
+NN batches: 146
+NN avg batch size: 1
+PV: R19 P19 S13 O14 P14
+Tree:
+: T  -3.70c W  -6.67c S   2.64c ( +0.6 L  +0.8) N      50  --  R19 P19 S13 O14 P14
+---White(v)---
+R19 : T -24.76c W -20.18c S  -0.37c ( -3.8 L  -3.4) LCB   18.54c P  9.15% WF   8.5 PSV      65 N       8  --  R19 P19 S13 O14 P14
+S13 : T  -3.82c W  -7.88c S   3.19c ( +1.7 L  +2.0) LCB   50.33c P 55.37% WF  32.1 PSV      32 N      32  --  S13 P14 O15 N14 N15 M15 N16 M16
+P14 : T  28.59c W  18.26c S   4.44c ( +2.4 L  +1.7) LCB  179.28c P  8.70% WF   1.8 PSV       1 N       2  --  P14 S13
+R12 : T  14.40c W   3.93c S   2.62c ( +0.1 L  -0.3) LCB  166.43c P  5.72% WF   1.9 PSV       1 N       2  --  R12 O14
+Q13 : T  20.90c W  16.61c S   4.28c ( +2.1 L  +1.3) LCB  370.90c P  5.38% WF   0.9 PSV       1 N       1  --  Q13
+P19 : T   4.28c W   1.61c S   2.67c ( +0.2 L  -0.0) LCB  354.28c P  2.93% WF   1.0 PSV       1 N       1  --  P19
+R11 : T  34.54c W  29.01c S   5.52c ( +3.8 L  +2.7) LCB  384.54c P  3.62% WF   0.9 PSV       0 N       1  --  R11
+Q12 : T  20.58c W  16.48c S   4.10c ( +2.0 L  +0.8) LCB  370.58c P  3.54% WF   0.9 PSV       0 N       1  --  Q12
+P13 : T  26.79c W  22.07c S   4.72c ( +2.7 L  +1.8) LCB  376.79c P  1.74% WF   0.9 PSV       0 N       1  --  P13
+
+: Response: {"id":"C","isDuringSearch":false,"moveInfos":[{"edgeVisits":8,"edgeWeight":8.0,"lcb":0.55373282,"move":"R19","order":0,"playSelectionValue":64.557809,"prior":0.0914676711,"pv":["R19","P19","S13","O14","P14"],"scoreLead":-3.43787533,"scoreMean":-3.43787533,"scoreSelfplay":-3.80768591,"scoreStdev":26.3443655,"utility":-0.247617946,"utilityLcb":0.185354879,"visits":8,"weight":8.0,"winrate":0.399099668},{"edgeVisits":32,"edgeWeight":32.0,"lcb":0.654000325,"move":"S13","order":1,"playSelectionValue":32.0,"prior":0.553737879,"pv":["S13","P14","O15","N14","N15","M15","N16","M16","N17","N18","M17","L17","M18","L18","M19"],"scoreLead":1.96027412,"scoreMean":1.96027412,"scoreSelfplay":1.67386086,"scoreStdev":33.0632773,"utility":-0.0381854632,"utilityLcb":0.503282855,"visits":32,"weight":32.0,"winrate":0.460618783},{"edgeVisits":2,"edgeWeight":2.0,"lcb":1.12950576,"move":"P14","order":2,"playSelectionValue":1.0,"prior":0.0870448127,"pv":["P14","S13"],"scoreLead":1.74727209,"scoreMean":1.74727209,"scoreSelfplay":2.36108693,"scoreStdev":24.2273864,"utility":0.285865768,"utilityLcb":1.79284178,"visits":2,"weight":2.0,"winrate":0.59130004},{"edgeVisits":2,"edgeWeight":2.0,"lcb":1.06262499,"move":"R12","order":3,"playSelectionValue":1.0,"prior":0.0572279505,"pv":["R12","O14"],"scoreLead":-0.333663642,"scoreMean":-0.333663642,"scoreSelfplay":0.14251864,"scoreStdev":25.7248794,"utility":0.143981012,"utilityLcb":1.66427692,"visits":2,"weight":2.0,"winrate":0.519662172},{"edgeVisits":1,"edgeWeight":1.0,"lcb":1.83307006,"move":"Q13","order":4,"playSelectionValue":1.0,"prior":0.0538254268,"pv":["Q13"],"scoreLead":1.34536338,"scoreMean":1.34536338,"scoreSelfplay":2.09319592,"scoreStdev":23.7453493,"utility":0.208986202,"utilityLcb":3.70898622,"visits":1,"weight":1.0,"winrate":0.583070055},{"edgeVisits":1,"edgeWeight":1.0,"lcb":1.75804587,"move":"P19","order":5,"playSelectionValue":1.0,"prior":0.0293094423,"pv":["P19"],"scoreLead":-0.0420671701,"scoreMean":-0.0420671701,"scoreSelfplay":0.157369226,"scoreStdev":25.0785962,"utility":0.0428152578,"utilityLcb":3.54281528,"visits":1,"weight":1.0,"winrate":0.508045867},{"edgeVisits":1,"edgeWeight":1.0,"lcb":1.89505999,"move":"R11","order":6,"playSelectionValue":0.0,"prior":0.0362498797,"pv":["R11"],"scoreLead":2.7433815,"scoreMean":2.7433815,"scoreSelfplay":3.81664014,"scoreStdev":24.4710404,"utility":0.345354907,"utilityLcb":3.84535493,"visits":1,"weight":1.0,"winrate":0.645059988},{"edgeVisits":1,"edgeWeight":1.0,"lcb":1.83239532,"move":"Q12","order":7,"playSelectionValue":0.0,"prior":0.0353790298,"pv":["Q12"],"scoreLead":0.813452482,"scoreMean":0.813452482,"scoreSelfplay":2.02043676,"scoreStdev":24.998677699999998,"utility":0.205765136,"utilityLcb":3.70576515,"visits":1,"weight":1.0,"winrate":0.582395315},{"edgeVisits":1,"edgeWeight":1.0,"lcb":1.86032737,"move":"P13","order":8,"playSelectionValue":0.0,"prior":0.0173718873,"pv":["P13"],"scoreLead":1.76634133,"scoreMean":1.76634133,"scoreSelfplay":2.72578907,"scoreStdev":24.2118023,"utility":0.267876361,"utilityLcb":3.76787638,"visits":1,"weight":1.0,"winrate":0.610327363}],"rootInfo":{"currentPlayer":"W","rawLead":-4.08692932,"rawNoResultProb":0.0,"rawScoreSelfplay":-5.00395727,"rawScoreSelfplayStdev":26.293439,"rawStScoreError":-1.0,"rawStWrError":-0.5,"rawVarTimeLeft":-1.0,"rawWinrate":0.358979687,"scoreLead":0.752349882,"scoreSelfplay":0.507828306,"scoreStdev":31.2324312,"symHash":"0F0AEF947C35253A166D0C6CBDE76160","thisHash":"6C0C56215A7C3FD7B4E7DA6A389131FE","utility":-0.0625747172,"visits":50,"weight":50.0,"winrate":0.455414583},"turnNumber":25}
+: tests/models/g170e-b10c128-s1141046784-d204142634.bin.gz
+: NN rows: 146
+: NN batches: 146
+: NN avg batch size: 1
+: GPU -1 finishing, processed 146 rows 146 batches
+: All cleaned up, quitting

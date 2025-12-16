@@ -8,7 +8,7 @@ endif()
 set(CMAKE_CXX_STANDARD 17)
 
 include_directories(external)
-include_directories(external/tclap-1.2.2/include)
+include_directories(SYSTEM external/tclap-1.2.5/include) #SYSTEM suppresses warnings from external library
 include_directories(SYSTEM external/filesystem-1.5.8/include) #SYSTEM suppresses a few warnings
 
 #--------------------------- PLATFORM SPECIFIC -------------------------------------------------------------------------
@@ -57,7 +57,10 @@ if(USE_BACKEND STREQUAL "CUDA")
     neuralnet/cudahelpers.cu
   )
 # https://en.wikipedia.org/wiki/CUDA#GPUs_supported
-  if(CMAKE_CUDA_COMPILER_VERSION VERSION_GREATER_EQUAL 12.8)
+  if(CMAKE_CUDA_COMPILER_VERSION VERSION_GREATER_EQUAL 13.0)
+    set(CMAKE_CUDA_ARCHITECTURES 75 80 86 87 88 89 90 100 110 103 120 121)
+    set(CMAKE_CUDA_FLAGS "-Wno-deprecated-gpu-targets")
+  elseif(CMAKE_CUDA_COMPILER_VERSION VERSION_GREATER_EQUAL 12.8)
     set(CMAKE_CUDA_ARCHITECTURES 50 52 53 60 61 62 70 72 75 80 86 87 90 120)
     set(CMAKE_CUDA_FLAGS "-Wno-deprecated-gpu-targets")
   elseif(CMAKE_CUDA_COMPILER_VERSION VERSION_GREATER_EQUAL 12.0)
@@ -264,6 +267,7 @@ add_executable(katago
   search/localpattern.cpp
   search/searchnodetable.cpp
   search/subtreevaluebiastable.cpp
+  search/evalcache.cpp
   search/patternbonustable.cpp
   search/analysisdata.cpp
   search/reportedsearchvalues.cpp
@@ -304,6 +308,7 @@ add_executable(katago
   command/analysis.cpp
   command/benchmark.cpp
   command/contribute.cpp
+  command/demoplay.cpp
   command/evalsgf.cpp
   command/gatekeeper.cpp
   command/genbook.cpp
@@ -314,6 +319,7 @@ add_executable(katago
   command/runtests.cpp
   command/sandbox.cpp
   command/selfplay.cpp
+  command/startposes.cpp
   command/tune.cpp
   command/writetrainingdata.cpp
   main.cpp

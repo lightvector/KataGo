@@ -178,7 +178,7 @@ int MainCmds::evalsgf(const vector<string>& args) {
 
   //Parse sgf file and board ------------------------------------------------------------------
 
-  CompactSgf* sgf = CompactSgf::loadFile(sgfFile);
+  std::unique_ptr<CompactSgf> sgf = CompactSgf::loadFile(sgfFile);
 
   Board board;
   Player nextPla;
@@ -699,7 +699,6 @@ int MainCmds::evalsgf(const vector<string>& args) {
   if(humanEval != NULL)
     delete humanEval;
   NeuralNet::globalCleanup();
-  delete sgf;
   ScoreValue::freeTables();
 
   return 0;
