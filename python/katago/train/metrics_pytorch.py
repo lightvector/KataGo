@@ -295,36 +295,23 @@ class Metrics:
     def square_value(self, value_logits, global_weight):
         return torch.sum(global_weight * torch.square(torch.sum(torch.softmax(value_logits,dim=1) * constant_like([1,-1,0],global_weight), dim=1)))
 
-    # Returns 0.5 times the sum of squared model weights, for each reg group of model weights
     @staticmethod
     def get_model_norms(raw_model):
-        reg_dict : Dict[str,List] = {}
+        reg_dict: Dict[str,List] = {}
         raw_model.add_reg_dict(reg_dict)
 
         device = reg_dict["normal"][0].device
         dtype = torch.float32
 
-        modelnorm_normal = torch.zeros([],device=device,dtype=dtype)
-        modelnorm_normal_gamma = torch.zeros([],device=device,dtype=dtype)
-        modelnorm_output = torch.zeros([],device=device,dtype=dtype)
-        modelnorm_noreg = torch.zeros([],device=device,dtype=dtype)
-        modelnorm_output_noreg = torch.zeros([],device=device,dtype=dtype)
-        for tensor in reg_dict["normal"]:
-            modelnorm_normal += torch.sum(tensor * tensor)
-        for tensor in reg_dict["normal_gamma"]:
-            modelnorm_normal_gamma += torch.sum(tensor * tensor)
-        for tensor in reg_dict["output"]:
-            modelnorm_output += torch.sum(tensor * tensor)
-        for tensor in reg_dict["noreg"]:
-            modelnorm_noreg += torch.sum(tensor * tensor)
-        for tensor in reg_dict["output_noreg"]:
-            modelnorm_output_noreg += torch.sum(tensor * tensor)
-        modelnorm_normal *= 0.5
-        modelnorm_normal_gamma *= 0.5
-        modelnorm_output *= 0.5
-        modelnorm_noreg *= 0.5
-        modelnorm_output_noreg *= 0.5
-        return (modelnorm_normal, modelnorm_normal_gamma, modelnorm_output, modelnorm_noreg, modelnorm_output_noreg)
+        with torch.no_grad():
+            norms: Dict[str,float] = {}
+            for group_name in ["input","input_noreg","normal","normal_gamma","noreg","output","output_noreg"]:
+                norm = torch.zeros([],device=device,dtype=dtype)
+                for tensor in reg_dict[group_name]:
+                    norm += torch.sum(tensor * tensor)
+                norms[group_name] = torch.sqrt(norm).detach().cpu().item()
+
+        return norms
 
     def get_specific_norms_and_gradient_stats(self,raw_model):
         with torch.no_grad():
@@ -889,7 +876,7 @@ class Metrics:
                 global_weight,
             )
 
-            (modelnorm_normal, modelnorm_normal_gamma, modelnorm_output, modelnorm_noreg, modelnorm_output_noreg) = self.get_model_norms(raw_model)
+            norms = self.get_model_norms(raw_model)
 
             extra_results = {
                 "wsum": weight * self.world_size,
@@ -897,12 +884,11 @@ class Metrics:
                 "ptentr_sum": policy_target_entropy,
                 "ptsoftentr_sum": soft_policy_target_entropy,
                 "sekiweightscale_sum": seki_weight_scale * weight,
-                "norm_normal_batch": modelnorm_normal,
-                "norm_normal_gamma_batch": modelnorm_normal_gamma,
-                "norm_output_batch": modelnorm_output,
-                "norm_noreg_batch": modelnorm_noreg,
-                "norm_output_noreg_batch": modelnorm_output_noreg,
             }
+
+            for group_name in norms:
+                extra_results[f"norm_{group_name}_batch"] = norms[group_name]
+
             for key,value in extra_results.items():
                 results[key] = value
             return results

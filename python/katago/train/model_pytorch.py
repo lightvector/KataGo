@@ -8,6 +8,8 @@ import packaging
 import packaging.version
 from typing import List, Dict, Optional, Set
 
+from torch.cuda.amp import autocast
+
 from ..train import modelconfigs
 
 EXTRA_SCORE_DISTR_RADIUS = 60
@@ -1602,11 +1604,11 @@ class MetadataEncoder(torch.nn.Module):
             init_weights(self.linear_output_to_trunk.weight, self.activation, scale=weight_scale)
 
     def add_reg_dict(self, reg_dict:Dict[str,List]):
-        reg_dict["output"].append(self.linear1.weight)
-        reg_dict["output_noreg"].append(self.linear1.bias)
-        reg_dict["output"].append(self.linear2.weight)
-        reg_dict["output_noreg"].append(self.linear2.bias)
-        reg_dict["normal"].append(self.linear_output_to_trunk.weight)
+        reg_dict["input"].append(self.linear1.weight)
+        reg_dict["input_noreg"].append(self.linear1.bias)
+        reg_dict["input"].append(self.linear2.weight)
+        reg_dict["input_noreg"].append(self.linear2.bias)
+        reg_dict["input"].append(self.linear_output_to_trunk.weight)
 
     def forward(self, input_meta, extra_outputs: Optional[ExtraOutputs]):
         x = input_meta
@@ -1858,14 +1860,16 @@ class Model(torch.nn.Module):
         return self.metadata_encoder is not None
 
     def add_reg_dict(self, reg_dict:Dict[str,List]):
+        reg_dict["input"] = []
+        reg_dict["input_noreg"] = []
         reg_dict["normal"] = []
         reg_dict["normal_gamma"] = []
-        reg_dict["output"] = []
         reg_dict["noreg"] = []
+        reg_dict["output"] = []
         reg_dict["output_noreg"] = []
 
-        reg_dict["normal"].append(self.conv_spatial.weight)
-        reg_dict["normal"].append(self.linear_global.weight)
+        reg_dict["input"].append(self.conv_spatial.weight)
+        reg_dict["input"].append(self.linear_global.weight)
         if self.metadata_encoder is not None:
             self.metadata_encoder.add_reg_dict(reg_dict)
         for block in self.blocks:
@@ -1945,17 +1949,38 @@ class Model(torch.nn.Module):
             iout = out
             iout = self.norm_intermediate_trunkfinal(iout, mask=mask, mask_sum=mask_sum)
             iout = self.act_intermediate_trunkfinal(iout)
-            iout_policy = self.intermediate_policy_head(iout, mask=mask, mask_sum_hw=mask_sum_hw, mask_sum=mask_sum, extra_outputs=extra_outputs)
-            (
-                iout_value,
-                iout_miscvalue,
-                iout_moremiscvalue,
-                iout_ownership,
-                iout_scoring,
-                iout_futurepos,
-                iout_seki,
-                iout_scorebelief_logprobs,
-            ) = self.intermediate_value_head(iout, mask=mask, mask_sum_hw=mask_sum_hw, mask_sum=mask_sum, input_global=input_global, extra_outputs=extra_outputs)
+            # Use fp32 for output heads to handle potentially large values
+            with autocast(enabled=False):
+                iout_fp32 = iout.float()
+                mask_fp32 = mask.float()
+                mask_sum_hw_fp32 = mask_sum_hw.float()
+                mask_sum_fp32 = mask_sum.float() if isinstance(mask_sum, torch.Tensor) else mask_sum
+                input_global_fp32 = input_global.float()
+
+                iout_policy = self.intermediate_policy_head(
+                    iout_fp32,
+                    mask=mask_fp32,
+                    mask_sum_hw=mask_sum_hw_fp32,
+                    mask_sum=mask_sum_fp32,
+                    extra_outputs=extra_outputs
+                )
+                (
+                    iout_value,
+                    iout_miscvalue,
+                    iout_moremiscvalue,
+                    iout_ownership,
+                    iout_scoring,
+                    iout_futurepos,
+                    iout_seki,
+                    iout_scorebelief_logprobs,
+                ) = self.intermediate_value_head(
+                    iout_fp32,
+                    mask=mask_fp32,
+                    mask_sum_hw=mask_sum_hw_fp32,
+                    mask_sum=mask_sum_fp32,
+                    input_global=input_global_fp32,
+                    extra_outputs=extra_outputs
+                )
 
             for block in self.blocks[self.intermediate_head_blocks:]:
                 # print("TENSOR BEFORE BLOCK")
@@ -1980,17 +2005,38 @@ class Model(torch.nn.Module):
             extra_outputs.report("trunkfinal", out)
 
         # print("MAIN")
-        out_policy = self.policy_head(out, mask=mask, mask_sum_hw=mask_sum_hw, mask_sum=mask_sum, extra_outputs=extra_outputs)
-        (
-            out_value,
-            out_miscvalue,
-            out_moremiscvalue,
-            out_ownership,
-            out_scoring,
-            out_futurepos,
-            out_seki,
-            out_scorebelief_logprobs,
-        ) = self.value_head(out, mask=mask, mask_sum_hw=mask_sum_hw, mask_sum=mask_sum, input_global=input_global, extra_outputs=extra_outputs)
+        # Disable autocast for main output heads - compute in fp32
+        with autocast(enabled=False):
+            out = out.float()
+            mask_fp32 = mask.float()
+            mask_sum_hw_fp32 = mask_sum_hw.float()
+            mask_sum_fp32 = mask_sum.float() if isinstance(mask_sum, torch.Tensor) else mask_sum
+            input_global_fp32 = input_global.float()
+
+            out_policy = self.policy_head(
+                out,
+                mask=mask_fp32,
+                mask_sum_hw=mask_sum_hw_fp32,
+                mask_sum=mask_sum_fp32,
+                extra_outputs=extra_outputs
+            )
+            (
+                out_value,
+                out_miscvalue,
+                out_moremiscvalue,
+                out_ownership,
+                out_scoring,
+                out_futurepos,
+                out_seki,
+                out_scorebelief_logprobs,
+            ) = self.value_head(
+                out,
+                mask=mask_fp32,
+                mask_sum_hw=mask_sum_hw_fp32,
+                mask_sum=mask_sum_fp32,
+                input_global=input_global_fp32,
+                extra_outputs=extra_outputs
+            )
 
         if self.has_intermediate_head:
             return (

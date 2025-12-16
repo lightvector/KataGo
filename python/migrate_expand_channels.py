@@ -232,13 +232,17 @@ pos_len = 19
 raw_model = Model(new_config,pos_len)
 raw_model.initialize()
 
-assert "train_state"in data
-with torch.no_grad():
-    (modelnorm_normal, modelnorm_normal_gamma, modelnorm_output, modelnorm_noreg, modelnorm_output_noreg) = Metrics.get_model_norms(raw_model)
-    modelnorm_normal_baseline = modelnorm_normal.detach().cpu().item()
+assert "train_state" in data
+
+norms = Metrics.get_model_norms(raw_model)
+modelnorm_normal_baseline = norms["normal"]
+modelnorm_input_baseline = norms["input"]
 old_modelnorm_normal_baseline = data["train_state"]["modelnorm_normal_baseline"]
+old_modelnorm_input_baseline = data["train_state"].get("modelnorm_input_baseline",None)
 print(f"Model norm normal baseline updating: {old_modelnorm_normal_baseline} -> {modelnorm_normal_baseline}")
+print(f"Model norm input baseline updating: {old_modelnorm_input_baseline} -> {modelnorm_input_baseline}")
 data["train_state"]["modelnorm_normal_baseline"] = modelnorm_normal_baseline
+data["train_state"]["modelnorm_input_baseline"] = modelnorm_input_baseline
 
 raw_model_params = {}
 for name, param in raw_model.named_parameters():

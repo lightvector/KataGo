@@ -268,6 +268,38 @@ b15c192 = {
     "v2_size":96,
 }
 
+b10c256nbt = {
+    "version":15,
+    "norm_kind":"fixup",
+    "bnorm_epsilon": 1e-4,
+    "bnorm_running_avg_momentum": 0.001,
+    "initial_conv_1x1": False,
+    "trunk_num_channels":256,
+    "mid_num_channels":128,
+    "gpool_num_channels":64,
+    "use_attention_pool":False,
+    "gamma_weight_decay_center_1":False,
+    "num_attention_pool_heads":4,
+    "block_kind": [
+        ["rconv1","bottlenest2"],
+        ["rconv2","bottlenest2"],
+        ["rconv3","bottlenest2gpool"],
+        ["rconv4","bottlenest2"],
+        ["rconv5","bottlenest2"],
+        ["rconv6","bottlenest2gpool"],
+        ["rconv7","bottlenest2"],
+        ["rconv8","bottlenest2"],
+        ["rconv9","bottlenest2gpool"],
+        ["rconv10","bottlenest2"],
+    ],
+    "p1_num_channels":32,
+    "g1_num_channels":32,
+    "v1_num_channels":32,
+    "sbv2_num_channels":80,
+    "num_scorebeliefs":8,
+    "v2_size":96,
+}
+
 b20c256 = {
     "version":15,
     "norm_kind":"fixup",
@@ -1490,6 +1522,7 @@ base_config_of_name = {
 
     # Medium model configs, not too different in inference cost from b15c192
     "b15c192": b15c192,
+    "b10c256nbt": b10c256nbt,
 
     # Roughly AlphaZero-sized, not too different in inference cost from b20c256
     "b20c256": b20c256,

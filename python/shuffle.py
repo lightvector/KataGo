@@ -706,8 +706,10 @@ if __name__ == '__main__':
                 num_random_rows_capped = min(num_random_rows_capped + num_rows, min_rows)
 
     if os.path.exists(out_dir):
-        raise Exception(out_dir + " already exists")
-    os.mkdir(out_dir)
+        if os.listdir(out_dir):
+            raise Exception(out_dir + " already exists and is not empty")
+    else:
+        os.mkdir(out_dir)
 
     if num_rows_total <= 0:
         print("No rows found")

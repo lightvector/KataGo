@@ -29,6 +29,7 @@ mkdir -p "$basedir"/scripts
 mkdir -p "$basedir"/logs
 cp "$GITROOTDIR"/python/*.py "$GITROOTDIR"/python/selfplay/*.sh "$GITROOTDIR"/python/selfplay/distributed/*.sh "$basedir"/scripts
 cp -r "$GITROOTDIR"/python/katago "$basedir"/scripts
+cp -r "$GITROOTDIR"/python/muon "$basedir"/scripts
 
 # For archival and logging purposes - you can look back and see exactly the python code on a particular date
 DATE_FOR_FILENAME=$(date "+%Y%m%d-%H%M%S")
@@ -37,6 +38,7 @@ mkdir -p "$DATED_ARCHIVE"
 cp "$GITROOTDIR"/python/*.py "$DATED_ARCHIVE"
 cp -r "$GITROOTDIR"/python/katago "$DATED_ARCHIVE"
 cp -r "$GITROOTDIR"/python/selfplay "$DATED_ARCHIVE"
+cp -r "$GITROOTDIR"/python/muon "$DATED_ARCHIVE"
 
 
 (
