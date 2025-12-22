@@ -15,7 +15,7 @@ jobs:
     - name: Run Xcode build
       run: |
         cd cpp/xcode
-        /Applications/Xcode_15.0.1.app/Contents/Developer/usr/bin/xcodebuild -derivedDataPath DerivedData -scheme katago -configuration Debug build
+        /Applications/Xcode_26.1.1.app/Contents/Developer/usr/bin/xcodebuild -derivedDataPath DerivedData -scheme katago -configuration Debug build
 
     - name: Setup configuration
       run: |
@@ -67,7 +67,7 @@ jobs:
     - name: Run Xcode test
       run: |
         cd cpp/xcode
-        /Applications/Xcode_15.0.1.app/Contents/Developer/usr/bin/xcodebuild -derivedDataPath DerivedData -scheme katago -configuration Debug test
+        /Applications/Xcode_26.1.1.app/Contents/Developer/usr/bin/xcodebuild -derivedDataPath DerivedData -scheme katago -configuration Debug test
 
     - name: Run KataGo tests
       run: |
@@ -95,7 +95,7 @@ jobs:
     - name: Setup Xcode
       run: |
         xcode-select -p
-        sudo xcode-select -s /Applications/Xcode_15.0.1.app/Contents/Developer
+        sudo xcode-select -s /Applications/Xcode_26.1.1.app/Contents/Developer
 
     - name: Build KataGo with Eigen backend
       run: |
