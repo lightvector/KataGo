@@ -734,6 +734,7 @@ struct GTPEngine {
     bool showMovesOwnershipStdev = false;
     bool showPVVisits = false;
     bool showPVEdgeVisits = false;
+    bool showNoResultValue = false;
     double secondsPerReport = TimeControls::UNLIMITED_TIME_DEFAULT;
     vector<int> avoidMoveUntilByLocBlack;
     vector<int> avoidMoveUntilByLocWhite;
@@ -875,6 +876,8 @@ struct GTPEngine {
           out << " scoreStdev " << data.scoreStdev;
           out << " scoreLead " << lead;
           out << " scoreSelfplay " << scoreMean;
+          if(args.showNoResultValue)
+            out << " noResultValue " << data.noResultValue;
           out << " prior " << data.policyPrior;
           out << " lcb " << lcb;
           out << " utilityLcb " << utilityLcb;
@@ -1712,6 +1715,7 @@ static GTPEngine::AnalyzeArgs parseAnalyzeCommand(
   bool showMovesOwnershipStdev = false;
   bool showPVVisits = false;
   bool showPVEdgeVisits = false;
+  bool showNoResultValue = false;
   vector<int> avoidMoveUntilByLocBlack;
   vector<int> avoidMoveUntilByLocWhite;
   bool gotAvoidMovesBlack = false;
@@ -1852,6 +1856,9 @@ static GTPEngine::AnalyzeArgs parseAnalyzeCommand(
     else if(isKata && key == "pvEdgeVisits" && Global::tryStringToBool(value,showPVEdgeVisits)) {
       continue;
     }
+    else if(isKata && key == "noResultValue" && Global::tryStringToBool(value,showNoResultValue)) {
+      continue;
+    }
 
     parseFailed = true;
     break;
@@ -1872,6 +1879,7 @@ static GTPEngine::AnalyzeArgs parseAnalyzeCommand(
   args.showMovesOwnershipStdev = showMovesOwnershipStdev;
   args.showPVVisits = showPVVisits;
   args.showPVEdgeVisits = showPVEdgeVisits;
+  args.showNoResultValue = showNoResultValue;
   args.avoidMoveUntilByLocBlack = avoidMoveUntilByLocBlack;
   args.avoidMoveUntilByLocWhite = avoidMoveUntilByLocWhite;
   return args;

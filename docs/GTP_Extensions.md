@@ -115,6 +115,7 @@ In addition to a basic set of [GTP commands](https://www.lysator.liu.se/~gunnar/
          * `movesOwnershipStdev true` - Output the standard deviation of the distribution of predicted final ownerships of every point on the board across the search tree for every individual move.
          * `pvVisits true` - Output the number of visits spent in the position after each move in each principal variation.
          * `pvEdgeVisits true` - Output the number of visits spent following each move in each principal variation.
+         * `noResultValue true` - Output the predicted probability that the game ends in a no-result for each move.
       * Output format:
          * Outputted lines look like `info move E4 visits 487 utility -0.0408357 winrate 0.480018 scoreMean -0.611848 scoreStdev 24.7058 scoreLead -0.611848 scoreSelfplay -0.515178 prior 0.221121 lcb 0.477221 utilityLcb -0.0486664 order 0 pv E4 E3 F3 D3 F4 P4 P3 O3 Q3 O4 K3 Q6 S6 E16 E17 info move P16 visits 470 utility -0.0414945 winrate 0.479712 scoreMean -0.63075 scoreStdev 24.7179 scoreLead -0.63075 scoreSelfplay -0.5221 prior 0.220566 lcb 0.47657 utilityLcb -0.0502929 order 1 pv P16 P17 O17 Q17 O16 E17 H17 D15 C15 D14 C13 D13 C12 D12 info move E16 visits 143 utility -0.0534071 winrate 0.474509 scoreMean -0.729858 scoreStdev 24.7991 scoreLead -0.729858 scoreSelfplay -0.735747 prior 0.104652 lcb 0.470674 utilityLcb -0.0641425 order 2 pv E16 P4 P3 O3 Q3 O4 E3 H3 D5 C5`
          * Or, for example, if options like `rootInfo` and `ownership` are specified, they may look like: `info move E4 <same info for E4 as above> info move P16 <same info for P16 as above> info move E16 <same info for E16 as above> rootInfo visits 1101 <winrate, utility, other properties of root> ownership <361 floats predicting ownership of each board point>`
@@ -130,6 +131,7 @@ In addition to a basic set of [GTP commands](https://www.lysator.liu.se/~gunnar/
             * `scoreLead` - The predicted average number of points that the current side is leading by (with this many points fewer, it would be an even game).
             * `scoreSelfplay` - The predicted average value of the final score of the game after this move from low-playout noisy selfplay, in points. (NOTE: users should usually prefer scoreLead, since scoreSelfplay may be biased by the fact that KataGo isn't perfectly score-maximizing).
             * `prior` - The policy prior of the move, as a float in [0,1].
+            * `noResultValue` - The predicted probability that the game ends in a no-result (e.g. triple ko/long cycle), as a float in [0,1]. Only present if `noResultValue true` was requested. Relevant for rulesets like Japanese rules without superko.
             * `utility` - The utility of the move, combining both winrate and score, as a float in [-C,C] where C is the maximum possible utility.
             * `lcb` - The [LCB](https://github.com/leela-zero/leela-zero/issues/2282) of the move's winrate, as a float in [0,1].
             * `utilityLcb` - The LCB of the move's utility.

@@ -35,6 +35,7 @@ struct AnalyzeRequest {
   bool includeMovesOwnershipStdev;
   bool includePolicy;
   bool includePVVisits;
+  bool includeNoResultValue;
 
   bool reportDuringSearch;
   double reportDuringSearchEvery;
@@ -238,6 +239,7 @@ int MainCmds::analysis(const vector<string>& args) {
     "includeOwnershipStdev",
     "includePolicy",
     "includePVVisits",
+    "includeNoResultValue",
     "reportDuringSearchEvery",
     "firstReportDuringSearchAfter",
     "priority",
@@ -323,6 +325,7 @@ int MainCmds::analysis(const vector<string>& args) {
       request->includeOwnership,request->includeOwnershipStdev,
       request->includeMovesOwnership,request->includeMovesOwnershipStdev,
       request->includePVVisits,
+      request->includeNoResultValue,
       ret
     );
 
@@ -618,6 +621,7 @@ int MainCmds::analysis(const vector<string>& args) {
       rbase.includeMovesOwnershipStdev = false;
       rbase.includePolicy = false;
       rbase.includePVVisits = false;
+      rbase.includeNoResultValue = false;
       rbase.reportDuringSearch = false;
       rbase.reportDuringSearchEvery = 1e30;
       rbase.firstReportDuringSearchAfter = 1e30;
@@ -1027,6 +1031,11 @@ int MainCmds::analysis(const vector<string>& args) {
         if(!suc)
           continue;
       }
+      if(input.find("includeNoResultValue") != input.end()) {
+        bool suc = parseBoolean(input, "includeNoResultValue", rbase.includeNoResultValue, "Must be a boolean");
+        if(!suc)
+          continue;
+      }
       if(input.find("reportDuringSearchEvery") != input.end()) {
         bool suc = parseDouble(input, "reportDuringSearchEvery", rbase.reportDuringSearchEvery, 0.001, 1000000.0, "Must be number of seconds from 0.001 to 1000000.0");
         if(!suc)
@@ -1171,6 +1180,7 @@ int MainCmds::analysis(const vector<string>& args) {
           newRequest->includeMovesOwnershipStdev = rbase.includeMovesOwnershipStdev;
           newRequest->includePolicy = rbase.includePolicy;
           newRequest->includePVVisits = rbase.includePVVisits;
+          newRequest->includeNoResultValue = rbase.includeNoResultValue;
           newRequest->reportDuringSearch = rbase.reportDuringSearch;
           newRequest->reportDuringSearchEvery = rbase.reportDuringSearchEvery;
           newRequest->firstReportDuringSearchAfter = rbase.firstReportDuringSearchAfter;
