@@ -90,7 +90,7 @@ jobs:
 
     - name: Setup Eigen
       run: |
-        brew install eigen
+        brew install eigen@3
 
     - name: Setup Xcode
       run: |
