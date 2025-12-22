@@ -26,7 +26,7 @@ endfunction()
 function(_setup_swift_paths)
   # If we haven't set the swift library search paths, do that now
   if(NOT SWIFT_LIBRARY_SEARCH_PATHS)
-    if(APPLE)
+    if(CMAKE_OSX_SYSROOT)
       set(SDK_FLAGS "-sdk" "${CMAKE_OSX_SYSROOT}")
     endif()
 

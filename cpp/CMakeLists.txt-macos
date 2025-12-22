@@ -14,7 +14,7 @@ if(NOT "${CMAKE_CXX_COMPILER_ID}" STREQUAL "AppleClang")
   message(FATAL_ERROR "Project requires building with AppleClang. Have ${CMAKE_CXX_COMPILER_ID}")
 endif()
 
-list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/macos/cmake/modules")
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/external/macos/cmake/modules")
 include(InitializeSwift)
 include(AddSwift)
 
@@ -99,10 +99,7 @@ add_library(KataGoSwift STATIC
 
 _swift_generate_cxx_header(
   KataGoSwift
-  "${CMAKE_CURRENT_BINARY_DIR}/include/KataGoSwift/KataGoSwift-swift.h"
-  SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/neuralnet/coremlbackend.swift"
-  "${CMAKE_CURRENT_SOURCE_DIR}/neuralnet/coremlmodel.swift"
-  "${CMAKE_CURRENT_SOURCE_DIR}/neuralnet/metalbackend.swift")
+  "${CMAKE_CURRENT_BINARY_DIR}/include/KataGoSwift/KataGoSwift-swift.h")
 
 target_include_directories(KataGoSwift PUBLIC "${CMAKE_CURRENT_BINARY_DIR}/include")
 set_target_properties(KataGoSwift PROPERTIES Swift_MODULE_NAME "KataGoSwift")
