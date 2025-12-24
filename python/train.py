@@ -311,7 +311,7 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
     logging.info(f"Seeding torch with {seed}")
     torch.manual_seed(seed)
 
-    # LOAD MODEL ---------------------------------------------------------------------
+    # LR SCHEDULES ---------------------------------------------------------------------
 
     def lr_scale_auto_factor(train_state):
         if lr_scale_auto:
@@ -363,6 +363,11 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
         else:
             return 1.0
 
+    def get_effective_lr_scale(train_state):
+        return lr_scale * lr_scale_auto_factor(train_state)
+
+    # LOAD MODEL ---------------------------------------------------------------------
+
     def get_checkpoint_path():
         return os.path.join(traindir,"checkpoint.ckpt")
     def get_checkpoint_prev_path(i):
@@ -409,9 +414,8 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
         else:
             assert False
 
-    def get_weight_decay(raw_model, lr_scale, warmup_scale, train_state, running_metrics, group_name):
-        lr_scale_with_auto = lr_scale * lr_scale_auto_factor(train_state)
-
+    def get_weight_decay(raw_model, warmup_scale, train_state, running_metrics, group_name):
+        effective_lr_scale = get_effective_lr_scale(train_state)
         is_muon_suitable = get_is_muon_suitable(group_name)
 
         if use_adamw or use_muon:
@@ -460,9 +464,9 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
                 # So we scale sublinearly with lr_scale so as to slightly preadjust to this effect.
                 # Adaptive scale should then help keep us there thereafter.
                 if use_muon:
-                    wd_with_lr_scale = math.pow(lr_scale_with_auto * warmup_scale,0.70) * adaptive_scale
+                    wd_with_lr_scale = math.pow(effective_lr_scale * warmup_scale,0.70) * adaptive_scale
                 else:
-                    wd_with_lr_scale = math.pow(lr_scale_with_auto * warmup_scale,0.75) * adaptive_scale
+                    wd_with_lr_scale = math.pow(effective_lr_scale * warmup_scale,0.75) * adaptive_scale
 
                 if use_adamw or (use_muon and not is_muon_suitable):
                     if group_name == "input":
@@ -498,7 +502,7 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
                 else:
                     return 0.000001 * batch_scaling
             elif group_name == "input_noreg" or group_name == "noreg":
-                return 0.000001 * batch_scaling * math.pow(lr_scale_with_auto * warmup_scale,0.75)
+                return 0.000001 * batch_scaling * math.pow(effective_lr_scale * warmup_scale,0.75)
             elif group_name == "output_noreg":
                 return 0.00000001 * batch_scaling
             else:
@@ -521,7 +525,7 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
 
         for group in param_groups:
             group["weight_decay"] = get_weight_decay(
-                raw_model, lr_scale, warmup_scale=1.0, train_state=train_state, running_metrics=running_metrics, group_name=group["group_name"]
+                raw_model, warmup_scale=1.0, train_state=train_state, running_metrics=running_metrics, group_name=group["group_name"]
             )
             group["use_muon"] = get_is_muon_suitable(group_name=group["group_name"])
 
@@ -833,14 +837,14 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
             if use_adamw:
                 # 1.33 is empirical scaling factor meant to try to match the step size scales between SGD and AdamW
                 # for a mature net, as learning rate means something different.
-                per_sample_lr = 1.33 * 0.00003 * lr_scale * lr_scale_auto_factor(train_state)
+                per_sample_lr = 1.33 * 0.00003 * get_effective_lr_scale(train_state)
             elif use_muon:
                 # 1.33 is empirical scaling factor meant to try to match the step size scales between SGD and Muon
                 # for a mature net, as learning rate means something different.
                 # FIXME
-                per_sample_lr = 1.33 * 0.00003 * lr_scale * lr_scale_auto_factor(train_state)
+                per_sample_lr = 1.33 * 0.00003 * get_effective_lr_scale(train_state)
             else:
-                per_sample_lr = 0.00003 * lr_scale * lr_scale_auto_factor(train_state)
+                per_sample_lr = 0.00003 * get_effective_lr_scale(train_state)
 
 
             group_name = param_group["group_name"]
@@ -885,7 +889,6 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
 
             new_weight_decay_this_group = get_weight_decay(
                 raw_model,
-                lr_scale,
                 warmup_scale=warmup_scale,
                 train_state=train_state,
                 running_metrics=running_metrics,
@@ -1338,7 +1341,7 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
                             param.grad *= gradscale_constant
 
                 # Loosen gradient clipping as we shift to smaller learning rates
-                gnorm_cap = gnorm_cap / math.sqrt(max(0.0000001,lr_scale * lr_scale_auto_factor(train_state)))
+                gnorm_cap = gnorm_cap / math.sqrt(max(0.0000001,get_effective_lr_scale(train_state)))
 
                 gnorm = torch.nn.utils.clip_grad_norm_(ddp_model.parameters(), gnorm_cap).detach().cpu().item()
 
