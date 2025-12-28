@@ -3,6 +3,8 @@
 #define CUDA_API_PER_THREAD_DEFAULT_STREAM
 #include <NvInfer.h>
 #include <cuda_runtime_api.h>
+#include "NvOnnxConfig.h"
+#include "NvOnnxParser.h"
 
 #include "../core/fileutils.h"
 #include "../core/makedir.h"
@@ -20,6 +22,9 @@ using namespace nvinfer1;
 
 // Define this to print out some of the intermediate values of the neural net
 //#define DEBUG_INTERMEDIATE_VALUES
+
+#define CACHE_TENSORRT_PLAN
+const int TensorRT_BuilderOptimizationLevel = 2; //0 for fast init, 2 is default, 5 is max
 
 static void checkCudaError(const cudaError_t status, const char* opName, const char* file, const char* func, int line) {
   if(status != cudaSuccess)
@@ -43,6 +48,57 @@ struct ComputeContext {
   int nnYLen;
   enabled_t useFP16Mode;
   string homeDataDirOverride;
+  string onnxModelPath;
+  bool isOnnx;
+};
+
+
+
+void NeuralNet::freeComputeContext(ComputeContext* computeContext) {
+  delete computeContext;
+}
+
+static void loadModelDescFromJSON(const string& jsonFile, ModelDesc& desc) {
+  //if (!FileUtils::exists(jsonFile)) {
+  //  throw StringError("ONNX model requires a corresponding .json file for metadata: " + jsonFile);
+  //}
+  //string jsonContent = FileUtils::readFile(jsonFile);
+  // Simple manual parsing
+ 
+  desc.modelVersion = 15;
+  desc.name = "test";
+  desc.numInputChannels = NNModelVersion::getNumSpatialFeatures(desc.modelVersion);
+  desc.numInputGlobalChannels = NNModelVersion::getNumGlobalFeatures(desc.modelVersion);
+  desc.numValueChannels = 0;
+  desc.numScoreValueChannels = 0;
+  desc.numOwnershipChannels = 0;
+  
+}
+
+
+
+
+struct LoadedModel {
+  ModelDesc modelDesc;
+  string fileName;
+  bool isOnnx;
+
+  LoadedModel(const string& fileName, const string& expectedSha256) {
+    this->fileName = fileName;
+    if (Global::isSuffix(fileName, ".onnx")) {
+      isOnnx = true;
+      string jsonFile = fileName.substr(0, fileName.find_last_of(".")) + ".json";
+      loadModelDescFromJSON(jsonFile, modelDesc);
+    } else {
+      isOnnx = false;
+      ModelDesc::loadFromFileMaybeGZipped(fileName, modelDesc, expectedSha256);
+      modelDesc.applyScale8ToReduceActivations();
+    }
+  }
+
+  LoadedModel() = delete;
+  LoadedModel(const LoadedModel&) = delete;
+  LoadedModel& operator=(const LoadedModel&) = delete;
 };
 
 ComputeContext* NeuralNet::createComputeContext(
@@ -60,7 +116,6 @@ ComputeContext* NeuralNet::createComputeContext(
   (void)logger;
   (void)openCLTunerFile;
   (void)openCLReTunePerBoardSize;
-  (void)loadedModel;
 
   if(useNHWCMode == enabled_t::True) {
     throw StringError("TensorRT backend: useNHWC = false required, other configurations not supported");
@@ -71,25 +126,10 @@ ComputeContext* NeuralNet::createComputeContext(
   context->nnYLen = nnYLen;
   context->useFP16Mode = useFP16Mode;
   context->homeDataDirOverride = homeDataDirOverride;
+  context->isOnnx = loadedModel->isOnnx;
+  context->onnxModelPath = loadedModel->fileName;
   return context;
 }
-
-void NeuralNet::freeComputeContext(ComputeContext* computeContext) {
-  delete computeContext;
-}
-
-struct LoadedModel {
-  ModelDesc modelDesc;
-
-  LoadedModel(const string& fileName, const string& expectedSha256) {
-    ModelDesc::loadFromFileMaybeGZipped(fileName, modelDesc, expectedSha256);
-    modelDesc.applyScale8ToReduceActivations();
-  }
-
-  LoadedModel() = delete;
-  LoadedModel(const LoadedModel&) = delete;
-  LoadedModel& operator=(const LoadedModel&) = delete;
-};
 
 LoadedModel* NeuralNet::loadModelFile(const string& file, const string& expectedSha256) {
   LoadedModel* loadedModel = new LoadedModel(file, expectedSha256);
@@ -1140,11 +1180,34 @@ struct ComputeHandle {
     if(!profile) {
       throw StringError("TensorRT backend: failed to create optimization profile");
     }
-    auto modelParser = make_unique<ModelParser>();
-    auto model = modelParser->build(
-      move(network), profile, loadedModel, ctx->nnXLen, ctx->nnYLen, maxBatchSize, requireExactNNLen);
-    debugOutputs = model->debugOutputs;
-    config->addOptimizationProfile(profile);
+
+    unique_ptr<TRTModel> model;
+    if (ctx->isOnnx) {
+      auto parser = nvonnxparser::createParser(*network, trtLogger);
+      if(!parser) {
+        throw StringError("TensorRT backend: failed to create ONNX parser");
+      }
+      if(!parser->parseFromFile(ctx->onnxModelPath.c_str(), static_cast<int>(ILogger::Severity::kERROR))) {
+        throw StringError("TensorRT backend: failed to parse ONNX model");
+      }
+      
+      int64_t spatialC = NNModelVersion::getNumSpatialFeatures(modelVersion);
+      int64_t globalC = NNModelVersion::getNumGlobalFeatures(modelVersion);
+      profile->setDimensions("input_spatial", OptProfileSelector::kMIN, Dims4(1, spatialC, ctx->nnYLen, ctx->nnXLen));
+      profile->setDimensions("input_spatial", OptProfileSelector::kOPT, Dims4(maxBatchSize, spatialC, ctx->nnYLen, ctx->nnXLen));
+      profile->setDimensions("input_spatial", OptProfileSelector::kMAX, Dims4(maxBatchSize, spatialC, ctx->nnYLen, ctx->nnXLen));
+      profile->setDimensions("input_global", OptProfileSelector::kMIN, Dims2(1, globalC));
+      profile->setDimensions("input_global", OptProfileSelector::kOPT, Dims2(maxBatchSize, globalC));
+      profile->setDimensions("input_global", OptProfileSelector::kMAX, Dims2(maxBatchSize, globalC));
+      config->addOptimizationProfile(profile);
+    }
+    else {
+      auto modelParser = make_unique<ModelParser>();
+      model = modelParser->build(
+        move(network), profile, loadedModel, ctx->nnXLen, ctx->nnYLen, maxBatchSize, requireExactNNLen);
+      debugOutputs = model->debugOutputs;
+      config->addOptimizationProfile(profile);
+    }
 
 #if NV_TENSORRT_MAJOR == 8 && NV_TENSORRT_MINOR == 5
     // This is to avoid external tactic sources and tactics that have shape switching overhead
@@ -1159,7 +1222,7 @@ struct ComputeHandle {
     if(prop->major >= 8) {
       // This is to avoid tactics that have shape switching overhead
       config->setTacticSources(1U << static_cast<uint32_t>(TacticSource::kJIT_CONVOLUTIONS));
-      config->setBuilderOptimizationLevel(2);
+      config->setBuilderOptimizationLevel(TensorRT_BuilderOptimizationLevel);
     }
 #endif
 
@@ -1190,6 +1253,14 @@ struct ComputeHandle {
       deviceIdent[sizeof(deviceIdent) - 1] = 0;
 
 #ifdef CACHE_TENSORRT_PLAN
+      string modelHashStr;
+      if (ctx->isOnnx) {
+         string tmp;
+         FileUtils::loadFileIntoString(ctx->onnxModelPath, "", tmp, &modelHashStr);
+      } else {
+         modelHashStr = loadedModel->modelDesc.sha256;
+      }
+
       auto planCacheFile = Global::strprintf(
         "%s/trt-%d_gpu-%s_net-%s_%d_%s%dx%d_batch%d_fp%d",
         cacheDir.c_str(),
@@ -1225,7 +1296,7 @@ struct ComputeHandle {
         } else {
           string cachedParamStr = plan.substr(plan.size() - paramStr.size());
           string modelHash = plan.substr(plan.size() - 64 - paramStr.size(), 64);
-          if(modelHash != loadedModel->modelDesc.sha256) {
+          if(modelHash != modelHashStr) {
             logger->write("Plan cache is corrupted or is for the wrong model in " + planCacheFile);
             plan.clear();
           } else if(cachedParamStr != paramStr) {
@@ -1239,7 +1310,9 @@ struct ComputeHandle {
 
       if(plan.size() <= 0) {
         logger->write("Creating new plan cache");
-        auto planBuffer = unique_ptr<IHostMemory>(builder->buildSerializedNetwork(*model->network, *config));
+        // network is moved into model if !isOnnx, but for isOnnx network is still valid (not moved)
+        INetworkDefinition* netPtr = ctx->isOnnx ? network.get() : model->network.get();
+        auto planBuffer = unique_ptr<IHostMemory>(builder->buildSerializedNetwork(*netPtr, *config));
         if(!planBuffer) {
           throw StringError("TensorRT backend: failed to create plan");
         }
@@ -1247,10 +1320,10 @@ struct ComputeHandle {
           plan.end(),
           static_cast<char*>(planBuffer->data()),
           static_cast<char*>(planBuffer->data()) + planBuffer->size());
-        if(loadedModel->modelDesc.sha256.size() != 64) {
+        if(modelHashStr.size() != 64) {
           throw StringError("Unexpected model hash size");
         }
-        plan.insert(plan.end(), loadedModel->modelDesc.sha256.begin(), loadedModel->modelDesc.sha256.end());
+        plan.insert(plan.end(), modelHashStr.begin(), modelHashStr.end());
         plan.insert(plan.end(), paramStr.begin(), paramStr.end());
         ofstream ofs;
         FileUtils::open(ofs, planCacheFile, ios::out | ios::binary);
@@ -1266,8 +1339,18 @@ struct ComputeHandle {
 #else
       // Truncated to 6 bytes
       char tuneIdent[6 * 2 + 1];
-      for(int i = 0; i < 6; i++) {
-        sprintf(tuneIdent + i * 2, "%02x", static_cast<unsigned char>(model->tuneHash[i]));
+      if (ctx->isOnnx) {
+        // Use part of SHA256 for tuneIdent if onnx
+         string modelHashStr;
+         string tmp;
+         FileUtils::loadFileIntoString(ctx->onnxModelPath, "", tmp, &modelHashStr);
+         for(int i = 0; i < 6; i++) {
+           sprintf(tuneIdent + i * 2, "%02x", static_cast<unsigned char>(modelHashStr[i]));
+         }
+      } else {
+        for(int i = 0; i < 6; i++) {
+          sprintf(tuneIdent + i * 2, "%02x", static_cast<unsigned char>(model->tuneHash[i]));
+        }
       }
       tuneIdent[sizeof(tuneIdent) - 1] = 0;
 
@@ -1305,7 +1388,8 @@ struct ComputeHandle {
 
       unique_ptr<IHostMemory> planBuffer;
       if(invalidTimingCache || !timingCacheBlob.size()) {
-        planBuffer.reset(builder->buildSerializedNetwork(*model->network, *config));
+        INetworkDefinition* netPtr = ctx->isOnnx ? network.get() : model->network.get();
+        planBuffer.reset(builder->buildSerializedNetwork(*netPtr, *config));
         if(!planBuffer) {
           throw StringError("TensorRT backend: failed to create plan");
         }
@@ -1318,7 +1402,8 @@ struct ComputeHandle {
         tuneMutex.unlock();
       } else {
         tuneMutex.unlock();
-        planBuffer.reset(builder->buildSerializedNetwork(*model->network, *config));
+        INetworkDefinition* netPtr = ctx->isOnnx ? network.get() : model->network.get();
+        planBuffer.reset(builder->buildSerializedNetwork(*netPtr, *config));
         if(!planBuffer) {
           throw StringError("TensorRT backend: failed to create plan");
         }
@@ -1516,6 +1601,7 @@ void NeuralNet::printDevices() {
 
 struct InputBuffers {
   int maxBatchSize;
+  bool isOnnx;
 
   size_t singleMaskElts;
   size_t singleMaskBytes;
@@ -1536,6 +1622,18 @@ struct InputBuffers {
   size_t singleOwnershipResultElts;
   size_t singleOwnershipResultBytes;
 
+  // ONNX specific
+  size_t singleout_policyElts;
+  size_t singleout_policyBytes;
+  size_t singleout_valueElts;
+  size_t singleout_valueBytes;
+  size_t singleout_miscvalueElts;
+  size_t singleout_miscvalueBytes;
+  size_t singleout_moremiscvalueElts;
+  size_t singleout_moremiscvalueBytes;
+  size_t singleout_ownershipElts;
+  size_t singleout_ownershipBytes;
+
   size_t inputMaskBufferBytes;
   size_t inputSpatialBufferBytes;
   size_t inputGlobalBufferBytes;
@@ -1545,6 +1643,12 @@ struct InputBuffers {
   size_t valueResultBufferBytes;
   size_t scoreValueResultBufferBytes;
   size_t ownershipResultBufferBytes;
+
+  size_t out_policyBufferBytes;
+  size_t out_valueBufferBytes;
+  size_t out_miscvalueBufferBytes;
+  size_t out_moremiscvalueBufferBytes;
+  size_t out_ownershipBufferBytes;
 
   unique_ptr<float[]> maskInputs;           // Host pointer
   unique_ptr<float[]> spatialInputs;        // Host pointer
@@ -1556,8 +1660,15 @@ struct InputBuffers {
   unique_ptr<float[]> scoreValueResults;    // Host pointer
   unique_ptr<float[]> ownershipResults;     // Host pointer
 
+  unique_ptr<float[]> out_policyResults;
+  unique_ptr<float[]> out_valueResults;
+  unique_ptr<float[]> out_miscvalueResults;
+  unique_ptr<float[]> out_moremiscvalueResults;
+  unique_ptr<float[]> out_ownershipResults;
+
   InputBuffers(const LoadedModel* loadedModel, int maxBatchSz, int nnXLen, int nnYLen) {
     const ModelDesc& m = loadedModel->modelDesc;
+    isOnnx = loadedModel->isOnnx;
 
     if(nnXLen > NNPos::MAX_BOARD_LEN)
       throw StringError(
@@ -1585,6 +1696,38 @@ struct InputBuffers {
     singleScoreValueResultBytes = singleScoreValueResultElts * sizeof(float);
     singleOwnershipResultElts = m.numOwnershipChannels * nnXLen * nnYLen;
     singleOwnershipResultBytes = singleOwnershipResultElts * sizeof(float);
+
+    if (isOnnx) {
+        int policyNum = (m.modelVersion >= 12 && m.modelVersion <= 99) ? 6 : 4;
+        if(m.modelVersion != 11 && m.modelVersion != 12 && m.modelVersion != 13 && m.modelVersion != 14 && m.modelVersion != 15 
+          && m.modelVersion != 102)
+        {
+          std::cout << "version: " << m.modelVersion << " is not supported in ONNX" << std::endl;
+          assert(false);
+        }
+        singleout_policyElts = 1 * policyNum * (nnXLen * nnYLen + 1);
+        singleout_policyBytes = singleout_policyElts * sizeof(float);
+        singleout_valueElts = 3;
+        singleout_valueBytes = singleout_valueElts * sizeof(float);
+        singleout_miscvalueElts = 10;
+        singleout_miscvalueBytes = singleout_miscvalueElts * sizeof(float);
+        singleout_moremiscvalueElts = 8;
+        singleout_moremiscvalueBytes = singleout_moremiscvalueElts * sizeof(float);
+        singleout_ownershipElts = 1 * nnXLen * nnYLen;
+        singleout_ownershipBytes = singleout_ownershipElts * sizeof(float);
+
+        out_policyBufferBytes = maxBatchSize * singleout_policyBytes;
+        out_valueBufferBytes = maxBatchSize * singleout_valueBytes;
+        out_miscvalueBufferBytes = maxBatchSize * singleout_miscvalueBytes;
+        out_moremiscvalueBufferBytes = maxBatchSize * singleout_moremiscvalueBytes;
+        out_ownershipBufferBytes = maxBatchSize * singleout_ownershipBytes;
+        
+        out_policyResults = std::make_unique<float[]>(maxBatchSize * singleout_policyElts);
+        out_valueResults = std::make_unique<float[]>(maxBatchSize * singleout_valueElts);
+        out_miscvalueResults = std::make_unique<float[]>(maxBatchSize * singleout_miscvalueElts);
+        out_moremiscvalueResults = std::make_unique<float[]>(maxBatchSize * singleout_moremiscvalueElts);
+        out_ownershipResults = std::make_unique<float[]>(maxBatchSize * singleout_ownershipElts);
+    }
 
     assert(NNModelVersion::getNumSpatialFeatures(m.modelVersion) == m.numInputChannels);
     assert(NNModelVersion::getNumGlobalFeatures(m.modelVersion) == m.numInputGlobalChannels);
@@ -1639,6 +1782,7 @@ void NeuralNet::getOutput(
   const int nnXLen = gpuHandle->ctx->nnXLen;
   const int nnYLen = gpuHandle->ctx->nnYLen;
   const int modelVersion = gpuHandle->modelVersion;
+  bool isOnnx = gpuHandle->ctx->isOnnx;
 
   const int numSpatialFeatures = NNModelVersion::getNumSpatialFeatures(modelVersion);
   const int numGlobalFeatures = NNModelVersion::getNumGlobalFeatures(modelVersion);
@@ -1671,113 +1815,62 @@ void NeuralNet::getOutput(
     copy(rowSpatialInput, rowSpatialInput + inputBuffers->singleMaskElts, rowMaskInput);
   }
 
-  assert(inputBuffers->singleMaskElts == gpuHandle->getBufferRowElts("InputMask"));
-  assert(inputBuffers->singleInputElts == gpuHandle->getBufferRowElts("InputSpatial"));
-  assert(inputBuffers->singleInputGlobalElts == gpuHandle->getBufferRowElts("InputGlobal"));
-  if(numMetaFeatures > 0)
-    assert(inputBuffers->singleInputMetaElts == gpuHandle->getBufferRowElts("InputMeta"));
-  assert(inputBuffers->singlePolicyPassResultElts == gpuHandle->getBufferRowElts("OutputPolicyPass"));
-  assert(inputBuffers->singlePolicyResultElts == gpuHandle->getBufferRowElts("OutputPolicy"));
-  assert(inputBuffers->singleValueResultElts == gpuHandle->getBufferRowElts("OutputValue"));
-  assert(inputBuffers->singleScoreValueResultElts == gpuHandle->getBufferRowElts("OutputScoreValue"));
-  assert(inputBuffers->singleOwnershipResultElts == gpuHandle->getBufferRowElts("OutputOwnership"));
+  // Set inputs
+  if (isOnnx) {
+      assert(inputBuffers->singleInputElts == gpuHandle->getBufferRowElts("input_spatial"));
+      assert(inputBuffers->singleInputGlobalElts == gpuHandle->getBufferRowElts("input_global"));
+      
+      CUDA_ERR("getOutput", cudaMemcpyAsync(gpuHandle->getBuffer("input_spatial"), inputBuffers->spatialInputs.get(), inputBuffers->singleInputBytes * batchSize, cudaMemcpyHostToDevice));
+      CUDA_ERR("getOutput", cudaMemcpyAsync(gpuHandle->getBuffer("input_global"), inputBuffers->globalInputs.get(), inputBuffers->singleInputGlobalBytes * batchSize, cudaMemcpyHostToDevice));
+      
+      auto spatialInputDims = gpuHandle->getBufferDynamicShape("input_spatial", batchSize);
+      auto globalInputDims = gpuHandle->getBufferDynamicShape("input_global", batchSize);
+      gpuHandle->exec->setInputShape("input_spatial", spatialInputDims);
+      gpuHandle->exec->setInputShape("input_global", globalInputDims);
+  } else {
+      assert(inputBuffers->singleMaskElts == gpuHandle->getBufferRowElts("InputMask"));
+      assert(inputBuffers->singleInputElts == gpuHandle->getBufferRowElts("InputSpatial"));
+      assert(inputBuffers->singleInputGlobalElts == gpuHandle->getBufferRowElts("InputGlobal"));
+      if(numMetaFeatures > 0)
+        assert(inputBuffers->singleInputMetaElts == gpuHandle->getBufferRowElts("InputMeta"));
 
-  assert(inputBuffers->inputMaskBufferBytes == gpuHandle->getBufferBytes("InputMask"));
-  assert(inputBuffers->inputSpatialBufferBytes == gpuHandle->getBufferBytes("InputSpatial"));
-  assert(inputBuffers->inputGlobalBufferBytes == gpuHandle->getBufferBytes("InputGlobal"));
-  if(numMetaFeatures > 0)
-    assert(inputBuffers->inputMetaBufferBytes == gpuHandle->getBufferBytes("InputMeta"));
-  assert(inputBuffers->policyPassResultBufferBytes == gpuHandle->getBufferBytes("OutputPolicyPass"));
-  assert(inputBuffers->policyResultBufferBytes == gpuHandle->getBufferBytes("OutputPolicy"));
-  assert(inputBuffers->valueResultBufferBytes == gpuHandle->getBufferBytes("OutputValue"));
-  assert(inputBuffers->scoreValueResultBufferBytes == gpuHandle->getBufferBytes("OutputScoreValue"));
-  assert(inputBuffers->ownershipResultBufferBytes == gpuHandle->getBufferBytes("OutputOwnership"));
+      CUDA_ERR("getOutput", cudaMemcpyAsync(gpuHandle->getBuffer("InputMask"), inputBuffers->maskInputs.get(), inputBuffers->singleMaskBytes * batchSize, cudaMemcpyHostToDevice));
+      CUDA_ERR("getOutput", cudaMemcpyAsync(gpuHandle->getBuffer("InputSpatial"), inputBuffers->spatialInputs.get(), inputBuffers->singleInputBytes * batchSize, cudaMemcpyHostToDevice));
+      CUDA_ERR("getOutput", cudaMemcpyAsync(gpuHandle->getBuffer("InputGlobal"), inputBuffers->globalInputs.get(), inputBuffers->singleInputGlobalBytes * batchSize, cudaMemcpyHostToDevice));
+      if(numMetaFeatures > 0) {
+        CUDA_ERR("getOutput", cudaMemcpyAsync(gpuHandle->getBuffer("InputMeta"), inputBuffers->metaInputs.get(), inputBuffers->singleInputMetaBytes * batchSize, cudaMemcpyHostToDevice));
+      }
 
-  const int numPolicyChannels = inputBuffers->singlePolicyPassResultElts;
-  assert(inputBuffers->singlePolicyResultElts == numPolicyChannels * nnXLen * nnYLen);
+      auto maskInputDims = gpuHandle->getBufferDynamicShape("InputMask", batchSize);
+      auto spatialInputDims = gpuHandle->getBufferDynamicShape("InputSpatial", batchSize);
+      auto globalInputDims = gpuHandle->getBufferDynamicShape("InputGlobal", batchSize);
 
-  // Transfers from host memory to device memory are asynchronous with respect to the host
-  CUDA_ERR(
-    "getOutput",
-    cudaMemcpyAsync(
-      gpuHandle->getBuffer("InputMask"),
-      inputBuffers->maskInputs.get(),
-      inputBuffers->singleMaskBytes * batchSize,
-      cudaMemcpyHostToDevice));
-  CUDA_ERR(
-    "getOutput",
-    cudaMemcpyAsync(
-      gpuHandle->getBuffer("InputSpatial"),
-      inputBuffers->spatialInputs.get(),
-      inputBuffers->singleInputBytes * batchSize,
-      cudaMemcpyHostToDevice));
-  CUDA_ERR(
-    "getOutput",
-    cudaMemcpyAsync(
-      gpuHandle->getBuffer("InputGlobal"),
-      inputBuffers->globalInputs.get(),
-      inputBuffers->singleInputGlobalBytes * batchSize,
-      cudaMemcpyHostToDevice));
-  if(numMetaFeatures > 0) {
-    CUDA_ERR(
-      "getOutput",
-      cudaMemcpyAsync(
-        gpuHandle->getBuffer("InputMeta"),
-        inputBuffers->metaInputs.get(),
-        inputBuffers->singleInputMetaBytes * batchSize,
-        cudaMemcpyHostToDevice));
-  }
+      gpuHandle->exec->setInputShape("InputMask", maskInputDims);
+      gpuHandle->exec->setInputShape("InputSpatial", spatialInputDims);
+      gpuHandle->exec->setInputShape("InputGlobal", globalInputDims);
 
-  auto maskInputDims = gpuHandle->getBufferDynamicShape("InputMask", batchSize);
-  auto spatialInputDims = gpuHandle->getBufferDynamicShape("InputSpatial", batchSize);
-  auto globalInputDims = gpuHandle->getBufferDynamicShape("InputGlobal", batchSize);
-
-  gpuHandle->exec->setInputShape("InputMask", maskInputDims);
-  gpuHandle->exec->setInputShape("InputSpatial", spatialInputDims);
-  gpuHandle->exec->setInputShape("InputGlobal", globalInputDims);
-
-  if(numMetaFeatures > 0) {
-    auto metaInputDims = gpuHandle->getBufferDynamicShape("InputMeta", batchSize);
-    gpuHandle->exec->setInputShape("InputMeta", metaInputDims);
+      if(numMetaFeatures > 0) {
+        auto metaInputDims = gpuHandle->getBufferDynamicShape("InputMeta", batchSize);
+        gpuHandle->exec->setInputShape("InputMeta", metaInputDims);
+      }
   }
 
   gpuHandle->exec->enqueueV3(cudaStreamPerThread);
 
-  CUDA_ERR(
-    "getOutput",
-    cudaMemcpy(
-      inputBuffers->policyPassResults.get(),
-      gpuHandle->getBuffer("OutputPolicyPass"),
-      inputBuffers->singlePolicyPassResultBytes * batchSize,
-      cudaMemcpyDeviceToHost));
-  CUDA_ERR(
-    "getOutput",
-    cudaMemcpy(
-      inputBuffers->policyResults.get(),
-      gpuHandle->getBuffer("OutputPolicy"),
-      inputBuffers->singlePolicyResultBytes * batchSize,
-      cudaMemcpyDeviceToHost));
-  CUDA_ERR(
-    "getOutput",
-    cudaMemcpy(
-      inputBuffers->valueResults.get(),
-      gpuHandle->getBuffer("OutputValue"),
-      inputBuffers->singleValueResultBytes * batchSize,
-      cudaMemcpyDeviceToHost));
-  CUDA_ERR(
-    "getOutput",
-    cudaMemcpy(
-      inputBuffers->scoreValueResults.get(),
-      gpuHandle->getBuffer("OutputScoreValue"),
-      inputBuffers->singleScoreValueResultBytes * batchSize,
-      cudaMemcpyDeviceToHost));
-  CUDA_ERR(
-    "getOutput",
-    cudaMemcpy(
-      inputBuffers->ownershipResults.get(),
-      gpuHandle->getBuffer("OutputOwnership"),
-      inputBuffers->singleOwnershipResultBytes * batchSize,
-      cudaMemcpyDeviceToHost));
+  // Get outputs
+  if (isOnnx) {
+      CUDA_ERR("getOutput", cudaMemcpy(inputBuffers->out_policyResults.get(), gpuHandle->getBuffer("out_policy"), inputBuffers->singleout_policyBytes * batchSize, cudaMemcpyDeviceToHost));
+      CUDA_ERR("getOutput", cudaMemcpy(inputBuffers->out_valueResults.get(), gpuHandle->getBuffer("out_value"), inputBuffers->singleout_valueBytes * batchSize, cudaMemcpyDeviceToHost));
+      CUDA_ERR("getOutput", cudaMemcpy(inputBuffers->out_miscvalueResults.get(), gpuHandle->getBuffer("out_miscvalue"), inputBuffers->singleout_miscvalueBytes * batchSize, cudaMemcpyDeviceToHost));
+      CUDA_ERR("getOutput", cudaMemcpy(inputBuffers->out_moremiscvalueResults.get(), gpuHandle->getBuffer("out_moremiscvalue"), inputBuffers->singleout_moremiscvalueBytes * batchSize, cudaMemcpyDeviceToHost));
+      CUDA_ERR("getOutput", cudaMemcpy(inputBuffers->out_ownershipResults.get(), gpuHandle->getBuffer("out_ownership"), inputBuffers->singleout_ownershipBytes * batchSize, cudaMemcpyDeviceToHost));
+  } else {
+      CUDA_ERR("getOutput", cudaMemcpy(inputBuffers->policyPassResults.get(), gpuHandle->getBuffer("OutputPolicyPass"), inputBuffers->singlePolicyPassResultBytes * batchSize, cudaMemcpyDeviceToHost));
+      CUDA_ERR("getOutput", cudaMemcpy(inputBuffers->policyResults.get(), gpuHandle->getBuffer("OutputPolicy"), inputBuffers->singlePolicyResultBytes * batchSize, cudaMemcpyDeviceToHost));
+      CUDA_ERR("getOutput", cudaMemcpy(inputBuffers->valueResults.get(), gpuHandle->getBuffer("OutputValue"), inputBuffers->singleValueResultBytes * batchSize, cudaMemcpyDeviceToHost));
+      CUDA_ERR("getOutput", cudaMemcpy(inputBuffers->scoreValueResults.get(), gpuHandle->getBuffer("OutputScoreValue"), inputBuffers->singleScoreValueResultBytes * batchSize, cudaMemcpyDeviceToHost));
+      CUDA_ERR("getOutput", cudaMemcpy(inputBuffers->ownershipResults.get(), gpuHandle->getBuffer("OutputOwnership"), inputBuffers->singleOwnershipResultBytes * batchSize, cudaMemcpyDeviceToHost));
+  }
 
   gpuHandle->printDebugOutput(batchSize);
   gpuHandle->trtErrorRecorder.clear();
@@ -1785,6 +1878,7 @@ void NeuralNet::getOutput(
   assert(outputs.size() == batchSize);
 
   float policyProbsTmp[NNPos::MAX_NN_POLICY_SIZE];
+  const int numPolicyChannels = inputBuffers->singlePolicyPassResultElts;
 
   for(int row = 0; row < batchSize; row++) {
     NNOutput* output = outputs[row];
@@ -1793,82 +1887,150 @@ void NeuralNet::getOutput(
     assert(output->nnYLen == nnYLen);
     float policyOptimism = (float)inputBufs[row]->policyOptimism;
 
-    const float* policyPassSrcBuf = &inputBuffers->policyPassResults[row * inputBuffers->singlePolicyPassResultElts];
-    const float* policySrcBuf = &inputBuffers->policyResults[row * inputBuffers->singlePolicyResultElts];
-    float* policyProbs = output->policyProbs;
+    if(isOnnx) {
+      const float* policySrcBuf = &inputBuffers->out_policyResults[row * inputBuffers->singleout_policyElts];
+      float* policyProbs = output->policyProbs;
+
+      int numPolicyChannels = (modelVersion >= 12 && modelVersion <= 99) ? 2 : 1;
+
+      if(numPolicyChannels == 2) {
+        assert(inputBuffers->singleout_policyElts == 6 * (nnXLen * nnYLen + 1));
+        // TRT is all NCHW
+        for(int i = 0; i < nnXLen * nnYLen; i++) {
+          float p = policySrcBuf[i];
+          // float pOpt = policySrcBuf[i + nnXLen * nnYLen];
+          float pOpt = policySrcBuf[i + 5 * (nnXLen * nnYLen + 1)];
+          policyProbsTmp[i] = p + (pOpt - p) * policyOptimism;
+        }
+        SymmetryHelpers::copyOutputsWithSymmetry(
+          policyProbsTmp, policyProbs, 1, nnYLen, nnXLen, inputBufs[row]->symmetry); 
+        policyProbs[nnXLen * nnYLen] =
+          policySrcBuf[nnXLen * nnYLen] +
+          (policySrcBuf[5 * (nnXLen * nnYLen + 1) + nnXLen * nnYLen] - policySrcBuf[nnXLen * nnYLen]) * policyOptimism;
+      } else {
+        // Fallback or default for 1 channel (or just take first channel if > 1 and not handled)
+        // trtbackend1.cpp logic for 6/4 channels likely just takes the first one?
+        // "singleout_policyElts = 1 * policyNum * ..."
+        // If policyNum is 6, what do we do?
+        // In trtbackend1.cpp getOutput, it asserts numPolicyChannels == 1.
+        // If policyNum was 6, assert would fail if numPolicyChannels was 6.
+        // But numPolicyChannels variable in trtbackend1.cpp seemed to come from somewhere else or was 1.
+        // If we assume channel 0 is the main policy.
+        assert(numPolicyChannels == 1);
+        SymmetryHelpers::copyOutputsWithSymmetry(
+          policySrcBuf, policyProbs, 1, nnYLen, nnXLen, inputBufs[row]->symmetry);
+        policyProbs[nnXLen * nnYLen] = policySrcBuf[nnXLen * nnYLen];
+      }
+
+      int numValueChannels = inputBuffers->singleout_valueElts;
+      assert(numValueChannels == 3);
+      output->whiteWinProb = inputBuffers->out_valueResults[row * numValueChannels];
+      output->whiteLossProb = inputBuffers->out_valueResults[row * numValueChannels + 1];
+      output->whiteNoResultProb = inputBuffers->out_valueResults[row * numValueChannels + 2];
+
+      // As above, these are NOT actually from white's perspective, but rather the player to move.
+      // As usual the client does the postprocessing.
+      if(output->whiteOwnerMap != NULL) {
+        // const float* ownershipSrcBuf = &inputBuffers->ownershipResults[row * nnXLen * nnYLen];
+        const float* ownershipSrcBuf = &inputBuffers->out_ownershipResults[row * nnXLen * nnYLen];
+        assert(inputBuffers->singleout_ownershipElts == nnXLen * nnYLen);
+        SymmetryHelpers::copyOutputsWithSymmetry(
+          ownershipSrcBuf, output->whiteOwnerMap, 1, nnYLen, nnXLen, inputBufs[row]->symmetry);
+      }
+
+
+      int numScoreValueChannels = inputBuffers->singleout_miscvalueElts;
+      int numMoreValueChannels = inputBuffers->singleout_moremiscvalueElts;
+      if(modelVersion >= 9) {
+        output->whiteScoreMean = inputBuffers->out_miscvalueResults[row * numScoreValueChannels];
+        output->whiteScoreMeanSq = inputBuffers->out_miscvalueResults[row * numScoreValueChannels + 1];
+        output->whiteLead = inputBuffers->out_miscvalueResults[row * numScoreValueChannels + 2];
+        output->varTimeLeft = inputBuffers->out_miscvalueResults[row * numScoreValueChannels + 3];
+        output->shorttermWinlossError = inputBuffers->out_moremiscvalueResults[row * numMoreValueChannels];
+        output->shorttermScoreError = inputBuffers->out_moremiscvalueResults[row * numMoreValueChannels + 1];
+      }
+      else
+      {
+          std::cout << "version: " << modelVersion << " is not supported in ONNX" << std::endl;
+          assert(false);
+      }
+
+    } else {
+      const float* policyPassSrcBuf = &inputBuffers->policyPassResults[row * inputBuffers->singlePolicyPassResultElts];
+      const float* policySrcBuf = &inputBuffers->policyResults[row * inputBuffers->singlePolicyResultElts];
+      float* policyProbs = output->policyProbs;
 
     // These are in logits, the client does the postprocessing to turn them into
     // policy probabilities and white game outcome probabilities
     // Also we don't fill in the nnHash here either
     // Handle version >= 12 policy optimism
-    if(numPolicyChannels == 2 || (numPolicyChannels == 4 && modelVersion >= 16)) {
+      if(numPolicyChannels == 2 || (numPolicyChannels == 4 && modelVersion >= 16)) {
       // TRT is all NCHW
-      for(int i = 0; i < nnXLen * nnYLen; i++) {
-        float p = policySrcBuf[i];
-        float pOpt = policySrcBuf[i + nnXLen * nnYLen];
-        policyProbsTmp[i] = p + (pOpt - p) * policyOptimism;
-      }
-      SymmetryHelpers::copyOutputsWithSymmetry(
-        policyProbsTmp, policyProbs, 1, nnYLen, nnXLen, inputBufs[row]->symmetry);
+        for(int i = 0; i < nnXLen * nnYLen; i++) {
+          float p = policySrcBuf[i];
+          float pOpt = policySrcBuf[i + nnXLen * nnYLen];
+          policyProbsTmp[i] = p + (pOpt - p) * policyOptimism;
+        }
+        SymmetryHelpers::copyOutputsWithSymmetry(
+          policyProbsTmp, policyProbs, 1, nnYLen, nnXLen, inputBufs[row]->symmetry);
       policyProbs[nnXLen * nnYLen] = policyPassSrcBuf[0] + (policyPassSrcBuf[1] - policyPassSrcBuf[0]) * policyOptimism;
-    } else {
-      assert(numPolicyChannels == 1);
+      } else {
+        assert(numPolicyChannels == 1);
       SymmetryHelpers::copyOutputsWithSymmetry(policySrcBuf, policyProbs, 1, nnYLen, nnXLen, inputBufs[row]->symmetry);
-      policyProbs[nnXLen * nnYLen] = policyPassSrcBuf[0];
-    }
+        policyProbs[nnXLen * nnYLen] = policyPassSrcBuf[0];
+      }
 
-    int numValueChannels = inputBuffers->singleValueResultElts;
-    assert(numValueChannels == 3);
-    output->whiteWinProb = inputBuffers->valueResults[row * numValueChannels];
-    output->whiteLossProb = inputBuffers->valueResults[row * numValueChannels + 1];
-    output->whiteNoResultProb = inputBuffers->valueResults[row * numValueChannels + 2];
+      int numValueChannels = inputBuffers->singleValueResultElts;
+      assert(numValueChannels == 3);
+      output->whiteWinProb = inputBuffers->valueResults[row * numValueChannels];
+      output->whiteLossProb = inputBuffers->valueResults[row * numValueChannels + 1];
+      output->whiteNoResultProb = inputBuffers->valueResults[row * numValueChannels + 2];
 
     // As above, these are NOT actually from white's perspective, but rather the player to move.
     // As usual the client does the postprocessing.
-    if(output->whiteOwnerMap != NULL) {
-      const float* ownershipSrcBuf = &inputBuffers->ownershipResults[row * nnXLen * nnYLen];
-      assert(inputBuffers->singleOwnershipResultElts == nnXLen * nnYLen);
-      SymmetryHelpers::copyOutputsWithSymmetry(
-        ownershipSrcBuf, output->whiteOwnerMap, 1, nnYLen, nnXLen, inputBufs[row]->symmetry);
-    }
+      if(output->whiteOwnerMap != NULL) {
+        const float* ownershipSrcBuf = &inputBuffers->ownershipResults[row * nnXLen * nnYLen];
+        assert(inputBuffers->singleOwnershipResultElts == nnXLen * nnYLen);
+        SymmetryHelpers::copyOutputsWithSymmetry(
+          ownershipSrcBuf, output->whiteOwnerMap, 1, nnYLen, nnXLen, inputBufs[row]->symmetry);
+      }
 
-    int numScoreValueChannels = inputBuffers->singleScoreValueResultElts;
-    if(modelVersion >= 9) {
-      assert(numScoreValueChannels == 6);
-      output->whiteScoreMean = inputBuffers->scoreValueResults[row * numScoreValueChannels];
-      output->whiteScoreMeanSq = inputBuffers->scoreValueResults[row * numScoreValueChannels + 1];
-      output->whiteLead = inputBuffers->scoreValueResults[row * numScoreValueChannels + 2];
-      output->varTimeLeft = inputBuffers->scoreValueResults[row * numScoreValueChannels + 3];
-      output->shorttermWinlossError = inputBuffers->scoreValueResults[row * numScoreValueChannels + 4];
-      output->shorttermScoreError = inputBuffers->scoreValueResults[row * numScoreValueChannels + 5];
-    } else if(modelVersion >= 8) {
-      assert(numScoreValueChannels == 4);
-      output->whiteScoreMean = inputBuffers->scoreValueResults[row * numScoreValueChannels];
-      output->whiteScoreMeanSq = inputBuffers->scoreValueResults[row * numScoreValueChannels + 1];
-      output->whiteLead = inputBuffers->scoreValueResults[row * numScoreValueChannels + 2];
-      output->varTimeLeft = inputBuffers->scoreValueResults[row * numScoreValueChannels + 3];
-      output->shorttermWinlossError = 0;
-      output->shorttermScoreError = 0;
-    } else if(modelVersion >= 4) {
-      assert(numScoreValueChannels == 2);
-      output->whiteScoreMean = inputBuffers->scoreValueResults[row * numScoreValueChannels];
-      output->whiteScoreMeanSq = inputBuffers->scoreValueResults[row * numScoreValueChannels + 1];
-      output->whiteLead = output->whiteScoreMean;
-      output->varTimeLeft = 0;
-      output->shorttermWinlossError = 0;
-      output->shorttermScoreError = 0;
-    } else if(modelVersion >= 3) {
-      assert(numScoreValueChannels == 1);
-      output->whiteScoreMean = inputBuffers->scoreValueResults[row * numScoreValueChannels];
-      // Version 3 neural nets don't have any second moment output, implicitly already folding it in, so we just use the
-      // mean squared
-      output->whiteScoreMeanSq = output->whiteScoreMean * output->whiteScoreMean;
-      output->whiteLead = output->whiteScoreMean;
-      output->varTimeLeft = 0;
-      output->shorttermWinlossError = 0;
-      output->shorttermScoreError = 0;
-    } else {
-      ASSERT_UNREACHABLE;
+      int numScoreValueChannels = inputBuffers->singleScoreValueResultElts;
+      if(modelVersion >= 9) {
+        assert(numScoreValueChannels == 6);
+        output->whiteScoreMean = inputBuffers->scoreValueResults[row * numScoreValueChannels];
+        output->whiteScoreMeanSq = inputBuffers->scoreValueResults[row * numScoreValueChannels + 1];
+        output->whiteLead = inputBuffers->scoreValueResults[row * numScoreValueChannels + 2];
+        output->varTimeLeft = inputBuffers->scoreValueResults[row * numScoreValueChannels + 3];
+        output->shorttermWinlossError = inputBuffers->scoreValueResults[row * numScoreValueChannels + 4];
+        output->shorttermScoreError = inputBuffers->scoreValueResults[row * numScoreValueChannels + 5];
+      } else if(modelVersion >= 8) {
+        assert(numScoreValueChannels == 4);
+        output->whiteScoreMean = inputBuffers->scoreValueResults[row * numScoreValueChannels];
+        output->whiteScoreMeanSq = inputBuffers->scoreValueResults[row * numScoreValueChannels + 1];
+        output->whiteLead = inputBuffers->scoreValueResults[row * numScoreValueChannels + 2];
+        output->varTimeLeft = inputBuffers->scoreValueResults[row * numScoreValueChannels + 3];
+        output->shorttermWinlossError = 0;
+        output->shorttermScoreError = 0;
+      } else if(modelVersion >= 4) {
+        assert(numScoreValueChannels == 2);
+        output->whiteScoreMean = inputBuffers->scoreValueResults[row * numScoreValueChannels];
+        output->whiteScoreMeanSq = inputBuffers->scoreValueResults[row * numScoreValueChannels + 1];
+        output->whiteLead = output->whiteScoreMean;
+        output->varTimeLeft = 0;
+        output->shorttermWinlossError = 0;
+        output->shorttermScoreError = 0;
+      } else if(modelVersion >= 3) {
+        assert(numScoreValueChannels == 1);
+        output->whiteScoreMean = inputBuffers->scoreValueResults[row * numScoreValueChannels];
+        output->whiteScoreMeanSq = output->whiteScoreMean * output->whiteScoreMean;
+        output->whiteLead = output->whiteScoreMean;
+        output->varTimeLeft = 0;
+        output->shorttermWinlossError = 0;
+        output->shorttermScoreError = 0;
+      } else {
+        ASSERT_UNREACHABLE;
+      }
     }
   }
 }
