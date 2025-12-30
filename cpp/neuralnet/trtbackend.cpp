@@ -58,6 +58,111 @@ void NeuralNet::freeComputeContext(ComputeContext* computeContext) {
   delete computeContext;
 }
 
+// Minimal protobuf parser helper
+struct ProtoReader {
+  const uint8_t* ptr;
+  const uint8_t* end;
+
+  ProtoReader(const uint8_t* p, size_t len) : ptr(p), end(p + len) {}
+
+  bool hasBytes() const { return ptr < end; }
+
+  uint32_t readVarint() {
+    uint32_t result = 0;
+    int shift = 0;
+    while (ptr < end) {
+      uint8_t byte = *ptr++;
+      result |= (uint32_t)(byte & 0x7F) << shift;
+      if (!(byte & 0x80)) return result;
+      shift += 7;
+      if (shift >= 32) break; // Overflow protection
+    }
+    return result;
+  }
+
+  // Returns true if tag read, false if EOF
+  bool readTag(uint32_t& fieldNum, uint32_t& wireType) {
+    if (ptr >= end) return false;
+    uint32_t tag = readVarint();
+    fieldNum = tag >> 3;
+    wireType = tag & 7;
+    return true;
+  }
+
+  void skipField(uint32_t wireType) {
+    if (wireType == 0) { // Varint
+      readVarint();
+    } else if (wireType == 1) { // 64-bit
+      if (ptr + 8 <= end) ptr += 8;
+    } else if (wireType == 2) { // Length delimited
+      uint32_t len = readVarint();
+      if (ptr + len <= end) ptr += len;
+      else ptr = end;
+    } else if (wireType == 5) { // 32-bit
+      if (ptr + 4 <= end) ptr += 4;
+    }
+    // Groups (3,4) deprecated/not supported here
+  }
+
+  string readString() {
+    uint32_t len = readVarint();
+    if (ptr + len > end) return "";
+    string s((const char*)ptr, len);
+    ptr += len;
+    return s;
+  }
+};
+
+static void loadModelDescFromONNX(const string& onnxFile, ModelDesc& desc) {
+  // Read entire file into memory
+  ifstream in(onnxFile, ios::binary | ios::ate);
+  if (!in) throw StringError("Could not open ONNX file: " + onnxFile);
+  size_t fileSize = in.tellg();
+  in.seekg(0, ios::beg);
+  
+  vector<uint8_t> buffer(fileSize);
+  if (!in.read((char*)buffer.data(), fileSize)) 
+    throw StringError("Failed to read ONNX file: " + onnxFile);
+  
+  ProtoReader reader(buffer.data(), fileSize);
+  std::map<string, string> metadata;
+
+  uint32_t fieldNum, wireType;
+  while (reader.readTag(fieldNum, wireType)) {
+    if (fieldNum == 14 && wireType == 2) { // metadata_props (repeated)
+      // Read nested message length
+      uint32_t msgLen = reader.readVarint();
+      const uint8_t* msgEnd = reader.ptr + msgLen;
+      if (msgEnd > reader.end) break;
+      
+      // Parse StringStringEntryProto
+      ProtoReader entryReader(reader.ptr, msgLen);
+      reader.ptr += msgLen; // Advance main reader
+
+      string key, value;
+      uint32_t eField, eWire;
+      while (entryReader.readTag(eField, eWire)) {
+        if (eField == 1 && eWire == 2) key = entryReader.readString();
+        else if (eField == 2 && eWire == 2) value = entryReader.readString();
+        else entryReader.skipField(eWire);
+      }
+      if (!key.empty()) metadata[key] = value;
+    } else {
+      reader.skipField(wireType);
+    }
+  }
+
+  if (metadata.count("modelVersion")) desc.modelVersion = std::stoi(metadata["modelVersion"]);
+  else desc.modelVersion = 15;
+
+  desc.name = metadata.count("name") ? metadata["name"] : "test";
+  desc.numInputChannels = NNModelVersion::getNumSpatialFeatures(desc.modelVersion);
+  desc.numInputGlobalChannels = NNModelVersion::getNumGlobalFeatures(desc.modelVersion);
+  desc.numValueChannels = 0;
+  desc.numScoreValueChannels = 0;
+  desc.numOwnershipChannels = 0;
+}
+
 static void loadModelDescFromJSON(const string& jsonFile, ModelDesc& desc) {
   //if (!FileUtils::exists(jsonFile)) {
   //  throw StringError("ONNX model requires a corresponding .json file for metadata: " + jsonFile);
@@ -87,8 +192,7 @@ struct LoadedModel {
     this->fileName = fileName;
     if (Global::isSuffix(fileName, ".onnx")) {
       isOnnx = true;
-      string jsonFile = fileName.substr(0, fileName.find_last_of(".")) + ".json";
-      loadModelDescFromJSON(jsonFile, modelDesc);
+      loadModelDescFromONNX(fileName, modelDesc);
     } else {
       isOnnx = false;
       ModelDesc::loadFromFileMaybeGZipped(fileName, modelDesc, expectedSha256);
