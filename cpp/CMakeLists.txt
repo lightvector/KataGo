@@ -244,6 +244,7 @@ add_executable(katago
   neuralnet/modelversion.cpp
   neuralnet/nneval.cpp
   neuralnet/desc.cpp
+  neuralnet/onnxprotoreader.cpp
   ${NEURALNET_BACKEND_SOURCES}
   book/book.cpp
   book/bookcssjs.cpp

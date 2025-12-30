@@ -24,6 +24,7 @@ using namespace nvinfer1;
 //#define DEBUG_INTERMEDIATE_VALUES
 
 //#define CACHE_TENSORRT_PLAN
+
 const int TensorRT_BuilderOptimizationLevel = 2; //0 for fast init, 2 is default, 5 is max
 
 static void checkCudaError(const cudaError_t status, const char* opName, const char* file, const char* func, int line) {
@@ -58,148 +59,6 @@ void NeuralNet::freeComputeContext(ComputeContext* computeContext) {
   delete computeContext;
 }
 
-// Minimal protobuf parser helper
-struct ProtoReader {
-  const uint8_t* ptr;
-  const uint8_t* end;
-
-  ProtoReader(const uint8_t* p, size_t len) : ptr(p), end(p + len) {}
-
-  bool hasBytes() const { return ptr < end; }
-
-  uint32_t readVarint() {
-    uint32_t result = 0;
-    int shift = 0;
-    while (ptr < end) {
-      uint8_t byte = *ptr++;
-      result |= (uint32_t)(byte & 0x7F) << shift;
-      if (!(byte & 0x80)) return result;
-      shift += 7;
-      if (shift >= 32) break; // Overflow protection
-    }
-    return result;
-  }
-
-  // Returns true if tag read, false if EOF
-  bool readTag(uint32_t& fieldNum, uint32_t& wireType) {
-    if (ptr >= end) return false;
-    uint32_t tag = readVarint();
-    fieldNum = tag >> 3;
-    wireType = tag & 7;
-    return true;
-  }
-
-  void skipField(uint32_t wireType) {
-    if (wireType == 0) { // Varint
-      readVarint();
-    } else if (wireType == 1) { // 64-bit
-      if (ptr + 8 <= end) ptr += 8;
-    } else if (wireType == 2) { // Length delimited
-      uint32_t len = readVarint();
-      if (ptr + len <= end) ptr += len;
-      else ptr = end;
-    } else if (wireType == 5) { // 32-bit
-      if (ptr + 4 <= end) ptr += 4;
-    }
-    // Groups (3,4) deprecated/not supported here
-  }
-
-  string readString() {
-    uint32_t len = readVarint();
-    if (ptr + len > end) return "";
-    string s((const char*)ptr, len);
-    ptr += len;
-    return s;
-  }
-};
-
-static void loadModelDescFromONNX(const string& onnxFile, ModelDesc& desc) {
-  // Read entire file into memory
-  ifstream in(onnxFile, ios::binary | ios::ate);
-  if (!in) throw StringError("Could not open ONNX file: " + onnxFile);
-  size_t fileSize = in.tellg();
-  in.seekg(0, ios::beg);
-  
-  vector<uint8_t> buffer(fileSize);
-  if (!in.read((char*)buffer.data(), fileSize)) 
-    throw StringError("Failed to read ONNX file: " + onnxFile);
-  
-  ProtoReader reader(buffer.data(), fileSize);
-  //std::map<string, string> metadata;
-  desc.onnxMetadata.clear();
-
-  uint32_t fieldNum, wireType;
-  while (reader.readTag(fieldNum, wireType)) {
-    if (fieldNum == 14 && wireType == 2) { // metadata_props (repeated)
-      // Read nested message length
-      uint32_t msgLen = reader.readVarint();
-      const uint8_t* msgEnd = reader.ptr + msgLen;
-      if (msgEnd > reader.end) break;
-      
-      // Parse StringStringEntryProto
-      ProtoReader entryReader(reader.ptr, msgLen);
-      reader.ptr += msgLen; // Advance main reader
-
-      string key, value;
-      uint32_t eField, eWire;
-      while (entryReader.readTag(eField, eWire)) {
-        if (eField == 1 && eWire == 2) key = entryReader.readString();
-        else if (eField == 2 && eWire == 2) value = entryReader.readString();
-        else entryReader.skipField(eWire);
-      }
-      if (!key.empty()) desc.onnxMetadata[key] = value;
-    } else {
-      reader.skipField(wireType);
-    }
-  }
-  if(!desc.onnxMetadata.count("modelVersion"))
-    throw StringError("ONNX model requires a modelVersion metadata field");
-  else if(!Global::tryStringToInt(desc.onnxMetadata["modelVersion"], desc.modelVersion))
-    throw StringError("ONNX model requires a valid modelVersion metadata field, but got: " + desc.onnxMetadata["modelVersion"]);
-  
-  if(!desc.onnxMetadata.count("name"))
-    throw StringError("ONNX model requires a name metadata field");
-  desc.name = desc.onnxMetadata["name"]; 
-
-
-  if(!desc.onnxMetadata.count("num_spatial_inputs"))
-    throw StringError("ONNX model requires a num_spatial_inputs metadata field");
-  else if(!Global::tryStringToInt(desc.onnxMetadata["num_spatial_inputs"], desc.numInputChannels))
-    throw StringError("ONNX model requires a valid num_spatial_inputs metadata field, but got: " + desc.onnxMetadata["num_spatial_inputs"]);
-  if(desc.numInputChannels != NNModelVersion::getNumSpatialFeatures(desc.modelVersion))
-    throw StringError("ONNX model requires num_spatial_inputs metadata field to match modelVersion");
-
-  if(!desc.onnxMetadata.count("num_global_inputs"))
-    throw StringError("ONNX model requires a num_global_inputs metadata field");
-  else if(!Global::tryStringToInt(desc.onnxMetadata["num_global_inputs"], desc.numInputGlobalChannels))
-    throw StringError("ONNX model requires a valid num_global_inputs metadata field, but got: " + desc.onnxMetadata["num_global_inputs"]);
-  if(desc.numInputGlobalChannels != NNModelVersion::getNumGlobalFeatures(desc.modelVersion))
-    throw StringError("ONNX model requires num_global_inputs metadata field to match modelVersion");
-
-  // "pos_len" and "has_mask" and "model_config" will be used later, so check them now
-  {
-    int tmpInt;
-    bool tmpBool;
-
-    if(!desc.onnxMetadata.count("pos_len"))
-      throw StringError("ONNX model requires a pos_len metadata field");
-    else if(!Global::tryStringToInt(desc.onnxMetadata["pos_len"], tmpInt))
-      throw StringError("ONNX model requires a valid pos_len metadata field, but got: " + desc.onnxMetadata["pos_len"]);
-    if(!desc.onnxMetadata.count("has_mask"))
-      throw StringError("ONNX model requires a has_mask metadata field");
-    else if(!Global::tryStringToBool(desc.onnxMetadata["has_mask"], tmpBool))
-      throw StringError("ONNX model requires a valid has_mask metadata field, but got: " + desc.onnxMetadata["has_mask"]);
-    if(!desc.onnxMetadata.count("model_config") || desc.onnxMetadata["model_config"].empty())
-      throw StringError("ONNX model requires a model_config metadata field");
-  }
-
-  desc.numValueChannels = 0; //will not be used
-  desc.numScoreValueChannels = 0;
-  desc.numOwnershipChannels = 0;
-}
-
-
-
 
 
 struct LoadedModel {
@@ -212,7 +71,8 @@ struct LoadedModel {
     if (Global::isSuffix(fileName, ".onnx")) {
       isOnnx = true;
       try {
-        loadModelDescFromONNX(fileName, modelDesc);
+        ModelDesc::loadFromONNX(fileName, modelDesc);
+
       } catch (const StringError& e) {
         throw StringError("Failed to load ONNX model config: " + fileName + "\n" + e.what());
       }
@@ -1312,21 +1172,18 @@ struct ComputeHandle {
     if (ctx->isOnnx) {
       //check whether the pos_len matches
       {
-        int pos_len_from_model = 0;
-        if(!Global::tryStringToInt(loadedModel->modelDesc.onnxMetadata.at("pos_len"), pos_len_from_model))
-           throw StringError("TensorRT backend: failed to parse pos_len from onnx model desc");
-
-        if(pos_len_from_model != ctx->nnYLen || pos_len_from_model != ctx->nnXLen) {
-          throw StringError("TensorRT backend: pos_len in model desc does not match nnYLen or nnXLen, "
-          "pos_len_from_model=" + Global::intToString(pos_len_from_model) +
-          ", nnYLen=" + Global::intToString(ctx->nnYLen) +
-          ", nnXLen=" + Global::intToString(ctx->nnXLen));
+        if(
+          loadedModel->modelDesc.onnxHeader.pos_len_y != ctx->nnYLen ||
+          loadedModel->modelDesc.onnxHeader.pos_len_x != ctx->nnXLen) {
+          throw StringError(
+            "TensorRT backend: pos_len in model desc does not match nnYLen or nnXLen, "
+            "pos_len_y from model = " +
+            Global::intToString(loadedModel->modelDesc.onnxHeader.pos_len_y) +
+            "pos_len_x from model = " + Global::intToString(loadedModel->modelDesc.onnxHeader.pos_len_x) +
+            ", nnYLen=" + Global::intToString(ctx->nnYLen) + ", nnXLen=" + Global::intToString(ctx->nnXLen));
         }
         
-        bool has_mask = false;
-        if(!Global::tryStringToBool(loadedModel->modelDesc.onnxMetadata.at("has_mask"), has_mask))
-           throw StringError("TensorRT backend: failed to parse has_mask from onnx model desc");
-        if((!requireExactNNLen) && (!has_mask)) {
+        if((!requireExactNNLen) && (!loadedModel->modelDesc.onnxHeader.has_mask)) {
           throw StringError("TensorRT backend: model does not have mask, but requireExactNNLen is false");
         }
 
@@ -1415,8 +1272,6 @@ struct ComputeHandle {
 
       if(ctx->isOnnx) {
 
-        bool has_mask = false;
-        Global::tryStringToBool(loadedModel->modelDesc.onnxMetadata.at("has_mask"), has_mask);
 
         planCacheFile = Global::strprintf(
           "%s/trt-onnx-%d_olv-%d_gpu-%s_net-%s_%d_%s%dx%d_batch%d_fp%d",
@@ -1426,7 +1281,7 @@ struct ComputeHandle {
           deviceIdent,
           modelHashStr.substr(0, 12).c_str(),
           ModelParser::tuneSalt,
-          (!has_mask) ? "exact" : "max",
+          (!loadedModel->modelDesc.onnxHeader.has_mask) ? "exact" : "max",
           ctx->nnYLen,
           ctx->nnXLen,
           maxBatchSize,
@@ -1436,7 +1291,7 @@ struct ComputeHandle {
           getInferLibVersion(),
           deviceIdent,
           ModelParser::tuneSalt,
-          (!has_mask) ? "exact" : "max",
+          (!loadedModel->modelDesc.onnxHeader.has_mask) ? "exact" : "max",
           ctx->nnYLen,
           ctx->nnXLen,
           maxBatchSize,
@@ -1525,29 +1380,15 @@ struct ComputeHandle {
       string timingCacheFile = "";
 
       if (ctx->isOnnx) {
-        string model_config_sha256 = "";
-
-        {
-          char hashResultBuf[65];
-          string model_config_str = loadedModel->modelDesc.onnxMetadata.at("model_config");
-          SHA2::get256((const uint8_t*)model_config_str.data(), model_config_str.size(), hashResultBuf);  
-          string hashResult(hashResultBuf);
-          model_config_sha256 = hashResult;
-        }
-        
-        bool has_mask = false;
-        if(!Global::tryStringToBool(loadedModel->modelDesc.onnxMetadata.at("has_mask"), has_mask))
-           throw StringError("TensorRT backend: failed to parse has_mask from onnx model desc");
-
         
         timingCacheFile = Global::strprintf(
           "%s/trt-onnx-%d_gpu-%s_mc-%s_ts-%d_%s%dx%d_batch%d_fp%d",
           cacheDir.c_str(),
           getInferLibVersion(),
           deviceIdent,
-          model_config_sha256.substr(0, 12).c_str(),
+          loadedModel->modelDesc.onnxHeader.model_config_sha256.substr(0, 12).c_str(),
           ModelParser::tuneSalt,
-          (!has_mask) ? "exact" : "max",
+          (!loadedModel->modelDesc.onnxHeader.has_mask) ? "exact" : "max",
           ctx->nnYLen,
           ctx->nnXLen,
           maxBatchSize,

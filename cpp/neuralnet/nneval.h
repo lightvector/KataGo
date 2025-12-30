@@ -75,7 +75,7 @@ struct NNServerBuf {
   NNServerBuf(const NNServerBuf& other) = delete;
   NNServerBuf& operator=(const NNServerBuf& other) = delete;
 };
-
+class ONNXModelHeader;
 class NNEvaluator {
  public:
   NNEvaluator(
@@ -210,10 +210,10 @@ class NNEvaluator {
  private:
   const std::string modelName;
   const std::string modelFileName;
-  const int nnXLen;
-  const int nnYLen;
-  const bool requireExactNNLen;
-  const int policySize;
+  int nnXLen;
+  int nnYLen;
+  bool requireExactNNLen;
+  int policySize;
   const bool inputsUseNHWC;
   const enabled_t usingFP16Mode;
   const enabled_t usingNHWCMode;
@@ -268,7 +268,7 @@ class NNEvaluator {
 
   //Queued up requests
   ThreadSafeQueue<NNResultBuf*> queryQueue;
-
+  friend class ONNXModelHeader;
  public:
   //Helper, for internal use only
   void serve(NNServerBuf& buf, Rand& rand, int gpuIdxForThisThread, int serverThreadIdx);
