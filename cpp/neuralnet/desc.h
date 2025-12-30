@@ -357,6 +357,8 @@ struct ModelDesc {
 
   int metaEncoderVersion;
 
+  std::map<std::string, std::string> onnxMetadata; //only non-empty when loading from ONNX
+
   ModelPostProcessParams postProcessParams;
 
   TrunkDesc trunk;
