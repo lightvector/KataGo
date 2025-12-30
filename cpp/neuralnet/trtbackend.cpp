@@ -151,34 +151,36 @@ static void loadModelDescFromONNX(const string& onnxFile, ModelDesc& desc) {
       reader.skipField(wireType);
     }
   }
-
-  if (metadata.count("modelVersion")) desc.modelVersion = std::stoi(metadata["modelVersion"]);
-  else desc.modelVersion = 15;
-
-  desc.name = metadata.count("name") ? metadata["name"] : "test";
-  desc.numInputChannels = NNModelVersion::getNumSpatialFeatures(desc.modelVersion);
-  desc.numInputGlobalChannels = NNModelVersion::getNumGlobalFeatures(desc.modelVersion);
-  desc.numValueChannels = 0;
-  desc.numScoreValueChannels = 0;
-  desc.numOwnershipChannels = 0;
-}
-
-static void loadModelDescFromJSON(const string& jsonFile, ModelDesc& desc) {
-  //if (!FileUtils::exists(jsonFile)) {
-  //  throw StringError("ONNX model requires a corresponding .json file for metadata: " + jsonFile);
-  //}
-  //string jsonContent = FileUtils::readFile(jsonFile);
-  // Simple manual parsing
- 
-  desc.modelVersion = 15;
-  desc.name = "test";
-  desc.numInputChannels = NNModelVersion::getNumSpatialFeatures(desc.modelVersion);
-  desc.numInputGlobalChannels = NNModelVersion::getNumGlobalFeatures(desc.modelVersion);
-  desc.numValueChannels = 0;
-  desc.numScoreValueChannels = 0;
-  desc.numOwnershipChannels = 0;
+  if(!metadata.count("modelVersion"))
+    throw StringError("ONNX model requires a modelVersion metadata field");
+  else if(!Global::tryStringToInt(metadata["modelVersion"], desc.modelVersion))
+    throw StringError("ONNX model requires a valid modelVersion metadata field, but got: " + metadata["modelVersion"]);
   
+  if(!metadata.count("name"))
+    throw StringError("ONNX model requires a name metadata field");
+  desc.name = metadata["name"]; 
+
+
+  if(!metadata.count("num_spatial_inputs"))
+    throw StringError("ONNX model requires a num_spatial_inputs metadata field");
+  else if(!Global::tryStringToInt(metadata["num_spatial_inputs"], desc.numInputChannels))
+    throw StringError("ONNX model requires a valid num_spatial_inputs metadata field, but got: " + metadata["num_spatial_inputs"]);
+  if(desc.numInputChannels != NNModelVersion::getNumSpatialFeatures(desc.modelVersion))
+    throw StringError("ONNX model requires num_spatial_inputs metadata field to match modelVersion");
+
+  if(!metadata.count("num_global_inputs"))
+    throw StringError("ONNX model requires a num_global_inputs metadata field");
+  else if(!Global::tryStringToInt(metadata["num_global_inputs"], desc.numInputGlobalChannels))
+    throw StringError("ONNX model requires a valid num_global_inputs metadata field, but got: " + metadata["num_global_inputs"]);
+  if(desc.numInputGlobalChannels != NNModelVersion::getNumGlobalFeatures(desc.modelVersion))
+    throw StringError("ONNX model requires num_global_inputs metadata field to match modelVersion");
+
+
+  desc.numValueChannels = 0; //will not be used
+  desc.numScoreValueChannels = 0;
+  desc.numOwnershipChannels = 0;
 }
+
 
 
 
@@ -192,7 +194,11 @@ struct LoadedModel {
     this->fileName = fileName;
     if (Global::isSuffix(fileName, ".onnx")) {
       isOnnx = true;
-      loadModelDescFromONNX(fileName, modelDesc);
+      try {
+        loadModelDescFromONNX(fileName, modelDesc);
+      } catch (const StringError& e) {
+        throw StringError("Failed to load ONNX model config: " + fileName + "\n" + e.what());
+      }
     } else {
       isOnnx = false;
       ModelDesc::loadFromFileMaybeGZipped(fileName, modelDesc, expectedSha256);
