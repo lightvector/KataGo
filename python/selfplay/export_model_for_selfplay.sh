@@ -23,6 +23,12 @@ shift
 
 #------------------------------------------------------------------------------
 
+if command -v python3 >/dev/null 2>&1; then
+  PYTHON=python3
+else
+  PYTHON=python
+fi
+
 mkdir -p "$BASEDIR"/torchmodels_toexport
 mkdir -p "$BASEDIR"/torchmodels_toexport_extra
 mkdir -p "$BASEDIR"/modelstobetested
@@ -64,14 +70,14 @@ function exportStuff() {
                 mkdir "$TMPDST"
 
                 set -x
-                python3 ./export_model_pytorch.py \
+                $PYTHON ./export_model_pytorch.py \
                         -checkpoint "$SRC"/model.ckpt \
                         -export-dir "$TMPDST" \
                         -model-name "$NAMEPREFIX""-""$NAME" \
                         -filename-prefix model \
                         -use-swa
 
-                python3 ./clean_checkpoint.py \
+                $PYTHON ./clean_checkpoint.py \
                         -checkpoint "$SRC"/model.ckpt \
                         -output "$TMPDST"/model.ckpt
                 set +x

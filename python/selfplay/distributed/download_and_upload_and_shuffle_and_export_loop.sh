@@ -39,6 +39,12 @@ shift
 #and using gating disables the export script from making extraneous selfplay data dirs.
 USEGATING=1
 
+if command -v python3 >/dev/null 2>&1; then
+  PYTHON=python3
+else
+  PYTHON=python
+fi
+
 GITROOTDIR="$(git rev-parse --show-toplevel)"
 
 basedir="$(realpath "$BASEDIRRAW")"
@@ -75,7 +81,7 @@ cp -r "$GITROOTDIR"/python/selfplay "$DATED_ARCHIVE"
         while true
         do
             echo "BEGINNING SUMMARIZE------------------------------"
-            time python3 ./summarize_old_selfplay_files.py "$basedir"/selfplay/ \
+            time $PYTHON ./summarize_old_selfplay_files.py "$basedir"/selfplay/ \
                  -old-summary-file-to-assume-correct "$basedir"/selfplay.summary.json \
                  -new-summary-file "$basedir"/selfplay.summary.json.tmp
             mv "$basedir"/selfplay.summary.json.tmp "$basedir"/selfplay.summary.json

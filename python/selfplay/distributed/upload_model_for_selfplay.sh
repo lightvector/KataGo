@@ -25,6 +25,12 @@ shift
 
 #------------------------------------------------------------------------------
 
+if command -v python3 >/dev/null 2>&1; then
+  PYTHON=python3
+else
+  PYTHON=python
+fi
+
 mkdir -p "$BASEDIR"/modelstobetested
 mkdir -p "$BASEDIR"/modelsuploaded
 
@@ -76,7 +82,7 @@ function uploadStuff() {
                 do
                     set +e
                     set -x
-                    python3 ./upload_model.py \
+                    $PYTHON ./upload_model.py \
                             -run-name "$RUNNAME" \
                             -model-name "$RUNNAME"-"$NAME" \
                             -model-file "$TMPDST"/"$RUNNAME"-"$NAME".bin.gz \
