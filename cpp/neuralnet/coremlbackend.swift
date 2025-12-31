@@ -294,6 +294,88 @@ public class CoreMLComputeHandle {
         )
     }
 
+    /// Copy MLMultiArray data to destination buffer, respecting strides.
+    /// Core ML may return non-contiguous arrays, especially for spatial outputs after GPU computation.
+    private func copyMultiArray(
+        _ array: MLMultiArray,
+        to dest: UnsafeMutablePointer<Float32>,
+        destOffset: Int
+    ) {
+        let shape = array.shape.map { $0.intValue }
+        let strides = array.strides.map { $0.intValue }
+        let ptr = array.dataPointer.assumingMemoryBound(to: Float32.self)
+        let totalElements = shape.reduce(1, *)
+
+        // Check if contiguous (strides match expected for row-major C-order)
+        var isContiguous = true
+        var expectedStride = 1
+        for i in (0..<shape.count).reversed() {
+            if strides[i] != expectedStride {
+                isContiguous = false
+                break
+            }
+            expectedStride *= shape[i]
+        }
+
+        if isContiguous {
+            // Fast path: direct memcpy-style copy
+            for i in 0..<totalElements {
+                dest[destOffset + i] = ptr[i]
+            }
+        } else {
+            // Slow path: copy with strides (handles non-contiguous layouts)
+            copyWithStrides(
+                from: ptr,
+                to: dest,
+                destOffset: destOffset,
+                shape: shape,
+                strides: strides,
+                dim: 0,
+                srcOffset: 0,
+                destIdx: 0
+            )
+        }
+    }
+
+    /// Recursively copy array elements respecting strides (NCHW order)
+    @discardableResult
+    private func copyWithStrides(
+        from src: UnsafePointer<Float32>,
+        to dest: UnsafeMutablePointer<Float32>,
+        destOffset: Int,
+        shape: [Int],
+        strides: [Int],
+        dim: Int,
+        srcOffset: Int,
+        destIdx: Int
+    ) -> Int {
+        var currentDestIdx = destIdx
+
+        if dim == shape.count - 1 {
+            // Innermost dimension: copy elements
+            for i in 0..<shape[dim] {
+                dest[destOffset + currentDestIdx] = src[srcOffset + i * strides[dim]]
+                currentDestIdx += 1
+            }
+        } else {
+            // Recurse into next dimension
+            for i in 0..<shape[dim] {
+                currentDestIdx = copyWithStrides(
+                    from: src,
+                    to: dest,
+                    destOffset: destOffset,
+                    shape: shape,
+                    strides: strides,
+                    dim: dim + 1,
+                    srcOffset: srcOffset + i * strides[dim],
+                    destIdx: currentDestIdx
+                )
+            }
+        }
+
+        return currentDestIdx
+    }
+
     private func extractOutputs(
         prediction: MLFeatureProvider,
         batchIndex: Int,
@@ -304,51 +386,35 @@ public class CoreMLComputeHandle {
         ownership: UnsafeMutablePointer<Float32>
     ) {
         // Extract policy output (1, policyChannels, H, W)
+        // Must use stride-aware copy as Core ML may return non-contiguous arrays
         if let policyArray = prediction.featureValue(for: IONames.policyOutput)?.multiArrayValue {
-            let policySize = Int(nnXLen) * Int(nnYLen) * numPolicyChannels
-            let policyPtr = policyArray.dataPointer.assumingMemoryBound(to: Float32.self)
-            let policyOffset = batchIndex * policySize
-            for i in 0..<policySize {
-                policy[policyOffset + i] = policyPtr[i]
-            }
+            let policyOffset = batchIndex * Int(nnXLen) * Int(nnYLen) * numPolicyChannels
+            copyMultiArray(policyArray, to: policy, destOffset: policyOffset)
         }
 
-        // Extract policy pass output (1, 2)
+        // Extract policy pass output (1, numPolicyChannels)
         if let passArray = prediction.featureValue(for: IONames.policyPassOutput)?.multiArrayValue {
-            let passChannels = 2
-            let passPtr = passArray.dataPointer.assumingMemoryBound(to: Float32.self)
-            let passOffset = batchIndex * passChannels
-            for i in 0..<passChannels {
-                policyPass[passOffset + i] = passPtr[i]
-            }
+            let passOffset = batchIndex * numPolicyChannels
+            copyMultiArray(passArray, to: policyPass, destOffset: passOffset)
         }
 
         // Extract value output (1, 3)
         if let valueArray = prediction.featureValue(for: IONames.valueOutput)?.multiArrayValue {
-            let valuePtr = valueArray.dataPointer.assumingMemoryBound(to: Float32.self)
             let valueOffset = batchIndex * numValueChannels
-            for i in 0..<numValueChannels {
-                value[valueOffset + i] = valuePtr[i]
-            }
+            copyMultiArray(valueArray, to: value, destOffset: valueOffset)
         }
 
         // Extract score value output (1, numScoreValueChannels)
         if let svArray = prediction.featureValue(for: IONames.scoreValueOutput)?.multiArrayValue {
-            let svPtr = svArray.dataPointer.assumingMemoryBound(to: Float32.self)
             let svOffset = batchIndex * numScoreValueChannels
-            for i in 0..<numScoreValueChannels {
-                scoreValue[svOffset + i] = svPtr[i]
-            }
+            copyMultiArray(svArray, to: scoreValue, destOffset: svOffset)
         }
 
         // Extract ownership output (1, 1, H, W)
+        // Must use stride-aware copy as Core ML may return non-contiguous arrays
         if let ownArray = prediction.featureValue(for: IONames.ownershipOutput)?.multiArrayValue {
-            let ownSize = Int(nnXLen) * Int(nnYLen) * numOwnershipChannels
-            let ownPtr = ownArray.dataPointer.assumingMemoryBound(to: Float32.self)
-            let ownOffset = batchIndex * ownSize
-            for i in 0..<ownSize {
-                ownership[ownOffset + i] = ownPtr[i]
-            }
+            let ownOffset = batchIndex * Int(nnXLen) * Int(nnYLen) * numOwnershipChannels
+            copyMultiArray(ownArray, to: ownership, destOffset: ownOffset)
         }
     }
 }
