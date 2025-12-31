@@ -93,3 +93,4 @@ cpp/include/KataGoSwift/KataGoSwift-swift.h
 
 # For CoreML Backend
 cpp/KataGoCoreML.*
+cpp/include/KataGoCoreML/KataGoCoreML-swift.h
