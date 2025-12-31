@@ -39,9 +39,12 @@ function uploadStuff() {
     TODIR="$2"
 
     #Sort by timestamp so that we process in order of oldest to newest if there are multiple
-    for FILEPATH in $(find "$BASEDIR"/"$FROMDIR"/ -mindepth 1 -maxdepth 1 -printf "%T@ %p\n" | sort -n | cut -d ' ' -f 2)
+    # Use python here to avoid 'find -printf' which is not portable to macOS
+    FILES=$($PYTHON -c "import os; d='$BASEDIR/$FROMDIR'; print('\n'.join(sorted([os.path.join(d, f) for f in os.listdir(d)], key=lambda x: os.path.getmtime(x))))" 2>/dev/null)
+
+    for FILEPATH in $FILES
     do
-        if [ ${FILEPATH: -10} == ".uploading" ]
+        if [ "${FILEPATH: -10}" == ".uploading" ]
         then
             echo "Skipping upload tmp file:" "$FILEPATH"
         else
@@ -55,7 +58,7 @@ function uploadStuff() {
 
             if [ -d "$BASEDIR"/modelsuploaded/"$NAME" ]
             then
-                echo "Model with same name aleady exists, so skipping:" "$SRC"
+                echo "Model with same name already exists, so skipping:" "$SRC"
             else
                 rm -rf "$TMPDST"
                 mkdir "$TMPDST"

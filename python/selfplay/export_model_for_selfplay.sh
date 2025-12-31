@@ -39,15 +39,18 @@ function exportStuff() {
     FROMDIR="$1"
     TODIR="$2"
 
-    #Sort by timestamp so that we process in order of oldest to newest if there are multiple
-    for FILEPATH in $(find "$BASEDIR"/"$FROMDIR"/ -mindepth 1 -maxdepth 1 -printf "%T@ %p\n" | sort -n | cut -d ' ' -f 2)
+    # Sort by timestamp so that we process in order of oldest to newest if there are multiple
+    # Use python here to avoid 'find -printf' which is not portable to macOS
+    FILES=$($PYTHON -c "import os; d='$BASEDIR/$FROMDIR'; print('\n'.join(sorted([os.path.join(d, f) for f in os.listdir(d)], key=lambda x: os.path.getmtime(x))))" 2>/dev/null)
+
+    for FILEPATH in $FILES
     do
         #Make sure to skip tmp directories that are transiently there by the training,
         #they are probably in the process of being written
-        if [ ${FILEPATH: -4} == ".tmp" ]
+        if [ "${FILEPATH: -4}" == ".tmp" ]
         then
             echo "Skipping tmp file:" "$FILEPATH"
-        elif [ ${FILEPATH: -9} == ".exported" ]
+        elif [ "${FILEPATH: -9}" == ".exported" ]
         then
             echo "Skipping self tmp file:" "$FILEPATH"
         else
@@ -64,7 +67,7 @@ function exportStuff() {
                [ -d "$BASEDIR"/models_extra/"$NAME" ] || \
                [ -d "$BASEDIR"/modelsuploaded/"$NAME" ]
             then
-                echo "Model with same name aleady exists, so skipping:" "$SRC"
+                echo "Model with same name already exists, so skipping:" "$SRC"
             else
                 rm -rf "$TMPDST"
                 mkdir "$TMPDST"
