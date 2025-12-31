@@ -144,7 +144,7 @@ public class CoreMLComputeHandle {
         static let metaInput = "meta_input"
 
         static let policyOutput = "policy_p2_conv"
-        static let policyPassOutput = "policy_pass_mul2"
+        static let policyPassOutput = "policy_pass"
         static let valueOutput = "value_v3_bias"
         static let ownershipOutput = "value_ownership_conv"
         static let scoreValueOutput = "value_sv3_bias"
