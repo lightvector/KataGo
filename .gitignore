@@ -90,3 +90,6 @@ cpp/.ninja_log
 cpp/build.ninja
 cpp/KataGoSwift.*
 cpp/include/KataGoSwift/KataGoSwift-swift.h
+
+# For CoreML Backend
+cpp/KataGoCoreML.*
