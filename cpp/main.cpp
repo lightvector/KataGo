@@ -244,6 +244,8 @@ string Version::getKataGoVersionFullInfo() {
   out << "Using TensorRT backend" << endl;
 #elif defined(USE_METAL_BACKEND)
   out << "Using Metal backend" << endl;
+#elif defined(USE_COREML_BACKEND)
+  out << "Using Core ML backend" << endl;
 #elif defined(USE_OPENCL_BACKEND)
   out << "Using OpenCL backend" << endl;
 #elif defined(USE_EIGEN_BACKEND)
@@ -280,6 +282,8 @@ string Version::getGitRevisionWithBackend() {
   s += "-trt";
 #elif defined(USE_METAL_BACKEND)
   s += "-metal";
+#elif defined(USE_COREML_BACKEND)
+  s += "-coreml";
 #elif defined(USE_OPENCL_BACKEND)
   s += "-opencl";
 #elif defined(USE_EIGEN_BACKEND)
