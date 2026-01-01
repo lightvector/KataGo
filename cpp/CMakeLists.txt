@@ -341,7 +341,6 @@ elseif(USE_BACKEND STREQUAL "TENSORRT")
   if((NOT TENSORRT_INCLUDE_DIR))
     message(FATAL_ERROR "${ColorBoldRed} NvInfer.h was NOT found, specify TENSORRT_INCLUDE_DIR to indicate where it is. ${ColorReset}")
   endif()
-  find_library(TENSORRT_LIBRARY nvinfer HINTS ${TENSORRT_ROOT_DIR} PATH_SUFFIXES lib)
 
   # Hackily extract out the version from the TensorRT header
   # In each case, try the old format and on failure try the new format.
@@ -387,6 +386,8 @@ elseif(USE_BACKEND STREQUAL "TENSORRT")
   if("${TENSORRT_VERSION_MAJOR}" STREQUAL "" OR "${TENSORRT_VERSION_MINOR}" STREQUAL "" OR "${TENSORRT_VERSION_PATCH}" STREQUAL "")
     message(FATAL_ERROR "Could not determine TensorRT version from header file")
   endif()
+
+  find_library(TENSORRT_LIBRARY NAMES nvinfer nvinfer_${TENSORRT_VERSION_MAJOR} HINTS ${TENSORRT_ROOT_DIR} PATH_SUFFIXES lib)
 
   # Version 8 is required for serializing the builder timing cache.
   # Version 8.2 is required for eliminating the global logger for Builder and Runtime.
