@@ -49,7 +49,7 @@ const ModelDesc& NeuralNet::getModelDesc(const LoadedModel* loadedModel) {
 //------------------------------------------------------------------------------
 
 ComputeContext::ComputeContext(int nnX, int nnY, enabled_t useFP16Mode, enabled_t useNHWCMode):
-coremlContext(createCoreMLComputeContext(nnX, nnY)) {
+coremlContext(createCoreMLComputeContext(nnX, nnY, useFP16Mode != enabled_t::False)) {
   this->useFP16Mode = useFP16Mode;
   this->nnXLen = nnX;
   this->nnYLen = nnY;

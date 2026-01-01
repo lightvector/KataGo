@@ -23,10 +23,11 @@ struct ModelCacheManager {
             .appendingPathComponent("CoreMLModels")
     }
 
-    /// Generate cache key from model SHA256 hash and board dimensions
+    /// Generate cache key from model SHA256 hash, board dimensions, and precision
     static func cacheKey(modelSHA256: String, boardX: Int32, boardY: Int32,
-                         eliminateMask: Bool) -> String {
-        return "\(modelSHA256)_\(boardX)x\(boardY)_\(eliminateMask ? "nomask" : "mask")"
+                         eliminateMask: Bool, useFP16: Bool) -> String {
+        let precisionSuffix = useFP16 ? "fp16" : "fp32"
+        return "\(modelSHA256)_\(boardX)x\(boardY)_\(precisionSuffix)_\(eliminateMask ? "nomask" : "mask")"
     }
 
     /// Get cached model path if it exists
@@ -59,11 +60,13 @@ struct CoreMLConverter {
         outputPath: URL,
         boardXSize: Int32,
         boardYSize: Int32,
-        optimizeIdentityMask: Bool
+        optimizeIdentityMask: Bool,
+        useFP16: Bool
     ) throws {
         // Escape the paths for Python string
         let escapedModelPath = modelPath.replacingOccurrences(of: "'", with: "\\'")
         let escapedOutputPath = outputPath.path.replacingOccurrences(of: "'", with: "\\'")
+        let precisionStr = useFP16 ? "ct.precision.FLOAT16" : "ct.precision.FLOAT32"
 
         let pythonScript = """
         import coremltools as ct
@@ -72,7 +75,7 @@ struct CoreMLConverter {
             board_x_size=\(boardXSize),
             board_y_size=\(boardYSize),
             minimum_deployment_target=ct.target.iOS18,
-            compute_precision=ct.precision.FLOAT16,
+            compute_precision=\(precisionStr),
             optimize_identity_mask=\(optimizeIdentityMask ? "True" : "False")
         )
         mlmodel.save('\(escapedOutputPath)')
@@ -107,19 +110,22 @@ struct CoreMLConverter {
 public class CoreMLComputeContext {
     public let nnXLen: Int32
     public let nnYLen: Int32
+    public let useFP16: Bool
 
-    init(nnXLen: Int32, nnYLen: Int32) {
+    init(nnXLen: Int32, nnYLen: Int32, useFP16: Bool) {
         self.nnXLen = nnXLen
         self.nnYLen = nnYLen
+        self.useFP16 = useFP16
     }
 }
 
 /// Create a Core ML compute context
 public func createCoreMLComputeContext(
     nnXLen: Int32,
-    nnYLen: Int32
+    nnYLen: Int32,
+    useFP16: Bool
 ) -> CoreMLComputeContext {
-    return CoreMLComputeContext(nnXLen: nnXLen, nnYLen: nnYLen)
+    return CoreMLComputeContext(nnXLen: nnXLen, nnYLen: nnYLen, useFP16: useFP16)
 }
 
 /// Handle that wraps the loaded MLModel for inference
@@ -442,7 +448,8 @@ public func createCoreMLComputeHandle(
         modelSHA256: modelSHA256,
         boardX: context.nnXLen,
         boardY: context.nnYLen,
-        eliminateMask: optimizeMask)
+        eliminateMask: optimizeMask,
+        useFP16: context.useFP16)
 
     // Check cache first
     var mlpackagePath: URL
@@ -460,7 +467,8 @@ public func createCoreMLComputeHandle(
                 outputPath: mlpackagePath,
                 boardXSize: context.nnXLen,
                 boardYSize: context.nnYLen,
-                optimizeIdentityMask: optimizeMask
+                optimizeIdentityMask: optimizeMask,
+                useFP16: context.useFP16
             )
             printError("Core ML backend \(serverThreadIdx): Conversion completed successfully")
         } catch CoreMLConverter.ConversionError.pythonNotFound {
