@@ -41,12 +41,15 @@ function exportStuff() {
 
     # Sort by timestamp so that we process in order of oldest to newest if there are multiple
     # Use python here to avoid 'find -printf' which is not portable to macOS
-    FILES=$($PYTHON -c "import os; d='$BASEDIR/$FROMDIR'; print('\n'.join(sorted([os.path.join(d, f) for f in os.listdir(d)], key=lambda x: os.path.getmtime(x))))" 2>/dev/null)
-
-    for FILEPATH in $FILES
+    # Use sys.argv to safely pass directory name with spaces/quotes
+    $PYTHON -c "import os, sys; d=sys.argv[1]; print('\n'.join(sorted([os.path.join(d, f) for f in os.listdir(d)], key=lambda x: os.path.getmtime(x))))" "$BASEDIR/$FROMDIR" 2>/dev/null | while read -r FILEPATH
     do
         #Make sure to skip tmp directories that are transiently there by the training,
         #they are probably in the process of being written
+        if [ -z "$FILEPATH" ]
+        then
+            continue
+        fi
         if [ "${FILEPATH: -4}" == ".tmp" ]
         then
             echo "Skipping tmp file:" "$FILEPATH"
@@ -57,9 +60,9 @@ function exportStuff() {
             echo "Found model to export:" "$FILEPATH"
             NAME="$(basename "$FILEPATH")"
 
-            SRC="$BASEDIR"/"$FROMDIR"/"$NAME"
-            TMPDST="$BASEDIR"/"$FROMDIR"/"$NAME".exported
-            TARGET="$BASEDIR"/"$TODIR"/"$NAME"
+            SRC="$BASEDIR/$FROMDIR/$NAME"
+            TMPDST="$BASEDIR/$FROMDIR/$NAME.exported"
+            TARGET="$BASEDIR/$TODIR/$NAME"
 
             if [ -d "$BASEDIR"/modelstobetested/"$NAME" ] ||  \
                [ -d "$BASEDIR"/rejectedmodels/"$NAME" ] || \
@@ -74,15 +77,15 @@ function exportStuff() {
 
                 set -x
                 $PYTHON ./export_model_pytorch.py \
-                        -checkpoint "$SRC"/model.ckpt \
+                        -checkpoint "$SRC/model.ckpt" \
                         -export-dir "$TMPDST" \
-                        -model-name "$NAMEPREFIX""-""$NAME" \
+                        -model-name "$NAMEPREFIX-$NAME" \
                         -filename-prefix model \
                         -use-swa
 
                 $PYTHON ./clean_checkpoint.py \
-                        -checkpoint "$SRC"/model.ckpt \
-                        -output "$TMPDST"/model.ckpt
+                        -checkpoint "$SRC/model.ckpt" \
+                        -output "$TMPDST/model.ckpt"
                 set +x
 
                 rm -r "$SRC"
@@ -96,9 +99,8 @@ function exportStuff() {
                 then
                     if [ "$TODIR" != "models_extra" ]
                     then
-                        mkdir -p "$BASEDIR"/selfplay/"$NAME"
-                        mkdir -p "$BASEDIR"/selfplay/"$NAME"/sgfs
-                        mkdir -p "$BASEDIR"/selfplay/"$NAME"/tdata
+                        mkdir -p "$BASEDIR/selfplay/$NAME/sgfs"
+                        mkdir -p "$BASEDIR/selfplay/$NAME/tdata"
                     fi
                 fi
 

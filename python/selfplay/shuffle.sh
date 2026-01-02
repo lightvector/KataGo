@@ -116,7 +116,7 @@ mv "$BASEDIR"/shuffleddata/"$OUTDIR".tmp "$BASEDIR"/shuffleddata/"$OUTDIR"
 #This should be VERY conservative and allow plenty of time for the training to switch
 #to newer ones as they get generated.
 echo "Cleaning up any old dirs"
-find "$BASEDIR"/shuffleddata/ -mindepth 1 -maxdepth 1 -type d -mmin +120 | sort | head -n -5 | xargs --no-run-if-empty rm -r
+find "$BASEDIR"/shuffleddata/ -mindepth 1 -maxdepth 1 -type d -mmin +120 -print0 | sort -z | head -z -n -5 | xargs -0 --no-run-if-empty rm -r
 
 echo "Finished shuffle at" $(date "+%Y-%m-%d %H:%M:%S")
 #Make a little space between shuffles

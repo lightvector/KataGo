@@ -40,10 +40,13 @@ function uploadStuff() {
 
     #Sort by timestamp so that we process in order of oldest to newest if there are multiple
     # Use python here to avoid 'find -printf' which is not portable to macOS
-    FILES=$($PYTHON -c "import os; d='$BASEDIR/$FROMDIR'; print('\n'.join(sorted([os.path.join(d, f) for f in os.listdir(d)], key=lambda x: os.path.getmtime(x))))" 2>/dev/null)
-
-    for FILEPATH in $FILES
+    # Use sys.argv to safely pass directory name with spaces/quotes
+    $PYTHON -c "import os, sys; d=sys.argv[1]; print('\n'.join(sorted([os.path.join(d, f) for f in os.listdir(d)], key=lambda x: os.path.getmtime(x))))" "$BASEDIR/$FROMDIR" 2>/dev/null | while read -r FILEPATH
     do
+        if [ -z "$FILEPATH" ]
+        then
+            continue
+        fi
         if [ "${FILEPATH: -10}" == ".uploading" ]
         then
             echo "Skipping upload tmp file:" "$FILEPATH"
@@ -63,18 +66,18 @@ function uploadStuff() {
                 rm -rf "$TMPDST"
                 mkdir "$TMPDST"
 
-                TOBEZIPPED="$TMPDST"/"$RUNNAME"-"$NAME"
+                TOBEZIPPED="$TMPDST/$RUNNAME-$NAME"
                 mkdir "$TOBEZIPPED"
 
                 # Build zip containing the ckpt
-                cp "$SRC"/model.ckpt "$TOBEZIPPED"/model.ckpt
-                (cd "$TMPDST"; zip -r "$RUNNAME"-"$NAME".zip "$RUNNAME"-"$NAME"/)
+                cp "$SRC/model.ckpt" "$TOBEZIPPED/model.ckpt"
+                (cd "$TMPDST"; zip -r "$RUNNAME-$NAME.zip" "$RUNNAME-$NAME/")
                 rm "$TOBEZIPPED"/*
                 rmdir "$TOBEZIPPED"
 
-                cp "$SRC"/model.bin.gz "$TMPDST"/"$RUNNAME"-"$NAME".bin.gz
-                cp "$SRC"/metadata.json "$TMPDST"/metadata.json
-                cp "$SRC"/log.txt "$TMPDST"/log.txt
+                cp "$SRC/model.bin.gz" "$TMPDST/$RUNNAME-$NAME.bin.gz"
+                cp "$SRC/metadata.json" "$TMPDST/metadata.json"
+                cp "$SRC/log.txt" "$TMPDST/log.txt"
 
                 #Sleep a little to allow some tolerance on the filesystem
                 sleep 3
@@ -87,11 +90,11 @@ function uploadStuff() {
                     set -x
                     $PYTHON ./upload_model.py \
                             -run-name "$RUNNAME" \
-                            -model-name "$RUNNAME"-"$NAME" \
-                            -model-file "$TMPDST"/"$RUNNAME"-"$NAME".bin.gz \
-                            -model-zip "$TMPDST"/"$RUNNAME"-"$NAME".zip \
-                            -upload-log-file "$TMPDST"/upload_log.txt \
-                            -metadata-file "$TMPDST"/metadata.json \
+                            -model-name "$RUNNAME-$NAME" \
+                            -model-file "$TMPDST/$RUNNAME-$NAME.bin.gz" \
+                            -model-zip "$TMPDST/$RUNNAME-$NAME.zip" \
+                            -upload-log-file "$TMPDST/upload_log.txt" \
+                            -metadata-file "$TMPDST/metadata.json" \
                             -parents-dir "$TARGETDIR" \
                             -connection-config "$CONNECTION_CONFIG" \
                             -rating-only "$RATING_ONLY"
