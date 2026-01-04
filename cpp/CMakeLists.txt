@@ -108,6 +108,11 @@ elseif(USE_BACKEND STREQUAL "METAL")
     message(FATAL_ERROR "Project requires building with AppleClang. Have ${CMAKE_CXX_COMPILER_ID}")
   endif()
   list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/external/macos/cmake/modules")
+
+  if (NOT CMAKE_OSX_SYSROOT)
+    execute_process(COMMAND xcrun --show-sdk-path OUTPUT_VARIABLE CMAKE_OSX_SYSROOT OUTPUT_STRIP_TRAILING_WHITESPACE)
+  endif()
+
   include(InitializeSwift)
   include(AddSwift)
   set(CMAKE_OSX_DEPLOYMENT_TARGET 13.0)
