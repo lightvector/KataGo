@@ -745,7 +745,6 @@ public class HybridComputeHandle {
         let spatialSize = Int(nnXLen) * Int(nnYLen) * coremlHandle.numInputChannels
         let globalSize = coremlHandle.numInputGlobalChannels
         let metaSize = coremlHandle.numInputMetaChannels
-        let maskSize = Int(nnXLen) * Int(nnYLen)
         let policySize = Int(nnXLen) * Int(nnYLen) * coremlHandle.numPolicyChannels
         let valueSize = coremlHandle.numValueChannels
         let scoreValueSize = coremlHandle.numScoreValueChannels
