@@ -167,9 +167,10 @@ struct ComputeHandle {
   bool requireExactNNLen;
 
   /**
-   * @brief The Core ML handle instance from Swift.
+   * @brief The hybrid compute handle instance from Swift.
+   * This handle dispatches work to both CoreML (CPU+ANE) and MPSGraph (GPU).
    */
-  swift::Optional<CoreMLComputeHandle> coremlHandle;
+  swift::Optional<HybridComputeHandle> hybridHandle;
 
   /**
    * @brief Construct a new ComputeHandle object.

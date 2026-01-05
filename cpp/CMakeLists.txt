@@ -118,8 +118,7 @@ elseif(USE_BACKEND STREQUAL "METAL")
     neuralnet/metalbackend.swift)
   _swift_generate_cxx_header(
     KataGoSwift
-    "${CMAKE_CURRENT_BINARY_DIR}/include/KataGoSwift/KataGoSwift-swift.h"
-    SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/neuralnet/metalbackend.swift")
+    "${CMAKE_CURRENT_BINARY_DIR}/include/KataGoSwift/KataGoSwift-swift.h")
   target_include_directories(KataGoSwift PUBLIC "${CMAKE_CURRENT_BINARY_DIR}/include")
   set_target_properties(KataGoSwift PROPERTIES Swift_MODULE_NAME "KataGoSwift")
   target_compile_options(KataGoSwift PUBLIC
@@ -146,11 +145,11 @@ elseif(USE_BACKEND STREQUAL "COREML")
     neuralnet/coremlbackend.cpp
     )
   add_library(KataGoCoreML STATIC
-    neuralnet/coremlbackend.swift)
+    neuralnet/coremlbackend.swift
+    neuralnet/mpsgraphlayers.swift)
   _swift_generate_cxx_header(
     KataGoCoreML
-    "${CMAKE_CURRENT_BINARY_DIR}/include/KataGoCoreML/KataGoCoreML-swift.h"
-    SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/neuralnet/coremlbackend.swift")
+    "${CMAKE_CURRENT_BINARY_DIR}/include/KataGoCoreML/KataGoCoreML-swift.h")
   target_include_directories(KataGoCoreML PUBLIC "${CMAKE_CURRENT_BINARY_DIR}/include")
   set_target_properties(KataGoCoreML PROPERTIES Swift_MODULE_NAME "KataGoCoreML")
   target_compile_options(KataGoCoreML PUBLIC
@@ -440,7 +439,10 @@ elseif(USE_BACKEND STREQUAL "COREML")
   # Link katagocoreml with full path and add all required library directories
   find_library(KATAGOCOREML_LIB katagocoreml HINTS /usr/local/lib REQUIRED)
   target_link_directories(katago PRIVATE ${KATAGOCOREML_LIBRARY_DIRS})
-  target_link_libraries(katago KataGoCoreML ${KATAGOCOREML_LIB} ${KATAGOCOREML_LDFLAGS})
+  # Link MetalPerformanceShadersGraph for hybrid MPSGraph + CoreML backend
+  target_link_libraries(katago KataGoCoreML ${KATAGOCOREML_LIB} ${KATAGOCOREML_LDFLAGS}
+    "-framework MetalPerformanceShaders"
+    "-framework MetalPerformanceShadersGraph")
   if("${CMAKE_SYSTEM_PROCESSOR}" STREQUAL "x86_64")
     message(WARNING "You are currently running cmake on an Intel-based processor. Core ML backend may not work optimally. ARM64 architecture is recommended.")
   endif()

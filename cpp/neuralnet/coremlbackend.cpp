@@ -124,6 +124,273 @@ static string ensureModelConverted(
 }  // namespace CoreMLConversion
 
 //------------------------------------------------------------------------------
+// Model Descriptor Conversion - C++ to Swift types for MPSGraph
+//------------------------------------------------------------------------------
+
+namespace CoreMLProcess {
+
+/// Converts a ConvLayerDesc instance from C++ to Swift
+SWConvLayerDesc convLayerDescToSwift(const ConvLayerDesc* desc) {
+  return createSWConvLayerDesc(
+    desc->convYSize,
+    desc->convXSize,
+    desc->inChannels,
+    desc->outChannels,
+    desc->dilationY,
+    desc->dilationX,
+    (float*)desc->weights.data());
+}
+
+/// Converts a BatchNormLayerDesc instance from C++ to Swift
+SWBatchNormLayerDesc batchNormLayerDescToSwift(const BatchNormLayerDesc* desc) {
+  return createSWBatchNormLayerDesc(
+    desc->numChannels,
+    (float*)desc->mergedScale.data(),
+    (float*)desc->mergedBias.data());
+}
+
+/// Convert an activation layer description from C++ to Swift
+ActivationKind activationLayerDescToSwift(const ActivationLayerDesc* desc) {
+  switch(desc->activation) {
+    case ACTIVATION_RELU:
+      return ActivationKind::relu();
+    case ACTIVATION_MISH:
+      return ActivationKind::mish();
+    case ACTIVATION_MISH_SCALE8:
+      return ActivationKind::identity(); // Metal/CoreML does not use scaled mish
+    case ACTIVATION_IDENTITY:
+      return ActivationKind::identity();
+    default:
+      return ActivationKind::identity();
+  }
+}
+
+/// Convert a matrix multiplication layer description from C++ to Swift
+SWMatMulLayerDesc matMulLayerDescToSwift(const MatMulLayerDesc* desc) {
+  return createSWMatMulLayerDesc(
+    desc->inChannels,
+    desc->outChannels,
+    (float*)desc->weights.data());
+}
+
+/// Convert a matrix bias layer description from C++ to Swift
+SWMatBiasLayerDesc matBiasLayerDescToSwift(const MatBiasLayerDesc* desc) {
+  return createSWMatBiasLayerDesc(desc->numChannels, (float*)desc->weights.data());
+}
+
+/// Convert a residual block description from C++ to Swift
+SWResidualBlockDesc residualBlockDescToSwift(const ResidualBlockDesc* desc) {
+  SWBatchNormLayerDesc preBN = batchNormLayerDescToSwift(&desc->preBN);
+  ActivationKind preActivationKind = activationLayerDescToSwift(&desc->preActivation);
+  SWConvLayerDesc regularConv = convLayerDescToSwift(&desc->regularConv);
+  SWBatchNormLayerDesc midBN = batchNormLayerDescToSwift(&desc->midBN);
+  ActivationKind midActivationKind = activationLayerDescToSwift(&desc->midActivation);
+  SWConvLayerDesc finalConv = convLayerDescToSwift(&desc->finalConv);
+
+  return createSWResidualBlockDesc(
+    preBN,
+    preActivationKind,
+    regularConv,
+    midBN,
+    midActivationKind,
+    finalConv);
+}
+
+/// Convert a global pooling residual block description from C++ to Swift
+SWGlobalPoolingResidualBlockDesc globalPoolingResidualBlockDescToSwift(const GlobalPoolingResidualBlockDesc* desc) {
+  SWBatchNormLayerDesc preBN = batchNormLayerDescToSwift(&desc->preBN);
+  ActivationKind preActivationKind = activationLayerDescToSwift(&desc->preActivation);
+  SWConvLayerDesc regularConv = convLayerDescToSwift(&desc->regularConv);
+  SWConvLayerDesc gpoolConv = convLayerDescToSwift(&desc->gpoolConv);
+  SWBatchNormLayerDesc gpoolBN = batchNormLayerDescToSwift(&desc->gpoolBN);
+  ActivationKind gpoolActivationKind = activationLayerDescToSwift(&desc->gpoolActivation);
+  SWMatMulLayerDesc gpoolToBiasMul = matMulLayerDescToSwift(&desc->gpoolToBiasMul);
+  SWBatchNormLayerDesc midBN = batchNormLayerDescToSwift(&desc->midBN);
+  ActivationKind midActivationKind = activationLayerDescToSwift(&desc->midActivation);
+  SWConvLayerDesc finalConv = convLayerDescToSwift(&desc->finalConv);
+
+  return createSWGlobalPoolingResidualBlockDesc(
+    preBN,
+    preActivationKind,
+    regularConv,
+    gpoolConv,
+    gpoolBN,
+    gpoolActivationKind,
+    gpoolToBiasMul,
+    midBN,
+    midActivationKind,
+    finalConv);
+}
+
+// Forward declaration for mutual recursion
+swift::Array<BlockDescriptor> residualBlocksToSwift(const vector<pair<int, unique_ptr_void>>& blocks);
+
+/// Convert a nested bottleneck residual block description from C++ to Swift
+SWNestedBottleneckResidualBlockDesc nestedBottleneckResidualBlockDescToSwift(const NestedBottleneckResidualBlockDesc* desc) {
+  SWBatchNormLayerDesc preBN = batchNormLayerDescToSwift(&desc->preBN);
+  ActivationKind preActivationKind = activationLayerDescToSwift(&desc->preActivation);
+  SWConvLayerDesc preConv = convLayerDescToSwift(&desc->preConv);
+  auto swBlocks = residualBlocksToSwift(desc->blocks);
+  SWBatchNormLayerDesc postBN = batchNormLayerDescToSwift(&desc->postBN);
+  ActivationKind postActivationKind = activationLayerDescToSwift(&desc->postActivation);
+  SWConvLayerDesc postConv = convLayerDescToSwift(&desc->postConv);
+
+  return createSWNestedBottleneckResidualBlockDesc(
+    preBN,
+    preActivationKind,
+    preConv,
+    swBlocks,
+    postBN,
+    postActivationKind,
+    postConv);
+}
+
+/// Convert residual blocks from C++ to Swift
+swift::Array<BlockDescriptor> residualBlocksToSwift(const vector<pair<int, unique_ptr_void>>& blocks) {
+  auto builder = createBlockDescriptorBuilder();
+
+  for(size_t i = 0; i < blocks.size(); i++) {
+    void* blockDesc = blocks[i].second.get();
+
+    if(blocks[i].first == GLOBAL_POOLING_BLOCK_KIND) {
+      BlockDescriptor descriptor = globalPoolingResidualBlockDescToSwift((GlobalPoolingResidualBlockDesc*)blockDesc);
+      builder.enque(descriptor);
+    } else if(blocks[i].first == NESTED_BOTTLENECK_BLOCK_KIND) {
+      BlockDescriptor descriptor = nestedBottleneckResidualBlockDescToSwift((NestedBottleneckResidualBlockDesc*)blockDesc);
+      builder.enque(descriptor);
+    } else {
+      BlockDescriptor descriptor = residualBlockDescToSwift((ResidualBlockDesc*)blockDesc);
+      builder.enque(descriptor);
+    }
+  }
+
+  return builder.getBlockDescriptors();
+}
+
+/// Convert a SGF metadata encoder description from C++ to Swift
+swift::Optional<SWSGFMetadataEncoderDesc> sGFMetadataEncoderDescToSwift(const SGFMetadataEncoderDesc* desc) {
+  SWMatMulLayerDesc mul1 = matMulLayerDescToSwift(&desc->mul1);
+  SWMatBiasLayerDesc bias1 = matBiasLayerDescToSwift(&desc->bias1);
+  ActivationKind act1 = activationLayerDescToSwift(&desc->act1);
+  SWMatMulLayerDesc mul2 = matMulLayerDescToSwift(&desc->mul2);
+  SWMatBiasLayerDesc bias2 = matBiasLayerDescToSwift(&desc->bias2);
+  ActivationKind act2 = activationLayerDescToSwift(&desc->act2);
+  SWMatMulLayerDesc mul3 = matMulLayerDescToSwift(&desc->mul3);
+
+  return createSWSGFMetadataEncoderDesc(
+    desc->metaEncoderVersion,
+    desc->numInputMetaChannels,
+    mul1,
+    bias1,
+    act1,
+    mul2,
+    bias2,
+    act2,
+    mul3);
+}
+
+/// Convert a trunk description from C++ to Swift
+SWTrunkDesc trunkDescToSwift(const TrunkDesc* trunk) {
+  SWConvLayerDesc initialConv = convLayerDescToSwift(&trunk->initialConv);
+  SWMatMulLayerDesc initialMatMul = matMulLayerDescToSwift(&trunk->initialMatMul);
+  auto sgfMetadataEncoder = sGFMetadataEncoderDescToSwift(&trunk->sgfMetadataEncoder);
+  auto swBlocks = residualBlocksToSwift(trunk->blocks);
+  SWBatchNormLayerDesc trunkTipBN = batchNormLayerDescToSwift(&trunk->trunkTipBN);
+  ActivationKind trunkTipActivation = activationLayerDescToSwift(&trunk->trunkTipActivation);
+
+  return createSWTrunkDesc(
+    trunk->modelVersion,
+    trunk->trunkNumChannels,
+    trunk->midNumChannels,
+    trunk->regularNumChannels,
+    trunk->gpoolNumChannels,
+    initialConv,
+    initialMatMul,
+    sgfMetadataEncoder,
+    swBlocks,
+    trunkTipBN,
+    trunkTipActivation);
+}
+
+/// Convert a policy head description from C++ to Swift
+SWPolicyHeadDesc policyHeadDescToSwift(const PolicyHeadDesc* policyHead) {
+  SWConvLayerDesc p1Conv = convLayerDescToSwift(&policyHead->p1Conv);
+  SWConvLayerDesc g1Conv = convLayerDescToSwift(&policyHead->g1Conv);
+  SWBatchNormLayerDesc g1BN = batchNormLayerDescToSwift(&policyHead->g1BN);
+  ActivationKind g1Activation = activationLayerDescToSwift(&policyHead->g1Activation);
+  SWMatMulLayerDesc gpoolToBiasMul = matMulLayerDescToSwift(&policyHead->gpoolToBiasMul);
+  SWBatchNormLayerDesc p1BN = batchNormLayerDescToSwift(&policyHead->p1BN);
+  ActivationKind p1Activation = activationLayerDescToSwift(&policyHead->p1Activation);
+  SWConvLayerDesc p2Conv = convLayerDescToSwift(&policyHead->p2Conv);
+  SWMatMulLayerDesc gpoolToPassMul = matMulLayerDescToSwift(&policyHead->gpoolToPassMul);
+  SWMatBiasLayerDesc gpoolToPassBias = matBiasLayerDescToSwift(&policyHead->gpoolToPassBias);
+  ActivationKind passActivation = activationLayerDescToSwift(&policyHead->passActivation);
+  SWMatMulLayerDesc gpoolToPassMul2 = matMulLayerDescToSwift(&policyHead->gpoolToPassMul2);
+
+  return createSWPolicyHeadDesc(
+    policyHead->modelVersion,
+    p1Conv,
+    g1Conv,
+    g1BN,
+    g1Activation,
+    gpoolToBiasMul,
+    p1BN,
+    p1Activation,
+    p2Conv,
+    gpoolToPassMul,
+    gpoolToPassBias,
+    passActivation,
+    gpoolToPassMul2);
+}
+
+/// Convert a value head description from C++ to Swift
+SWValueHeadDesc valueHeadDescToSwift(const ValueHeadDesc* valueHead) {
+  SWConvLayerDesc v1Conv = convLayerDescToSwift(&valueHead->v1Conv);
+  SWBatchNormLayerDesc v1BN = batchNormLayerDescToSwift(&valueHead->v1BN);
+  ActivationKind v1Activation = activationLayerDescToSwift(&valueHead->v1Activation);
+  SWMatMulLayerDesc v2Mul = matMulLayerDescToSwift(&valueHead->v2Mul);
+  SWMatBiasLayerDesc v2Bias = matBiasLayerDescToSwift(&valueHead->v2Bias);
+  ActivationKind v2Activation = activationLayerDescToSwift(&valueHead->v2Activation);
+  SWMatMulLayerDesc v3Mul = matMulLayerDescToSwift(&valueHead->v3Mul);
+  SWMatBiasLayerDesc v3Bias = matBiasLayerDescToSwift(&valueHead->v3Bias);
+  SWMatMulLayerDesc sv3Mul = matMulLayerDescToSwift(&valueHead->sv3Mul);
+  SWMatBiasLayerDesc sv3Bias = matBiasLayerDescToSwift(&valueHead->sv3Bias);
+  SWConvLayerDesc vOwnershipConv = convLayerDescToSwift(&valueHead->vOwnershipConv);
+
+  return createSWValueHeadDesc(
+    valueHead->modelVersion,
+    v1Conv,
+    v1BN,
+    v1Activation,
+    v2Mul,
+    v2Bias,
+    v2Activation,
+    v3Mul,
+    v3Bias,
+    sv3Mul,
+    sv3Bias,
+    vOwnershipConv);
+}
+
+/// Convert a model description from C++ to Swift
+SWModelDesc modelDescToSwift(const ModelDesc* modelDesc) {
+  return createSWModelDesc(
+    modelDesc->modelVersion,
+    swift::String(modelDesc->name),
+    modelDesc->numInputChannels,
+    modelDesc->numInputGlobalChannels,
+    modelDesc->numInputMetaChannels,
+    modelDesc->numValueChannels,
+    modelDesc->numScoreValueChannels,
+    modelDesc->numOwnershipChannels,
+    trunkDescToSwift(&modelDesc->trunk),
+    policyHeadDescToSwift(&modelDesc->policyHead),
+    valueHeadDescToSwift(&modelDesc->valueHead));
+}
+
+}  // namespace CoreMLProcess
+
+//------------------------------------------------------------------------------
 // LoadedModel implementation
 //------------------------------------------------------------------------------
 
@@ -204,9 +471,9 @@ void NeuralNet::freeComputeContext(ComputeContext* computeContext) {
 
 static mutex computeHandleMutex;
 
-// Helper function to convert model and create CoreML handle
+// Helper function to convert model and create hybrid compute handle
 // This is needed because Swift Optional doesn't support assignment in C++
-static swift::Optional<KataGoCoreML::CoreMLComputeHandle> convertAndCreateHandle(
+static swift::Optional<KataGoCoreML::HybridComputeHandle> convertAndCreateHybridHandle(
   ComputeContext* context,
   const LoadedModel* loadedModel,
   bool requireExactNNLen,
@@ -229,9 +496,13 @@ static swift::Optional<KataGoCoreML::CoreMLComputeHandle> convertAndCreateHandle
     serverThreadIdx
   );
 
-  // Load the pre-converted CoreML model
-  return createCoreMLComputeHandle(
+  // Convert model descriptor to Swift format for MPSGraph path
+  SWModelDesc swModelDesc = CoreMLProcess::modelDescToSwift(&loadedModel->modelDesc);
+
+  // Create hybrid compute handle (CoreML on CPU+ANE, MPSGraph on GPU)
+  return createHybridComputeHandle(
     swift::String(coremlModelPath),
+    swModelDesc,
     serverThreadIdx,
     requireExactNNLen,
     loadedModel->modelDesc.numInputChannels,
@@ -252,7 +523,7 @@ ComputeHandle::ComputeHandle(
   int gpuIdx,
   int serverThreadIdx,
   bool requireExactNNLen):
-coremlHandle(convertAndCreateHandle(context, loadedModel, requireExactNNLen, serverThreadIdx)) {
+hybridHandle(convertAndCreateHybridHandle(context, loadedModel, requireExactNNLen, serverThreadIdx)) {
   const ModelDesc* modelDesc = &loadedModel->modelDesc;
   auto coremlContext = context->coremlContext;
 
@@ -662,13 +933,13 @@ void CoreMLProcess::getCoreMLOutput(
     CoreMLProcess::processRowData(row, gpuHandle, inputBuffers, inputBufs);
   }
 
-  auto coremlHandle = gpuHandle->coremlHandle;
-  assert(coremlHandle);
+  auto hybridHandle = gpuHandle->hybridHandle;
+  assert(hybridHandle);
 
-  // Call Core ML inference
+  // Call hybrid inference (CoreML on CPU+ANE, MPSGraph on GPU)
   // Mask buffer has correct stride (singleMaskElts = H*W per batch element)
   // When requireExactNNLen is true, mask operations can be optimized (optimize_identity_mask)
-  coremlHandle.get().apply(
+  hybridHandle.get().apply(
     inputBuffers->userInputBuffer,
     inputBuffers->userInputGlobalBuffer,
     inputBuffers->userInputMetaBuffer,
