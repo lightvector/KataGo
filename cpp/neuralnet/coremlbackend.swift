@@ -460,7 +460,8 @@ public class MPSGraphModelHandle {
     public init?(
         modelDesc: SWModelDesc,
         nnXLen: Int32,
-        nnYLen: Int32
+        nnYLen: Int32,
+        optimizeIdentityMask: Bool = false
     ) {
         guard let device = MTLCreateSystemDefaultDevice() else {
             printError("MPSGraph backend: Failed to create Metal device")
@@ -506,17 +507,35 @@ public class MPSGraphModelHandle {
             nnXLen: nnXLenNS,
             nnYLen: nnYLenNS)
 
-        let maskSum = MaskSumLayer(
-            graph: graph,
-            maskTensor: mask.tensor)
+        // Use constant tensors when mask is all 1s (requireExactNNLen=true)
+        let maskSum: MaskSumLayer
+        let maskSumSqrtS14M01: MaskSumSqrtS14M01Layer
+        let maskSumSqrtS14M01SquareS01: MaskSumSqrtS14M01SquareS01Layer
 
-        let maskSumSqrtS14M01 = MaskSumSqrtS14M01Layer(
-            graph: graph,
-            maskSum: maskSum)
-
-        let maskSumSqrtS14M01SquareS01 = MaskSumSqrtS14M01SquareS01Layer(
-            graph: graph,
-            maskSumSqrtS14M01: maskSumSqrtS14M01)
+        if optimizeIdentityMask {
+            maskSum = MaskSumLayer(
+                graph: graph,
+                nnXLen: nnXLenNS,
+                nnYLen: nnYLenNS)
+            maskSumSqrtS14M01 = MaskSumSqrtS14M01Layer(
+                graph: graph,
+                nnXLen: nnXLenNS,
+                nnYLen: nnYLenNS)
+            maskSumSqrtS14M01SquareS01 = MaskSumSqrtS14M01SquareS01Layer(
+                graph: graph,
+                nnXLen: nnXLenNS,
+                nnYLen: nnYLenNS)
+        } else {
+            maskSum = MaskSumLayer(
+                graph: graph,
+                maskTensor: mask.tensor)
+            maskSumSqrtS14M01 = MaskSumSqrtS14M01Layer(
+                graph: graph,
+                maskSum: maskSum)
+            maskSumSqrtS14M01SquareS01 = MaskSumSqrtS14M01SquareS01Layer(
+                graph: graph,
+                maskSumSqrtS14M01: maskSumSqrtS14M01)
+        }
 
         trunk = Trunk(
             graph: graph,
@@ -528,7 +547,8 @@ public class MPSGraphModelHandle {
             maskSumTensor: maskSum.tensor,
             maskSumSqrtS14M01Tensor: maskSumSqrtS14M01.tensor,
             nnXLen: nnXLenNS,
-            nnYLen: nnYLenNS)
+            nnYLen: nnYLenNS,
+            optimizeIdentityMask: optimizeIdentityMask)
 
         policyHead = PolicyHead(
             graph: graph,
@@ -538,7 +558,8 @@ public class MPSGraphModelHandle {
             maskSumTensor: maskSum.tensor,
             maskSumSqrtS14M01Tensor: maskSumSqrtS14M01.tensor,
             nnXLen: nnXLenNS,
-            nnYLen: nnYLenNS)
+            nnYLen: nnYLenNS,
+            optimizeIdentityMask: optimizeIdentityMask)
 
         valueHead = ValueHead(
             graph: graph,
@@ -549,7 +570,8 @@ public class MPSGraphModelHandle {
             maskSumSqrtS14M01Tensor: maskSumSqrtS14M01.tensor,
             maskSumSqrtS14M01SquareS01Tensor: maskSumSqrtS14M01SquareS01.tensor,
             nnXLen: nnXLenNS,
-            nnYLen: nnYLenNS)
+            nnYLen: nnYLenNS,
+            optimizeIdentityMask: optimizeIdentityMask)
 
         targetTensors = [
             policyHead.policyTensor,
@@ -559,7 +581,7 @@ public class MPSGraphModelHandle {
             valueHead.ownershipTensor,
         ]
 
-        printError("MPSGraph backend: Initialized on \(device.name)")
+        printError("MPSGraph backend: Initialized on \(device.name)\(optimizeIdentityMask ? " (mask optimized)" : "")")
     }
 
     /// Run inference on a batch using MPSGraph (GPU)
@@ -834,7 +856,8 @@ public func createHybridComputeHandle(
     guard let mpsGraphHandle = MPSGraphModelHandle(
         modelDesc: modelDesc,
         nnXLen: context.nnXLen,
-        nnYLen: context.nnYLen
+        nnYLen: context.nnYLen,
+        optimizeIdentityMask: requireExactNNLen
     ) else {
         printError("Hybrid backend \(serverThreadIdx): Failed to create MPSGraph handle")
         return nil

@@ -223,6 +223,23 @@ struct MaskSumLayer {
 
         assert(self.tensor.shape?.count == 4)
     }
+
+    /// Optimized init for when mask is all 1s (requireExactNNLen=true)
+    /// Returns constant tensor with boardSize value
+    init(
+        graph: MPSGraph,
+        nnXLen: NSNumber,
+        nnYLen: NSNumber,
+        dataType: MPSDataType = .float32
+    ) {
+        let boardSize = Double(nnXLen.intValue * nnYLen.intValue)
+        self.tensor = graph.constant(
+            boardSize,
+            shape: [1, 1, 1, 1],
+            dataType: dataType)
+
+        assert(self.tensor.shape?.count == 4)
+    }
 }
 
 /// A structure that represents sqrt(maskSum) * 0.1 - 1.4
@@ -259,6 +276,24 @@ struct MaskSumSqrtS14M01Layer {
 
         assert(self.tensor.shape?.count == 4)
     }
+
+    /// Optimized init for when mask is all 1s (requireExactNNLen=true)
+    /// Returns constant tensor: (sqrt(boardSize) - 14) * 0.1
+    init(
+        graph: MPSGraph,
+        nnXLen: NSNumber,
+        nnYLen: NSNumber,
+        dataType: MPSDataType = .float32
+    ) {
+        let boardSize = Double(nnXLen.intValue * nnYLen.intValue)
+        let value = (sqrt(boardSize) - 14.0) * 0.1
+        self.tensor = graph.constant(
+            value,
+            shape: [1, 1, 1, 1],
+            dataType: dataType)
+
+        assert(self.tensor.shape?.count == 4)
+    }
 }
 
 /// A structure for (sqrt(maskSum) * 0.1 - 1.4)^2 - 0.1
@@ -285,6 +320,25 @@ struct MaskSumSqrtS14M01SquareS01Layer {
             squared,
             zeroPointone,
             name: nil)
+
+        assert(self.tensor.shape?.count == 4)
+    }
+
+    /// Optimized init for when mask is all 1s (requireExactNNLen=true)
+    /// Returns constant tensor: ((sqrt(boardSize) - 14) * 0.1)^2 - 0.1
+    init(
+        graph: MPSGraph,
+        nnXLen: NSNumber,
+        nnYLen: NSNumber,
+        dataType: MPSDataType = .float32
+    ) {
+        let boardSize = Double(nnXLen.intValue * nnYLen.intValue)
+        let sqrtS14M01 = (sqrt(boardSize) - 14.0) * 0.1
+        let value = sqrtS14M01 * sqrtS14M01 - 0.1
+        self.tensor = graph.constant(
+            value,
+            shape: [1, 1, 1, 1],
+            dataType: dataType)
 
         assert(self.tensor.shape?.count == 4)
     }
@@ -484,7 +538,8 @@ class BatchNormLayer {
         maskTensor: MPSGraphTensor,
         descriptor: SWBatchNormLayerDesc,
         nnXLen: NSNumber,
-        nnYLen: NSNumber
+        nnYLen: NSNumber,
+        optimizeIdentityMask: Bool = false
     ) {
         let scaleBiasShape = InputShape.create(
             batchSize: 1,
@@ -520,10 +575,15 @@ class BatchNormLayer {
             biasTensor,
             name: nil)
 
-        resultTensor = graph.multiplication(
-            normalized,
-            maskTensor,
-            name: nil)
+        // Skip mask multiplication when all mask values are 1
+        if optimizeIdentityMask {
+            resultTensor = normalized
+        } else {
+            resultTensor = graph.multiplication(
+                normalized,
+                maskTensor,
+                name: nil)
+        }
 
         assert(resultTensor.shape?.count == 4)
     }
@@ -665,7 +725,8 @@ struct GlobalPoolingLayer {
         sourceTensor: MPSGraphTensor,
         maskTensor: MPSGraphTensor,
         maskSumTensor: MPSGraphTensor,
-        maskSumSqrtS14M01Tensor: MPSGraphTensor
+        maskSumSqrtS14M01Tensor: MPSGraphTensor,
+        optimizeIdentityMask: Bool = false
     ) {
         let hwAxes = InputShape.getHWAxes()
         let channelAxis = InputShape.getChannelAxis()
@@ -682,14 +743,24 @@ struct GlobalPoolingLayer {
             maskSumSqrtS14M01Tensor,
             name: nil)
 
-        let oneTensor = graph.constant(1.0, dataType: sourceTensor.dataType)
-        let maskM1Tensor = graph.subtraction(maskTensor, oneTensor, name: nil)
-        let addition = graph.addition(sourceTensor, maskM1Tensor, name: nil)
+        let maxTensor: MPSGraphTensor
+        if optimizeIdentityMask {
+            // When all mask values are 1, directly compute max without mask adjustment
+            maxTensor = graph.reductionMaximum(
+                with: sourceTensor,
+                axes: hwAxes,
+                name: nil)
+        } else {
+            // Mask out invalid positions by subtracting 1 (making them very negative)
+            let oneTensor = graph.constant(1.0, dataType: sourceTensor.dataType)
+            let maskM1Tensor = graph.subtraction(maskTensor, oneTensor, name: nil)
+            let addition = graph.addition(sourceTensor, maskM1Tensor, name: nil)
 
-        let maxTensor = graph.reductionMaximum(
-            with: addition,
-            axes: hwAxes,
-            name: nil)
+            maxTensor = graph.reductionMaximum(
+                with: addition,
+                axes: hwAxes,
+                name: nil)
+        }
 
         resultTensor = graph.concatTensors(
             [
@@ -938,7 +1009,8 @@ class ResidualBlock {
         maskTensor: MPSGraphTensor,
         descriptor: SWResidualBlockDesc,
         nnXLen: NSNumber,
-        nnYLen: NSNumber
+        nnYLen: NSNumber,
+        optimizeIdentityMask: Bool = false
     ) {
         let preBN = BatchNormLayer(
             graph: graph,
@@ -946,7 +1018,8 @@ class ResidualBlock {
             maskTensor: maskTensor,
             descriptor: descriptor.preBN,
             nnXLen: nnXLen,
-            nnYLen: nnYLen)
+            nnYLen: nnYLen,
+            optimizeIdentityMask: optimizeIdentityMask)
 
         let preActivation = ActivationLayer(
             graph: graph,
@@ -966,7 +1039,8 @@ class ResidualBlock {
             maskTensor: maskTensor,
             descriptor: descriptor.midBN,
             nnXLen: nnXLen,
-            nnYLen: nnYLen)
+            nnYLen: nnYLen,
+            optimizeIdentityMask: optimizeIdentityMask)
 
         let midActivation = ActivationLayer(
             graph: graph,
@@ -1001,7 +1075,8 @@ class GlobalPoolingResidualBlock {
         maskSumSqrtS14M01Tensor: MPSGraphTensor,
         descriptor: SWGlobalPoolingResidualBlockDesc,
         nnXLen: NSNumber,
-        nnYLen: NSNumber
+        nnYLen: NSNumber,
+        optimizeIdentityMask: Bool = false
     ) {
         let maskSum = MaskSumLayer(tensor: maskSumTensor)
         let maskSumSqrtS14M01 = MaskSumSqrtS14M01Layer(tensor: maskSumSqrtS14M01Tensor)
@@ -1012,7 +1087,8 @@ class GlobalPoolingResidualBlock {
             maskTensor: maskTensor,
             descriptor: descriptor.preBN,
             nnXLen: nnXLen,
-            nnYLen: nnYLen)
+            nnYLen: nnYLen,
+            optimizeIdentityMask: optimizeIdentityMask)
 
         let preActivation = ActivationLayer(
             graph: graph,
@@ -1039,7 +1115,8 @@ class GlobalPoolingResidualBlock {
             maskTensor: maskTensor,
             descriptor: descriptor.gpoolBN,
             nnXLen: nnXLen,
-            nnYLen: nnYLen)
+            nnYLen: nnYLen,
+            optimizeIdentityMask: optimizeIdentityMask)
 
         let gpoolActivation = ActivationLayer(
             graph: graph,
@@ -1051,7 +1128,8 @@ class GlobalPoolingResidualBlock {
             sourceTensor: gpoolActivation.resultTensor,
             maskTensor: maskTensor,
             maskSumTensor: maskSum.tensor,
-            maskSumSqrtS14M01Tensor: maskSumSqrtS14M01.tensor)
+            maskSumSqrtS14M01Tensor: maskSumSqrtS14M01.tensor,
+            optimizeIdentityMask: optimizeIdentityMask)
 
         assert(gpoolConcat.resultTensor.shape?[1] == descriptor.gpoolToBiasMul.inChannels)
 
@@ -1074,7 +1152,8 @@ class GlobalPoolingResidualBlock {
             maskTensor: maskTensor,
             descriptor: descriptor.midBN,
             nnXLen: nnXLen,
-            nnYLen: nnYLen)
+            nnYLen: nnYLen,
+            optimizeIdentityMask: optimizeIdentityMask)
 
         let midActivation = ActivationLayer(
             graph: graph,
@@ -1110,7 +1189,8 @@ struct BlockStack {
         _ blockDescriptors: [BlockDescriptor],
         _ index: Int,
         _ nnXLen: NSNumber,
-        _ nnYLen: NSNumber
+        _ nnYLen: NSNumber,
+        _ optimizeIdentityMask: Bool
     ) -> MPSGraphTensor {
         guard index < blockDescriptors.count else {
             return sourceTensor
@@ -1129,7 +1209,8 @@ struct BlockStack {
                 maskSumSqrtS14M01Tensor: maskSumSqrtS14M01Tensor,
                 descriptor: globalPoolingDescriptor,
                 nnXLen: nnXLen,
-                nnYLen: nnYLen)
+                nnYLen: nnYLen,
+                optimizeIdentityMask: optimizeIdentityMask)
 
             blockInput = globalPooling.resultTensor
         case let nestedBottleneckDescriptor as SWNestedBottleneckResidualBlockDesc:
@@ -1141,7 +1222,8 @@ struct BlockStack {
                 maskSumSqrtS14M01Tensor: maskSumSqrtS14M01Tensor,
                 descriptor: nestedBottleneckDescriptor,
                 nnXLen: nnXLen,
-                nnYLen: nnYLen)
+                nnYLen: nnYLen,
+                optimizeIdentityMask: optimizeIdentityMask)
 
             blockInput = nestedBottleneck.resultTensor
         case let residualBlockDescriptor as SWResidualBlockDesc:
@@ -1151,7 +1233,8 @@ struct BlockStack {
                 maskTensor: maskTensor,
                 descriptor: residualBlockDescriptor,
                 nnXLen: nnXLen,
-                nnYLen: nnYLen)
+                nnYLen: nnYLen,
+                optimizeIdentityMask: optimizeIdentityMask)
 
             blockInput = ordinary.resultTensor
         default:
@@ -1167,7 +1250,8 @@ struct BlockStack {
             blockDescriptors,
             index + 1,
             nnXLen,
-            nnYLen)
+            nnYLen,
+            optimizeIdentityMask)
     }
 
     init(
@@ -1178,7 +1262,8 @@ struct BlockStack {
         maskSumSqrtS14M01Tensor: MPSGraphTensor,
         blockDescriptors: [BlockDescriptor],
         nnXLen: NSNumber,
-        nnYLen: NSNumber
+        nnYLen: NSNumber,
+        optimizeIdentityMask: Bool = false
     ) {
         resultTensor = BlockStack.processBlockDescriptors(
             graph,
@@ -1189,7 +1274,8 @@ struct BlockStack {
             blockDescriptors,
             0,
             nnXLen,
-            nnYLen)
+            nnYLen,
+            optimizeIdentityMask)
     }
 }
 
@@ -1205,7 +1291,8 @@ struct NestedBottleneckResidualBlock {
         maskSumSqrtS14M01Tensor: MPSGraphTensor,
         descriptor: SWNestedBottleneckResidualBlockDesc,
         nnXLen: NSNumber,
-        nnYLen: NSNumber
+        nnYLen: NSNumber,
+        optimizeIdentityMask: Bool = false
     ) {
         let preBN = BatchNormLayer(
             graph: graph,
@@ -1213,7 +1300,8 @@ struct NestedBottleneckResidualBlock {
             maskTensor: maskTensor,
             descriptor: descriptor.preBN,
             nnXLen: nnXLen,
-            nnYLen: nnYLen)
+            nnYLen: nnYLen,
+            optimizeIdentityMask: optimizeIdentityMask)
 
         let preActivation = ActivationLayer(
             graph: graph,
@@ -1235,7 +1323,8 @@ struct NestedBottleneckResidualBlock {
             maskSumSqrtS14M01Tensor: maskSumSqrtS14M01Tensor,
             blockDescriptors: descriptor.blockDescriptors,
             nnXLen: nnXLen,
-            nnYLen: nnYLen)
+            nnYLen: nnYLen,
+            optimizeIdentityMask: optimizeIdentityMask)
 
         let postBN = BatchNormLayer(
             graph: graph,
@@ -1243,7 +1332,8 @@ struct NestedBottleneckResidualBlock {
             maskTensor: maskTensor,
             descriptor: descriptor.postBN,
             nnXLen: nnXLen,
-            nnYLen: nnYLen)
+            nnYLen: nnYLen,
+            optimizeIdentityMask: optimizeIdentityMask)
 
         let postActivation = ActivationLayer(
             graph: graph,
@@ -1495,7 +1585,8 @@ struct Trunk {
         maskSumTensor: MPSGraphTensor,
         maskSumSqrtS14M01Tensor: MPSGraphTensor,
         nnXLen: NSNumber,
-        nnYLen: NSNumber
+        nnYLen: NSNumber,
+        optimizeIdentityMask: Bool = false
     ) {
         let initialConv = ConvLayer(
             graph: graph,
@@ -1534,7 +1625,8 @@ struct Trunk {
             maskSumSqrtS14M01Tensor: maskSumSqrtS14M01Tensor,
             blockDescriptors: descriptor.blockDescriptors,
             nnXLen: nnXLen,
-            nnYLen: nnYLen)
+            nnYLen: nnYLen,
+            optimizeIdentityMask: optimizeIdentityMask)
 
         let trunkTipBN = BatchNormLayer(
             graph: graph,
@@ -1542,7 +1634,8 @@ struct Trunk {
             maskTensor: maskTensor,
             descriptor: descriptor.trunkTipBN,
             nnXLen: nnXLen,
-            nnYLen: nnYLen)
+            nnYLen: nnYLen,
+            optimizeIdentityMask: optimizeIdentityMask)
 
         let trunkTipActivation = ActivationLayer(
             graph: graph,
@@ -1674,7 +1767,8 @@ struct PolicyHead {
         maskSumTensor: MPSGraphTensor,
         maskSumSqrtS14M01Tensor: MPSGraphTensor,
         nnXLen: NSNumber,
-        nnYLen: NSNumber
+        nnYLen: NSNumber,
+        optimizeIdentityMask: Bool = false
     ) {
         let p1Conv = ConvLayer(
             graph: graph,
@@ -1696,7 +1790,8 @@ struct PolicyHead {
             maskTensor: maskTensor,
             descriptor: descriptor.g1BN,
             nnXLen: nnXLen,
-            nnYLen: nnYLen)
+            nnYLen: nnYLen,
+            optimizeIdentityMask: optimizeIdentityMask)
 
         let g1Activation = ActivationLayer(
             graph: graph,
@@ -1708,7 +1803,8 @@ struct PolicyHead {
             sourceTensor: g1Activation.resultTensor,
             maskTensor: maskTensor,
             maskSumTensor: maskSumTensor,
-            maskSumSqrtS14M01Tensor: maskSumSqrtS14M01Tensor)
+            maskSumSqrtS14M01Tensor: maskSumSqrtS14M01Tensor,
+            optimizeIdentityMask: optimizeIdentityMask)
 
         assert(g1Concat.resultTensor.shape?[1] == descriptor.gpoolToBiasMul.inChannels)
 
@@ -1731,7 +1827,8 @@ struct PolicyHead {
             maskTensor: maskTensor,
             descriptor: descriptor.p1BN,
             nnXLen: nnXLen,
-            nnYLen: nnYLen)
+            nnYLen: nnYLen,
+            optimizeIdentityMask: optimizeIdentityMask)
 
         let p1Activation = ActivationLayer(
             graph: graph,
@@ -1876,7 +1973,8 @@ struct ValueHead {
         maskSumSqrtS14M01Tensor: MPSGraphTensor,
         maskSumSqrtS14M01SquareS01Tensor: MPSGraphTensor,
         nnXLen: NSNumber,
-        nnYLen: NSNumber
+        nnYLen: NSNumber,
+        optimizeIdentityMask: Bool = false
     ) {
         let v1Conv = ConvLayer(
             graph: graph,
@@ -1891,7 +1989,8 @@ struct ValueHead {
             maskTensor: maskTensor,
             descriptor: descriptor.v1BN,
             nnXLen: nnXLen,
-            nnYLen: nnYLen)
+            nnYLen: nnYLen,
+            optimizeIdentityMask: optimizeIdentityMask)
 
         let v1Activation = ActivationLayer(
             graph: graph,
