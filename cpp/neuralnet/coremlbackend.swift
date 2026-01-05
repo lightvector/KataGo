@@ -14,97 +14,8 @@ func printError(_ item: Any) {
     print(item, to: &instance)
 }
 
-/// Manages caching of converted Core ML models
-struct ModelCacheManager {
-    /// Cache directory using documents directory
-    static var cacheDirectory: URL {
-        FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
-            .appendingPathComponent("KataGo")
-            .appendingPathComponent("CoreMLModels")
-    }
-
-    /// Generate cache key from model SHA256 hash, board dimensions, and precision
-    static func cacheKey(modelSHA256: String, boardX: Int32, boardY: Int32,
-                         eliminateMask: Bool, useFP16: Bool) -> String {
-        let precisionSuffix = useFP16 ? "fp16" : "fp32"
-        return "\(modelSHA256)_\(boardX)x\(boardY)_\(precisionSuffix)_\(eliminateMask ? "nomask" : "mask")"
-    }
-
-    /// Get cached model path if it exists
-    static func getCachedModelPath(key: String) -> URL? {
-        let path = cacheDirectory.appendingPathComponent("\(key).mlpackage")
-        return FileManager.default.fileExists(atPath: path.path) ? path : nil
-    }
-
-    /// Get destination path for new cached model
-    static func getModelCachePath(key: String) -> URL {
-        try? FileManager.default.createDirectory(
-            at: cacheDirectory,
-            withIntermediateDirectories: true)
-        return cacheDirectory.appendingPathComponent("\(key).mlpackage")
-    }
-}
-
-/// Converts KataGo .bin.gz model to Core ML .mlpackage using Python
-struct CoreMLConverter {
-
-    enum ConversionError: Error {
-        case pythonNotFound
-        case conversionFailed(String)
-        case modelLoadFailed(String)
-    }
-
-    /// Convert model using KataGoCoremltools
-    static func convert(
-        modelPath: String,
-        outputPath: URL,
-        boardXSize: Int32,
-        boardYSize: Int32,
-        optimizeIdentityMask: Bool,
-        useFP16: Bool
-    ) throws {
-        // Escape the paths for Python string
-        let escapedModelPath = modelPath.replacingOccurrences(of: "'", with: "\\'")
-        let escapedOutputPath = outputPath.path.replacingOccurrences(of: "'", with: "\\'")
-        let precisionStr = useFP16 ? "ct.precision.FLOAT16" : "ct.precision.FLOAT32"
-
-        let pythonScript = """
-        import coremltools as ct
-        mlmodel = ct.converters.katago.convert(
-            '\(escapedModelPath)',
-            board_x_size=\(boardXSize),
-            board_y_size=\(boardYSize),
-            minimum_deployment_target=ct.target.iOS18,
-            compute_precision=\(precisionStr),
-            optimize_identity_mask=\(optimizeIdentityMask ? "True" : "False")
-        )
-        mlmodel.save('\(escapedOutputPath)')
-        """
-
-        let process = Process()
-        process.executableURL = URL(fileURLWithPath: "/Users/chinchangyang/Code/KataGoCoremltools/envs/KataGoCoremltools-py3.11/bin/python")
-        process.arguments = ["-c", pythonScript]
-
-        let errorPipe = Pipe()
-        let outputPipe = Pipe()
-        process.standardError = errorPipe
-        process.standardOutput = outputPipe
-
-        do {
-            try process.run()
-        } catch {
-            throw ConversionError.pythonNotFound
-        }
-
-        process.waitUntilExit()
-
-        if process.terminationStatus != 0 {
-            let errorData = errorPipe.fileHandleForReading.readDataToEndOfFile()
-            let errorString = String(data: errorData, encoding: .utf8) ?? "Unknown error"
-            throw ConversionError.conversionFailed(errorString)
-        }
-    }
-}
+// NOTE: Model caching and conversion are now handled in C++ using the native katagocoreml library.
+// The Python-based CoreMLConverter and ModelCacheManager have been removed to eliminate Python dependency.
 
 /// Context storing board dimensions and settings
 public class CoreMLComputeContext {
@@ -425,10 +336,10 @@ public class CoreMLComputeHandle {
     }
 }
 
-/// Create compute handle - converts model if needed, loads Core ML model
+/// Create compute handle - loads pre-converted Core ML model
+/// Model conversion is now handled in C++ using the native katagocoreml library
 public func createCoreMLComputeHandle(
-    modelPath: String,
-    modelSHA256: String,
+    coremlModelPath: String,
     serverThreadIdx: Int,
     requireExactNNLen: Bool,
     numInputChannels: Int32,
@@ -441,49 +352,10 @@ public func createCoreMLComputeHandle(
     context: CoreMLComputeContext
 ) -> CoreMLComputeHandle? {
 
-    // TODO: Enable mask optimization to test ~6.5% speedup
     let optimizeMask = requireExactNNLen  // When true: skips internal mask operations (~6.5% speedup)
-    // let optimizeMask = false  // Set to true to skip internal mask operations (input still required)
-    let cacheKey = ModelCacheManager.cacheKey(
-        modelSHA256: modelSHA256,
-        boardX: context.nnXLen,
-        boardY: context.nnYLen,
-        eliminateMask: optimizeMask,
-        useFP16: context.useFP16)
+    let mlpackagePath = URL(fileURLWithPath: coremlModelPath)
 
-    // Check cache first
-    var mlpackagePath: URL
-    if let cachedPath = ModelCacheManager.getCachedModelPath(key: cacheKey) {
-        printError("Core ML backend \(serverThreadIdx): Using cached model at \(cachedPath.path)")
-        mlpackagePath = cachedPath
-    } else {
-        // Convert model
-        mlpackagePath = ModelCacheManager.getModelCachePath(key: cacheKey)
-        printError("Core ML backend \(serverThreadIdx): Converting model to \(mlpackagePath.path)")
-
-        do {
-            try CoreMLConverter.convert(
-                modelPath: modelPath,
-                outputPath: mlpackagePath,
-                boardXSize: context.nnXLen,
-                boardYSize: context.nnYLen,
-                optimizeIdentityMask: optimizeMask,
-                useFP16: context.useFP16
-            )
-            printError("Core ML backend \(serverThreadIdx): Conversion completed successfully")
-        } catch CoreMLConverter.ConversionError.pythonNotFound {
-            printError("Core ML backend: Python3 not found at /usr/bin/python3")
-            return nil
-        } catch CoreMLConverter.ConversionError.conversionFailed(let error) {
-            printError("Core ML backend: Conversion failed: \(error)")
-            return nil
-        } catch {
-            printError("Core ML backend: Conversion failed: \(error)")
-            return nil
-        }
-    }
-
-    // Load Core ML model
+    // Load Core ML model (already converted by C++ katagocoreml library)
     do {
         let config = MLModelConfiguration()
         config.computeUnits = .all  // Use Neural Engine + GPU + CPU

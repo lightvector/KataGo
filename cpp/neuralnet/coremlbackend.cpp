@@ -6,9 +6,122 @@
 #include "../neuralnet/nninterface.h"
 #include "../neuralnet/coremlbackend.h"
 
+#include <katagocoreml/KataGoConverter.hpp>
 #include <mutex>
+#include <fstream>
+#include <sys/stat.h>
+#include <pwd.h>
+#include <unistd.h>
 
 using namespace std;
+
+//------------------------------------------------------------------------------
+// CoreML Model Conversion - Native C++ using katagocoreml library
+//------------------------------------------------------------------------------
+
+namespace CoreMLConversion {
+
+// Get cache directory: ~/Documents/KataGo/CoreMLModels/
+static string getCacheDirectory() {
+  const char* homeDir = getenv("HOME");
+  if(homeDir == nullptr) {
+    struct passwd* pw = getpwuid(getuid());
+    homeDir = pw ? pw->pw_dir : "/tmp";
+  }
+  return string(homeDir) + "/Documents/KataGo/CoreMLModels";
+}
+
+// Create directory if it doesn't exist
+static bool createDirectoryIfNeeded(const string& path) {
+  struct stat st;
+  if(stat(path.c_str(), &st) == 0) {
+    return S_ISDIR(st.st_mode);
+  }
+  // Create parent directories recursively
+  size_t pos = path.find_last_of('/');
+  if(pos != string::npos && pos > 0) {
+    createDirectoryIfNeeded(path.substr(0, pos));
+  }
+  return mkdir(path.c_str(), 0755) == 0;
+}
+
+// Check if file/directory exists
+static bool fileExists(const string& path) {
+  struct stat st;
+  return stat(path.c_str(), &st) == 0;
+}
+
+// Generate cache key with _native suffix to distinguish from Python-converted models
+static string generateCacheKey(
+  const string& modelSHA256,
+  int boardX,
+  int boardY,
+  bool useFP16,
+  bool optimizeMask
+) {
+  string precisionSuffix = useFP16 ? "fp16" : "fp32";
+  string maskSuffix = optimizeMask ? "nomask" : "mask";
+  return modelSHA256 + "_" + to_string(boardX) + "x" + to_string(boardY) +
+         "_" + precisionSuffix + "_" + maskSuffix + "_native";
+}
+
+// Convert KataGo model to CoreML using native katagocoreml library
+static void convertModelToCoreML(
+  const string& modelPath,
+  const string& outputPath,
+  int boardXSize,
+  int boardYSize,
+  bool useFP16,
+  bool optimizeIdentityMask
+) {
+  katagocoreml::ConversionOptions opts;
+  opts.board_x_size = boardXSize;
+  opts.board_y_size = boardYSize;
+  opts.compute_precision = useFP16 ? "FLOAT16" : "FLOAT32";
+  opts.optimize_identity_mask = optimizeIdentityMask;
+  opts.specification_version = 8;  // iOS 17+ / macOS 14+
+
+  katagocoreml::KataGoConverter::convert(modelPath, outputPath, opts);
+}
+
+// Ensure model is converted and cached, returns path to .mlpackage
+static string ensureModelConverted(
+  const string& modelPath,
+  const string& modelSHA256,
+  int boardX,
+  int boardY,
+  bool useFP16,
+  bool optimizeMask,
+  int serverThreadIdx
+) {
+  string cacheDir = getCacheDirectory();
+  string cacheKey = generateCacheKey(modelSHA256, boardX, boardY, useFP16, optimizeMask);
+  string mlpackagePath = cacheDir + "/" + cacheKey + ".mlpackage";
+
+  // Check if already cached
+  if(fileExists(mlpackagePath)) {
+    cerr << "Core ML backend " << serverThreadIdx << ": Using cached model at " << mlpackagePath << endl;
+    return mlpackagePath;
+  }
+
+  // Create cache directory if needed
+  if(!createDirectoryIfNeeded(cacheDir)) {
+    throw runtime_error("Failed to create cache directory: " + cacheDir);
+  }
+
+  // Convert model
+  cerr << "Core ML backend " << serverThreadIdx << ": Converting model to " << mlpackagePath << endl;
+  try {
+    convertModelToCoreML(modelPath, mlpackagePath, boardX, boardY, useFP16, optimizeMask);
+    cerr << "Core ML backend " << serverThreadIdx << ": Conversion completed successfully" << endl;
+  } catch(const exception& e) {
+    throw runtime_error(string("Core ML model conversion failed: ") + e.what());
+  }
+
+  return mlpackagePath;
+}
+
+}  // namespace CoreMLConversion
 
 //------------------------------------------------------------------------------
 // LoadedModel implementation
@@ -91,6 +204,47 @@ void NeuralNet::freeComputeContext(ComputeContext* computeContext) {
 
 static mutex computeHandleMutex;
 
+// Helper function to convert model and create CoreML handle
+// This is needed because Swift Optional doesn't support assignment in C++
+static swift::Optional<KataGoCoreML::CoreMLComputeHandle> convertAndCreateHandle(
+  ComputeContext* context,
+  const LoadedModel* loadedModel,
+  bool requireExactNNLen,
+  int serverThreadIdx
+) {
+  auto coremlContext = context->coremlContext;
+  int nnXLen = coremlContext.getNnXLen();
+  int nnYLen = coremlContext.getNnYLen();
+  bool useFP16 = (context->useFP16Mode != enabled_t::False);
+  bool optimizeMask = requireExactNNLen;
+
+  // Convert model to CoreML format using native katagocoreml library
+  string coremlModelPath = CoreMLConversion::ensureModelConverted(
+    loadedModel->modelPath,
+    loadedModel->modelDesc.sha256,
+    nnXLen,
+    nnYLen,
+    useFP16,
+    optimizeMask,
+    serverThreadIdx
+  );
+
+  // Load the pre-converted CoreML model
+  return createCoreMLComputeHandle(
+    swift::String(coremlModelPath),
+    serverThreadIdx,
+    requireExactNNLen,
+    loadedModel->modelDesc.numInputChannels,
+    loadedModel->modelDesc.numInputGlobalChannels,
+    loadedModel->modelDesc.numInputMetaChannels,
+    loadedModel->modelDesc.policyHead.p2Conv.outChannels,
+    loadedModel->modelDesc.numValueChannels,
+    loadedModel->modelDesc.numScoreValueChannels,
+    loadedModel->modelDesc.numOwnershipChannels,
+    coremlContext
+  );
+}
+
 ComputeHandle::ComputeHandle(
   ComputeContext* context,
   const LoadedModel* loadedModel,
@@ -98,20 +252,7 @@ ComputeHandle::ComputeHandle(
   int gpuIdx,
   int serverThreadIdx,
   bool requireExactNNLen):
-coremlHandle(createCoreMLComputeHandle(
-  swift::String(loadedModel->modelPath),
-  swift::String(loadedModel->modelDesc.sha256),
-  serverThreadIdx,
-  requireExactNNLen,
-  loadedModel->modelDesc.numInputChannels,
-  loadedModel->modelDesc.numInputGlobalChannels,
-  loadedModel->modelDesc.numInputMetaChannels,
-  loadedModel->modelDesc.policyHead.p2Conv.outChannels,
-  loadedModel->modelDesc.numValueChannels,
-  loadedModel->modelDesc.numScoreValueChannels,
-  loadedModel->modelDesc.numOwnershipChannels,
-  context->coremlContext)) {
-
+coremlHandle(convertAndCreateHandle(context, loadedModel, requireExactNNLen, serverThreadIdx)) {
   const ModelDesc* modelDesc = &loadedModel->modelDesc;
   auto coremlContext = context->coremlContext;
 
@@ -122,8 +263,6 @@ coremlHandle(createCoreMLComputeHandle(
   metaEncoderVersion = modelDesc->metaEncoderVersion;
   this->inputsUseNHWC = inputsUseNHWC;
   this->requireExactNNLen = requireExactNNLen;
-
-  // Core ML uses FP16 by default
   useFP16 = (context->useFP16Mode != enabled_t::False);
 }
 
