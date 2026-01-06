@@ -539,7 +539,8 @@ int MainCmds::analysis(const vector<string>& args) {
           nnEval->clearCache();
           if(humanEval != NULL)
             humanEval->clearCache();
-          evalCache->clear();
+          if(evalCache != nullptr)
+            evalCache->clear();
           pushToWrite(new string(input.dump()));
         }
         else if(action == "terminate") {
