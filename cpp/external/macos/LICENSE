@@ -1,6 +1,7 @@
-The CMake modules in the cmake/modules subdirectory are from the Swift open source project
-(https://github.com/apple/swift) and are licensed under Apache License v2.0 with Runtime
-Library Exception. See below for the full license text.
+The CMake modules in the cmake/modules subdirectory are from the swift-cmake-examples project
+(https://github.com/apple/swift-cmake-examples) and are licensed under Apache License v2.0
+with Runtime Library Exception (as stated in the file headers which reference
+https://swift.org/LICENSE.txt). See below for the full license text.
 
 ==============================================================================
 
