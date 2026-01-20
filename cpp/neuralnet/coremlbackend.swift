@@ -861,7 +861,7 @@ public func createHybridComputeHandle(
         numOwnershipChannels: numOwnershipChannels,
         context: context
     ) else {
-        printError("Hybrid backend \(serverThreadIdx): Failed to create CoreML handle")
+        printError("Core ML backend \(serverThreadIdx): Failed to create CoreML handle")
         return nil
     }
 
@@ -872,14 +872,36 @@ public func createHybridComputeHandle(
         nnYLen: context.nnYLen,
         optimizeIdentityMask: requireExactNNLen
     ) else {
-        printError("Hybrid backend \(serverThreadIdx): Failed to create MPSGraph handle")
+        printError("Core ML backend \(serverThreadIdx): Failed to create MPSGraph handle")
         return nil
     }
 
-    printError("Hybrid backend \(serverThreadIdx): Initialized CoreML (CPU+ANE) + MPSGraph (GPU)")
+    printError("Core ML backend \(serverThreadIdx): Initialized CoreML (CPU+ANE) + MPSGraph (GPU)")
 
     return HybridComputeHandle(
         coremlHandle: coremlHandle,
         mpsGraphHandle: mpsGraphHandle
     )
+}
+
+/// Create a GPU-only compute handle using MPSGraph
+/// Used when useFP16=false to avoid slow FP32 CoreML execution on CPU+ANE
+public func createMPSGraphOnlyHandle(
+    modelDesc: SWModelDesc,
+    serverThreadIdx: Int,
+    requireExactNNLen: Bool,
+    context: CoreMLComputeContext
+) -> MPSGraphModelHandle? {
+    guard let mpsGraphHandle = MPSGraphModelHandle(
+        modelDesc: modelDesc,
+        nnXLen: context.nnXLen,
+        nnYLen: context.nnYLen,
+        optimizeIdentityMask: requireExactNNLen
+    ) else {
+        printError("Core ML backend \(serverThreadIdx): Failed to create MPSGraph handle")
+        return nil
+    }
+
+    printError("Core ML backend \(serverThreadIdx): Initialized MPSGraph GPU-only mode")
+    return mpsGraphHandle
 }

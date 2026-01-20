@@ -487,6 +487,50 @@ static swift::Optional<KataGoCoreML::HybridComputeHandle> convertAndCreateHybrid
   );
 }
 
+// Helper function to create hybrid handle if FP16 mode, otherwise returns none
+static swift::Optional<KataGoCoreML::HybridComputeHandle> createHybridHandleIfNeeded(
+  ComputeContext* context,
+  const LoadedModel* loadedModel,
+  bool requireExactNNLen,
+  int maxBatchSize,
+  int serverThreadIdx
+) {
+  if(context->useFP16Mode == enabled_t::False) {
+    // FP32 mode - don't create hybrid handle
+    return swift::Optional<KataGoCoreML::HybridComputeHandle>::none();
+  }
+  // FP16 mode: Use hybrid execution (CoreML on CPU+ANE, MPSGraph on GPU)
+  return convertAndCreateHybridHandle(context, loadedModel, requireExactNNLen, maxBatchSize, serverThreadIdx);
+}
+
+// Helper function to create MPSGraph-only handle if FP32 mode, otherwise returns none
+// Used when useFP16=false to avoid slow FP32 CoreML execution on CPU+ANE
+static swift::Optional<KataGoCoreML::MPSGraphModelHandle> createMPSGraphHandleIfNeeded(
+  ComputeContext* context,
+  const LoadedModel* loadedModel,
+  bool requireExactNNLen,
+  int serverThreadIdx
+) {
+  if(context->useFP16Mode != enabled_t::False) {
+    // FP16 mode - don't create MPSGraph-only handle
+    return swift::Optional<KataGoCoreML::MPSGraphModelHandle>::none();
+  }
+  // FP32 mode: Use MPSGraph only (GPU-only, skip slow FP32 CoreML)
+  cerr << "Core ML backend " << serverThreadIdx << ": FP32 mode - using MPSGraph GPU-only (skipping CoreML converter)" << endl;
+
+  // Convert model descriptor to Swift format for MPSGraph path
+  // Note: No CoreML conversion needed - MPSGraph reads weights directly
+  SWModelDesc swModelDesc = CoreMLProcess::modelDescToSwift(&loadedModel->modelDesc);
+
+  // Create MPSGraph-only handle (GPU only)
+  return createMPSGraphOnlyHandle(
+    swModelDesc,
+    serverThreadIdx,
+    requireExactNNLen,
+    context->coremlContext
+  );
+}
+
 ComputeHandle::ComputeHandle(
   ComputeContext* context,
   const LoadedModel* loadedModel,
@@ -495,7 +539,11 @@ ComputeHandle::ComputeHandle(
   int serverThreadIdx,
   bool requireExactNNLen,
   int maxBatchSize):
-hybridHandle(convertAndCreateHybridHandle(context, loadedModel, requireExactNNLen, maxBatchSize, serverThreadIdx)) {
+hybridHandle(createHybridHandleIfNeeded(context, loadedModel, requireExactNNLen, maxBatchSize, serverThreadIdx)),
+mpsGraphOnlyHandle(createMPSGraphHandleIfNeeded(context, loadedModel, requireExactNNLen, serverThreadIdx)) {
+  assert(((hybridHandle && !mpsGraphOnlyHandle) || (!hybridHandle && mpsGraphOnlyHandle)) &&
+         "Exactly one of hybridHandle or mpsGraphOnlyHandle must be valid");
+
   const ModelDesc* modelDesc = &loadedModel->modelDesc;
   auto coremlContext = context->coremlContext;
 
@@ -904,23 +952,38 @@ void CoreMLProcess::getCoreMLOutput(
     CoreMLProcess::processRowData(row, gpuHandle, inputBuffers, inputBufs);
   }
 
-  auto hybridHandle = gpuHandle->hybridHandle;
-  assert(hybridHandle);
-
-  // Call hybrid inference (CoreML on CPU+ANE, MPSGraph on GPU)
-  // Mask buffer has correct stride (singleMaskElts = H*W per batch element)
-  // When requireExactNNLen is true, mask operations can be optimized (optimize_identity_mask)
-  hybridHandle.get().apply(
-    inputBuffers->userInputBuffer,
-    inputBuffers->userInputGlobalBuffer,
-    inputBuffers->userInputMetaBuffer,
-    inputBuffers->userInputMaskBuffer,  // Dedicated mask buffer with correct stride
-    inputBuffers->policyResults,
-    inputBuffers->policyPassResults,
-    inputBuffers->valueResults,
-    inputBuffers->scoreValuesResults,
-    inputBuffers->ownershipResults,
-    batchSize);
+  // Dispatch to appropriate handle based on mode
+  if(gpuHandle->hybridHandle) {
+    // FP16 mode: Use hybrid execution (CoreML on CPU+ANE, MPSGraph on GPU)
+    // Mask buffer has correct stride (singleMaskElts = H*W per batch element)
+    // When requireExactNNLen is true, mask operations can be optimized (optimize_identity_mask)
+    gpuHandle->hybridHandle.get().apply(
+      inputBuffers->userInputBuffer,
+      inputBuffers->userInputGlobalBuffer,
+      inputBuffers->userInputMetaBuffer,
+      inputBuffers->userInputMaskBuffer,  // Dedicated mask buffer with correct stride
+      inputBuffers->policyResults,
+      inputBuffers->policyPassResults,
+      inputBuffers->valueResults,
+      inputBuffers->scoreValuesResults,
+      inputBuffers->ownershipResults,
+      batchSize);
+  } else if(gpuHandle->mpsGraphOnlyHandle) {
+    // FP32 mode: Use MPSGraph only (GPU-only)
+    // Note: MPSGraphModelHandle.apply() doesn't take maskInput - it extracts from spatial input
+    gpuHandle->mpsGraphOnlyHandle.get().apply(
+      inputBuffers->userInputBuffer,
+      inputBuffers->userInputGlobalBuffer,
+      inputBuffers->userInputMetaBuffer,
+      inputBuffers->policyResults,
+      inputBuffers->policyPassResults,
+      inputBuffers->valueResults,
+      inputBuffers->scoreValuesResults,
+      inputBuffers->ownershipResults,
+      batchSize);
+  } else {
+    throw runtime_error("Core ML backend: No valid compute handle available");
+  }
 
   for(int row = 0; row < batchSize; row++) {
     CoreMLProcess::processRow(row, gpuHandle, inputBuffers, inputBufs, outputs);

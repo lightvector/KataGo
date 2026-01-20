@@ -173,6 +173,12 @@ struct ComputeHandle {
   swift::Optional<HybridComputeHandle> hybridHandle;
 
   /**
+   * @brief The MPSGraph-only handle instance from Swift (used for FP32 mode).
+   * This handle dispatches work only to GPU, avoiding slow FP32 CPU+ANE execution.
+   */
+  swift::Optional<MPSGraphModelHandle> mpsGraphOnlyHandle;
+
+  /**
    * @brief Construct a new ComputeHandle object.
    * @param context The ComputeContext object to use for computation.
    * @param loadedModel A pointer to the LoadedModel object.
