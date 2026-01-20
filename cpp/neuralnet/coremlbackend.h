@@ -180,6 +180,7 @@ struct ComputeHandle {
    * @param gpuIdx The index of the GPU to use.
    * @param serverThreadIdx The index of the server thread.
    * @param requireExactNNLen Whether exact NN length is required.
+   * @param maxBatchSize Maximum batch size for dynamic batch support.
    */
   ComputeHandle(
     ComputeContext* context,
@@ -187,7 +188,8 @@ struct ComputeHandle {
     bool inputsUseNHWC,
     int gpuIdx,
     int serverThreadIdx,
-    bool requireExactNNLen);
+    bool requireExactNNLen,
+    int maxBatchSize);
 
   ~ComputeHandle();
   ComputeHandle() = delete;

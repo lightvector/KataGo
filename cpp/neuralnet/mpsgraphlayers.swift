@@ -2071,6 +2071,7 @@ public struct SWModelDesc {
     let numValueChannels: NSNumber
     let numScoreValueChannels: NSNumber
     let numOwnershipChannels: NSNumber
+    let numPolicyChannels: NSNumber
     let trunk: SWTrunkDesc
     let policyHead: SWPolicyHeadDesc
     let valueHead: SWValueHeadDesc
@@ -2084,6 +2085,7 @@ public struct SWModelDesc {
         numValueChannels: NSNumber,
         numScoreValueChannels: NSNumber,
         numOwnershipChannels: NSNumber,
+        numPolicyChannels: NSNumber,
         trunk: SWTrunkDesc,
         policyHead: SWPolicyHeadDesc,
         valueHead: SWValueHeadDesc
@@ -2096,6 +2098,7 @@ public struct SWModelDesc {
         self.numValueChannels = numValueChannels
         self.numScoreValueChannels = numScoreValueChannels
         self.numOwnershipChannels = numOwnershipChannels
+        self.numPolicyChannels = numPolicyChannels
         self.trunk = trunk
         self.policyHead = policyHead
         self.valueHead = valueHead
@@ -2111,6 +2114,7 @@ public func createSWModelDesc(
     numValueChannels: Int32,
     numScoreValueChannels: Int32,
     numOwnershipChannels: Int32,
+    numPolicyChannels: Int32,
     trunk: SWTrunkDesc,
     policyHead: SWPolicyHeadDesc,
     valueHead: SWValueHeadDesc
@@ -2124,6 +2128,7 @@ public func createSWModelDesc(
         numValueChannels: numValueChannels as NSNumber,
         numScoreValueChannels: numScoreValueChannels as NSNumber,
         numOwnershipChannels: numOwnershipChannels as NSNumber,
+        numPolicyChannels: numPolicyChannels as NSNumber,
         trunk: trunk,
         policyHead: policyHead,
         valueHead: valueHead)

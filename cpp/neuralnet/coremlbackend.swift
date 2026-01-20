@@ -329,6 +329,17 @@ public class CoreMLComputeHandle {
     }
 }
 
+/// Delete the source .mlpackage after compilation
+/// CoreML caches the compiled model, so the source is no longer needed
+private func deleteSourceModel(at url: URL, serverThreadIdx: Int) {
+    do {
+        try FileManager.default.removeItem(at: url)
+        printError("Core ML backend \(serverThreadIdx): Deleted temp model")
+    } catch {
+        printError("Core ML backend \(serverThreadIdx): Warning: Failed to delete temp model: \(error)")
+    }
+}
+
 /// Create compute handle - loads pre-converted Core ML model
 /// Model conversion is now handled in C++ using the native katagocoreml library
 public func createCoreMLComputeHandle(
@@ -347,6 +358,9 @@ public func createCoreMLComputeHandle(
 
     let optimizeMask = requireExactNNLen  // When true: skips internal mask operations (~6.5% speedup)
     let mlpackagePath = URL(fileURLWithPath: coremlModelPath)
+
+    // Ensure temp file is deleted regardless of success/failure
+    defer { deleteSourceModel(at: mlpackagePath, serverThreadIdx: serverThreadIdx) }
 
     // Load Core ML model (already converted by C++ katagocoreml library)
     do {
@@ -480,7 +494,7 @@ public class MPSGraphModelHandle {
         self.numInputChannels = modelDesc.numInputChannels.intValue
         self.numInputGlobalChannels = modelDesc.numInputGlobalChannels.intValue
         self.numInputMetaChannels = modelDesc.numInputMetaChannels.intValue
-        self.numPolicyChannels = 2  // Policy has 2 channels
+        self.numPolicyChannels = modelDesc.numPolicyChannels.intValue
         self.numValueChannels = modelDesc.numValueChannels.intValue
         self.numScoreValueChannels = modelDesc.numScoreValueChannels.intValue
         self.numOwnershipChannels = modelDesc.numOwnershipChannels.intValue

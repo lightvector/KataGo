@@ -7,11 +7,11 @@
 #include "../neuralnet/coremlbackend.h"
 
 #include <katagocoreml/KataGoConverter.hpp>
+#include <ghc/filesystem.hpp>
 #include <mutex>
-#include <fstream>
-#include <sys/stat.h>
-#include <pwd.h>
-#include <unistd.h>
+#include <chrono>
+#include <cassert>
+#include <unistd.h>  // For getpid()
 
 using namespace std;
 
@@ -19,106 +19,74 @@ using namespace std;
 // CoreML Model Conversion - Native C++ using katagocoreml library
 //------------------------------------------------------------------------------
 
+namespace gfs = ghc::filesystem;
+
 namespace CoreMLConversion {
 
-// Get cache directory: ~/Documents/KataGo/CoreMLModels/
-static string getCacheDirectory() {
-  const char* homeDir = getenv("HOME");
-  if(homeDir == nullptr) {
-    struct passwd* pw = getpwuid(getuid());
-    homeDir = pw ? pw->pw_dir : "/tmp";
+// Get temp directory for model conversion
+static string getTempDirectory() {
+  gfs::path tempDir = gfs::temp_directory_path() / "katago_coreml";
+  std::error_code ec;
+  gfs::create_directories(tempDir, ec);
+  if(ec) {
+    throw runtime_error("Failed to create temp directory: " + ec.message());
   }
-  return string(homeDir) + "/Documents/KataGo/CoreMLModels";
+  return tempDir.string();
 }
 
-// Create directory if it doesn't exist
-static bool createDirectoryIfNeeded(const string& path) {
-  struct stat st;
-  if(stat(path.c_str(), &st) == 0) {
-    return S_ISDIR(st.st_mode);
-  }
-  // Create parent directories recursively
-  size_t pos = path.find_last_of('/');
-  if(pos != string::npos && pos > 0) {
-    createDirectoryIfNeeded(path.substr(0, pos));
-  }
-  return mkdir(path.c_str(), 0755) == 0;
+// Generate unique temporary path for model conversion
+static string generateTempPath(int serverThreadIdx) {
+  auto now = chrono::steady_clock::now().time_since_epoch().count();
+  return getTempDirectory() + "/model_" + to_string(getpid()) + "_" +
+         to_string(serverThreadIdx) + "_" + to_string(now) + ".mlpackage";
 }
 
-// Check if file/directory exists
-static bool fileExists(const string& path) {
-  struct stat st;
-  return stat(path.c_str(), &st) == 0;
-}
+// CoreML model metadata constants
+static const string COREML_MODEL_AUTHOR = "KataGo";
+static const string COREML_MODEL_LICENSE = "See original model file for license terms";
 
-// Generate cache key with _native suffix to distinguish from Python-converted models
-static string generateCacheKey(
-  const string& modelSHA256,
-  int boardX,
-  int boardY,
-  bool useFP16,
-  bool optimizeMask
-) {
-  string precisionSuffix = useFP16 ? "fp16" : "fp32";
-  string maskSuffix = optimizeMask ? "nomask" : "mask";
-  return modelSHA256 + "_" + to_string(boardX) + "x" + to_string(boardY) +
-         "_" + precisionSuffix + "_" + maskSuffix + "_native";
-}
-
-// Convert KataGo model to CoreML using native katagocoreml library
-static void convertModelToCoreML(
+// Convert KataGo model to CoreML in temp directory, returns path to .mlpackage
+// The caller (Swift side) is responsible for deleting the temp file after loading
+static string convertModelToTemp(
   const string& modelPath,
-  const string& outputPath,
-  int boardXSize,
-  int boardYSize,
-  bool useFP16,
-  bool optimizeIdentityMask
-) {
-  katagocoreml::ConversionOptions opts;
-  opts.board_x_size = boardXSize;
-  opts.board_y_size = boardYSize;
-  opts.compute_precision = useFP16 ? "FLOAT16" : "FLOAT32";
-  opts.optimize_identity_mask = optimizeIdentityMask;
-  opts.specification_version = 8;  // iOS 17+ / macOS 14+
-
-  katagocoreml::KataGoConverter::convert(modelPath, outputPath, opts);
-}
-
-// Ensure model is converted and cached, returns path to .mlpackage
-static string ensureModelConverted(
-  const string& modelPath,
-  const string& modelSHA256,
   int boardX,
   int boardY,
   bool useFP16,
   bool optimizeMask,
+  int maxBatchSize,
   int serverThreadIdx
 ) {
-  string cacheDir = getCacheDirectory();
-  string cacheKey = generateCacheKey(modelSHA256, boardX, boardY, useFP16, optimizeMask);
-  string mlpackagePath = cacheDir + "/" + cacheKey + ".mlpackage";
+  // maxBatchSize is validated upstream: cfg.getInt("nnMaxBatchSize", 1, 65536) in setup.cpp
+  // and NNEvaluator constructor throws if maxBatchSize <= 0. Assert for defensive documentation.
+  assert(maxBatchSize >= 1);
 
-  // Check if already cached
-  if(fileExists(mlpackagePath)) {
-    cerr << "Core ML backend " << serverThreadIdx << ": Using cached model at " << mlpackagePath << endl;
-    return mlpackagePath;
-  }
+  string tempPath = generateTempPath(serverThreadIdx);
+  cerr << "Core ML backend " << serverThreadIdx << ": Converting model to " << tempPath << endl;
 
-  // Create cache directory if needed
-  if(!createDirectoryIfNeeded(cacheDir)) {
-    throw runtime_error("Failed to create cache directory: " + cacheDir);
-  }
+  katagocoreml::ConversionOptions opts;
+  opts.board_x_size = boardX;
+  opts.board_y_size = boardY;
+  opts.compute_precision = useFP16 ? "FLOAT16" : "FLOAT32";
+  opts.optimize_identity_mask = optimizeMask;
+  opts.min_batch_size = 1;
+  opts.max_batch_size = maxBatchSize;
+  opts.author = COREML_MODEL_AUTHOR;
+  opts.license = COREML_MODEL_LICENSE;
 
-  // Convert model
-  cerr << "Core ML backend " << serverThreadIdx << ": Converting model to " << mlpackagePath << endl;
   try {
-    convertModelToCoreML(modelPath, mlpackagePath, boardX, boardY, useFP16, optimizeMask);
-    cerr << "Core ML backend " << serverThreadIdx << ": Conversion completed successfully" << endl;
+    katagocoreml::KataGoConverter::convert(modelPath, tempPath, opts);
   } catch(const exception& e) {
+    // Clean up partial conversion on failure
+    std::error_code ec;
+    gfs::remove_all(tempPath, ec);
+    if(ec) {
+      cerr << "Core ML backend " << serverThreadIdx << ": Warning: Failed to clean up partial conversion at " << tempPath << ": " << ec.message() << endl;
+    }
     throw runtime_error(string("Core ML model conversion failed: ") + e.what());
   }
 
-  return mlpackagePath;
+  cerr << "Core ML backend " << serverThreadIdx << ": Conversion completed" << endl;
+  return tempPath;
 }
 
 }  // namespace CoreMLConversion
@@ -383,6 +351,7 @@ SWModelDesc modelDescToSwift(const ModelDesc* modelDesc) {
     modelDesc->numValueChannels,
     modelDesc->numScoreValueChannels,
     modelDesc->numOwnershipChannels,
+    modelDesc->numPolicyChannels,
     trunkDescToSwift(&modelDesc->trunk),
     policyHeadDescToSwift(&modelDesc->policyHead),
     valueHeadDescToSwift(&modelDesc->valueHead));
@@ -408,7 +377,7 @@ void NeuralNet::globalInitialize() {
 }
 
 void NeuralNet::globalCleanup() {
-  // No global cleanup needed for Core ML
+  // No cleanup needed - temp files are deleted immediately after loading
 }
 
 LoadedModel* NeuralNet::loadModelFile(const string& file, const string& expectedSha256) {
@@ -477,6 +446,7 @@ static swift::Optional<KataGoCoreML::HybridComputeHandle> convertAndCreateHybrid
   ComputeContext* context,
   const LoadedModel* loadedModel,
   bool requireExactNNLen,
+  int maxBatchSize,
   int serverThreadIdx
 ) {
   auto coremlContext = context->coremlContext;
@@ -485,14 +455,15 @@ static swift::Optional<KataGoCoreML::HybridComputeHandle> convertAndCreateHybrid
   bool useFP16 = (context->useFP16Mode != enabled_t::False);
   bool optimizeMask = requireExactNNLen;
 
-  // Convert model to CoreML format using native katagocoreml library
-  string coremlModelPath = CoreMLConversion::ensureModelConverted(
+  // Convert model to CoreML format in temp directory
+  // The Swift side will delete the temp file after loading
+  string coremlModelPath = CoreMLConversion::convertModelToTemp(
     loadedModel->modelPath,
-    loadedModel->modelDesc.sha256,
     nnXLen,
     nnYLen,
     useFP16,
     optimizeMask,
+    maxBatchSize,
     serverThreadIdx
   );
 
@@ -508,7 +479,7 @@ static swift::Optional<KataGoCoreML::HybridComputeHandle> convertAndCreateHybrid
     loadedModel->modelDesc.numInputChannels,
     loadedModel->modelDesc.numInputGlobalChannels,
     loadedModel->modelDesc.numInputMetaChannels,
-    loadedModel->modelDesc.policyHead.p2Conv.outChannels,
+    loadedModel->modelDesc.numPolicyChannels,
     loadedModel->modelDesc.numValueChannels,
     loadedModel->modelDesc.numScoreValueChannels,
     loadedModel->modelDesc.numOwnershipChannels,
@@ -522,8 +493,9 @@ ComputeHandle::ComputeHandle(
   bool inputsUseNHWC,
   int gpuIdx,
   int serverThreadIdx,
-  bool requireExactNNLen):
-hybridHandle(convertAndCreateHybridHandle(context, loadedModel, requireExactNNLen, serverThreadIdx)) {
+  bool requireExactNNLen,
+  int maxBatchSize):
+hybridHandle(convertAndCreateHybridHandle(context, loadedModel, requireExactNNLen, maxBatchSize, serverThreadIdx)) {
   const ModelDesc* modelDesc = &loadedModel->modelDesc;
   auto coremlContext = context->coremlContext;
 
@@ -551,14 +523,13 @@ ComputeHandle* NeuralNet::createComputeHandle(
   int serverThreadIdx) {
 
   (void)logger;
-  (void)maxBatchSize;
 
   int gpuIdx = (gpuIdxForThisThread == -1) ? 0 : gpuIdxForThisThread;
   ComputeHandle* handle = nullptr;
 
   {
     lock_guard<mutex> lock(computeHandleMutex);
-    handle = new ComputeHandle(context, loadedModel, inputsUseNHWC, gpuIdx, serverThreadIdx, requireExactNNLen);
+    handle = new ComputeHandle(context, loadedModel, inputsUseNHWC, gpuIdx, serverThreadIdx, requireExactNNLen, maxBatchSize);
   }
 
   return handle;
