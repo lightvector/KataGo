@@ -21,6 +21,13 @@ using namespace std;
 
 namespace gfs = ghc::filesystem;
 
+// Minimum batch sizes for hybrid execution mode.
+// Hybrid splits batches between CoreML (CPU+ANE) and MPSGraph (GPU).
+// When batch is too small to split, prefer MPSGraph-only for stability:
+// MPSGraph has more predictable latency and avoids CoreML dispatch overhead.
+static constexpr int MIN_COREML_BATCH = 1;
+static constexpr int MIN_MPSGRAPH_BATCH = 1;
+
 namespace CoreMLConversion {
 
 // Get temp directory for model conversion
@@ -487,7 +494,7 @@ static swift::Optional<KataGoCoreML::HybridComputeHandle> convertAndCreateHybrid
   );
 }
 
-// Helper function to create hybrid handle if FP16 mode, otherwise returns none
+// Helper function to create hybrid handle if FP16 mode with sufficient batch size, otherwise returns none
 static swift::Optional<KataGoCoreML::HybridComputeHandle> createHybridHandleIfNeeded(
   ComputeContext* context,
   const LoadedModel* loadedModel,
@@ -499,24 +506,44 @@ static swift::Optional<KataGoCoreML::HybridComputeHandle> createHybridHandleIfNe
     // FP32 mode - don't create hybrid handle
     return swift::Optional<KataGoCoreML::HybridComputeHandle>::none();
   }
-  // FP16 mode: Use hybrid execution (CoreML on CPU+ANE, MPSGraph on GPU)
+
+  // Hybrid mode splits batches: CoreML takes max(1, ...), MPSGraph takes remainder
+  // Minimum samples for meaningful split = 1 (CoreML) + 1 (MPSGraph) = 2
+  // If batch can't be split, prefer MPSGraph-only for stability
+  if(maxBatchSize < MIN_COREML_BATCH + MIN_MPSGRAPH_BATCH) {
+    return swift::Optional<KataGoCoreML::HybridComputeHandle>::none();
+  }
+
+  // FP16 mode with sufficient batch size: Use hybrid execution (CoreML on CPU+ANE, MPSGraph on GPU)
   return convertAndCreateHybridHandle(context, loadedModel, requireExactNNLen, maxBatchSize, serverThreadIdx);
 }
 
-// Helper function to create MPSGraph-only handle if FP32 mode, otherwise returns none
-// Used when useFP16=false to avoid slow FP32 CoreML execution on CPU+ANE
+// Helper function to create MPSGraph-only handle when needed
+// Used when: (1) useFP16=false to avoid slow FP32 CoreML, or (2) batch too small for hybrid split
 static swift::Optional<KataGoCoreML::MPSGraphModelHandle> createMPSGraphHandleIfNeeded(
   ComputeContext* context,
   const LoadedModel* loadedModel,
   bool requireExactNNLen,
+  int maxBatchSize,
   int serverThreadIdx
 ) {
-  if(context->useFP16Mode != enabled_t::False) {
-    // FP16 mode - don't create MPSGraph-only handle
+  // Use MPSGraph-only when:
+  // 1. FP32 mode (CoreML FP32 on CPU+ANE is slow), OR
+  // 2. Batch too small to split (hybrid requires minCoreML + minMPSGraph samples)
+  bool batchTooSmallForHybrid = maxBatchSize < MIN_COREML_BATCH + MIN_MPSGRAPH_BATCH;
+
+  if(context->useFP16Mode != enabled_t::False && !batchTooSmallForHybrid) {
+    // FP16 mode with sufficient batch - hybrid handle will be created instead
     return swift::Optional<KataGoCoreML::MPSGraphModelHandle>::none();
   }
-  // FP32 mode: Use MPSGraph only (GPU-only, skip slow FP32 CoreML)
-  cerr << "Core ML backend " << serverThreadIdx << ": FP32 mode - using MPSGraph GPU-only (skipping CoreML converter)" << endl;
+
+  // Log reason for MPSGraph-only mode
+  if(batchTooSmallForHybrid) {
+    cerr << "Core ML backend " << serverThreadIdx << ": Batch size " << maxBatchSize
+         << " too small for hybrid split - using MPSGraph GPU-only" << endl;
+  } else {
+    cerr << "Core ML backend " << serverThreadIdx << ": FP32 mode - using MPSGraph GPU-only (skipping CoreML converter)" << endl;
+  }
 
   // Convert model descriptor to Swift format for MPSGraph path
   // Note: No CoreML conversion needed - MPSGraph reads weights directly
@@ -540,7 +567,7 @@ ComputeHandle::ComputeHandle(
   bool requireExactNNLen,
   int maxBatchSize):
 hybridHandle(createHybridHandleIfNeeded(context, loadedModel, requireExactNNLen, maxBatchSize, serverThreadIdx)),
-mpsGraphOnlyHandle(createMPSGraphHandleIfNeeded(context, loadedModel, requireExactNNLen, serverThreadIdx)) {
+mpsGraphOnlyHandle(createMPSGraphHandleIfNeeded(context, loadedModel, requireExactNNLen, maxBatchSize, serverThreadIdx)) {
   assert(((hybridHandle && !mpsGraphOnlyHandle) || (!hybridHandle && mpsGraphOnlyHandle)) &&
          "Exactly one of hybridHandle or mpsGraphOnlyHandle must be valid");
 
