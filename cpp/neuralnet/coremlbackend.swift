@@ -401,46 +401,137 @@ public func printCoreMLDevices() {
 
 // MARK: - Throughput Tracker for Adaptive Batch Sizing
 
-/// Tracks throughput for CoreML and MPSGraph paths to adaptively adjust batch split ratio
+/// Tracks throughput for CoreML and MPSGraph paths to adaptively adjust batch split ratio.
+///
+/// # Thread Safety
+///
+/// This class is thread-safe by design without requiring explicit locks:
+///
+/// 1. **Single-Owner Access**: Each server thread owns its own `ComputeHandle` →
+///    `HybridComputeHandle` → `ThroughputTracker` instance. There is no sharing
+///    of `ThroughputTracker` instances between server threads.
+///
+/// 2. **Disjoint Field Access**: Within a single `HybridComputeHandle.apply()` call,
+///    concurrent dispatch queues access disjoint fields:
+///    - `coremlQueue.async` calls `updateCoreML()` → writes `coreMLSamplesPerSec`, `totalCoreMLSamples`
+///    - `mpsGraphQueue.async` calls `updateMPSGraph()` → writes `mpsGraphSamplesPerSec`, `totalMPSGraphSamples`
+///
+///    Both read `warmupComplete`, `stableAlpha`, and `warmupAlpha`, but these are either
+///    `let` constants or only written sequentially after `group.wait()`.
+///
+/// 3. **Sequential Barrier**: `group.wait()` in `apply()` ensures all concurrent throughput
+///    updates complete before `recordBatch()`, `shouldLogAndMark()`, or `getDiagnosticStats()`
+///    are called. These methods run sequentially on the calling thread.
+///
+/// Because of these invariants, no locks are needed. Removing `NSLock` was intentional
+/// as it was unnecessary overhead given the access patterns above.
 public class ThroughputTracker {
-    private var coreMLSamplesPerSec: Double = 1.0
+    private var coreMLSamplesPerSec: Double = 0.9  // Warm-start: initial ratio ~0.47 (closer to optimal ~0.45)
     private var mpsGraphSamplesPerSec: Double = 1.0
-    private let alpha: Double = 0.3  // EMA smoothing factor (higher = faster adaptation)
-    private let lock = NSLock()
+    private let alpha: Double = 0.15  // EMA smoothing factor (lower = more stable for noisy workloads)
 
-    /// Update CoreML throughput measurement
+    // Diagnostic fields
+    private var batchCount: Int = 0
+    private var totalCoreMLSamples: Int = 0
+    private var totalMPSGraphSamples: Int = 0
+    private var ratioHistory: [Float] = []
+    private let maxHistorySize = 100  // Keep last 100 ratios for analysis
+    private var lastLogBatchCount: Int = 0
+    private let logInterval: Int = 50  // Log every N batches
+
+    // Adaptive alpha parameters
+    private var warmupComplete: Bool = false
+    private let warmupAlpha: Double = 0.25   // Faster adaptation during warmup
+    private let stableAlpha: Double = 0.10   // Slower adaptation after convergence
+    private let warmupBatches: Int = 100     // Min batches before checking warmup transition
+    private let warmupVarianceThreshold: Double = 0.005  // Variance threshold for warmup completion
+
+    /// Update CoreML throughput measurement with adaptive alpha
     public func updateCoreML(samples: Int, duration: TimeInterval) {
         guard duration > 0, samples > 0 else { return }
         let newRate = Double(samples) / duration
-        lock.lock()
-        coreMLSamplesPerSec = alpha * newRate + (1 - alpha) * coreMLSamplesPerSec
-        lock.unlock()
+        let effectiveAlpha = warmupComplete ? stableAlpha : warmupAlpha
+        coreMLSamplesPerSec = effectiveAlpha * newRate + (1 - effectiveAlpha) * coreMLSamplesPerSec
+        totalCoreMLSamples += samples
     }
 
-    /// Update MPSGraph throughput measurement
+    /// Update MPSGraph throughput measurement with adaptive alpha
     public func updateMPSGraph(samples: Int, duration: TimeInterval) {
         guard duration > 0, samples > 0 else { return }
         let newRate = Double(samples) / duration
-        lock.lock()
-        mpsGraphSamplesPerSec = alpha * newRate + (1 - alpha) * mpsGraphSamplesPerSec
-        lock.unlock()
+        let effectiveAlpha = warmupComplete ? stableAlpha : warmupAlpha
+        mpsGraphSamplesPerSec = effectiveAlpha * newRate + (1 - effectiveAlpha) * mpsGraphSamplesPerSec
+        totalMPSGraphSamples += samples
     }
 
     /// Get optimal CoreML ratio (0.0 to 1.0) based on measured throughput
     public func getOptimalCoreMLRatio() -> Float {
-        lock.lock()
         let total = coreMLSamplesPerSec + mpsGraphSamplesPerSec
-        let ratio = total > 0 ? Float(coreMLSamplesPerSec / total) : 0.5
-        lock.unlock()
-        return ratio
+        return total > 0 ? Float(coreMLSamplesPerSec / total) : 0.5
     }
 
     /// Get current throughput stats for logging
     public func getStats() -> (coreML: Double, mpsGraph: Double, ratio: Float) {
-        lock.lock()
-        let stats = (coreMLSamplesPerSec, mpsGraphSamplesPerSec, getOptimalCoreMLRatio())
-        lock.unlock()
-        return stats
+        return (coreMLSamplesPerSec, mpsGraphSamplesPerSec, getOptimalCoreMLRatio())
+    }
+
+    /// Record a batch for diagnostics (call after each apply)
+    public func recordBatch(ratio: Float) {
+        batchCount += 1
+        if ratioHistory.count >= maxHistorySize {
+            ratioHistory.removeFirst()
+        }
+        ratioHistory.append(ratio)
+        // Check warmup transition
+        if !warmupComplete && batchCount >= warmupBatches && computeRatioVariance() < Float(warmupVarianceThreshold) {
+            warmupComplete = true
+        }
+    }
+
+    /// Check if logging should occur this batch, and if so, mark as logged
+    /// Returns true if logging should occur (atomically checks and marks)
+    public func shouldLogAndMark() -> Bool {
+        if batchCount - lastLogBatchCount >= logInterval {
+            lastLogBatchCount = batchCount
+            return true
+        }
+        return false
+    }
+
+    /// Get diagnostic stats for logging
+    public func getDiagnosticStats() -> (
+        batchCount: Int,
+        coreMLSamplesPerSec: Double,
+        mpsGraphSamplesPerSec: Double,
+        ratio: Float,
+        totalCoreMLSamples: Int,
+        totalMPSGraphSamples: Int,
+        ratioVariance: Float
+    ) {
+        return (
+            batchCount,
+            coreMLSamplesPerSec,
+            mpsGraphSamplesPerSec,
+            getOptimalCoreMLRatio(),
+            totalCoreMLSamples,
+            totalMPSGraphSamples,
+            computeRatioVariance()
+        )
+    }
+
+    /// Compute variance of recent ratios
+    private func computeRatioVariance() -> Float {
+        guard ratioHistory.count >= 10 else { return 0.0 }
+        let recentRatios = Array(ratioHistory.suffix(20))
+        let mean = recentRatios.reduce(0.0, +) / Float(recentRatios.count)
+        let variance = recentRatios.map { ($0 - mean) * ($0 - mean) }.reduce(0.0, +) / Float(recentRatios.count)
+        return variance
+    }
+
+    /// Check if ratio has converged (variance < threshold)
+    public func hasConverged(threshold: Float = 0.001) -> Bool {
+        let variance = computeRatioVariance()
+        return ratioHistory.count >= 20 && variance < threshold
     }
 }
 
@@ -714,6 +805,14 @@ public class MPSGraphModelHandle {
 
 // MARK: - Hybrid Compute Handle
 
+/// Global flag to enable/disable diagnostic logging (set via environment variable)
+private let diagnosticLoggingEnabled: Bool = {
+    if let envValue = ProcessInfo.processInfo.environment["KATAGO_HYBRID_DIAG"] {
+        return envValue.lowercased() == "1" || envValue.lowercased() == "true"
+    }
+    return false
+}()
+
 /// Hybrid compute handle that dispatches to both CoreML (CPU+ANE) and MPSGraph (GPU)
 public class HybridComputeHandle {
     let coremlHandle: CoreMLComputeHandle
@@ -723,13 +822,16 @@ public class HybridComputeHandle {
     let mpsGraphQueue: DispatchQueue
     let nnXLen: Int32
     let nnYLen: Int32
+    let serverThreadIdx: Int
 
     public init(
         coremlHandle: CoreMLComputeHandle,
-        mpsGraphHandle: MPSGraphModelHandle
+        mpsGraphHandle: MPSGraphModelHandle,
+        serverThreadIdx: Int = 0
     ) {
         self.coremlHandle = coremlHandle
         self.mpsGraphHandle = mpsGraphHandle
+        self.serverThreadIdx = serverThreadIdx
         self.throughputTracker = ThroughputTracker()
         self.coremlQueue = DispatchQueue(label: "com.katago.coreml", qos: .userInitiated)
         self.mpsGraphQueue = DispatchQueue(label: "com.katago.mpsgraph", qos: .userInitiated)
@@ -828,6 +930,25 @@ public class HybridComputeHandle {
 
         // Wait for both paths to complete
         group.wait()
+
+        // Record batch for diagnostics
+        throughputTracker.recordBatch(ratio: ratio)
+
+        // Periodic diagnostic logging
+        if diagnosticLoggingEnabled && throughputTracker.shouldLogAndMark() {
+            let stats = throughputTracker.getDiagnosticStats()
+            let converged = throughputTracker.hasConverged()
+            print(String(format: "[HybridDiag T%d] batch=%d ratio=%.3f coreml=%.1f/s mps=%.1f/s total=%d/%d var=%.5f conv=%@",
+                serverThreadIdx,
+                stats.batchCount,
+                stats.ratio,
+                stats.coreMLSamplesPerSec,
+                stats.mpsGraphSamplesPerSec,
+                stats.totalCoreMLSamples,
+                stats.totalMPSGraphSamples,
+                stats.ratioVariance,
+                converged ? "yes" : "no"))
+        }
     }
 }
 
@@ -878,9 +999,15 @@ public func createHybridComputeHandle(
 
     printError("Core ML backend \(serverThreadIdx): Initialized CoreML (CPU+ANE) + MPSGraph (GPU)")
 
+    // Log if diagnostic mode is enabled
+    if diagnosticLoggingEnabled {
+        printError("Core ML backend \(serverThreadIdx): Diagnostic logging enabled (KATAGO_HYBRID_DIAG=1)")
+    }
+
     return HybridComputeHandle(
         coremlHandle: coremlHandle,
-        mpsGraphHandle: mpsGraphHandle
+        mpsGraphHandle: mpsGraphHandle,
+        serverThreadIdx: serverThreadIdx
     )
 }
 
