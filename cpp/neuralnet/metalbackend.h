@@ -1,4 +1,7 @@
-#pragma once
+#ifndef NEURALNET_METALBACKEND_H_
+#define NEURALNET_METALBACKEND_H_
+
+#ifdef USE_METAL_BACKEND
 
 #include <string>
 #include "desc.h"
@@ -13,51 +16,6 @@ using namespace std;
 using namespace KataGoSwift;
 
 namespace MetalProcess {
-SWConvLayerDesc convLayerDescToSwift(const ConvLayerDesc * desc);
-SWBatchNormLayerDesc batchNormLayerDescToSwift(const BatchNormLayerDesc * desc);
-ActivationKind activationLayerDescToSwift(const ActivationLayerDesc * desc);
-SWResidualBlockDesc residualBlockDescToSwift(const ResidualBlockDesc * desc);
-SWMatMulLayerDesc matMulLayerDescToSwift(const MatMulLayerDesc * desc);
-SWGlobalPoolingResidualBlockDesc globalPoolingResidualBlockDescToSwift(const GlobalPoolingResidualBlockDesc* desc);
-swift::Array<BlockDescriptor> residualBlocksToSwift(const vector<pair<int, unique_ptr_void>>& blocks);
-SWNestedBottleneckResidualBlockDesc nestedBottleneckResidualBlockDescToSwift(const NestedBottleneckResidualBlockDesc* desc);
-swift::Optional<SWSGFMetadataEncoderDesc> sGFMetadataEncoderDescToSwift(const SGFMetadataEncoderDesc * desc);
-SWTrunkDesc trunkDescToSwift(const TrunkDesc * trunk);
-SWPolicyHeadDesc policyHeadDescToSwift(const PolicyHeadDesc * policyHead);
-SWMatBiasLayerDesc matBiasLayerDescToSwift(const MatBiasLayerDesc * desc);
-SWValueHeadDesc valueHeadDescToSwift(const ValueHeadDesc * valueHead);
-SWModelDesc modelDescToSwift(const ModelDesc* modelDesc);
-
-bool testEvaluateConv(const ConvLayerDesc* desc,
-                      int batchSize,
-                      int nnXLen,
-                      int nnYLen,
-                      const vector<float>& inputBuffer,
-                      vector<float>& outputBuffer);
-
-bool testEvaluateBatchNorm(const BatchNormLayerDesc* desc,
-                           int batchSize,
-                           int nnXLen,
-                           int nnYLen,
-                           const vector<float>& inputBuffer,
-                           const vector<float>& maskBuffer,
-                           vector<float>& outputBuffer);
-
-bool testEvaluateResidualBlock(const ResidualBlockDesc* desc,
-                               int batchSize,
-                               int nnXLen,
-                               int nnYLen,
-                               const vector<float>& inputBuffer,
-                               const vector<float>& maskBuffer,
-                               vector<float>& outputBuffer);
-
-bool testEvaluateGlobalPoolingResidualBlock(const GlobalPoolingResidualBlockDesc* desc,
-                                            int batchSize,
-                                            int nnXLen,
-                                            int nnYLen,
-                                            const vector<float>& inputBuffer,
-                                            const vector<float>& maskBuffer,
-                                            vector<float>& outputBuffer);
 
 void copyRowData(float* dest, const float* src, size_t numElements);
 void convertNCHW(float* rowSpatialInput, int C, int H, int W, bool inputsUseNHWC);
@@ -89,63 +47,44 @@ void processRow(size_t row,
                 vector<NNOutput*>& outputs);
 
 void getMetalOutput(ComputeHandle* gpuHandle,
-                    InputBuffers* inputBuffers,
-                    int numBatchEltsFilled,
-                    NNResultBuf** inputBufs,
-                    vector<NNOutput*>& outputs);
-};
+                     InputBuffers* inputBuffers,
+                     int numBatchEltsFilled,
+                     NNResultBuf** inputBufs,
+                     vector<NNOutput*>& outputs);
+}
 
 /**
  * @brief Represents a loaded neural network model.
  * A LoadedModel object contains a ModelDesc object that describes the characteristics of the loaded model.
- * The default constructor, copy constructor, and assignment operator are deleted to prevent
- * creation of an uninitialized LoadedModel object, copying of the loaded model, and potential memory leaks.
+ * For Metal backend, we also store the model path for on-demand conversion.
  */
 struct LoadedModel {
   /**
    * @brief The description of the loaded model.
-   * The modelDesc field is a ModelDesc object that describes the characteristics of the loaded model.
    */
   ModelDesc modelDesc;
 
   /**
+   * @brief Path to the original .bin.gz model file for conversion.
+   */
+  string modelPath;
+
+  /**
    * @brief Construct a new Loaded Model object
-   * This constructor loads a machine learning model from a file and sets the modelDesc field to the
-   * characteristics of the loaded model.
+   * This constructor loads a machine learning model from a file and sets the modelDesc field.
    * @param fileName The name of the file containing the machine learning model.
    * @param expectedSha256 The expected SHA-256 hash of the model file.
    */
-  LoadedModel(const string& fileName, const string& expectedSha256)
-  {
-    ModelDesc::loadFromFileMaybeGZipped(fileName, modelDesc, expectedSha256);
-  }
+  LoadedModel(const string& fileName, const string& expectedSha256);
 
-  /**
-   * @brief Delete the default constructor
-   * The default constructor is deleted to prevent creation of an uninitialized LoadedModel object.
-   */
   LoadedModel() = delete;
-
-  /**
-   * @brief Delete the copy constructor
-   * The copy constructor is deleted to prevent copying of the loaded model.
-   */
   LoadedModel(const LoadedModel&) = delete;
-
-  /**
-   * @brief Delete the assignment operator
-   * The assignment operator is deleted to prevent copying of the loaded model.
-   */
   LoadedModel& operator=(const LoadedModel&) = delete;
 };
 
 /**
- * @brief Context for computing neural network operations.
- * A ComputeContext object contains configuration settings for neural network computations, such as
- * whether to use half-precision floating-point (FP16) mode and whether to use the NHWC format for
- * input tensors. The default constructor, copy constructor, and assignment operator are deleted
- * to prevent creation of an uninitialized ComputeContext object, copying of the object, and potential
- * memory leaks.
+ * @brief Context for computing neural network operations using Metal.
+ * Contains global configuration settings for neural network computations.
  */
 struct ComputeContext {
   /**
@@ -154,64 +93,47 @@ struct ComputeContext {
   enabled_t useFP16Mode;
 
   /**
-   * @brief ComputeContext ID
-   */
-  int identifier;
-
-  /**
-   * @brief Metal compute context instance
-   */
-  MetalComputeContext metalComputeContext;
-
-  /**
-   * @brief Constructs a ComputeContext object.
-   * This constructor creates a ComputeContext object and sets the configuration settings for neural network
-   * computations, including whether to use FP16 mode and whether to use the NHWC format for input tensors.
-   * @param nnX The width of the input tensor.
-   * @param nnY The height of the input tensor.
-   * @param useFP16Mode Whether to use half-precision floating-point (FP16) mode for computations.
-   * @param useNHWCMode Whether to use the NHWC format for input tensors.
-   */
-  ComputeContext(int nnX, int nnY, enabled_t useFP16Mode, enabled_t useNHWCMode);
-
-  /**
-   * @brief Destroys the ComputeContext object.
-   */
-  ~ComputeContext();
-
-  /**
-   * @brief Deletes the default constructor.
-   */
-  ComputeContext() = delete;
-
-  /**
-   * @brief Deletes the copy constructor.
-   */
-  ComputeContext(const ComputeContext&) = delete;
-
-  /**
-   * @brief Deletes the copy constructor.
-   *
-   * @return ComputeContext&
-   */
-  ComputeContext& operator=(const ComputeContext&) = delete;
-};
-
-/**
- * @brief A handle for performing neural network computations.
- * This struct represents a handle for computing neural network operations. It contains various
- * parameters and settings that determine how the computation is performed.
- */
-struct ComputeHandle {
-  int identifier;
-
-  /**
-   * @brief The x length of the neural network computation context.
+   * @brief The width of the neural network input.
    */
   int nnXLen;
 
   /**
-   * @brief The y length of the neural network computation context.
+   * @brief The height of the neural network input.
+   */
+  int nnYLen;
+
+  /**
+   * @brief Metal compute context instance from Swift.
+   */
+  MetalComputeContext metalContext;
+
+  /**
+   * @brief Constructs a ComputeContext object.
+   * @param nnX The width of the input tensor.
+   * @param nnY The height of the input tensor.
+   * @param useFP16Mode Whether to use half-precision floating-point (FP16) mode.
+   * @param useNHWCMode Whether to use the NHWC format for input tensors.
+   */
+  ComputeContext(int nnX, int nnY, enabled_t useFP16Mode, enabled_t useNHWCMode);
+
+  ~ComputeContext();
+  ComputeContext() = delete;
+  ComputeContext(const ComputeContext&) = delete;
+  ComputeContext& operator=(const ComputeContext&) = delete;
+};
+
+/**
+ * @brief A handle for performing neural network computations using Metal.
+ * This struct represents a per-thread handle for computing neural network operations.
+ */
+struct ComputeHandle {
+  /**
+   * @brief The x length of the neural network.
+   */
+  int nnXLen;
+
+  /**
+   * @brief The y length of the neural network.
    */
   int nnYLen;
 
@@ -236,53 +158,55 @@ struct ComputeHandle {
   bool inputsUseNHWC;
 
   /**
-   * @brief Whether to use 16-bit floating-point precision for computation.
+   * @brief Whether to use 16-bit floating-point precision.
    */
   bool useFP16;
 
   /**
-   * @brief The Metal handle instance.
+   * @brief Whether exact neural net length is required (enables mask optimization).
    */
-  swift::Optional<MetalComputeHandle> metalhandle;
+  bool requireExactNNLen;
+
+  /**
+   * @brief The hybrid compute handle instance from Swift.
+   * This handle dispatches work to both CoreML (CPU+ANE) and MPSGraph (GPU).
+   */
+  swift::Optional<HybridComputeHandle> hybridHandle;
+
+  /**
+   * @brief The MPSGraph-only handle instance from Swift (used for FP32 mode).
+   * This handle dispatches work only to GPU, avoiding slow FP32 CPU+ANE execution.
+   */
+  swift::Optional<MPSGraphModelHandle> mpsGraphOnlyHandle;
 
   /**
    * @brief Construct a new ComputeHandle object.
-   * This constructor initializes a new ComputeHandle object with the specified parameters and settings.
    * @param context The ComputeContext object to use for computation.
-   * @param loadedModel A pointer to the LoadedModel object containing the neural network model to use.
+   * @param loadedModel A pointer to the LoadedModel object.
    * @param inputsUseNHWC Whether the input data uses NHWC format.
-   * @param gpuIdx The index of the GPU to use for computation.
-   * @param serverThreadIdx The index of the server thread to use for computation.
+   * @param gpuIdx The index of the GPU to use.
+   * @param serverThreadIdx The index of the server thread.
+   * @param requireExactNNLen Whether exact NN length is required.
+   * @param maxBatchSize Maximum batch size for dynamic batch support.
    */
   ComputeHandle(
     ComputeContext* context,
     const LoadedModel* loadedModel,
     bool inputsUseNHWC,
     int gpuIdx,
-    int serverThreadIdx);
+    int serverThreadIdx,
+    bool requireExactNNLen,
+    int maxBatchSize);
 
-  /**
-   * @brief Destroy the ComputeHandle object.
-   * This destructor frees any resources that were allocated for the ComputeHandle object.
-   */
   ~ComputeHandle();
-
-  /**
-   * @brief Delete the default constructor.
-   */
   ComputeHandle() = delete;
-
-  /**
-   * @brief Delete the copy constructor.
-   */
   ComputeHandle(const ComputeHandle&) = delete;
-
-  /**
-   * @brief Delete the assignment operator.
-   */
   ComputeHandle& operator=(const ComputeHandle&) = delete;
 };
 
+/**
+ * @brief Input and output buffers for neural network inference.
+ */
 struct InputBuffers {
   int maxBatchSize;
   size_t policyResultChannels;
@@ -298,6 +222,7 @@ struct InputBuffers {
   size_t singleOwnershipResultElts;
   size_t singleOwnerMapElts;
   size_t singleScoreValuesResultElts;
+  size_t singleMaskElts;
 
   size_t rowSpatialBufferElts;
   size_t userInputBufferElts;
@@ -310,6 +235,7 @@ struct InputBuffers {
   size_t ownershipResultBufferElts;
   size_t ownerMapBufferElts;
   size_t scoreValuesResultBufferElts;
+  size_t userInputMaskBufferElts;
 
   float* rowSpatialBuffer;
   float* userInputBuffer;
@@ -322,6 +248,7 @@ struct InputBuffers {
   float* ownershipResults;
   float* ownerMapBuffer;
   float* scoreValuesResults;
+  float* userInputMaskBuffer;
 
   InputBuffers(const LoadedModel* loadedModel, int maxBatchSz, int nnXLen, int nnYLen);
   ~InputBuffers();
@@ -329,3 +256,7 @@ struct InputBuffers {
   InputBuffers(const InputBuffers&) = delete;
   InputBuffers& operator=(const InputBuffers&) = delete;
 };
+
+#endif // USE_METAL_BACKEND
+
+#endif // NEURALNET_METALBACKEND_H_

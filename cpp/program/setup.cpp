@@ -18,7 +18,6 @@ std::vector<std::string> Setup::getBackendPrefixes() {
   prefixes.push_back("cuda");
   prefixes.push_back("trt");
   prefixes.push_back("metal");
-  prefixes.push_back("coreml");
   prefixes.push_back("opencl");
   prefixes.push_back("eigen");
   prefixes.push_back("dummybackend");
@@ -85,8 +84,6 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
   string backendPrefix = "trt";
   #elif defined(USE_METAL_BACKEND)
   string backendPrefix = "metal";
-  #elif defined(USE_COREML_BACKEND)
-  string backendPrefix = "coreml";
   #elif defined(USE_OPENCL_BACKEND)
   string backendPrefix = "opencl";
   #elif defined(USE_EIGEN_BACKEND)

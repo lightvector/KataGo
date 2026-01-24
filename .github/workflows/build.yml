@@ -97,7 +97,7 @@ jobs:
           name: katago-macos-opencl
           path: cpp/katago
 
-  build-macos-coreml:
+  build-macos-metal:
     runs-on: macos-latest
     permissions:
       contents: read
@@ -121,14 +121,14 @@ jobs:
             cpp/build.ninja
             cpp/.ninja_deps
             cpp/.ninja_log
-          key: ${{ runner.os }}-cmake-coreml-${{ hashFiles('**/CMakeLists.txt') }}
+          key: ${{ runner.os }}-cmake-metal-${{ hashFiles('**/CMakeLists.txt') }}
           restore-keys: |
-            ${{ runner.os }}-cmake-coreml-
+            ${{ runner.os }}-cmake-metal-
 
       - name: Configure CMake
         working-directory: cpp
         run: |
-          cmake . -G Ninja -DUSE_BACKEND=COREML -DCMAKE_BUILD_TYPE=Release
+          cmake . -G Ninja -DUSE_BACKEND=METAL -DCMAKE_BUILD_TYPE=Release
 
       - name: Build
         working-directory: cpp
@@ -144,7 +144,7 @@ jobs:
         if: github.event_name == 'push' && github.ref == 'refs/heads/master'
         uses: actions/upload-artifact@v4
         with:
-          name: katago-macos-coreml
+          name: katago-macos-metal
           path: cpp/katago
 
   build-windows:

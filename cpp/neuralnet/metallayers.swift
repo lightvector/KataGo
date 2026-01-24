@@ -2363,3 +2363,552 @@ struct MPSGraphModel {
         fetch[valueHead.ownershipTensor]?.mpsndarray().readBytes(ownership)
     }
 }
+
+// MARK: - Test Infrastructure
+
+/// Helper struct for testing individual network layers using MPSGraph
+struct NetworkTester {
+    let device: MTLDevice
+    let commandQueue: MTLCommandQueue
+    let graph: MPSGraph
+    let inputTensor: MPSGraphTensor
+    let maskTensor: MPSGraphTensor
+    let outputTensor: MPSGraphTensor
+    let inputShape: [NSNumber]
+    let maskShape: [NSNumber]
+    let outputShape: [NSNumber]
+
+    /// Initialize a network tester for testing a single layer
+    init(
+        device: MTLDevice,
+        graph: MPSGraph,
+        inputTensor: MPSGraphTensor,
+        maskTensor: MPSGraphTensor,
+        outputTensor: MPSGraphTensor,
+        batchSize: NSNumber,
+        nnXLen: NSNumber,
+        nnYLen: NSNumber,
+        inChannels: NSNumber,
+        outChannels: NSNumber
+    ) {
+        self.device = device
+        self.commandQueue = device.makeCommandQueue()!
+        self.graph = graph
+        self.inputTensor = inputTensor
+        self.maskTensor = maskTensor
+        self.outputTensor = outputTensor
+        self.inputShape = InputShape.create(
+            batchSize: batchSize,
+            numChannels: inChannels,
+            nnYLen: nnYLen,
+            nnXLen: nnXLen)
+        self.maskShape = InputShape.create(
+            batchSize: batchSize,
+            numChannels: 1,
+            nnYLen: nnYLen,
+            nnXLen: nnXLen)
+        self.outputShape = InputShape.create(
+            batchSize: batchSize,
+            numChannels: outChannels,
+            nnYLen: nnYLen,
+            nnXLen: nnXLen)
+    }
+
+    /// Run the test with given input and mask data, writing results to output
+    func run(
+        inputPointer: UnsafePointer<Float32>,
+        maskPointer: UnsafePointer<Float32>,
+        outputPointer: UnsafeMutablePointer<Float32>
+    ) {
+        let inputDescriptor = MPSNDArrayDescriptor(
+            dataType: .float32,
+            shape: inputShape)
+
+        let inputArray = MPSNDArray(
+            device: device,
+            descriptor: inputDescriptor)
+
+        inputArray.writeBytes(UnsafeMutableRawPointer(mutating: inputPointer))
+
+        let maskDescriptor = MPSNDArrayDescriptor(
+            dataType: .float32,
+            shape: maskShape)
+
+        let maskArray = MPSNDArray(
+            device: device,
+            descriptor: maskDescriptor)
+
+        maskArray.writeBytes(UnsafeMutableRawPointer(mutating: maskPointer))
+
+        let feeds = [
+            inputTensor: MPSGraphTensorData(inputArray),
+            maskTensor: MPSGraphTensorData(maskArray),
+        ]
+
+        let fetch = graph.run(
+            with: commandQueue,
+            feeds: feeds,
+            targetTensors: [outputTensor],
+            targetOperations: nil)
+
+        fetch[outputTensor]?.mpsndarray().readBytes(outputPointer)
+    }
+}
+
+// MARK: - ConvLayer Test Extension
+
+extension ConvLayer {
+    /// Test the convolution layer with given parameters
+    static func test(
+        descriptor: SWConvLayerDesc,
+        batchSize: Int32,
+        nnXLen: Int32,
+        nnYLen: Int32,
+        inputPointer: UnsafePointer<Float32>,
+        outputPointer: UnsafeMutablePointer<Float32>
+    ) -> Bool {
+        guard let device = MTLCreateSystemDefaultDevice() else {
+            return false
+        }
+
+        let graph = MPSGraph()
+
+        let inputShape = InputShape.create(
+            batchSize: -1 as NSNumber,
+            numChannels: descriptor.inChannels,
+            nnYLen: nnYLen as NSNumber,
+            nnXLen: nnXLen as NSNumber)
+
+        let inputTensor = graph.placeholder(
+            shape: inputShape,
+            dataType: .float32,
+            name: nil)
+
+        let convLayer = ConvLayer(
+            graph: graph,
+            sourceTensor: inputTensor,
+            descriptor: descriptor,
+            nnXLen: nnXLen as NSNumber,
+            nnYLen: nnYLen as NSNumber)
+
+        // Run the graph
+        let commandQueue = device.makeCommandQueue()!
+
+        let actualInputShape = InputShape.create(
+            batchSize: batchSize as NSNumber,
+            numChannels: descriptor.inChannels,
+            nnYLen: nnYLen as NSNumber,
+            nnXLen: nnXLen as NSNumber)
+
+        let inputDescriptor = MPSNDArrayDescriptor(
+            dataType: .float32,
+            shape: actualInputShape)
+
+        let inputArray = MPSNDArray(
+            device: device,
+            descriptor: inputDescriptor)
+
+        inputArray.writeBytes(UnsafeMutableRawPointer(mutating: inputPointer))
+
+        let feeds = [inputTensor: MPSGraphTensorData(inputArray)]
+
+        let fetch = graph.run(
+            with: commandQueue,
+            feeds: feeds,
+            targetTensors: [convLayer.resultTensor],
+            targetOperations: nil)
+
+        fetch[convLayer.resultTensor]?.mpsndarray().readBytes(outputPointer)
+
+        return true
+    }
+}
+
+// MARK: - BatchNormLayer Test Extension
+
+extension BatchNormLayer {
+    /// Test the batch normalization layer with given parameters
+    static func test(
+        descriptor: SWBatchNormLayerDesc,
+        batchSize: Int32,
+        nnXLen: Int32,
+        nnYLen: Int32,
+        inputPointer: UnsafePointer<Float32>,
+        maskPointer: UnsafePointer<Float32>,
+        outputPointer: UnsafeMutablePointer<Float32>
+    ) -> Bool {
+        guard let device = MTLCreateSystemDefaultDevice() else {
+            return false
+        }
+
+        let graph = MPSGraph()
+
+        let inputShape = InputShape.create(
+            batchSize: -1 as NSNumber,
+            numChannels: descriptor.numChannels,
+            nnYLen: nnYLen as NSNumber,
+            nnXLen: nnXLen as NSNumber)
+
+        let inputTensor = graph.placeholder(
+            shape: inputShape,
+            dataType: .float32,
+            name: nil)
+
+        let maskShape = InputShape.create(
+            batchSize: -1 as NSNumber,
+            numChannels: 1,
+            nnYLen: nnYLen as NSNumber,
+            nnXLen: nnXLen as NSNumber)
+
+        let maskTensor = graph.placeholder(
+            shape: maskShape,
+            dataType: .float32,
+            name: nil)
+
+        let bnLayer = BatchNormLayer(
+            graph: graph,
+            sourceTensor: inputTensor,
+            maskTensor: maskTensor,
+            descriptor: descriptor,
+            nnXLen: nnXLen as NSNumber,
+            nnYLen: nnYLen as NSNumber)
+
+        // Run the graph
+        let commandQueue = device.makeCommandQueue()!
+
+        let actualInputShape = InputShape.create(
+            batchSize: batchSize as NSNumber,
+            numChannels: descriptor.numChannels,
+            nnYLen: nnYLen as NSNumber,
+            nnXLen: nnXLen as NSNumber)
+
+        let inputDescriptor = MPSNDArrayDescriptor(
+            dataType: .float32,
+            shape: actualInputShape)
+
+        let inputArray = MPSNDArray(
+            device: device,
+            descriptor: inputDescriptor)
+
+        inputArray.writeBytes(UnsafeMutableRawPointer(mutating: inputPointer))
+
+        let actualMaskShape = InputShape.create(
+            batchSize: batchSize as NSNumber,
+            numChannels: 1,
+            nnYLen: nnYLen as NSNumber,
+            nnXLen: nnXLen as NSNumber)
+
+        let maskDescriptor = MPSNDArrayDescriptor(
+            dataType: .float32,
+            shape: actualMaskShape)
+
+        let maskArray = MPSNDArray(
+            device: device,
+            descriptor: maskDescriptor)
+
+        maskArray.writeBytes(UnsafeMutableRawPointer(mutating: maskPointer))
+
+        let feeds = [
+            inputTensor: MPSGraphTensorData(inputArray),
+            maskTensor: MPSGraphTensorData(maskArray),
+        ]
+
+        let fetch = graph.run(
+            with: commandQueue,
+            feeds: feeds,
+            targetTensors: [bnLayer.resultTensor],
+            targetOperations: nil)
+
+        fetch[bnLayer.resultTensor]?.mpsndarray().readBytes(outputPointer)
+
+        return true
+    }
+}
+
+// MARK: - ResidualBlock Test Extension
+
+extension ResidualBlock {
+    /// Test the residual block with given parameters
+    static func test(
+        descriptor: SWResidualBlockDesc,
+        batchSize: Int32,
+        nnXLen: Int32,
+        nnYLen: Int32,
+        inputPointer: UnsafePointer<Float32>,
+        maskPointer: UnsafePointer<Float32>,
+        outputPointer: UnsafeMutablePointer<Float32>
+    ) -> Bool {
+        guard let device = MTLCreateSystemDefaultDevice() else {
+            return false
+        }
+
+        let graph = MPSGraph()
+
+        let inputShape = InputShape.create(
+            batchSize: -1 as NSNumber,
+            numChannels: descriptor.preBN.numChannels,
+            nnYLen: nnYLen as NSNumber,
+            nnXLen: nnXLen as NSNumber)
+
+        let inputTensor = graph.placeholder(
+            shape: inputShape,
+            dataType: .float32,
+            name: nil)
+
+        let maskShape = InputShape.create(
+            batchSize: -1 as NSNumber,
+            numChannels: 1,
+            nnYLen: nnYLen as NSNumber,
+            nnXLen: nnXLen as NSNumber)
+
+        let maskTensor = graph.placeholder(
+            shape: maskShape,
+            dataType: .float32,
+            name: nil)
+
+        let resBlock = ResidualBlock(
+            graph: graph,
+            sourceTensor: inputTensor,
+            maskTensor: maskTensor,
+            descriptor: descriptor,
+            nnXLen: nnXLen as NSNumber,
+            nnYLen: nnYLen as NSNumber)
+
+        // Run the graph
+        let commandQueue = device.makeCommandQueue()!
+
+        let actualInputShape = InputShape.create(
+            batchSize: batchSize as NSNumber,
+            numChannels: descriptor.preBN.numChannels,
+            nnYLen: nnYLen as NSNumber,
+            nnXLen: nnXLen as NSNumber)
+
+        let inputDescriptor = MPSNDArrayDescriptor(
+            dataType: .float32,
+            shape: actualInputShape)
+
+        let inputArray = MPSNDArray(
+            device: device,
+            descriptor: inputDescriptor)
+
+        inputArray.writeBytes(UnsafeMutableRawPointer(mutating: inputPointer))
+
+        let actualMaskShape = InputShape.create(
+            batchSize: batchSize as NSNumber,
+            numChannels: 1,
+            nnYLen: nnYLen as NSNumber,
+            nnXLen: nnXLen as NSNumber)
+
+        let maskDescriptor = MPSNDArrayDescriptor(
+            dataType: .float32,
+            shape: actualMaskShape)
+
+        let maskArray = MPSNDArray(
+            device: device,
+            descriptor: maskDescriptor)
+
+        maskArray.writeBytes(UnsafeMutableRawPointer(mutating: maskPointer))
+
+        let feeds = [
+            inputTensor: MPSGraphTensorData(inputArray),
+            maskTensor: MPSGraphTensorData(maskArray),
+        ]
+
+        let fetch = graph.run(
+            with: commandQueue,
+            feeds: feeds,
+            targetTensors: [resBlock.resultTensor],
+            targetOperations: nil)
+
+        fetch[resBlock.resultTensor]?.mpsndarray().readBytes(outputPointer)
+
+        return true
+    }
+}
+
+// MARK: - GlobalPoolingResidualBlock Test Extension
+
+extension GlobalPoolingResidualBlock {
+    /// Test the global pooling residual block with given parameters
+    static func test(
+        descriptor: SWGlobalPoolingResidualBlockDesc,
+        batchSize: Int32,
+        nnXLen: Int32,
+        nnYLen: Int32,
+        inputPointer: UnsafePointer<Float32>,
+        maskPointer: UnsafePointer<Float32>,
+        outputPointer: UnsafeMutablePointer<Float32>
+    ) -> Bool {
+        guard let device = MTLCreateSystemDefaultDevice() else {
+            return false
+        }
+
+        let graph = MPSGraph()
+
+        let inputShape = InputShape.create(
+            batchSize: -1 as NSNumber,
+            numChannels: descriptor.preBN.numChannels,
+            nnYLen: nnYLen as NSNumber,
+            nnXLen: nnXLen as NSNumber)
+
+        let inputTensor = graph.placeholder(
+            shape: inputShape,
+            dataType: .float32,
+            name: nil)
+
+        let maskShape = InputShape.create(
+            batchSize: -1 as NSNumber,
+            numChannels: 1,
+            nnYLen: nnYLen as NSNumber,
+            nnXLen: nnXLen as NSNumber)
+
+        let maskTensor = graph.placeholder(
+            shape: maskShape,
+            dataType: .float32,
+            name: nil)
+
+        // Compute mask sum and related tensors from mask
+        let maskSum = MaskSumLayer(graph: graph, maskTensor: maskTensor)
+        let maskSumSqrtS14M01 = MaskSumSqrtS14M01Layer(graph: graph, maskSum: maskSum)
+
+        let gpoolBlock = GlobalPoolingResidualBlock(
+            graph: graph,
+            sourceTensor: inputTensor,
+            maskTensor: maskTensor,
+            maskSumTensor: maskSum.tensor,
+            maskSumSqrtS14M01Tensor: maskSumSqrtS14M01.tensor,
+            descriptor: descriptor,
+            nnXLen: nnXLen as NSNumber,
+            nnYLen: nnYLen as NSNumber)
+
+        // Run the graph
+        let commandQueue = device.makeCommandQueue()!
+
+        let actualInputShape = InputShape.create(
+            batchSize: batchSize as NSNumber,
+            numChannels: descriptor.preBN.numChannels,
+            nnYLen: nnYLen as NSNumber,
+            nnXLen: nnXLen as NSNumber)
+
+        let inputDescriptor = MPSNDArrayDescriptor(
+            dataType: .float32,
+            shape: actualInputShape)
+
+        let inputArray = MPSNDArray(
+            device: device,
+            descriptor: inputDescriptor)
+
+        inputArray.writeBytes(UnsafeMutableRawPointer(mutating: inputPointer))
+
+        let actualMaskShape = InputShape.create(
+            batchSize: batchSize as NSNumber,
+            numChannels: 1,
+            nnYLen: nnYLen as NSNumber,
+            nnXLen: nnXLen as NSNumber)
+
+        let maskDescriptor = MPSNDArrayDescriptor(
+            dataType: .float32,
+            shape: actualMaskShape)
+
+        let maskArray = MPSNDArray(
+            device: device,
+            descriptor: maskDescriptor)
+
+        maskArray.writeBytes(UnsafeMutableRawPointer(mutating: maskPointer))
+
+        let feeds = [
+            inputTensor: MPSGraphTensorData(inputArray),
+            maskTensor: MPSGraphTensorData(maskArray),
+        ]
+
+        let fetch = graph.run(
+            with: commandQueue,
+            feeds: feeds,
+            targetTensors: [gpoolBlock.resultTensor],
+            targetOperations: nil)
+
+        fetch[gpoolBlock.resultTensor]?.mpsndarray().readBytes(outputPointer)
+
+        return true
+    }
+}
+
+// MARK: - Public Test Functions (callable from C++)
+
+/// Test the convolution layer
+public func testConvLayer(
+    descriptor: SWConvLayerDesc,
+    batchSize: Int32,
+    nnXLen: Int32,
+    nnYLen: Int32,
+    inputPointer: UnsafePointer<Float32>,
+    outputPointer: UnsafeMutablePointer<Float32>
+) -> Bool {
+    return ConvLayer.test(
+        descriptor: descriptor,
+        batchSize: batchSize,
+        nnXLen: nnXLen,
+        nnYLen: nnYLen,
+        inputPointer: inputPointer,
+        outputPointer: outputPointer)
+}
+
+/// Test the batch normalization layer
+public func testBatchNormLayer(
+    descriptor: SWBatchNormLayerDesc,
+    batchSize: Int32,
+    nnXLen: Int32,
+    nnYLen: Int32,
+    inputPointer: UnsafePointer<Float32>,
+    maskPointer: UnsafePointer<Float32>,
+    outputPointer: UnsafeMutablePointer<Float32>
+) -> Bool {
+    return BatchNormLayer.test(
+        descriptor: descriptor,
+        batchSize: batchSize,
+        nnXLen: nnXLen,
+        nnYLen: nnYLen,
+        inputPointer: inputPointer,
+        maskPointer: maskPointer,
+        outputPointer: outputPointer)
+}
+
+/// Test the residual block
+public func testResidualBlock(
+    descriptor: SWResidualBlockDesc,
+    batchSize: Int32,
+    nnXLen: Int32,
+    nnYLen: Int32,
+    inputPointer: UnsafePointer<Float32>,
+    maskPointer: UnsafePointer<Float32>,
+    outputPointer: UnsafeMutablePointer<Float32>
+) -> Bool {
+    return ResidualBlock.test(
+        descriptor: descriptor,
+        batchSize: batchSize,
+        nnXLen: nnXLen,
+        nnYLen: nnYLen,
+        inputPointer: inputPointer,
+        maskPointer: maskPointer,
+        outputPointer: outputPointer)
+}
+
+/// Test the global pooling residual block
+public func testGlobalPoolingResidualBlock(
+    descriptor: SWGlobalPoolingResidualBlockDesc,
+    batchSize: Int32,
+    nnXLen: Int32,
+    nnYLen: Int32,
+    inputPointer: UnsafePointer<Float32>,
+    maskPointer: UnsafePointer<Float32>,
+    outputPointer: UnsafeMutablePointer<Float32>
+) -> Bool {
+    return GlobalPoolingResidualBlock.test(
+        descriptor: descriptor,
+        batchSize: batchSize,
+        nnXLen: nnXLen,
+        nnYLen: nnYLen,
+        inputPointer: inputPointer,
+        maskPointer: maskPointer,
+        outputPointer: outputPointer)
+}
