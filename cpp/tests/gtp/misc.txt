@@ -25,4 +25,4 @@ kata-get-param ponderingEnabled
 kata-get-param delayMoveMax
 kata-get-param maxVisits
 
-
+clear_cache

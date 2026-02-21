@@ -55,6 +55,7 @@ trtUseFP16 = false
 : Request: {"id":"foo","initialStones":[],"moves":[["W","C5"],["B","C6"]],"rules":"tromp-taylor","komi":4,"boardXSize":7,"boardYSize":7,"overrideSettings":{"maxVisits":10},"includeOwnership":true,"includePolicy":true}
 : Request: {"id":"foo","initialStones":[],"moves":[["W","C5"],["B","C6"],["W","C7"]],"rules":"tromp-taylor","komi":4,"boardXSize":7,"boardYSize":7,"overrideSettings":{"maxVisits":10},"includeOwnership":true,"includePolicy":true}
 : Request: {"id":"foo","initialStones":[],"moves":[["W","C5"],["B","C6"],["W","C7"]],"rules":"tromp-taylor","komi":4,"boardXSize":7,"boardYSize":7,"overrideSettings":{"maxVisits":20},"includeOwnership":true,"includeOwnershipStdev":true,"includePolicy":true}
+: Request: {"id":"foo","initialStones":[],"moves":[["B","E5"],["W","E3"],["B","F7"],["W","C6"],["B","D4"],["W","G4"],["B","D3"],["W","D7"],["B","H5"],["W","D2"],["B","B5"],["W","F6"],["B","F5"],["W","E6"],["B","G6"],["W","G7"],["B","C2"],["W","E2"],["B","G8"],["W","H7"],["B","E8"],["W","E7"],["B","F8"],["W","H8"],["B","G5"],["W","H3"],["B","D8"],["W","C8"],["B","H9"],["W","D9"],["B","J7"],["W","G9"],["B","F9"],["W","J6"],["B","H6"],["W","J8"],["B","J5"],["W","C9"],["B","J7"],["W","C5"],["B","B4"],["W","J6"],["B","H2"],["W","J2"],["B","G2"],["W","G3"],["B","J7"],["W","B6"],["B","H1"],["W","B2"],["B","C3"],["W","C1"],["B","B1"],["W","A1"],["B","B3"],["W","F4"],["B","J3"],["W","J4"],["B","F2"],["W","F1"],["B","E4"],["W","F3"],["B","H4"],["W","J3"],["B","D1"],["W","G1"],["B","E1"],["W","F1"],["B","D1"],["W","G1"],["B","E1"],["W","F1"]],"rules":"japanese","komi":6,"boardXSize":9,"boardYSize":9,"overrideSettings":{"maxVisits":5},"includeNoResultValue":true}
 : MoveNum: 2 HASH: 29EDDA3CC5189C1F08CBD809E4157047
    A B C D E F G H J K L M N O P Q R S T
 19 . . . . . . . . . . . . . . . . . . .
@@ -162,9 +163,35 @@ D5  : T -45.78c W -38.35c S  -3.16c ( -2.9 L  -1.8) LCB  -77.75c P 61.19% WF  16
 D4  : T -60.02c W -56.25c S  -5.08c ( -4.0 L  -2.6) LCB -138.73c P 31.06% WF   2.9 PSV       3 N       3  --  D4 D5 E5
 
 : Response: {"id":"foo","isDuringSearch":false,"moveInfos":[{"edgeVisits":16,"edgeWeight":16.0,"lcb":0.194125217,"move":"D5","order":0,"playSelectionValue":16.0,"prior":0.611869872,"pv":["D5","D4","C4","B5","E4"],"scoreLead":-1.82045814,"scoreMean":-1.82045814,"scoreSelfplay":-2.93026188,"scoreStdev":12.9008442,"utility":-0.457843619,"utilityLcb":-0.777459018,"visits":16,"weight":16.0,"winrate":0.308273574},{"edgeVisits":3,"edgeWeight":3.0,"lcb":-0.0623583629,"move":"D4","order":1,"playSelectionValue":3.0,"prior":0.3105883,"pv":["D4","D5","E5"],"scoreLead":-2.59051073,"scoreMean":-2.59051073,"scoreSelfplay":-3.97172753,"scoreStdev":12.1974318,"utility":-0.600198616,"utilityLcb":-1.38729069,"visits":3,"weight":3.0,"winrate":0.218745951}],"ownership":[-0.076719,-0.180022,-0.230962,-0.093136,0.035471,0.001336,0.072164,-0.175728,0.00397,0.087705,-0.183842,0.104587,0.068302,0.056484,-0.133463,-0.267239,-0.490528,0.702766,0.24603,0.129824,0.073885,-0.071583,-0.037743,0.122041,-0.085872,0.131756,0.173389,0.083134,-0.024742,-0.026809,0.033907,-0.007395,0.093199,0.100551,0.094527,0.016778,0.033111,0.015197,0.081605,0.055697,0.105103,0.090373,0.028378,0.052353,0.040763,0.045338,0.059732,0.099192,0.11461],"ownershipStdev":[0.392173,0.34939,0.347711,0.330874,0.313727,0.285423,0.23961,0.342145,0.507263,0.471809,0.472413,0.303737,0.303759,0.240428,0.274817,0.300723,0.354143,0.266437,0.250787,0.202237,0.167043,0.201967,0.219803,0.387215,0.610181,0.243302,0.168951,0.173308,0.180843,0.228597,0.263629,0.316567,0.194779,0.209386,0.166529,0.148998,0.180961,0.188983,0.181742,0.186964,0.167829,0.144764,0.132541,0.171324,0.149551,0.134604,0.129072,0.164159,0.129285],"policy":[5.89876217e-05,0.000463276781,-1.0,7.60883122e-05,0.000104175611,0.000134977279,0.000122097626,0.000133292066,0.000263724185,-1.0,0.0278971698,0.000224754127,0.000138805786,0.000141826575,7.09852466e-05,0.000756553025,-1.0,0.611869872,0.0193321239,0.000146271705,0.000114086339,8.75105761e-05,0.000113287933,0.00352843432,0.3105883,0.0127788801,0.000119412638,0.000118686927,9.61888654e-05,0.000180472154,0.000805979245,0.00698697986,0.000630691473,0.000136403425,0.000105757324,0.000123869671,0.000109672452,0.00014083604,0.000113945309,0.000139253942,0.000116703748,0.000113769951,0.00012628267,0.000120401666,9.43240884e-05,0.000104535771,9.90025001e-05,0.000105323918,0.000105322106,6.0849703e-05],"rootInfo":{"currentPlayer":"B","rawLead":-1.49350166,"rawNoResultProb":0.0,"rawScoreSelfplay":-1.61118054,"rawScoreSelfplayStdev":13.9590443,"rawStScoreError":-1.0,"rawStWrError":-0.5,"rawVarTimeLeft":-1.0,"rawWinrate":0.409414291,"scoreLead":-1.9196182,"scoreSelfplay":-3.02052766,"scoreStdev":12.8625939,"symHash":"478E9637C4E9D7DD298C5EDA99EA7431","thisHash":"90E43B353BA64F45F3186642D389E6E7","utility":-0.465813096,"visits":20,"weight":20.0,"winrate":0.299901466},"turnNumber":3}
+: MoveNum: 72 HASH: 56324D8B791A2B40D5EA67FEC75F9AEA
+   A B C D E F G H J
+ 9 . . O O . X . X .
+ 8 . . O X X X X O O
+ 7 . . . O O X O O X
+ 6 . O O . O O X X .
+ 5 . X O . X X X X X
+ 4 . X . X X O O X O
+ 3 . X X X O O O O O
+ 2 . O X O O X X X O
+ 1 O . O . .2O3.1X .
+
+koSIMPLEscoreTERRITORYtaxSEKIsui0komi6
+Root visits: 5
+New playouts: 5
+NN rows: 42
+NN batches: 42
+NN avg batch size: 1
+PV: D1
+Tree:
+: T -20.01c W -23.72c S   1.44c ( -2.2 L  -2.8) N       5  --  D1
+---Black(^)---
+D1  : T   9.14c W  -0.00c S   9.14c ( -0.0 L  -0.0) LCB  -64.66c P 15.59% WF   3.2 PSV       3 N       3  --  D1
+J9  : T -103.30c W -91.88c S -11.42c ( -8.3 L  -9.4) LCB -453.30c P 17.96% WF   0.8 PSV       0 N       1  --  J9
+
+: Response: {"id":"foo","isDuringSearch":false,"moveInfos":[{"edgeVisits":3,"edgeWeight":3.0,"lcb":0.236428829,"move":"D1","noResultValue":1.0,"order":0,"playSelectionValue":3.0,"prior":0.155865803,"pv":["D1"],"scoreLead":-0.0,"scoreMean":-0.0,"scoreSelfplay":-0.0,"scoreStdev":0.0,"utility":0.0913544974,"utilityLcb":-0.646644781,"visits":3,"weight":3.0,"winrate":0.5},{"edgeVisits":1,"edgeWeight":1.0,"lcb":-1.20941665,"move":"J9","noResultValue":4.0982668e-06,"order":1,"playSelectionValue":0.0,"prior":0.179644421,"pv":["J9"],"scoreLead":-9.38220215,"scoreMean":-9.38220215,"scoreSelfplay":-8.31816101,"scoreStdev":6.25701697,"utility":-1.03298864,"utilityLcb":-4.53298865,"visits":1,"weight":1.0,"winrate":0.0405833516}],"rootInfo":{"currentPlayer":"B","rawLead":-6.62079096,"rawNoResultProb":0.00255796686,"rawScoreSelfplay":-4.37696409,"rawScoreSelfplayStdev":18.4954537,"rawStScoreError":-1.0,"rawStWrError":-0.5,"rawVarTimeLeft":-1.0,"rawWinrate":0.267208412,"scoreLead":-1.65519774,"scoreSelfplay":-1.09424102,"scoreStdev":9.43994399,"symHash":"0D2ACF85DE1121C3C250E250BD6F99DB","thisHash":"DC1867A48B57902D10DF9E811793E49C","utility":-0.0525379285,"visits":5,"weight":5.0,"winrate":0.441802103},"turnNumber":72}
 : tests/models/g170-b6c96-s175395328-d26788732.bin.gz
-: NN rows: 40
-: NN batches: 40
+: NN rows: 42
+: NN batches: 42
 : NN avg batch size: 1
-: GPU -1 finishing, processed 40 rows 40 batches
+: GPU -1 finishing, processed 42 rows 42 batches
 : All cleaned up, quitting

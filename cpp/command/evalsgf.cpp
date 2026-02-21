@@ -642,6 +642,7 @@ int MainCmds::evalsgf(const vector<string>& args) {
       bool includeMovesOwnershipStdev = false;
       bool includePVVisits = true;
       nlohmann::json ret;
+      bool includeNoResultValue = false;
       bool suc = search->getAnalysisJson(
         perspective,
         analysisPVLen,
@@ -652,6 +653,7 @@ int MainCmds::evalsgf(const vector<string>& args) {
         includeMovesOwnership,
         includeMovesOwnershipStdev,
         includePVVisits,
+        includeNoResultValue,
         ret
       );
       if(suc) {

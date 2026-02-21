@@ -109,5 +109,7 @@ trtUseFP16 = false
 : = 12345
 : Controller: kata-get-param maxVisits
 : = 4321
+: Controller: clear_cache
+: = 
 : GPU -1 finishing, processed 0 rows 0 batches
 : All cleaned up, quitting
