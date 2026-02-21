@@ -489,8 +489,8 @@ vector<SearchParams> Setup::loadParams(
     else if(cfg.contains("cpuctExplorationBase"))   params.cpuctExplorationBase = cfg.getDouble("cpuctExplorationBase",        10.0, 100000.0);
     else                                            params.cpuctExplorationBase = 500.0;
 
-    if(cfg.contains("cpuctUtilityStdevPrior"+idxStr)) params.cpuctUtilityStdevPrior = cfg.getDouble("cpuctUtilityStdevPrior"+idxStr, 0.0, 10.0);
-    else if(cfg.contains("cpuctUtilityStdevPrior"))   params.cpuctUtilityStdevPrior = cfg.getDouble("cpuctUtilityStdevPrior",        0.0, 10.0);
+    if(cfg.contains("cpuctUtilityStdevPrior"+idxStr)) params.cpuctUtilityStdevPrior = cfg.getDouble("cpuctUtilityStdevPrior"+idxStr, 1e-8, 10.0);
+    else if(cfg.contains("cpuctUtilityStdevPrior"))   params.cpuctUtilityStdevPrior = cfg.getDouble("cpuctUtilityStdevPrior",        1e-8, 10.0);
     else                                              params.cpuctUtilityStdevPrior = 0.40;
     if(cfg.contains("cpuctUtilityStdevPriorWeight"+idxStr)) params.cpuctUtilityStdevPriorWeight = cfg.getDouble("cpuctUtilityStdevPriorWeight"+idxStr, 0.0, 100.0);
     else if(cfg.contains("cpuctUtilityStdevPriorWeight"))   params.cpuctUtilityStdevPriorWeight = cfg.getDouble("cpuctUtilityStdevPriorWeight",        0.0, 100.0);
