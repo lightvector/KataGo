@@ -29,6 +29,13 @@ EXPORTMODE="$1"
 shift
 
 #------------------------------------------------------------------------------
+
+if command -v python3 >/dev/null 2>&1; then
+  PYTHON=python3
+else
+  PYTHON=python
+fi
+
 set -x
 
 mkdir -p "$BASEDIR"/train/"$TRAININGNAME"
@@ -73,7 +80,7 @@ else
     exit 1
 fi
 
-time python3 ./train.py \
+time $PYTHON ./train.py \
      -traindir "$BASEDIR"/train/"$TRAININGNAME" \
      -latestdatadir "$BASEDIR"/shuffleddata/ \
      -exportdir "$BASEDIR"/"$EXPORT_SUBDIR" \

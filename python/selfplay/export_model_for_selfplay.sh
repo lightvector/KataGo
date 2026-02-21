@@ -23,6 +23,12 @@ shift
 
 #------------------------------------------------------------------------------
 
+if command -v python3 >/dev/null 2>&1; then
+  PYTHON=python3
+else
+  PYTHON=python
+fi
+
 mkdir -p "$BASEDIR"/torchmodels_toexport
 mkdir -p "$BASEDIR"/torchmodels_toexport_extra
 mkdir -p "$BASEDIR"/modelstobetested
@@ -33,24 +39,30 @@ function exportStuff() {
     FROMDIR="$1"
     TODIR="$2"
 
-    #Sort by timestamp so that we process in order of oldest to newest if there are multiple
-    for FILEPATH in $(find "$BASEDIR"/"$FROMDIR"/ -mindepth 1 -maxdepth 1 -printf "%T@ %p\n" | sort -n | cut -d ' ' -f 2)
+    # Sort by timestamp so that we process in order of oldest to newest if there are multiple
+    # Use python here to avoid 'find -printf' which is not portable to macOS
+    # Use sys.argv to safely pass directory name with spaces/quotes
+    $PYTHON -c "import os, sys; d=sys.argv[1]; print('\n'.join(sorted([os.path.join(d, f) for f in os.listdir(d)], key=lambda x: os.path.getmtime(x))))" "$BASEDIR/$FROMDIR" 2>/dev/null | while read -r FILEPATH
     do
         #Make sure to skip tmp directories that are transiently there by the training,
         #they are probably in the process of being written
-        if [ ${FILEPATH: -4} == ".tmp" ]
+        if [ -z "$FILEPATH" ]
+        then
+            continue
+        fi
+        if [ "${FILEPATH: -4}" == ".tmp" ]
         then
             echo "Skipping tmp file:" "$FILEPATH"
-        elif [ ${FILEPATH: -9} == ".exported" ]
+        elif [ "${FILEPATH: -9}" == ".exported" ]
         then
             echo "Skipping self tmp file:" "$FILEPATH"
         else
             echo "Found model to export:" "$FILEPATH"
             NAME="$(basename "$FILEPATH")"
 
-            SRC="$BASEDIR"/"$FROMDIR"/"$NAME"
-            TMPDST="$BASEDIR"/"$FROMDIR"/"$NAME".exported
-            TARGET="$BASEDIR"/"$TODIR"/"$NAME"
+            SRC="$BASEDIR/$FROMDIR/$NAME"
+            TMPDST="$BASEDIR/$FROMDIR/$NAME.exported"
+            TARGET="$BASEDIR/$TODIR/$NAME"
 
             if [ -d "$BASEDIR"/modelstobetested/"$NAME" ] ||  \
                [ -d "$BASEDIR"/rejectedmodels/"$NAME" ] || \
@@ -58,22 +70,22 @@ function exportStuff() {
                [ -d "$BASEDIR"/models_extra/"$NAME" ] || \
                [ -d "$BASEDIR"/modelsuploaded/"$NAME" ]
             then
-                echo "Model with same name aleady exists, so skipping:" "$SRC"
+                echo "Model with same name already exists, so skipping:" "$SRC"
             else
                 rm -rf "$TMPDST"
                 mkdir "$TMPDST"
 
                 set -x
-                python3 ./export_model_pytorch.py \
-                        -checkpoint "$SRC"/model.ckpt \
+                $PYTHON ./export_model_pytorch.py \
+                        -checkpoint "$SRC/model.ckpt" \
                         -export-dir "$TMPDST" \
-                        -model-name "$NAMEPREFIX""-""$NAME" \
+                        -model-name "$NAMEPREFIX-$NAME" \
                         -filename-prefix model \
                         -use-swa
 
-                python3 ./clean_checkpoint.py \
-                        -checkpoint "$SRC"/model.ckpt \
-                        -output "$TMPDST"/model.ckpt
+                $PYTHON ./clean_checkpoint.py \
+                        -checkpoint "$SRC/model.ckpt" \
+                        -output "$TMPDST/model.ckpt"
                 set +x
 
                 rm -r "$SRC"
@@ -87,9 +99,8 @@ function exportStuff() {
                 then
                     if [ "$TODIR" != "models_extra" ]
                     then
-                        mkdir -p "$BASEDIR"/selfplay/"$NAME"
-                        mkdir -p "$BASEDIR"/selfplay/"$NAME"/sgfs
-                        mkdir -p "$BASEDIR"/selfplay/"$NAME"/tdata
+                        mkdir -p "$BASEDIR/selfplay/$NAME/sgfs"
+                        mkdir -p "$BASEDIR/selfplay/$NAME/tdata"
                     fi
                 fi
 
