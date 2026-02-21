@@ -448,7 +448,7 @@ while True:
     if line == '':
         continue
     command = [s.lower() for s in line.split()]
-    if re.match('\d+', command[0]):
+    if re.match(r'\d+', command[0]):
         cmdid = command[0]
         command = command[1:]
     else:
@@ -457,7 +457,7 @@ while True:
     ret = ''
     if command[0] == "boardsize":
         if int(command[1]) > features.pos_len:
-            print("Warning: Trying to set incompatible boardsize %s (!= %d)" % (command[1], N), file=sys.stderr)
+            print("Warning: Trying to set incompatible boardsize %s (!= %d)" % (command[1], features.pos_len), file=sys.stderr)
             ret = None
         board_size = int(command[1])
         if len(command) >= 3:
