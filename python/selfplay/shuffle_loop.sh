@@ -20,6 +20,12 @@ shift
 BATCHSIZE="$1"
 shift
 
+if command -v python3 >/dev/null 2>&1; then
+  PYTHON=python3
+else
+  PYTHON=python
+fi
+
 GITROOTDIR="$(git rev-parse --show-toplevel)"
 
 basedir="$(realpath "$BASEDIRRAW")"
@@ -27,8 +33,9 @@ tmpdir="$(realpath "$TMPDIRRAW")"
 
 mkdir -p "$basedir"/scripts
 mkdir -p "$basedir"/logs
-cp "$GITROOTDIR"/python/*.py "$GITROOTDIR"/python/selfplay/*.sh "$GITROOTDIR"/python/selfplay/distributed/*.sh "$basedir"/scripts
+cp "$GITROOTDIR"/python/*.py "$GITROOTDIR"/python/selfplay/*.py "$GITROOTDIR"/python/selfplay/*.sh "$GITROOTDIR"/python/selfplay/distributed/*.sh "$basedir"/scripts
 cp -r "$GITROOTDIR"/python/katago "$basedir"/scripts
+cp -r "$GITROOTDIR"/python/muon "$basedir"/scripts
 
 # For archival and logging purposes - you can look back and see exactly the python code on a particular date
 DATE_FOR_FILENAME=$(date "+%Y%m%d-%H%M%S")
@@ -37,6 +44,7 @@ mkdir -p "$DATED_ARCHIVE"
 cp "$GITROOTDIR"/python/*.py "$DATED_ARCHIVE"
 cp -r "$GITROOTDIR"/python/katago "$DATED_ARCHIVE"
 cp -r "$GITROOTDIR"/python/selfplay "$DATED_ARCHIVE"
+cp -r "$GITROOTDIR"/python/muon "$DATED_ARCHIVE"
 
 
 (
@@ -44,7 +52,7 @@ cp -r "$GITROOTDIR"/python/selfplay "$DATED_ARCHIVE"
     while true
     do
         rm -f "$basedir"/selfplay.summary.json.tmp
-        time python3 ./summarize_old_selfplay_files.py "$basedir"/selfplay/ \
+        time $PYTHON ./summarize_old_selfplay_files.py "$basedir"/selfplay/ \
              -old-summary-file-to-assume-correct "$basedir"/selfplay.summary.json \
              -new-summary-file "$basedir"/selfplay.summary.json.tmp
         mv "$basedir"/selfplay.summary.json.tmp "$basedir"/selfplay.summary.json

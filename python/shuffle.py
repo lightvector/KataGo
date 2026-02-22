@@ -362,7 +362,13 @@ def get_numpy_npz_headers(filename):
                 wasbad = True
                 print("WARNING: bad file, skipping it: %s (bad array %s)" % (filename,subfilename))
             else:
-                (shape, is_fortran, dtype) = np.lib.format._read_array_header(npyfile,version)
+                if version == (1, 0):
+                    header = np.lib.format.read_array_header_1_0(npyfile)
+                elif version == (2, 0):
+                    header = np.lib.format.read_array_header_2_0(npyfile)
+                else:
+                    raise NotImplementedError(f"Unexpected np version for {filename}: {version}")
+                (shape, is_fortran, dtype) = header
                 npzheaders[subfilename] = (shape, is_fortran, dtype)
         if wasbad:
             return None
@@ -475,6 +481,8 @@ if __name__ == '__main__':
     optional_args.add_argument('-exclude-basename', required=False, action="store_true", help='Consider an exclude to match if basename matches')
     optional_args.add_argument('-only-include-md5-path-prop-lbound', type=float, required=False, help='Just before sharding, include only filepaths hashing to float >= this')
     optional_args.add_argument('-only-include-md5-path-prop-ubound', type=float, required=False, help='Just before sharding, include only filepaths hashing to float < this')
+    optional_args.add_argument('-skip-mtime-range-start', type=float, required=False, help='')
+    optional_args.add_argument('-skip-mtime-range-end', type=float, required=False, help='')
     optional_args.add_argument('-output-npz', action="store_true", required=False, help='Output results as npz files')
     optional_args.add_argument('-include-meta', action="store_true", required=False, help='Include sgf metadata inputs')
     optional_args.add_argument('-exclude-qvalues', action="store_true", required=False, help='Exclude Q-value targets (for backwards compatibility with pre-v1.16)')
@@ -511,6 +519,8 @@ if __name__ == '__main__':
     exclude_basename = args.exclude_basename
     only_include_md5_path_prop_lbound = args.only_include_md5_path_prop_lbound
     only_include_md5_path_prop_ubound = args.only_include_md5_path_prop_ubound
+    skip_mtime_range_start = args.skip_mtime_range_start
+    skip_mtime_range_end = args.skip_mtime_range_end
     output_npz = args.output_npz
     include_meta = args.include_meta
     include_qvalues = not args.exclude_qvalues
@@ -702,8 +712,10 @@ if __name__ == '__main__':
                 num_random_rows_capped = min(num_random_rows_capped + num_rows, min_rows)
 
     if os.path.exists(out_dir):
-        raise Exception(out_dir + " already exists")
-    os.mkdir(out_dir)
+        if os.listdir(out_dir):
+            raise Exception(out_dir + " already exists and is not empty")
+    else:
+        os.mkdir(out_dir)
 
     if num_rows_total <= 0:
         print("No rows found")
@@ -739,6 +751,12 @@ if __name__ == '__main__':
             # Actually we just handle that in shardify - and accept that it might make our window slightly not far back enough
             # if not os.path.exists(filename):
             #   continue
+
+            if skip_mtime_range_start is not None and skip_mtime_range_end is not None:
+                if mtime >= skip_mtime_range_start and mtime <= skip_mtime_range_end:
+                    if np.random.randint(100000) == 0:
+                        print("DEBUG: skip mtime " + filename, flush=True)
+                    continue
 
             if num_rows is not None and num_rows > 0:
                 desired_input_files.append((filename,num_rows))

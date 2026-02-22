@@ -8,6 +8,8 @@ import packaging
 import packaging.version
 from typing import List, Dict, Optional, Set
 
+from torch.cuda.amp import autocast
+
 from ..train import modelconfigs
 
 EXTRA_SCORE_DISTR_RADIUS = 60
@@ -194,6 +196,7 @@ class NormMask(torch.nn.Module):
         self.running_avg_momentum = config["bnorm_running_avg_momentum"]
         self.fixup_use_gamma = fixup_use_gamma
         self.is_last_batchnorm = is_last_batchnorm
+        self.gamma_weight_decay_center_1 = config.get("gamma_weight_decay_center_1",False)
         self.use_gamma = (
             ("bnorm_use_gamma" in config and config["bnorm_use_gamma"]) or
             ((self.norm_kind == "fixup" or self.norm_kind == "fixscale" or self.norm_kind == "fixscaleonenorm") and fixup_use_gamma) or
@@ -206,7 +209,10 @@ class NormMask(torch.nn.Module):
         if self.norm_kind == "bnorm" or (self.norm_kind == "fixscaleonenorm" and self.is_last_batchnorm):
             self.is_using_batchnorm = True
             if self.use_gamma:
-                self.gamma = torch.nn.Parameter(torch.ones(1, c_in, 1, 1))
+                if self.gamma_weight_decay_center_1:
+                    self.gamma = torch.nn.Parameter(torch.zeros(1, c_in, 1, 1))
+                else:
+                    self.gamma = torch.nn.Parameter(torch.ones(1, c_in, 1, 1))
             self.beta = torch.nn.Parameter(torch.zeros(1, c_in, 1, 1))
             self.register_buffer(
                 "running_mean", torch.zeros(c_in, dtype=torch.float)
@@ -217,7 +223,10 @@ class NormMask(torch.nn.Module):
         elif self.norm_kind == "brenorm" or self.norm_kind == "fixbrenorm":
             self.is_using_batchnorm = True
             if self.use_gamma:
-                self.gamma = torch.nn.Parameter(torch.ones(1, c_in, 1, 1))
+                if self.gamma_weight_decay_center_1:
+                    self.gamma = torch.nn.Parameter(torch.zeros(1, c_in, 1, 1))
+                else:
+                    self.gamma = torch.nn.Parameter(torch.ones(1, c_in, 1, 1))
             self.beta = torch.nn.Parameter(torch.zeros(1, c_in, 1, 1))
             self.register_buffer(
                 "running_mean", torch.zeros(c_in, dtype=torch.float)
@@ -245,7 +254,10 @@ class NormMask(torch.nn.Module):
             self.is_using_batchnorm = False
             self.beta = torch.nn.Parameter(torch.zeros(1, c_in, 1, 1))
             if self.use_gamma:
-                self.gamma = torch.nn.Parameter(torch.ones(1, c_in, 1, 1))
+                if self.gamma_weight_decay_center_1:
+                    self.gamma = torch.nn.Parameter(torch.zeros(1, c_in, 1, 1))
+                else:
+                    self.gamma = torch.nn.Parameter(torch.ones(1, c_in, 1, 1))
         else:
             assert False, f"Unimplemented norm_kind: {self.norm_kind}"
 
@@ -285,12 +297,18 @@ class NormMask(torch.nn.Module):
     def apply_gamma_beta_scale_mask(self, x, mask):
         if self.scale is not None:
             if self.gamma is not None:
-                return (x * (self.gamma * self.scale) + self.beta) * mask
+                if self.gamma_weight_decay_center_1:
+                    return (x * ((self.gamma+1.0) * self.scale) + self.beta) * mask
+                else:
+                    return (x * (self.gamma * self.scale) + self.beta) * mask
             else:
                 return (x * self.scale + self.beta) * mask
         else:
             if self.gamma is not None:
-                return (x * self.gamma + self.beta) * mask
+                if self.gamma_weight_decay_center_1:
+                    return (x * (self.gamma+1.0) + self.beta) * mask
+                else:
+                    return (x * self.gamma + self.beta) * mask
             else:
                 return (x + self.beta) * mask
 
@@ -1586,11 +1604,11 @@ class MetadataEncoder(torch.nn.Module):
             init_weights(self.linear_output_to_trunk.weight, self.activation, scale=weight_scale)
 
     def add_reg_dict(self, reg_dict:Dict[str,List]):
-        reg_dict["output"].append(self.linear1.weight)
-        reg_dict["output_noreg"].append(self.linear1.bias)
-        reg_dict["output"].append(self.linear2.weight)
-        reg_dict["output_noreg"].append(self.linear2.bias)
-        reg_dict["normal"].append(self.linear_output_to_trunk.weight)
+        reg_dict["input"].append(self.linear1.weight)
+        reg_dict["input_noreg"].append(self.linear1.bias)
+        reg_dict["input"].append(self.linear2.weight)
+        reg_dict["input_noreg"].append(self.linear2.bias)
+        reg_dict["input"].append(self.linear_output_to_trunk.weight)
 
     def forward(self, input_meta, extra_outputs: Optional[ExtraOutputs]):
         x = input_meta
@@ -1842,14 +1860,16 @@ class Model(torch.nn.Module):
         return self.metadata_encoder is not None
 
     def add_reg_dict(self, reg_dict:Dict[str,List]):
+        reg_dict["input"] = []
+        reg_dict["input_noreg"] = []
         reg_dict["normal"] = []
         reg_dict["normal_gamma"] = []
-        reg_dict["output"] = []
         reg_dict["noreg"] = []
+        reg_dict["output"] = []
         reg_dict["output_noreg"] = []
 
-        reg_dict["normal"].append(self.conv_spatial.weight)
-        reg_dict["normal"].append(self.linear_global.weight)
+        reg_dict["input"].append(self.conv_spatial.weight)
+        reg_dict["input"].append(self.linear_global.weight)
         if self.metadata_encoder is not None:
             self.metadata_encoder.add_reg_dict(reg_dict)
         for block in self.blocks:
@@ -1929,17 +1949,38 @@ class Model(torch.nn.Module):
             iout = out
             iout = self.norm_intermediate_trunkfinal(iout, mask=mask, mask_sum=mask_sum)
             iout = self.act_intermediate_trunkfinal(iout)
-            iout_policy = self.intermediate_policy_head(iout, mask=mask, mask_sum_hw=mask_sum_hw, mask_sum=mask_sum, extra_outputs=extra_outputs)
-            (
-                iout_value,
-                iout_miscvalue,
-                iout_moremiscvalue,
-                iout_ownership,
-                iout_scoring,
-                iout_futurepos,
-                iout_seki,
-                iout_scorebelief_logprobs,
-            ) = self.intermediate_value_head(iout, mask=mask, mask_sum_hw=mask_sum_hw, mask_sum=mask_sum, input_global=input_global, extra_outputs=extra_outputs)
+            # Use fp32 for output heads to handle potentially large values
+            with autocast(enabled=False):
+                iout_fp32 = iout.float()
+                mask_fp32 = mask.float()
+                mask_sum_hw_fp32 = mask_sum_hw.float()
+                mask_sum_fp32 = mask_sum.float() if isinstance(mask_sum, torch.Tensor) else mask_sum
+                input_global_fp32 = input_global.float()
+
+                iout_policy = self.intermediate_policy_head(
+                    iout_fp32,
+                    mask=mask_fp32,
+                    mask_sum_hw=mask_sum_hw_fp32,
+                    mask_sum=mask_sum_fp32,
+                    extra_outputs=extra_outputs
+                )
+                (
+                    iout_value,
+                    iout_miscvalue,
+                    iout_moremiscvalue,
+                    iout_ownership,
+                    iout_scoring,
+                    iout_futurepos,
+                    iout_seki,
+                    iout_scorebelief_logprobs,
+                ) = self.intermediate_value_head(
+                    iout_fp32,
+                    mask=mask_fp32,
+                    mask_sum_hw=mask_sum_hw_fp32,
+                    mask_sum=mask_sum_fp32,
+                    input_global=input_global_fp32,
+                    extra_outputs=extra_outputs
+                )
 
             for block in self.blocks[self.intermediate_head_blocks:]:
                 # print("TENSOR BEFORE BLOCK")
@@ -1964,17 +2005,38 @@ class Model(torch.nn.Module):
             extra_outputs.report("trunkfinal", out)
 
         # print("MAIN")
-        out_policy = self.policy_head(out, mask=mask, mask_sum_hw=mask_sum_hw, mask_sum=mask_sum, extra_outputs=extra_outputs)
-        (
-            out_value,
-            out_miscvalue,
-            out_moremiscvalue,
-            out_ownership,
-            out_scoring,
-            out_futurepos,
-            out_seki,
-            out_scorebelief_logprobs,
-        ) = self.value_head(out, mask=mask, mask_sum_hw=mask_sum_hw, mask_sum=mask_sum, input_global=input_global, extra_outputs=extra_outputs)
+        # Disable autocast for main output heads - compute in fp32
+        with autocast(enabled=False):
+            out = out.float()
+            mask_fp32 = mask.float()
+            mask_sum_hw_fp32 = mask_sum_hw.float()
+            mask_sum_fp32 = mask_sum.float() if isinstance(mask_sum, torch.Tensor) else mask_sum
+            input_global_fp32 = input_global.float()
+
+            out_policy = self.policy_head(
+                out,
+                mask=mask_fp32,
+                mask_sum_hw=mask_sum_hw_fp32,
+                mask_sum=mask_sum_fp32,
+                extra_outputs=extra_outputs
+            )
+            (
+                out_value,
+                out_miscvalue,
+                out_moremiscvalue,
+                out_ownership,
+                out_scoring,
+                out_futurepos,
+                out_seki,
+                out_scorebelief_logprobs,
+            ) = self.value_head(
+                out,
+                mask=mask_fp32,
+                mask_sum_hw=mask_sum_hw_fp32,
+                mask_sum=mask_sum_fp32,
+                input_global=input_global_fp32,
+                extra_outputs=extra_outputs
+            )
 
         if self.has_intermediate_head:
             return (

@@ -428,26 +428,28 @@ Loc Search::runWholeSearchAndGetMove(Player movePla, bool pondering) {
 void Search::runWholeSearch(Player movePla) {
   runWholeSearch(movePla,false);
 }
+void Search::runWholeSearch(Player movePla, std::function<bool()>* shouldStopEarly) {
+  runWholeSearch(movePla,false,shouldStopEarly);
+}
 
 void Search::runWholeSearch(Player movePla, bool pondering) {
   if(movePla != rootPla)
     setPlayerAndClearHistory(movePla);
-  std::atomic<bool> shouldStopNow(false);
-  runWholeSearch(shouldStopNow,pondering);
-}
-
-void Search::runWholeSearch(std::atomic<bool>& shouldStopNow) {
-  runWholeSearch(shouldStopNow, false);
-}
-
-void Search::runWholeSearch(std::atomic<bool>& shouldStopNow, bool pondering) {
   std::function<void()>* searchBegun = NULL;
-  runWholeSearch(shouldStopNow,searchBegun,pondering,TimeControls(),1.0);
+  std::function<bool()>* shouldStopEarly = NULL;
+  runWholeSearch(searchBegun,shouldStopEarly,pondering,TimeControls(),1.0);
+}
+
+void Search::runWholeSearch(Player movePla, bool pondering, std::function<bool()>* shouldStopEarly) {
+  if(movePla != rootPla)
+    setPlayerAndClearHistory(movePla);
+  std::function<void()>* searchBegun = NULL;
+  runWholeSearch(searchBegun,shouldStopEarly,pondering,TimeControls(),1.0);
 }
 
 void Search::runWholeSearch(
-  std::atomic<bool>& shouldStopNow,
   std::function<void()>* searchBegun,
+  std::function<bool()>* shouldStopEarly,
   bool pondering,
   const TimeControls& tc,
   double searchFactor
@@ -455,6 +457,7 @@ void Search::runWholeSearch(
 
   ClockTimer timer;
   atomic<int64_t> numPlayoutsShared(0);
+  std::atomic<bool> shouldStopNow(false);
 
   if(!std::atomic_is_lock_free(&numPlayoutsShared))
     logger->write("Warning: int64_t atomic numPlayoutsShared is not lock free");
@@ -518,7 +521,7 @@ void Search::runWholeSearch(
   std::function<void(int)> searchLoop = [
     this,&timer,&numPlayoutsShared,numNonPlayoutVisits,&tcMaxTime,&upperBoundVisitsLeftDueToTime,&tc,
     &hasMaxTime,&hasTc,
-    &shouldStopNow,maxVisits,maxPlayouts,maxTime,pondering,searchFactor
+    &shouldStopNow,&shouldStopEarly,maxVisits,maxPlayouts,maxTime,pondering,searchFactor
   ](int threadIdx) {
     SearchThread* stbuf = new SearchThread(threadIdx,*this);
 
@@ -542,6 +545,8 @@ void Search::runWholeSearch(
         if(hasMaxTime && numPlayouts >= 2 && timeUsed >= maxTime)
           shouldStop = true;
         if(hasTc && numPlayouts >= 2 && timeUsed >= tcMaxTimeLimit)
+          shouldStop = true;
+        if(shouldStopEarly != NULL && (*shouldStopEarly)())
           shouldStop = true;
 
         //But an explicit stop signal can stop us from doing any search

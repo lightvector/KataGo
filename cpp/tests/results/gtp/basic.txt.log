@@ -453,5 +453,7 @@ D7  : T  87.43c W  87.57c S  -0.14c (+10.3 L  +7.8) LCB -262.57c P  4.19% WF   1
 G6  : T  91.74c W  91.17c S   0.57c (+10.8 L  +7.9) LCB -258.26c P  2.52% WF   1.0 PSV       1 N       1  --  G6
 
 : = C5
+: Controller: clear_cache
+: = 
 : GPU -1 finishing, processed 285 rows 285 batches
 : All cleaned up, quitting

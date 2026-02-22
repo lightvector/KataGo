@@ -75,8 +75,9 @@ GATING_CONFIG="$GITROOTDIR"/cpp/configs/training/gatekeeper1.cfg
 DATE_FOR_FILENAME=$(date "+%Y%m%d-%H%M%S")
 DATED_ARCHIVE="$BASEDIR"/scripts/dated/"$DATE_FOR_FILENAME"
 mkdir -p "$DATED_ARCHIVE"/bin
-cp "$GITROOTDIR"/python/*.py "$GITROOTDIR"/python/selfplay/*.sh "$DATED_ARCHIVE"
+cp "$GITROOTDIR"/python/*.py "$GITROOTDIR"/python/selfplay/*.py "$GITROOTDIR"/python/selfplay/*.sh "$DATED_ARCHIVE"
 cp -r "$GITROOTDIR"/python/katago "$DATED_ARCHIVE"
+cp -r "$GITROOTDIR"/python/muon "$DATED_ARCHIVE"
 cp "$GITROOTDIR"/cpp/katago "$DATED_ARCHIVE"/bin
 cp "$SELFPLAY_CONFIG" "$DATED_ARCHIVE"/selfplay.cfg
 cp "$GATING_CONFIG" "$DATED_ARCHIVE"/gatekeeper.cfg

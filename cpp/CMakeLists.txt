@@ -124,20 +124,23 @@ elseif(USE_BACKEND STREQUAL "METAL")
     message(FATAL_ERROR "Project requires building with AppleClang. Have ${CMAKE_CXX_COMPILER_ID}")
   endif()
   list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/external/macos/cmake/modules")
+
+  if (NOT CMAKE_OSX_SYSROOT)
+    execute_process(COMMAND xcrun --show-sdk-path OUTPUT_VARIABLE CMAKE_OSX_SYSROOT OUTPUT_STRIP_TRAILING_WHITESPACE)
+  endif()
+
   include(InitializeSwift)
   include(AddSwift)
   set(CMAKE_OSX_DEPLOYMENT_TARGET 13.0)
   set(NEURALNET_BACKEND_SOURCES
     neuralnet/metalbackend.cpp
     )
-  _swift_generate_cxx_header_target(
-    KataGoSwift_Swift_h
+  add_library(KataGoSwift STATIC
+    neuralnet/metalbackend.swift)
+  _swift_generate_cxx_header(
     KataGoSwift
     "${CMAKE_CURRENT_BINARY_DIR}/include/KataGoSwift/KataGoSwift-swift.h"
     SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/neuralnet/metalbackend.swift")
-  add_library(KataGoSwift STATIC
-    neuralnet/metalbackend.swift)
-  add_dependencies(KataGoSwift KataGoSwift_Swift_h)
   target_include_directories(KataGoSwift PUBLIC "${CMAKE_CURRENT_BINARY_DIR}/include")
   set_target_properties(KataGoSwift PROPERTIES Swift_MODULE_NAME "KataGoSwift")
   target_compile_options(KataGoSwift PUBLIC
@@ -404,7 +407,6 @@ elseif(USE_BACKEND STREQUAL "TENSORRT")
   if((NOT TENSORRT_INCLUDE_DIR))
     message(FATAL_ERROR "${ColorBoldRed} NvInfer.h was NOT found, specify TENSORRT_INCLUDE_DIR to indicate where it is. ${ColorReset}")
   endif()
-  find_library(TENSORRT_LIBRARY nvinfer HINTS ${TENSORRT_ROOT_DIR} PATH_SUFFIXES lib)
 
   # Hackily extract out the version from the TensorRT header
   # In each case, try the old format and on failure try the new format.
@@ -450,6 +452,8 @@ elseif(USE_BACKEND STREQUAL "TENSORRT")
   if("${TENSORRT_VERSION_MAJOR}" STREQUAL "" OR "${TENSORRT_VERSION_MINOR}" STREQUAL "" OR "${TENSORRT_VERSION_PATCH}" STREQUAL "")
     message(FATAL_ERROR "Could not determine TensorRT version from header file")
   endif()
+
+  find_library(TENSORRT_LIBRARY NAMES nvinfer nvinfer_${TENSORRT_VERSION_MAJOR} HINTS ${TENSORRT_ROOT_DIR} PATH_SUFFIXES lib)
 
   # Version 8 is required for serializing the builder timing cache.
   # Version 8.2 is required for eliminating the global logger for Builder and Runtime.

@@ -98,7 +98,7 @@ pss : T -120.36c W -99.92c S -20.44c (-10.5 L -10.8) LCB -470.36c P  0.01% WF   
 B2  : T -109.12c W -97.01c S -12.10c ( -6.3 L  -5.4) LCB -459.12c P  0.01% WF   1.0 PSV       0 N       1  --  B2
 
 : play C5
-: Controller: kata-genmove_analyze b rootInfo true
+: Controller: kata-genmove_analyze b rootInfo true noResultValue true
 : =
 : MoveNum: 2 HASH: 21172FF837E42CFA41ED49BC1713B5B8
    A B C D E F G H J

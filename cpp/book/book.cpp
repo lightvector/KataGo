@@ -266,7 +266,7 @@ BookMove::BookMove(Loc mv, int s, BookHash h, double rp)
    biggestWLCostFromRoot(0.0)
 {}
 
-BookMove BookMove::getSymBookMove(int symmetry, int xSize, int ySize) {
+BookMove BookMove::getSymBookMove(int symmetry, int xSize, int ySize) const {
   BookMove ret(
     SymmetryHelpers::getSymLoc(move,xSize,ySize,symmetry),
     // This needs to be the symmetry that transform's retspace -> childspace
@@ -905,7 +905,7 @@ size_t Book::size() const {
   return nodes.size();
 }
 
-BookParams Book::getParams() const { return params; }
+const BookParams& Book::getParams() const { return params; }
 void Book::setParams(const BookParams& p) { params = p; }
 std::map<BookHash,double> Book::getBonusByHash() const { return bonusByHash; }
 void Book::setBonusByHash(const std::map<BookHash,double>& d) { bonusByHash = d; }
@@ -1814,6 +1814,124 @@ double Book::getUtility(const RecursiveBookValues& values) const {
   return values.winLossValue + values.scoreMean * params.utilityPerScore;
 }
 
+Book::MinCostResult Book::computeMinCostToChangeWinLoss(
+  ConstSymBookNode node,
+  const std::function<double(ConstSymBookNode)>& costFunc,
+  const std::function<double(ConstSymBookNode, const BookMove&)>& edgeCost,
+  double winLossValueThreshold,
+  bool increasing,
+  double pruneOverCost,
+  std::map<BookHash,double>& costCache,
+  std::map<BookHash,MinCostResult>& resultCache
+) const {
+  if(node.isNull())
+    return MinCostResult{0.0, {}};
+  std::set<BookHash> visited;
+  return computeMinCostToChangeWinLossHelper(node.node, costFunc, edgeCost, winLossValueThreshold, increasing, pruneOverCost, costCache, resultCache, visited);
+}
+
+Book::MinCostResult Book::computeMinCostToChangeWinLossHelper(
+  const BookNode* node,
+  const std::function<double(ConstSymBookNode)>& costFunc,
+  const std::function<double(ConstSymBookNode, const BookMove&)>& edgeCost,
+  double winLossValueThreshold,
+  bool increasing,
+  double pruneOverCost,
+  std::map<BookHash,double>& costCache,
+  std::map<BookHash,MinCostResult>& resultCache,
+  std::set<BookHash>& visited
+) const {
+  // Base case
+  double currentWinLoss = node->recursiveValues.winLossValue;
+  if(increasing && currentWinLoss >= winLossValueThreshold)
+    return MinCostResult{0.0, {}};
+  if(!increasing && currentWinLoss <= winLossValueThreshold)
+    return MinCostResult{0.0, {}};
+
+  // Check if we already computed this result
+  std::map<BookHash,MinCostResult>::iterator resultIter = resultCache.find(node->hash);
+  if(resultIter != resultCache.end())
+    return resultIter->second;
+
+  // Cycle detection: if already visiting this node, return 0 to avoid infinite loop
+  if(contains(visited, node->hash))
+    return MinCostResult{0.0, {}};
+  visited.insert(node->hash);
+
+  // Evaluate cost of changing this node's thisValuesNotInBook
+  double thisNodeWL = node->thisValuesNotInBook.winLossValue;
+  if(node->canReExpand && node->recursiveValues.visits <= params.maxVisitsForReExpansion) {
+    thisNodeWL = node->recursiveValues.winLossValue;
+  }
+
+  MinCostResult thisNodeResult;
+  if((increasing && thisNodeWL >= winLossValueThreshold) || (!increasing && thisNodeWL <= winLossValueThreshold)) {
+    thisNodeResult = MinCostResult{0.0, {}};
+  }
+  else {
+    std::map<BookHash,double>::iterator cacheIter = costCache.find(node->hash);
+    if(cacheIter != costCache.end()) {
+      thisNodeResult.totalCost = cacheIter->second;
+    }
+    else {
+      double cost = costFunc(ConstSymBookNode(node,0));
+      costCache[node->hash] = cost;
+      thisNodeResult.totalCost = cost;
+    }
+    thisNodeResult.nodes.insert(node->hash);
+  }
+
+  MinCostResult result = thisNodeResult;
+
+  if(node->canReExpand && node->recursiveValues.visits <= params.maxVisitsForReExpansion) {
+    resultCache[node->hash] = result;
+    return result;
+  }
+
+  if((node->pla == P_WHITE && increasing) || (node->pla == P_BLACK && !increasing)) {
+    // White maximizing, increasing, OR Black minimizing, decreasing: need only ONE child (or this node) to meet threshold
+    for(auto iter = node->moves.begin(); iter != node->moves.end(); ++iter) {
+      const BookNode* child = get(iter->second.hash);
+      MinCostResult childResult = computeMinCostToChangeWinLossHelper(child, costFunc, edgeCost, winLossValueThreshold, increasing, pruneOverCost, costCache, resultCache, visited);
+
+      childResult.totalCost += edgeCost(ConstSymBookNode(node,0), iter->second);
+      if(childResult.totalCost < result.totalCost)
+        result = childResult;
+    }
+  }
+  else {
+    if(thisNodeResult.totalCost > pruneOverCost) {
+      resultCache[node->hash] = result;
+      return thisNodeResult;
+    }
+
+    // White maximizing, decreasing: OR Black minimizing, increasing: need ALL children AND this node to meet threshold
+    for(auto iter = node->moves.begin(); iter != node->moves.end(); ++iter) {
+      const BookNode* child = get(iter->second.hash);
+      MinCostResult childResult = computeMinCostToChangeWinLossHelper(child, costFunc, edgeCost, winLossValueThreshold, increasing, pruneOverCost, costCache, resultCache, visited);
+      childResult.totalCost += edgeCost(ConstSymBookNode(node,0), iter->second.getSymBookMove(0, node->book->initialBoard.x_size, node->book->initialBoard.y_size));
+      result.totalCost += childResult.totalCost;
+      for(const BookHash& hash: childResult.nodes) {
+        auto [_,inserted] = result.nodes.insert(hash);
+        if(!inserted) {
+          // Avoid double counting. Cache is guaranteed to be populated by recursive calls
+          std::map<BookHash,double>::const_iterator cacheIter = costCache.find(hash);
+          assert(cacheIter != costCache.end());
+          result.totalCost -= cacheIter->second;
+        }
+      }
+
+      if(result.totalCost > pruneOverCost) {
+        resultCache[node->hash] = result;
+        return result;
+      }
+    }
+  }
+
+  resultCache[node->hash] = result;
+  return result;
+}
+
 void Book::recomputeNodeCost(BookNode* node) {
   // Update this node's minCostFromRoot based on cost for moves from parents.
   if(node == root) {
@@ -2350,15 +2468,15 @@ void Book::recomputeNodeCost(BookNode* node) {
           double otherChildWinLoss = otherChild->recursiveValues.winLossValue;
           double gainOverOtherChild =
             (node->pla == P_WHITE) ?
-            childWinLoss - otherChildWinLoss :
-            otherChildWinLoss - childWinLoss;
-          if(gainOverOtherChild <= -params.policyBoostSoftUtilityScale)
+            (childWinLoss + pow3(childWinLoss)) - (otherChildWinLoss + pow3(otherChildWinLoss)) :
+            (otherChildWinLoss + pow3(otherChildWinLoss)) - (childWinLoss + pow3(childWinLoss));
+          if(gainOverOtherChild <= -2.0 * params.policyBoostSoftUtilityScale)
             continue;
           double thisBonus =
             log10(otherVisits / (30.0 * adjustedVisits))
-            - 0.5 * log10(std::max(adjustedVisits,params.visitsScaleLeaves) / params.visitsScaleLeaves);
+            - 0.40 * log10(std::max(adjustedVisits,params.visitsScaleLeaves) / params.visitsScaleLeaves);
           if(gainOverOtherChild < 0.0) {
-            double factor = (gainOverOtherChild + params.policyBoostSoftUtilityScale) / (params.policyBoostSoftUtilityScale + 1e-10);
+            double factor = (gainOverOtherChild + 2.0 * params.policyBoostSoftUtilityScale) / (2.0 * params.policyBoostSoftUtilityScale + 1e-10);
             thisBonus = thisBonus * factor * factor;
           }
           maxBonus = std::max(maxBonus, thisBonus);
@@ -2369,12 +2487,12 @@ void Book::recomputeNodeCost(BookNode* node) {
         // Also scale down by how far we are from the best, and scale down by if we are close to losing so nothing matters
         double gainOverBest =
           (node->pla == P_WHITE) ?
-          childWinLoss - bestWinLoss :
-          bestWinLoss - childWinLoss;
+          (childWinLoss + pow3(childWinLoss)) - (bestWinLoss + pow3(bestWinLoss)) :
+          (bestWinLoss + pow3(bestWinLoss)) - (childWinLoss + pow3(childWinLoss));
         // Just in case
         gainOverBest = std::min(gainOverBest, 0.0);
         double losingScale = std::min(1.0, (node->pla == P_WHITE) ? childWinLoss + 1.0 : 1.0 - childWinLoss);
-        return maxBonus * exp(gainOverBest / (2.0 * params.policyBoostSoftUtilityScale)) * losingScale;
+        return maxBonus * exp(gainOverBest / (3.0 * params.policyBoostSoftUtilityScale)) * losingScale;
       };
 
       // double anyBehindInVisits = false;
@@ -2385,7 +2503,7 @@ void Book::recomputeNodeCost(BookNode* node) {
         double childBonus = behindInVisitsBonus(childWinLoss,adjustedVisits);
         // if(childBonus > 0.25)
         //   anyBehindInVisits = true;
-        locAndBookMove.second.costFromRoot -= childBonus;
+        locAndBookMove.second.costFromRoot -= childBonus * params.bonusBehindInVisitsScale;
       }
       {
         double childWinLoss = node->thisValuesNotInBook.winLossValue;
@@ -2393,7 +2511,7 @@ void Book::recomputeNodeCost(BookNode* node) {
         double childBonus = behindInVisitsBonus(childWinLoss,adjustedVisits);
         // if(childBonus > 0.25)
         //   anyBehindInVisits = true;
-        node->thisNodeExpansionCost -= childBonus;
+        node->thisNodeExpansionCost -= childBonus * params.bonusBehindInVisitsScale;
       }
 
       // if(anyBehindInVisits) {
