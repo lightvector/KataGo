@@ -52,7 +52,7 @@ tmpdir="$(realpath "$TMPDIRRAW")"
 
 mkdir -p "$basedir"/scripts
 mkdir -p "$basedir"/logs
-cp "$GITROOTDIR"/python/*.py "$GITROOTDIR"/python/selfplay/*.sh "$GITROOTDIR"/python/selfplay/distributed/*.sh "$basedir"/scripts
+cp "$GITROOTDIR"/python/*.py "$GITROOTDIR"/python/selfplay/*.py "$GITROOTDIR"/python/selfplay/*.sh "$GITROOTDIR"/python/selfplay/distributed/*.sh "$basedir"/scripts
 cp -r "$GITROOTDIR"/python/katago "$basedir"/scripts
 cp -r "$GITROOTDIR"/python/muon "$basedir"/scripts
 cp "$DOWNLOAD_SCRIPT" "$basedir"/scripts/download.sh

@@ -699,7 +699,10 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
             if "optimizer" in state_dict:
                 old_optimizer_name = train_state.get("optimizer_name","SGD")
                 if old_optimizer_name == optimizer_name:
-                    optimizer.load_state_dict(state_dict["optimizer"])
+                    try:
+                        optimizer.load_state_dict(state_dict["optimizer"])
+                    except ValueError as e:
+                        logging.info(f"WARNING: Failed to load optimizer state dict: {e}, dropping old optimizer state")
                     train_state["optimizer_name"] = optimizer_name
                 else:
                     train_state["optimizer_name"] = optimizer_name

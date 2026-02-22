@@ -40,9 +40,7 @@ function exportStuff() {
     TODIR="$2"
 
     # Sort by timestamp so that we process in order of oldest to newest if there are multiple
-    # Use python here to avoid 'find -printf' which is not portable to macOS
-    # Use sys.argv to safely pass directory name with spaces/quotes
-    $PYTHON -c "import os, sys; d=sys.argv[1]; print('\n'.join(sorted([os.path.join(d, f) for f in os.listdir(d)], key=lambda x: os.path.getmtime(x))))" "$BASEDIR/$FROMDIR" 2>/dev/null | while read -r FILEPATH
+    $PYTHON -W ignore "$(dirname "$0")/list_by_mtime.py" "$BASEDIR/$FROMDIR" | while read -r FILEPATH
     do
         #Make sure to skip tmp directories that are transiently there by the training,
         #they are probably in the process of being written
