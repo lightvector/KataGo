@@ -21,13 +21,6 @@ using namespace std;
 
 namespace gfs = ghc::filesystem;
 
-// Minimum batch sizes for hybrid execution mode.
-// Hybrid splits batches between CoreML (CPU+ANE) and MPSGraph (GPU).
-// When batch is too small to split, prefer MPSGraph-only for stability:
-// MPSGraph has more predictable latency and avoids CoreML dispatch overhead.
-static constexpr int MIN_COREML_BATCH = 1;
-static constexpr int MIN_MPSGRAPH_BATCH = 1;
-
 namespace CoreMLConversion {
 
 // Get temp directory for model conversion
@@ -448,9 +441,8 @@ void NeuralNet::freeComputeContext(ComputeContext* computeContext) {
 
 static mutex computeHandleMutex;
 
-// Helper function to convert model and create hybrid compute handle
-// This is needed because Swift Optional doesn't support assignment in C++
-static swift::Optional<KataGoSwift::HybridComputeHandle> convertAndCreateHybridHandle(
+// Helper function to convert model and create CoreML-only compute handle (for mux ANE thread)
+static swift::Optional<KataGoSwift::CoreMLComputeHandle> convertAndCreateCoreMLOnlyHandle(
   ComputeContext* context,
   const LoadedModel* loadedModel,
   bool requireExactNNLen,
@@ -464,7 +456,6 @@ static swift::Optional<KataGoSwift::HybridComputeHandle> convertAndCreateHybridH
   bool optimizeMask = requireExactNNLen;
 
   // Convert model to CoreML format in temp directory
-  // The Swift side will delete the temp file after loading
   string coremlModelPath = CoreMLConversion::convertModelToTemp(
     loadedModel->modelPath,
     nnXLen,
@@ -475,13 +466,9 @@ static swift::Optional<KataGoSwift::HybridComputeHandle> convertAndCreateHybridH
     serverThreadIdx
   );
 
-  // Convert model descriptor to Swift format for MPSGraph path
-  SWModelDesc swModelDesc = MetalProcess::modelDescToSwift(&loadedModel->modelDesc);
-
-  // Create hybrid compute handle (CoreML on CPU+ANE, MPSGraph on GPU)
-  return createHybridComputeHandle(
+  // Create CoreML-only compute handle (CPU+ANE)
+  return createCoreMLComputeHandle(
     swift::String(coremlModelPath),
-    swModelDesc,
     serverThreadIdx,
     requireExactNNLen,
     loadedModel->modelDesc.numInputChannels,
@@ -495,62 +482,42 @@ static swift::Optional<KataGoSwift::HybridComputeHandle> convertAndCreateHybridH
   );
 }
 
-// Helper function to create hybrid handle if FP16 mode with sufficient batch size, otherwise returns none
-static swift::Optional<KataGoSwift::HybridComputeHandle> createHybridHandleIfNeeded(
+// Helper function to create CoreML-only handle when gpuIdx == METAL_MUX_ANE
+static swift::Optional<KataGoSwift::CoreMLComputeHandle> createCoreMLOnlyHandleIfNeeded(
   ComputeContext* context,
   const LoadedModel* loadedModel,
   bool requireExactNNLen,
   int maxBatchSize,
+  int gpuIdx,
   int serverThreadIdx
 ) {
-  if(context->useFP16Mode == enabled_t::False) {
-    // FP32 mode - don't create hybrid handle
-    return swift::Optional<KataGoSwift::HybridComputeHandle>::none();
+  if(gpuIdx != METAL_MUX_ANE) {
+    return swift::Optional<KataGoSwift::CoreMLComputeHandle>::none();
   }
 
-  // Hybrid mode splits batches: CoreML takes max(1, ...), MPSGraph takes remainder
-  // Minimum samples for meaningful split = 1 (CoreML) + 1 (MPSGraph) = 2
-  // If batch can't be split, prefer MPSGraph-only for stability
-  if(maxBatchSize < MIN_COREML_BATCH + MIN_MPSGRAPH_BATCH) {
-    return swift::Optional<KataGoSwift::HybridComputeHandle>::none();
-  }
-
-  // FP16 mode with sufficient batch size: Use hybrid execution (CoreML on CPU+ANE, MPSGraph on GPU)
-  return convertAndCreateHybridHandle(context, loadedModel, requireExactNNLen, maxBatchSize, serverThreadIdx);
+  cerr << "Metal backend " << serverThreadIdx << ": Mux ANE mode - using CoreML (CPU+ANE)" << endl;
+  return convertAndCreateCoreMLOnlyHandle(context, loadedModel, requireExactNNLen, maxBatchSize, serverThreadIdx);
 }
 
-// Helper function to create MPSGraph-only handle when needed
-// Used when: (1) useFP16=false to avoid slow FP32 CoreML, or (2) batch too small for hybrid split
+// Helper function to create MPSGraph-only handle for all non-ANE modes
 static swift::Optional<KataGoSwift::MPSGraphModelHandle> createMPSGraphHandleIfNeeded(
   ComputeContext* context,
   const LoadedModel* loadedModel,
   bool requireExactNNLen,
   int maxBatchSize,
+  int gpuIdx,
   int serverThreadIdx
 ) {
-  // Use MPSGraph-only when:
-  // 1. FP32 mode (CoreML FP32 on CPU+ANE is slow), OR
-  // 2. Batch too small to split (hybrid requires minCoreML + minMPSGraph samples)
-  bool batchTooSmallForHybrid = maxBatchSize < MIN_COREML_BATCH + MIN_MPSGRAPH_BATCH;
+  (void)maxBatchSize;
 
-  if(context->useFP16Mode != enabled_t::False && !batchTooSmallForHybrid) {
-    // FP16 mode with sufficient batch - hybrid handle will be created instead
+  // Skip if this is an ANE thread - CoreML-only handle will be created instead
+  if(gpuIdx == METAL_MUX_ANE) {
     return swift::Optional<KataGoSwift::MPSGraphModelHandle>::none();
   }
 
-  // Log reason for MPSGraph-only mode
-  if(batchTooSmallForHybrid) {
-    cerr << "Metal backend " << serverThreadIdx << ": Batch size " << maxBatchSize
-         << " too small for hybrid split - using MPSGraph GPU-only" << endl;
-  } else {
-    cerr << "Metal backend " << serverThreadIdx << ": FP32 mode - using MPSGraph GPU-only (skipping CoreML converter)" << endl;
-  }
+  cerr << "Metal backend " << serverThreadIdx << ": GPU mode - using MPSGraph (GPU)" << endl;
 
-  // Convert model descriptor to Swift format for MPSGraph path
-  // Note: No CoreML conversion needed - MPSGraph reads weights directly
   SWModelDesc swModelDesc = MetalProcess::modelDescToSwift(&loadedModel->modelDesc);
-
-  // Create MPSGraph-only handle (GPU only)
   return createMPSGraphOnlyHandle(
     swModelDesc,
     serverThreadIdx,
@@ -567,15 +534,12 @@ ComputeHandle::ComputeHandle(
   int serverThreadIdx,
   bool requireExactNNLen,
   int maxBatchSize):
-hybridHandle(createHybridHandleIfNeeded(context, loadedModel, requireExactNNLen, maxBatchSize, serverThreadIdx)),
-mpsGraphOnlyHandle(createMPSGraphHandleIfNeeded(context, loadedModel, requireExactNNLen, maxBatchSize, serverThreadIdx)) {
-  bool hasHybrid = static_cast<bool>(hybridHandle);
+mpsGraphOnlyHandle(createMPSGraphHandleIfNeeded(context, loadedModel, requireExactNNLen, maxBatchSize, gpuIdx, serverThreadIdx)),
+coremlOnlyHandle(createCoreMLOnlyHandleIfNeeded(context, loadedModel, requireExactNNLen, maxBatchSize, gpuIdx, serverThreadIdx)) {
   bool hasMPSGraph = static_cast<bool>(mpsGraphOnlyHandle);
-  if(hasHybrid && hasMPSGraph) {
-    throw runtime_error("Metal backend: Logic error - both hybridHandle and mpsGraphOnlyHandle are valid");
-  }
-  if(!hasHybrid && !hasMPSGraph) {
-    throw runtime_error("Metal backend: Failed to create compute handle - both CoreML and MPSGraph initialization failed (check logs above for details)");
+  bool hasCoreML = static_cast<bool>(coremlOnlyHandle);
+  if(hasMPSGraph + hasCoreML != 1) {
+    throw runtime_error("Metal backend: Logic error - expected exactly one compute handle, got " + to_string(hasMPSGraph + hasCoreML));
   }
 
   const ModelDesc* modelDesc = &loadedModel->modelDesc;
@@ -987,15 +951,13 @@ void MetalProcess::getMetalOutput(
   }
 
   // Dispatch to appropriate handle based on mode
-  if(gpuHandle->hybridHandle) {
-    // FP16 mode: Use hybrid execution (CoreML on CPU+ANE, MPSGraph on GPU)
-    // Mask buffer has correct stride (singleMaskElts = H*W per batch element)
-    // When requireExactNNLen is true, mask operations can be optimized (optimize_identity_mask)
-    gpuHandle->hybridHandle.get().apply(
+  if(gpuHandle->coremlOnlyHandle) {
+    // ANE mode: Use CoreML (CPU+ANE)
+    gpuHandle->coremlOnlyHandle.get().apply(
       inputBuffers->userInputBuffer,
       inputBuffers->userInputGlobalBuffer,
       inputBuffers->userInputMetaBuffer,
-      inputBuffers->userInputMaskBuffer,  // Dedicated mask buffer with correct stride
+      inputBuffers->userInputMaskBuffer,
       inputBuffers->policyResults,
       inputBuffers->policyPassResults,
       inputBuffers->valueResults,
@@ -1003,8 +965,7 @@ void MetalProcess::getMetalOutput(
       inputBuffers->ownershipResults,
       batchSize);
   } else if(gpuHandle->mpsGraphOnlyHandle) {
-    // FP32 mode: Use MPSGraph only (GPU-only)
-    // Mask is extracted internally from channel 0 of spatial input via strided reads
+    // GPU mode: Use MPSGraph (GPU)
     gpuHandle->mpsGraphOnlyHandle.get().apply(
       inputBuffers->userInputBuffer,
       inputBuffers->userInputGlobalBuffer,

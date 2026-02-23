@@ -15,6 +15,12 @@
 using namespace std;
 using namespace KataGoSwift;
 
+// Backend mode constants for multiplexer architecture.
+// When used as gpuIdx, these select a specific backend for that server thread.
+// Default gpuIdx=-1 maps to 0 (GPU-only) in createComputeHandle.
+static constexpr int METAL_MUX_GPU = 0;    // MPSGraph-only (GPU) - default
+static constexpr int METAL_MUX_ANE = 100;  // CoreML-only (CPU+ANE)
+
 namespace MetalProcess {
 
 void copyRowData(float* dest, const float* src, size_t numElements);
@@ -168,16 +174,14 @@ struct ComputeHandle {
   bool requireExactNNLen;
 
   /**
-   * @brief The hybrid compute handle instance from Swift.
-   * This handle dispatches work to both CoreML (CPU+ANE) and MPSGraph (GPU).
-   */
-  swift::Optional<HybridComputeHandle> hybridHandle;
-
-  /**
-   * @brief The MPSGraph-only handle instance from Swift (used for FP32 mode).
-   * This handle dispatches work only to GPU, avoiding slow FP32 CPU+ANE execution.
+   * @brief The MPSGraph-only handle instance from Swift (GPU-only mode).
    */
   swift::Optional<MPSGraphModelHandle> mpsGraphOnlyHandle;
+
+  /**
+   * @brief The CoreML-only handle instance from Swift (ANE mode).
+   */
+  swift::Optional<CoreMLComputeHandle> coremlOnlyHandle;
 
   /**
    * @brief Construct a new ComputeHandle object.
