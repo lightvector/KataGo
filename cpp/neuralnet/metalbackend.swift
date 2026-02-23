@@ -668,7 +668,6 @@ public class MPSGraphModelHandle {
 }
 
 /// Create a GPU-only compute handle using MPSGraph
-/// Used when useFP16=false to avoid slow FP32 CoreML execution on CPU+ANE
 public func createMPSGraphOnlyHandle(
     modelDesc: SWModelDesc,
     serverThreadIdx: Int,

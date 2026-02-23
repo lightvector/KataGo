@@ -498,7 +498,7 @@ static swift::Optional<KataGoSwift::CoreMLComputeHandle> createCoreMLOnlyHandleI
   if(context->useFP16Mode == enabled_t::False) {
     cerr << "Metal backend " << serverThreadIdx << ": Warning: ANE mode with FP32 - "
          << "CoreML FP32 runs on CPU only (no ANE acceleration) and is significantly slower. "
-         << "Consider using GPU mode (gpuIdx=0) or enabling FP16." << endl;
+         << "Consider using GPU mode (metalDeviceToUseThread<N>=0) or setting metalUseFP16=true." << endl;
   }
 
   cerr << "Metal backend " << serverThreadIdx << ": Mux ANE mode - using CoreML (CPU+ANE)" << endl;
@@ -514,7 +514,7 @@ static swift::Optional<KataGoSwift::MPSGraphModelHandle> createMPSGraphHandleIfN
   int gpuIdx,
   int serverThreadIdx
 ) {
-  (void)maxBatchSize;
+  (void)maxBatchSize; // MPSGraph handles dynamic batches internally
 
   // Skip if this is an ANE thread - CoreML-only handle will be created instead
   if(gpuIdx == METAL_MUX_ANE) {
