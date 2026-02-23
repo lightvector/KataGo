@@ -495,6 +495,12 @@ static swift::Optional<KataGoSwift::CoreMLComputeHandle> createCoreMLOnlyHandleI
     return swift::Optional<KataGoSwift::CoreMLComputeHandle>::none();
   }
 
+  if(context->useFP16Mode == enabled_t::False) {
+    cerr << "Metal backend " << serverThreadIdx << ": Warning: ANE mode with FP32 - "
+         << "CoreML FP32 runs on CPU only (no ANE acceleration) and is significantly slower. "
+         << "Consider using GPU mode (gpuIdx=0) or enabling FP16." << endl;
+  }
+
   cerr << "Metal backend " << serverThreadIdx << ": Mux ANE mode - using CoreML (CPU+ANE)" << endl;
   return convertAndCreateCoreMLOnlyHandle(context, loadedModel, requireExactNNLen, maxBatchSize, serverThreadIdx);
 }
@@ -571,6 +577,12 @@ ComputeHandle* NeuralNet::createComputeHandle(
   (void)logger;
 
   int gpuIdx = (gpuIdxForThisThread == -1) ? 0 : gpuIdxForThisThread;
+  if(gpuIdx != METAL_MUX_GPU && gpuIdx != METAL_MUX_ANE) {
+    cerr << "Metal backend: Warning: Unrecognized gpuIdx=" << gpuIdx
+         << ", valid values are " << METAL_MUX_GPU << " (GPU) and " << METAL_MUX_ANE << " (ANE)"
+         << ". Defaulting to GPU mode." << endl;
+    gpuIdx = METAL_MUX_GPU;
+  }
   ComputeHandle* handle = nullptr;
 
   {

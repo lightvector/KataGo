@@ -396,7 +396,7 @@ public func createCoreMLComputeHandle(
 
 /// Print available Metal compute devices
 public func printMetalDevices() {
-    printError("Metal backend: GPU-only mode (MPSGraph)")
+    printError("Metal backend: Available modes - GPU (MPSGraph), CPU+ANE (CoreML)")
 }
 
 // MARK: - MPSGraph-based Model for GPU Inference
