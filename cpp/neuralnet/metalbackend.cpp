@@ -545,7 +545,7 @@ coremlOnlyHandle(createCoreMLOnlyHandleIfNeeded(context, loadedModel, requireExa
   bool hasMPSGraph = static_cast<bool>(mpsGraphOnlyHandle);
   bool hasCoreML = static_cast<bool>(coremlOnlyHandle);
   if(hasMPSGraph + hasCoreML != 1) {
-    throw runtime_error("Metal backend: Logic error - expected exactly one compute handle, got " + to_string(hasMPSGraph + hasCoreML));
+    throw runtime_error("Metal backend: Logic error - expected exactly one compute handle, got " + to_string(hasMPSGraph + hasCoreML) + " (gpuIdx=" + to_string(gpuIdx) + ")");
   }
 
   const ModelDesc* modelDesc = &loadedModel->modelDesc;
