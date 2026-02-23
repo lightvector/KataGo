@@ -544,8 +544,8 @@ mpsGraphOnlyHandle(createMPSGraphHandleIfNeeded(context, loadedModel, requireExa
 coremlOnlyHandle(createCoreMLOnlyHandleIfNeeded(context, loadedModel, requireExactNNLen, maxBatchSize, gpuIdx, serverThreadIdx)) {
   bool hasMPSGraph = static_cast<bool>(mpsGraphOnlyHandle);
   bool hasCoreML = static_cast<bool>(coremlOnlyHandle);
-  if(hasMPSGraph + hasCoreML != 1) {
-    throw runtime_error("Metal backend: Logic error - expected exactly one compute handle, got " + to_string(hasMPSGraph + hasCoreML) + " (gpuIdx=" + to_string(gpuIdx) + ")");
+  if(hasMPSGraph == hasCoreML) {
+    throw runtime_error("Metal backend: Logic error - expected exactly one compute handle, got " + string(hasMPSGraph && hasCoreML ? "both" : "neither") + " (gpuIdx=" + to_string(gpuIdx) + ")");
   }
 
   const ModelDesc* modelDesc = &loadedModel->modelDesc;
