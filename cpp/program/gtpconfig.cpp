@@ -536,6 +536,9 @@ string GTPConfig::makeConfig(
 #ifdef USE_OPENCL_BACKEND
       replacement += "openclDeviceToUseThread" + Global::intToString(i) + " = " + Global::intToString(deviceIdxs[i]) + "\n";
 #endif
+#ifdef USE_ROCM_BACKEND
+      replacement += "rocmDeviceToUseThread" + Global::intToString(i) + " = " + Global::intToString(deviceIdxs[i]) + "\n";
+#endif
     }
     replace("$$MULTIPLE_GPUS", replacement);
   }
