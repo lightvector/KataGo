@@ -954,48 +954,48 @@ void TrainingWriteBuffers::writeToTextOstream(ostream& out) {
 
 //-------------------------------------------------------------------------------------
 
-TrainingDataWriter::TrainingDataWriter(const string& outDir, int iVersion, int maxRowsPerFile, double firstFileMinRandProp, int dataXLen, int dataYLen, const string& randSeed)
-  : TrainingDataWriter(outDir,NULL,iVersion,maxRowsPerFile,firstFileMinRandProp,dataXLen,dataYLen,1,randSeed)
-{}
-TrainingDataWriter::TrainingDataWriter(ostream* dbgOut, int iVersion, int maxRowsPerFile, double firstFileMinRandProp, int dataXLen, int dataYLen, int onlyEvery, const string& randSeed)
-  : TrainingDataWriter(string(),dbgOut,iVersion,maxRowsPerFile,firstFileMinRandProp,dataXLen,dataYLen,onlyEvery,randSeed)
-{}
-
-TrainingDataWriter::TrainingDataWriter(const string& outDir, ostream* dbgOut, int iVersion, int maxRowsPerFile, double firstFileMinRandProp, int dataXLen, int dataYLen, int onlyEvery, const string& randSeed)
-  :outputDir(outDir),inputsVersion(iVersion),rand(randSeed),writeBuffers(NULL),debugOut(dbgOut),debugOnlyWriteEvery(onlyEvery),rowCount(0)
+TrainingDataWriter::TrainingDataWriter(const string& outDir, ostream* dbgOut,
+  const int iVersion,
+  const int maxRowsPerFile,
+  const double firstFileMinRandProp,
+  const int dataXLen,
+  const int dataYLen,
+  const string& randSeed,
+  const int onlyWriteEvery)
+  :outputDir(outDir),inputsVersion(iVersion),rand(randSeed),writeBuffers(nullptr),debugOut(dbgOut),debugOnlyWriteEvery(onlyWriteEvery),rowCount(0)
 {
   int numBinaryChannels;
   int numGlobalChannels;
   //Note that this inputsVersion is for data writing, it might be different than the inputsVersion used
   //to feed into a model during selfplay
   static_assert(NNModelVersion::latestInputsVersionImplemented == 7, "");
-  if(inputsVersion == 3) {
+  if(iVersion == 3) {
     numBinaryChannels = NNInputs::NUM_FEATURES_SPATIAL_V3;
     numGlobalChannels = NNInputs::NUM_FEATURES_GLOBAL_V3;
   }
-  else if(inputsVersion == 4) {
+  else if(iVersion == 4) {
     numBinaryChannels = NNInputs::NUM_FEATURES_SPATIAL_V4;
     numGlobalChannels = NNInputs::NUM_FEATURES_GLOBAL_V4;
   }
-  else if(inputsVersion == 5) {
+  else if(iVersion == 5) {
     numBinaryChannels = NNInputs::NUM_FEATURES_SPATIAL_V5;
     numGlobalChannels = NNInputs::NUM_FEATURES_GLOBAL_V5;
   }
-  else if(inputsVersion == 6) {
+  else if(iVersion == 6) {
     numBinaryChannels = NNInputs::NUM_FEATURES_SPATIAL_V6;
     numGlobalChannels = NNInputs::NUM_FEATURES_GLOBAL_V6;
   }
-  else if(inputsVersion == 7) {
+  else if(iVersion == 7) {
     numBinaryChannels = NNInputs::NUM_FEATURES_SPATIAL_V7;
     numGlobalChannels = NNInputs::NUM_FEATURES_GLOBAL_V7;
   }
   else {
-    throw StringError("TrainingDataWriter: Unsupported inputs version: " + Global::intToString(inputsVersion));
+    throw StringError("TrainingDataWriter: Unsupported inputs version: " + Global::intToString(iVersion));
   }
 
   const bool hasMetadataInput = false;
   writeBuffers = new TrainingWriteBuffers(
-    inputsVersion,
+    iVersion,
     maxRowsPerFile,
     numBinaryChannels,
     numGlobalChannels,
