@@ -495,10 +495,17 @@ elseif(USE_BACKEND STREQUAL "ROCM")
   target_compile_definitions(katago PRIVATE USE_ROCM_BACKEND)
   target_compile_definitions(katago PRIVATE HIP_TARGET_VERSION=${CMAKE_HIP_COMPILER_VERSION})
 
+  # Option to disable FP16 support
+  set(ROCM_DISABLE_FP16 OFF CACHE BOOL "Disable FP16 support for ROCm backend")
+  
   string(TOLOWER "${CMAKE_HIP_ARCHITECTURES}" _gfxlist)  # e.g. "90a;942"
   if(_gfxlist MATCHES "803|900|90a|94[0-9]|110[0-9]|120[0-9]|115[0-9]|1030")
-    target_compile_definitions(katago PRIVATE HIP_SUPPORTS_FP16)
-    message(STATUS "Detected FP16‑capable GFX arch (${CMAKE_HIP_ARCHITECTURES}); defining HIP_SUPPORTS_FP16")
+    if(ROCM_DISABLE_FP16)
+      message(STATUS "Detected FP16‑capable GFX arch (${CMAKE_HIP_ARCHITECTURES}), but ROCM_DISABLE_FP16 is set, NOT defining HIP_SUPPORTS_FP16")
+    else()
+      target_compile_definitions(katago PRIVATE HIP_SUPPORTS_FP16)
+      message(STATUS "Detected FP16‑capable GFX arch (${CMAKE_HIP_ARCHITECTURES}); defining HIP_SUPPORTS_FP16")
+    endif()
   endif()
 
   # 3) Find ROCm runtime & libraries. Since ROCm 6.x, CMake config-mode packages are included. If not found, add -DCMAKE_PREFIX_PATH=/opt/rocm (Linux) or HIP SDK path (Windows)

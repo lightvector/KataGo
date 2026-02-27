@@ -2330,6 +2330,15 @@ ComputeHandle* NeuralNet::createComputeHandle(
   if(context->useFP16Mode == enabled_t::True || context->useFP16Mode == enabled_t::Auto)
     useFP16 = true;
 
+  // ROCm backend currently only supports NCHW format
+  if(inputsUseNHWC) {
+    if(logger != NULL) {
+      logger->write(
+        "ROCm backend thread " + Global::intToString(serverThreadIdx) + ": WARNING - NHWC format requested but not supported by ROCm backend, falling back to NCHW"
+      );
+    }
+  }
+
   if(logger != NULL) {
     logger->write(
       "ROCm backend thread " + Global::intToString(serverThreadIdx) + ": Found GPU " + string(prop.name)
