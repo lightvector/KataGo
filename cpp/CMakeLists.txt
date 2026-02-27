@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.18.2)
-if(USE_BACKEND STREQUAL "METAL" OR USE_BACKEND STREQUAL "COREML")
+if(USE_BACKEND STREQUAL "METAL")
   project(katago LANGUAGES CXX Swift)
 else()
   project(katago)
