@@ -260,9 +260,6 @@ int MainCmds::benchmark(const vector<string>& args) {
 #ifdef USE_METAL_BACKEND
   cout << "You are currently using the Metal version of KataGo." << endl;
 #endif
-#ifdef USE_COREML_BACKEND
-  cout << "You are currently using the Core ML version of KataGo." << endl;
-#endif
 #ifdef USE_OPENCL_BACKEND
   cout << "You are currently using the OpenCL version of KataGo." << endl;
   cout << "If you have a strong GPU capable of FP16 tensor cores (e.g. RTX2080), "

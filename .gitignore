@@ -91,6 +91,6 @@ cpp/build.ninja
 cpp/KataGoSwift.*
 cpp/include/KataGoSwift/KataGoSwift-swift.h
 
-# For CoreML Backend
+# For Metal Backend
 cpp/KataGoCoreML.*
 cpp/include/KataGoCoreML/KataGoCoreML-swift.h
