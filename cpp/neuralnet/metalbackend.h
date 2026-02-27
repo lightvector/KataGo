@@ -53,10 +53,10 @@ void processRow(size_t row,
                 vector<NNOutput*>& outputs);
 
 void getMetalOutput(ComputeHandle* gpuHandle,
-                     InputBuffers* inputBuffers,
-                     int numBatchEltsFilled,
-                     NNResultBuf** inputBufs,
-                     vector<NNOutput*>& outputs);
+                    InputBuffers* inputBuffers,
+                    int numBatchEltsFilled,
+                    NNResultBuf** inputBufs,
+                    vector<NNOutput*>& outputs);
 }
 
 /**
