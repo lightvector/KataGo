@@ -32,7 +32,7 @@ endif()
 set(BUILD_DISTRIBUTED 0 CACHE BOOL "Build with http support for contributing to distributed training")
 set(USE_BACKEND CACHE STRING "Neural net backend")
 string(TOUPPER "${USE_BACKEND}" USE_BACKEND)
-set_property(CACHE USE_BACKEND PROPERTY STRINGS "" CUDA TENSORRT OPENCL EIGEN)
+set_property(CACHE USE_BACKEND PROPERTY STRINGS "" CUDA TENSORRT OPENCL EIGEN ONNX)
 
 set(USE_TCMALLOC 0 CACHE BOOL "Use TCMalloc")
 set(NO_GIT_REVISION 0 CACHE BOOL "Disable embedding the git revision into the compiled exe")
@@ -145,8 +145,14 @@ elseif(USE_BACKEND STREQUAL "EIGEN")
   set(NEURALNET_BACKEND_SOURCES
     neuralnet/eigenbackend.cpp
     )
+elseif(USE_BACKEND STREQUAL "ONNX")
+  message(STATUS "-DUSE_BACKEND=ONNX, using ONNX Runtime backend (loads .bin.gz natively).")
+  set(NEURALNET_BACKEND_SOURCES
+    neuralnet/onnxbackend.cpp
+    neuralnet/onnxmodelbuilder.cpp
+    )
 elseif(USE_BACKEND STREQUAL "")
-  message(WARNING "${ColorBoldRed}WARNING: Using dummy neural net backend, intended for non-neural-net testing only, will fail on any code path requiring a neural net. To use neural net, specify -DUSE_BACKEND=CUDA or -DUSE_BACKEND=TENSORRT or -DUSE_BACKEND=OPENCL or -DUSE_BACKEND=EIGEN to compile with the respective backend.${ColorReset}")
+  message(WARNING "${ColorBoldRed}WARNING: Using dummy neural net backend, intended for non-neural-net testing only, will fail on any code path requiring a neural net. To use neural net, specify -DUSE_BACKEND=CUDA or -DUSE_BACKEND=TENSORRT or -DUSE_BACKEND=OPENCL or -DUSE_BACKEND=EIGEN or -DUSE_BACKEND=ONNX to compile with the respective backend.${ColorReset}")
   set(NEURALNET_BACKEND_SOURCES neuralnet/dummybackend.cpp)
 else()
   message(FATAL_ERROR "Unrecognized backend: " ${USE_BACKEND})
@@ -449,6 +455,43 @@ elseif(USE_BACKEND STREQUAL "EIGEN")
       endif()
     endif()
   endif()
+elseif(USE_BACKEND STREQUAL "ONNX")
+  target_compile_definitions(katago PRIVATE USE_ONNX_BACKEND)
+  set(ONNXRUNTIME_ROOT "" CACHE PATH "Path to ONNX Runtime source/install root")
+  set(ONNXRUNTIME_BUILD_DIR "" CACHE PATH "Path to ONNX Runtime build output directory")
+  if(NOT ONNXRUNTIME_ROOT OR NOT ONNXRUNTIME_BUILD_DIR)
+    message(FATAL_ERROR "ONNX backend requires -DONNXRUNTIME_ROOT=... and -DONNXRUNTIME_BUILD_DIR=...")
+  endif()
+  # Use non-SYSTEM -I so ORT's bundled protobuf headers take precedence over
+  # any system-installed protobuf found via /opt/homebrew/include or similar.
+  # (-I paths are searched before -isystem paths by the compiler.)
+  target_include_directories(katago BEFORE PRIVATE
+    "${ONNXRUNTIME_BUILD_DIR}/_deps/protobuf-src/src"
+    "${ONNXRUNTIME_BUILD_DIR}/_deps/onnx-build"
+    "${ONNXRUNTIME_ROOT}/cmake/external/onnx"
+  )
+  target_include_directories(katago SYSTEM PRIVATE
+    "${ONNXRUNTIME_ROOT}/include/onnxruntime/core/session"
+  )
+  if(APPLE)
+    target_include_directories(katago SYSTEM BEFORE PRIVATE
+      "${ONNXRUNTIME_ROOT}/include/onnxruntime/core/providers/coreml"
+    )
+  endif()
+  find_library(ONNXRUNTIME_LIB onnxruntime HINTS "${ONNXRUNTIME_BUILD_DIR}")
+  if(NOT ONNXRUNTIME_LIB)
+    message(FATAL_ERROR "Could not find libonnxruntime in ${ONNXRUNTIME_BUILD_DIR}")
+  endif()
+  # Link ONNX proto and protobuf-lite for building ONNX graphs
+  find_library(ONNX_PROTO_LIB onnx_proto HINTS "${ONNXRUNTIME_BUILD_DIR}/_deps/onnx-build")
+  find_library(PROTOBUF_LITE_LIB protobuf-lite HINTS "${ONNXRUNTIME_BUILD_DIR}/_deps/protobuf-build")
+  if(NOT ONNX_PROTO_LIB)
+    message(FATAL_ERROR "Could not find libonnx_proto in ${ONNXRUNTIME_BUILD_DIR}/_deps/onnx-build")
+  endif()
+  if(NOT PROTOBUF_LITE_LIB)
+    message(FATAL_ERROR "Could not find libprotobuf-lite in ${ONNXRUNTIME_BUILD_DIR}/_deps/protobuf-build")
+  endif()
+  target_link_libraries(katago ${ONNXRUNTIME_LIB} ${ONNX_PROTO_LIB} ${PROTOBUF_LITE_LIB})
 endif()
 
 if(USE_BIGGER_BOARDS_EXPENSIVE)

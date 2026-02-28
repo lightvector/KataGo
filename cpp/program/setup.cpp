@@ -20,6 +20,7 @@ std::vector<std::string> Setup::getBackendPrefixes() {
   prefixes.push_back("metal");
   prefixes.push_back("opencl");
   prefixes.push_back("eigen");
+  prefixes.push_back("onnx");
   prefixes.push_back("dummybackend");
   return prefixes;
 }
@@ -88,6 +89,8 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
   string backendPrefix = "opencl";
   #elif defined(USE_EIGEN_BACKEND)
   string backendPrefix = "eigen";
+  #elif defined(USE_ONNX_BACKEND)
+  string backendPrefix = "onnx";
   #else
   string backendPrefix = "dummybackend";
   #endif
@@ -141,7 +144,7 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
         requireExactNNLen = cfg.getBool("requireMaxBoardSize");
     }
 
-    bool inputsUseNHWC = backendPrefix == "opencl" || backendPrefix == "trt" || backendPrefix == "metal" ? false : true;
+    bool inputsUseNHWC = backendPrefix == "opencl" || backendPrefix == "trt" || backendPrefix == "metal" || backendPrefix == "onnx" ? false : true;
     if(cfg.contains(backendPrefix+"InputsUseNHWC"+idxStr))
       inputsUseNHWC = cfg.getBool(backendPrefix+"InputsUseNHWC"+idxStr);
     else if(cfg.contains("inputsUseNHWC"+idxStr))
@@ -220,9 +223,12 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
 
     string homeDataDirOverride = loadHomeDataDirOverride(cfg);
 
-    string openCLTunerFile;
+    string backendExtraParam;
     if(cfg.contains("openclTunerFile"))
-      openCLTunerFile = cfg.getString("openclTunerFile");
+      backendExtraParam = cfg.getString("openclTunerFile");
+    #if defined(USE_ONNX_BACKEND)
+    backendExtraParam = cfg.contains("onnxProvider") ? cfg.getString("onnxProvider") : "cpu";
+    #endif
     bool openCLReTunePerBoardSize = false;
     if(cfg.contains("openclReTunePerBoardSize"))
       openCLReTunePerBoardSize = cfg.getBool("openclReTunePerBoardSize");
@@ -315,7 +321,7 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
       nnCacheSizePowerOfTwo,
       nnMutexPoolSizePowerOfTwo,
       debugSkipNeuralNet,
-      openCLTunerFile,
+      backendExtraParam,
       homeDataDirOverride,
       openCLReTunePerBoardSize,
       useFP16Mode,

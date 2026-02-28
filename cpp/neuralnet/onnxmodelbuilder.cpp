@@ -1,0 +1,797 @@
+// Builds an ONNX computational graph from a KataGo ModelDesc.
+// Uses the ONNX protobuf API (onnx-ml.pb.h) to construct a ModelProto
+// that can be loaded directly by ONNX Runtime.
+
+#include "../neuralnet/onnxmodelbuilder.h"
+#include "../neuralnet/activations.h"
+#include "../core/global.h"
+
+#include <onnx/onnx-ml.pb.h>
+
+#include <string>
+#include <vector>
+
+using namespace std;
+
+// Counter for generating unique tensor names
+static thread_local int nameCounter = 0;
+
+static string uniqueName(const string& prefix) {
+  return prefix + "_" + to_string(nameCounter++);
+}
+
+// =====================================================================
+// Helper: Add a float tensor initializer to the graph
+// =====================================================================
+static string addInitializer(
+  onnx::GraphProto* graph,
+  const string& name,
+  const vector<int64_t>& shape,
+  const float* data,
+  size_t numElements
+) {
+  onnx::TensorProto* tensor = graph->add_initializer();
+  tensor->set_name(name);
+  tensor->set_data_type(onnx::TensorProto_DataType_FLOAT);
+  for(int64_t d : shape)
+    tensor->add_dims(d);
+  tensor->set_raw_data(data, numElements * sizeof(float));
+  return name;
+}
+
+static string addInitializer(
+  onnx::GraphProto* graph,
+  const string& name,
+  const vector<int64_t>& shape,
+  const vector<float>& data
+) {
+  return addInitializer(graph, name, shape, data.data(), data.size());
+}
+
+// Add a scalar float constant
+static string addScalarInitializer(onnx::GraphProto* graph, const string& name, float value) {
+  return addInitializer(graph, name, {}, &value, 1);
+}
+
+// Add a 1D int64 constant tensor
+static string addInt64Initializer(
+  onnx::GraphProto* graph,
+  const string& name,
+  const vector<int64_t>& data
+) {
+  onnx::TensorProto* tensor = graph->add_initializer();
+  tensor->set_name(name);
+  tensor->set_data_type(onnx::TensorProto_DataType_INT64);
+  tensor->add_dims((int64_t)data.size());
+  tensor->set_raw_data(data.data(), data.size() * sizeof(int64_t));
+  return name;
+}
+
+// =====================================================================
+// Helper: Add ONNX graph node
+// =====================================================================
+
+// Generic node with n inputs, 1 output
+static string addNode(
+  onnx::GraphProto* graph,
+  const string& opType,
+  const vector<string>& inputs,
+  const string& outputName
+) {
+  onnx::NodeProto* node = graph->add_node();
+  node->set_op_type(opType);
+  for(const auto& inp : inputs)
+    node->add_input(inp);
+  node->add_output(outputName);
+  return outputName;
+}
+
+// Add an attribute (int) to the last node in the graph
+static void setAttrInt(onnx::GraphProto* graph, const string& attrName, int64_t value) {
+  onnx::NodeProto* node = graph->mutable_node(graph->node_size() - 1);
+  onnx::AttributeProto* attr = node->add_attribute();
+  attr->set_name(attrName);
+  attr->set_type(onnx::AttributeProto_AttributeType_INT);
+  attr->set_i(value);
+}
+
+// Add an attribute (ints) to the last node in the graph
+static void setAttrInts(onnx::GraphProto* graph, const string& attrName, const vector<int64_t>& values) {
+  onnx::NodeProto* node = graph->mutable_node(graph->node_size() - 1);
+  onnx::AttributeProto* attr = node->add_attribute();
+  attr->set_name(attrName);
+  attr->set_type(onnx::AttributeProto_AttributeType_INTS);
+  for(int64_t v : values)
+    attr->add_ints(v);
+}
+
+// Add an attribute (float) to the last node
+static void setAttrFloat(onnx::GraphProto* graph, const string& attrName, float value) {
+  onnx::NodeProto* node = graph->mutable_node(graph->node_size() - 1);
+  onnx::AttributeProto* attr = node->add_attribute();
+  attr->set_name(attrName);
+  attr->set_type(onnx::AttributeProto_AttributeType_FLOAT);
+  attr->set_f(value);
+}
+
+// =====================================================================
+// Convolution: Conv with zero-padding
+// =====================================================================
+static string addConvNode(
+  onnx::GraphProto* graph,
+  const string& input,
+  const ConvLayerDesc& desc,
+  const string& prefix
+) {
+  string weightsName = addInitializer(
+    graph, prefix + "/w",
+    {desc.outChannels, desc.inChannels, desc.convYSize, desc.convXSize},
+    desc.weights
+  );
+
+  int padY = desc.convYSize / 2;
+  int padX = desc.convXSize / 2;
+  string output = uniqueName(prefix + "/out");
+
+  addNode(graph, "Conv", {input, weightsName}, output);
+  setAttrInts(graph, "kernel_shape", {desc.convYSize, desc.convXSize});
+  setAttrInts(graph, "pads", {padY, padX, padY, padX});
+  setAttrInts(graph, "dilations", {desc.dilationY, desc.dilationX});
+  setAttrInts(graph, "strides", {1, 1});
+
+  return output;
+}
+
+// =====================================================================
+// Merged Batch Norm: output = input * mergedScale + mergedBias
+// Applied channel-wise, broadcasting over [N, C, H, W]
+// =====================================================================
+static string addMergedBNNode(
+  onnx::GraphProto* graph,
+  const string& input,
+  const BatchNormLayerDesc& desc,
+  const string& prefix
+) {
+  int C = desc.numChannels;
+  string scaleName = addInitializer(graph, prefix + "/scale", {C, 1, 1}, desc.mergedScale);
+  string biasName = addInitializer(graph, prefix + "/bias", {C, 1, 1}, desc.mergedBias);
+
+  string scaled = uniqueName(prefix + "/scaled");
+  addNode(graph, "Mul", {input, scaleName}, scaled);
+
+  string output = uniqueName(prefix + "/bn_out");
+  addNode(graph, "Add", {scaled, biasName}, output);
+
+  return output;
+}
+
+// =====================================================================
+// Activation: ReLU, Mish (softplus->tanh->mul), or Identity
+// =====================================================================
+static string addActivationNode(
+  onnx::GraphProto* graph,
+  const string& input,
+  int activationType,
+  const string& prefix
+) {
+  if(activationType == ACTIVATION_RELU) {
+    string output = uniqueName(prefix + "/relu");
+    addNode(graph, "Relu", {input}, output);
+    return output;
+  } else if(activationType == ACTIVATION_MISH) {
+    // Mish = x * tanh(softplus(x)) = x * tanh(ln(1 + exp(x)))
+    string sp = uniqueName(prefix + "/softplus");
+    addNode(graph, "Softplus", {input}, sp);
+
+    string th = uniqueName(prefix + "/tanh");
+    addNode(graph, "Tanh", {sp}, th);
+
+    string output = uniqueName(prefix + "/mish");
+    addNode(graph, "Mul", {input, th}, output);
+    return output;
+  } else {
+    // ACTIVATION_IDENTITY — pass through
+    return input;
+  }
+}
+
+// =====================================================================
+// BN + Activation + Mask multiply
+// output = activation(input * scale + bias) * mask
+// =====================================================================
+static string addBNActivationMask(
+  onnx::GraphProto* graph,
+  const string& input,
+  const BatchNormLayerDesc& bnDesc,
+  const ActivationLayerDesc& actDesc,
+  const string& mask,
+  const string& prefix
+) {
+  string bn = addMergedBNNode(graph, input, bnDesc, prefix + "/bn");
+  string act = addActivationNode(graph, bn, actDesc.activation, prefix + "/act");
+  string output = uniqueName(prefix + "/masked");
+  addNode(graph, "Mul", {act, mask}, output);
+  return output;
+}
+
+// =====================================================================
+// MatMul via Gemm: output = input @ W^T + bias (optional)
+// W is [outC, inC], transB=1
+// =====================================================================
+static string addMatMulNode(
+  onnx::GraphProto* graph,
+  const string& input,
+  const MatMulLayerDesc& desc,
+  const string& prefix
+) {
+  // MatMulLayerDesc weights are stored as [inC, outC] in row-major.
+  // ONNX Gemm with transB=1 expects B as [outC, inC].
+  // We need to transpose the weights.
+  int inC = desc.inChannels;
+  int outC = desc.outChannels;
+  vector<float> transposed(inC * outC);
+  for(int i = 0; i < inC; i++)
+    for(int o = 0; o < outC; o++)
+      transposed[o * inC + i] = desc.weights[i * outC + o];
+
+  string weightsName = addInitializer(graph, prefix + "/w", {outC, inC}, transposed);
+  string output = uniqueName(prefix + "/gemm");
+  addNode(graph, "Gemm", {input, weightsName}, output);
+  setAttrInt(graph, "transB", 1);
+  setAttrFloat(graph, "alpha", 1.0f);
+  setAttrFloat(graph, "beta", 0.0f);
+  return output;
+}
+
+// =====================================================================
+// Bias addition: output = input + bias
+// bias is [C], broadcast over [N, C] or [N, C, H, W]
+// =====================================================================
+static string addBiasNode(
+  onnx::GraphProto* graph,
+  const string& input,
+  const MatBiasLayerDesc& desc,
+  const string& prefix
+) {
+  string biasName = addInitializer(graph, prefix + "/b", {desc.numChannels}, desc.weights);
+  string output = uniqueName(prefix + "/biased");
+  addNode(graph, "Add", {input, biasName}, output);
+  return output;
+}
+
+// =====================================================================
+// KataGPool: Global pooling producing 3 values per channel
+// Pool 1: mean = ReduceSum(x * mask, [2,3]) / maskSum
+// Pool 2: mean * (sqrt(maskSum) - 14.0) * 0.1
+// Pool 3: ReduceMax(x + (mask - 1.0), [2,3])
+// Output: [N, 3*C]
+// =====================================================================
+static string addGlobalPool(
+  onnx::GraphProto* graph,
+  const string& input,
+  const string& mask,
+  const string& maskSumHW,
+  const string& prefix
+) {
+  // x_masked = input * mask  (already masked, but let's be safe)
+  string xMasked = uniqueName(prefix + "/gpool_xm");
+  addNode(graph, "Mul", {input, mask}, xMasked);
+
+  // sum = ReduceSum(xMasked, axes=[2,3])
+  string axesName = addInt64Initializer(graph, uniqueName(prefix + "/axes23"), {2, 3});
+  string sumOut = uniqueName(prefix + "/gpool_sum");
+  addNode(graph, "ReduceSum", {xMasked, axesName}, sumOut);
+  setAttrInt(graph, "keepdims", 0);
+
+  // mean = sum / maskSumFlat
+  // maskSumHW is [N,1,1,1], we need [N,1] for division
+  string maskSumFlat = uniqueName(prefix + "/gpool_msf");
+  string reshapeShape = addInt64Initializer(graph, uniqueName(prefix + "/shape_n1"), {0, 1});
+  addNode(graph, "Reshape", {maskSumHW, reshapeShape}, maskSumFlat);
+
+  string mean = uniqueName(prefix + "/gpool_mean");
+  addNode(graph, "Div", {sumOut, maskSumFlat}, mean);
+
+  // sqrtMaskSum = sqrt(maskSumFlat)
+  string sqrtMs = uniqueName(prefix + "/gpool_sqrt");
+  addNode(graph, "Sqrt", {maskSumFlat}, sqrtMs);
+
+  // sqrtMs - 14.0
+  string const14 = addScalarInitializer(graph, uniqueName(prefix + "/c14"), 14.0f);
+  string sqrtMsSub = uniqueName(prefix + "/gpool_sqrtsub");
+  addNode(graph, "Sub", {sqrtMs, const14}, sqrtMsSub);
+
+  // * 0.1
+  string const01 = addScalarInitializer(graph, uniqueName(prefix + "/c01"), 0.1f);
+  string scaledSqrt = uniqueName(prefix + "/gpool_ssm");
+  addNode(graph, "Mul", {sqrtMsSub, const01}, scaledSqrt);
+
+  // pool2 = mean * scaledSqrt
+  string pool2 = uniqueName(prefix + "/gpool_p2");
+  addNode(graph, "Mul", {mean, scaledSqrt}, pool2);
+
+  // Pool3: max over (x + mask - 1)
+  string constNeg1 = addScalarInitializer(graph, uniqueName(prefix + "/cn1"), -1.0f);
+  string maskBias = uniqueName(prefix + "/gpool_mb");
+  addNode(graph, "Add", {mask, constNeg1}, maskBias);
+
+  string xShifted = uniqueName(prefix + "/gpool_xs");
+  addNode(graph, "Add", {input, maskBias}, xShifted);
+
+  // ReduceMax over [2,3]
+  string axesName2 = addInt64Initializer(graph, uniqueName(prefix + "/axes23b"), {2, 3});
+  string pool3 = uniqueName(prefix + "/gpool_max");
+  addNode(graph, "ReduceMax", {xShifted, axesName2}, pool3);
+  setAttrInt(graph, "keepdims", 0);
+
+  // Concat [mean, pool2, pool3] along axis=1
+  string output = uniqueName(prefix + "/gpool_out");
+  addNode(graph, "Concat", {mean, pool2, pool3}, output);
+  setAttrInt(graph, "axis", 1);
+
+  return output;
+}
+
+// =====================================================================
+// KataValueHeadGPool: Different third pool from KataGPool
+// Pool 3: mean * ((sqrt(maskSum) - 14.0)^2 * 0.01 - 0.1)
+// =====================================================================
+static string addValueHeadGPool(
+  onnx::GraphProto* graph,
+  const string& input,
+  const string& mask,
+  const string& maskSumHW,
+  const string& prefix
+) {
+  // x for value head already has activation applied
+  // sum = ReduceSum(input * mask, [2,3])
+  string xMasked = uniqueName(prefix + "/vgpool_xm");
+  addNode(graph, "Mul", {input, mask}, xMasked);
+
+  string axesName = addInt64Initializer(graph, uniqueName(prefix + "/axes23"), {2, 3});
+  string sumOut = uniqueName(prefix + "/vgpool_sum");
+  addNode(graph, "ReduceSum", {xMasked, axesName}, sumOut);
+  setAttrInt(graph, "keepdims", 0);
+
+  // mean
+  string maskSumFlat = uniqueName(prefix + "/vgpool_msf");
+  string reshapeShape = addInt64Initializer(graph, uniqueName(prefix + "/shape_n1"), {0, 1});
+  addNode(graph, "Reshape", {maskSumHW, reshapeShape}, maskSumFlat);
+
+  string mean = uniqueName(prefix + "/vgpool_mean");
+  addNode(graph, "Div", {sumOut, maskSumFlat}, mean);
+
+  // sqrt(maskSum)
+  string sqrtMs = uniqueName(prefix + "/vgpool_sqrt");
+  addNode(graph, "Sqrt", {maskSumFlat}, sqrtMs);
+
+  // (sqrt(maskSum) - 14.0)
+  string const14 = addScalarInitializer(graph, uniqueName(prefix + "/c14"), 14.0f);
+  string sqrtMsSub = uniqueName(prefix + "/vgpool_ss");
+  addNode(graph, "Sub", {sqrtMs, const14}, sqrtMsSub);
+
+  // pool2 = mean * (sqrtMsSub) * 0.1
+  string const01 = addScalarInitializer(graph, uniqueName(prefix + "/c01"), 0.1f);
+  string scaledSqrt = uniqueName(prefix + "/vgpool_ssm");
+  addNode(graph, "Mul", {sqrtMsSub, const01}, scaledSqrt);
+  string pool2 = uniqueName(prefix + "/vgpool_p2");
+  addNode(graph, "Mul", {mean, scaledSqrt}, pool2);
+
+  // pool3 = mean * ((sqrtMsSub)^2 * 0.01 - 0.1)
+  string sqrtMsSubSq = uniqueName(prefix + "/vgpool_sq");
+  addNode(graph, "Mul", {sqrtMsSub, sqrtMsSub}, sqrtMsSubSq);
+
+  string constP01 = addScalarInitializer(graph, uniqueName(prefix + "/cp01"), 0.01f);
+  string sqScaled = uniqueName(prefix + "/vgpool_sqs");
+  addNode(graph, "Mul", {sqrtMsSubSq, constP01}, sqScaled);
+
+  string constN01 = addScalarInitializer(graph, uniqueName(prefix + "/cn01"), -0.1f);
+  string sqShifted = uniqueName(prefix + "/vgpool_sqsh");
+  addNode(graph, "Add", {sqScaled, constN01}, sqShifted);
+
+  string pool3 = uniqueName(prefix + "/vgpool_p3");
+  addNode(graph, "Mul", {mean, sqShifted}, pool3);
+
+  // Concat [mean, pool2, pool3] along axis=1
+  string output = uniqueName(prefix + "/vgpool_out");
+  addNode(graph, "Concat", {mean, pool2, pool3}, output);
+  setAttrInt(graph, "axis", 1);
+
+  return output;
+}
+
+// =====================================================================
+// Residual Block: BN→Act→Conv→BN→Act→Conv + skip
+// =====================================================================
+static string addResidualBlock(
+  onnx::GraphProto* graph,
+  const string& input,
+  const string& mask,
+  const ResidualBlockDesc& desc,
+  const string& prefix
+) {
+  string pre = addBNActivationMask(graph, input, desc.preBN, desc.preActivation, mask, prefix + "/pre");
+  string mid = addConvNode(graph, pre, desc.regularConv, prefix + "/conv1");
+  string midAct = addBNActivationMask(graph, mid, desc.midBN, desc.midActivation, mask, prefix + "/mid");
+  string final_ = addConvNode(graph, midAct, desc.finalConv, prefix + "/conv2");
+
+  // Residual add
+  string output = uniqueName(prefix + "/resadd");
+  addNode(graph, "Add", {input, final_}, output);
+  return output;
+}
+
+// =====================================================================
+// Global Pooling Residual Block
+// =====================================================================
+static string addGPoolResidualBlock(
+  onnx::GraphProto* graph,
+  const string& input,
+  const string& mask,
+  const string& maskSumHW,
+  const GlobalPoolingResidualBlockDesc& desc,
+  const string& prefix
+) {
+  string pre = addBNActivationMask(graph, input, desc.preBN, desc.preActivation, mask, prefix + "/pre");
+
+  // Regular path
+  string regOut = addConvNode(graph, pre, desc.regularConv, prefix + "/reg");
+
+  // Global pooling path
+  string gpoolConvOut = addConvNode(graph, pre, desc.gpoolConv, prefix + "/gconv");
+  string gpoolBNAct = addBNActivationMask(graph, gpoolConvOut, desc.gpoolBN, desc.gpoolActivation, mask, prefix + "/gbn");
+  string gpoolResult = addGlobalPool(graph, gpoolBNAct, mask, maskSumHW, prefix + "/gpool");
+
+  // gpoolToBiasMul: [N, 3*gpoolC] → [N, regC]
+  string gpoolBias = addMatMulNode(graph, gpoolResult, desc.gpoolToBiasMul, prefix + "/g2b");
+
+  // Reshape bias to [N, C, 1, 1] for broadcasting
+  string biasShape = addInt64Initializer(graph, uniqueName(prefix + "/shape_nc11"), {0, -1, 1, 1});
+  string gpoolBiasReshaped = uniqueName(prefix + "/gbr");
+  addNode(graph, "Reshape", {gpoolBias, biasShape}, gpoolBiasReshaped);
+
+  // Add bias to regular conv output
+  string regPlusBias = uniqueName(prefix + "/rpb");
+  addNode(graph, "Add", {regOut, gpoolBiasReshaped}, regPlusBias);
+
+  // Second half: BN→Act→Conv
+  string midAct = addBNActivationMask(graph, regPlusBias, desc.midBN, desc.midActivation, mask, prefix + "/mid");
+  string final_ = addConvNode(graph, midAct, desc.finalConv, prefix + "/conv2");
+
+  // Residual add
+  string output = uniqueName(prefix + "/resadd");
+  addNode(graph, "Add", {input, final_}, output);
+  return output;
+}
+
+// =====================================================================
+// Nested Bottleneck Residual Block
+// Pre: BN→Act→Mask→1x1Conv (c_main→c_mid)
+// Inner: sequence of ordinary/gpool/nested_bottleneck sub-blocks at c_mid
+// Post: BN→Act→Mask→1x1Conv (c_mid→c_main) + residual add
+// =====================================================================
+static string addNestedBottleneckResidualBlock(
+  onnx::GraphProto* graph,
+  const string& input,
+  const string& mask,
+  const string& maskSumHW,
+  const NestedBottleneckResidualBlockDesc& desc,
+  const string& prefix
+) {
+  // Pre: BN → Act → Mask → 1x1 Conv (c_main → c_mid)
+  string pre = addBNActivationMask(graph, input, desc.preBN, desc.preActivation, mask, prefix + "/pre");
+  string midOut = addConvNode(graph, pre, desc.preConv, prefix + "/preconv");
+
+  // Inner sub-blocks at c_mid channels
+  for(int i = 0; i < desc.numBlocks; i++) {
+    int kind = desc.blocks[i].first;
+    string sub = prefix + "/sub" + to_string(i);
+    if(kind == ORDINARY_BLOCK_KIND) {
+      midOut = addResidualBlock(graph, midOut, mask,
+        *((const ResidualBlockDesc*)desc.blocks[i].second.get()), sub);
+    } else if(kind == GLOBAL_POOLING_BLOCK_KIND) {
+      midOut = addGPoolResidualBlock(graph, midOut, mask, maskSumHW,
+        *((const GlobalPoolingResidualBlockDesc*)desc.blocks[i].second.get()), sub);
+    } else if(kind == NESTED_BOTTLENECK_BLOCK_KIND) {
+      midOut = addNestedBottleneckResidualBlock(graph, midOut, mask, maskSumHW,
+        *((const NestedBottleneckResidualBlockDesc*)desc.blocks[i].second.get()), sub);
+    } else {
+      throw StringError("ONNX backend: unknown sub-block kind " + to_string(kind));
+    }
+  }
+
+  // Post: BN → Act → Mask → 1x1 Conv (c_mid → c_main)
+  string post = addBNActivationMask(graph, midOut, desc.postBN, desc.postActivation, mask, prefix + "/post");
+  string postOut = addConvNode(graph, post, desc.postConv, prefix + "/postconv");
+
+  // Residual add: input + postOut
+  string output = uniqueName(prefix + "/resadd");
+  addNode(graph, "Add", {input, postOut}, output);
+  return output;
+}
+
+// =====================================================================
+// Add ValueInfo for graph input/output
+// =====================================================================
+static void addGraphInput(
+  onnx::GraphProto* graph,
+  const string& name,
+  const vector<int64_t>& shape
+) {
+  onnx::ValueInfoProto* input = graph->add_input();
+  input->set_name(name);
+  onnx::TypeProto* type = input->mutable_type();
+  onnx::TypeProto_Tensor* tensorType = type->mutable_tensor_type();
+  tensorType->set_elem_type(onnx::TensorProto_DataType_FLOAT);
+  onnx::TensorShapeProto* shapeProto = tensorType->mutable_shape();
+  for(int64_t d : shape) {
+    auto* dim = shapeProto->add_dim();
+    if(d < 0)
+      dim->set_dim_param("N");
+    else
+      dim->set_dim_value(d);
+  }
+}
+
+static void addGraphOutput(
+  onnx::GraphProto* graph,
+  const string& name,
+  const vector<int64_t>& shape
+) {
+  onnx::ValueInfoProto* output = graph->add_output();
+  output->set_name(name);
+  onnx::TypeProto* type = output->mutable_type();
+  onnx::TypeProto_Tensor* tensorType = type->mutable_tensor_type();
+  tensorType->set_elem_type(onnx::TensorProto_DataType_FLOAT);
+  onnx::TensorShapeProto* shapeProto = tensorType->mutable_shape();
+  for(int64_t d : shape) {
+    auto* dim = shapeProto->add_dim();
+    if(d < 0)
+      dim->set_dim_param("N");
+    else
+      dim->set_dim_value(d);
+  }
+}
+
+// =====================================================================
+// Main: Build the full ONNX model from ModelDesc
+// =====================================================================
+string OnnxModelBuilder::buildOnnxModel(const ModelDesc& modelDesc, int nnXLen, int nnYLen) {
+  nameCounter = 0;
+
+  const int modelVersion = modelDesc.modelVersion;
+  const int numInputChannels = modelDesc.numInputChannels;
+  const int numInputGlobalChannels = modelDesc.numInputGlobalChannels;
+  const int numPolicyChannels = modelDesc.numPolicyChannels;
+  const int numValueChannels = modelDesc.numValueChannels;
+  const int numScoreValueChannels = modelDesc.numScoreValueChannels;
+  const int numOwnershipChannels = modelDesc.numOwnershipChannels;
+
+  const TrunkDesc& trunk = modelDesc.trunk;
+  const PolicyHeadDesc& policyHead = modelDesc.policyHead;
+  const ValueHeadDesc& valueHead = modelDesc.valueHead;
+
+  onnx::ModelProto model;
+  model.set_ir_version(8);
+  model.set_producer_name("KataGo");
+  model.set_domain("ai.katago");
+
+  auto* opset = model.add_opset_import();
+  opset->set_domain("");
+  opset->set_version(18);
+
+  onnx::GraphProto* graph = model.mutable_graph();
+  graph->set_name("katago");
+
+  // ------------------------------------------------------------------
+  // Graph Inputs
+  // ------------------------------------------------------------------
+  addGraphInput(graph, "input_spatial", {-1, numInputChannels, nnYLen, nnXLen});
+  addGraphInput(graph, "input_global", {-1, numInputGlobalChannels});
+
+  // ------------------------------------------------------------------
+  // Derive mask and maskSumHW from input_spatial
+  // mask = input_spatial[:, 0:1, :, :]  → [N, 1, H, W]
+  // maskSumHW = ReduceSum(mask, [2, 3], keepdims=true) → [N, 1, 1, 1]
+  // ------------------------------------------------------------------
+
+  // Slice channel 0 to get mask
+  string sliceStarts = addInt64Initializer(graph, "mask_starts", {0});
+  string sliceEnds = addInt64Initializer(graph, "mask_ends", {1});
+  string sliceAxes = addInt64Initializer(graph, "mask_axes", {1});
+  string mask = uniqueName("mask");
+  addNode(graph, "Slice", {"input_spatial", sliceStarts, sliceEnds, sliceAxes}, mask);
+
+  // maskSumHW
+  string sumAxes = addInt64Initializer(graph, "mask_sum_axes", {2, 3});
+  string maskSumHW = uniqueName("maskSumHW");
+  addNode(graph, "ReduceSum", {mask, sumAxes}, maskSumHW);
+  setAttrInt(graph, "keepdims", 1);
+
+  // ------------------------------------------------------------------
+  // Trunk: Initial conv + matmul bias
+  // ------------------------------------------------------------------
+  string trunkOut = addConvNode(graph, "input_spatial", trunk.initialConv, "trunk/init_conv");
+
+  // initialMatMul: global features → [N, trunkNumChannels]
+  string globalBias = addMatMulNode(graph, "input_global", trunk.initialMatMul, "trunk/init_matmul");
+
+  // Reshape to [N, C, 1, 1] for broadcasting
+  string biasShape = addInt64Initializer(graph, "trunk_bias_shape", {0, -1, 1, 1});
+  string globalBiasReshaped = uniqueName("trunk/gbr");
+  addNode(graph, "Reshape", {globalBias, biasShape}, globalBiasReshaped);
+
+  // Add global bias to conv output
+  string trunkCombined = uniqueName("trunk/combined");
+  addNode(graph, "Add", {trunkOut, globalBiasReshaped}, trunkCombined);
+  trunkOut = trunkCombined;
+
+  // ------------------------------------------------------------------
+  // Trunk: Residual blocks
+  // ------------------------------------------------------------------
+  for(int i = 0; i < trunk.numBlocks; i++) {
+    int blockKind = trunk.blocks[i].first;
+    string blockPrefix = "trunk/block" + to_string(i);
+
+    if(blockKind == ORDINARY_BLOCK_KIND) {
+      const ResidualBlockDesc& blockDesc = *((const ResidualBlockDesc*)trunk.blocks[i].second.get());
+      trunkOut = addResidualBlock(graph, trunkOut, mask, blockDesc, blockPrefix);
+    } else if(blockKind == GLOBAL_POOLING_BLOCK_KIND) {
+      const GlobalPoolingResidualBlockDesc& blockDesc = *((const GlobalPoolingResidualBlockDesc*)trunk.blocks[i].second.get());
+      trunkOut = addGPoolResidualBlock(graph, trunkOut, mask, maskSumHW, blockDesc, blockPrefix);
+    } else if(blockKind == NESTED_BOTTLENECK_BLOCK_KIND) {
+      const NestedBottleneckResidualBlockDesc& blockDesc = *((const NestedBottleneckResidualBlockDesc*)trunk.blocks[i].second.get());
+      trunkOut = addNestedBottleneckResidualBlock(graph, trunkOut, mask, maskSumHW, blockDesc, blockPrefix);
+    } else {
+      throw StringError("ONNX backend: unknown block kind " + to_string(blockKind));
+    }
+  }
+
+  // Trunk tip: BN + activation + mask
+  trunkOut = addBNActivationMask(graph, trunkOut, trunk.trunkTipBN, trunk.trunkTipActivation, mask, "trunk/tip");
+
+  // ------------------------------------------------------------------
+  // Policy Head
+  // ------------------------------------------------------------------
+
+  // p1Conv: spatial path
+  string p1Out = addConvNode(graph, trunkOut, policyHead.p1Conv, "policy/p1conv");
+
+  // g1Conv: global pooling path
+  string g1Out = addConvNode(graph, trunkOut, policyHead.g1Conv, "policy/g1conv");
+  string g1BNAct = addBNActivationMask(graph, g1Out, policyHead.g1BN, policyHead.g1Activation, mask, "policy/g1bn");
+  string g1Pool = addGlobalPool(graph, g1BNAct, mask, maskSumHW, "policy/g1pool");
+
+  // gpoolToBiasMul: [N, 3*g1C] → [N, p1C]
+  string policyBias = addMatMulNode(graph, g1Pool, policyHead.gpoolToBiasMul, "policy/g2b");
+
+  // Reshape to [N, C, 1, 1]
+  string pBiasShape = addInt64Initializer(graph, uniqueName("policy/bias_shape"), {0, -1, 1, 1});
+  string policyBiasReshaped = uniqueName("policy/pbr");
+  addNode(graph, "Reshape", {policyBias, pBiasShape}, policyBiasReshaped);
+
+  // Add bias to p1
+  string p1PlusBias = uniqueName("policy/p1pb");
+  addNode(graph, "Add", {p1Out, policyBiasReshaped}, p1PlusBias);
+
+  // p1BN + activation + mask
+  string p1BNAct = addBNActivationMask(graph, p1PlusBias, policyHead.p1BN, policyHead.p1Activation, mask, "policy/p1bn");
+
+  // p2Conv: [N, p1C, H, W] → [N, policyChannels, H, W]
+  string p2Out = addConvNode(graph, p1BNAct, policyHead.p2Conv, "policy/p2conv");
+
+  // Reshape to [N, policyChannels, H*W]
+  string pSpatialShape = addInt64Initializer(graph, uniqueName("policy/spat_shape"), {0, numPolicyChannels, -1});
+  string policySpatial = uniqueName("policy/spatial");
+  addNode(graph, "Reshape", {p2Out, pSpatialShape}, policySpatial);
+
+  // Pass move: gpoolToPassMul
+  string passOut;
+  if(modelVersion >= 15) {
+    // gpoolToPassMul → bias → activation → gpoolToPassMul2
+    string passMul1 = addMatMulNode(graph, g1Pool, policyHead.gpoolToPassMul, "policy/pass_mul1");
+    string passBiased = addBiasNode(graph, passMul1, policyHead.gpoolToPassBias, "policy/pass_bias");
+    string passAct = addActivationNode(graph, passBiased, policyHead.passActivation.activation, "policy/pass_act");
+    passOut = addMatMulNode(graph, passAct, policyHead.gpoolToPassMul2, "policy/pass_mul2");
+  } else {
+    passOut = addMatMulNode(graph, g1Pool, policyHead.gpoolToPassMul, "policy/pass_mul");
+  }
+
+  // Reshape pass to [N, policyChannels, 1]
+  string passShape = addInt64Initializer(graph, uniqueName("policy/pass_shape"), {0, numPolicyChannels, 1});
+  string passReshaped = uniqueName("policy/pass_r");
+  addNode(graph, "Reshape", {passOut, passShape}, passReshaped);
+
+  // Concat spatial + pass → out_policy [N, policyChannels, H*W+1]
+  addNode(graph, "Concat", {policySpatial, passReshaped}, "out_policy");
+  setAttrInt(graph, "axis", 2);
+
+  // ------------------------------------------------------------------
+  // Value Head
+  // ------------------------------------------------------------------
+
+  // v1Conv
+  string v1Out = addConvNode(graph, trunkOut, valueHead.v1Conv, "value/v1conv");
+
+  // v1BN + activation + mask
+  string v1BNAct = addBNActivationMask(graph, v1Out, valueHead.v1BN, valueHead.v1Activation, mask, "value/v1bn");
+
+  // Value head global pooling
+  string v1Pool = addValueHeadGPool(graph, v1BNAct, mask, maskSumHW, "value/vpool");
+
+  // v2Mul + v2Bias + v2Activation
+  string v2Out = addMatMulNode(graph, v1Pool, valueHead.v2Mul, "value/v2mul");
+  string v2Biased = addBiasNode(graph, v2Out, valueHead.v2Bias, "value/v2bias");
+  string v2Act = addActivationNode(graph, v2Biased, valueHead.v2Activation.activation, "value/v2act");
+
+  // v3Mul + v3Bias → out_value [N, 3]
+  string v3Out = addMatMulNode(graph, v2Act, valueHead.v3Mul, "value/v3mul");
+  addBiasNode(graph, v3Out, valueHead.v3Bias, "value/v3bias");
+  // Re-get the actual output name from the last bias node
+  string valueOutput = graph->node(graph->node_size() - 1).output(0);
+  // Rename to out_value using Identity
+  addNode(graph, "Identity", {valueOutput}, "out_value");
+
+  // sv3Mul + sv3Bias → out_miscvalue [N, numScoreValueChannels]
+  string sv3Out = addMatMulNode(graph, v2Act, valueHead.sv3Mul, "value/sv3mul");
+  string sv3Biased = addBiasNode(graph, sv3Out, valueHead.sv3Bias, "value/sv3bias");
+  addNode(graph, "Identity", {sv3Biased}, "out_miscvalue");
+
+  // vOwnershipConv → out_ownership [N, 1, H, W]
+  string ownOut = addConvNode(graph, v1BNAct, valueHead.vOwnershipConv, "value/own_conv");
+  addNode(graph, "Identity", {ownOut}, "out_ownership");
+
+  // out_moremiscvalue: fill with zeros [N, 8]
+  // This output is expected by the backend but older models may not have separate data.
+  // We produce zeros; the backend handles the semantic meaning.
+
+  // For moremiscvalue, produce a zero tensor of shape [N, 8]
+  // Use Slice on Shape(input_global) to get [N] as a 1-D tensor, then Concat with [8]
+  string inputShape = uniqueName("moremiscvalue/inshape");
+  addNode(graph, "Shape", {"input_global"}, inputShape);
+
+  // Slice to get first element as 1-D: Shape is [2] → Slice(0:1) → [1] containing N
+  string sliceS = addInt64Initializer(graph, uniqueName("moremiscvalue/s0"), {0});
+  string sliceE = addInt64Initializer(graph, uniqueName("moremiscvalue/e1"), {1});
+  string sliceA = addInt64Initializer(graph, uniqueName("moremiscvalue/a0"), {0});
+  string batchDim1D = uniqueName("moremiscvalue/batchdim");
+  addNode(graph, "Slice", {inputShape, sliceS, sliceE, sliceA}, batchDim1D);
+
+  string eightConst = addInt64Initializer(graph, uniqueName("moremiscvalue/eight"), {8});
+  string moreMiscShape = uniqueName("moremiscvalue/shape");
+  addNode(graph, "Concat", {batchDim1D, eightConst}, moreMiscShape);
+  setAttrInt(graph, "axis", 0);
+
+  // ConstantOfShape fills with 0
+  addNode(graph, "ConstantOfShape", {moreMiscShape}, "out_moremiscvalue");
+  // Set the value attribute to float 0.0
+  {
+    onnx::NodeProto* node = graph->mutable_node(graph->node_size() - 1);
+    onnx::AttributeProto* attr = node->add_attribute();
+    attr->set_name("value");
+    attr->set_type(onnx::AttributeProto_AttributeType_TENSOR);
+    onnx::TensorProto* t = attr->mutable_t();
+    t->set_data_type(onnx::TensorProto_DataType_FLOAT);
+    t->add_dims(1);
+    t->add_float_data(0.0f);
+  }
+
+  // ------------------------------------------------------------------
+  // Graph Outputs
+  // ------------------------------------------------------------------
+  int policyResultLen = nnXLen * nnYLen + 1;
+  addGraphOutput(graph, "out_policy", {-1, numPolicyChannels, policyResultLen});
+  addGraphOutput(graph, "out_value", {-1, numValueChannels});
+  addGraphOutput(graph, "out_miscvalue", {-1, numScoreValueChannels});
+  addGraphOutput(graph, "out_moremiscvalue", {-1, 8});
+  addGraphOutput(graph, "out_ownership", {-1, numOwnershipChannels, nnYLen, nnXLen});
+
+  // ------------------------------------------------------------------
+  // Serialize to string
+  // ------------------------------------------------------------------
+  string serialized;
+  if(!model.SerializeToString(&serialized))
+    throw StringError("ONNX backend: failed to serialize ONNX model to protobuf");
+
+  return serialized;
+}
