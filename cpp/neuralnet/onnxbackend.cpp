@@ -1,7 +1,8 @@
 // ONNX Runtime backend for KataGo.
-// Loads standard .bin.gz model files, builds an ONNX graph from ModelDesc at
-// load time, and runs inference via ONNX Runtime with a configurable execution
-// provider (CPU, CoreML, etc.) selected at runtime via the onnxProvider config key.
+// Loads standard .bin.gz model files (builds ONNX graph from ModelDesc) or
+// raw .onnx model files directly, and runs inference via ONNX Runtime with a
+// configurable execution provider (CPU, CoreML, etc.) selected at runtime via
+// the onnxProvider config key.
 
 #include "../neuralnet/nninterface.h"
 #include "../neuralnet/nneval.h"
@@ -14,15 +15,150 @@
 #include <coreml_provider_factory.h>
 #endif
 
+#include <fstream>
+
 using namespace std;
 
 //--------------------------------------------------------------
 
+// Auto-detect modelVersion from introspected channel counts.
+// configModelVersion overrides if >= 0.
+static int detectModelVersion(
+  int numInputChannels, int numInputGlobalChannels,
+  int numPolicyChannels, int numScoreValueChannels,
+  int configModelVersion
+) {
+  if(configModelVersion >= 0)
+    return configModelVersion;
+
+  // inputsVersion 7 → models 8-16: 22 spatial + 19 global
+  if(numInputChannels == NNInputs::NUM_FEATURES_SPATIAL_V7 &&
+     numInputGlobalChannels == NNInputs::NUM_FEATURES_GLOBAL_V7) {
+    if(numScoreValueChannels == 6 && numPolicyChannels == 2)
+      return 15;
+    if(numScoreValueChannels == 6 && numPolicyChannels == 1)
+      return 10;
+    if(numScoreValueChannels == 4)
+      return 8;
+    // Default for V7 inputs
+    return 15;
+  }
+  // Older input versions — fall back to a reasonable default
+  return NNModelVersion::defaultModelVersion;
+}
+
 struct LoadedModel {
   ModelDesc modelDesc;
+  bool isRawOnnx;
+  string rawOnnxBytes;
 
-  LoadedModel(const string& fileName, const string& expectedSha256) {
-    ModelDesc::loadFromFileMaybeGZipped(fileName, modelDesc, expectedSha256);
+  // Constructor for .bin.gz files
+  LoadedModel(const string& fileName, const string& expectedSha256, bool rawOnnx)
+    : isRawOnnx(rawOnnx)
+  {
+    if(!rawOnnx) {
+      ModelDesc::loadFromFileMaybeGZipped(fileName, modelDesc, expectedSha256);
+      return;
+    }
+
+    // Read raw .onnx file bytes
+    {
+      std::ifstream in(fileName, std::ios::binary | std::ios::ate);
+      if(!in.good())
+        throw StringError("ONNX backend: could not open raw ONNX file: " + fileName);
+      std::streamsize size = in.tellg();
+      in.seekg(0, std::ios::beg);
+      rawOnnxBytes.resize(size);
+      if(!in.read(rawOnnxBytes.data(), size))
+        throw StringError("ONNX backend: failed to read raw ONNX file: " + fileName);
+    }
+
+    // Create a temporary CPU session to introspect shapes
+    Ort::Env tmpEnv(ORT_LOGGING_LEVEL_WARNING, "KataGoOnnxIntrospect");
+    Ort::SessionOptions tmpOpts;
+    tmpOpts.SetIntraOpNumThreads(1);
+    Ort::Session tmpSession(tmpEnv, rawOnnxBytes.data(), rawOnnxBytes.size(), tmpOpts);
+
+    Ort::AllocatorWithDefaultOptions allocator;
+
+    // Introspect inputs: expect 4D spatial [N,C,H,W] and 2D global [N,C]
+    int numInputChannels = 0;
+    int numInputGlobalChannels = 0;
+    int numInputMetaChannels = 0;
+    size_t numInputs = tmpSession.GetInputCount();
+    for(size_t i = 0; i < numInputs; i++) {
+      auto typeInfo = tmpSession.GetInputTypeInfo(i);
+      auto tensorInfo = typeInfo.GetTensorTypeAndShapeInfo();
+      auto shape = tensorInfo.GetShape();
+      if(shape.size() == 4) {
+        // [N, C, H, W] — spatial input
+        numInputChannels = (int)shape[1];
+      } else if(shape.size() == 2) {
+        // [N, C] — could be global or meta; first 2D is global
+        if(numInputGlobalChannels == 0)
+          numInputGlobalChannels = (int)shape[1];
+        else
+          numInputMetaChannels = (int)shape[1];
+      }
+    }
+
+    // Introspect outputs
+    int numPolicyChannels = 0;
+    int numValueChannels = 0;
+    int numScoreValueChannels = 0;
+    int numOwnershipChannels = 0;
+    size_t numOutputs = tmpSession.GetOutputCount();
+    for(size_t i = 0; i < numOutputs; i++) {
+      Ort::AllocatedStringPtr namePtr = tmpSession.GetOutputNameAllocated(i, allocator);
+      string name = namePtr.get();
+      auto typeInfo = tmpSession.GetOutputTypeInfo(i);
+      auto tensorInfo = typeInfo.GetTensorTypeAndShapeInfo();
+      auto shape = tensorInfo.GetShape();
+
+      if(name.find("policy") != string::npos) {
+        // Policy: [N, C, H*W+1] → dim 1 is policy channels
+        if(shape.size() >= 2)
+          numPolicyChannels = (int)shape[1];
+      } else if(name.find("miscvalue") != string::npos) {
+        // MiscValue: [N, numScoreValueChannels] — check before "value" since "miscvalue" contains "value"
+        if(shape.size() >= 2)
+          numScoreValueChannels = (int)shape[1];
+      } else if(name.find("value") != string::npos) {
+        // Value: [N, 3]
+        if(shape.size() >= 2)
+          numValueChannels = (int)shape[1];
+      } else if(name.find("ownership") != string::npos) {
+        // Ownership: [N, 1, H, W]
+        if(shape.size() >= 2)
+          numOwnershipChannels = (int)shape[1];
+      }
+    }
+
+    // Populate ModelDesc metadata (weights are in the ONNX graph, not in modelDesc)
+    modelDesc.numInputChannels = numInputChannels;
+    modelDesc.numInputGlobalChannels = numInputGlobalChannels;
+    modelDesc.numInputMetaChannels = numInputMetaChannels;
+    modelDesc.numPolicyChannels = numPolicyChannels;
+    modelDesc.numValueChannels = numValueChannels;
+    modelDesc.numScoreValueChannels = numScoreValueChannels;
+    modelDesc.numOwnershipChannels = numOwnershipChannels;
+
+    // Extract filename stem as model name
+    {
+      size_t lastSlash = fileName.find_last_of("/\\");
+      string basename = (lastSlash != string::npos) ? fileName.substr(lastSlash + 1) : fileName;
+      size_t dotPos = basename.find('.');
+      modelDesc.name = (dotPos != string::npos) ? basename.substr(0, dotPos) : basename;
+    }
+
+    // Model version: auto-detect with possible config override (applied later)
+    modelDesc.modelVersion = detectModelVersion(
+      numInputChannels, numInputGlobalChannels,
+      numPolicyChannels, numScoreValueChannels,
+      -1  // No config override at load time; applied in createComputeHandle if needed
+    );
+
+    // postProcessParams gets default values from its constructor (already set)
   }
 
   LoadedModel() = delete;
@@ -31,7 +167,8 @@ struct LoadedModel {
 };
 
 LoadedModel* NeuralNet::loadModelFile(const string& file, const string& expectedSha256) {
-  return new LoadedModel(file, expectedSha256);
+  bool isRawOnnx = Global::isSuffix(file, ".onnx");
+  return new LoadedModel(file, expectedSha256, isRawOnnx);
 }
 
 void NeuralNet::freeLoadedModel(LoadedModel* loadedModel) {
@@ -50,11 +187,31 @@ struct ComputeContext {
   int nnYLen;
   string providerName;
 
+  // Configurable input/output node names
+  string inputSpatialName;
+  string inputGlobalName;
+  string inputMetaName;
+  string outputPolicyName;
+  string outputValueName;
+  string outputMiscvalueName;
+  string outputOwnershipName;
+
+  // Config override for model version (-1 means auto-detect)
+  int configModelVersion;
+
   ComputeContext(int xLen, int yLen, const string& provider)
     : env(ORT_LOGGING_LEVEL_WARNING, "KataGoOnnx"),
       nnXLen(xLen),
       nnYLen(yLen),
-      providerName(provider)
+      providerName(provider),
+      inputSpatialName("input_spatial"),
+      inputGlobalName("input_global"),
+      inputMetaName("input_meta"),
+      outputPolicyName("out_policy"),
+      outputValueName("out_value"),
+      outputMiscvalueName("out_miscvalue"),
+      outputOwnershipName("out_ownership"),
+      configModelVersion(-1)
   {}
 };
 
@@ -91,14 +248,26 @@ struct ComputeHandle {
       numInputMetaChannels(loadedModel.modelDesc.numInputMetaChannels),
       policyResultLen(ctx->nnXLen * ctx->nnYLen + 1)
   {
-    if(logger != NULL)
-      logger->write("ONNX backend: building ONNX graph from model weights...");
+    // Apply config model version override if set
+    if(ctx->configModelVersion >= 0)
+      modelVersion = ctx->configModelVersion;
 
-    // Build ONNX model bytes from ModelDesc
-    string onnxBytes = OnnxModelBuilder::buildOnnxModel(loadedModel.modelDesc, ctx->nnXLen, ctx->nnYLen);
+    string onnxBytes;
+    if(loadedModel.isRawOnnx) {
+      if(logger != NULL)
+        logger->write("ONNX backend: using raw ONNX model (" +
+                       Global::uint64ToString(loadedModel.rawOnnxBytes.size()) + " bytes)");
+      onnxBytes = loadedModel.rawOnnxBytes;
+    } else {
+      if(logger != NULL)
+        logger->write("ONNX backend: building ONNX graph from model weights...");
+      onnxBytes = OnnxModelBuilder::buildOnnxModel(loadedModel.modelDesc, ctx->nnXLen, ctx->nnYLen);
+      if(logger != NULL)
+        logger->write("ONNX backend: ONNX graph built (" + Global::uint64ToString(onnxBytes.size()) + " bytes)");
+    }
 
     if(logger != NULL)
-      logger->write("ONNX backend: ONNX graph built (" + Global::uint64ToString(onnxBytes.size()) + " bytes), creating session...");
+      logger->write("ONNX backend: creating session...");
 
     Ort::SessionOptions sessionOpts;
     sessionOpts.SetIntraOpNumThreads(1);
@@ -221,14 +390,50 @@ ComputeContext* NeuralNet::createComputeContext(
   (void)useNHWCMode;
   (void)loadedModel;
 
-  string providerName = backendExtraParam.empty() ? "cpu" : backendExtraParam;
+  // Parse backendExtraParam as "key=value;key=value;..."
+  string providerName = "cpu";
+  map<string, string> params;
+  if(!backendExtraParam.empty()) {
+    vector<string> parts = Global::split(backendExtraParam, ';');
+    for(const string& part : parts) {
+      size_t eq = part.find('=');
+      if(eq != string::npos) {
+        string key = Global::trim(part.substr(0, eq));
+        string val = Global::trim(part.substr(eq + 1));
+        params[key] = val;
+      } else {
+        // Legacy: bare string is provider name
+        string trimmed = Global::trim(part);
+        if(!trimmed.empty())
+          providerName = trimmed;
+      }
+    }
+    if(params.count("provider"))
+      providerName = params["provider"];
+  }
 
   if(logger != NULL)
     logger->write("ONNX backend: creating compute context for " +
                    Global::intToString(nnXLen) + "x" + Global::intToString(nnYLen) +
                    " with provider '" + providerName + "'");
 
-  return new ComputeContext(nnXLen, nnYLen, providerName);
+  ComputeContext* ctx = new ComputeContext(nnXLen, nnYLen, providerName);
+
+  // Apply configured node names
+  if(params.count("inputSpatial")) ctx->inputSpatialName = params["inputSpatial"];
+  if(params.count("inputGlobal")) ctx->inputGlobalName = params["inputGlobal"];
+  if(params.count("inputMeta")) ctx->inputMetaName = params["inputMeta"];
+  if(params.count("outputPolicy")) ctx->outputPolicyName = params["outputPolicy"];
+  if(params.count("outputValue")) ctx->outputValueName = params["outputValue"];
+  if(params.count("outputMiscvalue")) ctx->outputMiscvalueName = params["outputMiscvalue"];
+  if(params.count("outputOwnership")) ctx->outputOwnershipName = params["outputOwnership"];
+  if(params.count("modelVersion")) {
+    int v = Global::stringToInt(params["modelVersion"]);
+    if(v >= 0)
+      ctx->configModelVersion = v;
+  }
+
+  return ctx;
 }
 
 void NeuralNet::freeComputeContext(ComputeContext* computeContext) {
@@ -334,16 +539,17 @@ void NeuralNet::getOutput(
     globalShape.data(), globalShape.size()
   );
 
-  // Match input ordering
-  int spatialIdx = findNameIndex(computeHandle->inputNames, {"input_spatial"});
-  int globalIdx = findNameIndex(computeHandle->inputNames, {"input_global"});
+  // Match input ordering using configured node names
+  const ComputeContext* ctx = computeHandle->context;
+  int spatialIdx = findNameIndex(computeHandle->inputNames, {ctx->inputSpatialName});
+  int globalIdx = findNameIndex(computeHandle->inputNames, {ctx->inputGlobalName});
   if(spatialIdx < 0 || globalIdx < 0)
     throw StringError("ONNX backend: could not find expected input names");
 
   int metaIdx = -1;
   Ort::Value metaTensor(nullptr);
   if(computeHandle->numInputMetaChannels > 0) {
-    metaIdx = findNameIndex(computeHandle->inputNames, {"input_meta"});
+    metaIdx = findNameIndex(computeHandle->inputNames, {ctx->inputMetaName});
     if(metaIdx < 0)
       throw StringError("ONNX backend: model has metadata channels but could not find input_meta");
     std::array<int64_t, 2> metaShape = {batchSize, computeHandle->numInputMetaChannels};
@@ -378,11 +584,11 @@ void NeuralNet::getOutput(
     computeHandle->outputNamePtrs.size()
   );
 
-  // Find output indices
-  int policyOutputIdx = findNameIndex(computeHandle->outputNames, {"out_policy"});
-  int valueOutputIdx = findNameIndex(computeHandle->outputNames, {"out_value"});
-  int miscvalueOutputIdx = findNameIndex(computeHandle->outputNames, {"out_miscvalue"});
-  int ownershipOutputIdx = findNameIndex(computeHandle->outputNames, {"out_ownership"});
+  // Find output indices using configured node names
+  int policyOutputIdx = findNameIndex(computeHandle->outputNames, {ctx->outputPolicyName});
+  int valueOutputIdx = findNameIndex(computeHandle->outputNames, {ctx->outputValueName});
+  int miscvalueOutputIdx = findNameIndex(computeHandle->outputNames, {ctx->outputMiscvalueName});
+  int ownershipOutputIdx = findNameIndex(computeHandle->outputNames, {ctx->outputOwnershipName});
 
   const float* policyData = (policyOutputIdx >= 0) ? outputTensors[policyOutputIdx].GetTensorData<float>() : nullptr;
   const float* valueData = (valueOutputIdx >= 0) ? outputTensors[valueOutputIdx].GetTensorData<float>() : nullptr;
@@ -437,7 +643,7 @@ void NeuralNet::getOutput(
     if(miscvalueData != nullptr) {
       int numScoreValueChannels = computeHandle->numScoreValueChannels;
       if(computeHandle->modelVersion >= 9) {
-        assert(numScoreValueChannels == 6);
+        assert(numScoreValueChannels >= 6);
         output->whiteScoreMean = miscvalueData[row * numScoreValueChannels];
         output->whiteScoreMeanSq = miscvalueData[row * numScoreValueChannels + 1];
         output->whiteLead = miscvalueData[row * numScoreValueChannels + 2];
@@ -446,7 +652,7 @@ void NeuralNet::getOutput(
         output->shorttermScoreError = miscvalueData[row * numScoreValueChannels + 5];
       }
       else if(computeHandle->modelVersion >= 8) {
-        assert(numScoreValueChannels == 4);
+        assert(numScoreValueChannels >= 4);
         output->whiteScoreMean = miscvalueData[row * numScoreValueChannels];
         output->whiteScoreMeanSq = miscvalueData[row * numScoreValueChannels + 1];
         output->whiteLead = miscvalueData[row * numScoreValueChannels + 2];
@@ -455,7 +661,7 @@ void NeuralNet::getOutput(
         output->shorttermScoreError = 0;
       }
       else if(computeHandle->modelVersion >= 4) {
-        assert(numScoreValueChannels == 2);
+        assert(numScoreValueChannels >= 2);
         output->whiteScoreMean = miscvalueData[row * numScoreValueChannels];
         output->whiteScoreMeanSq = miscvalueData[row * numScoreValueChannels + 1];
         output->whiteLead = output->whiteScoreMean;
@@ -464,7 +670,7 @@ void NeuralNet::getOutput(
         output->shorttermScoreError = 0;
       }
       else if(computeHandle->modelVersion >= 3) {
-        assert(numScoreValueChannels == 1);
+        assert(numScoreValueChannels >= 1);
         output->whiteScoreMean = miscvalueData[row * numScoreValueChannels];
         output->whiteScoreMeanSq = output->whiteScoreMean * output->whiteScoreMean;
         output->whiteLead = output->whiteScoreMean;
@@ -479,7 +685,7 @@ void NeuralNet::getOutput(
 
     // Ownership: [N, 1, H, W]
     if(output->whiteOwnerMap != NULL && ownershipData != nullptr) {
-      assert(computeHandle->numOwnershipChannels == 1);
+      assert(computeHandle->numOwnershipChannels >= 1);
       const float* ownershipRowBuf = ownershipData + row * nnXLen * nnYLen;
       SymmetryHelpers::copyOutputsWithSymmetry(ownershipRowBuf, output->whiteOwnerMap, 1, nnYLen, nnXLen, inputBufs[row]->symmetry);
     }

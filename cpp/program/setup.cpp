@@ -227,7 +227,26 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
     if(cfg.contains("openclTunerFile"))
       backendExtraParam = cfg.getString("openclTunerFile");
     #if defined(USE_ONNX_BACKEND)
-    backendExtraParam = cfg.contains("onnxProvider") ? cfg.getString("onnxProvider") : "cpu";
+    {
+      string onnxProvider = cfg.contains("onnxProvider") ? cfg.getString("onnxProvider") : "cpu";
+      backendExtraParam = "provider=" + onnxProvider;
+      if(cfg.contains("onnxInputSpatial"))
+        backendExtraParam += ";inputSpatial=" + cfg.getString("onnxInputSpatial");
+      if(cfg.contains("onnxInputGlobal"))
+        backendExtraParam += ";inputGlobal=" + cfg.getString("onnxInputGlobal");
+      if(cfg.contains("onnxInputMeta"))
+        backendExtraParam += ";inputMeta=" + cfg.getString("onnxInputMeta");
+      if(cfg.contains("onnxOutputPolicy"))
+        backendExtraParam += ";outputPolicy=" + cfg.getString("onnxOutputPolicy");
+      if(cfg.contains("onnxOutputValue"))
+        backendExtraParam += ";outputValue=" + cfg.getString("onnxOutputValue");
+      if(cfg.contains("onnxOutputMiscvalue"))
+        backendExtraParam += ";outputMiscvalue=" + cfg.getString("onnxOutputMiscvalue");
+      if(cfg.contains("onnxOutputOwnership"))
+        backendExtraParam += ";outputOwnership=" + cfg.getString("onnxOutputOwnership");
+      if(cfg.contains("onnxModelVersion"))
+        backendExtraParam += ";modelVersion=" + cfg.getString("onnxModelVersion");
+    }
     #endif
     bool openCLReTunePerBoardSize = false;
     if(cfg.contains("openclReTunePerBoardSize"))
