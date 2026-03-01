@@ -105,15 +105,6 @@ static void setAttrInts(onnx::GraphProto* graph, const string& attrName, const v
     attr->add_ints(v);
 }
 
-// Add an attribute (float) to the last node
-static void setAttrFloat(onnx::GraphProto* graph, const string& attrName, float value) {
-  onnx::NodeProto* node = graph->mutable_node(graph->node_size() - 1);
-  onnx::AttributeProto* attr = node->add_attribute();
-  attr->set_name(attrName);
-  attr->set_type(onnx::AttributeProto_AttributeType_FLOAT);
-  attr->set_f(value);
-}
-
 // =====================================================================
 // Convolution: Conv with zero-padding
 // =====================================================================
@@ -215,8 +206,8 @@ static string addBNActivationMask(
 }
 
 // =====================================================================
-// MatMul via Gemm: output = input @ W^T + bias (optional)
-// W is [outC, inC], transB=1
+// MatMul: output = input @ W
+// W is [inC, outC]
 // =====================================================================
 static string addMatMulNode(
   onnx::GraphProto* graph,
@@ -224,22 +215,9 @@ static string addMatMulNode(
   const MatMulLayerDesc& desc,
   const string& prefix
 ) {
-  // MatMulLayerDesc weights are stored as [inC, outC] in row-major.
-  // ONNX Gemm with transB=1 expects B as [outC, inC].
-  // We need to transpose the weights.
-  int inC = desc.inChannels;
-  int outC = desc.outChannels;
-  vector<float> transposed(inC * outC);
-  for(int i = 0; i < inC; i++)
-    for(int o = 0; o < outC; o++)
-      transposed[o * inC + i] = desc.weights[i * outC + o];
-
-  string weightsName = addInitializer(graph, prefix + "/w", {outC, inC}, transposed);
-  string output = uniqueName(prefix + "/gemm");
-  addNode(graph, "Gemm", {input, weightsName}, output);
-  setAttrInt(graph, "transB", 1);
-  setAttrFloat(graph, "alpha", 1.0f);
-  setAttrFloat(graph, "beta", 0.0f);
+  string weightsName = addInitializer(graph, prefix + "/w", {desc.inChannels, desc.outChannels}, desc.weights);
+  string output = uniqueName(prefix + "/matmul");
+  addNode(graph, "MatMul", {input, weightsName}, output);
   return output;
 }
 

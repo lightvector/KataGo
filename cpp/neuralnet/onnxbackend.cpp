@@ -434,48 +434,47 @@ void NeuralNet::getOutput(
     }
 
     // MiscValue: [N, numScoreValueChannels] — version-dependent interpretation
-    if(computeHandle->modelVersion >= 9) {
+    if(miscvalueData != nullptr) {
       int numScoreValueChannels = computeHandle->numScoreValueChannels;
-      assert(numScoreValueChannels == 6);
-      output->whiteScoreMean = miscvalueData[row * numScoreValueChannels];
-      output->whiteScoreMeanSq = miscvalueData[row * numScoreValueChannels + 1];
-      output->whiteLead = miscvalueData[row * numScoreValueChannels + 2];
-      output->varTimeLeft = miscvalueData[row * numScoreValueChannels + 3];
-      output->shorttermWinlossError = miscvalueData[row * numScoreValueChannels + 4];
-      output->shorttermScoreError = miscvalueData[row * numScoreValueChannels + 5];
-    }
-    else if(computeHandle->modelVersion >= 8) {
-      int numScoreValueChannels = computeHandle->numScoreValueChannels;
-      assert(numScoreValueChannels == 4);
-      output->whiteScoreMean = miscvalueData[row * numScoreValueChannels];
-      output->whiteScoreMeanSq = miscvalueData[row * numScoreValueChannels + 1];
-      output->whiteLead = miscvalueData[row * numScoreValueChannels + 2];
-      output->varTimeLeft = miscvalueData[row * numScoreValueChannels + 3];
-      output->shorttermWinlossError = 0;
-      output->shorttermScoreError = 0;
-    }
-    else if(computeHandle->modelVersion >= 4) {
-      int numScoreValueChannels = computeHandle->numScoreValueChannels;
-      assert(numScoreValueChannels == 2);
-      output->whiteScoreMean = miscvalueData[row * numScoreValueChannels];
-      output->whiteScoreMeanSq = miscvalueData[row * numScoreValueChannels + 1];
-      output->whiteLead = output->whiteScoreMean;
-      output->varTimeLeft = 0;
-      output->shorttermWinlossError = 0;
-      output->shorttermScoreError = 0;
-    }
-    else if(computeHandle->modelVersion >= 3) {
-      int numScoreValueChannels = computeHandle->numScoreValueChannels;
-      assert(numScoreValueChannels == 1);
-      output->whiteScoreMean = miscvalueData[row * numScoreValueChannels];
-      output->whiteScoreMeanSq = output->whiteScoreMean * output->whiteScoreMean;
-      output->whiteLead = output->whiteScoreMean;
-      output->varTimeLeft = 0;
-      output->shorttermWinlossError = 0;
-      output->shorttermScoreError = 0;
-    }
-    else {
-      ASSERT_UNREACHABLE;
+      if(computeHandle->modelVersion >= 9) {
+        assert(numScoreValueChannels == 6);
+        output->whiteScoreMean = miscvalueData[row * numScoreValueChannels];
+        output->whiteScoreMeanSq = miscvalueData[row * numScoreValueChannels + 1];
+        output->whiteLead = miscvalueData[row * numScoreValueChannels + 2];
+        output->varTimeLeft = miscvalueData[row * numScoreValueChannels + 3];
+        output->shorttermWinlossError = miscvalueData[row * numScoreValueChannels + 4];
+        output->shorttermScoreError = miscvalueData[row * numScoreValueChannels + 5];
+      }
+      else if(computeHandle->modelVersion >= 8) {
+        assert(numScoreValueChannels == 4);
+        output->whiteScoreMean = miscvalueData[row * numScoreValueChannels];
+        output->whiteScoreMeanSq = miscvalueData[row * numScoreValueChannels + 1];
+        output->whiteLead = miscvalueData[row * numScoreValueChannels + 2];
+        output->varTimeLeft = miscvalueData[row * numScoreValueChannels + 3];
+        output->shorttermWinlossError = 0;
+        output->shorttermScoreError = 0;
+      }
+      else if(computeHandle->modelVersion >= 4) {
+        assert(numScoreValueChannels == 2);
+        output->whiteScoreMean = miscvalueData[row * numScoreValueChannels];
+        output->whiteScoreMeanSq = miscvalueData[row * numScoreValueChannels + 1];
+        output->whiteLead = output->whiteScoreMean;
+        output->varTimeLeft = 0;
+        output->shorttermWinlossError = 0;
+        output->shorttermScoreError = 0;
+      }
+      else if(computeHandle->modelVersion >= 3) {
+        assert(numScoreValueChannels == 1);
+        output->whiteScoreMean = miscvalueData[row * numScoreValueChannels];
+        output->whiteScoreMeanSq = output->whiteScoreMean * output->whiteScoreMean;
+        output->whiteLead = output->whiteScoreMean;
+        output->varTimeLeft = 0;
+        output->shorttermWinlossError = 0;
+        output->shorttermScoreError = 0;
+      }
+      else {
+        ASSERT_UNREACHABLE;
+      }
     }
 
     // Ownership: [N, 1, H, W]
