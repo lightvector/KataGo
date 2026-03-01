@@ -39,7 +39,7 @@ make -j$(nproc)
 cd cpp
 cmake . -G Ninja -DUSE_BACKEND=ONNX \
   -DONNXRUNTIME_ROOT=/path/to/onnxruntime \
-  -DONNXRUNTIME_BUILD_DIR=/path/to/onnxruntime/build/RelWithDebInfo \
+  -DONNXRUNTIME_BUILD_DIR=/path/to/onnxruntime/build/MacOS/RelWithDebInfo \
   -DNO_GIT_REVISION=1
 ninja
 ```

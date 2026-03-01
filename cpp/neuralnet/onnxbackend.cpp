@@ -67,6 +67,8 @@ struct LoadedModel {
       if(!in.good())
         throw StringError("ONNX backend: could not open raw ONNX file: " + fileName);
       std::streamsize size = in.tellg();
+      if(size < 0)
+        throw StringError("ONNX backend: could not determine size of ONNX file: " + fileName);
       in.seekg(0, std::ios::beg);
       rawOnnxBytes.resize(size);
       if(!in.read(rawOnnxBytes.data(), size))
@@ -252,18 +254,23 @@ struct ComputeHandle {
     if(ctx->configModelVersion >= 0)
       modelVersion = ctx->configModelVersion;
 
-    string onnxBytes;
+    const char* onnxData;
+    size_t onnxSize;
+    string builtOnnxBytes;
     if(loadedModel.isRawOnnx) {
       if(logger != NULL)
         logger->write("ONNX backend: using raw ONNX model (" +
                        Global::uint64ToString(loadedModel.rawOnnxBytes.size()) + " bytes)");
-      onnxBytes = loadedModel.rawOnnxBytes;
+      onnxData = loadedModel.rawOnnxBytes.data();
+      onnxSize = loadedModel.rawOnnxBytes.size();
     } else {
       if(logger != NULL)
         logger->write("ONNX backend: building ONNX graph from model weights...");
-      onnxBytes = OnnxModelBuilder::buildOnnxModel(loadedModel.modelDesc, ctx->nnXLen, ctx->nnYLen);
+      builtOnnxBytes = OnnxModelBuilder::buildOnnxModel(loadedModel.modelDesc, ctx->nnXLen, ctx->nnYLen);
       if(logger != NULL)
-        logger->write("ONNX backend: ONNX graph built (" + Global::uint64ToString(onnxBytes.size()) + " bytes)");
+        logger->write("ONNX backend: ONNX graph built (" + Global::uint64ToString(builtOnnxBytes.size()) + " bytes)");
+      onnxData = builtOnnxBytes.data();
+      onnxSize = builtOnnxBytes.size();
     }
 
     if(logger != NULL)
@@ -291,7 +298,7 @@ struct ComputeHandle {
     }
 
     // Create session from in-memory bytes
-    session = std::make_unique<Ort::Session>(ctx->env, onnxBytes.data(), onnxBytes.size(), sessionOpts);
+    session = std::make_unique<Ort::Session>(ctx->env, onnxData, onnxSize, sessionOpts);
 
     // Query and store input names
     Ort::AllocatorWithDefaultOptions allocator;
