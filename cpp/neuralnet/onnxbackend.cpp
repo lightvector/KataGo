@@ -70,6 +70,7 @@ struct ComputeHandle {
   int numValueChannels;
   int numScoreValueChannels;
   int numOwnershipChannels;
+  int numInputMetaChannels;
   int policyResultLen; // H*W+1
 
   // Input/output names (stored for session->Run)
@@ -87,6 +88,7 @@ struct ComputeHandle {
       numValueChannels(loadedModel.modelDesc.numValueChannels),
       numScoreValueChannels(loadedModel.modelDesc.numScoreValueChannels),
       numOwnershipChannels(loadedModel.modelDesc.numOwnershipChannels),
+      numInputMetaChannels(loadedModel.modelDesc.numInputMetaChannels),
       policyResultLen(ctx->nnXLen * ctx->nnYLen + 1)
   {
     if(logger != NULL)
@@ -158,17 +160,22 @@ struct InputBuffers {
 
   size_t singleInputElts;
   size_t singleInputGlobalElts;
+  size_t singleInputMetaElts;
 
   vector<float> spatialInput;
   vector<float> globalInput;
+  vector<float> metaInput;
 
   InputBuffers(const LoadedModel* loadedModel, int maxBatchSz, int nnXLen, int nnYLen) {
     const ModelDesc& m = loadedModel->modelDesc;
     maxBatchSize = maxBatchSz;
     singleInputElts = (size_t)m.numInputChannels * nnXLen * nnYLen;
     singleInputGlobalElts = (size_t)m.numInputGlobalChannels;
+    singleInputMetaElts = (size_t)m.numInputMetaChannels;
     spatialInput.resize(singleInputElts * maxBatchSize, 0.0f);
     globalInput.resize(singleInputGlobalElts * maxBatchSize, 0.0f);
+    if(m.numInputMetaChannels > 0)
+      metaInput.resize(m.numInputMetaChannels * maxBatchSize, 0.0f);
   }
 
   ~InputBuffers() {}
@@ -304,6 +311,12 @@ void NeuralNet::getOutput(
     const float* rowSpatial = inputBufs[nIdx]->rowSpatialBuf.data();
     std::copy(rowGlobal, rowGlobal + numGlobalFeatures, rowGlobalInput);
     SymmetryHelpers::copyInputsWithSymmetry(rowSpatial, rowSpatialInput, 1, nnYLen, nnXLen, numSpatialFeatures, false, inputBufs[nIdx]->symmetry);
+
+    if(computeHandle->numInputMetaChannels > 0) {
+      float* rowMetaInput = inputBuffers->metaInput.data() + (inputBuffers->singleInputMetaElts * nIdx);
+      const float* rowMeta = inputBufs[nIdx]->rowMetaBuf.data();
+      std::copy(rowMeta, rowMeta + computeHandle->numInputMetaChannels, rowMetaInput);
+    }
   }
 
   // Create ONNX tensors
@@ -327,6 +340,19 @@ void NeuralNet::getOutput(
   if(spatialIdx < 0 || globalIdx < 0)
     throw StringError("ONNX backend: could not find expected input names");
 
+  int metaIdx = -1;
+  Ort::Value metaTensor(nullptr);
+  if(computeHandle->numInputMetaChannels > 0) {
+    metaIdx = findNameIndex(computeHandle->inputNames, {"input_meta"});
+    if(metaIdx < 0)
+      throw StringError("ONNX backend: model has metadata channels but could not find input_meta");
+    std::array<int64_t, 2> metaShape = {batchSize, computeHandle->numInputMetaChannels};
+    metaTensor = Ort::Value::CreateTensor<float>(
+      memInfo, inputBuffers->metaInput.data(), inputBuffers->singleInputMetaElts * batchSize,
+      metaShape.data(), metaShape.size()
+    );
+  }
+
   vector<Ort::Value> inputTensors;
   inputTensors.reserve(computeHandle->inputNames.size());
   for(size_t i = 0; i < computeHandle->inputNames.size(); i++) {
@@ -334,6 +360,8 @@ void NeuralNet::getOutput(
       inputTensors.push_back(std::move(spatialTensor));
     else if((int)i == globalIdx)
       inputTensors.push_back(std::move(globalTensor));
+    else if((int)i == metaIdx)
+      inputTensors.push_back(std::move(metaTensor));
     else {
       std::array<int64_t, 1> emptyShape = {0};
       inputTensors.push_back(Ort::Value::CreateTensor<float>(memInfo, nullptr, 0, emptyShape.data(), 1));
@@ -354,13 +382,11 @@ void NeuralNet::getOutput(
   int policyOutputIdx = findNameIndex(computeHandle->outputNames, {"out_policy"});
   int valueOutputIdx = findNameIndex(computeHandle->outputNames, {"out_value"});
   int miscvalueOutputIdx = findNameIndex(computeHandle->outputNames, {"out_miscvalue"});
-  int moremiscvalueOutputIdx = findNameIndex(computeHandle->outputNames, {"out_moremiscvalue"});
   int ownershipOutputIdx = findNameIndex(computeHandle->outputNames, {"out_ownership"});
 
   const float* policyData = (policyOutputIdx >= 0) ? outputTensors[policyOutputIdx].GetTensorData<float>() : nullptr;
   const float* valueData = (valueOutputIdx >= 0) ? outputTensors[valueOutputIdx].GetTensorData<float>() : nullptr;
   const float* miscvalueData = (miscvalueOutputIdx >= 0) ? outputTensors[miscvalueOutputIdx].GetTensorData<float>() : nullptr;
-  const float* moremiscvalueData = (moremiscvalueOutputIdx >= 0) ? outputTensors[moremiscvalueOutputIdx].GetTensorData<float>() : nullptr;
   const float* ownershipData = (ownershipOutputIdx >= 0) ? outputTensors[ownershipOutputIdx].GetTensorData<float>() : nullptr;
 
   assert((int)outputs.size() == batchSize);
@@ -407,27 +433,49 @@ void NeuralNet::getOutput(
       output->whiteNoResultProb = valueData[row * numVC + 2];
     }
 
-    // MiscValue: [N, numScoreValueChannels]
-    if(miscvalueData != nullptr) {
-      int miscStride = computeHandle->numScoreValueChannels;
-      output->whiteScoreMean = miscvalueData[row * miscStride + 0];
-      output->whiteScoreMeanSq = miscvalueData[row * miscStride + 1];
-      output->whiteLead = miscvalueData[row * miscStride + 2];
-      output->varTimeLeft = miscvalueData[row * miscStride + 3];
-    } else {
-      output->whiteScoreMean = 0;
-      output->whiteScoreMeanSq = 0;
-      output->whiteLead = 0;
-      output->varTimeLeft = 0;
+    // MiscValue: [N, numScoreValueChannels] — version-dependent interpretation
+    if(computeHandle->modelVersion >= 9) {
+      int numScoreValueChannels = computeHandle->numScoreValueChannels;
+      assert(numScoreValueChannels == 6);
+      output->whiteScoreMean = miscvalueData[row * numScoreValueChannels];
+      output->whiteScoreMeanSq = miscvalueData[row * numScoreValueChannels + 1];
+      output->whiteLead = miscvalueData[row * numScoreValueChannels + 2];
+      output->varTimeLeft = miscvalueData[row * numScoreValueChannels + 3];
+      output->shorttermWinlossError = miscvalueData[row * numScoreValueChannels + 4];
+      output->shorttermScoreError = miscvalueData[row * numScoreValueChannels + 5];
     }
-
-    if(moremiscvalueData != nullptr) {
-      int moreMiscStride = 8;
-      output->shorttermWinlossError = moremiscvalueData[row * moreMiscStride + 0];
-      output->shorttermScoreError = moremiscvalueData[row * moreMiscStride + 1];
-    } else {
+    else if(computeHandle->modelVersion >= 8) {
+      int numScoreValueChannels = computeHandle->numScoreValueChannels;
+      assert(numScoreValueChannels == 4);
+      output->whiteScoreMean = miscvalueData[row * numScoreValueChannels];
+      output->whiteScoreMeanSq = miscvalueData[row * numScoreValueChannels + 1];
+      output->whiteLead = miscvalueData[row * numScoreValueChannels + 2];
+      output->varTimeLeft = miscvalueData[row * numScoreValueChannels + 3];
       output->shorttermWinlossError = 0;
       output->shorttermScoreError = 0;
+    }
+    else if(computeHandle->modelVersion >= 4) {
+      int numScoreValueChannels = computeHandle->numScoreValueChannels;
+      assert(numScoreValueChannels == 2);
+      output->whiteScoreMean = miscvalueData[row * numScoreValueChannels];
+      output->whiteScoreMeanSq = miscvalueData[row * numScoreValueChannels + 1];
+      output->whiteLead = output->whiteScoreMean;
+      output->varTimeLeft = 0;
+      output->shorttermWinlossError = 0;
+      output->shorttermScoreError = 0;
+    }
+    else if(computeHandle->modelVersion >= 3) {
+      int numScoreValueChannels = computeHandle->numScoreValueChannels;
+      assert(numScoreValueChannels == 1);
+      output->whiteScoreMean = miscvalueData[row * numScoreValueChannels];
+      output->whiteScoreMeanSq = output->whiteScoreMean * output->whiteScoreMean;
+      output->whiteLead = output->whiteScoreMean;
+      output->varTimeLeft = 0;
+      output->shorttermWinlossError = 0;
+      output->shorttermScoreError = 0;
+    }
+    else {
+      ASSERT_UNREACHABLE;
     }
 
     // Ownership: [N, 1, H, W]

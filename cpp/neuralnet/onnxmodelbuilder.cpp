@@ -588,6 +588,9 @@ string OnnxModelBuilder::buildOnnxModel(const ModelDesc& modelDesc, int nnXLen, 
   // ------------------------------------------------------------------
   addGraphInput(graph, "input_spatial", {-1, numInputChannels, nnYLen, nnXLen});
   addGraphInput(graph, "input_global", {-1, numInputGlobalChannels});
+  if(modelDesc.numInputMetaChannels > 0) {
+    addGraphInput(graph, "input_meta", {-1, modelDesc.numInputMetaChannels});
+  }
 
   // ------------------------------------------------------------------
   // Derive mask and maskSumHW from input_spatial
@@ -625,6 +628,30 @@ string OnnxModelBuilder::buildOnnxModel(const ModelDesc& modelDesc, int nnXLen, 
   string trunkCombined = uniqueName("trunk/combined");
   addNode(graph, "Add", {trunkOut, globalBiasReshaped}, trunkCombined);
   trunkOut = trunkCombined;
+
+  // ------------------------------------------------------------------
+  // Trunk: Metadata encoder (SGF metadata → trunk bias)
+  // ------------------------------------------------------------------
+  if(trunk.metaEncoderVersion > 0) {
+    const SGFMetadataEncoderDesc& enc = trunk.sgfMetadataEncoder;
+    string metaOut = addMatMulNode(graph, "input_meta", enc.mul1, "trunk/meta_mul1");
+    metaOut = addBiasNode(graph, metaOut, enc.bias1, "trunk/meta_b1");
+    metaOut = addActivationNode(graph, metaOut, enc.act1.activation, "trunk/meta_a1");
+    metaOut = addMatMulNode(graph, metaOut, enc.mul2, "trunk/meta_mul2");
+    metaOut = addBiasNode(graph, metaOut, enc.bias2, "trunk/meta_b2");
+    metaOut = addActivationNode(graph, metaOut, enc.act2.activation, "trunk/meta_a2");
+    metaOut = addMatMulNode(graph, metaOut, enc.mul3, "trunk/meta_mul3");
+
+    // Reshape to [N, C, 1, 1] for spatial broadcasting
+    string metaBiasShape = addInt64Initializer(graph, "trunk_meta_bias_shape", {0, -1, 1, 1});
+    string metaBiasReshaped = uniqueName("trunk/mbr");
+    addNode(graph, "Reshape", {metaOut, metaBiasShape}, metaBiasReshaped);
+
+    // Add to trunk
+    string trunkWithMeta = uniqueName("trunk/with_meta");
+    addNode(graph, "Add", {trunkOut, metaBiasReshaped}, trunkWithMeta);
+    trunkOut = trunkWithMeta;
+  }
 
   // ------------------------------------------------------------------
   // Trunk: Residual blocks
@@ -741,41 +768,6 @@ string OnnxModelBuilder::buildOnnxModel(const ModelDesc& modelDesc, int nnXLen, 
   string ownOut = addConvNode(graph, v1BNAct, valueHead.vOwnershipConv, "value/own_conv");
   addNode(graph, "Identity", {ownOut}, "out_ownership");
 
-  // out_moremiscvalue: fill with zeros [N, 8]
-  // This output is expected by the backend but older models may not have separate data.
-  // We produce zeros; the backend handles the semantic meaning.
-
-  // For moremiscvalue, produce a zero tensor of shape [N, 8]
-  // Use Slice on Shape(input_global) to get [N] as a 1-D tensor, then Concat with [8]
-  string inputShape = uniqueName("moremiscvalue/inshape");
-  addNode(graph, "Shape", {"input_global"}, inputShape);
-
-  // Slice to get first element as 1-D: Shape is [2] → Slice(0:1) → [1] containing N
-  string sliceS = addInt64Initializer(graph, uniqueName("moremiscvalue/s0"), {0});
-  string sliceE = addInt64Initializer(graph, uniqueName("moremiscvalue/e1"), {1});
-  string sliceA = addInt64Initializer(graph, uniqueName("moremiscvalue/a0"), {0});
-  string batchDim1D = uniqueName("moremiscvalue/batchdim");
-  addNode(graph, "Slice", {inputShape, sliceS, sliceE, sliceA}, batchDim1D);
-
-  string eightConst = addInt64Initializer(graph, uniqueName("moremiscvalue/eight"), {8});
-  string moreMiscShape = uniqueName("moremiscvalue/shape");
-  addNode(graph, "Concat", {batchDim1D, eightConst}, moreMiscShape);
-  setAttrInt(graph, "axis", 0);
-
-  // ConstantOfShape fills with 0
-  addNode(graph, "ConstantOfShape", {moreMiscShape}, "out_moremiscvalue");
-  // Set the value attribute to float 0.0
-  {
-    onnx::NodeProto* node = graph->mutable_node(graph->node_size() - 1);
-    onnx::AttributeProto* attr = node->add_attribute();
-    attr->set_name("value");
-    attr->set_type(onnx::AttributeProto_AttributeType_TENSOR);
-    onnx::TensorProto* t = attr->mutable_t();
-    t->set_data_type(onnx::TensorProto_DataType_FLOAT);
-    t->add_dims(1);
-    t->add_float_data(0.0f);
-  }
-
   // ------------------------------------------------------------------
   // Graph Outputs
   // ------------------------------------------------------------------
@@ -783,7 +775,6 @@ string OnnxModelBuilder::buildOnnxModel(const ModelDesc& modelDesc, int nnXLen, 
   addGraphOutput(graph, "out_policy", {-1, numPolicyChannels, policyResultLen});
   addGraphOutput(graph, "out_value", {-1, numValueChannels});
   addGraphOutput(graph, "out_miscvalue", {-1, numScoreValueChannels});
-  addGraphOutput(graph, "out_moremiscvalue", {-1, 8});
   addGraphOutput(graph, "out_ownership", {-1, numOwnershipChannels, nnYLen, nnXLen});
 
   // ------------------------------------------------------------------
