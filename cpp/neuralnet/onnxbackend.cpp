@@ -83,20 +83,31 @@ struct LoadedModel {
 
     Ort::AllocatorWithDefaultOptions allocator;
 
-    // Introspect inputs: expect 4D spatial [N,C,H,W] and 2D global [N,C]
+    // Introspect inputs by name first, falling back to shape-based heuristic
     int numInputChannels = 0;
     int numInputGlobalChannels = 0;
     int numInputMetaChannels = 0;
     size_t numInputs = tmpSession.GetInputCount();
     for(size_t i = 0; i < numInputs; i++) {
+      Ort::AllocatedStringPtr namePtr = tmpSession.GetInputNameAllocated(i, allocator);
+      string name = namePtr.get();
       auto typeInfo = tmpSession.GetInputTypeInfo(i);
       auto tensorInfo = typeInfo.GetTensorTypeAndShapeInfo();
       auto shape = tensorInfo.GetShape();
-      if(shape.size() == 4) {
-        // [N, C, H, W] — spatial input
+      if(name.find("spatial") != string::npos) {
+        if(shape.size() >= 2)
+          numInputChannels = (int)shape[1];
+      } else if(name.find("global") != string::npos) {
+        if(shape.size() >= 2)
+          numInputGlobalChannels = (int)shape[1];
+      } else if(name.find("meta") != string::npos) {
+        if(shape.size() >= 2)
+          numInputMetaChannels = (int)shape[1];
+      } else if(shape.size() == 4) {
+        // Shape-based fallback: [N, C, H, W] — spatial input
         numInputChannels = (int)shape[1];
       } else if(shape.size() == 2) {
-        // [N, C] — could be global or meta; first 2D is global
+        // Shape-based fallback: [N, C] — first 2D is global, second is meta
         if(numInputGlobalChannels == 0)
           numInputGlobalChannels = (int)shape[1];
         else

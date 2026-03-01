@@ -69,7 +69,7 @@ static string addInt64Initializer(
 // =====================================================================
 
 // Generic node with n inputs, 1 output
-static string addNode(
+static onnx::NodeProto* addNode(
   onnx::GraphProto* graph,
   const string& opType,
   const vector<string>& inputs,
@@ -80,21 +80,19 @@ static string addNode(
   for(const auto& inp : inputs)
     node->add_input(inp);
   node->add_output(outputName);
-  return outputName;
+  return node;
 }
 
-// Add an attribute (int) to the last node in the graph
-static void setAttrInt(onnx::GraphProto* graph, const string& attrName, int64_t value) {
-  onnx::NodeProto* node = graph->mutable_node(graph->node_size() - 1);
+// Add an attribute (int) to a node
+static void setAttrInt(onnx::NodeProto* node, const string& attrName, int64_t value) {
   onnx::AttributeProto* attr = node->add_attribute();
   attr->set_name(attrName);
   attr->set_type(onnx::AttributeProto_AttributeType_INT);
   attr->set_i(value);
 }
 
-// Add an attribute (ints) to the last node in the graph
-static void setAttrInts(onnx::GraphProto* graph, const string& attrName, const vector<int64_t>& values) {
-  onnx::NodeProto* node = graph->mutable_node(graph->node_size() - 1);
+// Add an attribute (ints) to a node
+static void setAttrInts(onnx::NodeProto* node, const string& attrName, const vector<int64_t>& values) {
   onnx::AttributeProto* attr = node->add_attribute();
   attr->set_name(attrName);
   attr->set_type(onnx::AttributeProto_AttributeType_INTS);
@@ -122,11 +120,11 @@ static string addConvNode(
   int padX = desc.convXSize / 2;
   string output = uniqueName(nameCounter, prefix + "/out");
 
-  addNode(graph, "Conv", {input, weightsName}, output);
-  setAttrInts(graph, "kernel_shape", {desc.convYSize, desc.convXSize});
-  setAttrInts(graph, "pads", {padY, padX, padY, padX});
-  setAttrInts(graph, "dilations", {desc.dilationY, desc.dilationX});
-  setAttrInts(graph, "strides", {1, 1});
+  onnx::NodeProto* convNode = addNode(graph, "Conv", {input, weightsName}, output);
+  setAttrInts(convNode, "kernel_shape", {desc.convYSize, desc.convXSize});
+  setAttrInts(convNode, "pads", {padY, padX, padY, padX});
+  setAttrInts(convNode, "dilations", {desc.dilationY, desc.dilationX});
+  setAttrInts(convNode, "strides", {1, 1});
 
   return output;
 }
@@ -262,8 +260,8 @@ static string addGlobalPool(
   // sum = ReduceSum(xMasked, axes=[2,3])
   string axesName = addInt64Initializer(graph, uniqueName(nameCounter, prefix + "/axes23"), {2, 3});
   string sumOut = uniqueName(nameCounter, prefix + "/gpool_sum");
-  addNode(graph, "ReduceSum", {xMasked, axesName}, sumOut);
-  setAttrInt(graph, "keepdims", 0);
+  onnx::NodeProto* sumNode = addNode(graph, "ReduceSum", {xMasked, axesName}, sumOut);
+  setAttrInt(sumNode, "keepdims", 0);
 
   // mean = sum / maskSumFlat
   // maskSumHW is [N,1,1,1], we need [N,1] for division
@@ -303,13 +301,13 @@ static string addGlobalPool(
   // ReduceMax over [2,3]
   string axesName2 = addInt64Initializer(graph, uniqueName(nameCounter, prefix + "/axes23b"), {2, 3});
   string pool3 = uniqueName(nameCounter, prefix + "/gpool_max");
-  addNode(graph, "ReduceMax", {xShifted, axesName2}, pool3);
-  setAttrInt(graph, "keepdims", 0);
+  onnx::NodeProto* maxNode = addNode(graph, "ReduceMax", {xShifted, axesName2}, pool3);
+  setAttrInt(maxNode, "keepdims", 0);
 
   // Concat [mean, pool2, pool3] along axis=1
   string output = uniqueName(nameCounter, prefix + "/gpool_out");
-  addNode(graph, "Concat", {mean, pool2, pool3}, output);
-  setAttrInt(graph, "axis", 1);
+  onnx::NodeProto* concatNode = addNode(graph, "Concat", {mean, pool2, pool3}, output);
+  setAttrInt(concatNode, "axis", 1);
 
   return output;
 }
@@ -333,8 +331,8 @@ static string addValueHeadGPool(
 
   string axesName = addInt64Initializer(graph, uniqueName(nameCounter, prefix + "/axes23"), {2, 3});
   string sumOut = uniqueName(nameCounter, prefix + "/vgpool_sum");
-  addNode(graph, "ReduceSum", {xMasked, axesName}, sumOut);
-  setAttrInt(graph, "keepdims", 0);
+  onnx::NodeProto* sumNode = addNode(graph, "ReduceSum", {xMasked, axesName}, sumOut);
+  setAttrInt(sumNode, "keepdims", 0);
 
   // mean
   string maskSumFlat = uniqueName(nameCounter, prefix + "/vgpool_msf");
@@ -377,8 +375,8 @@ static string addValueHeadGPool(
 
   // Concat [mean, pool2, pool3] along axis=1
   string output = uniqueName(nameCounter, prefix + "/vgpool_out");
-  addNode(graph, "Concat", {mean, pool2, pool3}, output);
-  setAttrInt(graph, "axis", 1);
+  onnx::NodeProto* concatNode = addNode(graph, "Concat", {mean, pool2, pool3}, output);
+  setAttrInt(concatNode, "axis", 1);
 
   return output;
 }
@@ -594,8 +592,8 @@ string OnnxModelBuilder::buildOnnxModel(const ModelDesc& modelDesc, int nnXLen, 
   // maskSumHW
   string sumAxes = addInt64Initializer(graph, "mask_sum_axes", {2, 3});
   string maskSumHW = uniqueName(nameCounter, "maskSumHW");
-  addNode(graph, "ReduceSum", {mask, sumAxes}, maskSumHW);
-  setAttrInt(graph, "keepdims", 1);
+  onnx::NodeProto* maskSumNode = addNode(graph, "ReduceSum", {mask, sumAxes}, maskSumHW);
+  setAttrInt(maskSumNode, "keepdims", 1);
 
   // ------------------------------------------------------------------
   // Trunk: Initial conv + matmul bias
@@ -716,8 +714,8 @@ string OnnxModelBuilder::buildOnnxModel(const ModelDesc& modelDesc, int nnXLen, 
   addNode(graph, "Reshape", {passOut, passShape}, passReshaped);
 
   // Concat spatial + pass → out_policy [N, policyChannels, H*W+1]
-  addNode(graph, "Concat", {policySpatial, passReshaped}, "out_policy");
-  setAttrInt(graph, "axis", 2);
+  onnx::NodeProto* policyConcatNode = addNode(graph, "Concat", {policySpatial, passReshaped}, "out_policy");
+  setAttrInt(policyConcatNode, "axis", 2);
 
   // ------------------------------------------------------------------
   // Value Head

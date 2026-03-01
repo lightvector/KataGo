@@ -301,7 +301,30 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
       setupFor == SETUP_FOR_ANALYSIS ? 17 :
       cfg.getInt("nnMutexPoolSizePowerOfTwo", -1, 24);
 
-#ifndef USE_EIGEN_BACKEND
+#if defined(USE_ONNX_BACKEND)
+    // ONNX backend: use small batch for CPU provider (like Eigen), normal for accelerators
+    int nnMaxBatchSize;
+    {
+      string onnxProv = cfg.contains("onnxProvider") ? cfg.getString("onnxProvider") : "cpu";
+      if(onnxProv == "cpu" || onnxProv.empty()) {
+        nnMaxBatchSize = 2;
+        cfg.markAllKeysUsedWithPrefix("nnMaxBatchSize");
+        (void)defaultMaxBatchSize;
+      } else {
+        if(setupFor == SETUP_FOR_BENCHMARK || setupFor == SETUP_FOR_DISTRIBUTED) {
+          nnMaxBatchSize = defaultMaxBatchSize;
+        }
+        else if(defaultMaxBatchSize > 0) {
+          nnMaxBatchSize =
+            cfg.contains("nnMaxBatchSize") ? cfg.getInt("nnMaxBatchSize", 1, 65536) :
+            defaultMaxBatchSize;
+        }
+        else {
+          nnMaxBatchSize = cfg.getInt("nnMaxBatchSize", 1, 65536);
+        }
+      }
+    }
+#elif !defined(USE_EIGEN_BACKEND)
     int nnMaxBatchSize;
     if(setupFor == SETUP_FOR_BENCHMARK || setupFor == SETUP_FOR_DISTRIBUTED) {
       nnMaxBatchSize = defaultMaxBatchSize;
