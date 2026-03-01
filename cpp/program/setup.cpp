@@ -224,8 +224,6 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
     string homeDataDirOverride = loadHomeDataDirOverride(cfg);
 
     string backendExtraParam;
-    if(cfg.contains("openclTunerFile"))
-      backendExtraParam = cfg.getString("openclTunerFile");
     #if defined(USE_ONNX_BACKEND)
     {
       string onnxProvider = cfg.contains("onnxProvider") ? cfg.getString("onnxProvider") : "cpu";
@@ -247,6 +245,9 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
       if(cfg.contains("onnxModelVersion"))
         backendExtraParam += ";modelVersion=" + cfg.getString("onnxModelVersion");
     }
+    #else
+    if(cfg.contains("openclTunerFile"))
+      backendExtraParam = cfg.getString("openclTunerFile");
     #endif
     bool openCLReTunePerBoardSize = false;
     if(cfg.contains("openclReTunePerBoardSize"))

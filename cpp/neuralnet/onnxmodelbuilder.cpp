@@ -13,10 +13,7 @@
 
 using namespace std;
 
-// Counter for generating unique tensor names
-static thread_local int nameCounter = 0;
-
-static string uniqueName(const string& prefix) {
+static string uniqueName(int& nameCounter, const string& prefix) {
   return prefix + "_" + to_string(nameCounter++);
 }
 
@@ -110,6 +107,7 @@ static void setAttrInts(onnx::GraphProto* graph, const string& attrName, const v
 // =====================================================================
 static string addConvNode(
   onnx::GraphProto* graph,
+  int& nameCounter,
   const string& input,
   const ConvLayerDesc& desc,
   const string& prefix
@@ -122,7 +120,7 @@ static string addConvNode(
 
   int padY = desc.convYSize / 2;
   int padX = desc.convXSize / 2;
-  string output = uniqueName(prefix + "/out");
+  string output = uniqueName(nameCounter, prefix + "/out");
 
   addNode(graph, "Conv", {input, weightsName}, output);
   setAttrInts(graph, "kernel_shape", {desc.convYSize, desc.convXSize});
@@ -139,6 +137,7 @@ static string addConvNode(
 // =====================================================================
 static string addMergedBNNode(
   onnx::GraphProto* graph,
+  int& nameCounter,
   const string& input,
   const BatchNormLayerDesc& desc,
   const string& prefix
@@ -147,10 +146,10 @@ static string addMergedBNNode(
   string scaleName = addInitializer(graph, prefix + "/scale", {C, 1, 1}, desc.mergedScale);
   string biasName = addInitializer(graph, prefix + "/bias", {C, 1, 1}, desc.mergedBias);
 
-  string scaled = uniqueName(prefix + "/scaled");
+  string scaled = uniqueName(nameCounter, prefix + "/scaled");
   addNode(graph, "Mul", {input, scaleName}, scaled);
 
-  string output = uniqueName(prefix + "/bn_out");
+  string output = uniqueName(nameCounter, prefix + "/bn_out");
   addNode(graph, "Add", {scaled, biasName}, output);
 
   return output;
@@ -161,23 +160,24 @@ static string addMergedBNNode(
 // =====================================================================
 static string addActivationNode(
   onnx::GraphProto* graph,
+  int& nameCounter,
   const string& input,
   int activationType,
   const string& prefix
 ) {
   if(activationType == ACTIVATION_RELU) {
-    string output = uniqueName(prefix + "/relu");
+    string output = uniqueName(nameCounter, prefix + "/relu");
     addNode(graph, "Relu", {input}, output);
     return output;
   } else if(activationType == ACTIVATION_MISH) {
     // Mish = x * tanh(softplus(x)) = x * tanh(ln(1 + exp(x)))
-    string sp = uniqueName(prefix + "/softplus");
+    string sp = uniqueName(nameCounter, prefix + "/softplus");
     addNode(graph, "Softplus", {input}, sp);
 
-    string th = uniqueName(prefix + "/tanh");
+    string th = uniqueName(nameCounter, prefix + "/tanh");
     addNode(graph, "Tanh", {sp}, th);
 
-    string output = uniqueName(prefix + "/mish");
+    string output = uniqueName(nameCounter, prefix + "/mish");
     addNode(graph, "Mul", {input, th}, output);
     return output;
   } else {
@@ -192,15 +192,16 @@ static string addActivationNode(
 // =====================================================================
 static string addBNActivationMask(
   onnx::GraphProto* graph,
+  int& nameCounter,
   const string& input,
   const BatchNormLayerDesc& bnDesc,
   const ActivationLayerDesc& actDesc,
   const string& mask,
   const string& prefix
 ) {
-  string bn = addMergedBNNode(graph, input, bnDesc, prefix + "/bn");
-  string act = addActivationNode(graph, bn, actDesc.activation, prefix + "/act");
-  string output = uniqueName(prefix + "/masked");
+  string bn = addMergedBNNode(graph, nameCounter, input, bnDesc, prefix + "/bn");
+  string act = addActivationNode(graph, nameCounter, bn, actDesc.activation, prefix + "/act");
+  string output = uniqueName(nameCounter, prefix + "/masked");
   addNode(graph, "Mul", {act, mask}, output);
   return output;
 }
@@ -211,12 +212,13 @@ static string addBNActivationMask(
 // =====================================================================
 static string addMatMulNode(
   onnx::GraphProto* graph,
+  int& nameCounter,
   const string& input,
   const MatMulLayerDesc& desc,
   const string& prefix
 ) {
   string weightsName = addInitializer(graph, prefix + "/w", {desc.inChannels, desc.outChannels}, desc.weights);
-  string output = uniqueName(prefix + "/matmul");
+  string output = uniqueName(nameCounter, prefix + "/matmul");
   addNode(graph, "MatMul", {input, weightsName}, output);
   return output;
 }
@@ -227,12 +229,13 @@ static string addMatMulNode(
 // =====================================================================
 static string addBiasNode(
   onnx::GraphProto* graph,
+  int& nameCounter,
   const string& input,
   const MatBiasLayerDesc& desc,
   const string& prefix
 ) {
   string biasName = addInitializer(graph, prefix + "/b", {desc.numChannels}, desc.weights);
-  string output = uniqueName(prefix + "/biased");
+  string output = uniqueName(nameCounter, prefix + "/biased");
   addNode(graph, "Add", {input, biasName}, output);
   return output;
 }
@@ -246,64 +249,65 @@ static string addBiasNode(
 // =====================================================================
 static string addGlobalPool(
   onnx::GraphProto* graph,
+  int& nameCounter,
   const string& input,
   const string& mask,
   const string& maskSumHW,
   const string& prefix
 ) {
   // x_masked = input * mask  (already masked, but let's be safe)
-  string xMasked = uniqueName(prefix + "/gpool_xm");
+  string xMasked = uniqueName(nameCounter, prefix + "/gpool_xm");
   addNode(graph, "Mul", {input, mask}, xMasked);
 
   // sum = ReduceSum(xMasked, axes=[2,3])
-  string axesName = addInt64Initializer(graph, uniqueName(prefix + "/axes23"), {2, 3});
-  string sumOut = uniqueName(prefix + "/gpool_sum");
+  string axesName = addInt64Initializer(graph, uniqueName(nameCounter, prefix + "/axes23"), {2, 3});
+  string sumOut = uniqueName(nameCounter, prefix + "/gpool_sum");
   addNode(graph, "ReduceSum", {xMasked, axesName}, sumOut);
   setAttrInt(graph, "keepdims", 0);
 
   // mean = sum / maskSumFlat
   // maskSumHW is [N,1,1,1], we need [N,1] for division
-  string maskSumFlat = uniqueName(prefix + "/gpool_msf");
-  string reshapeShape = addInt64Initializer(graph, uniqueName(prefix + "/shape_n1"), {0, 1});
+  string maskSumFlat = uniqueName(nameCounter, prefix + "/gpool_msf");
+  string reshapeShape = addInt64Initializer(graph, uniqueName(nameCounter, prefix + "/shape_n1"), {0, 1});
   addNode(graph, "Reshape", {maskSumHW, reshapeShape}, maskSumFlat);
 
-  string mean = uniqueName(prefix + "/gpool_mean");
+  string mean = uniqueName(nameCounter, prefix + "/gpool_mean");
   addNode(graph, "Div", {sumOut, maskSumFlat}, mean);
 
   // sqrtMaskSum = sqrt(maskSumFlat)
-  string sqrtMs = uniqueName(prefix + "/gpool_sqrt");
+  string sqrtMs = uniqueName(nameCounter, prefix + "/gpool_sqrt");
   addNode(graph, "Sqrt", {maskSumFlat}, sqrtMs);
 
   // sqrtMs - 14.0
-  string const14 = addScalarInitializer(graph, uniqueName(prefix + "/c14"), 14.0f);
-  string sqrtMsSub = uniqueName(prefix + "/gpool_sqrtsub");
+  string const14 = addScalarInitializer(graph, uniqueName(nameCounter, prefix + "/c14"), 14.0f);
+  string sqrtMsSub = uniqueName(nameCounter, prefix + "/gpool_sqrtsub");
   addNode(graph, "Sub", {sqrtMs, const14}, sqrtMsSub);
 
   // * 0.1
-  string const01 = addScalarInitializer(graph, uniqueName(prefix + "/c01"), 0.1f);
-  string scaledSqrt = uniqueName(prefix + "/gpool_ssm");
+  string const01 = addScalarInitializer(graph, uniqueName(nameCounter, prefix + "/c01"), 0.1f);
+  string scaledSqrt = uniqueName(nameCounter, prefix + "/gpool_ssm");
   addNode(graph, "Mul", {sqrtMsSub, const01}, scaledSqrt);
 
   // pool2 = mean * scaledSqrt
-  string pool2 = uniqueName(prefix + "/gpool_p2");
+  string pool2 = uniqueName(nameCounter, prefix + "/gpool_p2");
   addNode(graph, "Mul", {mean, scaledSqrt}, pool2);
 
   // Pool3: max over (x + mask - 1)
-  string constNeg1 = addScalarInitializer(graph, uniqueName(prefix + "/cn1"), -1.0f);
-  string maskBias = uniqueName(prefix + "/gpool_mb");
+  string constNeg1 = addScalarInitializer(graph, uniqueName(nameCounter, prefix + "/cn1"), -1.0f);
+  string maskBias = uniqueName(nameCounter, prefix + "/gpool_mb");
   addNode(graph, "Add", {mask, constNeg1}, maskBias);
 
-  string xShifted = uniqueName(prefix + "/gpool_xs");
+  string xShifted = uniqueName(nameCounter, prefix + "/gpool_xs");
   addNode(graph, "Add", {input, maskBias}, xShifted);
 
   // ReduceMax over [2,3]
-  string axesName2 = addInt64Initializer(graph, uniqueName(prefix + "/axes23b"), {2, 3});
-  string pool3 = uniqueName(prefix + "/gpool_max");
+  string axesName2 = addInt64Initializer(graph, uniqueName(nameCounter, prefix + "/axes23b"), {2, 3});
+  string pool3 = uniqueName(nameCounter, prefix + "/gpool_max");
   addNode(graph, "ReduceMax", {xShifted, axesName2}, pool3);
   setAttrInt(graph, "keepdims", 0);
 
   // Concat [mean, pool2, pool3] along axis=1
-  string output = uniqueName(prefix + "/gpool_out");
+  string output = uniqueName(nameCounter, prefix + "/gpool_out");
   addNode(graph, "Concat", {mean, pool2, pool3}, output);
   setAttrInt(graph, "axis", 1);
 
@@ -316,6 +320,7 @@ static string addGlobalPool(
 // =====================================================================
 static string addValueHeadGPool(
   onnx::GraphProto* graph,
+  int& nameCounter,
   const string& input,
   const string& mask,
   const string& maskSumHW,
@@ -323,55 +328,55 @@ static string addValueHeadGPool(
 ) {
   // x for value head already has activation applied
   // sum = ReduceSum(input * mask, [2,3])
-  string xMasked = uniqueName(prefix + "/vgpool_xm");
+  string xMasked = uniqueName(nameCounter, prefix + "/vgpool_xm");
   addNode(graph, "Mul", {input, mask}, xMasked);
 
-  string axesName = addInt64Initializer(graph, uniqueName(prefix + "/axes23"), {2, 3});
-  string sumOut = uniqueName(prefix + "/vgpool_sum");
+  string axesName = addInt64Initializer(graph, uniqueName(nameCounter, prefix + "/axes23"), {2, 3});
+  string sumOut = uniqueName(nameCounter, prefix + "/vgpool_sum");
   addNode(graph, "ReduceSum", {xMasked, axesName}, sumOut);
   setAttrInt(graph, "keepdims", 0);
 
   // mean
-  string maskSumFlat = uniqueName(prefix + "/vgpool_msf");
-  string reshapeShape = addInt64Initializer(graph, uniqueName(prefix + "/shape_n1"), {0, 1});
+  string maskSumFlat = uniqueName(nameCounter, prefix + "/vgpool_msf");
+  string reshapeShape = addInt64Initializer(graph, uniqueName(nameCounter, prefix + "/shape_n1"), {0, 1});
   addNode(graph, "Reshape", {maskSumHW, reshapeShape}, maskSumFlat);
 
-  string mean = uniqueName(prefix + "/vgpool_mean");
+  string mean = uniqueName(nameCounter, prefix + "/vgpool_mean");
   addNode(graph, "Div", {sumOut, maskSumFlat}, mean);
 
   // sqrt(maskSum)
-  string sqrtMs = uniqueName(prefix + "/vgpool_sqrt");
+  string sqrtMs = uniqueName(nameCounter, prefix + "/vgpool_sqrt");
   addNode(graph, "Sqrt", {maskSumFlat}, sqrtMs);
 
   // (sqrt(maskSum) - 14.0)
-  string const14 = addScalarInitializer(graph, uniqueName(prefix + "/c14"), 14.0f);
-  string sqrtMsSub = uniqueName(prefix + "/vgpool_ss");
+  string const14 = addScalarInitializer(graph, uniqueName(nameCounter, prefix + "/c14"), 14.0f);
+  string sqrtMsSub = uniqueName(nameCounter, prefix + "/vgpool_ss");
   addNode(graph, "Sub", {sqrtMs, const14}, sqrtMsSub);
 
   // pool2 = mean * (sqrtMsSub) * 0.1
-  string const01 = addScalarInitializer(graph, uniqueName(prefix + "/c01"), 0.1f);
-  string scaledSqrt = uniqueName(prefix + "/vgpool_ssm");
+  string const01 = addScalarInitializer(graph, uniqueName(nameCounter, prefix + "/c01"), 0.1f);
+  string scaledSqrt = uniqueName(nameCounter, prefix + "/vgpool_ssm");
   addNode(graph, "Mul", {sqrtMsSub, const01}, scaledSqrt);
-  string pool2 = uniqueName(prefix + "/vgpool_p2");
+  string pool2 = uniqueName(nameCounter, prefix + "/vgpool_p2");
   addNode(graph, "Mul", {mean, scaledSqrt}, pool2);
 
   // pool3 = mean * ((sqrtMsSub)^2 * 0.01 - 0.1)
-  string sqrtMsSubSq = uniqueName(prefix + "/vgpool_sq");
+  string sqrtMsSubSq = uniqueName(nameCounter, prefix + "/vgpool_sq");
   addNode(graph, "Mul", {sqrtMsSub, sqrtMsSub}, sqrtMsSubSq);
 
-  string constP01 = addScalarInitializer(graph, uniqueName(prefix + "/cp01"), 0.01f);
-  string sqScaled = uniqueName(prefix + "/vgpool_sqs");
+  string constP01 = addScalarInitializer(graph, uniqueName(nameCounter, prefix + "/cp01"), 0.01f);
+  string sqScaled = uniqueName(nameCounter, prefix + "/vgpool_sqs");
   addNode(graph, "Mul", {sqrtMsSubSq, constP01}, sqScaled);
 
-  string constN01 = addScalarInitializer(graph, uniqueName(prefix + "/cn01"), -0.1f);
-  string sqShifted = uniqueName(prefix + "/vgpool_sqsh");
+  string constN01 = addScalarInitializer(graph, uniqueName(nameCounter, prefix + "/cn01"), -0.1f);
+  string sqShifted = uniqueName(nameCounter, prefix + "/vgpool_sqsh");
   addNode(graph, "Add", {sqScaled, constN01}, sqShifted);
 
-  string pool3 = uniqueName(prefix + "/vgpool_p3");
+  string pool3 = uniqueName(nameCounter, prefix + "/vgpool_p3");
   addNode(graph, "Mul", {mean, sqShifted}, pool3);
 
   // Concat [mean, pool2, pool3] along axis=1
-  string output = uniqueName(prefix + "/vgpool_out");
+  string output = uniqueName(nameCounter, prefix + "/vgpool_out");
   addNode(graph, "Concat", {mean, pool2, pool3}, output);
   setAttrInt(graph, "axis", 1);
 
@@ -383,18 +388,19 @@ static string addValueHeadGPool(
 // =====================================================================
 static string addResidualBlock(
   onnx::GraphProto* graph,
+  int& nameCounter,
   const string& input,
   const string& mask,
   const ResidualBlockDesc& desc,
   const string& prefix
 ) {
-  string pre = addBNActivationMask(graph, input, desc.preBN, desc.preActivation, mask, prefix + "/pre");
-  string mid = addConvNode(graph, pre, desc.regularConv, prefix + "/conv1");
-  string midAct = addBNActivationMask(graph, mid, desc.midBN, desc.midActivation, mask, prefix + "/mid");
-  string final_ = addConvNode(graph, midAct, desc.finalConv, prefix + "/conv2");
+  string pre = addBNActivationMask(graph, nameCounter, input, desc.preBN, desc.preActivation, mask, prefix + "/pre");
+  string mid = addConvNode(graph, nameCounter, pre, desc.regularConv, prefix + "/conv1");
+  string midAct = addBNActivationMask(graph, nameCounter, mid, desc.midBN, desc.midActivation, mask, prefix + "/mid");
+  string final_ = addConvNode(graph, nameCounter, midAct, desc.finalConv, prefix + "/conv2");
 
   // Residual add
-  string output = uniqueName(prefix + "/resadd");
+  string output = uniqueName(nameCounter, prefix + "/resadd");
   addNode(graph, "Add", {input, final_}, output);
   return output;
 }
@@ -404,40 +410,41 @@ static string addResidualBlock(
 // =====================================================================
 static string addGPoolResidualBlock(
   onnx::GraphProto* graph,
+  int& nameCounter,
   const string& input,
   const string& mask,
   const string& maskSumHW,
   const GlobalPoolingResidualBlockDesc& desc,
   const string& prefix
 ) {
-  string pre = addBNActivationMask(graph, input, desc.preBN, desc.preActivation, mask, prefix + "/pre");
+  string pre = addBNActivationMask(graph, nameCounter, input, desc.preBN, desc.preActivation, mask, prefix + "/pre");
 
   // Regular path
-  string regOut = addConvNode(graph, pre, desc.regularConv, prefix + "/reg");
+  string regOut = addConvNode(graph, nameCounter, pre, desc.regularConv, prefix + "/reg");
 
   // Global pooling path
-  string gpoolConvOut = addConvNode(graph, pre, desc.gpoolConv, prefix + "/gconv");
-  string gpoolBNAct = addBNActivationMask(graph, gpoolConvOut, desc.gpoolBN, desc.gpoolActivation, mask, prefix + "/gbn");
-  string gpoolResult = addGlobalPool(graph, gpoolBNAct, mask, maskSumHW, prefix + "/gpool");
+  string gpoolConvOut = addConvNode(graph, nameCounter, pre, desc.gpoolConv, prefix + "/gconv");
+  string gpoolBNAct = addBNActivationMask(graph, nameCounter, gpoolConvOut, desc.gpoolBN, desc.gpoolActivation, mask, prefix + "/gbn");
+  string gpoolResult = addGlobalPool(graph, nameCounter, gpoolBNAct, mask, maskSumHW, prefix + "/gpool");
 
   // gpoolToBiasMul: [N, 3*gpoolC] → [N, regC]
-  string gpoolBias = addMatMulNode(graph, gpoolResult, desc.gpoolToBiasMul, prefix + "/g2b");
+  string gpoolBias = addMatMulNode(graph, nameCounter, gpoolResult, desc.gpoolToBiasMul, prefix + "/g2b");
 
   // Reshape bias to [N, C, 1, 1] for broadcasting
-  string biasShape = addInt64Initializer(graph, uniqueName(prefix + "/shape_nc11"), {0, -1, 1, 1});
-  string gpoolBiasReshaped = uniqueName(prefix + "/gbr");
+  string biasShape = addInt64Initializer(graph, uniqueName(nameCounter, prefix + "/shape_nc11"), {0, -1, 1, 1});
+  string gpoolBiasReshaped = uniqueName(nameCounter, prefix + "/gbr");
   addNode(graph, "Reshape", {gpoolBias, biasShape}, gpoolBiasReshaped);
 
   // Add bias to regular conv output
-  string regPlusBias = uniqueName(prefix + "/rpb");
+  string regPlusBias = uniqueName(nameCounter, prefix + "/rpb");
   addNode(graph, "Add", {regOut, gpoolBiasReshaped}, regPlusBias);
 
   // Second half: BN→Act→Conv
-  string midAct = addBNActivationMask(graph, regPlusBias, desc.midBN, desc.midActivation, mask, prefix + "/mid");
-  string final_ = addConvNode(graph, midAct, desc.finalConv, prefix + "/conv2");
+  string midAct = addBNActivationMask(graph, nameCounter, regPlusBias, desc.midBN, desc.midActivation, mask, prefix + "/mid");
+  string final_ = addConvNode(graph, nameCounter, midAct, desc.finalConv, prefix + "/conv2");
 
   // Residual add
-  string output = uniqueName(prefix + "/resadd");
+  string output = uniqueName(nameCounter, prefix + "/resadd");
   addNode(graph, "Add", {input, final_}, output);
   return output;
 }
@@ -450,6 +457,7 @@ static string addGPoolResidualBlock(
 // =====================================================================
 static string addNestedBottleneckResidualBlock(
   onnx::GraphProto* graph,
+  int& nameCounter,
   const string& input,
   const string& mask,
   const string& maskSumHW,
@@ -457,21 +465,21 @@ static string addNestedBottleneckResidualBlock(
   const string& prefix
 ) {
   // Pre: BN → Act → Mask → 1x1 Conv (c_main → c_mid)
-  string pre = addBNActivationMask(graph, input, desc.preBN, desc.preActivation, mask, prefix + "/pre");
-  string midOut = addConvNode(graph, pre, desc.preConv, prefix + "/preconv");
+  string pre = addBNActivationMask(graph, nameCounter, input, desc.preBN, desc.preActivation, mask, prefix + "/pre");
+  string midOut = addConvNode(graph, nameCounter, pre, desc.preConv, prefix + "/preconv");
 
   // Inner sub-blocks at c_mid channels
   for(int i = 0; i < desc.numBlocks; i++) {
     int kind = desc.blocks[i].first;
     string sub = prefix + "/sub" + to_string(i);
     if(kind == ORDINARY_BLOCK_KIND) {
-      midOut = addResidualBlock(graph, midOut, mask,
+      midOut = addResidualBlock(graph, nameCounter, midOut, mask,
         *((const ResidualBlockDesc*)desc.blocks[i].second.get()), sub);
     } else if(kind == GLOBAL_POOLING_BLOCK_KIND) {
-      midOut = addGPoolResidualBlock(graph, midOut, mask, maskSumHW,
+      midOut = addGPoolResidualBlock(graph, nameCounter, midOut, mask, maskSumHW,
         *((const GlobalPoolingResidualBlockDesc*)desc.blocks[i].second.get()), sub);
     } else if(kind == NESTED_BOTTLENECK_BLOCK_KIND) {
-      midOut = addNestedBottleneckResidualBlock(graph, midOut, mask, maskSumHW,
+      midOut = addNestedBottleneckResidualBlock(graph, nameCounter, midOut, mask, maskSumHW,
         *((const NestedBottleneckResidualBlockDesc*)desc.blocks[i].second.get()), sub);
     } else {
       throw StringError("ONNX backend: unknown sub-block kind " + to_string(kind));
@@ -479,11 +487,11 @@ static string addNestedBottleneckResidualBlock(
   }
 
   // Post: BN → Act → Mask → 1x1 Conv (c_mid → c_main)
-  string post = addBNActivationMask(graph, midOut, desc.postBN, desc.postActivation, mask, prefix + "/post");
-  string postOut = addConvNode(graph, post, desc.postConv, prefix + "/postconv");
+  string post = addBNActivationMask(graph, nameCounter, midOut, desc.postBN, desc.postActivation, mask, prefix + "/post");
+  string postOut = addConvNode(graph, nameCounter, post, desc.postConv, prefix + "/postconv");
 
   // Residual add: input + postOut
-  string output = uniqueName(prefix + "/resadd");
+  string output = uniqueName(nameCounter, prefix + "/resadd");
   addNode(graph, "Add", {input, postOut}, output);
   return output;
 }
@@ -535,7 +543,7 @@ static void addGraphOutput(
 // Main: Build the full ONNX model from ModelDesc
 // =====================================================================
 string OnnxModelBuilder::buildOnnxModel(const ModelDesc& modelDesc, int nnXLen, int nnYLen) {
-  nameCounter = 0;
+  int nameCounter = 0;
 
   const int modelVersion = modelDesc.modelVersion;
   const int numInputChannels = modelDesc.numInputChannels;
@@ -580,30 +588,30 @@ string OnnxModelBuilder::buildOnnxModel(const ModelDesc& modelDesc, int nnXLen, 
   string sliceStarts = addInt64Initializer(graph, "mask_starts", {0});
   string sliceEnds = addInt64Initializer(graph, "mask_ends", {1});
   string sliceAxes = addInt64Initializer(graph, "mask_axes", {1});
-  string mask = uniqueName("mask");
+  string mask = uniqueName(nameCounter, "mask");
   addNode(graph, "Slice", {"input_spatial", sliceStarts, sliceEnds, sliceAxes}, mask);
 
   // maskSumHW
   string sumAxes = addInt64Initializer(graph, "mask_sum_axes", {2, 3});
-  string maskSumHW = uniqueName("maskSumHW");
+  string maskSumHW = uniqueName(nameCounter, "maskSumHW");
   addNode(graph, "ReduceSum", {mask, sumAxes}, maskSumHW);
   setAttrInt(graph, "keepdims", 1);
 
   // ------------------------------------------------------------------
   // Trunk: Initial conv + matmul bias
   // ------------------------------------------------------------------
-  string trunkOut = addConvNode(graph, "input_spatial", trunk.initialConv, "trunk/init_conv");
+  string trunkOut = addConvNode(graph, nameCounter, "input_spatial", trunk.initialConv, "trunk/init_conv");
 
   // initialMatMul: global features → [N, trunkNumChannels]
-  string globalBias = addMatMulNode(graph, "input_global", trunk.initialMatMul, "trunk/init_matmul");
+  string globalBias = addMatMulNode(graph, nameCounter, "input_global", trunk.initialMatMul, "trunk/init_matmul");
 
   // Reshape to [N, C, 1, 1] for broadcasting
   string biasShape = addInt64Initializer(graph, "trunk_bias_shape", {0, -1, 1, 1});
-  string globalBiasReshaped = uniqueName("trunk/gbr");
+  string globalBiasReshaped = uniqueName(nameCounter, "trunk/gbr");
   addNode(graph, "Reshape", {globalBias, biasShape}, globalBiasReshaped);
 
   // Add global bias to conv output
-  string trunkCombined = uniqueName("trunk/combined");
+  string trunkCombined = uniqueName(nameCounter, "trunk/combined");
   addNode(graph, "Add", {trunkOut, globalBiasReshaped}, trunkCombined);
   trunkOut = trunkCombined;
 
@@ -612,21 +620,21 @@ string OnnxModelBuilder::buildOnnxModel(const ModelDesc& modelDesc, int nnXLen, 
   // ------------------------------------------------------------------
   if(trunk.metaEncoderVersion > 0) {
     const SGFMetadataEncoderDesc& enc = trunk.sgfMetadataEncoder;
-    string metaOut = addMatMulNode(graph, "input_meta", enc.mul1, "trunk/meta_mul1");
-    metaOut = addBiasNode(graph, metaOut, enc.bias1, "trunk/meta_b1");
-    metaOut = addActivationNode(graph, metaOut, enc.act1.activation, "trunk/meta_a1");
-    metaOut = addMatMulNode(graph, metaOut, enc.mul2, "trunk/meta_mul2");
-    metaOut = addBiasNode(graph, metaOut, enc.bias2, "trunk/meta_b2");
-    metaOut = addActivationNode(graph, metaOut, enc.act2.activation, "trunk/meta_a2");
-    metaOut = addMatMulNode(graph, metaOut, enc.mul3, "trunk/meta_mul3");
+    string metaOut = addMatMulNode(graph, nameCounter, "input_meta", enc.mul1, "trunk/meta_mul1");
+    metaOut = addBiasNode(graph, nameCounter, metaOut, enc.bias1, "trunk/meta_b1");
+    metaOut = addActivationNode(graph, nameCounter, metaOut, enc.act1.activation, "trunk/meta_a1");
+    metaOut = addMatMulNode(graph, nameCounter, metaOut, enc.mul2, "trunk/meta_mul2");
+    metaOut = addBiasNode(graph, nameCounter, metaOut, enc.bias2, "trunk/meta_b2");
+    metaOut = addActivationNode(graph, nameCounter, metaOut, enc.act2.activation, "trunk/meta_a2");
+    metaOut = addMatMulNode(graph, nameCounter, metaOut, enc.mul3, "trunk/meta_mul3");
 
     // Reshape to [N, C, 1, 1] for spatial broadcasting
     string metaBiasShape = addInt64Initializer(graph, "trunk_meta_bias_shape", {0, -1, 1, 1});
-    string metaBiasReshaped = uniqueName("trunk/mbr");
+    string metaBiasReshaped = uniqueName(nameCounter, "trunk/mbr");
     addNode(graph, "Reshape", {metaOut, metaBiasShape}, metaBiasReshaped);
 
     // Add to trunk
-    string trunkWithMeta = uniqueName("trunk/with_meta");
+    string trunkWithMeta = uniqueName(nameCounter, "trunk/with_meta");
     addNode(graph, "Add", {trunkOut, metaBiasReshaped}, trunkWithMeta);
     trunkOut = trunkWithMeta;
   }
@@ -640,71 +648,71 @@ string OnnxModelBuilder::buildOnnxModel(const ModelDesc& modelDesc, int nnXLen, 
 
     if(blockKind == ORDINARY_BLOCK_KIND) {
       const ResidualBlockDesc& blockDesc = *((const ResidualBlockDesc*)trunk.blocks[i].second.get());
-      trunkOut = addResidualBlock(graph, trunkOut, mask, blockDesc, blockPrefix);
+      trunkOut = addResidualBlock(graph, nameCounter, trunkOut, mask, blockDesc, blockPrefix);
     } else if(blockKind == GLOBAL_POOLING_BLOCK_KIND) {
       const GlobalPoolingResidualBlockDesc& blockDesc = *((const GlobalPoolingResidualBlockDesc*)trunk.blocks[i].second.get());
-      trunkOut = addGPoolResidualBlock(graph, trunkOut, mask, maskSumHW, blockDesc, blockPrefix);
+      trunkOut = addGPoolResidualBlock(graph, nameCounter, trunkOut, mask, maskSumHW, blockDesc, blockPrefix);
     } else if(blockKind == NESTED_BOTTLENECK_BLOCK_KIND) {
       const NestedBottleneckResidualBlockDesc& blockDesc = *((const NestedBottleneckResidualBlockDesc*)trunk.blocks[i].second.get());
-      trunkOut = addNestedBottleneckResidualBlock(graph, trunkOut, mask, maskSumHW, blockDesc, blockPrefix);
+      trunkOut = addNestedBottleneckResidualBlock(graph, nameCounter, trunkOut, mask, maskSumHW, blockDesc, blockPrefix);
     } else {
       throw StringError("ONNX backend: unknown block kind " + to_string(blockKind));
     }
   }
 
   // Trunk tip: BN + activation + mask
-  trunkOut = addBNActivationMask(graph, trunkOut, trunk.trunkTipBN, trunk.trunkTipActivation, mask, "trunk/tip");
+  trunkOut = addBNActivationMask(graph, nameCounter, trunkOut, trunk.trunkTipBN, trunk.trunkTipActivation, mask, "trunk/tip");
 
   // ------------------------------------------------------------------
   // Policy Head
   // ------------------------------------------------------------------
 
   // p1Conv: spatial path
-  string p1Out = addConvNode(graph, trunkOut, policyHead.p1Conv, "policy/p1conv");
+  string p1Out = addConvNode(graph, nameCounter, trunkOut, policyHead.p1Conv, "policy/p1conv");
 
   // g1Conv: global pooling path
-  string g1Out = addConvNode(graph, trunkOut, policyHead.g1Conv, "policy/g1conv");
-  string g1BNAct = addBNActivationMask(graph, g1Out, policyHead.g1BN, policyHead.g1Activation, mask, "policy/g1bn");
-  string g1Pool = addGlobalPool(graph, g1BNAct, mask, maskSumHW, "policy/g1pool");
+  string g1Out = addConvNode(graph, nameCounter, trunkOut, policyHead.g1Conv, "policy/g1conv");
+  string g1BNAct = addBNActivationMask(graph, nameCounter, g1Out, policyHead.g1BN, policyHead.g1Activation, mask, "policy/g1bn");
+  string g1Pool = addGlobalPool(graph, nameCounter, g1BNAct, mask, maskSumHW, "policy/g1pool");
 
   // gpoolToBiasMul: [N, 3*g1C] → [N, p1C]
-  string policyBias = addMatMulNode(graph, g1Pool, policyHead.gpoolToBiasMul, "policy/g2b");
+  string policyBias = addMatMulNode(graph, nameCounter, g1Pool, policyHead.gpoolToBiasMul, "policy/g2b");
 
   // Reshape to [N, C, 1, 1]
-  string pBiasShape = addInt64Initializer(graph, uniqueName("policy/bias_shape"), {0, -1, 1, 1});
-  string policyBiasReshaped = uniqueName("policy/pbr");
+  string pBiasShape = addInt64Initializer(graph, uniqueName(nameCounter, "policy/bias_shape"), {0, -1, 1, 1});
+  string policyBiasReshaped = uniqueName(nameCounter, "policy/pbr");
   addNode(graph, "Reshape", {policyBias, pBiasShape}, policyBiasReshaped);
 
   // Add bias to p1
-  string p1PlusBias = uniqueName("policy/p1pb");
+  string p1PlusBias = uniqueName(nameCounter, "policy/p1pb");
   addNode(graph, "Add", {p1Out, policyBiasReshaped}, p1PlusBias);
 
   // p1BN + activation + mask
-  string p1BNAct = addBNActivationMask(graph, p1PlusBias, policyHead.p1BN, policyHead.p1Activation, mask, "policy/p1bn");
+  string p1BNAct = addBNActivationMask(graph, nameCounter, p1PlusBias, policyHead.p1BN, policyHead.p1Activation, mask, "policy/p1bn");
 
   // p2Conv: [N, p1C, H, W] → [N, policyChannels, H, W]
-  string p2Out = addConvNode(graph, p1BNAct, policyHead.p2Conv, "policy/p2conv");
+  string p2Out = addConvNode(graph, nameCounter, p1BNAct, policyHead.p2Conv, "policy/p2conv");
 
   // Reshape to [N, policyChannels, H*W]
-  string pSpatialShape = addInt64Initializer(graph, uniqueName("policy/spat_shape"), {0, numPolicyChannels, -1});
-  string policySpatial = uniqueName("policy/spatial");
+  string pSpatialShape = addInt64Initializer(graph, uniqueName(nameCounter, "policy/spat_shape"), {0, numPolicyChannels, -1});
+  string policySpatial = uniqueName(nameCounter, "policy/spatial");
   addNode(graph, "Reshape", {p2Out, pSpatialShape}, policySpatial);
 
   // Pass move: gpoolToPassMul
   string passOut;
   if(modelVersion >= 15) {
     // gpoolToPassMul → bias → activation → gpoolToPassMul2
-    string passMul1 = addMatMulNode(graph, g1Pool, policyHead.gpoolToPassMul, "policy/pass_mul1");
-    string passBiased = addBiasNode(graph, passMul1, policyHead.gpoolToPassBias, "policy/pass_bias");
-    string passAct = addActivationNode(graph, passBiased, policyHead.passActivation.activation, "policy/pass_act");
-    passOut = addMatMulNode(graph, passAct, policyHead.gpoolToPassMul2, "policy/pass_mul2");
+    string passMul1 = addMatMulNode(graph, nameCounter, g1Pool, policyHead.gpoolToPassMul, "policy/pass_mul1");
+    string passBiased = addBiasNode(graph, nameCounter, passMul1, policyHead.gpoolToPassBias, "policy/pass_bias");
+    string passAct = addActivationNode(graph, nameCounter, passBiased, policyHead.passActivation.activation, "policy/pass_act");
+    passOut = addMatMulNode(graph, nameCounter, passAct, policyHead.gpoolToPassMul2, "policy/pass_mul2");
   } else {
-    passOut = addMatMulNode(graph, g1Pool, policyHead.gpoolToPassMul, "policy/pass_mul");
+    passOut = addMatMulNode(graph, nameCounter, g1Pool, policyHead.gpoolToPassMul, "policy/pass_mul");
   }
 
   // Reshape pass to [N, policyChannels, 1]
-  string passShape = addInt64Initializer(graph, uniqueName("policy/pass_shape"), {0, numPolicyChannels, 1});
-  string passReshaped = uniqueName("policy/pass_r");
+  string passShape = addInt64Initializer(graph, uniqueName(nameCounter, "policy/pass_shape"), {0, numPolicyChannels, 1});
+  string passReshaped = uniqueName(nameCounter, "policy/pass_r");
   addNode(graph, "Reshape", {passOut, passShape}, passReshaped);
 
   // Concat spatial + pass → out_policy [N, policyChannels, H*W+1]
@@ -716,34 +724,34 @@ string OnnxModelBuilder::buildOnnxModel(const ModelDesc& modelDesc, int nnXLen, 
   // ------------------------------------------------------------------
 
   // v1Conv
-  string v1Out = addConvNode(graph, trunkOut, valueHead.v1Conv, "value/v1conv");
+  string v1Out = addConvNode(graph, nameCounter, trunkOut, valueHead.v1Conv, "value/v1conv");
 
   // v1BN + activation + mask
-  string v1BNAct = addBNActivationMask(graph, v1Out, valueHead.v1BN, valueHead.v1Activation, mask, "value/v1bn");
+  string v1BNAct = addBNActivationMask(graph, nameCounter, v1Out, valueHead.v1BN, valueHead.v1Activation, mask, "value/v1bn");
 
   // Value head global pooling
-  string v1Pool = addValueHeadGPool(graph, v1BNAct, mask, maskSumHW, "value/vpool");
+  string v1Pool = addValueHeadGPool(graph, nameCounter, v1BNAct, mask, maskSumHW, "value/vpool");
 
   // v2Mul + v2Bias + v2Activation
-  string v2Out = addMatMulNode(graph, v1Pool, valueHead.v2Mul, "value/v2mul");
-  string v2Biased = addBiasNode(graph, v2Out, valueHead.v2Bias, "value/v2bias");
-  string v2Act = addActivationNode(graph, v2Biased, valueHead.v2Activation.activation, "value/v2act");
+  string v2Out = addMatMulNode(graph, nameCounter, v1Pool, valueHead.v2Mul, "value/v2mul");
+  string v2Biased = addBiasNode(graph, nameCounter, v2Out, valueHead.v2Bias, "value/v2bias");
+  string v2Act = addActivationNode(graph, nameCounter, v2Biased, valueHead.v2Activation.activation, "value/v2act");
 
   // v3Mul + v3Bias → out_value [N, 3]
-  string v3Out = addMatMulNode(graph, v2Act, valueHead.v3Mul, "value/v3mul");
-  addBiasNode(graph, v3Out, valueHead.v3Bias, "value/v3bias");
+  string v3Out = addMatMulNode(graph, nameCounter, v2Act, valueHead.v3Mul, "value/v3mul");
+  addBiasNode(graph, nameCounter, v3Out, valueHead.v3Bias, "value/v3bias");
   // Re-get the actual output name from the last bias node
   string valueOutput = graph->node(graph->node_size() - 1).output(0);
   // Rename to out_value using Identity
   addNode(graph, "Identity", {valueOutput}, "out_value");
 
   // sv3Mul + sv3Bias → out_miscvalue [N, numScoreValueChannels]
-  string sv3Out = addMatMulNode(graph, v2Act, valueHead.sv3Mul, "value/sv3mul");
-  string sv3Biased = addBiasNode(graph, sv3Out, valueHead.sv3Bias, "value/sv3bias");
+  string sv3Out = addMatMulNode(graph, nameCounter, v2Act, valueHead.sv3Mul, "value/sv3mul");
+  string sv3Biased = addBiasNode(graph, nameCounter, sv3Out, valueHead.sv3Bias, "value/sv3bias");
   addNode(graph, "Identity", {sv3Biased}, "out_miscvalue");
 
   // vOwnershipConv → out_ownership [N, 1, H, W]
-  string ownOut = addConvNode(graph, v1BNAct, valueHead.vOwnershipConv, "value/own_conv");
+  string ownOut = addConvNode(graph, nameCounter, v1BNAct, valueHead.vOwnershipConv, "value/own_conv");
   addNode(graph, "Identity", {ownOut}, "out_ownership");
 
   // ------------------------------------------------------------------
