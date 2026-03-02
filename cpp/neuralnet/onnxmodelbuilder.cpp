@@ -737,11 +737,8 @@ string OnnxModelBuilder::buildOnnxModel(const ModelDesc& modelDesc, int nnXLen, 
 
   // v3Mul + v3Bias → out_value [N, 3]
   string v3Out = addMatMulNode(graph, nameCounter, v2Act, valueHead.v3Mul, "value/v3mul");
-  addBiasNode(graph, nameCounter, v3Out, valueHead.v3Bias, "value/v3bias");
-  // Re-get the actual output name from the last bias node
-  string valueOutput = graph->node(graph->node_size() - 1).output(0);
-  // Rename to out_value using Identity
-  addNode(graph, "Identity", {valueOutput}, "out_value");
+  string v3Biased = addBiasNode(graph, nameCounter, v3Out, valueHead.v3Bias, "value/v3bias");
+  addNode(graph, "Identity", {v3Biased}, "out_value");
 
   // sv3Mul + sv3Bias → out_miscvalue [N, numScoreValueChannels]
   string sv3Out = addMatMulNode(graph, nameCounter, v2Act, valueHead.sv3Mul, "value/sv3mul");
