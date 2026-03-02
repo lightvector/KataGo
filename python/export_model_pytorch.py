@@ -485,8 +485,10 @@ def main(args):
         wrapper.eval()
 
         # Build dummy inputs (fixed 19x19 board)
-        dummy_spatial = torch.zeros(1, 22, 19, 19)
-        dummy_global = torch.zeros(1, 19)
+        num_bin_features = modelconfigs.get_num_bin_input_features(model_config)
+        num_global_features = modelconfigs.get_num_global_input_features(model_config)
+        dummy_spatial = torch.zeros(1, num_bin_features, 19, 19)
+        dummy_global = torch.zeros(1, num_global_features)
         input_names = ["input_spatial", "input_global"]
         dynamic_axes = {
             "input_spatial": {0: "batch"},
@@ -498,7 +500,7 @@ def main(args):
         }
 
         if onnx_model.metadata_encoder is not None:
-            dummy_meta = torch.zeros(1, 192)
+            dummy_meta = torch.zeros(1, onnx_model.metadata_encoder.c_input)
             dummy_input = (dummy_spatial, dummy_global, dummy_meta)
             input_names.append("input_meta")
             dynamic_axes["input_meta"] = {0: "batch"}

@@ -587,8 +587,8 @@ void NeuralNet::getOutput(
     else if((int)i == metaIdx)
       inputTensors.push_back(std::move(metaTensor));
     else {
-      std::array<int64_t, 1> emptyShape = {0};
-      inputTensors.push_back(Ort::Value::CreateTensor<float>(memInfo, nullptr, 0, emptyShape.data(), 1));
+      throw StringError("ONNX backend: unexpected input node '" + computeHandle->inputNames[i] +
+                         "' — only spatial, global, and meta inputs are supported");
     }
   }
 
