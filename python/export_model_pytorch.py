@@ -35,7 +35,38 @@ parser.add_argument('-model-name', help='name to record in model file', required
 parser.add_argument('-filename-prefix', help='filename prefix to save to within dir', required=True)
 parser.add_argument('-use-swa', help='Use SWA model', action="store_true", required=False)
 parser.add_argument('-export-14-as-15', help='Export model version 14 as 15', action="store_true", required=False)
+parser.add_argument('-export-onnx', help='Also export an ONNX model', action="store_true", required=False)
 args = vars(parser.parse_args())
+
+
+class OnnxExportWrapper(torch.nn.Module):
+    """Wrapper that selects the outputs needed by the C++ ONNX backend."""
+
+    def __init__(self, model, version):
+        super().__init__()
+        self.model = model
+        self.version = version
+
+    def forward(self, input_spatial, input_global, input_meta=None):
+        outputs = self.model(input_spatial, input_global, input_meta, extra_outputs=None)
+        out_policy = outputs[0][0]
+        out_value = outputs[0][1]
+        out_miscvalue = outputs[0][2]
+        out_moremiscvalue = outputs[0][3]
+        out_ownership = outputs[0][4]
+
+        # Select policy channels based on export version
+        if self.version <= 11:
+            out_policy = out_policy[:, 0:1, :]
+        elif self.version <= 15:
+            out_policy = out_policy[:, [0, 5], :]
+        else:
+            out_policy = out_policy[:, [0, 5, 6, 7], :]
+
+        # Combine miscvalue (first 4) and moremiscvalue (first 2) into 6 channels
+        miscvalue = torch.cat([out_miscvalue[:, :4], out_moremiscvalue[:, :2]], dim=1)
+
+        return out_policy, out_value, miscvalue, out_ownership
 
 
 def main(args):
@@ -45,6 +76,7 @@ def main(args):
     filename_prefix = args["filename_prefix"]
     use_swa = args["use_swa"]
     export_14_as_15 = args["export_14_as_15"]
+    export_onnx = args["export_onnx"]
 
     os.makedirs(export_dir,exist_ok=True)
 
@@ -443,6 +475,48 @@ def main(args):
         logging.info("Writing model")
         write_model(model)
     f.close()
+
+    # ONNX EXPORT -------------------------------------------------------------------
+    if export_onnx:
+        logging.info("Exporting ONNX model...")
+        onnx_model = swa_model if swa_model is not None else model
+        onnx_model.eval()
+        wrapper = OnnxExportWrapper(onnx_model, version)
+        wrapper.eval()
+
+        # Build dummy inputs (fixed 19x19 board)
+        dummy_spatial = torch.zeros(1, 22, 19, 19)
+        dummy_global = torch.zeros(1, 19)
+        input_names = ["input_spatial", "input_global"]
+        dynamic_axes = {
+            "input_spatial": {0: "batch"},
+            "input_global": {0: "batch"},
+            "out_policy": {0: "batch"},
+            "out_value": {0: "batch"},
+            "out_miscvalue": {0: "batch"},
+            "out_ownership": {0: "batch"},
+        }
+
+        if onnx_model.metadata_encoder is not None:
+            dummy_meta = torch.zeros(1, 192)
+            dummy_input = (dummy_spatial, dummy_global, dummy_meta)
+            input_names.append("input_meta")
+            dynamic_axes["input_meta"] = {0: "batch"}
+        else:
+            dummy_input = (dummy_spatial, dummy_global)
+
+        onnx_path = os.path.join(export_dir, filename_prefix + ".onnx")
+        torch.onnx.export(
+            wrapper,
+            dummy_input,
+            onnx_path,
+            input_names=input_names,
+            output_names=["out_policy", "out_value", "out_miscvalue", "out_ownership"],
+            dynamic_axes=dynamic_axes,
+            opset_version=17,
+            do_constant_folding=True,
+        )
+        logging.info(f"ONNX model exported to: {onnx_path}")
 
     with open(os.path.join(export_dir,"metadata.json"),"w") as f:
         train_state = other_state_dict["train_state"]
