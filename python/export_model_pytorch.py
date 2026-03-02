@@ -491,12 +491,12 @@ def main(args):
         dummy_global = torch.zeros(1, num_global_features)
         input_names = ["input_spatial", "input_global"]
         dynamic_axes = {
-            "input_spatial": {0: "batch"},
+            "input_spatial": {0: "batch", 2: "height", 3: "width"},
             "input_global": {0: "batch"},
-            "out_policy": {0: "batch"},
+            "out_policy": {0: "batch", 2: "spatial"},
             "out_value": {0: "batch"},
             "out_miscvalue": {0: "batch"},
-            "out_ownership": {0: "batch"},
+            "out_ownership": {0: "batch", 2: "height", 3: "width"},
         }
 
         if onnx_model.metadata_encoder is not None:

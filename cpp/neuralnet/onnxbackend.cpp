@@ -608,10 +608,19 @@ void NeuralNet::getOutput(
   int miscvalueOutputIdx = findNameIndex(computeHandle->outputNames, {ctx->outputMiscvalueName});
   int ownershipOutputIdx = findNameIndex(computeHandle->outputNames, {ctx->outputOwnershipName});
 
-  const float* policyData = (policyOutputIdx >= 0) ? outputTensors[policyOutputIdx].GetTensorData<float>() : nullptr;
-  const float* valueData = (valueOutputIdx >= 0) ? outputTensors[valueOutputIdx].GetTensorData<float>() : nullptr;
-  const float* miscvalueData = (miscvalueOutputIdx >= 0) ? outputTensors[miscvalueOutputIdx].GetTensorData<float>() : nullptr;
-  const float* ownershipData = (ownershipOutputIdx >= 0) ? outputTensors[ownershipOutputIdx].GetTensorData<float>() : nullptr;
+  if(policyOutputIdx < 0)
+    throw StringError("ONNX backend: could not find policy output node '" + ctx->outputPolicyName + "'");
+  if(valueOutputIdx < 0)
+    throw StringError("ONNX backend: could not find value output node '" + ctx->outputValueName + "'");
+  if(miscvalueOutputIdx < 0)
+    throw StringError("ONNX backend: could not find miscvalue output node '" + ctx->outputMiscvalueName + "'");
+  if(ownershipOutputIdx < 0)
+    throw StringError("ONNX backend: could not find ownership output node '" + ctx->outputOwnershipName + "'");
+
+  const float* policyData = outputTensors[policyOutputIdx].GetTensorData<float>();
+  const float* valueData = outputTensors[valueOutputIdx].GetTensorData<float>();
+  const float* miscvalueData = outputTensors[miscvalueOutputIdx].GetTensorData<float>();
+  const float* ownershipData = outputTensors[ownershipOutputIdx].GetTensorData<float>();
 
   assert((int)outputs.size() == batchSize);
 
@@ -626,7 +635,7 @@ void NeuralNet::getOutput(
     float policyOptimism = (float)inputBufs[row]->policyOptimism;
 
     // Policy: [N, C, H*W+1]
-    if(policyData != nullptr) {
+    {
       const float* policyRowBase = policyData + row * numPolicyChannels * policyResultLen;
       float* policyProbs = output->policyProbs;
 
@@ -649,7 +658,7 @@ void NeuralNet::getOutput(
     }
 
     // Value: [N, 3]
-    if(valueData != nullptr) {
+    {
       int numVC = computeHandle->numValueChannels;
       assert(numVC == 3);
       output->whiteWinProb = valueData[row * numVC];
@@ -658,7 +667,7 @@ void NeuralNet::getOutput(
     }
 
     // MiscValue: [N, numScoreValueChannels] — version-dependent interpretation
-    if(miscvalueData != nullptr) {
+    {
       int numScoreValueChannels = computeHandle->numScoreValueChannels;
       if(computeHandle->modelVersion >= 9) {
         assert(numScoreValueChannels >= 6);
@@ -702,7 +711,7 @@ void NeuralNet::getOutput(
     }
 
     // Ownership: [N, 1, H, W]
-    if(output->whiteOwnerMap != NULL && ownershipData != nullptr) {
+    if(output->whiteOwnerMap != NULL) {
       assert(computeHandle->numOwnershipChannels >= 1);
       const float* ownershipRowBuf = ownershipData + row * nnXLen * nnYLen;
       SymmetryHelpers::copyOutputsWithSymmetry(ownershipRowBuf, output->whiteOwnerMap, 1, nnYLen, nnXLen, inputBufs[row]->symmetry);
