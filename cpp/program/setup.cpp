@@ -225,8 +225,8 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
 
     string backendExtraParam;
     #if defined(USE_ONNX_BACKEND)
+    string onnxProvider = cfg.contains("onnxProvider") ? cfg.getString("onnxProvider") : "cpu";
     {
-      string onnxProvider = cfg.contains("onnxProvider") ? cfg.getString("onnxProvider") : "cpu";
       backendExtraParam = "provider=" + onnxProvider;
       if(cfg.contains("onnxInputSpatial"))
         backendExtraParam += ";inputSpatial=" + cfg.getString("onnxInputSpatial");
@@ -305,8 +305,7 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
     // ONNX backend: use small batch for CPU provider (like Eigen), normal for accelerators
     int nnMaxBatchSize;
     {
-      string onnxProv = cfg.contains("onnxProvider") ? cfg.getString("onnxProvider") : "cpu";
-      if(onnxProv == "cpu" || onnxProv.empty()) {
+      if(onnxProvider == "cpu" || onnxProvider.empty()) {
         nnMaxBatchSize = 2;
         cfg.markAllKeysUsedWithPrefix("nnMaxBatchSize");
         (void)defaultMaxBatchSize;

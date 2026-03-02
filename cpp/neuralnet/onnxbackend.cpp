@@ -362,7 +362,7 @@ struct InputBuffers {
     spatialInput.resize(singleInputElts * maxBatchSize, 0.0f);
     globalInput.resize(singleInputGlobalElts * maxBatchSize, 0.0f);
     if(m.numInputMetaChannels > 0)
-      metaInput.resize(m.numInputMetaChannels * maxBatchSize, 0.0f);
+      metaInput.resize(singleInputMetaElts * maxBatchSize, 0.0f);
   }
 
   ~InputBuffers() {}
