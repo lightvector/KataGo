@@ -20,7 +20,7 @@ args = vars(parser.parse_args())
 checkpoint_path = args["checkpoint"]
 output_path = args["output"]
 
-data = torch.load(checkpoint_path,map_location="cpu")
+data = katago.train.load_model.load_checkpoint(checkpoint_path)
 assert data["config"]["version"] == 12
 
 def shift_bias(name, channel_idx):

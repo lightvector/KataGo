@@ -305,11 +305,12 @@ class Metrics:
 
         with torch.no_grad():
             norms: Dict[str,float] = {}
-            for group_name in ["input","input_noreg","normal","normal_gamma","noreg","output","output_noreg"]:
-                norm = torch.zeros([],device=device,dtype=dtype)
-                for tensor in reg_dict[group_name]:
-                    norm += torch.sum(tensor * tensor)
-                norms[group_name] = torch.sqrt(norm).detach().cpu().item()
+            for group_name in reg_dict:
+                if len(reg_dict[group_name]) > 0:
+                    norm = torch.zeros([],device=device,dtype=dtype)
+                    for tensor in reg_dict[group_name]:
+                        norm += torch.sum(tensor * tensor)
+                    norms[group_name] = torch.sqrt(norm).detach().cpu().item()
 
         return norms
 

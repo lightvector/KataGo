@@ -39,11 +39,28 @@ def load_swa_model_state_dict(state_dict):
     return swa_model_state_dict
 
 
+def load_checkpoint(checkpoint_file, map_location="cpu"):
+    """Load a raw checkpoint state dict with a helpful error for defaultdict issues."""
+    try:
+        return torch.load(checkpoint_file, map_location=map_location)
+    except Exception as e:
+        if "defaultdict" in str(e):
+            raise RuntimeError(
+                f"Failed to load checkpoint (weights_only=True rejected defaultdict)\n"
+                "This checkpoint was saved with an older version of the training code that stored\n"
+                "defaultdict values in running_metrics/last_val_metrics. If you trust this checkpoint,\n"
+                "run the migration script to convert it in-place (original saved to .backup):\n"
+                f"  python migrate_defaultdict_to_dict.py -checkpoint {checkpoint_file}\n"
+                "Then retry."
+            ) from e
+        raise
+
+
 def load_model(checkpoint_file, use_swa, device, pos_len=19, verbose=False):
     from ..train.model_pytorch import Model
     from torch.optim.swa_utils import AveragedModel
 
-    state_dict = torch.load(checkpoint_file,map_location="cpu")
+    state_dict = load_checkpoint(checkpoint_file)
 
     if "config" in state_dict:
         model_config = state_dict["config"]

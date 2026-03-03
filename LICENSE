@@ -5,6 +5,9 @@ and/or files, see the individual readmes and/or license files for each one withi
 subdirectories within cpp/external. Additionally, cpp/core/sha2.cpp derives from another piece of
 external code and embeds its own license within that file.
 
+Some parts of python/katago/model_pytorch.py and a few other files, where noted, are modifications
+of code from other open source authors.
+
 Aside from the above, the license for all OTHER content in this repo is as follows:
 
 ----------------------------------------

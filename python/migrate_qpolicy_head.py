@@ -23,7 +23,7 @@ output_path = args["output"]
 new_p1 = args["new_p1_channels"]
 new_g1 = new_p1
 
-data = torch.load(checkpoint_path,map_location="cpu")
+data = katago.train.load_model.load_checkpoint(checkpoint_path)
 assert data["config"]["version"] == 15, data["config"]["version"]
 
 def noisify(tensor, additive_scale):
