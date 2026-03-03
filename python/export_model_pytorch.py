@@ -55,7 +55,12 @@ class OnnxExportWrapper(torch.nn.Module):
         out_moremiscvalue = outputs[0][3]
         out_ownership = outputs[0][4]
 
-        # Select policy channels based on export version
+        # Select policy channels based on export version.
+        # Channel indices into the raw policy head output:
+        #   0 — main policy (move selection probabilities)
+        #   5 — short-term-optimistic policy
+        #   6 — Q-value winloss policy (v16+)
+        #   7 — Q-value score policy (v16+)
         if self.version <= 11:
             out_policy = out_policy[:, 0:1, :]
         elif self.version <= 15:

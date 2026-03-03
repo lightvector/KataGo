@@ -577,7 +577,12 @@ string OnnxModelBuilder::buildOnnxModel(const ModelDesc& modelDesc, int nnXLen, 
   }
 
   // ------------------------------------------------------------------
-  // Derive mask and maskSumHW from input_spatial
+  // Derive mask and maskSumHW from input_spatial.
+  // Channel 0 of the spatial input is the "on board" indicator: 1.0 for
+  // positions on the board, 0.0 for off-board padding.  This is Feature 0
+  // set by fillRowV3/V4/V5/V6/V7 in nninputs.cpp and holds across all
+  // supported input versions (V3-V7).
+  //
   // mask = input_spatial[:, 0:1, :, :]  → [N, 1, H, W]
   // maskSumHW = ReduceSum(mask, [2, 3], keepdims=true) → [N, 1, 1, 1]
   // ------------------------------------------------------------------

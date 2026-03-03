@@ -22,7 +22,17 @@ using namespace std;
 //--------------------------------------------------------------
 
 // Auto-detect modelVersion from introspected channel counts.
-// configModelVersion overrides if >= 0.
+//
+// Detection is based on channel-count heuristics for raw .onnx files where the
+// model version is not encoded in the file.  The mapping assumes V7 inputs
+// (22 spatial + 19 global channels) and distinguishes versions by the number of
+// score-value and policy output channels:
+//   - 4 score-value channels                    → version 8
+//   - 6 score-value channels, 1 policy channel  → version 10
+//   - 6 score-value channels, 2 policy channels → version 15
+//
+// If the heuristic picks the wrong version, set the `onnxModelVersion` config
+// key to the correct value (>= 0) to override auto-detection.
 static int detectModelVersion(
   int numInputChannels, int numInputGlobalChannels,
   int numPolicyChannels, int numScoreValueChannels,

@@ -462,6 +462,12 @@ elseif(USE_BACKEND STREQUAL "ONNX")
   if(NOT ONNXRUNTIME_ROOT OR NOT ONNXRUNTIME_BUILD_DIR)
     message(FATAL_ERROR "ONNX backend requires -DONNXRUNTIME_ROOT=... and -DONNXRUNTIME_BUILD_DIR=...")
   endif()
+  if(NOT IS_DIRECTORY "${ONNXRUNTIME_ROOT}")
+    message(FATAL_ERROR "ONNXRUNTIME_ROOT does not exist: ${ONNXRUNTIME_ROOT}")
+  endif()
+  if(NOT IS_DIRECTORY "${ONNXRUNTIME_BUILD_DIR}")
+    message(FATAL_ERROR "ONNXRUNTIME_BUILD_DIR does not exist: ${ONNXRUNTIME_BUILD_DIR}")
+  endif()
   # Use non-SYSTEM -I so ORT's bundled protobuf headers take precedence over
   # any system-installed protobuf found via /opt/homebrew/include or similar.
   # (-I paths are searched before -isystem paths by the compiler.)

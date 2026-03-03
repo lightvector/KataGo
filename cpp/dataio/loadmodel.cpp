@@ -28,23 +28,23 @@ static const vector<string> GENERIC_MODEL_NAMES {
   "model.bin.gz",
   "model.bin",
   "model.txt.gz",
-  "model.txt"
+  "model.txt",
   "Model.bin.gz",
   "Model.bin",
   "Model.txt.gz",
-  "Model.txt"
+  "Model.txt",
   "MODEL.bin.gz",
   "MODEL.bin",
   "MODEL.txt.gz",
-  "MODEL.txt"
+  "MODEL.txt",
   "model.ckpt",
-  "Model.ckpt"
+  "Model.ckpt",
   "MODEL.ckpt",
   "model.checkpoint",
-  "Model.checkpoint"
+  "Model.checkpoint",
   "MODEL.checkpoint",
   "model",
-  "Model"
+  "Model",
   "MODEL",
 };
 
