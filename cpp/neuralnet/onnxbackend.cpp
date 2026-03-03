@@ -712,7 +712,7 @@ void NeuralNet::getOutput(
 
     // Ownership: [N, 1, H, W]
     if(output->whiteOwnerMap != NULL) {
-      assert(computeHandle->numOwnershipChannels >= 1);
+      assert(computeHandle->numOwnershipChannels == 1);
       const float* ownershipRowBuf = ownershipData + row * nnXLen * nnYLen;
       SymmetryHelpers::copyOutputsWithSymmetry(ownershipRowBuf, output->whiteOwnerMap, 1, nnYLen, nnXLen, inputBufs[row]->symmetry);
     }
