@@ -153,7 +153,7 @@ As also mentioned in the instructions below but repeated here for visibility, if
    * If using OpenCL, you will want to verify that KataGo is picking up the correct device when you run it (e.g. some systems may have both an Intel CPU OpenCL and GPU OpenCL, if KataGo appears to pick the wrong one, you can correct this by specifying `openclGpuToUse` in `configs/gtp_example.cfg`).
 
 ## ONNX Runtime Backend
-The ONNX backend uses [ONNX Runtime](https://onnxruntime.ai/) for neural net inference. It supports both standard `.bin.gz` model files (building the ONNX graph internally from the model weights) and raw `.onnx` model files. On macOS, it can use the CoreML execution provider for hardware-accelerated inference on Apple Silicon.
+The ONNX backend uses [ONNX Runtime](https://onnxruntime.ai/) for neural net inference. It supports both standard `.bin.gz` model files (building the ONNX graph internally from the model weights) and raw `.onnx` model files. On macOS, it can use the CoreML execution provider for hardware-accelerated inference on Apple Silicon. On Windows/Linux, it can use the CUDA or TensorRT execution providers for NVIDIA GPU acceleration.
 
    * Requirements
       * ONNX Runtime built from source. See the [ONNX Runtime build instructions](https://onnxruntime.ai/docs/build/).
@@ -163,6 +163,21 @@ The ONNX backend uses [ONNX Runtime](https://onnxruntime.ai/) for neural net inf
           --config RelWithDebInfo --build_shared_lib --parallel \
           --compile_no_warning_as_error --skip_submodule_sync \
           --cmake_generator Ninja --use_coreml
+        ```
+      * On Windows/Linux with CUDA support, build ONNX Runtime with `--use_cuda`:
+        ```
+        python3 tools/ci_build/build.py --build_dir build/Linux \
+          --config RelWithDebInfo --build_shared_lib --parallel \
+          --compile_no_warning_as_error --skip_submodule_sync \
+          --use_cuda --cudnn_home /usr/local/cuda --cuda_home /usr/local/cuda
+        ```
+      * For TensorRT support, build with `--use_tensorrt` (also enables CUDA):
+        ```
+        python3 tools/ci_build/build.py --build_dir build/Linux \
+          --config RelWithDebInfo --build_shared_lib --parallel \
+          --compile_no_warning_as_error --skip_submodule_sync \
+          --use_tensorrt --tensorrt_home /usr/local/TensorRT \
+          --use_cuda --cudnn_home /usr/local/cuda --cuda_home /usr/local/cuda
         ```
       * zlib, libzip (same as other backends).
    * Compile using CMake in the cpp directory:
@@ -183,4 +198,4 @@ The ONNX backend uses [ONNX Runtime](https://onnxruntime.ai/) for neural net inf
       * You can pass an `.onnx` file directly as the `-model` argument instead of a `.bin.gz` file.
       * Input/output node names and model version are auto-detected. If auto-detection fails, override them via config keys documented in the ONNX section of `configs/gtp_example.cfg`.
    * Selecting the execution provider:
-      * Set `onnxProvider = cpu` (default) or `onnxProvider = coreml` (macOS only) in your config file.
+      * Set `onnxProvider = cpu` (default), `onnxProvider = coreml` (macOS only), `onnxProvider = cuda`, or `onnxProvider = tensorrt` in your config file.

@@ -1,8 +1,8 @@
 // ONNX Runtime backend for KataGo.
 // Loads standard .bin.gz model files (builds ONNX graph from ModelDesc) or
 // raw .onnx model files directly, and runs inference via ONNX Runtime with a
-// configurable execution provider (CPU, CoreML, etc.) selected at runtime via
-// the onnxProvider config key.
+// configurable execution provider (CPU, CoreML, CUDA, TensorRT) selected at
+// runtime via the onnxProvider config key.
 
 #include "../neuralnet/nninterface.h"
 #include "../neuralnet/nneval.h"
@@ -314,11 +314,23 @@ struct ComputeHandle {
 #else
       throw StringError("ONNX backend: CoreML is only available on Apple platforms");
 #endif
+    } else if(provider == "cuda") {
+      OrtCUDAProviderOptions cudaOpts;
+      cudaOpts.device_id = 0;
+      sessionOpts.AppendExecutionProvider_CUDA(cudaOpts);
+      if(logger != NULL)
+        logger->write("ONNX backend: CUDA execution provider enabled");
+    } else if(provider == "tensorrt") {
+      OrtTensorRTProviderOptions trtOpts;
+      trtOpts.device_id = 0;
+      sessionOpts.AppendExecutionProvider_TensorRT(trtOpts);
+      if(logger != NULL)
+        logger->write("ONNX backend: TensorRT execution provider enabled");
     } else if(provider == "cpu" || provider.empty()) {
       if(logger != NULL)
         logger->write("ONNX backend: using CPU execution provider");
     } else {
-      throw StringError("ONNX backend: unknown onnxProvider '" + provider + "', expected 'cpu' or 'coreml'");
+      throw StringError("ONNX backend: unknown onnxProvider '" + provider + "', expected 'cpu', 'coreml', 'cuda', or 'tensorrt'");
     }
 
     // Create session from in-memory bytes
