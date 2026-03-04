@@ -9,13 +9,14 @@ Summary of source folders, in approximate dependency order, from lowest level to
   * `board.{cpp,h}` - Raw board implementation, without move history. Helper functions for Benson's algorithm and ladder search.
   * `boardhistory.{cpp,h}` - Datastructure that does include move history - handles superko, passing, game end, final scoring, komi, handicap detection, etc.
   * `graphhash.{cpp,h}` - History-sensitive hash used for [monte-carlo graph search](https://github.com/lightvector/KataGo/blob/master/docs/GraphSearch.md).
-* `neuralnet` - Neural net GPU implementation and interface. Contains OpenCL, CUDA, Eigen, TensorRT backends along with common interfaces and model data structures.
+* `neuralnet` - Neural net GPU implementation and interface. Contains OpenCL, CUDA, Eigen, TensorRT, and ONNX backends along with common interfaces and model data structures.
   * `desc.{cpp,h}` - Data structure holding neural net structure and weights.
   * `modelversion.{cpp,h}` - Enumerates the various versions of neural net features and models.
   * `nninputs.{cpp,h}` - Implements the input features for the neural net.
   * `sgfmetadata.{cpp,h}` - Implements the input features for the [HumanSL neural net](https://github.com/lightvector/KataGo/blob/master/docs/Analysis_Engine.md#human-sl-analysis-guide), for conditioning on various SGF metadata about human players from training data.
   * `nninterface.h` - Common interface that is implemented by every low-level neural net backend.
-  * `{cuda,opencl,eigen,trt,dummy}backend.cpp` - Various backends.
+  * `{cuda,opencl,eigen,trt,onnx,dummy}backend.cpp` - Various backends.
+  * `onnxmodelbuilder.{cpp,h}` - Builds ONNX graphs from KataGo model weights for the ONNX backend.
   * `nneval.{cpp,h}` - Top-level handle to the neural net used by the rest of the engine, implements thread-safe batching of queries.
 * `search` - The main search engine.
   * `timecontrols.cpp` - Basic handling of a few possible time controls.
