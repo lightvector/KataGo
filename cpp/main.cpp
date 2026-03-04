@@ -248,6 +248,8 @@ string Version::getKataGoVersionFullInfo() {
   out << "Using OpenCL backend" << endl;
 #elif defined(USE_EIGEN_BACKEND)
   out << "Using Eigen(CPU) backend" << endl;
+#elif defined(USE_ONNX_BACKEND)
+  out << "Using ONNX backend" << endl;
 #else
   out << "Using dummy backend" << endl;
 #endif
