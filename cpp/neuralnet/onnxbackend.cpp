@@ -122,6 +122,9 @@ struct LoadedModel {
           numInputGlobalChannels = (int)shape[1];
         else
           numInputMetaChannels = (int)shape[1];
+      } else {
+        cerr << "ONNX backend warning: unrecognized input tensor '" << name
+             << "' with " << shape.size() << "D shape, ignoring" << "\n";
       }
     }
 
@@ -632,6 +635,10 @@ void NeuralNet::getOutput(
   const float* miscvalueData = outputTensors[miscvalueOutputIdx].GetTensorData<float>();
   const float* ownershipData = outputTensors[ownershipOutputIdx].GetTensorData<float>();
 
+  assert(policyData != nullptr);
+  assert(valueData != nullptr);
+  assert(miscvalueData != nullptr);
+  assert(ownershipData != nullptr);
   assert((int)outputs.size() == batchSize);
 
   const int policyResultLen = computeHandle->policyResultLen;
