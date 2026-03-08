@@ -80,9 +80,7 @@ b1c6nbt = {
     "trunk_num_channels":6,
     "mid_num_channels":4,
     "gpool_num_channels":4,
-    "use_attention_pool":False,
     "gamma_weight_decay_center_1":True,
-    "num_attention_pool_heads":2,
     "block_kind": [
         ["rconv1","bottlenest2"],
     ],
@@ -103,9 +101,7 @@ b2c16 = {
     "trunk_num_channels":16,
     "mid_num_channels":16,
     "gpool_num_channels":8,
-    "use_attention_pool":False,
     "gamma_weight_decay_center_1":True,
-    "num_attention_pool_heads":2,
     "block_kind": [
         ["rconv1","regular"],
         ["rconv2","regulargpool"],
@@ -127,9 +123,7 @@ b4c32 = {
     "trunk_num_channels":32,
     "mid_num_channels":32,
     "gpool_num_channels":16,
-    "use_attention_pool":False,
     "gamma_weight_decay_center_1":True,
-    "num_attention_pool_heads":2,
     "block_kind": [
         ["rconv1","regular"],
         ["rconv2","regular"],
@@ -153,9 +147,7 @@ b6c96 = {
     "trunk_num_channels":96,
     "mid_num_channels":96,
     "gpool_num_channels":32,
-    "use_attention_pool":False,
     "gamma_weight_decay_center_1":True,
-    "num_attention_pool_heads":4,
     "block_kind": [
         ["rconv1","regular"],
         ["rconv2","regular"],
@@ -181,9 +173,7 @@ b10c128 = {
     "trunk_num_channels":128,
     "mid_num_channels":128,
     "gpool_num_channels":32,
-    "use_attention_pool":False,
     "gamma_weight_decay_center_1":True,
-    "num_attention_pool_heads":4,
     "block_kind": [
         ["rconv1","regular"],
         ["rconv2","regular"],
@@ -213,9 +203,7 @@ b5c192nbt = {
     "trunk_num_channels":192,
     "mid_num_channels":96,
     "gpool_num_channels":32,
-    "use_attention_pool":False,
     "gamma_weight_decay_center_1":True,
-    "num_attention_pool_heads":4,
     "block_kind": [
         ["rconv1","bottlenest2"],
         ["rconv2","bottlenest2gpool"],
@@ -240,9 +228,7 @@ b8c192nbt = {
     "trunk_num_channels":192,
     "mid_num_channels":96,
     "gpool_num_channels":32,
-    "use_attention_pool":False,
     "gamma_weight_decay_center_1":True,
-    "num_attention_pool_heads":4,
     "block_kind": [
         ["rconv1","bottlenest2"],
         ["rconv2","bottlenest2"],
@@ -270,9 +256,7 @@ b15c192 = {
     "trunk_num_channels":192,
     "mid_num_channels":192,
     "gpool_num_channels":64,
-    "use_attention_pool":False,
     "gamma_weight_decay_center_1":True,
-    "num_attention_pool_heads":4,
     "block_kind": [
         ["rconv1","regular"],
         ["rconv2","regular"],
@@ -307,9 +291,7 @@ b10c256nbt = {
     "trunk_num_channels":256,
     "mid_num_channels":128,
     "gpool_num_channels":64,
-    "use_attention_pool":False,
     "gamma_weight_decay_center_1":True,
-    "num_attention_pool_heads":4,
     "block_kind": [
         ["rconv1","bottlenest2"],
         ["rconv2","bottlenest2"],
@@ -339,9 +321,7 @@ b20c256 = {
     "trunk_num_channels":256,
     "mid_num_channels":256,
     "gpool_num_channels":64,
-    "use_attention_pool":False,
     "gamma_weight_decay_center_1":True,
-    "num_attention_pool_heads":4,
     "block_kind": [
         ["rconv1","regular"],
         ["rconv2","regular"],
@@ -381,9 +361,7 @@ b30c256bt = {
     "trunk_num_channels":256,
     "mid_num_channels":128,
     "gpool_num_channels":64,
-    "use_attention_pool":False,
     "gamma_weight_decay_center_1":True,
-    "num_attention_pool_heads":4,
     "block_kind": [
         ["rconv0","bottle"],
         ["rconv1","bottle"],
@@ -433,9 +411,7 @@ b24c320bt = {
     "trunk_num_channels":320,
     "mid_num_channels":160,
     "gpool_num_channels":64,
-    "use_attention_pool":False,
     "gamma_weight_decay_center_1":True,
-    "num_attention_pool_heads":4,
     "block_kind": [
         ["rconv1","bottle"],
         ["rconv2","bottle"],
@@ -479,9 +455,7 @@ b20c384bt = {
     "trunk_num_channels":384,
     "mid_num_channels":192,
     "gpool_num_channels":64,
-    "use_attention_pool":False,
     "gamma_weight_decay_center_1":True,
-    "num_attention_pool_heads":4,
     "block_kind": [
         ["rconv1","bottle"],
         ["rconv2","bottle"],
@@ -522,9 +496,7 @@ b10c512lbt = {
     "trunk_num_channels":512,
     "mid_num_channels":256,
     "gpool_num_channels":128,
-    "use_attention_pool":False,
     "gamma_weight_decay_center_1":True,
-    "num_attention_pool_heads":4,
     "block_kind": [
         ["rconv1","bottle2"],
         ["rconv2","bottle2"],
@@ -555,9 +527,7 @@ b15c384lbt = {
     "trunk_num_channels":384,
     "mid_num_channels":192,
     "gpool_num_channels":64,
-    "use_attention_pool":False,
     "gamma_weight_decay_center_1":True,
-    "num_attention_pool_heads":4,
     "block_kind": [
         ["rconv1","bottle2"],
         ["rconv2","bottle2"],
@@ -592,9 +562,7 @@ b18c320lbt = {
     "trunk_num_channels":320,
     "mid_num_channels":160,
     "gpool_num_channels":64,
-    "use_attention_pool":False,
     "gamma_weight_decay_center_1":True,
-    "num_attention_pool_heads":4,
     "block_kind": [
         ["rconv1","bottle2"],
         ["rconv2","bottle2"],
@@ -632,9 +600,7 @@ b23c256lbt = {
     "trunk_num_channels":256,
     "mid_num_channels":128,
     "gpool_num_channels":64,
-    "use_attention_pool":False,
     "gamma_weight_decay_center_1":True,
-    "num_attention_pool_heads":4,
     "block_kind": [
         ["rconv1","bottle2"],
         ["rconv2","bottle2"],
@@ -677,9 +643,7 @@ b12c384llbt = {
     "trunk_num_channels":384,
     "mid_num_channels":192,
     "gpool_num_channels":64,
-    "use_attention_pool":False,
     "gamma_weight_decay_center_1":True,
-    "num_attention_pool_heads":4,
     "block_kind": [
         ["rconv1","bottle3"],
         ["rconv2","bottle3"],
@@ -712,9 +676,7 @@ b10c384nbt = {
     "trunk_num_channels":384,
     "mid_num_channels":192,
     "gpool_num_channels":64,
-    "use_attention_pool":False,
     "gamma_weight_decay_center_1":True,
-    "num_attention_pool_heads":4,
     "block_kind": [
         ["rconv1","bottlenest2"],
         ["rconv2","bottlenest2"],
@@ -736,6 +698,38 @@ b10c384nbt = {
 }
 
 
+b12c384nbt = {
+    "version":15,
+    "norm_kind":"fixup",
+    "bnorm_epsilon": 1e-4,
+    "bnorm_running_avg_momentum": 0.001,
+    "initial_conv_1x1": False,
+    "trunk_num_channels":384,
+    "mid_num_channels":192,
+    "gpool_num_channels":64,
+    "gamma_weight_decay_center_1":True,
+    "block_kind": [
+        ["rconv1","bottlenest2"],
+        ["rconv2","bottlenest2"],
+        ["rconv3","bottlenest2gpool"],
+        ["rconv4","bottlenest2"],
+        ["rconv5","bottlenest2"],
+        ["rconv6","bottlenest2gpool"],
+        ["rconv7","bottlenest2"],
+        ["rconv8","bottlenest2"],
+        ["rconv9","bottlenest2gpool"],
+        ["rconv10","bottlenest2"],
+        ["rconv11","bottlenest2gpool"],
+        ["rconv12","bottlenest2"],
+    ],
+    "p1_num_channels":48,
+    "g1_num_channels":48,
+    "v1_num_channels":64,
+    "sbv2_num_channels":96,
+    "num_scorebeliefs":8,
+    "v2_size":112,
+}
+
 b10c480nb3t = {
     "version":15,
     "norm_kind":"fixup",
@@ -745,9 +739,7 @@ b10c480nb3t = {
     "trunk_num_channels":480,
     "mid_num_channels":160,
     "gpool_num_channels":64,
-    "use_attention_pool":False,
     "gamma_weight_decay_center_1":True,
-    "num_attention_pool_heads":4,
     "block_kind": [
         ["rconv1","bottlenest2"],
         ["rconv2","bottlenest2"],
@@ -778,9 +770,7 @@ b7c384lnbt = {
     "trunk_num_channels":384,
     "mid_num_channels":192,
     "gpool_num_channels":64,
-    "use_attention_pool":False,
     "gamma_weight_decay_center_1":True,
-    "num_attention_pool_heads":4,
     "block_kind": [
         ["rconv1","bottlenest3"],
         ["rconv3","bottlenest3gpool"],
@@ -808,9 +798,7 @@ b5c512nnbt = {
     "outermid_num_channels":256,
     "mid_num_channels":128,
     "gpool_num_channels":64,
-    "use_attention_pool":False,
     "gamma_weight_decay_center_1":True,
-    "num_attention_pool_heads":4,
     "block_kind": [
         ["rconv1","bottlenest2bottlenest2"],
         ["rconv2","bottlenest2bottlenest2gpool"],
@@ -836,9 +824,7 @@ b20c384lbt = {
     "trunk_num_channels":384,
     "mid_num_channels":192,
     "gpool_num_channels":64,
-    "use_attention_pool":False,
     "gamma_weight_decay_center_1":True,
-    "num_attention_pool_heads":4,
     "block_kind": [
         ["rconv1","bottle2"],
         ["rconv2","bottle2"],
@@ -879,9 +865,7 @@ b30c320 = {
     "trunk_num_channels":320,
     "mid_num_channels":320,
     "gpool_num_channels":96,
-    "use_attention_pool":False,
     "gamma_weight_decay_center_1":True,
-    "num_attention_pool_heads":4,
     "block_kind": [
         ["rconv1","regular"],
         ["rconv2","regular"],
@@ -931,9 +915,7 @@ b40c256 = {
     "trunk_num_channels":256,
     "mid_num_channels":256,
     "gpool_num_channels":64,
-    "use_attention_pool":False,
     "gamma_weight_decay_center_1":True,
-    "num_attention_pool_heads":4,
     "block_kind": [
         ["rconv1","regular"],
         ["rconv2","regular"],
@@ -993,9 +975,7 @@ b18c384nbt = {
     "trunk_num_channels":384,
     "mid_num_channels":192,
     "gpool_num_channels":64,
-    "use_attention_pool":False,
     "gamma_weight_decay_center_1":True,
-    "num_attention_pool_heads":4,
     "block_kind": [
         ["rconv1","bottlenest2"],
         ["rconv2","bottlenest2"],
@@ -1033,9 +1013,7 @@ b18c384dnbt1 = {
     "trunk_num_channels":384,
     "mid_num_channels":192,
     "gpool_num_channels":64,
-    "use_attention_pool":False,
     "gamma_weight_decay_center_1":True,
-    "num_attention_pool_heads":4,
     "block_kind": [
         ["rconv1","bottlenest2"],
         ["rconv2","bottlenest2"],
@@ -1073,9 +1051,7 @@ b18c384dnbt2 = {
     "trunk_num_channels":384,
     "mid_num_channels":192,
     "gpool_num_channels":64,
-    "use_attention_pool":False,
     "gamma_weight_decay_center_1":True,
-    "num_attention_pool_heads":4,
     "block_kind": [
         ["rconv1","bottlenest2"],
         ["rconv2","bottlenest2"],
@@ -1113,9 +1089,7 @@ b14c448nbt = {
     "trunk_num_channels":448,
     "mid_num_channels":224,
     "gpool_num_channels":64,
-    "use_attention_pool":False,
     "gamma_weight_decay_center_1":True,
-    "num_attention_pool_heads":4,
     "block_kind": [
         ["rconv1","bottlenest2"],
         ["rconv2","bottlenest2"],
@@ -1149,9 +1123,7 @@ b40c384 = {
     "trunk_num_channels":384,
     "mid_num_channels":384,
     "gpool_num_channels":128,
-    "use_attention_pool":False,
     "gamma_weight_decay_center_1":True,
-    "num_attention_pool_heads":4,
     "block_kind": [
         ["rconv1","regular"],
         ["rconv2","regular"],
@@ -1212,9 +1184,7 @@ b60c320 = {
     "trunk_num_channels":320,
     "mid_num_channels":320,
     "gpool_num_channels":96,
-    "use_attention_pool":False,
     "gamma_weight_decay_center_1":True,
-    "num_attention_pool_heads":4,
     "block_kind": [
         ["rconv1","regular"],
         ["rconv2","regular"],
@@ -1295,9 +1265,7 @@ b41c384nbt = {
     "trunk_num_channels":384,
     "mid_num_channels":192,
     "gpool_num_channels":64,
-    "use_attention_pool":False,
     "gamma_weight_decay_center_1":True,
-    "num_attention_pool_heads":4,
     "block_kind": [
         ["rconv1","bottlenest2"],
         ["rconv2","bottlenest2"],
@@ -1358,9 +1326,7 @@ b32c448nbt = {
     "trunk_num_channels":448,
     "mid_num_channels":224,
     "gpool_num_channels":64,
-    "use_attention_pool":False,
     "gamma_weight_decay_center_1":True,
-    "num_attention_pool_heads":4,
     "block_kind": [
         ["rconv1","bottlenest2"],
         ["rconv2","bottlenest2"],
@@ -1413,9 +1379,7 @@ b28c512nbt = {
     "trunk_num_channels":512,
     "mid_num_channels":256,
     "gpool_num_channels":64,
-    "use_attention_pool":False,
     "gamma_weight_decay_center_1":True,
-    "num_attention_pool_heads":4,
     "block_kind": [
         ["rconv1","bottlenest2"],
         ["rconv2","bottlenest2"],
@@ -1463,9 +1427,7 @@ b20c640nbt = {
     "trunk_num_channels":640,
     "mid_num_channels":320,
     "gpool_num_channels":96,
-    "use_attention_pool":False,
     "gamma_weight_decay_center_1":True,
-    "num_attention_pool_heads":4,
     "block_kind": [
         ["rconv1","bottlenest2"],
         ["rconv2","bottlenest2"],
@@ -1505,9 +1467,7 @@ sandbox = {
     "trunk_num_channels":256,
     "mid_num_channels":256,
     "gpool_num_channels":64,
-    "use_attention_pool":False,
     "gamma_weight_decay_center_1":True,
-    "num_attention_pool_heads":4,
     "block_kind": [
         ["rconv1","regular"],
         ["rconv2","regular"],
@@ -1560,8 +1520,6 @@ b7c96h3tfrs = {
     "transformer_ffn_channels":256,
     "transformer_heads":3,
     "transformer_kv_heads":3,
-    "use_attention_pool":False,
-    "num_attention_pool_heads":4,
     "block_kind": [
         ["rconv1","transformerropesg"],
         ["rconv2","transformerropesg"],
@@ -1592,8 +1550,6 @@ b8c96h3tfrs = {
     "transformer_ffn_channels":256,
     "transformer_heads":3,
     "transformer_kv_heads":3,
-    "use_attention_pool":False,
-    "num_attention_pool_heads":4,
     "block_kind": [
         ["rconv1","transformerropesg"],
         ["rconv2","transformerropesg"],
@@ -1625,8 +1581,6 @@ b2b10c96h3tfrs = {
     "transformer_ffn_channels":256,
     "transformer_heads":3,
     "transformer_kv_heads":3,
-    "use_attention_pool":False,
-    "num_attention_pool_heads":4,
     "block_kind": [
         ["rconv1","regular"],
         ["rconv2","regular"],
@@ -1662,8 +1616,6 @@ b11c96h3tfrs = {
     "transformer_ffn_channels":256,
     "transformer_heads":3,
     "transformer_kv_heads":3,
-    "use_attention_pool":False,
-    "num_attention_pool_heads":4,
     "block_kind": [
         ["rconv1","transformerropesg"],
         ["rconv2","transformerropesg"],
@@ -1685,7 +1637,7 @@ b11c96h3tfrs = {
     "v2_size":64,
 }
 
-b9c96h3tgabsg = {
+b9c96h3tgabs = {
     "version":15,
     "norm_kind":"fixup",
     "bnorm_epsilon": 1e-4,
@@ -1700,11 +1652,9 @@ b9c96h3tgabsg = {
     "transformer_kv_heads":3,
     "gab_d1":16,
     "gab_d2":16,
-    "gab_num_templates":16,
-    "gab_num_fourier_features":8,
-    "gab_mlp_hidden":64,
-    "use_attention_pool":False,
-    "num_attention_pool_heads":4,
+    "gab_num_templates":32,
+    "gab_num_fourier_features":12,
+    "gab_mlp_hidden":96,
     "block_kind": [
         ["rconv1","transformergabsg"],
         ["rconv2","transformergabsg"],
@@ -1724,26 +1674,24 @@ b9c96h3tgabsg = {
     "v2_size":64,
 }
 
-b11c96h3tgabsg = {
+b10c192h6tgabs = {
     "version":15,
     "norm_kind":"fixup",
     "bnorm_epsilon": 1e-4,
     "bnorm_running_avg_momentum": 0.001,
     "initial_conv_1x1": False,
     "gamma_weight_decay_center_1":True,
-    "trunk_num_channels":96,
-    "mid_num_channels":96,
+    "trunk_num_channels":192,
+    "mid_num_channels":192,
     "gpool_num_channels":32,
-    "transformer_ffn_channels":256,
-    "transformer_heads":3,
-    "transformer_kv_heads":3,
-    "gab_d1":16,
-    "gab_d2":16,
-    "gab_num_templates":16,
-    "gab_num_fourier_features":8,
-    "gab_mlp_hidden":64,
-    "use_attention_pool":False,
-    "num_attention_pool_heads":4,
+    "transformer_ffn_channels":512,
+    "transformer_heads":6,
+    "transformer_kv_heads":6,
+    "gab_d1":32,
+    "gab_d2":32,
+    "gab_num_templates":48,
+    "gab_num_fourier_features":16,
+    "gab_mlp_hidden":128,
     "block_kind": [
         ["rconv1","transformergabsg"],
         ["rconv2","transformergabsg"],
@@ -1755,7 +1703,36 @@ b11c96h3tgabsg = {
         ["rconv8","transformergabsg"],
         ["rconv9","transformergabsg"],
         ["rconv10","transformergabsg"],
-        ["rconv11","transformergabsg"],
+    ],
+    "p1_num_channels":32,
+    "g1_num_channels":32,
+    "v1_num_channels":32,
+    "sbv2_num_channels":80,
+    "num_scorebeliefs":8,
+    "v2_size":96,
+}
+
+# Nested bottleneck transformer configs
+# Naming: "b5c192h3nbttfrs" = 5 outer bottleneck blocks, 192ch trunk, nested bottleneck transformer
+b5c192h3nbttfrs = {
+    "version":15,
+    "norm_kind":"fixup",
+    "bnorm_epsilon": 1e-4,
+    "bnorm_running_avg_momentum": 0.001,
+    "initial_conv_1x1": False,
+    "gamma_weight_decay_center_1":True,
+    "trunk_num_channels":192,
+    "mid_num_channels":96,
+    "gpool_num_channels":32,
+    "transformer_ffn_channels":256,
+    "transformer_heads":3,
+    "transformer_kv_heads":3,
+    "block_kind": [
+        ["rconv1","bottlenest2transformerropesg"],
+        ["rconv2","bottlenest2transformerropesg"],
+        ["rconv3","bottlenest2transformerropesg"],
+        ["rconv4","bottlenest2transformerropesg"],
+        ["rconv5","bottlenest2transformerropesg"],
     ],
     "p1_num_channels":32,
     "g1_num_channels":32,
@@ -1763,6 +1740,65 @@ b11c96h3tgabsg = {
     "sbv2_num_channels":48,
     "num_scorebeliefs":4,
     "v2_size":64,
+}
+
+b6c384h6nbttfrs = {
+    "version":15,
+    "norm_kind":"fixup",
+    "bnorm_epsilon": 1e-4,
+    "bnorm_running_avg_momentum": 0.001,
+    "initial_conv_1x1": False,
+    "gamma_weight_decay_center_1":True,
+    "trunk_num_channels":384,
+    "mid_num_channels":192,
+    "gpool_num_channels":32,
+    "transformer_ffn_channels":512,
+    "transformer_heads":6,
+    "transformer_kv_heads":6,
+    "block_kind": [
+        ["rconv1","bottlenest2transformerropesg"],
+        ["rconv2","bottlenest2transformerropesg"],
+        ["rconv3","bottlenest2transformerropesg"],
+        ["rconv4","bottlenest2transformerropesg"],
+        ["rconv5","bottlenest2transformerropesg"],
+        ["rconv6","bottlenest2transformerropesg"],
+    ],
+    "p1_num_channels":32,
+    "g1_num_channels":32,
+    "v1_num_channels":32,
+    "sbv2_num_channels":80,
+    "num_scorebeliefs":8,
+    "v2_size":96,
+}
+
+b6c384h6nbttflrs = {
+    "version":15,
+    "norm_kind":"fixup",
+    "bnorm_epsilon": 1e-4,
+    "bnorm_running_avg_momentum": 0.001,
+    "initial_conv_1x1": False,
+    "gamma_weight_decay_center_1":True,
+    "trunk_num_channels":384,
+    "mid_num_channels":192,
+    "gpool_num_channels":32,
+    "transformer_ffn_channels":512,
+    "transformer_heads":6,
+    "transformer_kv_heads":6,
+    "learnable_rope":True,
+    "block_kind": [
+        ["rconv1","bottlenest2transformerropesg"],
+        ["rconv2","bottlenest2transformerropesg"],
+        ["rconv3","bottlenest2transformerropesg"],
+        ["rconv4","bottlenest2transformerropesg"],
+        ["rconv5","bottlenest2transformerropesg"],
+        ["rconv6","bottlenest2transformerropesg"],
+    ],
+    "p1_num_channels":32,
+    "g1_num_channels":32,
+    "v1_num_channels":32,
+    "sbv2_num_channels":80,
+    "num_scorebeliefs":8,
+    "v2_size":96,
 }
 
 b14c192h6tfrs = {
@@ -1778,8 +1814,6 @@ b14c192h6tfrs = {
     "transformer_ffn_channels":512,
     "transformer_heads":6,
     "transformer_kv_heads":6,
-    "use_attention_pool":False,
-    "num_attention_pool_heads":4,
     "block_kind": [
         ["rconv1","transformerropesg"],
         ["rconv2","transformerropesg"],
@@ -1804,6 +1838,44 @@ b14c192h6tfrs = {
     "v2_size":96,
 }
 
+b2b13c192h6tfrs = {
+    "version":15,
+    "norm_kind":"fixup",
+    "bnorm_epsilon": 1e-4,
+    "bnorm_running_avg_momentum": 0.001,
+    "initial_conv_1x1": False,
+    "gamma_weight_decay_center_1":True,
+    "trunk_num_channels":192,
+    "mid_num_channels":192,
+    "gpool_num_channels":32,
+    "transformer_ffn_channels":512,
+    "transformer_heads":6,
+    "transformer_kv_heads":6,
+    "block_kind": [
+        ["rconv1","regular"],
+        ["rconv2","regular"],
+        ["rconv3","transformerropesg"],
+        ["rconv4","transformerropesg"],
+        ["rconv5","transformerropesg"],
+        ["rconv6","transformerropesg"],
+        ["rconv7","transformerropesg"],
+        ["rconv8","transformerropesg"],
+        ["rconv9","transformerropesg"],
+        ["rconv10","transformerropesg"],
+        ["rconv11","transformerropesg"],
+        ["rconv12","transformerropesg"],
+        ["rconv13","transformerropesg"],
+        ["rconv14","transformerropesg"],
+        ["rconv15","transformerropesg"],
+    ],
+    "p1_num_channels":32,
+    "g1_num_channels":32,
+    "v1_num_channels":32,
+    "sbv2_num_channels":80,
+    "num_scorebeliefs":8,
+    "v2_size":96,
+}
+
 b12c384h12tfrs = {
     "version":15,
     "norm_kind":"fixup",
@@ -1817,8 +1889,6 @@ b12c384h12tfrs = {
     "transformer_ffn_channels":1024,
     "transformer_heads":12,
     "transformer_kv_heads":12,
-    "use_attention_pool":False,
-    "num_attention_pool_heads":4,
     "block_kind": [
         ["rconv1","transformerropesg"],
         ["rconv2","transformerropesg"],
@@ -1854,8 +1924,6 @@ b24c256h8tfrs = {
     "transformer_ffn_channels":768,
     "transformer_heads":8,
     "transformer_kv_heads":8,
-    "use_attention_pool":False,
-    "num_attention_pool_heads":4,
     "block_kind": [
         ["rconv1","transformerropesg"],
         ["rconv2","transformerropesg"],
@@ -1903,8 +1971,6 @@ b18c384h12tfrs = {
     "transformer_ffn_channels":1024,
     "transformer_heads":12,
     "transformer_kv_heads":12,
-    "use_attention_pool":False,
-    "num_attention_pool_heads":4,
     "block_kind": [
         ["rconv1","transformerropesg"],
         ["rconv2","transformerropesg"],
@@ -1946,8 +2012,6 @@ b40c384h12tfrs = {
     "transformer_ffn_channels":1024,
     "transformer_heads":12,
     "transformer_kv_heads":12,
-    "use_attention_pool":False,
-    "num_attention_pool_heads":4,
     "block_kind": [
         ["rconv1","transformerropesg"],
         ["rconv2","transformerropesg"],
@@ -2011,8 +2075,6 @@ b21c512h16tfrs = {
     "transformer_ffn_channels":1536,
     "transformer_heads":16,
     "transformer_kv_heads":16,
-    "use_attention_pool":False,
-    "num_attention_pool_heads":4,
     "block_kind": [
         ["rconv1","transformerropesg"],
         ["rconv2","transformerropesg"],
@@ -2043,6 +2105,183 @@ b21c512h16tfrs = {
     "num_scorebeliefs":8,
     "v2_size":144,
 }
+
+b5c384h6nbttfgabs = {
+    "version":15,
+    "norm_kind":"fixup",
+    "bnorm_epsilon": 1e-4,
+    "bnorm_running_avg_momentum": 0.001,
+    "initial_conv_1x1": False,
+    "gamma_weight_decay_center_1":True,
+    "trunk_num_channels":384,
+    "mid_num_channels":192,
+    "gpool_num_channels":32,
+    "transformer_ffn_channels":512,
+    "transformer_heads":6,
+    "transformer_kv_heads":6,
+    "gab_d1":32,
+    "gab_d2":32,
+    "gab_num_templates":48,
+    "gab_num_fourier_features":16,
+    "gab_mlp_hidden":128,
+    "block_kind": [
+        ["rconv1","bottlenest2transformergabsg"],
+        ["rconv2","bottlenest2transformergabsg"],
+        ["rconv3","bottlenest2transformergabsg"],
+        ["rconv4","bottlenest2transformergabsg"],
+        ["rconv5","bottlenest2transformergabsg"],
+    ],
+    "p1_num_channels":32,
+    "g1_num_channels":32,
+    "v1_num_channels":32,
+    "sbv2_num_channels":80,
+    "num_scorebeliefs":8,
+    "v2_size":96,
+}
+
+b5c384h6nbttftabs = {
+    "version":15,
+    "norm_kind":"fixup",
+    "bnorm_epsilon": 1e-4,
+    "bnorm_running_avg_momentum": 0.001,
+    "initial_conv_1x1": False,
+    "gamma_weight_decay_center_1":True,
+    "trunk_num_channels":384,
+    "mid_num_channels":192,
+    "gpool_num_channels":32,
+    "transformer_ffn_channels":512,
+    "transformer_heads":6,
+    "transformer_kv_heads":6,
+    "gab_d1":32,
+    "gab_d2":32,
+    "tab_c_z":32,
+    "tab_num_templates":32,
+    "tab_num_freqs":8,
+    "tab_num_blocks":3,
+    "tab_dilation":3,
+    "block_kind": [
+        ["rconv1","bottlenest2transformertabsg"],
+        ["rconv2","bottlenest2transformertabsg"],
+        ["rconv3","bottlenest2transformertabsg"],
+        ["rconv4","bottlenest2transformertabsg"],
+        ["rconv5","bottlenest2transformertabsg"],
+    ],
+    "p1_num_channels":32,
+    "g1_num_channels":32,
+    "v1_num_channels":32,
+    "sbv2_num_channels":80,
+    "num_scorebeliefs":8,
+    "v2_size":96,
+}
+
+b5c384h6nbttfrtabs = {
+    "version":15,
+    "norm_kind":"fixup",
+    "bnorm_epsilon": 1e-4,
+    "bnorm_running_avg_momentum": 0.001,
+    "initial_conv_1x1": False,
+    "gamma_weight_decay_center_1":True,
+    "trunk_num_channels":384,
+    "mid_num_channels":192,
+    "gpool_num_channels":32,
+    "transformer_ffn_channels":512,
+    "transformer_heads":6,
+    "transformer_kv_heads":6,
+    "gab_d1":32,
+    "gab_d2":32,
+    "tab_c_z":32,
+    "tab_num_templates":32,
+    "tab_num_freqs":8,
+    "tab_num_blocks":3,
+    "tab_dilation":3,
+    "block_kind": [
+        ["rconv1","bottlenest2transformerropetabsg"],
+        ["rconv2","bottlenest2transformerropetabsg"],
+        ["rconv3","bottlenest2transformerropetabsg"],
+        ["rconv4","bottlenest2transformerropetabsg"],
+        ["rconv5","bottlenest2transformerropetabsg"],
+    ],
+    "p1_num_channels":32,
+    "g1_num_channels":32,
+    "v1_num_channels":32,
+    "sbv2_num_channels":80,
+    "num_scorebeliefs":8,
+    "v2_size":96,
+}
+
+b5c384h6nbttflrtabcheaps = {
+    "version":15,
+    "norm_kind":"fixup",
+    "bnorm_epsilon": 1e-4,
+    "bnorm_running_avg_momentum": 0.001,
+    "initial_conv_1x1": False,
+    "gamma_weight_decay_center_1":True,
+    "trunk_num_channels":384,
+    "mid_num_channels":192,
+    "gpool_num_channels":32,
+    "transformer_ffn_channels":512,
+    "transformer_heads":6,
+    "transformer_kv_heads":6,
+    "learnable_rope":True,
+    "gab_d1":32,
+    "gab_d2":32,
+    "tab_c_z":16,
+    "tab_num_templates":16,
+    "tab_num_freqs":8,
+    "tab_num_blocks":3,
+    "tab_dilation":3,
+    "block_kind": [
+        ["rconv1","bottlenest2transformerropetabsg"],
+        ["rconv2","bottlenest2transformerropetabsg"],
+        ["rconv3","bottlenest2transformerropetabsg"],
+        ["rconv4","bottlenest2transformerropetabsg"],
+        ["rconv5","bottlenest2transformerropetabsg"],
+    ],
+    "p1_num_channels":32,
+    "g1_num_channels":32,
+    "v1_num_channels":32,
+    "sbv2_num_channels":80,
+    "num_scorebeliefs":8,
+    "v2_size":96,
+}
+
+
+b5c384h6nbttflrtab2cheaps = {
+    "version":15,
+    "norm_kind":"fixup",
+    "bnorm_epsilon": 1e-4,
+    "bnorm_running_avg_momentum": 0.001,
+    "initial_conv_1x1": False,
+    "gamma_weight_decay_center_1":True,
+    "trunk_num_channels":384,
+    "mid_num_channels":192,
+    "gpool_num_channels":32,
+    "transformer_ffn_channels":512,
+    "transformer_heads":6,
+    "transformer_kv_heads":6,
+    "learnable_rope":True,
+    "gab_d1":32,
+    "gab_d2":32,
+    "tab_c_z":16,
+    "tab_num_templates":16,
+    "tab_num_blocks":3,
+    "tab_dilation":3,
+    "tab_use_frequency_mixing":True,
+    "block_kind": [
+        ["rconv1","bottlenest2transformerropetabsg"],
+        ["rconv2","bottlenest2transformerropetabsg"],
+        ["rconv3","bottlenest2transformerropetabsg"],
+        ["rconv4","bottlenest2transformerropetabsg"],
+        ["rconv5","bottlenest2transformerropetabsg"],
+    ],
+    "p1_num_channels":32,
+    "g1_num_channels":32,
+    "v1_num_channels":32,
+    "sbv2_num_channels":80,
+    "num_scorebeliefs":8,
+    "v2_size":96,
+}
+
 
 base_config_of_name = {
     # Micro-sized model configs
@@ -2077,6 +2316,8 @@ base_config_of_name = {
     "b5c512nnbt": b5c512nnbt,
     "b20c384lbt": b20c384lbt,
 
+    "b12c384nbt": b12c384nbt,
+
     # Roughly AlphaGoZero-sized, not too different in inference cost from b40c256
     "b30c320": b30c320,
     "b40c256": b40c256,
@@ -2093,10 +2334,7 @@ base_config_of_name = {
     "b28c512nbt": b28c512nbt,  # Recommended best config for this cost
     "b20c640nbt": b20c640nbt,
 
-    # Transformer models
-    "b2b10c96h3tfrs": b2b10c96h3tfrs,
-    "b9c96h3tgabsg": b9c96h3tgabsg,
-    "b11c96h3tgabsg": b11c96h3tgabsg,
+    # Standard transformer models
     "b7c96h3tfrs": b7c96h3tfrs,
     "b8c96h3tfrs": b8c96h3tfrs,
     "b11c96h3tfrs": b11c96h3tfrs,
@@ -2107,6 +2345,24 @@ base_config_of_name = {
     "b40c384h12tfrs": b40c384h12tfrs,
     "b21c512h16tfrs": b21c512h16tfrs,
 
+    # Mixed conv and transformer
+    "b2b10c96h3tfrs": b2b10c96h3tfrs,
+    "b2b13c192h6tfrs": b2b13c192h6tfrs,
+
+    # GAB
+    "b9c96h3tgabs": b9c96h3tgabs,
+    "b10c192h6tgabs": b10c192h6tgabs,
+
+    # Nested bottleneck transformers
+    "b5c192h3nbttfrs": b5c192h3nbttfrs,
+    "b6c384h6nbttfrs": b6c384h6nbttfrs,
+    "b6c384h6nbttflrs": b6c384h6nbttflrs,
+    "b5c384h6nbttfgabs": b5c384h6nbttfgabs, # +GAB
+
+    "b5c384h6nbttftabs": b5c384h6nbttftabs, # TAB alone
+    "b5c384h6nbttfrtabs": b5c384h6nbttfrtabs, # RoPE+TAB
+    "b5c384h6nbttflrtabcheaps": b5c384h6nbttflrtabcheaps, # Learnable RoPE+TAB cheap
+    "b5c384h6nbttflrtab2cheaps": b5c384h6nbttflrtab2cheaps, # Learnable RoPE+TAB cheap, frequency mixing
     "sandbox": sandbox,
 }
 
@@ -2185,11 +2441,6 @@ for name, base_config in list(config_of_name.items()):
 
 for name, base_config in list(config_of_name.items()):
     config = base_config.copy()
-    config["use_attention_pool"] = True
-    config_of_name[name+"-ap"] = config
-
-for name, base_config in list(config_of_name.items()):
-    config = base_config.copy()
     config["use_repvgg_init"] = True
     config_of_name[name+"-rvgi"] = config
 
@@ -2218,6 +2469,25 @@ for name, base_config in list(config_of_name.items()):
         config["intermediate_head_blocks"] = len(config["block_kind"])
         config["trunk_normless"] = True
         config_of_name[name+"-bnh"] = config
+
+    # RMSNorm before heads. No intermediate head.
+    config = base_config.copy()
+    config["trunk_final_rmsnorm"] = True
+    config_of_name[name+"-rnh"] = config
+
+    # RMSNorm spatial before heads. No intermediate head.
+    config = base_config.copy()
+    config["trunk_final_rmsnorm"] = True
+    config["trunk_rmsnorm_spatial"] = True
+    config_of_name[name+"-rsnh"] = config
+
+    # RMSNorm spatial before heads. No intermediate head.
+    config = base_config.copy()
+    config["trunk_final_rmsnorm"] = True
+    config["trunk_rmsnorm_spatial"] = True
+    config["rmsnorm_spatial_cgroup_size"] = 16
+    config_of_name[name+"-rgnh"] = config
+
 
 for name, base_config in list(config_of_name.items()):
     config = base_config.copy()
