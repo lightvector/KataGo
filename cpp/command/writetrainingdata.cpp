@@ -1924,8 +1924,8 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
 
       Move move = sgfMoves[m];
       moves.push_back(move.loc);
-      policyTargets.push_back(vector<PolicyTargetMove>());
-      policyTargets[policyTargets.size()-1].push_back(PolicyTargetMove(move.loc,1));
+      policyTargets.emplace_back();
+      policyTargets[policyTargets.size()-1].emplace_back(move.loc,1);
 
       // We want policies learned from human moves to be compatible with KataGo using them in a search which may use
       // stricter computer rules. So if a player passes, we do NOT train on it. And do NOT train on the opponent's response
@@ -2064,7 +2064,7 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
           Loc moveLoc = search->runWholeSearchAndGetMove(nextPla);
 
           moves.push_back(moveLoc);
-          policyTargets.push_back(vector<PolicyTargetMove>());
+          policyTargets.emplace_back();
           Play::extractPolicyTarget(policyTargets[policyTargets.size()-1],search,search->rootNode,locsBuf,playSelectionValuesBuf);
 
           // KataGo cleanup moves get weighted a tiny bit, so we can preserve the instinct to cleanup

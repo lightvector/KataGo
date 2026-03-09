@@ -878,7 +878,7 @@ static void parseResidualBlockStack(
                    desc.finalConv.outChannels,
                    trunkNumChannels));
 
-      blocks.push_back(make_pair(ORDINARY_BLOCK_KIND, std::move(descPtr)));
+      blocks.emplace_back(ORDINARY_BLOCK_KIND, std::move(descPtr));
     }
     else if(kind == "gpool_block") {
       unique_ptr_void descPtr = make_unique_void(new GlobalPoolingResidualBlockDesc(in, modelVersion, binaryFloats));
@@ -899,7 +899,7 @@ static void parseResidualBlockStack(
                    desc.finalConv.outChannels,
                    trunkNumChannels));
 
-      blocks.push_back(make_pair(GLOBAL_POOLING_BLOCK_KIND, std::move(descPtr)));
+      blocks.emplace_back(GLOBAL_POOLING_BLOCK_KIND, std::move(descPtr));
     }
     else if(kind == "nested_bottleneck_block") {
       unique_ptr_void descPtr = make_unique_void(new NestedBottleneckResidualBlockDesc(in,modelVersion,binaryFloats));
@@ -920,7 +920,7 @@ static void parseResidualBlockStack(
                    desc.postConv.outChannels,
                    trunkNumChannels));
 
-      blocks.push_back(make_pair(NESTED_BOTTLENECK_BLOCK_KIND, std::move(descPtr)));
+      blocks.emplace_back(NESTED_BOTTLENECK_BLOCK_KIND, std::move(descPtr));
     }
     else
       throw StringError(name + ": found unknown block kind: " + kind);

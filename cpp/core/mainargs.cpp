@@ -32,7 +32,7 @@ std::vector<std::string> MainArgs::getCommandLineArgsUTF8(int argc, const char* 
   std::vector<std::string> args;
   args.reserve(argc);
   for(int i = 0; i<argc; i++)
-    args.push_back(std::string(argv[i]));
+    args.emplace_back(argv[i]);
   return args;
 #endif
 }

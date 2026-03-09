@@ -631,7 +631,7 @@ bool Tests::runBackendErrorTest(
     rand.fillShuffledUIntRange(maxBatchSize, permutation.data());
     vector<std::thread> threads;
     for(int i = 0; i<maxBatchSize; i++)
-      threads.push_back(std::thread(runThread,permutation[i]));
+      threads.emplace_back(runThread,permutation[i]);
     for(int i = 0; i<maxBatchSize; i++)
       threads[i].join();
   }
@@ -655,7 +655,7 @@ bool Tests::runBackendErrorTest(
       rand.fillShuffledUIntRange(maxBatchSize, permutation.data());
       vector<std::thread> threads;
       for(int i = 0; i<maxBatchSize; i++)
-        threads.push_back(std::thread(runThread,permutation[i]));
+        threads.emplace_back(runThread,permutation[i]);
       for(int i = 0; i<maxBatchSize; i++)
         threads[i].join();
     }

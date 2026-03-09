@@ -354,7 +354,7 @@ int MainCmds::selfplay(const vector<string>& args) {
 
   vector<std::thread> threads;
   for(int i = 0; i<numGameThreads; i++) {
-    threads.push_back(std::thread(gameLoopProtected,i));
+    threads.emplace_back(gameLoopProtected,i);
   }
   std::thread modelLoadLoopThread(modelLoadLoopProtected);
 

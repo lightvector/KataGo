@@ -1011,7 +1011,7 @@ int MainCmds::contribute(const vector<string>& args) {
   //Just start based on selfplay games, rating games will poke in as needed
   vector<std::thread> gameThreads;
   for(int i = 0; i<maxSimultaneousGames; i++) {
-    gameThreads.push_back(std::thread(runGameLoopProtected,i));
+    gameThreads.emplace_back(runGameLoopProtected,i);
   }
 
   //-----------------------------------------------------------------------------------------------------------------
@@ -1385,7 +1385,7 @@ int MainCmds::contribute(const vector<string>& args) {
   int numTaskLoopThreads = 4;
   vector<std::thread> taskLoopThreads;
   for(int i = 0; i<numTaskLoopThreads; i++) {
-    taskLoopThreads.push_back(std::thread(taskLoopProtected));
+    taskLoopThreads.emplace_back(taskLoopProtected);
   }
 
   //Allocate thread using new to make sure its memory lasts beyond main(), and just let it leak as we exit.
