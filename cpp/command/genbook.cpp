@@ -648,7 +648,7 @@ int MainCmds::genbook(const vector<string>& args) {
     avoidMoveUntilByLoc = std::vector<int>(Board::MAX_ARR_SIZE,0);
     isReExpansion = allowReExpansion && constNode.canReExpand() && constNode.recursiveValues().visits <= book->getParams().maxVisitsForReExpansion;
     Player pla = hist.presumedNextMovePla;
-    Board board = hist.getRecentBoard(0);
+    const Board& board = hist.getRecentBoard(0);
     bool hasAtLeastOneLegalNewMove = false;
     for(Loc moveLoc = 0; moveLoc < Board::MAX_ARR_SIZE; moveLoc++) {
       if(hist.isLegal(board,moveLoc,pla)) {
@@ -819,7 +819,7 @@ int MainCmds::genbook(const vector<string>& args) {
     }
 
     Player pla = hist.presumedNextMovePla;
-    Board board = hist.getRecentBoard(0);
+    const Board& board = hist.getRecentBoard(0);
     search->setPosition(pla,board,hist);
     search->setRootSymmetryPruningOnly(symmetries);
 
@@ -1186,7 +1186,7 @@ int MainCmds::genbook(const vector<string>& args) {
       BookHash::getHashAndSymmetry(hist, book->repBound, hashRet, symmetryToAlignRet, symmetriesRet, book->bookVersion);
       if(hashRet != node.hash()) {
         ostringstream out;
-        Board board = hist.getRecentBoard(0);
+        const Board& board = hist.getRecentBoard(0);
         Board::printBoard(out, board, Board::NULL_LOC, NULL);
         for(Loc move: moveHistory)
           out << Location::toString(move,book->initialBoard) << " ";
@@ -1207,7 +1207,7 @@ int MainCmds::genbook(const vector<string>& args) {
 
     Search* search = searches[gameThreadIdx];
     Player pla = hist.presumedNextMovePla;
-    Board board = hist.getRecentBoard(0);
+    const Board& board = hist.getRecentBoard(0);
     search->setPosition(pla,board,hist);
     search->setRootSymmetryPruningOnly(symmetries);
 
@@ -1712,7 +1712,7 @@ int MainCmds::checkbook(const vector<string>& args) {
       logger.write("or else some hash collision or something else is wrong.");
       logger.write("BookHash of node unable to expand: " + constNode.hash().toString());
       ostringstream out;
-      Board board = hist.getRecentBoard(0);
+      const Board& board = hist.getRecentBoard(0);
       Board::printBoard(out, board, Board::NULL_LOC, NULL);
       for(Loc move: moveHistory)
         out << Location::toString(move,book->initialBoard) << " ";
@@ -1729,7 +1729,7 @@ int MainCmds::checkbook(const vector<string>& args) {
       if(hashRet != node.hash()) {
         logger.write("Book failed integrity check, the node with hash " + node.hash().toString() + " when walked to has hash " + hashRet.toString());
         ostringstream out;
-        Board board = hist.getRecentBoard(0);
+        const Board& board = hist.getRecentBoard(0);
         Board::printBoard(out, board, Board::NULL_LOC, NULL);
         for(Loc move: moveHistory)
           out << Location::toString(move,book->initialBoard) << " ";
@@ -1948,7 +1948,7 @@ int MainCmds::booktoposes(const vector<string>& args) {
         logger.write("BookHash of node unable to expand: " + node.hash().toString());
 
         ostringstream out;
-        Board board = hist.getRecentBoard(0);
+        const Board& board = hist.getRecentBoard(0);
         Board::printBoard(out, board, Board::NULL_LOC, NULL);
         for(Loc move: moveHistory)
           out << Location::toString(move,book->initialBoard) << " ";
@@ -1997,7 +1997,7 @@ int MainCmds::booktoposes(const vector<string>& args) {
       double policySurprise = 0.0;
       double valueSurpriseIrreducible = 0.0;
       double valueSurpriseTotal = 0.0;
-      Board board = hist.getRecentBoard(0);
+      const Board& board = hist.getRecentBoard(0);
       for(int sym = 0; sym<SymmetryHelpers::NUM_SYMMETRIES; sym++) {
         MiscNNInputParams nnInputParams;
         nnInputParams.symmetry = sym;
@@ -2545,7 +2545,7 @@ int MainCmds::findbookbottlenecks(const vector<string>& args) {
           out << Location::toString(move, book->initialBoard) << " ";
         out << "\n";
 
-        Board board = hist.getRecentBoard(0);
+        const Board& board = hist.getRecentBoard(0);
         Board::printBoard(out, board, Board::NULL_LOC, &(hist.moveHistory));
 
         out << ("Num nodes to change: " + Global::intToString((int)result.nodes.size())) << endl;

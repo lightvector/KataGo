@@ -577,7 +577,7 @@ bool Tests::runBackendErrorTest(
     throw StringError("Unknown dataset to test gpu error on: " + boardSizeDataset);
 
   auto evalBoard = [&](NNEvaluator* nnE, const BoardHistory& hist) {
-    Board board = hist.getRecentBoard(0);
+    const Board& board = hist.getRecentBoard(0);
     MiscNNInputParams nnInputParams;
     nnInputParams.symmetry = (int)(BoardHistory::getSituationRulesAndKoHash(board,hist,hist.presumedNextMovePla,0.5).hash0 & 7);
     nnInputParams.policyOptimism = policyOptimismForTest;
