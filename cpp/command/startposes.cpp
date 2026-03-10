@@ -2416,7 +2416,7 @@ int MainCmds::checksgfhintpolicy(const vector<string>& args) {
           BoardHistory histBefore;
           bool suc = priorPosSample.tryGetCurrentBoardHistory(rules,nextPla,histBefore);
           testAssert(suc);
-          Board board = histBefore.getRecentBoard(0);
+          const Board& board = histBefore.getRecentBoard(0);
 
           for(int symmetry = 0; symmetry < 8; symmetry++) {
             MiscNNInputParams nnInputParams;

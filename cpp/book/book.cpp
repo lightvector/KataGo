@@ -2758,7 +2758,7 @@ int64_t Book::exportToHtmlDir(
     if(hist.encorePhase > 0)
       return;
 
-    Board board = hist.getRecentBoard(0);
+    const Board& board = hist.getRecentBoard(0);
 
     if(contains(rulesLabel,'"') || contains(rulesLabel,'\n'))
       throw StringError("rulesLabel cannot contain quotes or newlines");

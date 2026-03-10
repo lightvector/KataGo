@@ -751,7 +751,7 @@ pair<int,int> MatchPairer::getMatchupPairUnsynchronized() {
 
 //----------------------------------------------------------------------------------------------------------
 
-static void failIllegalMove(Search* bot, Logger& logger, Board board, Loc loc) {
+static void failIllegalMove(Search* bot, Logger& logger, const Board& board, Loc loc) {
   ostringstream sout;
   sout << "Bot returned null location or illegal move!?!" << "\n";
   sout << board << "\n";
@@ -887,8 +887,7 @@ static NNRawStats computeNNRawStats(const Search* bot, const Board& board, const
   NNResultBuf buf;
   MiscNNInputParams nnInputParams;
   nnInputParams.drawEquivalentWinsForWhite = bot->searchParams.drawEquivalentWinsForWhite;
-  Board b = board;
-  bot->nnEvaluator->evaluate(b,hist,pla,nnInputParams,buf,false,false);
+  bot->nnEvaluator->evaluate(board,hist,pla,nnInputParams,buf,false,false);
   NNOutput& nnOutput = *(buf.result);
 
   NNRawStats nnRawStats;
