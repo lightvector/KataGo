@@ -113,7 +113,7 @@ void ConfigParser::processIncludedFile(const std::string &fname) {
     baseDirs.pop_back();
 }
 
-bool ConfigParser::parseKeyValue(const std::string& trimmedLine, std::string& key, std::string& value) {
+bool ConfigParser::parseKeyValue(const std::string& trimmedLine, std::string& key, std::string& value) const {
   // Parse trimmed line, taking into account comments and quoting.
   key.clear();
   value.clear();

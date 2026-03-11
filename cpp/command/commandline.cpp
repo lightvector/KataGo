@@ -195,7 +195,7 @@ void KataGoCommandLine::parseArgs(const vector<string>& args) {
   return parse(mutableCopy);
 }
 
-void KataGoCommandLine::setShortUsageArgLimit() {
+void KataGoCommandLine::setShortUsageArgLimit() const {
   helpOutput->setShortUsageArgLimit((int)_argList.size() - numBuiltInArgs);
 }
 

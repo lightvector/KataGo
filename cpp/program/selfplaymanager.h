@@ -59,24 +59,24 @@ class SelfplayManager {
   //Clean up any currently-unused models if their last usage was older than this many seconds ago.
   void cleanupUnusedModelsOlderThan(double seconds);
   //Clear the evaluation caches of any models that are currently unused.
-  void clearUnusedModelCaches();
+  void clearUnusedModelCaches() const;
 
   //====================================================================================
   //These should only be called by a thread that has currently acquired the model.
 
   //Increment a counter and maybe log some stats
-  void countOneGameStarted(const NNEvaluator* nnEval);
+  void countOneGameStarted(const NNEvaluator* nnEval) const;
 
   //SelfplayManager takes responsibility for deleting the gameData once written.
   //Use these only if loadModelAndStartDataWriting was used to start the model.
-  void enqueueDataToWrite(const std::string& modelName, FinishedGameData* gameData);
-  void enqueueDataToWrite(const NNEvaluator* nnEval, FinishedGameData* gameData);
+  void enqueueDataToWrite(const std::string& modelName, FinishedGameData* gameData) const;
+  void enqueueDataToWrite(const NNEvaluator* nnEval, FinishedGameData* gameData) const;
 
   //Use these if loadModelNoDataWritingLoop was used to start the model.
   void withDataWriters(
     const NNEvaluator* nnEval,
     std::function<void(TrainingDataWriter* tdataWriter, std::ofstream* sgfOut)> f
-  );
+  ) const;
 
   //====================================================================================
 
@@ -119,7 +119,7 @@ class SelfplayManager {
   uint64_t totalNumRowsProcessed;
 
   NNEvaluator* acquireModelAlreadyLocked(SelfplayManager::ModelData* foundData);
-  void releaseAlreadyLocked(SelfplayManager::ModelData* foundData);
+  void releaseAlreadyLocked(SelfplayManager::ModelData* foundData) const;
   void maybeAutoCleanupAlreadyLocked();
   void runDataWriteLoopImpl(ModelData* modelData);
 

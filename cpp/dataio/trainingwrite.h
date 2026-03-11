@@ -304,8 +304,8 @@ struct TrainingWriteBuffers {
     Rand& rand
   );
 
-  void writeToZipFile(const std::string& fileName);
-  void writeToTextOstream(std::ostream& out);
+  void writeToZipFile(const std::string& fileName) const;
+  void writeToTextOstream(std::ostream& out) const;
 
 };
 

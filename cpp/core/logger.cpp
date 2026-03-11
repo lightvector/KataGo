@@ -138,8 +138,7 @@ void Logger::write(const string& str, bool endLine) {
   }
 }
 
-void Logger::writeLocked(const std::string &str, bool endLine, std::ostream &out, const time_t& time)
-{
+void Logger::writeLocked(const std::string &str, bool endLine, std::ostream &out, const time_t& time) const {
   if(isDisabled)
     return;
 

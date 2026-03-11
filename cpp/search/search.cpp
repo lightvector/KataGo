@@ -836,7 +836,7 @@ uint32_t Search::createMutexIdxForNode(SearchThread& thread) const {
 static const Hash128 FORCE_NON_TERMINAL_HASH = Hash128(0xd4c31800cb8809e2ULL,0xf75f9d2083f2ffcaULL);
 
 //Must be called AFTER making the bestChildMoveLoc in the thread board and hist.
-SearchNode* Search::allocateOrFindNode(SearchThread& thread, Player nextPla, Loc bestChildMoveLoc, bool forceNonTerminal, Hash128 graphHash) {
+SearchNode* Search::allocateOrFindNode(SearchThread& thread, Player nextPla, Loc bestChildMoveLoc, bool forceNonTerminal, Hash128 graphHash) const {
   //Hash to use as a unique id for this node in the table, for transposition detection.
   //If this collides, we will be sad, but it should be astronomically rare since our hash is 128 bits.
   Hash128 childHash;
@@ -911,7 +911,7 @@ void Search::transferOldNNOutputs(SearchThread& thread) {
   thread.oldNNOutputsToCleanUp.resize(0);
 }
 
-void Search::removeSubtreeValueBias(SearchNode* node) {
+void Search::removeSubtreeValueBias(SearchNode* node) const {
   if(node->subtreeValueBiasTableEntry != nullptr) {
     double deltaUtilitySumToSubtract = node->lastSubtreeValueBiasDeltaSum * searchParams.subtreeValueBiasFreeProp;
     double weightSumToSubtract = node->lastSubtreeValueBiasWeight * searchParams.subtreeValueBiasFreeProp;
@@ -1435,7 +1435,7 @@ bool Search::maybeCatchUpEdgeVisits(
   const SearchNode* child,
   const SearchNodeState& nodeState,
   const int bestChildIdx
-) {
+) const {
   //Don't need to do this since we already are pretty recent as of finding the best child.
   //nodeState = node.state.load(std::memory_order_acquire);
   SearchNodeChildrenReference children = node.getChildren(nodeState);

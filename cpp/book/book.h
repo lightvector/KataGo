@@ -187,43 +187,43 @@ class SymBookNode {
   SymBookNode(const SymBookNode& other) = default;
   SymBookNode& operator=(const SymBookNode& other) = default;
 
-  bool isNull();
-  SymBookNode applySymmetry(int symmetry);
+  bool isNull() const;
+  SymBookNode applySymmetry(int symmetry) const;
 
-  bool isMoveInBook(Loc move);
-  int numUniqueMovesInBook();
-  std::vector<BookMove> getUniqueMovesInBook();
+  bool isMoveInBook(Loc move) const;
+  int numUniqueMovesInBook() const;
+  std::vector<BookMove> getUniqueMovesInBook() const;
 
-  Player pla();
-  BookHash hash();
-  std::vector<int> getSymmetries();
+  Player pla() const;
+  BookHash hash() const;
+  std::vector<int> getSymmetries() const;
 
-  BookValues& thisValuesNotInBook();
-  bool& canExpand();
-  bool& canReExpand();
-  const RecursiveBookValues& recursiveValues();
-  int minDepthFromRoot();
-  double minCostFromRoot();
-  double totalExpansionCost();
+  BookValues& thisValuesNotInBook() const;
+  bool& canExpand() const;
+  bool& canReExpand() const;
+  const RecursiveBookValues& recursiveValues() const;
+  int minDepthFromRoot() const;
+  double minCostFromRoot() const;
+  double totalExpansionCost() const;
 
   // For testing purposes only - allows direct access to internal node
-  BookNode* getNodeForTesting() { return node; }
+  BookNode* getNodeForTesting() const { return node; }
 
   // Returns NULL for the root or if somehow a parent is not found
-  SymBookNode canonicalParent();
+  SymBookNode canonicalParent() const;
 
-  SymBookNode follow(Loc move);
+  SymBookNode follow(Loc move) const;
 
   // Returns NULL if the move is not legal OR the move is not in the book.
-  SymBookNode playMove(Board& board, BoardHistory& hist, Loc move);
+  SymBookNode playMove(Board& board, BoardHistory& hist, Loc move) const;
   // Returns NULL if the move is not legal. The move *must* not be in the book.
-  SymBookNode playAndAddMove(Board& board, BoardHistory& hist, Loc move, double rawPolicy, bool& childIsTransposing);
+  SymBookNode playAndAddMove(Board& board, BoardHistory& hist, Loc move, double rawPolicy, bool& childIsTransposing) const;
 
   // Returns false and does not modify ret if playing the moves in the book to reach here hit an illegal move.
   // Fills moveHistoryRet with the sequence of moves played. If there is an illegal move, includes the illegal move.
   // This should only happen if a book was loaded from disk that is corrupted, or else only astronomically rarely on hash collisions.
-  bool getBoardHistoryReachingHere(BoardHistory& ret, std::vector<Loc>& moveHistoryRet);
-  bool getBoardHistoryReachingHere(BoardHistory& ret, std::vector<Loc>& moveHistoryRet, std::vector<double>& winlossRet);
+  bool getBoardHistoryReachingHere(BoardHistory& ret, std::vector<Loc>& moveHistoryRet) const;
+  bool getBoardHistoryReachingHere(BoardHistory& ret, std::vector<Loc>& moveHistoryRet, std::vector<double>& winlossRet) const;
 
   friend class ConstSymBookNode;
   friend class Book;
@@ -244,36 +244,36 @@ class ConstSymBookNode {
   ConstSymBookNode& operator=(const SymBookNode& other);
   ConstSymBookNode& operator=(const ConstSymBookNode& other) = default;
 
-  bool isNull();
-  ConstSymBookNode applySymmetry(int symmetry);
+  bool isNull() const;
+  ConstSymBookNode applySymmetry(int symmetry) const;
 
-  Player pla();
-  BookHash hash();
-  std::vector<int> getSymmetries();
+  Player pla() const;
+  BookHash hash() const;
+  std::vector<int> getSymmetries() const;
 
-  bool isMoveInBook(Loc move);
-  int numUniqueMovesInBook();
-  std::vector<BookMove> getUniqueMovesInBook();
+  bool isMoveInBook(Loc move) const;
+  int numUniqueMovesInBook() const;
+  std::vector<BookMove> getUniqueMovesInBook() const;
 
-  const BookValues& thisValuesNotInBook();
-  bool canExpand();
-  bool canReExpand();
-  const RecursiveBookValues& recursiveValues();
-  int minDepthFromRoot();
-  double minCostFromRoot();
-  double totalExpansionCost();
+  const BookValues& thisValuesNotInBook() const;
+  bool canExpand() const;
+  bool canReExpand() const;
+  const RecursiveBookValues& recursiveValues() const;
+  int minDepthFromRoot() const;
+  double minCostFromRoot() const;
+  double totalExpansionCost() const;
 
   // Returns NULL for the root or if somehow a parent is not found
-  ConstSymBookNode canonicalParent();
+  ConstSymBookNode canonicalParent() const;
 
-  ConstSymBookNode follow(Loc move);
+  ConstSymBookNode follow(Loc move) const;
   // Returns NULL if the move is not legal OR the move is not in the book.
-  ConstSymBookNode playMove(Board& board, BoardHistory& hist, Loc move);
+  ConstSymBookNode playMove(Board& board, BoardHistory& hist, Loc move) const;
 
   // Returns false and does not modify ret if playing the moves in the book to reach here hit an illegal move.
   // This should only happen if a book was loaded from disk that is corrupted, or else only astronomically rarely on hash collisions.
-  bool getBoardHistoryReachingHere(BoardHistory& ret, std::vector<Loc>& moveHistoryRet);
-  bool getBoardHistoryReachingHere(BoardHistory& ret, std::vector<Loc>& moveHistoryRet, std::vector<double>& winlossRet);
+  bool getBoardHistoryReachingHere(BoardHistory& ret, std::vector<Loc>& moveHistoryRet) const;
+  bool getBoardHistoryReachingHere(BoardHistory& ret, std::vector<Loc>& moveHistoryRet, std::vector<double>& winlossRet) const;
 
   friend class Book;
 };
@@ -431,7 +431,7 @@ class Book {
 
   std::vector<SymBookNode> getNextNToExpand(int n);
   std::vector<SymBookNode> getAllLeaves(double minVisits);
-  std::vector<SymBookNode> getAllNodes();
+  std::vector<SymBookNode> getAllNodes() const;
 
   // Result for computeMinCostToChangeWinLoss
   struct MinCostResult {

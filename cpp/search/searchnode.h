@@ -67,7 +67,7 @@ struct NodeStats {
   inline static double childWeightSq(int64_t edgeVisits, int64_t childVisits, double rawChildWeightSq) {
     return rawChildWeightSq * ((double)edgeVisits / (double)std::max(childVisits,(int64_t)1));
   }
-  double getChildWeight(int64_t edgeVisits) {
+  double getChildWeight(int64_t edgeVisits) const {
     return childWeight(edgeVisits, visits, weightSum);
   }
 };
@@ -119,7 +119,7 @@ public:
 
   SearchNode* getIfAllocated();
   const SearchNode* getIfAllocated() const;
-  SearchNode* getIfAllocatedRelaxed();
+  SearchNode* getIfAllocatedRelaxed() const;
   void store(SearchNode* node);
   void storeRelaxed(SearchNode* node);
   bool storeIfNull(SearchNode* node);
@@ -154,7 +154,7 @@ struct SearchNodeChildrenReference {
   inline SearchNodeChildrenReference() {}
   inline SearchNodeChildrenReference(SearchNodeState snapshottedState_, SearchNode* node_)
     : snapshottedState(snapshottedState_), node(node_) {}
-  SearchChildPointer& operator[](int i);
+  SearchChildPointer& operator[](int i) const;
   int getCapacity() const;
   int iterateAndCountChildren() const;
 };
@@ -168,7 +168,7 @@ struct ConstSearchNodeChildrenReference {
     : snapshottedState(other.snapshottedState), node(other.node) {}
   inline ConstSearchNodeChildrenReference(SearchNodeState snapshottedState_, const SearchNode* node_)
     : snapshottedState(snapshottedState_), node(node_) {}
-  const SearchChildPointer& operator[](int i);
+  const SearchChildPointer& operator[](int i) const;
   int getCapacity() const;
   int iterateAndCountChildren() const;
 };
@@ -274,12 +274,12 @@ private:
   bool tryExpandingChildrenCapacityAssumeFull(SearchNodeState& stateValue);
 };
 
-inline SearchChildPointer& SearchNodeChildrenReference::operator[](int i) {
+inline SearchChildPointer& SearchNodeChildrenReference::operator[](int i) const {
   if(i < SearchChildrenSizes::SIZE0TOTAL) return node->children0[i];
   if(i < SearchChildrenSizes::SIZE1TOTAL) return node->children1[i-SearchChildrenSizes::SIZE0TOTAL];
   return node->children2[i-SearchChildrenSizes::SIZE1TOTAL];
 }
-inline const SearchChildPointer& ConstSearchNodeChildrenReference::operator[](int i) {
+inline const SearchChildPointer& ConstSearchNodeChildrenReference::operator[](int i) const {
   if(i < SearchChildrenSizes::SIZE0TOTAL) return node->children0[i];
   if(i < SearchChildrenSizes::SIZE1TOTAL) return node->children1[i-SearchChildrenSizes::SIZE0TOTAL];
   return node->children2[i-SearchChildrenSizes::SIZE1TOTAL];

@@ -86,7 +86,7 @@ struct Sgf {
   std::string getRootPropertyWithDefault(const std::string& property, const std::string& defaultRet) const;
   std::vector<std::string> getRootProperties(const std::string& property) const;
 
-  void addRootProperty(const std::string& key, const std::string& value);
+  void addRootProperty(const std::string& key, const std::string& value) const;
 
   void getPlacements(std::vector<Move>& moves, int xSize, int ySize) const;
   void getMoves(std::vector<Move>& moves, int xSize, int ySize) const;

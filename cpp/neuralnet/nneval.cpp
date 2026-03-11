@@ -228,7 +228,7 @@ string NNEvaluator::getAbbrevInternalModelName() const {
   return Global::concat(newPieces,"-");
 }
 
-Logger* NNEvaluator::getLogger() {
+Logger* NNEvaluator::getLogger() const {
   return logger;
 }
 bool NNEvaluator::isNeuralNetLess() const {
@@ -312,7 +312,7 @@ void NNEvaluator::setDefaultSymmetry(int s) {
   currentDefaultSymmetry.store(s, std::memory_order_release);
 }
 
-Rules NNEvaluator::getSupportedRules(const Rules& desiredRules, bool& supported) {
+Rules NNEvaluator::getSupportedRules(const Rules& desiredRules, bool& supported) const {
   if(loadedModel == NULL) {
     supported = true;
     return desiredRules;
@@ -335,7 +335,7 @@ void NNEvaluator::clearStats() {
   m_numBatchesProcessed.store(0);
 }
 
-void NNEvaluator::clearCache() {
+void NNEvaluator::clearCache() const {
   if(nnCacheTable != NULL)
     nnCacheTable->clear();
 }
@@ -1191,7 +1191,7 @@ NNCacheTable::~NNCacheTable() {
   delete mutexPool;
 }
 
-bool NNCacheTable::get(Hash128 nnHash, shared_ptr<NNOutput>& ret) {
+bool NNCacheTable::get(Hash128 nnHash, shared_ptr<NNOutput>& ret) const {
   //Free ret BEFORE locking, to avoid any expensive operations while locked.
   if(ret != nullptr)
     ret.reset();
@@ -1218,7 +1218,7 @@ bool NNCacheTable::get(Hash128 nnHash, shared_ptr<NNOutput>& ret) {
   return found;
 }
 
-void NNCacheTable::set(const shared_ptr<NNOutput>& p) {
+void NNCacheTable::set(const shared_ptr<NNOutput>& p) const {
   //Immediately copy p right now, before locking, to avoid any expensive operations while locked.
   shared_ptr<NNOutput> buf(p);
 
@@ -1236,7 +1236,7 @@ void NNCacheTable::set(const shared_ptr<NNOutput>& p) {
   //No longer locked, allow buf to fall out of scope now, will free whatever used to be present in the table.
 }
 
-void NNCacheTable::clear() {
+void NNCacheTable::clear() const {
   shared_ptr<NNOutput> buf;
   for(size_t idx = 0; idx<tableSize; idx++) {
     Entry& entry = entries[idx];

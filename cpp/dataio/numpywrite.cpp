@@ -149,7 +149,7 @@ NumpyBuffer<T>::~NumpyBuffer() {
 }
 
 template <typename T>
-int64_t NumpyBuffer<T>::getActualDataLen(int64_t numWriteableRows) {
+int64_t NumpyBuffer<T>::getActualDataLen(int64_t numWriteableRows) const {
   int64_t actualDataLen = 1;
   for(size_t i = 0; i<shape.size(); i++) {
     int64_t x = (i == 0) ? numWriteableRows : shape[i];
@@ -165,7 +165,7 @@ int64_t NumpyBuffer<T>::getActualDataLen(int64_t numWriteableRows) {
 //This is so that users can preallocate one buffer at the start and still write it
 //if there were not as many rows as expected ("partial batch").
 template <typename T>
-uint64_t NumpyBuffer<T>::prepareHeaderWithNumRows(int64_t numWriteableRows) {
+uint64_t NumpyBuffer<T>::prepareHeaderWithNumRows(int64_t numWriteableRows) const {
   //Continue writing the shape
   size_t idx = shapeStartByte;
   char* s = (char*)dataIncludingHeader;
@@ -293,7 +293,7 @@ ZipFile::~ZipFile() {
     zip_discard((zip_t*)file);
 }
 
-void ZipFile::writeBuffer(const char* nameWithinZip, const void* data, uint64_t numBytes) {
+void ZipFile::writeBuffer(const char* nameWithinZip, const void* data, uint64_t numBytes) const {
   ZipError zipError;
   zip_source_t* dataSource = zip_source_buffer((zip_t*)file,data,numBytes,0);
   if(dataSource == NULL)

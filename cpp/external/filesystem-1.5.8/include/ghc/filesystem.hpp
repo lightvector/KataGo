@@ -1009,7 +1009,7 @@ public:
     void pop();
 #endif
     void pop(std::error_code& ec);
-    void disable_recursion_pending();
+    void disable_recursion_pending() const;
 
     // other members as required by [input.iterators]
 #ifdef GHC_WITH_EXCEPTIONS
@@ -5905,8 +5905,7 @@ GHC_INLINE void recursive_directory_iterator::pop(std::error_code& ec)
     }
 }
 
-GHC_INLINE void recursive_directory_iterator::disable_recursion_pending()
-{
+GHC_INLINE void recursive_directory_iterator::disable_recursion_pending() const {
     _impl->_recursion_pending = false;
 }
 

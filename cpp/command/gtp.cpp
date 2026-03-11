@@ -701,7 +701,7 @@ struct GTPEngine {
     return true;
   }
 
-  void ponder() {
+  void ponder() const {
     bot->ponder(lastSearchFactor);
   }
 
@@ -1296,7 +1296,7 @@ struct GTPEngine {
     return;
   }
 
-  void clearCache() {
+  void clearCache() const {
     bot->clearSearch();
     bot->clearEvalCache();
     nnEval->clearCache();
@@ -1519,7 +1519,7 @@ struct GTPEngine {
     return isAlive;
   }
 
-  string rawNNBrief(std::vector<Loc> branch, int whichSymmetry) {
+  string rawNNBrief(std::vector<Loc> branch, int whichSymmetry) const {
     if(nnEval == NULL)
       return "";
     ostringstream out;
@@ -1587,7 +1587,7 @@ struct GTPEngine {
     return Global::trim(policyStr + "\n" + wlStr + "\n" + leadStr);
   }
 
-  string rawNN(int whichSymmetry, double policyOptimism, bool useHumanModel) {
+  string rawNN(int whichSymmetry, double policyOptimism, bool useHumanModel) const {
     NNEvaluator* nnEvalToUse = useHumanModel ? humanEval : nnEval;
     if(nnEvalToUse == NULL)
       return "";

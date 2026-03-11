@@ -120,7 +120,7 @@ void SelfplayManager::cleanupUnusedModelsOlderThan(double seconds) {
   }
 }
 
-void SelfplayManager::clearUnusedModelCaches() {
+void SelfplayManager::clearUnusedModelCaches() const {
   std::lock_guard<std::mutex> lock(managerMutex);
   for(size_t i = 0; i<modelDatas.size(); i++) {
     ModelData* foundData = modelDatas[i];
@@ -210,7 +210,7 @@ NNEvaluator* SelfplayManager::acquireModelAlreadyLocked(ModelData* foundData) {
   foundData->acquireCount += 1;
   return foundData->nnEval;
 }
-void SelfplayManager::releaseAlreadyLocked(ModelData* foundData) {
+void SelfplayManager::releaseAlreadyLocked(ModelData* foundData) const {
   foundData->lastReleaseTime = timer.getSeconds();
   foundData->acquireCount -= 1;
 }
@@ -267,7 +267,7 @@ void SelfplayManager::release(const NNEvaluator* nnEval) {
   }
 }
 
-void SelfplayManager::countOneGameStarted(const NNEvaluator* nnEval) {
+void SelfplayManager::countOneGameStarted(const NNEvaluator* nnEval) const {
   std::unique_lock<std::mutex> lock(managerMutex);
   ModelData* foundData = NULL;
   for(size_t i = 0; i<modelDatas.size(); i++) {
@@ -295,7 +295,7 @@ void SelfplayManager::countOneGameStarted(const NNEvaluator* nnEval) {
   }
 }
 
-void SelfplayManager::enqueueDataToWrite(const string& modelName, FinishedGameData* gameData) {
+void SelfplayManager::enqueueDataToWrite(const string& modelName, FinishedGameData* gameData) const {
   std::unique_lock<std::mutex> lock(managerMutex);
   ModelData* foundData = NULL;
   for(size_t i = 0; i<modelDatas.size(); i++) {
@@ -314,7 +314,7 @@ void SelfplayManager::enqueueDataToWrite(const string& modelName, FinishedGameDa
   foundData->finishedGameQueue.waitPush(gameData);
 }
 
-void SelfplayManager::enqueueDataToWrite(const NNEvaluator* nnEval, FinishedGameData* gameData) {
+void SelfplayManager::enqueueDataToWrite(const NNEvaluator* nnEval, FinishedGameData* gameData) const {
   std::unique_lock<std::mutex> lock(managerMutex);
   ModelData* foundData = NULL;
   for(size_t i = 0; i<modelDatas.size(); i++) {
@@ -415,7 +415,7 @@ void SelfplayManager::runDataWriteLoopImpl(ModelData* modelData) {
 void SelfplayManager::withDataWriters(
   const NNEvaluator* nnEval,
   std::function<void(TrainingDataWriter* tdataWriter, std::ofstream* sgfOut)> f
-) {
+) const {
   std::lock_guard<std::mutex> lock(managerMutex);
   ModelData* foundData = NULL;
   for(size_t i = 0; i<modelDatas.size(); i++) {

@@ -450,7 +450,7 @@ struct KGSCsvLine {
   string unknownField; // Not sure what this is
   float result;
 
-  string getKey() {
+  string getKey() const {
     return date.toString() + "|$#" + sgfWUsername + "|$#" + sgfBUsername + "|" + Global::intToString(indexThisDayZeroIndexed);
   }
   static string makeKey(SimpleDate date, string sgfWUsername, string sgfBUsername, int indexThisDayZeroIndexed) {

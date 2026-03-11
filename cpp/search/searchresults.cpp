@@ -2320,7 +2320,7 @@ bool Search::getPrunedNodeValues(const SearchNode* nodePtr, ReportedSearchValues
   return true;
 }
 
-void Search::debugPrintChildrenSummary(std::ostream& out, const SearchNode& node, NNOutput* nnOutput) {
+void Search::debugPrintChildrenSummary(std::ostream& out, const SearchNode& node, NNOutput* nnOutput) const {
   SearchNodeState nodeState = node.state.load(std::memory_order_acquire);
   int numChildren = 0;
   ConstSearchNodeChildrenReference children = node.getChildren(nodeState);

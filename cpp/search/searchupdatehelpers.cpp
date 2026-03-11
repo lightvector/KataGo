@@ -18,7 +18,7 @@ void Search::addLeafValue(
   double weight,
   bool isTerminal,
   bool assumeNoExistingWeight
-) {
+) const {
   double utility =
     getResultUtility(winLossValue, noResultValue)
     + getScoreUtility(scoreMean, scoreMeanSq);
@@ -80,7 +80,7 @@ void Search::addLeafValue(
   }
 }
 
-void Search::addCurrentNNOutputAsLeafValue(SearchNode& node, bool assumeNoExistingWeight) {
+void Search::addCurrentNNOutputAsLeafValue(SearchNode& node, bool assumeNoExistingWeight) const {
   const NNOutput* nnOutput = node.getNNOutput();
   assert(nnOutput != NULL);
   //Values in the search are from the perspective of white positive always
@@ -136,7 +136,7 @@ double Search::computeWeightFromNNOutput(const NNOutput* nnOutput) const {
 }
 
 
-void Search::updateStatsAfterPlayout(SearchNode& node, SearchThread& thread, bool isRoot) {
+void Search::updateStatsAfterPlayout(SearchNode& node, SearchThread& thread, bool isRoot) const {
   //The thread that grabs a 0 from this peforms the recomputation of stats.
   int32_t oldDirtyCounter = node.dirtyCounter.fetch_add(1,std::memory_order_acq_rel);
   assert(oldDirtyCounter >= 0);
@@ -164,7 +164,7 @@ void Search::updateStatsAfterPlayout(SearchNode& node, SearchThread& thread, boo
 //Recompute all the stats of this node based on its children, except its visits and virtual losses, which are not child-dependent and
 //are updated in the manner specified.
 //Assumes this node has an nnOutput
-void Search::recomputeNodeStats(SearchNode& node, SearchThread& thread, int numVisitsToAdd, bool isRoot) {
+void Search::recomputeNodeStats(SearchNode& node, SearchThread& thread, int numVisitsToAdd, bool isRoot) const {
   //Find all children and compute weighting of the children based on their values
   vector<MoreNodeStats>& statsBuf = thread.statsBuf;
   int numGoodChildren = 0;
@@ -368,7 +368,7 @@ void Search::adjustEvalsFromCacheHelper(
   double& scoreMeanSqAvg,
   double& leadAvg,
   double* utilityAvg
-) {
+) const {
   double cacheAvgWinLoss = evalCacheEntry->avgWinLoss;
   double cacheAvgNoResult = evalCacheEntry->avgNoResult;
   double cacheAvgScoreMean = evalCacheEntry->avgScoreMean;

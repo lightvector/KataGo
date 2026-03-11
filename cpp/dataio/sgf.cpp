@@ -698,7 +698,7 @@ std::vector<std::string> Sgf::getRootProperties(const std::string& property) con
   return nodes[0]->getProperties(property);
 }
 
-void Sgf::addRootProperty(const std::string& key, const std::string& value) {
+void Sgf::addRootProperty(const std::string& key, const std::string& value) const {
   checkNonEmpty(nodes);
   nodes[0]->addProperty(key,value);
 }

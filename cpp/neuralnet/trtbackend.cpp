@@ -210,7 +210,7 @@ struct ModelParser {
     return move(model);
   }
 
-  void markDebugOutput(ITensor* tensor, const string& description, bool force2D = false) {
+  void markDebugOutput(ITensor* tensor, const string& description, bool force2D = false) const {
 #ifdef DEBUG_INTERMEDIATE_VALUES
     auto& network = model->network;
     ILayer* debugOutputLayer = nullptr;
@@ -857,7 +857,7 @@ struct ModelParser {
     }
   }
 
-  ILayer* applyGPoolLayer(ILayer* inputLayer, bool forceFP32 = false, bool isValueHead = false) {
+  ILayer* applyGPoolLayer(ILayer* inputLayer, bool forceFP32 = false, bool isValueHead = false) const {
     auto& network = model->network;
     string name = inputLayer->getName();
 
@@ -946,7 +946,7 @@ struct ModelParser {
     return gpoolConcatLayer;
   }
 
-  ILayer* applyMaskLayer(ILayer* inputLayer, bool forceFP32 = false) {
+  ILayer* applyMaskLayer(ILayer* inputLayer, bool forceFP32 = false) const {
     if(!model->requireExactNNLen) {
       auto maskLayer =
         model->network->addElementWise(*inputLayer->getOutput(0), *inputMask, ElementWiseOperation::kPROD);
@@ -961,7 +961,7 @@ struct ModelParser {
     }
   }
 
-  ILayer* applyCastLayer(ILayer* inputLayer, DataType dataType) {
+  ILayer* applyCastLayer(ILayer* inputLayer, DataType dataType) const {
 #if NV_TENSORRT_MAJOR == 8 && NV_TENSORRT_MINOR == 5
     auto castLayer = model->network->addIdentity(*inputLayer->getOutput(0));
     castLayer->setOutputType(0, dataType);
@@ -1380,7 +1380,7 @@ struct ComputeHandle {
     }
   }
 
-  size_t getBufferBytes(const char* name) {
+  size_t getBufferBytes(const char* name) const {
     auto dims = engine->getTensorShape(name);
     if(dims.nbDims != -1) {
       return accumulate(dims.d + 1, dims.d + dims.nbDims, maxBatchSize * sizeof(float), multiplies<size_t>());
@@ -1389,7 +1389,7 @@ struct ComputeHandle {
     }
   }
 
-  size_t getBufferRowElts(const char* name) {
+  size_t getBufferRowElts(const char* name) const {
     auto dims = engine->getTensorShape(name);
     if(dims.nbDims != -1) {
       return accumulate(dims.d + 1, dims.d + dims.nbDims, 1, multiplies<size_t>());
@@ -1398,7 +1398,7 @@ struct ComputeHandle {
     }
   }
 
-  Dims getBufferDynamicShape(const char* name, int batchSize) {
+  Dims getBufferDynamicShape(const char* name, int batchSize) const {
     auto dims = engine->getTensorShape(name);
     if(dims.nbDims != -1) {
       dims.d[0] = batchSize;

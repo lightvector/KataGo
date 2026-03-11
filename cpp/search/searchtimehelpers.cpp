@@ -7,7 +7,7 @@
 //------------------------
 
 
-double Search::numVisitsNeededToBeNonFutile(double maxVisitsMoveVisits) {
+double Search::numVisitsNeededToBeNonFutile(double maxVisitsMoveVisits) const {
   double requiredVisits = searchParams.futileVisitsThreshold * maxVisitsMoveVisits;
   //In the case where we're playing high temperature, also require that we can't get to more than a 1:100 odds of playing the move.
   double chosenMoveTemperature = interpolateEarly(
@@ -21,7 +21,7 @@ double Search::numVisitsNeededToBeNonFutile(double maxVisitsMoveVisits) {
 
 double Search::computeUpperBoundVisitsLeftDueToTime(
   int64_t rootVisits, double timeUsed, double plannedTimeLimit
-) {
+) const {
   if(rootVisits <= 1)
     return 1e30;
   double timeThoughtSoFar = effectiveSearchTimeCarriedOver + timeUsed;
@@ -36,7 +36,7 @@ double Search::computeUpperBoundVisitsLeftDueToTime(
 
 double Search::recomputeSearchTimeLimit(
   const TimeControls& tc, double timeUsed, double searchFactor, int64_t rootVisits
-) {
+) const {
   double tcMin;
   double tcRec;
   double tcMax;

@@ -821,7 +821,7 @@ void TrainingWriteBuffers::addRow(
   curRows++;
 }
 
-void TrainingWriteBuffers::writeToZipFile(const string& fileName) {
+void TrainingWriteBuffers::writeToZipFile(const string& fileName) const {
   ZipFile zipFile(fileName);
 
   uint64_t numBytes;
@@ -855,7 +855,7 @@ void TrainingWriteBuffers::writeToZipFile(const string& fileName) {
   zipFile.close();
 }
 
-void TrainingWriteBuffers::writeToTextOstream(ostream& out) {
+void TrainingWriteBuffers::writeToTextOstream(ostream& out) const {
   int64_t len;
 
   auto printHeader = [&out](const char* dataIncludingHeader) {

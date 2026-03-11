@@ -29,7 +29,7 @@ struct NumpyBuffer {
   NumpyBuffer(const NumpyBuffer&) = delete;
   NumpyBuffer& operator=(const NumpyBuffer&) = delete;
 
-  int64_t getActualDataLen(int64_t numWriteableRows);
+  int64_t getActualDataLen(int64_t numWriteableRows) const;
 
   //Writes the header of the buffer and returns the total size of the writeable portion of
   //the buffer, in bytes.
@@ -37,7 +37,7 @@ struct NumpyBuffer {
   //of the shape to be just numRows rather than the specified size at creation time.
   //This is so that users can preallocate one buffer at the start and still write it
   //if there were not as many rows as expected ("partial batch").
-  uint64_t prepareHeaderWithNumRows(int64_t numWriteableRows);
+  uint64_t prepareHeaderWithNumRows(int64_t numWriteableRows) const;
 
 private:
   NumpyBuffer(const std::vector<int64_t>& shp, const char* dt);
@@ -53,7 +53,7 @@ class ZipFile {
   ZipFile(const ZipFile&) = delete;
   ZipFile& operator=(const ZipFile&) = delete;
 
-  void writeBuffer(const char* nameWithinZip, const void* data, uint64_t numBytes);
+  void writeBuffer(const char* nameWithinZip, const void* data, uint64_t numBytes) const;
   void close();
 
   private:

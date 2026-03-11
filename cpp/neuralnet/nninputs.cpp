@@ -515,7 +515,7 @@ NNOutput::~NNOutput() {
 }
 
 
-void NNOutput::debugPrint(ostream& out, const Board& board) {
+void NNOutput::debugPrint(ostream& out, const Board& board) const {
   out << "Win " << Global::strprintf("%.2fc",whiteWinProb*100) << endl;
   out << "Loss " << Global::strprintf("%.2fc",whiteLossProb*100) << endl;
   out << "NoResult " << Global::strprintf("%.2fc",whiteNoResultProb*100) << endl;

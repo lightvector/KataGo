@@ -14,12 +14,12 @@ class MutexPool {
   ~MutexPool();
 
   uint32_t getNumMutexes() const;
-  std::mutex& getMutex(uint32_t idx);
+  std::mutex& getMutex(uint32_t idx) const;
 
   // Convenience methods that will automatically mod by numMutexes.
-  std::mutex& getMutexWithModulo(uint32_t idx);
-  std::mutex& getMutexWithModulo(uint64_t idx);
-  std::mutex& getMutexWithModulo(Hash128 hash);
+  std::mutex& getMutexWithModulo(uint32_t idx) const;
+  std::mutex& getMutexWithModulo(uint64_t idx) const;
+  std::mutex& getMutexWithModulo(Hash128 hash) const;
 };
 
 #endif  // SEARCH_MUTEXPOOL_H_

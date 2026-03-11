@@ -15,16 +15,16 @@ uint32_t MutexPool::getNumMutexes() const {
   return numMutexes;
 }
 
-mutex& MutexPool::getMutex(uint32_t idx) {
+mutex& MutexPool::getMutex(uint32_t idx) const {
   return mutexes[idx];
 }
 
-std::mutex& MutexPool::getMutexWithModulo(uint32_t idx) {
+std::mutex& MutexPool::getMutexWithModulo(uint32_t idx) const {
   return mutexes[idx % numMutexes];
 }
-std::mutex& MutexPool::getMutexWithModulo(uint64_t idx) {
+std::mutex& MutexPool::getMutexWithModulo(uint64_t idx) const {
   return mutexes[idx % numMutexes];
 }
-std::mutex& MutexPool::getMutexWithModulo(Hash128 hash) {
+std::mutex& MutexPool::getMutexWithModulo(Hash128 hash) const {
   return mutexes[hash.hash0 % numMutexes];
 }

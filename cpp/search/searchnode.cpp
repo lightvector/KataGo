@@ -97,7 +97,7 @@ const SearchNode* SearchChildPointer::getIfAllocated() const {
   return data.load(std::memory_order_acquire);
 }
 
-SearchNode* SearchChildPointer::getIfAllocatedRelaxed() {
+SearchNode* SearchChildPointer::getIfAllocatedRelaxed() const {
   return data.load(std::memory_order_relaxed);
 }
 

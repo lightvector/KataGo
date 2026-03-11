@@ -381,45 +381,45 @@ ConstSymBookNode& ConstSymBookNode::operator=(const SymBookNode& other) {
   return *this;
 }
 
-bool SymBookNode::isNull() {
+bool SymBookNode::isNull() const {
   return node == nullptr;
 }
-bool ConstSymBookNode::isNull() {
+bool ConstSymBookNode::isNull() const {
   return node == nullptr;
 }
 
-SymBookNode SymBookNode::applySymmetry(int symmetry) {
+SymBookNode SymBookNode::applySymmetry(int symmetry) const {
   // symmetry is the map from thisspace -> retspace
   // symmetryOfNode is the map from nodespace -> thisspace
   // The constructor will want the map from nodespace -> retspace
   return SymBookNode(node,SymmetryHelpers::compose(symmetryOfNode,symmetry));
 }
-ConstSymBookNode ConstSymBookNode::applySymmetry(int symmetry) {
+ConstSymBookNode ConstSymBookNode::applySymmetry(int symmetry) const {
   return ConstSymBookNode(node,SymmetryHelpers::compose(symmetryOfNode,symmetry));
 }
 
-Player SymBookNode::pla() {
+Player SymBookNode::pla() const {
   return node->pla;
 }
-Player ConstSymBookNode::pla() {
+Player ConstSymBookNode::pla() const {
   return node->pla;
 }
 
-BookHash SymBookNode::hash() {
+BookHash SymBookNode::hash() const {
   return node->hash;
 }
-BookHash ConstSymBookNode::hash() {
+BookHash ConstSymBookNode::hash() const {
   return node->hash;
 }
 
-vector<int> SymBookNode::getSymmetries() {
+vector<int> SymBookNode::getSymmetries() const {
   vector<int> symmetries;
   symmetries.reserve(node->symmetries.size());
   for(int symmetry: node->symmetries)
     symmetries.push_back(SymmetryHelpers::compose(invSymmetryOfNode, symmetry, symmetryOfNode));
   return symmetries;
 }
-vector<int> ConstSymBookNode::getSymmetries() {
+vector<int> ConstSymBookNode::getSymmetries() const {
   vector<int> symmetries;
   symmetries.reserve(node->symmetries.size());
   for(int symmetry: node->symmetries)
@@ -428,10 +428,10 @@ vector<int> ConstSymBookNode::getSymmetries() {
 }
 
 
-bool SymBookNode::isMoveInBook(Loc move) {
+bool SymBookNode::isMoveInBook(Loc move) const {
   return ConstSymBookNode(*this).isMoveInBook(move);
 }
-bool ConstSymBookNode::isMoveInBook(Loc move) {
+bool ConstSymBookNode::isMoveInBook(Loc move) const {
   assert(node != nullptr);
   for(int symmetry: node->symmetries) {
     // invSymmetryOfNode is the map (symbooknodespace -> nodespace)
@@ -444,18 +444,18 @@ bool ConstSymBookNode::isMoveInBook(Loc move) {
   return false;
 }
 
-int SymBookNode::numUniqueMovesInBook() {
+int SymBookNode::numUniqueMovesInBook() const {
   return ConstSymBookNode(*this).numUniqueMovesInBook();
 }
-int ConstSymBookNode::numUniqueMovesInBook() {
+int ConstSymBookNode::numUniqueMovesInBook() const {
   assert(node != nullptr);
   return (int)(node->moves.size());
 }
 
-vector<BookMove> SymBookNode::getUniqueMovesInBook() {
+vector<BookMove> SymBookNode::getUniqueMovesInBook() const {
   return ConstSymBookNode(*this).getUniqueMovesInBook();
 }
-vector<BookMove> ConstSymBookNode::getUniqueMovesInBook() {
+vector<BookMove> ConstSymBookNode::getUniqueMovesInBook() const {
   assert(node != nullptr);
   vector<BookMove> ret;
   ret.reserve(node->moves.size());
@@ -465,68 +465,68 @@ vector<BookMove> ConstSymBookNode::getUniqueMovesInBook() {
   return ret;
 }
 
-BookValues& SymBookNode::thisValuesNotInBook() {
+BookValues& SymBookNode::thisValuesNotInBook() const {
   assert(node != nullptr);
   return node->thisValuesNotInBook;
 }
-const BookValues& ConstSymBookNode::thisValuesNotInBook() {
+const BookValues& ConstSymBookNode::thisValuesNotInBook() const {
   assert(node != nullptr);
   return node->thisValuesNotInBook;
 }
 
-bool& SymBookNode::canExpand() {
+bool& SymBookNode::canExpand() const {
   assert(node != nullptr);
   return node->canExpand;
 }
-bool ConstSymBookNode::canExpand() {
+bool ConstSymBookNode::canExpand() const {
   assert(node != nullptr);
   return node->canExpand;
 }
-bool& SymBookNode::canReExpand() {
+bool& SymBookNode::canReExpand() const {
   assert(node != nullptr);
   return node->canReExpand;
 }
-bool ConstSymBookNode::canReExpand() {
+bool ConstSymBookNode::canReExpand() const {
   assert(node != nullptr);
   return node->canReExpand;
 }
 
 
-const RecursiveBookValues& SymBookNode::recursiveValues() {
+const RecursiveBookValues& SymBookNode::recursiveValues() const {
   assert(node != nullptr);
   return node->recursiveValues;
 }
-const RecursiveBookValues& ConstSymBookNode::recursiveValues() {
+const RecursiveBookValues& ConstSymBookNode::recursiveValues() const {
   assert(node != nullptr);
   return node->recursiveValues;
 }
 
-int SymBookNode::minDepthFromRoot() {
+int SymBookNode::minDepthFromRoot() const {
   assert(node != nullptr);
   return node->minDepthFromRoot;
 }
-int ConstSymBookNode::minDepthFromRoot() {
+int ConstSymBookNode::minDepthFromRoot() const {
   assert(node != nullptr);
   return node->minDepthFromRoot;
 }
-double SymBookNode::minCostFromRoot() {
+double SymBookNode::minCostFromRoot() const {
   assert(node != nullptr);
   return node->minCostFromRoot;
 }
-double ConstSymBookNode::minCostFromRoot() {
+double ConstSymBookNode::minCostFromRoot() const {
   assert(node != nullptr);
   return node->minCostFromRoot;
 }
-double SymBookNode::totalExpansionCost() {
+double SymBookNode::totalExpansionCost() const {
   assert(node != nullptr);
   return node->minCostFromRoot + node->thisNodeExpansionCost;
 }
-double ConstSymBookNode::totalExpansionCost() {
+double ConstSymBookNode::totalExpansionCost() const {
   assert(node != nullptr);
   return node->minCostFromRoot + node->thisNodeExpansionCost;
 }
 
-SymBookNode SymBookNode::canonicalParent() {
+SymBookNode SymBookNode::canonicalParent() const {
   if(node->parents.size() <= 0)
     return SymBookNode(nullptr);
   int64_t bestParentIdx = node->bestParentIdx;
@@ -544,7 +544,7 @@ SymBookNode SymBookNode::canonicalParent() {
   // For the constructor, we need the map parentspace -> displayspace
   return SymBookNode(parent,SymmetryHelpers::compose(moveFromParent.symmetryToAlign,symmetryOfNode));
 }
-ConstSymBookNode ConstSymBookNode::canonicalParent() {
+ConstSymBookNode ConstSymBookNode::canonicalParent() const {
   if(node->parents.size() <= 0)
     return ConstSymBookNode(nullptr);
   int64_t bestParentIdx = node->bestParentIdx;
@@ -563,7 +563,7 @@ ConstSymBookNode ConstSymBookNode::canonicalParent() {
   return ConstSymBookNode(parent,SymmetryHelpers::compose(moveFromParent.symmetryToAlign,symmetryOfNode));
 }
 
-SymBookNode SymBookNode::follow(Loc move) {
+SymBookNode SymBookNode::follow(Loc move) const {
   assert(node != nullptr);
   for(int symmetry: node->symmetries) {
     // Same logic here, invSymmetryOfNode maps symbooknodespace -> nodespace
@@ -581,7 +581,7 @@ SymBookNode SymBookNode::follow(Loc move) {
   }
   return SymBookNode(nullptr);
 }
-ConstSymBookNode ConstSymBookNode::follow(Loc move) {
+ConstSymBookNode ConstSymBookNode::follow(Loc move) const {
   assert(node != nullptr);
   for(int symmetry: node->symmetries) {
     // Same logic here, invSymmetryOfNode maps symbooknodespace -> nodespace
@@ -597,7 +597,7 @@ ConstSymBookNode ConstSymBookNode::follow(Loc move) {
   return ConstSymBookNode(nullptr);
 }
 
-SymBookNode SymBookNode::playMove(Board& board, BoardHistory& hist, Loc move) {
+SymBookNode SymBookNode::playMove(Board& board, BoardHistory& hist, Loc move) const {
   SymBookNode ret = follow(move);
   if(ret.isNull())
     return SymBookNode(nullptr);
@@ -606,7 +606,7 @@ SymBookNode SymBookNode::playMove(Board& board, BoardHistory& hist, Loc move) {
   hist.makeBoardMoveAssumeLegal(board,move,node->pla,nullptr);
   return ret;
 }
-ConstSymBookNode ConstSymBookNode::playMove(Board& board, BoardHistory& hist, Loc move) {
+ConstSymBookNode ConstSymBookNode::playMove(Board& board, BoardHistory& hist, Loc move) const {
   ConstSymBookNode ret = follow(move);
   if(ret.isNull())
     return ConstSymBookNode(nullptr);
@@ -616,7 +616,7 @@ ConstSymBookNode ConstSymBookNode::playMove(Board& board, BoardHistory& hist, Lo
   return ret;
 }
 
-SymBookNode SymBookNode::playAndAddMove(Board& board, BoardHistory& hist, Loc move, double rawPolicy, bool& childIsTransposing) {
+SymBookNode SymBookNode::playAndAddMove(Board& board, BoardHistory& hist, Loc move, double rawPolicy, bool& childIsTransposing) const {
   assert(node != nullptr);
   assert(!isMoveInBook(move));
   childIsTransposing = false;
@@ -692,18 +692,18 @@ SymBookNode SymBookNode::playAndAddMove(Board& board, BoardHistory& hist, Loc mo
   return SymBookNode(child,SymmetryHelpers::invert(symmetryToAlignToChild));
 }
 
-bool SymBookNode::getBoardHistoryReachingHere(BoardHistory& ret, vector<Loc>& moveHistoryRet) {
+bool SymBookNode::getBoardHistoryReachingHere(BoardHistory& ret, vector<Loc>& moveHistoryRet) const {
   vector<double> winLossRet;
   return getBoardHistoryReachingHere(ret,moveHistoryRet,winLossRet);
 }
-bool ConstSymBookNode::getBoardHistoryReachingHere(BoardHistory& ret, vector<Loc>& moveHistoryRet) {
+bool ConstSymBookNode::getBoardHistoryReachingHere(BoardHistory& ret, vector<Loc>& moveHistoryRet) const {
   vector<double> winLossRet;
   return getBoardHistoryReachingHere(ret,moveHistoryRet,winLossRet);
 }
-bool SymBookNode::getBoardHistoryReachingHere(BoardHistory& ret, vector<Loc>& moveHistoryRet, vector<double>& winlossRet) {
+bool SymBookNode::getBoardHistoryReachingHere(BoardHistory& ret, vector<Loc>& moveHistoryRet, vector<double>& winlossRet) const {
   return ConstSymBookNode(*this).getBoardHistoryReachingHere(ret,moveHistoryRet,winlossRet);
 }
-bool ConstSymBookNode::getBoardHistoryReachingHere(BoardHistory& ret, vector<Loc>& moveHistoryRet, vector<double>& winlossRet) {
+bool ConstSymBookNode::getBoardHistoryReachingHere(BoardHistory& ret, vector<Loc>& moveHistoryRet, vector<double>& winlossRet) const {
   assert(node != nullptr);
   const Book* book = node->book;
   vector<const BookNode*> pathFromRoot;
@@ -1293,7 +1293,7 @@ vector<SymBookNode> Book::getAllLeaves(double minVisits) {
   return ret;
 }
 
-std::vector<SymBookNode> Book::getAllNodes() {
+std::vector<SymBookNode> Book::getAllNodes() const {
   vector<SymBookNode> ret;
   ret.reserve(nodes.size());
   for(BookNode* node: nodes) {

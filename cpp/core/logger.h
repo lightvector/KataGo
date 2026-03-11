@@ -60,7 +60,7 @@ class Logger {
   bool isDisabled;
 
   void write(const std::string& str, bool endLine);
-  void writeLocked(const std::string& str, bool endLine, std::ostream& out, const time_t& time);
+  void writeLocked(const std::string& str, bool endLine, std::ostream& out, const time_t& time) const;
   std::ostream* createOStream();
 };
 

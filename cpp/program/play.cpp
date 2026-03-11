@@ -438,7 +438,7 @@ Rules GameInitializer::randomizeScoringAndTaxRules(Rules rules, Rand& randToUse)
   return rules;
 }
 
-bool GameInitializer::isAllowedBSize(int xSize, int ySize) {
+bool GameInitializer::isAllowedBSize(int xSize, int ySize) const {
   if(!contains(allowedBSizes,std::make_pair(xSize,ySize)))
     return false;
   return true;
@@ -2351,7 +2351,7 @@ FinishedGameData* GameRunner::runGame(
   std::function<NNEvaluator*()> checkForNewNNEval,
   std::function<void(const MatchPairer::BotSpec&, Search*)> afterInitialization,
   std::function<void(const Board&, const BoardHistory&, Player, Loc, const std::vector<double>&, const std::vector<double>&, const std::vector<double>&, const Search*)> onEachMove
-) {
+) const {
   MatchPairer::BotSpec botSpecB = bSpecB;
   MatchPairer::BotSpec botSpecW = bSpecW;
 

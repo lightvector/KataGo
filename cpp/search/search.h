@@ -512,21 +512,21 @@ private:
   // Time management
   // searchtimehelpers.cpp
   //----------------------------------------------------------------------------------------
-  double numVisitsNeededToBeNonFutile(double maxVisitsMoveVisits);
+  double numVisitsNeededToBeNonFutile(double maxVisitsMoveVisits) const;
   double computeUpperBoundVisitsLeftDueToTime(
     int64_t rootVisits, double timeUsed, double plannedTimeLimit
-  );
-  double recomputeSearchTimeLimit(const TimeControls& tc, double timeUsed, double searchFactor, int64_t rootVisits);
+  ) const;
+  double recomputeSearchTimeLimit(const TimeControls& tc, double timeUsed, double searchFactor, int64_t rootVisits) const;
 
   //----------------------------------------------------------------------------------------
   // Neural net queries
   // searchnnhelpers.cpp
   //----------------------------------------------------------------------------------------
-  void computeRootNNEvaluation(NNResultBuf& nnResultBuf, bool includeOwnerMap);
+  void computeRootNNEvaluation(NNResultBuf& nnResultBuf, bool includeOwnerMap) const;
   bool initNodeNNOutput(
     SearchThread& thread, SearchNode& node,
     bool isRoot, bool skipCache, bool isReInit
-  );
+  ) const;
   // Returns true if any recomputation happened
   bool maybeRecomputeExistingNNOutput(
     SearchThread& thread, SearchNode& node, bool isRoot
@@ -613,13 +613,13 @@ private:
     double weight,
     bool isTerminal,
     bool assumeNoExistingWeight
-  );
-  void addCurrentNNOutputAsLeafValue(SearchNode& node, bool assumeNoExistingWeight);
+  ) const;
+  void addCurrentNNOutputAsLeafValue(SearchNode& node, bool assumeNoExistingWeight) const;
 
   double computeWeightFromNNOutput(const NNOutput* nnOutput) const;
 
-  void updateStatsAfterPlayout(SearchNode& node, SearchThread& thread, bool isRoot);
-  void recomputeNodeStats(SearchNode& node, SearchThread& thread, int32_t numVisitsToAdd, bool isRoot);
+  void updateStatsAfterPlayout(SearchNode& node, SearchThread& thread, bool isRoot) const;
+  void recomputeNodeStats(SearchNode& node, SearchThread& thread, int32_t numVisitsToAdd, bool isRoot) const;
 
   void adjustEvalsFromCacheHelper(
     const std::shared_ptr<EvalCacheEntry>& evalCacheEntry,
@@ -630,7 +630,7 @@ private:
     double& scoreMeanSqAvg,
     double& leadAvg,
     double* utilityAvg
-  );
+  ) const;
 
   void downweightBadChildrenAndNormalizeWeight(
     int numChildren,
@@ -648,10 +648,10 @@ private:
   // search.cpp
   //----------------------------------------------------------------------------------------
   uint32_t createMutexIdxForNode(SearchThread& thread) const;
-  SearchNode* allocateOrFindNode(SearchThread& thread, Player nextPla, Loc bestChildMoveLoc, bool forceNonTerminal, Hash128 graphHash);
+  SearchNode* allocateOrFindNode(SearchThread& thread, Player nextPla, Loc bestChildMoveLoc, bool forceNonTerminal, Hash128 graphHash) const;
   void clearOldNNOutputs();
   void transferOldNNOutputs(SearchThread& thread);
-  void removeSubtreeValueBias(SearchNode* node);
+  void removeSubtreeValueBias(SearchNode* node) const;
   void deleteAllOldOrAllNewTableNodesAndSubtreeValueBiasMulithreaded(bool old);
   void deleteAllTableNodesMulithreaded();
 
@@ -674,7 +674,7 @@ private:
     const SearchNode* child,
     const SearchNodeState& nodeState,
     const int bestChildIdx
-  );
+  ) const;
 
   //----------------------------------------------------------------------------------------
   // Private helpers for search results and analysis and top level move selection
@@ -740,7 +740,7 @@ private:
     Func& averaging
   ) const;
 
-  void debugPrintChildrenSummary(std::ostream& out, const SearchNode& node, NNOutput* nnOutput);
+  void debugPrintChildrenSummary(std::ostream& out, const SearchNode& node, NNOutput* nnOutput) const;
 
 };
 

@@ -28,7 +28,7 @@ class KataGoCommandLine : public TCLAP::CmdLine
   void parseArgs(const std::vector<std::string>& args);
 
   //Args added AFTER calling this will only show up in the long help output, and not the short usage line.
-  void setShortUsageArgLimit();
+  void setShortUsageArgLimit() const;
 
   void addModelFileArg();
   void addHumanModelFileArg();

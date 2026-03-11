@@ -111,7 +111,7 @@ class GameInitializer {
 
   //Only sample the space of possible rules
   Rules createRules();
-  bool isAllowedBSize(int xSize, int ySize);
+  bool isAllowedBSize(int xSize, int ySize) const;
 
   std::vector<std::pair<int,int>> getAllowedBSizes() const;
   int getMinBoardXSize() const;
@@ -331,7 +331,7 @@ public:
     std::function<NNEvaluator*()> checkForNewNNEval,
     std::function<void(const MatchPairer::BotSpec&, Search*)> afterInitialization,
     std::function<void(const Board&, const BoardHistory&, Player, Loc, const std::vector<double>&, const std::vector<double>&, const std::vector<double>&, const Search*)> onEachMove
-  );
+  ) const;
 
   const GameInitializer* getGameInitializer() const;
 

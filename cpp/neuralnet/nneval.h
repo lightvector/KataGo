@@ -38,9 +38,9 @@ class NNCacheTable {
   NNCacheTable& operator=(const NNCacheTable& other) = delete;
 
   //These are thread-safe. For get, ret will be set to nullptr upon a failure to find.
-  bool get(Hash128 nnHash, std::shared_ptr<NNOutput>& ret);
-  void set(const std::shared_ptr<NNOutput>& p);
-  void clear();
+  bool get(Hash128 nnHash, std::shared_ptr<NNOutput>& ret) const;
+  void set(const std::shared_ptr<NNOutput>& p) const;
+  void clear() const;
 };
 
 //Each thread should allocate and re-use one of these
@@ -111,7 +111,7 @@ class NNEvaluator {
   std::string getModelFileName() const;
   std::string getInternalModelName() const;
   std::string getAbbrevInternalModelName() const;
-  Logger* getLogger();
+  Logger* getLogger() const;
   bool isNeuralNetLess() const;
   int getMaxBatchSize() const;
   int getCurrentBatchSize() const;
@@ -133,10 +133,10 @@ class NNEvaluator {
 
   //Return the "nearest" supported ruleset to desiredRules by this model.
   //Fills supported with true if desiredRules itself was exactly supported, false if some modifications had to be made.
-  Rules getSupportedRules(const Rules& desiredRules, bool& supported);
+  Rules getSupportedRules(const Rules& desiredRules, bool& supported) const;
 
   //Clear all entires cached in the table
-  void clearCache();
+  void clearCache() const;
 
   //Queue a position for the next neural net batch evaluation and wait for it. Upon evaluation, result
   //will be supplied in NNResultBuf& buf, the shared_ptr there can grabbed via std::move if desired.
