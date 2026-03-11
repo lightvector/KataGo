@@ -289,6 +289,7 @@ void Tests::runNNBatchingTest(const string& modelFile, bool inputsNHWC, bool use
   std::fill(ownershipResults.begin(), ownershipResults.end(), 0.0);
 
   vector<std::thread> testThreads;
+  testThreads.reserve(numThreads);
   for(int threadIdx = 0; threadIdx<numThreads; threadIdx++)
     testThreads.emplace_back(runEvals,threadIdx);
   for(int threadIdx = 0; threadIdx<numThreads; threadIdx++)

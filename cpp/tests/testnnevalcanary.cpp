@@ -612,6 +612,7 @@ bool Tests::runBackendErrorTest(
 
   if(verbose)
     logger.write("Running evaluations in fp32");
+  fp32.reserve(hists.size());
   for(const BoardHistory& hist: hists)
     fp32.push_back(evalBoard(nnEval32,hist));
 
@@ -630,6 +631,7 @@ bool Tests::runBackendErrorTest(
     std::vector<uint32_t> permutation(maxBatchSize);
     rand.fillShuffledUIntRange(maxBatchSize, permutation.data());
     vector<std::thread> threads;
+    threads.reserve(maxBatchSize);
     for(int i = 0; i<maxBatchSize; i++)
       threads.emplace_back(runThread,permutation[i]);
     for(int i = 0; i<maxBatchSize; i++)
@@ -654,6 +656,7 @@ bool Tests::runBackendErrorTest(
       std::vector<uint32_t> permutation(maxBatchSize);
       rand.fillShuffledUIntRange(maxBatchSize, permutation.data());
       vector<std::thread> threads;
+      threads.reserve(maxBatchSize);
       for(int i = 0; i<maxBatchSize; i++)
         threads.emplace_back(runThread,permutation[i]);
       for(int i = 0; i<maxBatchSize; i++)

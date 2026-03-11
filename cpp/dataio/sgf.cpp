@@ -1095,8 +1095,10 @@ string Sgf::PositionSample::toJsonLine(const Sgf::PositionSample& sample) {
   data["nextPla"] = PlayerIO::playerToStringShort(sample.nextPla);
   vector<string> moveLocs;
   vector<string> movePlas;
+  moveLocs.reserve(sample.moves.size());
   for(size_t i = 0; i<sample.moves.size(); i++)
     moveLocs.push_back(Location::toString(sample.moves[i].loc,sample.board));
+  movePlas.reserve(sample.moves.size());
   for(size_t i = 0; i<sample.moves.size(); i++)
     movePlas.push_back(PlayerIO::playerToStringShort(sample.moves[i].pla));
 

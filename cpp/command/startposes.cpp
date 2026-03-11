@@ -2591,6 +2591,7 @@ int MainCmds::genposesfromselfplayinit(const vector<string>& args) {
   posWriter.start();
 
   vector<std::thread> threads;
+  threads.reserve(numProcessThreads);
   for(int i = 0; i<numProcessThreads; i++) {
     threads.emplace_back(genPosLoop);
   }

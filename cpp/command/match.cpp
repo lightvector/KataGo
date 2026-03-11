@@ -337,6 +337,7 @@ int MainCmds::match(const vector<string>& args) {
 
   Rand hashRand;
   vector<std::thread> threads;
+  threads.reserve(numGameThreads);
   for(int i = 0; i<numGameThreads; i++) {
     threads.emplace_back(runMatchLoopProtected, hashRand.nextUInt64());
   }

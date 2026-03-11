@@ -414,12 +414,14 @@ BookHash ConstSymBookNode::hash() {
 
 vector<int> SymBookNode::getSymmetries() {
   vector<int> symmetries;
+  symmetries.reserve(node->symmetries.size());
   for(int symmetry: node->symmetries)
     symmetries.push_back(SymmetryHelpers::compose(invSymmetryOfNode, symmetry, symmetryOfNode));
   return symmetries;
 }
 vector<int> ConstSymBookNode::getSymmetries() {
   vector<int> symmetries;
+  symmetries.reserve(node->symmetries.size());
   for(int symmetry: node->symmetries)
     symmetries.push_back(SymmetryHelpers::compose(invSymmetryOfNode, symmetry, symmetryOfNode));
   return symmetries;
@@ -456,6 +458,7 @@ vector<BookMove> SymBookNode::getUniqueMovesInBook() {
 vector<BookMove> ConstSymBookNode::getUniqueMovesInBook() {
   assert(node != nullptr);
   vector<BookMove> ret;
+  ret.reserve(node->moves.size());
   for(std::pair<Loc,BookMove> kv: node->moves) {
     ret.push_back(kv.second.getSymBookMove(symmetryOfNode, node->book->initialBoard.x_size, node->book->initialBoard.y_size));
   }
@@ -1021,6 +1024,7 @@ void Book::recomputeMultiThreaded(const std::vector<SymBookNode>& newAndChangedN
 
   // Spawn threads
   std::vector<std::thread> threads;
+  threads.reserve(numThreads);
   for(int i = 0; i < numThreads; i++) {
     threads.emplace_back([this, &dirtyNodes, &mutexPool, visitedDoneValue, i]() {
       Rand rand;
@@ -1051,6 +1055,7 @@ void Book::recomputeMultiThreaded(const std::vector<SymBookNode>& newAndChangedN
 
           // Acquire locks in sorted order
           std::vector<std::unique_lock<std::mutex>> locks;
+          locks.reserve(mutexIndices.size());
           for(uint32_t idx : mutexIndices) {
             locks.emplace_back(mutexPool.getMutex(idx));
           }
@@ -1105,6 +1110,7 @@ void Book::recomputeMultiThreaded(const std::vector<SymBookNode>& newAndChangedN
 
           // Acquire locks in sorted order
           std::vector<std::unique_lock<std::mutex>> locks;
+          locks.reserve(mutexIndices.size());
           for(uint32_t idx : mutexIndices) {
             locks.emplace_back(mutexPool.getMutex(idx));
           }
@@ -1135,6 +1141,7 @@ void Book::recomputeEverythingMultiThreaded(MutexPool& mutexPool, int numThreads
 
   // Spawn threads
   std::vector<std::thread> threads;
+  threads.reserve(numThreads);
   for(int i = 0; i < numThreads; i++) {
     threads.emplace_back([this, &mutexPool, visitedDoneValue, i]() {
       Rand rand;
@@ -1165,6 +1172,7 @@ void Book::recomputeEverythingMultiThreaded(MutexPool& mutexPool, int numThreads
 
           // Acquire locks in sorted order
           std::vector<std::unique_lock<std::mutex>> locks;
+          locks.reserve(mutexIndices.size());
           for(uint32_t idx : mutexIndices) {
             locks.emplace_back(mutexPool.getMutex(idx));
           }
@@ -1219,6 +1227,7 @@ void Book::recomputeEverythingMultiThreaded(MutexPool& mutexPool, int numThreads
 
           // Acquire locks in sorted order
           std::vector<std::unique_lock<std::mutex>> locks;
+          locks.reserve(mutexIndices.size());
           for(uint32_t idx : mutexIndices) {
             locks.emplace_back(mutexPool.getMutex(idx));
           }
@@ -1286,6 +1295,7 @@ vector<SymBookNode> Book::getAllLeaves(double minVisits) {
 
 std::vector<SymBookNode> Book::getAllNodes() {
   vector<SymBookNode> ret;
+  ret.reserve(nodes.size());
   for(BookNode* node: nodes) {
     ret.push_back(SymBookNode(node,0));
   }

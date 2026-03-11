@@ -211,6 +211,7 @@ NNEvaluator* TinyModelTest::runTinyModelTest(const string& baseDir, Logger& logg
     };
 
     vector<std::thread> testThreads;
+    testThreads.reserve(4);
     for(int i = 0; i<4; i++)
       testThreads.emplace_back(runAFewTests);
     for(int i = 0; i<4; i++)
@@ -371,6 +372,7 @@ NNEvaluator* TinyModelTest::runTinyModelTest(const string& baseDir, Logger& logg
     };
 
     vector<std::thread> testThreads;
+    testThreads.reserve(4);
     for(int i = 0; i<4; i++)
       testThreads.emplace_back(runAFewTests);
     for(int i = 0; i<4; i++)
@@ -494,6 +496,7 @@ NNEvaluator* TinyModelTest::runTinyModelTest(const string& baseDir, Logger& logg
     };
 
     vector<std::thread> testThreads;
+    testThreads.reserve(4);
     for(int i = 0; i<4; i++)
       testThreads.emplace_back(runAFewTests);
     for(int i = 0; i<4; i++)
