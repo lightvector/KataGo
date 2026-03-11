@@ -11,7 +11,7 @@
 //Some bits of initialization and main function logic shared between various programs
 namespace Setup {
 
-  void initializeSession(ConfigParser& cfg);
+  void initializeSession(const ConfigParser& cfg);
 
   enum setup_for_t {
     SETUP_FOR_GTP,

@@ -448,7 +448,7 @@ void Search::runWholeSearch(Player movePla, bool pondering, std::function<bool()
 }
 
 void Search::runWholeSearch(
-  std::function<void()>* searchBegun,
+  const std::function<void()>* searchBegun,
   std::function<bool()>* shouldStopEarly,
   bool pondering,
   const TimeControls& tc,
@@ -1058,7 +1058,7 @@ void Search::recursivelyRecomputeStats(SearchNode& n) {
 }
 
 void Search::recursivelyRecordEvalCache(SearchNode& n) {
-  std::function<void(SearchNode*,int)> f = [&](SearchNode* node, int threadIdx) {
+  std::function<void(SearchNode*,int)> f = [&](const SearchNode* node, int threadIdx) {
     (void)threadIdx;
     int64_t numVisits = node->stats.visits.load(std::memory_order_acquire);
     if(numVisits >= searchParams.evalCacheMinVisits && !node->forceNonTerminal) {
@@ -1432,7 +1432,7 @@ bool Search::playoutDescend(
 bool Search::maybeCatchUpEdgeVisits(
   SearchThread& thread,
   SearchNode& node,
-  SearchNode* child,
+  const SearchNode* child,
   const SearchNodeState& nodeState,
   const int bestChildIdx
 ) {

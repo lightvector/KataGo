@@ -160,7 +160,7 @@ void Tests::runNNInputsV3V4Tests() {
   };
 
   auto fillRows = [](int version, Hash128& hash,
-                     Board& board, const BoardHistory& hist, Player nextPla, MiscNNInputParams nnInputParams, int nnXLen, int nnYLen, bool inputsUseNHWC,
+                     const Board& board, const BoardHistory& hist, Player nextPla, MiscNNInputParams nnInputParams, int nnXLen, int nnYLen, bool inputsUseNHWC,
                      float* rowBin, float* rowGlobal) {
     hash = NNInputs::getHash(board,hist,nextPla,nnInputParams);
 

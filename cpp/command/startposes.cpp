@@ -347,7 +347,7 @@ int MainCmds::samplesgfs(const vector<string>& args) {
   std::set<Hash128> uniqueHashes;
   std::function<void(Sgf::PositionSample&, const BoardHistory&, const string&)> posHandler =
     [sampleProb,sampleWeight,forceSampleWeight,&posWriter,turnWeightLambda,&numKept,&weightKept,&seedRand,minTurnNumberBoardAreaProp,maxTurnNumberBoardAreaProp,afterPassFactor,trainingWeight,minWeight](
-      Sgf::PositionSample& posSample, const BoardHistory& hist, const string& comments
+      const Sgf::PositionSample& posSample, const BoardHistory& hist, const string& comments
     ) {
       assert(posSample.getCurrentTurnNumber() == hist.getCurrentTurnNumber());
       double minTurnNumber = minTurnNumberBoardAreaProp * (hist.initialBoard.x_size * hist.initialBoard.y_size);
@@ -641,7 +641,7 @@ int MainCmds::samplesgfs(const vector<string>& args) {
 
       std::function<void(Sgf::PositionSample&, const BoardHistory&, const string&)> posHandler2 =
         [&blockedSituationHashes, &desiredWeight, &posHandler, trainingWeight](
-          Sgf::PositionSample& posSample, const BoardHistory& posHist, const string& comments
+          const Sgf::PositionSample& posSample, const BoardHistory& posHist, const string& comments
         ) {
           assert(posSample.getCurrentTurnNumber() == posHist.getCurrentTurnNumber());
           // cout << "AAAA " << (posHist.initialTurnNumber + (int)posHist.moveHistory.size()) << endl;
@@ -1878,7 +1878,7 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
           bool hashParent = true; //Hash parent so that we distinguish hint moves that reach the same position but were different moves from different starting states.
           sgf->iterAllUniquePositions(
             uniqueHashes, hashComments, hashParent, flipIfPassOrWFirst, allowGameOver, forTesting ? NULL : &seedRand,
-            [&](Sgf::PositionSample& unusedSample, const BoardHistory& hist, const string& comments) {
+            [&](const Sgf::PositionSample& unusedSample, const BoardHistory& hist, const string& comments) {
               if(comments.size() > 0 && comments.find("%NOHINT%") != string::npos)
                 return;
               if(hist.moveHistory.size() <= 0)

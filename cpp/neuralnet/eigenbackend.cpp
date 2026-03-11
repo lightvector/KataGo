@@ -88,7 +88,7 @@ LoadedModel* NeuralNet::loadModelFile(const string& file, const string& expected
   return loadedModel;
 }
 
-void NeuralNet::freeLoadedModel(LoadedModel* loadedModel) {
+void NeuralNet::freeLoadedModel(const LoadedModel* loadedModel) {
   delete loadedModel;
 }
 
@@ -246,7 +246,7 @@ struct ScratchBuffers {
     std::function<float*(size_t)> allocateFunc = [this](size_t size) {
       return new float[size/sizeof(float)];
     };
-    std::function<void(float*)> releaseFunc = [this](float* buf) noexcept {
+    std::function<void(float*)> releaseFunc = [this](const float* buf) noexcept {
       delete[] buf;
     };
 
@@ -866,7 +866,7 @@ struct NormActConv {
 
   void apply(
     ComputeHandleInternal* handle,
-    TENSORMAP4* input,
+    const TENSORMAP4* input,
     TENSORMAP4* inputScratch,
     TENSORMAP4* output,
     CONSTTENSORMAP3* mask,
@@ -1208,7 +1208,7 @@ struct SGFMetadataEncoder {
   {}
 
   void apply(
-    ScratchBuffers* scratch,
+    const ScratchBuffers* scratch,
     CONSTTENSORMAP2* input,
     TENSORMAP2* output
   ) const {
@@ -1349,7 +1349,7 @@ struct PolicyHead {
 
   void apply(
     ComputeHandleInternal* handle,
-    ScratchBuffers* scratch,
+    const ScratchBuffers* scratch,
     CONSTTENSORMAP4* trunk,
     TENSORMAP2* policyPass,
     TENSORMAP4* policy,
@@ -1436,7 +1436,7 @@ struct ValueHead {
 
   void apply(
     ComputeHandleInternal* handle,
-    ScratchBuffers* scratch,
+    const ScratchBuffers* scratch,
     CONSTTENSORMAP4* trunk,
     TENSORMAP2* value,
     TENSORMAP2* scoreValue,
@@ -1669,7 +1669,7 @@ struct InputBuffers {
 InputBuffers* NeuralNet::createInputBuffers(const LoadedModel* loadedModel, int maxBatchSize, int nnXLen, int nnYLen) {
   return new InputBuffers(loadedModel, maxBatchSize, nnXLen, nnYLen);
 }
-void NeuralNet::freeInputBuffers(InputBuffers* inputBuffers) {
+void NeuralNet::freeInputBuffers(const InputBuffers* inputBuffers) {
   delete inputBuffers;
 }
 
@@ -1718,7 +1718,7 @@ ComputeContext* NeuralNet::createComputeContext(
   return context;
 }
 
-void NeuralNet::freeComputeContext(ComputeContext* computeContext) {
+void NeuralNet::freeComputeContext(const ComputeContext* computeContext) {
   delete computeContext;
 }
 
@@ -1791,7 +1791,7 @@ ComputeHandle* NeuralNet::createComputeHandle(
   return new ComputeHandle(context, *loadedModel, maxBatchSize, inputsUseNHWC);
 }
 
-void NeuralNet::freeComputeHandle(ComputeHandle* gpuHandle) {
+void NeuralNet::freeComputeHandle(const ComputeHandle* gpuHandle) {
   delete gpuHandle;
 }
 
@@ -1805,7 +1805,7 @@ void NeuralNet::getOutput(
   InputBuffers* inputBuffers,
   int numBatchEltsFilled,
   NNResultBuf** inputBufs,
-  vector<NNOutput*>& outputs
+  const vector<NNOutput*>& outputs
 ) {
   assert(numBatchEltsFilled <= inputBuffers->maxBatchSize);
   assert(numBatchEltsFilled > 0);

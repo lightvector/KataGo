@@ -252,7 +252,7 @@ void SelfplayManager::release(const string& modelName) {
   }
 }
 
-void SelfplayManager::release(NNEvaluator* nnEval) {
+void SelfplayManager::release(const NNEvaluator* nnEval) {
   std::lock_guard<std::mutex> lock(managerMutex);
   ModelData* foundData = NULL;
   for(size_t i = 0; i<modelDatas.size(); i++) {
@@ -267,7 +267,7 @@ void SelfplayManager::release(NNEvaluator* nnEval) {
   }
 }
 
-void SelfplayManager::countOneGameStarted(NNEvaluator* nnEval) {
+void SelfplayManager::countOneGameStarted(const NNEvaluator* nnEval) {
   std::unique_lock<std::mutex> lock(managerMutex);
   ModelData* foundData = NULL;
   for(size_t i = 0; i<modelDatas.size(); i++) {
@@ -314,7 +314,7 @@ void SelfplayManager::enqueueDataToWrite(const string& modelName, FinishedGameDa
   foundData->finishedGameQueue.waitPush(gameData);
 }
 
-void SelfplayManager::enqueueDataToWrite(NNEvaluator* nnEval, FinishedGameData* gameData) {
+void SelfplayManager::enqueueDataToWrite(const NNEvaluator* nnEval, FinishedGameData* gameData) {
   std::unique_lock<std::mutex> lock(managerMutex);
   ModelData* foundData = NULL;
   for(size_t i = 0; i<modelDatas.size(); i++) {
@@ -413,7 +413,7 @@ void SelfplayManager::runDataWriteLoopImpl(ModelData* modelData) {
 }
 
 void SelfplayManager::withDataWriters(
-  NNEvaluator* nnEval,
+  const NNEvaluator* nnEval,
   std::function<void(TrainingDataWriter* tdataWriter, std::ofstream* sgfOut)> f
 ) {
   std::lock_guard<std::mutex> lock(managerMutex);

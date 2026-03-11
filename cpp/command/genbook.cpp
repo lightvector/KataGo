@@ -196,7 +196,7 @@ static void maybeParseBonusFile(
     bool allowGameOver = false;
     Rand seedRand("bonusByHash");
     sgf->iterAllPositions(
-      flipIfPassOrWFirst, allowGameOver, &seedRand, [&](Sgf::PositionSample& unusedSample, const BoardHistory& sgfHist, const string& comments) {
+      flipIfPassOrWFirst, allowGameOver, &seedRand, [&](const Sgf::PositionSample& unusedSample, const BoardHistory& sgfHist, const string& comments) {
         (void)unusedSample;
         if(comments.size() > 0 && (
              comments.find("BONUS") != string::npos ||
@@ -735,7 +735,7 @@ int MainCmds::genbook(const vector<string>& args) {
 
   auto setNodeThisValuesFromFinishedSearch = [&](
     SymBookNode node,
-    Search* search,
+    const Search* search,
     const SearchNode* searchNode,
     const Board& board,
     const BoardHistory& hist,
@@ -937,7 +937,7 @@ int MainCmds::genbook(const vector<string>& args) {
         std::sort(
           extraMoveLocsToExpand.begin(),
           extraMoveLocsToExpand.end(),
-          [](std::pair<Loc,float>& p0, std::pair<Loc,float>& p1) {
+          [](const std::pair<Loc,float>& p0, const std::pair<Loc,float>& p1) {
             return p0.second > p1.second;
           }
         );
@@ -1382,7 +1382,7 @@ int MainCmds::genbook(const vector<string>& args) {
       Rand seedRand("bonusByHash");
       int64_t variationsAdded = 0;
       sgf->iterAllPositions(
-        flipIfPassOrWFirst, allowGameOver, &seedRand, [&](Sgf::PositionSample& unusedSample, const BoardHistory& sgfHist, const string& comments) {
+        flipIfPassOrWFirst, allowGameOver, &seedRand, [&](const Sgf::PositionSample& unusedSample, const BoardHistory& sgfHist, const string& comments) {
           (void)unusedSample;
           (void)comments;
           int gameThreadIdx = 0;

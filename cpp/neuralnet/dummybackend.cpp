@@ -48,7 +48,7 @@ LoadedModel* NeuralNet::loadModelFile(const string& file, const string& expected
   throw StringError("Dummy neural net backend: NeuralNet::loadModelFile unimplemented");
 }
 
-void NeuralNet::freeLoadedModel(LoadedModel* loadedModel) {
+void NeuralNet::freeLoadedModel(const LoadedModel* loadedModel) {
   (void)loadedModel;
   throw StringError("Dummy neural net backend: NeuralNet::freeLoadedModel unimplemented");
 }

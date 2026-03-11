@@ -361,7 +361,7 @@ LoadedModel* NeuralNet::loadModelFile(const string& file, const string& expected
  * This function deallocates memory used by a LoadedModel object specified by the `loadedModel` parameter.
  * @param loadedModel A pointer to the LoadedModel object to deallocate memory for.
  */
-void NeuralNet::freeLoadedModel(LoadedModel* loadedModel) {
+void NeuralNet::freeLoadedModel(const LoadedModel* loadedModel) {
   delete loadedModel;
 }
 
@@ -445,13 +445,13 @@ ComputeContext* NeuralNet::createComputeContext(
  * This function deallocates memory used by a ComputeContext object specified by the `computeContext` parameter.
  * @param computeContext A pointer to the ComputeContext object to deallocate memory for.
  */
-void NeuralNet::freeComputeContext(ComputeContext* computeContext) {
+void NeuralNet::freeComputeContext(const ComputeContext* computeContext) {
   delete computeContext;
 }
 
 //--------------------------------------------------------------
 
-ComputeHandle::ComputeHandle(ComputeContext* context,
+ComputeHandle::ComputeHandle(const ComputeContext* context,
                              const LoadedModel* loadedModel,
                              bool inputsUseNHWC,
                              int gpuIdx,
@@ -531,7 +531,7 @@ ComputeHandle* NeuralNet::createComputeHandle(
  * previously allocated on the heap using the 'new' operator.
  * @param handle A pointer to the ComputeHandle object to free.
  */
-void NeuralNet::freeComputeHandle(ComputeHandle* handle) {
+void NeuralNet::freeComputeHandle(const ComputeHandle* handle) {
   delete handle;
 }
 
@@ -660,7 +660,7 @@ InputBuffers* NeuralNet::createInputBuffers(const LoadedModel* loadedModel, int 
  * previously allocated on the heap using the 'new' operator.
  * @param inputBuffers A pointer to the InputBuffers object to free.
  */
-void NeuralNet::freeInputBuffers(InputBuffers* inputBuffers) {
+void NeuralNet::freeInputBuffers(const InputBuffers* inputBuffers) {
   delete inputBuffers;
 }
 
@@ -735,7 +735,7 @@ void MetalProcess::convertNCHW(
   }
 }
 
-void MetalProcess::processRowData(size_t row, ComputeHandle* gpuHandle, InputBuffers* inputBuffers, NNResultBuf** inputBufs) {
+void MetalProcess::processRowData(size_t row, const ComputeHandle* gpuHandle, const InputBuffers* inputBuffers, NNResultBuf** inputBufs) {
   int nnXLen = gpuHandle->nnXLen;
   int nnYLen = gpuHandle->nnYLen;
   int numSpatialFeatures = NNModelVersion::getNumSpatialFeatures(gpuHandle->version);
@@ -773,7 +773,7 @@ float MetalProcess::policyOptimismCalc(const double policyOptimism, const float 
 }
 
 void MetalProcess::processOptimism(
-  InputBuffers* inputBuffers,
+  const InputBuffers* inputBuffers,
   NNOutput* currentOutput,
   const double policyOptimism,
   size_t row) {
@@ -797,7 +797,7 @@ void MetalProcess::processPolicy(
   InputBuffers* inputBuffers,
   NNOutput* currentOutput,
   const ComputeHandle* gpuHandle,
-  NNResultBuf* inputBuf,
+  const NNResultBuf* inputBuf,
   size_t row) {
   auto& buffers = *inputBuffers;
   float* targetBuffer = &buffers.policyResults[row * buffers.singlePolicyResultElts * buffers.policyResultChannels];
@@ -830,7 +830,7 @@ void MetalProcess::processValue(
 
 void MetalProcess::processOwnership(
   const InputBuffers* inputBuffers,
-  NNOutput* currentOutput,
+  const NNOutput* currentOutput,
   const ComputeHandle* gpuHandle,
   const int symmetry,
   const size_t row) {
@@ -904,7 +904,7 @@ void MetalProcess::processRow(
   const ComputeHandle* gpuHandle,
   InputBuffers* inputBuffers,
   NNResultBuf** inputBufs,
-  vector<NNOutput*>& outputs) {
+  const vector<NNOutput*>& outputs) {
   NNOutput* currentOutput = outputs[row];
   assert(currentOutput->nnXLen == gpuHandle->nnXLen);
   assert(currentOutput->nnYLen == gpuHandle->nnYLen);
@@ -925,11 +925,11 @@ void MetalProcess::processRow(
  * @param outputs A vector of NNOutput pointers to store the computed output.
  */
 void MetalProcess::getMetalOutput(
-  ComputeHandle* gpuHandle,
+  const ComputeHandle* gpuHandle,
   InputBuffers* inputBuffers,
   int numBatchEltsFilled,
   NNResultBuf** inputBufs,
-  vector<NNOutput*>& outputs) {
+  const vector<NNOutput*>& outputs) {
   assert(numBatchEltsFilled > 0);
 
   int batchSize = numBatchEltsFilled;
@@ -981,7 +981,7 @@ void NeuralNet::getOutput(
   InputBuffers* inputBuffers,
   int numBatchEltsFilled,
   NNResultBuf** inputBufs,
-  vector<NNOutput*>& outputs) {
+  const vector<NNOutput*>& outputs) {
 
   MetalProcess::getMetalOutput(gpuHandle, inputBuffers, numBatchEltsFilled, inputBufs, outputs);
 }

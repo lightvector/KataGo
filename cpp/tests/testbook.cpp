@@ -14,7 +14,7 @@ using namespace std;
 using namespace TestCommon;
 using namespace TestSearchCommon;
 
-static void corruptNodes(Book* book, std::vector<SymBookNode>& newAndChangedNodes, Rand& rand) {
+static void corruptNodes(const Book* book, const std::vector<SymBookNode>& newAndChangedNodes, Rand& rand) {
   for(SymBookNode node: newAndChangedNodes) {
     node.getNodeForTesting()->corruptRecursiveValuesOnlyForTesting(rand);
   }

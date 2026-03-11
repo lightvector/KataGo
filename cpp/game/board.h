@@ -202,7 +202,7 @@ struct Board
   //Check if this location is adjacent a given chain.
   bool isAdjacentToChain(Loc loc, Loc chain) const;
   //Does this connect two pla distinct groups that are not both pass-alive and not within opponent pass-alive area either?
-  bool isNonPassAliveSelfConnection(Loc loc, Player pla, Color* passAliveArea) const;
+  bool isNonPassAliveSelfConnection(Loc loc, Player pla, const Color* passAliveArea) const;
   //Is this board empty?
   bool isEmpty() const;
   //Count the number of stones on the board

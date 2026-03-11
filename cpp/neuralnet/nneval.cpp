@@ -424,7 +424,7 @@ void NNEvaluator::killServerThreads() {
 }
 
 void NNEvaluator::serve(
-  NNServerBuf& buf, Rand& rand,
+  const NNServerBuf& buf, Rand& rand,
   int gpuIdxForThisThread,
   int serverThreadIdx
 ) {

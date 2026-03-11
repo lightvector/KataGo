@@ -126,7 +126,7 @@ LoadedModel* NeuralNet::loadModelFile(const string& file, const string& expected
   return loadedModel;
 }
 
-void NeuralNet::freeLoadedModel(LoadedModel* loadedModel) {
+void NeuralNet::freeLoadedModel(const LoadedModel* loadedModel) {
   delete loadedModel;
 }
 
@@ -485,7 +485,7 @@ ComputeContext* NeuralNet::createComputeContext(
   return new ComputeContext(gpuIdxs,logger,nnXLen,nnYLen,useFP16Mode,useNHWCMode,getParamsForDeviceName);
 }
 
-void NeuralNet::freeComputeContext(ComputeContext* computeContext) {
+void NeuralNet::freeComputeContext(const ComputeContext* computeContext) {
   delete computeContext;
 }
 
@@ -656,7 +656,7 @@ struct ComputeHandleInternal {
 
 };
 
-static cl_mem createReadOnlyBuffer(ComputeHandleInternal* handle, vector<float>& data, bool useFP16) {
+static cl_mem createReadOnlyBuffer(const ComputeHandleInternal* handle, vector<float>& data, bool useFP16) {
   if(useFP16) {
     vector<half_t> dataHalf(data.size());
     for(size_t i = 0; i<data.size(); i++)
@@ -666,7 +666,7 @@ static cl_mem createReadOnlyBuffer(ComputeHandleInternal* handle, vector<float>&
   else
     return createReadOnlyBuffer(handle->clContext,data);
 }
-static cl_mem createReadWriteBuffer(ComputeHandleInternal* handle, vector<float>& data, bool useFP16) {
+static cl_mem createReadWriteBuffer(const ComputeHandleInternal* handle, vector<float>& data, bool useFP16) {
   if(useFP16) {
     vector<half_t> dataHalf(data.size());
     for(size_t i = 0; i<data.size(); i++)
@@ -676,7 +676,7 @@ static cl_mem createReadWriteBuffer(ComputeHandleInternal* handle, vector<float>
   else
     return createReadWriteBuffer(handle->clContext,data);
 }
-static cl_mem createReadWriteBuffer(ComputeHandleInternal* handle, size_t numElts, bool useFP16) {
+static cl_mem createReadWriteBuffer(const ComputeHandleInternal* handle, size_t numElts, bool useFP16) {
   if(useFP16)
     return createReadWriteBufferHalf(handle->clContext,numElts);
   else
@@ -883,7 +883,7 @@ struct BatchNormLayer {
   size_t globalSizes[nKernelDims];
 
   BatchNormLayer(
-    ComputeHandleInternal* handle,
+    const ComputeHandleInternal* handle,
     const BatchNormLayerDesc* desc,
     const ActivationLayerDesc* actDesc,
     int nnX,
@@ -1146,7 +1146,7 @@ struct ConvLayer {
     clReleaseMemObject(filter);
   }
 
-  ConvWorkspaceEltsNeeded requiredConvWorkspaceElts(ComputeHandleInternal* handle, size_t maxBatchSize) const {
+  ConvWorkspaceEltsNeeded requiredConvWorkspaceElts(const ComputeHandleInternal* handle, size_t maxBatchSize) const {
     int numTilesTotalPadded = roundUpToMultipleInt(maxBatchSize * numTilesX * numTilesY, handle->getXGemmMPaddingMult());
     int outChannelsPadded = roundUpToMultipleInt(outChannels, handle->getXGemmNPaddingMult());
     int inChannelsPadded = roundUpToMultipleInt(inChannels, handle->getXGemmKPaddingMult());
@@ -1444,7 +1444,7 @@ struct MatMulLayer {
 
   cl_mem matBuf;
 
-  MatMulLayer(ComputeHandleInternal* handle, const MatMulLayerDesc* desc)
+  MatMulLayer(const ComputeHandleInternal* handle, const MatMulLayerDesc* desc)
     : name(desc->name),
       inChannels(desc->inChannels),
       outChannels(desc->outChannels)
@@ -1503,7 +1503,7 @@ struct MatBiasLayer {
 
   cl_mem biasBuf;
 
-  MatBiasLayer(ComputeHandleInternal* handle, const MatBiasLayerDesc* desc, int activation_)
+  MatBiasLayer(const ComputeHandleInternal* handle, const MatBiasLayerDesc* desc, int activation_)
     : name(desc->name),
       numChannels(desc->numChannels),
       activation(activation_)
@@ -1591,7 +1591,7 @@ struct NormActConv {
   ~NormActConv() {
   }
 
-  ConvWorkspaceEltsNeeded requiredConvWorkspaceElts(ComputeHandleInternal* handle, size_t maxBatchSize) const {
+  ConvWorkspaceEltsNeeded requiredConvWorkspaceElts(const ComputeHandleInternal* handle, size_t maxBatchSize) const {
     return conv.requiredConvWorkspaceElts(handle,maxBatchSize);
   }
 
@@ -1656,7 +1656,7 @@ struct ResidualBlock {
 
   void apply(
     ComputeHandleInternal* handle,
-    ScratchBuffers* scratch,
+    const ScratchBuffers* scratch,
     int batchSize,
     cl_mem trunk,
     cl_mem trunkScratch,
@@ -1728,7 +1728,7 @@ struct GlobalPoolingResidualBlock {
 
   void apply(
     ComputeHandleInternal* handle,
-    ScratchBuffers* scratch,
+    const ScratchBuffers* scratch,
     int batchSize,
     cl_mem trunk,
     cl_mem trunkScratch,
@@ -2055,7 +2055,7 @@ struct SGFMetadataEncoder {
 
   void apply(
     ComputeHandleInternal* handle,
-    ScratchBuffers* scratch,
+    const ScratchBuffers* scratch,
     int batchSize,
     cl_mem input,
     cl_mem output
@@ -2245,7 +2245,7 @@ struct PolicyHead {
   ~PolicyHead() {
   }
 
-  ConvWorkspaceEltsNeeded requiredConvWorkspaceElts(ComputeHandleInternal* handle, size_t maxBatchSize) const {
+  ConvWorkspaceEltsNeeded requiredConvWorkspaceElts(const ComputeHandleInternal* handle, size_t maxBatchSize) const {
     ConvWorkspaceEltsNeeded maxElts;
     maxElts = ConvWorkspaceEltsNeeded::getMax(maxElts,p1Conv->requiredConvWorkspaceElts(handle,maxBatchSize));
     maxElts = ConvWorkspaceEltsNeeded::getMax(maxElts,g1Conv->requiredConvWorkspaceElts(handle,maxBatchSize));
@@ -2255,7 +2255,7 @@ struct PolicyHead {
 
   void apply(
     ComputeHandleInternal* handle,
-    ScratchBuffers* scratch,
+    const ScratchBuffers* scratch,
     int batchSize,
     cl_mem mask,
     cl_mem maskSum,
@@ -2367,7 +2367,7 @@ struct ValueHead {
   ~ValueHead() {
   }
 
-  ConvWorkspaceEltsNeeded requiredConvWorkspaceElts(ComputeHandleInternal* handle, size_t maxBatchSize) const {
+  ConvWorkspaceEltsNeeded requiredConvWorkspaceElts(const ComputeHandleInternal* handle, size_t maxBatchSize) const {
     ConvWorkspaceEltsNeeded maxElts;
     maxElts = ConvWorkspaceEltsNeeded::getMax(maxElts,v1Conv->requiredConvWorkspaceElts(handle,maxBatchSize));
     maxElts = ConvWorkspaceEltsNeeded::getMax(maxElts,vOwnershipConv->requiredConvWorkspaceElts(handle,maxBatchSize));
@@ -2376,7 +2376,7 @@ struct ValueHead {
 
   void apply(
     ComputeHandleInternal* handle,
-    ScratchBuffers* scratch,
+    const ScratchBuffers* scratch,
     int batchSize,
     cl_mem mask,
     cl_mem maskSum,
@@ -2815,7 +2815,7 @@ ComputeHandle* NeuralNet::createComputeHandle(
   return handle;
 }
 
-void NeuralNet::freeComputeHandle(ComputeHandle* handle) {
+void NeuralNet::freeComputeHandle(const ComputeHandle* handle) {
   delete handle;
 }
 
@@ -2948,7 +2948,7 @@ struct InputBuffers {
 InputBuffers* NeuralNet::createInputBuffers(const LoadedModel* loadedModel, int maxBatchSize, int nnXLen, int nnYLen) {
   return new InputBuffers(loadedModel,maxBatchSize,nnXLen,nnYLen);
 }
-void NeuralNet::freeInputBuffers(InputBuffers* inputBuffers) {
+void NeuralNet::freeInputBuffers(const InputBuffers* inputBuffers) {
   delete inputBuffers;
 }
 
@@ -2958,7 +2958,7 @@ void NeuralNet::getOutput(
   InputBuffers* inputBuffers,
   int numBatchEltsFilled,
   NNResultBuf** inputBufs,
-  vector<NNOutput*>& outputs
+  const vector<NNOutput*>& outputs
 ) {
   assert(numBatchEltsFilled <= inputBuffers->maxBatchSize);
   assert(numBatchEltsFilled > 0);

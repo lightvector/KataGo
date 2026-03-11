@@ -4,7 +4,7 @@
 using namespace std;
 using namespace TestCommon;
 
-static void checkKoHashConsistency(BoardHistory& hist, Board& board, Player nextPla) {
+static void checkKoHashConsistency(const BoardHistory& hist, const Board& board, Player nextPla) {
   testAssert(hist.koHashHistory.size() > 0);
   Hash128 expected = board.pos_hash;
   if(hist.encorePhase > 0) {

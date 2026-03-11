@@ -54,7 +54,7 @@ class SelfplayManager {
   NNEvaluator* acquireLatest();
   //Release a model either by name or by the nnEval object that was returned.
   void release(const std::string& modelName);
-  void release(NNEvaluator* nnEval);
+  void release(const NNEvaluator* nnEval);
 
   //Clean up any currently-unused models if their last usage was older than this many seconds ago.
   void cleanupUnusedModelsOlderThan(double seconds);
@@ -65,16 +65,16 @@ class SelfplayManager {
   //These should only be called by a thread that has currently acquired the model.
 
   //Increment a counter and maybe log some stats
-  void countOneGameStarted(NNEvaluator* nnEval);
+  void countOneGameStarted(const NNEvaluator* nnEval);
 
   //SelfplayManager takes responsibility for deleting the gameData once written.
   //Use these only if loadModelAndStartDataWriting was used to start the model.
   void enqueueDataToWrite(const std::string& modelName, FinishedGameData* gameData);
-  void enqueueDataToWrite(NNEvaluator* nnEval, FinishedGameData* gameData);
+  void enqueueDataToWrite(const NNEvaluator* nnEval, FinishedGameData* gameData);
 
   //Use these if loadModelNoDataWritingLoop was used to start the model.
   void withDataWriters(
-    NNEvaluator* nnEval,
+    const NNEvaluator* nnEval,
     std::function<void(TrainingDataWriter* tdataWriter, std::ofstream* sgfOut)> f
   );
 

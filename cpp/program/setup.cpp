@@ -8,7 +8,7 @@
 
 using namespace std;
 
-void Setup::initializeSession(ConfigParser& cfg) {
+void Setup::initializeSession(const ConfigParser& cfg) {
   (void)cfg;
   NeuralNet::globalInitialize();
 }

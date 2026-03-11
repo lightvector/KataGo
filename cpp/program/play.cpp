@@ -259,7 +259,7 @@ void GameInitializer::initShared(ConfigParser& cfg, Logger& logger) {
     logger.write("Loaded " + Global::uint64ToString(excludeHashes.size()) + " excludes");
     std::set<Hash128> uniqueHashes;
     std::function<void(Sgf::PositionSample&, const BoardHistory&, const string&)> posHandler = [startPosesLoadProb,this](
-      Sgf::PositionSample& posSample, const BoardHistory& hist, const string& comments
+      const Sgf::PositionSample& posSample, const BoardHistory& hist, const string& comments
     ) {
       (void)hist;
       (void)comments;
@@ -751,7 +751,7 @@ pair<int,int> MatchPairer::getMatchupPairUnsynchronized() {
 
 //----------------------------------------------------------------------------------------------------------
 
-static void failIllegalMove(Search* bot, Logger& logger, const Board& board, Loc loc) {
+static void failIllegalMove(const Search* bot, Logger& logger, const Board& board, Loc loc) {
   ostringstream sout;
   sout << "Bot returned null location or illegal move!?!" << "\n";
   sout << board << "\n";
@@ -763,7 +763,7 @@ static void failIllegalMove(Search* bot, Logger& logger, const Board& board, Loc
   ASSERT_UNREACHABLE;
 }
 
-static void logSearch(Search* bot, Logger& logger, Loc loc, OtherGameProperties otherGameProps) {
+static void logSearch(const Search* bot, Logger& logger, Loc loc, OtherGameProperties otherGameProps) {
   ostringstream sout;
   Board::printBoard(sout, bot->getRootBoard(), loc, &(bot->getRootHist().moveHistory));
   sout << "\n";

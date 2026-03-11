@@ -53,7 +53,7 @@ class ZipFile {
   ZipFile(const ZipFile&) = delete;
   ZipFile& operator=(const ZipFile&) = delete;
 
-  void writeBuffer(const char* nameWithinZip, void* data, uint64_t numBytes);
+  void writeBuffer(const char* nameWithinZip, const void* data, uint64_t numBytes);
   void close();
 
   private:

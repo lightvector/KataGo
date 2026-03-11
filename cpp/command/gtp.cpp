@@ -1017,7 +1017,7 @@ struct GTPEngine {
   ) {
     bool onMoveWasCalled = false;
     Loc genmoveMoveLoc = Board::NULL_LOC;
-    auto onMove = [&genmoveMoveLoc,&onMoveWasCalled,this](Loc moveLoc, int searchId, Search* search) noexcept {
+    auto onMove = [&genmoveMoveLoc,&onMoveWasCalled,this](Loc moveLoc, int searchId, const Search* search) noexcept {
       (void)searchId;
       (void)search;
       onMoveWasCalled = true;
@@ -1344,7 +1344,7 @@ struct GTPEngine {
     clearStatsForNewGame();
   }
 
-  void placeFreeHandicap(int n, string& response, bool& responseIsError, Rand& rand) {
+  void placeFreeHandicap(int n, string& response, const bool& responseIsError, Rand& rand) {
     stopAndWait();
 
     //If asked to place more, we just go ahead and only place up to 30, or a quarter of the board

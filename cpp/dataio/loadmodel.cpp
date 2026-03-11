@@ -55,7 +55,7 @@ static bool endsWithAnySuffix(const string& path, const vector<string>& suffixes
   return false;
 }
 
-bool LoadModel::findLatestModel(const string& modelsDir, Logger& logger, string& modelName, string& modelFile, string& modelDir, time_t& modelTime) {
+bool LoadModel::findLatestModel(const string& modelsDir, const Logger& logger, string& modelName, string& modelFile, string& modelDir, time_t& modelTime) {
   namespace gfs = ghc::filesystem;
   (void)logger;
 

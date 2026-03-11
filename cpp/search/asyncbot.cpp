@@ -216,7 +216,7 @@ Loc AsyncBot::genMoveSynchronous(Player movePla, const TimeControls& tc, double 
 
 Loc AsyncBot::genMoveSynchronous(Player movePla, const TimeControls& tc, double sf, const std::function<void()>& onSearchBegun) {
   Loc moveLoc = Board::NULL_LOC;
-  std::function<void(Loc,int,Search*)> onMove = [&moveLoc](Loc loc, int searchId, Search* s) noexcept {
+  std::function<void(Loc,int,Search*)> onMove = [&moveLoc](Loc loc, int searchId, const Search* s) noexcept {
     assert(searchId == 0);
     (void)searchId; //avoid warning when asserts disabled
     (void)s;
@@ -352,7 +352,7 @@ Loc AsyncBot::genMoveSynchronousAnalyze(
   const std::function<void()>& onSearchBegun
 ) {
   Loc moveLoc = Board::NULL_LOC;
-  std::function<void(Loc,int,Search*)> onMove = [&moveLoc](Loc loc, int searchId, Search* s) noexcept {
+  std::function<void(Loc,int,Search*)> onMove = [&moveLoc](Loc loc, int searchId, const Search* s) noexcept {
     assert(searchId == 0);
     (void)searchId; //avoid warning when asserts disabled
     (void)s;

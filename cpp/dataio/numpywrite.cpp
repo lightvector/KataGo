@@ -293,7 +293,7 @@ ZipFile::~ZipFile() {
     zip_discard((zip_t*)file);
 }
 
-void ZipFile::writeBuffer(const char* nameWithinZip, void* data, uint64_t numBytes) {
+void ZipFile::writeBuffer(const char* nameWithinZip, const void* data, uint64_t numBytes) {
   ZipError zipError;
   zip_source_t* dataSource = zip_source_buffer((zip_t*)file,data,numBytes,0);
   if(dataSource == NULL)

@@ -264,7 +264,7 @@ struct Search {
   void runWholeSearch(Player movePla, bool pondering, std::function<bool()>* shouldStopEarly);
 
   void runWholeSearch(
-    std::function<void()>* searchBegun, //If not null, will be called once search has begun and tree inspection is safe
+    const std::function<void()>* searchBegun, //If not null, will be called once search has begun and tree inspection is safe
     std::function<bool()>* shouldStopEarly, //If not null and returns true, search will stop soon after
     bool pondering,
     const TimeControls& tc,
@@ -432,7 +432,7 @@ public:
   static void computeDirichletAlphaDistribution(int policySize, const float* policyProbs, double* alphaDistr);
   static void addDirichletNoise(const SearchParams& searchParams, Rand& rand, int policySize, float* policyProbs);
 private:
-  std::shared_ptr<NNOutput>* maybeAddPolicyNoiseAndTemp(SearchThread& thread, bool isRoot, NNOutput* oldNNOutput) const;
+  std::shared_ptr<NNOutput>* maybeAddPolicyNoiseAndTemp(SearchThread& thread, bool isRoot, const NNOutput* oldNNOutput) const;
 
   //----------------------------------------------------------------------------------------
   // Computing basic utility and scores
@@ -484,7 +484,7 @@ private:
     const SearchThread* thread,
     const SearchNode& parent
   ) const;
-  void hackNNOutputForMirror(std::shared_ptr<NNOutput>& result) const;
+  void hackNNOutputForMirror(const std::shared_ptr<NNOutput>& result) const;
 
   //----------------------------------------------------------------------------------------
   // Recursive graph-walking and thread pooling
@@ -671,7 +671,7 @@ private:
   bool maybeCatchUpEdgeVisits(
     SearchThread& thread,
     SearchNode& node,
-    SearchNode* child,
+    const SearchNode* child,
     const SearchNodeState& nodeState,
     const int bestChildIdx
   );

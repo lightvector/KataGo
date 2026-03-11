@@ -271,7 +271,7 @@ class NNEvaluator {
 
  public:
   //Helper, for internal use only
-  void serve(NNServerBuf& buf, Rand& rand, int gpuIdxForThisThread, int serverThreadIdx);
+  void serve(const NNServerBuf& buf, Rand& rand, int gpuIdxForThisThread, int serverThreadIdx);
 };
 
 #endif  // NEURALNET_NNEVAL_H_

@@ -74,7 +74,7 @@ ComputeContext* NeuralNet::createComputeContext(
   return context;
 }
 
-void NeuralNet::freeComputeContext(ComputeContext* computeContext) {
+void NeuralNet::freeComputeContext(const ComputeContext* computeContext) {
   delete computeContext;
 }
 
@@ -96,7 +96,7 @@ LoadedModel* NeuralNet::loadModelFile(const string& file, const string& expected
   return loadedModel;
 }
 
-void NeuralNet::freeLoadedModel(LoadedModel* loadedModel) {
+void NeuralNet::freeLoadedModel(const LoadedModel* loadedModel) {
   delete loadedModel;
 }
 
@@ -1496,7 +1496,7 @@ ComputeHandle* NeuralNet::createComputeHandle(
   return handle;
 }
 
-void NeuralNet::freeComputeHandle(ComputeHandle* gpuHandle) {
+void NeuralNet::freeComputeHandle(const ComputeHandle* gpuHandle) {
   delete gpuHandle;
 }
 
@@ -1622,7 +1622,7 @@ InputBuffers* NeuralNet::createInputBuffers(const LoadedModel* loadedModel, int 
   return new InputBuffers(loadedModel, maxBatchSize, nnXLen, nnYLen);
 }
 
-void NeuralNet::freeInputBuffers(InputBuffers* inputBuffers) {
+void NeuralNet::freeInputBuffers(const InputBuffers* inputBuffers) {
   delete inputBuffers;
 }
 
@@ -1631,7 +1631,7 @@ void NeuralNet::getOutput(
   InputBuffers* inputBuffers,
   int numBatchEltsFilled,
   NNResultBuf** inputBufs,
-  vector<NNOutput*>& outputs) {
+  const vector<NNOutput*>& outputs) {
   assert(numBatchEltsFilled <= inputBuffers->maxBatchSize);
   assert(numBatchEltsFilled > 0);
 

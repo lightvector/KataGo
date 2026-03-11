@@ -1407,7 +1407,7 @@ xxxxxxxxx
     cout << "Search results at 0, 1, 2 visits, and at terminal position" << endl;
     cout << "===================================================================" << endl;
 
-    auto printResults = [](Search* search, bool allowDirectPolicyMoves) {
+    auto printResults = [](const Search* search, bool allowDirectPolicyMoves) {
       ReportedSearchValues values;
       cout << "getRootVisits " << search->getRootVisits() << endl;
       bool suc = search->getRootValues(values);

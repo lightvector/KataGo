@@ -303,21 +303,21 @@ struct GpuErrorStats {
     }
   }
 
-  double getAverage(std::vector<double>& vec) {
+  double getAverage(const std::vector<double>& vec) {
     double sum = 0;
     for(const double& x: vec)
       sum += x;
     return sum / vec.size();
   }
 
-  double get90Percentile(std::vector<double>& sortedVec) {
+  double get90Percentile(const std::vector<double>& sortedVec) {
     return sortedVec[(sortedVec.size()-1) * 9 / 10];
   }
 
-  double get99Percentile(std::vector<double>& sortedVec) {
+  double get99Percentile(const std::vector<double>& sortedVec) {
     return sortedVec[(sortedVec.size()-1) * 99 / 100];
   }
-  double getMaxPercentile(std::vector<double>& sortedVec) {
+  double getMaxPercentile(const std::vector<double>& sortedVec) {
     return sortedVec[sortedVec.size()-1];
   }
 
@@ -551,7 +551,7 @@ bool Tests::runBackendErrorTest(
         flipIfPassOrWFirst,
         allowGameOver,
         NULL,
-        [&](Sgf::PositionSample& sample, const BoardHistory& hist, const string& comments) {
+        [&](const Sgf::PositionSample& sample, const BoardHistory& hist, const string& comments) {
           (void)sample;
           (void)comments;
           if(!quickTest || filterRand.nextBool(0.3))

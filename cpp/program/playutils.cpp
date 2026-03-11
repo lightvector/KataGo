@@ -177,7 +177,7 @@ Loc PlayUtils::chooseRandomPolicyMove(
 
 
 Loc PlayUtils::getGameInitializationMove(
-  Search* botB, Search* botW, Board& board, const BoardHistory& hist, Player pla, NNResultBuf& buf,
+  const Search* botB, const Search* botW, const Board& board, const BoardHistory& hist, Player pla, NNResultBuf& buf,
   Rand& gameRand, double temperature
 ) {
   NNEvaluator* nnEval = (pla == P_BLACK ? botB : botW)->nnEvaluator;
@@ -225,7 +225,7 @@ Loc PlayUtils::getGameInitializationMove(
 //Try playing a bunch of pure policy moves instead of playing from the start to initialize the board
 //and add entropy
 void PlayUtils::initializeGameUsingPolicy(
-  Search* botB, Search* botW, Board& board, BoardHistory& hist, Player& pla,
+  const Search* botB, const Search* botW, Board& board, BoardHistory& hist, Player& pla,
   Rand& gameRand, bool doEndGameIfAllPassAlive,
   double proportionOfBoardArea, double policyInitGammaShape, double temperature
 ) {

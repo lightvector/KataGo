@@ -950,7 +950,7 @@ ConstSymBookNode Book::get(const BoardHistory& hist) const {
 void Book::recompute(const vector<SymBookNode>& newAndChangedNodes) {
   // Walk up from all changed nodes and mark all parents dirty recursively.
   std::set<BookHash> dirtyNodes;
-  std::function<DFSAction(BookNode*)> markDirty = [&dirtyNodes](BookNode* node) {
+  std::function<DFSAction(BookNode*)> markDirty = [&dirtyNodes](const BookNode* node) {
     // cout << "Mark dirty " << node->hash << " " << node << endl;
     if(contains(dirtyNodes, node->hash))
       return DFSAction::skip;
@@ -1009,7 +1009,7 @@ void Book::recomputeEverything() {
 void Book::recomputeMultiThreaded(const std::vector<SymBookNode>& newAndChangedNodes, MutexPool& mutexPool, int numThreads) {
   // Mark all dirty nodes
   std::set<BookHash> dirtyNodes;
-  std::function<DFSAction(BookNode*)> markDirty = [&dirtyNodes](BookNode* node) {
+  std::function<DFSAction(BookNode*)> markDirty = [&dirtyNodes](const BookNode* node) {
     if(contains(dirtyNodes, node->hash))
       return DFSAction::skip;
     dirtyNodes.insert(node->hash);
@@ -1259,7 +1259,7 @@ vector<SymBookNode> Book::getNextNToExpand(int n) {
     nodes.end(),
     toExpand.begin(),
     toExpand.end(),
-    [](BookNode* n0, BookNode* n1) {
+    [](const BookNode* n0, const BookNode* n1) {
       return n0->minCostFromRoot + n0->thisNodeExpansionCost < n1->minCostFromRoot + n1->thisNodeExpansionCost;
     }
   );
@@ -1614,7 +1614,7 @@ void Book::iterateEntireBookPreOrder(
       continue;
     reverseDepthFirstSearchWithPostF(
       initialNode,
-      [&visitedHashes](BookNode* node) {
+      [&visitedHashes](const BookNode* node) {
         if(contains(visitedHashes, node->hash))
           return DFSAction::skip;
         return DFSAction::recurse;
@@ -2712,7 +2712,7 @@ int64_t Book::exportToHtmlDir(
     return string(toStringBuf);
   };
 
-  auto getFilePath = [&](BookNode* node, bool relative) {
+  auto getFilePath = [&](const BookNode* node, bool relative) {
     string path = relative ? "" : dirName + "/";
     if(node == root)
       path += "root/root";

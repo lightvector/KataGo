@@ -201,7 +201,7 @@ struct Sgf {
     std::function<void(PositionSample&,const BoardHistory&,const std::string&)> f
   ) const;
   void samplePositionHelper(
-    Board& board, BoardHistory& hist, Player nextPla,
+    const Board& board, const BoardHistory& hist, Player nextPla,
     PositionSample& sampleBuf,
     std::set<Hash128>& uniqueHashes,
     bool requireUnique,

@@ -278,7 +278,7 @@ void Search::maybeApplyAntiMirrorForcedExplore(
   }
 }
 
-void Search::hackNNOutputForMirror(std::shared_ptr<NNOutput>& result) const {
+void Search::hackNNOutputForMirror(const std::shared_ptr<NNOutput>& result) const {
   // Root player gets a bonus/penalty based on the strength of the center.
   int centerPos = getPos(Location::getCenterLoc(rootBoard));
   double totalWLProb = result->whiteWinProb + result->whiteLossProb;

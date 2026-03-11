@@ -40,7 +40,7 @@ namespace NeuralNet {
   // Model I/O -----------------------------------------------------------------
 
   LoadedModel* loadModelFile(const std::string& file, const std::string& expectedSha256);
-  void freeLoadedModel(LoadedModel* loadedModel);
+  void freeLoadedModel(const LoadedModel* loadedModel);
 
   const ModelDesc& getModelDesc(const LoadedModel* loadedModel);
 
@@ -61,7 +61,7 @@ namespace NeuralNet {
     const LoadedModel* loadedModel
   );
   //A ComputeContext should NOT be freed until all ComputeHandles created using it have also been freed.
-  void freeComputeContext(ComputeContext* computeContext);
+  void freeComputeContext(const ComputeContext* computeContext);
 
   // Compute Handle -----------------------------------------------------------------
 
@@ -82,14 +82,14 @@ namespace NeuralNet {
     int gpuIdxForThisThread,
     int serverThreadIdx
   );
-  void freeComputeHandle(ComputeHandle* computeHandle);
+  void freeComputeHandle(const ComputeHandle* computeHandle);
 
   bool isUsingFP16(const ComputeHandle* computeHandle);
 
   //Input Buffers ---------------------------------------------------------------
 
   InputBuffers* createInputBuffers(const LoadedModel* loadedModel, int maxBatchSize, int nnXLen, int nnYLen);
-  void freeInputBuffers(InputBuffers* buffers);
+  void freeInputBuffers(const InputBuffers* buffers);
 
   //The neural net takes in 2 tensors as input.
   //One of them ("spatial") is 3-dimensional per-batch-element (4-dimensional including the batch dimension N),
@@ -112,7 +112,7 @@ namespace NeuralNet {
     InputBuffers* buffers,
     int numBatchEltsFilled,
     NNResultBuf** inputBufs,
-    std::vector<NNOutput*>& outputs
+    const std::vector<NNOutput*>& outputs
   );
 
 

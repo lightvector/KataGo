@@ -6,7 +6,7 @@
 #include "../core/using.h"
 //------------------------
 
-static void threadTaskLoop(Search* search, int threadIdx) {
+static void threadTaskLoop(const Search* search, int threadIdx) {
   while(true) {
     std::function<void(int)>* task;
     bool suc = search->threadTasks[threadIdx-1].waitPop(task);
@@ -250,7 +250,7 @@ void Search::applyRecursivelyAnyOrderMulithreadedHelper(
 //Mainly for testing
 std::vector<SearchNode*> Search::enumerateTreePostOrder() {
   std::atomic<int64_t> sizeCounter(0);
-  std::function<void(SearchNode*,int)> f = [&](SearchNode* node, int threadIdx) noexcept {
+  std::function<void(SearchNode*,int)> f = [&](const SearchNode* node, int threadIdx) noexcept {
     (void)node;
     (void)threadIdx;
     sizeCounter.fetch_add(1,std::memory_order_relaxed);

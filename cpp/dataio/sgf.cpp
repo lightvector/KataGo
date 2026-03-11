@@ -755,7 +755,7 @@ void Sgf::loadAllUniquePositions(
   Rand* rand,
   vector<PositionSample>& samples
 ) const {
-  std::function<void(PositionSample&, const BoardHistory&, const string&)> f = [&samples](PositionSample& sample, const BoardHistory& hist, const string& comments) {
+  std::function<void(PositionSample&, const BoardHistory&, const string&)> f = [&samples](const PositionSample& sample, const BoardHistory& hist, const string& comments) {
     (void)hist;
     (void)comments;
     samples.push_back(sample);
@@ -990,7 +990,7 @@ void Sgf::PositionSample::writePosOfHist(PositionSample& sampleBuf, const BoardH
 }
 
 void Sgf::samplePositionHelper(
-  Board& board, BoardHistory& hist, Player nextPla,
+  const Board& board, const BoardHistory& hist, Player nextPla,
   PositionSample& sampleBuf,
   std::set<Hash128>& uniqueHashes,
   bool requireUnique,
@@ -1254,18 +1254,18 @@ static void sgfFail(const char* msg, const string& str, size_t entryPos, size_t 
   sgfFail(string(msg),str,entryPos,pos);
 }
 
-static void consume(const string& str, size_t& pos, size_t& newPos) {
+static void consume(const string& str, size_t& pos, const size_t& newPos) {
   (void)str;
   pos = newPos;
   //cout << "CHAR: " << str[newPos-1] << endl;
 }
 
-static char peekSgfTextChar(const string& str, size_t& pos, size_t& newPos) {
+static char peekSgfTextChar(const string& str, const size_t& pos, size_t& newPos) {
   newPos = pos;
   if(newPos >= str.length()) sgfFail("Unexpected end of str", str,newPos);
   return str[newPos++];
 }
-static char peekSgfChar(const string& str, size_t& pos, size_t& newPos) {
+static char peekSgfChar(const string& str, const size_t& pos, size_t& newPos) {
   newPos = pos;
   while(true) {
     if(newPos >= str.length()) sgfFail("Unexpected end of str", str,newPos);
@@ -1323,7 +1323,7 @@ static string parseTextValue(const string& str, size_t& pos) {
   return acc;
 }
 
-static bool maybeParseProperty(std::unique_ptr<SgfNode>& node, const string& str, size_t& pos) {
+static bool maybeParseProperty(const std::unique_ptr<SgfNode>& node, const string& str, size_t& pos) {
   string key;
   while(true) {
     size_t newPos;
