@@ -1133,8 +1133,8 @@ Loc PlayUtils::maybeFriendlyPass(
   const Board oldBoard = bot->getRootBoard();
   const BoardHistory oldHist = bot->getRootHist();
 
-  const Board board = bot->getRootBoard();
-  const BoardHistory hist = bot->getRootHist();
+  const Board& board = bot->getRootBoard();
+  const BoardHistory& hist = bot->getRootHist();
   assert(oldPla == pla);
 
   if(!hist.isLegal(board,moveLoc,pla))

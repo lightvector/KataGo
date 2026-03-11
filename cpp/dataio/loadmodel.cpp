@@ -63,7 +63,7 @@ bool LoadModel::findLatestModel(const string& modelsDir, const Logger& logger, s
   gfs::file_time_type latestTime;
   gfs::path latestPath;
   for(const auto& dirEntry: gfs::recursive_directory_iterator(gfs::u8path(modelsDir))) {
-    gfs::path filePath = dirEntry.path();
+    const gfs::path& filePath = dirEntry.path();
     if(gfs::is_regular_file(filePath) && endsWithAnySuffix(filePath.filename().u8string(), ACCEPTABLE_MODEL_SUFFIXES)) {
       gfs::file_time_type thisTime = gfs::last_write_time(filePath);
       if(!hasLatestTime || thisTime > latestTime) {

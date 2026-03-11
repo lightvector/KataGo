@@ -388,7 +388,7 @@ static Rules parseRulesHelper(const string& sOrig, bool allowKomi) {
       json input = json::parse(sOrig);
       string s;
       for(json::iterator iter = input.begin(); iter != input.end(); ++iter) {
-        string key = iter.key();
+        const string& key = iter.key();
         if(key == "ko")
           rules.koRule = Rules::parseKoRule(iter.value().get<string>());
         else if(key == "score")

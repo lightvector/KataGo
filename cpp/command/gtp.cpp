@@ -767,7 +767,7 @@ struct GTPEngine {
         if(buf.size() <= 0)
           return;
 
-        const Board board = search->getRootBoard();
+        const Board& board = search->getRootBoard();
         for(int i = 0; i<buf.size(); i++) {
           if(i > 0)
             cout << " ";
@@ -843,7 +843,7 @@ struct GTPEngine {
           out << std::showpoint;
         }
 
-        const Board board = search->getRootBoard();
+        const Board& board = search->getRootBoard();
         for(int i = 0; i<buf.size(); i++) {
           if(i > 0)
             out << " ";
@@ -3283,7 +3283,7 @@ int MainCmds::gtp(const vector<string>& args) {
         response = "Expected one or two arguments for loadsgf but got '" + Global::concat(pieces," ") + "'";
       }
       else {
-        string filename = pieces[0];
+        const string& filename = pieces[0];
         bool parseFailed = false;
         bool moveNumberSpecified = false;
         int moveNumber = 0;

@@ -24,7 +24,7 @@ static void writeLine(
   const Search* search, const BoardHistory& baseHist,
   const vector<double>& winLossHistory, const vector<double>& scoreHistory, const vector<double>& scoreStdevHistory
 ) {
-  const Board board = search->getRootBoard();
+  const Board& board = search->getRootBoard();
   int nnXLen = search->nnXLen;
   int nnYLen = search->nnYLen;
 
@@ -214,7 +214,7 @@ static void initializeDemoGame(Board& board, BoardHistory& hist, Player& pla, Ra
         { Move(g(9,8), b), nw, Move(g(9,10), b) },
       };
 
-      vector<Move> chosenOpening = specialOpenings[rand.nextUInt((int)specialOpenings.size())];
+      const vector<Move>& chosenOpening = specialOpenings[rand.nextUInt((int)specialOpenings.size())];
       vector<vector<Move>> chosenOpenings;
 
       for(int j = 0; j<8; j++) {

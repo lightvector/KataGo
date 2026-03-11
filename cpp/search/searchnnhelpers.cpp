@@ -7,7 +7,7 @@
 //------------------------
 
 void Search::computeRootNNEvaluation(NNResultBuf& nnResultBuf, bool includeOwnerMap) const {
-  Board board = rootBoard;
+  const Board& board = rootBoard;
   const BoardHistory& hist = rootHistory;
   Player pla = rootPla;
   bool skipCache = false;

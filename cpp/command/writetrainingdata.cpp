@@ -61,8 +61,7 @@ static void getNNEval(
   nnInputParams.drawEquivalentWinsForWhite = drawEquivalentWinsForWhite;
   nnInputParams.playoutDoublingAdvantage = (playoutDoublingAdvantagePla == getOpp(nextPla) ? -playoutDoublingAdvantage : playoutDoublingAdvantage);
   nnInputParams.maxHistory = maxHistory;
-  Board copy(board);
-  nnEval->evaluate(copy,hist,nextPla,nnInputParams,buf,skipCache,includeOwnerMap);
+  nnEval->evaluate(board,hist,nextPla,nnInputParams,buf,skipCache,includeOwnerMap);
 }
 
 // static double getPassProb(

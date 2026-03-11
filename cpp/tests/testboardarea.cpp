@@ -19,15 +19,14 @@ void Tests::runBoardAreaTests() {
       bool safeBigTerritories = safeBigTerritoriesBuf[mode/2];
       bool unsafeBigTerritories = unsafeBigTerritoriesBuf[mode/2];
       bool nonPassAliveStones = nonPassAliveStonesBuf[mode/2];
-      Board copy(board);
-      copy.calculateArea(result,nonPassAliveStones,safeBigTerritories,unsafeBigTerritories,multiStoneSuicideLegal);
+      board.calculateArea(result,nonPassAliveStones,safeBigTerritories,unsafeBigTerritories,multiStoneSuicideLegal);
       out << "Safe big territories " << safeBigTerritories << " "
       << "Unsafe big territories " << unsafeBigTerritories << " "
       << "Non pass alive stones " << nonPassAliveStones << " "
       << "Suicide " << multiStoneSuicideLegal << endl;
-      for(int y = 0; y<copy.y_size; y++) {
-        for(int x = 0; x<copy.x_size; x++) {
-          Loc loc = Location::getLoc(x,y,copy.x_size);
+      for(int y = 0; y<board.y_size; y++) {
+        for(int x = 0; x<board.x_size; x++) {
+          Loc loc = Location::getLoc(x,y,board.x_size);
           out << PlayerIO::colorToChar(result[loc]);
         }
         out << endl;
@@ -37,8 +36,6 @@ void Tests::runBoardAreaTests() {
           testAssert(result[i] == C_EMPTY);
       }      
       out << endl;
-      testAssert(boardsSeemEqual(copy,board));
-      copy.checkConsistency();
     }
   };
 

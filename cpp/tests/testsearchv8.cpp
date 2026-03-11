@@ -1161,7 +1161,7 @@ xxxx.xxoxxx
       cout << "===================================================================" << endl;
       cout << "Base" << endl;
       cout << "===================================================================" << endl;
-      SearchParams params = paramsBase;
+      const SearchParams& params = paramsBase;
       AsyncBot* bot = new AsyncBot(params, nnEval, &logger, "mix");
       runBotOnPosition(bot, board, nextPla, hist, opts);
       delete bot;
@@ -1294,7 +1294,7 @@ oooxxox..
       cout << "===================================================================" << endl;
       cout << "Base, white to play" << endl;
       cout << "===================================================================" << endl;
-      SearchParams params = paramsBase;
+      const SearchParams& params = paramsBase;
       AsyncBot* bot = new AsyncBot(params, nnEval, &logger, "fill dame before pass");
       runBotOnPosition(bot, board, nextPla, hist, opts);
       delete bot;
@@ -1323,7 +1323,7 @@ oooxxox..
       cout << "===================================================================" << endl;
       cout << "Base, black to play" << endl;
       cout << "===================================================================" << endl;
-      SearchParams params = paramsBase;
+      const SearchParams& params = paramsBase;
       AsyncBot* bot = new AsyncBot(params, nnEval, &logger, "fill dame before pass");
       runBotOnPosition(bot, board, nextPla, hist, opts);
       delete bot;
@@ -1375,7 +1375,7 @@ oooo.o.oo
       cout << "===================================================================" << endl;
       cout << "White to play" << endl;
       cout << "===================================================================" << endl;
-      SearchParams params = paramsBase;
+      const SearchParams& params = paramsBase;
       AsyncBot* bot = new AsyncBot(params, nnEval, &logger, "conservative pass");
       runBotOnPosition(bot, board, nextPla, hist, opts);
 
@@ -1394,7 +1394,7 @@ oooo.o.oo
       cout << "===================================================================" << endl;
       cout << "White to play" << endl;
       cout << "===================================================================" << endl;
-      SearchParams params = paramsBase;
+      const SearchParams& params = paramsBase;
       AsyncBot* bot = new AsyncBot(params, nnEval, &logger, "conservative pass");
       runBotOnPosition(bot, board, nextPla, hist, opts);
 
@@ -1436,7 +1436,7 @@ oooo.o.oo
       cout << "===================================================================" << endl;
       cout << "White to play" << endl;
       cout << "===================================================================" << endl;
-      SearchParams params = paramsBase;
+      const SearchParams& params = paramsBase;
       AsyncBot* bot = new AsyncBot(params, nnEval, &logger, "conservative pass");
       runBotOnPosition(bot, board, nextPla, hist, opts);
       delete bot;
@@ -1475,7 +1475,7 @@ o....xo..
       cout << "===================================================================" << endl;
       cout << "White to play" << endl;
       cout << "===================================================================" << endl;
-      SearchParams params = paramsBase;
+      const SearchParams& params = paramsBase;
       AsyncBot* bot = new AsyncBot(params, nnEval, &logger, "friendly pass");
       runBotOnPosition(bot, board, nextPla, hist, opts);
 
@@ -1509,7 +1509,7 @@ o....xo..
       cout << "===================================================================" << endl;
       cout << "Black to play" << endl;
       cout << "===================================================================" << endl;
-      SearchParams params = paramsBase;
+      const SearchParams& params = paramsBase;
       AsyncBot* bot = new AsyncBot(params, nnEval, &logger, "friendly pass");
       runBotOnPosition(bot, board, nextPla, hist, opts);
 
