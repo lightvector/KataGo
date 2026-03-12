@@ -2507,9 +2507,9 @@ oxxxxx.xo
     //if(rep < 100)
     //  hist.printDebugInfo(cout,board);
 
-    testAssert(boardCopy.isEqualForTesting(board, true, true));
-    testAssert(boardCopy.isEqualForTesting(histCopy.getRecentBoard(0), true, true));
-    testAssert(histCopy.getRecentBoard(0).isEqualForTesting(hist.getRecentBoard(0), true, true));
+    testAssert(boardCopy.isEqualForTesting(board));
+    testAssert(boardCopy.isEqualForTesting(histCopy.getRecentBoard(0)));
+    testAssert(histCopy.getRecentBoard(0).isEqualForTesting(hist.getRecentBoard(0)));
     testAssert(BoardHistory::getSituationRulesAndKoHash(boardCopy,histCopy,pla,drawEquivalentWinsForWhite) == hist.getSituationRulesAndKoHash(board,hist,pla,drawEquivalentWinsForWhite));
     testAssert(histCopy.currentSelfKomi(P_BLACK, drawEquivalentWinsForWhite) == hist.currentSelfKomi(P_BLACK, drawEquivalentWinsForWhite));
     testAssert(histCopy.currentSelfKomi(P_WHITE, drawEquivalentWinsForWhite) == hist.currentSelfKomi(P_WHITE, drawEquivalentWinsForWhite));

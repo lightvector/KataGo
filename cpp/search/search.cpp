@@ -65,10 +65,7 @@ SearchThread::~SearchThread() {
 
 static const double VALUE_WEIGHT_DEGREES_OF_FREEDOM = 3.0;
 
-Search::Search(SearchParams params, NNEvaluator* nnEval, Logger* lg, const string& rSeed)
-  :Search(params,nnEval,NULL,lg,rSeed)
-{}
-Search::Search(SearchParams params, NNEvaluator* nnEval, NNEvaluator* humanEval, Logger* lg, const string& rSeed)
+Search::Search(const SearchParams& params, NNEvaluator* nnEval, Logger* lg, const string& rSeed, NNEvaluator* humanEval)
   :rootPla(P_BLACK),
    rootBoard(),
    rootHistory(),

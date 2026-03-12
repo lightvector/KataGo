@@ -2688,10 +2688,6 @@ string Board::toStringSimple(const Board& board, char lineDelimiter) {
   return s;
 }
 
-Board Board::parseBoard(int xSize, int ySize, const string& s) {
-  return parseBoard(xSize,ySize,s,'\n');
-}
-
 Board Board::parseBoard(int xSize, int ySize, const string& s, char lineDelimiter) {
   Board board(xSize,ySize);
   vector<string> lines = Global::split(Global::trim(s),lineDelimiter);

@@ -914,10 +914,6 @@ bool BoardHistory::makeBoardMoveTolerant(Board& board, Loc moveLoc, Player moveP
   return true;
 }
 
-void BoardHistory::makeBoardMoveAssumeLegal(Board& board, Loc moveLoc, Player movePla, const KoHashTable* rootKoHashTable) {
-  makeBoardMoveAssumeLegal(board,moveLoc,movePla,rootKoHashTable,false);
-}
-
 void BoardHistory::makeBoardMoveAssumeLegal(Board& board, Loc moveLoc, Player movePla, const KoHashTable* rootKoHashTable, bool preventEncore) {
   Hash128 posHashBeforeMove = board.pos_hash;
 

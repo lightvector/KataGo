@@ -182,18 +182,11 @@ struct Search {
   //Note - randSeed controls a few things in the search, but a lot of the randomness actually comes from
   //random symmetries of the neural net evaluations, see nneval.h
   Search(
-    SearchParams params,
+    const SearchParams &params,
     NNEvaluator* nnEval,
-    Logger* logger,
-    const std::string& randSeed
-  );
-  Search(
-    SearchParams params,
-    NNEvaluator* nnEval,
-    NNEvaluator* humanEval,
-    Logger* logger,
-    const std::string& randSeed
-  );
+    Logger* lg,
+    const std::string& rSeed,
+    NNEvaluator* humanEval = nullptr);
   ~Search();
 
   Search(const Search&) = delete;
