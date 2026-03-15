@@ -122,7 +122,7 @@ public class CoreMLComputeHandle {
                         ownership: ownership
                     )
                 } catch {
-                    printError("Metal backend: CoreML inference error: \(error)")
+                    fatalError("Metal backend: CoreML inference error: \(error)")
                 }
             }
         }
