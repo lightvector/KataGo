@@ -118,8 +118,12 @@ As also mentioned in the instructions below but repeated here for visibility, if
    * If using OpenCL, you will want to verify that KataGo is picking up the correct device (e.g. some systems may have both an Intel CPU OpenCL and GPU OpenCL, if KataGo appears to pick the wrong one, you can correct this by specifying `openclGpuToUse` in `configs/gtp_example.cfg`).
 
 ## MacOS
-   * TLDR:
+   * TLDR (Metal backend - recommended for most users, hybrid CPU+GPU+Neural Engine for maximum throughput):
      ```
+     # First, install the katagocoreml library via Homebrew
+     brew tap chinchangyang/katagocoreml-cpp
+     brew install katagocoreml
+
      git clone https://github.com/lightvector/KataGo.git
      cd KataGo/cpp
      # If you get missing library errors, install the appropriate packages using your system package manager and try again.
@@ -132,6 +136,7 @@ As also mentioned in the instructions below but repeated here for visibility, if
       * CMake with a minimum version of 3.18.2: `brew install cmake`.
       * AppleClang and Swift compilers: `xcode-select --install`.
       * If using the Metal backend, [Ninja](https://ninja-build.org): `brew install ninja`
+      * If using the Metal backend, katagocoreml library: `brew tap chinchangyang/katagocoreml-cpp && brew install katagocoreml`
       * libzip: `brew install libzip`.
       * If you want to do self-play training and research, probably Google perftools `brew install gperftools` for TCMalloc or some other better malloc implementation. For unknown reasons, the allocation pattern in self-play with large numbers of threads and parallel games causes a lot of memory fragmentation under glibc malloc that will eventually run your machine out of memory, but better mallocs handle it fine.
       * If compiling to contribute to public distributed training runs, OpenSSL is required (`brew install openssl`).

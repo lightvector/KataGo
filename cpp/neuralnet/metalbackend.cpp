@@ -5,62 +5,149 @@
 #include "../neuralnet/nninputs.h"
 #include "../neuralnet/nninterface.h"
 #include "../neuralnet/metalbackend.h"
-#include "../core/test.h"
 
-/// Converts a ConvLayerDesc instance from C++ to Swift by creating a new SWConvLayerDesc instance with the same properties.
-/// - Parameter desc: The ConvLayerDesc instance to convert.
-/// - Returns: A SWConvLayerDesc instance with the same properties as the input ConvLayerDesc.
-SWConvLayerDesc MetalProcess::convLayerDescToSwift(const ConvLayerDesc * desc) {
+#include <katagocoreml/KataGoConverter.hpp>
+#include <ghc/filesystem.hpp>
+#include <mutex>
+#include <chrono>
+#include <cassert>
+#include <unistd.h>  // For getpid()
 
-  SWConvLayerDesc swDesc = createSWConvLayerDesc(desc->convYSize,
-                                                 desc->convXSize,
-                                                 desc->inChannels,
-                                                 desc->outChannels,
-                                                 desc->dilationY,
-                                                 desc->dilationX,
-                                                 (float*)desc->weights.data());
+using namespace std;
 
-  return swDesc;
+//------------------------------------------------------------------------------
+// CoreML Model Conversion - Native C++ using katagocoreml library
+//------------------------------------------------------------------------------
+
+namespace gfs = ghc::filesystem;
+
+namespace CoreMLConversion {
+
+// Get temp directory for model conversion
+static string getTempDirectory() {
+  gfs::path tempDir = gfs::temp_directory_path() / "katago_coreml";
+  std::error_code ec;
+  gfs::create_directories(tempDir, ec);
+  if(ec) {
+    throw runtime_error("Failed to create temp directory: " + ec.message());
+  }
+  return tempDir.string();
 }
 
-/// Converts a BatchNormLayerDesc instance from C++ to Swift by creating a new SWBatchNormLayerDesc instance with the same properties.
-/// - Parameter desc: The BatchNormLayerDesc instance to convert.
-/// - Returns: A SWBatchNormLayerDesc instance with the same properties as the input BatchNormLayerDesc.
-SWBatchNormLayerDesc MetalProcess::batchNormLayerDescToSwift(const BatchNormLayerDesc * desc) {
+// Generate unique temporary path for model conversion
+static string generateTempPath(int serverThreadIdx) {
+  auto now = chrono::steady_clock::now().time_since_epoch().count();
+  return getTempDirectory() + "/model_" + to_string(getpid()) + "_" +
+         to_string(serverThreadIdx) + "_" + to_string(now) + ".mlpackage";
+}
 
-  SWBatchNormLayerDesc swDesc =
-  createSWBatchNormLayerDesc(desc->numChannels,
-                             (float*)desc->mergedScale.data(),
-                             (float*)desc->mergedBias.data());
+// CoreML model metadata constants
+static const string COREML_MODEL_AUTHOR = "KataGo";
+static const string COREML_MODEL_LICENSE = "See original model file for license terms";
 
-  return swDesc;
+// Convert KataGo model to CoreML in temp directory, returns path to .mlpackage
+// The caller (Swift side) is responsible for deleting the temp file after loading
+static string convertModelToTemp(
+  const string& modelPath,
+  int boardX,
+  int boardY,
+  bool useFP16,
+  bool optimizeMask,
+  int maxBatchSize,
+  int serverThreadIdx
+) {
+  // maxBatchSize is validated upstream: cfg.getInt("nnMaxBatchSize", 1, 65536) in setup.cpp
+  // and NNEvaluator constructor throws if maxBatchSize <= 0. Assert for defensive documentation.
+  assert(maxBatchSize >= 1);
+
+  string tempPath = generateTempPath(serverThreadIdx);
+  cerr << "Metal backend " << serverThreadIdx << ": Converting model to " << tempPath << endl;
+
+  katagocoreml::ConversionOptions opts;
+  opts.board_x_size = boardX;
+  opts.board_y_size = boardY;
+  opts.compute_precision = useFP16 ? "FLOAT16" : "FLOAT32";
+  opts.optimize_identity_mask = optimizeMask;
+  opts.min_batch_size = 1;
+  opts.max_batch_size = maxBatchSize;
+  opts.author = COREML_MODEL_AUTHOR;
+  opts.license = COREML_MODEL_LICENSE;
+
+  try {
+    katagocoreml::KataGoConverter::convert(modelPath, tempPath, opts);
+  } catch(const exception& e) {
+    // Clean up partial conversion on failure
+    std::error_code ec;
+    gfs::remove_all(tempPath, ec);
+    if(ec) {
+      cerr << "Metal backend " << serverThreadIdx << ": Warning: Failed to clean up partial conversion at " << tempPath << ": " << ec.message() << endl;
+    }
+    throw runtime_error(string("Metal backend ") + to_string(serverThreadIdx) + ": Core ML model conversion failed: " + e.what());
+  }
+
+  cerr << "Metal backend " << serverThreadIdx << ": Conversion completed" << endl;
+  return tempPath;
+}
+
+}  // namespace CoreMLConversion
+
+//------------------------------------------------------------------------------
+// Model Descriptor Conversion - C++ to Swift types for MPSGraph
+//------------------------------------------------------------------------------
+
+namespace MetalProcess {
+
+/// Converts a ConvLayerDesc instance from C++ to Swift
+SWConvLayerDesc convLayerDescToSwift(const ConvLayerDesc* desc) {
+  return createSWConvLayerDesc(
+    desc->convYSize,
+    desc->convXSize,
+    desc->inChannels,
+    desc->outChannels,
+    desc->dilationY,
+    desc->dilationX,
+    (float*)desc->weights.data());
+}
+
+/// Converts a BatchNormLayerDesc instance from C++ to Swift
+SWBatchNormLayerDesc batchNormLayerDescToSwift(const BatchNormLayerDesc* desc) {
+  return createSWBatchNormLayerDesc(
+    desc->numChannels,
+    (float*)desc->mergedScale.data(),
+    (float*)desc->mergedBias.data());
 }
 
 /// Convert an activation layer description from C++ to Swift
-/// - Parameter desc: An activation layer description
-ActivationKind MetalProcess::activationLayerDescToSwift(const ActivationLayerDesc * desc) {
-
-  switch (desc->activation) {
+ActivationKind activationLayerDescToSwift(const ActivationLayerDesc* desc) {
+  switch(desc->activation) {
     case ACTIVATION_RELU:
       return ActivationKind::relu();
     case ACTIVATION_MISH:
       return ActivationKind::mish();
     case ACTIVATION_MISH_SCALE8:
-      testAssert(false); // Metal does not use scaled mish activations due to no fp16
-      return ActivationKind::identity(); // Placeholder for compilation
+      return ActivationKind::identity(); // Metal/CoreML does not use scaled mish
     case ACTIVATION_IDENTITY:
       return ActivationKind::identity();
     default:
-      testAssert(false);
-      return ActivationKind::identity(); // Placeholder for compilation
+      return ActivationKind::identity();
   }
 }
 
-/// Convert a residual block description from C++ to Swift
-/// - Parameter desc: A residual block description
-/// - Returns: The residual block description converted to SWResidualBlockDesc
-SWResidualBlockDesc MetalProcess::residualBlockDescToSwift(const ResidualBlockDesc * desc) {
+/// Convert a matrix multiplication layer description from C++ to Swift
+SWMatMulLayerDesc matMulLayerDescToSwift(const MatMulLayerDesc* desc) {
+  return createSWMatMulLayerDesc(
+    desc->inChannels,
+    desc->outChannels,
+    (float*)desc->weights.data());
+}
 
+/// Convert a matrix bias layer description from C++ to Swift
+SWMatBiasLayerDesc matBiasLayerDescToSwift(const MatBiasLayerDesc* desc) {
+  return createSWMatBiasLayerDesc(desc->numChannels, (float*)desc->weights.data());
+}
+
+/// Convert a residual block description from C++ to Swift
+SWResidualBlockDesc residualBlockDescToSwift(const ResidualBlockDesc* desc) {
   SWBatchNormLayerDesc preBN = batchNormLayerDescToSwift(&desc->preBN);
   ActivationKind preActivationKind = activationLayerDescToSwift(&desc->preActivation);
   SWConvLayerDesc regularConv = convLayerDescToSwift(&desc->regularConv);
@@ -68,34 +155,17 @@ SWResidualBlockDesc MetalProcess::residualBlockDescToSwift(const ResidualBlockDe
   ActivationKind midActivationKind = activationLayerDescToSwift(&desc->midActivation);
   SWConvLayerDesc finalConv = convLayerDescToSwift(&desc->finalConv);
 
-  SWResidualBlockDesc swDesc =
-  createSWResidualBlockDesc(preBN,
-                            preActivationKind,
-                            regularConv,
-                            midBN,
-                            midActivationKind,
-                            finalConv);
-
-  return swDesc;
-}
-
-/// Convert a matrix multiplication layer description from C++ to Swift
-/// - Parameter desc: A matrix multiplication layer description
-/// - Returns: The matrix multiplication layer description converted to SWMatMulLayerDesc
-SWMatMulLayerDesc MetalProcess::matMulLayerDescToSwift(const MatMulLayerDesc * desc) {
-
-  SWMatMulLayerDesc swDesc = createSWMatMulLayerDesc(desc->inChannels,
-                                                     desc->outChannels,
-                                                     (float*)desc->weights.data());
-
-  return swDesc;
+  return createSWResidualBlockDesc(
+    preBN,
+    preActivationKind,
+    regularConv,
+    midBN,
+    midActivationKind,
+    finalConv);
 }
 
 /// Convert a global pooling residual block description from C++ to Swift
-/// - Parameter desc: A global pooling residual block description
-/// - Returns: The global pooling residual block description converted to SWGlobalPoolingResidualBlockDesc
-SWGlobalPoolingResidualBlockDesc MetalProcess::globalPoolingResidualBlockDescToSwift(const GlobalPoolingResidualBlockDesc* desc) {
-
+SWGlobalPoolingResidualBlockDesc globalPoolingResidualBlockDescToSwift(const GlobalPoolingResidualBlockDesc* desc) {
   SWBatchNormLayerDesc preBN = batchNormLayerDescToSwift(&desc->preBN);
   ActivationKind preActivationKind = activationLayerDescToSwift(&desc->preActivation);
   SWConvLayerDesc regularConv = convLayerDescToSwift(&desc->regularConv);
@@ -107,37 +177,53 @@ SWGlobalPoolingResidualBlockDesc MetalProcess::globalPoolingResidualBlockDescToS
   ActivationKind midActivationKind = activationLayerDescToSwift(&desc->midActivation);
   SWConvLayerDesc finalConv = convLayerDescToSwift(&desc->finalConv);
 
-  SWGlobalPoolingResidualBlockDesc swDesc =
-  createSWGlobalPoolingResidualBlockDesc(preBN,
-                                         preActivationKind,
-                                         regularConv,
-                                         gpoolConv,
-                                         gpoolBN,
-                                         gpoolActivationKind,
-                                         gpoolToBiasMul,
-                                         midBN,
-                                         midActivationKind,
-                                         finalConv);
+  return createSWGlobalPoolingResidualBlockDesc(
+    preBN,
+    preActivationKind,
+    regularConv,
+    gpoolConv,
+    gpoolBN,
+    gpoolActivationKind,
+    gpoolToBiasMul,
+    midBN,
+    midActivationKind,
+    finalConv);
+}
 
-  return swDesc;
+// Forward declaration for mutual recursion
+swift::Array<BlockDescriptor> residualBlocksToSwift(const vector<pair<int, unique_ptr_void>>& blocks);
+
+/// Convert a nested bottleneck residual block description from C++ to Swift
+SWNestedBottleneckResidualBlockDesc nestedBottleneckResidualBlockDescToSwift(const NestedBottleneckResidualBlockDesc* desc) {
+  SWBatchNormLayerDesc preBN = batchNormLayerDescToSwift(&desc->preBN);
+  ActivationKind preActivationKind = activationLayerDescToSwift(&desc->preActivation);
+  SWConvLayerDesc preConv = convLayerDescToSwift(&desc->preConv);
+  auto swBlocks = residualBlocksToSwift(desc->blocks);
+  SWBatchNormLayerDesc postBN = batchNormLayerDescToSwift(&desc->postBN);
+  ActivationKind postActivationKind = activationLayerDescToSwift(&desc->postActivation);
+  SWConvLayerDesc postConv = convLayerDescToSwift(&desc->postConv);
+
+  return createSWNestedBottleneckResidualBlockDesc(
+    preBN,
+    preActivationKind,
+    preConv,
+    swBlocks,
+    postBN,
+    postActivationKind,
+    postConv);
 }
 
 /// Convert residual blocks from C++ to Swift
-/// - Parameters:
-///   - blocks: Residual blocks
-///   - swBlocks: A pointer to an array of BlockDescriptor
-swift::Array<BlockDescriptor> MetalProcess::residualBlocksToSwift(const vector<pair<int, unique_ptr_void>>& blocks) {
-
+swift::Array<BlockDescriptor> residualBlocksToSwift(const vector<pair<int, unique_ptr_void>>& blocks) {
   auto builder = createBlockDescriptorBuilder();
 
-  for (int i = 0; i < blocks.size(); i++) {
+  for(size_t i = 0; i < blocks.size(); i++) {
+    void* blockDesc = blocks[i].second.get();
 
-    void * blockDesc = blocks[i].second.get();
-
-    if (blocks[i].first == GLOBAL_POOLING_BLOCK_KIND) {
+    if(blocks[i].first == GLOBAL_POOLING_BLOCK_KIND) {
       BlockDescriptor descriptor = globalPoolingResidualBlockDescToSwift((GlobalPoolingResidualBlockDesc*)blockDesc);
       builder.enque(descriptor);
-    } else if (blocks[i].first == NESTED_BOTTLENECK_BLOCK_KIND) {
+    } else if(blocks[i].first == NESTED_BOTTLENECK_BLOCK_KIND) {
       BlockDescriptor descriptor = nestedBottleneckResidualBlockDescToSwift((NestedBottleneckResidualBlockDesc*)blockDesc);
       builder.enque(descriptor);
     } else {
@@ -149,35 +235,8 @@ swift::Array<BlockDescriptor> MetalProcess::residualBlocksToSwift(const vector<p
   return builder.getBlockDescriptors();
 }
 
-/// Convert a nested bottleneck residual block description from C++ to Swift
-/// - Parameter desc: A nested bottleneck residual block description
-SWNestedBottleneckResidualBlockDesc MetalProcess::nestedBottleneckResidualBlockDescToSwift(const NestedBottleneckResidualBlockDesc* desc) {
-
-  SWBatchNormLayerDesc preBN = batchNormLayerDescToSwift(&desc->preBN);
-  ActivationKind preActivationKind = activationLayerDescToSwift(&desc->preActivation);
-  SWConvLayerDesc preConv = convLayerDescToSwift(&desc->preConv);
-  auto swBlocks = residualBlocksToSwift(desc->blocks);
-  SWBatchNormLayerDesc postBN = batchNormLayerDescToSwift(&desc->postBN);
-  ActivationKind postActivationKind = activationLayerDescToSwift(&desc->postActivation);
-  SWConvLayerDesc postConv = convLayerDescToSwift(&desc->postConv);
-
-  SWNestedBottleneckResidualBlockDesc swDesc =
-  createSWNestedBottleneckResidualBlockDesc(preBN,
-                                            preActivationKind,
-                                            preConv,
-                                            swBlocks,
-                                            postBN,
-                                            postActivationKind,
-                                            postConv);
-
-  return swDesc;
-}
-
 /// Convert a SGF metadata encoder description from C++ to Swift
-/// - Parameter desc: A SGF metadata encoder description
-/// - Returns: The SGF metadata encoder description converted to SWSGFMetadataEncoderDesc
-swift::Optional<SWSGFMetadataEncoderDesc> MetalProcess::sGFMetadataEncoderDescToSwift(const SGFMetadataEncoderDesc * desc) {
-
+swift::Optional<SWSGFMetadataEncoderDesc> sGFMetadataEncoderDescToSwift(const SGFMetadataEncoderDesc* desc) {
   SWMatMulLayerDesc mul1 = matMulLayerDescToSwift(&desc->mul1);
   SWMatBiasLayerDesc bias1 = matBiasLayerDescToSwift(&desc->bias1);
   ActivationKind act1 = activationLayerDescToSwift(&desc->act1);
@@ -186,24 +245,20 @@ swift::Optional<SWSGFMetadataEncoderDesc> MetalProcess::sGFMetadataEncoderDescTo
   ActivationKind act2 = activationLayerDescToSwift(&desc->act2);
   SWMatMulLayerDesc mul3 = matMulLayerDescToSwift(&desc->mul3);
 
-  auto swSGFMetadataEncoderDesc = createSWSGFMetadataEncoderDesc(desc->metaEncoderVersion,
-                                                                 desc->numInputMetaChannels,
-                                                                 mul1,
-                                                                 bias1,
-                                                                 act1,
-                                                                 mul2,
-                                                                 bias2,
-                                                                 act2,
-                                                                 mul3);
-
-  return swSGFMetadataEncoderDesc;
+  return createSWSGFMetadataEncoderDesc(
+    desc->metaEncoderVersion,
+    desc->numInputMetaChannels,
+    mul1,
+    bias1,
+    act1,
+    mul2,
+    bias2,
+    act2,
+    mul3);
 }
 
 /// Convert a trunk description from C++ to Swift
-/// - Parameter trunk: A trunk description
-/// - Returns: The trunk description converted to SWTrunkDesc
-SWTrunkDesc MetalProcess::trunkDescToSwift(const TrunkDesc * trunk) {
-
+SWTrunkDesc trunkDescToSwift(const TrunkDesc* trunk) {
   SWConvLayerDesc initialConv = convLayerDescToSwift(&trunk->initialConv);
   SWMatMulLayerDesc initialMatMul = matMulLayerDescToSwift(&trunk->initialMatMul);
   auto sgfMetadataEncoder = sGFMetadataEncoderDescToSwift(&trunk->sgfMetadataEncoder);
@@ -211,26 +266,22 @@ SWTrunkDesc MetalProcess::trunkDescToSwift(const TrunkDesc * trunk) {
   SWBatchNormLayerDesc trunkTipBN = batchNormLayerDescToSwift(&trunk->trunkTipBN);
   ActivationKind trunkTipActivation = activationLayerDescToSwift(&trunk->trunkTipActivation);
 
-  SWTrunkDesc swTrunkDesc = createSWTrunkDesc(trunk->modelVersion,
-                                              trunk->trunkNumChannels,
-                                              trunk->midNumChannels,
-                                              trunk->regularNumChannels,
-                                              trunk->gpoolNumChannels,
-                                              initialConv,
-                                              initialMatMul,
-                                              sgfMetadataEncoder,
-                                              swBlocks,
-                                              trunkTipBN,
-                                              trunkTipActivation);
-
-  return swTrunkDesc;
+  return createSWTrunkDesc(
+    trunk->modelVersion,
+    trunk->trunkNumChannels,
+    trunk->midNumChannels,
+    trunk->regularNumChannels,
+    trunk->gpoolNumChannels,
+    initialConv,
+    initialMatMul,
+    sgfMetadataEncoder,
+    swBlocks,
+    trunkTipBN,
+    trunkTipActivation);
 }
 
 /// Convert a policy head description from C++ to Swift
-/// - Parameter policyHead: A policy head description
-/// - Returns: The policy head description converted to SWPolicyHeadDesc
-SWPolicyHeadDesc MetalProcess::policyHeadDescToSwift(const PolicyHeadDesc * policyHead) {
-
+SWPolicyHeadDesc policyHeadDescToSwift(const PolicyHeadDesc* policyHead) {
   SWConvLayerDesc p1Conv = convLayerDescToSwift(&policyHead->p1Conv);
   SWConvLayerDesc g1Conv = convLayerDescToSwift(&policyHead->g1Conv);
   SWBatchNormLayerDesc g1BN = batchNormLayerDescToSwift(&policyHead->g1BN);
@@ -244,38 +295,24 @@ SWPolicyHeadDesc MetalProcess::policyHeadDescToSwift(const PolicyHeadDesc * poli
   ActivationKind passActivation = activationLayerDescToSwift(&policyHead->passActivation);
   SWMatMulLayerDesc gpoolToPassMul2 = matMulLayerDescToSwift(&policyHead->gpoolToPassMul2);
 
-  SWPolicyHeadDesc swPolicyHead = createSWPolicyHeadDesc(policyHead->modelVersion,
-                                                         p1Conv,
-                                                         g1Conv,
-                                                         g1BN,
-                                                         g1Activation,
-                                                         gpoolToBiasMul,
-                                                         p1BN,
-                                                         p1Activation,
-                                                         p2Conv,
-                                                         gpoolToPassMul,
-                                                         gpoolToPassBias,
-                                                         passActivation,
-                                                         gpoolToPassMul2);
-
-  return swPolicyHead;
-}
-
-/// Convert a matrix bias layer description from C++ to Swift
-/// - Parameter desc: A matrix bias layer description
-/// - Returns: The matrix bias layer description converted to SWMatBiasLayerDesc
-SWMatBiasLayerDesc MetalProcess::matBiasLayerDescToSwift(const MatBiasLayerDesc * desc) {
-
-  SWMatBiasLayerDesc swDesc = createSWMatBiasLayerDesc(desc->numChannels, (float*)desc->weights.data());
-
-  return swDesc;
+  return createSWPolicyHeadDesc(
+    policyHead->modelVersion,
+    p1Conv,
+    g1Conv,
+    g1BN,
+    g1Activation,
+    gpoolToBiasMul,
+    p1BN,
+    p1Activation,
+    p2Conv,
+    gpoolToPassMul,
+    gpoolToPassBias,
+    passActivation,
+    gpoolToPassMul2);
 }
 
 /// Convert a value head description from C++ to Swift
-/// - Parameter valueHead: A value head description
-/// - Returns: The value head description converted to SWValueHeadDesc
-SWValueHeadDesc MetalProcess::valueHeadDescToSwift(const ValueHeadDesc * valueHead) {
-
+SWValueHeadDesc valueHeadDescToSwift(const ValueHeadDesc* valueHead) {
   SWConvLayerDesc v1Conv = convLayerDescToSwift(&valueHead->v1Conv);
   SWBatchNormLayerDesc v1BN = batchNormLayerDescToSwift(&valueHead->v1BN);
   ActivationKind v1Activation = activationLayerDescToSwift(&valueHead->v1Activation);
@@ -288,136 +325,90 @@ SWValueHeadDesc MetalProcess::valueHeadDescToSwift(const ValueHeadDesc * valueHe
   SWMatBiasLayerDesc sv3Bias = matBiasLayerDescToSwift(&valueHead->sv3Bias);
   SWConvLayerDesc vOwnershipConv = convLayerDescToSwift(&valueHead->vOwnershipConv);
 
-  SWValueHeadDesc swDesc = createSWValueHeadDesc(valueHead->modelVersion,
-                                                 v1Conv,
-                                                 v1BN,
-                                                 v1Activation,
-                                                 v2Mul,
-                                                 v2Bias,
-                                                 v2Activation,
-                                                 v3Mul,
-                                                 v3Bias,
-                                                 sv3Mul,
-                                                 sv3Bias,
-                                                 vOwnershipConv);
-
-  return swDesc;
+  return createSWValueHeadDesc(
+    valueHead->modelVersion,
+    v1Conv,
+    v1BN,
+    v1Activation,
+    v2Mul,
+    v2Bias,
+    v2Activation,
+    v3Mul,
+    v3Bias,
+    sv3Mul,
+    sv3Bias,
+    vOwnershipConv);
 }
 
-SWModelDesc MetalProcess::modelDescToSwift(const ModelDesc* modelDesc) {
-  return createSWModelDesc(modelDesc->modelVersion,
-                           swift::String(modelDesc->name),
-                           modelDesc->numInputChannels,
-                           modelDesc->numInputGlobalChannels,
-                           modelDesc->numInputMetaChannels,
-                           modelDesc->numValueChannels,
-                           modelDesc->numScoreValueChannels,
-                           modelDesc->numOwnershipChannels,
-                           trunkDescToSwift(&modelDesc->trunk),
-                           policyHeadDescToSwift(&modelDesc->policyHead),
-                           valueHeadDescToSwift(&modelDesc->valueHead));
+/// Convert a model description from C++ to Swift
+SWModelDesc modelDescToSwift(const ModelDesc* modelDesc) {
+  return createSWModelDesc(
+    modelDesc->modelVersion,
+    swift::String(modelDesc->name),
+    modelDesc->numInputChannels,
+    modelDesc->numInputGlobalChannels,
+    modelDesc->numInputMetaChannels,
+    modelDesc->numValueChannels,
+    modelDesc->numScoreValueChannels,
+    modelDesc->numOwnershipChannels,
+    modelDesc->numPolicyChannels,
+    trunkDescToSwift(&modelDesc->trunk),
+    policyHeadDescToSwift(&modelDesc->policyHead),
+    valueHeadDescToSwift(&modelDesc->valueHead));
 }
 
-//---------------------------------------------------------------------------------------------------------
+}  // namespace MetalProcess
 
-/**
- * @brief This function initializes the global state of the NeuralNet class upon program startup.
- * This function should be called only once upon program startup. It ensures that the global state
- * of the NeuralNet class is properly initialized, enabling it to function correctly throughout
- * the lifetime of the program.
- * Note that this function does not take any input parameters or return any values.
- */
+//------------------------------------------------------------------------------
+// LoadedModel implementation
+//------------------------------------------------------------------------------
+
+LoadedModel::LoadedModel(const string& fileName, const string& expectedSha256) {
+  modelPath = fileName;
+  ModelDesc::loadFromFileMaybeGZipped(fileName, modelDesc, expectedSha256);
+}
+
+//------------------------------------------------------------------------------
+// NeuralNet namespace - Global functions
+//------------------------------------------------------------------------------
+
 void NeuralNet::globalInitialize() {
-  // Do nothing.
+  // No global initialization needed for Metal backend
 }
 
-/**
- * @brief This function cleans up the global state of the NeuralNet class at program termination.
- * This function should be called once at program termination. It ensures that the global state of
- * the NeuralNet class is properly cleaned up, freeing any resources that were allocated during the
- * lifetime of the program.
- * Note that this function does not take any input parameters or return any values.
- */
 void NeuralNet::globalCleanup() {
-  // Do nothing.
+  // No cleanup needed - temp files are deleted immediately after loading
 }
 
-/**
- * @brief Loads a neural network model from a file.
- * This function creates a LoadedModel object by loading a neural network model from a file specified by
- * the `file` parameter and expected SHA-256 hash specified by the `expectedSha256` parameter. The LoadedModel
- * object is returned as a pointer.
- * @param file The name of the file containing the neural network model.
- * @param expectedSha256 The expected SHA-256 hash of the model file.
- * @return A pointer to the LoadedModel object created by loading the model file.
- */
 LoadedModel* NeuralNet::loadModelFile(const string& file, const string& expectedSha256) {
   LoadedModel* loadedModel = new LoadedModel(file, expectedSha256);
   return loadedModel;
 }
 
-/**
- * @brief Frees memory used by a LoadedModel object.
- * This function deallocates memory used by a LoadedModel object specified by the `loadedModel` parameter.
- * @param loadedModel A pointer to the LoadedModel object to deallocate memory for.
- */
 void NeuralNet::freeLoadedModel(LoadedModel* loadedModel) {
   delete loadedModel;
 }
 
-/**
- * @brief Retrieves the model description associated with the loaded model.
- *
- * This function accesses the model description from a given LoadedModel instance.
- * It returns a constant reference to the ModelDesc, which contains details
- * about the structure and parameters of the neural network model.
- *
- * @param loadedModel Pointer to the LoadedModel instance from which to retrieve
- *                    the model description. This should not be null.
- * @return const ModelDesc& A constant reference to the model description of
- *                          the loaded model.
- */
 const ModelDesc& NeuralNet::getModelDesc(const LoadedModel* loadedModel) {
   return loadedModel->modelDesc;
 }
 
 //------------------------------------------------------------------------------
+// ComputeContext implementation
+//------------------------------------------------------------------------------
 
 ComputeContext::ComputeContext(int nnX, int nnY, enabled_t useFP16Mode, enabled_t useNHWCMode):
-metalComputeContext(createMetalComputeContext(nnX, nnY)) {
+metalContext(createMetalComputeContext(nnX, nnY, useFP16Mode != enabled_t::False)) {
   this->useFP16Mode = useFP16Mode;
-
-  SWEnable swUseFP16Mode =
-  (useFP16Mode == enabled_t::False) ? SWEnable::False() :
-  (useFP16Mode == enabled_t::True) ? SWEnable::True() :
-  SWEnable::Auto();
-
-  SWEnable swUseNHWCMode =
-  (useNHWCMode == enabled_t::False) ? SWEnable::False() :
-  (useNHWCMode == enabled_t::True) ? SWEnable::True() :
-  SWEnable::Auto();
+  this->nnXLen = nnX;
+  this->nnYLen = nnY;
+  // Metal backend only supports NCHW layout (MPSGraph native format)
+  (void)useNHWCMode;
 }
 
 ComputeContext::~ComputeContext() {
 }
 
-/**
- * @brief Creates a ComputeContext object for computing neural network operations.
- * This function creates a ComputeContext object by setting configuration settings for neural network computations,
- * such as whether to use half-precision floating-point (FP16) mode and whether to use the NHWC format for input
- * tensors. The ComputeContext object is returned as a pointer.
- * @param gpuIdxs (Unused) A vector of GPU indices to use for computations.
- * @param logger (Unused) A pointer to a Logger object to use for logging messages.
- * @param nnXLen The width of the input tensor.
- * @param nnYLen The height of the input tensor.
- * @param openCLTunerFile (Unused) The name of a file containing OpenCL tuning parameters.
- * @param homeDataDirOverride (Unused) A directory to use for storing data.
- * @param openCLReTunePerBoardSize (Unused) Whether to re-tune OpenCL parameters for different board sizes.
- * @param useFP16Mode Whether to use half-precision floating-point (FP16) mode for computations.
- * @param useNHWCMode Whether to use the NHWC format for input tensors.
- * @param loadedModel (Unused) A pointer to a LoadedModel object containing a loaded neural network model.
- * @return A pointer to the ComputeContext object created.
- */
 ComputeContext* NeuralNet::createComputeContext(
   const vector<int>& gpuIdxs,
   Logger* logger,
@@ -440,29 +431,125 @@ ComputeContext* NeuralNet::createComputeContext(
   return new ComputeContext(nnXLen, nnYLen, useFP16Mode, useNHWCMode);
 }
 
-/**
- * @brief Frees memory used by a ComputeContext object.
- * This function deallocates memory used by a ComputeContext object specified by the `computeContext` parameter.
- * @param computeContext A pointer to the ComputeContext object to deallocate memory for.
- */
 void NeuralNet::freeComputeContext(ComputeContext* computeContext) {
   delete computeContext;
 }
 
-//--------------------------------------------------------------
+//------------------------------------------------------------------------------
+// ComputeHandle implementation
+//------------------------------------------------------------------------------
 
-ComputeHandle::ComputeHandle(ComputeContext* context,
-                             const LoadedModel* loadedModel,
-                             bool inputsUseNHWC,
-                             int gpuIdx,
-                             int serverThreadIdx):
-metalhandle(maybeCreateMetalComputeHandle((gpuIdx < 100),
-                                          serverThreadIdx,
-                                          MetalProcess::modelDescToSwift(&loadedModel->modelDesc),
-                                          context->metalComputeContext)) {
+static mutex computeHandleMutex;
+
+// Helper function to convert model and create CoreML-only compute handle (for mux ANE thread)
+static swift::Optional<KataGoSwift::CoreMLComputeHandle> convertAndCreateCoreMLOnlyHandle(
+  ComputeContext* context,
+  const LoadedModel* loadedModel,
+  bool requireExactNNLen,
+  int maxBatchSize,
+  int serverThreadIdx
+) {
+  auto metalContext = context->metalContext;
+  int nnXLen = metalContext.getNnXLen();
+  int nnYLen = metalContext.getNnYLen();
+  bool useFP16 = (context->useFP16Mode != enabled_t::False);
+  bool optimizeMask = requireExactNNLen;
+
+  // Convert model to CoreML format in temp directory
+  string coremlModelPath = CoreMLConversion::convertModelToTemp(
+    loadedModel->modelPath,
+    nnXLen,
+    nnYLen,
+    useFP16,
+    optimizeMask,
+    maxBatchSize,
+    serverThreadIdx
+  );
+
+  // Create CoreML-only compute handle (CPU+ANE)
+  return createCoreMLComputeHandle(
+    swift::String(coremlModelPath),
+    serverThreadIdx,
+    requireExactNNLen,
+    loadedModel->modelDesc.numInputChannels,
+    loadedModel->modelDesc.numInputGlobalChannels,
+    loadedModel->modelDesc.numInputMetaChannels,
+    loadedModel->modelDesc.numPolicyChannels,
+    loadedModel->modelDesc.numValueChannels,
+    loadedModel->modelDesc.numScoreValueChannels,
+    loadedModel->modelDesc.numOwnershipChannels,
+    metalContext
+  );
+}
+
+// Helper function to create CoreML-only handle when gpuIdx == METAL_MUX_ANE
+static swift::Optional<KataGoSwift::CoreMLComputeHandle> createCoreMLOnlyHandleIfNeeded(
+  ComputeContext* context,
+  const LoadedModel* loadedModel,
+  bool requireExactNNLen,
+  int maxBatchSize,
+  int gpuIdx,
+  int serverThreadIdx
+) {
+  if(gpuIdx != METAL_MUX_ANE) {
+    return swift::Optional<KataGoSwift::CoreMLComputeHandle>::none();
+  }
+
+  if(context->useFP16Mode == enabled_t::False) {
+    cerr << "Metal backend " << serverThreadIdx << ": Warning: ANE mode with FP32 - "
+         << "CoreML FP32 runs on CPU only (no ANE acceleration) and is significantly slower. "
+         << "Consider using GPU mode (metalDeviceToUseThread<N>=0) or setting metalUseFP16=true." << endl;
+  }
+
+  cerr << "Metal backend " << serverThreadIdx << ": Mux ANE mode - using CoreML (CPU+ANE)" << endl;
+  return convertAndCreateCoreMLOnlyHandle(context, loadedModel, requireExactNNLen, maxBatchSize, serverThreadIdx);
+}
+
+// Helper function to create MPSGraph-only handle for all non-ANE modes
+static swift::Optional<KataGoSwift::MPSGraphModelHandle> createMPSGraphHandleIfNeeded(
+  ComputeContext* context,
+  const LoadedModel* loadedModel,
+  bool requireExactNNLen,
+  int maxBatchSize,
+  int gpuIdx,
+  int serverThreadIdx
+) {
+  (void)maxBatchSize; // MPSGraph handles dynamic batches internally
+
+  // Skip if this is an ANE thread - CoreML-only handle will be created instead
+  if(gpuIdx == METAL_MUX_ANE) {
+    return swift::Optional<KataGoSwift::MPSGraphModelHandle>::none();
+  }
+
+  cerr << "Metal backend " << serverThreadIdx << ": GPU mode - using MPSGraph (GPU)" << endl;
+
+  SWModelDesc swModelDesc = MetalProcess::modelDescToSwift(&loadedModel->modelDesc);
+  return createMPSGraphOnlyHandle(
+    swModelDesc,
+    serverThreadIdx,
+    requireExactNNLen,
+    context->metalContext
+  );
+}
+
+ComputeHandle::ComputeHandle(
+  ComputeContext* context,
+  const LoadedModel* loadedModel,
+  bool inputsUseNHWC,
+  int gpuIdx,
+  int serverThreadIdx,
+  bool requireExactNNLen,
+  int maxBatchSize):
+mpsGraphOnlyHandle(createMPSGraphHandleIfNeeded(context, loadedModel, requireExactNNLen, maxBatchSize, gpuIdx, serverThreadIdx)),
+coremlOnlyHandle(createCoreMLOnlyHandleIfNeeded(context, loadedModel, requireExactNNLen, maxBatchSize, gpuIdx, serverThreadIdx)) {
+  bool hasMPSGraph = static_cast<bool>(mpsGraphOnlyHandle);
+  bool hasCoreML = static_cast<bool>(coremlOnlyHandle);
+  if(hasMPSGraph == hasCoreML) {
+    throw runtime_error("Metal backend: Logic error - expected exactly one compute handle, got " + string(hasMPSGraph && hasCoreML ? "both" : "neither") + " (gpuIdx=" + to_string(gpuIdx) + ")");
+  }
 
   const ModelDesc* modelDesc = &loadedModel->modelDesc;
-  auto metalContext = context->metalComputeContext;
+  auto metalContext = context->metalContext;
 
   nnXLen = metalContext.getNnXLen();
   nnYLen = metalContext.getNnYLen();
@@ -470,34 +557,13 @@ metalhandle(maybeCreateMetalComputeHandle((gpuIdx < 100),
   version = modelDesc->modelVersion;
   metaEncoderVersion = modelDesc->metaEncoderVersion;
   this->inputsUseNHWC = inputsUseNHWC;
-
-  /* Use FP16 mode if the model supports it and the user has not explicitly
-   * disabled it. */
+  this->requireExactNNLen = requireExactNNLen;
   useFP16 = (context->useFP16Mode != enabled_t::False);
-
-  (void)serverThreadIdx;
 }
 
 ComputeHandle::~ComputeHandle() {
 }
 
-static mutex computeHandleMutex;
-
-/**
- * @brief Create a new ComputeHandle object for performing neural network computations.
- * This function creates a new ComputeHandle object for performing neural network computations,
- * using the specified parameters and settings. The object is allocated on the heap using the
- * 'new' operator and returned as a pointer.
- * @param context A pointer to the ComputeContext object to use for computation.
- * @param loadedModel A pointer to the LoadedModel object containing the neural network model to use.
- * @param logger A pointer to the Logger object to use for logging messages.
- * @param maxBatchSize The maximum batch size to use for computation.
- * @param requireExactNNLen Whether the neural network length must match the input data length exactly.
- * @param inputsUseNHWC Whether the input data uses NHWC format.
- * @param gpuIdxForThisThread The index of the GPU to use for computation.
- * @param serverThreadIdx The index of the server thread to use for computation.
- * @return A pointer to the newly-created ComputeHandle object.
- */
 ComputeHandle* NeuralNet::createComputeHandle(
   ComputeContext* context,
   const LoadedModel* loadedModel,
@@ -509,63 +575,44 @@ ComputeHandle* NeuralNet::createComputeHandle(
   int serverThreadIdx) {
 
   (void)logger;
-  (void)maxBatchSize;
-  // Current implementation always tolerates excess nn len
-  (void)requireExactNNLen;
 
-  // Transfer the default GPU index into physical GPU index 0
   int gpuIdx = (gpuIdxForThisThread == -1) ? 0 : gpuIdxForThisThread;
+  if(gpuIdx != METAL_MUX_GPU && gpuIdx != METAL_MUX_ANE) {
+    cerr << "Metal backend: Warning: Unrecognized gpuIdx=" << gpuIdx
+         << ", valid values are " << METAL_MUX_GPU << " (GPU) and " << METAL_MUX_ANE << " (ANE)"
+         << ". Defaulting to GPU mode." << endl;
+    gpuIdx = METAL_MUX_GPU;
+  }
   ComputeHandle* handle = nullptr;
 
   {
     lock_guard<mutex> lock(computeHandleMutex);
-    handle = new ComputeHandle(context, loadedModel, inputsUseNHWC, gpuIdx, serverThreadIdx);
+    handle = new ComputeHandle(context, loadedModel, inputsUseNHWC, gpuIdx, serverThreadIdx, requireExactNNLen, maxBatchSize);
   }
 
   return handle;
 }
 
-/**
- * @brief Free the memory used by a ComputeHandle object.
- * This function frees the memory used by the specified ComputeHandle object, which was
- * previously allocated on the heap using the 'new' operator.
- * @param handle A pointer to the ComputeHandle object to free.
- */
 void NeuralNet::freeComputeHandle(ComputeHandle* handle) {
   delete handle;
 }
 
-/**
- * @brief Check whether a ComputeHandle object is using 16-bit floating-point precision.
- * This function checks whether the specified ComputeHandle object is using 16-bit floating-point
- * precision for computation, and returns a boolean value indicating the result.
- * @param handle A pointer to the ComputeHandle object to check.
- * @return True if the ComputeHandle object is using 16-bit floating-point precision, false otherwise.
- */
 bool NeuralNet::isUsingFP16(const ComputeHandle* handle) {
   return handle->useFP16;
 }
 
 //------------------------------------------------------------------------------
+// Device information
+//------------------------------------------------------------------------------
 
-/**
- * @brief Print information about the available devices.
- */
 void NeuralNet::printDevices() {
   printMetalDevices();
 }
 
-//--------------------------------------------------------------
+//------------------------------------------------------------------------------
+// InputBuffers implementation
+//------------------------------------------------------------------------------
 
-/**
- * @brief Construct a new InputBuffers object for storing input data for neural network computation.
- * This constructor initializes a new InputBuffers object for storing input data for neural network
- * computation, based on the specified parameters and settings.
- * @param loadedModel A pointer to the LoadedModel object containing the neural network model to use.
- * @param maxBatchSz The maximum batch size to use for computation.
- * @param nnXLen The x length of the neural network computation context.
- * @param nnYLen The y length of the neural network computation context.
- */
 InputBuffers::InputBuffers(const LoadedModel* loadedModel, int maxBatchSz, int nnXLen, int nnYLen) {
   const ModelDesc& m = loadedModel->modelDesc;
 
@@ -587,6 +634,7 @@ InputBuffers::InputBuffers(const LoadedModel* loadedModel, int maxBatchSz, int n
   singleOwnershipResultElts = (size_t)m.numOwnershipChannels * nnXLen * nnYLen;
   singleOwnerMapElts = (size_t)m.numOwnershipChannels * nnXLen * nnYLen;
   singleScoreValuesResultElts = (size_t)m.numScoreValueChannels;
+  singleMaskElts = (size_t)nnXLen * nnYLen;
 
   assert(NNModelVersion::getNumSpatialFeatures(m.modelVersion) == m.numInputChannels);
   assert(NNModelVersion::getNumGlobalFeatures(m.modelVersion) == m.numInputGlobalChannels);
@@ -603,10 +651,10 @@ InputBuffers::InputBuffers(const LoadedModel* loadedModel, int maxBatchSz, int n
   ownershipResultBufferElts = (size_t)maxBatchSize * singleOwnershipResultElts;
   ownerMapBufferElts = (size_t)maxBatchSz * singleOwnerMapElts;
   scoreValuesResultBufferElts = (size_t)maxBatchSize * singleScoreValuesResultElts;
+  userInputMaskBufferElts = (size_t)maxBatchSize * singleMaskElts;
 
   rowSpatialBuffer = new float[rowSpatialBufferElts];
   userInputBuffer = new float[userInputBufferElts];
-  // Zero out the input buffer for arbitrary board sizes
   memset(&userInputBuffer[0], 0, userInputBufferElts * sizeof(userInputBuffer[0]));
 
   userInputGlobalBuffer = new float[userInputGlobalBufferElts];
@@ -618,13 +666,10 @@ InputBuffers::InputBuffers(const LoadedModel* loadedModel, int maxBatchSz, int n
   ownershipResults = new float[ownershipResultBufferElts];
   ownerMapBuffer = new float[ownerMapBufferElts];
   scoreValuesResults = new float[scoreValuesResultBufferElts];
+  userInputMaskBuffer = new float[userInputMaskBufferElts];
+  memset(&userInputMaskBuffer[0], 0, userInputMaskBufferElts * sizeof(userInputMaskBuffer[0]));
 }
 
-/**
- * @brief Destroy the InputBuffers object and free all associated memory.
- * This destructor destroys the InputBuffers object and frees all memory associated with it,
- * including all input and output buffers used for neural network computation.
- */
 InputBuffers::~InputBuffers() {
   delete[] rowSpatialBuffer;
   delete[] userInputBuffer;
@@ -637,48 +682,25 @@ InputBuffers::~InputBuffers() {
   delete[] ownershipResults;
   delete[] ownerMapBuffer;
   delete[] scoreValuesResults;
+  delete[] userInputMaskBuffer;
 }
 
-/**
- * @brief Create a new InputBuffers object for storing input data for neural network computation.
- * This function creates a new InputBuffers object for storing input data for neural network computation,
- * using the specified parameters and settings. The object is allocated on the heap using the 'new' operator
- * and returned as a pointer.
- * @param loadedModel A pointer to the LoadedModel object containing the neural network model to use.
- * @param maxBatchSize The maximum batch size to use for computation.
- * @param nnXLen The x length of the neural network computation context.
- * @param nnYLen The y length of the neural network computation context.
- * @return A pointer to the newly-created InputBuffers object.
- */
 InputBuffers* NeuralNet::createInputBuffers(const LoadedModel* loadedModel, int maxBatchSize, int nnXLen, int nnYLen) {
   return new InputBuffers(loadedModel, maxBatchSize, nnXLen, nnYLen);
 }
 
-/**
- * @brief Free the memory used by an InputBuffers object.
- * This function frees the memory used by the specified InputBuffers object, which was
- * previously allocated on the heap using the 'new' operator.
- * @param inputBuffers A pointer to the InputBuffers object to free.
- */
 void NeuralNet::freeInputBuffers(InputBuffers* inputBuffers) {
   delete inputBuffers;
 }
 
-//--------------------------------------------------------------
+//------------------------------------------------------------------------------
+// MetalProcess namespace - Helper functions
+//------------------------------------------------------------------------------
 
 void MetalProcess::copyRowData(float* dest, const float* src, size_t numElements) {
   copy(src, src + numElements, dest);
 }
 
-/**
- * @brief Convert input data from NHWC format to NCHW format in-place if necessary.
- *
- * @param rowSpatialInput Pointer to the input data (single batch element assumed).
- * @param C Number of channels.
- * @param H Height.
- * @param W Width.
- * @param inputsUseNHWC Flag indicating if the input data is currently in NHWC format.
- */
 void MetalProcess::convertNCHW(
     float* rowSpatialInput,
     const int C,
@@ -766,6 +788,11 @@ void MetalProcess::processRowData(size_t row, ComputeHandle* gpuHandle, InputBuf
     nnYLen,
     nnXLen,
     gpuHandle->inputsUseNHWC);
+
+  // Copy first channel of spatial input (mask) to dedicated mask buffer
+  // After NCHW conversion, the first nnXLen*nnYLen elements are the mask channel
+  float* rowMaskInput = &inputBuffers->userInputMaskBuffer[inputBuffers->singleMaskElts * row];
+  copy(rowSpatialInput, rowSpatialInput + inputBuffers->singleMaskElts, rowMaskInput);
 }
 
 float MetalProcess::policyOptimismCalc(const double policyOptimism, const float p, const float pOpt) {
@@ -782,7 +809,7 @@ void MetalProcess::processOptimism(
   float* targetBuffer = &buffers.policyProbsBuffer[row * singlePolicyResultElts];
   float* policyOutputBuf = &buffers.policyResults[row * singlePolicyResultElts * buffers.policyResultChannels];
 
-  for(auto i = 0; i < singlePolicyResultElts; ++i) {
+  for(size_t i = 0; i < singlePolicyResultElts; ++i) {
     const float p = policyOutputBuf[i];
     const float pOpt = policyOutputBuf[i + singlePolicyResultElts];
     targetBuffer[i] = MetalProcess::policyOptimismCalc(policyOptimism, p, pOpt);
@@ -801,7 +828,6 @@ void MetalProcess::processPolicy(
   size_t row) {
   auto& buffers = *inputBuffers;
   float* targetBuffer = &buffers.policyResults[row * buffers.singlePolicyResultElts * buffers.policyResultChannels];
-  const auto symmetry = inputBuf->symmetry;
   const auto policyOptimism = inputBuf->policyOptimism;
 
   if(buffers.policyResultChannels == 1) {
@@ -813,7 +839,7 @@ void MetalProcess::processPolicy(
   }
 
   SymmetryHelpers::copyOutputsWithSymmetry(
-    targetBuffer, currentOutput->policyProbs, 1, gpuHandle->nnYLen, gpuHandle->nnXLen, symmetry);
+    targetBuffer, currentOutput->policyProbs, 1, gpuHandle->nnYLen, gpuHandle->nnXLen, inputBuf->symmetry);
 }
 
 void MetalProcess::processValue(
@@ -839,7 +865,6 @@ void MetalProcess::processOwnership(
   const size_t singleOwnershipResultElts = inputBuffers->singleOwnershipResultElts;
   const size_t ownershipOutputBufOffset = row * singleOwnershipResultElts;
 
-  // Copy ownership results with symmetry if available
   if(currentOutput->whiteOwnerMap != nullptr) {
     const float* ownershipOutputBuf = &inputBuffers->ownershipResults[ownershipOutputBufOffset];
     SymmetryHelpers::copyOutputsWithSymmetry(
@@ -890,7 +915,6 @@ void MetalProcess::processScoreValues(
     size_t numScoreValueChannels = inputBuffers->singleScoreValuesResultElts;
     assert(numScoreValueChannels == 1);
     currentOutput->whiteScoreMean = currentScoreValueData[0];
-    //Version 3 neural nets don't have any second moment currentOutput, implicitly already folding it in, so we just use the mean squared
     currentOutput->whiteScoreMeanSq = currentOutput->whiteScoreMean * currentOutput->whiteScoreMean;
     currentOutput->whiteLead = currentOutput->whiteScoreMean;
     currentOutput->varTimeLeft = 0;
@@ -914,16 +938,6 @@ void MetalProcess::processRow(
   MetalProcess::processScoreValues(inputBuffers, currentOutput, gpuHandle->version, row);
 }
 
-/**
- * @brief Compute the neural network output using Metal API and the specified input data and GPU handle.
- * This function computes the neural network output using the Metal API and the specified input data and ComputeHandle
- * object for GPU acceleration. The computed output is stored in the specified vector of NNOutput pointers.
- * @param gpuHandle A pointer to the ComputeHandle object to use for GPU computation.
- * @param inputBuffers A pointer to the InputBuffers object containing the input data for computation.
- * @param numBatchEltsFilled The number of batch elements filled in the input buffer.
- * @param inputBufs An array of pointers to NNResultBuf objects containing the neural network input data.
- * @param outputs A vector of NNOutput pointers to store the computed output.
- */
 void MetalProcess::getMetalOutput(
   ComputeHandle* gpuHandle,
   InputBuffers* inputBuffers,
@@ -935,47 +949,54 @@ void MetalProcess::getMetalOutput(
   int batchSize = numBatchEltsFilled;
 
   assert(batchSize <= inputBuffers->maxBatchSize);
-  assert((NNModelVersion::getNumSpatialFeatures(gpuHandle->version) * gpuHandle->nnXLen * gpuHandle->nnYLen) <= inputBuffers->singleInputElts);
-  assert(NNModelVersion::getNumGlobalFeatures(gpuHandle->version) == inputBuffers->singleInputGlobalElts);
+  assert((NNModelVersion::getNumSpatialFeatures(gpuHandle->version) * gpuHandle->nnXLen * gpuHandle->nnYLen) <= (int)inputBuffers->singleInputElts);
+  assert(NNModelVersion::getNumGlobalFeatures(gpuHandle->version) == (int)inputBuffers->singleInputGlobalElts);
 
   if(gpuHandle->metaEncoderVersion > 0) {
-    assert(SGFMetadata::METADATA_INPUT_NUM_CHANNELS == inputBuffers->singleInputMetaElts);
+    assert(SGFMetadata::METADATA_INPUT_NUM_CHANNELS == (int)inputBuffers->singleInputMetaElts);
   }
 
   assert(inputBuffers->singleValueResultElts == 3);
 
-  for(size_t row = 0; row < batchSize; row++) {
+  for(int row = 0; row < batchSize; row++) {
     MetalProcess::processRowData(row, gpuHandle, inputBuffers, inputBufs);
   }
 
-  auto metalHandle = gpuHandle->metalhandle;
-  assert(metalHandle);
+  // Dispatch to appropriate handle based on mode
+  if(gpuHandle->coremlOnlyHandle) {
+    // ANE mode: Use CoreML (CPU+ANE)
+    gpuHandle->coremlOnlyHandle.get().apply(
+      inputBuffers->userInputBuffer,
+      inputBuffers->userInputGlobalBuffer,
+      inputBuffers->userInputMetaBuffer,
+      inputBuffers->userInputMaskBuffer,
+      inputBuffers->policyResults,
+      inputBuffers->policyPassResults,
+      inputBuffers->valueResults,
+      inputBuffers->scoreValuesResults,
+      inputBuffers->ownershipResults,
+      batchSize);
+  } else if(gpuHandle->mpsGraphOnlyHandle) {
+    // GPU mode: Use MPSGraph (GPU)
+    gpuHandle->mpsGraphOnlyHandle.get().apply(
+      inputBuffers->userInputBuffer,
+      inputBuffers->userInputGlobalBuffer,
+      inputBuffers->userInputMetaBuffer,
+      inputBuffers->policyResults,
+      inputBuffers->policyPassResults,
+      inputBuffers->valueResults,
+      inputBuffers->scoreValuesResults,
+      inputBuffers->ownershipResults,
+      batchSize);
+  } else {
+    throw runtime_error("Metal backend: No valid compute handle available");
+  }
 
-  metalHandle.get().apply(inputBuffers->userInputBuffer,
-                          inputBuffers->userInputGlobalBuffer,
-                          inputBuffers->userInputMetaBuffer,
-                          inputBuffers->policyResults,
-                          inputBuffers->policyPassResults,
-                          inputBuffers->valueResults,
-                          inputBuffers->scoreValuesResults,
-                          inputBuffers->ownershipResults,
-                          batchSize);
-
-  for(size_t row = 0; row < batchSize; row++) {
+  for(int row = 0; row < batchSize; row++) {
     MetalProcess::processRow(row, gpuHandle, inputBuffers, inputBufs, outputs);
   }
 }
 
-/**
- * @brief Compute the neural network output using the specified input data and GPU handle.
- * This function computes the neural network output using the specified input data and ComputeHandle object
- * for GPU acceleration. The computed output is stored in the specified vector of NNOutput pointers.
- * @param gpuHandle A pointer to the ComputeHandle object to use for GPU computation.
- * @param inputBuffers A pointer to the InputBuffers object containing the input data for computation.
- * @param numBatchEltsFilled The number of batch elements filled in the input buffer.
- * @param inputBufs An array of pointers to NNResultBuf objects containing the neural network input data.
- * @param outputs A vector of NNOutput pointers to store the computed output.
- */
 void NeuralNet::getOutput(
   ComputeHandle* gpuHandle,
   InputBuffers* inputBuffers,
@@ -986,41 +1007,254 @@ void NeuralNet::getOutput(
   MetalProcess::getMetalOutput(gpuHandle, inputBuffers, numBatchEltsFilled, inputBufs, outputs);
 }
 
-bool MetalProcess::testEvaluateConv(const ConvLayerDesc* desc,
-                                    int batchSize,
-                                    int nnXLen,
-                                    int nnYLen,
-                                    const vector<float>& inputBuffer,
-                                    vector<float>& outputBuffer) {
+//------------------------------------------------------------------------------
+// Test functions - Metal backend uses NCHW layout (not NHWC)
+//------------------------------------------------------------------------------
+
+namespace MetalProcess {
+
+// Helper function to compute merged scale and bias from raw values
+// This is needed because test descriptors are created manually without computing merged values
+static void computeMergedBatchNormValues(
+  const BatchNormLayerDesc* desc,
+  vector<float>& mergedScale,
+  vector<float>& mergedBias) {
+
+  int numChannels = desc->numChannels;
+  mergedScale.resize(numChannels);
+  mergedBias.resize(numChannels);
+
+  // If merged values are already computed, use them
+  if(!desc->mergedScale.empty() && !desc->mergedBias.empty()) {
+    mergedScale = desc->mergedScale;
+    mergedBias = desc->mergedBias;
+    return;
+  }
+
+  // Otherwise compute from raw values: mergedScale = scale / sqrt(variance + epsilon)
+  // mergedBias = bias - mergedScale * mean
+  // Note: Use scale/bias values from vectors if available, regardless of hasScale/hasBias flags
+  // This matches how desc.cpp computes merged values during model loading
+  for(int c = 0; c < numChannels; c++) {
+    float scale = c < (int)desc->scale.size() ? desc->scale[c] : 1.0f;
+    float bias = c < (int)desc->bias.size() ? desc->bias[c] : 0.0f;
+    float mean = c < (int)desc->mean.size() ? desc->mean[c] : 0.0f;
+    float variance = c < (int)desc->variance.size() ? desc->variance[c] : 1.0f;
+    float epsilon = desc->epsilon;
+
+    mergedScale[c] = scale / sqrt(variance + epsilon);
+    mergedBias[c] = bias - mergedScale[c] * mean;
+  }
+}
+
+// Helper to convert BatchNormLayerDesc to Swift with computed merged values
+static SWBatchNormLayerDesc batchNormLayerDescToSwiftWithMerge(
+  const BatchNormLayerDesc* desc,
+  vector<float>& mergedScaleStorage,
+  vector<float>& mergedBiasStorage) {
+
+  computeMergedBatchNormValues(desc, mergedScaleStorage, mergedBiasStorage);
+
+  return createSWBatchNormLayerDesc(
+    desc->numChannels,
+    mergedScaleStorage.data(),
+    mergedBiasStorage.data());
+}
+
+// Helper to convert ResidualBlockDesc to Swift with computed merged values
+static SWResidualBlockDesc residualBlockDescToSwiftWithMerge(
+  const ResidualBlockDesc* desc,
+  vector<float>& mergedScalePreBN,
+  vector<float>& mergedBiasPreBN,
+  vector<float>& mergedScaleMidBN,
+  vector<float>& mergedBiasMidBN) {
+
+  computeMergedBatchNormValues(&desc->preBN, mergedScalePreBN, mergedBiasPreBN);
+  computeMergedBatchNormValues(&desc->midBN, mergedScaleMidBN, mergedBiasMidBN);
+
+  SWBatchNormLayerDesc preBN = createSWBatchNormLayerDesc(
+    desc->preBN.numChannels,
+    mergedScalePreBN.data(),
+    mergedBiasPreBN.data());
+
+  ActivationKind preActivationKind = MetalProcess::activationLayerDescToSwift(&desc->preActivation);
+  SWConvLayerDesc regularConv = MetalProcess::convLayerDescToSwift(&desc->regularConv);
+
+  SWBatchNormLayerDesc midBN = createSWBatchNormLayerDesc(
+    desc->midBN.numChannels,
+    mergedScaleMidBN.data(),
+    mergedBiasMidBN.data());
+
+  ActivationKind midActivationKind = MetalProcess::activationLayerDescToSwift(&desc->midActivation);
+  SWConvLayerDesc finalConv = MetalProcess::convLayerDescToSwift(&desc->finalConv);
+
+  return createSWResidualBlockDesc(
+    preBN,
+    preActivationKind,
+    regularConv,
+    midBN,
+    midActivationKind,
+    finalConv);
+}
+
+// Helper to convert GlobalPoolingResidualBlockDesc to Swift with computed merged values
+static SWGlobalPoolingResidualBlockDesc globalPoolingResidualBlockDescToSwiftWithMerge(
+  const GlobalPoolingResidualBlockDesc* desc,
+  vector<float>& mergedScalePreBN,
+  vector<float>& mergedBiasPreBN,
+  vector<float>& mergedScaleMidBN,
+  vector<float>& mergedBiasMidBN,
+  vector<float>& mergedScaleGpoolBN,
+  vector<float>& mergedBiasGpoolBN) {
+
+  computeMergedBatchNormValues(&desc->preBN, mergedScalePreBN, mergedBiasPreBN);
+  computeMergedBatchNormValues(&desc->gpoolBN, mergedScaleGpoolBN, mergedBiasGpoolBN);
+  computeMergedBatchNormValues(&desc->midBN, mergedScaleMidBN, mergedBiasMidBN);
+
+  SWBatchNormLayerDesc preBN = createSWBatchNormLayerDesc(
+    desc->preBN.numChannels,
+    mergedScalePreBN.data(),
+    mergedBiasPreBN.data());
+
+  ActivationKind preActivationKind = MetalProcess::activationLayerDescToSwift(&desc->preActivation);
+  SWConvLayerDesc regularConv = MetalProcess::convLayerDescToSwift(&desc->regularConv);
+  SWConvLayerDesc gpoolConv = MetalProcess::convLayerDescToSwift(&desc->gpoolConv);
+
+  SWBatchNormLayerDesc gpoolBN = createSWBatchNormLayerDesc(
+    desc->gpoolBN.numChannels,
+    mergedScaleGpoolBN.data(),
+    mergedBiasGpoolBN.data());
+
+  ActivationKind gpoolActivationKind = MetalProcess::activationLayerDescToSwift(&desc->gpoolActivation);
+  SWMatMulLayerDesc gpoolToBiasMul = MetalProcess::matMulLayerDescToSwift(&desc->gpoolToBiasMul);
+
+  SWBatchNormLayerDesc midBN = createSWBatchNormLayerDesc(
+    desc->midBN.numChannels,
+    mergedScaleMidBN.data(),
+    mergedBiasMidBN.data());
+
+  ActivationKind midActivationKind = MetalProcess::activationLayerDescToSwift(&desc->midActivation);
+  SWConvLayerDesc finalConv = MetalProcess::convLayerDescToSwift(&desc->finalConv);
+
+  return createSWGlobalPoolingResidualBlockDesc(
+    preBN,
+    preActivationKind,
+    regularConv,
+    gpoolConv,
+    gpoolBN,
+    gpoolActivationKind,
+    gpoolToBiasMul,
+    midBN,
+    midActivationKind,
+    finalConv);
+}
+
+bool testEvaluateConv(
+  const ConvLayerDesc* desc,
+  int batchSize,
+  int nnXLen,
+  int nnYLen,
+  const vector<float>& inputBuffer,
+  vector<float>& outputBuffer) {
+
+  SWConvLayerDesc swDesc = MetalProcess::convLayerDescToSwift(desc);
 
   size_t numOutputFloats = (size_t)batchSize * nnXLen * nnYLen * desc->outChannels;
   outputBuffer.resize(numOutputFloats);
 
-  testConvLayer(convLayerDescToSwift(desc),
-                nnXLen,
-                nnYLen,
-                batchSize,
-                (float*)inputBuffer.data(),
-                (float*)outputBuffer.data());
-
-  return true;
+  return testConvLayer(
+    swDesc,
+    batchSize,
+    nnXLen,
+    nnYLen,
+    (float*)inputBuffer.data(),
+    outputBuffer.data());
 }
 
-/**
- * @brief Evaluate a convolutional layer using Metal API for testing purposes.
- * This function evaluates a convolutional layer using the Metal API for testing purposes.
- * The input buffer and output buffer are specified as vectors of floats, and the result of the computation
- * is stored in the output buffer. The function returns true if the evaluation is implemented.
- * @param desc A pointer to the ConvLayerDesc object describing the convolutional layer to evaluate.
- * @param batchSize The batch size to use for computation.
- * @param nnXLen The x length of the neural network computation context.
- * @param nnYLen The y length of the neural network computation context.
- * @param useFP16 A boolean indicating whether to use half-precision floating point format for computation.
- * @param useNHWC A boolean indicating whether to use NHWC layout for input and output buffers.
- * @param inputBuffer A vector of floats containing the input buffer data.
- * @param outputBuffer A vector of floats to store the computed output.
- * @return true if the convolutional layer evaluation is implemented, false otherwise.
- */
+bool testEvaluateBatchNorm(
+  const BatchNormLayerDesc* desc,
+  int batchSize,
+  int nnXLen,
+  int nnYLen,
+  const vector<float>& inputBuffer,
+  const vector<float>& maskBuffer,
+  vector<float>& outputBuffer) {
+
+  vector<float> mergedScaleStorage;
+  vector<float> mergedBiasStorage;
+  SWBatchNormLayerDesc swDesc = batchNormLayerDescToSwiftWithMerge(desc, mergedScaleStorage, mergedBiasStorage);
+
+  size_t numOutputFloats = (size_t)batchSize * nnXLen * nnYLen * desc->numChannels;
+  outputBuffer.resize(numOutputFloats);
+
+  return testBatchNormLayer(
+    swDesc,
+    batchSize,
+    nnXLen,
+    nnYLen,
+    (float*)inputBuffer.data(),
+    (float*)maskBuffer.data(),
+    outputBuffer.data());
+}
+
+bool testEvaluateResidualBlock(
+  const ResidualBlockDesc* desc,
+  int batchSize,
+  int nnXLen,
+  int nnYLen,
+  const vector<float>& inputBuffer,
+  const vector<float>& maskBuffer,
+  vector<float>& outputBuffer) {
+
+  vector<float> mergedScalePreBN, mergedBiasPreBN;
+  vector<float> mergedScaleMidBN, mergedBiasMidBN;
+  SWResidualBlockDesc swDesc = residualBlockDescToSwiftWithMerge(
+    desc, mergedScalePreBN, mergedBiasPreBN, mergedScaleMidBN, mergedBiasMidBN);
+
+  size_t numOutputFloats = (size_t)batchSize * nnXLen * nnYLen * desc->preBN.numChannels;
+  outputBuffer.resize(numOutputFloats);
+
+  return testResidualBlock(
+    swDesc,
+    batchSize,
+    nnXLen,
+    nnYLen,
+    (float*)inputBuffer.data(),
+    (float*)maskBuffer.data(),
+    outputBuffer.data());
+}
+
+bool testEvaluateGlobalPoolingResidualBlock(
+  const GlobalPoolingResidualBlockDesc* desc,
+  int batchSize,
+  int nnXLen,
+  int nnYLen,
+  const vector<float>& inputBuffer,
+  const vector<float>& maskBuffer,
+  vector<float>& outputBuffer) {
+
+  vector<float> mergedScalePreBN, mergedBiasPreBN;
+  vector<float> mergedScaleMidBN, mergedBiasMidBN;
+  vector<float> mergedScaleGpoolBN, mergedBiasGpoolBN;
+  SWGlobalPoolingResidualBlockDesc swDesc = globalPoolingResidualBlockDescToSwiftWithMerge(
+    desc, mergedScalePreBN, mergedBiasPreBN, mergedScaleMidBN, mergedBiasMidBN,
+    mergedScaleGpoolBN, mergedBiasGpoolBN);
+
+  size_t numOutputFloats = (size_t)batchSize * nnXLen * nnYLen * desc->preBN.numChannels;
+  outputBuffer.resize(numOutputFloats);
+
+  return testGlobalPoolingResidualBlock(
+    swDesc,
+    batchSize,
+    nnXLen,
+    nnYLen,
+    (float*)inputBuffer.data(),
+    (float*)maskBuffer.data(),
+    outputBuffer.data());
+}
+
+}  // namespace MetalProcess
+
 bool NeuralNet::testEvaluateConv(
   const ConvLayerDesc* desc,
   int batchSize,
@@ -1031,49 +1265,16 @@ bool NeuralNet::testEvaluateConv(
   const vector<float>& inputBuffer,
   vector<float>& outputBuffer) {
 
+  // Metal backend only supports NCHW layout
+  if(useNHWC)
+    return false;
+
+  // useFP16 is ignored - MPSGraph tests use FP32
   (void)useFP16;
-  (void)useNHWC;
+
   return MetalProcess::testEvaluateConv(desc, batchSize, nnXLen, nnYLen, inputBuffer, outputBuffer);
 }
 
-bool MetalProcess::testEvaluateBatchNorm(const BatchNormLayerDesc* desc,
-                                         int batchSize,
-                                         int nnXLen,
-                                         int nnYLen,
-                                         const vector<float>& inputBuffer,
-                                         const vector<float>& maskBuffer,
-                                         vector<float>& outputBuffer) {
-
-  size_t numOutputFloats = (size_t)batchSize * nnXLen * nnYLen * desc->numChannels;
-  outputBuffer.resize(numOutputFloats);
-
-  testBatchNormLayer(batchNormLayerDescToSwift(desc),
-                     nnXLen,
-                     nnYLen,
-                     batchSize,
-                     (float*)inputBuffer.data(),
-                     (float*)maskBuffer.data(),
-                     (float*)outputBuffer.data());
-
-  return true;
-}
-
-/**
- * @brief Evaluate a batch normalization layer using Metal API for testing purposes.
- * This function evaluates a batch normalization layer using the Metal API for testing purposes.
- * The input buffer and output buffer are specified as vectors of floats, and the result of the computation
- * is stored in the output buffer. The function returns true if the evaluation is implemented.
- * @param desc A pointer to the BatchNormLayerDesc object describing the batch normalization layer to evaluate.
- * @param batchSize The batch size to use for computation.
- * @param nnXLen The x length of the neural network computation context.
- * @param nnYLen The y length of the neural network computation context.
- * @param useFP16 A boolean indicating whether to use half-precision floating point format for computation.
- * @param useNHWC A boolean indicating whether to use NHWC layout for input and output buffers.
- * @param inputBuffer A vector of floats containing the input buffer data.
- * @param maskBuffer A vector of floats containing the mask buffer data. Mask should be in 'NHW' format (no "C" channel).
- * @param outputBuffer A vector of floats to store the computed output.
- * @return true if the batch normalization layer evaluation is implemented, false otherwise.
- */
 bool NeuralNet::testEvaluateBatchNorm(
   const BatchNormLayerDesc* desc,
   int batchSize,
@@ -1085,49 +1286,16 @@ bool NeuralNet::testEvaluateBatchNorm(
   const vector<float>& maskBuffer,
   vector<float>& outputBuffer) {
 
+  // Metal backend only supports NCHW layout
+  if(useNHWC)
+    return false;
+
+  // useFP16 is ignored - MPSGraph tests use FP32
   (void)useFP16;
-  (void)useNHWC;
+
   return MetalProcess::testEvaluateBatchNorm(desc, batchSize, nnXLen, nnYLen, inputBuffer, maskBuffer, outputBuffer);
 }
 
-bool MetalProcess::testEvaluateResidualBlock(const ResidualBlockDesc* desc,
-                                             int batchSize,
-                                             int nnXLen,
-                                             int nnYLen,
-                                             const vector<float>& inputBuffer,
-                                             const vector<float>& maskBuffer,
-                                             vector<float>& outputBuffer) {
-
-  size_t numTrunkFloats = (size_t)batchSize * nnXLen * nnYLen * desc->preBN.numChannels;
-  outputBuffer.resize(numTrunkFloats);
-
-  testResidualBlock(residualBlockDescToSwift(desc),
-                    batchSize,
-                    nnXLen,
-                    nnYLen,
-                    (float*)inputBuffer.data(),
-                    (float*)maskBuffer.data(),
-                    (float*)outputBuffer.data());
-
-  return true;
-}
-
-/**
- * @brief Evaluate a residual block using Metal API for testing purposes.
- * This function evaluates a residual block using the Metal API for testing purposes.
- * The input buffer and output buffer are specified as vectors of floats, and the result of the computation
- * is stored in the output buffer. The function returns true if the evaluation is implemented.
- * @param desc A pointer to the ResidualBlockDesc object describing the residual block to evaluate.
- * @param batchSize The batch size to use for computation.
- * @param nnXLen The x length of the neural network computation context.
- * @param nnYLen The y length of the neural network computation context.
- * @param useFP16 A boolean indicating whether to use half-precision floating point format for computation.
- * @param useNHWC A boolean indicating whether to use NHWC layout for input and output buffers.
- * @param inputBuffer A vector of floats containing the input buffer data.
- * @param maskBuffer A vector of floats containing the mask buffer data.
- * @param outputBuffer A vector of floats to store the computed output.
- * @return true if the residual block evaluation is implemented, false otherwise.
- */
 bool NeuralNet::testEvaluateResidualBlock(
   const ResidualBlockDesc* desc,
   int batchSize,
@@ -1139,50 +1307,16 @@ bool NeuralNet::testEvaluateResidualBlock(
   const vector<float>& maskBuffer,
   vector<float>& outputBuffer) {
 
+  // Metal backend only supports NCHW layout
+  if(useNHWC)
+    return false;
+
+  // useFP16 is ignored - MPSGraph tests use FP32
   (void)useFP16;
-  (void)useNHWC;
+
   return MetalProcess::testEvaluateResidualBlock(desc, batchSize, nnXLen, nnYLen, inputBuffer, maskBuffer, outputBuffer);
 }
 
-bool MetalProcess::testEvaluateGlobalPoolingResidualBlock(const GlobalPoolingResidualBlockDesc* desc,
-                                                          int batchSize,
-                                                          int nnXLen,
-                                                          int nnYLen,
-                                                          const vector<float>& inputBuffer,
-                                                          const vector<float>& maskBuffer,
-                                                          vector<float>& outputBuffer) {
-
-  size_t numTrunkFloats = (size_t)batchSize * nnXLen * nnYLen * desc->preBN.numChannels;
-  outputBuffer.resize(numTrunkFloats);
-
-  testGlobalPoolingResidualBlock(globalPoolingResidualBlockDescToSwift(desc),
-                                 batchSize,
-                                 nnXLen,
-                                 nnYLen,
-                                 (float*)inputBuffer.data(),
-                                 (float*)maskBuffer.data(),
-                                 (float*)outputBuffer.data());
-
-  return true;
-}
-
-/**
- * @brief Evaluate a global pooling residual block using Metal API for testing purposes.
- * This function evaluates a global pooling residual block using the Metal API for testing purposes.
- * The input buffer and output buffer are specified as vectors of floats, and the result of the computation
- * is stored in the output buffer. The function returns true if the evaluation is implemented.
- * @param desc A pointer to the GlobalPoolingResidualBlockDesc object describing the global pooling residual block to
- * evaluate.
- * @param batchSize The batch size to use for computation.
- * @param nnXLen The x length of the neural network computation context.
- * @param nnYLen The y length of the neural network computation context.
- * @param useFP16 A boolean indicating whether to use half-precision floating point format for computation.
- * @param useNHWC A boolean indicating whether to use NHWC layout for input and output buffers.
- * @param inputBuffer A vector of floats containing the input buffer data.
- * @param maskBuffer A vector of floats containing the mask buffer data.
- * @param outputBuffer A vector of floats to store the computed output.
- * @return true if the global pooling residual block evaluation is implemented, false otherwise.
- */
 bool NeuralNet::testEvaluateGlobalPoolingResidualBlock(
   const GlobalPoolingResidualBlockDesc* desc,
   int batchSize,
@@ -1194,9 +1328,14 @@ bool NeuralNet::testEvaluateGlobalPoolingResidualBlock(
   const vector<float>& maskBuffer,
   vector<float>& outputBuffer) {
 
+  // Metal backend only supports NCHW layout
+  if(useNHWC)
+    return false;
+
+  // useFP16 is ignored - MPSGraph tests use FP32
   (void)useFP16;
-  (void)useNHWC;
+
   return MetalProcess::testEvaluateGlobalPoolingResidualBlock(desc, batchSize, nnXLen, nnYLen, inputBuffer, maskBuffer, outputBuffer);
 }
 
-#endif  // USE_METAL_BACKEND
+#endif // USE_METAL_BACKEND

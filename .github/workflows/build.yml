@@ -97,6 +97,56 @@ jobs:
           name: katago-macos-opencl
           path: cpp/katago
 
+  build-macos-metal:
+    runs-on: macos-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          brew install ninja zlib libzip
+          brew tap chinchangyang/katagocoreml-cpp
+          brew install katagocoreml
+
+      - name: Cache CMake build
+        uses: actions/cache@v4
+        with:
+          path: |
+            cpp/CMakeCache.txt
+            cpp/CMakeFiles
+            cpp/build.ninja
+            cpp/.ninja_deps
+            cpp/.ninja_log
+          key: ${{ runner.os }}-cmake-metal-${{ hashFiles('**/CMakeLists.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-cmake-metal-
+
+      - name: Configure CMake
+        working-directory: cpp
+        run: |
+          cmake . -G Ninja -DUSE_BACKEND=METAL -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build
+        working-directory: cpp
+        run: |
+          ninja
+
+      - name: Run tests
+        working-directory: cpp
+        run: |
+          ./katago runtests
+
+      - name: Upload artifact
+        if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+        uses: actions/upload-artifact@v4
+        with:
+          name: katago-macos-metal
+          path: cpp/katago
+
   build-windows:
     runs-on: windows-latest
     permissions:
