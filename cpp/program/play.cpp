@@ -207,7 +207,7 @@ void GameInitializer::initShared(ConfigParser& cfg, Logger& logger) {
   sgfCompensateKomiProb = cfg.contains("sgfCompensateKomiProb") ? cfg.getDouble("sgfCompensateKomiProb",0.0,1.0) : forkCompensateKomiProb;
   komiAllowIntegerProb = cfg.contains("komiAllowIntegerProb") ? cfg.getDouble("komiAllowIntegerProb",0.0,1.0) : 1.0;
 
-  auto generateCumProbs = [](const vector<Sgf::PositionSample> poses, double lambda, double& effectiveSampleSize) {
+  auto generateCumProbs = [](const vector<Sgf::PositionSample>& poses, double lambda, double& effectiveSampleSize) {
     int64_t minInitialTurnNumber = 0;
     for(size_t i = 0; i<poses.size(); i++)
       minInitialTurnNumber = std::min(minInitialTurnNumber, poses[i].initialTurnNumber);
@@ -763,7 +763,7 @@ static void failIllegalMove(const Search* bot, Logger& logger, const Board& boar
   ASSERT_UNREACHABLE;
 }
 
-static void logSearch(const Search* bot, Logger& logger, Loc loc, OtherGameProperties otherGameProps) {
+static void logSearch(const Search* bot, Logger& logger, Loc loc, const OtherGameProperties& otherGameProps) {
   ostringstream sout;
   Board::printBoard(sout, bot->getRootBoard(), loc, &(bot->getRootHist().moveHistory));
   sout << "\n";
@@ -1256,8 +1256,8 @@ FinishedGameData* Play::runGame(
   const WaitableFlag* shouldPause,
   const PlaySettings& playSettings, const OtherGameProperties& otherGameProps,
   Rand& gameRand,
-  std::function<NNEvaluator*()> checkForNewNNEval,
-  std::function<void(const Board&, const BoardHistory&, Player, Loc, const std::vector<double>&, const std::vector<double>&, const std::vector<double>&, const Search*)> onEachMove
+  const std::function<NNEvaluator*()>& checkForNewNNEval,
+  const std::function<void(const Board&, const BoardHistory&, Player, Loc, const std::vector<double>&, const std::vector<double>&, const std::vector<double>&, const Search*)>& onEachMove
 ) {
   Search* botB;
   Search* botW;
@@ -1301,8 +1301,8 @@ FinishedGameData* Play::runGame(
   const WaitableFlag* shouldPause,
   const PlaySettings& playSettings, const OtherGameProperties& otherGameProps,
   Rand& gameRand,
-  std::function<NNEvaluator*()> checkForNewNNEval,
-  std::function<void(const Board&, const BoardHistory&, Player, Loc, const std::vector<double>&, const std::vector<double>&, const std::vector<double>&, const Search*)> onEachMove
+  const std::function<NNEvaluator*()>& checkForNewNNEval,
+  const std::function<void(const Board&, const BoardHistory&, Player, Loc, const std::vector<double>&, const std::vector<double>&, const std::vector<double>&, const Search*)>& onEachMove
 ) {
   FinishedGameData* gameData = new FinishedGameData();
 
@@ -2071,7 +2071,7 @@ FinishedGameData* Play::runGame(
   return gameData;
 }
 
-static void replayGameUpToMove(const FinishedGameData* finishedGameData, int moveIdx, Rules rules, Board& board, BoardHistory& hist, Player& pla) {
+static void replayGameUpToMove(const FinishedGameData* finishedGameData, int moveIdx, const Rules& rules, Board& board, BoardHistory& hist, Player& pla) {
   board = finishedGameData->startHist.initialBoard;
   pla = finishedGameData->startHist.initialPla;
 
@@ -2304,7 +2304,7 @@ void Play::maybeHintForkGame(
 }
 
 
-GameRunner::GameRunner(ConfigParser& cfg, PlaySettings pSettings, Logger& logger)
+GameRunner::GameRunner(ConfigParser& cfg, const PlaySettings& pSettings, Logger& logger)
   :logSearchInfo(),logMoves(),maxMovesPerGame(),clearBotBeforeSearch(),
    playSettings(pSettings),
    gameInit(NULL)
@@ -2317,7 +2317,7 @@ GameRunner::GameRunner(ConfigParser& cfg, PlaySettings pSettings, Logger& logger
   //Initialize object for randomizing game settings
   gameInit = new GameInitializer(cfg,logger);
 }
-GameRunner::GameRunner(ConfigParser& cfg, const string& gameInitRandSeed, PlaySettings pSettings, Logger& logger)
+GameRunner::GameRunner(ConfigParser& cfg, const string& gameInitRandSeed, const PlaySettings& pSettings, Logger& logger)
   :logSearchInfo(),logMoves(),maxMovesPerGame(),clearBotBeforeSearch(),
    playSettings(pSettings),
    gameInit(NULL)
@@ -2348,9 +2348,9 @@ FinishedGameData* GameRunner::runGame(
   Logger& logger,
   const std::function<bool()>& shouldStop,
   const WaitableFlag* shouldPause,
-  std::function<NNEvaluator*()> checkForNewNNEval,
-  std::function<void(const MatchPairer::BotSpec&, Search*)> afterInitialization,
-  std::function<void(const Board&, const BoardHistory&, Player, Loc, const std::vector<double>&, const std::vector<double>&, const std::vector<double>&, const Search*)> onEachMove
+  const std::function<NNEvaluator*()>& checkForNewNNEval,
+  const std::function<void(const MatchPairer::BotSpec&, Search*)>& afterInitialization,
+  const std::function<void(const Board&, const BoardHistory&, Player, Loc, const std::vector<double>&, const std::vector<double>&, const std::vector<double>&, const Search*)>& onEachMove
 ) const {
   MatchPairer::BotSpec botSpecB = bSpecB;
   MatchPairer::BotSpec botSpecW = bSpecW;

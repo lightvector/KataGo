@@ -231,7 +231,7 @@ static SGFMetadata makeBasicRankProfile(int inverseRankBlack, int inverseRankWhi
   return ret;
 }
 
-static SGFMetadata makeHistoricalProProfile(SimpleDate date) {
+static SGFMetadata makeHistoricalProProfile(const SimpleDate& date) {
   SGFMetadata ret;
   ret.initialized = true;
   ret.inverseBRank = 1;
@@ -244,7 +244,7 @@ static SGFMetadata makeHistoricalProProfile(SimpleDate date) {
   return ret;
 }
 
-static SGFMetadata makeModernProProfile(SimpleDate date) {
+static SGFMetadata makeModernProProfile(const SimpleDate& date) {
   SGFMetadata ret;
   ret.initialized = true;
   ret.inverseBRank = 1;

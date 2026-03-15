@@ -453,15 +453,15 @@ struct KGSCsvLine {
   string getKey() const {
     return date.toString() + "|$#" + sgfWUsername + "|$#" + sgfBUsername + "|" + Global::intToString(indexThisDayZeroIndexed);
   }
-  static string makeKey(SimpleDate date, string sgfWUsername, string sgfBUsername, int indexThisDayZeroIndexed) {
+  static string makeKey(const SimpleDate& date, const string &sgfWUsername, const string &sgfBUsername, int indexThisDayZeroIndexed) {
     return date.toString() + "|$#" + sgfWUsername + "|$#" + sgfBUsername + "|" + Global::intToString(indexThisDayZeroIndexed);
   }
 };
 
 static void readKgsCsv(
   const string& kgsCsv,
-  SimpleDate kgsCsvMinDate,
-  SimpleDate kgsCsvMaxDate,
+  const SimpleDate& kgsCsvMinDate,
+  const SimpleDate& kgsCsvMaxDate,
   Logger& logger,
   std::map<string,KGSCsvLine>& kgsCsvMap
 ) {
@@ -2438,7 +2438,7 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
   );
 
   auto printGameCountsMap = [&](
-    const std::map<string,int64_t> counts,
+    const std::map<string,int64_t>& counts,
     const string& label,
     bool sortByCount,
     std::map<string,int64_t>* accCounts

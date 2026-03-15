@@ -65,10 +65,10 @@ SearchThread::~SearchThread() {
 
 static const double VALUE_WEIGHT_DEGREES_OF_FREEDOM = 3.0;
 
-Search::Search(SearchParams params, NNEvaluator* nnEval, Logger* lg, const string& rSeed)
+Search::Search(const SearchParams& params, NNEvaluator* nnEval, Logger* lg, const string& rSeed)
   :Search(params,nnEval,NULL,lg,rSeed)
 {}
-Search::Search(SearchParams params, NNEvaluator* nnEval, NNEvaluator* humanEval, Logger* lg, const string& rSeed)
+Search::Search(const SearchParams& params, NNEvaluator* nnEval, NNEvaluator* humanEval, Logger* lg, const string& rSeed)
   :rootPla(P_BLACK),
    rootBoard(),
    rootHistory(),
@@ -252,12 +252,12 @@ void Search::setRootSymmetryPruningOnly(const std::vector<int>& v) {
 }
 
 
-void Search::setParams(SearchParams params) {
+void Search::setParams(const SearchParams& params) {
   clearSearch();
   searchParams = params;
 }
 
-void Search::setParamsNoClearing(SearchParams params) {
+void Search::setParamsNoClearing(const SearchParams& params) {
   searchParams = params;
 }
 
@@ -274,7 +274,7 @@ void Search::setCopyOfExternalPatternBonusTable(const std::unique_ptr<PatternBon
   setExternalPatternBonusTable(table == nullptr ? nullptr : std::make_unique<PatternBonusTable>(*table));
 }
 
-void Search::setExternalEvalCache(std::shared_ptr<EvalCacheTable> cache) {
+void Search::setExternalEvalCache(const std::shared_ptr<EvalCacheTable>& cache) {
   if(cache == evalCache)
     return;
   clearSearch();

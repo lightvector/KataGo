@@ -387,8 +387,8 @@ struct GTPEngine {
 
   GTPEngine(
     const string& modelFile, const string& hModelFile,
-    SearchParams initialGenmoveParams, SearchParams initialAnalysisParams,
-    Rules initialRules,
+    const SearchParams& initialGenmoveParams, const SearchParams& initialAnalysisParams,
+    const Rules& initialRules,
     bool assumeMultiBlackHandicap, bool prevtEncore, bool autoPattern,
     double dynamicPDACapPerOppLead, bool staticPDAPrecedence,
     double normAvoidRepeatedPatternUtility, double hcapAvoidRepeatedPatternUtility,
@@ -569,7 +569,7 @@ struct GTPEngine {
       bot->setCopyOfExternalPatternBonusTable(patternBonusTable);
   }
 
-  void setPositionAndRules(Player pla, const Board& board, const BoardHistory& h, const Board& newInitialBoard, Player newInitialPla, const vector<Move> newMoveHistory) {
+  void setPositionAndRules(Player pla, const Board& board, const BoardHistory& h, const Board& newInitialBoard, Player newInitialPla, const vector<Move>& newMoveHistory) {
     BoardHistory hist(h);
     //Ensure we always have this value correct
     hist.setAssumeMultipleStartingBlackMovesAreHandicap(assumeMultipleStartingBlackMovesAreHandicap);
@@ -751,7 +751,7 @@ struct GTPEngine {
     buf.resize(keptMoves);
   }
 
-  std::function<void(const Search* search)> getAnalyzeCallback(Player pla, AnalyzeArgs args) {
+  std::function<void(const Search* search)> getAnalyzeCallback(Player pla, const AnalyzeArgs& args) {
     std::function<void(const Search* search)> callback;
     //lz-analyze
     if(args.lz && !args.kata) {
@@ -1012,7 +1012,7 @@ struct GTPEngine {
     const GenmoveArgs& gargs,
     const AnalyzeArgs& args,
     bool playChosenMove,
-    std::function<void(const string&, bool)> printGTPResponse,
+    const std::function<void(const string&, bool)>& printGTPResponse,
     bool& maybeStartPondering
   ) {
     bool onMoveWasCalled = false;
@@ -1047,7 +1047,7 @@ struct GTPEngine {
     Logger& logger,
     const GenmoveArgs& gargs,
     const AnalyzeArgs& args,
-    std::function<void(const string&, bool)> printGTPResponse
+    const std::function<void(const string&, bool)>& printGTPResponse
   ) {
     // Make sure to capture things by value unless they're long-lived, since the callback needs to survive past the current scope.
     auto onMove = [pla,&logger,gargs,args,printGTPResponse,this](Loc moveLoc, int searchId, Search* search) {
@@ -1072,9 +1072,9 @@ struct GTPEngine {
 
   void launchGenMove(
     Player pla,
-    GenmoveArgs gargs,
-    AnalyzeArgs args,
-    std::function<void(Loc, int, Search*)> onMove
+    const GenmoveArgs& gargs,
+    const AnalyzeArgs& args,
+    const std::function<void(Loc, int, Search*)>& onMove
   ) {
     genmoveTimer.reset();
 
@@ -1386,7 +1386,7 @@ struct GTPEngine {
     clearStatsForNewGame();
   }
 
-  void analyze(Player pla, AnalyzeArgs args) {
+  void analyze(Player pla, const AnalyzeArgs& args) {
     assert(args.analyzing);
     if(isGenmoveParams) {
       bot->setParams(analysisParams);
@@ -1519,7 +1519,7 @@ struct GTPEngine {
     return isAlive;
   }
 
-  string rawNNBrief(std::vector<Loc> branch, int whichSymmetry) const {
+  string rawNNBrief(const std::vector<Loc>& branch, int whichSymmetry) const {
     if(nnEval == NULL)
       return "";
     ostringstream out;

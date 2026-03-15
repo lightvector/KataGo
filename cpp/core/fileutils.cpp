@@ -306,7 +306,7 @@ vector<string> FileUtils::listFiles(const std::string& dirname) {
   return collected;
 }
 
-void FileUtils::collectFiles(const string& dirname, std::function<bool(const string&)> fileFilter, vector<string>& collected)
+void FileUtils::collectFiles(const string& dirname, const std::function<bool(const string&)>& fileFilter, vector<string>& collected)
 {
   namespace gfs = ghc::filesystem;
   try {

@@ -27,9 +27,9 @@ static vector<PlayUtils::BenchmarkResults> doFixedTuneThreads(
   NNEvaluator*& nnEval,
   Logger& logger,
   double secondsPerGameMove,
-  vector<int> numThreadsToTest,
+  const vector<int>& numThreadsToTest,
   bool printElo,
-  std::function<int(int)> getDesiredBatchSize
+  const std::function<int(int)>& getDesiredBatchSize
 );
 static vector<PlayUtils::BenchmarkResults> doAutoTuneThreads(
   const SearchParams& params,
@@ -38,8 +38,8 @@ static vector<PlayUtils::BenchmarkResults> doAutoTuneThreads(
   NNEvaluator*& nnEval,
   Logger& logger,
   double secondsPerGameMove,
-  std::function<void(int)> reallocateNNEvalWithEnoughBatchSize,
-  std::function<int(int)> getDesiredBatchSize
+  const std::function<void(int)>& reallocateNNEvalWithEnoughBatchSize,
+  const std::function<int(int)>& getDesiredBatchSize
 );
 
 #ifdef USE_EIGEN_BACKEND
@@ -387,9 +387,9 @@ static vector<PlayUtils::BenchmarkResults> doFixedTuneThreads(
   NNEvaluator*& nnEval,
   Logger& logger,
   double secondsPerGameMove,
-  vector<int> numThreadsToTest,
+  const vector<int>& numThreadsToTest,
   bool printElo,
-  std::function<int(int)> getDesiredBatchSize
+  const std::function<int(int)>& getDesiredBatchSize
 ) {
   vector<PlayUtils::BenchmarkResults> results;
 
@@ -425,8 +425,8 @@ static vector<PlayUtils::BenchmarkResults> doAutoTuneThreads(
   NNEvaluator*& nnEval,
   Logger& logger,
   double secondsPerGameMove,
-  std::function<void(int)> reallocateNNEvalWithEnoughBatchSize,
-  std::function<int(int)> getDesiredBatchSize
+  const std::function<void(int)>& reallocateNNEvalWithEnoughBatchSize,
+  const std::function<int(int)>& getDesiredBatchSize
 ) {
   vector<PlayUtils::BenchmarkResults> results;
 
@@ -576,7 +576,7 @@ int MainCmds::genconfig(const vector<string>& args, const string& firstCommand) 
     return 1;
   }
 
-  auto promptAndParseInput = [](const string& prompt, std::function<void(const string&)> parse) {
+  auto promptAndParseInput = [](const string& prompt, const std::function<void(const string&)>& parse) {
     while(true) {
       try {
         cout << prompt << std::flush;

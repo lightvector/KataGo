@@ -365,7 +365,7 @@ struct ComputeContext {
     int nnY,
     enabled_t useFP16Mode,
     enabled_t useNHWCMode,
-    std::function<OpenCLTuneParams(const string&,int)> getParamsForDeviceName
+    const std::function<OpenCLTuneParams(const string&,int)>& getParamsForDeviceName
   ) :
     nnXLen(nnX),
     nnYLen(nnY),

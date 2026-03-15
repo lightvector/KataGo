@@ -1206,7 +1206,7 @@ void Search::printPVForMove(ostream& out, const SearchNode* n, Loc move, int max
   }
 }
 
-void Search::printTree(ostream& out, const SearchNode* node, PrintTreeOptions options, Player perspective) const {
+void Search::printTree(ostream& out, const SearchNode* node, const PrintTreeOptions& options, Player perspective) const {
   if(node == NULL)
     return;
   string prefix;

@@ -362,7 +362,7 @@ float PlayUtils::roundAndClipKomi(double unrounded, const Board& board) {
   return (float)(0.5 * round(2.0 * unrounded));
 }
 
-static SearchParams getNoiselessParams(SearchParams oldParams, int64_t numVisits) {
+static SearchParams getNoiselessParams(const SearchParams& oldParams, int64_t numVisits) {
   SearchParams newParams = oldParams;
   newParams.maxVisits = numVisits;
   newParams.maxPlayouts = numVisits;

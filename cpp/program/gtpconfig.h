@@ -11,7 +11,7 @@ namespace GTPConfig {
     int64_t maxPlayouts,
     double maxTime,
     double maxPonderTime,
-    std::vector<int> deviceIdxs,
+    const std::vector<int>& deviceIdxs,
     int nnCacheSizePowerOfTwo,
     int nnMutexPoolSizePowerOfTwo,
     int numSearchThreads

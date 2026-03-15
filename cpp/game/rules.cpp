@@ -254,7 +254,7 @@ string Rules::toJsonStringNoKomiMaybeOmitStuff() const {
   return toJsonHelper(true,true).dump();
 }
 
-Rules Rules::updateRules(const string& k, const string& v, Rules oldRules) {
+Rules Rules::updateRules(const string& k, const string& v, const Rules& oldRules) {
   Rules rules = oldRules;
   string key = Global::trim(k);
   string value = Global::trim(Global::toUpper(v));

@@ -351,7 +351,7 @@ bool NNEvaluator::isAnyThreadUsingFP16() const {
 }
 
 static void serveEvals(
-  string randSeedThisThread,
+  const string& randSeedThisThread,
   NNEvaluator* nnEval, const LoadedModel* loadedModel,
   int gpuIdxForThisThread,
   int serverThreadIdx

@@ -231,7 +231,7 @@ struct Board
   //Same, but sets multiple stones, and only requires that the final configuration contain no zero-liberty groups.
   //If it does contain a zero liberty group, fails and returns false and leaves the board in an arbitrarily changed but valid state.
   //Also returns false if any location is specified more than once.
-  bool setStonesFailIfNoLibs(std::vector<Move> placements);
+  bool setStonesFailIfNoLibs(const std::vector<Move>& placements);
 
   //Attempts to play the specified move. Returns true if successful, returns false if the move was illegal.
   bool playMove(Loc loc, Player pla, bool isMultiStoneSuicideLegal);

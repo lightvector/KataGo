@@ -179,7 +179,7 @@ static void maybeParseBonusFile(
   const std::string& bonusFile,
   int boardSizeX,
   int boardSizeY,
-  Rules rules,
+  const Rules& rules,
   int repBound,
   double bonusFileScale,
   Logger& logger,

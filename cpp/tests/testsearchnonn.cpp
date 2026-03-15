@@ -72,7 +72,7 @@ void Tests::runNNLessSearchTests() {
       }
       vector<pair<Loc,int>> moveLocsAndCountsSorted;
       std::copy(moveLocsAndCounts.begin(),moveLocsAndCounts.end(),std::back_inserter(moveLocsAndCountsSorted));
-      std::sort(moveLocsAndCountsSorted.begin(), moveLocsAndCountsSorted.end(), [](pair<Loc,int> a, pair<Loc,int> b) { return a.second > b.second; });
+      std::sort(moveLocsAndCountsSorted.begin(), moveLocsAndCountsSorted.end(), [](const pair<Loc,int>& a, const pair<Loc,int>& b) { return a.second > b.second; });
 
       for(int i = 0; i<moveLocsAndCountsSorted.size(); i++) {
         cout << Location::toString(moveLocsAndCountsSorted[i].first,board) << " " << moveLocsAndCountsSorted[i].second << endl;

@@ -727,7 +727,7 @@ bool Board::setStoneFailIfNoLibs(Loc loc, Color color) {
   return true;
 }
 
-bool Board::setStonesFailIfNoLibs(std::vector<Move> placements) {
+bool Board::setStonesFailIfNoLibs(const std::vector<Move>& placements) {
   std::set<Loc> locs;
   for(const Move& placement: placements) {
     if(locs.find(placement.loc) != locs.end())

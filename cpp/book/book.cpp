@@ -44,63 +44,63 @@ BookHash::BookHash(Hash128 hhash, Hash128 shash)
 :historyHash(hhash),stateHash(shash)
 {}
 
-bool BookHash::operator==(const BookHash other) const
+bool BookHash::operator==(const BookHash& other) const
 {return historyHash == other.historyHash && stateHash == other.stateHash;}
 
-bool BookHash::operator!=(const BookHash other) const
+bool BookHash::operator!=(const BookHash& other) const
 {return historyHash != other.historyHash || stateHash != other.stateHash;}
 
-bool BookHash::operator>(const BookHash other) const
+bool BookHash::operator>(const BookHash& other) const
 {
   if(stateHash > other.stateHash) return true;
   if(stateHash < other.stateHash) return false;
   return historyHash > other.historyHash;
 }
-bool BookHash::operator>=(const BookHash other) const
+bool BookHash::operator>=(const BookHash& other) const
 {
   if(stateHash > other.stateHash) return true;
   if(stateHash < other.stateHash) return false;
   return historyHash >= other.historyHash;
 }
-bool BookHash::operator<(const BookHash other) const
+bool BookHash::operator<(const BookHash& other) const
 {
   if(stateHash < other.stateHash) return true;
   if(stateHash > other.stateHash) return false;
   return historyHash < other.historyHash;
 }
-bool BookHash::operator<=(const BookHash other) const
+bool BookHash::operator<=(const BookHash& other) const
 {
   if(stateHash < other.stateHash) return true;
   if(stateHash > other.stateHash) return false;
   return historyHash <= other.historyHash;
 }
 
-BookHash BookHash::operator^(const BookHash other) const {
+BookHash BookHash::operator^(const BookHash& other) const {
   return BookHash(historyHash ^ other.historyHash, stateHash ^ other.stateHash);
 }
-BookHash BookHash::operator|(const BookHash other) const {
+BookHash BookHash::operator|(const BookHash& other) const {
   return BookHash(historyHash | other.historyHash, stateHash | other.stateHash);
 }
-BookHash BookHash::operator&(const BookHash other) const {
+BookHash BookHash::operator&(const BookHash& other) const {
   return BookHash(historyHash & other.historyHash, stateHash & other.stateHash);
 }
-BookHash& BookHash::operator^=(const BookHash other) {
+BookHash& BookHash::operator^=(const BookHash& other) {
   historyHash ^= other.historyHash;
   stateHash ^= other.stateHash;
   return *this;
 }
-BookHash& BookHash::operator|=(const BookHash other) {
+BookHash& BookHash::operator|=(const BookHash& other) {
   historyHash |= other.historyHash;
   stateHash |= other.stateHash;
   return *this;
 }
-BookHash& BookHash::operator&=(const BookHash other) {
+BookHash& BookHash::operator&=(const BookHash& other) {
   historyHash &= other.historyHash;
   stateHash &= other.stateHash;
   return *this;
 }
 
-std::ostream& operator<<(std::ostream& out, const BookHash other)
+std::ostream& operator<<(std::ostream& out, const BookHash& other)
 {
   out << other.stateHash << other.historyHash;
   return out;
@@ -256,7 +256,7 @@ BookMove::BookMove()
    biggestWLCostFromRoot(0.0)
 {}
 
-BookMove::BookMove(Loc mv, int s, BookHash h, double rp)
+BookMove::BookMove(Loc mv, int s, const BookHash& h, double rp)
   :move(mv),
    symmetryToAlign(s),
    hash(h),
@@ -286,7 +286,7 @@ BookMove BookMove::getSymBookMove(int symmetry, int xSize, int ySize) const {
 // -----------------------------------------------------------------------------------------------------------
 
 
-BookNode::BookNode(BookHash h, Book* b, Player p, const vector<int>& syms)
+BookNode::BookNode(const BookHash& h, Book* b, Player p, const vector<int>& syms)
   :hash(h),
    book(b),
    pla(p),
@@ -858,7 +858,7 @@ void BookParams::randomizeParams(Rand& rand, double stdev) {
 Book::Book(
   int bversion,
   const Board& b,
-  Rules r,
+  const Rules& r,
   Player p,
   int rb,
   BookParams bp
@@ -1302,21 +1302,21 @@ std::vector<SymBookNode> Book::getAllNodes() const {
   return ret;
 }
 
-int64_t Book::getIdx(BookHash hash) const {
+int64_t Book::getIdx(const BookHash& hash) const {
   std::map<BookHash,int64_t>& nodeIdxMap = nodeIdxMapsByHash[hash.stateHash.hash0 % NUM_HASH_BUCKETS];
   auto iter = nodeIdxMap.find(hash);
   if(iter == nodeIdxMap.end())
     throw StringError("Node idx not found for hash");
   return iter->second;
 }
-BookNode* Book::get(BookHash hash) {
+BookNode* Book::get(const BookHash& hash) {
   std::map<BookHash,int64_t>& nodeIdxMap = nodeIdxMapsByHash[hash.stateHash.hash0 % NUM_HASH_BUCKETS];
   auto iter = nodeIdxMap.find(hash);
   if(iter == nodeIdxMap.end())
     return nullptr;
   return nodes[iter->second];
 }
-const BookNode* Book::get(BookHash hash) const {
+const BookNode* Book::get(const BookHash& hash) const {
   const std::map<BookHash,int64_t>& nodeIdxMap = nodeIdxMapsByHash[hash.stateHash.hash0 % NUM_HASH_BUCKETS];
   auto iter = nodeIdxMap.find(hash);
   if(iter == nodeIdxMap.end())
@@ -1325,7 +1325,7 @@ const BookNode* Book::get(BookHash hash) const {
 }
 
 
-BookNode* Book::getAssertNotNull(BookHash hash) {
+BookNode* Book::getAssertNotNull(const BookHash& hash) {
   BookNode* node = get(hash);
   if(node == nullptr)
     throw StringError("getAssertNotNull: No book node found for the given hash " + hash.toString());
@@ -1340,13 +1340,13 @@ const BookNode* Book::getAssertNotNull(BookHash hash) const {
 }
 
 
-SymBookNode Book::getByHash(BookHash hash) {
+SymBookNode Book::getByHash(const BookHash& hash) {
   BookNode* node = get(hash);
   if(node == nullptr)
     return SymBookNode(nullptr);
   return SymBookNode(node,0);
 }
-ConstSymBookNode Book::getByHash(BookHash hash) const {
+ConstSymBookNode Book::getByHash(const BookHash& hash) const {
   const BookNode* node = get(hash);
   if(node == nullptr)
     return ConstSymBookNode(nullptr);

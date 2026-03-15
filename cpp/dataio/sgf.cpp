@@ -319,8 +319,8 @@ Sgf::~Sgf()
 template<typename T>
 T Sgf::traverse(
   T initialValue,
-  std::function<T(T, T)> reduce,
-  std::function<T(const Sgf*, T)> transform
+  const std::function<T(T, T)>& reduce,
+  const std::function<T(const Sgf*, T)>& transform
 ) const {
   std::vector<const Sgf*> stack;
   std::vector<size_t> nextChildIdxStack;
@@ -771,7 +771,7 @@ void Sgf::iterAllUniquePositions(
   bool flipIfPassOrWFirst,
   bool allowGameOver,
   Rand* rand,
-  std::function<void(PositionSample&,const BoardHistory&,const std::string&)> f
+  const std::function<void(PositionSample&,const BoardHistory&,const std::string&)>& f
 ) const {
   XYSize size = getXYSize();
   int xSize = size.x;
@@ -798,7 +798,7 @@ void Sgf::iterAllPositions(
   bool flipIfPassOrWFirst,
   bool allowGameOver,
   Rand* rand,
-  std::function<void(PositionSample&,const BoardHistory&,const std::string&)> f
+  const std::function<void(PositionSample&,const BoardHistory&,const std::string&)>& f
 ) const {
   XYSize size = getXYSize();
   int xSize = size.x;
@@ -838,7 +838,7 @@ void Sgf::iterAllPositionsHelper(
   bool isRoot,
   Rand* rand,
   std::vector<std::pair<int64_t,int64_t>>& variationTraceNodesBranch,
-  std::function<void(PositionSample&,const BoardHistory&,const std::string&)> f
+  const std::function<void(PositionSample&,const BoardHistory&,const std::string&)>& f
 ) const {
   vector<Move> buf;
   for(size_t i = 0; i<nodes.size(); i++) {
@@ -999,7 +999,7 @@ void Sgf::samplePositionHelper(
   bool flipIfPassOrWFirst,
   bool allowGameOver,
   const std::string& comments,
-  std::function<void(PositionSample&,const BoardHistory&,const std::string&)> f
+  const std::function<void(PositionSample&,const BoardHistory&,const std::string&)>& f
 ) const {
   //If the game is over or there were two consecutive passes, skip
   if(!allowGameOver) {
@@ -1685,7 +1685,7 @@ Rules CompactSgf::getRulesOrFailAllowUnspecified(const Rules& defaultRules) cons
   return rules;
 }
 
-Rules CompactSgf::getRulesOrWarn(const Rules& defaultRules, std::function<void(const string& msg)> f) const {
+Rules CompactSgf::getRulesOrWarn(const Rules& defaultRules, const std::function<void(const string& msg)>& f) const {
   if(!hasRules()) {
     Rules rules = defaultRules;
     if(rootNode.hasProperty("KM")) {
