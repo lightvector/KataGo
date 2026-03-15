@@ -129,7 +129,7 @@ ActivationKind activationLayerDescToSwift(const ActivationLayerDesc* desc) {
     case ACTIVATION_IDENTITY:
       return ActivationKind::identity();
     default:
-      return ActivationKind::identity();
+      throw StringError("Unhandled activation kind: " + std::to_string(desc->activation));
   }
 }
 
