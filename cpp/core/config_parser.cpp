@@ -459,14 +459,14 @@ void ConfigParser::warnUnusedKeys(ostream& out, Logger* logger) const {
   vector<string> unused = unusedKeys();
   vector<string> messages;
   if(unused.size() > 0) {
-    messages.push_back("--------------");
+    messages.emplace_back("--------------");
     messages.push_back("WARNING: Config had unused keys! You may have a typo, an option you specified is being unused from " + fileName);
   }
   for(size_t i = 0; i<unused.size(); i++) {
     messages.push_back("WARNING: Unused key '" + unused[i] + "' in " + fileName);
   }
   if(unused.size() > 0) {
-    messages.push_back("--------------");
+    messages.emplace_back("--------------");
   }
 
   if(logger) {
@@ -645,7 +645,7 @@ vector<std::pair<int,int>> ConfigParser::getNonNegativeIntDashedPairs(const stri
     if(p0 < min || p0 > max || p1 < min || p1 > max)
       throw IOError("Expected key '" + key + "' to have all values range " + Global::intToString(min) + " to " + Global::intToString(max) + " in config file " + fileName);
 
-    ret.push_back(std::make_pair(p0,p1));
+    ret.emplace_back(p0,p1);
   }
   return ret;
 }

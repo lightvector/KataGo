@@ -414,12 +414,14 @@ BookHash ConstSymBookNode::hash() {
 
 vector<int> SymBookNode::getSymmetries() {
   vector<int> symmetries;
+  symmetries.reserve(node->symmetries.size());
   for(int symmetry: node->symmetries)
     symmetries.push_back(SymmetryHelpers::compose(invSymmetryOfNode, symmetry, symmetryOfNode));
   return symmetries;
 }
 vector<int> ConstSymBookNode::getSymmetries() {
   vector<int> symmetries;
+  symmetries.reserve(node->symmetries.size());
   for(int symmetry: node->symmetries)
     symmetries.push_back(SymmetryHelpers::compose(invSymmetryOfNode, symmetry, symmetryOfNode));
   return symmetries;
@@ -456,6 +458,7 @@ vector<BookMove> SymBookNode::getUniqueMovesInBook() {
 vector<BookMove> ConstSymBookNode::getUniqueMovesInBook() {
   assert(node != nullptr);
   vector<BookMove> ret;
+  ret.reserve(node->moves.size());
   for(std::pair<Loc,BookMove> kv: node->moves) {
     ret.push_back(kv.second.getSymBookMove(symmetryOfNode, node->book->initialBoard.x_size, node->book->initialBoard.y_size));
   }
@@ -677,7 +680,7 @@ SymBookNode SymBookNode::playAndAddMove(Board& board, BoardHistory& hist, Loc mo
   else {
     childIsTransposing = true;
   }
-  child->parents.push_back(std::make_pair(node->hash, bestLoc));
+  child->parents.emplace_back(node->hash, bestLoc);
 
   BookMove newBookMove(
     bestLoc,
@@ -1021,8 +1024,9 @@ void Book::recomputeMultiThreaded(const std::vector<SymBookNode>& newAndChangedN
 
   // Spawn threads
   std::vector<std::thread> threads;
+  threads.reserve(numThreads);
   for(int i = 0; i < numThreads; i++) {
-    threads.push_back(std::thread([this, &dirtyNodes, &mutexPool, visitedDoneValue, i]() {
+    threads.emplace_back([this, &dirtyNodes, &mutexPool, visitedDoneValue, i]() {
       Rand rand;
       bool allDirty = false;
       iterateDirtyNodesPostOrder(
@@ -1051,8 +1055,9 @@ void Book::recomputeMultiThreaded(const std::vector<SymBookNode>& newAndChangedN
 
           // Acquire locks in sorted order
           std::vector<std::unique_lock<std::mutex>> locks;
+          locks.reserve(mutexIndices.size());
           for(uint32_t idx : mutexIndices) {
-            locks.push_back(std::unique_lock<std::mutex>(mutexPool.getMutex(idx)));
+            locks.emplace_back(mutexPool.getMutex(idx));
           }
 
           // Now safe to recompute
@@ -1063,7 +1068,7 @@ void Book::recomputeMultiThreaded(const std::vector<SymBookNode>& newAndChangedN
         &rand,
         visitedDoneValue
       );
-    }));
+    });
   }
 
   // Join all threads
@@ -1079,7 +1084,7 @@ void Book::recomputeMultiThreaded(const std::vector<SymBookNode>& newAndChangedN
 
   threads.clear();
   for(int i = 0; i < numThreads; i++) {
-    threads.push_back(std::thread([this, &mutexPool, visitedDoneValueForCosts, i]() {
+    threads.emplace_back([this, &mutexPool, visitedDoneValueForCosts, i]() {
       Rand rand;
       iterateEntireBookPreOrder(
         [this, &mutexPool](BookNode* node) {
@@ -1105,8 +1110,9 @@ void Book::recomputeMultiThreaded(const std::vector<SymBookNode>& newAndChangedN
 
           // Acquire locks in sorted order
           std::vector<std::unique_lock<std::mutex>> locks;
+          locks.reserve(mutexIndices.size());
           for(uint32_t idx : mutexIndices) {
-            locks.push_back(std::unique_lock<std::mutex>(mutexPool.getMutex(idx)));
+            locks.emplace_back(mutexPool.getMutex(idx));
           }
 
           // Now safe to recompute costs
@@ -1117,7 +1123,7 @@ void Book::recomputeMultiThreaded(const std::vector<SymBookNode>& newAndChangedN
         &rand,
         visitedDoneValueForCosts
       );
-    }));
+    });
   }
 
   // Join all threads
@@ -1135,8 +1141,9 @@ void Book::recomputeEverythingMultiThreaded(MutexPool& mutexPool, int numThreads
 
   // Spawn threads
   std::vector<std::thread> threads;
+  threads.reserve(numThreads);
   for(int i = 0; i < numThreads; i++) {
-    threads.push_back(std::thread([this, &mutexPool, visitedDoneValue, i]() {
+    threads.emplace_back([this, &mutexPool, visitedDoneValue, i]() {
       Rand rand;
       bool allDirty = true;
       iterateDirtyNodesPostOrder(
@@ -1165,8 +1172,9 @@ void Book::recomputeEverythingMultiThreaded(MutexPool& mutexPool, int numThreads
 
           // Acquire locks in sorted order
           std::vector<std::unique_lock<std::mutex>> locks;
+          locks.reserve(mutexIndices.size());
           for(uint32_t idx : mutexIndices) {
-            locks.push_back(std::unique_lock<std::mutex>(mutexPool.getMutex(idx)));
+            locks.emplace_back(mutexPool.getMutex(idx));
           }
 
           // Now safe to recompute
@@ -1177,7 +1185,7 @@ void Book::recomputeEverythingMultiThreaded(MutexPool& mutexPool, int numThreads
         &rand,
         visitedDoneValue
       );
-    }));
+    });
   }
 
   // Join all threads
@@ -1193,7 +1201,7 @@ void Book::recomputeEverythingMultiThreaded(MutexPool& mutexPool, int numThreads
 
   threads.clear();
   for(int i = 0; i < numThreads; i++) {
-    threads.push_back(std::thread([this, &mutexPool, visitedDoneValueForCosts, i]() {
+    threads.emplace_back([this, &mutexPool, visitedDoneValueForCosts, i]() {
       Rand rand;
       iterateEntireBookPreOrder(
         [this, &mutexPool](BookNode* node) {
@@ -1219,8 +1227,9 @@ void Book::recomputeEverythingMultiThreaded(MutexPool& mutexPool, int numThreads
 
           // Acquire locks in sorted order
           std::vector<std::unique_lock<std::mutex>> locks;
+          locks.reserve(mutexIndices.size());
           for(uint32_t idx : mutexIndices) {
-            locks.push_back(std::unique_lock<std::mutex>(mutexPool.getMutex(idx)));
+            locks.emplace_back(mutexPool.getMutex(idx));
           }
 
           // Now safe to recompute costs
@@ -1231,7 +1240,7 @@ void Book::recomputeEverythingMultiThreaded(MutexPool& mutexPool, int numThreads
         &rand,
         visitedDoneValueForCosts
       );
-    }));
+    });
   }
 
   // Join all threads
@@ -1286,6 +1295,7 @@ vector<SymBookNode> Book::getAllLeaves(double minVisits) {
 
 std::vector<SymBookNode> Book::getAllNodes() {
   vector<SymBookNode> ret;
+  ret.reserve(nodes.size());
   for(BookNode* node: nodes) {
     ret.push_back(SymBookNode(node,0));
   }
@@ -1520,7 +1530,7 @@ void Book::iterateDirtyNodesPostOrder(
 
   auto fillChildren = [&nextChildrenToTry,randToShuffle](const BookNode* node, size_t stackDepth) {
     if(nextChildrenToTry.size() <= stackDepth) {
-      nextChildrenToTry.push_back(std::vector<Loc>());
+      nextChildrenToTry.emplace_back();
     }
     assert(nextChildrenToTry[stackDepth].size() == 0);
     for(auto iter = node->moves.rbegin(); iter != node->moves.rend(); ++iter) {
@@ -3312,14 +3322,14 @@ Book* Book::loadFromFile(const std::string& fileName, int numThreadsForRecompute
           size_t nodeIdx = parentData["id"].get<size_t>();
           BookHash parentHash = hashDict[nodeIdx];
           Loc loc = Location::ofString(parentData["loc"].get<string>(),book->initialBoard);
-          node->parents.push_back(std::make_pair(parentHash,loc));
+          node->parents.emplace_back(parentHash,loc);
         }
       }
       else {
         for(json& parentData: nodeData["parents"]) {
           BookHash parentHash = BookHash::ofString(parentData["hash"].get<string>());
           Loc loc = Location::ofString(parentData["loc"].get<string>(),book->initialBoard);
-          node->parents.push_back(std::make_pair(parentHash,loc));
+          node->parents.emplace_back(parentHash,loc);
         }
       }
     }

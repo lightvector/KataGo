@@ -205,7 +205,7 @@ void SgfNode::accumPlacements(vector<Move>& moves, int xSize, int ySize) const {
       for(int x = x1; x <= x2; x++) {
         for(int y = y1; y <= y2; y++) {
           Loc loc = Location::getLoc(x,y,xSize);
-          moves.push_back(Move(loc,color));
+          moves.emplace_back(loc,color);
         }
       }
     }
@@ -229,10 +229,10 @@ void SgfNode::accumMoves(vector<Move>& moves, int xSize, int ySize) const {
   if(move.pla == C_BLACK) {
     if((move.x == COORD_MAX && move.y == COORD_MAX) ||
        (move.x == 19 && move.y == 19 && (xSize <= 19 || ySize <= 19))) //handle "tt"
-      moves.push_back(Move(Board::PASS_LOC,move.pla));
+      moves.emplace_back(Board::PASS_LOC,move.pla);
     else {
       if(move.x >= xSize || move.y >= ySize) propertyFail("Move out of bounds: " + Global::intToString(move.x) + "," + Global::intToString(move.y));
-      moves.push_back(Move(Location::getLoc(move.x,move.y,xSize),move.pla));
+      moves.emplace_back(Location::getLoc(move.x,move.y,xSize),move.pla);
     }
   }
   if(props != nullptr && contains(*props,"B")) {
@@ -240,16 +240,16 @@ void SgfNode::accumMoves(vector<Move>& moves, int xSize, int ySize) const {
     size_t len = b.size();
     for(size_t i = 0; i<len; i++) {
       Loc loc = parseSgfLocOrPass(b[i],xSize,ySize);
-      moves.push_back(Move(loc,P_BLACK));
+      moves.emplace_back(loc,P_BLACK);
     }
   }
   if(move.pla == C_WHITE) {
     if((move.x == COORD_MAX && move.y == COORD_MAX) ||
        (move.x == 19 && move.y == 19 && (xSize <= 19 || ySize <= 19))) //handle "tt"
-      moves.push_back(Move(Board::PASS_LOC,move.pla));
+      moves.emplace_back(Board::PASS_LOC,move.pla);
     else {
       if(move.x >= xSize || move.y >= ySize) propertyFail("Move out of bounds: " + Global::intToString(move.x) + "," + Global::intToString(move.y));
-      moves.push_back(Move(Location::getLoc(move.x,move.y,xSize),move.pla));
+      moves.emplace_back(Location::getLoc(move.x,move.y,xSize),move.pla);
     }
   }
   if(props != nullptr && contains(*props,"W")) {
@@ -257,7 +257,7 @@ void SgfNode::accumMoves(vector<Move>& moves, int xSize, int ySize) const {
     size_t len = w.size();
     for(size_t i = 0; i<len; i++) {
       Loc loc = parseSgfLocOrPass(w[i],xSize,ySize);
-      moves.push_back(Move(loc,P_WHITE));
+      moves.emplace_back(loc,P_WHITE);
     }
   }
 }
@@ -948,7 +948,7 @@ void Sgf::iterAllPositionsHelper(
     size_t i = permutation[c];
     std::unique_ptr<Board> copy = std::make_unique<Board>(board);
     std::unique_ptr<BoardHistory> histCopy = std::make_unique<BoardHistory>(hist);
-    variationTraceNodesBranch.push_back(std::make_pair((int64_t)nodes.size(),(int64_t)i));
+    variationTraceNodesBranch.emplace_back((int64_t)nodes.size(),(int64_t)i);
     children[i]->iterAllPositionsHelper(
       *copy,*histCopy,nextPla,rules,xSize,ySize,sampleBuf,uniqueHashes,requireUnique,hashComments,hashParent,flipIfPassOrWFirst,allowGameOver,false,rand,variationTraceNodesBranch,f
     );
@@ -1095,8 +1095,10 @@ string Sgf::PositionSample::toJsonLine(const Sgf::PositionSample& sample) {
   data["nextPla"] = PlayerIO::playerToStringShort(sample.nextPla);
   vector<string> moveLocs;
   vector<string> movePlas;
+  moveLocs.reserve(sample.moves.size());
   for(size_t i = 0; i<sample.moves.size(); i++)
     moveLocs.push_back(Location::toString(sample.moves[i].loc,sample.board));
+  movePlas.reserve(sample.moves.size());
   for(size_t i = 0; i<sample.moves.size(); i++)
     movePlas.push_back(PlayerIO::playerToStringShort(sample.moves[i].pla));
 
@@ -1127,7 +1129,7 @@ Sgf::PositionSample Sgf::PositionSample::ofJsonLine(const string& s) {
     for(size_t i = 0; i<moveLocs.size(); i++) {
       Loc moveLoc = Location::ofString(moveLocs[i],sample.board);
       Player movePla = PlayerIO::parsePlayer(movePlas[i]);
-      sample.moves.push_back(Move(moveLoc,movePla));
+      sample.moves.emplace_back(moveLoc,movePla);
     }
     sample.initialTurnNumber = data["initialTurnNumber"].get<int64_t>();
     string hintLocStr = Global::toLower(Global::trim(data["hintLoc"].get<string>()));

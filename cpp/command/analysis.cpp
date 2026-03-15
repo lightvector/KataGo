@@ -436,7 +436,7 @@ int MainCmds::analysis(const vector<string>& args) {
     AsyncBot* bot = new AsyncBot(defaultParams, nnEval, humanEval, &logger, searchRandSeed);
     bot->setCopyOfExternalPatternBonusTable(patternBonusTable);
     bot->setExternalEvalCache(evalCache);
-    threads.push_back(std::thread(analysisLoopProtected,bot,threadIdx));
+    threads.emplace_back(analysisLoopProtected,bot,threadIdx);
     bots.push_back(bot);
   }
 
@@ -792,7 +792,7 @@ int MainCmds::analysis(const vector<string>& args) {
             reportErrorForId(rbase.id, field, "Could not parse board location: " + s1);
             return false;
           }
-          buf.push_back(Move(loc,pla));
+          buf.emplace_back(loc,pla);
         }
         return true;
       };

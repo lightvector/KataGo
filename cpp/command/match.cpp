@@ -101,8 +101,8 @@ int MainCmds::match(const vector<string>& args) {
         if(!includeBot[j])
           continue;
         if(i < j && !(contains(secondaryBotIdxs,i) && contains(secondaryBotIdxs,j))) {
-          matchupsPerRound.push_back(make_pair(i,j));
-          matchupsPerRound.push_back(make_pair(j,i));
+          matchupsPerRound.emplace_back(i,j);
+          matchupsPerRound.emplace_back(j,i);
         }
       }
     }
@@ -113,11 +113,11 @@ int MainCmds::match(const vector<string>& args) {
         int p0 = pair.first;
         int p1 = pair.second;
         if(cfg.contains("extraPairsAreOneSidedBW") && cfg.getBool("extraPairsAreOneSidedBW")) {
-          matchupsPerRound.push_back(std::make_pair(p0,p1));
+          matchupsPerRound.emplace_back(p0,p1);
         }
         else {
-          matchupsPerRound.push_back(std::make_pair(p0,p1));
-          matchupsPerRound.push_back(std::make_pair(p1,p0));
+          matchupsPerRound.emplace_back(p0,p1);
+          matchupsPerRound.emplace_back(p1,p0);
         }
       }
     }
@@ -337,8 +337,9 @@ int MainCmds::match(const vector<string>& args) {
 
   Rand hashRand;
   vector<std::thread> threads;
+  threads.reserve(numGameThreads);
   for(int i = 0; i<numGameThreads; i++) {
-    threads.push_back(std::thread(runMatchLoopProtected, hashRand.nextUInt64()));
+    threads.emplace_back(runMatchLoopProtected, hashRand.nextUInt64());
   }
   for(int i = 0; i<threads.size(); i++)
     threads[i].join();

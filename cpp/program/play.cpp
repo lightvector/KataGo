@@ -156,7 +156,7 @@ void GameInitializer::initShared(ConfigParser& cfg, Logger& logger) {
         int x = allowedBEdges[i];
         int y = allowedBEdges[j];
         if(x == y) {
-          allowedBSizes.push_back(std::make_pair(x,y));
+          allowedBSizes.emplace_back(x,y);
           allowedBSizeRelProbs.push_back(
             (1.0 - allowRectangleProb) * allowedBEdgeRelProbs[i] / relProbSum +
             allowRectangleProb * allowedBEdgeRelProbs[i] * allowedBEdgeRelProbs[j] / relProbSum / relProbSum
@@ -164,7 +164,7 @@ void GameInitializer::initShared(ConfigParser& cfg, Logger& logger) {
         }
         else {
           if(allowRectangleProb > 0.0) {
-            allowedBSizes.push_back(std::make_pair(x,y));
+            allowedBSizes.emplace_back(x,y);
             allowedBSizeRelProbs.push_back(
               allowRectangleProb * allowedBEdgeRelProbs[i] * allowedBEdgeRelProbs[j] / relProbSum / relProbSum
             );
@@ -834,7 +834,7 @@ void Play::extractPolicyTarget(
   for(int moveIdx = 0; moveIdx<locsBuf.size(); moveIdx++) {
     double value = playSelectionValuesBuf[moveIdx] * factor;
     assert(value <= 30001.0);
-    buf.push_back(PolicyTargetMove(locsBuf[moveIdx],(int16_t)round(value)));
+    buf.emplace_back(locsBuf[moveIdx],(int16_t)round(value));
   }
 }
 
@@ -872,13 +872,11 @@ static void extractQValueTargets(
       continue;
 
     Loc moveLoc = childPtr.getMoveLoc();
-    buf.push_back(
-      QValueTargetMove(
-        moveLoc,
-        (float)values.winLossValue,
-        (float)values.expectedScore,
-        values.visits
-      )
+    buf.emplace_back(
+      moveLoc,
+      (float)values.winLossValue,
+      (float)values.expectedScore,
+      values.visits
     );
   }
 }
@@ -1416,7 +1414,7 @@ FinishedGameData* Play::runGame(
           botW->setNNEval(newNNEval);
         botSpecB.nnEval = newNNEval;
         botSpecW.nnEval = newNNEval;
-        gameData->changedNeuralNets.push_back(new ChangedNeuralNet(newNNEval->getModelName(),nextTurnIdx));
+        gameData->changedNeuralNets.emplace_back(new ChangedNeuralNet(newNNEval->getModelName(),nextTurnIdx));
       }
     }
   };
@@ -1573,13 +1571,13 @@ FinishedGameData* Play::runGame(
     if(!recordFullData) {
       //Go ahead and record this anyways with just the visits, as a bit of a hack so that the sgf output can also write the number of visits.
       int64_t unreducedNumVisits = toMoveBot->getRootVisits();
-      gameData->policyTargetsByTurn.push_back(PolicyTarget(NULL,unreducedNumVisits));
+      gameData->policyTargetsByTurn.emplace_back(nullptr,unreducedNumVisits);
     }
     else {
       vector<PolicyTargetMove>* policyTarget = new vector<PolicyTargetMove>();
       int64_t unreducedNumVisits = toMoveBot->getRootVisits();
       Play::extractPolicyTarget(*policyTarget, toMoveBot, toMoveBot->rootNode, locsBuf, playSelectionValuesBuf);
-      gameData->policyTargetsByTurn.push_back(PolicyTarget(policyTarget,unreducedNumVisits));
+      gameData->policyTargetsByTurn.emplace_back(policyTarget,unreducedNumVisits);
       gameData->nnRawStatsByTurn.push_back(computeNNRawStats(toMoveBot, board, hist, pla));
 
       gameData->targetWeightByTurn.push_back(limits.targetWeight);

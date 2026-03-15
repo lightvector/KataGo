@@ -932,7 +932,7 @@ int MainCmds::genbook(const vector<string>& args) {
           if(loc == Board::NULL_LOC || loc == moveLoc)
             continue;
           if(policyProbs[pos] > 0.0 && policyProbs[pos] > 1.5 * moveLocPolicy + 0.05f)
-            extraMoveLocsToExpand.push_back(std::make_pair(loc,policyProbs[pos]));
+            extraMoveLocsToExpand.emplace_back(loc,policyProbs[pos]);
         }
         std::sort(
           extraMoveLocsToExpand.begin(),
@@ -1361,8 +1361,9 @@ int MainCmds::genbook(const vector<string>& args) {
       for(SymBookNode node: allNodes)
         positionsToTrace.forcePush(node);
       vector<std::thread> threads;
+      threads.reserve(numGameThreads);
       for(int gameThreadIdx = 0; gameThreadIdx<numGameThreads; gameThreadIdx++) {
-        threads.push_back(std::thread(loopAddingVariations, gameThreadIdx));
+        threads.emplace_back(loopAddingVariations, gameThreadIdx);
       }
       for(int gameThreadIdx = 0; gameThreadIdx<numGameThreads; gameThreadIdx++) {
         threads[gameThreadIdx].join();
@@ -1433,8 +1434,9 @@ int MainCmds::genbook(const vector<string>& args) {
       for(BookHash hash: nodesHashesToUpdate)
         hashesToUpdate.forcePush(hash);
       vector<std::thread> threads;
+      threads.reserve(numGameThreads);
       for(int gameThreadIdx = 0; gameThreadIdx<numGameThreads; gameThreadIdx++) {
-        threads.push_back(std::thread(loopUpdatingHashes, gameThreadIdx));
+        threads.emplace_back(loopUpdatingHashes, gameThreadIdx);
       }
       for(int gameThreadIdx = 0; gameThreadIdx<numGameThreads; gameThreadIdx++) {
         threads[gameThreadIdx].join();
@@ -1512,8 +1514,9 @@ int MainCmds::genbook(const vector<string>& args) {
       };
 
       vector<std::thread> threads;
+      threads.reserve(numGameThreads);
       for(int gameThreadIdx = 0; gameThreadIdx<numGameThreads; gameThreadIdx++) {
-        threads.push_back(std::thread(loopExpandingNodes, gameThreadIdx));
+        threads.emplace_back(loopExpandingNodes, gameThreadIdx);
       }
       for(int gameThreadIdx = 0; gameThreadIdx<numGameThreads; gameThreadIdx++) {
         threads[gameThreadIdx].join();
@@ -1873,7 +1876,7 @@ int MainCmds::booktoposes(const vector<string>& args) {
 
   std::vector<ConstSymBookNode> nodesToExplore;
   std::vector<int> depthsToExplore;
-  nodesToExplore.push_back(book->getRoot());
+  nodesToExplore.emplace_back(book->getRoot());
   depthsToExplore.push_back(0);
 
   logger.write("Beginning book sweep");
@@ -2062,8 +2065,9 @@ int MainCmds::booktoposes(const vector<string>& args) {
   };
 
   vector<std::thread> threads;
+  threads.reserve(numThreads);
   for(int threadIdx = 0; threadIdx<numThreads; threadIdx++) {
-    threads.push_back(std::thread(processPoses, threadIdx));
+    threads.emplace_back(processPoses, threadIdx);
   }
   for(int threadIdx = 0; threadIdx<numThreads; threadIdx++) {
     threads[threadIdx].join();
@@ -2319,7 +2323,7 @@ int MainCmds::findbookbottlenecks(const vector<string>& args) {
   {
     std::vector<NodeAndDepthInfo> nodesToExplore;
     std::set<BookHash> visited;
-    nodesToExplore.push_back(NodeAndDepthInfo(book->getRoot(), 0, 0.0, 0.0, 0.0));
+    nodesToExplore.emplace_back(book->getRoot(), 0, 0.0, 0.0, 0.0);
 
     for(size_t i = 0; i<nodesToExplore.size(); i++) {
       NodeAndDepthInfo info = nodesToExplore[i];
@@ -2388,6 +2392,7 @@ int MainCmds::findbookbottlenecks(const vector<string>& args) {
 
   // Combine all groups into a single vector
   std::vector<ThresholdGroup> allGroups;
+  allGroups.reserve(groupsByThresholdIncreasing.size());
   for(auto& pair : groupsByThresholdIncreasing) {
     allGroups.push_back(pair.second);
   }
@@ -2495,15 +2500,18 @@ int MainCmds::findbookbottlenecks(const vector<string>& args) {
       jsonEntry["increasing"] = group.increasing;
 
       std::vector<std::string> nodesToChangeList;
+      nodesToChangeList.reserve(result.nodes.size());
       for(const BookHash& h: result.nodes)
         nodesToChangeList.push_back(h.toString());
       jsonEntry["minSetToChange"] = nodesToChangeList;
       std::vector<int> nodesToChangeBranchCountsList;
+      nodesToChangeBranchCountsList.reserve(result.nodes.size());
       for(const BookHash& h: result.nodes)
         nodesToChangeBranchCountsList.push_back(book->getByHash(h).numUniqueMovesInBook());
       jsonEntry["minSetToChangeBranchCounts"] = nodesToChangeBranchCountsList;
 
       std::vector<std::string> moveHistoryStrings;
+      moveHistoryStrings.reserve(moveHistory.size());
       for(Loc move: moveHistory)
         moveHistoryStrings.push_back(Location::toString(move, book->initialBoard));
       jsonEntry["moveHistory"] = moveHistoryStrings;
@@ -2518,6 +2526,7 @@ int MainCmds::findbookbottlenecks(const vector<string>& args) {
         testAssert(suc2);
 
         std::vector<std::string> moveHistoryToChangeStrings;
+        moveHistoryToChangeStrings.reserve(moveHistoryToChange.size());
         for(Loc move : moveHistoryToChange)
           moveHistoryToChangeStrings.push_back(Location::toString(move, book->initialBoard));
         moveHistoryToChangeStringss.push_back(moveHistoryToChangeStrings);

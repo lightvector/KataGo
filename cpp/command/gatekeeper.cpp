@@ -548,8 +548,9 @@ int MainCmds::gatekeeper(const vector<string>& args) {
     std::thread newThread(dataWriteLoopProtected);
     newThread.detach();
     vector<std::thread> threads;
+    threads.reserve(numGameThreads);
     for(int i = 0; i<numGameThreads; i++) {
-      threads.push_back(std::thread(gameLoopProtected,i));
+      threads.emplace_back(gameLoopProtected,i);
     }
 
     //Wait for all game threads to stop

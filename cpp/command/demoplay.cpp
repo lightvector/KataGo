@@ -223,14 +223,14 @@ static void initializeDemoGame(Board& board, BoardHistory& hist, Player& pla, Ra
           Loc loc = chosenOpening[k].loc;
           Player movePla = chosenOpening[k].pla;
           if(loc == Board::NULL_LOC || loc == Board::PASS_LOC)
-            symmetric.push_back(Move(loc,movePla));
+            symmetric.emplace_back(loc,movePla);
           else {
             int x = Location::getX(loc,size);
             int y = Location::getY(loc,size);
             if(j & 1) x = size-1-x;
             if(j & 2) y = size-1-y;
             if(j & 4) std::swap(x,y);
-            symmetric.push_back(Move(Location::getLoc(x,y,size),movePla));
+            symmetric.emplace_back(Location::getLoc(x,y,size),movePla);
           }
         }
         chosenOpenings.push_back(symmetric);
