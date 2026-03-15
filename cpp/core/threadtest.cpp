@@ -114,12 +114,12 @@ void ThreadTest::runTests() {
     };
 
     std::vector<std::thread> threads;
-    threads.push_back(std::thread(f));
-    threads.push_back(std::thread(c0));
-    threads.push_back(std::thread(c1));
-    threads.push_back(std::thread(c2));
-    threads.push_back(std::thread(g));
-    threads.push_back(std::thread(h));
+    threads.emplace_back(f);
+    threads.emplace_back(c0);
+    threads.emplace_back(c1);
+    threads.emplace_back(c2);
+    threads.emplace_back(g);
+    threads.emplace_back(h);
 
     for(std::thread& thread: threads) {
       thread.join();
@@ -186,15 +186,15 @@ void ThreadTest::runTests() {
       ThreadSafeQueue<int> queue;
       std::vector<std::thread> writers;
       std::vector<std::thread> readers;
-      writers.push_back(std::thread(writer,&queue,0.50));
-      writers.push_back(std::thread(writer,&queue,0.40));
-      writers.push_back(std::thread(writer,&queue,0.30));
-      writers.push_back(std::thread(writer,&queue,0.25));
-      writers.push_back(std::thread(writer,&queue,0.20));
-      writers.push_back(std::thread(writer,&queue,0.15));
-      writers.push_back(std::thread(writer,&queue,0.12));
-      writers.push_back(std::thread(writer,&queue,0.10));
-      readers.push_back(std::thread(reader,&queue,0.30));
+      writers.emplace_back(writer,&queue,0.50);
+      writers.emplace_back(writer,&queue,0.40);
+      writers.emplace_back(writer,&queue,0.30);
+      writers.emplace_back(writer,&queue,0.25);
+      writers.emplace_back(writer,&queue,0.20);
+      writers.emplace_back(writer,&queue,0.15);
+      writers.emplace_back(writer,&queue,0.12);
+      writers.emplace_back(writer,&queue,0.10);
+      readers.emplace_back(reader,&queue,0.30);
       for(std::thread& thread: writers)
         thread.join();
       queue.setReadOnly();
@@ -209,16 +209,16 @@ void ThreadTest::runTests() {
       ThreadSafeQueue<int> queue;
       std::vector<std::thread> writers;
       std::vector<std::thread> readers;
-      writers.push_back(std::thread(writer,&queue,0.50));
-      writers.push_back(std::thread(writer,&queue,0.10));
-      readers.push_back(std::thread(reader,&queue,0.50));
-      readers.push_back(std::thread(reader,&queue,0.45));
-      readers.push_back(std::thread(reader,&queue,0.40));
-      readers.push_back(std::thread(reader,&queue,0.35));
-      readers.push_back(std::thread(reader,&queue,0.30));
-      readers.push_back(std::thread(reader,&queue,0.25));
-      readers.push_back(std::thread(reader,&queue,0.20));
-      readers.push_back(std::thread(reader,&queue,0.15));
+      writers.emplace_back(writer,&queue,0.50);
+      writers.emplace_back(writer,&queue,0.10);
+      readers.emplace_back(reader,&queue,0.50);
+      readers.emplace_back(reader,&queue,0.45);
+      readers.emplace_back(reader,&queue,0.40);
+      readers.emplace_back(reader,&queue,0.35);
+      readers.emplace_back(reader,&queue,0.30);
+      readers.emplace_back(reader,&queue,0.25);
+      readers.emplace_back(reader,&queue,0.20);
+      readers.emplace_back(reader,&queue,0.15);
       for(std::thread& thread: writers)
         thread.join();
       queue.setReadOnly();

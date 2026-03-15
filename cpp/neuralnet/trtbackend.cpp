@@ -228,7 +228,7 @@ struct ModelParser {
     debugOutput->setName(debugOutputName.c_str());
     debugOutput->setType(DataType::kFLOAT);
     debugOutput->setAllowedFormats(1U << static_cast<int>(TensorFormat::kLINEAR));
-    model->debugOutputs.push_back(pair<string, string>(debugOutputName, description));
+    model->debugOutputs.emplace_back(debugOutputName, description);
 #else
     (void)tensor;
     (void)description;
@@ -1049,7 +1049,7 @@ struct TRTErrorRecorder : IErrorRecorder {
   }
   bool reportError(ErrorCode val, IErrorRecorder::ErrorDesc desc) noexcept {
     std::lock_guard<std::mutex> lock(mutex);
-    errors.push_back(std::make_pair(val,string(desc)));
+    errors.emplace_back(val,string(desc));
     if(
       (val != ErrorCode::kUNSPECIFIED_ERROR && val != ErrorCode::kSUCCESS)
       || (errors[errors.size()-1].second.find("Cask convolution") != std::string::npos)

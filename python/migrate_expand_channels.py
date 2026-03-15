@@ -30,7 +30,7 @@ output_path = args["output"]
 with open(new_config_path,"r") as f:
     new_config = json.load(f)
 
-data = torch.load(checkpoint_path,map_location="cpu")
+data = katago.train.load_model.load_checkpoint(checkpoint_path)
 
 assert set(data["config"].keys()) == set(new_config.keys())
 

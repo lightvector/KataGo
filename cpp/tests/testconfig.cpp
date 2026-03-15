@@ -222,6 +222,100 @@ a-x = c-y
 notrailing = newline is okay)%%";
     testAssert(!isCfgFail(s));
   }
+
+  // Test that getInt/getFloat/getDouble without range args accept the full range of values
+  {
+    string s = R"%%(
+negInt = -42
+zeroInt = 0
+posInt = 100
+bigInt = 2000000000
+negInt64 = -9000000000000
+zeroInt64 = 0
+posUInt64 = 18000000000000
+negFloat = -3.5
+zeroFloat = 0.0
+posFloat = 1.5e20
+negDouble = -1.0e100
+zeroDouble = 0.0
+posDouble = 1.0e100
+)%%";
+    istringstream in(s);
+    ConfigParser cfg(in);
+
+    testAssert(cfg.getInt("negInt") == -42);
+    testAssert(cfg.getInt("zeroInt") == 0);
+    testAssert(cfg.getInt("posInt") == 100);
+    testAssert(cfg.getInt("bigInt") == 2000000000);
+
+    testAssert(cfg.getInt64("negInt64") == -9000000000000LL);
+    testAssert(cfg.getInt64("zeroInt64") == 0);
+
+    testAssert(cfg.getUInt64("posUInt64") == 18000000000000ULL);
+
+    testAssert(cfg.getFloat("negFloat") == -3.5f);
+    testAssert(cfg.getFloat("zeroFloat") == 0.0f);
+    testAssert(cfg.getFloat("posFloat") == 1.5e20f);
+
+    testAssert(cfg.getDouble("negDouble") == -1.0e100);
+    testAssert(cfg.getDouble("zeroDouble") == 0.0);
+    testAssert(cfg.getDouble("posDouble") == 1.0e100);
+  }
+
+  // Test that getInt/getFloat/getDouble with range args reject out-of-range values
+  {
+    string s = R"%%(
+val = 5
+fval = 2.5
+)%%";
+    istringstream in(s);
+    ConfigParser cfg(in);
+
+    testAssert(cfg.getInt("val", 0, 10) == 5);
+    testAssert(cfg.getFloat("fval", 0.0f, 5.0f) == 2.5f);
+    testAssert(cfg.getDouble("fval", 0.0, 5.0) == 2.5);
+
+    bool failed = false;
+    try { cfg.getInt("val", 10, 20); } catch(const IOError&) { failed = true; }
+    testAssert(failed);
+
+    failed = false;
+    try { cfg.getFloat("fval", 5.0f, 10.0f); } catch(const IOError&) { failed = true; }
+    testAssert(failed);
+
+    failed = false;
+    try { cfg.getDouble("fval", 5.0, 10.0); } catch(const IOError&) { failed = true; }
+    testAssert(failed);
+  }
+
+  // Test that getInts/getFloats/getDoubles without range args accept the full range
+  {
+    string s = R"%%(
+ints = -100, 0, 100
+floats = -1.5, 0.0, 1.5
+doubles = -1.0e50, 0.0, 1.0e50
+)%%";
+    istringstream in(s);
+    ConfigParser cfg(in);
+
+    vector<int> ints = cfg.getInts("ints");
+    testAssert(ints.size() == 3);
+    testAssert(ints[0] == -100);
+    testAssert(ints[1] == 0);
+    testAssert(ints[2] == 100);
+
+    vector<float> floats = cfg.getFloats("floats");
+    testAssert(floats.size() == 3);
+    testAssert(floats[0] == -1.5f);
+    testAssert(floats[1] == 0.0f);
+    testAssert(floats[2] == 1.5f);
+
+    vector<double> doubles = cfg.getDoubles("doubles");
+    testAssert(doubles.size() == 3);
+    testAssert(doubles[0] == -1.0e50);
+    testAssert(doubles[1] == 0.0);
+    testAssert(doubles[2] == 1.0e50);
+  }
 }
 
 void Tests::runConfigTests(const vector<string>& args) {

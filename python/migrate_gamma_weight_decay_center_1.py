@@ -24,7 +24,7 @@ args = vars(parser.parse_args())
 checkpoint_path = args["checkpoint"]
 output_path = args["output"]
 
-data = torch.load(checkpoint_path,map_location="cpu")
+data = katago.train.load_model.load_checkpoint(checkpoint_path)
 
 if data["config"].get("gamma_weight_decay_center_1",False):
     raise ValueError("gamma_weight_decay_center_1 is already True: " + str(data["config"]))

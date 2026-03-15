@@ -1802,11 +1802,11 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
   vector<std::thread> threads;
   for(int i = 0; i<numProcessThreads; i++) {
     if(gameMode)
-      threads.push_back(std::thread(processSgfLoop));
+      threads.emplace_back(processSgfLoop);
     else if(treeMode)
-      threads.push_back(std::thread(processPosLoop));
+      threads.emplace_back(processPosLoop);
     else if(surpriseMode)
-      threads.push_back(std::thread(processPosLoop));
+      threads.emplace_back(processPosLoop);
   }
 
   // ---------------------------------------------------------------------------------------------------
@@ -2416,7 +2416,7 @@ int MainCmds::checksgfhintpolicy(const vector<string>& args) {
           BoardHistory histBefore;
           bool suc = priorPosSample.tryGetCurrentBoardHistory(rules,nextPla,histBefore);
           testAssert(suc);
-          Board board = histBefore.getRecentBoard(0);
+          const Board& board = histBefore.getRecentBoard(0);
 
           for(int symmetry = 0; symmetry < 8; symmetry++) {
             MiscNNInputParams nnInputParams;
@@ -2591,8 +2591,9 @@ int MainCmds::genposesfromselfplayinit(const vector<string>& args) {
   posWriter.start();
 
   vector<std::thread> threads;
+  threads.reserve(numProcessThreads);
   for(int i = 0; i<numProcessThreads; i++) {
-    threads.push_back(std::thread(genPosLoop));
+    threads.emplace_back(genPosLoop);
   }
 
   for(size_t i = 0; i<threads.size(); i++)

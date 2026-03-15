@@ -2238,7 +2238,7 @@ Caps 4420 4335
       for(int y = 0; y<b.y_size; y++) {
         for(int x = 0; x<b.x_size; x++) {
           Loc loc = Location::getLoc(x,y,b.x_size);
-          placements.push_back(Move(loc,b.colors[loc]));
+          placements.emplace_back(loc,b.colors[loc]);
         }
       }
       for(int i = 1; i<placements.size(); i++)
@@ -2251,7 +2251,7 @@ Caps 4420 4335
         for(int x = 0; x<b.x_size; x++) {
           Loc loc = Location::getLoc(x,y,b.x_size);
           if(b.colors[loc] != C_EMPTY)
-            placements.push_back(Move(loc,b.colors[loc]));
+            placements.emplace_back(loc,b.colors[loc]);
         }
       }
       for(int i = 1; i<placements.size(); i++)
@@ -2351,7 +2351,7 @@ Caps 4420 4335
         Loc loc = Location::getLoc(rand.nextUInt(board.x_size),rand.nextUInt(board.y_size),board.x_size);
         Player pla = rand.nextBool(0.5) ? P_BLACK : P_WHITE;
         if(board.isLegal(loc,pla,true)) {
-          placements.push_back(Move(loc,pla));
+          placements.emplace_back(loc,pla);
           bool anyCaps = board.wouldBeCapture(loc,pla) || board.isSuicide(loc,pla);
           board.playMoveAssumeLegal(loc,pla);
           Board copy(board.x_size,board.y_size);
@@ -2382,7 +2382,7 @@ Caps 4420 4335
         Loc loc = Location::getLoc(rand.nextUInt(board.x_size),rand.nextUInt(board.y_size),board.x_size);
         Color color = rand.nextBool(0.25) ? C_EMPTY : rand.nextBool(0.5) ? P_BLACK : P_WHITE;
 
-        placements.push_back(Move(loc,color));
+        placements.emplace_back(loc,color);
         if(prevPlacedLocs.find(loc) != prevPlacedLocs.end()) {
           Board copy(board.x_size,board.y_size);
           bool suc = copy.setStonesFailIfNoLibs(placements);
@@ -2507,9 +2507,9 @@ oxxxxx.xo
     //if(rep < 100)
     //  hist.printDebugInfo(cout,board);
 
-    testAssert(boardCopy.isEqualForTesting(board, true, true));
-    testAssert(boardCopy.isEqualForTesting(histCopy.getRecentBoard(0), true, true));
-    testAssert(histCopy.getRecentBoard(0).isEqualForTesting(hist.getRecentBoard(0), true, true));
+    testAssert(boardCopy.isEqualForTesting(board));
+    testAssert(boardCopy.isEqualForTesting(histCopy.getRecentBoard(0)));
+    testAssert(histCopy.getRecentBoard(0).isEqualForTesting(hist.getRecentBoard(0)));
     testAssert(BoardHistory::getSituationRulesAndKoHash(boardCopy,histCopy,pla,drawEquivalentWinsForWhite) == hist.getSituationRulesAndKoHash(board,hist,pla,drawEquivalentWinsForWhite));
     testAssert(histCopy.currentSelfKomi(P_BLACK, drawEquivalentWinsForWhite) == hist.currentSelfKomi(P_BLACK, drawEquivalentWinsForWhite));
     testAssert(histCopy.currentSelfKomi(P_WHITE, drawEquivalentWinsForWhite) == hist.currentSelfKomi(P_WHITE, drawEquivalentWinsForWhite));

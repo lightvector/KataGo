@@ -577,7 +577,7 @@ bool Tests::runBackendErrorTest(
     throw StringError("Unknown dataset to test gpu error on: " + boardSizeDataset);
 
   auto evalBoard = [&](NNEvaluator* nnE, const BoardHistory& hist) {
-    Board board = hist.getRecentBoard(0);
+    const Board& board = hist.getRecentBoard(0);
     MiscNNInputParams nnInputParams;
     nnInputParams.symmetry = (int)(BoardHistory::getSituationRulesAndKoHash(board,hist,hist.presumedNextMovePla,0.5).hash0 & 7);
     nnInputParams.policyOptimism = policyOptimismForTest;
@@ -612,6 +612,7 @@ bool Tests::runBackendErrorTest(
 
   if(verbose)
     logger.write("Running evaluations in fp32");
+  fp32.reserve(hists.size());
   for(const BoardHistory& hist: hists)
     fp32.push_back(evalBoard(nnEval32,hist));
 
@@ -630,8 +631,9 @@ bool Tests::runBackendErrorTest(
     std::vector<uint32_t> permutation(maxBatchSize);
     rand.fillShuffledUIntRange(maxBatchSize, permutation.data());
     vector<std::thread> threads;
+    threads.reserve(maxBatchSize);
     for(int i = 0; i<maxBatchSize; i++)
-      threads.push_back(std::thread(runThread,permutation[i]));
+      threads.emplace_back(runThread,permutation[i]);
     for(int i = 0; i<maxBatchSize; i++)
       threads[i].join();
   }
@@ -654,8 +656,9 @@ bool Tests::runBackendErrorTest(
       std::vector<uint32_t> permutation(maxBatchSize);
       rand.fillShuffledUIntRange(maxBatchSize, permutation.data());
       vector<std::thread> threads;
+      threads.reserve(maxBatchSize);
       for(int i = 0; i<maxBatchSize; i++)
-        threads.push_back(std::thread(runThread,permutation[i]));
+        threads.emplace_back(runThread,permutation[i]);
       for(int i = 0; i<maxBatchSize; i++)
         threads[i].join();
     }

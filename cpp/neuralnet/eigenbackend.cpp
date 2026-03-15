@@ -1128,17 +1128,17 @@ BlockStack::BlockStack(
     if (descBlocks[i].first == ORDINARY_BLOCK_KIND) {
       ResidualBlockDesc* blockDesc = (ResidualBlockDesc*)descBlocks[i].second.get();
       std::unique_ptr<ResidualBlockIntf> block = std::make_unique<ResidualBlock>(*blockDesc,nnX,nnY);
-      blocks.push_back(make_pair(ORDINARY_BLOCK_KIND, std::move(block)));
+      blocks.emplace_back(ORDINARY_BLOCK_KIND, std::move(block));
     }
     else if (descBlocks[i].first == GLOBAL_POOLING_BLOCK_KIND) {
       GlobalPoolingResidualBlockDesc* blockDesc = (GlobalPoolingResidualBlockDesc*)descBlocks[i].second.get();
       std::unique_ptr<GlobalPoolingResidualBlock> block = std::make_unique<GlobalPoolingResidualBlock>(*blockDesc,nnX,nnY);
-      blocks.push_back(make_pair(GLOBAL_POOLING_BLOCK_KIND, std::move(block)));
+      blocks.emplace_back(GLOBAL_POOLING_BLOCK_KIND, std::move(block));
     }
     else if (descBlocks[i].first == NESTED_BOTTLENECK_BLOCK_KIND) {
       NestedBottleneckResidualBlockDesc* blockDesc = (NestedBottleneckResidualBlockDesc*)descBlocks[i].second.get();
       std::unique_ptr<NestedBottleneckResidualBlock> block = std::make_unique<NestedBottleneckResidualBlock>(*blockDesc,nnX,nnY);
-      blocks.push_back(make_pair(NESTED_BOTTLENECK_BLOCK_KIND, std::move(block)));
+      blocks.emplace_back(NESTED_BOTTLENECK_BLOCK_KIND, std::move(block));
     }
     else {
       ASSERT_UNREACHABLE;
