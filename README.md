@@ -11,6 +11,7 @@
     - [OpenCL vs CUDA vs TensorRT vs ROCm vs Eigen vs ONNX](#opencl-vs-cuda-vs-tensorrt-vs-rocm-vs-eigen-vs-onnx)
     - [How To Use](#how-to-use)
       - [ONNX/OpenVINO Intel NPU Quick Start (Windows)](#onnxopenvino-intel-npu-quick-start-windows)
+      - [ONNX/OpenVINO Intel NPU Quick Start (Linux)](#onnxopenvino-intel-npu-quick-start-linux)
       - [Human-style Play and Analysis](#human-style-play-and-analysis)
       - [Other Commands:](#other-commands)
     - [Tuning for Performance](#tuning-for-performance)
@@ -151,16 +152,37 @@ If you want to use ONNX Runtime + OpenVINO on Intel NPU:
 Minimal commands:
 ```
 # 1) Export .bin/.bin.gz to ONNX (default export size is 19x19)
-./katago.exe exportonnx -model <NEURALNET>.bin.gz -output <NEURALNET>.19x19.onnx
+./katago.exe exportonnx -model <NEURALNET>.bin.gz -output <NEURALNET>.onnx
 
 # 2) Benchmark on Intel NPU (OpenVINO provider)
-./katago.exe benchmark -config cpp/configs/gtp_example.cfg -model <NEURALNET>.19x19.onnx -visits 32 -threads 1 -n 2 -override-config onnxProvider=openvino,onnxOpenVINODeviceType=NPU,numSearchThreads=1,numNNServerThreadsPerModel=1
+./katago.exe benchmark -config cpp/configs/gtp_example.cfg -model <NEURALNET>.onnx
 
 # 3) Run GTP for GUI tools (Sabaki/Lizzie/q5Go/etc)
-./katago.exe gtp -config cpp/configs/gtp_example.cfg -model <NEURALNET>.19x19.onnx
+./katago.exe gtp -config cpp/configs/gtp_example.cfg -model <NEURALNET>.onnx
 
 If you don't prepare config file, then use -override-config args, like:
-./katago.exe gtp -config cpp/configs/gtp_example.cfg -model <NEURALNET>.19x19.onnx -override-config onnxProvider=openvino,onnxOpenVINODeviceType=NPU
+./katago.exe gtp -config cpp/configs/gtp_example.cfg -model <NEURALNET>.onnx -override-config onnxProvider=openvino,onnxOpenVINODeviceType=NPU
+```
+
+#### ONNX/OpenVINO Intel NPU Quick Start (Linux)
+
+If you want to use ONNX Runtime + OpenVINO on Intel NPU:
+* Install Intel NPU driver (Linux): https://github.com/intel/linux-npu-driver
+* Install OpenVINO via system package manager (APT example): https://docs.openvino.ai/2025/get-started/install-openvino/install-openvino-apt.html
+
+Minimal commands:
+```bash
+# 1) Export .bin/.bin.gz to ONNX (default export size is 19x19)
+./katago exportonnx -model <NEURALNET>.bin.gz -output <NEURALNET>.onnx
+
+# 2) Benchmark on Intel NPU (OpenVINO provider)
+./katago benchmark -config cpp/configs/gtp_example.cfg -model <NEURALNET>.onnx
+
+# 3) Run GTP for GUI tools (Sabaki/Lizzie/q5Go/etc)
+./katago gtp -config cpp/configs/gtp_example.cfg -model <NEURALNET>.onnx
+
+# If you don't prepare config file, use -override-config:
+./katago gtp -config cpp/configs/gtp_example.cfg -model <NEURALNET>.onnx -override-config onnxProvider=openvino,onnxOpenVINODeviceType=NPU
 ```
 
 #### Human-style Play and Analysis
