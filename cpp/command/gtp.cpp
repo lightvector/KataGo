@@ -638,7 +638,7 @@ struct GTPEngine {
     assert(bot->getRootHist().rules == currentRules);
     bool suc = bot->makeMove(loc,pla,preventEncore);
     if(suc)
-      moveHistory.push_back(Move(loc,pla));
+      moveHistory.emplace_back(loc,pla);
     return suc;
   }
 
@@ -1034,7 +1034,7 @@ struct GTPEngine {
     if(moveLocToPlay != Board::NULL_LOC && playChosenMove) {
       bool suc = bot->makeMove(moveLocToPlay,pla,preventEncore);
       if(suc)
-        moveHistory.push_back(Move(moveLocToPlay,pla));
+        moveHistory.emplace_back(moveLocToPlay,pla);
       assert(suc);
       (void)suc; //Avoid warning when asserts are off
 
@@ -2466,15 +2466,15 @@ int MainCmds::gtp(const vector<string>& args) {
 
     else if(command == "kata-list-params") {
       std::vector<string> paramsList;
-      paramsList.push_back("analysisWideRootNoise");
-      paramsList.push_back("analysisIgnorePreRootHistory");
-      paramsList.push_back("genmoveAntiMirror");
-      paramsList.push_back("antiMirror");
-      paramsList.push_back("humanSLProfile");
-      paramsList.push_back("allowResignation");
-      paramsList.push_back("ponderingEnabled");
-      paramsList.push_back("delayMoveScale");
-      paramsList.push_back("delayMoveMax");
+      paramsList.emplace_back("analysisWideRootNoise");
+      paramsList.emplace_back("analysisIgnorePreRootHistory");
+      paramsList.emplace_back("genmoveAntiMirror");
+      paramsList.emplace_back("antiMirror");
+      paramsList.emplace_back("humanSLProfile");
+      paramsList.emplace_back("allowResignation");
+      paramsList.emplace_back("ponderingEnabled");
+      paramsList.emplace_back("delayMoveScale");
+      paramsList.emplace_back("delayMoveMax");
       nlohmann::json params = engine->getGenmoveParams().changeableParametersToJson();
       for(auto& elt : params.items()) {
         paramsList.push_back(elt.key());
@@ -2970,7 +2970,7 @@ int MainCmds::gtp(const vector<string>& args) {
             response += "could not parse vertex: '" + pieces[i+1] + "'";
             break;
           }
-          initialStones.push_back(Move(loc,pla));
+          initialStones.emplace_back(loc,pla);
         }
         if(!responseIsError) {
           maybeSaveAvoidPatterns(false);
@@ -3188,7 +3188,7 @@ int MainCmds::gtp(const vector<string>& args) {
             responseIsError = true;
             response = "Invalid handicap location: " + pieces[i];
           }
-          locs.push_back(Move(loc,P_BLACK));
+          locs.emplace_back(loc,P_BLACK);
         }
         bool suc = board.setStonesFailIfNoLibs(locs);
         if(!suc) {

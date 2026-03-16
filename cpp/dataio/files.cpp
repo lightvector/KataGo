@@ -161,8 +161,9 @@ void FileHelpers::collectPosesFromDirsOrFiles(const std::vector<std::string>& di
 
 void FileHelpers::sortNewestToOldest(std::vector<std::string>& files) {
   vector<std::pair<string, gfs::file_time_type>> filesWithTime;
+  filesWithTime.reserve(files.size());
   for(size_t i = 0; i<files.size(); i++)
-    filesWithTime.push_back(std::make_pair(files[i], gfs::last_write_time(gfs::u8path(files[i]))));
+    filesWithTime.emplace_back(files[i], gfs::last_write_time(gfs::u8path(files[i])));
 
   std::sort(
     filesWithTime.begin(),

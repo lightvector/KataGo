@@ -1158,7 +1158,7 @@ BlockStack::BlockStack(
           useNHWC
         )
       );
-      blocks.push_back(make_pair(ORDINARY_BLOCK_KIND,std::move(blockPtr)));
+      blocks.emplace_back(ORDINARY_BLOCK_KIND,std::move(blockPtr));
     }
     else if(descBlocks[i].first == GLOBAL_POOLING_BLOCK_KIND) {
       GlobalPoolingResidualBlockDesc* blockDesc = (GlobalPoolingResidualBlockDesc*)descBlocks[i].second.get();
@@ -1173,7 +1173,7 @@ BlockStack::BlockStack(
           useNHWC
         )
       );
-      blocks.push_back(make_pair(GLOBAL_POOLING_BLOCK_KIND,std::move(blockPtr)));
+      blocks.emplace_back(GLOBAL_POOLING_BLOCK_KIND,std::move(blockPtr));
     }
     else if(descBlocks[i].first == NESTED_BOTTLENECK_BLOCK_KIND) {
       NestedBottleneckResidualBlockDesc* blockDesc = (NestedBottleneckResidualBlockDesc*)descBlocks[i].second.get();
@@ -1188,7 +1188,7 @@ BlockStack::BlockStack(
           useNHWC
         )
       );
-      blocks.push_back(make_pair(NESTED_BOTTLENECK_BLOCK_KIND,std::move(blockPtr)));
+      blocks.emplace_back(NESTED_BOTTLENECK_BLOCK_KIND,std::move(blockPtr));
     }
     else {
       ASSERT_UNREACHABLE;

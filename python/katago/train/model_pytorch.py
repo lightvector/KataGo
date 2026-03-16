@@ -1,3 +1,6 @@
+
+# See ./LICENSE_AND_AUTHORS for info about the authors and licensing this file.
+
 import math
 import numpy as np
 import torch
@@ -6,9 +9,10 @@ import torch.nn.functional
 import torch.nn.init
 import packaging
 import packaging.version
-from typing import List, Dict, Optional, Set
+from dataclasses import dataclass
+from typing import Any, List, Dict, Optional, Set
 
-from torch.cuda.amp import autocast
+from torch.amp import autocast
 
 from ..train import modelconfigs
 
@@ -58,6 +62,8 @@ def act(activation, inplace=False):
         return torch.nn.ELU(inplace=inplace)
     if activation == "mish":
         return torch.nn.Mish(inplace=inplace)
+    if activation == "silu":
+        return torch.nn.SiLU(inplace=inplace)
     if activation == "gelu":
         return torch.nn.GELU(inplace=inplace)
     if activation == "hardswish":
@@ -76,6 +82,8 @@ def compute_gain(activation):
         gain = math.sqrt(1.55052)
     elif activation == "mish":
         gain = math.sqrt(2.210277)
+    elif activation == "silu":
+        gain = math.sqrt(2.0)  # Theoretically should be sqrt(2.8108), kept sqrt(2.0) for compat reasons.
     elif activation == "gelu":
         gain = math.sqrt(2.351718)
     elif activation == "identity":
@@ -474,7 +482,7 @@ class KataConvAndGPool(torch.nn.Module):
         self.normg.add_brenorm_clippage(upper_rclippage, lower_rclippage, dclippage)
 
 
-    def forward(self, x, mask, mask_sum_hw, mask_sum:float, extra_outputs: Optional[ExtraOutputs]):
+    def forward(self, x, mask, mask_sum_hw, mask_sum:float, extra_outputs: Optional[ExtraOutputs], block_shared_data: Optional[Dict[str, Any]] = None):
         """
         Parameters:
         x: NCHW
@@ -551,7 +559,7 @@ class KataConvAndAttentionPool(torch.nn.Module):
     def add_brenorm_clippage(self, upper_rclippage, lower_rclippage, dclippage):
         self.normg.add_brenorm_clippage(upper_rclippage, lower_rclippage, dclippage)
 
-    def forward(self, x, mask, mask_sum_hw, mask_sum:float, extra_outputs: Optional[ExtraOutputs]):
+    def forward(self, x, mask, mask_sum_hw, mask_sum:float, extra_outputs: Optional[ExtraOutputs], block_shared_data: Optional[Dict[str, Any]] = None):
         """
         Parameters:
         x: NCHW
@@ -709,7 +717,7 @@ class NormActConv(torch.nn.Module):
         if self.convpool is not None:
             self.convpool.add_brenorm_clippage(upper_rclippage, lower_rclippage, dclippage)
 
-    def forward(self, x, mask, mask_sum_hw, mask_sum: float, extra_outputs: Optional[ExtraOutputs]):
+    def forward(self, x, mask, mask_sum_hw, mask_sum: float, extra_outputs: Optional[ExtraOutputs], block_shared_data: Optional[Dict[str, Any]] = None):
         """
         Parameters:
         x: NCHW
@@ -793,7 +801,7 @@ class ResBlock(torch.nn.Module):
         self.normactconv1.add_brenorm_clippage(upper_rclippage, lower_rclippage, dclippage)
         self.normactconv2.add_brenorm_clippage(upper_rclippage, lower_rclippage, dclippage)
 
-    def forward(self, x, mask, mask_sum_hw, mask_sum: float, extra_outputs: Optional[ExtraOutputs]):
+    def forward(self, x, mask, mask_sum_hw, mask_sum: float, extra_outputs: Optional[ExtraOutputs], block_shared_data: Optional[Dict[str, Any]] = None):
         """
         Parameters:
         x: NCHW
@@ -909,7 +917,7 @@ class BottleneckResBlock(torch.nn.Module):
             self.normactconvstack[i].add_brenorm_clippage(upper_rclippage, lower_rclippage, dclippage)
         self.normactconvq.add_brenorm_clippage(upper_rclippage, lower_rclippage, dclippage)
 
-    def forward(self, x, mask, mask_sum_hw, mask_sum: float, extra_outputs: Optional[ExtraOutputs]):
+    def forward(self, x, mask, mask_sum_hw, mask_sum: float, extra_outputs: Optional[ExtraOutputs], block_shared_data: Optional[Dict[str, Any]] = None):
         """
         Parameters:
         x: NCHW
@@ -1015,7 +1023,7 @@ class NestedBottleneckResBlock(torch.nn.Module):
             self.blockstack[i].add_brenorm_clippage(upper_rclippage, lower_rclippage, dclippage)
         self.normactconvq.add_brenorm_clippage(upper_rclippage, lower_rclippage, dclippage)
 
-    def forward(self, x, mask, mask_sum_hw, mask_sum: float, extra_outputs: Optional[ExtraOutputs]):
+    def forward(self, x, mask, mask_sum_hw, mask_sum: float, extra_outputs: Optional[ExtraOutputs], block_shared_data: Optional[Dict[str, Any]] = None):
         """
         Parameters:
         x: NCHW
@@ -1125,7 +1133,7 @@ class NestedNestedBottleneckResBlock(torch.nn.Module):
             self.blockstack[i].add_brenorm_clippage(upper_rclippage, lower_rclippage, dclippage)
         self.normactconvq.add_brenorm_clippage(upper_rclippage, lower_rclippage, dclippage)
 
-    def forward(self, x, mask, mask_sum_hw, mask_sum: float, extra_outputs: Optional[ExtraOutputs]):
+    def forward(self, x, mask, mask_sum_hw, mask_sum: float, extra_outputs: Optional[ExtraOutputs], block_shared_data: Optional[Dict[str, Any]] = None):
         """
         Parameters:
         x: NCHW
@@ -1229,7 +1237,7 @@ class DilationNestedBottleneckResBlock(torch.nn.Module):
             self.blockstack[i].add_brenorm_clippage(upper_rclippage, lower_rclippage, dclippage)
         self.normactconvq.add_brenorm_clippage(upper_rclippage, lower_rclippage, dclippage)
 
-    def forward(self, x, mask, mask_sum_hw, mask_sum: float, extra_outputs: Optional[ExtraOutputs]):
+    def forward(self, x, mask, mask_sum_hw, mask_sum: float, extra_outputs: Optional[ExtraOutputs], block_shared_data: Optional[Dict[str, Any]] = None):
         """
         Parameters:
         x: NCHW
@@ -1282,6 +1290,388 @@ class DilationNestedBottleneckResBlock(torch.nn.Module):
         if extra_outputs is not None:
             extra_outputs.report(self.name+".out", result)
         return result
+
+
+# =============================================================================
+# Positional encoding for transformers
+# =============================================================================
+# TransformerBlock has two positional encoding methods.
+# Both are translation equivariant so that the position of a masked small board
+# within a larger tensor does not matter, up to float precision, so that the
+# net can generalize properly.
+#
+# RoPE (Rotary Position Embeddings):
+# Static positional encoding. Precomputes sin/cos tables for the full
+# pos_len x pos_len grid and rotates Q/K vectors so that their dot product depends
+# on relative position based on fixed frequencies regardless of of board content.
+# Requires head_dim % 4 == 0 for 2D interleaved layout.
+# Only axis-aligned frequencies are included, cannot express diagonal attention
+# except as a product of axis attention.
+#
+# GAB (Geometric Attention Bias):
+# Similar to the Chessformer paper from 2026 https://openreview.net/forum?id=2ltBRzEHyd
+# Produces per-head (board area x board area) attention bias matrices that are
+# added to QK^T logits before softmax.
+# Steps:
+# Shared template generation (GABTemplateMLP, computed once): A small MLP maps relative
+# offsets (dr, dc) between all grid position pairs to gab_num_templates many templates
+# using Fourier features of the, including diagonal cross-terms (dr+dc) and (dr-dc)
+# so the MLP can easily represent spatial patterns like rows, columns, and diagonals.
+# Each template is e.g. a (19x19)x(19x19) bias with this internal MLP-originated
+# translational structure. This is different than Chessformer which used hardcoded
+# 64x64 templates for Chess, since in Go we want to be generalize across board size.
+#
+# Per-layer mixing (_compute_gab_bias): Each attention layer independently compresses
+# the board state into per-head mixing weights via linear -> masked mean pooling ->
+# linear -> generate n_heads*gab_num_templates weights
+# Then an einsum combines these weights with the shared templates to produce the
+# the final attention bias pattern for each head.
+# This is basically the same as chessformer paper.
+#
+# Except, the original paper flattens all tokens before compression, which is size-dependent.
+# We use masked mean pooling instead (the paper notes very slight accuracy decrease),
+# which makes GAB fully size-invariant.
+#
+# Without RoPE, all other operations in the transformer block (Q/K/V projections, attention,
+# FFN, norms) are per-token and permutation-equivariant - the GAB bias is the only original
+# source of positional information within the block.
+#
+# Both methods can be used simultaneously (use_rope=True, use_gab=True). RoPE encodes
+# position in the Q/K dot products; GAB adds a separate learned bias on top.
+#
+# Masking: Off-board key positions receive -inf attention bias (from the position mask),
+# which dominates any finite RoPE dot-product or GAB bias, so softmax zeros them out.
+# GAB's mean pooling also masks off-board positions when summarizing the board state.
+# =============================================================================
+
+def precompute_freqs_cos_sin_2d(dim, pos_len, theta=100.0):
+    """Precompute cos and sin tables of 2D frequencies for RoPE (real-valued, interleaved layout).
+    Returns shape: (pos_len * pos_len, dim)
+    """
+    assert dim % 4 == 0
+    dim_half = dim // 2
+
+    freqs = 1.0 / (theta ** (torch.arange(0, dim_half, 2).float() / dim_half))
+
+    t = torch.arange(pos_len, dtype=torch.float32)
+    grid_h, grid_w = torch.meshgrid(t, t, indexing='ij')
+
+    emb_h = grid_h.unsqueeze(-1) * freqs
+    emb_w = grid_w.unsqueeze(-1) * freqs
+
+    emb = torch.cat([emb_h, emb_w], dim=-1)
+    emb = emb.flatten(0, 1)
+    emb = emb.repeat_interleave(2, dim=-1)
+
+    return emb.cos(), emb.sin()
+
+def apply_rotary_emb(xq, xk, cos, sin):
+    """Apply rotary position embeddings to Q and K tensors.
+    xq, xk: (Batch, Seq, Heads, Dim)
+    cos, sin: (Seq, Dim)
+    """
+    def rotate_every_two(x):
+        x = x.reshape(*x.shape[:-1], -1, 2)
+        x0, x1 = x.unbind(dim=-1)
+        x_rotated = torch.stack([-x1, x0], dim=-1)
+        return x_rotated.flatten(-2)
+
+    cos = cos.view(1, xq.shape[1], 1, xq.shape[-1])
+    sin = sin.view(1, xq.shape[1], 1, xq.shape[-1])
+
+    xq_out = xq * cos + rotate_every_two(xq) * sin
+    xk_out = xk * cos + rotate_every_two(xk) * sin
+
+    return xq_out.type_as(xq), xk_out.type_as(xk)
+
+
+def compute_gab_fourier_features(dr, dc, freqs):
+    """Compute Fourier features for relative (dr, dc) offsets.
+    dr: (...) float tensor of row offsets
+    dc: (...) float tensor of col offsets
+    freqs: (num_freqs,) tensor of learnable frequencies
+    Returns: (..., 8*num_freqs)
+    """
+    features = []
+    dr_plus_dc = dr + dc
+    dr_minus_dc = dr - dc
+    for f in freqs:
+        features.append(torch.sin(f * dr).unsqueeze(-1))
+        features.append(torch.cos(f * dr).unsqueeze(-1))
+        features.append(torch.sin(f * dc).unsqueeze(-1))
+        features.append(torch.cos(f * dc).unsqueeze(-1))
+        features.append(torch.sin(f * dr_plus_dc).unsqueeze(-1))
+        features.append(torch.cos(f * dr_plus_dc).unsqueeze(-1))
+        features.append(torch.sin(f * dr_minus_dc).unsqueeze(-1))
+        features.append(torch.cos(f * dr_minus_dc).unsqueeze(-1))
+    return torch.cat(features, dim=-1)
+
+
+GAB_TEMPLATES = "gab_templates"
+
+@dataclass
+class GABTemplateData:
+    """Precomputed GAB template values, shared across all blocks in a forward pass."""
+    templates: torch.Tensor  # (S, S, T) template values for all position pairs
+
+
+class GABTemplateMLP(torch.nn.Module):
+    """Shared module that maps relative (dr, dc) offsets to T template values.
+    Computed once and shared across all GAB-enabled transformer blocks.
+    """
+    def __init__(self, gab_num_templates, gab_num_fourier_features, gab_mlp_hidden, pos_len):
+        # Let F = gab_num_fourier_features, H = gab_mlp_hidden, T = gab_num_templates
+        # S = pos_len * pos_len (max spatial positions)
+        super().__init__()
+        self.gab_num_templates = gab_num_templates
+        assert gab_num_fourier_features >= 2, "gab_num_fourier_features must be >= 2"
+        fourier_input_dim = 8 * gab_num_fourier_features  # 8*F
+
+        # Geometric initialization from 1 rad/square to 1/50 rad/square
+        init_freqs = torch.exp(torch.linspace(math.log(1.0), math.log(1.0 / 50.0), gab_num_fourier_features))
+        self.gab_freqs = torch.nn.Parameter(init_freqs)  # (F,)
+
+        self.linear1 = torch.nn.Linear(fourier_input_dim, gab_mlp_hidden)  # (8*F) -> (H)
+        self.linear2 = torch.nn.Linear(gab_mlp_hidden, gab_num_templates)  # (H) -> (T)
+
+        S = pos_len * pos_len
+        s_idx = torch.arange(S)
+        s_r, s_c = s_idx // pos_len, s_idx % pos_len
+        offset_dr = (s_r.unsqueeze(1) - s_r.unsqueeze(0)).float()  # (S, S)
+        offset_dc = (s_c.unsqueeze(1) - s_c.unsqueeze(0)).float()  # (S, S)
+        self.register_buffer("offset_dr", offset_dr, persistent=False)
+        self.register_buffer("offset_dc", offset_dc, persistent=False)
+
+    def forward(self, seq_len):
+        """Compute templates for all position pairs up to seq_len.
+        Returns: (seq_len, seq_len, T)
+        """
+        dr = self.offset_dr[:seq_len, :seq_len]              # (S, S)
+        dc = self.offset_dc[:seq_len, :seq_len]              # (S, S)
+        fourier_feats = compute_gab_fourier_features(dr, dc, self.gab_freqs)  # (S, S, 8*F)
+        x = torch.nn.functional.gelu(self.linear1(fourier_feats))  # (S, S, H)
+        return self.linear2(x)                                # (S, S, T)
+
+    def add_reg_dict(self, reg_dict):
+        reg_dict["noreg"].append(self.gab_freqs)
+        reg_dict["gab_mlp"].append(self.linear1.weight)
+        reg_dict["noreg"].append(self.linear1.bias)
+        reg_dict["gab_mlp"].append(self.linear2.weight)
+        reg_dict["noreg"].append(self.linear2.bias)
+
+
+class TransformerBlock(torch.nn.Module):
+    def __init__(
+        self,
+        name,
+        c_main,
+        config,
+        activation,
+        pos_len,
+        use_swiglu,
+        use_rope=True,
+        use_gab=False,
+    ):
+        super(TransformerBlock, self).__init__()
+        self.name = name
+        self.norm_kind = config.get("norm_kind", "layer")
+        self.ffn_dim = config.get("transformer_ffn_channels", c_main * 2)
+        self.use_swiglu = use_swiglu
+        self.use_rope = use_rope
+        self.use_gab = use_gab
+
+        self.num_heads = config.get("transformer_heads", 4)
+        self.num_kv_heads = config.get("transformer_kv_heads", self.num_heads)
+        self.n_rep = self.num_heads // self.num_kv_heads
+        self.head_dim = c_main // self.num_heads
+
+        assert self.head_dim * self.num_heads == c_main, f"Embed dim mismatch"
+        if self.use_rope:
+            assert self.head_dim % 4 == 0, f"Head dim must be divisible by 4 for 2D RoPE"
+        assert self.num_heads % self.num_kv_heads == 0, \
+            f"Query heads ({self.num_heads}) must be divisible by KV heads ({self.num_kv_heads})"
+
+        self.q_proj = torch.nn.Linear(c_main, c_main, bias=False)
+        self.k_proj = torch.nn.Linear(c_main, self.num_kv_heads * self.head_dim, bias=False)
+        self.v_proj = torch.nn.Linear(c_main, self.num_kv_heads * self.head_dim, bias=False)
+        self.out_proj = torch.nn.Linear(c_main, c_main, bias=False)
+
+        if self.use_rope:
+            self.rope_theta = config.get("rope_theta", 100.0)
+            assert self.rope_theta > pos_len * 2.0, f"theta={self.rope_theta} of RoPE may be too small for pos_len={pos_len}"
+            cos_cached, sin_cached = precompute_freqs_cos_sin_2d(self.head_dim, pos_len, self.rope_theta)
+            self.register_buffer("cos_cached", cos_cached, persistent=False)
+            self.register_buffer("sin_cached", sin_cached, persistent=False)
+        else:
+            self.cos_cached = None
+            self.sin_cached = None
+
+        if self.use_gab:
+            gab_d1 = config["gab_d1"]
+            gab_d2 = config["gab_d2"]
+            self.gab_num_templates = config["gab_num_templates"]
+            self.gab_proj1 = torch.nn.Linear(c_main, gab_d1, bias=False)
+            self.gab_proj2 = torch.nn.Linear(gab_d1, gab_d2, bias=False)
+            self.gab_norm1 = torch.nn.LayerNorm(gab_d2)
+            self.gab_proj3 = torch.nn.Linear(gab_d2, self.num_heads * self.gab_num_templates, bias=False)
+            self.gab_norm2 = torch.nn.LayerNorm(self.num_heads * self.gab_num_templates)
+
+        self.ffn_linear1 = torch.nn.Linear(c_main, self.ffn_dim, bias=False)
+        if self.use_swiglu:
+            self.ffn_linear_gate = torch.nn.Linear(c_main, self.ffn_dim, bias=False)
+            self.ffn_act = torch.nn.SiLU(inplace=False)
+        else:
+            self.ffn_act = act(activation, inplace=False)
+        self.ffn_linear2 = torch.nn.Linear(self.ffn_dim, c_main, bias=False)
+
+        self.norm1 = torch.nn.RMSNorm(c_main, eps=1e-6)
+        self.norm2 = torch.nn.RMSNorm(c_main, eps=1e-6)
+
+    def add_reg_dict(self, reg_dict:Dict[str,List]):
+        for name, param in self.named_parameters():
+            if "norm" in name or "cached" in name:
+                reg_dict["noreg"].append(param)
+                continue
+            if "weight" in name:
+                if any(x in name for x in ["q_proj", "k_proj", "v_proj", "out_proj"]):
+                    reg_dict["normal_attn"].append(param)
+                elif "gab_proj" in name:
+                    reg_dict["normal_gab"].append(param)
+                else:
+                    reg_dict["normal"].append(param)
+            else:
+                reg_dict["noreg"].append(param)
+
+    def initialize(self, fixup_scale):
+        # Relies on torch initialization, nothing to do here.
+        # Since we have active normalization layers, initial scaling doesn't matter so much.
+        pass
+
+    def set_brenorm_params(self, renorm_avg_momentum, rmax, dmax):
+        pass
+
+    def add_brenorm_clippage(self, upper_rclippage, lower_rclippage, dclippage):
+        pass
+
+    def _compute_gab_bias(self, x_norm, mask, mask_sum_hw, block_shared_data):
+        """
+        x_norm: (B, S, C) normalized token representations
+        mask: (N, 1, H, W) or None
+        mask_sum_hw: (N, 1, 1, 1) or None
+        block_shared_data: dict with GAB_TEMPLATES key -> GABTemplateData
+        Returns: (B, H, S, S) attention bias
+        """
+        batch_size, seq_len, _ = x_norm.shape
+
+        # Per-token projection
+        y = self.gab_proj1(x_norm)                      # (B, S, d1)
+
+        # Masked mean pooling over valid positions
+        if mask is not None:
+            mask_flat = mask.view(batch_size, seq_len, 1)  # (B, S, 1)
+            y = y * mask_flat
+            pooled = y.sum(dim=1) / mask_sum_hw.view(batch_size, 1)  # (B, d1)
+        else:
+            pooled = y.mean(dim=1)                       # (B, d1)
+
+        # Compress + activation + norm
+        z = torch.nn.functional.gelu(self.gab_proj2(pooled))  # (B, d2)
+        z = self.gab_norm1(z)
+
+        # Generate per-head mixing weights
+        z = torch.nn.functional.gelu(self.gab_proj3(z))  # (B, H*T)
+        z = self.gab_norm2(z)
+        z = z.view(batch_size, self.num_heads, self.gab_num_templates)  # (B, H, T)
+
+        # Get precomputed templates from shared data
+        gab_data = block_shared_data[GAB_TEMPLATES]
+        templates = gab_data.templates                   # (S, S, T)
+
+        # Mix templates with board-state-dependent weights
+        bias = torch.einsum("bhd,std->bhst", z, templates[:seq_len, :seq_len])  # (B, H, S, S)
+
+        return bias
+
+    def forward(self, x, mask, mask_sum_hw, mask_sum:float, extra_outputs: Optional[ExtraOutputs], block_shared_data: Optional[Dict[str, Any]] = None):
+        """
+        Parameters:
+        x: NCHW
+        mask: N1HW
+        mask_sum_hw: N111
+        mask_sum: scalar
+
+        Returns: NCHW
+        """
+        batch_size, channels, height, width = x.shape
+        seq_len = height * width
+        x_in = x.view(batch_size, channels, -1).permute(0, 2, 1)
+
+        x_norm = self.norm1(x_in)
+
+        q = self.q_proj(x_norm)
+        k = self.k_proj(x_norm)
+        v = self.v_proj(x_norm)
+
+        q = q.view(batch_size, seq_len, self.num_heads, self.head_dim)
+        k = k.view(batch_size, seq_len, self.num_kv_heads, self.head_dim)
+        v = v.view(batch_size, seq_len, self.num_kv_heads, self.head_dim)
+
+        if self.use_rope:
+            q, k = apply_rotary_emb(q, k, self.cos_cached, self.sin_cached)
+
+        q = q.permute(0, 2, 1, 3)
+        k = k.permute(0, 2, 1, 3)
+        v = v.permute(0, 2, 1, 3)
+
+        if self.n_rep > 1:
+            k = k.unsqueeze(2).expand(batch_size, self.num_kv_heads, self.n_rep, seq_len, self.head_dim)
+            k = k.reshape(batch_size, self.num_heads, seq_len, self.head_dim)
+            v = v.unsqueeze(2).expand(batch_size, self.num_kv_heads, self.n_rep, seq_len, self.head_dim)
+            v = v.reshape(batch_size, self.num_heads, seq_len, self.head_dim)
+
+        gab_bias = None
+        if self.use_gab:
+            gab_bias = self._compute_gab_bias(x_norm, mask, mask_sum_hw, block_shared_data)
+
+        if mask is not None:
+            mask_flat = mask.view(batch_size, 1, 1, seq_len)
+            attn_mask = torch.zeros_like(mask_flat, dtype=q.dtype)
+            attn_mask.masked_fill_(mask_flat == 0, float('-inf'))
+        else:
+            attn_mask = None
+
+        if gab_bias is not None:
+            if attn_mask is not None:
+                attn_mask = attn_mask + gab_bias
+            else:
+                attn_mask = gab_bias
+
+        attn_output = torch.nn.functional.scaled_dot_product_attention(
+            q, k, v,
+            attn_mask=attn_mask,
+            dropout_p=0.0
+        )
+
+        attn_output = attn_output.permute(0, 2, 1, 3).contiguous()
+        attn_output = attn_output.view(batch_size, seq_len, channels)
+
+        attn_output = self.out_proj(attn_output)
+        x = x_in + attn_output
+        xn = self.norm2(x)
+
+        if self.use_swiglu:
+            x1 = self.ffn_linear1(xn)
+            x1 = self.ffn_act(x1)
+            x_gate = self.ffn_linear_gate(xn)
+            x1 = x1 * x_gate
+        else:
+            x1 = self.ffn_linear1(xn)
+            x1 = self.ffn_act(x1)
+        x1 = self.ffn_linear2(x1)
+        x = x + x1
+
+        x = x.permute(0, 2, 1).view(batch_size, channels, height, width)
+        return x
 
 
 class PolicyHead(torch.nn.Module):
@@ -1372,7 +1762,7 @@ class PolicyHead(torch.nn.Module):
     def add_brenorm_clippage(self, upper_rclippage, lower_rclippage, dclippage):
         pass
 
-    def forward(self, x, mask, mask_sum_hw, mask_sum:float, extra_outputs: Optional[ExtraOutputs]):
+    def forward(self, x, mask, mask_sum_hw, mask_sum:float, extra_outputs: Optional[ExtraOutputs], block_shared_data: Optional[Dict[str, Any]] = None):
         outp = self.conv1p(x)
         outg = self.conv1g(x)
 
@@ -1682,6 +2072,18 @@ class Model(torch.nn.Module):
         self.bin_input_shape = [22, pos_len, pos_len]
         self.global_input_shape = [19]
 
+        # Create shared GAB template MLP if any block uses GAB
+        has_gab = any("gab" in bk[1] for bk in self.block_kind)
+        if has_gab:
+            self.gab_template_mlp = GABTemplateMLP(
+                gab_num_templates=config["gab_num_templates"],
+                gab_num_fourier_features=config["gab_num_fourier_features"],
+                gab_mlp_hidden=config["gab_mlp_hidden"],
+                pos_len=pos_len,
+            )
+        else:
+            self.gab_template_mlp = None
+
         self.blocks = torch.nn.ModuleList()
         for block_config in self.block_kind:
             block_name = block_config[0]
@@ -1771,6 +2173,59 @@ class Model(torch.nn.Module):
                     c_gpool=(self.c_gpool if use_gpool_this_block else None),
                     config=self.config,
                     activation=self.activation,
+                ))
+            elif block_kind == "transformerropesg":
+                self.blocks.append(TransformerBlock(
+                    name=block_name,
+                    c_main=self.c_trunk,
+                    config=self.config,
+                    activation=self.activation,
+                    pos_len=pos_len,
+                    use_swiglu=True,
+                    use_rope=True,
+                ))
+            elif block_kind == "transformerropeg":
+                self.blocks.append(TransformerBlock(
+                    name=block_name,
+                    c_main=self.c_trunk,
+                    config=self.config,
+                    activation=self.activation,
+                    pos_len=pos_len,
+                    use_swiglu=False,
+                    use_rope=True,
+                ))
+            elif block_kind == "transformergabsg":
+                self.blocks.append(TransformerBlock(
+                    name=block_name,
+                    c_main=self.c_trunk,
+                    config=self.config,
+                    activation=self.activation,
+                    pos_len=pos_len,
+                    use_swiglu=True,
+                    use_rope=False,
+                    use_gab=True,
+                ))
+            elif block_kind == "transformerropegabsg":
+                self.blocks.append(TransformerBlock(
+                    name=block_name,
+                    c_main=self.c_trunk,
+                    config=self.config,
+                    activation=self.activation,
+                    pos_len=pos_len,
+                    use_swiglu=True,
+                    use_rope=True,
+                    use_gab=True,
+                ))
+            elif block_kind == "transformerropegabg":
+                self.blocks.append(TransformerBlock(
+                    name=block_name,
+                    c_main=self.c_trunk,
+                    config=self.config,
+                    activation=self.activation,
+                    pos_len=pos_len,
+                    use_swiglu=False,
+                    use_rope=True,
+                    use_gab=True,
                 ))
             else:
                 assert False, f"Unknown block kind: {block_config[1]}"
@@ -1863,6 +2318,9 @@ class Model(torch.nn.Module):
         reg_dict["input"] = []
         reg_dict["input_noreg"] = []
         reg_dict["normal"] = []
+        reg_dict["normal_attn"] = []
+        reg_dict["normal_gab"] = []
+        reg_dict["gab_mlp"] = []
         reg_dict["normal_gamma"] = []
         reg_dict["noreg"] = []
         reg_dict["output"] = []
@@ -1874,6 +2332,8 @@ class Model(torch.nn.Module):
             self.metadata_encoder.add_reg_dict(reg_dict)
         for block in self.blocks:
             block.add_reg_dict(reg_dict)
+        if self.gab_template_mlp is not None:
+            self.gab_template_mlp.add_reg_dict(reg_dict)
         self.norm_trunkfinal.add_reg_dict(reg_dict)
         self.policy_head.add_reg_dict(reg_dict)
         self.value_head.add_reg_dict(reg_dict)
@@ -1936,13 +2396,20 @@ class Model(torch.nn.Module):
         # print("TENSOR BEFORE TRUNK")
         # print(out)
 
+        # Compute shared block data
+        block_shared_data = {}
+        if self.gab_template_mlp is not None:
+            seq_len = mask.shape[2] * mask.shape[3]  # H * W
+            templates = self.gab_template_mlp(seq_len)
+            block_shared_data[GAB_TEMPLATES] = GABTemplateData(templates=templates)
+
         if self.has_intermediate_head:
             count = 0
             for block in self.blocks[:self.intermediate_head_blocks]:
                 # print("TENSOR BEFORE BLOCK")
                 # print(count)
                 # print(out)
-                out = block(out, mask=mask, mask_sum_hw=mask_sum_hw, mask_sum=mask_sum, extra_outputs=extra_outputs)
+                out = block(out, mask=mask, mask_sum_hw=mask_sum_hw, mask_sum=mask_sum, extra_outputs=extra_outputs, block_shared_data=block_shared_data)
                 count += 1
 
             # print("INTERMEDIATE")
@@ -1950,7 +2417,7 @@ class Model(torch.nn.Module):
             iout = self.norm_intermediate_trunkfinal(iout, mask=mask, mask_sum=mask_sum)
             iout = self.act_intermediate_trunkfinal(iout)
             # Use fp32 for output heads to handle potentially large values
-            with autocast(enabled=False):
+            with autocast("cuda", enabled=False):
                 iout_fp32 = iout.float()
                 mask_fp32 = mask.float()
                 mask_sum_hw_fp32 = mask_sum_hw.float()
@@ -1986,7 +2453,7 @@ class Model(torch.nn.Module):
                 # print("TENSOR BEFORE BLOCK")
                 # print(count)
                 # print(out)
-                out = block(out, mask=mask, mask_sum_hw=mask_sum_hw, mask_sum=mask_sum, extra_outputs=extra_outputs)
+                out = block(out, mask=mask, mask_sum_hw=mask_sum_hw, mask_sum=mask_sum, extra_outputs=extra_outputs, block_shared_data=block_shared_data)
                 count += 1
 
         else:
@@ -1995,7 +2462,7 @@ class Model(torch.nn.Module):
                 # print("TENSOR BEFORE BLOCK")
                 # print(count)
                 # print(out)
-                out = block(out, mask=mask, mask_sum_hw=mask_sum_hw, mask_sum=mask_sum, extra_outputs=extra_outputs)
+                out = block(out, mask=mask, mask_sum_hw=mask_sum_hw, mask_sum=mask_sum, extra_outputs=extra_outputs, block_shared_data=block_shared_data)
                 count += 1
 
         out = self.norm_trunkfinal(out, mask=mask, mask_sum=mask_sum)
@@ -2006,7 +2473,7 @@ class Model(torch.nn.Module):
 
         # print("MAIN")
         # Disable autocast for main output heads - compute in fp32
-        with autocast(enabled=False):
+        with autocast("cuda", enabled=False):
             out = out.float()
             mask_fp32 = mask.float()
             mask_sum_hw_fp32 = mask_sum_hw.float()

@@ -101,7 +101,7 @@ void Tests::runNNLessSearchTests() {
       //Ugly hack to artifically fill history. Breaks all sorts of invariants, but should work to
       //make the search htink there's some history to choose an intermediate temperature
       for(int i = 0; i<16; i++)
-        search->rootHistory.moveHistory.push_back(Move(Board::NULL_LOC,P_BLACK));
+        search->rootHistory.moveHistory.emplace_back(Board::NULL_LOC,P_BLACK);
 
       search->searchParams.chosenMoveTemperature = 1.0;
       search->searchParams.chosenMoveTemperatureEarly = 0.0;

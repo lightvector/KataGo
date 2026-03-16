@@ -24,13 +24,15 @@ from typing import Dict, List
 from threading import BrokenBarrierError
 
 import torch
+import torch._dynamo
+torch._dynamo.config.recompile_limit = 32
 import torch.nn
 import torch.optim
 import torch.distributed
 import torch.multiprocessing
 from torch.nn.parallel import DistributedDataParallel
 from torch.optim.swa_utils import AveragedModel
-from torch.cuda.amp import GradScaler, autocast
+from torch.amp import autocast, GradScaler
 
 from muon.muon import MuonWithAuxAdam, SingleDeviceMuonWithAuxAdam
 
@@ -79,6 +81,8 @@ if __name__ == "__main__":
     optional_args.add_argument('-lr-scale-auto', help='LR auto scaling', required=False, action='store_true')
     optional_args.add_argument('-lr-scale-auto2', help='LR auto scaling 2', required=False, type=float)
     optional_args.add_argument('-head-lr-factor', help='LR factor for output head weights', type=float, required=False, default=0.5)
+    optional_args.add_argument('-noreg-lr-factor', help='LR factor for noreg params (biases, norms)', type=float, required=False, default=1.0)
+    optional_args.add_argument('-muon-adam-lr-factor', help='LR factor for muon-ineligible (adam) params when using muon', type=float, required=False, default=1.0)
     optional_args.add_argument('-gnorm-clip-scale', help='Multiplier on gradient clipping threshold', type=float, required=False)
     optional_args.add_argument('-sub-epochs', help='Reload training data up to this many times per epoch', type=int, default=1, required=False)
     optional_args.add_argument('-swa-period-samples', help='How frequently to average an SWA sample, in samples', type=float, required=False)
@@ -92,6 +96,8 @@ if __name__ == "__main__":
 
     optional_args.add_argument('-multi-gpus', help='Use multiple gpus, comma-separated device ids', required=False)
     optional_args.add_argument('-use-fp16', help='Use fp16 training', required=False, action='store_true')
+    optional_args.add_argument('-no-compile', help='Do not torch.compile', required=False, action='store_true')
+    optional_args.add_argument('-use-tf32-matmul', help='Reduce float32 precision for speed on some gpus', required=False, action='store_true')
 
     optional_args.add_argument('-epochs-per-export', help='Export model once every this many epochs', type=int, required=False)
     optional_args.add_argument('-export-prob', help='Export model with this probablity', type=float, required=False)
@@ -147,7 +153,8 @@ def make_dirs(args):
 
 def multiprocessing_setup(rank: int, world_size: int):
     os.environ['MASTER_ADDR'] = 'localhost'
-    os.environ['MASTER_PORT'] = '23456'
+    if 'MASTER_PORT' not in os.environ or not os.environ['MASTER_PORT']:
+        os.environ['MASTER_PORT'] = '23456'
     logging.info("Running torch.distributed.init_process_group")
     torch.distributed.init_process_group("nccl", rank=rank, world_size=world_size)
     logging.info(f"Returned from torch.distributed.init_process_group, my rank = {rank}, world_size={world_size}")
@@ -190,6 +197,8 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
     lr_scale_auto = args["lr_scale_auto"]
     lr_scale_auto2 = args["lr_scale_auto2"]
     head_lr_factor = args["head_lr_factor"]
+    noreg_lr_factor = args["noreg_lr_factor"]
+    muon_adam_lr_factor = args["muon_adam_lr_factor"]
     gnorm_clip_scale = args["gnorm_clip_scale"]
     sub_epochs = args["sub_epochs"]
     swa_period_samples = args["swa_period_samples"]
@@ -201,6 +210,8 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
     use_adamw = args["use_adamw"]
     use_muon = args["use_muon"]
     use_fp16 = args["use_fp16"]
+    no_compile = args["no_compile"]
+    use_tf32_matmul = args["use_tf32_matmul"]
 
     epochs_per_export = args["epochs_per_export"]
     export_prob = args["export_prob"]
@@ -383,7 +394,10 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
             state_dict["model"] = ddp_model.state_dict()
             state_dict["optimizer"] = optimizer.state_dict()
             state_dict["metrics"] = metrics_obj.state_dict()
-            state_dict["running_metrics"] = running_metrics
+            state_dict["running_metrics"] = {
+                k: dict(v) if isinstance(v, defaultdict) else v
+                for k, v in running_metrics.items()
+            }
             state_dict["train_state"] = train_state
             state_dict["last_val_metrics"] = last_val_metrics
             state_dict["config"] = model_config
@@ -407,7 +421,7 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
                 os.replace(get_checkpoint_path() + ".tmp", get_checkpoint_path())
 
     def get_is_muon_suitable(group_name: str):
-        if group_name == "normal":
+        if group_name == "normal" or group_name == "normal_attn" or group_name == "normal_gab" or group_name == "gab_mlp":
             return True
         elif group_name in ["normal_gamma", "noreg", "output", "output_noreg", "input", "input_noreg"]:
             return False
@@ -430,6 +444,11 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
                     return 0.005000 * batch_scaling
                 else:
                     return 0.000001 * batch_scaling
+            elif group_name == "normal_attn" or group_name == "normal_gab" or group_name == "gab_mlp":
+                if use_adamw or use_muon:
+                    return 0.005000 * 0.5 * batch_scaling
+                else:
+                    return 0.000001 * 0.5 * batch_scaling
             elif group_name == "input_noreg" or group_name == "noreg":
                 return 0.00000001 * batch_scaling
             elif group_name == "output_noreg":
@@ -442,7 +461,7 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
             raw_model.get_norm_kind() == "fixbrenorm" or
             raw_model.get_norm_kind() == "fixscaleonenorm"
         ):
-            if group_name == "input" or group_name == "normal" or group_name == "normal_gamma":
+            if group_name == "input" or group_name == "normal" or group_name == "normal_attn" or group_name == "normal_gab" or group_name == "gab_mlp" or group_name == "normal_gamma":
                 adaptive_scale = 1.0
                 if "sums" in running_metrics:
                     metrics_key = "norm_normal_batch" if group_name != "input" else "norm_input_batch"
@@ -473,6 +492,8 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
                         return 0.00600 * batch_scaling * wd_with_lr_scale
                     elif group_name == "normal":
                         return 0.00900 * batch_scaling * wd_with_lr_scale
+                    elif group_name == "normal_attn" or group_name == "normal_gab" or group_name == "gab_mlp":
+                        return 0.00450 * batch_scaling * wd_with_lr_scale
                     elif group_name == "normal_gamma":
                         # Batch norm gammas can be regularized a bit less, doing them just as much empirically seemed to be a bit more unstable
                         return 0.00900 / 4.0 * batch_scaling * wd_with_lr_scale
@@ -481,6 +502,8 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
                 elif use_muon:
                     if group_name == "normal":
                         return 0.02000 * batch_scaling * wd_with_lr_scale
+                    elif group_name == "normal_attn" or group_name == "normal_gab" or group_name == "gab_mlp":
+                        return 0.01000 * batch_scaling * wd_with_lr_scale
                     else:
                         assert False
                 else:
@@ -488,6 +511,8 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
                         return 0.00125 * batch_scaling * wd_with_lr_scale
                     elif group_name == "normal":
                         return 0.00125 * batch_scaling * wd_with_lr_scale
+                    elif group_name == "normal_attn" or group_name == "normal_gab" or group_name == "gab_mlp":
+                        return 0.00125 * 0.5 * batch_scaling * wd_with_lr_scale
                     elif group_name == "normal_gamma":
                         # Batch norm gammas can be regularized a bit less, doing them just as much empirically seemed to be a bit more unstable
                         return 0.00125 / 8.0 * batch_scaling * wd_with_lr_scale
@@ -515,7 +540,7 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
         raw_model.add_reg_dict(reg_dict)
         param_groups = []
         num_reg_dict_params = 0
-        for group_name in ["input", "input_noreg", "normal", "normal_gamma", "noreg", "output", "output_noreg"]:
+        for group_name in reg_dict:
             if len(reg_dict[group_name]) > 0:
                 param_groups.append({
                     "params": reg_dict[group_name],
@@ -561,10 +586,11 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
             raw_model.initialize()
 
             raw_model.to(device)
+            compiled_model = raw_model if no_compile else torch.compile(raw_model, mode="default")
             if world_size > 1:
-                ddp_model = torch.nn.parallel.DistributedDataParallel(raw_model, device_ids=[device])
+                ddp_model = torch.nn.parallel.DistributedDataParallel(compiled_model, device_ids=[device])
             else:
-                ddp_model = raw_model
+                ddp_model = compiled_model
 
             swa_model = None
             if rank == 0 and swa_scale is not None:
@@ -599,7 +625,8 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
 
             return (model_config, ddp_model, raw_model, swa_model, optimizer, metrics_obj, running_metrics, train_state, last_val_metrics)
         else:
-            state_dict = torch.load(path_to_load_from, map_location=device)
+            state_dict = load_model.load_checkpoint(path_to_load_from, map_location=device)
+
             model_config = state_dict["config"] if "config" in state_dict else modelconfigs.config_of_name[model_kind]
             logging.info(str(model_config))
             raw_model = Model(model_config,pos_len)
@@ -648,10 +675,11 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
             raw_model.load_state_dict(model_state_dict)
 
             raw_model.to(device)
+            compiled_model = raw_model if no_compile else torch.compile(raw_model, mode="default")
             if world_size > 1:
-                ddp_model = torch.nn.parallel.DistributedDataParallel(raw_model, device_ids=[device])
+                ddp_model = torch.nn.parallel.DistributedDataParallel(compiled_model, device_ids=[device])
             else:
-                ddp_model = raw_model
+                ddp_model = compiled_model
 
             swa_model = None
             if rank == 0 and swa_scale is not None:
@@ -771,6 +799,8 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
     logging.info(f"main_loss_scale {main_loss_scale}")
     logging.info(f"intermediate_loss_scale {intermediate_loss_scale}")
     logging.info(f"head_lr_factor {head_lr_factor}")
+    logging.info(f"noreg_lr_factor {noreg_lr_factor}")
+    logging.info(f"muon_adam_lr_factor {muon_adam_lr_factor}")
 
     logging.info(f"Model norm normal baseline: " + str(train_state["modelnorm_normal_baseline"]))
     logging.info(f"Model norm input baseline: " + str(train_state["modelnorm_input_baseline"]))
@@ -789,6 +819,8 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
         logging.info(f"{name}, {list(param.shape)}, {product} params")
     logging.info(f"Total num params: {total_num_params}")
     logging.info(f"Total trainable params: {total_trainable_params}")
+
+    logging.info(f"Optimizer: " + train_state.get("optimizer_name","SGD"))
 
     lookahead_cache = {}
     if lookahead_k is not None:
@@ -851,11 +883,17 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
 
 
             group_name = param_group["group_name"]
+            is_muon_group = use_muon and get_is_muon_suitable(group_name)
             if group_name == "input":
                 group_scale = 1.0
             elif group_name == "input_noreg":
-                group_scale = 1.0
+                group_scale = noreg_lr_factor
             elif group_name == "normal":
+                if use_muon:
+                    group_scale = 2.0
+                else:
+                    group_scale = 1.0
+            elif group_name == "normal_attn" or group_name == "normal_gab" or group_name == "gab_mlp":
                 if use_muon:
                     group_scale = 2.0
                 else:
@@ -863,13 +901,17 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
             elif group_name == "normal_gamma":
                 group_scale = 1.0
             elif group_name == "noreg":
-                group_scale = 1.0
+                group_scale = noreg_lr_factor
             elif group_name == "output":
                 group_scale = head_lr_factor
             elif group_name == "output_noreg":
-                group_scale = head_lr_factor
+                group_scale = head_lr_factor * noreg_lr_factor
             else:
                 assert False
+
+            # When using muon, scale all muon-ineligible (adam) param groups
+            if use_muon and not is_muon_group:
+                group_scale *= muon_adam_lr_factor
 
             changed = False
 
@@ -1165,9 +1207,20 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
 
     if use_fp16:
         logging.info("Training in FP16! Creating scaler")
-        scaler = GradScaler()
+        scaler = GradScaler("cuda")
     else:
         logging.info("Training in FP32.")
+
+    if no_compile:
+        logging.info("torch.compile disabled by -no-compile flag")
+    else:
+        logging.info("Using torch.compile mode=default")
+
+    if use_tf32_matmul:
+        torch.set_float32_matmul_precision('high')
+        logging.info("float32 matmul precision set to high (TF32)")
+    else:
+        logging.info("float32 matmul precision: default")
 
     # All ddp threads should be lined up at this point before continuing
     safe_barrier(barrier,rank)
@@ -1278,7 +1331,7 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
                 #     extra_outputs = ExtraOutputs([MetadataEncoder.OUTMEAN_KEY,MetadataEncoder.OUTLOGVAR_KEY])
 
                 if use_fp16:
-                    with autocast():
+                    with autocast("cuda"):
                         # Note: output heads are already in fp32 despite autocast
                         model_outputs = ddp_model(
                             batch["binaryInputNCHW"],
@@ -1519,7 +1572,7 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
                         model_config=model_config
                     ):
                         if use_fp16:
-                            with autocast():
+                            with autocast("cuda"):
                                 # Note: output heads are already in fp32 despite autocast
                                 model_outputs = ddp_model(
                                     batch["binaryInputNCHW"],
@@ -1559,8 +1612,8 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
                         val_metric_weights["nsamp_train"] = running_metrics["weights"]["nsamp"]
                         val_metric_sums["wsum_train"] = running_metrics["sums"]["wsum"]
                         val_metric_weights["wsum_train"] = running_metrics["weights"]["wsum"]
-                    last_val_metrics["sums"] = val_metric_sums
-                    last_val_metrics["weights"] = val_metric_weights
+                    last_val_metrics["sums"] = dict(val_metric_sums)
+                    last_val_metrics["weights"] = dict(val_metric_weights)
                     log_metrics(val_metric_sums, val_metric_weights, metrics, val_metrics_out)
                     t1 = time.perf_counter()
                     logging.info(f"Validation took {t1-t0} seconds")

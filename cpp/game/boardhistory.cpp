@@ -914,10 +914,6 @@ bool BoardHistory::makeBoardMoveTolerant(Board& board, Loc moveLoc, Player moveP
   return true;
 }
 
-void BoardHistory::makeBoardMoveAssumeLegal(Board& board, Loc moveLoc, Player movePla, const KoHashTable* rootKoHashTable) {
-  makeBoardMoveAssumeLegal(board,moveLoc,movePla,rootKoHashTable,false);
-}
-
 void BoardHistory::makeBoardMoveAssumeLegal(Board& board, Loc moveLoc, Player movePla, const KoHashTable* rootKoHashTable, bool preventEncore) {
   Hash128 posHashBeforeMove = board.pos_hash;
 
@@ -1012,7 +1008,7 @@ void BoardHistory::makeBoardMoveAssumeLegal(Board& board, Loc moveLoc, Player mo
       //Update ko recapture blocks and record that this was a ko capture
       if(board.ko_loc != Board::NULL_LOC) {
         setKoRecapBlocked(moveLoc,true);
-        koCapturesInEncore.push_back(EncoreKoCapture(posHashBeforeMove,moveLoc,movePla));
+        koCapturesInEncore.emplace_back(posHashBeforeMove,moveLoc,movePla);
         //Clear simple ko loc now that we've absorbed the ko loc information into the korecap blocks
         //Once we have that, the simple ko loc plays no further role in game state or legality
         board.clearSimpleKoLoc();
@@ -1034,7 +1030,7 @@ void BoardHistory::makeBoardMoveAssumeLegal(Board& board, Loc moveLoc, Player mo
 
   Hash128 koHashAfterThisMove = getKoHash(rules,board,getOpp(movePla),encorePhase,koRecapBlockHash);
   koHashHistory.push_back(koHashAfterThisMove);
-  moveHistory.push_back(Move(moveLoc,movePla));
+  moveHistory.emplace_back(moveLoc,movePla);
   preventEncoreHistory.push_back(preventEncore);
   numTurnsThisPhase += 1;
   numApproxValidTurnsThisPhase += 1;
