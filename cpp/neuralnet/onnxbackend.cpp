@@ -236,7 +236,7 @@ struct ComputeContext {
       nnXLen(xLen),
       nnYLen(yLen),
       providerName(provider),
-      openvinoDeviceType("CPU"),
+      openvinoDeviceType("NPU"),
       openvinoDeviceId(""),
       openvinoEnableNPUFastCompile(false),
       openvinoCacheDir(""),

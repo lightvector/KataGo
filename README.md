@@ -145,8 +145,8 @@ path/to/katago.exe gtp -model path/to/<NEURALNET>.bin.gz -config path/to/gtp_cus
 If you want to use ONNX Runtime + OpenVINO on Intel NPU:
 * Install Intel NPU driver: https://www.intel.com/content/www/us/en/download/794734/intel-npu-driver-windows.html
 * Install OpenVINO archive package (Windows): https://docs.openvino.ai/2026/get-started/install-openvino/install-openvino-archive-windows.html
-* Build ONNX Runtime with OpenVINO EP for NPU (`use_openvino=NPU`): https://onnxruntime.ai/docs/build/eps.html#openvino
-* See [Compiling.md](Compiling.md) for the full build/copy steps for `cpp/external/onnxruntime-win-x64-openvino`.
+* Typical install root looks like: `C:\Program Files (x86)\Intel\openvino_2026.0`
+* Add `C:\Program Files (x86)\Intel\openvino_2026.0\runtime\bin\intel64\Release` and `C:\Program Files (x86)\Intel\openvino_2026.0\runtime\3rdparty\tbb\bin` to System PATH
 
 Minimal commands:
 ```

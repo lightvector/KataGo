@@ -56,59 +56,6 @@ As also mentioned in the instructions below but repeated here for visibility, if
    * You will probably want to edit `configs/gtp_example.cfg` (see "Tuning for Performance" above).
    * If using OpenCL, you will want to verify that KataGo is picking up the correct device when you run it (e.g. some systems may have both an Intel CPU OpenCL and GPU OpenCL, if KataGo appears to pick the wrong one, you can correct this by specifying `openclGpuToUse` in `configs/gtp_example.cfg`).
 
-## ONNX Runtime Backend
-The ONNX backend uses ONNX Runtime for inference, and supports both:
-* `.onnx` models loaded directly.
-* `.bin.gz` KataGo models via internal conversion to ONNX graph (requires ONNX protobuf dependencies in CMake).
-
-### Windows Intel NPU (OpenVINO EP) Setup
-1. Install Visual Studio Community or Visual Studio 2026 Build Tools:
-   * https://visualstudio.microsoft.com/zh-hans/downloads/
-   * In installer workloads, select **Desktop development with C++**.
-2. Install Intel NPU driver:
-   * https://www.intel.com/content/www/us/en/download/794734/intel-npu-driver-windows.html
-3. Install OpenVINO 2026 archive package on Windows:
-   * https://docs.openvino.ai/2026/get-started/install-openvino/install-openvino-archive-windows.html
-   * Typical install root looks like: `C:\Program Files (x86)\Intel\openvino_2026.0`
-4. Build ONNX Runtime with OpenVINO EP for NPU (follow official docs):
-   * https://onnxruntime.ai/docs/build/eps.html#openvino
-   * Set OpenVINO EP build option so `use_openvino` is `NPU` (for example `--use_openvino NPU` in ORT build.py).
-
-### Prepare `ONNXRUNTIME_ROOT` in KataGo
-Create:
-* `cpp/external/onnxruntime-win-x64-openvino/include`
-* `cpp/external/onnxruntime-win-x64-openvino/lib`
-
-Copy from your ONNX Runtime build/package output (`<ORT_PACKAGE_ROOT>`) to KataGo:
-* `<ORT_PACKAGE_ROOT>/include/*` -> `cpp/external/onnxruntime-win-x64-openvino/include/`
-* `<ORT_PACKAGE_ROOT>/lib/onnxruntime.lib` -> `cpp/external/onnxruntime-win-x64-openvino/lib/onnxruntime.lib`
-* `<ORT_PACKAGE_ROOT>/lib/onnxruntime.dll` -> `cpp/external/onnxruntime-win-x64-openvino/lib/onnxruntime.dll`
-* `<ORT_PACKAGE_ROOT>/lib/onnxruntime_providers_shared.dll` -> `cpp/external/onnxruntime-win-x64-openvino/lib/onnxruntime_providers_shared.dll`
-* `<ORT_PACKAGE_ROOT>/lib/onnxruntime_providers_openvino.dll` -> `cpp/external/onnxruntime-win-x64-openvino/lib/onnxruntime_providers_openvino.dll`
-
-Optional if present in your ORT output:
-* `<ORT_PACKAGE_ROOT>/lib/onnxruntime_providers_shared.lib` -> `cpp/external/onnxruntime-win-x64-openvino/lib/`
-* `<ORT_PACKAGE_ROOT>/lib/onnxruntime_providers_openvino.lib` -> `cpp/external/onnxruntime-win-x64-openvino/lib/`
-
-### Minimal KataGo Build Commands (Windows, ONNX backend)
-On Windows, `KATAGO_AUTO_FETCH_DEPS=ON` by default, so missing `zlib`, `onnx`, and `protobuf` dependencies are auto-fetched via vcpkg into `cpp/build/deps/vcpkg`.
-
-```
-cmake -S cpp -B cpp/build -G "Visual Studio 18 2026" -A x64 -DUSE_BACKEND=ONNX -DONNXRUNTIME_ROOT=cpp/external/onnxruntime-win-x64-openvino
-cmake --build cpp/build --config Release
-```
-
-If you want to disable auto-fetch and provide dependencies manually:
-* `-DKATAGO_AUTO_FETCH_DEPS=OFF`
-* plus `-DONNX_INCLUDE_DIR=... -DONNX_PROTO_LIB=... -DPROTOBUF_INCLUDE_DIR=... -DPROTOBUF_LIB=... -DZLIB_INCLUDE_DIR=... -DZLIB_LIBRARY=...`
-
-Typical run config for Intel NPU:
-* `onnxProvider = openvino`
-* `onnxOpenVINODeviceType = NPU`
-* `onnxOpenVINOEnableNPUFastCompile = true` (optional; may be ignored on ORT builds that do not support this key)
-
-Multi-device assignment is mainly for `onnxProvider=cuda/tensorrt/migraphx` (`onnxDeviceToUseThread*`).
-For `onnxProvider=openvino` on Intel NPU, a single device is typically used.
 
 ## Windows
    * TLDR:
@@ -167,6 +114,63 @@ For `onnxProvider=openvino` on Intel NPU, a single device is typically used.
    * Pre-trained neural nets are available at [the main training website](https://katagotraining.org/).
    * You will probably want to edit `configs/gtp_example.cfg` (see "Tuning for Performance" above).
    * If using OpenCL, you will want to verify that KataGo is picking up the correct device (e.g. some systems may have both an Intel CPU OpenCL and GPU OpenCL, if KataGo appears to pick the wrong one, you can correct this by specifying `openclGpuToUse` in `configs/gtp_example.cfg`).
+
+##### ONNX Runtime Backend
+The ONNX backend uses ONNX Runtime for inference, and supports both:
+* `.onnx` models loaded directly.
+* `.bin.gz` KataGo models via internal conversion to ONNX graph (requires ONNX protobuf dependencies in CMake).
+
+##### Windows Intel NPU (OpenVINO EP) Setup
+1. Install Visual Studio 2026 Community or Visual Studio 2026 Build Tools:
+   * https://visualstudio.microsoft.com/zh-hans/downloads/
+   * In installer workloads, select **Desktop development with C++**.
+2. Install Intel NPU driver:
+   * https://www.intel.com/content/www/us/en/download/794734/intel-npu-driver-windows.html
+3. Install OpenVINO 2026 archive package on Windows:
+   * https://docs.openvino.ai/2026/get-started/install-openvino/install-openvino-archive-windows.html
+   * Typical install root looks like: `C:\Program Files (x86)\Intel\openvino_2026.0`
+4. Add these to System PATH:
+   * `C:\Program Files (x86)\Intel\openvino_2026.0\runtime\bin\intel64\Release`
+   * `C:\Program Files (x86)\Intel\openvino_2026.0\runtime\3rdparty\tbb\bin`
+5. Build ONNX Runtime with OpenVINO EP for NPU (follow official docs):
+   * https://onnxruntime.ai/docs/build/eps.html#openvino
+   * Set OpenVINO EP build option so `use_openvino` is `NPU` (for example `--use_openvino NPU` in ORT build.py).
+
+##### Prepare `ONNXRUNTIME_ROOT` in KataGo
+Create:
+* `cpp/external/onnxruntime-win-x64-openvino/include`
+* `cpp/external/onnxruntime-win-x64-openvino/lib`
+
+Copy from your ONNX Runtime build/package output (`<ORT_PACKAGE_ROOT>`) to KataGo:
+* `<ORT_PACKAGE_ROOT>/include/*` -> `cpp/external/onnxruntime-win-x64-openvino/include/`
+* `<ORT_PACKAGE_ROOT>/lib/onnxruntime.lib` -> `cpp/external/onnxruntime-win-x64-openvino/lib/onnxruntime.lib`
+* `<ORT_PACKAGE_ROOT>/lib/onnxruntime.dll` -> `cpp/external/onnxruntime-win-x64-openvino/lib/onnxruntime.dll`
+* `<ORT_PACKAGE_ROOT>/lib/onnxruntime_providers_shared.dll` -> `cpp/external/onnxruntime-win-x64-openvino/lib/onnxruntime_providers_shared.dll`
+* `<ORT_PACKAGE_ROOT>/lib/onnxruntime_providers_openvino.dll` -> `cpp/external/onnxruntime-win-x64-openvino/lib/onnxruntime_providers_openvino.dll`
+
+Optional if present in your ORT output:
+* `<ORT_PACKAGE_ROOT>/lib/onnxruntime_providers_shared.lib` -> `cpp/external/onnxruntime-win-x64-openvino/lib/`
+* `<ORT_PACKAGE_ROOT>/lib/onnxruntime_providers_openvino.lib` -> `cpp/external/onnxruntime-win-x64-openvino/lib/`
+
+##### Minimal KataGo Build Commands (Windows, ONNX backend)
+On Windows, `KATAGO_AUTO_FETCH_DEPS=ON` by default, so missing `zlib`, `onnx`, and `protobuf` dependencies are auto-fetched via vcpkg into `cpp/build/deps/vcpkg`.
+
+```
+cmake -S cpp -B cpp/build -G "Visual Studio 18 2026" -A x64 -DUSE_BACKEND=ONNX -DONNXRUNTIME_ROOT=cpp/external/onnxruntime-win-x64-openvino
+cmake --build cpp/build --config Release
+```
+
+If you want to disable auto-fetch and provide dependencies manually:
+* `-DKATAGO_AUTO_FETCH_DEPS=OFF`
+* plus `-DONNX_INCLUDE_DIR=... -DONNX_PROTO_LIB=... -DPROTOBUF_INCLUDE_DIR=... -DPROTOBUF_LIB=... -DZLIB_INCLUDE_DIR=... -DZLIB_LIBRARY=...`
+
+Typical run config for Intel NPU:
+* `onnxProvider = openvino`
+* `onnxOpenVINODeviceType = NPU`
+* `onnxOpenVINOEnableNPUFastCompile = true` (optional; may be ignored on ORT builds that do not support this key)
+
+Multi-device assignment is mainly for `onnxProvider=cuda/tensorrt/migraphx` (`onnxDeviceToUseThread*`).
+For `onnxProvider=openvino` on Intel NPU, a single device is typically used.
 
 ## MacOS
    * TLDR:
