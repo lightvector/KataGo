@@ -23,7 +23,7 @@ cpp/mainopencl
 cpp/katago
 cpp/configs
 cpp/evalsgf
-# cpp/run*.sh
+cpp/run*.sh
 cpp/tests/scratch
 cpp/program/gitinfo.h
 
