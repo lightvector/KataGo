@@ -29,6 +29,7 @@ static void printHelp(const vector<string>& args) {
 gtp : Runs GTP engine that can be plugged into any standard Go GUI for play/analysis.
 benchmark : Test speed with different numbers of search threads.
 genconfig : User-friendly interface to generate a config with rules and automatic performance tuning.
+exportonnx : Export KataGo .bin/.bin.gz model to a fixed-size .onnx model.
 
 contribute : Connect to online distributed KataGo training and run perpetually contributing selfplay games.
 
@@ -169,6 +170,8 @@ static int handleSubcommand(const string& subcommand, const vector<string>& args
     return MainCmds::runsleeptest(subArgs);
   else if(subcommand == "printclockinfo")
     return MainCmds::printclockinfo(subArgs);
+  else if(subcommand == "exportonnx")
+    return MainCmds::exportonnx(subArgs);
   else if(subcommand == "sandbox")
     return MainCmds::sandbox();
   else if(subcommand == "version") {
@@ -255,6 +258,8 @@ string Version::getKataGoVersionFullInfo() {
 #endif
 #elif defined(USE_EIGEN_BACKEND)
   out << "Using Eigen(CPU) backend" << endl;
+#elif defined(USE_ONNX_BACKEND)
+  out << "Using ONNX backend" << endl;
 #else
   out << "Using dummy backend" << endl;
 #endif
@@ -293,6 +298,8 @@ string Version::getGitRevisionWithBackend() {
   s += "-opencl";
 #elif defined(USE_EIGEN_BACKEND)
   s += "-eigen";
+#elif defined(USE_ONNX_BACKEND)
+  s += "-onnx";
 #else
   s += "-dummy";
 #endif

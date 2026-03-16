@@ -14,7 +14,8 @@ namespace GTPConfig {
     std::vector<int> deviceIdxs,
     int nnCacheSizePowerOfTwo,
     int nnMutexPoolSizePowerOfTwo,
-    int numSearchThreads
+    int numSearchThreads,
+    const std::string& onnxProvider = "cpu"
   );
 }
 

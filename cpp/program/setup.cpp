@@ -21,6 +21,7 @@ std::vector<std::string> Setup::getBackendPrefixes() {
   prefixes.push_back("opencl");
   prefixes.push_back("rocm");
   prefixes.push_back("eigen");
+  prefixes.push_back("onnx");
   prefixes.push_back("dummybackend");
   return prefixes;
 }
@@ -89,11 +90,28 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
   string backendPrefix = "opencl";
   #elif defined(USE_ROCM_BACKEND)
   string backendPrefix = "rocm";
+  #elif defined(USE_ONNX_BACKEND)
+  string backendPrefix = "onnx";
   #elif defined(USE_EIGEN_BACKEND)
   string backendPrefix = "eigen";
   #else
   string backendPrefix = "dummybackend";
   #endif
+
+#if !defined(USE_ONNX_BACKEND)
+  // In non-ONNX builds, fail fast on any ONNX-specific config instead of silently ignoring it.
+  {
+    const vector<string> allKeys = cfg.unusedKeys();
+    for(const string& key : allKeys) {
+      if(Global::isPrefix(Global::toLower(key),"onnx")) {
+        throw StringError(
+          "Config key '" + key + "' requires ONNX backend, but this executable is not built with USE_BACKEND=ONNX. "
+          "Remove onnx* settings or rebuild with -DUSE_BACKEND=ONNX."
+        );
+      }
+    }
+  }
+#endif
 
   //Automatically flag keys that are for other backends as used so that we don't warn about unused keys
   //for those options
@@ -144,7 +162,7 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
         requireExactNNLen = cfg.getBool("requireMaxBoardSize");
     }
 
-    bool inputsUseNHWC = backendPrefix == "opencl" || backendPrefix == "trt" || backendPrefix == "metal" || backendPrefix == "rocm" ? false : true;
+    bool inputsUseNHWC = backendPrefix == "opencl" || backendPrefix == "trt" || backendPrefix == "metal" || backendPrefix == "rocm" || backendPrefix == "onnx" ? false : true;
     if(cfg.contains(backendPrefix+"InputsUseNHWC"+idxStr))
       inputsUseNHWC = cfg.getBool(backendPrefix+"InputsUseNHWC"+idxStr);
     else if(cfg.contains("inputsUseNHWC"+idxStr))
@@ -223,9 +241,38 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
 
     string homeDataDirOverride = loadHomeDataDirOverride(cfg);
 
-    string openCLTunerFile;
+    string backendExtraParam;
+#if defined(USE_ONNX_BACKEND)
+    string onnxProvider = cfg.contains("onnxProvider") ? cfg.getString("onnxProvider") : "cpu";
+    backendExtraParam = "provider=" + onnxProvider;
+    if(cfg.contains("onnxInputSpatial"))
+      backendExtraParam += ";inputSpatial=" + cfg.getString("onnxInputSpatial");
+    if(cfg.contains("onnxInputGlobal"))
+      backendExtraParam += ";inputGlobal=" + cfg.getString("onnxInputGlobal");
+    if(cfg.contains("onnxInputMeta"))
+      backendExtraParam += ";inputMeta=" + cfg.getString("onnxInputMeta");
+    if(cfg.contains("onnxOutputPolicy"))
+      backendExtraParam += ";outputPolicy=" + cfg.getString("onnxOutputPolicy");
+    if(cfg.contains("onnxOutputValue"))
+      backendExtraParam += ";outputValue=" + cfg.getString("onnxOutputValue");
+    if(cfg.contains("onnxOutputMiscvalue"))
+      backendExtraParam += ";outputMiscvalue=" + cfg.getString("onnxOutputMiscvalue");
+    if(cfg.contains("onnxOutputOwnership"))
+      backendExtraParam += ";outputOwnership=" + cfg.getString("onnxOutputOwnership");
+    if(cfg.contains("onnxModelVersion"))
+      backendExtraParam += ";modelVersion=" + cfg.getString("onnxModelVersion");
+    if(cfg.contains("onnxOpenVINODeviceType"))
+      backendExtraParam += ";openvinoDeviceType=" + cfg.getString("onnxOpenVINODeviceType");
+    if(cfg.contains("onnxOpenVINODeviceId"))
+      backendExtraParam += ";openvinoDeviceId=" + cfg.getString("onnxOpenVINODeviceId");
+    if(cfg.contains("onnxOpenVINOEnableNPUFastCompile"))
+      backendExtraParam += ";openvinoEnableNPUFastCompile=" + cfg.getString("onnxOpenVINOEnableNPUFastCompile");
+    if(cfg.contains("onnxOpenVINOCacheDir"))
+      backendExtraParam += ";openvinoCacheDir=" + cfg.getString("onnxOpenVINOCacheDir");
+#else
     if(cfg.contains("openclTunerFile"))
-      openCLTunerFile = cfg.getString("openclTunerFile");
+      backendExtraParam = cfg.getString("openclTunerFile");
+#endif
     bool openCLReTunePerBoardSize = false;
     if(cfg.contains("openclReTunePerBoardSize"))
       openCLReTunePerBoardSize = cfg.getBool("openclReTunePerBoardSize");
@@ -318,7 +365,7 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
       nnCacheSizePowerOfTwo,
       nnMutexPoolSizePowerOfTwo,
       debugSkipNeuralNet,
-      openCLTunerFile,
+      backendExtraParam,
       homeDataDirOverride,
       openCLReTunePerBoardSize,
       useFP16Mode,
