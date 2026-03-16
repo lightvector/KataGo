@@ -257,7 +257,7 @@ On Windows, `KATAGO_AUTO_FETCH_DEPS=ON` by default, so missing `zlib`, `onnx`, a
 
 ```
 cmake -S cpp -B cpp/build -G "Visual Studio 18 2026" -A x64 -DUSE_BACKEND=ONNX -DONNXRUNTIME_ROOT=cpp/external/onnxruntime-win-x64-openvino
-cmake --build cpp/build --config Release
+cmake --build cpp/build --config Release -j
 ```
 
 If you want to disable auto-fetch and provide dependencies manually:
