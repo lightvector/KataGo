@@ -33,6 +33,7 @@ cpp/tests/results/matchsgfs2/games.sgfs
 cpp/data/
 versions/
 cpp/build
+cpp/cmake-build*
 cpp/out
 
 export_model_cuda.sh
