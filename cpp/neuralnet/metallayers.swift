@@ -502,6 +502,8 @@ class ConvLayer {
         nnXLen: NSNumber,
         nnYLen: NSNumber
     ) {
+        assert(descriptor.dilationX == 1 && descriptor.dilationY == 1)
+
         let weightsShape = [
             descriptor.outChannels,
             descriptor.inChannels,
