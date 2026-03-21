@@ -620,11 +620,6 @@ struct MatMulLayer {
         descriptor: SWMatMulLayerDesc,
         sourceTensor: MPSGraphTensor
     ) {
-        assert(
-            (sourceTensor.shape?.count == 4) || (sourceTensor.shape?[1] == descriptor.inChannels))
-        assert(
-            (sourceTensor.shape?.count == 2) || (sourceTensor.shape?[1] == descriptor.inChannels))
-
         let weightsShape = [
             descriptor.inChannels,
             descriptor.outChannels,
