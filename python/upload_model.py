@@ -8,6 +8,7 @@ import hashlib
 import configparser
 import datetime
 import json
+import re
 
 from requests_toolbelt.adapters import host_header_ssl
 from requests.auth import HTTPBasicAuth
@@ -31,6 +32,7 @@ parser.add_argument('-connection-config', help='config with serverUrl and userna
 parser.add_argument('-not-enabled', help='upload model where it is not enabled for train/rating to begin with', required=False, action='store_true')
 parser.add_argument('-rating-only', help='upload for rating only or not', type=int, required=False)
 parser.add_argument('-notes', help='extra notes to record for model', required=False)
+parser.add_argument('-network-size', help='override network_size instead of extracting from model name', required=False)
 parser.add_argument('-confirm', help='Ask for confirmation before upload', action="store_true", required=False)
 args = vars(parser.parse_args())
 
@@ -86,7 +88,9 @@ log("metadata_file" + ": " + str(metadata_file))
 log("username" + ": " + username)
 log("base_server_url" + ": " + base_server_url)
 
-network_size = model_name.split("-")[1]
+network_size = args["network_size"] if args["network_size"] is not None else model_name.split("-")[1]
+if not re.fullmatch(r"b[0-9]+c[0-9]+[a-z0-9]*", network_size):
+    raise Exception(f"Invalid network_size '{network_size}': must match b<digits>c<digits><lowercase alphanumeric>")
 
 model_file_extension = None
 if model_file.endswith(".bin.gz"):
