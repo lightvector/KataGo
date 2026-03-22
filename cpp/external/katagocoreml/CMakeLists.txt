@@ -15,17 +15,14 @@
 find_package(ZLIB REQUIRED)
 find_package(Protobuf REQUIRED)  # Needed for protoc executable and include dirs
 find_package(PkgConfig REQUIRED)
-pkg_check_modules(KATAGOCOREML_ABSEIL REQUIRED
+set(KATAGOCOREML_ABSEIL_MODULES
     absl_base absl_log absl_log_internal_check_op absl_log_internal_message
     absl_hash absl_strings absl_status absl_statusor
 )
+pkg_check_modules(KATAGOCOREML_ABSEIL REQUIRED ${KATAGOCOREML_ABSEIL_MODULES})
 
 # Export link flags to parent scope for the final executable
-pkg_check_modules(KATAGOCOREML_ALL_DEPS REQUIRED
-    protobuf
-    absl_base absl_log absl_log_internal_check_op absl_log_internal_message
-    absl_hash absl_strings absl_status absl_statusor
-)
+pkg_check_modules(KATAGOCOREML_ALL_DEPS REQUIRED protobuf ${KATAGOCOREML_ABSEIL_MODULES})
 set(KATAGOCOREML_DEP_LDFLAGS ${KATAGOCOREML_ALL_DEPS_LDFLAGS} PARENT_SCOPE)
 
 # ============================================================================
@@ -37,7 +34,8 @@ set(PROTO_DIR "${COREMLTOOLS_ROOT}/mlmodel/format")
 set(PROTO_GENERATED_DIR "${CMAKE_CURRENT_BINARY_DIR}/proto")
 file(MAKE_DIRECTORY ${PROTO_GENERATED_DIR})
 
-# Get all proto files
+# Get all proto files (GLOB does not re-run on file additions; re-run cmake
+# manually if proto files are added or removed).
 file(GLOB PROTO_FILES "${PROTO_DIR}/*.proto")
 
 # Generate C++ from all proto files
