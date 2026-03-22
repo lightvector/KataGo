@@ -107,8 +107,7 @@ elseif(USE_BACKEND STREQUAL "METAL")
   if(NOT "${CMAKE_CXX_COMPILER_ID}" STREQUAL "AppleClang")
     message(FATAL_ERROR "Project requires building with AppleClang. Have ${CMAKE_CXX_COMPILER_ID}")
   endif()
-  find_package(PkgConfig REQUIRED)
-  pkg_check_modules(KATAGOCOREML REQUIRED katagocoreml)
+  add_subdirectory(external/katagocoreml)
   list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/external/macos/cmake/modules")
   include(InitializeSwift)
   include(AddSwift)
@@ -401,10 +400,8 @@ elseif(USE_BACKEND STREQUAL "TENSORRT")
   target_link_libraries(katago CUDA::cudart_static ${TENSORRT_LIBRARY})
 elseif(USE_BACKEND STREQUAL "METAL")
   target_compile_definitions(katago PRIVATE USE_METAL_BACKEND)
-  target_include_directories(katago PRIVATE ${KATAGOCOREML_INCLUDE_DIRS})
-  find_library(KATAGOCOREML_LIB katagocoreml HINTS /usr/local/lib REQUIRED)
-  target_link_directories(katago PRIVATE ${KATAGOCOREML_LIBRARY_DIRS})
-  target_link_libraries(katago KataGoSwift ${KATAGOCOREML_LIB} ${KATAGOCOREML_LDFLAGS}
+  target_link_libraries(katago KataGoSwift katagocoreml
+    ${KATAGOCOREML_DEP_LDFLAGS}
     "-framework MetalPerformanceShaders"
     "-framework MetalPerformanceShadersGraph")
   if("${CMAKE_SYSTEM_PROCESSOR}" STREQUAL "x86_64")

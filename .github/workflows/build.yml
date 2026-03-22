@@ -108,9 +108,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          brew install ninja zlib libzip
-          brew tap chinchangyang/katagocoreml-cpp
-          brew install katagocoreml
+          brew install ninja zlib libzip protobuf abseil
 
       - name: Cache CMake build
         uses: actions/cache@v4
