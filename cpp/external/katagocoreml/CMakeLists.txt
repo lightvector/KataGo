@@ -121,7 +121,7 @@ target_include_directories(katagocoreml
         ${PROTO_GENERATED_DIR}
         ${MILBLOB_DIR}/..
         ${MODELPACKAGE_DIR}
-        ${COREMLTOOLS_ROOT}/deps/nlohmann
+        ${CMAKE_CURRENT_SOURCE_DIR}/../nlohmann_json
         ${COREMLTOOLS_ROOT}/deps/FP16/include
         ${Protobuf_INCLUDE_DIRS}
         ${KATAGOCOREML_ABSEIL_INCLUDE_DIRS}
