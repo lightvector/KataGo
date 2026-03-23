@@ -457,47 +457,38 @@ elseif(USE_BACKEND STREQUAL "EIGEN")
   endif()
 elseif(USE_BACKEND STREQUAL "ONNX")
   target_compile_definitions(katago PRIVATE USE_ONNX_BACKEND)
-  set(ONNXRUNTIME_ROOT "" CACHE PATH "Path to ONNX Runtime source/install root")
-  set(ONNXRUNTIME_BUILD_DIR "" CACHE PATH "Path to ONNX Runtime build output directory")
-  if(NOT ONNXRUNTIME_ROOT OR NOT ONNXRUNTIME_BUILD_DIR)
-    message(FATAL_ERROR "ONNX backend requires -DONNXRUNTIME_ROOT=... and -DONNXRUNTIME_BUILD_DIR=...")
-  endif()
-  if(NOT IS_DIRECTORY "${ONNXRUNTIME_ROOT}")
-    message(FATAL_ERROR "ONNXRUNTIME_ROOT does not exist: ${ONNXRUNTIME_ROOT}")
-  endif()
-  if(NOT IS_DIRECTORY "${ONNXRUNTIME_BUILD_DIR}")
-    message(FATAL_ERROR "ONNXRUNTIME_BUILD_DIR does not exist: ${ONNXRUNTIME_BUILD_DIR}")
-  endif()
-  # Use non-SYSTEM -I so ORT's bundled protobuf headers take precedence over
-  # any system-installed protobuf found via /opt/homebrew/include or similar.
-  # (-I paths are searched before -isystem paths by the compiler.)
-  target_include_directories(katago BEFORE PRIVATE
-    "${ONNXRUNTIME_BUILD_DIR}/_deps/protobuf-src/src"
-    "${ONNXRUNTIME_BUILD_DIR}/_deps/onnx-build"
-    "${ONNXRUNTIME_ROOT}/cmake/external/onnx"
+  find_path(ONNXRUNTIME_INCLUDE_DIR onnxruntime_cxx_api.h
+    HINTS /opt/homebrew/opt/onnxruntime/include/onnxruntime
+          /opt/homebrew/include/onnxruntime /usr/local/include/onnxruntime
   )
-  target_include_directories(katago SYSTEM PRIVATE
-    "${ONNXRUNTIME_ROOT}/include/onnxruntime/core/session"
-  )
-  if(APPLE)
-    target_include_directories(katago SYSTEM BEFORE PRIVATE
-      "${ONNXRUNTIME_ROOT}/include/onnxruntime/core/providers/coreml"
-    )
+  if(NOT ONNXRUNTIME_INCLUDE_DIR)
+    message(FATAL_ERROR "Could not find onnxruntime headers. Install via: brew install onnxruntime")
   endif()
-  find_library(ONNXRUNTIME_LIB onnxruntime HINTS "${ONNXRUNTIME_BUILD_DIR}")
+  target_include_directories(katago SYSTEM PRIVATE "${ONNXRUNTIME_INCLUDE_DIR}")
+  find_library(ONNXRUNTIME_LIB onnxruntime
+    HINTS /opt/homebrew/opt/onnxruntime/lib /opt/homebrew/lib /usr/local/lib
+  )
   if(NOT ONNXRUNTIME_LIB)
-    message(FATAL_ERROR "Could not find libonnxruntime in ${ONNXRUNTIME_BUILD_DIR}")
+    message(FATAL_ERROR "Could not find libonnxruntime. Install via: brew install onnxruntime")
   endif()
-  # Link ONNX proto and protobuf-lite for building ONNX graphs
-  find_library(ONNX_PROTO_LIB onnx_proto HINTS "${ONNXRUNTIME_BUILD_DIR}/_deps/onnx-build")
-  find_library(PROTOBUF_LITE_LIB protobuf-lite HINTS "${ONNXRUNTIME_BUILD_DIR}/_deps/protobuf-build")
+  find_path(ONNX_INCLUDE_DIR onnx/onnx-ml.pb.h
+    HINTS /opt/homebrew/opt/onnx/include /opt/homebrew/include /usr/local/include
+  )
+  if(NOT ONNX_INCLUDE_DIR)
+    message(FATAL_ERROR "Could not find onnx headers. Install via: brew install onnx")
+  endif()
+  target_include_directories(katago PRIVATE "${ONNX_INCLUDE_DIR}")
+  find_library(ONNX_PROTO_LIB onnx_proto
+    HINTS /opt/homebrew/opt/onnx/lib /opt/homebrew/lib /usr/local/lib
+  )
   if(NOT ONNX_PROTO_LIB)
-    message(FATAL_ERROR "Could not find libonnx_proto in ${ONNXRUNTIME_BUILD_DIR}/_deps/onnx-build")
+    message(FATAL_ERROR "Could not find libonnx_proto. Install via: brew install onnx")
   endif()
-  if(NOT PROTOBUF_LITE_LIB)
-    message(FATAL_ERROR "Could not find libprotobuf-lite in ${ONNXRUNTIME_BUILD_DIR}/_deps/protobuf-build")
-  endif()
-  target_link_libraries(katago ${ONNXRUNTIME_LIB} ${ONNX_PROTO_LIB} ${PROTOBUF_LITE_LIB})
+  find_package(PkgConfig REQUIRED)
+  pkg_check_modules(PROTOBUF REQUIRED protobuf)
+  target_include_directories(katago PRIVATE ${PROTOBUF_INCLUDE_DIRS})
+  target_link_directories(katago PRIVATE ${PROTOBUF_LIBRARY_DIRS})
+  target_link_libraries(katago ${ONNXRUNTIME_LIB} ${ONNX_PROTO_LIB} ${PROTOBUF_LIBRARIES})
 endif()
 
 if(USE_BIGGER_BOARDS_EXPENSIVE)
