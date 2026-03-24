@@ -32,7 +32,7 @@ endif()
 set(BUILD_DISTRIBUTED 0 CACHE BOOL "Build with http support for contributing to distributed training")
 set(USE_BACKEND CACHE STRING "Neural net backend")
 string(TOUPPER "${USE_BACKEND}" USE_BACKEND)
-set_property(CACHE USE_BACKEND PROPERTY STRINGS "" CUDA TENSORRT OPENCL EIGEN)
+set_property(CACHE USE_BACKEND PROPERTY STRINGS "" CUDA TENSORRT OPENCL EIGEN ONNX)
 
 set(USE_TCMALLOC 0 CACHE BOOL "Use TCMalloc")
 set(NO_GIT_REVISION 0 CACHE BOOL "Disable embedding the git revision into the compiled exe")
@@ -145,8 +145,14 @@ elseif(USE_BACKEND STREQUAL "EIGEN")
   set(NEURALNET_BACKEND_SOURCES
     neuralnet/eigenbackend.cpp
     )
+elseif(USE_BACKEND STREQUAL "ONNX")
+  message(STATUS "-DUSE_BACKEND=ONNX, using ONNX Runtime backend (loads .bin.gz natively).")
+  set(NEURALNET_BACKEND_SOURCES
+    neuralnet/onnxbackend.cpp
+    neuralnet/onnxmodelbuilder.cpp
+    )
 elseif(USE_BACKEND STREQUAL "")
-  message(WARNING "${ColorBoldRed}WARNING: Using dummy neural net backend, intended for non-neural-net testing only, will fail on any code path requiring a neural net. To use neural net, specify -DUSE_BACKEND=CUDA or -DUSE_BACKEND=TENSORRT or -DUSE_BACKEND=OPENCL or -DUSE_BACKEND=EIGEN to compile with the respective backend.${ColorReset}")
+  message(WARNING "${ColorBoldRed}WARNING: Using dummy neural net backend, intended for non-neural-net testing only, will fail on any code path requiring a neural net. To use neural net, specify -DUSE_BACKEND=CUDA or -DUSE_BACKEND=TENSORRT or -DUSE_BACKEND=OPENCL or -DUSE_BACKEND=EIGEN or -DUSE_BACKEND=ONNX to compile with the respective backend.${ColorReset}")
   set(NEURALNET_BACKEND_SOURCES neuralnet/dummybackend.cpp)
 else()
   message(FATAL_ERROR "Unrecognized backend: " ${USE_BACKEND})
@@ -449,6 +455,41 @@ elseif(USE_BACKEND STREQUAL "EIGEN")
       endif()
     endif()
   endif()
+elseif(USE_BACKEND STREQUAL "ONNX")
+  target_compile_definitions(katago PRIVATE USE_ONNX_BACKEND)
+  find_path(ONNXRUNTIME_INCLUDE_DIR onnxruntime_cxx_api.h
+    HINTS /opt/homebrew/opt/onnxruntime/include/onnxruntime
+          /opt/homebrew/include/onnxruntime /usr/local/include/onnxruntime
+  )
+  if(NOT ONNXRUNTIME_INCLUDE_DIR)
+    message(FATAL_ERROR "Could not find onnxruntime headers. Install via: brew install onnxruntime")
+  endif()
+  target_include_directories(katago SYSTEM PRIVATE "${ONNXRUNTIME_INCLUDE_DIR}")
+  find_library(ONNXRUNTIME_LIB onnxruntime
+    HINTS /opt/homebrew/opt/onnxruntime/lib /opt/homebrew/lib /usr/local/lib
+  )
+  if(NOT ONNXRUNTIME_LIB)
+    message(FATAL_ERROR "Could not find libonnxruntime. Install via: brew install onnxruntime")
+  endif()
+  find_path(ONNX_INCLUDE_DIR onnx/onnx-ml.pb.h
+    HINTS /opt/homebrew/opt/onnx/include /opt/homebrew/include /usr/local/include
+  )
+  if(NOT ONNX_INCLUDE_DIR)
+    message(FATAL_ERROR "Could not find onnx headers. Install via: brew install onnx")
+  endif()
+  target_include_directories(katago PRIVATE "${ONNX_INCLUDE_DIR}")
+  target_compile_definitions(katago PRIVATE ONNX_ML)
+  find_library(ONNX_PROTO_LIB onnx_proto
+    HINTS /opt/homebrew/opt/onnx/lib /opt/homebrew/lib /usr/local/lib
+  )
+  if(NOT ONNX_PROTO_LIB)
+    message(FATAL_ERROR "Could not find libonnx_proto. Install via: brew install onnx")
+  endif()
+  find_package(PkgConfig REQUIRED)
+  pkg_check_modules(PROTOBUF REQUIRED protobuf)
+  target_include_directories(katago PRIVATE ${PROTOBUF_INCLUDE_DIRS})
+  target_link_directories(katago PRIVATE ${PROTOBUF_LIBRARY_DIRS})
+  target_link_libraries(katago ${ONNXRUNTIME_LIB} ${ONNX_PROTO_LIB} ${PROTOBUF_LIBRARIES})
 endif()
 
 if(USE_BIGGER_BOARDS_EXPENSIVE)

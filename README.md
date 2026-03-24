@@ -7,7 +7,7 @@
   * [GUIs](#guis)
   * [Windows and Linux](#windows-and-linux)
   * [MacOS](#macos)
-  * [OpenCL vs CUDA vs TensorRT vs Eigen](#opencl-vs-cuda-vs-tensorrt-vs-eigen)
+  * [OpenCL vs CUDA vs TensorRT vs Eigen vs ONNX](#opencl-vs-cuda-vs-tensorrt-vs-eigen-vs-onnx)
   * [How To Use](#how-to-use)
   * [Tuning for Performance](#tuning-for-performance)
   * [Common Questions and Issues](#common-questions-and-issues)
@@ -84,8 +84,8 @@ The community also provides KataGo packages for [Homebrew](https://brew.sh) on M
 
 Use `brew install katago`. The latest config files and networks are installed in KataGo's `share` directory. Find them via `brew list --verbose katago`. A basic way to run katago will be `katago gtp -config $(brew list --verbose katago | grep 'gtp.*\.cfg') -model $(brew list --verbose katago | grep .gz | head -1)`. You should choose the Network according to the release notes here and customize the provided example config as with every other way of installing KataGo.
 
-### OpenCL vs CUDA vs TensorRT vs Eigen
-KataGo has four backends, OpenCL (GPU), CUDA (GPU), TensorRT (GPU), and Eigen (CPU).
+### OpenCL vs CUDA vs TensorRT vs Eigen vs ONNX
+KataGo has five backends, OpenCL (GPU), CUDA (GPU), TensorRT (GPU), Eigen (CPU), and ONNX (CPU/GPU).
 
 The quick summary is:
   * **To easily get something working, try OpenCL if you have any good or decent GPU.**
@@ -93,12 +93,14 @@ The quick summary is:
   * Use Eigen with AVX2 if you don't have a GPU or if your GPU is too old/weak to work with OpenCL, and you just want a plain CPU KataGo.
   * Use Eigen without AVX2 if your CPU is old or on a low-end device that doesn't support AVX2.
   * The CUDA backend can work for NVIDIA GPUs with CUDA+CUDNN installed but is likely worse than TensorRT.
+  * Use ONNX if you want to load raw `.onnx` model files, use CoreML on Apple Silicon, or use CUDA/TensorRT via ONNX Runtime on Windows/Linux.
 
 More in detail:
   * OpenCL is a general GPU backend should be able to run with any GPUs or accelerators that support [OpenCL](https://en.wikipedia.org/wiki/OpenCL), including NVIDIA GPUs, AMD GPUs, as well CPU-based OpenCL implementations or things like Intel Integrated Graphics. This is the most general GPU version of KataGo and doesn't require a complicated install like CUDA does, so is most likely to work out of the box as long as you have a fairly modern GPU. **However, it also need to take some time when run for the very first time to tune itself.** For many systems, this will take 5-30 seconds, but on a few older/slower systems, may take many minutes or longer. Also, the quality of OpenCL implementations is sometimes inconsistent, particularly for Intel Integrated Graphics and for AMD GPUs that are older than several years, so it might not work for very old machines, as well as specific buggy newer AMD GPUs, see also [Issues with specific GPUs or GPU drivers](#issues-with-specific-gpus-or-gpu-drivers).
   * CUDA is a GPU backend specific to NVIDIA GPUs (it will not work with AMD or Intel or any other GPUs) and requires installing [CUDA](https://developer.nvidia.com/cuda-zone) and [CUDNN](https://developer.nvidia.com/cudnn) and a modern NVIDIA GPU. On most GPUs, the OpenCL implementation will actually beat NVIDIA's own CUDA/CUDNN at performance. The exception is for top-end NVIDIA GPUs that support FP16 and tensor cores, in which case sometimes one is better and sometimes the other is better.
   * TensorRT is similar to CUDA, but only uses NVIDIA's TensorRT framework to run the neural network with more optimized kernels. For modern NVIDIA GPUs, it should work whenever CUDA does and will usually be faster than CUDA or any other backend.
   * Eigen is a *CPU* backend that should work widely *without* needing a GPU or fancy drivers. Use this if you don't have a good GPU or really any GPU at all. It will be quite significantly slower than OpenCL or CUDA, but on a good CPU can still often get 10 to 20 playouts per second if using the smaller (15 or 20) block neural nets. Eigen can also be compiled with AVX2 and FMA support, which can provide a big performance boost for Intel and AMD CPUs from the last few years. However, it will not run at all on older CPUs (and possibly even some recent but low-power modern CPUs) that don't support these fancy vector instructions.
+  * ONNX is a backend that uses [ONNX Runtime](https://onnxruntime.ai/) for inference. It can load both standard `.bin.gz` model files and raw `.onnx` model files directly. It supports CPU inference out of the box, CoreML on macOS for Apple Silicon hardware acceleration, and CUDA/TensorRT execution providers for NVIDIA GPUs on Windows/Linux. Requires building ONNX Runtime from source as a prerequisite. See [Compiling KataGo](Compiling.md) for details.
 
 For **any** implementation, it's recommended that you also tune the number of threads used if you care about optimal performance, as it can make a factor of 2-3 difference in the speed. See "Tuning for Performance" below. However, if you mostly just want to get it working, then the default untuned settings should also be still reasonable.
 

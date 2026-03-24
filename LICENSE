@@ -5,6 +5,12 @@ and/or files, see the individual readmes and/or license files for each one withi
 subdirectories within cpp/external. Additionally, cpp/core/sha2.cpp derives from another piece of
 external code and embeds its own license within that file.
 
+When built with the ONNX backend, this software links dynamically against ONNX Runtime (MIT License,
+https://github.com/microsoft/onnxruntime) and its transitive dependencies including ONNX (MIT License,
+https://github.com/onnx/onnx) and Protocol Buffers (BSD 3-Clause License,
+https://github.com/protocolbuffers/protobuf). These libraries are not distributed with this
+repository; see their respective repositories for license details.
+
 Some parts of python/katago/model_pytorch.py and a few other files, where noted, are modifications
 of code from other open source authors.
 

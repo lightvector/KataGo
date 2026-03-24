@@ -20,6 +20,7 @@ std::vector<std::string> Setup::getBackendPrefixes() {
   prefixes.push_back("metal");
   prefixes.push_back("opencl");
   prefixes.push_back("eigen");
+  prefixes.push_back("onnx");
   prefixes.push_back("dummybackend");
   return prefixes;
 }
@@ -88,6 +89,8 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
   string backendPrefix = "opencl";
   #elif defined(USE_EIGEN_BACKEND)
   string backendPrefix = "eigen";
+  #elif defined(USE_ONNX_BACKEND)
+  string backendPrefix = "onnx";
   #else
   string backendPrefix = "dummybackend";
   #endif
@@ -141,7 +144,7 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
         requireExactNNLen = cfg.getBool("requireMaxBoardSize");
     }
 
-    bool inputsUseNHWC = backendPrefix == "opencl" || backendPrefix == "trt" || backendPrefix == "metal" ? false : true;
+    bool inputsUseNHWC = backendPrefix == "opencl" || backendPrefix == "trt" || backendPrefix == "metal" || backendPrefix == "onnx" ? false : true;
     if(cfg.contains(backendPrefix+"InputsUseNHWC"+idxStr))
       inputsUseNHWC = cfg.getBool(backendPrefix+"InputsUseNHWC"+idxStr);
     else if(cfg.contains("inputsUseNHWC"+idxStr))
@@ -220,9 +223,32 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
 
     string homeDataDirOverride = loadHomeDataDirOverride(cfg);
 
-    string openCLTunerFile;
+    string backendExtraParam;
+    #if defined(USE_ONNX_BACKEND)
+    string onnxProvider = cfg.contains("onnxProvider") ? cfg.getString("onnxProvider") : "cpu";
+    {
+      backendExtraParam = "provider=" + onnxProvider;
+      if(cfg.contains("onnxInputSpatial"))
+        backendExtraParam += ";inputSpatial=" + cfg.getString("onnxInputSpatial");
+      if(cfg.contains("onnxInputGlobal"))
+        backendExtraParam += ";inputGlobal=" + cfg.getString("onnxInputGlobal");
+      if(cfg.contains("onnxInputMeta"))
+        backendExtraParam += ";inputMeta=" + cfg.getString("onnxInputMeta");
+      if(cfg.contains("onnxOutputPolicy"))
+        backendExtraParam += ";outputPolicy=" + cfg.getString("onnxOutputPolicy");
+      if(cfg.contains("onnxOutputValue"))
+        backendExtraParam += ";outputValue=" + cfg.getString("onnxOutputValue");
+      if(cfg.contains("onnxOutputMiscvalue"))
+        backendExtraParam += ";outputMiscvalue=" + cfg.getString("onnxOutputMiscvalue");
+      if(cfg.contains("onnxOutputOwnership"))
+        backendExtraParam += ";outputOwnership=" + cfg.getString("onnxOutputOwnership");
+      if(cfg.contains("onnxModelVersion"))
+        backendExtraParam += ";modelVersion=" + cfg.getString("onnxModelVersion");
+    }
+    #else
     if(cfg.contains("openclTunerFile"))
-      openCLTunerFile = cfg.getString("openclTunerFile");
+      backendExtraParam = cfg.getString("openclTunerFile");
+    #endif
     bool openCLReTunePerBoardSize = false;
     if(cfg.contains("openclReTunePerBoardSize"))
       openCLReTunePerBoardSize = cfg.getBool("openclReTunePerBoardSize");
@@ -275,7 +301,29 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
       setupFor == SETUP_FOR_ANALYSIS ? 17 :
       cfg.getInt("nnMutexPoolSizePowerOfTwo", -1, 24);
 
-#ifndef USE_EIGEN_BACKEND
+#if defined(USE_ONNX_BACKEND)
+    // ONNX backend: use small batch for CPU provider (like Eigen), normal for accelerators
+    int nnMaxBatchSize;
+    {
+      if(onnxProvider == "cpu" || onnxProvider.empty()) {
+        nnMaxBatchSize = 2;
+        cfg.markAllKeysUsedWithPrefix("nnMaxBatchSize");
+        (void)defaultMaxBatchSize;
+      } else {
+        if(setupFor == SETUP_FOR_BENCHMARK || setupFor == SETUP_FOR_DISTRIBUTED) {
+          nnMaxBatchSize = defaultMaxBatchSize;
+        }
+        else if(defaultMaxBatchSize > 0) {
+          nnMaxBatchSize =
+            cfg.contains("nnMaxBatchSize") ? cfg.getInt("nnMaxBatchSize", 1, 65536) :
+            defaultMaxBatchSize;
+        }
+        else {
+          nnMaxBatchSize = cfg.getInt("nnMaxBatchSize", 1, 65536);
+        }
+      }
+    }
+#elif !defined(USE_EIGEN_BACKEND)
     int nnMaxBatchSize;
     if(setupFor == SETUP_FOR_BENCHMARK || setupFor == SETUP_FOR_DISTRIBUTED) {
       nnMaxBatchSize = defaultMaxBatchSize;
@@ -315,7 +363,7 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
       nnCacheSizePowerOfTwo,
       nnMutexPoolSizePowerOfTwo,
       debugSkipNeuralNet,
-      openCLTunerFile,
+      backendExtraParam,
       homeDataDirOverride,
       openCLReTunePerBoardSize,
       useFP16Mode,
