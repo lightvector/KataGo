@@ -478,6 +478,7 @@ elseif(USE_BACKEND STREQUAL "ONNX")
     message(FATAL_ERROR "Could not find onnx headers. Install via: brew install onnx")
   endif()
   target_include_directories(katago PRIVATE "${ONNX_INCLUDE_DIR}")
+  target_compile_definitions(katago PRIVATE ONNX_ML)
   find_library(ONNX_PROTO_LIB onnx_proto
     HINTS /opt/homebrew/opt/onnx/lib /opt/homebrew/lib /usr/local/lib
   )
