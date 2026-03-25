@@ -35,7 +35,7 @@ As also mentioned in the instructions below but repeated here for visibility, if
       * If using the TensorRT backend, in addition to a compatible CUDA Toolkit (https://developer.nvidia.com/cuda-toolkit), you also need TensorRT (https://developer.nvidia.com/tensorrt) that is at least version 8.5.
       * If using the ROCm backend, ROCm 6.4 or later and a GPU capable of supporting them. More information about installation(https://rocm.docs.amd.com/projects/install-on-linux/en/latest/) and please install all possiable ROCm developer packages, instead of just ROCm runtime packages.
       * If using the Eigen backend, Eigen3. With Debian packages, (i.e. apt or apt-get), this should be `libeigen3-dev`.
-      * If using the ONNX backend, ONNX Runtime headers/libs and ONNX protobuf dependencies (`onnx/onnx-ml.pb.h`, `onnx_proto`, `protobuf-lite`) for `.bin.gz` model conversion support.
+      * If using the ONNX backend, ONNX Runtime headers/libs and ONNX protobuf dependencies (`onnx/onnx_pb.h`, `onnx_proto`, `protobuf-lite`) for `.bin.gz` model conversion support.
       * zlib, libzip. With Debian packages (i.e. apt or apt-get), these should be `zlib1g-dev`, `libzip-dev`.
       * If you want to do self-play training and research, probably Google perftools `libgoogle-perftools-dev` for TCMalloc or some other better malloc implementation. For unknown reasons, the allocation pattern in self-play with large numbers of threads and parallel games causes a lot of memory fragmentation under glibc malloc that will eventually run your machine out of memory, but better mallocs handle it fine.
       * If compiling to contribute to public distributed training runs, OpenSSL is required (`libssl-dev`).

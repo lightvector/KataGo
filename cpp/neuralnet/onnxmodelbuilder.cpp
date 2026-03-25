@@ -1,12 +1,12 @@
 // Builds an ONNX computational graph from a KataGo ModelDesc.
-// Uses the ONNX protobuf API (onnx-ml.pb.h) to construct a ModelProto
+// Uses the ONNX protobuf API (onnx_pb.h) to construct a ModelProto
 // that can be loaded directly by ONNX Runtime.
 
 #include "../neuralnet/onnxmodelbuilder.h"
 #include "../neuralnet/activations.h"
 #include "../core/global.h"
 
-#include <onnx/onnx-ml.pb.h>
+#include <onnx/onnx_pb.h>
 
 #include <string>
 #include <vector>
