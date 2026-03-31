@@ -32,6 +32,7 @@ cpp/tests/results/matchsgfs2/games.sgfs
 
 cpp/data/
 versions/
+build/
 cpp/build
 cpp/out
 
