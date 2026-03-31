@@ -18,8 +18,19 @@
 
 #include <vector>
 #include <algorithm>
+#include <csignal>
 
 using namespace std;
+
+static std::atomic<bool> sigReceived(false);
+static std::atomic<bool> shouldStop(false);
+static void signalHandler(int signal)
+{
+  if(signal == SIGINT || signal == SIGTERM) {
+    sigReceived.store(true);
+    shouldStop.store(true);
+  }
+}
 
 //Number of dimensions = number of PUCT params being tuned
 static const int nDims = 3;
@@ -218,6 +229,12 @@ int MainCmds::tuneparams(const vector<string>& args) {
   );
   logger.write("Loaded neural nets");
 
+  //Signal handling for graceful shutdown
+  if(!std::atomic_is_lock_free(&shouldStop))
+    throw StringError("shouldStop is not lock free, signal-quitting mechanism for terminating will NOT work!");
+  std::signal(SIGINT, signalHandler);
+  std::signal(SIGTERM, signalHandler);
+
   //QRS-Tune setup
   uint64_t qrsSeed = seedRand.nextUInt64();
   QRSTune::QRSTuner tuner(nDims, qrsSeed, numTrials);
@@ -263,7 +280,7 @@ int MainCmds::tuneparams(const vector<string>& args) {
     }
 
     string seed = gameSeedBase + ":" + Global::intToString(trial);
-    auto shouldStopFunc = []() noexcept { return false; };
+    auto shouldStopFunc = []() noexcept { return shouldStop.load(); };
 
     FinishedGameData* gameData = gameRunner->runGame(
       seed, botSpecB, botSpecW,
@@ -296,6 +313,9 @@ int MainCmds::tuneparams(const vector<string>& args) {
     }
 
     tuner.addResult(sample, outcome);
+
+    if(shouldStop.load())
+      break;
 
     //Progress report every 100 trials
     if((trial + 1) % 100 == 0) {

@@ -41,7 +41,7 @@ static inline double sigmoid(double z) {
 
 // Solve Ax = b in-place (A is F x F, b is length F) via partial-pivot
 // Gaussian elimination. Returns false if singular. Overwrites A and b.
-static bool gaussianSolve(int F, std::vector<std::vector<double>>& A, std::vector<double>& b) {
+static inline bool gaussianSolve(int F, std::vector<std::vector<double>>& A, std::vector<double>& b) {
   for(int col = 0; col < F; col++) {
     int piv = col;
     for(int r = col + 1; r < F; r++)
@@ -204,23 +204,44 @@ class QRSBuffer {
   }
 
   // Remove samples significantly below the current MAP win estimate.
+  // Samples are ranked by predicted quality so that min_keep_ retains the
+  // best samples rather than the oldest (which are typically from early
+  // uniform random exploration).
   void prune(const QRSModel& model) {
     int N = (int)xs_.size();
     if(N <= min_keep_ * 2) return;
 
-    // Best predicted win rate across all stored samples
+    // Score all samples and find best predicted win rate
+    std::vector<std::pair<double, int>> scored(N);
     double p_best = 0.0;
     for(int i = 0; i < N; i++) {
       double p = model.predict(xs_[i].data());
+      scored[i] = {p, i};
       if(p > p_best) p_best = p;
     }
     double threshold = p_best - prune_margin_;
 
+    // Sort by descending predicted quality
+    std::sort(scored.begin(), scored.end(),
+      [](const std::pair<double,int>& a, const std::pair<double,int>& b) {
+        return a.first > b.first;
+      });
+
+    // Keep samples above threshold, plus top-quality samples up to min_keep_
+    std::vector<bool> keep(N, false);
+    int kept = 0;
+    for(auto& kv : scored) {
+      if(kv.first >= threshold || kept < min_keep_) {
+        keep[kv.second] = true;
+        kept++;
+      }
+    }
+
+    // Rebuild in original order to preserve temporal structure
     std::vector<std::vector<double>> nx;
     std::vector<double> ny;
     for(int i = 0; i < N; i++) {
-      double p = model.predict(xs_[i].data());
-      if(p >= threshold || (int)nx.size() < min_keep_) {
+      if(keep[i]) {
         nx.push_back(xs_[i]);
         ny.push_back(ys_[i]);
       }
