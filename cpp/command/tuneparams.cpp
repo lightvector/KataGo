@@ -69,6 +69,7 @@ static void printRegressionCurves(const QRSTune::QRSTuner& tuner,
                                    Logger& logger) {
   const int PLOT_W = 60;
   const int PLOT_H = 20;
+  double bestWinRate = tuner.model().predict(vBest.data());
 
   for(int dim = 0; dim < NDIMS; dim++) {
     vector<string> canvas(PLOT_H, string(PLOT_W, ' '));
@@ -87,8 +88,7 @@ static void printRegressionCurves(const QRSTune::QRSTuner& tuner,
       canvas[row][col] = (col == bestCol) ? '*' : 'o';
     }
 
-    double bestReal    = qrsDimToReal(dim, vBest[dim], mins, maxs);
-    double bestWinRate = tuner.model().predict(vBest.data());
+    double bestReal = qrsDimToReal(dim, vBest[dim], mins, maxs);
     logger.write("");
     logger.write(
       "[Dim " + Global::intToString(dim) + "] " + PARAM_NAMES[dim] +
@@ -229,21 +229,17 @@ int MainCmds::tuneparams(const vector<string>& args) {
   logger.write("Starting " + Global::intToString(numTrials) + " tuning trials");
 
   for(int trial = 0; trial < numTrials; trial++) {
-    // Step 1: Get next sample from QRS-Tune
     vector<double> sample = tuner.nextSample();
 
-    // Step 2: Map normalized coordinates to PUCT parameter values
     double cpuctExploration, cpuctExplorationLog, cpuctUtilityStdevPrior;
     qrsToPUCT(sample, cpuctExploration, cpuctExplorationLog, cpuctUtilityStdevPrior, qrsMins, qrsMaxs);
 
-    // Step 3: Build experiment bot params with updated PUCT values
     SearchParams expParams = paramss[1];
     expParams.cpuctExploration       = cpuctExploration;
     expParams.cpuctExplorationLog    = cpuctExplorationLog;
     expParams.cpuctUtilityStdevPrior = cpuctUtilityStdevPrior;
 
-    // Step 4: Alternate colors to remove first-move advantage bias
-    // Even trials: experiment bot plays Black; odd trials: experiment bot plays White
+    // Alternate colors to remove first-move advantage bias
     bool expIsBlack = (trial % 2 == 0);
     MatchPairer::BotSpec botSpecB, botSpecW;
     if(expIsBlack) {
@@ -266,7 +262,6 @@ int MainCmds::tuneparams(const vector<string>& args) {
       botSpecW.baseParams = expParams;
     }
 
-    // Step 5: Run one game
     string seed = gameSeedBase + ":" + Global::intToString(trial);
     auto shouldStopFunc = []() noexcept { return false; };
 
@@ -282,8 +277,7 @@ int MainCmds::tuneparams(const vector<string>& args) {
       /*onEachMove=*/nullptr
     );
 
-    // Step 6: Determine outcome for experiment bot
-    double outcome = 0.5;  // draw default
+    double outcome = 0.5;
     if(gameData != nullptr) {
       Player winner = gameData->endHist.winner;
       if(expIsBlack) {
@@ -301,7 +295,6 @@ int MainCmds::tuneparams(const vector<string>& args) {
       logger.write("Warning: trial " + Global::intToString(trial) + " returned null game data");
     }
 
-    // Step 7: Feed result to QRS-Tune (triggers periodic refit and pruning)
     tuner.addResult(sample, outcome);
 
     // Progress report every 100 trials
@@ -348,6 +341,7 @@ int MainCmds::tuneparams(const vector<string>& args) {
   for(NNEvaluator* eval : nnEvals)
     delete eval;
 
+  NeuralNet::globalCleanup();
   ScoreValue::freeTables();
   return 0;
 }
