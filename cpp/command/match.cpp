@@ -50,7 +50,7 @@ static double oneTailedPValue(double wins, double n) {
 
 //Bradley-Terry MLE Elo (global, all-bot ranking)
 //pairStats: {nameA,nameB} -> {winsA, winsB, draws}  nameA < nameB lexicographically
-static void computeBradleyTerryElo(
+static bool computeBradleyTerryElo(
   const vector<string>& botNames,
   const map<pair<string,string>, array<int64_t,3>>& pairStats,
   vector<double>& outElo,
@@ -77,6 +77,7 @@ static void computeBradleyTerryElo(
   vector<double> theta(N, 0.0);
   int M = N - 1;
 
+  bool converged = (M == 0);
   if(M > 0) {
     for(int iter = 0; iter < 200; iter++) {
       vector<double> grad(M, 0.0);
@@ -122,7 +123,7 @@ static void computeBradleyTerryElo(
         theta[r+1] += delta[r];
         maxDelta = max(maxDelta, fabs(delta[r]));
       }
-      if(maxDelta < 1e-6) break;
+      if(maxDelta < 1e-6) { converged = true; break; }
     }
   }
 
@@ -144,6 +145,7 @@ static void computeBradleyTerryElo(
     }
     if(fish > 0.0) outStderr[i] = eloPerStrength / sqrt(fish);
   }
+  return converged;
 }
 
 int MainCmds::match(const vector<string>& args) {
@@ -494,9 +496,11 @@ int MainCmds::match(const vector<string>& args) {
     }
 
     vector<double> elo, eloStderr;
-    computeBradleyTerryElo(activeBots, pairStats, elo, eloStderr);
+    bool eloConverged = computeBradleyTerryElo(activeBots, pairStats, elo, eloStderr);
 
     logger.write("");
+    if(!eloConverged)
+      logger.write("Warning: Bradley-Terry Elo estimation did not fully converge");
     logger.write("=== match Results ===");
     logger.write("Global Elo (Bradley-Terry MLE, reference=" + activeBots[0] + "):");
     for(int i = 0; i < (int)activeBots.size(); i++) {

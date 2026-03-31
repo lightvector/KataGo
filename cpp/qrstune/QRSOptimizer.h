@@ -18,12 +18,12 @@ namespace QRSTune {
 //   Total features F = 1 + D + D*(D+1)/2
 // ============================================================
 
-static inline int numFeatures(int D) {
+inline int numFeatures(int D) {
   return 1 + D + D * (D + 1) / 2;
 }
 
 // Fill phi[0..F-1] given x[0..D-1].
-static inline void computeFeatures(int D, const double* x, double* phi) {
+inline void computeFeatures(int D, const double* x, double* phi) {
   int k = 0;
   phi[k++] = 1.0;
   for(int i = 0; i < D; i++) phi[k++] = x[i];
@@ -33,7 +33,7 @@ static inline void computeFeatures(int D, const double* x, double* phi) {
       phi[k++] = x[i] * x[j];
 }
 
-static inline double sigmoid(double z) {
+inline double sigmoid(double z) {
   if(z > 40.0) return 1.0;
   if(z < -40.0) return 0.0;
   return 1.0 / (1.0 + std::exp(-z));
@@ -41,7 +41,7 @@ static inline double sigmoid(double z) {
 
 // Solve Ax = b in-place (A is F x F, b is length F) via partial-pivot
 // Gaussian elimination. Returns false if singular. Overwrites A and b.
-static inline bool gaussianSolve(int F, std::vector<std::vector<double>>& A, std::vector<double>& b) {
+inline bool gaussianSolve(int F, std::vector<std::vector<double>>& A, std::vector<double>& b) {
   for(int col = 0; col < F; col++) {
     int piv = col;
     for(int r = col + 1; r < F; r++)
