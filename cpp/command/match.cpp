@@ -28,9 +28,9 @@ static void signalHandler(int signal)
   }
 }
 
-// ===== Match statistics helpers =====
+//Match statistics helpers
 
-// Wilson score 95% two-tailed confidence interval (draws counted as 0.5 wins)
+//Wilson score 95% two-tailed confidence interval (draws counted as 0.5 wins)
 static void wilsonCI95(double wins, double n, double& lo, double& hi) {
   const double z = 1.96;
   double p = wins / n;
@@ -41,15 +41,15 @@ static void wilsonCI95(double wins, double n, double& lo, double& hi) {
   hi = center + margin;
 }
 
-// One-tailed p-value: P(experiment winrate <= 0.5 | data), using normal approximation
+//One-tailed p-value: P(experiment winrate <= 0.5 | data), using normal approximation
 static double oneTailedPValue(double wins, double n) {
   if(n <= 0) return 0.5;
   double z = (wins - 0.5*n) / (0.5*sqrt(n));
   return 0.5 * erfc(z / sqrt(2.0));
 }
 
-// Bradley-Terry MLE Elo (global, all-bot ranking)
-// pairStats: {nameA,nameB} -> {winsA, winsB, draws}  nameA < nameB lexicographically
+//Bradley-Terry MLE Elo (global, all-bot ranking)
+//pairStats: {nameA,nameB} -> {winsA, winsB, draws}  nameA < nameB lexicographically
 static void computeBradleyTerryElo(
   const vector<string>& botNames,
   const map<pair<string,string>, array<int64_t,3>>& pairStats,
@@ -57,12 +57,12 @@ static void computeBradleyTerryElo(
   vector<double>& outStderr
 ) {
   int N = (int)botNames.size();
-  const double ELO_PER_STRENGTH = 400.0 * log10(exp(1.0)); // ~173.7
+  const double eloPerStrength = 400.0 * log10(exp(1.0)); //~173.7
 
   map<string,int> nameIdx;
   for(int i = 0; i < N; i++) nameIdx[botNames[i]] = i;
 
-  // w[i][j] = effective wins of i vs j (draws count 0.5)
+  //w[i][j] = effective wins of i vs j (draws count 0.5)
   vector<vector<double>> w(N, vector<double>(N, 0.0));
   for(auto& kv : pairStats) {
     auto itA = nameIdx.find(kv.first.first);
@@ -73,7 +73,7 @@ static void computeBradleyTerryElo(
     w[b][a] += kv.second[1] + 0.5 * kv.second[2];
   }
 
-  // theta[0] = 0 (reference, first bot), optimize theta[1..N-1]
+  //theta[0] = 0 (reference, first bot), optimize theta[1..N-1]
   vector<double> theta(N, 0.0);
   int M = N - 1;
 
@@ -93,7 +93,7 @@ static void computeBradleyTerryElo(
           if(i > 0 && j > 0) { H[i-1][j-1] += fish; H[j-1][i-1] += fish; }
         }
       }
-      // Solve H*delta = -grad via Gaussian elimination
+      //Solve H*delta = -grad via Gaussian elimination
       vector<vector<double>> aug(M, vector<double>(M+1, 0.0));
       for(int r = 0; r < M; r++) {
         for(int c = 0; c < M; c++) aug[r][c] = H[r][c];
@@ -126,13 +126,13 @@ static void computeBradleyTerryElo(
     }
   }
 
-  // Convert log-strength to Elo relative to bot 0
+  //Convert log-strength to Elo relative to bot 0
   outElo.resize(N);
   outStderr.resize(N, 0.0);
   for(int i = 0; i < N; i++)
-    outElo[i] = (theta[i] - theta[0]) * ELO_PER_STRENGTH;
+    outElo[i] = (theta[i] - theta[0]) * eloPerStrength;
 
-  // Fisher information diagonal -> stderr
+  //Fisher information diagonal -> stderr
   for(int i = 1; i < N; i++) {
     double fish = 0.0;
     for(int j = 0; j < N; j++) {
@@ -142,7 +142,7 @@ static void computeBradleyTerryElo(
       double sigma = 1.0 / (1.0 + exp(theta[j] - theta[i]));
       fish += nij * sigma * (1.0 - sigma);
     }
-    if(fish > 0.0) outStderr[i] = ELO_PER_STRENGTH / sqrt(fish);
+    if(fish > 0.0) outStderr[i] = eloPerStrength / sqrt(fish);
   }
 }
 
@@ -371,8 +371,8 @@ int MainCmds::match(const vector<string>& args) {
   std::map<string,double> timeUsedByBotMap;
   std::map<string,double> movesByBotMap;
   map<pair<string,string>, array<int64_t,3>> pairStats;
-  // key: {nameA, nameB} with nameA < nameB lexicographically
-  // value: {winsA, winsB, draws}
+  //key: {nameA, nameB} with nameA < nameB lexicographically
+  //value: {winsA, winsB, draws}
 
   auto runMatchLoop = [
     &gameRunner,&matchPairer,&sgfOutputDir,&logger,&gameSeedBase,&patternBonusTables,
@@ -426,7 +426,7 @@ int MainCmds::match(const vector<string>& args) {
           movesByBotMap[gameData->bName] += (double)gameData->bMoveCount;
           movesByBotMap[gameData->wName] += (double)gameData->wMoveCount;
 
-          // Update pairwise W/L/D stats
+          //Update pairwise W/L/D stats
           {
             const string& bName = gameData->bName;
             const string& wName = gameData->wName;
@@ -481,7 +481,7 @@ int MainCmds::match(const vector<string>& args) {
   for(int i = 0; i<threads.size(); i++)
     threads[i].join();
 
-  // ===== Final match statistics =====
+  //Final match statistics
   if(!pairStats.empty()) {
     vector<string> activeBots;
     {
