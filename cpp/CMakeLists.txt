@@ -318,6 +318,7 @@ add_executable(katago
   command/gputest.cpp
   command/gtp.cpp
   command/match.cpp
+  command/tuneparams.cpp
   command/misc.cpp
   command/runtests.cpp
   command/sandbox.cpp
