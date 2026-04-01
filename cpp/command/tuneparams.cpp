@@ -106,6 +106,7 @@ int MainCmds::tuneparams(const vector<string>& args) {
 
   ConfigParser cfg;
   string logFile;
+  string configFilePath;  //Original config file path for suggested match command
   try {
     KataGoCommandLine cmd(
       "Tune KataGo hyperparameters using sequential optimization (QRS-Tune).\n"
@@ -122,6 +123,10 @@ int MainCmds::tuneparams(const vector<string>& args) {
     cmd.parseArgs(args);
     logFile = logFileArg.getValue();
     cmd.getConfig(cfg);
+    configFilePath = cfg.getFileName();
+    string suffix = " and/or command-line and query overrides";
+    if(Global::isSuffix(configFilePath, suffix))
+      configFilePath = Global::chopSuffix(configFilePath, suffix);
   }
   catch(TCLAP::ArgException& e) {
     cerr << "Error: " << e.error() << " for argument " << e.argId() << endl;
@@ -352,6 +357,24 @@ int MainCmds::tuneparams(const vector<string>& args) {
     "QRS raw coordinates: [" + Global::doubleToString(vBest[0]) + ", " +
     Global::doubleToString(vBest[1]) + ", " + Global::doubleToString(vBest[2]) + "]"
   );
+
+  //Suggested match command for verification
+  {
+    string overrides = Global::strprintf(
+      "botName0=tuned,botName1=default,"
+      "cpuctExploration0=%.4f,cpuctExplorationLog0=%.4f,cpuctUtilityStdevPrior0=%.4f,"
+      "numGameThreads=8,numGamesTotal=200",
+      bestE, bestLog, bestStdev
+    );
+    overrides += ",nnModelFile0=" + nnModelFile0 + ",nnModelFile1=" + nnModelFile1;
+    logger.write("");
+    logger.write("To verify, run a match of tuned (bot0) vs default (bot1):");
+    logger.write(
+      "./katago match -config " + configFilePath +
+      " -override-config \"" + overrides + "\"" +
+      " -log-file match.log -sgf-output-dir match_sgfs/"
+    );
+  }
 
   //Cleanup
   delete gameRunner;
