@@ -239,7 +239,6 @@ void QRSTune::QRSModel::mapOptimum(double* out_x) const {
 // 5. Cov(x*) = J * Cov(beta) * J^T.
 // 6. SE[d] = sqrt(Cov(x*)[d][d]).
 bool QRSTune::QRSModel::computeOptimumSE(const vector<vector<double>>& xs,
-                                          const vector<double>& ys,
                                           double* se,
                                           bool* clamped) const {
   int N = (int)xs.size();
@@ -626,7 +625,7 @@ void QRSTune::runTests() {
     model.fit(xs, ys);
     double se[1];
     bool clamped[1];
-    bool ok = model.computeOptimumSE(xs, ys, se, clamped);
+    bool ok = model.computeOptimumSE(xs, se, clamped);
     testAssert(ok);
     testAssert(se[0] > 0.0);
     testAssert(se[0] < 2.0);
@@ -652,8 +651,8 @@ void QRSTune::runTests() {
     modelLarge.fit(xsLarge, ysLarge);
     double seSmall[1], seLarge[1];
     bool clampedSmall[1], clampedLarge[1];
-    bool okSmall = modelSmall.computeOptimumSE(xsSmall, ysSmall, seSmall, clampedSmall);
-    bool okLarge = modelLarge.computeOptimumSE(xsLarge, ysLarge, seLarge, clampedLarge);
+    bool okSmall = modelSmall.computeOptimumSE(xsSmall, seSmall, clampedSmall);
+    bool okLarge = modelLarge.computeOptimumSE(xsLarge, seLarge, clampedLarge);
     testAssert(okSmall && okLarge);
     testAssert(seLarge[0] < seSmall[0]);
   }
@@ -667,7 +666,7 @@ void QRSTune::runTests() {
     model.fit(xs, ys);
     double se[1];
     bool clamped[1];
-    bool ok = model.computeOptimumSE(xs, ys, se, clamped);
+    bool ok = model.computeOptimumSE(xs, se, clamped);
     testAssert(!ok);
   }
 

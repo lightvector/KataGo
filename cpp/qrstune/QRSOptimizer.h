@@ -71,13 +71,12 @@ class QRSModel {
   int features() const { return F_; }
 
   // Compute standard errors of the MAP optimum x* via the delta method.
-  // Rebuilds the Fisher information matrix from (xs, ys), inverts it to get
-  // Cov(beta), then propagates through the beta -> x* mapping.
+  // Rebuilds the Fisher information matrix from xs at current beta, inverts
+  // it to get Cov(beta), then propagates through the beta -> x* mapping.
   // On success, fills se[0..D-1] with SEs in normalized [-1,+1] coords and
   // sets clamped[0..D-1] to true for dims where x* was clamped to boundary.
   // Returns false if the Hessian is singular (CIs unavailable).
   bool computeOptimumSE(const std::vector<std::vector<double>>& xs,
-                        const std::vector<double>& ys,
                         double* se,
                         bool* clamped) const;
 };

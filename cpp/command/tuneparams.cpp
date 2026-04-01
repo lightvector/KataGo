@@ -87,7 +87,7 @@ static bool computeParamCIs(const QRSTune::QRSTuner& tuner,
                              double* ciLo, double* ciHi, bool* clamped) {
   double se[nDims];
   bool hasCIs = tuner.model().computeOptimumSE(
-    tuner.buffer().xs(), tuner.buffer().ys(), se, clamped);
+    tuner.buffer().xs(), se, clamped);
   if(!hasCIs) return false;
   for(int d = 0; d < nDims; d++) {
     double radius = (maxs[d] - mins[d]) * 0.5;
