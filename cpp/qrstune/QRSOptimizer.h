@@ -1,14 +1,11 @@
 // qrstune/QRSOptimizer.h
 
-#pragma once
+#ifndef QRSTUNE_QRSOPTIMIZER_H_
+#define QRSTUNE_QRSOPTIMIZER_H_
 
-#include <vector>
-#include <cmath>
-#include <algorithm>
-#include <cassert>
 #include <cstdint>
 #include <random>
-#include <stdexcept>
+#include <vector>
 
 namespace QRSTune {
 
@@ -18,50 +15,16 @@ namespace QRSTune {
 //   Total features F = 1 + D + D*(D+1)/2
 // ============================================================
 
-inline int numFeatures(int D) {
-  return 1 + D + D * (D + 1) / 2;
-}
+int numFeatures(int D);
 
 // Fill phi[0..F-1] given x[0..D-1].
-inline void computeFeatures(int D, const double* x, double* phi) {
-  int k = 0;
-  phi[k++] = 1.0;
-  for(int i = 0; i < D; i++) phi[k++] = x[i];
-  for(int i = 0; i < D; i++) phi[k++] = x[i] * x[i];
-  for(int i = 0; i < D; i++)
-    for(int j = i + 1; j < D; j++)
-      phi[k++] = x[i] * x[j];
-}
+void computeFeatures(int D, const double* x, double* phi);
 
-inline double sigmoid(double z) {
-  if(z > 40.0) return 1.0;
-  if(z < -40.0) return 0.0;
-  return 1.0 / (1.0 + std::exp(-z));
-}
+double sigmoid(double z);
 
 // Solve Ax = b in-place (A is F x F, b is length F) via partial-pivot
 // Gaussian elimination. Returns false if singular. Overwrites A and b.
-inline bool gaussianSolve(int F, std::vector<std::vector<double>>& A, std::vector<double>& b) {
-  for(int col = 0; col < F; col++) {
-    int piv = col;
-    for(int r = col + 1; r < F; r++)
-      if(std::fabs(A[r][col]) > std::fabs(A[piv][col])) piv = r;
-    std::swap(A[col], A[piv]);
-    std::swap(b[col], b[piv]);
-    if(std::fabs(A[col][col]) < 1e-12) return false;
-    double inv = 1.0 / A[col][col];
-    for(int r = col + 1; r < F; r++) {
-      double f = A[r][col] * inv;
-      for(int c = col; c < F; c++) A[r][c] -= f * A[col][c];
-      b[r] -= f * b[col];
-    }
-  }
-  for(int r = F - 1; r >= 0; r--) {
-    for(int c = r + 1; c < F; c++) b[r] -= A[r][c] * b[c];
-    b[r] /= A[r][r];
-  }
-  return true;
-}
+bool gaussianSolve(int F, std::vector<std::vector<double>>& A, std::vector<double>& b);
 
 // ============================================================
 // QRSModel: quadratic logistic regression with L2 regularization.
@@ -73,76 +36,20 @@ class QRSModel {
   double l2_;                  // L2 regularization strength
 
  public:
-  QRSModel() : D_(0), F_(0), l2_(0.1) {}
-  QRSModel(int D, double l2_reg = 0.1)
-    : D_(D), F_(numFeatures(D)), beta_(numFeatures(D), 0.0), l2_(l2_reg) {}
+  QRSModel();
+  QRSModel(int D, double l2_reg = 0.1);
 
   // Newton-Raphson MAP estimation.
   // xs: sample coordinates; ys: outcomes in {0.0, 0.5, 1.0}
   void fit(const std::vector<std::vector<double>>& xs,
            const std::vector<double>& ys,
-           int max_iter = 30) {
-    int N = (int)xs.size();
-    if(N < F_) return;  // underdetermined; keep prior beta = 0
-
-    std::vector<double> phi(F_);
-
-    for(int iter = 0; iter < max_iter; iter++) {
-      // Gradient and (negative) Hessian from L2 prior
-      std::vector<double> grad(F_, 0.0);
-      std::vector<std::vector<double>> negH(F_, std::vector<double>(F_, 0.0));
-      for(int f = 0; f < F_; f++) {
-        grad[f] = -l2_ * beta_[f];
-        negH[f][f] = l2_;
-      }
-
-      // Data contribution
-      for(int n = 0; n < N; n++) {
-        computeFeatures(D_, xs[n].data(), phi.data());
-        double z = 0.0;
-        for(int f = 0; f < F_; f++) z += beta_[f] * phi[f];
-        double p = sigmoid(z);
-        double w = p * (1.0 - p);
-        double resid = ys[n] - p;
-        for(int f = 0; f < F_; f++) {
-          grad[f] += resid * phi[f];
-          for(int g = f; g < F_; g++)
-            negH[f][g] += w * phi[f] * phi[g];
-        }
-      }
-      // Symmetrize negH
-      for(int f = 0; f < F_; f++)
-        for(int g = f + 1; g < F_; g++)
-          negH[g][f] = negH[f][g];
-
-      // Solve negH * delta = grad  =>  beta += delta
-      if(!gaussianSolve(F_, negH, grad)) break;
-      double maxd = 0.0;
-      for(int f = 0; f < F_; f++) {
-        beta_[f] += grad[f];
-        maxd = std::max(maxd, std::fabs(grad[f]));
-      }
-      if(maxd < 1e-7) break;
-    }
-  }
+           int max_iter = 30);
 
   // Win probability at x[0..D-1]
-  double predict(const double* x) const {
-    std::vector<double> phi(F_);
-    computeFeatures(D_, x, phi.data());
-    double z = 0.0;
-    for(int f = 0; f < F_; f++) z += beta_[f] * phi[f];
-    return sigmoid(z);
-  }
+  double predict(const double* x) const;
 
   // Linear score phi(x)^T beta (used for MAP maximization)
-  double score(const double* x) const {
-    std::vector<double> phi(F_);
-    computeFeatures(D_, x, phi.data());
-    double z = 0.0;
-    for(int f = 0; f < F_; f++) z += beta_[f] * phi[f];
-    return z;
-  }
+  double score(const double* x) const;
 
   // Find x in [-1,+1]^D that maximizes score(x) = phi(x)^T beta.
   // For a quadratic, the unconstrained stationary point satisfies:
@@ -150,34 +57,7 @@ class QRSModel {
   // where M[i][i] = 2*beta_quad[i], M[i][j]=M[j][i] = beta_cross[i,j],
   //       b_lin[i] = beta_linear[i].
   // The solution is clamped to [-1,+1]^D.
-  void mapOptimum(double* out_x) const {
-    // Beta layout: [intercept, linear[0..D-1], quad[0..D-1], cross by (i<j)]
-    const double* b_lin  = beta_.data() + 1;
-    const double* b_quad = beta_.data() + 1 + D_;
-    const double* b_cross = beta_.data() + 1 + 2 * D_;
-
-    std::vector<std::vector<double>> M(D_, std::vector<double>(D_, 0.0));
-    std::vector<double> rhs(D_);
-
-    for(int k = 0; k < D_; k++) {
-      M[k][k] = 2.0 * b_quad[k];
-      rhs[k]  = -b_lin[k];
-    }
-    int idx = 0;
-    for(int i = 0; i < D_; i++)
-      for(int j = i + 1; j < D_; j++) {
-        M[i][j] += b_cross[idx];
-        M[j][i] += b_cross[idx];
-        idx++;
-      }
-
-    if(!gaussianSolve(D_, M, rhs)) {
-      for(int i = 0; i < D_; i++) out_x[i] = 0.0;
-      return;
-    }
-    for(int i = 0; i < D_; i++)
-      out_x[i] = std::max(-1.0, std::min(1.0, rhs[i]));
-  }
+  void mapOptimum(double* out_x) const;
 
   int dims()     const { return D_; }
   int features() const { return F_; }
@@ -195,60 +75,15 @@ class QRSBuffer {
   double prune_margin_; // drop samples where p_pred < p_best - margin
 
  public:
-  QRSBuffer(int min_keep = 30, double prune_margin = 0.25)
-    : min_keep_(min_keep), prune_margin_(prune_margin) {}
+  QRSBuffer(int min_keep = 30, double prune_margin = 0.25);
 
-  void add(const std::vector<double>& x, double y) {
-    xs_.push_back(x);
-    ys_.push_back(y);
-  }
+  void add(const std::vector<double>& x, double y);
 
   // Remove samples significantly below the current MAP win estimate.
   // Samples are ranked by predicted quality so that min_keep_ retains the
   // best samples rather than the oldest (which are typically from early
   // uniform random exploration).
-  void prune(const QRSModel& model) {
-    int N = (int)xs_.size();
-    if(N <= min_keep_ * 2) return;
-
-    // Score all samples and find best predicted win rate
-    std::vector<std::pair<double, int>> scored(N);
-    double p_best = 0.0;
-    for(int i = 0; i < N; i++) {
-      double p = model.predict(xs_[i].data());
-      scored[i] = {p, i};
-      if(p > p_best) p_best = p;
-    }
-    double threshold = p_best - prune_margin_;
-
-    // Sort by descending predicted quality
-    std::sort(scored.begin(), scored.end(),
-      [](const std::pair<double,int>& a, const std::pair<double,int>& b) {
-        return a.first > b.first;
-      });
-
-    // Keep samples above threshold, plus top-quality samples up to min_keep_
-    std::vector<bool> keep(N, false);
-    int kept = 0;
-    for(auto& kv : scored) {
-      if(kv.first >= threshold || kept < min_keep_) {
-        keep[kv.second] = true;
-        kept++;
-      }
-    }
-
-    // Rebuild in original order to preserve temporal structure
-    std::vector<std::vector<double>> nx;
-    std::vector<double> ny;
-    for(int i = 0; i < N; i++) {
-      if(keep[i]) {
-        nx.push_back(xs_[i]);
-        ny.push_back(ys_[i]);
-      }
-    }
-    xs_ = std::move(nx);
-    ys_ = std::move(ny);
-  }
+  void prune(const QRSModel& model);
 
   const std::vector<std::vector<double>>& xs() const { return xs_; }
   const std::vector<double>&              ys() const { return ys_; }
@@ -292,72 +127,22 @@ class QRSTuner {
            int refit_every   = 10,
            int prune_every   = 5,
            double sigma_init = 0.40,
-           double sigma_fin  = 0.05)
-    : D_(D),
-      model_(D, l2_reg),
-      buffer_(/*min_keep=*/std::max(20, total_trials / 50),
-              /*prune_margin=*/0.25),
-      rng_(seed),
-      trial_count_(0),
-      total_trials_(total_trials),
-      refit_every_(refit_every),
-      prune_every_(prune_every),
-      sigma_initial_(sigma_init),
-      sigma_final_(sigma_fin) {}
+           double sigma_fin  = 0.05);
 
   // Propose next point to evaluate.
   // During early exploration (< F samples) returns a random point.
   // Afterwards: MAP optimum + decaying Gaussian noise clamped to [-1,+1]^D.
-  std::vector<double> nextSample() {
-    std::vector<double> x(D_);
-    int F = model_.features();
-
-    if(buffer_.size() < F + 1) {
-      // Insufficient data for reliable fit — explore uniformly
-      std::uniform_real_distribution<double> uni(-1.0, 1.0);
-      for(int i = 0; i < D_; i++) x[i] = uni(rng_);
-      return x;
-    }
-
-    // Base: MAP optimum
-    model_.mapOptimum(x.data());
-
-    // Decaying exploration noise
-    double progress = (double)trial_count_ / std::max(1, total_trials_ - 1);
-    double sigma = sigma_initial_ + progress * (sigma_final_ - sigma_initial_);
-    std::normal_distribution<double> noise(0.0, sigma);
-    for(int i = 0; i < D_; i++)
-      x[i] = std::max(-1.0, std::min(1.0, x[i] + noise(rng_)));
-
-    return x;
-  }
+  std::vector<double> nextSample();
 
   // Record the outcome of a trial.
   // y: 1.0 = win, 0.0 = loss, 0.5 = draw
-  void addResult(const std::vector<double>& x, double y) {
-    buffer_.add(x, y);
-    trial_count_++;
-
-    if(trial_count_ % refit_every_ == 0 && buffer_.size() >= model_.features() + 1) {
-      model_.fit(buffer_.xs(), buffer_.ys());
-      int refit_count = trial_count_ / refit_every_;
-      if(refit_count % prune_every_ == 0)
-        buffer_.prune(model_);
-    }
-  }
+  void addResult(const std::vector<double>& x, double y);
 
   // Return current MAP optimum in [-1,+1]^D
-  std::vector<double> bestCoords() const {
-    std::vector<double> best(D_);
-    model_.mapOptimum(best.data());
-    return best;
-  }
+  std::vector<double> bestCoords() const;
 
   // Estimated win probability at the MAP optimum
-  double bestWinProb() const {
-    auto best = bestCoords();
-    return model_.predict(best.data());
-  }
+  double bestWinProb() const;
 
   int trialCount()   const { return trial_count_; }
   int dims()         const { return D_; }
@@ -365,3 +150,5 @@ class QRSTuner {
 };
 
 }  // namespace QRSTune
+
+#endif  // QRSTUNE_QRSOPTIMIZER_H_

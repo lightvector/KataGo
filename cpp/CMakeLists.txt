@@ -307,6 +307,7 @@ add_executable(katago
   tests/tinymodel.cpp
   tests/tinymodeldata.cpp
   distributed/client.cpp
+  qrstune/QRSOptimizer.cpp
   command/commandline.cpp
   command/analysis.cpp
   command/benchmark.cpp
