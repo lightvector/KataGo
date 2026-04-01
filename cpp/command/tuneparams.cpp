@@ -71,69 +71,26 @@ static void qrsToPUCT(
   cpuctUtilityStdevPrior = qrsDimToReal(2, x[2], mins, maxs);
 }
 
-//Print ASCII-art regression curve for each PUCT dimension.
-//For dimension d: fix all other dims at vBest, sweep d from -1 to +1.
-static void printRegressionCurves(const QRSTune::QRSTuner& tuner,
-                                   const vector<double>& vBest,
-                                   const double* mins, const double* maxs,
-                                   Logger& logger) {
-  const int plotW = 60;
-  const int plotH = 20;
-  double bestWinRate = tuner.model().predict(vBest.data());
+static const double Z_95 = 1.96;
 
-  for(int dim = 0; dim < nDims; dim++) {
-    vector<string> canvas(plotH, string(plotW, ' '));
-
-    int bestCol = (int)((vBest[dim] + 1.0) / 2.0 * (plotW - 1) + 0.5);
-    bestCol = max(0, min(plotW - 1, bestCol));
-
-    vector<double> xSlice(vBest);
-    for(int col = 0; col < plotW; col++) {
-      double t = -1.0 + 2.0 * col / (plotW - 1);
-      xSlice[dim] = t;
-      double winRate = tuner.model().predict(xSlice.data());
-
-      int row = (int)((1.0 - winRate) * (plotH - 1) + 0.5);
-      row = max(0, min(plotH - 1, row));
-      canvas[row][col] = (col == bestCol) ? '*' : 'o';
-    }
-
-    double bestReal = qrsDimToReal(dim, vBest[dim], mins, maxs);
-    logger.write("");
-    logger.write(
-      "[Dim " + Global::intToString(dim) + "] " + paramNames[dim] +
-      "  (best QRS=" + Global::strprintf("%.3f", vBest[dim]) +
-      " -> real=" + Global::strprintf("%.3f", bestReal) +
-      ", est.winrate=" + Global::strprintf("%.3f", bestWinRate) + ")"
-    );
-
-    for(int row = 0; row < plotH; row++) {
-      string label;
-      if(row == 0)               label = "1.0 |";
-      else if(row == plotH / 2) label = "0.5 |";
-      else if(row == plotH - 1) label = "0.0 |";
-      else                       label = "    |";
-      logger.write(label + canvas[row]);
-    }
-    logger.write("    +" + string(plotW, '-'));
-
-    {
-      string line(plotW + 5, ' ');
-      const int off = 5;
-      auto place = [&](int col, const string& lbl) {
-        int pos = off + col - (int)lbl.size() / 2;
-        if(pos < 0) pos = 0;
-        for(int i = 0; i < (int)lbl.size() && pos + i < (int)line.size(); i++)
-          line[pos + i] = lbl[i];
-      };
-      place(0,          Global::strprintf("%.3f", qrsDimToReal(dim, -1.0, mins, maxs)));
-      place(plotW / 2, Global::strprintf("%.3f", qrsDimToReal(dim,  0.0, mins, maxs)));
-      place(plotW - 1, Global::strprintf("%.3f", qrsDimToReal(dim, +1.0, mins, maxs)));
-      size_t last = line.find_last_not_of(' ');
-      logger.write(line.substr(0, last + 1));
-    }
+// Compute 95% CI bounds for each parameter in real (non-normalized) coordinates.
+// Returns false if CIs are unavailable. Fills ciLo/ciHi/clamped arrays of size nDims.
+static bool computeParamCIs(const QRSTune::QRSTuner& tuner,
+                             const vector<double>& vBest,
+                             const double* mins, const double* maxs,
+                             double* ciLo, double* ciHi, bool* clamped) {
+  double se[nDims];
+  bool hasCIs = tuner.model().computeOptimumSE(
+    tuner.buffer().xs(), tuner.buffer().ys(), se, clamped);
+  if(!hasCIs) return false;
+  for(int d = 0; d < nDims; d++) {
+    double radius = (maxs[d] - mins[d]) * 0.5;
+    double seReal = se[d] * radius;
+    double bestReal = qrsDimToReal(d, vBest[d], mins, maxs);
+    ciLo[d] = bestReal - Z_95 * seReal;
+    ciHi[d] = bestReal + Z_95 * seReal;
   }
-  logger.write("");
+  return true;
 }
 
 int MainCmds::tuneparams(const vector<string>& args) {
@@ -340,6 +297,19 @@ int MainCmds::tuneparams(const vector<string>& args) {
         "[%d%%] %d/%d | W=%d L=%d D=%d | best: E=%.4f Log=%.4f Stdev=%.4f | ETA %s",
         pct, completed, numTrials, wins, losses, draws, bE, bLog, bStdev, eta.c_str()
       ));
+
+      {
+        double ciLo[nDims], ciHi[nDims];
+        bool clampedDims[nDims];
+        if(computeParamCIs(tuner, vBest, qrsMins, qrsMaxs, ciLo, ciHi, clampedDims)) {
+          string ciLine = "  95% CIs:";
+          for(int d = 0; d < nDims; d++) {
+            ciLine += Global::strprintf(" %s=[%.4f, %.4f]", paramNames[d], ciLo[d], ciHi[d]);
+            if(clampedDims[d]) ciLine += "*";
+          }
+          logger.write(ciLine);
+        }
+      }
     }
   }
 
@@ -356,16 +326,27 @@ int MainCmds::tuneparams(const vector<string>& args) {
     "  Losses: " + Global::intToString(losses) +
     "  Draws: " + Global::intToString(draws)
   );
-  logger.write("Best cpuctExploration       = " + Global::doubleToString(bestE));
-  logger.write("Best cpuctExplorationLog    = " + Global::doubleToString(bestLog));
-  logger.write("Best cpuctUtilityStdevPrior = " + Global::doubleToString(bestStdev));
+  {
+    double ciLo[nDims], ciHi[nDims];
+    bool clampedDims[nDims];
+    bool hasCIs = computeParamCIs(tuner, vBest, qrsMins, qrsMaxs, ciLo, ciHi, clampedDims);
+
+    for(int d = 0; d < nDims; d++) {
+      double bestReal = qrsDimToReal(d, vBest[d], qrsMins, qrsMaxs);
+      if(hasCIs) {
+        string warn = clampedDims[d] ? "  [boundary - CI may be unreliable]" : "";
+        logger.write(Global::strprintf("Best %-25s = %.4f  95%%CI [%.4f, %.4f]%s",
+          paramNames[d], bestReal, ciLo[d], ciHi[d], warn.c_str()));
+      } else {
+        logger.write(Global::strprintf("Best %-25s = %.4f  (CI unavailable)",
+          paramNames[d], bestReal));
+      }
+    }
+  }
   logger.write(
     "QRS raw coordinates: [" + Global::doubleToString(vBest[0]) + ", " +
     Global::doubleToString(vBest[1]) + ", " + Global::doubleToString(vBest[2]) + "]"
   );
-
-  //ASCII-art regression curves (one per PUCT dimension)
-  printRegressionCurves(tuner, vBest, qrsMins, qrsMaxs, logger);
 
   //Cleanup
   delete gameRunner;

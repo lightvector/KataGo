@@ -98,6 +98,53 @@ QRSTune::QRSModel::QRSModel(int D, double l2_reg)
    l2_(l2_reg)
 {}
 
+// Build the negative Hessian (Fisher info + L2 prior) at current beta.
+// negH must be pre-sized to F_ x F_; contents are overwritten.
+void QRSTune::QRSModel::buildNegHessian(const vector<vector<double>>& xs,
+                                         vector<vector<double>>& negH) const {
+  int N = (int)xs.size();
+  for(int f = 0; f < F_; f++) fill(negH[f].begin(), negH[f].end(), 0.0);
+  for(int f = 0; f < F_; f++)
+    negH[f][f] = l2_;
+
+  vector<double> phi(F_);
+  for(int n = 0; n < N; n++) {
+    computeFeatures(D_, xs[n].data(), phi.data());
+    double logit = 0.0;
+    for(int f = 0; f < F_; f++) logit += beta_[f] * phi[f];
+    double p = sigmoid(logit);
+    double w = p * (1.0 - p);
+    for(int f = 0; f < F_; f++)
+      for(int g = f; g < F_; g++)
+        negH[f][g] += w * phi[f] * phi[g];
+  }
+  for(int f = 0; f < F_; f++)
+    for(int g = f + 1; g < F_; g++)
+      negH[g][f] = negH[f][g];
+}
+
+// Build the D x D quadratic Hessian M and rhs for M*x = -linearCoeffs.
+// M and rhs must be pre-sized; contents are overwritten.
+void QRSTune::QRSModel::buildQuadHessian(vector<vector<double>>& M,
+                                          vector<double>& rhs) const {
+  const double* linearCoeffs = beta_.data() + 1;
+  const double* quadCoeffs   = beta_.data() + 1 + D_;
+  const double* crossCoeffs  = beta_.data() + 1 + 2 * D_;
+
+  for(int k = 0; k < D_; k++) {
+    fill(M[k].begin(), M[k].end(), 0.0);
+    M[k][k] = 2.0 * quadCoeffs[k];
+    rhs[k]  = -linearCoeffs[k];
+  }
+  int idx = 0;
+  for(int i = 0; i < D_; i++)
+    for(int j = i + 1; j < D_; j++) {
+      M[i][j] += crossCoeffs[idx];
+      M[j][i] += crossCoeffs[idx];
+      idx++;
+    }
+}
+
 // Newton-Raphson MAP estimation for L2-regularized quadratic logistic regression.
 //
 // Maximizes: sum_n [ y_n * log(p_n) + (1-y_n) * log(1-p_n) ] - (l2/2) * ||beta||^2
@@ -119,7 +166,7 @@ void QRSTune::QRSModel::fit(const vector<vector<double>>& xs,
   vector<vector<double>> negH(F_, vector<double>(F_));
 
   for(int iter = 0; iter < max_iter; iter++) {
-    // Initialize with L2 prior contribution: grad = -l2*beta, negH = l2*I
+    // Build negH and compute gradient simultaneously
     fill(grad.begin(), grad.end(), 0.0);
     for(int f = 0; f < F_; f++) fill(negH[f].begin(), negH[f].end(), 0.0);
     for(int f = 0; f < F_; f++) {
@@ -127,21 +174,19 @@ void QRSTune::QRSModel::fit(const vector<vector<double>>& xs,
       negH[f][f] = l2_;
     }
 
-    // Accumulate data likelihood: grad += (y-p)*phi, negH += p*(1-p)*phi*phi^T
     for(int n = 0; n < N; n++) {
       computeFeatures(D_, xs[n].data(), phi.data());
       double logit = 0.0;
       for(int f = 0; f < F_; f++) logit += beta_[f] * phi[f];
       double p = sigmoid(logit);
-      double hessianWeight = p * (1.0 - p);
+      double w = p * (1.0 - p);
       double residual = ys[n] - p;
       for(int f = 0; f < F_; f++) {
         grad[f] += residual * phi[f];
         for(int g = f; g < F_; g++)
-          negH[f][g] += hessianWeight * phi[f] * phi[g];
+          negH[f][g] += w * phi[f] * phi[g];
       }
     }
-    // Symmetrize: negH is only filled for g >= f above
     for(int f = 0; f < F_; f++)
       for(int g = f + 1; g < F_; g++)
         negH[g][f] = negH[f][g];
@@ -172,38 +217,114 @@ double QRSTune::QRSModel::score(const double* x) const {
 }
 
 // Find the unconstrained optimum of the quadratic score surface, then clamp to [-1,+1]^D.
-//
-// Beta layout: [intercept, linear[0..D-1], quadratic[0..D-1], cross[i<j]]
-// The quadratic surface gradient is: M*x + linearCoeffs = 0
-// where M[i][i] = 2*quadCoeffs[i], M[i][j] = crossCoeffs[pair(i,j)]
 void QRSTune::QRSModel::mapOptimum(double* out_x) const {
-  const double* linearCoeffs = beta_.data() + 1;
-  const double* quadCoeffs   = beta_.data() + 1 + D_;
-  const double* crossCoeffs  = beta_.data() + 1 + 2 * D_;
-
-  // Build the Hessian matrix M and right-hand side for M*x = -linearCoeffs
   vector<vector<double>> M(D_, vector<double>(D_, 0.0));
   vector<double> rhs(D_);
-
-  for(int k = 0; k < D_; k++) {
-    M[k][k] = 2.0 * quadCoeffs[k];
-    rhs[k]  = -linearCoeffs[k];
-  }
-  int idx = 0;
-  for(int i = 0; i < D_; i++)
-    for(int j = i + 1; j < D_; j++) {
-      M[i][j] += crossCoeffs[idx];
-      M[j][i] += crossCoeffs[idx];
-      idx++;
-    }
+  buildQuadHessian(M, rhs);
 
   if(!gaussianSolve(D_, M, rhs)) {
     for(int i = 0; i < D_; i++) out_x[i] = 0.0;
     return;
   }
-  // Clamp to the normalized coordinate range [-1, +1]
   for(int i = 0; i < D_; i++)
     out_x[i] = max(-1.0, min(1.0, rhs[i]));
+}
+
+// Compute standard errors of the MAP optimum via the delta method.
+//
+// 1. Rebuild negH (Fisher info + L2 prior) at current beta.
+// 2. Invert negH -> Cov(beta).
+// 3. Compute unconstrained optimum x* and M^{-1}.
+// 4. Build Jacobian J = dx*/dbeta via implicit differentiation.
+// 5. Cov(x*) = J * Cov(beta) * J^T.
+// 6. SE[d] = sqrt(Cov(x*)[d][d]).
+bool QRSTune::QRSModel::computeOptimumSE(const vector<vector<double>>& xs,
+                                          const vector<double>& ys,
+                                          double* se,
+                                          bool* clamped) const {
+  int N = (int)xs.size();
+  if(N < F_) return false;
+
+  // --- Step 1: Build negH (Fisher info + L2 prior) at current beta ---
+  vector<vector<double>> negH(F_, vector<double>(F_, 0.0));
+  buildNegHessian(xs, negH);
+
+  // --- Step 2: Invert negH -> Cov(beta), column by column ---
+  vector<vector<double>> covBeta(F_, vector<double>(F_, 0.0));
+  for(int g = 0; g < F_; g++) {
+    auto negH_copy = negH;
+    vector<double> e(F_, 0.0);
+    e[g] = 1.0;
+    if(!gaussianSolve(F_, negH_copy, e)) return false;
+    for(int f = 0; f < F_; f++)
+      covBeta[f][g] = e[f];
+  }
+
+  // --- Step 3: Compute unconstrained optimum x* and M^{-1} ---
+  vector<vector<double>> M(D_, vector<double>(D_, 0.0));
+  vector<double> rhs(D_);
+  buildQuadHessian(M, rhs);
+
+  // Save M for Jacobian computation before solve destroys it
+  auto M_saved = M;
+  if(!gaussianSolve(D_, M, rhs)) return false;
+  vector<double> xStar(rhs);
+
+  for(int d = 0; d < D_; d++)
+    clamped[d] = (xStar[d] < -1.0 || xStar[d] > 1.0);
+
+  // Compute M^{-1} column by column
+  vector<vector<double>> Minv(D_, vector<double>(D_, 0.0));
+  for(int g = 0; g < D_; g++) {
+    auto M_copy = M_saved;
+    vector<double> e(D_, 0.0);
+    e[g] = 1.0;
+    if(!gaussianSolve(D_, M_copy, e)) return false;
+    for(int d = 0; d < D_; d++)
+      Minv[d][g] = e[d];
+  }
+
+  // --- Step 4: Build Jacobian J (D x F) via implicit differentiation ---
+  vector<vector<double>> J(D_, vector<double>(F_, 0.0));
+
+  // Linear coefficients: J[:, 1+i] = -Minv[:, i]
+  for(int i = 0; i < D_; i++)
+    for(int d = 0; d < D_; d++)
+      J[d][1 + i] = -Minv[d][i];
+
+  // Quadratic diagonal coefficients: J[:, 1+D+i] = -2 x*_i Minv[:, i]
+  for(int i = 0; i < D_; i++)
+    for(int d = 0; d < D_; d++)
+      J[d][1 + D_ + i] = -2.0 * xStar[i] * Minv[d][i];
+
+  // Cross-term coefficients: J[:, f] = -(x*_j Minv[:, i] + x*_i Minv[:, j])
+  int idx = 0;
+  for(int i = 0; i < D_; i++)
+    for(int j = i + 1; j < D_; j++) {
+      for(int d = 0; d < D_; d++)
+        J[d][1 + 2 * D_ + idx] = -(xStar[j] * Minv[d][i] + xStar[i] * Minv[d][j]);
+      idx++;
+    }
+
+  // --- Step 5: Cov(x*) = J Cov(beta) J^T ---
+  vector<vector<double>> temp(D_, vector<double>(F_, 0.0));
+  for(int d = 0; d < D_; d++)
+    for(int g = 0; g < F_; g++)
+      for(int f = 0; f < F_; f++)
+        temp[d][g] += J[d][f] * covBeta[f][g];
+
+  vector<vector<double>> covX(D_, vector<double>(D_, 0.0));
+  for(int d1 = 0; d1 < D_; d1++)
+    for(int d2 = 0; d2 < D_; d2++)
+      for(int f = 0; f < F_; f++)
+        covX[d1][d2] += temp[d1][f] * J[d2][f];
+
+  // --- Step 6: Extract SEs ---
+  for(int d = 0; d < D_; d++) {
+    se[d] = covX[d][d] > 0.0 ? sqrt(covX[d][d]) : 0.0;
+  }
+
+  return true;
 }
 
 // ============================================================
@@ -489,6 +610,65 @@ void QRSTune::runTests() {
     testAssert(tuner.trialCount() == numTrials);
     // The fitted model should recognize that positive x is better
     testAssert(tuner.bestWinProb() > 0.5);
+  }
+
+  // Test computeOptimumSE: 1D with a concave peak (wins near center, losses at edges).
+  // This gives a negative quadratic coefficient, making M invertible.
+  {
+    QRSModel model(1, 0.01);
+    vector<vector<double>> xs;
+    vector<double> ys;
+    for(int i = 0; i < 40; i++) {
+      xs.push_back({0.0});  ys.push_back(1.0);   // center: wins
+      xs.push_back({0.8});  ys.push_back(0.0);   // right edge: losses
+      xs.push_back({-0.8}); ys.push_back(0.0);   // left edge: losses
+    }
+    model.fit(xs, ys);
+    double se[1];
+    bool clamped[1];
+    bool ok = model.computeOptimumSE(xs, ys, se, clamped);
+    testAssert(ok);
+    testAssert(se[0] > 0.0);
+    testAssert(se[0] < 2.0);
+  }
+
+  // Test computeOptimumSE: more data gives smaller SE
+  {
+    auto buildData = [](int reps, vector<vector<double>>& xs, vector<double>& ys) {
+      for(int i = 0; i < reps; i++) {
+        xs.push_back({0.0});  ys.push_back(1.0);
+        xs.push_back({0.8});  ys.push_back(0.0);
+        xs.push_back({-0.8}); ys.push_back(0.0);
+      }
+    };
+
+    QRSModel modelSmall(1, 0.01);
+    QRSModel modelLarge(1, 0.01);
+    vector<vector<double>> xsSmall, xsLarge;
+    vector<double> ysSmall, ysLarge;
+    buildData(15, xsSmall, ysSmall);
+    buildData(150, xsLarge, ysLarge);
+    modelSmall.fit(xsSmall, ysSmall);
+    modelLarge.fit(xsLarge, ysLarge);
+    double seSmall[1], seLarge[1];
+    bool clampedSmall[1], clampedLarge[1];
+    bool okSmall = modelSmall.computeOptimumSE(xsSmall, ysSmall, seSmall, clampedSmall);
+    bool okLarge = modelLarge.computeOptimumSE(xsLarge, ysLarge, seLarge, clampedLarge);
+    testAssert(okSmall && okLarge);
+    testAssert(seLarge[0] < seSmall[0]);
+  }
+
+  // Test computeOptimumSE: insufficient data returns false
+  {
+    QRSModel model(1, 0.1);
+    vector<vector<double>> xs = {{0.5}, {-0.5}};
+    vector<double> ys = {1.0, 0.0};
+    // N=2 < F=3, so fit() does nothing and beta stays zero
+    model.fit(xs, ys);
+    double se[1];
+    bool clamped[1];
+    bool ok = model.computeOptimumSE(xs, ys, se, clamped);
+    testAssert(!ok);
   }
 
   // Test QRSBuffer prune: verify pruning reduces buffer size

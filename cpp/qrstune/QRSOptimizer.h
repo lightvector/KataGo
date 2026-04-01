@@ -35,6 +35,14 @@ class QRSModel {
   std::vector<double> beta_;   // F coefficients (intercept, linear, quad, cross)
   double l2_;                  // L2 regularization strength
 
+  // Build the negative Hessian (Fisher info + L2 prior) at current beta.
+  void buildNegHessian(const std::vector<std::vector<double>>& xs,
+                       std::vector<std::vector<double>>& negH) const;
+
+  // Build the D x D quadratic Hessian M and rhs for the system M*x = -linearCoeffs.
+  void buildQuadHessian(std::vector<std::vector<double>>& M,
+                        std::vector<double>& rhs) const;
+
  public:
   QRSModel();
   QRSModel(int D, double l2_reg = 0.1);
@@ -61,6 +69,17 @@ class QRSModel {
 
   int dims()     const { return D_; }
   int features() const { return F_; }
+
+  // Compute standard errors of the MAP optimum x* via the delta method.
+  // Rebuilds the Fisher information matrix from (xs, ys), inverts it to get
+  // Cov(beta), then propagates through the beta -> x* mapping.
+  // On success, fills se[0..D-1] with SEs in normalized [-1,+1] coords and
+  // sets clamped[0..D-1] to true for dims where x* was clamped to boundary.
+  // Returns false if the Hessian is singular (CIs unavailable).
+  bool computeOptimumSE(const std::vector<std::vector<double>>& xs,
+                        const std::vector<double>& ys,
+                        double* se,
+                        bool* clamped) const;
 };
 
 // ============================================================
@@ -147,6 +166,7 @@ class QRSTuner {
   int trialCount()   const { return trial_count_; }
   int dims()         const { return D_; }
   const QRSModel& model() const { return model_; }
+  const QRSBuffer& buffer() const { return buffer_; }
 };
 
 void runTests();
