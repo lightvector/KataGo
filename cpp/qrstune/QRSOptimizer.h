@@ -149,6 +149,8 @@ class QRSTuner {
   const QRSModel& model() const { return model_; }
 };
 
+void runTests();
+
 }  // namespace QRSTune
 
 #endif  // QRSTUNE_QRSOPTIMIZER_H_
