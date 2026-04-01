@@ -153,6 +153,10 @@ Run a high-performance match engine that will play a pool of bots against each o
 
    * `./katago match -config <MATCH_CONFIG>.cfg -log-file match.log -sgf-output-dir <DIR TO WRITE THE SGFS>`
 
+Tune PUCT search hyperparameters via QRS-Tune sequential optimization:
+
+   * `./katago tune-params -config <TUNE_CONFIG>.cfg`
+
 Force OpenCL tuner to re-tune:
 
    * `./katago tuner -config <GTP_CONFIG>.cfg`
