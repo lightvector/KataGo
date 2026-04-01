@@ -277,7 +277,6 @@ bool ComputeElos::computeBradleyTerryElo(
   vector<double>& outStderr
 ) {
   int N = (int)botNames.size();
-  const double eloPerStrength = 400.0 * log10(exp(1.0)); //~173.7
 
   map<string,int> nameIdx;
   for(int i = 0; i < N; i++) nameIdx[botNames[i]] = i;
@@ -299,9 +298,13 @@ bool ComputeElos::computeBradleyTerryElo(
 
   bool converged = (M == 0);
   if(M > 0) {
+    vector<double> grad(M);
+    vector<vector<double>> H(M, vector<double>(M));
+    vector<vector<double>> aug(M, vector<double>(M+1));
+    vector<double> delta(M);
     for(int iter = 0; iter < 200; iter++) {
-      vector<double> grad(M, 0.0);
-      vector<vector<double>> H(M, vector<double>(M, 0.0));
+      fill(grad.begin(), grad.end(), 0.0);
+      for(int r = 0; r < M; r++) fill(H[r].begin(), H[r].end(), 0.0);
       for(int i = 0; i < N; i++) {
         for(int j = i+1; j < N; j++) {
           double nij = w[i][j] + w[j][i];
@@ -315,7 +318,6 @@ bool ComputeElos::computeBradleyTerryElo(
         }
       }
       //Solve H*delta = -grad via Gaussian elimination
-      vector<vector<double>> aug(M, vector<double>(M+1, 0.0));
       for(int r = 0; r < M; r++) {
         for(int c = 0; c < M; c++) aug[r][c] = H[r][c];
         aug[r][M] = -grad[r];
@@ -332,7 +334,7 @@ bool ComputeElos::computeBradleyTerryElo(
           for(int c = col; c <= M; c++) aug[r][c] -= f * aug[col][c];
         }
       }
-      vector<double> delta(M, 0.0);
+      fill(delta.begin(), delta.end(), 0.0);
       for(int r = M-1; r >= 0; r--) {
         double s = aug[r][M];
         for(int c = r+1; c < M; c++) s -= aug[r][c] * delta[c];
@@ -351,7 +353,7 @@ bool ComputeElos::computeBradleyTerryElo(
   outElo.resize(N);
   outStderr.resize(N, 0.0);
   for(int i = 0; i < N; i++)
-    outElo[i] = (theta[i] - theta[0]) * eloPerStrength;
+    outElo[i] = (theta[i] - theta[0]) * ELO_PER_LOG_GAMMA;
 
   //Fisher information diagonal -> stderr
   for(int i = 1; i < N; i++) {
@@ -363,7 +365,7 @@ bool ComputeElos::computeBradleyTerryElo(
       double sigma = 1.0 / (1.0 + exp(theta[j] - theta[i]));
       fish += nij * sigma * (1.0 - sigma);
     }
-    if(fish > 0.0) outStderr[i] = eloPerStrength / sqrt(fish);
+    if(fish > 0.0) outStderr[i] = ELO_PER_LOG_GAMMA / sqrt(fish);
   }
   return converged;
 }

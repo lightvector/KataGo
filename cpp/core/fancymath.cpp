@@ -149,6 +149,7 @@ double FancyMath::binaryCrossEntropy(double predProb, double targetProb, double 
 }
 
 void FancyMath::wilsonCI95(double wins, double n, double& lo, double& hi) {
+  if(n <= 0) { lo = 0; hi = 1; return; }
   const double z = 1.96;
   double p = wins / n;
   double denom = 1.0 + z*z/n;

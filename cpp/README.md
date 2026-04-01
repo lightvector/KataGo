@@ -35,7 +35,7 @@ Summary of source folders, in approximate dependency order, from lowest level to
 * `distributed` - Code for talking to https webserver for volunteers to contribute distributed self-play games for training.
 * `tests` - A variety of tests.
   * `models` - A directory with a small number of small-sized (and not very strong) models for running tests.
-* `qrstune` - Header-only QRS-Tune (Quadratic Regression Sequential) optimizer for hyperparameter tuning.
+* `qrstune` - QRS-Tune (Quadratic Response Surface) optimizer for hyperparameter tuning.
 * `command` - Top-level subcommands callable by users. GTP, analysis commands, benchmarking, selfplay data generation, etc.
   * `commandline.{cpp,h}` - Common command line logic shared by all subcommands.
   * `gtp.cpp` - Main GTP engine.

@@ -77,11 +77,13 @@ void QRSTune::QRSModel::fit(const vector<vector<double>>& xs,
   if(N < F_) return;  // underdetermined; keep prior beta = 0
 
   vector<double> phi(F_);
+  vector<double> grad(F_);
+  vector<vector<double>> negH(F_, vector<double>(F_));
 
   for(int iter = 0; iter < max_iter; iter++) {
     // Gradient and (negative) Hessian from L2 prior
-    vector<double> grad(F_, 0.0);
-    vector<vector<double>> negH(F_, vector<double>(F_, 0.0));
+    fill(grad.begin(), grad.end(), 0.0);
+    for(int f = 0; f < F_; f++) fill(negH[f].begin(), negH[f].end(), 0.0);
     for(int f = 0; f < F_; f++) {
       grad[f] = -l2_ * beta_[f];
       negH[f][f] = l2_;
@@ -207,7 +209,7 @@ void QRSTune::QRSBuffer::prune(const QRSModel& model) {
   vector<double> ny;
   for(int i = 0; i < N; i++) {
     if(keep[i]) {
-      nx.push_back(xs_[i]);
+      nx.push_back(std::move(xs_[i]));
       ny.push_back(ys_[i]);
     }
   }
