@@ -284,8 +284,6 @@ int MainCmds::tuneparams(const vector<string>& args) {
     //Progress report every 10% of trials
     if((trial + 1) % reportInterval == 0) {
       vector<double> vBest = tuner.bestCoords();
-      double bE, bLog, bStdev;
-      qrsToPUCT(vBest, bE, bLog, bStdev, qrsMins, qrsMaxs);
 
       int completed = trial + 1;
       int pct = completed * 100 / numTrials;
@@ -299,22 +297,23 @@ int MainCmds::tuneparams(const vector<string>& args) {
       else
         eta = Global::intToString(etaSec / 3600) + "h" + Global::intToString((etaSec % 3600) / 60) + "m";
 
-      logger.write(Global::strprintf(
-        "[%d%%] %d/%d | W=%d L=%d D=%d | best: E=%.4f Log=%.4f Stdev=%.4f | ETA %s",
-        pct, completed, numTrials, wins, losses, draws, bE, bLog, bStdev, eta.c_str()
-      ));
-
       {
+        string paramStr;
         double ciLo[nDims], ciHi[nDims];
         bool clampedDims[nDims];
         if(computeParamCIs(tuner, vBest, qrsMins, qrsMaxs, ciLo, ciHi, clampedDims)) {
-          string ciLine = "  95% CIs:";
           for(int d = 0; d < nDims; d++) {
-            ciLine += Global::strprintf(" %s=[%.4f, %.4f]", paramShortNames[d], ciLo[d], ciHi[d]);
-            if(clampedDims[d]) ciLine += "*";
+            paramStr += Global::strprintf(" %s=[%.4f, %.4f]", paramShortNames[d], ciLo[d], ciHi[d]);
+            if(clampedDims[d]) paramStr += "*";
           }
-          logger.write(ciLine);
+        } else {
+          for(int d = 0; d < nDims; d++)
+            paramStr += Global::strprintf(" %s=%.4f", paramShortNames[d], qrsDimToReal(d, vBest[d], qrsMins, qrsMaxs));
         }
+        logger.write(Global::strprintf(
+          "[%d%%] %d/%d | W=%d L=%d D=%d |%s | ETA %s",
+          pct, completed, numTrials, wins, losses, draws, paramStr.c_str(), eta.c_str()
+        ));
       }
     }
   }
