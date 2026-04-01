@@ -19,6 +19,7 @@
 #include <vector>
 #include <algorithm>
 #include <csignal>
+#include "../core/timer.h"
 
 using namespace std;
 
@@ -240,6 +241,8 @@ int MainCmds::tuneparams(const vector<string>& args) {
   const string gameSeedBase = Global::uint64ToHexString(seedRand.nextUInt64());
 
   int wins = 0, losses = 0, draws = 0;
+  int reportInterval = std::max(1, numTrials / 10);
+  ClockTimer timer;
 
   logger.write("Starting " + Global::intToString(numTrials) + " tuning trials");
 
@@ -315,18 +318,28 @@ int MainCmds::tuneparams(const vector<string>& args) {
     if(shouldStop.load())
       break;
 
-    //Progress report every 100 trials
-    if((trial + 1) % 100 == 0) {
+    //Progress report every 10% of trials
+    if((trial + 1) % reportInterval == 0) {
       vector<double> vBest = tuner.bestCoords();
       double bE, bLog, bStdev;
       qrsToPUCT(vBest, bE, bLog, bStdev, qrsMins, qrsMaxs);
-      logger.write(
-        "Trial " + Global::intToString(trial + 1) + "/" + Global::intToString(numTrials) +
-        " | W=" + Global::intToString(wins) + " L=" + Global::intToString(losses) + " D=" + Global::intToString(draws) +
-        " | best: cpuctExploration=" + Global::doubleToString(bE) +
-        " cpuctExplorationLog=" + Global::doubleToString(bLog) +
-        " cpuctUtilityStdevPrior=" + Global::doubleToString(bStdev)
-      );
+
+      int completed = trial + 1;
+      int pct = completed * 100 / numTrials;
+      double elapsed = timer.getSeconds();
+      int etaSec = (int)(elapsed / completed * (numTrials - completed));
+      string eta;
+      if(etaSec < 60)
+        eta = Global::intToString(etaSec) + "s";
+      else if(etaSec < 3600)
+        eta = Global::intToString(etaSec / 60) + "m" + Global::intToString(etaSec % 60) + "s";
+      else
+        eta = Global::intToString(etaSec / 3600) + "h" + Global::intToString((etaSec % 3600) / 60) + "m";
+
+      logger.write(Global::strprintf(
+        "[%d%%] %d/%d | W=%d L=%d D=%d | best: E=%.4f Log=%.4f Stdev=%.4f | ETA %s",
+        pct, completed, numTrials, wins, losses, draws, bE, bLog, bStdev, eta.c_str()
+      ));
     }
   }
 
