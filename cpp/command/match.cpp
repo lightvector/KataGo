@@ -1,4 +1,6 @@
 #include "../core/global.h"
+#include "../core/elo.h"
+#include "../core/fancymath.h"
 #include "../core/fileutils.h"
 #include "../core/makedir.h"
 #include "../core/config_parser.h"
@@ -12,7 +14,6 @@
 #include "../main.h"
 
 #include <array>
-#include <cmath>
 #include <csignal>
 
 using namespace std;
@@ -26,126 +27,6 @@ static void signalHandler(int signal)
     sigReceived.store(true);
     shouldStop.store(true);
   }
-}
-
-//Match statistics helpers
-
-//Wilson score 95% two-tailed confidence interval (draws counted as 0.5 wins)
-static void wilsonCI95(double wins, double n, double& lo, double& hi) {
-  const double z = 1.96;
-  double p = wins / n;
-  double denom = 1.0 + z*z/n;
-  double center = (p + z*z/(2*n)) / denom;
-  double margin = z * sqrt(p*(1-p)/n + z*z/(4*n*n)) / denom;
-  lo = center - margin;
-  hi = center + margin;
-}
-
-//One-tailed p-value: P(experiment winrate <= 0.5 | data), using normal approximation
-static double oneTailedPValue(double wins, double n) {
-  if(n <= 0) return 0.5;
-  double z = (wins - 0.5*n) / (0.5*sqrt(n));
-  return 0.5 * erfc(z / sqrt(2.0));
-}
-
-//Bradley-Terry MLE Elo (global, all-bot ranking)
-//pairStats: {nameA,nameB} -> {winsA, winsB, draws}  nameA < nameB lexicographically
-static bool computeBradleyTerryElo(
-  const vector<string>& botNames,
-  const map<pair<string,string>, array<int64_t,3>>& pairStats,
-  vector<double>& outElo,
-  vector<double>& outStderr
-) {
-  int N = (int)botNames.size();
-  const double eloPerStrength = 400.0 * log10(exp(1.0)); //~173.7
-
-  map<string,int> nameIdx;
-  for(int i = 0; i < N; i++) nameIdx[botNames[i]] = i;
-
-  //w[i][j] = effective wins of i vs j (draws count 0.5)
-  vector<vector<double>> w(N, vector<double>(N, 0.0));
-  for(auto& kv : pairStats) {
-    auto itA = nameIdx.find(kv.first.first);
-    auto itB = nameIdx.find(kv.first.second);
-    if(itA == nameIdx.end() || itB == nameIdx.end()) continue;
-    int a = itA->second, b = itB->second;
-    w[a][b] += kv.second[0] + 0.5 * kv.second[2];
-    w[b][a] += kv.second[1] + 0.5 * kv.second[2];
-  }
-
-  //theta[0] = 0 (reference, first bot), optimize theta[1..N-1]
-  vector<double> theta(N, 0.0);
-  int M = N - 1;
-
-  bool converged = (M == 0);
-  if(M > 0) {
-    for(int iter = 0; iter < 200; iter++) {
-      vector<double> grad(M, 0.0);
-      vector<vector<double>> H(M, vector<double>(M, 0.0));
-      for(int i = 0; i < N; i++) {
-        for(int j = i+1; j < N; j++) {
-          double nij = w[i][j] + w[j][i];
-          if(nij <= 0.0) continue;
-          double sigma = 1.0 / (1.0 + exp(theta[j] - theta[i]));
-          double fish = nij * sigma * (1.0 - sigma);
-          double gij = w[i][j] - nij * sigma;
-          if(i > 0) { grad[i-1] += gij; H[i-1][i-1] -= fish; }
-          if(j > 0) { grad[j-1] -= gij; H[j-1][j-1] -= fish; }
-          if(i > 0 && j > 0) { H[i-1][j-1] += fish; H[j-1][i-1] += fish; }
-        }
-      }
-      //Solve H*delta = -grad via Gaussian elimination
-      vector<vector<double>> aug(M, vector<double>(M+1, 0.0));
-      for(int r = 0; r < M; r++) {
-        for(int c = 0; c < M; c++) aug[r][c] = H[r][c];
-        aug[r][M] = -grad[r];
-      }
-      for(int col = 0; col < M; col++) {
-        int piv = col;
-        for(int r = col+1; r < M; r++)
-          if(fabs(aug[r][col]) > fabs(aug[piv][col])) piv = r;
-        swap(aug[col], aug[piv]);
-        if(fabs(aug[col][col]) < 1e-12) continue;
-        double inv = 1.0 / aug[col][col];
-        for(int r = col+1; r < M; r++) {
-          double f = aug[r][col] * inv;
-          for(int c = col; c <= M; c++) aug[r][c] -= f * aug[col][c];
-        }
-      }
-      vector<double> delta(M, 0.0);
-      for(int r = M-1; r >= 0; r--) {
-        double s = aug[r][M];
-        for(int c = r+1; c < M; c++) s -= aug[r][c] * delta[c];
-        if(fabs(aug[r][r]) > 1e-12) delta[r] = s / aug[r][r];
-      }
-      double maxDelta = 0.0;
-      for(int r = 0; r < M; r++) {
-        theta[r+1] += delta[r];
-        maxDelta = max(maxDelta, fabs(delta[r]));
-      }
-      if(maxDelta < 1e-6) { converged = true; break; }
-    }
-  }
-
-  //Convert log-strength to Elo relative to bot 0
-  outElo.resize(N);
-  outStderr.resize(N, 0.0);
-  for(int i = 0; i < N; i++)
-    outElo[i] = (theta[i] - theta[0]) * eloPerStrength;
-
-  //Fisher information diagonal -> stderr
-  for(int i = 1; i < N; i++) {
-    double fish = 0.0;
-    for(int j = 0; j < N; j++) {
-      if(j == i) continue;
-      double nij = w[i][j] + w[j][i];
-      if(nij <= 0.0) continue;
-      double sigma = 1.0 / (1.0 + exp(theta[j] - theta[i]));
-      fish += nij * sigma * (1.0 - sigma);
-    }
-    if(fish > 0.0) outStderr[i] = eloPerStrength / sqrt(fish);
-  }
-  return converged;
 }
 
 int MainCmds::match(const vector<string>& args) {
@@ -496,7 +377,7 @@ int MainCmds::match(const vector<string>& args) {
     }
 
     vector<double> elo, eloStderr;
-    bool eloConverged = computeBradleyTerryElo(activeBots, pairStats, elo, eloStderr);
+    bool eloConverged = ComputeElos::computeBradleyTerryElo(activeBots, pairStats, elo, eloStderr);
 
     logger.write("");
     if(!eloConverged)
@@ -518,8 +399,8 @@ int MainCmds::match(const vector<string>& args) {
       if(total == 0) continue;
       double wins = wA + 0.5 * d;
       double lo, hi;
-      wilsonCI95(wins, (double)total, lo, hi);
-      double pval = oneTailedPValue(wins, (double)total);
+      FancyMath::wilsonCI95(wins, (double)total, lo, hi);
+      double pval = FancyMath::oneTailedPValue(wins, (double)total);
       string sig = (pval < 0.05) ? " *" : "";
       logger.write(
         "  " + kv.first.first + " vs " + kv.first.second +
