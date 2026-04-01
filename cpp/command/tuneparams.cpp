@@ -40,6 +40,12 @@ static const char* paramNames[nDims] = {
   "cpuctUtilityStdevPrior"
 };
 
+static const char* paramShortNames[nDims] = {
+  "E",
+  "Log",
+  "Stdev"
+};
+
 //Default search ranges (used when config keys are absent)
 static const double qrsDefaultMins[nDims] = {0.5,  0.05, 0.1};
 static const double qrsDefaultMaxs[nDims] = {2.0,  1.0,  0.8};
@@ -304,7 +310,7 @@ int MainCmds::tuneparams(const vector<string>& args) {
         if(computeParamCIs(tuner, vBest, qrsMins, qrsMaxs, ciLo, ciHi, clampedDims)) {
           string ciLine = "  95% CIs:";
           for(int d = 0; d < nDims; d++) {
-            ciLine += Global::strprintf(" %s=[%.4f, %.4f]", paramNames[d], ciLo[d], ciHi[d]);
+            ciLine += Global::strprintf(" %s=[%.4f, %.4f]", paramShortNames[d], ciLo[d], ciHi[d]);
             if(clampedDims[d]) ciLine += "*";
           }
           logger.write(ciLine);
