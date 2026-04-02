@@ -99,6 +99,71 @@ static bool computeParamCIs(const QRSTune::QRSTuner& tuner,
   return true;
 }
 
+//Print ASCII-art regression curve for each PUCT dimension.
+//For dimension d: fix all other dims at vBest, sweep d from -1 to +1.
+static void printRegressionCurves(const QRSTune::QRSTuner& tuner,
+                                   const vector<double>& vBest,
+                                   const double* mins, const double* maxs,
+                                   Logger& logger) {
+  const int plotW = 60;
+  const int plotH = 20;
+  double bestWinRate = tuner.model().predict(vBest.data());
+
+  for(int dim = 0; dim < nDims; dim++) {
+    vector<string> canvas(plotH, string(plotW, ' '));
+
+    int bestCol = (int)((vBest[dim] + 1.0) / 2.0 * (plotW - 1) + 0.5);
+    bestCol = max(0, min(plotW - 1, bestCol));
+
+    vector<double> xSlice(vBest);
+    for(int col = 0; col < plotW; col++) {
+      double t = -1.0 + 2.0 * col / (plotW - 1);
+      xSlice[dim] = t;
+      double winRate = tuner.model().predict(xSlice.data());
+
+      int row = (int)((1.0 - winRate) * (plotH - 1) + 0.5);
+      row = max(0, min(plotH - 1, row));
+      canvas[row][col] = (col == bestCol) ? '*' : 'o';
+    }
+
+    double bestReal = qrsDimToReal(dim, vBest[dim], mins, maxs);
+    logger.write("");
+    logger.write(
+      "[Dim " + Global::intToString(dim) + "] " + paramNames[dim] +
+      "  (best QRS=" + Global::strprintf("%.3f", vBest[dim]) +
+      " -> real=" + Global::strprintf("%.3f", bestReal) +
+      ", est.winrate=" + Global::strprintf("%.3f", bestWinRate) + ")"
+    );
+
+    for(int row = 0; row < plotH; row++) {
+      string label;
+      if(row == 0)               label = "1.0 |";
+      else if(row == plotH / 2) label = "0.5 |";
+      else if(row == plotH - 1) label = "0.0 |";
+      else                       label = "    |";
+      logger.write(label + canvas[row]);
+    }
+    logger.write("    +" + string(plotW, '-'));
+
+    {
+      string line(plotW + 5, ' ');
+      const int off = 5;
+      auto place = [&](int col, const string& lbl) {
+        int pos = off + col - (int)lbl.size() / 2;
+        if(pos < 0) pos = 0;
+        for(int i = 0; i < (int)lbl.size() && pos + i < (int)line.size(); i++)
+          line[pos + i] = lbl[i];
+      };
+      place(0,          Global::strprintf("%.3f", qrsDimToReal(dim, -1.0, mins, maxs)));
+      place(plotW / 2, Global::strprintf("%.3f", qrsDimToReal(dim,  0.0, mins, maxs)));
+      place(plotW - 1, Global::strprintf("%.3f", qrsDimToReal(dim, +1.0, mins, maxs)));
+      size_t last = line.find_last_not_of(' ');
+      logger.write(line.substr(0, last + 1));
+    }
+  }
+  logger.write("");
+}
+
 int MainCmds::tuneparams(const vector<string>& args) {
   Board::initHash();
   ScoreValue::initTables();
@@ -357,6 +422,9 @@ int MainCmds::tuneparams(const vector<string>& args) {
     "QRS raw coordinates: [" + Global::doubleToString(vBest[0]) + ", " +
     Global::doubleToString(vBest[1]) + ", " + Global::doubleToString(vBest[2]) + "]"
   );
+
+  //ASCII-art regression curves (one per PUCT dimension)
+  printRegressionCurves(tuner, vBest, qrsMins, qrsMaxs, logger);
 
   //Suggested match command for verification
   {
