@@ -98,9 +98,8 @@ class QRSBuffer {
   void add(const std::vector<double>& x, double y);
 
   // Remove samples significantly below the current MAP win estimate.
-  // Samples are ranked by predicted quality so that min_keep_ retains the
-  // best samples rather than the oldest (which are typically from early
-  // uniform random exploration).
+  // The min_keep_ guard retains the oldest samples (in insertion order),
+  // preserving spatial diversity from early uniform exploration.
   void prune(const QRSModel& model);
 
   const std::vector<std::vector<double>>& xs() const { return xs_; }

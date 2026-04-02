@@ -270,7 +270,7 @@ bool QRSTune::QRSModel::computeOptimumSE(const vector<vector<double>>& xs,
   vector<double> xStar(rhs);
 
   for(int d = 0; d < D_; d++)
-    clamped[d] = (xStar[d] < -1.0 || xStar[d] > 1.0);
+    clamped[d] = (fabs(xStar[d]) >= 1.0 - 1e-9);
 
   // Compute M^{-1} column by column
   vector<vector<double>> Minv(D_, vector<double>(D_, 0.0));
@@ -342,43 +342,24 @@ void QRSTune::QRSBuffer::add(const vector<double>& x, double y) {
 
 // Confidence-based pruning: drop samples whose predicted win rate
 // is more than prune_margin_ below the best predicted win rate.
-// Samples are ranked so that min_keep_ retains the highest-quality
-// samples (not just the oldest).
+// The min_keep_ guard retains the oldest samples (in insertion order),
+// preserving spatial diversity from early uniform exploration.
 void QRSTune::QRSBuffer::prune(const QRSModel& model) {
   int N = (int)xs_.size();
   if(N <= min_keep_ * 2) return;
 
-  // Score all samples and find best predicted win rate
-  vector<pair<double, int>> scored(N);  // (predicted winrate, original index)
   double bestPrediction = 0.0;
+  vector<double> preds(N);
   for(int i = 0; i < N; i++) {
-    double p = model.predict(xs_[i].data());
-    scored[i] = {p, i};
-    if(p > bestPrediction) bestPrediction = p;
+    preds[i] = model.predict(xs_[i].data());
+    if(preds[i] > bestPrediction) bestPrediction = preds[i];
   }
   double threshold = bestPrediction - prune_margin_;
 
-  // Sort by descending predicted quality so min_keep_ retains the best
-  sort(scored.begin(), scored.end(),
-    [](const pair<double,int>& a, const pair<double,int>& b) {
-      return a.first > b.first;
-    });
-
-  // Mark samples to keep: above threshold, or among top min_keep_
-  vector<bool> keep(N, false);
-  int kept = 0;
-  for(auto& entry : scored) {
-    if(entry.first >= threshold || kept < min_keep_) {
-      keep[entry.second] = true;
-      kept++;
-    }
-  }
-
-  // Rebuild in original order to preserve temporal structure
   vector<vector<double>> newXs;
   vector<double> newYs;
   for(int i = 0; i < N; i++) {
-    if(keep[i]) {
+    if(preds[i] >= threshold || (int)newXs.size() < min_keep_) {
       newXs.push_back(std::move(xs_[i]));
       newYs.push_back(ys_[i]);
     }
