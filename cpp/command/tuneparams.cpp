@@ -271,6 +271,10 @@ int MainCmds::tuneparams(const vector<string>& args) {
   uint64_t qrsSeed = seedRand.nextUInt64();
   QRSTune::QRSTuner tuner(nDims, qrsSeed, numTrials);
 
+  bool verbose = cfg.contains("verbose") ? cfg.getBool("verbose") : false;
+  if(verbose)
+    tuner.setLogger(&logger);
+
   const string gameSeedBase = Global::uint64ToHexString(seedRand.nextUInt64());
 
   int wins = 0, losses = 0, draws = 0;

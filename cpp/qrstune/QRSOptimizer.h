@@ -7,6 +7,8 @@
 #include <random>
 #include <vector>
 
+class Logger;
+
 namespace QRSTune {
 
 // ============================================================
@@ -67,8 +69,13 @@ class QRSModel {
   // The solution is clamped to [-1,+1]^D.
   void mapOptimum(double* out_x) const;
 
+  // Returns true if any fitted quadratic coefficient is non-negative (convex),
+  // indicating the fit is unreliable due to noise.
+  bool hasConvexDim() const;
+
   int dims()     const { return D_; }
   int features() const { return F_; }
+  const std::vector<double>& beta() const { return beta_; }
 
   // Compute standard errors of the MAP optimum x* via the delta method.
   // Rebuilds the Fisher information matrix from xs at current beta, inverts
@@ -132,6 +139,8 @@ class QRSTuner {
   double sigma_initial_;
   double sigma_final_;
 
+  Logger* logger_;     // non-null enables verbose diagnostic logging
+
  public:
   // D            : number of dimensions
   // seed         : RNG seed for reproducibility
@@ -160,6 +169,9 @@ class QRSTuner {
 
   // Estimated win probability at the MAP optimum
   double bestWinProb() const;
+
+  // Enable diagnostic logging (refits, pruning, sample coords).
+  void setLogger(Logger* logger);
 
   int trialCount()   const { return trial_count_; }
   int dims()         const { return D_; }
