@@ -694,4 +694,27 @@ void QRSTune::runTests() {
     testAssert(buffer.size() < 60);
     testAssert(buffer.size() >= 5);  // min_keep
   }
+
+  // Test QRSTuner convergence with stochastic outcomes in a 1D quadratic
+  // landscape centered at x* = 0.35.
+  {
+    const double trueOpt = 0.35;
+    const int numTrials = 500;
+    mt19937_64 outcomeRng(99);
+    uniform_real_distribution<double> uni01(0.0, 1.0);
+
+    QRSTuner tuner(1, /*seed=*/42, numTrials,
+                   /*l2_reg=*/0.1, /*refit_every=*/10, /*prune_every=*/5,
+                   /*sigma_init=*/0.60, /*sigma_fin=*/0.20);
+    for(int trial = 0; trial < numTrials; trial++) {
+      vector<double> sample = tuner.nextSample();
+      double dx = sample[0] - trueOpt;
+      double winProb = sigmoid(2.0 - 4.0 * dx * dx);
+      double outcome = (uni01(outcomeRng) < winProb) ? 1.0 : 0.0;
+      tuner.addResult(sample, outcome);
+    }
+    vector<double> best = tuner.bestCoords();
+    testAssert(fabs(best[0] - trueOpt) < 0.15);
+    testAssert(tuner.bestWinProb() > 0.7);
+  }
 }
