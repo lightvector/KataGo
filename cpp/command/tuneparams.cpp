@@ -31,42 +31,28 @@ static void signalHandler(int signal)
   }
 }
 
-//Number of dimensions = number of PUCT params being tuned
-static const int nDims = 1;
-
-static const char* paramNames[nDims] = {
-  "cpuctExplorationLog"
+struct TuneDimension {
+  const char* name;
+  const char* shortName;
+  double defaultMin;
+  double defaultMax;
+  const char* minKey;
+  const char* maxKey;
+  double SearchParams::* field;
 };
 
-static const char* paramShortNames[nDims] = {
-  "Log"
+static const TuneDimension tuneDims[] = {
+  {"cpuctExplorationLog",       "Log",    0.05, 1.0,  "cpuctExplorationLogMin",       "cpuctExplorationLogMax",       &SearchParams::cpuctExplorationLog},
+  {"cpuctUtilityStdevPrior",    "Prior",  0.10, 0.80, "cpuctUtilityStdevPriorMin",    "cpuctUtilityStdevPriorMax",    &SearchParams::cpuctUtilityStdevPrior},
+  {"cpuctUtilityStdevPriorWeight","PriorW",0.5, 5.0,  "cpuctUtilityStdevPriorWeightMin","cpuctUtilityStdevPriorWeightMax",&SearchParams::cpuctUtilityStdevPriorWeight},
 };
-
-//Default search ranges (used when config keys are absent)
-static const double qrsDefaultMins[nDims] = {0.05};
-static const double qrsDefaultMaxs[nDims] = {1.0};
-
-//Config keys for per-dimension search ranges
-static const char* rangeMinKeys[nDims] = {
-  "cpuctExplorationLogMin"
-};
-static const char* rangeMaxKeys[nDims] = {
-  "cpuctExplorationLogMax"
-};
+static const int nDims = sizeof(tuneDims) / sizeof(tuneDims[0]);
 
 //Map QRS-Tune normalized coordinate x in [-1,+1] to real PUCT value.
 static double qrsDimToReal(int dim, double x, const double* mins, const double* maxs) {
   double center = (mins[dim] + maxs[dim]) * 0.5;
   double radius = (maxs[dim] - mins[dim]) * 0.5;
   return center + x * radius;
-}
-
-static void qrsToPUCT(
-  const vector<double>& x,
-  double& cpuctExplorationLog,
-  const double* mins, const double* maxs
-) {
-  cpuctExplorationLog = qrsDimToReal(0, x[0], mins, maxs);
 }
 
 static const double Z_95 = 1.96;
@@ -121,7 +107,7 @@ static void printRegressionCurves(const QRSTune::QRSTuner& tuner,
     double bestReal = qrsDimToReal(dim, vBest[dim], mins, maxs);
     logger.write("");
     logger.write(
-      "[Dim " + Global::intToString(dim) + "] " + paramNames[dim] +
+      "[Dim " + Global::intToString(dim) + "] " + tuneDims[dim].name +
       "  (best QRS=" + Global::strprintf("%.3f", vBest[dim]) +
       " -> real=" + Global::strprintf("%.3f", bestReal) +
       ", est.winrate=" + Global::strprintf("%.3f", bestWinRate) + ")"
@@ -201,20 +187,25 @@ int MainCmds::tuneparams(const vector<string>& args) {
   //Search ranges (configurable; defaults preserve prior behaviour)
   double qrsMins[nDims], qrsMaxs[nDims];
   for(int d = 0; d < nDims; d++) {
-    qrsMins[d] = cfg.contains(rangeMinKeys[d])
-                    ? cfg.getDouble(rangeMinKeys[d], -1e9, 1e9)
-                    : qrsDefaultMins[d];
-    qrsMaxs[d] = cfg.contains(rangeMaxKeys[d])
-                    ? cfg.getDouble(rangeMaxKeys[d], -1e9, 1e9)
-                    : qrsDefaultMaxs[d];
+    qrsMins[d] = cfg.contains(tuneDims[d].minKey)
+                    ? cfg.getDouble(tuneDims[d].minKey, -1e9, 1e9)
+                    : tuneDims[d].defaultMin;
+    qrsMaxs[d] = cfg.contains(tuneDims[d].maxKey)
+                    ? cfg.getDouble(tuneDims[d].maxKey, -1e9, 1e9)
+                    : tuneDims[d].defaultMax;
     if(qrsMins[d] >= qrsMaxs[d])
       throw StringError(
-        string("tune-params: ") + rangeMinKeys[d] + " must be < " + rangeMaxKeys[d]);
+        string("tune-params: ") + tuneDims[d].minKey + " must be < " + tuneDims[d].maxKey);
   }
-  logger.write(
-    "QRS ranges: cpuctExplorationLog=[" +
-    Global::strprintf("%.4f", qrsMins[0]) + "," + Global::strprintf("%.4f", qrsMaxs[0]) + "]"
-  );
+  {
+    string rangeStr;
+    for(int d = 0; d < nDims; d++) {
+      if(d > 0) rangeStr += ", ";
+      rangeStr += string(tuneDims[d].name) + "=[" +
+        Global::strprintf("%.4f", qrsMins[d]) + "," + Global::strprintf("%.4f", qrsMaxs[d]) + "]";
+    }
+    logger.write("QRS ranges: " + rangeStr);
+  }
 
   //Load search params for both bots
   vector<SearchParams> paramss = Setup::loadParams(cfg, Setup::SETUP_FOR_MATCH);
@@ -274,11 +265,9 @@ int MainCmds::tuneparams(const vector<string>& args) {
   for(int trial = 0; trial < numTrials; trial++) {
     vector<double> sample = tuner.nextSample();
 
-    double cpuctExplorationLog;
-    qrsToPUCT(sample, cpuctExplorationLog, qrsMins, qrsMaxs);
-
     SearchParams expParams = paramss[1];
-    expParams.cpuctExplorationLog = cpuctExplorationLog;
+    for(int d = 0; d < nDims; d++)
+      expParams.*(tuneDims[d].field) = qrsDimToReal(d, sample[d], qrsMins, qrsMaxs);
 
     //Alternate colors to remove first-move advantage bias
     bool expIsBlack = (trial % 2 == 0);
@@ -363,12 +352,12 @@ int MainCmds::tuneparams(const vector<string>& args) {
         bool clampedDims[nDims];
         if(computeParamCIs(tuner, vBest, qrsMins, qrsMaxs, ciLo, ciHi, clampedDims)) {
           for(int d = 0; d < nDims; d++) {
-            paramStr += Global::strprintf(" %s=[%.4f, %.4f]", paramShortNames[d], ciLo[d], ciHi[d]);
+            paramStr += Global::strprintf(" %s=[%.4f, %.4f]", tuneDims[d].shortName, ciLo[d], ciHi[d]);
             if(clampedDims[d]) paramStr += "*";
           }
         } else {
           for(int d = 0; d < nDims; d++)
-            paramStr += Global::strprintf(" %s=%.4f", paramShortNames[d], qrsDimToReal(d, vBest[d], qrsMins, qrsMaxs));
+            paramStr += Global::strprintf(" %s=%.4f", tuneDims[d].shortName, qrsDimToReal(d, vBest[d], qrsMins, qrsMaxs));
         }
         logger.write(Global::strprintf(
           "[%d%%] %d/%d | W=%d L=%d D=%d |%s | ETA %s",
@@ -380,8 +369,6 @@ int MainCmds::tuneparams(const vector<string>& args) {
 
   //Final result
   vector<double> vBest = tuner.bestCoords();
-  double bestLog;
-  qrsToPUCT(vBest, bestLog, qrsMins, qrsMaxs);
 
   logger.write("");
   logger.write("=== tune-params Results ===");
@@ -401,28 +388,32 @@ int MainCmds::tuneparams(const vector<string>& args) {
       if(hasCIs) {
         string warn = clampedDims[d] ? "  [boundary - CI may be unreliable]" : "";
         logger.write(Global::strprintf("Best %-25s = %.4f  95%%CI [%.4f, %.4f]%s",
-          paramNames[d], bestReal, ciLo[d], ciHi[d], warn.c_str()));
+          tuneDims[d].name, bestReal, ciLo[d], ciHi[d], warn.c_str()));
       } else {
         logger.write(Global::strprintf("Best %-25s = %.4f  (CI unavailable)",
-          paramNames[d], bestReal));
+          tuneDims[d].name, bestReal));
       }
     }
   }
-  logger.write(
-    "QRS raw coordinates: [" + Global::doubleToString(vBest[0]) + "]"
-  );
+  {
+    string rawStr;
+    for(int d = 0; d < nDims; d++) {
+      if(d > 0) rawStr += ", ";
+      rawStr += Global::doubleToString(vBest[d]);
+    }
+    logger.write("QRS raw coordinates: [" + rawStr + "]");
+  }
 
   //ASCII-art regression curves (one per PUCT dimension)
   printRegressionCurves(tuner, vBest, qrsMins, qrsMaxs, logger);
 
   //Suggested match command for verification
   {
-    string overrides = Global::strprintf(
-      "botName0=tuned,botName1=default,"
-      "cpuctExplorationLog0=%.4f,"
-      "numGameThreads=8,numGamesTotal=200",
-      bestLog
-    );
+    string overrides = "botName0=tuned,botName1=default,";
+    for(int d = 0; d < nDims; d++)
+      overrides += string(tuneDims[d].name) + "0=" +
+        Global::strprintf("%.4f", qrsDimToReal(d, vBest[d], qrsMins, qrsMaxs)) + ",";
+    overrides += "numGameThreads=8,numGamesTotal=200";
     overrides += ",nnModelFile0=" + nnModelFile0 + ",nnModelFile1=" + nnModelFile1;
     logger.write("");
     logger.write("To verify, run a match of tuned (bot0) vs default (bot1):");
