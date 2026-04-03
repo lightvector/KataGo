@@ -32,30 +32,28 @@ static void signalHandler(int signal)
 }
 
 //Number of dimensions = number of PUCT params being tuned
-static const int nDims = 3;
+static const int nDims = 2;
 
 static const char* paramNames[nDims] = {
-  "cpuctExploration",
   "cpuctExplorationLog",
   "cpuctUtilityStdevPrior"
 };
 
 static const char* paramShortNames[nDims] = {
-  "E",
   "Log",
   "Stdev"
 };
 
 //Default search ranges (used when config keys are absent)
-static const double qrsDefaultMins[nDims] = {0.5,  0.05, 0.1};
-static const double qrsDefaultMaxs[nDims] = {2.0,  1.0,  0.8};
+static const double qrsDefaultMins[nDims] = {0.05, 0.1};
+static const double qrsDefaultMaxs[nDims] = {1.0,  0.8};
 
 //Config keys for per-dimension search ranges
 static const char* rangeMinKeys[nDims] = {
-  "cpuctExplorationMin", "cpuctExplorationLogMin", "cpuctUtilityStdevPriorMin"
+  "cpuctExplorationLogMin", "cpuctUtilityStdevPriorMin"
 };
 static const char* rangeMaxKeys[nDims] = {
-  "cpuctExplorationMax", "cpuctExplorationLogMax", "cpuctUtilityStdevPriorMax"
+  "cpuctExplorationLogMax", "cpuctUtilityStdevPriorMax"
 };
 
 //Map QRS-Tune normalized coordinate x in [-1,+1] to real PUCT value.
@@ -67,14 +65,12 @@ static double qrsDimToReal(int dim, double x, const double* mins, const double* 
 
 static void qrsToPUCT(
   const vector<double>& x,
-  double& cpuctExploration,
   double& cpuctExplorationLog,
   double& cpuctUtilityStdevPrior,
   const double* mins, const double* maxs
 ) {
-  cpuctExploration       = qrsDimToReal(0, x[0], mins, maxs);
-  cpuctExplorationLog    = qrsDimToReal(1, x[1], mins, maxs);
-  cpuctUtilityStdevPrior = qrsDimToReal(2, x[2], mins, maxs);
+  cpuctExplorationLog    = qrsDimToReal(0, x[0], mins, maxs);
+  cpuctUtilityStdevPrior = qrsDimToReal(1, x[1], mins, maxs);
 }
 
 static const double Z_95 = 1.96;
@@ -220,12 +216,10 @@ int MainCmds::tuneparams(const vector<string>& args) {
         string("tune-params: ") + rangeMinKeys[d] + " must be < " + rangeMaxKeys[d]);
   }
   logger.write(
-    "QRS ranges: cpuctExploration=[" +
+    "QRS ranges: cpuctExplorationLog=[" +
     Global::strprintf("%.4f", qrsMins[0]) + "," + Global::strprintf("%.4f", qrsMaxs[0]) +
-    "] cpuctExplorationLog=[" +
-    Global::strprintf("%.4f", qrsMins[1]) + "," + Global::strprintf("%.4f", qrsMaxs[1]) +
     "] cpuctUtilityStdevPrior=[" +
-    Global::strprintf("%.4f", qrsMins[2]) + "," + Global::strprintf("%.4f", qrsMaxs[2]) + "]"
+    Global::strprintf("%.4f", qrsMins[1]) + "," + Global::strprintf("%.4f", qrsMaxs[1]) + "]"
   );
 
   //Load search params for both bots
@@ -286,11 +280,10 @@ int MainCmds::tuneparams(const vector<string>& args) {
   for(int trial = 0; trial < numTrials; trial++) {
     vector<double> sample = tuner.nextSample();
 
-    double cpuctExploration, cpuctExplorationLog, cpuctUtilityStdevPrior;
-    qrsToPUCT(sample, cpuctExploration, cpuctExplorationLog, cpuctUtilityStdevPrior, qrsMins, qrsMaxs);
+    double cpuctExplorationLog, cpuctUtilityStdevPrior;
+    qrsToPUCT(sample, cpuctExplorationLog, cpuctUtilityStdevPrior, qrsMins, qrsMaxs);
 
     SearchParams expParams = paramss[1];
-    expParams.cpuctExploration       = cpuctExploration;
     expParams.cpuctExplorationLog    = cpuctExplorationLog;
     expParams.cpuctUtilityStdevPrior = cpuctUtilityStdevPrior;
 
@@ -394,8 +387,8 @@ int MainCmds::tuneparams(const vector<string>& args) {
 
   //Final result
   vector<double> vBest = tuner.bestCoords();
-  double bestE, bestLog, bestStdev;
-  qrsToPUCT(vBest, bestE, bestLog, bestStdev, qrsMins, qrsMaxs);
+  double bestLog, bestStdev;
+  qrsToPUCT(vBest, bestLog, bestStdev, qrsMins, qrsMaxs);
 
   logger.write("");
   logger.write("=== tune-params Results ===");
@@ -424,7 +417,7 @@ int MainCmds::tuneparams(const vector<string>& args) {
   }
   logger.write(
     "QRS raw coordinates: [" + Global::doubleToString(vBest[0]) + ", " +
-    Global::doubleToString(vBest[1]) + ", " + Global::doubleToString(vBest[2]) + "]"
+    Global::doubleToString(vBest[1]) + "]"
   );
 
   //ASCII-art regression curves (one per PUCT dimension)
@@ -434,9 +427,9 @@ int MainCmds::tuneparams(const vector<string>& args) {
   {
     string overrides = Global::strprintf(
       "botName0=tuned,botName1=default,"
-      "cpuctExploration0=%.4f,cpuctExplorationLog0=%.4f,cpuctUtilityStdevPrior0=%.4f,"
+      "cpuctExplorationLog0=%.4f,cpuctUtilityStdevPrior0=%.4f,"
       "numGameThreads=8,numGamesTotal=200",
-      bestE, bestLog, bestStdev
+      bestLog, bestStdev
     );
     overrides += ",nnModelFile0=" + nnModelFile0 + ",nnModelFile1=" + nnModelFile1;
     logger.write("");
