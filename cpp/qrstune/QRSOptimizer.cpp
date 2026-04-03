@@ -842,4 +842,40 @@ void QRSTune::runTests() {
     double probAtOrigin = model.predict(origin);
     testAssert(probAtBest >= probAtOrigin);
   }
+
+  // Regression test for Newton-Raphson intercept divergence on a flat 2D
+  // landscape (true winrate = 50% everywhere, so correct intercept = 0).
+  // Scans seeds until one triggers the warm-start saturation cascade.
+  {
+    const int D = 2;
+    const int numTrials = 100;
+    // Diverged intercepts are 400-500; non-diverged are < 1.
+    const double DIVERGE_THRESHOLD = 50.0;
+
+    bool diverged = false;
+    uniform_real_distribution<double> uni01(0.0, 1.0);
+
+    for(uint64_t tunerSeed = 0; tunerSeed < 20 && !diverged; tunerSeed++) {
+      mt19937_64 outcomeRng(tunerSeed * 1000 + 7);
+
+      QRSTuner tuner(D, /*seed=*/tunerSeed, numTrials,
+                     /*l2_reg=*/0.1, /*refit_every=*/10, /*prune_every=*/5,
+                     /*sigma_init=*/0.40, /*sigma_fin=*/0.05);
+
+      for(int trial = 0; trial < numTrials; trial++) {
+        vector<double> sample = tuner.nextSample();
+        double outcome = (uni01(outcomeRng) < 0.5) ? 1.0 : 0.0;
+        tuner.addResult(sample, outcome);
+      }
+
+      if(fabs(tuner.model().beta()[0]) > DIVERGE_THRESHOLD)
+        diverged = true;
+    }
+
+    // BUG: at least one seed triggers intercept divergence.
+    testAssert(diverged);
+
+    // After fix, uncomment:
+    // testAssert(!diverged);
+  }
 }
