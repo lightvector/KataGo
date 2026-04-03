@@ -163,6 +163,11 @@ void QRSTune::QRSModel::fit(const vector<vector<double>>& xs,
   int N = (int)xs.size();
   if(N < F_) return;  // underdetermined; keep prior beta = 0
 
+  // Reset to prior mean to avoid warm-start saturation cascade: a
+  // previously-extreme intercept makes w = p*(1-p) ≈ 0 for all samples,
+  // degenerating the Hessian to l2_*I and producing unbounded Newton steps.
+  fill(beta_.begin(), beta_.end(), 0.0);
+
   vector<double> phi(F_);
   vector<double> grad(F_);
   vector<vector<double>> negH(F_, vector<double>(F_));
@@ -872,10 +877,7 @@ void QRSTune::runTests() {
         diverged = true;
     }
 
-    // BUG: at least one seed triggers intercept divergence.
-    testAssert(diverged);
-
-    // After fix, uncomment:
-    // testAssert(!diverged);
+    // Fixed: no seed triggers intercept divergence after removing warm-start.
+    testAssert(!diverged);
   }
 }
