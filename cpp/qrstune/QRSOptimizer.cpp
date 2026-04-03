@@ -456,13 +456,21 @@ vector<double> QRSTune::QRSTuner::nextSample() {
       msg += Global::strprintf("%.3f", x[i]);
     }
     msg += "]";
-    logger_->write(msg);
+    pendingLogMsg_ = msg;
   }
 
   return x;
 }
 
 void QRSTune::QRSTuner::addResult(const vector<double>& x, double y) {
+  if(!pendingLogMsg_.empty() && logger_) {
+    string label;
+    if(y == 1.0)      label = "exp wins";
+    else if(y == 0.0) label = "exp loses";
+    else               label = "draw";
+    logger_->write(pendingLogMsg_ + " -> " + label);
+    pendingLogMsg_.clear();
+  }
   buffer_.add(x, y);
   trial_count_++;
 

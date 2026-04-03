@@ -140,6 +140,7 @@ class QRSTuner {
   double sigma_final_;
 
   Logger* logger_;     // non-null enables verbose diagnostic logging
+  std::string pendingLogMsg_;  // assembled in nextSample(), flushed in addResult()
 
  public:
   // D            : number of dimensions
