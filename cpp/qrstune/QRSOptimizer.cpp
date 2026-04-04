@@ -376,7 +376,10 @@ void QRSTune::QRSBuffer::add(const vector<double>& x, double y) {
 // preserving spatial diversity from early uniform exploration.
 void QRSTune::QRSBuffer::prune(const QRSModel& model) {
   int N = (int)xs_.size();
-  if(N <= min_keep_ * 2) return;
+  // Never remove more than half the buffer in one pass to avoid
+  // destabilizing the quadratic fit with a sudden data cliff.
+  int keepFloor = max(min_keep_, N / 2);
+  if(N <= keepFloor) return;
 
   double bestPrediction = 0.0;
   vector<double> preds(N);
@@ -389,7 +392,7 @@ void QRSTune::QRSBuffer::prune(const QRSModel& model) {
   vector<vector<double>> newXs;
   vector<double> newYs;
   for(int i = 0; i < N; i++) {
-    if(preds[i] >= threshold || (int)newXs.size() < min_keep_) {
+    if(preds[i] >= threshold || (int)newXs.size() < keepFloor) {
       newXs.push_back(std::move(xs_[i]));
       newYs.push_back(ys_[i]);
     }
