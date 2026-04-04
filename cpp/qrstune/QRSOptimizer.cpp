@@ -501,7 +501,7 @@ void QRSTune::QRSTuner::addResult(const vector<double>& x, double y) {
         diag += Global::strprintf("%.4f", b[1 + D_ + d]);
       }
       diag += "]";
-      diag += " convex=" + string(model_.hasConvexDim() ? "Y" : "N");
+      diag += " concave=" + string(model_.hasConvexDim() ? "N" : "Y");
       diag += " bestQRS=[";
       for(int d = 0; d < D_; d++) {
         if(d > 0) diag += ",";
