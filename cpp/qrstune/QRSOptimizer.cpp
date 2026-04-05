@@ -465,13 +465,13 @@ vector<double> QRSTune::QRSTuner::nextSample() {
   return x;
 }
 
-void QRSTune::QRSTuner::addResult(const vector<double>& x, double y) {
+void QRSTune::QRSTuner::addResult(const vector<double>& x, double y, const string& logSuffix) {
   if(!pendingLogMsg_.empty() && logger_) {
     string label;
     if(y == 1.0)      label = "exp wins";
     else if(y == 0.0) label = "exp loses";
     else               label = "draw";
-    logger_->write(pendingLogMsg_ + " -> " + label);
+    logger_->write(pendingLogMsg_ + " -> " + label + logSuffix);
     pendingLogMsg_.clear();
   }
   buffer_.add(x, y);

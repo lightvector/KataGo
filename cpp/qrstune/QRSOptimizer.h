@@ -163,7 +163,7 @@ class QRSTuner {
 
   // Record the outcome of a trial.
   // y: 1.0 = win, 0.0 = loss, 0.5 = draw
-  void addResult(const std::vector<double>& x, double y);
+  void addResult(const std::vector<double>& x, double y, const std::string& logSuffix = "");
 
   // Return current MAP optimum in [-1,+1]^D
   std::vector<double> bestCoords() const;

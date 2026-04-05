@@ -324,7 +324,7 @@ int MainCmds::tuneparams(const vector<string>& args) {
       logger.write("Warning: trial " + Global::intToString(trial) + " returned null game data");
     }
 
-    tuner.addResult(sample, outcome);
+    tuner.addResult(sample, outcome, expIsBlack ? " as black" : " as white");
 
     if(shouldStop.load())
       break;
