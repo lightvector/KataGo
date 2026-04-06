@@ -430,7 +430,7 @@ vector<double> QRSTune::QRSTuner::nextSample() {
   int F = model_.features();
   string sigmaStr;
 
-  if(buffer_.size() < F + 1) {
+  if(buffer_.size() < F + 1 || model_.hasConvexDim()) {
     // Insufficient data for reliable fit — explore uniformly
     uniform_real_distribution<double> uni(-1.0, 1.0);
     for(int i = 0; i < D_; i++) x[i] = uni(rng_);
@@ -440,11 +440,6 @@ vector<double> QRSTune::QRSTuner::nextSample() {
     model_.mapOptimum(x.data());
     double progress = (double)trial_count_ / max(1, total_trials_ - 1);
     double sigma = sigma_initial_ + progress * (sigma_final_ - sigma_initial_);
-
-    // When the fit has convex dimensions (noise-dominated), keep exploration
-    // wide to avoid premature convergence around the unreliable origin.
-    if(model_.hasConvexDim())
-      sigma = sigma_initial_;
 
     normal_distribution<double> noise(0.0, sigma);
     for(int i = 0; i < D_; i++)

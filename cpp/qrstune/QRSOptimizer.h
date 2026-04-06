@@ -157,7 +157,8 @@ class QRSTuner {
            double sigma_fin  = 0.05);
 
   // Propose next point to evaluate.
-  // During early exploration (< F samples) returns a random point.
+  // During early exploration (< F+1 samples) or when the model has convex
+  // dimensions (noise-dominated landscape), returns a uniform random point.
   // Afterwards: MAP optimum + decaying Gaussian noise clamped to [-1,+1]^D.
   std::vector<double> nextSample();
 
