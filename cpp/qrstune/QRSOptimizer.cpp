@@ -891,4 +891,86 @@ void QRSTune::runTests() {
     // Fixed: no seed triggers intercept divergence after removing warm-start.
     testAssert(!diverged);
   }
+
+  // Test convergence scaling: same 2D quadratic landscape with 100, 1000,
+  // and 10000 trials.  More trials should yield tighter standard errors
+  // and a closer estimate of the true optimum.
+  {
+    // Shared true function: score = 1.5 - 3.0*((x0-0.25)^2 + (x1+0.40)^2)
+    // Peak winrate = sigmoid(1.5) ~ 0.818, optimum at (0.25, -0.40).
+    const double trueOpt0 = 0.25;
+    const double trueOpt1 = -0.40;
+    const int D = 2;
+
+    const uint64_t tunerSeed = 77;
+    const double l2_reg = 0.1;
+    const int refit_every = 10;
+    const int prune_every = 5;
+    const double sigma_init = 0.50;
+    const double sigma_fin = 0.15;
+
+    struct TrialResult { double dist, winProb, se0, se1; };
+
+    auto runTrials = [&](int numTrials, uint64_t outcomeSeed) -> TrialResult {
+      mt19937_64 outcomeRng(outcomeSeed);
+      uniform_real_distribution<double> uni01(0.0, 1.0);
+
+      QRSTuner tuner(D, tunerSeed, numTrials,
+                     l2_reg, refit_every, prune_every,
+                     sigma_init, sigma_fin);
+      for(int trial = 0; trial < numTrials; trial++) {
+        vector<double> sample = tuner.nextSample();
+        double dx0 = sample[0] - trueOpt0;
+        double dx1 = sample[1] - trueOpt1;
+        double winProb = sigmoid(1.5 - 3.0 * (dx0 * dx0 + dx1 * dx1));
+        double outcome = (uni01(outcomeRng) < winProb) ? 1.0 : 0.0;
+        tuner.addResult(sample, outcome);
+      }
+      vector<double> best = tuner.bestCoords();
+      double dist = hypot(best[0] - trueOpt0, best[1] - trueOpt1);
+      double wp = tuner.bestWinProb();
+
+      double se[2];
+      bool clamped[2];
+      bool ok = tuner.model().computeOptimumSE(tuner.buffer().xs(), se, clamped);
+      testAssert(ok);
+
+      // True optimum should fall within the 95% CI
+      testAssert(fabs(best[0] - trueOpt0) < 1.96 * se[0]);
+      testAssert(fabs(best[1] - trueOpt1) < 1.96 * se[1]);
+
+      cout << "  Trials=" << numTrials
+           << "  best=(" << best[0] << ", " << best[1] << ")"
+           << "  dist=" << dist
+           << "  winProb=" << wp
+           << "  SE=(" << se[0] << ", " << se[1] << ")"
+           << "  95%CI_x0=[" << (best[0] - 1.96 * se[0]) << ", " << (best[0] + 1.96 * se[0]) << "]"
+           << "  95%CI_x1=[" << (best[1] - 1.96 * se[1]) << ", " << (best[1] + 1.96 * se[1]) << "]"
+           << endl;
+
+      return {dist, wp, se[0], se[1]};
+    };
+
+    cout << "Convergence scaling (2D quadratic, true optimum at (0.25, -0.40)):" << endl;
+    TrialResult small = runTrials(100, /*outcomeSeed=*/1001);
+    TrialResult med   = runTrials(1000, /*outcomeSeed=*/1002);
+    TrialResult large = runTrials(10000, /*outcomeSeed=*/1003);
+
+    // 100 trials: rough convergence
+    testAssert(small.dist < 0.30);
+    testAssert(small.winProb > 0.60);
+
+    // 1000 trials: solid convergence
+    testAssert(med.dist < 0.10);
+    testAssert(med.winProb > 0.75);
+
+    // 10000 trials: tight convergence
+    testAssert(large.dist < 0.05);
+    testAssert(large.winProb > 0.75);
+
+    testAssert(large.se0 < med.se0);
+    testAssert(med.se0 < small.se0);
+    testAssert(large.se1 < med.se1);
+    testAssert(med.se1 < small.se1);
+  }
 }
