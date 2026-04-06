@@ -156,7 +156,10 @@ url = base_server_url + "api/networks/"
 with open(model_file,"rb") as model_file_handle:
     with open(model_zip,"rb") as model_zip_handle:
         log_gamma_offset = 0
-        if network_size == "b60c320":
+        if network_size == "b40c768nbt":
+            log_gamma_offset = -2.9
+            rating_only = rating_only if rating_only is not None else 1
+        elif network_size == "b60c320":
             log_gamma_offset = -1.5
             rating_only = rating_only if rating_only is not None else 1
         elif network_size == "b28c512nbt":
