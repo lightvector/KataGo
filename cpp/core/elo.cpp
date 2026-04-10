@@ -327,6 +327,8 @@ bool ComputeElos::computeBradleyTerryElo(
         for(int r = col+1; r < M; r++)
           if(fabs(aug[r][col]) > fabs(aug[piv][col])) piv = r;
         swap(aug[col], aug[piv]);
+        //Singular column: bot has no games against others in this subproblem.
+        //Skip elimination and leave delta[col]=0 (no Elo update for this bot).
         if(fabs(aug[col][col]) < 1e-12) continue;
         double inv = 1.0 / aug[col][col];
         for(int r = col+1; r < M; r++) {
@@ -356,6 +358,9 @@ bool ComputeElos::computeBradleyTerryElo(
     outElo[i] = (theta[i] - theta[0]) * ELO_PER_LOG_GAMMA;
 
   //Fisher information diagonal -> stderr
+  //A fish of 0 means no pairwise data for this bot, so the Elo is
+  //unconstrained. Use a large sentinel value rather than 0 (which
+  //would falsely imply perfect confidence).
   for(int i = 1; i < N; i++) {
     double fish = 0.0;
     for(int j = 0; j < N; j++) {
@@ -366,6 +371,7 @@ bool ComputeElos::computeBradleyTerryElo(
       fish += nij * sigma * (1.0 - sigma);
     }
     if(fish > 0.0) outStderr[i] = ELO_PER_LOG_GAMMA / sqrt(fish);
+    else outStderr[i] = 1e18;
   }
   return converged;
 }

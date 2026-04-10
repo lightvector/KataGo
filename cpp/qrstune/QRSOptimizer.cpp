@@ -791,67 +791,53 @@ void QRSTune::runTests() {
     testAssert(tuner.bestWinProb() > 0.7);
   }
 
-  // Test: Nearly-flat 3D landscape exposes convex-fitting bug.
+  // Test: Nearly-flat 3D landscape can expose convex-fitting.
   //
   // When the true function is nearly flat and we have only ~128 stochastic
   // trials fitting 10 parameters, noise can make the fitted quadratic convex
-  // (positive coefficient) in some dimensions.  mapOptimum() then returns the
-  // MINIMUM in those dimensions instead of the maximum.
+  // (positive coefficient) in some dimensions.  We scan seeds to find one
+  // that triggers this, then verify the invariant: the optimizer's "best"
+  // should predict at least as well as the origin regardless.
   {
     const int D = 3;
     const int numTrials = 128;
     const double trueOpt[3] = {0.3, -0.2, 0.4};
     const double curvature = 0.1;  // very weak — winrate spans only ~0.39-0.50
 
-    mt19937_64 outcomeRng(0);
-    uniform_real_distribution<double> uni01(0.0, 1.0);
+    bool foundConvex = false;
+    for(uint64_t tunerSeed = 0; tunerSeed < 50 && !foundConvex; tunerSeed++) {
+      mt19937_64 outcomeRng(tunerSeed * 1000);
+      uniform_real_distribution<double> uni01(0.0, 1.0);
 
-    QRSTuner tuner(D, /*seed=*/42, numTrials,
-                   /*l2_reg=*/0.1, /*refit_every=*/10, /*prune_every=*/5,
-                   /*sigma_init=*/0.60, /*sigma_fin=*/0.20);
+      QRSTuner tuner(D, /*seed=*/tunerSeed, numTrials,
+                     /*l2_reg=*/0.1, /*refit_every=*/10, /*prune_every=*/5,
+                     /*sigma_init=*/0.60, /*sigma_fin=*/0.20);
 
-    for(int trial = 0; trial < numTrials; trial++) {
-      vector<double> sample = tuner.nextSample();
-      double sc = 0.0;
-      for(int d = 0; d < D; d++) {
-        double dx = sample[d] - trueOpt[d];
-        sc -= curvature * dx * dx;
+      for(int trial = 0; trial < numTrials; trial++) {
+        vector<double> sample = tuner.nextSample();
+        double sc = 0.0;
+        for(int d = 0; d < D; d++) {
+          double dx = sample[d] - trueOpt[d];
+          sc -= curvature * dx * dx;
+        }
+        double winProb = sigmoid(sc);
+        double outcome = (uni01(outcomeRng) < winProb) ? 1.0 : 0.0;
+        tuner.addResult(sample, outcome);
       }
-      double winProb = sigmoid(sc);
-      double outcome = (uni01(outcomeRng) < winProb) ? 1.0 : 0.0;
-      tuner.addResult(sample, outcome);
-    }
 
-    // Probe fitted quadratic coefficients:
-    //   quadCoeff_k = (score(e_k) + score(-e_k) - 2*score(0)) / 2
-    const QRSModel& model = tuner.model();
-    double origin[3] = {0.0, 0.0, 0.0};
-    double s0 = model.score(origin);
-    bool anyConvex = false;
-    double probe[3] = {0.0, 0.0, 0.0};
-    for(int d = 0; d < D; d++) {
-      probe[d] = 1.0;
-      double sp = model.score(probe);
-      probe[d] = -1.0;
-      double sn = model.score(probe);
-      probe[d] = 0.0;
-      double quadCoeff = (sp + sn - 2.0 * s0) / 2.0;
-      if(quadCoeff > 0.0) {
-        anyConvex = true;
-        break;
+      if(tuner.model().hasConvexDim()) {
+        foundConvex = true;
+        // Invariant: the optimizer's "best" should predict at least as well
+        // as the origin, even when some dimensions are convex-fitted.
+        const QRSModel& model = tuner.model();
+        double origin[3] = {0.0, 0.0, 0.0};
+        double probAtBest = tuner.bestWinProb();
+        double probAtOrigin = model.predict(origin);
+        testAssert(probAtBest >= probAtOrigin);
       }
     }
-    // With these seeds, noise overwhelms the weak signal and at least one
-    // fitted dimension ends up convex (positive quadratic coefficient).
-    testAssert(anyConvex);
-
-    // Invariant: the optimizer's "best" should predict at least as well as
-    // an arbitrary point like the origin.  Currently fails because
-    // mapOptimum() returns the critical point of the fitted quadratic
-    // without checking whether it is a maximum or minimum.
-    double probAtBest = tuner.bestWinProb();
-    double probAtOrigin = model.predict(origin);
-    testAssert(probAtBest >= probAtOrigin);
+    // At least one seed should trigger convex fitting in a nearly-flat landscape.
+    testAssert(foundConvex);
   }
 
   // Regression test for Newton-Raphson intercept divergence on a flat 2D

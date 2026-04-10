@@ -254,7 +254,7 @@ int MainCmds::tuneparams(const vector<string>& args) {
 
   const string gameSeedBase = Global::uint64ToHexString(seedRand.nextUInt64());
 
-  int wins = 0, losses = 0, draws = 0;
+  int wins = 0, losses = 0, draws = 0, nullGames = 0;
   int reportInterval = std::max(1, numTrials / 10);
   ClockTimer timer;
 
@@ -319,8 +319,16 @@ int MainCmds::tuneparams(const vector<string>& args) {
       }
       delete gameData;
     } else {
-      draws++;
+      nullGames++;
       logger.write("Warning: trial " + Global::intToString(trial) + " returned null game data");
+      //Too many null games corrupt the optimizer with noise — abort early.
+      if(nullGames * 20 > trial + 1) {
+        logger.write("Error: >5% of games returned null data (" +
+          Global::intToString(nullGames) + "/" + Global::intToString(trial + 1) +
+          "), aborting. Check model files and config.");
+        break;
+      }
+      continue;  //Do not feed null outcomes to the optimizer
     }
 
     tuner.addResult(sample, outcome, expIsBlack ? " as black" : " as white");
